@@ -25,10 +25,12 @@ npm install
 npm run validate
 ```
 
-## Current schemas (M0)
+## Current schemas (M0–M1)
 
-| Schema | File | Fixture |
-|--------|------|---------|
+| Schema | File | Example content |
+|--------|------|-----------------|
 | DungeonDefinition v1 | `content/schemas/dungeon-definition.v1.json` | `content/fixtures/dungeon_definition_v1_minimal.json` |
+| EnemyDefinition v1 (M1 minimal) | `content/schemas/enemy-definition.v1.json` | `content/enemies/training_grunt.json` |
+| WeaponDefinition v1 (M1 minimal) | `content/schemas/weapon-definition.v1.json` | `content/weapons/sword_basic.json` |
 
 Full contract reference: [docs/plan/05-DATA-CONTRACTS.md](plan/05-DATA-CONTRACTS.md).

@@ -11,6 +11,8 @@ const schemasRoot = join(contentRoot, "schemas");
 
 const SCHEMA_MAP = {
   dungeon_definition: "dungeon-definition.v1.json",
+  enemy_definition: "enemy-definition.v1.json",
+  weapon_definition: "weapon-definition.v1.json",
 };
 
 function collectJsonFiles(dir) {
@@ -28,10 +30,16 @@ function collectJsonFiles(dir) {
   return results;
 }
 
-function resolveSchemaForFixture(filePath) {
+function resolveSchemaForFile(filePath) {
   const name = relative(contentRoot, filePath).replace(/\\/g, "/");
   if (name.startsWith("fixtures/dungeon_definition")) {
-    return join(schemasRoot, SCHEMA_MAP.dungeon_definition);
+    return join(schemasRoot, "dungeon-definition.v1.json");
+  }
+  if (name.startsWith("enemies/")) {
+    return join(schemasRoot, "enemy-definition.v1.json");
+  }
+  if (name.startsWith("weapons/")) {
+    return join(schemasRoot, "weapon-definition.v1.json");
   }
   return null;
 }
@@ -54,7 +62,7 @@ const files = collectJsonFiles(contentRoot);
 let failures = 0;
 
 for (const filePath of files) {
-  const schemaPath = resolveSchemaForFixture(filePath);
+  const schemaPath = resolveSchemaForFile(filePath);
   if (!schemaPath) {
     console.warn(`SKIP (no schema): ${relative(repoRoot, filePath)}`);
     continue;

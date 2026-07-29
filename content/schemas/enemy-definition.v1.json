@@ -1,0 +1,38 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://aumbrye.dev/schemas/enemy-definition.v1.json",
+  "title": "EnemyDefinition",
+  "description": "M1 training enemy and future enemy content (minimal v1).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "name",
+    "health",
+    "poise",
+    "move_speed",
+    "attack_damage",
+    "attack_poise_damage",
+    "windup_duration",
+    "active_duration",
+    "recovery_duration",
+    "attack_range",
+    "attack_cooldown",
+    "stagger_duration"
+  ],
+  "properties": {
+    "id": { "type": "string", "minLength": 1 },
+    "name": { "type": "string", "minLength": 1 },
+    "health": { "type": "number", "exclusiveMinimum": 0 },
+    "poise": { "type": "number", "minimum": 0 },
+    "move_speed": { "type": "number", "exclusiveMinimum": 0 },
+    "attack_damage": { "type": "number", "minimum": 0 },
+    "attack_poise_damage": { "type": "number", "minimum": 0 },
+    "windup_duration": { "type": "number", "minimum": 0 },
+    "active_duration": { "type": "number", "minimum": 0 },
+    "recovery_duration": { "type": "number", "minimum": 0 },
+    "attack_range": { "type": "number", "exclusiveMinimum": 0 },
+    "attack_cooldown": { "type": "number", "minimum": 0 },
+    "stagger_duration": { "type": "number", "minimum": 0 }
+  }
+}
