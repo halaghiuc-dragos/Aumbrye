@@ -1,0 +1,53 @@
+[gd_scene format=3 uid="uid://dkik3u13xt3t0"]
+
+[ext_resource type="Script" uid="uid://ox0rajvq6ehk" path="res://scripts/player/player_movement.gd" id="1_player"]
+[ext_resource type="Script" uid="uid://xv0ymhdr43ay" path="res://scripts/camera/third_person_camera.gd" id="2_camera"]
+
+[sub_resource type="BoxMesh" id="BoxMesh_floor"]
+size = Vector3(40, 0.5, 40)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_floor"]
+size = Vector3(40, 0.5, 40)
+
+[sub_resource type="CapsuleShape3D" id="CapsuleShape3D_player"]
+radius = 0.4
+height = 1.6
+
+[sub_resource type="CapsuleMesh" id="CapsuleMesh_player"]
+radius = 0.4
+height = 1.6
+
+[node name="EmptyWorld" type="Node3D" unique_id=612116908]
+
+[node name="DirectionalLight3D" type="DirectionalLight3D" parent="." unique_id=29065351]
+transform = Transform3D(0.866025, -0.353553, 0.353553, 0, 0.707107, 0.707107, -0.5, -0.612372, 0.612372, 0, 10, 0)
+shadow_enabled = true
+
+[node name="Floor" type="StaticBody3D" parent="." unique_id=1243806760]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.25, 0)
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="Floor" unique_id=2000672242]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.03799486, -0.056992173, 0.0562346)
+mesh = SubResource("BoxMesh_floor")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Floor" unique_id=271728327]
+shape = SubResource("BoxShape3D_floor")
+
+[node name="Player" type="CharacterBody3D" parent="." unique_id=1256474540]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0)
+script = ExtResource("1_player")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Player" unique_id=1510508177]
+shape = SubResource("CapsuleShape3D_player")
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="Player" unique_id=2079128465]
+mesh = SubResource("CapsuleMesh_player")
+
+[node name="SpringArm3D" type="SpringArm3D" parent="Player" unique_id=1382618204]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.2, 0)
+spring_length = 4.0
+script = ExtResource("2_camera")
+player_path = NodePath("..")
+
+[node name="Camera3D" type="Camera3D" parent="Player/SpringArm3D" unique_id=905355116]
+current = true

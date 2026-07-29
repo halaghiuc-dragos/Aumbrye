@@ -1,0 +1,55 @@
+# Environment and secrets
+.env
+.env.local
+.env.*.local
+*.pem
+credentials.json
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDE
+.vs/
+.vscode/*
+!.vscode/extensions.json
+.idea/
+*.swp
+*.swo
+*~
+
+# Node
+node_modules/
+dist/
+.npm
+*.log
+npm-debug.log*
+
+# .NET
+bin/
+obj/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+TestResults/
+
+# Godot
+apps/game/client/.godot/
+apps/game/client/.import/
+apps/game/client/export_presets.cfg
+apps/game/client/*.translation
+
+# Docker
+docker-compose.override.yml
+
+# Build artifacts
+*.dll
+*.exe
+*.pdb
+publish/
+
+# Assets (large binaries — track via LFS or external pipeline later)
+# Uncomment when asset pipeline is defined:
+# assets/**/*.import

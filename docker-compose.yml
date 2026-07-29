@@ -1,0 +1,36 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: aumbrye-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-aumbrye}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-aumbrye_dev}
+      POSTGRES_DB: ${POSTGRES_DB:-aumbrye}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - aumbrye_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-aumbrye} -d ${POSTGRES_DB:-aumbrye}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7
+    container_name: aumbrye-redis
+    restart: unless-stopped
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - aumbrye_redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+volumes:
+  aumbrye_postgres_data:
+  aumbrye_redis_data:

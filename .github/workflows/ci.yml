@@ -1,0 +1,62 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  backend:
+    name: Backend
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: services/backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+      - name: Restore
+        run: dotnet restore Aumbrye.sln
+      - name: Build
+        run: dotnet build Aumbrye.sln --no-restore --configuration Release
+      - name: Test
+        run: dotnet test Aumbrye.sln --no-build --configuration Release --verbosity normal
+
+  web:
+    name: Web
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: apps/web/package-lock.json
+      - name: Install
+        run: npm ci
+      - name: Build
+        run: npm run build
+
+  content:
+    name: Content validation
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: scripts/validate-content
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: scripts/validate-content/package-lock.json
+      - name: Install
+        run: npm ci
+      - name: Validate fixtures
+        run: npm run validate

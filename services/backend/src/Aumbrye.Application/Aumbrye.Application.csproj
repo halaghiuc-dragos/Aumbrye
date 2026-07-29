@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>Aumbrye.Application</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Aumbrye.Domain\Aumbrye.Domain.csproj" />
+    <ProjectReference Include="..\..\..\..\packages\shared\Aumbrye.Shared.csproj" />
+    <ProjectReference Include="..\..\..\..\packages\procedural\Aumbrye.Procedural.csproj" />
+  </ItemGroup>
+
+</Project>

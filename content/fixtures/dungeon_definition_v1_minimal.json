@@ -1,0 +1,41 @@
+{
+  "schemaVersion": 1,
+  "runId": "00000000-0000-4000-8000-000000000001",
+  "seed": 123456789,
+  "biomeId": "forgotten_castle",
+  "tier": 1,
+  "playerLevelSnapshot": 1,
+  "rooms": [
+    {
+      "id": "r0",
+      "templateId": "castle_hall_a",
+      "type": "combat",
+      "transform": { "x": 0, "y": 0, "z": 0, "yaw": 0 },
+      "tags": []
+    },
+    {
+      "id": "r1",
+      "templateId": "castle_hall_b",
+      "type": "combat",
+      "transform": { "x": 20, "y": 0, "z": 0, "yaw": 0 },
+      "tags": []
+    }
+  ],
+  "edges": [
+    { "from": "r0", "to": "r1", "kind": "corridor" }
+  ],
+  "placements": {
+    "enemies": [],
+    "loot": [],
+    "puzzles": [],
+    "traps": [],
+    "secrets": [],
+    "boss": null,
+    "exit": null,
+    "entrance": "r0"
+  },
+  "budgets": {
+    "enemyThreat": 100,
+    "lootValue": 50
+  }
+}
