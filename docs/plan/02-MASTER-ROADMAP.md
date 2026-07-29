@@ -10,7 +10,7 @@
 | Phase | Name | Goal | Approx duration (solo) |
 |-------|------|------|------------------------|
 | M0 ✅ | [systems/00-SETUP-CI.md](systems/00-SETUP-CI.md) | Runnable empty pipelines | **done** |
-| [M1](phases/M1-COMBAT.md) | Combat core | Combat feels worth building the game | **in progress** |
+| M1 ✅ | [design/M1_IMPLEMENTATION_LOG.md](../design/M1_IMPLEMENTATION_LOG.md) | Combat core | Combat feels worth building the game | **done** |
 | [M2](phases/M2-VERTICAL-SLICE.md) | Vertical slice | One handcrafted dungeon + boss | 5–6 weeks |
 | [M3](phases/M3-SERVER-GENERATION.md) | Server generation | Backend owns dungeons | 5–6 weeks |
 | [M4](phases/M4-GAMEPLAY-LOOP.md) | Gameplay loop | Hub → run → upgrade → repeat | 7–8 weeks |
@@ -90,7 +90,7 @@ Each track has its own system doc. Phases pull milestones from tracks.
 | Phase | One-line exit |
 |-------|----------------|
 | M0 ✅ | Compose up + empty Godot play + CI green |
-| M1 | Skilled win vs training enemy via roll/parry/spacing |
+| M1 ✅ | Skilled win vs training enemy via roll/parry/spacing (KB/M); controls locked |
 | M2 | Hub stub → castle → boss → escape → local save |
 | M3 | Same seed → identical dungeon via API → playable in Godot |
 | M4 | 10 consecutive runs; upgrades change power |

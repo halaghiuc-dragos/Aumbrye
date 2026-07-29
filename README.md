@@ -57,9 +57,9 @@ Set `VITE_API_URL` in `.env.development` (see `.env.example` in `apps/web/`).
 
 Open `apps/game/client/project.godot` in Godot 4.7. The main scene is the combat arena (`scenes/debug/combat_arena.tscn`).
 
-**Combat arena controls:** WASD move, Shift sprint, Space jump, Ctrl dodge, LMB/RMB light/heavy, Q block, E parry, Tab lock-on, R reset duel, F1 debug overlay, F2 hitboxes.
+**Combat arena controls:** see **[docs/design/M1_CONTROLS.md](docs/design/M1_CONTROLS.md)** (locked bindings — WASD, Shift sprint, Space roll, F jump, tap Q guard, middle-mouse lock, F1/F2/F3 debug).
 
-M1 playtest notes: [docs/design/combat_tuning_m1.md](docs/design/combat_tuning_m1.md).
+Implementation status: [docs/design/M1_IMPLEMENTATION_LOG.md](docs/design/M1_IMPLEMENTATION_LOG.md).
 
 ### 5. Content validation
 

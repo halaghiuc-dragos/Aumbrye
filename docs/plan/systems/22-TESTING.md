@@ -11,6 +11,12 @@
 | Perf | Fixed camera path benchmarks per biome |
 | Soak | 10-run (M4), 100-seed gen (M3), 50-seed smoke (EA) |
 
+## M1 carry-over (deferred)
+
+| ID | Title | Notes |
+|----|-------|-------|
+| TEST-M1-GPAD | Gamepad combat arena playtest | Bindings in `project.godot`; user had no controller at M1 close. Run [M1_PLAYTEST_CHECKLIST.md](../../design/M1_PLAYTEST_CHECKLIST.md) gamepad section when hardware available. Does not block M2. |
+
 ## Minor milestones
 
 | ID | Title | Phase |

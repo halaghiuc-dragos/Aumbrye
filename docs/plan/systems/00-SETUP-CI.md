@@ -14,7 +14,7 @@ Exit gate confirmed locally:
 - `npm run dev` (apps/web) — Aumbrye title page
 - Godot **4.7** — `empty_world.tscn` runs; WASD movement + mouse look
 
-Next phase: [M1-COMBAT.md](../phases/M1-COMBAT.md).
+Next phase: [M2-VERTICAL-SLICE.md](../phases/M2-VERTICAL-SLICE.md). M1 closed: [M1_IMPLEMENTATION_LOG.md](../../design/M1_IMPLEMENTATION_LOG.md).
 
 ---
 

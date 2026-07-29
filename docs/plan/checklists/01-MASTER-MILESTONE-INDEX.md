@@ -23,25 +23,27 @@ All milestones complete. Inventory and deferred items: [systems/00-SETUP-CI.md](
 | CI-0.4 | Content CI | done |
 | DOC-0.1 | Standards + ADR-0001 | done |
 
-## M1 Combat
+## M1 Combat ✅
 
-| ID | Title |
-|----|-------|
-| MOVE-1.1 | Locomotion |
-| MOVE-1.2 | Jump/dodge |
-| CAM-1.1 | Orbit/zoom |
-| CAM-1.2 | Lock-on |
-| COMBAT-1.1 | Resources |
-| COMBAT-1.2 | Sword |
-| COMBAT-1.3 | Block |
-| COMBAT-1.4 | Parry |
-| COMBAT-1.5 | Feedback |
-| WPN-1.1 | Hitboxes |
-| ENEMY-1.1 | Training enemy |
-| ENEMY-1.2 | Hit reactions |
-| ENEMY-1.3 | Duel tuning |
-| UI-1.1 | Combat HUD |
-| DBG-1.1 | Arena |
+All milestones complete (KB/M signed off 2026-07-29). Archive: [M1_IMPLEMENTATION_LOG.md](../design/M1_IMPLEMENTATION_LOG.md). Gamepad playtest deferred.
+
+| ID | Title | Status |
+|----|-------|--------|
+| MOVE-1.1 | Locomotion | done |
+| MOVE-1.2 | Jump/dodge | done |
+| CAM-1.1 | Orbit/zoom | done |
+| CAM-1.2 | Lock-on | done |
+| COMBAT-1.1 | Resources | done |
+| COMBAT-1.2 | Sword | done |
+| COMBAT-1.3 | Block | done |
+| COMBAT-1.4 | Parry | done |
+| COMBAT-1.5 | Feedback | done |
+| WPN-1.1 | Hitboxes | done |
+| ENEMY-1.1 | Training enemy | done |
+| ENEMY-1.2 | Hit reactions | done |
+| ENEMY-1.3 | Duel tuning | done |
+| UI-1.1 | Combat HUD | done |
+| DBG-1.1 | Arena | done |
 
 ## M2 Vertical slice
 

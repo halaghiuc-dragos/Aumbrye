@@ -129,6 +129,18 @@ If two tasks compete, higher priority wins. Content volume never outranks combat
 - Data-driven enemies, items, biomes, dialogue.
 - Document public APIs and content schemas.
 
+### Rule 1 — Extend, do not replace
+
+**If something works, do not change it — only extend it.**
+
+Applies everywhere (client, backend, web, CI, content, scripts). Working behavior is frozen unless the user reports a bug or explicitly asks for a change. Add alongside; do not rewrite.
+
+### Fluid gameplay
+
+Small feel tweaks (movement during attacks, tap-vs-hold guards, debug draws) are **high priority**. Avoid clunky locks and hold-to-win inputs unless specified. See [docs/CODING.md](../CODING.md#fluid-gameplay-feel).
+
+See [docs/CODING.md](../CODING.md) for detail.
+
 ---
 
 ## EA content caps (do not exceed before ship)
@@ -171,4 +183,4 @@ Do not start `M(n+1)` feature work until `Mn` exit criteria pass. Exception: pur
 
 ## First action after plan approval
 
-**M0 is complete.** **M1 combat** is implemented; phase exit gate pending Godot playtest. Continue at [phases/M1-COMBAT.md](phases/M1-COMBAT.md). M0 inventory: [systems/00-SETUP-CI.md](systems/00-SETUP-CI.md). Do not build website features beyond a static stub until M4+.
+**M2 vertical slice** is next. **M1 closed** 2026-07-29 — [design/M1_IMPLEMENTATION_LOG.md](../design/M1_IMPLEMENTATION_LOG.md). **Controls (permanently locked):** [design/M1_CONTROLS.md](../design/M1_CONTROLS.md). Continue at [phases/M2-VERTICAL-SLICE.md](phases/M2-VERTICAL-SLICE.md). M0: [systems/00-SETUP-CI.md](systems/00-SETUP-CI.md).

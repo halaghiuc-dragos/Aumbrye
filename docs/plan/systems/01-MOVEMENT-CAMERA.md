@@ -1,11 +1,13 @@
 # System: Movement and Camera
 
+> M1 milestones **done** (2026-07-29). Controls locked: [M1_CONTROLS.md](../../design/M1_CONTROLS.md). Archive: [M1_IMPLEMENTATION_LOG.md](../../design/M1_IMPLEMENTATION_LOG.md).
+
 ## Major milestones
 
-| Major | Title | Phase |
-|-------|-------|-------|
-| MOVE-1 | Soulslike locomotion | M1 |
-| CAM-1 | Third-person camera + lock-on | M1 |
+| Major | Title | Phase | Status |
+|-------|-------|-------|--------|
+| MOVE-1 | Soulslike locomotion | M1 | ✅ |
+| CAM-1 | Third-person camera + lock-on | M1 | ✅ |
 
 ## Minor milestones
 
@@ -14,16 +16,16 @@
 | MOVE-1.1 | Locomotion base | M1 | SETUP-0.3 |
 | MOVE-1.2 | Jump + dodge/roll i-frames | M1 | MOVE-1.1 |
 | CAM-1.1 | Orbit + zoom + collision | M1 | SETUP-0.3 |
-| CAM-1.2 | Lock-on soft/hard + switch | M1 | CAM-1.1, ENEMY-1.1 |
-
-Full acceptance criteria: [phases/M1-COMBAT.md](../phases/M1-COMBAT.md).
+| CAM-1.2 | Lock-on toggle + orbit strafe | M1 | CAM-1.1, ENEMY-1.1 |
 
 ## Design constraints
 
 - Weight over snappy arcade unless talent explicitly changes it.
 - Dodge recovery must be punishable.
-- Lock-on must remain readable in cramped rooms (spring arm length clamps).
-- All tuning via named constants or `content/player/locomotion.json`.
+- **Lock-on does not change camera or mouse look.** While locked: W/S camera-relative; A/D orbit strafe at ~1.75m (`ORBIT_RADIUS` in `lock_on.gd`).
+- Space alone: backstep opposite weapon/hitbox facing (`dodge.gd`).
+- Lock-on target switch: right stick when locked (gamepad — verify under `TEST-M1-GPAD`).
+- Tuning via named constants in scripts (future: `content/player/locomotion.json`).
 
 ## Primary paths
 

@@ -10,6 +10,8 @@ signal attack_active
 @export var player_path: NodePath
 
 @onready var _mesh: MeshInstance3D = $MeshInstance3D
+@onready var _telegraph: MeshInstance3D = $TelegraphMesh
+@onready var _body_collision: CollisionShape3D = $CollisionShape3D
 
 var _data: Dictionary = {}
 var _state := State.IDLE
@@ -17,6 +19,7 @@ var _player: Node3D
 var _health: Health
 var _poise: Poise
 var _hitbox: Hitbox
+var _hurtbox: Hurtbox
 var _state_timer := 0.0
 var _cooldown := 0.0
 var _stagger_timer := 0.0
@@ -28,7 +31,8 @@ func _ready() -> void:
 	_data = ContentLoader.load_json(DATA_RELATIVE)
 	_health = get_node_or_null("Health") as Health
 	_poise = get_node_or_null("Poise") as Poise
-	_hitbox = get_node_or_null("Hitbox") as Hitbox
+	_hitbox = get_node_or_null("AttackPivot/Hitbox") as Hitbox
+	_hurtbox = get_node_or_null("Hurtbox") as Hurtbox
 	if player_path:
 		_player = get_node(player_path) as Node3D
 	if _health:
@@ -37,6 +41,9 @@ func _ready() -> void:
 	if _poise:
 		_poise.configure(_data.get("poise", 40.0))
 		_poise.poise_broken.connect(_on_poise_broken)
+	var hurtbox := get_node_or_null("Hurtbox") as Hurtbox
+	if hurtbox:
+		hurtbox.damaged.connect(_on_hurt)
 
 
 func _physics_process(delta: float) -> void:
@@ -64,6 +71,10 @@ func apply_stagger(duration: float) -> void:
 	_stagger_timer = duration
 	if _hitbox:
 		_hitbox.disable()
+	if _telegraph:
+		_telegraph.visible = false
+	if _mesh:
+		_mesh.scale = Vector3.ONE
 
 
 func _process_state(delta: float) -> void:
@@ -99,12 +110,16 @@ func _start_windup() -> void:
 	_state_timer = _data.get("windup_duration", 0.7)
 	if _mesh:
 		_mesh.scale = Vector3(1.08, 1.08, 1.08)
+	if _telegraph:
+		_telegraph.visible = true
 	attack_telegraph_started.emit()
 
 
 func _start_attack() -> void:
 	_state = State.ATTACK
 	_state_timer = _data.get("active_duration", 0.15)
+	if _telegraph:
+		_telegraph.visible = false
 	if _hitbox:
 		_hitbox.set_attack_values(
 			_data.get("attack_damage", 14.0),
@@ -128,10 +143,10 @@ func _end_attack() -> void:
 func _try_parry_check() -> void:
 	if not _player:
 		return
-	var parry := _player.get_node_or_null("Parry")
-	if parry and parry.has_method("try_parry_attack"):
-		if parry.call("try_parry_attack", self):
-			var stagger: float = parry.call("get_parry_stagger_duration")
+	var guard := _player.get_node_or_null("Guard")
+	if guard and guard.has_method("try_parry_attack"):
+		if guard.call("try_parry_attack", self):
+			var stagger: float = guard.call("get_parry_stagger_duration")
 			apply_stagger(stagger)
 
 
@@ -150,10 +165,29 @@ func _on_died() -> void:
 	_state = State.DEAD
 	if _hitbox:
 		_hitbox.disable()
+	if _telegraph:
+		_telegraph.visible = false
+	if _hurtbox:
+		_hurtbox.set_deferred("monitorable", false)
+		_hurtbox.set_deferred("monitoring", false)
+	if _body_collision:
+		_body_collision.set_deferred("disabled", true)
+	if _mesh:
+		var tween := create_tween()
+		tween.tween_property(_mesh, "scale", Vector3(0.2, 0.05, 0.2), 0.35)
+		tween.parallel().tween_property(_mesh, "position:y", -0.8, 0.35)
 
 
 func _on_poise_broken() -> void:
 	apply_stagger(_data.get("stagger_duration", 1.0))
+
+
+func _on_hurt(_info: DamageInfo) -> void:
+	if not _mesh:
+		return
+	var tween := create_tween()
+	_mesh.scale = Vector3(1.12, 1.12, 1.12)
+	tween.tween_property(_mesh, "scale", Vector3.ONE, 0.1)
 
 
 func reset_enemy() -> void:
@@ -164,6 +198,15 @@ func reset_enemy() -> void:
 	if _hitbox:
 		_hitbox.disable()
 		_hitbox.reset_swing()
+	if _telegraph:
+		_telegraph.visible = false
+	if _hurtbox:
+		_hurtbox.monitorable = true
+	if _body_collision:
+		_body_collision.disabled = false
+	if _mesh:
+		_mesh.scale = Vector3.ONE
+		_mesh.position = Vector3.ZERO
 	if _health:
 		_health.configure(_data.get("health", 80.0))
 	if _poise:

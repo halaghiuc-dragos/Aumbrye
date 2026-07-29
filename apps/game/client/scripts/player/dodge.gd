@@ -1,9 +1,12 @@
 extends Node
 
+## Dodge (Space / gamepad B) and jump (F / gamepad A). See docs/design/M1_CONTROLS.md.
+
 const JUMP_VELOCITY := 4.8
 const COYOTE_TIME := 0.12
 const JUMP_BUFFER_TIME := 0.15
 const DODGE_SPEED := 9.0
+const DODGE_BACK_SPEED := 6.0
 const DODGE_DURATION := 0.45
 const DODGE_RECOVERY := 0.35
 const DODGE_STAMINA_COST := 22.0
@@ -24,6 +27,7 @@ var _jump_buffer_timer := 0.0
 var _dodge_timer := 0.0
 var _recovery_timer := 0.0
 var _dodge_direction := Vector3.ZERO
+var _dodge_speed := DODGE_SPEED
 var _was_on_floor := false
 
 
@@ -69,6 +73,10 @@ func _handle_jump_buffer() -> void:
 		_coyote_timer = 0.0
 
 
+func locks_movement() -> bool:
+	return _recovery_timer > 0.0
+
+
 func _can_dodge() -> bool:
 	if is_dodging or _recovery_timer > 0.0:
 		return false
@@ -81,21 +89,50 @@ func _start_dodge() -> void:
 	if not _stamina.consume(DODGE_STAMINA_COST):
 		return
 	var input_dir := Input.get_vector("move_left", "move_right", "move_forward", "move_back")
-	if input_dir.length_squared() < 0.01:
-		_dodge_direction = -_body.global_transform.basis.z
+	var has_move_input := input_dir.length_squared() > 0.01
+	if has_move_input:
+		_dodge_speed = DODGE_SPEED
+		_dodge_direction = _get_camera_relative_direction(input_dir)
 	else:
-		var yaw := _body.rotation.y
-		var basis := Basis(Vector3.UP, yaw)
-		_dodge_direction = (basis * Vector3(input_dir.x, 0.0, input_dir.y)).normalized()
+		_dodge_speed = DODGE_BACK_SPEED
+		_dodge_direction = _get_attack_backstep_direction()
+	if _dodge_direction.length_squared() < 0.01:
+		_dodge_direction = _get_attack_backstep_direction()
 	is_dodging = true
 	_dodge_timer = DODGE_DURATION
 	dodge_started.emit()
 
 
+func _get_attack_backstep_direction() -> Vector3:
+	var facing := _body.get_node_or_null("Facing") as Node3D
+	if facing:
+		var back := -facing.global_transform.basis.z
+		back.y = 0.0
+		if back.length_squared() > 0.01:
+			return back.normalized()
+	var fallback := _get_facing_forward()
+	fallback.y = 0.0
+	if fallback.length_squared() > 0.01:
+		return fallback.normalized()
+	return Vector3.BACK
+
+
+func _get_camera_relative_direction(input_dir: Vector2) -> Vector3:
+	if _body.has_method("get_camera_relative_direction"):
+		return _body.call("get_camera_relative_direction", input_dir)
+	return Vector3.ZERO
+
+
+func _get_facing_forward() -> Vector3:
+	if _body.has_method("get_facing_direction"):
+		return _body.call("get_facing_direction")
+	return -_body.global_transform.basis.z
+
+
 func _process_dodge(delta: float) -> void:
 	_dodge_timer -= delta
-	_body.velocity.x = _dodge_direction.x * DODGE_SPEED
-	_body.velocity.z = _dodge_direction.z * DODGE_SPEED
+	_body.velocity.x = _dodge_direction.x * _dodge_speed
+	_body.velocity.z = _dodge_direction.z * _dodge_speed
 	var elapsed := DODGE_DURATION - _dodge_timer
 	var iframes := elapsed >= IFRAME_START and elapsed <= IFRAME_END
 	if iframes != iframes_active:
@@ -111,4 +148,5 @@ func _end_dodge() -> void:
 	iframes_active = false
 	iframes_changed.emit(false)
 	_recovery_timer = DODGE_RECOVERY
+	_dodge_speed = DODGE_SPEED
 	dodge_ended.emit()

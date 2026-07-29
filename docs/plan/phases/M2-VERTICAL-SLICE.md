@@ -2,7 +2,7 @@
 
 - **phase:** M2
 - **goal:** Playable handcrafted Forgotten Castle run with boss and local save — no server gen yet.
-- **depends_on:** M1 exit criteria
+- **depends_on:** M1 complete — [M1_IMPLEMENTATION_LOG.md](../../design/M1_IMPLEMENTATION_LOG.md)
 - **exit_criteria:**
   - [ ] Hub stub portal → castle dungeon → boss → escape → results
   - [ ] 6–8 rooms including 1 secret
