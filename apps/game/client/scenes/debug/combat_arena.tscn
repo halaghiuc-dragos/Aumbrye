@@ -1,4 +1,4 @@
-[gd_scene load_steps=8 format=3 uid="uid://carena001"]
+[gd_scene format=3 uid="uid://carena001"]
 
 [ext_resource type="PackedScene" uid="uid://cplayer001" path="res://scenes/player/player.tscn" id="1_player"]
 [ext_resource type="PackedScene" uid="uid://cenemy001" path="res://scenes/enemies/training_grunt.tscn" id="2_enemy"]

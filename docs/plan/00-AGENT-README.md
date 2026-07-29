@@ -171,4 +171,4 @@ Do not start `M(n+1)` feature work until `Mn` exit criteria pass. Exception: pur
 
 ## First action after plan approval
 
-**M0 is complete.** Implement **M1** starting at [phases/M1-COMBAT.md](phases/M1-COMBAT.md). M0 inventory: [systems/00-SETUP-CI.md](systems/00-SETUP-CI.md). Do not build website features beyond a static stub until M4+.
+**M0 is complete.** **M1 combat** is implemented; phase exit gate pending Godot playtest. Continue at [phases/M1-COMBAT.md](phases/M1-COMBAT.md). M0 inventory: [systems/00-SETUP-CI.md](systems/00-SETUP-CI.md). Do not build website features beyond a static stub until M4+.

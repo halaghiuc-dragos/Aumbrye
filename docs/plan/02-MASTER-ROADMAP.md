@@ -10,7 +10,7 @@
 | Phase | Name | Goal | Approx duration (solo) |
 |-------|------|------|------------------------|
 | M0 ✅ | [systems/00-SETUP-CI.md](systems/00-SETUP-CI.md) | Runnable empty pipelines | **done** |
-| [M1](phases/M1-COMBAT.md) | Combat core | Combat feels worth building the game | 6–7 weeks |
+| [M1](phases/M1-COMBAT.md) | Combat core | Combat feels worth building the game | **in progress** |
 | [M2](phases/M2-VERTICAL-SLICE.md) | Vertical slice | One handcrafted dungeon + boss | 5–6 weeks |
 | [M3](phases/M3-SERVER-GENERATION.md) | Server generation | Backend owns dungeons | 5–6 weeks |
 | [M4](phases/M4-GAMEPLAY-LOOP.md) | Gameplay loop | Hub → run → upgrade → repeat | 7–8 weeks |

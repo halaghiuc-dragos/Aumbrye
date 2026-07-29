@@ -55,7 +55,11 @@ Set `VITE_API_URL` in `.env.development` (see `.env.example` in `apps/web/`).
 
 ### 4. Godot client
 
-Open `apps/game/client/project.godot` in Godot 4.7. Run the combat arena (`scenes/debug/combat_arena.tscn`).
+Open `apps/game/client/project.godot` in Godot 4.7. The main scene is the combat arena (`scenes/debug/combat_arena.tscn`).
+
+**Combat arena controls:** WASD move, Shift sprint, Space jump, Ctrl dodge, LMB/RMB light/heavy, Q block, E parry, Tab lock-on, R reset duel, F1 debug overlay, F2 hitboxes.
+
+M1 playtest notes: [docs/design/combat_tuning_m1.md](docs/design/combat_tuning_m1.md).
 
 ### 5. Content validation
 
@@ -74,5 +78,6 @@ npm run validate
 
 ## Development
 
+- Remote: `https://github.com/halaghiuc-dragos/Aumbrye`
 - Default branch: `main`
 - PRs required; CI runs backend tests, web build, and content schema validation.
