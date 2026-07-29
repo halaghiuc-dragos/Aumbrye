@@ -1,0 +1,105 @@
+[gd_scene load_steps=18 format=3 uid="uid://cplayer001"]
+
+[ext_resource type="Script" path="res://scripts/player/locomotion.gd" id="1_locomotion"]
+[ext_resource type="Script" path="res://scripts/player/dodge.gd" id="2_dodge"]
+[ext_resource type="Script" path="res://scripts/combat/health.gd" id="3_health"]
+[ext_resource type="Script" path="res://scripts/combat/stamina.gd" id="4_stamina"]
+[ext_resource type="Script" path="res://scripts/combat/poise.gd" id="5_poise"]
+[ext_resource type="Script" path="res://scripts/combat/guard.gd" id="6_guard"]
+[ext_resource type="Script" path="res://scripts/combat/parry.gd" id="7_parry"]
+[ext_resource type="Script" path="res://scripts/combat/weapon_controller.gd" id="8_weapon"]
+[ext_resource type="Script" path="res://scripts/combat/hit_feedback.gd" id="9_feedback"]
+[ext_resource type="Script" path="res://scripts/combat/hitbox.gd" id="10_hitbox"]
+[ext_resource type="Script" path="res://scripts/combat/hurtbox.gd" id="11_hurtbox"]
+[ext_resource type="Script" path="res://scripts/camera/orbit_camera.gd" id="12_camera"]
+[ext_resource type="Script" path="res://scripts/camera/lock_on.gd" id="13_lockon"]
+
+[sub_resource type="CapsuleShape3D" id="CapsuleShape3D_body"]
+radius = 0.4
+height = 1.6
+
+[sub_resource type="CapsuleMesh" id="CapsuleMesh_body"]
+radius = 0.4
+height = 1.6
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_hit"]
+size = Vector3(1.2, 0.8, 1.4)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_hurt"]
+size = Vector3(0.9, 1.6, 0.9)
+
+[node name="Player" type="CharacterBody3D"]
+script = ExtResource("1_locomotion")
+camera_yaw_path = NodePath("CameraPivot")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="."]
+shape = SubResource("CapsuleShape3D_body")
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="."]
+mesh = SubResource("CapsuleMesh_body")
+
+[node name="Health" type="Node" parent="."]
+script = ExtResource("3_health")
+
+[node name="Stamina" type="Node" parent="."]
+script = ExtResource("4_stamina")
+
+[node name="Poise" type="Node" parent="."]
+script = ExtResource("5_poise")
+
+[node name="Dodge" type="Node" parent="."]
+script = ExtResource("2_dodge")
+
+[node name="Guard" type="Node" parent="."]
+script = ExtResource("6_guard")
+
+[node name="Parry" type="Node" parent="."]
+script = ExtResource("7_parry")
+
+[node name="WeaponController" type="Node" parent="."]
+script = ExtResource("8_weapon")
+hitbox_path = NodePath("../WeaponPivot/Hitbox")
+
+[node name="HitFeedback" type="Node" parent="."]
+script = ExtResource("9_feedback")
+camera_path = NodePath("CameraPivot/SpringArm3D/Camera3D")
+
+[node name="LockOn" type="Node" parent="."]
+script = ExtResource("13_lockon")
+camera_arm_path = NodePath("../CameraPivot/SpringArm3D")
+player_path = NodePath("..")
+
+[node name="CameraPivot" type="Node3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.2, 0)
+
+[node name="SpringArm3D" type="SpringArm3D" parent="CameraPivot"]
+spring_length = 4.0
+collision_mask = 1
+script = ExtResource("12_camera")
+yaw_pivot_path = NodePath("..")
+
+[node name="Camera3D" type="Camera3D" parent="CameraPivot/SpringArm3D"]
+current = true
+
+[node name="WeaponPivot" type="Node3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0.6)
+
+[node name="Hitbox" type="Area3D" parent="WeaponPivot"]
+collision_layer = 4
+collision_mask = 8
+script = ExtResource("10_hitbox")
+team = "player"
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="WeaponPivot/Hitbox"]
+shape = SubResource("BoxShape3D_hit")
+
+[node name="Hurtbox" type="Area3D" parent="."]
+collision_layer = 8
+collision_mask = 4
+script = ExtResource("11_hurtbox")
+team = "player"
+health_path = NodePath("../Health")
+poise_path = NodePath("../Poise")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Hurtbox"]
+shape = SubResource("BoxShape3D_hurt")

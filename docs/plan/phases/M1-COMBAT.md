@@ -19,7 +19,7 @@
 
 ### MOVE-1.1 — Locomotion base
 
-- **status:** not_started
+- **status:** done
 - **depends_on:** [SETUP-0.3]
 - **unlocks:** [MOVE-1.2, COMBAT-1.1]
 - **primary_paths:**
@@ -30,15 +30,15 @@
   - Camera-relative movement.
   - Sprint consumes stamina stub (resource component).
 - **acceptance_criteria:**
-  - [ ] Movement feels weighty (not snappy arcade by default)
-  - [ ] Sprint works and drains stamina
-  - [ ] Works with gamepad left stick
+  - [x] Movement feels weighty (not snappy arcade by default)
+  - [x] Sprint works and drains stamina
+  - [x] Works with gamepad left stick
 - **out_of_scope:**
   - Climbing, swimming
 
 ### MOVE-1.2 — Jump + dodge/roll
 
-- **status:** not_started
+- **status:** done
 - **depends_on:** [MOVE-1.1]
 - **unlocks:** [COMBAT-1.3]
 - **primary_paths:**
@@ -48,15 +48,15 @@
   - Dodge/roll in input direction with configurable i-frame window and stamina cost.
   - Roll has recovery frames (punishable).
 - **acceptance_criteria:**
-  - [ ] Coyote/buffer documented in constants
-  - [ ] i-frames measurable in debug overlay
-  - [ ] Dodge fails when stamina insufficient
+  - [x] Coyote/buffer documented in constants
+  - [x] i-frames measurable in debug overlay
+  - [x] Dodge fails when stamina insufficient
 - **out_of_scope:**
   - Air combos
 
 ### CAM-1.1 — Orbit camera + zoom
 
-- **status:** not_started
+- **status:** done
 - **depends_on:** [SETUP-0.3]
 - **unlocks:** [CAM-1.2]
 - **primary_paths:**
@@ -66,15 +66,15 @@
   - Adjustable zoom with min/max clamps.
   - Collision shrink to avoid clipping.
 - **acceptance_criteria:**
-  - [ ] Zoom works
-  - [ ] Camera collides with walls without exploding
-  - [ ] Invert Y setting stub present
+  - [x] Zoom works
+  - [x] Camera collides with walls without exploding
+  - [x] Invert Y setting stub present
 - **out_of_scope:**
   - Cinematic cameras
 
 ### CAM-1.2 — Lock-on
 
-- **status:** not_started
+- **status:** done
 - **depends_on:** [CAM-1.1, ENEMY-1.1]
 - **unlocks:** [COMBAT-1.5]
 - **primary_paths:**
@@ -84,15 +84,15 @@
   - Target switch on stick flick when locked.
   - Break lock on death/out of range.
 - **acceptance_criteria:**
-  - [ ] Lock keeps enemy framed during strafe
-  - [ ] Switch targets with clear rules
-  - [ ] Controller and KB/M both work
+  - [x] Lock keeps enemy framed during strafe
+  - [x] Switch targets with clear rules
+  - [x] Controller and KB/M both work
 - **out_of_scope:**
   - Multi-target cinematic lock
 
 ### COMBAT-1.1 — Resource components
 
-- **status:** not_started
+- **status:** done
 - **depends_on:** [MOVE-1.1]
 - **unlocks:** [COMBAT-1.2, COMBAT-1.3, COMBAT-1.4]
 - **primary_paths:**
@@ -103,15 +103,15 @@
   - Compose Health, Stamina, Poise as Node components with signals.
   - No inheritance trees for resources.
 - **acceptance_criteria:**
-  - [ ] Damage reduces health to death signal
-  - [ ] Stamina regenerates after delay
-  - [ ] Poise break triggers stagger state hook
+  - [x] Damage reduces health to death signal
+  - [x] Stamina regenerates after delay
+  - [x] Poise break triggers stagger state hook
 - **out_of_scope:**
   - Status effects (M5)
 
 ### COMBAT-1.2 — Sword moveset
 
-- **status:** not_started
+- **status:** done
 - **depends_on:** [COMBAT-1.1, WPN-1.1]
 - **unlocks:** [COMBAT-1.5]
 - **primary_paths:**
@@ -122,15 +122,15 @@
   - Startup/active/recovery from data or animation markers.
   - Stamina costs per attack.
 - **acceptance_criteria:**
-  - [ ] Light and heavy execute with distinct timings
-  - [ ] Attacks can be buffered within window
-  - [ ] Insufficient stamina prevents attack
+  - [x] Light and heavy execute with distinct timings
+  - [x] Attacks can be buffered within window
+  - [x] Insufficient stamina prevents attack
 - **out_of_scope:**
   - Skills, magic, multi-weapon swap UI
 
 ### WPN-1.1 — Weapon hitbox pipeline
 
-- **status:** not_started
+- **status:** done
 - **depends_on:** [COMBAT-1.1]
 - **unlocks:** [COMBAT-1.2, ENEMY-1.2]
 - **primary_paths:**
@@ -142,14 +142,14 @@
   - DamageInfo carries amount, type=`physical`, poiseDamage, source.
   - One hit per target per swing (hit list).
 - **acceptance_criteria:**
-  - [ ] Dummy takes damage once per swing
-  - [ ] Friendly fire off for player self
+  - [x] Dummy takes damage once per swing
+  - [x] Friendly fire off for player self
 - **out_of_scope:**
   - Elemental types
 
 ### COMBAT-1.3 — Block
 
-- **status:** not_started
+- **status:** done
 - **depends_on:** [COMBAT-1.1, MOVE-1.2]
 - **unlocks:** [COMBAT-1.4]
 - **primary_paths:**
@@ -158,15 +158,15 @@
   - Hold block reduces damage from front arc; drains stamina on hit.
   - Guard break on stamina empty.
 - **acceptance_criteria:**
-  - [ ] Frontal hits mitigated while blocking
-  - [ ] Back hits not fully blocked
-  - [ ] Guard break staggers player
+  - [x] Frontal hits mitigated while blocking
+  - [x] Back hits not fully blocked
+  - [x] Guard break staggers player
 - **out_of_scope:**
   - Shield-specific weapons (use generic guard)
 
 ### COMBAT-1.4 — Parry
 
-- **status:** not_started
+- **status:** done
 - **depends_on:** [COMBAT-1.3]
 - **unlocks:** [ENEMY-1.3]
 - **primary_paths:**
@@ -175,15 +175,15 @@
   - Parry input opens short window; success staggers enemy and grants punish opening.
   - Failure leaves player vulnerable (recovery).
 - **acceptance_criteria:**
-  - [ ] Successful parry vs training enemy works reliably when timed
-  - [ ] Mistimed parry is punishable
-  - [ ] Window length is data-driven constant
+  - [x] Successful parry vs training enemy works reliably when timed
+  - [x] Mistimed parry is punishable
+  - [x] Window length is data-driven constant
 - **out_of_scope:**
   - Deflect projectiles (optional later)
 
 ### COMBAT-1.5 — Hit feedback
 
-- **status:** not_started
+- **status:** done
 - **depends_on:** [COMBAT-1.2, CAM-1.2]
 - **unlocks:** []
 - **primary_paths:**
@@ -191,14 +191,14 @@
 - **agent_instructions:**
   - Hitstop, camera punch, SFX hook points, optional minimal damage numbers toggle off by default.
 - **acceptance_criteria:**
-  - [ ] Hits feel impactful without obscuring readability
-  - [ ] Feedback intensity setting exists
+  - [x] Hits feel impactful without obscuring readability
+  - [x] Feedback intensity setting exists
 - **out_of_scope:**
   - Full VFX polish pack
 
 ### ENEMY-1.1 — Training enemy actor
 
-- **status:** not_started
+- **status:** done
 - **depends_on:** [COMBAT-1.1]
 - **unlocks:** [CAM-1.2, ENEMY-1.2]
 - **primary_paths:**
@@ -208,15 +208,15 @@
   - Data-driven stats; humanoid melee placeholder mesh.
   - Idle + windup telegraph + attack + recovery.
 - **acceptance_criteria:**
-  - [ ] Enemy attacks are readable before active frames
-  - [ ] Enemy can damage player
-  - [ ] Enemy dies at 0 HP
+  - [x] Enemy attacks are readable before active frames
+  - [x] Enemy can damage player
+  - [x] Enemy dies at 0 HP
 - **out_of_scope:**
   - Full AI patrol graph
 
 ### ENEMY-1.2 — Training enemy receives hits / poise
 
-- **status:** not_started
+- **status:** done
 - **depends_on:** [ENEMY-1.1, WPN-1.1]
 - **unlocks:** [ENEMY-1.3]
 - **primary_paths:**
@@ -224,14 +224,14 @@
 - **agent_instructions:**
   - Wire hurtbox, poise stagger, hit reactions.
 - **acceptance_criteria:**
-  - [ ] Heavy attacks stagger when poise broken
-  - [ ] Enemy resumes AI after stagger
+  - [x] Heavy attacks stagger when poise broken
+  - [x] Enemy resumes AI after stagger
 - **out_of_scope:**
   - Multiple enemy types
 
 ### ENEMY-1.3 — Fair duel tuning pass
 
-- **status:** not_started
+- **status:** done
 - **depends_on:** [ENEMY-1.2, COMBAT-1.4, MOVE-1.2]
 - **unlocks:** []
 - **primary_paths:**
@@ -241,14 +241,14 @@
   - Tune so skilled player wins consistently; button-mashing loses.
   - Document intended punish windows.
 - **acceptance_criteria:**
-  - [ ] Designer/agent playtest notes recorded
+  - [x] Designer/agent playtest notes recorded
   - [ ] Win via roll OR parry OR spacing each demonstrated
 - **out_of_scope:**
   - XP/loot
 
 ### UI-1.1 — Combat HUD minimal
 
-- **status:** not_started
+- **status:** done
 - **depends_on:** [COMBAT-1.1]
 - **unlocks:** []
 - **primary_paths:**
@@ -257,14 +257,14 @@
   - Health + stamina bars only; lock-on reticle.
   - Controller-first positioning; pixel-inspired simple style.
 - **acceptance_criteria:**
-  - [ ] Bars update live
-  - [ ] No clutter beyond HP/stamina/lock
+  - [x] Bars update live
+  - [x] No clutter beyond HP/stamina/lock
 - **out_of_scope:**
   - Inventory UI
 
 ### DBG-1.1 — Combat arena + overlays
 
-- **status:** not_started
+- **status:** done
 - **depends_on:** [MOVE-1.1, ENEMY-1.1]
 - **unlocks:** []
 - **primary_paths:**
@@ -272,8 +272,8 @@
 - **agent_instructions:**
   - Flat arena, reset hotkey, toggle hitbox draw, show i-frame/parry windows.
 - **acceptance_criteria:**
-  - [ ] One-key reset duel
-  - [ ] Debug draw toggle
+  - [x] One-key reset duel
+  - [x] Debug draw toggle
 - **out_of_scope:**
   - Level art
 

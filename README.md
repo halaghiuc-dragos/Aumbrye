@@ -55,7 +55,7 @@ Set `VITE_API_URL` in `.env.development` (see `.env.example` in `apps/web/`).
 
 ### 4. Godot client
 
-Open `apps/game/client/project.godot` in Godot 4.7. Run the debug scene (`scenes/debug/empty_world.tscn`).
+Open `apps/game/client/project.godot` in Godot 4.7. Run the combat arena (`scenes/debug/combat_arena.tscn`).
 
 ### 5. Content validation
 
