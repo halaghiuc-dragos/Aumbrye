@@ -183,6 +183,16 @@
 
 ---
 
+## Inherited from M4 (deferred)
+
+| Item | M7 milestone | Notes |
+| ---- | ------------ | ----- |
+| Gamepad-only full loop | `POLISH-7.1` | Structural controller nav done in M4; feel gate manual — [MANUAL_PLAYTEST_CHECKLIST.md](../../design/MANUAL_PLAYTEST_CHECKLIST.md) |
+| Cloud save E2E (second device/session) | `STEAM-7.3` | Backend `GET/PUT /saves/current` live; multi-session verify before EA |
+| TEST-4.1 ten-run soak | Manual § M4 | Can complete during M7 polish — [m4_soak_notes.md](../../design/m4_soak_notes.md) |
+
+---
+
 ## M7 ordered work queue
 
 1. STEAM-7.1 → 7.2/7.3/7.4

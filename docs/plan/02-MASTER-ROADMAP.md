@@ -13,7 +13,7 @@
 | M1 ✅ | [design/M1_IMPLEMENTATION_LOG.md](../design/M1_IMPLEMENTATION_LOG.md) | Combat core | Combat feels worth building the game | **done** |
 | [M2](phases/M2-VERTICAL-SLICE.md) ✅ | Vertical slice | One handcrafted dungeon + boss | 5–6 weeks |
 | [M3](phases/M3-SERVER-GENERATION.md) ✅ | Server generation | Backend owns dungeons | 5–6 weeks |
-| [M4](phases/M4-GAMEPLAY-LOOP.md) | Gameplay loop | Hub → run → upgrade → repeat | 7–8 weeks |
+| M4 ✅ | [design/M4_IMPLEMENTATION_LOG.md](../design/M4_IMPLEMENTATION_LOG.md) | Gameplay loop | Hub → run → upgrade → repeat | **done** |
 | [M5](phases/M5-CONTENT-PACK-A.md) | Content pack A | 3 themes + combat depth | 9–10 weeks |
 | [M6](phases/M6-CONTENT-PACK-B.md) | Content pack B | 5 themes + meta + site | 9–10 weeks |
 | [M7](phases/M7-EA-POLISH.md) | EA polish | Steam ship | 7–8 weeks |
@@ -93,7 +93,7 @@ Each track has its own system doc. Phases pull milestones from tracks.
 | M1 ✅ | Skilled win vs training enemy via roll/parry/spacing (KB/M); controls locked |
 | M2 ✅ | Hub stub → castle → boss → escape → local save |
 | M3 ✅ | Same seed → identical dungeon via API → playable in Godot |
-| M4 | 10 consecutive runs; upgrades change power |
+| M4 ✅ | Automated loop green; manual TEST-4.1 soak open — [MANUAL_PLAYTEST_CHECKLIST.md](../design/MANUAL_PLAYTEST_CHECKLIST.md) § M4 |
 | M5 | 3 themes identifiable by look/audio; 5 weapon types |
 | M6 | 5 themes; ~8–12h content; site live; a11y baseline |
 | M7 | Steam Windows build; playtest gate; EA DoD met |

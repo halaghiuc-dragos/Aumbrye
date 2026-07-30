@@ -11,7 +11,7 @@ Use this when resuming work on Aumbrye.
 7. Run relevant tests / play checks.
 8. Mark milestone done in the phase file.
 9. If phase exit criteria complete, stop and summarize for human review before next phase.
-10. Never start website polish before M4 exit; never start theme 6+ before EA.
+10. Never start website polish before M5 content depth is stable; never start theme 6+ before EA.
 
 ## Stop conditions (ask human)
 

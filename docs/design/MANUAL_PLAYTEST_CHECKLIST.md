@@ -76,7 +76,7 @@ Historical record: [M2_IMPLEMENTATION_LOG.md](M2_IMPLEMENTATION_LOG.md).
 |----|------|--------|--------|
 | M2.deferred.external_playtest | Optional friend playtest feedback | M7 (`SHIP-7.1`) | [ ] |
 | M2.deferred.castle_art | Blockout accepted; art pass when final assets land | M5/M6 content | [ ] |
-| M2.deferred.save_json_integers | `quantity`/`x`/`y` sometimes serialize as floats; loads fine | M4 save hardening | [ ] |
+| M2.deferred.save_json_integers | `quantity`/`x`/`y` sometimes serialize as floats; loads fine | M5 `SAVE-5.1` | [ ] |
 | M2.deferred.corrupt_save_manual | Bad JSON → fresh start + starter sword (feel/UX) | M7 | [ ] |
 
 ---
@@ -117,22 +117,25 @@ These IDs match `TestContext.MANUAL_REMAINING` in the validation report.
 
 ## M4 — Gameplay loop (closed 2026-07-30)
 
-All M4 milestones implemented and covered by automated validation (`hub_m4_suite`, `progression_suite`, `inventory_suite`, backend save/loot tests). **Prerequisite:** `./scripts/run-all-validation.ps1` passes with 0 failures.
+Close record: [M4_IMPLEMENTATION_LOG.md](M4_IMPLEMENTATION_LOG.md). All M4 milestones implemented and covered by automated validation (`hub_m4_suite`, `progression_suite`, `inventory_suite`, backend save/loot tests). **Prerequisite:** `./scripts/run-all-validation.ps1` passes with 0 failures.
 
 | ID | Item | Status |
 |----|------|--------|
 | M4.automated | Full gameplay loop (hub, affixes, XP/talents, relics, inventory UX, cloud save API, economy) | [x] |
 | TEST-4.1 | Ten consecutive runs — no softlock; notes in [m4_soak_notes.md](m4_soak_notes.md) | [ ] |
-| M4.cloud_e2e | Cloud save round-trip on second device/session with API running | [ ] |
+| M4.cloud_e2e | Cloud save round-trip on second device/session with API running (also M7 `STEAM-7.3`) | [ ] |
 | M2.deferred.corrupt_save_manual | Bad JSON → fresh start + starter sword (optional spot-check) | [ ] |
 
 ### M4 carry-over → later phases
 
 | ID | Item | Target |
 |----|------|--------|
-| M4.deferred.online_runs | Wire `POST /runs` for server-generated dungeons (optional path) | M5+ |
-| M4.deferred.content_schemas | JSON schemas for NPC, quest, dialogue, relic, recipe packs | M5 |
-| M4.deferred.gamepad_loop | Gamepad-only hub → castle → escape | M7 |
+| M4.deferred.online_runs | Wire `POST /runs` for server-generated dungeons (optional path) | M5 `NET-5.1` |
+| M4.deferred.content_schemas | JSON schemas for NPC, quest, dialogue, relic, recipe packs | M5 `SCHEMA-5.1` |
+| M4.deferred.epic_affixes | Epic+ affix balance and Mythic unique tables | M5 `LOOT-5.2` |
+| M4.deferred.gamepad_loop | Gamepad-only hub → castle → escape | M7 `POLISH-7.1` |
+| M4.deferred.cloud_e2e | Live cloud save on second device/session | M7 `STEAM-7.3` |
+| M4.deferred.save_integers | Save JSON integer normalization (`quantity`/`x`/`y`) | M5 `SAVE-5.1` |
 
 ---
 

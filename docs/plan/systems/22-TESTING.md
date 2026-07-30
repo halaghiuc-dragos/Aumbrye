@@ -22,7 +22,7 @@ See [VALIDATION_PLATFORM.md](../../design/VALIDATION_PLATFORM.md) for architectu
 | M2.gamepad.full_loop | Gamepad full vertical slice | Deferred from M2 — `POLISH-7.1` |
 | M2.playtest.external | External friend playtest | Deferred from M2 — `SHIP-7.1` |
 | M7.* | Feel/UX polish (17 items) | Former M3 manual list — [MANUAL_PLAYTEST_CHECKLIST.md](../../design/MANUAL_PLAYTEST_CHECKLIST.md) § M3 carry-over → M7 |
-| M4.deferred.* | Carried from M4 close | See [M4-GAMEPLAY-LOOP.md](../phases/M4-GAMEPLAY-LOOP.md) § Deferred |
+| M4.deferred.* | Carried from M4 close | See [M4_IMPLEMENTATION_LOG.md](../../design/M4_IMPLEMENTATION_LOG.md) § Deferred |
 
 ## Minor milestones
 

@@ -82,7 +82,7 @@ All milestones complete (2026-07-30). Archive: [M3_IMPLEMENTATION_LOG.md](../../
 
 ## M4 Gameplay loop
 
-Automated validation complete (2026-07-30). Manual gate: [MANUAL_PLAYTEST_CHECKLIST.md](../../design/MANUAL_PLAYTEST_CHECKLIST.md) § M4.
+Closed 2026-07-30 — [M4_IMPLEMENTATION_LOG.md](../../design/M4_IMPLEMENTATION_LOG.md). Manual gate: [MANUAL_PLAYTEST_CHECKLIST.md](../../design/MANUAL_PLAYTEST_CHECKLIST.md) § M4.
 
 | ID | Title | Status |
 |----|-------|--------|
@@ -102,6 +102,10 @@ Automated validation complete (2026-07-30). Manual gate: [MANUAL_PLAYTEST_CHECKL
 
 | ID | Title |
 |----|-------|
+| SCHEMA-5.1 | Hub content JSON schemas | not_started |
+| NET-5.1 | Optional online `POST /runs` | not_started |
+| LOOT-5.2 | Epic+ affix expansion | not_started |
+| SAVE-5.1 | Save JSON integer normalization | not_started |
 | THEME-5.1–5.3 | Castle pass, Caverns, Swamp |
 | DMG-5.1–5.2 | Damage + status |
 | WPN-5.1–5.5 | 4 weapons + swap |

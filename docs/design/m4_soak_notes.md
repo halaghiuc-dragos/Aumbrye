@@ -1,5 +1,6 @@
 # M4 ten-run soak notes (TEST-4.1)
 
+> **Close record:** [M4_IMPLEMENTATION_LOG.md](M4_IMPLEMENTATION_LOG.md)  
 > **Manual gate** — [MANUAL_PLAYTEST_CHECKLIST.md](MANUAL_PLAYTEST_CHECKLIST.md) § M4  
 > Complete 10 consecutive hub → castle → escape runs without softlock. Log issues below.
 

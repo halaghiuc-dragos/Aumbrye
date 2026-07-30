@@ -6,7 +6,7 @@
 | M1 | ✅ complete — [design/M1_IMPLEMENTATION_LOG.md](../design/M1_IMPLEMENTATION_LOG.md) | Combat feels great |
 | M2 | ✅ complete — [M2_IMPLEMENTATION_LOG.md](../design/M2_IMPLEMENTATION_LOG.md) | One dungeon + boss |
 | M3 | ✅ complete — [M3_IMPLEMENTATION_LOG.md](../design/M3_IMPLEMENTATION_LOG.md) | Server owns gen |
-| M4 | [M4-GAMEPLAY-LOOP.md](M4-GAMEPLAY-LOOP.md) | Full loop |
+| M4 | ✅ complete — [M4_IMPLEMENTATION_LOG.md](../design/M4_IMPLEMENTATION_LOG.md) | Full loop |
 | M5 | [M5-CONTENT-PACK-A.md](M5-CONTENT-PACK-A.md) | 3 themes + depth |
 | M6 | [M6-CONTENT-PACK-B.md](M6-CONTENT-PACK-B.md) | 5 themes + meta + web |
 | M7 | [M7-EA-POLISH.md](M7-EA-POLISH.md) | Steam EA ship |

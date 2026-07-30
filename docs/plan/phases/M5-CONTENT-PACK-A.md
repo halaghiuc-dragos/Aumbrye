@@ -2,7 +2,7 @@
 
 - **phase:** M5
 - **goal:** Three distinct kingdoms + combat depth (elements, statuses, weapon archetypes).
-- **depends_on:** M4 automated validation complete (see [M4-GAMEPLAY-LOOP.md](M4-GAMEPLAY-LOOP.md) deferred table); TEST-4.1 manual soak recommended before M5 ship
+- **depends_on:** M4 closed — [M4_IMPLEMENTATION_LOG.md](../../design/M4_IMPLEMENTATION_LOG.md); TEST-4.1 manual soak recommended before M5 ship
 - **exit_criteria:**
   - [ ] Themes complete: Forgotten Castle (art pass), Crystal Caverns, Poison Swamp
   - [ ] Each theme: room kit, 4–5 enemies, miniboss, boss, puzzle, audio profile, unique items
@@ -238,19 +238,77 @@
 
 ## Inherited from M4 (deferred)
 
-| Item | M5 milestone target |
-| ---- | ------------------- |
-| NPC/quest/dialogue/relic/recipe JSON schemas | New `SCHEMA-5.x` + `validate.mjs` entries |
-| Online `POST /runs` optional dungeon path | `NET-5.x` if needed before multiplayer |
-| Epic+ affix expansion | `LOOT-5.x` / item content |
+### SCHEMA-5.1 — Hub content pack schemas
+
+- **status:** not_started
+- **depends_on:** [M4]
+- **unlocks:** []
+- **primary_paths:**
+  - `content/schemas/`
+  - `scripts/validate-content/validate.mjs`
+- **agent_instructions:**
+  - Add JSON schemas for NPC, quest, dialogue, relic, recipe, and merchant packs; wire validator (14 files currently skipped).
+- **acceptance_criteria:**
+  - [ ] `npm run validate` covers all hub content packs with 0 skips
+- **out_of_scope:**
+  - Localization pipeline
+
+### NET-5.1 — Optional online dungeon creation
+
+- **status:** not_started
+- **depends_on:** [M4, API-3.2]
+- **unlocks:** []
+- **primary_paths:**
+  - `apps/game/client/scripts/app/run_flow.gd`
+  - `services/backend/`
+- **agent_instructions:**
+  - Optional path: wire `POST /runs` for server-generated dungeons when API is available; keep `LocalProcgen` as offline default.
+- **acceptance_criteria:**
+  - [ ] Online path creates playable run when API up
+  - [ ] Offline path unchanged
+- **out_of_scope:**
+  - Removing offline procgen
+
+### LOOT-5.2 — Epic+ affix expansion
+
+- **status:** not_started
+- **depends_on:** [LOOT-4.1]
+- **unlocks:** []
+- **primary_paths:**
+  - `content/affixes/`
+  - `services/backend/` affix roller
+- **agent_instructions:**
+  - Balance Epic+ affix tables; stub or define Mythic unique rules.
+- **acceptance_criteria:**
+  - [ ] Epic items roll with correct affix counts per rarity rules
+  - [ ] Balance notes in `docs/design/`
+- **out_of_scope:**
+  - Full 80-item unique roster
+
+### SAVE-5.1 — Save JSON integer normalization
+
+- **status:** not_started
+- **depends_on:** [SAVE-4.1]
+- **unlocks:** []
+- **primary_paths:**
+  - `apps/game/client/scripts/save/local_save.gd`
+- **agent_instructions:**
+  - Serialize grid `quantity`/`x`/`y` as integers consistently (no `1.0` floats in save JSON).
+- **acceptance_criteria:**
+  - [ ] Round-trip save preserves integer types
+  - [ ] Existing saves still load
+- **out_of_scope:**
+  - Save format version bump unless required
 
 ---
 
 ## M5 ordered work queue
 
-1. DMG-5.1 → DMG-5.2
-2. THEME-5.1 parallel with WPN-5.1–5.4
-3. THEME-5.2 → BOSS-5.1 → AUDIO-5.1
-4. THEME-5.3 → BOSS-5.2
-5. WPN-5.5 + ITEM-5.1 + BAL-5.1
-6. Exit criteria
+1. SCHEMA-5.1 (unblocks content CI for hub packs)
+2. DMG-5.1 → DMG-5.2
+3. THEME-5.1 parallel with WPN-5.1–5.4
+4. THEME-5.2 → BOSS-5.1 → AUDIO-5.1
+5. THEME-5.3 → BOSS-5.2
+6. WPN-5.5 + ITEM-5.1 + LOOT-5.2 + SAVE-5.1 + BAL-5.1
+7. NET-5.1 (optional, if online runs needed before M6)
+8. Exit criteria
