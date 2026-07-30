@@ -186,9 +186,9 @@ func _build_grid() -> void:
 			_cells.append(cell)
 
 
-func _make_cell(size: int) -> PanelContainer:
+func _make_cell(cell_size: int) -> PanelContainer:
 	var cell := PanelContainer.new()
-	cell.custom_minimum_size = Vector2(size, size)
+	cell.custom_minimum_size = Vector2(cell_size, cell_size)
 	var label := Label.new()
 	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
@@ -312,7 +312,7 @@ func _update_detail() -> void:
 func _navigate(delta: Vector2i) -> void:
 	if _focus_area == FocusArea.EQUIPMENT:
 		var col := _equip_cursor % 3
-		var row := _equip_cursor / 3
+		var row := int(_equip_cursor / 3.0)
 		col = clampi(col + delta.x, 0, 2)
 		row = clampi(row + delta.y, 0, 2)
 		_equip_cursor = row * 3 + col
@@ -331,21 +331,20 @@ func _navigate(delta: Vector2i) -> void:
 
 
 func _confirm_action() -> void:
+	var inv := InventoryService.inventory
 	if _focus_area == FocusArea.EQUIPMENT:
 		var slot_name := _equip_slots[_equip_cursor]
-		InventoryService.inventory.unequip(slot_name)
+		inv.unequip(slot_name)
 		InventoryService.apply_equipment_to_player_node(get_tree().get_first_node_in_group("player"))
 		_refresh_all()
 		return
 	if _drag_index >= 0:
-		var inv := InventoryService.inventory
 		if inv.move_slot(_drag_index, _cursor.x, _cursor.y):
 			_drag_index = -1
 			_refresh_all()
 		return
 	if _selected_index < 0:
 		return
-	var inv := InventoryService.inventory
 	var slot: Dictionary = inv.slots[_selected_index]
 	var def := InventoryService.get_item_def(slot.get("itemId", ""))
 	var item_type: String = def.get("itemType", "")

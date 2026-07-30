@@ -98,21 +98,24 @@ Closed 2026-07-30 — [M4_IMPLEMENTATION_LOG.md](../../design/M4_IMPLEMENTATION_
 | FLOW-4.1 | Economy | done |
 | TEST-4.1 | 10-run soak | manual |
 
-## M5 Content A
+## M5 Content A ✅
 
-| ID | Title |
-|----|-------|
-| SCHEMA-5.1 | Hub content JSON schemas | not_started |
-| NET-5.1 | Optional online `POST /runs` | not_started |
-| LOOT-5.2 | Epic+ affix expansion | not_started |
-| SAVE-5.1 | Save JSON integer normalization | not_started |
-| THEME-5.1–5.3 | Castle pass, Caverns, Swamp |
-| DMG-5.1–5.2 | Damage + status |
-| WPN-5.1–5.5 | 4 weapons + swap |
-| AUDIO-5.1 | Audio profiles |
-| BOSS-5.1–5.2 | Theme bosses |
-| ITEM-5.1 | Items batch A |
-| BAL-5.1 | Balance pass |
+Closed 2026-07-30 — automated `m5_suite` (70 tests). Manual gate: [MANUAL_PLAYTEST_CHECKLIST.md](../../design/MANUAL_PLAYTEST_CHECKLIST.md) § M5.
+
+| ID | Title | Status |
+|----|-------|--------|
+| SCHEMA-5.1 | Hub content JSON schemas | done |
+| NET-5.1 | Optional online `POST /runs` | done |
+| LOOT-5.2 | Epic+ affix expansion | done |
+| SAVE-5.1 | Save JSON integer normalization | done |
+| THEME-5.1–5.3 | Castle pass, Caverns, Swamp | done |
+| DMG-5.1–5.2 | Damage + status | done |
+| WPN-5.1–5.5 | 4 weapons + swap | done |
+| AUDIO-5.1 | Audio profiles | done |
+| BOSS-5.1–5.2 | Theme bosses | done |
+| ITEM-5.1 | Items batch A | done |
+| BAL-5.1 | Balance pass | done |
+| M5.manual | Feel playtest (biomes, weapons, bosses, audio) | manual |
 
 ## M6 Content B
 

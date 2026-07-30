@@ -4,9 +4,9 @@ extends Control
 
 signal closed
 
-@onready var _backup_list: ItemList = $Panel/Margin/VBox/BackupList
-@onready var _status_label: Label = $Panel/Margin/VBox/StatusLabel
-@onready var _hint_label: Label = $Panel/Margin/VBox/HintLabel
+var _backup_list: ItemList
+var _status_label: Label
+var _hint_label: Label
 
 var _open := false
 
@@ -19,7 +19,12 @@ func _ready() -> void:
 
 
 func _build_ui_if_needed() -> void:
-	if has_node("Panel"):
+	if _backup_list != null:
+		return
+	if has_node("Panel/Margin/VBox/BackupList"):
+		_backup_list = $Panel/Margin/VBox/BackupList
+		_status_label = $Panel/Margin/VBox/StatusLabel
+		_hint_label = $Panel/Margin/VBox/HintLabel
 		return
 	for child in get_children():
 		child.queue_free()
@@ -32,6 +37,7 @@ func _build_ui_if_needed() -> void:
 	panel.offset_bottom = 200
 	add_child(panel)
 	var margin := MarginContainer.new()
+	margin.name = "Margin"
 	margin.add_theme_constant_override("margin_left", 16)
 	margin.add_theme_constant_override("margin_top", 16)
 	margin.add_theme_constant_override("margin_right", 16)
@@ -87,11 +93,14 @@ func _unhandled_input(event: InputEvent) -> void:
 
 
 func _refresh_backups() -> void:
+	if _backup_list == null:
+		return
 	_backup_list.clear()
 	var backups := LocalSave.list_backups()
 	if backups.is_empty():
 		_backup_list.add_item("No backups yet (autosave creates them)")
-		_status_label.text = ""
+		if _status_label:
+			_status_label.text = ""
 		return
 	for entry in backups:
 		_backup_list.add_item(
@@ -101,10 +110,13 @@ func _refresh_backups() -> void:
 				entry.get("savedAt", "?"),
 			]
 		)
-	_status_label.text = "%d backup(s) available" % backups.size()
+	if _status_label:
+		_status_label.text = "%d backup(s) available" % backups.size()
 
 
 func _restore_selected() -> void:
+	if _backup_list == null:
+		return
 	var selected := _backup_list.get_selected_items()
 	if selected.is_empty():
 		return
@@ -114,7 +126,8 @@ func _restore_selected() -> void:
 		return
 	var index: int = int(backups[row].get("index", 0))
 	if LocalSave.restore_backup(index):
-		_status_label.text = "Restored backup %d" % index
+		if _status_label:
+			_status_label.text = "Restored backup %d" % index
 		_refresh_backups()
-	else:
+	elif _status_label:
 		_status_label.text = "Restore failed"

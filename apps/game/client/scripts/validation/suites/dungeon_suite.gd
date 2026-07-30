@@ -104,12 +104,12 @@ func _test_build_pipeline() -> void:
 
 func _test_builder_wiring() -> void:
 	var start := Time.get_ticks_msec()
-	var template_count := DungeonBuilder.ROOM_SCENES.size()
+	var template_count: int = BiomeRegistry.get_room_scenes(BiomeRegistry.BIOME_CASTLE).size()
 	ctx.timed_record(
 		"dungeon.room_scene_registry",
 		get_category(),
 		template_count >= 8,
-		"%d room templates registered in DungeonBuilder" % template_count,
+		"%d room templates registered for castle biome" % template_count,
 		start,
 		"M2.dungeon.templates"
 	)

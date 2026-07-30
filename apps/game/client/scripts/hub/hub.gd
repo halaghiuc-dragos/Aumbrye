@@ -19,6 +19,7 @@ extends Node3D
 
 var _settings_ui: Control
 var _talents_ui: Control
+var _loadout_ui: Control
 
 var _near_portal := false
 var _near_arena := false
@@ -37,6 +38,7 @@ func _ready() -> void:
 	_wire_interactable(_quest_board_area, _on_quest_board_enter, _on_quest_board_exit)
 
 	_castle_menu.new_run_requested.connect(_on_castle_new_run)
+	_castle_menu.biome_run_requested.connect(_on_biome_run)
 	_castle_menu.continue_requested.connect(_on_castle_continue)
 	_castle_menu.seed_run_requested.connect(_on_castle_seed_run)
 
@@ -46,10 +48,10 @@ func _ready() -> void:
 		if npc.has_signal("shop_requested"):
 			npc.shop_requested.connect(_on_npc_shop)
 
-	_boot_save_and_services()
-	AudioDirector.stop_all(0.5)
 	_show_return_message()
 	_attach_m4_ui()
+	AudioDirector.stop_all(0.5)
+	call_deferred("_boot_save_and_services")
 
 
 func _boot_save_and_services() -> void:
@@ -59,6 +61,8 @@ func _boot_save_and_services() -> void:
 			LocalSave.load_into_services()
 		else:
 			InventoryService.inventory.add_item("castle_sword", 1)
+			InventoryService.inventory.add_item("training_greatsword", 1)
+			InventoryService.inventory.add_item("rogue_dagger", 1)
 	LocalSave.autosave()
 
 
@@ -77,9 +81,17 @@ func _attach_m4_ui() -> void:
 		_talents_ui.set_script(talents_script)
 		_talents_ui.set_anchors_preset(Control.PRESET_FULL_RECT)
 		add_child(_talents_ui)
+	var loadout_scene := load("res://scenes/ui/loadout_ui.tscn") as PackedScene
+	if loadout_scene:
+		_loadout_ui = loadout_scene.instantiate() as Control
+		add_child(_loadout_ui)
 
 
 func _unhandled_input(event: InputEvent) -> void:
+	if event.is_action_pressed("inventory") and _loadout_ui and not _any_ui_open():
+		open_loadout()
+		get_viewport().set_input_as_handled()
+		return
 	if event.is_action_pressed("pause") and _settings_ui and not _any_ui_open():
 		_settings_ui.open_settings()
 		get_viewport().set_input_as_handled()
@@ -123,6 +135,11 @@ func _process(_delta: float) -> void:
 	_update_prompt()
 
 
+func open_loadout() -> void:
+	if _loadout_ui:
+		_loadout_ui.open()
+
+
 func open_blacksmith() -> void:
 	_blacksmith_ui.open()
 
@@ -162,6 +179,7 @@ func _any_ui_open() -> bool:
 		or _quest_board_ui.is_open()
 		or (_settings_ui and _settings_ui.is_open())
 		or (_talents_ui and _talents_ui.is_open())
+		or (_loadout_ui and _loadout_ui.is_open())
 	)
 
 
@@ -197,6 +215,11 @@ func _show_return_message() -> void:
 		_message_label.text = "Welcome to Aumbrye Hub — explore the landmarks"
 
 
+func _on_biome_run(biome_id: String) -> void:
+	RunFlow.start_new_run(biome_id)
+	_refresh_hub_message()
+
+
 func _on_castle_new_run() -> void:
 	RunFlow.start_new_castle_run()
 	_refresh_hub_message()
@@ -208,7 +231,10 @@ func _on_castle_continue() -> void:
 
 
 func _on_castle_seed_run(run_seed_value: int) -> void:
-	RunFlow.start_castle_run_with_seed(run_seed_value)
+	var biome_id: String = RunFlow.DEFAULT_BIOME
+	if _castle_menu.has_method("get_selected_biome"):
+		biome_id = str(_castle_menu.get_selected_biome())
+	RunFlow.start_run_with_seed(biome_id, run_seed_value)
 	_refresh_hub_message()
 
 

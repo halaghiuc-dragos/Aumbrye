@@ -36,6 +36,28 @@ public static class RoomTemplateCatalog
         ["castle_secret"] = new(8, 8, Doors.East),
         ["castle_arena"] = new(24, 24, Doors.South | Doors.West),
         ["castle_boss"] = new(28, 28, Doors.North),
+
+        // Crystal Caverns (M5)
+        ["crystal_entrance"] = new(16, 12, Doors.South),
+        ["crystal_stairs"] = new(8, 16, Doors.North | Doors.South),
+        ["crystal_courtyard"] = new(20, 20, Doors.North | Doors.South | Doors.East | Doors.West),
+        ["crystal_hall"] = new(16, 16, Doors.East | Doors.South | Doors.West),
+        ["crystal_treasure"] = new(10, 10, Doors.North),
+        ["crystal_secret"] = new(8, 8, Doors.East),
+        ["crystal_arena"] = new(24, 24, Doors.South | Doors.West),
+        ["crystal_boss"] = new(28, 28, Doors.North),
+        ["crystal_puzzle"] = new(14, 14, Doors.North | Doors.South),
+
+        // Poison Swamp (M5)
+        ["swamp_entrance"] = new(16, 12, Doors.South),
+        ["swamp_stairs"] = new(8, 16, Doors.North | Doors.South),
+        ["swamp_courtyard"] = new(20, 20, Doors.North | Doors.South | Doors.East | Doors.West),
+        ["swamp_hall"] = new(16, 16, Doors.East | Doors.South | Doors.West),
+        ["swamp_treasure"] = new(10, 10, Doors.North),
+        ["swamp_secret"] = new(8, 8, Doors.East),
+        ["swamp_arena"] = new(24, 24, Doors.South | Doors.West),
+        ["swamp_boss"] = new(28, 28, Doors.North),
+        ["swamp_puzzle"] = new(14, 14, Doors.North | Doors.South),
     };
 
     public static RoomSpec GetRequired(string templateId) =>
@@ -63,10 +85,19 @@ public static class RoomTemplateCatalog
         return required;
     }
 
-    public static string PickTemplateForDoors(string preferredTemplateId, Doors requiredDoors)
+    public static string PickTemplateForDoors(string preferredTemplateId, Doors requiredDoors, IReadOnlyList<string>? biomeTemplates = null)
     {
         if (SupportsDoors(preferredTemplateId, requiredDoors))
             return preferredTemplateId;
+
+        if (biomeTemplates is { Count: > 0 })
+        {
+            foreach (var templateId in biomeTemplates)
+            {
+                if (SupportsDoors(templateId, requiredDoors))
+                    return templateId;
+            }
+        }
 
         foreach (var templateId in new[] { "castle_hall", "castle_arena", "castle_courtyard" })
         {
@@ -76,6 +107,10 @@ public static class RoomTemplateCatalog
 
         return "castle_courtyard";
     }
+
+    [Obsolete("Use overload with biome template list for non-castle biomes.")]
+    public static string PickTemplateForDoors(string preferredTemplateId, Doors requiredDoors) =>
+        PickTemplateForDoors(preferredTemplateId, requiredDoors, null);
 
     /// <summary>Parent→child grid step; returns required door on parent and child.</summary>
     public static (Doors ParentDoor, Doors ChildDoor) DoorsForStep(int dx, int dz)

@@ -100,6 +100,18 @@ func _apply_hurtbox_data() -> void:
 		_hurtbox.set("block_angle_deg", _data.get("block_angle_deg"))
 
 
+func _apply_mesh_tint(color: Color) -> void:
+	if _mesh == null:
+		return
+	var mat: Material = _mesh.get_surface_override_material(0)
+	if mat == null:
+		mat = StandardMaterial3D.new()
+	else:
+		mat = mat.duplicate()
+	(mat as StandardMaterial3D).albedo_color = color
+	_mesh.set_surface_override_material(0, mat)
+
+
 func is_dead() -> bool:
 	return _state == State.DEAD
 
@@ -346,7 +358,10 @@ func _start_attack() -> void:
 	if _hitbox:
 		_hitbox.set_attack_values(
 			_data.get("attack_damage", 14.0),
-			_data.get("attack_poise_damage", 12.0)
+			_data.get("attack_poise_damage", 12.0),
+			_data.get("damage_type", DamageInfo.TYPE_PHYSICAL),
+			_data.get("status_on_hit", ""),
+			int(_data.get("status_stacks_on_hit", 1))
 		)
 		_hitbox.enable()
 	attack_active.emit()

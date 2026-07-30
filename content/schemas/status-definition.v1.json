@@ -1,0 +1,20 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://aumbrye.dev/schemas/status-definition.v1.json",
+  "title": "StatusDefinition",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "name", "damageType", "tickDamage", "tickInterval"],
+  "properties": {
+    "id": { "type": "string", "minLength": 1 },
+    "name": { "type": "string", "minLength": 1 },
+    "damageType": { "type": "string", "minLength": 1 },
+    "tickDamage": { "type": "number", "minimum": 0 },
+    "tickInterval": { "type": "number", "minimum": 0.1 },
+    "maxStacks": { "type": "integer", "minimum": 1 },
+    "duration": { "type": "number", "minimum": 0 },
+    "slowMultiplier": { "type": "number", "minimum": 0, "maximum": 1 },
+    "stunDuration": { "type": "number", "minimum": 0 },
+    "iconColor": { "type": "string" }
+  }
+}

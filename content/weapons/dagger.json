@@ -1,0 +1,48 @@
+{
+  "id": "dagger",
+  "name": "Rogue Dagger",
+  "archetype": "dagger",
+  "damage_type": "physical",
+  "status_on_hit": "bleed",
+  "buffer_window": 0.25,
+  "light_attacks": [
+    {
+      "damage": 7,
+      "poise_damage": 4,
+      "stamina_cost": 6,
+      "startup": 0.08,
+      "active": 0.08,
+      "recovery": 0.12,
+      "status": "bleed"
+    },
+    {
+      "damage": 8,
+      "poise_damage": 5,
+      "stamina_cost": 7,
+      "startup": 0.09,
+      "active": 0.08,
+      "recovery": 0.14,
+      "status": "bleed"
+    },
+    {
+      "damage": 10,
+      "poise_damage": 6,
+      "stamina_cost": 9,
+      "startup": 0.1,
+      "active": 0.1,
+      "recovery": 0.16,
+      "status": "bleed",
+      "status_stacks": 2
+    }
+  ],
+  "heavy_attack": {
+    "damage": 18,
+    "poise_damage": 10,
+    "stamina_cost": 16,
+    "startup": 0.18,
+    "active": 0.12,
+    "recovery": 0.22,
+    "status": "bleed",
+    "status_stacks": 3
+  }
+}

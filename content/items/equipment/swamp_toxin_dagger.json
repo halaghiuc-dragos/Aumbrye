@@ -1,0 +1,15 @@
+{
+  "id": "swamp_toxin_dagger",
+  "name": "Swamp Toxin Dagger",
+  "itemType": "weapon",
+  "equipmentSlot": "weapon",
+  "gridWidth": 1,
+  "gridHeight": 2,
+  "stackSize": 1,
+  "weaponId": "dagger",
+  "rarity": "magic",
+  "description": "A dagger coated in caustic bog toxins.",
+  "value": 40,
+  "maxDurability": 80,
+  "stats": { "damagePercent": 4 }
+}

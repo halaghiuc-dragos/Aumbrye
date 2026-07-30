@@ -1,0 +1,11 @@
+{
+  "id": "forgotten_castle",
+  "biomeId": "forgotten_castle",
+  "ambienceFreq": 110,
+  "exploreFreq": 110,
+  "combatFreq": 130,
+  "bossFreq": 196,
+  "ambiencePath": "res://assets/audio/castle/ambience_loop.wav",
+  "bossPath": "res://assets/audio/castle/boss_theme.wav",
+  "crossfadeSeconds": 0.8
+}

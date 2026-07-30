@@ -1,0 +1,22 @@
+[gd_scene load_steps=4 format=3 uid="uid://swamp_cleanse_zone"]
+
+[ext_resource type="Script" path="res://scripts/bosses/swamp_cleanse_zone.gd" id="1_cleanse"]
+
+[sub_resource type="CylinderMesh" id="CylinderMesh_zone"]
+top_radius = 2.5
+bottom_radius = 2.5
+height = 0.08
+
+[sub_resource type="StandardMaterial3D" id="Mat_zone"]
+transparency = 1
+albedo_color = Color(0.3, 0.9, 0.4, 0.5)
+emission_enabled = true
+emission = Color(0.2, 0.8, 0.3, 1)
+shading_mode = 0
+
+[node name="SwampCleanseZone" type="Node3D"]
+script = ExtResource("1_cleanse")
+
+[node name="ZoneMesh" type="MeshInstance3D" parent="."]
+mesh = SubResource("CylinderMesh_zone")
+surface_material_override/0 = SubResource("Mat_zone")

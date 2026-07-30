@@ -1,0 +1,11 @@
+{
+  "id": "stun",
+  "name": "Stun",
+  "damageType": "physical",
+  "tickDamage": 0,
+  "tickInterval": 1.0,
+  "maxStacks": 1,
+  "duration": 1.2,
+  "stunDuration": 1.2,
+  "iconColor": "#ffee44"
+}

@@ -1,0 +1,15 @@
+{
+  "id": "guard_spear",
+  "name": "Guard Spear",
+  "itemType": "weapon",
+  "equipmentSlot": "weapon",
+  "gridWidth": 1,
+  "gridHeight": 4,
+  "stackSize": 1,
+  "weaponId": "spear",
+  "rarity": "magic",
+  "description": "A long spear suited for disciplined guards.",
+  "value": 35,
+  "maxDurability": 95,
+  "stats": { "damagePercent": 5 }
+}

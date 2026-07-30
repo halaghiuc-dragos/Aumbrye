@@ -1,0 +1,10 @@
+{
+  "id": "burn",
+  "name": "Burn",
+  "damageType": "fire",
+  "tickDamage": 3,
+  "tickInterval": 1.0,
+  "maxStacks": 3,
+  "duration": 5.0,
+  "iconColor": "#ff6622"
+}

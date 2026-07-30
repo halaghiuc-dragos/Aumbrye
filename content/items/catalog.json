@@ -8,7 +8,20 @@
     "castle_boots",
     "castle_buckler",
     "castle_ring",
-    "castle_amulet"
+    "castle_amulet",
+    "castle_crown",
+    "castle_banner",
+    "castle_chalice",
+    "crystal_shard_blade",
+    "crystal_prism_amulet",
+    "crystal_frost_ring",
+    "swamp_toxin_dagger",
+    "swamp_bog_boots",
+    "swamp_mire_charm",
+    "training_greatsword",
+    "rogue_dagger",
+    "guard_spear",
+    "hunter_bow"
   ],
   "consumables": ["health_potion"],
   "materials": ["iron_scrap", "knight_relic"]

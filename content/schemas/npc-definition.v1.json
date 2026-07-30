@@ -1,0 +1,23 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://aumbrye.dev/schemas/npc-definition.v1.json",
+  "title": "NpcDefinition",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "displayName", "interactType"],
+  "properties": {
+    "id": { "type": "string", "minLength": 1 },
+    "displayName": { "type": "string", "minLength": 1 },
+    "interactType": { "type": "string", "minLength": 1 },
+    "dialogueId": { "type": "string" },
+    "position": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "x": { "type": "number" },
+        "y": { "type": "number" },
+        "z": { "type": "number" }
+      }
+    }
+  }
+}

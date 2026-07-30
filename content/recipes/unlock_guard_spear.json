@@ -1,0 +1,8 @@
+{
+  "id": "unlock_guard_spear",
+  "type": "unlock",
+  "itemId": "guard_spear",
+  "goldCost": 120,
+  "requiredLevel": 5,
+  "unlockFlag": "theme_forgotten_castle_cleared"
+}

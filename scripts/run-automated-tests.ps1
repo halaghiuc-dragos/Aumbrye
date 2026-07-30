@@ -11,6 +11,9 @@ dotnet build "$Root/tools/procgen-cli/ProcgenCli.csproj" -c Debug
 Write-Host "`n== Unit tests (Aumbrye.UnitTests) =="
 dotnet test "$Root/services/backend/tests/Aumbrye.UnitTests/Aumbrye.UnitTests.csproj" --no-restore
 
+Write-Host "`n== Integration tests (Aumbrye.IntegrationTests) =="
+dotnet test "$Root/services/backend/tests/Aumbrye.IntegrationTests/Aumbrye.IntegrationTests.csproj" --no-restore
+
 Write-Host "`n== Content validation =="
 Push-Location "$Root/scripts/validate-content"
 if (-not (Test-Path "node_modules")) { npm install --silent }

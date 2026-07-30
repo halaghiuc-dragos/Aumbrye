@@ -1,0 +1,10 @@
+{
+  "id": "bleed",
+  "name": "Bleed",
+  "damageType": "physical",
+  "tickDamage": 2,
+  "tickInterval": 0.8,
+  "maxStacks": 5,
+  "duration": 6.0,
+  "iconColor": "#cc2233"
+}

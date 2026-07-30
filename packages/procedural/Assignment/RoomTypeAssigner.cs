@@ -34,8 +34,12 @@ public static class RoomTypeAssigner
         ["arena"] = "castle_arena",
     };
 
+    // Legacy castle defaults kept for tests referencing static map.
+
     public static RoomAssignmentResult Assign(BiomeDefinition biome, LayoutGraph graph, SeededRandom rng)
     {
+        var prefix = TemplatePrefixForBiome(biome.Id);
+        var combatPreferred = BuildCombatPreferred(prefix);
         var entranceLayoutId = graph.Nodes[0].Id;
         var distances = ComputeDistances(graph, entranceLayoutId);
         var nodesById = graph.Nodes.ToDictionary(n => n.Id, StringComparer.Ordinal);
@@ -66,6 +70,9 @@ public static class RoomTypeAssigner
                 secretLayoutId,
                 treasureLayoutId,
                 corridorLayoutId,
+                prefix,
+                combatPreferred,
+                biome,
                 ref combatIndex);
 
             assigned.Add(new AssignedRoom(node.Id, semanticId, templateId, type, tags));
@@ -99,32 +106,51 @@ public static class RoomTypeAssigner
         string? secretId,
         string treasureId,
         string corridorId,
+        string prefix,
+        Dictionary<string, string> combatPreferred,
+        BiomeDefinition biome,
         ref int combatIndex)
     {
         if (layoutId == entranceId)
-            return ("entrance", "castle_entrance", "hub", ["spawn"]);
+            return ("entrance", $"{prefix}_entrance", "hub", ["spawn"]);
 
         if (layoutId == bossId)
-            return ("boss", "castle_boss", "boss", ["exit_portal"]);
+            return ("boss", $"{prefix}_boss", "boss", ["exit_portal"]);
 
         if (secretId != null && layoutId == secretId)
-            return ("secret", "castle_secret", "secret", ["secret_room"]);
+            return ("secret", $"{prefix}_secret", "secret", ["secret_room"]);
 
         if (layoutId == treasureId)
-            return ("treasure", "castle_treasure", "treasure", []);
+            return ("treasure", $"{prefix}_treasure", "treasure", []);
 
         if (layoutId == corridorId)
-            return ("stairs", "castle_stairs", "corridor", []);
+            return ("stairs", $"{prefix}_stairs", "corridor", []);
 
         var semantic = combatIndex < CombatSemanticIds.Length
             ? CombatSemanticIds[combatIndex]
             : $"combat_{combatIndex}";
         combatIndex++;
         var requiredDoors = RequiredDoorsForNode(graph, layoutId);
-        var preferred = CombatPreferredTemplates.GetValueOrDefault(semantic, "castle_courtyard");
-        var template = PickTemplateForDoors(preferred, requiredDoors);
+        var preferred = combatPreferred.GetValueOrDefault(semantic, $"{prefix}_courtyard");
+        var template = PickTemplateForDoors(preferred, requiredDoors, biome.RoomTemplateIds);
         return (semantic, template, "combat", []);
     }
+
+    private static string TemplatePrefixForBiome(string biomeId) =>
+        biomeId switch
+        {
+            "crystal_caverns" => "crystal",
+            "poison_swamp" => "swamp",
+            _ => "castle",
+        };
+
+    private static Dictionary<string, string> BuildCombatPreferred(string prefix) =>
+        new(StringComparer.Ordinal)
+        {
+            ["courtyard"] = $"{prefix}_courtyard",
+            ["hall"] = $"{prefix}_hall",
+            ["arena"] = $"{prefix}_arena",
+        };
 
     private static string ResolveEdgeKind(
         LayoutEdge edge,

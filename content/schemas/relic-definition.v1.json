@@ -1,0 +1,18 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://aumbrye.dev/schemas/relic-definition.v1.json",
+  "title": "RelicDefinition",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "name", "description"],
+  "properties": {
+    "id": { "type": "string", "minLength": 1 },
+    "name": { "type": "string", "minLength": 1 },
+    "description": { "type": "string" },
+    "maxStacks": { "type": "integer", "minimum": 1 },
+    "stats": {
+      "type": "object",
+      "additionalProperties": { "type": "number" }
+    }
+  }
+}

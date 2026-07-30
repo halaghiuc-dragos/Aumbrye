@@ -14,6 +14,9 @@ var _collision_shape: CollisionShape3D
 var _hit_targets: Array[int] = []
 var _active := false
 var _last_overlap_count := 0
+var _damage_type := DamageInfo.TYPE_PHYSICAL
+var _status_id := ""
+var _status_stacks := 1
 
 
 func _ready() -> void:
@@ -59,9 +62,18 @@ func reset_swing() -> void:
 	_hit_targets.clear()
 
 
-func set_attack_values(damage: float, poise: float) -> void:
+func set_attack_values(
+	damage: float,
+	poise: float,
+	dmg_type: String = DamageInfo.TYPE_PHYSICAL,
+	apply_status: String = "",
+	status_stacks: int = 1
+) -> void:
 	damage_amount = damage
 	poise_damage = poise
+	_damage_type = dmg_type
+	_status_id = apply_status
+	_status_stacks = status_stacks
 
 
 func set_combat_owner(node: Node) -> void:
@@ -116,7 +128,15 @@ func _try_hit(area: Area3D) -> void:
 	var direction := Vector3.ZERO
 	if _owner_node:
 		direction = (area.global_position - _owner_node.global_position).normalized()
-	var info := DamageInfo.create(damage_amount, poise_damage, _owner_node, "physical", direction)
+	var info := DamageInfo.create(
+		damage_amount,
+		poise_damage,
+		_owner_node,
+		_damage_type,
+		direction,
+		_status_id,
+		_status_stacks
+	)
 	area.call("receive_hit", info)
 	var feedback := _owner_node.get_node_or_null("HitFeedback")
 	if feedback and feedback.has_method("on_hit"):

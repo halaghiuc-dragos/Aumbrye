@@ -49,13 +49,17 @@ theme_override_constants/separation = 10
 
 [node name="Title" type="Label" parent="MainPanel/Margin/VBox"]
 layout_mode = 2
-text = "Forgotten Castle"
+text = "Choose Dungeon"
 horizontal_alignment = 1
 theme_override_font_sizes/font_size = 24
 
+[node name="BiomeBox" type="VBoxContainer" parent="MainPanel/Margin/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 4
+
 [node name="NewButton" type="Button" parent="MainPanel/Margin/VBox"]
 layout_mode = 2
-text = "New Castle Run"
+text = "Start Run"
 
 [node name="ContinueButton" type="Button" parent="MainPanel/Margin/VBox"]
 layout_mode = 2
@@ -63,7 +67,7 @@ text = "Continue"
 
 [node name="SeedButton" type="Button" parent="MainPanel/Margin/VBox"]
 layout_mode = 2
-text = "Play on a Castle Seed"
+	text = "Play on Seed"
 
 [node name="StatusLabel" type="Label" parent="MainPanel/Margin/VBox"]
 layout_mode = 2

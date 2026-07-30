@@ -33,7 +33,7 @@ public static class LootPlacer
                 treasureRoom.SemanticId,
                 "treasure_main",
                 new Position3(0, 0, 0),
-                [new LootItem("health_potion", 2), new LootItem("iron_scrap", 3)]));
+                ThemeLootTables.GetTreasureLoot(biome.Id)));
         }
 
         var secretRoom = assignment.Rooms.FirstOrDefault(r => r.Type == "secret");
@@ -44,7 +44,7 @@ public static class LootPlacer
                 secretRoom.SemanticId,
                 "secret_vault",
                 new Position3(0, 0, 0),
-                [new LootItem("knight_relic", 1), new LootItem("health_potion", 3)]));
+                ThemeLootTables.GetSecretLoot(biome.Id)));
         }
 
         var combatRooms = assignment.Rooms
@@ -58,7 +58,7 @@ public static class LootPlacer
                 sideRoom.SemanticId,
                 $"{sideRoom.SemanticId}_side",
                 new Position3(7, 0, 6),
-                [new LootItem("iron_scrap", 2)]));
+                ThemeLootTables.GetSideLoot(biome.Id)));
         }
 
         if (combatRooms.Count > 1)
@@ -68,12 +68,12 @@ public static class LootPlacer
                 armoryRoom.SemanticId,
                 $"{armoryRoom.SemanticId}_armory",
                 new Position3(-4, 0, 4),
-                [new LootItem("castle_sword", 1)]));
+                ThemeLootTables.GetArmoryLoot(biome.Id)));
         }
 
         var corridor = assignment.Rooms.FirstOrDefault(r => r.Type == "corridor");
         if (corridor != null)
-            traps.Add(new TrapPlacement(corridor.SemanticId, "spike_trap", new Position3(0, 0, 4)));
+            traps.Add(new TrapPlacement(corridor.SemanticId, ThemeLootTables.GetCorridorTrap(biome.Id), new Position3(0, 0, 4)));
 
         if (combatRooms.Count > 0)
         {

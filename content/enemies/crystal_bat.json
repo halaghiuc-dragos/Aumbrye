@@ -1,0 +1,28 @@
+{
+  "id": "crystal_bat",
+  "name": "Crystal Bat",
+  "scene": "res://scenes/enemies/crystal_bat.tscn",
+  "threat_cost": 22,
+  "health": 55,
+  "poise": 25,
+  "move_speed": 4.5,
+  "attack_damage": 11,
+  "attack_poise_damage": 7,
+  "windup_duration": 0.75,
+  "active_duration": 0.05,
+  "recovery_duration": 1.0,
+  "attack_range": 12.0,
+  "attack_cooldown": 1.4,
+  "stagger_duration": 0.8,
+  "aggro_range": 14.0,
+  "deaggro_range": 20.0,
+  "patrol_radius": 5.0,
+  "preferred_range": 9.0,
+  "retreat_range": 5.0,
+  "projectile_speed": 13.0,
+  "enemy_type": "ranged",
+  "damage_type": "physical",
+  "resistances": {
+    "physical": 0.15
+  }
+}

@@ -73,6 +73,30 @@ function resolveSchemaForFile(filePath) {
   if (name === "fixtures/character_state_sample.v1.json") {
     return join(schemasRoot, "character-state.v1.json");
   }
+  if (name.startsWith("npcs/")) {
+    return join(schemasRoot, "npc-definition.v1.json");
+  }
+  if (name.startsWith("quests/")) {
+    return join(schemasRoot, "quest-definition.v1.json");
+  }
+  if (name.startsWith("dialogue/")) {
+    return join(schemasRoot, "dialogue-definition.v1.json");
+  }
+  if (name.startsWith("relics/")) {
+    return join(schemasRoot, "relic-definition.v1.json");
+  }
+  if (name.startsWith("recipes/")) {
+    return join(schemasRoot, "recipe-definition.v1.json");
+  }
+  if (name.startsWith("merchant/")) {
+    return join(schemasRoot, "merchant-pack.v1.json");
+  }
+  if (name.startsWith("audio_profiles/")) {
+    return join(schemasRoot, "audio-profile.v1.json");
+  }
+  if (name.startsWith("statuses/")) {
+    return join(schemasRoot, "status-definition.v1.json");
+  }
   return null;
 }
 

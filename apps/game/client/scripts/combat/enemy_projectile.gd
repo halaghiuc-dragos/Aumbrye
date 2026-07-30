@@ -14,12 +14,21 @@ func _ready() -> void:
 	_hitbox.disable()
 
 
-func launch(direction: Vector3, speed: float, damage: float, poise: float, shooter: Node) -> void:
+func launch(
+	direction: Vector3,
+	speed: float,
+	damage: float,
+	poise: float,
+	shooter: Node,
+	dmg_type: String = DamageInfo.TYPE_PHYSICAL,
+	apply_status: String = "",
+	status_stacks: int = 1
+) -> void:
 	_owner_node = shooter
 	_velocity = direction.normalized() * speed
 	_lifetime = 4.0
 	_hitbox.set_combat_owner(shooter)
-	_hitbox.set_attack_values(damage, poise)
+	_hitbox.set_attack_values(damage, poise, dmg_type, apply_status, status_stacks)
 	_hitbox.enable()
 	look_at(global_position + direction)
 

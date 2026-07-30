@@ -1,0 +1,13 @@
+{
+  "id": "swamp_bog_boots",
+  "name": "Swamp Bog Boots",
+  "itemType": "armor",
+  "equipmentSlot": "boots",
+  "gridWidth": 2,
+  "gridHeight": 2,
+  "stackSize": 1,
+  "rarity": "common",
+  "description": "Waterlogged boots that grip treacherous mire.",
+  "value": 22,
+  "stats": { "defense": 3, "moveSpeedPercent": 5, "maxHealth": 6 }
+}

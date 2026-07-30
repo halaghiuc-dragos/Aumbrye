@@ -339,12 +339,50 @@ func _read_raw_text(path: String) -> String:
 func _write_save(data: Dictionary, rotate_backups: bool = true) -> void:
 	if rotate_backups and FileAccess.file_exists(SAVE_PATH):
 		_rotate_backups()
-	_cached_state = data.duplicate(true)
+	var normalized := _normalize_save_integers(data.duplicate(true))
+	_cached_state = normalized
 	var file := FileAccess.open(SAVE_PATH, FileAccess.WRITE)
 	if not file:
 		push_warning("LocalSave: could not write %s" % SAVE_PATH)
 		return
-	file.store_string(JSON.stringify(data, "\t"))
+	file.store_string(JSON.stringify(normalized, "\t"))
+
+
+func _normalize_save_integers(data: Dictionary) -> Dictionary:
+	var inv: Variant = data.get("inventory", {})
+	if inv is Dictionary:
+		var inv_copy: Dictionary = inv.duplicate(true)
+		for dim_key in ["gridWidth", "gridHeight", "schemaVersion"]:
+			if inv_copy.has(dim_key):
+				inv_copy[dim_key] = int(inv_copy[dim_key])
+		var slots: Array = inv_copy.get("slots", [])
+		for i in slots.size():
+			if slots[i] is Dictionary:
+				slots[i] = _normalize_slot_integers(slots[i])
+		inv_copy["slots"] = slots
+		var equipped: Variant = inv_copy.get("equipped", {})
+		if equipped is Dictionary:
+			for slot_name in equipped:
+				if equipped[slot_name] is Dictionary and not equipped[slot_name].is_empty():
+					equipped[slot_name] = _normalize_slot_integers(equipped[slot_name])
+			inv_copy["equipped"] = equipped
+		data["inventory"] = inv_copy
+	if data.has("talentPointsSpent"):
+		data["talentPointsSpent"] = int(data["talentPointsSpent"])
+	var instances: Variant = data.get("itemInstances", {})
+	if instances is Dictionary:
+		for instance_id in instances:
+			if instances[instance_id] is Dictionary:
+				instances[instance_id] = _normalize_slot_integers(instances[instance_id])
+		data["itemInstances"] = instances
+	return data
+
+
+func _normalize_slot_integers(slot: Dictionary) -> Dictionary:
+	for key in ["quantity", "x", "y", "rollSeed"]:
+		if slot.has(key):
+			slot[key] = int(slot[key])
+	return slot
 
 
 func _rotate_backups() -> void:

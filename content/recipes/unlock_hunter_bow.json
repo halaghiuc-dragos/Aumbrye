@@ -1,0 +1,8 @@
+{
+  "id": "unlock_hunter_bow",
+  "type": "unlock",
+  "itemId": "hunter_bow",
+  "goldCost": 150,
+  "requiredLevel": 8,
+  "unlockFlag": "theme_crystal_caverns_cleared"
+}

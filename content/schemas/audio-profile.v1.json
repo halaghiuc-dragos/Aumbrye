@@ -1,0 +1,19 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://aumbrye.dev/schemas/audio-profile.v1.json",
+  "title": "AudioProfile",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "biomeId"],
+  "properties": {
+    "id": { "type": "string", "minLength": 1 },
+    "biomeId": { "type": "string", "minLength": 1 },
+    "ambienceFreq": { "type": "number", "minimum": 0 },
+    "exploreFreq": { "type": "number", "minimum": 0 },
+    "combatFreq": { "type": "number", "minimum": 0 },
+    "bossFreq": { "type": "number", "minimum": 0 },
+    "ambiencePath": { "type": "string" },
+    "bossPath": { "type": "string" },
+    "crossfadeSeconds": { "type": "number", "minimum": 0, "maximum": 2 }
+  }
+}

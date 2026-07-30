@@ -24,11 +24,11 @@ static func roll_instance(item_id: String, roll_seed: int = -1) -> Dictionary:
 	else:
 		rng.randomize()
 	var rarity := _pick_rarity(rng)
-	var affix_count: int = int(_rarity_rules.get(rarity, {}).get("affixCount", 0))
+	var affix_count := _roll_affix_count(rarity, rng)
 	var affixes: Array = []
 	var pool: Array = _prefixes.duplicate()
 	pool.append_array(_suffixes)
-	pool.shuffle()
+	_shuffle_with_rng(pool, rng)
 	for i in mini(affix_count, pool.size()):
 		var affix_def: Dictionary = pool[i]
 		var value := rng.randi_range(int(affix_def.get("min", 1)), int(affix_def.get("max", 3)))
@@ -69,8 +69,35 @@ static func _ensure_loaded() -> void:
 	var rules := ContentLoader.load_json(RARITY_PATH)
 	_prefixes = prefixes.get("affixes", [])
 	_suffixes = suffixes.get("affixes", [])
-	_rarity_rules = rules.get("rarities", {})
+	_rarity_rules = _parse_rarity_rules(rules)
 	_loaded = true
+
+
+static func _parse_rarity_rules(rules: Dictionary) -> Dictionary:
+	var out: Dictionary = {}
+	var weights: Dictionary = rules.get("rarityWeights", rules.get("rarities", {}))
+	var counts: Dictionary = rules.get("affixCounts", {})
+	for rarity in weights:
+		var entry: Dictionary = {}
+		if weights[rarity] is Dictionary:
+			entry = weights[rarity].duplicate()
+		else:
+			entry["weight"] = int(weights[rarity])
+		if counts.has(rarity):
+			var count_range: Dictionary = counts[rarity]
+			entry["min"] = int(count_range.get("min", 0))
+			entry["max"] = int(count_range.get("max", entry.get("min", 0)))
+		out[rarity] = entry
+	return out
+
+
+static func _roll_affix_count(rarity: String, rng: RandomNumberGenerator) -> int:
+	var rule: Dictionary = _rarity_rules.get(rarity, {})
+	var min_c: int = int(rule.get("min", rule.get("affixCount", 0)))
+	var max_c: int = int(rule.get("max", min_c))
+	if max_c <= min_c:
+		return min_c
+	return rng.randi_range(min_c, max_c)
 
 
 static func _pick_rarity(rng: RandomNumberGenerator) -> String:
@@ -88,5 +115,13 @@ static func _pick_rarity(rng: RandomNumberGenerator) -> String:
 	return "common"
 
 
-static func _make_instance_id(item_id: String, seed: int) -> String:
-	return "%s_%d" % [item_id, seed]
+static func _make_instance_id(item_id: String, instance_seed: int) -> String:
+	return "%s_%d" % [item_id, instance_seed]
+
+
+static func _shuffle_with_rng(arr: Array, rng: RandomNumberGenerator) -> void:
+	for i in range(arr.size() - 1, 0, -1):
+		var j: int = rng.randi_range(0, i)
+		var tmp = arr[i]
+		arr[i] = arr[j]
+		arr[j] = tmp

@@ -1,0 +1,10 @@
+{
+  "id": "poison",
+  "name": "Poison",
+  "damageType": "poison",
+  "tickDamage": 2.5,
+  "tickInterval": 1.2,
+  "maxStacks": 4,
+  "duration": 8.0,
+  "iconColor": "#44aa33"
+}

@@ -15,6 +15,8 @@ var _player: Node3D
 var _lock_on: Node
 var _guard: Node
 var _camera: Camera3D
+var _status_row: HBoxContainer
+var _status_controller: StatusController
 
 
 func _ready() -> void:
@@ -30,7 +32,11 @@ func _ready() -> void:
 	if player_path:
 		_player = get_node(player_path) as Node3D
 		_guard = _player.get_node_or_null("Guard")
+		_status_controller = _player.get_node_or_null("StatusController") as StatusController
 		_bind_player_resources()
+		_ensure_status_row()
+		if _status_controller:
+			_status_controller.statuses_changed.connect(_refresh_status_icons)
 	if lock_on_path:
 		_lock_on = get_node(lock_on_path)
 		if _lock_on.has_signal("lock_changed"):
@@ -38,6 +44,32 @@ func _ready() -> void:
 	if ProgressionService:
 		ProgressionService.progression_changed.connect(_on_progression_changed)
 		_on_progression_changed()
+
+
+func _ensure_status_row() -> void:
+	_status_row = get_node_or_null("StatusRow") as HBoxContainer
+	if _status_row == null:
+		_status_row = HBoxContainer.new()
+		_status_row.name = "StatusRow"
+		_status_row.position = Vector2(24, 120)
+		add_child(_status_row)
+	_refresh_status_icons()
+
+
+func _refresh_status_icons() -> void:
+	if _status_row == null:
+		return
+	for child in _status_row.get_children():
+		child.queue_free()
+	if _status_controller == null:
+		return
+	for entry in _status_controller.get_active_statuses():
+		var def := StatusCatalog.get_definition(entry.get("id", ""))
+		var icon := ColorRect.new()
+		icon.custom_minimum_size = Vector2(22, 22)
+		icon.color = Color.from_string(def.get("iconColor", "#ffffff"), Color.WHITE)
+		icon.tooltip_text = "%s x%d" % [def.get("name", entry.get("id", "")), entry.get("stacks", 1)]
+		_status_row.add_child(icon)
 
 
 func _ensure_progression_widgets() -> void:
@@ -59,6 +91,14 @@ func _ensure_progression_widgets() -> void:
 func _process(_delta: float) -> void:
 	_update_lock_reticle()
 	_update_guard_indicators()
+
+
+func _unhandled_input(event: InputEvent) -> void:
+	if event is InputEventKey and event.pressed and not event.echo:
+		if event.keycode == KEY_F8 and _status_controller:
+			_status_controller.debug_apply("burn")
+			_refresh_status_icons()
+			get_viewport().set_input_as_handled()
 
 
 func _bind_player_resources() -> void:

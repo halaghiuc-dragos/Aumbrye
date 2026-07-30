@@ -42,10 +42,12 @@ func receive_hit(info: DamageInfo) -> void:
 		final_poise = modified.get("poise", final_poise)
 		if modified.get("blocked", false):
 			_emit_block_feedback(final_amount)
+	final_amount = _apply_resistances(final_amount, info.damage_type)
 	if _health and final_amount > 0.0:
 		_health.take_damage(final_amount)
 	if _poise and final_poise > 0.0 and (_health == null or not _health.is_dead()):
 		_poise.take_poise_damage(final_poise)
+	_apply_status_from_hit(info)
 	damaged.emit(info)
 
 
@@ -76,6 +78,31 @@ func _emit_block_feedback(chip_damage: float) -> void:
 	var feedback := body.get_node_or_null("HitFeedback")
 	if feedback and feedback.has_method("on_hit_blocked"):
 		feedback.call("on_hit_blocked", body, chip_damage)
+
+
+func _apply_resistances(amount: float, damage_type: String) -> float:
+	var resistances := _get_resistances()
+	return DamageInfo.apply_resistance(amount, damage_type, resistances)
+
+
+func _get_resistances() -> Dictionary:
+	var body := _find_character_body()
+	if body and body.has_method("get_enemy_id"):
+		var enemy_id: String = body.call("get_enemy_id")
+		if enemy_id != "":
+			return EnemyCatalog.get_definition(enemy_id).get("resistances", {})
+	return {}
+
+
+func _apply_status_from_hit(info: DamageInfo) -> void:
+	if info.status_id == "":
+		return
+	var body := _find_character_body()
+	if body == null:
+		return
+	var status_ctrl := body.get_node_or_null("StatusController") as StatusController
+	if status_ctrl:
+		status_ctrl.apply_status(info.status_id, info.status_stacks)
 
 
 func _find_character_body() -> Node3D:

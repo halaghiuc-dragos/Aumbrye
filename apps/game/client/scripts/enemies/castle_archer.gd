@@ -83,7 +83,10 @@ func _fire_projectile() -> void:
 			_locked_shot_speed,
 			_data.get("attack_damage", 12.0),
 			_data.get("attack_poise_damage", 8.0),
-			self
+			self,
+			_data.get("damage_type", DamageInfo.TYPE_PHYSICAL),
+			_data.get("status_on_hit", ""),
+			int(_data.get("status_stacks_on_hit", 1))
 		)
 
 

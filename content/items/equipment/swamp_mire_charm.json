@@ -1,0 +1,13 @@
+{
+  "id": "swamp_mire_charm",
+  "name": "Swamp Mire Charm",
+  "itemType": "accessory",
+  "equipmentSlot": "amulet",
+  "gridWidth": 1,
+  "gridHeight": 1,
+  "stackSize": 1,
+  "rarity": "rare",
+  "description": "A fetish charm that dulls venomous bites.",
+  "value": 44,
+  "stats": { "defense": 4, "maxHealth": 14 }
+}

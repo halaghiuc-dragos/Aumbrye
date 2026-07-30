@@ -1,0 +1,30 @@
+{
+  "id": "swamp_witch",
+  "name": "Swamp Witch",
+  "scene": "res://scenes/enemies/swamp_witch.tscn",
+  "threat_cost": 30,
+  "health": 72,
+  "poise": 28,
+  "move_speed": 3.0,
+  "attack_damage": 13,
+  "attack_poise_damage": 9,
+  "windup_duration": 0.85,
+  "active_duration": 0.05,
+  "recovery_duration": 1.05,
+  "attack_range": 13.0,
+  "attack_cooldown": 1.6,
+  "stagger_duration": 0.9,
+  "aggro_range": 15.0,
+  "deaggro_range": 21.0,
+  "patrol_radius": 3.0,
+  "preferred_range": 10.0,
+  "retreat_range": 6.0,
+  "projectile_speed": 10.0,
+  "enemy_type": "ranged",
+  "damage_type": "poison",
+  "status_on_hit": "poison",
+  "status_stacks_on_hit": 1,
+  "resistances": {
+    "poison": 0.65
+  }
+}

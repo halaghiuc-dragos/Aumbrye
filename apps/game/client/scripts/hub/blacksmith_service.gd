@@ -73,7 +73,7 @@ static func can_repair(inv_index: int) -> bool:
 		return false
 	var recipe := RecipeCatalog.get_repair_recipe(item_id)
 	if recipe.is_empty():
-		var repair_cost := maxi(1, (max_dur - current) / 2)
+		var repair_cost := maxi(1, int((max_dur - current) / 2.0))
 		return CharacterService.can_afford(repair_cost)
 	return CharacterService.can_afford(int(recipe.get("goldCost", 10)))
 

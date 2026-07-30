@@ -1,0 +1,26 @@
+{
+  "id": "bow",
+  "name": "Hunter Bow",
+  "archetype": "bow",
+  "damage_type": "physical",
+  "draw_time": 0.75,
+  "buffer_window": 0.15,
+  "light_attacks": [
+    {
+      "damage": 10,
+      "poise_damage": 6,
+      "stamina_cost": 8,
+      "startup": 0.12,
+      "active": 0.08,
+      "recovery": 0.2
+    }
+  ],
+  "heavy_attack": {
+    "damage": 28,
+    "poise_damage": 12,
+    "stamina_cost": 18,
+    "startup": 0.05,
+    "active": 0.1,
+    "recovery": 0.35
+  }
+}

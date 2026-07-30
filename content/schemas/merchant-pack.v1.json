@@ -1,0 +1,24 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://aumbrye.dev/schemas/merchant-pack.v1.json",
+  "title": "MerchantPack",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "items"],
+  "properties": {
+    "id": { "type": "string", "minLength": 1 },
+    "items": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["itemId", "price"],
+        "properties": {
+          "itemId": { "type": "string", "minLength": 1 },
+          "price": { "type": "integer", "minimum": 0 },
+          "stock": { "type": "integer", "minimum": 0 }
+        }
+      }
+    }
+  }
+}

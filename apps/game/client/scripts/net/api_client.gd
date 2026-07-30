@@ -157,7 +157,9 @@ static func _request_json(url: String, method: int, payload: Dictionary, auth: b
 			"Content-Type: application/json",
 		])
 	var http := HTTPRequest.new()
-	Engine.get_main_loop().root.add_child(http)
+	var root: Window = Engine.get_main_loop().root
+	root.add_child.call_deferred(http)
+	await Engine.get_main_loop().process_frame
 	var body := ""
 	if method != HTTPClient.METHOD_GET:
 		body = JSON.stringify(payload)

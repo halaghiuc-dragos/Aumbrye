@@ -1,0 +1,15 @@
+{
+  "id": "rogue_dagger",
+  "name": "Rogue Dagger",
+  "itemType": "weapon",
+  "equipmentSlot": "weapon",
+  "gridWidth": 1,
+  "gridHeight": 2,
+  "stackSize": 1,
+  "weaponId": "dagger",
+  "rarity": "common",
+  "description": "A quick blade favored by rogues.",
+  "value": 22,
+  "maxDurability": 80,
+  "stats": { "damagePercent": 3 }
+}

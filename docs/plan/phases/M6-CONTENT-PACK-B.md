@@ -2,7 +2,7 @@
 
 - **phase:** M6
 - **goal:** Five themes total; EA content volume; website; accessibility; meta features.
-- **depends_on:** M5 exit criteria
+- **depends_on:** M5 closed (2026-07-30) — automated `m5_suite` green; manual feel gates in [MANUAL_PLAYTEST_CHECKLIST.md](../../design/MANUAL_PLAYTEST_CHECKLIST.md) § M5
 - **exit_criteria:**
   - [ ] Themes: +Frozen Fortress, +Dark Cathedral (5 total)
   - [ ] ~20 enemies, ~8 bosses, ~80 items
@@ -229,6 +229,20 @@
   - [ ] 1080p 60 FPS in 5-theme combat rooms on mid-range target machine profile documented
 - **out_of_scope:**
   - 4K unlocks
+
+---
+
+## Carried from M5 close
+
+| Item | Notes |
+|------|-------|
+| Final pixel-diorama room art | M5 blockout + theme materials accepted; art pass in M6 |
+| OGG audio assets | M5 generator-tone stubs; replace per biome |
+| Status HUD icon sprites | M5 colored squares |
+| Mythic per-item unique rules | Affix counts live; unique tables in M6 |
+| Castle final art pass (Forgotten Castle diorama) | M5 materials/lighting done; final meshes in M6 |
+| Larger affix pool for epic+ min counts | `AffixRoller` may roll fewer than min when pool exhausted; expand affix tables in M6 |
+| Full ~80-item roster | M5 delivered 9 theme uniques (`ITEM-5.1` batch) |
 
 ---
 

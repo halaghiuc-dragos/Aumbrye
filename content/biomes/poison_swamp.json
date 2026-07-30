@@ -1,0 +1,37 @@
+{
+  "id": "poison_swamp",
+  "name": "Poison Swamp",
+  "roomCount": {
+    "min": 6,
+    "max": 10
+  },
+  "gridStep": 14,
+  "roomTemplateIds": [
+    "swamp_entrance",
+    "swamp_stairs",
+    "swamp_courtyard",
+    "swamp_hall",
+    "swamp_treasure",
+    "swamp_secret",
+    "swamp_arena",
+    "swamp_boss",
+    "swamp_puzzle"
+  ],
+  "enemyPool": [
+    { "enemyId": "swamp_leech", "weight": 3 },
+    { "enemyId": "swamp_bogling", "weight": 2 },
+    { "enemyId": "swamp_witch", "weight": 2 },
+    { "enemyId": "swamp_toad", "weight": 2 },
+    { "enemyId": "swamp_hag", "weight": 1 }
+  ],
+  "bossPool": [
+    { "enemyId": "swamp_hydra" }
+  ],
+  "budgets": {
+    "baseEnemyThreat": 100,
+    "baseLootValue": 60,
+    "threatPerTier": 20,
+    "lootPerTier": 10
+  },
+  "requiresSecret": true
+}

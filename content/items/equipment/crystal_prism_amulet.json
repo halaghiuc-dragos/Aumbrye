@@ -1,0 +1,13 @@
+{
+  "id": "crystal_prism_amulet",
+  "name": "Crystal Prism Amulet",
+  "itemType": "accessory",
+  "equipmentSlot": "amulet",
+  "gridWidth": 1,
+  "gridHeight": 2,
+  "stackSize": 1,
+  "rarity": "rare",
+  "description": "Refracts arcane energy to shield the wearer.",
+  "value": 45,
+  "stats": { "defense": 5, "maxHealth": 10, "damagePercent": 4 }
+}

@@ -328,6 +328,14 @@ func remove_items_by_id(item_id: String, quantity: int = 1) -> int:
 
 
 func _normalize_slot(slot: Dictionary) -> Dictionary:
+	if slot.has("quantity"):
+		slot["quantity"] = int(slot.get("quantity", 1))
+	if slot.has("x"):
+		slot["x"] = int(slot.get("x", 0))
+	if slot.has("y"):
+		slot["y"] = int(slot.get("y", 0))
+	if slot.has("rollSeed"):
+		slot["rollSeed"] = int(slot.get("rollSeed", 0))
 	if not slot.has("instanceId"):
 		var item_id: String = slot.get("itemId", "")
 		var seed_val: int = int(slot.get("rollSeed", slot.get("x", 0) + slot.get("y", 0)))

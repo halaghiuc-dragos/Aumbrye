@@ -7,7 +7,7 @@
 | **All validation** | C# + content + Godot in-engine | `./scripts/run-all-validation.ps1` |
 | Unit | Procgen, loot, affixes, dialogue conditions, damage formula | `./scripts/run-automated-tests.ps1` |
 | Integration | Auth → run → complete → save | Backend tests (M4+) |
-| **Godot in-engine** | M1–M3 structural + scenario checks | `./scripts/run-mcp-validation.ps1` |
+| **Godot in-engine** | M1–M5 structural + scenario checks | `./scripts/run-mcp-validation.ps1` |
 | Manual | All phases — feel, UX, soak, gamepad, external playtest | [MANUAL_PLAYTEST_CHECKLIST.md](../../design/MANUAL_PLAYTEST_CHECKLIST.md) |
 | Perf | Fixed camera path benchmarks per biome | M4+ |
 | Soak | 10-run (M4), 100-seed gen (M3), 50-seed smoke (EA) | |
@@ -23,6 +23,8 @@ See [VALIDATION_PLATFORM.md](../../design/VALIDATION_PLATFORM.md) for architectu
 | M2.playtest.external | External friend playtest | Deferred from M2 — `SHIP-7.1` |
 | M7.* | Feel/UX polish (17 items) | Former M3 manual list — [MANUAL_PLAYTEST_CHECKLIST.md](../../design/MANUAL_PLAYTEST_CHECKLIST.md) § M3 carry-over → M7 |
 | M4.deferred.* | Carried from M4 close | See [M4_IMPLEMENTATION_LOG.md](../../design/M4_IMPLEMENTATION_LOG.md) § Deferred |
+| M5.manual | M5 feel playtest (biomes, weapons, bosses, audio) | [MANUAL_PLAYTEST_CHECKLIST.md](../../design/MANUAL_PLAYTEST_CHECKLIST.md) § M5 |
+| M5.deferred.* | Art, mythic uniques, item roster | [M6-CONTENT-PACK-B.md](../phases/M6-CONTENT-PACK-B.md) § Carried from M5; manual § M5 in [MANUAL_PLAYTEST_CHECKLIST.md](../../design/MANUAL_PLAYTEST_CHECKLIST.md) |
 
 ## Minor milestones
 

@@ -91,4 +91,4 @@ Do not reopen M4 implementation for these — track in the target phase or [MANU
 | Gamepad-only full loop | M7 `POLISH-7.1` | Structural controller nav done; feel gate manual |
 | Save JSON integer normalization | M5 `SAVE-5.1` | `quantity`/`x`/`y` sometimes serialize as floats; loads fine |
 
-**Next phase:** [M5-CONTENT-PACK-A.md](../plan/phases/M5-CONTENT-PACK-A.md)
+**Next phase:** [M6-CONTENT-PACK-B.md](../plan/phases/M6-CONTENT-PACK-B.md)

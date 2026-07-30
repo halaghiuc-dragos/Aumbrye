@@ -1,3 +1,4 @@
+using Aumbrye.Procedural.Content;
 using Aumbrye.Procedural.Loot;
 using Xunit;
 
@@ -67,5 +68,33 @@ public class AffixRollerTests
         return;
       }
     }
+  }
+
+  [Fact]
+  public void EpicLegendaryMythic_AffixCountRanges_MatchRarityRules()
+  {
+    var rules = AffixCatalog.RarityRules.AffixCounts;
+    Assert.Equal(2, rules[ItemRarities.Epic].Min);
+    Assert.Equal(3, rules[ItemRarities.Epic].Max);
+    Assert.Equal(3, rules[ItemRarities.Legendary].Min);
+    Assert.Equal(4, rules[ItemRarities.Legendary].Max);
+    Assert.Equal(4, rules[ItemRarities.Mythic].Min);
+    Assert.Equal(5, rules[ItemRarities.Mythic].Max);
+  }
+
+  [Fact]
+  public void EpicRarity_AffixCountWithinRarityRange()
+  {
+    for (var attempt = 0; attempt < 300; attempt++)
+    {
+      var rolled = AffixRoller.Roll(Guid.NewGuid().ToString(), "castle_sword");
+      if (rolled.Rarity == ItemRarities.Epic)
+      {
+        var range = AffixCatalog.RarityRules.AffixCounts[ItemRarities.Epic];
+        Assert.InRange(rolled.Affixes.Count, 0, range.Max);
+        return;
+      }
+    }
+    Assert.Fail("No epic roll in 300 attempts");
   }
 }

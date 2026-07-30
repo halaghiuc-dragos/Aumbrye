@@ -1,0 +1,34 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://aumbrye.dev/schemas/dialogue-definition.v1.json",
+  "title": "DialogueDefinition",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "startNode", "nodes"],
+  "properties": {
+    "id": { "type": "string", "minLength": 1 },
+    "startNode": { "type": "string", "minLength": 1 },
+    "nodes": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": true,
+        "required": ["speaker", "text"],
+        "properties": {
+          "speaker": { "type": "string" },
+          "text": { "type": "string" },
+          "next": { "type": "string" },
+          "condition": { "type": "object" },
+          "actions": { "type": "array" },
+          "choices": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": true
+            }
+          }
+        }
+      }
+    }
+  }
+}

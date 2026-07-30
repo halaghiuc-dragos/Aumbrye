@@ -1,0 +1,27 @@
+{
+  "id": "swamp_leech",
+  "name": "Swamp Leech",
+  "scene": "res://scenes/enemies/swamp_leech.tscn",
+  "threat_cost": 19,
+  "health": 70,
+  "poise": 30,
+  "move_speed": 4.0,
+  "attack_damage": 12,
+  "attack_poise_damage": 10,
+  "windup_duration": 0.55,
+  "active_duration": 0.12,
+  "recovery_duration": 0.75,
+  "attack_range": 2.0,
+  "attack_cooldown": 1.2,
+  "stagger_duration": 0.85,
+  "aggro_range": 9.0,
+  "deaggro_range": 14.0,
+  "patrol_radius": 3.5,
+  "enemy_type": "melee",
+  "damage_type": "poison",
+  "status_on_hit": "poison",
+  "status_stacks_on_hit": 1,
+  "resistances": {
+    "poison": 0.3
+  }
+}

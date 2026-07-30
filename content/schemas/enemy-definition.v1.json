@@ -49,6 +49,16 @@
     "enemy_type": {
       "type": "string",
       "enum": ["melee", "ranged", "shield", "boss"]
+    },
+    "damage_type": {
+      "type": "string",
+      "enum": ["physical", "fire", "frost", "poison", "lightning", "arcane"]
+    },
+    "status_on_hit": { "type": "string" },
+    "status_stacks_on_hit": { "type": "integer", "minimum": 1 },
+    "resistances": {
+      "type": "object",
+      "additionalProperties": { "type": "number" }
     }
   }
 }

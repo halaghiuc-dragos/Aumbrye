@@ -1,0 +1,37 @@
+{
+  "id": "crystal_caverns",
+  "name": "Crystal Caverns",
+  "roomCount": {
+    "min": 6,
+    "max": 10
+  },
+  "gridStep": 14,
+  "roomTemplateIds": [
+    "crystal_entrance",
+    "crystal_stairs",
+    "crystal_courtyard",
+    "crystal_hall",
+    "crystal_treasure",
+    "crystal_secret",
+    "crystal_arena",
+    "crystal_boss",
+    "crystal_puzzle"
+  ],
+  "enemyPool": [
+    { "enemyId": "crystal_slime", "weight": 3 },
+    { "enemyId": "crystal_bat", "weight": 2 },
+    { "enemyId": "crystal_golem", "weight": 2 },
+    { "enemyId": "crystal_shade", "weight": 2 },
+    { "enemyId": "crystal_guardian", "weight": 1 }
+  ],
+  "bossPool": [
+    { "enemyId": "crystal_sovereign" }
+  ],
+  "budgets": {
+    "baseEnemyThreat": 100,
+    "baseLootValue": 60,
+    "threatPerTier": 20,
+    "lootPerTier": 10
+  },
+  "requiresSecret": true
+}

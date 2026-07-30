@@ -1,0 +1,25 @@
+{
+  "id": "crystal_slime",
+  "name": "Crystal Slime",
+  "scene": "res://scenes/enemies/crystal_slime.tscn",
+  "threat_cost": 18,
+  "health": 75,
+  "poise": 35,
+  "move_speed": 3.8,
+  "attack_damage": 14,
+  "attack_poise_damage": 12,
+  "windup_duration": 0.6,
+  "active_duration": 0.14,
+  "recovery_duration": 0.8,
+  "attack_range": 2.2,
+  "attack_cooldown": 1.3,
+  "stagger_duration": 0.9,
+  "aggro_range": 10.0,
+  "deaggro_range": 15.0,
+  "patrol_radius": 4.0,
+  "enemy_type": "melee",
+  "resistances": {
+    "frost": -0.5,
+    "physical": 0.1
+  }
+}

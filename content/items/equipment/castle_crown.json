@@ -1,0 +1,13 @@
+{
+  "id": "castle_crown",
+  "name": "Castle Crown",
+  "itemType": "armor",
+  "equipmentSlot": "helmet",
+  "gridWidth": 2,
+  "gridHeight": 2,
+  "stackSize": 1,
+  "rarity": "rare",
+  "description": "A tarnished crown radiating regal authority.",
+  "value": 55,
+  "stats": { "defense": 6, "maxHealth": 12, "damagePercent": 3 }
+}

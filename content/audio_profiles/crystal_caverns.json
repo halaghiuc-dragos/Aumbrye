@@ -1,0 +1,9 @@
+{
+  "id": "crystal_caverns",
+  "biomeId": "crystal_caverns",
+  "ambienceFreq": 165,
+  "exploreFreq": 175,
+  "combatFreq": 220,
+  "bossFreq": 147,
+  "crossfadeSeconds": 0.8
+}

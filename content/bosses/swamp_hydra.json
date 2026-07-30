@@ -1,0 +1,29 @@
+{
+  "id": "swamp_hydra",
+  "name": "Swamp Hydra",
+  "scene": "res://scenes/enemies/swamp_hydra.tscn",
+  "threat_cost": 55,
+  "health": 620,
+  "poise": 125,
+  "move_speed": 3.8,
+  "attack_damage": 23,
+  "attack_poise_damage": 26,
+  "windup_duration": 0.52,
+  "active_duration": 0.2,
+  "recovery_duration": 0.7,
+  "attack_range": 3.0,
+  "attack_cooldown": 1.0,
+  "stagger_duration": 1.5,
+  "aggro_range": 21.0,
+  "deaggro_range": 30.0,
+  "patrol_radius": 0.0,
+  "phase2_threshold": 0.5,
+  "enemy_type": "boss",
+  "damage_type": "poison",
+  "status_on_hit": "poison",
+  "status_stacks_on_hit": 2,
+  "resistances": {
+    "poison": 0.75,
+    "physical": 0.2
+  }
+}

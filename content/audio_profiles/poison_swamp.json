@@ -1,0 +1,9 @@
+{
+  "id": "poison_swamp",
+  "biomeId": "poison_swamp",
+  "ambienceFreq": 85,
+  "exploreFreq": 92,
+  "combatFreq": 105,
+  "bossFreq": 73,
+  "crossfadeSeconds": 0.8
+}

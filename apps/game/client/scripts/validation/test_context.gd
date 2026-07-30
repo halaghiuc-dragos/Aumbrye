@@ -45,6 +45,19 @@ const ROOM_TEMPLATE_SCENES := {
 }
 
 const MANUAL_REMAINING := [
+	"M3.seed.spot_check",
+	"M3.procgen_cli.runtime",
+	"M3.offline.play_session",
+	"M3.cross_machine.seed",
+	"M4.TEST-4.1",
+	"M4.cloud_e2e",
+	"M5.theme.blind",
+	"M5.weapons.feel",
+	"M5.status.feel",
+	"M5.boss.crystal",
+	"M5.boss.swamp",
+	"M5.audio.crossfade",
+	"M5.biome.e2e",
 	"M7.movement.feel",
 	"M7.combat.hp_bar_visual",
 	"M7.combat.shield_feel",

@@ -21,23 +21,23 @@
 
 Manual items below cover **feel, UX, and integration paths** that automation cannot judge.
 
-### Automated coverage map (formerly manual — reference test IDs)
+### Automated coverage map (reference test IDs)
 
-| Former manual area | Now automated | Test IDs |
-| ------------------ | ------------- | -------- |
-| Kill enemies stay dead | Yes | `enemy.dies_at_zero_hp`, `enemy.no_stagger_revive`, `enemy.hitbox_disabled_on_death` |
-| Shield stats | Yes | `content.shield_block_stats` |
-| Continue disabled (no save) | Yes | `hub.continue_disabled_no_save` |
-| Continue enabled (mid-run save) | Yes | `hub.continue_enabled_with_save`, `save.localsave_continuable_midrun` |
-| Invalid/valid seed parsing | Yes | `seed.invalid_rejected`, `seed.valid_accepted` |
-| Camera P toggle API | Yes | `camera.toggle_action`, `camera.first_person_api` |
-| Camera preference save API | Yes | `camera.persisted_preference_roundtrip` |
-| Lock reticle center / auto-advance | Yes | `lock_on.reticle_uses_center`, `lock_on.auto_advance_on_death` |
-| F1 seed display code | Yes | `flow.debug_overlay_seed` |
-| Training grunt in arena | Yes | `arena.training_grunt_present`, `arena.grunt_hp_bar` |
-| Dungeon build / loot / enemies | Yes | `dungeon.rooms_instantiated`, `dungeon.enemies_spawned`, `dungeon.loot_placed` |
-| Boss door / exit portal wiring | Yes | `dungeon.boss_door_wired`, `dungeon.exit_portal_wiring` |
-| Offline procgen (no API) | Yes | `procgen.offline_no_api_in_run_flow`, `flow.offline_procgen` |
+| Area | Automated | Test IDs (sample) |
+| ---- | --------- | ----------------- |
+| Kill enemies stay dead | Yes | `enemy.dies_at_zero_hp`, `enemy.no_stagger_revive` |
+| Dungeon build / loot / enemies | Yes | `dungeon.rooms_instantiated`, `dungeon.loot_placed` |
+| Offline procgen default | Yes | `procgen.offline_no_api_in_run_flow`, `m5.net.online_path_optional` |
+| Three biomes procgen + build | Yes | `m5.procgen.*`, `m5.dungeon.*` |
+| Six damage types + resist | Yes | `m5.damage.six_types`, `m5.damage.resistance_pipeline` |
+| Five statuses + HUD wiring | Yes | `m5.status.five_definitions`, `m5.status.hud_icon_row` |
+| Five weapon archetypes (data) | Yes | `m5.weapon.*_json`, `m5.loadout.*` |
+| Theme enemies + bosses (data) | Yes | `m5.enemy.*`, `m5.boss.theme_scenes` |
+| Per-biome audio profiles | Yes | `m5.audio.profile_*`, `m5.audio.set_biome` |
+| Save integer normalization | Yes | `m5.save.integer_normalization` |
+| Epic+ affix counts | Yes | `m5.loot.epic_affix_counts`, C# `AffixRollerTests` |
+| Hub M4 services | Yes | `hub_m4.*` suite |
+| M4 progression / inventory | Yes | `progression.*`, `inventory.*` |
 
 ---
 
@@ -58,7 +58,7 @@ Historical record: [M1_PLAYTEST_CHECKLIST.md](M1_PLAYTEST_CHECKLIST.md) (archive
 | M7.gamepad.lock_on_switch | Lock-on + target switch (right stick while locked) | [ ] |
 | M7.gamepad.hub_castle_loop | Full hub → castle → escape loop on gamepad | [ ] |
 
-Bindings exist in `project.godot`; verify when controller hardware available. Tracked in [22-TESTING.md](../plan/systems/22-TESTING.md) (`TEST-M1-GPAD`).
+Bindings exist in `project.godot`; verify when controller hardware available.
 
 ---
 
@@ -75,8 +75,7 @@ Historical record: [M2_IMPLEMENTATION_LOG.md](M2_IMPLEMENTATION_LOG.md).
 | ID | Item | Target | Status |
 |----|------|--------|--------|
 | M2.deferred.external_playtest | Optional friend playtest feedback | M7 (`SHIP-7.1`) | [ ] |
-| M2.deferred.castle_art | Blockout accepted; art pass when final assets land | M5/M6 content | [ ] |
-| M2.deferred.save_json_integers | `quantity`/`x`/`y` sometimes serialize as floats; loads fine | M5 `SAVE-5.1` | [ ] |
+| M2.deferred.castle_art | Blockout accepted; art pass when final assets land | M6 | [ ] |
 | M2.deferred.corrupt_save_manual | Bad JSON → fresh start + starter sword (feel/UX) | M7 | [ ] |
 
 ---
@@ -84,11 +83,17 @@ Historical record: [M2_IMPLEMENTATION_LOG.md](M2_IMPLEMENTATION_LOG.md).
 ## M3 — Server generation (closed 2026-07-30)
 
 Implementation record: [M3_IMPLEMENTATION_LOG.md](M3_IMPLEMENTATION_LOG.md).  
-**All structural M3 acceptance criteria are automated** (114 Godot tests + C# CI). No M3-specific manual gate remains.
+**Structural M3 acceptance criteria are automated** (`procgen_suite`, C# procgen tests). Manual items below are spot-checks automation cannot replace.
 
-### M3 carry-over → M7
+| ID | Item | Status | Notes |
+|----|------|--------|-------|
+| M3.automated | Procgen determinism, CLI JSON strip, dungeon build, offline default | [x] | `./scripts/run-all-validation.ps1` |
+| M3.seed.spot_check | Enter seed `42001` twice → identical room layout in-game | [ ] | F1 shows seed; compare room positions |
+| M3.procgen_cli.runtime | `dotnet build tools/procgen-cli/ProcgenCli.csproj` then hub new run works | [ ] | Clear error if CLI missing |
+| M3.offline.play_session | API stopped / no internet → new run + continue playable, no hang | [ ] | Also `M7.offline.no_hang` |
+| M3.cross_machine.seed | Same seed + build + `content/` → identical layout on two machines | [ ] | Optional if second PC available |
 
-Items below were scoped during M3 development; human verification deferred to EA polish:
+### M3 carry-over → M7 (feel polish)
 
 | ID | Item | Status |
 |----|------|--------|
@@ -107,44 +112,52 @@ Items below were scoped during M3 development; human verification deferred to EA
 | M7.continue.full_playthrough | Mid-run quit restore; boss-room quit; death disables Continue; complete disables Continue | [ ] |
 | M7.debug.overlay_runtime | F1 shows entered seed during run; cleared after hub return | [ ] |
 | M7.arena.combat_feel | Hub arena: hit, stagger, parry/block, grunt death, **R** reset | [ ] |
-| M7.cross_machine.seed | Same seed + build + `content/` → identical layout on two machines | [ ] |
 | M7.procgen_cli.missing_ux | Procgen-cli missing → hub shows clear error | [ ] |
-| M7.offline.no_hang | Playable with API stopped / no internet; no hang on new run | [ ] |
-
-These IDs match `TestContext.MANUAL_REMAINING` in the validation report.
 
 ---
 
 ## M4 — Gameplay loop (closed 2026-07-30)
 
-Close record: [M4_IMPLEMENTATION_LOG.md](M4_IMPLEMENTATION_LOG.md). All M4 milestones implemented and covered by automated validation (`hub_m4_suite`, `progression_suite`, `inventory_suite`, backend save/loot tests). **Prerequisite:** `./scripts/run-all-validation.ps1` passes with 0 failures.
+Close record: [M4_IMPLEMENTATION_LOG.md](M4_IMPLEMENTATION_LOG.md). Automated validation covers hub services, affixes, XP/talents, relics, inventory UX, cloud save API, economy (`hub_m4_suite`, `progression_suite`, `inventory_suite`).
 
-| ID | Item | Status |
-|----|------|--------|
-| M4.automated | Full gameplay loop (hub, affixes, XP/talents, relics, inventory UX, cloud save API, economy) | [x] |
-| TEST-4.1 | Ten consecutive runs — no softlock; notes in [m4_soak_notes.md](m4_soak_notes.md) | [ ] |
-| M4.cloud_e2e | Cloud save round-trip on second device/session with API running (also M7 `STEAM-7.3`) | [ ] |
-| M2.deferred.corrupt_save_manual | Bad JSON → fresh start + starter sword (optional spot-check) | [ ] |
+| ID | Item | Status | Notes |
+|----|------|--------|-------|
+| M4.automated | Full gameplay loop structural coverage | [x] | `./scripts/run-all-validation.ps1` |
+| M4.TEST-4.1 | Ten consecutive runs — no softlock; notes in [m4_soak_notes.md](m4_soak_notes.md) | [ ] | Soak gate before M6 content volume |
+| M4.cloud_e2e | Cloud save round-trip on second device/session with API running | [ ] | Also M7 `STEAM-7.3` |
+| M2.deferred.corrupt_save_manual | Bad JSON → fresh start + starter sword (optional spot-check) | [ ] | |
 
 ### M4 carry-over → later phases
 
-| ID | Item | Target |
-|----|------|--------|
-| M4.deferred.online_runs | Wire `POST /runs` for server-generated dungeons (optional path) | M5 `NET-5.1` |
-| M4.deferred.content_schemas | JSON schemas for NPC, quest, dialogue, relic, recipe packs | M5 `SCHEMA-5.1` |
-| M4.deferred.epic_affixes | Epic+ affix balance and Mythic unique tables | M5 `LOOT-5.2` |
-| M4.deferred.gamepad_loop | Gamepad-only hub → castle → escape | M7 `POLISH-7.1` |
-| M4.deferred.cloud_e2e | Live cloud save on second device/session | M7 `STEAM-7.3` |
-| M4.deferred.save_integers | Save JSON integer normalization (`quantity`/`x`/`y`) | M5 `SAVE-5.1` |
+| ID | Item | Target | Status |
+|----|------|--------|--------|
+| M4.deferred.gamepad_loop | Gamepad-only hub → castle → escape | M7 `POLISH-7.1` | [ ] |
 
 ---
 
-## M5 — Content pack A
+## M5 — Content pack A (closed 2026-07-30)
 
-| ID | Item | Status |
-|----|------|--------|
-| M5.theme.blind | Blind playtester names theme without UI label (spot check) | [ ] |
-| M2.deferred.castle_art | Castle blockout art pass when final assets land | [ ] |
+Automated validation covers biomes, procgen, combat depth, weapons, bosses, loot, audio profiles (`m5_suite` + C# theme tests). **Prerequisite:** `./scripts/run-all-validation.ps1` passes with 0 failures.
+
+| ID | Item | Status | Notes |
+|----|------|--------|-------|
+| M5.automated | All M5 structural milestones | [x] | `m5_suite` + C# `M5BiomeGeneratorTests` |
+| M5.biome.e2e | Complete a full run in **each** biome (castle, crystal, swamp) → boss → escape | [ ] | Portal biome buttons |
+| M5.weapons.feel | Hub **Tab** loadout — try greatsword, dagger, spear, bow vs arena grunt | [ ] | Unlock spear Lv5+, bow Lv8+ |
+| M5.status.feel | Burn/bleed/poison/freeze/stun readable in combat; F8 debug burn works | [ ] | Swamp poison pools fair |
+| M5.boss.crystal | Crystal Sovereign fight — phase telegraphs, winnable | [ ] | Miniboss guardian optional |
+| M5.boss.swamp | Swamp Hydra fight — poison cleanse zones, winnable | [ ] | Miniboss hag optional |
+| M5.audio.crossfade | Each biome ambience distinct; boss music crossfades cleanly | [ ] | Generator-tone stubs OK for M5 |
+| M5.theme.blind | Blind playtester names theme without UI label (spot check) | [ ] | Silhouette/lighting/audio only |
+
+### M5 carry-over → M6/M7
+
+| ID | Item | Target | Status |
+|----|------|--------|--------|
+| M5.deferred.final_art | Pixel-diorama room art, OGG audio, status icons | M6/M7 | [ ] |
+| M5.deferred.mythic_uniques | Per-item Mythic unique rules | M6 | [ ] |
+| M5.deferred.item_roster | Full ~80-item roster | M6 `ITEM-6.1` | [ ] |
+| M5.deferred.online_default | Enable online procgen when API stable | M7 | [ ] |
 
 ---
 
@@ -152,7 +165,7 @@ Close record: [M4_IMPLEMENTATION_LOG.md](M4_IMPLEMENTATION_LOG.md). All M4 miles
 
 | ID | Item | Status |
 |----|------|--------|
-| _TBD_ | _Multi-theme loop, progression feel_ | |
+| _TBD_ | Frozen Fortress + Dark Cathedral themes; roster expansion | |
 
 ---
 
@@ -188,14 +201,17 @@ See **M1 carry-over → M7 (gamepad)** above.
 | M1 KB/M combat arena | [x] | 2026-07-29 |
 | M2 castle vertical slice | [x] | 2026-07-30 |
 | M3 server generation (automated) | [x] | 2026-07-30 |
-| M4 gameplay loop (automated) | [x] | 2026-07-30 — `./scripts/run-all-validation.ps1` |
+| M4 gameplay loop (automated) | [x] | 2026-07-30 |
+| M5 content pack A (automated) | [x] | 2026-07-30 — `m5_suite` |
+| M3 manual spot-checks | [ ] | Seed, offline, procgen-cli |
 | M4 TEST-4.1 soak (manual) | [ ] | 10-run log in `m4_soak_notes.md` |
+| M5 manual playtest (feel) | [ ] | Biomes, weapons, bosses, audio |
 | M7 feel & UX (pending) | [ ] | Complete M7 section before EA ship |
 
 ---
 
 ## Maintenance rules
 
-1. **Closing a phase:** Mark automated items done in validation suites; move any remaining human gates into the appropriate section above.
-2. **New manual item:** Add a row with stable `ID` (e.g. `M4.hub.npc_dialogue_feel`); reference from `checklist_ref` in validation tests if partially automatable.
+1. **Closing a phase:** Mark automated items done in validation suites; move remaining human gates into the appropriate section above.
+2. **New manual item:** Add a row with stable `ID` (e.g. `M5.hub.npc_dialogue_feel`); reference from `checklist_ref` in validation tests if partially automatable.
 3. **Deleting phase playtest files:** When a phase closes, delete its dedicated playtest checklist (if any) and ensure all open items live here or in the phase implementation log’s deferred table.

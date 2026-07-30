@@ -5,6 +5,7 @@ extends Control
 signal new_run_requested
 signal continue_requested
 signal seed_run_requested(seed: int)
+signal biome_run_requested(biome_id: String)
 signal menu_closed
 
 @onready var _main_panel: PanelContainer = $MainPanel
@@ -16,6 +17,9 @@ signal menu_closed
 @onready var _seed_start_button: Button = $SeedPanel/Margin/VBox/SeedStartButton
 @onready var _seed_back_button: Button = $SeedPanel/Margin/VBox/SeedBackButton
 @onready var _status_label: Label = $MainPanel/Margin/VBox/StatusLabel
+@onready var _biome_box: VBoxContainer = $MainPanel/Margin/VBox/BiomeBox
+
+var _selected_biome := BiomeRegistry.BIOME_CASTLE
 
 
 func _ready() -> void:
@@ -28,6 +32,28 @@ func _ready() -> void:
 	_seed_start_button.pressed.connect(_on_seed_start_pressed)
 	_seed_back_button.pressed.connect(_show_main_panel)
 	_seed_input.text_submitted.connect(_on_seed_submitted)
+	_build_biome_buttons()
+
+
+func _build_biome_buttons() -> void:
+	if _biome_box == null:
+		return
+	for child in _biome_box.get_children():
+		child.queue_free()
+	for biome_id in BiomeRegistry.ALL_BIOMES:
+		var btn := Button.new()
+		btn.text = BiomeRegistry.get_display_name(biome_id)
+		btn.toggle_mode = true
+		btn.button_pressed = biome_id == _selected_biome
+		btn.pressed.connect(_on_biome_pressed.bind(biome_id, btn))
+		_biome_box.add_child(btn)
+
+
+func _on_biome_pressed(biome_id: String, pressed_btn: Button) -> void:
+	_selected_biome = biome_id
+	for child in _biome_box.get_children():
+		if child is Button:
+			(child as Button).button_pressed = child == pressed_btn
 
 
 func open_menu() -> void:
@@ -86,7 +112,7 @@ func _show_seed_panel() -> void:
 
 func _on_new_pressed() -> void:
 	close_menu()
-	new_run_requested.emit()
+	biome_run_requested.emit(_selected_biome)
 
 
 func _on_continue_pressed() -> void:
@@ -121,3 +147,7 @@ func _try_start_seed(text: String) -> void:
 		return
 	close_menu()
 	seed_run_requested.emit(run_seed_value)
+
+
+func get_selected_biome() -> String:
+	return _selected_biome

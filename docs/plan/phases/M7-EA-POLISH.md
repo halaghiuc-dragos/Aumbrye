@@ -190,6 +190,9 @@
 | Gamepad-only full loop | `POLISH-7.1` | Structural controller nav done in M4; feel gate manual — [MANUAL_PLAYTEST_CHECKLIST.md](../../design/MANUAL_PLAYTEST_CHECKLIST.md) |
 | Cloud save E2E (second device/session) | `STEAM-7.3` | Backend `GET/PUT /saves/current` live; multi-session verify before EA |
 | TEST-4.1 ten-run soak | Manual § M4 | Can complete during M7 polish — [m4_soak_notes.md](../../design/m4_soak_notes.md) |
+| M5.theme.blind | Manual § M5 | Blind theme identification playtest |
+| M5 manual feel gates | Manual § M5 | Weapons, statuses, bosses, audio crossfade |
+| Online procgen default-on | `NET-5.1` carry | Path exists; enable when API dev session stable |
 
 ---
 

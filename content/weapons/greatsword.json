@@ -1,0 +1,33 @@
+{
+  "id": "greatsword",
+  "name": "Iron Greatsword",
+  "archetype": "greatsword",
+  "damage_type": "physical",
+  "buffer_window": 0.15,
+  "light_attacks": [
+    {
+      "damage": 22,
+      "poise_damage": 28,
+      "stamina_cost": 18,
+      "startup": 0.28,
+      "active": 0.18,
+      "recovery": 0.38
+    },
+    {
+      "damage": 26,
+      "poise_damage": 32,
+      "stamina_cost": 22,
+      "startup": 0.32,
+      "active": 0.2,
+      "recovery": 0.42
+    }
+  ],
+  "heavy_attack": {
+    "damage": 48,
+    "poise_damage": 55,
+    "stamina_cost": 38,
+    "startup": 0.5,
+    "active": 0.22,
+    "recovery": 0.55
+  }
+}

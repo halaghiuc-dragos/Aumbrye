@@ -31,6 +31,7 @@ func _ready() -> void:
 		RunFlow.return_to_hub("Dungeon data missing — could not load generated layout.")
 		return
 	_builder.build_from_definition(self, _player, def)
+	_apply_biome_presentation(def)
 	_restore_saved_snapshot()
 	player_room_id = _find_room_id_at(_player.global_position)
 	_wire_player_death()
@@ -42,6 +43,23 @@ func _ready() -> void:
 	set_physics_process(true)
 	RunFlow.clear_continue_restore()
 	call_deferred("_persist_snapshot")
+
+
+func _apply_biome_presentation(def: Dictionary) -> void:
+	var biome_id := BiomeRegistry.resolve_biome_id(def)
+	var lighting := BiomeRegistry.get_lighting_profile(biome_id)
+	var env := WorldEnvironment.new()
+	env.name = "WorldEnvironment"
+	var environment := Environment.new()
+	environment.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
+	environment.ambient_light_color = lighting.get("ambient_color", Color(0.4, 0.4, 0.45))
+	environment.ambient_light_energy = lighting.get("ambient_energy", 0.5)
+	environment.fog_enabled = bool(lighting.get("fog_enabled", false))
+	environment.fog_light_color = lighting.get("fog_color", Color(0.2, 0.2, 0.25))
+	environment.fog_density = lighting.get("fog_density", 0.01)
+	env.environment = environment
+	add_child(env)
+	AudioDirector.set_biome(biome_id)
 
 
 func _resolve_dungeon_definition() -> Dictionary:

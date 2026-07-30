@@ -1,0 +1,13 @@
+{
+  "id": "castle_chalice",
+  "name": "Castle Chalice",
+  "itemType": "accessory",
+  "equipmentSlot": "ring",
+  "gridWidth": 1,
+  "gridHeight": 2,
+  "stackSize": 1,
+  "rarity": "rare",
+  "description": "A sacred chalice that mends wounds over time.",
+  "value": 48,
+  "stats": { "maxHealth": 20, "defense": 3, "healthRegen": 2 }
+}

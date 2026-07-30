@@ -1,0 +1,34 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://aumbrye.dev/schemas/recipe-definition.v1.json",
+  "title": "RecipeDefinition",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "type", "itemId"],
+  "properties": {
+    "id": { "type": "string", "minLength": 1 },
+    "type": { "type": "string", "minLength": 1 },
+    "itemId": { "type": "string", "minLength": 1 },
+    "fromLevel": { "type": "integer", "minimum": 0 },
+    "toLevel": { "type": "integer", "minimum": 0 },
+    "goldCost": { "type": "integer", "minimum": 0 },
+    "materials": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["itemId", "quantity"],
+        "properties": {
+          "itemId": { "type": "string", "minLength": 1 },
+          "quantity": { "type": "integer", "minimum": 1 }
+        }
+      }
+    },
+    "statBonus": {
+      "type": "object",
+      "additionalProperties": { "type": "number" }
+    },
+    "unlockFlag": { "type": "string" },
+    "requiredLevel": { "type": "integer", "minimum": 1 }
+  }
+}

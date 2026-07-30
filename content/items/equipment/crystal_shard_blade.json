@@ -1,0 +1,15 @@
+{
+  "id": "crystal_shard_blade",
+  "name": "Crystal Shard Blade",
+  "itemType": "weapon",
+  "equipmentSlot": "weapon",
+  "gridWidth": 2,
+  "gridHeight": 3,
+  "stackSize": 1,
+  "weaponId": "sword_basic",
+  "rarity": "magic",
+  "description": "A sword edged with razor-sharp crystal shards.",
+  "value": 42,
+  "maxDurability": 90,
+  "stats": { "damagePercent": 6 }
+}

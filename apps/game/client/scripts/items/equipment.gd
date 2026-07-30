@@ -101,20 +101,20 @@ static func format_stat_line(stat: String, value: float) -> String:
 static func format_delta_line(stat: String, delta: float) -> String:
 	if is_zero_approx(delta):
 		return ""
-	var sign := "+" if delta > 0.0 else ""
+	var delta_sign := "+" if delta > 0.0 else ""
 	match stat:
 		"maxHealth":
-			return "%s%.0f HP" % [sign, delta]
+			return "%s%.0f HP" % [delta_sign, delta]
 		"defense":
-			return "%s%.0f DEF" % [sign, delta]
+			return "%s%.0f DEF" % [delta_sign, delta]
 		"damagePercent":
-			return "%s%.0f%% DMG" % [sign, delta]
+			return "%s%.0f%% DMG" % [delta_sign, delta]
 		"moveSpeedPercent":
-			return "%s%.0f%% SPD" % [sign, delta]
+			return "%s%.0f%% SPD" % [delta_sign, delta]
 		"staminaMax":
-			return "%s%.0f STA" % [sign, delta]
+			return "%s%.0f STA" % [delta_sign, delta]
 		_:
-			return "%s%.0f %s" % [sign, delta, stat]
+			return "%s%.0f %s" % [delta_sign, delta, stat]
 
 
 static func _add_instance_stats(

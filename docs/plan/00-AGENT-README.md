@@ -187,6 +187,6 @@ Do not start `M(n+1)` feature work until `Mn` exit criteria pass. Exception: pur
 
 ## First action after plan approval
 
-**M4 gameplay loop** closed (2026-07-30) — [M4_IMPLEMENTATION_LOG.md](../design/M4_IMPLEMENTATION_LOG.md); manual TEST-4.1 in [MANUAL_PLAYTEST_CHECKLIST.md](../design/MANUAL_PLAYTEST_CHECKLIST.md). **Active phase:** [M5-CONTENT-PACK-A.md](phases/M5-CONTENT-PACK-A.md).
+**M6 content pack B** is next — [M6-CONTENT-PACK-B.md](phases/M6-CONTENT-PACK-B.md). **M5** closed (2026-07-30) — manual gates in [MANUAL_PLAYTEST_CHECKLIST.md](../design/MANUAL_PLAYTEST_CHECKLIST.md) § M5; automated via `m5_suite` (222 tests).
 
 **Validation before manual playtest:** `./scripts/run-all-validation.ps1` — see [VALIDATION_PLATFORM.md](../design/VALIDATION_PLATFORM.md). **Human gates (all phases):** [MANUAL_PLAYTEST_CHECKLIST.md](../design/MANUAL_PLAYTEST_CHECKLIST.md).

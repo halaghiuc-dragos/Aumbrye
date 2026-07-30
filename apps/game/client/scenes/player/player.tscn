@@ -1,4 +1,4 @@
-[gd_scene load_steps=18 format=3 uid="uid://cplayer001"]
+[gd_scene load_steps=19 format=3 uid="uid://cplayer001"]
 
 [ext_resource type="Script" path="res://scripts/player/locomotion.gd" id="1_locomotion"]
 [ext_resource type="Script" path="res://scripts/player/dodge.gd" id="2_dodge"]
@@ -14,6 +14,8 @@
 [ext_resource type="Script" path="res://scripts/camera/lock_on.gd" id="13_lockon"]
 
 [ext_resource type="Script" path="res://scripts/player/player_combat_reactions.gd" id="14_reactions"]
+
+[ext_resource type="Script" path="res://scripts/combat/statuses/status_controller.gd" id="15_status"]
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_body"]
 radius = 0.4
@@ -75,6 +77,10 @@ script = ExtResource("6_guard")
 
 [node name="CombatReactions" type="Node" parent="."]
 script = ExtResource("14_reactions")
+
+[node name="StatusController" type="Node" parent="."]
+script = ExtResource("15_status")
+health_path = NodePath("../Health")
 
 [node name="WeaponController" type="Node" parent="."]
 script = ExtResource("8_weapon")

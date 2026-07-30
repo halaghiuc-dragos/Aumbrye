@@ -5,17 +5,6 @@ class_name DungeonBuilder
 
 const FIXTURE_RELATIVE := "content/fixtures/forgotten_castle_slice.json"
 
-const ROOM_SCENES := {
-	"castle_entrance": preload("res://scenes/rooms/castle/castle_entrance.tscn"),
-	"castle_stairs": preload("res://scenes/rooms/castle/castle_stairs.tscn"),
-	"castle_courtyard": preload("res://scenes/rooms/castle/castle_courtyard.tscn"),
-	"castle_hall": preload("res://scenes/rooms/castle/castle_hall.tscn"),
-	"castle_treasure": preload("res://scenes/rooms/castle/castle_treasure.tscn"),
-	"castle_secret": preload("res://scenes/rooms/castle/castle_secret.tscn"),
-	"castle_arena": preload("res://scenes/rooms/castle/castle_arena.tscn"),
-	"castle_boss": preload("res://scenes/rooms/castle/castle_boss.tscn"),
-}
-
 const ENEMY_SCENES_FALLBACK := {
 	"castle_grunt": preload("res://scenes/enemies/castle_grunt.tscn"),
 	"castle_archer": preload("res://scenes/enemies/castle_archer.tscn"),
@@ -26,6 +15,7 @@ const ENEMY_SCENES_FALLBACK := {
 const CHEST_SCENE := preload("res://scenes/loot/loot_chest.tscn")
 const SPIKE_TRAP_SCENE := preload("res://scenes/traps/spike_trap.tscn")
 const FALLING_TRAP_SCENE := preload("res://scenes/traps/falling_trap.tscn")
+const POISON_POOL_SCENE := preload("res://scenes/traps/poison_pool.tscn")
 const EXIT_PORTAL_SCRIPT := preload("res://scripts/dungeon/exit_portal.gd")
 const BOSS_DOOR_SCRIPT := preload("res://scripts/dungeon/boss_room_door.gd")
 
@@ -34,6 +24,8 @@ signal boss_defeated
 signal snapshot_dirty
 
 var definition: Dictionary = {}
+var biome_id: String = BiomeRegistry.BIOME_CASTLE
+var _room_scenes: Dictionary = {}
 var _rooms: Dictionary = {}
 var _player: CharacterBody3D
 var _entities: Node3D
@@ -65,6 +57,8 @@ func build_from_source(parent: Node3D, player: CharacterBody3D, fixture_path: St
 	if definition.is_empty():
 		push_error("DungeonBuilder: no definition provided")
 		return
+	biome_id = BiomeRegistry.resolve_biome_id(definition)
+	_room_scenes = BiomeRegistry.get_room_scenes(biome_id)
 	var rooms: Array = definition.get("rooms", [])
 	if rooms.is_empty():
 		push_error("DungeonBuilder: definition has no rooms")
@@ -108,10 +102,10 @@ func _build_rooms(parent: Node3D) -> void:
 	parent.add_child(rooms_root)
 	for room_def in definition.get("rooms", []):
 		var template_id: String = room_def.get("templateId", "")
-		if not ROOM_SCENES.has(template_id):
+		if not _room_scenes.has(template_id):
 			push_warning("DungeonBuilder: unknown template %s" % template_id)
 			continue
-		var scene: PackedScene = ROOM_SCENES[template_id]
+		var scene: PackedScene = _room_scenes[template_id]
 		var instance := scene.instantiate() as RoomTemplate
 		var t: Dictionary = room_def.get("transform", {})
 		var yaw: float = deg_to_rad(t.get("yaw", 0.0))
@@ -133,8 +127,8 @@ func _build_shortcut_corridors(parent: Node3D) -> void:
 	if not has_one_way:
 		return
 	# L-shaped shortcut mirrors DUNGEON-2.1 hand layout: hall south → corridor → vertical → stairs.
-	var floor_mat := load("res://assets/castle/mat_floor.tres")
-	var wall_mat := load("res://assets/castle/mat_wall.tres")
+	var floor_mat := BiomeRegistry.get_floor_material(biome_id)
+	var wall_mat := BiomeRegistry.get_wall_material(biome_id)
 	var vertical := _create_shortcut_blockout(8.0, 18.0, true, true, false, false, floor_mat, wall_mat)
 	vertical.name = "ShortcutVertical"
 	vertical.position = Vector3(0.0, 0.0, 31.0)
@@ -235,7 +229,11 @@ func _place_traps() -> void:
 		if room == null:
 			continue
 		var trap_id: String = placement.get("trapId", "")
-		var scene: PackedScene = SPIKE_TRAP_SCENE if trap_id == "spike_trap" else FALLING_TRAP_SCENE
+		var scene: PackedScene = SPIKE_TRAP_SCENE
+		if trap_id == "falling_trap":
+			scene = FALLING_TRAP_SCENE
+		elif trap_id == "poison_pool":
+			scene = POISON_POOL_SCENE
 		var trap: Node3D = scene.instantiate() as Node3D
 		var pos: Dictionary = placement.get("position", {})
 		trap.position = Vector3(pos.get("x", 0.0), pos.get("y", 0.0), pos.get("z", 0.0))
@@ -341,7 +339,7 @@ func _setup_boss_door(castle_run: Node3D) -> void:
 	mesh.size = barrier_box.size
 	barrier_mesh.mesh = mesh
 	barrier_mesh.position = barrier_shape.position
-	barrier_mesh.material_override = load("res://assets/castle/mat_wall.tres")
+	barrier_mesh.material_override = BiomeRegistry.get_wall_material(biome_id)
 	barrier.add_child(barrier_mesh)
 	door.add_child(barrier)
 

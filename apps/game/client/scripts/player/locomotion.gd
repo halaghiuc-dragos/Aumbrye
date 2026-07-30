@@ -58,6 +58,9 @@ func _physics_process(delta: float) -> void:
 
 	var sprinting := Input.is_action_pressed("sprint") and direction.length_squared() > 0.01
 	var target_speed := (SPRINT_SPEED if sprinting else WALK_SPEED) * _speed_multiplier
+	var status_ctrl := get_node_or_null("StatusController") as StatusController
+	if status_ctrl:
+		target_speed *= status_ctrl.get_slow_multiplier()
 
 	if sprinting and _stamina:
 		if not _stamina.consume(SPRINT_STAMINA_DRAIN * delta):

@@ -11,6 +11,9 @@ const CASTLE_RUN_SCENE := "res://scenes/dungeon/castle_run.tscn"
 const ARENA_SCENE := "res://scenes/debug/combat_arena.tscn"
 const RESULTS_SCENE := "res://scenes/ui/results_screen.tscn"
 const DEFAULT_BIOME := "forgotten_castle"
+const USE_ONLINE_PROCgen := false
+
+var current_biome_id: String = DEFAULT_BIOME
 
 var last_hub_message := ""
 var last_run_results: Dictionary = {}
@@ -32,11 +35,19 @@ func _ready() -> void:
 
 
 func start_new_castle_run() -> void:
-	_start_castle_run(null)
+	start_new_run(DEFAULT_BIOME)
+
+
+func start_new_run(biome_id: String, run_seed: Variant = null) -> void:
+	_start_run(biome_id, run_seed)
 
 
 func start_castle_run_with_seed(run_seed_value: int) -> void:
-	_start_castle_run(run_seed_value)
+	start_run_with_seed(DEFAULT_BIOME, run_seed_value)
+
+
+func start_run_with_seed(biome_id: String, run_seed_value: int) -> void:
+	_start_run(biome_id, run_seed_value)
 
 
 func continue_castle_run() -> void:
@@ -53,15 +64,16 @@ func start_castle_run() -> void:
 	start_new_castle_run()
 
 
-func _start_castle_run(run_seed: Variant) -> void:
+func _start_run(biome_id: String, run_seed: Variant) -> void:
 	_is_continue = false
 	_pending_snapshot.clear()
 	_reset_run_stats()
 	current_dungeon_definition = {}
 	current_run_id = ""
 	current_seed = 0
+	current_biome_id = biome_id
 
-	var gen := LocalProcgen.generate(DEFAULT_BIOME, run_seed)
+	var gen := await _generate_dungeon(biome_id, run_seed)
 	if not gen.get("ok", false):
 		last_hub_message = "Could not generate dungeon: %s" % gen.get("error", "unknown error")
 		push_error("RunFlow: %s" % last_hub_message)
@@ -79,11 +91,43 @@ func _start_castle_run(run_seed: Variant) -> void:
 		return_to_hub(last_hub_message)
 		return
 
-	_enter_castle_run()
+	_enter_run()
+
+
+func _generate_dungeon(biome_id: String, run_seed: Variant) -> Dictionary:
+	if USE_ONLINE_PROCgen and ApiConfig.get_base_url() != "":
+		var online := await _try_online_generate(biome_id, run_seed)
+		if online.get("ok", false):
+			return online
+	return LocalProcgen.generate(biome_id, run_seed)
+
+
+func _try_online_generate(biome_id: String, run_seed: Variant) -> Dictionary:
+	var create := await ApiClient.create_run(biome_id, run_seed)
+	if not create.get("ok", false):
+		return {"ok": false, "error": create.get("error", "online create failed")}
+	var body: Dictionary = create.get("body", {})
+	var run_id: String = str(body.get("runId", body.get("id", "")))
+	if run_id == "":
+		return {"ok": false, "error": "online run missing id"}
+	var dungeon := await ApiClient.get_dungeon(run_id)
+	if not dungeon.get("ok", false):
+		return {"ok": false, "error": dungeon.get("error", "dungeon fetch failed")}
+	var definition: Dictionary = dungeon.get("definition", {})
+	if definition.is_empty():
+		return {"ok": false, "error": "empty dungeon definition from API"}
+	return {
+		"ok": true,
+		"definition": definition,
+		"run_id": run_id,
+		"input_seed": int(definition.get("seed", 0)),
+		"generation_seed": int(definition.get("seed", 0)),
+	}
 
 
 func _restore_castle_run(saved: Dictionary) -> void:
 	current_run_id = str(saved.get("runId", ""))
+	current_biome_id = str(saved.get("biomeId", DEFAULT_BIOME))
 	current_seed = int(saved.get("seed", 0))
 	var def: Variant = saved.get("dungeonDefinition", {})
 	current_dungeon_definition = def if def is Dictionary else {}
@@ -105,10 +149,10 @@ func _restore_castle_run(saved: Dictionary) -> void:
 	for inst_id in _pending_snapshot.get("lootClaimedInstanceIds", []):
 		_loot_claimed_instance_ids.append(str(inst_id))
 
-	_enter_castle_run()
+	_enter_run()
 
 
-func _enter_castle_run() -> void:
+func _enter_run() -> void:
 	var root := get_tree().root
 	var definition_copy := current_dungeon_definition.duplicate(true)
 	root.set_meta("dungeon_definition", definition_copy)
@@ -123,7 +167,7 @@ func _enter_castle_run() -> void:
 		"schemaVersion": 2,
 		"runId": current_run_id,
 		"seed": current_seed,
-		"biomeId": DEFAULT_BIOME,
+		"biomeId": current_biome_id,
 		"dungeonDefinition": definition_copy,
 	}
 	if _is_continue and not _pending_snapshot.is_empty():
