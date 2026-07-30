@@ -1,8 +1,12 @@
 using System.Security.Claims;
+using System.Text.Json;
+using System.Text.Json.Nodes;
 using Aumbrye.Application.Abstractions;
+using Aumbrye.Application.Services;
 using Aumbrye.Shared.Contracts;
 using Aumbrye.Shared.Contracts.Auth;
 using Aumbrye.Shared.Contracts.Runs;
+using Aumbrye.Shared.Contracts.Saves;
 
 namespace Aumbrye.Api.Auth;
 
@@ -111,7 +115,95 @@ public static class RunsEndpoints
                 ct);
             if (!result.Success)
                 return Results.BadRequest(new { error = result.Error });
-            return Results.Ok(new CompleteRunResponse(result.RunId, result.Status!));
+            return Results.Ok(new CompleteRunResponse(
+                result.RunId,
+                result.Status!,
+                result.Progression == null
+                    ? null
+                    : new CompleteRunProgressionResponse(
+                        result.Progression.XpGained,
+                        result.Progression.TotalXp,
+                        result.Progression.Level,
+                        result.Progression.TalentPointsEarned,
+                        result.Progression.LootGranted.Select(l => new LootGrantedResponse(
+                            l["instanceId"]?.GetValue<string>(),
+                            l["itemDefId"]?.GetValue<string>(),
+                            l["itemId"]?.GetValue<string>(),
+                            l["rarity"]?.GetValue<string>(),
+                            l["affixCount"]?.GetValue<int>(),
+                            l["quantity"]?.GetValue<int>())).ToList(),
+                        result.Progression.EconomyNote)));
+        });
+
+        return group;
+    }
+
+    private static Guid? GetAccountId(ClaimsPrincipal user)
+    {
+        var id = user.FindFirstValue(ClaimTypes.NameIdentifier);
+        return Guid.TryParse(id, out var guid) ? guid : null;
+    }
+}
+
+public static class SavesEndpoints
+{
+    public static RouteGroupBuilder MapSavesEndpoints(this WebApplication app)
+    {
+        var group = app.MapGroup("/api/v1/saves").WithTags("Saves").RequireAuthorization();
+
+        group.MapGet("/current", async (
+            ClaimsPrincipal user,
+            ISaveService saves,
+            CancellationToken ct) =>
+        {
+            var accountId = GetAccountId(user);
+            if (accountId == null)
+                return Results.Unauthorized();
+            var result = await saves.GetCurrentAsync(accountId.Value, ct);
+            if (!result.Success)
+                return Results.BadRequest(new { error = result.Error });
+            var json = result.State!.ToJsonString();
+            return Results.Ok(new SaveResponse(json, result.UpdatedAt!.Value));
+        });
+
+        group.MapPut("/current", async (
+            PutSaveRequest req,
+            ClaimsPrincipal user,
+            ISaveService saves,
+            CancellationToken ct) =>
+        {
+            var accountId = GetAccountId(user);
+            if (accountId == null)
+                return Results.Unauthorized();
+
+            JsonObject? state;
+            try
+            {
+                state = JsonNode.Parse(req.StateJson)?.AsObject();
+            }
+            catch (JsonException)
+            {
+                return Results.BadRequest(new { error = "Invalid save JSON." });
+            }
+
+            if (state == null)
+                return Results.BadRequest(new { error = "Save must be a JSON object." });
+
+            var result = await saves.PutCurrentAsync(accountId.Value, state, req.ClientUpdatedAt, ct);
+            if (result.Conflict)
+            {
+                return Results.Conflict(new
+                {
+                    error = result.Error,
+                    state = result.State!.ToJsonString(),
+                    updatedAt = result.UpdatedAt,
+                });
+            }
+
+            if (!result.Success)
+                return Results.BadRequest(new { error = result.Error });
+
+            return Results.Ok(new PutSaveResponse(result.UpdatedAt!.Value));
         });
 
         return group;

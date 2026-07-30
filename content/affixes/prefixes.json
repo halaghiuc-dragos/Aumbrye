@@ -1,0 +1,69 @@
+{
+  "schemaVersion": 1,
+  "affixes": [
+    {
+      "id": "sharp",
+      "displayName": "Sharp",
+      "kind": "prefix",
+      "stat": "physicalDamage",
+      "itemTypes": ["weapon"],
+      "weight": 100,
+      "tiers": {
+        "common": { "min": 2, "max": 4 },
+        "magic": { "min": 5, "max": 8 },
+        "rare": { "min": 9, "max": 14 },
+        "epic": { "min": 15, "max": 20 },
+        "legendary": { "min": 21, "max": 28 },
+        "mythic": { "min": 30, "max": 40 }
+      }
+    },
+    {
+      "id": "sturdy",
+      "displayName": "Sturdy",
+      "kind": "prefix",
+      "stat": "armor",
+      "itemTypes": ["weapon", "armor"],
+      "weight": 90,
+      "tiers": {
+        "common": { "min": 1, "max": 3 },
+        "magic": { "min": 4, "max": 6 },
+        "rare": { "min": 7, "max": 10 },
+        "epic": { "min": 11, "max": 15 },
+        "legendary": { "min": 16, "max": 22 },
+        "mythic": { "min": 24, "max": 32 }
+      }
+    },
+    {
+      "id": "nimble",
+      "displayName": "Nimble",
+      "kind": "prefix",
+      "stat": "staminaRegen",
+      "itemTypes": ["weapon", "armor"],
+      "weight": 80,
+      "tiers": {
+        "common": { "min": 1, "max": 2 },
+        "magic": { "min": 3, "max": 5 },
+        "rare": { "min": 6, "max": 8 },
+        "epic": { "min": 9, "max": 12 },
+        "legendary": { "min": 13, "max": 16 },
+        "mythic": { "min": 18, "max": 24 }
+      }
+    },
+    {
+      "id": "keen",
+      "displayName": "Keen",
+      "kind": "prefix",
+      "stat": "critChance",
+      "itemTypes": ["weapon"],
+      "weight": 70,
+      "tiers": {
+        "common": { "min": 0.01, "max": 0.02 },
+        "magic": { "min": 0.02, "max": 0.04 },
+        "rare": { "min": 0.04, "max": 0.06 },
+        "epic": { "min": 0.06, "max": 0.08 },
+        "legendary": { "min": 0.08, "max": 0.1 },
+        "mythic": { "min": 0.1, "max": 0.12 }
+      }
+    }
+  ]
+}

@@ -65,7 +65,7 @@ func _open() -> void:
 		var qty: int = entry.get("quantity", 1)
 		if item_id != "":
 			InventoryService.add_item(item_id, qty)
-			RunFlow.register_loot(item_id)
+			RunFlow.register_loot(item_id, str(entry.get("instanceId", "")))
 	opened.emit()
 	if _mesh:
 		var tween := create_tween()

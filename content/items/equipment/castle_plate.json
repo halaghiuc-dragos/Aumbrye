@@ -1,0 +1,13 @@
+{
+  "id": "castle_plate",
+  "name": "Castle Plate",
+  "itemType": "armor",
+  "equipmentSlot": "chest",
+  "gridWidth": 2,
+  "gridHeight": 3,
+  "stackSize": 1,
+  "rarity": "magic",
+  "description": "Heavy chest armor with decent protection.",
+  "value": 35,
+  "stats": { "defense": 10, "maxHealth": 15 }
+}

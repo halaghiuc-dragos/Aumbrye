@@ -1,0 +1,49 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://aumbrye.dev/schemas/affix-rarity-rules.v1.json",
+  "title": "AffixRarityRules",
+  "description": "Affix count and rarity roll weights for loot generation.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "affixCounts", "rarityWeights"],
+  "properties": {
+    "schemaVersion": { "type": "integer", "const": 1 },
+    "affixCounts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["common", "magic", "rare", "epic", "legendary", "mythic"],
+      "properties": {
+        "common": { "$ref": "#/$defs/countRange" },
+        "magic": { "$ref": "#/$defs/countRange" },
+        "rare": { "$ref": "#/$defs/countRange" },
+        "epic": { "$ref": "#/$defs/countRange" },
+        "legendary": { "$ref": "#/$defs/countRange" },
+        "mythic": { "$ref": "#/$defs/countRange" }
+      }
+    },
+    "rarityWeights": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["common", "magic", "rare", "epic", "legendary", "mythic"],
+      "properties": {
+        "common": { "type": "integer", "minimum": 0 },
+        "magic": { "type": "integer", "minimum": 0 },
+        "rare": { "type": "integer", "minimum": 0 },
+        "epic": { "type": "integer", "minimum": 0 },
+        "legendary": { "type": "integer", "minimum": 0 },
+        "mythic": { "type": "integer", "minimum": 0 }
+      }
+    }
+  },
+  "$defs": {
+    "countRange": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["min", "max"],
+      "properties": {
+        "min": { "type": "integer", "minimum": 0 },
+        "max": { "type": "integer", "minimum": 0 }
+      }
+    }
+  }
+}

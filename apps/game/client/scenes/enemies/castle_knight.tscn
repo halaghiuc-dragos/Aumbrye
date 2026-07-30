@@ -36,7 +36,7 @@ emission_enabled = true
 emission = Color(1, 0.1, 0.1, 1)
 shading_mode = 0
 
-[node name="CastleKnight" type="CharacterBody3D"]
+[node name="CastleKnight" type="CharacterBody3D" groups=["enemy", "lockable"]]
 script = ExtResource("1_knight")
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="."]

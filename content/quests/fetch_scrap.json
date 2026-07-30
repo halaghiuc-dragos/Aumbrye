@@ -1,0 +1,8 @@
+{
+  "id": "fetch_scrap",
+  "title": "Salvage Duty",
+  "type": "fetch",
+  "targetItemId": "iron_scrap",
+  "description": "Bring iron scrap back from a run (auto-completes on pickup).",
+  "rewards": { "gold": 20 }
+}

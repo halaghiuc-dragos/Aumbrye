@@ -1,0 +1,36 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://aumbrye.dev/schemas/xp-curve.v1.json",
+  "title": "XpCurve",
+  "description": "M4 level curve and run XP economy defaults.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "baseXpPerRun",
+    "tierXpBonus",
+    "deathXpFraction",
+    "abandonedXpFraction",
+    "levels"
+  ],
+  "properties": {
+    "schemaVersion": { "type": "integer", "const": 1 },
+    "baseXpPerRun": { "type": "integer", "minimum": 1 },
+    "tierXpBonus": { "type": "integer", "minimum": 0 },
+    "deathXpFraction": { "type": "number", "minimum": 0, "maximum": 1 },
+    "abandonedXpFraction": { "type": "number", "minimum": 0, "maximum": 1 },
+    "levels": {
+      "type": "array",
+      "minItems": 2,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["level", "xpRequired"],
+        "properties": {
+          "level": { "type": "integer", "minimum": 1 },
+          "xpRequired": { "type": "integer", "minimum": 0 }
+        }
+      }
+    }
+  }
+}

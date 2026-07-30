@@ -1,8 +1,14 @@
 extends RefCounted
 class_name GridInventory
 
+const EquipmentHelper := preload("res://scripts/items/equipment.gd")
+
 const DEFAULT_WIDTH := 6
 const DEFAULT_HEIGHT := 4
+
+const SORT_MODES: Array[String] = ["default", "name", "type", "rarity"]
+const FILTER_TYPES: Array[String] = ["all", "weapon", "armor", "accessory", "consumable", "material"]
+const FILTER_RARITIES: Array[String] = ["all", "common", "magic", "rare", "epic", "legendary"]
 
 signal changed
 signal item_equipped(item_id: String, slot: String)
@@ -11,12 +17,13 @@ signal item_unequipped(slot: String)
 var grid_width: int = DEFAULT_WIDTH
 var grid_height: int = DEFAULT_HEIGHT
 var slots: Array[Dictionary] = []
-var equipped: Dictionary = { "weapon": "" }
+var equipped: Dictionary = {}
 
 
 func _init(width: int = DEFAULT_WIDTH, height: int = DEFAULT_HEIGHT) -> void:
 	grid_width = width
 	grid_height = height
+	equipped = EquipmentHelper.empty_equipped()
 
 
 func to_save_dict() -> Dictionary:
@@ -25,7 +32,7 @@ func to_save_dict() -> Dictionary:
 		"gridWidth": grid_width,
 		"gridHeight": grid_height,
 		"slots": slots.duplicate(true),
-		"equipped": equipped.duplicate(),
+		"equipped": _serialize_equipped(),
 	}
 
 
@@ -35,14 +42,29 @@ func from_save_dict(data: Dictionary) -> void:
 	slots.clear()
 	for entry in data.get("slots", []):
 		if entry is Dictionary:
-			slots.append(entry.duplicate())
-	var eq: Dictionary = data.get("equipped", {})
-	equipped = { "weapon": str(eq.get("weapon", "")) }
+			slots.append(_normalize_slot(entry.duplicate()))
+	_deserialize_equipped(data.get("equipped", {}))
 	changed.emit()
 
 
 func get_item_def(item_id: String) -> Dictionary:
 	return ItemCatalog.get_definition(item_id)
+
+
+func get_slot_rarity(slot: Dictionary) -> String:
+	if slot.has("rarity"):
+		return str(slot.get("rarity", "common"))
+	var def := get_item_def(slot.get("itemId", ""))
+	return str(def.get("rarity", "common"))
+
+
+func get_slot_display_name(slot: Dictionary) -> String:
+	var def := get_item_def(slot.get("itemId", ""))
+	var name: String = def.get("name", slot.get("itemId", "?"))
+	var rarity: String = get_slot_rarity(slot)
+	if rarity != "common" and rarity != "":
+		return "[%s] %s" % [rarity.capitalize(), name]
+	return name
 
 
 func can_place(item_id: String, x: int, y: int, ignore_index: int = -1) -> bool:
@@ -69,24 +91,27 @@ func can_place(item_id: String, x: int, y: int, ignore_index: int = -1) -> bool:
 	return true
 
 
-func add_item(item_id: String, quantity: int = 1) -> bool:
+func add_item(item_id: String, quantity: int = 1, instance_data: Dictionary = {}) -> bool:
 	var def := get_item_def(item_id)
 	if def.is_empty():
 		return false
 	var max_stack: int = def.get("stackSize", 1)
-	for i in slots.size():
-		var slot: Dictionary = slots[i]
-		if slot.get("itemId", "") != item_id:
-			continue
-		var current_qty: int = slot.get("quantity", 1)
-		if current_qty >= max_stack:
-			continue
-		var addable := mini(quantity, max_stack - current_qty)
-		slot["quantity"] = current_qty + addable
-		quantity -= addable
-		if quantity <= 0:
-			changed.emit()
-			return true
+	if max_stack > 1 and instance_data.is_empty():
+		for i in slots.size():
+			var slot: Dictionary = slots[i]
+			if slot.get("itemId", "") != item_id:
+				continue
+			if slot.has("affixes") and not slot.get("affixes", []).is_empty():
+				continue
+			var current_qty: int = slot.get("quantity", 1)
+			if current_qty >= max_stack:
+				continue
+			var addable := mini(quantity, max_stack - current_qty)
+			slot["quantity"] = current_qty + addable
+			quantity -= addable
+			if quantity <= 0:
+				changed.emit()
+				return true
 	for y in grid_height:
 		for x in grid_width:
 			if quantity <= 0:
@@ -94,10 +119,34 @@ func add_item(item_id: String, quantity: int = 1) -> bool:
 			if not can_place(item_id, x, y):
 				continue
 			var place_qty := mini(quantity, max_stack)
-			slots.append({ "itemId": item_id, "quantity": place_qty, "x": x, "y": y })
+			var slot_data := {
+				"itemId": item_id,
+				"quantity": place_qty,
+				"x": x,
+				"y": y,
+			}
+			if not instance_data.is_empty():
+				slot_data.merge(instance_data, true)
+			elif def.get("rarity", "common") != "common":
+				slot_data["rarity"] = def.get("rarity", "common")
+			slots.append(_normalize_slot(slot_data))
 			quantity -= place_qty
 	if quantity > 0:
 		return false
+	changed.emit()
+	return true
+
+
+func add_rolled_item(item_id: String, roll_seed: int = -1) -> bool:
+	var instance := AffixRoller.roll_instance(item_id, roll_seed)
+	if instance.is_empty():
+		return false
+	var x_y := _find_first_fit(item_id)
+	if x_y.x < 0:
+		return false
+	instance["x"] = x_y.x
+	instance["y"] = x_y.y
+	slots.append(_normalize_slot(instance))
 	changed.emit()
 	return true
 
@@ -111,19 +160,113 @@ func remove_at(index: int) -> Dictionary:
 	return removed
 
 
-func equip_weapon(index: int) -> bool:
+func move_slot(index: int, to_x: int, to_y: int) -> bool:
+	if index < 0 or index >= slots.size():
+		return false
+	var slot: Dictionary = slots[index]
+	var item_id: String = slot.get("itemId", "")
+	if not can_place(item_id, to_x, to_y, index):
+		return false
+	slot["x"] = to_x
+	slot["y"] = to_y
+	changed.emit()
+	return true
+
+
+func find_slot_at(x: int, y: int) -> int:
+	for i in slots.size():
+		var slot: Dictionary = slots[i]
+		var def := get_item_def(slot.get("itemId", ""))
+		if def.is_empty():
+			continue
+		var rect := Rect2i(
+			int(slot.get("x", 0)),
+			int(slot.get("y", 0)),
+			int(def.get("gridWidth", 1)),
+			int(def.get("gridHeight", 1))
+		)
+		if rect.has_point(Vector2i(x, y)):
+			return i
+	return -1
+
+
+func sort_slots(mode: String) -> void:
+	match mode:
+		"name":
+			slots.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
+				return get_slot_display_name(a) < get_slot_display_name(b)
+			)
+		"type":
+			slots.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
+				var da := get_item_def(a.get("itemId", ""))
+				var db := get_item_def(b.get("itemId", ""))
+				return da.get("itemType", "") < db.get("itemType", "")
+			)
+		"rarity":
+			slots.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
+				return _rarity_weight(get_slot_rarity(a)) > _rarity_weight(get_slot_rarity(b))
+			)
+		_:
+			pass
+	_repack_slots()
+	changed.emit()
+
+
+func filter_slots(type_filter: String, rarity_filter: String) -> Array[Dictionary]:
+	var filtered: Array[Dictionary] = []
+	for i in slots.size():
+		var slot: Dictionary = slots[i]
+		if not _passes_filter(slot, type_filter, rarity_filter):
+			continue
+		var copy := slot.duplicate()
+		copy["_index"] = i
+		filtered.append(copy)
+	return filtered
+
+
+func equip_from_index(index: int, slot_name: String = "") -> bool:
 	if index < 0 or index >= slots.size():
 		return false
 	var slot: Dictionary = slots[index]
 	var item_id: String = slot.get("itemId", "")
 	var def := get_item_def(item_id)
-	if def.get("itemType", "") != "weapon":
+	var target_slot := slot_name if slot_name != "" else EquipmentHelper.slot_for_item_def(def)
+	if target_slot == "" or not EquipmentHelper.can_equip_in_slot(def, target_slot):
 		return false
-	var previous_id: String = equipped.get("weapon", "")
-	equipped["weapon"] = item_id
-	if previous_id != "" and previous_id != item_id:
-		item_unequipped.emit("weapon")
-	item_equipped.emit(item_id, "weapon")
+	var previous: Dictionary = equipped.get(target_slot, {})
+	if not previous.is_empty():
+		if not _return_equipped_to_grid(target_slot):
+			return false
+	var instance := slot.duplicate()
+	instance.erase("x")
+	instance.erase("y")
+	equipped[target_slot] = instance
+	slots.remove_at(index)
+	item_equipped.emit(item_id, target_slot)
+	changed.emit()
+	return true
+
+
+func equip_weapon(index: int) -> bool:
+	return equip_from_index(index, "weapon")
+
+
+func unequip(slot_name: String) -> bool:
+	if not equipped.has(slot_name):
+		return false
+	var instance: Dictionary = equipped.get(slot_name, {})
+	if instance.is_empty():
+		return false
+	var item_id: String = instance.get("itemId", "")
+	var pos := _find_first_fit(item_id)
+	if pos.x < 0:
+		return false
+	var grid_slot := instance.duplicate()
+	grid_slot["x"] = pos.x
+	grid_slot["y"] = pos.y
+	slots.append(_normalize_slot(grid_slot))
+	equipped[slot_name] = {}
+	item_unequipped.emit(slot_name)
 	changed.emit()
 	return true
 
@@ -146,7 +289,12 @@ func consume_at(index: int) -> Dictionary:
 
 
 func get_equipped_weapon_id() -> String:
-	return equipped.get("weapon", "")
+	var inst: Dictionary = equipped.get("weapon", {})
+	return inst.get("itemId", "")
+
+
+func get_equipped_instance(slot_name: String) -> Dictionary:
+	return equipped.get(slot_name, {}).duplicate()
 
 
 func get_equipped_weapon_data_path() -> String:
@@ -156,3 +304,131 @@ func get_equipped_weapon_data_path() -> String:
 	var def := get_item_def(item_id)
 	var weapon_id: String = def.get("weaponId", "sword_basic")
 	return "content/weapons/%s.json" % weapon_id
+
+
+func remove_items_by_id(item_id: String, quantity: int = 1) -> int:
+	var removed := 0
+	var i := slots.size() - 1
+	while i >= 0 and removed < quantity:
+		var slot: Dictionary = slots[i]
+		if slot.get("itemId", "") != item_id:
+			i -= 1
+			continue
+		var qty: int = slot.get("quantity", 1)
+		if qty <= quantity - removed:
+			removed += qty
+			slots.remove_at(i)
+		else:
+			slot["quantity"] = qty - (quantity - removed)
+			removed = quantity
+		i -= 1
+	if removed > 0:
+		changed.emit()
+	return removed
+
+
+func _normalize_slot(slot: Dictionary) -> Dictionary:
+	if not slot.has("instanceId"):
+		var item_id: String = slot.get("itemId", "")
+		var seed_val: int = int(slot.get("rollSeed", slot.get("x", 0) + slot.get("y", 0)))
+		slot["instanceId"] = "%s_%d" % [item_id, seed_val]
+	return slot
+
+
+func _serialize_equipped() -> Dictionary:
+	var out: Dictionary = {}
+	for slot_name in EquipmentHelper.SLOT_ORDER:
+		var inst: Dictionary = equipped.get(slot_name, {})
+		out[slot_name] = inst.duplicate() if not inst.is_empty() else {}
+	return out
+
+
+func _deserialize_equipped(data: Variant) -> void:
+	equipped = EquipmentHelper.empty_equipped()
+	if not data is Dictionary:
+		return
+	if data.has("weapon") and data["weapon"] is String:
+		var legacy_id: String = data["weapon"]
+		if legacy_id != "":
+			equipped["weapon"] = { "itemId": legacy_id, "quantity": 1 }
+	for slot_name in EquipmentHelper.SLOT_ORDER:
+		var inst: Variant = data.get(slot_name, {})
+		if inst is String:
+			continue
+		if inst is Dictionary and not inst.is_empty():
+			equipped[slot_name] = _normalize_slot(inst.duplicate())
+
+
+func _return_equipped_to_grid(slot_name: String) -> bool:
+	var instance: Dictionary = equipped.get(slot_name, {})
+	if instance.is_empty():
+		return true
+	var item_id: String = instance.get("itemId", "")
+	var pos := _find_first_fit(item_id)
+	if pos.x < 0:
+		return false
+	var grid_slot := instance.duplicate()
+	grid_slot["x"] = pos.x
+	grid_slot["y"] = pos.y
+	slots.append(_normalize_slot(grid_slot))
+	equipped[slot_name] = {}
+	return true
+
+
+func _find_first_fit(item_id: String) -> Vector2i:
+	for y in grid_height:
+		for x in grid_width:
+			if can_place(item_id, x, y):
+				return Vector2i(x, y)
+	return Vector2i(-1, -1)
+
+
+func _repack_slots() -> void:
+	var packed: Array[Dictionary] = []
+	for slot in slots:
+		packed.append(slot.duplicate())
+	slots.clear()
+	for slot in packed:
+		var item_id: String = slot.get("itemId", "")
+		var pos := _find_first_fit(item_id)
+		if pos.x < 0:
+			continue
+		slot["x"] = pos.x
+		slot["y"] = pos.y
+		slots.append(slot)
+
+
+func _passes_filter(slot: Dictionary, type_filter: String, rarity_filter: String) -> bool:
+	var def := get_item_def(slot.get("itemId", ""))
+	if type_filter != "all":
+		var item_type: String = def.get("itemType", "")
+		match type_filter:
+			"weapon":
+				if item_type != "weapon":
+					return false
+			"armor":
+				if item_type != "armor":
+					return false
+			"accessory":
+				if item_type != "accessory":
+					return false
+			"consumable":
+				if item_type != "consumable":
+					return false
+			"material":
+				if item_type != "material":
+					return false
+	if rarity_filter != "all":
+		if get_slot_rarity(slot) != rarity_filter:
+			return false
+	return true
+
+
+func _rarity_weight(rarity: String) -> int:
+	match rarity:
+		"legendary": return 5
+		"epic": return 4
+		"rare": return 3
+		"magic": return 2
+		"common": return 1
+		_: return 0

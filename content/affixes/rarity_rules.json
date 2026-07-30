@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "affixCounts": {
+    "common": { "min": 0, "max": 0 },
+    "magic": { "min": 1, "max": 1 },
+    "rare": { "min": 2, "max": 2 },
+    "epic": { "min": 2, "max": 3 },
+    "legendary": { "min": 3, "max": 4 },
+    "mythic": { "min": 4, "max": 4 }
+  },
+  "rarityWeights": {
+    "common": 50,
+    "magic": 30,
+    "rare": 15,
+    "epic": 4,
+    "legendary": 1,
+    "mythic": 0
+  }
+}

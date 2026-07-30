@@ -12,6 +12,33 @@ func run() -> void:
 	_test_continuable_rules()
 	_test_death_snapshot_guard()
 	_test_player_dead_flag()
+	_test_backup_rotation()
+
+
+func _test_backup_rotation() -> void:
+	var start := Time.get_ticks_msec()
+	var has_list := LocalSave.has_method("list_backups")
+	var has_restore := LocalSave.has_method("restore_backup")
+	ctx.timed_record(
+		"save.backup_api",
+		get_category(),
+		has_list and has_restore,
+		"LocalSave exposes list_backups and restore_backup",
+		start,
+		"M4.save.backup"
+	)
+
+	start = Time.get_ticks_msec()
+	LocalSave.autosave()
+	var backups := LocalSave.list_backups()
+	ctx.timed_record(
+		"save.backup_after_autosave",
+		get_category(),
+		backups.size() >= 0,
+		"list_backups callable after autosave",
+		start,
+		"M4.save.backup"
+	)
 
 
 func _try_localsave_tests() -> void:

@@ -7,5 +7,6 @@
   "stackSize": 1,
   "description": "A rare relic from the secret vault.",
   "value": 80,
-  "lootValue": 40
+  "lootValue": 40,
+  "runRelicId": "iron_will"
 }

@@ -32,7 +32,7 @@ func _test_menu_wiring() -> void:
 	menu.queue_free()
 
 	start = Time.get_ticks_msec()
-	var hub: Node3D = load("res://scenes/hub/hub_stub.tscn").instantiate() as Node3D
+	var hub: Node3D = load("res://scenes/hub/hub.tscn").instantiate() as Node3D
 	ctx.timed_record(
 		"hub.portal_and_arena",
 		get_category(),

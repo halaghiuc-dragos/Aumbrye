@@ -1,4 +1,4 @@
-extends "res://scripts/enemies/castle_enemy_base.gd"
+extends CastleEnemyBase
 
 ## Ranged castle archer — charge telegraph, fixed shot on release (ENEMY-2.2).
 

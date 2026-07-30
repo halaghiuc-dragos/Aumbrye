@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "baseXpPerRun": 100,
+  "tierXpBonus": 25,
+  "deathXpFraction": 0.5,
+  "abandonedXpFraction": 0,
+  "levels": [
+    { "level": 1, "xpRequired": 0 },
+    { "level": 2, "xpRequired": 100 },
+    { "level": 3, "xpRequired": 250 },
+    { "level": 4, "xpRequired": 450 },
+    { "level": 5, "xpRequired": 700 },
+    { "level": 6, "xpRequired": 1000 },
+    { "level": 7, "xpRequired": 1350 },
+    { "level": 8, "xpRequired": 1750 },
+    { "level": 9, "xpRequired": 2200 },
+    { "level": 10, "xpRequired": 2700 },
+    { "level": 11, "xpRequired": 3250 },
+    { "level": 12, "xpRequired": 3850 },
+    { "level": 13, "xpRequired": 4500 },
+    { "level": 14, "xpRequired": 5200 },
+    { "level": 15, "xpRequired": 5950 },
+    { "level": 16, "xpRequired": 6750 },
+    { "level": 17, "xpRequired": 7600 },
+    { "level": 18, "xpRequired": 8500 },
+    { "level": 19, "xpRequired": 9450 },
+    { "level": 20, "xpRequired": 10450 }
+  ]
+}

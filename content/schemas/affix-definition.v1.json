@@ -1,0 +1,44 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://aumbrye.dev/schemas/affix-definition.v1.json",
+  "title": "AffixDefinition",
+  "description": "Single affix entry used in prefix/suffix packs.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "displayName", "kind", "stat", "tiers"],
+  "properties": {
+    "id": { "type": "string", "minLength": 1 },
+    "displayName": { "type": "string", "minLength": 1 },
+    "kind": { "type": "string", "enum": ["prefix", "suffix"] },
+    "stat": { "type": "string", "minLength": 1 },
+    "itemTypes": {
+      "type": "array",
+      "items": { "type": "string", "enum": ["weapon", "armor"] },
+      "minItems": 1
+    },
+    "tiers": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "common": { "$ref": "#/$defs/tier" },
+        "magic": { "$ref": "#/$defs/tier" },
+        "rare": { "$ref": "#/$defs/tier" },
+        "epic": { "$ref": "#/$defs/tier" },
+        "legendary": { "$ref": "#/$defs/tier" },
+        "mythic": { "$ref": "#/$defs/tier" }
+      }
+    },
+    "weight": { "type": "integer", "minimum": 1 }
+  },
+  "$defs": {
+    "tier": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["min", "max"],
+      "properties": {
+        "min": { "type": "number" },
+        "max": { "type": "number" }
+      }
+    }
+  }
+}

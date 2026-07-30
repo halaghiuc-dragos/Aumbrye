@@ -1,0 +1,13 @@
+{
+  "id": "castle_helm",
+  "name": "Castle Helm",
+  "itemType": "armor",
+  "equipmentSlot": "helmet",
+  "gridWidth": 2,
+  "gridHeight": 2,
+  "stackSize": 1,
+  "rarity": "common",
+  "description": "A dented helm from the castle armory.",
+  "value": 15,
+  "stats": { "defense": 4, "maxHealth": 5 }
+}

@@ -1,0 +1,35 @@
+{
+  "id": "mira_greeting",
+  "startNode": "start",
+  "nodes": {
+    "start": {
+      "speaker": "Mira",
+      "text": "The castle portal never sleeps. Quests on the board are optional — the path is always open.",
+      "choices": [
+        { "text": "Check the quest board", "actions": [{ "type": "open_quest_board" }] },
+        {
+          "text": "Tell me about the castle",
+          "next": "castle_lore",
+          "condition": { "not": { "flag": "heard_castle_lore" } }
+        },
+        {
+          "text": "I've heard this before",
+          "next": "castle_repeat",
+          "condition": { "flag": "heard_castle_lore" }
+        },
+        { "text": "Goodbye", "next": "end" }
+      ]
+    },
+    "castle_lore": {
+      "speaker": "Mira",
+      "text": "Forgotten Castle tier one awaits north of here. Escape alive and keep your loot.",
+      "actions": [{ "type": "set_flag", "flag": "heard_castle_lore", "value": true }],
+      "next": "end"
+    },
+    "castle_repeat": {
+      "speaker": "Mira",
+      "text": "Same castle, same rules. Don't die with pockets full.",
+      "next": "end"
+    }
+  }
+}

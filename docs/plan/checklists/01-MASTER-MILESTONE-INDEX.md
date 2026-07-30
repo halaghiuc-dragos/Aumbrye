@@ -82,19 +82,21 @@ All milestones complete (2026-07-30). Archive: [M3_IMPLEMENTATION_LOG.md](../../
 
 ## M4 Gameplay loop
 
-| ID | Title |
-|----|-------|
-| HUB-4.1–4.4 | Hub services |
-| NPC-4.1 | NPCs |
-| DLG-4.1 | Dialogue |
-| QUEST-4.1 | Quests |
-| SCHEMA-4.1–4.2 | Character + affix |
-| LOOT-4.1–4.2 | Affixes + slots |
-| INV-4.1 | Inventory UX |
-| PROG-4.1–4.3 | Level/talents/relics |
-| SAVE-4.1–4.2 | Cloud + backups |
-| FLOW-4.1 | Economy |
-| TEST-4.1 | 10-run soak |
+Automated validation complete (2026-07-30). Manual gate: [MANUAL_PLAYTEST_CHECKLIST.md](../../design/MANUAL_PLAYTEST_CHECKLIST.md) § M4.
+
+| ID | Title | Status |
+|----|-------|--------|
+| HUB-4.1–4.4 | Hub services | done |
+| NPC-4.1 | NPCs | done |
+| DLG-4.1 | Dialogue | done |
+| QUEST-4.1 | Quests | done |
+| SCHEMA-4.1–4.2 | Character + affix | done |
+| LOOT-4.1–4.2 | Affixes + slots | done |
+| INV-4.1 | Inventory UX | done |
+| PROG-4.1–4.3 | Level/talents/relics | done |
+| SAVE-4.1–4.2 | Cloud + backups | done |
+| FLOW-4.1 | Economy | done |
+| TEST-4.1 | 10-run soak | manual |
 
 ## M5 Content A
 

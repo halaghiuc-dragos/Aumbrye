@@ -1,4 +1,4 @@
-using Aumbrye.Domain.Entities;
+using System.Text.Json.Nodes;
 
 namespace Aumbrye.Application.Abstractions;
 
@@ -10,7 +10,7 @@ public interface IPasswordHasher
 
 public interface ITokenService
 {
-    string CreateAccessToken(Account account, out DateTimeOffset expiresAt);
+    string CreateAccessToken(Domain.Entities.Account account, out DateTimeOffset expiresAt);
     string CreateRefreshToken();
     string HashToken(string token);
     Guid? GetAccountIdFromAccessToken(string accessToken);
@@ -53,7 +53,35 @@ public sealed record CompleteRunInput(
     bool BossDefeated,
     IReadOnlyList<string> LootClaimedInstanceIds);
 
-public sealed record CompleteRunResult(bool Success, Guid RunId = default, string? Status = null, string? Error = null);
+public sealed record CompleteRunResult(
+    bool Success,
+    Guid RunId = default,
+    string? Status = null,
+    RunProgressionResult? Progression = null,
+    string? Error = null);
+
+public sealed record RunProgressionResult(
+    int XpGained,
+    int TotalXp,
+    int Level,
+    int TalentPointsEarned,
+    IReadOnlyList<JsonObject> LootGranted,
+    string EconomyNote);
+
+public sealed record SaveGetResult(bool Success, JsonObject? State = null, DateTimeOffset? UpdatedAt = null, string? Error = null);
+
+public sealed record SavePutResult(
+    bool Success,
+    JsonObject? State = null,
+    DateTimeOffset? UpdatedAt = null,
+    bool Conflict = false,
+    string? Error = null);
+
+public interface ISaveService
+{
+    Task<SaveGetResult> GetCurrentAsync(Guid accountId, CancellationToken ct = default);
+    Task<SavePutResult> PutCurrentAsync(Guid accountId, JsonObject state, DateTimeOffset? clientUpdatedAt, CancellationToken ct = default);
+}
 
 public interface IDungeonCache
 {

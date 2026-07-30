@@ -1,0 +1,14 @@
+{
+  "id": "elara_greeting",
+  "startNode": "start",
+  "nodes": {
+    "start": {
+      "speaker": "Elara",
+      "text": "Potions, scrap, relics — I buy and sell. Stock refreshes each visit.",
+      "choices": [
+        { "text": "Browse wares", "actions": [{ "type": "open_merchant" }] },
+        { "text": "Farewell", "next": "end" }
+      ]
+    }
+  }
+}

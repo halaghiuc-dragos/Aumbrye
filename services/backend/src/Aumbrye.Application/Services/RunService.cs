@@ -1,3 +1,5 @@
+using System.Text.Json;
+using System.Text.Json.Nodes;
 using System.Security.Cryptography;
 using Aumbrye.Application.Abstractions;
 using Aumbrye.Domain.Entities;
@@ -28,7 +30,9 @@ public class RunService : IRunService
         int tier,
         CancellationToken ct = default)
     {
-        var account = await _db.Set<Account>().FirstOrDefaultAsync(a => a.Id == accountId, ct);
+        var account = await _db.Set<Account>()
+            .Include(a => a.SaveBlob)
+            .FirstOrDefaultAsync(a => a.Id == accountId, ct);
         if (account == null)
             return new CreateRunResult(false, Error: "Account not found.");
 
@@ -41,9 +45,15 @@ public class RunService : IRunService
         if (seed is < 1)
             return new CreateRunResult(false, Error: "Seed must be at least 1.");
 
+        var playerLevel = 1;
+        if (account.SaveBlob != null)
+        {
+            var state = SaveService.ParseState(account.SaveBlob.JsonData, accountId);
+            playerLevel = state["character"]?["level"]?.GetValue<int>() ?? 1;
+        }
+
         var actualSeed = seed ?? RandomNumberGenerator.GetInt32(1, int.MaxValue);
         var runId = Guid.NewGuid();
-        var playerLevel = 1;
 
         string json;
         string? checksum;
@@ -135,17 +145,56 @@ public class RunService : IRunService
                 run.Id);
         }
 
-        var validLootIds = LootInstanceIds.FromDefinitionJson(definitionJson);
+        var lootMap = LootInstanceIds.ParseLoot(definitionJson);
         foreach (var lootId in input.LootClaimedInstanceIds)
         {
-            if (!validLootIds.Contains(lootId))
+            if (!lootMap.ContainsKey(lootId))
                 return new CompleteRunResult(false, runId, Error: "Unknown loot instance id.");
         }
 
+        var account = await _db.Set<Account>()
+            .Include(a => a.SaveBlob)
+            .FirstOrDefaultAsync(a => a.Id == accountId, ct);
+        if (account == null)
+            return new CompleteRunResult(false, runId, Error: "Account not found.");
+
+        var state = account.SaveBlob != null
+            ? SaveService.ParseState(account.SaveBlob.JsonData, accountId)
+            : CharacterStateDefaults.Create(accountId);
+
+        var progression = ProgressionApplier.ApplyRunOutcome(
+            state,
+            input.Outcome,
+            run.Tier,
+            input.LootClaimedInstanceIds,
+            lootMap);
+
+        var talentError = TalentValidator.ValidateTalents(state);
+        if (talentError != null)
+            return new CompleteRunResult(false, runId, Error: talentError);
+
+        var now = DateTimeOffset.UtcNow;
+        var stateJson = state.ToJsonString(new JsonSerializerOptions { WriteIndented = false });
+        if (account.SaveBlob == null)
+        {
+            account.SaveBlob = new SaveBlob
+            {
+                AccountId = accountId,
+                JsonData = stateJson,
+                UpdatedAt = now,
+            };
+        }
+        else
+        {
+            account.SaveBlob.JsonData = stateJson;
+            account.SaveBlob.UpdatedAt = now;
+        }
+
         run.Status = RunStatus.Completed;
-        run.CompletedAt = DateTimeOffset.UtcNow;
+        run.CompletedAt = now;
         await _db.SaveChangesAsync(ct);
-        return new CompleteRunResult(true, runId, "completed");
+
+        return new CompleteRunResult(true, runId, "completed", progression);
     }
 }
 

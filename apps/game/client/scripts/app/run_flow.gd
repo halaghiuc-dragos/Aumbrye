@@ -1,13 +1,12 @@
 extends Node
 
-## Autoload — hub ↔ dungeon ↔ results flow (FLOW-2.1 / FLOW-3.1).
-## Dungeon generation is fully offline via LocalProcgen + procgen-cli.
+## Autoload — hub ↔ dungeon ↔ results flow (FLOW-2.1 / FLOW-4.1).
 
 signal run_started
 signal run_ended(results: Dictionary)
 signal returned_to_hub(message: String)
 
-const HUB_SCENE := "res://scenes/hub/hub_stub.tscn"
+const HUB_SCENE := "res://scenes/hub/hub.tscn"
 const CASTLE_RUN_SCENE := "res://scenes/dungeon/castle_run.tscn"
 const ARENA_SCENE := "res://scenes/debug/combat_arena.tscn"
 const RESULTS_SCENE := "res://scenes/ui/results_screen.tscn"
@@ -21,7 +20,9 @@ var current_seed: int = 0
 var _run_active := false
 var _run_start_time := 0.0
 var _kill_count := 0
+var _boss_defeated := false
 var _loot_collected: Array[String] = []
+var _loot_claimed_instance_ids: Array[String] = []
 var _pending_snapshot: Dictionary = {}
 var _is_continue := false
 
@@ -48,7 +49,6 @@ func continue_castle_run() -> void:
 	_restore_castle_run(saved)
 
 
-## Back-compat alias.
 func start_castle_run() -> void:
 	start_new_castle_run()
 
@@ -97,9 +97,13 @@ func _restore_castle_run(saved: Dictionary) -> void:
 		return
 
 	_kill_count = int(_pending_snapshot.get("killCount", 0))
+	_boss_defeated = bool(_pending_snapshot.get("bossDefeated", false))
 	_loot_collected.clear()
+	_loot_claimed_instance_ids.clear()
 	for item in _pending_snapshot.get("lootCollected", []):
 		_loot_collected.append(str(item))
+	for inst_id in _pending_snapshot.get("lootClaimedInstanceIds", []):
+		_loot_claimed_instance_ids.append(str(inst_id))
 
 	_enter_castle_run()
 
@@ -150,31 +154,84 @@ func complete_run_via_portal() -> void:
 		return
 	_run_active = false
 	var elapsed := (Time.get_ticks_msec() / 1000.0) - _run_start_time
+	var full_xp := ProgressionService.calculate_run_xp(_kill_count, _boss_defeated, true)
+	var xp_result := ProgressionService.grant_xp(full_xp, "escape")
+	RunBuffs.clear_all()
 	last_run_results = {
+		"outcome": "escaped",
 		"time_seconds": elapsed,
 		"kills": _kill_count,
 		"loot": _loot_collected.duplicate(),
+		"xp_gained": xp_result.get("gained", 0),
+		"levels_gained": xp_result.get("levels_gained", 0),
+		"loot_kept": true,
+		"run_relics_lost": false,
+		"rules_summary": _escape_rules_summary(),
 	}
+	var run_id := current_run_id
+	var loot_instance_ids := _loot_claimed_instance_ids.duplicate()
+	var boss := _boss_defeated
 	LocalSave.clear_active_run()
 	LocalSave.autosave()
 	run_ended.emit(last_run_results)
 	get_tree().root.set_meta("run_results", last_run_results)
 	_clear_run_meta()
+	_cloud_finalize_run(run_id, "escaped", elapsed, boss, loot_instance_ids)
 	_goto_scene(RESULTS_SCENE)
 
 
 func on_player_died() -> void:
+	var elapsed := 0.0
+	if _run_start_time > 0.0:
+		elapsed = (Time.get_ticks_msec() / 1000.0) - _run_start_time
+	var full_xp := ProgressionService.calculate_run_xp(_kill_count, _boss_defeated, false)
+	var death_xp := ProgressionService.apply_death_xp_fraction(full_xp)
+	var xp_result := ProgressionService.grant_xp(death_xp, "death")
+	InventoryService.remove_run_loot(_loot_collected)
+	RunBuffs.clear_all()
+	last_run_results = {
+		"outcome": "died",
+		"time_seconds": elapsed,
+		"kills": _kill_count,
+		"loot": _loot_collected.duplicate(),
+		"xp_gained": xp_result.get("gained", 0),
+		"xp_full_would_be": full_xp,
+		"levels_gained": xp_result.get("levels_gained", 0),
+		"loot_kept": false,
+		"run_relics_lost": true,
+		"rules_summary": _death_rules_summary(),
+	}
+	var run_id := current_run_id
+	var loot_instance_ids := _loot_claimed_instance_ids.duplicate()
+	var boss := _boss_defeated
 	LocalSave.clear_active_run()
-	return_to_hub("You fell in the castle. Returned to the hub.")
+	LocalSave.autosave()
+	run_ended.emit(last_run_results)
+	get_tree().root.set_meta("run_results", last_run_results)
+	_run_active = false
+	_clear_run_meta()
+	_cloud_finalize_run(run_id, "died", elapsed, boss, loot_instance_ids)
+	_goto_scene(RESULTS_SCENE)
 
 
-func register_kill() -> void:
+func register_kill(enemy_id: String = "") -> void:
 	_kill_count += 1
+	QuestService.register_kill(enemy_id)
 
 
-func register_loot(item_id: String) -> void:
+func register_boss_defeated() -> void:
+	_boss_defeated = true
+
+
+func register_loot(item_id: String, instance_id: String = "") -> void:
 	if item_id not in _loot_collected:
 		_loot_collected.append(item_id)
+	if instance_id != "" and instance_id not in _loot_claimed_instance_ids:
+		_loot_claimed_instance_ids.append(instance_id)
+
+
+func get_loot_claimed_instance_ids() -> Array[String]:
+	return _loot_claimed_instance_ids.duplicate()
 
 
 func get_kill_count() -> int:
@@ -200,7 +257,35 @@ func clear_continue_restore() -> void:
 
 func _reset_run_stats() -> void:
 	_kill_count = 0
+	_boss_defeated = false
 	_loot_collected.clear()
+	_loot_claimed_instance_ids.clear()
+
+
+func _cloud_finalize_run(
+	run_id: String,
+	outcome: String,
+	elapsed: float,
+	boss_defeated: bool,
+	loot_instance_ids: Array
+) -> void:
+	if run_id != "":
+		var result := await ApiClient.complete_run(
+			run_id, outcome, elapsed, boss_defeated, loot_instance_ids
+		)
+		if not result.get("ok", false):
+			push_warning("RunFlow: complete_run failed — %s" % result.get("error", "unknown"))
+	var push := await LocalSave.push_to_cloud()
+	if not push.get("ok", false) and not push.get("conflict", false):
+		push_warning("RunFlow: cloud push failed — %s" % push.get("error", "unknown"))
+
+
+func _escape_rules_summary() -> String:
+	return "Escaped: kept all loot, full XP, run relics cleared."
+
+
+func _death_rules_summary() -> String:
+	return "Died: kept 50% XP, lost run loot & relics. Prior gear safe."
 
 
 func _clear_run_meta() -> void:

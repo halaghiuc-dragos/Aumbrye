@@ -15,13 +15,18 @@
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["itemId", "quantity", "x", "y"],
+        "required": ["quantity", "x", "y"],
         "properties": {
           "itemId": { "type": "string", "minLength": 1 },
+          "instanceId": { "type": "string", "format": "uuid" },
           "quantity": { "type": "integer", "minimum": 1 },
           "x": { "type": "integer", "minimum": 0 },
           "y": { "type": "integer", "minimum": 0 }
-        }
+        },
+        "anyOf": [
+          { "required": ["itemId"] },
+          { "required": ["instanceId"] }
+        ]
       }
     },
     "equipped": {

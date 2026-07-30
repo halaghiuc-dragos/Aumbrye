@@ -21,7 +21,8 @@ See [VALIDATION_PLATFORM.md](../../design/VALIDATION_PLATFORM.md) for architectu
 | TEST-M1-GPAD | Gamepad combat arena playtest | Bindings in `project.godot`; verify in [MANUAL_PLAYTEST_CHECKLIST.md](../../design/MANUAL_PLAYTEST_CHECKLIST.md) § M1 / M7. Does not block M2–M3. |
 | M2.gamepad.full_loop | Gamepad full vertical slice | Deferred from M2 — `POLISH-7.1` |
 | M2.playtest.external | External friend playtest | Deferred from M2 — `SHIP-7.1` |
-| M7.* | Feel/UX polish (17 items) | Former M3 manual list — [MANUAL_PLAYTEST_CHECKLIST.md](../../design/MANUAL_PLAYTEST_CHECKLIST.md) § M7 |
+| M7.* | Feel/UX polish (17 items) | Former M3 manual list — [MANUAL_PLAYTEST_CHECKLIST.md](../../design/MANUAL_PLAYTEST_CHECKLIST.md) § M3 carry-over → M7 |
+| M4.deferred.* | Carried from M4 close | See [M4-GAMEPLAY-LOOP.md](../phases/M4-GAMEPLAY-LOOP.md) § Deferred |
 
 ## Minor milestones
 

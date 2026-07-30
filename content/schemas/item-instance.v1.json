@@ -2,7 +2,7 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://aumbrye.dev/schemas/item-instance.v1.json",
   "title": "ItemInstance",
-  "description": "M2 item definition for inventory and world pickups.",
+  "description": "M2+ item definition for inventory and world pickups.",
   "type": "object",
   "additionalProperties": false,
   "required": ["id", "name", "itemType", "gridWidth", "gridHeight", "stackSize"],
@@ -11,7 +11,11 @@
     "name": { "type": "string", "minLength": 1 },
     "itemType": {
       "type": "string",
-      "enum": ["weapon", "consumable", "material", "key"]
+      "enum": ["weapon", "armor", "accessory", "consumable", "material", "key", "relic"]
+    },
+    "equipmentSlot": {
+      "type": "string",
+      "enum": ["helmet", "chest", "gloves", "boots", "weapon", "secondary", "ring", "amulet", "relic"]
     },
     "gridWidth": { "type": "integer", "minimum": 1, "maximum": 4 },
     "gridHeight": { "type": "integer", "minimum": 1, "maximum": 4 },
@@ -20,6 +24,17 @@
     "healAmount": { "type": "number", "exclusiveMinimum": 0 },
     "description": { "type": "string" },
     "value": { "type": "number", "minimum": 0 },
-    "lootValue": { "type": "number", "minimum": 0 }
+    "lootValue": { "type": "number", "minimum": 0 },
+    "rarity": {
+      "type": "string",
+      "enum": ["common", "magic", "rare", "epic", "legendary", "mythic"]
+    },
+    "stats": {
+      "type": "object",
+      "additionalProperties": { "type": "number" }
+    },
+    "maxDurability": { "type": "number", "minimum": 0 },
+    "runRelicId": { "type": "string" },
+    "runOnly": { "type": "boolean" }
   }
 }

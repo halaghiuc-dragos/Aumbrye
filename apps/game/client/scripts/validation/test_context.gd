@@ -25,6 +25,7 @@ const REQUIRED_ITEMS := [
 ]
 
 const KEY_SCENES := [
+	"res://scenes/hub/hub.tscn",
 	"res://scenes/hub/hub_stub.tscn",
 	"res://scenes/dungeon/castle_run.tscn",
 	"res://scenes/debug/combat_arena.tscn",

@@ -1,0 +1,21 @@
+{
+  "id": "aldric_greeting",
+  "startNode": "start",
+  "nodes": {
+    "start": {
+      "speaker": "Aldric",
+      "text": "Need your blade sharpened? I can upgrade or repair weapons for gold.",
+      "choices": [
+        { "text": "Open the forge", "actions": [{ "type": "open_blacksmith" }] },
+        { "text": "Any tips for the castle?", "next": "tips" },
+        { "text": "Farewell", "next": "end" }
+      ]
+    },
+    "tips": {
+      "speaker": "Aldric",
+      "text": "Tier-one runs are safest. Bring scrap back and I'll make your sword sing.",
+      "next": "end",
+      "condition": { "minLevel": 1 }
+    }
+  }
+}

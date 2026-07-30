@@ -1,0 +1,13 @@
+{
+  "id": "castle_amulet",
+  "name": "Castle Amulet",
+  "itemType": "accessory",
+  "equipmentSlot": "amulet",
+  "gridWidth": 1,
+  "gridHeight": 2,
+  "stackSize": 1,
+  "rarity": "magic",
+  "description": "An amulet warding off harm.",
+  "value": 28,
+  "stats": { "defense": 5, "maxHealth": 10 }
+}

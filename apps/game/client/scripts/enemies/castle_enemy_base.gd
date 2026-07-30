@@ -1,4 +1,5 @@
 extends CharacterBody3D
+class_name CastleEnemyBase
 
 ## Shared patrol/chase/deaggro AI for castle enemies (ENEMY-2.1 base).
 
@@ -137,7 +138,7 @@ func _finalize_death(silent: bool) -> void:
 	if _health:
 		_health.force_dead()
 	if not silent:
-		RunFlow.register_kill()
+		RunFlow.register_kill(get_enemy_id())
 		enemy_died.emit()
 	if _hitbox:
 		_hitbox.disable()
@@ -317,7 +318,7 @@ func _has_line_of_sight_to_player() -> bool:
 func _is_cross_boss_boundary_with_player() -> bool:
 	if _player == null:
 		return false
-	var castle_run := get_tree().get_first_node_in_group("castle_run")
+	var castle_run: Node = get_tree().get_first_node_in_group("castle_run")
 	if castle_run and castle_run.has_method("is_cross_boss_boundary"):
 		return castle_run.call("is_cross_boss_boundary", self, _player)
 	return false
@@ -365,7 +366,7 @@ func _end_attack() -> void:
 func _try_parry_check() -> void:
 	if not _player:
 		return
-	var guard := _player.get_node_or_null("Guard")
+	var guard: Node = _player.get_node_or_null("Guard")
 	if guard and guard.has_method("try_parry_attack"):
 		if guard.call("try_parry_attack", self):
 			var stagger: float = guard.call("get_parry_stagger_duration")

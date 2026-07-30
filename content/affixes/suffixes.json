@@ -1,0 +1,69 @@
+{
+  "schemaVersion": 1,
+  "affixes": [
+    {
+      "id": "of_the_bear",
+      "displayName": "of the Bear",
+      "kind": "suffix",
+      "stat": "maxHealth",
+      "itemTypes": ["armor", "weapon"],
+      "weight": 100,
+      "tiers": {
+        "common": { "min": 5, "max": 10 },
+        "magic": { "min": 11, "max": 18 },
+        "rare": { "min": 19, "max": 28 },
+        "epic": { "min": 29, "max": 40 },
+        "legendary": { "min": 41, "max": 55 },
+        "mythic": { "min": 60, "max": 80 }
+      }
+    },
+    {
+      "id": "of_flames",
+      "displayName": "of Flames",
+      "kind": "suffix",
+      "stat": "fireDamage",
+      "itemTypes": ["weapon"],
+      "weight": 85,
+      "tiers": {
+        "common": { "min": 2, "max": 4 },
+        "magic": { "min": 5, "max": 8 },
+        "rare": { "min": 9, "max": 14 },
+        "epic": { "min": 15, "max": 20 },
+        "legendary": { "min": 21, "max": 28 },
+        "mythic": { "min": 30, "max": 40 }
+      }
+    },
+    {
+      "id": "of_haste",
+      "displayName": "of Haste",
+      "kind": "suffix",
+      "stat": "moveSpeed",
+      "itemTypes": ["armor", "weapon"],
+      "weight": 75,
+      "tiers": {
+        "common": { "min": 0.01, "max": 0.02 },
+        "magic": { "min": 0.02, "max": 0.03 },
+        "rare": { "min": 0.03, "max": 0.05 },
+        "epic": { "min": 0.05, "max": 0.07 },
+        "legendary": { "min": 0.07, "max": 0.09 },
+        "mythic": { "min": 0.1, "max": 0.12 }
+      }
+    },
+    {
+      "id": "of_frost",
+      "displayName": "of Frost",
+      "kind": "suffix",
+      "stat": "frostDamage",
+      "itemTypes": ["weapon"],
+      "weight": 65,
+      "tiers": {
+        "common": { "min": 2, "max": 4 },
+        "magic": { "min": 5, "max": 8 },
+        "rare": { "min": 9, "max": 14 },
+        "epic": { "min": 15, "max": 20 },
+        "legendary": { "min": 21, "max": 28 },
+        "mythic": { "min": 30, "max": 40 }
+      }
+    }
+  ]
+}

@@ -1,0 +1,100 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://aumbrye.dev/schemas/character-state.v1.json",
+  "title": "CharacterState",
+  "description": "M4 permanent player progress document (cloud save + local cache).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "accountId",
+    "character",
+    "currencies",
+    "inventory",
+    "itemInstances",
+    "talents",
+    "flags",
+    "recipes"
+  ],
+  "properties": {
+    "schemaVersion": { "type": "integer", "const": 1 },
+    "accountId": { "type": "string", "format": "uuid" },
+    "character": { "$ref": "#/$defs/characterProfile" },
+    "currencies": { "$ref": "#/$defs/currencies" },
+    "inventory": { "$ref": "https://aumbrye.dev/schemas/inventory.v1.json" },
+    "storage": { "$ref": "https://aumbrye.dev/schemas/inventory.v1.json" },
+    "itemInstances": {
+      "type": "object",
+      "additionalProperties": { "$ref": "#/$defs/rolledItemInstance" }
+    },
+    "talents": {
+      "type": "object",
+      "additionalProperties": { "type": "integer", "minimum": 0 }
+    },
+    "flags": {
+      "type": "object",
+      "additionalProperties": { "type": ["boolean", "string", "number"] }
+    },
+    "recipes": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "activeRun": { "type": "object" },
+    "runRelics": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 }
+    }
+  },
+  "$defs": {
+    "characterProfile": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "level", "xp"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "level": { "type": "integer", "minimum": 1 },
+        "xp": { "type": "integer", "minimum": 0 },
+        "lastHubMessage": { "type": "string" },
+        "firstPersonCamera": { "type": "boolean" }
+      }
+    },
+    "currencies": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["gold"],
+      "properties": {
+        "gold": { "type": "number", "minimum": 0 }
+      }
+    },
+    "rolledItemInstance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schemaVersion", "instanceId", "itemDefId", "rarity", "affixes", "rollSeed"],
+      "properties": {
+        "schemaVersion": { "type": "integer", "const": 1 },
+        "instanceId": { "type": "string", "format": "uuid" },
+        "itemDefId": { "type": "string", "minLength": 1 },
+        "rarity": {
+          "type": "string",
+          "enum": ["common", "magic", "rare", "epic", "legendary", "mythic"]
+        },
+        "affixes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/rolledAffix" }
+        },
+        "durability": { "type": "number", "minimum": 0, "maximum": 100 },
+        "bound": { "type": "boolean" },
+        "rollSeed": { "type": "integer" }
+      }
+    },
+    "rolledAffix": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["affixId", "value"],
+      "properties": {
+        "affixId": { "type": "string", "minLength": 1 },
+        "value": { "type": "number" }
+      }
+    }
+  }
+}

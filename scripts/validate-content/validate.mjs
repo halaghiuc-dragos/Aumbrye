@@ -58,6 +58,21 @@ function resolveSchemaForFile(filePath) {
   if (name.startsWith("biomes/")) {
     return join(schemasRoot, "biome-definition.v1.json");
   }
+  if (name === "affixes/prefixes.json" || name === "affixes/suffixes.json") {
+    return join(schemasRoot, "affix-pack.v1.json");
+  }
+  if (name === "affixes/rarity_rules.json") {
+    return join(schemasRoot, "affix-rarity-rules.v1.json");
+  }
+  if (name === "progression/xp_curve.json") {
+    return join(schemasRoot, "xp-curve.v1.json");
+  }
+  if (name === "talents/tree.json") {
+    return join(schemasRoot, "talent-tree.v1.json");
+  }
+  if (name === "fixtures/character_state_sample.v1.json") {
+    return join(schemasRoot, "character-state.v1.json");
+  }
   return null;
 }
 
@@ -71,6 +86,13 @@ function loadSchema(schemaPath) {
     const schema = JSON.parse(readFileSync(schemaPath, "utf8"));
     ajv.addSchema(schema);
     schemaCache.set(schemaPath, schema.$id ?? schemaPath);
+    // Preload nested refs used by character-state and affix-pack.
+    if (schemaPath.endsWith("character-state.v1.json")) {
+      loadSchema(join(schemasRoot, "inventory.v1.json"));
+    }
+    if (schemaPath.endsWith("affix-pack.v1.json")) {
+      loadSchema(join(schemasRoot, "affix-definition.v1.json"));
+    }
   }
   return schemaCache.get(schemaPath);
 }
@@ -167,7 +189,7 @@ function validateItemCatalogConsistency() {
         errors++;
       }
       const expectedTypes = {
-        equipment: ["weapon", "armor"],
+        equipment: ["weapon", "armor", "accessory"],
         consumables: ["consumable"],
         materials: ["material", "key"],
       };

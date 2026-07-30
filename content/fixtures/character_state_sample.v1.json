@@ -1,0 +1,33 @@
+{
+  "schemaVersion": 1,
+  "accountId": "00000000-0000-4000-8000-000000000001",
+  "character": {
+    "name": "Wanderer",
+    "level": 3,
+    "xp": 120,
+    "lastHubMessage": "Welcome back.",
+    "firstPersonCamera": false
+  },
+  "currencies": {
+    "gold": 42
+  },
+  "inventory": {
+    "schemaVersion": 1,
+    "gridWidth": 6,
+    "gridHeight": 4,
+    "slots": [
+      { "itemId": "castle_sword", "quantity": 1, "x": 0, "y": 0 },
+      { "itemId": "health_potion", "quantity": 2, "x": 2, "y": 0 }
+    ],
+    "equipped": {
+      "weapon": "castle_sword"
+    }
+  },
+  "itemInstances": {},
+  "talents": {
+    "arms_1": 1
+  },
+  "flags": {},
+  "recipes": [],
+  "runRelics": []
+}

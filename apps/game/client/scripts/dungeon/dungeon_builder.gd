@@ -203,6 +203,7 @@ func _spawn_enemy(placement: Dictionary, index: int) -> void:
 	if enemy.has_method("set_player"):
 		enemy.call("set_player", _player)
 	room.add_child(enemy)
+	_ensure_enemy_groups(enemy)
 	_enemy_by_id[placement_key] = enemy
 	if enemy.has_signal("enemy_died"):
 		enemy.enemy_died.connect(_on_tracked_enemy_died.bind(placement_key))
@@ -255,6 +256,7 @@ func _setup_boss() -> void:
 	_boss = scene.instantiate() as Node
 	_boss.set_meta("placement_id", "boss")
 	room.add_child(_boss)
+	_ensure_enemy_groups(_boss)
 	var spawn := room.get_node_or_null("Props/BossSpawn") as Node3D
 	if spawn:
 		_boss.global_position = spawn.global_position
@@ -389,6 +391,10 @@ func get_tracked_enemy(placement_id: String) -> Node:
 	return _enemy_by_id.get(placement_id)
 
 
+func get_spawned_enemy_count() -> int:
+	return _enemy_by_id.size()
+
+
 func get_boss_door_outside_spawn() -> Vector3:
 	if _boss_door:
 		# Arena side is local -Z (interact area faces the approach corridor).
@@ -437,6 +443,15 @@ func apply_snapshot(snapshot: Dictionary) -> void:
 
 	if snapshot.get("bossDefeated", false):
 		open_exit_portal()
+
+
+func _ensure_enemy_groups(enemy: Node) -> void:
+	if enemy == null:
+		return
+	if not enemy.is_in_group("enemy"):
+		enemy.add_to_group("enemy")
+	if not enemy.is_in_group("lockable"):
+		enemy.add_to_group("lockable")
 
 
 func _enemy_placement_id(placement: Dictionary, index: int) -> String:

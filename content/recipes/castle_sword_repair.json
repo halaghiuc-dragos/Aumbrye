@@ -1,0 +1,6 @@
+{
+  "id": "castle_sword_repair",
+  "type": "repair",
+  "itemId": "castle_sword",
+  "goldCost": 15
+}

@@ -37,11 +37,11 @@ func _test_build_pipeline() -> void:
 	var builder := DungeonBuilder.new()
 	root.add_child(builder)
 	builder.build_from_definition(root, player, gen.get("definition", {}))
-	await ctx.await_frame()
+	await ctx.await_physics(2)
 
 	var start := Time.get_ticks_msec()
 	var room_count: int = builder.get_room_ids().size()
-	var enemies: Array = ctx.owner.get_tree().get_nodes_in_group("enemy")
+	var enemy_count: int = builder.get_spawned_enemy_count()
 	ctx.timed_record(
 		"dungeon.rooms_instantiated",
 		get_category(),
@@ -55,8 +55,8 @@ func _test_build_pipeline() -> void:
 	ctx.timed_record(
 		"dungeon.enemies_spawned",
 		get_category(),
-		enemies.size() > 0,
-		"%d enemies spawned from placements" % enemies.size(),
+		enemy_count > 0,
+		"%d enemies spawned from placements" % enemy_count,
 		start,
 		"M3.dungeon.enemies"
 	)

@@ -1,0 +1,168 @@
+{
+  "schemaVersion": 1,
+  "talentPointsPerLevel": 1,
+  "branches": [
+    {
+      "id": "arms",
+      "nameKey": "talent.branch.arms",
+      "nodes": [
+        {
+          "id": "arms_1",
+          "nameKey": "talent.arms_1",
+          "maxRank": 1,
+          "costPerRank": 1,
+          "requires": [],
+          "effects": [{ "stat": "physicalDamage", "valuePerRank": 0.03 }]
+        },
+        {
+          "id": "arms_2",
+          "nameKey": "talent.arms_2",
+          "maxRank": 1,
+          "costPerRank": 1,
+          "requires": ["arms_1"],
+          "effects": [{ "stat": "physicalDamage", "valuePerRank": 0.05 }]
+        },
+        {
+          "id": "arms_3",
+          "nameKey": "talent.arms_3",
+          "maxRank": 1,
+          "costPerRank": 1,
+          "requires": ["arms_2"],
+          "effects": [{ "stat": "staminaCostReduction", "valuePerRank": 0.05 }]
+        },
+        {
+          "id": "arms_4",
+          "nameKey": "talent.arms_4",
+          "maxRank": 1,
+          "costPerRank": 1,
+          "requires": ["arms_3"],
+          "effects": [{ "stat": "critChance", "valuePerRank": 0.02 }]
+        },
+        {
+          "id": "arms_5",
+          "nameKey": "talent.arms_5",
+          "maxRank": 1,
+          "costPerRank": 1,
+          "requires": ["arms_4"],
+          "effects": [{ "stat": "poiseDamage", "valuePerRank": 0.08 }]
+        },
+        {
+          "id": "arms_6",
+          "nameKey": "talent.arms_6",
+          "maxRank": 1,
+          "costPerRank": 2,
+          "requires": ["arms_5"],
+          "effects": [{ "stat": "physicalDamage", "valuePerRank": 0.1 }]
+        }
+      ]
+    },
+    {
+      "id": "guard",
+      "nameKey": "talent.branch.guard",
+      "nodes": [
+        {
+          "id": "guard_1",
+          "nameKey": "talent.guard_1",
+          "maxRank": 1,
+          "costPerRank": 1,
+          "requires": [],
+          "effects": [{ "stat": "maxHealth", "valuePerRank": 15 }]
+        },
+        {
+          "id": "guard_2",
+          "nameKey": "talent.guard_2",
+          "maxRank": 1,
+          "costPerRank": 1,
+          "requires": ["guard_1"],
+          "effects": [{ "stat": "armor", "valuePerRank": 5 }]
+        },
+        {
+          "id": "guard_3",
+          "nameKey": "talent.guard_3",
+          "maxRank": 1,
+          "costPerRank": 1,
+          "requires": ["guard_2"],
+          "effects": [{ "stat": "blockReduction", "valuePerRank": 0.03 }]
+        },
+        {
+          "id": "guard_4",
+          "nameKey": "talent.guard_4",
+          "maxRank": 1,
+          "costPerRank": 1,
+          "requires": ["guard_3"],
+          "effects": [{ "stat": "poise", "valuePerRank": 10 }]
+        },
+        {
+          "id": "guard_5",
+          "nameKey": "talent.guard_5",
+          "maxRank": 1,
+          "costPerRank": 1,
+          "requires": ["guard_4"],
+          "effects": [{ "stat": "damageReduction", "valuePerRank": 0.02 }]
+        },
+        {
+          "id": "guard_6",
+          "nameKey": "talent.guard_6",
+          "maxRank": 1,
+          "costPerRank": 2,
+          "requires": ["guard_5"],
+          "effects": [{ "stat": "maxHealth", "valuePerRank": 40 }]
+        }
+      ]
+    },
+    {
+      "id": "aptitude",
+      "nameKey": "talent.branch.aptitude",
+      "nodes": [
+        {
+          "id": "apt_1",
+          "nameKey": "talent.apt_1",
+          "maxRank": 1,
+          "costPerRank": 1,
+          "requires": [],
+          "effects": [{ "stat": "staminaRegen", "valuePerRank": 0.05 }]
+        },
+        {
+          "id": "apt_2",
+          "nameKey": "talent.apt_2",
+          "maxRank": 1,
+          "costPerRank": 1,
+          "requires": ["apt_1"],
+          "effects": [{ "stat": "moveSpeed", "valuePerRank": 0.03 }]
+        },
+        {
+          "id": "apt_3",
+          "nameKey": "talent.apt_3",
+          "maxRank": 1,
+          "costPerRank": 1,
+          "requires": ["apt_2"],
+          "effects": [{ "stat": "lootQuality", "valuePerRank": 0.02 }]
+        },
+        {
+          "id": "apt_4",
+          "nameKey": "talent.apt_4",
+          "maxRank": 1,
+          "costPerRank": 1,
+          "requires": ["apt_3"],
+          "effects": [{ "stat": "xpGain", "valuePerRank": 0.05 }]
+        },
+        {
+          "id": "apt_5",
+          "nameKey": "talent.apt_5",
+          "maxRank": 1,
+          "costPerRank": 1,
+          "requires": ["apt_4"],
+          "effects": [{ "stat": "goldFind", "valuePerRank": 0.05 }]
+        },
+        {
+          "id": "apt_6",
+          "nameKey": "talent.apt_6",
+          "maxRank": 1,
+          "costPerRank": 2,
+          "requires": ["apt_5"],
+          "effects": [{ "stat": "cooldownReduction", "valuePerRank": 0.05 }]
+        }
+      ]
+    }
+  ]
+}

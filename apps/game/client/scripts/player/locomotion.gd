@@ -16,6 +16,7 @@ var _stamina: Stamina
 var _dodge: Node
 var _combat_reactions: Node
 var _lock_on: LockOn
+var _speed_multiplier := 1.0
 
 
 func _ready() -> void:
@@ -28,6 +29,10 @@ func _ready() -> void:
 		_camera_yaw = get_node(camera_yaw_path) as Node3D
 	if facing_path:
 		_facing = get_node_or_null(facing_path) as Node3D
+
+
+func set_speed_multiplier(multiplier: float) -> void:
+	_speed_multiplier = maxf(0.1, multiplier)
 
 
 func _physics_process(delta: float) -> void:
@@ -52,7 +57,7 @@ func _physics_process(delta: float) -> void:
 	var direction := _get_move_direction(input_dir)
 
 	var sprinting := Input.is_action_pressed("sprint") and direction.length_squared() > 0.01
-	var target_speed := SPRINT_SPEED if sprinting else WALK_SPEED
+	var target_speed := (SPRINT_SPEED if sprinting else WALK_SPEED) * _speed_multiplier
 
 	if sprinting and _stamina:
 		if not _stamina.consume(SPRINT_STAMINA_DRAIN * delta):

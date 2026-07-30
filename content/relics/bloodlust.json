@@ -1,0 +1,7 @@
+{
+  "id": "bloodlust",
+  "name": "Bloodlust",
+  "description": "+5% damage for this run.",
+  "maxStacks": 2,
+  "stats": { "damagePercent": 5 }
+}

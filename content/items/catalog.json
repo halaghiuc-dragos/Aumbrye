@@ -1,6 +1,15 @@
 {
   "schemaVersion": 1,
-  "equipment": ["castle_sword"],
+  "equipment": [
+    "castle_sword",
+    "castle_helm",
+    "castle_plate",
+    "castle_gauntlets",
+    "castle_boots",
+    "castle_buckler",
+    "castle_ring",
+    "castle_amulet"
+  ],
   "consumables": ["health_potion"],
   "materials": ["iron_scrap", "knight_relic"]
 }

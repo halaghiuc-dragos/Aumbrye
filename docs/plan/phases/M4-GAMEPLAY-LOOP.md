@@ -1,17 +1,19 @@
 # Phase M4 — Full Gameplay Loop
 
 - **phase:** M4
+- **status:** ✅ closed (2026-07-30) — automated validation complete; manual TEST-4.1 open
 - **goal:** Town → choose dungeon → run → loot → upgrade → repeat with cloud saves.
 - **depends_on:** M3 exit criteria
+- **manual_gate:** [MANUAL_PLAYTEST_CHECKLIST.md](../../design/MANUAL_PLAYTEST_CHECKLIST.md) § M4
 - **exit_criteria:**
-  - [ ] Handcrafted hub with blacksmith, merchant, storage, training arena, quest board, portals
-  - [ ] Affixed loot Common–Rare at minimum (Epic+ tables exist)
-  - [ ] Permanent XP/level + small talent tree
-  - [ ] Run relics/buffs
-  - [ ] Inventory sort/filter/compare
-  - [ ] Cloud save + local cache
-  - [ ] 10 consecutive runs without softlock
-  - [ ] 3 hub NPCs with dialogue
+  - [x] Handcrafted hub with blacksmith, merchant, storage, training arena, quest board, portals
+  - [x] Affixed loot Common–Rare at minimum (Epic+ tables exist)
+  - [x] Permanent XP/level + small talent tree
+  - [x] Run relics/buffs
+  - [x] Inventory sort/filter/compare
+  - [x] Cloud save + local cache
+  - [ ] 10 consecutive runs without softlock (TEST-4.1 — manual)
+  - [x] 3 hub NPCs with dialogue
 
 ---
 
@@ -19,7 +21,7 @@
 
 ### HUB-4.1 — Hub layout handcrafted
 
-- **status:** not_started
+- **status:** done
 - **depends_on:** [HUB-2.1]
 - **unlocks:** [HUB-4.2]
 - **primary_paths:**
@@ -34,7 +36,7 @@
 
 ### HUB-4.2 — Blacksmith
 
-- **status:** not_started
+- **status:** done
 - **depends_on:** [HUB-4.1, INV-4.1]
 - **unlocks:** []
 - **primary_paths:**
@@ -50,7 +52,7 @@
 
 ### HUB-4.3 — Merchant
 
-- **status:** not_started
+- **status:** done
 - **depends_on:** [HUB-4.1, LOOT-4.1]
 - **unlocks:** []
 - **primary_paths:**
@@ -64,7 +66,7 @@
 
 ### HUB-4.4 — Storage + training + portals
 
-- **status:** not_started
+- **status:** done
 - **depends_on:** [HUB-4.1, INV-4.1]
 - **unlocks:** []
 - **primary_paths:**
@@ -79,7 +81,7 @@
 
 ### NPC-4.1 — NPC framework
 
-- **status:** not_started
+- **status:** done
 - **depends_on:** [HUB-4.1]
 - **unlocks:** [DLG-4.1]
 - **primary_paths:**
@@ -94,7 +96,7 @@
 
 ### DLG-4.1 — Dialogue runner
 
-- **status:** not_started
+- **status:** done
 - **depends_on:** [NPC-4.1]
 - **unlocks:** [QUEST-4.1]
 - **primary_paths:**
@@ -110,7 +112,7 @@
 
 ### QUEST-4.1 — Optional quest board
 
-- **status:** not_started
+- **status:** done
 - **depends_on:** [DLG-4.1]
 - **unlocks:** []
 - **primary_paths:**
@@ -126,7 +128,7 @@
 
 ### LOOT-4.1 — Rarity + affix roller (server)
 
-- **status:** not_started
+- **status:** done
 - **depends_on:** [API-3.3, SCHEMA-4.2]
 - **unlocks:** [LOOT-4.2]
 - **primary_paths:**
@@ -142,7 +144,7 @@
 
 ### SCHEMA-4.2 — Affix schema
 
-- **status:** not_started
+- **status:** done
 - **depends_on:** [SCHEMA-2.1]
 - **unlocks:** [LOOT-4.1]
 - **primary_paths:**
@@ -157,7 +159,7 @@
 
 ### LOOT-4.2 — Equipment slots full set
 
-- **status:** not_started
+- **status:** done
 - **depends_on:** [LOOT-4.1, INV-4.1]
 - **unlocks:** []
 - **primary_paths:**
@@ -172,7 +174,7 @@
 
 ### INV-4.1 — Inventory UX complete
 
-- **status:** not_started
+- **status:** done
 - **depends_on:** [INV-2.1]
 - **unlocks:** [HUB-4.2, LOOT-4.2]
 - **primary_paths:**
@@ -188,7 +190,7 @@
 
 ### PROG-4.1 — XP / level
 
-- **status:** not_started
+- **status:** done
 - **depends_on:** [API-3.3]
 - **unlocks:** [PROG-4.2]
 - **primary_paths:**
@@ -203,7 +205,7 @@
 
 ### PROG-4.2 — Talent tree
 
-- **status:** not_started
+- **status:** done
 - **depends_on:** [PROG-4.1, SCHEMA-4.1]
 - **unlocks:** []
 - **primary_paths:**
@@ -219,7 +221,7 @@
 
 ### SCHEMA-4.1 — CharacterState schema
 
-- **status:** not_started
+- **status:** done
 - **depends_on:** [SCHEMA-2.1]
 - **unlocks:** [PROG-4.2, SAVE-4.1]
 - **primary_paths:**
@@ -233,7 +235,7 @@
 
 ### PROG-4.3 — Run relics / buffs
 
-- **status:** not_started
+- **status:** done
 - **depends_on:** [LOOT-4.1]
 - **unlocks:** []
 - **primary_paths:**
@@ -249,7 +251,7 @@
 
 ### SAVE-4.1 — Cloud save + local cache
 
-- **status:** not_started
+- **status:** done
 - **depends_on:** [SCHEMA-4.1, API-3.1]
 - **unlocks:** [SAVE-4.2]
 - **primary_paths:**
@@ -264,7 +266,7 @@
 
 ### SAVE-4.2 — Automatic backups
 
-- **status:** not_started
+- **status:** done
 - **depends_on:** [SAVE-4.1]
 - **unlocks:** []
 - **primary_paths:**
@@ -278,7 +280,7 @@
 
 ### FLOW-4.1 — Death / escape economy
 
-- **status:** not_started
+- **status:** done
 - **depends_on:** [PROG-4.1, LOOT-4.1, PROG-4.3]
 - **unlocks:** []
 - **primary_paths:**
@@ -294,19 +296,36 @@
 
 ### TEST-4.1 — Ten-run softlock soak
 
-- **status:** not_started
+- **status:** manual
 - **depends_on:** [FLOW-4.1, HUB-4.4]
 - **unlocks:** []
 - **primary_paths:**
   - `docs/design/m4_soak_notes.md`
 - **agent_instructions:**
   - Manually or semi-auto complete 10 runs; log issues in `docs/design/m4_soak_notes.md`.
-  - Track progress in [MANUAL_PLAYTEST_CHECKLIST.md](../../design/MANUAL_PLAYTEST_CHECKLIST.md) § M4+.
+  - Track progress in [MANUAL_PLAYTEST_CHECKLIST.md](../../design/MANUAL_PLAYTEST_CHECKLIST.md) § M4.
 - **acceptance_criteria:**
   - [ ] 10/10 no softlock
   - [ ] Notes filed
 - **out_of_scope:**
   - Balance perfection
+
+---
+
+## Deferred (post-M4 close)
+
+Items below were scoped during M4 but belong to later phases or manual gates. **Do not reopen M4 implementation files for these** — track in the target phase or [MANUAL_PLAYTEST_CHECKLIST.md](../../design/MANUAL_PLAYTEST_CHECKLIST.md).
+
+| Item | Target | Notes |
+| ---- | ------ | ----- |
+| TEST-4.1 ten-run soak | Manual § M4 | Log in [m4_soak_notes.md](../../design/m4_soak_notes.md) |
+| Online `POST /runs` for new dungeons | M5+ / NET | Offline `LocalProcgen` remains default (M3 lock) |
+| NPC/quest/dialogue/relic/recipe JSON schemas | M5 | `validate.mjs` skips these packs today |
+| Live cloud save E2E (second session/device) | Manual § M4 / M7 | Requires running API + two sessions |
+| Gamepad-only full loop (INV-4.1 polish) | M7 `POLISH-7.1` | Structural controller nav done; feel gate manual |
+| Epic+ affix balance / Mythic uniques | M5–M6 | Tables stubbed; Common–Rare live |
+
+**Automated validation:** `./scripts/run-all-validation.ps1` — 152+ Godot tests, 52 C# unit, content schemas. See [VALIDATION_PLATFORM.md](../../design/VALIDATION_PLATFORM.md).
 
 ---
 

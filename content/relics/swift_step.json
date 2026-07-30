@@ -1,0 +1,7 @@
+{
+  "id": "swift_step",
+  "name": "Swift Step",
+  "description": "Move 10% faster for this run.",
+  "maxStacks": 1,
+  "stats": { "moveSpeedPercent": 10 }
+}

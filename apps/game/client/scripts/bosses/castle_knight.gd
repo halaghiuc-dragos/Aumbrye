@@ -1,4 +1,4 @@
-extends "res://scripts/enemies/castle_enemy_base.gd"
+extends CastleEnemyBase
 
 ## 2-phase Castle Knight boss (BOSS-2.1 / BOSS-2.2).
 

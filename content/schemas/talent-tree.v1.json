@@ -1,0 +1,61 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://aumbrye.dev/schemas/talent-tree.v1.json",
+  "title": "TalentTree",
+  "description": "M4 talent tree definition (3 branches × ~6 nodes).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "talentPointsPerLevel", "branches"],
+  "properties": {
+    "schemaVersion": { "type": "integer", "const": 1 },
+    "talentPointsPerLevel": { "type": "integer", "minimum": 1 },
+    "branches": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/branch" }
+    }
+  },
+  "$defs": {
+    "branch": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "nameKey", "nodes"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "nameKey": { "type": "string", "minLength": 1 },
+        "nodes": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/node" }
+        }
+      }
+    },
+    "node": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "nameKey", "maxRank", "costPerRank", "requires"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "nameKey": { "type": "string", "minLength": 1 },
+        "maxRank": { "type": "integer", "minimum": 1 },
+        "costPerRank": { "type": "integer", "minimum": 1 },
+        "requires": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "effects": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["stat", "valuePerRank"],
+            "properties": {
+              "stat": { "type": "string", "minLength": 1 },
+              "valuePerRank": { "type": "number" }
+            }
+          }
+        }
+      }
+    }
+  }
+}

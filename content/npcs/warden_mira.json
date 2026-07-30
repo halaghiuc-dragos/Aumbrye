@@ -1,0 +1,7 @@
+{
+  "id": "warden_mira",
+  "displayName": "Warden Mira",
+  "interactType": "dialogue",
+  "dialogueId": "mira_greeting",
+  "position": { "x": 10, "y": 0, "z": 12 }
+}

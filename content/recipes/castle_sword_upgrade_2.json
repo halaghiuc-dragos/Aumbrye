@@ -1,0 +1,9 @@
+{
+  "id": "castle_sword_upgrade_2",
+  "type": "upgrade",
+  "itemId": "castle_sword",
+  "fromLevel": 1,
+  "toLevel": 2,
+  "goldCost": 100,
+  "statBonus": { "damage": 8 }
+}

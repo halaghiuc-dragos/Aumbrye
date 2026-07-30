@@ -2,7 +2,7 @@
 
 - **phase:** M5
 - **goal:** Three distinct kingdoms + combat depth (elements, statuses, weapon archetypes).
-- **depends_on:** M4 exit criteria
+- **depends_on:** M4 automated validation complete (see [M4-GAMEPLAY-LOOP.md](M4-GAMEPLAY-LOOP.md) deferred table); TEST-4.1 manual soak recommended before M5 ship
 - **exit_criteria:**
   - [ ] Themes complete: Forgotten Castle (art pass), Crystal Caverns, Poison Swamp
   - [ ] Each theme: room kit, 4–5 enemies, miniboss, boss, puzzle, audio profile, unique items
@@ -233,6 +233,16 @@
   - [ ] Notes + data tweaks committed
 - **out_of_scope:**
   - Perfect parity
+
+---
+
+## Inherited from M4 (deferred)
+
+| Item | M5 milestone target |
+| ---- | ------------------- |
+| NPC/quest/dialogue/relic/recipe JSON schemas | New `SCHEMA-5.x` + `validate.mjs` entries |
+| Online `POST /runs` optional dungeon path | `NET-5.x` if needed before multiplayer |
+| Epic+ affix expansion | `LOOT-5.x` / item content |
 
 ---
 

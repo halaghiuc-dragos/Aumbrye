@@ -115,14 +115,24 @@ These IDs match `TestContext.MANUAL_REMAINING` in the validation report.
 
 ---
 
-## M4 — Gameplay loop
+## M4 — Gameplay loop (closed 2026-07-30)
 
-_Add manual checks here when M4 milestones ship. Do not open a separate M4 playtest file._
+All M4 milestones implemented and covered by automated validation (`hub_m4_suite`, `progression_suite`, `inventory_suite`, backend save/loot tests). **Prerequisite:** `./scripts/run-all-validation.ps1` passes with 0 failures.
 
 | ID | Item | Status |
 |----|------|--------|
-| TEST-4.1 | Ten consecutive runs — no softlock; notes in `docs/design/m4_soak_notes.md` | [ ] |
+| M4.automated | Full gameplay loop (hub, affixes, XP/talents, relics, inventory UX, cloud save API, economy) | [x] |
+| TEST-4.1 | Ten consecutive runs — no softlock; notes in [m4_soak_notes.md](m4_soak_notes.md) | [ ] |
+| M4.cloud_e2e | Cloud save round-trip on second device/session with API running | [ ] |
 | M2.deferred.corrupt_save_manual | Bad JSON → fresh start + starter sword (optional spot-check) | [ ] |
+
+### M4 carry-over → later phases
+
+| ID | Item | Target |
+|----|------|--------|
+| M4.deferred.online_runs | Wire `POST /runs` for server-generated dungeons (optional path) | M5+ |
+| M4.deferred.content_schemas | JSON schemas for NPC, quest, dialogue, relic, recipe packs | M5 |
+| M4.deferred.gamepad_loop | Gamepad-only hub → castle → escape | M7 |
 
 ---
 
@@ -174,7 +184,9 @@ See **M1 carry-over → M7 (gamepad)** above.
 | ---- | ---- | ----- |
 | M1 KB/M combat arena | [x] | 2026-07-29 |
 | M2 castle vertical slice | [x] | 2026-07-30 |
-| M3 server generation (automated) | [x] | 2026-07-30 — `./scripts/run-all-validation.ps1` |
+| M3 server generation (automated) | [x] | 2026-07-30 |
+| M4 gameplay loop (automated) | [x] | 2026-07-30 — `./scripts/run-all-validation.ps1` |
+| M4 TEST-4.1 soak (manual) | [ ] | 10-run log in `m4_soak_notes.md` |
 | M7 feel & UX (pending) | [ ] | Complete M7 section before EA ship |
 
 ---

@@ -1,0 +1,7 @@
+{
+  "id": "escape_castle",
+  "title": "Safe Return",
+  "type": "escape",
+  "description": "Escape the castle through the exit portal during a run.",
+  "rewards": { "gold": 50 }
+}

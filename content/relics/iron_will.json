@@ -1,0 +1,7 @@
+{
+  "id": "iron_will",
+  "name": "Iron Will",
+  "description": "+15 max health for this run.",
+  "maxStacks": 3,
+  "stats": { "maxHealth": 15 }
+}

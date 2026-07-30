@@ -76,6 +76,7 @@ app.UseAuthorization();
 app.MapGet("/api/v1/health", () => Results.Ok(new HealthResponse("ok")));
 app.MapAuthEndpoints();
 app.MapRunsEndpoints();
+app.MapSavesEndpoints();
 
 app.Run();
 

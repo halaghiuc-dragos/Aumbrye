@@ -5,6 +5,8 @@ extends Control
 
 var _health_bar: ProgressBar
 var _stamina_bar: ProgressBar
+var _xp_bar: ProgressBar
+var _level_label: Label
 var _lock_reticle: Control
 var _parry_bar: ProgressBar
 var _block_bar: ProgressBar
@@ -18,6 +20,9 @@ var _camera: Camera3D
 func _ready() -> void:
 	_health_bar = get_node_or_null("Margin/VBox/HealthBar") as ProgressBar
 	_stamina_bar = get_node_or_null("Margin/VBox/StaminaBar") as ProgressBar
+	_xp_bar = get_node_or_null("Margin/VBox/XpBar") as ProgressBar
+	_level_label = get_node_or_null("Margin/VBox/LevelLabel") as Label
+	_ensure_progression_widgets()
 	_lock_reticle = get_node_or_null("LockReticle") as Control
 	_parry_bar = get_node_or_null("GuardIndicators/ParryBar") as ProgressBar
 	_block_bar = get_node_or_null("GuardIndicators/BlockBar") as ProgressBar
@@ -30,6 +35,25 @@ func _ready() -> void:
 		_lock_on = get_node(lock_on_path)
 		if _lock_on.has_signal("lock_changed"):
 			_lock_on.lock_changed.connect(_on_lock_changed)
+	if ProgressionService:
+		ProgressionService.progression_changed.connect(_on_progression_changed)
+		_on_progression_changed()
+
+
+func _ensure_progression_widgets() -> void:
+	var vbox := get_node_or_null("Margin/VBox") as VBoxContainer
+	if vbox == null:
+		return
+	if _xp_bar == null:
+		_xp_bar = ProgressBar.new()
+		_xp_bar.name = "XpBar"
+		_xp_bar.custom_minimum_size = Vector2(280, 12)
+		_xp_bar.show_percentage = false
+		vbox.add_child(_xp_bar)
+	if _level_label == null:
+		_level_label = Label.new()
+		_level_label.name = "LevelLabel"
+		vbox.add_child(_level_label)
 
 
 func _process(_delta: float) -> void:
@@ -46,6 +70,16 @@ func _bind_player_resources() -> void:
 	if stamina:
 		stamina.stamina_changed.connect(_on_stamina_changed)
 		_on_stamina_changed(stamina.current, Stamina.MAX_STAMINA)
+
+
+func _on_progression_changed() -> void:
+	if not ProgressionService:
+		return
+	if _level_label:
+		_level_label.text = "Lv %d" % ProgressionService.level
+	if _xp_bar:
+		_xp_bar.max_value = 1.0
+		_xp_bar.value = ProgressionService.xp_progress_ratio()
 
 
 func _update_lock_reticle() -> void:

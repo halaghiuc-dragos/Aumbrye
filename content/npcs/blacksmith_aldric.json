@@ -1,0 +1,7 @@
+{
+  "id": "blacksmith_aldric",
+  "displayName": "Aldric the Blacksmith",
+  "interactType": "blacksmith",
+  "dialogueId": "aldric_greeting",
+  "position": { "x": -16, "y": 0, "z": -2 }
+}

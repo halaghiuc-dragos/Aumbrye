@@ -14,7 +14,27 @@ public sealed record CompleteRunRequest(
     bool BossDefeated,
     IReadOnlyList<string>? LootClaimedInstanceIds);
 
-public sealed record CompleteRunResponse(Guid RunId, string Status);
+public sealed record CompleteRunResponse(
+    Guid RunId,
+    string Status,
+    CompleteRunProgressionResponse? Progression = null);
+
+public sealed record CompleteRunProgressionResponse(
+    int XpGained,
+    int TotalXp,
+    int Level,
+    int TalentPointsEarned,
+    IReadOnlyList<LootGrantedResponse> LootGranted,
+    string EconomyNote,
+    string? CharacterStateJson = null);
+
+public sealed record LootGrantedResponse(
+    string? InstanceId,
+    string? ItemDefId,
+    string? ItemId,
+    string? Rarity,
+    int? AffixCount,
+    int? Quantity);
 
 public sealed record RunResultRequest(
     int SchemaVersion,

@@ -10,6 +10,32 @@ func run() -> void:
 	_test_run_flow_offline_procgen()
 	_test_debug_overlay_seed()
 	_test_results_screen()
+	_test_run_outcome_flow()
+
+
+func _test_run_outcome_flow() -> void:
+	var start := Time.get_ticks_msec()
+	var has_death := RunFlow.has_method("on_player_died")
+	var has_escape_rules: bool = ctx.file_contains("res://scripts/app/run_flow.gd", "_escape_rules_summary")
+	ctx.timed_record(
+		"flow.death_escape_api",
+		get_category(),
+		has_death and has_escape_rules,
+		"RunFlow documents escape/death economy",
+		start,
+		"M4.flow.economy"
+	)
+
+	start = Time.get_ticks_msec()
+	var results_has_xp: bool = ctx.file_contains("res://scripts/ui/results_screen.gd", "xp_gained")
+	ctx.timed_record(
+		"flow.results_outcome_ui",
+		get_category(),
+		results_has_xp,
+		"results screen shows XP outcome",
+		start,
+		"M4.flow.economy"
+	)
 
 
 func _test_run_flow_scene_paths() -> void:
@@ -65,6 +91,39 @@ func _test_run_flow_offline_procgen() -> void:
 		"RunFlow exposes complete_run_via_portal()",
 		start,
 		"M3.flow.results"
+	)
+
+
+	start = Time.get_ticks_msec()
+	var has_loot_claim_api: bool = ctx.file_contains(
+		"res://scripts/app/run_flow.gd",
+		"lootClaimedInstanceIds"
+	)
+	var has_cloud_finalize: bool = ctx.file_contains(
+		"res://scripts/app/run_flow.gd",
+		"_cloud_finalize_run"
+	)
+	ctx.timed_record(
+		"flow.complete_run_loot_ids",
+		get_category(),
+		has_loot_claim_api and has_cloud_finalize,
+		"RunFlow tracks lootClaimedInstanceIds and calls complete_run",
+		start,
+		"M4.flow.complete"
+	)
+
+	start = Time.get_ticks_msec()
+	var hub_cloud_sync: bool = ctx.file_contains(
+		"res://scripts/hub/hub.gd",
+		"sync_from_cloud"
+	)
+	ctx.timed_record(
+		"flow.hub_cloud_sync",
+		get_category(),
+		hub_cloud_sync,
+		"hub boot pulls cloud save when API available",
+		start,
+		"M4.flow.cloud"
 	)
 
 

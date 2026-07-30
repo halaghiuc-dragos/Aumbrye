@@ -37,6 +37,7 @@ func _ready() -> void:
 	_wire_player_health_autosave()
 	_wire_weapon_from_inventory()
 	_wire_inventory_autosave()
+	InventoryService.apply_equipment_to_player_node(_player)
 	AudioDirector.play_dungeon_ambience()
 	set_physics_process(true)
 	RunFlow.clear_continue_restore()
@@ -240,6 +241,7 @@ func _capture_run_snapshot() -> Dictionary:
 		"inBossFight": _is_in_boss_fight(),
 		"killCount": RunFlow.get_kill_count(),
 		"lootCollected": RunFlow.get_loot_collected(),
+		"lootClaimedInstanceIds": RunFlow.get_loot_claimed_instance_ids(),
 	}
 
 
@@ -259,6 +261,7 @@ func _persist_snapshot() -> void:
 
 func _on_boss_defeated() -> void:
 	_boss_defeated = true
+	RunFlow.register_boss_defeated()
 	if _boss_door:
 		_boss_door.call("release_door")
 	AudioDirector.play_dungeon_ambience()
@@ -266,7 +269,6 @@ func _on_boss_defeated() -> void:
 
 
 func _on_player_died() -> void:
-	LocalSave.clear_active_run()
 	if _boss_door:
 		_boss_door.call("release_door")
 	await get_tree().create_timer(1.5).timeout

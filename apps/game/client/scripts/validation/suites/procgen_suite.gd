@@ -110,10 +110,14 @@ func _test_generation() -> void:
 
 func _test_offline_run_flow() -> void:
 	var start := Time.get_ticks_msec()
+	var uses_api_for_dungeon: bool = (
+		ctx.file_contains("res://scripts/app/run_flow.gd", "ApiClient.create_run")
+		or ctx.file_contains("res://scripts/app/run_flow.gd", "ApiClient.get_dungeon")
+	)
 	ctx.timed_record(
 		"procgen.offline_no_api_in_run_flow",
 		get_category(),
-		not ctx.file_contains("res://scripts/app/run_flow.gd", "ApiClient"),
+		not uses_api_for_dungeon,
 		"RunFlow does not call ApiClient for dungeon creation",
 		start,
 		"M3.procgen.offline"

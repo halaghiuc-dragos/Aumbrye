@@ -43,6 +43,7 @@ var _phase_timer := 0.0
 var _current_attack: Dictionary = {}
 var _buffered_attack := ""
 var _attack_name := ""
+var _damage_multiplier := 1.0
 
 
 func _ready() -> void:
@@ -90,6 +91,10 @@ func _physics_process(delta: float) -> void:
 
 func _load_weapon_data() -> void:
 	load_weapon_from_path(WEAPON_DATA_RELATIVE)
+
+
+func set_damage_multiplier(multiplier: float) -> void:
+	_damage_multiplier = maxf(0.1, multiplier)
 
 
 func load_weapon_from_path(relative: String) -> void:
@@ -145,7 +150,9 @@ func _process_attack_phase(delta: float) -> void:
 			current_phase = AttackPhase.ACTIVE
 			_phase_timer = _current_attack.get("active", 0.15)
 			if _hitbox and _hitbox.has_method("enable"):
-				_hitbox.call("set_attack_values", _current_attack.get("damage", 10.0), _current_attack.get("poise_damage", 10.0))
+				var dmg: float = float(_current_attack.get("damage", 10.0)) * _damage_multiplier
+				var poise: float = float(_current_attack.get("poise_damage", 10.0)) * _damage_multiplier
+				_hitbox.call("set_attack_values", dmg, poise)
 				_hitbox.call("enable")
 		AttackPhase.ACTIVE:
 			current_phase = AttackPhase.RECOVERY

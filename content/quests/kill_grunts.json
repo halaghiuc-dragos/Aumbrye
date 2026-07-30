@@ -1,0 +1,9 @@
+{
+  "id": "kill_grunts",
+  "title": "Clear the Courtyard",
+  "type": "kill",
+  "targetId": "castle_grunt",
+  "requiredCount": 3,
+  "description": "Defeat 3 castle grunts during any run.",
+  "rewards": { "gold": 30, "items": [{ "itemId": "health_potion", "quantity": 1 }] }
+}

@@ -66,7 +66,7 @@ func _process(_delta: float) -> void:
 func _on_health_changed(current: float, max_value: float) -> void:
 	if _fill_mesh == null:
 		return
-	var ratio := 0.0 if max_value <= 0.0 else clampf(current / max_value, 0.0, 1.0)
+	var ratio: float = 0.0 if max_value <= 0.0 else clampf(current / max_value, 0.0, 1.0)
 	_update_fill(ratio)
 	visible = ratio > 0.0
 

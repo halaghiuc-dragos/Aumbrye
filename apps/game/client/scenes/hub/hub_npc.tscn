@@ -1,0 +1,36 @@
+[gd_scene load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://scripts/npc/npc_base.gd" id="1"]
+[ext_resource type="Script" path="res://scripts/hub/hub_interactable.gd" id="2"]
+[ext_resource type="Material" path="res://assets/castle/mat_accent.tres" id="3"]
+
+[sub_resource type="CapsuleShape3D" id="CapsuleShape3D_npc"]
+radius = 0.6
+height = 1.8
+
+[sub_resource type="CapsuleMesh" id="CapsuleMesh_npc"]
+radius = 0.5
+height = 1.6
+
+[node name="HubNpc" type="Node3D" groups=["hub_npc"]]
+script = ExtResource("1")
+
+[node name="Body" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.9, 0)
+material_override = ExtResource("3")
+mesh = SubResource("CapsuleMesh_npc")
+
+[node name="InteractArea" type="Area3D" parent="."]
+collision_layer = 0
+collision_mask = 2
+script = ExtResource("2")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="InteractArea"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.9, 0)
+shape = SubResource("CapsuleShape3D_npc")
+
+[node name="NameLabel" type="Label3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.2, 0)
+billboard = 1
+text = "NPC"
+font_size = 22

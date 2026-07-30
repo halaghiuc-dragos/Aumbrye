@@ -1,0 +1,138 @@
+extends RefCounted
+class_name Equipment
+
+## Equipment slot helpers and stat aggregation (LOOT-4.2).
+
+const SLOT_ORDER: Array[String] = [
+	"helmet", "chest", "gloves", "boots",
+	"weapon", "secondary", "ring", "amulet", "relic",
+]
+
+const STAT_KEYS: Array[String] = [
+	"maxHealth", "defense", "damagePercent", "moveSpeedPercent", "staminaMax",
+]
+
+
+static func empty_equipped() -> Dictionary:
+	var eq: Dictionary = {}
+	for slot in SLOT_ORDER:
+		eq[slot] = {}
+	return eq
+
+
+static func slot_for_item_def(def: Dictionary) -> String:
+	var explicit: String = def.get("equipmentSlot", "")
+	if explicit != "":
+		return explicit
+	match def.get("itemType", ""):
+		"weapon":
+			return "weapon"
+		"material":
+			if def.get("id", "") == "knight_relic":
+				return "relic"
+	return ""
+
+
+static func can_equip_in_slot(def: Dictionary, slot: String) -> bool:
+	if def.is_empty() or slot == "":
+		return false
+	return slot_for_item_def(def) == slot
+
+
+static func aggregate_stats(equipped: Dictionary, affix_resolver: Callable = Callable()) -> Dictionary:
+	var totals: Dictionary = {}
+	for stat in STAT_KEYS:
+		totals[stat] = 0.0
+	for slot in SLOT_ORDER:
+		var instance: Dictionary = equipped.get(slot, {})
+		if instance.is_empty():
+			continue
+		_add_instance_stats(totals, instance, affix_resolver)
+	return totals
+
+
+static func stats_for_instance(
+	instance: Dictionary,
+	affix_resolver: Callable = Callable()
+) -> Dictionary:
+	var fake := empty_equipped()
+	var def := ItemCatalog.get_definition(instance.get("itemId", ""))
+	var slot := slot_for_item_def(def)
+	if slot != "":
+		fake[slot] = instance
+	return aggregate_stats(fake, affix_resolver)
+
+
+static func compare_stats(
+	current: Dictionary,
+	candidate: Dictionary,
+	affix_resolver: Callable = Callable()
+) -> Dictionary:
+	var base := aggregate_stats(current, affix_resolver)
+	var slot := slot_for_item_def(ItemCatalog.get_definition(candidate.get("itemId", "")))
+	var modified := current.duplicate(true)
+	if slot != "":
+		modified[slot] = candidate
+	var with_item := aggregate_stats(modified, affix_resolver)
+	var delta: Dictionary = {}
+	for stat in STAT_KEYS:
+		delta[stat] = with_item.get(stat, 0.0) - base.get(stat, 0.0)
+	return delta
+
+
+static func format_stat_line(stat: String, value: float) -> String:
+	if is_zero_approx(value):
+		return ""
+	match stat:
+		"maxHealth":
+			return "+%.0f HP" % value
+		"defense":
+			return "+%.0f DEF" % value
+		"damagePercent":
+			return "+%.0f%% DMG" % value
+		"moveSpeedPercent":
+			return "+%.0f%% SPD" % value
+		"staminaMax":
+			return "+%.0f STA" % value
+		_:
+			return "+%.0f %s" % [value, stat]
+
+
+static func format_delta_line(stat: String, delta: float) -> String:
+	if is_zero_approx(delta):
+		return ""
+	var sign := "+" if delta > 0.0 else ""
+	match stat:
+		"maxHealth":
+			return "%s%.0f HP" % [sign, delta]
+		"defense":
+			return "%s%.0f DEF" % [sign, delta]
+		"damagePercent":
+			return "%s%.0f%% DMG" % [sign, delta]
+		"moveSpeedPercent":
+			return "%s%.0f%% SPD" % [sign, delta]
+		"staminaMax":
+			return "%s%.0f STA" % [sign, delta]
+		_:
+			return "%s%.0f %s" % [sign, delta, stat]
+
+
+static func _add_instance_stats(
+	totals: Dictionary,
+	instance: Dictionary,
+	affix_resolver: Callable
+) -> void:
+	var item_id: String = instance.get("itemId", "")
+	var def := ItemCatalog.get_definition(item_id)
+	var base_stats: Dictionary = def.get("stats", {})
+	for stat in STAT_KEYS:
+		totals[stat] = totals.get(stat, 0.0) + float(base_stats.get(stat, 0.0))
+	for affix in instance.get("affixes", []):
+		if not affix is Dictionary:
+			continue
+		var affix_id: String = affix.get("affixId", "")
+		var value: float = float(affix.get("value", 0.0))
+		if affix_resolver.is_valid():
+			var stat_name: String = affix_resolver.call(affix_id)
+			if stat_name != "":
+				totals[stat_name] = totals.get(stat_name, 0.0) + value

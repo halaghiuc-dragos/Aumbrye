@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Aumbrye.Application.Abstractions;
 using Aumbrye.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
@@ -29,15 +30,17 @@ public class AuthService : IAuthService
         if (exists)
             return new AuthResult(false, Error: "Email already registered.");
 
+        var accountId = Guid.NewGuid();
+        var defaultState = CharacterStateDefaults.Create(accountId);
         var account = new Account
         {
-            Id = Guid.NewGuid(),
+            Id = accountId,
             Email = email,
             PasswordHash = _passwordHasher.Hash(password),
             CreatedAt = DateTimeOffset.UtcNow,
             SaveBlob = new SaveBlob
             {
-                JsonData = """{"schemaVersion":1,"level":1,"xp":0}""",
+                JsonData = defaultState.ToJsonString(),
                 UpdatedAt = DateTimeOffset.UtcNow,
             },
         };

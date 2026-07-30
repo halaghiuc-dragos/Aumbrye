@@ -1,4 +1,4 @@
-extends "res://scripts/enemies/castle_enemy_base.gd"
+extends CastleEnemyBase
 
 ## Shield-bearer — frontal block, weak to rear/parry (ENEMY-2.3).
 

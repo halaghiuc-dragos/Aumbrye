@@ -1,0 +1,7 @@
+{
+  "id": "merchant_elara",
+  "displayName": "Elara the Merchant",
+  "interactType": "merchant",
+  "dialogueId": "elara_greeting",
+  "position": { "x": -10, "y": 0, "z": 12 }
+}

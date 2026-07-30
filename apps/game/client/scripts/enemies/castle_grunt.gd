@@ -1,4 +1,4 @@
-extends "res://scripts/enemies/castle_enemy_base.gd"
+extends CastleEnemyBase
 
 ## Melee castle grunt — patrol/chase/attack (ENEMY-2.1).
 

@@ -1,0 +1,7 @@
+{
+  "id": "hub_merchant",
+  "items": [
+    { "itemId": "health_potion", "price": 15, "stock": 10 },
+    { "itemId": "iron_scrap", "price": 8, "stock": 5 }
+  ]
+}

@@ -1,0 +1,13 @@
+{
+  "id": "castle_boots",
+  "name": "Castle Boots",
+  "itemType": "armor",
+  "equipmentSlot": "boots",
+  "gridWidth": 2,
+  "gridHeight": 2,
+  "stackSize": 1,
+  "rarity": "common",
+  "description": "Sturdy boots for long dungeon treks.",
+  "value": 12,
+  "stats": { "defense": 2, "moveSpeedPercent": 3 }
+}

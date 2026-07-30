@@ -54,6 +54,7 @@ public static class DependencyInjection
         services.AddScoped<IAuthService, AuthService>();
         services.AddSingleton<IDungeonGenerator, ProceduralDungeonGenerator>();
         services.AddScoped<IRunService, RunService>();
+        services.AddScoped<ISaveService, SaveService>();
 
         return services;
     }

@@ -9,6 +9,7 @@ const AUTH_REFRESH := "/api/v1/auth/refresh"
 const RUNS_CREATE := "/api/v1/runs"
 const RUNS_DUNGEON := "/api/v1/runs/%s/dungeon"
 const RUNS_COMPLETE := "/api/v1/runs/%s/complete"
+const SAVES_CURRENT := "/api/v1/saves/current"
 
 
 static func register(email: String, password: String) -> Dictionary:
@@ -70,20 +71,70 @@ static func get_dungeon(run_id: String) -> Dictionary:
 	return result
 
 
-static func complete_run(run_id: String, outcome: String, elapsed: float, boss_defeated: bool) -> Dictionary:
+static func complete_run(
+	run_id: String,
+	outcome: String,
+	elapsed: float,
+	boss_defeated: bool,
+	loot_claimed_ids: Array = []
+) -> Dictionary:
 	if not await ensure_dev_session():
 		return {"ok": false, "error": "auth failed"}
 	var payload := {
 		"outcome": outcome,
 		"elapsedSeconds": elapsed,
 		"bossDefeated": boss_defeated,
-		"lootClaimedInstanceIds": [],
+		"lootClaimedInstanceIds": loot_claimed_ids,
 	}
 	var path := RUNS_COMPLETE % run_id
 	var result := await _post_json_with_retry(path, payload)
 	if not result.get("ok", false) and result.get("code", 0) == 401:
 		if await refresh_session():
 			result = await _post_json_with_retry(path, payload)
+	return result
+
+
+static func get_save() -> Dictionary:
+	if not await ensure_dev_session():
+		return {"ok": false, "error": "auth failed"}
+	var url := ApiConfig.get_base_url() + SAVES_CURRENT
+	var result := await _request_json(url, HTTPClient.METHOD_GET, {}, true)
+	if not result.get("ok", false) and result.get("code", 0) == 401:
+		if await refresh_session():
+			result = await _request_json(url, HTTPClient.METHOD_GET, {}, true)
+	if result.get("ok", false):
+		var body: Dictionary = result.get("body", {})
+		return {
+			"ok": true,
+			"stateJson": body.get("stateJson", ""),
+			"updatedAt": body.get("updatedAt", ""),
+		}
+	return result
+
+
+static func put_save(state_json: String, client_updated_at: Variant = null) -> Dictionary:
+	if not await ensure_dev_session():
+		return {"ok": false, "error": "auth failed"}
+	var payload := {"stateJson": state_json}
+	if client_updated_at != null and str(client_updated_at) != "":
+		payload["clientUpdatedAt"] = str(client_updated_at)
+	var url := ApiConfig.get_base_url() + SAVES_CURRENT
+	var result := await _request_json(url, HTTPClient.METHOD_PUT, payload, true)
+	if not result.get("ok", false) and result.get("code", 0) == 401:
+		if await refresh_session():
+			result = await _request_json(url, HTTPClient.METHOD_PUT, payload, true)
+	if result.get("code", 0) == 409:
+		var body: Dictionary = result.get("body", {})
+		return {
+			"ok": false,
+			"conflict": true,
+			"stateJson": body.get("state", ""),
+			"updatedAt": str(body.get("updatedAt", "")),
+			"error": body.get("error", "conflict"),
+		}
+	if result.get("ok", false):
+		var body: Dictionary = result.get("body", {})
+		return {"ok": true, "updatedAt": body.get("updatedAt", "")}
 	return result
 
 
@@ -132,7 +183,7 @@ static func _request_json(url: String, method: int, payload: Dictionary, auth: b
 		dict = {"raw": trimmed.substr(0, min(200, trimmed.length()))}
 	if code < 200 or code >= 300:
 		var err_msg: String = str(dict.get("error", dict.get("raw", "HTTP %d" % code)))
-		return {"ok": false, "error": err_msg, "code": code}
+		return {"ok": false, "error": err_msg, "code": code, "body": dict}
 	if method == HTTPClient.METHOD_GET:
 		return {"ok": true, "definition": dict}
 	return {"ok": true, "body": dict}
