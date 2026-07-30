@@ -61,7 +61,8 @@ Open `apps/game/client/project.godot` in Godot 4.7. Press **F5** — main scene 
 
 **M1 combat controls (locked):** [docs/design/M1_CONTROLS.md](docs/design/M1_CONTROLS.md)  
 **M2 interact/inventory:** [docs/design/M2_CONTROLS.md](docs/design/M2_CONTROLS.md)  
-M2 status: [docs/design/M2_IMPLEMENTATION_LOG.md](docs/design/M2_IMPLEMENTATION_LOG.md)
+M2 status: [docs/design/M2_IMPLEMENTATION_LOG.md](docs/design/M2_IMPLEMENTATION_LOG.md)  
+M3 status: [docs/design/M3_IMPLEMENTATION_LOG.md](docs/design/M3_IMPLEMENTATION_LOG.md)
 
 Implementation: [docs/design/M2_IMPLEMENTATION_LOG.md](docs/design/M2_IMPLEMENTATION_LOG.md) · M1: [docs/design/M1_IMPLEMENTATION_LOG.md](docs/design/M1_IMPLEMENTATION_LOG.md)
 

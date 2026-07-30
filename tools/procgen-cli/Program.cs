@@ -1,0 +1,81 @@
+using Aumbrye.Procedural.Generation;
+
+if (args.Length == 0 || args[0] is not ("generate" or "-h" or "--help"))
+{
+    PrintUsage();
+    return args.Length == 0 ? 1 : 0;
+}
+
+if (args[0] is "-h" or "--help")
+{
+    PrintUsage();
+    return 0;
+}
+
+try
+{
+    var options = ParseGenerateArgs(args);
+    var result = DungeonGenerator.Generate(
+        options.BiomeId,
+        options.Seed,
+        options.Tier,
+        options.PlayerLevel,
+        options.RunId);
+
+    Console.Out.WriteLine(result.Json);
+    return 0;
+}
+catch (Exception ex)
+{
+    Console.Error.WriteLine(ex.Message);
+    return 1;
+}
+
+static GenerateOptions ParseGenerateArgs(string[] args)
+{
+    if (args.Length < 3)
+        throw new ArgumentException("Usage: procgen-cli generate <biomeId> <seed> [runId] [--tier N] [--player-level N]");
+
+    var biomeId = args[1];
+    if (!int.TryParse(args[2], out var seed) || seed < 1)
+        throw new ArgumentException("Seed must be a positive integer.");
+
+    var runId = Guid.NewGuid();
+    var tier = 1;
+    var playerLevel = 1;
+    var index = 3;
+
+    if (index < args.Length && Guid.TryParse(args[index], out var parsedRunId))
+    {
+        runId = parsedRunId;
+        index++;
+    }
+
+    while (index < args.Length)
+    {
+        switch (args[index])
+        {
+            case "--tier" when index + 1 < args.Length && int.TryParse(args[index + 1], out var parsedTier):
+                tier = Math.Max(1, parsedTier);
+                index += 2;
+                break;
+            case "--player-level" when index + 1 < args.Length && int.TryParse(args[index + 1], out var parsedLevel):
+                playerLevel = Math.Max(1, parsedLevel);
+                index += 2;
+                break;
+            default:
+                throw new ArgumentException($"Unknown argument: {args[index]}");
+        }
+    }
+
+    return new GenerateOptions(biomeId, seed, runId, tier, playerLevel);
+}
+
+static void PrintUsage()
+{
+    Console.Error.WriteLine("Aumbrye local dungeon generator");
+    Console.Error.WriteLine("Usage: procgen-cli generate <biomeId> <seed> [runId] [--tier N] [--player-level N]");
+    Console.Error.WriteLine("Writes canonical dungeon JSON to stdout.");
+}
+
+sealed record GenerateOptions(string BiomeId, int Seed, Guid RunId, int Tier, int PlayerLevel);

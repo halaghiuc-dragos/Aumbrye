@@ -1,55 +1,147 @@
-# Environment and secrets
+# =============================================================================
+# Secrets & credentials
+# =============================================================================
+*.pem
+*.key
+*.p12
+*.pfx
+credentials.json
+secrets.json
+**/secrets/
+id_rsa
+id_rsa.*
+
+# =============================================================================
+# Environment files
+# =============================================================================
 .env
+.env.*
+!.env.example
+!.env.*.example
+
+# Vite / frontend local overrides (committed templates: .env.example)
 .env.local
 .env.*.local
-*.pem
-credentials.json
 
-# OS
+# =============================================================================
+# ASP.NET configuration (use User Secrets or env vars for local overrides)
+# =============================================================================
+**/appsettings.*.json
+!**/appsettings.json
+!**/appsettings.Testing.json
+
+# =============================================================================
+# Docker local overrides
+# =============================================================================
+docker-compose.override.yml
+docker-compose.*.local.yml
+
+# =============================================================================
+# OS junk
+# =============================================================================
 .DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
 Thumbs.db
+ehthumbs.db
 desktop.ini
+$RECYCLE.BIN/
 
-# IDE
+# =============================================================================
+# IDE / editor
+# =============================================================================
 .vs/
 .vscode/*
 !.vscode/extensions.json
+!.vscode/settings.json.example
 .idea/
+.fleet/
 *.swp
 *.swo
 *~
+*.DotSettings.user
 
-# Node
+# Cursor — ignore local machine config; allow shared rules if added later
+.cursor/*
+!.cursor/rules/
+!.cursor/rules/**
+
+# =============================================================================
+# Node / JavaScript
+# =============================================================================
 node_modules/
 dist/
+build/
+.cache/
+.parcel-cache/
+.turbo/
 .npm
+coverage/
+.nyc_output/
 *.log
 npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
 
+# =============================================================================
 # .NET
+# =============================================================================
 bin/
 obj/
+out/
+artifacts/
+publish/
+TestResults/
 *.user
 *.suo
 *.userosscache
 *.sln.docstates
-TestResults/
+*.nupkg
+project.lock.json
 
+# =============================================================================
 # Godot
-apps/game/client/.godot/
-apps/game/client/.import/
-apps/game/client/export_presets.cfg
-apps/game/client/*.translation
+# =============================================================================
+**/.godot/
+**/.import/
+**/export_presets.cfg
+*.translation
 
-# Docker
-docker-compose.override.yml
+# Godot user-data equivalents if copied into the repo by mistake
+aumbrye_save.json
+godot_mcp_settings.json
+mcp_validation.json
 
-# Build artifacts
+# Local Godot dev config overrides
+**/config/dev_api.local.json
+
+# =============================================================================
+# Steam / platform keys
+# =============================================================================
+steam_appid.txt
+steam_api_key.txt
+
+# =============================================================================
+# Build artifacts & binaries
+# =============================================================================
 *.dll
 *.exe
 *.pdb
-publish/
 
+# =============================================================================
+# Generated reports, logs, and local test dumps
+# =============================================================================
+reports/
+logs/
+
+# Procgen CLI dumps at repo root (regenerate locally)
+/seed*.json
+
+# =============================================================================
 # Assets (large binaries — track via LFS or external pipeline later)
+# =============================================================================
 # Uncomment when asset pipeline is defined:
 # assets/**/*.import

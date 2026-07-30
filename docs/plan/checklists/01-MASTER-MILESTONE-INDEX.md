@@ -45,36 +45,40 @@ All milestones complete (KB/M signed off 2026-07-29). Archive: [M1_IMPLEMENTATIO
 | UI-1.1 | Combat HUD | done |
 | DBG-1.1 | Arena | done |
 
-## M2 Vertical slice
+## M2 Vertical slice ✅
 
-| ID | Title |
-|----|-------|
-| ART-2.1 | Castle kit |
-| DUNGEON-2.1 | Layout |
-| DUNGEON-2.2 | Fixture |
-| BUILDER-2.1 | Builder |
-| ENEMY-2.1–2.3 | Castle enemies |
-| TRAP-2.1 | Traps |
-| SCHEMA-2.1 | Item/inventory schema |
-| INV-2.1 | Inventory MVP |
-| LOOT-2.1 | Static chests |
-| BOSS-2.1–2.2 | Castle knight |
-| FLOW-2.1 | Escape/results |
-| SAVE-2.1 | Local save |
-| AUDIO-2.1 | Audio stubs |
-| HUB-2.1 | Hub stub |
+All milestones complete (KB/M signed off 2026-07-30). Archive: [M2_IMPLEMENTATION_LOG.md](../design/M2_IMPLEMENTATION_LOG.md).
 
-## M3 Server generation
+| ID | Title | Status |
+|----|-------|--------|
+| ART-2.1 | Castle kit | done |
+| DUNGEON-2.1 | Layout | done |
+| DUNGEON-2.2 | Fixture | done |
+| BUILDER-2.1 | Builder | done |
+| ENEMY-2.1–2.3 | Castle enemies | done |
+| TRAP-2.1 | Traps | done |
+| SCHEMA-2.1 | Item/inventory schema | done |
+| INV-2.1 | Inventory MVP | done |
+| LOOT-2.1 | Static chests | done |
+| BOSS-2.1–2.2 | Castle knight | done |
+| FLOW-2.1 | Escape/results | done |
+| SAVE-2.1 | Local save | done |
+| AUDIO-2.1 | Audio stubs | done |
+| HUB-2.1 | Hub stub | done |
 
-| ID | Title |
-|----|-------|
-| AUTH-3.1 | JWT auth |
-| PROC-3.1–3.6 | Generator pipeline |
-| API-3.1–3.3 | Runs API |
-| NET-3.1 | Godot API client |
-| FLOW-3.1 | Generated E2E |
-| SCHEMA-3.1–3.2 | OpenAPI + versions |
-| TEST-3.1 | Procgen tests |
+## M3 Server generation ✅
+
+All milestones complete (2026-07-30). Archive: [M3_IMPLEMENTATION_LOG.md](../../design/M3_IMPLEMENTATION_LOG.md). Manual gates: [MANUAL_PLAYTEST_CHECKLIST.md](../../design/MANUAL_PLAYTEST_CHECKLIST.md).
+
+| ID | Title | Status |
+|----|-------|--------|
+| AUTH-3.1 | JWT auth | done |
+| PROC-3.1–3.6 | Generator pipeline | done |
+| API-3.1–3.3 | Runs API | done |
+| NET-3.1 | Godot API client | done |
+| FLOW-3.1 | Generated E2E | done |
+| SCHEMA-3.1–3.2 | OpenAPI + versions | done |
+| TEST-3.1 | Procgen tests | done |
 
 ## M4 Gameplay loop
 

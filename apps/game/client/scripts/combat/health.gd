@@ -47,3 +47,18 @@ func reset_health() -> void:
 	_dead = false
 	current = max_health
 	health_changed.emit(current, max_health)
+
+
+func restore_current(value: float) -> void:
+	if _dead:
+		return
+	current = clampf(value, 0.0, max_health)
+	health_changed.emit(current, max_health)
+
+
+func force_dead() -> void:
+	if _dead:
+		return
+	_dead = true
+	current = 0.0
+	health_changed.emit(current, max_health)

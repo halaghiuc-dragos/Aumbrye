@@ -59,18 +59,31 @@ aumbrye/
 
 ## Environment files
 
-| File | Purpose |
-|------|---------|
-| `services/backend/appsettings.Development.json` | Local API |
-| `apps/web/.env.development` | `VITE_API_URL` |
+Local overrides are **gitignored**. Copy from the committed examples on first setup:
+
+| Local file (gitignored) | Copy from |
+|----------------------|-----------|
+| `services/backend/src/Aumbrye.Api/appsettings.Development.json` | `appsettings.Development.json.example` |
+| `apps/web/.env.development` | `.env.example` |
+| `.env` (repo root, for Docker Compose) | `.env.example` |
+
+| Committed template | Purpose |
+|--------------------|---------|
+| `services/backend/src/Aumbrye.Api/appsettings.json` | Non-environment defaults (use User Secrets / env for production) |
 | `apps/game/client/config/dev_api.json` | Local API base URL for Godot |
 | `.env.example` at repo root | Documented compose secrets (no real secrets committed) |
+
+**Never commit:** `.env`, `appsettings.Development.json`, `.cursor/mcp.json`, `reports/`, `seed*.json` dumps — see root `.gitignore`.
 
 ---
 
 ## First-boot commands (verified)
 
 ```bash
+# Local config (gitignored — copy once)
+cp services/backend/src/Aumbrye.Api/appsettings.Development.json.example services/backend/src/Aumbrye.Api/appsettings.Development.json
+cp apps/web/.env.example apps/web/.env.development
+
 # Infra
 docker compose up -d postgres redis
 

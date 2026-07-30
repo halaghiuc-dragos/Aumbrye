@@ -1,0 +1,24 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://aumbrye.dev/schemas/item-catalog.v1.json",
+  "title": "ItemCatalog",
+  "description": "Index of item IDs by category. Must match files under content/items/{equipment,consumables,materials}/.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "equipment", "consumables", "materials"],
+  "properties": {
+    "schemaVersion": { "type": "integer", "minimum": 1 },
+    "equipment": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "consumables": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "materials": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 }
+    }
+  }
+}

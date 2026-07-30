@@ -1,0 +1,6 @@
+[gd_scene format=3 uid="uid://dgktyk2goo3fg"]
+
+[ext_resource type="Script" path="res://scripts/validation/validation_runner.gd" id="1_validation"]
+
+[node name="McpValidation" type="Node"]
+script = ExtResource("1_validation")

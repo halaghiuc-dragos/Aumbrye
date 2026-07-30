@@ -8,6 +8,10 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="8.0.11" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\Aumbrye.Domain\Aumbrye.Domain.csproj" />
     <ProjectReference Include="..\..\..\..\packages\shared\Aumbrye.Shared.csproj" />
     <ProjectReference Include="..\..\..\..\packages\procedural\Aumbrye.Procedural.csproj" />

@@ -6,8 +6,6 @@ signal inventory_changed
 
 var inventory: GridInventory = GridInventory.new()
 
-var _item_def_cache: Dictionary = {}
-
 
 func _ready() -> void:
 	inventory.changed.connect(_on_inventory_changed)
@@ -22,11 +20,7 @@ func add_item(item_id: String, quantity: int = 1) -> bool:
 
 
 func get_item_def(item_id: String) -> Dictionary:
-	if _item_def_cache.has(item_id):
-		return _item_def_cache[item_id]
-	var def: Dictionary = ContentLoader.load_json("content/items/%s.json" % item_id)
-	_item_def_cache[item_id] = def
-	return def
+	return ItemCatalog.get_definition(item_id)
 
 
 func get_save_inventory() -> Dictionary:

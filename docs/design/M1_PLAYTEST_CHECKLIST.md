@@ -1,7 +1,7 @@
 # M1 playtest checklist (signed off)
 
 > **M1 closed 2026-07-29.** KB/M playtest passed. Controls locked in [M1_CONTROLS.md](M1_CONTROLS.md).  
-> Gamepad section deferred — see [M1_IMPLEMENTATION_LOG.md](M1_IMPLEMENTATION_LOG.md).
+> Gamepad section deferred → [MANUAL_PLAYTEST_CHECKLIST.md](MANUAL_PLAYTEST_CHECKLIST.md) § M1 / M7.
 
 ## Setup
 

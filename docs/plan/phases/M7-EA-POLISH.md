@@ -6,7 +6,8 @@
 - **exit_criteria:**
   - [ ] All boxes in [07-EA-DEFINITION-OF-DONE.md](../07-EA-DEFINITION-OF-DONE.md) checked
   - [ ] Steam depot builds installable
-  - [ ] ≥20 external playtesters completed full loop
+  - [ ] ≥20 external playtesters completed full loop — [MANUAL_PLAYTEST_CHECKLIST.md](../../design/MANUAL_PLAYTEST_CHECKLIST.md) § M7
+  - [ ] All M7 feel/UX items in [MANUAL_PLAYTEST_CHECKLIST.md](../../design/MANUAL_PLAYTEST_CHECKLIST.md) § M7 checked
   - [ ] Crash rate acceptable (define threshold in playtest notes)
   - [ ] Known issues published
 
@@ -73,7 +74,7 @@
 - **agent_instructions:**
   - Dynamic glyphs for Xbox/PlayStation/generic; UI focus states polished.
 - **acceptance_criteria:**
-  - [ ] Full loop completable gamepad-only without mouse
+  - [ ] Full loop completable gamepad-only without mouse — see [MANUAL_PLAYTEST_CHECKLIST.md](../../design/MANUAL_PLAYTEST_CHECKLIST.md) § M7 (Controller)
 - **out_of_scope:**
   - Gyro
 
@@ -135,6 +136,7 @@
 - **unlocks:** [SHIP-7.2]
 - **agent_instructions:**
   - Recruit ≥20 playtesters; collect feedback form; triage P0/P1.
+  - Use [MANUAL_PLAYTEST_CHECKLIST.md](../../design/MANUAL_PLAYTEST_CHECKLIST.md) sign-off table.
 - **acceptance_criteria:**
   - [ ] 20 completed loop
   - [ ] P0 list empty

@@ -1,6 +1,8 @@
 {
   "id": "castle_archer",
   "name": "Castle Archer",
+  "scene": "res://scenes/enemies/castle_archer.tscn",
+  "threat_cost": 25,
   "health": 70,
   "poise": 30,
   "move_speed": 3.0,

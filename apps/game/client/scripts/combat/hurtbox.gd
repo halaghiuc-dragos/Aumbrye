@@ -28,6 +28,8 @@ func set_debug_draw(enabled: bool) -> void:
 
 
 func receive_hit(info: DamageInfo) -> void:
+	if _health and _health.is_dead():
+		return
 	var dodge := _find_dodge()
 	if dodge and dodge.get("iframes_active"):
 		return
@@ -42,7 +44,7 @@ func receive_hit(info: DamageInfo) -> void:
 			_emit_block_feedback(final_amount)
 	if _health and final_amount > 0.0:
 		_health.take_damage(final_amount)
-	if _poise and final_poise > 0.0:
+	if _poise and final_poise > 0.0 and (_health == null or not _health.is_dead()):
 		_poise.take_poise_damage(final_poise)
 	damaged.emit(info)
 

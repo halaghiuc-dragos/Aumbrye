@@ -296,4 +296,4 @@
 4. BOSS-2.1 → BOSS-2.2 ✅
 5. HUB-2.1 + FLOW-2.1 + SAVE-2.1 + AUDIO-2.1 ✅
 6. KB/M playtest signed off 2026-07-30 — see [M2_IMPLEMENTATION_LOG.md](../../design/M2_IMPLEMENTATION_LOG.md)
-7. Gamepad + optional friend playtest — deferred
+7. Gamepad + optional friend playtest — deferred to [MANUAL_PLAYTEST_CHECKLIST.md](../../design/MANUAL_PLAYTEST_CHECKLIST.md)

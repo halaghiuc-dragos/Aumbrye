@@ -1,9 +1,9 @@
 namespace Aumbrye.Procedural;
 
 /// <summary>
-/// Placeholder for dungeon generation (implemented in M3).
+/// M3 procedural generation entry point.
 /// </summary>
 public static class ProceduralAssembly
 {
-    public const string Version = "0.0.1";
+    public const string Version = "0.3.0";
 }

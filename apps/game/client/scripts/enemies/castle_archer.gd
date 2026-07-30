@@ -2,7 +2,6 @@ extends "res://scripts/enemies/castle_enemy_base.gd"
 
 ## Ranged castle archer — charge telegraph, fixed shot on release (ENEMY-2.2).
 
-const DATA_RELATIVE := "content/enemies/castle_archer.json"
 const PROJECTILE_SCENE := preload("res://scenes/combat/enemy_projectile.tscn")
 
 var _draw_telegraph := false
@@ -10,8 +9,8 @@ var _locked_shot_direction := Vector3.FORWARD
 var _locked_shot_speed := 12.0
 
 
-func get_data_path() -> String:
-	return DATA_RELATIVE
+func get_enemy_id() -> String:
+	return "castle_archer"
 
 
 func _process_chase(delta: float) -> void:
@@ -61,6 +60,8 @@ func _lock_shot_trajectory() -> void:
 
 
 func _start_attack() -> void:
+	if is_dead() or (_health and _health.is_dead()):
+		return
 	_state = State.ATTACK
 	_state_timer = _data.get("active_duration", 0.05)
 	_draw_telegraph = false

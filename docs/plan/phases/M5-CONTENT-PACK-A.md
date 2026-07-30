@@ -44,7 +44,7 @@
   - Must feel distinct from castle (verticality/crystals/cold light).
 - **acceptance_criteria:**
   - [ ] Generatable and completable
-  - [ ] Blind playtester names theme without UI label (spot check)
+  - [ ] Blind playtester names theme without UI label (spot check) — [MANUAL_PLAYTEST_CHECKLIST.md](../../design/MANUAL_PLAYTEST_CHECKLIST.md) `M5.theme.blind`
 - **out_of_scope:**
   - Second cavern variant
 

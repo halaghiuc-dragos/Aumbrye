@@ -1,0 +1,116 @@
+[gd_scene load_steps=2 format=3 uid="uid://castle_entry_menu"]
+
+[ext_resource type="Script" path="res://scripts/ui/castle_entry_menu.gd" id="1_menu"]
+
+[node name="CastleEntryMenu" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+script = ExtResource("1_menu")
+
+[node name="Dimmer" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+color = Color(0, 0, 0, 0.55)
+
+[node name="MainPanel" type="PanelContainer" parent="."]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -220.0
+offset_top = -160.0
+offset_right = 220.0
+offset_bottom = 160.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Margin" type="MarginContainer" parent="MainPanel"]
+layout_mode = 2
+theme_override_constants/margin_left = 20
+theme_override_constants/margin_top = 20
+theme_override_constants/margin_right = 20
+theme_override_constants/margin_bottom = 20
+
+[node name="VBox" type="VBoxContainer" parent="MainPanel/Margin"]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="Title" type="Label" parent="MainPanel/Margin/VBox"]
+layout_mode = 2
+text = "Forgotten Castle"
+horizontal_alignment = 1
+theme_override_font_sizes/font_size = 24
+
+[node name="NewButton" type="Button" parent="MainPanel/Margin/VBox"]
+layout_mode = 2
+text = "New Castle Run"
+
+[node name="ContinueButton" type="Button" parent="MainPanel/Margin/VBox"]
+layout_mode = 2
+text = "Continue"
+
+[node name="SeedButton" type="Button" parent="MainPanel/Margin/VBox"]
+layout_mode = 2
+text = "Play on a Castle Seed"
+
+[node name="StatusLabel" type="Label" parent="MainPanel/Margin/VBox"]
+layout_mode = 2
+text = "Esc to close"
+horizontal_alignment = 1
+
+[node name="SeedPanel" type="PanelContainer" parent="."]
+visible = false
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -220.0
+offset_top = -120.0
+offset_right = 220.0
+offset_bottom = 120.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Margin" type="MarginContainer" parent="SeedPanel"]
+layout_mode = 2
+theme_override_constants/margin_left = 20
+theme_override_constants/margin_top = 20
+theme_override_constants/margin_right = 20
+theme_override_constants/margin_bottom = 20
+
+[node name="VBox" type="VBoxContainer" parent="SeedPanel/Margin"]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="SeedTitle" type="Label" parent="SeedPanel/Margin/VBox"]
+layout_mode = 2
+text = "Enter Castle Seed"
+horizontal_alignment = 1
+theme_override_font_sizes/font_size = 22
+
+[node name="SeedInput" type="LineEdit" parent="SeedPanel/Margin/VBox"]
+layout_mode = 2
+placeholder_text = "e.g. 424242"
+alignment = 1
+
+[node name="SeedStartButton" type="Button" parent="SeedPanel/Margin/VBox"]
+layout_mode = 2
+text = "Start Run"
+
+[node name="SeedBackButton" type="Button" parent="SeedPanel/Margin/VBox"]
+layout_mode = 2
+text = "Back"

@@ -1,0 +1,6 @@
+{
+  "schemaVersion": 1,
+  "equipment": ["castle_sword"],
+  "consumables": ["health_potion"],
+  "materials": ["iron_scrap", "knight_relic"]
+}

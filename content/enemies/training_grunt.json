@@ -1,6 +1,7 @@
 {
   "id": "training_grunt",
   "name": "Training Grunt",
+  "scene": "res://scenes/enemies/training_grunt.tscn",
   "health": 80,
   "poise": 40,
   "move_speed": 3.0,

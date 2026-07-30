@@ -47,4 +47,4 @@ Skilled play should win via **spacing**, **roll i-frames**, or **parry punish** 
 | Gamepad full loop | ⬜ Deferred — no controller at M1 close |
 | Win via roll / parry / spacing | ✅ Signed off |
 
-Full record: [M1_PLAYTEST_CHECKLIST.md](M1_PLAYTEST_CHECKLIST.md)
+Full record: [MANUAL_PLAYTEST_CHECKLIST.md](MANUAL_PLAYTEST_CHECKLIST.md) (M1 archived in [M1_PLAYTEST_CHECKLIST.md](M1_PLAYTEST_CHECKLIST.md))

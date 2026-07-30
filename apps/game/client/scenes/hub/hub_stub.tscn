@@ -5,6 +5,7 @@
 [ext_resource type="Script" uid="uid://bkguul7vvrvo8" path="res://scripts/ui/combat_hud.gd" id="3_hud"]
 [ext_resource type="Script" uid="uid://jydo1rlpaeot" path="res://scripts/ui/inventory_ui.gd" id="4_inv"]
 [ext_resource type="Script" uid="uid://2krxd36g70m2" path="res://scripts/debug/debug_overlay.gd" id="5_overlay"]
+[ext_resource type="PackedScene" path="res://scenes/ui/castle_entry_menu.tscn" id="6_castle_menu"]
 [ext_resource type="Material" path="res://assets/castle/mat_floor.tres" id="6_floor_mat"]
 [ext_resource type="Material" path="res://assets/castle/mat_accent.tres" id="7_accent_mat"]
 [ext_resource type="Material" path="res://assets/castle/mat_wall.tres" id="8_wall_mat"]
@@ -196,6 +197,15 @@ text = "Arrows/D-pad + Enter"
 [node name="DebugOverlay" type="CanvasLayer" parent="." unique_id=620281586]
 script = ExtResource("5_overlay")
 player_path = NodePath("../Player")
+
+[node name="CastleEntryMenu" parent="." instance=ExtResource("6_castle_menu")]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
 
 [node name="DebugLabel" type="Label" parent="DebugOverlay" unique_id=476225116]
 offset_left = 16.0

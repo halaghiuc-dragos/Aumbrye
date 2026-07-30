@@ -115,14 +115,16 @@ All M2 milestones implemented. KB/M vertical slice playtest signed off 2026-07-3
 
 ## Deferred / open (post-M2)
 
-| Item | Notes |
-|------|-------|
-| **Gamepad playtest** | Bindings exist in `project.godot`; verify X/LB/D-pad/A for interact, inventory, full loop |
-| **External friend playtest** | Optional per [M2-VERTICAL-SLICE.md](../plan/phases/M2-VERTICAL-SLICE.md) exit criteria |
-| **Castle art pass** | Blockout layout accepted; tighter room rework when final assets land |
-| **Save JSON integers** | `quantity`/`x`/`y` sometimes serialize as floats (`1.0`); loads fine; tighten serializer later |
-| **Corrupt-save edge case** | Optional manual test: bad JSON → fresh start + starter sword |
-| **Combat tuning** | Stamina costs raised 2026-07-30 — see [combat_tuning_m1.md](combat_tuning_m1.md) |
+Tracked in [MANUAL_PLAYTEST_CHECKLIST.md](MANUAL_PLAYTEST_CHECKLIST.md):
+
+| Item | Target | Notes |
+|------|--------|-------|
+| **Gamepad playtest** | M7 (`POLISH-7.1`) | Bindings in `project.godot`; `M2.gamepad.full_loop` |
+| **External friend playtest** | M7 (`SHIP-7.1`) | Optional per [M2-VERTICAL-SLICE.md](../plan/phases/M2-VERTICAL-SLICE.md) exit criteria |
+| **Castle art pass** | M5+ | Blockout layout accepted; tighter room rework when final assets land |
+| **Save JSON integers** | M4+ | `quantity`/`x`/`y` sometimes serialize as floats (`1.0`); loads fine; tighten serializer later |
+| **Corrupt-save edge case** | M4+ | Optional: bad JSON → fresh start + starter sword — `M2.save.corrupt_json` |
+| **Combat tuning** | ongoing | Stamina costs raised 2026-07-30 — see [combat_tuning_m1.md](combat_tuning_m1.md) |
 
 ---
 

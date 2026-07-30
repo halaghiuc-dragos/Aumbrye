@@ -11,6 +11,7 @@ signal attack_active
 const DATA_PATH := ""
 
 const ENEMY_TURN_SPEED := 22.0
+const HP_BAR_SCRIPT := preload("res://scripts/ui/enemy_health_bar.gd")
 
 @export var player_path: NodePath
 
@@ -19,6 +20,7 @@ const ENEMY_TURN_SPEED := 22.0
 @onready var _body_collision: CollisionShape3D = $CollisionShape3D
 
 var _data: Dictionary = {}
+var _hp_bar: EnemyHealthBar
 var _state := State.PATROL
 var _player: Node3D
 var _health: Health
@@ -38,7 +40,11 @@ func _ready() -> void:
 	add_to_group("lockable")
 	add_to_group("enemy")
 	_spawn_origin = global_position
-	_data = ContentLoader.load_json(get_data_path())
+	var enemy_id := get_enemy_id()
+	if enemy_id.is_empty():
+		_data = ContentLoader.load_json(get_data_path())
+	else:
+		_data = EnemyCatalog.get_definition(enemy_id)
 	_health = get_node_or_null("Health") as Health
 	_poise = get_node_or_null("Poise") as Poise
 	_hitbox = get_node_or_null("AttackPivot/Hitbox") as Hitbox
@@ -48,11 +54,13 @@ func _ready() -> void:
 	if _health:
 		_health.configure(_data.get("health", 80.0))
 		_health.died.connect(_on_died)
+		_attach_health_bar()
 	if _poise:
 		_poise.configure(_data.get("poise", 40.0))
 		_poise.poise_broken.connect(_on_poise_broken)
 	if _hurtbox:
 		_hurtbox.damaged.connect(_on_hurt)
+		_apply_hurtbox_data()
 	_pick_patrol_target()
 
 
@@ -60,15 +68,107 @@ func set_player(player: Node3D) -> void:
 	_player = player
 
 
+func get_enemy_id() -> String:
+	return ""
+
+
 func get_data_path() -> String:
-	return DATA_PATH
+	var enemy_id := get_enemy_id()
+	if enemy_id.is_empty():
+		return DATA_PATH
+	return EnemyCatalog.get_content_path(enemy_id)
+
+
+func get_hp_bar_height() -> float:
+	return 2.2
+
+
+func _attach_health_bar() -> void:
+	_hp_bar = HP_BAR_SCRIPT.new() as EnemyHealthBar
+	_hp_bar.name = "HealthBar"
+	add_child(_hp_bar)
+	_hp_bar.setup(_health, get_hp_bar_height())
+
+
+func _apply_hurtbox_data() -> void:
+	if _hurtbox == null:
+		return
+	if _data.has("block_mitigation"):
+		_hurtbox.set("block_mitigation", _data.get("block_mitigation"))
+	if _data.has("block_angle_deg"):
+		_hurtbox.set("block_angle_deg", _data.get("block_angle_deg"))
 
 
 func is_dead() -> bool:
 	return _state == State.DEAD
 
 
+func capture_state() -> Dictionary:
+	var defeated := is_dead() or (_health != null and _health.is_dead())
+	var state := { "alive": not defeated }
+	if _health and not defeated:
+		state["health"] = _health.current
+	return state
+
+
+func apply_state(state: Dictionary) -> void:
+	if not state.get("alive", true):
+		_finalize_death(true)
+		return
+	if is_dead():
+		return
+	if _health and state.has("health"):
+		var hp := float(state.get("health", _health.max_health))
+		if hp <= 0.0:
+			_finalize_death(true)
+			return
+		_health.restore_current(hp)
+
+
+func _finalize_death(silent: bool) -> void:
+	if is_dead():
+		return
+	_clear_combat_debug_draw()
+	_state = State.DEAD
+	velocity = Vector3.ZERO
+	_stagger_timer = 0.0
+	_cooldown = 0.0
+	_aggro_locked = false
+	if _health:
+		_health.force_dead()
+	if not silent:
+		RunFlow.register_kill()
+		enemy_died.emit()
+	if _hitbox:
+		_hitbox.disable()
+		_hitbox.reset_swing()
+	if _telegraph:
+		_telegraph.visible = false
+	if _hp_bar:
+		_hp_bar.visible = false
+	if _hurtbox:
+		_hurtbox.monitorable = false
+		_hurtbox.monitoring = false
+	if _body_collision:
+		_body_collision.disabled = true
+	_play_death_visual()
+
+
+func _play_death_visual() -> void:
+	if _mesh == null:
+		return
+	var death_scale := Vector3(0.2, 0.05, 0.2)
+	var tween := create_tween()
+	tween.tween_property(_mesh, "scale", death_scale, 0.35)
+
+
+func _force_dead_silent() -> void:
+	_finalize_death(true)
+
+
 func apply_stagger(duration: float) -> void:
+	if is_dead() or (_health and _health.is_dead()):
+		return
 	_state = State.STAGGER
 	_stagger_timer = duration
 	if _hitbox:
@@ -80,13 +180,20 @@ func apply_stagger(duration: float) -> void:
 
 
 func _physics_process(delta: float) -> void:
-	if _state == State.DEAD:
+	if _health and _health.is_dead():
+		if not is_dead():
+			_finalize_death(true)
+		return
+	if is_dead():
 		return
 	if _cooldown > 0.0:
 		_cooldown -= delta
 	if _stagger_timer > 0.0:
 		_stagger_timer -= delta
 		if _stagger_timer <= 0.0:
+			if _health and _health.is_dead():
+				_finalize_death(true)
+				return
 			_state = State.PATROL
 		return
 	_update_ai(delta)
@@ -217,6 +324,8 @@ func _is_cross_boss_boundary_with_player() -> bool:
 
 
 func _start_windup() -> void:
+	if is_dead() or (_health and _health.is_dead()):
+		return
 	_state = State.WINDUP
 	_state_timer = _data.get("windup_duration", 0.7)
 	if _mesh:
@@ -227,6 +336,8 @@ func _start_windup() -> void:
 
 
 func _start_attack() -> void:
+	if is_dead() or (_health and _health.is_dead()):
+		return
 	_state = State.ATTACK
 	_state_timer = _data.get("active_duration", 0.15)
 	if _telegraph:
@@ -287,28 +398,18 @@ func _pick_patrol_target() -> void:
 
 
 func _on_died() -> void:
-	_clear_combat_debug_draw()
-	_state = State.DEAD
-	RunFlow.register_kill()
-	enemy_died.emit()
-	if _hitbox:
-		_hitbox.disable()
-	if _telegraph:
-		_telegraph.visible = false
-	if _hurtbox:
-		_hurtbox.set_deferred("monitorable", false)
-	if _body_collision:
-		_body_collision.set_deferred("disabled", true)
-	if _mesh:
-		var tween := create_tween()
-		tween.tween_property(_mesh, "scale", Vector3(0.2, 0.05, 0.2), 0.35)
+	_finalize_death(false)
 
 
 func _on_poise_broken() -> void:
+	if is_dead() or (_health and _health.is_dead()):
+		return
 	apply_stagger(_data.get("stagger_duration", 1.0))
 
 
 func _on_hurt(_info: DamageInfo) -> void:
+	if is_dead():
+		return
 	if not _mesh:
 		return
 	var tween := create_tween()

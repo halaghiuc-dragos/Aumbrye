@@ -1,6 +1,8 @@
 {
   "id": "castle_shield",
   "name": "Castle Shield-Bearer",
+  "scene": "res://scenes/enemies/castle_shield.tscn",
+  "threat_cost": 35,
   "health": 110,
   "poise": 60,
   "move_speed": 2.8,

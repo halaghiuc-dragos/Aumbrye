@@ -1,0 +1,64 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://aumbrye.dev/schemas/biome-definition.v1.json",
+  "title": "BiomeDefinition",
+  "description": "Biome procgen config — room templates, enemy pools, loot budgets.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "name", "roomCount", "gridStep", "roomTemplateIds", "enemyPool", "bossPool", "budgets"],
+  "properties": {
+    "id": { "type": "string", "minLength": 1 },
+    "name": { "type": "string", "minLength": 1 },
+    "roomCount": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["min", "max"],
+      "properties": {
+        "min": { "type": "integer", "minimum": 1 },
+        "max": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "gridStep": { "type": "integer", "minimum": 1 },
+    "roomTemplateIds": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "minItems": 1
+    },
+    "enemyPool": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["enemyId", "weight"],
+        "properties": {
+          "enemyId": { "type": "string", "minLength": 1 },
+          "weight": { "type": "integer", "minimum": 1 }
+        }
+      }
+    },
+    "bossPool": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["enemyId"],
+        "properties": {
+          "enemyId": { "type": "string", "minLength": 1 }
+        }
+      },
+      "minItems": 1
+    },
+    "budgets": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["baseEnemyThreat", "baseLootValue", "threatPerTier", "lootPerTier"],
+      "properties": {
+        "baseEnemyThreat": { "type": "integer", "minimum": 0 },
+        "baseLootValue": { "type": "integer", "minimum": 0 },
+        "threatPerTier": { "type": "integer", "minimum": 0 },
+        "lootPerTier": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "requiresSecret": { "type": "boolean" }
+  }
+}

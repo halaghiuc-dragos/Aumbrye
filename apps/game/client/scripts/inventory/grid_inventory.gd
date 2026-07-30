@@ -42,7 +42,7 @@ func from_save_dict(data: Dictionary) -> void:
 
 
 func get_item_def(item_id: String) -> Dictionary:
-	return ContentLoader.load_json("content/items/%s.json" % item_id)
+	return ItemCatalog.get_definition(item_id)
 
 
 func can_place(item_id: String, x: int, y: int, ignore_index: int = -1) -> bool:

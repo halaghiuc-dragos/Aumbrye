@@ -300,7 +300,8 @@
 - **primary_paths:**
   - `docs/design/m4_soak_notes.md`
 - **agent_instructions:**
-  - Manually or semi-auto complete 10 runs; log issues.
+  - Manually or semi-auto complete 10 runs; log issues in `docs/design/m4_soak_notes.md`.
+  - Track progress in [MANUAL_PLAYTEST_CHECKLIST.md](../../design/MANUAL_PLAYTEST_CHECKLIST.md) § M4+.
 - **acceptance_criteria:**
   - [ ] 10/10 no softlock
   - [ ] Notes filed

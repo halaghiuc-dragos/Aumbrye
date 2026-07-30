@@ -43,7 +43,7 @@ func _process(_delta: float) -> void:
 		return
 	var lines: PackedStringArray = []
 	var fps := Engine.get_frames_per_second()
-	lines.append("F1: overlay | F2: hitboxes | F3: dmg nums | R: reset | Q: tap block | FPS: %d" % fps)
+	lines.append("F1: overlay | F2: hitboxes | F3: dmg nums | P: camera | R: reset | Q: tap block | FPS: %d" % fps)
 	if _dodge:
 		lines.append("i-frames: %s" % ("ON" if _dodge.get("iframes_active") else "off"))
 	if _guard:
@@ -53,6 +53,9 @@ func _process(_delta: float) -> void:
 			"ON" if _guard.get("is_blocking") else "off",
 		])
 	if _player:
+		var spring_arm := _player.get_node_or_null("CameraPivot/SpringArm3D")
+		if spring_arm and spring_arm.has_method("is_first_person"):
+			lines.append("camera: %s" % ("1P" if spring_arm.call("is_first_person") else "3P"))
 		var health := _player.get_node_or_null("Health") as Health
 		var stamina := _player.get_node_or_null("Stamina") as Stamina
 		if health:
@@ -76,6 +79,8 @@ func _process(_delta: float) -> void:
 		lines.append("damage numbers: %s" % ("ON" if _hit_feedback.show_damage_numbers else "off"))
 	if _weapon and _weapon.has_method("get_debug_state"):
 		lines.append("attack: %s" % _weapon.call("get_debug_state"))
+	if get_tree().root.has_meta("run_seed"):
+		lines.append("run seed: %s" % str(get_tree().root.get_meta("run_seed")))
 	var reactions := _player.get_node_or_null("CombatReactions") if _player else null
 	if reactions:
 		if reactions.get("is_dead"):

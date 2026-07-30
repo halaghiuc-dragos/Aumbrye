@@ -45,7 +45,7 @@
 
 ## Gamepad (Xbox layout)
 
-> Bindings are implemented in `project.godot`. **Manual playtest deferred** — no controller verified at M1 close. See [M1_IMPLEMENTATION_LOG.md](M1_IMPLEMENTATION_LOG.md).
+> Bindings are implemented in `project.godot`. **Manual playtest deferred** — no controller verified at M1 close. See [MANUAL_PLAYTEST_CHECKLIST.md](MANUAL_PLAYTEST_CHECKLIST.md) § M1 / M7.
 
 | Action | Binding |
 |--------|---------|

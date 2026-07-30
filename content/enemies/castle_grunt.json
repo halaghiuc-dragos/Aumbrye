@@ -1,6 +1,8 @@
 {
   "id": "castle_grunt",
   "name": "Castle Grunt",
+  "scene": "res://scenes/enemies/castle_grunt.tscn",
+  "threat_cost": 20,
   "health": 90,
   "poise": 45,
   "move_speed": 3.5,

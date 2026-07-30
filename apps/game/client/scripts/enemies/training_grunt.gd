@@ -2,7 +2,8 @@ extends CharacterBody3D
 
 enum State { IDLE, WINDUP, ATTACK, RECOVERY, STAGGER, DEAD }
 
-const DATA_RELATIVE := "content/enemies/training_grunt.json"
+const ENEMY_ID := "training_grunt"
+const HP_BAR_SCRIPT := preload("res://scripts/ui/enemy_health_bar.gd")
 
 signal attack_telegraph_started
 signal attack_active
@@ -20,6 +21,7 @@ var _health: Health
 var _poise: Poise
 var _hitbox: Hitbox
 var _hurtbox: Hurtbox
+var _hp_bar: EnemyHealthBar
 var _state_timer := 0.0
 var _cooldown := 0.0
 var _stagger_timer := 0.0
@@ -28,7 +30,7 @@ var _stagger_timer := 0.0
 func _ready() -> void:
 	add_to_group("lockable")
 	add_to_group("enemy")
-	_data = ContentLoader.load_json(DATA_RELATIVE)
+	_data = EnemyCatalog.get_definition(ENEMY_ID)
 	_health = get_node_or_null("Health") as Health
 	_poise = get_node_or_null("Poise") as Poise
 	_hitbox = get_node_or_null("AttackPivot/Hitbox") as Hitbox
@@ -38,6 +40,10 @@ func _ready() -> void:
 	if _health:
 		_health.configure(_data.get("health", 80.0))
 		_health.died.connect(_on_died)
+		_hp_bar = HP_BAR_SCRIPT.new() as EnemyHealthBar
+		_hp_bar.name = "HealthBar"
+		add_child(_hp_bar)
+		_hp_bar.setup(_health)
 	if _poise:
 		_poise.configure(_data.get("poise", 40.0))
 		_poise.poise_broken.connect(_on_poise_broken)
@@ -47,13 +53,20 @@ func _ready() -> void:
 
 
 func _physics_process(delta: float) -> void:
-	if _state == State.DEAD:
+	if _health and _health.is_dead():
+		if not is_dead():
+			_on_died()
+		return
+	if is_dead():
 		return
 	if _cooldown > 0.0:
 		_cooldown -= delta
 	if _stagger_timer > 0.0:
 		_stagger_timer -= delta
 		if _stagger_timer <= 0.0:
+			if _health and _health.is_dead():
+				_on_died()
+				return
 			_state = State.IDLE
 		return
 	_process_state(delta)
@@ -67,6 +80,8 @@ func is_dead() -> bool:
 
 
 func apply_stagger(duration: float) -> void:
+	if is_dead() or (_health and _health.is_dead()):
+		return
 	_state = State.STAGGER
 	_stagger_timer = duration
 	if _hitbox:
@@ -101,11 +116,13 @@ func _process_state(delta: float) -> void:
 func _can_attack() -> bool:
 	if _cooldown > 0.0 or not _player:
 		return false
-	var range: float = _data.get("attack_range", 2.2)
-	return global_position.distance_to(_player.global_position) <= range
+	var attack_range: float = _data.get("attack_range", 2.2)
+	return global_position.distance_to(_player.global_position) <= attack_range
 
 
 func _start_windup() -> void:
+	if is_dead() or (_health and _health.is_dead()):
+		return
 	_state = State.WINDUP
 	_state_timer = _data.get("windup_duration", 0.7)
 	if _mesh:
@@ -116,6 +133,8 @@ func _start_windup() -> void:
 
 
 func _start_attack() -> void:
+	if is_dead() or (_health and _health.is_dead()):
+		return
 	_state = State.ATTACK
 	_state_timer = _data.get("active_duration", 0.15)
 	if _telegraph:
@@ -162,16 +181,26 @@ func _face_player() -> void:
 
 
 func _on_died() -> void:
+	if is_dead():
+		return
 	_state = State.DEAD
+	velocity = Vector3.ZERO
+	_stagger_timer = 0.0
+	_cooldown = 0.0
+	if _health:
+		_health.force_dead()
+	if _hp_bar:
+		_hp_bar.visible = false
 	if _hitbox:
 		_hitbox.disable()
+		_hitbox.reset_swing()
 	if _telegraph:
 		_telegraph.visible = false
 	if _hurtbox:
-		_hurtbox.set_deferred("monitorable", false)
-		_hurtbox.set_deferred("monitoring", false)
+		_hurtbox.monitorable = false
+		_hurtbox.monitoring = false
 	if _body_collision:
-		_body_collision.set_deferred("disabled", true)
+		_body_collision.disabled = true
 	if _mesh:
 		var tween := create_tween()
 		tween.tween_property(_mesh, "scale", Vector3(0.2, 0.05, 0.2), 0.35)
@@ -179,10 +208,14 @@ func _on_died() -> void:
 
 
 func _on_poise_broken() -> void:
+	if is_dead() or (_health and _health.is_dead()):
+		return
 	apply_stagger(_data.get("stagger_duration", 1.0))
 
 
 func _on_hurt(_info: DamageInfo) -> void:
+	if is_dead():
+		return
 	if not _mesh:
 		return
 	var tween := create_tween()

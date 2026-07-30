@@ -5,13 +5,17 @@ using Microsoft.AspNetCore.Mvc.Testing;
 
 namespace Aumbrye.IntegrationTests;
 
-public class HealthEndpointTests : IClassFixture<WebApplicationFactory<Program>>
+public class HealthEndpointTests : IClassFixture<AumbryeWebApplicationFactory>
 {
     private readonly HttpClient _client;
 
-    public HealthEndpointTests(WebApplicationFactory<Program> factory)
+    public HealthEndpointTests(AumbryeWebApplicationFactory factory)
     {
         _client = factory.CreateClient();
+        _client.DefaultRequestHeaders.Add(Aumbrye.Shared.Contracts.ApiVersions.ClientVersionHeader,
+            Aumbrye.Shared.Contracts.ApiVersions.ExpectedClientVersion);
+        _client.DefaultRequestHeaders.Add(Aumbrye.Shared.Contracts.ApiVersions.ContentVersionHeader,
+            Aumbrye.Shared.Contracts.ApiVersions.ExpectedContentVersion);
     }
 
     [Fact]

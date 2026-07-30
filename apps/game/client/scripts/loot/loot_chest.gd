@@ -23,6 +23,17 @@ func configure(placement: Dictionary) -> void:
 	_items = placement.get("items", []).duplicate(true)
 
 
+func is_opened() -> bool:
+	return _opened
+
+
+func apply_opened_state(was_opened: bool) -> void:
+	_opened = was_opened
+	if _opened and _mesh:
+		_mesh.scale = Vector3(0.8, 0.5, 0.8)
+	_label.visible = false
+
+
 func _process(_delta: float) -> void:
 	if _opened or _player == null:
 		return

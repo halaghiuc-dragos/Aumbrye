@@ -16,7 +16,7 @@ const ROOM_SCENES := {
 	"castle_boss": preload("res://scenes/rooms/castle/castle_boss.tscn"),
 }
 
-const ENEMY_SCENES := {
+const ENEMY_SCENES_FALLBACK := {
 	"castle_grunt": preload("res://scenes/enemies/castle_grunt.tscn"),
 	"castle_archer": preload("res://scenes/enemies/castle_archer.tscn"),
 	"castle_shield": preload("res://scenes/enemies/castle_shield.tscn"),
@@ -31,22 +31,43 @@ const BOSS_DOOR_SCRIPT := preload("res://scripts/dungeon/boss_room_door.gd")
 
 signal build_complete
 signal boss_defeated
+signal snapshot_dirty
 
 var definition: Dictionary = {}
 var _rooms: Dictionary = {}
 var _player: CharacterBody3D
 var _entities: Node3D
 var _boss: Node
+var _enemy_by_id: Dictionary = {}
+var _chest_by_id: Dictionary = {}
+var _boss_door: Node3D
 
 
 func build(parent: Node3D, player: CharacterBody3D, fixture_path: String = FIXTURE_RELATIVE) -> void:
+	build_from_source(parent, player, fixture_path, {})
+
+
+func build_from_definition(parent: Node3D, player: CharacterBody3D, def: Dictionary) -> void:
+	build_from_source(parent, player, "", def)
+
+
+func build_from_source(parent: Node3D, player: CharacterBody3D, fixture_path: String, def: Dictionary) -> void:
 	_player = player
 	_entities = Node3D.new()
 	_entities.name = "Entities"
 	parent.add_child(_entities)
-	definition = ContentLoader.load_json(fixture_path)
+	if not def.is_empty():
+		definition = def
+	elif fixture_path != "":
+		definition = ContentLoader.load_json(fixture_path)
+	else:
+		definition = {}
 	if definition.is_empty():
-		push_error("DungeonBuilder: failed to load %s" % fixture_path)
+		push_error("DungeonBuilder: no definition provided")
+		return
+	var rooms: Array = definition.get("rooms", [])
+	if rooms.is_empty():
+		push_error("DungeonBuilder: definition has no rooms")
 		return
 	_build_rooms(parent)
 	_build_shortcut_corridors(parent)
@@ -161,36 +182,50 @@ func _spawn_player() -> void:
 
 
 func _place_enemies() -> void:
-	for placement in definition.get("placements", {}).get("enemies", []):
-		_spawn_enemy(placement)
+	var placements: Array = definition.get("placements", {}).get("enemies", [])
+	for i in range(placements.size()):
+		_spawn_enemy(placements[i], i)
 
 
-func _spawn_enemy(placement: Dictionary) -> void:
+func _spawn_enemy(placement: Dictionary, index: int) -> void:
 	var enemy_id: String = placement.get("enemyId", "")
-	if not ENEMY_SCENES.has(enemy_id):
+	var scene := _get_enemy_scene(enemy_id)
+	if scene == null:
 		return
 	var room := get_room(placement.get("roomId", ""))
 	if room == null:
 		return
-	var enemy: Node3D = ENEMY_SCENES[enemy_id].instantiate() as Node3D
+	var placement_key := _enemy_placement_id(placement, index)
+	var enemy: Node3D = scene.instantiate() as Node3D
 	var pos: Dictionary = placement.get("position", {})
 	enemy.position = Vector3(pos.get("x", 0.0), pos.get("y", 0.0), pos.get("z", 0.0))
+	enemy.set_meta("placement_id", placement_key)
 	if enemy.has_method("set_player"):
 		enemy.call("set_player", _player)
 	room.add_child(enemy)
+	_enemy_by_id[placement_key] = enemy
+	if enemy.has_signal("enemy_died"):
+		enemy.enemy_died.connect(_on_tracked_enemy_died.bind(placement_key))
 
 
 func _place_loot() -> void:
-	for placement in definition.get("placements", {}).get("loot", []):
+	var placements: Array = definition.get("placements", {}).get("loot", [])
+	for i in range(placements.size()):
+		var placement: Dictionary = placements[i]
 		var room := get_room(placement.get("roomId", ""))
 		if room == null:
 			continue
+		var chest_key := _loot_placement_id(placement, i)
 		var chest: Node3D = CHEST_SCENE.instantiate() as Node3D
 		var pos: Dictionary = placement.get("position", {})
 		chest.position = Vector3(pos.get("x", 0.0), pos.get("y", 0.0), pos.get("z", 0.0))
+		chest.set_meta("chest_id", chest_key)
 		if chest.has_method("configure"):
 			chest.call("configure", placement)
+		if chest.has_signal("opened"):
+			chest.opened.connect(_on_chest_opened)
 		room.add_child(chest)
+		_chest_by_id[chest_key] = chest
 
 
 func _place_traps() -> void:
@@ -214,9 +249,11 @@ func _setup_boss() -> void:
 	if room == null:
 		return
 	var enemy_id: String = boss_placement.get("enemyId", "castle_knight")
-	if not ENEMY_SCENES.has(enemy_id):
+	var scene := _get_enemy_scene(enemy_id)
+	if scene == null:
 		return
-	_boss = ENEMY_SCENES[enemy_id].instantiate() as Node
+	_boss = scene.instantiate() as Node
+	_boss.set_meta("placement_id", "boss")
 	room.add_child(_boss)
 	var spawn := room.get_node_or_null("Props/BossSpawn") as Node3D
 	if spawn:
@@ -227,6 +264,7 @@ func _setup_boss() -> void:
 		_boss.call("set_player", _player)
 	if _boss.has_signal("boss_defeated"):
 		_boss.boss_defeated.connect(_on_boss_defeated)
+	_enemy_by_id["boss"] = _boss
 
 
 func _setup_exit_portal() -> void:
@@ -338,5 +376,93 @@ func _setup_boss_door(castle_run: Node3D) -> void:
 		door.position = Vector3(0.0, 0.0, -depth * 0.5 + 0.25)
 
 	room.add_child(door)
+	_boss_door = door
 	if castle_run.has_method("register_boss_door"):
 		castle_run.call("register_boss_door", door)
+
+
+func get_boss_door() -> Node3D:
+	return _boss_door
+
+
+func get_tracked_enemy(placement_id: String) -> Node:
+	return _enemy_by_id.get(placement_id)
+
+
+func get_boss_door_outside_spawn() -> Vector3:
+	if _boss_door:
+		# Arena side is local -Z (interact area faces the approach corridor).
+		return _boss_door.global_position - _boss_door.global_transform.basis.z * 3.5
+	var arena := get_room("arena")
+	if arena:
+		return arena.get_player_spawn_global()
+	var entrance := get_room(definition.get("placements", {}).get("entrance", "entrance"))
+	if entrance:
+		return entrance.get_player_spawn_global()
+	if _player:
+		return _player.global_position
+	return Vector3.ZERO
+
+
+func capture_enemy_states() -> Dictionary:
+	var states := {}
+	for placement_id in _enemy_by_id:
+		var enemy: Node = _enemy_by_id[placement_id]
+		if enemy and is_instance_valid(enemy) and enemy.has_method("capture_state"):
+			states[placement_id] = enemy.call("capture_state")
+	return states
+
+
+func capture_loot_states() -> Dictionary:
+	var states := {}
+	for chest_id in _chest_by_id:
+		var chest: Node = _chest_by_id[chest_id]
+		if chest and is_instance_valid(chest) and chest.has_method("is_opened"):
+			states[chest_id] = { "opened": chest.call("is_opened") }
+	return states
+
+
+func apply_snapshot(snapshot: Dictionary) -> void:
+	var enemies: Dictionary = snapshot.get("enemies", {})
+	for placement_id in enemies:
+		var enemy: Node = _enemy_by_id.get(placement_id)
+		if enemy and is_instance_valid(enemy) and enemy.has_method("apply_state"):
+			enemy.call("apply_state", enemies[placement_id])
+
+	var loot_states: Dictionary = snapshot.get("loot", {})
+	for chest_id in loot_states:
+		var chest: Node = _chest_by_id.get(chest_id)
+		if chest and is_instance_valid(chest) and chest.has_method("apply_opened_state"):
+			chest.call("apply_opened_state", loot_states[chest_id].get("opened", false))
+
+	if snapshot.get("bossDefeated", false):
+		open_exit_portal()
+
+
+func _enemy_placement_id(placement: Dictionary, index: int) -> String:
+	return "%s:%d" % [placement.get("roomId", ""), index]
+
+
+func _loot_placement_id(placement: Dictionary, index: int) -> String:
+	var chest_id: String = placement.get("chestId", "")
+	if chest_id != "":
+		return chest_id
+	return "%s:%d" % [placement.get("roomId", ""), index]
+
+
+func _on_tracked_enemy_died(_placement_id: String) -> void:
+	snapshot_dirty.emit()
+
+
+func _on_chest_opened() -> void:
+	snapshot_dirty.emit()
+
+
+func _get_enemy_scene(enemy_id: String) -> PackedScene:
+	var scene := EnemyCatalog.get_scene(enemy_id)
+	if scene:
+		return scene
+	if ENEMY_SCENES_FALLBACK.has(enemy_id):
+		return ENEMY_SCENES_FALLBACK[enemy_id]
+	push_warning("DungeonBuilder: unknown enemy id %s" % enemy_id)
+	return null

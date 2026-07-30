@@ -46,11 +46,17 @@ function resolveSchemaForFile(filePath) {
   if (name.startsWith("weapons/")) {
     return join(schemasRoot, "weapon-definition.v1.json");
   }
+  if (name === "items/catalog.json") {
+    return join(schemasRoot, "item-catalog.v1.json");
+  }
   if (name.startsWith("items/")) {
     return join(schemasRoot, "item-instance.v1.json");
   }
   if (name.startsWith("bosses/")) {
     return join(schemasRoot, "enemy-definition.v1.json");
+  }
+  if (name.startsWith("biomes/")) {
+    return join(schemasRoot, "biome-definition.v1.json");
   }
   return null;
 }
@@ -100,8 +106,88 @@ for (const filePath of files) {
   }
 }
 
+const catalogFailures = validateItemCatalogConsistency();
+failures += catalogFailures;
+
 if (failures > 0) {
   process.exit(1);
 }
 
 console.log(`Validated ${files.length} file(s).`);
+
+function validateItemCatalogConsistency() {
+  const catalogPath = join(contentRoot, "items", "catalog.json");
+  if (!statSync(catalogPath).isFile()) {
+    console.warn("SKIP: content/items/catalog.json not found");
+    return 0;
+  }
+
+  const catalog = JSON.parse(readFileSync(catalogPath, "utf8"));
+  const categories = {
+    equipment: join(contentRoot, "items", "equipment"),
+    consumables: join(contentRoot, "items", "consumables"),
+    materials: join(contentRoot, "items", "materials"),
+  };
+
+  let errors = 0;
+  const catalogIds = new Set();
+  const fileIds = new Map();
+
+  for (const [category, dirPath] of Object.entries(categories)) {
+    const listed = catalog[category] ?? [];
+    for (const itemId of listed) {
+      if (catalogIds.has(itemId)) {
+        console.error(`FAIL: catalog.json lists duplicate item id "${itemId}"`);
+        errors++;
+      }
+      catalogIds.add(itemId);
+    }
+
+    if (!statSync(dirPath).isDirectory()) {
+      console.error(`FAIL: missing item category directory ${relative(repoRoot, dirPath)}`);
+      errors++;
+      continue;
+    }
+
+    const idsOnDisk = [];
+    for (const entry of readdirSync(dirPath)) {
+      if (!entry.endsWith(".json")) continue;
+      const itemPath = join(dirPath, entry);
+      const item = JSON.parse(readFileSync(itemPath, "utf8"));
+      const itemId = item.id;
+      if (!itemId) {
+        console.error(`FAIL: ${relative(repoRoot, itemPath)} missing id`);
+        errors++;
+        continue;
+      }
+      idsOnDisk.push(itemId);
+      fileIds.set(itemId, relative(contentRoot, itemPath).replace(/\\/g, "/"));
+      if (!listed.includes(itemId)) {
+        console.error(`FAIL: ${itemId} exists in ${category}/ but is missing from catalog.json`);
+        errors++;
+      }
+      const expectedTypes = {
+        equipment: ["weapon", "armor"],
+        consumables: ["consumable"],
+        materials: ["material", "key"],
+      };
+      if (!expectedTypes[category].includes(item.itemType)) {
+        console.warn(
+          `WARN: ${itemId} itemType "${item.itemType}" unexpected in folder "${category}"`
+        );
+      }
+    }
+
+    for (const itemId of listed) {
+      if (!idsOnDisk.includes(itemId)) {
+        console.error(`FAIL: catalog.json lists ${itemId} in ${category} but no JSON file exists`);
+        errors++;
+      }
+    }
+  }
+
+  if (errors === 0) {
+    console.log(`OK: content/items/catalog.json (${catalogIds.size} item ids)`);
+  }
+  return errors;
+}

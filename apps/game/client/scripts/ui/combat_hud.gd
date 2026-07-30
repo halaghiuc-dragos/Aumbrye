@@ -60,7 +60,7 @@ func _update_lock_reticle() -> void:
 	var camera := _get_camera()
 	if camera == null:
 		return
-	var aim_point := target.global_position + Vector3(0.0, 1.5, 0.0)
+	var aim_point := LockOn.get_target_aim_point(target)
 	if camera.is_position_behind(aim_point):
 		_lock_reticle.visible = false
 		return

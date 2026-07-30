@@ -77,6 +77,15 @@ func release_door() -> void:
 	_label.visible = false
 
 
+func reset_door() -> void:
+	_sealed = false
+	_opened = false
+	_barrier_shape.disabled = false
+	if _barrier_mesh:
+		_barrier_mesh.visible = true
+	_update_label()
+
+
 func _on_body_entered(body: Node3D) -> void:
 	if body.is_in_group("player"):
 		_near_player = true

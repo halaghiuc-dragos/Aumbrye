@@ -29,8 +29,74 @@ func load_into_services() -> bool:
 		_handle_corrupt_save("corrupt_schema")
 		return false
 	InventoryService.apply_save_inventory(data.get("inventory", {}))
+	_apply_character_preferences(data.get("character", {}))
+	var active: Variant = data.get("activeRun", {})
+	_cached_active_run = active if active is Dictionary else {}
 	save_loaded.emit()
 	return true
+
+
+var _cached_active_run: Dictionary = {}
+var _first_person_camera := false
+
+
+func _ready() -> void:
+	_load_preferences_from_disk()
+
+
+func is_first_person_camera() -> bool:
+	return _first_person_camera
+
+
+func set_first_person_camera(enabled: bool) -> void:
+	if _first_person_camera == enabled:
+		return
+	_first_person_camera = enabled
+	autosave()
+
+
+func _load_preferences_from_disk() -> void:
+	if not FileAccess.file_exists(SAVE_PATH):
+		return
+	var parsed = JSON.parse_string(_read_raw_text())
+	if parsed is Dictionary:
+		_apply_character_preferences(parsed.get("character", {}))
+
+
+func _apply_character_preferences(character: Variant) -> void:
+	if character is Dictionary:
+		_first_person_camera = bool(character.get("firstPersonCamera", false))
+
+
+func has_continuable_run() -> bool:
+	var run := get_active_run()
+	if run.is_empty():
+		return false
+	if run.get("playerDead", false):
+		return false
+	var snapshot: Variant = run.get("snapshot", {})
+	if not snapshot is Dictionary or snapshot.is_empty():
+		return false
+	var player_state: Dictionary = snapshot.get("player", {})
+	if player_state.has("health") and float(player_state.get("health", 1.0)) <= 0.0:
+		return false
+	return true
+
+
+func get_active_run() -> Dictionary:
+	return _cached_active_run.duplicate(true)
+
+
+func set_active_run(data: Dictionary) -> void:
+	_cached_active_run = data.duplicate(true)
+	autosave()
+
+
+func clear_active_run() -> void:
+	if _cached_active_run.is_empty():
+		return
+	_cached_active_run.clear()
+	autosave()
 
 
 func autosave() -> void:
@@ -39,6 +105,8 @@ func autosave() -> void:
 		"character": _build_character_state(),
 		"inventory": InventoryService.get_save_inventory(),
 	}
+	if not _cached_active_run.is_empty():
+		data["activeRun"] = _cached_active_run.duplicate(true)
 	_write_save(data)
 
 
@@ -52,6 +120,7 @@ func _build_character_state() -> Dictionary:
 		"name": "Wanderer",
 		"level": 1,
 		"lastHubMessage": RunFlow.last_hub_message,
+		"firstPersonCamera": _first_person_camera,
 	}
 
 
@@ -69,6 +138,7 @@ func _validate_save(data: Dictionary) -> bool:
 func _reset_to_defaults() -> void:
 	InventoryService.inventory = GridInventory.new()
 	InventoryService.inventory.add_item("castle_sword", 1)
+	_cached_active_run.clear()
 
 
 func _handle_corrupt_save(reason: String) -> void:

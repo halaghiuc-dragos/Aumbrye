@@ -65,6 +65,14 @@ func _break_lock() -> void:
 	lock_changed.emit(null, false)
 
 
+func _advance_lock_after_defeat() -> void:
+	var next := _find_best_target()
+	if next:
+		_set_lock(next)
+	else:
+		_break_lock()
+
+
 func _update_lock() -> void:
 	if not is_instance_valid(current_target):
 		_break_lock()
@@ -78,8 +86,9 @@ func _update_lock() -> void:
 	if not _has_line_of_sight_to(current_target):
 		_break_lock()
 		return
-	if current_target.has_method("is_dead") and current_target.call("is_dead"):
-		_break_lock()
+	if _is_defeated(current_target):
+		_advance_lock_after_defeat()
+		return
 
 
 func _handle_target_switch() -> void:
@@ -135,7 +144,7 @@ func _has_line_of_sight_to(target: Node3D) -> bool:
 	if space == null:
 		return true
 	var from := _player.global_position + Vector3(0.0, 1.0, 0.0)
-	var to := target.global_position + Vector3(0.0, 1.2, 0.0)
+	var to := get_target_aim_point(target)
 	var params := PhysicsRayQueryParameters3D.create(from, to)
 	params.collision_mask = 1
 	params.collide_with_areas = false
@@ -153,10 +162,42 @@ func _get_lockable_targets() -> Array[Node3D]:
 	var result: Array[Node3D] = []
 	for node in get_tree().get_nodes_in_group("lockable"):
 		if node is Node3D and is_instance_valid(node):
-			if node.has_method("is_dead") and node.call("is_dead"):
+			if _is_defeated(node):
 				continue
 			result.append(node as Node3D)
 	return result
+
+
+func _is_defeated(node: Node) -> bool:
+	if node.has_method("is_dead") and node.call("is_dead"):
+		return true
+	var health := node.get_node_or_null("Health") as Health
+	return health != null and health.is_dead()
+
+
+static func get_target_aim_point(target: Node3D) -> Vector3:
+	if target == null or not is_instance_valid(target):
+		return Vector3.ZERO
+	if target.has_method("get_lock_aim_point"):
+		return target.call("get_lock_aim_point")
+	var combined := AABB()
+	var found := false
+	for node in target.find_children("*", "VisualInstance3D", true, false):
+		var visual := node as VisualInstance3D
+		if visual == null:
+			continue
+		var local_aabb := visual.get_aabb()
+		if local_aabb.size.length_squared() < 0.0001:
+			continue
+		var global_aabb := visual.global_transform * local_aabb
+		if not found:
+			combined = global_aabb
+			found = true
+		else:
+			combined = combined.merge(global_aabb)
+	if found:
+		return combined.get_center()
+	return target.global_position + Vector3(0.0, 1.0, 0.0)
 
 
 func _get_facing_yaw() -> float:

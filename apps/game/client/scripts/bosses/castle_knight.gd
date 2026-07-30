@@ -5,7 +5,6 @@ extends "res://scripts/enemies/castle_enemy_base.gd"
 signal boss_defeated
 signal phase_changed(phase: int)
 
-const DATA_RELATIVE := "content/bosses/castle_knight.json"
 const HAZARD_SCENE := preload("res://scenes/bosses/arena_hazard.tscn")
 
 enum BossAttack { SLASH, THRUST, SWEEP, GROUND_SLAM }
@@ -17,8 +16,12 @@ var _hazards: Array[Node3D] = []
 var _arena_bounds := Rect2(-12, -12, 24, 24)
 
 
-func get_data_path() -> String:
-	return DATA_RELATIVE
+func get_enemy_id() -> String:
+	return "castle_knight"
+
+
+func get_hp_bar_height() -> float:
+	return 2.8
 
 
 var _arena_center := Vector3.ZERO
@@ -57,6 +60,8 @@ func _pick_attack() -> void:
 
 
 func _start_windup() -> void:
+	if is_dead() or (_health and _health.is_dead()):
+		return
 	_state = State.WINDUP
 	match _current_attack:
 		BossAttack.SLASH:
@@ -77,6 +82,8 @@ func _start_windup() -> void:
 
 
 func _start_attack() -> void:
+	if is_dead() or (_health and _health.is_dead()):
+		return
 	_state = State.ATTACK
 	if _current_attack == BossAttack.GROUND_SLAM:
 		_state_timer = 0.5
@@ -133,6 +140,19 @@ func _on_died() -> void:
 	for h in _hazards:
 		if is_instance_valid(h):
 			h.queue_free()
+
+
+func apply_state(state: Dictionary) -> void:
+	if state.get("alive", true):
+		if _health:
+			_health.reset_health()
+		_phase = 1
+		_phase_transition_done = false
+		if _mesh:
+			_mesh.scale = Vector3.ONE
+		_state = State.PATROL
+		return
+	super.apply_state(state)
 
 
 func _clamp_to_arena() -> void:

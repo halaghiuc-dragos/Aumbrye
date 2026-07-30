@@ -19,6 +19,7 @@
     "weaponId": { "type": "string" },
     "healAmount": { "type": "number", "exclusiveMinimum": 0 },
     "description": { "type": "string" },
-    "value": { "type": "number", "minimum": 0 }
+    "value": { "type": "number", "minimum": 0 },
+    "lootValue": { "type": "number", "minimum": 0 }
   }
 }

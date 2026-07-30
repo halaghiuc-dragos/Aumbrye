@@ -24,7 +24,7 @@
 
 | Item | Status | Where to track |
 |------|--------|----------------|
-| **Gamepad full playtest** | Bindings in `project.godot`; not verified on hardware | [systems/22-TESTING.md](../plan/systems/22-TESTING.md) — `TEST-M1-GPAD` |
+| **Gamepad full playtest** | Bindings in `project.godot`; not verified on hardware | [MANUAL_PLAYTEST_CHECKLIST.md](MANUAL_PLAYTEST_CHECKLIST.md) — `TEST-M1-GPAD` |
 | SFX files for hit feedback | Hook points only (`hit_feedback.gd`) | M2+ audio |
 | Full VFX polish | Hitstop + camera punch only | M7 feel polish |
 

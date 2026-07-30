@@ -1,6 +1,8 @@
 {
   "id": "castle_knight",
   "name": "Castle Knight",
+  "scene": "res://scenes/enemies/castle_knight.tscn",
+  "threat_cost": 50,
   "health": 600,
   "poise": 120,
   "move_speed": 4.0,

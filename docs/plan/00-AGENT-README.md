@@ -38,6 +38,10 @@
 | [content/](content/) | Theme, enemy, boss, item rosters + post-EA |
 | [checklists/01-MASTER-MILESTONE-INDEX.md](checklists/01-MASTER-MILESTONE-INDEX.md) | Flat ID index |
 | [checklists/02-AGENT-OPERATING-LOOP.md](checklists/02-AGENT-OPERATING-LOOP.md) | Resume protocol |
+| [../design/MANUAL_PLAYTEST_CHECKLIST.md](../design/MANUAL_PLAYTEST_CHECKLIST.md) | Human playtest gates (all phases) |
+| [../design/VALIDATION_PLATFORM.md](../design/VALIDATION_PLATFORM.md) | Automated validation (`./scripts/run-all-validation.ps1`) |
+| [design/VALIDATION_PLATFORM.md](../design/VALIDATION_PLATFORM.md) | Automated validation (C# + Godot suites) |
+| [design/MANUAL_PLAYTEST_CHECKLIST.md](../design/MANUAL_PLAYTEST_CHECKLIST.md) | **Single** living manual playtest checklist (all phases) |
 
 ---
 
@@ -183,4 +187,6 @@ Do not start `M(n+1)` feature work until `Mn` exit criteria pass. Exception: pur
 
 ## First action after plan approval
 
-**M2 vertical slice** closed (KB/M) — [design/M2_IMPLEMENTATION_LOG.md](../design/M2_IMPLEMENTATION_LOG.md). **M1 controls locked:** [M1_CONTROLS.md](../design/M1_CONTROLS.md). Next: M3 when ready; gamepad playtest deferred.
+**M3 server generation** closed (2026-07-30) — [design/M3_IMPLEMENTATION_LOG.md](../design/M3_IMPLEMENTATION_LOG.md). **M2 vertical slice** closed (KB/M) — [design/M2_IMPLEMENTATION_LOG.md](../design/M2_IMPLEMENTATION_LOG.md). **M1 controls locked:** [M1_CONTROLS.md](../design/M1_CONTROLS.md).
+
+**Validation before manual playtest:** `./scripts/run-all-validation.ps1` — see [VALIDATION_PLATFORM.md](../design/VALIDATION_PLATFORM.md). **Human gates (all phases):** [MANUAL_PLAYTEST_CHECKLIST.md](../design/MANUAL_PLAYTEST_CHECKLIST.md).
