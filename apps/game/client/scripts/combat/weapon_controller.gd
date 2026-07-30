@@ -9,7 +9,7 @@ const FALLBACK_WEAPON_DATA := {
 		{
 			"damage": 12.0,
 			"poise_damage": 10.0,
-			"stamina_cost": 8.0,
+			"stamina_cost": 12.0,
 			"startup": 0.15,
 			"active": 0.12,
 			"recovery": 0.25,
@@ -18,7 +18,7 @@ const FALLBACK_WEAPON_DATA := {
 	"heavy_attack": {
 		"damage": 28.0,
 		"poise_damage": 35.0,
-		"stamina_cost": 22.0,
+		"stamina_cost": 32.0,
 		"startup": 0.35,
 		"active": 0.18,
 		"recovery": 0.45,
@@ -89,7 +89,11 @@ func _physics_process(delta: float) -> void:
 
 
 func _load_weapon_data() -> void:
-	_weapon_data = ContentLoader.load_json(WEAPON_DATA_RELATIVE)
+	load_weapon_from_path(WEAPON_DATA_RELATIVE)
+
+
+func load_weapon_from_path(relative: String) -> void:
+	_weapon_data = ContentLoader.load_json(relative)
 	if _weapon_data.is_empty():
 		push_warning("WeaponController: using fallback weapon data")
 		_weapon_data = FALLBACK_WEAPON_DATA.duplicate(true)

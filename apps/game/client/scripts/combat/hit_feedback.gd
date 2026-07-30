@@ -20,7 +20,7 @@ var _hitstop_active := false
 
 func _ready() -> void:
 	if camera_path:
-		_camera = get_node(camera_path) as Camera3D
+		_camera = get_node_or_null(camera_path) as Camera3D
 	var guard := get_parent().get_node_or_null("Guard")
 	if guard and guard.has_signal("parry_success"):
 		guard.parry_success.connect(_on_parry_success)

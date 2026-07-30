@@ -121,12 +121,12 @@ func reset_duel() -> void:
 			stamina.reset_stamina()
 		if poise:
 			poise.reset_poise()
-		_player.global_position = Vector3(0, 1, 0)
+		_player.global_position = Vector3(0, 0, 0)
 		_player.velocity = Vector3.ZERO
 	if _enemy:
 		if _enemy.has_method("reset_enemy"):
 			_enemy.call("reset_enemy")
-		_enemy.global_position = Vector3(6, 1, 0)
+		_enemy.global_position = Vector3(6, 0, 0)
 		_enemy.velocity = Vector3.ZERO
 	if _player:
 		var reactions := _player.get_node_or_null("CombatReactions")

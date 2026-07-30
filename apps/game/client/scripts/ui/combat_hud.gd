@@ -16,12 +16,12 @@ var _camera: Camera3D
 
 
 func _ready() -> void:
-	_health_bar = $Margin/VBox/HealthBar
-	_stamina_bar = $Margin/VBox/StaminaBar
-	_lock_reticle = $LockReticle
-	_parry_bar = $GuardIndicators/ParryBar
-	_block_bar = $GuardIndicators/BlockBar
-	_parry_label = $GuardIndicators/ParryLabel
+	_health_bar = get_node_or_null("Margin/VBox/HealthBar") as ProgressBar
+	_stamina_bar = get_node_or_null("Margin/VBox/StaminaBar") as ProgressBar
+	_lock_reticle = get_node_or_null("LockReticle") as Control
+	_parry_bar = get_node_or_null("GuardIndicators/ParryBar") as ProgressBar
+	_block_bar = get_node_or_null("GuardIndicators/BlockBar") as ProgressBar
+	_parry_label = get_node_or_null("GuardIndicators/ParryLabel") as Label
 	if player_path:
 		_player = get_node(player_path) as Node3D
 		_guard = _player.get_node_or_null("Guard")
@@ -70,6 +70,8 @@ func _update_lock_reticle() -> void:
 
 
 func _update_guard_indicators() -> void:
+	if not _parry_bar or not _block_bar or not _parry_label:
+		return
 	if not _guard:
 		_parry_bar.visible = false
 		_block_bar.visible = false
@@ -106,15 +108,19 @@ func _get_camera() -> Camera3D:
 
 
 func _on_health_changed(current: float, max_value: float) -> void:
+	if not _health_bar:
+		return
 	_health_bar.max_value = max_value
 	_health_bar.value = current
 
 
 func _on_stamina_changed(current: float, max_value: float) -> void:
+	if not _stamina_bar:
+		return
 	_stamina_bar.max_value = max_value
 	_stamina_bar.value = current
 
 
 func _on_lock_changed(_target: Node3D, locked: bool) -> void:
-	if not locked:
+	if not locked and _lock_reticle:
 		_lock_reticle.visible = false

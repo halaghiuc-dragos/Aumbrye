@@ -1,0 +1,21 @@
+{
+  "id": "castle_shield",
+  "name": "Castle Shield-Bearer",
+  "health": 110,
+  "poise": 60,
+  "move_speed": 2.8,
+  "attack_damage": 14,
+  "attack_poise_damage": 16,
+  "windup_duration": 0.75,
+  "active_duration": 0.18,
+  "recovery_duration": 1.0,
+  "attack_range": 2.2,
+  "attack_cooldown": 1.8,
+  "stagger_duration": 1.2,
+  "aggro_range": 9.0,
+  "deaggro_range": 15.0,
+  "patrol_radius": 3.5,
+  "block_mitigation": 0.75,
+  "block_angle_deg": 100.0,
+  "enemy_type": "shield"
+}

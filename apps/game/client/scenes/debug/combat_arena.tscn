@@ -1,16 +1,27 @@
-[gd_scene format=3 uid="uid://carena001"]
+[gd_scene load_steps=12 format=3 uid="uid://carena001"]
 
 [ext_resource type="PackedScene" uid="uid://cplayer001" path="res://scenes/player/player.tscn" id="1_player"]
 [ext_resource type="PackedScene" uid="uid://cenemy001" path="res://scenes/enemies/training_grunt.tscn" id="2_enemy"]
 [ext_resource type="Script" path="res://scripts/debug/combat_arena.gd" id="3_arena"]
 [ext_resource type="Script" path="res://scripts/debug/debug_overlay.gd" id="4_overlay"]
 [ext_resource type="Script" path="res://scripts/ui/combat_hud.gd" id="5_hud"]
+[ext_resource type="Material" path="res://assets/castle/mat_floor.tres" id="6_floor_mat"]
+[ext_resource type="Material" path="res://assets/castle/mat_wall.tres" id="7_wall_mat"]
 
 [sub_resource type="BoxMesh" id="BoxMesh_floor"]
 size = Vector3(30, 0.5, 30)
 
 [sub_resource type="BoxShape3D" id="BoxShape3D_floor"]
 size = Vector3(30, 0.5, 30)
+
+[sub_resource type="BoxMesh" id="BoxMesh_door_frame"]
+size = Vector3(3.5, 3.5, 0.5)
+
+[sub_resource type="BoxMesh" id="BoxMesh_pad"]
+size = Vector3(3.5, 0.1, 1.5)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_interact"]
+size = Vector3(3.5, 3.5, 3.5)
 
 [node name="CombatArena" type="Node3D"]
 script = ExtResource("3_arena")
@@ -26,17 +37,45 @@ shadow_enabled = true
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.25, 0)
 
 [node name="MeshInstance3D" type="MeshInstance3D" parent="Floor"]
+material_override = ExtResource("6_floor_mat")
 mesh = SubResource("BoxMesh_floor")
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="Floor"]
 shape = SubResource("BoxShape3D_floor")
 
 [node name="Player" parent="." instance=ExtResource("1_player")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
 
 [node name="TrainingGrunt" parent="." instance=ExtResource("2_enemy")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6, 1, 0)
 player_path = NodePath("../Player")
+
+[node name="HubReturn" type="Node3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -8, 0, 0)
+
+[node name="DoorFrame" type="MeshInstance3D" parent="HubReturn"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.75, 0)
+material_override = ExtResource("7_wall_mat")
+mesh = SubResource("BoxMesh_door_frame")
+
+[node name="DoorPad" type="MeshInstance3D" parent="HubReturn"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.05, 0)
+material_override = ExtResource("6_floor_mat")
+mesh = SubResource("BoxMesh_pad")
+
+[node name="InteractArea" type="Area3D" parent="HubReturn"]
+collision_layer = 0
+collision_mask = 2
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="HubReturn/InteractArea"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.75, 0)
+shape = SubResource("BoxShape3D_interact")
+
+[node name="Label3D" type="Label3D" parent="HubReturn"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 4.2, 0)
+billboard = 1
+text = "Return to Hub (E)"
+font_size = 28
 
 [node name="DebugOverlay" type="CanvasLayer" parent="."]
 script = ExtResource("4_overlay")

@@ -1,0 +1,67 @@
+[gd_scene load_steps=7 format=3 uid="uid://castle_courtyard"]
+
+[ext_resource type="Script" path="res://scripts/dungeon/castle/castle_room_scene.gd" id="1_room"]
+[ext_resource type="Script" path="res://scripts/dungeon/castle/castle_blockout.gd" id="2_blockout"]
+[ext_resource type="Script" path="res://scripts/dungeon/doorway_socket.gd" id="3_socket"]
+[ext_resource type="Material" path="res://assets/castle/mat_floor.tres" id="4_floor"]
+[ext_resource type="Material" path="res://assets/castle/mat_wall.tres" id="5_wall"]
+[ext_resource type="Material" path="res://assets/castle/mat_accent.tres" id="6_accent"]
+
+[sub_resource type="BoxMesh" id="BoxMesh_secret_cue"]
+size = Vector3(0.4, 2.5, 2.5)
+
+[node name="CastleCourtyard" type="Node3D"]
+script = ExtResource("1_room")
+template_id = "castle_courtyard"
+room_type = "combat"
+
+[node name="CastleBlockout" type="Node3D" parent="."]
+script = ExtResource("2_blockout")
+room_width = 20.0
+room_depth = 20.0
+door_north = true
+door_south = true
+door_east = true
+door_west = true
+floor_material = ExtResource("4_floor")
+wall_material = ExtResource("5_wall")
+accent_material = ExtResource("6_accent")
+
+[node name="DoorwaySockets" type="Node3D" parent="."]
+
+[node name="Socket_N" type="Marker3D" parent="DoorwaySockets"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -10)
+script = ExtResource("3_socket")
+
+[node name="Socket_E" type="Marker3D" parent="DoorwaySockets"]
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 10, 0, 0)
+script = ExtResource("3_socket")
+direction = 1
+
+[node name="Socket_S" type="Marker3D" parent="DoorwaySockets"]
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 0, 0, 10)
+script = ExtResource("3_socket")
+direction = 2
+
+[node name="Socket_W" type="Marker3D" parent="DoorwaySockets"]
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -10, 0, 0)
+script = ExtResource("3_socket")
+direction = 3
+is_secret = true
+
+[node name="SpawnPoints" type="Node3D" parent="."]
+
+[node name="PlayerSpawn" type="Marker3D" parent="SpawnPoints"]
+
+[node name="Props" type="Node3D" parent="."]
+
+[node name="SecretCuePanel" type="MeshInstance3D" parent="Props"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -9.75, 1.25, 0)
+material_override = ExtResource("6_accent")
+mesh = SubResource("BoxMesh_secret_cue")
+
+[node name="SecretCueLight" type="OmniLight3D" parent="Props"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -9.2, 2.0, 0)
+light_color = Color(0.95, 0.75, 0.35, 1)
+light_energy = 0.45
+omni_range = 4.0

@@ -6,7 +6,7 @@
     {
       "damage": 12,
       "poise_damage": 10,
-      "stamina_cost": 8,
+      "stamina_cost": 12,
       "startup": 0.15,
       "active": 0.12,
       "recovery": 0.25
@@ -14,7 +14,7 @@
     {
       "damage": 14,
       "poise_damage": 12,
-      "stamina_cost": 10,
+      "stamina_cost": 15,
       "startup": 0.18,
       "active": 0.14,
       "recovery": 0.28
@@ -22,7 +22,7 @@
     {
       "damage": 18,
       "poise_damage": 18,
-      "stamina_cost": 14,
+      "stamina_cost": 20,
       "startup": 0.22,
       "active": 0.16,
       "recovery": 0.35
@@ -31,7 +31,7 @@
   "heavy_attack": {
     "damage": 28,
     "poise_damage": 35,
-    "stamina_cost": 22,
+    "stamina_cost": 32,
     "startup": 0.35,
     "active": 0.18,
     "recovery": 0.45

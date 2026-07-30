@@ -1,0 +1,22 @@
+{
+  "id": "castle_archer",
+  "name": "Castle Archer",
+  "health": 70,
+  "poise": 30,
+  "move_speed": 3.0,
+  "attack_damage": 12,
+  "attack_poise_damage": 8,
+  "windup_duration": 0.9,
+  "active_duration": 0.05,
+  "recovery_duration": 1.1,
+  "attack_range": 14.0,
+  "attack_cooldown": 1.5,
+  "stagger_duration": 0.9,
+  "aggro_range": 16.0,
+  "deaggro_range": 22.0,
+  "patrol_radius": 3.0,
+  "preferred_range": 10.0,
+  "retreat_range": 6.0,
+  "projectile_speed": 12.0,
+  "enemy_type": "ranged"
+}

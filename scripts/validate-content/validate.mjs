@@ -13,6 +13,8 @@ const SCHEMA_MAP = {
   dungeon_definition: "dungeon-definition.v1.json",
   enemy_definition: "enemy-definition.v1.json",
   weapon_definition: "weapon-definition.v1.json",
+  item_instance: "item-instance.v1.json",
+  inventory: "inventory.v1.json",
 };
 
 function collectJsonFiles(dir) {
@@ -32,14 +34,23 @@ function collectJsonFiles(dir) {
 
 function resolveSchemaForFile(filePath) {
   const name = relative(contentRoot, filePath).replace(/\\/g, "/");
-  if (name.startsWith("fixtures/dungeon_definition")) {
+  if (name.startsWith("fixtures/dungeon_definition") || name === "fixtures/forgotten_castle_slice.json") {
     return join(schemasRoot, "dungeon-definition.v1.json");
+  }
+  if (name === "fixtures/inventory_sample.v1.json") {
+    return join(schemasRoot, "inventory.v1.json");
   }
   if (name.startsWith("enemies/")) {
     return join(schemasRoot, "enemy-definition.v1.json");
   }
   if (name.startsWith("weapons/")) {
     return join(schemasRoot, "weapon-definition.v1.json");
+  }
+  if (name.startsWith("items/")) {
+    return join(schemasRoot, "item-instance.v1.json");
+  }
+  if (name.startsWith("bosses/")) {
+    return join(schemasRoot, "enemy-definition.v1.json");
   }
   return null;
 }

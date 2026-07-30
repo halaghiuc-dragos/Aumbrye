@@ -1,0 +1,31 @@
+[gd_scene load_steps=6 format=3 uid="uid://loot_chest"]
+
+[ext_resource type="Script" path="res://scripts/loot/loot_chest.gd" id="1_chest"]
+[ext_resource type="Material" path="res://assets/castle/mat_accent.tres" id="2_accent"]
+
+[sub_resource type="BoxMesh" id="BoxMesh_chest"]
+size = Vector3(1.2, 0.8, 0.9)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_interact"]
+size = Vector3(2, 2, 2)
+
+[node name="LootChest" type="Node3D"]
+script = ExtResource("1_chest")
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.4, 0)
+mesh = SubResource("BoxMesh_chest")
+surface_material_override/0 = ExtResource("2_accent")
+
+[node name="InteractArea" type="Area3D" parent="."]
+collision_layer = 0
+collision_mask = 2
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="InteractArea"]
+shape = SubResource("BoxShape3D_interact")
+
+[node name="Label3D" type="Label3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.5, 0)
+billboard = 1
+text = "Press E"
+font_size = 24

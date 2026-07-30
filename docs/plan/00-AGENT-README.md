@@ -183,4 +183,4 @@ Do not start `M(n+1)` feature work until `Mn` exit criteria pass. Exception: pur
 
 ## First action after plan approval
 
-**M2 vertical slice** is next. **M1 closed** 2026-07-29 — [design/M1_IMPLEMENTATION_LOG.md](../design/M1_IMPLEMENTATION_LOG.md). **Controls (permanently locked):** [design/M1_CONTROLS.md](../design/M1_CONTROLS.md). Continue at [phases/M2-VERTICAL-SLICE.md](phases/M2-VERTICAL-SLICE.md). M0: [systems/00-SETUP-CI.md](systems/00-SETUP-CI.md).
+**M2 vertical slice** closed (KB/M) — [design/M2_IMPLEMENTATION_LOG.md](../design/M2_IMPLEMENTATION_LOG.md). **M1 controls locked:** [M1_CONTROLS.md](../design/M1_CONTROLS.md). Next: M3 when ready; gamepad playtest deferred.

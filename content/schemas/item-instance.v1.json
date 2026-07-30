@@ -1,0 +1,24 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://aumbrye.dev/schemas/item-instance.v1.json",
+  "title": "ItemInstance",
+  "description": "M2 item definition for inventory and world pickups.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "name", "itemType", "gridWidth", "gridHeight", "stackSize"],
+  "properties": {
+    "id": { "type": "string", "minLength": 1 },
+    "name": { "type": "string", "minLength": 1 },
+    "itemType": {
+      "type": "string",
+      "enum": ["weapon", "consumable", "material", "key"]
+    },
+    "gridWidth": { "type": "integer", "minimum": 1, "maximum": 4 },
+    "gridHeight": { "type": "integer", "minimum": 1, "maximum": 4 },
+    "stackSize": { "type": "integer", "minimum": 1 },
+    "weaponId": { "type": "string" },
+    "healAmount": { "type": "number", "exclusiveMinimum": 0 },
+    "description": { "type": "string" },
+    "value": { "type": "number", "minimum": 0 }
+  }
+}

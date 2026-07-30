@@ -1,0 +1,44 @@
+extends Node3D
+
+## Phase 2 arena hazard — telegraphed fire zone (BOSS-2.2).
+
+enum State { TELEGRAPH, ACTIVE, FADE }
+
+@export var damage := 8.0
+@export var telegraph_time := 1.0
+@export var active_time := 2.5
+
+@onready var _telegraph: MeshInstance3D = $TelegraphMesh
+@onready var _active_zone: MeshInstance3D = $ActiveMesh
+@onready var _damage_area: Area3D = $DamageArea
+
+var _state := State.TELEGRAPH
+var _timer := 0.0
+
+
+func _ready() -> void:
+	_active_zone.visible = false
+	_damage_area.monitoring = false
+	_timer = telegraph_time
+
+
+func _physics_process(delta: float) -> void:
+	match _state:
+		State.TELEGRAPH:
+			_timer -= delta
+			if _timer <= 0.0:
+				_state = State.ACTIVE
+				_timer = active_time
+				_telegraph.visible = false
+				_active_zone.visible = true
+				_damage_area.monitoring = true
+		State.ACTIVE:
+			_timer -= delta
+			if _timer <= 0.0:
+				_state = State.FADE
+				_timer = 0.5
+				_damage_area.monitoring = false
+		State.FADE:
+			_timer -= delta
+			if _timer <= 0.0:
+				queue_free()

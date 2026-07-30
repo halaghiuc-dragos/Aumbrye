@@ -30,16 +30,19 @@ size = Vector3(1.2, 0.8, 1.4)
 size = Vector3(0.9, 1.6, 0.9)
 
 [node name="Player" type="CharacterBody3D"]
+collision_layer = 2
 script = ExtResource("1_locomotion")
 camera_yaw_path = NodePath("CameraPivot")
 facing_path = NodePath("Facing")
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.8, 0)
 shape = SubResource("CapsuleShape3D_body")
 
 [node name="Facing" type="Node3D" parent="."]
 
 [node name="MeshInstance3D" type="MeshInstance3D" parent="Facing"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.8, 0)
 mesh = SubResource("CapsuleMesh_body")
 
 [node name="WeaponPivot" type="Node3D" parent="Facing"]
@@ -87,7 +90,7 @@ player_path = NodePath("..")
 facing_path = NodePath("Facing")
 
 [node name="CameraPivot" type="Node3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.2, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.6, 0)
 
 [node name="SpringArm3D" type="SpringArm3D" parent="CameraPivot"]
 spring_length = 4.0
@@ -99,6 +102,7 @@ yaw_pivot_path = NodePath("..")
 current = true
 
 [node name="Hurtbox" type="Area3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.8, 0)
 collision_layer = 8
 collision_mask = 4
 script = ExtResource("11_hurtbox")

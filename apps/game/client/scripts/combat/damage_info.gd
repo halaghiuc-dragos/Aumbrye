@@ -9,16 +9,16 @@ var direction: Vector3 = Vector3.ZERO
 
 
 static func create(
-	amount: float,
-	poise_damage: float,
-	source: Node,
-	damage_type: String = "physical",
-	direction: Vector3 = Vector3.ZERO
+	dmg_amount: float,
+	poise_dmg: float,
+	dmg_source: Node,
+	dmg_type: String = "physical",
+	hit_direction: Vector3 = Vector3.ZERO
 ) -> DamageInfo:
 	var info := DamageInfo.new()
-	info.amount = amount
-	info.poise_damage = poise_damage
-	info.source = source
-	info.damage_type = damage_type
-	info.direction = direction
+	info.amount = dmg_amount
+	info.poise_damage = poise_dmg
+	info.source = dmg_source
+	info.damage_type = dmg_type
+	info.direction = hit_direction
 	return info

@@ -1,0 +1,11 @@
+{
+  "id": "health_potion",
+  "name": "Health Potion",
+  "itemType": "consumable",
+  "gridWidth": 1,
+  "gridHeight": 1,
+  "stackSize": 5,
+  "description": "Restores a small amount of health.",
+  "healAmount": 40,
+  "value": 10
+}

@@ -1,0 +1,39 @@
+{
+  "id": "castle_sword",
+  "name": "Castle Sword",
+  "buffer_window": 0.2,
+  "light_attacks": [
+    {
+      "damage": 16,
+      "poise_damage": 14,
+      "stamina_cost": 12,
+      "startup": 0.15,
+      "active": 0.12,
+      "recovery": 0.25
+    },
+    {
+      "damage": 20,
+      "poise_damage": 16,
+      "stamina_cost": 15,
+      "startup": 0.18,
+      "active": 0.14,
+      "recovery": 0.28
+    },
+    {
+      "damage": 26,
+      "poise_damage": 22,
+      "stamina_cost": 20,
+      "startup": 0.22,
+      "active": 0.16,
+      "recovery": 0.35
+    }
+  ],
+  "heavy_attack": {
+    "damage": 38,
+    "poise_damage": 40,
+    "stamina_cost": 32,
+    "startup": 0.35,
+    "active": 0.18,
+    "recovery": 0.45
+  }
+}

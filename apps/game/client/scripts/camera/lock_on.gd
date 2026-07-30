@@ -1,9 +1,9 @@
 extends Node
+class_name LockOn
 
 const LOCK_RANGE := 18.0
 const ORBIT_RADIUS := 1.75
 const SWITCH_DEADZONE := 0.7
-const SOFT_ASSIST_ANGLE := deg_to_rad(55.0)
 
 signal lock_changed(target: Node3D, locked: bool)
 
@@ -19,15 +19,17 @@ var _switch_cooldown := 0.0
 
 
 func _ready() -> void:
+	process_mode = Node.PROCESS_MODE_ALWAYS
 	if player_path:
 		_player = get_node(player_path) as Node3D
 	if facing_path and _player:
 		_facing = _player.get_node_or_null(facing_path) as Node3D
 
 
-func _unhandled_input(event: InputEvent) -> void:
+func _input(event: InputEvent) -> void:
 	if event.is_action_pressed("lock_on"):
 		_toggle_lock()
+		get_viewport().set_input_as_handled()
 
 
 func _physics_process(delta: float) -> void:
@@ -73,6 +75,9 @@ func _update_lock() -> void:
 	if distance > LOCK_RANGE:
 		_break_lock()
 		return
+	if not _has_line_of_sight_to(current_target):
+		_break_lock()
+		return
 	if current_target.has_method("is_dead") and current_target.call("is_dead"):
 		_break_lock()
 
@@ -91,6 +96,8 @@ func _handle_target_switch() -> void:
 	for enemy in candidates:
 		if enemy == current_target:
 			continue
+		if not _has_line_of_sight_to(enemy):
+			continue
 		var offset := enemy.global_position - _player.global_position
 		offset.y = 0.0
 		var local := offset.rotated(Vector3.UP, -_get_facing_yaw())
@@ -105,39 +112,41 @@ func _handle_target_switch() -> void:
 
 
 func _find_best_target() -> Node3D:
-	var candidates := _get_lockable_targets()
-	if candidates.is_empty():
-		return null
-	if candidates.size() == 1:
-		var only := candidates[0]
-		if _player.global_position.distance_to(only.global_position) <= LOCK_RANGE:
-			return only
+	if not _player:
 		return null
 	var best: Node3D
-	var best_score := INF
-	for enemy in candidates:
-		var score := _score_target(enemy)
-		if score < best_score:
-			best_score = score
+	var best_distance := INF
+	for enemy in _get_lockable_targets():
+		var distance := _player.global_position.distance_to(enemy.global_position)
+		if distance > LOCK_RANGE:
+			continue
+		if not _has_line_of_sight_to(enemy):
+			continue
+		if distance < best_distance:
+			best_distance = distance
 			best = enemy
 	return best
 
 
-func _score_target(enemy: Node3D) -> float:
-	if not _player:
-		return INF
-	var to_enemy := enemy.global_position - _player.global_position
-	var distance := to_enemy.length()
-	if distance > LOCK_RANGE:
-		return INF
-	var facing := _get_visual_forward()
-	to_enemy.y = 0.0
-	if to_enemy.length_squared() < 0.01:
-		return distance
-	var angle := facing.angle_to(to_enemy.normalized())
-	if angle > SOFT_ASSIST_ANGLE:
-		return INF
-	return distance + angle * 2.0
+func _has_line_of_sight_to(target: Node3D) -> bool:
+	if _player == null or target == null:
+		return false
+	var space := _player.get_world_3d().direct_space_state
+	if space == null:
+		return true
+	var from := _player.global_position + Vector3(0.0, 1.0, 0.0)
+	var to := target.global_position + Vector3(0.0, 1.2, 0.0)
+	var params := PhysicsRayQueryParameters3D.create(from, to)
+	params.collision_mask = 1
+	params.collide_with_areas = false
+	params.collide_with_bodies = true
+	var excludes: Array[RID] = []
+	if _player is CollisionObject3D:
+		excludes.append((_player as CollisionObject3D).get_rid())
+	if target is CollisionObject3D:
+		excludes.append((target as CollisionObject3D).get_rid())
+	params.exclude = excludes
+	return space.intersect_ray(params).is_empty()
 
 
 func _get_lockable_targets() -> Array[Node3D]:
@@ -148,14 +157,6 @@ func _get_lockable_targets() -> Array[Node3D]:
 				continue
 			result.append(node as Node3D)
 	return result
-
-
-func _get_visual_forward() -> Vector3:
-	if _facing:
-		return _facing.global_transform.basis.z.normalized()
-	if _player:
-		return _player.global_transform.basis.z.normalized()
-	return Vector3.FORWARD
 
 
 func _get_facing_yaw() -> float:

@@ -33,6 +33,19 @@
     "recovery_duration": { "type": "number", "minimum": 0 },
     "attack_range": { "type": "number", "exclusiveMinimum": 0 },
     "attack_cooldown": { "type": "number", "minimum": 0 },
-    "stagger_duration": { "type": "number", "minimum": 0 }
+    "stagger_duration": { "type": "number", "minimum": 0 },
+    "aggro_range": { "type": "number", "exclusiveMinimum": 0 },
+    "deaggro_range": { "type": "number", "exclusiveMinimum": 0 },
+    "patrol_radius": { "type": "number", "minimum": 0 },
+    "preferred_range": { "type": "number", "minimum": 0 },
+    "retreat_range": { "type": "number", "minimum": 0 },
+    "projectile_speed": { "type": "number", "exclusiveMinimum": 0 },
+    "block_mitigation": { "type": "number", "minimum": 0, "maximum": 1 },
+    "block_angle_deg": { "type": "number", "minimum": 0, "maximum": 180 },
+    "phase2_threshold": { "type": "number", "minimum": 0, "maximum": 1 },
+    "enemy_type": {
+      "type": "string",
+      "enum": ["melee", "ranged", "shield", "boss"]
+    }
   }
 }

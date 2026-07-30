@@ -32,7 +32,7 @@ Skilled play should win via **spacing**, **roll i-frames**, or **parry punish** 
 
 - HP 80, poise 40 — heavy attack breaks poise in 2 hits.
 - Attack damage 14 — ~7 hits to kill player at 100 HP (encourages defense).
-- Dodge stamina 22, block drain 12/hit — stamina management required.
+- Dodge stamina 32, block drain 18/hit — stamina management required.
 - Lock orbit radius: **1.75m** (`lock_on.gd` → `ORBIT_RADIUS`).
 
 ## Playtest status

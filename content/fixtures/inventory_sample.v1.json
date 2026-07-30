@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 1,
+  "gridWidth": 6,
+  "gridHeight": 4,
+  "slots": [
+    { "itemId": "castle_sword", "quantity": 1, "x": 0, "y": 0 },
+    { "itemId": "health_potion", "quantity": 2, "x": 2, "y": 0 }
+  ],
+  "equipped": {
+    "weapon": "castle_sword"
+  }
+}

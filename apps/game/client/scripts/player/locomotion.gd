@@ -15,14 +15,15 @@ var _facing: Node3D
 var _stamina: Stamina
 var _dodge: Node
 var _combat_reactions: Node
-var _lock_on: Node
+var _lock_on: LockOn
 
 
 func _ready() -> void:
+	add_to_group("player")
 	_stamina = get_node_or_null("Stamina") as Stamina
 	_dodge = get_node_or_null("Dodge")
 	_combat_reactions = get_node_or_null("CombatReactions")
-	_lock_on = get_node_or_null("LockOn")
+	_lock_on = get_node_or_null("LockOn") as LockOn
 	if camera_yaw_path:
 		_camera_yaw = get_node(camera_yaw_path) as Node3D
 	if facing_path:
@@ -61,10 +62,19 @@ func _physics_process(delta: float) -> void:
 	var target_velocity := direction * target_speed
 	var rate := ACCELERATION if direction else DECELERATION
 	horizontal = horizontal.move_toward(target_velocity, rate * delta)
+
+	if LockOnMovement.is_active(_lock_on):
+		horizontal = LockOnMovement.apply_orbit_radius_correction(
+			self, _lock_on, input_dir, horizontal, delta
+		)
+
 	velocity.x = horizontal.x
 	velocity.z = horizontal.z
 
-	if direction.length_squared() > 0.01 and _facing:
+	if LockOnMovement.is_active(_lock_on):
+		var target := LockOnMovement.get_target(_lock_on)
+		LockOnMovement.update_facing_toward_target(_facing, target, delta, ROTATION_SPEED)
+	elif direction.length_squared() > 0.01 and _facing:
 		var target_angle := atan2(direction.x, direction.z)
 		_facing.rotation.y = lerp_angle(_facing.rotation.y, target_angle, ROTATION_SPEED * delta)
 
@@ -72,50 +82,14 @@ func _physics_process(delta: float) -> void:
 
 
 func _get_move_direction(input_dir: Vector2) -> Vector3:
-	if input_dir.length_squared() < 0.01:
-		return Vector3.ZERO
-	if _is_lock_on_active():
-		return _get_locked_move_direction(input_dir)
+	if LockOnMovement.is_active(_lock_on):
+		return LockOnMovement.get_move_direction(
+			self,
+			_lock_on,
+			input_dir,
+			_get_camera_relative_direction
+		)
 	return _get_camera_relative_direction(input_dir)
-
-
-func _get_locked_move_direction(input_dir: Vector2) -> Vector3:
-	var target := _lock_on.get("current_target") as Node3D
-	if target == null or not is_instance_valid(target):
-		return _get_camera_relative_direction(input_dir)
-
-	var forward_back := Vector3.ZERO
-	if absf(input_dir.y) > 0.01:
-		forward_back = _get_camera_relative_direction(Vector2(0.0, input_dir.y))
-
-	var strafe := Vector3.ZERO
-	if absf(input_dir.x) > 0.01:
-		strafe = _get_orbit_strafe_direction(input_dir.x, target)
-
-	if forward_back.length_squared() < 0.01 and strafe.length_squared() < 0.01:
-		return Vector3.ZERO
-
-	if forward_back.length_squared() < 0.01:
-		return strafe
-	if strafe.length_squared() < 0.01:
-		return forward_back
-
-	var combined := forward_back + strafe
-	return combined.normalized()
-
-
-func _get_orbit_strafe_direction(stick_x: float, enemy: Node3D) -> Vector3:
-	var offset := global_position - enemy.global_position
-	offset.y = 0.0
-	if offset.length_squared() < 0.01:
-		offset = Vector3(0.0, 0.0, 1.0)
-	var radial := offset.normalized()
-	var tangent := Vector3.UP.cross(radial).normalized()
-	return tangent * signf(stick_x)
-
-
-func _is_lock_on_active() -> bool:
-	return _lock_on != null and _lock_on.get("is_locked")
 
 
 func _get_camera_relative_direction(input_dir: Vector2) -> Vector3:

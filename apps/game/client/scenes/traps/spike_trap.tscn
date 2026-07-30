@@ -1,0 +1,46 @@
+[gd_scene load_steps=8 format=3 uid="uid://spike_trap"]
+
+[ext_resource type="Script" path="res://scripts/dungeon/traps/spike_trap.gd" id="1_spike"]
+[ext_resource type="Script" path="res://scripts/combat/trap_damage_area.gd" id="2_damage"]
+[ext_resource type="Material" path="res://assets/castle/mat_accent.tres" id="3_accent"]
+
+[sub_resource type="BoxMesh" id="BoxMesh_telegraph"]
+size = Vector3(3, 0.05, 3)
+
+[sub_resource type="StandardMaterial3D" id="Mat_telegraph"]
+transparency = 1
+albedo_color = Color(1, 0.2, 0.2, 0.5)
+
+[sub_resource type="BoxMesh" id="BoxMesh_spikes"]
+size = Vector3(2.5, 0.8, 2.5)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_damage"]
+size = Vector3(2.5, 1.0, 2.5)
+
+[node name="SpikeTrap" type="Node3D"]
+script = ExtResource("1_spike")
+
+[node name="TelegraphMesh" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.05, 0)
+visible = false
+mesh = SubResource("BoxMesh_telegraph")
+surface_material_override/0 = SubResource("Mat_telegraph")
+
+[node name="SpikesMesh" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.4, 0)
+visible = false
+mesh = SubResource("BoxMesh_spikes")
+surface_material_override/0 = ExtResource("3_accent")
+
+[node name="DamageArea" type="Area3D" parent="."]
+collision_layer = 4
+collision_mask = 8
+monitoring = false
+script = ExtResource("2_damage")
+damage = 18.0
+poise_damage = 10.0
+team = "trap"
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="DamageArea"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.5, 0)
+shape = SubResource("BoxShape3D_damage")

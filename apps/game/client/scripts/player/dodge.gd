@@ -9,7 +9,7 @@ const DODGE_SPEED := 9.0
 const DODGE_BACK_SPEED := 6.0
 const DODGE_DURATION := 0.45
 const DODGE_RECOVERY := 0.35
-const DODGE_STAMINA_COST := 22.0
+const DODGE_STAMINA_COST := 32.0
 const IFRAME_START := 0.05
 const IFRAME_END := 0.30
 

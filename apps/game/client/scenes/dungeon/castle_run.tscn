@@ -1,0 +1,153 @@
+[gd_scene load_steps=6 format=3 uid="uid://castle_run_scene"]
+
+[ext_resource type="Script" path="res://scripts/dungeon/castle_run.gd" id="1_run"]
+[ext_resource type="PackedScene" uid="uid://cplayer001" path="res://scenes/player/player.tscn" id="2_player"]
+[ext_resource type="Script" path="res://scripts/ui/combat_hud.gd" id="3_hud"]
+[ext_resource type="Script" path="res://scripts/ui/inventory_ui.gd" id="4_inv"]
+[ext_resource type="Script" path="res://scripts/debug/debug_overlay.gd" id="5_overlay"]
+
+[node name="CastleRun" type="Node3D"]
+script = ExtResource("1_run")
+
+[node name="DirectionalLight3D" type="DirectionalLight3D" parent="."]
+transform = Transform3D(0.866025, -0.353553, 0.353553, 0, 0.707107, 0.707107, -0.5, -0.612372, 0.612372, 0, 16, 0)
+light_energy = 1.1
+shadow_enabled = true
+
+[node name="Player" parent="." instance=ExtResource("2_player")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
+groups = ["player"]
+
+[node name="CombatHUD" type="Control" parent="."]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+script = ExtResource("3_hud")
+player_path = NodePath("../Player")
+lock_on_path = NodePath("../Player/LockOn")
+
+[node name="Margin" type="MarginContainer" parent="CombatHUD"]
+layout_mode = 1
+anchors_preset = 2
+anchor_top = 1.0
+anchor_bottom = 1.0
+offset_left = 24.0
+offset_top = -120.0
+offset_right = 324.0
+offset_bottom = -24.0
+grow_vertical = 0
+
+[node name="VBox" type="VBoxContainer" parent="CombatHUD/Margin"]
+layout_mode = 2
+
+[node name="HealthBar" type="ProgressBar" parent="CombatHUD/Margin/VBox"]
+custom_minimum_size = Vector2(280, 24)
+layout_mode = 2
+max_value = 100.0
+value = 100.0
+show_percentage = false
+
+[node name="StaminaBar" type="ProgressBar" parent="CombatHUD/Margin/VBox"]
+custom_minimum_size = Vector2(280, 18)
+layout_mode = 2
+max_value = 100.0
+value = 100.0
+show_percentage = false
+
+[node name="LockReticle" type="Control" parent="CombatHUD"]
+visible = false
+layout_mode = 0
+offset_right = 32.0
+offset_bottom = 32.0
+mouse_filter = 2
+
+[node name="Reticle" type="ColorRect" parent="CombatHUD/LockReticle"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(1, 0.85, 0.2, 0.9)
+
+[node name="ReticleInner" type="ColorRect" parent="CombatHUD/LockReticle"]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -4.0
+offset_top = -4.0
+offset_right = 4.0
+offset_bottom = 4.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.1, 0.1, 0.1, 0.9)
+
+[node name="InventoryUI" type="Control" parent="."]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+script = ExtResource("4_inv")
+
+[node name="Panel" type="PanelContainer" parent="InventoryUI"]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -200.0
+offset_top = -180.0
+offset_right = 200.0
+offset_bottom = 180.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Margin" type="MarginContainer" parent="InventoryUI/Panel"]
+layout_mode = 2
+theme_override_constants/margin_left = 12
+theme_override_constants/margin_top = 12
+theme_override_constants/margin_right = 12
+theme_override_constants/margin_bottom = 12
+
+[node name="VBox" type="VBoxContainer" parent="InventoryUI/Panel/Margin"]
+layout_mode = 2
+
+[node name="Title" type="Label" parent="InventoryUI/Panel/Margin/VBox"]
+layout_mode = 2
+text = "Inventory (Tab)"
+horizontal_alignment = 1
+
+[node name="GridContainer" type="GridContainer" parent="InventoryUI/Panel/Margin/VBox"]
+layout_mode = 2
+columns = 6
+
+[node name="DetailLabel" type="Label" parent="InventoryUI/Panel/Margin/VBox"]
+layout_mode = 2
+text = "Empty"
+
+[node name="HintLabel" type="Label" parent="InventoryUI/Panel/Margin/VBox"]
+layout_mode = 2
+text = "Arrows/D-pad + Enter"
+
+[node name="DebugOverlay" type="CanvasLayer" parent="."]
+script = ExtResource("5_overlay")
+player_path = NodePath("../Player")
+
+[node name="DebugLabel" type="Label" parent="DebugOverlay"]
+offset_left = 16.0
+offset_top = 16.0
+offset_right = 500.0
+offset_bottom = 200.0
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+text = "M2 Castle Run"

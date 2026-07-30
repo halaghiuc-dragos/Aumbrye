@@ -1,0 +1,105 @@
+{
+  "schemaVersion": 1,
+  "runId": "00000000-0000-4000-8000-000000000002",
+  "seed": 0,
+  "biomeId": "forgotten_castle",
+  "tier": 1,
+  "playerLevelSnapshot": 1,
+  "rooms": [
+    {
+      "id": "entrance",
+      "templateId": "castle_entrance",
+      "type": "hub",
+      "transform": { "x": 0, "y": 0, "z": 0, "yaw": 0 },
+      "tags": ["spawn"]
+    },
+    {
+      "id": "stairs",
+      "templateId": "castle_stairs",
+      "type": "corridor",
+      "transform": { "x": 0, "y": 0, "z": 14, "yaw": 0 },
+      "tags": []
+    },
+    {
+      "id": "courtyard",
+      "templateId": "castle_courtyard",
+      "type": "combat",
+      "transform": { "x": 0, "y": 0, "z": 32, "yaw": 0 },
+      "tags": []
+    },
+    {
+      "id": "hall",
+      "templateId": "castle_hall",
+      "type": "combat",
+      "transform": { "x": 18, "y": 0, "z": 32, "yaw": 0 },
+      "tags": []
+    },
+    {
+      "id": "treasure",
+      "templateId": "castle_treasure",
+      "type": "treasure",
+      "transform": { "x": 0, "y": 0, "z": 47, "yaw": 0 },
+      "tags": []
+    },
+    {
+      "id": "secret",
+      "templateId": "castle_secret",
+      "type": "secret",
+      "transform": { "x": -14, "y": 0, "z": 32, "yaw": 0 },
+      "tags": ["secret_room"]
+    },
+    {
+      "id": "arena",
+      "templateId": "castle_arena",
+      "type": "combat",
+      "transform": { "x": 38, "y": 0, "z": 32, "yaw": 0 },
+      "tags": []
+    },
+    {
+      "id": "boss",
+      "templateId": "castle_boss",
+      "type": "boss",
+      "transform": { "x": 38, "y": 0, "z": 58, "yaw": 0 },
+      "tags": ["exit_portal"]
+    }
+  ],
+  "edges": [
+    { "from": "entrance", "to": "stairs", "kind": "corridor" },
+    { "from": "stairs", "to": "courtyard", "kind": "corridor" },
+    { "from": "courtyard", "to": "hall", "kind": "door" },
+    { "from": "courtyard", "to": "treasure", "kind": "door" },
+    { "from": "courtyard", "to": "secret", "kind": "secret" },
+    { "from": "hall", "to": "arena", "kind": "door" },
+    { "from": "arena", "to": "boss", "kind": "door" },
+    { "from": "hall", "to": "stairs", "kind": "one_way" }
+  ],
+  "placements": {
+    "enemies": [
+      { "roomId": "courtyard", "enemyId": "castle_grunt", "position": { "x": 4, "y": 0, "z": 2 } },
+      { "roomId": "courtyard", "enemyId": "castle_archer", "position": { "x": -5, "y": 0, "z": -4 } },
+      { "roomId": "hall", "enemyId": "castle_grunt", "position": { "x": 0, "y": 0, "z": 0 } },
+      { "roomId": "hall", "enemyId": "castle_shield", "position": { "x": 5, "y": 0, "z": -3 } },
+      { "roomId": "arena", "enemyId": "castle_archer", "position": { "x": -4, "y": 0, "z": 4 } },
+      { "roomId": "arena", "enemyId": "castle_shield", "position": { "x": 3, "y": 0, "z": -2 } }
+    ],
+    "loot": [
+      { "roomId": "treasure", "chestId": "treasure_main", "position": { "x": 0, "y": 0, "z": 0 }, "items": [{ "itemId": "health_potion", "quantity": 2 }, { "itemId": "iron_scrap", "quantity": 3 }] },
+      { "roomId": "courtyard", "chestId": "courtyard_side", "position": { "x": 7, "y": 0, "z": 6 }, "items": [{ "itemId": "iron_scrap", "quantity": 2 }] },
+      { "roomId": "hall", "chestId": "hall_armory", "position": { "x": -4, "y": 0, "z": 4 }, "items": [{ "itemId": "castle_sword", "quantity": 1 }] },
+      { "roomId": "secret", "chestId": "secret_vault", "position": { "x": 0, "y": 0, "z": 0 }, "items": [{ "itemId": "knight_relic", "quantity": 1 }, { "itemId": "health_potion", "quantity": 3 }] }
+    ],
+    "puzzles": [],
+    "traps": [
+      { "roomId": "stairs", "trapId": "spike_trap", "position": { "x": 0, "y": 0, "z": 4 } },
+      { "roomId": "hall", "trapId": "falling_trap", "position": { "x": -2, "y": 3, "z": -5 } }
+    ],
+    "secrets": [{ "roomId": "secret" }],
+    "boss": { "roomId": "boss", "enemyId": "castle_knight" },
+    "exit": "boss",
+    "entrance": "entrance"
+  },
+  "budgets": {
+    "enemyThreat": 120,
+    "lootValue": 80
+  }
+}

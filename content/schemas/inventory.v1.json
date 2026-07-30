@@ -1,0 +1,35 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://aumbrye.dev/schemas/inventory.v1.json",
+  "title": "InventorySave",
+  "description": "M2 persisted inventory layout (grid slots + equipment).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "gridWidth", "gridHeight", "slots", "equipped"],
+  "properties": {
+    "schemaVersion": { "type": "integer", "const": 1 },
+    "gridWidth": { "type": "integer", "minimum": 1 },
+    "gridHeight": { "type": "integer", "minimum": 1 },
+    "slots": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["itemId", "quantity", "x", "y"],
+        "properties": {
+          "itemId": { "type": "string", "minLength": 1 },
+          "quantity": { "type": "integer", "minimum": 1 },
+          "x": { "type": "integer", "minimum": 0 },
+          "y": { "type": "integer", "minimum": 0 }
+        }
+      }
+    },
+    "equipped": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "weapon": { "type": ["string", "null"] }
+      }
+    }
+  }
+}

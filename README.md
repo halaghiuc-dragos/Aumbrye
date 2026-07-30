@@ -55,11 +55,15 @@ Set `VITE_API_URL` in `.env.development` (see `.env.example` in `apps/web/`).
 
 ### 4. Godot client
 
-Open `apps/game/client/project.godot` in Godot 4.7. The main scene is the combat arena (`scenes/debug/combat_arena.tscn`).
+Open `apps/game/client/project.godot` in Godot 4.7. Press **F5** — main scene is **`scenes/hub/hub_stub.tscn`** (M2 vertical slice).
 
-**Combat arena controls:** see **[docs/design/M1_CONTROLS.md](docs/design/M1_CONTROLS.md)** (locked bindings — WASD, Shift sprint, Space roll, F jump, tap Q guard, middle-mouse lock, F1/F2/F3 debug).
+**Full loop:** Hub → Castle Portal (**E**) → dungeon → boss → exit → results → hub.
 
-Implementation status: [docs/design/M1_IMPLEMENTATION_LOG.md](docs/design/M1_IMPLEMENTATION_LOG.md).
+**M1 combat controls (locked):** [docs/design/M1_CONTROLS.md](docs/design/M1_CONTROLS.md)  
+**M2 interact/inventory:** [docs/design/M2_CONTROLS.md](docs/design/M2_CONTROLS.md)  
+M2 status: [docs/design/M2_IMPLEMENTATION_LOG.md](docs/design/M2_IMPLEMENTATION_LOG.md)
+
+Implementation: [docs/design/M2_IMPLEMENTATION_LOG.md](docs/design/M2_IMPLEMENTATION_LOG.md) · M1: [docs/design/M1_IMPLEMENTATION_LOG.md](docs/design/M1_IMPLEMENTATION_LOG.md)
 
 ### 5. Content validation
 
