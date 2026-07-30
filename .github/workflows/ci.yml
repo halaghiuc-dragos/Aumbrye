@@ -14,14 +14,16 @@ jobs:
       run:
         working-directory: services/backend
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-dotnet@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-dotnet@v5
         with:
           dotnet-version: "8.0.x"
       - name: Restore
         run: dotnet restore Aumbrye.sln
       - name: Build
         run: dotnet build Aumbrye.sln --no-restore --configuration Release
+      - name: Build procgen-cli
+        run: dotnet build ../../tools/procgen-cli/ProcgenCli.csproj --configuration Release
       - name: Test
         run: dotnet test Aumbrye.sln --no-build --configuration Release --verbosity normal
 
@@ -32,10 +34,10 @@ jobs:
       run:
         working-directory: apps/web
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
-          node-version: "20"
+          node-version: "24"
           cache: npm
           cache-dependency-path: apps/web/package-lock.json
       - name: Install
@@ -50,10 +52,10 @@ jobs:
       run:
         working-directory: scripts/validate-content
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
-          node-version: "20"
+          node-version: "24"
           cache: npm
           cache-dependency-path: scripts/validate-content/package-lock.json
       - name: Install

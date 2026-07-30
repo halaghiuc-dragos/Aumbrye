@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Runtime.InteropServices;
 using Xunit;
 
 namespace Aumbrye.UnitTests;
@@ -36,24 +37,38 @@ public class ProcgenCliTests
     [Fact]
     public void PublishedOrDebugBinary_ExistsAfterBuild()
     {
+        var binary = FindProcgenCliBinary();
+        Assert.NotNull(binary);
+    }
+
+    private static string ProcgenCliBinaryFileName =>
+        RuntimeInformation.IsOSPlatform(OSPlatform.Windows) ? "procgen-cli.exe" : "procgen-cli";
+
+    private static string? FindProcgenCliBinary()
+    {
         var repoRoot = FindRepoRoot();
-        var published = Path.Combine(repoRoot, "tools", "procgen-cli", "publish", "procgen-cli.exe");
-        var debug = Path.Combine(repoRoot, "tools", "procgen-cli", "bin", "Debug", "net8.0", "procgen-cli.exe");
-        Assert.True(File.Exists(published) || File.Exists(debug),
-            "Build procgen-cli: dotnet build tools/procgen-cli/ProcgenCli.csproj");
+        var cliDir = Path.Combine(repoRoot, "tools", "procgen-cli");
+        var name = ProcgenCliBinaryFileName;
+
+        string[] candidates =
+        [
+            Path.Combine(cliDir, "publish", name),
+            Path.Combine(cliDir, "bin", "Release", "net8.0", name),
+            Path.Combine(cliDir, "bin", "Debug", "net8.0", name),
+        ];
+
+        return candidates.FirstOrDefault(File.Exists);
     }
 
     private static (int ExitCode, string Stdout, string Stderr) RunCli(string csproj, string args)
     {
-        var repoRoot = FindRepoRoot();
-        var debugExe = Path.Combine(repoRoot, "tools", "procgen-cli", "bin", "Debug", "net8.0", "procgen-cli.exe");
-
         ProcessStartInfo startInfo;
-        if (File.Exists(debugExe))
+        var binary = FindProcgenCliBinary();
+        if (binary != null)
         {
             startInfo = new ProcessStartInfo
             {
-                FileName = debugExe,
+                FileName = binary,
                 Arguments = args,
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
