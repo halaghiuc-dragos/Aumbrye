@@ -35,6 +35,7 @@
     },
     "maxDurability": { "type": "number", "minimum": 0 },
     "runRelicId": { "type": "string" },
-    "runOnly": { "type": "boolean" }
+    "runOnly": { "type": "boolean" },
+    "theme": { "type": "string" }
   }
 }

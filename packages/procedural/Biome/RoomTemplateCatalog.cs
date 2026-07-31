@@ -58,6 +58,28 @@ public static class RoomTemplateCatalog
         ["swamp_arena"] = new(24, 24, Doors.South | Doors.West),
         ["swamp_boss"] = new(28, 28, Doors.North),
         ["swamp_puzzle"] = new(14, 14, Doors.North | Doors.South),
+
+        // Frozen Fortress (M6)
+        ["frozen_entrance"] = new(16, 12, Doors.South),
+        ["frozen_stairs"] = new(8, 16, Doors.North | Doors.South),
+        ["frozen_courtyard"] = new(20, 20, Doors.North | Doors.South | Doors.East | Doors.West),
+        ["frozen_hall"] = new(16, 16, Doors.East | Doors.South | Doors.West),
+        ["frozen_treasure"] = new(10, 10, Doors.North),
+        ["frozen_secret"] = new(8, 8, Doors.East),
+        ["frozen_arena"] = new(24, 24, Doors.South | Doors.West),
+        ["frozen_boss"] = new(28, 28, Doors.North),
+        ["frozen_puzzle"] = new(14, 14, Doors.North | Doors.South),
+
+        // Dark Cathedral (M6)
+        ["cathedral_entrance"] = new(16, 12, Doors.South),
+        ["cathedral_stairs"] = new(8, 16, Doors.North | Doors.South),
+        ["cathedral_courtyard"] = new(20, 20, Doors.North | Doors.South | Doors.East | Doors.West),
+        ["cathedral_hall"] = new(16, 16, Doors.East | Doors.South | Doors.West),
+        ["cathedral_treasure"] = new(10, 10, Doors.North),
+        ["cathedral_secret"] = new(8, 8, Doors.East),
+        ["cathedral_arena"] = new(24, 24, Doors.South | Doors.West),
+        ["cathedral_boss"] = new(28, 28, Doors.North),
+        ["cathedral_puzzle"] = new(14, 14, Doors.North | Doors.South),
     };
 
     public static RoomSpec GetRequired(string templateId) =>
@@ -95,6 +117,13 @@ public static class RoomTemplateCatalog
             foreach (var templateId in biomeTemplates)
             {
                 if (SupportsDoors(templateId, requiredDoors))
+                    return templateId;
+            }
+
+            var prefix = biomeTemplates[0].Split('_')[0];
+            foreach (var templateId in new[] { $"{prefix}_courtyard", $"{prefix}_hall", $"{prefix}_arena" })
+            {
+                if (Specs.ContainsKey(templateId) && SupportsDoors(templateId, requiredDoors))
                     return templateId;
             }
         }

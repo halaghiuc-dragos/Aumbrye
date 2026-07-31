@@ -1,0 +1,9 @@
+{
+    "description":  "A crimson stone that feeds on spilled blood.",
+    "name":  "Relic Bloodstone",
+    "id":  "relic_bloodstone",
+    "stats":  {
+                  "lifesteal":  0.03
+              },
+    "maxStacks":  1
+}

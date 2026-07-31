@@ -1,0 +1,9 @@
+{
+    "description":  "Chills enemies on hit.",
+    "name":  "Relic Frost Shard",
+    "id":  "relic_frost_shard",
+    "stats":  {
+                  "frostDamage":  4
+              },
+    "maxStacks":  1
+}

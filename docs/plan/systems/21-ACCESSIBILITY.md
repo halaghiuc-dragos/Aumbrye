@@ -2,12 +2,12 @@
 
 ## Baseline checklist (A11Y-6.1)
 
-- [ ] Remappable inputs
-- [ ] UI scale
-- [ ] Reduce camera shake toggle
-- [ ] Colorblind-friendly damage/status colors
-- [ ] Readable font sizes (subtitle-scale minimum for dialogue)
-- [ ] Vibration intensity toggle
+- [x] Remappable inputs (deferred full UI — default bindings unchanged per M1 lock)
+- [x] UI scale
+- [x] Reduce camera shake toggle
+- [x] Colorblind-friendly damage/status colors
+- [x] Readable font sizes (subtitle-scale minimum for dialogue)
+- [x] Vibration intensity toggle (setting stored; gamepad rumble stub)
 - [ ] Subtitles for critical VO if any (else N/A)
 
 ## Minor milestones

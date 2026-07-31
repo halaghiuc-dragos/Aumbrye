@@ -4,7 +4,6 @@ extends Control
 
 signal closed
 
-@onready var _panel: PanelContainer = $Panel
 @onready var _speaker_label: Label = $Panel/Margin/VBox/SpeakerLabel
 @onready var _text_label: Label = $Panel/Margin/VBox/TextLabel
 @onready var _choices_box: VBoxContainer = $Panel/Margin/VBox/ChoicesBox

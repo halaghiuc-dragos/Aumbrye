@@ -1,0 +1,11 @@
+{
+  "id": "frost_crystal",
+  "name": "Frost Crystal",
+  "itemType": "material",
+  "gridWidth": 1,
+  "gridHeight": 1,
+  "stackSize": 99,
+  "rarity": "common",
+  "description": "A shard of eternal ice.",
+  "value": 5
+}

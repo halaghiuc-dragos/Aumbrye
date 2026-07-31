@@ -1,0 +1,15 @@
+{
+    "id":  "sage_staff",
+    "name":  "Sage Staff",
+    "itemType":  "weapon",
+    "gridWidth":  2,
+    "gridHeight":  2,
+    "stackSize":  1,
+    "rarity":  "rare",
+    "description":  "M6 content item.",
+    "value":  20,
+    "stats":  {
+                  "arcaneDamage":  18
+              },
+    "equipmentSlot":  "weapon"
+}

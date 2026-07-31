@@ -38,6 +38,7 @@
 | [content/](content/) | Theme, enemy, boss, item rosters + post-EA |
 | [checklists/01-MASTER-MILESTONE-INDEX.md](checklists/01-MASTER-MILESTONE-INDEX.md) | Flat ID index |
 | [checklists/02-AGENT-OPERATING-LOOP.md](checklists/02-AGENT-OPERATING-LOOP.md) | Resume protocol |
+| [M-PHASES-STATUS.md](M-PHASES-STATUS.md) | One-page M0–M7 status snapshot |
 | [../design/MANUAL_PLAYTEST_CHECKLIST.md](../design/MANUAL_PLAYTEST_CHECKLIST.md) | Human playtest gates (all phases) |
 | [../design/VALIDATION_PLATFORM.md](../design/VALIDATION_PLATFORM.md) | Automated validation (`./scripts/run-all-validation.ps1`) |
 | [design/VALIDATION_PLATFORM.md](../design/VALIDATION_PLATFORM.md) | Automated validation (C# + Godot suites) |
@@ -166,8 +167,8 @@ Remaining blueprint themes are **post-EA** only. See [content/01-THEMES.md](cont
 
 A major phase is complete only when:
 
-1. All minor milestones in its `phases/MX-*.md` file are `done`.
-2. Phase exit criteria in that file are checked.
+1. All minor milestones for the phase are `done` (see phase implementation log under `docs/design/` for closed phases M1–M6).
+2. Phase exit criteria verified (recorded in implementation log).
 3. No open P0 bugs tagged to that phase.
 
 Do not start `M(n+1)` feature work until `Mn` exit criteria pass. Exception: pure docs or CI fixes.
@@ -187,6 +188,6 @@ Do not start `M(n+1)` feature work until `Mn` exit criteria pass. Exception: pur
 
 ## First action after plan approval
 
-**M6 content pack B** is next — [M6-CONTENT-PACK-B.md](phases/M6-CONTENT-PACK-B.md). **M5** closed (2026-07-30) — manual gates in [MANUAL_PLAYTEST_CHECKLIST.md](../design/MANUAL_PLAYTEST_CHECKLIST.md) § M5; automated via `m5_suite` (222 tests).
+**M7 EA polish** is next — [M7-EA-POLISH.md](phases/M7-EA-POLISH.md). **M6** closed (2026-07-31) — automated via `m6_suite` (57 tests; 283 total Godot); manual gates in [MANUAL_PLAYTEST_CHECKLIST.md](../design/MANUAL_PLAYTEST_CHECKLIST.md) § M6; log in [M6_IMPLEMENTATION_LOG.md](../design/M6_IMPLEMENTATION_LOG.md). Phase snapshot: [M-PHASES-STATUS.md](M-PHASES-STATUS.md).
 
 **Validation before manual playtest:** `./scripts/run-all-validation.ps1` — see [VALIDATION_PLATFORM.md](../design/VALIDATION_PLATFORM.md). **Human gates (all phases):** [MANUAL_PLAYTEST_CHECKLIST.md](../design/MANUAL_PLAYTEST_CHECKLIST.md).

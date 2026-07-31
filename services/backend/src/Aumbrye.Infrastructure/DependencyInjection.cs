@@ -30,6 +30,7 @@ public static class DependencyInjection
                 options.UseSqlite(sp.GetRequiredService<SqliteConnection>()));
             services.AddScoped<DbContext>(sp => sp.GetRequiredService<AumbryeDbContext>());
             services.AddSingleton<IDungeonCache, InMemoryDungeonCache>();
+            services.AddSingleton<ILeaderboardService, InMemoryLeaderboardService>();
         }
         else
         {
@@ -42,10 +43,12 @@ public static class DependencyInjection
                 services.AddSingleton<IConnectionMultiplexer>(_ =>
                     ConnectionMultiplexer.Connect(redisConn));
                 services.AddSingleton<IDungeonCache, RedisDungeonCache>();
+                services.AddSingleton<ILeaderboardService, RedisLeaderboardService>();
             }
             else
             {
                 services.AddSingleton<IDungeonCache, InMemoryDungeonCache>();
+                services.AddSingleton<ILeaderboardService, InMemoryLeaderboardService>();
             }
         }
 

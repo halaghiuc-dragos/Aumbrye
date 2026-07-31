@@ -1,0 +1,21 @@
+{
+    "id":  "swamp_brute",
+    "name":  "Swamp Brute",
+    "scene":  "res://scenes/enemies/swamp_brute.tscn",
+    "threat_cost":  35,
+    "health":  130,
+    "poise":  65,
+    "move_speed":  2.8,
+    "attack_damage":  22,
+    "attack_poise_damage":  19,
+    "windup_duration":  0.65,
+    "active_duration":  0.15,
+    "recovery_duration":  0.85,
+    "attack_range":  2.4,
+    "attack_cooldown":  1.4,
+    "stagger_duration":  1,
+    "aggro_range":  10,
+    "deaggro_range":  16,
+    "patrol_radius":  4,
+    "enemy_type":  "melee"
+}

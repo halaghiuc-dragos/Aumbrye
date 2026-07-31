@@ -2,7 +2,6 @@ extends Control
 
 ## Hub castle portal menu — new run, continue, or seed (FLOW-3.1).
 
-signal new_run_requested
 signal continue_requested
 signal seed_run_requested(seed: int)
 signal biome_run_requested(biome_id: String)

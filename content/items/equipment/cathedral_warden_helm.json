@@ -1,0 +1,17 @@
+{
+    "id":  "cathedral_warden_helm",
+    "name":  "Cathedral Warden Helm",
+    "itemType":  "armor",
+    "gridWidth":  2,
+    "gridHeight":  2,
+    "stackSize":  1,
+    "rarity":  "rare",
+    "description":  "M6 content item.",
+    "value":  20,
+    "stats":  {
+                  "maxHealth":  12,
+                  "defense":  7
+              },
+    "equipmentSlot":  "helmet",
+    "theme":  "dark_cathedral"
+}

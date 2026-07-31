@@ -220,6 +220,7 @@ func complete_run_via_portal() -> void:
 	run_ended.emit(last_run_results)
 	get_tree().root.set_meta("run_results", last_run_results)
 	_clear_run_meta()
+	_handle_escape_meta(elapsed, boss)
 	_cloud_finalize_run(run_id, "escaped", elapsed, boss, loot_instance_ids)
 	_goto_scene(RESULTS_SCENE)
 
@@ -322,6 +323,21 @@ func _cloud_finalize_run(
 	var push := await LocalSave.push_to_cloud()
 	if not push.get("ok", false) and not push.get("conflict", false):
 		push_warning("RunFlow: cloud push failed — %s" % push.get("error", "unknown"))
+
+
+func _handle_escape_meta(elapsed: float, boss_defeated: bool) -> void:
+	if not boss_defeated:
+		return
+	if AchievementService:
+		AchievementService.unlock("boss_slayer")
+		AchievementService.unlock_for_biome_clear(current_biome_id)
+		if elapsed < 900.0:
+			AchievementService.unlock("speed_clear")
+	LeaderboardSettings.load_from_save()
+	if LeaderboardSettings.opt_in:
+		var lb := await ApiClient.submit_leaderboard(current_biome_id, 1, elapsed, true)
+		if lb.get("ok", false) and AchievementService:
+			AchievementService.unlock("leaderboard_submit")
 
 
 func _escape_rules_summary() -> String:

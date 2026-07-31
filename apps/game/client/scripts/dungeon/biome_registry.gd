@@ -6,8 +6,12 @@ class_name BiomeRegistry
 const BIOME_CASTLE := "forgotten_castle"
 const BIOME_CRYSTAL := "crystal_caverns"
 const BIOME_SWAMP := "poison_swamp"
+const BIOME_FROZEN := "frozen_fortress"
+const BIOME_CATHEDRAL := "dark_cathedral"
 
-const ALL_BIOMES: Array[String] = [BIOME_CASTLE, BIOME_CRYSTAL, BIOME_SWAMP]
+const ALL_BIOMES: Array[String] = [
+	BIOME_CASTLE, BIOME_CRYSTAL, BIOME_SWAMP, BIOME_FROZEN, BIOME_CATHEDRAL,
+]
 
 static func get_display_name(biome_id: String) -> String:
 	match biome_id:
@@ -15,6 +19,10 @@ static func get_display_name(biome_id: String) -> String:
 			return "Crystal Caverns"
 		BIOME_SWAMP:
 			return "Poison Swamp"
+		BIOME_FROZEN:
+			return "Frozen Fortress"
+		BIOME_CATHEDRAL:
+			return "Dark Cathedral"
 		_:
 			return "Forgotten Castle"
 
@@ -25,6 +33,10 @@ static func get_room_scenes(biome_id: String) -> Dictionary:
 			return _crystal_rooms()
 		BIOME_SWAMP:
 			return _swamp_rooms()
+		BIOME_FROZEN:
+			return _frozen_rooms()
+		BIOME_CATHEDRAL:
+			return _cathedral_rooms()
 		_:
 			return _castle_rooms()
 
@@ -55,6 +67,22 @@ static func get_lighting_profile(biome_id: String) -> Dictionary:
 				"fog_color": Color(0.1, 0.15, 0.08),
 				"fog_density": 0.035,
 			}
+		BIOME_FROZEN:
+			return {
+				"ambient_color": Color(0.5, 0.6, 0.75),
+				"ambient_energy": 0.6,
+				"fog_enabled": true,
+				"fog_color": Color(0.7, 0.8, 0.9),
+				"fog_density": 0.025,
+			}
+		BIOME_CATHEDRAL:
+			return {
+				"ambient_color": Color(0.2, 0.15, 0.28),
+				"ambient_energy": 0.35,
+				"fog_enabled": true,
+				"fog_color": Color(0.08, 0.05, 0.12),
+				"fog_density": 0.02,
+			}
 		_:
 			return {
 				"ambient_color": Color(0.45, 0.4, 0.5),
@@ -82,6 +110,10 @@ static func _material_path(biome_id: String, file_name: String) -> String:
 			return "res://assets/crystal/%s" % file_name
 		BIOME_SWAMP:
 			return "res://assets/swamp/%s" % file_name
+		BIOME_FROZEN:
+			return "res://assets/frozen/%s" % file_name
+		BIOME_CATHEDRAL:
+			return "res://assets/cathedral/%s" % file_name
 		_:
 			return "res://assets/castle/%s" % file_name
 
@@ -124,4 +156,32 @@ static func _swamp_rooms() -> Dictionary:
 		"swamp_arena": preload("res://scenes/rooms/swamp/swamp_arena.tscn"),
 		"swamp_boss": preload("res://scenes/rooms/swamp/swamp_boss.tscn"),
 		"swamp_puzzle": preload("res://scenes/rooms/swamp/swamp_puzzle.tscn"),
+	}
+
+
+static func _frozen_rooms() -> Dictionary:
+	return {
+		"frozen_entrance": preload("res://scenes/rooms/frozen/frozen_entrance.tscn"),
+		"frozen_stairs": preload("res://scenes/rooms/frozen/frozen_stairs.tscn"),
+		"frozen_courtyard": preload("res://scenes/rooms/frozen/frozen_courtyard.tscn"),
+		"frozen_hall": preload("res://scenes/rooms/frozen/frozen_hall.tscn"),
+		"frozen_treasure": preload("res://scenes/rooms/frozen/frozen_treasure.tscn"),
+		"frozen_secret": preload("res://scenes/rooms/frozen/frozen_secret.tscn"),
+		"frozen_arena": preload("res://scenes/rooms/frozen/frozen_arena.tscn"),
+		"frozen_boss": preload("res://scenes/rooms/frozen/frozen_boss.tscn"),
+		"frozen_puzzle": preload("res://scenes/rooms/frozen/frozen_puzzle.tscn"),
+	}
+
+
+static func _cathedral_rooms() -> Dictionary:
+	return {
+		"cathedral_entrance": preload("res://scenes/rooms/cathedral/cathedral_entrance.tscn"),
+		"cathedral_stairs": preload("res://scenes/rooms/cathedral/cathedral_stairs.tscn"),
+		"cathedral_courtyard": preload("res://scenes/rooms/cathedral/cathedral_courtyard.tscn"),
+		"cathedral_hall": preload("res://scenes/rooms/cathedral/cathedral_hall.tscn"),
+		"cathedral_treasure": preload("res://scenes/rooms/cathedral/cathedral_treasure.tscn"),
+		"cathedral_secret": preload("res://scenes/rooms/cathedral/cathedral_secret.tscn"),
+		"cathedral_arena": preload("res://scenes/rooms/cathedral/cathedral_arena.tscn"),
+		"cathedral_boss": preload("res://scenes/rooms/cathedral/cathedral_boss.tscn"),
+		"cathedral_puzzle": preload("res://scenes/rooms/cathedral/cathedral_puzzle.tscn"),
 	}

@@ -1,0 +1,16 @@
+{
+    "id":  "mythic_aegis",
+    "name":  "Mythic Aegis",
+    "itemType":  "armor",
+    "gridWidth":  2,
+    "gridHeight":  2,
+    "stackSize":  1,
+    "rarity":  "mythic",
+    "description":  "M6 content item.",
+    "value":  20,
+    "stats":  {
+                  "maxHealth":  60,
+                  "defense":  20
+              },
+    "equipmentSlot":  "chest"
+}

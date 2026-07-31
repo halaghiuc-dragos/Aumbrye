@@ -1,0 +1,36 @@
+{
+  "id": "dark_cathedral",
+  "name": "Dark Cathedral",
+  "roomCount": {
+    "min": 6,
+    "max": 10
+  },
+  "gridStep": 14,
+  "roomTemplateIds": [
+    "cathedral_entrance",
+    "cathedral_stairs",
+    "cathedral_courtyard",
+    "cathedral_hall",
+    "cathedral_treasure",
+    "cathedral_secret",
+    "cathedral_arena",
+    "cathedral_boss",
+    "cathedral_puzzle"
+  ],
+  "enemyPool": [
+    { "enemyId": "cathedral_acolyte", "weight": 3 },
+    { "enemyId": "cathedral_warden", "weight": 2 },
+    { "enemyId": "cathedral_shade", "weight": 2 },
+    { "enemyId": "miniboss_cathedral_bell", "weight": 1 }
+  ],
+  "bossPool": [
+    { "enemyId": "boss_cathedral_hollow" }
+  ],
+  "budgets": {
+    "baseEnemyThreat": 100,
+    "baseLootValue": 60,
+    "threatPerTier": 20,
+    "lootPerTier": 10
+  },
+  "requiresSecret": true
+}

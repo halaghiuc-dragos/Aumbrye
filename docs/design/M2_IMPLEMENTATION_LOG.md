@@ -57,7 +57,7 @@ All M2 milestones implemented. KB/M vertical slice playtest signed off 2026-07-3
 
 | Scene | Path | Notes |
 |-------|------|-------|
-| **Hub (main scene)** | `scenes/hub/hub_stub.tscn` | M2 entry — portal to castle |
+| **Hub (main scene)** | `scenes/hub/hub.tscn` | M2 slice entry; superseded by full `hub.tscn` in M4 |
 | Castle run | `scenes/dungeon/castle_run.tscn` | Builder-driven from fixture |
 | Combat arena | `scenes/debug/combat_arena.tscn` | M1 tuning via hub door |
 | Hand layout (reference) | `scenes/dungeon/forgotten_castle_slice.tscn` | Iteration reference only |

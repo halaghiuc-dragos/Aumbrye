@@ -143,6 +143,16 @@ func clear_active_run() -> void:
 	autosave()
 
 
+func get_meta_data() -> Dictionary:
+	var meta: Variant = _cached_state.get("meta", {})
+	return meta if meta is Dictionary else {}
+
+
+func set_meta_data(meta: Dictionary) -> void:
+	_cached_state["meta"] = meta.duplicate(true)
+	autosave()
+
+
 func autosave() -> void:
 	_write_save(_build_save_payload())
 
@@ -268,6 +278,8 @@ func _build_save_payload() -> Dictionary:
 		data["quests"] = CharacterService.quests.duplicate()
 	if _cached_state.has("activeRun"):
 		data["activeRun"] = _cached_state["activeRun"]
+	if _cached_state.has("meta"):
+		data["meta"] = _cached_state["meta"]
 	if _cloud_updated_at != "":
 		data["cloudUpdatedAt"] = _cloud_updated_at
 	return data

@@ -1,0 +1,9 @@
+{
+    "description":  "Holy light mends wounds slowly.",
+    "name":  "Relic Sun Medallion",
+    "id":  "relic_sun_medallion",
+    "stats":  {
+                  "healthRegen":  1
+              },
+    "maxStacks":  1
+}

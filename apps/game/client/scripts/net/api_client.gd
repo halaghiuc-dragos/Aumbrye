@@ -10,6 +10,7 @@ const RUNS_CREATE := "/api/v1/runs"
 const RUNS_DUNGEON := "/api/v1/runs/%s/dungeon"
 const RUNS_COMPLETE := "/api/v1/runs/%s/complete"
 const SAVES_CURRENT := "/api/v1/saves/current"
+const LEADERBOARDS_SUBMIT := "/api/v1/leaderboards/submit"
 
 
 static func register(email: String, password: String) -> Dictionary:
@@ -135,6 +136,24 @@ static func put_save(state_json: String, client_updated_at: Variant = null) -> D
 	if result.get("ok", false):
 		var body: Dictionary = result.get("body", {})
 		return {"ok": true, "updatedAt": body.get("updatedAt", "")}
+	return result
+
+
+static func submit_leaderboard(biome_id: String, tier: int, elapsed: float, opt_in: bool) -> Dictionary:
+	if not opt_in:
+		return {"ok": true, "submitted": false, "reason": "opt_out"}
+	if not await ensure_dev_session():
+		return {"ok": false, "error": "auth failed"}
+	var payload := {
+		"biomeId": biome_id,
+		"tier": tier,
+		"elapsedSeconds": elapsed,
+		"optIn": true,
+	}
+	var result := await _post_json_with_retry(LEADERBOARDS_SUBMIT, payload)
+	if not result.get("ok", false) and result.get("code", 0) == 401:
+		if await refresh_session():
+			result = await _post_json_with_retry(LEADERBOARDS_SUBMIT, payload)
 	return result
 
 

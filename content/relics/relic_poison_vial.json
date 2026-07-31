@@ -1,0 +1,9 @@
+{
+    "description":  "Toxic residue coats your strikes.",
+    "name":  "Relic Poison Vial",
+    "id":  "relic_poison_vial",
+    "stats":  {
+                  "poisonDamage":  4
+              },
+    "maxStacks":  1
+}

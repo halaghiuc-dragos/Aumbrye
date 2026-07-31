@@ -117,22 +117,28 @@ Closed 2026-07-30 — automated `m5_suite` (70 tests). Manual gate: [MANUAL_PLAY
 | BAL-5.1 | Balance pass | done |
 | M5.manual | Feel playtest (biomes, weapons, bosses, audio) | manual |
 
-## M6 Content B
+## M6 Content B ✅ (automated 2026-07-31; scene BOM fix + m6_suite extended same day)
 
-| ID | Title |
-|----|-------|
-| THEME-6.1–6.2 | Fortress, Cathedral |
-| ENEMY-6.1 | Roster ≤20 |
-| BOSS-6.1 | Bosses ≤8 |
-| ITEM-6.1 | Items ≤80 |
-| META-6.1–6.2 | Achievements, boards |
-| WEB-6.1–6.4 | Website |
-| A11Y-6.1 | Accessibility |
-| AUTH-6.1 | OAuth optional |
-| BAL-6.1 | Tools + balance |
-| PERF-6.1 | Perf pass |
+| ID | Title | Status |
+|----|-------|--------|
+| THEME-6.1–6.2 | Fortress, Cathedral | done |
+| ENEMY-6.1 | Roster ≤20 | done |
+| BOSS-6.1 | Bosses ≤8 | done |
+| ITEM-6.1 | Items ≤80 | done |
+| META-6.1–6.2 | Achievements, boards | done |
+| WEB-6.1–6.4 | Website | done |
+| A11Y-6.1 | Accessibility | done |
+| AUTH-6.1 | OAuth optional | deferred |
+| BAL-6.1 | Tools + balance | done |
+| PERF-6.1 | Perf pass | done |
+| M6.automated | `m6_suite` (57 tests): biomes, procgen, dungeon build, scenes, rooms | done |
+| M6.manual | Feel playtest (5 biomes, achievements, web) | manual |
+
+Log: [M6_IMPLEMENTATION_LOG.md](../design/M6_IMPLEMENTATION_LOG.md)
 
 ## M7 EA ship
+
+**Status:** not started — next phase after M6 close.
 
 | ID | Title |
 |----|-------|

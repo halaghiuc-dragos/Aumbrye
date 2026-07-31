@@ -64,6 +64,54 @@
         "legendary": { "min": 0.08, "max": 0.1 },
         "mythic": { "min": 0.1, "max": 0.12 }
       }
+    },
+    {
+      "id": "vicious",
+      "displayName": "Vicious",
+      "kind": "prefix",
+      "stat": "physicalDamage",
+      "itemTypes": ["weapon"],
+      "weight": 65,
+      "tiers": {
+        "common": { "min": 3, "max": 5 },
+        "magic": { "min": 6, "max": 9 },
+        "rare": { "min": 10, "max": 14 },
+        "epic": { "min": 15, "max": 20 },
+        "legendary": { "min": 21, "max": 28 },
+        "mythic": { "min": 30, "max": 40 }
+      }
+    },
+    {
+      "id": "arcane",
+      "displayName": "Arcane",
+      "kind": "prefix",
+      "stat": "arcaneDamage",
+      "itemTypes": ["weapon"],
+      "weight": 60,
+      "tiers": {
+        "common": { "min": 2, "max": 4 },
+        "magic": { "min": 5, "max": 8 },
+        "rare": { "min": 9, "max": 14 },
+        "epic": { "min": 15, "max": 20 },
+        "legendary": { "min": 21, "max": 28 },
+        "mythic": { "min": 30, "max": 40 }
+      }
+    },
+    {
+      "id": "fortified",
+      "displayName": "Fortified",
+      "kind": "prefix",
+      "stat": "defense",
+      "itemTypes": ["armor"],
+      "weight": 55,
+      "tiers": {
+        "common": { "min": 2, "max": 4 },
+        "magic": { "min": 5, "max": 8 },
+        "rare": { "min": 9, "max": 12 },
+        "epic": { "min": 13, "max": 18 },
+        "legendary": { "min": 19, "max": 25 },
+        "mythic": { "min": 28, "max": 36 }
+      }
     }
   ]
 }

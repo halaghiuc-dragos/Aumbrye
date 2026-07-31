@@ -38,6 +38,10 @@ Manual items below cover **feel, UX, and integration paths** that automation can
 | Epic+ affix counts | Yes | `m5.loot.epic_affix_counts`, C# `AffixRollerTests` |
 | Hub M4 services | Yes | `hub_m4.*` suite |
 | M4 progression / inventory | Yes | `progression.*`, `inventory.*` |
+| M6 biomes (frozen, cathedral) | Yes | `m6.biome.*`, `m6.procgen.*`, `m6.dungeon.*` |
+| M6 enemy/boss scenes | Yes | `m6.scene.*`, `m6.boss.m6_theme_scenes` |
+| M6 room preloads | Yes | `m6.rooms.*_load` |
+| M6 achievements + a11y | Yes | `m6.achievements.*`, `m6.a11y.*` |
 
 ---
 
@@ -163,9 +167,221 @@ Automated validation covers biomes, procgen, combat depth, weapons, bosses, loot
 
 ## M6 — Content pack B
 
+Close record: [M6_IMPLEMENTATION_LOG.md](M6_IMPLEMENTATION_LOG.md). Printable mirror: [M6_MANUAL_PLAYTEST_CHECKLIST.md](M6_MANUAL_PLAYTEST_CHECKLIST.md) (content canonical here).
+
+**Automated:** ✅ `m6_suite` (57 tests) + full validation (283 Godot, 79 backend — 2026-07-31). **Scene fix:** UTF-8 BOM stripped from 54 M6 `.tscn`/`.gd` files.
+
+**Scope:** Frozen Fortress + Dark Cathedral themes; EA roster complete (5 themes, 20 enemies, 8 bosses, 79 items); achievements + leaderboards; website pages; accessibility baseline; enemy pooling.
+
+### Prerequisites
+
+| ID | Item | Status | Notes |
+|----|------|--------|-------|
+| M6.automated | Biomes, procgen, dungeon build, enemy/boss scenes, room preloads, achievements, a11y | [x] | `./scripts/run-all-validation.ps1` — 0 failures |
+| M6.prereq.backend | Backend API running for account + leaderboards tests | [ ] | `dotnet run --project services/backend/src/Aumbrye.Api` |
+| M6.prereq.web | Web dev server running for website tests | [ ] | `npm run dev` in `apps/web/`; set `VITE_API_URL` |
+| M6.prereq.godot | Godot client opens hub without parse errors | [ ] | Main scene `scenes/hub/hub.tscn`; F5 from editor |
+
+### Summary gates (roll-up)
+
+| ID | Item | Status | Notes |
+|----|------|--------|-------|
+| M6.theme.frozen | Frozen Fortress — generate + clear | [ ] | See **Frozen Fortress** subsection |
+| M6.theme.cathedral | Dark Cathedral — generate + clear | [ ] | See **Dark Cathedral** subsection |
+| M6.enemy.roster | 20-enemy roster combat sanity | [ ] | See **Enemy roster** subsection |
+| M6.boss.all_eight | All 8 bosses readable + clearable | [ ] | See **Boss spot-check** subsection |
+| M6.meta.achievements | Achievement unlock + toast on escape | [ ] | See **Achievements** subsection |
+| M6.meta.leaderboards | Web leaderboards match API | [ ] | See **Leaderboards** subsection |
+| M6.web.account | Register/login against local API | [ ] | See **Website** subsection |
+| M6.a11y.settings | UI scale + reduce shake in settings | [ ] | See **Accessibility** subsection |
+| M6.perf.smoke | 1080p combat room frame time spot-check | [ ] | See **Performance** subsection |
+
+### Frozen Fortress (THEME-6.1)
+
+Hub → **E** at Frozen Fortress portal → new run (custom seed optional, e.g. `42001`).
+
+| ID | Item | Status | Notes |
+|----|------|--------|-------|
+| M6.theme.frozen_portal | Hub portal starts frozen_fortress run | [ ] | Biome label readable; no hang |
+| M6.theme.frozen_procgen | Rooms connect; no void falls; boss path reachable | [ ] | F1 shows seed; `frozen_*` room templates |
+| M6.theme.frozen_identity | Ice/snow lighting + materials read as Frozen Fortress | [ ] | Distinct from castle/crystal/swamp |
+| M6.theme.frozen_enemies | Frost raider, archer, knight, hound spawn and fight | [ ] | Telegraphs readable; no instant-hit spam |
+| M6.theme.frozen_freeze | Freeze status applies and is readable in combat | [ ] | HUD status row; `freeze_master` achievement path |
+| M6.theme.frozen_traps | Frost hazards damage player fairly | [ ] | Telegraph before damage |
+| M6.theme.frozen_loot | Chests open with **E**; items enter inventory | [ ] | Theme loot table active |
+| M6.theme.frozen_boss | `boss_frost_warlord` — phases telegraphed, winnable | [ ] | Boss door **E** → seal → fight |
+| M6.theme.frozen_escape | Defeat boss → exit portal → results → hub | [ ] | XP/gold update; `frozen_clear` achievement |
+| M6.theme.frozen_continue | Mid-run quit → Continue restores frozen run | [ ] | Same biome, room, inventory |
+
+### Dark Cathedral (THEME-6.2)
+
+Hub → **E** at Dark Cathedral portal → new run.
+
+| ID | Item | Status | Notes |
+|----|------|--------|-------|
+| M6.theme.cathedral_portal | Hub portal starts dark_cathedral run | [ ] | Biome label readable |
+| M6.theme.cathedral_procgen | Rooms connect; puzzle/secret rooms appear | [ ] | `cathedral_*` templates; vertical layouts OK |
+| M6.theme.cathedral_vertical | Stairs/hall height changes navigable | [ ] | No camera clipping through floors |
+| M6.theme.cathedral_lighting | Gothic purple/shadow lighting identity | [ ] | Distinct from frozen and castle |
+| M6.theme.cathedral_enemies | Acolyte, warden, shade spawn and fight | [ ] | Shade teleport harass fair |
+| M6.theme.cathedral_loot | Chests + theme uniques obtainable | [ ] | Shadow/holy item names in loot |
+| M6.theme.cathedral_boss | `boss_cathedral_hollow` — phases telegraphed, winnable | [ ] | No unavoidable instant kill |
+| M6.theme.cathedral_miniboss | `miniboss_cathedral_bell` (optional arena room) | [ ] | Optional if seed places miniboss |
+| M6.theme.cathedral_escape | Escape → results → hub; `cathedral_clear` unlocks | [ ] | Achievement toast on first clear |
+
+### Boss spot-check (all 8 EA bosses)
+
+Complete at least one full clear per boss across any biome run. Minibosses count toward roster but need not block M6 sign-off if optional rooms skipped.
+
+| ID | Boss ID | Theme | Status | Notes |
+|----|---------|-------|--------|-------|
+| M6.boss.castle_knight | `boss_castle_knight` | Forgotten Castle | [ ] | M2 baseline; re-verify after M6 volume |
+| M6.boss.castle_captain | `miniboss_castle_captain` | Forgotten Castle | [ ] | Miniboss |
+| M6.boss.crystal_sovereign | `boss_crystal_sovereign` | Crystal Caverns | [ ] | Phase transitions readable |
+| M6.boss.crystal_guardian | `miniboss_crystal_guardian` | Crystal Caverns | [ ] | Miniboss |
+| M6.boss.swamp_devourer | `boss_swamp_devourer` | Poison Swamp | [ ] | Poison zones fair |
+| M6.boss.frost_warlord | `boss_frost_warlord` | Frozen Fortress | [ ] | M6 new |
+| M6.boss.cathedral_hollow | `boss_cathedral_hollow` | Dark Cathedral | [ ] | M6 new |
+| M6.boss.cathedral_bell | `miniboss_cathedral_bell` | Dark Cathedral | [ ] | M6 new miniboss |
+
+### Enemy roster sanity (20 EA enemies)
+
+Spot-check each enemy in live combat (arena or dungeon). Focus on M5 gap fills + M6 additions if time-limited.
+
+| ID | Enemy ID | Theme | Status | Notes |
+|----|----------|-------|--------|-------|
+| M6.enemy.castle_hound | `castle_hound` | Castle | [ ] | M5 gap fill |
+| M6.enemy.crystal_crawler | `crystal_crawler` | Crystal | [ ] | M5 gap fill |
+| M6.enemy.crystal_spitter | `crystal_spitter` | Crystal | [ ] | M5 gap fill |
+| M6.enemy.crystal_wisp | `crystal_wisp` | Crystal | [ ] | M5 gap fill |
+| M6.enemy.swamp_slasher | `swamp_slasher` | Swamp | [ ] | M5 gap fill |
+| M6.enemy.swamp_spitter | `swamp_spitter` | Swamp | [ ] | M5 gap fill |
+| M6.enemy.swamp_brute | `swamp_brute` | Swamp | [ ] | M5 gap fill |
+| M6.enemy.swamp_swarm | `swamp_swarm` | Swamp | [ ] | M5 gap fill |
+| M6.enemy.frost_raider | `frost_raider` | Frozen | [ ] | M6 |
+| M6.enemy.frost_archer | `frost_archer` | Frozen | [ ] | M6 |
+| M6.enemy.frost_knight | `frost_knight` | Frozen | [ ] | M6 elite |
+| M6.enemy.frost_hound | `frost_hound` | Frozen | [ ] | M6 fast |
+| M6.enemy.cathedral_acolyte | `cathedral_acolyte` | Cathedral | [ ] | M6 caster |
+| M6.enemy.cathedral_warden | `cathedral_warden` | Cathedral | [ ] | M6 melee |
+| M6.enemy.cathedral_shade | `cathedral_shade` | Cathedral | [ ] | M6 teleport |
+
+### Items and loot (ITEM-6.1)
+
+| ID | Item | Status | Notes |
+|----|------|--------|-------|
+| M6.items.catalog_breadth | Multiple rarities drop across a full run | [ ] | Common → rare+ visible in inventory |
+| M6.items.epic_affix | Epic+ items show expanded affix names | [ ] | Affix pool expansion from M6 |
+| M6.items.frost_ice_ring | `frost_ice_ring` obtainable (frozen loot) | [ ] | Theme unique |
+| M6.items.frost_warlord_blade | `frost_warlord_blade` obtainable | [ ] | Theme unique |
+| M6.items.frost_raider_boots | `frost_raider_boots` obtainable | [ ] | Theme unique |
+| M6.items.cathedral_holy_charm | `cathedral_holy_charm` obtainable | [ ] | Theme unique |
+| M6.items.cathedral_shadow_dagger | `cathedral_shadow_dagger` obtainable | [ ] | Theme unique |
+| M6.items.cathedral_warden_helm | `cathedral_warden_helm` obtainable | [ ] | Theme unique |
+| M6.items.equip_apply | Equipped theme uniques change stats in HUD | [ ] | Compare before/after in inventory |
+
+### Achievements (META-6.1)
+
+Requires escape or in-run triggers. Toast UI: `achievement_toast.tscn`.
+
+| ID | Item | Status | Notes |
+|----|------|--------|-------|
+| M6.meta.achievement_toast | Toast appears bottom-right on unlock | [ ] | Readable title + description |
+| M6.meta.achievement_frozen_clear | `frozen_clear` (Frostbreaker) unlocks on frozen escape | [ ] | First frozen full clear |
+| M6.meta.achievement_cathedral_clear | `cathedral_clear` (Hollow Light) unlocks on cathedral escape | [ ] | First cathedral full clear |
+| M6.meta.achievement_all_biomes | `all_biomes` (World Walker) after 5th biome clear | [ ] | Requires all EA biomes |
+| M6.meta.achievement_leaderboard | `leaderboard_submit` (On the Board) on opt-in submit | [ ] | Tied to leaderboard flow |
+| M6.meta.achievement_persist | Unlocked achievements persist after hub return + relaunch | [ ] | Check save / local meta |
+
+### Leaderboards (META-6.2)
+
+Backend + Redis (or in-memory fallback) + client opt-in via settings.
+
+| ID | Item | Status | Notes |
+|----|------|--------|-------|
+| M6.meta.leaderboard_settings | Settings toggle enables/disables opt-in submit | [ ] | `LeaderboardSettings` in settings UI |
+| M6.meta.leaderboard_submit_on | Opt-in **on** → escape submits clear time | [ ] | No error toast; API receives entry |
+| M6.meta.leaderboard_submit_off | Opt-in **off** → escape does not submit | [ ] | Privacy respected |
+| M6.meta.leaderboard_api | `GET /api/v1/leaderboards` returns entries | [ ] | curl or browser |
+| M6.web.leaderboards_page | Web `/leaderboards` matches API ordering | [ ] | Same names/times/scores |
+
+### Website (WEB-6.1–6.4)
+
+| ID | Item | Status | Notes |
+|----|------|--------|-------|
+| M6.web.landing_desktop | Landing page layout at 1920×1080 | [ ] | Brand-first hero; nav links work |
+| M6.web.landing_mobile | Landing readable at ~390px width | [ ] | No horizontal scroll; tap targets OK |
+| M6.web.register | Account register with email/password | [ ] | `/account` or auth flow |
+| M6.web.login | Login returns session; logout works | [ ] | M6.web.account roll-up |
+| M6.web.patch_notes | Patch notes page loads from JSON | [ ] | `apps/web/src/content/patch-notes/` |
+| M6.web.wiki_stubs | Wiki index + stub pages render | [ ] | `apps/web/src/content/wiki/` |
+| M6.web.nav_integration | Hub links or README paths reach web routes | [ ] | No 404 on primary pages |
+
+### Accessibility (A11Y-6.1)
+
+Settings menu (Esc → Settings). Changes should apply without relaunch where noted.
+
+| ID | Item | Status | Notes |
+|----|------|--------|-------|
+| M6.a11y.ui_scale | UI scale slider enlarges HUD/menus | [ ] | 100% vs 125%+ visibly different |
+| M6.a11y.reduce_shake | Reduce camera shake dampens hit/damage shake | [ ] | Compare on vs off in combat |
+| M6.a11y.colorblind_fire | Fire damage color distinct from physical/poison | [ ] | `AccessibilitySettings.get_damage_color()` |
+| M6.a11y.colorblind_ice | Ice/frost damage color distinct | [ ] | Relevant in frozen biome |
+| M6.a11y.subtitle_scale | Subtitle scale adjusts dialogue text size | [ ] | Hub NPC dialogue spot-check |
+| M6.a11y.settings_persist | A11y prefs persist after quit/relaunch | [ ] | Saved via local save |
+
+### Audio (frozen + cathedral)
+
+Generator-tone stubs acceptable for M6; judge crossfade and identity, not final OGG quality.
+
+| ID | Item | Status | Notes |
+|----|------|--------|-------|
+| M6.audio.frozen_ambience | Frozen explore ambience distinct from other biomes | [ ] | Enter frozen run from hub |
+| M6.audio.frozen_boss | Boss music crossfades on frost warlord engage | [ ] | No abrupt cut/pop |
+| M6.audio.cathedral_ambience | Cathedral explore ambience distinct (gothic tone) | [ ] | Enter cathedral run |
+| M6.audio.cathedral_boss | Boss music crossfades on cathedral hollow engage | [ ] | Matches boss room entry |
+
+### Performance (PERF-6.1)
+
+Reference: [performance_m6.md](performance_m6.md). Target: 1080p ≥60 FPS in typical combat rooms on mid-range PC.
+
+| ID | Item | Status | Notes |
+|----|------|--------|-------|
+| M6.perf.combat_room | 1080p combat room holds ~60 FPS with 8+ enemies | [ ] | Use F3/debug overlay if available |
+| M6.perf.enemy_pool | No visible hitch when enemies spawn/despawn rapidly | [ ] | `EnemyPool` recycling |
+| M6.perf.frozen_stutter | No sustained stutter in frozen courtyard/arena | [ ] | M6.perf.smoke roll-up |
+| M6.perf.cathedral_stutter | No sustained stutter in cathedral hall/stairs | [ ] | Vertical rooms stress test |
+
+### Integration with prior phases
+
+| ID | Item | Status | Notes |
+|----|------|--------|-------|
+| M6.integration.hub_five_biomes | Hub portals for all 5 EA biomes selectable | [ ] | Castle, crystal, swamp, frozen, cathedral |
+| M6.integration.hub_services | NPCs, merchant, blacksmith work after M6 runs | [ ] | M4 regression |
+| M6.integration.continue_all_biomes | Continue works mid-run in each biome (spot-check) | [ ] | At least frozen + cathedral + one M5 biome |
+| M6.integration.results_economy | Results screen XP/gold match escape outcome | [ ] | M4 economy rules |
+| M6.integration.offline_default | New run works with API stopped (offline procgen) | [ ] | Aligns with M3.offline |
+
+### M5 carry-over resolved in M6
+
 | ID | Item | Status |
 |----|------|--------|
-| _TBD_ | Frozen Fortress + Dark Cathedral themes; roster expansion | |
+| M5.deferred.item_roster | Full ~80-item catalog | [x] |
+| M5.deferred.affix_pool | Expanded affix tables for epic+ | [x] |
+| M5.deferred.mythic_uniques | Per-item Mythic rules | partial — affix counts only |
+| M5.deferred.final_art | Pixel-diorama art / OGG / status icons | [ ] M7 |
+
+### M6 carry-over → M7 (deferred / optional)
+
+| ID | Item | Target | Status | Notes |
+|----|------|--------|--------|-------|
+| M6.deferred.oauth | Google/Discord OAuth on account page | M7/post-EA | [ ] | Email/password only in M6 |
+| M6.deferred.input_remap | Full input remapping UI | M7 `POLISH-7.1` | [ ] | |
+| M6.deferred.mythic_uniques | Per-item mythic unique behavior | M7 | [ ] | Affix min counts only |
+| M6.deferred.status_icons | Status HUD icon art (not colored squares) | M7 | [ ] | |
+| M6.deferred.ogg_audio | Final OGG tracks for frozen/cathedral | M7 | [ ] | Generator tones OK for M6 |
+| M6.deferred.room_art | Pixel-diorama room meshes | M7 | [ ] | Blockout + materials OK for M6 |
+| M6.deferred.theme_blind | Blind theme identification (all 5 biomes) | M7 | [ ] | Extends M5.theme.blind |
 
 ---
 
@@ -206,6 +422,7 @@ See **M1 carry-over → M7 (gamepad)** above.
 | M3 manual spot-checks | [ ] | Seed, offline, procgen-cli |
 | M4 TEST-4.1 soak (manual) | [ ] | 10-run log in `m4_soak_notes.md` |
 | M5 manual playtest (feel) | [ ] | Biomes, weapons, bosses, audio |
+| M6 manual playtest (feel) | [ ] | § M6 above — 100 checklist IDs (99 open + 1 automated done); mirror: `M6_MANUAL_PLAYTEST_CHECKLIST.md` |
 | M7 feel & UX (pending) | [ ] | Complete M7 section before EA ship |
 
 ---

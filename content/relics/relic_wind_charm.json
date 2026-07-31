@@ -1,0 +1,9 @@
+{
+    "description":  "Gusts hasten your attacks.",
+    "name":  "Relic Wind Charm",
+    "id":  "relic_wind_charm",
+    "stats":  {
+                  "attackSpeed":  0.04
+              },
+    "maxStacks":  1
+}

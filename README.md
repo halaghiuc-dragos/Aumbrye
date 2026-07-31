@@ -55,16 +55,15 @@ Set `VITE_API_URL` in `.env.development` (see `.env.example` in `apps/web/`).
 
 ### 4. Godot client
 
-Open `apps/game/client/project.godot` in Godot 4.7. Press **F5** — main scene is **`scenes/hub/hub_stub.tscn`** (M2 vertical slice).
+Open `apps/game/client/project.godot` in Godot 4.7. Press **F5** — main scene is **`scenes/hub/hub.tscn`**.
 
-**Full loop:** Hub → Castle Portal (**E**) → dungeon → boss → exit → results → hub.
+**Full loop:** Hub → biome portal (**E**) → dungeon → boss → exit → results → hub (5 EA biomes).
 
 **M1 combat controls (locked):** [docs/design/M1_CONTROLS.md](docs/design/M1_CONTROLS.md)  
 **M2 interact/inventory:** [docs/design/M2_CONTROLS.md](docs/design/M2_CONTROLS.md)  
-M2 status: [docs/design/M2_IMPLEMENTATION_LOG.md](docs/design/M2_IMPLEMENTATION_LOG.md)  
-M3 status: [docs/design/M3_IMPLEMENTATION_LOG.md](docs/design/M3_IMPLEMENTATION_LOG.md)
-
-Implementation: [docs/design/M2_IMPLEMENTATION_LOG.md](docs/design/M2_IMPLEMENTATION_LOG.md) · M1: [docs/design/M1_IMPLEMENTATION_LOG.md](docs/design/M1_IMPLEMENTATION_LOG.md)
+**Current phase:** M7 EA polish — [docs/plan/phases/M7-EA-POLISH.md](docs/plan/phases/M7-EA-POLISH.md)  
+**Phase status:** [docs/plan/M-PHASES-STATUS.md](docs/plan/M-PHASES-STATUS.md)  
+Implementation logs: [M6](docs/design/M6_IMPLEMENTATION_LOG.md) · [M4](docs/design/M4_IMPLEMENTATION_LOG.md) · [M3](docs/design/M3_IMPLEMENTATION_LOG.md) · [M2](docs/design/M2_IMPLEMENTATION_LOG.md) · [M1](docs/design/M1_IMPLEMENTATION_LOG.md)
 
 ### 5. Content validation
 
@@ -86,3 +85,4 @@ npm run validate
 - Remote: `https://github.com/halaghiuc-dragos/Aumbrye`
 - Default branch: `main`
 - PRs required; CI runs backend tests, web build, and content schema validation.
+- Full validation: `./scripts/run-all-validation.ps1` (283 Godot + 79 backend tests as of M6 close)

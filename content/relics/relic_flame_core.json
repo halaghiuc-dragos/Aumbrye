@@ -1,0 +1,9 @@
+{
+    "description":  "Warm embers pulse within this run relic.",
+    "name":  "Relic Flame Core",
+    "id":  "relic_flame_core",
+    "stats":  {
+                  "damagePercent":  5
+              },
+    "maxStacks":  1
+}

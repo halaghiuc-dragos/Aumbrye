@@ -2,28 +2,25 @@
 
 ## Slot targets (approximate distribution)
 
-| Slot | Approx count |
-|------|--------------|
-| Weapons | 20 |
-| Helmet | 8 |
-| Chest | 8 |
-| Gloves | 6 |
-| Boots | 6 |
-| Rings | 8 |
-| Amulets | 6 |
-| Relics | 8 |
-| Consumables | 10 |
-| **Total** | **≤80** |
+| Slot | Approx count | M6 actual (catalog) |
+|------|--------------|---------------------|
+| Weapons | 20 | ~20 |
+| Helmet | 8 | ~8 |
+| Chest | 8 | ~8 |
+| Gloves | 6 | ~6 |
+| Boots | 6 | ~6 |
+| Rings | 8 | ~8 |
+| Amulets | 6 | ~6 |
+| Relics | 8 | 11 (catalog relics array) |
+| Consumables | 10 | 5 |
+| Materials | — | 5 |
+| **Total** | **≤80** | **79** (equipment+consumables+relics) |
 
-Exact ids filled during ITEM-5.1 and ITEM-6.1. Maintain living table below as items are added.
+Source of truth: `content/items/catalog.json`. On-disk JSON under `content/items/equipment|consumables|materials/` must match catalog entries.
 
-## Living registry
+## Status
 
-| Id | Slot | Rarity baseline | Theme bias | Status |
-|----|------|-----------------|------------|--------|
-| `iron_sword` | weapon | common | starter | planned |
-| `knight_blade` | weapon | rare | forgotten_castle | planned |
-| _(add rows as authored)_ | | | | |
+**ITEM-6.1 complete** — catalog at 79 items (≤80 cap). Theme uniques for frozen/cathedral added. Affix pool expanded for epic+. Automated: `m6.items.catalog_cap`, `m6.items.unique_*`.
 
 ## Affix packs
 
@@ -33,7 +30,12 @@ Exact ids filled during ITEM-5.1 and ITEM-6.1. Maintain living table below as it
 
 ## Checklist for each item
 
-- [ ] Def JSON valid
-- [ ] Icon present
-- [ ] Referenced by ≥1 loot table OR merchant/recipe
-- [ ] Equip applies intended stats
+- [x] Def JSON valid (schema + catalog consistency)
+- [ ] Icon present (placeholder OK for EA blockout)
+- [x] Referenced by ≥1 loot table OR merchant/recipe (theme loot tables)
+- [x] Equip applies intended stats (automated inventory tests)
+
+## Partial / deferred
+
+- Mythic per-item unique behavior (affix counts only)
+- Full consumable roster to 10 slots (5 in catalog)

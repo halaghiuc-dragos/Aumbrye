@@ -1,0 +1,17 @@
+{
+    "id":  "cathedral_shadow_dagger",
+    "name":  "Cathedral Shadow Dagger",
+    "itemType":  "weapon",
+    "gridWidth":  2,
+    "gridHeight":  2,
+    "stackSize":  1,
+    "rarity":  "legendary",
+    "description":  "M6 content item.",
+    "value":  20,
+    "stats":  {
+                  "arcaneDamage":  14,
+                  "physicalDamage":  20
+              },
+    "equipmentSlot":  "weapon",
+    "theme":  "dark_cathedral"
+}

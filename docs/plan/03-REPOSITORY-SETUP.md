@@ -75,6 +75,16 @@ Local overrides are **gitignored**. Copy from the committed examples on first se
 
 **Never commit:** `.env`, `appsettings.Development.json`, `.cursor/mcp.json`, `reports/`, `seed*.json` dumps — see root `.gitignore`.
 
+### Gitignore policy
+
+Root `.gitignore` is sectioned by stack (secrets, env files, ASP.NET, Docker overrides, IDE, Node, .NET, Godot, Steam keys, reports/logs). Rules:
+
+- **Tracked templates:** `*.example`, `appsettings.json`, `appsettings.Testing.json`, `dev_api.json` — safe defaults for local dev only.
+- **Ignored overrides:** real `.env*`, `appsettings.*.json` (except Testing), `export_presets.cfg`, `override.cfg`, `.godot/`, `node_modules/`, `dist/`, package-manager auth files (`.npmrc`), and cloud credential paths.
+- **Production:** never rely on committed dev JWT/DB placeholders in `appsettings.json`; use environment variables, User Secrets, or a secrets manager.
+
+If a local file was committed by mistake, remove from the index without deleting the working copy: `git rm --cached -- <path>`.
+
 ---
 
 ## First-boot commands (verified)

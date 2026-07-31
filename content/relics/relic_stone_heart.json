@@ -1,0 +1,9 @@
+{
+    "description":  "Hardens the body against blows.",
+    "name":  "Relic Stone Heart",
+    "id":  "relic_stone_heart",
+    "stats":  {
+                  "armor":  8
+              },
+    "maxStacks":  1
+}

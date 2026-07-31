@@ -141,6 +141,8 @@ public static class RoomTypeAssigner
         {
             "crystal_caverns" => "crystal",
             "poison_swamp" => "swamp",
+            "frozen_fortress" => "frozen",
+            "dark_cathedral" => "cathedral",
             _ => "castle",
         };
 

@@ -16,6 +16,8 @@ func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	_build_ui_if_needed()
 	_refresh_backups()
+	AccessibilitySettings.load_from_save()
+	LeaderboardSettings.load_from_save()
 
 
 func _build_ui_if_needed() -> void:
@@ -61,6 +63,58 @@ func _build_ui_if_needed() -> void:
 	_hint_label.name = "HintLabel"
 	_hint_label.text = "Enter: restore | Esc: close"
 	vbox.add_child(_hint_label)
+	_build_accessibility_section(vbox)
+
+
+func _build_accessibility_section(parent: VBoxContainer) -> void:
+	var sep := HSeparator.new()
+	parent.add_child(sep)
+	var title := Label.new()
+	title.text = "Accessibility"
+	parent.add_child(title)
+	var ui_scale := HSlider.new()
+	ui_scale.name = "UiScaleSlider"
+	ui_scale.min_value = 0.8
+	ui_scale.max_value = 1.5
+	ui_scale.step = 0.05
+	ui_scale.value = AccessibilitySettings.ui_scale
+	ui_scale.value_changed.connect(func(v: float) -> void:
+		AccessibilitySettings.ui_scale = v
+		AccessibilitySettings.save()
+	)
+	parent.add_child(ui_scale)
+	var shake := CheckBox.new()
+	shake.text = "Reduce camera shake"
+	shake.button_pressed = AccessibilitySettings.reduce_camera_shake
+	shake.toggled.connect(func(on: bool) -> void:
+		AccessibilitySettings.reduce_camera_shake = on
+		AccessibilitySettings.save()
+	)
+	parent.add_child(shake)
+	var cb := OptionButton.new()
+	cb.add_item("Default", 0)
+	cb.add_item("Protanopia", 1)
+	cb.add_item("Deuteranopia", 2)
+	cb.add_item("Tritanopia", 3)
+	match AccessibilitySettings.colorblind_mode:
+		"protanopia": cb.selected = 1
+		"deuteranopia": cb.selected = 2
+		"tritanopia": cb.selected = 3
+		_: cb.selected = 0
+	cb.item_selected.connect(func(idx: int) -> void:
+		var modes := ["default", "protanopia", "deuteranopia", "tritanopia"]
+		AccessibilitySettings.colorblind_mode = modes[idx]
+		AccessibilitySettings.save()
+	)
+	parent.add_child(cb)
+	var lb := CheckBox.new()
+	lb.text = "Submit clear times to leaderboards (opt-in)"
+	lb.button_pressed = LeaderboardSettings.opt_in
+	lb.toggled.connect(func(on: bool) -> void:
+		LeaderboardSettings.opt_in = on
+		LeaderboardSettings.save()
+	)
+	parent.add_child(lb)
 
 
 func is_open() -> bool:

@@ -1,0 +1,17 @@
+{
+    "id":  "frost_knight_plate",
+    "name":  "Frost Knight Plate",
+    "itemType":  "armor",
+    "gridWidth":  2,
+    "gridHeight":  2,
+    "stackSize":  1,
+    "rarity":  "epic",
+    "description":  "M6 content item.",
+    "value":  20,
+    "stats":  {
+                  "maxHealth":  25,
+                  "defense":  14
+              },
+    "equipmentSlot":  "chest",
+    "theme":  "frozen_fortress"
+}

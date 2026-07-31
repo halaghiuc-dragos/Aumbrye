@@ -24,7 +24,7 @@ See [VALIDATION_PLATFORM.md](../../design/VALIDATION_PLATFORM.md) for architectu
 | M7.* | Feel/UX polish (17 items) | Former M3 manual list — [MANUAL_PLAYTEST_CHECKLIST.md](../../design/MANUAL_PLAYTEST_CHECKLIST.md) § M3 carry-over → M7 |
 | M4.deferred.* | Carried from M4 close | See [M4_IMPLEMENTATION_LOG.md](../../design/M4_IMPLEMENTATION_LOG.md) § Deferred |
 | M5.manual | M5 feel playtest (biomes, weapons, bosses, audio) | [MANUAL_PLAYTEST_CHECKLIST.md](../../design/MANUAL_PLAYTEST_CHECKLIST.md) § M5 |
-| M5.deferred.* | Art, mythic uniques, item roster | [M6-CONTENT-PACK-B.md](../phases/M6-CONTENT-PACK-B.md) § Carried from M5; manual § M5 in [MANUAL_PLAYTEST_CHECKLIST.md](../../design/MANUAL_PLAYTEST_CHECKLIST.md) |
+| M5.deferred.* | Art, mythic uniques, item roster | [M6_IMPLEMENTATION_LOG.md](../../design/M6_IMPLEMENTATION_LOG.md); manual § M5 in [MANUAL_PLAYTEST_CHECKLIST.md](../../design/MANUAL_PLAYTEST_CHECKLIST.md) |
 
 ## Minor milestones
 

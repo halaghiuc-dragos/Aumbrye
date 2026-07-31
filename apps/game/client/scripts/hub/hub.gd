@@ -37,7 +37,6 @@ func _ready() -> void:
 	_wire_interactable(_storage_area, _on_storage_enter, _on_storage_exit)
 	_wire_interactable(_quest_board_area, _on_quest_board_enter, _on_quest_board_exit)
 
-	_castle_menu.new_run_requested.connect(_on_castle_new_run)
 	_castle_menu.biome_run_requested.connect(_on_biome_run)
 	_castle_menu.continue_requested.connect(_on_castle_continue)
 	_castle_menu.seed_run_requested.connect(_on_castle_seed_run)
@@ -217,11 +216,6 @@ func _show_return_message() -> void:
 
 func _on_biome_run(biome_id: String) -> void:
 	RunFlow.start_new_run(biome_id)
-	_refresh_hub_message()
-
-
-func _on_castle_new_run() -> void:
-	RunFlow.start_new_castle_run()
 	_refresh_hub_message()
 
 

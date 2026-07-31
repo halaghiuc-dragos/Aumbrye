@@ -1,0 +1,23 @@
+{
+    "id":  "frost_knight",
+    "name":  "Frost Knight",
+    "scene":  "res://scenes/enemies/frost_knight.tscn",
+    "threat_cost":  35,
+    "health":  140,
+    "poise":  70,
+    "move_speed":  3.2,
+    "attack_damage":  20,
+    "attack_poise_damage":  17,
+    "windup_duration":  0.65,
+    "active_duration":  0.15,
+    "recovery_duration":  0.85,
+    "attack_range":  2.4,
+    "attack_cooldown":  1.4,
+    "stagger_duration":  1,
+    "aggro_range":  10,
+    "deaggro_range":  16,
+    "patrol_radius":  4,
+    "enemy_type":  "melee",
+    "status_on_hit":  "freeze",
+    "status_stacks_on_hit":  2
+}

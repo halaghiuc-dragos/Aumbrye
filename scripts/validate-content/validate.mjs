@@ -94,6 +94,9 @@ function resolveSchemaForFile(filePath) {
   if (name.startsWith("audio_profiles/")) {
     return join(schemasRoot, "audio-profile.v1.json");
   }
+  if (name.startsWith("achievements/")) {
+    return join(schemasRoot, "achievement-catalog.v1.json");
+  }
   if (name.startsWith("statuses/")) {
     return join(schemasRoot, "status-definition.v1.json");
   }

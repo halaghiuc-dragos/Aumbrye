@@ -64,6 +64,54 @@
         "legendary": { "min": 21, "max": 28 },
         "mythic": { "min": 30, "max": 40 }
       }
+    },
+    {
+      "id": "of_poison",
+      "displayName": "of Poison",
+      "kind": "suffix",
+      "stat": "poisonDamage",
+      "itemTypes": ["weapon"],
+      "weight": 60,
+      "tiers": {
+        "common": { "min": 2, "max": 4 },
+        "magic": { "min": 5, "max": 8 },
+        "rare": { "min": 9, "max": 14 },
+        "epic": { "min": 15, "max": 20 },
+        "legendary": { "min": 21, "max": 28 },
+        "mythic": { "min": 30, "max": 40 }
+      }
+    },
+    {
+      "id": "of_vigor",
+      "displayName": "of Vigor",
+      "kind": "suffix",
+      "stat": "staminaRegen",
+      "itemTypes": ["armor", "weapon"],
+      "weight": 55,
+      "tiers": {
+        "common": { "min": 1, "max": 2 },
+        "magic": { "min": 3, "max": 4 },
+        "rare": { "min": 5, "max": 7 },
+        "epic": { "min": 8, "max": 10 },
+        "legendary": { "min": 11, "max": 14 },
+        "mythic": { "min": 16, "max": 20 }
+      }
+    },
+    {
+      "id": "of_the_eagle",
+      "displayName": "of the Eagle",
+      "kind": "suffix",
+      "stat": "critChance",
+      "itemTypes": ["weapon"],
+      "weight": 50,
+      "tiers": {
+        "common": { "min": 0.01, "max": 0.02 },
+        "magic": { "min": 0.02, "max": 0.03 },
+        "rare": { "min": 0.03, "max": 0.05 },
+        "epic": { "min": 0.05, "max": 0.07 },
+        "legendary": { "min": 0.07, "max": 0.09 },
+        "mythic": { "min": 0.1, "max": 0.12 }
+      }
     }
   ]
 }

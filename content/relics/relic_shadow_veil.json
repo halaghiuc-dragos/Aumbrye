@@ -1,0 +1,9 @@
+{
+    "description":  "Shadows muffle your footsteps.",
+    "name":  "Relic Shadow Veil",
+    "id":  "relic_shadow_veil",
+    "stats":  {
+                  "moveSpeed":  0.05
+              },
+    "maxStacks":  1
+}

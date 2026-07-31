@@ -18,14 +18,14 @@
     "crystal_puzzle"
   ],
   "enemyPool": [
-    { "enemyId": "crystal_slime", "weight": 3 },
-    { "enemyId": "crystal_bat", "weight": 2 },
+    { "enemyId": "crystal_crawler", "weight": 3 },
+    { "enemyId": "crystal_spitter", "weight": 2 },
     { "enemyId": "crystal_golem", "weight": 2 },
-    { "enemyId": "crystal_shade", "weight": 2 },
-    { "enemyId": "crystal_guardian", "weight": 1 }
+    { "enemyId": "crystal_wisp", "weight": 2 },
+    { "enemyId": "miniboss_crystal_guardian", "weight": 1 }
   ],
   "bossPool": [
-    { "enemyId": "crystal_sovereign" }
+    { "enemyId": "boss_crystal_sovereign" }
   ],
   "budgets": {
     "baseEnemyThreat": 100,

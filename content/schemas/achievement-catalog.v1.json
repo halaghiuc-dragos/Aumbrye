@@ -1,0 +1,24 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "content/schemas/achievement-catalog.v1.json",
+  "title": "AchievementCatalog",
+  "type": "object",
+  "required": ["schemaVersion", "achievements"],
+  "properties": {
+    "schemaVersion": { "type": "integer", "const": 1 },
+    "achievements": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "name", "description", "category"],
+        "properties": {
+          "id": { "type": "string", "minLength": 1 },
+          "name": { "type": "string" },
+          "description": { "type": "string" },
+          "category": { "type": "string" },
+          "hidden": { "type": "boolean" }
+        }
+      }
+    }
+  }
+}

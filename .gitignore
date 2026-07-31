@@ -5,11 +5,21 @@
 *.key
 *.p12
 *.pfx
+*.crt
+*.cer
 credentials.json
 secrets.json
 **/secrets/
+**/secrets.yaml
+**/secrets.yml
 id_rsa
 id_rsa.*
+.netrc
+auth.json
+service-account*.json
+*-credentials.json
+.aws/
+.azure/
 
 # =============================================================================
 # Environment files
@@ -22,6 +32,13 @@ id_rsa.*
 # Vite / frontend local overrides (committed templates: .env.example)
 .env.local
 .env.*.local
+
+# direnv / shell env loaders (may export secrets)
+.envrc
+.direnv/
+
+# Azure Functions local settings
+local.settings.json
 
 # =============================================================================
 # ASP.NET configuration (use User Secrets or env vars for local overrides)
@@ -62,11 +79,14 @@ $RECYCLE.BIN/
 *.swo
 *~
 *.DotSettings.user
+*.rsuser
+.mono/
 
 # Cursor — ignore local machine config; allow shared rules if added later
 .cursor/*
 !.cursor/rules/
 !.cursor/rules/**
+.cursor/mcp.json
 
 # =============================================================================
 # Node / JavaScript
@@ -77,9 +97,14 @@ build/
 .cache/
 .parcel-cache/
 .turbo/
+.vite/
 .npm
+.npmrc
+.yarnrc.yml
 coverage/
 .nyc_output/
+.eslintcache
+*.tsbuildinfo
 *.log
 npm-debug.log*
 yarn-debug.log*
@@ -108,7 +133,15 @@ project.lock.json
 **/.godot/
 **/.import/
 **/export_presets.cfg
+override.cfg
 *.translation
+
+# Godot export binaries (credentials live in export_presets.cfg)
+**/export/
+**/builds/
+*.pck
+*.apk
+*.aab
 
 # Godot user-data equivalents if copied into the repo by mistake
 aumbrye_save.json
@@ -139,6 +172,35 @@ logs/
 
 # Procgen CLI dumps at repo root (regenerate locally)
 /seed*.json
+
+# Local database files (dev dumps, accidental copies)
+*.sqlite
+*.sqlite3
+*.db
+
+# =============================================================================
+# Python caches (scripts/, tooling)
+# =============================================================================
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+
+# =============================================================================
+# Terraform / infra state (if added later)
+# =============================================================================
+.terraform/
+*.tfstate
+*.tfstate.*
+
+# =============================================================================
+# Temp / merge artifacts
+# =============================================================================
+*.orig
+*.rej
+*.bak
+*.tmp
+*.temp
 
 # =============================================================================
 # Assets (large binaries — track via LFS or external pipeline later)

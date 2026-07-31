@@ -277,7 +277,7 @@
 - **depends_on:** [FLOW-2.1]
 - **unlocks:** [HUB-4.x]
 - **primary_paths:**
-  - `apps/game/client/scenes/hub/hub_stub.tscn`
+  - `apps/game/client/scenes/hub/hub.tscn` (historical M2 stub removed; full hub from M4)
 - **agent_instructions:**
   - Small safe area with portal to castle and training arena door.
 - **acceptance_criteria:**

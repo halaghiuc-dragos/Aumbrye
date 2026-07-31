@@ -1,0 +1,25 @@
+{
+  "entries": [
+    {
+      "version": "0.6.0",
+      "date": "2026-07-31",
+      "title": "Content Pack B + Meta",
+      "highlights": [
+        "Frozen Fortress and Dark Cathedral biomes",
+        "Achievements and opt-in leaderboards",
+        "Website: landing, account, patch notes, wiki stubs",
+        "Accessibility baseline in settings"
+      ]
+    },
+    {
+      "version": "0.5.0",
+      "date": "2026-07-30",
+      "title": "Three-theme content pack",
+      "highlights": [
+        "Crystal Caverns and Poison Swamp",
+        "Hub loop and cloud save",
+        "Five weapons and affix system"
+      ]
+    }
+  ]
+}

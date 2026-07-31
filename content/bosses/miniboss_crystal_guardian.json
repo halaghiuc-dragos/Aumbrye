@@ -1,0 +1,22 @@
+{
+    "id":  "miniboss_crystal_guardian",
+    "name":  "Miniboss Crystal Guardian",
+    "scene":  "res://scenes/enemies/crystal_guardian.tscn",
+    "threat_cost":  50,
+    "health":  320,
+    "poise":  160,
+    "move_speed":  3.8,
+    "attack_damage":  19,
+    "attack_poise_damage":  16,
+    "windup_duration":  0.5,
+    "active_duration":  0.15,
+    "recovery_duration":  0.7,
+    "attack_range":  3,
+    "attack_cooldown":  1,
+    "stagger_duration":  1.5,
+    "aggro_range":  20,
+    "deaggro_range":  30,
+    "patrol_radius":  0,
+    "enemy_type":  "boss",
+    "phase2_threshold":  0.5
+}

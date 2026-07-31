@@ -1,0 +1,11 @@
+{
+  "id": "dark_cathedral",
+  "biomeId": "dark_cathedral",
+  "ambienceFreq": 85,
+  "exploreFreq": 90,
+  "combatFreq": 110,
+  "bossFreq": 165,
+  "ambiencePath": "res://assets/audio/castle/ambience_loop.wav",
+  "bossPath": "res://assets/audio/castle/boss_theme.wav",
+  "crossfadeSeconds": 1.0
+}

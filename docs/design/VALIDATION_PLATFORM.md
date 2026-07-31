@@ -94,7 +94,7 @@ Report: `%APPDATA%\Godot\app_userdata\Aumbrye\mcp_validation.json`
 |---------|---------|---------|
 | `{category}.{feature}` | `procgen.seed_generates` | Stable test identifier |
 | `{category}.{entity}_{detail}` | `content.enemy_json_scene_castle_grunt` | Per-entity checks |
-| `setup.scene_{basename}` | `setup.scene_hub_stub` | Scene existence |
+| `setup.scene_{basename}` | `setup.scene_hub` | Scene existence |
 
 `checklist_ref` links to manual checklist or milestone when applicable (e.g. `M3.hub.continue_enabled`).
 

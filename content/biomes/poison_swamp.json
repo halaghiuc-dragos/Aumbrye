@@ -18,14 +18,13 @@
     "swamp_puzzle"
   ],
   "enemyPool": [
-    { "enemyId": "swamp_leech", "weight": 3 },
-    { "enemyId": "swamp_bogling", "weight": 2 },
-    { "enemyId": "swamp_witch", "weight": 2 },
-    { "enemyId": "swamp_toad", "weight": 2 },
-    { "enemyId": "swamp_hag", "weight": 1 }
+    { "enemyId": "swamp_slasher", "weight": 3 },
+    { "enemyId": "swamp_spitter", "weight": 2 },
+    { "enemyId": "swamp_brute", "weight": 2 },
+    { "enemyId": "swamp_swarm", "weight": 2 }
   ],
   "bossPool": [
-    { "enemyId": "swamp_hydra" }
+    { "enemyId": "boss_swamp_devourer" }
   ],
   "budgets": {
     "baseEnemyThreat": 100,

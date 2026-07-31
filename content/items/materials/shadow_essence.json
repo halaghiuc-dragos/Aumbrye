@@ -1,0 +1,11 @@
+{
+  "id": "shadow_essence",
+  "name": "Shadow Essence",
+  "itemType": "material",
+  "gridWidth": 1,
+  "gridHeight": 1,
+  "stackSize": 99,
+  "rarity": "common",
+  "description": "Condensed shadow from the cathedral depths.",
+  "value": 6
+}

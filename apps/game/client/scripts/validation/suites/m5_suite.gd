@@ -58,13 +58,19 @@ func _test_biome_registry() -> void:
 	ctx.timed_record(
 		"m5.biome.all_three_registered",
 		get_category(),
-		BiomeRegistry.ALL_BIOMES.size() == 3,
-		"BiomeRegistry lists castle, crystal, swamp",
+		BiomeRegistry.ALL_BIOMES.has(BiomeRegistry.BIOME_CASTLE)
+			and BiomeRegistry.ALL_BIOMES.has(BiomeRegistry.BIOME_CRYSTAL)
+			and BiomeRegistry.ALL_BIOMES.has(BiomeRegistry.BIOME_SWAMP),
+		"M5 biomes (castle, crystal, swamp) still registered",
 		start,
 		"M5.theme.biomes"
 	)
 
-	for biome_id in BiomeRegistry.ALL_BIOMES:
+	for biome_id in [
+		BiomeRegistry.BIOME_CASTLE,
+		BiomeRegistry.BIOME_CRYSTAL,
+		BiomeRegistry.BIOME_SWAMP,
+	]:
 		start = Time.get_ticks_msec()
 		var rooms: Dictionary = BiomeRegistry.get_room_scenes(biome_id)
 		var expected_min := 8 if biome_id == BiomeRegistry.BIOME_CASTLE else 9

@@ -23,8 +23,8 @@ public class M5BiomeGeneratorTests
         var biome = BiomeCatalog.GetRequired("crystal_caverns");
         Assert.Equal("crystal_caverns", biome.Id);
         Assert.Contains(biome.RoomTemplateIds, id => id.StartsWith("crystal_", StringComparison.Ordinal));
-        Assert.Contains(biome.EnemyPool, e => e.EnemyId == "crystal_slime");
-        Assert.Contains(biome.BossPool, e => e.EnemyId == "crystal_sovereign");
+        Assert.Contains(biome.EnemyPool, e => e.EnemyId == "crystal_crawler");
+        Assert.Contains(biome.BossPool, e => e.EnemyId == "boss_crystal_sovereign");
     }
 
     [Fact]
@@ -33,7 +33,7 @@ public class M5BiomeGeneratorTests
         var biome = BiomeCatalog.GetRequired("poison_swamp");
         Assert.Equal("poison_swamp", biome.Id);
         Assert.Contains(biome.RoomTemplateIds, id => id.StartsWith("swamp_", StringComparison.Ordinal));
-        Assert.Contains(biome.EnemyPool, e => e.EnemyId == "swamp_toad");
-        Assert.Contains(biome.BossPool, e => e.EnemyId == "swamp_hydra");
+        Assert.Contains(biome.EnemyPool, e => e.EnemyId == "swamp_slasher");
+        Assert.Contains(biome.BossPool, e => e.EnemyId == "boss_swamp_devourer");
     }
 }

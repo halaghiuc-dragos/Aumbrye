@@ -1,0 +1,22 @@
+{
+    "id":  "miniboss_castle_captain",
+    "name":  "Miniboss Castle Captain",
+    "scene":  "res://scenes/enemies/castle_knight.tscn",
+    "threat_cost":  50,
+    "health":  350,
+    "poise":  175,
+    "move_speed":  3.8,
+    "attack_damage":  20,
+    "attack_poise_damage":  17,
+    "windup_duration":  0.5,
+    "active_duration":  0.15,
+    "recovery_duration":  0.7,
+    "attack_range":  3,
+    "attack_cooldown":  1,
+    "stagger_duration":  1.5,
+    "aggro_range":  20,
+    "deaggro_range":  30,
+    "patrol_radius":  0,
+    "enemy_type":  "boss",
+    "phase2_threshold":  0.5
+}

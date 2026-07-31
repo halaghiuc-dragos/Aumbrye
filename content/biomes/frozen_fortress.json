@@ -1,0 +1,36 @@
+{
+  "id": "frozen_fortress",
+  "name": "Frozen Fortress",
+  "roomCount": {
+    "min": 6,
+    "max": 10
+  },
+  "gridStep": 14,
+  "roomTemplateIds": [
+    "frozen_entrance",
+    "frozen_stairs",
+    "frozen_courtyard",
+    "frozen_hall",
+    "frozen_treasure",
+    "frozen_secret",
+    "frozen_arena",
+    "frozen_boss",
+    "frozen_puzzle"
+  ],
+  "enemyPool": [
+    { "enemyId": "frost_raider", "weight": 3 },
+    { "enemyId": "frost_archer", "weight": 2 },
+    { "enemyId": "frost_knight", "weight": 2 },
+    { "enemyId": "frost_hound", "weight": 2 }
+  ],
+  "bossPool": [
+    { "enemyId": "boss_frost_warlord" }
+  ],
+  "budgets": {
+    "baseEnemyThreat": 100,
+    "baseLootValue": 60,
+    "threatPerTier": 20,
+    "lootPerTier": 10
+  },
+  "requiresSecret": true
+}

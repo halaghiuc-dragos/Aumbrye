@@ -16,6 +16,10 @@
       "type": "array",
       "items": { "type": "string", "minLength": 1 }
     },
+    "relics": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 }
+    },
     "materials": {
       "type": "array",
       "items": { "type": "string", "minLength": 1 }

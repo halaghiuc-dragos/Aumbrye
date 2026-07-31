@@ -1,0 +1,81 @@
+[gd_scene load_steps=14 format=3 uid="uid://frost_knight_scene"]
+
+[ext_resource type="Script" path="res://scripts/enemies/frost_knight.gd" id="1_script"]
+[ext_resource type="Script" path="res://scripts/combat/health.gd" id="2_health"]
+[ext_resource type="Script" path="res://scripts/combat/poise.gd" id="3_poise"]
+[ext_resource type="Script" path="res://scripts/combat/hitbox.gd" id="4_hitbox"]
+[ext_resource type="Script" path="res://scripts/combat/hurtbox.gd" id="5_hurtbox"]
+
+[sub_resource type="CapsuleShape3D" id="CapsuleShape3D_body"]
+radius = 0.45
+height = 1.8
+
+[sub_resource type="CapsuleMesh" id="CapsuleMesh_body"]
+radius = 0.45
+height = 1.8
+
+[sub_resource type="StandardMaterial3D" id="Mat_body"]
+albedo_color = Color(0.45, 0.55, 0.7, 1)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_hit"]
+size = Vector3(1.0, 0.8, 1.2)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_hurt"]
+size = Vector3(1.0, 1.8, 1.0)
+
+[sub_resource type="SphereMesh" id="SphereMesh_telegraph"]
+radius = 0.35
+height = 0.7
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_telegraph"]
+transparency = 1
+albedo_color = Color(1, 0.35, 0.1, 0.85)
+emission_enabled = true
+emission = Color(1, 0.35, 0.1, 1)
+shading_mode = 0
+
+[node name="FrostKnight" type="CharacterBody3D" groups=["enemy", "lockable"]]
+script = ExtResource("1_script")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="."]
+shape = SubResource("CapsuleShape3D_body")
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="."]
+mesh = SubResource("CapsuleMesh_body")
+surface_material_override/0 = SubResource("Mat_body")
+
+[node name="Health" type="Node" parent="."]
+script = ExtResource("2_health")
+
+[node name="Poise" type="Node" parent="."]
+script = ExtResource("3_poise")
+
+[node name="AttackPivot" type="Node3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0.8)
+
+[node name="Hitbox" type="Area3D" parent="AttackPivot"]
+collision_layer = 4
+collision_mask = 8
+script = ExtResource("4_hitbox")
+team = "enemy"
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="AttackPivot/Hitbox"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0.45)
+shape = SubResource("BoxShape3D_hit")
+
+[node name="Hurtbox" type="Area3D" parent="."]
+collision_layer = 8
+collision_mask = 4
+script = ExtResource("5_hurtbox")
+team = "enemy"
+health_path = NodePath("../Health")
+poise_path = NodePath("../Poise")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Hurtbox"]
+shape = SubResource("BoxShape3D_hurt")
+
+[node name="TelegraphMesh" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.2, 0.8)
+visible = false
+mesh = SubResource("SphereMesh_telegraph")
+surface_material_override/0 = SubResource("StandardMaterial3D_telegraph")

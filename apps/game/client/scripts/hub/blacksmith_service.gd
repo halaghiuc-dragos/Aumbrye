@@ -91,7 +91,7 @@ static func repair_item(inv_index: int) -> Dictionary:
 	var recipe := RecipeCatalog.get_repair_recipe(item_id)
 	var cost: int
 	if recipe.is_empty():
-		cost = maxi(1, (max_dur - current) / 2)
+		cost = maxi(1, int((max_dur - current) / 2.0))
 	else:
 		cost = int(recipe.get("goldCost", 10))
 	if not CharacterService.spend_gold(cost):

@@ -1,0 +1,21 @@
+{
+    "id":  "castle_hound",
+    "name":  "Castle Hound",
+    "scene":  "res://scenes/enemies/castle_hound.tscn",
+    "threat_cost":  20,
+    "health":  70,
+    "poise":  35,
+    "move_speed":  5,
+    "attack_damage":  14,
+    "attack_poise_damage":  12,
+    "windup_duration":  0.65,
+    "active_duration":  0.15,
+    "recovery_duration":  0.85,
+    "attack_range":  2.4,
+    "attack_cooldown":  1.4,
+    "stagger_duration":  1,
+    "aggro_range":  10,
+    "deaggro_range":  16,
+    "patrol_radius":  4,
+    "enemy_type":  "melee"
+}
