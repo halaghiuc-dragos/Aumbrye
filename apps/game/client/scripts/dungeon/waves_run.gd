@@ -97,6 +97,13 @@ func _build_ui() -> void:
 	if script:
 		_wave_ui.set_script(script)
 	add_child(_wave_ui)
+	var inv_ui := Control.new()
+	inv_ui.name = "WavesInventoryUI"
+	inv_ui.set_anchors_preset(Control.PRESET_FULL_RECT)
+	var inv_script := load("res://scripts/ui/waves_inventory_ui.gd")
+	if inv_script:
+		inv_ui.set_script(inv_script)
+	add_child(inv_ui)
 
 
 func _show_lobby() -> void:

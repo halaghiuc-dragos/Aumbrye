@@ -380,7 +380,8 @@ func _unlock_stair_lever() -> void:
 	if _stair_lever and _stair_lever.has_method("unlock"):
 		var can_ascend := not RunFlow.is_final_floor() or RunFlow.get_run_mode() == "endless"
 		var can_descend := RunFlow.get_current_floor() > 1 and RunFlow.get_run_mode() != "endless"
-		_stair_lever.call("configure", can_ascend, can_descend)
+		var can_retreat := RunFlow.get_run_mode() in ["endless", "castle"]
+		_stair_lever.call("configure", can_ascend, can_descend, can_retreat)
 		_stair_lever.call("unlock")
 
 

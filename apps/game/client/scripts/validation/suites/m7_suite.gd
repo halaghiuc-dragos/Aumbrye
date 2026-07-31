@@ -48,6 +48,9 @@ func run() -> void:
 	_test_endless_scaling_tiers()
 	_test_boss_phase_constants()
 	_test_known_issues_doc()
+	_test_endless_retreat_api()
+	_test_waves_equip_ui()
+	_test_boss_cannon_flow()
 
 
 func _test_floor_chunking() -> void:
@@ -785,6 +788,57 @@ func _test_boss_phase_constants() -> void:
 		get_category(),
 		ok,
 		"final boss crystal scene exists for puzzle phase",
+		start,
+		"FLOOR-7.5"
+	)
+
+
+func _test_endless_retreat_api() -> void:
+	var start := Time.get_ticks_msec()
+	var ok: bool = (
+		RunFlow.has_method("retreat_to_hub")
+		and RunFlow.has_method("can_retreat_to_hub")
+		and ctx.file_contains("res://scripts/dungeon/stair_lever.gd", "retreat_to_hub")
+	)
+	ctx.timed_record(
+		"m7.endless.retreat_api",
+		get_category(),
+		ok,
+		"endless/castle retreat to hub via stair lever",
+		start,
+		"ENDLESS-7.x"
+	)
+
+
+func _test_waves_equip_ui() -> void:
+	var start := Time.get_ticks_msec()
+	var ok: bool = (
+		FileAccess.file_exists("res://scripts/ui/waves_inventory_ui.gd")
+		and ctx.file_contains("res://scripts/dungeon/waves_run.gd", "waves_inventory_ui.gd")
+		and WavesRunService.has_method("apply_equipment_to_player")
+	)
+	ctx.timed_record(
+		"m7.waves.equip_ui",
+		get_category(),
+		ok,
+		"waves equip UI script wired into waves run",
+		start,
+		"WAVES-7.x"
+	)
+
+
+func _test_boss_cannon_flow() -> void:
+	var start := Time.get_ticks_msec()
+	var ok: bool = (
+		ResourceLoader.exists("res://scenes/bosses/final_boss_cannon.tscn")
+		and ctx.file_contains("res://scripts/enemies/final_boss_forgotten_castle.gd", "register_cannon_hit")
+		and ctx.file_contains("res://scripts/dungeon/final_boss_cannon.gd", "deposit_crystal")
+	)
+	ctx.timed_record(
+		"m7.boss.cannon_flow",
+		get_category(),
+		ok,
+		"final boss cannon load-and-fire puzzle flow",
 		start,
 		"FLOOR-7.5"
 	)

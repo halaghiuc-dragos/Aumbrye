@@ -15,11 +15,10 @@
 
 | Issue | Notes |
 |-------|-------|
-| Final boss phases 2–3 are simplified | Spike burst + crystal collect; cannon interact stub |
+| Final boss phases 2–3 are simplified | Spike bursts + crystal collect + cannon fire; shield breaks on cannon hit |
 | Non-castle final bosses not implemented | Use theme boss on floor 10 for other biomes until themed puzzles ship |
 | Descend requires Shift+interact | Document in manual checklist; **disabled in endless mode** |
-| Endless mode has no retreat lever | Player must die to exit; no hub escape portal mid-run |
-| Waves equip UI is minimal | Chest loot goes to `waves_inventory`; no full equip panel (`M7.waves.equip_feel`) |
+| Endless retreat uses Ctrl+interact on stair lever | Saves run for continue; no mid-run exit portal |
 | Umbral visual theme is a stub | Waves arena uses `dark_cathedral` materials; dedicated umbral palette post-EA |
 | Waves early exit | No items transfer to main inventory before wave 50 clear |
 

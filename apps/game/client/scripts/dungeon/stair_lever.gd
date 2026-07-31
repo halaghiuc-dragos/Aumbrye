@@ -10,6 +10,7 @@ var _near_player := false
 var _unlocked := false
 var _can_ascend := true
 var _can_descend := false
+var _can_retreat := false
 
 
 func _ready() -> void:
@@ -21,9 +22,10 @@ func _ready() -> void:
 	_update_label()
 
 
-func configure(can_ascend: bool, can_descend: bool) -> void:
+func configure(can_ascend: bool, can_descend: bool, can_retreat: bool = false) -> void:
 	_can_ascend = can_ascend
 	_can_descend = can_descend
+	_can_retreat = can_retreat
 	_update_label()
 
 
@@ -38,6 +40,10 @@ func is_unlocked() -> bool:
 
 func _unhandled_input(event: InputEvent) -> void:
 	if not event.is_action_pressed("interact") or not _near_player or not _unlocked:
+		return
+	if _can_retreat and Input.is_key_pressed(KEY_CTRL) and RunFlow.can_retreat_to_hub():
+		RunFlow.retreat_to_hub()
+		get_viewport().set_input_as_handled()
 		return
 	if _can_ascend and Input.is_key_pressed(KEY_SHIFT):
 		_use_lever("descend")
@@ -82,5 +88,7 @@ func _update_label() -> void:
 		parts.append("%s Ascend" % InputGlyphService.format_interact_label())
 	if _can_descend:
 		parts.append("%s+Shift Descend" % InputGlyphService.get_action_glyph("interact"))
+	if _can_retreat:
+		parts.append("%s+Ctrl Retreat to hub" % InputGlyphService.get_action_glyph("interact"))
 	_label.text = "\n".join(parts)
 	_label.visible = not parts.is_empty()

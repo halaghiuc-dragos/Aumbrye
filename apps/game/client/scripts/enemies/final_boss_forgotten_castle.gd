@@ -3,15 +3,19 @@ extends CastleEnemyBase
 ## Floor 10 final boss — Forgotten Castle (FLOOR-7.5).
 ## Phase 1: combat to ~25% HP
 ## Phase 2: dodge simultaneous floor spikes
-## Phase 3: collect crystals → cannon → break shield (immune until then)
+## Phase 3: collect crystals → cannon → break shield (immune until fired)
 
 signal boss_defeated
 signal phase_changed(phase: int)
 
 const SPIKE_SCENE := preload("res://scenes/traps/spike_trap.tscn")
 const CRYSTAL_SCENE := preload("res://scenes/bosses/final_boss_crystal.tscn")
+const CANNON_SCENE := preload("res://scenes/bosses/final_boss_cannon.tscn")
 
 enum Phase { COMBAT = 1, SPIKES = 2, PUZZLE = 3 }
+
+const SPIKE_BURST_COUNT := 8
+const SPIKE_BURST_INTERVAL := 0.45
 
 var _phase := Phase.COMBAT
 var _phase2_done := false
@@ -19,7 +23,9 @@ var _shield_active := false
 var _crystals_collected := 0
 var _crystals_required := 3
 var _spike_timer := 0.0
+var _spike_bursts := 0
 var _immune := false
+var _cannon: Node3D
 
 
 func get_enemy_id() -> String:
@@ -72,10 +78,12 @@ func _enter_phase(new_phase: Phase) -> void:
 		Phase.SPIKES:
 			_immune = true
 			_spike_timer = 0.0
+			_spike_bursts = 0
 		Phase.PUZZLE:
 			_immune = true
 			_shield_active = true
 			_spawn_puzzle_crystals()
+			_spawn_cannon()
 		_:
 			_immune = false
 
@@ -84,13 +92,12 @@ func _process_spike_phase(delta: float) -> void:
 	_spike_timer -= delta
 	if _spike_timer > 0.0:
 		return
-	_spike_timer = 0.45
 	_spawn_spike_burst()
-	if _spike_timer <= 0.0:
-		# After several bursts transition to puzzle.
-		if randi() % 5 == 0:
-			_phase2_done = true
-			_enter_phase(Phase.PUZZLE)
+	_spike_bursts += 1
+	_spike_timer = SPIKE_BURST_INTERVAL
+	if _spike_bursts >= SPIKE_BURST_COUNT:
+		_phase2_done = true
+		_enter_phase(Phase.PUZZLE)
 
 
 func _spawn_spike_burst() -> void:
@@ -109,15 +116,29 @@ func _spawn_puzzle_crystals() -> void:
 		get_parent().add_child(crystal)
 
 
+func _spawn_cannon() -> void:
+	if _cannon and is_instance_valid(_cannon):
+		return
+	_cannon = CANNON_SCENE.instantiate() as Node3D
+	_cannon.position = Vector3(0.0, 0.0, -8.0)
+	get_parent().add_child(_cannon)
+	if _cannon.has_method("configure"):
+		_cannon.call("configure", self, _crystals_required)
+
+
 func _on_crystal_collected() -> void:
 	_crystals_collected += 1
-	if _crystals_collected >= _crystals_required:
-		_break_shield()
+	if _cannon and _cannon.has_method("deposit_crystal"):
+		_cannon.call("deposit_crystal")
 
 
 func _break_shield() -> void:
 	_shield_active = false
 	_immune = false
+
+
+func on_cannon_fired() -> void:
+	_phase = Phase.COMBAT
 
 
 func _process_puzzle_phase(_delta: float) -> void:
@@ -140,6 +161,7 @@ func capture_state() -> Dictionary:
 		"phase": int(_phase),
 		"shieldActive": _shield_active,
 		"crystalsCollected": _crystals_collected,
+		"cannonLoaded": _cannon.get_loaded_count() if _cannon and _cannon.has_method("get_loaded_count") else 0,
 	}
 
 
@@ -151,3 +173,9 @@ func apply_state(state: Dictionary) -> void:
 	_shield_active = bool(state.get("shieldActive", false))
 	_crystals_collected = int(state.get("crystalsCollected", 0))
 	_immune = _phase != Phase.COMBAT or _shield_active
+	if _phase == Phase.PUZZLE:
+		_spawn_cannon()
+		var loaded := int(state.get("cannonLoaded", _crystals_collected))
+		if _cannon and _cannon.has_method("deposit_crystal"):
+			for _i in loaded:
+				_cannon.call("deposit_crystal")

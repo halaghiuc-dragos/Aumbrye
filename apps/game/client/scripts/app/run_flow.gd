@@ -361,6 +361,31 @@ func can_escape_run() -> bool:
 	return _boss_defeated and is_final_floor()
 
 
+func can_retreat_to_hub() -> bool:
+	if not _run_active or not _boss_defeated:
+		return false
+	return run_mode == RM.MODE_ENDLESS or run_mode == RM.MODE_CASTLE
+
+
+func retreat_to_hub() -> void:
+	if not can_retreat_to_hub():
+		return
+	var castle := get_tree().get_first_node_in_group("castle_run")
+	if castle and castle.has_method("_persist_snapshot"):
+		castle.call("_persist_snapshot")
+	var active := LocalSave.get_active_run()
+	if not active.is_empty():
+		active["currentFloor"] = current_floor
+		active["dungeonDefinition"] = current_dungeon_definition.duplicate(true)
+		LocalSave.set_active_run(active)
+	_run_active = false
+	last_hub_message = "Retreated to hub. Continue from the portal."
+	_clear_run_meta()
+	LocalSave.autosave()
+	_goto_scene(HUB_SCENE)
+	returned_to_hub.emit(last_hub_message)
+
+
 func get_run_mode() -> String:
 	return run_mode
 
