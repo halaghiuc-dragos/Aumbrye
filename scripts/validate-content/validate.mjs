@@ -100,6 +100,9 @@ function resolveSchemaForFile(filePath) {
   if (name.startsWith("statuses/")) {
     return join(schemasRoot, "status-definition.v1.json");
   }
+  if (name.startsWith("loot/")) {
+    return join(schemasRoot, "global-drops.v1.json");
+  }
   return null;
 }
 

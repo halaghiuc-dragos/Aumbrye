@@ -33,6 +33,7 @@ func _ready() -> void:
 	_builder.build_from_definition(self, _player, def)
 	_apply_biome_presentation(def)
 	_restore_saved_snapshot()
+	_apply_floor_transition_spawn()
 	player_room_id = _find_room_id_at(_player.global_position)
 	_wire_player_death()
 	_wire_player_health_autosave()
@@ -184,6 +185,25 @@ func _on_inventory_changed() -> void:
 	_persist_snapshot()
 
 
+func _apply_floor_transition_spawn() -> void:
+	var root := get_tree().root
+	if not root.has_meta("run_snapshot"):
+		return
+	var snapshot: Variant = root.get_meta("run_snapshot")
+	if not snapshot is Dictionary:
+		return
+	if not snapshot.get("floorTransition", false):
+		return
+	var ascending := bool(snapshot.get("ascending", true))
+	var stair_id := RunFloorConfig.find_stairs_room_id(_resolve_dungeon_definition())
+	var spawn_info := _builder.get_stair_spawn_global(stair_id, ascending)
+	if spawn_info.is_empty():
+		return
+	_player.global_position = spawn_info.get("position", _player.global_position)
+	_player.rotation.y = float(spawn_info.get("rotationY", _player.rotation.y))
+	player_room_id = stair_id
+
+
 func _restore_saved_snapshot() -> void:
 	var root := get_tree().root
 	if not root.has_meta("run_snapshot"):
@@ -253,6 +273,7 @@ func _capture_run_snapshot() -> Dictionary:
 			"health": player_health,
 		},
 		"playerRoomId": player_room_id,
+		"currentFloor": RunFlow.get_current_floor(),
 		"enemies": _builder.capture_enemy_states(),
 		"loot": _builder.capture_loot_states(),
 		"bossDefeated": _boss_defeated,
@@ -272,7 +293,7 @@ func _persist_snapshot() -> void:
 	var active := LocalSave.get_active_run()
 	if active.is_empty():
 		return
-	active["schemaVersion"] = 2
+	active["schemaVersion"] = 4
 	active["snapshot"] = snapshot
 	LocalSave.set_active_run(active)
 

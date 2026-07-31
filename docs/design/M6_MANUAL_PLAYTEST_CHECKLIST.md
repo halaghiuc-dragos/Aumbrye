@@ -12,7 +12,7 @@
 
 ## Before starting
 
-1. Run `./scripts/run-all-validation.ps1` — must pass with **0 failures** (`m6_suite` 57/57).
+1. Run `./scripts/run-all-validation.ps1` — must pass with **0 failures** (`m6_suite` 73/73).
 2. Start backend API (account + leaderboards) and web dev server if testing website/meta flows.
 
 ---

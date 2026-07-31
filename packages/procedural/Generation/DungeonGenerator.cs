@@ -29,10 +29,16 @@ public static class DungeonGenerator
         int tier,
         int playerLevel,
         Guid runId,
+        int floorIndex = 1,
+        bool isFinalFloor = false,
         GenerationOptions? options = null)
     {
         options ??= new GenerationOptions();
         var biome = BiomeCatalog.GetRequired(biomeId);
+        if (isFinalFloor)
+            return FinalFloorGenerator.Generate(biome, seed, tier, playerLevel, runId, floorIndex);
+
+        var effectiveSeed = floorIndex <= 1 ? seed : unchecked(seed + floorIndex * 7919);
         var layoutRules = new BiomeLayoutRules(
             biome.Id,
             biome.RoomCountMin,
@@ -42,10 +48,10 @@ public static class DungeonGenerator
         Exception? lastError = null;
         for (var attempt = 0; attempt < options.MaxAttempts; attempt++)
         {
-            var attemptSeed = seed + attempt * options.SeedOffsetPerAttempt;
+            var attemptSeed = effectiveSeed + attempt * options.SeedOffsetPerAttempt;
             try
             {
-                var result = TryGenerateOnce(biome, layoutRules, attemptSeed, tier, playerLevel, runId);
+                var result = TryGenerateOnce(biome, layoutRules, attemptSeed, tier, playerLevel, runId, floorIndex, false);
                 return result;
             }
             catch (Exception ex)
@@ -65,8 +71,12 @@ public static class DungeonGenerator
         int seed,
         int tier,
         int playerLevel,
-        Guid runId)
+        Guid runId,
+        int floorIndex = 1,
+        bool isFinalFloor = false)
     {
+        if (isFinalFloor)
+            return FinalFloorGenerator.Generate(biome, seed, tier, playerLevel, runId, floorIndex);
         var graph = LayoutGraphGenerator.Generate(layoutRules, seed);
         var rng = new SeededRandom(seed ^ 0x5EED);
 
@@ -77,7 +87,7 @@ public static class DungeonGenerator
             assignment.EntranceLayoutId,
             assignment.BossLayoutId,
             biome.RequiresSecret,
-            assignment.SecretLayoutId);
+            assignment.SecretLayoutIds);
         if (!validation.IsValid)
             throw new InvalidOperationException(validation.FailureReason);
 
@@ -105,7 +115,9 @@ public static class DungeonGenerator
             Rooms: rooms,
             Edges: edges,
             Placements: placements,
-            Budgets: new DungeonBudgets(threatUsed, lootValue));
+            Budgets: new DungeonBudgets(threatUsed, lootValue),
+            FloorIndex: floorIndex,
+            IsFinalFloor: isFinalFloor);
 
         var json = CanonicalJsonSerializer.Serialize(definition);
         return new GenerationResult(definition with { Checksum = ExtractChecksum(json) }, json);

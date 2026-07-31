@@ -23,6 +23,7 @@ const SUITE_PATHS: PackedStringArray = [
 	"res://scripts/validation/suites/flow_suite.gd",
 	"res://scripts/validation/suites/m5_suite.gd",
 	"res://scripts/validation/suites/m6_suite.gd",
+	"res://scripts/validation/suites/m7_suite.gd",
 ]
 
 var _ctx

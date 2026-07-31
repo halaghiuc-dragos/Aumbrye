@@ -38,6 +38,8 @@ public static class CanonicalJsonSerializer
       ["biomeId"] = def.BiomeId,
       ["tier"] = def.Tier,
       ["playerLevelSnapshot"] = def.PlayerLevelSnapshot,
+      ["floorIndex"] = def.FloorIndex,
+      ["isFinalFloor"] = def.IsFinalFloor,
       ["rooms"] = def.Rooms.Select(r => new SortedDictionary<string, object?>(StringComparer.Ordinal)
       {
         ["id"] = r.Id,

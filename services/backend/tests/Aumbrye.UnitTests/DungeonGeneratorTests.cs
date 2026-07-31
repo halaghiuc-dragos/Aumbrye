@@ -89,7 +89,7 @@ public class DungeonGeneratorTests
         var graph = new LayoutGraph(
             [new LayoutNode("room_0", 0, 0), new LayoutNode("room_1", 1, 0)],
             [new LayoutEdge("room_0", "room_1")]);
-        var result = ConnectivityValidator.Validate(graph, "room_0", "room_1", false, null);
+        var result = ConnectivityValidator.Validate(graph, "room_0", "room_1", false, Array.Empty<string>());
         Assert.False(result.IsValid);
     }
 

@@ -1,0 +1,22 @@
+{
+  "id": "final_boss_forgotten_castle",
+  "name": "Forgotten Sovereign",
+  "scene": "res://scenes/enemies/final_boss_forgotten_castle.tscn",
+  "threat_cost": 80,
+  "health": 1200,
+  "poise": 200,
+  "move_speed": 3.5,
+  "attack_damage": 28,
+  "attack_poise_damage": 30,
+  "windup_duration": 0.55,
+  "active_duration": 0.25,
+  "recovery_duration": 0.45,
+  "attack_range": 2.8,
+  "attack_cooldown": 1.2,
+  "stagger_duration": 1.5,
+  "aggro_range": 18,
+  "deaggro_range": 28,
+  "patrol_radius": 0,
+  "enemy_type": "boss",
+  "phase2_threshold": 0.25
+}

@@ -23,6 +23,9 @@ apps/game/client/scripts/validation/
     dungeon_suite.gd      # build pipeline, rooms/enemies/loot, snapshot round-trip
     player_suite.gd       # locomotion API, sprint, weapon controller
     flow_suite.gd         # RunFlow scene paths, offline procgen, results, debug seed
+    m5_suite.gd           # M5 themes, weapons, statuses, schemas
+    m6_suite.gd           # M6 content pack B: biomes, meta, web, a11y, leaderboards
+    m7_suite.gd           # M7 multi-floor, Umbral modes, Steam/save/CI stubs
 ```
 
 Entry scene: `res://scenes/debug/mcp_validation.tscn` → `validation_runner.gd`
@@ -122,6 +125,43 @@ Report: `%APPDATA%\Godot\app_userdata\Aumbrye\mcp_validation.json`
 | RunFlow offline paths | Procgen-cli missing UX, offline hang |
 
 See [MANUAL_PLAYTEST_CHECKLIST.md](MANUAL_PLAYTEST_CHECKLIST.md) § M7 for the canonical manual list. `TestContext.MANUAL_REMAINING` mirrors IDs written into each report.
+
+## M6 / M7 test ID map (2026-07-31)
+
+### M6 (`m6_suite.gd`)
+
+| Area | Test IDs | Milestone |
+|------|----------|-----------|
+| Themes (frozen, cathedral) | `m6.biome.*`, `m6.procgen.*`, `m6.dungeon.*`, `m6.rooms.*` | THEME-6.1/6.2 |
+| Enemies / bosses | `m6.enemies.roster`, `m6.bosses.roster`, `m6.scene.*` | ENEMY/BOSS-6.1 |
+| Items | `m6.items.catalog_cap`, `m6.items.unique_*` | ITEM-6.1 |
+| Achievements | `m6.achievements.*` | META-6.1 |
+| Leaderboards | `m6.leaderboard.*` | META-6.2 |
+| Web pages | `m6.web.*` | WEB-6.1–6.4 |
+| Accessibility | `m6.a11y.*` | A11Y-6.1 |
+| Balance / perf | `m6.balance.*`, `m6.perf.*` | BAL/PERF-6.1 |
+| Escape meta | `m6.meta.escape_achievements` | META-6.1 |
+
+### M7 (`m7_suite.gd`)
+
+| Area | Test IDs | Milestone |
+|------|----------|-----------|
+| Multi-floor | `m7.floor.*`, `m7.procgen.*`, `m7.run_mode.*` | FLOOR-7.x |
+| Final boss | `m7.boss.*` | FLOOR-7.5 |
+| Umbral Endless | `m7.endless.*` | ENDLESS-7.x |
+| Umbral Waves | `m7.waves.*`, `m7.hub.*_portal` | WAVES-7.x |
+| Skip items | `m7.skip.*`, `m7.global_drops.*` | SKIP-7.x |
+| Steam stub | `m7.steam.*` | STEAM-7.x |
+| Polish | `m7.polish.*` | POLISH-7.x |
+| Save / schema | `m7.save.*`, `m7.schema.*` | SCHEMA-7.1 |
+| Perf / CI / ship | `m7.perf.*`, `m7.ci.*`, `m7.ship.*` | PERF/CI/SHIP-7.x |
+
+### C# (backend / procgen)
+
+| Area | Test class | Notes |
+|------|------------|-------|
+| Leaderboards | `LeaderboardServiceTests` | In-memory submit + filter |
+| Final floor procgen | `FinalFloorGeneratorTests` | `isFinalFloor`, floor seed mix, biome prefixes |
 
 ## GdUnit
 

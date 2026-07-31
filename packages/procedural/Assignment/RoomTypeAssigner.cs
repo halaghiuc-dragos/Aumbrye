@@ -17,7 +17,7 @@ public sealed record RoomAssignmentResult(
     IReadOnlyList<AssignedRoom> Rooms,
     string EntranceLayoutId,
     string BossLayoutId,
-    string? SecretLayoutId,
+    IReadOnlyList<string> SecretLayoutIds,
     IReadOnlyList<(string From, string To, string Kind)> Edges);
 
 /// <summary>
@@ -48,14 +48,23 @@ public static class RoomTypeAssigner
             .Where(id => adjacency[id].Count > 0 && adjacency[id].All(nb => nodesById[nb].GridZ < nodesById[id].GridZ))
             .ToList();
         if (bossCandidates.Count == 0)
+        {
+            bossCandidates = graph.Nodes
+                .Where(n => n.Id != entranceLayoutId)
+                .OrderByDescending(n => n.GridZ)
+                .ThenBy(n => n.Id, StringComparer.Ordinal)
+                .Select(n => n.Id)
+                .ToList();
+        }
+        if (bossCandidates.Count == 0)
             throw new InvalidOperationException("No valid boss placement (north door requires southern neighbor).");
         var bossLayoutId = bossCandidates
             .OrderByDescending(id => distances[id])
             .ThenBy(id => id, StringComparer.Ordinal)
             .First();
 
-        var secretLayoutId = PickSecretNode(graph, distances, entranceLayoutId, bossLayoutId, rng);
-        var treasureLayoutId = PickTreasureNode(graph, distances, entranceLayoutId, bossLayoutId, secretLayoutId, rng);
+        var secretLayoutIds = PickSecretNodes(graph, distances, entranceLayoutId, bossLayoutId, rng, maxSecrets: 2, biome.RequiresSecret);
+        var treasureLayoutId = PickTreasureNode(graph, distances, entranceLayoutId, bossLayoutId, secretLayoutIds, rng);
         var corridorLayoutId = PickCorridorNeighbor(graph, entranceLayoutId, rng);
 
         var assigned = new List<AssignedRoom>();
@@ -67,7 +76,7 @@ public static class RoomTypeAssigner
                 node.Id,
                 entranceLayoutId,
                 bossLayoutId,
-                secretLayoutId,
+                secretLayoutIds,
                 treasureLayoutId,
                 corridorLayoutId,
                 prefix,
@@ -83,7 +92,7 @@ public static class RoomTypeAssigner
             {
                 var fromSemantic = assigned.First(r => r.LayoutNodeId == e.From).SemanticId;
                 var toSemantic = assigned.First(r => r.LayoutNodeId == e.To).SemanticId;
-                var kind = ResolveEdgeKind(e, secretLayoutId, assigned);
+                var kind = ResolveEdgeKind(e, secretLayoutIds, assigned);
                 return (fromSemantic, toSemantic, kind);
             })
             .OrderBy(e => e.fromSemantic, StringComparer.Ordinal)
@@ -94,7 +103,7 @@ public static class RoomTypeAssigner
             assigned,
             entranceLayoutId,
             bossLayoutId,
-            secretLayoutId,
+            secretLayoutIds,
             edges);
     }
 
@@ -103,7 +112,7 @@ public static class RoomTypeAssigner
         string layoutId,
         string entranceId,
         string bossId,
-        string? secretId,
+        IReadOnlyList<string> secretIds,
         string treasureId,
         string corridorId,
         string prefix,
@@ -117,11 +126,27 @@ public static class RoomTypeAssigner
         if (layoutId == bossId)
             return ("boss", $"{prefix}_boss", "boss", ["exit_portal"]);
 
-        if (secretId != null && layoutId == secretId)
-            return ("secret", $"{prefix}_secret", "secret", ["secret_room"]);
+        if (secretIds.Contains(layoutId))
+        {
+            var secretIndex = 0;
+            for (var i = 0; i < secretIds.Count; i++)
+            {
+                if (secretIds[i] == layoutId)
+                {
+                    secretIndex = i;
+                    break;
+                }
+            }
+            var secretSemantic = secretIds.Count > 1 ? $"secret_{secretIndex + 1}" : "secret";
+            return (secretSemantic, $"{prefix}_secret", "secret", ["secret_room"]);
+        }
 
         if (layoutId == treasureId)
-            return ("treasure", $"{prefix}_treasure", "treasure", []);
+        {
+            var treasureDoors = RequiredDoorsForNode(graph, layoutId);
+            var treasureTemplate = PickTemplateForDoors($"{prefix}_treasure", treasureDoors, biome.RoomTemplateIds);
+            return ("treasure", treasureTemplate, "treasure", []);
+        }
 
         if (layoutId == corridorId)
             return ("stairs", $"{prefix}_stairs", "corridor", []);
@@ -156,11 +181,10 @@ public static class RoomTypeAssigner
 
     private static string ResolveEdgeKind(
         LayoutEdge edge,
-        string? secretLayoutId,
+        IReadOnlyList<string> secretLayoutIds,
         IReadOnlyList<AssignedRoom> rooms)
     {
-        if (secretLayoutId != null &&
-            (edge.From == secretLayoutId || edge.To == secretLayoutId))
+        if (secretLayoutIds.Any(id => edge.From == id || edge.To == id))
             return "secret";
 
         var from = rooms.First(r => r.LayoutNodeId == edge.From);
@@ -193,6 +217,43 @@ public static class RoomTypeAssigner
         return distances;
     }
 
+    private static List<string> PickSecretNodes(
+        LayoutGraph graph,
+        Dictionary<string, int> distances,
+        string entranceId,
+        string bossId,
+        SeededRandom rng,
+        int maxSecrets = 2,
+        bool requiresAtLeastOne = false)
+    {
+        var nodesById = graph.Nodes.ToDictionary(n => n.Id, StringComparer.Ordinal);
+        var adjacency = ConnectivityValidator.BuildAdjacency(graph);
+        var candidates = graph.Nodes
+            .Where(n => n.Id != entranceId && n.Id != bossId && distances[n.Id] >= 2)
+            .Where(n => adjacency[n.Id].Count > 0 && adjacency[n.Id].All(nb =>
+            {
+                var neighbor = nodesById[nb];
+                return neighbor.GridX > n.GridX;
+            }))
+            .Select(n => n.Id)
+            .ToList();
+        if (candidates.Count == 0)
+            return [];
+        candidates = candidates.OrderBy(id => id, StringComparer.Ordinal).ToList();
+        var maxPick = Math.Min(1, candidates.Count);
+        var minPick = requiresAtLeastOne && maxPick > 0 ? 1 : 0;
+        var count = rng.NextInt(minPick, maxPick + 1);
+        var picked = new List<string>();
+        var pool = candidates.ToList();
+        for (var i = 0; i < count; i++)
+        {
+            var idx = rng.NextInt(pool.Count);
+            picked.Add(pool[idx]);
+            pool.RemoveAt(idx);
+        }
+        return picked;
+    }
+
     private static string? PickSecretNode(
         LayoutGraph graph,
         Dictionary<string, int> distances,
@@ -221,13 +282,14 @@ public static class RoomTypeAssigner
         Dictionary<string, int> distances,
         string entranceId,
         string bossId,
-        string? secretId,
+        IReadOnlyList<string> secretIds,
         SeededRandom rng)
     {
         var nodesById = graph.Nodes.ToDictionary(n => n.Id, StringComparer.Ordinal);
         var adjacency = ConnectivityValidator.BuildAdjacency(graph);
+        var secretSet = secretIds.ToHashSet(StringComparer.Ordinal);
         var candidates = graph.Nodes
-            .Where(n => n.Id != entranceId && n.Id != bossId && n.Id != secretId && distances[n.Id] >= 2)
+            .Where(n => n.Id != entranceId && n.Id != bossId && !secretSet.Contains(n.Id) && distances[n.Id] >= 2)
             .Where(n => adjacency[n.Id].Count > 0 && adjacency[n.Id].All(nb =>
             {
                 var neighbor = nodesById[nb];
@@ -238,7 +300,7 @@ public static class RoomTypeAssigner
         if (candidates.Count == 0)
         {
             candidates = graph.Nodes
-                .Where(n => n.Id != entranceId && n.Id != bossId)
+                .Where(n => n.Id != entranceId && n.Id != bossId && !secretSet.Contains(n.Id))
                 .Select(n => n.Id)
                 .ToList();
         }

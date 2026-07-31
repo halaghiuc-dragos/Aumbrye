@@ -16,7 +16,7 @@
 | M4 ✅ | [design/M4_IMPLEMENTATION_LOG.md](../design/M4_IMPLEMENTATION_LOG.md) | Gameplay loop | Hub → run → upgrade → repeat | **done** |
 | M5 ✅ | Content pack A | 3 themes + combat depth | **done** |
 | M6 ✅ | [design/M6_IMPLEMENTATION_LOG.md](../design/M6_IMPLEMENTATION_LOG.md) | Content pack B | 5 themes + meta + site | **done** |
-| [M7](phases/M7-EA-POLISH.md) | EA polish | Steam ship | 7–8 weeks | **next** |
+| M7 ✅ | [design/M7_IMPLEMENTATION_LOG.md](../design/M7_IMPLEMENTATION_LOG.md) | EA polish | Steam ship | 7–8 weeks | **automated closed** (EA ship manual gates open) |
 
 **Total guidance:** ~14–18 months. Calendar yields to quality gates.
 
@@ -95,7 +95,7 @@ Each track has its own system doc. Phases pull milestones from tracks.
 | M3 ✅ | Same seed → identical dungeon via API → playable in Godot |
 | M4 ✅ | Automated loop green; manual TEST-4.1 soak open — [MANUAL_PLAYTEST_CHECKLIST.md](../design/MANUAL_PLAYTEST_CHECKLIST.md) § M4 |
 | M5 ✅ | 3 themes + 5 weapons; automated `m5_suite` green — manual feel gates in [MANUAL_PLAYTEST_CHECKLIST.md](../design/MANUAL_PLAYTEST_CHECKLIST.md) § M5 |
-| M6 ✅ | 5 themes; ~8–12h content; site live; a11y baseline — automated `m6_suite` (57 tests) green; manual § M6 in [MANUAL_PLAYTEST_CHECKLIST.md](../design/MANUAL_PLAYTEST_CHECKLIST.md) |
-| M7 | Steam Windows build; playtest gate; EA DoD met |
+| M6 ✅ | 5 themes; ~8–12h content; site live; a11y baseline — automated `m6_suite` (73 tests) green; manual § M6 in [MANUAL_PLAYTEST_CHECKLIST.md](../design/MANUAL_PLAYTEST_CHECKLIST.md) |
+| M7 ✅ | Steam Windows build; 10-floor + Umbral modes; automated `m7_suite` (65) green — manual § M7 + [07-EA-DEFINITION-OF-DONE.md](07-EA-DEFINITION-OF-DONE.md) for EA ship |
 
 Full ship checklist: [07-EA-DEFINITION-OF-DONE.md](07-EA-DEFINITION-OF-DONE.md).

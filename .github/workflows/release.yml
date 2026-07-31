@@ -1,0 +1,59 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag (e.g. ea-1.0.0)"
+        required: true
+        type: string
+
+jobs:
+  backend-image:
+    name: API Docker image
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Build API image
+        run: docker build -t aumbrye-api:${{ inputs.tag }} -f services/backend/Dockerfile services/backend
+
+  web-build:
+    name: Web static build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/web
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: apps/web/package-lock.json
+      - run: npm ci
+      - run: npm run build
+      - uses: actions/upload-artifact@v4
+        with:
+          name: web-dist-${{ inputs.tag }}
+          path: apps/web/dist
+
+  godot-export-stub:
+    name: Godot export artifact (stub)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Placeholder export note
+        run: |
+          mkdir -p artifacts/godot
+          echo "Export Godot Windows build locally or via Steam depot pipeline for tag ${{ inputs.tag }}" > artifacts/godot/README.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: godot-export-${{ inputs.tag }}
+          path: artifacts/godot
+
+  release-summary:
+    name: Release summary
+    needs: [backend-image, web-build, godot-export-stub]
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "Release artifacts prepared for tag ${{ inputs.tag }}. Steam upload requires manual confirm (CI-7.1)."

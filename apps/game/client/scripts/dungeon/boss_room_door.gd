@@ -102,5 +102,5 @@ func _update_label() -> void:
 	if _opened or _sealed or not _near_player:
 		_label.visible = false
 		return
-	_label.text = "Press E"
+	_label.text = InputGlyphService.format_interact_label()
 	_label.visible = true

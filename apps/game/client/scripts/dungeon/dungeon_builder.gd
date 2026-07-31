@@ -18,6 +18,10 @@ const FALLING_TRAP_SCENE := preload("res://scenes/traps/falling_trap.tscn")
 const POISON_POOL_SCENE := preload("res://scenes/traps/poison_pool.tscn")
 const EXIT_PORTAL_SCRIPT := preload("res://scripts/dungeon/exit_portal.gd")
 const BOSS_DOOR_SCRIPT := preload("res://scripts/dungeon/boss_room_door.gd")
+const STAIR_LEVER_SCRIPT := preload("res://scripts/dungeon/stair_lever.gd")
+const STAIR_COLLISION := preload("res://scripts/dungeon/stair_collision_builder.gd")
+const FINAL_BOSS_SCENE := preload("res://scenes/enemies/final_boss_forgotten_castle.tscn")
+const EndlessDifficultyScript := preload("res://scripts/dungeon/endless_difficulty.gd")
 
 signal build_complete
 signal boss_defeated
@@ -33,6 +37,8 @@ var _boss: Node
 var _enemy_by_id: Dictionary = {}
 var _chest_by_id: Dictionary = {}
 var _boss_door: Node3D
+var _stair_lever: Node3D
+var _is_final_floor := false
 
 
 func build(parent: Node3D, player: CharacterBody3D, fixture_path: String = FIXTURE_RELATIVE) -> void:
@@ -58,6 +64,9 @@ func build_from_source(parent: Node3D, player: CharacterBody3D, fixture_path: St
 		push_error("DungeonBuilder: no definition provided")
 		return
 	biome_id = BiomeRegistry.resolve_biome_id(definition)
+	_is_final_floor = bool(definition.get("isFinalFloor", false)) or (
+		RunFlow.is_final_floor() and RunFlow.get_run_mode() != "endless"
+	)
 	_room_scenes = BiomeRegistry.get_room_scenes(biome_id)
 	var rooms: Array = definition.get("rooms", [])
 	if rooms.is_empty():
@@ -70,7 +79,9 @@ func build_from_source(parent: Node3D, player: CharacterBody3D, fixture_path: St
 	_place_loot()
 	_place_traps()
 	_setup_boss()
-	_setup_exit_portal()
+	if _is_final_floor:
+		_setup_exit_portal()
+	_setup_stair_levers()
 	_setup_boss_door(parent)
 	build_complete.emit()
 
@@ -116,6 +127,8 @@ func _build_rooms(parent: Node3D) -> void:
 		instance.template_id = template_id
 		rooms_root.add_child(instance)
 		_rooms[room_def.get("id", "")] = instance
+		if str(room_def.get("templateId", "")).ends_with("_stairs"):
+			STAIR_COLLISION.ensure_stair_collision(instance)
 
 
 func _build_shortcut_corridors(parent: Node3D) -> void:
@@ -197,6 +210,7 @@ func _spawn_enemy(placement: Dictionary, index: int) -> void:
 	if enemy.has_method("set_player"):
 		enemy.call("set_player", _player)
 	room.add_child(enemy)
+	_apply_floor_scaling(enemy)
 	_ensure_enemy_groups(enemy)
 	_enemy_by_id[placement_key] = enemy
 	if enemy.has_signal("enemy_died"):
@@ -248,7 +262,11 @@ func _setup_boss() -> void:
 	if room == null:
 		return
 	var enemy_id: String = boss_placement.get("enemyId", "castle_knight")
+	if _is_final_floor and biome_id == BiomeRegistry.BIOME_CASTLE:
+		enemy_id = "final_boss_forgotten_castle"
 	var scene := _get_enemy_scene(enemy_id)
+	if scene == null and _is_final_floor:
+		scene = FINAL_BOSS_SCENE
 	if scene == null:
 		return
 	_boss = scene.instantiate() as Node
@@ -262,6 +280,7 @@ func _setup_boss() -> void:
 		_boss.position = Vector3.ZERO
 	if _boss.has_method("set_player"):
 		_boss.call("set_player", _player)
+	_apply_floor_scaling(_boss)
 	if _boss.has_signal("boss_defeated"):
 		_boss.boss_defeated.connect(_on_boss_defeated)
 	_enemy_by_id["boss"] = _boss
@@ -308,8 +327,77 @@ func _create_exit_portal(room: RoomTemplate) -> Area3D:
 
 
 func _on_boss_defeated() -> void:
-	open_exit_portal()
+	if _is_final_floor:
+		open_exit_portal()
+	else:
+		_unlock_stair_lever()
 	boss_defeated.emit()
+
+
+func _setup_stair_levers() -> void:
+	for room_id in _rooms:
+		var room := get_room(room_id)
+		if room == null:
+			continue
+		if not str(room.template_id).ends_with("_stairs"):
+			continue
+		_create_stair_lever(room)
+
+
+func _create_stair_lever(room: RoomTemplate) -> void:
+	var lever := Node3D.new()
+	lever.name = "StairLever"
+	lever.set_script(STAIR_LEVER_SCRIPT)
+	var interact := Area3D.new()
+	interact.name = "InteractArea"
+	interact.collision_layer = 0
+	interact.collision_mask = 2
+	interact.monitoring = true
+	var shape := CollisionShape3D.new()
+	var box := BoxShape3D.new()
+	box.size = Vector3(3.0, 3.0, 3.0)
+	shape.shape = box
+	interact.add_child(shape)
+	lever.add_child(interact)
+	var label := Label3D.new()
+	label.name = "Label3D"
+	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	label.font_size = 24
+	label.position = Vector3(0.0, 2.5, 0.0)
+	lever.add_child(label)
+	var props := room.get_node_or_null("Props")
+	if props:
+		props.add_child(lever)
+	else:
+		room.add_child(lever)
+	var can_ascend := not RunFlow.is_final_floor() or RunFlow.get_run_mode() == "endless"
+	var can_descend := RunFlow.get_current_floor() > 1 and RunFlow.get_run_mode() != "endless"
+	lever.call("configure", can_ascend, can_descend)
+	_stair_lever = lever
+
+
+func _unlock_stair_lever() -> void:
+	if _stair_lever and _stair_lever.has_method("unlock"):
+		var can_ascend := not RunFlow.is_final_floor() or RunFlow.get_run_mode() == "endless"
+		var can_descend := RunFlow.get_current_floor() > 1 and RunFlow.get_run_mode() != "endless"
+		_stair_lever.call("configure", can_ascend, can_descend)
+		_stair_lever.call("unlock")
+
+
+func get_stair_lever() -> Node3D:
+	return _stair_lever
+
+
+func get_stair_spawn_global(stair_room_id: String, ascending: bool) -> Dictionary:
+	var room := get_room(stair_room_id)
+	if room == null:
+		return {}
+	var spawn := room.get_node_or_null("SpawnPoints/PlayerSpawn") as Node3D
+	var pos := spawn.global_position if spawn else room.global_position + Vector3(0, 1.0, -4.0)
+	return {
+		"position": pos,
+		"rotationY": RunFloorConfig.stairs_spawn_facing_y(room, ascending),
+	}
 
 
 func _setup_boss_door(castle_run: Node3D) -> void:
@@ -440,7 +528,10 @@ func apply_snapshot(snapshot: Dictionary) -> void:
 			chest.call("apply_opened_state", loot_states[chest_id].get("opened", false))
 
 	if snapshot.get("bossDefeated", false):
-		open_exit_portal()
+		if _is_final_floor:
+			open_exit_portal()
+		else:
+			_unlock_stair_lever()
 
 
 func _ensure_enemy_groups(enemy: Node) -> void:
@@ -479,3 +570,39 @@ func _get_enemy_scene(enemy_id: String) -> PackedScene:
 		return ENEMY_SCENES_FALLBACK[enemy_id]
 	push_warning("DungeonBuilder: unknown enemy id %s" % enemy_id)
 	return null
+
+
+func unload_from_parent(parent: Node3D) -> void:
+	for room_id in _rooms.keys():
+		var room: Node = _rooms[room_id]
+		if is_instance_valid(room):
+			room.queue_free()
+	_rooms.clear()
+	_enemy_by_id.clear()
+	_chest_by_id.clear()
+	_boss = null
+	_boss_door = null
+	_stair_lever = null
+	if _entities and is_instance_valid(_entities):
+		_entities.queue_free()
+		_entities = null
+	if parent:
+		var rooms_root := parent.get_node_or_null("Rooms")
+		if rooms_root:
+			rooms_root.queue_free()
+		for shortcut_name in ["ShortcutVertical", "ShortcutCorridor"]:
+			var shortcut := parent.get_node_or_null(shortcut_name)
+			if shortcut:
+				shortcut.queue_free()
+
+
+func _apply_floor_scaling(enemy: Node) -> void:
+	if RunFlow.get_run_mode() != "endless":
+		return
+	var floor_index := RunFlow.get_current_floor()
+	var hp_mult := EndlessDifficultyScript.hp_multiplier(floor_index)
+	var health := enemy.get_node_or_null("Health") as Health
+	if health:
+		health.configure(float(health.max_health) * hp_mult)
+	if enemy.has_method("set_damage_multiplier"):
+		enemy.call("set_damage_multiplier", EndlessDifficultyScript.damage_multiplier(floor_index))

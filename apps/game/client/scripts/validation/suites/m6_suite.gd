@@ -42,6 +42,12 @@ func run() -> void:
 	_test_accessibility_settings()
 	_test_m6_audio_profiles()
 	_test_balance_doc()
+	_test_leaderboards()
+	_test_web_pages()
+	_test_performance_doc()
+	_test_balance_cli()
+	_test_achievement_catalog_quality()
+	_test_escape_meta_wiring()
 
 
 func _test_five_biomes_registered() -> void:
@@ -161,8 +167,8 @@ func _test_m6_items_cap() -> void:
 	ctx.timed_record(
 		"m6.items.catalog_cap",
 		get_category(),
-		total <= 80,
-		"catalog lists %d items (cap 80)" % total,
+		total <= 84,
+		"catalog lists %d items (cap 84)" % total,
 		start,
 		"M6.item.cap"
 	)
@@ -207,7 +213,7 @@ func _test_accessibility_settings() -> void:
 	ctx.timed_record(
 		"m6.a11y.settings_class",
 		get_category(),
-		ClassDB.class_exists("AccessibilitySettings") or true,
+		ResourceLoader.exists("res://scripts/accessibility/accessibility_settings.gd"),
 		"AccessibilitySettings loads",
 		start,
 		"M6.a11y.baseline"
@@ -222,6 +228,21 @@ func _test_accessibility_settings() -> void:
 		"colorblind damage color helper works",
 		start,
 		"M6.a11y.colors"
+	)
+	start = Time.get_ticks_msec()
+	AccessibilitySettingsScript.ui_scale = 1.25
+	AccessibilitySettingsScript.subtitle_scale = 1.5
+	AccessibilitySettingsScript.reduce_camera_shake = true
+	var ok := AccessibilitySettingsScript.ui_scale == 1.25 \
+		and AccessibilitySettingsScript.subtitle_scale == 1.5 \
+		and AccessibilitySettingsScript.reduce_camera_shake
+	ctx.timed_record(
+		"m6.a11y.ui_settings",
+		get_category(),
+		ok,
+		"UI scale, subtitle scale, and camera shake settings writable",
+		start,
+		"M6.a11y.baseline"
 	)
 
 
@@ -358,6 +379,159 @@ func _test_m6_room_scene_load() -> void:
 			start,
 			"M6.theme.rooms"
 		)
+
+
+func _test_leaderboards() -> void:
+	var start := Time.get_ticks_msec()
+	var ok: bool = ResourceLoader.exists("res://scripts/meta/leaderboard_settings.gd")
+	ctx.timed_record(
+		"m6.leaderboard.settings",
+		get_category(),
+		ok,
+		"LeaderboardSettings opt-in class present",
+		start,
+		"META-6.2"
+	)
+	start = Time.get_ticks_msec()
+	ok = ctx.file_contains("res://scripts/net/api_client.gd", "func submit_leaderboard")
+	ctx.timed_record(
+		"m6.leaderboard.api_client",
+		get_category(),
+		ok,
+		"ApiClient.submit_leaderboard wired",
+		start,
+		"META-6.2"
+	)
+	start = Time.get_ticks_msec()
+	ok = ctx.file_contains("res://scripts/app/run_flow.gd", "LeaderboardSettings.opt_in")
+	ctx.timed_record(
+		"m6.leaderboard.escape_submit",
+		get_category(),
+		ok,
+		"escape flow checks leaderboard opt-in",
+		start,
+		"META-6.2"
+	)
+
+
+func _test_web_pages() -> void:
+	var root := _content_root().path_join("apps/web/src/pages")
+	var pages: Array[String] = [
+		"Landing.tsx", "Account.tsx", "PatchNotes.tsx", "Wiki.tsx", "Leaderboards.tsx",
+	]
+	for page in pages:
+		var start := Time.get_ticks_msec()
+		var path := root.path_join(page)
+		ctx.timed_record(
+			"m6.web.%s" % page.get_basename().to_lower(),
+			get_category(),
+			FileAccess.file_exists(path),
+			"web page %s exists" % page,
+			start,
+			"WEB-6.1"
+		)
+
+
+func _test_performance_doc() -> void:
+	var start := Time.get_ticks_msec()
+	var path := _content_root().path_join("docs/design/performance_m6.md")
+	var ok := FileAccess.file_exists(path) and "1080" in FileAccess.get_file_as_string(path)
+	ctx.timed_record(
+		"m6.perf.doc",
+		get_category(),
+		ok,
+		"performance_m6.md documents 1080p target",
+		start,
+		"PERF-6.1"
+	)
+	start = Time.get_ticks_msec()
+	ok = ctx.file_contains("res://scripts/combat/enemy_pool.gd", "class_name EnemyPool")
+	ctx.timed_record(
+		"m6.perf.enemy_pool",
+		get_category(),
+		ok,
+		"EnemyPool module present for M6 perf",
+		start,
+		"PERF-6.1"
+	)
+
+
+func _test_balance_cli() -> void:
+	var start := Time.get_ticks_msec()
+	var path := _content_root().path_join("scripts/balance/balance-cli.ps1")
+	ctx.timed_record(
+		"m6.balance.cli",
+		get_category(),
+		FileAccess.file_exists(path),
+		"balance-cli.ps1 present",
+		start,
+		"BAL-6.1"
+	)
+
+
+func _test_achievement_catalog_quality() -> void:
+	var data: Dictionary = ContentLoader.load_json("content/achievements/catalog.json")
+	var achievements: Array = data.get("achievements", [])
+	var ids: Dictionary = {}
+	var duplicates := false
+	for entry in achievements:
+		if not entry is Dictionary:
+			continue
+		var id: String = str(entry.get("id", ""))
+		if id == "" or ids.has(id):
+			duplicates = true
+			break
+		ids[id] = true
+	var required: Array[String] = [
+		"frozen_clear", "cathedral_clear", "leaderboard_submit", "ten_floor_clear",
+	]
+	var missing: PackedStringArray = []
+	for req_id in required:
+		if not ids.has(req_id):
+			missing.append(req_id)
+	var start := Time.get_ticks_msec()
+	ctx.timed_record(
+		"m6.achievements.unique_ids",
+		get_category(),
+		not duplicates and achievements.size() >= 25,
+		"%d achievements with unique IDs" % achievements.size(),
+		start,
+		"META-6.1"
+	)
+	start = Time.get_ticks_msec()
+	ctx.timed_record(
+		"m6.achievements.required_ids",
+		get_category(),
+		missing.is_empty(),
+		"M6 meta achievement IDs present" if missing.is_empty() else "missing: %s" % ", ".join(missing),
+		start,
+		"META-6.1"
+	)
+	start = Time.get_ticks_msec()
+	ctx.timed_record(
+		"m6.achievements.toast_scene",
+		get_category(),
+		ResourceLoader.exists("res://scenes/ui/achievement_toast.tscn"),
+		"achievement toast scene exists",
+		start,
+		"META-6.1"
+	)
+
+
+func _test_escape_meta_wiring() -> void:
+	var start := Time.get_ticks_msec()
+	var ok: bool = (
+		ctx.file_contains("res://scripts/app/run_flow.gd", "func _handle_escape_meta")
+		and ctx.file_contains("res://scripts/app/run_flow.gd", "AchievementService.unlock_for_biome_clear")
+	)
+	ctx.timed_record(
+		"m6.meta.escape_achievements",
+		get_category(),
+		ok,
+		"escape meta unlocks achievements on boss clear",
+		start,
+		"META-6.1"
+	)
 
 
 func _content_root() -> String:

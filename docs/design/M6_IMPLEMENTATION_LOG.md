@@ -2,14 +2,14 @@
 
 **Phase:** M6 — Content Pack B + Meta  
 **Closed:** 2026-07-31 (automated gates green; manual feel gates open)  
-**Next phase:** [M7-EA-POLISH.md](../plan/phases/M7-EA-POLISH.md)  
+**Next phase:** EA ship (manual) — [M7_IMPLEMENTATION_LOG.md](M7_IMPLEMENTATION_LOG.md)  
 **Phase snapshot:** [M-PHASES-STATUS.md](../plan/M-PHASES-STATUS.md)
 
 ---
 
 ## Summary
 
-M6 delivered EA content volume (5 themes, 20 enemies, 8 bosses, 79 catalog items), meta features (achievements + leaderboards), website pages, accessibility baseline, balance/perf tooling, and automated validation (`m6_suite`, 57 tests). Phase file `docs/plan/phases/M6-CONTENT-PACK-B.md` was removed after close; this log is the canonical record.
+M6 delivered EA content volume (5 themes, 20 enemies, 8 bosses, 79 catalog items), meta features (achievements + leaderboards), website pages, accessibility baseline, balance/perf tooling, and automated validation (`m6_suite`, 73 tests). Phase file `docs/plan/phases/M6-CONTENT-PACK-B.md` was removed after close; this log is the canonical record.
 
 ---
 
@@ -57,7 +57,7 @@ Batch-generated `.tscn` and `.gd` files had UTF-8 BOM prefixes, causing `Parse E
 
 ### m6_suite extended (2026-07-31)
 
-Added dungeon build, enemy/boss scene resolution, and room preload tests (25 → 57 tests). Covers frozen/cathedral procgen → `DungeonBuilder` → boss door wiring.
+Added dungeon build, enemy/boss scene resolution, and room preload tests (25 → 57 → **73** tests). Covers frozen/cathedral procgen → `DungeonBuilder` → boss door wiring, web, leaderboards, a11y.
 
 ---
 
@@ -90,7 +90,7 @@ Added dungeon build, enemy/boss scene resolution, and room preload tests (25 →
 | Suite | Result |
 |-------|--------|
 | `./scripts/run-all-validation.ps1` | **PASS** |
-| Godot headless (`m6_suite` + all suites) | **283 passed, 0 failed** (`m6_suite`: 57/57) |
+| Godot headless (`m6_suite` + all suites) | **363 passed, 0 failed** (`m6_suite`: 73/73) |
 | Backend `dotnet test` | **79 passed** (67 unit + 12 integration) |
 | Web `npm run build` | **PASS** (via content/CI layer) |
 | M6 scene load | **PASS** (BOM fix; scene + room preload tests) |

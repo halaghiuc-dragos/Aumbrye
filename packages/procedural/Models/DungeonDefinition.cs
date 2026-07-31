@@ -11,6 +11,8 @@ public sealed record DungeonDefinition(
     IReadOnlyList<DungeonEdge> Edges,
     DungeonPlacements Placements,
     DungeonBudgets Budgets,
+    int FloorIndex = 1,
+    bool IsFinalFloor = false,
     string? Checksum = null);
 
 public sealed record DungeonRoom(

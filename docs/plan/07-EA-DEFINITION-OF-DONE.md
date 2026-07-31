@@ -7,7 +7,7 @@
 
 ## Product
 
-- [ ] Hub + full loop stable (town → choose dungeon → fight → loot → boss → escape → upgrade → repeat)
+- [ ] Hub + full loop stable (town → choose dungeon → fight → loot → **floor bosses → stairs → 10 floors** → final boss → escape → upgrade → repeat)
 - [ ] Exactly **5** complete themes with unique bosses and audio profiles
 - [ ] Combat: move, sprint, dodge/roll, jump, block, parry, lock-on
 - [ ] ≥5 weapon archetypes playable (sword, greatsword, dagger, spear, bow minimum)

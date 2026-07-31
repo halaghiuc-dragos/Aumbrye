@@ -10,8 +10,15 @@ const DEBUG_EXE := CLI_RELATIVE + "/bin/Debug/net8.0/procgen-cli.exe"
 const CSPROJ := CLI_RELATIVE + "/ProcgenCli.csproj"
 
 
-static func generate(biome_id: String = DEFAULT_BIOME, run_seed: Variant = null) -> Dictionary:
-	var run_seed_value := _resolve_seed(run_seed)
+static func generate(
+	biome_id: String = DEFAULT_BIOME,
+	run_seed: Variant = null,
+	floor_index: int = 1,
+	run_mode: String = "castle"
+) -> Dictionary:
+	var base_seed := _resolve_seed(run_seed)
+	var floor_seed := RunFloorConfig.mix_seed(base_seed, floor_index)
+	var is_final := RunFloorConfig.is_final_floor(floor_index, run_mode)
 	var invocation := _resolve_cli_invocation()
 	if invocation.is_empty():
 		return {
@@ -25,7 +32,12 @@ static func generate(biome_id: String = DEFAULT_BIOME, run_seed: Variant = null)
 	var args: PackedStringArray = invocation.get("args", PackedStringArray())
 	args.append("generate")
 	args.append(biome_id)
-	args.append(str(run_seed_value))
+	args.append(str(floor_seed))
+	if is_final:
+		args.append("--final-floor")
+	else:
+		args.append("--floor")
+		args.append(str(floor_index))
 
 	var output: Array = []
 	var exit_code := OS.execute(
@@ -62,8 +74,9 @@ static func generate(biome_id: String = DEFAULT_BIOME, run_seed: Variant = null)
 	return {
 		"ok": true,
 		"definition": definition,
-		"input_seed": run_seed_value,
-		"generation_seed": int(definition.get("seed", run_seed_value)),
+		"input_seed": base_seed,
+		"generation_seed": int(definition.get("seed", floor_seed)),
+		"floor_index": floor_index,
 		"run_id": str(definition.get("runId", "")),
 	}
 

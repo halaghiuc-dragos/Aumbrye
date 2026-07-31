@@ -25,6 +25,7 @@
     { "id": "status_applier", "name": "Affliction Artist", "description": "Apply 25 status effects.", "category": "combat", "hidden": false },
     { "id": "freeze_master", "name": "Deep Freeze", "description": "Freeze 20 enemies.", "category": "combat", "hidden": false },
     { "id": "poison_master", "name": "Toxic Touch", "description": "Poison 20 enemies.", "category": "combat", "hidden": false },
-    { "id": "leaderboard_submit", "name": "On the Board", "description": "Submit a clear time to the leaderboard.", "category": "meta", "hidden": false }
+    { "id": "leaderboard_submit", "name": "On the Board", "description": "Submit a clear time to the leaderboard.", "category": "meta", "hidden": false },
+    { "id": "ten_floor_clear", "name": "Depth Delver", "description": "Clear all 10 floors of a dungeon run.", "category": "biome", "hidden": false }
   ]
 }

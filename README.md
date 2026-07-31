@@ -61,9 +61,9 @@ Open `apps/game/client/project.godot` in Godot 4.7. Press **F5** — main scene 
 
 **M1 combat controls (locked):** [docs/design/M1_CONTROLS.md](docs/design/M1_CONTROLS.md)  
 **M2 interact/inventory:** [docs/design/M2_CONTROLS.md](docs/design/M2_CONTROLS.md)  
-**Current phase:** M7 EA polish — [docs/plan/phases/M7-EA-POLISH.md](docs/plan/phases/M7-EA-POLISH.md)  
+**Current phase:** M7 automated closed — EA ship pending manual gates — [docs/design/M7_IMPLEMENTATION_LOG.md](docs/design/M7_IMPLEMENTATION_LOG.md)  
 **Phase status:** [docs/plan/M-PHASES-STATUS.md](docs/plan/M-PHASES-STATUS.md)  
-Implementation logs: [M6](docs/design/M6_IMPLEMENTATION_LOG.md) · [M4](docs/design/M4_IMPLEMENTATION_LOG.md) · [M3](docs/design/M3_IMPLEMENTATION_LOG.md) · [M2](docs/design/M2_IMPLEMENTATION_LOG.md) · [M1](docs/design/M1_IMPLEMENTATION_LOG.md)
+Implementation logs: [M7](docs/design/M7_IMPLEMENTATION_LOG.md) · [M6](docs/design/M6_IMPLEMENTATION_LOG.md) · [M4](docs/design/M4_IMPLEMENTATION_LOG.md) · [M3](docs/design/M3_IMPLEMENTATION_LOG.md) · [M2](docs/design/M2_IMPLEMENTATION_LOG.md) · [M1](docs/design/M1_IMPLEMENTATION_LOG.md)
 
 ### 5. Content validation
 

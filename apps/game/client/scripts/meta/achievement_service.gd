@@ -37,6 +37,8 @@ func unlock(achievement_id: String) -> bool:
 		return false
 	_unlocked[achievement_id] = true
 	_persist()
+	if SteamService and not SteamService.is_stub_mode:
+		SteamService.unlock_achievement(achievement_id)
 	var display_name := _get_display_name(achievement_id)
 	achievement_unlocked.emit(achievement_id, display_name)
 	_show_toast(display_name)

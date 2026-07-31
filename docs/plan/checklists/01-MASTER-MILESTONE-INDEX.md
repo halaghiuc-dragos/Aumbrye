@@ -131,20 +131,25 @@ Closed 2026-07-30 — automated `m5_suite` (70 tests). Manual gate: [MANUAL_PLAY
 | AUTH-6.1 | OAuth optional | deferred |
 | BAL-6.1 | Tools + balance | done |
 | PERF-6.1 | Perf pass | done |
-| M6.automated | `m6_suite` (57 tests): biomes, procgen, dungeon build, scenes, rooms | done |
+| M6.automated | `m6_suite` (73 tests): biomes, procgen, dungeon build, scenes, rooms, web, leaderboards | done |
 | M6.manual | Feel playtest (5 biomes, achievements, web) | manual |
 
 Log: [M6_IMPLEMENTATION_LOG.md](../design/M6_IMPLEMENTATION_LOG.md)
 
 ## M7 EA ship
 
-**Status:** not started — next phase after M6 close.
+**Status:** automated closed (2026-07-31); EA ship manual gates open.
 
-| ID | Title |
-|----|-------|
-| STEAM-7.1–7.4 | Steam integration |
-| POLISH-7.1–7.2 | Controller + tutorial |
-| PERF-7.1–7.2 | Optimize + crashes |
-| SCHEMA-7.1 | Save migrations |
-| CI-7.1 | Release workflow |
-| SHIP-7.1–7.3 | Playtest, store, launch |
+| ID | Title | Auto |
+|----|-------|------|
+| FLOOR-7.x | Multi-floor 10-floor runs + chunking | `m7_suite` |
+| ENDLESS-7.x | Umbral Endless mode | `m7.endless.*`, `m7.skip.*` |
+| WAVES-7.x | Umbral Waves mode | `m7.waves.*` |
+| STEAM-7.1–7.4 | Steam integration (stub + docs) | `m7.steam.*` |
+| POLISH-7.1–7.2 | Controller + tutorial | `m7.polish.*` |
+| PERF-7.1–7.2 | Optimize + crashes | `m7.perf.*` |
+| SCHEMA-7.1 | Save migrations v3 | `m7.save.*` |
+| CI-7.1 | Release workflow | `m7.ci.release_workflow` |
+| SHIP-7.1–7.3 | Playtest, store, launch | manual — [M7_MANUAL_PLAYTEST_CHECKLIST.md](../design/M7_MANUAL_PLAYTEST_CHECKLIST.md) |
+
+Log: [M7_IMPLEMENTATION_LOG.md](../design/M7_IMPLEMENTATION_LOG.md) · Known issues: [KNOWN_ISSUES_M7.md](../design/KNOWN_ISSUES_M7.md)

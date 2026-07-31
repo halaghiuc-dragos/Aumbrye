@@ -16,6 +16,9 @@
 [ext_resource type="Material" path="res://assets/castle/mat_accent.tres" id="14_accent"]
 [ext_resource type="Material" path="res://assets/castle/mat_wall.tres" id="15_wall"]
 [ext_resource type="Script" path="res://scripts/hub/hub_interactable.gd" id="16_interact"]
+[ext_resource type="Material" path="res://assets/cathedral/mat_accent.tres" id="17_umbral"]
+[ext_resource type="PackedScene" path="res://scenes/ui/umbral_endless_menu.tscn" id="18_endless_menu"]
+[ext_resource type="PackedScene" path="res://scenes/ui/umbral_waves_menu.tscn" id="19_waves_menu"]
 
 [sub_resource type="BoxMesh" id="BoxMesh_floor"]
 size = Vector3(50, 0.5, 40)
@@ -409,6 +412,80 @@ grow_horizontal = 2
 grow_vertical = 2
 
 [node name="QuestBoardUI" parent="." instance=ExtResource("11_quest")]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="UmbralEndlessPortal" type="Node3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -12, 0, -16)
+
+[node name="PortalFrame" type="MeshInstance3D" parent="UmbralEndlessPortal"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.75, 0)
+material_override = ExtResource("17_umbral")
+mesh = SubResource("BoxMesh_door_frame")
+
+[node name="PortalPad" type="MeshInstance3D" parent="UmbralEndlessPortal"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.05, 0)
+material_override = ExtResource("15_wall")
+mesh = SubResource("BoxMesh_pad")
+
+[node name="InteractArea" type="Area3D" parent="UmbralEndlessPortal"]
+collision_layer = 0
+collision_mask = 2
+script = ExtResource("16_interact")
+prompt_text = "Umbral Endless (E)"
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="UmbralEndlessPortal/InteractArea"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.75, 0)
+shape = SubResource("BoxShape3D_interact")
+
+[node name="PortalLabel" type="Label3D" parent="UmbralEndlessPortal"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 4.5, 0)
+billboard = 1
+text = "Umbral Endless"
+font_size = 24
+
+[node name="UmbralWavesPortal" type="Node3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 12, 0, -16)
+
+[node name="PortalFrame" type="MeshInstance3D" parent="UmbralWavesPortal"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.75, 0)
+material_override = ExtResource("17_umbral")
+mesh = SubResource("BoxMesh_door_frame")
+
+[node name="PortalPad" type="MeshInstance3D" parent="UmbralWavesPortal"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.05, 0)
+material_override = ExtResource("15_wall")
+mesh = SubResource("BoxMesh_pad")
+
+[node name="InteractArea" type="Area3D" parent="UmbralWavesPortal"]
+collision_layer = 0
+collision_mask = 2
+script = ExtResource("16_interact")
+prompt_text = "Umbral Waves (E)"
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="UmbralWavesPortal/InteractArea"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.75, 0)
+shape = SubResource("BoxShape3D_interact")
+
+[node name="PortalLabel" type="Label3D" parent="UmbralWavesPortal"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 4.5, 0)
+billboard = 1
+text = "Umbral Waves"
+font_size = 24
+
+[node name="UmbralEndlessMenu" parent="." instance=ExtResource("18_endless_menu")]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="UmbralWavesMenu" parent="." instance=ExtResource("19_waves_menu")]
 layout_mode = 3
 anchors_preset = 15
 anchor_right = 1.0

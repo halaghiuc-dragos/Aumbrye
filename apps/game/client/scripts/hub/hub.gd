@@ -3,6 +3,8 @@ extends Node3D
 ## M4 hub — blacksmith, merchant, storage, arena, quest board, portals (HUB-4.1).
 
 @onready var _portal_area: HubInteractable = $CastlePortal/InteractArea
+@onready var _endless_portal_area: HubInteractable = $UmbralEndlessPortal/InteractArea
+@onready var _waves_portal_area: HubInteractable = $UmbralWavesPortal/InteractArea
 @onready var _arena_area: HubInteractable = $ArenaDoor/InteractArea
 @onready var _blacksmith_area: HubInteractable = $Blacksmith/InteractArea
 @onready var _merchant_area: HubInteractable = $Merchant/InteractArea
@@ -11,6 +13,8 @@ extends Node3D
 @onready var _message_label: Label3D = $MessageLabel
 @onready var _prompt_label: Label3D = $PromptLabel
 @onready var _castle_menu: Control = $CastleEntryMenu
+@onready var _endless_menu: Control = $UmbralEndlessMenu
+@onready var _waves_menu: Control = $UmbralWavesMenu
 @onready var _dialogue_ui: Control = $DialogueUI
 @onready var _blacksmith_ui: Control = $BlacksmithUI
 @onready var _merchant_ui: Control = $MerchantUI
@@ -22,6 +26,8 @@ var _talents_ui: Control
 var _loadout_ui: Control
 
 var _near_portal := false
+var _near_endless_portal := false
+var _near_waves_portal := false
 var _near_arena := false
 var _near_blacksmith := false
 var _near_merchant := false
@@ -31,6 +37,8 @@ var _near_quest_board := false
 
 func _ready() -> void:
 	_wire_interactable(_portal_area, _on_portal_enter, _on_portal_exit)
+	_wire_interactable(_endless_portal_area, _on_endless_portal_enter, _on_endless_portal_exit)
+	_wire_interactable(_waves_portal_area, _on_waves_portal_enter, _on_waves_portal_exit)
 	_wire_interactable(_arena_area, _on_arena_enter, _on_arena_exit)
 	_wire_interactable(_blacksmith_area, _on_blacksmith_enter, _on_blacksmith_exit)
 	_wire_interactable(_merchant_area, _on_merchant_enter, _on_merchant_exit)
@@ -40,6 +48,10 @@ func _ready() -> void:
 	_castle_menu.biome_run_requested.connect(_on_biome_run)
 	_castle_menu.continue_requested.connect(_on_castle_continue)
 	_castle_menu.seed_run_requested.connect(_on_castle_seed_run)
+	_endless_menu.endless_run_requested.connect(_on_endless_run)
+	_endless_menu.continue_requested.connect(_on_endless_continue)
+	_waves_menu.waves_run_requested.connect(_on_waves_run)
+	_waves_menu.continue_requested.connect(_on_waves_continue)
 
 	for npc in get_tree().get_nodes_in_group("hub_npc"):
 		if npc.has_signal("dialogue_requested"):
@@ -50,7 +62,9 @@ func _ready() -> void:
 	_show_return_message()
 	_attach_m4_ui()
 	AudioDirector.stop_all(0.5)
+	HubTutorialService.load_from_save()
 	call_deferred("_boot_save_and_services")
+	call_deferred("_maybe_show_hub_tips")
 
 
 func _boot_save_and_services() -> void:
@@ -105,6 +119,12 @@ func _unhandled_input(event: InputEvent) -> void:
 	if _near_portal:
 		vp.set_input_as_handled()
 		_castle_menu.open_menu()
+	elif _near_endless_portal:
+		vp.set_input_as_handled()
+		_endless_menu.open_menu()
+	elif _near_waves_portal:
+		vp.set_input_as_handled()
+		_waves_menu.open_menu()
 	elif _near_arena:
 		vp.set_input_as_handled()
 		_near_arena = false
@@ -171,6 +191,8 @@ func _wire_interactable(
 func _any_ui_open() -> bool:
 	return (
 		_castle_menu.is_open()
+		or _endless_menu.is_open()
+		or _waves_menu.is_open()
 		or _dialogue_ui.is_open()
 		or _blacksmith_ui.is_open()
 		or _merchant_ui.is_open()
@@ -188,6 +210,10 @@ func _update_prompt() -> void:
 		return
 	if _near_portal:
 		_prompt_label.text = _portal_area.get_prompt()
+	elif _near_endless_portal:
+		_prompt_label.text = _endless_portal_area.get_prompt()
+	elif _near_waves_portal:
+		_prompt_label.text = _waves_portal_area.get_prompt()
 	elif _near_arena:
 		_prompt_label.text = _arena_area.get_prompt()
 	elif _near_blacksmith:
@@ -230,6 +256,42 @@ func _on_castle_seed_run(run_seed_value: int) -> void:
 		biome_id = str(_castle_menu.get_selected_biome())
 	RunFlow.start_run_with_seed(biome_id, run_seed_value)
 	_refresh_hub_message()
+
+
+func _on_endless_run(start_floor: int, skip_item_id: String) -> void:
+	RunFlow.start_endless_run(start_floor, skip_item_id)
+	_refresh_hub_message()
+
+
+func _on_endless_continue() -> void:
+	RunFlow.continue_endless_run()
+	_refresh_hub_message()
+
+
+func _on_waves_run() -> void:
+	RunFlow.start_waves_run()
+	_refresh_hub_message()
+
+
+func _on_waves_continue() -> void:
+	RunFlow.continue_waves_run()
+	_refresh_hub_message()
+
+
+func _on_endless_portal_enter() -> void:
+	_near_endless_portal = true
+
+
+func _on_endless_portal_exit() -> void:
+	_near_endless_portal = false
+
+
+func _on_waves_portal_enter() -> void:
+	_near_waves_portal = true
+
+
+func _on_waves_portal_exit() -> void:
+	_near_waves_portal = false
 
 
 func _refresh_hub_message() -> void:
@@ -298,3 +360,25 @@ func _on_quest_board_enter() -> void:
 
 func _on_quest_board_exit() -> void:
 	_near_quest_board = false
+
+
+func _maybe_show_hub_tips() -> void:
+	if not HubTutorialService.should_show_tips():
+		return
+	var tip := HubTutorialService.get_current_tip()
+	if tip.is_empty():
+		return
+	if _message_label:
+		_message_label.text = "%s (Esc to skip tips)" % tip
+
+
+func _input(event: InputEvent) -> void:
+	if HubTutorialService.should_show_tips() and event.is_action_pressed("ui_cancel"):
+		HubTutorialService.skip_all()
+		if _message_label:
+			_message_label.text = ""
+		return
+	if HubTutorialService.should_show_tips() and (event.is_action_pressed("ui_accept") or event.is_action_pressed("interact")):
+		var next := HubTutorialService.advance_tip()
+		if _message_label:
+			_message_label.text = next if not next.is_empty() else ""

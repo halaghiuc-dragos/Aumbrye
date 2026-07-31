@@ -8,12 +8,22 @@ signal returned_to_hub(message: String)
 
 const HUB_SCENE := "res://scenes/hub/hub.tscn"
 const CASTLE_RUN_SCENE := "res://scenes/dungeon/castle_run.tscn"
+const WAVES_RUN_SCENE := "res://scenes/dungeon/waves_run.tscn"
 const ARENA_SCENE := "res://scenes/debug/combat_arena.tscn"
 const RESULTS_SCENE := "res://scenes/ui/results_screen.tscn"
 const DEFAULT_BIOME := "forgotten_castle"
 const USE_ONLINE_PROCgen := false
 
+const RM := preload("res://scripts/app/run_mode_config.gd")
+const SkipFloorSvc := preload("res://scripts/dungeon/skip_floor_service.gd")
+
+var run_mode: String = "castle"
+
 var current_biome_id: String = DEFAULT_BIOME
+var current_floor: int = 1
+var max_floors: int = RunFloorConfig.MAX_FLOORS
+## Chunking: only the active floor definition is kept in memory (not all floors).
+var floor_definitions: Dictionary = {}
 
 var last_hub_message := ""
 var last_run_results: Dictionary = {}
@@ -38,8 +48,23 @@ func start_new_castle_run() -> void:
 	start_new_run(DEFAULT_BIOME)
 
 
+func start_endless_run(start_floor: int = 1, skip_item_id: String = "") -> void:
+	if skip_item_id != "":
+		SkipFloorSvc.consume_skip(InventoryService.inventory, skip_item_id)
+		start_floor = SkipFloorSvc.start_floor_for_item(skip_item_id)
+	await _start_mode_run(RM.MODE_ENDLESS, DEFAULT_BIOME, null, start_floor)
+
+
+func start_waves_run() -> void:
+	_start_waves_run(false)
+
+
+func continue_waves_run() -> void:
+	_start_waves_run(true)
+
+
 func start_new_run(biome_id: String, run_seed: Variant = null) -> void:
-	_start_run(biome_id, run_seed)
+	await _start_mode_run(RM.MODE_CASTLE, biome_id, run_seed, 1)
 
 
 func start_castle_run_with_seed(run_seed_value: int) -> void:
@@ -47,13 +72,30 @@ func start_castle_run_with_seed(run_seed_value: int) -> void:
 
 
 func start_run_with_seed(biome_id: String, run_seed_value: int) -> void:
-	_start_run(biome_id, run_seed_value)
+	await _start_mode_run(RM.MODE_CASTLE, biome_id, run_seed_value, 1)
 
 
 func continue_castle_run() -> void:
 	var saved := LocalSave.get_active_run()
 	if not LocalSave.has_continuable_run():
 		last_hub_message = "No saved castle run to continue."
+		return
+	var mode := str(saved.get("runMode", RM.MODE_CASTLE))
+	if mode != RM.MODE_CASTLE and mode != "":
+		last_hub_message = "Saved run is not a castle run — use the correct portal."
+		return
+	_is_continue = true
+	_pending_snapshot = saved.get("snapshot", {}) if saved.get("snapshot", {}) is Dictionary else {}
+	_restore_castle_run(saved)
+
+
+func continue_endless_run() -> void:
+	var saved := LocalSave.get_active_run()
+	if not LocalSave.has_continuable_run():
+		last_hub_message = "No saved endless run to continue."
+		return
+	if str(saved.get("runMode", "")) != RM.MODE_ENDLESS:
+		last_hub_message = "Saved run is not an endless run."
 		return
 	_is_continue = true
 	_pending_snapshot = saved.get("snapshot", {}) if saved.get("snapshot", {}) is Dictionary else {}
@@ -64,16 +106,25 @@ func start_castle_run() -> void:
 	start_new_castle_run()
 
 
-func _start_run(biome_id: String, run_seed: Variant) -> void:
+func _start_mode_run(
+	mode: String,
+	biome_id: String,
+	run_seed: Variant,
+	start_floor: int
+) -> void:
+	run_mode = mode
 	_is_continue = false
 	_pending_snapshot.clear()
 	_reset_run_stats()
+	max_floors = RunFloorConfig.max_floors_for_mode(run_mode)
 	current_dungeon_definition = {}
 	current_run_id = ""
 	current_seed = 0
 	current_biome_id = biome_id
+	current_floor = maxi(1, start_floor)
+	_clear_floor_cache()
 
-	var gen := await _generate_dungeon(biome_id, run_seed)
+	var gen := await _generate_dungeon(biome_id, run_seed, current_floor)
 	if not gen.get("ok", false):
 		last_hub_message = "Could not generate dungeon: %s" % gen.get("error", "unknown error")
 		push_error("RunFlow: %s" % last_hub_message)
@@ -85,6 +136,7 @@ func _start_run(biome_id: String, run_seed: Variant) -> void:
 		current_seed = int(run_seed)
 	else:
 		current_seed = int(gen.get("generation_seed", gen.get("input_seed", 0)))
+	_set_current_floor_cache(current_dungeon_definition)
 
 	if current_dungeon_definition.is_empty():
 		last_hub_message = "Failed to load dungeon definition."
@@ -94,12 +146,16 @@ func _start_run(biome_id: String, run_seed: Variant) -> void:
 	_enter_run()
 
 
-func _generate_dungeon(biome_id: String, run_seed: Variant) -> Dictionary:
+func _start_run(biome_id: String, run_seed: Variant) -> void:
+	await _start_mode_run(RM.MODE_CASTLE, biome_id, run_seed, 1)
+
+
+func _generate_dungeon(biome_id: String, run_seed: Variant, floor_index: int = 1) -> Dictionary:
 	if USE_ONLINE_PROCgen and ApiConfig.get_base_url() != "":
 		var online := await _try_online_generate(biome_id, run_seed)
 		if online.get("ok", false):
 			return online
-	return LocalProcgen.generate(biome_id, run_seed)
+	return LocalProcgen.generate(biome_id, run_seed, floor_index, run_mode)
 
 
 func _try_online_generate(biome_id: String, run_seed: Variant) -> Dictionary:
@@ -129,8 +185,18 @@ func _restore_castle_run(saved: Dictionary) -> void:
 	current_run_id = str(saved.get("runId", ""))
 	current_biome_id = str(saved.get("biomeId", DEFAULT_BIOME))
 	current_seed = int(saved.get("seed", 0))
+	run_mode = str(saved.get("runMode", RM.MODE_CASTLE))
+	current_floor = int(saved.get("currentFloor", 1))
+	max_floors = int(saved.get("maxFloors", RunFloorConfig.max_floors_for_mode(run_mode)))
+	_clear_floor_cache()
 	var def: Variant = saved.get("dungeonDefinition", {})
 	current_dungeon_definition = def if def is Dictionary else {}
+	if current_dungeon_definition.is_empty():
+		var regen := await _generate_dungeon(current_biome_id, current_seed, current_floor)
+		if regen.get("ok", false):
+			current_dungeon_definition = regen.get("definition", {})
+	if not current_dungeon_definition.is_empty():
+		_set_current_floor_cache(current_dungeon_definition)
 
 	if current_dungeon_definition.is_empty():
 		_is_continue = false
@@ -164,10 +230,13 @@ func _enter_run() -> void:
 		root.remove_meta("run_snapshot")
 
 	var active_run := {
-		"schemaVersion": 2,
+		"schemaVersion": 4,
+		"runMode": run_mode,
 		"runId": current_run_id,
 		"seed": current_seed,
 		"biomeId": current_biome_id,
+		"currentFloor": current_floor,
+		"maxFloors": max_floors,
 		"dungeonDefinition": definition_copy,
 	}
 	if _is_continue and not _pending_snapshot.is_empty():
@@ -195,6 +264,12 @@ func return_to_hub(message: String = "") -> void:
 
 func complete_run_via_portal() -> void:
 	if not _run_active:
+		return
+	if run_mode == RM.MODE_ENDLESS:
+		push_warning("RunFlow: endless runs have no exit portal")
+		return
+	if current_floor < max_floors:
+		push_warning("RunFlow: escape blocked until final floor is cleared")
 		return
 	_run_active = false
 	var elapsed := (Time.get_ticks_msec() / 1000.0) - _run_start_time
@@ -268,6 +343,123 @@ func register_boss_defeated() -> void:
 	_boss_defeated = true
 
 
+func get_current_floor() -> int:
+	return current_floor
+
+
+func get_max_floors() -> int:
+	return max_floors
+
+
+func is_final_floor() -> bool:
+	return RunFloorConfig.is_final_floor(current_floor, run_mode)
+
+
+func can_escape_run() -> bool:
+	if run_mode == RM.MODE_ENDLESS:
+		return false
+	return _boss_defeated and is_final_floor()
+
+
+func get_run_mode() -> String:
+	return run_mode
+
+
+func ascend_floor() -> void:
+	if not _run_active or not _boss_defeated:
+		return
+	if run_mode == RM.MODE_CASTLE and current_floor >= max_floors:
+		return
+	current_floor += 1
+	_boss_defeated = false
+	await _transition_floor(true)
+
+
+func descend_floor() -> void:
+	if not _run_active or current_floor <= 1:
+		return
+	if run_mode == RM.MODE_ENDLESS:
+		return
+	current_floor -= 1
+	_boss_defeated = true
+	await _transition_floor(false)
+
+
+func _transition_floor(ascending: bool) -> void:
+	_unload_current_floor_chunk()
+	var floor_key := str(current_floor)
+	current_dungeon_definition = {}
+	var gen := await _generate_dungeon(current_biome_id, current_seed, current_floor)
+	if gen.get("ok", false):
+		current_dungeon_definition = gen.get("definition", {})
+	else:
+		last_hub_message = "Could not generate floor %d." % current_floor
+		if ascending:
+			current_floor -= 1
+		else:
+			current_floor += 1
+		return
+	_set_current_floor_cache(current_dungeon_definition)
+
+	var root := get_tree().root
+	root.set_meta("dungeon_definition", current_dungeon_definition.duplicate(true))
+	root.set_meta("floor_transition", {
+		"ascending": ascending,
+		"floor": current_floor,
+	})
+	root.set_meta("run_snapshot", _build_floor_transition_snapshot(ascending))
+	_persist_active_run()
+	_goto_scene(CASTLE_RUN_SCENE)
+
+
+func _build_floor_transition_snapshot(ascending: bool) -> Dictionary:
+	return {
+		"floorTransition": true,
+		"ascending": ascending,
+		"currentFloor": current_floor,
+		"bossDefeated": _boss_defeated,
+		"killCount": _kill_count,
+		"lootCollected": _loot_collected.duplicate(),
+		"lootClaimedInstanceIds": _loot_claimed_instance_ids.duplicate(),
+	}
+
+
+func _persist_active_run() -> void:
+	var active := LocalSave.get_active_run()
+	if active.is_empty():
+		active = {
+			"schemaVersion": 4,
+			"runMode": run_mode,
+			"runId": current_run_id,
+			"seed": current_seed,
+			"biomeId": current_biome_id,
+		}
+	active["runMode"] = run_mode
+	active["currentFloor"] = current_floor
+	active["maxFloors"] = max_floors
+	active["dungeonDefinition"] = current_dungeon_definition.duplicate(true)
+	LocalSave.set_active_run(active)
+
+
+func _clear_floor_cache() -> void:
+	floor_definitions.clear()
+
+
+func _set_current_floor_cache(definition: Dictionary) -> void:
+	_clear_floor_cache()
+	if definition.is_empty():
+		return
+	floor_definitions[str(current_floor)] = definition.duplicate(true)
+
+
+func _unload_current_floor_chunk() -> void:
+	_clear_floor_cache()
+	current_dungeon_definition = {}
+	var root := get_tree().root
+	if root.has_meta("dungeon_definition"):
+		root.remove_meta("dungeon_definition")
+
+
 func register_loot(item_id: String, instance_id: String = "") -> void:
 	if item_id not in _loot_collected:
 		_loot_collected.append(item_id)
@@ -305,6 +497,8 @@ func _reset_run_stats() -> void:
 	_boss_defeated = false
 	_loot_collected.clear()
 	_loot_claimed_instance_ids.clear()
+	current_floor = 1
+	_clear_floor_cache()
 
 
 func _cloud_finalize_run(
@@ -331,11 +525,15 @@ func _handle_escape_meta(elapsed: float, boss_defeated: bool) -> void:
 	if AchievementService:
 		AchievementService.unlock("boss_slayer")
 		AchievementService.unlock_for_biome_clear(current_biome_id)
+		if max_floors >= RunFloorConfig.MAX_FLOORS and current_floor >= max_floors:
+			AchievementService.unlock("ten_floor_clear")
 		if elapsed < 900.0:
 			AchievementService.unlock("speed_clear")
 	LeaderboardSettings.load_from_save()
 	if LeaderboardSettings.opt_in:
-		var lb := await ApiClient.submit_leaderboard(current_biome_id, 1, elapsed, true)
+		var lb := await ApiClient.submit_leaderboard(
+			current_biome_id, current_floor, elapsed, true
+		)
 		if lb.get("ok", false) and AchievementService:
 			AchievementService.unlock("leaderboard_submit")
 
@@ -362,3 +560,66 @@ func _clear_run_meta() -> void:
 
 func _goto_scene(path: String) -> void:
 	get_tree().call_deferred("change_scene_to_file", path)
+
+
+func _start_waves_run(is_continue: bool) -> void:
+	run_mode = RM.MODE_WAVES
+	_is_continue = is_continue
+	_run_active = true
+	_run_start_time = Time.get_ticks_msec() / 1000.0
+	if is_continue:
+		var saved := LocalSave.get_waves_active_run()
+		_pending_snapshot = saved.get("snapshot", {}) if saved.get("snapshot", {}) is Dictionary else {}
+		WavesRunService.restore_from_save(saved)
+	else:
+		_pending_snapshot.clear()
+		WavesRunService.begin_new_run()
+	_goto_scene(WAVES_RUN_SCENE)
+	run_started.emit()
+
+
+func complete_waves_run(rewards: Array[String]) -> void:
+	_run_active = false
+	var elapsed := (Time.get_ticks_msec() / 1000.0) - _run_start_time
+	for item_id in rewards:
+		InventoryService.add_item(item_id, 1)
+	last_run_results = {
+		"outcome": "waves_complete",
+		"time_seconds": elapsed,
+		"kills": WavesRunService.get_kill_count(),
+		"loot": rewards.duplicate(),
+		"xp_gained": ProgressionService.grant_xp(500, "waves").get("gained", 0),
+		"levels_gained": 0,
+		"loot_kept": true,
+		"run_relics_lost": false,
+		"rules_summary": "Waves cleared: kept up to 3 chosen items.",
+	}
+	LocalSave.clear_waves_active_run()
+	LocalSave.autosave()
+	run_ended.emit(last_run_results)
+	get_tree().root.set_meta("run_results", last_run_results)
+	_clear_run_meta()
+	_goto_scene(RESULTS_SCENE)
+
+
+func on_waves_failed() -> void:
+	var elapsed := 0.0
+	if _run_start_time > 0.0:
+		elapsed = (Time.get_ticks_msec() / 1000.0) - _run_start_time
+	last_run_results = {
+		"outcome": "waves_failed",
+		"time_seconds": elapsed,
+		"kills": WavesRunService.get_kill_count(),
+		"loot": [],
+		"xp_gained": 0,
+		"levels_gained": 0,
+		"loot_kept": false,
+		"rules_summary": "Waves failed: no items transferred to main inventory.",
+	}
+	LocalSave.clear_waves_active_run()
+	LocalSave.autosave()
+	run_ended.emit(last_run_results)
+	get_tree().root.set_meta("run_results", last_run_results)
+	_run_active = false
+	_clear_run_meta()
+	_goto_scene(RESULTS_SCENE)

@@ -33,6 +33,9 @@ StorageService="*res://scripts/hub/storage_service.gd"
 QuestService="*res://scripts/quests/quest_service.gd"
 AudioDirector="*res://scripts/audio/audio_director.gd"
 AchievementService="*res://scripts/meta/achievement_service.gd"
+SteamService="*res://scripts/platform/steam_service.gd"
+CrashLogger="*res://scripts/platform/crash_logger.gd"
+WavesRunService="*res://scripts/dungeon/waves_run_service.gd"
 
 [display]
 

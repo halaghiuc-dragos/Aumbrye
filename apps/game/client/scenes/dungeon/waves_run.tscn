@@ -1,0 +1,14 @@
+[gd_scene load_steps=3 format=3 uid="uid://waves_run_scene"]
+
+[ext_resource type="Script" path="res://scripts/dungeon/waves_run.gd" id="1_waves"]
+[ext_resource type="PackedScene" uid="uid://cplayer001" path="res://scenes/player/player.tscn" id="2_player"]
+
+[node name="WavesRun" type="Node3D"]
+script = ExtResource("1_waves")
+
+[node name="DirectionalLight3D" type="DirectionalLight3D" parent="."]
+transform = Transform3D(0.866025, -0.353553, 0.353553, 0, 0.707107, 0.707107, -0.5, -0.612372, 0.612372, 0, 15, 0)
+shadow_enabled = true
+
+[node name="Player" parent="." instance=ExtResource("2_player")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)

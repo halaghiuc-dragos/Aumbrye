@@ -108,7 +108,7 @@ Implementation record: [M3_IMPLEMENTATION_LOG.md](M3_IMPLEMENTATION_LOG.md).
 | M7.loot.interact_feel | Open chests with **E** — items appear in inventory grid | [ ] |
 | M7.traps.damage_feel | Traps damage the player | [ ] |
 | M7.boss.door_flow | Boss door: **E** open → cross threshold → door seals | [ ] |
-| M7.results.escape_flow | Defeat boss → exit portal → results → hub message updates | [ ] |
+| M7.results.escape_flow | Final boss defeated (floor 10) → exit portal → results → hub | [ ] |
 | M7.camera.toggle_feel | **P** toggles 1P/3P; F1 shows `camera: 1P` or `3P` | [ ] |
 | M7.camera.relaunch_persistence | Camera preference persists after quit/relaunch | [ ] |
 | M7.lock_on.fp_readability | Lock reticle readable in first person | [ ] |
@@ -169,7 +169,7 @@ Automated validation covers biomes, procgen, combat depth, weapons, bosses, loot
 
 Close record: [M6_IMPLEMENTATION_LOG.md](M6_IMPLEMENTATION_LOG.md). Printable mirror: [M6_MANUAL_PLAYTEST_CHECKLIST.md](M6_MANUAL_PLAYTEST_CHECKLIST.md) (content canonical here).
 
-**Automated:** ✅ `m6_suite` (57 tests) + full validation (283 Godot, 79 backend — 2026-07-31). **Scene fix:** UTF-8 BOM stripped from 54 M6 `.tscn`/`.gd` files.
+**Automated:** ✅ `m6_suite` (73 tests) + full validation (363 Godot, 83 backend). **Scene fix:** UTF-8 BOM stripped from 54 M6 `.tscn`/`.gd` files.
 
 **Scope:** Frozen Fortress + Dark Cathedral themes; EA roster complete (5 themes, 20 enemies, 8 bosses, 79 items); achievements + leaderboards; website pages; accessibility baseline; enemy pooling.
 
@@ -387,7 +387,8 @@ Reference: [performance_m6.md](performance_m6.md). Target: 1080p ≥60 FPS in ty
 
 ## M7 — EA polish & ship
 
-Gate: [07-EA-DEFINITION-OF-DONE.md](../plan/07-EA-DEFINITION-OF-DONE.md), [M7-EA-POLISH.md](../plan/phases/M7-EA-POLISH.md).
+Gate: [07-EA-DEFINITION-OF-DONE.md](../plan/07-EA-DEFINITION-OF-DONE.md), [M7_IMPLEMENTATION_LOG.md](M7_IMPLEMENTATION_LOG.md).  
+Printable mirror: [M7_MANUAL_PLAYTEST_CHECKLIST.md](M7_MANUAL_PLAYTEST_CHECKLIST.md).
 
 ### Closed playtest (`SHIP-7.1`)
 
@@ -403,10 +404,84 @@ Gate: [07-EA-DEFINITION-OF-DONE.md](../plan/07-EA-DEFINITION-OF-DONE.md), [M7-EA
 |----|------|--------|
 | M7.perf.1080p60 | Mid-range PC: 1080p ≥60 FPS in typical combat rooms | [ ] |
 | M7.perf.softlock_smoke | No softlocks in 50 automated seed smoke tests (also in CI) | [ ] |
+| M7.perf.crash_reports | Crash produces actionable log/report path (playtest spot-check) | [ ] |
+| M7.offline.no_hang | API down / offline → new run + continue playable, no hang | [ ] |
 
 ### Controller polish (`POLISH-7.1`)
 
 See **M1 carry-over → M7 (gamepad)** above.
+
+### Multi-floor dungeons (`FLOOR-7.x`)
+
+| ID | Item | Status |
+|----|------|--------|
+| M7.floor.ten_clear | Complete 10-floor run (Forgotten Castle primary) | [ ] |
+| M7.floor.seed_parity | Same seed → same floor layouts on regenerate | [ ] |
+| M7.floor.secrets_max | Never more than 2 secret rooms on one floor | [ ] |
+| M7.floor.stair_collision | Cannot walk through stair geometry | [ ] |
+| M7.floor.stair_lever_ascend | Boss defeated → lever → ascend to new floor | [ ] |
+| M7.floor.stair_lever_descend | Shift+interact descends to prior floor | [ ] |
+| M7.floor.spawn_facing | After ascend, spawn at stair top facing into floor | [ ] |
+| M7.floor.no_mid_portal | No escape portal before floor 10 final boss | [ ] |
+| M7.floor.final_lobby | Floor 10 lobby: potion + buff scroll | [ ] |
+| M7.floor.final_boss_phases | Final boss phase 1–3 readable and clearable | [ ] |
+| M7.floor.continue | Quit mid-run → continue restores floor + layout | [ ] |
+| M7.floor.leaderboard | Leaderboard records floor depth on clear | [ ] |
+| M7.floor.chunk_single_active | Ascend unloads prior floor — only current floor in scene tree | [ ] |
+| M7.floor.chunk_seed_restore | Continue/ascend regenerates floor from seed (no floor blob in save) | [ ] |
+
+### Umbral Endless (`ENDLESS-7.x`)
+
+| ID | Item | Status |
+|----|------|--------|
+| M7.endless.portal | Hub Umbral Endless portal opens menu (New / Continue) | [ ] |
+| M7.endless.past_ten | Ascend past floor 10; no mid-run escape portal | [ ] |
+| M7.endless.difficulty | Floor 11+ enemies scale per 10-floor tier | [ ] |
+| M7.endless.continue | Continue restores endless run at saved floor | [ ] |
+| M7.endless.skip_prompt | New run prompts if skip consumables in inventory | [ ] |
+| M7.endless.skip_consume | Skip item consumed; run starts at mapped floor | [ ] |
+
+### Umbral Waves (`WAVES-7.x`)
+
+| ID | Item | Status |
+|----|------|--------|
+| M7.waves.portal | Hub Umbral Waves portal opens menu | [ ] |
+| M7.waves.chests | All 10 lobby chests must open before Ready | [ ] |
+| M7.waves.ready | Ready collapses walls; wave 1 spawns | [ ] |
+| M7.waves.milestone_boss | Wave 5 includes boss + mobs | [ ] |
+| M7.waves.prep | Milestone prep rebuilds walls + countdown | [ ] |
+| M7.waves.isolated_inv | Main equipment not used; waves inventory only | [ ] |
+| M7.waves.continue | Mid-run quit restores wave + waves inventory | [ ] |
+| M7.waves.reward | 50-wave clear: pick 3 items to main inventory | [ ] |
+| M7.waves.no_early_transfer | Fail/exit before wave 50: no item transfer | [ ] |
+| M7.waves.equip_feel | Use/equip items from waves inventory during run (partial UI OK) | [ ] |
+
+### Steam (`STEAM-7.x`)
+
+| ID | Item | Status |
+|----|------|--------|
+| M7.steam.launch | Game launches via Steam (when SDK present) | [ ] |
+| M7.steam.overlay | Shift+Tab overlay works | [ ] |
+| M7.steam.achievement | Unlock appears in Steam client | [ ] |
+| M7.steam.cloud | Save survives reinstall via chosen cloud path | [ ] |
+| M7.steam.auth_deferred | Email auth still works without Steam ticket | [ ] |
+
+### Tutorial (`POLISH-7.2`)
+
+| ID | Item | Status |
+|----|------|--------|
+| M7.polish.hub_tips | First-run hub tips show | [ ] |
+| M7.polish.hub_tips_skip | Esc skips all tips | [ ] |
+| M7.polish.arena_roll | New player can learn roll in arena | [ ] |
+
+### Release ship (`SHIP-7.x`)
+
+| ID | Item | Status |
+|----|------|--------|
+| M7.ship.store_assets | Capsule, screenshots, trailer checklist | [ ] |
+| M7.ship.hotfix_doc | Hotfix process documented | [ ] |
+| M7.ship.ea_branch | Public Steam branch live | [ ] |
+| M7.ship.known_issues | Known-issues list published (align with store page) | [ ] |
 
 ---
 
@@ -423,7 +498,7 @@ See **M1 carry-over → M7 (gamepad)** above.
 | M4 TEST-4.1 soak (manual) | [ ] | 10-run log in `m4_soak_notes.md` |
 | M5 manual playtest (feel) | [ ] | Biomes, weapons, bosses, audio |
 | M6 manual playtest (feel) | [ ] | § M6 above — 100 checklist IDs (99 open + 1 automated done); mirror: `M6_MANUAL_PLAYTEST_CHECKLIST.md` |
-| M7 feel & UX (pending) | [ ] | Complete M7 section before EA ship |
+| M7 feel & UX (pending) | [ ] | § M7 — 49 IDs + 19 carry-over = 68 total; mirror: `M7_MANUAL_PLAYTEST_CHECKLIST.md` |
 
 ---
 

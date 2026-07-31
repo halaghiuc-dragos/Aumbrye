@@ -13,6 +13,7 @@ const DATA_PATH := ""
 
 const ENEMY_TURN_SPEED := 22.0
 const HP_BAR_SCRIPT := preload("res://scripts/ui/enemy_health_bar.gd")
+const GlobalDropServiceScript := preload("res://scripts/loot/global_drop_service.gd")
 
 @export var player_path: NodePath
 
@@ -151,6 +152,7 @@ func _finalize_death(silent: bool) -> void:
 		_health.force_dead()
 	if not silent:
 		RunFlow.register_kill(get_enemy_id())
+		_try_roll_global_drop()
 		enemy_died.emit()
 	if _hitbox:
 		_hitbox.disable()
@@ -173,6 +175,17 @@ func _play_death_visual() -> void:
 	var death_scale := Vector3(0.2, 0.05, 0.2)
 	var tween := create_tween()
 	tween.tween_property(_mesh, "scale", death_scale, 0.35)
+
+
+func _try_roll_global_drop() -> void:
+	if not RunFlow.is_run_active():
+		return
+	if RunFlow.get_run_mode() == "waves":
+		return
+	var floor_index := RunFlow.get_current_floor()
+	var drop_id := GlobalDropServiceScript.roll_enemy_drop(get_instance_id(), floor_index)
+	if drop_id != "":
+		InventoryService.add_item(drop_id, 1)
 
 
 func _force_dead_silent() -> void:

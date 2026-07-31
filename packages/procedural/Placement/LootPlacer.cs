@@ -36,13 +36,14 @@ public static class LootPlacer
                 ThemeLootTables.GetTreasureLoot(biome.Id)));
         }
 
-        var secretRoom = assignment.Rooms.FirstOrDefault(r => r.Type == "secret");
-        if (secretRoom != null)
+        var secretRooms = assignment.Rooms.Where(r => r.Type == "secret").ToList();
+        for (var i = 0; i < secretRooms.Count; i++)
         {
+            var secretRoom = secretRooms[i];
             secrets.Add(new SecretPlacement(secretRoom.SemanticId));
             loot.Add(new LootPlacement(
                 secretRoom.SemanticId,
-                "secret_vault",
+                $"secret_vault_{i}",
                 new Position3(0, 0, 0),
                 ThemeLootTables.GetSecretLoot(biome.Id)));
         }

@@ -1,7 +1,7 @@
 # System: Setup and CI
 
 > Bootstrap and continuous integration. **M0 complete** (verified 2026-07-29).
-> Ongoing release CI: [phases/M7-EA-POLISH.md](../phases/M7-EA-POLISH.md).
+> Ongoing release CI: [M7_IMPLEMENTATION_LOG.md](../../design/M7_IMPLEMENTATION_LOG.md) (CI-7.1).
 
 ---
 

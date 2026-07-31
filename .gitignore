@@ -152,10 +152,13 @@ mcp_validation.json
 **/config/dev_api.local.json
 
 # =============================================================================
+# =============================================================================
 # Steam / platform keys
 # =============================================================================
 steam_appid.txt
 steam_api_key.txt
+# GodotSteam optional build artifacts (not in repo)
+addons/godotsteam/
 
 # =============================================================================
 # Build artifacts & binaries

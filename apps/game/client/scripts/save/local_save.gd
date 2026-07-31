@@ -6,7 +6,7 @@ const SAVE_PATH := "user://aumbrye_save.json"
 const BACKUP_PATH := "user://aumbrye_save.conflict_backup.json"
 const BACKUP_DIR := "user://backups/"
 const BACKUP_COUNT := 5
-const SAVE_SCHEMA_VERSION := 1
+const SAVE_SCHEMA_VERSION := 2
 
 signal save_loaded
 signal save_failed(reason: String)
@@ -30,6 +30,7 @@ func load_into_services() -> bool:
 		_handle_corrupt_save("corrupt_json")
 		return false
 	var data: Dictionary = parsed
+	data = SaveMigrator.migrate(data)
 	if not _validate_save(data):
 		_handle_corrupt_save("corrupt_schema")
 		return false
@@ -141,6 +142,36 @@ func clear_active_run() -> void:
 		return
 	_cached_state.erase("activeRun")
 	autosave()
+
+
+func get_waves_active_run() -> Dictionary:
+	var active: Variant = _cached_state.get("wavesActiveRun", {})
+	return active if active is Dictionary else {}
+
+
+func set_waves_active_run(data: Dictionary) -> void:
+	_cached_state["wavesActiveRun"] = data.duplicate(true)
+	autosave()
+
+
+func clear_waves_active_run() -> void:
+	if not _cached_state.has("wavesActiveRun"):
+		return
+	_cached_state.erase("wavesActiveRun")
+	autosave()
+
+
+func has_continuable_waves_run() -> bool:
+	var run := get_waves_active_run()
+	if run.is_empty():
+		return false
+	var snapshot: Variant = run.get("snapshot", {})
+	if not snapshot is Dictionary or snapshot.is_empty():
+		return false
+	var player_state: Dictionary = snapshot.get("player", {})
+	if player_state.has("health") and float(player_state.get("health", 1.0)) <= 0.0:
+		return false
+	return int(run.get("currentWave", 0)) >= 0
 
 
 func get_meta_data() -> Dictionary:
@@ -296,7 +327,8 @@ func _default_character() -> Dictionary:
 
 
 func _validate_save(data: Dictionary) -> bool:
-	if data.get("schemaVersion", 0) != SAVE_SCHEMA_VERSION:
+	var version := int(data.get("schemaVersion", 0))
+	if version < 1 or version > SAVE_SCHEMA_VERSION:
 		return false
 	if not data.has("inventory"):
 		return false

@@ -20,7 +20,9 @@ try
         options.Seed,
         options.Tier,
         options.PlayerLevel,
-        options.RunId);
+        options.RunId,
+        options.FloorIndex,
+        options.IsFinalFloor);
 
     Console.Out.WriteLine(result.Json);
     return 0;
@@ -43,6 +45,8 @@ static GenerateOptions ParseGenerateArgs(string[] args)
     var runId = Guid.NewGuid();
     var tier = 1;
     var playerLevel = 1;
+    var floorIndex = 1;
+    var isFinalFloor = false;
     var index = 3;
 
     if (index < args.Length && Guid.TryParse(args[index], out var parsedRunId))
@@ -55,6 +59,14 @@ static GenerateOptions ParseGenerateArgs(string[] args)
     {
         switch (args[index])
         {
+            case "--floor" when index + 1 < args.Length && int.TryParse(args[index + 1], out var parsedFloor):
+                floorIndex = Math.Max(1, parsedFloor);
+                index += 2;
+                break;
+            case "--final-floor":
+                isFinalFloor = true;
+                index += 1;
+                break;
             case "--tier" when index + 1 < args.Length && int.TryParse(args[index + 1], out var parsedTier):
                 tier = Math.Max(1, parsedTier);
                 index += 2;
@@ -68,14 +80,14 @@ static GenerateOptions ParseGenerateArgs(string[] args)
         }
     }
 
-    return new GenerateOptions(biomeId, seed, runId, tier, playerLevel);
+    return new GenerateOptions(biomeId, seed, runId, tier, playerLevel, floorIndex, isFinalFloor);
 }
 
 static void PrintUsage()
 {
     Console.Error.WriteLine("Aumbrye local dungeon generator");
-    Console.Error.WriteLine("Usage: procgen-cli generate <biomeId> <seed> [runId] [--tier N] [--player-level N]");
+    Console.Error.WriteLine("Usage: procgen-cli generate <biomeId> <seed> [runId] [--floor N] [--final-floor] [--tier N] [--player-level N]");
     Console.Error.WriteLine("Writes canonical dungeon JSON to stdout.");
 }
 
-sealed record GenerateOptions(string BiomeId, int Seed, Guid RunId, int Tier, int PlayerLevel);
+sealed record GenerateOptions(string BiomeId, int Seed, Guid RunId, int Tier, int PlayerLevel, int FloorIndex, bool IsFinalFloor);

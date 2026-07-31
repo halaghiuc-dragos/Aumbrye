@@ -1,0 +1,11 @@
+{
+  "id": "skip_100_floors",
+  "name": "Umbral Skip (100)",
+  "itemType": "consumable",
+  "gridWidth": 1,
+  "gridHeight": 1,
+  "stackSize": 2,
+  "description": "Start an Umbral Endless run at floor 101.",
+  "value": 8000,
+  "lootValue": 4000
+}

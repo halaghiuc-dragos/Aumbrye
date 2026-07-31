@@ -18,7 +18,7 @@ public static class ConnectivityValidator
         string entranceNodeId,
         string bossNodeId,
         bool requiresSecret,
-        string? secretNodeId)
+        IReadOnlyList<string> secretNodeIds)
     {
         if (graph.Nodes.Count == 0)
             return ConnectivityValidationResult.Fail("Graph has no nodes.");
@@ -38,8 +38,15 @@ public static class ConnectivityValidator
 
         if (requiresSecret)
         {
-            if (string.IsNullOrEmpty(secretNodeId) || !nodeIds.Contains(secretNodeId))
+            if (secretNodeIds == null || secretNodeIds.Count == 0)
                 return ConnectivityValidationResult.Fail("Secret room required but not assigned.");
+            foreach (var sid in secretNodeIds)
+            {
+                if (!nodeIds.Contains(sid))
+                    return ConnectivityValidationResult.Fail($"Secret node {sid} missing.");
+            }
+            if (secretNodeIds.Count > 2)
+                return ConnectivityValidationResult.Fail("More than 2 secret rooms assigned.");
         }
 
         if (!IsConnected(graph, adjacency))
