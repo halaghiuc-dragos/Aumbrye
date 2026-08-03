@@ -1,5 +1,7 @@
 extends Control
 
+const InputGlyphServiceScript := preload("res://scripts/ui/input_glyph_service.gd")
+
 @export var player_path: NodePath
 @export var lock_on_path: NodePath
 
@@ -25,6 +27,7 @@ func _ready() -> void:
 	_xp_bar = get_node_or_null("Margin/VBox/XpBar") as ProgressBar
 	_level_label = get_node_or_null("Margin/VBox/LevelLabel") as Label
 	_ensure_progression_widgets()
+	_ensure_controls_hint()
 	_lock_reticle = get_node_or_null("LockReticle") as Control
 	_parry_bar = get_node_or_null("GuardIndicators/ParryBar") as ProgressBar
 	_block_bar = get_node_or_null("GuardIndicators/BlockBar") as ProgressBar
@@ -86,6 +89,28 @@ func _ensure_progression_widgets() -> void:
 		_level_label = Label.new()
 		_level_label.name = "LevelLabel"
 		vbox.add_child(_level_label)
+
+
+func _ensure_controls_hint() -> void:
+	if get_node_or_null("ControlsHint") != null:
+		return
+	var hint := Label.new()
+	hint.name = "ControlsHint"
+	hint.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
+	hint.offset_top = -32.0
+	hint.offset_bottom = -6.0
+	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	hint.add_theme_color_override("font_color", Color(0.86, 0.83, 0.76))
+	hint.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.72))
+	hint.add_theme_constant_override("shadow_offset_x", 1)
+	hint.add_theme_constant_override("shadow_offset_y", 1)
+	hint.text = "%s  |  %s  |  %s  |  %s" % [
+		InputGlyphServiceScript.format_action_hint("dodge"),
+		InputGlyphServiceScript.format_action_hint("jump"),
+		InputGlyphServiceScript.format_action_hint("lock_on"),
+		InputGlyphServiceScript.format_action_hint("inventory"),
+	]
+	add_child(hint)
 
 
 func _process(_delta: float) -> void:

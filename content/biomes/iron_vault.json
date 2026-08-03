@@ -1,0 +1,54 @@
+{
+  "id": "iron_vault",
+  "name": "Iron Vault",
+  "roomCount": {
+    "min": 6,
+    "max": 10
+  },
+  "gridStep": 14,
+  "roomTemplateIds": [
+    "vault_entrance",
+    "vault_stairs",
+    "vault_courtyard",
+    "vault_hall",
+    "vault_treasure",
+    "vault_secret",
+    "vault_arena",
+    "vault_boss",
+    "vault_puzzle"
+  ],
+  "enemyPool": [
+    {
+      "enemyId": "castle_grunt",
+      "weight": 3
+    },
+    {
+      "enemyId": "castle_archer",
+      "weight": 2
+    },
+    {
+      "enemyId": "castle_shield",
+      "weight": 2
+    },
+    {
+      "enemyId": "castle_hound",
+      "weight": 2
+    },
+    {
+      "enemyId": "miniboss_castle_captain",
+      "weight": 1
+    }
+  ],
+  "bossPool": [
+    {
+      "enemyId": "boss_castle_knight"
+    }
+  ],
+  "budgets": {
+    "baseEnemyThreat": 100,
+    "baseLootValue": 60,
+    "threatPerTier": 20,
+    "lootPerTier": 10
+  },
+  "requiresSecret": true
+}

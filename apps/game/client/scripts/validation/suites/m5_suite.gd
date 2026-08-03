@@ -43,6 +43,7 @@ func run() -> void:
 	_test_weapon_definitions()
 	await _test_loadout_unlocks()
 	_test_castle_entry_biome_select()
+	_test_dungeon_tier_progression()
 	_test_theme_enemies_and_bosses()
 	_test_theme_unique_items()
 	_test_audio_profiles()
@@ -371,34 +372,84 @@ func _is_weapon_unlocked_for_test(item_id: String, level: int, flags: Dictionary
 
 
 func _test_castle_entry_biome_select() -> void:
+	CharacterService.reset_to_defaults()
 	var menu: Control = load("res://scenes/ui/castle_entry_menu.tscn").instantiate() as Control
 	ctx.owner.add_child(menu)
 	await ctx.await_frame()
-	menu.call("_build_biome_buttons")
-	var biome_box := menu.get_node_or_null("MainPanel/Margin/VBox/BiomeBox")
+	menu.call("_build_dungeon_dropdown")
+	var dropdown := menu.get_node_or_null("MainPanel/Margin/VBox/DungeonDropdown") as OptionButton
 	var start := Time.get_ticks_msec()
-	var btn_count := biome_box.get_child_count() if biome_box else 0
+	var item_count := dropdown.item_count if dropdown else 0
+	ctx.timed_record(
+		"m5.hub.biome_buttons_tier1",
+		get_category(),
+		item_count == 1,
+		"tier 1 shows only Forgotten Castle (%d options)" % item_count,
+		start,
+		"M5.hub.biome_select"
+	)
+
+	CharacterService.set_flag(DungeonTierService.FLAG_MAX_TIER, DungeonCatalog.count())
+	menu.call("_build_dungeon_dropdown")
+	item_count = dropdown.item_count if dropdown else 0
+	start = Time.get_ticks_msec()
 	ctx.timed_record(
 		"m5.hub.biome_buttons",
 		get_category(),
-		btn_count == BiomeRegistry.ALL_BIOMES.size(),
-		"castle entry menu shows %d biome buttons" % btn_count,
+		item_count == DungeonCatalog.count(),
+		"max tier shows %d dungeon options" % item_count,
 		start,
 		"M5.hub.biome_select"
 	)
 
 	start = Time.get_ticks_msec()
-	menu.call("_on_biome_pressed", BiomeRegistry.BIOME_SWAMP, biome_box.get_child(2))
-	var selected: String = menu.get_selected_biome()
+	if dropdown and dropdown.item_count >= 3:
+		menu.call("_on_dungeon_selected", 2)
+	var selected: String = menu.get_selected_dungeon()
 	ctx.timed_record(
 		"m5.hub.biome_selection",
 		get_category(),
-		selected == BiomeRegistry.BIOME_SWAMP,
-		"biome selection updates get_selected_biome()",
+		selected == DungeonCatalog.ENTRIES[2].get("id", ""),
+		"dungeon selection updates get_selected_dungeon()",
 		start,
 		"M5.hub.biome_select"
 	)
 	menu.queue_free()
+
+
+func _test_dungeon_tier_progression() -> void:
+	CharacterService.reset_to_defaults()
+	var start := Time.get_ticks_msec()
+	var tier1_ok := (
+		DungeonTierService.get_max_unlocked_tier() == 1
+		and DungeonTierService.is_dungeon_unlocked(DungeonCatalog.DEFAULT_DUNGEON_ID)
+		and not DungeonTierService.is_dungeon_unlocked("crystal_caverns")
+	)
+	ctx.timed_record(
+		"m5.dungeon.tier1_gate",
+		get_category(),
+		tier1_ok,
+		"tier 1 unlocks only Forgotten Castle",
+		start,
+		"M5.dungeon.tier"
+	)
+
+	start = Time.get_ticks_msec()
+	DungeonTierService.on_dungeon_cleared(DungeonCatalog.DEFAULT_DUNGEON_ID)
+	var tier2_ok := (
+		DungeonTierService.get_max_unlocked_tier() == 2
+		and DungeonTierService.is_dungeon_unlocked("crystal_caverns")
+		and DungeonTierService.get_hub_portal_label() == "Aumbrye Dungeons — Tier 2"
+	)
+	ctx.timed_record(
+		"m5.dungeon.tier2_unlock",
+		get_category(),
+		tier2_ok,
+		"clearing tier-1 dungeon unlocks tier 2 and Crystal Caverns",
+		start,
+		"M5.dungeon.tier"
+	)
+	CharacterService.reset_to_defaults()
 
 
 func _test_theme_enemies_and_bosses() -> void:
@@ -503,17 +554,17 @@ func _test_loot_epic_affix_counts() -> void:
 	var counts: Dictionary = data.get("affixCounts", {})
 	var epic: Dictionary = counts.get("epic", {})
 	var legendary: Dictionary = counts.get("legendary", {})
-	var mythic: Dictionary = counts.get("mythic", {})
+	var aumbral: Dictionary = counts.get("aumbral", counts.get("mythic", {}))
 	var ok := (
 		int(epic.get("min", 0)) == 2 and int(epic.get("max", 0)) == 3
 		and int(legendary.get("min", 0)) == 3 and int(legendary.get("max", 0)) == 4
-		and int(mythic.get("min", 0)) == 4 and int(mythic.get("max", 0)) == 5
+		and int(aumbral.get("min", 0)) == 4 and int(aumbral.get("max", 0)) == 5
 	)
 	ctx.timed_record(
 		"m5.loot.epic_affix_counts",
 		get_category(),
 		ok,
-		"rarity_rules.json defines epic/legendary/mythic affix counts",
+		"rarity_rules.json defines epic/legendary/aumbral affix counts",
 		start,
 		"M5.loot.affix"
 	)

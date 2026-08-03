@@ -3,6 +3,7 @@ extends Node
 ## Autoload — gold, level, flags, quest progress (M4 character state).
 
 signal gold_changed(amount: int)
+signal coins_changed(amount: int)
 signal level_changed(level: int)
 signal flags_changed
 signal quests_changed
@@ -11,6 +12,7 @@ const DEFAULT_GOLD := 100
 const DEFAULT_LEVEL := 1
 
 var gold: int = DEFAULT_GOLD
+var coins: int = DEFAULT_GOLD
 var level: int = DEFAULT_LEVEL
 var flags: Dictionary = {}
 var quests: Dictionary = {}
@@ -34,11 +36,29 @@ func has_flag(flag_id: String) -> bool:
 	return bool(flags.get(flag_id, false))
 
 
+func get_coins() -> int:
+	return coins
+
+
+func add_coins(amount: int) -> void:
+	add_gold(amount)
+
+
+func spend_coins(amount: int) -> bool:
+	return spend_gold(amount)
+
+
+func can_afford_coins(amount: int) -> bool:
+	return can_afford(amount)
+
+
 func add_gold(amount: int) -> void:
 	if amount <= 0:
 		return
 	gold += amount
+	coins = gold
 	gold_changed.emit(gold)
+	coins_changed.emit(coins)
 	LocalSave.autosave()
 
 
@@ -46,7 +66,9 @@ func spend_gold(amount: int) -> bool:
 	if amount < 0 or gold < amount:
 		return false
 	gold -= amount
+	coins = gold
 	gold_changed.emit(gold)
+	coins_changed.emit(coins)
 	LocalSave.autosave()
 	return true
 
@@ -85,6 +107,7 @@ func set_quest_progress(quest_id: String, progress: Dictionary) -> void:
 func to_save_dict() -> Dictionary:
 	return {
 		"gold": gold,
+		"coins": coins,
 		"level": level,
 		"flags": flags.duplicate(),
 		"quests": quests.duplicate(),
@@ -92,7 +115,8 @@ func to_save_dict() -> Dictionary:
 
 
 func from_save_dict(data: Dictionary) -> void:
-	gold = int(data.get("gold", DEFAULT_GOLD))
+	gold = int(data.get("coins", data.get("gold", DEFAULT_GOLD)))
+	coins = gold
 	level = int(data.get("level", DEFAULT_LEVEL))
 	flags = {}
 	var saved_flags: Variant = data.get("flags", {})
@@ -103,13 +127,16 @@ func from_save_dict(data: Dictionary) -> void:
 	if saved_quests is Dictionary:
 		quests = saved_quests.duplicate()
 	gold_changed.emit(gold)
+	coins_changed.emit(coins)
 	level_changed.emit(level)
 
 
 func reset_to_defaults() -> void:
 	gold = DEFAULT_GOLD
+	coins = DEFAULT_GOLD
 	level = DEFAULT_LEVEL
 	flags.clear()
 	quests.clear()
 	gold_changed.emit(gold)
+	coins_changed.emit(coins)
 	level_changed.emit(level)

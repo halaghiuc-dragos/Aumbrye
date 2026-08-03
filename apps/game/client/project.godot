@@ -36,6 +36,7 @@ AchievementService="*res://scripts/meta/achievement_service.gd"
 SteamService="*res://scripts/platform/steam_service.gd"
 CrashLogger="*res://scripts/platform/crash_logger.gd"
 WavesRunService="*res://scripts/dungeon/waves_run_service.gd"
+DungeonTierService="*res://scripts/dungeon/dungeon_tier_service.gd"
 
 [display]
 
@@ -244,3 +245,5 @@ interact={
 [rendering]
 
 textures/canvas_textures/default_texture_filter=0
+textures/default_filters/anisotropic_filtering_level=0
+textures/default_filters/texture_filter=0

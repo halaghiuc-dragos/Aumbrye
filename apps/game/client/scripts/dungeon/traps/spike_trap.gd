@@ -2,6 +2,8 @@ extends Node3D
 
 ## Spike trap — telegraphed floor spikes (TRAP-2.1).
 
+const DioramaSkin := preload("res://scripts/art/diorama_interactable_skin.gd")
+
 enum State { IDLE, TELEGRAPH, ACTIVE, COOLDOWN }
 
 @export var damage := 18.0
@@ -12,7 +14,7 @@ enum State { IDLE, TELEGRAPH, ACTIVE, COOLDOWN }
 @export var trigger_radius := 3.0
 
 @onready var _telegraph_mesh: MeshInstance3D = $TelegraphMesh
-@onready var _spikes_mesh: MeshInstance3D = $SpikesMesh
+var _spikes_mesh: Node3D
 @onready var _hitbox: Area3D = $DamageArea
 
 var _state := State.IDLE
@@ -21,7 +23,13 @@ var _player: Node3D
 
 
 func _ready() -> void:
+	var biome := DioramaSkin.resolve_biome(self)
+	var old_spikes := get_node_or_null("SpikesMesh") as MeshInstance3D
+	if old_spikes:
+		old_spikes.visible = false
+	_spikes_mesh = DioramaSkin.build_spikes(self, biome)
 	_spikes_mesh.visible = false
+	_telegraph_mesh.material_override = DioramaSkin.make_telegraph_material(Color(1, 0.2, 0.2, 0.5))
 	_telegraph_mesh.visible = false
 	_hitbox.monitoring = false
 	_player = get_tree().get_first_node_in_group("player")

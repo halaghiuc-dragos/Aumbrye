@@ -14,7 +14,9 @@ static func generate(
 	biome_id: String = DEFAULT_BIOME,
 	run_seed: Variant = null,
 	floor_index: int = 1,
-	run_mode: String = "castle"
+	run_mode: String = "castle",
+	dungeon_tier: int = 1,
+	player_level: int = 1
 ) -> Dictionary:
 	var base_seed := _resolve_seed(run_seed)
 	var floor_seed := RunFloorConfig.mix_seed(base_seed, floor_index)
@@ -38,6 +40,10 @@ static func generate(
 	else:
 		args.append("--floor")
 		args.append(str(floor_index))
+	args.append("--tier")
+	args.append(str(maxi(1, dungeon_tier)))
+	args.append("--player-level")
+	args.append(str(maxi(1, player_level)))
 
 	var output: Array = []
 	var exit_code := OS.execute(

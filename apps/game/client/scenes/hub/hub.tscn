@@ -12,11 +12,11 @@
 [ext_resource type="PackedScene" path="res://scenes/ui/storage_ui.tscn" id="10_storage"]
 [ext_resource type="PackedScene" path="res://scenes/ui/quest_board_ui.tscn" id="11_quest"]
 [ext_resource type="PackedScene" path="res://scenes/hub/hub_npc.tscn" id="12_npc"]
-[ext_resource type="Material" path="res://assets/castle/mat_floor.tres" id="13_floor"]
-[ext_resource type="Material" path="res://assets/castle/mat_accent.tres" id="14_accent"]
-[ext_resource type="Material" path="res://assets/castle/mat_wall.tres" id="15_wall"]
+[ext_resource type="Material" path="res://assets/hub/mat_floor.tres" id="13_floor"]
+[ext_resource type="Material" path="res://assets/hub/mat_accent.tres" id="14_accent"]
+[ext_resource type="Material" path="res://assets/hub/mat_wall.tres" id="15_wall"]
 [ext_resource type="Script" path="res://scripts/hub/hub_interactable.gd" id="16_interact"]
-[ext_resource type="Material" path="res://assets/cathedral/mat_accent.tres" id="17_umbral"]
+[ext_resource type="Material" path="res://assets/hub/mat_umbral.tres" id="17_umbral"]
 [ext_resource type="PackedScene" path="res://scenes/ui/umbral_endless_menu.tscn" id="18_endless_menu"]
 [ext_resource type="PackedScene" path="res://scenes/ui/umbral_waves_menu.tscn" id="19_waves_menu"]
 
@@ -114,7 +114,7 @@ shape = SubResource("BoxShape3D_interact")
 [node name="PortalLabel" type="Label3D" parent="CastlePortal"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 4.5, 0)
 billboard = 1
-text = "Forgotten Castle — Tier 1"
+text = "Aumbrye Dungeons — Tier 1"
 font_size = 28
 
 [node name="ArenaDoor" type="Node3D" parent="."]
@@ -134,7 +134,7 @@ mesh = SubResource("BoxMesh_pad")
 collision_layer = 0
 collision_mask = 2
 script = ExtResource("16_interact")
-prompt_text = "Training Arena (E)"
+prompt_text = "Training Arena (E) · Weapon styles (Shift+E)"
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="ArenaDoor/InteractArea"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.75, 0)

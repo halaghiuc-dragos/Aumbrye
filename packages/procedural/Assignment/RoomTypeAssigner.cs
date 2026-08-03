@@ -168,6 +168,11 @@ public static class RoomTypeAssigner
             "poison_swamp" => "swamp",
             "frozen_fortress" => "frozen",
             "dark_cathedral" => "cathedral",
+            "iron_vault" => "vault",
+            "prism_depths" => "prism",
+            "venom_mire" => "mire",
+            "glacial_hollow" => "hollow",
+            "umbral_chapel" => "umbral",
             _ => "castle",
         };
 

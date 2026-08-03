@@ -6,6 +6,7 @@ class_name AffixRoller
 const PREFIXES_PATH := "content/affixes/prefixes.json"
 const SUFFIXES_PATH := "content/affixes/suffixes.json"
 const RARITY_PATH := "content/affixes/rarity_rules.json"
+const RarityRegistryScript := preload("res://scripts/loot/rarity_registry.gd")
 
 static var _prefixes: Array = []
 static var _suffixes: Array = []
@@ -13,7 +14,7 @@ static var _rarity_rules: Dictionary = {}
 static var _loaded := false
 
 
-static func roll_instance(item_id: String, roll_seed: int = -1) -> Dictionary:
+static func roll_instance(item_id: String, roll_seed: int = -1, forced_rarity: String = "", run_mode: String = "") -> Dictionary:
 	_ensure_loaded()
 	var def := ItemCatalog.get_definition(item_id)
 	if def.is_empty():
@@ -23,7 +24,7 @@ static func roll_instance(item_id: String, roll_seed: int = -1) -> Dictionary:
 		rng.seed = roll_seed
 	else:
 		rng.randomize()
-	var rarity := _pick_rarity(rng)
+	var rarity: String = RarityRegistryScript.normalize(forced_rarity) if forced_rarity != "" else _pick_rarity(rng, run_mode)
 	var affix_count := _roll_affix_count(rarity, rng)
 	var affixes: Array = []
 	var pool: Array = _prefixes.duplicate()
@@ -83,11 +84,16 @@ static func _parse_rarity_rules(rules: Dictionary) -> Dictionary:
 			entry = weights[rarity].duplicate()
 		else:
 			entry["weight"] = int(weights[rarity])
+		var norm: String = RarityRegistryScript.normalize(rarity)
 		if counts.has(rarity):
 			var count_range: Dictionary = counts[rarity]
 			entry["min"] = int(count_range.get("min", 0))
 			entry["max"] = int(count_range.get("max", entry.get("min", 0)))
-		out[rarity] = entry
+		elif counts.has(norm):
+			var count_range: Dictionary = counts[norm]
+			entry["min"] = int(count_range.get("min", 0))
+			entry["max"] = int(count_range.get("max", entry.get("min", 0)))
+		out[norm] = entry
 	return out
 
 
@@ -100,16 +106,28 @@ static func _roll_affix_count(rarity: String, rng: RandomNumberGenerator) -> int
 	return rng.randi_range(min_c, max_c)
 
 
-static func _pick_rarity(rng: RandomNumberGenerator) -> String:
+static func _pick_rarity(rng: RandomNumberGenerator, run_mode: String = "") -> String:
+	var bonus: float = RarityRegistryScript.mode_drop_bonus(run_mode)
+	var weights: Dictionary = {}
 	var total_weight := 0
 	for rarity in _rarity_rules:
-		total_weight += int(_rarity_rules[rarity].get("weight", 0))
+		var norm: String = RarityRegistryScript.normalize(rarity)
+		if int(_rarity_rules[rarity].get("weight", 0)) <= 0:
+			continue
+		var weight := int(_rarity_rules[rarity].get("weight", 0))
+		if bonus > 0.0 and RarityRegistryScript.tier_index(norm) >= RarityRegistryScript.tier_index("rare"):
+			weight = int(round(float(weight) * (1.0 + bonus)))
+		weights[norm] = int(weights.get(norm, 0)) + weight
+	for rarity in weights:
+		total_weight += int(weights[rarity])
 	if total_weight <= 0:
 		return "common"
 	var roll := rng.randi_range(1, total_weight)
 	var cumulative := 0
-	for rarity in _rarity_rules:
-		cumulative += int(_rarity_rules[rarity].get("weight", 0))
+	for rarity in RarityRegistryScript.TIER_ORDER:
+		if not weights.has(rarity):
+			continue
+		cumulative += int(weights[rarity])
 		if roll <= cumulative:
 			return rarity
 	return "common"

@@ -55,7 +55,7 @@ func _init_stub(reason: String) -> void:
 	overlay_available = false
 	cloud_enabled = false
 	_initialized = true
-	push_warning("SteamService: %s" % reason)
+	print_verbose("SteamService: %s" % reason)
 	steam_ready.emit()
 
 

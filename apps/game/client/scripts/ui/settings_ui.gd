@@ -18,6 +18,7 @@ func _ready() -> void:
 	_refresh_backups()
 	AccessibilitySettings.load_from_save()
 	LeaderboardSettings.load_from_save()
+	PixelDioramaSettings.load_from_save()
 
 
 func _build_ui_if_needed() -> void:
@@ -33,10 +34,10 @@ func _build_ui_if_needed() -> void:
 	var panel := PanelContainer.new()
 	panel.name = "Panel"
 	panel.set_anchors_preset(Control.PRESET_CENTER)
-	panel.offset_left = -280
-	panel.offset_top = -200
-	panel.offset_right = 280
-	panel.offset_bottom = 200
+	panel.offset_left = -320
+	panel.offset_top = -280
+	panel.offset_right = 320
+	panel.offset_bottom = 280
 	add_child(panel)
 	var margin := MarginContainer.new()
 	margin.name = "Margin"
@@ -48,22 +49,33 @@ func _build_ui_if_needed() -> void:
 	var vbox := VBoxContainer.new()
 	vbox.name = "VBox"
 	margin.add_child(vbox)
+	var scroll := ScrollContainer.new()
+	scroll.name = "Scroll"
+	scroll.custom_minimum_size = Vector2(520, 460)
+	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	vbox.add_child(scroll)
+	var scroll_vbox := VBoxContainer.new()
+	scroll_vbox.name = "ScrollVBox"
+	scroll_vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.add_child(scroll_vbox)
 	var title := Label.new()
 	title.text = "Settings"
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	vbox.add_child(title)
+	scroll_vbox.add_child(title)
 	_backup_list = ItemList.new()
 	_backup_list.name = "BackupList"
-	_backup_list.custom_minimum_size = Vector2(480, 180)
-	vbox.add_child(_backup_list)
+	_backup_list.custom_minimum_size = Vector2(480, 120)
+	scroll_vbox.add_child(_backup_list)
 	_status_label = Label.new()
 	_status_label.name = "StatusLabel"
-	vbox.add_child(_status_label)
+	scroll_vbox.add_child(_status_label)
 	_hint_label = Label.new()
 	_hint_label.name = "HintLabel"
 	_hint_label.text = "Enter: restore | Esc: close"
-	vbox.add_child(_hint_label)
-	_build_accessibility_section(vbox)
+	scroll_vbox.add_child(_hint_label)
+	_build_accessibility_section(scroll_vbox)
+	_build_pixel_diorama_section(scroll_vbox)
+	_build_run_mode_section(scroll_vbox)
 
 
 func _build_accessibility_section(parent: VBoxContainer) -> void:
@@ -117,6 +129,143 @@ func _build_accessibility_section(parent: VBoxContainer) -> void:
 	parent.add_child(lb)
 
 
+func _build_pixel_diorama_section(parent: VBoxContainer) -> void:
+	var sep := HSeparator.new()
+	parent.add_child(sep)
+	var title := Label.new()
+	title.text = "Pixel Diorama"
+	parent.add_child(title)
+
+	parent.add_child(_labeled_slider(
+		"Pixel scale",
+		1.0, 32.0, 0.5,
+		PixelDioramaSettings.pixel_scale,
+		func(v: float) -> void:
+			PixelDioramaSettings.pixel_scale = v
+			PixelDioramaSettings.save_and_apply()
+	))
+
+	parent.add_child(_labeled_slider(
+		"Color levels",
+		4.0, 16.0, 1.0,
+		PixelDioramaSettings.color_levels,
+		func(v: float) -> void:
+			PixelDioramaSettings.color_levels = v
+			PixelDioramaSettings.save_and_apply()
+	))
+
+	parent.add_child(_labeled_slider(
+		"Edge strength",
+		0.0, 1.0, 0.02,
+		PixelDioramaSettings.edge_strength,
+		func(v: float) -> void:
+			PixelDioramaSettings.edge_strength = v
+			PixelDioramaSettings.save_and_apply()
+	))
+
+	parent.add_child(_labeled_slider(
+		"Stitch strength",
+		0.0, 1.0, 0.02,
+		PixelDioramaSettings.stitch_strength,
+		func(v: float) -> void:
+			PixelDioramaSettings.stitch_strength = v
+			PixelDioramaSettings.save_and_apply()
+	))
+
+	parent.add_child(_labeled_slider(
+		"Pattern strength",
+		0.0, 1.0, 0.02,
+		PixelDioramaSettings.pattern_strength,
+		func(v: float) -> void:
+			PixelDioramaSettings.pattern_strength = v
+			PixelDioramaSettings.save_and_apply()
+	))
+
+	var linear_tonemap := CheckBox.new()
+	linear_tonemap.text = "Linear tonemap (crisp)"
+	linear_tonemap.button_pressed = PixelDioramaSettings.linear_tonemap
+	linear_tonemap.toggled.connect(func(on: bool) -> void:
+		PixelDioramaSettings.linear_tonemap = on
+		PixelDioramaSettings.save_and_apply()
+	)
+	parent.add_child(linear_tonemap)
+
+	var glow := CheckBox.new()
+	glow.text = "Glow enabled"
+	glow.button_pressed = PixelDioramaSettings.glow_enabled
+	glow.toggled.connect(func(on: bool) -> void:
+		PixelDioramaSettings.glow_enabled = on
+		PixelDioramaSettings.save_and_apply()
+	)
+	parent.add_child(glow)
+
+	var nearest := CheckBox.new()
+	nearest.text = "Nearest texture filtering"
+	nearest.button_pressed = PixelDioramaSettings.nearest_texture_filter
+	nearest.toggled.connect(func(on: bool) -> void:
+		PixelDioramaSettings.nearest_texture_filter = on
+		PixelDioramaSettings.save_and_apply()
+	)
+	parent.add_child(nearest)
+
+	var aa_off := CheckBox.new()
+	aa_off.text = "Disable MSAA / screen AA"
+	aa_off.button_pressed = PixelDioramaSettings.anti_aliasing_off
+	aa_off.toggled.connect(func(on: bool) -> void:
+		PixelDioramaSettings.anti_aliasing_off = on
+		PixelDioramaSettings.save_and_apply()
+	)
+	parent.add_child(aa_off)
+
+	var note := Label.new()
+	note.text = "Filter and AA changes apply at runtime via project settings."
+	note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	parent.add_child(note)
+
+
+func _build_run_mode_section(parent: VBoxContainer) -> void:
+	if RunFlow.run_mode != RunModeConfig.MODE_WAVES or not RunFlow.is_run_active():
+		return
+	var sep := HSeparator.new()
+	parent.add_child(sep)
+	var title := Label.new()
+	title.text = "Waves Run"
+	parent.add_child(title)
+	var leave := Button.new()
+	leave.text = "Leave Waves (hub, no rewards kept)"
+	leave.pressed.connect(func() -> void:
+		close_settings()
+		RunFlow.quit_waves_run()
+	)
+	parent.add_child(leave)
+
+
+func _labeled_slider(
+	label_text: String,
+	min_v: float,
+	max_v: float,
+	step: float,
+	initial: float,
+	on_changed: Callable
+) -> VBoxContainer:
+	var box := VBoxContainer.new()
+	var label := Label.new()
+	label.text = "%s (%.3f)" % [label_text, initial]
+	box.add_child(label)
+	var slider := HSlider.new()
+	slider.min_value = min_v
+	slider.max_value = max_v
+	slider.step = step
+	slider.value = initial
+	slider.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	slider.value_changed.connect(func(v: float) -> void:
+		label.text = "%s (%.3f)" % [label_text, v]
+		on_changed.call(v)
+	)
+	box.add_child(slider)
+	return box
+
+
 func is_open() -> bool:
 	return _open
 
@@ -138,7 +287,7 @@ func close_settings() -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	if not _open:
 		return
-	if event.is_action_pressed("ui_cancel"):
+	if event.is_action_pressed("ui_cancel") or event.is_action_pressed("pause"):
 		close_settings()
 		get_viewport().set_input_as_handled()
 	elif event.is_action_pressed("ui_accept"):

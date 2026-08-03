@@ -121,6 +121,26 @@ func _test_combat_components() -> void:
 		start,
 		"M1.combat.weapon"
 	)
+
+	start = Time.get_ticks_msec()
+	var facing_node := player.get_node_or_null("Facing") as Node3D
+	var hitbox_shape := player.get_node_or_null(
+		"Facing/WeaponPivot/Hitbox/CollisionShape3D"
+	) as CollisionShape3D
+	var forward_hitbox := false
+	if facing_node and hitbox_shape:
+		# Model forward is +basis.z (atan2 facing, visor at +Z local).
+		var visual_forward := facing_node.global_transform.basis.z
+		var to_hitbox := hitbox_shape.global_position - facing_node.global_position
+		forward_hitbox = visual_forward.dot(to_hitbox) > 0.1
+	ctx.timed_record(
+		"combat.player_hitbox_forward",
+		get_category(),
+		forward_hitbox,
+		"player weapon hitbox extends along visual forward (+Facing Z)",
+		start,
+		"M1.combat.weapon"
+	)
 	player.queue_free()
 
 

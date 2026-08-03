@@ -6,7 +6,8 @@
     "rare": { "min": 2, "max": 2 },
     "epic": { "min": 2, "max": 3 },
     "legendary": { "min": 3, "max": 4 },
-    "mythic": { "min": 4, "max": 5 }
+    "mythic": { "min": 4, "max": 5 },
+    "aumbral": { "min": 4, "max": 5 }
   },
   "rarityWeights": {
     "common": 48,
@@ -14,6 +15,7 @@
     "rare": 14,
     "epic": 6,
     "legendary": 3,
-    "mythic": 1
+    "mythic": 0,
+    "aumbral": 1
   }
 }

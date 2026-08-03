@@ -36,6 +36,7 @@ public static class RoomTemplateCatalog
         ["castle_secret"] = new(8, 8, Doors.East),
         ["castle_arena"] = new(24, 24, Doors.South | Doors.West),
         ["castle_boss"] = new(28, 28, Doors.North),
+        ["castle_puzzle"] = new(14, 14, Doors.North | Doors.South),
 
         // Crystal Caverns (M5)
         ["crystal_entrance"] = new(16, 12, Doors.South),
@@ -80,6 +81,61 @@ public static class RoomTemplateCatalog
         ["cathedral_arena"] = new(24, 24, Doors.South | Doors.West),
         ["cathedral_boss"] = new(28, 28, Doors.North),
         ["cathedral_puzzle"] = new(14, 14, Doors.North | Doors.South),
+
+        // Iron Vault (M7)
+        ["vault_entrance"] = new(16, 12, Doors.South),
+        ["vault_stairs"] = new(8, 16, Doors.North | Doors.South),
+        ["vault_courtyard"] = new(20, 20, Doors.North | Doors.South | Doors.East | Doors.West),
+        ["vault_hall"] = new(16, 16, Doors.East | Doors.South | Doors.West),
+        ["vault_treasure"] = new(10, 10, Doors.North),
+        ["vault_secret"] = new(8, 8, Doors.East),
+        ["vault_arena"] = new(24, 24, Doors.South | Doors.West),
+        ["vault_boss"] = new(28, 28, Doors.North),
+        ["vault_puzzle"] = new(14, 14, Doors.North | Doors.South),
+
+        // Prism Depths (M7)
+        ["prism_entrance"] = new(16, 12, Doors.South),
+        ["prism_stairs"] = new(8, 16, Doors.North | Doors.South),
+        ["prism_courtyard"] = new(20, 20, Doors.North | Doors.South | Doors.East | Doors.West),
+        ["prism_hall"] = new(16, 16, Doors.East | Doors.South | Doors.West),
+        ["prism_treasure"] = new(10, 10, Doors.North),
+        ["prism_secret"] = new(8, 8, Doors.East),
+        ["prism_arena"] = new(24, 24, Doors.South | Doors.West),
+        ["prism_boss"] = new(28, 28, Doors.North),
+        ["prism_puzzle"] = new(14, 14, Doors.North | Doors.South),
+
+        // Venom Mire (M7)
+        ["mire_entrance"] = new(16, 12, Doors.South),
+        ["mire_stairs"] = new(8, 16, Doors.North | Doors.South),
+        ["mire_courtyard"] = new(20, 20, Doors.North | Doors.South | Doors.East | Doors.West),
+        ["mire_hall"] = new(16, 16, Doors.East | Doors.South | Doors.West),
+        ["mire_treasure"] = new(10, 10, Doors.North),
+        ["mire_secret"] = new(8, 8, Doors.East),
+        ["mire_arena"] = new(24, 24, Doors.South | Doors.West),
+        ["mire_boss"] = new(28, 28, Doors.North),
+        ["mire_puzzle"] = new(14, 14, Doors.North | Doors.South),
+
+        // Glacial Hollow (M7)
+        ["hollow_entrance"] = new(16, 12, Doors.South),
+        ["hollow_stairs"] = new(8, 16, Doors.North | Doors.South),
+        ["hollow_courtyard"] = new(20, 20, Doors.North | Doors.South | Doors.East | Doors.West),
+        ["hollow_hall"] = new(16, 16, Doors.East | Doors.South | Doors.West),
+        ["hollow_treasure"] = new(10, 10, Doors.North),
+        ["hollow_secret"] = new(8, 8, Doors.East),
+        ["hollow_arena"] = new(24, 24, Doors.South | Doors.West),
+        ["hollow_boss"] = new(28, 28, Doors.North),
+        ["hollow_puzzle"] = new(14, 14, Doors.North | Doors.South),
+
+        // Umbral Chapel (M7)
+        ["umbral_entrance"] = new(16, 12, Doors.South),
+        ["umbral_stairs"] = new(8, 16, Doors.North | Doors.South),
+        ["umbral_courtyard"] = new(20, 20, Doors.North | Doors.South | Doors.East | Doors.West),
+        ["umbral_hall"] = new(16, 16, Doors.East | Doors.South | Doors.West),
+        ["umbral_treasure"] = new(10, 10, Doors.North),
+        ["umbral_secret"] = new(8, 8, Doors.East),
+        ["umbral_arena"] = new(24, 24, Doors.South | Doors.West),
+        ["umbral_boss"] = new(28, 28, Doors.North),
+        ["umbral_puzzle"] = new(14, 14, Doors.North | Doors.South),
     };
 
     public static RoomSpec GetRequired(string templateId) =>

@@ -2,6 +2,8 @@ extends Node3D
 
 ## Phase 2 arena hazard — telegraphed fire zone (BOSS-2.2).
 
+const DioramaSkin := preload("res://scripts/art/diorama_interactable_skin.gd")
+
 enum State { TELEGRAPH, ACTIVE, FADE }
 
 @export var damage := 8.0
@@ -17,6 +19,8 @@ var _timer := 0.0
 
 
 func _ready() -> void:
+	_telegraph.material_override = DioramaSkin.make_telegraph_material(Color(1, 0.5, 0, 0.5))
+	_active_zone.material_override = DioramaSkin.make_telegraph_material(Color(1, 0.2, 0, 0.9))
 	_active_zone.visible = false
 	_damage_area.monitoring = false
 	_timer = telegraph_time

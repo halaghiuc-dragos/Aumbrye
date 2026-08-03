@@ -21,6 +21,10 @@ const M6_UNIQUES: Array[String] = [
 	"frost_ice_ring", "frost_warlord_blade", "frost_raider_boots",
 	"cathedral_holy_charm", "cathedral_shadow_dagger", "cathedral_warden_helm",
 ]
+const M7_EXPANSION_BIOMES: Array[String] = [
+	BiomeRegistry.BIOME_VAULT, BiomeRegistry.BIOME_PRISM,
+	BiomeRegistry.BIOME_MIRE, BiomeRegistry.BIOME_HOLLOW, BiomeRegistry.BIOME_UMBRAL,
+]
 
 
 func get_category() -> String:
@@ -28,10 +32,11 @@ func get_category() -> String:
 
 
 func run() -> void:
-	_test_five_biomes_registered()
+	_test_ten_biomes_registered()
 	_test_m6_biome_rooms()
 	_test_m6_materials_and_lighting()
 	await _test_m6_procgen()
+	await _test_m7_expansion_procgen()
 	await _test_m6_dungeon_build()
 	_test_m6_enemies()
 	_test_m6_bosses()
@@ -50,13 +55,13 @@ func run() -> void:
 	_test_escape_meta_wiring()
 
 
-func _test_five_biomes_registered() -> void:
+func _test_ten_biomes_registered() -> void:
 	var start := Time.get_ticks_msec()
 	ctx.timed_record(
-		"m6.biome.all_five_registered",
+		"m6.biome.all_ten_registered",
 		get_category(),
-		BiomeRegistry.ALL_BIOMES.size() == 5,
-		"BiomeRegistry lists 5 EA biomes",
+		BiomeRegistry.ALL_BIOMES.size() == 10,
+		"BiomeRegistry lists 10 EA biomes",
 		start,
 		"M6.theme.biomes"
 	)
@@ -122,6 +127,59 @@ func _test_m6_procgen() -> void:
 			"%s rooms use %s_ prefix" % [biome_id, prefix],
 			start,
 			"M6.theme.templates"
+		)
+
+
+func _test_m7_expansion_procgen() -> void:
+	for biome_id in M7_EXPANSION_BIOMES:
+		var prefix: String = biome_id.split("_")[0]
+		if biome_id == BiomeRegistry.BIOME_PRISM:
+			prefix = "prism"
+		elif biome_id == BiomeRegistry.BIOME_MIRE:
+			prefix = "mire"
+		elif biome_id == BiomeRegistry.BIOME_HOLLOW:
+			prefix = "hollow"
+		elif biome_id == BiomeRegistry.BIOME_UMBRAL:
+			prefix = "umbral"
+		elif biome_id == BiomeRegistry.BIOME_VAULT:
+			prefix = "vault"
+		var start := Time.get_ticks_msec()
+		var gen := LocalProcgen.generate(biome_id, TC.SEED_A)
+		ctx.timed_record(
+			"m7.procgen.%s_generates" % biome_id,
+			get_category(),
+			gen.get("ok", false),
+			"%s seed %d generates" % [biome_id, TC.SEED_A],
+			start,
+			"M7.theme.%s" % biome_id
+		)
+		if not gen.get("ok", false):
+			continue
+		var def: Dictionary = gen.get("definition", {})
+		start = Time.get_ticks_msec()
+		var prefix_ok := true
+		for room in def.get("rooms", []):
+			var tid: String = room.get("templateId", "")
+			if tid != "" and not tid.begins_with(prefix + "_"):
+				prefix_ok = false
+				break
+		ctx.timed_record(
+			"m7.procgen.%s_template_prefix" % biome_id,
+			get_category(),
+			prefix_ok,
+			"%s rooms use %s_ prefix" % [biome_id, prefix],
+			start,
+			"M7.theme.templates"
+		)
+		start = Time.get_ticks_msec()
+		var rooms: Dictionary = BiomeRegistry.get_room_scenes(biome_id)
+		ctx.timed_record(
+			"m7.biome.%s_room_count" % biome_id,
+			get_category(),
+			rooms.size() >= 9,
+			"%s has %d room templates" % [biome_id, rooms.size()],
+			start,
+			"M7.theme.%s" % biome_id
 		)
 
 

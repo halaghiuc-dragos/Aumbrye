@@ -1,0 +1,54 @@
+{
+  "id": "prism_depths",
+  "name": "Prism Depths",
+  "roomCount": {
+    "min": 6,
+    "max": 10
+  },
+  "gridStep": 14,
+  "roomTemplateIds": [
+    "prism_entrance",
+    "prism_stairs",
+    "prism_courtyard",
+    "prism_hall",
+    "prism_treasure",
+    "prism_secret",
+    "prism_arena",
+    "prism_boss",
+    "prism_puzzle"
+  ],
+  "enemyPool": [
+    {
+      "enemyId": "crystal_slime",
+      "weight": 3
+    },
+    {
+      "enemyId": "crystal_bat",
+      "weight": 2
+    },
+    {
+      "enemyId": "crystal_spitter",
+      "weight": 2
+    },
+    {
+      "enemyId": "crystal_wisp",
+      "weight": 2
+    },
+    {
+      "enemyId": "miniboss_crystal_guardian",
+      "weight": 1
+    }
+  ],
+  "bossPool": [
+    {
+      "enemyId": "boss_crystal_sovereign"
+    }
+  ],
+  "budgets": {
+    "baseEnemyThreat": 100,
+    "baseLootValue": 60,
+    "threatPerTier": 20,
+    "lootPerTier": 10
+  },
+  "requiresSecret": true
+}

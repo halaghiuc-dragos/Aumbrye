@@ -15,6 +15,7 @@ var _player: CharacterBody3D
 var _builder: DungeonBuilder
 var _boss_door: Node
 var _boss_defeated := false
+var _settings_ui: Control
 
 
 func _ready() -> void:
@@ -44,23 +45,43 @@ func _ready() -> void:
 	set_physics_process(true)
 	RunFlow.clear_continue_restore()
 	call_deferred("_persist_snapshot")
+	call_deferred("_apply_pixel_diorama_scene")
+	_attach_settings_ui()
+
+
+func _attach_settings_ui() -> void:
+	var settings_script := load("res://scripts/ui/settings_ui.gd")
+	if settings_script == null:
+		return
+	_settings_ui = Control.new()
+	_settings_ui.name = "SettingsUI"
+	_settings_ui.set_script(settings_script)
+	_settings_ui.set_anchors_preset(Control.PRESET_FULL_RECT)
+	add_child(_settings_ui)
+
+
+func _unhandled_input(event: InputEvent) -> void:
+	if not event.is_action_pressed("pause"):
+		return
+	if _any_blocking_ui_open():
+		return
+	if _settings_ui and _settings_ui.has_method("open_settings"):
+		_settings_ui.call("open_settings")
+		get_viewport().set_input_as_handled()
+
+
+func _any_blocking_ui_open() -> bool:
+	var inv := get_node_or_null(inventory_ui_path)
+	if inv and inv.visible:
+		return true
+	if _settings_ui and _settings_ui.has_method("is_open") and _settings_ui.call("is_open"):
+		return true
+	return false
 
 
 func _apply_biome_presentation(def: Dictionary) -> void:
 	var biome_id := BiomeRegistry.resolve_biome_id(def)
-	var lighting := BiomeRegistry.get_lighting_profile(biome_id)
-	var env := WorldEnvironment.new()
-	env.name = "WorldEnvironment"
-	var environment := Environment.new()
-	environment.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
-	environment.ambient_light_color = lighting.get("ambient_color", Color(0.4, 0.4, 0.45))
-	environment.ambient_light_energy = lighting.get("ambient_energy", 0.5)
-	environment.fog_enabled = bool(lighting.get("fog_enabled", false))
-	environment.fog_light_color = lighting.get("fog_color", Color(0.2, 0.2, 0.25))
-	environment.fog_density = lighting.get("fog_density", 0.01)
-	env.environment = environment
-	add_child(env)
-	AudioDirector.set_biome(biome_id)
+	BiomeRegistry.apply_run_presentation(self, biome_id, RunFlow.get_run_mode())
 
 
 func _resolve_dungeon_definition() -> Dictionary:
@@ -324,3 +345,7 @@ func _should_persist_snapshot() -> bool:
 	if reactions and reactions.get("is_dead"):
 		return false
 	return true
+
+
+func _apply_pixel_diorama_scene() -> void:
+	PixelDioramaSettings.apply_to_scene(self)

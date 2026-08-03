@@ -100,7 +100,7 @@ func _build_shell() -> void:
 	var grid_vbox := VBoxContainer.new()
 	hbox.add_child(grid_vbox)
 	var title := Label.new()
-	title.text = "Waves stash (I)"
+	title.text = "Waves stash (Tab)"
 	grid_vbox.add_child(title)
 	_grid = GridContainer.new()
 	grid_vbox.add_child(_grid)

@@ -11,7 +11,7 @@ const DAMAGE_HEAVY_BONUS := 0.25
 
 
 static func floor_tier(floor_index: int) -> int:
-	return int(maxi(0, floor_index)) / 10
+	return int(maxi(0, floor_index) / 10.0)
 
 
 static func hp_multiplier(floor_index: int) -> float:

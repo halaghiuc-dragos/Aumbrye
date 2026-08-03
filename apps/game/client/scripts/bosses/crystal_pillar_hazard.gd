@@ -2,6 +2,8 @@ extends Node3D
 
 ## Crystal pillar hazard — telegraphed arcane zone (BOSS-5.1).
 
+const DioramaSkin := preload("res://scripts/art/diorama_interactable_skin.gd")
+
 enum State { TELEGRAPH, ACTIVE, FADE }
 
 @export var damage := 10.0
@@ -17,6 +19,8 @@ var _timer := 0.0
 
 
 func _ready() -> void:
+	DioramaSkin.build_crystal_pillar(self)
+	_telegraph.material_override = DioramaSkin.make_telegraph_material(Color(0.4, 0.7, 1, 0.5))
 	_active_zone.visible = false
 	_damage_area.monitoring = false
 	_timer = telegraph_time

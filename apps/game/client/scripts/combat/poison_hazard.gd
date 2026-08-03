@@ -2,6 +2,8 @@ extends Area3D
 
 ## Swamp environmental poison hazard (THEME-5.3 / DMG-5.2).
 
+const DioramaSkin := preload("res://scripts/art/diorama_interactable_skin.gd")
+
 @export var poison_status := "poison"
 @export var tick_interval := 1.5
 
@@ -9,6 +11,10 @@ var _timer := 0.0
 
 
 func _ready() -> void:
+	var old_mesh := get_node_or_null("MeshInstance3D") as MeshInstance3D
+	if old_mesh:
+		old_mesh.visible = false
+	DioramaSkin.build_poison_pool(self, DioramaSkin.resolve_biome(self))
 	monitoring = true
 	body_entered.connect(_on_body_entered)
 

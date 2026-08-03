@@ -20,6 +20,8 @@ const SkipFloorSvc := preload("res://scripts/dungeon/skip_floor_service.gd")
 var run_mode: String = "castle"
 
 var current_biome_id: String = DEFAULT_BIOME
+var current_dungeon_id: String = DungeonCatalog.DEFAULT_DUNGEON_ID
+var current_dungeon_tier: int = 1
 var current_floor: int = 1
 var max_floors: int = RunFloorConfig.MAX_FLOORS
 ## Chunking: only the active floor definition is kept in memory (not all floors).
@@ -42,17 +44,19 @@ var _is_continue := false
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
+	PixelDioramaSettings.load_from_save()
+	PixelDioramaSettings.apply_rendering_project_settings()
 
 
 func start_new_castle_run() -> void:
-	start_new_run(DEFAULT_BIOME)
+	start_new_run(DungeonCatalog.DEFAULT_DUNGEON_ID)
 
 
 func start_endless_run(start_floor: int = 1, skip_item_id: String = "") -> void:
 	if skip_item_id != "":
 		SkipFloorSvc.consume_skip(InventoryService.inventory, skip_item_id)
 		start_floor = SkipFloorSvc.start_floor_for_item(skip_item_id)
-	await _start_mode_run(RM.MODE_ENDLESS, DEFAULT_BIOME, null, start_floor)
+	await _start_mode_run(RM.MODE_ENDLESS, BiomeRegistry.BIOME_UMBRAL, null, start_floor)
 
 
 func start_waves_run() -> void:
@@ -63,16 +67,23 @@ func continue_waves_run() -> void:
 	_start_waves_run(true)
 
 
-func start_new_run(biome_id: String, run_seed: Variant = null) -> void:
-	await _start_mode_run(RM.MODE_CASTLE, biome_id, run_seed, 1)
+func start_new_run(dungeon_id: String, run_seed: Variant = null) -> void:
+	var resolved_id := _resolve_dungeon_id(dungeon_id)
+	if not DungeonTierService.is_dungeon_unlocked(resolved_id):
+		last_hub_message = "That dungeon is not unlocked yet."
+		return
+	current_dungeon_id = resolved_id
+	current_biome_id = DungeonCatalog.get_biome_id(resolved_id)
+	current_dungeon_tier = DungeonCatalog.get_tier_for_dungeon(resolved_id)
+	await _start_mode_run(RM.MODE_CASTLE, current_biome_id, run_seed, 1)
 
 
 func start_castle_run_with_seed(run_seed_value: int) -> void:
-	start_run_with_seed(DEFAULT_BIOME, run_seed_value)
+	start_run_with_seed(DungeonCatalog.DEFAULT_DUNGEON_ID, run_seed_value)
 
 
-func start_run_with_seed(biome_id: String, run_seed_value: int) -> void:
-	await _start_mode_run(RM.MODE_CASTLE, biome_id, run_seed_value, 1)
+func start_run_with_seed(dungeon_id: String, run_seed_value: int) -> void:
+	await start_new_run(dungeon_id, run_seed_value)
 
 
 func continue_castle_run() -> void:
@@ -155,11 +166,18 @@ func _generate_dungeon(biome_id: String, run_seed: Variant, floor_index: int = 1
 		var online := await _try_online_generate(biome_id, run_seed)
 		if online.get("ok", false):
 			return online
-	return LocalProcgen.generate(biome_id, run_seed, floor_index, run_mode)
+	return LocalProcgen.generate(
+		biome_id,
+		run_seed,
+		floor_index,
+		run_mode,
+		current_dungeon_tier,
+		ProgressionService.level if ProgressionService else 1
+	)
 
 
 func _try_online_generate(biome_id: String, run_seed: Variant) -> Dictionary:
-	var create := await ApiClient.create_run(biome_id, run_seed)
+	var create := await ApiClient.create_run(biome_id, run_seed, current_dungeon_tier)
 	if not create.get("ok", false):
 		return {"ok": false, "error": create.get("error", "online create failed")}
 	var body: Dictionary = create.get("body", {})
@@ -188,6 +206,14 @@ func _restore_castle_run(saved: Dictionary) -> void:
 	run_mode = str(saved.get("runMode", RM.MODE_CASTLE))
 	current_floor = int(saved.get("currentFloor", 1))
 	max_floors = int(saved.get("maxFloors", RunFloorConfig.max_floors_for_mode(run_mode)))
+	current_dungeon_tier = int(saved.get("dungeonTier", 1))
+	current_dungeon_id = str(saved.get("dungeonId", DungeonCatalog.DEFAULT_DUNGEON_ID))
+	if not DungeonCatalog.is_valid(current_dungeon_id):
+		if DungeonCatalog.is_valid(current_biome_id):
+			current_dungeon_id = current_biome_id
+		else:
+			current_dungeon_id = DungeonCatalog.DEFAULT_DUNGEON_ID
+	current_biome_id = DungeonCatalog.get_biome_id(current_dungeon_id)
 	_clear_floor_cache()
 	var def: Variant = saved.get("dungeonDefinition", {})
 	current_dungeon_definition = def if def is Dictionary else {}
@@ -235,6 +261,8 @@ func _enter_run() -> void:
 		"runId": current_run_id,
 		"seed": current_seed,
 		"biomeId": current_biome_id,
+		"dungeonId": current_dungeon_id,
+		"dungeonTier": current_dungeon_tier,
 		"currentFloor": current_floor,
 		"maxFloors": max_floors,
 		"dungeonDefinition": definition_copy,
@@ -254,6 +282,9 @@ func go_to_arena() -> void:
 
 
 func return_to_hub(message: String = "") -> void:
+	if run_mode == RM.MODE_WAVES and _run_active:
+		LocalSave.clear_waves_active_run()
+		WavesRunService.begin_new_run()
 	_run_active = false
 	last_hub_message = message
 	_clear_run_meta()
@@ -290,6 +321,7 @@ func complete_run_via_portal() -> void:
 	var run_id := current_run_id
 	var loot_instance_ids := _loot_claimed_instance_ids.duplicate()
 	var boss := _boss_defeated
+	var cleared_dungeon := current_dungeon_id
 	LocalSave.clear_active_run()
 	LocalSave.autosave()
 	run_ended.emit(last_run_results)
@@ -297,6 +329,8 @@ func complete_run_via_portal() -> void:
 	_clear_run_meta()
 	_handle_escape_meta(elapsed, boss)
 	_cloud_finalize_run(run_id, "escaped", elapsed, boss, loot_instance_ids)
+	if run_mode == RM.MODE_CASTLE:
+		DungeonTierService.on_dungeon_cleared(cleared_dungeon)
 	_goto_scene(RESULTS_SCENE)
 
 
@@ -376,6 +410,8 @@ func retreat_to_hub() -> void:
 	var active := LocalSave.get_active_run()
 	if not active.is_empty():
 		active["currentFloor"] = current_floor
+		active["dungeonTier"] = current_dungeon_tier
+		active["dungeonId"] = current_dungeon_id
 		active["dungeonDefinition"] = current_dungeon_definition.duplicate(true)
 		LocalSave.set_active_run(active)
 	_run_active = false
@@ -384,6 +420,14 @@ func retreat_to_hub() -> void:
 	LocalSave.autosave()
 	_goto_scene(HUB_SCENE)
 	returned_to_hub.emit(last_hub_message)
+
+
+func get_dungeon_tier() -> int:
+	return current_dungeon_tier
+
+
+func get_dungeon_id() -> String:
+	return current_dungeon_id
 
 
 func get_run_mode() -> String:
@@ -412,7 +456,6 @@ func descend_floor() -> void:
 
 func _transition_floor(ascending: bool) -> void:
 	_unload_current_floor_chunk()
-	var floor_key := str(current_floor)
 	current_dungeon_definition = {}
 	var gen := await _generate_dungeon(current_biome_id, current_seed, current_floor)
 	if gen.get("ok", false):
@@ -461,6 +504,8 @@ func _persist_active_run() -> void:
 		}
 	active["runMode"] = run_mode
 	active["currentFloor"] = current_floor
+	active["dungeonTier"] = current_dungeon_tier
+	active["dungeonId"] = current_dungeon_id
 	active["maxFloors"] = max_floors
 	active["dungeonDefinition"] = current_dungeon_definition.duplicate(true)
 	LocalSave.set_active_run(active)
@@ -517,12 +562,23 @@ func clear_continue_restore() -> void:
 	_pending_snapshot.clear()
 
 
+func _resolve_dungeon_id(dungeon_id: String) -> String:
+	if DungeonCatalog.is_valid(dungeon_id):
+		return dungeon_id
+	for entry in DungeonCatalog.ENTRIES:
+		if str(entry.get("biomeId", "")) == dungeon_id:
+			return str(entry.get("id", ""))
+	return DungeonCatalog.DEFAULT_DUNGEON_ID
+
+
 func _reset_run_stats() -> void:
 	_kill_count = 0
 	_boss_defeated = false
 	_loot_collected.clear()
 	_loot_claimed_instance_ids.clear()
 	current_floor = 1
+	current_dungeon_tier = 1
+	current_dungeon_id = DungeonCatalog.DEFAULT_DUNGEON_ID
 	_clear_floor_cache()
 
 
@@ -599,8 +655,24 @@ func _start_waves_run(is_continue: bool) -> void:
 	else:
 		_pending_snapshot.clear()
 		WavesRunService.begin_new_run()
+	var root := get_tree().root
+	if _is_continue and not _pending_snapshot.is_empty():
+		root.set_meta("run_snapshot", _pending_snapshot.duplicate(true))
+	elif root.has_meta("run_snapshot"):
+		root.remove_meta("run_snapshot")
 	_goto_scene(WAVES_RUN_SCENE)
 	run_started.emit()
+
+
+func quit_waves_run() -> void:
+	if run_mode != RM.MODE_WAVES:
+		return
+	LocalSave.clear_waves_active_run()
+	WavesRunService.begin_new_run()
+	_run_active = false
+	last_hub_message = "Left waves early — loadout was not kept."
+	_clear_run_meta()
+	return_to_hub(last_hub_message)
 
 
 func complete_waves_run(rewards: Array[String]) -> void:

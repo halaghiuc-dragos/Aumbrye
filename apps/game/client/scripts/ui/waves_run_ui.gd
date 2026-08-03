@@ -40,11 +40,12 @@ func show_lobby() -> void:
 
 
 func refresh_lobby() -> void:
+	var total := WavesRunService.get_chest_count()
 	var opened := 0
-	for i in WavesRunService.CHEST_RARITIES.size():
+	for i in total:
 		if WavesRunService.chests_opened.get(str(i), false):
 			opened += 1
-	_label.text = "Open all 10 chests (%d/10). Walk to chest + E. Umbral loadout only." % opened
+	_label.text = "Open all %d chests (%d/%d). Walk to chest + E. Waves loadout only." % [total, opened, total]
 	_ready_button.disabled = not WavesRunService.all_chests_opened()
 	if WavesRunService.all_chests_opened() and not WavesRunService.lobby_ready:
 		_label.text += "\nAll chests open — press Ready."

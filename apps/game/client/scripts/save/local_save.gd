@@ -6,7 +6,7 @@ const SAVE_PATH := "user://aumbrye_save.json"
 const BACKUP_PATH := "user://aumbrye_save.conflict_backup.json"
 const BACKUP_DIR := "user://backups/"
 const BACKUP_COUNT := 5
-const SAVE_SCHEMA_VERSION := 2
+const SAVE_SCHEMA_VERSION := SaveMigrator.CURRENT_VERSION
 
 signal save_loaded
 signal save_failed(reason: String)
@@ -274,13 +274,21 @@ func _apply_save_data(data: Dictionary) -> void:
 		})
 	if CharacterService:
 		CharacterService.from_save_dict({
-			"gold": data.get("currencies", {}).get("gold", CharacterService.DEFAULT_GOLD),
+			"gold": data.get("currencies", {}).get("gold", data.get("currencies", {}).get("coins", CharacterService.DEFAULT_GOLD)),
+			"coins": data.get("currencies", {}).get("coins", data.get("currencies", {}).get("gold", CharacterService.DEFAULT_GOLD)),
 			"level": character.get("level", 1),
 			"flags": data.get("flags", {}),
 			"quests": data.get("quests", {}),
 		})
 	if RunBuffs:
 		RunBuffs.from_save_array(data.get("runRelics", []))
+	var waves_run: Variant = data.get("wavesActiveRun", {})
+	if waves_run is Dictionary and not waves_run.is_empty():
+		_cached_state["wavesActiveRun"] = waves_run.duplicate(true)
+		if WavesRunService:
+			WavesRunService.restore_from_save(waves_run)
+	elif _cached_state.has("wavesActiveRun"):
+		_cached_state.erase("wavesActiveRun")
 
 
 func _build_save_payload() -> Dictionary:
@@ -304,11 +312,13 @@ func _build_save_payload() -> Dictionary:
 		"runRelics": RunBuffs.to_save_array() if RunBuffs else _cached_state.get("runRelics", []),
 	}
 	if CharacterService:
-		data["currencies"] = {"gold": CharacterService.gold}
+		data["currencies"] = {"gold": CharacterService.gold, "coins": CharacterService.get_coins()}
 		data["flags"] = CharacterService.flags.duplicate()
 		data["quests"] = CharacterService.quests.duplicate()
 	if _cached_state.has("activeRun"):
 		data["activeRun"] = _cached_state["activeRun"]
+	if _cached_state.has("wavesActiveRun"):
+		data["wavesActiveRun"] = _cached_state["wavesActiveRun"]
 	if _cached_state.has("meta"):
 		data["meta"] = _cached_state["meta"]
 	if _cloud_updated_at != "":
@@ -361,7 +371,7 @@ func _reset_to_defaults() -> void:
 
 func _handle_corrupt_save(reason: String) -> void:
 	save_failed.emit(reason)
-	push_warning("LocalSave: %s — starting fresh" % reason)
+	print_verbose("LocalSave: %s — starting fresh" % reason)
 	_reset_to_defaults()
 
 

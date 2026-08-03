@@ -45,7 +45,8 @@ func _process(_delta: float) -> void:
 	var fps := Engine.get_frames_per_second()
 	lines.append("F1: overlay | F2: hitboxes | F3: dmg nums | P: camera | R: reset | Q: tap block | FPS: %d" % fps)
 	if _dodge:
-		lines.append("i-frames: %s" % ("ON" if _dodge.get("iframes_active") else "off"))
+		var rolling := "ROLLING" if _dodge.get("is_dodging") else "off"
+		lines.append("roll i-frames: %s" % ("ON" if _dodge.get("iframes_active") else rolling))
 	if _guard:
 		lines.append("guard: %s | parry: %s | block: %s" % [
 			"active" if _guard.get("is_guard_active") else "off",

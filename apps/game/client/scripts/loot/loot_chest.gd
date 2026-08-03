@@ -4,7 +4,9 @@ extends Node3D
 
 signal opened
 
-@onready var _mesh: MeshInstance3D = $MeshInstance3D
+const DioramaSkin := preload("res://scripts/art/diorama_interactable_skin.gd")
+
+var _mesh: Node3D
 @onready var _interact_area: Area3D = $InteractArea
 @onready var _label: Label3D = $Label3D
 
@@ -14,6 +16,9 @@ var _player: Node3D
 
 
 func _ready() -> void:
+	_mesh = DioramaSkin.build_chest(self, DioramaSkin.resolve_biome(self))
+	if _opened:
+		apply_opened_state(true)
 	_interact_area.body_entered.connect(_on_body_entered)
 	_interact_area.body_exited.connect(_on_body_exited)
 	_label.visible = false

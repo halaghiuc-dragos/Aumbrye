@@ -2,13 +2,14 @@ extends RefCounted
 class_name GridInventory
 
 const EquipmentHelper := preload("res://scripts/items/equipment.gd")
+const RarityRegistryScript := preload("res://scripts/loot/rarity_registry.gd")
 
 const DEFAULT_WIDTH := 6
 const DEFAULT_HEIGHT := 4
 
 const SORT_MODES: Array[String] = ["default", "name", "type", "rarity"]
 const FILTER_TYPES: Array[String] = ["all", "weapon", "armor", "accessory", "consumable", "material"]
-const FILTER_RARITIES: Array[String] = ["all", "common", "magic", "rare", "epic", "legendary"]
+const FILTER_RARITIES: Array[String] = ["all", "common", "magic", "rare", "epic", "legendary", "aumbral"]
 
 signal changed
 signal item_equipped(item_id: String, slot: String)
@@ -53,9 +54,9 @@ func get_item_def(item_id: String) -> Dictionary:
 
 func get_slot_rarity(slot: Dictionary) -> String:
 	if slot.has("rarity"):
-		return str(slot.get("rarity", "common"))
+		return RarityRegistryScript.normalize(str(slot.get("rarity", "common")))
 	var def := get_item_def(slot.get("itemId", ""))
-	return str(def.get("rarity", "common"))
+	return RarityRegistryScript.normalize(str(def.get("rarity", "common")))
 
 
 func get_slot_display_name(slot: Dictionary) -> String:
@@ -63,7 +64,7 @@ func get_slot_display_name(slot: Dictionary) -> String:
 	var name: String = def.get("name", slot.get("itemId", "?"))
 	var rarity: String = get_slot_rarity(slot)
 	if rarity != "common" and rarity != "":
-		return "[%s] %s" % [rarity.capitalize(), name]
+		return "[%s] %s" % [RarityRegistryScript.display_name(rarity), name]
 	return name
 
 
@@ -137,10 +138,22 @@ func add_item(item_id: String, quantity: int = 1, instance_data: Dictionary = {}
 	return true
 
 
-func add_rolled_item(item_id: String, roll_seed: int = -1) -> bool:
-	var instance := AffixRoller.roll_instance(item_id, roll_seed)
+func add_rolled_item(item_id: String, roll_seed: int = -1, run_mode: String = "") -> bool:
+	var instance := AffixRoller.roll_instance(item_id, roll_seed, "", run_mode)
 	if instance.is_empty():
 		return false
+	return _place_rolled_instance(instance)
+
+
+func add_rolled_item_with_rarity(item_id: String, rarity: String, roll_seed: int = -1) -> bool:
+	var instance := AffixRoller.roll_instance(item_id, roll_seed, rarity, RunModeConfig.MODE_WAVES)
+	if instance.is_empty():
+		return false
+	return _place_rolled_instance(instance)
+
+
+func _place_rolled_instance(instance: Dictionary) -> bool:
+	var item_id: String = str(instance.get("itemId", ""))
 	var x_y := _find_first_fit(item_id)
 	if x_y.x < 0:
 		return false

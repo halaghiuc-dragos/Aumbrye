@@ -49,11 +49,15 @@ theme_override_constants/separation = 10
 
 [node name="Title" type="Label" parent="MainPanel/Margin/VBox"]
 layout_mode = 2
-text = "Choose Dungeon"
+text = "Aumbrye Dungeons — Tier 1"
 horizontal_alignment = 1
 theme_override_font_sizes/font_size = 24
 
+[node name="DungeonDropdown" type="OptionButton" parent="MainPanel/Margin/VBox"]
+layout_mode = 2
+
 [node name="BiomeBox" type="VBoxContainer" parent="MainPanel/Margin/VBox"]
+visible = false
 layout_mode = 2
 theme_override_constants/separation = 4
 

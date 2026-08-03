@@ -1,0 +1,155 @@
+#!/usr/bin/env python3
+"""Regenerate biome mat_floor/wall/accent as pixel-diorama ShaderMaterials."""
+
+from __future__ import annotations
+
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+CLIENT = ROOT / "apps" / "game" / "client"
+SHADER = "res://assets/shared/pixel_diorama_surface.gdshader"
+
+BIOMES = [
+    {
+        "folder": "castle",
+        "floor": (0.35, 0.32, 0.38),
+        "floor_shadow": (0.24, 0.22, 0.28),
+        "wall": (0.22, 0.20, 0.28),
+        "wall_shadow": (0.14, 0.12, 0.18),
+        "accent": (0.55, 0.42, 0.28),
+    },
+    {
+        "folder": "crystal",
+        "floor": (0.42, 0.55, 0.78),
+        "floor_shadow": (0.28, 0.38, 0.58),
+        "wall": (0.32, 0.48, 0.72),
+        "wall_shadow": (0.18, 0.28, 0.45),
+        "accent": (0.65, 0.82, 0.95),
+    },
+    {
+        "folder": "swamp",
+        "floor": (0.28, 0.34, 0.20),
+        "floor_shadow": (0.18, 0.24, 0.12),
+        "wall": (0.20, 0.28, 0.16),
+        "wall_shadow": (0.12, 0.16, 0.10),
+        "accent": (0.45, 0.55, 0.22),
+    },
+    {
+        "folder": "frozen",
+        "floor": (0.72, 0.80, 0.88),
+        "floor_shadow": (0.55, 0.65, 0.78),
+        "wall": (0.62, 0.72, 0.82),
+        "wall_shadow": (0.42, 0.52, 0.65),
+        "accent": (0.85, 0.92, 0.98),
+    },
+    {
+        "folder": "cathedral",
+        "floor": (0.20, 0.16, 0.28),
+        "floor_shadow": (0.12, 0.10, 0.18),
+        "wall": (0.16, 0.12, 0.22),
+        "wall_shadow": (0.08, 0.06, 0.12),
+        "accent": (0.62, 0.48, 0.28),
+    },
+    {
+        "folder": "vault",
+        "floor": (0.35, 0.32, 0.30),
+        "floor_shadow": (0.22, 0.20, 0.18),
+        "wall": (0.28, 0.26, 0.24),
+        "wall_shadow": (0.16, 0.14, 0.12),
+        "accent": (0.58, 0.50, 0.32),
+    },
+    {
+        "folder": "prism",
+        "floor": (0.55, 0.72, 0.92),
+        "floor_shadow": (0.38, 0.52, 0.72),
+        "wall": (0.42, 0.58, 0.82),
+        "wall_shadow": (0.26, 0.38, 0.58),
+        "accent": (0.78, 0.55, 0.95),
+    },
+    {
+        "folder": "mire",
+        "floor": (0.28, 0.42, 0.22),
+        "floor_shadow": (0.18, 0.28, 0.14),
+        "wall": (0.22, 0.34, 0.18),
+        "wall_shadow": (0.12, 0.20, 0.10),
+        "accent": (0.55, 0.72, 0.28),
+    },
+    {
+        "folder": "hollow",
+        "floor": (0.72, 0.80, 0.88),
+        "floor_shadow": (0.55, 0.64, 0.74),
+        "wall": (0.60, 0.70, 0.80),
+        "wall_shadow": (0.40, 0.48, 0.58),
+        "accent": (0.82, 0.90, 0.98),
+    },
+    {
+        "folder": "umbral",
+        "floor": (0.14, 0.10, 0.20),
+        "floor_shadow": (0.08, 0.06, 0.12),
+        "wall": (0.12, 0.08, 0.18),
+        "wall_shadow": (0.06, 0.04, 0.10),
+        "accent": (0.55, 0.38, 0.62),
+    },
+]
+
+
+def color_str(rgb: tuple[float, float, float]) -> str:
+    return f"Color({rgb[0]}, {rgb[1]}, {rgb[2]}, 1.0)"
+
+
+def write_surface_material(
+    path: Path,
+    surface_kind: int,
+    color_base,
+    color_shadow,
+    color_accent,
+) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    text = f"""[gd_resource type="ShaderMaterial" load_steps=2 format=3]
+
+[ext_resource type="Shader" path="{SHADER}" id="1_shader"]
+
+[resource]
+shader = ExtResource("1_shader")
+shader_parameter/color_base = {color_str(color_base)}
+shader_parameter/color_shadow = {color_str(color_shadow)}
+shader_parameter/color_accent = {color_str(color_accent)}
+shader_parameter/pixel_scale = 8.0
+shader_parameter/pattern_strength = 0.58
+shader_parameter/color_levels = 6.0
+shader_parameter/edge_strength = 0.45
+shader_parameter/surface_kind = {surface_kind}
+texture_filter = 0
+"""
+    path.write_text(text, encoding="utf-8")
+
+
+def main() -> None:
+    for biome in BIOMES:
+        folder = CLIENT / "assets" / biome["folder"]
+        write_surface_material(
+            folder / "mat_floor.tres",
+            0,
+            biome["floor"],
+            biome["floor_shadow"],
+            biome["accent"],
+        )
+        write_surface_material(
+            folder / "mat_wall.tres",
+            1,
+            biome["wall"],
+            biome["wall_shadow"],
+            biome["accent"],
+        )
+        write_surface_material(
+            folder / "mat_accent.tres",
+            2,
+            biome["accent"],
+            biome["wall_shadow"],
+            biome["accent"],
+        )
+        print(f"Wrote pixel-diorama materials for {biome['folder']}")
+
+
+if __name__ == "__main__":
+    main()

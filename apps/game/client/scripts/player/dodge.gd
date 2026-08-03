@@ -1,6 +1,6 @@
 extends Node
 
-## Dodge (Space / gamepad B) and jump (F / gamepad A). See docs/design/M1_CONTROLS.md.
+## Roll (Space / gamepad B) and jump (F / gamepad A). See docs/design/M1_CONTROLS.md.
 
 const JUMP_VELOCITY := 4.8
 const COYOTE_TIME := 0.12
@@ -15,6 +15,8 @@ const IFRAME_END := 0.30
 
 signal dodge_started
 signal dodge_ended
+signal roll_started
+signal roll_ended
 signal iframes_changed(active: bool)
 
 var is_dodging := false
@@ -34,6 +36,8 @@ var _was_on_floor := false
 func _ready() -> void:
 	_body = get_parent() as CharacterBody3D
 	_stamina = _body.get_node_or_null("Stamina") as Stamina
+	roll_started.connect(func(): dodge_started.emit())
+	roll_ended.connect(func(): dodge_ended.emit())
 
 
 func _physics_process(delta: float) -> void:
@@ -43,12 +47,30 @@ func _physics_process(delta: float) -> void:
 		_recovery_timer -= delta
 
 
+func process_roll_physics(delta: float) -> void:
+	process_dodge_physics(delta)
+
+
 func process_dodge_physics(delta: float) -> void:
 	if is_dodging:
-		_process_dodge(delta)
+		_process_roll(delta)
 		return
-	if Input.is_action_just_pressed("dodge") and _can_dodge():
-		_start_dodge()
+	if Input.is_action_just_pressed("dodge") and _can_roll():
+		_start_roll()
+
+
+func get_roll_progress() -> float:
+	if not is_dodging:
+		return 0.0
+	return clampf(1.0 - (_dodge_timer / DODGE_DURATION), 0.0, 1.0)
+
+
+func get_roll_direction() -> Vector3:
+	return _dodge_direction
+
+
+func locks_movement() -> bool:
+	return _recovery_timer > 0.0
 
 
 func _update_timers(delta: float) -> void:
@@ -73,8 +95,8 @@ func _handle_jump_buffer() -> void:
 		_coyote_timer = 0.0
 
 
-func locks_movement() -> bool:
-	return _recovery_timer > 0.0
+func _can_roll() -> bool:
+	return _can_dodge()
 
 
 func _can_dodge() -> bool:
@@ -83,6 +105,10 @@ func _can_dodge() -> bool:
 	if _stamina and not _stamina.has(DODGE_STAMINA_COST):
 		return false
 	return true
+
+
+func _start_roll() -> void:
+	_start_dodge()
 
 
 func _start_dodge() -> void:
@@ -100,6 +126,7 @@ func _start_dodge() -> void:
 		_dodge_direction = _get_attack_backstep_direction()
 	is_dodging = true
 	_dodge_timer = DODGE_DURATION
+	roll_started.emit()
 	dodge_started.emit()
 
 
@@ -129,6 +156,10 @@ func _get_facing_forward() -> Vector3:
 	return -_body.global_transform.basis.z
 
 
+func _process_roll(delta: float) -> void:
+	_process_dodge(delta)
+
+
 func _process_dodge(delta: float) -> void:
 	_dodge_timer -= delta
 	_body.velocity.x = _dodge_direction.x * _dodge_speed
@@ -140,7 +171,11 @@ func _process_dodge(delta: float) -> void:
 		iframes_changed.emit(iframes_active)
 	_body.move_and_slide()
 	if _dodge_timer <= 0.0:
-		_end_dodge()
+		_end_roll()
+
+
+func _end_roll() -> void:
+	_end_dodge()
 
 
 func _end_dodge() -> void:
@@ -149,4 +184,5 @@ func _end_dodge() -> void:
 	iframes_changed.emit(false)
 	_recovery_timer = DODGE_RECOVERY
 	_dodge_speed = DODGE_SPEED
+	roll_ended.emit()
 	dodge_ended.emit()

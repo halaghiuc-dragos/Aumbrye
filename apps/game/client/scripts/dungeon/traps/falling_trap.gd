@@ -2,6 +2,8 @@ extends Node3D
 
 ## Falling block trap — ceiling telegraph then crush (TRAP-2.1).
 
+const DioramaSkin := preload("res://scripts/art/diorama_interactable_skin.gd")
+
 enum State { IDLE, TELEGRAPH, FALLING, RESET }
 
 @export var damage := 25.0
@@ -21,7 +23,12 @@ var _player: Node3D
 
 
 func _ready() -> void:
+	var block_mesh := _block.get_node_or_null("MeshInstance3D") as MeshInstance3D
+	if block_mesh:
+		block_mesh.queue_free()
+	DioramaSkin.build_falling_block(_block, DioramaSkin.resolve_biome(self))
 	_rest_y = _block.position.y
+	_telegraph.material_override = DioramaSkin.make_telegraph_material(Color(0.2, 0.2, 0.2, 0.6))
 	_telegraph.visible = false
 	_hitbox.monitoring = false
 	_player = get_tree().get_first_node_in_group("player")

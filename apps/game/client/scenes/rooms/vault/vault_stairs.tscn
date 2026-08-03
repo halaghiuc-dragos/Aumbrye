@@ -1,0 +1,41 @@
+[gd_scene load_steps=6 format=3 uid="uid://vault_stairs"]
+
+[ext_resource type="Script" path="res://scripts/dungeon/castle/castle_room_scene.gd" id="1_room"]
+[ext_resource type="Script" path="res://scripts/dungeon/castle/castle_blockout.gd" id="2_blockout"]
+[ext_resource type="Script" path="res://scripts/dungeon/doorway_socket.gd" id="3_socket"]
+[ext_resource type="Material" path="res://assets/vault/mat_floor.tres" id="4_floor"]
+[ext_resource type="Material" path="res://assets/vault/mat_wall.tres" id="5_wall"]
+
+[node name="VaultStairs" type="Node3D"]
+script = ExtResource("1_room")
+template_id = "vault_stairs"
+room_type = "combat"
+
+[node name="CastleBlockout" type="Node3D" parent="."]
+script = ExtResource("2_blockout")
+room_width = 16.0
+room_depth = 12.0
+door_south = false
+door_north = false
+floor_material = ExtResource("4_floor")
+wall_material = ExtResource("5_wall")
+
+[node name="DoorwaySockets" type="Node3D" parent="."]
+
+[node name="Socket_S" type="Marker3D" parent="DoorwaySockets"]
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 0, 0, 6.0)
+script = ExtResource("3_socket")
+direction = 2
+
+[node name="Socket_N" type="Marker3D" parent="DoorwaySockets"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -6.0)
+script = ExtResource("3_socket")
+direction = 0
+
+[node name="SpawnPoints" type="Node3D" parent="."]
+
+[node name="PlayerSpawn" type="Marker3D" parent="SpawnPoints"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -3)
+
+[node name="RunEntrance" type="Marker3D" parent="SpawnPoints"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -4)

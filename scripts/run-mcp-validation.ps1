@@ -7,9 +7,35 @@ $ErrorActionPreference = "Stop"
 $Root = Split-Path -Parent $PSScriptRoot
 $Project = Join-Path $Root "apps/game/client"
 
+function Resolve-GodotExecutable {
+    param([string]$Path)
+    if (-not $Path -or -not (Test-Path $Path)) {
+        return $null
+    }
+    $item = Get-Item -LiteralPath $Path
+    if ($item.PSIsContainer) {
+        $console = Get-ChildItem -LiteralPath $Path -Filter "*_console.exe" -ErrorAction SilentlyContinue |
+            Select-Object -First 1
+        if ($console) {
+            return $console.FullName
+        }
+        $gui = Get-ChildItem -LiteralPath $Path -Filter "Godot*.exe" -ErrorAction SilentlyContinue |
+            Where-Object { $_.Name -notlike "*_console*" } |
+            Select-Object -First 1
+        if ($gui) {
+            return $gui.FullName
+        }
+        return $null
+    }
+    return $Path
+}
+
 function Find-GodotExecutable {
-    if ($env:GODOT_BIN -and (Test-Path $env:GODOT_BIN)) {
-        return $env:GODOT_BIN
+    if ($env:GODOT_BIN) {
+        $resolved = Resolve-GodotExecutable $env:GODOT_BIN
+        if ($resolved) {
+            return $resolved
+        }
     }
 
     $onPath = Get-Command godot -ErrorAction SilentlyContinue

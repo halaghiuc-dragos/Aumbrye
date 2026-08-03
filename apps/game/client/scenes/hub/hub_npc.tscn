@@ -2,7 +2,7 @@
 
 [ext_resource type="Script" path="res://scripts/npc/npc_base.gd" id="1"]
 [ext_resource type="Script" path="res://scripts/hub/hub_interactable.gd" id="2"]
-[ext_resource type="Material" path="res://assets/castle/mat_accent.tres" id="3"]
+[ext_resource type="Material" path="res://assets/hub/mat_accent.tres" id="3"]
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_npc"]
 radius = 0.6

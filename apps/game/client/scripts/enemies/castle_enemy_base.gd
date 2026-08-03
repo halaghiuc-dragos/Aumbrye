@@ -14,6 +14,8 @@ const DATA_PATH := ""
 const ENEMY_TURN_SPEED := 22.0
 const HP_BAR_SCRIPT := preload("res://scripts/ui/enemy_health_bar.gd")
 const GlobalDropServiceScript := preload("res://scripts/loot/global_drop_service.gd")
+const CharacterSkin := preload("res://scripts/art/diorama_character_skin.gd")
+const CharacterAnimator := preload("res://scripts/art/diorama_character_animator.gd")
 
 @export var player_path: NodePath
 
@@ -36,6 +38,9 @@ var _spawn_origin := Vector3.ZERO
 var _patrol_target := Vector3.ZERO
 var _patrol_wait := 0.0
 var _aggro_locked := false
+var _diorama_visual: Node3D
+var _animator
+var _anim_profile := "melee"
 
 
 func _ready() -> void:
@@ -63,6 +68,7 @@ func _ready() -> void:
 	if _hurtbox:
 		_hurtbox.damaged.connect(_on_hurt)
 		_apply_hurtbox_data()
+	_setup_diorama_visual()
 	_pick_patrol_target()
 
 
@@ -79,6 +85,24 @@ func get_data_path() -> String:
 	if enemy_id.is_empty():
 		return DATA_PATH
 	return EnemyCatalog.get_content_path(enemy_id)
+
+
+func _setup_diorama_visual() -> void:
+	var enemy_id := get_enemy_id()
+	if enemy_id.is_empty():
+		enemy_id = str(_data.get("id", ""))
+	_anim_profile = CharacterSkin.profile_for_enemy_data(_data)
+	var theme := CharacterSkin.theme_for_enemy_id(enemy_id)
+	_diorama_visual = CharacterSkin.build_enemy_body(self, _anim_profile, theme)
+	if _mesh:
+		_mesh.visible = false
+	_animator = CharacterAnimator.new()
+	_animator.bind(_diorama_visual)
+	_animator.set_profile(_anim_profile)
+
+
+func get_diorama_visual() -> Node3D:
+	return _diorama_visual
 
 
 func get_hp_bar_height() -> float:
@@ -152,6 +176,7 @@ func _finalize_death(silent: bool) -> void:
 		_health.force_dead()
 	if not silent:
 		RunFlow.register_kill(get_enemy_id())
+		_award_kill_coins()
 		_try_roll_global_drop()
 		enemy_died.emit()
 	if _hitbox:
@@ -170,11 +195,20 @@ func _finalize_death(silent: bool) -> void:
 
 
 func _play_death_visual() -> void:
-	if _mesh == null:
+	var visual := _diorama_visual if _diorama_visual else _mesh as Node3D
+	if visual == null:
 		return
 	var death_scale := Vector3(0.2, 0.05, 0.2)
 	var tween := create_tween()
-	tween.tween_property(_mesh, "scale", death_scale, 0.35)
+	tween.tween_property(visual, "scale", death_scale, 0.35)
+	if _diorama_visual:
+		tween.parallel().tween_property(_diorama_visual, "position:y", -0.8, 0.35)
+
+
+func _award_kill_coins() -> void:
+	var reward := int(_data.get("coinReward", _data.get("goldReward", 5)))
+	if reward > 0 and CharacterService:
+		CharacterService.add_coins(reward)
 
 
 func _try_roll_global_drop() -> void:
@@ -183,7 +217,8 @@ func _try_roll_global_drop() -> void:
 	if RunFlow.get_run_mode() == "waves":
 		return
 	var floor_index := RunFlow.get_current_floor()
-	var drop_id := GlobalDropServiceScript.roll_enemy_drop(get_instance_id(), floor_index)
+	var tier := RunFlow.get_dungeon_tier() if RunFlow.get_run_mode() == "castle" else 1
+	var drop_id := GlobalDropServiceScript.roll_enemy_drop(get_instance_id(), floor_index, tier)
 	if drop_id != "":
 		InventoryService.add_item(drop_id, 1)
 
@@ -201,7 +236,9 @@ func apply_stagger(duration: float) -> void:
 		_hitbox.disable()
 	if _telegraph:
 		_telegraph.visible = false
-	if _mesh:
+	if _diorama_visual:
+		_diorama_visual.scale = Vector3.ONE
+	elif _mesh:
 		_mesh.scale = Vector3.ONE
 
 
@@ -228,6 +265,31 @@ func _physics_process(delta: float) -> void:
 	if not is_on_floor():
 		velocity += get_gravity() * delta
 	move_and_slide()
+	_update_diorama_animation(delta)
+
+
+func _update_diorama_animation(delta: float) -> void:
+	if _animator == null or is_dead():
+		return
+	var anim_state := CharacterAnimator.AnimState.IDLE
+	var params: Dictionary = {}
+	match _state:
+		State.PATROL, State.CHASE, State.RECOVERY:
+			if velocity.length() > 0.35:
+				anim_state = CharacterAnimator.AnimState.WALK
+				params["speed_ratio"] = clampf(velocity.length() / maxf(_data.get("move_speed", 3.5), 0.01), 0.25, 1.1)
+		State.WINDUP:
+			anim_state = CharacterAnimator.AnimState.WINDUP
+		State.ATTACK:
+			anim_state = CharacterAnimator.AnimState.ATTACK
+		State.STAGGER:
+			anim_state = CharacterAnimator.AnimState.STAGGER
+		State.DEAD:
+			anim_state = CharacterAnimator.AnimState.DEAD
+	if _anim_profile == "shield" and _state in [State.CHASE, State.WINDUP] and velocity.length() < 0.2:
+		anim_state = CharacterAnimator.AnimState.BLOCK
+	_animator.set_state(anim_state)
+	_animator.update(delta, params)
 
 
 func _update_ai(delta: float) -> void:
@@ -354,7 +416,9 @@ func _start_windup() -> void:
 		return
 	_state = State.WINDUP
 	_state_timer = _data.get("windup_duration", 0.7)
-	if _mesh:
+	if _diorama_visual:
+		_diorama_visual.scale = Vector3(1.04, 1.04, 1.04)
+	elif _mesh:
 		_mesh.scale = Vector3(1.08, 1.08, 1.08)
 	if _telegraph:
 		_telegraph.visible = true
@@ -385,7 +449,9 @@ func _end_attack() -> void:
 	if _hitbox:
 		_hitbox.disable()
 		_hitbox.reset_swing()
-	if _mesh:
+	if _diorama_visual:
+		_diorama_visual.scale = Vector3.ONE
+	elif _mesh:
 		_mesh.scale = Vector3.ONE
 	_state = State.RECOVERY
 	_state_timer = _data.get("recovery_duration", 0.9)
@@ -438,6 +504,9 @@ func _on_poise_broken() -> void:
 
 func _on_hurt(_info: DamageInfo) -> void:
 	if is_dead():
+		return
+	if _animator:
+		_animator.trigger_hit()
 		return
 	if not _mesh:
 		return

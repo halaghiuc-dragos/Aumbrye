@@ -6,7 +6,6 @@ signal waves_run_requested
 signal continue_requested
 signal menu_closed
 
-@onready var _main_panel: PanelContainer = $MainPanel
 @onready var _new_button: Button = $MainPanel/Margin/VBox/NewButton
 @onready var _continue_button: Button = $MainPanel/Margin/VBox/ContinueButton
 @onready var _status_label: Label = $MainPanel/Margin/VBox/StatusLabel
@@ -54,7 +53,7 @@ func _refresh_continue_state() -> void:
 		var wave := int(LocalSave.get_waves_active_run().get("currentWave", 0))
 		_status_label.text = "Continue waves run (wave %d)." % wave
 	else:
-		_status_label.text = "Open 10 chests, survive 50 waves."
+		_status_label.text = "Open 5 chests, survive 50 waves."
 
 
 func _on_new_pressed() -> void:

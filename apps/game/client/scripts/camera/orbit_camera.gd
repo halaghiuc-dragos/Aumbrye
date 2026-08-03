@@ -12,13 +12,15 @@ const FIRST_PERSON_LENGTH := 0.0
 const INVERT_Y := false
 
 @export var yaw_pivot_path: NodePath
-@export var body_mesh_path: NodePath = NodePath("../../Facing/MeshInstance3D")
+@export var facing_path: NodePath = NodePath("../../Facing")
+
+const CharacterSkin := preload("res://scripts/art/diorama_character_skin.gd")
 
 var _pitch := 0.0
 var _target_zoom := 4.0
 var _saved_third_person_zoom := 4.0
 var _yaw_pivot: Node3D
-var _body_mesh: GeometryInstance3D
+var _facing: Node3D
 var _first_person := false
 
 
@@ -28,8 +30,8 @@ func _ready() -> void:
 	collision_mask = 1
 	if yaw_pivot_path:
 		_yaw_pivot = get_node(yaw_pivot_path) as Node3D
-	if body_mesh_path:
-		_body_mesh = get_node_or_null(body_mesh_path) as GeometryInstance3D
+	if facing_path:
+		_facing = get_node_or_null(facing_path) as Node3D
 	if LocalSave.is_first_person_camera():
 		_apply_first_person(true)
 	else:
@@ -40,11 +42,6 @@ func _ready() -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventMouseMotion and Input.get_mouse_mode() == Input.MOUSE_MODE_CAPTURED:
 		_apply_look(-event.relative.x * MOUSE_SENSITIVITY, -event.relative.y * MOUSE_SENSITIVITY)
-	if event.is_action_pressed("pause"):
-		if Input.get_mouse_mode() == Input.MOUSE_MODE_CAPTURED:
-			Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
-		else:
-			Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
 	if event.is_action_pressed("toggle_camera"):
 		_toggle_camera_mode()
 	if not _first_person:
@@ -79,6 +76,30 @@ func is_first_person() -> bool:
 	return _first_person
 
 
+func capture_state() -> Dictionary:
+	return {
+		"yaw": _yaw_pivot.rotation.y if _yaw_pivot else 0.0,
+		"pitch": _pitch,
+		"zoom": _target_zoom,
+		"firstPerson": _first_person,
+	}
+
+
+func apply_state(state: Dictionary) -> void:
+	if state.is_empty():
+		return
+	if _yaw_pivot and state.has("yaw"):
+		_yaw_pivot.rotation.y = float(state.get("yaw", _yaw_pivot.rotation.y))
+	if state.has("pitch"):
+		_pitch = float(state.get("pitch", _pitch))
+		rotation.x = _pitch
+	if state.has("zoom"):
+		_target_zoom = float(state.get("zoom", _target_zoom))
+		spring_length = _target_zoom
+	if state.has("firstPerson"):
+		_apply_first_person(bool(state.get("firstPerson", _first_person)))
+
+
 func _toggle_camera_mode() -> void:
 	_apply_first_person(not _first_person)
 	LocalSave.set_first_person_camera(_first_person)
@@ -105,5 +126,5 @@ func _update_spring_collision() -> void:
 
 
 func _update_body_visibility() -> void:
-	if _body_mesh:
-		_body_mesh.visible = not _first_person
+	if _facing:
+		CharacterSkin.apply_first_person(_facing, _first_person)

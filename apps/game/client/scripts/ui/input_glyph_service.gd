@@ -40,6 +40,30 @@ static func format_interact_label(prefix: String = "Press") -> String:
 	return "%s %s" % [prefix, get_action_glyph("interact")]
 
 
+static func get_action_display_name(action: String) -> String:
+	match action:
+		"dodge":
+			return "Roll"
+		"sprint":
+			return "Sprint"
+		"lock_on":
+			return "Lock"
+		"inventory":
+			return "Inventory"
+		"interact":
+			return "Interact"
+		"jump":
+			return "Jump"
+		"pause":
+			return "Pause"
+		_:
+			return action.replace("_", " ").capitalize()
+
+
+static func format_action_hint(action: String) -> String:
+	return "%s %s" % [get_action_display_name(action), get_action_glyph(action)]
+
+
 static func _keyboard_glyph(action: String) -> String:
 	match action:
 		"interact": return "E"
@@ -49,6 +73,8 @@ static func _keyboard_glyph(action: String) -> String:
 		"pause": return "Esc"
 		"lock_on": return "Tab"
 		"sprint": return "Shift"
+		"dodge": return "Space"
+		"jump": return "F"
 		_: return action.substr(0, 1).to_upper()
 
 
@@ -61,6 +87,8 @@ static func _xbox_glyph(action: String) -> String:
 		"pause": return "Menu"
 		"lock_on": return "RB"
 		"sprint": return "LS"
+		"dodge": return "B"
+		"jump": return "A"
 		_: return "A"
 
 
@@ -73,6 +101,8 @@ static func _playstation_glyph(action: String) -> String:
 		"pause": return "Options"
 		"lock_on": return "R1"
 		"sprint": return "L3"
+		"dodge": return "Circle"
+		"jump": return "Cross"
 		_: return "Cross"
 
 

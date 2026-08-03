@@ -2,6 +2,8 @@ extends Node3D
 
 ## Crystal cannon for final boss puzzle — load collected crystals, then fire to break shield.
 
+const DioramaSkin := preload("res://scripts/art/diorama_interactable_skin.gd")
+
 signal fired
 
 @export var boss_path: NodePath
@@ -17,6 +19,7 @@ var _interact_area: Area3D
 
 func _ready() -> void:
 	_boss = get_node_or_null(boss_path)
+	DioramaSkin.build_cannon(self, BiomeRegistry.BIOME_CASTLE)
 	if get_node_or_null("InteractArea") == null:
 		_build_interact_area()
 	_interact_area = get_node_or_null("InteractArea") as Area3D
@@ -46,11 +49,6 @@ func _build_interact_area() -> void:
 	shape.shape = box
 	interact.add_child(shape)
 	add_child(interact)
-	var mesh := MeshInstance3D.new()
-	var box_mesh := BoxMesh.new()
-	box_mesh.size = Vector3(1.5, 1.0, 2.0)
-	mesh.mesh = box_mesh
-	add_child(mesh)
 
 
 func configure(boss: Node, required: int = 3) -> void:

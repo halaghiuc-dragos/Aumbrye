@@ -4,6 +4,8 @@ class_name BlacksmithService
 ## Upgrade and repair logic for hub blacksmith (HUB-4.2).
 
 const DEFAULT_MAX_DURABILITY := 100
+const UPGRADEABLE_TYPES: Array[String] = ["weapon", "armor", "accessory"]
+const RarityRegistryScript := preload("res://scripts/loot/rarity_registry.gd")
 
 
 static func get_slot_upgrade_level(slot: Dictionary) -> int:
@@ -21,6 +23,22 @@ static func get_max_durability(item_id: String) -> int:
 	return int(def.get("maxDurability", DEFAULT_MAX_DURABILITY))
 
 
+static func get_max_upgrade_level_for_slot(slot: Dictionary) -> int:
+	var item_id: String = slot.get("itemId", "")
+	var def := ItemCatalog.get_definition(item_id)
+	var base_rarity := str(def.get("rarity", "common"))
+	if slot.has("rarity"):
+		base_rarity = str(slot.get("rarity", base_rarity))
+	return RarityRegistryScript.max_upgrade_level(base_rarity)
+
+
+static func get_upgrade_cost(item_id: String, current_level: int) -> int:
+	var recipes := RecipeCatalog.get_upgrade_recipes(item_id, current_level)
+	if not recipes.is_empty():
+		return int(recipes[0].get("goldCost", recipes[0].get("coinCost", 0)))
+	return 25 + current_level * 15
+
+
 static func can_upgrade(inv_index: int) -> bool:
 	var inv := InventoryService.inventory
 	if inv_index < 0 or inv_index >= inv.slots.size():
@@ -28,14 +46,13 @@ static func can_upgrade(inv_index: int) -> bool:
 	var slot: Dictionary = inv.slots[inv_index]
 	var item_id: String = slot.get("itemId", "")
 	var def := ItemCatalog.get_definition(item_id)
-	if def.get("itemType", "") != "weapon":
+	var item_type: String = def.get("itemType", "")
+	if item_type not in UPGRADEABLE_TYPES:
 		return false
 	var level := get_slot_upgrade_level(slot)
-	var recipes := RecipeCatalog.get_upgrade_recipes(item_id, level)
-	if recipes.is_empty():
+	if level >= get_max_upgrade_level_for_slot(slot):
 		return false
-	var recipe: Dictionary = recipes[0]
-	return CharacterService.can_afford(int(recipe.get("goldCost", 0)))
+	return CharacterService.can_afford(get_upgrade_cost(item_id, level))
 
 
 static func upgrade_item(inv_index: int) -> Dictionary:
@@ -45,14 +62,12 @@ static func upgrade_item(inv_index: int) -> Dictionary:
 	var slot: Dictionary = inv.slots[inv_index]
 	var item_id: String = slot.get("itemId", "")
 	var level := get_slot_upgrade_level(slot)
-	var recipes := RecipeCatalog.get_upgrade_recipes(item_id, level)
-	if recipes.is_empty():
-		return {"ok": false, "error": "no recipe"}
-	var recipe: Dictionary = recipes[0]
-	var cost: int = int(recipe.get("goldCost", 0))
-	if not CharacterService.spend_gold(cost):
-		return {"ok": false, "error": "not enough gold"}
-	slot["upgradeLevel"] = int(recipe.get("toLevel", level + 1))
+	if level >= get_max_upgrade_level_for_slot(slot):
+		return {"ok": false, "error": "max level"}
+	var cost := get_upgrade_cost(item_id, level)
+	if not CharacterService.spend_coins(cost):
+		return {"ok": false, "error": "not enough coins"}
+	slot["upgradeLevel"] = level + 1
 	inv.changed.emit()
 	LocalSave.autosave()
 	return {"ok": true, "newLevel": slot["upgradeLevel"]}
@@ -65,7 +80,7 @@ static func can_repair(inv_index: int) -> bool:
 	var slot: Dictionary = inv.slots[inv_index]
 	var item_id: String = slot.get("itemId", "")
 	var def := ItemCatalog.get_definition(item_id)
-	if def.get("itemType", "") != "weapon":
+	if def.get("itemType", "") not in UPGRADEABLE_TYPES:
 		return false
 	var current := get_slot_durability(slot)
 	var max_dur := get_max_durability(item_id)
@@ -75,7 +90,7 @@ static func can_repair(inv_index: int) -> bool:
 	if recipe.is_empty():
 		var repair_cost := maxi(1, int((max_dur - current) / 2.0))
 		return CharacterService.can_afford(repair_cost)
-	return CharacterService.can_afford(int(recipe.get("goldCost", 10)))
+	return CharacterService.can_afford(int(recipe.get("goldCost", recipe.get("coinCost", 10))))
 
 
 static func repair_item(inv_index: int) -> Dictionary:
@@ -93,9 +108,9 @@ static func repair_item(inv_index: int) -> Dictionary:
 	if recipe.is_empty():
 		cost = maxi(1, int((max_dur - current) / 2.0))
 	else:
-		cost = int(recipe.get("goldCost", 10))
-	if not CharacterService.spend_gold(cost):
-		return {"ok": false, "error": "not enough gold"}
+		cost = int(recipe.get("goldCost", recipe.get("coinCost", 10)))
+	if not CharacterService.spend_coins(cost):
+		return {"ok": false, "error": "not enough coins"}
 	slot["durability"] = max_dur
 	inv.changed.emit()
 	LocalSave.autosave()

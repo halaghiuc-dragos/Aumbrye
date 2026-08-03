@@ -1,0 +1,54 @@
+{
+  "id": "umbral_chapel",
+  "name": "Umbral Chapel",
+  "roomCount": {
+    "min": 6,
+    "max": 10
+  },
+  "gridStep": 14,
+  "roomTemplateIds": [
+    "umbral_entrance",
+    "umbral_stairs",
+    "umbral_courtyard",
+    "umbral_hall",
+    "umbral_treasure",
+    "umbral_secret",
+    "umbral_arena",
+    "umbral_boss",
+    "umbral_puzzle"
+  ],
+  "enemyPool": [
+    {
+      "enemyId": "cathedral_acolyte",
+      "weight": 3
+    },
+    {
+      "enemyId": "cathedral_shade",
+      "weight": 2
+    },
+    {
+      "enemyId": "cathedral_warden",
+      "weight": 2
+    },
+    {
+      "enemyId": "castle_hound",
+      "weight": 1
+    },
+    {
+      "enemyId": "miniboss_cathedral_bell",
+      "weight": 1
+    }
+  ],
+  "bossPool": [
+    {
+      "enemyId": "boss_cathedral_hollow"
+    }
+  ],
+  "budgets": {
+    "baseEnemyThreat": 100,
+    "baseLootValue": 60,
+    "threatPerTier": 20,
+    "lootPerTier": 10
+  },
+  "requiresSecret": true
+}

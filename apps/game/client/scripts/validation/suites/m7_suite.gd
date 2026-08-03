@@ -10,6 +10,7 @@ const SkipFloorSvc := preload("res://scripts/dungeon/skip_floor_service.gd")
 const EndlessDifficultyScript := preload("res://scripts/dungeon/endless_difficulty.gd")
 const FinalBossScript := preload("res://scripts/enemies/final_boss_forgotten_castle.gd")
 const RM := preload("res://scripts/app/run_mode_config.gd")
+const RarityRegistryScript := preload("res://scripts/loot/rarity_registry.gd")
 
 
 func get_category() -> String:
@@ -123,12 +124,35 @@ func _test_waves_mode() -> void:
 		"UMBRAL-7.2"
 	)
 	start = Time.get_ticks_msec()
-	ok = WavesRunService.MILESTONES.size() == 4 and WavesRunService.CHEST_RARITIES.size() == 10
+	ok = WavesRunService.MILESTONES.size() == 4 and WavesRunService.get_chest_count() == 5
 	ctx.timed_record(
 		"m7.waves.milestones",
 		get_category(),
 		ok,
-		"waves milestones and 10 chests configured",
+		"waves milestones and 5 chests configured",
+		start,
+		"UMBRAL-7.2"
+	)
+	start = Time.get_ticks_msec()
+	ok = (
+		ctx.file_contains("res://scripts/save/local_save.gd", "wavesActiveRun")
+		and ctx.file_contains("res://scripts/save/local_save.gd", '"wavesActiveRun"')
+	)
+	ctx.timed_record(
+		"m7.waves.save_persist",
+		get_category(),
+		ok,
+		"waves active run persisted in save payload",
+		start,
+		"UMBRAL-7.2"
+	)
+	start = Time.get_ticks_msec()
+	ok = FileAccess.file_exists("res://scripts/loot/rarity_registry.gd")
+	ctx.timed_record(
+		"m7.rarity.global_registry",
+		get_category(),
+		ok,
+		"global rarity registry exists",
 		start,
 		"UMBRAL-7.2"
 	)
@@ -632,7 +656,50 @@ func _test_waves_extended() -> void:
 		"m7.waves.lobby_ready_gate",
 		get_category(),
 		ok,
-		"waves ready blocked until all 10 chests opened",
+		"waves ready blocked until all 5 chests opened",
+		start,
+		"WAVES-7.x"
+	)
+	start = Time.get_ticks_msec()
+	ok = (
+		ctx.file_contains("res://scripts/dungeon/waves_run.gd", "CombatHUD")
+		and ctx.file_contains("res://scripts/dungeon/waves_run.gd", "_restore_waves_snapshot")
+	)
+	ctx.timed_record(
+		"m7.waves.combat_hud_restore",
+		get_category(),
+		ok,
+		"waves scene builds CombatHUD and restores continue snapshot",
+		start,
+		"WAVES-7.x"
+	)
+	start = Time.get_ticks_msec()
+	ok = RarityRegistryScript.normalize("mythic") == "aumbral"
+	ctx.timed_record(
+		"m7.rarity.aumbral_alias",
+		get_category(),
+		ok,
+		"mythic rarity aliases to aumbral top tier",
+		start,
+		"WAVES-7.x"
+	)
+	start = Time.get_ticks_msec()
+	ok = BlacksmithService.get_max_upgrade_level_for_slot({"itemId": "mythic_blade", "rarity": "aumbral"}) == 10
+	ctx.timed_record(
+		"m7.blacksmith.aumbral_cap",
+		get_category(),
+		ok,
+		"aumbral items upgrade to +10 at blacksmith",
+		start,
+		"WAVES-7.x"
+	)
+	start = Time.get_ticks_msec()
+	ok = BlacksmithService.get_max_upgrade_level_for_slot({"itemId": "castle_sword"}) == 5
+	ctx.timed_record(
+		"m7.blacksmith.standard_cap",
+		get_category(),
+		ok,
+		"standard items upgrade to +5 at blacksmith",
 		start,
 		"WAVES-7.x"
 	)

@@ -2,6 +2,8 @@ extends Control
 
 ## Blacksmith upgrade/repair UI (HUB-4.2).
 
+const RarityRegistryScript := preload("res://scripts/loot/rarity_registry.gd")
+
 signal closed
 
 @onready var _gold_label: Label = $Panel/Margin/VBox/GoldLabel
@@ -11,7 +13,7 @@ signal closed
 @onready var _repair_button: Button = $Panel/Margin/VBox/Buttons/RepairButton
 @onready var _close_button: Button = $Panel/Margin/VBox/Buttons/CloseButton
 
-var _weapon_indices: Array[int] = []
+var _item_indices: Array[int] = []
 
 
 func _ready() -> void:
@@ -22,7 +24,7 @@ func _ready() -> void:
 	_repair_button.pressed.connect(_on_repair_pressed)
 	_close_button.pressed.connect(close)
 	_item_list.item_selected.connect(_on_item_selected)
-	CharacterService.gold_changed.connect(_on_gold_changed)
+	CharacterService.coins_changed.connect(_on_coins_changed)
 	InventoryService.inventory_changed.connect(_refresh)
 
 
@@ -54,42 +56,43 @@ func _unhandled_input(event: InputEvent) -> void:
 
 
 func _refresh() -> void:
-	_gold_label.text = "Gold: %d" % CharacterService.gold
+	_gold_label.text = "Coins: %d" % CharacterService.get_coins()
 	_item_list.clear()
-	_weapon_indices.clear()
+	_item_indices.clear()
 	var inv := InventoryService.inventory
 	for i in inv.slots.size():
 		var slot: Dictionary = inv.slots[i]
 		var item_id: String = slot.get("itemId", "")
 		var def := ItemCatalog.get_definition(item_id)
-		if def.get("itemType", "") != "weapon":
+		if def.get("itemType", "") not in BlacksmithService.UPGRADEABLE_TYPES:
 			continue
 		var level := BlacksmithService.get_slot_upgrade_level(slot)
+		var max_level := BlacksmithService.get_max_upgrade_level_for_slot(slot)
 		var dur := BlacksmithService.get_slot_durability(slot)
 		var max_dur := BlacksmithService.get_max_durability(item_id)
-		_item_list.add_item("%s +%d (%d/%d)" % [def.get("name", item_id), level, dur, max_dur])
-		_weapon_indices.append(i)
-	if _weapon_indices.is_empty():
-		_detail_label.text = "No weapons to upgrade or repair."
+		var rarity := RarityRegistryScript.display_name(inv.get_slot_rarity(slot))
+		_item_list.add_item("%s %s +%d/%d (%d/%d)" % [rarity, def.get("name", item_id), level, max_level, dur, max_dur])
+		_item_indices.append(i)
+	if _item_indices.is_empty():
+		_detail_label.text = "No equippable items to upgrade or repair."
 		_upgrade_button.disabled = true
 		_repair_button.disabled = true
-	elif _item_list.get_selected_items().is_empty() and not _weapon_indices.is_empty():
+	elif _item_list.get_selected_items().is_empty() and not _item_indices.is_empty():
 		_item_list.select(0)
 		_on_item_selected(0)
 
 
 func _on_item_selected(index: int) -> void:
-	if index < 0 or index >= _weapon_indices.size():
+	if index < 0 or index >= _item_indices.size():
 		return
-	var inv_index: int = _weapon_indices[index]
+	var inv_index: int = _item_indices[index]
 	var slot: Dictionary = InventoryService.inventory.slots[inv_index]
 	var item_id: String = slot.get("itemId", "")
 	var level := BlacksmithService.get_slot_upgrade_level(slot)
-	var recipes := RecipeCatalog.get_upgrade_recipes(item_id, level)
-	var upgrade_cost := 0
-	if not recipes.is_empty():
-		upgrade_cost = int(recipes[0].get("goldCost", 0))
-	_detail_label.text = "Upgrade cost: %d gold" % upgrade_cost
+	var max_level := BlacksmithService.get_max_upgrade_level_for_slot(slot)
+	var upgrade_cost := BlacksmithService.get_upgrade_cost(item_id, level)
+	var rarity := RarityRegistryScript.display_name(InventoryService.inventory.get_slot_rarity(slot))
+	_detail_label.text = "%s — upgrade cost: %d coins (+%d/%d)" % [rarity, upgrade_cost, level, max_level]
 	_upgrade_button.disabled = not BlacksmithService.can_upgrade(inv_index)
 	_repair_button.disabled = not BlacksmithService.can_repair(inv_index)
 
@@ -98,7 +101,7 @@ func _on_upgrade_pressed() -> void:
 	var selected := _item_list.get_selected_items()
 	if selected.is_empty():
 		return
-	var result := BlacksmithService.upgrade_item(_weapon_indices[selected[0]])
+	var result := BlacksmithService.upgrade_item(_item_indices[selected[0]])
 	if not result.get("ok", false):
 		_detail_label.text = str(result.get("error", "upgrade failed"))
 	_refresh()
@@ -108,11 +111,11 @@ func _on_repair_pressed() -> void:
 	var selected := _item_list.get_selected_items()
 	if selected.is_empty():
 		return
-	var result := BlacksmithService.repair_item(_weapon_indices[selected[0]])
+	var result := BlacksmithService.repair_item(_item_indices[selected[0]])
 	if not result.get("ok", false):
 		_detail_label.text = str(result.get("error", "repair failed"))
 	_refresh()
 
 
-func _on_gold_changed(_amount: int) -> void:
-	_gold_label.text = "Gold: %d" % CharacterService.gold
+func _on_coins_changed(_amount: int) -> void:
+	_gold_label.text = "Coins: %d" % CharacterService.get_coins()

@@ -20,8 +20,10 @@ const EXIT_PORTAL_SCRIPT := preload("res://scripts/dungeon/exit_portal.gd")
 const BOSS_DOOR_SCRIPT := preload("res://scripts/dungeon/boss_room_door.gd")
 const STAIR_LEVER_SCRIPT := preload("res://scripts/dungeon/stair_lever.gd")
 const STAIR_COLLISION := preload("res://scripts/dungeon/stair_collision_builder.gd")
+const DIORAMA_SKIN := preload("res://scripts/art/diorama_interactable_skin.gd")
 const FINAL_BOSS_SCENE := preload("res://scenes/enemies/final_boss_forgotten_castle.tscn")
 const EndlessDifficultyScript := preload("res://scripts/dungeon/endless_difficulty.gd")
+const CastleTierDifficultyScript := preload("res://scripts/dungeon/castle_tier_difficulty.gd")
 
 signal build_complete
 signal boss_defeated
@@ -231,6 +233,7 @@ func _place_loot() -> void:
 		chest.set_meta("chest_id", chest_key)
 		if chest.has_method("configure"):
 			chest.call("configure", placement)
+		chest.set_meta("biome_id", biome_id)
 		if chest.has_signal("opened"):
 			chest.opened.connect(_on_chest_opened)
 		room.add_child(chest)
@@ -251,6 +254,7 @@ func _place_traps() -> void:
 		var trap: Node3D = scene.instantiate() as Node3D
 		var pos: Dictionary = placement.get("position", {})
 		trap.position = Vector3(pos.get("x", 0.0), pos.get("y", 0.0), pos.get("z", 0.0))
+		trap.set_meta("biome_id", biome_id)
 		room.add_child(trap)
 
 
@@ -314,12 +318,7 @@ func _create_exit_portal(room: RoomTemplate) -> Area3D:
 	box.size = Vector3(3, 3, 1)
 	shape.shape = box
 	portal.add_child(shape)
-	var mesh_inst := MeshInstance3D.new()
-	var mesh := BoxMesh.new()
-	mesh.size = Vector3(3, 3, 0.4)
-	mesh_inst.mesh = mesh
-	mesh_inst.material_override = load("res://assets/castle/mat_accent.tres")
-	portal.add_child(mesh_inst)
+	DIORAMA_SKIN.build_exit_portal(portal, biome_id)
 	var props := room.get_node_or_null("Props")
 	if props:
 		props.add_child(portal)
@@ -365,6 +364,7 @@ func _create_stair_lever(room: RoomTemplate) -> void:
 	label.font_size = 24
 	label.position = Vector3(0.0, 2.5, 0.0)
 	lever.add_child(label)
+	DIORAMA_SKIN.build_lever(lever, biome_id)
 	var props := room.get_node_or_null("Props")
 	if props:
 		props.add_child(lever)
@@ -455,6 +455,7 @@ func _setup_boss_door(castle_run: Node3D) -> void:
 	door.add_child(label)
 
 	door.set_script(BOSS_DOOR_SCRIPT)
+	DIORAMA_SKIN.build_boss_door_frame(door, biome_id)
 
 	var socket := room.find_socket(CastleRoomConstants.Direction.NORTH)
 	if socket:
@@ -598,12 +599,21 @@ func unload_from_parent(parent: Node3D) -> void:
 
 
 func _apply_floor_scaling(enemy: Node) -> void:
-	if RunFlow.get_run_mode() != "endless":
+	var mode := RunFlow.get_run_mode()
+	if mode == "endless":
+		var floor_index := RunFlow.get_current_floor()
+		var hp_mult := EndlessDifficultyScript.hp_multiplier(floor_index)
+		var health := enemy.get_node_or_null("Health") as Health
+		if health:
+			health.configure(float(health.max_health) * hp_mult)
+		if enemy.has_method("set_damage_multiplier"):
+			enemy.call("set_damage_multiplier", EndlessDifficultyScript.damage_multiplier(floor_index))
 		return
-	var floor_index := RunFlow.get_current_floor()
-	var hp_mult := EndlessDifficultyScript.hp_multiplier(floor_index)
-	var health := enemy.get_node_or_null("Health") as Health
-	if health:
-		health.configure(float(health.max_health) * hp_mult)
-	if enemy.has_method("set_damage_multiplier"):
-		enemy.call("set_damage_multiplier", EndlessDifficultyScript.damage_multiplier(floor_index))
+	if mode == "castle":
+		var tier := RunFlow.get_dungeon_tier()
+		var hp_mult := CastleTierDifficultyScript.hp_multiplier(tier)
+		var health := enemy.get_node_or_null("Health") as Health
+		if health:
+			health.configure(float(health.max_health) * hp_mult)
+		if enemy.has_method("set_damage_multiplier"):
+			enemy.call("set_damage_multiplier", CastleTierDifficultyScript.damage_multiplier(tier))

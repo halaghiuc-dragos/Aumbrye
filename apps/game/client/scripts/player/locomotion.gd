@@ -6,6 +6,8 @@ const ACCELERATION := 12.0
 const DECELERATION := 14.0
 const SPRINT_STAMINA_DRAIN := 18.0
 const ROTATION_SPEED := 10.0
+const CharacterSkin := preload("res://scripts/art/diorama_character_skin.gd")
+const CharacterAnimator := preload("res://scripts/art/diorama_character_animator.gd")
 
 @export var camera_yaw_path: NodePath
 @export var facing_path: NodePath = NodePath("Facing")
@@ -17,6 +19,7 @@ var _dodge: Node
 var _combat_reactions: Node
 var _lock_on: LockOn
 var _speed_multiplier := 1.0
+var _animator
 
 
 func _ready() -> void:
@@ -29,10 +32,24 @@ func _ready() -> void:
 		_camera_yaw = get_node(camera_yaw_path) as Node3D
 	if facing_path:
 		_facing = get_node_or_null(facing_path) as Node3D
+		if _facing:
+			CharacterSkin.build_player_body(_facing)
+			_animator = CharacterAnimator.new()
+			_animator.bind(_facing.get_node_or_null(CharacterSkin.VISUAL_NAME) as Node3D)
+			_animator.set_profile("player")
+			_sync_first_person_body_visibility()
 
 
 func set_speed_multiplier(multiplier: float) -> void:
 	_speed_multiplier = maxf(0.1, multiplier)
+
+
+func _sync_first_person_body_visibility() -> void:
+	if _facing == null:
+		return
+	var spring := get_node_or_null("CameraPivot/SpringArm3D")
+	if spring and spring.has_method("is_first_person"):
+		CharacterSkin.apply_first_person(_facing, spring.call("is_first_person"))
 
 
 func _physics_process(delta: float) -> void:
@@ -43,11 +60,18 @@ func _physics_process(delta: float) -> void:
 			velocity.x = move_toward(velocity.x, 0.0, DECELERATION * delta)
 			velocity.z = move_toward(velocity.z, 0.0, DECELERATION * delta)
 			move_and_slide()
+			_update_character_animation(delta)
 			return
 
-	if _dodge and _dodge.has_method("process_dodge_physics"):
+	if _dodge and _dodge.has_method("process_roll_physics"):
+		_dodge.call("process_roll_physics", delta)
+		if _dodge.get("is_dodging"):
+			_update_character_animation(delta)
+			return
+	elif _dodge and _dodge.has_method("process_dodge_physics"):
 		_dodge.call("process_dodge_physics", delta)
 		if _dodge.get("is_dodging"):
+			_update_character_animation(delta)
 			return
 
 	if not is_on_floor():
@@ -87,6 +111,7 @@ func _physics_process(delta: float) -> void:
 		_facing.rotation.y = lerp_angle(_facing.rotation.y, target_angle, ROTATION_SPEED * delta)
 
 	move_and_slide()
+	_update_character_animation(delta)
 
 
 func _get_move_direction(input_dir: Vector2) -> Vector3:
@@ -124,3 +149,27 @@ func get_facing_yaw() -> float:
 	if _facing:
 		return _facing.rotation.y
 	return rotation.y
+
+
+func _update_character_animation(delta: float) -> void:
+	if _animator == null:
+		return
+	var horizontal_speed := Vector2(velocity.x, velocity.z).length()
+	var anim_state := CharacterAnimator.AnimState.IDLE
+	var params: Dictionary = {}
+	if _dodge and _dodge.get("is_dodging"):
+		anim_state = CharacterAnimator.AnimState.ROLL
+		if _dodge.has_method("get_roll_progress"):
+			params["roll_progress"] = _dodge.call("get_roll_progress")
+		if _dodge.has_method("get_roll_direction"):
+			_animator.set_roll_direction(_dodge.call("get_roll_direction"))
+	elif not is_on_floor():
+		anim_state = CharacterAnimator.AnimState.AIR
+		params["vertical_speed"] = velocity.y
+	elif horizontal_speed > 0.2:
+		var sprinting := Input.is_action_pressed("sprint")
+		anim_state = CharacterAnimator.AnimState.RUN if sprinting else CharacterAnimator.AnimState.WALK
+		var target_speed := SPRINT_SPEED if sprinting else WALK_SPEED
+		params["speed_ratio"] = clampf(horizontal_speed / maxf(target_speed, 0.01), 0.2, 1.2)
+	_animator.set_state(anim_state)
+	_animator.update(delta, params)

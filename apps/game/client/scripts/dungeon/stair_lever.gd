@@ -2,6 +2,8 @@ extends Node3D
 
 ## FLOOR-7.2 — stair lever interactable for ascending/descending floors.
 
+const DioramaSkin := preload("res://scripts/art/diorama_interactable_skin.gd")
+
 signal lever_used(direction: String)
 
 var _interact_area: Area3D
@@ -14,6 +16,8 @@ var _can_retreat := false
 
 
 func _ready() -> void:
+	if get_node_or_null(DioramaSkin.VISUAL_NAME) == null:
+		DioramaSkin.build_lever(self, DioramaSkin.resolve_biome(self))
 	_interact_area = get_node_or_null("InteractArea") as Area3D
 	_label = get_node_or_null("Label3D") as Label3D
 	if _interact_area:

@@ -1,0 +1,54 @@
+{
+  "id": "glacial_hollow",
+  "name": "Glacial Hollow",
+  "roomCount": {
+    "min": 6,
+    "max": 10
+  },
+  "gridStep": 14,
+  "roomTemplateIds": [
+    "hollow_entrance",
+    "hollow_stairs",
+    "hollow_courtyard",
+    "hollow_hall",
+    "hollow_treasure",
+    "hollow_secret",
+    "hollow_arena",
+    "hollow_boss",
+    "hollow_puzzle"
+  ],
+  "enemyPool": [
+    {
+      "enemyId": "frost_raider",
+      "weight": 3
+    },
+    {
+      "enemyId": "frost_archer",
+      "weight": 2
+    },
+    {
+      "enemyId": "frost_knight",
+      "weight": 2
+    },
+    {
+      "enemyId": "frost_hound",
+      "weight": 2
+    },
+    {
+      "enemyId": "miniboss_castle_captain",
+      "weight": 1
+    }
+  ],
+  "bossPool": [
+    {
+      "enemyId": "boss_frost_warlord"
+    }
+  ],
+  "budgets": {
+    "baseEnemyThreat": 100,
+    "baseLootValue": 60,
+    "threatPerTier": 20,
+    "lootPerTier": 10
+  },
+  "requiresSecret": true
+}

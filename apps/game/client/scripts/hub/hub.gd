@@ -2,6 +2,9 @@ extends Node3D
 
 ## M4 hub — blacksmith, merchant, storage, arena, quest board, portals (HUB-4.1).
 
+const HubDioramaScript := preload("res://scripts/hub/hub_diorama.gd")
+
+@onready var _castle_portal_label: Label3D = $CastlePortal/PortalLabel
 @onready var _portal_area: HubInteractable = $CastlePortal/InteractArea
 @onready var _endless_portal_area: HubInteractable = $UmbralEndlessPortal/InteractArea
 @onready var _waves_portal_area: HubInteractable = $UmbralWavesPortal/InteractArea
@@ -20,6 +23,7 @@ extends Node3D
 @onready var _merchant_ui: Control = $MerchantUI
 @onready var _storage_ui: Control = $StorageUI
 @onready var _quest_board_ui: Control = $QuestBoardUI
+@onready var _inventory_ui: Control = $InventoryUI
 
 var _settings_ui: Control
 var _talents_ui: Control
@@ -36,6 +40,10 @@ var _near_quest_board := false
 
 
 func _ready() -> void:
+	PixelDioramaSettings.load_from_save()
+	PixelDioramaSettings.apply_rendering_project_settings()
+	HubDioramaScript.apply(self)
+	call_deferred("_apply_pixel_diorama_to_scene")
 	_wire_interactable(_portal_area, _on_portal_enter, _on_portal_exit)
 	_wire_interactable(_endless_portal_area, _on_endless_portal_enter, _on_endless_portal_exit)
 	_wire_interactable(_waves_portal_area, _on_waves_portal_enter, _on_waves_portal_exit)
@@ -45,10 +53,11 @@ func _ready() -> void:
 	_wire_interactable(_storage_area, _on_storage_enter, _on_storage_exit)
 	_wire_interactable(_quest_board_area, _on_quest_board_enter, _on_quest_board_exit)
 
-	_castle_menu.biome_run_requested.connect(_on_biome_run)
+	_castle_menu.dungeon_run_requested.connect(_on_dungeon_run)
 	_castle_menu.continue_requested.connect(_on_castle_continue)
 	_castle_menu.seed_run_requested.connect(_on_castle_seed_run)
 	_endless_menu.endless_run_requested.connect(_on_endless_run)
+	DungeonTierService.tier_unlocked.connect(_refresh_castle_portal_label)
 	_endless_menu.continue_requested.connect(_on_endless_continue)
 	_waves_menu.waves_run_requested.connect(_on_waves_run)
 	_waves_menu.continue_requested.connect(_on_waves_continue)
@@ -60,6 +69,8 @@ func _ready() -> void:
 			npc.shop_requested.connect(_on_npc_shop)
 
 	_show_return_message()
+	_refresh_castle_portal_label()
+	RunFlow.returned_to_hub.connect(_on_returned_to_hub)
 	_attach_m4_ui()
 	AudioDirector.stop_all(0.5)
 	HubTutorialService.load_from_save()
@@ -100,11 +111,11 @@ func _attach_m4_ui() -> void:
 		add_child(_loadout_ui)
 
 
+func _apply_pixel_diorama_to_scene() -> void:
+	PixelDioramaSettings.apply_to_scene(self)
+
+
 func _unhandled_input(event: InputEvent) -> void:
-	if event.is_action_pressed("inventory") and _loadout_ui and not _any_ui_open():
-		open_loadout()
-		get_viewport().set_input_as_handled()
-		return
 	if event.is_action_pressed("pause") and _settings_ui and not _any_ui_open():
 		_settings_ui.open_settings()
 		get_viewport().set_input_as_handled()
@@ -127,8 +138,11 @@ func _unhandled_input(event: InputEvent) -> void:
 		_waves_menu.open_menu()
 	elif _near_arena:
 		vp.set_input_as_handled()
-		_near_arena = false
-		RunFlow.go_to_arena()
+		if Input.is_key_pressed(KEY_SHIFT):
+			open_loadout()
+		else:
+			_near_arena = false
+			RunFlow.go_to_arena()
 	elif _near_blacksmith:
 		vp.set_input_as_handled()
 		open_blacksmith()
@@ -200,6 +214,7 @@ func _any_ui_open() -> bool:
 		or _quest_board_ui.is_open()
 		or (_settings_ui and _settings_ui.is_open())
 		or (_talents_ui and _talents_ui.is_open())
+		or (_inventory_ui and _inventory_ui.has_method("is_open") and _inventory_ui.is_open())
 		or (_loadout_ui and _loadout_ui.is_open())
 	)
 
@@ -232,6 +247,15 @@ func _update_prompt() -> void:
 		_prompt_label.text = ""
 
 
+func _refresh_castle_portal_label() -> void:
+	if _castle_portal_label:
+		_castle_portal_label.text = DungeonTierService.get_hub_portal_label()
+
+
+func _on_returned_to_hub(_message: String) -> void:
+	_refresh_castle_portal_label()
+
+
 func _show_return_message() -> void:
 	if RunFlow.last_hub_message != "":
 		_message_label.text = RunFlow.last_hub_message
@@ -240,8 +264,8 @@ func _show_return_message() -> void:
 		_message_label.text = "Welcome to Aumbrye Hub — explore the landmarks"
 
 
-func _on_biome_run(biome_id: String) -> void:
-	RunFlow.start_new_run(biome_id)
+func _on_dungeon_run(dungeon_id: String) -> void:
+	RunFlow.start_new_run(dungeon_id)
 	_refresh_hub_message()
 
 
@@ -251,10 +275,10 @@ func _on_castle_continue() -> void:
 
 
 func _on_castle_seed_run(run_seed_value: int) -> void:
-	var biome_id: String = RunFlow.DEFAULT_BIOME
-	if _castle_menu.has_method("get_selected_biome"):
-		biome_id = str(_castle_menu.get_selected_biome())
-	RunFlow.start_run_with_seed(biome_id, run_seed_value)
+	var dungeon_id := DungeonCatalog.DEFAULT_DUNGEON_ID
+	if _castle_menu.has_method("get_selected_dungeon"):
+		dungeon_id = str(_castle_menu.get_selected_dungeon())
+	RunFlow.start_run_with_seed(dungeon_id, run_seed_value)
 	_refresh_hub_message()
 
 

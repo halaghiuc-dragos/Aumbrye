@@ -175,6 +175,15 @@ func _has_clear_line_to(target: Area3D) -> bool:
 		return true
 	var from := global_position
 	var to := target.global_position
+	if _collision_shape:
+		from = _collision_shape.global_position
+	var target_shape := target.get_node_or_null("CollisionShape3D") as CollisionShape3D
+	if target_shape:
+		to = target_shape.global_position
+	# Keep the ray above walkable geometry so downward melee angles do not false-block on the floor.
+	const MIN_LOS_HEIGHT := 0.75
+	from.y = maxf(from.y, MIN_LOS_HEIGHT)
+	to.y = maxf(to.y, MIN_LOS_HEIGHT)
 	var params := PhysicsRayQueryParameters3D.create(from, to)
 	params.collision_mask = WORLD_COLLISION_MASK
 	params.collide_with_areas = false

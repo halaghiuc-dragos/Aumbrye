@@ -40,7 +40,8 @@ func add_item(item_id: String, quantity: int = 1) -> bool:
 
 
 func add_rolled_item(item_id: String, roll_seed: int = -1) -> bool:
-	return inventory.add_rolled_item(item_id, roll_seed)
+	var run_mode := RunFlow.get_run_mode() if RunFlow else ""
+	return inventory.add_rolled_item(item_id, roll_seed, run_mode)
 
 
 func get_item_def(item_id: String) -> Dictionary:

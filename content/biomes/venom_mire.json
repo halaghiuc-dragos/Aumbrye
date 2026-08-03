@@ -1,0 +1,54 @@
+{
+  "id": "venom_mire",
+  "name": "Venom Mire",
+  "roomCount": {
+    "min": 6,
+    "max": 10
+  },
+  "gridStep": 14,
+  "roomTemplateIds": [
+    "mire_entrance",
+    "mire_stairs",
+    "mire_courtyard",
+    "mire_hall",
+    "mire_treasure",
+    "mire_secret",
+    "mire_arena",
+    "mire_boss",
+    "mire_puzzle"
+  ],
+  "enemyPool": [
+    {
+      "enemyId": "swamp_bogling",
+      "weight": 3
+    },
+    {
+      "enemyId": "swamp_leech",
+      "weight": 2
+    },
+    {
+      "enemyId": "swamp_spitter",
+      "weight": 2
+    },
+    {
+      "enemyId": "swamp_brute",
+      "weight": 2
+    },
+    {
+      "enemyId": "swamp_hydra",
+      "weight": 1
+    }
+  ],
+  "bossPool": [
+    {
+      "enemyId": "boss_swamp_devourer"
+    }
+  ],
+  "budgets": {
+    "baseEnemyThreat": 100,
+    "baseLootValue": 60,
+    "threatPerTier": 20,
+    "lootPerTier": 10
+  },
+  "requiresSecret": true
+}

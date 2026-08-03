@@ -48,10 +48,10 @@ static func ensure_dev_session() -> bool:
 	return login_result.get("ok", false)
 
 
-static func create_run(biome_id: String, run_seed: Variant = null) -> Dictionary:
+static func create_run(biome_id: String, run_seed: Variant = null, tier: int = 1) -> Dictionary:
 	if not await ensure_dev_session():
 		return {"ok": false, "error": "auth failed"}
-	var payload := {"biomeId": biome_id, "tier": 1}
+	var payload := {"biomeId": biome_id, "tier": maxi(1, tier)}
 	if run_seed != null:
 		payload["seed"] = int(run_seed)
 	var result := await _post_json_with_retry(RUNS_CREATE, payload)

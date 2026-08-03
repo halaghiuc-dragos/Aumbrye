@@ -14,7 +14,8 @@
     "castle_treasure",
     "castle_secret",
     "castle_arena",
-    "castle_boss"
+    "castle_boss",
+    "castle_puzzle"
   ],
   "enemyPool": [
     { "enemyId": "castle_grunt", "weight": 3 },

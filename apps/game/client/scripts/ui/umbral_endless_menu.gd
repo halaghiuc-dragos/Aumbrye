@@ -68,8 +68,8 @@ func _refresh_continue_state() -> void:
 	var can_continue := LocalSave.has_continuable_run() and str(saved.get("runMode", "")) == "endless"
 	_continue_button.disabled = not can_continue
 	if can_continue:
-		var floor := int(saved.get("currentFloor", 1))
-		_status_label.text = "Continue endless run (floor %d)." % floor
+		var saved_floor := int(saved.get("currentFloor", 1))
+		_status_label.text = "Continue endless run (floor %d)." % saved_floor
 	else:
 		_status_label.text = "Infinite floors — difficulty rises every 10 tiers."
 
