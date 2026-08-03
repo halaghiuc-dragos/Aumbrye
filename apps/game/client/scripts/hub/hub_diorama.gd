@@ -8,7 +8,6 @@ const FLOOR_WIDTH := 50.0
 const FLOOR_DEPTH := 40.0
 
 const ForgeFlickerScript := preload("res://scripts/hub/forge_light_flicker.gd")
-const SceneLightingScript := preload("res://scripts/art/scene_lighting.gd")
 
 const NPC_COLORS := {
 	"blacksmith_aldric": Color(0.72, 0.38, 0.22),
@@ -55,7 +54,9 @@ static func _load_materials() -> Dictionary:
 
 
 static func _style_environment(hub: Node3D) -> void:
-	SceneLightingScript.apply_hub(hub)
+	if OS.has_environment("AUMBRYE_NO_ENV"):
+		return
+	VisualLighting.apply_hub(hub)
 
 
 static func _dress_floor(hub: Node3D, mats: Dictionary) -> void:
@@ -484,7 +485,7 @@ static func _dress_blacksmith(building: Node3D, mats: Dictionary) -> void:
 	dressing.name = "Dressing"
 	visuals.add_child(dressing)
 
-	var forge_mat := (mats.forge as StandardMaterial3D).duplicate()
+	var forge_mat := (mats.forge as Material).duplicate()
 	var forge := PixelDioramaStyle.add_box(dressing, Vector3(1.2, 1.0, 1.2), Vector3(1.4, 0.5, -0.8), forge_mat, "Forge")
 	PixelDioramaStyle.add_box(dressing, Vector3(0.5, 1.8, 0.5), Vector3(1.4, 1.4, -0.8), mats.wall, "Chimney")
 	PixelDioramaStyle.add_box(dressing, Vector3(0.7, 0.35, 0.5), Vector3(-0.8, 0.55, -0.6), mats.accent, "Anvil")

@@ -32,6 +32,7 @@ const FALLBACK_WEAPON_DATA := {
 
 signal attack_started(attack_name: String)
 signal attack_ended
+signal weapon_changed(archetype: String)
 
 @export var hitbox_path: NodePath
 
@@ -104,6 +105,21 @@ func load_weapon_from_path(relative: String) -> void:
 		push_warning("WeaponController: using fallback weapon data")
 		_weapon_data = FALLBACK_WEAPON_DATA.duplicate(true)
 	_apply_hitbox_profile()
+	weapon_changed.emit(get_archetype())
+
+
+func get_archetype() -> String:
+	return String(_weapon_data.get("archetype", "sword"))
+
+
+## Phase timings of the swing currently running, used to stretch the animation
+## clip so the visual strike lands on the same frame the hitbox opens.
+func get_current_attack_phases() -> Dictionary:
+	return {
+		"startup": float(_current_attack.get("startup", 0.2)),
+		"active": float(_current_attack.get("active", 0.15)),
+		"recovery": float(_current_attack.get("recovery", 0.3)),
+	}
 
 
 func set_damage_multiplier(multiplier: float) -> void:

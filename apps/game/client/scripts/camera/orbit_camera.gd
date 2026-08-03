@@ -158,3 +158,15 @@ func _update_spring_collision() -> void:
 func _update_body_visibility() -> void:
 	if _facing:
 		CharacterSkin.apply_first_person(_facing, _first_person)
+	var director := _find_anim_director()
+	if director and director.has_method("sync_camera_mode"):
+		director.call("sync_camera_mode")
+
+
+func _find_anim_director() -> Node:
+	var body := get_parent()
+	while body != null and not (body is CharacterBody3D):
+		body = body.get_parent()
+	if body == null:
+		return null
+	return body.get_node_or_null("AnimDirector")

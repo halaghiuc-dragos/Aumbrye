@@ -16,7 +16,7 @@ const HP_BAR_SCRIPT := preload("res://scripts/ui/enemy_health_bar.gd")
 const GlobalDropServiceScript := preload("res://scripts/loot/global_drop_service.gd")
 const CharacterFloorSnapScript := preload("res://scripts/art/character_floor_snap.gd")
 const CharacterSkin := preload("res://scripts/art/diorama_character_skin.gd")
-const CharacterAnimator := preload("res://scripts/art/diorama_character_animator.gd")
+const AnimControllerScript := preload("res://scripts/art/diorama_anim_controller.gd")
 
 @export var player_path: NodePath
 
@@ -40,7 +40,7 @@ var _patrol_target := Vector3.ZERO
 var _patrol_wait := 0.0
 var _aggro_locked := false
 var _diorama_visual: Node3D
-var _animator
+var _animator: DioramaAnimController
 var _anim_profile := "melee"
 
 
@@ -99,9 +99,30 @@ func _setup_diorama_visual() -> void:
 	if _mesh:
 		_mesh.visible = false
 	CharacterFloorSnapScript.align_diorama_visual(self, _diorama_visual, _anim_profile)
-	_animator = CharacterAnimator.new()
-	_animator.bind(_diorama_visual)
+	_animator = AnimControllerScript.new()
+	_animator.name = "AnimController"
+	add_child(_animator)
 	_animator.set_profile(_anim_profile)
+	_animator.set_theme(theme)
+	_animator.set_weapon(String(_data.get("weapon_kit", _default_weapon_for_profile())))
+	_animator.bind(_diorama_visual)
+	_animator.swing_frame.connect(_on_anim_swing_frame)
+
+
+func _default_weapon_for_profile() -> String:
+	match _anim_profile:
+		"ranged":
+			return "bow"
+		"brute":
+			return "greatsword"
+		"caster", "beast", "hound":
+			return ""
+	return "sword"
+
+
+func _on_anim_swing_frame() -> void:
+	var anchor: Array = VfxService.resolve_combat_anchor(self)
+	VfxService.play_weapon_trail(anchor[0], anchor[1], Color(0.95, 0.62, 0.42))
 
 
 func get_diorama_visual() -> Node3D:
@@ -162,12 +183,15 @@ func _apply_mesh_tint(color: Color) -> void:
 	if _mesh == null:
 		return
 	var mat: Material = _mesh.get_surface_override_material(0)
-	if mat == null:
-		mat = StandardMaterial3D.new()
-	else:
-		mat = mat.duplicate()
-	(mat as StandardMaterial3D).albedo_color = color
-	_mesh.set_surface_override_material(0, mat)
+	if mat is ShaderMaterial:
+		var shader_mat := (mat as ShaderMaterial).duplicate() as ShaderMaterial
+		shader_mat.set_shader_parameter("color_base", color)
+		shader_mat.set_shader_parameter("color_shadow", color.darkened(0.3))
+		_mesh.set_surface_override_material(0, shader_mat)
+		return
+	var standard := (mat.duplicate() as StandardMaterial3D) if mat is StandardMaterial3D else StandardMaterial3D.new()
+	standard.albedo_color = color
+	_mesh.set_surface_override_material(0, standard)
 
 
 func is_dead() -> bool:
@@ -219,6 +243,8 @@ func _finalize_death(silent: bool) -> void:
 		_telegraph.visible = false
 	if _hp_bar:
 		_hp_bar.visible = false
+	if _animator and _animator.is_bound():
+		_animator.play_death()
 	if _hurtbox:
 		_hurtbox.monitorable = false
 		_hurtbox.monitoring = false
@@ -231,6 +257,12 @@ func _play_death_visual() -> void:
 	VfxService.play_death(global_position, Color(0.55, 0.22, 0.18))
 	var visual := _diorama_visual if _diorama_visual else _mesh as Node3D
 	if visual == null:
+		return
+	if _animator and _animator.is_bound():
+		# The death clip already collapses the body; only sink it out of sight.
+		var sink := create_tween()
+		sink.tween_interval(0.45)
+		sink.tween_property(visual, "position:y", visual.position.y - 1.2, 0.4)
 		return
 	var death_scale := Vector3(0.2, 0.05, 0.2)
 	var tween := create_tween()
@@ -270,8 +302,8 @@ func apply_stagger(duration: float) -> void:
 		_hitbox.disable()
 	if _telegraph:
 		_telegraph.visible = false
-	if _diorama_visual:
-		_diorama_visual.scale = Vector3.ONE
+	if _animator and _animator.is_bound():
+		_animator.play_stagger(duration)
 	elif _mesh:
 		_mesh.scale = Vector3.ONE
 
@@ -302,28 +334,21 @@ func _physics_process(delta: float) -> void:
 	_update_diorama_animation(delta)
 
 
-func _update_diorama_animation(delta: float) -> void:
-	if _animator == null or is_dead():
+## Only locomotion is pushed per frame. Attacks, staggers and death are one-shot
+## clips owned by the controller's priority stack, so they are started from the
+## state transitions instead of being re-asserted every tick.
+func _update_diorama_animation(_delta: float) -> void:
+	if _animator == null or not _animator.is_bound() or is_dead():
 		return
-	var anim_state := CharacterAnimator.AnimState.IDLE
-	var params: Dictionary = {}
-	match _state:
-		State.PATROL, State.CHASE, State.RECOVERY:
-			if velocity.length() > 0.35:
-				anim_state = CharacterAnimator.AnimState.WALK
-				params["speed_ratio"] = clampf(velocity.length() / maxf(_data.get("move_speed", 3.5), 0.01), 0.25, 1.1)
-		State.WINDUP:
-			anim_state = CharacterAnimator.AnimState.WINDUP
-		State.ATTACK:
-			anim_state = CharacterAnimator.AnimState.ATTACK
-		State.STAGGER:
-			anim_state = CharacterAnimator.AnimState.STAGGER
-		State.DEAD:
-			anim_state = CharacterAnimator.AnimState.DEAD
-	if _anim_profile == "shield" and _state in [State.CHASE, State.WINDUP] and velocity.length() < 0.2:
-		anim_state = CharacterAnimator.AnimState.BLOCK
-	_animator.set_state(anim_state)
-	_animator.update(delta, params)
+	var speed := velocity.length()
+	var shield_up := _anim_profile == "shield" and _state == State.CHASE and speed < 0.2
+	_animator.set_blocking(shield_up)
+	if speed > 0.35:
+		var move_speed: float = maxf(float(_data.get("move_speed", 3.5)), 0.01)
+		var clip := &"run" if speed > move_speed * 0.85 and _animator.has_clip(&"run") else &"walk"
+		_animator.request_locomotion(clip, {"speed": speed})
+	else:
+		_animator.request_locomotion(&"idle")
 
 
 func _update_ai(delta: float) -> void:
@@ -449,13 +474,23 @@ func _start_windup() -> void:
 	if is_dead() or (_health and _health.is_dead()):
 		return
 	_state = State.WINDUP
-	_state_timer = _data.get("windup_duration", 0.7)
-	if _diorama_visual:
-		_diorama_visual.scale = Vector3(1.04, 1.04, 1.04)
+	var windup: float = float(_data.get("windup_duration", 0.7))
+	_state_timer = windup
+	if _animator and _animator.is_bound():
+		# One clip spans wind-up, active and recovery, so the swing peaks on the
+		# exact frame the hitbox turns on.
+		_animator.play_attack(
+			windup,
+			float(_data.get("active_duration", 0.15)),
+			float(_data.get("recovery_duration", 0.9))
+		)
 	elif _mesh:
 		_mesh.scale = Vector3(1.08, 1.08, 1.08)
 	if _telegraph:
 		_telegraph.visible = true
+	VfxService.play_telegraph(
+		global_position, float(_data.get("attack_range", 2.2)) * 0.8, windup
+	)
 	attack_telegraph_started.emit()
 
 
@@ -539,8 +574,8 @@ func _on_poise_broken() -> void:
 func _on_hurt(_info: DamageInfo) -> void:
 	if is_dead():
 		return
-	if _animator:
-		_animator.trigger_hit()
+	if _animator and _animator.is_bound():
+		_animator.play_flinch()
 		return
 	if not _mesh:
 		return

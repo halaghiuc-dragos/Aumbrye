@@ -388,5 +388,4 @@ func _animate_birds() -> void:
 
 
 func _apply_pixel_diorama_scene() -> void:
-	PixelDioramaSettings.apply_to_scene(self)
-	PixelDioramaViewport.attach_to_scene(self)
+	PixelDioramaBootstrap.attach(self)

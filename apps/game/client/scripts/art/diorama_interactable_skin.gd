@@ -165,10 +165,9 @@ static func build_poison_pool(parent: Node3D, biome_id: String) -> Node3D:
 	var theme := PixelStyle.theme_from_biome(biome_id)
 	var wall := PixelStyle.make_wall_material(theme)
 	var rim := PixelStyle.make_prop_material(theme)
-	var pool := PixelStyle.make_emissive_material(PixelStyle.PaletteTheme.SWAMP, 0.9)
-	pool.albedo_color = Color(0.18, 0.48, 0.14, 0.75)
-	pool.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	pool.emission = Color(0.25, 0.65, 0.18)
+	var pool := PixelStyle.make_glow_material(
+		Color(0.25, 0.65, 0.18), Color(0.14, 0.38, 0.11), 0.9, 1.4
+	)
 	_add_box(root, Vector3(4.1, 0.12, 4.1), rim, Vector3(0.0, 0.02, 0.0))
 	_add_box(root, Vector3(3.6, 0.06, 3.6), pool, Vector3(0.0, 0.08, 0.0))
 	for corner in [Vector3(-1.85, 0.08, -1.85), Vector3(1.85, 0.08, -1.85), Vector3(-1.85, 0.08, 1.85), Vector3(1.85, 0.08, 1.85)]:
@@ -186,7 +185,7 @@ static func build_crystal_pillar(parent: Node3D, biome_id: String = BiomeRegistr
 	return root
 
 
-static func make_telegraph_material(color: Color) -> StandardMaterial3D:
+static func make_telegraph_material(color: Color) -> Material:
 	return PixelStyle.make_material(color, color * 0.5)
 
 

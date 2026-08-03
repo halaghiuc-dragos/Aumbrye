@@ -6,10 +6,15 @@
 shader = ExtResource("1_shader")
 shader_parameter/color_base = Color(0.82, 0.9, 0.98, 1.0)
 shader_parameter/color_shadow = Color(0.4, 0.48, 0.58, 1.0)
-shader_parameter/color_accent = Color(0.82, 0.9, 0.98, 1.0)
+shader_parameter/color_accent = Color(0.7, 0.88, 1.0, 1.0)
 shader_parameter/pixel_scale = 8.0
 shader_parameter/pattern_strength = 0.58
+shader_parameter/stitch_strength = 0.28
 shader_parameter/color_levels = 6.0
 shader_parameter/edge_strength = 0.45
-shader_parameter/surface_kind = 2
+shader_parameter/shade_bands = 4.0
+shader_parameter/shade_dither = 0.55
+shader_parameter/light_wrap = 0.25
+shader_parameter/rim_strength = 0.08
+shader_parameter/surface_kind = 3
 texture_filter = 0

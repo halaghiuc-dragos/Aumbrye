@@ -214,7 +214,7 @@ static func apply_run_presentation(parent: Node3D, biome_id: String, run_mode: S
 		environment.ambient_light_energy = maxf(float(environment.ambient_light_energy), 0.72)
 		environment.fog_enabled = false
 	elif uses_indoor_lighting:
-		DungeonLighting.apply_indoor_environment(environment, lighting)
+		VisualLighting.apply_indoor_environment(environment, lighting)
 	else:
 		var ambient: Color = environment.ambient_light_color
 		environment.background_color = ambient.lerp(Color(0.12, 0.11, 0.16), 0.55)
@@ -230,7 +230,7 @@ static func apply_run_presentation(parent: Node3D, biome_id: String, run_mode: S
 		elif needs_arena_boost:
 			sun.light_energy = 1.35
 			sun.light_color = Color(0.95, 0.92, 1.0)
-			sun.shadow_enabled = true
+			PixelDioramaSettings.configure_directional_shadow(sun)
 
 	if needs_arena_boost and parent.get_node_or_null("ArenaFillLight") == null:
 		var fill := OmniLight3D.new()

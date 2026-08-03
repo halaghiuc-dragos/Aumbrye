@@ -39,8 +39,7 @@ var _near_quest_board := false
 
 
 func _ready() -> void:
-	PixelDioramaSettings.load_from_save()
-	PixelDioramaSettings.apply_rendering_project_settings()
+	PixelDioramaBootstrap.prime()
 	HubDioramaScript.apply(self)
 	call_deferred("_apply_pixel_diorama_to_scene")
 	_wire_interactable(_portal_area, _on_portal_enter, _on_portal_exit)
@@ -92,8 +91,7 @@ func _boot_save_and_services() -> void:
 
 
 func _apply_pixel_diorama_to_scene() -> void:
-	PixelDioramaSettings.apply_to_scene(self)
-	PixelDioramaViewport.attach_to_scene(self)
+	PixelDioramaBootstrap.attach(self)
 
 
 func _unhandled_input(event: InputEvent) -> void:

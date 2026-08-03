@@ -9,6 +9,25 @@ ROOT = Path(__file__).resolve().parents[1]
 CLIENT = ROOT / "apps" / "game" / "client"
 SHADER = "res://assets/shared/pixel_diorama_surface.gdshader"
 
+# surface_kind 3 is the accent pattern (sparkle band), kept in sync with
+# PixelDioramaStyle.SurfaceKind.ACCENT.
+ACCENT_SURFACE_KIND = 3
+
+# Emissive palette slot per biome; accents pick this up as their highlight so
+# trim reads as the same family as torches and runes in that biome.
+ACCENT_HIGHLIGHTS = {
+    "castle": (1.00, 0.62, 0.28),
+    "crystal": (0.55, 0.85, 1.00),
+    "swamp": (0.70, 0.90, 0.35),
+    "frozen": (0.75, 0.90, 1.00),
+    "cathedral": (0.95, 0.72, 0.35),
+    "vault": (1.00, 0.55, 0.20),
+    "prism": (0.65, 0.45, 1.00),
+    "mire": (0.75, 0.95, 0.35),
+    "hollow": (0.70, 0.88, 1.00),
+    "umbral": (0.85, 0.55, 0.95),
+}
+
 BIOMES = [
     {
         "folder": "castle",
@@ -116,8 +135,13 @@ shader_parameter/color_shadow = {color_str(color_shadow)}
 shader_parameter/color_accent = {color_str(color_accent)}
 shader_parameter/pixel_scale = 8.0
 shader_parameter/pattern_strength = 0.58
+shader_parameter/stitch_strength = 0.28
 shader_parameter/color_levels = 6.0
 shader_parameter/edge_strength = 0.45
+shader_parameter/shade_bands = 4.0
+shader_parameter/shade_dither = 0.55
+shader_parameter/light_wrap = 0.25
+shader_parameter/rim_strength = 0.08
 shader_parameter/surface_kind = {surface_kind}
 texture_filter = 0
 """
@@ -143,10 +167,10 @@ def main() -> None:
         )
         write_surface_material(
             folder / "mat_accent.tres",
-            2,
+            ACCENT_SURFACE_KIND,
             biome["accent"],
             biome["wall_shadow"],
-            biome["accent"],
+            ACCENT_HIGHLIGHTS.get(biome["folder"], biome["accent"]),
         )
         print(f"Wrote pixel-diorama materials for {biome['folder']}")
 

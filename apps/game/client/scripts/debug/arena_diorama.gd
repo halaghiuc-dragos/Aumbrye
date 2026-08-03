@@ -8,12 +8,9 @@ const FLOOR_SIZE := 30.0
 const WALL_HEIGHT := 5.0
 const HUB_RETURN_Z := -6.0
 
-const SceneLightingScript := preload("res://scripts/art/scene_lighting.gd")
-
-
 static func apply(arena: Node3D) -> void:
 	var mats := _load_materials()
-	SceneLightingScript.apply_arena(arena)
+	VisualLighting.apply_arena(arena)
 	_dress_floor(arena, mats)
 	_dress_walls(arena, mats)
 	_dress_hub_return(arena.get_node_or_null("HubReturn"), mats)

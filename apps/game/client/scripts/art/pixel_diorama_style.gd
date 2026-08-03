@@ -36,8 +36,10 @@ enum PaletteTheme {
 	HUB,
 }
 
-enum SurfaceKind { FLOOR, WALL, PROP }
+enum SurfaceKind { FLOOR, WALL, PROP, ACCENT }
 
+## Fallback values only. Live tuning comes from PixelDioramaSettings, which is the
+## single source of truth; these keep the module usable before settings load.
 const PIXEL_SCALE := 8.0
 const PATTERN_STRENGTH := 0.58
 const COLOR_LEVELS := 6.0
@@ -46,7 +48,7 @@ const UV_TILE_METERS := 1.0
 const PROP_SNAP := 0.5
 
 const SHADER_PATH := "res://assets/shared/pixel_diorama_surface.gdshader"
-const LEGACY_SHADER_PATH := "res://assets/shared/pixel_diorama.gdshader"
+const EMISSIVE_SHADER_PATH := "res://assets/shared/pixel_diorama_emissive.gdshader"
 const PORTAL_SHADER_PATH := "res://assets/shared/portal_ellipse.gdshader"
 const FLOOR_MATERIAL_PATH := "res://assets/shared/mat_pixel_floor.tres"
 
@@ -263,6 +265,11 @@ static func make_surface_material(
 			mat.set_shader_parameter("color_shadow", palette[PaletteSlot.PROP_METAL])
 			mat.set_shader_parameter("color_accent", palette[PaletteSlot.ACCENT])
 			mat.set_shader_parameter("surface_kind", 2)
+		SurfaceKind.ACCENT:
+			mat.set_shader_parameter("color_base", palette[PaletteSlot.ACCENT])
+			mat.set_shader_parameter("color_shadow", palette[PaletteSlot.WALL_SHADOW])
+			mat.set_shader_parameter("color_accent", palette[PaletteSlot.EMISSIVE])
+			mat.set_shader_parameter("surface_kind", 3)
 
 	mat.set_shader_parameter("pattern_strength", pattern_strength)
 	_surface_material_cache[key] = mat
@@ -299,51 +306,8 @@ static func make_accent_material(theme: PaletteTheme) -> Material:
 	if _accent_material_cache.has(theme):
 		return _accent_material_cache[theme] as Material
 
-	var mat := make_legacy_pattern_material(2, theme, PIXEL_SCALE * 1.05)
+	var mat := make_surface_material(SurfaceKind.ACCENT, theme)
 	_accent_material_cache[theme] = mat
-	return mat
-
-
-static func make_legacy_pattern_material(
-	pattern_type: int,
-	theme: PaletteTheme,
-	pixel_scale: float = PIXEL_SCALE
-) -> ShaderMaterial:
-	var palette := get_palette(theme)
-	var base: Color
-	var mid: Color
-	var dark: Color
-	var accent: Color
-	match pattern_type:
-		0:
-			base = palette[PaletteSlot.FLOOR_BASE]
-			mid = palette[PaletteSlot.FLOOR_SHADOW]
-			dark = palette[PaletteSlot.WALL_SHADOW]
-			accent = palette[PaletteSlot.ACCENT]
-		1:
-			base = palette[PaletteSlot.WALL_BASE]
-			mid = palette[PaletteSlot.WALL_SHADOW]
-			dark = palette[PaletteSlot.WALL_SHADOW].darkened(0.18)
-			accent = palette[PaletteSlot.ACCENT]
-		_:
-			base = palette[PaletteSlot.ACCENT]
-			mid = palette[PaletteSlot.ACCENT].lightened(0.12)
-			dark = palette[PaletteSlot.WALL_SHADOW]
-			accent = palette[PaletteSlot.EMISSIVE]
-
-	var mat := ShaderMaterial.new()
-	mat.shader = load(LEGACY_SHADER_PATH) as Shader
-	mat.set_shader_parameter("pattern_type", pattern_type)
-	mat.set_shader_parameter("base_color", base)
-	mat.set_shader_parameter("mid_color", mid)
-	mat.set_shader_parameter("dark_color", dark)
-	mat.set_shader_parameter("accent_color", accent)
-	mat.set_shader_parameter("pattern_strength", PATTERN_STRENGTH)
-	if pixel_scale == PIXEL_SCALE:
-		mat.set_shader_parameter("pixel_scale", PixelDioramaSettings.pixel_scale_for_pattern_type(pattern_type))
-	else:
-		mat.set_shader_parameter("pixel_scale", pixel_scale)
-	PixelDioramaSettings.apply_to_shader_material(mat)
 	return mat
 
 
@@ -377,27 +341,35 @@ static func make_hub_materials() -> Dictionary:
 	}
 
 
-static func make_custom_emissive(color: Color, energy: float = 1.1) -> StandardMaterial3D:
-	var mat := StandardMaterial3D.new()
-	mat.albedo_color = color
-	mat.emission_enabled = true
-	mat.emission = color.lightened(0.12)
-	mat.emission_energy_multiplier = energy
-	mat.texture_filter = PixelDioramaSettings.texture_filter_mode()
+## Quantized glow surface. Emissives go through the pixel shader too, otherwise
+## torches and crystals read as smooth blobs next to banded pixel geometry.
+static func make_glow_material(
+	core: Color,
+	edge: Color,
+	energy: float,
+	pulse_speed: float = 0.0
+) -> ShaderMaterial:
+	var mat := ShaderMaterial.new()
+	mat.shader = load(EMISSIVE_SHADER_PATH) as Shader
+	mat.set_shader_parameter("color_core", core)
+	mat.set_shader_parameter("color_edge", edge)
+	mat.set_shader_parameter("emission_energy", energy)
+	mat.set_shader_parameter("pulse_speed", pulse_speed)
+	PixelDioramaSettings.apply_to_shader_material(mat)
 	return mat
 
 
-static func make_emissive_material(theme: PaletteTheme, energy: float = 1.6) -> StandardMaterial3D:
+static func make_custom_emissive(color: Color, energy: float = 1.1) -> Material:
+	return make_glow_material(color.lightened(0.14), color.darkened(0.22), energy)
+
+
+static func make_emissive_material(theme: PaletteTheme, energy: float = 1.6) -> Material:
 	var key := "%d_%.4f" % [theme, energy]
 	if _emissive_material_cache.has(key):
-		return _emissive_material_cache[key] as StandardMaterial3D
+		return _emissive_material_cache[key] as Material
 
-	var mat := StandardMaterial3D.new()
-	mat.albedo_color = get_palette_color(theme, PaletteSlot.EMISSIVE)
-	mat.emission_enabled = true
-	mat.emission = get_palette_color(theme, PaletteSlot.EMISSIVE)
-	mat.emission_energy_multiplier = energy
-	mat.texture_filter = PixelDioramaSettings.texture_filter_mode()
+	var glow := get_palette_color(theme, PaletteSlot.EMISSIVE)
+	var mat := make_glow_material(glow, glow.darkened(0.3), energy)
 	_emissive_material_cache[key] = mat
 	return mat
 
@@ -419,13 +391,23 @@ static func load_material(path: String) -> Material:
 	return load(path) as Material
 
 
-static func make_material(color: Color, emission: Color = Color.BLACK) -> StandardMaterial3D:
-	var mat := StandardMaterial3D.new()
-	mat.albedo_color = color
-	mat.texture_filter = PixelDioramaSettings.texture_filter_mode()
+## Ad-hoc coloured surface for props and NPCs that are not palette driven.
+## Routed through the pixel shaders so nothing falls back to smooth PBR shading.
+static func make_material(color: Color, emission: Color = Color.BLACK) -> Material:
 	if emission != Color.BLACK:
-		mat.emission_enabled = true
-		mat.emission = emission
+		return make_glow_material(color.lightened(0.1), color.darkened(0.25), 1.15)
+	var key := "solid_%s" % color.to_html(false)
+	if _prop_material_cache.has(key):
+		return _prop_material_cache[key] as Material
+	var mat := ShaderMaterial.new()
+	mat.shader = load(SHADER_PATH) as Shader
+	mat.set_shader_parameter("color_base", color)
+	mat.set_shader_parameter("color_shadow", color.darkened(0.3))
+	mat.set_shader_parameter("color_accent", color.lightened(0.2))
+	mat.set_shader_parameter("surface_kind", 2)
+	PixelDioramaSettings.apply_to_shader_material(mat)
+	mat.set_shader_parameter("pattern_strength", PixelDioramaSettings.pattern_strength * 0.45)
+	_prop_material_cache[key] = mat
 	return mat
 
 
@@ -445,6 +427,10 @@ static func add_box(
 	mesh_inst.position = position
 	if material:
 		mesh_inst.material_override = material
+	if OS.has_environment("AUMBRYE_STD_MAT"):
+		var std := StandardMaterial3D.new()
+		std.albedo_color = Color(0.62, 0.56, 0.5)
+		mesh_inst.material_override = std
 	parent.add_child(mesh_inst)
 	return mesh_inst
 

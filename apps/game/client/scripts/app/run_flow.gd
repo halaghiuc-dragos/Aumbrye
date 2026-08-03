@@ -45,8 +45,7 @@ var _is_continue := false
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
-	PixelDioramaSettings.load_from_save()
-	PixelDioramaSettings.apply_rendering_project_settings()
+	PixelDioramaBootstrap.prime()
 
 
 func start_new_castle_run() -> void:

@@ -116,10 +116,10 @@ static func _spawn_room_center_fill(parent: Node3D, half_w: float, half_d: float
 	var light := OmniLight3D.new()
 	light.name = "RoomCenterFill"
 	light.position = Vector3(0.0, 2.5, 0.0)
-	DungeonLighting.configure_soft_omni(
+	VisualLighting.configure_soft_omni(
 		light,
 		_biome_light_color(biome_id).lerp(Color(0.92, 0.86, 0.78), 0.35),
-		DungeonLighting.ROOM_FILL_ENERGY,
+		VisualLighting.ROOM_FILL_ENERGY,
 		maxf(minf(half_w, half_d) * 1.75, 9.0)
 	)
 	parent.add_child(light)
@@ -132,7 +132,7 @@ static func apply_shell_lighting(shell: Node3D, bounds: AABB, biome_id: String) 
 	lights.name = "ShellLighting"
 	shell.add_child(lights)
 	var accent_mat := BiomeRegistry.get_accent_material(biome_id)
-	var spacing := DungeonLighting.SHELL_TORCH_SPACING
+	var spacing := VisualLighting.SHELL_TORCH_SPACING
 	var torch_y := CastleRoomConstants.WALL_HEIGHT - 0.4
 	var min_x := bounds.position.x + spacing * 0.5
 	var min_z := bounds.position.z + spacing * 0.5
@@ -281,7 +281,7 @@ static func _spawn_brazier(parent: Node3D, pos: Vector3, accent_mat: Material, b
 	var light := OmniLight3D.new()
 	light.name = "BrazierLight"
 	light.position = pos + Vector3(0.0, 1.1, 0.0)
-	DungeonLighting.configure_soft_omni(light, _biome_light_color(biome_id), energy, 9.0)
+	VisualLighting.configure_soft_omni(light, _biome_light_color(biome_id), energy, 9.0)
 	parent.add_child(light)
 
 
@@ -296,11 +296,11 @@ static func _spawn_wall_torch(parent: Node3D, pos: Vector3, accent_mat: Material
 	var light := OmniLight3D.new()
 	light.name = "WallTorchLight"
 	light.position = pos + Vector3(0.0, 0.05, 0.0)
-	DungeonLighting.configure_soft_omni(
+	VisualLighting.configure_soft_omni(
 		light,
 		_biome_light_color(biome_id),
-		DungeonLighting.WALL_TORCH_ENERGY,
-		DungeonLighting.WALL_TORCH_RANGE
+		VisualLighting.WALL_TORCH_ENERGY,
+		VisualLighting.WALL_TORCH_RANGE
 	)
 	parent.add_child(light)
 
@@ -310,11 +310,11 @@ static func _spawn_ceiling_torch(parent: Node3D, pos: Vector3, accent_mat: Mater
 	var light := OmniLight3D.new()
 	light.name = "CeilingTorchOmni"
 	light.position = pos + Vector3(0.0, -0.18, 0.0)
-	DungeonLighting.configure_soft_omni(
+	VisualLighting.configure_soft_omni(
 		light,
 		_biome_light_color(biome_id),
-		DungeonLighting.TORCH_OMNI_ENERGY,
-		DungeonLighting.TORCH_OMNI_RANGE
+		VisualLighting.TORCH_OMNI_ENERGY,
+		VisualLighting.TORCH_OMNI_RANGE
 	)
 	parent.add_child(light)
 
@@ -380,7 +380,7 @@ static func _add_spot(parent: Node3D, pos: Vector3, accent_mat: Material, energy
 	var light := OmniLight3D.new()
 	light.name = "AccentFill"
 	light.position = pos
-	DungeonLighting.configure_soft_omni(
+	VisualLighting.configure_soft_omni(
 		light,
 		_material_light_color(accent_mat, biome_id),
 		energy * 0.9,

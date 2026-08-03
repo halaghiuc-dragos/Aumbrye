@@ -26,7 +26,9 @@ var _player_death_reset_pending := false
 
 func _ready() -> void:
 	add_to_group("training_arena")
+	PixelDioramaBootstrap.prime()
 	ArenaDioramaScript.apply(self)
+	PixelDioramaBootstrap.attach_deferred(self)
 	if overlay_path:
 		_overlay = get_node(overlay_path)
 	if hub_return_area_path:

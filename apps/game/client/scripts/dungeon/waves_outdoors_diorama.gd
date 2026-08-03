@@ -8,12 +8,11 @@ const FLOOR_HALF := 105.0
 const ARENA_HALF := 34.0
 const CASTLE_BACK_Z := -88.0
 
-const SceneLightingScript := preload("res://scripts/art/scene_lighting.gd")
 
 
 static func apply(root: Node3D) -> void:
 	var mats := _load_materials()
-	SceneLightingScript.apply_waves_outdoors(root)
+	VisualLighting.apply_waves_outdoors(root)
 	_build_floor(root, mats)
 	_spawn_grass_patches(root, mats)
 	_spawn_flowers(root, mats)
@@ -35,17 +34,21 @@ static func _load_materials() -> Dictionary:
 	grass_alt.set_shader_parameter("color_base", Color(0.22, 0.46, 0.2))
 	var grass_dark := grass.duplicate() as ShaderMaterial
 	grass_dark.set_shader_parameter("color_base", Color(0.16, 0.34, 0.14))
-	var flower_red := PixelDioramaStyle.make_emissive_material(theme, 0.55)
-	flower_red.emission = Color(0.92, 0.28, 0.32)
-	var flower_yellow := PixelDioramaStyle.make_emissive_material(theme, 0.55)
-	flower_yellow.emission = Color(0.95, 0.82, 0.22)
-	var flower_purple := PixelDioramaStyle.make_emissive_material(theme, 0.55)
-	flower_purple.emission = Color(0.72, 0.38, 0.92)
-	var flower_white := PixelDioramaStyle.make_emissive_material(theme, 0.45)
-	flower_white.emission = Color(0.92, 0.9, 0.82)
-	var birch_trunk := PixelDioramaStyle.make_prop_material(theme, false)
-	if birch_trunk is StandardMaterial3D:
-		(birch_trunk as StandardMaterial3D).albedo_color = Color(0.82, 0.78, 0.72)
+	var flower_red := PixelDioramaStyle.make_glow_material(
+		Color(0.92, 0.28, 0.32), Color(0.62, 0.14, 0.2), 0.55
+	)
+	var flower_yellow := PixelDioramaStyle.make_glow_material(
+		Color(0.95, 0.82, 0.22), Color(0.7, 0.52, 0.12), 0.55
+	)
+	var flower_purple := PixelDioramaStyle.make_glow_material(
+		Color(0.72, 0.38, 0.92), Color(0.42, 0.18, 0.6), 0.55
+	)
+	var flower_white := PixelDioramaStyle.make_glow_material(
+		Color(0.92, 0.9, 0.82), Color(0.66, 0.64, 0.58), 0.45
+	)
+	var birch_trunk := PixelDioramaStyle.make_prop_material(theme, false).duplicate() as ShaderMaterial
+	birch_trunk.set_shader_parameter("color_base", Color(0.82, 0.78, 0.72))
+	birch_trunk.set_shader_parameter("color_shadow", Color(0.54, 0.5, 0.46))
 	return {
 		"floor": PixelDioramaStyle.make_floor_material(theme),
 		"grass": grass,

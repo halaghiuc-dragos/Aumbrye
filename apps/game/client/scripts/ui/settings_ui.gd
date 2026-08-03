@@ -13,6 +13,7 @@ const GameUISkinScript := preload("res://scripts/ui/game_ui_skin.gd")
 var _backdrop: ColorRect
 var _open := false
 var _scroll_vbox: VBoxContainer
+var _pixel_section: VBoxContainer
 
 
 func _ready() -> void:
@@ -136,86 +137,53 @@ func _build_accessibility_section(parent: VBoxContainer) -> void:
 
 
 func _build_pixel_diorama_section(parent: VBoxContainer) -> void:
-	var sep := HSeparator.new()
-	parent.add_child(sep)
+	var section := VBoxContainer.new()
+	section.name = "PixelDioramaSection"
+	section.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	parent.add_child(section)
+	_pixel_section = section
+	_populate_pixel_diorama_section()
+
+
+## Rebuilt wholesale when the beauty preset is restored, so every widget shows the
+## value that was actually applied rather than the one the user last dragged.
+func _populate_pixel_diorama_section() -> void:
+	if _pixel_section == null:
+		return
+	for child in _pixel_section.get_children():
+		child.queue_free()
+
+	_pixel_section.add_child(HSeparator.new())
 	var title := Label.new()
 	title.text = "Pixel Diorama"
-	parent.add_child(title)
+	GameUISkinScript.style_section_title(title)
+	_pixel_section.add_child(title)
 
-	parent.add_child(_labeled_slider(
-		"Pixel scale",
-		1.0, 32.0, 0.5,
-		PixelDioramaSettings.pixel_scale,
-		func(v: float) -> void:
-			PixelDioramaSettings.pixel_scale = v
-			PixelDioramaSettings.save_and_apply()
-	))
-
-	parent.add_child(_labeled_slider(
-		"Color levels",
-		4.0, 16.0, 1.0,
-		PixelDioramaSettings.color_levels,
-		func(v: float) -> void:
-			PixelDioramaSettings.color_levels = v
-			PixelDioramaSettings.save_and_apply()
-	))
-
-	parent.add_child(_labeled_slider(
-		"Edge strength",
-		0.0, 1.0, 0.02,
-		PixelDioramaSettings.edge_strength,
-		func(v: float) -> void:
-			PixelDioramaSettings.edge_strength = v
-			PixelDioramaSettings.save_and_apply()
-	))
-
-	parent.add_child(_labeled_slider(
-		"Stitch strength",
-		0.0, 1.0, 0.02,
-		PixelDioramaSettings.stitch_strength,
-		func(v: float) -> void:
-			PixelDioramaSettings.stitch_strength = v
-			PixelDioramaSettings.save_and_apply()
-	))
-
-	parent.add_child(_labeled_slider(
-		"Pattern strength",
-		0.0, 1.0, 0.02,
-		PixelDioramaSettings.pattern_strength,
-		func(v: float) -> void:
-			PixelDioramaSettings.pattern_strength = v
-			PixelDioramaSettings.save_and_apply()
-	))
-
-	var linear_tonemap := CheckBox.new()
-	linear_tonemap.text = "Linear tonemap (crisp)"
-	linear_tonemap.button_pressed = PixelDioramaSettings.linear_tonemap
-	linear_tonemap.toggled.connect(func(on: bool) -> void:
-		PixelDioramaSettings.linear_tonemap = on
+	var preset_row := HBoxContainer.new()
+	var preset_label := Label.new()
+	preset_label.text = "Render resolution"
+	preset_row.add_child(preset_label)
+	var preset_options := OptionButton.new()
+	for i in PixelDioramaSettings.RESOLUTION_PRESETS.size():
+		var preset: Dictionary = PixelDioramaSettings.RESOLUTION_PRESETS[i]
+		preset_options.add_item(str(preset.get("label", "?")), i)
+	var current_preset := PixelDioramaSettings.current_resolution_preset()
+	if current_preset >= 0:
+		preset_options.selected = current_preset
+	else:
+		preset_options.add_item(
+			"Custom (%d x %d)" % [PixelDioramaSettings.viewport_width, PixelDioramaSettings.viewport_height]
+		)
+		preset_options.selected = preset_options.item_count - 1
+	preset_options.item_selected.connect(func(idx: int) -> void:
+		PixelDioramaSettings.set_resolution_preset(idx)
 		PixelDioramaSettings.save_and_apply()
 	)
-	parent.add_child(linear_tonemap)
-
-	var glow := CheckBox.new()
-	glow.text = "Glow enabled"
-	glow.button_pressed = PixelDioramaSettings.glow_enabled
-	glow.toggled.connect(func(on: bool) -> void:
-		PixelDioramaSettings.glow_enabled = on
-		PixelDioramaSettings.save_and_apply()
-	)
-	parent.add_child(glow)
-
-	var nearest := CheckBox.new()
-	nearest.text = "Nearest texture filtering"
-	nearest.button_pressed = PixelDioramaSettings.nearest_texture_filter
-	nearest.toggled.connect(func(on: bool) -> void:
-		PixelDioramaSettings.nearest_texture_filter = on
-		PixelDioramaSettings.save_and_apply()
-	)
-	parent.add_child(nearest)
+	preset_row.add_child(preset_options)
+	_pixel_section.add_child(preset_row)
 
 	var low_res := CheckBox.new()
-	low_res.text = "Low-res viewport upscale (480x270)"
+	low_res.text = "Low-res viewport upscale"
 	low_res.button_pressed = PixelDioramaSettings.low_res_viewport_enabled
 	low_res.toggled.connect(func(on: bool) -> void:
 		PixelDioramaSettings.low_res_viewport_enabled = on
@@ -225,30 +193,127 @@ func _build_pixel_diorama_section(parent: VBoxContainer) -> void:
 		elif not on:
 			PixelDioramaViewport.detach()
 	)
-	parent.add_child(low_res)
+	_pixel_section.add_child(low_res)
 
-	var cam_snap := CheckBox.new()
-	cam_snap.text = "Camera pixel snap"
-	cam_snap.button_pressed = PixelDioramaSettings.camera_snap_enabled
-	cam_snap.toggled.connect(func(on: bool) -> void:
-		PixelDioramaSettings.camera_snap_enabled = on
-		PixelDioramaSettings.save_and_apply()
-	)
-	parent.add_child(cam_snap)
+	_pixel_section.add_child(_toggle(
+		"Camera pixel snap",
+		PixelDioramaSettings.camera_snap_enabled,
+		func(on: bool) -> void: PixelDioramaSettings.camera_snap_enabled = on
+	))
+	_pixel_section.add_child(_toggle(
+		"Nearest texture filtering",
+		PixelDioramaSettings.nearest_texture_filter,
+		func(on: bool) -> void: PixelDioramaSettings.nearest_texture_filter = on
+	))
+	_pixel_section.add_child(_toggle(
+		"Disable MSAA / screen AA",
+		PixelDioramaSettings.anti_aliasing_off,
+		func(on: bool) -> void: PixelDioramaSettings.anti_aliasing_off = on
+	))
 
-	var aa_off := CheckBox.new()
-	aa_off.text = "Disable MSAA / screen AA"
-	aa_off.button_pressed = PixelDioramaSettings.anti_aliasing_off
-	aa_off.toggled.connect(func(on: bool) -> void:
-		PixelDioramaSettings.anti_aliasing_off = on
-		PixelDioramaSettings.save_and_apply()
+	_pixel_section.add_child(_subsection_label("Surfaces"))
+	_pixel_section.add_child(_labeled_slider(
+		"Pixel scale", 1.0, 32.0, 0.5, PixelDioramaSettings.pixel_scale,
+		func(v: float) -> void: PixelDioramaSettings.pixel_scale = v
+	))
+	_pixel_section.add_child(_labeled_slider(
+		"Color levels", 4.0, 16.0, 1.0, PixelDioramaSettings.color_levels,
+		func(v: float) -> void: PixelDioramaSettings.color_levels = v
+	))
+	_pixel_section.add_child(_labeled_slider(
+		"Pattern strength", 0.0, 1.0, 0.02, PixelDioramaSettings.pattern_strength,
+		func(v: float) -> void: PixelDioramaSettings.pattern_strength = v
+	))
+	_pixel_section.add_child(_labeled_slider(
+		"Edge strength", 0.0, 1.0, 0.02, PixelDioramaSettings.edge_strength,
+		func(v: float) -> void: PixelDioramaSettings.edge_strength = v
+	))
+	_pixel_section.add_child(_labeled_slider(
+		"Stitch strength", 0.0, 1.0, 0.02, PixelDioramaSettings.stitch_strength,
+		func(v: float) -> void: PixelDioramaSettings.stitch_strength = v
+	))
+
+	_pixel_section.add_child(_subsection_label("Shading"))
+	_pixel_section.add_child(_labeled_slider(
+		"Light bands", 2.0, 16.0, 1.0, PixelDioramaSettings.shade_bands,
+		func(v: float) -> void: PixelDioramaSettings.shade_bands = v
+	))
+	_pixel_section.add_child(_labeled_slider(
+		"Band dithering", 0.0, 1.0, 0.05, PixelDioramaSettings.shade_dither,
+		func(v: float) -> void: PixelDioramaSettings.shade_dither = v
+	))
+	_pixel_section.add_child(_labeled_slider(
+		"Shadow softness (light wrap)", 0.0, 1.0, 0.05, PixelDioramaSettings.light_wrap,
+		func(v: float) -> void: PixelDioramaSettings.light_wrap = v
+	))
+	_pixel_section.add_child(_labeled_slider(
+		"Silhouette rim", 0.0, 0.5, 0.01, PixelDioramaSettings.rim_strength,
+		func(v: float) -> void: PixelDioramaSettings.rim_strength = v
+	))
+	_pixel_section.add_child(_toggle(
+		"Linear tonemap (crisp)",
+		PixelDioramaSettings.linear_tonemap,
+		func(on: bool) -> void: PixelDioramaSettings.linear_tonemap = on
+	))
+	_pixel_section.add_child(_toggle(
+		"Glow on emissives",
+		PixelDioramaSettings.glow_enabled,
+		func(on: bool) -> void: PixelDioramaSettings.glow_enabled = on
+	))
+
+	_pixel_section.add_child(_subsection_label("Screen finish"))
+	_pixel_section.add_child(_toggle(
+		"Enable screen finish pass",
+		PixelDioramaSettings.screen_finish_enabled,
+		func(on: bool) -> void: PixelDioramaSettings.screen_finish_enabled = on
+	))
+	_pixel_section.add_child(_labeled_slider(
+		"Contrast", 0.5, 2.0, 0.01, PixelDioramaSettings.screen_contrast,
+		func(v: float) -> void: PixelDioramaSettings.screen_contrast = v
+	))
+	_pixel_section.add_child(_labeled_slider(
+		"Saturation", 0.0, 2.0, 0.01, PixelDioramaSettings.screen_saturation,
+		func(v: float) -> void: PixelDioramaSettings.screen_saturation = v
+	))
+	_pixel_section.add_child(_labeled_slider(
+		"Vignette", 0.0, 1.0, 0.02, PixelDioramaSettings.vignette_strength,
+		func(v: float) -> void: PixelDioramaSettings.vignette_strength = v
+	))
+	_pixel_section.add_child(_labeled_slider(
+		"Palette posterize (0 = off)", 0.0, 32.0, 1.0, PixelDioramaSettings.posterize_levels,
+		func(v: float) -> void: PixelDioramaSettings.posterize_levels = v
+	))
+
+	var restore := Button.new()
+	restore.text = "Restore recommended look"
+	restore.pressed.connect(func() -> void:
+		PixelDioramaSettings.apply_beauty_defaults()
+		_populate_pixel_diorama_section()
 	)
-	parent.add_child(aa_off)
+	_pixel_section.add_child(restore)
 
 	var note := Label.new()
 	note.text = "Filter and AA changes apply at runtime via project settings."
 	note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	parent.add_child(note)
+	_pixel_section.add_child(note)
+
+
+func _subsection_label(text: String) -> Label:
+	var label := Label.new()
+	label.text = text
+	GameUISkinScript.style_section_title(label)
+	return label
+
+
+func _toggle(text: String, initial: bool, on_changed: Callable) -> CheckBox:
+	var box := CheckBox.new()
+	box.text = text
+	box.button_pressed = initial
+	box.toggled.connect(func(on: bool) -> void:
+		on_changed.call(on)
+		PixelDioramaSettings.save_and_apply()
+	)
+	return box
 
 
 func _refresh_run_mode_section() -> void:
@@ -302,6 +367,7 @@ func _labeled_slider(
 	slider.value_changed.connect(func(v: float) -> void:
 		label.text = "%s (%.3f)" % [label_text, v]
 		on_changed.call(v)
+		PixelDioramaSettings.save_and_apply()
 	)
 	box.add_child(slider)
 	return box

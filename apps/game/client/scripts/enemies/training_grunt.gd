@@ -5,7 +5,7 @@ enum State { IDLE, WINDUP, ATTACK, RECOVERY, STAGGER, DEAD }
 const ENEMY_ID := "training_grunt"
 const HP_BAR_SCRIPT := preload("res://scripts/ui/training_dummy_health_bar.gd")
 const CharacterSkin := preload("res://scripts/art/diorama_character_skin.gd")
-const CharacterAnimator := preload("res://scripts/art/diorama_character_animator.gd")
+const AnimControllerScript := preload("res://scripts/art/diorama_anim_controller.gd")
 
 signal attack_telegraph_started
 signal attack_active
@@ -13,7 +13,7 @@ signal attack_active
 @export var player_path: NodePath
 
 var _mesh: Node3D
-var _animator
+var _animator: DioramaAnimController
 @onready var _telegraph: MeshInstance3D = $TelegraphMesh
 @onready var _body_collision: CollisionShape3D = $CollisionShape3D
 
@@ -34,9 +34,12 @@ var _spawn_origin := Vector3.ZERO
 func _ready() -> void:
 	add_to_group("training_dummy")
 	_mesh = CharacterSkin.build_training_dummy(self)
-	_animator = CharacterAnimator.new()
-	_animator.bind(_mesh)
+	_animator = AnimControllerScript.new()
+	_animator.name = "AnimController"
+	add_child(_animator)
 	_animator.set_profile("melee")
+	_animator.set_weapon("sword")
+	_animator.bind(_mesh)
 	var legacy_mesh := get_node_or_null("MeshInstance3D") as MeshInstance3D
 	if legacy_mesh:
 		legacy_mesh.visible = false
@@ -102,30 +105,18 @@ func apply_stagger(duration: float) -> void:
 		_hitbox.disable()
 	if _telegraph:
 		_telegraph.visible = false
-	if _mesh:
-		_mesh.scale = Vector3.ONE
+	if _animator and _animator.is_bound():
+		_animator.play_stagger(duration)
 
 
-func _update_diorama_animation(delta: float) -> void:
-	if _animator == null or is_dead():
+func _update_diorama_animation(_delta: float) -> void:
+	if _animator == null or not _animator.is_bound() or is_dead():
 		return
-	var anim_state := CharacterAnimator.AnimState.IDLE
-	var params: Dictionary = {}
-	match _state:
-		State.WINDUP:
-			anim_state = CharacterAnimator.AnimState.WINDUP
-		State.ATTACK:
-			anim_state = CharacterAnimator.AnimState.ATTACK
-		State.STAGGER:
-			anim_state = CharacterAnimator.AnimState.STAGGER
-		State.DEAD:
-			anim_state = CharacterAnimator.AnimState.DEAD
-		_:
-			if velocity.length() > 0.2:
-				anim_state = CharacterAnimator.AnimState.WALK
-				params["speed_ratio"] = 0.6
-	_animator.set_state(anim_state)
-	_animator.update(delta, params)
+	var speed := velocity.length()
+	if speed > 0.2:
+		_animator.request_locomotion(&"walk", {"speed": speed})
+	else:
+		_animator.request_locomotion(&"idle")
 
 
 func _process_state(delta: float) -> void:
@@ -160,11 +151,19 @@ func _start_windup() -> void:
 	if is_dead() or (_health and _health.is_dead()):
 		return
 	_state = State.WINDUP
-	_state_timer = _data.get("windup_duration", 0.7)
-	if _mesh:
-		_mesh.scale = Vector3(1.04, 1.04, 1.04)
+	var windup: float = float(_data.get("windup_duration", 0.7))
+	_state_timer = windup
+	if _animator and _animator.is_bound():
+		_animator.play_attack(
+			windup,
+			float(_data.get("active_duration", 0.15)),
+			float(_data.get("recovery_duration", 0.9))
+		)
 	if _telegraph:
 		_telegraph.visible = true
+	VfxService.play_telegraph(
+		global_position, float(_data.get("attack_range", 2.2)) * 0.8, windup
+	)
 	attack_telegraph_started.emit()
 
 
@@ -229,8 +228,8 @@ func _on_poise_broken() -> void:
 func _on_hurt(_info: DamageInfo) -> void:
 	if is_dead():
 		return
-	if _animator:
-		_animator.trigger_hit()
+	if _animator and _animator.is_bound():
+		_animator.play_flinch()
 
 
 func reset_enemy() -> void:
@@ -254,7 +253,8 @@ func reset_enemy() -> void:
 		_mesh.scale = Vector3.ONE
 		_mesh.position = Vector3.ZERO
 	if _animator:
-		_animator.set_state(CharacterAnimator.AnimState.IDLE)
+		_animator.revive()
+		_animator.reset_combo()
 	if _health:
 		_health.configure(_data.get("health", 80.0))
 	if _poise:

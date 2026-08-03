@@ -1,4 +1,4 @@
-// Shared pixel-diorama finish: portal-style grain, rings, and quantization.
+// Shared pixel-diorama finish: patterns, quantization, banded lighting, and dithering.
 
 float cell_hash(vec2 cell) {
 	return fract(sin(dot(cell, vec2(12.9898, 78.233))) * 43758.5453);
@@ -13,6 +13,47 @@ float voxel_edge_mask(vec2 uv) {
 	float edge_y = min(fract(uv.y), 1.0 - fract(uv.y));
 	float edge = step(edge_x, 0.11) + step(edge_y, 0.11);
 	return clamp(edge, 0.0, 1.0);
+}
+
+// 4x4 ordered Bayer matrix in [0,1). Used to stipple shading band transitions so
+// terminators read as deliberate pixel-art dithering instead of smooth gradients.
+float bayer4(vec2 frag_coord) {
+	vec2 p = floor(mod(frag_coord, 4.0));
+	int index = int(p.x) + int(p.y) * 4;
+	float table[16] = float[16](
+		0.0, 8.0, 2.0, 10.0,
+		12.0, 4.0, 14.0, 6.0,
+		3.0, 11.0, 1.0, 9.0,
+		15.0, 7.0, 13.0, 5.0
+	);
+	return table[index] / 16.0;
+}
+
+// Quantizes a 0..1 lighting term into hard bands, dithered along the terminator.
+float band_light(float value, float bands, float dither_amount, vec2 frag_coord) {
+	float safe_bands = max(2.0, bands);
+	float dither = (bayer4(frag_coord) - 0.5) * (dither_amount / safe_bands);
+	return clamp(floor((value + dither) * safe_bands + 0.5) / safe_bands, 0.0, 1.0);
+}
+
+// Picks the dominant axis plane so every face gets square, equally dense pixels.
+// Avoids the UV stretching that box meshes of differing sizes otherwise produce.
+vec2 triplanar_pattern_uv(vec3 pos, vec3 normal, float scale) {
+	vec3 axis = abs(normal);
+	if (axis.y >= axis.x && axis.y >= axis.z) {
+		return pos.xz * scale;
+	}
+	if (axis.x >= axis.z) {
+		return pos.zy * scale;
+	}
+	return pos.xy * scale;
+}
+
+// Quantized fresnel rim that keeps silhouettes readable in dark rooms.
+float pixel_rim(vec3 normal, vec3 view, float steps) {
+	float fresnel = 1.0 - clamp(dot(normalize(normal), normalize(view)), 0.0, 1.0);
+	fresnel = pow(fresnel, 3.0);
+	return floor(fresnel * steps) / steps;
 }
 
 // Static spiral pixel grain derived from portal_ellipse.gdshader (no spin animation).

@@ -7,7 +7,7 @@ const DECELERATION := 14.0
 const SPRINT_STAMINA_DRAIN := 18.0
 const ROTATION_SPEED := 10.0
 const CharacterSkin := preload("res://scripts/art/diorama_character_skin.gd")
-const CharacterAnimator := preload("res://scripts/art/diorama_character_animator.gd")
+const AnimDirectorScript := preload("res://scripts/player/player_anim_director.gd")
 
 @export var camera_yaw_path: NodePath
 @export var facing_path: NodePath = NodePath("Facing")
@@ -19,7 +19,7 @@ var _dodge: Node
 var _combat_reactions: Node
 var _lock_on: LockOn
 var _speed_multiplier := 1.0
-var _animator
+var _anim_director: PlayerAnimDirector
 var _footstep_timer := 0.0
 
 
@@ -34,10 +34,11 @@ func _ready() -> void:
 	if facing_path:
 		_facing = get_node_or_null(facing_path) as Node3D
 		if _facing:
-			CharacterSkin.build_player_body(_facing)
-			_animator = CharacterAnimator.new()
-			_animator.bind(_facing.get_node_or_null(CharacterSkin.VISUAL_NAME) as Node3D)
-			_animator.set_profile("player")
+			var visual := CharacterSkin.build_player_body(_facing)
+			_anim_director = AnimDirectorScript.new()
+			_anim_director.name = "AnimDirector"
+			add_child(_anim_director)
+			_anim_director.bind(visual)
 			_sync_first_person_body_visibility()
 
 
@@ -153,7 +154,11 @@ func get_facing_yaw() -> float:
 	return rotation.y
 
 
+## Fallback only: once the rig is bound, footsteps come from animation markers
+## so the dust lands on the frame the foot does.
 func _update_footstep_vfx(delta: float) -> void:
+	if _anim_director and _anim_director.is_bound():
+		return
 	if not is_on_floor():
 		_footstep_timer = 0.0
 		return
@@ -170,25 +175,9 @@ func _update_footstep_vfx(delta: float) -> void:
 	VfxService.play_footstep(global_position + Vector3(0.0, 0.05, 0.0), get_facing_direction())
 
 
-func _update_character_animation(delta: float) -> void:
-	if _animator == null:
+func _update_character_animation(_delta: float) -> void:
+	if _anim_director == null:
 		return
-	var horizontal_speed := Vector2(velocity.x, velocity.z).length()
-	var anim_state := CharacterAnimator.AnimState.IDLE
-	var params: Dictionary = {}
-	if _dodge and _dodge.get("is_dodging"):
-		anim_state = CharacterAnimator.AnimState.DASH
-		if _dodge.has_method("get_dash_progress"):
-			params["dash_progress"] = _dodge.call("get_dash_progress")
-		if _dodge.has_method("get_dash_direction"):
-			_animator.set_dash_direction(_dodge.call("get_dash_direction"))
-	elif not is_on_floor():
-		anim_state = CharacterAnimator.AnimState.AIR
-		params["vertical_speed"] = velocity.y
-	elif horizontal_speed > 0.2:
-		var sprinting := Input.is_action_pressed("sprint")
-		anim_state = CharacterAnimator.AnimState.RUN if sprinting else CharacterAnimator.AnimState.WALK
-		var target_speed := SPRINT_SPEED if sprinting else WALK_SPEED
-		params["speed_ratio"] = clampf(horizontal_speed / maxf(target_speed, 0.01), 0.2, 1.2)
-	_animator.set_state(anim_state)
-	_animator.update(delta, params)
+	_anim_director.update_locomotion(
+		is_on_floor(), velocity, Input.is_action_pressed("sprint")
+	)
