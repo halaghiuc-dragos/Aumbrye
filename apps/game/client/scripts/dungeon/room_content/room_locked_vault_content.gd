@@ -1,0 +1,80 @@
+extends "res://scripts/dungeon/room_content/room_content_base.gd"
+
+const CHEST_SCENE := preload("res://scenes/loot/loot_chest.tscn")
+const DIORAMA_SKIN := preload("res://scripts/art/diorama_interactable_skin.gd")
+
+var _key_id := ""
+var _lock_id := ""
+var _key_label := "Dungeon Key"
+var _collected := false
+var _interact_area: Area3D
+var _label: Label3D
+var _chest: Node3D
+
+
+func configure(entry: Dictionary, _definition: Dictionary) -> void:
+	_key_id = str(entry.get("keyId", ""))
+	_lock_id = str(entry.get("lockId", _key_id))
+	_key_label = str(entry.get("keyLabel", "Dungeon Key"))
+	_chest = CHEST_SCENE.instantiate() as Node3D
+	_chest.name = "KeyVaultChest"
+	_chest.position = Vector3(0.0, 0.0, 0.0)
+	_content_root().add_child(_chest)
+	_style_key_chest()
+	_interact_area = Area3D.new()
+	_interact_area.name = "KeyPickupArea"
+	_interact_area.collision_layer = 0
+	_interact_area.collision_mask = 2
+	_interact_area.monitoring = true
+	var shape := CollisionShape3D.new()
+	var box := BoxShape3D.new()
+	box.size = Vector3(3.0, 3.0, 3.0)
+	shape.shape = box
+	shape.position = Vector3(0.0, 1.2, 0.0)
+	_interact_area.add_child(shape)
+	_content_root().add_child(_interact_area)
+	_interact_area.body_entered.connect(_on_body_entered)
+	_interact_area.body_exited.connect(_on_body_exited)
+	_label = Label3D.new()
+	_label.name = "KeyLabel"
+	_label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	_label.font_size = 22
+	_label.position = Vector3(0.0, 2.4, 0.0)
+	_label.modulate = Color(1.0, 0.9, 0.45, 1.0)
+	_label.visible = false
+	_content_root().add_child(_label)
+	if _key_id != "" and WorldState.has_flag(_key_id):
+		_collected = true
+		_chest.visible = false
+
+
+func _style_key_chest() -> void:
+	var mesh := _chest.get_node_or_null("MeshInstance3D") as MeshInstance3D
+	if mesh:
+		mesh.material_override = DIORAMA_SKIN.make_telegraph_material(Color(0.85, 0.65, 0.15, 1.0))
+
+
+func _on_body_entered(body: Node3D) -> void:
+	if body.is_in_group("player") and not _collected:
+		_label.visible = true
+		_label.text = "E — Take %s" % _key_label
+
+
+func _on_body_exited(body: Node3D) -> void:
+	if body.is_in_group("player"):
+		_label.visible = false
+
+
+func _unhandled_input(event: InputEvent) -> void:
+	if _collected or not event.is_action_pressed("interact"):
+		return
+	if _label == null or not _label.visible:
+		return
+	if not InventoryService.add_dungeon_key(_key_id, _lock_id, _key_label):
+		return
+	WorldState.set_flag(_key_id, true)
+	_collected = true
+	if _chest:
+		_chest.visible = false
+	_label.visible = false
+	get_viewport().set_input_as_handled()

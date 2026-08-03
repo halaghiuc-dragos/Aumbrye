@@ -4,6 +4,8 @@ extends Control
 
 const SkipFloorSvc := preload("res://scripts/dungeon/skip_floor_service.gd")
 
+const GameUISkinScript := preload("res://scripts/ui/game_ui_skin.gd")
+
 signal endless_run_requested(start_floor: int, skip_item_id: String)
 signal continue_requested
 signal menu_closed
@@ -25,6 +27,7 @@ func _ready() -> void:
 	visible = false
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
+	GameUISkinScript.apply_modal_menu(self)
 	_new_button.pressed.connect(_on_new_pressed)
 	_continue_button.pressed.connect(_on_continue_pressed)
 	_skip_start_button.pressed.connect(_on_skip_start_pressed)

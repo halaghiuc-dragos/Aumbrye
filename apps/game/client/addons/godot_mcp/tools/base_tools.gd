@@ -361,11 +361,15 @@ func _validate_value_type(value, expected_type: int, prop_info: Dictionary = {})
 	return {"valid": compatible, "hints": hints}
 
 
+static var _cached_editor_interface: EditorInterface = null
+
+
+static func set_editor_interface(editor_interface: EditorInterface) -> void:
+	_cached_editor_interface = editor_interface
+
+
 func _get_editor_interface() -> EditorInterface:
-	# In Godot 4, EditorInterface is accessed via Engine singleton when in editor
-	if Engine.has_singleton("EditorInterface"):
-		return Engine.get_singleton("EditorInterface")
-	return null
+	return _cached_editor_interface
 
 
 func _get_edited_scene_root() -> Node:

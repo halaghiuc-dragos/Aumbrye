@@ -64,8 +64,8 @@ func _physics_process(delta: float) -> void:
 			_update_character_animation(delta)
 			return
 
-	if _dodge and _dodge.has_method("process_roll_physics"):
-		_dodge.call("process_roll_physics", delta)
+	if _dodge and _dodge.has_method("process_dash_physics"):
+		_dodge.call("process_dash_physics", delta)
 		if _dodge.get("is_dodging"):
 			_update_character_animation(delta)
 			return
@@ -177,11 +177,11 @@ func _update_character_animation(delta: float) -> void:
 	var anim_state := CharacterAnimator.AnimState.IDLE
 	var params: Dictionary = {}
 	if _dodge and _dodge.get("is_dodging"):
-		anim_state = CharacterAnimator.AnimState.ROLL
-		if _dodge.has_method("get_roll_progress"):
-			params["roll_progress"] = _dodge.call("get_roll_progress")
-		if _dodge.has_method("get_roll_direction"):
-			_animator.set_roll_direction(_dodge.call("get_roll_direction"))
+		anim_state = CharacterAnimator.AnimState.DASH
+		if _dodge.has_method("get_dash_progress"):
+			params["dash_progress"] = _dodge.call("get_dash_progress")
+		if _dodge.has_method("get_dash_direction"):
+			_animator.set_dash_direction(_dodge.call("get_dash_direction"))
 	elif not is_on_floor():
 		anim_state = CharacterAnimator.AnimState.AIR
 		params["vertical_speed"] = velocity.y

@@ -318,3 +318,4 @@ func _should_persist_snapshot() -> bool:
 
 func _apply_pixel_diorama_scene() -> void:
 	PixelDioramaSettings.apply_to_scene(self)
+	PixelDioramaViewport.attach_to_scene(self)

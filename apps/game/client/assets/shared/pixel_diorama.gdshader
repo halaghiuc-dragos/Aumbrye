@@ -1,5 +1,5 @@
 shader_type spatial;
-render_mode diffuse_toon, specular_disabled;
+render_mode diffuse_burley, specular_disabled;
 
 #include "res://assets/shared/pixel_diorama_finish.gdshaderinc"
 

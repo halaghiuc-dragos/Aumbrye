@@ -14,7 +14,7 @@ public sealed record GenerationResult(DungeonDefinition Definition, string Json)
 
 public sealed class GenerationOptions
 {
-    public int MaxAttempts { get; init; } = 32;
+    public int MaxAttempts { get; init; } = 48;
     public int SeedOffsetPerAttempt { get; init; } = 1_000_003;
 }
 
@@ -93,7 +93,7 @@ public static class DungeonGenerator
 
         var (enemies, threatUsed) = EnemyPlacer.Place(biome, assignment, tier, playerLevel, rng);
         var placements = AssignLootInstanceIds(
-            LootPlacer.Place(biome, assignment, enemies, tier, playerLevel, rng),
+            LootPlacer.Place(biome, assignment, enemies, tier, playerLevel, seed, rng),
             runId);
 
         var rooms = RoomPlacement.BuildRooms(graph, assignment);

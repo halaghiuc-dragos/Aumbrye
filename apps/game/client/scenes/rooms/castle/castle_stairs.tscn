@@ -40,6 +40,9 @@ direction = 2
 
 [node name="PlayerSpawn" type="Marker3D" parent="SpawnPoints"]
 
+[node name="LeverSpawn" type="Marker3D" parent="SpawnPoints"]
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -3.45, 0, -2)
+
 [node name="Props" type="Node3D" parent="."]
 
 [node name="StairRamp" type="MeshInstance3D" parent="Props"]

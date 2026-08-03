@@ -44,6 +44,26 @@ static func apply_arena(root: Node3D) -> void:
 	)
 
 
+static func apply_waves_outdoors(root: Node3D) -> void:
+	_apply_preset(
+		root,
+		{
+			"background": Color(0.62, 0.78, 0.95),
+			"ambient": Color(0.72, 0.82, 0.68),
+			"ambient_energy": 0.62,
+			"fog_color": Color(0.72, 0.82, 0.9),
+			"fog_density": 0.0045,
+			"fog_aerial": 0.55,
+			"sun_color": Color(1.0, 0.92, 0.72),
+			"sun_energy": 1.65,
+			"sun_rotation": Vector3(-0.42, 0.25, 0.0),
+			"fill_color": Color(0.58, 0.72, 0.95),
+			"fill_energy": 0.28,
+			"fill_rotation": Vector3(-0.18, -1.8, 0.0),
+		}
+	)
+
+
 static func _apply_preset(root: Node3D, preset: Dictionary) -> void:
 	var env_node := root.get_node_or_null("WorldEnvironment") as WorldEnvironment
 	if env_node == null:

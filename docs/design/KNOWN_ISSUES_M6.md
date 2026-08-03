@@ -22,7 +22,11 @@ M6 batch-generated `.tscn` / `.gd` files initially had UTF-8 BOM, causing Godot 
 
 ## Godot MCP editor tools
 
-Headless validation passes without the editor GUI. MCP tools that require the editor interface (`editor_status`, `scene_management`, `scene_hierarchy`, `scene_run`) return **"Editor interface not available"** unless Godot 4.7 is open with the `godot_mcp` plugin connected. Runtime probes (`project_info`, `filesystem_file`, `debug_log`) work without the editor.
+Headless validation passes without the editor GUI. Editor-dependent MCP tools (`editor_status`, `scene_management`, `scene_hierarchy`, `scene_run`) require Godot 4.7 open with the `godot_mcp` plugin connected.
+
+**Fixed 2026-08-03:** `scene_run` no longer crashes on Godot 4.7 — `EditorInterface` is cached from the plugin instead of `Engine.get_singleton`. See [PROCgen_PIXEL_CHANGELOG_2026-08.md](PROCgen_PIXEL_CHANGELOG_2026-08.md).
+
+Runtime probes (`project_info`, `filesystem_file`, `debug_log`) work without the editor.
 
 ## Partial carry-over to M7
 

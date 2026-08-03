@@ -2,8 +2,8 @@
   "id": "forgotten_castle",
   "name": "Forgotten Castle",
   "roomCount": {
-    "min": 6,
-    "max": 10
+    "min": 18,
+    "max": 22
   },
   "gridStep": 14,
   "roomTemplateIds": [
@@ -28,10 +28,10 @@
     { "enemyId": "boss_castle_knight" }
   ],
   "budgets": {
-    "baseEnemyThreat": 100,
-    "baseLootValue": 60,
-    "threatPerTier": 20,
-    "lootPerTier": 10
+    "baseEnemyThreat": 200,
+    "baseLootValue": 80,
+    "threatPerTier": 35,
+    "lootPerTier": 14
   },
   "requiresSecret": true
 }

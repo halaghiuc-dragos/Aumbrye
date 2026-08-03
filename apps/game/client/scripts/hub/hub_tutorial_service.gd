@@ -10,7 +10,7 @@ static var tips_completed := false
 static var current_tip_index := 0
 
 static var TIPS: Array[String] = [
-	"Roll with Space to roll through attacks. Practice in the combat arena.",
+	"Dash with Space to dash through attacks. Practice in the combat arena.",
 	"Block with right-click; a well-timed parry staggers enemies.",
 	"Defeat the floor boss, then use the stair lever to ascend.",
 	"Secret rooms hide extra loot — listen for hidden passages.",

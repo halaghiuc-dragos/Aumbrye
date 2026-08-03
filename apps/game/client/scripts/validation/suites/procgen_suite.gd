@@ -10,6 +10,7 @@ func run() -> void:
 	_test_offline_run_flow()
 	_test_cli_json_extraction()
 	_test_castle_run_no_fixture_fallback()
+	_test_placement_offset_compat()
 	await _test_dungeon_builder_empty_rejection()
 
 
@@ -154,6 +155,40 @@ func _test_castle_run_no_fixture_fallback() -> void:
 		"castle_run rejects empty definition without M2 fixture fallback",
 		start,
 		"M3.procgen.castle_run"
+	)
+
+
+func _test_placement_offset_compat() -> void:
+	var start := Time.get_ticks_msec()
+	var gen := LocalProcgen.generate("forgotten_castle", TC.SEED_A)
+	if not gen.get("ok", false):
+		ctx.timed_record(
+			"procgen.placement_offset_field",
+			get_category(),
+			false,
+			"generation failed before offset check",
+			start,
+			"M3.procgen.offset"
+		)
+		return
+	var placements: Dictionary = gen.get("definition", {}).get("placements", {})
+	var enemies: Array = placements.get("enemies", [])
+	var has_offset := false
+	for enemy in enemies:
+		if enemy is Dictionary and enemy.has("offset"):
+			has_offset = true
+			break
+	var builder_reads_offset: bool = ctx.file_contains(
+		"res://scripts/dungeon/dungeon_builder.gd",
+		'placement.get("offset", placement.get("position", {}))'
+	)
+	ctx.timed_record(
+		"procgen.placement_offset_field",
+		get_category(),
+		has_offset and builder_reads_offset,
+		"procgen emits offset and builder accepts offset/position",
+		start,
+		"M3.procgen.offset"
 	)
 
 

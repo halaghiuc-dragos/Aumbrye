@@ -29,14 +29,58 @@ func _on_progression_changed() -> void:
 	_apply_equipment_to_player()
 
 
-func add_item(item_id: String, quantity: int = 1) -> bool:
-	var added := inventory.add_item(item_id, quantity)
+func add_item(item_id: String, quantity: int = 1, instance_data: Dictionary = {}) -> bool:
+	var added := inventory.add_item(item_id, quantity, instance_data)
 	if added and RunFlow and RunFlow.is_run_active():
 		var def := get_item_def(item_id)
 		var relic_id: String = def.get("runRelicId", "")
 		if relic_id != "" and RunBuffs:
 			RunBuffs.add_relic(relic_id)
 	return added
+
+
+func add_dungeon_key(key_id: String, lock_id: String, label: String = "Dungeon Key") -> bool:
+	return add_item(
+		"dungeon_key",
+		1,
+		{"keyId": key_id, "lockId": lock_id, "keyLabel": label}
+	)
+
+
+func has_dungeon_key(key_id: String) -> bool:
+	for slot in inventory.slots:
+		if slot.get("itemId", "") != "dungeon_key":
+			continue
+		if str(slot.get("keyId", "")) == key_id:
+			return true
+	return false
+
+
+func consume_dungeon_key(key_id: String) -> bool:
+	for i in inventory.slots.size():
+		var slot: Dictionary = inventory.slots[i]
+		if slot.get("itemId", "") != "dungeon_key":
+			continue
+		if str(slot.get("keyId", "")) != key_id:
+			continue
+		var qty: int = int(slot.get("quantity", 1)) - 1
+		if qty <= 0:
+			inventory.slots.remove_at(i)
+		else:
+			slot["quantity"] = qty
+		inventory.changed.emit()
+		return true
+	return false
+
+
+func clear_dungeon_keys() -> void:
+	var kept: Array[Dictionary] = []
+	for slot in inventory.slots:
+		if slot.get("itemId", "") == "dungeon_key":
+			continue
+		kept.append(slot)
+	inventory.slots = kept
+	inventory.changed.emit()
 
 
 func add_rolled_item(item_id: String, roll_seed: int = -1) -> bool:

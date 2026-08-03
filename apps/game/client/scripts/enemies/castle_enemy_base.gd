@@ -14,6 +14,7 @@ const DATA_PATH := ""
 const ENEMY_TURN_SPEED := 22.0
 const HP_BAR_SCRIPT := preload("res://scripts/ui/enemy_health_bar.gd")
 const GlobalDropServiceScript := preload("res://scripts/loot/global_drop_service.gd")
+const CharacterFloorSnapScript := preload("res://scripts/art/character_floor_snap.gd")
 const CharacterSkin := preload("res://scripts/art/diorama_character_skin.gd")
 const CharacterAnimator := preload("res://scripts/art/diorama_character_animator.gd")
 
@@ -61,7 +62,6 @@ func _ready() -> void:
 	if _health:
 		_health.configure(_data.get("health", 80.0))
 		_health.died.connect(_on_died)
-		_attach_health_bar()
 	if _poise:
 		_poise.configure(_data.get("poise", 40.0))
 		_poise.poise_broken.connect(_on_poise_broken)
@@ -69,6 +69,8 @@ func _ready() -> void:
 		_hurtbox.damaged.connect(_on_hurt)
 		_apply_hurtbox_data()
 	_setup_diorama_visual()
+	if _health:
+		_attach_health_bar()
 	_pick_patrol_target()
 
 
@@ -96,6 +98,7 @@ func _setup_diorama_visual() -> void:
 	_diorama_visual = CharacterSkin.build_enemy_body(self, _anim_profile, theme)
 	if _mesh:
 		_mesh.visible = false
+	CharacterFloorSnapScript.align_diorama_visual(self, _diorama_visual, _anim_profile)
 	_animator = CharacterAnimator.new()
 	_animator.bind(_diorama_visual)
 	_animator.set_profile(_anim_profile)
@@ -106,7 +109,29 @@ func get_diorama_visual() -> Node3D:
 
 
 func get_hp_bar_height() -> float:
-	return 2.2
+	return _estimate_body_top_y() + 0.22
+
+
+func _estimate_body_top_y() -> float:
+	if _diorama_visual:
+		return _node_max_y(_diorama_visual)
+	if _body_collision and _body_collision.shape is CapsuleShape3D:
+		var cap := _body_collision.shape as CapsuleShape3D
+		return _body_collision.position.y + cap.height * 0.5
+	return 1.55
+
+
+func _node_max_y(node: Node3D) -> float:
+	var max_y := 0.0
+	for child in node.get_children():
+		if child is MeshInstance3D:
+			var mesh_instance := child as MeshInstance3D
+			if mesh_instance.mesh is BoxMesh:
+				var box := mesh_instance.mesh as BoxMesh
+				max_y = maxf(max_y, mesh_instance.position.y + box.size.y * 0.5)
+		elif child is Node3D:
+			max_y = maxf(max_y, child.position.y + _node_max_y(child as Node3D))
+	return max_y
 
 
 func _attach_health_bar() -> void:
@@ -114,6 +139,14 @@ func _attach_health_bar() -> void:
 	_hp_bar.name = "HealthBar"
 	add_child(_hp_bar)
 	_hp_bar.setup(_health, get_hp_bar_height())
+	_update_telegraph_height()
+
+
+func _update_telegraph_height() -> void:
+	if _telegraph == null:
+		return
+	var height := get_hp_bar_height()
+	_telegraph.position.y = height
 
 
 func _apply_hurtbox_data() -> void:

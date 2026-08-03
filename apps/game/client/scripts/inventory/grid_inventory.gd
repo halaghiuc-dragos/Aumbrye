@@ -61,6 +61,8 @@ func get_slot_rarity(slot: Dictionary) -> String:
 
 func get_slot_display_name(slot: Dictionary) -> String:
 	var def := get_item_def(slot.get("itemId", ""))
+	if slot.get("itemId", "") == "dungeon_key" and slot.has("keyLabel"):
+		return str(slot.get("keyLabel", "Dungeon Key"))
 	var name: String = def.get("name", slot.get("itemId", "?"))
 	var rarity: String = get_slot_rarity(slot)
 	if rarity != "common" and rarity != "":

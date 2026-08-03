@@ -62,8 +62,8 @@ func _process(_delta: float) -> void:
 	var fps := Engine.get_frames_per_second()
 	lines.append("F1: overlay | F2: hitboxes | F3: dmg nums | P: camera | R: reset | Q: tap block | FPS: %d" % fps)
 	if _dodge:
-		var rolling := "ROLLING" if _dodge.get("is_dodging") else "off"
-		lines.append("roll i-frames: %s" % ("ON" if _dodge.get("iframes_active") else rolling))
+		var dashing := "DASHING" if _dodge.get("is_dodging") else "off"
+		lines.append("dash i-frames: %s" % ("ON" if _dodge.get("iframes_active") else dashing))
 	if _guard:
 		lines.append("guard: %s | parry: %s | block: %s" % [
 			"active" if _guard.get("is_guard_active") else "off",
@@ -103,7 +103,9 @@ func _process(_delta: float) -> void:
 	if _weapon and _weapon.has_method("get_debug_state"):
 		lines.append("attack: %s" % _weapon.call("get_debug_state"))
 	if get_tree().root.has_meta("run_seed"):
-		lines.append("run seed: %s" % str(get_tree().root.get_meta("run_seed")))
+		lines.append("base seed: %s" % str(get_tree().root.get_meta("run_seed")))
+	if get_tree().root.has_meta("tier_generation_seed"):
+		lines.append("tier gen seed: %s" % str(get_tree().root.get_meta("tier_generation_seed")))
 	var reactions := _player.get_node_or_null("CombatReactions") if _player else null
 	if reactions:
 		if reactions.get("is_dead"):
@@ -126,7 +128,7 @@ func _append_player_location_lines(lines: PackedStringArray) -> void:
 
 
 func _append_camera_facing_lines(lines: PackedStringArray) -> void:
-	var camera := get_viewport().get_camera_3d()
+	var camera := PixelDioramaViewport.get_gameplay_camera()
 	if camera == null:
 		return
 	var forward := -camera.global_transform.basis.z.normalized()
@@ -197,6 +199,10 @@ func _count_visible_debug_meshes() -> int:
 
 
 func reset_duel() -> void:
+	var arena := get_tree().current_scene
+	if arena and arena.has_method("reset_training_session"):
+		arena.call("reset_training_session")
+		return
 	if _player:
 		var health := _player.get_node_or_null("Health") as Health
 		var stamina := _player.get_node_or_null("Stamina") as Stamina
@@ -209,7 +215,6 @@ func reset_duel() -> void:
 			poise.reset_poise()
 		_player.global_position = CombatArenaScript.PLAYER_SPAWN if _has_combat_arena_constants() else Vector3(-0.02, 0.0, 9.5)
 		_player.velocity = Vector3.ZERO
-		var arena := get_tree().current_scene
 		if arena and arena.has_method("orient_player_to_hub_return"):
 			arena.call("orient_player_to_hub_return")
 	var dummies := get_tree().get_nodes_in_group("training_dummy")

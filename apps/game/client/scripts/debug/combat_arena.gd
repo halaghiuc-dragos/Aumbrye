@@ -21,9 +21,11 @@ const PLAYER_SPAWN_LOOK_DIR := Vector3(0.0, -0.10, -1.0)
 var _overlay: Node
 var _hub_return_area: Area3D
 var _near_hub_return := false
+var _player_death_reset_pending := false
 
 
 func _ready() -> void:
+	add_to_group("training_arena")
 	ArenaDioramaScript.apply(self)
 	if overlay_path:
 		_overlay = get_node(overlay_path)
@@ -33,7 +35,62 @@ func _ready() -> void:
 			_hub_return_area.body_entered.connect(_on_hub_return_enter)
 			_hub_return_area.body_exited.connect(_on_hub_return_exit)
 	call_deferred("_orient_player_deferred")
+	call_deferred("_wire_training_death")
 	PlayerControls.sync_player_loadout()
+
+
+func _wire_training_death() -> void:
+	var player := get_node_or_null(player_path) as CharacterBody3D
+	if player == null:
+		return
+	var reactions := player.get_node_or_null("CombatReactions")
+	if reactions == null or not reactions.has_signal("player_died"):
+		return
+	if not reactions.player_died.is_connected(_on_training_player_died):
+		reactions.player_died.connect(_on_training_player_died)
+
+
+func _on_training_player_died() -> void:
+	if _player_death_reset_pending:
+		return
+	_player_death_reset_pending = true
+	await get_tree().create_timer(0.55).timeout
+	reset_training_player()
+	_player_death_reset_pending = false
+
+
+func reset_training_session() -> void:
+	reset_training_player()
+	reset_training_dummies()
+
+
+func reset_training_player() -> void:
+	var player := get_node_or_null(player_path) as CharacterBody3D
+	if player == null:
+		return
+	var health := player.get_node_or_null("Health") as Health
+	var stamina := player.get_node_or_null("Stamina") as Stamina
+	var poise := player.get_node_or_null("Poise") as Poise
+	if health:
+		health.reset_health()
+	if stamina:
+		stamina.reset_stamina()
+	if poise:
+		poise.reset_poise()
+	player.global_position = PLAYER_SPAWN
+	player.velocity = Vector3.ZERO
+	orient_player_to_hub_return()
+	var reactions := player.get_node_or_null("CombatReactions")
+	if reactions and reactions.has_method("reset_combat_state"):
+		reactions.call("reset_combat_state")
+
+
+func reset_training_dummies() -> void:
+	for enemy in get_tree().get_nodes_in_group("training_dummy"):
+		if enemy.has_method("reset_enemy"):
+			enemy.call("reset_enemy")
+		if enemy is CharacterBody3D:
+			(enemy as CharacterBody3D).velocity = Vector3.ZERO
 
 
 func _orient_player_deferred() -> void:

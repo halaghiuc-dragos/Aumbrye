@@ -1,13 +1,14 @@
 extends RefCounted
 class_name LocalProcgen
 
-## Offline dungeon generation via procgen-cli (same C# library as server).
+## Offline dungeon generation — GDScript two-phase procgen (primary), C# CLI fallback.
 
 const DEFAULT_BIOME := "forgotten_castle"
 const CLI_RELATIVE := "tools/procgen-cli"
 const PUBLISHED_EXE := CLI_RELATIVE + "/publish/procgen-cli.exe"
 const DEBUG_EXE := CLI_RELATIVE + "/bin/Debug/net8.0/procgen-cli.exe"
 const CSPROJ := CLI_RELATIVE + "/ProcgenCli.csproj"
+const DungeonProcgenScript := preload("res://scripts/dungeon/procgen/dungeon_procgen.gd")
 
 
 static func generate(
@@ -16,11 +17,60 @@ static func generate(
 	floor_index: int = 1,
 	run_mode: String = "castle",
 	dungeon_tier: int = 1,
-	player_level: int = 1
+	player_level: int = 1,
+	debug_ascii: bool = false
 ) -> Dictionary:
 	var base_seed := _resolve_seed(run_seed)
-	var floor_seed := RunFloorConfig.mix_seed(base_seed, floor_index)
+	if run_seed != null and not DungeonSeedService.can_access_tier(dungeon_tier):
+		return {
+			"ok": false,
+			"error": "Tier %d is locked — clear the previous tier to use this seed." % dungeon_tier,
+		}
+	var tier_seed := DungeonSeedService.derive_tier_seed(base_seed, dungeon_tier)
+	var floor_seed := DungeonSeedService.mix_floor_seed(tier_seed, floor_index)
 	var is_final := RunFloorConfig.is_final_floor(floor_index, run_mode)
+
+	var gd_result := DungeonProcgenScript.generate(
+		biome_id,
+		floor_seed,
+		maxi(1, dungeon_tier),
+		maxi(1, player_level),
+		floor_index,
+		is_final,
+		debug_ascii
+	)
+	if gd_result.get("ok", false):
+		var definition: Dictionary = gd_result.get("definition", {})
+		if not definition.is_empty() and not definition.get("rooms", []).is_empty():
+			return {
+				"ok": true,
+				"definition": definition,
+				"input_seed": base_seed,
+				"tier_seed": tier_seed,
+				"generation_seed": int(gd_result.get("generation_seed", floor_seed)),
+				"floor_index": floor_index,
+				"run_id": str(gd_result.get("run_id", definition.get("runId", ""))),
+				"generator": "gdscript",
+			}
+
+	var cli_result := _generate_via_cli(
+		biome_id, floor_seed, floor_index, is_final, dungeon_tier, player_level
+	)
+	if cli_result.get("ok", false):
+		cli_result["input_seed"] = base_seed
+		cli_result["tier_seed"] = tier_seed
+		cli_result["generator"] = "cli"
+	return cli_result
+
+
+static func _generate_via_cli(
+	biome_id: String,
+	floor_seed: int,
+	floor_index: int,
+	is_final: bool,
+	dungeon_tier: int,
+	player_level: int
+) -> Dictionary:
 	var invocation := _resolve_cli_invocation()
 	if invocation.is_empty():
 		return {
@@ -80,7 +130,6 @@ static func generate(
 	return {
 		"ok": true,
 		"definition": definition,
-		"input_seed": base_seed,
 		"generation_seed": int(definition.get("seed", floor_seed)),
 		"floor_index": floor_index,
 		"run_id": str(definition.get("runId", "")),

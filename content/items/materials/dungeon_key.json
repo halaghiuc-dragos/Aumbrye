@@ -1,0 +1,11 @@
+{
+  "id": "dungeon_key",
+  "name": "Dungeon Key",
+  "itemType": "material",
+  "gridWidth": 1,
+  "gridHeight": 1,
+  "stackSize": 10,
+  "description": "Opens a locked door on this floor. Use near the door (E).",
+  "value": 0,
+  "lootValue": 0
+}

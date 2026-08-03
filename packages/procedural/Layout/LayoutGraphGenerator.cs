@@ -27,43 +27,47 @@ public static class LayoutGraphGenerator
 
         while (cells.Count < targetRooms && frontier.Count > 0)
         {
-            var pick = rng.NextInt(frontier.Count);
-            var (cx, cz) = frontier[pick];
-            var fromId = cells[(cx, cz)];
+            rng.Shuffle(frontier);
+            var expandedAny = false;
 
-            var dirs = Directions.ToList();
-            // Entrance only has a south door — first expansion must go south.
-            if (cells.Count == 1)
-                dirs = [(0, 1)];
-            else
-                rng.Shuffle(dirs);
-
-            var expanded = false;
-            foreach (var (dx, dz) in dirs)
+            for (var pick = frontier.Count - 1; pick >= 0 && cells.Count < targetRooms; pick--)
             {
-                var nx = cx + dx;
-                var nz = cz + dz;
-                if (cells.ContainsKey((nx, nz)))
-                    continue;
-                // Keep the entrance→stairs spine linear; branch east/west from row 2+.
-                if (dx != 0 && cz < 2)
-                    continue;
+                var (cx, cz) = frontier[pick];
+                var fromId = cells[(cx, cz)];
 
-                var newId = $"room_{nextIndex++}";
-                cells[(nx, nz)] = newId;
-                frontier.Add((nx, nz));
-                edges.Add(new LayoutEdge(fromId, newId));
-                expanded = true;
-                if (fromId == "room_0")
+                var dirs = Directions.ToList();
+                if (cells.Count == 1)
+                    dirs = [(0, 1)];
+                else
+                    rng.Shuffle(dirs);
+
+                var expanded = false;
+                foreach (var (dx, dz) in dirs)
                 {
-                    // Entrance has only a south doorway — never branch again from hub.
-                    frontier.RemoveAt(pick);
+                    var nx = cx + dx;
+                    var nz = cz + dz;
+                    if (cells.ContainsKey((nx, nz)))
+                        continue;
+                    if (dx != 0 && cz < 1)
+                        continue;
+
+                    var newId = $"room_{nextIndex++}";
+                    cells[(nx, nz)] = newId;
+                    frontier.Add((nx, nz));
+                    edges.Add(new LayoutEdge(fromId, newId));
+                    expanded = true;
+                    expandedAny = true;
+                    if (fromId == "room_0")
+                        frontier.RemoveAt(pick);
+                    break;
                 }
-                break;
+
+                if (!expanded)
+                    frontier.RemoveAt(pick);
             }
 
-            if (!expanded)
-                frontier.RemoveAt(pick);
+            if (!expandedAny)
+                break;
         }
 
         var nodes = cells

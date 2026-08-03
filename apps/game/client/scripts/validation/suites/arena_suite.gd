@@ -87,6 +87,16 @@ func _test_arena_reset_api() -> void:
 	)
 	start = Time.get_ticks_msec()
 	ctx.timed_record(
+		"arena.training_death_reset",
+		get_category(),
+		ctx.file_contains("res://scripts/debug/combat_arena.gd", "func reset_training_player")
+		and ctx.file_contains("res://scripts/debug/combat_arena.gd", "_on_training_player_died"),
+		"training arena restores player on death without run penalties",
+		start,
+		"M1.arena.death_reset"
+	)
+	start = Time.get_ticks_msec()
+	ctx.timed_record(
 		"arena.global_player_controls",
 		get_category(),
 		ProjectSettings.has_setting("autoload/PlayerControls")

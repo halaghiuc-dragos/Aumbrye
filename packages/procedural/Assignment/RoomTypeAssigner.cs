@@ -66,6 +66,8 @@ public static class RoomTypeAssigner
         var secretLayoutIds = PickSecretNodes(graph, distances, entranceLayoutId, bossLayoutId, rng, maxSecrets: 2, biome.RequiresSecret);
         var treasureLayoutId = PickTreasureNode(graph, distances, entranceLayoutId, bossLayoutId, secretLayoutIds, rng);
         var corridorLayoutId = PickCorridorNeighbor(graph, entranceLayoutId, rng);
+        var obstacleLayoutId = PickObstacleNode(
+            graph, distances, entranceLayoutId, bossLayoutId, secretLayoutIds, treasureLayoutId, corridorLayoutId, rng);
 
         var assigned = new List<AssignedRoom>();
         var combatIndex = 0;
@@ -79,6 +81,7 @@ public static class RoomTypeAssigner
                 secretLayoutIds,
                 treasureLayoutId,
                 corridorLayoutId,
+                obstacleLayoutId,
                 prefix,
                 combatPreferred,
                 biome,
@@ -115,6 +118,7 @@ public static class RoomTypeAssigner
         IReadOnlyList<string> secretIds,
         string treasureId,
         string corridorId,
+        string? obstacleId,
         string prefix,
         Dictionary<string, string> combatPreferred,
         BiomeDefinition biome,
@@ -150,6 +154,13 @@ public static class RoomTypeAssigner
 
         if (layoutId == corridorId)
             return ("stairs", $"{prefix}_stairs", "corridor", []);
+
+        if (obstacleId != null && layoutId == obstacleId)
+        {
+            var obstacleDoors = RequiredDoorsForNode(graph, layoutId);
+            var obstacleTemplate = PickTemplateForDoors($"{prefix}_puzzle", obstacleDoors, biome.RoomTemplateIds);
+            return ("obstacle", obstacleTemplate, "obstacle", ["traversal"]);
+        }
 
         var semantic = combatIndex < CombatSemanticIds.Length
             ? CombatSemanticIds[combatIndex]
@@ -245,7 +256,7 @@ public static class RoomTypeAssigner
         if (candidates.Count == 0)
             return [];
         candidates = candidates.OrderBy(id => id, StringComparer.Ordinal).ToList();
-        var maxPick = Math.Min(1, candidates.Count);
+        var maxPick = Math.Min(2, candidates.Count);
         var minPick = requiresAtLeastOne && maxPick > 0 ? 1 : 0;
         var count = rng.NextInt(minPick, maxPick + 1);
         var picked = new List<string>();
@@ -309,6 +320,28 @@ public static class RoomTypeAssigner
                 .Select(n => n.Id)
                 .ToList();
         }
+        candidates.Sort(StringComparer.Ordinal);
+        return candidates[rng.NextInt(candidates.Count)];
+    }
+
+    private static string? PickObstacleNode(
+        LayoutGraph graph,
+        Dictionary<string, int> distances,
+        string entranceId,
+        string bossId,
+        IReadOnlyList<string> secretIds,
+        string treasureId,
+        string corridorId,
+        SeededRandom rng)
+    {
+        var secretSet = secretIds.ToHashSet(StringComparer.Ordinal);
+        var candidates = graph.Nodes
+            .Where(n => n.Id != entranceId && n.Id != bossId && n.Id != treasureId && n.Id != corridorId)
+            .Where(n => !secretSet.Contains(n.Id) && distances[n.Id] >= 2)
+            .Select(n => n.Id)
+            .ToList();
+        if (candidates.Count == 0)
+            return null;
         candidates.Sort(StringComparer.Ordinal);
         return candidates[rng.NextInt(candidates.Count)];
     }

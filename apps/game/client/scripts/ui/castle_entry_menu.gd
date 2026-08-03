@@ -2,6 +2,8 @@ extends Control
 
 ## Hub castle portal menu — dungeon dropdown, tier runs, continue, seed (FLOW-3.1).
 
+const GameUISkinScript := preload("res://scripts/ui/game_ui_skin.gd")
+
 signal continue_requested
 signal seed_run_requested(seed: int)
 signal dungeon_run_requested(dungeon_id: String)
@@ -16,6 +18,7 @@ signal menu_closed
 @onready var _seed_input: LineEdit = $SeedPanel/Margin/VBox/SeedInput
 @onready var _seed_start_button: Button = $SeedPanel/Margin/VBox/SeedStartButton
 @onready var _seed_back_button: Button = $SeedPanel/Margin/VBox/SeedBackButton
+@onready var _seed_hint_label: Label = $SeedPanel/Margin/VBox/SeedHintLabel
 @onready var _status_label: Label = $MainPanel/Margin/VBox/StatusLabel
 @onready var _dungeon_dropdown: OptionButton = $MainPanel/Margin/VBox/DungeonDropdown
 
@@ -26,12 +29,15 @@ func _ready() -> void:
 	visible = false
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
+	GameUISkinScript.apply_modal_menu(self)
+	GameUISkinScript.apply_modal_menu(self, "SeedPanel", "Dimmer")
 	_new_button.pressed.connect(_on_new_pressed)
 	_continue_button.pressed.connect(_on_continue_pressed)
 	_seed_button.pressed.connect(_on_seed_menu_pressed)
 	_seed_start_button.pressed.connect(_on_seed_start_pressed)
 	_seed_back_button.pressed.connect(_show_main_panel)
 	_seed_input.text_submitted.connect(_on_seed_submitted)
+	_seed_input.text_changed.connect(func(_t): _refresh_seed_hint())
 	if _dungeon_dropdown:
 		_dungeon_dropdown.item_selected.connect(_on_dungeon_selected)
 	_build_dungeon_dropdown()
@@ -60,6 +66,8 @@ func _on_dungeon_selected(index: int) -> void:
 	if _dungeon_dropdown == null:
 		return
 	_selected_dungeon = str(_dungeon_dropdown.get_item_metadata(index))
+	if _seed_panel.visible:
+		_refresh_seed_hint()
 
 
 func open_menu() -> void:
@@ -121,7 +129,25 @@ func _show_seed_panel() -> void:
 	_main_panel.visible = false
 	_seed_panel.visible = true
 	_seed_input.text = ""
+	_refresh_seed_hint()
 	_seed_input.grab_focus()
+
+
+func _refresh_seed_hint() -> void:
+	if _seed_hint_label == null:
+		return
+	var tier := DungeonSeedService.tier_for_dungeon(_selected_dungeon)
+	if not DungeonSeedService.can_access_tier(tier):
+		_seed_hint_label.text = "Tier %d is locked." % tier
+		return
+	var trimmed := _seed_input.text.strip_edges()
+	if trimmed.is_valid_int() and int(trimmed) >= 1:
+		_seed_hint_label.text = DungeonSeedService.describe_tier_seed(int(trimmed), tier)
+	else:
+		_seed_hint_label.text = (
+			"Enter a base run seed. Tier %d dungeons derive their layout seed from it."
+			% tier
+		)
 
 
 func _on_new_pressed() -> void:
@@ -157,6 +183,11 @@ func _try_start_seed(text: String) -> void:
 	var run_seed_value := int(trimmed)
 	if run_seed_value < 1:
 		_seed_input.placeholder_text = "Seed must be at least 1"
+		_seed_input.grab_focus()
+		return
+	var tier := DungeonSeedService.tier_for_dungeon(_selected_dungeon)
+	if not DungeonSeedService.can_access_tier(tier):
+		_seed_hint_label.text = "Tier %d is locked — clear the previous tier first." % tier
 		_seed_input.grab_focus()
 		return
 	close_menu()

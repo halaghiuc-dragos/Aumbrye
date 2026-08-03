@@ -84,6 +84,20 @@ static func build_enemy_body(parent: Node3D, enemy_type: String = "melee", theme
 	return root
 
 
+static func feet_local_y(profile: String) -> float:
+	match profile.to_lower():
+		"hound":
+			return 0.41
+		"ranged":
+			return 0.12
+		"shield":
+			return 0.09
+		"brute":
+			return 0.09
+		_:
+			return 0.09
+
+
 static func theme_for_enemy_id(enemy_id: String) -> int:
 	var prefix := enemy_id.split("_")[0] if "_" in enemy_id else enemy_id
 	match prefix:

@@ -27,7 +27,7 @@ public sealed record BiomeLayoutRules(
 {
     public static BiomeLayoutRules ForgottenCastle { get; } = new(
         "forgotten_castle",
-        RoomCountMin: 6,
-        RoomCountMax: 10,
+        RoomCountMin: 18,
+        RoomCountMax: 22,
         GridStep: 14);
 }

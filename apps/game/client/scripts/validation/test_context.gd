@@ -136,6 +136,9 @@ func backup_save_file() -> Dictionary:
 
 
 func restore_save_file(backup: Dictionary) -> void:
+	var local_save := _local_save()
+	if local_save == null:
+		return
 	if backup.get("exists", false):
 		var text: String = str(backup.get("text", ""))
 		var parsed: Variant = JSON.parse_string(text)
@@ -144,10 +147,17 @@ func restore_save_file(backup: Dictionary) -> void:
 			if file:
 				file.store_string(text)
 		else:
-			LocalSave.delete_save()
+			local_save.call("delete_save")
 	else:
-		LocalSave.delete_save()
-	LocalSave.load_into_services()
+		local_save.call("delete_save")
+	local_save.call("load_into_services")
+
+
+func _local_save() -> Node:
+	var tree := Engine.get_main_loop() as SceneTree
+	if tree == null:
+		return null
+	return tree.root.get_node_or_null("/root/LocalSave")
 
 
 func eval_continuable(run: Dictionary) -> bool:

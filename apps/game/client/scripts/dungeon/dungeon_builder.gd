@@ -24,6 +24,9 @@ const DIORAMA_SKIN := preload("res://scripts/art/diorama_interactable_skin.gd")
 const FINAL_BOSS_SCENE := preload("res://scenes/enemies/final_boss_forgotten_castle.tscn")
 const EndlessDifficultyScript := preload("res://scripts/dungeon/endless_difficulty.gd")
 const CastleTierDifficultyScript := preload("res://scripts/dungeon/castle_tier_difficulty.gd")
+const FloorShellBuilderScript := preload("res://scripts/dungeon/floor_shell_builder.gd")
+const CharacterFloorSnapScript := preload("res://scripts/art/character_floor_snap.gd")
+const RoomContentSpawnerScript := preload("res://scripts/dungeon/room_content/room_content_spawner.gd")
 
 signal build_complete
 signal boss_defeated
@@ -76,10 +79,12 @@ func build_from_source(parent: Node3D, player: CharacterBody3D, fixture_path: St
 		return
 	_build_rooms(parent)
 	_build_shortcut_corridors(parent)
+	_build_floor_shell(parent)
 	_spawn_player()
 	_place_enemies()
 	_place_loot()
 	_place_traps()
+	_place_room_content()
 	_setup_boss()
 	if _is_final_floor:
 		_setup_exit_portal()
@@ -127,10 +132,18 @@ func _build_rooms(parent: Node3D) -> void:
 		instance.name = room_def.get("id", template_id).capitalize()
 		instance.room_id = room_def.get("id", "")
 		instance.template_id = template_id
+		instance.room_type = str(room_def.get("type", instance.room_type))
+		var blockout := instance.get_blockout()
+		if blockout:
+			blockout.skip_floor = false
 		rooms_root.add_child(instance)
 		_rooms[room_def.get("id", "")] = instance
 		if str(room_def.get("templateId", "")).ends_with("_stairs"):
 			STAIR_COLLISION.ensure_stair_collision(instance)
+
+
+func _build_floor_shell(parent: Node3D) -> void:
+	FloorShellBuilderScript.build(parent, _rooms, biome_id)
 
 
 func _build_shortcut_corridors(parent: Node3D) -> void:
@@ -176,6 +189,7 @@ func _create_shortcut_blockout(
 	blockout.set("door_west", door_west)
 	blockout.set("floor_material", floor_mat)
 	blockout.set("wall_material", wall_mat)
+	blockout.set("skip_floor", true)
 	corridor.add_child(blockout)
 	return corridor
 
@@ -188,6 +202,11 @@ func _spawn_player() -> void:
 	if entrance:
 		_player.global_position = entrance.get_player_spawn_global()
 	_player.add_to_group("player")
+
+
+func _placement_offset(placement: Dictionary) -> Vector3:
+	var pos: Dictionary = placement.get("offset", placement.get("position", {}))
+	return Vector3(float(pos.get("x", 0.0)), float(pos.get("y", 0.0)), float(pos.get("z", 0.0)))
 
 
 func _place_enemies() -> void:
@@ -205,9 +224,11 @@ func _spawn_enemy(placement: Dictionary, index: int) -> void:
 	if room == null:
 		return
 	var placement_key := _enemy_placement_id(placement, index)
-	var enemy: Node3D = scene.instantiate() as Node3D
-	var pos: Dictionary = placement.get("position", {})
-	enemy.position = Vector3(pos.get("x", 0.0), pos.get("y", 0.0), pos.get("z", 0.0))
+	var enemy: CharacterBody3D = scene.instantiate() as CharacterBody3D
+	if enemy == null:
+		return
+	enemy.position = _placement_offset(placement)
+	CharacterFloorSnapScript.snap_feet_to_floor(enemy)
 	enemy.set_meta("placement_id", placement_key)
 	if enemy.has_method("set_player"):
 		enemy.call("set_player", _player)
@@ -228,8 +249,7 @@ func _place_loot() -> void:
 			continue
 		var chest_key := _loot_placement_id(placement, i)
 		var chest: Node3D = CHEST_SCENE.instantiate() as Node3D
-		var pos: Dictionary = placement.get("position", {})
-		chest.position = Vector3(pos.get("x", 0.0), pos.get("y", 0.0), pos.get("z", 0.0))
+		chest.position = _placement_offset(placement)
 		chest.set_meta("chest_id", chest_key)
 		if chest.has_method("configure"):
 			chest.call("configure", placement)
@@ -240,20 +260,32 @@ func _place_loot() -> void:
 		_chest_by_id[chest_key] = chest
 
 
+func _trap_scene_for_id(trap_id: String) -> PackedScene:
+	match trap_id:
+		"falling_trap":
+			return FALLING_TRAP_SCENE
+		"poison_pool", "frost_trap":
+			return POISON_POOL_SCENE
+		"shadow_trap":
+			return SPIKE_TRAP_SCENE
+		_:
+			return SPIKE_TRAP_SCENE
+
+
+func _place_room_content() -> void:
+	RoomContentSpawnerScript.spawn_all(self, definition)
+	RoomContentSpawnerScript.spawn_locks(self, definition)
+
+
 func _place_traps() -> void:
 	for placement in definition.get("placements", {}).get("traps", []):
 		var room := get_room(placement.get("roomId", ""))
 		if room == null:
 			continue
 		var trap_id: String = placement.get("trapId", "")
-		var scene: PackedScene = SPIKE_TRAP_SCENE
-		if trap_id == "falling_trap":
-			scene = FALLING_TRAP_SCENE
-		elif trap_id == "poison_pool":
-			scene = POISON_POOL_SCENE
+		var scene: PackedScene = _trap_scene_for_id(trap_id)
 		var trap: Node3D = scene.instantiate() as Node3D
-		var pos: Dictionary = placement.get("position", {})
-		trap.position = Vector3(pos.get("x", 0.0), pos.get("y", 0.0), pos.get("z", 0.0))
+		trap.position = _placement_offset(placement)
 		trap.set_meta("biome_id", biome_id)
 		room.add_child(trap)
 
@@ -282,6 +314,8 @@ func _setup_boss() -> void:
 		_boss.global_position = spawn.global_position
 	else:
 		_boss.position = Vector3.ZERO
+	if _boss is CharacterBody3D:
+		CharacterFloorSnapScript.snap_feet_to_floor(_boss as CharacterBody3D)
 	if _boss.has_method("set_player"):
 		_boss.call("set_player", _player)
 	_apply_floor_scaling(_boss)
@@ -370,10 +404,28 @@ func _create_stair_lever(room: RoomTemplate) -> void:
 		props.add_child(lever)
 	else:
 		room.add_child(lever)
+	_place_stair_lever_on_wall(lever, room)
 	var can_ascend := not RunFlow.is_final_floor() or RunFlow.get_run_mode() == "endless"
 	var can_descend := RunFlow.get_current_floor() > 1 and RunFlow.get_run_mode() != "endless"
 	lever.call("configure", can_ascend, can_descend)
 	_stair_lever = lever
+
+
+func _place_stair_lever_on_wall(lever: Node3D, room: RoomTemplate) -> void:
+	var spawn := room.get_node_or_null("SpawnPoints/LeverSpawn") as Node3D
+	if spawn:
+		lever.position = spawn.position
+		lever.rotation = spawn.rotation
+		return
+	var blockout := room.get_blockout()
+	var half_w := 4.0
+	var half_d := 8.0
+	if blockout:
+		half_w = blockout.room_width * 0.5
+		half_d = blockout.room_depth * 0.5
+	# West wall, beside the ramp (not under it), facing into the room.
+	lever.position = Vector3(-half_w + 0.55, 0.0, -half_d * 0.25)
+	lever.rotation.y = PI * 0.5
 
 
 func _unlock_stair_lever() -> void:

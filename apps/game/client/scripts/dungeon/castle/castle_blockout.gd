@@ -42,6 +42,7 @@ class_name CastleBlockout
 @export var floor_material: Material
 @export var wall_material: Material
 @export var accent_material: Material
+@export var skip_floor: bool = false
 
 var _geometry_root: Node3D
 var _nav_region: NavigationRegion3D
@@ -64,7 +65,8 @@ func _rebuild() -> void:
 	if Engine.is_editor_hint():
 		_geometry_root.owner = get_tree().edited_scene_root
 
-	_build_floor()
+	if not skip_floor:
+		_build_floor()
 	_build_wall(Vector3(0.0, 0.0, -room_depth * 0.5), Vector3(room_width, wall_height, CastleRoomConstants.WALL_THICKNESS), door_north, true)
 	_build_wall(Vector3(0.0, 0.0, room_depth * 0.5), Vector3(room_width, wall_height, CastleRoomConstants.WALL_THICKNESS), door_south, true)
 	_build_wall(Vector3(room_width * 0.5, 0.0, 0.0), Vector3(CastleRoomConstants.WALL_THICKNESS, wall_height, room_depth), door_east, false)

@@ -53,7 +53,7 @@ func _build_meshes() -> void:
 
 
 func _process(_delta: float) -> void:
-	var camera := get_viewport().get_camera_3d()
+	var camera := PixelDioramaViewport.get_gameplay_camera()
 	if camera == null:
 		return
 	var to_camera := camera.global_position - global_position

@@ -2,6 +2,8 @@ extends Control
 
 ## Umbral Waves portal menu — new run or continue saved waves progress.
 
+const GameUISkinScript := preload("res://scripts/ui/game_ui_skin.gd")
+
 signal waves_run_requested
 signal continue_requested
 signal menu_closed
@@ -15,6 +17,7 @@ func _ready() -> void:
 	visible = false
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
+	GameUISkinScript.apply_modal_menu(self)
 	_new_button.pressed.connect(_on_new_pressed)
 	_continue_button.pressed.connect(_on_continue_pressed)
 
@@ -53,7 +56,7 @@ func _refresh_continue_state() -> void:
 		var wave := int(LocalSave.get_waves_active_run().get("currentWave", 0))
 		_status_label.text = "Continue waves run (wave %d)." % wave
 	else:
-		_status_label.text = "Open 5 chests, survive 50 waves."
+		_status_label.text = "Open 6 chests, survive 50 waves."
 
 
 func _on_new_pressed() -> void:

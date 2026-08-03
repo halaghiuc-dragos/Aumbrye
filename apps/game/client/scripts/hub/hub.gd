@@ -93,6 +93,7 @@ func _boot_save_and_services() -> void:
 
 func _apply_pixel_diorama_to_scene() -> void:
 	PixelDioramaSettings.apply_to_scene(self)
+	PixelDioramaViewport.attach_to_scene(self)
 
 
 func _unhandled_input(event: InputEvent) -> void:

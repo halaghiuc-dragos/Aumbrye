@@ -52,14 +52,15 @@ public class RunService : IRunService
             playerLevel = state["character"]?["level"]?.GetValue<int>() ?? 1;
         }
 
-        var actualSeed = seed ?? RandomNumberGenerator.GetInt32(1, int.MaxValue);
+        var baseSeed = seed ?? RandomNumberGenerator.GetInt32(1, int.MaxValue);
+        var generationSeed = DungeonSeedDeriver.GenerationSeed(baseSeed, tier, 1);
         var runId = Guid.NewGuid();
 
         string json;
         string? checksum;
         try
         {
-            (json, checksum) = _generator.Generate(biomeId, actualSeed, tier, playerLevel, runId);
+            (json, checksum) = _generator.Generate(biomeId, generationSeed, tier, playerLevel, runId);
         }
         catch (Exception ex)
         {
@@ -71,7 +72,7 @@ public class RunService : IRunService
             Id = runId,
             AccountId = accountId,
             BiomeId = biomeId,
-            Seed = actualSeed,
+            Seed = baseSeed,
             Tier = tier,
             PlayerLevelSnapshot = playerLevel,
             Status = RunStatus.Active,
@@ -82,7 +83,7 @@ public class RunService : IRunService
         await _db.SaveChangesAsync(ct);
         await _cache.SetAsync(runId, json, CacheTtl, ct);
 
-        return new CreateRunResult(true, runId, actualSeed, biomeId, json);
+        return new CreateRunResult(true, runId, baseSeed, biomeId, json);
     }
 
     public async Task<string?> GetDungeonDefinitionAsync(Guid accountId, Guid runId, CancellationToken ct = default)
@@ -96,9 +97,10 @@ public class RunService : IRunService
         if (cached != null)
             return cached;
 
+        var generationSeed = DungeonSeedDeriver.GenerationSeed(run.Seed, run.Tier, 1);
         var (json, _) = _generator.Generate(
             run.BiomeId,
-            run.Seed,
+            generationSeed,
             run.Tier,
             run.PlayerLevelSnapshot,
             run.Id);

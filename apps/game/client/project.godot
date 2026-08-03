@@ -39,16 +39,30 @@ WavesRunService="*res://scripts/dungeon/waves_run_service.gd"
 DungeonTierService="*res://scripts/dungeon/dungeon_tier_service.gd"
 VfxService="*res://scripts/vfx/vfx_service.gd"
 PlayerControls="*res://scripts/app/player_controls.gd"
+WorldState="*res://scripts/app/world_state.gd"
+PixelDioramaViewport="*res://scripts/art/pixel_diorama_viewport.gd"
 
 [display]
 
 window/size/viewport_width=1920
 window/size/viewport_height=1080
 window/stretch/mode="canvas_items"
+window/stretch/scale_mode="integer"
 
 [editor_plugins]
 
 enabled=PackedStringArray("res://addons/godot_mcp/plugin.cfg")
+
+[importer_defaults]
+
+texture={
+"compress/high_quality": false,
+"compress/lossy_quality": 0.7,
+"compress/mode": 0,
+"mipmaps/generate": false,
+"process/fix_alpha_border": true,
+"process/hdr_as_srgb": false
+}
 
 [input]
 

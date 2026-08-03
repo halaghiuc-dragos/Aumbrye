@@ -2,6 +2,8 @@ extends Control
 
 ## Merchant buy/sell UI (HUB-4.3).
 
+const GameUISkinScript := preload("res://scripts/ui/game_ui_skin.gd")
+
 signal closed
 
 @onready var _gold_label: Label = $Panel/Margin/VBox/GoldLabel
@@ -20,6 +22,7 @@ func _ready() -> void:
 	visible = false
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
+	GameUISkinScript.apply_modal_menu(self, "Panel", "Backdrop")
 	_buy_button.pressed.connect(_on_buy_pressed)
 	_sell_button.pressed.connect(_on_sell_pressed)
 	_close_button.pressed.connect(close)

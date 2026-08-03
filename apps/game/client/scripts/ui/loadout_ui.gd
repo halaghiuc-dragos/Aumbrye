@@ -2,6 +2,8 @@ extends Control
 
 ## Hub weapon loadout — swap between unlocked archetypes (WPN-5.5).
 
+const GameUISkinScript := preload("res://scripts/ui/game_ui_skin.gd")
+
 signal closed
 
 const WEAPON_ITEMS: Array[String] = [
@@ -21,6 +23,7 @@ const WEAPON_ITEMS: Array[String] = [
 func _ready() -> void:
 	visible = false
 	process_mode = Node.PROCESS_MODE_ALWAYS
+	GameUISkinScript.apply_modal_menu(self, "Panel", "Dimmer")
 	_equip_btn.pressed.connect(_on_equip_pressed)
 	_close_btn.pressed.connect(close)
 	_list.item_selected.connect(_on_item_selected)

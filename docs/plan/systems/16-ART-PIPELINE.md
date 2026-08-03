@@ -32,3 +32,16 @@ Handcrafted pixel diorama: crisp pixels, low poly, chunky silhouettes, expressiv
 ## Policy
 
 Kenney/blockout until combat+loop proven. Replace per theme. Prefer licensed/open packs matching style over random scrapes.
+
+## Runtime pixel pipeline
+
+Low-res 3D render + nearest upscale + surface shaders. **Do not reparent** scene nodes into SubViewport.
+
+| Component | Path |
+|-----------|------|
+| Autoload | `apps/game/client/scripts/art/pixel_diorama_viewport.gd` |
+| Settings | `apps/game/client/scripts/art/pixel_diorama_settings.gd` |
+| Surface shader | `apps/game/client/shaders/pixel_diorama_surface.gdshader` |
+| Style helpers | `apps/game/client/scripts/art/pixel_diorama_style.gd` |
+
+Full architecture: [PIXEL_DIORAMA_PIPELINE.md](../../design/PIXEL_DIORAMA_PIPELINE.md).

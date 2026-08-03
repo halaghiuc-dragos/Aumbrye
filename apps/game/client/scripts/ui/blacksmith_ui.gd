@@ -3,6 +3,7 @@ extends Control
 ## Blacksmith upgrade/repair UI (HUB-4.2).
 
 const RarityRegistryScript := preload("res://scripts/loot/rarity_registry.gd")
+const GameUISkinScript := preload("res://scripts/ui/game_ui_skin.gd")
 
 signal closed
 
@@ -20,6 +21,7 @@ func _ready() -> void:
 	visible = false
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
+	GameUISkinScript.apply_modal_menu(self, "Panel", "Backdrop")
 	_upgrade_button.pressed.connect(_on_upgrade_pressed)
 	_repair_button.pressed.connect(_on_repair_pressed)
 	_close_button.pressed.connect(close)

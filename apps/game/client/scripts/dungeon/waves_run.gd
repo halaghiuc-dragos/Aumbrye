@@ -1,6 +1,6 @@
 extends Node3D
 
-## Umbral Waves arena — lobby chests, wave milestones, isolated inventory.
+## Aumbrye Outskirts (Umbral Waves) — open meadow, lobby chests, wave combat.
 
 const ENEMY_SCENES := {
 	"castle_grunt": preload("res://scenes/enemies/castle_grunt.tscn"),
@@ -20,17 +20,18 @@ var _active_enemies: Array[Node] = []
 var _wave_ui: Control
 var _lobby_active := true
 var _prep_countdown := 0.0
-var _settings_ui: Control
+const WavesOutdoorsDioramaScript := preload("res://scripts/dungeon/waves_outdoors_diorama.gd")
+const CharacterFloorSnapScript := preload("res://scripts/art/character_floor_snap.gd")
+
+var _bird_time := 0.0
 
 
 func _ready() -> void:
 	add_to_group("waves_run")
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	_player = get_node_or_null(player_path) as CharacterBody3D
-	_apply_biome_presentation()
 	_build_arena()
 	_build_ui()
-	_attach_settings_ui()
 	_build_combat_hud()
 	if WavesRunService.lobby_ready and WavesRunService.current_wave > 0:
 		_start_combat_from_continue()
@@ -44,28 +45,10 @@ func _ready() -> void:
 	call_deferred("_apply_pixel_diorama_scene")
 
 
-func _apply_biome_presentation() -> void:
-	BiomeRegistry.apply_run_presentation(self, BiomeRegistry.BIOME_UMBRAL, RunModeConfig.MODE_WAVES)
-
-
 func _build_arena() -> void:
-	var floor_body := StaticBody3D.new()
-	floor_body.name = "Floor"
-	var floor_mesh := MeshInstance3D.new()
-	var floor_box := BoxMesh.new()
-	floor_box.size = Vector3(40, 0.5, 40)
-	floor_mesh.mesh = floor_box
-	var waves_biome := BiomeRegistry.BIOME_UMBRAL
-	floor_mesh.material_override = BiomeRegistry.get_floor_material(waves_biome)
-	floor_body.add_child(floor_mesh)
-	var floor_shape := CollisionShape3D.new()
-	var floor_col := BoxShape3D.new()
-	floor_col.size = Vector3(40, 0.5, 40)
-	floor_shape.shape = floor_col
-	floor_body.add_child(floor_shape)
-	add_child(floor_body)
+	WavesOutdoorsDioramaScript.apply(self)
+	AudioDirector.set_biome(BiomeRegistry.BIOME_UMBRAL)
 	_build_walls(true)
-	DioramaRoomDressing.apply_to_waves_arena(self, waves_biome)
 
 
 func _build_walls(enabled: bool) -> void:
@@ -75,28 +58,26 @@ func _build_walls(enabled: bool) -> void:
 	_walls.clear()
 	if not enabled:
 		return
+	var half := WavesOutdoorsDioramaScript.ARENA_HALF
+	var span := half * 2.0
+	var wall_h := 5.0
 	var specs := [
-		{"pos": Vector3(0, 2.5, -20), "size": Vector3(40, 5, 1)},
-		{"pos": Vector3(0, 2.5, 20), "size": Vector3(40, 5, 1)},
-		{"pos": Vector3(-20, 2.5, 0), "size": Vector3(1, 5, 40)},
-		{"pos": Vector3(20, 2.5, 0), "size": Vector3(1, 5, 40)},
+		{"pos": Vector3(0.0, wall_h * 0.5, -half), "size": Vector3(span, wall_h, 1.0)},
+		{"pos": Vector3(0.0, wall_h * 0.5, half), "size": Vector3(span, wall_h, 1.0)},
+		{"pos": Vector3(-half, wall_h * 0.5, 0.0), "size": Vector3(1.0, wall_h, span)},
+		{"pos": Vector3(half, wall_h * 0.5, 0.0), "size": Vector3(1.0, wall_h, span)},
 	]
-	var mat := BiomeRegistry.get_wall_material(BiomeRegistry.BIOME_UMBRAL)
 	for spec in specs:
 		var wall := StaticBody3D.new()
 		wall.name = "WaveWall"
-		var mesh := MeshInstance3D.new()
-		var box := BoxMesh.new()
-		box.size = spec["size"]
-		mesh.mesh = box
-		mesh.material_override = mat
-		wall.add_child(mesh)
 		var shape := CollisionShape3D.new()
 		var col := BoxShape3D.new()
 		col.size = spec["size"]
 		shape.shape = col
 		wall.add_child(shape)
 		wall.position = spec["pos"]
+		wall.collision_layer = 1
+		wall.collision_mask = 0
 		add_child(wall)
 		_walls.append(wall)
 
@@ -109,43 +90,6 @@ func _build_ui() -> void:
 	if script:
 		_wave_ui.set_script(script)
 	add_child(_wave_ui)
-	var inv_ui := Control.new()
-	inv_ui.name = "WavesInventoryUI"
-	inv_ui.set_anchors_preset(Control.PRESET_FULL_RECT)
-	var inv_script := load("res://scripts/ui/waves_inventory_ui.gd")
-	if inv_script:
-		inv_ui.set_script(inv_script)
-	add_child(inv_ui)
-
-
-func _attach_settings_ui() -> void:
-	var settings_script := load("res://scripts/ui/settings_ui.gd")
-	if settings_script == null:
-		return
-	_settings_ui = Control.new()
-	_settings_ui.name = "SettingsUI"
-	_settings_ui.set_script(settings_script)
-	_settings_ui.set_anchors_preset(Control.PRESET_FULL_RECT)
-	add_child(_settings_ui)
-
-
-func _unhandled_input(event: InputEvent) -> void:
-	if not event.is_action_pressed("pause"):
-		return
-	if _any_blocking_ui_open():
-		return
-	if _settings_ui and _settings_ui.has_method("open_settings"):
-		_settings_ui.call("open_settings")
-		get_viewport().set_input_as_handled()
-
-
-func _any_blocking_ui_open() -> bool:
-	var inv := get_node_or_null("WavesInventoryUI")
-	if inv and inv.has_method("is_open") and inv.call("is_open"):
-		return true
-	if _settings_ui and _settings_ui.has_method("is_open") and _settings_ui.call("is_open"):
-		return true
-	return false
 
 
 func _show_lobby() -> void:
@@ -169,7 +113,7 @@ func _spawn_chests() -> void:
 		chest.name = "WavesChest_%d" % i
 		chest.set_script(chest_script)
 		var angle := float(i) / float(WavesRunService.get_chest_count()) * TAU
-		chest.position = Vector3(cos(angle) * 8.0, 0.0, sin(angle) * 8.0)
+		chest.position = Vector3(cos(angle) * 14.0, 0.0, sin(angle) * 14.0)
 		add_child(chest)
 		chest.call("configure", i)
 		if WavesRunService.chests_opened.get(str(i), false):
@@ -237,10 +181,13 @@ func _spawn_enemy(enemy_id: String) -> void:
 	var scene: PackedScene = ENEMY_SCENES.get(enemy_id)
 	if scene == null:
 		return
-	var enemy: Node3D = scene.instantiate() as Node3D
+	var enemy: CharacterBody3D = scene.instantiate() as CharacterBody3D
+	if enemy == null:
+		return
 	var rng := RandomNumberGenerator.new()
 	rng.seed = WavesRunService.to_save_dict().get("seed", 1) + WavesRunService.current_wave * 17 + _active_enemies.size()
-	enemy.position = Vector3(rng.randf_range(-12, 12), 0.0, rng.randf_range(-12, 12))
+	enemy.position = Vector3(rng.randf_range(-28, 28), 0.0, rng.randf_range(-28, 28))
+	CharacterFloorSnapScript.snap_feet_to_floor(enemy)
 	if enemy.has_method("set_player"):
 		enemy.call("set_player", _player)
 	add_child(enemy)
@@ -279,6 +226,8 @@ func _on_wave_cleared() -> void:
 
 
 func _process(delta: float) -> void:
+	_bird_time += delta
+	_animate_birds()
 	if _prep_countdown > 0.0:
 		_prep_countdown -= delta
 		if _prep_countdown <= 0.0:
@@ -410,5 +359,34 @@ func _on_player_died() -> void:
 	RunFlow.on_waves_failed()
 
 
+func _animate_birds() -> void:
+	for bird in get_tree().get_nodes_in_group("waves_bird"):
+		if not bird is Node3D:
+			continue
+		var node := bird as Node3D
+		var radius: float = float(node.get_meta("orbit_radius", 6.0))
+		var speed: float = float(node.get_meta("orbit_speed", 0.5))
+		var phase: float = float(node.get_meta("orbit_phase", 0.0))
+		var wing_phase: float = float(node.get_meta("wing_phase", 0.0))
+		var home_x: float = float(node.get_meta("home_x", 0.0))
+		var home_y: float = float(node.get_meta("home_y", 10.0))
+		var home_z: float = float(node.get_meta("home_z", 0.0))
+		var angle := _bird_time * speed + phase
+		node.position = Vector3(
+			home_x + cos(angle) * radius,
+			home_y + sin(_bird_time * 1.6 + phase) * 0.35,
+			home_z + sin(angle) * radius
+		)
+		node.rotation.y = angle + PI * 0.5
+		var wing_l := node.get_node_or_null("WingL") as Node3D
+		var wing_r := node.get_node_or_null("WingR") as Node3D
+		var flap := sin(_bird_time * 8.0 + wing_phase) * 0.35
+		if wing_l:
+			wing_l.rotation.z = flap
+		if wing_r:
+			wing_r.rotation.z = -flap
+
+
 func _apply_pixel_diorama_scene() -> void:
 	PixelDioramaSettings.apply_to_scene(self)
+	PixelDioramaViewport.attach_to_scene(self)

@@ -23,6 +23,7 @@ func run() -> void:
 	await _test_procgen_floor_variation()
 	await _test_stair_collision()
 	_test_stair_lever_script()
+	_test_light_pass_ceiling_all_modes()
 	_test_final_boss_phases()
 	await _test_steam_stub()
 	_test_save_migration_floor()
@@ -124,12 +125,12 @@ func _test_waves_mode() -> void:
 		"UMBRAL-7.2"
 	)
 	start = Time.get_ticks_msec()
-	ok = WavesRunService.MILESTONES.size() == 4 and WavesRunService.get_chest_count() == 5
+	ok = WavesRunService.MILESTONES.size() == 4 and WavesRunService.get_chest_count() == 6
 	ctx.timed_record(
 		"m7.waves.milestones",
 		get_category(),
 		ok,
-		"waves milestones and 5 chests configured",
+		"waves milestones and 6 chests configured",
 		start,
 		"UMBRAL-7.2"
 	)
@@ -223,6 +224,17 @@ func _test_floor_seed_derivation() -> void:
 		start,
 		"FLOOR-7.1"
 	)
+	start = Time.get_ticks_msec()
+	var tier1 := DungeonSeedService.derive_tier_seed(TC.SEED_A, 1)
+	var tier2 := DungeonSeedService.derive_tier_seed(TC.SEED_A, 2)
+	ctx.timed_record(
+		"m7.tier.seed_derivation",
+		get_category(),
+		tier1 == TC.SEED_A and tier2 != tier1 and tier2 >= 1,
+		"tier 1 keeps base seed; tier 2 derives a distinct seed",
+		start,
+		"FLOOR-7.1"
+	)
 
 
 func _test_max_secrets_per_floor() -> void:
@@ -292,6 +304,27 @@ func _test_stair_collision() -> void:
 		"FLOOR-7.3"
 	)
 	room.queue_free()
+
+
+func _test_light_pass_ceiling_all_modes() -> void:
+	var start := Time.get_ticks_msec()
+	var shell_path := "res://scripts/dungeon/floor_shell_builder.gd"
+	var registry_path := "res://scripts/dungeon/biome_registry.gd"
+	var ok: bool = (
+		ctx.file_contains(shell_path, "_add_slab(shell, \"CeilingSlab\"")
+		and ctx.file_contains(registry_path, "uses_indoor_lighting")
+		and ctx.file_contains(registry_path, "sun.visible = false")
+		and ctx.file_contains("res://scripts/dungeon/dungeon_builder.gd", "_build_floor_shell")
+		and ctx.file_contains("res://scripts/dungeon/waves_run.gd", "WavesOutdoorsDiorama")
+	)
+	ctx.timed_record(
+		"m7.floor.indoor_ceiling_lighting",
+		get_category(),
+		ok,
+		"opaque ceilings + per-room lights for dungeon/endless; waves uses open outdoors meadow",
+		start,
+		"FLOOR-7.1"
+	)
 
 
 func _test_stair_lever_script() -> void:
@@ -656,7 +689,7 @@ func _test_waves_extended() -> void:
 		"m7.waves.lobby_ready_gate",
 		get_category(),
 		ok,
-		"waves ready blocked until all 5 chests opened",
+		"waves ready blocked until all 6 chests opened",
 		start,
 		"WAVES-7.x"
 	)
@@ -880,8 +913,9 @@ func _test_endless_retreat_api() -> void:
 func _test_waves_equip_ui() -> void:
 	var start := Time.get_ticks_msec()
 	var ok: bool = (
-		FileAccess.file_exists("res://scripts/ui/waves_inventory_ui.gd")
-		and ctx.file_contains("res://scripts/dungeon/waves_run.gd", "waves_inventory_ui.gd")
+		FileAccess.file_exists("res://scripts/ui/inventory_ui.gd")
+		and ctx.file_contains("res://scripts/ui/inventory_ui.gd", "WavesRunService.waves_inventory")
+		and ctx.file_contains("res://scripts/ui/inventory_ui.gd", "_waves_mode")
 		and WavesRunService.has_method("apply_equipment_to_player")
 	)
 	ctx.timed_record(

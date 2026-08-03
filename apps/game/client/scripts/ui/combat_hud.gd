@@ -260,7 +260,7 @@ func _update_guard_indicators() -> void:
 func _get_camera() -> Camera3D:
 	if _camera and is_instance_valid(_camera):
 		return _camera
-	_camera = get_viewport().get_camera_3d()
+	_camera = PixelDioramaViewport.get_gameplay_camera()
 	return _camera
 
 

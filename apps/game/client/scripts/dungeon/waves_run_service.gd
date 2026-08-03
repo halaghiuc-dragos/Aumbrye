@@ -7,13 +7,14 @@ signal inventory_changed
 
 const MILESTONES: Array[int] = [5, 10, 20, 50]
 const RarityRegistryScript := preload("res://scripts/loot/rarity_registry.gd")
-const CHEST_TYPES: Array[String] = ["potions", "scrolls", "armor", "rings", "weapons"]
+const CHEST_TYPES: Array[String] = ["potions", "scrolls", "armor", "rings", "weapons", "supplies"]
 const CHEST_TYPE_LABELS: Dictionary = {
 	"potions": "Potions",
 	"scrolls": "Buff Scrolls",
 	"armor": "Armor",
 	"rings": "Rings",
 	"weapons": "Weapons",
+	"supplies": "Supply Cache",
 }
 const CHEST_RARITY_WEIGHTS: Dictionary = {
 	"potions": {"common": 45, "magic": 35, "rare": 15, "epic": 5},
@@ -21,6 +22,7 @@ const CHEST_RARITY_WEIGHTS: Dictionary = {
 	"armor": {"common": 25, "magic": 30, "rare": 25, "epic": 15, "legendary": 5},
 	"rings": {"magic": 30, "rare": 35, "epic": 25, "legendary": 8, "aumbral": 2},
 	"weapons": {"rare": 30, "epic": 35, "legendary": 25, "aumbral": 10},
+	"supplies": {"common": 35, "magic": 35, "rare": 20, "epic": 8, "legendary": 2},
 }
 const CHEST_POOLS: Dictionary = {
 	"potions": ["health_potion", "mana_potion", "stamina_potion"],
@@ -28,6 +30,10 @@ const CHEST_POOLS: Dictionary = {
 	"armor": ["iron_boots", "iron_helm", "steel_plate", "steel_helm", "castle_plate", "castle_helm"],
 	"rings": ["gold_ring", "silver_ring", "castle_ring", "ruby_amulet", "mythic_ring"],
 	"weapons": ["iron_sword", "steel_sword", "knight_blade", "flame_sword", "war_hammer", "mythic_blade"],
+	"supplies": [
+		"health_potion", "mana_potion", "stamina_potion", "elixir_might", "gold_ring",
+		"iron_boots", "iron_sword", "steel_sword", "castle_ring", "ruby_amulet",
+	],
 }
 
 var current_wave: int = 0
@@ -111,6 +117,8 @@ func open_chest(index: int) -> Dictionary:
 	if index < 0 or index >= CHEST_TYPES.size():
 		return {}
 	var chest_type: String = CHEST_TYPES[index]
+	if chest_type == "supplies":
+		return _open_supplies_chest(index)
 	var rarity := _roll_chest_rarity(chest_type, index)
 	var item_id := _roll_chest_item(chest_type, index)
 	if item_id == "":
@@ -121,6 +129,29 @@ func open_chest(index: int) -> Dictionary:
 	chests_opened[key] = true
 	waves_changed.emit()
 	return {"itemId": item_id, "rarity": rarity, "chestType": chest_type}
+
+
+func _open_supplies_chest(index: int) -> Dictionary:
+	var key := str(index)
+	if chests_opened.get(key, false):
+		return {}
+	var pool: Array = CHEST_POOLS.get("supplies", [])
+	if pool.is_empty():
+		return {}
+	var rng := RandomNumberGenerator.new()
+	rng.seed = _run_seed + index * 1597
+	var item_count := rng.randi_range(2, 4)
+	var granted: Array[Dictionary] = []
+	for i in item_count:
+		var item_id := str(pool[rng.randi_range(0, pool.size() - 1)])
+		var rarity := _roll_chest_rarity("supplies", index + i * 17)
+		var roll_seed := _run_seed + index * 997 + rarity.hash() + i * 131
+		if not waves_inventory.add_rolled_item_with_rarity(item_id, rarity, roll_seed):
+			waves_inventory.add_item(item_id, 1, {"rarity": rarity})
+		granted.append({"itemId": item_id, "rarity": rarity})
+	chests_opened[key] = true
+	waves_changed.emit()
+	return {"items": granted, "chestType": "supplies"}
 
 
 func _roll_chest_rarity(chest_type: String, index: int) -> String:

@@ -42,5 +42,11 @@
 
 ## Primary paths
 
-- `packages/procedural/`
-- `content/biomes/`
+| Layer | Path |
+|-------|------|
+| **Client (primary)** | `apps/game/client/scripts/dungeon/procgen/` — room graph, geometry, content, placements |
+| Client entry | `apps/game/client/scripts/dungeon/local_procgen.gd` → `dungeon_procgen.gd` |
+| Server / CLI (fallback) | `packages/procedural/` |
+| Biome rules | `content/biomes/` |
+
+See [PROCGEN_ROOM_GRAPH.md](../../design/PROCGEN_ROOM_GRAPH.md) for module map and validation suites.

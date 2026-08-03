@@ -90,6 +90,7 @@
     "swift_step"
   ],
   "materials": [
+    "dungeon_key",
     "iron_scrap",
     "knight_relic",
     "frost_crystal",

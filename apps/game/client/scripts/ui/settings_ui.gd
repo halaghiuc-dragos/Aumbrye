@@ -8,7 +8,11 @@ var _backup_list: ItemList
 var _status_label: Label
 var _hint_label: Label
 
+const GameUISkinScript := preload("res://scripts/ui/game_ui_skin.gd")
+
+var _backdrop: ColorRect
 var _open := false
+var _scroll_vbox: VBoxContainer
 
 
 func _ready() -> void:
@@ -31,14 +35,13 @@ func _build_ui_if_needed() -> void:
 		return
 	for child in get_children():
 		child.queue_free()
-	var panel := PanelContainer.new()
+	_backdrop = GameUISkinScript.make_backdrop(self)
+	var panel := GameUISkinScript.make_center_panel(
+		self,
+		GameUISkinScript.SETTINGS_HALF_W,
+		GameUISkinScript.SETTINGS_HALF_H
+	)
 	panel.name = "Panel"
-	panel.set_anchors_preset(Control.PRESET_CENTER)
-	panel.offset_left = -320
-	panel.offset_top = -280
-	panel.offset_right = 320
-	panel.offset_bottom = 280
-	add_child(panel)
 	var margin := MarginContainer.new()
 	margin.name = "Margin"
 	margin.add_theme_constant_override("margin_left", 16)
@@ -58,9 +61,11 @@ func _build_ui_if_needed() -> void:
 	scroll_vbox.name = "ScrollVBox"
 	scroll_vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	scroll.add_child(scroll_vbox)
+	_scroll_vbox = scroll_vbox
 	var title := Label.new()
 	title.text = "Settings"
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	GameUISkinScript.style_menu_title(title)
 	scroll_vbox.add_child(title)
 	_backup_list = ItemList.new()
 	_backup_list.name = "BackupList"
@@ -72,6 +77,7 @@ func _build_ui_if_needed() -> void:
 	_hint_label = Label.new()
 	_hint_label.name = "HintLabel"
 	_hint_label.text = "Enter: restore | Esc: close"
+	GameUISkinScript.style_hint_label(_hint_label)
 	scroll_vbox.add_child(_hint_label)
 	_build_accessibility_section(scroll_vbox)
 	_build_pixel_diorama_section(scroll_vbox)
@@ -208,6 +214,28 @@ func _build_pixel_diorama_section(parent: VBoxContainer) -> void:
 	)
 	parent.add_child(nearest)
 
+	var low_res := CheckBox.new()
+	low_res.text = "Low-res viewport upscale (480x270)"
+	low_res.button_pressed = PixelDioramaSettings.low_res_viewport_enabled
+	low_res.toggled.connect(func(on: bool) -> void:
+		PixelDioramaSettings.low_res_viewport_enabled = on
+		PixelDioramaSettings.save_and_apply()
+		if on and get_tree().current_scene:
+			PixelDioramaViewport.attach_to_scene(get_tree().current_scene)
+		elif not on:
+			PixelDioramaViewport.detach()
+	)
+	parent.add_child(low_res)
+
+	var cam_snap := CheckBox.new()
+	cam_snap.text = "Camera pixel snap"
+	cam_snap.button_pressed = PixelDioramaSettings.camera_snap_enabled
+	cam_snap.toggled.connect(func(on: bool) -> void:
+		PixelDioramaSettings.camera_snap_enabled = on
+		PixelDioramaSettings.save_and_apply()
+	)
+	parent.add_child(cam_snap)
+
 	var aa_off := CheckBox.new()
 	aa_off.text = "Disable MSAA / screen AA"
 	aa_off.button_pressed = PixelDioramaSettings.anti_aliasing_off
@@ -223,21 +251,34 @@ func _build_pixel_diorama_section(parent: VBoxContainer) -> void:
 	parent.add_child(note)
 
 
-func _build_run_mode_section(parent: VBoxContainer) -> void:
+func _refresh_run_mode_section() -> void:
+	if _scroll_vbox == null:
+		return
+	var existing := _scroll_vbox.get_node_or_null("WavesRunSection")
+	if existing:
+		existing.queue_free()
 	if RunFlow.run_mode != RunModeConfig.MODE_WAVES or not RunFlow.is_run_active():
 		return
+	var section := VBoxContainer.new()
+	section.name = "WavesRunSection"
+	_scroll_vbox.add_child(section)
 	var sep := HSeparator.new()
-	parent.add_child(sep)
+	section.add_child(sep)
 	var title := Label.new()
 	title.text = "Waves Run"
-	parent.add_child(title)
+	GameUISkinScript.style_section_title(title)
+	section.add_child(title)
 	var leave := Button.new()
 	leave.text = "Leave Waves (hub, no rewards kept)"
 	leave.pressed.connect(func() -> void:
 		close_settings()
 		RunFlow.quit_waves_run()
 	)
-	parent.add_child(leave)
+	section.add_child(leave)
+
+
+func _build_run_mode_section(_parent: VBoxContainer) -> void:
+	pass
 
 
 func _labeled_slider(
@@ -271,6 +312,7 @@ func is_open() -> bool:
 
 
 func open_settings() -> void:
+	_refresh_run_mode_section()
 	_open = true
 	visible = true
 	_refresh_backups()

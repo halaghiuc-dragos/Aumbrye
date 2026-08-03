@@ -73,9 +73,13 @@ func start_new_run(dungeon_id: String, run_seed: Variant = null) -> void:
 	if not DungeonTierService.is_dungeon_unlocked(resolved_id):
 		last_hub_message = "That dungeon is not unlocked yet."
 		return
+	var tier := DungeonCatalog.get_tier_for_dungeon(resolved_id)
+	if run_seed != null and not DungeonSeedService.can_access_tier(tier):
+		last_hub_message = "Tier %d is locked — you cannot use a seed for that tier yet." % tier
+		return
 	current_dungeon_id = resolved_id
 	current_biome_id = DungeonCatalog.get_biome_id(resolved_id)
-	current_dungeon_tier = DungeonCatalog.get_tier_for_dungeon(resolved_id)
+	current_dungeon_tier = tier
 	await _start_mode_run(RM.MODE_CASTLE, current_biome_id, run_seed, 1)
 
 
@@ -145,9 +149,9 @@ func _start_mode_run(
 	current_dungeon_definition = gen.get("definition", {})
 	current_run_id = str(gen.get("run_id", ""))
 	if run_seed != null:
-		current_seed = int(run_seed)
+		current_seed = maxi(1, int(run_seed))
 	else:
-		current_seed = int(gen.get("generation_seed", gen.get("input_seed", 0)))
+		current_seed = maxi(1, int(gen.get("input_seed", gen.get("generation_seed", 0))))
 	_set_current_floor_cache(current_dungeon_definition)
 
 	if current_dungeon_definition.is_empty():
@@ -250,6 +254,10 @@ func _enter_run() -> void:
 	var definition_copy := current_dungeon_definition.duplicate(true)
 	root.set_meta("dungeon_definition", definition_copy)
 	root.set_meta("run_seed", current_seed)
+	root.set_meta(
+		"tier_generation_seed",
+		DungeonSeedService.generation_seed(current_seed, current_dungeon_tier, current_floor)
+	)
 	root.set_meta("run_id", current_run_id)
 	if _is_continue and not _pending_snapshot.is_empty():
 		root.set_meta("run_snapshot", _pending_snapshot.duplicate(true))
@@ -336,6 +344,8 @@ func complete_run_via_portal() -> void:
 
 
 func on_player_died() -> void:
+	if get_tree().get_first_node_in_group("training_arena"):
+		return
 	var elapsed := 0.0
 	if _run_start_time > 0.0:
 		elapsed = (Time.get_ticks_msec() / 1000.0) - _run_start_time
@@ -595,10 +605,14 @@ func _cloud_finalize_run(
 			run_id, outcome, elapsed, boss_defeated, loot_instance_ids
 		)
 		if not result.get("ok", false):
-			push_warning("RunFlow: complete_run failed — %s" % result.get("error", "unknown"))
+			var err := str(result.get("error", "unknown"))
+			if err != "auth failed":
+				push_warning("RunFlow: complete_run failed — %s" % err)
 	var push := await LocalSave.push_to_cloud()
 	if not push.get("ok", false) and not push.get("conflict", false):
-		push_warning("RunFlow: cloud push failed — %s" % push.get("error", "unknown"))
+		var push_err := str(push.get("error", "unknown"))
+		if push_err != "auth failed":
+			push_warning("RunFlow: cloud push failed — %s" % push_err)
 
 
 func _handle_escape_meta(elapsed: float, boss_defeated: bool) -> void:
@@ -634,6 +648,8 @@ func _clear_run_meta() -> void:
 		root.remove_meta("dungeon_definition")
 	if root.has_meta("run_seed"):
 		root.remove_meta("run_seed")
+	if root.has_meta("tier_generation_seed"):
+		root.remove_meta("tier_generation_seed")
 	if root.has_meta("run_id"):
 		root.remove_meta("run_id")
 	if root.has_meta("run_snapshot"):

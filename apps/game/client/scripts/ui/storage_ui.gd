@@ -2,6 +2,8 @@ extends Control
 
 ## Storage grid transfer UI (HUB-4.4).
 
+const GameUISkinScript := preload("res://scripts/ui/game_ui_skin.gd")
+
 signal closed
 
 @onready var _inv_list: ItemList = $Panel/Margin/VBox/Columns/InventoryColumn/InvList
@@ -19,6 +21,7 @@ func _ready() -> void:
 	visible = false
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
+	GameUISkinScript.apply_modal_menu(self, "Panel", "Backdrop")
 	_to_storage_button.pressed.connect(_on_to_storage)
 	_to_inv_button.pressed.connect(_on_to_inv)
 	_close_button.pressed.connect(close)

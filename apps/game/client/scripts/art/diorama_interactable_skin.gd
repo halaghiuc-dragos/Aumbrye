@@ -13,6 +13,7 @@ const WAVES_RARITY_GLOW: Array[Color] = [
 	Color(0.38, 0.58, 0.95),
 	Color(0.82, 0.38, 0.95),
 	Color(1.0, 0.72, 0.22),
+	Color(0.55, 0.78, 0.42),
 ]
 
 

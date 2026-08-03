@@ -47,6 +47,8 @@ func _on_scene_changed() -> void:
 func _after_scene_changed() -> void:
 	_remove_duplicate_scene_uis()
 	await get_tree().process_frame
+	if _inventory_ui and _inventory_ui.has_method("_bind_inventory_context"):
+		_inventory_ui.call("_bind_inventory_context")
 	sync_player_loadout()
 
 

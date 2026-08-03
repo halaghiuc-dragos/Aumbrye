@@ -106,7 +106,7 @@ theme_override_constants/separation = 10
 
 [node name="SeedTitle" type="Label" parent="SeedPanel/Margin/VBox"]
 layout_mode = 2
-text = "Enter Castle Seed"
+text = "Enter Base Run Seed"
 horizontal_alignment = 1
 theme_override_font_sizes/font_size = 22
 
@@ -114,6 +114,11 @@ theme_override_font_sizes/font_size = 22
 layout_mode = 2
 placeholder_text = "e.g. 424242"
 alignment = 1
+
+[node name="SeedHintLabel" type="Label" parent="SeedPanel/Margin/VBox"]
+layout_mode = 2
+autowrap_mode = 2
+horizontal_alignment = 1
 
 [node name="SeedStartButton" type="Button" parent="SeedPanel/Margin/VBox"]
 layout_mode = 2

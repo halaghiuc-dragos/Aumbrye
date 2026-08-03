@@ -76,6 +76,10 @@ static func get_wall_material(biome_id: String) -> Material:
 	return load(_material_path(biome_id, "mat_wall.tres"))
 
 
+static func get_ceiling_material(biome_id: String) -> Material:
+	return get_wall_material(biome_id)
+
+
 static func get_accent_material(biome_id: String) -> Material:
 	return load(_material_path(biome_id, "mat_accent.tres"))
 
@@ -181,11 +185,11 @@ static func get_lighting_profile(biome_id: String) -> Dictionary:
 			}
 		_:
 			return {
-				"ambient_color": Color(0.45, 0.4, 0.5),
-				"ambient_energy": 0.5,
+				"ambient_color": Color(0.58, 0.5, 0.44),
+				"ambient_energy": 0.78,
 				"fog_enabled": false,
 				"fog_color": Color(0.2, 0.18, 0.22),
-				"fog_density": 0.01,
+				"fog_density": 0.008,
 			}
 
 
@@ -202,25 +206,31 @@ static func apply_run_presentation(parent: Node3D, biome_id: String, run_mode: S
 	environment.fog_light_color = lighting.get("fog_color", Color(0.2, 0.2, 0.25))
 	environment.fog_density = lighting.get("fog_density", 0.01)
 
-	var needs_arena_boost := run_mode == RunModeConfig.MODE_WAVES or run_mode == RunModeConfig.MODE_ENDLESS
+	var uses_indoor_lighting := run_mode in [RunModeConfig.MODE_CASTLE, RunModeConfig.MODE_ENDLESS]
+	var needs_arena_boost := run_mode == RunModeConfig.MODE_WAVES
 	if needs_arena_boost:
 		environment.background_color = Color(0.12, 0.1, 0.18)
 		environment.ambient_light_color = Color(0.48, 0.42, 0.62)
 		environment.ambient_light_energy = maxf(float(environment.ambient_light_energy), 0.72)
 		environment.fog_enabled = false
+	elif uses_indoor_lighting:
+		DungeonLighting.apply_indoor_environment(environment, lighting)
 	else:
 		var ambient: Color = environment.ambient_light_color
 		environment.background_color = ambient.lerp(Color(0.12, 0.11, 0.16), 0.55)
+		PixelDioramaSettings.configure_environment(environment)
 
-	PixelDioramaSettings.configure_environment(environment)
 	env_node.environment = environment
 	parent.add_child(env_node)
 
 	var sun := parent.get_node_or_null("DirectionalLight3D") as DirectionalLight3D
-	if sun and needs_arena_boost:
-		sun.light_energy = 1.35
-		sun.light_color = Color(0.95, 0.92, 1.0)
-		sun.shadow_enabled = true
+	if sun:
+		if uses_indoor_lighting:
+			sun.visible = false
+		elif needs_arena_boost:
+			sun.light_energy = 1.35
+			sun.light_color = Color(0.95, 0.92, 1.0)
+			sun.shadow_enabled = true
 
 	if needs_arena_boost and parent.get_node_or_null("ArenaFillLight") == null:
 		var fill := OmniLight3D.new()

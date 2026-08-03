@@ -16,6 +16,7 @@ public static class LootPlacer
         IReadOnlyList<EnemyPlacement> enemies,
         int tier,
         int playerLevel,
+        int seed,
         SeededRandom rng)
     {
         var lootBudget = biome.Budgets.BaseLootValue
@@ -54,7 +55,8 @@ public static class LootPlacer
             .ToList();
         if (combatRooms.Count > 0)
         {
-            var sideRoom = combatRooms[rng.NextInt(combatRooms.Count)];
+            var sideRng = new SeededRandom(seed ^ 0x51DE);
+            var sideRoom = combatRooms[sideRng.NextInt(combatRooms.Count)];
             loot.Add(new LootPlacement(
                 sideRoom.SemanticId,
                 $"{sideRoom.SemanticId}_side",
@@ -78,11 +80,13 @@ public static class LootPlacer
 
         if (combatRooms.Count > 0)
         {
-            var trapRoom = combatRooms[rng.NextInt(combatRooms.Count)];
+            var trapRng = new SeededRandom(seed ^ 0x7A2B);
+            var trapRoom = combatRooms[trapRng.NextInt(combatRooms.Count)];
             traps.Add(new TrapPlacement(trapRoom.SemanticId, "falling_trap", new Position3(-2, 3, -5)));
         }
 
-        var bossEntry = biome.BossPool[rng.NextInt(biome.BossPool.Count)];
+        var bossRng = new SeededRandom(seed ^ 0xB055);
+        var bossEntry = biome.BossPool[bossRng.NextInt(biome.BossPool.Count)];
         var bossRoom = assignment.Rooms.First(r => r.Type == "boss");
 
         return new DungeonPlacements(

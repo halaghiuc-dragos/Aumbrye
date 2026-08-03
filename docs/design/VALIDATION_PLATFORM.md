@@ -14,6 +14,8 @@ apps/game/client/scripts/validation/
     content_suite.gd      # enemies, items, catalogs, room templates, audio
     inventory_suite.gd    # grid inventory placement and equip
     procgen_suite.gd      # seed gen, determinism, offline RunFlow, builder guards
+    room_graph_suite.gd   # Phase 1 room graph, determinism, ASCII debug
+    room_content_suite.gd # room content assignment, critical path, WorldState
     save_suite.gd         # continuable rules, camera pref, snapshot guards
     hub_suite.gd          # menu buttons, portal/arena, continue button states, seed UI
     arena_suite.gd        # training arena, training grunt, reset API
@@ -115,7 +117,7 @@ Report: `%APPDATA%\Godot\app_userdata\Aumbrye\mcp_validation.json`
 |-----------|-------------------|
 | Project setup, autoloads, input map | Movement feel, room traversal feel |
 | Catalogs, scenes, scripts exist | HP bar visuals, shield block feel |
-| Procgen determinism, seed rules | Loot/trap/boss interaction feel (E key) |
+| Procgen determinism, seed rules, room graph / content suites | Loot/trap/boss interaction feel (E key) |
 | Save continuable rules, snapshot API | Full continue playthrough scenarios |
 | Hub menu wiring, continue button states | Hub Esc/Back interaction feel |
 | Dungeon build pipeline, boss door/exit wiring | Camera toggle feel, relaunch persistence |

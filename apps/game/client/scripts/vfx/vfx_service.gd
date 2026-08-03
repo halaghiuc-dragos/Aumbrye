@@ -206,6 +206,7 @@ func _make_burst_particles(node_name: String, world_pos: Vector3, cfg: Dictionar
 	)
 	particles.visibility_aabb = AABB(Vector3(-2.0, -1.0, -2.0), Vector3(4.0, 4.0, 4.0))
 
+	particles.top_level = true
 	_root.add_child(particles)
 	particles.global_position = world_pos
 	_schedule_free(particles, particles.lifetime + 0.15)

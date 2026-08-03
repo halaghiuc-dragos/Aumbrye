@@ -43,7 +43,7 @@ static func format_interact_label(prefix: String = "Press") -> String:
 static func get_action_display_name(action: String) -> String:
 	match action:
 		"dodge":
-			return "Roll"
+			return "Dash"
 		"sprint":
 			return "Sprint"
 		"lock_on":

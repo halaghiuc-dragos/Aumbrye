@@ -8,7 +8,7 @@ enum AnimState {
 	WALK,
 	RUN,
 	AIR,
-	ROLL,
+	DASH,
 	WINDUP,
 	ATTACK,
 	BLOCK,
@@ -26,7 +26,7 @@ var _time := 0.0
 var _state := AnimState.IDLE
 var _profile := "player"
 var _hit_flash := 0.0
-var _roll_dir := Vector3.FORWARD
+var _dash_dir := Vector3.FORWARD
 
 
 func bind(visual: Node3D) -> void:
@@ -52,9 +52,9 @@ func set_state(state: AnimState) -> void:
 	_state = state
 
 
-func set_roll_direction(dir: Vector3) -> void:
+func set_dash_direction(dir: Vector3) -> void:
 	if dir.length_squared() > 0.01:
-		_roll_dir = dir.normalized()
+		_dash_dir = dir.normalized()
 
 
 func trigger_hit() -> void:
@@ -77,8 +77,8 @@ func update(delta: float, params: Dictionary = {}) -> void:
 			_animate_locomotion(params.get("speed_ratio", 1.0), true)
 		AnimState.AIR:
 			_animate_air(params.get("vertical_speed", 0.0))
-		AnimState.ROLL:
-			_animate_roll(params.get("roll_progress", 0.0))
+		AnimState.DASH:
+			_animate_dash(params.get("dash_progress", 0.0))
 		AnimState.WINDUP:
 			_animate_windup()
 		AnimState.ATTACK:
@@ -154,11 +154,11 @@ func _animate_air(vertical_speed: float) -> void:
 	_move_part("Head", Vector3(0.0, 0.04, 0.0))
 
 
-func _animate_roll(progress: float) -> void:
+func _animate_dash(progress: float) -> void:
 	var t := clampf(progress, 0.0, 1.0)
 	var curl := sin(t * PI)
 	_move_part("Torso", Vector3(0.0, curl * 0.18, 0.0))
-	_rotate_part("Torso", Vector3(curl * 0.9, 0.0, curl * 0.35 * sign(_roll_dir.x)))
+	_rotate_part("Torso", Vector3(curl * 0.9, 0.0, curl * 0.35 * sign(_dash_dir.x)))
 	_rotate_part("Head", Vector3(curl * 0.4, 0.0, 0.0))
 	_rotate_part("LegL", Vector3(curl * 0.8, 0.0, 0.25))
 	_rotate_part("LegR", Vector3(curl * 0.8, 0.0, -0.25))

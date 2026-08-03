@@ -15,7 +15,7 @@
 | Move | **WASD** | Camera-relative |
 | Look | **Mouse** | Captured by default; Esc toggles capture |
 | Sprint | **Left Shift** | Drains stamina while moving |
-| Roll / dodge | **Space** | Camera-relative with WASD held; Space alone = short back step **opposite weapon/hitbox facing** |
+| Dash / dodge | **Space** | Camera-relative with WASD held; Space alone = short back step **opposite weapon/hitbox facing** |
 | Jump | **F** | Coyote time + jump buffer |
 | Light attack | **LMB** | 3-hit combo chain |
 | Heavy attack | **RMB** | |

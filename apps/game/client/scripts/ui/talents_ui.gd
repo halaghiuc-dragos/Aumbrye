@@ -2,6 +2,8 @@ extends Control
 
 ## Talent tree UI — spend points on level up (PROG-4.2 client).
 
+const GameUISkinScript := preload("res://scripts/ui/game_ui_skin.gd")
+
 signal closed
 
 var _node_list: ItemList
@@ -24,36 +26,35 @@ func _ready() -> void:
 func _build_ui() -> void:
 	for child in get_children():
 		child.queue_free()
-	var panel := PanelContainer.new()
-	panel.set_anchors_preset(Control.PRESET_CENTER)
-	panel.offset_left = -300
-	panel.offset_top = -220
-	panel.offset_right = 300
-	panel.offset_bottom = 220
-	add_child(panel)
+	GameUISkinScript.make_backdrop(self)
+	var panel := GameUISkinScript.make_center_panel(self, 340.0, 260.0)
 	var margin := MarginContainer.new()
-	margin.add_theme_constant_override("margin_left", 16)
-	margin.add_theme_constant_override("margin_top", 16)
-	margin.add_theme_constant_override("margin_right", 16)
-	margin.add_theme_constant_override("margin_bottom", 16)
+	margin.add_theme_constant_override("margin_left", GameUISkinScript.PANEL_MARGIN)
+	margin.add_theme_constant_override("margin_top", GameUISkinScript.PANEL_MARGIN)
+	margin.add_theme_constant_override("margin_right", GameUISkinScript.PANEL_MARGIN)
+	margin.add_theme_constant_override("margin_bottom", GameUISkinScript.PANEL_MARGIN)
 	panel.add_child(margin)
 	var vbox := VBoxContainer.new()
+	vbox.add_theme_constant_override("separation", 10)
 	margin.add_child(vbox)
 	var title := Label.new()
-	title.text = "Talents (K)"
-	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title.text = "Talents"
+	GameUISkinScript.style_menu_title(title)
 	vbox.add_child(title)
 	_points_label = Label.new()
 	_points_label.name = "PointsLabel"
+	GameUISkinScript.style_body_label(_points_label)
 	vbox.add_child(_points_label)
 	_node_list = ItemList.new()
-	_node_list.custom_minimum_size = Vector2(520, 220)
+	_node_list.custom_minimum_size = Vector2(560, 260)
 	vbox.add_child(_node_list)
 	_detail_label = Label.new()
 	_detail_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	GameUISkinScript.style_body_label(_detail_label)
 	vbox.add_child(_detail_label)
 	var hint := Label.new()
 	hint.text = "Enter: unlock | Esc: close"
+	GameUISkinScript.style_hint_label(hint)
 	vbox.add_child(hint)
 
 

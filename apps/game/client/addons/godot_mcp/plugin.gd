@@ -3,6 +3,7 @@ extends EditorPlugin
 
 const MCPServer = preload("res://addons/godot_mcp/mcp_server.gd")
 const MCPLocalization = preload("res://addons/godot_mcp/i18n/localization.gd")
+const MCPBaseTool = preload("res://addons/godot_mcp/tools/base_tools.gd")
 
 var mcp_server: MCPServer
 var dock: Control
@@ -63,6 +64,7 @@ func _enter_tree() -> void:
 
 	mcp_server.initialize(settings.port, settings.host, settings.debug_mode)
 	mcp_server.set_disabled_tools(settings.disabled_tools)
+	MCPBaseTool.set_editor_interface(get_editor_interface())
 
 	_create_dock()
 

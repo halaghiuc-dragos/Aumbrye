@@ -1,6 +1,11 @@
 extends Node
 
 ## Orchestrates validation suites, writes JSON report v2, and quits.
+##
+## Run via scene (recommended):
+##   Godot --path . --headless res://scenes/debug/mcp_validation.tscn
+## Or via SceneTree script:
+##   Godot --path . --headless --script res://scripts/validation/validation_main.gd
 
 const TestContextScript := preload("res://scripts/validation/test_context.gd")
 const REPORT_PATH := "user://mcp_validation.json"
@@ -11,6 +16,8 @@ const SUITE_PATHS: PackedStringArray = [
 	"res://scripts/validation/suites/inventory_suite.gd",
 	"res://scripts/validation/suites/progression_suite.gd",
 	"res://scripts/validation/suites/procgen_suite.gd",
+	"res://scripts/validation/suites/room_graph_suite.gd",
+	"res://scripts/validation/suites/room_content_suite.gd",
 	"res://scripts/validation/suites/save_suite.gd",
 	"res://scripts/validation/suites/hub_suite.gd",
 	"res://scripts/validation/suites/hub_m4_suite.gd",

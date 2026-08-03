@@ -1,0 +1,84 @@
+class_name ProcgenLootTables
+extends RefCounted
+
+## Theme loot/trap tables (mirrors C# ThemeLootTables).
+
+
+static func treasure_loot(biome_id: String) -> Array:
+	match biome_id:
+		"crystal_caverns", "prism_depths":
+			return [_item("health_potion", 2), _item("crystal_frost_ring", 1)]
+		"poison_swamp", "venom_mire":
+			return [_item("health_potion", 2), _item("swamp_mire_charm", 1)]
+		"frozen_fortress", "glacial_hollow":
+			return [_item("health_potion", 2), _item("frost_ice_ring", 1)]
+		"dark_cathedral", "umbral_chapel":
+			return [_item("health_potion", 2), _item("cathedral_holy_charm", 1)]
+		"iron_vault":
+			return [_item("health_potion", 2), _item("iron_scrap", 4)]
+		_:
+			return [_item("health_potion", 2), _item("iron_scrap", 3)]
+
+
+static func secret_loot(biome_id: String) -> Array:
+	match biome_id:
+		"crystal_caverns", "prism_depths":
+			return [_item("crystal_prism_amulet", 1), _item("health_potion", 3)]
+		"poison_swamp", "venom_mire":
+			return [_item("swamp_toxin_dagger", 1), _item("health_potion", 3)]
+		"frozen_fortress", "glacial_hollow":
+			return [_item("frost_warlord_blade", 1), _item("health_potion", 3)]
+		"dark_cathedral", "umbral_chapel":
+			return [_item("cathedral_shadow_dagger", 1), _item("health_potion", 3)]
+		"iron_vault":
+			return [_item("knight_relic", 1), _item("health_potion", 4)]
+		_:
+			return [_item("knight_relic", 1), _item("health_potion", 3)]
+
+
+static func side_loot(biome_id: String) -> Array:
+	match biome_id:
+		"crystal_caverns", "prism_depths":
+			return [_item("crystal_shard_blade", 1)]
+		"poison_swamp", "venom_mire":
+			return [_item("swamp_bog_boots", 1)]
+		"frozen_fortress", "glacial_hollow":
+			return [_item("frost_raider_boots", 1)]
+		"dark_cathedral", "umbral_chapel":
+			return [_item("cathedral_warden_helm", 1)]
+		"iron_vault":
+			return [_item("castle_gauntlets", 1)]
+		_:
+			return [_item("iron_scrap", 2)]
+
+
+static func armory_loot(biome_id: String) -> Array:
+	match biome_id:
+		"crystal_caverns", "prism_depths":
+			return [_item("crystal_shard_blade", 1)]
+		"poison_swamp", "venom_mire":
+			return [_item("swamp_toxin_dagger", 1)]
+		"frozen_fortress", "glacial_hollow":
+			return [_item("frost_glacier_sword", 1)]
+		"dark_cathedral", "umbral_chapel":
+			return [_item("cathedral_arcane_staff", 1)]
+		"iron_vault":
+			return [_item("war_hammer", 1)]
+		_:
+			return [_item("castle_sword", 1)]
+
+
+static func corridor_trap(biome_id: String) -> String:
+	match biome_id:
+		"poison_swamp", "venom_mire":
+			return "poison_pool"
+		"frozen_fortress", "glacial_hollow":
+			return "frost_trap"
+		"dark_cathedral", "umbral_chapel":
+			return "shadow_trap"
+		_:
+			return "spike_trap"
+
+
+static func _item(item_id: String, quantity: int) -> Dictionary:
+	return {"itemId": item_id, "quantity": quantity}
