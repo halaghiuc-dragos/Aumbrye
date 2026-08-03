@@ -83,6 +83,7 @@ func _on_parry_success(_target: Node) -> void:
 func _on_died() -> void:
 	is_dead = true
 	player_died.emit()
+	VfxService.play_death(_body.global_position, Color(0.72, 0.28, 0.22))
 	if _mesh:
 		var tween := create_tween()
 		tween.tween_property(_mesh, "scale", Vector3(0.25, 0.08, 0.25), 0.35)

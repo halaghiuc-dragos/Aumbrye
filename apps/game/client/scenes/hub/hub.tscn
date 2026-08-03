@@ -41,7 +41,7 @@ size = Vector3(5, 4, 5)
 [sub_resource type="BoxShape3D" id="BoxShape3D_interact"]
 size = Vector3(4, 4, 4)
 
-[node name="Hub" type="Node3D"]
+[node name="AumbryeTower" type="Node3D"]
 script = ExtResource("1_hub")
 
 [node name="DirectionalLight3D" type="DirectionalLight3D" parent="."]
@@ -89,7 +89,7 @@ scale = Vector3(12, 1, 1)
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 4)
 
 [node name="CastlePortal" type="Node3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -16)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -12, 0, -17)
 
 [node name="PortalFrame" type="MeshInstance3D" parent="CastlePortal"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.75, 0)
@@ -118,7 +118,7 @@ text = "Aumbrye Dungeons — Tier 1"
 font_size = 28
 
 [node name="ArenaDoor" type="Node3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 18, 0, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 20.17, 0, 12.31)
 
 [node name="DoorFrame" type="MeshInstance3D" parent="ArenaDoor"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.75, 0)
@@ -141,10 +141,10 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.75, 0)
 shape = SubResource("BoxShape3D_interact")
 
 [node name="DoorLabel" type="Label3D" parent="ArenaDoor"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 4.2, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 4.5, 0)
 billboard = 1
 text = "Training Arena"
-font_size = 26
+font_size = 28
 
 [node name="Blacksmith" type="Node3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -18, 0, -4)
@@ -244,21 +244,21 @@ text = "Quest Board"
 font_size = 26
 
 [node name="NpcAldric" parent="." instance=ExtResource("12_npc")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -16, 0, -2)
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, -14.9, 0, -3.4)
 npc_id = "blacksmith_aldric"
 
 [node name="NpcElara" parent="." instance=ExtResource("12_npc")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -10, 0, 12)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -12, 0, 11.2)
 npc_id = "merchant_elara"
 
 [node name="NpcMira" parent="." instance=ExtResource("12_npc")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 10, 0, 12)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 12, 0, 11.2)
 npc_id = "warden_mira"
 
 [node name="MessageLabel" type="Label3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 3.5, 2)
 billboard = 1
-text = "Welcome to Aumbrye Hub"
+text = "Welcome to Aumbrye Tower"
 font_size = 24
 
 [node name="PromptLabel" type="Label3D" parent="."]
@@ -368,7 +368,7 @@ theme_override_colors/font_color = Color(1, 1, 1, 1)
 theme_override_colors/font_shadow_color = Color(0, 0, 0, 0.8)
 theme_override_constants/shadow_offset_x = 1
 theme_override_constants/shadow_offset_y = 1
-text = "Hub debug overlay"
+text = "Aumbrye Tower debug overlay"
 
 [node name="CastleEntryMenu" parent="." instance=ExtResource("6_castle_menu")]
 layout_mode = 3
@@ -420,7 +420,7 @@ grow_horizontal = 2
 grow_vertical = 2
 
 [node name="UmbralEndlessPortal" type="Node3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -12, 0, -16)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4, 0, -17)
 
 [node name="PortalFrame" type="MeshInstance3D" parent="UmbralEndlessPortal"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.75, 0)
@@ -436,7 +436,7 @@ mesh = SubResource("BoxMesh_pad")
 collision_layer = 0
 collision_mask = 2
 script = ExtResource("16_interact")
-prompt_text = "Umbral Endless (E)"
+prompt_text = "Aumbrye Prison (E)"
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="UmbralEndlessPortal/InteractArea"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.75, 0)
@@ -445,11 +445,11 @@ shape = SubResource("BoxShape3D_interact")
 [node name="PortalLabel" type="Label3D" parent="UmbralEndlessPortal"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 4.5, 0)
 billboard = 1
-text = "Umbral Endless"
+text = "Aumbrye Prison"
 font_size = 24
 
 [node name="UmbralWavesPortal" type="Node3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 12, 0, -16)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4, 0, -17)
 
 [node name="PortalFrame" type="MeshInstance3D" parent="UmbralWavesPortal"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.75, 0)
@@ -465,7 +465,7 @@ mesh = SubResource("BoxMesh_pad")
 collision_layer = 0
 collision_mask = 2
 script = ExtResource("16_interact")
-prompt_text = "Umbral Waves (E)"
+prompt_text = "Aumbrye Outskirts (E)"
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="UmbralWavesPortal/InteractArea"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.75, 0)
@@ -474,8 +474,66 @@ shape = SubResource("BoxShape3D_interact")
 [node name="PortalLabel" type="Label3D" parent="UmbralWavesPortal"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 4.5, 0)
 billboard = 1
-text = "Umbral Waves"
+text = "Aumbrye Outskirts"
 font_size = 24
+
+[node name="SkiesPortal" type="Node3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 12, 0, -17)
+
+[node name="PortalFrame" type="MeshInstance3D" parent="SkiesPortal"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.75, 0)
+material_override = ExtResource("17_umbral")
+mesh = SubResource("BoxMesh_door_frame")
+
+[node name="PortalPad" type="MeshInstance3D" parent="SkiesPortal"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.05, 0)
+material_override = ExtResource("15_wall")
+mesh = SubResource("BoxMesh_pad")
+
+[node name="InteractArea" type="Area3D" parent="SkiesPortal"]
+collision_layer = 0
+collision_mask = 2
+script = ExtResource("16_interact")
+prompt_text = "Aumbrye Skies — Coming Soon"
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="SkiesPortal/InteractArea"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.75, 0)
+shape = SubResource("BoxShape3D_interact")
+
+[node name="PortalLabel" type="Label3D" parent="SkiesPortal"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 4.5, 0)
+billboard = 1
+text = "Aumbrye Skies — Coming Soon"
+font_size = 22
+
+[node name="CathedralPortal" type="Node3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 20, 0, -17)
+
+[node name="PortalFrame" type="MeshInstance3D" parent="CathedralPortal"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.75, 0)
+material_override = ExtResource("14_accent")
+mesh = SubResource("BoxMesh_door_frame")
+
+[node name="PortalPad" type="MeshInstance3D" parent="CathedralPortal"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.05, 0)
+material_override = ExtResource("13_floor")
+mesh = SubResource("BoxMesh_pad")
+
+[node name="InteractArea" type="Area3D" parent="CathedralPortal"]
+collision_layer = 0
+collision_mask = 2
+script = ExtResource("16_interact")
+prompt_text = "Aumbrye Cathedral — Coming Soon"
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="CathedralPortal/InteractArea"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.75, 0)
+shape = SubResource("BoxShape3D_interact")
+
+[node name="PortalLabel" type="Label3D" parent="CathedralPortal"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 4.5, 0)
+billboard = 1
+text = "Aumbrye Cathedral — Coming Soon"
+font_size = 22
 
 [node name="UmbralEndlessMenu" parent="." instance=ExtResource("18_endless_menu")]
 layout_mode = 3

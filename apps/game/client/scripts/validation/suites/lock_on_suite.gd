@@ -27,10 +27,43 @@ func _test_lock_on_behavior() -> void:
 	if grunt_scene == null:
 		var start := Time.get_ticks_msec()
 		ctx.timed_record(
-			"lock_on.auto_advance_on_death",
+			"lock_on.reticle_uses_center",
 			get_category(),
 			false,
 			"missing training_grunt scene for lock-on test",
+			start,
+			"M3.lock_on.reticle"
+		)
+	else:
+		var enemy := grunt_scene.instantiate() as CharacterBody3D
+		ctx.owner.add_child(enemy)
+		enemy.global_position = Vector3(3.0, 0.0, 0.0)
+		await ctx.await_physics(2)
+		var start := Time.get_ticks_msec()
+		var aim_point := LockOn.get_target_aim_point(enemy)
+		var uses_mesh_center := aim_point.distance_to(enemy.global_position + Vector3(0.0, 1.5, 0.0)) > 0.05
+		ctx.timed_record(
+			"lock_on.reticle_uses_center",
+			get_category(),
+			uses_mesh_center,
+			"lock aim point uses enemy visual center",
+			start,
+			"M3.lock_on.reticle"
+		)
+		enemy.queue_free()
+
+	await _test_lock_on_advance_on_death()
+
+
+func _test_lock_on_advance_on_death() -> void:
+	var grunt_scene: PackedScene = load("res://scenes/enemies/castle_grunt.tscn")
+	if grunt_scene == null:
+		var start := Time.get_ticks_msec()
+		ctx.timed_record(
+			"lock_on.auto_advance_on_death",
+			get_category(),
+			false,
+			"missing castle_grunt scene for lock-on test",
 			start,
 			"M3.lock_on.advance"
 		)
@@ -63,27 +96,15 @@ func _test_lock_on_behavior() -> void:
 		enemy_b.queue_free()
 		return
 
-	var start := Time.get_ticks_msec()
-	var aim_point := LockOn.get_target_aim_point(enemy_a)
-	var uses_mesh_center := aim_point.distance_to(enemy_a.global_position + Vector3(0.0, 1.5, 0.0)) > 0.05
-	ctx.timed_record(
-		"lock_on.reticle_uses_center",
-		get_category(),
-		uses_mesh_center,
-		"lock aim point uses enemy visual center",
-		start,
-		"M3.lock_on.reticle"
-	)
-
 	lock_on._set_lock(enemy_a)
 	var health := enemy_a.get_node_or_null("Health") as Health
 	if health == null:
-		start = Time.get_ticks_msec()
+		var start := Time.get_ticks_msec()
 		ctx.timed_record(
 			"lock_on.auto_advance_on_death",
 			get_category(),
 			false,
-			"shield missing Health node",
+			"enemy missing Health node",
 			start,
 			"M3.lock_on.advance"
 		)
@@ -93,7 +114,7 @@ func _test_lock_on_behavior() -> void:
 		if lock_on.current_target == enemy_a:
 			lock_on._update_lock()
 		await ctx.await_physics(1)
-		start = Time.get_ticks_msec()
+		var start := Time.get_ticks_msec()
 		var advanced := lock_on.is_locked and lock_on.current_target == enemy_b
 		ctx.timed_record(
 			"lock_on.auto_advance_on_death",

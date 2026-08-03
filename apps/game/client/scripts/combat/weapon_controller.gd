@@ -182,6 +182,9 @@ func _enable_hitbox_for_attack() -> void:
 	_hitbox.call("set_attack_values", dmg, poise, dmg_type, status_id, status_stacks)
 	_hitbox.call("enable")
 	_hyperarmor_active = _weapon_data.get("archetype", "") == "greatsword"
+	if _body:
+		var anchor: Array = VfxService.resolve_combat_anchor(_body)
+		VfxService.play_attack_swing(anchor[0], anchor[1])
 
 
 func _disable_hitbox() -> void:

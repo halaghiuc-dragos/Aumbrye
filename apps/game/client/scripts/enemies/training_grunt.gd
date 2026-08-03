@@ -3,7 +3,7 @@ extends CharacterBody3D
 enum State { IDLE, WINDUP, ATTACK, RECOVERY, STAGGER, DEAD }
 
 const ENEMY_ID := "training_grunt"
-const HP_BAR_SCRIPT := preload("res://scripts/ui/enemy_health_bar.gd")
+const HP_BAR_SCRIPT := preload("res://scripts/ui/training_dummy_health_bar.gd")
 const CharacterSkin := preload("res://scripts/art/diorama_character_skin.gd")
 const CharacterAnimator := preload("res://scripts/art/diorama_character_animator.gd")
 
@@ -28,9 +28,11 @@ var _hp_bar: EnemyHealthBar
 var _state_timer := 0.0
 var _cooldown := 0.0
 var _stagger_timer := 0.0
+var _spawn_origin := Vector3.ZERO
 
 
 func _ready() -> void:
+	add_to_group("training_dummy")
 	_mesh = CharacterSkin.build_training_dummy(self)
 	_animator = CharacterAnimator.new()
 	_animator.bind(_mesh)
@@ -60,6 +62,7 @@ func _ready() -> void:
 	var hurtbox := get_node_or_null("Hurtbox") as Hurtbox
 	if hurtbox:
 		hurtbox.damaged.connect(_on_hurt)
+	_spawn_origin = global_position
 
 
 func _physics_process(delta: float) -> void:
@@ -214,30 +217,7 @@ func _face_player() -> void:
 
 
 func _on_died() -> void:
-	if is_dead():
-		return
-	_state = State.DEAD
-	velocity = Vector3.ZERO
-	_stagger_timer = 0.0
-	_cooldown = 0.0
-	if _health:
-		_health.force_dead()
-	if _hp_bar:
-		_hp_bar.visible = false
-	if _hitbox:
-		_hitbox.disable()
-		_hitbox.reset_swing()
-	if _telegraph:
-		_telegraph.visible = false
-	if _hurtbox:
-		_hurtbox.monitorable = false
-		_hurtbox.monitoring = false
-	if _body_collision:
-		_body_collision.disabled = true
-	if _mesh:
-		var tween := create_tween()
-		tween.tween_property(_mesh, "scale", Vector3(0.2, 0.05, 0.2), 0.35)
-		tween.parallel().tween_property(_mesh, "position:y", -0.8, 0.35)
+	reset_enemy()
 
 
 func _on_poise_broken() -> void:
@@ -258,6 +238,8 @@ func reset_enemy() -> void:
 	_state_timer = 0.0
 	_cooldown = 0.0
 	_stagger_timer = 0.0
+	velocity = Vector3.ZERO
+	global_position = _spawn_origin
 	if _hitbox:
 		_hitbox.disable()
 		_hitbox.reset_swing()
@@ -265,11 +247,14 @@ func reset_enemy() -> void:
 		_telegraph.visible = false
 	if _hurtbox:
 		_hurtbox.monitorable = true
+		_hurtbox.monitoring = true
 	if _body_collision:
 		_body_collision.disabled = false
 	if _mesh:
 		_mesh.scale = Vector3.ONE
 		_mesh.position = Vector3.ZERO
+	if _animator:
+		_animator.set_state(CharacterAnimator.AnimState.IDLE)
 	if _health:
 		_health.configure(_data.get("health", 80.0))
 	if _poise:

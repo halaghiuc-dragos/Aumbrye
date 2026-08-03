@@ -67,7 +67,7 @@ func _display_from_run_flow() -> void:
 		if int(results.get("levels_gained", 0)) > 0:
 			_xp_label.text += " — Level up!"
 		_rules_label.text = results.get("rules_summary", "")
-	_hint_label.text = "Press Enter to return to Hub"
+	_hint_label.text = "Press Enter to return to Aumbrye Tower"
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -79,6 +79,6 @@ func _unhandled_input(event: InputEvent) -> void:
 	vp.set_input_as_handled()
 	var outcome: String = RunFlow.last_run_results.get("outcome", "escaped")
 	if outcome == "died":
-		RunFlow.return_to_hub("Returned to hub. Permanent XP saved.")
+		RunFlow.return_to_hub("Returned to Aumbrye Tower. Permanent XP saved.")
 	else:
 		RunFlow.return_to_hub("Run complete! Your progress was saved.")

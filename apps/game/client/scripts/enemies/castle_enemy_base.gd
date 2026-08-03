@@ -195,6 +195,7 @@ func _finalize_death(silent: bool) -> void:
 
 
 func _play_death_visual() -> void:
+	VfxService.play_death(global_position, Color(0.55, 0.22, 0.18))
 	var visual := _diorama_visual if _diorama_visual else _mesh as Node3D
 	if visual == null:
 		return

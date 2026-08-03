@@ -7,6 +7,8 @@ func get_category() -> String:
 
 func run() -> void:
 	_test_hub_landmarks()
+	_test_hub_tent_structure()
+	_test_hub_wall_collision()
 	_test_npc_catalog()
 	_test_dialogue_conditions()
 	_test_quest_service()
@@ -20,7 +22,8 @@ func _test_hub_landmarks() -> void:
 	var start := Time.get_ticks_msec()
 	var hub: Node3D = load("res://scenes/hub/hub.tscn").instantiate() as Node3D
 	var landmarks := [
-		"CastlePortal", "ArenaDoor", "Blacksmith", "Merchant",
+		"CastlePortal", "ArenaDoor", "SkiesPortal", "CathedralPortal",
+		"Blacksmith", "Merchant",
 		"Storage", "QuestBoard", "NpcAldric", "NpcElara", "NpcMira",
 	]
 	var all_present := true
@@ -48,6 +51,70 @@ func _test_hub_landmarks() -> void:
 		"hub scene includes 3 NPC instances",
 		start,
 		"M4.npc.framework"
+	)
+
+
+func _test_hub_tent_structure() -> void:
+	var start := Time.get_ticks_msec()
+	var hub: Node3D = load("res://scenes/hub/hub.tscn").instantiate() as Node3D
+	HubDiorama.apply(hub)
+	var service_names := ["Blacksmith", "Merchant", "Storage", "QuestBoard"]
+	var all_ok := true
+	for service_name in service_names:
+		var landmark := hub.get_node_or_null(service_name) as Node3D
+		if landmark == null:
+			all_ok = false
+			continue
+		var tent_col := landmark.get_node_or_null("TentCollision") as StaticBody3D
+		if tent_col == null:
+			all_ok = false
+			continue
+		var shape_count := 0
+		var has_sealed_front := false
+		var cfg: Dictionary = HubDiorama.SERVICE_TENTS.get(service_name, {})
+		var tent_width: float = cfg.get("width", 5.0)
+		for child in tent_col.get_children():
+			if child is CollisionShape3D:
+				shape_count += 1
+				if child.name == "ColFrontLip":
+					var box := child.shape as BoxShape3D
+					if box and box.size.x >= tent_width - 0.1:
+						has_sealed_front = true
+		if shape_count < 3 or has_sealed_front:
+			all_ok = false
+		var visuals := landmark.get_node_or_null("DioramaVisuals") as Node3D
+		if visuals == null or visuals.get_node_or_null("Dressing") == null:
+			all_ok = false
+	hub.free()
+	ctx.timed_record(
+		"hub_m4.tent_collision",
+		get_category(),
+		all_ok,
+		"service tents have split doorway collision and dressing roots",
+		start,
+		"M4.hub.tent_collision"
+	)
+
+
+func _test_hub_wall_collision() -> void:
+	var start := Time.get_ticks_msec()
+	var hub: Node3D = load("res://scenes/hub/hub.tscn").instantiate() as Node3D
+	HubDiorama.apply(hub)
+	var walls := hub.get_node_or_null("LandmarkWalls") as Node3D
+	var wall_col := walls.get_node_or_null("WallCollision") as StaticBody3D if walls else null
+	var shape_count := 0
+	if wall_col:
+		for child in wall_col.get_children():
+			if child is CollisionShape3D:
+				shape_count += 1
+	hub.free()
+	ctx.timed_record(
+		"hub_m4.wall_collision",
+		get_category(),
+		shape_count == 4,
+		"perimeter WallCollision has four wall shapes",
+		start,
+		"M4.hub.wall_collision"
 	)
 
 

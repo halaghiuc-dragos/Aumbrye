@@ -369,9 +369,22 @@ static func make_hub_materials() -> Dictionary:
 		"wood": make_prop_material(theme, false),
 		"roof": make_prop_material(theme, true),
 		"umbral": make_emissive_material(PaletteTheme.UMBRAL, 1.1),
+		"training": make_custom_emissive(Color(0.95, 0.48, 0.12), 1.2),
+		"dragon": make_custom_emissive(Color(0.72, 0.18, 0.1), 1.15),
+		"cathedral": make_custom_emissive(Color(0.98, 0.9, 0.45), 0.95),
 		"forge": make_emissive_material(theme, 1.35),
 		"paper": paper_mat,
 	}
+
+
+static func make_custom_emissive(color: Color, energy: float = 1.1) -> StandardMaterial3D:
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = color
+	mat.emission_enabled = true
+	mat.emission = color.lightened(0.12)
+	mat.emission_energy_multiplier = energy
+	mat.texture_filter = PixelDioramaSettings.texture_filter_mode()
+	return mat
 
 
 static func make_emissive_material(theme: PaletteTheme, energy: float = 1.6) -> StandardMaterial3D:
@@ -439,19 +452,41 @@ static func add_box(
 static func make_portal_material(theme: String) -> ShaderMaterial:
 	var mat := ShaderMaterial.new()
 	mat.shader = load(PORTAL_SHADER_PATH) as Shader
-	if theme == "castle":
-		mat.set_shader_parameter("color_inner", Color(0.55, 0.78, 1.0, 1.0))
-		mat.set_shader_parameter("color_outer", Color(0.16, 0.28, 0.62, 1.0))
-		mat.set_shader_parameter("color_accent", Color(0.9, 0.96, 1.0, 1.0))
-		mat.set_shader_parameter("ellipse_x", 0.72)
-		mat.set_shader_parameter("ellipse_y", 1.0)
-	else:
-		mat.set_shader_parameter("color_inner", Color(0.62, 0.38, 0.92, 1.0))
-		mat.set_shader_parameter("color_outer", Color(0.22, 0.1, 0.38, 1.0))
-		mat.set_shader_parameter("color_accent", Color(0.85, 0.55, 1.0, 1.0))
-		mat.set_shader_parameter("ellipse_x", 0.68)
-		mat.set_shader_parameter("ellipse_y", 0.95)
-		mat.set_shader_parameter("spin_speed", 1.8)
+	match theme:
+		"castle":
+			mat.set_shader_parameter("color_inner", Color(0.55, 0.78, 1.0, 1.0))
+			mat.set_shader_parameter("color_outer", Color(0.16, 0.28, 0.62, 1.0))
+			mat.set_shader_parameter("color_accent", Color(0.9, 0.96, 1.0, 1.0))
+			mat.set_shader_parameter("ellipse_x", 0.72)
+			mat.set_shader_parameter("ellipse_y", 1.0)
+		"training":
+			mat.set_shader_parameter("color_inner", Color(1.0, 0.62, 0.18, 1.0))
+			mat.set_shader_parameter("color_outer", Color(0.58, 0.22, 0.05, 1.0))
+			mat.set_shader_parameter("color_accent", Color(1.0, 0.82, 0.42, 1.0))
+			mat.set_shader_parameter("ellipse_x", 0.7)
+			mat.set_shader_parameter("ellipse_y", 0.98)
+			mat.set_shader_parameter("spin_speed", 1.2)
+		"skies":
+			mat.set_shader_parameter("color_inner", Color(0.98, 0.42, 0.12, 1.0))
+			mat.set_shader_parameter("color_outer", Color(0.42, 0.08, 0.06, 1.0))
+			mat.set_shader_parameter("color_accent", Color(1.0, 0.72, 0.22, 1.0))
+			mat.set_shader_parameter("ellipse_x", 0.74)
+			mat.set_shader_parameter("ellipse_y", 1.02)
+			mat.set_shader_parameter("spin_speed", 2.1)
+		"cathedral":
+			mat.set_shader_parameter("color_inner", Color(1.0, 0.96, 0.78, 1.0))
+			mat.set_shader_parameter("color_outer", Color(0.82, 0.72, 0.28, 1.0))
+			mat.set_shader_parameter("color_accent", Color(1.0, 1.0, 0.92, 1.0))
+			mat.set_shader_parameter("ellipse_x", 0.7)
+			mat.set_shader_parameter("ellipse_y", 0.96)
+			mat.set_shader_parameter("spin_speed", 0.9)
+		_: # umbral and fallback
+			mat.set_shader_parameter("color_inner", Color(0.62, 0.38, 0.92, 1.0))
+			mat.set_shader_parameter("color_outer", Color(0.22, 0.1, 0.38, 1.0))
+			mat.set_shader_parameter("color_accent", Color(0.85, 0.55, 1.0, 1.0))
+			mat.set_shader_parameter("ellipse_x", 0.68)
+			mat.set_shader_parameter("ellipse_y", 0.95)
+			mat.set_shader_parameter("spin_speed", 1.8)
 	return mat
 
 
@@ -496,20 +531,23 @@ static func add_hub_tent(
 	depth: float,
 	wall_height: float,
 	entrance_width: float,
-	roof_peak: float = 1.2
+	roof_peak: float = 1.2,
+	facing_yaw: float = 0.0
 ) -> Node3D:
 	var visuals := Node3D.new()
 	visuals.name = "DioramaVisuals"
 	landmark.add_child(visuals)
+	visuals.rotation.y = facing_yaw
 
 	var fabric_mat: Material = mats.wall
 	var pole_mat: Material = mats.wood
 	var roof_mat: Material = mats.accent
 	var half_w := width * 0.5
 	var half_d := depth * 0.5
-	var entrance_half := entrance_width * 0.5
 	var wall_thickness := 0.22
 	var pole_h := wall_height + roof_peak * 0.35
+	var lip_width := (width - entrance_width) * 0.5
+	var lip_z := half_d - wall_thickness * 0.5
 
 	for corner in [
 		Vector3(-half_w + 0.18, 0.0, -half_d + 0.18),
@@ -521,44 +559,50 @@ static func add_hub_tent(
 
 	var ridge_y := wall_height + roof_peak
 	add_box(visuals, Vector3(width + 0.35, 0.14, 0.14), Vector3(0.0, ridge_y, 0.0), roof_mat, "Ridge")
-	add_box(
-		visuals,
-		Vector3(width * 0.52, 0.12, depth * 0.52),
-		Vector3(0.0, wall_height + roof_peak * 0.55, 0.0),
-		roof_mat,
-		"RoofCap"
-	)
 
-	var roof_panel_w := width * 0.5 + 0.1
-	var roof_panel_d := depth * 0.5 + 0.1
-	add_box(
+	var front_slope_len := sqrt(half_d * half_d + roof_peak * roof_peak)
+	var front_slope_angle := atan2(roof_peak, half_d)
+	var front_roof := add_box(
 		visuals,
-		Vector3(roof_panel_w, 0.1, roof_panel_d),
-		Vector3(-roof_panel_w * 0.25, wall_height + roof_peak * 0.35, -roof_panel_d * 0.25),
-		fabric_mat,
-		"RoofPanelL"
-	)
-	add_box(
-		visuals,
-		Vector3(roof_panel_w, 0.1, roof_panel_d),
-		Vector3(roof_panel_w * 0.25, wall_height + roof_peak * 0.35, -roof_panel_d * 0.25),
-		fabric_mat,
-		"RoofPanelR"
-	)
-	add_box(
-		visuals,
-		Vector3(width + 0.2, 0.1, roof_panel_d),
-		Vector3(0.0, wall_height + roof_peak * 0.35, roof_panel_d * 0.25),
+		Vector3(width + 0.25, 0.1, front_slope_len + 0.15),
+		Vector3(0.0, wall_height + roof_peak * 0.5, half_d * 0.5),
 		fabric_mat,
 		"RoofPanelFront"
 	)
-	add_box(
+	front_roof.rotation.x = front_slope_angle
+	var back_roof := add_box(
 		visuals,
-		Vector3(width + 0.2, 0.1, roof_panel_d),
-		Vector3(0.0, wall_height + roof_peak * 0.35, -roof_panel_d * 0.25),
+		Vector3(width + 0.25, 0.1, front_slope_len + 0.15),
+		Vector3(0.0, wall_height + roof_peak * 0.5, -half_d * 0.5),
 		fabric_mat,
 		"RoofPanelBack"
 	)
+	back_roof.rotation.x = -front_slope_angle
+
+	var side_slope_len := sqrt(half_w * half_w + roof_peak * roof_peak)
+	var side_slope_angle := atan2(roof_peak, half_w)
+	var left_roof := add_box(
+		visuals,
+		Vector3(side_slope_len + 0.15, 0.1, depth + 0.25),
+		Vector3(-half_w * 0.5, wall_height + roof_peak * 0.5, 0.0),
+		fabric_mat,
+		"RoofPanelLeft"
+	)
+	left_roof.rotation.z = side_slope_angle
+	var right_roof := add_box(
+		visuals,
+		Vector3(side_slope_len + 0.15, 0.1, depth + 0.25),
+		Vector3(half_w * 0.5, wall_height + roof_peak * 0.5, 0.0),
+		fabric_mat,
+		"RoofPanelRight"
+	)
+	right_roof.rotation.z = -side_slope_angle
+
+	var stake_pos := Vector3(half_w + 0.55, 0.0, half_d + 0.35)
+	add_cylinder(visuals, 0.04, 0.05, 0.35, stake_pos + Vector3(0.0, 0.18, 0.0), pole_mat, "Stake")
+	var guy_line := add_box(visuals, Vector3(0.04, 0.04, 0.65), Vector3(0.0, 0.0, 0.0), pole_mat, "GuyLine")
+	guy_line.position = (Vector3(half_w - 0.18, pole_h * 0.85, half_d - 0.18) + stake_pos) * 0.5
+	guy_line.look_at(Vector3(half_w - 0.18, pole_h * 0.85, half_d - 0.18), Vector3.UP)
 
 	add_box(
 		visuals,
@@ -582,15 +626,40 @@ static func add_hub_tent(
 		"WallRight"
 	)
 
-	var side_panel_depth := half_d - entrance_half
-	if side_panel_depth > 0.2:
+	if lip_width > 0.15:
+		var lip_left_x := -half_w + lip_width * 0.5
+		var lip_right_x := half_w - lip_width * 0.5
 		add_box(
 			visuals,
-			Vector3(width, wall_height, side_panel_depth),
-			Vector3(0.0, wall_height * 0.5, half_d - side_panel_depth * 0.5),
+			Vector3(lip_width, wall_height, wall_thickness),
+			Vector3(lip_left_x, wall_height * 0.5, lip_z),
 			fabric_mat,
-			"WallFrontLip"
+			"WallFrontLipL"
 		)
+		add_box(
+			visuals,
+			Vector3(lip_width, wall_height, wall_thickness),
+			Vector3(lip_right_x, wall_height * 0.5, lip_z),
+			fabric_mat,
+			"WallFrontLipR"
+		)
+
+	var flap_h := wall_height * 0.55
+	var flap_z := half_d - wall_thickness * 0.35
+	add_box(
+		visuals,
+		Vector3(0.12, flap_h, 0.08),
+		Vector3(-entrance_width * 0.25, flap_h * 0.5, flap_z),
+		fabric_mat,
+		"FlapL"
+	)
+	add_box(
+		visuals,
+		Vector3(0.12, flap_h, 0.08),
+		Vector3(entrance_width * 0.25, flap_h * 0.5, flap_z),
+		fabric_mat,
+		"FlapR"
+	)
 
 	add_box(visuals, Vector3(width + 0.6, 0.1, depth + 0.6), Vector3(0.0, 0.05, 0.0), mats.floor_alt, "TentPad")
 
@@ -602,6 +671,9 @@ static func add_hub_tent(
 	else:
 		for child in collision_root.get_children():
 			child.queue_free()
+	collision_root.collision_layer = 1
+	collision_root.collision_mask = 0
+	collision_root.rotation.y = facing_yaw
 
 	add_collision_box(
 		collision_root,
@@ -621,15 +693,144 @@ static func add_hub_tent(
 		Vector3(half_w, wall_height * 0.5, 0.0),
 		"ColRight"
 	)
-	if side_panel_depth > 0.2:
+	if lip_width > 0.15:
 		add_collision_box(
 			collision_root,
-			Vector3(width, wall_height, side_panel_depth),
-			Vector3(0.0, wall_height * 0.5, half_d - side_panel_depth * 0.5),
-			"ColFrontLip"
+			Vector3(lip_width, wall_height, wall_thickness),
+			Vector3(-half_w + lip_width * 0.5, wall_height * 0.5, lip_z),
+			"ColFrontLipL"
+		)
+		add_collision_box(
+			collision_root,
+			Vector3(lip_width, wall_height, wall_thickness),
+			Vector3(half_w - lip_width * 0.5, wall_height * 0.5, lip_z),
+			"ColFrontLipR"
 		)
 
 	return visuals
+
+
+static func add_hub_fountain(parent: Node3D, mats: Dictionary, position: Vector3) -> Node3D:
+	var fountain := Node3D.new()
+	fountain.name = "PlazaFountain"
+	fountain.position = position
+	parent.add_child(fountain)
+
+	var water_mat := make_material(Color(0.42, 0.68, 0.92, 0.85))
+	var stone_mat: Material = mats.wall
+	var accent_mat: Material = mats.accent
+
+	add_cylinder(fountain, 2.35, 2.55, 0.22, Vector3(0.0, 0.11, 0.0), water_mat, "PoolRim")
+	add_cylinder(fountain, 1.85, 1.95, 0.16, Vector3(0.0, 0.2, 0.0), water_mat, "PoolWater")
+	add_cylinder(fountain, 0.42, 0.55, 0.95, Vector3(0.0, 0.62, 0.0), stone_mat, "Pedestal")
+	add_cylinder(fountain, 0.18, 0.24, 0.35, Vector3(0.0, 1.18, 0.0), accent_mat, "Spout")
+
+	var droplet_mesh := _make_fountain_particle_mesh(0.14)
+	var droplet_mat := _make_fountain_particle_material(Color(0.55, 0.82, 1.0, 0.9), 1.1)
+	var mist_mat := _make_fountain_particle_material(Color(0.78, 0.92, 1.0, 0.45), 0.35)
+
+	var spray := CPUParticles3D.new()
+	spray.name = "WaterSpray"
+	spray.position = Vector3(0.0, 1.55, 0.0)
+	spray.emitting = true
+	spray.amount = 88
+	spray.lifetime = 1.15
+	spray.one_shot = false
+	spray.preprocess = 1.0
+	spray.explosiveness = 0.12
+	spray.randomness = 0.4
+	spray.direction = Vector3(0.0, 1.0, 0.0)
+	spray.spread = 18.0
+	spray.flatness = 0.1
+	spray.gravity = Vector3(0.0, -9.8, 0.0)
+	spray.initial_velocity_min = 4.8
+	spray.initial_velocity_max = 7.2
+	spray.scale_amount_min = 0.1
+	spray.scale_amount_max = 0.2
+	spray.color = Color(0.62, 0.86, 1.0, 0.92)
+	spray.mesh = droplet_mesh
+	spray.material_override = droplet_mat
+	spray.visibility_aabb = AABB(Vector3(-2.5, -2.0, -2.5), Vector3(5.0, 7.5, 5.0))
+	fountain.add_child(spray)
+
+	var fall := CPUParticles3D.new()
+	fall.name = "WaterFall"
+	fall.position = Vector3(0.0, 1.85, 0.0)
+	fall.emitting = true
+	fall.amount = 64
+	fall.lifetime = 1.35
+	fall.one_shot = false
+	fall.preprocess = 1.0
+	fall.explosiveness = 0.08
+	fall.randomness = 0.55
+	fall.direction = Vector3(0.0, 1.0, 0.0)
+	fall.spread = 42.0
+	fall.flatness = 0.3
+	fall.gravity = Vector3(0.0, -12.0, 0.0)
+	fall.initial_velocity_min = 2.8
+	fall.initial_velocity_max = 5.2
+	fall.scale_amount_min = 0.07
+	fall.scale_amount_max = 0.14
+	fall.color = Color(0.48, 0.74, 0.98, 0.82)
+	fall.mesh = droplet_mesh
+	fall.material_override = droplet_mat
+	fall.visibility_aabb = AABB(Vector3(-2.5, -2.0, -2.5), Vector3(5.0, 7.5, 5.0))
+	fountain.add_child(fall)
+
+	var mist := CPUParticles3D.new()
+	mist.name = "WaterMist"
+	mist.position = Vector3(0.0, 1.25, 0.0)
+	mist.emitting = true
+	mist.amount = 32
+	mist.lifetime = 1.35
+	mist.one_shot = false
+	mist.preprocess = 0.8
+	mist.direction = Vector3(0.0, 1.0, 0.0)
+	mist.spread = 55.0
+	mist.flatness = 0.5
+	mist.gravity = Vector3(0.0, -3.5, 0.0)
+	mist.initial_velocity_min = 0.5
+	mist.initial_velocity_max = 1.6
+	mist.scale_amount_min = 0.16
+	mist.scale_amount_max = 0.28
+	mist.color = Color(0.85, 0.94, 1.0, 0.4)
+	mist.mesh = _make_fountain_particle_mesh(0.22)
+	mist.material_override = mist_mat
+	mist.visibility_aabb = AABB(Vector3(-2.5, -2.0, -2.5), Vector3(5.0, 7.5, 5.0))
+	fountain.add_child(mist)
+
+	var glow := OmniLight3D.new()
+	glow.name = "WaterGlow"
+	glow.light_color = Color(0.62, 0.82, 1.0)
+	glow.light_energy = 0.42
+	glow.omni_range = 3.2
+	glow.position = Vector3(0.0, 0.85, 0.0)
+	fountain.add_child(glow)
+
+	return fountain
+
+
+static func _make_fountain_particle_mesh(radius: float) -> SphereMesh:
+	var mesh := SphereMesh.new()
+	mesh.radius = radius
+	mesh.height = radius * 2.0
+	mesh.radial_segments = 6
+	mesh.rings = 4
+	return mesh
+
+
+static func _make_fountain_particle_material(color: Color, emission_energy: float) -> StandardMaterial3D:
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = color
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mat.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
+	mat.emission_enabled = true
+	mat.emission = Color(color.r, color.g, color.b)
+	mat.emission_energy_multiplier = emission_energy
+	mat.texture_filter = PixelDioramaSettings.texture_filter_mode()
+	return mat
 
 
 static func add_cylinder(

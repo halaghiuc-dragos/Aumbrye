@@ -93,6 +93,6 @@ func _update_label() -> void:
 	if _can_descend:
 		parts.append("%s+Shift Descend" % InputGlyphService.get_action_glyph("interact"))
 	if _can_retreat:
-		parts.append("%s+Ctrl Retreat to hub" % InputGlyphService.get_action_glyph("interact"))
+		parts.append("%s+Ctrl Retreat to Aumbrye Tower" % InputGlyphService.get_action_glyph("interact"))
 	_label.text = "\n".join(parts)
 	_label.visible = not parts.is_empty()

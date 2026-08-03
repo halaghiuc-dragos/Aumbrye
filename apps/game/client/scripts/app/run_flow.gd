@@ -7,6 +7,7 @@ signal run_ended(results: Dictionary)
 signal returned_to_hub(message: String)
 
 const HUB_SCENE := "res://scenes/hub/hub.tscn"
+const TOWER_DISPLAY_NAME := "Aumbrye Tower"
 const CASTLE_RUN_SCENE := "res://scenes/dungeon/castle_run.tscn"
 const WAVES_RUN_SCENE := "res://scenes/dungeon/waves_run.tscn"
 const ARENA_SCENE := "res://scenes/debug/combat_arena.tscn"
@@ -415,7 +416,7 @@ func retreat_to_hub() -> void:
 		active["dungeonDefinition"] = current_dungeon_definition.duplicate(true)
 		LocalSave.set_active_run(active)
 	_run_active = false
-	last_hub_message = "Retreated to hub. Continue from the portal."
+	last_hub_message = "Retreated to %s. Continue from the portal." % TOWER_DISPLAY_NAME
 	_clear_run_meta()
 	LocalSave.autosave()
 	_goto_scene(HUB_SCENE)

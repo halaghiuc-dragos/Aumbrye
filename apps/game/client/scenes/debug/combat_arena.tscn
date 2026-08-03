@@ -26,7 +26,7 @@ size = Vector3(3.5, 3.5, 3.5)
 [node name="CombatArena" type="Node3D"]
 script = ExtResource("3_arena")
 player_path = NodePath("Player")
-enemy_path = NodePath("TrainingGrunt")
+enemy_path = NodePath("TrainingDummies/TrainingGruntA")
 overlay_path = NodePath("DebugOverlay")
 
 [node name="DirectionalLight3D" type="DirectionalLight3D" parent="."]
@@ -44,14 +44,36 @@ mesh = SubResource("BoxMesh_floor")
 shape = SubResource("BoxShape3D_floor")
 
 [node name="Player" parent="." instance=ExtResource("1_player")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.02, 0, 9.5)
 
-[node name="TrainingGrunt" parent="." instance=ExtResource("2_enemy")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6, 0, 0)
-player_path = NodePath("../Player")
+[node name="TrainingDummies" type="Node3D" parent="."]
+
+[node name="TrainingGruntA" parent="TrainingDummies" instance=ExtResource("2_enemy")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7, 0, -4.5)
+player_path = NodePath("../../Player")
+
+[node name="TrainingGruntB" parent="TrainingDummies" instance=ExtResource("2_enemy")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 9.5, 0, 0)
+player_path = NodePath("../../Player")
+
+[node name="TrainingGruntC" parent="TrainingDummies" instance=ExtResource("2_enemy")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7, 0, 4.5)
+player_path = NodePath("../../Player")
+
+[node name="TrainingGruntD" parent="TrainingDummies" instance=ExtResource("2_enemy")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -7, 0, -4.5)
+player_path = NodePath("../../Player")
+
+[node name="TrainingGruntE" parent="TrainingDummies" instance=ExtResource("2_enemy")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -9.5, 0, 0)
+player_path = NodePath("../../Player")
+
+[node name="TrainingGruntF" parent="TrainingDummies" instance=ExtResource("2_enemy")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -7, 0, 4.5)
+player_path = NodePath("../../Player")
 
 [node name="HubReturn" type="Node3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -8, 0, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -6)
 
 [node name="DoorFrame" type="MeshInstance3D" parent="HubReturn"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.75, 0)
@@ -74,13 +96,13 @@ shape = SubResource("BoxShape3D_interact")
 [node name="Label3D" type="Label3D" parent="HubReturn"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 4.2, 0)
 billboard = 1
-text = "Return to Hub (E)"
+text = "Return to Aumbrye Tower (E)"
 font_size = 28
 
 [node name="DebugOverlay" type="CanvasLayer" parent="."]
 script = ExtResource("4_overlay")
 player_path = NodePath("../Player")
-enemy_path = NodePath("../TrainingGrunt")
+enemy_path = NodePath("../TrainingDummies/TrainingGruntA")
 
 [node name="DebugLabel" type="Label" parent="DebugOverlay"]
 offset_left = 16.0

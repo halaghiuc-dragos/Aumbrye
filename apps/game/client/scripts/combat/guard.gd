@@ -111,6 +111,9 @@ func try_parry_attack(attacker: Node) -> bool:
 	if _state != GuardState.PARRY_WINDOW:
 		return false
 	parry_success.emit(attacker)
+	if _body:
+		var anchor: Array = VfxService.resolve_combat_anchor(_body)
+		VfxService.play_parry(anchor[0], anchor[1])
 	_end_guard_sequence()
 	block_state_changed.emit(false)
 	return true

@@ -75,6 +75,8 @@ func _emit_block_feedback(chip_damage: float) -> void:
 	var body := _find_character_body()
 	if body == null:
 		return
+	var anchor: Array = VfxService.resolve_combat_anchor(body)
+	VfxService.play_block(anchor[0], anchor[1])
 	var feedback := body.get_node_or_null("HitFeedback")
 	if feedback and feedback.has_method("on_hit_blocked"):
 		feedback.call("on_hit_blocked", body, chip_damage)

@@ -2,6 +2,16 @@ extends Control
 
 const InputGlyphServiceScript := preload("res://scripts/ui/input_glyph_service.gd")
 
+const BAR_WIDTH := 280.0
+const HEALTH_BAR_HEIGHT := 22.0
+const STAMINA_BAR_HEIGHT := 16.0
+const HUD_MARGIN := 20.0
+const HEALTH_FILL := Color(0.82, 0.14, 0.12, 1.0)
+const HEALTH_BG := Color(0.12, 0.05, 0.05, 0.92)
+const STAMINA_FILL := Color(0.22, 0.78, 0.28, 1.0)
+const STAMINA_BG := Color(0.05, 0.12, 0.06, 0.92)
+const BAR_BORDER := Color(0.04, 0.04, 0.04, 0.95)
+
 @export var player_path: NodePath
 @export var lock_on_path: NodePath
 
@@ -26,6 +36,8 @@ func _ready() -> void:
 	_stamina_bar = get_node_or_null("Margin/VBox/StaminaBar") as ProgressBar
 	_xp_bar = get_node_or_null("Margin/VBox/XpBar") as ProgressBar
 	_level_label = get_node_or_null("Margin/VBox/LevelLabel") as Label
+	_apply_screen_layout()
+	_style_resource_bars()
 	_ensure_progression_widgets()
 	_ensure_controls_hint()
 	_lock_reticle = get_node_or_null("LockReticle") as Control
@@ -54,9 +66,55 @@ func _ensure_status_row() -> void:
 	if _status_row == null:
 		_status_row = HBoxContainer.new()
 		_status_row.name = "StatusRow"
-		_status_row.position = Vector2(24, 120)
 		add_child(_status_row)
 	_refresh_status_icons()
+	_update_status_row_position()
+
+
+func _apply_screen_layout() -> void:
+	var margin := get_node_or_null("Margin") as MarginContainer
+	if margin == null:
+		return
+	margin.set_anchors_preset(Control.PRESET_TOP_LEFT)
+	margin.offset_left = HUD_MARGIN
+	margin.offset_top = HUD_MARGIN
+	margin.offset_right = HUD_MARGIN + BAR_WIDTH
+	margin.offset_bottom = HUD_MARGIN + HEALTH_BAR_HEIGHT + STAMINA_BAR_HEIGHT + 28.0
+	margin.grow_horizontal = Control.GROW_DIRECTION_END
+	margin.grow_vertical = Control.GROW_DIRECTION_END
+	var vbox := margin.get_node_or_null("VBox") as VBoxContainer
+	if vbox:
+		vbox.add_theme_constant_override("separation", 6)
+
+
+func _style_resource_bars() -> void:
+	if _health_bar:
+		_health_bar.custom_minimum_size = Vector2(BAR_WIDTH, HEALTH_BAR_HEIGHT)
+		_apply_bar_style(_health_bar, HEALTH_FILL, HEALTH_BG)
+	if _stamina_bar:
+		_stamina_bar.custom_minimum_size = Vector2(BAR_WIDTH, STAMINA_BAR_HEIGHT)
+		_apply_bar_style(_stamina_bar, STAMINA_FILL, STAMINA_BG)
+
+
+func _apply_bar_style(bar: ProgressBar, fill_color: Color, bg_color: Color) -> void:
+	bar.show_percentage = false
+	var bg := StyleBoxFlat.new()
+	bg.bg_color = bg_color
+	bg.border_color = BAR_BORDER
+	bg.set_border_width_all(1)
+	bg.set_corner_radius_all(4)
+	bg.set_content_margin_all(2)
+	var fill := StyleBoxFlat.new()
+	fill.bg_color = fill_color
+	fill.set_corner_radius_all(3)
+	bar.add_theme_stylebox_override("background", bg)
+	bar.add_theme_stylebox_override("fill", fill)
+
+
+func _update_status_row_position() -> void:
+	if _status_row == null:
+		return
+	_status_row.position = Vector2(HUD_MARGIN, HUD_MARGIN + HEALTH_BAR_HEIGHT + STAMINA_BAR_HEIGHT + 18.0)
 
 
 func _refresh_status_icons() -> void:

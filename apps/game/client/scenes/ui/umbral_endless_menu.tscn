@@ -49,7 +49,7 @@ theme_override_constants/separation = 10
 
 [node name="Title" type="Label" parent="MainPanel/Margin/VBox"]
 layout_mode = 2
-text = "Umbral Endless"
+text = "Aumbrye Prison"
 horizontal_alignment = 1
 
 [node name="StatusLabel" type="Label" parent="MainPanel/Margin/VBox"]

@@ -138,6 +138,10 @@ func _try_hit(area: Area3D) -> void:
 		_status_stacks
 	)
 	area.call("receive_hit", info)
+	var hit_pos := area.global_position
+	if area.get_parent() is Node3D:
+		hit_pos = (area.get_parent() as Node3D).global_position + Vector3(0.0, 1.0, 0.0)
+	VfxService.play_hit_spark(hit_pos, direction)
 	var feedback := _owner_node.get_node_or_null("HitFeedback")
 	if feedback and feedback.has_method("on_hit"):
 		feedback.on_hit(area.get_parent(), damage_amount)

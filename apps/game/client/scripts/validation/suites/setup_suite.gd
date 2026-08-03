@@ -24,7 +24,7 @@ func _test_project_setup() -> void:
 
 	start = Time.get_ticks_msec()
 	var autoloads := [
-		"RunFlow", "LocalSave", "InventoryService", "AudioDirector", "ApiConfig",
+		"RunFlow", "LocalSave", "InventoryService", "AudioDirector", "ApiConfig", "VfxService", "PlayerControls",
 	]
 	var missing: PackedStringArray = []
 	for name in autoloads:

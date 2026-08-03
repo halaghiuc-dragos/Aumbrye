@@ -328,11 +328,11 @@ func _build_combat_hud() -> void:
 	add_child(hud)
 	var margin := MarginContainer.new()
 	margin.name = "Margin"
-	margin.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
-	margin.offset_left = 24.0
-	margin.offset_top = -120.0
-	margin.offset_right = 324.0
-	margin.offset_bottom = -24.0
+	margin.set_anchors_preset(Control.PRESET_TOP_LEFT)
+	margin.offset_left = 20.0
+	margin.offset_top = 20.0
+	margin.offset_right = 300.0
+	margin.offset_bottom = 84.0
 	hud.add_child(margin)
 	var vbox := VBoxContainer.new()
 	vbox.name = "VBox"

@@ -193,6 +193,8 @@ func _make_section_frame(title: String) -> PanelContainer:
 
 
 func _unhandled_input(event: InputEvent) -> void:
+	if event.is_action_pressed("inventory") and not PlayerControls.uses_main_inventory():
+		return
 	if event.is_action_pressed("inventory"):
 		toggle()
 		get_viewport().set_input_as_handled()

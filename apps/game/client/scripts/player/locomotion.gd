@@ -20,6 +20,7 @@ var _combat_reactions: Node
 var _lock_on: LockOn
 var _speed_multiplier := 1.0
 var _animator
+var _footstep_timer := 0.0
 
 
 func _ready() -> void:
@@ -111,6 +112,7 @@ func _physics_process(delta: float) -> void:
 		_facing.rotation.y = lerp_angle(_facing.rotation.y, target_angle, ROTATION_SPEED * delta)
 
 	move_and_slide()
+	_update_footstep_vfx(delta)
 	_update_character_animation(delta)
 
 
@@ -149,6 +151,23 @@ func get_facing_yaw() -> float:
 	if _facing:
 		return _facing.rotation.y
 	return rotation.y
+
+
+func _update_footstep_vfx(delta: float) -> void:
+	if not is_on_floor():
+		_footstep_timer = 0.0
+		return
+	var horizontal_speed := Vector2(velocity.x, velocity.z).length()
+	if horizontal_speed < 0.35:
+		_footstep_timer = 0.0
+		return
+	var sprinting := Input.is_action_pressed("sprint")
+	var interval := VfxService.FOOTSTEP_INTERVAL_SPRINT if sprinting else VfxService.FOOTSTEP_INTERVAL_WALK
+	_footstep_timer -= delta
+	if _footstep_timer > 0.0:
+		return
+	_footstep_timer = interval
+	VfxService.play_footstep(global_position + Vector3(0.0, 0.05, 0.0), get_facing_direction())
 
 
 func _update_character_animation(delta: float) -> void:

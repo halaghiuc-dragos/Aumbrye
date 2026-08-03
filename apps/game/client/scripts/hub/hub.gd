@@ -8,6 +8,8 @@ const HubDioramaScript := preload("res://scripts/hub/hub_diorama.gd")
 @onready var _portal_area: HubInteractable = $CastlePortal/InteractArea
 @onready var _endless_portal_area: HubInteractable = $UmbralEndlessPortal/InteractArea
 @onready var _waves_portal_area: HubInteractable = $UmbralWavesPortal/InteractArea
+@onready var _skies_portal_area: HubInteractable = $SkiesPortal/InteractArea
+@onready var _cathedral_portal_area: HubInteractable = $CathedralPortal/InteractArea
 @onready var _arena_area: HubInteractable = $ArenaDoor/InteractArea
 @onready var _blacksmith_area: HubInteractable = $Blacksmith/InteractArea
 @onready var _merchant_area: HubInteractable = $Merchant/InteractArea
@@ -23,15 +25,12 @@ const HubDioramaScript := preload("res://scripts/hub/hub_diorama.gd")
 @onready var _merchant_ui: Control = $MerchantUI
 @onready var _storage_ui: Control = $StorageUI
 @onready var _quest_board_ui: Control = $QuestBoardUI
-@onready var _inventory_ui: Control = $InventoryUI
-
-var _settings_ui: Control
-var _talents_ui: Control
-var _loadout_ui: Control
 
 var _near_portal := false
 var _near_endless_portal := false
 var _near_waves_portal := false
+var _near_skies_portal := false
+var _near_cathedral_portal := false
 var _near_arena := false
 var _near_blacksmith := false
 var _near_merchant := false
@@ -47,6 +46,8 @@ func _ready() -> void:
 	_wire_interactable(_portal_area, _on_portal_enter, _on_portal_exit)
 	_wire_interactable(_endless_portal_area, _on_endless_portal_enter, _on_endless_portal_exit)
 	_wire_interactable(_waves_portal_area, _on_waves_portal_enter, _on_waves_portal_exit)
+	_wire_interactable(_skies_portal_area, _on_skies_portal_enter, _on_skies_portal_exit)
+	_wire_interactable(_cathedral_portal_area, _on_cathedral_portal_enter, _on_cathedral_portal_exit)
 	_wire_interactable(_arena_area, _on_arena_enter, _on_arena_exit)
 	_wire_interactable(_blacksmith_area, _on_blacksmith_enter, _on_blacksmith_exit)
 	_wire_interactable(_merchant_area, _on_merchant_enter, _on_merchant_exit)
@@ -71,7 +72,6 @@ func _ready() -> void:
 	_show_return_message()
 	_refresh_castle_portal_label()
 	RunFlow.returned_to_hub.connect(_on_returned_to_hub)
-	_attach_m4_ui()
 	AudioDirector.stop_all(0.5)
 	HubTutorialService.load_from_save()
 	call_deferred("_boot_save_and_services")
@@ -90,36 +90,12 @@ func _boot_save_and_services() -> void:
 	LocalSave.autosave()
 
 
-func _attach_m4_ui() -> void:
-	var settings_script := load("res://scripts/ui/settings_ui.gd")
-	if settings_script:
-		_settings_ui = Control.new()
-		_settings_ui.name = "SettingsUI"
-		_settings_ui.set_script(settings_script)
-		_settings_ui.set_anchors_preset(Control.PRESET_FULL_RECT)
-		add_child(_settings_ui)
-	var talents_script := load("res://scripts/ui/talents_ui.gd")
-	if talents_script:
-		_talents_ui = Control.new()
-		_talents_ui.name = "TalentsUI"
-		_talents_ui.set_script(talents_script)
-		_talents_ui.set_anchors_preset(Control.PRESET_FULL_RECT)
-		add_child(_talents_ui)
-	var loadout_scene := load("res://scenes/ui/loadout_ui.tscn") as PackedScene
-	if loadout_scene:
-		_loadout_ui = loadout_scene.instantiate() as Control
-		add_child(_loadout_ui)
-
 
 func _apply_pixel_diorama_to_scene() -> void:
 	PixelDioramaSettings.apply_to_scene(self)
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	if event.is_action_pressed("pause") and _settings_ui and not _any_ui_open():
-		_settings_ui.open_settings()
-		get_viewport().set_input_as_handled()
-		return
 	if _any_ui_open():
 		return
 	if not event.is_action_pressed("interact"):
@@ -136,6 +112,12 @@ func _unhandled_input(event: InputEvent) -> void:
 	elif _near_waves_portal:
 		vp.set_input_as_handled()
 		_waves_menu.open_menu()
+	elif _near_skies_portal:
+		vp.set_input_as_handled()
+		show_hub_message("Aumbrye Skies is coming soon.")
+	elif _near_cathedral_portal:
+		vp.set_input_as_handled()
+		show_hub_message("Aumbrye Cathedral is coming soon.")
 	elif _near_arena:
 		vp.set_input_as_handled()
 		if Input.is_key_pressed(KEY_SHIFT):
@@ -169,8 +151,7 @@ func _process(_delta: float) -> void:
 
 
 func open_loadout() -> void:
-	if _loadout_ui:
-		_loadout_ui.open()
+	PlayerControls.open_loadout()
 
 
 func open_blacksmith() -> void:
@@ -212,10 +193,7 @@ func _any_ui_open() -> bool:
 		or _merchant_ui.is_open()
 		or _storage_ui.is_open()
 		or _quest_board_ui.is_open()
-		or (_settings_ui and _settings_ui.is_open())
-		or (_talents_ui and _talents_ui.is_open())
-		or (_inventory_ui and _inventory_ui.has_method("is_open") and _inventory_ui.is_open())
-		or (_loadout_ui and _loadout_ui.is_open())
+		or PlayerControls.is_player_meta_ui_open()
 	)
 
 
@@ -229,6 +207,10 @@ func _update_prompt() -> void:
 		_prompt_label.text = _endless_portal_area.get_prompt()
 	elif _near_waves_portal:
 		_prompt_label.text = _waves_portal_area.get_prompt()
+	elif _near_skies_portal:
+		_prompt_label.text = _skies_portal_area.get_prompt()
+	elif _near_cathedral_portal:
+		_prompt_label.text = _cathedral_portal_area.get_prompt()
 	elif _near_arena:
 		_prompt_label.text = _arena_area.get_prompt()
 	elif _near_blacksmith:
@@ -261,7 +243,7 @@ func _show_return_message() -> void:
 		_message_label.text = RunFlow.last_hub_message
 		RunFlow.last_hub_message = ""
 	else:
-		_message_label.text = "Welcome to Aumbrye Hub — explore the landmarks"
+		_message_label.text = "Welcome to Aumbrye Tower — explore the landmarks"
 
 
 func _on_dungeon_run(dungeon_id: String) -> void:
@@ -316,6 +298,22 @@ func _on_waves_portal_enter() -> void:
 
 func _on_waves_portal_exit() -> void:
 	_near_waves_portal = false
+
+
+func _on_skies_portal_enter() -> void:
+	_near_skies_portal = true
+
+
+func _on_skies_portal_exit() -> void:
+	_near_skies_portal = false
+
+
+func _on_cathedral_portal_enter() -> void:
+	_near_cathedral_portal = true
+
+
+func _on_cathedral_portal_exit() -> void:
+	_near_cathedral_portal = false
 
 
 func _refresh_hub_message() -> void:

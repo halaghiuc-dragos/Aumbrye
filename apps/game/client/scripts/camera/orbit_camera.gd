@@ -72,6 +72,36 @@ func get_yaw_basis() -> Basis:
 	return Basis(Vector3.UP, global_rotation.y)
 
 
+func snap_look_direction(world_direction: Vector3) -> void:
+	var dir := world_direction
+	dir.y = 0.0
+	if dir.length_squared() < 0.0001 or _yaw_pivot == null:
+		return
+	dir = dir.normalized()
+	var yaw := atan2(dir.x, dir.z)
+	if _first_person:
+		yaw += PI
+	_yaw_pivot.rotation.y = yaw
+
+
+func snap_camera_forward(world_forward: Vector3) -> void:
+	var fwd := world_forward
+	if fwd.length_squared() < 0.0001:
+		return
+	fwd = fwd.normalized()
+	if _yaw_pivot:
+		var flat := Vector3(fwd.x, 0.0, fwd.z)
+		if flat.length_squared() > 0.0001:
+			flat = flat.normalized()
+			# Spring-arm camera looks along -basis.z opposite to flat look direction.
+			var yaw := atan2(-flat.x, -flat.z)
+			if _first_person:
+				yaw += PI
+			_yaw_pivot.rotation.y = yaw
+	_pitch = clampf(asin(clampf(fwd.y, -1.0, 1.0)), MIN_PITCH, MAX_PITCH)
+	rotation.x = _pitch
+
+
 func is_first_person() -> bool:
 	return _first_person
 

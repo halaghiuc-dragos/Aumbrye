@@ -17,6 +17,7 @@ var _hit_feedback: Node
 
 func _ready() -> void:
 	_label = $DebugLabel
+	_apply_overlay_layout()
 	if player_path:
 		_player = get_node(player_path) as CharacterBody3D
 		_dodge = _player.get_node_or_null("Dodge")
@@ -25,6 +26,22 @@ func _ready() -> void:
 		_hit_feedback = _player.get_node_or_null("HitFeedback")
 	if enemy_path:
 		_enemy = get_node(enemy_path) as CharacterBody3D
+
+
+func _apply_overlay_layout() -> void:
+	if _label == null:
+		return
+	_label.set_anchors_preset(Control.PRESET_TOP_RIGHT)
+	_label.offset_left = -520.0
+	_label.offset_top = 16.0
+	_label.offset_right = -16.0
+	_label.offset_bottom = 300.0
+	_label.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+	_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	_label.add_theme_color_override("font_color", Color(0.94, 0.92, 0.86, 1.0))
+	_label.add_theme_color_override("font_shadow_color", Color(0.0, 0.0, 0.0, 0.82))
+	_label.add_theme_constant_override("shadow_offset_x", 1)
+	_label.add_theme_constant_override("shadow_offset_y", 1)
 
 
 func _input(event: InputEvent) -> void:
@@ -54,6 +71,8 @@ func _process(_delta: float) -> void:
 			"ON" if _guard.get("is_blocking") else "off",
 		])
 	if _player:
+		_append_player_location_lines(lines)
+		_append_camera_facing_lines(lines)
 		var spring_arm := _player.get_node_or_null("CameraPivot/SpringArm3D")
 		if spring_arm and spring_arm.has_method("is_first_person"):
 			lines.append("camera: %s" % ("1P" if spring_arm.call("is_first_person") else "3P"))
@@ -67,6 +86,9 @@ func _process(_delta: float) -> void:
 		var enemy_health := _enemy.get_node_or_null("Health") as Health
 		if enemy_health:
 			lines.append("Enemy HP: %.0f / %.0f" % [enemy_health.current, enemy_health.max_health])
+	var dummy_count := get_tree().get_nodes_in_group("training_dummy").size()
+	if dummy_count > 1:
+		lines.append("training dummies: %d" % dummy_count)
 	if show_hitboxes:
 		var hit_nodes := get_tree().get_nodes_in_group("combat_hitbox")
 		var hurt_nodes := get_tree().get_nodes_in_group("combat_hurtbox")
@@ -89,6 +111,64 @@ func _process(_delta: float) -> void:
 		elif reactions.get("is_staggered"):
 			lines.append("player: staggered")
 	_label.text = "\n".join(lines)
+
+
+func _append_player_location_lines(lines: PackedStringArray) -> void:
+	var pos := _player.global_position
+	lines.append("player pos: %.2f, %.2f, %.2f" % [pos.x, pos.y, pos.z])
+	var room_label := _resolve_room_label(pos)
+	if room_label != "":
+		lines.append("room: %s" % room_label)
+	var room := _find_current_room_template()
+	if room:
+		var local_pos := room.to_local(pos)
+		lines.append("room local: %.2f, %.2f, %.2f" % [local_pos.x, local_pos.y, local_pos.z])
+
+
+func _append_camera_facing_lines(lines: PackedStringArray) -> void:
+	var camera := get_viewport().get_camera_3d()
+	if camera == null:
+		return
+	var forward := -camera.global_transform.basis.z.normalized()
+	var yaw_deg := rad_to_deg(atan2(forward.x, forward.z))
+	var pitch_deg := rad_to_deg(asin(clampf(forward.y, -1.0, 1.0)))
+	lines.append(
+		"camera facing: yaw %.0f° pitch %.0f° | (%.2f, %.2f, %.2f)"
+		% [yaw_deg, pitch_deg, forward.x, forward.y, forward.z]
+	)
+
+
+func _resolve_room_label(_world_pos: Vector3) -> String:
+	var castle := get_tree().get_first_node_in_group("castle_run")
+	if castle:
+		var room_id := str(castle.get("player_room_id"))
+		if room_id != "":
+			return room_id
+		return "castle"
+	var scene := get_tree().current_scene
+	if scene:
+		if scene.scene_file_path.ends_with("hub/hub.tscn"):
+			return "Aumbrye Tower"
+		return scene.name
+	return ""
+
+
+func _find_current_room_template() -> RoomTemplate:
+	var castle := get_tree().get_first_node_in_group("castle_run")
+	if castle == null:
+		return null
+	var room_id := str(castle.get("player_room_id"))
+	if room_id == "":
+		return null
+	return _find_room_template(castle, room_id)
+
+
+func _find_room_template(root: Node, room_id: String) -> RoomTemplate:
+	for node in root.find_children("*", "RoomTemplate", true, false):
+		var room := node as RoomTemplate
+		if room and room.room_id == room_id:
+			return room
+	return null
 
 
 func _toggle_hitbox_debug(enabled: bool) -> void:
@@ -127,9 +207,18 @@ func reset_duel() -> void:
 			stamina.reset_stamina()
 		if poise:
 			poise.reset_poise()
-		_player.global_position = Vector3(0, 0, 0)
+		_player.global_position = CombatArenaScript.PLAYER_SPAWN if _has_combat_arena_constants() else Vector3(-0.02, 0.0, 9.5)
 		_player.velocity = Vector3.ZERO
-	if _enemy:
+		var arena := get_tree().current_scene
+		if arena and arena.has_method("orient_player_to_hub_return"):
+			arena.call("orient_player_to_hub_return")
+	var dummies := get_tree().get_nodes_in_group("training_dummy")
+	if not dummies.is_empty():
+		for enemy in dummies:
+			if enemy.has_method("reset_enemy"):
+				enemy.call("reset_enemy")
+			enemy.velocity = Vector3.ZERO
+	elif _enemy:
 		if _enemy.has_method("reset_enemy"):
 			_enemy.call("reset_enemy")
 		_enemy.global_position = Vector3(6, 0, 0)
@@ -138,3 +227,10 @@ func reset_duel() -> void:
 		var reactions := _player.get_node_or_null("CombatReactions")
 		if reactions and reactions.has_method("reset_combat_state"):
 			reactions.call("reset_combat_state")
+
+
+const CombatArenaScript := preload("res://scripts/debug/combat_arena.gd")
+
+
+func _has_combat_arena_constants() -> bool:
+	return CombatArenaScript != null
