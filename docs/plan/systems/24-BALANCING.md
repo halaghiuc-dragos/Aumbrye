@@ -28,4 +28,4 @@
 - `scripts/` damage simulator / content export
 - Rarity frequency telemetry (optional logging)
 
-Keep notes in `docs/design/balance_m*.md`.
+Keep balance notes in `reports/` or inline in [24-BALANCING.md](24-BALANCING.md).

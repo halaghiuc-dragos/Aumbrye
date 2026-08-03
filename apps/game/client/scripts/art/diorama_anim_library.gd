@@ -430,14 +430,14 @@ static func build_attack(
 	var startup_end: float = float(spec.get("startup_end", 0.35))
 	var active_end: float = float(spec.get("active_end", 0.6))
 	var total := maxf(0.08, startup + active + recovery)
-	var remap := {
+	var phase_map := {
 		"startup_end": startup_end,
 		"active_end": active_end,
 		"startup_time": startup,
 		"active_time": startup + active,
 		"total": total,
 	}
-	return _compile(spec, rest_pose, events_path, 1.0, remap)
+	return _compile(spec, rest_pose, events_path, 1.0, phase_map)
 
 
 static func _compile(
@@ -445,10 +445,10 @@ static func _compile(
 	rest_pose: Dictionary,
 	events_path: String,
 	speed: float,
-	remap: Dictionary = {}
+	phase_map: Dictionary = {}
 ) -> Animation:
 	var anim := Animation.new()
-	var length: float = float(remap.get("total", float(spec.get("length", 1.0)) / maxf(0.01, speed)))
+	var length: float = float(phase_map.get("total", float(spec.get("length", 1.0)) / maxf(0.01, speed)))
 	anim.length = maxf(0.02, length)
 	anim.loop_mode = Animation.LOOP_LINEAR if bool(spec.get("loop", false)) else Animation.LOOP_NONE
 
@@ -462,12 +462,12 @@ static func _compile(
 		var channels: Dictionary = tracks[part_name]
 		if channels.has("pos"):
 			_add_vector_track(
-				anim, "%s:position" % node_path, channels["pos"], rest.get("position", Vector3.ZERO), remap
+				anim, "%s:position" % node_path, channels["pos"], rest.get("position", Vector3.ZERO), phase_map
 			)
 			wrote_any = true
 		if channels.has("rot"):
 			_add_vector_track(
-				anim, "%s:rotation" % node_path, channels["rot"], rest.get("rotation", Vector3.ZERO), remap
+				anim, "%s:rotation" % node_path, channels["rot"], rest.get("rotation", Vector3.ZERO), phase_map
 			)
 			wrote_any = true
 
@@ -479,7 +479,7 @@ static func _compile(
 		var track := anim.add_track(Animation.TYPE_METHOD)
 		anim.track_set_path(track, NodePath(events_path))
 		for entry in methods:
-			var time := _remap_time(float(entry[0]), remap)
+			var time := _remap_time(float(entry[0]), phase_map)
 			anim.track_insert_key(track, time, {"method": entry[1], "args": []})
 	return anim
 
@@ -489,27 +489,27 @@ static func _add_vector_track(
 	path: String,
 	keys: Array,
 	rest_value: Vector3,
-	remap: Dictionary
+	phase_map: Dictionary
 ) -> void:
 	var track := anim.add_track(Animation.TYPE_VALUE)
 	anim.track_set_path(track, NodePath(path))
 	anim.track_set_interpolation_type(track, Animation.INTERPOLATION_LINEAR)
 	anim.value_track_set_update_mode(track, Animation.UPDATE_CONTINUOUS)
 	for key in keys:
-		var time := _remap_time(float(key[0]), remap)
+		var time := _remap_time(float(key[0]), phase_map)
 		var offset := Vector3(float(key[1]), float(key[2]), float(key[3]))
 		anim.track_insert_key(track, time, rest_value + offset)
 
 
 ## Piecewise-linear stretch of a normalised attack timeline onto real phase times.
-static func _remap_time(normalised: float, remap: Dictionary) -> float:
-	if remap.is_empty():
+static func _remap_time(normalised: float, phase_map: Dictionary) -> float:
+	if phase_map.is_empty():
 		return normalised
-	var startup_end: float = remap["startup_end"]
-	var active_end: float = remap["active_end"]
-	var startup_time: float = remap["startup_time"]
-	var active_time: float = remap["active_time"]
-	var total: float = remap["total"]
+	var startup_end: float = phase_map["startup_end"]
+	var active_end: float = phase_map["active_end"]
+	var startup_time: float = phase_map["startup_time"]
+	var active_time: float = phase_map["active_time"]
+	var total: float = phase_map["total"]
 	if normalised <= startup_end:
 		return _segment(normalised, 0.0, startup_end, 0.0, startup_time)
 	if normalised <= active_end:

@@ -1,6 +1,6 @@
 class_name LockOnMovement
 
-## Shared lock-on locomotion helpers (M1_CONTROLS.md — used by player locomotion).
+## Shared lock-on locomotion helpers (DEC-G08 — used by player locomotion).
 
 const DEFAULT_ORBIT_RADIUS := 1.75
 const FACING_SPEED := 10.0

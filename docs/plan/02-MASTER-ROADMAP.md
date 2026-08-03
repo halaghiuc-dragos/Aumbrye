@@ -10,13 +10,13 @@
 | Phase | Name | Goal | Approx duration (solo) |
 |-------|------|------|------------------------|
 | M0 ✅ | [systems/00-SETUP-CI.md](systems/00-SETUP-CI.md) | Runnable empty pipelines | **done** |
-| M1 ✅ | [design/M1_IMPLEMENTATION_LOG.md](../design/M1_IMPLEMENTATION_LOG.md) | Combat core | Combat feels worth building the game | **done** |
+| M1 ✅ | [systems/02-COMBAT.md](systems/02-COMBAT.md) | Combat core | Combat feels worth building the game | **done** |
 | [M2](phases/M2-VERTICAL-SLICE.md) ✅ | Vertical slice | One handcrafted dungeon + boss | 5–6 weeks |
 | [M3](phases/M3-SERVER-GENERATION.md) ✅ | Server generation | Backend owns dungeons | 5–6 weeks |
-| M4 ✅ | [design/M4_IMPLEMENTATION_LOG.md](../design/M4_IMPLEMENTATION_LOG.md) | Gameplay loop | Hub → run → upgrade → repeat | **done** |
+| M4 ✅ | [checklists/01-MASTER-MILESTONE-INDEX.md](checklists/01-MASTER-MILESTONE-INDEX.md) § M4 | Gameplay loop | Hub → run → upgrade → repeat | **done** |
 | M5 ✅ | Content pack A | 3 themes + combat depth | **done** |
-| M6 ✅ | [design/M6_IMPLEMENTATION_LOG.md](../design/M6_IMPLEMENTATION_LOG.md) | Content pack B | 5 themes + meta + site | **done** |
-| M7 ✅ | [design/M7_IMPLEMENTATION_LOG.md](../design/M7_IMPLEMENTATION_LOG.md) | EA polish | Steam ship | 7–8 weeks | **automated closed** (EA ship manual gates open) |
+| M6 ✅ | [phases/M6-CONTENT-PACK-B.md](phases/M6-CONTENT-PACK-B.md) | Content pack B | 5 themes + meta + site | **done** |
+| M7 ✅ | [07-EA-DEFINITION-OF-DONE.md](07-EA-DEFINITION-OF-DONE.md) | EA polish | Steam ship | 7–8 weeks | **automated closed** (EA ship manual gates open) |
 
 **Total guidance:** ~14–18 months. Calendar yields to quality gates.
 
@@ -93,9 +93,9 @@ Each track has its own system doc. Phases pull milestones from tracks.
 | M1 ✅ | Skilled win vs training enemy via roll/parry/spacing (KB/M); controls locked |
 | M2 ✅ | Hub stub → castle → boss → escape → local save |
 | M3 ✅ | Same seed → identical dungeon via API → playable in Godot |
-| M4 ✅ | Automated loop green; manual TEST-4.1 soak open — [MANUAL_PLAYTEST_CHECKLIST.md](../design/MANUAL_PLAYTEST_CHECKLIST.md) § M4 |
-| M5 ✅ | 3 themes + 5 weapons; automated `m5_suite` green — manual feel gates in [MANUAL_PLAYTEST_CHECKLIST.md](../design/MANUAL_PLAYTEST_CHECKLIST.md) § M5 |
-| M6 ✅ | 5 themes; ~8–12h content; site live; a11y baseline — automated `m6_suite` (73 tests) green; manual § M6 in [MANUAL_PLAYTEST_CHECKLIST.md](../design/MANUAL_PLAYTEST_CHECKLIST.md) |
+| M4 ✅ | Automated loop green; manual TEST-4.1 soak open — [07-EA-DEFINITION-OF-DONE.md](07-EA-DEFINITION-OF-DONE.md) |
+| M5 ✅ | 3 themes + 5 weapons; automated `m5_suite` green — manual feel gates in EA DoD |
+| M6 ✅ | 5 themes; ~8–12h content; site live; a11y baseline — automated `m6_suite` (73 tests) green |
 | M7 ✅ | Steam Windows build; 10-floor + Umbral modes; automated `m7_suite` (65) green — manual § M7 + [07-EA-DEFINITION-OF-DONE.md](07-EA-DEFINITION-OF-DONE.md) for EA ship |
 
 Full ship checklist: [07-EA-DEFINITION-OF-DONE.md](07-EA-DEFINITION-OF-DONE.md).

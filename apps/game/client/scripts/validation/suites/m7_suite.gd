@@ -509,13 +509,13 @@ func _test_ci_release_workflow() -> void:
 
 func _test_ship_docs() -> void:
 	var start := Time.get_ticks_msec()
-	var path := _content_root().path_join("docs/design/M7_MANUAL_PLAYTEST_CHECKLIST.md")
-	var ok: bool = FileAccess.file_exists(path) and "M7.ship.external_playtest" in FileAccess.get_file_as_string(path)
+	var path := _content_root().path_join("docs/plan/07-EA-DEFINITION-OF-DONE.md")
+	var ok: bool = FileAccess.file_exists(path) and "Early Access" in FileAccess.get_file_as_string(path)
 	ctx.timed_record(
 		"m7.ship.manual_checklist",
 		get_category(),
 		ok,
-		"M7 manual playtest checklist documented",
+		"EA definition-of-done documented",
 		start,
 		"SHIP-7.1"
 	)
@@ -947,12 +947,12 @@ func _test_boss_cannon_flow() -> void:
 
 func _test_known_issues_doc() -> void:
 	var start := Time.get_ticks_msec()
-	var path := _content_root().path_join("docs/design/KNOWN_ISSUES_M7.md")
+	var path := _content_root().path_join("docs/design/AUDIT_2026-08.md")
 	ctx.timed_record(
 		"m7.ship.known_issues_doc",
 		get_category(),
 		FileAccess.file_exists(path),
-		"KNOWN_ISSUES_M7.md documented",
+		"AUDIT_2026-08.md documented",
 		start,
 		"SHIP-7.x"
 	)

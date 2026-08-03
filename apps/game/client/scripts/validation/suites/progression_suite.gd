@@ -83,13 +83,13 @@ func _test_talent_unlock() -> void:
 func _test_run_economy_docs() -> void:
 	var start := Time.get_ticks_msec()
 	var exists := FileAccess.file_exists(
-		ProjectSettings.globalize_path("res://").path_join("../../..").path_join("docs/design/run_economy.md")
+		ProjectSettings.globalize_path("res://").path_join("../../..").path_join("docs/plan/systems/13-PROGRESSION.md")
 	)
 	ctx.timed_record(
 		"progression.run_economy_doc",
 		get_category(),
 		exists,
-		"run economy rules documented",
+		"progression system doc present",
 		start,
 		"M4.flow.economy"
 	)

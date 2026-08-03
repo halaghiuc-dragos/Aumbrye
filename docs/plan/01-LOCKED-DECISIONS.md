@@ -85,7 +85,7 @@
 | DEC-G04 | Status effects EA: burn, bleed, poison, freeze, stun; curse if time |
 | DEC-G05 | Death/escape economy tuned in playtests; defaults documented in `systems/14-PROGRESSION.md` |
 | DEC-G06 | Inventory: grid, controller-first, drag-drop, sort, filter, compare |
-| DEC-G07 | **M1 combat controls frozen** (2026-07-29): all bindings and movement behaviors in [M1_CONTROLS.md](../design/M1_CONTROLS.md) — no agent rebind or behavior change without explicit user request |
+| DEC-G07 | **M1 combat controls frozen** (2026-07-29): bindings and movement behaviors in [systems/01-MOVEMENT-CAMERA.md](systems/01-MOVEMENT-CAMERA.md) and [systems/02-COMBAT.md](systems/02-COMBAT.md) — no agent rebind or behavior change without explicit user request |
 | DEC-G08 | Lock-on: camera unchanged when locked; **W/S** camera-relative; **A/D** orbit strafe ~1.75m |
 | DEC-G09 | Dodge with no WASD: backstep **opposite weapon/hitbox facing**, not camera-relative |
 | DEC-G10 | Guard: **tap Q / LT** only — 0.18s parry → 0.65s block → idle; no hold-to-block |

@@ -44,4 +44,4 @@ Low-res 3D render + nearest upscale + surface shaders. **Do not reparent** scene
 | Surface shader | `apps/game/client/shaders/pixel_diorama_surface.gdshader` |
 | Style helpers | `apps/game/client/scripts/art/pixel_diorama_style.gd` |
 
-Full architecture: [PIXEL_DIORAMA_PIPELINE.md](../../design/PIXEL_DIORAMA_PIPELINE.md).
+Full architecture: [visual_enhancement_plan.md](../../design/visual_enhancement_plan.md).

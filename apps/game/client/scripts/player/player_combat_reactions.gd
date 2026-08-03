@@ -59,6 +59,9 @@ func reset_combat_state() -> void:
 	_stagger_timer = 0.0
 	if _mesh:
 		_mesh.scale = Vector3.ONE
+	var director := _body.get_node_or_null("AnimDirector")
+	if director and director.has_method("revive"):
+		director.call("revive")
 
 
 func _apply_stagger(duration: float) -> void:

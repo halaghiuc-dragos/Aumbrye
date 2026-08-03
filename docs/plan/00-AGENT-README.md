@@ -11,8 +11,8 @@
 1. Read this file fully.
 2. Read [01-LOCKED-DECISIONS.md](01-LOCKED-DECISIONS.md) — decisions are law.
 3. Open [02-MASTER-ROADMAP.md](02-MASTER-ROADMAP.md) — find the lowest incomplete major phase (`M0`–`M7`).
-4. Open the phase implementation log under `docs/design/` (M1–M7) or system doc for M0.
-5. For EA ship work, use [M7_IMPLEMENTATION_LOG.md](../design/M7_IMPLEMENTATION_LOG.md) + [07-EA-DEFINITION-OF-DONE.md](07-EA-DEFINITION-OF-DONE.md) — phase files M6/M7 removed after automated close.
+4. Open the matching phase file under `phases/` or system doc for M0.
+5. For current implementation work, use [AUDIT_2026-08.md](../design/AUDIT_2026-08.md) + [MCP_AGENT_GUIDE.md](../MCP_AGENT_GUIDE.md). For EA ship, use [07-EA-DEFINITION-OF-DONE.md](07-EA-DEFINITION-OF-DONE.md).
 6. Never skip major phases. Never pull EA content into M1–M2.
 
 ---
@@ -38,10 +38,9 @@
 | [checklists/01-MASTER-MILESTONE-INDEX.md](checklists/01-MASTER-MILESTONE-INDEX.md) | Flat ID index |
 | [checklists/02-AGENT-OPERATING-LOOP.md](checklists/02-AGENT-OPERATING-LOOP.md) | Resume protocol |
 | [M-PHASES-STATUS.md](M-PHASES-STATUS.md) | One-page M0–M7 status snapshot |
-| [../design/MANUAL_PLAYTEST_CHECKLIST.md](../design/MANUAL_PLAYTEST_CHECKLIST.md) | Human playtest gates (all phases) |
-| [../design/VALIDATION_PLATFORM.md](../design/VALIDATION_PLATFORM.md) | Automated validation (`./scripts/run-all-validation.ps1`) |
-| [design/VALIDATION_PLATFORM.md](../design/VALIDATION_PLATFORM.md) | Automated validation (C# + Godot suites) |
-| [design/MANUAL_PLAYTEST_CHECKLIST.md](../design/MANUAL_PLAYTEST_CHECKLIST.md) | **Single** living manual playtest checklist (all phases) |
+| [../design/AUDIT_2026-08.md](../design/AUDIT_2026-08.md) | Current bugs, gaps, and fix order |
+| [../design/visual_enhancement_plan.md](../design/visual_enhancement_plan.md) | Pixel-diorama / art pipeline contract |
+| [../MCP_AGENT_GUIDE.md](../MCP_AGENT_GUIDE.md) | Godot MCP tooling for agents |
 
 ---
 
@@ -166,8 +165,8 @@ Remaining blueprint themes are **post-EA** only. See [content/01-THEMES.md](cont
 
 A major phase is complete only when:
 
-1. All minor milestones for the phase are `done` (see phase implementation log under `docs/design/` for closed phases M1–M7).
-2. Phase exit criteria verified (recorded in implementation log).
+1. All minor milestones for the phase are `done` (see `phases/` and [M-PHASES-STATUS.md](M-PHASES-STATUS.md)).
+2. Phase exit criteria verified.
 3. No open P0 bugs tagged to that phase.
 
 Do not start `M(n+1)` feature work until `Mn` exit criteria pass. Exception: pure docs or CI fixes.
@@ -187,6 +186,6 @@ Do not start `M(n+1)` feature work until `Mn` exit criteria pass. Exception: pur
 
 ## First action after plan approval
 
-**M7 automated closed (2026-07-31)** — `m7_suite` (**65 tests**); `m6_suite` (**73 tests**); multi-floor + Umbral modes in [multi_floor_dungeons.md](../design/multi_floor_dungeons.md). **EA ship** pending manual gates: [M7_MANUAL_PLAYTEST_CHECKLIST.md](../design/M7_MANUAL_PLAYTEST_CHECKLIST.md) + [07-EA-DEFINITION-OF-DONE.md](07-EA-DEFINITION-OF-DONE.md). Canonical log: [M7_IMPLEMENTATION_LOG.md](../design/M7_IMPLEMENTATION_LOG.md).
+**M7 automated closed (2026-07-31)** — `m7_suite` (**65 tests**); `m6_suite` (**73 tests**); multi-floor + Umbral modes shipped. **EA ship** pending manual gates: [07-EA-DEFINITION-OF-DONE.md](07-EA-DEFINITION-OF-DONE.md). **Current work:** [AUDIT_2026-08.md](../design/AUDIT_2026-08.md).
 
-**Validation before manual playtest:** `./scripts/run-all-validation.ps1` — see [VALIDATION_PLATFORM.md](../design/VALIDATION_PLATFORM.md). **Human gates (all phases):** [MANUAL_PLAYTEST_CHECKLIST.md](../design/MANUAL_PLAYTEST_CHECKLIST.md).
+**Validation:** `./scripts/run-all-validation.ps1` — see [systems/22-TESTING.md](systems/22-TESTING.md) and [MCP_AGENT_GUIDE.md](../MCP_AGENT_GUIDE.md).

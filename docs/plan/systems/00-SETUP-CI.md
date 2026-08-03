@@ -1,7 +1,7 @@
 # System: Setup and CI
 
 > Bootstrap and continuous integration. **M0 complete** (verified 2026-07-29).
-> Ongoing release CI: [M7_IMPLEMENTATION_LOG.md](../../design/M7_IMPLEMENTATION_LOG.md) (CI-7.1).
+> **M0 complete** (verified 2026-07-29). Release CI: `.github/workflows/release.yml` (CI-7.1).
 
 ---
 
@@ -14,7 +14,7 @@ Exit gate confirmed locally:
 - `npm run dev` (apps/web) — Aumbrye title page
 - Godot **4.7** — `empty_world.tscn` runs; WASD movement + mouse look
 
-Next phase: [M2-VERTICAL-SLICE.md](../phases/M2-VERTICAL-SLICE.md). M1 closed: [M1_IMPLEMENTATION_LOG.md](../../design/M1_IMPLEMENTATION_LOG.md).
+Next phase: [M2-VERTICAL-SLICE.md](../phases/M2-VERTICAL-SLICE.md). M1 closed per [02-COMBAT.md](02-COMBAT.md).
 
 ---
 

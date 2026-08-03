@@ -1,6 +1,6 @@
 extends Node
 
-## Dash (Space / gamepad B) and jump (F / gamepad A). See docs/design/M1_CONTROLS.md.
+## Dash (Space / gamepad B) and jump (F / gamepad A). Bindings locked per DEC-G07–DEC-G10.
 
 const JUMP_VELOCITY := 4.8
 const COYOTE_TIME := 0.12

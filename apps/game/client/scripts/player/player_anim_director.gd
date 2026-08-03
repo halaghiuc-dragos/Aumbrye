@@ -90,6 +90,8 @@ func sync_camera_mode() -> void:
 	var holder := _viewmodel_root.get_parent() if _viewmodel_root else null
 	if holder is Node3D:
 		(holder as Node3D).visible = first_person
+	if _visual and is_instance_valid(_visual):
+		_visual.visible = true
 
 
 func _connect_signals() -> void:
@@ -274,3 +276,12 @@ func _on_swing_frame() -> void:
 		return
 	var anchor: Array = VfxService.resolve_combat_anchor(_body)
 	VfxService.play_weapon_trail(anchor[0], anchor[1])
+
+
+func revive() -> void:
+	super.revive()
+	sync_camera_mode()
+	var facing := _body.get_node_or_null("Facing") as Node3D
+	var spring := _body.get_node_or_null(SPRING_PATH)
+	if facing and spring and spring.has_method("is_first_person"):
+		CharacterSkin.apply_first_person(facing, bool(spring.call("is_first_person")))

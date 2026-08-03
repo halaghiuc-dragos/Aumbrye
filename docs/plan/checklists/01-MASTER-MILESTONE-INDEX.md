@@ -25,7 +25,7 @@ All milestones complete. Inventory and deferred items: [systems/00-SETUP-CI.md](
 
 ## M1 Combat ✅
 
-All milestones complete (KB/M signed off 2026-07-29). Archive: [M1_IMPLEMENTATION_LOG.md](../design/M1_IMPLEMENTATION_LOG.md). Gamepad playtest deferred.
+All milestones complete (KB/M signed off 2026-07-29). Gamepad playtest deferred.
 
 | ID | Title | Status |
 |----|-------|--------|
@@ -47,7 +47,7 @@ All milestones complete (KB/M signed off 2026-07-29). Archive: [M1_IMPLEMENTATIO
 
 ## M2 Vertical slice ✅
 
-All milestones complete (KB/M signed off 2026-07-30). Archive: [M2_IMPLEMENTATION_LOG.md](../design/M2_IMPLEMENTATION_LOG.md).
+All milestones complete (KB/M signed off 2026-07-30).
 
 | ID | Title | Status |
 |----|-------|--------|
@@ -68,7 +68,7 @@ All milestones complete (KB/M signed off 2026-07-30). Archive: [M2_IMPLEMENTATIO
 
 ## M3 Server generation ✅
 
-All milestones complete (2026-07-30). Archive: [M3_IMPLEMENTATION_LOG.md](../../design/M3_IMPLEMENTATION_LOG.md). Manual gates: [MANUAL_PLAYTEST_CHECKLIST.md](../../design/MANUAL_PLAYTEST_CHECKLIST.md).
+All milestones complete (2026-07-30). Manual gates deferred to M7 / EA DoD.
 
 | ID | Title | Status |
 |----|-------|--------|
@@ -82,7 +82,7 @@ All milestones complete (2026-07-30). Archive: [M3_IMPLEMENTATION_LOG.md](../../
 
 ## M4 Gameplay loop
 
-Closed 2026-07-30 — [M4_IMPLEMENTATION_LOG.md](../../design/M4_IMPLEMENTATION_LOG.md). Manual gate: [MANUAL_PLAYTEST_CHECKLIST.md](../../design/MANUAL_PLAYTEST_CHECKLIST.md) § M4.
+Closed 2026-07-30. Manual gate: TEST-4.1 soak (EA DoD).
 
 | ID | Title | Status |
 |----|-------|--------|
@@ -100,7 +100,7 @@ Closed 2026-07-30 — [M4_IMPLEMENTATION_LOG.md](../../design/M4_IMPLEMENTATION_
 
 ## M5 Content A ✅
 
-Closed 2026-07-30 — automated `m5_suite` (70 tests). Manual gate: [MANUAL_PLAYTEST_CHECKLIST.md](../../design/MANUAL_PLAYTEST_CHECKLIST.md) § M5.
+Closed 2026-07-30 — automated `m5_suite` (70 tests). Manual feel gates: EA DoD.
 
 | ID | Title | Status |
 |----|-------|--------|
@@ -134,7 +134,7 @@ Closed 2026-07-30 — automated `m5_suite` (70 tests). Manual gate: [MANUAL_PLAY
 | M6.automated | `m6_suite` (73 tests): biomes, procgen, dungeon build, scenes, rooms, web, leaderboards | done |
 | M6.manual | Feel playtest (5 biomes, achievements, web) | manual |
 
-Log: [M6_IMPLEMENTATION_LOG.md](../design/M6_IMPLEMENTATION_LOG.md)
+Log: [M6-CONTENT-PACK-B.md](../phases/M6-CONTENT-PACK-B.md)
 
 ## M7 EA ship
 
@@ -150,6 +150,6 @@ Log: [M6_IMPLEMENTATION_LOG.md](../design/M6_IMPLEMENTATION_LOG.md)
 | PERF-7.1–7.2 | Optimize + crashes | `m7.perf.*` |
 | SCHEMA-7.1 | Save migrations v3 | `m7.save.*` |
 | CI-7.1 | Release workflow | `m7.ci.release_workflow` |
-| SHIP-7.1–7.3 | Playtest, store, launch | manual — [M7_MANUAL_PLAYTEST_CHECKLIST.md](../design/M7_MANUAL_PLAYTEST_CHECKLIST.md) |
+| SHIP-7.1–7.3 | Playtest, store, launch | manual — [07-EA-DEFINITION-OF-DONE.md](../07-EA-DEFINITION-OF-DONE.md) |
 
-Log: [M7_IMPLEMENTATION_LOG.md](../design/M7_IMPLEMENTATION_LOG.md) · Known issues: [KNOWN_ISSUES_M7.md](../design/KNOWN_ISSUES_M7.md)
+Reference: [AUDIT_2026-08.md](../../design/AUDIT_2026-08.md) · [M-PHASES-STATUS.md](../M-PHASES-STATUS.md)

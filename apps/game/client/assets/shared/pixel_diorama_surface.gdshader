@@ -113,15 +113,17 @@ void fragment() {
 	float edge = voxel_edge_mask(uv);
 	col = mix(col, color_shadow.rgb * 0.75, edge * edge_strength * detail);
 
-	// Albedo is deliberately left un-posterized. The palettes are already flat, and
-	// quantizing here collapses every dark palette entry onto the same black step.
-	// Tonal steps come from the banded light() below and the screen finish pass.
-	ALBEDO = vec3(1.0);
+	// Palette colour lives in albedo; banded light() below supplies tonal steps.
+	ALBEDO = col;
 	ROUGHNESS = 1.0;
 	METALLIC = 0.0;
 	SPECULAR = 0.0;
 }
 
 void light() {
-	DIFFUSE_LIGHT += vec3(ATTENUATION);
+	float ndl = dot(NORMAL, LIGHT);
+	ndl = ndl * (1.0 - light_wrap) + light_wrap;
+	float shade = band_light(clamp(ndl * 0.5 + 0.5, 0.0, 1.0), shade_bands, shade_dither, FRAGCOORD.xy);
+	float rim = pixel_rim(NORMAL, VIEW, 4.0) * rim_strength;
+	DIFFUSE_LIGHT += ATTENUATION * LIGHT_COLOR * (shade + rim);
 }

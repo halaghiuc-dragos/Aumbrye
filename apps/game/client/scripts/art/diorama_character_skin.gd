@@ -202,7 +202,6 @@ static func find_part(visual: Node3D, part_name: String) -> Node3D:
 static func apply_first_person(facing: Node3D, enabled: bool) -> void:
 	if facing == null:
 		return
-	PixelStyle.hide_legacy_meshes(facing)
 	var visual := facing.get_node_or_null(VISUAL_NAME) as Node3D
 	if visual == null:
 		return
@@ -210,6 +209,15 @@ static func apply_first_person(facing: Node3D, enabled: bool) -> void:
 		var part := find_part(visual, part_name)
 		if part:
 			_set_shadows_only(part, enabled)
+	if not enabled:
+		_set_meshes_visible(visual, true)
+
+
+static func _set_meshes_visible(node: Node, visible: bool) -> void:
+	if node is GeometryInstance3D:
+		(node as GeometryInstance3D).visible = visible
+	for child in node.get_children():
+		_set_meshes_visible(child, visible)
 
 
 static func _set_shadows_only(node: Node, shadows_only: bool) -> void:

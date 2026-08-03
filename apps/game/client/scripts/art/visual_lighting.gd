@@ -167,10 +167,9 @@ static func _make_sky(preset: Dictionary) -> Sky:
 	mat.set_shader_parameter("cloud_color", preset.get("cloud_color", Color(0.95, 0.93, 0.9)))
 	var sky := Sky.new()
 	sky.sky_material = mat
-	# The sky is flat colour bands; a big radiance cubemap would cost more than
-	# it contributes, since ambient comes from an explicit colour.
+	# Banded sky is static; automatic baking avoids realtime radiance-size warnings.
+	sky.process_mode = Sky.PROCESS_MODE_AUTOMATIC
 	sky.radiance_size = Sky.RADIANCE_SIZE_32
-	sky.process_mode = Sky.PROCESS_MODE_REALTIME
 	return sky
 
 

@@ -199,9 +199,19 @@ func play_death() -> void:
 
 
 func revive() -> void:
+	for mirror in _mirrors:
+		mirror.revive()
+	if not is_bound():
+		_dead = false
+		_priority = Priority.LOCOMOTION
+		return
 	_dead = false
+	_blocking = false
 	_priority = Priority.LOCOMOTION
-	_resume_locomotion()
+	_desired_locomotion = &"idle"
+	_player.speed_scale = 1.0
+	_apply_rest_pose()
+	_play(&"idle", 0.0)
 
 
 ## Plays the next combo swing stretched onto the weapon's real phase timings, so
@@ -333,6 +343,17 @@ func get_weapon_mount() -> Node3D:
 	if _visual == null:
 		return null
 	return CharacterSkin.find_part(_visual, CharacterSkin.WEAPON_MOUNT)
+
+
+func _apply_rest_pose() -> void:
+	if _visual == null:
+		return
+	for key in _rest_pose:
+		var data: Dictionary = _rest_pose[key]
+		var part := _visual.get_node_or_null(NodePath(data["path"])) as Node3D
+		if part:
+			part.position = data["position"]
+			part.rotation = data["rotation"]
 
 
 func _teardown() -> void:

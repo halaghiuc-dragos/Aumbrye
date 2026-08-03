@@ -49,4 +49,4 @@
 | Server / CLI (fallback) | `packages/procedural/` |
 | Biome rules | `content/biomes/` |
 
-See [PROCGEN_ROOM_GRAPH.md](../../design/PROCGEN_ROOM_GRAPH.md) for module map and validation suites.
+See `apps/game/client/scripts/dungeon/procgen/` for module map and validation suites.

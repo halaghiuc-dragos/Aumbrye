@@ -3,7 +3,7 @@ extends Node
 ## Crisp low-res 3D: shared-world SubViewport + mirrored camera (no node reparenting).
 ##
 ## The scene graph is never reparented into the SubViewport; only the camera is
-## mirrored. See docs/design/PIXEL_DIORAMA_PIPELINE.md for the rejected
+## mirrored. See docs/design/visual_enhancement_plan.md for the rejected
 ## alternatives (own_world_3d, scaling_3d_scale, pivot snapping) and why.
 
 signal world_attached(scene_root: Node)
@@ -113,10 +113,10 @@ func _mirrored_transform() -> Transform3D:
 	# the near plane and spring-arm distance stay exact.
 	var lateral := right.dot(origin)
 	var vertical := up.dot(origin)
-	var snapped := origin
-	snapped += right * (snappedf(lateral, step) - lateral)
-	snapped += up * (snappedf(vertical, step) - vertical)
-	return Transform3D(source.basis, snapped)
+	var snapped_origin := origin
+	snapped_origin += right * (snappedf(lateral, step) - lateral)
+	snapped_origin += up * (snappedf(vertical, step) - vertical)
+	return Transform3D(source.basis, snapped_origin)
 
 
 func apply_settings() -> void:

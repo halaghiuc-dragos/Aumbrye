@@ -30,7 +30,7 @@ Beautiful, intentionally pixelled 3D: low-res render + nearest upscale + quantiz
 - Materials via surface shader / `PixelDioramaStyle` / regen tool.
 - Attack active frames: prefer AnimationPlayer method tracks; JSON timings = fallback + validation bounds.
 - Anim priority: `death > stagger > attack/parry > block > dash > locomotion`.
-- Update `docs/design/PIXEL_DIORAMA_PIPELINE.md` when pipeline contracts change.
+- Update `docs/design/visual_enhancement_plan.md` when pipeline contracts change.
 - After file moves: fix preloads/class paths; no duplicate stubs.
 
 ## PATHS (current → target)
@@ -169,9 +169,9 @@ Refine body proportions per profile; bosses = extra named parts still on Animati
 
 ## P6 — VALIDATE + DOCS
 1. Suites: `pixel_pipeline_suite` (bootstrap, nearest, viewport); `diorama_anim_suite` (libs load, markers, attack plays).
-2. Respect `docs/design/performance_m6.md` light/prop budgets.
+2. Respect `docs/plan/systems/20-PERFORMANCE.md` light/prop budgets.
 3. Playtest: crispness, 1P/3P, attack readability, biome blind-ID, Umbral.
-4. Expand `PIXEL_DIORAMA_PIPELINE.md`: Pipeline / Lighting / Animation / Kits / FP-TP / Checklist.
+4. Expand `visual_enhancement_plan.md` when pipeline contracts change: Pipeline / Lighting / Animation / Kits / FP-TP / Checklist.
 
 ---
 

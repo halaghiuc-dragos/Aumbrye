@@ -4,8 +4,8 @@
 - **status:** ✅ closed (2026-07-30)
 - **goal:** Backend owns dungeon generation; Godot plays server definitions; determinism proven.
 - **depends_on:** M2 exit criteria
-- **close_record:** [M3_IMPLEMENTATION_LOG.md](../../design/M3_IMPLEMENTATION_LOG.md)
-- **manual_gates:** None for M3 — remaining human checks in [MANUAL_PLAYTEST_CHECKLIST.md](../../design/MANUAL_PLAYTEST_CHECKLIST.md) (M7 polish)
+- **close_record:** Phase closed 2026-07-30
+- **manual_gates:** Deferred to M7 / EA DoD
 - **exit_criteria:**
   - [x] Same seed+params → byte-identical definition (canonical JSON)
   - [x] `POST /api/v1/runs` returns playable Forgotten Castle definition
@@ -265,5 +265,5 @@
 
 ## Post-close notes
 
-- Validation: `./scripts/run-all-validation.ps1` (114 Godot + C# CI). See [VALIDATION_PLATFORM.md](../../design/VALIDATION_PLATFORM.md).
-- Manual playtest items (feel, UX, gamepad, external playtest) → [MANUAL_PLAYTEST_CHECKLIST.md](../../design/MANUAL_PLAYTEST_CHECKLIST.md).
+- Validation: `./scripts/run-all-validation.ps1`. See [systems/22-TESTING.md](../systems/22-TESTING.md) and [MCP_AGENT_GUIDE.md](../../MCP_AGENT_GUIDE.md).
+- Manual playtest items (feel, UX, gamepad, external playtest) → [07-EA-DEFINITION-OF-DONE.md](../07-EA-DEFINITION-OF-DONE.md).

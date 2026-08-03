@@ -59,11 +59,9 @@ Open `apps/game/client/project.godot` in Godot 4.7. Press **F5** — main scene 
 
 **Full loop:** Hub → biome portal (**E**) → dungeon → boss → exit → results → hub (5 EA biomes).
 
-**M1 combat controls (locked):** [docs/design/M1_CONTROLS.md](docs/design/M1_CONTROLS.md)  
-**M2 interact/inventory:** [docs/design/M2_CONTROLS.md](docs/design/M2_CONTROLS.md)  
-**Current phase:** M7 automated closed — EA ship pending manual gates — [docs/design/M7_IMPLEMENTATION_LOG.md](docs/design/M7_IMPLEMENTATION_LOG.md)  
-**Phase status:** [docs/plan/M-PHASES-STATUS.md](docs/plan/M-PHASES-STATUS.md)  
-Implementation logs: [M7](docs/design/M7_IMPLEMENTATION_LOG.md) · [M6](docs/design/M6_IMPLEMENTATION_LOG.md) · [M4](docs/design/M4_IMPLEMENTATION_LOG.md) · [M3](docs/design/M3_IMPLEMENTATION_LOG.md) · [M2](docs/design/M2_IMPLEMENTATION_LOG.md) · [M1](docs/design/M1_IMPLEMENTATION_LOG.md)
+**Combat controls (locked):** [docs/plan/01-LOCKED-DECISIONS.md](docs/plan/01-LOCKED-DECISIONS.md) (`DEC-G07`–`DEC-G10`)  
+**Current work:** [docs/design/AUDIT_2026-08.md](docs/design/AUDIT_2026-08.md) · [docs/MCP_AGENT_GUIDE.md](docs/MCP_AGENT_GUIDE.md)  
+**Phase status:** [docs/plan/M-PHASES-STATUS.md](docs/plan/M-PHASES-STATUS.md) · **EA ship gate:** [docs/plan/07-EA-DEFINITION-OF-DONE.md](docs/plan/07-EA-DEFINITION-OF-DONE.md)
 
 ### 5. Content validation
 

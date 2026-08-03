@@ -7,7 +7,7 @@ using static Aumbrye.Procedural.Biome.RoomTemplateCatalog;
 namespace Aumbrye.Procedural.Layout;
 
 /// <summary>
-/// Places room centers so opposing doorway sockets meet (CASTLE_ROOM_SOCKETS.md).
+/// Places room centers so opposing doorway sockets meet.
 /// </summary>
 public static class RoomPlacement
 {

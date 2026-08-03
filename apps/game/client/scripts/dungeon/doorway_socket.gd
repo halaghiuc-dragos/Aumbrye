@@ -2,7 +2,7 @@ extends Marker3D
 class_name DoorwaySocket
 
 ## Doorway attachment point on a castle room template edge.
-## See docs/design/CASTLE_ROOM_SOCKETS.md for placement rules.
+## Doorway socket markers for room prefab connectivity (N/E/S/W at room edges).
 
 @export var direction: CastleRoomConstants.Direction = CastleRoomConstants.Direction.NORTH
 @export var socket_id: String = ""

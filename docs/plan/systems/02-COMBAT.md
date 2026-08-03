@@ -1,6 +1,6 @@
 # System: Combat
 
-> M1 core combat **done** (2026-07-29). Controls permanently locked: [M1_CONTROLS.md](../../design/M1_CONTROLS.md).
+> M1 core combat **done** (2026-07-29). Controls permanently locked per `DEC-G07` in [01-LOCKED-DECISIONS.md](../01-LOCKED-DECISIONS.md).
 
 ## Major milestones
 
@@ -36,7 +36,7 @@ Rules:
 - One hit per target per swing.
 - Move while attacking and while in guard block phase; guard **break** and **poise break** briefly lock movement.
 - Player skill > gear: gear widens margins, does not delete telegraphs.
-- **Authoritative bindings (permanently locked):** [M1_CONTROLS.md](../../design/M1_CONTROLS.md) — do not change without explicit user request (`DEC-G07`).
+- **Authoritative bindings (permanently locked):** `DEC-G07`–`DEC-G10` in [01-LOCKED-DECISIONS.md](../01-LOCKED-DECISIONS.md) — do not change without explicit user request.
 
 ## Agent rules
 

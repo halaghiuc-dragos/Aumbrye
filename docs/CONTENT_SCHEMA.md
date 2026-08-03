@@ -43,7 +43,7 @@ npm run validate
 | ItemCatalog v1 | `content/schemas/item-catalog.v1.json` | `content/items/catalog.json` |
 | Inventory v1 (M2) | `content/schemas/inventory.v1.json` | `content/fixtures/inventory_sample.v1.json` |
 
-M2 status: [design/M2_IMPLEMENTATION_LOG.md](design/M2_IMPLEMENTATION_LOG.md)
+M2 inventory/items: [plan/phases/M2-VERTICAL-SLICE.md](plan/phases/M2-VERTICAL-SLICE.md)
 
 ## Enemy centralization
 

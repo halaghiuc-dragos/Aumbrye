@@ -26,7 +26,7 @@ $report = [ordered]@{
 }
 
 if ($Export) {
-    $out = Join-Path $root "docs/design/balance_m6_export.json"
+    $out = Join-Path $root "reports/balance_export.json"
     ($report | ConvertTo-Json -Depth 3) | Set-Content $out -Encoding UTF8
     Write-Host "Exported to $out"
 }

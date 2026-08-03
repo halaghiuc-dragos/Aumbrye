@@ -2,7 +2,7 @@
 
 - **phase:** M2
 - **goal:** Playable handcrafted Forgotten Castle run with boss and local save — no server gen yet.
-- **depends_on:** M1 complete — [M1_IMPLEMENTATION_LOG.md](../../design/M1_IMPLEMENTATION_LOG.md)
+- **depends_on:** M1 complete — [systems/02-COMBAT.md](../systems/02-COMBAT.md)
 - **exit_criteria:**
   - [x] Hub stub portal → castle dungeon → boss → escape → results
   - [x] 6–8 rooms including 1 secret
@@ -295,5 +295,5 @@
 3. ENEMY-2.1 → 2.2 → 2.3 + TRAP-2.1 ✅
 4. BOSS-2.1 → BOSS-2.2 ✅
 5. HUB-2.1 + FLOW-2.1 + SAVE-2.1 + AUDIO-2.1 ✅
-6. KB/M playtest signed off 2026-07-30 — see [M2_IMPLEMENTATION_LOG.md](../../design/M2_IMPLEMENTATION_LOG.md)
-7. Gamepad + optional friend playtest — deferred to [MANUAL_PLAYTEST_CHECKLIST.md](../../design/MANUAL_PLAYTEST_CHECKLIST.md)
+6. KB/M playtest signed off 2026-07-30
+7. Gamepad + optional friend playtest — deferred to EA DoD ([07-EA-DEFINITION-OF-DONE.md](../07-EA-DEFINITION-OF-DONE.md))

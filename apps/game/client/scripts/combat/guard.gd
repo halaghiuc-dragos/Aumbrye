@@ -1,7 +1,7 @@
 extends Node
 
 ## Tap-Q guard: parry window (0.18s) -> block phase (0.65s) -> idle.
-## Bindings: keyboard Q, gamepad LT. See docs/design/M1_CONTROLS.md (do not rebind without user request).
+## Bindings: keyboard Q, gamepad LT (DEC-G10 — do not rebind without user request).
 
 const BLOCK_STAMINA_DRAIN_PER_HIT := 18.0
 const BLOCK_DAMAGE_REDUCTION := 0.75

@@ -13,6 +13,6 @@ Modular blockout templates for the Forgotten Castle vertical slice.
 | `castle_arena.tscn` | `castle_arena` | 24×24 | W, S |
 | `castle_boss.tscn` | `castle_boss` | 28×28 | N |
 
-Socket convention: `docs/design/CASTLE_ROOM_SOCKETS.md`
+Socket convention: `DoorwaySocket` markers (N/E/S/W). See `scripts/dungeon/doorway_socket.gd`.
 
 Playable layout: `scenes/dungeon/forgotten_castle_slice.tscn`

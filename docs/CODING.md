@@ -35,7 +35,7 @@ Prioritize:
 - **Immediate feedback:** debug visuals (F2 hitboxes), HUD, hitstop, and telegraphs must visibly work when toggled.
 - **Iterate in small steps:** when feel is wrong, adjust constants and state timing — do not rip out working systems.
 
-Document feel changes in `docs/design/M1_IMPLEMENTATION_LOG.md` (or the relevant design log).
+Document non-trivial feel or pipeline changes in `docs/design/AUDIT_2026-08.md` or a short note in the relevant `docs/plan/systems/` doc.
 
 ## Godot (GDScript)
 
@@ -60,8 +60,6 @@ See [ADR-0001](ADR/0001-client-server-authority.md).
 
 ## M1 combat
 
-**Authoritative controls (permanently locked — M1 closed 2026-07-29):** [design/M1_CONTROLS.md](design/M1_CONTROLS.md)
+**Authoritative controls (permanently locked — M1 closed 2026-07-29):** `DEC-G07`–`DEC-G10` in [plan/01-LOCKED-DECISIONS.md](plan/01-LOCKED-DECISIONS.md); detail in [plan/systems/01-MOVEMENT-CAMERA.md](plan/systems/01-MOVEMENT-CAMERA.md) and [plan/systems/02-COMBAT.md](plan/systems/02-COMBAT.md).
 
-Do not rebind or change lock-on / dodge / guard movement behavior without explicit user request (`DEC-G07`–`DEC-G10` in [plan/01-LOCKED-DECISIONS.md](plan/01-LOCKED-DECISIONS.md)).
-
-Implementation log: [design/M1_IMPLEMENTATION_LOG.md](design/M1_IMPLEMENTATION_LOG.md)
+Do not rebind or change lock-on / dodge / guard movement behavior without explicit user request.

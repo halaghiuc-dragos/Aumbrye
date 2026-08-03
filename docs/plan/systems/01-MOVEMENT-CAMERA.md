@@ -1,6 +1,6 @@
 # System: Movement and Camera
 
-> M1 milestones **done** (2026-07-29). Controls locked: [M1_CONTROLS.md](../../design/M1_CONTROLS.md). Archive: [M1_IMPLEMENTATION_LOG.md](../../design/M1_IMPLEMENTATION_LOG.md).
+> M1 milestones **done** (2026-07-29). Controls locked per `DEC-G07`–`DEC-G10` in [01-LOCKED-DECISIONS.md](../01-LOCKED-DECISIONS.md).
 
 ## Major milestones
 
@@ -36,4 +36,4 @@
 
 When low-res upscale is enabled, the root viewport disables 3D rendering; a SubViewport mirror camera draws the world. **Billboards and HUD** must use `PixelDioramaViewport.get_gameplay_camera()` instead of `get_viewport().get_camera_3d()`.
 
-Orbit camera no longer snaps pivot position (was breaking follow with SpringArm). See [PIXEL_DIORAMA_PIPELINE.md](../../design/PIXEL_DIORAMA_PIPELINE.md).
+Orbit camera no longer snaps pivot position (was breaking follow with SpringArm). See [visual_enhancement_plan.md](../../design/visual_enhancement_plan.md).

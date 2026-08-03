@@ -1,8 +1,8 @@
 # M-Phases Status (M0–M7)
 
-> One-page snapshot for agents and humans. **Authoritative detail** lives in phase implementation logs under `docs/design/`.
+> One-page snapshot for agents and humans. **Current implementation work:** [AUDIT_2026-08.md](../design/AUDIT_2026-08.md).
 
-**Last updated:** 2026-07-31  
+**Last updated:** 2026-08-03  
 **Current phase:** M7 automated closed — **EA ship pending manual gates**  
 **Automated gate:** `./scripts/run-all-validation.ps1` — `m7_suite` + prior suites
 
@@ -10,18 +10,18 @@
 
 ## Summary table
 
-| Phase | Name | Status | Automated validation | Manual gates | Canonical log |
-|-------|------|--------|----------------------|--------------|---------------|
+| Phase | Name | Status | Automated validation | Manual gates | Reference |
+|-------|------|--------|----------------------|--------------|-----------|
 | M0 | Foundation / CI | **Complete** | CI + `setup_suite` green | — | [systems/00-SETUP-CI.md](systems/00-SETUP-CI.md) |
-| M1 | Combat core | **Complete** | `arena_suite`, `combat_suite`, etc. | KB/M signed off; gamepad → M7 | [M1_IMPLEMENTATION_LOG.md](../design/M1_IMPLEMENTATION_LOG.md) |
-| M2 | Vertical slice | **Complete** | `dungeon_suite`, `flow_suite` | Castle loop signed off | [M2_IMPLEMENTATION_LOG.md](../design/M2_IMPLEMENTATION_LOG.md) |
-| M3 | Server generation | **Complete** | `procgen_suite` + C# procgen tests | Spot-checks open (seed, offline) | [M3_IMPLEMENTATION_LOG.md](../design/M3_IMPLEMENTATION_LOG.md) |
-| M4 | Gameplay loop | **Complete** | `hub_m4_suite`, `progression_suite`, `inventory_suite` | TEST-4.1 soak open | [M4_IMPLEMENTATION_LOG.md](../design/M4_IMPLEMENTATION_LOG.md) |
-| M5 | Content pack A | **Complete** | `m5_suite` (74 tests) | Feel gates § M5 | [MANUAL_PLAYTEST_CHECKLIST.md](../design/MANUAL_PLAYTEST_CHECKLIST.md) |
-| M6 | Content pack B | **Complete** | `m6_suite` (73 tests) | Feel gates § M6 | [M6_IMPLEMENTATION_LOG.md](../design/M6_IMPLEMENTATION_LOG.md) |
-| M7 | EA polish / Steam | **Automated closed** | `m7_suite` (65 tests) | Ship gates § M7 (68 IDs) | [M7_IMPLEMENTATION_LOG.md](../design/M7_IMPLEMENTATION_LOG.md) |
+| M1 | Combat core | **Complete** | `arena_suite`, `combat_suite`, etc. | KB/M signed off; gamepad → M7 | [systems/02-COMBAT.md](systems/02-COMBAT.md) |
+| M2 | Vertical slice | **Complete** | `dungeon_suite`, `flow_suite` | Castle loop signed off | [phases/M2-VERTICAL-SLICE.md](phases/M2-VERTICAL-SLICE.md) |
+| M3 | Server generation | **Complete** | `procgen_suite` + C# procgen tests | Spot-checks open (seed, offline) | [phases/M3-SERVER-GENERATION.md](phases/M3-SERVER-GENERATION.md) |
+| M4 | Gameplay loop | **Complete** | `hub_m4_suite`, `progression_suite`, `inventory_suite` | TEST-4.1 soak open | [checklists/01-MASTER-MILESTONE-INDEX.md](checklists/01-MASTER-MILESTONE-INDEX.md) § M4 |
+| M5 | Content pack A | **Complete** | `m5_suite` (74 tests) | Feel gates | [content/01-THEMES.md](content/01-THEMES.md) |
+| M6 | Content pack B | **Complete** | `m6_suite` (73 tests) | Feel gates | [phases/M6-CONTENT-PACK-B.md](phases/M6-CONTENT-PACK-B.md) |
+| M7 | EA polish / Steam | **Automated closed** | `m7_suite` (65 tests) | Ship gates | [07-EA-DEFINITION-OF-DONE.md](07-EA-DEFINITION-OF-DONE.md) |
 
-> M7 phase file removed after automated close (same pattern as M6). EA ship requires [07-EA-DEFINITION-OF-DONE.md](07-EA-DEFINITION-OF-DONE.md) + manual sign-off.
+> EA ship requires [07-EA-DEFINITION-OF-DONE.md](07-EA-DEFINITION-OF-DONE.md) + manual sign-off. Open bugs and polish: [AUDIT_2026-08.md](../design/AUDIT_2026-08.md).
 
 ---
 
@@ -31,15 +31,13 @@
 - **Umbral Endless** + **Umbral Waves** + skip consumables
 - Steam/crash/glyph/tutorial stubs, save migrator v3, release CI workflow
 - `m7_suite`: 65 tests — **446 automated total** (363 Godot + 83 C#), 0 failures
-- Phase file `M7-EA-POLISH.md` deleted; canonical: [M7_IMPLEMENTATION_LOG.md](../design/M7_IMPLEMENTATION_LOG.md)
 
 ## M7 ship actions (manual — blocks EA)
 
-1. Close [MANUAL_PLAYTEST_CHECKLIST.md § M7](../design/MANUAL_PLAYTEST_CHECKLIST.md#m7--ea-polish--ship) (mirror: [M7_MANUAL_PLAYTEST_CHECKLIST.md](../design/M7_MANUAL_PLAYTEST_CHECKLIST.md))
-2. Publish [KNOWN_ISSUES_M7.md](../design/KNOWN_ISSUES_M7.md) with store page
+1. Meet [07-EA-DEFINITION-OF-DONE.md](07-EA-DEFINITION-OF-DONE.md)
+2. Resolve or publish known issues from [AUDIT_2026-08.md](../design/AUDIT_2026-08.md) §9
 3. Steam App ID + GodotSteam build → STEAM-7.1 manual
 4. ≥20 playtesters (SHIP-7.1)
-5. Meet [07-EA-DEFINITION-OF-DONE.md](07-EA-DEFINITION-OF-DONE.md)
 
 ---
 
@@ -52,3 +50,5 @@
 Report: `reports/validation-summary.json`
 
 **Latest automated totals:** 363 Godot + 83 C# = **446** (0 failures)
+
+Godot editor work: [MCP_AGENT_GUIDE.md](../MCP_AGENT_GUIDE.md)

@@ -844,7 +844,11 @@ static func add_cylinder(
 
 
 static func hide_legacy_meshes(root: Node) -> void:
+	## Capsule/blockout meshes only — never recurse into authored diorama rigs.
+	const SKIP_SUBTREES := ["DioramaVisual", "DioramaVisuals", "Viewmodel"]
 	for child in root.get_children():
+		if child.name in SKIP_SUBTREES:
+			continue
 		if child is MeshInstance3D:
 			child.visible = false
 		elif child.name != "InteractArea" and child.name != "PortalLabel" and child.name != "Label" and child.name != "DoorLabel" and child.name != "NameLabel":

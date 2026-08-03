@@ -1,7 +1,7 @@
 class_name RoomTemplateCatalog
 extends RefCounted
 
-## Room kit dimensions and doorway masks (mirrors C# RoomTemplateCatalog + CASTLE_ROOM_SOCKETS.md).
+## Room kit dimensions and doorway masks (mirrors C# RoomTemplateCatalog).
 
 const KIND_SPECS := {
 	"entrance": {"width": 16.0, "depth": 12.0, "doors": RoomGraphSlot.DOOR_SOUTH},

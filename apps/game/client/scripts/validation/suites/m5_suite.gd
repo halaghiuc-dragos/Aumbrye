@@ -622,12 +622,12 @@ func _test_save_integer_normalization() -> void:
 
 func _test_balance_doc() -> void:
 	var start := Time.get_ticks_msec()
-	var path := _content_root().path_join("docs/design/balance_m5.md")
+	var path := _content_root().path_join("docs/plan/systems/24-BALANCING.md")
 	ctx.timed_record(
 		"m5.balance.doc_exists",
 		get_category(),
 		FileAccess.file_exists(path),
-		"balance_m5.md structural doc present",
+		"balancing system doc present",
 		start,
 		"M5.bal.doc"
 	)

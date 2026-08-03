@@ -4,7 +4,7 @@ using Aumbrye.Procedural.Layout;
 using Aumbrye.Procedural.Validation;
 
 /// <summary>
-/// Castle room kit dimensions and doorway sides (mirrors Godot scenes + CASTLE_ROOM_SOCKETS.md).
+/// Castle room kit dimensions and doorway sides (mirrors Godot scenes).
 /// </summary>
 public static class RoomTemplateCatalog
 {

@@ -321,12 +321,12 @@ func _test_m6_audio_profiles() -> void:
 
 func _test_balance_doc() -> void:
 	var start := Time.get_ticks_msec()
-	var path := _content_root().path_join("docs/design/balance_m6.md")
+	var path := _content_root().path_join("docs/plan/systems/24-BALANCING.md")
 	ctx.timed_record(
 		"m6.balance.doc",
 		get_category(),
 		FileAccess.file_exists(path),
-		"balance_m6.md present",
+		"balancing system doc present",
 		start,
 		"M6.bal.doc"
 		)
@@ -492,13 +492,13 @@ func _test_web_pages() -> void:
 
 func _test_performance_doc() -> void:
 	var start := Time.get_ticks_msec()
-	var path := _content_root().path_join("docs/design/performance_m6.md")
+	var path := _content_root().path_join("docs/plan/systems/20-PERFORMANCE.md")
 	var ok := FileAccess.file_exists(path) and "1080" in FileAccess.get_file_as_string(path)
 	ctx.timed_record(
 		"m6.perf.doc",
 		get_category(),
 		ok,
-		"performance_m6.md documents 1080p target",
+		"performance system doc documents 1080p target",
 		start,
 		"PERF-6.1"
 	)

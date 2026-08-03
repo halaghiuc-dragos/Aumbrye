@@ -27,7 +27,7 @@
 ## Default economy (tune in playtests)
 
 - Escape: keep loot + full XP grant for run.
-- Death: keep ~50% XP, lose run relics, keep permanent unlocks; loot policy = lose unextracted (document final in `docs/design/run_economy.md`).
+- Death: keep ~50% XP, lose run relics, keep permanent unlocks; loot policy = lose unextracted (see [13-PROGRESSION.md](13-PROGRESSION.md) and run flow code).
 
 ## Law
 
