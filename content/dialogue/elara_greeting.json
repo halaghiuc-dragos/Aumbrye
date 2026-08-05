@@ -7,8 +7,28 @@
       "text": "Potions, scrap, relics — I buy and sell. Stock refreshes each visit.",
       "choices": [
         { "text": "Browse wares", "actions": [{ "type": "open_merchant" }] },
+        {
+          "text": "The tower keeps killing me...",
+          "next": "many_deaths",
+          "condition": { "minDeaths": 3 }
+        },
+        {
+          "text": "I'm getting used to this.",
+          "next": "veteran",
+          "condition": { "minRuns": 5 }
+        },
         { "text": "Farewell", "next": "end" }
       ]
+    },
+    "many_deaths": {
+      "speaker": "Elara",
+      "text": "Death is the tower's habit, not your failure. Rest in the hub, sharpen steel, try again.",
+      "next": "end"
+    },
+    "veteran": {
+      "speaker": "Elara",
+      "text": "You've climbed enough times that the echoes know your step. Spend that knowledge wisely.",
+      "next": "end"
     }
   }
 }

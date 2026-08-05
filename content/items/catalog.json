@@ -95,6 +95,16 @@
     "knight_relic",
     "frost_crystal",
     "shadow_essence",
-    "arcane_dust"
+    "arcane_dust",
+    "frost_relic_shard",
+    "flame_relic_core",
+    "poison_relic_vial",
+    "shadow_relic_veil",
+    "sun_relic_medallion",
+    "stone_relic_heart",
+    "wind_relic_charm",
+    "blood_relic_stone",
+    "bloodlust_charm",
+    "swift_step_charm"
   ]
 }

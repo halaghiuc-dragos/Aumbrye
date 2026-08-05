@@ -29,7 +29,7 @@ const CHEST_POOLS: Dictionary = {
 	"scrolls": ["elixir_might", "elixir_vigor", "mana_potion", "stamina_potion"],
 	"armor": ["iron_boots", "iron_helm", "steel_plate", "steel_helm", "castle_plate", "castle_helm"],
 	"rings": ["gold_ring", "silver_ring", "castle_ring", "ruby_amulet", "mythic_ring"],
-	"weapons": ["iron_sword", "steel_sword", "knight_blade", "flame_sword", "war_hammer", "mythic_blade"],
+	"weapons": ["iron_sword", "knight_blade", "flame_sword", "war_hammer", "mythic_blade"],
 	"supplies": [
 		"health_potion", "mana_potion", "stamina_potion", "elixir_might", "gold_ring",
 		"iron_boots", "iron_sword", "steel_sword", "castle_ring", "ruby_amulet",
@@ -175,10 +175,26 @@ func _roll_chest_rarity(chest_type: String, index: int) -> String:
 
 
 func _roll_chest_item(chest_type: String, index: int) -> String:
-	var pool: Array = CHEST_POOLS.get(chest_type, CHEST_POOLS["potions"])
+	var pool: Array = CHEST_POOLS.get(chest_type, CHEST_POOLS["potions"]).duplicate()
+	if chest_type == "weapons":
+		pool = _filter_weapon_pool(pool)
+	if pool.is_empty():
+		return ""
 	var rng := RandomNumberGenerator.new()
 	rng.seed = _run_seed + index * 997 + chest_type.hash()
 	return str(pool[rng.randi_range(0, pool.size() - 1)])
+
+
+func _filter_weapon_pool(pool: Array) -> Array:
+	var filtered: Array = []
+	for item_id in pool:
+		var def := ItemCatalog.get_definition(str(item_id))
+		if def.get("itemType", "") != "weapon":
+			continue
+		if def.get("weaponId", "") == "":
+			continue
+		filtered.append(item_id)
+	return filtered
 
 
 func mark_ready() -> void:
@@ -229,6 +245,38 @@ func get_kill_count() -> int:
 	return _kill_count
 
 
+func get_early_exit_keep_fraction() -> float:
+	if current_wave >= 25:
+		return 0.5
+	if current_wave >= 10:
+		return 0.25
+	return 0.0
+
+
+func transfer_early_exit_items(keep_fraction: float) -> Array[String]:
+	if keep_fraction <= 0.0:
+		return []
+	var pool: Array[String] = []
+	for slot in waves_inventory.slots:
+		var item_id := str(slot.get("itemId", ""))
+		if item_id != "":
+			pool.append(item_id)
+	if pool.is_empty():
+		return []
+	var keep_count := maxi(1, int(ceil(float(pool.size()) * keep_fraction)))
+	keep_count = mini(keep_count, pool.size())
+	var rng := RandomNumberGenerator.new()
+	rng.seed = _run_seed + current_wave * 701 + int(keep_fraction * 1000.0)
+	var picked: Array[String] = []
+	var working := pool.duplicate()
+	for _i in keep_count:
+		var idx := rng.randi_range(0, working.size() - 1)
+		var item_id: String = working.pop_at(idx)
+		if InventoryService.add_item(item_id, 1):
+			picked.append(item_id)
+	return picked
+
+
 func get_enemies_for_wave(wave: int) -> Array[String]:
 	var count := mini(2 + (wave >> 1), 12)
 	if is_milestone(wave):
@@ -242,7 +290,10 @@ func get_enemies_for_wave(wave: int) -> Array[String]:
 	for i in count:
 		enemies.append(roster[rng.randi_range(0, roster.size() - 1)])
 	if wave == 5 or wave == 10 or wave == 20 or wave == 50:
-		enemies.append("boss_castle_knight")
+		var boss_rng := RandomNumberGenerator.new()
+		boss_rng.seed = _run_seed + wave * 911
+		var milestone_bosses := ["boss_castle_knight", "miniboss_castle_captain"]
+		enemies.append(milestone_bosses[boss_rng.randi_range(0, milestone_bosses.size() - 1)])
 	return enemies
 
 

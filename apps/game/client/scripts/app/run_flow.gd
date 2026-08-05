@@ -6,17 +6,23 @@ signal run_started
 signal run_ended(results: Dictionary)
 signal returned_to_hub(message: String)
 
-const HUB_SCENE := "res://scenes/hub/hub.tscn"
+const HUB_SCENE := RunSceneRouter.HUB_SCENE
 const TOWER_DISPLAY_NAME := "Aumbrye Tower"
-const CASTLE_RUN_SCENE := "res://scenes/dungeon/castle_run.tscn"
-const WAVES_RUN_SCENE := "res://scenes/dungeon/waves_run.tscn"
-const ARENA_SCENE := "res://scenes/debug/combat_arena.tscn"
-const RESULTS_SCENE := "res://scenes/ui/results_screen.tscn"
+const CASTLE_RUN_SCENE := RunSceneRouter.CASTLE_RUN_SCENE
+const WAVES_RUN_SCENE := RunSceneRouter.WAVES_RUN_SCENE
+const ARENA_SCENE := RunSceneRouter.ARENA_SCENE
+const RESULTS_SCENE := RunSceneRouter.RESULTS_SCENE
 const DEFAULT_BIOME := "forgotten_castle"
 const USE_ONLINE_PROCgen := false
 
+## Achievement / progression tuning
+const SPEED_CLEAR_MAX_SECONDS := 900.0
+const WAVES_COMPLETION_XP := 500
+const MAX_CACHED_FLOORS := 3
+
 const RM := preload("res://scripts/app/run_mode_config.gd")
 const SkipFloorSvc := preload("res://scripts/dungeon/skip_floor_service.gd")
+const XP_SHARD_FLAG := "recoverable_xp_shard"
 
 var run_mode: String = "castle"
 
@@ -281,6 +287,7 @@ func _enter_run() -> void:
 
 	_run_active = true
 	_run_start_time = Time.get_ticks_msec() / 1000.0
+	_register_run_started()
 	_goto_scene(CASTLE_RUN_SCENE)
 	run_started.emit()
 
@@ -301,6 +308,17 @@ func return_to_hub(message: String = "") -> void:
 	returned_to_hub.emit(message)
 
 
+func abandon_active_run() -> void:
+	if not _run_active:
+		return_to_hub("Returned to Aumbrye Tower.")
+		return
+	InventoryService.remove_run_loot(_loot_collected)
+	RunBuffs.clear_all()
+	LocalSave.clear_active_run()
+	_run_active = false
+	return_to_hub("Run abandoned. Loot from this run was lost.")
+
+
 func complete_run_via_portal() -> void:
 	if not _run_active:
 		return
@@ -315,17 +333,13 @@ func complete_run_via_portal() -> void:
 	var full_xp := ProgressionService.calculate_run_xp(_kill_count, _boss_defeated, true)
 	var xp_result := ProgressionService.grant_xp(full_xp, "escape")
 	RunBuffs.clear_all()
-	last_run_results = {
-		"outcome": "escaped",
-		"time_seconds": elapsed,
-		"kills": _kill_count,
-		"loot": _loot_collected.duplicate(),
-		"xp_gained": xp_result.get("gained", 0),
-		"levels_gained": xp_result.get("levels_gained", 0),
-		"loot_kept": true,
-		"run_relics_lost": false,
-		"rules_summary": _escape_rules_summary(),
-	}
+	last_run_results = RunLifecycle.build_escape_results(
+		elapsed,
+		_kill_count,
+		_loot_collected,
+		xp_result,
+		_escape_rules_summary()
+	)
 	var run_id := current_run_id
 	var loot_instance_ids := _loot_claimed_instance_ids.duplicate()
 	var boss := _boss_defeated
@@ -351,20 +365,18 @@ func on_player_died() -> void:
 	var full_xp := ProgressionService.calculate_run_xp(_kill_count, _boss_defeated, false)
 	var death_xp := ProgressionService.apply_death_xp_fraction(full_xp)
 	var xp_result := ProgressionService.grant_xp(death_xp, "death")
+	_store_recoverable_xp_shard_from_active_run(full_xp - death_xp)
 	InventoryService.remove_run_loot(_loot_collected)
 	RunBuffs.clear_all()
-	last_run_results = {
-		"outcome": "died",
-		"time_seconds": elapsed,
-		"kills": _kill_count,
-		"loot": _loot_collected.duplicate(),
-		"xp_gained": xp_result.get("gained", 0),
-		"xp_full_would_be": full_xp,
-		"levels_gained": xp_result.get("levels_gained", 0),
-		"loot_kept": false,
-		"run_relics_lost": true,
-		"rules_summary": _death_rules_summary(),
-	}
+	CharacterService.set_flag("deaths", int(CharacterService.get_flag("deaths", 0)) + 1)
+	last_run_results = RunLifecycle.build_death_results(
+		elapsed,
+		_kill_count,
+		_loot_collected,
+		xp_result,
+		full_xp,
+		_death_rules_summary()
+	)
 	var run_id := current_run_id
 	var loot_instance_ids := _loot_claimed_instance_ids.duplicate()
 	var boss := _boss_defeated
@@ -385,6 +397,25 @@ func register_kill(enemy_id: String = "") -> void:
 
 func register_boss_defeated() -> void:
 	_boss_defeated = true
+
+
+func rest_at_bonfire(player: Node = null) -> void:
+	if player == null:
+		player = get_tree().get_first_node_in_group("player")
+	if player == null:
+		return
+	var health := player.get_node_or_null("Health") as Health
+	if health:
+		health.reset_health()
+	var stamina := player.get_node_or_null("Stamina") as Stamina
+	if stamina:
+		stamina.reset_stamina()
+	var heal := player.get_node_or_null("PlayerHeal")
+	if heal and heal.has_method("refill_charges"):
+		heal.call("refill_charges")
+	for enemy in get_tree().get_nodes_in_group("enemy"):
+		if enemy.has_method("respawn_at_rest"):
+			enemy.call("respawn_at_rest")
 
 
 func get_current_floor() -> int:
@@ -449,6 +480,7 @@ func ascend_floor() -> void:
 		return
 	if run_mode == RM.MODE_CASTLE and current_floor >= max_floors:
 		return
+	_stash_current_floor_in_cache()
 	current_floor += 1
 	_boss_defeated = false
 	await _transition_floor(true)
@@ -459,24 +491,28 @@ func descend_floor() -> void:
 		return
 	if run_mode == RM.MODE_ENDLESS:
 		return
+	_stash_current_floor_in_cache()
 	current_floor -= 1
 	_boss_defeated = true
 	await _transition_floor(false)
 
 
 func _transition_floor(ascending: bool) -> void:
-	_unload_current_floor_chunk()
 	current_dungeon_definition = {}
-	var gen := await _generate_dungeon(current_biome_id, current_seed, current_floor)
-	if gen.get("ok", false):
-		current_dungeon_definition = gen.get("definition", {})
+	var cached := _get_cached_floor_definition(current_floor)
+	if not cached.is_empty():
+		current_dungeon_definition = cached
 	else:
-		last_hub_message = "Could not generate floor %d." % current_floor
-		if ascending:
-			current_floor -= 1
+		var gen := await _generate_dungeon(current_biome_id, current_seed, current_floor)
+		if gen.get("ok", false):
+			current_dungeon_definition = gen.get("definition", {})
 		else:
-			current_floor += 1
-		return
+			last_hub_message = "Could not generate floor %d." % current_floor
+			if ascending:
+				current_floor -= 1
+			else:
+				current_floor += 1
+			return
 	_set_current_floor_cache(current_dungeon_definition)
 
 	var root := get_tree().root
@@ -523,17 +559,44 @@ func _persist_active_run() -> void:
 
 func _clear_floor_cache() -> void:
 	floor_definitions.clear()
+	DungeonBuilder.clear_floor_cache()
+
+
+func _stash_current_floor_in_cache() -> void:
+	if current_dungeon_definition.is_empty():
+		return
+	floor_definitions[str(current_floor)] = current_dungeon_definition.duplicate(true)
+	DungeonBuilder.store_floor_cache(current_floor, current_dungeon_definition)
+	_trim_floor_cache()
+
+
+func _get_cached_floor_definition(floor_index: int) -> Dictionary:
+	var key := str(floor_index)
+	if floor_definitions.has(key):
+		return floor_definitions[key].duplicate(true)
+	return DungeonBuilder.get_floor_cache(floor_index)
+
+
+func _trim_floor_cache() -> void:
+	if floor_definitions.size() <= MAX_CACHED_FLOORS:
+		return
+	var keys: Array = floor_definitions.keys()
+	keys.sort()
+	while floor_definitions.size() > MAX_CACHED_FLOORS:
+		var drop_key: String = keys[0]
+		floor_definitions.erase(drop_key)
+		keys.remove_at(0)
 
 
 func _set_current_floor_cache(definition: Dictionary) -> void:
-	_clear_floor_cache()
 	if definition.is_empty():
 		return
 	floor_definitions[str(current_floor)] = definition.duplicate(true)
+	DungeonBuilder.store_floor_cache(current_floor, definition)
+	_trim_floor_cache()
 
 
 func _unload_current_floor_chunk() -> void:
-	_clear_floor_cache()
 	current_dungeon_definition = {}
 	var root := get_tree().root
 	if root.has_meta("dungeon_definition"):
@@ -622,7 +685,7 @@ func _handle_escape_meta(elapsed: float, boss_defeated: bool) -> void:
 		AchievementService.unlock_for_biome_clear(current_biome_id)
 		if max_floors >= RunFloorConfig.MAX_FLOORS and current_floor >= max_floors:
 			AchievementService.unlock("ten_floor_clear")
-		if elapsed < 900.0:
+		if elapsed < SPEED_CLEAR_MAX_SECONDS:
 			AchievementService.unlock("speed_clear")
 	LeaderboardSettings.load_from_save()
 	if LeaderboardSettings.opt_in:
@@ -634,11 +697,67 @@ func _handle_escape_meta(elapsed: float, boss_defeated: bool) -> void:
 
 
 func _escape_rules_summary() -> String:
-	return "Escaped: kept all loot, full XP, run relics cleared."
+	return (
+		"Escaped alive: kept all loot and full XP. "
+		+ "The tower releases you — your echo returns to Aumbrye Tower with proof of the oath."
+	)
 
 
 func _death_rules_summary() -> String:
-	return "Died: kept 50% XP, lost run loot & relics. Prior gear safe."
+	return (
+		"The tower pulls you back: 50% XP saved, the rest lingers as a recoverable echo at your death spot. "
+		+ "Run loot and relics are lost. Your echo wakes in Aumbrye Tower — the ascent begins again."
+	)
+
+
+func store_recoverable_xp_shard(world_pos: Vector3, floor_index: int, dungeon_id: String, xp_amount: int) -> void:
+	if xp_amount <= 0:
+		return
+	CharacterService.set_flag(XP_SHARD_FLAG, {
+		"x": world_pos.x,
+		"y": world_pos.y,
+		"z": world_pos.z,
+		"floor": floor_index,
+		"dungeonId": dungeon_id,
+		"xp": xp_amount,
+	})
+
+
+func get_recoverable_xp_shard() -> Dictionary:
+	var shard: Variant = CharacterService.get_flag(XP_SHARD_FLAG, {})
+	return shard if shard is Dictionary and not shard.is_empty() else {}
+
+
+func clear_recoverable_xp_shard() -> void:
+	if get_recoverable_xp_shard().is_empty():
+		return
+	CharacterService.set_flag(XP_SHARD_FLAG, {})
+
+
+func _store_recoverable_xp_shard_from_active_run(xp_amount: int) -> void:
+	if xp_amount <= 0:
+		return
+	var active := LocalSave.get_active_run()
+	var snapshot: Variant = active.get("snapshot", {})
+	if not snapshot is Dictionary:
+		return
+	var player: Variant = snapshot.get("player", {})
+	if not player is Dictionary or player.is_empty():
+		return
+	store_recoverable_xp_shard(
+		Vector3(
+			float(player.get("x", 0.0)),
+			float(player.get("y", 0.0)),
+			float(player.get("z", 0.0))
+		),
+		current_floor,
+		current_dungeon_id,
+		xp_amount
+	)
+
+
+func _register_run_started() -> void:
+	CharacterService.set_flag("runs_started", int(CharacterService.get_flag("runs_started", 0)) + 1)
 
 
 func _clear_run_meta() -> void:
@@ -656,7 +775,7 @@ func _clear_run_meta() -> void:
 
 
 func _goto_scene(path: String) -> void:
-	get_tree().call_deferred("change_scene_to_file", path)
+	RunSceneRouter.goto_scene(get_tree(), path)
 
 
 func _start_waves_run(is_continue: bool) -> void:
@@ -677,16 +796,28 @@ func _start_waves_run(is_continue: bool) -> void:
 	elif root.has_meta("run_snapshot"):
 		root.remove_meta("run_snapshot")
 	_goto_scene(WAVES_RUN_SCENE)
+	_register_run_started()
 	run_started.emit()
 
 
 func quit_waves_run() -> void:
 	if run_mode != RM.MODE_WAVES:
 		return
+	var wave := WavesRunService.current_wave
+	var keep_fraction := WavesRunService.get_early_exit_keep_fraction()
+	var kept_items: Array[String] = []
+	if keep_fraction > 0.0:
+		kept_items = WavesRunService.transfer_early_exit_items(keep_fraction)
 	LocalSave.clear_waves_active_run()
 	WavesRunService.begin_new_run()
 	_run_active = false
-	last_hub_message = "Left waves early — loadout was not kept."
+	if keep_fraction > 0.0 and not kept_items.is_empty():
+		last_hub_message = (
+			"Left waves at wave %d — kept %d item(s) (%d%% milestone transfer)."
+			% [wave, kept_items.size(), int(round(keep_fraction * 100.0))]
+		)
+	else:
+		last_hub_message = "Left waves early — loadout was not kept."
 	_clear_run_meta()
 	return_to_hub(last_hub_message)
 
@@ -701,7 +832,7 @@ func complete_waves_run(rewards: Array[String]) -> void:
 		"time_seconds": elapsed,
 		"kills": WavesRunService.get_kill_count(),
 		"loot": rewards.duplicate(),
-		"xp_gained": ProgressionService.grant_xp(500, "waves").get("gained", 0),
+		"xp_gained": ProgressionService.grant_xp(WAVES_COMPLETION_XP, "waves").get("gained", 0),
 		"levels_gained": 0,
 		"loot_kept": true,
 		"run_relics_lost": false,

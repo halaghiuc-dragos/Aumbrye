@@ -2,7 +2,7 @@ extends Node3D
 
 ## Phase 2 arena hazard — telegraphed fire zone (BOSS-2.2).
 
-const DioramaSkin := preload("res://scripts/art/diorama_interactable_skin.gd")
+const DioramaSkin := preload("res://scripts/art/props/diorama_interactable_skin.gd")
 
 enum State { TELEGRAPH, ACTIVE, FADE }
 

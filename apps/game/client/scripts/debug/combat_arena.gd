@@ -38,6 +38,7 @@ func _ready() -> void:
 			_hub_return_area.body_exited.connect(_on_hub_return_exit)
 	call_deferred("_orient_player_deferred")
 	call_deferred("_wire_training_death")
+	call_deferred("_wire_dummy_death_reset")
 	PlayerControls.sync_player_loadout()
 
 
@@ -93,6 +94,19 @@ func reset_training_dummies() -> void:
 			enemy.call("reset_enemy")
 		if enemy is CharacterBody3D:
 			(enemy as CharacterBody3D).velocity = Vector3.ZERO
+
+
+func _wire_dummy_death_reset() -> void:
+	for enemy in get_tree().get_nodes_in_group("training_dummy"):
+		var health := enemy.get_node_or_null("Health") as Health
+		if health and not health.died.is_connected(_on_dummy_died):
+			health.died.connect(_on_dummy_died.bind(enemy))
+
+
+func _on_dummy_died(enemy: Node) -> void:
+	await get_tree().create_timer(0.8).timeout
+	if enemy.has_method("reset_enemy"):
+		enemy.call("reset_enemy")
 
 
 func _orient_player_deferred() -> void:

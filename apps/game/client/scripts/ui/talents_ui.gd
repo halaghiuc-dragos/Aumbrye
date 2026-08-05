@@ -3,6 +3,7 @@ extends Control
 ## Talent tree UI — spend points on level up (PROG-4.2 client).
 
 const GameUISkinScript := preload("res://scripts/ui/game_ui_skin.gd")
+const MenuShellScript := preload("res://scripts/ui/menu_shell.gd")
 
 signal closed
 
@@ -24,23 +25,8 @@ func _ready() -> void:
 
 
 func _build_ui() -> void:
-	for child in get_children():
-		child.queue_free()
-	GameUISkinScript.make_backdrop(self)
-	var panel := GameUISkinScript.make_center_panel(self, 340.0, 260.0)
-	var margin := MarginContainer.new()
-	margin.add_theme_constant_override("margin_left", GameUISkinScript.PANEL_MARGIN)
-	margin.add_theme_constant_override("margin_top", GameUISkinScript.PANEL_MARGIN)
-	margin.add_theme_constant_override("margin_right", GameUISkinScript.PANEL_MARGIN)
-	margin.add_theme_constant_override("margin_bottom", GameUISkinScript.PANEL_MARGIN)
-	panel.add_child(margin)
-	var vbox := VBoxContainer.new()
-	vbox.add_theme_constant_override("separation", 10)
-	margin.add_child(vbox)
-	var title := Label.new()
-	title.text = "Talents"
-	GameUISkinScript.style_menu_title(title)
-	vbox.add_child(title)
+	var shell: Dictionary = MenuShellScript.build_modal(self, "Talents", 340.0, 260.0)
+	var vbox: VBoxContainer = shell["content_vbox"]
 	_points_label = Label.new()
 	_points_label.name = "PointsLabel"
 	GameUISkinScript.style_body_label(_points_label)
@@ -52,10 +38,7 @@ func _build_ui() -> void:
 	_detail_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	GameUISkinScript.style_body_label(_detail_label)
 	vbox.add_child(_detail_label)
-	var hint := Label.new()
-	hint.text = "Enter: unlock | Esc: close"
-	GameUISkinScript.style_hint_label(hint)
-	vbox.add_child(hint)
+	MenuShellScript.add_hint(vbox, "Enter: unlock | Esc: close")
 
 
 func is_open() -> bool:
@@ -112,6 +95,7 @@ func _reload_nodes() -> void:
 			if node is Dictionary:
 				var copy: Dictionary = node.duplicate()
 				copy["branchName"] = branch.get("name", "")
+				copy["branchNameKey"] = branch.get("nameKey", "")
 				_nodes.append(copy)
 
 
@@ -122,7 +106,7 @@ func _refresh() -> void:
 		var rank := ProgressionService.get_talent_rank(node.get("id", ""))
 		var max_rank: int = int(node.get("maxRank", 1))
 		_node_list.add_item(
-			"[%s] %s (%d/%d)" % [node.get("branchName", ""), node.get("name", ""), rank, max_rank]
+			"[%s] %s (%d/%d)" % [_branch_display_name(node), _talent_display_name(node), rank, max_rank]
 		)
 	if _points_label:
 		_points_label.text = "Points: %d" % ProgressionService.get_available_talent_points()
@@ -137,14 +121,23 @@ func _update_detail() -> void:
 		_detail_label.text = ""
 		return
 	var node := _nodes[_cursor]
-	var stats: Dictionary = node.get("stats", {})
-	var stat_lines: PackedStringArray = []
-	for stat in stats:
-		stat_lines.append("%s +%s" % [stat, stats[stat]])
+	var effect_lines: PackedStringArray = []
+	for effect in node.get("effects", []):
+		if not effect is Dictionary:
+			continue
+		var stat: String = str(effect.get("stat", ""))
+		var value: float = float(effect.get("valuePerRank", 0.0))
+		if stat in ["physicalDamage", "critChance", "poiseDamage", "blockReduction", "damageReduction",
+				"staminaRegen", "staminaCostReduction", "moveSpeed", "lootQuality", "xpGain", "goldFind",
+				"cooldownReduction"]:
+			effect_lines.append("%s +%.0f%%" % [stat, value * 100.0])
+		else:
+			effect_lines.append("%s +%s" % [stat, value])
 	var can := ProgressionService.can_unlock_talent(node.get("id", ""))
+	var display_name: String = _talent_display_name(node)
 	_detail_label.text = "%s\n%s\n%s" % [
-		node.get("name", ""),
-		", ".join(stat_lines),
+		display_name,
+		", ".join(effect_lines),
 		"Can unlock" if can else "Locked",
 	]
 
@@ -156,3 +149,23 @@ func _unlock_selected() -> void:
 	if ProgressionService.unlock_talent(node_id):
 		InventoryService.apply_equipment_to_player_node(get_tree().get_first_node_in_group("player"))
 		_refresh()
+
+
+func _talent_display_name(node: Dictionary) -> String:
+	return _localized_label(node.get("nameKey", ""), node.get("name", ""), node.get("id", ""))
+
+
+func _branch_display_name(node: Dictionary) -> String:
+	return _localized_label(node.get("branchNameKey", ""), node.get("branchName", ""), "")
+
+
+func _localized_label(key: String, fallback: String, id_fallback: String) -> String:
+	var lookup: String = str(key)
+	if lookup != "":
+		var translated := tr(lookup)
+		if translated != lookup:
+			return translated
+	var name_text: String = str(fallback)
+	if name_text != "":
+		return name_text
+	return str(id_fallback)

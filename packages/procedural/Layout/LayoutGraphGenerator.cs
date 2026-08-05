@@ -3,7 +3,8 @@ using Aumbrye.Procedural.Random;
 namespace Aumbrye.Procedural.Layout;
 
 /// <summary>
-/// PROC-3.1 — grow a connected grid graph from a seeded RNG.
+/// PROC-3.1 — legacy grid graph grower.
+/// GDScript RoomGraphGenerator is authoritative; kept for backend/CLI smoke tests.
 /// </summary>
 public static class LayoutGraphGenerator
 {

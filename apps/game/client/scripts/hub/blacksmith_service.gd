@@ -93,6 +93,30 @@ static func can_repair(inv_index: int) -> bool:
 	return CharacterService.can_afford(int(recipe.get("goldCost", recipe.get("coinCost", 10))))
 
 
+const RESPEC_COST := 250
+
+
+static func can_respec_talents() -> bool:
+	if ProgressionService == null:
+		return false
+	if ProgressionService.talent_points_spent <= 0:
+		return false
+	return CharacterService.can_afford(RESPEC_COST)
+
+
+static func respec_talents() -> Dictionary:
+	if not can_respec_talents():
+		return {"ok": false, "error": "cannot respec"}
+	if not CharacterService.spend_coins(RESPEC_COST):
+		return {"ok": false, "error": "not enough coins"}
+	ProgressionService.respec_talents()
+	InventoryService.apply_equipment_to_player_node(
+		InventoryService.get_tree().get_first_node_in_group("player")
+	)
+	LocalSave.autosave()
+	return {"ok": true}
+
+
 static func repair_item(inv_index: int) -> Dictionary:
 	var inv := InventoryService.inventory
 	if inv_index < 0 or inv_index >= inv.slots.size():

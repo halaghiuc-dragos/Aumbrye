@@ -2,7 +2,7 @@ extends Node3D
 
 ## FLOOR-7.2 — stair lever interactable for ascending/descending floors.
 
-const DioramaSkin := preload("res://scripts/art/diorama_interactable_skin.gd")
+const DioramaSkin := preload("res://scripts/art/props/diorama_interactable_skin.gd")
 
 signal lever_used(direction: String)
 
@@ -44,6 +44,11 @@ func is_unlocked() -> bool:
 
 func _unhandled_input(event: InputEvent) -> void:
 	if not event.is_action_pressed("interact") or not _near_player or not _unlocked:
+		return
+	var menu := get_tree().get_first_node_in_group("stair_menu")
+	if menu and menu.has_method("open_for_lever"):
+		menu.call("open_for_lever", self)
+		get_viewport().set_input_as_handled()
 		return
 	if _can_retreat and Input.is_key_pressed(KEY_CTRL) and RunFlow.can_retreat_to_hub():
 		RunFlow.retreat_to_hub()
@@ -88,11 +93,7 @@ func _update_label() -> void:
 		_label.visible = false
 		return
 	var parts: PackedStringArray = []
-	if _can_ascend:
-		parts.append("%s Ascend" % InputGlyphService.format_interact_label())
-	if _can_descend:
-		parts.append("%s+Shift Descend" % InputGlyphService.get_action_glyph("interact"))
-	if _can_retreat:
-		parts.append("%s+Ctrl Retreat to Aumbrye Tower" % InputGlyphService.get_action_glyph("interact"))
+	if _can_ascend or _can_descend or _can_retreat:
+		parts.append("%s Floor options" % InputGlyphService.format_interact_label())
 	_label.text = "\n".join(parts)
 	_label.visible = not parts.is_empty()

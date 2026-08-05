@@ -20,12 +20,12 @@ const EXIT_PORTAL_SCRIPT := preload("res://scripts/dungeon/exit_portal.gd")
 const BOSS_DOOR_SCRIPT := preload("res://scripts/dungeon/boss_room_door.gd")
 const STAIR_LEVER_SCRIPT := preload("res://scripts/dungeon/stair_lever.gd")
 const STAIR_COLLISION := preload("res://scripts/dungeon/stair_collision_builder.gd")
-const DIORAMA_SKIN := preload("res://scripts/art/diorama_interactable_skin.gd")
+const DIORAMA_SKIN := preload("res://scripts/art/props/diorama_interactable_skin.gd")
 const FINAL_BOSS_SCENE := preload("res://scenes/enemies/final_boss_forgotten_castle.tscn")
 const EndlessDifficultyScript := preload("res://scripts/dungeon/endless_difficulty.gd")
 const CastleTierDifficultyScript := preload("res://scripts/dungeon/castle_tier_difficulty.gd")
 const FloorShellBuilderScript := preload("res://scripts/dungeon/floor_shell_builder.gd")
-const CharacterFloorSnapScript := preload("res://scripts/art/character_floor_snap.gd")
+const CharacterFloorSnapScript := preload("res://scripts/art/characters/character_floor_snap.gd")
 const RoomContentSpawnerScript := preload("res://scripts/dungeon/room_content/room_content_spawner.gd")
 
 signal build_complete
@@ -44,6 +44,24 @@ var _chest_by_id: Dictionary = {}
 var _boss_door: Node3D
 var _stair_lever: Node3D
 var _is_final_floor := false
+
+## In-run floor definition cache (paired with RunFlow.floor_definitions).
+static var _floor_definition_cache: Dictionary = {}
+
+
+static func store_floor_cache(floor_index: int, floor_definition: Dictionary) -> void:
+	if floor_definition.is_empty():
+		return
+	_floor_definition_cache[str(floor_index)] = floor_definition.duplicate(true)
+
+
+static func get_floor_cache(floor_index: int) -> Dictionary:
+	var cached: Variant = _floor_definition_cache.get(str(floor_index), {})
+	return cached.duplicate(true) if cached is Dictionary else {}
+
+
+static func clear_floor_cache() -> void:
+	_floor_definition_cache.clear()
 
 
 func build(parent: Node3D, player: CharacterBody3D, fixture_path: String = FIXTURE_RELATIVE) -> void:
@@ -78,8 +96,13 @@ func build_from_source(parent: Node3D, player: CharacterBody3D, fixture_path: St
 		push_error("DungeonBuilder: definition has no rooms")
 		return
 	_build_rooms(parent)
+	_build_height_transitions()
 	_build_shortcut_corridors(parent)
 	_build_floor_shell(parent)
+	_build_landmarks(parent)
+	_place_cover()
+	_place_secret_mechanisms()
+	_build_nav_links()
 	_spawn_player()
 	_place_enemies()
 	_place_loot()
@@ -99,6 +122,10 @@ func get_room(room_id: String) -> RoomTemplate:
 
 func get_room_ids() -> Array:
 	return _rooms.keys()
+
+
+func get_boss() -> Node:
+	return _boss
 
 
 func open_exit_portal() -> void:
@@ -140,6 +167,163 @@ func _build_rooms(parent: Node3D) -> void:
 		_rooms[room_def.get("id", "")] = instance
 		if str(room_def.get("templateId", "")).ends_with("_stairs"):
 			STAIR_COLLISION.ensure_stair_collision(instance)
+
+
+func _build_height_transitions() -> void:
+	for room_id in _rooms:
+		var room := get_room(room_id)
+		if room == null:
+			continue
+		var blockout := room.get_blockout()
+		if blockout == null:
+			continue
+		var room_y := room.global_position.y
+		for edge in definition.get("edges", []):
+			var from_id: String = edge.get("from", "")
+			var to_id: String = edge.get("to", "")
+			var other_id := to_id if from_id == room_id else (from_id if to_id == room_id else "")
+			if other_id == "":
+				continue
+			var other := get_room(other_id)
+			if other == null:
+				continue
+			var delta_y := other.global_position.y - room_y
+			if absf(delta_y) < 0.5:
+				continue
+			var step_count := clampi(int(absf(delta_y) / 0.5), 1, 6)
+			blockout.add_height_stairs(step_count, Vector2i(0, -1))
+			break
+
+
+func _build_landmarks(parent: Node3D) -> void:
+	var landmarks: Array = definition.get("landmarks", [])
+	if landmarks.is_empty():
+		return
+	var root := Node3D.new()
+	root.name = "Landmarks"
+	parent.add_child(root)
+	var accent := BiomeRegistry.get_accent_material(biome_id)
+	for hint in landmarks:
+		var pos: Dictionary = hint.get("position", {})
+		var scale_hint: Dictionary = hint.get("scale", {})
+		var mesh_instance := MeshInstance3D.new()
+		var box := BoxMesh.new()
+		box.size = Vector3(
+			float(scale_hint.get("x", 2.0)),
+			float(scale_hint.get("y", 16.0)),
+			float(scale_hint.get("z", 2.0))
+		)
+		mesh_instance.mesh = box
+		mesh_instance.position = Vector3(
+			float(pos.get("x", 0.0)),
+			float(pos.get("y", 0.0)),
+			float(pos.get("z", 0.0))
+		)
+		if accent:
+			mesh_instance.material_override = accent
+		mesh_instance.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		mesh_instance.name = str(hint.get("kind", "landmark"))
+		root.add_child(mesh_instance)
+
+
+func _place_cover() -> void:
+	var cover_placements: Array = definition.get("placements", {}).get("cover", [])
+	var wall_mat := BiomeRegistry.get_wall_material(biome_id)
+	for placement in cover_placements:
+		var room := get_room(placement.get("roomId", ""))
+		if room == null:
+			continue
+		var blockout := room.get_blockout()
+		if blockout == null:
+			continue
+		var offset: Dictionary = placement.get("offset", {})
+		var size: Dictionary = placement.get("size", {})
+		blockout.add_cover_obstacle(
+			Vector3(float(offset.get("x", 0.0)), float(offset.get("y", 0.0)), float(offset.get("z", 0.0))),
+			Vector3(float(size.get("x", 1.2)), float(size.get("y", 2.4)), float(size.get("z", 1.2))),
+			wall_mat
+		)
+
+
+func _place_secret_mechanisms() -> void:
+	for secret in definition.get("placements", {}).get("secrets", []):
+		var mechanism: String = secret.get("mechanism", "illusory_wall")
+		var parent_room := get_room(secret.get("parentRoomId", ""))
+		if parent_room == null:
+			continue
+		var props := parent_room.get_node_or_null("Props")
+		if props == null:
+			continue
+		var accent := BiomeRegistry.get_accent_material(biome_id)
+		if mechanism == "hidden_lever":
+			var lever := MeshInstance3D.new()
+			lever.name = "HiddenLever"
+			var box := BoxMesh.new()
+			box.size = Vector3(0.3, 0.6, 0.3)
+			lever.mesh = box
+			lever.position = Vector3(0.0, 1.0, -2.0)
+			if accent:
+				lever.material_override = accent
+			props.add_child(lever)
+		else:
+			var wall := MeshInstance3D.new()
+			wall.name = "IllusoryWall"
+			var box := BoxMesh.new()
+			box.size = Vector3(0.2, 2.4, 2.0)
+			wall.mesh = box
+			wall.position = Vector3(-3.0, 1.2, 0.0)
+			if accent:
+				wall.material_override = accent
+			wall.set_meta("secret_room_id", secret.get("roomId", ""))
+			props.add_child(wall)
+
+
+func _build_nav_links() -> void:
+	for edge in definition.get("edges", []):
+		var kind: String = edge.get("kind", "door")
+		if kind not in ["door", "corridor", "one_way"]:
+			continue
+		var from_room := get_room(edge.get("from", ""))
+		var to_room := get_room(edge.get("to", ""))
+		if from_room == null or to_room == null:
+			continue
+		var from_blockout := from_room.get_blockout()
+		var to_blockout := to_room.get_blockout()
+		if from_blockout == null or to_blockout == null:
+			continue
+		var from_socket := _find_link_socket(from_room, to_room)
+		var to_socket := _find_link_socket(to_room, from_room)
+		if from_socket == null or to_socket == null:
+			continue
+		var from_local := from_room.to_local(from_socket.global_position)
+		var to_socket_local := to_room.to_local(to_socket.global_position)
+		from_blockout.add_door_nav_link(from_local, from_local + Vector3(0.0, 0.1, 0.0))
+		to_blockout.add_door_nav_link(to_socket_local, to_socket_local + Vector3(0.0, 0.1, 0.0))
+
+
+func _find_link_socket(room: RoomTemplate, toward: RoomTemplate) -> DoorwaySocket:
+	var best: DoorwaySocket = null
+	var best_dist := INF
+	var target := toward.global_position
+	for socket in room.get_sockets():
+		var dist := socket.global_position.distance_squared_to(target)
+		if dist < best_dist:
+			best_dist = dist
+			best = socket
+	return best
+
+
+func _sample_placement_offset(room: RoomTemplate, placement: Dictionary) -> Vector3:
+	if not placement.get("sampleNavmesh", false):
+		return _placement_offset(placement)
+	var blockout := room.get_blockout()
+	if blockout == null:
+		return _placement_offset(placement)
+	var nav_point := blockout.sample_random_nav_point()
+	if nav_point == Vector3.ZERO:
+		return _placement_offset(placement)
+	var hint := _placement_offset(placement)
+	return nav_point + Vector3(hint.x * 0.15, 0.0, hint.z * 0.15)
 
 
 func _build_floor_shell(parent: Node3D) -> void:
@@ -227,7 +411,7 @@ func _spawn_enemy(placement: Dictionary, index: int) -> void:
 	var enemy: CharacterBody3D = scene.instantiate() as CharacterBody3D
 	if enemy == null:
 		return
-	enemy.position = _placement_offset(placement)
+	enemy.position = _sample_placement_offset(room, placement)
 	CharacterFloorSnapScript.snap_feet_to_floor(enemy)
 	enemy.set_meta("placement_id", placement_key)
 	if enemy.has_method("set_player"):
@@ -285,7 +469,7 @@ func _place_traps() -> void:
 		var trap_id: String = placement.get("trapId", "")
 		var scene: PackedScene = _trap_scene_for_id(trap_id)
 		var trap: Node3D = scene.instantiate() as Node3D
-		trap.position = _placement_offset(placement)
+		trap.position = _sample_placement_offset(room, placement)
 		trap.set_meta("biome_id", biome_id)
 		room.add_child(trap)
 
@@ -297,7 +481,7 @@ func _setup_boss() -> void:
 	var room := get_room(boss_placement.get("roomId", "boss"))
 	if room == null:
 		return
-	var enemy_id: String = boss_placement.get("enemyId", "castle_knight")
+	var enemy_id: String = boss_placement.get("enemyId", "boss_castle_knight")
 	if _is_final_floor and biome_id == BiomeRegistry.BIOME_CASTLE:
 		enemy_id = "final_boss_forgotten_castle"
 	var scene := _get_enemy_scene(enemy_id)
@@ -509,9 +693,10 @@ func _setup_boss_door(castle_run: Node3D) -> void:
 	door.set_script(BOSS_DOOR_SCRIPT)
 	DIORAMA_SKIN.build_boss_door_frame(door, biome_id)
 
-	var socket := room.find_socket(CastleRoomConstants.Direction.NORTH)
+	var socket := _boss_approach_socket(room)
 	if socket:
-		door.position = socket.position + Vector3(0.0, 0.0, -0.25)
+		var facing := socket.get_world_facing()
+		door.position = socket.position + facing * 0.25
 	else:
 		var blockout := room.get_blockout()
 		var depth := blockout.room_depth if blockout else 28.0
@@ -525,6 +710,23 @@ func _setup_boss_door(castle_run: Node3D) -> void:
 
 func get_boss_door() -> Node3D:
 	return _boss_door
+
+
+func _boss_approach_socket(room: RoomTemplate) -> DoorwaySocket:
+	var sockets := room.get_sockets()
+	if sockets.is_empty():
+		return null
+	if sockets.size() == 1:
+		return sockets[0]
+	var best: DoorwaySocket = null
+	var best_dot := -2.0
+	var approach := -room.global_transform.basis.z
+	for socket in sockets:
+		var dot := socket.get_world_facing().dot(approach)
+		if dot > best_dot:
+			best_dot = dot
+			best = socket
+	return best if best != null else room.find_socket(CastleRoomConstants.Direction.NORTH)
 
 
 func get_tracked_enemy(placement_id: String) -> Node:
@@ -557,6 +759,16 @@ func capture_enemy_states() -> Dictionary:
 		if enemy and is_instance_valid(enemy) and enemy.has_method("capture_state"):
 			states[placement_id] = enemy.call("capture_state")
 	return states
+
+
+func respawn_enemies() -> void:
+	for placement_id in _enemy_by_id:
+		if placement_id == "boss":
+			continue
+		var enemy: Node = _enemy_by_id[placement_id]
+		if enemy and is_instance_valid(enemy) and enemy.has_method("apply_state"):
+			enemy.call("apply_state", {"alive": true})
+	snapshot_dirty.emit()
 
 
 func capture_loot_states() -> Dictionary:

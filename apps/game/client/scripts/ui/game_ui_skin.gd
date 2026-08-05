@@ -60,12 +60,27 @@ static func style_panel(panel: PanelContainer) -> void:
 	panel.add_theme_stylebox_override("panel", make_panel_style())
 
 
+static func ensure_full_rect(control: Control) -> void:
+	control.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+
+
+static func clamped_panel_half_size(half_w: float, half_h: float, parent: Control) -> Vector2:
+	var viewport_size := parent.get_viewport().get_visible_rect().size
+	return Vector2(
+		minf(half_w, viewport_size.x * 0.48),
+		minf(half_h, viewport_size.y * 0.48)
+	)
+
+
 static func make_center_panel(
 	parent: Control,
 	half_w: float = PANEL_HALF_W,
 	half_h: float = PANEL_HALF_H,
 	panel_name: String = "Panel"
 ) -> PanelContainer:
+	var clamped := clamped_panel_half_size(half_w, half_h, parent)
+	half_w = clamped.x
+	half_h = clamped.y
 	var panel := PanelContainer.new()
 	panel.name = panel_name
 	panel.set_anchors_preset(Control.PRESET_CENTER)
@@ -201,6 +216,16 @@ static func build_human_silhouette(parent: Control, cell_size: int, gap: int) ->
 	add_part.call(Vector2(cell_size * 0.42, cell_size * 1.05), Vector2(center_x + cell_size * 0.7, row_h * 1.1))
 	add_part.call(Vector2(cell_size * 0.38, cell_size * 1.2), Vector2(center_x - cell_size * 0.62, row_h * 2.35))
 	add_part.call(Vector2(cell_size * 0.38, cell_size * 1.2), Vector2(center_x + cell_size * 0.24, row_h * 2.35))
+
+
+static func wire_button_sfx(button: BaseButton) -> void:
+	if button.has_meta(&"ui_sfx_wired"):
+		return
+	button.set_meta(&"ui_sfx_wired", true)
+	button.pressed.connect(func() -> void:
+		if AudioDirector:
+			AudioDirector.play_ui_sfx()
+	)
 
 
 static func make_item_cell_style(rarity: String, filled: bool) -> StyleBoxFlat:

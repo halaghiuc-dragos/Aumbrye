@@ -6,10 +6,11 @@
     "gridHeight":  2,
     "stackSize":  1,
     "rarity":  "epic",
-    "description":  "M6 content item.",
+    "description":  "Crushing weight behind every swing—poise breaks before bone.",
     "value":  20,
     "stats":  {
                   "physicalDamage":  26
               },
-    "equipmentSlot":  "weapon"
+    "equipmentSlot":  "weapon",
+    "weaponId": "axe"
 }

@@ -21,6 +21,8 @@ static func generate(
 	debug_ascii: bool = false
 ) -> Dictionary:
 	var base_seed := _resolve_seed(run_seed)
+	if run_seed == null:
+		print("[LocalProcgen] Rolled seed: %d" % base_seed)
 	if run_seed != null and not DungeonSeedService.can_access_tier(dungeon_tier):
 		return {
 			"ok": false,
@@ -54,7 +56,7 @@ static func generate(
 			}
 
 	var cli_result := _generate_via_cli(
-		biome_id, floor_seed, floor_index, is_final, dungeon_tier, player_level
+		biome_id, tier_seed, floor_index, is_final, dungeon_tier, player_level
 	)
 	if cli_result.get("ok", false):
 		cli_result["input_seed"] = base_seed

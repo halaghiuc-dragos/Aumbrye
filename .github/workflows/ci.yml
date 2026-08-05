@@ -42,8 +42,21 @@ jobs:
           cache-dependency-path: apps/web/package-lock.json
       - name: Install
         run: npm ci
+      - name: Lint
+        run: npm run lint
       - name: Build
         run: npm run build
+
+  python-lint:
+    name: Python lint (tools)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Ruff
+        run: pip install ruff && ruff check tools/
 
   content:
     name: Content validation
@@ -62,3 +75,46 @@ jobs:
         run: npm ci
       - name: Validate fixtures
         run: npm run validate
+      - name: Validate strict placeholder rule (informational)
+        run: npm run validate:strict
+        continue-on-error: true
+
+  gdscript-lint:
+    name: GDScript lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: gdlint + gdformat check (§9 health scripts)
+        run: |
+          pip install gdtoolkit
+          FILES="apps/game/client/scripts/app/game_facade.gd \
+            apps/game/client/scripts/app/run_scene_router.gd \
+            apps/game/client/scripts/app/content_loader.gd \
+            apps/game/client/scripts/ui/inventory_ui_layout.gd \
+            apps/game/client/scripts/validation/validation_runner.gd \
+            apps/game/client/scripts/validation/suites/save_suite.gd \
+            apps/game/client/scripts/validation/suites/cross_stack_parity_suite.gd \
+            apps/game/client/scripts/validation/suites/perf_gate_suite.gd"
+          gdlint $FILES
+          gdformat --check $FILES
+
+  godot:
+    name: Godot validation
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/game/client
+    steps:
+      - uses: actions/checkout@v5
+      - name: Setup Godot
+        uses: chickensoft-games/setup-godot@v1
+        with:
+          version: 4.4.0
+          include-templates: false
+      - name: Export diorama animation libraries
+        run: godot --path . --headless --script res://scripts/tools/export_diorama_anim_libraries.gd
+      - name: Run headless validation suites
+        run: godot --path . --headless --script res://scripts/validation/validation_main.gd

@@ -6,11 +6,12 @@
     "gridHeight":  2,
     "stackSize":  1,
     "rarity":  "epic",
-    "description":  "M6 content item.",
+    "description":  "Runes along the fuller smolder even when the blade rests.",
     "value":  20,
     "stats":  {
                   "fireDamage":  8,
                   "physicalDamage":  20
               },
-    "equipmentSlot":  "weapon"
+    "equipmentSlot":  "weapon",
+    "weaponId": "castle_sword"
 }

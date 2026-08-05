@@ -4,6 +4,8 @@
   "archetype": "spear",
   "damage_type": "physical",
   "buffer_window": 0.2,
+  "lunge_distance": 0.6,
+  "scaling": { "poiseDamage": 1.0, "physicalDamage": 0.8 },
   "light_attacks": [
     {
       "damage": 14,
@@ -11,7 +13,8 @@
       "stamina_cost": 10,
       "startup": 0.14,
       "active": 0.1,
-      "recovery": 0.22
+      "recovery": 0.22,
+      "lunge_distance": 0.55
     },
     {
       "damage": 16,
@@ -19,7 +22,8 @@
       "stamina_cost": 12,
       "startup": 0.16,
       "active": 0.12,
-      "recovery": 0.24
+      "recovery": 0.24,
+      "lunge_distance": 0.6
     },
     {
       "damage": 20,
@@ -27,7 +31,8 @@
       "stamina_cost": 15,
       "startup": 0.18,
       "active": 0.14,
-      "recovery": 0.28
+      "recovery": 0.28,
+      "lunge_distance": 0.65
     }
   ],
   "heavy_attack": {
@@ -36,6 +41,7 @@
     "stamina_cost": 24,
     "startup": 0.28,
     "active": 0.16,
-    "recovery": 0.38
+    "recovery": 0.38,
+    "lunge_distance": 0.75
   }
 }

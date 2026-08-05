@@ -20,7 +20,7 @@ func _ready() -> void:
 		if needs_rebuild:
 			blockout._request_rebuild()
 	_align_socket_rotations()
-	DioramaRoomDressing.apply_to_room(self, biome_id)
+	DioramaRoomDressing.apply_to_room(self, biome_id, room_id.hash())
 
 
 func _resolve_biome_id() -> String:

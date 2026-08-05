@@ -2,7 +2,7 @@ extends Node3D
 
 ## Waves lobby chest — opens into WavesRunService inventory only.
 
-const DioramaSkin := preload("res://scripts/art/diorama_interactable_skin.gd")
+const DioramaSkin := preload("res://scripts/art/props/diorama_interactable_skin.gd")
 
 var _index := 0
 var _visual: Node3D

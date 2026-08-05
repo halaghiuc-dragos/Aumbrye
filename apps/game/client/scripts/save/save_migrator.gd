@@ -12,7 +12,7 @@ static func migrate(data: Dictionary) -> Dictionary:
 	if version == CURRENT_VERSION:
 		return data
 	if version == 0:
-		return _fail_or_default(data, "missing schemaVersion")
+		return _fail(data, "missing schemaVersion")
 	if version == 1:
 		data = _migrate_v1_to_v2(data)
 		version = int(data.get("schemaVersion", 0))
@@ -20,7 +20,7 @@ static func migrate(data: Dictionary) -> Dictionary:
 		data = _migrate_v2_to_v3(data)
 		version = int(data.get("schemaVersion", 0))
 	if version != CURRENT_VERSION:
-		return _fail_or_default(data, "unsupported schemaVersion %d" % version)
+		return _fail(data, "unsupported schemaVersion %d" % version)
 	return data
 
 
@@ -53,6 +53,10 @@ static func _migrate_v2_to_v3(data: Dictionary) -> Dictionary:
 	return copy
 
 
-static func _fail_or_default(data: Dictionary, reason: String) -> Dictionary:
-	push_warning("SaveMigrator: %s" % reason)
-	return data
+static func _fail(data: Dictionary, reason: String) -> Dictionary:
+	push_error("SaveMigrator: %s — refusing load" % reason)
+	return {
+		"migrationFailed": true,
+		"migrationReason": reason,
+		"originalSchemaVersion": int(data.get("schemaVersion", 0)),
+	}

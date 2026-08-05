@@ -197,6 +197,21 @@ public static class RoomTemplateCatalog
     public static string PickTemplateForDoors(string preferredTemplateId, Doors requiredDoors) =>
         PickTemplateForDoors(preferredTemplateId, requiredDoors, null);
 
+    public static string TemplatePrefixForBiome(string biomeId) =>
+        biomeId switch
+        {
+            "crystal_caverns" => "crystal",
+            "poison_swamp" => "swamp",
+            "frozen_fortress" => "frozen",
+            "dark_cathedral" => "cathedral",
+            "iron_vault" => "vault",
+            "prism_depths" => "prism",
+            "venom_mire" => "mire",
+            "glacial_hollow" => "hollow",
+            "umbral_chapel" => "umbral",
+            _ => "castle",
+        };
+
     /// <summary>Parent→child grid step; returns required door on parent and child.</summary>
     public static (Doors ParentDoor, Doors ChildDoor) DoorsForStep(int dx, int dz)
     {
@@ -210,4 +225,60 @@ public static class RoomTemplateCatalog
             return (Doors.West, Doors.East);
         throw new ArgumentException($"Invalid grid step ({dx}, {dz}).");
     }
+
+    public static double YawDegreesForIncomingDoor(string templateId, Doors incomingDoor)
+    {
+        var spec = GetRequired(templateId);
+        var primary = PrimaryDoorMask(spec.DoorMask);
+        if (primary == Doors.None || incomingDoor == Doors.None)
+            return 0;
+        return YawDegreesToAlignDoors(primary, incomingDoor);
+    }
+
+    public static double YawDegreesForEntrance(string templateId, Doors requiredDoors)
+    {
+        var spec = GetRequired(templateId);
+        var primary = PrimaryDoorMask(spec.DoorMask);
+        var required = FirstSetDoor(requiredDoors);
+        if (primary == Doors.None || required == Doors.None)
+            return 0;
+        return YawDegreesToAlignDoors(primary, required);
+    }
+
+    public static double HalfExtentX(RoomSpec spec, double yawRad) =>
+        spec.HalfWidth * Math.Abs(Math.Cos(yawRad)) + spec.HalfDepth * Math.Abs(Math.Sin(yawRad));
+
+    public static double HalfExtentZ(RoomSpec spec, double yawRad) =>
+        spec.HalfWidth * Math.Abs(Math.Sin(yawRad)) + spec.HalfDepth * Math.Abs(Math.Cos(yawRad));
+
+    private static Doors PrimaryDoorMask(Doors doors)
+    {
+        if (doors == Doors.None)
+            return Doors.None;
+        if ((doors & (doors - 1)) == 0)
+            return doors;
+        return Doors.None;
+    }
+
+    private static Doors FirstSetDoor(Doors mask)
+    {
+        foreach (var door in new[] { Doors.North, Doors.East, Doors.South, Doors.West })
+        {
+            if ((mask & door) != 0)
+                return door;
+        }
+        return Doors.None;
+    }
+
+    private static double YawDegreesToAlignDoors(Doors fromDoor, Doors toDoor) =>
+        (DoorYawRadians(toDoor) - DoorYawRadians(fromDoor)) * 180.0 / Math.PI;
+
+    private static double DoorYawRadians(Doors door) => door switch
+    {
+        Doors.North => 0,
+        Doors.East => Math.PI / 2.0,
+        Doors.South => Math.PI,
+        Doors.West => -Math.PI / 2.0,
+        _ => 0,
+    };
 }

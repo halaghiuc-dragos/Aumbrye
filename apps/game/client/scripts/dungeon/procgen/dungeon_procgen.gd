@@ -12,6 +12,8 @@ const ProcgenPlacementsScript := preload("res://scripts/dungeon/procgen/procgen_
 const RoomContentAssignerScript := preload("res://scripts/dungeon/procgen/room_content_assigner.gd")
 const RoomContentConfigScript := preload("res://scripts/dungeon/procgen/room_content_config.gd")
 
+const MAX_ASSIGNMENT_ATTEMPTS := 12
+
 
 static func generate(
 	biome_id: String,
@@ -32,21 +34,37 @@ static func generate(
 	var graph_result := RoomGraphGeneratorScript.generate(config, run_seed)
 	if not graph_result.get("ok", false):
 		return {"ok": false, "error": "Room graph generation failed"}
+	if graph_result.get("used_fallback", false):
+		push_warning("Room graph used fallback layout for seed %d (floor %d)" % [run_seed, floor_index])
 	var graph: RoomGraph = graph_result.get("graph")
+	var assignment: Dictionary = {}
+	var rooms: Array = []
+	var edges: Array = []
 	var assign_rng := RandomNumberGenerator.new()
-	assign_rng.seed = run_seed ^ 0x5EED
-	var assignment := RoomGraphAssignerScript.assign(biome, graph, assign_rng)
-	var rooms := RoomGraphGeometryScript.build_rooms(graph, assignment)
+	for attempt in MAX_ASSIGNMENT_ATTEMPTS:
+		assign_rng.seed = run_seed ^ 0x5EED + attempt * 1_000_003
+		assignment = RoomGraphAssignerScript.assign(biome, graph, assign_rng)
+		var door_check := RoomGraphGeometryScript.validate_door_topology(graph, assignment)
+		if not door_check.get("ok", false):
+			continue
+		rooms = RoomGraphGeometryScript.build_rooms(graph, assignment)
+		if rooms.is_empty():
+			continue
+		edges = RoomGraphGeometryScript.build_edges(graph, assignment)
+		break
 	if rooms.is_empty():
-		return {"ok": false, "error": "Geometry build produced no rooms"}
-	var edges := RoomGraphGeometryScript.build_edges(graph, assignment)
+		return {
+			"ok": false,
+			"error": "Geometry build failed after %d assignment attempts" % MAX_ASSIGNMENT_ATTEMPTS,
+		}
 	var placements := ProcgenPlacementsScript.place(
-		biome, assignment, run_seed, tier, player_level, assign_rng
+		biome, assignment, run_seed, tier, player_level, assign_rng, graph
 	)
 	var content_result := RoomContentAssignerScript.assign(
 		graph, assignment, assign_rng, RoomContentConfigScript.default()
 	)
 	var content: Dictionary = content_result.get("content", {})
+	var landmarks := _build_landmark_hints(rooms, graph)
 	var run_id := _deterministic_run_id(run_seed, biome_id, floor_index)
 	var definition := {
 		"schemaVersion": 1,
@@ -63,6 +81,7 @@ static func generate(
 			"puzzles": placements.get("puzzles", []),
 			"traps": placements.get("traps", []),
 			"secrets": placements.get("secrets", []),
+			"cover": placements.get("cover", []),
 			"boss": placements.get("boss"),
 			"exit": placements.get("exit"),
 			"entrance": placements.get("entrance"),
@@ -76,6 +95,10 @@ static func generate(
 		"roomContent": content.get("roomContent", []),
 		"locks": content.get("locks", []),
 		"puzzles": content.get("puzzles", []),
+		"branchPreviews": RoomContentAssignerScript.build_branch_previews(
+			graph, assignment, content.get("roomContent", [])
+		),
+		"landmarks": landmarks,
 	}
 	return {
 		"ok": true,
@@ -158,3 +181,41 @@ static func _deterministic_run_id(run_seed: int, biome_id: String, floor_index: 
 	var mixed := run_seed ^ (biome_id.hash() & 0x7FFFFFFF) ^ (floor_index * 7919)
 	mixed = maxi(1, mixed)
 	return "%08x-0000-4000-8000-%012x" % [mixed & 0xFFFFFFFF, mixed & 0xFFFFFFFFFFFF]
+
+
+static func _build_landmark_hints(rooms: Array, graph: RoomGraph) -> Array:
+	var landmarks: Array = []
+	var boss_pos := Vector3.ZERO
+	var entrance_pos := Vector3.ZERO
+	for room in rooms:
+		var room_type: String = str(room.get("type", ""))
+		var t: Dictionary = room.get("transform", {})
+		var pos := Vector3(float(t.get("x", 0.0)), float(t.get("y", 0.0)), float(t.get("z", 0.0)))
+		if room_type == "boss":
+			boss_pos = pos
+		if room_type == "hub":
+			entrance_pos = pos
+	if boss_pos != Vector3.ZERO:
+		landmarks.append({
+			"kind": "boss_spire",
+			"position": {"x": boss_pos.x, "y": boss_pos.y + 18.0, "z": boss_pos.z},
+			"scale": {"x": 2.0, "y": 24.0, "z": 2.0},
+		})
+		landmarks.append({
+			"kind": "boss_silhouette",
+			"position": {"x": boss_pos.x, "y": boss_pos.y + 8.0, "z": boss_pos.z - 6.0},
+			"scale": {"x": 6.0, "y": 10.0, "z": 1.0},
+		})
+	if entrance_pos != Vector3.ZERO and graph != null and graph.boss_id != "":
+		var boss_slot := graph.get_slot(graph.boss_id)
+		if boss_slot:
+			landmarks.append({
+				"kind": "orientation_spire",
+				"position": {
+					"x": entrance_pos.x + float(boss_slot.grid_pos.x - graph.get_slot(graph.start_id).grid_pos.x) * 2.0,
+					"y": entrance_pos.y + 14.0,
+					"z": entrance_pos.z + float(boss_slot.grid_pos.y - graph.get_slot(graph.start_id).grid_pos.y) * 2.0,
+				},
+				"scale": {"x": 1.5, "y": 16.0, "z": 1.5},
+			})
+	return landmarks

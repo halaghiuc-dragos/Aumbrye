@@ -39,7 +39,7 @@ static func ensure_dev_session() -> bool:
 	if ApiConfig.access_token != "":
 		return true
 	var email := "dev_%s@test.local" % OS.get_unique_id().substr(0, 8)
-	var password := "devpassword123"
+	var password := _dev_password()
 	var reg := await register(email, password)
 	if reg.get("ok", false):
 		_store_tokens(reg.get("body", {}))
@@ -214,3 +214,14 @@ static func _store_tokens(body: Dictionary) -> void:
 	var tokens: Dictionary = body.get("tokens", {})
 	ApiConfig.access_token = tokens.get("accessToken", "")
 	ApiConfig.refresh_token = tokens.get("refreshToken", "")
+
+
+static func _dev_password() -> String:
+	var from_env := OS.get_environment("AUMBRYE_DEV_PASSWORD")
+	if from_env != "":
+		return from_env
+	var cfg := ContentLoader.load_json("apps/game/client/config/dev_api.json")
+	var from_cfg := str(cfg.get("devPassword", ""))
+	if from_cfg != "":
+		return from_cfg
+	return "devpassword123"

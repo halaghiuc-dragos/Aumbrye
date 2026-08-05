@@ -1,55 +1,67 @@
 extends Node3D
 class_name EnemyHealthBar
 
-## Billboard HP bar shown above enemies during combat.
+## Billboard HP bar above enemies — nearest-filtered Sprite3D quads.
 
-const BAR_WIDTH := 1.1
-const BAR_HEIGHT := 0.12
-const BAR_DEPTH := 0.04
-const FILL_INSET := 0.015
-const FILL_DEPTH := 0.02
+const BAR_TEX_W := 32
+const BAR_TEX_H := 4
+const BAR_WORLD_W := 1.1
+const BAR_WORLD_H := 0.12
 const DEFAULT_HEIGHT := 2.2
 
-var _bg_mesh: MeshInstance3D
-var _fill_mesh: MeshInstance3D
+var _bg_sprite: Sprite3D
+var _fill_sprite: Sprite3D
 var _health: Health
+var _bg_texture: ImageTexture
+var _fill_texture: ImageTexture
 
 
 func setup(health: Health, height_offset: float = DEFAULT_HEIGHT) -> void:
 	_health = health
 	position.y = height_offset
-	_build_meshes()
+	_build_sprites()
 	health.health_changed.connect(_on_health_changed)
 	health.died.connect(_on_died)
 	_on_health_changed(health.current, health.max_health)
 
 
-func _build_meshes() -> void:
-	_bg_mesh = MeshInstance3D.new()
-	_bg_mesh.name = "Background"
-	var bg_mesh := BoxMesh.new()
-	bg_mesh.size = Vector3(BAR_WIDTH, BAR_HEIGHT, BAR_DEPTH)
-	_bg_mesh.mesh = bg_mesh
-	var bg_mat := StandardMaterial3D.new()
-	bg_mat.albedo_color = Color(0.04, 0.04, 0.04, 1.0)
-	bg_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	bg_mat.cull_mode = BaseMaterial3D.CULL_DISABLED
-	_bg_mesh.material_override = bg_mat
-	add_child(_bg_mesh)
+func _build_sprites() -> void:
+	_bg_texture = _make_bar_texture(Color(0.04, 0.04, 0.04, 1.0), 1.0)
+	_fill_texture = _make_bar_texture(Color(0.9, 0.15, 0.1, 1.0), 1.0)
 
-	_fill_mesh = MeshInstance3D.new()
-	_fill_mesh.name = "Fill"
-	var fill_mesh := BoxMesh.new()
-	fill_mesh.size = Vector3(BAR_WIDTH - FILL_INSET * 2.0, BAR_HEIGHT - FILL_INSET * 2.0, FILL_DEPTH)
-	_fill_mesh.mesh = fill_mesh
-	var fill_mat := StandardMaterial3D.new()
-	fill_mat.albedo_color = Color(0.9, 0.15, 0.1, 1.0)
-	fill_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	fill_mat.cull_mode = BaseMaterial3D.CULL_DISABLED
-	_fill_mesh.material_override = fill_mat
-	# look_at() points -Z toward the camera; offset fill toward camera (negative local Z).
-	_fill_mesh.position.z = -(BAR_DEPTH * 0.5 + FILL_DEPTH * 0.5 + 0.01)
-	add_child(_fill_mesh)
+	_bg_sprite = Sprite3D.new()
+	_bg_sprite.name = "Background"
+	_bg_sprite.texture = _bg_texture
+	_bg_sprite.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	_bg_sprite.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+	_bg_sprite.pixel_size = BAR_WORLD_W / float(BAR_TEX_W)
+	_bg_sprite.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	add_child(_bg_sprite)
+
+	_fill_sprite = Sprite3D.new()
+	_fill_sprite.name = "Fill"
+	_fill_sprite.texture = _fill_texture
+	_fill_sprite.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	_fill_sprite.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+	_fill_sprite.pixel_size = BAR_WORLD_W / float(BAR_TEX_W)
+	_fill_sprite.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	_fill_sprite.position.z = -0.02
+	add_child(_fill_sprite)
+
+
+func _make_bar_texture(color: Color, fill_ratio: float) -> ImageTexture:
+	var img := Image.create(BAR_TEX_W, BAR_TEX_H, false, Image.FORMAT_RGBA8)
+	img.fill(Color(0, 0, 0, 0))
+	var fill_w := int(round(float(BAR_TEX_W - 2) * clampf(fill_ratio, 0.0, 1.0)))
+	for y in BAR_TEX_H:
+		for x in BAR_TEX_W:
+			var border := x == 0 or x == BAR_TEX_W - 1 or y == 0 or y == BAR_TEX_H - 1
+			if border:
+				img.set_pixel(x, y, Color(0.02, 0.02, 0.02, 1.0))
+			elif x >= 1 and x < 1 + fill_w:
+				img.set_pixel(x, y, color)
+	var tex := ImageTexture.create_from_image(img)
+	return tex
 
 
 func _process(_delta: float) -> void:
@@ -64,29 +76,16 @@ func _process(_delta: float) -> void:
 
 
 func _on_health_changed(current: float, max_value: float) -> void:
-	if _fill_mesh == null:
+	if _fill_sprite == null:
 		return
 	var ratio: float = 0.0 if max_value <= 0.0 else clampf(current / max_value, 0.0, 1.0)
-	_update_fill(ratio)
+	_fill_texture = _make_bar_texture(Color(0.9, 0.15, 0.1, 1.0), ratio)
+	_fill_sprite.texture = _fill_texture
+	var inner_w := BAR_WORLD_W - 0.03
+	var fill_w := inner_w * ratio
+	_fill_sprite.position.x = inner_w * 0.5 - fill_w * 0.5
+	_fill_sprite.scale.x = maxf(ratio, 0.001)
 	visible = ratio > 0.0
-
-
-func _update_fill(ratio: float) -> void:
-	var fill_mesh := _fill_mesh.mesh as BoxMesh
-	if fill_mesh == null:
-		return
-
-	var inner_width := BAR_WIDTH - FILL_INSET * 2.0
-	var inner_height := BAR_HEIGHT - FILL_INSET * 2.0
-	var fill_width := inner_width * ratio
-	if fill_width <= 0.001:
-		_fill_mesh.visible = false
-		return
-
-	_fill_mesh.visible = true
-	fill_mesh.size = Vector3(fill_width, inner_height, FILL_DEPTH)
-	# Anchor fill to the right; depletes right → left.
-	_fill_mesh.position.x = inner_width * 0.5 - fill_width * 0.5
 
 
 func _on_died() -> void:

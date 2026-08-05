@@ -1,7 +1,11 @@
 {
   "id": "castle_sword",
   "name": "Castle Sword",
+  "archetype": "sword",
+  "damage_type": "physical",
   "buffer_window": 0.2,
+  "lunge_distance": 0.42,
+  "scaling": { "physicalDamage": 1.0, "armor": 0.02 },
   "light_attacks": [
     {
       "damage": 16,
@@ -9,7 +13,8 @@
       "stamina_cost": 12,
       "startup": 0.15,
       "active": 0.12,
-      "recovery": 0.25
+      "recovery": 0.25,
+      "lunge_distance": 0.38
     },
     {
       "damage": 20,
@@ -17,7 +22,8 @@
       "stamina_cost": 15,
       "startup": 0.18,
       "active": 0.14,
-      "recovery": 0.28
+      "recovery": 0.28,
+      "lunge_distance": 0.42
     },
     {
       "damage": 26,
@@ -25,7 +31,8 @@
       "stamina_cost": 20,
       "startup": 0.22,
       "active": 0.16,
-      "recovery": 0.35
+      "recovery": 0.35,
+      "lunge_distance": 0.48
     }
   ],
   "heavy_attack": {
@@ -34,6 +41,7 @@
     "stamina_cost": 32,
     "startup": 0.35,
     "active": 0.18,
-    "recovery": 0.45
+    "recovery": 0.45,
+    "lunge_distance": 0.58
   }
 }

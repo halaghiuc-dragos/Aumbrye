@@ -44,21 +44,21 @@ ART  = ROOT/scripts/art
 |---------|-----------|
 | Settings | `ART/pipeline/pixel_diorama_settings.gd` |
 | Viewport autoload | `ART/pipeline/pixel_diorama_viewport.gd` |
-| Bootstrap | `ART/pipeline/pixel_diorama_bootstrap.gd` **NEW** |
+| Bootstrap | `ART/pipeline/pixel_diorama_bootstrap.gd` |
 | Mirror cam snap | `ART/pipeline/pixel_camera_snap.gd` (render-cam only) |
 | Palettes/mats/geo | `ART/style/pixel_diorama_style.gd` |
-| Lighting facade | `ART/lighting/visual_lighting.gd` **NEW** (wrap SceneLighting+DungeonLighting) |
+| Lighting facade | `ART/lighting/visual_lighting.gd` |
 | Skin | `ART/characters/diorama_character_skin.gd` |
-| Anim ctrl | `ART/characters/diorama_anim_controller.gd` **NEW** |
+| Anim ctrl | `ART/characters/diorama_anim_controller.gd` |
 | Floor snap | `ART/characters/character_floor_snap.gd` |
+| Viewmodel | `ART/characters/diorama_viewmodel.gd` (code-built; no `.tscn`) |
 | Props/interact | `ART/props/*` |
 | Dressing | `ART/dressing/*` (from hub/dungeon/debug diorama scripts) |
 | VFX | `ART/vfx/vfx_service.gd` (autoload path OK) |
-| Shaders | `ROOT/assets/shared/shaders/` |
+| Shaders | `ROOT/assets/shared/` |
 | Anims | `ROOT/assets/animations/diorama/` |
 | Weapons | `ROOT/assets/shared/weapons/` |
-| FP viewmodel | `ROOT/scenes/art/fp_viewmodel.tscn` **NEW** |
-| Rig ref | `ROOT/scenes/art/diorama_character_rig_player.tscn` **NEW** |
+| Rig ref | `ROOT/scenes/art/diorama_character_rig_player.tscn` |
 | Mat regen | `tools/generate_pixel_diorama_materials.py` |
 
 Biome mats: `ROOT/assets/{biome}/materials/mat_{floor,wall,accent}.tres`  
@@ -92,7 +92,7 @@ Consumers to rewire: `hub.gd`, `castle_run.gd`, `waves_run.gd`, combat arena, `b
 4. Optional CanvasItem finish on SubViewportContainer: dither+contrast; default subtle/off.
 5. Tune directional shadow bias/distance for low-res chunky geo.
 6. Hub/outdoor: respect `glow_enabled`.
-7. FP: `scenes/art/fp_viewmodel.tscn` (voxel arms+weapon under cam); `orbit_camera.gd` show/hide with `apply_first_person()`; 3P shows full body.
+7. FP: **ACCEPTED** — `DioramaViewmodel.build()` code-builds voxel arms under the camera (same pivot names as 3P). No `fp_viewmodel.tscn` scene; see `scripts/art/characters/diorama_viewmodel.gd`.
 8. Floor-snap player + all enemy spawns.
 
 ## P2 — ANIMATIONPLAYER VOXEL
@@ -146,7 +146,18 @@ Author via rig scene → AnimationPlayer tracks on part transforms → save libr
 
 1. Skin: `waves_run_ui`, `dialogue_ui`, `results_screen`, combat HUD, status icons (no colored squares).
 2. Settings: beauty defaults preset (recommended crisp pack).
-3. Document CanvasLayer vs SubViewport order.
+3. **CanvasLayer vs SubViewport order** — documented below.
+
+### P4.3 — Render stack order
+
+The pixel pipeline renders in this order (bottom → top):
+
+1. **Root viewport 3D** — disabled (`disable_3d = true`) while low-res mode is active; gameplay camera still exists for logic but does not draw.
+2. **`PixelDioramaViewportLayer` (`CanvasLayer`, layer -1)** — full-screen `SubViewportContainer` showing the mirrored `PixelRenderCamera` at internal resolution (e.g. 480×270), nearest upscale, optional `pixel_screen_finish.gdshader` on the container material.
+3. **Gameplay `CanvasLayer` HUD** (layer 0 default) — `CombatHUD`, menus, damage numbers parented to scene UI; drawn **after** the pixel pass so text stays sharp at window resolution.
+4. **Modal overlays** (settings, pause) — same CanvasLayer stack; `process_mode = ALWAYS` when paused.
+
+**Rules:** Never reparent 3D nodes into the SubViewport. Billboards and `unproject_position` must use `PixelDioramaViewport.get_gameplay_camera()` (the mirrored render camera when low-res is on).
 
 ## P5 — ART KITS (full overhaul)
 **Done when:** Hub+Castle feel shipped; kit-first dressing; Umbral has own mats; other biomes have distinct prop language.

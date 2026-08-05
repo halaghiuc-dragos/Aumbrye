@@ -9,10 +9,12 @@ const ROOM_SUFFIXES := [
 ]
 
 
-static func apply_to_room(room: RoomTemplate, biome_id: String) -> void:
+static func apply_to_room(room: RoomTemplate, biome_id: String, room_seed: int = 0) -> void:
 	var blockout := room.get_blockout()
 	if blockout == null:
 		return
+	var prop_rng := RandomNumberGenerator.new()
+	prop_rng.seed = room_seed if room_seed != 0 else room.room_id.hash()
 	var props := _ensure_props_root(room)
 	if props.get_node_or_null("DioramaDressing") != null:
 		return
@@ -48,7 +50,7 @@ static func apply_to_room(room: RoomTemplate, biome_id: String) -> void:
 		"puzzle":
 			_spawn_puzzle(dressing, accent_mat, biome_id)
 		_:
-			_spawn_generic_corners(dressing, half_w, half_d, accent_mat, biome_id)
+			_spawn_generic_corners(dressing, half_w, half_d, accent_mat, biome_id, prop_rng)
 
 
 static func apply_to_waves_arena(parent: Node3D, biome_id: String = BiomeRegistry.BIOME_UMBRAL) -> void:
@@ -71,7 +73,7 @@ static func apply_to_waves_arena(parent: Node3D, biome_id: String = BiomeRegistr
 	_add_biome_banner(dressing, Vector3(0.0, 0.0, -half + 0.8), accent_mat, 3.2, 1.6)
 
 
-static func apply_ceiling_lighting(room: RoomTemplate, biome_id: String) -> void:
+static func apply_ceiling_lighting(room: RoomTemplate, biome_id: String, lighting_role: String = "") -> void:
 	var blockout := room.get_blockout()
 	if blockout == null:
 		return
@@ -85,7 +87,15 @@ static func apply_ceiling_lighting(room: RoomTemplate, biome_id: String) -> void
 	var half_w := blockout.room_width * 0.5
 	var half_d := blockout.room_depth * 0.5
 	var torch_y := CastleRoomConstants.WALL_HEIGHT - 0.35
-	var spacing := clampf(minf(blockout.room_width, blockout.room_depth) * 0.52, 6.0, 8.5)
+	var spacing_scale := 1.0
+	match lighting_role:
+		"trap", "hazard":
+			spacing_scale = 1.35
+		"boss":
+			spacing_scale = 0.85
+		"empty", "rest":
+			spacing_scale = 0.75
+	var spacing := clampf(minf(blockout.room_width, blockout.room_depth) * 0.52 * spacing_scale, 6.0, 8.5)
 	var x := -half_w + spacing
 	while x <= half_w - 1.0:
 		var z := -half_d + spacing
@@ -267,9 +277,33 @@ static func _spawn_obstacle_course(
 	_spawn_brazier(parent, Vector3(half_w - 1.8, 0.0, half_d - 1.8), accent_mat, biome_id, 0.5)
 
 
-static func _spawn_generic_corners(parent: Node3D, half_w: float, half_d: float, accent_mat: Material, biome_id: String) -> void:
-	_spawn_brazier(parent, Vector3(-half_w + 1.5, 0.0, -half_d + 1.5), accent_mat, biome_id, 0.4)
-	_spawn_brazier(parent, Vector3(half_w - 1.5, 0.0, half_d - 1.5), accent_mat, biome_id, 0.4)
+static func _spawn_generic_corners(
+	parent: Node3D,
+	half_w: float,
+	half_d: float,
+	accent_mat: Material,
+	biome_id: String,
+	prop_rng: RandomNumberGenerator = null
+) -> void:
+	var jitter_a := 0.0
+	var jitter_b := 0.0
+	if prop_rng != null:
+		jitter_a = prop_rng.randf_range(-0.8, 0.8)
+		jitter_b = prop_rng.randf_range(-0.8, 0.8)
+	_spawn_brazier(
+		parent,
+		Vector3(-half_w + 1.5 + jitter_a, 0.0, -half_d + 1.5 + jitter_b),
+		accent_mat,
+		biome_id,
+		0.4
+	)
+	_spawn_brazier(
+		parent,
+		Vector3(half_w - 1.5 - jitter_b, 0.0, half_d - 1.5 - jitter_a),
+		accent_mat,
+		biome_id,
+		0.4
+	)
 
 
 static func _spawn_corner_pillar(parent: Node3D, pos: Vector3, mat: Material, height: float) -> void:

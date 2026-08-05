@@ -17,6 +17,7 @@ const SUITE_PATHS: PackedStringArray = [
 	"res://scripts/validation/suites/progression_suite.gd",
 	"res://scripts/validation/suites/procgen_suite.gd",
 	"res://scripts/validation/suites/room_graph_suite.gd",
+	"res://scripts/validation/suites/cross_stack_parity_suite.gd",
 	"res://scripts/validation/suites/room_content_suite.gd",
 	"res://scripts/validation/suites/save_suite.gd",
 	"res://scripts/validation/suites/hub_suite.gd",
@@ -31,6 +32,9 @@ const SUITE_PATHS: PackedStringArray = [
 	"res://scripts/validation/suites/m5_suite.gd",
 	"res://scripts/validation/suites/m6_suite.gd",
 	"res://scripts/validation/suites/m7_suite.gd",
+	"res://scripts/validation/suites/pixel_pipeline_suite.gd",
+	"res://scripts/validation/suites/diorama_anim_suite.gd",
+	"res://scripts/validation/suites/perf_gate_suite.gd",
 ]
 
 var _ctx
@@ -41,18 +45,29 @@ func _ready() -> void:
 	_ctx = TestContextScript.new(self)
 	await _run_all_suites()
 	_write_report()
-	get_tree().quit()
+	var exit_code := 1 if _ctx.failed > 0 else 0
+	get_tree().quit(exit_code)
 
 
 func _run_all_suites() -> void:
 	for path in SUITE_PATHS:
 		var script: Script = load(path) as Script
 		if script == null:
-			_ctx.record("suite.load_%s" % path.get_file().get_basename(), "runner", false, "failed to load suite script")
+			_ctx.record(
+				"suite.load_%s" % path.get_file().get_basename(),
+				"runner",
+				false,
+				"failed to load suite script"
+			)
 			continue
 		var suite: RefCounted = script.new(_ctx) as RefCounted
 		if suite == null:
-			_ctx.record("suite.init_%s" % path.get_file().get_basename(), "runner", false, "failed to instantiate suite")
+			_ctx.record(
+				"suite.init_%s" % path.get_file().get_basename(),
+				"runner",
+				false,
+				"failed to instantiate suite"
+			)
 			continue
 		var suite_start := Time.get_ticks_msec()
 		var before_passed: int = _ctx.passed
@@ -65,13 +80,18 @@ func _run_all_suites() -> void:
 		if suite.has_method("get_category"):
 			category = str(suite.call("get_category"))
 		var suite_name: String = path.get_file().get_basename()
-		_suite_results.append({
-			"name": suite_name,
-			"category": category,
-			"passed": suite_passed,
-			"failed": suite_failed,
-			"duration_ms": Time.get_ticks_msec() - suite_start,
-		})
+		(
+			_suite_results
+			. append(
+				{
+					"name": suite_name,
+					"category": category,
+					"passed": suite_passed,
+					"failed": suite_failed,
+					"duration_ms": Time.get_ticks_msec() - suite_start,
+				}
+			)
+		)
 
 
 func _write_report() -> void:
@@ -82,7 +102,8 @@ func _write_report() -> void:
 		"failed": _ctx.failed,
 		"suites": _suite_results,
 		"tests": _ctx.tests,
-		"coverage": {
+		"coverage":
+		{
 			"automated": _ctx.tests.size(),
 			"manual_remaining": TestContextScript.MANUAL_REMAINING,
 		},
@@ -91,6 +112,13 @@ func _write_report() -> void:
 	var file := FileAccess.open(REPORT_PATH, FileAccess.WRITE)
 	if file:
 		file.store_string(JSON.stringify(report, "\t"))
-	print("[ValidationRunner] %d passed, %d failed -> %s" % [
-		_ctx.passed, _ctx.failed, REPORT_PATH,
-	])
+	print(
+		(
+			"[ValidationRunner] %d passed, %d failed -> %s"
+			% [
+				_ctx.passed,
+				_ctx.failed,
+				REPORT_PATH,
+			]
+		)
+	)

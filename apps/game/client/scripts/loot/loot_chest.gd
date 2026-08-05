@@ -4,7 +4,7 @@ extends Node3D
 
 signal opened
 
-const DioramaSkin := preload("res://scripts/art/diorama_interactable_skin.gd")
+const DioramaSkin := preload("res://scripts/art/props/diorama_interactable_skin.gd")
 
 var _mesh: Node3D
 @onready var _interact_area: Area3D = $InteractArea

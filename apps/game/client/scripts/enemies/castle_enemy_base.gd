@@ -3,7 +3,7 @@ class_name CastleEnemyBase
 
 ## Shared patrol/chase/deaggro AI for castle enemies (ENEMY-2.1 base).
 
-enum State { PATROL, CHASE, WINDUP, ATTACK, RECOVERY, STAGGER, DEAD }
+enum State { PATROL, CHASE, INVESTIGATE, RETREAT, WINDUP, ATTACK, RECOVERY, STAGGER, DEAD }
 
 signal enemy_died
 signal attack_telegraph_started
@@ -13,10 +13,11 @@ const DATA_PATH := ""
 
 const ENEMY_TURN_SPEED := 22.0
 const HP_BAR_SCRIPT := preload("res://scripts/ui/enemy_health_bar.gd")
+const MaterialDissolveScript := preload("res://scripts/art/characters/material_dissolve.gd")
 const GlobalDropServiceScript := preload("res://scripts/loot/global_drop_service.gd")
-const CharacterFloorSnapScript := preload("res://scripts/art/character_floor_snap.gd")
-const CharacterSkin := preload("res://scripts/art/diorama_character_skin.gd")
-const AnimControllerScript := preload("res://scripts/art/diorama_anim_controller.gd")
+const CharacterFloorSnapScript := preload("res://scripts/art/characters/character_floor_snap.gd")
+const CharacterSkin := preload("res://scripts/art/characters/diorama_character_skin.gd")
+const AnimControllerScript := preload("res://scripts/art/characters/diorama_anim_controller.gd")
 
 @export var player_path: NodePath
 
@@ -42,6 +43,12 @@ var _aggro_locked := false
 var _diorama_visual: Node3D
 var _animator: DioramaAnimController
 var _anim_profile := "melee"
+var _last_known_player_pos := Vector3.ZERO
+var _attack_token_group := ""
+var _attack_token_held := false
+var _current_attack_data: Dictionary = {}
+var _combo_step := 0
+var _combat_registered := false
 
 
 func _ready() -> void:
@@ -194,6 +201,35 @@ func _apply_mesh_tint(color: Color) -> void:
 	_mesh.set_surface_override_material(0, standard)
 
 
+func respawn_at_rest() -> void:
+	if not is_dead():
+		return
+	_state = State.PATROL
+	_stagger_timer = 0.0
+	_cooldown = 0.0
+	_aggro_locked = false
+	_unregister_combat_engagement()
+	global_position = _spawn_origin
+	velocity = Vector3.ZERO
+	if _health:
+		_health.configure(_data.get("health", 80.0))
+	if _poise:
+		_poise.configure(_data.get("poise", 40.0))
+	if _hitbox:
+		_hitbox.disable()
+		_hitbox.reset_swing()
+	if _telegraph:
+		_telegraph.visible = false
+	if _hurtbox:
+		_hurtbox.monitorable = true
+		_hurtbox.monitoring = true
+	if _hp_bar:
+		_hp_bar.visible = true
+	if _animator and _animator.is_bound():
+		_animator.revive()
+	_pick_patrol_target()
+
+
 func is_dead() -> bool:
 	return _state == State.DEAD
 
@@ -229,6 +265,7 @@ func _finalize_death(silent: bool) -> void:
 	_stagger_timer = 0.0
 	_cooldown = 0.0
 	_aggro_locked = false
+	_unregister_combat_engagement()
 	if _health:
 		_health.force_dead()
 	if not silent:
@@ -258,6 +295,7 @@ func _play_death_visual() -> void:
 	var visual := _diorama_visual if _diorama_visual else _mesh as Node3D
 	if visual == null:
 		return
+	MaterialDissolveScript.dissolve(visual)
 	if _animator and _animator.is_bound():
 		# The death clip already collapses the body; only sink it out of sight.
 		var sink := create_tween()
@@ -357,6 +395,10 @@ func _update_ai(delta: float) -> void:
 			_process_patrol(delta)
 		State.CHASE:
 			_process_chase(delta)
+		State.INVESTIGATE:
+			_process_investigate(delta)
+		State.RETREAT:
+			_process_retreat(delta)
 		State.WINDUP:
 			_apply_chase_velocity(delta, 0.9)
 			_state_timer -= delta
@@ -395,13 +437,58 @@ func _process_patrol(delta: float) -> void:
 
 func _process_chase(delta: float) -> void:
 	if not _has_aggro():
-		_state = State.PATROL
-		_pick_patrol_target()
+		_state = State.INVESTIGATE
+		_state_timer = 2.5
+		return
+	_last_known_player_pos = _player.global_position
+	if _should_retreat():
+		_state = State.RETREAT
+		_state_timer = 1.8
 		return
 	if _can_attack():
 		_start_windup()
 		return
 	_apply_chase_velocity(delta)
+
+
+func _process_investigate(delta: float) -> void:
+	if _has_aggro():
+		_state = State.CHASE
+		return
+	_state_timer -= delta
+	var to_last := _last_known_player_pos - global_position
+	to_last.y = 0.0
+	if to_last.length() > 0.75:
+		velocity = to_last.normalized() * _data.get("move_speed", 3.0) * 0.75
+		_face_direction(to_last, delta)
+	else:
+		velocity = Vector3.ZERO
+	if _state_timer <= 0.0:
+		_state = State.PATROL
+		_pick_patrol_target()
+
+
+func _process_retreat(delta: float) -> void:
+	_state_timer -= delta
+	if _player == null:
+		_state = State.PATROL
+		return
+	var away := global_position - _player.global_position
+	away.y = 0.0
+	if away.length_squared() > 0.01:
+		velocity = away.normalized() * _data.get("move_speed", 3.0)
+		_face_direction(-away, delta)
+	if _state_timer <= 0.0:
+		_state = State.CHASE if _has_aggro() else State.PATROL
+
+
+func _should_retreat() -> bool:
+	if _health == null:
+		return false
+	var threshold: float = float(_data.get("retreat_threshold", 0.0))
+	if threshold <= 0.0:
+		return false
+	return _health.current / _health.max_health <= threshold
 
 
 func _apply_chase_velocity(_delta: float, speed_mult: float = 1.0) -> void:
@@ -427,6 +514,8 @@ func _has_aggro() -> bool:
 	if global_position.distance_to(_player.global_position) > aggro:
 		return false
 	if _has_line_of_sight_to_player():
+		if not _aggro_locked:
+			_register_combat_engagement()
 		_aggro_locked = true
 		return true
 	return false
@@ -473,45 +562,56 @@ func _is_cross_boss_boundary_with_player() -> bool:
 func _start_windup() -> void:
 	if is_dead() or (_health and _health.is_dead()):
 		return
+	_select_attack_data()
+	_attack_token_group = str(_data.get("attack_token_group", "room_default"))
+	if AttackTokenService and not AttackTokenService.request_token(_attack_token_group):
+		return
+	_attack_token_held = true
 	_state = State.WINDUP
-	var windup: float = float(_data.get("windup_duration", 0.7))
-	_state_timer = windup
+	var windup: float = float(_current_attack_data.get("windup_duration", _data.get("windup_duration", 0.7)))
+	var windup_variance: float = float(_current_attack_data.get("windup_variance", _data.get("windup_variance", 0.0)))
+	if windup_variance > 0.0:
+		windup += randf_range(-windup_variance, windup_variance)
+	_state_timer = maxf(0.05, windup)
 	if _animator and _animator.is_bound():
-		# One clip spans wind-up, active and recovery, so the swing peaks on the
-		# exact frame the hitbox turns on.
 		_animator.play_attack(
-			windup,
-			float(_data.get("active_duration", 0.15)),
-			float(_data.get("recovery_duration", 0.9))
+			_state_timer,
+			float(_current_attack_data.get("active_duration", _data.get("active_duration", 0.15))),
+			float(_current_attack_data.get("recovery_duration", _data.get("recovery_duration", 0.9)))
 		)
 	elif _mesh:
 		_mesh.scale = Vector3(1.08, 1.08, 1.08)
 	if _telegraph:
 		_telegraph.visible = true
 	VfxService.play_telegraph(
-		global_position, float(_data.get("attack_range", 2.2)) * 0.8, windup
+		global_position,
+		float(_current_attack_data.get("attack_range", _data.get("attack_range", 2.2))) * 0.8,
+		_state_timer,
+		Color(0.95, 0.34, 0.28),
+		str(_current_attack_data.get("telegraph_shape", _data.get("telegraph_shape", "circle")))
 	)
+	AudioDirector.play_sfx("windup", global_position + Vector3(0.0, 1.0, 0.0))
 	attack_telegraph_started.emit()
 
 
 func _start_attack() -> void:
 	if is_dead() or (_health and _health.is_dead()):
+		_release_attack_token()
 		return
 	_state = State.ATTACK
-	_state_timer = _data.get("active_duration", 0.15)
+	_state_timer = float(_current_attack_data.get("active_duration", _data.get("active_duration", 0.15)))
 	if _telegraph:
 		_telegraph.visible = false
 	if _hitbox:
 		_hitbox.set_attack_values(
-			_data.get("attack_damage", 14.0),
-			_data.get("attack_poise_damage", 12.0),
-			_data.get("damage_type", DamageInfo.TYPE_PHYSICAL),
-			_data.get("status_on_hit", ""),
-			int(_data.get("status_stacks_on_hit", 1))
+			float(_current_attack_data.get("attack_damage", _data.get("attack_damage", 14.0))),
+			float(_current_attack_data.get("attack_poise_damage", _data.get("attack_poise_damage", 12.0))),
+			_current_attack_data.get("damage_type", _data.get("damage_type", DamageInfo.TYPE_PHYSICAL)),
+			_current_attack_data.get("status_on_hit", _data.get("status_on_hit", "")),
+			int(_current_attack_data.get("status_stacks_on_hit", _data.get("status_stacks_on_hit", 1)))
 		)
 		_hitbox.enable()
 	attack_active.emit()
-	_try_parry_check()
 
 
 func _end_attack() -> void:
@@ -523,17 +623,53 @@ func _end_attack() -> void:
 	elif _mesh:
 		_mesh.scale = Vector3.ONE
 	_state = State.RECOVERY
-	_state_timer = _data.get("recovery_duration", 0.9)
+	_state_timer = float(_current_attack_data.get("recovery_duration", _data.get("recovery_duration", 0.9)))
+	_release_attack_token()
+	var combo: Array = _current_attack_data.get("combo_followups", [])
+	if combo.size() > 0 and _combo_step < combo.size() and _has_aggro():
+		_combo_step += 1
+		_current_attack_data = combo[_combo_step - 1]
+		_state = State.WINDUP
+		_state_timer = float(_current_attack_data.get("windup_duration", 0.35))
+	else:
+		_combo_step = 0
+
+
+func _select_attack_data() -> void:
+	var attacks: Array = _data.get("attacks", [])
+	if attacks.is_empty():
+		_current_attack_data = _data
+		_combo_step = 0
+		return
+	if _combo_step > 0:
+		return
+	_current_attack_data = attacks[randi() % attacks.size()]
+	_combo_step = 0
+
+
+func _release_attack_token() -> void:
+	if _attack_token_held and AttackTokenService:
+		AttackTokenService.release_token(_attack_token_group)
+	_attack_token_held = false
+
+
+func _register_combat_engagement() -> void:
+	if _combat_registered or AudioDirector == null:
+		return
+	_combat_registered = true
+	AudioDirector.register_combat_engagement()
+
+
+func _unregister_combat_engagement() -> void:
+	if not _combat_registered or AudioDirector == null:
+		return
+	_combat_registered = false
+	AudioDirector.unregister_combat_engagement()
 
 
 func _try_parry_check() -> void:
-	if not _player:
-		return
-	var guard: Node = _player.get_node_or_null("Guard")
-	if guard and guard.has_method("try_parry_attack"):
-		if guard.call("try_parry_attack", self):
-			var stagger: float = guard.call("get_parry_stagger_duration")
-			apply_stagger(stagger)
+	# Parry resolution lives in Hurtbox.receive_hit during active hit frames.
+	pass
 
 
 func _face_direction(dir: Vector3, delta: float) -> void:

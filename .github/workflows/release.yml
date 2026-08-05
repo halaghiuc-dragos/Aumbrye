@@ -37,15 +37,21 @@ jobs:
           name: web-dist-${{ inputs.tag }}
           path: apps/web/dist
 
-  godot-export-stub:
-    name: Godot export artifact (stub)
+  godot-export:
+    name: Godot Windows export
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
-      - name: Placeholder export note
+      - name: Setup Godot with export templates
+        uses: chickensoft-games/setup-godot@v1
+        with:
+          version: 4.4.0
+          include-templates: true
+      - name: Export Windows Desktop
+        working-directory: apps/game/client
         run: |
-          mkdir -p artifacts/godot
-          echo "Export Godot Windows build locally or via Steam depot pipeline for tag ${{ inputs.tag }}" > artifacts/godot/README.txt
+          mkdir -p ../../../artifacts/godot
+          godot --headless --path . --export-release "Windows Desktop" ../../../artifacts/godot/aumbrye.exe
       - uses: actions/upload-artifact@v4
         with:
           name: godot-export-${{ inputs.tag }}
@@ -53,7 +59,7 @@ jobs:
 
   release-summary:
     name: Release summary
-    needs: [backend-image, web-build, godot-export-stub]
+    needs: [backend-image, web-build, godot-export]
     runs-on: ubuntu-latest
     steps:
       - run: echo "Release artifacts prepared for tag ${{ inputs.tag }}. Steam upload requires manual confirm (CI-7.1)."

@@ -1,0 +1,12 @@
+{
+  "id": "dungeon_npc_stranded",
+  "startNode": "start",
+  "nodes": {
+    "start": {
+      "speaker": "Stranded scout",
+      "text": "Another echo? I lost my squad two rooms back. Take this scrap — and watch the captain's parry.",
+      "actions": [{ "type": "set_flag", "flag": "met_dungeon_npc", "value": true }],
+      "next": "end"
+    }
+  }
+}

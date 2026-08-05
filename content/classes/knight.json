@@ -1,0 +1,9 @@
+{
+  "id": "knight",
+  "name": "Knight",
+  "description": "Balanced frontline fighter with sturdy armor.",
+  "startingWeaponItemId": "castle_sword",
+  "statBonuses": { "maxHealth": 20, "armor": 5 },
+  "allowedWeapons": ["castle_sword", "training_greatsword", "guard_spear", "iron_sword", "knight_blade"],
+  "perk": "steadfast"
+}

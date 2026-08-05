@@ -15,7 +15,7 @@ public class ContentCatalogTests
         foreach (var enemyId in new[]
                  {
                      "castle_grunt", "castle_archer", "castle_shield",
-                     "castle_knight", "training_grunt",
+                     "boss_castle_knight", "training_grunt",
                  })
         {
             Assert.True(EnemyCatalog.TryGet(enemyId, out var def));

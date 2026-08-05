@@ -6,12 +6,13 @@
     "gridHeight":  2,
     "stackSize":  1,
     "rarity":  "legendary",
-    "description":  "M6 content item.",
+    "description":  "Forged in glacial depths, it drinks warmth from every wound.",
     "value":  20,
     "stats":  {
                   "frostDamage":  12,
                   "physicalDamage":  28
               },
     "equipmentSlot":  "weapon",
-    "theme":  "frozen_fortress"
+    "theme":  "frozen_fortress",
+    "weaponId": "castle_sword"
 }

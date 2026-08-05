@@ -20,6 +20,7 @@ public sealed class GenerationOptions
 
 /// <summary>
 /// Main procedural entry — layout through canonical JSON.
+/// GDScript DungeonProcgen is authoritative for gameplay; this path exists for backend/CLI parity.
 /// </summary>
 public static class DungeonGenerator
 {
@@ -117,7 +118,10 @@ public static class DungeonGenerator
             Placements: placements,
             Budgets: new DungeonBudgets(threatUsed, lootValue),
             FloorIndex: floorIndex,
-            IsFinalFloor: isFinalFloor);
+            IsFinalFloor: isFinalFloor,
+            RoomContent: Array.Empty<object>(),
+            Locks: Array.Empty<object>(),
+            Puzzles: Array.Empty<object>());
 
         var json = CanonicalJsonSerializer.Serialize(definition);
         return new GenerationResult(definition with { Checksum = ExtractChecksum(json) }, json);

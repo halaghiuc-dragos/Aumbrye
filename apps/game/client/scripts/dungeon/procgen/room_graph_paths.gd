@@ -93,6 +93,34 @@ static func is_on_branch_to(graph: RoomGraph, ancestor_id: String, descendant_id
 	return current == ancestor_id
 
 
+static func branch_depth_for_slot(graph: RoomGraph, slot_id: String) -> int:
+	var path := critical_path_ids(graph)
+	if path.is_empty():
+		return 0
+	var path_set := {}
+	for pid in path:
+		path_set[pid] = true
+	if path_set.has(slot_id):
+		return 0
+	var distances := bfs_distances(graph, graph.start_id)
+	var min_path_dist := 9999
+	for pid in path:
+		min_path_dist = mini(min_path_dist, int(distances.get(pid, 9999)))
+	var slot_dist := int(distances.get(slot_id, 0))
+	return maxi(0, slot_dist - min_path_dist)
+
+
+static func slots_on_critical_path(graph: RoomGraph) -> Array[String]:
+	var result: Array[String] = []
+	for cell in graph.occupied_cells():
+		var slot: RoomGraphSlot = graph.slots[cell]
+		if slot.on_critical_path:
+			result.append(slot.slot_id)
+	if result.is_empty():
+		return critical_path_ids(graph)
+	return result
+
+
 static func _dirs() -> Array[Vector2i]:
 	return [Vector2i(0, -1), Vector2i(1, 0), Vector2i(0, 1), Vector2i(-1, 0)]
 

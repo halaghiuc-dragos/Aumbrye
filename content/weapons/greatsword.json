@@ -4,6 +4,8 @@
   "archetype": "greatsword",
   "damage_type": "physical",
   "buffer_window": 0.15,
+  "lunge_distance": 0.35,
+  "scaling": { "physicalDamage": 1.5, "poiseDamage": 1.0 },
   "light_attacks": [
     {
       "damage": 22,
@@ -11,7 +13,8 @@
       "stamina_cost": 18,
       "startup": 0.28,
       "active": 0.18,
-      "recovery": 0.38
+      "recovery": 0.38,
+      "lunge_distance": 0.3
     },
     {
       "damage": 26,
@@ -19,7 +22,8 @@
       "stamina_cost": 22,
       "startup": 0.32,
       "active": 0.2,
-      "recovery": 0.42
+      "recovery": 0.42,
+      "lunge_distance": 0.35
     }
   ],
   "heavy_attack": {
@@ -28,6 +32,7 @@
     "stamina_cost": 38,
     "startup": 0.5,
     "active": 0.22,
-    "recovery": 0.55
+    "recovery": 0.55,
+    "lunge_distance": 0.5
   }
 }

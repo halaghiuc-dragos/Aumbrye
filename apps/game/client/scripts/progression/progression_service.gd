@@ -54,8 +54,6 @@ func grant_xp(amount: int, _reason: String = "") -> Dictionary:
 		"level": level,
 		"xp": xp,
 	}
-	if CharacterService and level != before_level:
-		CharacterService.set_level(level)
 	progression_changed.emit()
 	return result
 
@@ -121,10 +119,21 @@ func get_talent_stat_totals() -> Dictionary:
 			var rank: int = get_talent_rank(node_id)
 			if rank <= 0:
 				continue
-			var stats: Dictionary = node.get("stats", {})
-			for stat in stats:
-				totals[stat] = totals.get(stat, 0.0) + float(stats[stat]) * rank
+			for effect in node.get("effects", []):
+				if not effect is Dictionary:
+					continue
+				var stat: String = str(effect.get("stat", ""))
+				if stat == "":
+					continue
+				var per_rank: float = float(effect.get("valuePerRank", 0.0))
+				totals[stat] = totals.get(stat, 0.0) + per_rank * rank
 	return totals
+
+
+func respec_talents() -> void:
+	talents.clear()
+	talent_points_spent = 0
+	progression_changed.emit()
 
 
 func to_save_dict() -> Dictionary:

@@ -93,7 +93,8 @@ static func update_facing_toward_target(
 ) -> void:
 	if facing == null or target == null or not is_instance_valid(target):
 		return
-	var to_target := target.global_position - facing.global_position
+	var aim_point := LockOn.get_target_aim_point(target)
+	var to_target := aim_point - facing.global_position
 	to_target.y = 0.0
 	if to_target.length_squared() < 0.001:
 		return

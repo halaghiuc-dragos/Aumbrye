@@ -6,12 +6,13 @@
     "gridHeight":  2,
     "stackSize":  1,
     "rarity":  "legendary",
-    "description":  "M6 content item.",
+    "description":  "Blessed steel twisted for silent work in the dark.",
     "value":  20,
     "stats":  {
                   "arcaneDamage":  14,
                   "physicalDamage":  20
               },
     "equipmentSlot":  "weapon",
-    "theme":  "dark_cathedral"
+    "theme":  "dark_cathedral",
+    "weaponId": "dagger"
 }

@@ -54,6 +54,7 @@ public static class RunsEndpoints
     public static RouteGroupBuilder MapRunsEndpoints(this WebApplication app)
     {
         var group = app.MapGroup("/api/v1/runs").WithTags("Runs").RequireAuthorization();
+        var logger = app.Services.GetService<ILoggerFactory>()?.CreateLogger("RunsEndpoints");
 
         group.MapPost("/", async (
             CreateRunRequest req,
@@ -75,8 +76,9 @@ public static class RunsEndpoints
                     result.BiomeId!,
                     result.DefinitionJson!));
             }
-            catch (Exception)
+            catch (Exception ex)
             {
+                logger?.LogError(ex, "CreateRun failed for biome {BiomeId}", req.BiomeId);
                 return Results.Json(
                     new { error = "Failed to create run." },
                     statusCode: StatusCodes.Status500InternalServerError);

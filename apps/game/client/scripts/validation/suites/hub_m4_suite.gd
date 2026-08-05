@@ -185,23 +185,28 @@ func _test_quest_service() -> void:
 	)
 
 
+func _set_test_gold(amount: int) -> void:
+	CharacterService.gold = amount
+	CharacterService.coins = amount
+
+
 func _test_blacksmith_upgrade() -> void:
 	var start := Time.get_ticks_msec()
 	InventoryService.inventory = GridInventory.new()
-	InventoryService.inventory.add_item("castle_sword", 1)
-	CharacterService.gold = 100
+	var added := InventoryService.inventory.add_item("castle_sword", 1)
+	_set_test_gold(100)
 	var can_before := BlacksmithService.can_upgrade(0)
 	var result := BlacksmithService.upgrade_item(0)
 	ctx.timed_record(
 		"hub_m4.blacksmith_upgrade",
 		get_category(),
-		can_before and result.get("ok", false) and CharacterService.gold == 50,
+		added and can_before and result.get("ok", false) and CharacterService.gold == 50,
 		"blacksmith upgrade spends gold and changes item",
 		start,
 		"M4.hub.blacksmith"
 	)
 	start = Time.get_ticks_msec()
-	CharacterService.gold = 0
+	_set_test_gold(0)
 	ctx.timed_record(
 		"hub_m4.blacksmith_no_gold",
 		get_category(),
@@ -215,7 +220,7 @@ func _test_blacksmith_upgrade() -> void:
 func _test_merchant_buy_sell() -> void:
 	MerchantService.reset_session()
 	InventoryService.inventory = GridInventory.new()
-	CharacterService.gold = 50
+	_set_test_gold(50)
 	var start := Time.get_ticks_msec()
 	var buy := MerchantService.buy_item("health_potion")
 	var gold_after_buy: int = CharacterService.gold

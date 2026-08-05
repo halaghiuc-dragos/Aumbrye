@@ -6,10 +6,11 @@
     "gridHeight":  2,
     "stackSize":  1,
     "rarity":  "common",
-    "description":  "M6 content item.",
+    "description":  "A serviceable blade for those who cannot afford castle steel.",
     "value":  20,
     "stats":  {
                   "physicalDamage":  10
               },
-    "equipmentSlot":  "weapon"
+    "equipmentSlot":  "weapon",
+    "weaponId": "sword_basic"
 }

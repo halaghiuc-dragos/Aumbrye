@@ -6,7 +6,7 @@
     "gridHeight":  2,
     "stackSize":  1,
     "rarity":  "rare",
-    "description":  "M6 content item.",
+    "description":  "A ring of blue ice that numbs the hand but steadies the aim.",
     "value":  20,
     "stats":  {
                   "frostDamage":  8,

@@ -5,44 +5,50 @@
   "damage_type": "physical",
   "status_on_hit": "bleed",
   "buffer_window": 0.25,
+  "lunge_distance": 0.3,
+  "scaling": { "critChance": 2.0, "moveSpeed": 0.5 },
   "light_attacks": [
     {
       "damage": 7,
       "poise_damage": 4,
-      "stamina_cost": 6,
+      "stamina_cost": 14,
       "startup": 0.08,
       "active": 0.08,
       "recovery": 0.12,
-      "status": "bleed"
+      "status": "bleed",
+      "lunge_distance": 0.25
     },
     {
       "damage": 8,
       "poise_damage": 5,
-      "stamina_cost": 7,
+      "stamina_cost": 16,
       "startup": 0.09,
       "active": 0.08,
       "recovery": 0.14,
-      "status": "bleed"
+      "status": "bleed",
+      "lunge_distance": 0.28
     },
     {
       "damage": 10,
       "poise_damage": 6,
-      "stamina_cost": 9,
+      "stamina_cost": 18,
       "startup": 0.1,
       "active": 0.1,
       "recovery": 0.16,
       "status": "bleed",
-      "status_stacks": 2
+      "status_stacks": 2,
+      "lunge_distance": 0.32
     }
   ],
   "heavy_attack": {
     "damage": 18,
     "poise_damage": 10,
-    "stamina_cost": 16,
+    "stamina_cost": 28,
     "startup": 0.18,
     "active": 0.12,
     "recovery": 0.22,
     "status": "bleed",
-    "status_stacks": 3
+    "status_stacks": 3,
+    "lunge_distance": 0.4
   }
 }

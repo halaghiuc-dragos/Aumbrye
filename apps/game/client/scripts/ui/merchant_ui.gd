@@ -16,6 +16,7 @@ signal closed
 
 var _buy_item_ids: Array[String] = []
 var _sell_indices: Array[int] = []
+var _merchant_id := "hub_merchant"
 
 
 func _ready() -> void:
@@ -45,6 +46,11 @@ func open() -> void:
 	_buy_list.grab_focus()
 
 
+func open_for_merchant(merchant_id: String = "hub_merchant") -> void:
+	_merchant_id = merchant_id
+	open()
+
+
 func close() -> void:
 	visible = false
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -64,10 +70,10 @@ func _refresh() -> void:
 	_gold_label.text = "Gold: %d" % CharacterService.gold
 	_buy_list.clear()
 	_buy_item_ids.clear()
-	for entry in MerchantService.get_available_stock():
+	for entry in MerchantService.get_available_stock(_merchant_id):
 		var item_id: String = entry.get("itemId", "")
 		var def := ItemCatalog.get_definition(item_id)
-		var price := MerchantService.get_buy_price(item_id)
+		var price := MerchantService.get_buy_price(item_id, _merchant_id)
 		_buy_list.add_item("%s — %d g (%d left)" % [def.get("name", item_id), price, entry.get("remaining", 0)])
 		_buy_item_ids.append(item_id)
 	_sell_list.clear()
@@ -88,7 +94,7 @@ func _on_buy_pressed() -> void:
 		_detail_label.text = "Select an item to buy"
 		return
 	var item_id: String = _buy_item_ids[selected[0]]
-	var result := MerchantService.buy_item(item_id)
+	var result := MerchantService.buy_item(item_id, _merchant_id)
 	if result.get("ok", false):
 		_detail_label.text = "Purchased %s" % item_id
 	else:

@@ -16,8 +16,8 @@ func _test_project_setup() -> void:
 	ctx.timed_record(
 		"setup.main_scene_hub",
 		get_category(),
-		main_scene == "res://scenes/hub/hub.tscn",
-		"main scene is hub (%s)" % main_scene,
+		main_scene == "res://scenes/ui/title_screen.tscn" or main_scene == "res://scenes/hub/hub.tscn",
+		"main scene is title or hub (%s)" % main_scene,
 		start,
 		"M1.hub.main_scene"
 	)

@@ -10,6 +10,9 @@ const CONTENT_SCRIPTS := {
 	"npc_quest_giver": preload("res://scripts/dungeon/room_content/room_npc_quest_content.gd"),
 	"locked_vault_chest": preload("res://scripts/dungeon/room_content/room_locked_vault_content.gd"),
 	"reward_cache": preload("res://scripts/dungeon/room_content/room_reward_content.gd"),
+	"rest_bonfire": preload("res://scripts/dungeon/room_content/room_rest_content.gd"),
+	"lore_readable": preload("res://scripts/dungeon/room_content/room_lore_content.gd"),
+	"dungeon_merchant": preload("res://scripts/dungeon/room_content/room_merchant_content.gd"),
 }
 
 

@@ -14,8 +14,9 @@
 [ext_resource type="Script" path="res://scripts/camera/lock_on.gd" id="13_lockon"]
 
 [ext_resource type="Script" path="res://scripts/player/player_combat_reactions.gd" id="14_reactions"]
+[ext_resource type="Script" path="res://scripts/player/player_heal.gd" id="15_heal"]
 
-[ext_resource type="Script" path="res://scripts/combat/statuses/status_controller.gd" id="15_status"]
+[ext_resource type="Script" path="res://scripts/combat/statuses/status_controller.gd" id="16_status"]
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_body"]
 radius = 0.4
@@ -78,8 +79,11 @@ script = ExtResource("6_guard")
 [node name="CombatReactions" type="Node" parent="."]
 script = ExtResource("14_reactions")
 
+[node name="PlayerHeal" type="Node" parent="."]
+script = ExtResource("15_heal")
+
 [node name="StatusController" type="Node" parent="."]
-script = ExtResource("15_status")
+script = ExtResource("16_status")
 health_path = NodePath("../Health")
 
 [node name="WeaponController" type="Node" parent="."]

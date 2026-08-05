@@ -6,7 +6,7 @@ const ACCELERATION := 12.0
 const DECELERATION := 14.0
 const SPRINT_STAMINA_DRAIN := 18.0
 const ROTATION_SPEED := 10.0
-const CharacterSkin := preload("res://scripts/art/diorama_character_skin.gd")
+const CharacterSkin := preload("res://scripts/art/characters/diorama_character_skin.gd")
 const AnimDirectorScript := preload("res://scripts/player/player_anim_director.gd")
 
 @export var camera_yaw_path: NodePath
@@ -19,6 +19,7 @@ var _dodge: Node
 var _combat_reactions: Node
 var _lock_on: LockOn
 var _speed_multiplier := 1.0
+var _weapon: Node
 var _anim_director: PlayerAnimDirector
 var _footstep_timer := 0.0
 
@@ -29,6 +30,7 @@ func _ready() -> void:
 	_dodge = get_node_or_null("Dodge")
 	_combat_reactions = get_node_or_null("CombatReactions")
 	_lock_on = get_node_or_null("LockOn") as LockOn
+	_weapon = get_node_or_null("WeaponController")
 	if camera_yaw_path:
 		_camera_yaw = get_node(camera_yaw_path) as Node3D
 	if facing_path:
@@ -83,14 +85,20 @@ func _physics_process(delta: float) -> void:
 	var direction := _get_move_direction(input_dir)
 
 	var sprinting := Input.is_action_pressed("sprint") and direction.length_squared() > 0.01
-	var target_speed := (SPRINT_SPEED if sprinting else WALK_SPEED) * _speed_multiplier
+	var attack_speed_mult := 1.0
+	var rotation_cap_mult := 1.0
+	if _weapon and _weapon.has_method("get_move_speed_multiplier"):
+		attack_speed_mult = _weapon.call("get_move_speed_multiplier")
+	if _weapon and _weapon.has_method("get_rotation_cap_multiplier"):
+		rotation_cap_mult = _weapon.call("get_rotation_cap_multiplier")
+	var target_speed := (SPRINT_SPEED if sprinting else WALK_SPEED) * _speed_multiplier * attack_speed_mult
 	var status_ctrl := get_node_or_null("StatusController") as StatusController
 	if status_ctrl:
 		target_speed *= status_ctrl.get_slow_multiplier()
 
 	if sprinting and _stamina:
-		if not _stamina.consume(SPRINT_STAMINA_DRAIN * delta):
-			target_speed = WALK_SPEED
+		if not _stamina.drain(SPRINT_STAMINA_DRAIN * delta):
+			target_speed = WALK_SPEED * _speed_multiplier * attack_speed_mult
 
 	var horizontal := Vector3(velocity.x, 0.0, velocity.z)
 	var target_velocity := direction * target_speed
@@ -105,12 +113,17 @@ func _physics_process(delta: float) -> void:
 	velocity.x = horizontal.x
 	velocity.z = horizontal.z
 
+	var attacking: bool = _weapon != null and bool(_weapon.get("is_attacking"))
 	if LockOnMovement.is_active(_lock_on):
 		var target := LockOnMovement.get_target(_lock_on)
 		LockOnMovement.update_facing_toward_target(_facing, target, delta, ROTATION_SPEED)
-	elif direction.length_squared() > 0.01 and _facing:
+	elif not attacking and direction.length_squared() > 0.01 and _facing:
 		var target_angle := atan2(direction.x, direction.z)
-		_facing.rotation.y = lerp_angle(_facing.rotation.y, target_angle, ROTATION_SPEED * delta)
+		_facing.rotation.y = lerp_angle(
+			_facing.rotation.y,
+			target_angle,
+			ROTATION_SPEED * rotation_cap_mult * delta
+		)
 
 	move_and_slide()
 	_update_footstep_vfx(delta)

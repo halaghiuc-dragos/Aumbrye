@@ -3,6 +3,7 @@ class_name Poise
 
 signal poise_changed(current: float, max_value: float)
 signal poise_broken
+signal poise_damaged(amount: float, remaining: float)
 
 const MAX_POISE := 50.0
 const REGEN_RATE := 20.0
@@ -22,16 +23,21 @@ func configure(max_value: float) -> void:
 	max_poise = max_value
 	current = max_value
 	_broken = false
+	_regen_timer = 0.0
 	poise_changed.emit(current, max_poise)
 
 
 func _process(delta: float) -> void:
-	if _broken or _regen_timer > 0.0:
+	if _regen_timer > 0.0:
 		_regen_timer -= delta
+	if current >= max_poise:
 		return
-	if current < max_poise:
-		current = minf(max_poise, current + REGEN_RATE * delta)
-		poise_changed.emit(current, max_poise)
+	if _regen_timer > 0.0:
+		return
+	current = minf(max_poise, current + REGEN_RATE * delta)
+	if _broken and current > 0.0:
+		_broken = false
+	poise_changed.emit(current, max_poise)
 
 
 func is_broken() -> bool:
@@ -43,6 +49,7 @@ func take_poise_damage(amount: float) -> void:
 		return
 	current = maxf(0.0, current - amount)
 	_regen_timer = REGEN_DELAY
+	poise_damaged.emit(amount, current)
 	poise_changed.emit(current, max_poise)
 	if current <= 0.0:
 		_broken = true

@@ -177,7 +177,15 @@ def write_material(path: Path, color) -> None:
     pass
 
 
-def write_room(folder: Path, prefix: str, asset_folder: str, suffix: str, room_type: str, door_s: bool, door_n: bool) -> None:
+def write_room(
+    folder: Path,
+    prefix: str,
+    asset_folder: str,
+    suffix: str,
+    room_type: str,
+    door_s: bool,
+    door_n: bool,
+) -> None:
     template_id = f"{prefix}_{suffix}"
     node_name = "".join(p.capitalize() for p in template_id.split("_"))
     folder.mkdir(parents=True, exist_ok=True)
@@ -275,14 +283,22 @@ def main() -> None:
     import sys
 
     for biome in BIOMES:
-        asset_dir = CLIENT / "assets" / biome["folder"]
         room_dir = CLIENT / "scenes" / "rooms" / biome["folder"]
         for suffix, room_type, door_s, door_n in ROOM_SPECS:
-            write_room(room_dir, biome["prefix"], biome["folder"], suffix, room_type, door_s, door_n)
+            write_room(
+                room_dir,
+                biome["prefix"],
+                biome["folder"],
+                suffix,
+                room_type,
+                door_s,
+                door_n,
+            )
         write_biome_json(biome)
         write_audio_profile(biome)
         print(f"Generated {biome['id']}")
-    subprocess.run([sys.executable, str(ROOT / "tools" / "generate_pixel_diorama_materials.py")], check=True)
+    materials_script = ROOT / "tools" / "generate_pixel_diorama_materials.py"
+    subprocess.run([sys.executable, str(materials_script)], check=True)
 
 
 if __name__ == "__main__":

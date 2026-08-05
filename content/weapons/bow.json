@@ -5,6 +5,7 @@
   "damage_type": "physical",
   "draw_time": 0.75,
   "buffer_window": 0.15,
+  "scaling": { "critChance": 1.5 },
   "light_attacks": [
     {
       "damage": 10,

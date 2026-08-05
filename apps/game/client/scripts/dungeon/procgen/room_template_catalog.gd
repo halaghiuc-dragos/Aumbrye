@@ -6,6 +6,7 @@ extends RefCounted
 const KIND_SPECS := {
 	"entrance": {"width": 16.0, "depth": 12.0, "doors": RoomGraphSlot.DOOR_SOUTH},
 	"stairs": {"width": 8.0, "depth": 16.0, "doors": RoomGraphSlot.DOOR_NORTH | RoomGraphSlot.DOOR_SOUTH},
+	"corridor": {"width": 8.0, "depth": 12.0, "doors": RoomGraphSlot.DOOR_NORTH | RoomGraphSlot.DOOR_SOUTH},
 	"courtyard": {
 		"width": 20.0,
 		"depth": 20.0,

@@ -2,7 +2,7 @@ extends Node3D
 
 ## Blocks a doorway until the player uses the matching dungeon key from inventory.
 
-const DIORAMA_SKIN := preload("res://scripts/art/diorama_interactable_skin.gd")
+const DIORAMA_SKIN := preload("res://scripts/art/props/diorama_interactable_skin.gd")
 
 var _key_id := ""
 var _lock_id := ""

@@ -24,6 +24,10 @@ func _ready() -> void:
 	GameUISkinScript.apply_modal_menu(self, "Panel", "Backdrop")
 	_upgrade_button.pressed.connect(_on_upgrade_pressed)
 	_repair_button.pressed.connect(_on_repair_pressed)
+	var respec_button := Button.new()
+	respec_button.text = "Respec Talents (%d)" % BlacksmithService.RESPEC_COST
+	respec_button.pressed.connect(_on_respec_pressed)
+	$Panel/Margin/VBox/Buttons.add_child(respec_button)
 	_close_button.pressed.connect(close)
 	_item_list.item_selected.connect(_on_item_selected)
 	CharacterService.coins_changed.connect(_on_coins_changed)
@@ -116,6 +120,12 @@ func _on_repair_pressed() -> void:
 	var result := BlacksmithService.repair_item(_item_indices[selected[0]])
 	if not result.get("ok", false):
 		_detail_label.text = str(result.get("error", "repair failed"))
+	_refresh()
+
+
+func _on_respec_pressed() -> void:
+	var result := BlacksmithService.respec_talents()
+	_detail_label.text = "Talents reset." if result.get("ok", false) else str(result.get("error", "respec failed"))
 	_refresh()
 
 

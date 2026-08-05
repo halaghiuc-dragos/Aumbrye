@@ -13,13 +13,31 @@ const DEFAULT_LEVEL := 1
 
 var gold: int = DEFAULT_GOLD
 var coins: int = DEFAULT_GOLD
-var level: int = DEFAULT_LEVEL
+var class_id: String = ""
+var appearance_theme: int = 0
 var flags: Dictionary = {}
 var quests: Dictionary = {}
 
 
+var level: int:
+	get:
+		return get_level()
+
+
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
+	if ProgressionService:
+		ProgressionService.progression_changed.connect(_on_progression_changed)
+
+
+func get_level() -> int:
+	if ProgressionService:
+		return ProgressionService.level
+	return DEFAULT_LEVEL
+
+
+func _on_progression_changed() -> void:
+	level_changed.emit(get_level())
 
 
 func get_flag(flag_id: String, default_value: Variant = false) -> Variant:
@@ -77,10 +95,9 @@ func can_afford(amount: int) -> bool:
 	return gold >= amount
 
 
-func set_level(new_level: int) -> void:
-	level = maxi(1, new_level)
-	level_changed.emit(level)
-	LocalSave.autosave()
+func set_level(_new_level: int) -> void:
+	# Level is owned by ProgressionService; kept for legacy callers.
+	level_changed.emit(get_level())
 
 
 func get_quest_state(quest_id: String) -> String:
@@ -104,11 +121,21 @@ func set_quest_progress(quest_id: String, progress: Dictionary) -> void:
 	LocalSave.autosave()
 
 
+func get_class_id() -> String:
+	return class_id
+
+
+func set_class_id(new_class_id: String) -> void:
+	class_id = new_class_id
+	LocalSave.autosave()
+
+
 func to_save_dict() -> Dictionary:
 	return {
 		"gold": gold,
 		"coins": coins,
-		"level": level,
+		"classId": class_id,
+		"appearanceTheme": appearance_theme,
 		"flags": flags.duplicate(),
 		"quests": quests.duplicate(),
 	}
@@ -117,7 +144,8 @@ func to_save_dict() -> Dictionary:
 func from_save_dict(data: Dictionary) -> void:
 	gold = int(data.get("coins", data.get("gold", DEFAULT_GOLD)))
 	coins = gold
-	level = int(data.get("level", DEFAULT_LEVEL))
+	class_id = str(data.get("classId", ""))
+	appearance_theme = int(data.get("appearanceTheme", 0))
 	flags = {}
 	var saved_flags: Variant = data.get("flags", {})
 	if saved_flags is Dictionary:
@@ -128,15 +156,16 @@ func from_save_dict(data: Dictionary) -> void:
 		quests = saved_quests.duplicate()
 	gold_changed.emit(gold)
 	coins_changed.emit(coins)
-	level_changed.emit(level)
+	level_changed.emit(get_level())
 
 
 func reset_to_defaults() -> void:
 	gold = DEFAULT_GOLD
 	coins = DEFAULT_GOLD
-	level = DEFAULT_LEVEL
+	class_id = ""
+	appearance_theme = 0
 	flags.clear()
 	quests.clear()
 	gold_changed.emit(gold)
 	coins_changed.emit(coins)
-	level_changed.emit(level)
+	level_changed.emit(get_level())

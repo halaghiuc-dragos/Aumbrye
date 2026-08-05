@@ -24,6 +24,8 @@
   "properties": {
     "id": { "type": "string", "minLength": 1 },
     "name": { "type": "string", "minLength": 1 },
+    "title": { "type": "string", "minLength": 1 },
+    "loreText": { "type": "string" },
     "scene": { "type": "string", "minLength": 1 },
     "threat_cost": { "type": "integer", "minimum": 0 },
     "health": { "type": "number", "exclusiveMinimum": 0 },

@@ -6,11 +6,12 @@
     "gridHeight":  2,
     "stackSize":  1,
     "rarity":  "epic",
-    "description":  "M6 content item.",
+    "description":  "Holy sigils spiral the shaft, amplifying arcane strikes.",
     "value":  20,
     "stats":  {
                   "arcaneDamage":  24
               },
     "equipmentSlot":  "weapon",
-    "theme":  "dark_cathedral"
+    "theme":  "dark_cathedral",
+    "weaponId": "staff"
 }

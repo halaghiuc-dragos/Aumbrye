@@ -7,6 +7,10 @@
 | 2 | 3 | Add `activeRun.runMode` (default `"castle"`); **remove** `floorDefinitions` (chunking) |
 | 3 | — | Current |
 
+## In-run floor cache (not persisted)
+
+During a single active run, `RunFlow` and `DungeonBuilder` keep up to **3** floor definitions in memory so descending stairs can reuse a prior layout without regenerating from seed. This cache is **not** written to disk (v3 policy unchanged). Only `activeRun.dungeonDefinition` (current floor) is saved.
+
 ## Active run schema (v3)
 
 Multi-floor runs store:
@@ -17,7 +21,7 @@ Multi-floor runs store:
 - `dungeonDefinition` (current floor layout only)
 - `snapshot` (player/enemy/loot state)
 
-**Removed in v3:** `floorDefinitions` map — prior floors regenerated from seed on descend/continue.
+**Removed in v3:** `floorDefinitions` map — prior floors regenerated from seed on descend/continue (in-memory cache during active run only; see above).
 
 ## Waves run schema (`wavesActiveRun`)
 

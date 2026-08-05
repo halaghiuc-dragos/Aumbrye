@@ -6,7 +6,7 @@
     "gridHeight":  2,
     "stackSize":  1,
     "rarity":  "rare",
-    "description":  "M6 content item.",
+    "description":  "Heavy gold without hallmark — looted from a treasury that rewinds.",
     "value":  20,
     "stats":  {
                   "maxHealth":  15,

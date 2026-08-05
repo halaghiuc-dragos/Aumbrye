@@ -1,0 +1,12 @@
+{
+  "id": "frost_relic_shard",
+  "name": "Frost Relic Shard",
+  "itemType": "material",
+  "gridWidth": 2,
+  "gridHeight": 2,
+  "stackSize": 1,
+  "description": "A frozen shard that awakens a run relic.",
+  "value": 70,
+  "lootValue": 35,
+  "runRelicId": "relic_frost_shard"
+}

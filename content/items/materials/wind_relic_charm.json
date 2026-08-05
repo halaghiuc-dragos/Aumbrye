@@ -1,0 +1,12 @@
+{
+  "id": "wind_relic_charm",
+  "name": "Wind Relic Charm",
+  "itemType": "material",
+  "gridWidth": 2,
+  "gridHeight": 2,
+  "stackSize": 1,
+  "description": "A wind charm that awakens a run relic.",
+  "value": 70,
+  "lootValue": 35,
+  "runRelicId": "relic_wind_charm"
+}

@@ -241,6 +241,7 @@ static func apply_run_presentation(parent: Node3D, biome_id: String, run_mode: S
 		fill.position = Vector3(0, 10, 0)
 		parent.add_child(fill)
 
+	VisualLighting.apply_biome_atmosphere(parent, biome_id)
 	AudioDirector.set_biome(biome_id)
 	return env_node
 

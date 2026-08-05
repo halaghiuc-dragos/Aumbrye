@@ -94,7 +94,7 @@
       { "roomId": "hall", "trapId": "falling_trap", "position": { "x": -2, "y": 3, "z": -5 } }
     ],
     "secrets": [{ "roomId": "secret" }],
-    "boss": { "roomId": "boss", "enemyId": "castle_knight" },
+    "boss": { "roomId": "boss", "enemyId": "boss_castle_knight" },
     "exit": "boss",
     "entrance": "entrance"
   },

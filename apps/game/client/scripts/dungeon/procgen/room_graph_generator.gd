@@ -39,7 +39,9 @@ static func generate(config: RoomGraphConfig, run_seed: int) -> Dictionary:
 				RoomGraphDebugScript.print_graph(graph)
 			return {"ok": true, "graph": graph}
 		rng.seed = run_seed + (attempt + 1) * 1_000_003
-	var fallback := _build_fallback_graph(config)
+	var fallback_rng := RandomNumberGenerator.new()
+	fallback_rng.seed = run_seed ^ 0xFA11BAC
+	var fallback := _build_fallback_graph(config, fallback_rng)
 	if config.debug_ascii:
 		RoomGraphDebugScript.print_graph(fallback)
 	return {"ok": true, "graph": fallback, "used_fallback": true}
@@ -51,51 +53,135 @@ static func _try_generate_once(config: RoomGraphConfig, rng: RandomNumberGenerat
 	var target_rooms := rng.randi_range(config.min_rooms, config.max_rooms)
 	var center := config.grid_center()
 	var start := _make_slot(center, "room_0", RoomGraphSlotScript.SlotType.START)
+	start.on_critical_path = true
 	graph.slots[center] = start
 	graph.start_id = start.slot_id
+	var path_target := maxi(config.boss_min_distance, int(target_rooms / 3.0))
+	var path_result := _grow_critical_path(graph, center, path_target, config, rng)
+	var next_index: int = path_result["next_index"]
+	var path_cells: Array = path_result["path_cells"]
+	next_index = _grow_branches(graph, path_cells, next_index, target_rooms, config, rng)
+	_assign_special_rooms(graph, rng, config)
+	if config.fill_bounding_box:
+		next_index = _fill_bounding_box(graph, next_index)
+	_apply_door_connections(graph, rng, config)
+	if not _validate_graph(graph, config).get("ok", false):
+		return null
+	return graph
+
+
+static func _grow_critical_path(
+	graph: RoomGraph,
+	center: Vector2i,
+	path_target: int,
+	config: RoomGraphConfig,
+	rng: RandomNumberGenerator
+) -> Dictionary:
 	var next_index := 1
-	var walk_attempts := 0
-	while graph.slots.size() < target_rooms and walk_attempts < config.max_walk_attempts:
-		walk_attempts += 1
-		var origin_cell := _pick_random_cell(graph, rng)
-		var origin: RoomGraphSlot = graph.slots[origin_cell]
-		var distances := _compute_distances(graph, graph.start_id)
-		var origin_dist := int(distances.get(origin.slot_id, 0))
-		var continue_chance := config.continue_probability_base * exp(-config.continue_decay_rate * float(origin_dist))
-		if rng.randf() > continue_chance:
-			continue
-		var dirs := DIRECTIONS.duplicate()
-		_shuffle_dirs(dirs, rng)
+	var path_cells: Array[Vector2i] = [center]
+	var cursor := center
+	var direction: Vector2i = DIRECTIONS[rng.randi_range(0, DIRECTIONS.size() - 1)]
+	var stuck_turns := 0
+	while path_cells.size() < path_target:
 		var placed := false
-		for dir in dirs:
-			var target_cell: Vector2i = origin_cell + dir
-			if not _in_bounds(target_cell, config):
-				continue
-			if graph.slots.has(target_cell):
-				continue
-			if _occupied_neighbor_count(graph, target_cell) >= config.max_neighbor_count:
-				continue
-			if not config.allow_2x2_blocks and _creates_2x2_block(graph, target_cell):
+		var dirs_to_try: Array[Vector2i] = [direction]
+		var other_dirs := DIRECTIONS.duplicate()
+		_shuffle_dirs(other_dirs, rng)
+		for dir in other_dirs:
+			if dir != direction:
+				dirs_to_try.append(dir)
+		for dir in dirs_to_try:
+			var target_cell: Vector2i = cursor + dir
+			if not _can_place_room(graph, target_cell, config):
 				continue
 			var slot := _make_slot(
 				target_cell,
 				"room_%d" % next_index,
 				RoomGraphSlotScript.SlotType.NORMAL
 			)
-			next_index += 1
+			slot.on_critical_path = true
+			slot.height_level = graph.slots[cursor].height_level
+			if path_cells.size() % 5 == 0 and rng.randf() < 0.35:
+				slot.height_level += 1 if rng.randf() > 0.5 else -1
+				slot.height_level = clampi(slot.height_level, -1, 1)
 			graph.slots[target_cell] = slot
+			_record_walk_edge(graph, cursor, target_cell)
+			path_cells.append(target_cell)
+			cursor = target_cell
+			direction = dir
+			next_index += 1
 			placed = true
+			stuck_turns = 0
 			break
-		if not placed:
+		if placed:
 			continue
-	_recompute_connections(graph)
-	_assign_special_rooms(graph, rng, config)
-	if config.fill_bounding_box:
-		next_index = _fill_bounding_box(graph, next_index)
-		_recompute_connections(graph)
-	if not _validate_graph(graph, config).get("ok", false):
-		return null
-	return graph
+		stuck_turns += 1
+		if stuck_turns > 12:
+			break
+		cursor = path_cells[rng.randi_range(0, path_cells.size() - 1)]
+		direction = DIRECTIONS[rng.randi_range(0, DIRECTIONS.size() - 1)]
+	return {"path_cells": path_cells, "next_index": next_index}
+
+
+static func _grow_branches(
+	graph: RoomGraph,
+	path_cells: Array,
+	next_index: int,
+	target_rooms: int,
+	config: RoomGraphConfig,
+	rng: RandomNumberGenerator
+) -> int:
+	var branch_attempts := 0
+	while graph.slots.size() < target_rooms and branch_attempts < config.max_walk_attempts:
+		branch_attempts += 1
+		if path_cells.is_empty():
+			break
+		var origin_cell: Vector2i = path_cells[rng.randi_range(0, path_cells.size() - 1)]
+		var frontier: Array = [[origin_cell, 0]]
+		var placed_any := false
+		while not frontier.is_empty() and graph.slots.size() < target_rooms:
+			var entry: Array = frontier.pop_front()
+			var cell: Vector2i = entry[0]
+			var depth: int = entry[1]
+			if depth >= config.branch_max_depth:
+				continue
+			var dirs := DIRECTIONS.duplicate()
+			_shuffle_dirs(dirs, rng)
+			for dir in dirs:
+				var target_cell: Vector2i = cell + dir
+				if not _can_place_room(graph, target_cell, config):
+					continue
+				var parent_slot: RoomGraphSlot = graph.slots[cell]
+				var slot := _make_slot(
+					target_cell,
+					"room_%d" % next_index,
+					RoomGraphSlotScript.SlotType.NORMAL
+				)
+				slot.height_level = parent_slot.height_level
+				if depth > 0 and rng.randf() < 0.2:
+					slot.height_level += 1 if rng.randf() > 0.5 else -1
+					slot.height_level = clampi(slot.height_level, -1, 1)
+				graph.slots[target_cell] = slot
+				_record_walk_edge(graph, cell, target_cell)
+				frontier.append([target_cell, depth + 1])
+				next_index += 1
+				placed_any = true
+				break
+		if not placed_any:
+			continue
+	return next_index
+
+
+static func _can_place_room(graph: RoomGraph, cell: Vector2i, config: RoomGraphConfig) -> bool:
+	if not _in_bounds(cell, config):
+		return false
+	if graph.slots.has(cell):
+		return false
+	if _occupied_neighbor_count(graph, cell) >= config.max_neighbor_count:
+		return false
+	if not config.allow_2x2_blocks and _creates_2x2_block(graph, cell):
+		return false
+	return true
 
 
 static func _make_slot(cell: Vector2i, slot_id: String, slot_type: RoomGraphSlot.SlotType) -> RoomGraphSlot:
@@ -130,7 +216,12 @@ static func _creates_2x2_block(graph: RoomGraph, cell: Vector2i) -> bool:
 			var block := true
 			for bx in 2:
 				for by in 2:
-					if not graph.slots.has(anchor + Vector2i(bx, by)):
+					var check_cell := anchor + Vector2i(bx, by)
+					if not graph.slots.has(check_cell):
+						block = false
+						break
+					var check_slot: RoomGraphSlot = graph.slots[check_cell]
+					if check_slot.is_filler:
 						block = false
 						break
 				if not block:
@@ -141,21 +232,87 @@ static func _creates_2x2_block(graph: RoomGraph, cell: Vector2i) -> bool:
 
 
 static func _recompute_connections(graph: RoomGraph) -> void:
+	_apply_door_connections(graph, null, graph.config)
+
+
+static func _apply_door_connections(
+	graph: RoomGraph,
+	rng: RandomNumberGenerator,
+	config: RoomGraphConfig
+) -> void:
 	for cell in graph.slots:
 		var slot: RoomGraphSlot = graph.slots[cell]
 		slot.door_mask = 0
+	for edge in graph.walk_edges:
+		_set_door_between(graph, edge["a"], edge["b"])
+	var loop_candidates: Array = []
+	var seen_loops := {}
 	for cell in graph.slots:
 		var slot: RoomGraphSlot = graph.slots[cell]
-		if slot.slot_type == RoomGraphSlotScript.SlotType.SECRET:
+		if slot.slot_type == RoomGraphSlotScript.SlotType.SECRET or slot.is_filler:
 			continue
 		for dir in DIRECTIONS:
 			var neighbor_cell: Vector2i = cell + dir
 			if not graph.slots.has(neighbor_cell):
 				continue
 			var neighbor: RoomGraphSlot = graph.slots[neighbor_cell]
-			if neighbor.slot_type == RoomGraphSlotScript.SlotType.SECRET:
+			if neighbor.slot_type == RoomGraphSlotScript.SlotType.SECRET or neighbor.is_filler:
 				continue
-			slot.door_mask |= DIR_TO_DOOR[dir]
+			if _has_walk_edge(graph, cell, neighbor_cell):
+				continue
+			var key := _edge_key(cell, neighbor_cell)
+			if seen_loops.has(key):
+				continue
+			seen_loops[key] = true
+			loop_candidates.append([cell, neighbor_cell])
+	if rng != null and config != null and loop_candidates.size() > 0:
+		_shuffle_pairs(loop_candidates, rng)
+		var budget := mini(config.loop_budget, loop_candidates.size())
+		for i in budget:
+			var pair: Array = loop_candidates[i]
+			_set_door_between(graph, pair[0], pair[1])
+	_apply_secret_door_masks(graph)
+
+
+static func _record_walk_edge(graph: RoomGraph, from_cell: Vector2i, to_cell: Vector2i) -> void:
+	var key := _edge_key(from_cell, to_cell)
+	for edge in graph.walk_edges:
+		if edge.get("key", "") == key:
+			return
+	graph.walk_edges.append({"key": key, "a": from_cell, "b": to_cell})
+
+
+static func _has_walk_edge(graph: RoomGraph, a: Vector2i, b: Vector2i) -> bool:
+	var key := _edge_key(a, b)
+	for edge in graph.walk_edges:
+		if edge.get("key", "") == key:
+			return true
+	return false
+
+
+static func _edge_key(a: Vector2i, b: Vector2i) -> String:
+	if a.x < b.x or (a.x == b.x and a.y < b.y):
+		return "%d,%d|%d,%d" % [a.x, a.y, b.x, b.y]
+	return "%d,%d|%d,%d" % [b.x, b.y, a.x, a.y]
+
+
+static func _set_door_between(graph: RoomGraph, cell_a: Vector2i, cell_b: Vector2i) -> void:
+	var delta := cell_b - cell_a
+	if DIR_TO_DOOR.has(delta):
+		var slot_a: RoomGraphSlot = graph.slots[cell_a]
+		slot_a.door_mask |= DIR_TO_DOOR[delta]
+	var reverse := cell_a - cell_b
+	if DIR_TO_DOOR.has(reverse):
+		var slot_b: RoomGraphSlot = graph.slots[cell_b]
+		slot_b.door_mask |= DIR_TO_DOOR[reverse]
+
+
+static func _shuffle_pairs(pairs: Array, rng: RandomNumberGenerator) -> void:
+	for i in range(pairs.size() - 1, 0, -1):
+		var j := rng.randi_range(0, i)
+		var tmp = pairs[i]
+		pairs[i] = pairs[j]
+		pairs[j] = tmp
 
 
 static func _compute_distances(graph: RoomGraph, start_id: String) -> Dictionary:
@@ -212,6 +369,8 @@ static func _assign_special_rooms(graph: RoomGraph, rng: RandomNumberGenerator, 
 			return sa.connection_count() < sb.connection_count()
 		return da > db
 	)
+	if boss_candidates.is_empty():
+		return
 	graph.boss_id = boss_candidates[0]
 	graph.get_slot(graph.boss_id).slot_type = RoomGraphSlotScript.SlotType.BOSS
 	var remaining_dead_ends: Array[String] = []
@@ -223,15 +382,17 @@ static func _assign_special_rooms(graph: RoomGraph, rng: RandomNumberGenerator, 
 		graph.treasure_id = remaining_dead_ends[rng.randi_range(0, remaining_dead_ends.size() - 1)]
 		graph.get_slot(graph.treasure_id).slot_type = RoomGraphSlotScript.SlotType.TREASURE
 	var start := graph.get_slot(graph.start_id)
-	for dir in DIRECTIONS:
-		var neighbor_cell: Vector2i = start.grid_pos + dir
-		if graph.slots.has(neighbor_cell):
-			graph.stairs_id = graph.slots[neighbor_cell].slot_id
-			graph.get_slot(graph.stairs_id).slot_type = RoomGraphSlotScript.SlotType.STAIRS
-			break
-	for slot_id in graph.occupied_ids():
-		if slot_id in [graph.start_id, graph.boss_id, graph.treasure_id, graph.stairs_id]:
-			continue
+	var south_cell: Vector2i = start.grid_pos + DIR_SOUTH
+	if graph.slots.has(south_cell):
+		graph.stairs_id = graph.slots[south_cell].slot_id
+		graph.get_slot(graph.stairs_id).slot_type = RoomGraphSlotScript.SlotType.STAIRS
+	else:
+		for dir in DIRECTIONS:
+			var neighbor_cell: Vector2i = start.grid_pos + dir
+			if graph.slots.has(neighbor_cell):
+				graph.stairs_id = graph.slots[neighbor_cell].slot_id
+				graph.get_slot(graph.stairs_id).slot_type = RoomGraphSlotScript.SlotType.STAIRS
+				break
 	_place_secret_attachments(graph, rng, config)
 
 
@@ -264,9 +425,10 @@ static func _place_secret_attachments(graph: RoomGraph, rng: RandomNumberGenerat
 		if parent_cell == Vector2i(-99999, -99999):
 			continue
 		slot.secret_parent_id = graph.slots[parent_cell].slot_id
+		slot.secret_mechanism = "hidden_lever" if rng.randf() < 0.5 else "illusory_wall"
 		graph.slots[cell] = slot
 		graph.secret_ids.append(slot.slot_id)
-	_recompute_connections(graph)
+	_apply_secret_door_masks(graph)
 
 
 static func _pick_secret_parent_cell(graph: RoomGraph, secret_cell: Vector2i, rng: RandomNumberGenerator) -> Vector2i:
@@ -339,25 +501,49 @@ static func _validate_graph(graph: RoomGraph, config: RoomGraphConfig) -> Dictio
 		return {"ok": false, "reason": "Not enough dead ends (%d < %d)" % [dead_ends, config.min_dead_ends]}
 	if not config.allow_2x2_blocks:
 		for cell in graph.slots:
+			var slot: RoomGraphSlot = graph.slots[cell]
+			if slot.is_filler:
+				continue
 			if _creates_2x2_block(graph, cell):
 				return {"ok": false, "reason": "2x2 block detected at %s" % str(cell)}
 	return {"ok": true}
 
 
-static func _build_fallback_graph(config: RoomGraphConfig) -> RoomGraph:
+static func _apply_secret_door_masks(graph: RoomGraph) -> void:
+	for secret_id in graph.secret_ids:
+		var secret_slot := graph.get_slot(secret_id)
+		if secret_slot == null or secret_slot.secret_parent_id == "":
+			continue
+		var parent := graph.get_slot(secret_slot.secret_parent_id)
+		if parent == null:
+			continue
+		var to_parent := parent.grid_pos - secret_slot.grid_pos
+		if DIR_TO_DOOR.has(to_parent):
+			secret_slot.door_mask |= DIR_TO_DOOR[to_parent]
+		var to_secret := secret_slot.grid_pos - parent.grid_pos
+		if DIR_TO_DOOR.has(to_secret):
+			parent.door_mask |= DIR_TO_DOOR[to_secret]
+
+
+static func _build_fallback_graph(config: RoomGraphConfig, rng: RandomNumberGenerator) -> RoomGraph:
 	var graph := RoomGraphScript.new()
 	graph.config = config
 	var center := config.grid_center()
 	var chain: Array[Vector2i] = [center]
 	var cursor := center
-	var direction := DIR_SOUTH
+	var turn_dirs := DIRECTIONS.duplicate()
+	_shuffle_dirs(turn_dirs, rng)
+	var direction: Vector2i = turn_dirs[0]
 	var leg_length := 0
-	var max_leg := maxi(3, int(config.grid_width / 3.0))
+	var max_leg := rng.randi_range(3, maxi(3, int(config.grid_width / 3.0)))
+	var turn_index := 1
 	while chain.size() < config.min_rooms:
-		var next := cursor + direction
+		var next: Vector2i = cursor + direction
 		if not _in_bounds(next, config) or next in chain:
-			direction = DIR_EAST if direction == DIR_SOUTH else DIR_SOUTH
+			direction = turn_dirs[turn_index % turn_dirs.size()]
+			turn_index += 1
 			leg_length = 0
+			max_leg = rng.randi_range(3, maxi(3, int(config.grid_width / 3.0)))
 			next = cursor + direction
 			if not _in_bounds(next, config) or next in chain:
 				break
@@ -365,8 +551,10 @@ static func _build_fallback_graph(config: RoomGraphConfig) -> RoomGraph:
 		cursor = next
 		leg_length += 1
 		if leg_length >= max_leg:
-			direction = DIR_EAST if direction == DIR_SOUTH else DIR_SOUTH
+			direction = turn_dirs[turn_index % turn_dirs.size()]
+			turn_index += 1
 			leg_length = 0
+			max_leg = rng.randi_range(3, maxi(3, int(config.grid_width / 3.0)))
 	for i in chain.size():
 		var cell := chain[i]
 		var slot_type := RoomGraphSlotScript.SlotType.NORMAL
@@ -379,15 +567,18 @@ static func _build_fallback_graph(config: RoomGraphConfig) -> RoomGraph:
 		elif i == mini(3, chain.size() - 1):
 			slot_type = RoomGraphSlotScript.SlotType.TREASURE
 		var slot := _make_slot(cell, "room_%d" % i, slot_type)
+		slot.on_critical_path = true
 		graph.slots[cell] = slot
+		if i > 0:
+			_record_walk_edge(graph, chain[i - 1], cell)
 	graph.start_id = "room_0"
 	graph.stairs_id = "room_1"
 	graph.treasure_id = "room_%d" % mini(3, chain.size() - 1)
 	graph.boss_id = "room_%d" % (chain.size() - 1)
-	_recompute_connections(graph)
+	_apply_door_connections(graph, rng, config)
 	if config.fill_bounding_box:
 		_fill_bounding_box(graph, chain.size())
-		_recompute_connections(graph)
+		_apply_door_connections(graph, rng, config)
 	for cell in graph.slots:
 		var slot: RoomGraphSlot = graph.slots[cell]
 		slot.graph_distance = int(_compute_distances(graph, graph.start_id).get(slot.slot_id, 0))

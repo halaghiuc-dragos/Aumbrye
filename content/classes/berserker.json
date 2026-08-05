@@ -1,0 +1,9 @@
+{
+  "id": "berserker",
+  "name": "Berserker",
+  "description": "Heavy hitter who trades defense for raw damage.",
+  "startingWeaponItemId": "training_greatsword",
+  "statBonuses": { "physicalDamage": 0.05, "poiseDamage": 0.05 },
+  "allowedWeapons": ["training_greatsword", "war_hammer", "flame_sword", "mythic_blade", "frost_warlord_blade"],
+  "perk": "bloodrage"
+}

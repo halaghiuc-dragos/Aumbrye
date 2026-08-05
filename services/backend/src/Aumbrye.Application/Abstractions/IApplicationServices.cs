@@ -91,5 +91,12 @@ public interface IDungeonCache
 
 public interface IDungeonGenerator
 {
-    (string Json, string? Checksum) Generate(string biomeId, int seed, int tier, int playerLevel, Guid runId);
+    (string Json, string? Checksum) Generate(
+        string biomeId,
+        int seed,
+        int tier,
+        int playerLevel,
+        Guid runId,
+        int floorIndex = 1,
+        bool isFinalFloor = false);
 }

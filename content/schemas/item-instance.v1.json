@@ -27,7 +27,7 @@
     "lootValue": { "type": "number", "minimum": 0 },
     "rarity": {
       "type": "string",
-      "enum": ["common", "magic", "rare", "epic", "legendary", "mythic"]
+      "enum": ["common", "magic", "rare", "epic", "legendary", "mythic", "aumbral"]
     },
     "stats": {
       "type": "object",

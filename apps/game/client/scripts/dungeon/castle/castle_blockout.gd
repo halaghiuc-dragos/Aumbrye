@@ -46,6 +46,8 @@ class_name CastleBlockout
 
 var _geometry_root: Node3D
 var _nav_region: NavigationRegion3D
+var _nav_links: Array[NavigationLink3D] = []
+var _cover_nodes: Array[Node3D] = []
 
 
 func _ready() -> void:
@@ -76,10 +78,12 @@ func _rebuild() -> void:
 
 func _clear_children() -> void:
 	for child in get_children():
-		if child.name == "Geometry" or child is NavigationRegion3D:
+		if child.name == "Geometry" or child is NavigationRegion3D or child is NavigationLink3D:
 			child.queue_free()
 	_geometry_root = null
 	_nav_region = null
+	_nav_links.clear()
+	_cover_nodes.clear()
 
 
 func _build_floor() -> void:
@@ -150,11 +154,38 @@ func _add_wall_segment(center: Vector3, size: Vector3) -> void:
 	box.size = size
 	mesh_instance.mesh = box
 	mesh_instance.position = center + Vector3(0.0, size.y * 0.5, 0.0)
+	mesh_instance.lod_bias = 0.8
 	if wall_material:
 		mesh_instance.material_override = wall_material
 	wall_body.add_child(mesh_instance)
 	if Engine.is_editor_hint():
 		mesh_instance.owner = get_tree().edited_scene_root
+
+	var occluder := OccluderInstance3D.new()
+	var occluder_mesh := ArrayOccluder3D.new()
+	occluder_mesh.vertices = PackedVector3Array([
+		Vector3(-size.x * 0.5, 0.0, -size.z * 0.5),
+		Vector3(size.x * 0.5, 0.0, -size.z * 0.5),
+		Vector3(size.x * 0.5, size.y, -size.z * 0.5),
+		Vector3(-size.x * 0.5, size.y, -size.z * 0.5),
+		Vector3(-size.x * 0.5, 0.0, size.z * 0.5),
+		Vector3(size.x * 0.5, 0.0, size.z * 0.5),
+		Vector3(size.x * 0.5, size.y, size.z * 0.5),
+		Vector3(-size.x * 0.5, size.y, size.z * 0.5),
+	])
+	occluder_mesh.indices = PackedInt32Array([
+		0, 1, 2, 0, 2, 3,
+		5, 4, 7, 5, 7, 6,
+		4, 0, 3, 4, 3, 7,
+		1, 5, 6, 1, 6, 2,
+		3, 2, 6, 3, 6, 7,
+		4, 5, 1, 4, 1, 0,
+	])
+	occluder.occluder = occluder_mesh
+	occluder.position = mesh_instance.position
+	_geometry_root.add_child(occluder)
+	if Engine.is_editor_hint():
+		occluder.owner = get_tree().edited_scene_root
 
 	var collision := CollisionShape3D.new()
 	var shape := BoxShape3D.new()
@@ -200,3 +231,77 @@ func _build_navigation_mesh() -> void:
 	var source_data := NavigationMeshSourceGeometryData3D.new()
 	source_data.add_faces(faces, Transform3D.IDENTITY)
 	NavigationServer3D.bake_from_source_geometry_data(nav_mesh, source_data)
+
+
+func get_navigation_map() -> RID:
+	if _nav_region == null:
+		return RID()
+	return _nav_region.get_navigation_map()
+
+
+func sample_random_nav_point() -> Vector3:
+	var map := get_navigation_map()
+	if map == RID():
+		return Vector3.ZERO
+	var point: Vector3 = NavigationServer3D.map_get_random_point(map, true, 1)
+	if point == Vector3.ZERO:
+		return Vector3.ZERO
+	return to_local(point)
+
+
+func add_cover_obstacle(local_pos: Vector3, size: Vector3, material: Material = null) -> void:
+	var body := StaticBody3D.new()
+	body.collision_layer = 1
+	body.collision_mask = 0
+	_geometry_root.add_child(body)
+	if Engine.is_editor_hint():
+		body.owner = get_tree().edited_scene_root
+	var mesh_instance := MeshInstance3D.new()
+	var box := BoxMesh.new()
+	box.size = size
+	mesh_instance.mesh = box
+	mesh_instance.position = local_pos + Vector3(0.0, size.y * 0.5, 0.0)
+	if material:
+		mesh_instance.material_override = material
+	body.add_child(mesh_instance)
+	var collision := CollisionShape3D.new()
+	var shape := BoxShape3D.new()
+	shape.size = size
+	collision.shape = shape
+	collision.position = mesh_instance.position
+	body.add_child(collision)
+	_cover_nodes.append(body)
+
+
+func add_height_stairs(step_count: int, direction: Vector2i, step_height: float = 0.5) -> void:
+	if step_count <= 0:
+		return
+	var step_depth := 0.8
+	var width := maxf(room_width * 0.4, 2.0)
+	for i in step_count:
+		var offset := float(i) * step_depth
+		var center := Vector3.ZERO
+		if direction == Vector2i(0, -1):
+			center = Vector3(0.0, step_height * (i + 0.5), -room_depth * 0.5 + offset)
+		elif direction == Vector2i(0, 1):
+			center = Vector3(0.0, step_height * (i + 0.5), room_depth * 0.5 - offset)
+		elif direction == Vector2i(1, 0):
+			center = Vector3(room_width * 0.5 - offset, step_height * (i + 0.5), 0.0)
+		else:
+			center = Vector3(-room_width * 0.5 + offset, step_height * (i + 0.5), 0.0)
+		_add_wall_segment(center, Vector3(width, step_height, step_depth))
+
+
+func add_door_nav_link(local_start: Vector3, local_end: Vector3) -> NavigationLink3D:
+	var link := NavigationLink3D.new()
+	link.name = "DoorNavLink"
+	link.start_position = local_start
+	link.end_position = local_end
+	link.bidirectional = true
+	link.travel_cost = 1.0
+	link.enabled = true
+	add_child(link)
+	if Engine.is_editor_hint():
+		link.owner = get_tree().edited_scene_root
+	_nav_links.append(link)
+	return link

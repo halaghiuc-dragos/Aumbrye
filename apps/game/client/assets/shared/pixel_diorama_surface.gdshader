@@ -19,6 +19,8 @@ uniform float shade_bands : hint_range(2.0, 16.0) = 4.0;
 uniform float shade_dither : hint_range(0.0, 1.0) = 0.55;
 uniform float light_wrap : hint_range(0.0, 1.0) = 0.25;
 uniform float rim_strength : hint_range(0.0, 1.0) = 0.08;
+uniform float flash_amount : hint_range(0.0, 1.0) = 0.0;
+uniform float dissolve_clip : hint_range(0.0, 1.0) = 1.0;
 uniform int surface_kind : hint_range(0, 3) = 0;
 
 varying vec3 v_world_pos;
@@ -113,7 +115,15 @@ void fragment() {
 	float edge = voxel_edge_mask(uv);
 	col = mix(col, color_shadow.rgb * 0.75, edge * edge_strength * detail);
 
+	if (dissolve_clip < 0.999) {
+		float dither = cell_hash(floor(v_world_pos.xz * pixel_scale * 0.5));
+		if (dither > dissolve_clip) {
+			discard;
+		}
+	}
+
 	// Palette colour lives in albedo; banded light() below supplies tonal steps.
+	col = mix(col, vec3(1.0), flash_amount);
 	ALBEDO = col;
 	ROUGHNESS = 1.0;
 	METALLIC = 0.0;

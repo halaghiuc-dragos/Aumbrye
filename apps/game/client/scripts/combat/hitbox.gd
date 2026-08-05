@@ -17,6 +17,7 @@ var _last_overlap_count := 0
 var _damage_type := DamageInfo.TYPE_PHYSICAL
 var _status_id := ""
 var _status_stacks := 1
+var _crit_chance := 0.0
 
 
 func _ready() -> void:
@@ -67,13 +68,15 @@ func set_attack_values(
 	poise: float,
 	dmg_type: String = DamageInfo.TYPE_PHYSICAL,
 	apply_status: String = "",
-	status_stacks: int = 1
+	status_stacks: int = 1,
+	crit_chance: float = 0.0
 ) -> void:
 	damage_amount = damage
 	poise_damage = poise
 	_damage_type = dmg_type
 	_status_id = apply_status
 	_status_stacks = status_stacks
+	_crit_chance = crit_chance
 
 
 func set_combat_owner(node: Node) -> void:
@@ -128,8 +131,11 @@ func _try_hit(area: Area3D) -> void:
 	var direction := Vector3.ZERO
 	if _owner_node:
 		direction = (area.global_position - _owner_node.global_position).normalized()
+	var final_damage := damage_amount
+	if _crit_chance > 0.0 and randf() < _crit_chance:
+		final_damage *= 1.5
 	var info := DamageInfo.create(
-		damage_amount,
+		final_damage,
 		poise_damage,
 		_owner_node,
 		_damage_type,
@@ -144,7 +150,7 @@ func _try_hit(area: Area3D) -> void:
 	VfxService.play_hit_spark(hit_pos, direction)
 	var feedback := _owner_node.get_node_or_null("HitFeedback")
 	if feedback and feedback.has_method("on_hit"):
-		feedback.on_hit(area.get_parent(), damage_amount)
+		feedback.on_hit(area.get_parent(), damage_amount, direction)
 
 
 func _find_combat_owner() -> Node:

@@ -1,7 +1,7 @@
 extends "res://scripts/dungeon/room_content/room_content_base.gd"
 
 const CHEST_SCENE := preload("res://scenes/loot/loot_chest.tscn")
-const DIORAMA_SKIN := preload("res://scripts/art/diorama_interactable_skin.gd")
+const DIORAMA_SKIN := preload("res://scripts/art/props/diorama_interactable_skin.gd")
 
 var _key_id := ""
 var _lock_id := ""

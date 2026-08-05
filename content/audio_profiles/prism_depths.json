@@ -1,11 +1,12 @@
 {
   "id": "prism_depths",
   "biomeId": "prism_depths",
-  "ambienceFreq": 95,
-  "exploreFreq": 100,
-  "combatFreq": 120,
-  "bossFreq": 180,
-  "ambiencePath": "res://assets/audio/castle/ambience_loop.wav",
-  "bossPath": "res://assets/audio/castle/boss_theme.wav",
+  "ambienceFreq": 128,
+  "exploreFreq": 135,
+  "combatFreq": 158,
+  "bossFreq": 210,
+  "ambiencePath": "res://assets/audio/prism_depths/ambience_loop.ogg",
+  "bossPath": "res://assets/audio/prism_depths/boss_theme.ogg",
+  "reverbPreset": "cave",
   "crossfadeSeconds": 0.8
 }

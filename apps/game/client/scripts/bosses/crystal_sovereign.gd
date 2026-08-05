@@ -110,6 +110,8 @@ func _on_health_changed(current: float, max_value: float) -> void:
 	if _phase_transition_done:
 		return
 	var threshold: float = _data.get("phase2_threshold", 0.5)
+	if max_value <= 0.0:
+		return
 	if current / max_value <= threshold:
 		_enter_phase_2()
 

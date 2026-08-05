@@ -6,7 +6,7 @@
     "gridHeight":  2,
     "stackSize":  1,
     "rarity":  "magic",
-    "description":  "M6 content item.",
+    "description":  "Articulated steel fingers built for gripping a great blade.",
     "value":  20,
     "stats":  {
                   "attackSpeed":  0.02,

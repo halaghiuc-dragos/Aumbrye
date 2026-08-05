@@ -26,7 +26,10 @@ var slot_type: SlotType = SlotType.EMPTY
 var door_mask: int = 0
 var graph_distance: int = -1
 var secret_parent_id: String = ""
+var secret_mechanism: String = "" # illusory_wall | hidden_lever
 var is_filler: bool = false
+var on_critical_path: bool = false
+var height_level: int = 0
 
 
 func is_occupied() -> bool:

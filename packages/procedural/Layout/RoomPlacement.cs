@@ -8,6 +8,7 @@ namespace Aumbrye.Procedural.Layout;
 
 /// <summary>
 /// Places room centers so opposing doorway sockets meet.
+/// Yaw alignment mirrors GDScript RoomGraphGeometry (authoritative path).
 /// </summary>
 public static class RoomPlacement
 {
@@ -16,19 +17,24 @@ public static class RoomPlacement
         var nodesById = graph.Nodes.ToDictionary(n => n.Id, StringComparer.Ordinal);
         var roomsByLayout = assignment.Rooms.ToDictionary(r => r.LayoutNodeId, StringComparer.Ordinal);
         var positions = new Dictionary<string, (double X, double Z)>(StringComparer.Ordinal);
+        var yaws = new Dictionary<string, double>(StringComparer.Ordinal);
         var visited = new HashSet<string>(StringComparer.Ordinal);
         var adjacency = ConnectivityValidator.BuildAdjacency(graph);
         var queue = new Queue<string>();
 
-        positions[assignment.EntranceLayoutId] = (0, 0);
-        visited.Add(assignment.EntranceLayoutId);
-        queue.Enqueue(assignment.EntranceLayoutId);
+        var entranceId = assignment.EntranceLayoutId;
+        var entranceDoors = RequiredDoorsForNode(graph, entranceId);
+        positions[entranceId] = (0, 0);
+        yaws[entranceId] = YawDegreesForEntrance(roomsByLayout[entranceId].TemplateId, entranceDoors);
+        visited.Add(entranceId);
+        queue.Enqueue(entranceId);
 
         while (queue.Count > 0)
         {
             var current = queue.Dequeue();
             var currentNode = nodesById[current];
             var (px, pz) = positions[current];
+            var parentYawRad = yaws[current] * Math.PI / 180.0;
             var parentSpec = GetRequired(roomsByLayout[current].TemplateId);
 
             foreach (var next in adjacency[current])
@@ -41,6 +47,8 @@ public static class RoomPlacement
                 var dz = nextNode.GridZ - currentNode.GridZ;
                 var (parentDoor, childDoor) = DoorsForStep(dx, dz);
                 var childSpec = GetRequired(roomsByLayout[next].TemplateId);
+                var childYaw = YawDegreesForIncomingDoor(roomsByLayout[next].TemplateId, childDoor);
+                var childYawRad = childYaw * Math.PI / 180.0;
 
                 if (!parentSpec.HasDoor(parentDoor) || !childSpec.HasDoor(childDoor))
                 {
@@ -51,15 +59,16 @@ public static class RoomPlacement
 
                 var (nx, nz) = (px, pz);
                 if (dz == -1)
-                    nz = pz - parentSpec.HalfDepth - childSpec.HalfDepth;
+                    nz = pz - HalfExtentZ(parentSpec, parentYawRad) - HalfExtentZ(childSpec, childYawRad);
                 else if (dz == 1)
-                    nz = pz + parentSpec.HalfDepth + childSpec.HalfDepth;
+                    nz = pz + HalfExtentZ(parentSpec, parentYawRad) + HalfExtentZ(childSpec, childYawRad);
                 else if (dx == 1)
-                    nx = px + parentSpec.HalfWidth + childSpec.HalfWidth;
+                    nx = px + HalfExtentX(parentSpec, parentYawRad) + HalfExtentX(childSpec, childYawRad);
                 else if (dx == -1)
-                    nx = px - parentSpec.HalfWidth - childSpec.HalfWidth;
+                    nx = px - HalfExtentX(parentSpec, parentYawRad) - HalfExtentX(childSpec, childYawRad);
 
                 positions[next] = (nx, nz);
+                yaws[next] = childYaw;
                 visited.Add(next);
                 queue.Enqueue(next);
             }
@@ -77,7 +86,7 @@ public static class RoomPlacement
                     r.SemanticId,
                     r.TemplateId,
                     r.Type,
-                    new DungeonTransform(x, 0, z, 0),
+                    new DungeonTransform(x, 0, z, yaws[r.LayoutNodeId]),
                     r.Tags);
             })
             .ToList();

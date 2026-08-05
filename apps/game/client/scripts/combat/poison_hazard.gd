@@ -2,7 +2,7 @@ extends Area3D
 
 ## Swamp environmental poison hazard (THEME-5.3 / DMG-5.2).
 
-const DioramaSkin := preload("res://scripts/art/diorama_interactable_skin.gd")
+const DioramaSkin := preload("res://scripts/art/props/diorama_interactable_skin.gd")
 
 @export var poison_status := "poison"
 @export var tick_interval := 1.5

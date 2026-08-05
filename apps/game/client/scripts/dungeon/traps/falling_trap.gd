@@ -2,7 +2,7 @@ extends Node3D
 
 ## Falling block trap — ceiling telegraph then crush (TRAP-2.1).
 
-const DioramaSkin := preload("res://scripts/art/diorama_interactable_skin.gd")
+const DioramaSkin := preload("res://scripts/art/props/diorama_interactable_skin.gd")
 
 enum State { IDLE, TELEGRAPH, FALLING, RESET }
 

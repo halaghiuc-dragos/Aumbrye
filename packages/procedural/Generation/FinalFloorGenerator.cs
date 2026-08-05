@@ -18,14 +18,7 @@ public static class FinalFloorGenerator
         Guid runId,
         int floorIndex)
     {
-        var prefix = biome.Id switch
-        {
-            "crystal_caverns" => "crystal",
-            "poison_swamp" => "swamp",
-            "frozen_fortress" => "frozen",
-            "dark_cathedral" => "cathedral",
-            _ => "castle",
-        };
+        var prefix = RoomTemplateCatalog.TemplatePrefixForBiome(biome.Id);
 
         var rooms = new List<DungeonRoom>
         {

@@ -31,7 +31,7 @@ static func build(parent: Node3D, rooms: Dictionary, biome_id: String) -> void:
 		center_xz.z
 	)
 	var floor_size := Vector3(bounds.size.x, CastleRoomConstants.FLOOR_THICKNESS, bounds.size.z)
-	_add_slab(shell, "FloorSlab", floor_pos, floor_size, floor_mat, false)
+	_add_slab(shell, "FloorSlab", floor_pos, floor_size, floor_mat, true)
 
 	var ceiling_pos := Vector3(
 		center_xz.x,
@@ -47,7 +47,7 @@ static func build(parent: Node3D, rooms: Dictionary, biome_id: String) -> void:
 	for room in rooms.values():
 		var template := room as RoomTemplate
 		if template:
-			DioramaRoomDressing.apply_ceiling_lighting(template, biome_id)
+			DioramaRoomDressing.apply_ceiling_lighting(template, biome_id, template.room_type)
 
 
 static func build_arena_shell(parent: Node3D, half_extent: float, biome_id: String) -> void:

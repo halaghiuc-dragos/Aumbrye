@@ -6,10 +6,11 @@
     "gridHeight":  2,
     "stackSize":  1,
     "rarity":  "rare",
-    "description":  "M6 content item.",
+    "description":  "A focus for channelled force, as much blunt instrument as wand.",
     "value":  20,
     "stats":  {
                   "arcaneDamage":  18
               },
-    "equipmentSlot":  "weapon"
+    "equipmentSlot":  "weapon",
+    "weaponId": "staff"
 }

@@ -2,6 +2,8 @@ extends Control
 
 ## Branching dialogue UI with gamepad choice navigation (DLG-4.1).
 
+const GameUISkinScript := preload("res://scripts/ui/game_ui_skin.gd")
+
 signal closed
 
 @onready var _speaker_label: Label = $Panel/Margin/VBox/SpeakerLabel
@@ -15,9 +17,11 @@ var _selected_index := 0
 
 
 func _ready() -> void:
+	add_to_group("dialogue_ui")
 	visible = false
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
+	GameUISkinScript.apply_modal_menu(self, "Panel")
 	_runner = DialogueRunner.new()
 	_runner.line_changed.connect(_on_line_changed)
 	_runner.dialogue_ended.connect(_on_dialogue_ended)
@@ -72,6 +76,9 @@ func _unhandled_input(event: InputEvent) -> void:
 func _on_line_changed(speaker: String, text: String, choices: Array) -> void:
 	_speaker_label.text = speaker
 	_text_label.text = text
+	var subtitle_scale := AccessibilitySettings.subtitle_scale
+	_speaker_label.add_theme_font_size_override("font_size", int(14 * subtitle_scale))
+	_text_label.add_theme_font_size_override("font_size", int(16 * subtitle_scale))
 	_rebuild_choices(choices)
 	if choices.is_empty():
 		_hint_label.text = "Enter to continue — Esc to close"

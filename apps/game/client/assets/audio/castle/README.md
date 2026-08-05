@@ -1,10 +1,20 @@
 # Castle audio (AUDIO-2.1)
 
-Place loop files here (Godot imports them automatically):
+Authoring targets (streamed loops):
 
-- `ambience_loop.wav` — dungeon ambience
-- `boss_theme.wav` — boss fight music
+- `ambience_loop.ogg` — dungeon ambience
+- `boss_theme.ogg` — boss fight music
 
-If these files are missing, `AudioDirector` generates procedural placeholder tones at runtime.
+Legacy `.wav` copies remain for reference; profiles and `AudioDirector` prefer `.ogg`.
 
-Legacy `.ogg` names are no longer used; paths are under `res://assets/audio/castle/`.
+Convert authored WAV sources with:
+
+```bash
+ffmpeg -i ambience_loop.wav -c:a libvorbis -q:a 4 ambience_loop.ogg
+ffmpeg -i boss_theme.wav -c:a libvorbis -q:a 4 boss_theme.ogg
+```
+
+If files are missing, `AudioDirector` falls back to procedural tones using per-biome
+frequencies from `content/audio_profiles/*.json`.
+
+Per-biome alias loops live under `res://assets/audio/<biome_id>/` until bespoke tracks ship.

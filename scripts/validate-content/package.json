@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "validate": "node validate.mjs",
+    "validate:strict": "node validate.mjs --strict-content",
     "test": "node validate.mjs"
   },
   "dependencies": {

@@ -12,8 +12,8 @@ const DEFAULT_STAGGER := 0.85
 const CAMERA_PATH := "CameraPivot/SpringArm3D/Camera3D"
 const SPRING_PATH := "CameraPivot/SpringArm3D"
 
-const Viewmodel := preload("res://scripts/art/diorama_viewmodel.gd")
-const PixelStyle := preload("res://scripts/art/pixel_diorama_style.gd")
+const Viewmodel := preload("res://scripts/art/characters/diorama_viewmodel.gd")
+const PixelStyle := preload("res://scripts/art/style/pixel_diorama_style.gd")
 
 ## How far the viewmodel lags the camera. Low enough to feel attached, high
 ## enough that a fast mouse flick throws the weapon around a little.
@@ -120,6 +120,20 @@ func _connect_signals() -> void:
 	if _health:
 		_last_health = _health.current
 		_health.health_changed.connect(_on_health_changed)
+	var poise := _body.get_node_or_null("Poise") as Poise
+	if poise:
+		poise.poise_damaged.connect(_on_poise_damaged)
+
+
+func play_heal(duration: float) -> void:
+	play_stagger(duration)
+
+
+func _on_poise_damaged(amount: float, _remaining: float) -> void:
+	if amount >= 20.0:
+		play_stagger(0.45)
+	elif amount >= 8.0:
+		play_flinch()
 
 
 ## Called by locomotion after move_and_slide so the pose matches the frame that

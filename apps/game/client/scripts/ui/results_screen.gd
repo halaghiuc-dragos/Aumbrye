@@ -2,6 +2,8 @@ extends Control
 
 ## Post-run outcome screen — escape/death economy (FLOW-2.1 / FLOW-4.1).
 
+const GameUISkinScript := preload("res://scripts/ui/game_ui_skin.gd")
+
 @onready var _title_label: Label = $Panel/Margin/VBox/Title
 @onready var _time_label: Label = $Panel/Margin/VBox/TimeLabel
 @onready var _kills_label: Label = $Panel/Margin/VBox/KillsLabel
@@ -13,6 +15,7 @@ extends Control
 
 func _ready() -> void:
 	_ensure_ui_nodes()
+	GameUISkinScript.apply_modal_menu(self, "Panel")
 	_display_from_run_flow()
 	process_mode = Node.PROCESS_MODE_ALWAYS
 
@@ -37,10 +40,14 @@ func _display_from_run_flow() -> void:
 	if results.is_empty():
 		results = get_tree().root.get_meta("run_results", {})
 	var outcome: String = results.get("outcome", "escaped")
+	var hero_name := LocalSave.get_character_name()
 	if outcome == "died":
-		_title_label.text = "You Died"
+		_title_label.text = "%s — Echo Returned" % hero_name
 	else:
-		_title_label.text = "Run Complete!"
+		if CharacterService.has_flag("story_completed"):
+			_title_label.text = "%s — Oath Fulfilled" % hero_name
+		else:
+			_title_label.text = "%s — Run Complete" % hero_name
 	if results.is_empty():
 		_time_label.text = "Time: --"
 		_kills_label.text = "Kills: --"

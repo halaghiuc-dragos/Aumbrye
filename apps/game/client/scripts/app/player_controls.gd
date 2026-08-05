@@ -8,11 +8,14 @@ var _inventory_ui: Control
 var _settings_ui: Control
 var _talents_ui: Control
 var _loadout_ui: Control
+var _pause_menu: Control
 
 
 func _ready() -> void:
 	layer = 20
 	process_mode = Node.PROCESS_MODE_ALWAYS
+	AccessibilitySettings.load_from_save()
+	DisplaySettings.apply()
 	_build_global_uis()
 	get_tree().scene_changed.connect(_on_scene_changed)
 	call_deferred("_after_scene_changed")
@@ -22,6 +25,7 @@ func _build_global_uis() -> void:
 	_inventory_ui = _make_scripted_ui("InventoryUI", "res://scripts/ui/inventory_ui.gd")
 	_settings_ui = _make_scripted_ui("SettingsUI", "res://scripts/ui/settings_ui.gd")
 	_talents_ui = _make_scripted_ui("TalentsUI", "res://scripts/ui/talents_ui.gd")
+	_pause_menu = _make_scripted_ui("PauseMenu", "res://scripts/ui/pause_menu.gd")
 	var loadout_scene := load("res://scenes/ui/loadout_ui.tscn") as PackedScene
 	if loadout_scene:
 		_loadout_ui = loadout_scene.instantiate() as Control
@@ -56,7 +60,7 @@ func _remove_duplicate_scene_uis() -> void:
 	var scene := get_tree().current_scene
 	if scene == null:
 		return
-	for ui_name in ["InventoryUI", "SettingsUI", "TalentsUI", "LoadoutUI"]:
+	for ui_name in ["InventoryUI", "SettingsUI", "TalentsUI", "LoadoutUI", "PauseMenu"]:
 		var node := scene.get_node_or_null(ui_name)
 		if node:
 			node.queue_free()
@@ -116,19 +120,29 @@ func is_loadout_open() -> bool:
 	return _loadout_ui != null and _loadout_ui.has_method("is_open") and _loadout_ui.call("is_open")
 
 
+func is_pause_open() -> bool:
+	return _pause_menu != null and _pause_menu.has_method("is_open") and _pause_menu.call("is_open")
+
+
 func is_player_meta_ui_open() -> bool:
 	return (
 		is_inventory_open()
 		or is_settings_open()
 		or is_talents_open()
 		or is_loadout_open()
+		or is_pause_open()
 	)
 
 
 func _unhandled_input(event: InputEvent) -> void:
 	if not event.is_action_pressed("pause"):
 		return
-	if is_player_meta_ui_open():
+	if is_inventory_open() or is_talents_open() or is_loadout_open():
 		return
-	open_settings()
+	if is_settings_open() and _settings_ui.has_method("close_settings"):
+		_settings_ui.call("close_settings")
+		get_viewport().set_input_as_handled()
+		return
+	if _pause_menu and _pause_menu.has_method("toggle"):
+		_pause_menu.call("toggle")
 	get_viewport().set_input_as_handled()

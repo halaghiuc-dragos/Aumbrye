@@ -2,6 +2,8 @@ extends Node
 
 ## Autoload singleton — persisted grid inventory + equipment stats (M2/M4).
 
+const CombatStatModifiersScript := preload("res://scripts/combat/combat_stat_modifiers.gd")
+
 signal inventory_changed
 signal equipment_stats_changed(stats: Dictionary)
 
@@ -106,9 +108,24 @@ func get_equipment_stats() -> Dictionary:
 		inventory.equipped,
 		Callable(AffixRoller, "get_affix_stat")
 	)
+	var class_stats := ClassCatalog.get_stat_bonuses(CharacterService.class_id) if CharacterService else {}
 	var talent_stats := ProgressionService.get_talent_stat_totals() if ProgressionService else {}
 	var run_stats := RunBuffs.get_stat_totals() if RunBuffs else {}
-	return _merge_stat_dicts(_merge_stat_dicts(equip_stats, talent_stats), run_stats)
+	return _merge_stat_dicts(
+		_merge_stat_dicts(_merge_stat_dicts(equip_stats, class_stats), talent_stats),
+		run_stats
+	)
+
+
+func get_equipment_only_stats() -> Dictionary:
+	return Equipment.aggregate_stats(
+		inventory.equipped,
+		Callable(AffixRoller, "get_affix_stat")
+	)
+
+
+func get_talent_stats() -> Dictionary:
+	return ProgressionService.get_talent_stat_totals() if ProgressionService else {}
 
 
 func compare_slot_to_equipped(index: int) -> Dictionary:
@@ -150,25 +167,47 @@ func remove_run_loot(item_ids: Array) -> void:
 		inventory.remove_items_by_id(str(item_id), 999)
 
 
+func get_class_stats() -> Dictionary:
+	if CharacterService and CharacterService.class_id != "":
+		return ClassCatalog.get_stat_bonuses(CharacterService.class_id)
+	return {}
+
+
 func apply_equipment_to_player_node(player: Node) -> void:
 	if player == null:
 		return
-	var stats := get_equipment_stats()
+	var equip_stats := _merge_stat_dicts(get_equipment_only_stats(), get_class_stats())
+	var talent_stats := get_talent_stats()
+	var merged_stats := get_equipment_stats()
 	var health := player.get_node_or_null("Health") as Health
 	if health:
-		var bonus_hp: float = float(stats.get("maxHealth", 0.0))
+		var bonus_hp: float = float(merged_stats.get("maxHealth", 0.0))
 		health.configure(Health.MAX_HEALTH + bonus_hp)
+	var stamina := player.get_node_or_null("Stamina") as Stamina
+	if stamina:
+		var max_stamina := Stamina.MAX_STAMINA + CombatStatModifiersScript.max_stamina_bonus(equip_stats, talent_stats)
+		stamina.configure(max_stamina, CombatStatModifiersScript.stamina_regen_multiplier(talent_stats))
+	var poise := player.get_node_or_null("Poise") as Poise
+	if poise:
+		var max_poise := Poise.MAX_POISE + CombatStatModifiersScript.max_poise_bonus(equip_stats, talent_stats)
+		poise.configure(max_poise)
 	var weapon := player.get_node_or_null("WeaponController")
 	if weapon and weapon.has_method("load_weapon_from_path"):
 		weapon.load_weapon_from_path(inventory.get_equipped_weapon_data_path())
-		if weapon.has_method("set_damage_multiplier"):
-			var dmg_bonus: float = float(stats.get("damagePercent", 0.0))
-			weapon.set_damage_multiplier(1.0 + dmg_bonus / 100.0)
+		if weapon.has_method("set_combat_stat_modifiers"):
+			weapon.set_combat_stat_modifiers(equip_stats, talent_stats, get_class_stats())
+		elif weapon.has_method("set_damage_multiplier"):
+			weapon.set_damage_multiplier(CombatStatModifiersScript.damage_multiplier(equip_stats, talent_stats))
 	var locomotion := player.get_node_or_null("Locomotion")
 	if locomotion and locomotion.has_method("set_speed_multiplier"):
-		var spd: float = float(stats.get("moveSpeedPercent", 0.0))
-		locomotion.set_speed_multiplier(1.0 + spd / 100.0)
-	equipment_stats_changed.emit(stats)
+		locomotion.set_speed_multiplier(CombatStatModifiersScript.move_speed_multiplier(equip_stats, talent_stats))
+	var guard := player.get_node_or_null("Guard")
+	if guard and guard.has_method("set_combat_stat_modifiers"):
+		guard.set_combat_stat_modifiers(equip_stats, talent_stats)
+	var defense_points := float(equip_stats.get("defense", 0.0)) + float(talent_stats.get("armor", 0.0))
+	player.set_meta("combat_defense", defense_points)
+	player.set_meta("combat_damage_reduction", float(talent_stats.get("damageReduction", 0.0)))
+	equipment_stats_changed.emit(merged_stats)
 
 
 func _apply_equipment_to_player() -> void:

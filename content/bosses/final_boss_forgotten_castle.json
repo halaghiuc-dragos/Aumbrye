@@ -1,6 +1,8 @@
 {
   "id": "final_boss_forgotten_castle",
   "name": "Forgotten Sovereign",
+  "title": "The Forgotten Sovereign",
+  "loreText": "Last warden of a kingdom the tower erased from memory.",
   "scene": "res://scenes/enemies/final_boss_forgotten_castle.tscn",
   "threat_cost": 80,
   "health": 1200,

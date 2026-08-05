@@ -176,6 +176,9 @@ logs/
 # Procgen CLI dumps at repo root (regenerate locally)
 /seed*.json
 
+# Local capture dumps
+.tmp_capture/
+
 # Local database files (dev dumps, accidental copies)
 *.sqlite
 *.sqlite3

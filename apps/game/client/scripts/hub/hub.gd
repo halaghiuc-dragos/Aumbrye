@@ -53,6 +53,11 @@ func _ready() -> void:
 	_wire_interactable(_storage_area, _on_storage_enter, _on_storage_exit)
 	_wire_interactable(_quest_board_area, _on_quest_board_enter, _on_quest_board_exit)
 
+	if has_node("SkiesPortal"):
+		$SkiesPortal.visible = false
+	if has_node("CathedralPortal"):
+		$CathedralPortal.visible = false
+
 	_castle_menu.dungeon_run_requested.connect(_on_dungeon_run)
 	_castle_menu.continue_requested.connect(_on_castle_continue)
 	_castle_menu.seed_run_requested.connect(_on_castle_seed_run)
@@ -79,14 +84,32 @@ func _ready() -> void:
 
 func _boot_save_and_services() -> void:
 	var synced := await LocalSave.sync_from_cloud()
-	if not synced:
-		if LocalSave.has_save():
-			LocalSave.load_into_services()
-		else:
-			InventoryService.inventory.add_item("castle_sword", 1)
-			InventoryService.inventory.add_item("training_greatsword", 1)
-			InventoryService.inventory.add_item("rogue_dagger", 1)
+	if not synced and LocalSave.has_save():
+		LocalSave.load_into_services()
+	if CharacterService.class_id == "":
+		get_tree().change_scene_to_file("res://scenes/ui/main_menu.tscn")
+		return
+	_auto_equip_starting_weapon()
 	LocalSave.autosave()
+	show_hub_message("Welcome back, %s." % LocalSave.get_character_name())
+
+
+func _auto_equip_starting_weapon() -> void:
+	if InventoryService.inventory.get_equipped_weapon_id() != "":
+		return
+	var class_id := CharacterService.class_id
+	var weapon_id := ClassCatalog.get_starting_weapon_item_id(class_id) if class_id != "" else "castle_sword"
+	_auto_equip_weapon_item(weapon_id)
+
+
+func _auto_equip_weapon_item(item_id: String) -> void:
+	var grid := InventoryService.inventory
+	for i in grid.slots.size():
+		if grid.slots[i].get("itemId", "") == item_id:
+			grid.equip_weapon(i)
+			return
+	if grid.add_item(item_id, 1):
+		grid.equip_weapon(grid.slots.size() - 1)
 
 
 
@@ -182,16 +205,20 @@ func _wire_interactable(
 	area.player_exited.connect(exit_cb)
 
 
+func _ui_is_open(ui: Control) -> bool:
+	return ui != null and ui.has_method("is_open") and ui.call("is_open")
+
+
 func _any_ui_open() -> bool:
 	return (
-		_castle_menu.is_open()
-		or _endless_menu.is_open()
-		or _waves_menu.is_open()
-		or _dialogue_ui.is_open()
-		or _blacksmith_ui.is_open()
-		or _merchant_ui.is_open()
-		or _storage_ui.is_open()
-		or _quest_board_ui.is_open()
+		_ui_is_open(_castle_menu)
+		or _ui_is_open(_endless_menu)
+		or _ui_is_open(_waves_menu)
+		or _ui_is_open(_dialogue_ui)
+		or _ui_is_open(_blacksmith_ui)
+		or _ui_is_open(_merchant_ui)
+		or _ui_is_open(_storage_ui)
+		or _ui_is_open(_quest_board_ui)
 		or PlayerControls.is_player_meta_ui_open()
 	)
 

@@ -3,34 +3,17 @@ extends Control
 ## Grid inventory UX — D2-inspired paper doll + stash grid (INV-4.1).
 
 const GameUISkinScript := preload("res://scripts/ui/game_ui_skin.gd")
+const InventoryUILayoutScript := preload("res://scripts/ui/inventory_ui_layout.gd")
 const RarityRegistryScript := preload("res://scripts/loot/rarity_registry.gd")
 const BlacksmithServiceScript := preload("res://scripts/hub/blacksmith_service.gd")
 const InputGlyphServiceScript := preload("res://scripts/ui/input_glyph_service.gd")
 const RunModeConfigScript := preload("res://scripts/app/run_mode_config.gd")
 
-const CELL_SIZE := GameUISkinScript.CELL_SIZE
-const EQUIP_CELL_SIZE := GameUISkinScript.EQUIP_CELL_SIZE
-const GRID_GAP := GameUISkinScript.GRID_GAP
-
-# Paper-doll rows: empty string = spacer cell (not navigable).
-const EQUIP_LAYOUT: Array = [
-	["", "helmet", ""],
-	["weapon", "chest", "secondary"],
-	["gloves", "amulet", "ring"],
-	["", "boots", "relic"],
-]
-
-const SLOT_LABELS: Dictionary = {
-	"helmet": "Head",
-	"chest": "Chest",
-	"gloves": "Hands",
-	"boots": "Feet",
-	"weapon": "Main",
-	"secondary": "Off",
-	"ring": "Ring",
-	"amulet": "Neck",
-	"relic": "Relic",
-}
+const CELL_SIZE := InventoryUILayoutScript.CELL_SIZE
+const EQUIP_CELL_SIZE := InventoryUILayoutScript.EQUIP_CELL_SIZE
+const GRID_GAP := InventoryUILayoutScript.GRID_GAP
+const EQUIP_LAYOUT: Array = InventoryUILayoutScript.EQUIP_LAYOUT
+const SLOT_LABELS: Dictionary = InventoryUILayoutScript.SLOT_LABELS
 
 enum FocusArea { GRID, EQUIPMENT }
 

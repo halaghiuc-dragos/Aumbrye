@@ -4,11 +4,10 @@ extends Control
 
 signal closed
 
-var _backup_list: ItemList
-var _status_label: Label
 var _hint_label: Label
 
 const GameUISkinScript := preload("res://scripts/ui/game_ui_skin.gd")
+const MenuShellScript := preload("res://scripts/ui/menu_shell.gd")
 
 var _backdrop: ColorRect
 var _open := false
@@ -19,70 +18,44 @@ var _pixel_section: VBoxContainer
 func _ready() -> void:
 	visible = false
 	process_mode = Node.PROCESS_MODE_ALWAYS
-	_build_ui_if_needed()
-	_refresh_backups()
+	GameUISkinScript.ensure_full_rect(self)
 	AccessibilitySettings.load_from_save()
+	DisplaySettings.apply()
 	LeaderboardSettings.load_from_save()
+	AudioSettings.load_from_save()
 	PixelDioramaSettings.load_from_save()
 
 
 func _build_ui_if_needed() -> void:
-	if _backup_list != null:
+	if _scroll_vbox != null and is_instance_valid(_scroll_vbox):
 		return
-	if has_node("Panel/Margin/VBox/BackupList"):
-		_backup_list = $Panel/Margin/VBox/BackupList
-		_status_label = $Panel/Margin/VBox/StatusLabel
-		_hint_label = $Panel/Margin/VBox/HintLabel
-		return
+	GameUISkinScript.ensure_full_rect(self)
 	for child in get_children():
 		child.queue_free()
-	_backdrop = GameUISkinScript.make_backdrop(self)
-	var panel := GameUISkinScript.make_center_panel(
+	var shell: Dictionary = MenuShellScript.build_modal(
 		self,
-		GameUISkinScript.SETTINGS_HALF_W,
-		GameUISkinScript.SETTINGS_HALF_H
+		"Settings",
+		GameUISkinScript.SETTINGS_HALF_W + 80.0,
+		GameUISkinScript.SETTINGS_HALF_H + 40.0,
+		false
 	)
-	panel.name = "Panel"
-	var margin := MarginContainer.new()
-	margin.name = "Margin"
-	margin.add_theme_constant_override("margin_left", 16)
-	margin.add_theme_constant_override("margin_top", 16)
-	margin.add_theme_constant_override("margin_right", 16)
-	margin.add_theme_constant_override("margin_bottom", 16)
-	panel.add_child(margin)
-	var vbox := VBoxContainer.new()
-	vbox.name = "VBox"
-	margin.add_child(vbox)
+	_backdrop = shell["backdrop"]
+	var content_vbox: VBoxContainer = shell["content_vbox"]
+	_hint_label = MenuShellScript.add_hint(content_vbox, "Esc: back to main menu")
 	var scroll := ScrollContainer.new()
 	scroll.name = "Scroll"
-	scroll.custom_minimum_size = Vector2(520, 460)
+	scroll.custom_minimum_size = Vector2(0, 380)
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	vbox.add_child(scroll)
-	var scroll_vbox := VBoxContainer.new()
-	scroll_vbox.name = "ScrollVBox"
-	scroll_vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	scroll.add_child(scroll_vbox)
-	_scroll_vbox = scroll_vbox
-	var title := Label.new()
-	title.text = "Settings"
-	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	GameUISkinScript.style_menu_title(title)
-	scroll_vbox.add_child(title)
-	_backup_list = ItemList.new()
-	_backup_list.name = "BackupList"
-	_backup_list.custom_minimum_size = Vector2(480, 120)
-	scroll_vbox.add_child(_backup_list)
-	_status_label = Label.new()
-	_status_label.name = "StatusLabel"
-	scroll_vbox.add_child(_status_label)
-	_hint_label = Label.new()
-	_hint_label.name = "HintLabel"
-	_hint_label.text = "Enter: restore | Esc: close"
-	GameUISkinScript.style_hint_label(_hint_label)
-	scroll_vbox.add_child(_hint_label)
-	_build_accessibility_section(scroll_vbox)
-	_build_pixel_diorama_section(scroll_vbox)
-	_build_run_mode_section(scroll_vbox)
+	scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	content_vbox.add_child(scroll)
+	_scroll_vbox = VBoxContainer.new()
+	_scroll_vbox.name = "ScrollVBox"
+	_scroll_vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.add_child(_scroll_vbox)
+	_build_accessibility_section(_scroll_vbox)
+	_build_audio_section(_scroll_vbox)
+	_build_pixel_diorama_section(_scroll_vbox)
+	_refresh_run_mode_section()
 
 
 func _build_accessibility_section(parent: VBoxContainer) -> void:
@@ -100,6 +73,7 @@ func _build_accessibility_section(parent: VBoxContainer) -> void:
 	ui_scale.value_changed.connect(func(v: float) -> void:
 		AccessibilitySettings.ui_scale = v
 		AccessibilitySettings.save()
+		DisplaySettings.apply()
 	)
 	parent.add_child(ui_scale)
 	var shake := CheckBox.new()
@@ -110,6 +84,28 @@ func _build_accessibility_section(parent: VBoxContainer) -> void:
 		AccessibilitySettings.save()
 	)
 	parent.add_child(shake)
+	var subtitle_scale := HSlider.new()
+	subtitle_scale.name = "SubtitleScaleSlider"
+	subtitle_scale.min_value = 0.8
+	subtitle_scale.max_value = 1.6
+	subtitle_scale.step = 0.05
+	subtitle_scale.value = AccessibilitySettings.subtitle_scale
+	subtitle_scale.value_changed.connect(func(v: float) -> void:
+		AccessibilitySettings.subtitle_scale = v
+		AccessibilitySettings.save()
+	)
+	parent.add_child(subtitle_scale)
+	var vibration := HSlider.new()
+	vibration.name = "VibrationSlider"
+	vibration.min_value = 0.0
+	vibration.max_value = 1.0
+	vibration.step = 0.05
+	vibration.value = AccessibilitySettings.vibration_intensity
+	vibration.value_changed.connect(func(v: float) -> void:
+		AccessibilitySettings.vibration_intensity = v
+		AccessibilitySettings.save()
+	)
+	parent.add_child(vibration)
 	var cb := OptionButton.new()
 	cb.add_item("Default", 0)
 	cb.add_item("Protanopia", 1)
@@ -134,6 +130,52 @@ func _build_accessibility_section(parent: VBoxContainer) -> void:
 		LeaderboardSettings.save()
 	)
 	parent.add_child(lb)
+
+
+func _build_audio_section(parent: VBoxContainer) -> void:
+	var sep := HSeparator.new()
+	parent.add_child(sep)
+	var title := Label.new()
+	title.text = "Audio"
+	GameUISkinScript.style_section_title(title)
+	parent.add_child(title)
+	parent.add_child(_volume_slider("Master", AudioSettings.master_volume, func(v: float) -> void:
+		AudioSettings.master_volume = v
+		AudioSettings.save()
+	))
+	parent.add_child(_volume_slider("Music", AudioSettings.music_volume, func(v: float) -> void:
+		AudioSettings.music_volume = v
+		AudioSettings.save()
+	))
+	parent.add_child(_volume_slider("SFX", AudioSettings.sfx_volume, func(v: float) -> void:
+		AudioSettings.sfx_volume = v
+		AudioSettings.save()
+	))
+	parent.add_child(_volume_slider("Ambience", AudioSettings.ambience_volume, func(v: float) -> void:
+		AudioSettings.ambience_volume = v
+		AudioSettings.save()
+	))
+	parent.add_child(_volume_slider("UI", AudioSettings.ui_volume, func(v: float) -> void:
+		AudioSettings.ui_volume = v
+		AudioSettings.save()
+	))
+
+
+func _volume_slider(label_text: String, initial: float, on_changed: Callable) -> HBoxContainer:
+	var row := HBoxContainer.new()
+	var label := Label.new()
+	label.text = label_text
+	label.custom_minimum_size.x = 90.0
+	row.add_child(label)
+	var slider := HSlider.new()
+	slider.min_value = 0.0
+	slider.max_value = 1.0
+	slider.step = 0.05
+	slider.value = initial
+	slider.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	slider.value_changed.connect(on_changed)
+	row.add_child(slider)
+	return row
 
 
 func _build_pixel_diorama_section(parent: VBoxContainer) -> void:
@@ -196,11 +238,6 @@ func _populate_pixel_diorama_section() -> void:
 	_pixel_section.add_child(low_res)
 
 	_pixel_section.add_child(_toggle(
-		"Camera pixel snap",
-		PixelDioramaSettings.camera_snap_enabled,
-		func(on: bool) -> void: PixelDioramaSettings.camera_snap_enabled = on
-	))
-	_pixel_section.add_child(_toggle(
 		"Nearest texture filtering",
 		PixelDioramaSettings.nearest_texture_filter,
 		func(on: bool) -> void: PixelDioramaSettings.nearest_texture_filter = on
@@ -260,6 +297,36 @@ func _populate_pixel_diorama_section() -> void:
 		PixelDioramaSettings.glow_enabled,
 		func(on: bool) -> void: PixelDioramaSettings.glow_enabled = on
 	))
+
+	_pixel_section.add_child(_subsection_label("Performance"))
+	var shadow_row := HBoxContainer.new()
+	var shadow_label := Label.new()
+	shadow_label.text = "Shadow quality"
+	shadow_row.add_child(shadow_label)
+	var shadow_opts := OptionButton.new()
+	for i in PixelDioramaSettings.QUALITY_LABELS.size():
+		shadow_opts.add_item(PixelDioramaSettings.QUALITY_LABELS[i], i)
+	shadow_opts.selected = PixelDioramaSettings.shadow_quality
+	shadow_opts.item_selected.connect(func(idx: int) -> void:
+		PixelDioramaSettings.shadow_quality = idx
+		PixelDioramaSettings.save_and_apply()
+	)
+	shadow_row.add_child(shadow_opts)
+	_pixel_section.add_child(shadow_row)
+	var particle_row := HBoxContainer.new()
+	var particle_label := Label.new()
+	particle_label.text = "Particle quality"
+	particle_row.add_child(particle_label)
+	var particle_opts := OptionButton.new()
+	for i in PixelDioramaSettings.QUALITY_LABELS.size():
+		particle_opts.add_item(PixelDioramaSettings.QUALITY_LABELS[i], i)
+	particle_opts.selected = PixelDioramaSettings.particle_quality
+	particle_opts.item_selected.connect(func(idx: int) -> void:
+		PixelDioramaSettings.particle_quality = idx
+		PixelDioramaSettings.save_and_apply()
+	)
+	particle_row.add_child(particle_opts)
+	_pixel_section.add_child(particle_row)
 
 	_pixel_section.add_child(_subsection_label("Screen finish"))
 	_pixel_section.add_child(_toggle(
@@ -339,11 +406,8 @@ func _refresh_run_mode_section() -> void:
 		close_settings()
 		RunFlow.quit_waves_run()
 	)
+	GameUISkinScript.wire_button_sfx(leave)
 	section.add_child(leave)
-
-
-func _build_run_mode_section(_parent: VBoxContainer) -> void:
-	pass
 
 
 func _labeled_slider(
@@ -378,18 +442,48 @@ func is_open() -> bool:
 
 
 func open_settings() -> void:
+	GameUISkinScript.ensure_full_rect(self)
+	_build_ui_if_needed()
+	_recenter_panel()
+	mouse_filter = Control.MOUSE_FILTER_STOP
 	_refresh_run_mode_section()
 	_open = true
 	visible = true
-	_refresh_backups()
+	move_to_front()
+	var panel := get_node_or_null("Panel") as PanelContainer
+	if panel:
+		panel.visible = true
+		panel.move_to_front()
+	if _backdrop:
+		_backdrop.visible = true
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+
+
+func _recenter_panel() -> void:
+	var panel := get_node_or_null("Panel") as PanelContainer
+	if panel == null:
+		return
+	var clamped := GameUISkinScript.clamped_panel_half_size(
+		GameUISkinScript.SETTINGS_HALF_W + 80.0,
+		GameUISkinScript.SETTINGS_HALF_H + 40.0,
+		self
+	)
+	panel.set_anchors_preset(Control.PRESET_CENTER)
+	panel.offset_left = -clamped.x
+	panel.offset_top = -clamped.y
+	panel.offset_right = clamped.x
+	panel.offset_bottom = clamped.y
 
 
 func close_settings() -> void:
 	_open = false
 	visible = false
+	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	closed.emit()
-	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+	if get_tree().get_first_node_in_group("player"):
+		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+	else:
+		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -398,47 +492,3 @@ func _unhandled_input(event: InputEvent) -> void:
 	if event.is_action_pressed("ui_cancel") or event.is_action_pressed("pause"):
 		close_settings()
 		get_viewport().set_input_as_handled()
-	elif event.is_action_pressed("ui_accept"):
-		_restore_selected()
-		get_viewport().set_input_as_handled()
-
-
-func _refresh_backups() -> void:
-	if _backup_list == null:
-		return
-	_backup_list.clear()
-	var backups := LocalSave.list_backups()
-	if backups.is_empty():
-		_backup_list.add_item("No backups yet (autosave creates them)")
-		if _status_label:
-			_status_label.text = ""
-		return
-	for entry in backups:
-		_backup_list.add_item(
-			"Backup %d — Lv%d — %s" % [
-				entry.get("index", 0),
-				entry.get("level", 1),
-				entry.get("savedAt", "?"),
-			]
-		)
-	if _status_label:
-		_status_label.text = "%d backup(s) available" % backups.size()
-
-
-func _restore_selected() -> void:
-	if _backup_list == null:
-		return
-	var selected := _backup_list.get_selected_items()
-	if selected.is_empty():
-		return
-	var backups := LocalSave.list_backups()
-	var row: int = selected[0]
-	if row < 0 or row >= backups.size():
-		return
-	var index: int = int(backups[row].get("index", 0))
-	if LocalSave.restore_backup(index):
-		if _status_label:
-			_status_label.text = "Restored backup %d" % index
-		_refresh_backups()
-	elif _status_label:
-		_status_label.text = "Restore failed"

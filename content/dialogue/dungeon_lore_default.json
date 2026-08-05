@@ -1,0 +1,11 @@
+{
+  "id": "dungeon_lore_default",
+  "startNode": "start",
+  "nodes": {
+    "start": {
+      "speaker": "Wall inscription",
+      "text": "They swore to hold the gate until the kingdom returned. The tower still waits.",
+      "next": "end"
+    }
+  }
+}

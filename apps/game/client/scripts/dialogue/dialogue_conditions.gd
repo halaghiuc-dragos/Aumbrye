@@ -33,10 +33,10 @@ static func evaluate(condition: Variant) -> bool:
 		return CharacterService.get_flag(flag_id) == expected
 
 	if condition.has("minLevel"):
-		return CharacterService.level >= int(condition.get("minLevel", 1))
+		return CharacterService.get_level() >= int(condition.get("minLevel", 1))
 
 	if condition.has("maxLevel"):
-		return CharacterService.level <= int(condition.get("maxLevel", 999))
+		return CharacterService.get_level() <= int(condition.get("maxLevel", 999))
 
 	if condition.has("quest"):
 		var quest_id: String = str(condition.get("quest", ""))
@@ -45,5 +45,11 @@ static func evaluate(condition: Variant) -> bool:
 
 	if condition.has("gold"):
 		return CharacterService.gold >= int(condition.get("gold", 0))
+
+	if condition.has("minRuns"):
+		return int(CharacterService.get_flag("runs_started", 0)) >= int(condition.get("minRuns", 0))
+
+	if condition.has("minDeaths"):
+		return int(CharacterService.get_flag("deaths", 0)) >= int(condition.get("minDeaths", 0))
 
 	return true

@@ -1,0 +1,8 @@
+{
+  "id": "dungeon_merchant",
+  "items": [
+    { "itemId": "health_potion", "price": 25, "stock": 3 },
+    { "itemId": "stamina_potion", "price": 20, "stock": 2 },
+    { "itemId": "castle_sword", "price": 120, "stock": 1 }
+  ]
+}

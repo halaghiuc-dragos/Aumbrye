@@ -55,7 +55,8 @@
         "level": { "type": "integer", "minimum": 1 },
         "xp": { "type": "integer", "minimum": 0 },
         "lastHubMessage": { "type": "string" },
-        "firstPersonCamera": { "type": "boolean" }
+        "firstPersonCamera": { "type": "boolean" },
+        "classId": { "type": "string" }
       }
     },
     "currencies": {

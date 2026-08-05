@@ -24,6 +24,12 @@ Implement only after EA DoD and retention/combat satisfaction look healthy.
 - Cooperative multiplayer prototype
 - Browser supported tier
 
+### OAuth / social login (post-EA only)
+
+Email/password auth ships for EA. OAuth providers (Google, Discord, Steam OpenID) are **deferred
+post-EA** — see `services/backend/README.md` for the planned provider table and env keys
+(`OAUTH_*`). No client OAuth SDK until retention targets are met; do not block EA on provider keys.
+
 ## Tech
 
 - Steam-only auth default

@@ -14,7 +14,7 @@ const INVERT_Y := false
 @export var yaw_pivot_path: NodePath
 @export var facing_path: NodePath = NodePath("../../Facing")
 
-const CharacterSkin := preload("res://scripts/art/diorama_character_skin.gd")
+const CharacterSkin := preload("res://scripts/art/characters/diorama_character_skin.gd")
 
 var _pitch := 0.0
 var _target_zoom := 4.0
@@ -22,6 +22,10 @@ var _saved_third_person_zoom := 4.0
 var _yaw_pivot: Node3D
 var _facing: Node3D
 var _first_person := false
+var _lock_on_active := false
+var _lock_focus := Vector3.ZERO
+var _lock_pivot_base := Vector3(0.0, 1.6, 0.0)
+var _lock_pivot_offset := Vector3.ZERO
 
 
 func _ready() -> void:
@@ -40,6 +44,8 @@ func _ready() -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
+	if _lock_on_active and not _first_person:
+		return
 	if event is InputEventMouseMotion and Input.get_mouse_mode() == Input.MOUSE_MODE_CAPTURED:
 		_apply_look(-event.relative.x * MOUSE_SENSITIVITY, -event.relative.y * MOUSE_SENSITIVITY)
 	if event.is_action_pressed("toggle_camera"):
@@ -52,6 +58,8 @@ func _unhandled_input(event: InputEvent) -> void:
 
 
 func _physics_process(delta: float) -> void:
+	if _lock_on_active and not _first_person:
+		return
 	var stick := Input.get_vector("look_left", "look_right", "look_up", "look_down")
 	if stick.length_squared() > 0.01:
 		_apply_look(-stick.x * STICK_SENSITIVITY * delta, stick.y * STICK_SENSITIVITY * delta)
@@ -78,10 +86,67 @@ func snap_look_direction(world_direction: Vector3) -> void:
 	if dir.length_squared() < 0.0001 or _yaw_pivot == null:
 		return
 	dir = dir.normalized()
-	var yaw := atan2(dir.x, dir.z)
+	var yaw := _yaw_for_look_direction(dir)
+	_yaw_pivot.rotation.y = yaw
+
+
+func blend_look_direction(world_direction: Vector3, blend_rate: float) -> void:
+	var dir := world_direction
+	dir.y = 0.0
+	if dir.length_squared() < 0.0001 or _yaw_pivot == null:
+		return
+	dir = dir.normalized()
+	var target_yaw := _yaw_for_look_direction(dir)
+	_yaw_pivot.rotation.y = lerp_angle(_yaw_pivot.rotation.y, target_yaw, clampf(blend_rate, 0.0, 1.0))
+
+
+func set_lock_on_active(active: bool) -> void:
+	_lock_on_active = active
+	if not active:
+		_lock_focus = Vector3.ZERO
+		_lock_pivot_offset = Vector3.ZERO
+		if _yaw_pivot:
+			_yaw_pivot.position = _lock_pivot_base
+
+
+func update_lock_on_frame(focus_world: Vector3, player_eye: Vector3, delta: float) -> void:
+	if _first_person or _yaw_pivot == null:
+		return
+	_lock_focus = focus_world
+	var to_focus := focus_world - player_eye
+	to_focus.y = 0.0
+	if to_focus.length_squared() < 0.0001:
+		return
+	var flat_dir := to_focus.normalized()
+	blend_look_direction(flat_dir, 8.0 * delta)
+
+	var player_body := _yaw_pivot.get_parent() as Node3D
+	if player_body:
+		var local_focus := player_body.to_local(focus_world)
+		var local_eye := player_body.to_local(player_eye)
+		var local_delta := local_focus - local_eye
+		local_delta.y = 0.0
+		var planar_dist := local_delta.length()
+		if planar_dist > 0.01:
+			var local_dir := local_delta / planar_dist
+			var shift := clampf(planar_dist * 0.42, 0.35, 2.0)
+			var target_offset := Vector3(local_dir.x * shift, 0.0, local_dir.z * shift)
+			_lock_pivot_offset = _lock_pivot_offset.lerp(target_offset, clampf(6.0 * delta, 0.0, 1.0))
+			_yaw_pivot.position = _lock_pivot_base + _lock_pivot_offset
+
+	var pivot_world := _yaw_pivot.global_position
+	var aim_dir := (focus_world - pivot_world).normalized()
+	var target_pitch := clampf(asin(clampf(aim_dir.y, -1.0, 1.0)), MIN_PITCH, MAX_PITCH)
+	_pitch = lerpf(_pitch, target_pitch, clampf(8.0 * delta, 0.0, 1.0))
+	rotation.x = _pitch
+
+
+func _yaw_for_look_direction(flat_dir: Vector3) -> float:
+	# Spring-arm camera looks along -basis.z, opposite to the flat look direction.
+	var yaw := atan2(-flat_dir.x, -flat_dir.z)
 	if _first_person:
 		yaw += PI
-	_yaw_pivot.rotation.y = yaw
+	return yaw
 
 
 func snap_camera_forward(world_forward: Vector3) -> void:

@@ -1,0 +1,9 @@
+{
+  "id": "scholar",
+  "name": "Scholar",
+  "description": "Arcane caster wielding staves and ranged focus.",
+  "startingWeaponItemId": "sage_staff",
+  "statBonuses": { "staminaRegen": 0.05, "staminaMax": 10 },
+  "allowedWeapons": ["sage_staff", "cathedral_arcane_staff", "hunter_bow", "crystal_bow"],
+  "perk": "arcane_focus"
+}

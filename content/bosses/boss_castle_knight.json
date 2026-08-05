@@ -1,6 +1,8 @@
 {
     "id":  "boss_castle_knight",
     "name":  "Boss Castle Knight",
+    "title":  "Knight of the Forgotten Gate",
+    "loreText":  "A warden who never received the order to stand down.",
     "scene":  "res://scenes/enemies/castle_knight.tscn",
     "threat_cost":  50,
     "health":  600,

@@ -1,0 +1,10 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/art/characters/diorama_character_rig_player.gd" id="1_rig"]
+
+[node name="DioramaCharacterRigPlayer" type="Node3D"]
+script = ExtResource("1_rig")
+
+[node name="Facing" type="Node3D" parent="."]
+
+[node name="AnimationPlayer" type="AnimationPlayer" parent="."]

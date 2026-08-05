@@ -46,7 +46,6 @@ static func assign(biome: Dictionary, graph: RoomGraph, _rng: RandomNumberGenera
 		"secret_layout_ids": graph.secret_ids.duplicate(),
 		"treasure_layout_id": graph.treasure_id,
 		"stairs_layout_id": graph.stairs_id,
-		"obstacle_layout_id": graph.obstacle_id,
 	}
 
 

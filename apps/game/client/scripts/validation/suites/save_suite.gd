@@ -8,6 +8,7 @@ func get_category() -> String:
 func run() -> void:
 	var backup: Dictionary = ctx.backup_save_file()
 	_try_localsave_tests()
+	_test_save_migration_roundtrip()
 	ctx.restore_save_file(backup)
 	_test_continuable_rules()
 	_test_death_snapshot_guard()
@@ -43,12 +44,17 @@ func _test_backup_rotation() -> void:
 
 func _try_localsave_tests() -> void:
 	var start := Time.get_ticks_msec()
-	LocalSave.set_active_run({
-		"schemaVersion": 2,
-		"runId": "validation-test",
-		"seed": TC.SEED_A,
-		"snapshot": {"player": {"health": 75.0}},
-	})
+	(
+		LocalSave
+		. set_active_run(
+			{
+				"schemaVersion": 2,
+				"runId": "validation-test",
+				"seed": TC.SEED_A,
+				"snapshot": {"player": {"health": 75.0}},
+			}
+		)
+	)
 	var can_continue := LocalSave.has_continuable_run()
 	ctx.timed_record(
 		"save.localsave_continuable_midrun",
@@ -73,15 +79,23 @@ func _try_localsave_tests() -> void:
 
 func _test_continuable_rules() -> void:
 	var start := Time.get_ticks_msec()
-	ctx.timed_record(
-		"save.zero_hp_not_continuable",
-		get_category(),
-		not ctx.eval_continuable({
-			"snapshot": {"player": {"health": 0.0}},
-		}),
-		"0 HP snapshot is not continuable",
-		start,
-		"M3.save.zero_hp"
+	(
+		ctx
+		. timed_record(
+			"save.zero_hp_not_continuable",
+			get_category(),
+			not (
+				ctx
+				. eval_continuable(
+					{
+						"snapshot": {"player": {"health": 0.0}},
+					}
+				)
+			),
+			"0 HP snapshot is not continuable",
+			start,
+			"M3.save.zero_hp"
+		)
 	)
 
 	start = Time.get_ticks_msec()
@@ -105,18 +119,27 @@ func _test_continuable_rules() -> void:
 	)
 
 	start = Time.get_ticks_msec()
-	ctx.timed_record(
-		"save.valid_midrun_continuable",
-		get_category(),
-		ctx.eval_continuable({
-			"snapshot": {
-				"player": {"health": 50.0},
-				"enemies": {},
-			},
-		}),
-		"valid mid-run snapshot is continuable",
-		start,
-		"M3.save.midrun"
+	(
+		ctx
+		. timed_record(
+			"save.valid_midrun_continuable",
+			get_category(),
+			(
+				ctx
+				. eval_continuable(
+					{
+						"snapshot":
+						{
+							"player": {"health": 50.0},
+							"enemies": {},
+						},
+					}
+				)
+			),
+			"valid mid-run snapshot is continuable",
+			start,
+			"M3.save.midrun"
+		)
 	)
 
 
@@ -134,14 +157,78 @@ func _test_death_snapshot_guard() -> void:
 
 func _test_player_dead_flag() -> void:
 	var start := Time.get_ticks_msec()
+	(
+		ctx
+		. timed_record(
+			"save.player_dead_not_continuable",
+			get_category(),
+			not (
+				ctx
+				. eval_continuable(
+					{
+						"playerDead": true,
+						"snapshot": {"player": {"health": 50.0}},
+					}
+				)
+			),
+			"playerDead flag blocks continue",
+			start,
+			"M3.save.player_dead"
+		)
+	)
+
+
+func _test_save_migration_roundtrip() -> void:
+	var SaveMigratorScript := preload("res://scripts/save/save_migrator.gd")
+	var v1 := {
+		"schemaVersion": 1,
+		"activeRun":
+		{
+			"runId": "migrate-test",
+			"seed": TC.SEED_A,
+			"snapshot": {"player": {"health": 80.0}},
+		},
+	}
+	var start := Time.get_ticks_msec()
+	var v2: Dictionary = SaveMigratorScript.migrate(v1.duplicate(true))
+	var v2_ok: bool = (
+		not v2.get("migrationFailed", false)
+		and int(v2.get("schemaVersion", 0)) == 2
+		and int(v2.get("activeRun", {}).get("currentFloor", 0)) == 1
+	)
 	ctx.timed_record(
-		"save.player_dead_not_continuable",
+		"save.migrate_v1_to_v2",
 		get_category(),
-		not ctx.eval_continuable({
-			"playerDead": true,
-			"snapshot": {"player": {"health": 50.0}},
-		}),
-		"playerDead flag blocks continue",
+		v2_ok,
+		"v1 save gains floor fields at schemaVersion 2",
 		start,
-		"M3.save.player_dead"
+		"M9.save.migrate_v2"
+	)
+
+	start = Time.get_ticks_msec()
+	var v3: Dictionary = SaveMigratorScript.migrate(v2.duplicate(true))
+	var v3_ok: bool = (
+		not v3.get("migrationFailed", false)
+		and int(v3.get("schemaVersion", 0)) == SaveMigratorScript.CURRENT_VERSION
+		and str(v3.get("activeRun", {}).get("runMode", "")) == "castle"
+		and not v3.get("activeRun", {}).has("floorDefinitions")
+	)
+	ctx.timed_record(
+		"save.migrate_v2_to_v3",
+		get_category(),
+		v3_ok,
+		"v2→v3 adds runMode and strips floorDefinitions",
+		start,
+		"M9.save.migrate_v3"
+	)
+
+	start = Time.get_ticks_msec()
+	var roundtrip: Dictionary = SaveMigratorScript.migrate(v3.duplicate(true))
+	ctx.timed_record(
+		"save.migrate_idempotent_v3",
+		get_category(),
+		int(roundtrip.get("schemaVersion", 0)) == SaveMigratorScript.CURRENT_VERSION,
+		"v3 save is idempotent under migrate()",
+		start,
+		"M9.save.migrate_idempotent"
 	)

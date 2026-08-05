@@ -2,6 +2,10 @@
   "id": "hub_merchant",
   "items": [
     { "itemId": "health_potion", "price": 15, "stock": 10 },
-    { "itemId": "iron_scrap", "price": 8, "stock": 5 }
+    { "itemId": "stamina_potion", "price": 12, "stock": 8 },
+    { "itemId": "iron_scrap", "price": 8, "stock": 5 },
+    { "itemId": "iron_sword", "price": 45, "stock": 2 },
+    { "itemId": "iron_boots", "price": 35, "stock": 2 },
+    { "itemId": "gold_ring", "price": 55, "stock": 1 }
   ]
 }

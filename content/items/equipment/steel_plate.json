@@ -6,7 +6,7 @@
     "gridHeight":  2,
     "stackSize":  1,
     "rarity":  "magic",
-    "description":  "M6 content item.",
+    "description":  "Castle-forged plate still bearing a warden's inventory mark.",
     "value":  20,
     "stats":  {
                   "maxHealth":  12,

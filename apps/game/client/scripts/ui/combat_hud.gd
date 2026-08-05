@@ -1,6 +1,8 @@
 extends Control
 
+const StatusIconAtlasScript := preload("res://scripts/ui/status_icon_atlas.gd")
 const InputGlyphServiceScript := preload("res://scripts/ui/input_glyph_service.gd")
+const MinimapScript := preload("res://scripts/ui/minimap.gd")
 
 const BAR_WIDTH := 280.0
 const HEALTH_BAR_HEIGHT := 22.0
@@ -29,6 +31,18 @@ var _guard: Node
 var _camera: Camera3D
 var _status_row: HBoxContainer
 var _status_controller: StatusController
+var _minimap: Control
+var _branch_banner: Label
+var _objective_marker: Control
+var _objective_world_pos: Vector3 = Vector3.INF
+var _boss_panel: VBoxContainer
+var _boss_name_label: Label
+var _boss_health_bar: ProgressBar
+var _boss_phase_row: HBoxContainer
+var _boss_node: Node
+var _boss_health: Health
+var _boss_phase_count := 2
+var _boss_current_phase := 1
 
 
 func _ready() -> void:
@@ -40,6 +54,9 @@ func _ready() -> void:
 	_style_resource_bars()
 	_ensure_progression_widgets()
 	_ensure_controls_hint()
+	_ensure_minimap()
+	_ensure_objective_marker()
+	_ensure_boss_bar()
 	_lock_reticle = get_node_or_null("LockReticle") as Control
 	_parry_bar = get_node_or_null("GuardIndicators/ParryBar") as ProgressBar
 	_block_bar = get_node_or_null("GuardIndicators/BlockBar") as ProgressBar
@@ -126,10 +143,16 @@ func _refresh_status_icons() -> void:
 		return
 	for entry in _status_controller.get_active_statuses():
 		var def := StatusCatalog.get_definition(entry.get("id", ""))
-		var icon := ColorRect.new()
+		var status_id: String = entry.get("id", "")
+		var icon := TextureRect.new()
 		icon.custom_minimum_size = Vector2(22, 22)
-		icon.color = Color.from_string(def.get("iconColor", "#ffffff"), Color.WHITE)
-		icon.tooltip_text = "%s x%d" % [def.get("name", entry.get("id", "")), entry.get("stacks", 1)]
+		icon.texture = StatusIconAtlasScript.get_icon(
+			status_id,
+			Color.from_string(def.get("iconColor", "#ffffff"), Color.WHITE)
+		)
+		icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		icon.tooltip_text = "%s x%d" % [def.get("name", status_id), entry.get("stacks", 1)]
 		_status_row.add_child(icon)
 
 
@@ -174,6 +197,110 @@ func _ensure_controls_hint() -> void:
 func _process(_delta: float) -> void:
 	_update_lock_reticle()
 	_update_guard_indicators()
+	_update_objective_marker()
+
+
+func bind_boss(boss: Node) -> void:
+	_unbind_boss()
+	if boss == null or not is_instance_valid(boss):
+		return
+	_boss_node = boss
+	_boss_health = boss.get_node_or_null("Health") as Health
+	if _boss_health == null:
+		return
+	_boss_phase_count = _resolve_boss_phase_count(boss)
+	_boss_current_phase = 1
+	_boss_health.health_changed.connect(_on_boss_health_changed)
+	if boss.has_signal("phase_changed") and not boss.phase_changed.is_connected(_on_boss_phase_changed):
+		boss.phase_changed.connect(_on_boss_phase_changed)
+	if boss.has_signal("boss_defeated") and not boss.boss_defeated.is_connected(unbind_boss):
+		boss.boss_defeated.connect(unbind_boss)
+	if boss.has_signal("enemy_died") and not boss.enemy_died.is_connected(unbind_boss):
+		boss.enemy_died.connect(unbind_boss)
+	var boss_id := ""
+	if boss.has_method("get_enemy_id"):
+		boss_id = str(boss.call("get_enemy_id"))
+	var def := EnemyCatalog.get_definition(boss_id) if boss_id != "" else {}
+	_boss_name_label.text = str(def.get("title", def.get("name", "Boss")))
+	_on_boss_health_changed(_boss_health.current, _boss_health.max_health)
+	_refresh_boss_phase_pips()
+	_boss_panel.visible = true
+
+
+func unbind_boss() -> void:
+	_unbind_boss()
+
+
+func _unbind_boss() -> void:
+	if _boss_health and _boss_health.health_changed.is_connected(_on_boss_health_changed):
+		_boss_health.health_changed.disconnect(_on_boss_health_changed)
+	if _boss_node and is_instance_valid(_boss_node):
+		if _boss_node.has_signal("phase_changed") and _boss_node.phase_changed.is_connected(_on_boss_phase_changed):
+			_boss_node.phase_changed.disconnect(_on_boss_phase_changed)
+		if _boss_node.has_signal("boss_defeated") and _boss_node.boss_defeated.is_connected(unbind_boss):
+			_boss_node.boss_defeated.disconnect(unbind_boss)
+		if _boss_node.has_signal("enemy_died") and _boss_node.enemy_died.is_connected(unbind_boss):
+			_boss_node.enemy_died.disconnect(unbind_boss)
+	_boss_node = null
+	_boss_health = null
+	if _boss_panel:
+		_boss_panel.visible = false
+
+
+func _on_boss_health_changed(current: float, max_value: float) -> void:
+	if _boss_health_bar == null:
+		return
+	_boss_health_bar.max_value = max_value
+	_boss_health_bar.value = current
+
+
+func _on_boss_phase_changed(phase: int) -> void:
+	_boss_current_phase = phase
+	_refresh_boss_phase_pips()
+
+
+func _resolve_boss_phase_count(boss: Node) -> int:
+	if boss.get_script() and str(boss.get_script().resource_path).contains("final_boss"):
+		return 3
+	return 2
+
+
+func _refresh_boss_phase_pips() -> void:
+	if _boss_phase_row == null:
+		return
+	for child in _boss_phase_row.get_children():
+		child.queue_free()
+	for i in _boss_phase_count:
+		var pip := ColorRect.new()
+		pip.custom_minimum_size = Vector2(14, 8)
+		var active := i < _boss_current_phase
+		pip.color = Color(0.95, 0.78, 0.25, 0.95) if active else Color(0.2, 0.18, 0.16, 0.9)
+		_boss_phase_row.add_child(pip)
+
+
+func _ensure_boss_bar() -> void:
+	if _boss_panel != null:
+		return
+	_boss_panel = VBoxContainer.new()
+	_boss_panel.name = "BossBar"
+	_boss_panel.set_anchors_preset(Control.PRESET_CENTER_TOP)
+	_boss_panel.offset_top = 52.0
+	_boss_panel.custom_minimum_size = Vector2(420, 48)
+	_boss_panel.visible = false
+	add_child(_boss_panel)
+	_boss_name_label = Label.new()
+	_boss_name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_boss_name_label.add_theme_color_override("font_color", Color(0.95, 0.86, 0.72))
+	_boss_panel.add_child(_boss_name_label)
+	_boss_health_bar = ProgressBar.new()
+	_boss_health_bar.custom_minimum_size = Vector2(420, 18)
+	_boss_health_bar.show_percentage = false
+	_apply_bar_style(_boss_health_bar, Color(0.72, 0.12, 0.1, 1.0), Color(0.08, 0.04, 0.04, 0.95))
+	_boss_panel.add_child(_boss_health_bar)
+	_boss_phase_row = HBoxContainer.new()
+	_boss_phase_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	_boss_phase_row.add_theme_constant_override("separation", 6)
+	_boss_panel.add_child(_boss_phase_row)
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -269,6 +396,9 @@ func _on_health_changed(current: float, max_value: float) -> void:
 		return
 	_health_bar.max_value = max_value
 	_health_bar.value = current
+	if max_value > 0.0 and current / max_value <= 0.25:
+		if PixelDioramaViewport and PixelDioramaViewport.has_method("pulse_damage_vignette"):
+			PixelDioramaViewport.call("pulse_damage_vignette", 0.22)
 
 
 func _on_stamina_changed(current: float, max_value: float) -> void:
@@ -281,3 +411,102 @@ func _on_stamina_changed(current: float, max_value: float) -> void:
 func _on_lock_changed(_target: Node3D, locked: bool) -> void:
 	if not locked and _lock_reticle:
 		_lock_reticle.visible = false
+
+
+func configure_minimap(definition: Dictionary) -> void:
+	_ensure_minimap()
+	if _minimap and _minimap.has_method("configure"):
+		_minimap.call("configure", definition)
+
+
+func mark_room_visited(room_id: String) -> void:
+	if _minimap and _minimap.has_method("mark_visited"):
+		_minimap.call("mark_visited", room_id)
+
+
+func set_current_room(room_id: String) -> void:
+	if _minimap and _minimap.has_method("set_current_room"):
+		_minimap.call("set_current_room", room_id)
+
+
+func set_branch_previews(hints: Array) -> void:
+	_ensure_branch_banner()
+	if hints.is_empty():
+		_branch_banner.visible = false
+		return
+	var reward_count := 0
+	var danger_count := 0
+	for hint in hints:
+		if not hint is Dictionary:
+			continue
+		if str(hint.get("hint", "")) == "reward":
+			reward_count += 1
+		else:
+			danger_count += 1
+	var parts: PackedStringArray = []
+	if reward_count > 0:
+		parts.append("%d reward path(s)" % reward_count)
+	if danger_count > 0:
+		parts.append("%d danger path(s)" % danger_count)
+	_branch_banner.text = "Branch ahead — " + ", ".join(parts)
+	_branch_banner.visible = true
+
+
+func set_objective_world_position(world_pos: Vector3) -> void:
+	_objective_world_pos = world_pos
+	_update_objective_marker()
+
+
+func _ensure_minimap() -> void:
+	if _minimap != null:
+		return
+	_minimap = MinimapScript.new()
+	_minimap.name = "Minimap"
+	_minimap.position = Vector2(size.x - 156.0, HUD_MARGIN)
+	add_child(_minimap)
+
+
+func _ensure_branch_banner() -> void:
+	if _branch_banner != null:
+		return
+	_branch_banner = Label.new()
+	_branch_banner.name = "BranchBanner"
+	_branch_banner.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_branch_banner.set_anchors_preset(Control.PRESET_TOP_WIDE)
+	_branch_banner.offset_top = 8.0
+	_branch_banner.offset_bottom = 36.0
+	_branch_banner.visible = false
+	add_child(_branch_banner)
+
+
+func _ensure_objective_marker() -> void:
+	if _objective_marker != null:
+		return
+	_objective_marker = Control.new()
+	_objective_marker.name = "ObjectiveMarker"
+	_objective_marker.custom_minimum_size = Vector2(18, 18)
+	_objective_marker.visible = false
+	var glyph := ColorRect.new()
+	glyph.color = Color(0.95, 0.78, 0.25, 0.95)
+	glyph.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_objective_marker.add_child(glyph)
+	add_child(_objective_marker)
+
+
+func _update_objective_marker() -> void:
+	if _objective_marker == null or _objective_world_pos == Vector3.INF or _player == null:
+		if _objective_marker:
+			_objective_marker.visible = false
+		return
+	var camera := _get_camera()
+	if camera == null:
+		return
+	var to_target := _objective_world_pos - _player.global_position
+	to_target.y = 0.0
+	if to_target.length_squared() < 4.0:
+		_objective_marker.visible = false
+		return
+	var screen_center := get_viewport_rect().size * 0.5
+	var screen_edge := screen_center + Vector2(to_target.x, -to_target.z).normalized() * 120.0
+	_objective_marker.visible = true
+	_objective_marker.position = screen_edge - _objective_marker.size * 0.5

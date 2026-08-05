@@ -9,7 +9,15 @@ const SLOT_ORDER: Array[String] = [
 ]
 
 const STAT_KEYS: Array[String] = [
-	"maxHealth", "defense", "damagePercent", "moveSpeedPercent", "staminaMax",
+	"maxHealth", "healthRegen", "evasion", "defense", "damagePercent", "moveSpeedPercent", "staminaMax",
+	"bonusDamage", "critChance", "poiseDamage", "armor",
+	"blockReduction", "poise", "staminaRegen", "staminaCostReduction",
+	"damageReduction", "moveSpeed", "lootQuality", "xpGain", "goldFind",
+	"cooldownReduction",
+]
+
+const FLAT_DAMAGE_STAT_KEYS: Array[String] = [
+	"physicalDamage", "fireDamage", "frostDamage", "arcaneDamage", "poisonDamage",
 ]
 
 
@@ -28,7 +36,7 @@ static func slot_for_item_def(def: Dictionary) -> String:
 		"weapon":
 			return "weapon"
 		"material":
-			if def.get("id", "") == "knight_relic":
+			if def.get("runRelicId", "") != "":
 				return "relic"
 	return ""
 
@@ -94,6 +102,12 @@ static func format_stat_line(stat: String, value: float) -> String:
 			return "+%.0f%% SPD" % value
 		"staminaMax":
 			return "+%.0f STA" % value
+		"bonusDamage":
+			return "+%.0f DMG" % value
+		"physicalDamage", "critChance", "poiseDamage", "blockReduction", "damageReduction":
+			return "+%.0f%% %s" % [value * 100.0, stat]
+		"staminaRegen", "staminaCostReduction", "moveSpeed", "lootQuality", "xpGain", "goldFind", "cooldownReduction":
+			return "+%.0f%% %s" % [value * 100.0, stat]
 		_:
 			return "+%.0f %s" % [value, stat]
 
@@ -113,6 +127,12 @@ static func format_delta_line(stat: String, delta: float) -> String:
 			return "%s%.0f%% SPD" % [delta_sign, delta]
 		"staminaMax":
 			return "%s%.0f STA" % [delta_sign, delta]
+		"bonusDamage":
+			return "%s%.0f DMG" % [delta_sign, delta]
+		"physicalDamage", "critChance", "poiseDamage", "blockReduction", "damageReduction":
+			return "%s%.0f%% %s" % [delta_sign, delta * 100.0, stat]
+		"staminaRegen", "staminaCostReduction", "moveSpeed", "lootQuality", "xpGain", "goldFind", "cooldownReduction":
+			return "%s%.0f%% %s" % [delta_sign, delta * 100.0, stat]
 		_:
 			return "%s%.0f %s" % [delta_sign, delta, stat]
 
@@ -127,6 +147,8 @@ static func _add_instance_stats(
 	var base_stats: Dictionary = def.get("stats", {})
 	for stat in STAT_KEYS:
 		totals[stat] = totals.get(stat, 0.0) + float(base_stats.get(stat, 0.0))
+	for flat_stat in FLAT_DAMAGE_STAT_KEYS:
+		totals["bonusDamage"] = totals.get("bonusDamage", 0.0) + float(base_stats.get(flat_stat, 0.0))
 	for affix in instance.get("affixes", []):
 		if not affix is Dictionary:
 			continue

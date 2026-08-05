@@ -2,7 +2,7 @@ extends Area3D
 
 ## Collectible crystal for final boss puzzle phase.
 
-const DioramaSkin := preload("res://scripts/art/diorama_interactable_skin.gd")
+const DioramaSkin := preload("res://scripts/art/props/diorama_interactable_skin.gd")
 
 signal collected
 

@@ -1,6 +1,6 @@
 [gd_scene load_steps=2 format=3 uid="uid://diorama_prop_kit"]
 
-[ext_resource type="Script" path="res://scripts/art/diorama_prop_kit.gd" id="1_kit"]
+[ext_resource type="Script" path="res://scripts/art/props/diorama_prop_kit.gd" id="1_kit"]
 
 [node name="DioramaPropKit" type="Node3D"]
 script = ExtResource("1_kit")

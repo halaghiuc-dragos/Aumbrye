@@ -6,7 +6,7 @@
     "gridHeight":  2,
     "stackSize":  1,
     "rarity":  "rare",
-    "description":  "M6 content item.",
+    "description":  "A shard of eternal ice warms only when your pulse slows.",
     "value":  20,
     "stats":  {
                   "frostDamage":  6,

@@ -21,7 +21,7 @@ var _wave_ui: Control
 var _lobby_active := true
 var _prep_countdown := 0.0
 const WavesOutdoorsDioramaScript := preload("res://scripts/dungeon/waves_outdoors_diorama.gd")
-const CharacterFloorSnapScript := preload("res://scripts/art/character_floor_snap.gd")
+const CharacterFloorSnapScript := preload("res://scripts/art/characters/character_floor_snap.gd")
 
 var _bird_time := 0.0
 

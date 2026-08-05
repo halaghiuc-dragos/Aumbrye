@@ -1,11 +1,12 @@
 {
   "id": "venom_mire",
   "biomeId": "venom_mire",
-  "ambienceFreq": 95,
-  "exploreFreq": 100,
-  "combatFreq": 120,
-  "bossFreq": 180,
-  "ambiencePath": "res://assets/audio/castle/ambience_loop.wav",
-  "bossPath": "res://assets/audio/castle/boss_theme.wav",
-  "crossfadeSeconds": 0.8
+  "ambienceFreq": 78,
+  "exploreFreq": 84,
+  "combatFreq": 102,
+  "bossFreq": 148,
+  "ambiencePath": "res://assets/audio/venom_mire/ambience_loop.ogg",
+  "bossPath": "res://assets/audio/venom_mire/boss_theme.ogg",
+  "reverbPreset": "swamp",
+  "crossfadeSeconds": 0.85
 }

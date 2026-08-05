@@ -1,0 +1,9 @@
+{
+  "id": "sentinel",
+  "name": "Sentinel",
+  "description": "Defensive spearman with high poise and block skill.",
+  "startingWeaponItemId": "guard_spear",
+  "statBonuses": { "poise": 15, "blockReduction": 0.03 },
+  "allowedWeapons": ["guard_spear", "castle_sword", "castle_buckler", "iron_sword"],
+  "perk": "bulwark"
+}

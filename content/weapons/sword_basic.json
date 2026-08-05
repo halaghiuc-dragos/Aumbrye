@@ -1,7 +1,10 @@
 {
   "id": "sword_basic",
   "name": "Basic Sword",
+  "archetype": "sword",
+  "damage_type": "physical",
   "buffer_window": 0.2,
+  "scaling": { "physicalDamage": 1.0 },
   "light_attacks": [
     {
       "damage": 12,

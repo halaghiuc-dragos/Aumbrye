@@ -2,7 +2,7 @@ extends Area3D
 
 ## World item pickup — adds to grid inventory on interact (INV-2.1).
 
-const DioramaSkin := preload("res://scripts/art/diorama_interactable_skin.gd")
+const DioramaSkin := preload("res://scripts/art/props/diorama_interactable_skin.gd")
 
 @export var item_id := "iron_scrap"
 @export var quantity := 1

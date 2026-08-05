@@ -112,7 +112,7 @@ func _test_lock_on_advance_on_death() -> void:
 		health.take_damage(health.max_health + 10.0)
 		await ctx.await_physics(2)
 		if lock_on.current_target == enemy_a:
-			lock_on._update_lock()
+			lock_on._update_lock(0.0)
 		await ctx.await_physics(1)
 		var start := Time.get_ticks_msec()
 		var advanced := lock_on.is_locked and lock_on.current_target == enemy_b

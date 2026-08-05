@@ -2,6 +2,9 @@ extends Control
 
 ## In-run UI for Umbral Waves lobby, combat, prep, and reward pick.
 
+const GameUISkinScript := preload("res://scripts/ui/game_ui_skin.gd")
+const MenuShellScript := preload("res://scripts/ui/menu_shell.gd")
+
 var _label: Label
 var _ready_button: Button
 var _reward_box: VBoxContainer
@@ -16,17 +19,17 @@ func _ready() -> void:
 	panel.set_anchors_preset(Control.PRESET_TOP_WIDE)
 	panel.offset_bottom = 120.0
 	add_child(panel)
+	GameUISkinScript.style_panel(panel)
 	var margin := MarginContainer.new()
 	panel.add_child(margin)
 	var vbox := VBoxContainer.new()
 	margin.add_child(vbox)
 	_label = Label.new()
 	_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	GameUISkinScript.style_body_label(_label)
 	vbox.add_child(_label)
-	_ready_button = Button.new()
-	_ready_button.text = "Ready — start waves"
+	_ready_button = MenuShellScript.make_menu_button("Ready — start waves", _on_ready_pressed)
 	_ready_button.visible = false
-	_ready_button.pressed.connect(_on_ready_pressed)
 	vbox.add_child(_ready_button)
 	_reward_box = VBoxContainer.new()
 	_reward_box.visible = false
@@ -75,11 +78,11 @@ func show_reward_pick() -> void:
 			continue
 		var btn := Button.new()
 		btn.text = "Take %s" % item_id
+		btn.toggle_mode = true
 		btn.pressed.connect(_on_pick_reward.bind(item_id, btn))
+		GameUISkinScript.wire_button_sfx(btn)
 		_reward_box.add_child(btn)
-	var confirm := Button.new()
-	confirm.text = "Confirm selection"
-	confirm.pressed.connect(_on_confirm_rewards)
+	var confirm := MenuShellScript.make_menu_button("Confirm selection", _on_confirm_rewards)
 	_reward_box.add_child(confirm)
 
 

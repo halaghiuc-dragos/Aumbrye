@@ -13,7 +13,12 @@
     "damage_type": { "type": "string" },
     "status_on_hit": { "type": "string" },
     "draw_time": { "type": "number", "minimum": 0 },
+    "lunge_distance": { "type": "number", "minimum": 0 },
     "buffer_window": { "type": "number", "minimum": 0 },
+    "scaling": {
+      "type": "object",
+      "additionalProperties": { "type": "number" }
+    },
     "light_attacks": {
       "type": "array",
       "minItems": 1,
@@ -33,6 +38,7 @@
         "startup": { "type": "number", "minimum": 0 },
         "active": { "type": "number", "minimum": 0 },
         "recovery": { "type": "number", "minimum": 0 },
+        "lunge_distance": { "type": "number", "minimum": 0 },
         "damage_type": { "type": "string" },
         "status": { "type": "string" },
         "status_stacks": { "type": "integer", "minimum": 1 }

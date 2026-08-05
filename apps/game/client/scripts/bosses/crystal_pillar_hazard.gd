@@ -2,7 +2,7 @@ extends Node3D
 
 ## Crystal pillar hazard — telegraphed arcane zone (BOSS-5.1).
 
-const DioramaSkin := preload("res://scripts/art/diorama_interactable_skin.gd")
+const DioramaSkin := preload("res://scripts/art/props/diorama_interactable_skin.gd")
 
 enum State { TELEGRAPH, ACTIVE, FADE }
 

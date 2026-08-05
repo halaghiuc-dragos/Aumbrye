@@ -105,6 +105,11 @@ func _unhandled_input(event: InputEvent) -> void:
 func _refresh_continue_state() -> void:
 	var can_continue := LocalSave.has_continuable_run()
 	_continue_button.disabled = not can_continue
+	var weapon_id := InventoryService.inventory.get_equipped_weapon_id()
+	var weapon_name := "None"
+	if weapon_id != "":
+		weapon_name = str(ItemCatalog.get_definition(weapon_id).get("name", weapon_id))
+	_new_button.disabled = weapon_id == ""
 	if can_continue:
 		var saved := LocalSave.get_active_run()
 		var dungeon_id := str(saved.get("dungeonId", saved.get("biomeId", DungeonCatalog.DEFAULT_DUNGEON_ID)))
@@ -117,6 +122,10 @@ func _refresh_continue_state() -> void:
 		]
 	else:
 		_status_label.text = "Clear 10 floors to unlock the next tier."
+	if weapon_id == "":
+		_status_label.text = "Equip a weapon before entering the dungeon."
+	else:
+		_status_label.text = "%s | Weapon: %s" % [_status_label.text, weapon_name]
 
 
 func _show_main_panel() -> void:
@@ -151,6 +160,9 @@ func _refresh_seed_hint() -> void:
 
 
 func _on_new_pressed() -> void:
+	if InventoryService.inventory.get_equipped_weapon_id() == "":
+		_status_label.text = "Equip a weapon before entering the dungeon."
+		return
 	close_menu()
 	dungeon_run_requested.emit(_selected_dungeon)
 

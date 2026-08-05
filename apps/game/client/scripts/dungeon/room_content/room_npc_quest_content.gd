@@ -1,10 +1,12 @@
 extends "res://scripts/dungeon/room_content/room_content_base.gd"
 
 var _quest_key_id := ""
+var _dialogue_id := "dungeon_npc_stranded"
 
 
 func configure(entry: Dictionary, _definition: Dictionary) -> void:
 	_quest_key_id = str(entry.get("questKeyId", ""))
+	_dialogue_id = str(entry.get("dialogueId", _dialogue_id))
 	var npc := Node3D.new()
 	npc.name = "QuestNpc"
 	var interact := Area3D.new()
@@ -40,6 +42,11 @@ func _unhandled_input(event: InputEvent) -> void:
 	var area := get_node_or_null("QuestNpc/InteractArea") as Area3D
 	if area == null or not area.get_meta("near_player", false):
 		return
+	var dialogue_ui := get_tree().get_first_node_in_group("dialogue_ui")
+	if dialogue_ui and dialogue_ui.has_method("start_dialogue"):
+		if dialogue_ui.call("start_dialogue", _dialogue_id):
+			get_viewport().set_input_as_handled()
+			return
 	if _quest_key_id != "":
 		WorldState.set_flag("quest_%s_active" % _quest_key_id, true)
 	get_viewport().set_input_as_handled()

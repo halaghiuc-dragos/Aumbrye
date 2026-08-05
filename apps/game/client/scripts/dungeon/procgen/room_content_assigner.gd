@@ -41,6 +41,10 @@ static func _try_assign_once(
 	rng: RandomNumberGenerator,
 	config: RoomContentConfig
 ) -> Dictionary:
+	var pre_boss_layout := ""
+	var boss_idx := critical_layout.find(graph.boss_id)
+	if boss_idx > 0:
+		pre_boss_layout = critical_layout[boss_idx - 1]
 	var room_content: Array = []
 	var reserved_semantics := _reserved_semantics(graph, assignment, layout_semantic)
 	var no_trap_semantics := reserved_semantics.duplicate()
@@ -74,6 +78,14 @@ static func _try_assign_once(
 			continue
 		if semantic in reserved_semantics:
 			room_content.append(_entry_for_special(room, slot))
+			continue
+		if layout_id == pre_boss_layout:
+			room_content.append({
+				"roomId": semantic,
+				"layoutId": layout_id,
+				"contentType": RoomContentTypes.COMBAT,
+				"templateId": "",
+			})
 			continue
 		var on_critical := critical_set.has(semantic)
 		var dist: int = int(distances.get(layout_id, 0))
@@ -115,8 +127,21 @@ static func _pick_content_type(
 	config: RoomContentConfig
 ) -> String:
 	if is_dead_end:
-		return RoomContentTypes.REWARD
+		var dead_roll := rng.randf()
+		if dead_roll < 0.30:
+			return RoomContentTypes.LORE
+		if dead_roll < 0.55:
+			return RoomContentTypes.REWARD
+		if dead_roll < 0.65:
+			return RoomContentTypes.EMPTY
+		if dead_roll < 0.85:
+			return RoomContentTypes.COMBAT
+		return RoomContentTypes.EMPTY
 	if on_critical:
+		if distance > 0 and distance % 4 == 0 and distance < 6:
+			return RoomContentTypes.REST if rng.randf() < 0.65 else RoomContentTypes.EMPTY
+		if distance <= 2:
+			return RoomContentTypes.COMBAT if rng.randf() < 0.75 else RoomContentTypes.EMPTY
 		return RoomContentTypes.COMBAT if rng.randf() < 0.88 else RoomContentTypes.EMPTY
 	if distance < config.min_off_path_distance:
 		return RoomContentTypes.COMBAT
@@ -125,8 +150,13 @@ static func _pick_content_type(
 	var weights := {
 		RoomContentTypes.TRAP: 0.0 if no_trap else config.weight_trap,
 		RoomContentTypes.HAZARD: 0.0 if no_trap else config.weight_hazard,
+		RoomContentTypes.PUZZLE: config.weight_puzzle if config.weight_puzzle > 0.0 else 0.0,
+		RoomContentTypes.NPC_QUEST: (
+			config.weight_npc_quest if config.enable_npc_quest and config.weight_npc_quest > 0.0 else 0.0
+		),
 		RoomContentTypes.COMBAT: config.weight_combat,
 		RoomContentTypes.EMPTY: config.weight_empty,
+		RoomContentTypes.MERCHANT: config.weight_merchant,
 	}
 	for content_type in weights:
 		cumulative += float(weights[content_type])
@@ -264,6 +294,56 @@ static func _reserved_semantics(
 	if graph.treasure_id != "":
 		reserved.append(layout_semantic.get(graph.treasure_id, "treasure"))
 	return reserved
+
+
+static func build_branch_previews(
+	graph: RoomGraph,
+	assignment: Dictionary,
+	room_content: Array
+) -> Array:
+	var layout_semantic := _layout_to_semantic(assignment)
+	var content_by_room: Dictionary = {}
+	for entry in room_content:
+		if entry is Dictionary:
+			content_by_room[str(entry.get("roomId", ""))] = str(entry.get("contentType", RoomContentTypes.COMBAT))
+	var critical_layout: Array[String] = RoomGraphPaths.critical_path_ids(graph)
+	var critical_layout_set := {}
+	for layout_id in critical_layout:
+		critical_layout_set[layout_id] = true
+	var adj := RoomGraphPaths.build_adjacency(graph)
+	var previews: Array = []
+	var seen: Dictionary = {}
+	for layout_id in adj:
+		for neighbor_layout in adj.get(layout_id, []):
+			if critical_layout_set.has(neighbor_layout):
+				continue
+			var from_sem := str(layout_semantic.get(layout_id, layout_id))
+			var to_sem := str(layout_semantic.get(neighbor_layout, neighbor_layout))
+			var key := "%s>%s" % [from_sem, to_sem]
+			if seen.has(key):
+				continue
+			seen[key] = true
+			previews.append({
+				"fromRoomId": from_sem,
+				"toRoomId": to_sem,
+				"hint": _preview_hint_for_content(content_by_room.get(to_sem, RoomContentTypes.COMBAT)),
+			})
+	previews.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
+		var ak := "%s>%s" % [a.get("fromRoomId", ""), a.get("toRoomId", "")]
+		var bk := "%s>%s" % [b.get("fromRoomId", ""), b.get("toRoomId", "")]
+		return ak < bk
+	)
+	return previews
+
+
+static func _preview_hint_for_content(content_type: String) -> String:
+	match content_type:
+		RoomContentTypes.REWARD, RoomContentTypes.LORE, RoomContentTypes.REST, \
+		RoomContentTypes.MERCHANT, RoomContentTypes.LOCKED_VAULT, RoomContentTypes.NPC_QUEST, \
+		RoomContentTypes.EMPTY, RoomContentTypes.PUZZLE:
+			return "reward"
+		_:
+			return "danger"
 
 
 static func _layout_to_semantic(assignment: Dictionary) -> Dictionary:

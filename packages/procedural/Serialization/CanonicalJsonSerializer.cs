@@ -60,6 +60,9 @@ public static class CanonicalJsonSerializer
         ["enemyThreat"] = def.Budgets.EnemyThreat,
         ["lootValue"] = def.Budgets.LootValue,
       },
+      ["roomContent"] = def.RoomContent?.ToList() ?? new List<object>(),
+      ["locks"] = def.Locks?.ToList() ?? new List<object>(),
+      ["puzzles"] = def.Puzzles?.ToList() ?? new List<object>(),
     };
     if (def.Checksum != null)
       root["checksum"] = def.Checksum;

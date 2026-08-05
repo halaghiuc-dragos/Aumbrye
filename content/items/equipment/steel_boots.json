@@ -6,7 +6,7 @@
     "gridHeight":  2,
     "stackSize":  1,
     "rarity":  "magic",
-    "description":  "M6 content item.",
+    "description":  "Steel shanks that keep footing on blood-slick flagstones.",
     "value":  20,
     "stats":  {
                   "moveSpeed":  0.03,

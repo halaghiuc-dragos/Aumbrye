@@ -13,6 +13,9 @@ public sealed record DungeonDefinition(
     DungeonBudgets Budgets,
     int FloorIndex = 1,
     bool IsFinalFloor = false,
+    IReadOnlyList<object>? RoomContent = null,
+    IReadOnlyList<object>? Locks = null,
+    IReadOnlyList<object>? Puzzles = null,
     string? Checksum = null);
 
 public sealed record DungeonRoom(

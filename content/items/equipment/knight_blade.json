@@ -6,10 +6,11 @@
     "gridHeight":  2,
     "stackSize":  1,
     "rarity":  "rare",
-    "description":  "M6 content item.",
+    "description":  "Heavier than a patrol sword, favored by oath-sworn knights.",
     "value":  20,
     "stats":  {
                   "physicalDamage":  18
               },
-    "equipmentSlot":  "weapon"
+    "equipmentSlot":  "weapon",
+    "weaponId": "castle_sword"
 }

@@ -9,7 +9,7 @@ var boss_id: String = ""
 var secret_ids: Array[String] = []
 var treasure_id: String = ""
 var stairs_id: String = ""
-var obstacle_id: String = ""
+var walk_edges: Array = [] # [{a: Vector2i, b: Vector2i}, ...] spanning-tree edges
 var config: RoomGraphConfig
 
 

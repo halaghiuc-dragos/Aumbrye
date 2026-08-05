@@ -25,7 +25,8 @@
     { "enemyId": "miniboss_castle_captain", "weight": 1 }
   ],
   "bossPool": [
-    { "enemyId": "boss_castle_knight" }
+    { "enemyId": "boss_castle_knight" },
+    { "enemyId": "miniboss_castle_captain" }
   ],
   "budgets": {
     "baseEnemyThreat": 200,

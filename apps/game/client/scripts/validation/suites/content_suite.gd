@@ -124,7 +124,16 @@ func _test_room_templates() -> void:
 
 
 func _test_audio_director() -> void:
-	var methods := ["play_dungeon_ambience", "play_boss_music", "stop_all"]
+	var methods := [
+		"play_dungeon_ambience",
+		"play_boss_music",
+		"stop_all",
+		"play_sfx",
+		"play_combat_sfx",
+		"play_ui_sfx",
+		"register_combat_engagement",
+		"unregister_combat_engagement",
+	]
 	for method_name in methods:
 		var start := Time.get_ticks_msec()
 		ctx.timed_record(
@@ -135,3 +144,35 @@ func _test_audio_director() -> void:
 			start,
 			"M2.audio.director"
 		)
+	_test_audio_profile_files()
+
+
+func _test_audio_profile_files() -> void:
+	for biome_id in BiomeRegistry.ALL_BIOMES:
+		var start := Time.get_ticks_msec()
+		var path := BiomeRegistry.get_audio_profile_path(biome_id)
+		var profile: Dictionary = ContentLoader.load_json(path)
+		var ambience_path: String = profile.get("ambiencePath", "")
+		var boss_path: String = profile.get("bossPath", "")
+		var ambience_ok := ambience_path == "" or _audio_profile_path_exists(ambience_path)
+		var boss_ok := boss_path == "" or _audio_profile_path_exists(boss_path)
+		ctx.timed_record(
+			"content.audio_profile_%s" % biome_id,
+			get_category(),
+			not profile.is_empty() and ambience_ok and boss_ok,
+			"audio profile resolves for %s" % biome_id,
+			start,
+			"M2.audio.profile.%s" % biome_id
+		)
+
+
+func _audio_profile_path_exists(path: String) -> bool:
+	if path == "":
+		return true
+	if ResourceLoader.exists(path):
+		return true
+	if path.ends_with(".ogg"):
+		return ResourceLoader.exists(path.substr(0, path.length() - 4) + ".wav")
+	if path.ends_with(".wav"):
+		return ResourceLoader.exists(path.substr(0, path.length() - 4) + ".ogg")
+	return false

@@ -14,13 +14,21 @@ public static class EnemyCatalog
 
     private static readonly Lazy<Dictionary<string, EnemyDefinition>> ById = new(LoadAll);
 
+    private static readonly Dictionary<string, string> LegacyAliases = new(StringComparer.Ordinal)
+    {
+        ["castle_knight"] = "boss_castle_knight",
+    };
+
     public static EnemyDefinition GetRequired(string enemyId) =>
-        ById.Value.TryGetValue(enemyId, out var def)
+        ById.Value.TryGetValue(ResolveId(enemyId), out var def)
             ? def
             : throw new ArgumentException($"Unknown enemy id: {enemyId}", nameof(enemyId));
 
     public static bool TryGet(string enemyId, out EnemyDefinition? definition) =>
-        ById.Value.TryGetValue(enemyId, out definition);
+        ById.Value.TryGetValue(ResolveId(enemyId), out definition);
+
+    private static string ResolveId(string enemyId) =>
+        LegacyAliases.TryGetValue(enemyId, out var resolved) ? resolved : enemyId;
 
     public static int GetThreatCost(string enemyId) => GetRequired(enemyId).ThreatCost;
 

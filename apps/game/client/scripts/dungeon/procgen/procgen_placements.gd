@@ -12,6 +12,13 @@ const SPAWN_OFFSETS := [
 	Vector3(3, 0, -2),
 ]
 
+const COVER_OFFSETS := [
+	Vector3(-3, 0, -2),
+	Vector3(3, 0, 2),
+	Vector3(0, 0, -4),
+	Vector3(-2, 0, 3),
+]
+
 
 static func place(
 	biome: Dictionary,
@@ -19,16 +26,19 @@ static func place(
 	run_seed: int,
 	tier: int,
 	player_level: int,
-	rng: RandomNumberGenerator
+	rng: RandomNumberGenerator,
+	graph: RoomGraph = null
 ) -> Dictionary:
-	var enemies_result := _place_enemies(biome, assignment, tier, player_level, rng)
-	var loot_result := _place_loot(biome, assignment, enemies_result["enemies"], run_seed, tier, player_level, rng)
+	var enemies_result := _place_enemies(biome, assignment, tier, player_level, rng, graph)
+	var loot_result := _place_loot(biome, assignment, enemies_result["enemies"], run_seed, tier, player_level, rng, graph)
+	var cover := _place_cover(assignment, rng, graph)
 	return {
 		"enemies": enemies_result["enemies"],
 		"loot": loot_result["loot"],
 		"puzzles": [],
 		"traps": loot_result["traps"],
 		"secrets": loot_result["secrets"],
+		"cover": cover,
 		"boss": loot_result["boss"],
 		"exit": loot_result["exit"],
 		"entrance": loot_result["entrance"],
@@ -42,7 +52,8 @@ static func _place_enemies(
 	assignment: Dictionary,
 	tier: int,
 	player_level: int,
-	rng: RandomNumberGenerator
+	rng: RandomNumberGenerator,
+	graph: RoomGraph = null
 ) -> Dictionary:
 	var budgets: Dictionary = biome.get("budgets", {})
 	var budget := (
@@ -62,7 +73,12 @@ static func _place_enemies(
 	for room in combat_rooms:
 		if room.get("type", "") == "filler":
 			continue
-		var max_per_room := rng.randi_range(1, 2)
+		var depth := 0
+		if graph != null:
+			var slot := graph.get_slot(room["layout_id"])
+			if slot:
+				depth = slot.graph_distance
+		var max_per_room := rng.randi_range(1, mini(3, 1 + int(depth / 3.0)))
 		for i in max_per_room:
 			var placed := false
 			for _attempt in 4:
@@ -80,6 +96,7 @@ static func _place_enemies(
 					"roomId": room["semantic_id"],
 					"enemyId": enemy_id,
 					"offset": {"x": offset.x, "y": offset.y, "z": offset.z},
+					"sampleNavmesh": true,
 				})
 				threat_used += threat_cost
 				placed = true
@@ -96,7 +113,8 @@ static func _place_loot(
 	run_seed: int,
 	_tier: int,
 	_player_level: int,
-	_rng: RandomNumberGenerator
+	_rng: RandomNumberGenerator,
+	graph: RoomGraph = null
 ) -> Dictionary:
 	var biome_id := str(biome.get("id", "forgotten_castle"))
 	var loot: Array = []
@@ -113,7 +131,23 @@ static func _place_loot(
 		))
 	for room in rooms:
 		if room.get("type", "") == "secret":
-			secrets.append({"roomId": room["semantic_id"]})
+			var layout_id: String = room.get("layout_id", "")
+			var mechanism := "illusory_wall"
+			var parent_room_id := ""
+			if graph != null:
+				var secret_slot := graph.get_slot(layout_id)
+				if secret_slot:
+					mechanism = secret_slot.secret_mechanism if secret_slot.secret_mechanism != "" else "illusory_wall"
+					if secret_slot.secret_parent_id != "":
+						for parent_room in rooms:
+							if parent_room.get("layout_id", "") == secret_slot.secret_parent_id:
+								parent_room_id = parent_room.get("semantic_id", "")
+								break
+			secrets.append({
+				"roomId": room["semantic_id"],
+				"mechanism": mechanism,
+				"parentRoomId": parent_room_id,
+			})
 			loot.append(_loot_placement(
 				room["semantic_id"],
 				"secret_vault_%d" % secrets.size(),
@@ -131,11 +165,21 @@ static func _place_loot(
 		var side_rng := RandomNumberGenerator.new()
 		side_rng.seed = run_seed ^ 0x51DE
 		var side_room: Dictionary = combat_rooms[side_rng.randi_range(0, combat_rooms.size() - 1)]
+		var side_depth := 0
+		if graph != null:
+			var side_slot := graph.get_slot(side_room["layout_id"])
+			if side_slot:
+				side_depth = side_slot.graph_distance
+		var side_items := ProcgenLootTables.side_loot(biome_id)
+		if side_depth >= 6:
+			side_items = ProcgenLootTables.armory_loot(biome_id)
+		elif side_depth >= 4:
+			side_items = ProcgenLootTables.treasure_loot(biome_id)
 		loot.append(_loot_placement(
 			side_room["semantic_id"],
 			"%s_side" % side_room["semantic_id"],
 			Vector3(7, 0, 6),
-			ProcgenLootTables.side_loot(biome_id)
+			side_items
 		))
 	if combat_rooms.size() > 1:
 		var armory_room: Dictionary = combat_rooms[1]
@@ -151,6 +195,7 @@ static func _place_loot(
 			"roomId": corridor["semantic_id"],
 			"trapId": ProcgenLootTables.corridor_trap(biome_id),
 			"offset": {"x": 0.0, "y": 0.0, "z": 4.0},
+			"sampleNavmesh": true,
 		})
 	if combat_rooms.size() > 0:
 		var trap_rng := RandomNumberGenerator.new()
@@ -160,6 +205,7 @@ static func _place_loot(
 			"roomId": trap_room["semantic_id"],
 			"trapId": "falling_trap",
 			"offset": {"x": -2.0, "y": 3.0, "z": -5.0},
+			"sampleNavmesh": true,
 		})
 	var boss_rng := RandomNumberGenerator.new()
 	boss_rng.seed = run_seed ^ 0xB055
@@ -187,6 +233,23 @@ static func _place_loot(
 		"entrance": entrance_room["semantic_id"],
 		"loot_value": _estimate_loot_value(loot),
 	}
+
+
+static func _place_cover(assignment: Dictionary, rng: RandomNumberGenerator, _graph: RoomGraph = null) -> Array:
+	var cover: Array = []
+	for room in assignment.get("rooms", []):
+		if room.get("type", "") != "combat":
+			continue
+		var pillar_count := rng.randi_range(2, 3)
+		for i in pillar_count:
+			var offset: Vector3 = COVER_OFFSETS[i % COVER_OFFSETS.size()]
+			cover.append({
+				"roomId": room["semantic_id"],
+				"offset": {"x": offset.x, "y": 0.0, "z": offset.z},
+				"size": {"x": 1.2, "y": 2.4, "z": 1.2},
+				"kind": "pillar" if i % 2 == 0 else "chokepoint",
+			})
+	return cover
 
 
 static func _loot_placement(room_id: String, chest_id: String, offset: Vector3, items: Array) -> Dictionary:

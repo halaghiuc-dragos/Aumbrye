@@ -14,10 +14,13 @@ public sealed class CountingDungeonGenerator : IDungeonGenerator
         int seed,
         int tier,
         int playerLevel,
-        Guid runId)
+        Guid runId,
+        int floorIndex = 1,
+        bool isFinalFloor = false)
     {
         GenerateCallCount++;
-        var result = DungeonGenerator.Generate(biomeId, seed, tier, playerLevel, runId);
+        var result = DungeonGenerator.Generate(
+            biomeId, seed, tier, playerLevel, runId, floorIndex, isFinalFloor);
         return (result.Json, result.Definition.Checksum);
     }
 }

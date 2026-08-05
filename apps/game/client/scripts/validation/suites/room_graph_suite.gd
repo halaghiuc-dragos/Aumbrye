@@ -15,6 +15,8 @@ func run() -> void:
 	_test_phase1_deterministic()
 	_test_phase1_ascii()
 	_test_phase1_validation_fields()
+	_test_phase1_variation()
+	_test_phase1_no_fallback()
 	_test_full_pipeline()
 
 
@@ -87,12 +89,53 @@ func _test_phase1_validation_fields() -> void:
 	)
 
 
+func _test_phase1_variation() -> void:
+	var start := Time.get_ticks_msec()
+	var biome := ProcgenBiomeLoaderScript.load("forgotten_castle")
+	var config := RoomGraphConfigScript.from_biome(biome)
+	var result_a := RoomGraphGeneratorScript.generate(config, TC.SEED_A)
+	var result_b := RoomGraphGeneratorScript.generate(config, TC.SEED_B)
+	var graph_a: RoomGraph = result_a.get("graph")
+	var graph_b: RoomGraph = result_b.get("graph")
+	var sig_a := "|".join(graph_a.occupied_ids())
+	var sig_b := "|".join(graph_b.occupied_ids())
+	var ok: bool = result_a.get("ok", false) and result_b.get("ok", false) and sig_a != sig_b
+	ctx.timed_record(
+		"room_graph.phase1_variation",
+		get_category(),
+		ok,
+		"Different seeds produce different layout signatures",
+		start,
+		"M8.room_graph.variation"
+	)
+
+
+func _test_phase1_no_fallback() -> void:
+	var start := Time.get_ticks_msec()
+	var biome := ProcgenBiomeLoaderScript.load("forgotten_castle")
+	var config := RoomGraphConfigScript.from_biome(biome)
+	var result := RoomGraphGeneratorScript.generate(config, TC.SEED_A)
+	var ok: bool = result.get("ok", false) and not result.get("used_fallback", false)
+	ctx.timed_record(
+		"room_graph.phase1_no_fallback",
+		get_category(),
+		ok,
+		"Phase 1 generation does not use fallback layout for seed %d" % TC.SEED_A,
+		start,
+		"M8.room_graph.no_fallback"
+	)
+
+
 func _test_full_pipeline() -> void:
 	var start := Time.get_ticks_msec()
 	var gen := DungeonProcgenScript.generate("forgotten_castle", TC.SEED_A, 1, 1, 1, false, false)
 	var def: Dictionary = gen.get("definition", {})
 	var rooms: Array = def.get("rooms", [])
-	var ok: bool = gen.get("ok", false) and rooms.size() >= 8
+	var ok: bool = (
+		gen.get("ok", false)
+		and rooms.size() >= 8
+		and not gen.get("used_fallback", false)
+	)
 	ctx.timed_record(
 		"room_graph.full_pipeline",
 		get_category(),

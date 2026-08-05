@@ -1,0 +1,9 @@
+{
+  "id": "rogue",
+  "name": "Rogue",
+  "description": "Fast striker favoring daggers and critical hits.",
+  "startingWeaponItemId": "rogue_dagger",
+  "statBonuses": { "moveSpeed": 0.05, "critChance": 0.02 },
+  "allowedWeapons": ["rogue_dagger", "swamp_toxin_dagger", "venom_dagger", "cathedral_shadow_dagger", "hunter_bow"],
+  "perk": "shadowstep"
+}

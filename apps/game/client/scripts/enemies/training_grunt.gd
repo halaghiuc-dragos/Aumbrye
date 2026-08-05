@@ -4,8 +4,8 @@ enum State { IDLE, WINDUP, ATTACK, RECOVERY, STAGGER, DEAD }
 
 const ENEMY_ID := "training_grunt"
 const HP_BAR_SCRIPT := preload("res://scripts/ui/training_dummy_health_bar.gd")
-const CharacterSkin := preload("res://scripts/art/diorama_character_skin.gd")
-const AnimControllerScript := preload("res://scripts/art/diorama_anim_controller.gd")
+const CharacterSkin := preload("res://scripts/art/characters/diorama_character_skin.gd")
+const AnimControllerScript := preload("res://scripts/art/characters/diorama_anim_controller.gd")
 
 signal attack_telegraph_started
 signal attack_active
@@ -216,7 +216,14 @@ func _face_player() -> void:
 
 
 func _on_died() -> void:
-	reset_enemy()
+	_state = State.DEAD
+	velocity = Vector3.ZERO
+	if _hitbox:
+		_hitbox.disable()
+	if _hurtbox:
+		_hurtbox.monitorable = false
+	if _animator and _animator.is_bound():
+		_animator.play_death()
 
 
 func _on_poise_broken() -> void:

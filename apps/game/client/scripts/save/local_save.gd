@@ -31,6 +31,9 @@ func load_into_services() -> bool:
 		return false
 	var data: Dictionary = parsed
 	data = SaveMigrator.migrate(data)
+	if data.get("migrationFailed", false):
+		_handle_corrupt_save(str(data.get("migrationReason", "migration_failed")))
+		return false
 	if not _validate_save(data):
 		_handle_corrupt_save("corrupt_schema")
 		return false
@@ -41,6 +44,11 @@ func load_into_services() -> bool:
 
 var _cached_state: Dictionary = {}
 var _cloud_updated_at: String = ""
+
+enum BootMode { NONE, NEW_GAME, CONTINUE_MAIN, CONTINUE_BACKUP }
+var _boot_mode: BootMode = BootMode.NONE
+var _boot_backup_index: int = -1
+var _pending_new_game: Dictionary = {}
 
 
 func _ready() -> void:
@@ -65,11 +73,161 @@ func set_first_person_camera(enabled: bool) -> void:
 
 
 func get_level() -> int:
+	if ProgressionService:
+		return ProgressionService.level
 	return int(_character().get("level", 1))
 
 
 func get_xp() -> int:
 	return int(_character().get("xp", 0))
+
+
+func get_character_name() -> String:
+	return str(_character().get("name", "Wanderer"))
+
+
+func set_character_profile(character_name: String, class_id: String = "") -> void:
+	var character := _character()
+	if character.is_empty():
+		character = _default_character()
+	character["name"] = character_name
+	if class_id != "":
+		character["classId"] = class_id
+	_cached_state["character"] = character
+	autosave()
+
+
+func set_appearance_theme(theme: int) -> void:
+	var character := _character()
+	if character.is_empty():
+		character = _default_character()
+	character["appearanceTheme"] = theme
+	_cached_state["character"] = character
+	if CharacterService:
+		CharacterService.appearance_theme = theme
+	autosave()
+
+
+func get_appearance_theme() -> int:
+	return int(_character().get("appearanceTheme", CharacterService.appearance_theme if CharacterService else 0))
+
+
+func has_playable_character() -> bool:
+	if not has_save():
+		return false
+	return _read_character_summary(SAVE_PATH).get("hasCharacter", false)
+
+
+func list_character_slots() -> Array[Dictionary]:
+	var slots: Array[Dictionary] = []
+	if has_save():
+		var current := _read_character_summary(SAVE_PATH)
+		if bool(current.get("hasCharacter", false)):
+			slots.append({
+				"backupIndex": -1,
+				"label": "Current — %s (Lv%d)" % [current.get("name", "Warden"), current.get("level", 1)],
+				"detail": "Class: %s\nLast saved: %s" % [
+					current.get("classId", "?"),
+					current.get("savedAt", "unknown"),
+				],
+			})
+	for backup in list_backups():
+		var index: int = int(backup.get("index", 0))
+		var path: String = str(backup.get("path", ""))
+		var summary := _read_character_summary(path)
+		if not bool(summary.get("hasCharacter", false)):
+			continue
+		slots.append({
+			"backupIndex": index,
+			"label": "Backup %d — %s (Lv%d)" % [index, summary.get("name", "Warden"), summary.get("level", 1)],
+			"detail": "Class: %s\nSaved: %s" % [
+				summary.get("classId", "?"),
+				summary.get("savedAt", backup.get("savedAt", "?")),
+			],
+		})
+	return slots
+
+
+func queue_boot_new_game(class_id: String, character_name: String, appearance_theme: int) -> void:
+	_pending_new_game = {
+		"classId": class_id,
+		"name": character_name,
+		"appearanceTheme": appearance_theme,
+	}
+	_boot_mode = BootMode.NEW_GAME
+	_boot_backup_index = -1
+
+
+func queue_boot_continue_main() -> void:
+	_boot_mode = BootMode.CONTINUE_MAIN
+	_boot_backup_index = -1
+
+
+func queue_boot_continue_backup(index: int) -> void:
+	_boot_mode = BootMode.CONTINUE_BACKUP
+	_boot_backup_index = index
+
+
+func execute_boot() -> bool:
+	match _boot_mode:
+		BootMode.NEW_GAME:
+			return _apply_new_game_boot()
+		BootMode.CONTINUE_MAIN:
+			_boot_mode = BootMode.NONE
+			return load_into_services()
+		BootMode.CONTINUE_BACKUP:
+			var index := _boot_backup_index
+			_boot_mode = BootMode.NONE
+			_boot_backup_index = -1
+			return restore_backup(index)
+		_:
+			return load_into_services() if has_save() else false
+
+
+func _apply_new_game_boot() -> bool:
+	var data: Dictionary = _pending_new_game.duplicate()
+	_pending_new_game.clear()
+	_boot_mode = BootMode.NONE
+	_reset_to_defaults()
+	var class_id: String = str(data.get("classId", ""))
+	var character_name: String = str(data.get("name", "Warden"))
+	var appearance_theme: int = int(data.get("appearanceTheme", 0))
+	set_character_profile(character_name, class_id)
+	set_appearance_theme(appearance_theme)
+	if CharacterService:
+		CharacterService.set_class_id(class_id)
+	var starter_weapon := ClassCatalog.get_starting_weapon_item_id(class_id)
+	InventoryService.inventory.add_item(starter_weapon, 1)
+	_equip_weapon_item(starter_weapon)
+	autosave()
+	return true
+
+
+func _equip_weapon_item(item_id: String) -> void:
+	var grid := InventoryService.inventory
+	for i in grid.slots.size():
+		if grid.slots[i].get("itemId", "") == item_id:
+			grid.equip_weapon(i)
+			return
+	if grid.add_item(item_id, 1):
+		grid.equip_weapon(grid.slots.size() - 1)
+
+
+func _read_character_summary(path: String) -> Dictionary:
+	if not FileAccess.file_exists(path):
+		return {"hasCharacter": false}
+	var parsed = JSON.parse_string(_read_raw_text(path))
+	if not parsed is Dictionary:
+		return {"hasCharacter": false}
+	var character: Dictionary = parsed.get("character", {})
+	var class_id: String = str(character.get("classId", ""))
+	return {
+		"hasCharacter": class_id != "",
+		"name": str(character.get("name", "Warden")),
+		"classId": class_id,
+		"level": int(character.get("level", 1)),
+		"savedAt": str(parsed.get("cloudUpdatedAt", parsed.get("savedAt", ""))),
+	}
 
 
 func get_talents() -> Dictionary:
@@ -195,6 +353,19 @@ func delete_save() -> void:
 	_cloud_updated_at = ""
 
 
+func delete_character_slot(backup_index: int) -> bool:
+	if backup_index < 0:
+		delete_save()
+		return true
+	if backup_index >= BACKUP_COUNT:
+		return false
+	var path := _rotating_backup_path(backup_index)
+	if not FileAccess.file_exists(path):
+		return false
+	DirAccess.remove_absolute(path)
+	return true
+
+
 ## Pull cloud save; server wins on conflict (local backed up first).
 func sync_from_cloud() -> bool:
 	if ApiConfig.access_token == "":
@@ -276,7 +447,8 @@ func _apply_save_data(data: Dictionary) -> void:
 		CharacterService.from_save_dict({
 			"gold": data.get("currencies", {}).get("gold", data.get("currencies", {}).get("coins", CharacterService.DEFAULT_GOLD)),
 			"coins": data.get("currencies", {}).get("coins", data.get("currencies", {}).get("gold", CharacterService.DEFAULT_GOLD)),
-			"level": character.get("level", 1),
+			"classId": character.get("classId", ""),
+			"appearanceTheme": character.get("appearanceTheme", 0),
 			"flags": data.get("flags", {}),
 			"quests": data.get("quests", {}),
 		})
@@ -298,6 +470,10 @@ func _build_save_payload() -> Dictionary:
 	if ProgressionService:
 		character["level"] = ProgressionService.level
 		character["xp"] = ProgressionService.xp
+	if CharacterService and CharacterService.class_id != "":
+		character["classId"] = CharacterService.class_id
+	if CharacterService:
+		character["appearanceTheme"] = CharacterService.appearance_theme
 	var data := {
 		"schemaVersion": SAVE_SCHEMA_VERSION,
 		"accountId": _cached_state.get("accountId", "00000000-0000-4000-8000-000000000000"),
@@ -329,8 +505,10 @@ func _build_save_payload() -> Dictionary:
 func _default_character() -> Dictionary:
 	return {
 		"name": "Wanderer",
+		"classId": "",
 		"level": 1,
 		"xp": 0,
+		"appearanceTheme": 0,
 		"lastHubMessage": RunFlow.last_hub_message,
 		"firstPersonCamera": false,
 	}
@@ -370,6 +548,11 @@ func _reset_to_defaults() -> void:
 
 
 func _handle_corrupt_save(reason: String) -> void:
+	if FileAccess.file_exists(SAVE_PATH):
+		var stamp := Time.get_datetime_string_from_system().replace(":", "-")
+		var corrupt_path := "user://aumbrye_save.corrupt_%s.json" % stamp
+		DirAccess.copy_absolute(SAVE_PATH, corrupt_path)
+		push_error("LocalSave: corrupt save (%s) — backed up to %s" % [reason, corrupt_path])
 	save_failed.emit(reason)
 	print_verbose("LocalSave: %s — starting fresh" % reason)
 	_reset_to_defaults()

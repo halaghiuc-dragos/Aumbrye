@@ -70,6 +70,9 @@ func _refresh_list() -> void:
 
 
 func _is_weapon_unlocked(item_id: String) -> bool:
+	var class_id := CharacterService.get_class_id() if CharacterService else ""
+	if class_id != "" and not ClassCatalog.is_weapon_allowed(class_id, item_id):
+		return false
 	match item_id:
 		"castle_sword", "training_greatsword", "rogue_dagger":
 			return true

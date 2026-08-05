@@ -18,11 +18,22 @@ var _initialized := false
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
+	_resolve_app_id()
 	_initialize()
 
 
+func _resolve_app_id() -> void:
+	var env_id := OS.get_environment("AUMBRYE_STEAM_APP_ID").strip_edges()
+	if env_id != "" and env_id.is_valid_int():
+		app_id = int(env_id)
+		print_verbose("SteamService: using AUMBRYE_STEAM_APP_ID=%d" % app_id)
+
+
 func _initialize() -> void:
-	if OS.has_feature("steam"):
+	if app_id == DEV_APP_ID and not OS.has_feature("steam"):
+		_init_stub("No AUMBRYE_STEAM_APP_ID — dev stub active (set env for real Steam init)")
+		return
+	if OS.has_feature("steam") or app_id != DEV_APP_ID:
 		_try_godot_steam()
 	else:
 		_init_stub("GodotSteam not compiled — dev stub active")

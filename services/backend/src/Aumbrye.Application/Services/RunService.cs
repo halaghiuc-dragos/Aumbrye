@@ -130,6 +130,16 @@ public class RunService : IRunService
         if (input.ElapsedSeconds < 0 || input.ElapsedSeconds > 86_400)
             return new CompleteRunResult(false, runId, Error: "Invalid elapsed time.");
 
+        if (input.LootClaimedInstanceIds.Count > 64)
+            return new CompleteRunResult(false, runId, Error: "Too many loot claims.");
+
+        if (input.LootClaimedInstanceIds.Distinct(StringComparer.Ordinal).Count()
+            != input.LootClaimedInstanceIds.Count)
+            return new CompleteRunResult(false, runId, Error: "Duplicate loot instance id.");
+
+        if (input.Outcome == "escaped" && input.ElapsedSeconds < 5)
+            return new CompleteRunResult(false, runId, Error: "Elapsed time too short for escape.");
+
         foreach (var lootId in input.LootClaimedInstanceIds)
         {
             if (string.IsNullOrWhiteSpace(lootId) || !Guid.TryParse(lootId, out _))
@@ -207,9 +217,12 @@ public class ProceduralDungeonGenerator : IDungeonGenerator
         int seed,
         int tier,
         int playerLevel,
-        Guid runId)
+        Guid runId,
+        int floorIndex = 1,
+        bool isFinalFloor = false)
     {
-        var result = DungeonGenerator.Generate(biomeId, seed, tier, playerLevel, runId);
+        var result = DungeonGenerator.Generate(
+            biomeId, seed, tier, playerLevel, runId, floorIndex, isFinalFloor);
         return (result.Json, result.Definition.Checksum);
     }
 }

@@ -1,0 +1,8 @@
+disabled:
+  - class-definitions-order
+  - max-public-methods
+  - constant-name
+  - max-line-length
+
+gdformat:
+  line_length: 120

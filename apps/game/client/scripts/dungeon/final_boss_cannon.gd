@@ -2,7 +2,7 @@ extends Node3D
 
 ## Crystal cannon for final boss puzzle — load collected crystals, then fire to break shield.
 
-const DioramaSkin := preload("res://scripts/art/diorama_interactable_skin.gd")
+const DioramaSkin := preload("res://scripts/art/props/diorama_interactable_skin.gd")
 
 signal fired
 
