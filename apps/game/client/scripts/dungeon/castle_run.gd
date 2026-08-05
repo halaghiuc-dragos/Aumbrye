@@ -8,6 +8,7 @@ const BOSS_GATE_DEPTH_THRESHOLD := 4.0
 const BossIntroScript := preload("res://scripts/ui/boss_intro_ui.gd")
 const EpilogueCardScript := preload("res://scripts/ui/epilogue_card.gd")
 const StairMenuScript := preload("res://scripts/ui/stair_menu.gd")
+const CharacterFloorSnapScript := preload("res://scripts/art/characters/character_floor_snap.gd")
 const XpShardPickupScript := preload("res://scripts/progression/xp_shard_pickup.gd")
 
 @export var player_path: NodePath = NodePath("Player")
@@ -46,6 +47,7 @@ func _ready() -> void:
 	_restore_saved_snapshot()
 	_apply_floor_transition_spawn()
 	player_room_id = _find_room_id_at(_player.global_position)
+	call_deferred("_ensure_safe_player_spawn")
 	_wire_player_death()
 	_wire_player_health_autosave()
 	_wire_weapon_from_inventory()
@@ -310,6 +312,7 @@ func _restore_saved_snapshot() -> void:
 
 
 func _apply_snapshot(snapshot: Dictionary) -> void:
+	WorldState.restore_flags(snapshot.get("worldFlags", {}))
 	_builder.apply_snapshot(snapshot)
 	_boss_defeated = snapshot.get("bossDefeated", false)
 	if _boss_defeated and _boss_door:
@@ -330,6 +333,60 @@ func _apply_snapshot(snapshot: Dictionary) -> void:
 
 	if snapshot.has("playerRoomId"):
 		player_room_id = str(snapshot.get("playerRoomId", player_room_id))
+	call_deferred("_finalize_player_restore", snapshot)
+
+
+func _finalize_player_restore(snapshot: Dictionary) -> void:
+	if _player == null:
+		return
+	await get_tree().physics_frame
+	var floor_y := _raycast_floor_y(_player.global_position)
+	if not is_nan(floor_y):
+		CharacterFloorSnapScript.snap_feet_to_floor(_player, floor_y)
+	elif _find_room_id_at(_player.global_position) == "":
+		_teleport_to_safe_spawn(snapshot)
+
+
+func _ensure_safe_player_spawn() -> void:
+	if _player == null:
+		return
+	await get_tree().physics_frame
+	CharacterFloorSnapScript.snap_feet_to_floor(_player)
+	if _find_room_id_at(_player.global_position) == "":
+		_teleport_to_safe_spawn({})
+
+
+func _raycast_floor_y(world_pos: Vector3) -> float:
+	var space := _player.get_world_3d().direct_space_state
+	if space == null:
+		return NAN
+	var from := world_pos + Vector3(0.0, 3.0, 0.0)
+	var to := world_pos + Vector3(0.0, -24.0, 0.0)
+	var params := PhysicsRayQueryParameters3D.create(from, to)
+	params.collision_mask = 1
+	params.collide_with_areas = false
+	var hit := space.intersect_ray(params)
+	if hit.is_empty():
+		return NAN
+	var hit_pos: Vector3 = hit.get("position", world_pos)
+	return hit_pos.y
+
+
+func _teleport_to_safe_spawn(snapshot: Dictionary) -> void:
+	var room_id := str(snapshot.get("playerRoomId", player_room_id))
+	if room_id != "":
+		var room := _builder.get_room(room_id)
+		if room != null:
+			_player.global_position = room.get_player_spawn_global()
+			CharacterFloorSnapScript.snap_feet_to_floor(_player)
+			player_room_id = room_id
+			return
+	var entrance_id := str(_resolve_dungeon_definition().get("placements", {}).get("entrance", "entrance"))
+	var entrance := _builder.get_room(entrance_id)
+	if entrance != null:
+		_player.global_position = entrance.get_player_spawn_global()
+		CharacterFloorSnapScript.snap_feet_to_floor(_player)
+		player_room_id = entrance_id
 
 
 func _apply_boss_fight_continue() -> void:
@@ -375,7 +432,23 @@ func _capture_run_snapshot() -> Dictionary:
 		"killCount": RunFlow.get_kill_count(),
 		"lootCollected": RunFlow.get_loot_collected(),
 		"lootClaimedInstanceIds": RunFlow.get_loot_claimed_instance_ids(),
+		"worldFlags": WorldState.all_flags(),
 	}
+
+
+func persist_bonfire_checkpoint() -> void:
+	_builder.respawn_enemies()
+	var snapshot := _capture_run_snapshot()
+	if snapshot.is_empty():
+		return
+	var active := LocalSave.get_active_run()
+	if active.is_empty():
+		return
+	active["schemaVersion"] = 4
+	active["lastCheckpoint"] = snapshot.duplicate(true)
+	active["snapshot"] = snapshot.duplicate(true)
+	LocalSave.set_active_run(active)
+	LocalSave.autosave()
 
 
 func _persist_snapshot() -> void:

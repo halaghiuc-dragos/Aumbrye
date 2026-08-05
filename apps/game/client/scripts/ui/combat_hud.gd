@@ -3,15 +3,23 @@ extends Control
 const StatusIconAtlasScript := preload("res://scripts/ui/status_icon_atlas.gd")
 const InputGlyphServiceScript := preload("res://scripts/ui/input_glyph_service.gd")
 const MinimapScript := preload("res://scripts/ui/minimap.gd")
+const GameUISkinScript := preload("res://scripts/ui/game_ui_skin.gd")
 
 const BAR_WIDTH := 280.0
 const HEALTH_BAR_HEIGHT := 22.0
 const STAMINA_BAR_HEIGHT := 16.0
+const MANA_BAR_HEIGHT := 16.0
+const ATTACK_BAR_HEIGHT := 10.0
 const HUD_MARGIN := 20.0
 const HEALTH_FILL := Color(0.82, 0.14, 0.12, 1.0)
 const HEALTH_BG := Color(0.12, 0.05, 0.05, 0.92)
 const STAMINA_FILL := Color(0.22, 0.78, 0.28, 1.0)
 const STAMINA_BG := Color(0.05, 0.12, 0.06, 0.92)
+const MANA_FILL := Color(0.22, 0.42, 0.92, 1.0)
+const MANA_BG := Color(0.04, 0.06, 0.14, 0.92)
+const ATTACK_STARTUP_FILL := Color(0.95, 0.55, 0.18, 1.0)
+const ATTACK_ACTIVE_FILL := Color(0.85, 0.18, 0.12, 1.0)
+const ATTACK_RECOVERY_FILL := Color(0.45, 0.45, 0.48, 1.0)
 const BAR_BORDER := Color(0.04, 0.04, 0.04, 0.95)
 
 @export var player_path: NodePath
@@ -19,6 +27,8 @@ const BAR_BORDER := Color(0.04, 0.04, 0.04, 0.95)
 
 var _health_bar: ProgressBar
 var _stamina_bar: ProgressBar
+var _mana_bar: ProgressBar
+var _attack_bar: ProgressBar
 var _xp_bar: ProgressBar
 var _level_label: Label
 var _lock_reticle: Control
@@ -28,6 +38,7 @@ var _parry_label: Label
 var _player: Node3D
 var _lock_on: Node
 var _guard: Node
+var _weapon_controller: Node
 var _camera: Camera3D
 var _status_row: HBoxContainer
 var _status_controller: StatusController
@@ -43,14 +54,20 @@ var _boss_node: Node
 var _boss_health: Health
 var _boss_phase_count := 2
 var _boss_current_phase := 1
+var _lock_reticle_alpha := 0.0
 
 
 func _ready() -> void:
+	GameUISkinScript.apply_pixel_theme(self)
 	_health_bar = get_node_or_null("Margin/VBox/HealthBar") as ProgressBar
 	_stamina_bar = get_node_or_null("Margin/VBox/StaminaBar") as ProgressBar
+	_mana_bar = get_node_or_null("Margin/VBox/ManaBar") as ProgressBar
+	_attack_bar = get_node_or_null("Margin/VBox/AttackBar") as ProgressBar
 	_xp_bar = get_node_or_null("Margin/VBox/XpBar") as ProgressBar
 	_level_label = get_node_or_null("Margin/VBox/LevelLabel") as Label
 	_apply_screen_layout()
+	_ensure_mana_bar()
+	_ensure_attack_bar()
 	_style_resource_bars()
 	_ensure_progression_widgets()
 	_ensure_controls_hint()
@@ -64,6 +81,7 @@ func _ready() -> void:
 	if player_path:
 		_player = get_node(player_path) as Node3D
 		_guard = _player.get_node_or_null("Guard")
+		_weapon_controller = _player.get_node_or_null("WeaponController")
 		_status_controller = _player.get_node_or_null("StatusController") as StatusController
 		_bind_player_resources()
 		_ensure_status_row()
@@ -96,7 +114,7 @@ func _apply_screen_layout() -> void:
 	margin.offset_left = HUD_MARGIN
 	margin.offset_top = HUD_MARGIN
 	margin.offset_right = HUD_MARGIN + BAR_WIDTH
-	margin.offset_bottom = HUD_MARGIN + HEALTH_BAR_HEIGHT + STAMINA_BAR_HEIGHT + 28.0
+	margin.offset_bottom = HUD_MARGIN + HEALTH_BAR_HEIGHT + STAMINA_BAR_HEIGHT + MANA_BAR_HEIGHT + ATTACK_BAR_HEIGHT + 34.0
 	margin.grow_horizontal = Control.GROW_DIRECTION_END
 	margin.grow_vertical = Control.GROW_DIRECTION_END
 	var vbox := margin.get_node_or_null("VBox") as VBoxContainer
@@ -111,27 +129,55 @@ func _style_resource_bars() -> void:
 	if _stamina_bar:
 		_stamina_bar.custom_minimum_size = Vector2(BAR_WIDTH, STAMINA_BAR_HEIGHT)
 		_apply_bar_style(_stamina_bar, STAMINA_FILL, STAMINA_BG)
+	if _mana_bar:
+		_mana_bar.custom_minimum_size = Vector2(BAR_WIDTH, MANA_BAR_HEIGHT)
+		_apply_bar_style(_mana_bar, MANA_FILL, MANA_BG)
+	if _attack_bar:
+		_attack_bar.custom_minimum_size = Vector2(BAR_WIDTH, ATTACK_BAR_HEIGHT)
+		_apply_bar_style(_attack_bar, ATTACK_STARTUP_FILL, STAMINA_BG)
+
+
+func _ensure_mana_bar() -> void:
+	if _mana_bar != null:
+		return
+	var vbox := get_node_or_null("Margin/VBox") as VBoxContainer
+	if vbox == null:
+		return
+	_mana_bar = ProgressBar.new()
+	_mana_bar.name = "ManaBar"
+	_mana_bar.show_percentage = false
+	var stamina := vbox.get_node_or_null("StaminaBar")
+	if stamina:
+		vbox.add_child(_mana_bar)
+		vbox.move_child(_mana_bar, stamina.get_index() + 1)
+	else:
+		vbox.add_child(_mana_bar)
+
+
+func _ensure_attack_bar() -> void:
+	if _attack_bar != null:
+		return
+	var vbox := get_node_or_null("Margin/VBox") as VBoxContainer
+	if vbox == null:
+		return
+	_attack_bar = ProgressBar.new()
+	_attack_bar.name = "AttackBar"
+	_attack_bar.show_percentage = false
+	_attack_bar.visible = false
+	vbox.add_child(_attack_bar)
 
 
 func _apply_bar_style(bar: ProgressBar, fill_color: Color, bg_color: Color) -> void:
-	bar.show_percentage = false
-	var bg := StyleBoxFlat.new()
-	bg.bg_color = bg_color
-	bg.border_color = BAR_BORDER
-	bg.set_border_width_all(1)
-	bg.set_corner_radius_all(4)
-	bg.set_content_margin_all(2)
-	var fill := StyleBoxFlat.new()
-	fill.bg_color = fill_color
-	fill.set_corner_radius_all(3)
-	bar.add_theme_stylebox_override("background", bg)
-	bar.add_theme_stylebox_override("fill", fill)
+	GameUISkinScript.style_progress_bar(bar, fill_color, bg_color)
 
 
 func _update_status_row_position() -> void:
 	if _status_row == null:
 		return
-	_status_row.position = Vector2(HUD_MARGIN, HUD_MARGIN + HEALTH_BAR_HEIGHT + STAMINA_BAR_HEIGHT + 18.0)
+	_status_row.position = Vector2(
+		HUD_MARGIN,
+		HUD_MARGIN + HEALTH_BAR_HEIGHT + STAMINA_BAR_HEIGHT + MANA_BAR_HEIGHT + ATTACK_BAR_HEIGHT + 22.0
+	)
 
 
 func _refresh_status_icons() -> void:
@@ -150,6 +196,7 @@ func _refresh_status_icons() -> void:
 			status_id,
 			Color.from_string(def.get("iconColor", "#ffffff"), Color.WHITE)
 		)
+		icon.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 		icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 		icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 		icon.tooltip_text = "%s x%d" % [def.get("name", status_id), entry.get("stacks", 1)]
@@ -198,6 +245,7 @@ func _process(_delta: float) -> void:
 	_update_lock_reticle()
 	_update_guard_indicators()
 	_update_objective_marker()
+	_update_attack_bar()
 
 
 func bind_boss(boss: Node) -> void:
@@ -314,12 +362,16 @@ func _unhandled_input(event: InputEvent) -> void:
 func _bind_player_resources() -> void:
 	var health := _player.get_node_or_null("Health") as Health
 	var stamina := _player.get_node_or_null("Stamina") as Stamina
+	var mana := _player.get_node_or_null("Mana") as Mana
 	if health:
 		health.health_changed.connect(_on_health_changed)
 		_on_health_changed(health.current, Health.MAX_HEALTH)
 	if stamina:
 		stamina.stamina_changed.connect(_on_stamina_changed)
 		_on_stamina_changed(stamina.current, Stamina.MAX_STAMINA)
+	if mana:
+		mana.mana_changed.connect(_on_mana_changed)
+		_on_mana_changed(mana.current, Mana.MAX_MANA)
 
 
 func _on_progression_changed() -> void:
@@ -336,20 +388,30 @@ func _update_lock_reticle() -> void:
 	if not _lock_reticle or not _lock_on or not _lock_on.get("is_locked"):
 		if _lock_reticle:
 			_lock_reticle.visible = false
+			_lock_reticle_alpha = 0.0
 		return
 	var target := _lock_on.get("current_target") as Node3D
 	if target == null or not is_instance_valid(target):
 		_lock_reticle.visible = false
+		_lock_reticle_alpha = 0.0
 		return
 	var camera := _get_camera()
 	if camera == null:
 		return
 	var aim_point := LockOn.get_target_aim_point(target)
-	if camera.is_position_behind(aim_point):
-		_lock_reticle.visible = false
-		return
 	var screen_pos := camera.unproject_position(aim_point)
-	_lock_reticle.visible = true
+	var viewport_size := get_viewport_rect().size
+	var on_screen := screen_pos.x >= 0.0 and screen_pos.y >= 0.0 and screen_pos.x <= viewport_size.x and screen_pos.y <= viewport_size.y
+	var target_alpha := 1.0 if on_screen and not camera.is_position_behind(aim_point) else 0.35
+	_lock_reticle_alpha = lerpf(_lock_reticle_alpha, target_alpha, 0.22)
+	_lock_reticle.visible = _lock_reticle_alpha > 0.05
+	_lock_reticle.modulate.a = _lock_reticle_alpha
+	if not on_screen:
+		var center := viewport_size * 0.5
+		var dir := (screen_pos - center).normalized()
+		screen_pos = center + dir * minf(viewport_size.x, viewport_size.y) * 0.42
+	screen_pos.x = floor(screen_pos.x)
+	screen_pos.y = floor(screen_pos.y)
 	_lock_reticle.position = screen_pos - _lock_reticle.size * 0.5
 
 
@@ -406,6 +468,36 @@ func _on_stamina_changed(current: float, max_value: float) -> void:
 		return
 	_stamina_bar.max_value = max_value
 	_stamina_bar.value = current
+
+
+func _on_mana_changed(current: float, max_value: float) -> void:
+	if not _mana_bar:
+		return
+	_mana_bar.max_value = max_value
+	_mana_bar.value = current
+
+
+func _update_attack_bar() -> void:
+	if _attack_bar == null or _weapon_controller == null:
+		return
+	if not bool(_weapon_controller.get("is_attacking")):
+		_attack_bar.visible = false
+		return
+	var phase_info: Dictionary = {}
+	if _weapon_controller.has_method("get_attack_phase_progress"):
+		phase_info = _weapon_controller.call("get_attack_phase_progress")
+	var progress: float = float(phase_info.get("progress", 0.0))
+	var phase: String = str(phase_info.get("phase", "startup"))
+	_attack_bar.visible = true
+	_attack_bar.max_value = 1.0
+	_attack_bar.value = progress
+	var fill := ATTACK_STARTUP_FILL
+	match phase:
+		"active":
+			fill = ATTACK_ACTIVE_FILL
+		"recovery":
+			fill = ATTACK_RECOVERY_FILL
+	_apply_bar_style(_attack_bar, fill, STAMINA_BG)
 
 
 func _on_lock_changed(_target: Node3D, locked: bool) -> void:

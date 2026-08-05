@@ -30,6 +30,8 @@ func _ready() -> void:
 
 
 func _dbg_dump() -> void:
+	if not OS.is_debug_build():
+		return
 	var counts := {}
 	var lights: Array[String] = []
 	_dbg_walk(get_tree().root, counts, lights)
@@ -102,23 +104,11 @@ func _process(_delta: float) -> void:
 ## Snapping happens on the render camera only. Snapping the gameplay CameraPivot
 ## decouples yaw from player movement and breaks SpringArm follow.
 func _mirrored_transform() -> Transform3D:
-	var source := _source_camera.global_transform
-	if not PixelDioramaSettings.camera_snap_enabled:
-		return source
-	var step := PixelDioramaSettings.camera_snap_step(_source_camera.fov, SNAP_FOCUS_DISTANCE)
-	if step <= 0.0:
-		return source
-	var right := source.basis.x
-	var up := source.basis.y
-	var origin := source.origin
-	# Quantize the two axes that slide across the screen; depth is left alone so
-	# the near plane and spring-arm distance stay exact.
-	var lateral := right.dot(origin)
-	var vertical := up.dot(origin)
-	var snapped_origin := origin
-	snapped_origin += right * (snappedf(lateral, step) - lateral)
-	snapped_origin += up * (snappedf(vertical, step) - vertical)
-	return Transform3D(source.basis, snapped_origin)
+	return PixelCameraSnap.snap_transform(
+		_source_camera.global_transform,
+		_source_camera.fov,
+		SNAP_FOCUS_DISTANCE
+	)
 
 
 func apply_settings() -> void:
@@ -184,6 +174,8 @@ func get_render_camera() -> Camera3D:
 
 
 func get_world_root() -> Node3D:
+	if _attached_scene != null and is_instance_valid(_attached_scene):
+		return _attached_scene as Node3D
 	return null
 
 
@@ -195,20 +187,22 @@ func _apply_internal_size() -> void:
 	if _viewport == null or _container == null:
 		return
 	var target := PixelDioramaSettings.viewport_internal_size()
+	# Godot 4.7+: SubViewport.size cannot change while container stretch is on.
+	_container.stretch = false
 	if PixelDioramaSettings.is_native_hd_preset():
-		_container.stretch = true
-		_container.stretch_shrink = 1
 		_viewport.size = target
 		PixelDioramaSettings.active_render_height = target.y
+		_container.stretch_shrink = 1
+		_container.stretch = true
 	else:
 		var window_height := 1080.0
 		var tree := get_tree()
 		if tree and tree.root:
 			window_height = maxf(1.0, tree.root.get_visible_rect().size.y)
 		var shrink := maxi(1, int(round(window_height / float(maxi(90, target.y)))))
-		_container.stretch = true
 		_container.stretch_shrink = shrink
 		PixelDioramaSettings.active_render_height = int(round(window_height / float(shrink)))
+		_container.stretch = true
 	_viewport.snap_2d_transforms_to_pixel = true
 	_viewport.snap_2d_vertices_to_pixel = true
 	_container.texture_filter = (
@@ -219,12 +213,15 @@ func _apply_internal_size() -> void:
 
 
 func _enforce_native_viewport_size() -> void:
-	if _viewport == null:
+	if _viewport == null or _container == null:
 		return
 	var target := PixelDioramaSettings.viewport_internal_size()
 	if _viewport.size != target:
+		var was_stretch := _container.stretch
+		_container.stretch = false
 		_viewport.size = target
 		PixelDioramaSettings.active_render_height = target.y
+		_container.stretch = was_stretch
 
 
 func _apply_screen_finish() -> void:

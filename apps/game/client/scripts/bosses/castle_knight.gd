@@ -24,6 +24,10 @@ func get_hp_bar_height() -> float:
 	return 2.8
 
 
+func get_lock_aim_point() -> Vector3:
+	return global_position + Vector3(0.0, 1.9, 0.0)
+
+
 var _arena_center := Vector3.ZERO
 
 
@@ -74,10 +78,7 @@ func _start_windup() -> void:
 			_state_timer = 0.55
 	if _mesh:
 		_mesh.scale = Vector3(1.15, 1.15, 1.15)
-	if _telegraph:
-		_telegraph.visible = true
-		if _current_attack == BossAttack.GROUND_SLAM:
-			_telegraph.scale = Vector3(2.5, 2.5, 2.5)
+	begin_attack_windup_bar(_state_timer)
 	attack_telegraph_started.emit()
 
 
@@ -90,9 +91,7 @@ func _start_attack() -> void:
 		_spawn_ground_hazard()
 	else:
 		_state_timer = _data.get("active_duration", 0.2)
-	if _telegraph:
-		_telegraph.visible = false
-		_telegraph.scale = Vector3.ONE
+	hide_attack_windup_bar()
 	if _hitbox:
 		var dmg_mult := 1.3 if _phase == 2 else 1.0
 		_hitbox.set_attack_values(

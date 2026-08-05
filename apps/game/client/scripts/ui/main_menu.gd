@@ -19,6 +19,7 @@ func _ready() -> void:
 	AccessibilitySettings.load_from_save()
 	DisplaySettings.apply()
 	AudioSettings.load_from_save()
+	AudioDirector.play_menu_music()
 	_build_ui()
 	_connect_global_settings()
 	_character_create = CharacterCreateUIScript.new()
@@ -112,6 +113,20 @@ func _is_submenu_open() -> bool:
 
 
 func _on_new_game() -> void:
+	if LocalSave.has_playable_character():
+		MenuShellScript.show_confirmation(
+			self,
+			"New Warden",
+			"Create a new warden? Existing wardens stay on disk — pick any of them from Continue.",
+			func() -> void:
+				_show_main_panel(false)
+				_character_create.open_creation()
+				_character_create.move_to_front(),
+			Callable(),
+			"Create Warden",
+			"Cancel"
+		)
+		return
 	_show_main_panel(false)
 	_character_create.open_creation()
 	_character_create.move_to_front()
@@ -142,12 +157,14 @@ func _prompt_quit() -> void:
 	_quit_overlay = MenuShellScript.show_confirmation(
 		self,
 		"Quit Game",
-		"Are you sure you want to leave Aumbrye?",
+		"Close Aumbrye and return to your desktop?",
 		func() -> void:
 			_quit_overlay = null
 			get_tree().quit(),
 		func() -> void:
-			_quit_overlay = null
+			_quit_overlay = null,
+		"Quit Game",
+		"Stay"
 	)
 
 
@@ -156,8 +173,8 @@ func _on_settings_closed() -> void:
 	_refresh_continue_button()
 
 
-func _on_character_created(class_id: String, character_name: String, appearance_theme: int) -> void:
-	LocalSave.queue_boot_new_game(class_id, character_name, appearance_theme)
+func _on_character_created(class_id: String, character_name: String, appearance: Dictionary) -> void:
+	LocalSave.queue_boot_new_game(class_id, character_name, appearance)
 	get_tree().change_scene_to_file(LOADING_SCENE)
 
 
@@ -165,11 +182,10 @@ func _on_character_create_cancelled() -> void:
 	_show_main_panel(true)
 
 
-func _on_continue_slot_selected(backup_index: int) -> void:
-	if backup_index < 0:
-		LocalSave.queue_boot_continue_main()
-	else:
-		LocalSave.queue_boot_continue_backup(backup_index)
+func _on_continue_slot_selected(character_id: String) -> void:
+	if character_id == "":
+		return
+	LocalSave.queue_boot_continue_character(character_id)
 	get_tree().change_scene_to_file(LOADING_SCENE)
 
 
@@ -177,7 +193,7 @@ func _on_continue_cancelled() -> void:
 	_show_main_panel(true)
 
 
-func _on_continue_slot_deleted(_backup_index: int) -> void:
+func _on_continue_slot_deleted(_character_id: String) -> void:
 	_refresh_continue_button()
 
 

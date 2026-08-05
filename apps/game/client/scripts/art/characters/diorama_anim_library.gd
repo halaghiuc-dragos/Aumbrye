@@ -23,6 +23,9 @@ const AUTHORED_LIBRARY_PATHS := {
 	"player": "res://assets/animations/diorama/player_locomotion.res",
 	"melee": "res://assets/animations/diorama/melee_locomotion.res",
 	"hound": "res://assets/animations/diorama/hound_locomotion.res",
+	"shield": "res://assets/animations/diorama/shield_locomotion.res",
+	"brute": "res://assets/animations/diorama/brute_locomotion.res",
+	"ranged": "res://assets/animations/diorama/ranged_locomotion.res",
 }
 
 ## Locomotion, reaction, and guard clips. Times are in seconds.
@@ -325,12 +328,43 @@ const ATTACKS := {
 		"tracks": {
 			"Root": {"pos": [[0.0, 0.0, 0.0, 0.0], [0.36, 0.0, 0.0, -0.14], [0.5, 0.0, 0.0, 0.28], [1.0, 0.0, 0.0, 0.0]]},
 			"Torso": {"rot": [[0.0, 0.0, 0.0, 0.0], [0.36, 0.0, -0.42, 0.0], [0.5, 0.18, 0.22, 0.0], [1.0, 0.0, 0.0, 0.0]]},
+			"Head": {"rot": [[0.0, 0.0, 0.0, 0.0], [0.36, 0.0, 0.18, 0.0], [0.5, 0.0, -0.12, 0.0], [1.0, 0.0, 0.0, 0.0]]},
 			"ArmR": {"rot": [[0.0, 0.0, 0.0, -0.05], [0.36, -0.55, -0.6, -0.2], [0.5, -1.45, 0.1, -0.05], [0.72, -0.6, 0.0, -0.05], [1.0, 0.0, 0.0, -0.05]]},
 			"ArmL": {"rot": [[0.0, 0.0, 0.0, 0.05], [0.36, -0.4, 0.3, 0.3], [0.5, -1.2, -0.1, 0.1], [1.0, 0.0, 0.0, 0.05]]},
 			"LegL": {"rot": [[0.0, 0.0, 0.0, 0.0], [0.36, -0.15, 0.0, 0.0], [0.5, 0.55, 0.0, 0.0], [1.0, 0.0, 0.0, 0.0]]},
 			"LegR": {"rot": [[0.0, 0.0, 0.0, 0.0], [0.36, 0.2, 0.0, 0.0], [0.5, -0.45, 0.0, 0.0], [1.0, 0.0, 0.0, 0.0]]},
 		},
 		"methods": [[0.37, SWING_VFX]],
+	},
+	&"attack_thrust_2": {
+		"startup_end": 0.28,
+		"active_end": 0.5,
+		"tracks": {
+			"Root": {"pos": [[0.0, 0.0, 0.0, 0.0], [0.28, 0.0, 0.0, -0.06], [0.42, 0.0, 0.0, 0.2], [1.0, 0.0, 0.0, 0.0]]},
+			"Torso": {"rot": [[0.0, 0.0, 0.0, 0.0], [0.28, 0.0, -0.28, 0.0], [0.42, 0.12, 0.16, 0.0], [1.0, 0.0, 0.0, 0.0]]},
+			"Head": {"rot": [[0.0, 0.0, 0.0, 0.0], [0.42, 0.0, -0.1, 0.0], [1.0, 0.0, 0.0, 0.0]]},
+			"ArmR": {"rot": [[0.0, 0.0, 0.0, -0.05], [0.28, -0.35, -0.35, -0.15], [0.42, -1.35, 0.05, -0.05], [0.62, -0.55, 0.0, -0.05], [1.0, 0.0, 0.0, -0.05]]},
+			"ArmL": {"rot": [[0.0, 0.0, 0.0, 0.05], [0.28, -0.28, 0.2, 0.22], [0.42, -1.1, -0.05, 0.08], [1.0, 0.0, 0.0, 0.05]]},
+			"LegL": {"rot": [[0.0, 0.0, 0.0, 0.0], [0.28, -0.08, 0.0, 0.0], [0.42, 0.35, 0.0, 0.0], [1.0, 0.0, 0.0, 0.0]]},
+			"LegR": {"rot": [[0.0, 0.0, 0.0, 0.0], [0.28, 0.12, 0.0, 0.0], [0.42, -0.28, 0.0, 0.0], [1.0, 0.0, 0.0, 0.0]]},
+		},
+		"methods": [[0.29, SWING_VFX]],
+	},
+	&"attack_thrust_3": {
+		"startup_end": 0.4,
+		"active_end": 0.62,
+		"tracks": {
+			"Root": {
+				"pos": [[0.0, 0.0, 0.0, 0.0], [0.4, 0.0, 0.0, -0.2], [0.54, 0.0, 0.0, 0.36], [1.0, 0.0, 0.0, 0.0]],
+			},
+			"Torso": {"rot": [[0.0, 0.0, 0.0, 0.0], [0.4, 0.0, -0.52, 0.0], [0.54, 0.24, 0.3, 0.0], [1.0, 0.0, 0.0, 0.0]]},
+			"Head": {"rot": [[0.0, 0.0, 0.0, 0.0], [0.4, 0.0, 0.22, 0.0], [0.54, 0.0, -0.16, 0.0], [1.0, 0.0, 0.0, 0.0]]},
+			"ArmR": {"rot": [[0.0, 0.0, 0.0, -0.05], [0.4, -0.7, -0.75, -0.25], [0.54, -1.55, 0.12, -0.05], [0.76, -0.65, 0.0, -0.05], [1.0, 0.0, 0.0, -0.05]]},
+			"ArmL": {"rot": [[0.0, 0.0, 0.0, 0.05], [0.4, -0.55, 0.45, 0.35], [0.54, -1.35, -0.12, 0.12], [1.0, 0.0, 0.0, 0.05]]},
+			"LegL": {"rot": [[0.0, 0.0, 0.0, 0.0], [0.4, -0.22, 0.0, 0.0], [0.54, 0.65, 0.0, 0.0], [1.0, 0.0, 0.0, 0.0]]},
+			"LegR": {"rot": [[0.0, 0.0, 0.0, 0.0], [0.4, 0.28, 0.0, 0.0], [0.54, -0.55, 0.0, 0.0], [1.0, 0.0, 0.0, 0.0]]},
+		},
+		"methods": [[0.41, SWING_VFX]],
 	},
 	&"attack_shoot": {
 		"startup_end": 0.55,
@@ -386,7 +420,7 @@ const WEAPON_ATTACKS := {
 	"sword": [&"attack_light_1", &"attack_light_2", &"attack_light_3"],
 	"greatsword": [&"attack_light_3", &"attack_heavy"],
 	"dagger": [&"attack_light_1", &"attack_light_2"],
-	"spear": [&"attack_light_1", &"attack_light_2", &"attack_light_3"],
+	"spear": [&"attack_thrust", &"attack_thrust_2", &"attack_thrust_3"],
 	"bow": [&"attack_shoot"],
 	"axe": [&"attack_heavy", &"attack_light_3", &"attack_heavy"],
 	"staff": [&"attack_thrust", &"attack_light_2", &"attack_thrust"],
@@ -401,7 +435,9 @@ static func attack_clips_for(profile: String, weapon_archetype: String = "") -> 
 
 static func heavy_clip_for(weapon_archetype: String) -> StringName:
 	match weapon_archetype:
-		"spear", "staff":
+		"spear":
+			return &"attack_thrust_3"
+		"staff":
 			return &"attack_thrust"
 		"bow":
 			return &"attack_shoot"
@@ -458,6 +494,11 @@ static func build_attack(
 	var spec: Dictionary = ATTACKS.get(clip_name, {})
 	if spec.is_empty():
 		return null
+	var spec_copy: Dictionary = spec.duplicate(true)
+	var methods: Array = spec_copy.get("methods", []).duplicate()
+	methods.append([float(spec.get("startup_end", 0.35)), HITBOX_ON])
+	methods.append([float(spec.get("active_end", 0.6)), HITBOX_OFF])
+	spec_copy["methods"] = methods
 	var startup_end: float = float(spec.get("startup_end", 0.35))
 	var active_end: float = float(spec.get("active_end", 0.6))
 	var total := maxf(0.08, startup + active + recovery)
@@ -468,7 +509,7 @@ static func build_attack(
 		"active_time": startup + active,
 		"total": total,
 	}
-	return _compile(spec, rest_pose, events_path, 1.0, phase_map)
+	return _compile(spec_copy, rest_pose, events_path, 1.0, phase_map)
 
 
 static func _compile(

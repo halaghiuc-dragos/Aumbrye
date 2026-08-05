@@ -114,7 +114,7 @@ static func _spawn_wall_midpoint_torches(
 	accent_mat: Material,
 	biome_id: String
 ) -> void:
-	var wall_y := 2.0
+	var wall_y := CastleRoomConstants.WALL_HEIGHT * 0.5
 	var inset := 0.55
 	_spawn_wall_torch(parent, Vector3(0.0, wall_y, -half_d + inset), accent_mat, biome_id)
 	_spawn_wall_torch(parent, Vector3(0.0, wall_y, half_d - inset), accent_mat, biome_id)
@@ -125,7 +125,7 @@ static func _spawn_wall_midpoint_torches(
 static func _spawn_room_center_fill(parent: Node3D, half_w: float, half_d: float, biome_id: String) -> void:
 	var light := OmniLight3D.new()
 	light.name = "RoomCenterFill"
-	light.position = Vector3(0.0, 2.5, 0.0)
+	light.position = Vector3(0.0, CastleRoomConstants.WALL_HEIGHT * 0.42, 0.0)
 	VisualLighting.configure_soft_omni(
 		light,
 		_biome_light_color(biome_id).lerp(Color(0.92, 0.86, 0.78), 0.35),

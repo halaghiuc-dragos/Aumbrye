@@ -33,7 +33,7 @@ const OUTDOOR_PRESETS := {
 		"cloud_amount": 0.5,
 		"cloud_color": Color(0.98, 0.88, 0.76),
 		"ambient": Color(0.62, 0.56, 0.52),
-		"ambient_energy": 0.03,
+		"ambient_energy": 0.12,
 		"fog_color": Color(0.82, 0.66, 0.5),
 		"fog_density": 0.0032,
 		"fog_aerial": 0.22,
@@ -113,7 +113,14 @@ static func apply_indoor_environment(environment: Environment, lighting_profile:
 	environment.background_color = base_ambient.lerp(Color(0.1, 0.09, 0.12), 0.68)
 	environment.ambient_light_color = base_ambient.lerp(Color(0.78, 0.68, 0.55), 0.42)
 	environment.ambient_light_energy = maxf(float(lighting_profile.get("ambient_energy", 0.5)) * 0.82, 0.5)
-	environment.fog_enabled = false
+	var fog_enabled := bool(lighting_profile.get("fog_enabled", false))
+	environment.fog_enabled = fog_enabled
+	if fog_enabled:
+		environment.fog_light_color = lighting_profile.get("fog_color", Color(0.35, 0.32, 0.38))
+		environment.fog_density = float(lighting_profile.get("fog_density", 0.004))
+		environment.fog_sky_affect = 0.0
+	else:
+		environment.fog_enabled = false
 	PixelDioramaSettings.configure_environment(environment)
 	if PixelDioramaSettings.linear_tonemap:
 		environment.tonemap_exposure = 1.0

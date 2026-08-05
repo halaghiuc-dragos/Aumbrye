@@ -22,6 +22,9 @@ const _COMBAT_BURST := {
 
 const TRAIL_ARC_DEGREES := 150.0
 const TRAIL_LIFETIME := 0.24
+const DEATH_BURST_LIFETIME := 0.65
+
+const PixelStyle := preload("res://scripts/art/style/pixel_diorama_style.gd")
 
 var _root: Node3D
 var _foot_alt := false
@@ -286,8 +289,16 @@ func play_telegraph(world_pos: Vector3, radius: float = 1.6, duration: float = 0
 	_root.add_child(glyph)
 	glyph.global_position = world_pos + Vector3(0.0, 0.03, 0.0)
 
-	var rim_mat := _make_particle_material(Color(tint.r, tint.g, tint.b, 0.9), 1.2)
-	var fill_mat := _make_particle_material(Color(tint.r, tint.g, tint.b, 0.45), 0.6)
+	var rim_mat := PixelStyle.make_glow_material(
+		Color(tint.r, tint.g, tint.b, 0.95),
+		Color(tint.r, tint.g, tint.b, 0.55).darkened(0.15),
+		1.35
+	)
+	var fill_mat := PixelStyle.make_glow_material(
+		Color(tint.r, tint.g, tint.b, 0.42),
+		Color(tint.r, tint.g, tint.b, 0.22).darkened(0.2),
+		0.55
+	)
 	match shape:
 		"line":
 			var line := MeshInstance3D.new()
@@ -477,6 +488,7 @@ func _make_gpu_burst() -> GPUParticles3D:
 	particles.explosiveness = 0.9
 	particles.visibility_aabb = AABB(Vector3(-2.0, -1.0, -2.0), Vector3(4.0, 4.0, 4.0))
 	particles.draw_pass_1 = _pixel_chunk_mesh()
+	particles.material_override = _make_particle_material(Color.WHITE, 0.0)
 	var mat := ParticleProcessMaterial.new()
 	mat.direction = Vector3(0.0, 1.0, 0.0)
 	mat.spread = 35.0
@@ -508,6 +520,8 @@ func _emit_gpu_burst(
 		mat.direction = direction.normalized() if direction.length_squared() > 0.01 else Vector3.UP
 		mat.color = color
 		particles.process_material = mat
+	var draw_mat := _make_particle_material(color, 0.85)
+	particles.material_override = draw_mat
 	particles.global_position = world_pos
 	particles.restart()
 	particles.emitting = true

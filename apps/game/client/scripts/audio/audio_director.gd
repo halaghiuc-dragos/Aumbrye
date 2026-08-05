@@ -97,13 +97,13 @@ func _ready() -> void:
 
 func _process(_delta: float) -> void:
 	if _ambience.playing and _ambience.stream is AudioStreamGenerator:
-		_ambience_phase = _fill_generator(_ambience, _ambience_freq, _ambience_phase)
+		_ambience_phase = _fill_generator_for_mode(_ambience, _ambience_freq, _ambience_phase, _current_mode)
 	if _music.playing and _music.stream is AudioStreamGenerator:
-		_music_phase = _fill_generator(_music, _music_freq, _music_phase)
+		_music_phase = _fill_generator_for_mode(_music, _music_freq, _music_phase, _current_mode)
 	if _explore.playing and _explore.stream is AudioStreamGenerator:
-		_explore_phase = _fill_generator(_explore, _explore_freq, _explore_phase)
+		_explore_phase = _fill_generator_for_mode(_explore, _explore_freq, _explore_phase, _current_mode)
 	if _combat_layer.playing and _combat_layer.stream is AudioStreamGenerator:
-		_combat_phase = _fill_generator(_combat_layer, _combat_freq, _combat_phase)
+		_combat_phase = _fill_generator_for_mode(_combat_layer, _combat_freq, _combat_phase, _current_mode)
 
 
 func set_biome(biome_id: String) -> void:
@@ -137,8 +137,48 @@ func set_biome(biome_id: String) -> void:
 func play_dungeon_ambience() -> void:
 	_current_mode = "dungeon"
 	_combat_engagements = 0
+	_restore_generator_streams()
 	_crossfade_to(_ambience, _music)
 	_crossfade_to(_explore, _combat_layer)
+
+
+func play_menu_music() -> void:
+	_current_mode = "menu"
+	_combat_engagements = 0
+	_ambience_freq = 98.0
+	_music_freq = 392.0
+	_explore_freq = 523.0
+	_combat_freq = 294.0
+	_ambience.set_meta(&"freq", _ambience_freq)
+	_music.set_meta(&"freq", _music_freq)
+	_explore.set_meta(&"freq", _explore_freq)
+	_combat_layer.set_meta(&"freq", _combat_freq)
+	_restore_generator_streams()
+	_apply_reverb_preset("cathedral")
+	_fade_out_player(_combat_layer, _crossfade)
+	_fade_out_player(_ambience, _crossfade)
+	_fade_in_player(_music)
+	_fade_in_player(_explore)
+
+
+func play_hub_ambience() -> void:
+	_current_mode = "hub"
+	_combat_engagements = 0
+	_ambience_freq = 110.0
+	_music_freq = 220.0
+	_explore_freq = 165.0
+	_combat_freq = 87.5
+	_ambience.set_meta(&"freq", _ambience_freq)
+	_music.set_meta(&"freq", _music_freq)
+	_explore.set_meta(&"freq", _explore_freq)
+	_combat_layer.set_meta(&"freq", _combat_freq)
+	_restore_generator_streams()
+	_apply_reverb_preset("umbral")
+	_fade_out_player(_combat_layer, _crossfade)
+	_fade_out_player(_explore, _crossfade)
+	_fade_out_player(_music, _crossfade)
+	_fade_in_player(_ambience)
+	_fade_in_player(_music)
 
 
 func play_boss_music() -> void:
@@ -388,6 +428,15 @@ func _apply_reverb_to_bus(bus_name: StringName, preset: Dictionary, wet_scale: f
 
 
 func _fill_generator(player: AudioStreamPlayer, freq: float, phase: float) -> float:
+	return _fill_generator_for_mode(player, freq, phase, _current_mode)
+
+
+func _fill_generator_for_mode(
+	player: AudioStreamPlayer,
+	freq: float,
+	phase: float,
+	mode: String
+) -> float:
 	var playback: AudioStreamPlayback = player.get_stream_playback()
 	if playback == null or not playback is AudioStreamGeneratorPlayback:
 		return phase
@@ -398,6 +447,30 @@ func _fill_generator(player: AudioStreamPlayer, freq: float, phase: float) -> fl
 	var phase_step := freq * TAU / MIX_RATE
 	for _i in frames_available:
 		var sample := sin(phase) * 0.22 + sin(phase * 0.5) * 0.08
+		if mode == "menu":
+			var layer := player.name
+			if layer == "MusicPlayer":
+				sample = sin(phase) * 0.26 + sin(phase * 2.0) * 0.06
+			elif layer == "ExplorePlayer":
+				sample = sin(phase) * 0.18 + sin(phase * 1.5) * 0.1
+			else:
+				sample = sin(phase) * 0.14 + sin(phase * 0.5) * 0.06
+		elif mode == "hub":
+			var hub_layer := player.name
+			if hub_layer == "AmbiencePlayer":
+				sample = sin(phase) * 0.16 + sin(phase * 0.33) * 0.05
+			elif hub_layer == "MusicPlayer":
+				sample = sin(phase) * 0.2 + sin(phase * 0.66) * 0.08
+			else:
+				sample = sin(phase) * 0.12
 		gen_playback.push_frame(Vector2(sample, sample))
 		phase = fmod(phase + phase_step, TAU)
 	return phase
+
+
+func _restore_generator_streams() -> void:
+	for player in [_ambience, _music, _explore, _combat_layer]:
+		var generator := AudioStreamGenerator.new()
+		generator.mix_rate = MIX_RATE
+		generator.buffer_length = GENERATOR_BUFFER_SEC
+		player.stream = generator

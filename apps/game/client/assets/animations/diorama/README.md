@@ -11,5 +11,7 @@ From `apps/game/client`:
 godot --path . --headless --script res://scripts/tools/export_diorama_anim_libraries.gd
 ```
 
+Profiles exported: `player`, `melee`, `hound`, `shield`, `brute`, `ranged`.
+
 Runtime controllers load these via `DioramaAnimLibrary.AUTHORED_LIBRARY_PATHS` and fall back
 to per-rig compilation when a profile library is missing.

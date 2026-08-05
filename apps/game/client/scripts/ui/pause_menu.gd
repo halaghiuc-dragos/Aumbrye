@@ -1,6 +1,6 @@
 extends Control
 
-## In-run pause overlay — resume, settings, abandon, quit.
+## In-run pause overlay — resume, settings, abandon, quit to menu.
 
 signal closed
 
@@ -61,7 +61,7 @@ func _build_ui() -> void:
 	vbox.add_child(MenuShellScript.make_menu_button("Settings", _on_settings))
 	if RunFlow.is_run_active():
 		vbox.add_child(MenuShellScript.make_menu_button("Abandon run", _on_abandon))
-	vbox.add_child(MenuShellScript.make_menu_button("Quit game", _on_quit))
+	vbox.add_child(MenuShellScript.make_menu_button("Quit to menu", _on_quit_to_menu))
 	MenuShellScript.add_hint(vbox, "Esc to resume")
 
 
@@ -83,10 +83,28 @@ func _on_settings() -> void:
 
 
 func _on_abandon() -> void:
-	close_menu()
-	RunFlow.abandon_active_run()
+	MenuShellScript.show_confirmation(
+		self,
+		"Abandon Run",
+		"Leave this run and return to the hub?\nAll loot from this run will be lost.",
+		func() -> void:
+			close_menu()
+			RunFlow.abandon_active_run(),
+		Callable(),
+		"Abandon",
+		"Keep Playing"
+	)
 
 
-func _on_quit() -> void:
-	close_menu()
-	get_tree().quit()
+func _on_quit_to_menu() -> void:
+	MenuShellScript.show_confirmation(
+		self,
+		"Quit to Menu",
+		"Save progress and return to the main menu?\nYou can continue this run later from the hub.",
+		func() -> void:
+			close_menu()
+			RunFlow.return_to_main_menu(),
+		Callable(),
+		"Quit to Menu",
+		"Keep Playing"
+	)

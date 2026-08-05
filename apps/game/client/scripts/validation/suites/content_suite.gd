@@ -127,6 +127,8 @@ func _test_audio_director() -> void:
 	var methods := [
 		"play_dungeon_ambience",
 		"play_boss_music",
+		"play_menu_music",
+		"play_hub_ambience",
 		"stop_all",
 		"play_sfx",
 		"play_combat_sfx",

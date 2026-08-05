@@ -7,6 +7,7 @@ func get_category() -> String:
 
 func run() -> void:
 	_test_lock_on_api()
+	_test_fp_lock_policy()
 	await _test_lock_on_behavior()
 
 
@@ -19,6 +20,22 @@ func _test_lock_on_api() -> void:
 		"LockOn exposes centered aim point helper",
 		start,
 		"M3.lock_on.aim_api"
+	)
+
+
+func _test_fp_lock_policy() -> void:
+	var start := Time.get_ticks_msec()
+	var fp_lock_supported: bool = ctx.file_contains(
+		"res://scripts/camera/orbit_camera.gd",
+		"func _update_lock_on_frame_fp"
+	)
+	ctx.timed_record(
+		"lock_on.fp_policy",
+		get_category(),
+		fp_lock_supported,
+		"lock-on supports first-person camera tracking",
+		start,
+		"B05.lock_on.fp"
 	)
 
 

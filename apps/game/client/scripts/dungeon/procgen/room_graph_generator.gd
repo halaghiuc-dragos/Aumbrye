@@ -28,6 +28,8 @@ const DIR_TO_DOOR := {
 	Vector2i(-1, 0): RoomGraphSlotScript.DOOR_WEST,
 }
 
+static var _last_validate_reason := ""
+
 
 static func generate(config: RoomGraphConfig, run_seed: int) -> Dictionary:
 	var rng := RandomNumberGenerator.new()
@@ -61,8 +63,19 @@ static func _try_generate_once(config: RoomGraphConfig, rng: RandomNumberGenerat
 	var next_index: int = path_result["next_index"]
 	var path_cells: Array = path_result["path_cells"]
 	next_index = _grow_branches(graph, path_cells, next_index, target_rooms, config, rng)
+	if _count_main_slots(graph) < config.min_rooms:
+		var all_cells: Array = []
+		all_cells.assign(graph.occupied_cells())
+		next_index = _grow_branches(
+			graph,
+			all_cells,
+			next_index,
+			config.min_rooms,
+			config,
+			rng
+		)
 	_assign_special_rooms(graph, rng, config)
-	if config.fill_bounding_box:
+	if config.fill_bounding_box and _count_main_slots(graph) < config.min_rooms:
 		next_index = _fill_bounding_box(graph, next_index)
 	_apply_door_connections(graph, rng, config)
 	if not _validate_graph(graph, config).get("ok", false):
@@ -101,9 +114,6 @@ static func _grow_critical_path(
 			)
 			slot.on_critical_path = true
 			slot.height_level = graph.slots[cursor].height_level
-			if path_cells.size() % 5 == 0 and rng.randf() < 0.35:
-				slot.height_level += 1 if rng.randf() > 0.5 else -1
-				slot.height_level = clampi(slot.height_level, -1, 1)
 			graph.slots[target_cell] = slot
 			_record_walk_edge(graph, cursor, target_cell)
 			path_cells.append(target_cell)
@@ -158,9 +168,6 @@ static func _grow_branches(
 					RoomGraphSlotScript.SlotType.NORMAL
 				)
 				slot.height_level = parent_slot.height_level
-				if depth > 0 and rng.randf() < 0.2:
-					slot.height_level += 1 if rng.randf() > 0.5 else -1
-					slot.height_level = clampi(slot.height_level, -1, 1)
 				graph.slots[target_cell] = slot
 				_record_walk_edge(graph, cell, target_cell)
 				frontier.append([target_cell, depth + 1])
@@ -221,7 +228,7 @@ static func _creates_2x2_block(graph: RoomGraph, cell: Vector2i) -> bool:
 						block = false
 						break
 					var check_slot: RoomGraphSlot = graph.slots[check_cell]
-					if check_slot.is_filler:
+					if check_slot.is_filler or check_slot.slot_type == RoomGraphSlotScript.SlotType.SECRET:
 						block = false
 						break
 				if not block:
@@ -476,37 +483,53 @@ static func _validate_graph(graph: RoomGraph, config: RoomGraphConfig) -> Dictio
 		if slot.slot_type != RoomGraphSlotScript.SlotType.SECRET:
 			main_count += 1
 	if main_count < config.min_rooms:
+		_last_validate_reason = "Room count %d below minimum %d" % [main_count, config.min_rooms]
 		return {
 			"ok": false,
-			"reason": "Room count %d below minimum %d" % [main_count, config.min_rooms],
+			"reason": _last_validate_reason,
 		}
 	var distances := _compute_distances(graph, graph.start_id)
 	for slot_id in graph.occupied_ids():
 		if slot_id.begins_with("secret_"):
 			continue
 		if not distances.has(slot_id):
-			return {"ok": false, "reason": "Unreachable room '%s' from start" % slot_id}
+			_last_validate_reason = "Unreachable room '%s' from start" % slot_id
+			return {"ok": false, "reason": _last_validate_reason}
 	if graph.boss_id == "":
-		return {"ok": false, "reason": "Boss room not assigned"}
+		_last_validate_reason = "Boss room not assigned"
+		return {"ok": false, "reason": _last_validate_reason}
 	if int(distances.get(graph.boss_id, 0)) < config.boss_min_distance:
-		return {"ok": false, "reason": "Boss too close to start (%d < %d)" % [distances.get(graph.boss_id, 0), config.boss_min_distance]}
+		_last_validate_reason = "Boss too close to start (%d < %d)" % [distances.get(graph.boss_id, 0), config.boss_min_distance]
+		return {"ok": false, "reason": _last_validate_reason}
 	var dead_ends := 0
 	for cell in graph.slots:
 		var slot: RoomGraphSlot = graph.slots[cell]
-		if slot.slot_type == RoomGraphSlotScript.SlotType.SECRET:
+		if slot.slot_type == RoomGraphSlotScript.SlotType.SECRET or slot.is_filler:
 			continue
 		if slot.is_dead_end():
 			dead_ends += 1
 	if dead_ends < config.min_dead_ends:
-		return {"ok": false, "reason": "Not enough dead ends (%d < %d)" % [dead_ends, config.min_dead_ends]}
+		_last_validate_reason = "Not enough dead ends (%d < %d)" % [dead_ends, config.min_dead_ends]
+		return {"ok": false, "reason": _last_validate_reason}
 	if not config.allow_2x2_blocks:
 		for cell in graph.slots:
 			var slot: RoomGraphSlot = graph.slots[cell]
-			if slot.is_filler:
+			if slot.is_filler or slot.slot_type == RoomGraphSlotScript.SlotType.SECRET:
 				continue
 			if _creates_2x2_block(graph, cell):
-				return {"ok": false, "reason": "2x2 block detected at %s" % str(cell)}
+				_last_validate_reason = "2x2 block detected at %s" % str(cell)
+				return {"ok": false, "reason": _last_validate_reason}
+	_last_validate_reason = ""
 	return {"ok": true}
+
+
+static func _count_main_slots(graph: RoomGraph) -> int:
+	var count := 0
+	for cell in graph.slots:
+		var slot: RoomGraphSlot = graph.slots[cell]
+		if slot.slot_type != RoomGraphSlotScript.SlotType.SECRET:
+			count += 1
+	return count
 
 
 static func _apply_secret_door_masks(graph: RoomGraph) -> void:

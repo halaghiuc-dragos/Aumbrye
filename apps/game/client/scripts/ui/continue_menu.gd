@@ -1,12 +1,12 @@
 extends Control
 
-## Character / save slot picker — current save plus rotating backups.
+## Character roster picker — each warden has its own save file and progress.
 
 const GameUISkinScript := preload("res://scripts/ui/game_ui_skin.gd")
 const MenuShellScript := preload("res://scripts/ui/menu_shell.gd")
 
-signal slot_selected(backup_index: int)
-signal slot_deleted(backup_index: int)
+signal slot_selected(character_id: String)
+signal slot_deleted(character_id: String)
 signal cancelled
 
 var _slot_list: ItemList
@@ -23,9 +23,9 @@ func _ready() -> void:
 
 
 func _build_ui() -> void:
-	var shell: Dictionary = MenuShellScript.build_modal(self, "Continue", 400.0, 340.0)
+	var shell: Dictionary = MenuShellScript.build_modal(self, "Continue", 420.0, 360.0)
 	var vbox: VBoxContainer = shell["content_vbox"]
-	MenuShellScript.add_subtitle(vbox, "Select a warden echo to resume.")
+	MenuShellScript.add_subtitle(vbox, "Choose a warden to enter Aumbrye Tower.")
 	_slot_list = ItemList.new()
 	_slot_list.custom_minimum_size = Vector2(0, 200)
 	_slot_list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -36,8 +36,8 @@ func _build_ui() -> void:
 	GameUISkinScript.style_body_label(_detail_label)
 	vbox.add_child(_detail_label)
 	var back := MenuShellScript.make_menu_button("Back", _on_back_pressed)
-	_play_button = MenuShellScript.make_menu_button("Continue", _on_play_pressed)
-	_delete_button = MenuShellScript.make_menu_button("Delete Save", _on_delete_pressed)
+	_play_button = MenuShellScript.make_menu_button("Play Warden", _on_play_pressed)
+	_delete_button = MenuShellScript.make_menu_button("Delete Warden", _on_delete_pressed)
 	MenuShellScript.add_button_row(vbox, [back, _play_button])
 	MenuShellScript.add_button_row(vbox, [_delete_button])
 
@@ -69,7 +69,7 @@ func _reload_slots() -> void:
 	_play_button.disabled = not has_slots
 	_delete_button.disabled = not has_slots
 	if not has_slots:
-		_slot_list.add_item("No saved wardens yet — start a New Game.")
+		_slot_list.add_item("No wardens yet — create one with New Game.")
 		return
 	for entry in _slots:
 		var label := str(entry.get("label", "Unknown"))
@@ -100,27 +100,34 @@ func _on_play_pressed() -> void:
 	var entry := _selected_entry()
 	if entry.is_empty():
 		return
-	var backup_index: int = int(entry.get("backupIndex", -1))
+	var character_id := str(entry.get("characterId", ""))
+	if character_id == "":
+		return
 	close_menu()
-	slot_selected.emit(backup_index)
+	slot_selected.emit(character_id)
 
 
 func _on_delete_pressed() -> void:
 	var entry := _selected_entry()
 	if entry.is_empty():
 		return
-	var backup_index: int = int(entry.get("backupIndex", -1))
-	var slot_name := str(entry.get("label", "this save"))
+	var character_id := str(entry.get("characterId", ""))
+	if character_id == "":
+		return
+	var slot_name := str(entry.get("label", "this warden"))
 	MenuShellScript.show_confirmation(
 		self,
-		"Delete Save",
-		"Permanently delete %s?\nThis cannot be undone." % slot_name,
+		"Delete Warden",
+		"Permanently delete %s?\nAll progress, inventory, and hub state for this warden will be erased." % slot_name,
 		func() -> void:
-			if LocalSave.delete_character_slot(backup_index):
-				slot_deleted.emit(backup_index)
+			if LocalSave.delete_character(character_id):
+				slot_deleted.emit(character_id)
 				_reload_slots()
 				if _slots.is_empty():
-					_on_back_pressed()
+					_on_back_pressed(),
+		Callable(),
+		"Delete Forever",
+		"Keep Warden"
 	)
 
 

@@ -48,6 +48,15 @@ func set_speed_multiplier(multiplier: float) -> void:
 	_speed_multiplier = maxf(0.1, multiplier)
 
 
+func refresh_appearance_visual() -> void:
+	if _facing == null:
+		return
+	var visual := CharacterSkin.build_player_body(_facing)
+	if _anim_director:
+		_anim_director.bind(visual)
+	_sync_first_person_body_visibility()
+
+
 func _sync_first_person_body_visibility() -> void:
 	if _facing == null:
 		return
@@ -118,7 +127,7 @@ func _physics_process(delta: float) -> void:
 		var target := LockOnMovement.get_target(_lock_on)
 		LockOnMovement.update_facing_toward_target(_facing, target, delta, ROTATION_SPEED)
 	elif not attacking and direction.length_squared() > 0.01 and _facing:
-		var target_angle := atan2(direction.x, direction.z)
+		var target_angle := LockOnMovement.world_direction_to_local_facing_y(self, direction)
 		_facing.rotation.y = lerp_angle(
 			_facing.rotation.y,
 			target_angle,
@@ -157,8 +166,8 @@ func get_camera_relative_direction(input_dir: Vector2) -> Vector3:
 
 func get_facing_direction() -> Vector3:
 	if _facing:
-		return -_facing.global_transform.basis.z
-	return -global_transform.basis.z
+		return _facing.global_transform.basis.z
+	return global_transform.basis.z
 
 
 func get_facing_yaw() -> float:

@@ -55,6 +55,7 @@ func _build_ui_if_needed() -> void:
 	_build_accessibility_section(_scroll_vbox)
 	_build_audio_section(_scroll_vbox)
 	_build_pixel_diorama_section(_scroll_vbox)
+	_build_advanced_save_section(_scroll_vbox)
 	_refresh_run_mode_section()
 
 
@@ -202,10 +203,15 @@ func _populate_pixel_diorama_section() -> void:
 	_pixel_section.add_child(title)
 
 	var preset_row := HBoxContainer.new()
+	preset_row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	var preset_label := Label.new()
 	preset_label.text = "Render resolution"
+	preset_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	preset_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	GameUISkinScript.style_body_label(preset_label)
 	preset_row.add_child(preset_label)
 	var preset_options := OptionButton.new()
+	preset_options.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	for i in PixelDioramaSettings.RESOLUTION_PRESETS.size():
 		var preset: Dictionary = PixelDioramaSettings.RESOLUTION_PRESETS[i]
 		preset_options.add_item(str(preset.get("label", "?")), i)
@@ -236,6 +242,12 @@ func _populate_pixel_diorama_section() -> void:
 			PixelDioramaViewport.detach()
 	)
 	_pixel_section.add_child(low_res)
+
+	_pixel_section.add_child(_toggle(
+		"Snap camera to pixel grid",
+		PixelDioramaSettings.camera_snap_enabled,
+		func(on: bool) -> void: PixelDioramaSettings.camera_snap_enabled = on
+	))
 
 	_pixel_section.add_child(_toggle(
 		"Nearest texture filtering",
@@ -365,9 +377,47 @@ func _populate_pixel_diorama_section() -> void:
 	_pixel_section.add_child(note)
 
 
+func _build_advanced_save_section(parent: VBoxContainer) -> void:
+	var sep := HSeparator.new()
+	parent.add_child(sep)
+	var title := Label.new()
+	title.text = "Advanced / Corruption Recovery"
+	GameUISkinScript.style_section_title(title)
+	parent.add_child(title)
+	var backups := LocalSave.list_backups()
+	if backups.is_empty():
+		var none := Label.new()
+		none.text = "No rotating backups on disk."
+		GameUISkinScript.style_body_label(none)
+		parent.add_child(none)
+		return
+	for backup in backups:
+		var index: int = int(backup.get("index", 0))
+		var saved_at := str(backup.get("savedAt", "unknown"))
+		var btn := Button.new()
+		btn.text = "Restore backup %d (%s)" % [index, saved_at]
+		btn.pressed.connect(func() -> void:
+			MenuShellScript.show_confirmation(
+				self,
+				"Restore Backup",
+				"Replace current save with backup %d?\nCurrent save is copied to conflict backup first." % index,
+				func() -> void:
+					if LocalSave.restore_backup(index):
+						close_settings(),
+				Callable(),
+				"Restore Backup",
+				"Cancel"
+			)
+		)
+		GameUISkinScript.wire_button_sfx(btn)
+		parent.add_child(btn)
+
+
 func _subsection_label(text: String) -> Label:
 	var label := Label.new()
 	label.text = text
+	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	GameUISkinScript.style_section_title(label)
 	return label
 
@@ -375,6 +425,8 @@ func _subsection_label(text: String) -> Label:
 func _toggle(text: String, initial: bool, on_changed: Callable) -> CheckBox:
 	var box := CheckBox.new()
 	box.text = text
+	box.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	box.button_pressed = initial
 	box.toggled.connect(func(on: bool) -> void:
 		on_changed.call(on)
@@ -419,8 +471,12 @@ func _labeled_slider(
 	on_changed: Callable
 ) -> VBoxContainer:
 	var box := VBoxContainer.new()
+	box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	var label := Label.new()
 	label.text = "%s (%.3f)" % [label_text, initial]
+	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	GameUISkinScript.style_body_label(label)
 	box.add_child(label)
 	var slider := HSlider.new()
 	slider.min_value = min_v

@@ -1,7 +1,7 @@
 extends RefCounted
 class_name FloorShellBuilder
 
-## One large floor slab + ceiling per dungeon floor, perimeter walls, and biome lighting.
+## Per-room ceilings, perimeter walls, and room lighting (no monolithic floor).
 
 const CEILING_THICKNESS := 0.4
 const SHELL_PADDING := 2.0
@@ -18,21 +18,14 @@ static func build(parent: Node3D, rooms: Dictionary, biome_id: String) -> void:
 	shell.name = "FloorShell"
 	parent.add_child(shell)
 
-	var floor_mat := BiomeRegistry.get_floor_material(biome_id)
 	var wall_mat := BiomeRegistry.get_wall_material(biome_id)
 	var center_xz := Vector3(
 		bounds.position.x + bounds.size.x * 0.5,
 		0.0,
 		bounds.position.z + bounds.size.z * 0.5
 	)
-	var floor_pos := Vector3(
-		center_xz.x,
-		-CastleRoomConstants.FLOOR_THICKNESS * 0.5,
-		center_xz.z
-	)
-	var floor_size := Vector3(bounds.size.x, CastleRoomConstants.FLOOR_THICKNESS, bounds.size.z)
-	_add_slab(shell, "FloorSlab", floor_pos, floor_size, floor_mat, true)
-
+	# Rooms already have their own floors via CastleBlockout — a monolithic shell floor
+	# would bridge empty grid cells and expose the full graph layout.
 	var ceiling_pos := Vector3(
 		center_xz.x,
 		CastleRoomConstants.WALL_HEIGHT + CEILING_THICKNESS * 0.5,
@@ -42,7 +35,6 @@ static func build(parent: Node3D, rooms: Dictionary, biome_id: String) -> void:
 	_add_slab(shell, "CeilingSlab", ceiling_pos, ceiling_size, wall_mat, true)
 
 	_build_perimeter_walls(shell, bounds, wall_mat)
-	DioramaRoomDressing.apply_shell_lighting(shell, bounds, biome_id)
 
 	for room in rooms.values():
 		var template := room as RoomTemplate
@@ -55,16 +47,7 @@ static func build_arena_shell(parent: Node3D, half_extent: float, biome_id: Stri
 	shell.name = "FloorShell"
 	parent.add_child(shell)
 	var span := half_extent * 2.0 + SHELL_PADDING
-	var floor_mat := BiomeRegistry.get_floor_material(biome_id)
 	var wall_mat := BiomeRegistry.get_wall_material(biome_id)
-	_add_slab(
-		shell,
-		"FloorSlab",
-		Vector3(0.0, -CastleRoomConstants.FLOOR_THICKNESS * 0.5, 0.0),
-		Vector3(span, CastleRoomConstants.FLOOR_THICKNESS, span),
-		floor_mat,
-		true
-	)
 	var ceiling_y := CastleRoomConstants.WALL_HEIGHT + CEILING_THICKNESS * 0.5
 	_add_slab(
 		shell,
@@ -77,7 +60,6 @@ static func build_arena_shell(parent: Node3D, half_extent: float, biome_id: Stri
 	var half_span := span * 0.5
 	var arena_bounds := AABB(Vector3(-half_span, 0.0, -half_span), Vector3(span, 0.0, span))
 	_build_perimeter_walls(shell, arena_bounds, wall_mat)
-	DioramaRoomDressing.apply_shell_lighting(shell, arena_bounds, biome_id)
 	DioramaRoomDressing.apply_arena_ceiling_lighting(shell, half_extent, biome_id)
 
 

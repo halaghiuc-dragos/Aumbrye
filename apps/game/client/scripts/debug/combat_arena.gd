@@ -125,7 +125,7 @@ func orient_player_to_hub_return() -> void:
 	flat_look.y = 0.0
 	if facing and flat_look.length_squared() > 0.0001:
 		flat_look = flat_look.normalized()
-		facing.rotation.y = atan2(flat_look.x, flat_look.z)
+		facing.rotation.y = LockOnMovement.world_direction_to_local_facing_y(player, flat_look)
 	var spring_arm := player.get_node_or_null("CameraPivot/SpringArm3D")
 	if spring_arm and spring_arm.has_method("snap_camera_forward"):
 		spring_arm.call("snap_camera_forward", PLAYER_SPAWN_LOOK_DIR)

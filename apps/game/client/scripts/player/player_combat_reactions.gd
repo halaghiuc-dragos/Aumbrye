@@ -84,6 +84,7 @@ func reset_combat_state() -> void:
 
 
 func _apply_stagger(duration: float) -> void:
+	_break_player_lock()
 	is_staggered = true
 	_stagger_timer = duration
 	stagger_started.emit()
@@ -108,6 +109,7 @@ func _on_parry_success(_target: Node) -> void:
 
 
 func _on_died() -> void:
+	_break_player_lock()
 	is_dead = true
 	player_died.emit()
 	VfxService.play_death(_body.global_position, Color(0.72, 0.28, 0.22))
@@ -125,3 +127,9 @@ func _pulse_mesh(scale_peak: float = 1.1) -> void:
 	var tween := create_tween()
 	_mesh.scale = Vector3(scale_peak, scale_peak, scale_peak)
 	tween.tween_property(_mesh, "scale", Vector3.ONE, 0.12)
+
+
+func _break_player_lock() -> void:
+	var lock_on := _body.get_node_or_null("LockOn")
+	if lock_on and lock_on.has_method("break_lock"):
+		lock_on.call("break_lock")

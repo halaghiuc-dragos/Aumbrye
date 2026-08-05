@@ -36,6 +36,38 @@ const REST_POSES := {
 		"LegBL": {"path": "Root/LegBL", "position": Vector3(-0.16, 0.3, -0.26), "rotation": Vector3.ZERO},
 		"LegBR": {"path": "Root/LegBR", "position": Vector3(0.16, 0.3, -0.26), "rotation": Vector3.ZERO},
 	},
+	"shield": {
+		"Root": {"path": "Root", "position": Vector3.ZERO, "rotation": Vector3.ZERO},
+		"LegL": {"path": "Root/LegL", "position": Vector3(-0.15, 0.46, 0.0), "rotation": Vector3.ZERO},
+		"LegR": {"path": "Root/LegR", "position": Vector3(0.15, 0.46, 0.0), "rotation": Vector3.ZERO},
+		"Torso": {"path": "Root/Torso", "position": Vector3(0.0, 0.46, 0.0), "rotation": Vector3.ZERO},
+		"Head": {"path": "Root/Torso/Head", "position": Vector3(0.0, 0.68, 0.0), "rotation": Vector3.ZERO},
+		"ArmL": {"path": "Root/Torso/ArmL", "position": Vector3(-0.36, 0.5984, 0.0), "rotation": Vector3.ZERO},
+		"ArmR": {"path": "Root/Torso/ArmR", "position": Vector3(0.36, 0.5984, 0.0), "rotation": Vector3.ZERO},
+	},
+	"brute": {
+		"Root": {"path": "Root", "position": Vector3.ZERO, "rotation": Vector3.ZERO},
+		"LegL": {"path": "Root/LegL", "position": Vector3(-0.18, 0.5, 0.0), "rotation": Vector3.ZERO},
+		"LegR": {"path": "Root/LegR", "position": Vector3(0.18, 0.5, 0.0), "rotation": Vector3.ZERO},
+		"Torso": {"path": "Root/Torso", "position": Vector3(0.0, 0.5, 0.0), "rotation": Vector3.ZERO},
+		"Head": {"path": "Root/Torso/Head", "position": Vector3(0.0, 0.82, 0.0), "rotation": Vector3.ZERO},
+		"ArmL": {"path": "Root/Torso/ArmL", "position": Vector3(-0.46, 0.7216, 0.0), "rotation": Vector3.ZERO},
+		"ArmR": {"path": "Root/Torso/ArmR", "position": Vector3(0.46, 0.7216, 0.0), "rotation": Vector3.ZERO},
+	},
+	"ranged": {
+		"Root": {"path": "Root", "position": Vector3.ZERO, "rotation": Vector3.ZERO},
+		"LegL": {"path": "Root/LegL", "position": Vector3(-0.11, 0.44, 0.0), "rotation": Vector3.ZERO},
+		"LegR": {"path": "Root/LegR", "position": Vector3(0.11, 0.44, 0.0), "rotation": Vector3.ZERO},
+		"Torso": {"path": "Root/Torso", "position": Vector3(0.0, 0.44, 0.0), "rotation": Vector3.ZERO},
+		"Head": {"path": "Root/Torso/Head", "position": Vector3(0.0, 0.56, 0.0), "rotation": Vector3.ZERO},
+		"ArmL": {"path": "Root/Torso/ArmL", "position": Vector3(-0.25, 0.4928, 0.0), "rotation": Vector3.ZERO},
+		"ArmR": {"path": "Root/Torso/ArmR", "position": Vector3(0.25, 0.4928, 0.0), "rotation": Vector3.ZERO},
+		"Bow": {
+			"path": "Root/Torso/ArmR/WeaponMount/Bow",
+			"position": Vector3.ZERO,
+			"rotation": Vector3.ZERO,
+		},
+	},
 }
 
 

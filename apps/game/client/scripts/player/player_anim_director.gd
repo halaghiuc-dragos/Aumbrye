@@ -292,6 +292,19 @@ func _on_swing_frame() -> void:
 	VfxService.play_weapon_trail(anchor[0], anchor[1])
 
 
+func set_weapon(weapon_id: String, archetype: String = "") -> void:
+	super.set_weapon(weapon_id, archetype)
+	_sync_first_person_weapon_shadows()
+
+
+func _sync_first_person_weapon_shadows() -> void:
+	if _body == null or _visual == null:
+		return
+	var spring := _body.get_node_or_null(SPRING_PATH)
+	var first_person := spring != null and spring.has_method("is_first_person") and spring.call("is_first_person")
+	CharacterSkin.sync_first_person_weapon_shadows(_visual, first_person)
+
+
 func revive() -> void:
 	super.revive()
 	sync_camera_mode()

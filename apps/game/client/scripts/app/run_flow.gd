@@ -12,6 +12,7 @@ const CASTLE_RUN_SCENE := RunSceneRouter.CASTLE_RUN_SCENE
 const WAVES_RUN_SCENE := RunSceneRouter.WAVES_RUN_SCENE
 const ARENA_SCENE := RunSceneRouter.ARENA_SCENE
 const RESULTS_SCENE := RunSceneRouter.RESULTS_SCENE
+const MAIN_MENU_SCENE := "res://scenes/ui/main_menu.tscn"
 const DEFAULT_BIOME := "forgotten_castle"
 const USE_ONLINE_PROCgen := false
 
@@ -47,6 +48,7 @@ var _loot_collected: Array[String] = []
 var _loot_claimed_instance_ids: Array[String] = []
 var _pending_snapshot: Dictionary = {}
 var _is_continue := false
+var _cleared_floors: Array[int] = []
 
 
 func _ready() -> void:
@@ -136,7 +138,11 @@ func _start_mode_run(
 	run_mode = mode
 	_is_continue = false
 	_pending_snapshot.clear()
+	var preserved_tier := current_dungeon_tier
+	var preserved_dungeon_id := current_dungeon_id
 	_reset_run_stats()
+	current_dungeon_tier = preserved_tier
+	current_dungeon_id = preserved_dungeon_id
 	max_floors = RunFloorConfig.max_floors_for_mode(run_mode)
 	current_dungeon_definition = {}
 	current_run_id = ""
@@ -242,8 +248,34 @@ func _restore_castle_run(saved: Dictionary) -> void:
 		return_to_hub(last_hub_message)
 		return
 
+	_cleared_floors.clear()
+	for floor_num in _pending_snapshot.get("clearedFloors", saved.get("clearedFloors", [])):
+		var floor_index := int(floor_num)
+		if floor_index > 0 and not _cleared_floors.has(floor_index):
+			_cleared_floors.append(floor_index)
+	var saved_tier := int(saved.get("dungeonTier", 1))
+	if saved_tier > DungeonTierService.get_max_unlocked_tier():
+		_is_continue = false
+		_pending_snapshot.clear()
+		LocalSave.clear_active_run()
+		last_hub_message = "That dungeon tier is locked — continue from the hub portal."
+		return_to_hub(last_hub_message)
+		return
+	if not DungeonTierService.is_dungeon_unlocked(current_dungeon_id):
+		_is_continue = false
+		_pending_snapshot.clear()
+		LocalSave.clear_active_run()
+		last_hub_message = "That dungeon is not unlocked yet."
+		return_to_hub(last_hub_message)
+		return
+	var max_cleared := _max_cleared_floor()
+	if current_floor > max_cleared + 1:
+		current_floor = maxi(1, max_cleared + 1)
+		last_hub_message = "Saved floor was ahead of progression — restored to floor %d." % current_floor
 	_kill_count = int(_pending_snapshot.get("killCount", 0))
 	_boss_defeated = bool(_pending_snapshot.get("bossDefeated", false))
+	if _boss_defeated and not _cleared_floors.has(current_floor):
+		_boss_defeated = false
 	_loot_collected.clear()
 	_loot_claimed_instance_ids.clear()
 	for item in _pending_snapshot.get("lootCollected", []):
@@ -280,6 +312,7 @@ func _enter_run() -> void:
 		"currentFloor": current_floor,
 		"maxFloors": max_floors,
 		"dungeonDefinition": definition_copy,
+		"clearedFloors": _cleared_floors.duplicate(),
 	}
 	if _is_continue and not _pending_snapshot.is_empty():
 		active_run["snapshot"] = _pending_snapshot.duplicate(true)
@@ -325,6 +358,9 @@ func complete_run_via_portal() -> void:
 	if run_mode == RM.MODE_ENDLESS:
 		push_warning("RunFlow: endless runs have no exit portal")
 		return
+	if not can_escape_run():
+		push_warning("RunFlow: escape blocked — defeat the boss on the final floor first")
+		return
 	if current_floor < max_floors:
 		push_warning("RunFlow: escape blocked until final floor is cleared")
 		return
@@ -358,6 +394,11 @@ func complete_run_via_portal() -> void:
 
 func on_player_died() -> void:
 	if get_tree().get_first_node_in_group("training_arena"):
+		return
+	var active := LocalSave.get_active_run()
+	var checkpoint: Variant = active.get("lastCheckpoint", {})
+	if checkpoint is Dictionary and not checkpoint.is_empty():
+		_bonfire_death_respawn(checkpoint)
 		return
 	var elapsed := 0.0
 	if _run_start_time > 0.0:
@@ -397,6 +438,8 @@ func register_kill(enemy_id: String = "") -> void:
 
 func register_boss_defeated() -> void:
 	_boss_defeated = true
+	if not _cleared_floors.has(current_floor):
+		_cleared_floors.append(current_floor)
 
 
 func rest_at_bonfire(player: Node = null) -> void:
@@ -416,6 +459,9 @@ func rest_at_bonfire(player: Node = null) -> void:
 	for enemy in get_tree().get_nodes_in_group("enemy"):
 		if enemy.has_method("respawn_at_rest"):
 			enemy.call("respawn_at_rest")
+	var castle := get_tree().get_first_node_in_group("castle_run")
+	if castle and castle.has_method("persist_bonfire_checkpoint"):
+		castle.call("persist_bonfire_checkpoint")
 
 
 func get_current_floor() -> int:
@@ -478,11 +524,13 @@ func get_run_mode() -> String:
 func ascend_floor() -> void:
 	if not _run_active or not _boss_defeated:
 		return
+	if not _cleared_floors.has(current_floor):
+		return
 	if run_mode == RM.MODE_CASTLE and current_floor >= max_floors:
 		return
 	_stash_current_floor_in_cache()
 	current_floor += 1
-	_boss_defeated = false
+	_boss_defeated = _cleared_floors.has(current_floor)
 	await _transition_floor(true)
 
 
@@ -493,7 +541,7 @@ func descend_floor() -> void:
 		return
 	_stash_current_floor_in_cache()
 	current_floor -= 1
-	_boss_defeated = true
+	_boss_defeated = _cleared_floors.has(current_floor)
 	await _transition_floor(false)
 
 
@@ -532,6 +580,7 @@ func _build_floor_transition_snapshot(ascending: bool) -> Dictionary:
 		"ascending": ascending,
 		"currentFloor": current_floor,
 		"bossDefeated": _boss_defeated,
+		"clearedFloors": _cleared_floors.duplicate(),
 		"killCount": _kill_count,
 		"lootCollected": _loot_collected.duplicate(),
 		"lootClaimedInstanceIds": _loot_claimed_instance_ids.duplicate(),
@@ -554,6 +603,7 @@ func _persist_active_run() -> void:
 	active["dungeonId"] = current_dungeon_id
 	active["maxFloors"] = max_floors
 	active["dungeonDefinition"] = current_dungeon_definition.duplicate(true)
+	active["clearedFloors"] = _cleared_floors.duplicate()
 	LocalSave.set_active_run(active)
 
 
@@ -644,14 +694,42 @@ func _resolve_dungeon_id(dungeon_id: String) -> String:
 	return DungeonCatalog.DEFAULT_DUNGEON_ID
 
 
+func return_to_main_menu() -> void:
+	_flush_active_run_snapshot()
+	_run_active = false
+	get_tree().paused = false
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	AudioDirector.stop_all(0.35)
+	AudioDirector.play_menu_music()
+	_goto_scene(MAIN_MENU_SCENE)
+
+
+func _flush_active_run_snapshot() -> void:
+	if not _run_active:
+		return
+	var castle := get_tree().get_first_node_in_group("castle_run")
+	if castle and castle.has_method("_persist_snapshot"):
+		castle.call("_persist_snapshot")
+	var waves := get_tree().get_first_node_in_group("waves_run")
+	if waves and waves.has_method("_persist_waves_save"):
+		waves.call("_persist_waves_save")
+	LocalSave.autosave()
+
+
+func _max_cleared_floor() -> int:
+	var max_floor := 0
+	for floor_index in _cleared_floors:
+		max_floor = maxi(max_floor, floor_index)
+	return max_floor
+
+
 func _reset_run_stats() -> void:
 	_kill_count = 0
 	_boss_defeated = false
+	_cleared_floors.clear()
 	_loot_collected.clear()
 	_loot_claimed_instance_ids.clear()
 	current_floor = 1
-	current_dungeon_tier = 1
-	current_dungeon_id = DungeonCatalog.DEFAULT_DUNGEON_ID
 	_clear_floor_cache()
 
 
@@ -732,6 +810,54 @@ func clear_recoverable_xp_shard() -> void:
 	if get_recoverable_xp_shard().is_empty():
 		return
 	CharacterService.set_flag(XP_SHARD_FLAG, {})
+
+
+func _bonfire_death_respawn(checkpoint: Dictionary) -> void:
+	var player := get_tree().get_first_node_in_group("player")
+	var death_pos: Vector3 = Vector3.ZERO
+	if player is Node3D:
+		death_pos = (player as Node3D).global_position
+	var full_xp := ProgressionService.calculate_run_xp(_kill_count, _boss_defeated, false)
+	var death_xp := ProgressionService.apply_death_xp_fraction(full_xp)
+	ProgressionService.grant_xp(death_xp, "death")
+	store_recoverable_xp_shard(death_pos, current_floor, current_dungeon_id, full_xp - death_xp)
+	_strip_loot_since_checkpoint(checkpoint)
+	RunBuffs.clear_all()
+	CharacterService.set_flag("deaths", int(CharacterService.get_flag("deaths", 0)) + 1)
+	_kill_count = int(checkpoint.get("killCount", 0))
+	_boss_defeated = bool(checkpoint.get("bossDefeated", false))
+	_loot_collected.clear()
+	_loot_claimed_instance_ids.clear()
+	for item in checkpoint.get("lootCollected", []):
+		_loot_collected.append(str(item))
+	for inst_id in checkpoint.get("lootClaimedInstanceIds", []):
+		_loot_claimed_instance_ids.append(str(inst_id))
+	WorldState.restore_flags(checkpoint.get("worldFlags", {}))
+	var active := LocalSave.get_active_run()
+	active["playerDead"] = true
+	active["snapshot"] = checkpoint.duplicate(true)
+	LocalSave.set_active_run(active)
+	LocalSave.autosave()
+	_is_continue = true
+	_pending_snapshot = checkpoint.duplicate(true)
+	get_tree().root.set_meta("run_snapshot", checkpoint.duplicate(true))
+	active["playerDead"] = false
+	LocalSave.set_active_run(active)
+	LocalSave.autosave()
+	_goto_scene(CASTLE_RUN_SCENE)
+
+
+func _strip_loot_since_checkpoint(checkpoint: Dictionary) -> void:
+	var kept: Array[String] = []
+	for item in checkpoint.get("lootCollected", []):
+		kept.append(str(item))
+	var to_remove: Array[String] = []
+	for item_id in _loot_collected:
+		if item_id not in kept:
+			to_remove.append(item_id)
+	if not to_remove.is_empty():
+		InventoryService.remove_run_loot(to_remove)
+	_loot_collected = kept.duplicate()
 
 
 func _store_recoverable_xp_shard_from_active_run(xp_amount: int) -> void:

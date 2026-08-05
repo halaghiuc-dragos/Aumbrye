@@ -26,6 +26,10 @@ var _lock_on_active := false
 var _lock_focus := Vector3.ZERO
 var _lock_pivot_base := Vector3(0.0, 1.6, 0.0)
 var _lock_pivot_offset := Vector3.ZERO
+const LOCK_PITCH_BIAS_MAX := deg_to_rad(12.0)
+const LOCK_PITCH_MOUSE_MAX := deg_to_rad(28.0)
+
+var _lock_pitch_bias := 0.0
 
 
 func _ready() -> void:
@@ -44,10 +48,14 @@ func _ready() -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	if _lock_on_active and not _first_person:
-		return
 	if event is InputEventMouseMotion and Input.get_mouse_mode() == Input.MOUSE_MODE_CAPTURED:
+		if _lock_on_active:
+			_apply_lock_pitch_look(-event.relative.y * MOUSE_SENSITIVITY)
+			get_viewport().set_input_as_handled()
+			return
 		_apply_look(-event.relative.x * MOUSE_SENSITIVITY, -event.relative.y * MOUSE_SENSITIVITY)
+	if _lock_on_active:
+		return
 	if event.is_action_pressed("toggle_camera"):
 		_toggle_camera_mode()
 	if not _first_person:
@@ -58,7 +66,7 @@ func _unhandled_input(event: InputEvent) -> void:
 
 
 func _physics_process(delta: float) -> void:
-	if _lock_on_active and not _first_person:
+	if _lock_on_active:
 		return
 	var stick := Input.get_vector("look_left", "look_right", "look_up", "look_down")
 	if stick.length_squared() > 0.01:
@@ -72,6 +80,15 @@ func _apply_look(yaw_delta: float, pitch_delta: float) -> void:
 	var pitch_sign := -1.0 if INVERT_Y else 1.0
 	_pitch = clampf(_pitch + pitch_delta * pitch_sign, MIN_PITCH, MAX_PITCH)
 	rotation.x = _pitch
+
+
+func _apply_lock_pitch_look(pitch_delta: float) -> void:
+	var pitch_sign := -1.0 if INVERT_Y else 1.0
+	_lock_pitch_bias = clampf(
+		_lock_pitch_bias + pitch_delta * pitch_sign,
+		-LOCK_PITCH_MOUSE_MAX,
+		LOCK_PITCH_MOUSE_MAX
+	)
 
 
 func get_yaw_basis() -> Basis:
@@ -96,23 +113,31 @@ func blend_look_direction(world_direction: Vector3, blend_rate: float) -> void:
 	if dir.length_squared() < 0.0001 or _yaw_pivot == null:
 		return
 	dir = dir.normalized()
-	var target_yaw := _yaw_for_look_direction(dir)
+	var target_yaw := _yaw_for_look_direction(dir, not _lock_on_active)
 	_yaw_pivot.rotation.y = lerp_angle(_yaw_pivot.rotation.y, target_yaw, clampf(blend_rate, 0.0, 1.0))
 
 
 func set_lock_on_active(active: bool) -> void:
 	_lock_on_active = active
-	if not active:
+	if active:
+		_lock_pivot_offset = Vector3.ZERO
+		_lock_pitch_bias = 0.0
+		if _yaw_pivot:
+			_yaw_pivot.position = _lock_pivot_base
+	else:
 		_lock_focus = Vector3.ZERO
 		_lock_pivot_offset = Vector3.ZERO
+		_lock_pitch_bias = 0.0
 		if _yaw_pivot:
 			_yaw_pivot.position = _lock_pivot_base
 
 
 func update_lock_on_frame(focus_world: Vector3, player_eye: Vector3, delta: float) -> void:
-	if _first_person or _yaw_pivot == null:
+	if _yaw_pivot == null:
 		return
 	_lock_focus = focus_world
+	if _first_person:
+		_yaw_pivot.position = _lock_pivot_base
 	var to_focus := focus_world - player_eye
 	to_focus.y = 0.0
 	if to_focus.length_squared() < 0.0001:
@@ -120,31 +145,41 @@ func update_lock_on_frame(focus_world: Vector3, player_eye: Vector3, delta: floa
 	var flat_dir := to_focus.normalized()
 	blend_look_direction(flat_dir, 8.0 * delta)
 
-	var player_body := _yaw_pivot.get_parent() as Node3D
-	if player_body:
-		var local_focus := player_body.to_local(focus_world)
-		var local_eye := player_body.to_local(player_eye)
-		var local_delta := local_focus - local_eye
-		local_delta.y = 0.0
-		var planar_dist := local_delta.length()
-		if planar_dist > 0.01:
-			var local_dir := local_delta / planar_dist
-			var shift := clampf(planar_dist * 0.42, 0.35, 2.0)
-			var target_offset := Vector3(local_dir.x * shift, 0.0, local_dir.z * shift)
-			_lock_pivot_offset = _lock_pivot_offset.lerp(target_offset, clampf(6.0 * delta, 0.0, 1.0))
-			_yaw_pivot.position = _lock_pivot_base + _lock_pivot_offset
+	if not _first_person:
+		var player_body := _yaw_pivot.get_parent() as Node3D
+		if player_body:
+			var local_focus := player_body.to_local(focus_world)
+			var local_eye := player_body.to_local(player_eye)
+			var local_delta := local_focus - local_eye
+			local_delta.y = 0.0
+			var planar_dist := local_delta.length()
+			if planar_dist > 0.01:
+				var local_dir := local_delta / planar_dist
+				var shift := clampf(planar_dist * 0.42, 0.35, 2.0)
+				var target_offset := Vector3(local_dir.x * shift, 0.0, local_dir.z * shift)
+				_lock_pivot_offset = _lock_pivot_offset.lerp(target_offset, clampf(6.0 * delta, 0.0, 1.0))
+				_yaw_pivot.position = _lock_pivot_base + _lock_pivot_offset
 
 	var pivot_world := _yaw_pivot.global_position
 	var aim_dir := (focus_world - pivot_world).normalized()
 	var target_pitch := clampf(asin(clampf(aim_dir.y, -1.0, 1.0)), MIN_PITCH, MAX_PITCH)
+	var stick := Input.get_vector("look_left", "look_right", "look_up", "look_down")
+	_lock_pitch_bias = clampf(
+		_lock_pitch_bias + stick.y * LOCK_PITCH_BIAS_MAX * delta * 6.0,
+		-LOCK_PITCH_BIAS_MAX,
+		LOCK_PITCH_BIAS_MAX
+	)
+	if absf(stick.y) < 0.15:
+		_lock_pitch_bias = lerpf(_lock_pitch_bias, 0.0, clampf(4.0 * delta, 0.0, 1.0))
+	target_pitch = clampf(target_pitch + _lock_pitch_bias, MIN_PITCH, MAX_PITCH)
 	_pitch = lerpf(_pitch, target_pitch, clampf(8.0 * delta, 0.0, 1.0))
 	rotation.x = _pitch
 
 
-func _yaw_for_look_direction(flat_dir: Vector3) -> float:
+func _yaw_for_look_direction(flat_dir: Vector3, apply_fp_offset: bool = true) -> float:
 	# Spring-arm camera looks along -basis.z, opposite to the flat look direction.
 	var yaw := atan2(-flat_dir.x, -flat_dir.z)
-	if _first_person:
+	if _first_person and apply_fp_offset:
 		yaw += PI
 	return yaw
 
@@ -235,3 +270,14 @@ func _find_anim_director() -> Node:
 	if body == null:
 		return null
 	return body.get_node_or_null("AnimDirector")
+
+
+func _break_player_lock() -> void:
+	var body := get_parent()
+	while body != null and not (body is CharacterBody3D):
+		body = body.get_parent()
+	if body == null:
+		return
+	var lock_on := body.get_node_or_null("LockOn")
+	if lock_on and lock_on.has_method("break_lock"):
+		lock_on.call("break_lock")

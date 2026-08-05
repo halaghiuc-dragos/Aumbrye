@@ -29,8 +29,15 @@ const SILHOUETTE_COLOR := Color(0.14, 0.13, 0.17, 0.55)
 
 const CELL_SIZE := 56
 const EQUIP_CELL_SIZE := 64
+const INVENTORY_PANEL_HALF_W := 720.0
+const INVENTORY_PANEL_HALF_H := 480.0
+const INVENTORY_CELL_SIZE := 64
+const INVENTORY_EQUIP_CELL_SIZE := 82
 
 const RarityRegistryScript := preload("res://scripts/loot/rarity_registry.gd")
+const PixelStyle := preload("res://scripts/art/style/pixel_diorama_style.gd")
+
+const PIXEL_BAR_STEPS := 8
 
 
 static func make_backdrop(parent: Control, name: String = "Backdrop") -> ColorRect:
@@ -144,11 +151,15 @@ static func style_menu_title(label: Label, text: String = "") -> void:
 static func style_body_label(label: Label) -> void:
 	label.add_theme_color_override("font_color", BODY_COLOR)
 	label.add_theme_font_size_override("font_size", 14)
+	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	label.clip_text = true
 
 
 static func style_hint_label(label: Label) -> void:
 	label.add_theme_font_size_override("font_size", HINT_FONT_SIZE)
 	label.add_theme_color_override("font_color", HINT_COLOR)
+	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 
 
 static func ensure_backdrop(root: Control) -> ColorRect:
@@ -172,6 +183,7 @@ static func apply_modal_menu(
 	fallback_panel_path: String = "Panel"
 ) -> void:
 	ensure_backdrop(root)
+	apply_pixel_theme(root)
 	var dimmer := root.get_node_or_null(dimmer_path) as ColorRect
 	if dimmer:
 		dimmer.color = BACKDROP_COLOR
@@ -192,16 +204,17 @@ static func apply_modal_menu(
 			style_body_label(label)
 
 
-static func build_human_silhouette(parent: Control, cell_size: int, gap: int) -> void:
+static func build_human_silhouette(parent: Control, cell_size: int, gap: int, scale: float = 1.0) -> void:
 	var layer := Control.new()
 	layer.name = "Silhouette"
 	layer.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	layer.set_anchors_preset(Control.PRESET_FULL_RECT)
 	parent.add_child(layer)
 	layer.show_behind_parent = true
-	var col_w := float(cell_size + gap)
-	var row_h := float(cell_size + gap)
+	var col_w := float(cell_size + gap) * scale
+	var row_h := float(cell_size + gap) * scale
 	var center_x := col_w * 1.5
+	var scaled_cell := float(cell_size) * scale
 	var add_part := func(size: Vector2, pos: Vector2) -> void:
 		var part := ColorRect.new()
 		part.color = SILHOUETTE_COLOR
@@ -210,12 +223,12 @@ static func build_human_silhouette(parent: Control, cell_size: int, gap: int) ->
 		part.position = pos
 		part.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		layer.add_child(part)
-	add_part.call(Vector2(cell_size * 0.72, cell_size * 0.72), Vector2(center_x - cell_size * 0.36, row_h * 0.15))
-	add_part.call(Vector2(cell_size * 1.05, cell_size * 1.35), Vector2(center_x - cell_size * 0.52, row_h * 1.05))
-	add_part.call(Vector2(cell_size * 0.42, cell_size * 1.05), Vector2(center_x - cell_size * 1.12, row_h * 1.1))
-	add_part.call(Vector2(cell_size * 0.42, cell_size * 1.05), Vector2(center_x + cell_size * 0.7, row_h * 1.1))
-	add_part.call(Vector2(cell_size * 0.38, cell_size * 1.2), Vector2(center_x - cell_size * 0.62, row_h * 2.35))
-	add_part.call(Vector2(cell_size * 0.38, cell_size * 1.2), Vector2(center_x + cell_size * 0.24, row_h * 2.35))
+	add_part.call(Vector2(scaled_cell * 0.72, scaled_cell * 0.72), Vector2(center_x - scaled_cell * 0.36, row_h * 0.15))
+	add_part.call(Vector2(scaled_cell * 1.05, scaled_cell * 1.35), Vector2(center_x - scaled_cell * 0.52, row_h * 1.05))
+	add_part.call(Vector2(scaled_cell * 0.42, scaled_cell * 1.05), Vector2(center_x - scaled_cell * 1.12, row_h * 1.1))
+	add_part.call(Vector2(scaled_cell * 0.42, scaled_cell * 1.05), Vector2(center_x + scaled_cell * 0.7, row_h * 1.1))
+	add_part.call(Vector2(scaled_cell * 0.38, scaled_cell * 1.2), Vector2(center_x - scaled_cell * 0.62, row_h * 2.35))
+	add_part.call(Vector2(scaled_cell * 0.38, scaled_cell * 1.2), Vector2(center_x + scaled_cell * 0.24, row_h * 2.35))
 
 
 static func wire_button_sfx(button: BaseButton) -> void:
@@ -226,6 +239,61 @@ static func wire_button_sfx(button: BaseButton) -> void:
 		if AudioDirector:
 			AudioDirector.play_ui_sfx()
 	)
+
+
+static func is_pixel_ui() -> bool:
+	if PixelDioramaSettings.is_native_hd_preset():
+		return false
+	return PixelDioramaSettings.low_res_viewport_enabled
+
+
+static func apply_pixel_theme(root: Control) -> void:
+	var native_hd := PixelDioramaSettings.is_native_hd_preset()
+	if not is_pixel_ui() and not native_hd:
+		return
+	if not is_pixel_ui():
+		root.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
+		return
+	root.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	for child in root.find_children("*", "Label", true, false):
+		var label := child as Label
+		if label:
+			label.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	for child in root.find_children("*", "Button", true, false):
+		var button := child as BaseButton
+		if button:
+			button.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	for child in root.find_children("*", "ProgressBar", true, false):
+		var bar := child as ProgressBar
+		if bar:
+			bar.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+
+
+static func hub_palette_color(slot: int) -> Color:
+	return PixelStyle.get_palette_color(PixelStyle.PaletteTheme.HUB, slot)
+
+
+static func style_progress_bar(bar: ProgressBar, fill_color: Color, bg_color: Color) -> void:
+	bar.show_percentage = false
+	var pixel := is_pixel_ui()
+	var radius := 0 if pixel else 4
+	var inner_radius := 0 if pixel else 3
+	var bg := StyleBoxFlat.new()
+	bg.bg_color = bg_color
+	bg.border_color = FRAME_BORDER
+	bg.set_border_width_all(2 if pixel else 1)
+	bg.set_corner_radius_all(radius)
+	bg.set_content_margin_all(2 if pixel else 2)
+	var fill := StyleBoxFlat.new()
+	fill.bg_color = fill_color
+	fill.set_corner_radius_all(inner_radius)
+	bar.add_theme_stylebox_override("background", bg)
+	bar.add_theme_stylebox_override("fill", fill)
+	if pixel:
+		bar.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+		var steps := maxi(2, PIXEL_BAR_STEPS)
+		if bar.max_value > 0.0:
+			bar.step = bar.max_value / float(steps)
 
 
 static func make_item_cell_style(rarity: String, filled: bool) -> StyleBoxFlat:

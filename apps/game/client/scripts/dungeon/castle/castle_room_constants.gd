@@ -4,8 +4,8 @@ class_name CastleRoomConstants
 
 const GRID_UNIT := 4.0
 const DOOR_WIDTH := 3.0
-const DOOR_HEIGHT := 3.0
-const WALL_HEIGHT := 4.0
+const DOOR_HEIGHT := 4.5
+const WALL_HEIGHT := 6.0
 const WALL_THICKNESS := 0.5
 const FLOOR_THICKNESS := 0.5
 

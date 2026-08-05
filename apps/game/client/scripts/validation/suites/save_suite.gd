@@ -14,6 +14,9 @@ func run() -> void:
 	_test_death_snapshot_guard()
 	_test_player_dead_flag()
 	_test_backup_rotation()
+	_test_storage_roundtrip()
+	_test_world_flags_restore()
+	_test_checkpoint_migration()
 
 
 func _test_backup_rotation() -> void:
@@ -190,45 +193,112 @@ func _test_save_migration_roundtrip() -> void:
 		},
 	}
 	var start := Time.get_ticks_msec()
-	var v2: Dictionary = SaveMigratorScript.migrate(v1.duplicate(true))
-	var v2_ok: bool = (
-		not v2.get("migrationFailed", false)
-		and int(v2.get("schemaVersion", 0)) == 2
-		and int(v2.get("activeRun", {}).get("currentFloor", 0)) == 1
+	var migrated: Dictionary = SaveMigratorScript.migrate(v1.duplicate(true))
+	var v1_ok: bool = (
+		not migrated.get("migrationFailed", false)
+		and int(migrated.get("schemaVersion", 0)) == SaveMigratorScript.CURRENT_VERSION
+		and int(migrated.get("activeRun", {}).get("currentFloor", 0)) == 1
+		and migrated.get("activeRun", {}).has("lastCheckpoint")
 	)
 	ctx.timed_record(
 		"save.migrate_v1_to_v2",
 		get_category(),
-		v2_ok,
-		"v1 save gains floor fields at schemaVersion 2",
+		v1_ok,
+		"v1 save migrates to current schema with currentFloor=1",
 		start,
 		"M9.save.migrate_v2"
 	)
 
+	var v2_manual := {
+		"schemaVersion": 2,
+		"activeRun": {
+			"runId": "migrate-test",
+			"seed": TC.SEED_A,
+			"currentFloor": 1,
+			"maxFloors": RunFloorConfig.MAX_FLOORS,
+			"floorDefinitions": {},
+			"snapshot": {"player": {"health": 80.0}},
+		},
+	}
 	start = Time.get_ticks_msec()
-	var v3: Dictionary = SaveMigratorScript.migrate(v2.duplicate(true))
-	var v3_ok: bool = (
-		not v3.get("migrationFailed", false)
-		and int(v3.get("schemaVersion", 0)) == SaveMigratorScript.CURRENT_VERSION
-		and str(v3.get("activeRun", {}).get("runMode", "")) == "castle"
-		and not v3.get("activeRun", {}).has("floorDefinitions")
+	var from_v2: Dictionary = SaveMigratorScript.migrate(v2_manual.duplicate(true))
+	var v2_ok: bool = (
+		not from_v2.get("migrationFailed", false)
+		and int(from_v2.get("schemaVersion", 0)) == SaveMigratorScript.CURRENT_VERSION
+		and str(from_v2.get("activeRun", {}).get("runMode", "")) == "castle"
+		and not from_v2.get("activeRun", {}).has("floorDefinitions")
 	)
 	ctx.timed_record(
 		"save.migrate_v2_to_v3",
 		get_category(),
-		v3_ok,
-		"v2→v3 adds runMode and strips floorDefinitions",
+		v2_ok,
+		"v2→current adds runMode and strips floorDefinitions",
 		start,
 		"M9.save.migrate_v3"
 	)
 
 	start = Time.get_ticks_msec()
-	var roundtrip: Dictionary = SaveMigratorScript.migrate(v3.duplicate(true))
+	var roundtrip: Dictionary = SaveMigratorScript.migrate(from_v2.duplicate(true))
 	ctx.timed_record(
 		"save.migrate_idempotent_v3",
 		get_category(),
 		int(roundtrip.get("schemaVersion", 0)) == SaveMigratorScript.CURRENT_VERSION,
-		"v3 save is idempotent under migrate()",
+		"v4 save is idempotent under migrate()",
 		start,
 		"M9.save.migrate_idempotent"
+	)
+
+
+func _test_storage_roundtrip() -> void:
+	var start := Time.get_ticks_msec()
+	StorageService.storage.clear()
+	StorageService.storage.add_item("castle_sword", 1)
+	var saved := StorageService.get_save_storage()
+	StorageService.storage.clear()
+	StorageService.apply_save_storage(saved)
+	var ok := false
+	for slot in StorageService.storage.slots:
+		if slot.get("itemId", "") == "castle_sword":
+			ok = true
+			break
+	ctx.timed_record(
+		"save.storage_payload",
+		get_category(),
+		ok,
+		"hub storage round-trip via StorageService",
+		start,
+		"B05.save.storage"
+	)
+
+
+func _test_world_flags_restore() -> void:
+	var start := Time.get_ticks_msec()
+	WorldState.set_flag("suite_test_door", true)
+	WorldState.restore_flags({"suite_test_door": true, "suite_other": 2})
+	var ok := WorldState.has_flag("suite_test_door") and int(WorldState.get_flag("suite_other", 0)) == 2
+	WorldState.reset()
+	ctx.timed_record(
+		"save.world_flags_restore",
+		get_category(),
+		ok,
+		"WorldState.restore_flags round-trip",
+		start,
+		"B05.save.world_flags"
+	)
+
+
+func _test_checkpoint_migration() -> void:
+	var SaveMigratorScript := preload("res://scripts/save/save_migrator.gd")
+	var start := Time.get_ticks_msec()
+	var v3 := {"schemaVersion": 3, "activeRun": {"snapshot": {"player": {"health": 1.0}}}}
+	var migrated: Dictionary = SaveMigratorScript.migrate(v3.duplicate(true))
+	var run: Dictionary = migrated.get("activeRun", {})
+	var ok := int(migrated.get("schemaVersion", 0)) == 4 and run.has("lastCheckpoint")
+	ctx.timed_record(
+		"save.migrate_v4_checkpoint",
+		get_category(),
+		ok,
+		"v3→v4 adds lastCheckpoint and worldFlags defaults",
+		start,
+		"S09.save.migrate_v4"
 	)

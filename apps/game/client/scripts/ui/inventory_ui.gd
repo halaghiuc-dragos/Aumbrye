@@ -3,6 +3,7 @@ extends Control
 ## Grid inventory UX — D2-inspired paper doll + stash grid (INV-4.1).
 
 const GameUISkinScript := preload("res://scripts/ui/game_ui_skin.gd")
+const MenuShellScript := preload("res://scripts/ui/menu_shell.gd")
 const InventoryUILayoutScript := preload("res://scripts/ui/inventory_ui_layout.gd")
 const RarityRegistryScript := preload("res://scripts/loot/rarity_registry.gd")
 const BlacksmithServiceScript := preload("res://scripts/hub/blacksmith_service.gd")
@@ -48,6 +49,12 @@ var _equip_wrap: Control
 var _waves_mode := false
 var _bound_grid_w := -1
 var _bound_grid_h := -1
+var _action_row: HBoxContainer
+var _quick_slot_row: HBoxContainer
+var _btn_equip: Button
+var _btn_unequip: Button
+var _btn_use: Button
+var _btn_bind: Array[Button] = []
 
 
 func _ready() -> void:
@@ -121,7 +128,11 @@ func _build_ui_shell() -> void:
 		child.queue_free()
 	_backdrop = GameUISkinScript.make_backdrop(self)
 	_backdrop.mouse_filter = Control.MOUSE_FILTER_STOP
-	var panel := GameUISkinScript.make_center_panel(self)
+	var panel := GameUISkinScript.make_center_panel(
+		self,
+		GameUISkinScript.INVENTORY_PANEL_HALF_W,
+		GameUISkinScript.INVENTORY_PANEL_HALF_H
+	)
 	panel.name = "Panel"
 	var margin := MarginContainer.new()
 	margin.add_theme_constant_override("margin_left", GameUISkinScript.PANEL_MARGIN)
@@ -155,9 +166,25 @@ func _build_ui_shell() -> void:
 	_detail_label = Label.new()
 	_detail_label.name = "DetailLabel"
 	_detail_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_detail_label.custom_minimum_size = Vector2(520, 72)
+	_detail_label.custom_minimum_size = Vector2(560, 88)
 	GameUISkinScript.style_body_label(_detail_label)
 	footer.add_child(_detail_label)
+	_action_row = HBoxContainer.new()
+	_action_row.add_theme_constant_override("separation", 8)
+	_btn_equip = MenuShellScript.make_menu_button("Equip", _on_action_equip_pressed)
+	_btn_unequip = MenuShellScript.make_menu_button("Unequip", _on_action_unequip_pressed)
+	_btn_use = MenuShellScript.make_menu_button("Use", _on_action_use_pressed)
+	_action_row.add_child(_btn_equip)
+	_action_row.add_child(_btn_unequip)
+	_action_row.add_child(_btn_use)
+	for i in 3:
+		var bind_btn := MenuShellScript.make_menu_button("Bind %d" % (i + 1), _on_bind_quick_slot_pressed.bind(i))
+		_btn_bind.append(bind_btn)
+		_action_row.add_child(bind_btn)
+	footer.add_child(_action_row)
+	_quick_slot_row = HBoxContainer.new()
+	_quick_slot_row.add_theme_constant_override("separation", 10)
+	footer.add_child(_quick_slot_row)
 	_compare_label = Label.new()
 	_compare_label.name = "CompareLabel"
 	_compare_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -176,11 +203,11 @@ func _build_ui_shell() -> void:
 	_equip_wrap = Control.new()
 	_equip_wrap.name = "EquipWrap"
 	_equip_wrap.custom_minimum_size = Vector2(
-		EQUIP_CELL_SIZE * 3 + GRID_GAP * 2,
-		EQUIP_CELL_SIZE * 4 + GRID_GAP * 3
+		EQUIP_CELL_SIZE * 3 + GRID_GAP * 2 + 24,
+		EQUIP_CELL_SIZE * 4 + GRID_GAP * 3 + 24
 	)
 	equip_vbox.add_child(_equip_wrap)
-	GameUISkinScript.build_human_silhouette(_equip_wrap, EQUIP_CELL_SIZE, GRID_GAP)
+	GameUISkinScript.build_human_silhouette(_equip_wrap, EQUIP_CELL_SIZE, GRID_GAP, 1.12)
 	_equip_host = GridContainer.new()
 	_equip_host.name = "EquipGrid"
 	_equip_host.columns = 3
@@ -234,6 +261,9 @@ func _unhandled_input(event: InputEvent) -> void:
 		get_viewport().set_input_as_handled()
 	elif event.is_action_pressed("interact"):
 		_cycle_rarity_filter()
+		get_viewport().set_input_as_handled()
+		return
+	if _try_quick_slot_bind_input(event):
 		get_viewport().set_input_as_handled()
 
 
@@ -356,6 +386,8 @@ func _refresh_all() -> void:
 	_refresh_equipment()
 	_update_filter_label()
 	_update_detail()
+	_refresh_quick_slot_row()
+	_update_action_buttons()
 
 
 func _rebuild_visible_indices() -> void:
@@ -513,6 +545,7 @@ func _navigate(delta: Vector2i) -> void:
 	_highlight_cursor()
 	_refresh_equipment()
 	_update_detail()
+	_update_action_buttons()
 
 
 func _confirm_action() -> void:
@@ -639,6 +672,7 @@ func _on_cell_gui_input(event: InputEvent, x: int, y: int) -> void:
 		_highlight_cursor()
 		_refresh_equipment()
 		_update_detail()
+	_update_action_buttons()
 
 
 func _on_equip_gui_input(event: InputEvent, slot_name: String) -> void:
@@ -657,12 +691,14 @@ func _on_cell_mouse_entered(x: int, y: int) -> void:
 	_hover_equip_slot = ""
 	_highlight_cursor()
 	_update_detail()
+	_update_action_buttons()
 
 
 func _on_cell_mouse_exited() -> void:
 	_hover_grid_index = -1
 	_highlight_cursor()
 	_update_detail()
+	_update_action_buttons()
 
 
 func _on_equip_mouse_entered(slot_name: String) -> void:
@@ -671,12 +707,14 @@ func _on_equip_mouse_entered(slot_name: String) -> void:
 	_hover_equip_slot = slot_name
 	_refresh_equipment()
 	_update_detail()
+	_update_action_buttons()
 
 
 func _on_equip_mouse_exited() -> void:
 	_hover_equip_slot = ""
 	_refresh_equipment()
 	_update_detail()
+	_update_action_buttons()
 
 
 func _handle_grid_press(x: int, y: int) -> void:
@@ -861,3 +899,89 @@ func _format_slot_tooltip(slot: Dictionary, compare_delta: Dictionary = {}) -> S
 		if affix is Dictionary:
 			lines.append("  %s +%s" % [affix.get("affixId", ""), affix.get("value", 0)])
 	return "\n".join(lines)
+
+
+func _refresh_quick_slot_row() -> void:
+	if _quick_slot_row == null:
+		return
+	for child in _quick_slot_row.get_children():
+		child.queue_free()
+	if _waves_mode:
+		return
+	for i in 3:
+		var label := Label.new()
+		GameUISkinScript.style_hint_label(label)
+		label.text = "[%d] %s" % [i + 1, InventoryService.get_quick_slot_label(i)]
+		_quick_slot_row.add_child(label)
+
+
+func _update_action_buttons() -> void:
+	if _btn_equip == null:
+		return
+	var inv := _inventory()
+	var can_equip := false
+	var can_use := false
+	var can_unequip := false
+	var bind_index := -1
+	if _focus_area == FocusArea.EQUIPMENT or _hover_equip_slot != "":
+		var slot_name := _hover_equip_slot if _hover_equip_slot != "" else _equip_nav_slots[_equip_cursor]
+		can_unequip = not inv.equipped.get(slot_name, {}).is_empty()
+	elif _selected_index >= 0:
+		bind_index = _selected_index
+		var slot: Dictionary = inv.slots[_selected_index]
+		var def := _item_def(slot.get("itemId", ""))
+		var item_type: String = def.get("itemType", "")
+		can_equip = item_type in ["weapon", "armor", "accessory"]
+		can_use = item_type == "consumable"
+	_btn_equip.visible = can_equip
+	_btn_use.visible = can_use
+	_btn_unequip.visible = can_unequip
+	for i in _btn_bind.size():
+		_btn_bind[i].visible = bind_index >= 0 and not _waves_mode
+
+
+func _on_action_equip_pressed() -> void:
+	if _selected_index < 0:
+		return
+	if _inventory().equip_from_index(_selected_index):
+		_apply_equipment()
+		_refresh_all()
+
+
+func _on_action_unequip_pressed() -> void:
+	var slot_name := _hover_equip_slot if _hover_equip_slot != "" else _equip_nav_slots[_equip_cursor]
+	_unequip_slot(slot_name)
+
+
+func _on_action_use_pressed() -> void:
+	if _selected_index < 0:
+		return
+	_use_selected_consumable()
+
+
+func _on_bind_quick_slot_pressed(quick_index: int) -> void:
+	if _selected_index < 0 or _waves_mode:
+		return
+	InventoryService.set_quick_slot(quick_index, _selected_index)
+	_refresh_quick_slot_row()
+
+
+func _try_quick_slot_bind_input(event: InputEvent) -> bool:
+	if _waves_mode or not (event is InputEventKey and event.pressed and not event.echo):
+		return false
+	if _selected_index < 0:
+		return false
+	match event.keycode:
+		KEY_1:
+			InventoryService.set_quick_slot(0, _selected_index)
+			_refresh_quick_slot_row()
+			return true
+		KEY_2:
+			InventoryService.set_quick_slot(1, _selected_index)
+			_refresh_quick_slot_row()
+			return true
+		KEY_3:
+			InventoryService.set_quick_slot(2, _selected_index)
+			_refresh_quick_slot_row()
+			return true
+	return false

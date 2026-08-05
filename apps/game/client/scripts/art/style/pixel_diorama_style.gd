@@ -518,6 +518,55 @@ static func add_collision_box(
 	return shape_node
 
 
+static func add_portal_column(
+	parent: Node3D,
+	center: Vector3,
+	frame_mat: Material,
+	accent_mat: Material,
+	height: float,
+	column_w: float = 0.62,
+	node_name: String = "Column"
+) -> void:
+	add_box(parent, Vector3(column_w, height, column_w), center, frame_mat, "%sPillar" % node_name)
+	var cap_w := column_w * 1.48
+	var cap_h := column_w * 0.62
+	add_box(
+		parent,
+		Vector3(cap_w, cap_h, cap_w),
+		center + Vector3(0.0, height * 0.5 + cap_h * 0.5, 0.0),
+		accent_mat,
+		"%sCapital" % node_name
+	)
+
+
+static func dress_portal_architecture(
+	visuals: Node3D,
+	mats: Dictionary,
+	theme: String,
+	origin: Vector3 = Vector3.ZERO
+) -> void:
+	var frame_mat: Material = mats.wall if mats.has("wall") else mats.accent
+	var accent_mat: Material = mats.accent
+	var floor_mat: Material = mats.floor if mats.has("floor") else accent_mat
+	var theme_mat: Material = mats.get(theme, accent_mat)
+	var o := origin
+	add_box(visuals, Vector3(4.2, 0.22, 2.2), o + Vector3(0.0, 0.11, 0.0), frame_mat, "Base")
+	add_box(visuals, Vector3(3.6, 0.16, 1.8), o + Vector3(0.0, 0.28, 0.0), accent_mat, "Step")
+	add_portal_column(visuals, o + Vector3(-1.75, 1.8, 0.0), frame_mat, accent_mat, 3.6, 0.62, "L")
+	add_portal_column(visuals, o + Vector3(1.75, 1.8, 0.0), frame_mat, accent_mat, 3.6, 0.62, "R")
+	add_box(visuals, Vector3(4.2, 0.55, 0.72), o + Vector3(0.0, 3.95, 0.0), frame_mat, "Lintel")
+	add_box(visuals, Vector3(3.0, 0.22, 0.22), o + Vector3(0.0, 3.2, 0.0), accent_mat, "ArchKeystone")
+	add_box(visuals, Vector3(0.35, 2.8, 0.35), o + Vector3(-1.2, 1.6, 0.28), frame_mat, "ButtressL")
+	add_box(visuals, Vector3(0.35, 2.8, 0.35), o + Vector3(1.2, 1.6, 0.28), frame_mat, "ButtressR")
+	add_portal_interior(visuals, Vector2(2.6, 2.2), o + Vector3(0.0, 1.55, 0.04), theme)
+	add_box(visuals, Vector3(3.8, 0.16, 1.9), o + Vector3(0.0, 0.08, 0.0), floor_mat, "Pad")
+	if theme == "training":
+		add_box(visuals, Vector3(0.22, 0.22, 0.22), o + Vector3(-1.0, 0.22, 0.75), theme_mat, "EmberL")
+		add_box(visuals, Vector3(0.22, 0.22, 0.22), o + Vector3(1.0, 0.22, 0.75), theme_mat, "EmberR")
+		add_box(visuals, Vector3(0.18, 2.8, 0.18), o + Vector3(-1.55, 1.6, 0.12), theme_mat, "TorchL")
+		add_box(visuals, Vector3(0.18, 2.8, 0.18), o + Vector3(1.55, 1.6, 0.12), theme_mat, "TorchR")
+
+
 static func add_hub_tent(
 	landmark: Node3D,
 	mats: Dictionary,
@@ -539,20 +588,83 @@ static func add_hub_tent(
 	var half_w := width * 0.5
 	var half_d := depth * 0.5
 	var wall_thickness := 0.22
-	var pole_h := wall_height + roof_peak * 0.35
 	var lip_width := (width - entrance_width) * 0.5
 	var lip_z := half_d - wall_thickness * 0.5
+	var floor_alt: Material = mats.get("floor_alt", mats.get("floor", pole_mat))
 
-	for corner in [
-		Vector3(-half_w + 0.18, 0.0, -half_d + 0.18),
-		Vector3(half_w - 0.18, 0.0, -half_d + 0.18),
-		Vector3(-half_w + 0.18, 0.0, half_d - 0.18),
-		Vector3(half_w - 0.18, 0.0, half_d - 0.18),
-	]:
-		add_cylinder(visuals, 0.07, 0.09, pole_h, corner + Vector3(0.0, pole_h * 0.5, 0.0), pole_mat, "Pole")
+	add_box(visuals, Vector3(width + 0.55, 0.22, depth + 0.55), Vector3(0.0, 0.11, 0.0), floor_alt, "Plinth")
+	add_box(visuals, Vector3(width + 0.38, 0.16, depth + 0.38), Vector3(0.0, 0.28, 0.0), roof_mat, "PlinthStep")
+
+	var column_h := wall_height
+	var corner_positions := [
+		Vector3(-half_w + 0.22, column_h * 0.5, -half_d + 0.22),
+		Vector3(half_w - 0.22, column_h * 0.5, -half_d + 0.22),
+		Vector3(-half_w + 0.22, column_h * 0.5, half_d - 0.22),
+		Vector3(half_w - 0.22, column_h * 0.5, half_d - 0.22),
+	]
+	for i in corner_positions.size():
+		add_portal_column(
+			visuals,
+			corner_positions[i],
+			pole_mat,
+			roof_mat,
+			column_h,
+			0.48,
+			"Corner%d" % i
+		)
+
+	var entrance_z := lip_z - 0.08
+	var col_x := entrance_width * 0.5 + 0.22
+	add_portal_column(
+		visuals,
+		Vector3(-col_x, wall_height * 0.5, entrance_z),
+		pole_mat,
+		roof_mat,
+		wall_height,
+		0.42,
+		"EntryL"
+	)
+	add_portal_column(
+		visuals,
+		Vector3(col_x, wall_height * 0.5, entrance_z),
+		pole_mat,
+		roof_mat,
+		wall_height,
+		0.42,
+		"EntryR"
+	)
+	add_box(
+		visuals,
+		Vector3(entrance_width + 1.1, 0.42, 0.55),
+		Vector3(0.0, wall_height + 0.21, entrance_z - 0.12),
+		pole_mat,
+		"EntryLintel"
+	)
+	add_box(
+		visuals,
+		Vector3(0.28, 0.28, 0.28),
+		Vector3(0.0, wall_height + 0.52, entrance_z - 0.1),
+		roof_mat,
+		"EntryKeystone"
+	)
+	add_box(
+		visuals,
+		Vector3(0.3, wall_height * 0.85, 0.28),
+		Vector3(-col_x + 0.35, wall_height * 0.42, entrance_z + 0.12),
+		pole_mat,
+		"EntryButtressL"
+	)
+	add_box(
+		visuals,
+		Vector3(0.3, wall_height * 0.85, 0.28),
+		Vector3(col_x - 0.35, wall_height * 0.42, entrance_z + 0.12),
+		pole_mat,
+		"EntryButtressR"
+	)
 
 	var ridge_y := wall_height + roof_peak
-	add_box(visuals, Vector3(width + 0.35, 0.14, 0.14), Vector3(0.0, ridge_y, 0.0), roof_mat, "Ridge")
+	add_box(visuals, Vector3(width + 0.42, 0.18, 0.18), Vector3(0.0, ridge_y, 0.0), roof_mat, "Ridge")
+	add_box(visuals, Vector3(width + 0.22, 0.08, 0.08), Vector3(0.0, ridge_y + 0.1, 0.0), pole_mat, "RidgeCap")
 
 	var front_slope_len := sqrt(half_d * half_d + roof_peak * roof_peak)
 	var front_slope_angle := atan2(roof_peak, half_d)
@@ -592,11 +704,7 @@ static func add_hub_tent(
 	)
 	right_roof.rotation.z = -side_slope_angle
 
-	var stake_pos := Vector3(half_w + 0.55, 0.0, half_d + 0.35)
-	add_cylinder(visuals, 0.04, 0.05, 0.35, stake_pos + Vector3(0.0, 0.18, 0.0), pole_mat, "Stake")
-	var guy_line := add_box(visuals, Vector3(0.04, 0.04, 0.65), Vector3(0.0, 0.0, 0.0), pole_mat, "GuyLine")
-	guy_line.position = (Vector3(half_w - 0.18, pole_h * 0.85, half_d - 0.18) + stake_pos) * 0.5
-	guy_line.look_at(Vector3(half_w - 0.18, pole_h * 0.85, half_d - 0.18), Vector3.UP)
+	add_box(visuals, Vector3(width + 0.5, 0.14, 0.5), Vector3(0.0, 0.38, half_d + 0.18), roof_mat, "AwningTrim")
 
 	add_box(
 		visuals,
@@ -655,7 +763,8 @@ static func add_hub_tent(
 		"FlapR"
 	)
 
-	add_box(visuals, Vector3(width + 0.6, 0.1, depth + 0.6), Vector3(0.0, 0.05, 0.0), mats.floor_alt, "TentPad")
+	add_box(visuals, Vector3(width + 0.55, 0.12, depth + 0.55), Vector3(0.0, 0.06, 0.0), floor_alt, "TentPad")
+	add_box(visuals, Vector3(width + 0.35, 0.08, depth + 0.35), Vector3(0.0, 0.14, 0.0), roof_mat, "TentPadTrim")
 
 	var collision_root := landmark.get_node_or_null("TentCollision") as StaticBody3D
 	if collision_root == null:
@@ -815,13 +924,20 @@ static func _make_fountain_particle_mesh(radius: float) -> SphereMesh:
 
 static func _make_fountain_particle_material(color: Color, emission_energy: float) -> StandardMaterial3D:
 	var mat := StandardMaterial3D.new()
-	mat.albedo_color = color
+	var quantized := Color(
+		floorf(color.r * 6.0 + 0.5) / 6.0,
+		floorf(color.g * 6.0 + 0.5) / 6.0,
+		floorf(color.b * 6.0 + 0.5) / 6.0,
+		color.a
+	)
+	mat.albedo_color = quantized
 	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
 	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mat.specular_mode = BaseMaterial3D.SPECULAR_DISABLED
 	mat.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
 	mat.emission_enabled = true
-	mat.emission = Color(color.r, color.g, color.b)
+	mat.emission = quantized
 	mat.emission_energy_multiplier = emission_energy
 	mat.texture_filter = PixelDioramaSettings.texture_filter_mode()
 	return mat

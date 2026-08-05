@@ -27,10 +27,17 @@ static func from_biome(biome: Dictionary) -> RoomGraphConfig:
 	var room_count: Dictionary = biome.get("roomCount", {})
 	config.min_rooms = int(room_count.get("min", 18))
 	config.max_rooms = int(room_count.get("max", 22))
-	config.grid_width = maxi(11, int(ceil(sqrt(float(config.max_rooms))) + 4))
+	config.grid_width = maxi(13, int(ceil(sqrt(float(config.max_rooms))) + 6))
 	config.grid_height = config.grid_width
-	config.boss_min_distance = maxi(4, int(config.max_rooms / 3.0))
+	config.boss_min_distance = clampi(int(config.min_rooms / 4.0), 4, 6)
 	config.min_dead_ends = 2 if bool(biome.get("requiresSecret", false)) else 1
+	if config.min_rooms >= 16:
+		config.branch_max_depth = 8
+		config.max_neighbor_count = 4
+		config.loop_budget = 4
+		config.max_generation_attempts = 256
+		config.max_walk_attempts = 8192
+		config.allow_2x2_blocks = true
 	return config
 
 

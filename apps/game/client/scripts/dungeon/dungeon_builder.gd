@@ -96,8 +96,9 @@ func build_from_source(parent: Node3D, player: CharacterBody3D, fixture_path: St
 		push_error("DungeonBuilder: definition has no rooms")
 		return
 	_build_rooms(parent)
+	_sync_blockout_doors_from_edges()
+	_build_doorway_bridges(parent)
 	_build_height_transitions()
-	_build_shortcut_corridors(parent)
 	_build_floor_shell(parent)
 	_build_landmarks(parent)
 	_place_cover()
@@ -169,30 +170,92 @@ func _build_rooms(parent: Node3D) -> void:
 			STAIR_COLLISION.ensure_stair_collision(instance)
 
 
+func _sync_blockout_doors_from_edges() -> void:
+	for edge in definition.get("edges", []):
+		var kind := str(edge.get("kind", "door"))
+		if kind == "one_way":
+			continue
+		var from_room := get_room(str(edge.get("from", "")))
+		var to_room := get_room(str(edge.get("to", "")))
+		if from_room == null or to_room == null:
+			continue
+		_open_blockout_door_toward(from_room, to_room)
+		_open_blockout_door_toward(to_room, from_room)
+
+
+func _open_blockout_door_toward(from_room: RoomTemplate, to_room: RoomTemplate) -> void:
+	var blockout := from_room.get_blockout()
+	if blockout == null:
+		return
+	var door_mask := from_room.door_mask_toward(to_room)
+	match door_mask:
+		RoomGraphSlot.DOOR_NORTH:
+			blockout.door_north = true
+		RoomGraphSlot.DOOR_EAST:
+			blockout.door_east = true
+		RoomGraphSlot.DOOR_SOUTH:
+			blockout.door_south = true
+		RoomGraphSlot.DOOR_WEST:
+			blockout.door_west = true
+
+
+func _build_doorway_bridges(parent: Node3D) -> void:
+	var floor_mat := BiomeRegistry.get_floor_material(biome_id)
+	var bridges := Node3D.new()
+	bridges.name = "DoorwayBridges"
+	parent.add_child(bridges)
+	for edge in definition.get("edges", []):
+		var kind := str(edge.get("kind", "door"))
+		if kind == "one_way" or kind == "secret":
+			continue
+		var from_room := get_room(str(edge.get("from", "")))
+		var to_room := get_room(str(edge.get("to", "")))
+		if from_room == null or to_room == null:
+			continue
+		var from_socket := from_room.socket_toward(to_room)
+		var to_socket := to_room.socket_toward(from_room)
+		if from_socket == null or to_socket == null:
+			continue
+		var from_pos := from_socket.global_position
+		var to_pos := to_socket.global_position
+		var midpoint := (from_pos + to_pos) * 0.5
+		midpoint.y = minf(from_pos.y, to_pos.y)
+		var offset := to_pos - from_pos
+		offset.y = 0.0
+		var span := offset.length()
+		if span < 0.5:
+			continue
+		var bridge_size := Vector3(
+			span * 0.35 if absf(offset.x) > absf(offset.z) else CastleRoomConstants.DOOR_WIDTH,
+			CastleRoomConstants.FLOOR_THICKNESS,
+			span * 0.35 if absf(offset.z) >= absf(offset.x) else CastleRoomConstants.DOOR_WIDTH
+		)
+		_add_doorway_bridge(bridges, midpoint, bridge_size, floor_mat)
+
+
+func _add_doorway_bridge(parent: Node3D, center: Vector3, size: Vector3, material: Material) -> void:
+	var body := StaticBody3D.new()
+	body.collision_layer = 1
+	body.collision_mask = 0
+	body.position = center + Vector3(0.0, size.y * 0.5, 0.0)
+	parent.add_child(body)
+	var mesh_instance := MeshInstance3D.new()
+	var box := BoxMesh.new()
+	box.size = size
+	mesh_instance.mesh = box
+	if material:
+		mesh_instance.material_override = material
+	body.add_child(mesh_instance)
+	var collision := CollisionShape3D.new()
+	var shape := BoxShape3D.new()
+	shape.size = size
+	collision.shape = shape
+	body.add_child(collision)
+
+
 func _build_height_transitions() -> void:
-	for room_id in _rooms:
-		var room := get_room(room_id)
-		if room == null:
-			continue
-		var blockout := room.get_blockout()
-		if blockout == null:
-			continue
-		var room_y := room.global_position.y
-		for edge in definition.get("edges", []):
-			var from_id: String = edge.get("from", "")
-			var to_id: String = edge.get("to", "")
-			var other_id := to_id if from_id == room_id else (from_id if to_id == room_id else "")
-			if other_id == "":
-				continue
-			var other := get_room(other_id)
-			if other == null:
-				continue
-			var delta_y := other.global_position.y - room_y
-			if absf(delta_y) < 0.5:
-				continue
-			var step_count := clampi(int(absf(delta_y) / 0.5), 1, 6)
-			blockout.add_height_stairs(step_count, Vector2i(0, -1))
-			break
+	# Height transitions disabled until direction-aware stair placement exists.
+	pass
 
 
 func _build_landmarks(parent: Node3D) -> void:
@@ -302,15 +365,7 @@ func _build_nav_links() -> void:
 
 
 func _find_link_socket(room: RoomTemplate, toward: RoomTemplate) -> DoorwaySocket:
-	var best: DoorwaySocket = null
-	var best_dist := INF
-	var target := toward.global_position
-	for socket in room.get_sockets():
-		var dist := socket.global_position.distance_squared_to(target)
-		if dist < best_dist:
-			best_dist = dist
-			best = socket
-	return best
+	return room.socket_toward(toward)
 
 
 func _sample_placement_offset(room: RoomTemplate, placement: Dictionary) -> Vector3:
@@ -385,6 +440,7 @@ func _spawn_player() -> void:
 	var entrance := get_room(entrance_id)
 	if entrance:
 		_player.global_position = entrance.get_player_spawn_global()
+		CharacterFloorSnapScript.snap_feet_to_floor(_player)
 	_player.add_to_group("player")
 
 

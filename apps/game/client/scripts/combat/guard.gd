@@ -6,7 +6,7 @@ extends Node
 const CombatStatModifiersScript := preload("res://scripts/combat/combat_stat_modifiers.gd")
 
 const BLOCK_STAMINA_DRAIN_PER_HIT := 18.0
-const BLOCK_DAMAGE_REDUCTION := 0.75
+const BLOCK_DAMAGE_REDUCTION := 0.22
 const GUARD_BREAK_STAGGER := 0.8
 const BLOCK_ARC_DEGREES := 120.0
 const PARRY_WINDOW := 0.18
@@ -124,6 +124,7 @@ func try_parry_attack(attacker: Node) -> bool:
 	if _body:
 		var anchor: Array = VfxService.resolve_combat_anchor(_body)
 		VfxService.play_parry(anchor[0], anchor[1])
+		VfxService.play_impact_decal(anchor[0], anchor[1])
 	_end_guard()
 	block_state_changed.emit(false)
 	return true

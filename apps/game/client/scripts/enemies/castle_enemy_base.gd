@@ -49,6 +49,9 @@ var _attack_token_held := false
 var _current_attack_data: Dictionary = {}
 var _combo_step := 0
 var _combat_registered := false
+var _deaggro_los_timer := 0.0
+var _windup_duration := 0.0
+const DEAGGRO_LOS_TIMEOUT := 3.0
 
 
 func _ready() -> void:
@@ -78,6 +81,8 @@ func _ready() -> void:
 	_setup_diorama_visual()
 	if _health:
 		_attach_health_bar()
+	if _telegraph:
+		_telegraph.visible = false
 	_pick_patrol_target()
 
 
@@ -140,6 +145,11 @@ func get_hp_bar_height() -> float:
 	return _estimate_body_top_y() + 0.22
 
 
+func get_lock_aim_point() -> Vector3:
+	var chest_y := maxf(1.0, _estimate_body_top_y() * 0.55)
+	return global_position + Vector3(0.0, chest_y, 0.0)
+
+
 func _estimate_body_top_y() -> float:
 	if _diorama_visual:
 		return _node_max_y(_diorama_visual)
@@ -175,6 +185,18 @@ func _update_telegraph_height() -> void:
 		return
 	var height := get_hp_bar_height()
 	_telegraph.position.y = height
+
+
+func begin_attack_windup_bar(duration: float) -> void:
+	_windup_duration = maxf(0.05, duration)
+	if _hp_bar:
+		_hp_bar.begin_attack_telegraph(_windup_duration)
+
+
+func hide_attack_windup_bar() -> void:
+	_windup_duration = 0.0
+	if _hp_bar:
+		_hp_bar.hide_attack_telegraph()
 
 
 func _apply_hurtbox_data() -> void:
@@ -220,6 +242,7 @@ func respawn_at_rest() -> void:
 		_hitbox.reset_swing()
 	if _telegraph:
 		_telegraph.visible = false
+	hide_attack_windup_bar()
 	if _hurtbox:
 		_hurtbox.monitorable = true
 		_hurtbox.monitoring = true
@@ -247,7 +270,7 @@ func apply_state(state: Dictionary) -> void:
 		_finalize_death(true)
 		return
 	if is_dead():
-		return
+		respawn_at_rest()
 	if _health and state.has("health"):
 		var hp := float(state.get("health", _health.max_health))
 		if hp <= 0.0:
@@ -278,6 +301,7 @@ func _finalize_death(silent: bool) -> void:
 		_hitbox.reset_swing()
 	if _telegraph:
 		_telegraph.visible = false
+	hide_attack_windup_bar()
 	if _hp_bar:
 		_hp_bar.visible = false
 	if _animator and _animator.is_bound():
@@ -340,6 +364,7 @@ func apply_stagger(duration: float) -> void:
 		_hitbox.disable()
 	if _telegraph:
 		_telegraph.visible = false
+	hide_attack_windup_bar()
 	if _animator and _animator.is_bound():
 		_animator.play_stagger(duration)
 	elif _mesh:
@@ -402,6 +427,10 @@ func _update_ai(delta: float) -> void:
 		State.WINDUP:
 			_apply_chase_velocity(delta, 0.9)
 			_state_timer -= delta
+			if _windup_duration > 0.0:
+				var elapsed := _windup_duration - _state_timer
+				if _hp_bar:
+					_hp_bar.set_attack_telegraph_progress(clampf(elapsed / _windup_duration, 0.0, 1.0))
 			if _state_timer <= 0.0:
 				_start_attack()
 		State.ATTACK:
@@ -508,17 +537,34 @@ func _apply_chase_velocity(_delta: float, speed_mult: float = 1.0) -> void:
 func _has_aggro() -> bool:
 	if _player == null:
 		return false
-	if _aggro_locked:
-		return true
 	var aggro: float = _data.get("aggro_range", 10.0)
+	if _aggro_locked:
+		var deaggro: float = _data.get("deaggro_range", aggro * 1.6)
+		if global_position.distance_to(_player.global_position) > deaggro:
+			_drop_aggro()
+			return false
+		if _has_line_of_sight_to_player():
+			_deaggro_los_timer = 0.0
+		else:
+			_deaggro_los_timer += get_physics_process_delta_time()
+			if _deaggro_los_timer >= DEAGGRO_LOS_TIMEOUT:
+				_drop_aggro()
+				return false
+		return true
 	if global_position.distance_to(_player.global_position) > aggro:
 		return false
 	if _has_line_of_sight_to_player():
-		if not _aggro_locked:
-			_register_combat_engagement()
+		_register_combat_engagement()
 		_aggro_locked = true
+		_deaggro_los_timer = 0.0
 		return true
 	return false
+
+
+func _drop_aggro() -> void:
+	_aggro_locked = false
+	_deaggro_los_timer = 0.0
+	_unregister_combat_engagement()
 
 
 func _can_attack() -> bool:
@@ -581,15 +627,7 @@ func _start_windup() -> void:
 		)
 	elif _mesh:
 		_mesh.scale = Vector3(1.08, 1.08, 1.08)
-	if _telegraph:
-		_telegraph.visible = true
-	VfxService.play_telegraph(
-		global_position,
-		float(_current_attack_data.get("attack_range", _data.get("attack_range", 2.2))) * 0.8,
-		_state_timer,
-		Color(0.95, 0.34, 0.28),
-		str(_current_attack_data.get("telegraph_shape", _data.get("telegraph_shape", "circle")))
-	)
+	begin_attack_windup_bar(_state_timer)
 	AudioDirector.play_sfx("windup", global_position + Vector3(0.0, 1.0, 0.0))
 	attack_telegraph_started.emit()
 
@@ -600,8 +638,7 @@ func _start_attack() -> void:
 		return
 	_state = State.ATTACK
 	_state_timer = float(_current_attack_data.get("active_duration", _data.get("active_duration", 0.15)))
-	if _telegraph:
-		_telegraph.visible = false
+	hide_attack_windup_bar()
 	if _hitbox:
 		_hitbox.set_attack_values(
 			float(_current_attack_data.get("attack_damage", _data.get("attack_damage", 14.0))),
@@ -631,6 +668,7 @@ func _end_attack() -> void:
 		_current_attack_data = combo[_combo_step - 1]
 		_state = State.WINDUP
 		_state_timer = float(_current_attack_data.get("windup_duration", 0.35))
+		begin_attack_windup_bar(_state_timer)
 	else:
 		_combo_step = 0
 

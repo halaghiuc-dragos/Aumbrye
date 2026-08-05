@@ -231,25 +231,12 @@ static func validate_door_topology(graph: RoomGraph, assignment: Dictionary) -> 
 
 
 static func _append_shortcut_edges(
-	graph: RoomGraph,
-	semantic_by_layout: Dictionary,
-	edges: Array
+	_graph: RoomGraph,
+	_semantic_by_layout: Dictionary,
+	_edges: Array
 ) -> void:
-	var path: Array[String] = RoomGraphPaths.critical_path_ids(graph)
-	if path.size() < 5:
-		return
-	var from_layout: String = path[path.size() - 2]
-	var to_layout: String = path[mini(2, path.size() - 1)]
-	var from_sem: String = semantic_by_layout.get(from_layout, from_layout)
-	var to_sem: String = semantic_by_layout.get(to_layout, to_layout)
-	if from_sem == to_sem:
-		return
-	for edge in edges:
-		if edge.get("from", "") == from_sem and edge.get("to", "") == to_sem:
-			return
-		if edge.get("from", "") == to_sem and edge.get("to", "") == from_sem:
-			return
-	edges.append({"from": from_sem, "to": to_sem, "kind": "one_way"})
+	# Disabled: one-way shortcut edges created phantom nav links without geometry bridges.
+	pass
 
 
 static func _place_secret_rooms(

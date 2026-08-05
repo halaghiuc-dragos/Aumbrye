@@ -15,6 +15,7 @@ var gold: int = DEFAULT_GOLD
 var coins: int = DEFAULT_GOLD
 var class_id: String = ""
 var appearance_theme: int = 0
+var appearance_profile: Dictionary = CharacterAppearance.default_profile()
 var flags: Dictionary = {}
 var quests: Dictionary = {}
 
@@ -136,6 +137,7 @@ func to_save_dict() -> Dictionary:
 		"coins": coins,
 		"classId": class_id,
 		"appearanceTheme": appearance_theme,
+		"appearance": appearance_profile.duplicate(),
 		"flags": flags.duplicate(),
 		"quests": quests.duplicate(),
 	}
@@ -146,6 +148,10 @@ func from_save_dict(data: Dictionary) -> void:
 	coins = gold
 	class_id = str(data.get("classId", ""))
 	appearance_theme = int(data.get("appearanceTheme", 0))
+	appearance_profile = CharacterAppearance.sanitize(
+		data.get("appearance", {"theme": appearance_theme})
+	)
+	appearance_theme = int(appearance_profile.get("theme", appearance_theme))
 	flags = {}
 	var saved_flags: Variant = data.get("flags", {})
 	if saved_flags is Dictionary:
@@ -164,6 +170,7 @@ func reset_to_defaults() -> void:
 	coins = DEFAULT_GOLD
 	class_id = ""
 	appearance_theme = 0
+	appearance_profile = CharacterAppearance.default_profile()
 	flags.clear()
 	quests.clear()
 	gold_changed.emit(gold)

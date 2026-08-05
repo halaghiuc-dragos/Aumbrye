@@ -1,6 +1,8 @@
 shader_type spatial;
 render_mode blend_mix, cull_disabled, unshaded;
 
+#include "res://assets/shared/pixel_diorama_finish.gdshaderinc"
+
 uniform vec4 color_inner : source_color = vec4(0.55, 0.75, 1.0, 1.0);
 uniform vec4 color_outer : source_color = vec4(0.18, 0.28, 0.62, 1.0);
 uniform vec4 color_accent : source_color = vec4(0.85, 0.95, 1.0, 1.0);
@@ -9,14 +11,6 @@ uniform float spin_speed : hint_range(0.0, 6.0) = 2.2;
 uniform float spiral_tightness : hint_range(1.0, 12.0) = 5.5;
 uniform float ellipse_x : hint_range(0.5, 2.0) = 0.72;
 uniform float ellipse_y : hint_range(0.5, 2.0) = 1.0;
-
-float cell_hash(vec2 cell) {
-	return fract(sin(dot(cell, vec2(12.9898, 78.233))) * 43758.5453);
-}
-
-vec3 quantize_color(vec3 color, float levels) {
-	return floor(color * levels + 0.5) / levels;
-}
 
 void fragment() {
 	vec2 centered = UV * 2.0 - 1.0;
@@ -37,6 +31,7 @@ void fragment() {
 	vec4 col = mix(color_outer, color_inner, grain);
 	col = mix(col, color_accent, step(0.82, grain) * (1.0 - dist));
 	col = mix(col, color_inner, ring * 0.25);
+	col.rgb = apply_portal_finish(col.rgb, centered, color_accent.rgb, pixel_scale, 1.0);
 	col.rgb = quantize_color(col.rgb, 6.0);
 
 	float edge_fade = smoothstep(1.0, 0.82, dist);

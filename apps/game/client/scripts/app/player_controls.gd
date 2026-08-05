@@ -72,6 +72,9 @@ func sync_player_loadout() -> void:
 	var player := get_tree().get_first_node_in_group("player")
 	if player:
 		InventoryService.apply_equipment_to_player_node(player)
+		var locomotion := player.get_node_or_null("Locomotion")
+		if locomotion and locomotion.has_method("refresh_appearance_visual"):
+			locomotion.call("refresh_appearance_visual")
 
 
 func uses_main_inventory() -> bool:
@@ -146,3 +149,16 @@ func _unhandled_input(event: InputEvent) -> void:
 	if _pause_menu and _pause_menu.has_method("toggle"):
 		_pause_menu.call("toggle")
 	get_viewport().set_input_as_handled()
+
+
+func _process(_delta: float) -> void:
+	if is_player_meta_ui_open():
+		return
+	if not uses_main_inventory():
+		return
+	if Input.is_action_just_pressed("quick_slot_1"):
+		InventoryService.activate_quick_slot(0)
+	elif Input.is_action_just_pressed("quick_slot_2"):
+		InventoryService.activate_quick_slot(1)
+	elif Input.is_action_just_pressed("quick_slot_3"):
+		InventoryService.activate_quick_slot(2)

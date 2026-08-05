@@ -5,8 +5,8 @@ extends RefCounted
 
 const GameUISkinScript := preload("res://scripts/ui/game_ui_skin.gd")
 
-const CELL_SIZE := GameUISkinScript.CELL_SIZE
-const EQUIP_CELL_SIZE := GameUISkinScript.EQUIP_CELL_SIZE
+const CELL_SIZE := GameUISkinScript.INVENTORY_CELL_SIZE
+const EQUIP_CELL_SIZE := GameUISkinScript.INVENTORY_EQUIP_CELL_SIZE
 const GRID_GAP := GameUISkinScript.GRID_GAP
 
 # Paper-doll rows: empty string = spacer cell (not navigable).

@@ -121,6 +121,7 @@ func _emit_block_feedback(chip_damage: float) -> void:
 		return
 	var anchor: Array = VfxService.resolve_combat_anchor(body)
 	VfxService.play_block(anchor[0], anchor[1])
+	VfxService.play_impact_decal(anchor[0], anchor[1])
 	var feedback := body.get_node_or_null("HitFeedback")
 	if feedback and feedback.has_method("on_hit_blocked"):
 		feedback.call("on_hit_blocked", body, chip_damage)
@@ -135,6 +136,7 @@ func _emit_victim_feedback(damage: float, direction: Vector3 = Vector3.ZERO) -> 
 	MaterialFlashScript.flash(body)
 	var hit_pos := body.global_position + Vector3(0.0, 1.0, 0.0)
 	VfxService.play_blood_decal(hit_pos, direction)
+	VfxService.play_impact_decal(hit_pos, direction)
 	var feedback := body.get_node_or_null("HitFeedback")
 	if feedback and feedback.has_method("on_hit_received"):
 		feedback.call("on_hit_received", damage, direction)

@@ -17,7 +17,6 @@ static func get_icon(status_id: String, fallback_color: Color = Color.WHITE) -> 
 	var radius := ICON_SIZE * 0.42
 	_draw_glyph(image, status_id, center, radius, fallback_color)
 	var tex := ImageTexture.create_from_image(image)
-	tex.set_filter(CanvasItem.TEXTURE_FILTER_NEAREST)
 	_cache[status_id] = tex
 	return tex
 

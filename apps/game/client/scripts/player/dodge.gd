@@ -8,8 +8,9 @@ const JUMP_BUFFER_TIME := 0.15
 const DODGE_SPEED := 9.0
 const DODGE_BACK_SPEED := 6.0
 const DODGE_DURATION := 0.45
-const DODGE_RECOVERY := 0.35
+const DODGE_RECOVERY := 0.25
 const DODGE_STAMINA_COST := 32.0
+const JUMP_STAMINA_COST := 18.0
 const IFRAME_START := 0.05
 const IFRAME_END := 0.30
 
@@ -90,6 +91,8 @@ func _handle_jump_buffer() -> void:
 	if _jump_buffer_timer <= 0.0 or not _body:
 		return
 	if _coyote_timer > 0.0 and not is_dodging:
+		if _stamina and not _stamina.consume(JUMP_STAMINA_COST):
+			return
 		_body.velocity.y = JUMP_VELOCITY
 		_jump_buffer_timer = 0.0
 		_coyote_timer = 0.0
@@ -107,8 +110,17 @@ func _start_dash() -> void:
 	if not _stamina.consume(DODGE_STAMINA_COST):
 		return
 	var input_dir := Input.get_vector("move_left", "move_right", "move_forward", "move_back")
-	var has_move_input := input_dir.length_squared() > 0.01
-	if has_move_input:
+	var lock_on := _body.get_node_or_null("LockOn")
+	if LockOnMovement.is_active(lock_on):
+		if input_dir.length_squared() > 0.01:
+			_dodge_speed = DODGE_SPEED
+			_dodge_direction = LockOnMovement.get_move_direction(
+				_body, lock_on, input_dir, _get_camera_relative_direction
+			)
+		else:
+			_dodge_speed = DODGE_BACK_SPEED
+			_dodge_direction = _get_attack_backstep_direction()
+	elif input_dir.length_squared() > 0.01:
 		_dodge_speed = DODGE_SPEED
 		_dodge_direction = _get_camera_relative_direction(input_dir)
 	else:

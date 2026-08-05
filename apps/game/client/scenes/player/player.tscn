@@ -1,4 +1,4 @@
-[gd_scene load_steps=19 format=3 uid="uid://cplayer001"]
+[gd_scene load_steps=20 format=3 uid="uid://cplayer001"]
 
 [ext_resource type="Script" path="res://scripts/player/locomotion.gd" id="1_locomotion"]
 [ext_resource type="Script" path="res://scripts/player/dodge.gd" id="2_dodge"]
@@ -17,6 +17,7 @@
 [ext_resource type="Script" path="res://scripts/player/player_heal.gd" id="15_heal"]
 
 [ext_resource type="Script" path="res://scripts/combat/statuses/status_controller.gd" id="16_status"]
+[ext_resource type="Script" path="res://scripts/combat/mana.gd" id="17_mana"]
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_body"]
 radius = 0.4
@@ -49,7 +50,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.8, 0)
 mesh = SubResource("CapsuleMesh_body")
 
 [node name="WeaponPivot" type="Node3D" parent="Facing"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0.75)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.75, 0.75)
 
 [node name="Hitbox" type="Area3D" parent="Facing/WeaponPivot"]
 collision_layer = 4
@@ -58,7 +59,7 @@ script = ExtResource("10_hitbox")
 team = "player"
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="Facing/WeaponPivot/Hitbox"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0.55)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.12, 0.55)
 shape = SubResource("BoxShape3D_hit")
 
 [node name="Health" type="Node" parent="."]
@@ -66,6 +67,9 @@ script = ExtResource("3_health")
 
 [node name="Stamina" type="Node" parent="."]
 script = ExtResource("4_stamina")
+
+[node name="Mana" type="Node" parent="."]
+script = ExtResource("17_mana")
 
 [node name="Poise" type="Node" parent="."]
 script = ExtResource("5_poise")

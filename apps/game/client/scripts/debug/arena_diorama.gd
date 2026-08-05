@@ -165,23 +165,16 @@ static func _dress_hub_return(portal: Node3D, mats: Dictionary) -> void:
 		for child in visuals.get_children():
 			child.queue_free()
 
-	PixelDioramaStyle.add_box(visuals, Vector3(0.45, 3.2, 0.45), Vector3(-1.55, 1.6, 0.0), mats.accent, "PillarL")
-	PixelDioramaStyle.add_box(visuals, Vector3(0.45, 3.2, 0.45), Vector3(1.55, 1.6, 0.0), mats.accent, "PillarR")
-	PixelDioramaStyle.add_box(visuals, Vector3(3.8, 0.45, 0.55), Vector3(0.0, 3.35, 0.0), mats.accent, "Lintel")
-	PixelDioramaStyle.add_portal_interior(
-		visuals,
-		Vector2(2.6, 2.2),
-		Vector3(0.0, 1.5, 0.02),
-		"castle"
-	)
-	PixelDioramaStyle.add_box(visuals, Vector3(3.6, 0.14, 1.6), Vector3(0.0, 0.07, 0.0), mats.floor, "Pad")
+	var portal_mats := mats.duplicate()
+	portal_mats["training"] = mats.accent
+	PixelDioramaStyle.dress_portal_architecture(visuals, portal_mats, "training")
 
 	var portal_light := OmniLight3D.new()
 	portal_light.name = "PortalGlow"
-	portal_light.light_color = Color(0.85, 0.72, 0.45)
-	portal_light.light_energy = 0.75
-	portal_light.omni_range = 3.5
-	portal_light.position = Vector3(0.0, 1.6, 0.6)
+	portal_light.light_color = Color(1.0, 0.58, 0.18)
+	portal_light.light_energy = 0.9
+	portal_light.omni_range = 4.0
+	portal_light.position = Vector3(0.0, 1.7, 0.75)
 	visuals.add_child(portal_light)
 
 

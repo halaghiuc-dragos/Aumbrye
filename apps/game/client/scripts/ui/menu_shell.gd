@@ -91,14 +91,16 @@ static func show_confirmation(
 	title: String,
 	message: String,
 	on_confirm: Callable,
-	on_cancel: Callable = Callable()
+	on_cancel: Callable = Callable(),
+	confirm_text: String = "Confirm",
+	cancel_text: String = "Cancel"
 ) -> Control:
 	var overlay := Control.new()
 	overlay.name = "ConfirmOverlay"
 	GameUISkinScript.ensure_full_rect(overlay)
 	parent.add_child(overlay)
 	overlay.move_to_front()
-	var shell: Dictionary = build_modal(overlay, title, 280.0, 110.0)
+	var shell: Dictionary = build_modal(overlay, title, 300.0, 130.0)
 	var vbox: VBoxContainer = shell["content_vbox"]
 	var msg := Label.new()
 	msg.text = message
@@ -106,14 +108,17 @@ static func show_confirmation(
 	msg.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	GameUISkinScript.style_body_label(msg)
 	vbox.add_child(msg)
-	var cancel := make_menu_button("No", func() -> void:
+	var cancel := make_menu_button(cancel_text, func() -> void:
 		overlay.queue_free()
 		if on_cancel.is_valid():
 			on_cancel.call()
 	)
-	var confirm := make_menu_button("Yes", func() -> void:
+	var confirm := make_menu_button(confirm_text, func() -> void:
 		overlay.queue_free()
 		on_confirm.call()
 	)
 	add_button_row(vbox, [cancel, confirm])
+	cancel.focus_neighbor_right = confirm.get_path()
+	confirm.focus_neighbor_left = cancel.get_path()
+	cancel.grab_focus()
 	return overlay

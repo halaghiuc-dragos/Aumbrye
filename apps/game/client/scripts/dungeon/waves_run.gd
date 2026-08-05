@@ -45,6 +45,11 @@ func _ready() -> void:
 	call_deferred("_apply_pixel_diorama_scene")
 
 
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_WM_CLOSE_REQUEST:
+		_persist_waves_save()
+
+
 func _build_arena() -> void:
 	WavesOutdoorsDioramaScript.apply(self)
 	AudioDirector.set_biome(BiomeRegistry.BIOME_UMBRAL)
@@ -60,7 +65,7 @@ func _build_walls(enabled: bool) -> void:
 		return
 	var half := WavesOutdoorsDioramaScript.ARENA_HALF
 	var span := half * 2.0
-	var wall_h := 5.0
+	var wall_h := CastleRoomConstants.WALL_HEIGHT
 	var specs := [
 		{"pos": Vector3(0.0, wall_h * 0.5, -half), "size": Vector3(span, wall_h, 1.0)},
 		{"pos": Vector3(0.0, wall_h * 0.5, half), "size": Vector3(span, wall_h, 1.0)},

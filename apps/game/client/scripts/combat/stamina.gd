@@ -6,7 +6,7 @@ signal depleted
 signal insufficient
 
 const MAX_STAMINA := 100.0
-const REGEN_DELAY := 1.0
+const REGEN_DELAY := 0.7
 const REGEN_RATE := 25.0
 const EXHAUSTION_RECOVERY := 15.0
 
@@ -61,6 +61,7 @@ func drain(amount: float) -> bool:
 	if current < amount:
 		return false
 	current -= amount
+	_regen_timer = REGEN_DELAY
 	stamina_changed.emit(current, max_stamina)
 	if current <= 0.0:
 		_exhausted = true

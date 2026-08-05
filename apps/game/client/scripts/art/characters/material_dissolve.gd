@@ -5,7 +5,7 @@ class_name MaterialDissolve
 
 const DISSOLVE_PARAM := &"dissolve_clip"
 const FLASH_PARAM := &"flash_amount"
-const DISSOLVE_DURATION := 0.55
+const DISSOLVE_DURATION := 0.65  # Matches VfxService.DEATH_BURST_LIFETIME
 const META_SAVED_OVERRIDE := &"material_dissolve_saved_override"
 
 

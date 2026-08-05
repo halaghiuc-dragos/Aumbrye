@@ -3,7 +3,7 @@ class_name SaveMigrator
 
 ## SCHEMA-7.1 — versioned save migrations.
 
-const CURRENT_VERSION := 3
+const CURRENT_VERSION := 4
 const MIGRATION_DOC := "docs/SAVE_MIGRATIONS.md"
 
 
@@ -18,6 +18,9 @@ static func migrate(data: Dictionary) -> Dictionary:
 		version = int(data.get("schemaVersion", 0))
 	if version == 2:
 		data = _migrate_v2_to_v3(data)
+		version = int(data.get("schemaVersion", 0))
+	if version == 3:
+		data = _migrate_v3_to_v4(data)
 		version = int(data.get("schemaVersion", 0))
 	if version != CURRENT_VERSION:
 		return _fail(data, "unsupported schemaVersion %d" % version)
@@ -49,6 +52,23 @@ static func _migrate_v2_to_v3(data: Dictionary) -> Dictionary:
 		if not run.has("runMode"):
 			run["runMode"] = "castle"
 		run.erase("floorDefinitions")
+		copy["activeRun"] = run
+	return copy
+
+
+static func _migrate_v3_to_v4(data: Dictionary) -> Dictionary:
+	var copy: Dictionary = data.duplicate(true)
+	copy["schemaVersion"] = 4
+	var active: Variant = copy.get("activeRun", {})
+	if active is Dictionary and not active.is_empty():
+		var run: Dictionary = active
+		if not run.has("lastCheckpoint"):
+			run["lastCheckpoint"] = {}
+		var snapshot: Variant = run.get("snapshot", {})
+		if snapshot is Dictionary and not snapshot.has("worldFlags"):
+			snapshot["worldFlags"] = {}
+			run["snapshot"] = snapshot
+		run["schemaVersion"] = 4
 		copy["activeRun"] = run
 	return copy
 

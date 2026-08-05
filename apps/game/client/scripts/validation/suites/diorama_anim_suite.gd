@@ -36,7 +36,8 @@ func _test_required_clips() -> void:
 	])
 	var missing: PackedStringArray = []
 	for clip_id in required:
-		if not AnimLibrary.CLIPS.has(StringName(clip_id)):
+		var clip_name := StringName(clip_id)
+		if not AnimLibrary.CLIPS.has(clip_name) and not AnimLibrary.ATTACKS.has(clip_name):
 			missing.append(clip_id)
 	var start := Time.get_ticks_msec()
 	ctx.timed_record(

@@ -5,9 +5,10 @@ enum AttackPhase { IDLE, STARTUP, ACTIVE, RECOVERY, DRAWING }
 const CombatStatModifiersScript := preload("res://scripts/combat/combat_stat_modifiers.gd")
 const WEAPON_DATA_RELATIVE := "content/weapons/sword_basic.json"
 const DEFAULT_HITBOX_SIZE := Vector3(1.2, 0.8, 1.4)
-const DEFAULT_HITBOX_OFFSET := Vector3(0.0, 0.0, 0.55)
+const DEFAULT_HITBOX_OFFSET := Vector3(0.0, -0.12, 0.55)
 const COMMIT_SPEED_MULT := 0.2
-const RECOVERY_SPEED_MULT := 0.55
+const RECOVERY_SPEED_MULT := 0.65
+const POST_DODGE_ATTACK_BUFFER := 0.1
 const ATTACK_ROT_CAP_MULT := 0.15
 const SOFT_LOCK_CONE_DEG := 100.0
 const SOFT_LOCK_RANGE := 14.0
@@ -70,6 +71,7 @@ var _base_damage_multiplier := 1.0
 var _weapon_scaling_multiplier := 1.0
 var _class_stats: Dictionary = {}
 var _talent_stats: Dictionary = {}
+var _post_dodge_attack_buffer := 0.0
 
 
 func _ready() -> void:
@@ -78,6 +80,11 @@ func _ready() -> void:
 	_combat_reactions = _body.get_node_or_null("CombatReactions")
 	_guard = _body.get_node_or_null("Guard")
 	_lock_on = _body.get_node_or_null("LockOn") as LockOn
+	var dodge := _body.get_node_or_null("Dodge")
+	if dodge and dodge.has_signal("dodge_started"):
+		dodge.dodge_started.connect(_on_dodge_started)
+	if dodge and dodge.has_signal("dodge_ended"):
+		dodge.dodge_ended.connect(_on_dodge_ended)
 	if hitbox_path:
 		_hitbox = get_node_or_null(hitbox_path) as Area3D
 		if _hitbox:
@@ -104,6 +111,8 @@ func _physics_process(delta: float) -> void:
 		_combo_idle_timer -= delta
 		if _combo_idle_timer <= 0.0:
 			_combo_index = 0
+	if _post_dodge_attack_buffer > 0.0:
+		_post_dodge_attack_buffer -= delta
 	if _is_action_blocked():
 		return
 	var archetype: String = _weapon_data.get("archetype", "sword")
@@ -121,6 +130,9 @@ func _physics_process(delta: float) -> void:
 		_try_attack("light")
 	elif Input.is_action_just_pressed("heavy_attack"):
 		_try_attack("heavy")
+	if _post_dodge_attack_buffer > 0.0 and _buffered_attack != "" and not is_attacking:
+		_try_attack(_buffered_attack)
+		_buffered_attack = ""
 	if _buffered_attack != "" and not is_attacking:
 		_try_attack(_buffered_attack)
 		_buffered_attack = ""
@@ -150,6 +162,28 @@ func get_current_attack_phases() -> Dictionary:
 		"active": float(_current_attack.get("active", 0.15)),
 		"recovery": float(_current_attack.get("recovery", 0.3)),
 	}
+
+
+func get_attack_phase_progress() -> Dictionary:
+	if not is_attacking or current_phase == AttackPhase.IDLE:
+		return {"phase": "idle", "progress": 0.0}
+	var phases := get_current_attack_phases()
+	var phase_name := "startup"
+	var duration := float(phases.get("startup", 0.2))
+	match current_phase:
+		AttackPhase.ACTIVE:
+			phase_name = "active"
+			duration = float(phases.get("active", 0.15))
+		AttackPhase.RECOVERY:
+			phase_name = "recovery"
+			duration = float(phases.get("recovery", 0.3))
+		AttackPhase.DRAWING:
+			phase_name = "startup"
+			duration = float(_weapon_data.get("draw_time", 0.8))
+	if duration <= 0.0:
+		return {"phase": phase_name, "progress": 1.0}
+	var progress := 1.0 - clampf(_phase_timer / duration, 0.0, 1.0)
+	return {"phase": phase_name, "progress": progress}
 
 
 func set_damage_multiplier(multiplier: float) -> void:
@@ -202,7 +236,6 @@ func get_rotation_cap_multiplier() -> float:
 
 
 func get_attack_lunge_velocity() -> Vector3:
-	# Attack displacement is handled by the diorama animation rig only.
 	return Vector3.ZERO
 
 
@@ -408,7 +441,16 @@ func _can_dodge_cancel() -> bool:
 	if current_phase != AttackPhase.RECOVERY:
 		return false
 	var recovery: float = float(_current_attack.get("recovery", 0.3))
-	return _phase_timer <= recovery * 0.35
+	return _phase_timer <= recovery * 0.55
+
+
+func _on_dodge_started() -> void:
+	if is_attacking and current_phase == AttackPhase.RECOVERY:
+		_end_attack()
+
+
+func _on_dodge_ended() -> void:
+	_post_dodge_attack_buffer = POST_DODGE_ATTACK_BUFFER
 
 
 func _scaled_stamina_cost(base_cost: float) -> float:
@@ -451,15 +493,20 @@ func _face_target(target: Node3D) -> void:
 	to_target.y = 0.0
 	if to_target.length_squared() < 0.01:
 		return
-	facing.rotation.y = atan2(to_target.x, to_target.z)
+	facing.rotation.y = LockOnMovement.world_direction_to_local_facing_y(_body, to_target)
 
 
 func _find_soft_lock_target() -> Node3D:
+	if _lock_on and _lock_on.is_locked:
+		return null
 	if _body == null:
 		return null
 	var best: Node3D
 	var best_score := -INF
 	var facing := _get_soft_lock_aim_direction()
+	var cone_deg := SOFT_LOCK_CONE_DEG
+	if _body.velocity.length_squared() > 1.0:
+		cone_deg = maxf(70.0, SOFT_LOCK_CONE_DEG - 12.0)
 	for node in get_tree().get_nodes_in_group("lockable"):
 		if not node is Node3D or not is_instance_valid(node):
 			continue
@@ -472,9 +519,9 @@ func _find_soft_lock_target() -> Node3D:
 			continue
 		var dir := offset / dist
 		var angle := rad_to_deg(facing.angle_to(dir))
-		if angle > SOFT_LOCK_CONE_DEG:
+		if angle > cone_deg:
 			continue
-		var score := (SOFT_LOCK_CONE_DEG - angle) / dist
+		var score := (cone_deg - angle) / dist
 		if score > best_score:
 			best_score = score
 			best = node as Node3D

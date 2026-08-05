@@ -3,6 +3,8 @@ extends Node
 ## Autoload — local JSON save + cloud cache (SAVE-4.1).
 
 const SAVE_PATH := "user://aumbrye_save.json"
+const ROSTER_PATH := "user://character_roster.json"
+const CHARACTERS_DIR := "user://characters/"
 const BACKUP_PATH := "user://aumbrye_save.conflict_backup.json"
 const BACKUP_DIR := "user://backups/"
 const BACKUP_COUNT := 5
@@ -45,15 +47,26 @@ func load_into_services() -> bool:
 var _cached_state: Dictionary = {}
 var _cloud_updated_at: String = ""
 
-enum BootMode { NONE, NEW_GAME, CONTINUE_MAIN, CONTINUE_BACKUP }
+enum BootMode { NONE, NEW_GAME, CONTINUE_MAIN, CONTINUE_BACKUP, CONTINUE_CHARACTER }
 var _boot_mode: BootMode = BootMode.NONE
 var _boot_backup_index: int = -1
+var _boot_character_id: String = ""
 var _pending_new_game: Dictionary = {}
+var _roster: Dictionary = {"characters": [], "activeId": ""}
+var _active_character_id: String = ""
 
 
 func _ready() -> void:
 	_ensure_backup_dir()
-	if FileAccess.file_exists(SAVE_PATH):
+	_ensure_characters_dir()
+	_load_roster()
+	_migrate_legacy_save_if_needed()
+	if _active_character_id != "" and FileAccess.file_exists(_character_path(_active_character_id)):
+		var parsed = JSON.parse_string(_read_raw_text(_character_path(_active_character_id)))
+		if parsed is Dictionary:
+			_cached_state = parsed
+			_cloud_updated_at = str(parsed.get("cloudUpdatedAt", ""))
+	elif FileAccess.file_exists(SAVE_PATH):
 		var parsed = JSON.parse_string(_read_raw_text(SAVE_PATH))
 		if parsed is Dictionary:
 			_cached_state = parsed
@@ -98,14 +111,25 @@ func set_character_profile(character_name: String, class_id: String = "") -> voi
 
 
 func set_appearance_theme(theme: int) -> void:
+	set_appearance_profile({"theme": theme})
+
+
+func set_appearance_profile(profile: Dictionary) -> void:
+	var clean := CharacterAppearance.sanitize(profile)
 	var character := _character()
 	if character.is_empty():
 		character = _default_character()
-	character["appearanceTheme"] = theme
+	character["appearanceTheme"] = int(clean.get("theme", 0))
+	character["appearance"] = clean.duplicate()
 	_cached_state["character"] = character
 	if CharacterService:
-		CharacterService.appearance_theme = theme
+		CharacterService.appearance_theme = int(clean.get("theme", 0))
+		CharacterService.appearance_profile = clean.duplicate()
 	autosave()
+
+
+func get_appearance_profile() -> Dictionary:
+	return CharacterAppearance.from_character_dict(_character())
 
 
 func get_appearance_theme() -> int:
@@ -113,46 +137,39 @@ func get_appearance_theme() -> int:
 
 
 func has_playable_character() -> bool:
-	if not has_save():
-		return false
-	return _read_character_summary(SAVE_PATH).get("hasCharacter", false)
+	return not list_character_slots().is_empty()
 
 
 func list_character_slots() -> Array[Dictionary]:
 	var slots: Array[Dictionary] = []
-	if has_save():
-		var current := _read_character_summary(SAVE_PATH)
-		if bool(current.get("hasCharacter", false)):
-			slots.append({
-				"backupIndex": -1,
-				"label": "Current — %s (Lv%d)" % [current.get("name", "Warden"), current.get("level", 1)],
-				"detail": "Class: %s\nLast saved: %s" % [
-					current.get("classId", "?"),
-					current.get("savedAt", "unknown"),
-				],
-			})
-	for backup in list_backups():
-		var index: int = int(backup.get("index", 0))
-		var path: String = str(backup.get("path", ""))
-		var summary := _read_character_summary(path)
-		if not bool(summary.get("hasCharacter", false)):
+	for entry in _roster.get("characters", []):
+		if not entry is Dictionary:
+			continue
+		var class_id: String = str(entry.get("classId", ""))
+		if class_id == "":
 			continue
 		slots.append({
-			"backupIndex": index,
-			"label": "Backup %d — %s (Lv%d)" % [index, summary.get("name", "Warden"), summary.get("level", 1)],
-			"detail": "Class: %s\nSaved: %s" % [
-				summary.get("classId", "?"),
-				summary.get("savedAt", backup.get("savedAt", "?")),
+			"characterId": str(entry.get("id", "")),
+			"label": "%s — %s (Lv%d)" % [
+				entry.get("name", "Warden"),
+				class_id,
+				int(entry.get("level", 1)),
+			],
+			"detail": "Class: %s\nLast played: %s" % [
+				class_id,
+				entry.get("savedAt", "unknown"),
 			],
 		})
 	return slots
 
 
-func queue_boot_new_game(class_id: String, character_name: String, appearance_theme: int) -> void:
+func queue_boot_new_game(class_id: String, character_name: String, appearance: Dictionary) -> void:
+	var profile := CharacterAppearance.sanitize(appearance)
 	_pending_new_game = {
 		"classId": class_id,
 		"name": character_name,
-		"appearanceTheme": appearance_theme,
+		"appearanceTheme": int(profile.get("theme", 0)),
+		"appearance": profile,
 	}
 	_boot_mode = BootMode.NEW_GAME
 	_boot_backup_index = -1
@@ -160,6 +177,13 @@ func queue_boot_new_game(class_id: String, character_name: String, appearance_th
 
 func queue_boot_continue_main() -> void:
 	_boot_mode = BootMode.CONTINUE_MAIN
+	_boot_backup_index = -1
+	_boot_character_id = ""
+
+
+func queue_boot_continue_character(character_id: String) -> void:
+	_boot_mode = BootMode.CONTINUE_CHARACTER
+	_boot_character_id = character_id
 	_boot_backup_index = -1
 
 
@@ -172,8 +196,15 @@ func execute_boot() -> bool:
 	match _boot_mode:
 		BootMode.NEW_GAME:
 			return _apply_new_game_boot()
+		BootMode.CONTINUE_CHARACTER:
+			var character_id := _boot_character_id
+			_boot_character_id = ""
+			_boot_mode = BootMode.NONE
+			return load_character(character_id)
 		BootMode.CONTINUE_MAIN:
 			_boot_mode = BootMode.NONE
+			if _active_character_id != "":
+				return load_character(_active_character_id)
 			return load_into_services()
 		BootMode.CONTINUE_BACKUP:
 			var index := _boot_backup_index
@@ -188,18 +219,48 @@ func _apply_new_game_boot() -> bool:
 	var data: Dictionary = _pending_new_game.duplicate()
 	_pending_new_game.clear()
 	_boot_mode = BootMode.NONE
+	var character_id := _generate_character_id()
+	_active_character_id = character_id
 	_reset_to_defaults()
 	var class_id: String = str(data.get("classId", ""))
 	var character_name: String = str(data.get("name", "Warden"))
-	var appearance_theme: int = int(data.get("appearanceTheme", 0))
+	var appearance: Dictionary = CharacterAppearance.sanitize(
+		data.get("appearance", {"theme": data.get("appearanceTheme", 0)})
+	)
 	set_character_profile(character_name, class_id)
-	set_appearance_theme(appearance_theme)
+	set_appearance_profile(appearance)
 	if CharacterService:
 		CharacterService.set_class_id(class_id)
 	var starter_weapon := ClassCatalog.get_starting_weapon_item_id(class_id)
 	InventoryService.inventory.add_item(starter_weapon, 1)
 	_equip_weapon_item(starter_weapon)
+	_add_roster_entry(character_id, character_name, class_id)
 	autosave()
+	return true
+
+
+func load_character(character_id: String) -> bool:
+	if character_id == "":
+		return false
+	var path := _character_path(character_id)
+	if not FileAccess.file_exists(path):
+		return false
+	var raw_text := _read_raw_text(path)
+	if raw_text.strip_edges().is_empty():
+		return false
+	var parsed = JSON.parse_string(raw_text)
+	if parsed == null or not parsed is Dictionary:
+		return false
+	var data: Dictionary = SaveMigrator.migrate(parsed)
+	if data.get("migrationFailed", false):
+		return false
+	if not _validate_save(data):
+		return false
+	_active_character_id = character_id
+	_roster["activeId"] = character_id
+	_save_roster()
+	_apply_save_data(data)
+	save_loaded.emit()
 	return true
 
 
@@ -349,12 +410,41 @@ func autosave() -> void:
 func delete_save() -> void:
 	if FileAccess.file_exists(SAVE_PATH):
 		DirAccess.remove_absolute(SAVE_PATH)
+	if _active_character_id != "":
+		var char_path := _character_path(_active_character_id)
+		if FileAccess.file_exists(char_path):
+			DirAccess.remove_absolute(char_path)
 	_cached_state.clear()
 	_cloud_updated_at = ""
+	_active_character_id = ""
+	_roster = {"characters": [], "activeId": ""}
+	_save_roster()
+
+
+func delete_character(character_id: String) -> bool:
+	if character_id == "":
+		return false
+	var path := _character_path(character_id)
+	if FileAccess.file_exists(path):
+		DirAccess.remove_absolute(path)
+	var characters: Array = _roster.get("characters", [])
+	for i in characters.size():
+		if str((characters[i] as Dictionary).get("id", "")) == character_id:
+			characters.remove_at(i)
+			break
+	_roster["characters"] = characters
+	if str(_roster.get("activeId", "")) == character_id:
+		_roster["activeId"] = ""
+		_active_character_id = ""
+		_cached_state.clear()
+	_save_roster()
+	return true
 
 
 func delete_character_slot(backup_index: int) -> bool:
 	if backup_index < 0:
+		if _active_character_id != "":
+			return delete_character(_active_character_id)
 		delete_save()
 		return true
 	if backup_index >= BACKUP_COUNT:
@@ -378,6 +468,9 @@ func sync_from_cloud() -> bool:
 	var server_json: String = str(result.get("stateJson", ""))
 	var server_updated: String = str(result.get("updatedAt", ""))
 	if server_json.is_empty():
+		return false
+	if not get_active_run().is_empty():
+		push_warning("LocalSave: keeping local active run — skipping cloud overwrite")
 		return false
 	var parsed = JSON.parse_string(server_json)
 	if not parsed is Dictionary:
@@ -432,6 +525,8 @@ func _character() -> Dictionary:
 func _apply_save_data(data: Dictionary) -> void:
 	_cached_state = data.duplicate(true)
 	InventoryService.apply_save_inventory(data.get("inventory", {}))
+	if StorageService:
+		StorageService.apply_save_storage(data.get("storage", {}))
 	var character: Dictionary = _character()
 	if character.is_empty():
 		character = _default_character()
@@ -449,6 +544,7 @@ func _apply_save_data(data: Dictionary) -> void:
 			"coins": data.get("currencies", {}).get("coins", data.get("currencies", {}).get("gold", CharacterService.DEFAULT_GOLD)),
 			"classId": character.get("classId", ""),
 			"appearanceTheme": character.get("appearanceTheme", 0),
+			"appearance": character.get("appearance", {}),
 			"flags": data.get("flags", {}),
 			"quests": data.get("quests", {}),
 		})
@@ -474,12 +570,14 @@ func _build_save_payload() -> Dictionary:
 		character["classId"] = CharacterService.class_id
 	if CharacterService:
 		character["appearanceTheme"] = CharacterService.appearance_theme
+		character["appearance"] = CharacterService.appearance_profile.duplicate()
 	var data := {
 		"schemaVersion": SAVE_SCHEMA_VERSION,
 		"accountId": _cached_state.get("accountId", "00000000-0000-4000-8000-000000000000"),
 		"character": character,
 		"currencies": _cached_state.get("currencies", {"gold": 0}),
 		"inventory": InventoryService.get_save_inventory(),
+		"storage": StorageService.get_save_storage() if StorageService else _cached_state.get("storage", {}),
 		"itemInstances": _cached_state.get("itemInstances", {}),
 		"talents": ProgressionService.talents.duplicate() if ProgressionService else _cached_state.get("talents", {}),
 		"talentPointsSpent": ProgressionService.talent_points_spent if ProgressionService else 0,
@@ -509,6 +607,7 @@ func _default_character() -> Dictionary:
 		"level": 1,
 		"xp": 0,
 		"appearanceTheme": 0,
+		"appearance": CharacterAppearance.default_profile(),
 		"lastHubMessage": RunFlow.last_hub_message,
 		"firstPersonCamera": false,
 	}
@@ -552,7 +651,13 @@ func _handle_corrupt_save(reason: String) -> void:
 		var stamp := Time.get_datetime_string_from_system().replace(":", "-")
 		var corrupt_path := "user://aumbrye_save.corrupt_%s.json" % stamp
 		DirAccess.copy_absolute(SAVE_PATH, corrupt_path)
-		push_error("LocalSave: corrupt save (%s) — backed up to %s" % [reason, corrupt_path])
+		DirAccess.remove_absolute(SAVE_PATH)
+		push_error("LocalSave: corrupt save (%s) — quarantined to %s" % [reason, corrupt_path])
+	for backup in list_backups():
+		var index: int = int(backup.get("index", 0))
+		if restore_backup(index):
+			save_failed.emit(reason)
+			return
 	save_failed.emit(reason)
 	print_verbose("LocalSave: %s — starting fresh" % reason)
 	_reset_to_defaults()
@@ -574,10 +679,20 @@ func _read_raw_text(path: String) -> String:
 
 
 func _write_save(data: Dictionary, rotate_backups: bool = true) -> void:
-	if rotate_backups and FileAccess.file_exists(SAVE_PATH):
-		_rotate_backups()
 	var normalized := _normalize_save_integers(data.duplicate(true))
 	_cached_state = normalized
+	if _active_character_id != "":
+		_update_roster_entry_metadata(normalized)
+		_save_roster()
+		var char_path := _character_path(_active_character_id)
+		var char_file := FileAccess.open(char_path, FileAccess.WRITE)
+		if not char_file:
+			push_warning("LocalSave: could not write %s" % char_path)
+			return
+		char_file.store_string(JSON.stringify(normalized, "\t"))
+		return
+	if rotate_backups and FileAccess.file_exists(SAVE_PATH):
+		_rotate_backups()
 	var file := FileAccess.open(SAVE_PATH, FileAccess.WRITE)
 	if not file:
 		push_warning("LocalSave: could not write %s" % SAVE_PATH)
@@ -640,3 +755,100 @@ func _rotating_backup_path(index: int) -> String:
 func _ensure_backup_dir() -> void:
 	if not DirAccess.dir_exists_absolute(BACKUP_DIR):
 		DirAccess.make_dir_recursive_absolute(BACKUP_DIR)
+
+
+func _ensure_characters_dir() -> void:
+	if not DirAccess.dir_exists_absolute(CHARACTERS_DIR):
+		DirAccess.make_dir_recursive_absolute(CHARACTERS_DIR)
+
+
+func _load_roster() -> void:
+	if not FileAccess.file_exists(ROSTER_PATH):
+		_roster = {"characters": [], "activeId": ""}
+		_active_character_id = ""
+		return
+	var parsed = JSON.parse_string(_read_raw_text(ROSTER_PATH))
+	if parsed is Dictionary:
+		_roster = parsed
+		_active_character_id = str(_roster.get("activeId", ""))
+	else:
+		_roster = {"characters": [], "activeId": ""}
+		_active_character_id = ""
+
+
+func _save_roster() -> void:
+	var file := FileAccess.open(ROSTER_PATH, FileAccess.WRITE)
+	if not file:
+		return
+	file.store_string(JSON.stringify(_roster, "\t"))
+
+
+func _character_path(character_id: String) -> String:
+	return "%s%s.json" % [CHARACTERS_DIR, character_id]
+
+
+func _generate_character_id() -> String:
+	return "warden_%d" % (Time.get_ticks_usec() % 1000000000)
+
+
+func _migrate_legacy_save_if_needed() -> void:
+	var characters: Array = _roster.get("characters", [])
+	if not characters.is_empty():
+		return
+	if not FileAccess.file_exists(SAVE_PATH):
+		return
+	var summary := _read_character_summary(SAVE_PATH)
+	if not bool(summary.get("hasCharacter", false)):
+		return
+	var character_id := _generate_character_id()
+	var parsed = JSON.parse_string(_read_raw_text(SAVE_PATH))
+	if not parsed is Dictionary:
+		return
+	var char_file := FileAccess.open(_character_path(character_id), FileAccess.WRITE)
+	if char_file:
+		char_file.store_string(JSON.stringify(parsed, "\t"))
+	_add_roster_entry(
+		character_id,
+		str(summary.get("name", "Warden")),
+		str(summary.get("classId", "")),
+		int(summary.get("level", 1)),
+		str(summary.get("savedAt", ""))
+	)
+	_active_character_id = character_id
+	_roster["activeId"] = character_id
+	_save_roster()
+
+
+func _add_roster_entry(
+	character_id: String,
+	character_name: String,
+	class_id: String,
+	level: int = 1,
+	saved_at: String = ""
+) -> void:
+	var characters: Array = _roster.get("characters", [])
+	characters.append({
+		"id": character_id,
+		"name": character_name,
+		"classId": class_id,
+		"level": level,
+		"savedAt": saved_at if saved_at != "" else Time.get_datetime_string_from_system(),
+	})
+	_roster["characters"] = characters
+	_roster["activeId"] = character_id
+
+
+func _update_roster_entry_metadata(data: Dictionary) -> void:
+	var character: Dictionary = data.get("character", {})
+	var characters: Array = _roster.get("characters", [])
+	for i in characters.size():
+		var entry: Dictionary = characters[i] as Dictionary
+		if str(entry.get("id", "")) != _active_character_id:
+			continue
+		entry["name"] = str(character.get("name", entry.get("name", "Warden")))
+		entry["classId"] = str(character.get("classId", entry.get("classId", "")))
+		entry["level"] = int(character.get("level", entry.get("level", 1)))
+		entry["savedAt"] = Time.get_datetime_string_from_system()
+		characters[i] = entry
+		break
+	_roster["characters"] = characters

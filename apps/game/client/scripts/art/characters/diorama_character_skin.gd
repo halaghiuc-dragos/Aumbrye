@@ -92,8 +92,63 @@ static func build_player_body(facing: Node3D, theme: int = -1) -> Node3D:
 	var visual := _make_visual(facing)
 	if theme < 0:
 		theme = CharacterService.appearance_theme if CharacterService else PixelStyle.PaletteTheme.HUB
-	_build_humanoid(visual, "player", _body_materials(theme))
+	var profile := CharacterAppearance.from_service()
+	_build_humanoid(visual, "player", _body_materials(theme, "player"))
+	_apply_player_appearance(visual, profile, _body_materials(theme, "player"))
 	return visual
+
+
+static func _apply_player_appearance(visual: Node3D, profile: Dictionary, mats: Dictionary) -> void:
+	var root := find_part(visual, ROOT_NAME)
+	if root == null:
+		return
+	var height := float(profile.get("height", 1.0))
+	var bulk := float(profile.get("bulk", 1.0))
+	root.scale = Vector3(bulk, height, bulk)
+	var head_style := str(profile.get("head", CharacterAppearance.HEAD_VISOR))
+	var head := find_part(visual, "Head")
+	if head:
+		var visor := head.get_node_or_null("Mesh/Visor") as Node3D
+		if visor:
+			visor.visible = head_style == CharacterAppearance.HEAD_VISOR
+		var hood := head.get_node_or_null("Hood") as Node3D
+		if hood:
+			hood.visible = head_style == CharacterAppearance.HEAD_HOOD
+		if head_style == CharacterAppearance.HEAD_HOOD and hood == null:
+			var spec: Dictionary = PROFILES["player"]
+			var head_size: Vector3 = spec["head"]
+			PixelStyle.add_box(
+				head,
+				Vector3(head_size.x * 1.05, head_size.y * 0.55, head_size.z * 0.92),
+				Vector3(0.0, head_size.y * 0.42, -head_size.z * 0.08),
+				mats["body"],
+				"Hood"
+			)
+	var trim := int(profile.get("trim", 0))
+	if trim >= 1:
+		var torso := find_part(visual, "Torso")
+		if torso:
+			var spec: Dictionary = PROFILES["player"]
+			var torso_size: Vector3 = spec["torso"]
+			PixelStyle.add_box(
+				torso,
+				Vector3(torso_size.x * 1.08, 0.1, torso_size.z * 0.92),
+				Vector3(0.0, torso_size.y * 0.22, 0.0),
+				mats["accent"],
+				"BeltTrim"
+			)
+	if trim >= 2:
+		for side in [-1.0, 1.0]:
+			var arm_name := "ArmL" if side < 0.0 else "ArmR"
+			var shoulder := find_part(visual, arm_name)
+			if shoulder:
+				PixelStyle.add_box(
+					shoulder,
+					Vector3(0.14, 0.1, 0.22),
+					Vector3(0.0, 0.02, -0.08),
+					mats["accent"],
+					"Pauldron"
+				)
 
 
 static func build_enemy_body(
@@ -109,7 +164,8 @@ static func build_enemy_body(
 	if profile == "hound":
 		_build_quadruped(visual, mats)
 	else:
-		_build_humanoid(visual, profile if PROFILES.has(profile) else "melee", mats)
+		var resolved := profile if PROFILES.has(profile) else "melee"
+		_build_humanoid(visual, resolved, _body_materials(theme, resolved))
 	return visual
 
 
@@ -117,7 +173,7 @@ static func build_training_dummy(parent: Node3D) -> Node3D:
 	_remove_visual(parent)
 	PixelStyle.hide_legacy_meshes(parent)
 	var visual := _make_visual(parent)
-	var mats := _body_materials(PixelStyle.PaletteTheme.CASTLE)
+	var mats := _body_materials(PixelStyle.PaletteTheme.CASTLE, "dummy")
 	mats["accent"] = PixelStyle.make_material(ARENA_DUMMY_ACCENT, ARENA_DUMMY_GLOW)
 	var root := _build_humanoid(visual, "dummy", mats)
 	var torso := root.get_node_or_null("Torso") as Node3D
@@ -175,7 +231,10 @@ static func attach_weapon(visual: Node3D, weapon_id: String, theme: int) -> void
 	var mount := find_part(visual, WEAPON_MOUNT)
 	if mount == null:
 		return
+	# Anim pivots (Bow/Shield) must survive kit swaps — attack clips key them by name.
 	for child in mount.get_children():
+		if child.name in ["Bow", "Shield"]:
+			continue
 		mount.remove_child(child)
 		child.queue_free()
 	if weapon_id == "":
@@ -183,11 +242,21 @@ static func attach_weapon(visual: Node3D, weapon_id: String, theme: int) -> void
 	var weapon := WeaponKit.build(weapon_id, theme)
 	if weapon:
 		var kit_id := WeaponKit.resolve_id(weapon_id)
+		var target_mount := mount
+		if kit_id == "bow":
+			var bow_pivot := find_part(visual, "Bow")
+			if bow_pivot:
+				for child in bow_pivot.get_children():
+					bow_pivot.remove_child(child)
+					child.queue_free()
+				target_mount = bow_pivot
 		if kit_id == "spear":
-			# Tip up (+Y mesh), shaft lowered and shifted forward (-Z) in front of the body.
-			weapon.position = Vector3(0.07, -0.48, -0.34)
-			weapon.rotation = Vector3(deg_to_rad(14.0), 0.0, deg_to_rad(4.0))
-		mount.add_child(weapon)
+			# Shaft along -Z (forward thrust), grip at hand mount.
+			weapon.position = Vector3(0.04, -0.12, -0.22)
+			weapon.rotation = Vector3(deg_to_rad(82.0), 0.0, deg_to_rad(2.0))
+		if visual.name == "ViewRoot":
+			_disable_cast_shadows(weapon)
+		target_mount.add_child(weapon)
 
 
 static func find_part(visual: Node3D, part_name: String) -> Node3D:
@@ -215,8 +284,39 @@ static func apply_first_person(facing: Node3D, enabled: bool) -> void:
 		var part := find_part(visual, part_name)
 		if part:
 			_set_shadows_only(part, enabled)
+	_apply_first_person_weapon_shadows(visual, enabled)
 	if not enabled:
 		_set_meshes_visible(visual, true)
+
+
+static func sync_first_person_weapon_shadows(visual: Node3D, first_person: bool) -> void:
+	_apply_first_person_weapon_shadows(visual, first_person)
+
+
+static func _apply_first_person_weapon_shadows(visual: Node3D, first_person: bool) -> void:
+	# Third-person rig weapons still cast shadows in FP; viewmodel weapon is screen-only.
+	for mount_name in [WEAPON_MOUNT, SHIELD_MOUNT, "Bow"]:
+		var mount := find_part(visual, mount_name)
+		if mount:
+			_set_cast_shadow_hidden(mount, first_person)
+
+
+static func _set_cast_shadow_hidden(node: Node, hidden: bool) -> void:
+	if node is GeometryInstance3D:
+		(node as GeometryInstance3D).cast_shadow = (
+			GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+			if hidden
+			else GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+		)
+	for child in node.get_children():
+		_set_cast_shadow_hidden(child, hidden)
+
+
+static func _disable_cast_shadows(node: Node) -> void:
+	if node is GeometryInstance3D:
+		(node as GeometryInstance3D).cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	for child in node.get_children():
+		_disable_cast_shadows(child)
 
 
 static func _set_meshes_visible(node: Node, visible: bool) -> void:
@@ -237,13 +337,23 @@ static func _set_shadows_only(node: Node, shadows_only: bool) -> void:
 		_set_shadows_only(child, shadows_only)
 
 
-static func _body_materials(theme: int) -> Dictionary:
+static func _body_materials(theme: int, profile: String = "melee") -> Dictionary:
 	var palette := PixelStyle.get_palette(theme)
+	var accent_base := palette[PixelStyle.PaletteSlot.ACCENT]
+	match profile:
+		"shield":
+			accent_base = palette[PixelStyle.PaletteSlot.PROP_METAL].lerp(accent_base, 0.55)
+		"brute":
+			accent_base = palette[PixelStyle.PaletteSlot.WALL_SHADOW].lerp(accent_base, 0.35)
+		"ranged":
+			accent_base = palette[PixelStyle.PaletteSlot.EMISSIVE].darkened(0.12)
+		"melee", "player":
+			accent_base = accent_base.lightened(0.04)
 	var accent := PixelStyle.make_surface_material(
 		PixelStyle.SurfaceKind.PROP, theme, 0.38
 	).duplicate() as ShaderMaterial
-	accent.set_shader_parameter("color_base", palette[PixelStyle.PaletteSlot.ACCENT])
-	accent.set_shader_parameter("color_shadow", palette[PixelStyle.PaletteSlot.ACCENT].darkened(0.22))
+	accent.set_shader_parameter("color_base", accent_base)
+	accent.set_shader_parameter("color_shadow", accent_base.darkened(0.22))
 	accent.set_shader_parameter("color_accent", palette[PixelStyle.PaletteSlot.EMISSIVE])
 	return {
 		"body": PixelStyle.make_wall_material(theme),

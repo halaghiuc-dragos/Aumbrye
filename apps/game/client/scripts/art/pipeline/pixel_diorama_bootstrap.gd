@@ -1,37 +1,33 @@
-class_name PixelDioramaBootstrap
 extends RefCounted
+class_name PixelDioramaBootstrap
 
-## The one call every playable scene makes to enter the pixel-diorama pipeline.
-##
-## Replaces the load/apply/attach sequence that used to be copy-pasted into each
-## scene root. Use attach_deferred() from _ready() so the player camera exists
-## before the render camera binds to it.
+## Thin static helper: load pixel settings at boot and attach the viewport pipeline.
 
 
-## Boot-time settings load, before any scene exists.
 static func prime() -> void:
 	PixelDioramaSettings.load_from_save()
 	PixelDioramaSettings.apply_rendering_project_settings()
 
 
-static func attach(scene_root: Node) -> void:
-	if scene_root == null:
+static func attach(scene: Node) -> void:
+	if scene == null:
 		return
-	prime()
-	PixelDioramaSettings.apply_to_scene(scene_root)
-	PixelDioramaViewport.attach_to_scene(scene_root)
+	PixelDioramaSettings.apply_to_scene(scene)
+	var viewport := _get_viewport()
+	if viewport and viewport.has_method("attach_to_scene"):
+		viewport.call("attach_to_scene", scene)
 
 
-static func attach_deferred(scene_root: Node) -> void:
-	if scene_root == null:
+static func attach_deferred(scene: Node) -> void:
+	if scene == null:
 		return
-	prime()
-	PixelDioramaViewport.call_deferred("bootstrap_scene", scene_root)
+	var viewport := _get_viewport()
+	if viewport and viewport.has_method("bootstrap_scene"):
+		viewport.call_deferred("bootstrap_scene", scene)
 
 
-## Re-applies materials, environment, and shadow tuning without rebinding the
-## camera. Use after a scene spawns geometry at runtime (procgen rooms, waves).
-static func refresh(scene_root: Node) -> void:
-	if scene_root == null:
-		return
-	PixelDioramaSettings.apply_to_scene(scene_root)
+static func _get_viewport() -> Node:
+	var tree := Engine.get_main_loop() as SceneTree
+	if tree == null:
+		return null
+	return tree.root.get_node_or_null("PixelDioramaViewport")

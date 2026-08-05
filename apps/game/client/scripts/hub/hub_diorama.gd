@@ -22,10 +22,11 @@ const SERVICE_TENTS := {
 	"QuestBoard": {"width": 4.2, "depth": 3.6, "entrance": 2.0},
 }
 
-const NORTH_PORTAL_Z := -17.0
-const NORTH_PORTAL_X_MIN := -20.0
-const NORTH_PORTAL_X_MAX := 20.0
-const TRAINING_PORTAL_POS := Vector3(20.17, 0.0, 12.31)
+const NORTH_WALL_Z := -17.0
+const PORTAL_WALL_SPACING := 6.0
+const PORTAL_WALL_X_START := 12.0
+const FOUNTAIN_POS := Vector3(12.0, 0.0, -7.0)
+const PLAYER_SPAWN_POS := Vector3(12.0, 0.0, 2.0)
 
 
 static func apply(hub: Node3D) -> void:
@@ -45,6 +46,7 @@ static func apply(hub: Node3D) -> void:
 	_dress_quest_board(hub.get_node_or_null("QuestBoard"), mats)
 	_position_portals(hub)
 	_spawn_fountain(hub, mats)
+	_position_player_spawn(hub)
 	_position_service_npcs(hub)
 	_dress_npcs(hub)
 
@@ -155,39 +157,49 @@ static func _service_yaw(service_name: String) -> float:
 	return _plaza_facing_yaw(_service_world_position(service_name))
 
 
-static func _north_portal_x(slot: int, count: int) -> float:
-	if count <= 1:
-		return 0.0
-	return lerpf(NORTH_PORTAL_X_MIN, NORTH_PORTAL_X_MAX, float(slot) / float(count - 1))
-
-
 static func _position_portals(hub: Node3D) -> void:
-	var north_portal_names := [
+	var portal_names := [
 		"CastlePortal",
 		"UmbralEndlessPortal",
 		"UmbralWavesPortal",
-		"SkiesPortal",
-		"CathedralPortal",
+		"ArenaDoor",
 	]
-	for i in north_portal_names.size():
-		var portal := hub.get_node_or_null(north_portal_names[i]) as Node3D
+	for i in portal_names.size():
+		var portal := hub.get_node_or_null(portal_names[i]) as Node3D
 		if portal == null:
 			continue
-		portal.position = Vector3(_north_portal_x(i, north_portal_names.size()), 0.0, NORTH_PORTAL_Z)
-	var arena := hub.get_node_or_null("ArenaDoor") as Node3D
-	if arena == null:
+		var x := PORTAL_WALL_X_START - float(i) * PORTAL_WALL_SPACING
+		portal.position = Vector3(x, 0.0, NORTH_WALL_Z)
+		portal.rotation.y = 0.0
+	var hidden_names := ["SkiesPortal", "CathedralPortal"]
+	for j in hidden_names.size():
+		var hidden := hub.get_node_or_null(hidden_names[j]) as Node3D
+		if hidden == null:
+			continue
+		var hidden_x := PORTAL_WALL_X_START - float(portal_names.size() + j) * PORTAL_WALL_SPACING
+		hidden.position = Vector3(hidden_x, 0.0, NORTH_WALL_Z)
+		hidden.rotation.y = 0.0
+
+
+static func _position_player_spawn(hub: Node3D) -> void:
+	var player := hub.get_node_or_null("Player") as Node3D
+	if player == null:
 		return
-	arena.position = TRAINING_PORTAL_POS
-	var to_plaza := Vector3.ZERO - arena.position
-	to_plaza.y = 0.0
-	if to_plaza.length_squared() > 0.0001:
-		arena.rotation.y = atan2(to_plaza.x, to_plaza.z)
+	player.position = PLAYER_SPAWN_POS
+	player.rotation.y = 0.0
+	var facing := player.get_node_or_null("Facing") as Node3D
+	var face_portals := Vector3(PORTAL_WALL_X_START, 0.0, NORTH_WALL_Z) - PLAYER_SPAWN_POS
+	face_portals.y = 0.0
+	if facing and face_portals.length_squared() > 0.0001:
+		facing.rotation.y = LockOnMovement.world_direction_to_local_facing_y(
+			player, face_portals
+		)
 
 
 static func _spawn_fountain(hub: Node3D, mats: Dictionary) -> void:
 	if hub.get_node_or_null("PlazaFountain") != null:
 		return
-	PixelDioramaStyle.add_hub_fountain(hub, mats, Vector3(0.0, 0.0, -2.0))
+	PixelDioramaStyle.add_hub_fountain(hub, mats, FOUNTAIN_POS)
 
 
 static func _dress_walls(hub: Node3D, mats: Dictionary) -> void:
@@ -390,18 +402,26 @@ static func _dress_portal(portal: Node3D, mats: Dictionary, theme: String) -> vo
 	visuals.name = "DioramaVisuals"
 	portal.add_child(visuals)
 
-	var frame_mat: Material = _portal_frame_material(mats, theme)
+	var frame_mat: Material = mats.wall if mats.has("wall") else _portal_frame_material(mats, theme)
+	var accent_mat: Material = _portal_frame_material(mats, theme)
 
-	PixelDioramaStyle.add_box(visuals, Vector3(0.45, 3.2, 0.45), Vector3(-1.55, 1.6, 0.0), frame_mat, "PillarL")
-	PixelDioramaStyle.add_box(visuals, Vector3(0.45, 3.2, 0.45), Vector3(1.55, 1.6, 0.0), frame_mat, "PillarR")
-	PixelDioramaStyle.add_box(visuals, Vector3(3.8, 0.45, 0.55), Vector3(0.0, 3.35, 0.0), frame_mat, "Lintel")
+	PixelDioramaStyle.add_box(visuals, Vector3(4.2, 0.22, 2.2), Vector3(0.0, 0.11, 0.0), frame_mat, "Base")
+	PixelDioramaStyle.add_box(visuals, Vector3(3.6, 0.16, 1.8), Vector3(0.0, 0.28, 0.0), accent_mat, "Step")
+	PixelDioramaStyle.add_box(visuals, Vector3(0.62, 3.6, 0.62), Vector3(-1.75, 1.8, 0.0), frame_mat, "PillarL")
+	PixelDioramaStyle.add_box(visuals, Vector3(0.62, 3.6, 0.62), Vector3(1.75, 1.8, 0.0), frame_mat, "PillarR")
+	PixelDioramaStyle.add_box(visuals, Vector3(0.92, 0.38, 0.92), Vector3(-1.75, 3.72, 0.0), accent_mat, "CapitalL")
+	PixelDioramaStyle.add_box(visuals, Vector3(0.92, 0.38, 0.92), Vector3(1.75, 3.72, 0.0), accent_mat, "CapitalR")
+	PixelDioramaStyle.add_box(visuals, Vector3(4.2, 0.55, 0.72), Vector3(0.0, 3.95, 0.0), frame_mat, "Lintel")
+	PixelDioramaStyle.add_box(visuals, Vector3(3.0, 0.22, 0.22), Vector3(0.0, 3.2, 0.0), accent_mat, "ArchKeystone")
+	PixelDioramaStyle.add_box(visuals, Vector3(0.35, 2.8, 0.35), Vector3(-1.2, 1.6, 0.28), frame_mat, "ButtressL")
+	PixelDioramaStyle.add_box(visuals, Vector3(0.35, 2.8, 0.35), Vector3(1.2, 1.6, 0.28), frame_mat, "ButtressR")
 	PixelDioramaStyle.add_portal_interior(
 		visuals,
 		Vector2(2.6, 2.2),
-		Vector3(0.0, 1.5, 0.02),
+		Vector3(0.0, 1.55, 0.04),
 		theme
 	)
-	PixelDioramaStyle.add_box(visuals, Vector3(3.6, 0.14, 1.6), Vector3(0.0, 0.07, 0.0), mats.floor, "Pad")
+	PixelDioramaStyle.add_box(visuals, Vector3(3.8, 0.16, 1.9), Vector3(0.0, 0.08, 0.0), mats.floor, "Pad")
 
 	_add_portal_theme_accents(visuals, mats, theme)
 
@@ -409,9 +429,9 @@ static func _dress_portal(portal: Node3D, mats: Dictionary, theme: String) -> vo
 	portal_light.name = "PortalGlow"
 	var light_color: Color = _portal_light_color(theme)
 	portal_light.light_color = light_color
-	portal_light.light_energy = 0.8 if theme == "cathedral" else 0.85
-	portal_light.omni_range = 3.5
-	portal_light.position = Vector3(0.0, 1.6, 0.6)
+	portal_light.light_energy = 0.9 if theme == "cathedral" else 1.0
+	portal_light.omni_range = 4.0
+	portal_light.position = Vector3(0.0, 1.7, 0.75)
 	visuals.add_child(portal_light)
 
 

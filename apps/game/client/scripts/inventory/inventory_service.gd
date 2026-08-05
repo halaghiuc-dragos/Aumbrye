@@ -2,12 +2,14 @@ extends Node
 
 ## Autoload singleton — persisted grid inventory + equipment stats (M2/M4).
 
+const RunModeConfigScript := preload("res://scripts/app/run_mode_config.gd")
 const CombatStatModifiersScript := preload("res://scripts/combat/combat_stat_modifiers.gd")
 
 signal inventory_changed
 signal equipment_stats_changed(stats: Dictionary)
 
 var inventory: GridInventory = GridInventory.new()
+var quick_slot_indices: Array[int] = [-1, -1, -1]
 
 
 func _ready() -> void:
@@ -95,11 +97,14 @@ func get_item_def(item_id: String) -> Dictionary:
 
 
 func get_save_inventory() -> Dictionary:
-	return inventory.to_save_dict()
+	var data := inventory.to_save_dict()
+	data["quickSlots"] = quick_slot_indices.duplicate()
+	return data
 
 
 func apply_save_inventory(data: Dictionary) -> void:
 	inventory.from_save_dict(data)
+	_restore_quick_slots(data.get("quickSlots", []))
 	_apply_equipment_to_player()
 
 
@@ -214,6 +219,76 @@ func _apply_equipment_to_player() -> void:
 	var player := get_tree().get_first_node_in_group("player")
 	if player:
 		apply_equipment_to_player_node(player)
+
+
+func set_quick_slot(quick_index: int, grid_index: int) -> void:
+	if quick_index < 0 or quick_index > 2:
+		return
+	if grid_index < 0 or grid_index >= inventory.slots.size():
+		quick_slot_indices[quick_index] = -1
+	else:
+		quick_slot_indices[quick_index] = grid_index
+	if LocalSave:
+		LocalSave.autosave()
+
+
+func get_quick_slot_index(quick_index: int) -> int:
+	if quick_index < 0 or quick_index >= quick_slot_indices.size():
+		return -1
+	return quick_slot_indices[quick_index]
+
+
+func get_quick_slot_label(quick_index: int) -> String:
+	var idx := get_quick_slot_index(quick_index)
+	if idx < 0 or idx >= inventory.slots.size():
+		return "Empty"
+	return inventory.get_slot_display_name(inventory.slots[idx])
+
+
+func activate_quick_slot(quick_index: int) -> bool:
+	if RunFlow and RunModeConfigScript.is_waves(RunFlow.get_run_mode()):
+		return false
+	var idx := get_quick_slot_index(quick_index)
+	if idx < 0 or idx >= inventory.slots.size():
+		return false
+	return _use_or_equip_index(idx)
+
+
+func _use_or_equip_index(index: int) -> bool:
+	if index < 0 or index >= inventory.slots.size():
+		return false
+	var slot: Dictionary = inventory.slots[index]
+	var def := get_item_def(slot.get("itemId", ""))
+	var item_type: String = def.get("itemType", "")
+	if item_type in ["weapon", "armor", "accessory"]:
+		if inventory.equip_from_index(index):
+			_apply_equipment_to_player()
+			return true
+		return false
+	if item_type == "consumable":
+		return _use_consumable_at_index(index)
+	return false
+
+
+func _use_consumable_at_index(index: int) -> bool:
+	var player := get_tree().get_first_node_in_group("player")
+	if player == null:
+		return false
+	var health := player.get_node_or_null("Health") as Health
+	if health == null or health.is_dead():
+		return false
+	var def := inventory.consume_at(index)
+	if def.is_empty():
+		return false
+	health.heal(def.get("healAmount", 30.0))
+	return true
+
+
+func _restore_quick_slots(raw: Variant) -> void:
+	quick_slot_indices = [-1, -1, -1]
+	if raw is Array:
+		for i in mini(raw.size(), 3):
+			quick_slot_indices[i] = int(raw[i])
 
 
 func _merge_stat_dicts(a: Dictionary, b: Dictionary) -> Dictionary:

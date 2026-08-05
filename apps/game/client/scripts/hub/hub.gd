@@ -76,7 +76,7 @@ func _ready() -> void:
 	_show_return_message()
 	_refresh_castle_portal_label()
 	RunFlow.returned_to_hub.connect(_on_returned_to_hub)
-	AudioDirector.stop_all(0.5)
+	AudioDirector.play_hub_ambience()
 	HubTutorialService.load_from_save()
 	call_deferred("_boot_save_and_services")
 	call_deferred("_maybe_show_hub_tips")

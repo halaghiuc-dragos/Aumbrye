@@ -104,6 +104,7 @@ func unlock_talent(node_id: String) -> bool:
 	talents[node_id] = get_talent_rank(node_id) + 1
 	talent_points_spent += cost
 	progression_changed.emit()
+	LocalSave.autosave()
 	return true
 
 

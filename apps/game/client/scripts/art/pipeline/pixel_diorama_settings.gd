@@ -26,11 +26,11 @@ const DEFAULT_AMBIENT_OCCLUSION := true
 const DEFAULT_RIM_STRENGTH := 0.08
 const DEFAULT_LINEAR_TONEMAP := true
 const DEFAULT_GLOW_ENABLED := true
-const DEFAULT_NEAREST_TEXTURE_FILTER := true
-const DEFAULT_ANTI_ALIASING_OFF := true
+const DEFAULT_NEAREST_TEXTURE_FILTER := false
+const DEFAULT_ANTI_ALIASING_OFF := false
 const DEFAULT_LOW_RES_VIEWPORT := true
-const DEFAULT_VIEWPORT_WIDTH := 480
-const DEFAULT_VIEWPORT_HEIGHT := 270
+const DEFAULT_VIEWPORT_WIDTH := 1920
+const DEFAULT_VIEWPORT_HEIGHT := 1080
 const DEFAULT_CAMERA_SNAP := false
 const DEFAULT_SCREEN_FINISH := true
 const DEFAULT_CONTRAST := 1.08
@@ -46,7 +46,7 @@ const QUALITY_LABELS: Array[String] = ["Low", "Medium", "High"]
 ## nearest-neighbour upscale stays square-pixel at common window sizes.
 const RESOLUTION_PRESETS: Array = [
 	{"label": "320 x 180 (chunky)", "width": 320, "height": 180},
-	{"label": "480 x 270 (default)", "width": 480, "height": 270},
+	{"label": "480 x 270 (chunky)", "width": 480, "height": 270},
 	{"label": "640 x 360 (fine)", "width": 640, "height": 360},
 	{"label": "854 x 480 (soft)", "width": 854, "height": 480},
 	{
@@ -62,7 +62,7 @@ const RESOLUTION_PRESETS: Array = [
 		"shade_dither": 0.35,
 	},
 	{
-		"label": "1920 x 1080 (Full HD)",
+		"label": "1920 x 1080 (Full HD, default)",
 		"width": 1920,
 		"height": 1080,
 		"native": true,
@@ -89,7 +89,7 @@ static var glow_enabled: bool = DEFAULT_GLOW_ENABLED
 static var ambient_occlusion_enabled: bool = DEFAULT_AMBIENT_OCCLUSION
 static var nearest_texture_filter: bool = DEFAULT_NEAREST_TEXTURE_FILTER
 static var anti_aliasing_off: bool = DEFAULT_ANTI_ALIASING_OFF
-static var low_res_viewport_enabled: bool = false
+static var low_res_viewport_enabled: bool = DEFAULT_LOW_RES_VIEWPORT
 static var viewport_width: int = DEFAULT_VIEWPORT_WIDTH
 static var viewport_height: int = DEFAULT_VIEWPORT_HEIGHT
 static var camera_snap_enabled: bool = DEFAULT_CAMERA_SNAP
@@ -204,11 +204,14 @@ static func apply_beauty_defaults() -> void:
 	linear_tonemap = DEFAULT_LINEAR_TONEMAP
 	glow_enabled = DEFAULT_GLOW_ENABLED
 	ambient_occlusion_enabled = DEFAULT_AMBIENT_OCCLUSION
-	nearest_texture_filter = true
-	anti_aliasing_off = true
-	low_res_viewport_enabled = true
+	nearest_texture_filter = DEFAULT_NEAREST_TEXTURE_FILTER
+	anti_aliasing_off = DEFAULT_ANTI_ALIASING_OFF
+	low_res_viewport_enabled = DEFAULT_LOW_RES_VIEWPORT
 	viewport_width = DEFAULT_VIEWPORT_WIDTH
 	viewport_height = DEFAULT_VIEWPORT_HEIGHT
+	var preset := _preset_for_size(viewport_width, viewport_height)
+	if bool(preset.get("native", false)):
+		_apply_native_hd_shader_tuning(preset)
 	camera_snap_enabled = false
 	screen_finish_enabled = true
 	screen_contrast = DEFAULT_CONTRAST

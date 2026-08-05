@@ -137,7 +137,7 @@ static func _generate_final_floor(
 				"id": "boss",
 				"templateId": "%s_boss" % prefix,
 				"type": "boss",
-				"transform": {"x": 0.0, "y": 0.0, "z": 28.0, "yaw": 0.0},
+				"transform": {"x": 0.0, "y": 0.0, "z": 20.0, "yaw": 0.0},
 				"tags": ["final_boss"],
 			},
 		],

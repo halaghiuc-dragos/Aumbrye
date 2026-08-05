@@ -28,6 +28,30 @@ func find_socket(direction: CastleRoomConstants.Direction) -> DoorwaySocket:
 	return null
 
 
+func door_mask_toward(other: RoomTemplate) -> int:
+	var delta := other.global_position - global_position
+	if absf(delta.x) > absf(delta.z):
+		return RoomGraphSlot.DOOR_EAST if delta.x > 0.0 else RoomGraphSlot.DOOR_WEST
+	return RoomGraphSlot.DOOR_SOUTH if delta.z > 0.0 else RoomGraphSlot.DOOR_NORTH
+
+
+func socket_toward(other: RoomTemplate) -> DoorwaySocket:
+	return _socket_for_mask(door_mask_toward(other))
+
+
+func _socket_for_mask(door_mask: int) -> DoorwaySocket:
+	match door_mask:
+		RoomGraphSlot.DOOR_NORTH:
+			return find_socket(CastleRoomConstants.Direction.NORTH)
+		RoomGraphSlot.DOOR_EAST:
+			return find_socket(CastleRoomConstants.Direction.EAST)
+		RoomGraphSlot.DOOR_SOUTH:
+			return find_socket(CastleRoomConstants.Direction.SOUTH)
+		RoomGraphSlot.DOOR_WEST:
+			return find_socket(CastleRoomConstants.Direction.WEST)
+	return null
+
+
 func get_player_spawn_global() -> Vector3:
 	var spawn := get_node_or_null(player_spawn_path) as Node3D
 	if spawn:

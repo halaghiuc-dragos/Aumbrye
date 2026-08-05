@@ -426,9 +426,10 @@ func _test_save_migration_floor() -> void:
 	ctx.timed_record(
 		"m7.save.migration_floor_fields",
 		get_category(),
-		int(migrated.get("schemaVersion", 0)) == 3
+		int(migrated.get("schemaVersion", 0)) == SaveMigratorScript.CURRENT_VERSION
 			and run.has("currentFloor")
-			and str(run.get("runMode", "")) != "",
+			and str(run.get("runMode", "")) != ""
+			and run.has("lastCheckpoint"),
 		"v1 save migrates with floor fields",
 		start,
 		"SCHEMA-7.1"
@@ -800,8 +801,9 @@ func _test_save_v2_migration() -> void:
 	ctx.timed_record(
 		"m7.save.v2_to_v3_strips_floors",
 		get_category(),
-		int(migrated.get("schemaVersion", 0)) == 3 and not run.has("floorDefinitions"),
-		"v2 save migrates to v3 without floorDefinitions cache",
+		int(migrated.get("schemaVersion", 0)) == SaveMigratorScript.CURRENT_VERSION
+			and not run.has("floorDefinitions"),
+		"v2 save migrates to current without floorDefinitions cache",
 		start,
 		"SCHEMA-7.1"
 	)

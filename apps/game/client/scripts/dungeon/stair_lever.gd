@@ -67,6 +67,8 @@ func _unhandled_input(event: InputEvent) -> void:
 
 
 func _use_lever(direction: String) -> void:
+	if not _unlocked:
+		return
 	lever_used.emit(direction)
 	if direction == "ascend":
 		RunFlow.ascend_floor()

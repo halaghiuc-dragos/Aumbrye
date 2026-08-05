@@ -1,6 +1,6 @@
 extends Node
 
-const DEFAULT_HITSTOP := 0.06
+const DEFAULT_HITSTOP := 0.09
 const DEFAULT_CAMERA_PUNCH := 0.15
 const DEFAULT_INTENSITY := 1.0
 const DAMAGE_NUMBER := preload("res://scripts/combat/damage_number.gd")
@@ -48,8 +48,9 @@ func _process(delta: float) -> void:
 
 func on_hit(target: Node, damage: float, direction: Vector3 = Vector3.ZERO) -> void:
 	hit_landed.emit(target, damage)
-	_apply_local_hitstop()
-	_apply_camera_punch(direction)
+	var weight := clampf(damage / 20.0, 0.85, 1.35)
+	_apply_local_hitstop(weight)
+	_apply_camera_punch(direction, weight)
 	_apply_vibration()
 	_play_sfx_hook()
 	if show_damage_numbers and target is Node3D:
@@ -96,8 +97,8 @@ func _spawn_damage_number(at_node: Node3D, damage: float, offset: Vector3 = Vect
 		DAMAGE_NUMBER.spawn(at_node.global_position + offset, damage, root)
 
 
-func _apply_local_hitstop() -> void:
-	_hitstop_timer = maxf(_hitstop_timer, DEFAULT_HITSTOP * feedback_intensity)
+func _apply_local_hitstop(weight: float = 1.0) -> void:
+	_hitstop_timer = maxf(_hitstop_timer, DEFAULT_HITSTOP * feedback_intensity * weight)
 	_apply_animation_speed()
 
 
@@ -111,7 +112,7 @@ func _restore_animation_speed() -> void:
 		_anim_director.call("set_speed_scale", 1.0)
 
 
-func _apply_camera_punch(direction: Vector3 = Vector3.ZERO) -> void:
+func _apply_camera_punch(direction: Vector3 = Vector3.ZERO, weight: float = 1.0) -> void:
 	if AccessibilitySettings.reduce_camera_shake:
 		return
 	var dir := direction
@@ -119,8 +120,13 @@ func _apply_camera_punch(direction: Vector3 = Vector3.ZERO) -> void:
 		dir = -_camera.global_transform.basis.z
 	if dir.length_squared() > 0.01:
 		_shake_direction = dir.normalized()
-	_shake_strength = DEFAULT_CAMERA_PUNCH * feedback_intensity
+	_shake_strength = DEFAULT_CAMERA_PUNCH * feedback_intensity * weight
 	_shake_timer = 0.11
+	if _camera and weight >= 1.1:
+		var fov := _camera.fov
+		_camera.fov = fov - 1.5 * weight
+		var tween := create_tween()
+		tween.tween_property(_camera, "fov", fov, 0.12)
 
 
 func _apply_camera_shake(delta: float) -> void:

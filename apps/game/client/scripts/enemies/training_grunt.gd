@@ -29,6 +29,7 @@ var _state_timer := 0.0
 var _cooldown := 0.0
 var _stagger_timer := 0.0
 var _spawn_origin := Vector3.ZERO
+var _windup_duration := 0.0
 
 
 func _ready() -> void:
@@ -59,6 +60,8 @@ func _ready() -> void:
 		_hp_bar.name = "HealthBar"
 		add_child(_hp_bar)
 		_hp_bar.setup(_health)
+	if _telegraph:
+		_telegraph.visible = false
 	if _poise:
 		_poise.configure(_data.get("poise", 40.0))
 		_poise.poise_broken.connect(_on_poise_broken)
@@ -96,6 +99,18 @@ func is_dead() -> bool:
 	return _state == State.DEAD
 
 
+func begin_attack_windup_bar(duration: float) -> void:
+	_windup_duration = maxf(0.05, duration)
+	if _hp_bar:
+		_hp_bar.begin_attack_telegraph(_windup_duration)
+
+
+func hide_attack_windup_bar() -> void:
+	_windup_duration = 0.0
+	if _hp_bar:
+		_hp_bar.hide_attack_telegraph()
+
+
 func apply_stagger(duration: float) -> void:
 	if is_dead() or (_health and _health.is_dead()):
 		return
@@ -105,6 +120,7 @@ func apply_stagger(duration: float) -> void:
 		_hitbox.disable()
 	if _telegraph:
 		_telegraph.visible = false
+	hide_attack_windup_bar()
 	if _animator and _animator.is_bound():
 		_animator.play_stagger(duration)
 
@@ -127,6 +143,10 @@ func _process_state(delta: float) -> void:
 				_start_windup()
 		State.WINDUP:
 			_state_timer -= delta
+			if _windup_duration > 0.0:
+				var elapsed := _windup_duration - _state_timer
+				if _hp_bar:
+					_hp_bar.set_attack_telegraph_progress(clampf(elapsed / _windup_duration, 0.0, 1.0))
 			if _state_timer <= 0.0:
 				_start_attack()
 		State.ATTACK:
@@ -159,11 +179,7 @@ func _start_windup() -> void:
 			float(_data.get("active_duration", 0.15)),
 			float(_data.get("recovery_duration", 0.9))
 		)
-	if _telegraph:
-		_telegraph.visible = true
-	VfxService.play_telegraph(
-		global_position, float(_data.get("attack_range", 2.2)) * 0.8, windup
-	)
+	begin_attack_windup_bar(windup)
 	attack_telegraph_started.emit()
 
 
@@ -172,8 +188,7 @@ func _start_attack() -> void:
 		return
 	_state = State.ATTACK
 	_state_timer = _data.get("active_duration", 0.15)
-	if _telegraph:
-		_telegraph.visible = false
+	hide_attack_windup_bar()
 	if _hitbox:
 		_hitbox.set_attack_values(
 			_data.get("attack_damage", 14.0),
@@ -181,7 +196,6 @@ func _start_attack() -> void:
 		)
 		_hitbox.enable()
 	attack_active.emit()
-	_try_parry_check()
 
 
 func _end_attack() -> void:
@@ -192,16 +206,6 @@ func _end_attack() -> void:
 		_mesh.scale = Vector3.ONE
 	_state = State.RECOVERY
 	_state_timer = _data.get("recovery_duration", 0.9)
-
-
-func _try_parry_check() -> void:
-	if not _player:
-		return
-	var guard := _player.get_node_or_null("Guard")
-	if guard and guard.has_method("try_parry_attack"):
-		if guard.call("try_parry_attack", self):
-			var stagger: float = guard.call("get_parry_stagger_duration")
-			apply_stagger(stagger)
 
 
 func _face_player() -> void:
@@ -218,6 +222,7 @@ func _face_player() -> void:
 func _on_died() -> void:
 	_state = State.DEAD
 	velocity = Vector3.ZERO
+	hide_attack_windup_bar()
 	if _hitbox:
 		_hitbox.disable()
 	if _hurtbox:
@@ -251,6 +256,7 @@ func reset_enemy() -> void:
 		_hitbox.reset_swing()
 	if _telegraph:
 		_telegraph.visible = false
+	hide_attack_windup_bar()
 	if _hurtbox:
 		_hurtbox.monitorable = true
 		_hurtbox.monitoring = true

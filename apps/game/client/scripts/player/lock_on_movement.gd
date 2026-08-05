@@ -85,6 +85,18 @@ static func apply_orbit_radius_correction(
 	return horizontal_velocity + correction * delta
 
 
+static func world_direction_to_local_facing_y(body: Node3D, world_direction: Vector3) -> float:
+	var dir := world_direction
+	dir.y = 0.0
+	if dir.length_squared() < 0.0001:
+		return 0.0
+	dir = dir.normalized()
+	# Player rig forward is +basis.z (see combat_suite player_hitbox_forward).
+	var world_yaw := atan2(dir.x, dir.z)
+	var body_yaw := body.rotation.y if body else 0.0
+	return world_yaw - body_yaw
+
+
 static func update_facing_toward_target(
 	facing: Node3D,
 	target: Node3D,
@@ -93,10 +105,11 @@ static func update_facing_toward_target(
 ) -> void:
 	if facing == null or target == null or not is_instance_valid(target):
 		return
+	var body := facing.get_parent() as Node3D
 	var aim_point := LockOn.get_target_aim_point(target)
 	var to_target := aim_point - facing.global_position
 	to_target.y = 0.0
 	if to_target.length_squared() < 0.001:
 		return
-	var target_angle := atan2(to_target.x, to_target.z)
+	var target_angle := world_direction_to_local_facing_y(body, to_target)
 	facing.rotation.y = lerp_angle(facing.rotation.y, target_angle, speed * delta)

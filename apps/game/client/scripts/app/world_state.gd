@@ -34,7 +34,15 @@ func all_flags() -> Dictionary:
 	return _flags.duplicate()
 
 
+func restore_flags(flags: Dictionary) -> void:
+	_flags.clear()
+	for flag_id in flags:
+		_flags[flag_id] = flags[flag_id]
+
+
 func _on_run_started() -> void:
+	if RunFlow.is_continue_restore():
+		return
 	reset()
 	InventoryService.clear_dungeon_keys()
 

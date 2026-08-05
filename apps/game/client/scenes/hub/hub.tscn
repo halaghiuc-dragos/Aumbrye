@@ -86,7 +86,7 @@ mesh = SubResource("BoxMesh_wall")
 scale = Vector3(12, 1, 1)
 
 [node name="Player" parent="." instance=ExtResource("2_player")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 4)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 12, 0, 2)
 
 [node name="CastlePortal" type="Node3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -12, 0, -17)
