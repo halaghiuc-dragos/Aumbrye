@@ -1,25 +1,25 @@
 # Hub — improvement plan
 
-**Status: FINISHED**
+## Status: FINISHED
 
 ## Current state
-The hub works: ten interactables, three run-mode menus wired to `RunFlow`, four service UIs, three data-driven NPCs, and a full procedural diorama pass. See [`../existing_codebase/hub.md`](../existing_codebase/hub.md). The problems are in the seams. The first-run tip system is a hardcoded GDScript array whose text is factually wrong about two key bindings, is overwritten a frame after it appears, double-fires with the interact action, and loads its state from the wrong character. `HubInteractable.interact_id` is an exported field with zero readers anywhere in the repository, so all ten landmarks are routed through ten hand-maintained booleans and a fixed `if / elif` chain instead. Two portals are hidden with their interact areas left live. Service and portal positions are declared twice, once in `hub.tscn` and once in `hub_diorama.gd`, and the diorama wins.
+The hub ships ten interactables routed by `interact_id`, three run-mode menus wired to `RunFlow`, four service UIs, three data-driven NPCs, content-driven tips with glyph substitution, and a procedural diorama pass that no longer overwrites scene transforms. See [`../existing_codebase/hub.md`](../existing_codebase/hub.md).
 
 ## Gaps
-| ID | Sev | Gap | Status |
-|----|-----|-----|--------|
-| HUB-01 | P0 | Two of five hub tips name the wrong key: tip 2 says right-click for block (bound to `Q`), tip 5 says Esc for the inventory (bound to Tab) | FINISHED |
-| HUB-02 | P0 | The tip text is written into `MessageLabel` by the deferred `_maybe_show_hub_tips`, then overwritten by `_boot_save_and_services` when it resumes after its `await`, so a first-time player usually never reads tip 1 | FINISHED |
-| HUB-03 | P0 | The tip handler in `_input` does not mark the event handled, so one `interact` press both advances the tip and triggers the nearby portal or vendor | FINISHED |
-| HUB-04 | P0 | `HubTutorialService.load_from_save()` runs before the deferred save load, so on a character switch the tips state comes from the previous character's `meta` | FINISHED |
-| HUB-05 | P1 | Tip content is a hardcoded GDScript array with no content file, no ordering rules, no per-tip trigger condition, and no localisation path | FINISHED |
-| HUB-06 | P1 | `HubInteractable.interact_id` is exported and never read; interact routing is ten booleans and a 40-line `if / elif` chain that must be edited for every new landmark | FINISHED |
-| HUB-07 | P1 | The Skies and Cathedral portals are hidden but their `InteractArea` nodes stay enabled, so the player gets a "coming soon" message from an invisible volume | FINISHED |
-| HUB-08 | P1 | Hub messages appear on a `Label3D` fixed at world `(0, 3.5, 2)` while the player spawns at `(12, 0, 2)`, so the welcome message and every tip are 12 m to the player's left | FINISHED |
-| HUB-09 | P2 | Portal, arena-door, and service positions exist twice — in the `hub.tscn` transforms and in `hub_diorama.gd` constants — and the diorama silently overwrites the scene | FINISHED |
-| HUB-10 | P2 | `_update_prompt` runs every frame and iterates the `hub_npc` group plus reassigns `Label3D.text` even when nothing changed | FINISHED |
-| HUB-11 | P2 | Entering an interact zone produces no audio and no visual highlight; the only feedback is the prompt label | FINISHED |
-| HUB-12 | P2 | `HubTutorialService` state lives in `static var`s on a `RefCounted`, so it is process-global rather than per-character, and `advance_tip` triggers a full `LocalSave.autosave()` per tip | FINISHED |
+| ID | Sev | Gap | Evidence |
+|----|-----|-----|----------|
+| HUB-01 | P0 | ~~Two hub tips named wrong keys~~ **FINISHED** — `{action}` placeholders resolved via `InputGlyphService` | `content/hub/tips.json`, `hub_tutorial_service.gd:_substitute_glyphs` |
+| HUB-02 | P0 | ~~Tip text clobbered by welcome message~~ **FINISHED** — dedicated `TipLabel`; boot greeting writes `MessageLabel` only | `hub.tscn` `Player/MessageAnchor/TipLabel`, `hub.gd:_refresh_tip_surface`, `hub.gd:show_hub_message` |
+| HUB-03 | P0 | ~~Tip `interact` double-fired with landmarks~~ **FINISHED** — tips handled in `_unhandled_input` with `set_input_as_handled()` | `hub.gd:_unhandled_input`, `hub.gd:_handle_tip_input` |
+| HUB-04 | P0 | ~~Tips loaded from previous character~~ **FINISHED** — `load_from_save()` on `LocalSave.save_loaded` after character switch | `hub.gd:_on_save_loaded`, `hub_tutorial_service.gd:reset_for_character` |
+| HUB-05 | P1 | ~~Hardcoded tip array~~ **FINISHED** — `content/hub/tips.json` with schema `hub-tips.v1.json` | `content/hub/tips.json`, `content/schemas/hub-tips.v1.json` |
+| HUB-06 | P1 | ~~Ten booleans + `if/elif` chain~~ **FINISHED** — `INTERACT_HANDLERS` + `_nearby` stack | `hub.gd:INTERACT_HANDLERS`, `hub.gd:_nearest_interact_id` |
+| HUB-07 | P1 | ~~Hidden Skies/Cathedral areas still live~~ **FINISHED** — `enabled = false` on interact areas | `hub.tscn` SkiesPortal/CathedralPortal `InteractArea` |
+| HUB-08 | P1 | ~~Messages 12 m from spawn~~ **FINISHED** — labels parented to `Player/MessageAnchor` | `hub.tscn:84-98`, player spawn `(12, 0, 2)` |
+| HUB-09 | P2 | ~~Duplicate portal/service positions~~ **FINISHED** — scene transforms authoritative; diorama reads node positions | `hub_diorama.gd:_service_world_position`, `hub.layout.scene_matches_runtime` |
+| HUB-10 | P2 | ~~Per-frame prompt updates~~ **FINISHED** — `_update_prompt()` on enter/exit/UI open only | `hub.gd:_on_interact_enter`, `hub.gd:_update_prompt` (no `_process`) |
+| HUB-11 | P2 | ~~No enter-zone feedback~~ **FINISHED** — `enter_sound` + `highlight_target` on `HubInteractable` | `hub_interactable.gd`, `hub_diorama.gd` ridge/glow wiring |
+| HUB-12 | P2 | ~~Global tip state + per-tip autosave~~ **FINISHED** — `reset_for_character()` on load; `request_autosave(DEFERRED)` | `hub_tutorial_service.gd:save`, `save_migrator.gd` `migrate_index_to_seen` |
 
 ## Target design
 
@@ -64,7 +64,7 @@ The "secret rooms — listen for hidden passages" tip is dropped rather than rew
 ```gdscript
 ## hub_tutorial_service.gd
 const SAVE_KEY := "hub_tutorial"
-const CONTENT_PATH := "res://../../../content/hub/tips.json"   ## resolved through ContentLoader
+const CONTENT_PATH := "content/hub/tips.json"   ## resolved through ContentLoader
 
 static func load_catalog() -> void                       ## via ContentLoader, cached
 static func load_from_save() -> void

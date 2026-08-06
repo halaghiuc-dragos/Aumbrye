@@ -224,7 +224,7 @@ func _test_no_unauthored_items() -> void:
 func _test_character_manifests() -> void:
 	var start := Time.get_ticks_msec()
 	var CharacterRigCatalog := preload("res://scripts/art/characters/character_rig_catalog.gd")
-	var schema_path := ctx.repo_root().path_join("content/schemas/character-rig.v1.json")
+	var schema_path: String = ctx.repo_root().path_join("content/schemas/character-rig.v1.json")
 	var schema_ok := FileAccess.file_exists(schema_path)
 	var missing_meshes: PackedStringArray = []
 	var invalid: PackedStringArray = []
@@ -304,20 +304,100 @@ func _test_equipment_visual_pivots() -> void:
 
 
 func _test_ui_atlases() -> void:
-	var start := Time.get_ticks_msec()
 	var status_manifest := ContentLoader.load_json("content/ui/status_icon_atlas.json")
-	var status_ok := (
-		not status_manifest.is_empty()
-		and status_manifest.has("cells")
-		and FileAccess.file_exists(ContentLoader.content_path("content/ui/status_icon_atlas.json"))
+	var start := Time.get_ticks_msec()
+	var schema_ok := (
+		int(status_manifest.get("schemaVersion", 0)) == 1
+		and not str(status_manifest.get("texture", "")).is_empty()
+		and status_manifest.has("cellSize")
+		and status_manifest.has("columns")
+		and status_manifest.has("rows")
+		and status_manifest.get("cells", {}) is Dictionary
 	)
 	ctx.timed_record(
-		"content.status_atlas_manifest",
+		"content.status_atlas_schema",
 		get_category(),
-		status_ok,
-		"status icon atlas manifest loads",
+		schema_ok,
+		"status icon atlas manifest matches status-icon-atlas.v1.json shape",
 		start,
-		"M5.ui.atlas"
+		"SIA-01"
+	)
+
+	start = Time.get_ticks_msec()
+	var cell_size := int(status_manifest.get("cellSize", 16))
+	var columns := int(status_manifest.get("columns", 0))
+	var rows := int(status_manifest.get("rows", 0))
+	var texture_path := str(status_manifest.get("texture", ""))
+	var bounds_ok := columns > 0 and rows > 0
+	if bounds_ok and ResourceLoader.exists(texture_path):
+		var tex := load(texture_path) as Texture2D
+		if tex:
+			bounds_ok = columns * cell_size == tex.get_width() and rows * cell_size == tex.get_height()
+	var cells: Dictionary = status_manifest.get("cells", {})
+	for cell_id in cells.keys():
+		var entry: Dictionary = cells[cell_id]
+		if int(entry.get("col", -1)) >= columns or int(entry.get("row", -1)) >= rows:
+			bounds_ok = false
+	ctx.timed_record(
+		"content.status_atlas_cells_in_bounds",
+		get_category(),
+		bounds_ok,
+		"status atlas cells fit manifest grid and texture dimensions",
+		start,
+		"SIA-08"
+	)
+
+	start = Time.get_ticks_msec()
+	var orphan_ok := true
+	for cell_id in cells.keys():
+		if cell_id == "unknown" or str(cell_id).begins_with("frame_"):
+			continue
+		if not FileAccess.file_exists(
+			ContentLoader.content_path("content/statuses/%s.json" % cell_id)
+		):
+			orphan_ok = false
+	ctx.timed_record(
+		"content.status_atlas_no_orphan_cells",
+		get_category(),
+		orphan_ok,
+		"every manifest status cell has a content/statuses file",
+		start,
+		"SIA-06"
+	)
+
+	start = Time.get_ticks_msec()
+	var covers_ok := true
+	for file_name in DirAccess.get_files_at(ContentLoader.content_path("content/statuses")):
+		if not file_name.ends_with(".json"):
+			continue
+		var status_id := file_name.get_basename()
+		if not StatusIconAtlas.has_icon(status_id):
+			covers_ok = false
+	ctx.timed_record(
+		"content.status_atlas_covers_all",
+		get_category(),
+		covers_ok,
+		"every authored status has an atlas cell",
+		start,
+		"SIA-02"
+	)
+
+	start = Time.get_ticks_msec()
+	var polarity_ok := true
+	for file_name in DirAccess.get_files_at(ContentLoader.content_path("content/statuses")):
+		if not file_name.ends_with(".json"):
+			continue
+		var def: Dictionary = ContentLoader.load_json("content/statuses/%s" % file_name)
+		var polarity := str(def.get("polarity", ""))
+		if polarity != "buff" and polarity != "debuff":
+			polarity_ok = false
+	ctx.timed_record(
+		"content.status_polarity_present",
+		get_category(),
+		polarity_ok,
+		"every status file declares polarity buff or debuff",
+		start,
+		"SIA-04"
 	)
 
 	start = Time.get_ticks_msec()
@@ -587,7 +667,7 @@ func _test_character_state_v2_matches_runtime() -> void:
 
 func _test_save_migrations_doc_sync() -> void:
 	var SaveMigratorScript := preload("res://scripts/save/save_migrator.gd")
-	var doc_path := ctx.repo_root().path_join("docs/SAVE_MIGRATIONS.md")
+	var doc_path: String = ctx.repo_root().path_join("docs/SAVE_MIGRATIONS.md")
 	var start := Time.get_ticks_msec()
 	var missing: PackedStringArray = []
 	if not FileAccess.file_exists(doc_path):

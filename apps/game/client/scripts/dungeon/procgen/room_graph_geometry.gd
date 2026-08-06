@@ -95,6 +95,9 @@ static func build_rooms(graph: RoomGraph, assignment: Dictionary) -> Array:
 		var height_y := 0.0
 		if slot != null:
 			height_y = float(slot.height_level) * HEIGHT_STEP
+		var spec := RoomTemplateCatalog.get_spec(room["template_id"])
+		var half_x := RoomTemplateCatalog.half_extent_x(spec, yaw_rad)
+		var half_z := RoomTemplateCatalog.half_extent_z(spec, yaw_rad)
 		(
 			built
 			. append(
@@ -106,6 +109,8 @@ static func build_rooms(graph: RoomGraph, assignment: Dictionary) -> Array:
 					{"x": pos.x, "y": height_y, "z": pos.y, "yaw": rad_to_deg(yaw_rad)},
 					"tags": room.get("tags", []),
 					"heightLevel": slot.height_level if slot != null else 0,
+					"size": {"x": half_x * 2.0, "z": half_z * 2.0},
+					"kind": _minimap_kind_for_semantic(str(room["semantic_id"]), str(room["type"])),
 				}
 			)
 		)
@@ -361,3 +366,21 @@ static func _dir_to_door(dir: Vector2i) -> int:
 	if dir == Vector2i(0, 1):
 		return RoomGraphSlot.DOOR_SOUTH
 	return RoomGraphSlot.DOOR_WEST
+
+
+static func _minimap_kind_for_semantic(semantic_id: String, room_type: String) -> String:
+	match semantic_id:
+		"entrance":
+			return "entrance"
+		"boss":
+			return "boss"
+		"treasure":
+			return "treasure"
+		"shop":
+			return "shop"
+		"stairs":
+			return "stairs"
+		_:
+			if room_type == "combat":
+				return "combat"
+			return "unknown"

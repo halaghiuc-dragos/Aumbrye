@@ -1,29 +1,58 @@
-<Project Sdk="Microsoft.NET.Sdk.Web">
-
-  <PropertyGroup>
-    <TargetFramework>net8.0</TargetFramework>
-    <ImplicitUsings>enable</ImplicitUsings>
-    <Nullable>enable</Nullable>
-    <RootNamespace>Aumbrye.Api</RootNamespace>
-  </PropertyGroup>
-
-  <ItemGroup>
-    <PackageReference Include="AspNetCore.HealthChecks.NpgSql" Version="8.0.2" />
-    <PackageReference Include="AspNetCore.HealthChecks.Redis" Version="8.0.1" />
-    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="8.0.11" />
-    <PackageReference Include="Npgsql.OpenTelemetry" Version="8.0.6" />
-    <PackageReference Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" Version="1.10.0" />
-    <PackageReference Include="OpenTelemetry.Extensions.Hosting" Version="1.10.0" />
-    <PackageReference Include="OpenTelemetry.Instrumentation.AspNetCore" Version="1.10.1" />
-    <PackageReference Include="OpenTelemetry.Instrumentation.Http" Version="1.10.0" />
-    <PackageReference Include="Swashbuckle.AspNetCore" Version="6.9.0" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <ProjectReference Include="..\Aumbrye.Application\Aumbrye.Application.csproj" />
-    <ProjectReference Include="..\Aumbrye.Infrastructure\Aumbrye.Infrastructure.csproj" />
-    <ProjectReference Include="..\..\..\..\packages\shared\Aumbrye.Shared.csproj" />
-    <ProjectReference Include="..\..\..\..\packages\procedural\Aumbrye.Procedural.csproj" />
-  </ItemGroup>
-
-</Project>
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+
+
+  <PropertyGroup>
+
+    <TargetFramework>net8.0</TargetFramework>
+
+    <ImplicitUsings>enable</ImplicitUsings>
+
+    <Nullable>enable</Nullable>
+
+    <RootNamespace>Aumbrye.Api</RootNamespace>
+
+  </PropertyGroup>
+
+
+
+  <ItemGroup>
+
+    <PackageReference Include="AspNetCore.HealthChecks.NpgSql" Version="8.0.2" />
+
+    <PackageReference Include="AspNetCore.HealthChecks.Redis" Version="8.0.1" />
+
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="8.0.11" />
+
+    <PackageReference Include="Npgsql.OpenTelemetry" Version="8.0.6" />
+
+    <PackageReference Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" Version="1.10.0" />
+
+    <PackageReference Include="OpenTelemetry.Extensions.Hosting" Version="1.10.0" />
+
+    <PackageReference Include="OpenTelemetry.Instrumentation.AspNetCore" Version="1.10.1" />
+
+    <PackageReference Include="OpenTelemetry.Instrumentation.Http" Version="1.10.0" />
+
+    <PackageReference Include="Swashbuckle.AspNetCore" Version="6.9.0" />
+
+  </ItemGroup>
+
+
+
+  <ItemGroup>
+
+    <ProjectReference Include="..\Aumbrye.Application\Aumbrye.Application.csproj" />
+
+    <ProjectReference Include="..\Aumbrye.Infrastructure\Aumbrye.Infrastructure.csproj" />
+
+    <ProjectReference Include="..\..\..\..\packages\shared\Aumbrye.Shared.csproj" />
+
+    <ProjectReference Include="..\..\..\..\packages\procedural\Aumbrye.Procedural.csproj" />
+
+  </ItemGroup>
+
+
+
+</Project>
+

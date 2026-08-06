@@ -44,3 +44,6 @@ static func clear_all_caches() -> void:
 	RelicCatalog.clear_cache()
 	QuestCatalog.clear_cache()
 	DialogueCatalog.clear_cache()
+	var portal_script: Script = load("res://scripts/content/portal_catalog.gd")
+	if portal_script:
+		portal_script.call("clear_cache")

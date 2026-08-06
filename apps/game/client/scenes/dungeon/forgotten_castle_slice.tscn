@@ -1,4 +1,4 @@
-[gd_scene load_steps=17 format=3 uid="uid://forgotten_castle_slice"]
+[gd_scene load_steps=16 format=3 uid="uid://forgotten_castle_slice"]
 
 [ext_resource type="Script" path="res://scripts/dungeon/forgotten_castle_slice.gd" id="1_slice"]
 [ext_resource type="PackedScene" uid="uid://castle_entrance" path="res://scenes/rooms/castle/castle_entrance.tscn" id="2_entrance"]
@@ -10,12 +10,9 @@
 [ext_resource type="PackedScene" uid="uid://castle_arena" path="res://scenes/rooms/castle/castle_arena.tscn" id="8_arena"]
 [ext_resource type="PackedScene" uid="uid://castle_boss" path="res://scenes/rooms/castle/castle_boss.tscn" id="9_boss"]
 [ext_resource type="PackedScene" uid="uid://cplayer001" path="res://scenes/player/player.tscn" id="10_player"]
-[ext_resource type="Script" path="res://scripts/ui/combat_hud.gd" id="11_hud"]
+[ext_resource type="PackedScene" path="res://scenes/ui/combat_hud.tscn" id="11_hud"]
 [ext_resource type="Script" path="res://scripts/dungeon/exit_portal.gd" id="12_portal"]
 [ext_resource type="Script" path="res://scripts/dungeon/castle/castle_blockout.gd" id="13_blockout"]
-[ext_resource type="Material" path="res://assets/castle/mat_floor.tres" id="14_floor"]
-[ext_resource type="Material" path="res://assets/castle/mat_wall.tres" id="15_wall"]
-[ext_resource type="Material" path="res://assets/castle/mat_accent.tres" id="16_accent"]
 
 [sub_resource type="BoxShape3D" id="BoxShape3D_portal"]
 size = Vector3(3, 3, 1)
@@ -65,8 +62,6 @@ room_width = 18.0
 room_depth = 6.0
 door_north = true
 door_west = true
-floor_material = ExtResource("14_floor")
-wall_material = ExtResource("15_wall")
 
 [node name="ShortcutVertical" type="Node3D" parent="Rooms"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 31)
@@ -77,8 +72,6 @@ room_width = 8.0
 room_depth = 18.0
 door_north = true
 door_south = true
-floor_material = ExtResource("14_floor")
-wall_material = ExtResource("15_wall")
 
 [node name="ExitPortal" type="Area3D" parent="Rooms/CastleBoss/Props"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.5, 12)
@@ -92,49 +85,11 @@ script = ExtResource("12_portal")
 shape = SubResource("BoxShape3D_portal")
 
 [node name="PortalMesh" type="MeshInstance3D" parent="Rooms/CastleBoss/Props/ExitPortal"]
-material_override = ExtResource("16_accent")
 mesh = SubResource("BoxMesh_portal")
 
 [node name="Player" parent="." instance=ExtResource("10_player")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, -3)
 
-[node name="CombatHUD" type="Control" parent="."]
-layout_mode = 3
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 2
-mouse_filter = 2
-script = ExtResource("11_hud")
+[node name="CombatHUD" parent="." instance=ExtResource("11_hud")]
 player_path = NodePath("../Player")
 lock_on_path = NodePath("../Player/LockOn")
-
-[node name="Margin" type="MarginContainer" parent="CombatHUD"]
-layout_mode = 1
-anchors_preset = 2
-anchor_top = 1.0
-anchor_bottom = 1.0
-offset_left = 24.0
-offset_top = -120.0
-offset_right = 324.0
-offset_bottom = -24.0
-grow_vertical = 0
-
-[node name="VBox" type="VBoxContainer" parent="CombatHUD/Margin"]
-layout_mode = 2
-theme_override_constants/separation = 8
-
-[node name="HealthBar" type="ProgressBar" parent="CombatHUD/Margin/VBox"]
-custom_minimum_size = Vector2(280, 24)
-layout_mode = 2
-max_value = 100.0
-value = 100.0
-show_percentage = false
-
-[node name="StaminaBar" type="ProgressBar" parent="CombatHUD/Margin/VBox"]
-custom_minimum_size = Vector2(280, 18)
-layout_mode = 2
-max_value = 100.0
-value = 100.0
-show_percentage = false

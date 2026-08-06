@@ -17,10 +17,10 @@
     "mire_puzzle"
   ],
   "materials": {
-    "floor": "res://assets/mire/mat_floor.tres",
-    "wall": "res://assets/mire/mat_wall.tres",
-    "ceiling": "res://assets/mire/mat_ceiling.tres",
-    "accent": "res://assets/mire/mat_accent.tres"
+    "floor": "mire",
+    "wall": "mire",
+    "ceiling": "mire",
+    "accent": "mire"
   },
   "lighting": {
     "ambientColor": [0.28, 0.42, 0.22],

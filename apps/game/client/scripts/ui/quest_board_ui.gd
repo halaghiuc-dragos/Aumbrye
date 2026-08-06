@@ -2,6 +2,8 @@ extends Control
 
 ## Optional quest board — accept quests without blocking portals (QUEST-4.1).
 
+const GameUISkinScript := preload("res://scripts/ui/game_ui_skin.gd")
+
 signal closed
 
 @onready var _available_list: ItemList = $Panel/Margin/VBox/AvailableList
@@ -18,6 +20,7 @@ func _ready() -> void:
 	visible = false
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
+	GameUISkinScript.apply_modal_menu(self, "Panel", "Backdrop")
 	_accept_button.pressed.connect(_on_accept_pressed)
 	_close_button.pressed.connect(close)
 	_available_list.item_selected.connect(_on_available_selected)

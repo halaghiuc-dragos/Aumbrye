@@ -105,7 +105,7 @@ func _test_lock_on_behavior() -> void:
 	if grunt_scene == null:
 		var start := Time.get_ticks_msec()
 		ctx.timed_record(
-			"lock_on.reticle_uses_center",
+			"lock_on.reticle_uses_center.missing_scene",
 			get_category(),
 			false,
 			"missing training_grunt scene for lock-on test",
@@ -123,7 +123,7 @@ func _test_lock_on_behavior() -> void:
 			aim_point.distance_to(enemy.global_position + Vector3(0.0, 1.5, 0.0)) > 0.05
 		)
 		ctx.timed_record(
-			"lock_on.reticle_uses_center",
+			"lock_on.reticle_uses_center.mesh_center",
 			get_category(),
 			uses_mesh_center,
 			"lock aim point uses enemy visual center",
@@ -138,7 +138,7 @@ func _test_lock_on_advance_on_death() -> void:
 	if grunt_scene == null:
 		var start := Time.get_ticks_msec()
 		ctx.timed_record(
-			"lock_on.auto_advance_on_death",
+			"lock_on.auto_advance_on_death.missing_scene",
 			get_category(),
 			false,
 			"missing castle_grunt scene for lock-on test",
@@ -164,7 +164,7 @@ func _test_lock_on_advance_on_death() -> void:
 	if lock_on == null:
 		var start := Time.get_ticks_msec()
 		ctx.timed_record(
-			"lock_on.auto_advance_on_death",
+			"lock_on.auto_advance_on_death.missing_lock_on",
 			get_category(),
 			false,
 			"player missing LockOn node",
@@ -181,7 +181,7 @@ func _test_lock_on_advance_on_death() -> void:
 	if health == null:
 		var start := Time.get_ticks_msec()
 		ctx.timed_record(
-			"lock_on.auto_advance_on_death",
+			"lock_on.auto_advance_on_death.missing_health",
 			get_category(),
 			false,
 			"enemy missing Health node",
@@ -195,7 +195,7 @@ func _test_lock_on_advance_on_death() -> void:
 		var start := Time.get_ticks_msec()
 		var advanced := lock_on.is_locked and lock_on.current_target == enemy_b
 		ctx.timed_record(
-			"lock_on.auto_advance_on_death",
+			"lock_on.auto_advance_on_death.advances",
 			get_category(),
 			advanced,
 			"lock advances to nearby enemy when current target dies",

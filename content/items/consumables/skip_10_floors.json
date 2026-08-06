@@ -6,6 +6,12 @@
   "gridHeight": 1,
   "stackSize": 5,
   "description": "Start an Umbral Endless run at floor 11.",
+  "consumableEffect": {
+    "kind": "skipFloors",
+    "floors": 10,
+    "usableInRun": false,
+    "usableInHub": false
+  },
   "value": 500,
   "lootValue": 250
 }

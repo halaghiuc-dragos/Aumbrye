@@ -1,4 +1,4 @@
-# Room content
+﻿# Room content
 
 Post-layout content tagging: `RoomContentAssigner` labels every room with a `contentType`, places lock-and-key pairs with off-path key rooms, writes `definition.puzzles`, and `RoomContentValidator` proves the boss remains reachable when keys are collected via detours. `RoomContentSpawner` instantiates one scripted node per tagged room plus locked doors and puzzle gates at build time.
 
@@ -83,7 +83,7 @@ Props use `RoomContentBase._anchor(index)` (`room_content_base.gd:16-27`), falli
 
 ## Related
 
-- Improvement plan: [`../actual_improvements/room-content.md`](../actual_improvements/room-content.md)
+- Improvement plan: [`../actual_improvements/room-content.md`](../actual_improvements/room-content.md) - **FINISHED**
 - [`room-graph-procgen.md`](room-graph-procgen.md)
 - [`procgen-placements.md`](procgen-placements.md)
 - [`dungeon-builder.md`](dungeon-builder.md)

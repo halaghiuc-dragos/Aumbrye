@@ -1,4 +1,4 @@
-# Combat validation
+﻿# Combat validation
 
 `combat_suite.gd`, `lock_on_suite.gd`, and `arena_suite.gd` are registered in `validation_runner.gd` with category minimums (`combat: 30`, `lock_on: 4`, `arena: 7`). Behavioral coverage uses `CombatFixture` (`combat_fixture.gd`) to drive `Hurtbox.receive_hit`, team filtering, guard block/parry, dodge stamina, weapon attack input, crit/defense/iframes, hit feedback labels, attack tokens, lock-on public API, and arena reset flows. `content_drift_suite.gd` guards content-vs-code drift. `TestContext` exposes `assert_eq`, `assert_near`, `assert_true`, and an `observed` diff field.
 
@@ -10,13 +10,13 @@
 | `apps/game/client/scripts/validation/validation_suite.gd` | Base class: holds `ctx`, declares `run()` and `get_category()` |
 | `apps/game/client/scripts/validation/test_context.gd` | `TestContext`: `record`, `timed_record`, `assert_eq` / `assert_near` / `assert_true`, `observed`, `file_contains` |
 | `apps/game/client/scripts/validation/combat_fixture.gd` | Two-body arena: `strike()`, `direct_hit()`, `teardown()` |
-| `apps/game/client/scripts/validation/suites/combat_suite.gd` | Category `combat` — fixture pipeline + weapon/feedback/token tests |
+| `apps/game/client/scripts/validation/suites/combat_suite.gd` | Category `combat` â€” fixture pipeline + weapon/feedback/token tests |
 | `apps/game/client/scripts/validation/suites/lock_on_suite.gd` | Category `lock_on` |
 | `apps/game/client/scripts/validation/suites/arena_suite.gd` | Category `arena` |
 
 ## How it works
 
-`validation_runner.gd` loads suites from `SUITE_PATHS`, awaits `run()`, enforces `MIN_ASSERTIONS` per category (`combat`, `lock_on`, `arena`, `drift`, `quality`, `docs`, …), writes `user://mcp_validation.json`, and quits non-zero on failure.
+`validation_runner.gd` loads suites from `SUITE_PATHS`, awaits `run()`, enforces `MIN_ASSERTIONS` per category (`combat`, `lock_on`, `arena`, `drift`, `quality`, `docs`, â€¦), writes `user://mcp_validation.json`, and quits non-zero on failure.
 
 ### combat_suite (behavioral)
 
@@ -77,8 +77,8 @@ Some strict assertions are intentional regressions for known feel bugs; a fully 
 
 ## Related
 
-- Improvement plan: [`../actual_improvements/combat-validation.md`](../actual_improvements/combat-validation.md)
+- Improvement plan: [`../actual_improvements/combat-validation.md`](../actual_improvements/combat-validation.md) - **FINISHED**
 - [`validation-harness.md`](validation-harness.md), [`validation-suites.md`](validation-suites.md)
 - [`combat-core.md`](combat-core.md), [`hit-hurtboxes.md`](hit-hurtboxes.md), [`guard.md`](guard.md), [`dodge.md`](dodge.md), [`weapons.md`](weapons.md), [`hit-feedback.md`](hit-feedback.md), [`statuses-and-buffs.md`](statuses-and-buffs.md)
 - [`lock-on.md`](lock-on.md), [`debug-arenas.md`](debug-arenas.md)
-- [`ci-cd.md`](ci-cd.md) — where the runner exit code is consumed
+- [`ci-cd.md`](ci-cd.md) â€” where the runner exit code is consumed

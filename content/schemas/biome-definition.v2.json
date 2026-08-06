@@ -47,10 +47,10 @@
       "additionalProperties": false,
       "required": ["floor", "wall", "ceiling", "accent"],
       "properties": {
-        "floor": { "type": "string", "minLength": 1 },
-        "wall": { "type": "string", "minLength": 1 },
-        "ceiling": { "type": "string", "minLength": 1 },
-        "accent": { "type": "string", "minLength": 1 }
+        "floor": { "type": "string", "pattern": "^[a-z_]+$" },
+        "wall": { "type": "string", "pattern": "^[a-z_]+$" },
+        "ceiling": { "type": "string", "pattern": "^[a-z_]+$" },
+        "accent": { "type": "string", "pattern": "^[a-z_]+$" }
       }
     },
     "lighting": {

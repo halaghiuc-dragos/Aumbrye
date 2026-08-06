@@ -1,6 +1,6 @@
-# Room templates
+﻿# Room templates
 
-`RoomTemplateCatalog.KIND_SPECS` is the authoritative table of room dimensions and door masks. `CastleBlockout` derives `room_width`, `room_depth`, and door flags from `kind` or the parent scene's `template_id` at runtime. The kit is 100 scenes (10 themes × 10 kinds including `corridor`). `CastleRoomScene.sync_kit_contract()` enforces four sockets, marker nodes, and boss `Authored` geometry on every instantiate.
+`RoomTemplateCatalog.KIND_SPECS` is the authoritative table of room dimensions and door masks. `CastleBlockout` derives `room_width`, `room_depth`, and door flags from `kind` or the parent scene's `template_id` at runtime. The kit is 100 scenes (10 themes Ã— 10 kinds including `corridor`). `CastleRoomScene.sync_kit_contract()` enforces four sockets, marker nodes, and boss `Authored` geometry on every instantiate.
 
 ## Files
 
@@ -39,7 +39,7 @@
 
 ### Runtime kind derivation
 
-`CastleBlockout._resolve_kind()` (`castle_blockout.gd:537-544`) reads exported `kind` or the parent `RoomTemplate.template_id`. `_apply_kind_spec()` (`:541-565`) overwrites `room_width`, `room_depth`, and the four `door_*` flags before `_rebuild()`. Clone-theme scenes that still export stale 16×12 numbers are corrected automatically.
+`CastleBlockout._resolve_kind()` (`castle_blockout.gd:537-544`) reads exported `kind` or the parent `RoomTemplate.template_id`. `_apply_kind_spec()` (`:541-565`) overwrites `room_width`, `room_depth`, and the four `door_*` flags before `_rebuild()`. Clone-theme scenes that still export stale 16Ã—12 numbers are corrected automatically.
 
 `CastleRoomScene.sync_kit_contract()` (`castle_room_scene.gd:36-45`) calls `sync_dimensions_from_kind()`, positions four `DoorwaySocket` children on wall faces, and adds the marker contract per kind.
 
@@ -55,7 +55,7 @@
 
 ### Corridor kit
 
-Ten `<theme>_corridor.tscn` scenes (8×12, `kind = corridor`) load via `BiomeRegistry.ROOM_KINDS` (`biome_registry.gd:17-28`) and appear in each biome's `roomTemplateIds` after `<theme>_stairs`.
+Ten `<theme>_corridor.tscn` scenes (8Ã—12, `kind = corridor`) load via `BiomeRegistry.ROOM_KINDS` (`biome_registry.gd:17-28`) and appear in each biome's `roomTemplateIds` after `<theme>_stairs`.
 
 ### Markers
 
@@ -79,12 +79,12 @@ Ten `<theme>_corridor.tscn` scenes (8×12, `kind = corridor`) load via `BiomeReg
 |------|-------------|
 | `CastleBlockout` | `room_template.gd:75`, `dungeon_builder.gd` |
 | `CastleBlockout/NavigationRegion3D` | `room_template.gd:10` |
-| `DoorwaySockets/*` (`DoorwaySocket`) | `room_template.gd:13` — always 4 (N/E/S/W) after `sync_kit_contract()` |
+| `DoorwaySockets/*` (`DoorwaySocket`) | `room_template.gd:13` â€” always 4 (N/E/S/W) after `sync_kit_contract()` |
 | `SpawnPoints/PlayerSpawn` | `room_template.gd:9` |
-| `SpawnPoints/LeverSpawn` | `dungeon_builder.gd:655` — `stairs` kinds |
+| `SpawnPoints/LeverSpawn` | `dungeon_builder.gd:655` â€” `stairs` kinds |
 | `Props` | `dungeon_builder.gd:317,596`, `stair_collision_builder.gd:10` |
-| `Props/BossSpawn`, `Props/ExitPortalMarker` | `dungeon_builder.gd:552,585` — `boss` kinds |
-| `Props/StairRamp` | `stair_collision_builder.gd:15` — `stairs` kinds |
+| `Props/BossSpawn`, `Props/ExitPortalMarker` | `dungeon_builder.gd:552,585` â€” `boss` kinds |
+| `Props/StairRamp` | `stair_collision_builder.gd:15` â€” `stairs` kinds |
 | `Authored/*` | boss milestone geometry (`castle_room_scene.gd:119-133`) |
 
 Template ids must resolve via `BiomeRegistry.get_room_scenes()` or `DungeonBuilder` logs `unknown template` (`dungeon_builder.gd:152`).
@@ -94,7 +94,7 @@ Template ids must resolve via `BiomeRegistry.get_room_scenes()` or `DungeonBuild
 | Surface | Status | Evidence |
 |---------|--------|----------|
 | `KIND_SPECS` dimension/door table | IMPLEMENTED | `room_template_catalog.gd:13-38` |
-| Runtime kind → blockout dimensions | IMPLEMENTED | `castle_blockout.gd:541-565` |
+| Runtime kind â†’ blockout dimensions | IMPLEMENTED | `castle_blockout.gd:541-565` |
 | Four sockets per room | IMPLEMENTED | `castle_room_scene.gd:58-76` |
 | `socket_toward()` on rotated rooms | IMPLEMENTED | `room_template.gd:38-51`, `doorway_socket.gd:18-29` |
 | `required_kind` substitution guard | IMPLEMENTED | `room_template_catalog.gd:222-229`, `room_graph_assigner.gd:87-155` |
@@ -109,7 +109,7 @@ Template ids must resolve via `BiomeRegistry.get_room_scenes()` or `DungeonBuild
 
 ## Related
 
-- Improvement plan: [`../actual_improvements/room-templates.md`](../actual_improvements/room-templates.md)
+- Improvement plan: [`../actual_improvements/room-templates.md`](../actual_improvements/room-templates.md) - **FINISHED**
 - [`room-graph-procgen.md`](room-graph-procgen.md)
 - [`dungeon-builder.md`](dungeon-builder.md)
 - [`floor-shell.md`](floor-shell.md)

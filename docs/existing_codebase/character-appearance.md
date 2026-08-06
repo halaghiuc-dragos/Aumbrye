@@ -1,11 +1,11 @@
-# Character appearance
+﻿# Character appearance
 
 `CharacterAppearance` is a static `RefCounted` helper that defines the warden appearance profile, sanitises it, describes it for UI, and converts between the save document and `CharacterService`. The profile drives palette theme, stature archetype, build offsets, skin tone, hair, face accent, head style, and trim tier. `DioramaCharacterSkin` is the sole visual consumer; `character_create_ui.gd` is the producer at creation and through the hub mirror.
 
 ## Files
 | Path | Role |
 |------|------|
-| `apps/game/client/scripts/save/character_appearance.gd` | `CharacterAppearance` — variants, labels, `sanitize`, `is_valid`, `describe`, `apply_to_service`, `from_character_dict`, `from_service`, `available_theme_options` |
+| `apps/game/client/scripts/save/character_appearance.gd` | `CharacterAppearance` â€” variants, labels, `sanitize`, `is_valid`, `describe`, `apply_to_service`, `from_character_dict`, `from_service`, `available_theme_options` |
 | `apps/game/client/scripts/art/characters/diorama_character_skin.gd` | `build_player_body`, `build_preview_body`, `_apply_player_appearance`, `_require_part` |
 | `apps/game/client/scripts/art/characters/character_rig_catalog.gd` | Maps `heightVariant` to `player_warden` / `player_warden_compact` / `player_warden_tall` manifests |
 | `apps/game/client/scripts/ui/character_create_ui.gd` | Creation UI and mirror edit mode; SubViewport 3D preview via `build_preview_body` |
@@ -60,7 +60,7 @@ Label arrays for the creation UI: `HEIGHT_LABELS`, `BULK_LABELS`, `SKIN_TONE_LAB
 `set_appearance_theme`, `theme_from_service`, and `get_appearance_theme` were removed; theme is edited only through the full profile.
 
 ### Where the profile comes from
-**Creation:** `character_create_ui.gd` emits `completed` with `_build_appearance_profile()` → `LocalSave.queue_boot_new_game` → `_apply_new_game_boot` → `set_appearance_profile`.
+**Creation:** `character_create_ui.gd` emits `completed` with `_build_appearance_profile()` â†’ `LocalSave.queue_boot_new_game` â†’ `_apply_new_game_boot` â†’ `set_appearance_profile`.
 
 **Mirror:** Hub `Mirror` interactable (`interact_id = appearance_mirror`) opens `character_create_ui.open_edit_mode()` (class and name hidden). Confirm calls `LocalSave.set_appearance_profile`; success emits `appearance_saved` and hub message.
 
@@ -81,28 +81,28 @@ Label arrays for the creation UI: `HEIGHT_LABELS`, `BULK_LABELS`, `SKIN_TONE_LAB
 | Profile key | Effect |
 |-------------|--------|
 | `heightVariant` | `CharacterRigCatalog.archetype_for_player` selects compact / standard / tall manifest |
-| `bulkVariant` | `_apply_bulk_joint_offsets` shifts leg and arm pivot X by ±`VoxelGrid.EDGE` for lean / heavy |
+| `bulkVariant` | `_apply_bulk_joint_offsets` shifts leg and arm pivot X by Â±`VoxelGrid.EDGE` for lean / heavy |
 | `skinTone` | `skin_tint` shader parameter on head mesh |
 | `hair` | Voxel hair mesh from `assets/characters/player_warden/hair_{style}.voxels.json` |
 | `face` | Stern or kind accent boxes on head |
 | `head` | Visor visibility, hood visibility or procedural hood box |
-| `trim` | `BeltTrim` on torso (trim ≥ 1), `Pauldron` boxes on arms (trim ≥ 2) |
+| `trim` | `BeltTrim` on torso (trim â‰¥ 1), `Pauldron` boxes on arms (trim â‰¥ 2) |
 
 Root scale stays `Vector3.ONE`; collider and hurtbox are unchanged. Stature is expressed through archetype manifests, not scale.
 
 `CharacterService.class_id` still drives `_apply_class_armor` on the torso during preview and in-game builds.
 
 ### Rebuild triggers
-- `locomotion._ready` → `build_player_body`
-- `CharacterService.appearance_changed` → `locomotion.refresh_appearance_visual` (hub mirror, creation boot, any `apply_to_service` path)
-- `player_controls.sync_player_loadout` → `refresh_appearance_visual` for non-waves modes only; waves rely on the signal subscription because `sync_player_loadout` returns early in waves mode
+- `locomotion._ready` â†’ `build_player_body`
+- `CharacterService.appearance_changed` â†’ `locomotion.refresh_appearance_visual` (hub mirror, creation boot, any `apply_to_service` path)
+- `player_controls.sync_player_loadout` â†’ `refresh_appearance_visual` for non-waves modes only; waves rely on the signal subscription because `sync_player_loadout` returns early in waves mode
 
 ## Contracts
 **Save keys:** `character.appearanceTheme` (int), `character.appearance` (full profile per `appearanceProfile` schema).
 
 **Runtime:** `CharacterService.appearance_theme`, `CharacterService.appearance_profile`, signal `appearance_changed(profile)`.
 
-**Node names:** `Root`, `Head`, `Head/Mesh/Visor`, `Head/Hood`, `Torso`, `ArmL`, `ArmR` — missing nodes log via `_require_part` and skip that feature.
+**Node names:** `Root`, `Head`, `Head/Mesh/Visor`, `Head/Hood`, `Torso`, `ArmL`, `ArmR` â€” missing nodes log via `_require_part` and skip that feature.
 
 **Save version:** Appearance profile clamping and variant migration run in `SaveMigrator._migrate_v4_to_v5` when bumping to schema v5.
 
@@ -124,5 +124,5 @@ Root scale stays `Vector3.ONE`; collider and hurtbox are unchanged. Stature is e
 | Validation suites (`save_suite`, `hub_m4_suite`, `content_suite`) | IMPLEMENTED |
 
 ## Related
-- Improvement plan: [`../actual_improvements/character-appearance.md`](../actual_improvements/character-appearance.md)
+- Improvement plan: [`../actual_improvements/character-appearance.md`](../actual_improvements/character-appearance.md) - **FINISHED**
 - [`character-service.md`](character-service.md), [`local-save.md`](local-save.md), [`save-migrator.md`](save-migrator.md), [`hub.md`](hub.md), [`diorama-character-skin.md`](diorama-character-skin.md), [`pixel-style.md`](pixel-style.md), [`ui/character_create.md`](ui/character_create.md), [`locomotion.md`](locomotion.md)

@@ -1,22 +1,24 @@
 # Status icon atlas — improvement plan
 
-## Current state
-`StatusIconAtlas` loads authored cells from `content/ui/status_icon_atlas.json` and `assets/ui/status_icons.png` via `UISymbolAtlas`. Procedural `set_pixel` renderer removed; `freeze` has a distinct cell. See [`../existing_codebase/ui/status_icon_atlas.md`](../existing_codebase/ui/status_icon_atlas.md).
+## Status: FINISHED
 
-**Quality bar (icons): FINISHED** — SIA-01, SIA-02 closed 2026-08-05.
+## Current state
+`StatusIconAtlas` loads authored cells from `content/ui/status_icon_atlas.json` and `assets/ui/status_icons.png` (or `status_icons_cb.png` when colorblind mode is active) via `UISymbolAtlas`. Procedural `set_pixel` renderer removed; `freeze` has a distinct cell. `StatusPip` composes atlas glyph + polarity frame + duration arc + stack label. See [`../existing_codebase/ui/status_icon_atlas.md`](../existing_codebase/ui/status_icon_atlas.md).
+
+**Quality bar (icons): FINISHED** — SIA-01 through SIA-09 closed 2026-08-06.
 
 ## Gaps
 | ID | Sev | Gap | Evidence |
 |----|-----|-----|----------|
 | SIA-01 | P0 | ~~Procedural blobs~~ **FINISHED** — `status_icons.png` + manifest | was `set_pixel` loops |
 | SIA-02 | P0 | ~~`freeze` hits generic fallback~~ **FINISHED** — manifest cell `freeze` col 2 | was `frost`/`chill` match only |
-| SIA-03 | P1 | `iconColor` from `content/statuses/*.json` is read by `combat_hud.gd:196-197` and then thrown away by every named branch, so authoring a new color has no visible effect for `burn`, `poison`, `stun`, or `bleed`. | `status_icon_atlas.gd:32-43` |
-| SIA-04 | P1 | Icons carry no stack count, no remaining duration, and no buff/debuff polarity. | `status_icon_atlas.gd:11-21` returns a flat glyph |
-| SIA-05 | P1 | Colors are hardcoded and `AccessibilitySettings.colorblind_mode` is never consulted, so the colorblind option in settings cannot help status readability. | grep `colorblind` returns no hit in `status_icon_atlas.gd`; `accessibility_settings.gd:10` |
-| SIA-06 | P2 | Four dead match arms (`venom`, `chill`, `frost`, `shock`) have no definition under `content/statuses/`. | `status_icon_atlas.gd:35,38,41`; `content/statuses/` contains 5 files |
-| SIA-07 | P2 | `static var _cache` is never invalidated, so textures survive a resolution-preset change and a scene reload with no way to regenerate. | `status_icon_atlas.gd:8` |
-| SIA-08 | P2 | `ICON_SIZE = 22` is duplicated as the literal `Vector2(22, 22)` in the HUD; the two can drift silently. | `status_icon_atlas.gd:6`; `combat_hud.gd:194` |
-| SIA-09 | P2 | A missing status icon fails silently into an anonymous circle, so an unauthored status id is indistinguishable from an authored one at a glance. | `status_icon_atlas.gd:44-46` |
+| SIA-03 | P1 | ~~`iconColor` ignored by named branches~~ **FINISHED** — `fallback_color` removed; icon pixels are authored; `iconColor` retained for damage-number tinting only | was `status_icon_atlas.gd:32-43` |
+| SIA-04 | P1 | ~~No stack/duration/polarity~~ **FINISHED** — `StatusPip` scene with `DurationArc`, `StackLabel`, and polarity frame cells | was flat glyph only |
+| SIA-05 | P1 | ~~Colorblind mode ignored~~ **FINISHED** — `status_icons_cb.png` selected via `AccessibilitySettings.colorblind_mode`; `reload()` on mode change | was hardcoded colors |
+| SIA-06 | P2 | ~~Dead match arms~~ **FINISHED** — plotter deleted; manifest is sole source of truth | was `venom`, `chill`, `frost`, `shock` |
+| SIA-07 | P2 | ~~Cache never invalidated~~ **FINISHED** — `reload()` clears atlas; called from settings and `combat_hud` on accessibility change | was static `_cache` |
+| SIA-08 | P2 | ~~Duplicated icon size~~ **FINISHED** — `icon_size()` is single source of truth in HUD and `StatusPip` | was `ICON_SIZE` vs `Vector2(22, 22)` |
+| SIA-09 | P2 | ~~Silent missing-icon fallback~~ **FINISHED** — `unknown` cell + `push_warning` | was anonymous circle |
 
 ## Target design
 
@@ -55,6 +57,7 @@ static func get_icon(status_id: String) -> AtlasTexture   # cached AtlasTexture 
 static func has_icon(status_id: String) -> bool
 static func icon_size() -> int                            # from the manifest, single source of truth
 static func reload() -> void                              # clears the cache; called on manifest reload
+static func get_polarity_frame(polarity: String) -> AtlasTexture
 ```
 
 `get_icon` returns an `AtlasTexture` whose `atlas` is the one shared `CompressedTexture2D` and whose `region` is `Rect2(col * 16, row * 16, 16, 16)`, so all statuses share a single GPU texture. The `fallback_color` parameter is removed: color lives in the authored pixels, which resolves SIA-03 by deleting the ambiguity rather than by threading the value through.
@@ -100,11 +103,11 @@ Step 1 lands with the old renderer intact, so the game stays runnable; step 2 fl
 - [x] `get_icon` has no `fallback_color` parameter, and `combat_hud.gd` passes no color.
 - [x] `get_icon("not_a_status")` returns the `unknown` cell and emits a warning containing the id.
 - [x] `combat_hud.gd` sizes status icons from `StatusIconAtlas.icon_size()`, not from a literal.
-- [ ] Setting `AccessibilitySettings.colorblind_mode = "deuteranopia"` and calling `reload()` makes `get_icon("burn").atlas.resource_path` end in `status_icons_cb.png`.
-- [ ] Each status file declares `polarity`, and buff and debuff pips draw different frames.
+- [x] Setting `AccessibilitySettings.colorblind_mode = "deuteranopia"` and calling `reload()` makes `get_icon("burn").atlas.resource_path` end in `status_icons_cb.png`.
+- [x] Each status file declares `polarity`, and buff and debuff pips draw different frames.
 
 ## Validation
-Extend `apps/game/client/scripts/validation/suites/content_suite.gd` (data integrity) and `m5_suite.gd` (HUD wiring):
+Extend `apps/game/client/scripts/validation/suites/content_suite.gd` (data integrity) and `m5_suite.gd` (HUD wiring); dedicated suite `status_icon_atlas_suite.gd`:
 
 | Test id | Suite | Assertion |
 |---|---|---|

@@ -5,5 +5,9 @@
   "startingWeaponItemId": "castle_sword",
   "statBonuses": { "maxHealth": 20, "armor": 5 },
   "allowedWeapons": ["castle_sword", "training_greatsword", "guard_spear", "iron_sword", "knight_blade"],
-  "perk": "steadfast"
+  "perk": "steadfast",
+  "iconPath": "class_icons:knight",
+  "role": "CLASS_ROLE_KNIGHT",
+  "perkName": "CLASS_PERK_STEADFAST",
+  "perkDescription": "CLASS_PERK_STEADFAST_DESC"
 }

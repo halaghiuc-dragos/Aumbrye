@@ -324,6 +324,9 @@ func _take_run_snapshot_meta() -> Dictionary:
 func _apply_floor_transition_spawn(snapshot: Dictionary = {}) -> void:
 	if snapshot.is_empty():
 		return
+	if bool(snapshot.get("restartFloor", false)):
+		_teleport_to_safe_spawn({})
+		return
 	if bool(snapshot.get("floorTransition", false)):
 		_place_at_stair_from_snapshot(snapshot)
 
@@ -383,7 +386,7 @@ func _finalize_player_restore(snapshot: Dictionary) -> void:
 	await get_tree().physics_frame
 	var floor_y := _raycast_floor_y(_player.global_position)
 	if not is_nan(floor_y):
-		CharacterFloorSnapScript.snap_feet_to_floor(_player, floor_y)
+		CharacterFloorSnapScript.snap_feet_to_world_y(_player, floor_y)
 	elif _find_room_id_at(_player.global_position) == "":
 		_teleport_to_safe_spawn(snapshot)
 
@@ -392,7 +395,7 @@ func _ensure_safe_player_spawn() -> void:
 	if _player == null:
 		return
 	await get_tree().physics_frame
-	CharacterFloorSnapScript.snap_feet_to_floor(_player)
+	CharacterFloorSnapScript.snap_to_floor_below(_player)
 	if _find_room_id_at(_player.global_position) == "":
 		_teleport_to_safe_spawn({})
 
@@ -419,7 +422,7 @@ func _teleport_to_safe_spawn(snapshot: Dictionary) -> void:
 		var room := _builder.get_room(room_id)
 		if room != null:
 			_player.global_position = room.get_player_spawn_global()
-			CharacterFloorSnapScript.snap_feet_to_floor(_player)
+			CharacterFloorSnapScript.snap_to_floor_below(_player)
 			player_room_id = room_id
 			return
 	var entrance_id := str(
@@ -428,7 +431,7 @@ func _teleport_to_safe_spawn(snapshot: Dictionary) -> void:
 	var entrance := _builder.get_room(entrance_id)
 	if entrance != null:
 		_player.global_position = entrance.get_player_spawn_global()
-		CharacterFloorSnapScript.snap_feet_to_floor(_player)
+		CharacterFloorSnapScript.snap_to_floor_below(_player)
 		player_room_id = entrance_id
 
 

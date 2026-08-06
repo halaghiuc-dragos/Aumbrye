@@ -77,6 +77,9 @@ jobs:
         with:
           version: ${{ steps.godot_version.outputs.value }}
           include-templates: true
+      - name: Verify animation libraries are current
+        working-directory: apps/game/client
+        run: godot --headless --path . --script res://scripts/tools/export_diorama_anim_libraries.gd -- --verify
       - name: Export Windows Desktop
         working-directory: apps/game/client
         run: |

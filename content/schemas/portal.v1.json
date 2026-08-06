@@ -1,0 +1,81 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://aumbrye.dev/schemas/portal.v1.json",
+  "title": "Portal definitions",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version", "portals"],
+  "properties": {
+    "version": { "const": 1 },
+    "portals": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": { "$ref": "#/definitions/portal" }
+    },
+    "aliases": {
+      "type": "object",
+      "additionalProperties": { "type": "string", "pattern": "^[a-z0-9_]+$" }
+    }
+  },
+  "definitions": {
+    "portal": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["display_name", "palette_theme", "interior", "glow"],
+      "properties": {
+        "display_name": { "type": "string", "minLength": 1 },
+        "palette_theme": { "type": "string", "pattern": "^[a-z0-9_]+$" },
+        "frame_material": { "type": "string", "pattern": "^[a-z0-9_]+$" },
+        "interior": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "color_inner",
+            "color_outer",
+            "color_accent",
+            "ellipse",
+            "spin_speed",
+            "spiral_tightness",
+            "depth"
+          ],
+          "properties": {
+            "color_inner": { "type": "string", "pattern": "^#[0-9a-fA-F]{6}$" },
+            "color_outer": { "type": "string", "pattern": "^#[0-9a-fA-F]{6}$" },
+            "color_accent": { "type": "string", "pattern": "^#[0-9a-fA-F]{6}$" },
+            "ellipse": {
+              "type": "array",
+              "minItems": 2,
+              "maxItems": 2,
+              "items": { "type": "number", "minimum": 0.5, "maximum": 2.0 }
+            },
+            "spin_speed": { "type": "number", "minimum": 0, "maximum": 6 },
+            "spiral_tightness": { "type": "number", "minimum": 1, "maximum": 12 },
+            "depth": { "type": "number", "minimum": 0, "maximum": 1.0 }
+          }
+        },
+        "glow": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["color", "energy", "range"],
+          "properties": {
+            "color": { "type": "string", "pattern": "^#[0-9a-fA-F]{6}$" },
+            "energy": { "type": "number", "minimum": 0, "maximum": 4 },
+            "range": { "type": "number", "minimum": 0.5, "maximum": 16 }
+          }
+        },
+        "accents": {
+          "type": "array",
+          "items": { "type": "string", "pattern": "^[a-z0-9_]+$" }
+        },
+        "sfx": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "ambient": { "type": "string", "pattern": "^[a-z0-9_]+$" },
+            "enter": { "type": "string", "pattern": "^[a-z0-9_]+$" }
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,12 +1,10 @@
-[gd_scene load_steps=12 format=3 uid="uid://carena001"]
+[gd_scene load_steps=11 format=3 uid="uid://carena001"]
 
 [ext_resource type="PackedScene" uid="uid://cplayer001" path="res://scenes/player/player.tscn" id="1_player"]
 [ext_resource type="PackedScene" uid="uid://cenemy001" path="res://scenes/enemies/training_grunt.tscn" id="2_enemy"]
 [ext_resource type="Script" path="res://scripts/debug/combat_arena.gd" id="3_arena"]
 [ext_resource type="Script" path="res://scripts/debug/debug_overlay.gd" id="4_overlay"]
-[ext_resource type="Script" path="res://scripts/ui/combat_hud.gd" id="5_hud"]
-[ext_resource type="Material" path="res://assets/castle/mat_floor.tres" id="6_floor_mat"]
-[ext_resource type="Material" path="res://assets/castle/mat_wall.tres" id="7_wall_mat"]
+[ext_resource type="PackedScene" path="res://scenes/ui/combat_hud.tscn" id="5_hud"]
 
 [sub_resource type="BoxMesh" id="BoxMesh_floor"]
 size = Vector3(30, 0.5, 30)
@@ -37,7 +35,6 @@ shadow_enabled = true
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.25, 0)
 
 [node name="MeshInstance3D" type="MeshInstance3D" parent="Floor"]
-material_override = ExtResource("6_floor_mat")
 mesh = SubResource("BoxMesh_floor")
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="Floor"]
@@ -77,12 +74,10 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -6)
 
 [node name="DoorFrame" type="MeshInstance3D" parent="HubReturn"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.75, 0)
-material_override = ExtResource("7_wall_mat")
 mesh = SubResource("BoxMesh_door_frame")
 
 [node name="DoorPad" type="MeshInstance3D" parent="HubReturn"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.05, 0)
-material_override = ExtResource("6_floor_mat")
 mesh = SubResource("BoxMesh_pad")
 
 [node name="InteractArea" type="Area3D" parent="HubReturn"]
@@ -115,119 +110,6 @@ theme_override_constants/shadow_offset_x = 1
 theme_override_constants/shadow_offset_y = 1
 text = "Combat debug overlay"
 
-[node name="CombatHUD" type="Control" parent="."]
-layout_mode = 3
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 2
-mouse_filter = 2
-script = ExtResource("5_hud")
+[node name="CombatHUD" parent="." instance=ExtResource("5_hud")]
 player_path = NodePath("../Player")
 lock_on_path = NodePath("../Player/LockOn")
-
-[node name="Margin" type="MarginContainer" parent="CombatHUD"]
-layout_mode = 1
-anchors_preset = 2
-anchor_top = 1.0
-anchor_bottom = 1.0
-offset_left = 24.0
-offset_top = -120.0
-offset_right = 324.0
-offset_bottom = -24.0
-grow_vertical = 0
-theme_override_constants/margin_left = 8
-theme_override_constants/margin_top = 8
-theme_override_constants/margin_right = 8
-theme_override_constants/margin_bottom = 8
-
-[node name="VBox" type="VBoxContainer" parent="CombatHUD/Margin"]
-layout_mode = 2
-theme_override_constants/separation = 8
-
-[node name="HealthBar" type="ProgressBar" parent="CombatHUD/Margin/VBox"]
-custom_minimum_size = Vector2(280, 24)
-layout_mode = 2
-max_value = 100.0
-value = 100.0
-show_percentage = false
-
-[node name="StaminaBar" type="ProgressBar" parent="CombatHUD/Margin/VBox"]
-custom_minimum_size = Vector2(280, 18)
-layout_mode = 2
-max_value = 100.0
-value = 100.0
-show_percentage = false
-
-[node name="GuardIndicators" type="VBoxContainer" parent="CombatHUD"]
-layout_mode = 1
-anchors_preset = 5
-anchor_left = 0.5
-anchor_right = 0.5
-offset_left = -160.0
-offset_top = 72.0
-offset_right = 160.0
-offset_bottom = 132.0
-grow_horizontal = 2
-theme_override_constants/separation = 4
-
-[node name="ParryLabel" type="Label" parent="CombatHUD/GuardIndicators"]
-visible = false
-layout_mode = 2
-theme_override_colors/font_color = Color(1, 0.88, 0.2, 1)
-theme_override_colors/font_shadow_color = Color(0, 0, 0, 0.9)
-theme_override_constants/shadow_offset_x = 1
-theme_override_constants/shadow_offset_y = 1
-theme_override_font_sizes/font_size = 18
-text = "PARRY"
-horizontal_alignment = 1
-
-[node name="ParryBar" type="ProgressBar" parent="CombatHUD/GuardIndicators"]
-visible = false
-custom_minimum_size = Vector2(320, 14)
-layout_mode = 2
-max_value = 0.18
-step = 0.001
-show_percentage = false
-fill_mode = 1
-
-[node name="BlockBar" type="ProgressBar" parent="CombatHUD/GuardIndicators"]
-visible = false
-custom_minimum_size = Vector2(320, 10)
-layout_mode = 2
-max_value = 0.65
-step = 0.001
-show_percentage = false
-fill_mode = 1
-
-[node name="LockReticle" type="Control" parent="CombatHUD"]
-visible = false
-layout_mode = 0
-offset_right = 32.0
-offset_bottom = 32.0
-mouse_filter = 2
-
-[node name="Reticle" type="ColorRect" parent="CombatHUD/LockReticle"]
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 2
-color = Color(1, 0.85, 0.2, 0.9)
-
-[node name="ReticleInner" type="ColorRect" parent="CombatHUD/LockReticle"]
-layout_mode = 1
-anchors_preset = 8
-anchor_left = 0.5
-anchor_top = 0.5
-anchor_right = 0.5
-anchor_bottom = 0.5
-offset_left = -4.0
-offset_top = -4.0
-offset_right = 4.0
-offset_bottom = 4.0
-grow_horizontal = 2
-grow_vertical = 2
-color = Color(0.1, 0.1, 0.1, 0.9)

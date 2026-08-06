@@ -1,20 +1,20 @@
-# NPC and hub services
+﻿# NPC and hub services
 
 Four hub services back the vendor UIs: `MerchantService` (buy/sell), `BlacksmithService` (upgrade, repair, unlock, respec), `StorageService` (a second grid inventory), and the catalogs that feed them. `NpcBase` and `NpcCatalog` turn `content/npcs/*.json` into the three hub NPCs. `StorageService` is an autoload; the rest are `static`-only `RefCounted` classes.
 
 ## Files
 | Path | Role |
 |------|------|
-| `apps/game/client/scripts/hub/merchant_service.gd` | `MerchantService` — save-backed per-merchant stock, `get_slot_sell_price`, `buy_item`, `sell_item(inv_index, quantity)` |
-| `apps/game/client/scripts/hub/merchant_catalog.gd` | `MerchantCatalog` — loads `content/merchant/*.json`; `reload()` / `is_loaded()` |
-| `apps/game/client/scripts/hub/blacksmith_service.gd` | `BlacksmithService` — upgrade, durability, repair, unlock, talent respec |
-| `apps/game/client/scripts/hub/recipe_catalog.gd` | `RecipeCatalog` — `upgrade`, `repair`, `unlock` queries; `upgrade_stat_bonus`; `reload()` / `is_loaded()` |
-| `apps/game/client/scripts/hub/storage_service.gd` | `StorageService` autoload — 8×6 `GridInventory`, whole-slot transfers, deferred autosave |
-| `apps/game/client/scripts/items/equipment.gd` | `Equipment.upgrade_multiplier`, `Equipment.slot_stats` — stat path for upgrades and 0 durability |
-| `apps/game/client/scripts/npc/npc_base.gd` | `NpcBase` — greet-then-shop with `_greeted_this_visit` reset on zone exit |
-| `apps/game/client/scripts/npc/npc_catalog.gd` | `NpcCatalog` — loads `content/npcs/*.json`; `reload()` / `is_loaded()` |
-| `apps/game/client/scripts/loot/rarity_registry.gd` | `RarityRegistry.sell_multiplier` — sell price scaling by tier |
-| `apps/game/client/scripts/hub/hub_diorama.gd` | `HubDiorama._position_npcs_from_content` — reads NPC `position` from catalog |
+| `apps/game/client/scripts/hub/merchant_service.gd` | `MerchantService` â€” save-backed per-merchant stock, `get_slot_sell_price`, `buy_item`, `sell_item(inv_index, quantity)` |
+| `apps/game/client/scripts/hub/merchant_catalog.gd` | `MerchantCatalog` â€” loads `content/merchant/*.json`; `reload()` / `is_loaded()` |
+| `apps/game/client/scripts/hub/blacksmith_service.gd` | `BlacksmithService` â€” upgrade, durability, repair, unlock, talent respec |
+| `apps/game/client/scripts/hub/recipe_catalog.gd` | `RecipeCatalog` â€” `upgrade`, `repair`, `unlock` queries; `upgrade_stat_bonus`; `reload()` / `is_loaded()` |
+| `apps/game/client/scripts/hub/storage_service.gd` | `StorageService` autoload â€” 8Ã—6 `GridInventory`, whole-slot transfers, deferred autosave |
+| `apps/game/client/scripts/items/equipment.gd` | `Equipment.upgrade_multiplier`, `Equipment.slot_stats` â€” stat path for upgrades and 0 durability |
+| `apps/game/client/scripts/npc/npc_base.gd` | `NpcBase` â€” greet-then-shop with `_greeted_this_visit` reset on zone exit |
+| `apps/game/client/scripts/npc/npc_catalog.gd` | `NpcCatalog` â€” loads `content/npcs/*.json`; `reload()` / `is_loaded()` |
+| `apps/game/client/scripts/loot/rarity_registry.gd` | `RarityRegistry.sell_multiplier` â€” sell price scaling by tier |
+| `apps/game/client/scripts/hub/hub_diorama.gd` | `HubDiorama._position_npcs_from_content` â€” reads NPC `position` from catalog |
 | `content/npcs/*.json` | 3 files: `blacksmith_aldric`, `merchant_elara`, `warden_mira` |
 | `content/merchant/*.json` | 2 files: `hub_merchant` (6 rows), `dungeon_merchant` (3 rows) |
 | `content/recipes/*.json` | 5 files: 2 `upgrade`, 1 `repair`, 2 `unlock` |
@@ -78,8 +78,8 @@ Stock is per-merchant and persisted in `save.merchants.<merchant_id>.purchased` 
 | Storage whole-slot transfer with error strings | IMPLEMENTED | `storage_service.gd:36-60`, `grid_inventory.gd:add_slot` |
 | Storage deferred autosave | IMPLEMENTED | `storage_service.gd:14-16` |
 | Catalog reload hooks | IMPLEMENTED | `npc_catalog.gd`, `merchant_catalog.gd`, `recipe_catalog.gd` |
-| `dungeon_merchant` reachability in runs | BROKEN | `room_merchant_content.gd:53`; merchant room weight chain — see [`room-content.md`](room-content.md) |
+| `dungeon_merchant` reachability in runs | BROKEN | `room_merchant_content.gd:53`; merchant room weight chain â€” see [`room-content.md`](room-content.md) |
 
 ## Related
-- Improvement plan: [`../actual_improvements/npc-hub-services.md`](../actual_improvements/npc-hub-services.md)
+- Improvement plan: [`../actual_improvements/npc-hub-services.md`](../actual_improvements/npc-hub-services.md) - **FINISHED**
 - [`hub.md`](hub.md), [`dialogue-quests.md`](dialogue-quests.md), [`inventory-service.md`](inventory-service.md), [`loot-and-equipment.md`](loot-and-equipment.md), [`character-service.md`](character-service.md), [`progression-service.md`](progression-service.md), [`content-catalog.md`](content-catalog.md), [`content-data.md`](content-data.md), [`room-content.md`](room-content.md), [`ui/hub_vendors.md`](ui/hub_vendors.md), [`ui/inventory_ui.md`](ui/inventory_ui.md)

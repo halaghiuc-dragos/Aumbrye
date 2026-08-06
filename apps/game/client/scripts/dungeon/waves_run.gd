@@ -202,10 +202,10 @@ func _spawn_enemy(enemy_id: String) -> void:
 		+ _active_enemies.size()
 	)
 	enemy.position = Vector3(rng.randf_range(-28, 28), 0.0, rng.randf_range(-28, 28))
-	CharacterFloorSnapScript.snap_feet_to_floor(enemy)
+	add_child(enemy)
+	CharacterFloorSnapScript.snap_to_floor_below(enemy)
 	if enemy.has_method("set_player"):
 		enemy.call("set_player", _player)
-	add_child(enemy)
 	if enemy.has_signal("enemy_died"):
 		enemy.enemy_died.connect(_on_enemy_died.bind(enemy))
 	elif enemy.has_signal("boss_defeated"):
@@ -285,41 +285,14 @@ func _clear_chests() -> void:
 func _build_combat_hud() -> void:
 	if get_node_or_null("CombatHUD"):
 		return
-	var hud := Control.new()
+	var hud_scene := load("res://scenes/ui/combat_hud.tscn") as PackedScene
+	if hud_scene == null:
+		return
+	var hud := hud_scene.instantiate() as Control
 	hud.name = "CombatHUD"
-	hud.set_anchors_preset(Control.PRESET_FULL_RECT)
-	hud.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var hud_script := load("res://scripts/ui/combat_hud.gd")
-	if hud_script:
-		hud.set_script(hud_script)
-		hud.set("player_path", NodePath("../Player"))
-		hud.set("lock_on_path", NodePath("../Player/LockOn"))
+	hud.set("player_path", NodePath("../Player"))
+	hud.set("lock_on_path", NodePath("../Player/LockOn"))
 	add_child(hud)
-	var margin := MarginContainer.new()
-	margin.name = "Margin"
-	margin.set_anchors_preset(Control.PRESET_TOP_LEFT)
-	margin.offset_left = 20.0
-	margin.offset_top = 20.0
-	margin.offset_right = 300.0
-	margin.offset_bottom = 84.0
-	hud.add_child(margin)
-	var vbox := VBoxContainer.new()
-	vbox.name = "VBox"
-	margin.add_child(vbox)
-	var health := ProgressBar.new()
-	health.name = "HealthBar"
-	health.custom_minimum_size = Vector2(280, 24)
-	health.max_value = 100.0
-	health.value = 100.0
-	health.show_percentage = false
-	vbox.add_child(health)
-	var stamina := ProgressBar.new()
-	stamina.name = "StaminaBar"
-	stamina.custom_minimum_size = Vector2(280, 18)
-	stamina.max_value = 100.0
-	stamina.value = 100.0
-	stamina.show_percentage = false
-	vbox.add_child(stamina)
 
 
 func _restore_waves_snapshot() -> void:

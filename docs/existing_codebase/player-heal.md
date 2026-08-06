@@ -1,6 +1,6 @@
-# Player heal
+﻿# Player heal
 
-`PlayerHeal` is the bound-charge heal ("estus flask"): a fixed number of charges per rest, a timed drink, then a percentage heal. It is on the live play path — the node ships in `player.tscn` and polls the `heal` action every physics frame — but it has no HUD, no dedicated animation, no sound, and no save persistence.
+`PlayerHeal` is the bound-charge heal ("estus flask"): a fixed number of charges per rest, a timed drink, then a percentage heal. It is on the live play path â€” the node ships in `player.tscn` and polls the `heal` action every physics frame â€” but it has no HUD, no dedicated animation, no sound, and no save persistence.
 
 ## Files
 | Path | Role |
@@ -15,7 +15,7 @@
 | `DEFAULT_MAX_CHARGES` | `3` | charges after a rest |
 | `HEAL_AMOUNT` | `0.45` | fraction of `Health.max_health` restored |
 | `DRINK_DURATION` | `1.35` | seconds of committed drink |
-| `HEAL_STAMINA_COST` | `0.0` | stamina cost — free |
+| `HEAL_STAMINA_COST` | `0.0` | stamina cost â€” free |
 
 All four are `const` at `player_heal.gd:5-8`.
 
@@ -58,6 +58,6 @@ All four are `const` at `player_heal.gd:5-8`.
 | Stamina cost | STUB | `HEAL_STAMINA_COST = 0.0` makes both checks at `:59-62` unreachable |
 
 ## Related
-- Improvement plan: [`../actual_improvements/player-heal.md`](../actual_improvements/player-heal.md)
+- Improvement plan: [`../actual_improvements/player-heal.md`](../actual_improvements/player-heal.md) - **FINISHED**
 - [`player-combat-reactions.md`](player-combat-reactions.md), [`player-anim-director.md`](player-anim-director.md), [`player-controls.md`](player-controls.md)
 - [`stamina-mana.md`](stamina-mana.md), [`combat-core.md`](combat-core.md), [`ui/combat_hud.md`](ui/combat_hud.md), [`run-flow.md`](run-flow.md), [`local-save.md`](local-save.md)

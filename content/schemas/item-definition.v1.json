@@ -22,6 +22,31 @@
     "stackSize": { "type": "integer", "minimum": 1 },
     "weaponId": { "type": "string" },
     "healAmount": { "type": "number", "exclusiveMinimum": 0 },
+    "consumableEffect": {
+      "type": "object",
+      "required": ["kind"],
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "type": "string",
+          "enum": ["heal", "restoreStamina", "restoreMana", "applyStatus", "skipFloors", "cure"]
+        },
+        "amount": { "type": "number" },
+        "statusId": { "type": "string" },
+        "duration": { "type": "number" },
+        "floors": { "type": "integer" },
+        "usableInRun": { "type": "boolean", "default": true },
+        "usableInHub": { "type": "boolean", "default": true }
+      }
+    },
+    "unlock": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "level": { "type": "integer", "minimum": 1 },
+        "flag": { "type": "string" }
+      }
+    },
     "description": { "type": "string" },
     "value": { "type": ["number", "null"], "minimum": 0 },
     "authored": { "type": "boolean" },

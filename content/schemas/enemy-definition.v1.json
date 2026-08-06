@@ -48,6 +48,7 @@
     "block_mitigation": { "type": "number", "minimum": 0, "maximum": 1 },
     "block_angle_deg": { "type": "number", "minimum": 0, "maximum": 180 },
     "phase2_threshold": { "type": "number", "minimum": 0, "maximum": 1 },
+    "phaseCount": { "type": "integer", "minimum": 1, "default": 1 },
     "enemy_type": {
       "type": "string",
       "enum": ["melee", "ranged", "shield", "boss"]

@@ -1,4 +1,4 @@
-# Biome registry
+﻿# Biome registry
 
 Ten biomes are fully data-driven. Each `content/biomes/<id>.json` v2 file declares procgen config plus the visible kit: materials, lighting, audio profile path, prop kit, loot tables, and trap pool. `BiomeRegistry` caches and validates JSON at load time; room scenes load on demand per active biome.
 
@@ -9,14 +9,14 @@ Ten biomes are fully data-driven. Each `content/biomes/<id>.json` v2 file declar
 | `apps/game/client/scripts/dungeon/biome_registry.gd` | Cached biome loader, accessors, run presentation |
 | `content/biomes/*.json` | 10 full biome kit definitions (v2) |
 | `content/schemas/biome-definition.v2.json` | Schema for kit JSON |
-| `apps/game/client/scripts/dungeon/procgen/procgen_biome_loader.gd` | Deprecated wrapper → `BiomeRegistry.get_biome` |
+| `apps/game/client/scripts/dungeon/procgen/procgen_biome_loader.gd` | Deprecated wrapper â†’ `BiomeRegistry.get_biome` |
 | `apps/game/client/scripts/validation/suites/biome_kit_suite.gd` | Acceptance tests BIO-01..BIO-13 |
 
 ## How it works
 
 ### Discovery and cache
 
-`biome_registry.gd:228-246` lists `content/biomes/*.json` into `ALL_BIOMES` on bootstrap (`_BOOTSTRAP` at `:274`). `get_biome(id)` (`:36-45`) reads through `ContentLoader`, validates required keys (`:_validate_biome`), caches in `_cache`, and returns a duplicate. Unknown ids return `{}` with `push_error` — no castle fallback except `resolve_biome_id` for saves.
+`biome_registry.gd:228-246` lists `content/biomes/*.json` into `ALL_BIOMES` on bootstrap (`_BOOTSTRAP` at `:274`). `get_biome(id)` (`:36-45`) reads through `ContentLoader`, validates required keys (`:_validate_biome`), caches in `_cache`, and returns a duplicate. Unknown ids return `{}` with `push_error` â€” no castle fallback except `resolve_biome_id` for saves.
 
 ### Accessors (all read JSON)
 
@@ -63,12 +63,12 @@ Who reads what:
 | Full dict | `BiomeRegistry.get_biome`, `DungeonProcgen.generate` (`dungeon_procgen.gd:29`) |
 | `roomCount`, `requiresSecret`, `roomTemplateIds` | `room_graph_config.gd`, `room_graph_assigner.gd` |
 | `enemyPool`, `bossPool`, `budgets`, `lootTables`, `trapPool` | `procgen_placements.gd`, `procgen_loot_roller.gd` |
-| `materials`, `lighting`, `audioProfile` | `BiomeRegistry` accessors → floor shell, `VisualLighting`, `AudioDirector` |
+| `materials`, `lighting`, `audioProfile` | `BiomeRegistry` accessors â†’ floor shell, `VisualLighting`, `AudioDirector` |
 | `propKit` | declared for [`diorama-room-dressing.md`](diorama-room-dressing.md) consumers |
 | `templatePrefix` | `RoomTemplateCatalog.template_prefix_for_biome` (`room_template_catalog.gd:44-48`) |
 | `finalFloor.bossId` | `dungeon_procgen.gd` `_generate_final_floor` |
 
-`gridStep` is **ABSENT** — removed from schema and all biome files (BIO-03).
+`gridStep` is **ABSENT** â€” removed from schema and all biome files (BIO-03).
 
 ### C# parity
 
@@ -93,7 +93,7 @@ Who reads what:
 | Loot/trap tables in biome JSON | IMPLEMENTED | `lootTables`, `trapPool`; `procgen_loot_roller.gd`, `procgen_placements.gd:369-374` |
 | `budgets.baseLootValue` / `lootPerTier` consumed | IMPLEMENTED | `procgen_loot_roller.gd:22-25` |
 | Distinct audio per biome | IMPLEMENTED | 10 unique `ambiencePath` in `content/audio_profiles/*.json` |
-| Weighted boss variety (2+ per biome) | IMPLEMENTED | all `bossPool` arrays have ≥2 entries |
+| Weighted boss variety (2+ per biome) | IMPLEMENTED | all `bossPool` arrays have â‰¥2 entries |
 | Waves lighting preserves biome profile | IMPLEMENTED | lerp in `apply_run_presentation` (`biome_registry.gd:123-124`) |
 | Unknown biome errors (no silent castle fallback) | IMPLEMENTED | `get_biome` returns `{}` (`biome_registry.gd:39-42`) |
 | `ALL_BIOMES` auto-discovered | IMPLEMENTED | `_ensure_biome_index` (`biome_registry.gd:228-246`) |
@@ -103,7 +103,7 @@ Who reads what:
 
 ## Related
 
-- Improvement plan: [`../actual_improvements/biome-registry.md`](../actual_improvements/biome-registry.md)
+- Improvement plan: [`../actual_improvements/biome-registry.md`](../actual_improvements/biome-registry.md) - **FINISHED**
 - [`room-templates.md`](room-templates.md)
 - [`room-graph-procgen.md`](room-graph-procgen.md)
 - [`procgen-placements.md`](procgen-placements.md)

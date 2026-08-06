@@ -1,0 +1,6 @@
+{
+  "schemaVersion": 1,
+  "texture": "res://assets/ui/hud_pips.png",
+  "pipFilled": { "x": 0, "y": 0, "w": 14, "h": 8 },
+  "pipEmpty": { "x": 14, "y": 0, "w": 14, "h": 8 }
+}

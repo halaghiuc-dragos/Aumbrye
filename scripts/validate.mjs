@@ -165,6 +165,21 @@ function runPythonLayer() {
   };
 }
 
+function runBalanceExport() {
+  const result = runCommand(
+    "balance-export",
+    "node",
+    [join(repoRoot, "scripts/balance/balance-cli.mjs")],
+  );
+  return {
+    name: "balance-export",
+    ok: result.ok,
+    passed: result.ok ? 1 : 0,
+    failed: result.ok ? 0 : 1,
+    detail: result.detail,
+  };
+}
+
 function runGodotLayer(godotBin) {
   const godot = resolveGodotExecutable(godotBin);
   if (!godot) {
@@ -235,6 +250,11 @@ for (const layer of layers) {
       result = runPythonLayer();
       break;
     case "godot":
+      const balanceExport = runBalanceExport();
+      layerResults.push(balanceExport);
+      totalPassed += balanceExport.passed ?? 0;
+      totalFailed += balanceExport.failed ?? 0;
+      if (!balanceExport.ok) anyFailed = true;
       result = runGodotLayer(godotBin);
       break;
     default:

@@ -2,7 +2,7 @@
 
 [ext_resource type="Script" path="res://scripts/hub/hub.gd" id="1_hub"]
 [ext_resource type="PackedScene" uid="uid://cplayer001" path="res://scenes/player/player.tscn" id="2_player"]
-[ext_resource type="Script" path="res://scripts/ui/combat_hud.gd" id="3_hud"]
+[ext_resource type="PackedScene" path="res://scenes/ui/combat_hud.tscn" id="3_hud"]
 [ext_resource type="Script" path="res://scripts/ui/inventory_ui.gd" id="4_inv"]
 [ext_resource type="Script" path="res://scripts/debug/debug_overlay.gd" id="5_overlay"]
 [ext_resource type="PackedScene" path="res://scenes/ui/castle_entry_menu.tscn" id="6_castle_menu"]
@@ -12,11 +12,7 @@
 [ext_resource type="PackedScene" path="res://scenes/ui/storage_ui.tscn" id="10_storage"]
 [ext_resource type="PackedScene" path="res://scenes/ui/quest_board_ui.tscn" id="11_quest"]
 [ext_resource type="PackedScene" path="res://scenes/hub/hub_npc.tscn" id="12_npc"]
-[ext_resource type="Material" path="res://assets/hub/mat_floor.tres" id="13_floor"]
-[ext_resource type="Material" path="res://assets/hub/mat_accent.tres" id="14_accent"]
-[ext_resource type="Material" path="res://assets/hub/mat_wall.tres" id="15_wall"]
 [ext_resource type="Script" path="res://scripts/hub/hub_interactable.gd" id="16_interact"]
-[ext_resource type="Material" path="res://assets/hub/mat_umbral.tres" id="17_umbral"]
 [ext_resource type="PackedScene" path="res://scenes/ui/umbral_endless_menu.tscn" id="18_endless_menu"]
 [ext_resource type="PackedScene" path="res://scenes/ui/umbral_waves_menu.tscn" id="19_waves_menu"]
 [ext_resource type="PackedScene" path="res://scenes/ui/quest_tracker_ui.tscn" id="20_quest_tracker"]
@@ -54,7 +50,7 @@ shadow_enabled = true
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.25, 0)
 
 [node name="MeshInstance3D" type="MeshInstance3D" parent="Floor"]
-material_override = ExtResource("13_floor")
+metadata/legacy_blockout = true
 mesh = SubResource("BoxMesh_floor")
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="Floor"]
@@ -64,25 +60,21 @@ shape = SubResource("BoxShape3D_floor")
 
 [node name="NorthWall" type="MeshInstance3D" parent="LandmarkWalls"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.5, -20)
-material_override = ExtResource("15_wall")
 mesh = SubResource("BoxMesh_wall")
 scale = Vector3(12, 1, 1)
 
 [node name="EastWall" type="MeshInstance3D" parent="LandmarkWalls"]
 transform = Transform3D(-4.37114e-08, 0, 1, 0, 1, 0, -1, 0, -4.37114e-08, 24, 2.5, 0)
-material_override = ExtResource("15_wall")
 mesh = SubResource("BoxMesh_wall")
 scale = Vector3(10, 1, 1)
 
 [node name="WestWall" type="MeshInstance3D" parent="LandmarkWalls"]
 transform = Transform3D(-4.37114e-08, 0, 1, 0, 1, 0, -1, 0, -4.37114e-08, -24, 2.5, 0)
-material_override = ExtResource("15_wall")
 mesh = SubResource("BoxMesh_wall")
 scale = Vector3(10, 1, 1)
 
 [node name="SouthWall" type="MeshInstance3D" parent="LandmarkWalls"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.5, 18)
-material_override = ExtResource("15_wall")
 mesh = SubResource("BoxMesh_wall")
 scale = Vector3(12, 1, 1)
 
@@ -113,12 +105,10 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 12, 0, -17)
 
 [node name="PortalFrame" type="MeshInstance3D" parent="CastlePortal"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.75, 0)
-material_override = ExtResource("14_accent")
 mesh = SubResource("BoxMesh_door_frame")
 
 [node name="PortalPad" type="MeshInstance3D" parent="CastlePortal"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.05, 0)
-material_override = ExtResource("15_wall")
 mesh = SubResource("BoxMesh_pad")
 
 [node name="InteractArea" type="Area3D" parent="CastlePortal"]
@@ -143,12 +133,10 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -6, 0, -17)
 
 [node name="DoorFrame" type="MeshInstance3D" parent="ArenaDoor"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.75, 0)
-material_override = ExtResource("15_wall")
 mesh = SubResource("BoxMesh_door_frame")
 
 [node name="DoorPad" type="MeshInstance3D" parent="ArenaDoor"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.05, 0)
-material_override = ExtResource("13_floor")
 mesh = SubResource("BoxMesh_pad")
 
 [node name="InteractArea" type="Area3D" parent="ArenaDoor"]
@@ -173,7 +161,6 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -18, 0, -4)
 
 [node name="Building" type="MeshInstance3D" parent="Blacksmith"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2, 0)
-material_override = ExtResource("14_accent")
 mesh = SubResource("BoxMesh_building")
 
 [node name="InteractArea" type="Area3D" parent="Blacksmith"]
@@ -198,7 +185,6 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -12, 0, 14)
 
 [node name="Building" type="MeshInstance3D" parent="Merchant"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2, 0)
-material_override = ExtResource("13_floor")
 mesh = SubResource("BoxMesh_building")
 
 [node name="InteractArea" type="Area3D" parent="Merchant"]
@@ -223,7 +209,6 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 14)
 
 [node name="Building" type="MeshInstance3D" parent="Storage"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2, 0)
-material_override = ExtResource("15_wall")
 mesh = SubResource("BoxMesh_building")
 
 [node name="InteractArea" type="Area3D" parent="Storage"]
@@ -251,7 +236,6 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -12, 0, 14)
 
 [node name="Frame" type="MeshInstance3D" parent="Mirror"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2, 0)
-material_override = ExtResource("14_accent")
 mesh = SubResource("BoxMesh_building")
 scale = Vector3(0.5, 1.2, 0.12)
 
@@ -274,7 +258,6 @@ font_size = 26
 
 [node name="Board" type="MeshInstance3D" parent="QuestBoard"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2, 0)
-material_override = ExtResource("14_accent")
 mesh = SubResource("BoxMesh_building")
 scale = Vector3(0.8, 0.8, 0.3)
 
@@ -307,43 +290,9 @@ npc_id = "merchant_elara"
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 12, 0, 11.2)
 npc_id = "warden_mira"
 
-[node name="CombatHUD" type="Control" parent="."]
-layout_mode = 3
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 2
-mouse_filter = 2
-script = ExtResource("3_hud")
+[node name="CombatHUD" parent="." instance=ExtResource("3_hud")]
 player_path = NodePath("../Player")
 lock_on_path = NodePath("../Player/LockOn")
-
-[node name="Margin" type="MarginContainer" parent="CombatHUD"]
-layout_mode = 1
-anchors_preset = 2
-anchor_top = 1.0
-anchor_bottom = 1.0
-offset_left = 24.0
-offset_top = -120.0
-offset_right = 324.0
-offset_bottom = -24.0
-grow_vertical = 0
-
-[node name="VBox" type="VBoxContainer" parent="CombatHUD/Margin"]
-layout_mode = 2
-
-[node name="HealthBar" type="ProgressBar" parent="CombatHUD/Margin/VBox"]
-custom_minimum_size = Vector2(280, 24)
-layout_mode = 2
-value = 100.0
-show_percentage = false
-
-[node name="StaminaBar" type="ProgressBar" parent="CombatHUD/Margin/VBox"]
-custom_minimum_size = Vector2(280, 18)
-layout_mode = 2
-value = 100.0
-show_percentage = false
 
 [node name="InventoryUI" type="Control" parent="."]
 layout_mode = 3
@@ -476,12 +425,10 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6, 0, -17)
 
 [node name="PortalFrame" type="MeshInstance3D" parent="UmbralEndlessPortal"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.75, 0)
-material_override = ExtResource("17_umbral")
 mesh = SubResource("BoxMesh_door_frame")
 
 [node name="PortalPad" type="MeshInstance3D" parent="UmbralEndlessPortal"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.05, 0)
-material_override = ExtResource("15_wall")
 mesh = SubResource("BoxMesh_pad")
 
 [node name="InteractArea" type="Area3D" parent="UmbralEndlessPortal"]
@@ -506,12 +453,10 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -17)
 
 [node name="PortalFrame" type="MeshInstance3D" parent="UmbralWavesPortal"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.75, 0)
-material_override = ExtResource("17_umbral")
 mesh = SubResource("BoxMesh_door_frame")
 
 [node name="PortalPad" type="MeshInstance3D" parent="UmbralWavesPortal"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.05, 0)
-material_override = ExtResource("15_wall")
 mesh = SubResource("BoxMesh_pad")
 
 [node name="InteractArea" type="Area3D" parent="UmbralWavesPortal"]
@@ -537,12 +482,10 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -12, 0, -17)
 
 [node name="PortalFrame" type="MeshInstance3D" parent="SkiesPortal"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.75, 0)
-material_override = ExtResource("17_umbral")
 mesh = SubResource("BoxMesh_door_frame")
 
 [node name="PortalPad" type="MeshInstance3D" parent="SkiesPortal"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.05, 0)
-material_override = ExtResource("15_wall")
 mesh = SubResource("BoxMesh_pad")
 
 [node name="InteractArea" type="Area3D" parent="SkiesPortal"]
@@ -569,12 +512,10 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -18, 0, -17)
 
 [node name="PortalFrame" type="MeshInstance3D" parent="CathedralPortal"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.75, 0)
-material_override = ExtResource("14_accent")
 mesh = SubResource("BoxMesh_door_frame")
 
 [node name="PortalPad" type="MeshInstance3D" parent="CathedralPortal"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.05, 0)
-material_override = ExtResource("13_floor")
 mesh = SubResource("BoxMesh_pad")
 
 [node name="InteractArea" type="Area3D" parent="CathedralPortal"]

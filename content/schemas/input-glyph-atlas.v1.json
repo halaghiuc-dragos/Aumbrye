@@ -1,0 +1,6 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://aumbrye.dev/schemas/input-glyph-atlas.v1.json",
+  "title": "InputGlyphAtlas",
+  "allOf": [{ "$ref": "ui-symbol-atlas.v1.json" }]
+}

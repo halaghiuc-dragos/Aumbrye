@@ -1,5 +1,5 @@
 shader_type spatial;
-render_mode blend_mix, cull_disabled, unshaded;
+render_mode blend_mix, cull_disabled, unshaded, depth_draw_never;
 
 #include "res://assets/shared/pixel_diorama_finish.gdshaderinc"
 
@@ -11,6 +11,8 @@ uniform float spin_speed : hint_range(0.0, 6.0) = 2.2;
 uniform float spiral_tightness : hint_range(1.0, 12.0) = 5.5;
 uniform float ellipse_x : hint_range(0.5, 2.0) = 0.72;
 uniform float ellipse_y : hint_range(0.5, 2.0) = 1.0;
+uniform float color_levels : hint_range(4.0, 16.0) = 6.0;
+uniform float layer_alpha : hint_range(0.0, 1.0) = 1.0;
 
 void fragment() {
 	vec2 centered = UV * 2.0 - 1.0;
@@ -32,9 +34,9 @@ void fragment() {
 	col = mix(col, color_accent, step(0.82, grain) * (1.0 - dist));
 	col = mix(col, color_inner, ring * 0.25);
 	col.rgb = apply_portal_finish(col.rgb, centered, color_accent.rgb, pixel_scale, 1.0);
-	col.rgb = quantize_color(col.rgb, 6.0);
+	col.rgb = quantize_color(col.rgb, max(2.0, color_levels));
 
 	float edge_fade = smoothstep(1.0, 0.82, dist);
 	ALBEDO = col.rgb;
-	ALPHA = edge_fade;
+	ALPHA = edge_fade * layer_alpha;
 }

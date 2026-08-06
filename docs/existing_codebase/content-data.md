@@ -1,4 +1,4 @@
-# Content data
+﻿# Content data
 
 Repo-root `content/` is the shared JSON definition tree for the Godot client, `scripts/validate-content`, and `packages/procedural`. Schemas live under `content/schemas/*.v1.json`. The client loads dictionaries through `ContentLoader`; **debug builds** validate hot-path JSON via `ContentSchemaValidator`. Offline CI runs Ajv validation.
 
@@ -39,7 +39,7 @@ Repo-root `content/` is the shared JSON definition tree for the Godot client, `s
 | `talents/` | `tree.json` |
 | `weapons/` | Weapon combat defs |
 
-`ARCHITECTURE.md` §8 lists the same domains. File count fluctuates with content; validation walks every `.json` under `content/` except `schemas/`.
+`ARCHITECTURE.md` Â§8 lists the same domains. File count fluctuates with content; validation walks every `.json` under `content/` except `schemas/`.
 
 ### JSON conventions
 - Top-level objects usually carry `schemaVersion: 1` and an `id` string when they are catalog entries.
@@ -55,13 +55,13 @@ Repo-root `content/` is the shared JSON definition tree for the Godot client, `s
 `ContentLoader.content_root()` (`content_loader.gd:9-13`): `ProjectSettings` `aumbrye/content_root` if set, else `res://` globalized joined with `../../..` (repo root from `apps/game/client`). `load_json(relative)` opens the absolute path, `JSON.parse_string`, returns `{}` on missing/invalid (`content_loader.gd:20-34`). Debug builds call `ContentSchemaValidator.validate_loaded` on non-empty dicts; release skips runtime checks. Missing files: `push_error` in debug, `push_warning` in release.
 
 ### Tooling validation
-`validate.mjs` maps path prefixes to schemas (`resolveSchemaForFile`, lines 68-142). Files without a mapping print `SKIP (no schema)`. Extra checks: `validateItemCatalogConsistency` (catalog ↔ disk ids) and `validateContentRules` (allowed equipment stat keys, `weaponId` presence). `--strict-content` fails placeholder descriptions matching `/^M6 content item\.?$/i`.
+`validate.mjs` maps path prefixes to schemas (`resolveSchemaForFile`, lines 68-142). Files without a mapping print `SKIP (no schema)`. Extra checks: `validateItemCatalogConsistency` (catalog â†” disk ids) and `validateContentRules` (allowed equipment stat keys, `weaponId` presence). `--strict-content` fails placeholder descriptions matching `/^M6 content item\.?$/i`.
 
-### Schema ↔ code alignment (post CDT-01–06)
+### Schema â†” code alignment (post CDT-01â€“06)
 
 | Area | Status |
 |------|--------|
-| XP curve keys | `xp_curve.json` uses `baseXpPerKill`, `bossBonusXp`, `escapeBonusXp`, `talentPointsPerLevel` — matches `ProgressionService.calculate_run_xp` |
+| XP curve keys | `xp_curve.json` uses `baseXpPerKill`, `bossBonusXp`, `escapeBonusXp`, `talentPointsPerLevel` â€” matches `ProgressionService.calculate_run_xp` |
 | Talent points | Authoritative on XP curve only; removed from `talents/tree.json` |
 | Affix tiers | `AffixRoller._roll_tier_value()` reads `tiers[rarity]` |
 | Item schemas | `item-definition.v1.json` for defs; `item-instance-roll.v1.json` for rolled instances |
@@ -88,5 +88,5 @@ Repo-root `content/` is the shared JSON definition tree for the Godot client, `s
 | Strict item catalog at runtime | IMPLEMENTED | `project.godot:30`, `item_catalog.gd:55-71`; see [`content-catalog.md`](content-catalog.md) |
 
 ## Related
-- Improvement plan: [`../actual_improvements/content-data.md`](../actual_improvements/content-data.md)
+- Improvement plan: [`../actual_improvements/content-data.md`](../actual_improvements/content-data.md) - **FINISHED**
 - [`content-catalog.md`](content-catalog.md), [`loot-and-equipment.md`](loot-and-equipment.md), [`progression-service.md`](progression-service.md), [`ARCHITECTURE.md`](../ARCHITECTURE.md)

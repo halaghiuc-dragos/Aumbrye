@@ -11,6 +11,7 @@ const BLOCK_POISE_TRANSFER := 0.35
 const GUARD_BREAK_STAGGER := 0.8
 const BLOCK_ARC_DEGREES := 120.0
 const PARRY_WINDOW := 0.18
+const BLOCK_DISPLAY_MAX := 9.99
 const PARRY_STAGGER_ENEMY := 1.2
 const RIPOSTE_WINDOW := 1.4
 const RIPOSTE_DAMAGE_MULT := 2.0
@@ -182,6 +183,14 @@ func reset_after_revive() -> void:
 	_stagger_timer = 0.0
 	_state = GuardState.IDLE
 	_reset_guard_state()
+
+
+func get_parry_window_duration() -> float:
+	return PARRY_WINDOW
+
+
+func get_block_window_duration() -> float:
+	return BLOCK_DISPLAY_MAX
 
 
 func get_parry_time_remaining() -> float:

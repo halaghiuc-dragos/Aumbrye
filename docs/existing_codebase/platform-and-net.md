@@ -1,4 +1,4 @@
-# Platform and net (Steam, crash logging)
+﻿# Platform and net (Steam, crash logging)
 
 `SteamService` and `CrashLogger` are live autoloads on the play path. Steam runs in honest stub mode without vendored GodotSteam binaries; crash reports are written locally with optional upload when the player opts in.
 
@@ -6,8 +6,8 @@
 
 | Path | Role |
 |------|------|
-| `apps/game/client/scripts/platform/steam_service.gd` | Autoload `SteamService` — init, callbacks, achievements, cloud I/O, Web API ticket |
-| `apps/game/client/scripts/platform/crash_logger.gd` | Autoload `CrashLogger` — structured logs, retention, opt-in upload |
+| `apps/game/client/scripts/platform/steam_service.gd` | Autoload `SteamService` â€” init, callbacks, achievements, cloud I/O, Web API ticket |
+| `apps/game/client/scripts/platform/crash_logger.gd` | Autoload `CrashLogger` â€” structured logs, retention, opt-in upload |
 | `apps/game/client/scripts/platform/privacy_settings.gd` | `send_crash_reports` toggle persisted in save meta |
 | `apps/game/client/config/platform.json` | Default `steamAppId` (480) |
 | `apps/game/client/steam_appid.txt.example` | Committed Spacewar example for local Steam launches |
@@ -25,9 +25,9 @@
 | `enabled` | Init completed (stub or real) |
 | `is_stub_mode` | `true` when GodotSteam class missing or init failed |
 | `overlay_available` / `cloud_enabled` | From Steamworks when not stubbed |
-| `app_id` | Resolved: `AUMBRYE_STEAM_APP_ID` → `config/platform.json` → `steam_appid.txt` → `480` |
+| `app_id` | Resolved: `AUMBRYE_STEAM_APP_ID` â†’ `config/platform.json` â†’ `steam_appid.txt` â†’ `480` |
 
-`enum Result { OK, UNAVAILABLE, FAILED }` — `unlock_achievement` returns `UNAVAILABLE` in stub mode. `sync_achievements` returns `{synced, unavailable, failed}`.
+`enum Result { OK, UNAVAILABLE, FAILED }` â€” `unlock_achievement` returns `UNAVAILABLE` in stub mode. `sync_achievements` returns `{synced, unavailable, failed}`.
 
 `_process` calls `Steam.run_callbacks()` when not stubbed. `shutdown()` is idempotent via `_shutdown_emitted`. `steam_ready` triggers achievement backfill in `achievement_service.gd`.
 
@@ -39,9 +39,9 @@ Payload includes `schemaVersion`, `gameVersion`, `contentVersion` (`ApiConfig.CO
 
 ### Backend
 
-- `POST /api/v1/auth/steam` — `{ticketHex, appId}` → `AuthResponse`; 503 when `Steam:WebApiKey` unset
-- `POST /api/v1/account/link-steam` — link ticket to signed-in account (409 on conflict)
-- `POST /api/v1/telemetry/crash` — accepts JSON crash report, returns 204
+- `POST /api/v1/auth/steam` â€” `{ticketHex, appId}` â†’ `AuthResponse`; 503 when `Steam:WebApiKey` unset
+- `POST /api/v1/account/link-steam` â€” link ticket to signed-in account (409 on conflict)
+- `POST /api/v1/telemetry/crash` â€” accepts JSON crash report, returns 204
 - `Accounts.SteamId` (`bigint`, unique filtered), nullable `Email`, `SteamLinkedAt`
 
 ### Steam Cloud mirror
@@ -69,7 +69,7 @@ Payload includes `schemaVersion`, `gameVersion`, `contentVersion` (`ApiConfig.CO
 
 ## Related
 
-- Improvement plan: [`../actual_improvements/platform-and-net.md`](../actual_improvements/platform-and-net.md)
+- Improvement plan: [`../actual_improvements/platform-and-net.md`](../actual_improvements/platform-and-net.md) - **FINISHED**
 - [`networking.md`](networking.md)
 - [`backend-api.md`](backend-api.md)
 - [`achievements-meta.md`](achievements-meta.md)

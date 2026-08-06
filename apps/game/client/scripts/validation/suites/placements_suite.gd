@@ -93,7 +93,7 @@ func _test_loot_scales_with_tier() -> void:
 			break
 	var budgets: Dictionary = biome.get("budgets", {})
 	var expected_delta := float(budgets.get("lootPerTier", 14)) * 4.0
-	var actual_delta := values[4] - values[0]
+	var actual_delta: float = values[4] - values[0]
 	var within := absf(actual_delta - expected_delta) <= expected_delta * 0.2 + 1.0
 	ctx.record(
 		"placements.loot_scales_with_tier",

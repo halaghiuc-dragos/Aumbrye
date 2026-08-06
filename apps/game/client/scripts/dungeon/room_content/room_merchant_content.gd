@@ -24,7 +24,7 @@ func configure(_entry: Dictionary, _definition: Dictionary) -> void:
 	interact.body_entered.connect(_on_body_entered)
 	interact.body_exited.connect(_on_body_exited)
 	stall.position = _anchor(0).position
-	DioramaSkin.build_portal(stall, DioramaSkin.resolve_biome(self))
+	DioramaSkin.build_merchant_stall(stall, DioramaSkin.resolve_biome(self))
 	_content_root().add_child(stall)
 
 

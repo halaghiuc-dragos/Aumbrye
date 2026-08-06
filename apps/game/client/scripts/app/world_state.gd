@@ -22,9 +22,9 @@ func reset() -> void:
 func set_flag(flag_id: String, value: Variant = true) -> void:
 	if not WorldFlags.is_valid_id(flag_id):
 		if OS.is_debug_build():
-			push_error("WorldState: invalid flag id %r" % flag_id)
+			push_error("WorldState: invalid flag id %s" % flag_id)
 		else:
-			push_warning("WorldState: invalid flag id %r" % flag_id)
+			push_warning("WorldState: invalid flag id %s" % flag_id)
 		return
 	var stored: Variant = _deep_copy_value(value)
 	_flags[flag_id] = stored

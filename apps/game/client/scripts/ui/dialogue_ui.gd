@@ -92,8 +92,12 @@ func refresh_accessibility() -> void:
 
 func _apply_subtitle_scale() -> void:
 	var subtitle_scale := AccessibilitySettings.subtitle_scale
-	_speaker_label.add_theme_font_size_override("font_size", int(14 * subtitle_scale))
-	_text_label.add_theme_font_size_override("font_size", int(16 * subtitle_scale))
+	_speaker_label.add_theme_font_size_override(
+		"font_size", int(GameUISkinScript.FONT_SIZE_BODY * subtitle_scale)
+	)
+	_text_label.add_theme_font_size_override(
+		"font_size", int(GameUISkinScript.FONT_SIZE_HEADER * subtitle_scale)
+	)
 
 
 func _rebuild_choices(choices: Array) -> void:
@@ -103,8 +107,7 @@ func _rebuild_choices(choices: Array) -> void:
 	_selected_index = 0
 	for i in choices.size():
 		var choice: Dictionary = choices[i]
-		var btn := Button.new()
-		btn.text = str(choice.get("text", "???"))
+		var btn := GameUISkinScript.make_button(str(choice.get("text", "???")))
 		btn.focus_mode = Control.FOCUS_NONE
 		var idx := i
 		btn.pressed.connect(func() -> void: _runner.select_choice(idx))

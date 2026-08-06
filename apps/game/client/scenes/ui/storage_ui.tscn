@@ -37,6 +37,7 @@ theme_override_constants/margin_bottom = 12
 layout_mode = 2
 
 [node name="Title" type="Label" parent="Panel/Margin/VBox"]
+theme_type_variation = "MenuTitle"
 layout_mode = 2
 text = "Storage"
 horizontal_alignment = 1
@@ -49,6 +50,7 @@ layout_mode = 2
 size_flags_horizontal = 3
 
 [node name="InvLabel" type="Label" parent="Panel/Margin/VBox/Columns/InventoryColumn"]
+theme_type_variation = "BodyText"
 layout_mode = 2
 text = "Inventory"
 
@@ -62,6 +64,7 @@ layout_mode = 2
 size_flags_horizontal = 3
 
 [node name="StorageLabel" type="Label" parent="Panel/Margin/VBox/Columns/StorageColumn"]
+theme_type_variation = "BodyText"
 layout_mode = 2
 text = "Storage"
 
@@ -71,6 +74,7 @@ layout_mode = 2
 size_flags_horizontal = 3
 
 [node name="DetailLabel" type="Label" parent="Panel/Margin/VBox"]
+theme_type_variation = "BodyText"
 layout_mode = 2
 text = "Move items between inventory and storage"
 

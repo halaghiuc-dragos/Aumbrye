@@ -1,4 +1,4 @@
-# procgen seed health tool
+﻿# procgen seed health tool
 
 Headless procgen health reporter that sweeps seed ranges across all ten EA biomes, writes `procgen-seed-health.v1` JSON, prints a summary table, and exits non-zero when fallback or generation-error thresholds are exceeded. Replaces the deleted `find_graph_seed.gd` single-attempt diagnostic.
 
@@ -32,7 +32,7 @@ User arguments are read from `OS.get_cmdline_user_args()` (`procgen_seed_health.
 
 | Argument | Default | Meaning |
 |----------|---------|---------|
-| `--seed <int>` | — | single-seed mode: print metrics + optional ASCII |
+| `--seed <int>` | â€” | single-seed mode: print metrics + optional ASCII |
 | `--from <int>` | `1` | sweep start, inclusive |
 | `--count <int>` | `1000` | seeds per biome |
 | `--biome <id>` | all 10 ids in `BIOME_IDS` | comma-separated biome filter |
@@ -59,7 +59,7 @@ Stdout prints a fixed-width table via `print_summary_table()` (`:218-238`). JSON
 
 | Code | Condition |
 |------|-----------|
-| `0` | every biome `fallbackRate` ≤ `--max-fallback-rate` |
+| `0` | every biome `fallbackRate` â‰¤ `--max-fallback-rate` |
 | `1` | any biome exceeds the threshold |
 | `2` | biome JSON load failure or `generate_reported().ok == false` |
 
@@ -69,7 +69,7 @@ Stdout prints a fixed-width table via `print_summary_table()` (`:218-238`). JSON
 
 ### Headless biome loading
 
-The tool reads biome JSON directly via `_fetch_biome()` (`:468-478`) using `_content_root()` — no `ContentLoader` autoload required, matching the `export_diorama_anim_libraries.gd` pattern.
+The tool reads biome JSON directly via `_fetch_biome()` (`:468-478`) using `_content_root()` â€” no `ContentLoader` autoload required, matching the `export_diorama_anim_libraries.gd` pattern.
 
 ## Contracts
 
@@ -95,11 +95,11 @@ The tool reads biome JSON directly via `_fetch_biome()` (`:468-478`) using `_con
 
 ## Related
 
-- Improvement plan: [`../actual_improvements/find-graph-seed.md`](../actual_improvements/find-graph-seed.md)
-- [`room-graph-procgen.md`](room-graph-procgen.md) — generator, validation rules, retry loop
-- [`local-procgen.md`](local-procgen.md) — seed derivation the tool bypasses
-- [`biome-registry.md`](biome-registry.md) — biome ids (tool uses hardcoded `BIOME_IDS` for headless independence)
-- [`tools-scripts.md`](tools-scripts.md), [`export-tools.md`](export-tools.md) — tool inventory
+- Improvement plan: [`../actual_improvements/find-graph-seed.md`](../actual_improvements/find-graph-seed.md) - **FINISHED**
+- [`room-graph-procgen.md`](room-graph-procgen.md) â€” generator, validation rules, retry loop
+- [`local-procgen.md`](local-procgen.md) â€” seed derivation the tool bypasses
+- [`biome-registry.md`](biome-registry.md) â€” biome ids (tool uses hardcoded `BIOME_IDS` for headless independence)
+- [`tools-scripts.md`](tools-scripts.md), [`export-tools.md`](export-tools.md) â€” tool inventory
 - [`validation-harness.md`](validation-harness.md), [`validation-suites.md`](validation-suites.md)
-- [`ci-cd.md`](ci-cd.md) — CI wiring
-- [`repository-root.md`](repository-root.md) — root artifact policy
+- [`ci-cd.md`](ci-cd.md) â€” CI wiring
+- [`repository-root.md`](repository-root.md) â€” root artifact policy

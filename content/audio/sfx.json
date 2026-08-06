@@ -152,6 +152,114 @@
       "max_concurrent": 4,
       "cooldown_ms": 0,
       "fallback_tone": { "freq": 88.0, "duration": 0.5 }
+    },
+    "portal_hum_castle": {
+      "bus": "SFX",
+      "variants": ["res://assets/audio/sfx/fountain_loop.ogg"],
+      "volume_db": -14.0,
+      "pitch_jitter": 0.02,
+      "max_concurrent": 8,
+      "cooldown_ms": 0,
+      "fallback_tone": { "freq": 72.0, "duration": 0.6 }
+    },
+    "portal_hum_crystal": {
+      "bus": "SFX",
+      "variants": ["res://assets/audio/sfx/fountain_loop.ogg"],
+      "volume_db": -14.0,
+      "pitch_jitter": 0.02,
+      "max_concurrent": 8,
+      "cooldown_ms": 0,
+      "fallback_tone": { "freq": 96.0, "duration": 0.6 }
+    },
+    "portal_hum_swamp": {
+      "bus": "SFX",
+      "variants": ["res://assets/audio/sfx/fountain_loop.ogg"],
+      "volume_db": -14.0,
+      "pitch_jitter": 0.02,
+      "max_concurrent": 8,
+      "cooldown_ms": 0,
+      "fallback_tone": { "freq": 64.0, "duration": 0.6 }
+    },
+    "portal_hum_frozen": {
+      "bus": "SFX",
+      "variants": ["res://assets/audio/sfx/fountain_loop.ogg"],
+      "volume_db": -14.0,
+      "pitch_jitter": 0.02,
+      "max_concurrent": 8,
+      "cooldown_ms": 0,
+      "fallback_tone": { "freq": 80.0, "duration": 0.6 }
+    },
+    "portal_hum_cathedral": {
+      "bus": "SFX",
+      "variants": ["res://assets/audio/sfx/fountain_loop.ogg"],
+      "volume_db": -14.0,
+      "pitch_jitter": 0.02,
+      "max_concurrent": 8,
+      "cooldown_ms": 0,
+      "fallback_tone": { "freq": 68.0, "duration": 0.6 }
+    },
+    "portal_hum_vault": {
+      "bus": "SFX",
+      "variants": ["res://assets/audio/sfx/fountain_loop.ogg"],
+      "volume_db": -14.0,
+      "pitch_jitter": 0.02,
+      "max_concurrent": 8,
+      "cooldown_ms": 0,
+      "fallback_tone": { "freq": 58.0, "duration": 0.6 }
+    },
+    "portal_hum_prism": {
+      "bus": "SFX",
+      "variants": ["res://assets/audio/sfx/fountain_loop.ogg"],
+      "volume_db": -14.0,
+      "pitch_jitter": 0.02,
+      "max_concurrent": 8,
+      "cooldown_ms": 0,
+      "fallback_tone": { "freq": 92.0, "duration": 0.6 }
+    },
+    "portal_hum_mire": {
+      "bus": "SFX",
+      "variants": ["res://assets/audio/sfx/fountain_loop.ogg"],
+      "volume_db": -14.0,
+      "pitch_jitter": 0.02,
+      "max_concurrent": 8,
+      "cooldown_ms": 0,
+      "fallback_tone": { "freq": 64.0, "duration": 0.6 }
+    },
+    "portal_hum_hollow": {
+      "bus": "SFX",
+      "variants": ["res://assets/audio/sfx/fountain_loop.ogg"],
+      "volume_db": -14.0,
+      "pitch_jitter": 0.02,
+      "max_concurrent": 8,
+      "cooldown_ms": 0,
+      "fallback_tone": { "freq": 84.0, "duration": 0.6 }
+    },
+    "portal_hum_umbral": {
+      "bus": "SFX",
+      "variants": ["res://assets/audio/sfx/fountain_loop.ogg"],
+      "volume_db": -14.0,
+      "pitch_jitter": 0.02,
+      "max_concurrent": 8,
+      "cooldown_ms": 0,
+      "fallback_tone": { "freq": 60.0, "duration": 0.6 }
+    },
+    "portal_hum_training": {
+      "bus": "SFX",
+      "variants": ["res://assets/audio/sfx/fountain_loop.ogg"],
+      "volume_db": -14.0,
+      "pitch_jitter": 0.02,
+      "max_concurrent": 8,
+      "cooldown_ms": 0,
+      "fallback_tone": { "freq": 76.0, "duration": 0.6 }
+    },
+    "portal_hum_skies": {
+      "bus": "SFX",
+      "variants": ["res://assets/audio/sfx/fountain_loop.ogg"],
+      "volume_db": -14.0,
+      "pitch_jitter": 0.02,
+      "max_concurrent": 8,
+      "cooldown_ms": 0,
+      "fallback_tone": { "freq": 70.0, "duration": 0.6 }
     }
   }
 }

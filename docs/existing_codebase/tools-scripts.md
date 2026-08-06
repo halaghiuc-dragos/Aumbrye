@@ -1,6 +1,6 @@
-# Tools and scripts
+﻿# Tools and scripts
 
-Everything under `tools/` and `scripts/`, plus the three root-level tool configs (`pyproject.toml`, `.gdlintrc`, `.pre-commit-config.yaml`). These are development-time generators, validators, and runners. None ship with the game; one of them, `procgen-cli`, is a runtime fallback the client shells out to.
+Everything under `tools/` and `scripts/`, plus the three root-level tool configs (`pyproject.toml`, `.gdlintrc`, `.pre-commit-config.yaml`). These are development-time generators, validators, and runners. None ship with the game; `procgen-cli` is a runtime fallback the client shells out to.
 
 ## Files
 
@@ -21,7 +21,7 @@ Everything under `tools/` and `scripts/`, plus the three root-level tool configs
 
 | Path | Lines | Role |
 |------|-------|------|
-| `scripts/validate.mjs` | 250+ | Cross-platform four-layer runner (dotnet, content, python, godot) |
+| `scripts/validate.mjs` | 280+ | Cross-platform four-layer runner (dotnet, content, python, godot); balance export before godot |
 | `scripts/validate.ps1` | 4 | Thin PowerShell wrapper around `validate.mjs` |
 | `scripts/validate.sh` | 4 | Thin bash wrapper around `validate.mjs` |
 | `scripts/validate-content/validate.mjs` | 490+ | Ajv-based JSON Schema validation plus catalog and authorship rules |
@@ -34,7 +34,7 @@ Everything under `tools/` and `scripts/`, plus the three root-level tool configs
 
 | Path | Role |
 |------|------|
-| `package.json` | Root `npm run validate` / `validate:strict` delegating to `validate.mjs` |
+| `package.json` | Root `npm run validate` / `validate:strict` delegating to `validate-content` |
 | `pyproject.toml` | Ruff: `target-version = py311`, `line-length = 120`, `src = ["tools"]` |
 | `.gdlintrc` | `max-line-length: 120`; `gdformat.line_length: 120` |
 | `.pre-commit-config.yaml` | Four hooks: content validation, ruff, gdformat, eslint |
@@ -62,7 +62,7 @@ Four layers with `--layer <name>` (repeatable):
 | `dotnet` | `dotnet build tools/procgen-cli/ProcgenCli.csproj` then `dotnet test services/backend/Aumbrye.sln` | non-zero exit |
 | `content` | `node scripts/validate-content/validate.mjs --strict-content` | non-zero exit |
 | `python` | `ruff check tools/` | non-zero exit |
-| `godot` | `<godot> --path apps/game/client --headless --script res://scripts/validation/validation_main.gd` | non-zero exit or `failed > 0` |
+| `godot` | balance export then `<godot> --path apps/game/client --headless --script res://scripts/validation/validation_main.gd` | non-zero exit or `failed > 0` |
 
 Godot binary resolution: `--godot`, `GODOT_BIN`, `godot` on PATH, then platform defaults. Report path: `%APPDATA%/Godot/app_userdata/Aumbrye/mcp_validation.json` (Windows), `~/.local/share/godot/app_userdata/Aumbrye/` (Linux), `~/Library/Application Support/Godot/app_userdata/Aumbrye/` (macOS).
 
@@ -70,7 +70,7 @@ Writes `reports/validation-summary.json` with `schemaVersion: 1`.
 
 ### `scripts/balance/balance-cli.mjs`
 
-Reads `content/` enemies, biomes, items, weapons, and `progression/xp_curve.json`. Emits `reports/balance_export.json` conforming to `content/schemas/balance-export.v1.json`. `--summary` prints per-rarity stat-total medians and outliers; `--fail-on-outliers <ratio>` exits non-zero when any item exceeds the threshold.
+Reads `content/` enemies, biomes, items, weapons, and `progression/xp_curve.json`. Emits `reports/balance_export.json` conforming to `content/schemas/balance-export.v1.json`. `--summary` prints per-rarity stat-total medians and outliers; `--fail-on-outliers <ratio>` exits non-zero when any item exceeds the threshold. CI godot job and `validate.mjs` godot layer run this before headless suites.
 
 ### Python generators
 
@@ -94,18 +94,29 @@ Both `generate_expansion_biomes.py` and `generate_pixel_diorama_materials.py` ac
 | Content schema validation | IMPLEMENTED | `scripts/validate-content/validate.mjs` |
 | Cross-platform validation runner | IMPLEMENTED | `scripts/validate.mjs` |
 | Godot binary resolver | IMPLEMENTED | `scripts/godot-bin.ps1`; documented in `docs/MCP_AGENT_GUIDE.md` |
-| `generate-m6-items.ps1` output | PLACEHOLDER (intentional scaffolding) | `authored: false`, empty description — fails validation until authored |
-| Strict content in CI | IMPLEMENTED | `.github/workflows/ci.yml` `npm run validate:strict` |
-| `balance-cli.mjs` | IMPLEMENTED | Stat totals, DPS, progression, outliers |
-| Unmapped content | IMPLEMENTED | Hard failure with prefix list |
-| `itemType` folder mismatch | IMPLEMENTED | Failure, not warning |
-| Pre-commit (ruff/gdformat/eslint/content) | IMPLEMENTED | `.pre-commit-config.yaml` |
-| Python generator idempotency | IMPLEMENTED | `tools/generated_manifest.py`, `--force` |
-| gdlint/gdformat line length | IMPLEMENTED | Both 120 columns |
+| Twin FINISHED marker sync | IMPLEMENTED | `scripts/check-twin-finished.ps1`, `scripts/sync-twin-finished.ps1` |
+| `generate-m6-items.ps1` output | PLACEHOLDER (intentional scaffolding) | `authored: false`, empty description — fails validation until authored (`TLS-01`) |
+| Strict content in CI | IMPLEMENTED | `.github/workflows/ci.yml` `npm run validate:strict` (`TLS-02`) |
+| `balance-cli.mjs` | IMPLEMENTED | Stat totals, DPS, progression, outliers; CI pre-validation export (`TLS-05`) |
+| Unmapped content | IMPLEMENTED | Hard failure with prefix list (`TLS-03`) |
+| `itemType` folder mismatch | IMPLEMENTED | Failure, not warning (`TLS-07`) |
+| Pre-commit (ruff/gdformat/eslint/content) | IMPLEMENTED | `.pre-commit-config.yaml` (`TLS-09`) |
+| Python generator idempotency | IMPLEMENTED | `tools/generated_manifest.py`, `--force` (`TLS-10`) |
+| gdlint/gdformat line length | IMPLEMENTED | Both 120 columns (`TLS-11`) |
+| Unified Godot validation entry | IMPLEMENTED | `validation_main.gd` only (`TLS-06`) |
+| Ruff in local validation | IMPLEMENTED | `python` layer in `validate.mjs` (`TLS-08`) |
+
+## Validation
+
+| Suite / test | Asserts | Gap |
+|--------------|---------|-----|
+| `content_suite.gd` → `content.no_unauthored_items` | Catalog items are authored with non-empty descriptions | TLS-01 |
+| `m6_suite.gd` → `m6.balance.export_schema` | `reports/balance_export.json` matches `balance-export.v1.json` shape | TLS-05 |
+| `ProcgenCliTests.cs` | `--floor`, `--final-floor`, unknown-argument, and non-integer seed rejection | procgen-cli |
 
 ## Related
 
-- Improvement plan: [`../actual_improvements/tools-scripts.md`](../actual_improvements/tools-scripts.md)
+- Improvement plan: [`../actual_improvements/tools-scripts.md`](../actual_improvements/tools-scripts.md) — **FINISHED**
 - [`ci-cd.md`](ci-cd.md)
 - [`packages.md`](packages.md)
 - [`validation-harness.md`](validation-harness.md)

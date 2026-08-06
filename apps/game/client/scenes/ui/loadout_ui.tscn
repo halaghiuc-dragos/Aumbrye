@@ -48,16 +48,17 @@ layout_mode = 2
 theme_override_constants/separation = 8
 
 [node name="Title" type="Label" parent="Panel/Margin/VBox"]
+theme_type_variation = "MenuTitle"
 layout_mode = 2
 text = "Weapon Loadout"
 horizontal_alignment = 1
-theme_override_font_sizes/font_size = 22
 
 [node name="WeaponList" type="ItemList" parent="Panel/Margin/VBox"]
 custom_minimum_size = Vector2(0, 180)
 layout_mode = 2
 
 [node name="InfoLabel" type="Label" parent="Panel/Margin/VBox"]
+theme_type_variation = "BodyText"
 layout_mode = 2
 autowrap_mode = 2
 

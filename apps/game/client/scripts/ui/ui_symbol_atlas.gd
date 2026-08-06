@@ -3,23 +3,29 @@ class_name UISymbolAtlas
 
 ## Data-driven atlas loader for authored UI symbol textures.
 
+var _manifest_path: String = ""
 var _manifest: Dictionary = {}
 var _source: Texture2D
 var _cell_cache: Dictionary = {}
 var _cell_size: int = 16
+var _columns: int = 1
+var _rows: int = 1
 var _unknown: Vector2i = Vector2i.ZERO
 
 
-static func load_manifest(manifest_path: String) -> UISymbolAtlas:
+static func load_manifest(manifest_path: String, texture_override: String = "") -> UISymbolAtlas:
 	var atlas := UISymbolAtlas.new()
-	atlas._load(manifest_path)
+	atlas._load(manifest_path, texture_override)
 	return atlas
 
 
-func _load(manifest_path: String) -> void:
+func _load(manifest_path: String, texture_override: String = "") -> void:
+	_manifest_path = manifest_path
 	_manifest = ContentLoader.load_json(manifest_path)
 	_cell_size = int(_manifest.get("cellSize", 16))
-	var texture_path: String = str(_manifest.get("texture", ""))
+	_columns = int(_manifest.get("columns", 1))
+	_rows = int(_manifest.get("rows", 1))
+	var texture_path: String = texture_override if texture_override != "" else str(_manifest.get("texture", ""))
 	if texture_path.is_empty():
 		push_warning("UISymbolAtlas: manifest '%s' has no texture path" % manifest_path)
 		return
@@ -49,8 +55,24 @@ func cell_size() -> int:
 	return _cell_size
 
 
+func columns() -> int:
+	return _columns
+
+
+func rows() -> int:
+	return _rows
+
+
+func manifest_path() -> String:
+	return _manifest_path
+
+
 func source_texture() -> Texture2D:
 	return _source
+
+
+func unknown_region() -> Rect2:
+	return _rect_from_cell(_unknown.x, _unknown.y)
 
 
 func cell(key: String) -> AtlasTexture:
@@ -74,7 +96,9 @@ func _region_for_key(key: String) -> Rect2:
 		var entry: Dictionary = (cells as Dictionary)[key]
 		return _rect_from_cell(int(entry.get("col", 0)), int(entry.get("row", 0)))
 	if key != "unknown":
-		push_warning("ui symbol atlas has no cell for key '%s'" % key)
+		push_warning(
+			"ui symbol atlas '%s' has no cell for key '%s'" % [_manifest_path, key]
+		)
 	return _rect_from_cell(_unknown.x, _unknown.y)
 
 

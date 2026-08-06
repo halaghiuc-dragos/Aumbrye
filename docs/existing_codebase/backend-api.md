@@ -1,4 +1,4 @@
-# Backend API
+﻿# Backend API
 
 ASP.NET Core 8 Minimal API in `services/backend/`, four projects (`Api`, `Application`, `Domain`, `Infrastructure`) plus two test projects. Seventeen routes under `/api/v1`, JWT bearer auth with rotating refresh tokens and family revocation, EF Core migrations over Postgres (SQLite in-memory for tests), Redis for dungeon cache and leaderboards with in-process fallbacks. The Godot client never requires the API: everything the API does is also done locally (see [`local-save.md`](local-save.md) and [`local-procgen.md`](local-procgen.md)).
 
@@ -25,7 +25,7 @@ ASP.NET Core 8 Minimal API in `services/backend/`, four projects (`Api`, `Applic
 
 ## How it works
 
-### Startup — `Program.cs`
+### Startup â€” `Program.cs`
 
 1. `useInMemory` when `UseInMemoryStores` or environment `Testing` (`Program.cs`).
 2. `JwtSigningKey.FromConfiguration` throws when `Jwt:Secret` is missing or under 32 decoded bytes outside in-memory mode (`JwtSigningKey.cs`).
@@ -83,6 +83,6 @@ Run: `dotnet test services/backend/Aumbrye.sln`
 
 ## Related
 
-- Improvement plan: [`../actual_improvements/backend-api.md`](../actual_improvements/backend-api.md)
-- [`packages.md`](packages.md) — shared DTOs and OpenAPI spec
-- [`networking.md`](networking.md) — Godot client contract
+- Improvement plan: [`../actual_improvements/backend-api.md`](../actual_improvements/backend-api.md) - **FINISHED**
+- [`packages.md`](packages.md) â€” shared DTOs and OpenAPI spec
+- [`networking.md`](networking.md) â€” Godot client contract

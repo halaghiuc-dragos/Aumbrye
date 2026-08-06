@@ -269,8 +269,8 @@ func _test_file_stream_survives_mode_change() -> void:
 	var start := Time.get_ticks_msec()
 	AudioDirector.set_biome(BiomeRegistry.BIOME_CASTLE)
 	AudioDirector.play_dungeon_ambience()
-	var stream_after := _get_ambience_stream()
-	var ok := stream_after is AudioStream and not stream_after is AudioStreamGenerator
+	var stream_after: Variant = _get_ambience_stream()
+	var ok: bool = stream_after is AudioStream and not stream_after is AudioStreamGenerator
 	ctx.timed_record(
 		"audio.file_stream_survives_mode_change",
 		get_category(),
@@ -285,8 +285,8 @@ func _test_generator_fallback_installs() -> void:
 	var start := Time.get_ticks_msec()
 	_clear_ambience_stream()
 	AudioDirector.play_dungeon_ambience()
-	var stream := _get_ambience_stream()
-	var ok := stream is AudioStreamGenerator
+	var stream: Variant = _get_ambience_stream()
+	var ok: bool = stream is AudioStreamGenerator
 	ctx.timed_record(
 		"audio.generator_fallback_installs",
 		get_category(),
@@ -407,7 +407,7 @@ func _test_volume_roundtrip() -> void:
 	var idx := AudioServer.get_bus_index("SFX")
 	var db := AudioServer.get_bus_volume_db(idx) if idx >= 0 else 0.0
 	var expected := linear_to_db(0.5)
-	var ok := is_equal_approx(db, expected, 0.01)
+	var ok: bool = absf(db - expected) < 0.01
 	AudioSettings.sfx_volume = original
 	AudioSettings.save()
 	ctx.timed_record(
@@ -460,7 +460,7 @@ func _test_emitter_frees_with_host() -> void:
 	var start := Time.get_ticks_msec()
 	var host := Node3D.new()
 	ctx.owner.add_child(host)
-	var emitter := AudioDirector.attach_loop_emitter(host, "brazier", 6.0)
+	var emitter: Node = AudioDirector.attach_loop_emitter(host, "brazier", 6.0)
 	var emitter_valid := emitter != null
 	host.queue_free()
 	await ctx.owner.get_tree().process_frame

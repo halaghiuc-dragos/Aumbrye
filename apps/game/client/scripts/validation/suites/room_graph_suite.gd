@@ -8,6 +8,7 @@ const RoomGraphAssignerScript := preload("res://scripts/dungeon/procgen/room_gra
 const RoomGraphGeometryScript := preload("res://scripts/dungeon/procgen/room_graph_geometry.gd")
 const RoomTemplateCatalogScript := preload("res://scripts/dungeon/procgen/room_template_catalog.gd")
 const DungeonProcgenScript := preload("res://scripts/dungeon/procgen/dungeon_procgen.gd")
+const MinimapScript := preload("res://scripts/ui/minimap.gd")
 const BIOME_IDS := [
 	"forgotten_castle",
 	"crystal_caverns",
@@ -42,6 +43,17 @@ func run() -> void:
 	_test_room_bounds_do_not_overlap()
 	_test_full_pipeline()
 	_test_shortcut_edge_emission()
+	_test_map_edge_fog()
+	_test_map_neighbour_promotion()
+	_test_map_player_marker_bound()
+	_test_map_uniform_scale()
+	_test_map_integral_coords()
+	_test_map_bounds_no_origin_bias()
+	_test_map_has_graph_false_when_unconfigured()
+	_test_map_icon_cells_present()
+	_test_map_kind_fallback()
+	_test_map_center_cache()
+	_test_map_action_registered()
 
 
 func _test_phase1_deterministic() -> void:
@@ -486,3 +498,240 @@ static func _room_aabbs_overlap(a: Dictionary, b: Dictionary) -> bool:
 	var dx := absf(float(ta.get("x", 0.0)) - float(tb.get("x", 0.0)))
 	var dz := absf(float(ta.get("z", 0.0)) - float(tb.get("z", 0.0)))
 	return dx < (half_ax + half_bx - 0.01) and dz < (half_az + half_bz - 0.01)
+
+
+func _chain_definition() -> Dictionary:
+	return {
+		"rooms":
+		[
+			{"id": "r1", "transform": {"x": 0.0, "z": 0.0}},
+			{"id": "r2", "transform": {"x": 20.0, "z": 0.0}},
+			{"id": "r3", "transform": {"x": 40.0, "z": 0.0}},
+			{"id": "r4", "transform": {"x": 60.0, "z": 0.0}},
+			{"id": "r5", "transform": {"x": 80.0, "z": 0.0}},
+		],
+		"edges":
+		[
+			{"from": "r1", "to": "r2"},
+			{"from": "r2", "to": "r3"},
+			{"from": "r3", "to": "r4"},
+			{"from": "r4", "to": "r5"},
+		],
+		"branchPreviews": [],
+	}
+
+
+func _spawn_minimap() -> Control:
+	var minimap: Control = MinimapScript.new()
+	ctx.owner.add_child(minimap)
+	return minimap
+
+
+func _test_map_edge_fog() -> void:
+	var start := Time.get_ticks_msec()
+	var minimap := _spawn_minimap()
+	minimap.configure(_chain_definition())
+	minimap.mark_visited("r1")
+	var ok: bool = minimap.count_drawn_edges_for_test() == 1
+	ctx.timed_record(
+		"map.edge_fog",
+		get_category(),
+		ok,
+		"Only the edge to the SEEN neighbour is drawn after visiting r1",
+		start,
+		"MAP-01"
+	)
+
+
+func _test_map_neighbour_promotion() -> void:
+	var start := Time.get_ticks_msec()
+	var minimap := _spawn_minimap()
+	minimap.configure(_chain_definition())
+	minimap.mark_visited("r1")
+	var ok: bool = (
+		minimap.get_reveal_tier("r2") == MinimapScript.RevealTier.SEEN
+		and minimap.get_reveal_tier("r3") == MinimapScript.RevealTier.UNKNOWN
+	)
+	ctx.timed_record(
+		"map.neighbour_promotion",
+		get_category(),
+		ok,
+		"mark_visited promotes graph neighbours to SEEN only",
+		start,
+		"MAP-01"
+	)
+
+
+func _test_map_player_marker_bound() -> void:
+	var start := Time.get_ticks_msec()
+	var minimap := _spawn_minimap()
+	minimap.configure(_chain_definition())
+	var player := Node3D.new()
+	ctx.owner.add_child(player)
+	player.position = Vector3(0.0, 0.0, 0.0)
+	minimap.bind_player(player)
+	var before: Vector2 = minimap.get_player_map_point()
+	player.position = Vector3(5.0, 0.0, 0.0)
+	var after: Vector2 = minimap.get_player_map_point()
+	var ok: bool = before != after
+	ctx.timed_record(
+		"map.player_marker_bound",
+		get_category(),
+		ok,
+		"Player movement changes projected map point",
+		start,
+		"MAP-02"
+	)
+
+
+func _test_map_uniform_scale() -> void:
+	var start := Time.get_ticks_msec()
+	var minimap := _spawn_minimap()
+	minimap.configure(
+		{
+			"rooms":
+			[
+				{"id": "a", "transform": {"x": 0.0, "z": 0.0}},
+				{"id": "b", "transform": {"x": 60.0, "z": 0.0}},
+				{"id": "c", "transform": {"x": 0.0, "z": 20.0}},
+			],
+			"edges": [],
+			"branchPreviews": [],
+		}
+	)
+	var map_rect := Rect2(0.0, 0.0, 120.0, 120.0)
+	var origin := minimap.map_point_for_test(Vector2.ZERO, map_rect)
+	var along_x := minimap.map_point_for_test(Vector2(1.0, 0.0), map_rect)
+	var along_z := minimap.map_point_for_test(Vector2(0.0, 1.0), map_rect)
+	var dx := (along_x - origin).length()
+	var dz := (along_z - origin).length()
+	var ok := is_equal_approx(dx, dz)
+	ctx.timed_record(
+		"map.uniform_scale",
+		get_category(),
+		ok,
+		"Uniform projection keeps equal metres-per-pixel on both axes",
+		start,
+		"MAP-06"
+	)
+
+
+func _test_map_integral_coords() -> void:
+	var start := Time.get_ticks_msec()
+	var minimap := _spawn_minimap()
+	minimap.configure(_chain_definition())
+	var map_rect := Rect2(6.0, 6.0, 128.0, 128.0)
+	var ok := true
+	for room in _chain_definition()["rooms"]:
+		var t: Dictionary = room.get("transform", {})
+		var p := minimap.map_point_for_test(Vector2(float(t.get("x", 0.0)), float(t.get("z", 0.0))), map_rect)
+		if not is_equal_approx(p.x, floor(p.x)) or not is_equal_approx(p.y, floor(p.y)):
+			ok = false
+			break
+	ctx.timed_record(
+		"map.integral_coords",
+		get_category(),
+		ok,
+		"_map_point returns integral coordinates",
+		start,
+		"MAP-07"
+	)
+
+
+func _test_map_bounds_no_origin_bias() -> void:
+	var start := Time.get_ticks_msec()
+	var minimap := _spawn_minimap()
+	minimap.configure(
+		{
+			"rooms":
+			[
+				{"id": "a", "transform": {"x": 100.0, "z": 0.0}},
+				{"id": "b", "transform": {"x": 160.0, "z": 0.0}},
+			],
+			"edges": [],
+			"branchPreviews": [],
+		}
+	)
+	var bounds: Rect2 = minimap.get_bounds_for_test()
+	var ok := is_equal_approx(bounds.position.x, 100.0)
+	ctx.timed_record(
+		"map.bounds_no_origin_bias",
+		get_category(),
+		ok,
+		"Bounds seed from first room without forcing world origin",
+		start,
+		"MAP-08"
+	)
+
+
+func _test_map_has_graph_false_when_unconfigured() -> void:
+	var start := Time.get_ticks_msec()
+	var minimap := _spawn_minimap()
+	var ok := not minimap.has_graph()
+	ctx.timed_record(
+		"map.has_graph_false_when_unconfigured",
+		get_category(),
+		ok,
+		"Fresh minimap reports has_graph() == false",
+		start,
+		"MAP-05"
+	)
+
+
+func _test_map_icon_cells_present() -> void:
+	var start := Time.get_ticks_msec()
+	var tex := load("res://assets/ui/minimap_icons.png") as Texture2D
+	var ok := tex != null and tex.get_size() == Vector2i(32, 16)
+	ctx.timed_record(
+		"map.icon_cells_present",
+		get_category(),
+		ok,
+		"minimap_icons.png loads at 32x16",
+		start,
+		"MAP-04"
+	)
+
+
+func _test_map_kind_fallback() -> void:
+	var start := Time.get_ticks_msec()
+	var minimap := _spawn_minimap()
+	var cell: Vector2i = minimap.icon_cell_for_kind("")
+	var ok := cell == Vector2i(3, 1)
+	ctx.timed_record(
+		"map.kind_fallback",
+		get_category(),
+		ok,
+		"Missing kind resolves to unknown icon cell",
+		start,
+		"MAP-04"
+	)
+
+
+func _test_map_center_cache() -> void:
+	var start := Time.get_ticks_msec()
+	var source := FileAccess.get_file_as_string("res://scripts/ui/minimap.gd")
+	var fn_start := source.find("func _room_center")
+	var fn_end := source.find("func _uniform_scale", fn_start)
+	var body := source.substr(fn_start, fn_end - fn_start) if fn_end > fn_start else ""
+	var ok := fn_start >= 0 and not body.contains("for room_def in _rooms")
+	ctx.timed_record(
+		"map.center_cache",
+		get_category(),
+		ok,
+		"_room_center uses dictionary lookup, not array scan",
+		start,
+		"MAP-10"
+	)
+
+
+func _test_map_action_registered() -> void:
+	var start := Time.get_ticks_msec()
+	var ok := InputMap.has_action("map")
+	ctx.timed_record(
+		"map.action_registered",
+		get_category(),
+		ok,
+		"map input action is registered in project.godot",
+		start,
+		"MAP-09"
+	)

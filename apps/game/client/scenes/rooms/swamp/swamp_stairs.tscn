@@ -1,11 +1,8 @@
-[gd_scene load_steps=8 format=3 uid="uid://swamp_stairs"]
+[gd_scene load_steps=5 format=3 uid="uid://swamp_stairs"]
 
 [ext_resource type="Script" path="res://scripts/dungeon/castle/castle_room_scene.gd" id="1_room"]
 [ext_resource type="Script" path="res://scripts/dungeon/castle/castle_blockout.gd" id="2_blockout"]
 [ext_resource type="Script" path="res://scripts/dungeon/doorway_socket.gd" id="3_socket"]
-[ext_resource type="Material" path="res://assets/swamp/mat_floor.tres" id="4_floor"]
-[ext_resource type="Material" path="res://assets/swamp/mat_wall.tres" id="5_wall"]
-[ext_resource type="Material" path="res://assets/swamp/mat_accent.tres" id="6_accent"]
 
 [sub_resource type="BoxMesh" id="BoxMesh_ramp"]
 size = Vector3(4, 0.4, 12)
@@ -21,9 +18,6 @@ room_width = 8.0
 room_depth = 16.0
 door_north = true
 door_south = true
-floor_material = ExtResource("4_floor")
-wall_material = ExtResource("5_wall")
-accent_material = ExtResource("6_accent")
 
 [node name="DoorwaySockets" type="Node3D" parent="."]
 
@@ -48,5 +42,4 @@ transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -3.45, 0, -2)
 
 [node name="StairRamp" type="MeshInstance3D" parent="Props"]
 transform = Transform3D(1, 0, 0, 0, 0.906308, 0.422618, 0, -0.422618, 0.906308, 0, 1.2, 0)
-material_override = ExtResource("6_accent")
 mesh = SubResource("BoxMesh_ramp")

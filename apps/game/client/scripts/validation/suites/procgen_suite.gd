@@ -23,6 +23,7 @@ func run() -> void:
 	_test_no_silent_cli_fallback()
 	_test_validator_rejects_broken_definitions()
 	_test_rolled_seed_replay()
+	_test_determinism_seed_sweep()
 	await _test_dungeon_builder_empty_rejection()
 
 
@@ -571,4 +572,42 @@ func _test_rolled_seed_replay() -> void:
 		"replaying rolled input_seed reproduces layout signature",
 		start,
 		"LPG.procgen.rolled_replay"
+	)
+
+
+func _sweep_seeds() -> Array[int]:
+	const DETERMINISM_SEEDS := [1, 2, 42001, 99999, 2147483647]
+	const SWEEP_COUNT := 25
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 20260805
+	var out: Array[int] = []
+	out.append_array(DETERMINISM_SEEDS)
+	for _i in SWEEP_COUNT:
+		out.append(rng.randi_range(1, 2147483647))
+	return out
+
+
+func _test_determinism_seed_sweep() -> void:
+	var start := Time.get_ticks_msec()
+	var seeds := _sweep_seeds()
+	var ok := seeds.size() >= 30
+	if ok:
+		for test_seed in seeds:
+			var first := LocalProcgen.generate("forgotten_castle", test_seed)
+			var second := LocalProcgen.generate("forgotten_castle", test_seed)
+			if not first.get("ok", false) or not second.get("ok", false):
+				ok = false
+				break
+			var sig_a: String = ctx.layout_signature(first.get("definition", {}))
+			var sig_b: String = ctx.layout_signature(second.get("definition", {}))
+			if sig_a != sig_b or sig_a.is_empty():
+				ok = false
+				break
+	ctx.timed_record(
+		"procgen.determinism_seed_sweep",
+		get_category(),
+		ok,
+		"%d seeds produce identical layout signatures on repeat" % seeds.size(),
+		start,
+		"VSU-08"
 	)

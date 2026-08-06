@@ -2,6 +2,7 @@ extends Node
 
 const MaterialDissolveScript := preload("res://scripts/art/characters/material_dissolve.gd")
 const MaterialFlashScript := preload("res://scripts/art/characters/material_flash.gd")
+const DioramaViewmodelScript := preload("res://scripts/art/characters/diorama_viewmodel.gd")
 const DodgeScript := preload("res://scripts/player/dodge.gd")
 
 const LOCK_SOURCES := [
@@ -152,8 +153,12 @@ func reset_combat_state() -> void:
 	var visual := _get_diorama_visual()
 	if visual:
 		visual.visible = true
-		MaterialDissolveScript.restore(visual)
+		MaterialDissolveScript.reset_death_visual(visual)
 		MaterialFlashScript.restore_all(visual)
+	var viewmodel := _get_viewmodel_root()
+	if viewmodel:
+		MaterialDissolveScript.reset_death_visual(viewmodel)
+		MaterialFlashScript.restore_all(viewmodel)
 	var director := _body.get_node_or_null("AnimDirector")
 	if director and director.has_method("revive"):
 		director.call("revive")
@@ -233,10 +238,20 @@ func _run_death_sequence() -> void:
 		director.call("play_death")
 	Engine.time_scale = DEATH_SLOW_SCALE
 	AudioDirector.play_sfx("death", _body.global_position)
-	VfxService.play_death(_body.global_position, Color(0.72, 0.28, 0.22))
+	var opts := MaterialDissolveScript.death_opts_for_profile("player")
+	opts["vfx_position"] = _body.global_position
+	opts["vfx_tint"] = Color(0.72, 0.28, 0.22)
+	opts["has_animator"] = true
+	if _last_hit_direction.length_squared() > 0.01:
+		opts["sweep_dir"] = _last_hit_direction
 	var visual := _get_diorama_visual()
 	if visual:
-		MaterialDissolveScript.dissolve(visual)
+		MaterialDissolveScript.play_death_visual(visual, opts)
+	var viewmodel := _get_viewmodel_root()
+	if viewmodel:
+		var vm_opts := opts.duplicate()
+		vm_opts.erase("vfx_position")
+		MaterialDissolveScript.play_death_visual(viewmodel, vm_opts)
 	await get_tree().create_timer(DEATH_SLOW_DURATION).timeout
 	Engine.time_scale = 1.0
 	if _orbit_camera and _orbit_camera.has_method("enter_death_framing"):
@@ -251,7 +266,7 @@ func _run_death_sequence() -> void:
 func _flash_parry_feedback() -> void:
 	var visual := _get_diorama_visual()
 	if visual:
-		MaterialFlashScript.flash(visual, 1.0, 0.10)
+		MaterialFlashScript.flash(visual, {"strength": 1.0, "duration": 0.10})
 	AudioDirector.play_sfx("parry", _body.global_position)
 	var anchor: Array = VfxService.resolve_combat_anchor(_body)
 	VfxService.play_parry_spark(anchor[0], anchor[1])
@@ -260,7 +275,7 @@ func _flash_parry_feedback() -> void:
 func _flash_guard_break_feedback() -> void:
 	var visual := _get_diorama_visual()
 	if visual:
-		MaterialFlashScript.flash(visual, 0.9, 0.16)
+		MaterialFlashScript.flash(visual, {"strength": 0.9, "duration": 0.16})
 	if _orbit_camera and _orbit_camera.has_method("apply_camera_dip"):
 		_orbit_camera.call("apply_camera_dip", 0.35, 0.35)
 
@@ -268,7 +283,7 @@ func _flash_guard_break_feedback() -> void:
 func _flash_stagger_feedback() -> void:
 	var visual := _get_diorama_visual()
 	if visual:
-		MaterialFlashScript.flash(visual, 0.85, 0.12)
+		MaterialFlashScript.flash(visual, {"strength": 0.85, "duration": 0.12})
 
 
 func _update_stagger_iframes() -> void:
@@ -329,6 +344,13 @@ func _stagger_clip_for(world_dir: Vector3) -> StringName:
 
 func _get_diorama_visual() -> Node3D:
 	return _body.get_node_or_null("Facing/DioramaVisual") as Node3D
+
+
+func _get_viewmodel_root() -> Node3D:
+	var camera := _body.get_node_or_null("CameraPivot/SpringArm3D/Camera3D") as Camera3D
+	if camera == null:
+		return null
+	return DioramaViewmodelScript.get_root(camera)
 
 
 func _get_facing_forward() -> Vector3:

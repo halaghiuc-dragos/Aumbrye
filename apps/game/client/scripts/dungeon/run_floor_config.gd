@@ -9,6 +9,7 @@ const DROP_RATE_BONUS_PER_TIER := 0.02
 const DROP_RATE_BONUS_CAP := 0.30
 
 const FloorSeedMixScript := preload("res://scripts/dungeon/floor_seed_mix.gd")
+const FLOOR_SEED_MULTIPLIER := 7919
 
 
 static func mix_seed(run_seed: int, floor_index: int) -> int:

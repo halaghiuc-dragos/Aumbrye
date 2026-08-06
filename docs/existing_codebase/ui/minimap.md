@@ -1,66 +1,80 @@
-# Minimap
+﻿# Minimap
 
-A `Control` that draws the real generated room graph with `_draw()` primitives. It reveals only rooms the player has entered, highlights the current room, and draws a marker for each unvisited branch target. It is on the live play path in castle runs only: the control is instantiated in every scene by `combat_hud.gd:552-558`, but only `castle_run.gd` ever supplies it with data, so in the hub, the waves run, and the debug arenas it draws nothing.
+## Status: FINISHED
+
+A `Control` that draws the real generated room graph with three-tier fog of war, uniform-scale projection, variable room footprints, type icons, a player facing arrow, and an optional full-map overlay. It is on the live play path in castle runs only: `combat_hud.tscn` embeds `MinimapAnchor/Minimap` but `MinimapAnchor.visible` is driven by `has_graph()`, so hub, waves, and debug arenas never show an empty widget.
 
 ## Files
 | Path | Role |
 |------|------|
-| `apps/game/client/scripts/ui/minimap.gd` | `extends Control` — 145 lines, whole minimap |
-| `apps/game/client/scripts/ui/combat_hud.gd:552-558` | instantiates it as `Minimap` at `Vector2(size.x - 156.0, 20.0)` |
-| `apps/game/client/scripts/dungeon/castle_run.gd:104-149` | only caller of `configure` / `mark_visited` / `set_current_room`, via the HUD forwarding methods |
-| `apps/game/client/scripts/dungeon/procgen/dungeon_procgen.gd:98-140` | produces the `rooms` / `edges` / `branchPreviews` dictionary the minimap reads |
+| `apps/game/client/scripts/ui/minimap.gd` | `extends Control` â€” graph draw, reveal tiers, player marker, overlay mode |
+| `apps/game/client/assets/ui/minimap_icons.png` | 32Ã—16 atlas, 4Ã—2 grid of 8Ã—8 type icons |
+| `apps/game/client/scenes/ui/combat_hud.tscn` | Authored HUD; `MinimapAnchor/Minimap` uses `minimap.gd` |
+| `apps/game/client/scripts/ui/combat_hud.gd` | Forwards API, `bind_player`, `map` overlay, `MinimapAnchor` visibility |
+| `apps/game/client/scripts/dungeon/castle_run.gd:122-150` | Sole `configure_minimap` / `mark_room_visited` / `set_current_room` caller |
+| `apps/game/client/scripts/dungeon/procgen/room_graph_geometry.gd:99-115` | Emits `size` and `kind` per room |
+| `apps/game/client/scripts/dungeon/procgen/dungeon_procgen.gd:76` | Overrides `kind` to `key` when `roomContent[].keyId` is set |
+| `apps/game/client/scripts/validation/suites/room_graph_suite.gd` | Minimap regression tests (`map.*`) |
 
 ## How it works
 
 ### Data intake
-`configure(definition)` (`minimap.gd:20`) copies three arrays straight out of the dungeon definition and clears all reveal state:
-- `definition["rooms"]` — each entry is a `Dictionary` with `id` and `transform: {x, y, z, yaw}`.
-- `definition["edges"]` — each entry has `from` and `to` room ids.
-- `definition["branchPreviews"]` — each entry has `fromRoomId`, `toRoomId`, and `hint` (`"reward"` or anything else, treated as danger).
+`configure(definition)` copies `rooms`, `edges`, and `branchPreviews` from the dungeon definition, builds `_room_by_id`, `_center_by_id`, and `_neighbors` caches, and clears reveal state.
 
-This is the same generated structure `dungeon_procgen.gd` emits (`:98` for `branchPreviews`, `room_graph_geometry.gd:99` for each room's `transform`), so the map reflects the real graph rather than a hand-drawn stand-in.
+Each `rooms[]` entry reads: `id`, `transform.x` / `transform.z`, optional `size.x` / `size.z` (world metres), and optional `kind` (`combat`, `treasure`, `shop`, `key`, `boss`, `entrance`, `stairs`, `unknown`).
 
-`mark_visited(room_id)` (`:30`) sets `_visited[room_id] = true` and redraws. `set_current_room(room_id)` (`:37`) stores the id and redraws. `castle_run.gd:118-125` calls both on every room change.
+### Reveal tiers
+`enum RevealTier { UNKNOWN, SEEN, VISITED }` stored in `_reveal`.
 
-### Bounds and projection
-`_recompute_bounds()` (`:73`) seeds `min_x`, `max_x`, `min_z`, `max_z` at `0.0` and folds every room's `transform.x` / `transform.z` in, producing `_bounds = Rect2(min_x, min_z, max(1.0, width), max(1.0, height))`. Because the accumulators start at `0.0` rather than at the first room's coordinates, the bounds always include world origin whether or not a room sits there.
+`mark_visited(room_id)` sets the room to `VISITED` and each graph neighbour to at least `SEEN`. Edges draw only when both endpoints are `>= SEEN`; `SEEN` rooms render as outlines, `VISITED` rooms as filled rects. Dashed lines mark edges touching a `SEEN` endpoint.
 
-`_map_point(world_xz, map_rect)` (`:102`) normalizes each axis against `_bounds` (defaulting to `0.5` when an axis has zero extent) and maps it linearly into `map_rect`. World `+Z` maps to screen `+Y`, and the two axes are scaled independently, so a non-square dungeon is stretched to fill the widget.
+### Projection
+`_recompute_bounds()` seeds accumulators from the first room (no forced world-origin inclusion). `_map_point()` uses a single uniform scale `minf(map_w / bounds_w, map_h / bounds_h) * _zoom` and `.floor()` for pixel snapping.
 
-### Drawing
-`_draw()` (`:47`) returns immediately when `_rooms` is empty. Otherwise, in order:
-1. `map_rect = Rect2(6, 6, size.x - 12, size.y - 12)` (`PADDING = 6.0`).
-2. A full-size background `draw_rect` in `COLOR_BG = Color(0.05, 0.05, 0.08, 0.82)` and a 1 px `Color(0.2, 0.18, 0.16)` outline.
-3. Every edge in `_edges` as a 1 px `COLOR_EDGE = Color(0.35, 0.33, 0.30, 0.7)` line — including edges to rooms the player has never seen.
-4. Every **visited** room as a `9×9` square (`CELL = 10.0`, drawn at `CELL * 0.9`), `COLOR_CURRENT = Color(0.95, 0.78, 0.28)` for the current room, `COLOR_VISITED = Color(0.55, 0.52, 0.48, 0.95)` otherwise.
-5. `_draw_branch_previews(map_rect)` (`:117`) — for each preview whose `fromRoomId` equals the current room and whose `toRoomId` is not yet visited: a radius-3 gold circle for `hint == "reward"`, otherwise a radius-3 red diamond built from `draw_colored_polygon`.
+### Player marker
+`bind_player(player: Node3D)` tracks the player. `_process` redraws at 10 Hz when the player moves more than 0.25 m. A 7 px triangle at the projected XZ position rotates by `player.global_rotation.y`.
 
-`_ready()` (`:42`) sets `custom_minimum_size = Vector2(140, 140)` and `mouse_filter = MOUSE_FILTER_IGNORE`.
+### Drawing order (`_draw`)
+1. Background `COLOR_BG` + 1 px outline.
+2. Gated edges (solid or dashed).
+3. `SEEN` outlines / `VISITED` filled rects sized from `size` (fallback 9Ã—9 px).
+4. 8Ã—8 type icon per visited room from `minimap_icons.png`.
+5. Branch preview markers (gold circle / red diamond).
+6. Player arrow.
+7. Legend row (overlay mode only).
+
+### Visibility and overlay
+`has_graph()` returns `not _rooms.is_empty()`. `combat_hud.gd` sets `Minimap.visible` from it after `configure_minimap`.
+
+Pressing `map` (`M` keyboard, joypad button 6) opens a `MenuShell` modal with a second `minimap.gd` instance in `enable_overlay_mode()`: full-rect, `mouse_filter = STOP`, mouse-wheel zoom `0.5`â€“`4.0`, middle-drag pan, legend with `tr()` labels. `ui_cancel` closes the overlay and unpauses.
 
 ## Contracts
-- Public API: `configure(Dictionary)`, `mark_visited(String)`, `set_current_room(String)`. All three are invoked through `combat_hud.gd`'s `configure_minimap` / `mark_room_visited` / `set_current_room` wrappers (`combat_hud.gd:508-521`), which use `has_method` guards.
-- Dungeon-definition keys read: `rooms[].id`, `rooms[].transform.x`, `rooms[].transform.z`, `edges[].from`, `edges[].to`, `branchPreviews[].fromRoomId`, `branchPreviews[].toRoomId`, `branchPreviews[].hint`.
-- No autoload dependency, no save state, no signal emitted or consumed.
+- Public API: `configure`, `mark_visited`, `set_current_room`, `bind_player`, `has_graph`, `export_state` / `import_state`, `enable_overlay_mode` / `disable_overlay_mode`.
+- Forwarded through `combat_hud.gd`: `configure_minimap`, `mark_room_visited`, `set_current_room`.
+- Input action: `map` in `project.godot`.
+- Translation keys: `MAP_TITLE`, `MAP_HINT`, `MAP_LEGEND_*`.
+- No autoload dependency, no save state.
 
 ## Current state
 | Surface | Status | Evidence |
 |---------|--------|----------|
-| Room graph source | IMPLEMENTED — reads the generated definition, not a placeholder | `minimap.gd:21-23`; `dungeon_procgen.gd:98`, `room_graph_geometry.gd:99` |
-| Fog of war on rooms | IMPLEMENTED — unvisited rooms are not drawn | `minimap.gd:65-66` |
-| Fog of war on edges | BROKEN — all edges are drawn regardless of visit state, so the full graph shape is visible from the first room | `minimap.gd:53-60` |
-| Player position marker | ABSENT — only the current *room* is tinted; there is no dot for the player and no facing indicator | `minimap.gd:67-69`; no reader of player position in the file |
-| Room shape and size | PLACEHOLDER — every room is the same `9×9` square regardless of its real footprint | `minimap.gd:69` |
-| Aspect ratio | PARTIAL — axes are normalized independently, so non-square layouts are stretched | `minimap.gd:107-114` |
-| Bounds computation | PARTIAL — accumulators start at `0.0`, so world origin is always inside `_bounds` even with no room there | `minimap.gd:74-77` |
-| Room-type iconography (shop, treasure, boss, key) | ABSENT — `_draw` reads only `id` and `transform` from each room entry | `minimap.gd:61-69` |
-| Branch preview markers | IMPLEMENTED — gold circle / red diamond primitives | `minimap.gd:130-144` |
-| Minimap in hub, waves, arenas | PARTIAL — control exists but is never configured, so `_draw` returns at line 49 | only `configure_minimap` caller is `castle_run.gd:107` |
-| Legend or key | ABSENT — no text is drawn anywhere in the file | `minimap.gd:47-70` |
-| Zoom, pan, or full-map view | ABSENT — no input handling; `mouse_filter = IGNORE` | `minimap.gd:44` |
-| Pixel snapping | ABSENT — `draw_rect` / `draw_line` / `draw_circle` receive unrounded floats, unlike `combat_hud.gd:413-414` which floors reticle coordinates | `minimap.gd:60`, `:69`, `:133` |
-| Nearest-neighbour filtering | ABSENT — no `texture_filter` assignment; the widget is pure vector drawing | `minimap.gd:42-45` |
+| Room graph source | IMPLEMENTED | `minimap.gd:configure`; `dungeon_procgen.gd:85` |
+| Fog of war on rooms | IMPLEMENTED | `RevealTier` gating in `_draw_rooms` |
+| Fog of war on edges | IMPLEMENTED | `_should_draw_edge` requires both `>= SEEN` |
+| Player position + facing | IMPLEMENTED | `bind_player`, `_draw_player_marker` |
+| Room footprints | IMPLEMENTED | `_room_pixel_size` from `size` |
+| Uniform aspect ratio | IMPLEMENTED | `_uniform_scale` |
+| Pixel snapping | IMPLEMENTED | `.floor()` in `_map_point` |
+| Bounds without origin bias | IMPLEMENTED | first-room seed in `_recompute_bounds` |
+| Room-type icons | IMPLEMENTED | `minimap_icons.png`, `_draw_room_icon` |
+| Branch preview markers | IMPLEMENTED | `_draw_branch_previews` |
+| Hub/waves/arena visibility | IMPLEMENTED | `has_graph()` + `combat_hud.gd:configure_minimap` |
+| Full-map overlay | IMPLEMENTED | `combat_hud.gd:_open_map_overlay`, `map` action |
+| Legend | IMPLEMENTED | `_draw_legend` in overlay mode |
+| Procgen `size` / `kind` | IMPLEMENTED | `room_graph_geometry.gd:107-108`, `dungeon_procgen.gd:_annotate_minimap_key_rooms` |
+| Validation | IMPLEMENTED | `room_graph_suite.gd` `map.*` tests |
 
 ## Related
-- Improvement plan: [`../actual_improvements/ui/minimap.md`](../actual_improvements/ui/minimap.md)
+- Improvement plan: [`../actual_improvements/ui/minimap.md`](../actual_improvements/ui/minimap.md) - **FINISHED**
 - [`combat_hud.md`](combat_hud.md)
-- [`../room-graph-procgen.md`](../room-graph-procgen.md) · [`../room-content.md`](../room-content.md) · [`../castle-run.md`](../castle-run.md) · [`../dungeon-builder.md`](../dungeon-builder.md)
+- [`../room-graph-procgen.md`](../room-graph-procgen.md) Â· [`../room-content.md`](../room-content.md) Â· [`../castle-run.md`](../castle-run.md)

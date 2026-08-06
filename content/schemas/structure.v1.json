@@ -1,0 +1,71 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://aumbrye.dev/schemas/structure.v1.json",
+  "title": "PixelDioramaStructure",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version", "name", "params"],
+  "properties": {
+    "version": { "const": 1 },
+    "name": { "type": "string", "minLength": 1 },
+    "generator": { "type": "string", "minLength": 1 },
+    "params": {
+      "type": "object",
+      "additionalProperties": { "type": "number" }
+    },
+    "parts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["name", "size", "pos", "mat"],
+        "properties": {
+          "name": { "type": "string", "minLength": 1 },
+          "size": {
+            "type": "array",
+            "items": { "type": "number" },
+            "minItems": 3,
+            "maxItems": 3
+          },
+          "pos": {
+            "type": "array",
+            "items": { "type": "number" },
+            "minItems": 3,
+            "maxItems": 3
+          },
+          "rot_deg": {
+            "type": "array",
+            "items": { "type": "number" },
+            "minItems": 3,
+            "maxItems": 3
+          },
+          "mat": { "type": "string", "minLength": 1 },
+          "kind": { "enum": ["box", "column", "collision"] }
+        }
+      }
+    },
+    "collision": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["size", "pos"],
+        "properties": {
+          "name": { "type": "string" },
+          "size": {
+            "type": "array",
+            "items": { "type": "number" },
+            "minItems": 3,
+            "maxItems": 3
+          },
+          "pos": {
+            "type": "array",
+            "items": { "type": "number" },
+            "minItems": 3,
+            "maxItems": 3
+          }
+        }
+      }
+    }
+  }
+}

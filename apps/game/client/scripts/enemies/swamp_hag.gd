@@ -47,8 +47,6 @@ func _start_attack() -> void:
 		return
 	_state = State.ATTACK
 	_state_timer = _data.get("active_duration", 0.16)
-	if _telegraph:
-		_telegraph.visible = false
 	var stacks := 2 if _phase == 2 else int(_data.get("status_stacks_on_hit", 1))
 	if _hitbox:
 		_hitbox.set_attack_values(

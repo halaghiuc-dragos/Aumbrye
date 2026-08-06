@@ -230,6 +230,39 @@ func move_slot(index: int, to_x: int, to_y: int) -> bool:
 	return true
 
 
+func find_instance_index(instance_id: String) -> int:
+	if instance_id == "":
+		return -1
+	for i in slots.size():
+		if str(slots[i].get("instanceId", "")) == instance_id:
+			return i
+	return -1
+
+
+func split_stack(index: int) -> bool:
+	if index < 0 or index >= slots.size():
+		return false
+	var slot: Dictionary = slots[index]
+	var qty: int = int(slot.get("quantity", 1))
+	if qty < 2:
+		return false
+	var half := qty / 2
+	slot["quantity"] = qty - half
+	var new_slot: Dictionary = slot.duplicate(true)
+	new_slot["quantity"] = half
+	new_slot["instanceId"] = "%s_%d" % [str(slot.get("instanceId", "item")), Time.get_ticks_msec()]
+	var item_id: String = str(slot.get("itemId", ""))
+	var pos := _find_first_fit(item_id)
+	if pos.x < 0:
+		slot["quantity"] = qty
+		return false
+	new_slot["x"] = pos.x
+	new_slot["y"] = pos.y
+	slots.append(_normalize_slot(new_slot))
+	changed.emit()
+	return true
+
+
 func find_slot_at(x: int, y: int) -> int:
 	for i in slots.size():
 		var slot: Dictionary = slots[i]

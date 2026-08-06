@@ -372,13 +372,13 @@ func _test_weapon_attacks() -> void:
 	stamina.configure(100.0)
 	weapon.request_light_attack()
 	await _wait_until(func() -> bool: return weapon.is_attacking)
-	var first_combo := weapon.get_combo_index()
+	var first_combo: int = weapon.get_combo_index()
 	await _wait_until_idle(weapon)
 	stamina.configure(100.0)
 	weapon.request_light_attack()
 	await _wait_until(func() -> bool: return weapon.is_attacking)
 	start = Time.get_ticks_msec()
-	var second_combo := weapon.get_combo_index()
+	var second_combo: int = weapon.get_combo_index()
 	ctx.assert_true(
 		"weapon.combo_advances",
 		get_category(),
@@ -398,7 +398,7 @@ func _test_weapon_attacks() -> void:
 	weapon.request_light_attack()
 	await _wait_until(func() -> bool: return weapon.is_attacking)
 	start = Time.get_ticks_msec()
-	var reset_combo := weapon.get_combo_index()
+	var reset_combo: int = weapon.get_combo_index()
 	ctx.assert_eq(
 		"weapon.combo_resets",
 		get_category(),
@@ -412,7 +412,7 @@ func _test_weapon_attacks() -> void:
 
 	stamina.configure(1.0)
 	start = Time.get_ticks_msec()
-	var refused_stamina := not weapon.request_light_attack() and not hitbox.is_active()
+	var refused_stamina: bool = not weapon.request_light_attack() and not hitbox.is_active()
 	ctx.assert_true(
 		"weapon.attack_refused_without_stamina",
 		get_category(),
@@ -428,7 +428,7 @@ func _test_weapon_attacks() -> void:
 	status_ctrl.apply_status("stun", 1)
 	stamina.configure(100.0)
 	start = Time.get_ticks_msec()
-	var refused_stun := not weapon.request_light_attack() and not hitbox.is_active()
+	var refused_stun: bool = not weapon.request_light_attack() and not hitbox.is_active()
 	ctx.assert_true(
 		"weapon.attack_refused_while_stunned",
 		get_category(),
@@ -601,7 +601,6 @@ func _test_hit_feedback_and_tokens() -> void:
 		)
 
 		AttackTokenService.reset_all()
-		var group_id := "validation_token_group"
 		var acquired := AttackTokenService.request_token(group_id, 1)
 		var blocked := not AttackTokenService.request_token(group_id, 1)
 		AttackTokenService.release_token(group_id)

@@ -288,6 +288,28 @@ func has_combat_sfx(kind: String) -> bool:
 	return _sfx_streams.has(kind) and not (_sfx_streams[kind] as Array).is_empty()
 
 
+func has_sfx(kind: String) -> bool:
+	_cache_sfx_kind(kind)
+	return _sfx_streams.has(kind) and not (_sfx_streams[kind] as Array).is_empty()
+
+
+func attach_loop_emitter(host: Node3D, key: String, radius: float = 6.0) -> AudioStreamPlayer3D:
+	var player := AudioStreamPlayer3D.new()
+	player.name = "LoopEmitter_%s" % key
+	host.add_child(player)
+	player.unit_size = radius
+	player.max_distance = radius * 3.0
+	player.bus = &"SFX"
+	_cache_sfx_kind(key)
+	var streams: Array = _sfx_streams.get(key, [])
+	if streams.is_empty():
+		_warn_missing_sfx(key)
+	else:
+		player.stream = streams[0]
+		player.autoplay = true
+	return player
+
+
 func _load_sfx_bank() -> void:
 	var bank_data := ContentLoader.load_json(SFX_BANK_PATH)
 	_sfx_bank = bank_data.get("sfx", {})
@@ -678,6 +700,35 @@ func _fill_generator_for_mode(
 		gen_playback.push_frame(Vector2(sample, sample))
 		phase = fmod(phase + phase_step, TAU)
 	return phase
+
+
+var _pause_mix_active := false
+var _saved_music_db := 0.0
+var _saved_bus_mutes: Dictionary = {}
+
+
+func set_pause_mix(enabled: bool) -> void:
+	if enabled == _pause_mix_active:
+		return
+	_pause_mix_active = enabled
+	if enabled:
+		_saved_music_db = _music.volume_db if _music else 0.0
+		if _music:
+			_music.volume_db = _saved_music_db - 6.0
+		for bus_name: StringName in [&"Ambience", &"SFX"]:
+			var idx := AudioServer.get_bus_index(bus_name)
+			if idx >= 0:
+				_saved_bus_mutes[bus_name] = AudioServer.is_bus_mute(idx)
+				AudioServer.set_bus_mute(idx, true)
+		play_sfx("ui")
+	else:
+		if _music:
+			_music.volume_db = _saved_music_db
+		for bus_name: StringName in _saved_bus_mutes:
+			var idx := AudioServer.get_bus_index(bus_name)
+			if idx >= 0:
+				AudioServer.set_bus_mute(idx, bool(_saved_bus_mutes[bus_name]))
+		_saved_bus_mutes.clear()
 
 
 func _restore_generator_streams() -> void:

@@ -1,4 +1,4 @@
-# Boss door and exit portal
+﻿# Boss door and exit portal
 
 Two authored interactables that bracket the end of a floor. `BossRoomDoor` is the barrier the player opens to enter the arena and that seals behind them once they commit. `ExitPortal` is the run-completion trigger on the final floor only. Both are scene files instantiated by `DungeonBuilder`.
 
@@ -38,7 +38,7 @@ State enum (`boss_room_door.gd:8`):
 
 | State | Barrier | Prompt when near |
 |-------|---------|------------------|
-| `LOCKED` | solid | "Sealed — find the Boss Sigil" or all-keys message |
+| `LOCKED` | solid | "Sealed â€” find the Boss Sigil" or all-keys message |
 | `CLOSED` | solid | interact glyph + "Enter the arena" |
 | `OPEN` | disabled | hidden |
 | `SEALED` | solid | "The way back is sealed" |
@@ -74,7 +74,7 @@ State enum (`boss_room_door.gd:8`):
 
 - Door node names: `Barrier`, `Barrier/BarrierShape`, `Barrier/MeshInstance3D`, `InteractArea`, `Label3D` (`boss_room_door.gd:27-31`).
 - Portal: room must have `Props` and `Props/ExitPortalMarker`; spawned node is `Props/ExitPortal`.
-- Signals: `door_opened`, `door_sealed` — consumed by `CastleRun.register_boss_door`.
+- Signals: `door_opened`, `door_sealed` â€” consumed by `CastleRun.register_boss_door`.
 - `bossDoorRequirement`: `"none"` \| `"sigil"` \| `"all_keys"` in `content/dungeons/<id>.json`, read via `DungeonCatalog.get_boss_door_requirement()`.
 - Snapshot key: `bossDoorState` (enum name string).
 - Collision: interact areas mask 2; barrier layer 1.
@@ -96,7 +96,7 @@ State enum (`boss_room_door.gd:8`):
 
 ## Related
 
-- Improvement plan: [`../actual_improvements/boss-door-exit-portal.md`](../actual_improvements/boss-door-exit-portal.md)
+- Improvement plan: [`../actual_improvements/boss-door-exit-portal.md`](../actual_improvements/boss-door-exit-portal.md) - **FINISHED**
 - [`dungeon-builder.md`](dungeon-builder.md)
 - [`room-templates.md`](room-templates.md)
 - [`dungeon-catalog-tiers.md`](dungeon-catalog-tiers.md)

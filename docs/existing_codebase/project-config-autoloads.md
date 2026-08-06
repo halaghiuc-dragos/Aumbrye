@@ -1,4 +1,4 @@
-# Project config and autoloads
+﻿# Project config and autoloads
 
 Everything `apps/game/client/project.godot` declares: 21 autoload singletons, 35 input actions, display/rendering settings, physics layer names, GDScript warning level, and the engine feature tag. This file is loaded before any scene, so every claim here is on the live play path.
 
@@ -95,7 +95,7 @@ All 21 use the `*` prefix, so each is instantiated as a Node under `/root` rathe
 | `block` | `Q` (`81`) | axis 4 at `+1.0` (left trigger) | `project.godot:173` |
 | `lock_on` | Enter (`4194309`), mouse button 3 | button 5 | `project.godot:179` |
 | `heal` | `H` (`72`) | button 7 | `project.godot:283` |
-| `two_hand` | `V` (`86`) | — | `project.godot:289` |
+| `two_hand` | `V` (`86`) | â€” | `project.godot:289` |
 | `weapon_art` | `C` (`67`) | button 10 | `project.godot:294` |
 
 **UI and meta**
@@ -106,12 +106,12 @@ All 21 use the `*` prefix, so each is instantiated as a Node under `/root` rathe
 | `inventory` | Tab (`4194306`) | button 4 | `project.godot:250` |
 | `talents` | `K` (`75`) | button 7 | `project.godot:271` |
 | `interact` | `E` (`69`) | button 2 | `project.godot:277` |
-| `quick_slot_1` | `1` (`49`) | — | `project.godot:256` |
-| `quick_slot_2` | `2` (`50`) | — | `project.godot:261` |
-| `quick_slot_3` | `3` (`51`) | — | `project.godot:266` |
+| `quick_slot_1` | `1` (`49`) | â€” | `project.godot:256` |
+| `quick_slot_2` | `2` (`50`) | â€” | `project.godot:261` |
+| `quick_slot_3` | `3` (`51`) | â€” | `project.godot:266` |
 | `zoom_in` | mouse button 4 | button 11 | `project.godot:192` |
 | `zoom_out` | mouse button 5 | button 12 | `project.godot:198` |
-| `toggle_camera` | `P` (`80`) | — | `project.godot:245` |
+| `toggle_camera` | `P` (`80`) | â€” | `project.godot:245` |
 
 **Debug**
 
@@ -138,7 +138,7 @@ All keyboard bindings use `physical_keycode`, so they follow physical key positi
 
 There is no `window/size/mode`, `window/vsync/vsync_mode`, or `rendering/anti_aliasing/*` entry, so those keep Godot defaults (windowed, vsync enabled, no MSAA).
 
-`[importer_defaults] texture` (`project.godot:72-79`) disables compression (`compress/mode: 0`), disables mipmaps, and enables `process/fix_alpha_border` — the import defaults that keep pixel art crisp.
+`[importer_defaults] texture` (`project.godot:72-79`) disables compression (`compress/mode: 0`), disables mipmaps, and enables `process/fix_alpha_border` â€” the import defaults that keep pixel art crisp.
 
 `[animation] compatibility/default_parent_skeleton_in_mesh_instance_3d=true` (`project.godot:13`) is a Godot 4.x compatibility flag.
 
@@ -155,7 +155,7 @@ Layers 5-32 are unnamed.
 
 ### Other sections
 
-- `[gdscript] warnings/untyped_declaration=1` (`project.godot:68`) — untyped declarations warn but do not error.
+- `[gdscript] warnings/untyped_declaration=1` (`project.godot:68`) â€” untyped declarations warn but do not error.
 - `[internationalization] locale/translations` lists exactly one file: `res://translations/strings.en.translation` (`project.godot:303`).
 - `[editor_plugins] enabled` lists exactly one plugin: `res://addons/godot_mcp/plugin.cfg` (`project.godot:64`).
 
@@ -177,16 +177,16 @@ Layers 5-32 are unnamed.
 | `talents` and `heal` share gamepad button 7 | BROKEN | `project.godot:274` and `project.godot:286` |
 | `lock_on` and `ui_accept` share Enter (`4194309`) | BROKEN | `project.godot:85` and `project.godot:181` |
 | `zoom_in`/`ui_up` share button 11; `zoom_out`/`ui_down` share button 12 | BROKEN | `project.godot:110,116,195,201` |
-| `jump` / `ui_accept` share button 0; `dodge` / `ui_cancel` share button 1 | PARTIAL | `project.godot:86,92,152,158` — intended overlap for gameplay vs menu context, but nothing disambiguates them |
+| `jump` / `ui_accept` share button 0; `dodge` / `ui_cancel` share button 1 | PARTIAL | `project.godot:86,92,152,158` â€” intended overlap for gameplay vs menu context, but nothing disambiguates them |
 | Localization beyond English | ABSENT | `project.godot:303` registers one translation; `apps/game/client/translations/` contains only `strings.csv` and `strings.en.translation` |
 | Explicit vsync / window mode / MSAA settings | ABSENT | No `window/vsync/*`, `window/size/mode`, or `rendering/anti_aliasing/*` keys in `project.godot` |
 | Named physics layers 5-32 | ABSENT | `project.godot:305-310` names only layers 1-4 |
-| `godot_mcp` editor plugin enabled in the shipped project file | PARTIAL | `project.godot:64` — a development tool enabled in the committed project settings |
+| `godot_mcp` editor plugin enabled in the shipped project file | PARTIAL | `project.godot:64` â€” a development tool enabled in the committed project settings |
 
 ## Related
 
-- Improvement plan: [`../actual_improvements/project-config-autoloads.md`](../actual_improvements/project-config-autoloads.md)
-- [`ci-cd.md`](ci-cd.md) — the 4.4.0 versus 4.7 pin
-- [`validation-suites.md`](validation-suites.md) — `setup_suite.gd` autoload and input assertions
-- [`platform-and-net.md`](platform-and-net.md) — `SteamService` and `CrashLogger` autoloads
+- Improvement plan: [`../actual_improvements/project-config-autoloads.md`](../actual_improvements/project-config-autoloads.md) - **FINISHED**
+- [`ci-cd.md`](ci-cd.md) â€” the 4.4.0 versus 4.7 pin
+- [`validation-suites.md`](validation-suites.md) â€” `setup_suite.gd` autoload and input assertions
+- [`platform-and-net.md`](platform-and-net.md) â€” `SteamService` and `CrashLogger` autoloads
 - [`../ARCHITECTURE.md`](../ARCHITECTURE.md) section 2

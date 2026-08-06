@@ -48,10 +48,10 @@ layout_mode = 2
 theme_override_constants/separation = 10
 
 [node name="Title" type="Label" parent="MainPanel/Margin/VBox"]
+theme_type_variation = "MenuTitle"
 layout_mode = 2
 text = "Aumbrye Dungeons — Tier 1"
 horizontal_alignment = 1
-theme_override_font_sizes/font_size = 24
 
 [node name="DungeonDropdown" type="OptionButton" parent="MainPanel/Margin/VBox"]
 layout_mode = 2
@@ -72,6 +72,7 @@ layout_mode = 2
 	text = "Play on Seed"
 
 [node name="StatusLabel" type="Label" parent="MainPanel/Margin/VBox"]
+theme_type_variation = "BodyText"
 layout_mode = 2
 text = "Esc to close"
 horizontal_alignment = 1
@@ -103,10 +104,10 @@ layout_mode = 2
 theme_override_constants/separation = 10
 
 [node name="SeedTitle" type="Label" parent="SeedPanel/Margin/VBox"]
+theme_type_variation = "MenuTitle"
 layout_mode = 2
 text = "Enter Base Run Seed"
 horizontal_alignment = 1
-theme_override_font_sizes/font_size = 22
 
 [node name="SeedInput" type="LineEdit" parent="SeedPanel/Margin/VBox"]
 layout_mode = 2
@@ -114,6 +115,7 @@ placeholder_text = "e.g. 424242"
 alignment = 1
 
 [node name="SeedHintLabel" type="Label" parent="SeedPanel/Margin/VBox"]
+theme_type_variation = "HintText"
 layout_mode = 2
 autowrap_mode = 2
 horizontal_alignment = 1

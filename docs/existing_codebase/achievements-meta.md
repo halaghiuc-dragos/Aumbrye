@@ -1,17 +1,17 @@
-# Achievements and meta
+﻿# Achievements and meta
 
 `AchievementService` is an autoload that loads `content/achievements/catalog.json` and `content/achievements/hooks.json`, persists unlocks under `meta.achievements`, routes gameplay events through `notify(event, context)`, shows a toast, syncs to Steam on load when non-stub, and unlocks escape-meta achievements from `RunFlow._handle_escape_meta`. `LeaderboardSettings.opt_in` gates leaderboard submit on escape; `leaderboard_submit` unlocks on attempt while opted in.
 
 ## Files
 | Path | Role |
 |------|------|
-| `apps/game/client/scripts/meta/achievement_service.gd` | Autoload — catalog, hooks, `notify`, unlock, toast, Steam sync on load |
-| `apps/game/client/scripts/meta/leaderboard_settings.gd` | `LeaderboardSettings` — `opt_in` bool under meta `leaderboard` |
+| `apps/game/client/scripts/meta/achievement_service.gd` | Autoload â€” catalog, hooks, `notify`, unlock, toast, Steam sync on load |
+| `apps/game/client/scripts/meta/leaderboard_settings.gd` | `LeaderboardSettings` â€” `opt_in` bool under meta `leaderboard` |
 | `apps/game/client/scripts/platform/steam_service.gd` | Steam or stub; `unlock_achievement`, `sync_achievements` |
-| `apps/game/client/scripts/ui/achievements_ui.gd` | Achievement browser — locked/unlocked list from catalog |
+| `apps/game/client/scripts/ui/achievements_ui.gd` | Achievement browser â€” locked/unlocked list from catalog |
 | `apps/game/client/scenes/ui/achievement_toast.tscn` | Toast scene preloaded at `achievement_service.gd:9` |
 | `content/achievements/catalog.json` | 26 achievement definitions |
-| `content/achievements/hooks.json` | Event → achievement id map + `manualUnlock` allowlist |
+| `content/achievements/hooks.json` | Event â†’ achievement id map + `manualUnlock` allowlist |
 | `content/schemas/achievement-hooks.v1.json` | Schema for hooks file |
 | `apps/game/client/scripts/app/run_flow.gd` | Escape-meta unlocks; boss-fight damage tracking; leaderboard attempt |
 | `apps/game/client/scripts/ui/settings_ui.gd` | Leaderboard opt-in; Steam stub label; achievements button |
@@ -63,7 +63,7 @@ Catalog ids (26): `first_blood`, `castle_clear`, `crystal_clear`, `swamp_clear`,
 `SteamService` defaults to stub mode (`steam_service.gd:11`). `_sync_steam_on_load()` (`achievement_service.gd:40-43`) calls `sync_achievements(get_unlocked_ids())` when Steam is available and not stub.
 
 ### Leaderboard opt-in
-`LeaderboardSettings.SAVE_KEY := "leaderboard"` (`leaderboard_settings.gd:6`). Default `opt_in = false`. Settings checkbox at `settings_ui.gd:141-148`. On failed submit, `results_screen.gd` appends "Leaderboard submit failed — clear time saved locally only."
+`LeaderboardSettings.SAVE_KEY := "leaderboard"` (`leaderboard_settings.gd:6`). Default `opt_in = false`. Settings checkbox at `settings_ui.gd:141-148`. On failed submit, `results_screen.gd` appends "Leaderboard submit failed â€” clear time saved locally only."
 
 ### Achievements UI
 `achievements_ui.gd` lists non-hidden catalog entries with `[Locked]` / `[Unlocked]` prefix. Opened from pause menu (`pause_menu.gd`) and settings Platform section (`settings_ui.gd`).
@@ -75,13 +75,13 @@ Catalog ids (26): `first_blood`, `castle_clear`, `crystal_clear`, `swamp_clear`,
 
 **Signals emitted:** `achievement_unlocked(achievement_id, display_name)`.
 
-**Save keys:** `meta.achievements` (Dictionary id → bool); `meta.leaderboard.opt_in`; `CharacterService.flags` keys `ach_ctr_*` for counters.
+**Save keys:** `meta.achievements` (Dictionary id â†’ bool); `meta.leaderboard.opt_in`; `CharacterService.flags` keys `ach_ctr_*` for counters.
 
 **Autoloads:** `AchievementService`, `SteamService`, `LocalSave`, `ContentLoader`, `CharacterService`; `RunFlow` / `ApiClient` / `LeaderboardSettings` on the escape path.
 
-**Biome aliases:** vault→castle, prism→crystal, mire→swamp, hollow→frozen, umbral→cathedral (`achievement_service.gd:104-112`).
+**Biome aliases:** vaultâ†’castle, prismâ†’crystal, mireâ†’swamp, hollowâ†’frozen, umbralâ†’cathedral (`achievement_service.gd:104-112`).
 
-**Save migration:** `SaveMigrator` v5→v6 renames `meta.achievements.mythic_loot` to `aumbral_loot`.
+**Save migration:** `SaveMigrator` v5â†’v6 renames `meta.achievements.mythic_loot` to `aumbral_loot`.
 
 ## Current state
 | Surface | Status | Evidence |
@@ -93,11 +93,11 @@ Catalog ids (26): `first_blood`, `castle_clear`, `crystal_clear`, `swamp_clear`,
 | Catalog coverage validation | IMPLEMENTED | `achievements_suite.gd`, `validate_catalog_coverage()` |
 | Steam unlock in shipping builds | PARTIAL | Real path exists (`steam_service.gd:82-87`); stub is default (`is_stub_mode := true` at line 11) |
 | Steam backfill via `sync_achievements` on load | IMPLEMENTED | `achievement_service.gd:40-43` |
-| `aumbral_loot` rarity alignment | IMPLEMENTED | `catalog.json`, `hooks.json`, migrator v5→v6 |
+| `aumbral_loot` rarity alignment | IMPLEMENTED | `catalog.json`, `hooks.json`, migrator v5â†’v6 |
 | Leaderboard opt-in + attempt unlock | IMPLEMENTED | `leaderboard_settings.gd`, `run_flow.gd:836-844` |
 | Leaderboard failure feedback | IMPLEMENTED | `results_screen.gd` |
 | In-game achievement browser | IMPLEMENTED | `achievements_ui.gd`, `pause_menu.gd`, `settings_ui.gd` |
 
 ## Related
-- Improvement plan: [`../actual_improvements/achievements-meta.md`](../actual_improvements/achievements-meta.md)
+- Improvement plan: [`../actual_improvements/achievements-meta.md`](../actual_improvements/achievements-meta.md) - **FINISHED**
 - [`run-flow.md`](run-flow.md), [`platform-and-net.md`](platform-and-net.md), [`ui/settings.md`](ui/settings.md), [`loot-and-equipment.md`](loot-and-equipment.md)

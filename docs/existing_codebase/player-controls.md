@@ -1,15 +1,15 @@
-# Player controls
+﻿# Player controls
 
 `PlayerControls` is the autoloaded **meta UI router**, not a movement or combat controller. It owns the four global player menus (inventory, settings, talents, loadout) plus the pause menu, routes the `pause` action, and handles quick-slot input in `_unhandled_input`. It is on the live play path in every scene because it is an autoload. Gameplay input is gated by `PlayerInput` (`apps/game/client/scripts/app/player_input.gd`), which consults `PlayerControls.gameplay_input_blocked()` before polling `InputMap`. Movement, attacks, dodge, guard, and heal read through `PlayerInput`; camera and lock-on still poll raw `Input` with their own UI-focus gates.
 
 ## Files
 | Path | Role |
 |------|------|
-| `apps/game/client/scripts/app/player_controls.gd` | Autoload `PlayerControls` (`project.godot:50`) — meta UI, loadout sync, quick slots, `resolve_locomotion()`, `gameplay_input_blocked()` |
-| `apps/game/client/scripts/app/player_input.gd` | `class_name PlayerInput` — static gameplay input gate |
-| `apps/game/client/scripts/app/input_bindings.gd` | `class_name InputBindings` — remapping, `REBINDABLE`, `KEYBOARD_ONLY`, `conflicts()`, LocalSave persistence |
+| `apps/game/client/scripts/app/player_controls.gd` | Autoload `PlayerControls` (`project.godot:50`) â€” meta UI, loadout sync, quick slots, `resolve_locomotion()`, `gameplay_input_blocked()` |
+| `apps/game/client/scripts/app/player_input.gd` | `class_name PlayerInput` â€” static gameplay input gate |
+| `apps/game/client/scripts/app/input_bindings.gd` | `class_name InputBindings` â€” remapping, `REBINDABLE`, `KEYBOARD_ONLY`, `conflicts()`, LocalSave persistence |
 | `apps/game/client/scripts/app/input_rebind_service.gd` | Autoload facade delegating to `InputBindings` for settings UI (`project.godot:55`) |
-| `apps/game/client/project.godot` | `[input]` section, lines 82–318 |
+| `apps/game/client/project.godot` | `[input]` section, lines 82â€“318 |
 
 ## How it works
 
@@ -21,7 +21,7 @@
 
 `sync_player_loadout()` (`player_controls.gd:88`) skips waves mode, calls `InventoryService.apply_equipment_to_player_node(player)`, then `resolve_locomotion(player).refresh_appearance_visual()` when present.
 
-`PlayerInput` (`player_input.gd:7–24`) returns zero/false from `move_vector()`, `pressed()`, and `just_pressed()` when `blocked()` is true.
+`PlayerInput` (`player_input.gd:7â€“24`) returns zero/false from `move_vector()`, `pressed()`, and `just_pressed()` when `blocked()` is true.
 
 Input handling:
 
@@ -58,15 +58,15 @@ Input handling:
 | `debug_toggle` / `debug_hitboxes` / `toggle_damage_numbers` | `F1` / `F2` / `F3` | none | debug overlay |
 | `reset_duel` | `R` | none | debug arenas |
 
-Mouse look is not an action: `orbit_camera.gd:51-56` consumes raw `InputEventMouseMotion` while captured. Sensitivity multipliers come from `AccessibilitySettings.mouse_sensitivity` and `stick_sensitivity` (base `0.003` / `2.5`, range `0.25`–`4.0`); invert-Y from `invert_look_y`.
+Mouse look is not an action: `orbit_camera.gd:51-56` consumes raw `InputEventMouseMotion` while captured. Sensitivity multipliers come from `AccessibilitySettings.mouse_sensitivity` and `stick_sensitivity` (base `0.003` / `2.5`, range `0.25`â€“`4.0`); invert-Y from `invert_look_y`.
 
 ## Contracts
 
 - Autoload names `PlayerControls`, `InputRebindService`. Consumers include `hub.gd`, `pause_menu.gd`, `main_menu.gd`, `combat_arena.gd`, `lock_on.gd`.
 - Public API: `sync_player_loadout()`, `resolve_locomotion()`, `gameplay_input_blocked()`, `uses_main_inventory()`, UI getters/openers, `is_*_open()`, `is_player_meta_ui_open()`, signal `quick_slot_used(index, item_id)`.
-- `InputBindings.REBINDABLE` — 20 discrete gameplay actions; `KEYBOARD_ONLY` — `toggle_camera`, `zoom_in`, `zoom_out`, `quick_slot_1..4`.
+- `InputBindings.REBINDABLE` â€” 20 discrete gameplay actions; `KEYBOARD_ONLY` â€” `toggle_camera`, `zoom_in`, `zoom_out`, `quick_slot_1..4`.
 - Save key `input_bindings` in `LocalSave` meta; accessibility keys `mouse_sensitivity`, `stick_sensitivity`, `invert_look_y` under `accessibility`.
-- Scene authors must not add nodes named `InventoryUI`, `SettingsUI`, `TalentsUI`, `LoadoutUI`, or `PauseMenu` to gameplay scenes — they are deleted on scene entry (`player_controls.gd:79`).
+- Scene authors must not add nodes named `InventoryUI`, `SettingsUI`, `TalentsUI`, `LoadoutUI`, or `PauseMenu` to gameplay scenes â€” they are deleted on scene entry (`player_controls.gd:79`).
 
 ## Current state
 
@@ -83,6 +83,6 @@ Mouse look is not an action: `orbit_camera.gd:51-56` consumes raw `InputEventMou
 | Camera sensitivity / invert-Y / FOV / stick curve | IMPLEMENTED | `accessibility_settings.gd` (`cameraMouseSensitivity` etc.), `orbit_camera.gd`, `settings_ui.gd` |
 
 ## Related
-- Improvement plan: [`../actual_improvements/player-controls.md`](../actual_improvements/player-controls.md)
+- Improvement plan: [`../actual_improvements/player-controls.md`](../actual_improvements/player-controls.md) - **FINISHED**
 - [`locomotion.md`](locomotion.md), [`player-heal.md`](player-heal.md), [`orbit-camera.md`](orbit-camera.md), [`lock-on.md`](lock-on.md)
 - [`ui/inventory_ui.md`](ui/inventory_ui.md), [`ui/pause_menu.md`](ui/pause_menu.md), [`ui/talents.md`](ui/talents.md), [`ui/settings.md`](ui/settings.md), [`ui/input_glyphs.md`](ui/input_glyphs.md)

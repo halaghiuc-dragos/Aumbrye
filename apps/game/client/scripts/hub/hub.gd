@@ -81,8 +81,8 @@ func _ready() -> void:
 
 
 func _boot_save_and_services() -> void:
-	var result := await LocalSave.sync_from_cloud()
-	var synced: bool = bool(result.get("ok", false)) if result is Dictionary else bool(result)
+	var result: Dictionary = await LocalSave.sync_from_cloud()
+	var synced: bool = bool(result.get("ok", false))
 	var reloaded := false
 	if not synced and LocalSave.has_save():
 		reloaded = LocalSave.load_into_services()

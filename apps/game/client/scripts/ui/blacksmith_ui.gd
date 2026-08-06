@@ -24,14 +24,14 @@ func _ready() -> void:
 	GameUISkinScript.apply_modal_menu(self, "Panel", "Backdrop")
 	_upgrade_button.pressed.connect(_on_upgrade_pressed)
 	_repair_button.pressed.connect(_on_repair_pressed)
-	var respec_button := Button.new()
-	respec_button.text = "Respec Talents (%d)" % BlacksmithService.RESPEC_COST
+	var respec_button := GameUISkinScript.make_button(
+		"Respec Talents (%d)" % BlacksmithService.RESPEC_COST
+	)
 	respec_button.pressed.connect(_on_respec_pressed)
 	$Panel/Margin/VBox/Buttons.add_child(respec_button)
 	_close_button.pressed.connect(close)
 	_item_list.item_selected.connect(_on_item_selected)
-	var unlock_button := Button.new()
-	unlock_button.text = "Unlock Weapons"
+	var unlock_button := GameUISkinScript.make_button("Unlock Weapons")
 	unlock_button.pressed.connect(_on_unlock_pressed)
 	$Panel/Margin/VBox/Buttons.add_child(unlock_button)
 	$Panel/Margin/VBox/Buttons.move_child(unlock_button, 0)

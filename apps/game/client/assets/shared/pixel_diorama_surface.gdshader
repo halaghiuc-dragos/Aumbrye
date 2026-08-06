@@ -20,10 +20,19 @@ uniform float shade_dither : hint_range(0.0, 1.0) = 0.55;
 uniform float light_wrap : hint_range(0.0, 1.0) = 0.25;
 uniform float rim_strength : hint_range(0.0, 1.0) = 0.08;
 uniform float flash_amount : hint_range(0.0, 1.0) = 0.0;
+uniform vec3 flash_color : source_color = vec3(1.0);
+uniform float flash_emission : hint_range(0.0, 4.0) = 0.0;
 uniform float dissolve_clip : hint_range(0.0, 1.0) = 1.0;
+uniform vec3 dissolve_origin = vec3(0.0);
+uniform vec3 dissolve_dir = vec3(0.0, 1.0, 0.0);
+uniform float dissolve_sweep : hint_range(0.0, 1.0) = 0.6;
 uniform int surface_kind : hint_range(0, 3) = 0;
 uniform bool use_vertex_color = false;
 uniform vec3 skin_tint = vec3(1.0);
+uniform sampler2D tile_atlas : source_color, filter_nearest, repeat_enable;
+uniform bool use_tile_atlas = false;
+uniform int tile_row = 0;
+uniform int tile_variants = 4;
 
 varying vec3 v_world_pos;
 varying vec3 v_world_normal;
@@ -102,6 +111,13 @@ void fragment() {
 	vec3 col;
 	if (use_vertex_color) {
 		col = COLOR.rgb * skin_tint;
+	} else if (use_tile_atlas && surface_kind <= 1) {
+		float variant_count = max(1.0, float(tile_variants) * detail);
+		int variant = int(cell_hash(cell) * variant_count);
+		variant = min(variant, int(variant_count) - 1);
+		vec2 tile_origin = vec2(float(variant), float(tile_row)) / 8.0;
+		vec2 tile_uv = fract(uv) / 8.0 + tile_origin;
+		col = texture(tile_atlas, tile_uv).rgb;
 	} else if (surface_kind == 0) {
 		col = shade_floor(uv, cell, grain, detail);
 	} else if (surface_kind == 1) {
@@ -119,15 +135,24 @@ void fragment() {
 	col = mix(col, color_shadow.rgb * 0.75, edge * edge_strength * detail);
 
 	if (dissolve_clip < 0.999) {
-		float dither = cell_hash(floor(v_world_pos.xz * pixel_scale * 0.5));
-		if (dither > dissolve_clip) {
+		vec3 cell3 = floor(v_local_pos * pixel_scale * 0.5);
+		float dither = cell_hash(cell3.xz + vec2(cell3.y * 17.0, cell3.y * 31.0));
+		vec3 sweep_dir = dissolve_dir;
+		if (length(sweep_dir) < 0.001) {
+			sweep_dir = vec3(0.0, 1.0, 0.0);
+		} else {
+			sweep_dir = normalize(sweep_dir);
+		}
+		float sweep = clamp(dot(normalize(v_local_pos - dissolve_origin), sweep_dir), -1.0, 1.0);
+		float threshold = dissolve_clip - dissolve_sweep * (0.5 - sweep * 0.5);
+		if (dither > threshold) {
 			discard;
 		}
 	}
 
-	// Palette colour lives in albedo; banded light() below supplies tonal steps.
-	col = mix(col, vec3(1.0), flash_amount);
-	ALBEDO = col;
+	col = mix(col, flash_color, flash_amount);
+	EMISSION += flash_color * flash_amount * flash_emission;
+	ALBEDO = quantize_color(col, max(2.0, color_levels));
 	ROUGHNESS = 1.0;
 	METALLIC = 0.0;
 	SPECULAR = 0.0;

@@ -17,10 +17,10 @@
     "cathedral_puzzle"
   ],
   "materials": {
-    "floor": "res://assets/cathedral/mat_floor.tres",
-    "wall": "res://assets/cathedral/mat_wall.tres",
-    "ceiling": "res://assets/cathedral/mat_ceiling.tres",
-    "accent": "res://assets/cathedral/mat_accent.tres"
+    "floor": "cathedral",
+    "wall": "cathedral",
+    "ceiling": "cathedral",
+    "accent": "cathedral"
   },
   "lighting": {
     "ambientColor": [0.2, 0.15, 0.28],

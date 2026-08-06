@@ -1,4 +1,4 @@
-# Website
+﻿# Website
 
 React 19 + Vite 6 + TypeScript marketing and account site in `apps/web/`. Eight routed pages (landing, account, patch-note list/detail, wiki index/article, leaderboards, 404) behind `react-router-dom` 7. Two pages call the API through a typed client and react-query; wiki and patch notes load from markdown at build time. Vitest component tests and a Playwright smoke journey run in CI.
 
@@ -34,7 +34,7 @@ React 19 + Vite 6 + TypeScript marketing and account site in `apps/web/`. Eight 
 
 ### Navigation
 
-`App.tsx` mounts a `BrowserRouter` with nested `Layout` routes: `/`, `/account`, `/patch-notes`, `/patch-notes/:version`, `/wiki`, `/wiki/:slug`, `/leaderboards`, and `*` → `NotFound`. `Layout.tsx` renders `<NavLink>` items; the active link receives `aria-current="page"`. Leaderboards read and write `biomeId` and `tier` via `useSearchParams`.
+`App.tsx` mounts a `BrowserRouter` with nested `Layout` routes: `/`, `/account`, `/patch-notes`, `/patch-notes/:version`, `/wiki`, `/wiki/:slug`, `/leaderboards`, and `*` â†’ `NotFound`. `Layout.tsx` renders `<NavLink>` items; the active link receives `aria-current="page"`. Leaderboards read and write `biomeId` and `tier` via `useSearchParams`.
 
 ### API client
 
@@ -59,7 +59,7 @@ Types come from `schema.d.ts`; the old hand-written `AuthTokens` export is **ABS
 
 ### Leaderboards page
 
-`Leaderboards.tsx` loads biome ids from `biomes.json`, offers tiers 1–10, and uses react-query with skeleton rows, explicit error+retry, and "No entries yet" only when the API returns an empty `entries` array.
+`Leaderboards.tsx` loads biome ids from `biomes.json`, offers tiers 1â€“10, and uses react-query with skeleton rows, explicit error+retry, and "No entries yet" only when the API returns an empty `entries` array.
 
 ### Static content
 
@@ -97,7 +97,7 @@ Types come from `schema.d.ts`; the old hand-written `AuthTokens` export is **ABS
 
 ## Related
 
-- Improvement plan: [`../actual_improvements/website.md`](../actual_improvements/website.md)
-- [`website-and-backend.md`](website-and-backend.md) — `VITE_API_URL`, CORS, deployment
-- [`backend-api.md`](backend-api.md) — API routes this client calls
-- [`ci-cd.md`](ci-cd.md) — the `web` job
+- Improvement plan: [`../actual_improvements/website.md`](../actual_improvements/website.md) - **FINISHED**
+- [`website-and-backend.md`](website-and-backend.md) â€” `VITE_API_URL`, CORS, deployment
+- [`backend-api.md`](backend-api.md) â€” API routes this client calls
+- [`ci-cd.md`](ci-cd.md) â€” the `web` job

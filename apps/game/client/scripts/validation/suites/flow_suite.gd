@@ -23,7 +23,7 @@ func run() -> void:
 
 func _test_portal_completes_run() -> void:
 	var start := Time.get_ticks_msec()
-	var ok := ctx.file_contains(
+	var ok: bool = ctx.file_contains(
 		"res://scripts/dungeon/exit_portal.gd",
 		"RunFlow.complete_run_via_portal"
 	) and RunFlow.has_method("complete_run_via_portal")
@@ -309,7 +309,7 @@ func _test_run_lifecycle_results() -> void:
 		"death",
 		{"loot_lost": loot_lost, "loot_kept": false, "run_relics_lost": true}
 	)
-	var loot_diff_ok := (
+	var loot_diff_ok: bool = (
 		death_results.get("loot_lost", []) == loot_lost and missing.size() == loot_lost.size()
 	)
 	InventoryService.inventory = inv_backup

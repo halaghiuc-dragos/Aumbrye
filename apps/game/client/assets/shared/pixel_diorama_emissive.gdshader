@@ -14,6 +14,13 @@ uniform float emission_energy : hint_range(0.0, 8.0) = 1.6;
 uniform float grain_strength : hint_range(0.0, 1.0) = 0.35;
 uniform float pulse_speed : hint_range(0.0, 8.0) = 0.0;
 uniform float pulse_amount : hint_range(0.0, 1.0) = 0.18;
+uniform float flash_amount : hint_range(0.0, 1.0) = 0.0;
+uniform vec3 flash_color : source_color = vec3(1.0);
+uniform float flash_emission : hint_range(0.0, 4.0) = 0.0;
+uniform float dissolve_clip : hint_range(0.0, 1.0) = 1.0;
+uniform vec3 dissolve_origin = vec3(0.0);
+uniform vec3 dissolve_dir = vec3(0.0, 1.0, 0.0);
+uniform float dissolve_sweep : hint_range(0.0, 1.0) = 0.6;
 
 varying vec3 v_local_pos;
 varying vec3 v_local_normal;
@@ -38,7 +45,25 @@ void fragment() {
 		pulse = 1.0 + (phase - 0.5) * pulse_amount * 2.0;
 	}
 
+	if (dissolve_clip < 0.999) {
+		// Keep discard block in sync with pixel_diorama_surface.gdshader.
+		vec3 cell3 = floor(v_local_pos * pixel_scale * 0.5);
+		float dither = cell_hash(cell3.xz + vec2(cell3.y * 17.0, cell3.y * 31.0));
+		vec3 sweep_dir = dissolve_dir;
+		if (length(sweep_dir) < 0.001) {
+			sweep_dir = vec3(0.0, 1.0, 0.0);
+		} else {
+			sweep_dir = normalize(sweep_dir);
+		}
+		float sweep = clamp(dot(normalize(v_local_pos - dissolve_origin), sweep_dir), -1.0, 1.0);
+		float threshold = dissolve_clip - dissolve_sweep * (0.5 - sweep * 0.5);
+		if (dither > threshold) {
+			discard;
+		}
+	}
+
 	vec3 quantized = quantize_color(col, color_levels);
+	quantized = mix(quantized, flash_color, flash_amount);
 	ALBEDO = quantized;
-	EMISSION = quantized * emission_energy * pulse;
+	EMISSION = quantized * emission_energy * pulse + flash_color * flash_amount * flash_emission;
 }

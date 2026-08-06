@@ -96,14 +96,16 @@ func _build_skip_buttons() -> void:
 	_selected_skip = ""
 	var skips: Array[Dictionary] = SkipFloorSvc.get_available_skips(InventoryService.inventory)
 	for entry in skips:
-		var btn := Button.new()
 		var item_id: String = str(entry.get("itemId", ""))
-		btn.text = "Use %s → floor %d" % [item_id, int(entry.get("startFloor", 1))]
+		var btn := GameUISkinScript.make_button(
+			"Use %s → floor %d" % [item_id, int(entry.get("startFloor", 1))]
+		)
 		btn.pressed.connect(_on_skip_selected.bind(item_id, btn))
 		_skip_box.add_child(btn)
 	if skips.is_empty():
 		var label := Label.new()
 		label.text = "No skip-floor items in inventory."
+		GameUISkinScript.style_body_label(label)
 		_skip_box.add_child(label)
 
 

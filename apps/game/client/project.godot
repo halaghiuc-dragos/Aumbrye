@@ -21,6 +21,10 @@ run/main_scene="res://scenes/ui/title_screen.tscn"
 config/features=PackedStringArray("4.7", "Forward Plus")
 config/icon="res://icon.svg"
 
+[gui]
+
+theme/custom="res://assets/ui/aumbrye_ui.tres"
+
 [audio]
 
 buses/default_bus_layout="res://assets/audio/default_bus_layout.tres"
@@ -48,13 +52,19 @@ CrashLogger="*res://scripts/platform/crash_logger.gd"
 WavesRunService="*res://scripts/dungeon/waves_run_service.gd"
 DungeonTierService="*res://scripts/dungeon/dungeon_tier_service.gd"
 VfxService="*res://scripts/art/vfx/vfx_service.gd"
+DisplayService="*res://scripts/app/display_service.gd"
 PlayerControls="*res://scripts/app/player_controls.gd"
+MenuStack="*res://scripts/ui/menu_stack.gd"
 WorldState="*res://scripts/app/world_state.gd"
 PixelDioramaViewport="*res://scripts/art/pipeline/pixel_diorama_viewport.gd"
 AttackTokenService="*res://scripts/combat/attack_token_service.gd"
 GameFacade="*res://scripts/app/game_facade.gd"
 InputRebindService="*res://scripts/app/input_rebind_service.gd"
 DebugConsole="*res://scripts/debug/debug_console.gd"
+InputGlyphWatcher="*res://scripts/ui/input_glyph_watcher.gd"
+MenuStack="*res://scripts/ui/menu_stack.gd"
+MenuStack="*res://scripts/ui/menu_stack.gd"
+UISymbolBus="*res://scripts/ui/ui_symbol_bus.gd"
 
 [display]
 
@@ -314,6 +324,12 @@ weapon_art={
 "deadzone": 0.5,
 "events": [Object(InputEventKey,"resource_local_to_scene":false,"resource_name":"","device":-1,"window_id":0,"alt_pressed":false,"shift_pressed":false,"ctrl_pressed":false,"meta_pressed":false,"pressed":false,"keycode":0,"physical_keycode":67,"key_label":0,"unicode":99,"location":0,"echo":false,"script":null)
 , Object(InputEventJoypadButton,"resource_local_to_scene":false,"resource_name":"","device":-1,"button_index":10,"pressure":0.0,"pressed":false,"script":null)
+]
+}
+map={
+"deadzone": 0.5,
+"events": [Object(InputEventKey,"resource_local_to_scene":false,"resource_name":"","device":-1,"window_id":0,"alt_pressed":false,"shift_pressed":false,"ctrl_pressed":false,"meta_pressed":false,"pressed":false,"keycode":0,"physical_keycode":77,"key_label":0,"unicode":109,"location":0,"echo":false,"script":null)
+, Object(InputEventJoypadButton,"resource_local_to_scene":false,"resource_name":"","device":-1,"button_index":6,"pressure":0.0,"pressed":false,"script":null)
 ]
 }
 

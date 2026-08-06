@@ -17,10 +17,10 @@
     "vault_puzzle"
   ],
   "materials": {
-    "floor": "res://assets/vault/mat_floor.tres",
-    "wall": "res://assets/vault/mat_wall.tres",
-    "ceiling": "res://assets/vault/mat_ceiling.tres",
-    "accent": "res://assets/vault/mat_accent.tres"
+    "floor": "vault",
+    "wall": "vault",
+    "ceiling": "vault",
+    "accent": "vault"
   },
   "lighting": {
     "ambientColor": [0.4, 0.35, 0.32],

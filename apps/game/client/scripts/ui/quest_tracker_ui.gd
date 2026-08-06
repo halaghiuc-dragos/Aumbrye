@@ -32,7 +32,8 @@ func _refresh() -> void:
 		var title: String = str(quest.get("title", quest_id))
 		var detail: String = _format_progress(quest, progress)
 		line.text = "%s — %s" % [title, detail]
-		line.add_theme_font_size_override("font_size", 12)
+		line.add_theme_font_size_override("font_size", GameUISkinScript.FONT_SIZE_SMALL)
+		GameUISkinScript.style_body_label(line)
 		_quest_list.add_child(line)
 
 

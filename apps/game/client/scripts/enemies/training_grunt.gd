@@ -6,6 +6,8 @@ const ENEMY_ID := "training_grunt"
 const HP_BAR_SCRIPT := preload("res://scripts/ui/training_dummy_health_bar.gd")
 const CharacterSkin := preload("res://scripts/art/characters/diorama_character_skin.gd")
 const AnimControllerScript := preload("res://scripts/art/characters/diorama_anim_controller.gd")
+const MaterialDissolveScript := preload("res://scripts/art/characters/material_dissolve.gd")
+const MaterialFlashScript := preload("res://scripts/art/characters/material_flash.gd")
 
 signal attack_telegraph_started
 signal attack_active
@@ -14,7 +16,6 @@ signal attack_active
 
 var _mesh: Node3D
 var _animator: DioramaAnimController
-@onready var _telegraph: MeshInstance3D = $TelegraphMesh
 @onready var _body_collision: CollisionShape3D = $CollisionShape3D
 
 var _data: Dictionary = {}
@@ -60,8 +61,6 @@ func _ready() -> void:
 		_hp_bar.name = "HealthBar"
 		add_child(_hp_bar)
 		_hp_bar.setup(_health)
-	if _telegraph:
-		_telegraph.visible = false
 	if _poise:
 		_poise.configure(_data.get("poise", 40.0))
 		_poise.poise_broken.connect(_on_poise_broken)
@@ -99,6 +98,10 @@ func is_dead() -> bool:
 	return _state == State.DEAD
 
 
+func get_diorama_visual() -> Node3D:
+	return _mesh
+
+
 func begin_attack_windup_bar(duration: float) -> void:
 	_windup_duration = maxf(0.05, duration)
 	if _hp_bar:
@@ -118,8 +121,6 @@ func apply_stagger(duration: float) -> void:
 	_stagger_timer = duration
 	if _hitbox:
 		_hitbox.disable()
-	if _telegraph:
-		_telegraph.visible = false
 	hide_attack_windup_bar()
 	if _animator and _animator.is_bound():
 		_animator.play_stagger(duration)
@@ -182,6 +183,15 @@ func _start_windup() -> void:
 			float(_data.get("recovery_duration", 0.9))
 		)
 	begin_attack_windup_bar(windup)
+	var forward := -global_transform.basis.z
+	VfxService.play_telegraph(
+		global_position,
+		float(_data.get("telegraph_radius", 1.6)),
+		windup,
+		Color(0.95, 0.34, 0.28),
+		String(_data.get("telegraph_shape", "circle")),
+		forward
+	)
 	attack_telegraph_started.emit()
 
 
@@ -230,6 +240,12 @@ func _on_died() -> void:
 		_hurtbox.monitorable = false
 	if _animator and _animator.is_bound():
 		_animator.play_death()
+	if _mesh:
+		var opts := MaterialDissolveScript.death_opts_for_profile("dummy")
+		opts["duration"] = 0.4
+		opts["vfx_position"] = global_position
+		opts["has_animator"] = _animator != null and _animator.is_bound()
+		MaterialDissolveScript.play_death_visual(_mesh, opts)
 
 
 func _on_poise_broken() -> void:
@@ -255,8 +271,6 @@ func reset_enemy() -> void:
 	if _hitbox:
 		_hitbox.disable()
 		_hitbox.reset_swing()
-	if _telegraph:
-		_telegraph.visible = false
 	hide_attack_windup_bar()
 	if _hurtbox:
 		_hurtbox.monitorable = true
@@ -266,6 +280,7 @@ func reset_enemy() -> void:
 	if _mesh:
 		_mesh.scale = Vector3.ONE
 		_mesh.position = Vector3.ZERO
+		MaterialDissolveScript.reset_death_visual(_mesh)
 	if _animator:
 		_animator.revive()
 		_animator.reset_combo()
@@ -274,3 +289,5 @@ func reset_enemy() -> void:
 	if _poise:
 		_poise.reset_poise()
 		_poise.configure(_data.get("poise", 40.0))
+	if _mesh:
+		MaterialFlashScript.restore_all(_mesh)

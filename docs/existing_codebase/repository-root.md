@@ -1,4 +1,4 @@
-# Repository root
+﻿# Repository root
 
 Top-level layout of the Aumbrye monorepo: what each root entry is, which entry points start each stack, and which files on disk are untracked local artifacts. Not a runtime system; this doc is the map every other doc in this tree assumes.
 
@@ -66,7 +66,7 @@ All five stray entries are untracked and do not pollute clones.
 - Secrets, keys, `.env` except `.env.example` (`.gitignore:27-30`)
 - `**/appsettings.*.json` with `appsettings.json` and `appsettings.Testing.json` re-allowed (`.gitignore:46-48`)
 - Godot `.godot/`, `.import/`, `export_presets.cfg`, `*.pck` (`.gitignore:133-144`)
-- `addons/godotsteam/` (`.gitignore:161`) — GodotSteam is not vendored
+- `addons/godotsteam/` (`.gitignore:161`) â€” GodotSteam is not vendored
 - `**/config/dev_api.local.json` (`.gitignore:152`)
 
 ## Contracts
@@ -83,7 +83,7 @@ All five stray entries are untracked and do not pollute clones.
 | Contributor hygiene files | IMPLEMENTED | `.editorconfig`, `CONTRIBUTING.md`, `LICENSE`, `SECURITY.md`, `.github/CODEOWNERS`, `.github/PULL_REQUEST_TEMPLATE.md` |
 | `docs-links` CI job | IMPLEMENTED | `ci.yml:128` `lychee-action@v2` on `README.md` and `docs/**/*.md` |
 | `setup.readme_main_scene` | IMPLEMENTED | `setup_suite.gd:90` asserts README names `application/run/main_scene` |
-| Pre-commit coverage | IMPLEMENTED | `.pre-commit-config.yaml` — content, ruff, gdformat, eslint |
+| Pre-commit coverage | IMPLEMENTED | `.pre-commit-config.yaml` â€” content, ruff, gdformat, eslint |
 | `Dockerfile` for the API | IMPLEMENTED | `services/backend/Dockerfile`; built in CI `api-image` and `release.yml` |
 | `.ruff_cache/` in repo `.gitignore` | IMPLEMENTED | `.gitignore:194` |
 | `README.md` accuracy | IMPLEMENTED | `README.md` links `docs/ARCHITECTURE.md` and paired doc trees; main scene `scenes/ui/title_screen.tscn`; Node 24 |
@@ -92,7 +92,7 @@ All five stray entries are untracked and do not pollute clones.
 
 ## Related
 
-- Improvement plan: [`../actual_improvements/repository-root.md`](../actual_improvements/repository-root.md)
+- Improvement plan: [`../actual_improvements/repository-root.md`](../actual_improvements/repository-root.md) - **FINISHED**
 - [`project-config-autoloads.md`](project-config-autoloads.md)
 - [`packages.md`](packages.md)
 - [`ci-cd.md`](ci-cd.md)

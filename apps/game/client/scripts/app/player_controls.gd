@@ -48,8 +48,6 @@ func _ready() -> void:
 
 	InputBindings.apply()
 
-	DisplaySettings.apply()
-
 	_build_global_uis()
 
 	get_tree().scene_changed.connect(_on_scene_changed)
@@ -76,9 +74,27 @@ static func resolve_locomotion(player: Node) -> Node:
 
 
 
+func allows_player_ui() -> bool:
+	var scene := get_tree().current_scene
+	if scene == null:
+		return false
+	return not scene.is_in_group("front_end")
+
+
 func gameplay_input_blocked() -> bool:
 
 	return is_player_meta_ui_open() or get_tree().paused
+
+
+func allows_player_ui() -> bool:
+
+	var scene := get_tree().current_scene
+
+	if scene and scene.is_in_group("front_end"):
+
+		return false
+
+	return true
 
 
 func capture_mouse_if_allowed() -> void:
@@ -249,9 +265,7 @@ func get_loadout_ui() -> Control:
 
 
 func open_settings() -> void:
-
 	if _settings_ui and _settings_ui.has_method("open_settings"):
-
 		_settings_ui.call("open_settings")
 
 

@@ -1,17 +1,22 @@
 extends Control
 
 const StatusIconAtlasScript := preload("res://scripts/ui/status_icon_atlas.gd")
+const StatusPipScene := preload("res://scenes/ui/status_pip.tscn")
 const InputGlyphServiceScript := preload("res://scripts/ui/input_glyph_service.gd")
+const HudIconAtlasScript := preload("res://scripts/ui/hud_icon_atlas.gd")
 const MinimapScript := preload("res://scripts/ui/minimap.gd")
+const MenuShellScript := preload("res://scripts/ui/menu_shell.gd")
 const GameUISkinScript := preload("res://scripts/ui/game_ui_skin.gd")
-const QuestTrackerUIScene := preload("res://scenes/ui/quest_tracker_ui.tscn")
 
 const BAR_WIDTH := 280.0
 const HEALTH_BAR_HEIGHT := 22.0
 const STAMINA_BAR_HEIGHT := 16.0
 const MANA_BAR_HEIGHT := 16.0
 const ATTACK_BAR_HEIGHT := 10.0
-const HUD_MARGIN := 20.0
+const LOW_HP_RATIO := 0.25
+const VIGNETTE_COOLDOWN := 0.8
+const HINT_AUTO_HIDE_SECONDS := 60.0
+const STATUS_REFRESH_INTERVAL := 0.1
 const HEALTH_FILL := Color(0.82, 0.14, 0.12, 1.0)
 const HEALTH_BG := Color(0.12, 0.05, 0.05, 0.92)
 const STAMINA_FILL := Color(0.22, 0.78, 0.28, 1.0)
@@ -21,80 +26,91 @@ const MANA_BG := Color(0.04, 0.06, 0.14, 0.92)
 const ATTACK_STARTUP_FILL := Color(0.95, 0.55, 0.18, 1.0)
 const ATTACK_ACTIVE_FILL := Color(0.85, 0.18, 0.12, 1.0)
 const ATTACK_RECOVERY_FILL := Color(0.45, 0.45, 0.48, 1.0)
-const BAR_BORDER := Color(0.04, 0.04, 0.04, 0.95)
 
 @export var player_path: NodePath
 @export var lock_on_path: NodePath
 
-var _health_bar: ProgressBar
-var _stamina_bar: ProgressBar
-var _mana_bar: ProgressBar
-var _attack_bar: ProgressBar
-var _xp_bar: ProgressBar
-var _level_label: Label
-var _lock_reticle: Control
-var _parry_bar: ProgressBar
-var _block_bar: ProgressBar
-var _parry_label: Label
+@onready var _health_bar: ProgressBar = $ResourcePanel/VBox/HealthBar
+@onready var _stamina_bar: ProgressBar = $ResourcePanel/VBox/StaminaBar
+@onready var _mana_bar: ProgressBar = $ResourcePanel/VBox/ManaBar
+@onready var _attack_bar: ProgressBar = $ResourcePanel/VBox/AttackBar
+@onready var _xp_bar: ProgressBar = $ResourcePanel/VBox/XpBar
+@onready var _level_label: Label = $ResourcePanel/VBox/LevelLabel
+@onready var _status_row: HBoxContainer = $ResourcePanel/VBox/StatusRow
+@onready var _lock_reticle: Control = $LockReticle
+@onready var _parry_bar: ProgressBar = $GuardIndicators/ParryBar
+@onready var _block_bar: ProgressBar = $GuardIndicators/BlockBar
+@onready var _parry_label: Label = $GuardIndicators/ParryLabel
+@onready var _boss_panel: VBoxContainer = $BossBar
+@onready var _boss_name_label: Label = $BossBar/BossName
+@onready var _boss_health_bar: ProgressBar = $BossBar/BossHealthBar
+@onready var _boss_phase_row: HBoxContainer = $BossBar/BossPhaseRow
+@onready var _branch_banner: Label = $BranchBanner
+@onready var _objective_marker: TextureRect = $ObjectiveMarker
+@onready var _minimap_anchor: MarginContainer = $MinimapAnchor
+@onready var _minimap: Control = $MinimapAnchor/Minimap
+@onready var _controls_hint: HBoxContainer = $ControlsHint
+@onready var _warning_banner: Label = $WarningBanner
+@onready var _respawn_overlay: Control = $RespawnOutcomeOverlay
+
 var _player: Node3D
 var _lock_on: Node
 var _guard: Node
 var _weapon_controller: Node
 var _camera: Camera3D
-var _status_row: HBoxContainer
 var _status_controller: StatusController
-var _minimap: Control
-var _quest_tracker: Control
-var _branch_banner: Label
-var _objective_marker: Control
 var _objective_world_pos: Vector3 = Vector3.INF
-var _boss_panel: VBoxContainer
-var _boss_name_label: Label
-var _boss_health_bar: ProgressBar
-var _boss_phase_row: HBoxContainer
 var _boss_node: Node
 var _boss_health: Health
 var _boss_phase_count := 2
 var _boss_current_phase := 1
 var _lock_reticle_alpha := 0.0
-var _warning_banner: Label
-var _respawn_overlay: Control
+var _status_pips: Dictionary = {}
+var _status_refresh_timer := 0.0
+var _last_health := -1.0
+var _vignette_cooldown := 0.0
+var _attack_styles: Dictionary = {}
+var _attack_phase_style := ""
+var _hint_session_start := 0.0
+var _hint_actions_used: Dictionary = {
+	"dodge": false,
+	"jump": false,
+	"lock_on": false,
+	"inventory": false,
+}
+var _hint_hidden_by_usage := false
+var _map_overlay: Control
+var _map_overlay_minimap: Control
 
 
 func _ready() -> void:
 	GameUISkinScript.apply_pixel_theme(self)
-	_health_bar = get_node_or_null("Margin/VBox/HealthBar") as ProgressBar
-	_stamina_bar = get_node_or_null("Margin/VBox/StaminaBar") as ProgressBar
-	_mana_bar = get_node_or_null("Margin/VBox/ManaBar") as ProgressBar
-	_attack_bar = get_node_or_null("Margin/VBox/AttackBar") as ProgressBar
-	_xp_bar = get_node_or_null("Margin/VBox/XpBar") as ProgressBar
-	_level_label = get_node_or_null("Margin/VBox/LevelLabel") as Label
-	_apply_screen_layout()
-	_ensure_mana_bar()
-	_ensure_attack_bar()
 	_style_resource_bars()
-	_ensure_progression_widgets()
-	_ensure_controls_hint()
-	_ensure_minimap()
-	_ensure_quest_tracker()
-	_ensure_objective_marker()
-	_ensure_boss_bar()
-	_lock_reticle = get_node_or_null("LockReticle") as Control
-	_parry_bar = get_node_or_null("GuardIndicators/ParryBar") as ProgressBar
-	_block_bar = get_node_or_null("GuardIndicators/BlockBar") as ProgressBar
-	_parry_label = get_node_or_null("GuardIndicators/ParryLabel") as Label
+	_cache_attack_styles()
+	_rebuild_controls_hint()
+	_apply_controls_hint_visibility()
+	_hint_session_start = Time.get_ticks_msec() / 1000.0
+	var symbol_bus := get_node_or_null("/root/UISymbolBus")
+	if symbol_bus and not symbol_bus.symbols_invalidated.is_connected(_on_symbols_invalidated):
+		symbol_bus.symbols_invalidated.connect(_on_symbols_invalidated)
+	InputGlyphServiceScript.connect_device_family_changed(_rebuild_controls_hint)
+	AccessibilitySettings.connect_settings_changed(_on_accessibility_settings_changed)
+	if DisplayService and not DisplayService.display_changed.is_connected(_on_display_changed):
+		DisplayService.display_changed.connect(_on_display_changed)
+	_apply_hud_safe_area()
 	if player_path:
 		_player = get_node(player_path) as Node3D
 		_guard = _player.get_node_or_null("Guard")
 		_weapon_controller = _player.get_node_or_null("WeaponController")
 		_status_controller = _player.get_node_or_null("StatusController") as StatusController
 		_bind_player_resources()
-		_ensure_status_row()
+		_bind_minimap_player()
 		if _status_controller:
 			_status_controller.statuses_changed.connect(_refresh_status_icons)
+			_refresh_status_icons()
 	if lock_on_path:
-		_lock_on = get_node(lock_on_path)
-		if _lock_on.has_signal("lock_changed"):
+		_lock_on = get_node_or_null(lock_on_path)
+		if _lock_on and _lock_on.has_signal("lock_changed"):
 			_lock_on.lock_changed.connect(_on_lock_changed)
 	if ProgressionService:
 		ProgressionService.progression_changed.connect(_on_progression_changed)
@@ -103,187 +119,124 @@ func _ready() -> void:
 		RunFlow.run_warning.connect(_on_run_warning)
 	if InventoryService and not InventoryService.inventory_rejected.is_connected(_on_inventory_rejected):
 		InventoryService.inventory_rejected.connect(_on_inventory_rejected)
+	GameUISkinScript.make_backdrop(_respawn_overlay)
+	var panel := _respawn_overlay.get_node("Panel") as PanelContainer
+	if panel:
+		panel.custom_minimum_size = Vector2(460, 220)
+	if _minimap_anchor:
+		_minimap_anchor.visible = false
 
 
-func _ensure_status_row() -> void:
-	_status_row = get_node_or_null("StatusRow") as HBoxContainer
-	if _status_row == null:
-		_status_row = HBoxContainer.new()
-		_status_row.name = "StatusRow"
-		add_child(_status_row)
-	_refresh_status_icons()
-	_update_status_row_position()
-
-
-func _apply_screen_layout() -> void:
-	var margin := get_node_or_null("Margin") as MarginContainer
-	if margin == null:
-		return
-	margin.set_anchors_preset(Control.PRESET_TOP_LEFT)
-	margin.offset_left = HUD_MARGIN
-	margin.offset_top = HUD_MARGIN
-	margin.offset_right = HUD_MARGIN + BAR_WIDTH
-	margin.offset_bottom = (
-		HUD_MARGIN
-		+ HEALTH_BAR_HEIGHT
-		+ STAMINA_BAR_HEIGHT
-		+ MANA_BAR_HEIGHT
-		+ ATTACK_BAR_HEIGHT
-		+ 34.0
-	)
-	margin.grow_horizontal = Control.GROW_DIRECTION_END
-	margin.grow_vertical = Control.GROW_DIRECTION_END
-	var vbox := margin.get_node_or_null("VBox") as VBoxContainer
-	if vbox:
-		vbox.add_theme_constant_override("separation", 6)
+func _exit_tree() -> void:
+	var symbol_bus := get_node_or_null("/root/UISymbolBus")
+	if symbol_bus and symbol_bus.symbols_invalidated.is_connected(_on_symbols_invalidated):
+		symbol_bus.symbols_invalidated.disconnect(_on_symbols_invalidated)
+	InputGlyphServiceScript.disconnect_device_family_changed(_rebuild_controls_hint)
+	AccessibilitySettings.disconnect_settings_changed(_on_accessibility_settings_changed)
+	if DisplayService and DisplayService.display_changed.is_connected(_on_display_changed):
+		DisplayService.display_changed.disconnect(_on_display_changed)
 
 
 func _style_resource_bars() -> void:
-	if _health_bar:
-		_health_bar.custom_minimum_size = Vector2(BAR_WIDTH, HEALTH_BAR_HEIGHT)
-		_apply_bar_style(_health_bar, HEALTH_FILL, HEALTH_BG)
-	if _stamina_bar:
-		_stamina_bar.custom_minimum_size = Vector2(BAR_WIDTH, STAMINA_BAR_HEIGHT)
-		_apply_bar_style(_stamina_bar, STAMINA_FILL, STAMINA_BG)
-	if _mana_bar:
-		_mana_bar.custom_minimum_size = Vector2(BAR_WIDTH, MANA_BAR_HEIGHT)
-		_apply_bar_style(_mana_bar, MANA_FILL, MANA_BG)
-	if _attack_bar:
-		_attack_bar.custom_minimum_size = Vector2(BAR_WIDTH, ATTACK_BAR_HEIGHT)
-		_apply_bar_style(_attack_bar, ATTACK_STARTUP_FILL, STAMINA_BG)
+	_health_bar.custom_minimum_size = Vector2(BAR_WIDTH, HEALTH_BAR_HEIGHT)
+	_apply_bar_style(_health_bar, HEALTH_FILL, HEALTH_BG)
+	_stamina_bar.custom_minimum_size = Vector2(BAR_WIDTH, STAMINA_BAR_HEIGHT)
+	_apply_bar_style(_stamina_bar, STAMINA_FILL, STAMINA_BG)
+	_mana_bar.custom_minimum_size = Vector2(BAR_WIDTH, MANA_BAR_HEIGHT)
+	_apply_bar_style(_mana_bar, MANA_FILL, MANA_BG)
+	_attack_bar.custom_minimum_size = Vector2(BAR_WIDTH, ATTACK_BAR_HEIGHT)
+	_apply_bar_style(_attack_bar, ATTACK_STARTUP_FILL, STAMINA_BG)
+	_boss_health_bar.custom_minimum_size = Vector2(420, 18)
+	_apply_bar_style(_boss_health_bar, Color(0.72, 0.12, 0.1, 1.0), Color(0.08, 0.04, 0.04, 0.95))
+	_boss_name_label.add_theme_color_override("font_color", Color(0.95, 0.86, 0.72))
+	_branch_banner.add_theme_color_override("font_color", Color(0.86, 0.83, 0.76))
+	_warning_banner.add_theme_color_override("font_color", Color(0.98, 0.86, 0.55))
 
 
-func _ensure_mana_bar() -> void:
-	if _mana_bar != null:
-		return
-	var vbox := get_node_or_null("Margin/VBox") as VBoxContainer
-	if vbox == null:
-		return
-	_mana_bar = ProgressBar.new()
-	_mana_bar.name = "ManaBar"
-	_mana_bar.show_percentage = false
-	var stamina := vbox.get_node_or_null("StaminaBar")
-	if stamina:
-		vbox.add_child(_mana_bar)
-		vbox.move_child(_mana_bar, stamina.get_index() + 1)
-	else:
-		vbox.add_child(_mana_bar)
+func _cache_attack_styles() -> void:
+	_attack_styles = {
+		"startup": _make_attack_style(ATTACK_STARTUP_FILL),
+		"active": _make_attack_style(ATTACK_ACTIVE_FILL),
+		"recovery": _make_attack_style(ATTACK_RECOVERY_FILL),
+	}
 
 
-func _ensure_attack_bar() -> void:
-	if _attack_bar != null:
-		return
-	var vbox := get_node_or_null("Margin/VBox") as VBoxContainer
-	if vbox == null:
-		return
-	_attack_bar = ProgressBar.new()
-	_attack_bar.name = "AttackBar"
-	_attack_bar.show_percentage = false
-	_attack_bar.visible = false
-	vbox.add_child(_attack_bar)
+func _make_attack_style(fill_color: Color) -> StyleBoxFlat:
+	var style := StyleBoxFlat.new()
+	style.bg_color = fill_color
+	style.border_width_left = 1
+	style.border_width_top = 1
+	style.border_width_right = 1
+	style.border_width_bottom = 1
+	style.border_color = Color(0.04, 0.04, 0.04, 0.95)
+	return style
 
 
 func _apply_bar_style(bar: ProgressBar, fill_color: Color, bg_color: Color) -> void:
 	GameUISkinScript.style_progress_bar(bar, fill_color, bg_color)
 
 
-func _update_status_row_position() -> void:
-	if _status_row == null:
-		return
-	_status_row.position = Vector2(
-		HUD_MARGIN,
-		(
-			HUD_MARGIN
-			+ HEALTH_BAR_HEIGHT
-			+ STAMINA_BAR_HEIGHT
-			+ MANA_BAR_HEIGHT
-			+ ATTACK_BAR_HEIGHT
-			+ 22.0
-		)
-	)
-
-
 func _refresh_status_icons() -> void:
-	if _status_row == null:
+	if _status_row == null or _status_controller == null:
 		return
-	for child in _status_row.get_children():
-		child.queue_free()
-	if _status_controller == null:
-		return
+	var active_ids: Dictionary = {}
 	for entry in _status_controller.get_active_statuses():
-		var def := StatusCatalog.get_definition(entry.get("id", ""))
 		var status_id: String = entry.get("id", "")
-		var icon := TextureRect.new()
-		icon.custom_minimum_size = Vector2(
-			StatusIconAtlasScript.icon_size(), StatusIconAtlasScript.icon_size()
-		)
-		icon.texture = StatusIconAtlasScript.get_icon(status_id)
-		icon.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-		icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-		icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-		icon.tooltip_text = "%s x%d" % [def.get("name", status_id), entry.get("stacks", 1)]
-		var damage_type := str(def.get("damageType", ""))
-		if damage_type != "":
-			var tint := AccessibilitySettings.get_damage_color(damage_type)
-			icon.modulate = tint
-			var border := PanelContainer.new()
-			var style := StyleBoxFlat.new()
-			style.bg_color = Color(0.0, 0.0, 0.0, 0.0)
-			style.set_border_width_all(2)
-			style.border_color = tint
-			border.add_theme_stylebox_override("panel", style)
-			border.add_child(icon)
-			_status_row.add_child(border)
+		if status_id == "":
+			continue
+		active_ids[status_id] = entry
+		var pip: Control
+		if _status_pips.has(status_id):
+			pip = _status_pips[status_id] as Control
 		else:
-			_status_row.add_child(icon)
+			pip = StatusPipScene.instantiate() as Control
+			_status_row.add_child(pip)
+			_status_pips[status_id] = pip
+		var def := StatusCatalog.get_definition(status_id)
+		var stacks: int = int(entry.get("stacks", 1))
+		var polarity := str(def.get("polarity", "debuff"))
+		var icon_dim := StatusIconAtlasScript.icon_size()
+		pip.custom_minimum_size = Vector2(icon_dim + 4, icon_dim + 8)
+		pip.call(
+			"configure",
+			status_id,
+			stacks,
+			StatusIconAtlasScript.get_icon(status_id),
+			polarity
+		)
+		pip.call("update_timer", float(entry.get("remaining", 0.0)), float(entry.get("duration", 0.0)))
+	for status_id in _status_pips.keys():
+		if not active_ids.has(status_id):
+			var stale: Control = _status_pips[status_id]
+			if is_instance_valid(stale):
+				stale.queue_free()
+			_status_pips.erase(status_id)
 
 
-func _ensure_progression_widgets() -> void:
-	var vbox := get_node_or_null("Margin/VBox") as VBoxContainer
-	if vbox == null:
-		return
-	if _xp_bar == null:
-		_xp_bar = ProgressBar.new()
-		_xp_bar.name = "XpBar"
-		_xp_bar.custom_minimum_size = Vector2(280, 12)
-		_xp_bar.show_percentage = false
-		vbox.add_child(_xp_bar)
-	if _level_label == null:
-		_level_label = Label.new()
-		_level_label.name = "LevelLabel"
-		vbox.add_child(_level_label)
-
-
-func _ensure_controls_hint() -> void:
-	if get_node_or_null("ControlsHint") != null:
-		return
-	var hint := Label.new()
-	hint.name = "ControlsHint"
-	hint.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
-	hint.offset_top = -32.0
-	hint.offset_bottom = -6.0
-	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	hint.add_theme_color_override("font_color", Color(0.86, 0.83, 0.76))
-	hint.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.72))
-	hint.add_theme_constant_override("shadow_offset_x", 1)
-	hint.add_theme_constant_override("shadow_offset_y", 1)
-	hint.text = (
-		"%s  |  %s  |  %s  |  %s"
-		% [
-			InputGlyphServiceScript.format_action_hint("dodge"),
-			InputGlyphServiceScript.format_action_hint("jump"),
-			InputGlyphServiceScript.format_action_hint("lock_on"),
-			InputGlyphServiceScript.format_action_hint("inventory"),
-		]
-	)
-	add_child(hint)
-
-
-func _process(_delta: float) -> void:
+func _process(delta: float) -> void:
+	_vignette_cooldown = maxf(0.0, _vignette_cooldown - delta)
 	_update_lock_reticle()
 	_update_guard_indicators()
 	_update_objective_marker()
 	_update_attack_bar()
+	_update_status_timers(delta)
+	_update_controls_hint_visibility(delta)
+
+
+func _update_status_timers(delta: float) -> void:
+	if _status_controller == null or _status_pips.is_empty():
+		return
+	_status_refresh_timer -= delta
+	if _status_refresh_timer > 0.0:
+		return
+	_status_refresh_timer = STATUS_REFRESH_INTERVAL
+	for entry in _status_controller.get_active_statuses():
+		var status_id: String = entry.get("id", "")
+		if not _status_pips.has(status_id):
+			continue
+		var pip: Control = _status_pips[status_id]
+		pip.call("set_stacks", int(entry.get("stacks", 1)))
+		pip.call("update_timer", float(entry.get("remaining", 0.0)), float(entry.get("duration", 0.0)))
 
 
 func bind_boss(boss: Node) -> void:
@@ -310,7 +263,8 @@ func bind_boss(boss: Node) -> void:
 	if boss.has_method("get_enemy_id"):
 		boss_id = str(boss.call("get_enemy_id"))
 	var def := EnemyCatalog.get_definition(boss_id) if boss_id != "" else {}
-	_boss_name_label.text = str(def.get("title", def.get("name", "Boss")))
+	var title := str(def.get("title", def.get("name", tr("HUD_BOSS_FALLBACK"))))
+	_boss_name_label.text = title
 	_on_boss_health_changed(_boss_health.current, _boss_health.max_health)
 	_refresh_boss_phase_pips()
 	_boss_panel.visible = true
@@ -343,8 +297,6 @@ func _unbind_boss() -> void:
 
 
 func _on_boss_health_changed(current: float, max_value: float) -> void:
-	if _boss_health_bar == null:
-		return
 	_boss_health_bar.max_value = max_value
 	_boss_health_bar.value = current
 
@@ -355,57 +307,49 @@ func _on_boss_phase_changed(phase: int) -> void:
 
 
 func _resolve_boss_phase_count(boss: Node) -> int:
-	if boss.get_script() and str(boss.get_script().resource_path).contains("final_boss"):
-		return 3
-	return 2
+	var boss_id := ""
+	if boss.has_method("get_enemy_id"):
+		boss_id = str(boss.call("get_enemy_id"))
+	if boss_id == "":
+		return 1
+	return maxi(1, int(EnemyCatalog.get_definition(boss_id).get("phaseCount", 1)))
 
 
 func _refresh_boss_phase_pips() -> void:
-	if _boss_phase_row == null:
-		return
 	for child in _boss_phase_row.get_children():
 		child.queue_free()
+	var pip_size := StatusIconAtlasScript.icon_size()
 	for i in _boss_phase_count:
-		var pip := ColorRect.new()
-		pip.custom_minimum_size = Vector2(14, 8)
 		var active := i < _boss_current_phase
-		pip.color = Color(0.95, 0.78, 0.25, 0.95) if active else Color(0.2, 0.18, 0.16, 0.9)
+		var pip := GameUISkinScript.make_symbol_rect(
+			HudIconAtlasScript.get_pip_filled() if active else HudIconAtlasScript.get_pip_empty(),
+			pip_size
+		)
+		pip.custom_minimum_size = Vector2(14, 8)
 		_boss_phase_row.add_child(pip)
 
 
-func _ensure_boss_bar() -> void:
-	if _boss_panel != null:
-		return
-	_boss_panel = VBoxContainer.new()
-	_boss_panel.name = "BossBar"
-	_boss_panel.set_anchors_preset(Control.PRESET_CENTER_TOP)
-	_boss_panel.offset_top = 52.0
-	_boss_panel.custom_minimum_size = Vector2(420, 48)
-	_boss_panel.visible = false
-	add_child(_boss_panel)
-	_boss_name_label = Label.new()
-	_boss_name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_boss_name_label.add_theme_color_override("font_color", Color(0.95, 0.86, 0.72))
-	_boss_panel.add_child(_boss_name_label)
-	_boss_health_bar = ProgressBar.new()
-	_boss_health_bar.custom_minimum_size = Vector2(420, 18)
-	_boss_health_bar.show_percentage = false
-	_apply_bar_style(_boss_health_bar, Color(0.72, 0.12, 0.1, 1.0), Color(0.08, 0.04, 0.04, 0.95))
-	_boss_panel.add_child(_boss_health_bar)
-	_boss_phase_row = HBoxContainer.new()
-	_boss_phase_row.alignment = BoxContainer.ALIGNMENT_CENTER
-	_boss_phase_row.add_theme_constant_override("separation", 6)
-	_boss_panel.add_child(_boss_phase_row)
-
-
 func _unhandled_input(event: InputEvent) -> void:
+	if _map_overlay and _map_overlay.visible:
+		if event.is_action_pressed("ui_cancel"):
+			get_viewport().set_input_as_handled()
+			_close_map_overlay()
+			return
+	if event.is_action_pressed("map"):
+		if _minimap and _minimap.has_method("has_graph") and _minimap.call("has_graph"):
+			get_viewport().set_input_as_handled()
+			if _map_overlay and _map_overlay.visible:
+				_close_map_overlay()
+			else:
+				_open_map_overlay()
+			return
 	if _respawn_overlay and _respawn_overlay.visible:
 		if event.is_action_pressed("ui_accept") or event.is_action_pressed("interact"):
 			get_viewport().set_input_as_handled()
 			_dismiss_respawn_overlay()
 			return
 	if event is InputEventKey and event.pressed and not event.echo:
-		if event.keycode == KEY_F8 and _status_controller:
+		if OS.is_debug_build() and event.keycode == KEY_F8 and _status_controller:
 			_status_controller.debug_apply("burn")
 			_refresh_status_icons()
 			get_viewport().set_input_as_handled()
@@ -444,11 +388,9 @@ func _bind_player_resources() -> void:
 func _on_progression_changed() -> void:
 	if not ProgressionService:
 		return
-	if _level_label:
-		_level_label.text = "Lv %d" % ProgressionService.level
-	if _xp_bar:
-		_xp_bar.max_value = 1.0
-		_xp_bar.value = ProgressionService.xp_progress_ratio()
+	_level_label.text = tr("HUD_LEVEL") % ProgressionService.level
+	_xp_bar.max_value = 1.0
+	_xp_bar.value = ProgressionService.xp_progress_ratio()
 
 
 func _update_lock_reticle() -> void:
@@ -478,7 +420,7 @@ func _update_lock_reticle() -> void:
 	_lock_reticle_alpha = lerpf(_lock_reticle_alpha, target_alpha, 0.22)
 	_lock_reticle.visible = _lock_reticle_alpha > 0.05
 	_lock_reticle.modulate.a = _lock_reticle_alpha
-	if not on_screen:
+	if not on_screen or camera.is_position_behind(aim_point):
 		var center := viewport_size * 0.5
 		var dir := (screen_pos - center).normalized()
 		screen_pos = center + dir * minf(viewport_size.x, viewport_size.y) * 0.42
@@ -488,8 +430,6 @@ func _update_lock_reticle() -> void:
 
 
 func _update_guard_indicators() -> void:
-	if not _parry_bar or not _block_bar or not _parry_label:
-		return
 	if not _guard:
 		_parry_bar.visible = false
 		_block_bar.visible = false
@@ -501,18 +441,20 @@ func _update_guard_indicators() -> void:
 		parry_left = _guard.call("get_parry_time_remaining")
 	if _guard.has_method("get_block_time_remaining"):
 		block_left = _guard.call("get_block_time_remaining")
+	if _guard.has_method("get_parry_window_duration"):
+		_parry_bar.max_value = _guard.call("get_parry_window_duration")
+	if _guard.has_method("get_block_window_duration"):
+		_block_bar.max_value = _guard.call("get_block_window_duration")
 	if parry_left > 0.0:
 		_parry_bar.visible = true
-		_parry_bar.max_value = 0.18
 		_parry_bar.value = parry_left
 		_parry_label.visible = true
-		_parry_label.text = "PARRY"
+		_parry_label.text = tr("HUD_PARRY")
 	else:
 		_parry_bar.visible = false
 		_parry_label.visible = false
 	if block_left > 0.0:
 		_block_bar.visible = true
-		_block_bar.max_value = 0.65
 		_block_bar.value = block_left
 	else:
 		_block_bar.visible = false
@@ -526,27 +468,29 @@ func _get_camera() -> Camera3D:
 
 
 func _on_health_changed(current: float, max_value: float) -> void:
-	if not _health_bar:
-		return
 	_health_bar.max_value = max_value
 	_health_bar.value = current
-	if max_value > 0.0 and current / max_value <= 0.25:
+	if (
+		_last_health > 0.0
+		and current < _last_health
+		and max_value > 0.0
+		and current / max_value <= LOW_HP_RATIO
+		and _vignette_cooldown <= 0.0
+	):
 		if PixelDioramaViewport and PixelDioramaViewport.has_method("pulse_screen"):
 			PixelDioramaViewport.pulse_screen(
 				PixelDioramaViewport.ScreenPulse.DAMAGE, 0.22 / 0.72
 			)
+			_vignette_cooldown = VIGNETTE_COOLDOWN
+	_last_health = current
 
 
 func _on_stamina_changed(current: float, max_value: float) -> void:
-	if not _stamina_bar:
-		return
 	_stamina_bar.max_value = max_value
 	_stamina_bar.value = current
 
 
 func _on_mana_changed(current: float, max_value: float) -> void:
-	if not _mana_bar:
-		return
 	_mana_bar.max_value = max_value
 	_mana_bar.value = current
 
@@ -556,8 +500,7 @@ func _on_stamina_insufficient() -> void:
 
 
 func _on_stamina_depleted() -> void:
-	if _stamina_bar:
-		_stamina_bar.modulate = Color(0.55, 0.22, 0.18)
+	_stamina_bar.modulate = Color(0.55, 0.22, 0.18)
 	AudioDirector.play_sfx("exhausted")
 
 
@@ -575,10 +518,11 @@ func _flash_resource_bar(bar: ProgressBar, flash_color: Color) -> void:
 
 
 func _update_attack_bar() -> void:
-	if _attack_bar == null or _weapon_controller == null:
+	if _weapon_controller == null:
 		return
 	if not bool(_weapon_controller.get("is_attacking")):
 		_attack_bar.visible = false
+		_attack_phase_style = ""
 		return
 	var phase_info: Dictionary = {}
 	if _weapon_controller.has_method("get_attack_phase_progress"):
@@ -588,13 +532,9 @@ func _update_attack_bar() -> void:
 	_attack_bar.visible = true
 	_attack_bar.max_value = 1.0
 	_attack_bar.value = progress
-	var fill := ATTACK_STARTUP_FILL
-	match phase:
-		"active":
-			fill = ATTACK_ACTIVE_FILL
-		"recovery":
-			fill = ATTACK_RECOVERY_FILL
-	_apply_bar_style(_attack_bar, fill, STAMINA_BG)
+	if phase != _attack_phase_style and _attack_styles.has(phase):
+		_attack_bar.add_theme_stylebox_override("fill", _attack_styles[phase])
+		_attack_phase_style = phase
 
 
 func _on_lock_changed(_target: Node3D, locked: bool) -> void:
@@ -603,9 +543,13 @@ func _on_lock_changed(_target: Node3D, locked: bool) -> void:
 
 
 func configure_minimap(definition: Dictionary) -> void:
-	_ensure_minimap()
 	if _minimap and _minimap.has_method("configure"):
 		_minimap.call("configure", definition)
+		if _minimap.has_method("has_graph"):
+			var show_map: bool = _minimap.call("has_graph")
+			if _minimap_anchor:
+				_minimap_anchor.visible = show_map
+		_bind_minimap_player()
 
 
 func mark_room_visited(room_id: String) -> void:
@@ -618,8 +562,58 @@ func set_current_room(room_id: String) -> void:
 		_minimap.call("set_current_room", room_id)
 
 
+func _bind_minimap_player() -> void:
+	if _player == null or _minimap == null or not _minimap.has_method("bind_player"):
+		return
+	_minimap.call("bind_player", _player)
+
+
+func _open_map_overlay() -> void:
+	if _minimap == null or not _minimap.has_method("export_state"):
+		return
+	_init_map_overlay()
+	var state: Dictionary = _minimap.call("export_state")
+	_map_overlay.visible = true
+	_map_overlay_minimap.call("import_state", state)
+	if _player and _map_overlay_minimap.has_method("bind_player"):
+		_map_overlay_minimap.call("bind_player", _player)
+	get_tree().paused = true
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+
+
+func _close_map_overlay() -> void:
+	if _map_overlay == null or not _map_overlay.visible:
+		return
+	_map_overlay.visible = false
+	get_tree().paused = false
+	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+
+
+func _init_map_overlay() -> void:
+	if _map_overlay != null:
+		return
+	_map_overlay = Control.new()
+	_map_overlay.name = "MapOverlay"
+	_map_overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_map_overlay.visible = false
+	_map_overlay.process_mode = Node.PROCESS_MODE_WHEN_PAUSED
+	_map_overlay.mouse_filter = Control.MOUSE_FILTER_STOP
+	add_child(_map_overlay)
+	var shell: Dictionary = MenuShellScript.build_modal(
+		_map_overlay, tr("MAP_TITLE"), GameUISkinScript.MENU_HALF_W + 120.0, GameUISkinScript.MENU_HALF_H + 160.0
+	)
+	var content: VBoxContainer = shell["content_vbox"]
+	_map_overlay_minimap = MinimapScript.new()
+	_map_overlay_minimap.name = "FullMap"
+	_map_overlay_minimap.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_map_overlay_minimap.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_map_overlay_minimap.custom_minimum_size = Vector2(520, 360)
+	_map_overlay_minimap.call("enable_overlay_mode")
+	content.add_child(_map_overlay_minimap)
+	MenuShellScript.add_hint(content, tr("MAP_HINT"))
+
+
 func set_branch_previews(hints: Array) -> void:
-	_ensure_branch_banner()
 	if hints.is_empty():
 		_branch_banner.visible = false
 		return
@@ -634,10 +628,10 @@ func set_branch_previews(hints: Array) -> void:
 			danger_count += 1
 	var parts: PackedStringArray = []
 	if reward_count > 0:
-		parts.append("%d reward path(s)" % reward_count)
+		parts.append(tr("HUD_BRANCH_REWARD") % reward_count)
 	if danger_count > 0:
-		parts.append("%d danger path(s)" % danger_count)
-	_branch_banner.text = "Branch ahead — " + ", ".join(parts)
+		parts.append(tr("HUD_BRANCH_DANGER") % danger_count)
+	_branch_banner.text = tr("HUD_BRANCH_AHEAD") % ", ".join(parts)
 	_branch_banner.visible = true
 
 
@@ -646,54 +640,9 @@ func set_objective_world_position(world_pos: Vector3) -> void:
 	_update_objective_marker()
 
 
-func _ensure_minimap() -> void:
-	if _minimap != null:
-		return
-	_minimap = MinimapScript.new()
-	_minimap.name = "Minimap"
-	_minimap.position = Vector2(size.x - 156.0, HUD_MARGIN)
-	add_child(_minimap)
-
-
-func _ensure_quest_tracker() -> void:
-	if _quest_tracker != null:
-		return
-	_quest_tracker = QuestTrackerUIScene.instantiate() as Control
-	_quest_tracker.name = "QuestTrackerUI"
-	add_child(_quest_tracker)
-
-
-func _ensure_branch_banner() -> void:
-	if _branch_banner != null:
-		return
-	_branch_banner = Label.new()
-	_branch_banner.name = "BranchBanner"
-	_branch_banner.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_branch_banner.set_anchors_preset(Control.PRESET_TOP_WIDE)
-	_branch_banner.offset_top = 8.0
-	_branch_banner.offset_bottom = 36.0
-	_branch_banner.visible = false
-	add_child(_branch_banner)
-
-
-func _ensure_objective_marker() -> void:
-	if _objective_marker != null:
-		return
-	_objective_marker = Control.new()
-	_objective_marker.name = "ObjectiveMarker"
-	_objective_marker.custom_minimum_size = Vector2(18, 18)
-	_objective_marker.visible = false
-	var glyph := ColorRect.new()
-	glyph.color = Color(0.95, 0.78, 0.25, 0.95)
-	glyph.set_anchors_preset(Control.PRESET_FULL_RECT)
-	_objective_marker.add_child(glyph)
-	add_child(_objective_marker)
-
-
 func _update_objective_marker() -> void:
-	if _objective_marker == null or _objective_world_pos == Vector3.INF or _player == null:
-		if _objective_marker:
-			_objective_marker.visible = false
+	if _objective_world_pos == Vector3.INF or _player == null:
+		_objective_marker.visible = false
 		return
 	var camera := _get_camera()
 	if camera == null:
@@ -703,14 +652,25 @@ func _update_objective_marker() -> void:
 	if to_target.length_squared() < 4.0:
 		_objective_marker.visible = false
 		return
-	var screen_center := get_viewport_rect().size * 0.5
-	var screen_edge := screen_center + Vector2(to_target.x, -to_target.z).normalized() * 120.0
+	var screen_pos := camera.unproject_position(_objective_world_pos)
+	var viewport_size := get_viewport_rect().size
+	var center := viewport_size * 0.5
+	if (
+		camera.is_position_behind(_objective_world_pos)
+		or not Rect2(Vector2.ZERO, viewport_size).has_point(screen_pos)
+	):
+		screen_pos = (
+			center
+			+ (screen_pos - center).normalized()
+			* minf(viewport_size.x, viewport_size.y)
+			* 0.42
+		)
 	_objective_marker.visible = true
-	_objective_marker.position = screen_edge - _objective_marker.size * 0.5
+	_objective_marker.position = (screen_pos - _objective_marker.size * 0.5).floor()
+	_objective_marker.rotation = (screen_pos - center).angle() + PI * 0.5
 
 
 func show_run_warning(message: String) -> void:
-	_ensure_warning_banner()
 	_warning_banner.text = message
 	_warning_banner.visible = true
 	_warning_banner.modulate.a = 1.0
@@ -725,7 +685,6 @@ func show_run_warning(message: String) -> void:
 
 
 func show_respawn_outcome(results: Dictionary) -> void:
-	_ensure_respawn_overlay()
 	var xp_gained: int = int(results.get("xp_gained", 0))
 	var xp_deferred: int = int(results.get("xp_deferred", 0))
 	var loot_lost: Array = results.get("loot_lost", [])
@@ -755,54 +714,60 @@ func _on_inventory_rejected(reason: String) -> void:
 		show_run_warning("Inventory full")
 
 
-func _ensure_warning_banner() -> void:
-	if _warning_banner != null:
+func _rebuild_controls_hint() -> void:
+	if _controls_hint == null:
 		return
-	_warning_banner = Label.new()
-	_warning_banner.name = "WarningBanner"
-	_warning_banner.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_warning_banner.set_anchors_preset(Control.PRESET_TOP_WIDE)
-	_warning_banner.offset_top = 44.0
-	_warning_banner.offset_bottom = 72.0
-	_warning_banner.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_warning_banner.add_theme_color_override("font_color", Color(0.98, 0.86, 0.55))
-	_warning_banner.visible = false
-	add_child(_warning_banner)
+	for child in _controls_hint.get_children():
+		child.queue_free()
+	var actions := ["dodge", "jump", "lock_on", "inventory"]
+	var size_px := StatusIconAtlasScript.icon_size()
+	for i in actions.size():
+		if i > 0:
+			var sep := Label.new()
+			sep.text = "  |  "
+			sep.theme_type_variation = GameUISkinScript.VAR_HINT_TEXT
+			sep.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			_controls_hint.add_child(sep)
+		_controls_hint.add_child(
+			GameUISkinScript.make_symbol_caption_row(
+				InputGlyphServiceScript.get_action_glyph_texture(actions[i]),
+				InputGlyphServiceScript.get_action_display_name(actions[i]),
+				size_px
+			)
+		)
 
 
-func _ensure_respawn_overlay() -> void:
-	if _respawn_overlay != null:
+func _on_symbols_invalidated(reason: StringName) -> void:
+	if reason == &"colorblind":
+		_refresh_status_icons()
+	if reason in [&"device", &"rebind", &"preset"]:
+		_rebuild_controls_hint()
+
+
+func _apply_controls_hint_visibility() -> void:
+	if _controls_hint:
+		_controls_hint.visible = AccessibilitySettings.show_control_hints and not _hint_hidden_by_usage
+
+
+func _on_accessibility_settings_changed() -> void:
+	StatusIconAtlasScript.reload()
+	_refresh_status_icons()
+	_apply_controls_hint_visibility()
+
+
+func _update_controls_hint_visibility(delta: float) -> void:
+	if _controls_hint == null or not AccessibilitySettings.show_control_hints:
 		return
-	_respawn_overlay = Control.new()
-	_respawn_overlay.name = "RespawnOutcomeOverlay"
-	_respawn_overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
-	_respawn_overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_respawn_overlay.visible = false
-	add_child(_respawn_overlay)
-	GameUISkinScript.make_backdrop(_respawn_overlay)
-	var panel := GameUISkinScript.make_center_panel(_respawn_overlay, 460.0, 220.0)
-	panel.name = "Panel"
-	var margin := MarginContainer.new()
-	margin.name = "Margin"
-	margin.add_theme_constant_override("margin_left", 16)
-	margin.add_theme_constant_override("margin_top", 16)
-	margin.add_theme_constant_override("margin_right", 16)
-	margin.add_theme_constant_override("margin_bottom", 16)
-	panel.add_child(margin)
-	var vbox := VBoxContainer.new()
-	vbox.name = "VBox"
-	margin.add_child(vbox)
-	var title := Label.new()
-	title.text = "Echo Returned"
-	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	GameUISkinScript.style_menu_title(title)
-	vbox.add_child(title)
-	var body := Label.new()
-	body.name = "Body"
-	body.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	vbox.add_child(body)
-	var hint := Label.new()
-	hint.text = "Enter to dismiss"
-	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	GameUISkinScript.style_hint_label(hint)
-	vbox.add_child(hint)
+	for action in _hint_actions_used.keys():
+		if Input.is_action_just_pressed(action):
+			_hint_actions_used[action] = true
+	var all_used := true
+	for used in _hint_actions_used.values():
+		if not used:
+			all_used = false
+			break
+	if all_used and not _hint_hidden_by_usage:
+		var elapsed := (Time.get_ticks_msec() / 1000.0) - _hint_session_start
+		if elapsed >= HINT_AUTO_HIDE_SECONDS:
+			_hint_hidden_by_usage = true
+			_apply_controls_hint_visibility()

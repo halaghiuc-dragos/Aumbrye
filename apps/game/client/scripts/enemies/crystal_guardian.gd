@@ -47,8 +47,6 @@ func _start_attack() -> void:
 		return
 	_state = State.ATTACK
 	_state_timer = _data.get("active_duration", 0.18)
-	if _telegraph:
-		_telegraph.visible = false
 	var dmg_mult := 1.2 if _phase == 2 else 1.0
 	if _hitbox:
 		_hitbox.set_attack_values(

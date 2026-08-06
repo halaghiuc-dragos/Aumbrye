@@ -46,6 +46,11 @@ static func reload() -> void:
 	_ensure_loaded()
 
 
+static func invalidate() -> void:
+	if _atlas != null:
+		_atlas.invalidate()
+
+
 static func _ensure_loaded() -> void:
 	if _loaded:
 		return

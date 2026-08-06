@@ -58,6 +58,8 @@ func run() -> void:
 
 
 func _snapshot_api_state() -> void:
+	if not is_instance_valid(ApiConfig):
+		return
 	_saved_base_url = ApiConfig.base_url
 	_saved_access = ApiConfig.access_token
 	_saved_refresh = ApiConfig.refresh_token
@@ -71,6 +73,8 @@ func _snapshot_api_state() -> void:
 
 
 func _restore_api_state() -> void:
+	if not is_instance_valid(ApiConfig):
+		return
 	ApiClient.clear_transport_override()
 	ApiConfig.reset_test_overrides()
 	ApiConfig.clear_session_file()
@@ -90,7 +94,7 @@ func _bind_stub() -> void:
 
 
 func _test_version_constants() -> void:
-	var path := ctx.repo_root().path_join(ApiVersionsPath)
+	var path: String = ctx.repo_root().path_join(ApiVersionsPath)
 	var text := ""
 	if FileAccess.file_exists(path):
 		text = FileAccess.get_file_as_string(path)
@@ -259,7 +263,7 @@ func _test_transport_suite() -> void:
 	if ApiConfig._http_pool.is_empty():
 		ApiConfig._init_http_pool()
 	var pool_count := ApiConfig._http_pool.size()
-	check(pool_count > 0, "http pool initialized", "NET-14")
+	check("net.transport.http_pool_initialized", pool_count > 0, "http pool initialized", "NET-14")
 	ApiConfig.cancel_all()
 	var remaining := 0
 	for child in ApiConfig.get_children():

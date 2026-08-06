@@ -21,9 +21,9 @@ const CAMERA_STICK_DEADZONE_MIN := 0.05
 const CAMERA_STICK_DEADZONE_MAX := 0.35
 const CAMERA_STICK_DEADZONE_DEFAULT := 0.15
 
-static var ui_scale: float = 1.0
 static var reduce_camera_shake: bool = false
 static var reduce_hitstop: bool = false
+static var show_control_hints: bool = true
 static var colorblind_mode: String = "default"
 static var subtitle_scale: float = 1.0
 static var vibration_intensity: float = 1.0
@@ -36,6 +36,9 @@ static var camera_stick_curve: float = CAMERA_STICK_CURVE_DEFAULT
 static var camera_stick_deadzone: float = CAMERA_STICK_DEADZONE_DEFAULT
 
 static var _settings_changed_listeners: Array[Callable] = []
+static var _save_timer: SceneTreeTimer
+const SAVE_DEBOUNCE_SEC := 0.5
+static var _pending_commit := false
 
 
 static func connect_settings_changed(callback: Callable) -> void:
@@ -53,11 +56,50 @@ static func settings_changed_notify() -> void:
 			callback.call()
 
 
+static func changed_notify(setting_id: String, value: Variant) -> void:
+	settings_changed_notify()
+	for callback in _settings_changed_listeners:
+		if callback.is_valid() and callback.get_argument_count() >= 2:
+			callback.call(setting_id, value)
+
+
+static func apply_live(setting_id: String = "", value: Variant = null) -> void:
+	if setting_id != "":
+		changed_notify(setting_id, value)
+	if setting_id == "colorblind_mode":
+		StatusIconAtlas.reload()
+	DisplayService.apply_all()
+	UITextScale.apply_all()
+
+
+static func request_commit() -> void:
+	_pending_commit = true
+	var tree := Engine.get_main_loop() as SceneTree
+	if tree == null:
+		commit()
+		return
+	if _save_timer != null and is_instance_valid(_save_timer):
+		_save_timer.time_left = SAVE_DEBOUNCE_SEC
+		return
+	_save_timer = tree.create_timer(SAVE_DEBOUNCE_SEC)
+	_save_timer.timeout.connect(_on_commit_timeout, CONNECT_ONE_SHOT)
+
+
+static func commit() -> void:
+	_pending_commit = false
+	save()
+
+
+static func _on_commit_timeout() -> void:
+	if _pending_commit:
+		commit()
+
+
 static func load_from_save() -> void:
 	var data: Dictionary = LocalSave.get_meta_data().get(SAVE_KEY, {})
-	ui_scale = float(data.get("ui_scale", 1.0))
 	reduce_camera_shake = bool(data.get("reduce_camera_shake", false))
 	reduce_hitstop = bool(data.get("reduce_hitstop", false))
+	show_control_hints = bool(data.get("show_control_hints", true))
 	colorblind_mode = str(data.get("colorblind_mode", "default"))
 	subtitle_scale = float(data.get("subtitle_scale", 1.0))
 	vibration_intensity = float(data.get("vibration_intensity", 1.0))
@@ -91,9 +133,9 @@ static func load_from_save() -> void:
 static func save() -> void:
 	var meta := LocalSave.get_meta_data()
 	meta[SAVE_KEY] = {
-		"ui_scale": ui_scale,
 		"reduce_camera_shake": reduce_camera_shake,
 		"reduce_hitstop": reduce_hitstop,
+		"show_control_hints": show_control_hints,
 		"colorblind_mode": colorblind_mode,
 		"subtitle_scale": subtitle_scale,
 		"vibration_intensity": vibration_intensity,
@@ -106,7 +148,7 @@ static func save() -> void:
 	}
 	LocalSave.set_meta_data(meta)
 	LocalSave.autosave()
-	settings_changed_notify()
+	changed_notify("all", null)
 
 
 static func camera_settings_defaults() -> Dictionary:

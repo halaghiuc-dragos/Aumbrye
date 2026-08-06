@@ -66,11 +66,9 @@ static func add_hint(parent: VBoxContainer, text: String) -> Label:
 static func make_menu_button(
 	text: String, on_pressed: Callable, min_size: Vector2 = DEFAULT_BUTTON_MIN
 ) -> Button:
-	var btn := Button.new()
-	btn.text = text
+	var btn := GameUISkinScript.make_button(text)
 	btn.custom_minimum_size = min_size
 	btn.pressed.connect(on_pressed)
-	GameUISkinScript.wire_button_sfx(btn)
 	return btn
 
 

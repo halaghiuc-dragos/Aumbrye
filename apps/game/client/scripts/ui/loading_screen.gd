@@ -11,6 +11,7 @@ var _started := false
 
 
 func _ready() -> void:
+	add_to_group("front_end")
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	_build_ui()
 	call_deferred("_run_boot")

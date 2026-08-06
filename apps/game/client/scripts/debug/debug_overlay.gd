@@ -69,6 +69,8 @@ func _process(_delta: float) -> void:
 			)
 		)
 	)
+	if PixelDioramaSettings.debug_flat_materials:
+		lines.append("gfx: flat materials ON")
 	if _dodge:
 		var dashing := "DASHING" if _dodge.get("is_dodging") else "off"
 		lines.append("dash i-frames: %s" % ("ON" if _dodge.get("iframes_active") else dashing))

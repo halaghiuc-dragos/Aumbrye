@@ -1,4 +1,4 @@
-# Stair lever and floor menu
+﻿# Stair lever and floor menu
 
 The stair lever is the interactable that moves the player between floors of a multi-floor run. `DungeonBuilder` instantiates `stair_lever.tscn` in every room whose `templateId` ends with `_stairs`, starts locked, and unlocks when the floor's boss dies. Interacting opens `StairMenu`, a `MenuShell` modal that pauses the run and offers ascend, descend, and retreat-to-hub through the lever's public `floor_options()` / `use()` API.
 
@@ -17,9 +17,9 @@ The stair lever is the interactable that moves the player between floors of a mu
 
 ### Creation
 
-`DungeonBuilder._setup_stair_levers()` (`dungeon_builder.gd:790-804`, called from `build_from_definition` at `:139`) walks every built room whose `templateId` ends with `_stairs` (via `RunFloorConfig.is_stairs_room`). `_create_stair_lever(room, room_id)` (`:807-825`) instantiates `STAIR_LEVER_SCENE`, parents under `Props`, and places from `SpawnPoints/LeverSpawn`. A missing marker is `push_error` and the lever is freed — there is no west-wall guess (`:836-847`). More than one stairs room logs `push_error` but still creates a lever per room (`:798-802`).
+`DungeonBuilder._setup_stair_levers()` (`dungeon_builder.gd:790-804`, called from `build_from_definition` at `:139`) walks every built room whose `templateId` ends with `_stairs` (via `RunFloorConfig.is_stairs_room`). `_create_stair_lever(room, room_id)` (`:807-825`) instantiates `STAIR_LEVER_SCENE`, parents under `Props`, and places from `SpawnPoints/LeverSpawn`. A missing marker is `push_error` and the lever is freed â€” there is no west-wall guess (`:836-847`). More than one stairs room logs `push_error` but still creates a lever per room (`:798-802`).
 
-`_stair_levers: Dictionary` maps `room_id → Node3D` (`:54`). `get_stair_lever()` returns the lever in the room chosen by `find_stairs_room_id(definition)` (`:822-825`). `get_stair_levers()` returns all values as an `Array[Node3D]` (`:828-833`).
+`_stair_levers: Dictionary` maps `room_id â†’ Node3D` (`:54`). `get_stair_lever()` returns the lever in the room chosen by `find_stairs_room_id(definition)` (`:822-825`). `get_stair_levers()` returns all values as an `Array[Node3D]` (`:828-833`).
 
 ### Direction flags
 
@@ -45,8 +45,8 @@ Prompts (`_update_label`, `:139-154`):
 
 | State | Text |
 |-------|------|
-| locked, near | `"Sealed — defeat the floor boss"` |
-| unlocked, near | `"<glyph> Stairs — floor N"` |
+| locked, near | `"Sealed â€” defeat the floor boss"` |
+| unlocked, near | `"<glyph> Stairs â€” floor N"` |
 | menu open | hidden |
 
 ### StairMenu
@@ -61,7 +61,7 @@ Prompts (`_update_label`, `:139-154`):
 
 `RunFloorConfig.find_stairs_room_id(definition)` (`run_floor_config.gd:52-56`) returns the first room whose `templateId` ends with `_stairs`, or `""` when none. `stairs_spawn_facing_y(stair_room, ascending)` (`:59-67`) returns `0.0` for a null room.
 
-`lever_used` connects to `AchievementService.notify("stair_lever_used", …)` in `stair_lever._ready` (`stair_lever.gd:48-49`, `:228-230`).
+`lever_used` connects to `AchievementService.notify("stair_lever_used", â€¦)` in `stair_lever._ready` (`stair_lever.gd:48-49`, `:228-230`).
 
 ### What the suites assert
 
@@ -84,7 +84,7 @@ Prompts (`_update_label`, `:139-154`):
 - Group contract: `stair_menu` group node with `open_for_lever(lever, options)`.
 - Public lever API: `floor_options() -> Array[Dictionary]`, `use(direction: String)`, `set_menu_open(bool)`.
 - Outbound: `RunFlow.ascend_floor()`, `descend_floor()`, `retreat_to_hub()`, `can_retreat_to_hub()`.
-- Signals: `lever_used(direction)` → `AchievementService.notify`; `StairMenu.closed`.
+- Signals: `lever_used(direction)` â†’ `AchievementService.notify`; `StairMenu.closed`.
 
 ## Current state
 
@@ -104,7 +104,7 @@ Prompts (`_update_label`, `:139-154`):
 
 ## Related
 
-- Improvement plan: [`../actual_improvements/stair-lever.md`](../actual_improvements/stair-lever.md)
+- Improvement plan: [`../actual_improvements/stair-lever.md`](../actual_improvements/stair-lever.md) - **FINISHED**
 - [`dungeon-builder.md`](dungeon-builder.md)
 - [`room-templates.md`](room-templates.md)
 - [`run-flow.md`](run-flow.md)

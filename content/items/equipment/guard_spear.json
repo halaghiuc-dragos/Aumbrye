@@ -11,5 +11,6 @@
   "description": "A long spear suited for disciplined guards.",
   "value": 35,
   "maxDurability": 95,
+  "unlock": { "flag": "guard_spear" },
   "stats": { "damagePercent": 5 }
 }

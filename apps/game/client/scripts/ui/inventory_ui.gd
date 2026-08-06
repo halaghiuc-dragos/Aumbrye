@@ -10,6 +10,7 @@ const BlacksmithServiceScript := preload("res://scripts/hub/blacksmith_service.g
 const InputGlyphServiceScript := preload("res://scripts/ui/input_glyph_service.gd")
 const RunModeConfigScript := preload("res://scripts/app/run_mode_config.gd")
 const ItemIconAtlasScript := preload("res://scripts/ui/item_icon_atlas.gd")
+const ConsumableServiceScript := preload("res://scripts/inventory/consumable_service.gd")
 
 const CELL_SIZE := InventoryUILayoutScript.CELL_SIZE
 const EQUIP_CELL_SIZE := InventoryUILayoutScript.EQUIP_CELL_SIZE
@@ -22,9 +23,14 @@ enum FocusArea { GRID, EQUIPMENT }
 var _backdrop: ColorRect
 var _grid: GridContainer
 var _detail_label: Label
+var _tooltip_panel: PanelContainer
+var _tooltip_scroll: ScrollContainer
+var _tooltip_content: VBoxContainer
 var _compare_label: Label
-var _hint_label: Label
+var _hint_row: HBoxContainer
 var _filter_label: Label
+var _search_edit: LineEdit
+var _search_text := ""
 var _equip_host: GridContainer
 var _title_label: Label
 var _drag_ghost: PanelContainer
@@ -55,6 +61,7 @@ var _quick_slot_row: HBoxContainer
 var _btn_equip: Button
 var _btn_unequip: Button
 var _btn_use: Button
+var _btn_drop: Button
 var _btn_bind: Array[Button] = []
 
 
@@ -69,6 +76,10 @@ func _ready() -> void:
 	get_tree().scene_changed.connect(func() -> void: call_deferred("_bind_inventory_context"))
 	if WavesRunService:
 		WavesRunService.inventory_changed.connect(_on_waves_inventory_changed)
+	var symbol_bus := get_node_or_null("/root/UISymbolBus")
+	if symbol_bus and not symbol_bus.symbols_invalidated.is_connected(_on_symbols_invalidated):
+		symbol_bus.symbols_invalidated.connect(_on_symbols_invalidated)
+	InputGlyphServiceScript.connect_device_family_changed(_rebuild_footer_hints)
 	_refresh_all()
 
 
@@ -114,8 +125,10 @@ func _ensure_grid_dimensions() -> void:
 			cell.gui_input.connect(_on_cell_gui_input.bind(x, y))
 			cell.mouse_entered.connect(_on_cell_mouse_entered.bind(x, y))
 			cell.mouse_exited.connect(_on_cell_mouse_exited)
+			cell.focus_entered.connect(_on_cell_focus_entered.bind(x, y))
 			_grid.add_child(cell)
 			_cells.append(cell)
+	_wire_grid_focus_neighbors()
 
 
 func is_open() -> bool:
@@ -140,46 +153,70 @@ func _build_ui_shell() -> void:
 	var root_hbox := HBoxContainer.new()
 	root_hbox.add_theme_constant_override("separation", GameUISkinScript.SECTION_SEPARATION)
 	margin.add_child(root_hbox)
-	var grid_frame := GameUISkinScript.make_section_frame("Stash")
+	var grid_frame := GameUISkinScript.make_section_frame(tr("INV_TITLE_STASH"))
 	root_hbox.add_child(grid_frame)
 	var grid_vbox := GameUISkinScript.section_content(grid_frame)
 	_title_label = Label.new()
 	_title_label.name = "Title"
 	_title_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	GameUISkinScript.style_section_title(_title_label, "Stash")
+	GameUISkinScript.style_section_title(_title_label, tr("INV_TITLE_STASH"))
 	grid_vbox.add_child(_title_label)
 	_filter_label = Label.new()
 	_filter_label.name = "FilterLabel"
 	GameUISkinScript.style_hint_label(_filter_label)
 	grid_vbox.add_child(_filter_label)
+	_search_edit = LineEdit.new()
+	_search_edit.name = "SearchEdit"
+	_search_edit.placeholder_text = tr("INV_SEARCH_PLACEHOLDER")
+	_search_edit.clear_button_enabled = true
+	_search_edit.text_changed.connect(_on_search_changed)
+	grid_vbox.add_child(_search_edit)
 	_grid = GridContainer.new()
 	_grid.name = "GridContainer"
 	_grid.add_theme_constant_override("h_separation", GRID_GAP)
 	_grid.add_theme_constant_override("v_separation", GRID_GAP)
 	grid_vbox.add_child(_grid)
+	_tooltip_panel = PanelContainer.new()
+	_tooltip_panel.name = "TooltipPanel"
+	_tooltip_panel.visible = false
+	_tooltip_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_tooltip_panel.z_index = 50
+	var tooltip_style := GameUISkinScript.make_panel_style()
+	_tooltip_panel.add_theme_stylebox_override("panel", tooltip_style)
+	grid_vbox.add_child(_tooltip_panel)
+	var tooltip_margin := MarginContainer.new()
+	tooltip_margin.add_theme_constant_override("margin_left", 8)
+	tooltip_margin.add_theme_constant_override("margin_top", 6)
+	tooltip_margin.add_theme_constant_override("margin_right", 8)
+	tooltip_margin.add_theme_constant_override("margin_bottom", 6)
+	_tooltip_panel.add_child(tooltip_margin)
+	_tooltip_scroll = ScrollContainer.new()
+	_tooltip_scroll.custom_minimum_size = Vector2(560, 88)
+	_tooltip_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	tooltip_margin.add_child(_tooltip_scroll)
+	_tooltip_content = VBoxContainer.new()
+	_tooltip_content.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_tooltip_scroll.add_child(_tooltip_content)
 	var footer := VBoxContainer.new()
 	footer.add_theme_constant_override("separation", 6)
 	grid_vbox.add_child(footer)
-	_detail_label = Label.new()
-	_detail_label.name = "DetailLabel"
-	_detail_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_detail_label.custom_minimum_size = Vector2(560, 88)
-	GameUISkinScript.style_body_label(_detail_label)
-	footer.add_child(_detail_label)
 	_action_row = HBoxContainer.new()
 	_action_row.add_theme_constant_override("separation", 8)
-	_btn_equip = MenuShellScript.make_menu_button("Equip", _on_action_equip_pressed)
-	_btn_unequip = MenuShellScript.make_menu_button("Unequip", _on_action_unequip_pressed)
-	_btn_use = MenuShellScript.make_menu_button("Use", _on_action_use_pressed)
+	_btn_equip = MenuShellScript.make_menu_button(tr("INV_BTN_EQUIP"), _on_action_equip_pressed)
+	_btn_unequip = MenuShellScript.make_menu_button(tr("INV_BTN_UNEQUIP"), _on_action_unequip_pressed)
+	_btn_use = MenuShellScript.make_menu_button(tr("INV_BTN_USE"), _on_action_use_pressed)
+	_btn_drop = MenuShellScript.make_menu_button(tr("INV_BTN_DROP"), _on_action_drop_pressed)
 	_action_row.add_child(_btn_equip)
 	_action_row.add_child(_btn_unequip)
 	_action_row.add_child(_btn_use)
+	_action_row.add_child(_btn_drop)
 	for i in 4:
 		var bind_btn := MenuShellScript.make_menu_button(
-			"Bind %d" % (i + 1), _on_bind_quick_slot_pressed.bind(i)
+			tr("INV_BTN_BIND") % (i + 1), _on_bind_quick_slot_pressed.bind(i)
 		)
 		_btn_bind.append(bind_btn)
 		_action_row.add_child(bind_btn)
+	_btn_equip.focus_neighbor_top = _grid.get_path()
 	footer.add_child(_action_row)
 	_quick_slot_row = HBoxContainer.new()
 	_quick_slot_row.add_theme_constant_override("separation", 10)
@@ -187,16 +224,20 @@ func _build_ui_shell() -> void:
 	_compare_label = Label.new()
 	_compare_label.name = "CompareLabel"
 	_compare_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_compare_label.add_theme_color_override("font_color", Color(0.65, 0.9, 0.65))
+	GameUISkinScript.style_stat_delta(_compare_label, true)
+	_compare_label.visible = false
 	footer.add_child(_compare_label)
-	_hint_label = Label.new()
-	_hint_label.name = "HintLabel"
-	GameUISkinScript.style_hint_label(_hint_label)
-	footer.add_child(_hint_label)
+	_detail_label = Label.new()
+	_detail_label.visible = false
+	_hint_row = HBoxContainer.new()
+	_hint_row.name = "HintRow"
+	_hint_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	_hint_row.add_theme_constant_override("separation", 8)
+	footer.add_child(_hint_row)
 	var separator := VSeparator.new()
 	separator.custom_minimum_size.x = 4
 	root_hbox.add_child(separator)
-	var equip_frame := GameUISkinScript.make_section_frame("Character")
+	var equip_frame := GameUISkinScript.make_section_frame(tr("INV_TITLE_CHARACTER"))
 	root_hbox.add_child(equip_frame)
 	var equip_vbox := GameUISkinScript.section_content(equip_frame)
 	_equip_wrap = Control.new()
@@ -205,7 +246,7 @@ func _build_ui_shell() -> void:
 		EQUIP_CELL_SIZE * 3 + GRID_GAP * 2 + 24, EQUIP_CELL_SIZE * 4 + GRID_GAP * 3 + 24
 	)
 	equip_vbox.add_child(_equip_wrap)
-	GameUISkinScript.build_human_silhouette(_equip_wrap, EQUIP_CELL_SIZE, GRID_GAP, 1.12)
+	GameUISkinScript.build_paperdoll_backdrop(_equip_wrap, EQUIP_CELL_SIZE, GRID_GAP)
 	_equip_host = GridContainer.new()
 	_equip_host.name = "EquipGrid"
 	_equip_host.columns = 3
@@ -261,6 +302,10 @@ func _unhandled_input(event: InputEvent) -> void:
 		_cycle_rarity_filter()
 		get_viewport().set_input_as_handled()
 		return
+	elif event.is_action_pressed("ui_page_down"):
+		_split_selected_stack()
+		get_viewport().set_input_as_handled()
+		return
 	if _try_quick_slot_bind_input(event):
 		get_viewport().set_input_as_handled()
 
@@ -284,12 +329,14 @@ func show_inventory() -> void:
 	_inventory_open = true
 	visible = true
 	mouse_filter = Control.MOUSE_FILTER_STOP
-	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	if MenuStack:
+		MenuStack.push(self)
 	_focus_area = FocusArea.GRID
 	_cursor = Vector2i(0, 0)
 	_clear_drag()
 	_rebuild_visible_indices()
 	_refresh_all()
+	call_deferred("_focus_grid_cursor")
 
 
 func hide_inventory() -> void:
@@ -297,7 +344,8 @@ func hide_inventory() -> void:
 	visible = false
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_clear_drag()
-	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+	if MenuStack:
+		MenuStack.pop(self)
 
 
 func _build_equipment_panel() -> void:
@@ -322,37 +370,55 @@ func _build_equipment_panel() -> void:
 func _make_equip_cell(slot_name: String) -> PanelContainer:
 	var cell := _make_item_cell(EQUIP_CELL_SIZE, "common", 0)
 	cell.set_meta("slot_name", slot_name)
+	cell.focus_entered.connect(_on_equip_focus_entered.bind(slot_name))
 	return cell
 
 
 func _make_item_cell(cell_size: int, rarity: String, upgrade_level: int) -> PanelContainer:
 	var cell := PanelContainer.new()
 	cell.custom_minimum_size = Vector2(cell_size, cell_size)
+	cell.focus_mode = Control.FOCUS_ALL
 	var style := GameUISkinScript.make_item_cell_style(rarity, false)
 	cell.add_theme_stylebox_override("panel", style)
-	var icon := TextureRect.new()
+	var icon := GameUISkinScript.make_symbol_rect(null, ItemIconAtlasScript.icon_size())
 	icon.name = "Icon"
 	icon.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	icon.offset_left = 2
 	icon.offset_top = 2
 	icon.offset_right = -2
 	icon.offset_bottom = -2
-	icon.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-	icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-	icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	cell.add_child(icon)
+	var stack_label := Label.new()
+	stack_label.name = "StackLabel"
+	stack_label.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
+	stack_label.offset_left = -cell_size + 2
+	stack_label.offset_bottom = -2
+	stack_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	stack_label.vertical_alignment = VERTICAL_ALIGNMENT_BOTTOM
+	stack_label.add_theme_font_size_override("font_size", GameUISkinScript.FONT_SIZE_MICRO)
+	stack_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	stack_label.visible = false
+	cell.add_child(stack_label)
 	var upgrade_label := Label.new()
 	upgrade_label.name = "UpgradeLabel"
 	upgrade_label.set_anchors_preset(Control.PRESET_TOP_RIGHT)
 	upgrade_label.offset_left = -cell_size + 2
 	upgrade_label.offset_top = 0
 	upgrade_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	upgrade_label.add_theme_font_size_override("font_size", 10)
+	upgrade_label.add_theme_font_size_override("font_size", GameUISkinScript.FONT_SIZE_MICRO)
 	upgrade_label.add_theme_color_override("font_color", Color(1.0, 0.85, 0.45))
 	upgrade_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	upgrade_label.text = ("+%d" % upgrade_level) if upgrade_level > 0 else ""
 	cell.add_child(upgrade_label)
+	var durability := TextureProgressBar.new()
+	durability.name = "DurabilityBar"
+	durability.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
+	durability.offset_top = -2
+	durability.custom_minimum_size = Vector2(0, 2)
+	durability.show_percentage = false
+	durability.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	durability.visible = false
+	cell.add_child(durability)
 	return cell
 
 
@@ -369,14 +435,31 @@ func _set_cell_content(
 	cell.add_theme_stylebox_override("panel", style)
 	var icon: TextureRect = cell.get_node("Icon")
 	var upgrade_label: Label = cell.get_node("UpgradeLabel")
+	var stack_label: Label = cell.get_node("StackLabel")
+	var durability_bar: TextureProgressBar = cell.get_node("DurabilityBar")
 	if filled:
 		var item_id: String = str(slot.get("itemId", ""))
 		var def := _item_def(item_id)
 		icon.texture = ItemIconAtlasScript.get_icon(item_id, str(def.get("iconPath", "")))
+		var qty: int = int(slot.get("quantity", 1))
+		stack_label.text = str(qty) if qty > 1 else ""
+		stack_label.visible = qty > 1
+		var max_dur := BlacksmithServiceScript.get_max_durability(item_id)
+		var current_dur := BlacksmithServiceScript.get_slot_durability(slot)
+		if max_dur > 0 and def.get("itemType", "") in BlacksmithServiceScript.UPGRADEABLE_TYPES:
+			durability_bar.max_value = max_dur
+			durability_bar.value = current_dur
+			durability_bar.visible = current_dur < max_dur
+		else:
+			durability_bar.visible = false
 	elif empty_slot_name != "":
 		icon.texture = ItemIconAtlasScript.get_slot_icon(empty_slot_name)
+		stack_label.visible = false
+		durability_bar.visible = false
 	else:
 		icon.texture = null
+		stack_label.visible = false
+		durability_bar.visible = false
 	upgrade_label.text = ("+%d" % upgrade_level) if upgrade_level > 0 else ""
 
 
@@ -396,7 +479,12 @@ func _rebuild_visible_indices() -> void:
 	var rarity_filter := GridInventory.FILTER_RARITIES[_rarity_filter_idx]
 	var inv := _inventory()
 	for filtered in inv.filter_slots(type_filter, rarity_filter):
-		_visible_indices.append(int(filtered.get("_index", -1)))
+		var idx := int(filtered.get("_index", -1))
+		if idx < 0:
+			continue
+		if _search_text.strip_edges() != "" and not _passes_search(inv.slots[idx]):
+			continue
+		_visible_indices.append(idx)
 
 
 func _refresh_grid() -> void:
@@ -409,9 +497,10 @@ func _refresh_grid() -> void:
 	for idx in _visible_indices:
 		visible_set[idx] = true
 	for i in inv.slots.size():
-		if _visible_indices.size() > 0 and not visible_set.has(i):
-			continue
 		var slot: Dictionary = inv.slots[i]
+		if slot.is_empty():
+			continue
+		var dimmed := _visible_indices.size() > 0 and not visible_set.has(i)
 		var def := _item_def(slot.get("itemId", ""))
 		var w: int = int(def.get("gridWidth", 1))
 		var h: int = int(def.get("gridHeight", 1))
@@ -431,7 +520,9 @@ func _refresh_grid() -> void:
 				_set_cell_content(
 					_cells[idx], rarity, upgrade if is_origin else 0, slot if is_origin else {}
 				)
-				if i == _drag_index:
+				if dimmed:
+					_cells[idx].self_modulate = Color(1, 1, 1, 0.35)
+				elif i == _drag_index:
 					_cells[idx].self_modulate = Color(1.1, 1.0, 0.55)
 				elif _is_equipped_instance(slot):
 					_cells[idx].self_modulate = Color(0.75, 0.85, 1.0)
@@ -474,9 +565,39 @@ func _update_filter_label() -> void:
 	var sort_mode := GridInventory.SORT_MODES[_sort_mode_idx]
 	var type_f := GridInventory.FILTER_TYPES[_type_filter_idx]
 	var rarity_f := GridInventory.FILTER_RARITIES[_rarity_filter_idx]
-	_filter_label.text = "Sort: %s  |  Type: %s  |  Rarity: %s" % [sort_mode, type_f, rarity_f]
-	_title_label.text = "Stash" if not _waves_mode else "Waves Stash"
+	_filter_label.text = (
+		tr("INV_FILTER_ROW")
+		% [tr("INV_SORT"), sort_mode, tr("INV_TYPE"), type_f, tr("INV_RARITY"), rarity_f]
+	)
+	_title_label.text = (
+		tr("INV_TITLE_WAVES_STASH") if _waves_mode else tr("INV_TITLE_STASH")
+	)
 	GameUISkinScript.style_section_title(_title_label)
+
+
+func _hide_tooltip() -> void:
+	if _tooltip_panel:
+		_tooltip_panel.visible = false
+
+
+func _show_tooltip(header: String, body: String, hint: String = "") -> void:
+	for child in _tooltip_content.get_children():
+		child.queue_free()
+	if header != "":
+		var title := Label.new()
+		title.text = header
+		title.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		GameUISkinScript.style_section_title(title)
+		_tooltip_content.add_child(title)
+	if body != "":
+		var body_label := Label.new()
+		body_label.text = body
+		body_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		GameUISkinScript.style_body_label(body_label)
+		_tooltip_content.add_child(body_label)
+	_tooltip_panel.visible = header != "" or body != ""
+	if hint != "":
+		_set_hint_text(hint)
 
 
 func _update_detail() -> void:
@@ -489,48 +610,49 @@ func _update_detail() -> void:
 		)
 		detail_slot = inv.equipped.get(slot_name, {})
 		if detail_slot.is_empty():
-			_detail_label.text = "%s — empty" % SLOT_LABELS.get(slot_name, slot_name.capitalize())
-			_compare_label.text = ""
-			_hint_label.text = "Click or Enter to unequip  |  Drag items onto character"
+			_show_tooltip(
+				tr("INV_EMPTY_SLOT") % _slot_label(slot_name),
+				"",
+				tr("INV_HINT_UNEQUIP")
+			)
 			return
-		_detail_label.text = _format_slot_tooltip(detail_slot)
-		_compare_label.text = ""
-		_hint_label.text = "Click or Enter to unequip"
+		_show_tooltip(_build_tooltip_header(detail_slot), _format_slot_tooltip(detail_slot), "")
+		_set_hint_text(tr("INV_HINT_UNEQUIP"))
 		return
 	if _hover_grid_index >= 0:
 		compare_index = _index_at_grid_cell(_hover_grid_index)
 	elif _selected_index >= 0:
 		compare_index = _selected_index
 	if compare_index < 0:
-		_detail_label.text = "Select an item to inspect"
-		_compare_label.text = ""
-		_hint_label.text = _footer_hint_default()
+		_hide_tooltip()
+		_footer_hint_default()
 		return
 	detail_slot = inv.slots[compare_index]
 	var delta := _compare_slot_to_equipped(compare_index)
-	var rarity := inv.get_slot_rarity(detail_slot)
-	var rarity_name := RarityRegistryScript.display_name(rarity)
-	_detail_label.text = (
-		"[%s] %s\n%s"
-		% [
-			rarity_name,
-			_item_def(detail_slot.get("itemId", "")).get("name", detail_slot.get("itemId", "?")),
-			_format_slot_tooltip(detail_slot, delta),
-		]
-	)
 	var compare_lines: PackedStringArray = []
 	for stat in Equipment.STAT_KEYS:
 		if delta.has(stat) and not is_zero_approx(delta[stat]):
-			compare_lines.append("vs equipped: %s" % Equipment.format_delta_line(stat, delta[stat]))
-	_compare_label.text = "\n".join(compare_lines)
+			compare_lines.append(
+				tr("INV_VS_EQUIPPED") % Equipment.format_delta_line(stat, delta[stat])
+			)
+	_show_tooltip(
+		_build_tooltip_header(detail_slot),
+		_format_slot_tooltip(detail_slot, delta),
+		"\n".join(compare_lines)
+	)
 	var def := _item_def(detail_slot.get("itemId", ""))
-	match def.get("itemType", ""):
-		"weapon", "armor", "accessory":
-			_hint_label.text = "Click/Enter: equip  |  Drag to character panel"
-		"consumable":
-			_hint_label.text = "Click/Enter: use consumable"
-		_:
-			_hint_label.text = "Click/Enter: pick up and move"
+	var item_type: String = def.get("itemType", "")
+	if item_type in ["weapon", "armor", "accessory"]:
+		_set_hint_text(tr("INV_HINT_EQUIP"))
+	elif item_type == "consumable":
+		var in_run := RunFlow != null and RunFlow.is_run_active()
+		var guard := ConsumableServiceScript.can_use(def, in_run, not in_run)
+		if bool(guard.get("ok", false)):
+			_set_hint_text(tr("INV_HINT_USE"))
+		else:
+			_set_hint_text(str(guard.get("reason", tr("INV_HINT_USE"))))
+	else:
+		_set_hint_text(tr("INV_HINT_MOVE"))
 
 
 func _navigate(delta: Vector2i) -> void:
@@ -632,16 +754,12 @@ func _try_equip_dragged_to_slot(slot_name: String) -> bool:
 
 
 func _use_selected_consumable() -> void:
-	var player := get_tree().get_first_node_in_group("player")
-	if player == null:
+	var result := InventoryService.try_use_slot_index(_selected_index)
+	if not bool(result.get("ok", false)):
+		var reason := str(result.get("reason", ""))
+		if reason != "":
+			_set_hint_text(reason)
 		return
-	var health := player.get_node_or_null("Health") as Health
-	if health == null or health.is_dead():
-		return
-	var def := _inventory().consume_at(_selected_index)
-	if def.is_empty():
-		return
-	health.heal(def.get("healAmount", 30.0))
 	_refresh_all()
 
 
@@ -788,22 +906,99 @@ func _apply_equipment() -> void:
 		InventoryService.apply_equipment_to_player_node(player)
 
 
-func _footer_hint_default() -> String:
-	return (
-		"%s navigate  |  %s pick/equip  |  %s close  |  %s sort  |  %s type  |  %s rarity"
-		% [
-			(
-				InputGlyphServiceScript.get_action_glyph("ui_left")
-				+ "/"
-				+ InputGlyphServiceScript.get_action_glyph("ui_up")
-			),
-			InputGlyphServiceScript.get_action_glyph("ui_accept"),
-			InputGlyphServiceScript.get_action_glyph("ui_cancel"),
-			InputGlyphServiceScript.get_action_glyph("sprint"),
-			InputGlyphServiceScript.get_action_glyph("lock_on"),
-			InputGlyphServiceScript.get_action_glyph("interact"),
-		]
+func _clear_hint_row() -> void:
+	if _hint_row == null:
+		return
+	for child in _hint_row.get_children():
+		child.queue_free()
+
+
+func _set_hint_text(text: String) -> void:
+	_clear_hint_row()
+	var label := Label.new()
+	label.text = text
+	label.theme_type_variation = GameUISkinScript.VAR_HINT_TEXT
+	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_hint_row.add_child(label)
+
+
+func _append_hint_separator() -> void:
+	var sep := Label.new()
+	sep.text = "  |  "
+	sep.theme_type_variation = GameUISkinScript.VAR_HINT_TEXT
+	sep.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_hint_row.add_child(sep)
+
+
+func _append_action_hint(action: String, caption: String) -> void:
+	_hint_row.add_child(
+		GameUISkinScript.make_symbol_caption_row(
+			InputGlyphServiceScript.get_action_glyph_texture(action),
+			caption,
+			ItemIconAtlasScript.icon_size()
+		)
 	)
+
+
+func _append_navigate_hint() -> void:
+	var size_px := ItemIconAtlasScript.icon_size()
+	var row := HBoxContainer.new()
+	row.alignment = BoxContainer.ALIGNMENT_CENTER
+	row.add_theme_constant_override("separation", 2)
+	row.add_child(
+		GameUISkinScript.make_symbol_rect(
+			InputGlyphServiceScript.get_action_glyph_texture("ui_left"), size_px
+		)
+	)
+	var slash := Label.new()
+	slash.text = "/"
+	slash.theme_type_variation = GameUISkinScript.VAR_HINT_TEXT
+	slash.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	row.add_child(slash)
+	row.add_child(
+		GameUISkinScript.make_symbol_rect(
+			InputGlyphServiceScript.get_action_glyph_texture("ui_up"), size_px
+		)
+	)
+	var caption := Label.new()
+	caption.text = "navigate"
+	caption.theme_type_variation = GameUISkinScript.VAR_HINT_TEXT
+	caption.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	row.add_child(caption)
+	_hint_row.add_child(row)
+
+
+func _rebuild_footer_hints() -> void:
+	if _hint_row == null:
+		return
+	_clear_hint_row()
+	_append_navigate_hint()
+	_append_hint_separator()
+	_append_action_hint("ui_accept", "pick/equip")
+	_append_hint_separator()
+	_append_action_hint("ui_cancel", "close")
+	_append_hint_separator()
+	_append_action_hint("sprint", "sort")
+	_append_hint_separator()
+	_append_action_hint("lock_on", "type")
+	_append_hint_separator()
+	_append_action_hint("interact", "rarity")
+
+
+func _on_symbols_invalidated(reason: StringName) -> void:
+	if reason in [&"device", &"rebind", &"preset"]:
+		var inv := _inventory()
+		var compare_index := -1
+		if _hover_grid_index >= 0:
+			compare_index = _index_at_grid_cell(_hover_grid_index)
+		elif _selected_index >= 0:
+			compare_index = _selected_index
+		if compare_index < 0 and _focus_area != FocusArea.EQUIPMENT and _hover_equip_slot == "":
+			_rebuild_footer_hints()
+
+
+func _footer_hint_default() -> void:
+	_rebuild_footer_hints()
 
 
 func _index_at_grid_cell(cell_index: int) -> int:
@@ -894,10 +1089,16 @@ func _update_action_buttons() -> void:
 		var def := _item_def(slot.get("itemId", ""))
 		var item_type: String = def.get("itemType", "")
 		can_equip = item_type in ["weapon", "armor", "accessory"]
-		can_use = item_type == "consumable"
+		if item_type == "consumable":
+			var in_run := RunFlow != null and RunFlow.is_run_active()
+			can_use = bool(
+				ConsumableServiceScript.can_use(def, in_run, not in_run).get("ok", false)
+			)
+	var can_drop := _selected_index >= 0 and _focus_area == FocusArea.GRID
 	_btn_equip.visible = can_equip
 	_btn_use.visible = can_use
 	_btn_unequip.visible = can_unequip
+	_btn_drop.visible = can_drop and not _waves_mode
 	for i in _btn_bind.size():
 		_btn_bind[i].visible = bind_index >= 0 and not _waves_mode
 
@@ -926,30 +1127,18 @@ func _on_action_use_pressed() -> void:
 func _on_bind_quick_slot_pressed(quick_index: int) -> void:
 	if _selected_index < 0 or _waves_mode:
 		return
-	InventoryService.set_quick_slot(quick_index, _selected_index)
+	var slot: Dictionary = _inventory().slots[_selected_index]
+	InventoryService.set_quick_slot(quick_index, str(slot.get("instanceId", "")))
 	_refresh_quick_slot_row()
 
 
 func _try_quick_slot_bind_input(event: InputEvent) -> bool:
-	if _waves_mode or not (event is InputEventKey and event.pressed and not event.echo):
+	if _waves_mode or _selected_index < 0:
 		return false
-	if _selected_index < 0:
-		return false
-	match event.keycode:
-		KEY_1:
-			InventoryService.set_quick_slot(0, _selected_index)
-			_refresh_quick_slot_row()
-			return true
-		KEY_2:
-			InventoryService.set_quick_slot(1, _selected_index)
-			_refresh_quick_slot_row()
-			return true
-		KEY_3:
-			InventoryService.set_quick_slot(2, _selected_index)
-			_refresh_quick_slot_row()
-			return true
-		KEY_4:
-			InventoryService.set_quick_slot(3, _selected_index)
+	for i in 4:
+		if event.is_action_pressed("quick_slot_%d" % (i + 1)):
+			var slot: Dictionary = _inventory().slots[_selected_index]
+			InventoryService.set_quick_slot(i, str(slot.get("instanceId", "")))
 			_refresh_quick_slot_row()
 			return true
 	return false

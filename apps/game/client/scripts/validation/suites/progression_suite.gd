@@ -99,7 +99,7 @@ func _test_talent_unlock() -> void:
 
 func _test_run_economy_docs() -> void:
 	var start := Time.get_ticks_msec()
-	var path := ctx.repo_root().path_join("docs/existing_codebase/progression-service.md")
+	var path: String = ctx.repo_root().path_join("docs/existing_codebase/progression-service.md")
 	var exists := FileAccess.file_exists(path)
 	ctx.timed_record(
 		"progression.run_economy_doc",
@@ -153,7 +153,7 @@ func _test_xp_curve_runtime_keys() -> void:
 	var actual := ProgressionService.calculate_run_xp(1, false, false)
 	var boss_actual := ProgressionService.calculate_run_xp(0, true, false)
 	var escape_actual := ProgressionService.calculate_run_xp(0, false, true)
-	var ok := (
+	var ok: bool = (
 		per_kill > 0
 		and actual == expected
 		and boss_actual == int(curve.get("bossBonusXp", 0))
@@ -190,7 +190,7 @@ func _test_talent_points_from_curve() -> void:
 func _test_content_schema_validator() -> void:
 	var start := Time.get_ticks_msec()
 	var curve: Dictionary = ContentLoader.load_json("content/progression/xp_curve.json")
-	var ok := (
+	var ok: bool = (
 		curve.has("baseXpPerKill")
 		and not curve.has("baseXpPerRun")
 		and ctx.file_contains(
@@ -240,7 +240,7 @@ func _test_character_quests() -> void:
 	CharacterService.reset_to_defaults()
 	CharacterService.set_quest_state("relic_progress", "active")
 	CharacterService.set_quest_progress("relic", {"count": 3})
-	var ok := (
+	var ok: bool = (
 		CharacterService.get_quest_state("relic_progress") == "active"
 		and int(CharacterService.get_quest_progress("relic").get("count", 0)) == 3
 	)
@@ -302,7 +302,7 @@ func _test_character_flags() -> void:
 	CharacterService.set_flag("deaths", "7")
 	CharacterService.set_flag("story_completed", 1)
 	var deaths_ok := CharacterService.get_flag("deaths") is int and int(CharacterService.get_flag("deaths")) == 7
-	var story_ok := CharacterService.get_flag("story_completed") is bool and CharacterService.get_flag("story_completed") == true
+	var story_ok: bool = CharacterService.get_flag("story_completed") is bool and CharacterService.get_flag("story_completed") == true
 	ctx.timed_record(
 		"character.flags.registry_coerces_types",
 		get_category(),
@@ -383,7 +383,7 @@ func _test_character_signals() -> void:
 			"quests": {"states": {"kill_grunts": "active"}, "progress": {}},
 		}
 	)
-	var load_ok := (
+	var load_ok: bool = (
 		counts["gold"] == 1
 		and counts["coins"] == 1
 		and counts["level"] == 1
@@ -412,7 +412,7 @@ func _test_character_signals() -> void:
 	CharacterService.flags_changed.connect(on_flags)
 	CharacterService.quests_changed.connect(on_quests)
 	CharacterService.reset_to_defaults()
-	var reset_ok := (
+	var reset_ok: bool = (
 		counts["gold"] == 1
 		and counts["coins"] == 1
 		and counts["level"] == 1
@@ -443,7 +443,7 @@ func _test_character_save_round_trip() -> void:
 	var before := CharacterService.to_save_dict()
 	CharacterService.from_save_dict(before)
 	var after := CharacterService.to_save_dict()
-	var ok := (
+	var ok: bool = (
 		after.get("gold", -1) == before.get("gold", -2)
 		and str(after.get("classId", "")) == str(before.get("classId", "x"))
 		and after.get("flags", {}) == before.get("flags", {})

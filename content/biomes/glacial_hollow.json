@@ -17,10 +17,10 @@
     "hollow_puzzle"
   ],
   "materials": {
-    "floor": "res://assets/hollow/mat_floor.tres",
-    "wall": "res://assets/hollow/mat_wall.tres",
-    "ceiling": "res://assets/hollow/mat_ceiling.tres",
-    "accent": "res://assets/hollow/mat_accent.tres"
+    "floor": "hollow",
+    "wall": "hollow",
+    "ceiling": "hollow",
+    "accent": "hollow"
   },
   "lighting": {
     "ambientColor": [0.58, 0.68, 0.82],

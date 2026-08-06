@@ -37,10 +37,12 @@ theme_override_constants/margin_bottom = 12
 layout_mode = 2
 
 [node name="SpeakerLabel" type="Label" parent="Panel/Margin/VBox"]
+theme_type_variation = "SectionTitle"
 layout_mode = 2
 text = "Speaker"
 
 [node name="TextLabel" type="Label" parent="Panel/Margin/VBox"]
+theme_type_variation = "BodyText"
 layout_mode = 2
 autowrap_mode = 3
 text = "Dialogue text"
@@ -49,5 +51,6 @@ text = "Dialogue text"
 layout_mode = 2
 
 [node name="HintLabel" type="Label" parent="Panel/Margin/VBox"]
+theme_type_variation = "HintText"
 layout_mode = 2
 text = "D-pad + Enter"

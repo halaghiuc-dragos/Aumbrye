@@ -17,10 +17,10 @@
     "crystal_puzzle"
   ],
   "materials": {
-    "floor": "res://assets/crystal/mat_floor.tres",
-    "wall": "res://assets/crystal/mat_wall.tres",
-    "ceiling": "res://assets/crystal/mat_ceiling.tres",
-    "accent": "res://assets/crystal/mat_accent.tres"
+    "floor": "crystal",
+    "wall": "crystal",
+    "ceiling": "crystal",
+    "accent": "crystal"
   },
   "lighting": {
     "ambientColor": [0.35, 0.5, 0.75],

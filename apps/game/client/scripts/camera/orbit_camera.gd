@@ -19,7 +19,6 @@ const SHOULDER_OFFSET_X := 0.45
 const SHOULDER_OFFSET_BLEND := 8.0
 const ARM_PULL_IN_RATE := 24.0
 const ARM_PUSH_OUT_RATE := 6.0
-const SNAP_FOCUS_DISTANCE := 5.0
 const SNAP_DISABLE_WHILE_LOCKED := false
 
 @export var yaw_pivot_path: NodePath
@@ -466,7 +465,7 @@ func _update_camera_effects(delta: float) -> void:
 func _apply_camera_effects_transform() -> void:
 	if _camera == null:
 		return
-	var offset := _shake_offset + _punch_offset
+	var offset := _shake_offset + _punch_offset + VfxService.consume_shake()
 	offset.y += _landing_dip
 	if _death_framing:
 		offset.y += 0.18
@@ -483,8 +482,9 @@ func _apply_gameplay_pixel_snap() -> void:
 	if SNAP_DISABLE_WHILE_LOCKED and _lock_on_active:
 		return
 	_snap_base_transform = _camera.global_transform
+	PixelDioramaSettings.snap_fov_hint = _camera.fov
 	var snapped := PixelCameraSnap.snap_transform(
-		_snap_base_transform, _camera.fov, SNAP_FOCUS_DISTANCE
+		_snap_base_transform, _camera.fov, maxf(0.5, _smoothed_arm_length), true
 	)
 	_camera.global_transform = snapped
 

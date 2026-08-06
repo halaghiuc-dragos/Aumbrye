@@ -5,5 +5,9 @@
   "startingWeaponItemId": "guard_spear",
   "statBonuses": { "poise": 15, "blockReduction": 0.03 },
   "allowedWeapons": ["guard_spear", "castle_sword", "castle_buckler", "iron_sword"],
-  "perk": "bulwark"
+  "perk": "bulwark",
+  "iconPath": "class_icons:sentinel",
+  "role": "CLASS_ROLE_SENTINEL",
+  "perkName": "CLASS_PERK_BULWARK",
+  "perkDescription": "CLASS_PERK_BULWARK_DESC"
 }
