@@ -41,7 +41,7 @@ jobs:
         run: dotnet build ../../tools/procgen-cli/ProcgenCli.csproj --configuration Release
       - name: Test with coverage
         run: dotnet test Aumbrye.sln --no-build --configuration Release --verbosity normal --collect:"XPlat Code Coverage" --results-directory ./coverage
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: backend-coverage
           path: services/backend/coverage/**/coverage.cobertura.xml
@@ -276,7 +276,7 @@ jobs:
       - name: Procgen seed health
         run: |
           godot --path . --headless --script res://scripts/tools/procgen_seed_health.gd -- --from 1 --count 500 --max-fallback-rate 0.01 --report reports/procgen_seed_health.json
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: procgen-seed-health
           path: reports/procgen_seed_health.json
@@ -287,7 +287,7 @@ jobs:
         run: |
           mkdir -p artifacts
           godot --path . --headless --script res://scripts/validation/validation_main.gd -- --report=artifacts/mcp_validation.json
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: godot-validation-report

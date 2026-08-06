@@ -55,7 +55,7 @@ jobs:
         working-directory: apps/web
         env:
           VITE_API_URL: ${{ vars.WEB_API_URL }}
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: web-dist-${{ inputs.tag }}
           path: apps/web/dist
@@ -85,7 +85,7 @@ jobs:
         run: |
           mkdir -p ../../../artifacts/godot
           godot --headless --path . --export-release "Windows Desktop" ../../../artifacts/godot/aumbrye.exe
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: godot-export-${{ inputs.tag }}
           path: artifacts/godot
