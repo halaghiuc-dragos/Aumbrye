@@ -68,7 +68,7 @@ func set_first_person_camera(enabled: bool) -> void:
 
 
 func get_level() -> int:
-	if ProgressionService:
+	if is_instance_valid(ProgressionService):
 		return ProgressionService.level
 	return int(_character().get("level", 1))
 
@@ -152,6 +152,26 @@ func list_character_slots() -> Array[Dictionary]:
 	return slots
 
 
+func list_warden_names() -> PackedStringArray:
+	var names: PackedStringArray = []
+	for entry in _roster.get("characters", []):
+		if entry is Dictionary:
+			names.append(str(entry.get("name", "")))
+	return names
+
+
+func get_last_creation_profile() -> Dictionary:
+	var meta := get_meta_data()
+	var profile: Variant = meta.get("lastCreationProfile", {})
+	return profile if profile is Dictionary else {}
+
+
+func set_last_creation_profile(profile: Dictionary) -> void:
+	var meta := get_meta_data().duplicate(true)
+	meta["lastCreationProfile"] = profile.duplicate(true)
+	set_meta_data(meta)
+
+
 func queue_boot_new_game(class_id: String, character_name: String, appearance: Dictionary) -> void:
 	var profile := CharacterAppearance.sanitize(appearance)
 	_pending_new_game = {
@@ -218,7 +238,7 @@ func _apply_new_game_boot() -> bool:
 	)
 	set_character_profile(character_name, class_id)
 	set_appearance_profile(appearance)
-	if CharacterService:
+	if is_instance_valid(CharacterService):
 		CharacterService.set_class_id(class_id)
 	var starter_weapon := ClassCatalog.get_starting_weapon_item_id(class_id)
 	InventoryService.inventory.add_item(starter_weapon, 1)
@@ -331,7 +351,7 @@ func _read_character_summary(path: String) -> Dictionary:
 
 
 func get_talents() -> Dictionary:
-	if ProgressionService:
+	if is_instance_valid(ProgressionService):
 		return ProgressionService.talents.duplicate()
 	var talents: Variant = _cached_state.get("talents", {})
 	return talents if talents is Dictionary else {}
@@ -562,7 +582,7 @@ func delete_character_slot(backup_index: int) -> bool:
 
 ## Pull cloud save; server wins on conflict (local backed up first).
 func sync_from_cloud() -> Dictionary:
-	if ApiConfig.access_token == "":
+	if is_instance_valid(ApiConfig) and ApiConfig.access_token == "":
 		if not await ApiClient.require_session():
 			ApiConfig.set_cloud_state(ApiConfig.CloudState.SIGNED_OUT, "")
 			return {"ok": false, "error": "not signed in"}
@@ -597,7 +617,7 @@ func sync_from_cloud() -> Dictionary:
 
 ## Push local save to cloud; returns false on conflict (server state in result).
 func push_to_cloud() -> Dictionary:
-	if ApiConfig.access_token == "":
+	if is_instance_valid(ApiConfig) and ApiConfig.access_token == "":
 		if not await ApiClient.require_session():
 			ApiConfig.set_cloud_state(ApiConfig.CloudState.SIGNED_OUT, "")
 			return {"ok": false, "error": "not signed in"}
@@ -637,14 +657,15 @@ func _apply_save_data(data: Dictionary) -> void:
 	var working := data.duplicate(true)
 	_reconcile_item_instances(working)
 	_cached_state = working
-	InventoryService.apply_save_inventory(working.get("inventory", {}))
-	if StorageService:
+	if is_instance_valid(InventoryService):
+		InventoryService.apply_save_inventory(working.get("inventory", {}))
+	if is_instance_valid(StorageService):
 		StorageService.apply_save_storage(working.get("storage", {}))
 	var character: Dictionary = _character()
 	if character.is_empty():
 		character = _default_character()
 		_cached_state["character"] = character
-	if ProgressionService:
+	if is_instance_valid(ProgressionService):
 		(
 			ProgressionService
 			. from_save_dict(
@@ -656,7 +677,7 @@ func _apply_save_data(data: Dictionary) -> void:
 				}
 			)
 		)
-	if CharacterService:
+	if is_instance_valid(CharacterService):
 		var currencies: Variant = working.get("currencies", {})
 		var cur: Dictionary = currencies if currencies is Dictionary else {}
 		(
@@ -673,12 +694,12 @@ func _apply_save_data(data: Dictionary) -> void:
 				}
 			)
 		)
-	if RunBuffs:
+	if is_instance_valid(RunBuffs):
 		RunBuffs.from_save_array(working.get("runRelics", []))
 	var waves_run: Variant = working.get("wavesActiveRun", {})
 	if waves_run is Dictionary and not waves_run.is_empty():
 		_cached_state["wavesActiveRun"] = waves_run.duplicate(true)
-		if WavesRunService:
+		if is_instance_valid(WavesRunService):
 			WavesRunService.restore_from_save(waves_run)
 	elif _cached_state.has("wavesActiveRun"):
 		_cached_state.erase("wavesActiveRun")
@@ -689,10 +710,10 @@ func _build_save_payload() -> Dictionary:
 	var character := _character()
 	if character.is_empty():
 		character = _default_character()
-	if ProgressionService:
+	if is_instance_valid(ProgressionService):
 		character["level"] = ProgressionService.level
 		character["xp"] = ProgressionService.xp
-	if CharacterService:
+	if is_instance_valid(CharacterService):
 		character["classId"] = CharacterService.class_id
 		character["appearanceTheme"] = CharacterService.appearance_theme
 		character["appearance"] = CharacterService.appearance_profile.duplicate(true)
@@ -703,8 +724,12 @@ func _build_save_payload() -> Dictionary:
 		"schemaVersion": SAVE_SCHEMA_VERSION,
 		"accountId": account_id,
 		"character": character,
-		"currencies": _cached_state.get("currencies", {"gold": CharacterService.DEFAULT_GOLD if CharacterService else 0}),
-		"inventory": InventoryService.get_save_inventory(),
+		"currencies": _cached_state.get("currencies", {"gold": CharacterService.DEFAULT_GOLD if is_instance_valid(CharacterService) else 0}),
+		"inventory": (
+			InventoryService.get_save_inventory()
+			if is_instance_valid(InventoryService)
+			else _cached_state.get("inventory", {})
+		),
 		"storage":
 		StorageService.get_save_storage() if StorageService else _cached_state.get("storage", {}),
 		"itemInstances": _build_item_instances(),
@@ -714,13 +739,13 @@ func _build_save_payload() -> Dictionary:
 			if ProgressionService
 			else _cached_state.get("talents", {})
 		),
-		"talentPointsSpent": ProgressionService.talent_points_spent if ProgressionService else 0,
+		"talentPointsSpent": ProgressionService.talent_points_spent if is_instance_valid(ProgressionService) else 0,
 		"flags": _cached_state.get("flags", {}),
 		"recipes": get_recipes(),
 		"merchants": get_merchants(),
 		"runRelics": RunBuffs.to_save_array() if RunBuffs else _cached_state.get("runRelics", []),
 	}
-	if CharacterService:
+	if is_instance_valid(CharacterService):
 		var char_save: Dictionary = CharacterService.to_save_dict()
 		data["currencies"] = {"gold": char_save.get("gold", CharacterService.DEFAULT_GOLD)}
 		data["flags"] = char_save.get("flags", {})
@@ -770,11 +795,11 @@ func _reset_to_defaults() -> void:
 		"merchants": {},
 		"runRelics": [],
 	}
-	if ProgressionService:
+	if is_instance_valid(ProgressionService):
 		ProgressionService.from_save_dict({})
-	if CharacterService:
+	if is_instance_valid(CharacterService):
 		CharacterService.reset_to_defaults()
-	if RunBuffs:
+	if is_instance_valid(RunBuffs):
 		RunBuffs.clear_all()
 
 
@@ -1034,7 +1059,7 @@ func _build_item_instances() -> Dictionary:
 		_index_instance(out, slot)
 	for slot_name in InventoryService.inventory.equipped:
 		_index_instance(out, InventoryService.inventory.equipped[slot_name])
-	if StorageService:
+	if is_instance_valid(StorageService):
 		for slot in StorageService.storage.slots:
 			_index_instance(out, slot)
 	return out
@@ -1186,7 +1211,7 @@ func _roster_has_character_id(character_id: String) -> bool:
 
 
 func _resolve_account_id() -> String:
-	if ApiConfig.access_token != "" and ApiConfig.account_id != "":
+	if is_instance_valid(ApiConfig) and ApiConfig.access_token != "" and ApiConfig.account_id != "":
 		return ApiConfig.account_id
 	var cached := str(_cached_state.get("accountId", ""))
 	if cached != "" and cached != SaveMigrator.NIL_ACCOUNT_ID:

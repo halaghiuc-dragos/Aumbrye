@@ -103,8 +103,6 @@ func on_hit_received(
 	_play_combat_sfx_at_body("hit")
 	_pulse_damage_vignette()
 	var body := get_parent() as Node3D
-	if body:
-		_flash_diorama_body(body)
 	if show_damage_numbers and body:
 		_spawn_damage_number(body, damage, Vector3(-0.2, 0.15, 0.0), damage_type)
 
@@ -217,14 +215,18 @@ func _play_combat_sfx_at_body(cue: String, body: Node3D = null) -> void:
 	AudioDirector.play_combat_sfx(cue, pos)
 
 
-func _flash_diorama_body(body: Node3D, strength: float = 1.0, _tint: Color = Color.WHITE) -> void:
+func _flash_diorama_body(body: Node3D, strength: float = 1.0, tint: Color = Color.WHITE) -> void:
 	if body == null:
 		return
-	var visual := body.get_node_or_null("Facing/DioramaVisual") as Node3D
+	var visual: Node3D = null
+	if body.has_method("get_diorama_visual"):
+		visual = body.call("get_diorama_visual") as Node3D
+	if visual == null:
+		visual = body.get_node_or_null("Facing/DioramaVisual") as Node3D
 	if visual == null:
 		visual = body.get_node_or_null("DioramaVisual") as Node3D
 	if visual == null:
 		return
-	MaterialFlashScript.flash(visual, strength)
+	MaterialFlashScript.flash(visual, {"strength": strength, "tint": tint})
 	var anchor: Array = VfxService.resolve_combat_anchor(body)
 	VfxService.play_hit_spark(anchor[0], anchor[1])

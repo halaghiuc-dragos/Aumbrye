@@ -29,10 +29,10 @@
 | `WeaponController` | `weapon_changed(String)` | `_on_weapon_changed` | `set_weapon(archetype, archetype)` |
 | `CombatReactions` | `stagger_started` | `_on_stagger_started` | `play_stagger(DEFAULT_STAGGER)` = `0.85` s |
 | `CombatReactions` | `player_died` | `play_death` | death clip, `Priority.DEATH` |
-| `Health` | `health_changed` | `_on_health_changed` | on any decrease: `play_block_impact()` while blocking, else `play_flinch()` (`:268-276`) |
-| `Poise` | `poise_damaged(amount, remaining)` | `_on_poise_damaged` | `>= 20.0` → `play_stagger(0.45)`; `>= 8.0` → `play_flinch()` (`:132-136`) |
+| `Health` | `health_changed` | `_on_health_changed` | tracks `_last_health` only; reactions come from `Hurtbox.damaged` (`:291-305`) |
+| `Hurtbox` | `damaged` | `_on_hurtbox_damaged` | single `_arbitrate_hit_reaction` picks one clip per hit (`:311-335`) |
 
-Locomotion is pushed, not pulled: `update_locomotion(on_floor, velocity, sprinting)` (`:141`) is called once per physics frame after `move_and_slide()`. It returns early while `Dodge.is_dodging`. State selection: not on floor → `air` (with an unused `vertical_speed` param); first frame back on floor → one-shot `land` at `Priority.DASH`; horizontal speed `<= 0.2` → `idle`; else `run` when sprinting, `walk` otherwise, both passing `speed` so the base class scales `AnimationPlayer.speed_scale`.
+Locomotion is pushed, not pulled: `update_locomotion(on_floor, velocity, sprinting, fall_height, local_dir)` (`:379`) is called once per physics frame after `move_and_slide()`. It returns early while `Dodge.is_dodging`. State selection: not on floor → `air_rise`/`air_fall`; landing uses `fall_height` thresholds; horizontal speed `<= 0.2` → `idle` or turn-in-place; else directional `walk`/`run` from `local_dir` via `_locomotion_clip_for`.
 
 ### Clip coverage
 
@@ -40,37 +40,25 @@ Every clip name this director can request, and whether `DioramaAnimLibrary` prov
 
 | Requested clip | Requested from | In library |
 |----------------|----------------|------------|
-| `idle`, `walk`, `run`, `air` | `player_anim_director.gd:149-161` | yes, `diorama_anim_library.gd:33`, `:48`, `:70`, `:91` |
-| `land` | `:153` | yes, `:103` |
-| `dash_f`, `dash_b`, `dash_l`, `dash_r` | `:208-230` | yes, `:114`, `:126`, `:138`, `:150` |
-| `block_start`, `block_hold`, `block_hit` | `diorama_anim_controller.gd:183-195` | yes, `:162`, `:174`, `:187` |
-| `parry_success` | `diorama_anim_controller.gd:200` | yes, `:197` |
-| `guard_break` | `diorama_anim_controller.gd:205` | yes, `:208` |
-| `flinch` | `:136`, `:276` | yes, `:220` |
-| `stagger` | `:129`, `:134`, `:246` | yes, `:230` |
-| `death` | `:119` | yes, `:246` |
-| `attack_light_1`, `attack_light_2`, `attack_light_3` | `PROFILE_ATTACKS["player"]`, `WEAPON_ATTACKS["sword"]` | yes, `:267`, `:281`, `:295` |
-| `attack_heavy` | `heavy_clip_for` default, `WEAPON_ATTACKS["greatsword"]`/`["axe"]` | yes, `:309` |
-| `attack_thrust`, `attack_thrust_2`, `attack_thrust_3` | `WEAPON_ATTACKS["spear"]`, `["staff"]`, `heavy_clip_for("spear")` | yes, `:325`, `:339`, `:353` |
-| `attack_shoot` | `:259`, `WEAPON_ATTACKS["bow"]` | yes, `:369`, but its only weapon track keys a `Bow` pivot the player rig does not have — `PROFILES["player"]` declares no `extras` (`diorama_character_skin.gd:32-41`); only `"ranged"` adds a `Bow` pivot (`:58`, `:408-412`). The track is dropped by `_compile` (`diorama_anim_library.gd:530-531`) |
-| heal | `play_heal(duration)` at `:128` | **no heal clip exists.** `play_heal` calls `play_stagger(duration)`, so drinking plays the hurt animation |
-
-No clip name is requested that the library lacks. Two clips are effectively unavailable in practice: `attack_shoot`'s bow motion (missing pivot) and any heal pose (missing clip).
+| `idle`, `walk`, `walk_l`, `walk_r`, `walk_b`, `run`, `run_b`, `air`, `air_rise`, `air_fall` | `player_anim_director.gd:421-453` | yes |
+| `land`, `land_hard` | `:405-411` | yes |
+| `turn_l`, `turn_r` | `:459-497` | yes |
+| `dash_f`, `dash_b`, `dash_l`, `dash_r` | `:650-696` | yes |
+| `block_start`, `block_hold`, `block_walk`, `block_hit` | `diorama_anim_controller.gd:468-469` | yes |
+| `parry_success`, `guard_break` | base class | yes |
+| `flinch`, `flinch_l`, `flinch_r`, `flinch_b` | `_arbitrate_hit_reaction` | yes |
+| `stagger` | `:322-323` | yes |
+| `death` | `play_death` | yes |
+| `heal` | `diorama_anim_controller.gd:335-344` | yes |
+| `attack_light_*`, `attack_heavy`, `attack_thrust_*`, `attack_shoot` | weapon routing | yes; bow keys `Bow` pivot built lazily in `diorama_character_skin.gd:470-477` |
 
 ### Method-track markers
 
-`DioramaAnimLibrary` defines four `AnimationPlayer` method markers: `anim_hitbox_on`, `anim_hitbox_off`, `anim_swing_vfx`, `anim_footstep` (`diorama_anim_library.gd:16-19`). `walk` and `run` carry two `FOOTSTEP` keys each (`:68`, `:89`); every attack carries a `SWING_VFX` key plus injected `HITBOX_ON`/`HITBOX_OFF` at the phase boundaries (`:499-500`).
-
-None of them fire for the player:
-
-- The prebuilt libraries are exported with `events_path = ""` (`apps/game/client/scripts/tools/export_diorama_anim_libraries.gd:81`), and `_compile` skips the method track when the path is empty (`diorama_anim_library.gd:550`). `player_locomotion.res` therefore contains no method tracks.
-- The runtime path is also empty: `_resolve_events_path` returns `""` unless `visual.is_ancestor_of(self)` (`diorama_anim_controller.gd:116`). The visual is `Player/Facing/DioramaVisual` and the controller is `Player/AnimDirector`, so the guard rejects it.
-
-Consequences: no `footstep_frame` (see [`locomotion.md`](locomotion.md)), no `swing_frame`-driven weapon trail, and no animation-driven hitbox. Hitboxes are opened by `WeaponController`'s own phase timer instead (`weapon_controller.gd:320-329`), and the swing trail is emitted from `_enable_hitbox_for_attack` (`weapon_controller.gd:356-357`), so combat works but the visual strike frame and the hitbox frame are only as aligned as the phase-stretch math makes them.
+`DioramaAnimLibrary` defines method markers including `anim_hitbox_on`, `anim_hitbox_off`, `anim_swing_vfx`, `anim_footstep`, `anim_heal_gulp`, and `anim_heal_commit`. The exporter writes `events_path: "../../AnimDirector"` per profile (`export_diorama_anim_libraries.gd:13`), and `_resolve_events_path` uses `visual.get_path_to(self)` (`diorama_anim_controller.gd:120-126`). `has_footstep_markers()` and `has_marker_tracks()` guard validation. Footsteps and swing VFX route through `footstep_frame` / `swing_frame` handlers at `player_anim_director.gd:790-813`.
 
 ### Viewmodel and camera modes
 
-`_build_viewmodel()` (`:62`) requires `CameraPivot/SpringArm3D/Camera3D`, builds `DioramaViewmodel` under it, creates a second plain `DioramaAnimController` named `ViewmodelAnim` as a child of the director, sets its profile and weapon, binds it to `ViewRoot`, and registers it with `add_mirror` so one gameplay call drives both rigs (`:73-81`). The palette theme is hardcoded to `PixelStyle.PaletteTheme.HUB` (`:66`).
+`_build_viewmodel()` (`:143`) requires `CameraPivot/SpringArm3D/Camera3D`, builds `DioramaViewmodel` under it with `CharacterService.appearance_theme` (`:119-121`), creates a mirrored `ViewmodelAnim` child, and registers it with `add_mirror`. `set_viewmodel_theme(theme)` retints on biome change (`:187-201`; called from `castle_run.gd` and `hub.gd`).
 
 `sync_camera_mode()` (`:86`) sets the viewmodel holder visible only in first person and always leaves `_visual.visible = true`. `_process` runs `_update_viewmodel_sway` every frame (`:164-204`): camera yaw/pitch deltas are scaled by `1.6` and `1.4`, clamped to `SWAY_YAW_LIMIT = 0.09` and `SWAY_PITCH_LIMIT = 0.07` rad, smoothed with `SWAY_RESPONSE = 9.0`, and applied as `rotation = (sway.y, sway.x, sway.x * 0.4)`; a walk bob of `BOB_HEIGHT = 0.014` m advances at `delta * speed * 2.2`.
 
@@ -88,19 +76,23 @@ First person hides the upper body by switching the `Torso` subtree to `SHADOW_CA
 
 | Surface | Status | Evidence |
 |---------|--------|----------|
-| Locomotion state machine and speed-scaled playback | IMPLEMENTED | `player_anim_director.gd:141-161`, `diorama_anim_controller.gd:156-164` |
-| Dash direction clip selection | IMPLEMENTED | `player_anim_director.gd:217-230` |
-| Attack clips stretched onto real weapon phase timings | IMPLEMENTED | `diorama_anim_library.gd:486-512` |
-| Animation method markers (footstep, swing, hitbox) | BROKEN | `export_diorama_anim_libraries.gd:81` exports with no events path; `diorama_anim_controller.gd:116` rejects the runtime path |
-| Heal animation | PLACEHOLDER | `play_heal` reuses `stagger` (`player_anim_director.gd:128-129`) |
-| Bow draw motion on the player rig | BROKEN | `attack_shoot` keys a `Bow` pivot absent from `PROFILES["player"]` (`diorama_character_skin.gd:32-41`) |
-| Hitstop on the player rig | BROKEN | `hit_feedback.gd:32-34` resolves `AnimDirector` in its own `_ready`, which Godot runs before the parent `_ready` that creates the node, so `set_speed_scale` is never called |
-| Viewmodel palette | FAKE | Hardcoded `PaletteTheme.HUB` regardless of biome (`player_anim_director.gd:66`) |
-| `RESET` clip | ABSENT from the prebuilt libraries | Added only on the compile path (`diorama_anim_library.gd:479-481`); the authored `.res` is returned before that (`:468-472`) |
-| Turn-in-place, strafe-specific, and blocking-locomotion clips | ABSENT | `CLIPS` has no `walk_l`/`walk_r`/`walk_b`/`turn_*`/`block_walk` entries (`diorama_anim_library.gd:32-261`) |
-| Additive upper-body layering | ABSENT | One `AnimationPlayer`, one clip at a time; no `AnimationTree` or blend tree anywhere under `scripts/art/characters/` |
+| Locomotion state machine and speed-scaled playback | IMPLEMENTED | `player_anim_director.gd:379-453`, `diorama_anim_controller.gd:206-216` |
+| Directional walk/run and turn-in-place | IMPLEMENTED | `_locomotion_clip_for`, `_turn_clip_if_needed` |
+| Dash direction clip selection | IMPLEMENTED | `player_anim_director.gd:650-696` |
+| Attack clips stretched onto real weapon phase timings | IMPLEMENTED | `diorama_anim_library.gd` `compile_attack` |
+| Animation method markers (footstep, swing, hitbox, heal) | IMPLEMENTED | `export_diorama_anim_libraries.gd:13`, `diorama_anim_controller.gd:120-145` |
+| Heal animation with marker-timed commit | IMPLEMENTED | `diorama_anim_controller.gd:335-344`, `player_heal.gd:119-122` |
+| Bow draw motion on the player rig | IMPLEMENTED | `diorama_character_skin.gd:470-477`, re-bind on weapon change |
+| Hitstop on the player rig | IMPLEMENTED | `hit_feedback.gd:46-50` lazy `_director()` |
+| Viewmodel palette from biome | IMPLEMENTED | `set_viewmodel_theme`, `castle_run.gd`, `hub.gd` |
+| `RESET` clip and `revive()` blend | IMPLEMENTED | `diorama_anim_controller.gd:367-368` |
+| Blocking locomotion (`block_walk`) | IMPLEMENTED | `diorama_anim_controller.gd:468-469` |
+| Single-reaction arbitration per hit | IMPLEMENTED | `_arbitrate_hit_reaction` via `Hurtbox.damaged` |
+| Air rise/fall clips | IMPLEMENTED | `player_anim_director.gd:421-427` |
+| Per-instance attack library copy | IMPLEMENTED | `diorama_anim_controller.gd:95` `duplicate(true)` |
+| Additive breathe/head-look layer | IMPLEMENTED | `DioramaAdditivePlayer` at `diorama_anim_controller.gd:166-179` |
 
 ## Related
-- Improvement plan: [`../actual_improvements/player-anim-director.md`](../actual_improvements/player-anim-director.md)
+- Improvement plan: [`../actual_improvements/player-anim-director.md`](../actual_improvements/player-anim-director.md) — **FINISHED**
 - [`locomotion.md`](locomotion.md), [`player-combat.md`](player-combat.md), [`player-combat-reactions.md`](player-combat-reactions.md), [`player-heal.md`](player-heal.md)
 - [`diorama-anim-controller.md`](diorama-anim-controller.md), [`diorama-anim-library.md`](diorama-anim-library.md), [`diorama-character-skin.md`](diorama-character-skin.md), [`diorama-viewmodel.md`](diorama-viewmodel.md)

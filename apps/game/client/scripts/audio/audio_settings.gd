@@ -11,6 +11,58 @@ static var sfx_volume: float = 1.0
 static var ambience_volume: float = 1.0
 static var ui_volume: float = 1.0
 
+static var _save_timer: SceneTreeTimer
+const SAVE_DEBOUNCE_SEC := 0.5
+static var _pending_commit := false
+static var _changed_listeners: Array[Callable] = []
+
+
+static func connect_changed(callback: Callable) -> void:
+	if not _changed_listeners.has(callback):
+		_changed_listeners.append(callback)
+
+
+static func disconnect_changed(callback: Callable) -> void:
+	_changed_listeners.erase(callback)
+
+
+static func _notify_changed(setting_id: String, value: Variant) -> void:
+	for callback in _changed_listeners:
+		if callback.is_valid():
+			if callback.get_argument_count() >= 2:
+				callback.call(setting_id, value)
+			else:
+				callback.call()
+
+
+static func apply_live(setting_id: String = "", value: Variant = null) -> void:
+	apply()
+	if setting_id != "":
+		_notify_changed(setting_id, value)
+
+
+static func request_commit() -> void:
+	_pending_commit = true
+	var tree := Engine.get_main_loop() as SceneTree
+	if tree == null:
+		commit()
+		return
+	if _save_timer != null and is_instance_valid(_save_timer):
+		_save_timer.time_left = SAVE_DEBOUNCE_SEC
+		return
+	_save_timer = tree.create_timer(SAVE_DEBOUNCE_SEC)
+	_save_timer.timeout.connect(_on_commit_timeout, CONNECT_ONE_SHOT)
+
+
+static func commit() -> void:
+	_pending_commit = false
+	save()
+
+
+static func _on_commit_timeout() -> void:
+	if _pending_commit:
+		commit()
+
 
 static func load_from_save() -> void:
 	var data: Dictionary = LocalSave.get_meta_data().get(SAVE_KEY, {})
@@ -34,6 +86,7 @@ static func save() -> void:
 	LocalSave.set_meta_data(meta)
 	LocalSave.autosave()
 	apply()
+	_notify_changed("all", null)
 
 
 static func apply() -> void:

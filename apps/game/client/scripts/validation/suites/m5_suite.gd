@@ -42,7 +42,7 @@ const M5_SCHEMAS: Array[String] = [
 
 
 func get_category() -> String:
-	return "m5"
+	return "biome"
 
 
 func run() -> void:
@@ -67,12 +67,13 @@ func run() -> void:
 	await _test_save_integer_normalization()
 	_test_balance_doc()
 	_test_online_procgen_optional_path()
+	await _test_combat_hud()
 
 
 func _test_biome_registry() -> void:
 	var start := Time.get_ticks_msec()
 	ctx.timed_record(
-		"m5.biome.all_three_registered",
+		"biome.registry.all_three_registered",
 		get_category(),
 		(
 			BiomeRegistry.ALL_BIOMES.has(BiomeRegistry.BIOME_CASTLE)
@@ -93,7 +94,7 @@ func _test_biome_registry() -> void:
 		var rooms: Dictionary = BiomeRegistry.get_room_scenes(biome_id)
 		var expected_min := 8 if biome_id == BiomeRegistry.BIOME_CASTLE else 9
 		ctx.timed_record(
-			"m5.biome.%s_room_count" % biome_id,
+			"biome.registry.%s_room_count" % biome_id,
 			get_category(),
 			rooms.size() >= expected_min,
 			"%s has %d room templates" % [biome_id, rooms.size()],
@@ -108,10 +109,12 @@ func _test_biome_materials_and_lighting() -> void:
 		var start := Time.get_ticks_msec()
 		var floor_mat: Material = BiomeRegistry.get_floor_material(biome_id)
 		var wall_mat: Material = BiomeRegistry.get_wall_material(biome_id)
-		var lighting: Dictionary = BiomeRegistry.get_lighting_profile(biome_id)
+		var lighting: Dictionary = VisualLighting.profile_summary(
+			VisualLighting.profile_for_biome(biome_id)
+		)
 		profiles.append(lighting)
 		ctx.timed_record(
-			"m5.biome.%s_materials" % biome_id,
+			"biome.registry.%s_materials" % biome_id,
 			get_category(),
 			floor_mat != null and wall_mat != null and lighting.has("ambient_color"),
 			"%s materials + lighting profile load" % biome_id,
@@ -125,7 +128,7 @@ func _test_biome_materials_and_lighting() -> void:
 		and profiles[1].get("ambient_color") != profiles[2].get("ambient_color")
 	)
 	ctx.timed_record(
-		"m5.biome.distinct_lighting",
+		"biome.registry.distinct_lighting",
 		get_category(),
 		distinct,
 		"three biomes have distinct ambient colors",
@@ -140,7 +143,7 @@ func _test_procgen_biomes() -> void:
 		var start := Time.get_ticks_msec()
 		var gen := LocalProcgen.generate(biome_id, TC.SEED_A)
 		ctx.timed_record(
-			"m5.procgen.%s_generates" % biome_id,
+			"procgen.biome.%s_generates" % biome_id,
 			get_category(),
 			gen.get("ok", false),
 			"%s seed %d generates" % [biome_id, TC.SEED_A],
@@ -159,7 +162,7 @@ func _test_procgen_biomes() -> void:
 				prefix_ok = false
 				break
 		ctx.timed_record(
-			"m5.procgen.%s_template_prefix" % biome_id,
+			"procgen.biome.%s_template_prefix" % biome_id,
 			get_category(),
 			prefix_ok,
 			"%s rooms use %s_ template prefix" % [biome_id, prefix],
@@ -172,7 +175,7 @@ func _test_procgen_biomes() -> void:
 		var sig1: String = ctx.layout_signature(def)
 		var sig2: String = ctx.layout_signature(gen2.get("definition", {}))
 		ctx.timed_record(
-			"m5.procgen.%s_deterministic" % biome_id,
+			"procgen.biome.%s_deterministic" % biome_id,
 			get_category(),
 			sig1 == sig2 and not sig1.is_empty(),
 			"%s same seed produces identical layout" % biome_id,
@@ -187,7 +190,7 @@ func _test_dungeon_build_biomes() -> void:
 		if not gen.get("ok", false):
 			var start := Time.get_ticks_msec()
 			ctx.timed_record(
-				"m5.dungeon.%s_build" % biome_id,
+				"dungeon.biome.%s_build" % biome_id,
 				get_category(),
 				false,
 				"procgen failed before dungeon build for %s" % biome_id,
@@ -212,7 +215,7 @@ func _test_dungeon_build_biomes() -> void:
 		var room_count: int = builder.get_room_ids().size()
 		var enemy_count: int = builder.get_spawned_enemy_count()
 		ctx.timed_record(
-			"m5.dungeon.%s_rooms" % biome_id,
+			"dungeon.biome.%s_rooms" % biome_id,
 			get_category(),
 			room_count > 0,
 			"%s: %d rooms built" % [biome_id, room_count],
@@ -222,7 +225,7 @@ func _test_dungeon_build_biomes() -> void:
 
 		start = Time.get_ticks_msec()
 		ctx.timed_record(
-			"m5.dungeon.%s_enemies" % biome_id,
+			"dungeon.biome.%s_enemies" % biome_id,
 			get_category(),
 			enemy_count > 0,
 			"%s: %d enemies spawned" % [biome_id, enemy_count],
@@ -233,7 +236,7 @@ func _test_dungeon_build_biomes() -> void:
 		start = Time.get_ticks_msec()
 		var boss_door := builder.get_boss_door()
 		ctx.timed_record(
-			"m5.dungeon.%s_boss_door" % biome_id,
+			"dungeon.biome.%s_boss_door" % biome_id,
 			get_category(),
 			boss_door != null,
 			"%s boss door wired" % biome_id,
@@ -246,7 +249,7 @@ func _test_dungeon_build_biomes() -> void:
 func _test_damage_types_and_resistance() -> void:
 	var start := Time.get_ticks_msec()
 	ctx.timed_record(
-		"m5.damage.six_types",
+		"combat.damage.six_types",
 		get_category(),
 		DamageInfo.ALL_TYPES.size() == 6,
 		"DamageInfo defines six damage types",
@@ -258,7 +261,7 @@ func _test_damage_types_and_resistance() -> void:
 	var reduced := DamageInfo.apply_resistance(100.0, DamageInfo.TYPE_FIRE, {"fire": 0.5})
 	var immune := DamageInfo.apply_resistance(50.0, DamageInfo.TYPE_FROST, {"frost": 1.0})
 	ctx.timed_record(
-		"m5.damage.resistance_pipeline",
+		"combat.damage.resistance_pipeline",
 		get_category(),
 		is_equal_approx(reduced, 50.0) and is_equal_approx(immune, 0.0),
 		"resistance reduces and full resist blocks damage",
@@ -270,7 +273,7 @@ func _test_damage_types_and_resistance() -> void:
 	var golem := EnemyCatalog.get_definition("crystal_golem")
 	var has_resist: bool = golem.get("resistances", {}).has("frost")
 	ctx.timed_record(
-		"m5.damage.enemy_resistances_data",
+		"combat.damage.enemy_resistances_data",
 		get_category(),
 		has_resist,
 		"crystal_golem has frost resistance in JSON",
@@ -287,7 +290,7 @@ func _test_status_system() -> void:
 		if not loaded.has(status_id):
 			all_present = false
 	ctx.timed_record(
-		"m5.status.five_definitions",
+		"combat.status.five_definitions",
 		get_category(),
 		all_present and loaded.size() >= 5,
 		"five status definitions load from content/statuses/",
@@ -308,7 +311,7 @@ func _test_status_system() -> void:
 		await ctx.await_physics(2)
 	var active := status_ctrl.get_active_statuses() if has_controller else []
 	ctx.timed_record(
-		"m5.status.apply_burn",
+		"combat.status.apply_burn",
 		get_category(),
 		has_controller and not active.is_empty() and active[0].get("id", "") == "burn",
 		"StatusController applies burn via debug_apply",
@@ -320,7 +323,7 @@ func _test_status_system() -> void:
 	var hud_script := FileAccess.get_file_as_string("res://scripts/ui/combat_hud.gd")
 	var hud_has_row := "_status_row" in hud_script and "_refresh_status_icons" in hud_script
 	ctx.timed_record(
-		"m5.status.hud_icon_row",
+		"combat.status.hud_icon_row",
 		get_category(),
 		hud_has_row,
 		"combat_hud renders status icon row",
@@ -336,7 +339,7 @@ func _test_status_system() -> void:
 		atlas_ok = burn_icon.atlas == freeze_icon.atlas
 		atlas_ok = atlas_ok and burn_icon.region != freeze_icon.region
 	ctx.timed_record(
-		"m5.status.atlas_texture",
+		"combat.status.atlas_texture",
 		get_category(),
 		atlas_ok,
 		"status icons share one atlas texture with distinct regions",
@@ -345,9 +348,9 @@ func _test_status_system() -> void:
 	)
 
 	start = Time.get_ticks_msec()
-	var no_plotter := not ctx.file_contains("res://scripts/ui/status_icon_atlas.gd", "set_pixel")
+	var no_plotter: bool = not ctx.file_contains("res://scripts/ui/status_icon_atlas.gd", "set_pixel")
 	ctx.timed_record(
-		"m5.status.no_plotter",
+		"combat.status.no_plotter",
 		get_category(),
 		no_plotter,
 		"status icon atlas has no procedural set_pixel renderer",
@@ -356,16 +359,70 @@ func _test_status_system() -> void:
 	)
 
 	start = Time.get_ticks_msec()
-	var uses_icon_size := ctx.file_contains(
+	var uses_icon_size: bool = ctx.file_contains(
 		"res://scripts/ui/combat_hud.gd", "StatusIconAtlas.icon_size()"
 	)
+	uses_icon_size = uses_icon_size and not ctx.file_contains(
+		"res://scripts/ui/combat_hud.gd", "Vector2(22, 22)"
+	)
 	ctx.timed_record(
-		"m5.status.icon_size_shared",
+		"combat.status.icon_size_shared",
 		get_category(),
 		uses_icon_size,
 		"combat HUD sizes status icons from StatusIconAtlas.icon_size()",
 		start,
 		"M5.ui.atlas"
+	)
+
+	start = Time.get_ticks_msec()
+	var unknown_ok := not StatusIconAtlas.has_icon("zzz")
+	var unknown_icon := StatusIconAtlas.get_icon("zzz")
+	var known_unknown := StatusIconAtlas.get_icon("unknown")
+	if unknown_ok and unknown_icon is AtlasTexture and known_unknown is AtlasTexture:
+		unknown_ok = unknown_icon.region == known_unknown.region
+	ctx.timed_record(
+		"ui.status_atlas_unknown_warns",
+		get_category(),
+		unknown_ok,
+		"missing status id resolves to unknown atlas region",
+		start,
+		"SIA-09"
+	)
+
+	start = Time.get_ticks_msec()
+	var buff_frame := StatusIconAtlas.get_polarity_frame("buff")
+	var debuff_frame := StatusIconAtlas.get_polarity_frame("debuff")
+	var polarity_frames_ok := (
+		buff_frame is AtlasTexture
+		and debuff_frame is AtlasTexture
+		and buff_frame.region != debuff_frame.region
+	)
+	ctx.timed_record(
+		"ui.status_atlas_polarity_frames",
+		get_category(),
+		polarity_frames_ok,
+		"buff and debuff polarity frames use distinct atlas regions",
+		start,
+		"SIA-04"
+	)
+
+	start = Time.get_ticks_msec()
+	const AccessibilitySettingsScript := preload("res://scripts/accessibility/accessibility_settings.gd")
+	AccessibilitySettingsScript.colorblind_mode = "protanopia"
+	StatusIconAtlas.reload()
+	var cb_icon := StatusIconAtlas.get_icon("burn")
+	var cb_ok := cb_icon is AtlasTexture and cb_icon.atlas != null
+	if cb_ok:
+		cb_ok = str(cb_icon.atlas.resource_path).ends_with("status_icons_cb.png")
+	AccessibilitySettingsScript.colorblind_mode = "default"
+	StatusIconAtlas.reload()
+	ctx.timed_record(
+		"ui.status_atlas_cb_variant",
+		get_category(),
+		cb_ok,
+		"colorblind mode loads status_icons_cb.png atlas texture",
+		start,
+		"SIA-05"
 	)
 
 	player.queue_free()
@@ -382,7 +439,7 @@ func _test_weapon_definitions() -> void:
 			and (data.has("light_attacks") or data.has("heavy_attack"))
 		)
 		ctx.timed_record(
-			"m5.weapon.%s_json" % weapon_id,
+			"combat.weapon.%s_json" % weapon_id,
 			get_category(),
 			ok,
 			"weapon definition loads: %s" % path,
@@ -399,7 +456,7 @@ func _test_loadout_unlocks() -> void:
 	var bow_locked: bool = not _is_weapon_unlocked_for_test("hunter_bow", 1, {})
 	var dagger_open: bool = _is_weapon_unlocked_for_test("rogue_dagger", 1, {})
 	ctx.timed_record(
-		"m5.loadout.level_gates",
+		"progression.loadout.level_gates",
 		get_category(),
 		spear_locked and bow_locked and dagger_open,
 		"spear/bow locked at level 1; dagger always unlocked",
@@ -412,7 +469,7 @@ func _test_loadout_unlocks() -> void:
 	var bow_unlocked: bool = _is_weapon_unlocked_for_test("hunter_bow", 8, {})
 	ProgressionService.from_save_dict({"level": 1, "xp": 0, "talents": {}})
 	ctx.timed_record(
-		"m5.loadout.unlock_thresholds",
+		"progression.loadout.unlock_thresholds",
 		get_category(),
 		spear_unlocked and bow_unlocked,
 		"spear unlocks at Lv5; bow at Lv8",
@@ -443,7 +500,7 @@ func _test_castle_entry_biome_select() -> void:
 	var start := Time.get_ticks_msec()
 	var item_count := dropdown.item_count if dropdown else 0
 	ctx.timed_record(
-		"m5.hub.biome_buttons_tier1",
+		"hub.portal.biome_buttons_tier1",
 		get_category(),
 		item_count == 1,
 		"tier 1 shows only Forgotten Castle (%d options)" % item_count,
@@ -457,7 +514,7 @@ func _test_castle_entry_biome_select() -> void:
 	item_count = dropdown.item_count if dropdown else 0
 	start = Time.get_ticks_msec()
 	ctx.timed_record(
-		"m5.hub.biome_buttons",
+		"hub.portal.biome_buttons",
 		get_category(),
 		item_count == DungeonCatalog.count(),
 		"max tier shows %d dungeon options" % item_count,
@@ -470,7 +527,7 @@ func _test_castle_entry_biome_select() -> void:
 		menu.call("_on_dungeon_selected", 2)
 	var selected: String = menu.get_selected_dungeon()
 	ctx.timed_record(
-		"m5.hub.biome_selection",
+		"hub.portal.biome_selection",
 		get_category(),
 		selected == DungeonCatalog.ENTRIES[2].get("id", ""),
 		"dungeon selection updates get_selected_dungeon()",
@@ -489,7 +546,7 @@ func _test_dungeon_tier_progression() -> void:
 		and not DungeonTierService.is_dungeon_unlocked("crystal_caverns")
 	)
 	ctx.timed_record(
-		"m5.dungeon.tier1_gate",
+		"dungeon.biome.tier1_gate",
 		get_category(),
 		tier1_ok,
 		"tier 1 unlocks only Forgotten Castle",
@@ -505,7 +562,7 @@ func _test_dungeon_tier_progression() -> void:
 		and DungeonTierService.get_hub_portal_label() == "Aumbrye Dungeons — Tier 2"
 	)
 	ctx.timed_record(
-		"m5.dungeon.tier2_unlock",
+		"dungeon.biome.tier2_unlock",
 		get_category(),
 		tier2_ok,
 		"clearing tier-1 dungeon unlocks tier 2 and Crystal Caverns",
@@ -525,7 +582,7 @@ func _test_theme_enemies_and_bosses() -> void:
 	var sovereign_scene := EnemyCatalog.get_scene("crystal_sovereign")
 	var hydra_scene := EnemyCatalog.get_scene("swamp_hydra")
 	ctx.timed_record(
-		"m5.boss.theme_scenes",
+		"dungeon.boss.theme_scenes",
 		get_category(),
 		sovereign_scene != null and hydra_scene != null,
 		"crystal_sovereign and swamp_hydra scenes resolve",
@@ -539,7 +596,7 @@ func _record_enemy_alignment(enemy_id: String, theme: String) -> void:
 	var def := EnemyCatalog.get_definition(enemy_id)
 	var scene := EnemyCatalog.get_scene(enemy_id)
 	ctx.timed_record(
-		"m5.enemy.%s" % enemy_id,
+		"content.enemy.%s" % enemy_id,
 		get_category(),
 		not def.is_empty() and scene != null,
 		"%s enemy JSON + scene aligned" % enemy_id,
@@ -554,7 +611,7 @@ func _test_theme_unique_items() -> void:
 		var has_item := ItemCatalog.has_item(item_id)
 		var def := ItemCatalog.get_definition(item_id) if has_item else {}
 		ctx.timed_record(
-			"m5.item.%s" % item_id,
+			"content.item.%s" % item_id,
 			get_category(),
 			has_item and not def.is_empty(),
 			"theme unique item in catalog: %s" % item_id,
@@ -570,7 +627,7 @@ func _test_audio_profiles() -> void:
 		var path := BiomeRegistry.get_audio_profile_path(biome_id)
 		var data: Dictionary = ContentLoader.load_json(path)
 		ctx.timed_record(
-			"m5.audio.profile_%s" % biome_id,
+			"audio.biome.profile_%s" % biome_id,
 			get_category(),
 			not data.is_empty() and data.has("id"),
 			"audio profile loads for %s" % biome_id,
@@ -582,7 +639,7 @@ func _test_audio_profiles() -> void:
 	AudioDirector.set_biome(BiomeRegistry.BIOME_CRYSTAL)
 	var has_set_biome: bool = AudioDirector.has_method("set_biome")
 	ctx.timed_record(
-		"m5.audio.set_biome",
+		"audio.biome.set_biome",
 		get_category(),
 		has_set_biome,
 		"AudioDirector.set_biome() callable",
@@ -609,7 +666,7 @@ func _test_m5_schemas() -> void:
 			)
 		)
 		ctx.timed_record(
-			"m5.schema.%s" % relative.get_file().get_basename(),
+			"content.schema.%s" % relative.get_file().get_basename(),
 			get_category(),
 			ok,
 			"M5 schema file loads: %s" % relative,
@@ -634,7 +691,7 @@ func _test_loot_epic_affix_counts() -> void:
 		and int(aumbral.get("max", 0)) == 5
 	)
 	ctx.timed_record(
-		"m5.loot.epic_affix_counts",
+		"loot.rarity.epic_affix_counts",
 		get_category(),
 		ok,
 		"rarity_rules.json defines epic/legendary/aumbral affix counts",
@@ -693,7 +750,7 @@ func _test_save_integer_normalization() -> void:
 				)
 	ctx.restore_save_file(backup)
 	ctx.timed_record(
-		"m5.save.integer_normalization",
+		"save.normalization.integer_normalization",
 		get_category(),
 		ok,
 		"autosave writes integer quantity/x/y/rollSeed",
@@ -706,7 +763,7 @@ func _test_balance_doc() -> void:
 	var start := Time.get_ticks_msec()
 	var path := _content_root().path_join("docs/existing_codebase/content-data.md")
 	ctx.timed_record(
-		"m5.balance.doc_exists",
+		"docs.balance.doc_exists",
 		get_category(),
 		FileAccess.file_exists(path),
 		"content data doc present",
@@ -724,7 +781,7 @@ func _test_online_procgen_optional_path() -> void:
 		"res://scripts/app/run_flow.gd", "const USE_ONLINE_PROCgen := false"
 	)
 	ctx.timed_record(
-		"m5.net.online_path_optional",
+		"net.procgen.online_path_optional",
 		get_category(),
 		has_online and offline_default,
 		"online procgen path exists; USE_ONLINE_PROCgen false by default",
@@ -735,6 +792,242 @@ func _test_online_procgen_optional_path() -> void:
 
 func _content_root() -> String:
 	return ProjectSettings.globalize_path("res://").path_join("../../..")
+
+
+func _test_combat_hud() -> void:
+	var start := Time.get_ticks_msec()
+	ctx.timed_record(
+		"hud.scene_exists",
+		get_category(),
+		ResourceLoader.exists("res://scenes/ui/combat_hud.tscn"),
+		"authored combat_hud.tscn exists",
+		start,
+		"HUD-01"
+	)
+
+	start = Time.get_ticks_msec()
+	var hud_source := FileAccess.get_file_as_string("res://scripts/ui/combat_hud.gd")
+	ctx.timed_record(
+		"hud.no_ensure_functions",
+		get_category(),
+		not "func _ensure_" in hud_source,
+		"combat_hud.gd has no _ensure_* scaffolding",
+		start,
+		"HUD-11"
+	)
+
+	var hud_scene := load("res://scenes/ui/combat_hud.tscn") as PackedScene
+	var player: CharacterBody3D = (
+		load("res://scenes/player/player.tscn").instantiate() as CharacterBody3D
+	)
+	player.name = "Player"
+	ctx.owner.add_child(player)
+	var hud: Control = hud_scene.instantiate() as Control if hud_scene else null
+	if hud:
+		hud.set("player_path", NodePath("../Player"))
+		hud.set("lock_on_path", NodePath("../Player/LockOn"))
+	ctx.owner.add_child(hud)
+	await ctx.await_frame()
+	start = Time.get_ticks_msec()
+	var parry_bar := hud.get_node_or_null("GuardIndicators/ParryBar") if hud else null
+	var block_bar := hud.get_node_or_null("GuardIndicators/BlockBar") if hud else null
+	var parry_label := hud.get_node_or_null("GuardIndicators/ParryLabel") if hud else null
+	ctx.timed_record(
+		"hud.guard_nodes_present",
+		get_category(),
+		parry_bar != null and block_bar != null and parry_label != null,
+		"combat_hud.tscn authors guard indicator nodes",
+		start,
+		"HUD-01"
+	)
+
+	start = Time.get_ticks_msec()
+	var reticle := hud.get_node_or_null("LockReticle") if hud else null
+	ctx.timed_record(
+		"hud.reticle_present",
+		get_category(),
+		reticle != null,
+		"combat_hud.tscn authors LockReticle",
+		start,
+		"HUD-02"
+	)
+
+	start = Time.get_ticks_msec()
+	var instanced_everywhere: bool = (
+		ctx.file_contains("res://scenes/dungeon/castle_run.tscn", "combat_hud.tscn")
+		and ctx.file_contains("res://scenes/hub/hub.tscn", "combat_hud.tscn")
+		and ctx.file_contains(
+			"res://scenes/dungeon/forgotten_castle_slice.tscn", "combat_hud.tscn"
+		)
+		and ctx.file_contains("res://scenes/debug/combat_arena.tscn", "combat_hud.tscn")
+		and ctx.file_contains("res://scripts/dungeon/waves_run.gd", "combat_hud.tscn")
+	)
+	ctx.timed_record(
+		"hud.scene_instanced_everywhere",
+		get_category(),
+		instanced_everywhere,
+		"all gameplay scenes instance combat_hud.tscn",
+		start,
+		"HUD-01"
+	)
+
+	start = Time.get_ticks_msec()
+	var guard_from_data := (
+		"get_parry_window_duration" in hud_source
+		and not hud_source.contains("max_value = 0.18")
+	)
+	ctx.timed_record(
+		"hud.guard_window_from_guard",
+		get_category(),
+		guard_from_data,
+		"parry bar max_value comes from guard.gd",
+		start,
+		"HUD-01"
+	)
+
+	start = Time.get_ticks_msec()
+	var pip_scene := load("res://scenes/ui/status_pip.tscn") as PackedScene
+	var pip_test: Control = pip_scene.instantiate() if pip_scene else null
+	var stack_ok := false
+	if pip_test:
+		ctx.owner.add_child(pip_test)
+		pip_test.call("configure", "burn", 2, StatusIconAtlas.get_icon("burn"), "debuff")
+		var stack_label := pip_test.get_node_or_null("StackLabel") as Label
+		stack_ok = stack_label != null and stack_label.visible and stack_label.text == "x2"
+		pip_test.queue_free()
+	ctx.timed_record(
+		"hud.status_pip_stacks",
+		get_category(),
+		stack_ok,
+		"status pip shows x2 label when stacks > 1",
+		start,
+		"HUD-03"
+	)
+
+	start = Time.get_ticks_msec()
+	var reuse_ok := (
+		"_status_pips" in hud_source
+		and "_status_pips.has(status_id)" in hud_source
+		and not "for child in _status_row.get_children():" in hud_source
+	)
+	ctx.timed_record(
+		"hud.status_pip_reuse",
+		get_category(),
+		reuse_ok,
+		"status icon refresh reuses keyed pips instead of rebuilding the row",
+		start,
+		"HUD-03"
+	)
+
+	start = Time.get_ticks_msec()
+	var final_boss_phases := int(
+		EnemyCatalog.get_definition("final_boss_forgotten_castle").get("phaseCount", 0)
+	)
+	ctx.timed_record(
+		"hud.boss_phase_from_data",
+		get_category(),
+		final_boss_phases == 3 and "phaseCount" in hud_source,
+		"boss phaseCount is read from enemy catalog data",
+		start,
+		"HUD-04"
+	)
+
+	start = Time.get_ticks_msec()
+	var objective_ok := (
+		"unproject_position" in hud_source
+		and "is_position_behind" in hud_source
+		and "_objective_marker.rotation" in hud_source
+	)
+	ctx.timed_record(
+		"hud.objective_camera_relative",
+		get_category(),
+		objective_ok,
+		"objective marker uses camera projection and rotation",
+		start,
+		"HUD-05"
+	)
+
+	start = Time.get_ticks_msec()
+	var vignette_ok := (
+		"_last_health" in hud_source
+		and "VIGNETTE_COOLDOWN" in hud_source
+		and "current < _last_health" in hud_source
+	)
+	ctx.timed_record(
+		"hud.vignette_not_on_heal",
+		get_category(),
+		vignette_ok,
+		"vignette pulses only on health decrease under threshold",
+		start,
+		"HUD-07"
+	)
+
+	if hud:
+		var hint := hud.get_node_or_null("ControlsHint") as Label
+		var wired := "connect_device_family_changed" in hud_source
+		InputGlyphService.emit_device_family_changed_for_test()
+		await ctx.await_frame()
+		start = Time.get_ticks_msec()
+		ctx.timed_record(
+			"hud.hint_rebuilds_on_device",
+			get_category(),
+			wired and hint != null and not hint.text.is_empty(),
+			"device_family_changed is wired and ControlsHint stays populated",
+			start,
+			"HUD-08"
+		)
+
+	start = Time.get_ticks_msec()
+	var f8_index := hud_source.find("KEY_F8")
+	var debug_guarded := false
+	if f8_index >= 0:
+		var window := hud_source.substr(maxi(0, f8_index - 200), 400)
+		debug_guarded = "OS.is_debug_build()" in window
+	ctx.timed_record(
+		"hud.debug_key_guarded",
+		get_category(),
+		debug_guarded,
+		"KEY_F8 burn debug is gated on OS.is_debug_build()",
+		start,
+		"HUD-10"
+	)
+
+	start = Time.get_ticks_msec()
+	var localized := true
+	for key in [
+		"HUD_PARRY",
+		"HUD_LEVEL",
+		"HUD_BRANCH_AHEAD",
+		"HUD_BRANCH_REWARD",
+		"HUD_BRANCH_DANGER",
+		"HUD_BOSS_FALLBACK",
+	]:
+		var value := tr(key)
+		if value == key or value.is_empty():
+			localized = false
+			break
+	ctx.timed_record(
+		"hud.strings_localized",
+		get_category(),
+		localized,
+		"HUD translation keys resolve to display strings",
+		start,
+		"HUD-14"
+	)
+
+	start = Time.get_ticks_msec()
+	ctx.timed_record(
+		"hud.no_dead_constants",
+		get_category(),
+		not "BAR_BORDER" in hud_source,
+		"combat_hud.gd removed unused BAR_BORDER constant",
+		start,
+		"HUD-13"
+	)
+
+	player.queue_free()
+	if hud:
+		hud.queue_free()
 
 
 func _test_catalog_from_data() -> void:
@@ -756,7 +1049,7 @@ func _test_catalog_from_data() -> void:
 		ContentLoader.load_json("content/biomes/forgotten_castle.json").get("name", "")
 	)
 	ctx.timed_record(
-		"m5.dungeon.catalog_from_data",
+		"dungeon.biome.catalog_from_data",
 		get_category(),
 		ok,
 		"catalog ids match content/dungeons and display names delegate to BiomeRegistry",
@@ -787,7 +1080,7 @@ func _test_difficulty_tier_selection() -> void:
 			prev_hp = hp
 			prev_loot = loot
 	ctx.timed_record(
-		"m5.dungeon.difficulty_tiers",
+		"dungeon.biome.difficulty_tiers",
 		get_category(),
 		ok,
 		"each dungeon has >=3 strictly increasing difficulty tiers",
@@ -806,7 +1099,7 @@ func _test_tier_unlock_per_dungeon() -> void:
 		and DungeonTierService.get_max_unlocked_tier() == 2
 	)
 	ctx.timed_record(
-		"m5.dungeon.tier_unlock_per_dungeon",
+		"dungeon.biome.tier_unlock_per_dungeon",
 		get_category(),
 		ok,
 		"clearing tier 1 unlocks difficulty tier 2 and next dungeon",

@@ -73,6 +73,7 @@ static func generate(
 		graph, assignment, content_rng, RoomContentConfigScript.default(), biome_id
 	)
 	var content: Dictionary = content_result.get("content", {})
+	_annotate_minimap_key_rooms(rooms, content.get("roomContent", []))
 	var landmarks := _build_landmark_hints(rooms, graph)
 	var run_id := _deterministic_run_id(run_seed, biome_id, floor_index)
 	var definition := {
@@ -222,6 +223,8 @@ static func _build_final_floor_layout(prefix: String) -> Dictionary:
 				"type": "hub",
 				"transform": {"x": 0.0, "y": 0.0, "z": 0.0, "yaw": 0.0},
 				"tags": ["spawn", "final_lobby"],
+				"size": {"x": float(entrance_spec["width"]), "z": float(entrance_spec["depth"])},
+				"kind": "entrance",
 			},
 			{
 				"id": "arena",
@@ -229,6 +232,8 @@ static func _build_final_floor_layout(prefix: String) -> Dictionary:
 				"type": "arena",
 				"transform": {"x": 0.0, "y": 0.0, "z": arena_z, "yaw": 0.0},
 				"tags": ["final_arena"],
+				"size": {"x": float(arena_spec["width"]), "z": float(arena_spec["depth"])},
+				"kind": "combat",
 			},
 			{
 				"id": "boss",
@@ -236,6 +241,8 @@ static func _build_final_floor_layout(prefix: String) -> Dictionary:
 				"type": "boss",
 				"transform": {"x": 0.0, "y": 0.0, "z": boss_z, "yaw": 0.0},
 				"tags": ["final_boss"],
+				"size": {"x": float(boss_spec["width"]), "z": float(boss_spec["depth"])},
+				"kind": "boss",
 			},
 		],
 		"edges":
@@ -332,3 +339,18 @@ static func _build_landmark_hints(rooms: Array, graph: RoomGraph) -> Array:
 				)
 			)
 	return landmarks
+
+
+static func _annotate_minimap_key_rooms(rooms: Array, room_content: Array) -> void:
+	var key_rooms := {}
+	for entry in room_content:
+		if not entry is Dictionary:
+			continue
+		if str(entry.get("keyId", "")) != "":
+			key_rooms[str(entry.get("roomId", ""))] = true
+	for room in rooms:
+		if not room is Dictionary:
+			continue
+		var room_id := str(room.get("id", ""))
+		if key_rooms.has(room_id):
+			room["kind"] = "key"

@@ -3,6 +3,7 @@ extends Area3D
 ## Post-boss escape portal — confirmed interact ends the run (FLOW-2.1).
 
 const DioramaSkin := preload("res://scripts/art/props/diorama_interactable_skin.gd")
+const PixelStyle := preload("res://scripts/art/style/pixel_diorama_style.gd")
 const RunOutcomeConfirmScript := preload("res://scripts/ui/run_outcome_confirm.gd")
 
 enum State { DORMANT, ACTIVE }
@@ -67,6 +68,9 @@ func _unhandled_input(event: InputEvent) -> void:
 		func() -> void:
 			_confirm_pending = false
 			AudioDirector.play_cue(&"portal_enter", global_position)
+			var portal_def := PortalCatalog.resolve(_biome_id)
+			var accent_hex := str(portal_def.get("interior", {}).get("color_accent", "#e6f5ff"))
+			VfxService.play_portal_enter(global_position, PixelStyle.color_from_hex(accent_hex))
 			RunFlow.complete_run_via_portal()
 	)
 

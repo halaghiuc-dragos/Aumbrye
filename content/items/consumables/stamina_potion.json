@@ -1,14 +1,16 @@
 {
-    "id":  "stamina_potion",
-    "name":  "Stamina Potion",
-    "itemType":  "consumable",
-    "gridWidth":  2,
-    "gridHeight":  2,
-    "stackSize":  10,
-    "rarity":  "common",
-    "description":  "Bitter tonic that loans strength the body was about to refuse.",
-    "value":  20,
-    "stats":  {
-
-              }
+  "id": "stamina_potion",
+  "name": "Stamina Potion",
+  "itemType": "consumable",
+  "gridWidth": 2,
+  "gridHeight": 2,
+  "stackSize": 10,
+  "rarity": "common",
+  "description": "Bitter tonic that loans strength the body was about to refuse.",
+  "consumableEffect": {
+    "kind": "restoreStamina",
+    "amount": 50
+  },
+  "value": 20,
+  "stats": {}
 }

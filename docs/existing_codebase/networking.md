@@ -1,6 +1,6 @@
-# Networking (Godot client)
+﻿# Networking (Godot client)
 
-Autoload `ApiConfig` holds the resolved base URL, cloud-state enum, encrypted session metadata, and a two-node `HTTPRequest` pool. Static `ApiClient` wraps auth, runs, saves, and leaderboards behind a unified `_request_json` transport with timeout, retry, and status handling. Online dungeon generation remains compiled out (`USE_ONLINE_PROCgen := false`); live paths are explicit sign-in, cloud save pull/push, run completion, and opt-in leaderboard read/write — all non-blocking on the result-screen transition.
+Autoload `ApiConfig` holds the resolved base URL, cloud-state enum, encrypted session metadata, and a two-node `HTTPRequest` pool. Static `ApiClient` wraps auth, runs, saves, and leaderboards behind a unified `_request_json` transport with timeout, retry, and status handling. Online dungeon generation remains compiled out (`USE_ONLINE_PROCgen := false`); live paths are explicit sign-in, cloud save pull/push, run completion, and opt-in leaderboard read/write â€” all non-blocking on the result-screen transition.
 
 ## Files
 
@@ -40,7 +40,7 @@ Base URL priority (`api_config.gd:188-214`):
 
 Release builds reject non-`https://` URLs (`api_config.gd:210-213`); an empty `base_url` disables all cloud calls.
 
-Session file `user://session.json` (`api_config.gd:14,127-172`): encrypted with `FileAccess.open_encrypted_with_pass` keyed on `OS.get_unique_id()`. Stores `refreshToken`, `accountId`, `email` — never the access token. Failed refresh calls `clear_session()` (both tokens + file delete).
+Session file `user://session.json` (`api_config.gd:14,127-172`): encrypted with `FileAccess.open_encrypted_with_pass` keyed on `OS.get_unique_id()`. Stores `refreshToken`, `accountId`, `email` â€” never the access token. Failed refresh calls `clear_session()` (both tokens + file delete).
 
 HTTP pool (`api_config.gd:86-124`): two `HTTPRequest` children; `acquire_http()` / `release_http()`; `cancel_all()` on `NOTIFICATION_WM_CLOSE_REQUEST`.
 
@@ -68,7 +68,7 @@ Status handling:
 | Status | Behavior |
 |--------|----------|
 | 401 | Caller refreshes once and replays once (`_authed_json`, `api_client.gd:187-201`) |
-| 426 | `ApiConfig.mark_version_mismatch()` — no further cloud calls |
+| 426 | `ApiConfig.mark_version_mismatch()` â€” no further cloud calls |
 | 429 | Honors `Retry-After` or exponential backoff with jitter |
 
 `set_transport_override(Callable)` (`api_client.gd:20-25`) injects a stub for `net_suite.gd`.
@@ -85,9 +85,9 @@ Settings cloud panel (`settings_ui.gd`): email/password fields, sign-in, sign-up
 
 | Trigger | Call chain |
 |---------|-----------|
-| Run finalize | `run_flow.gd:824` `_cloud_finalize_run` (fire-and-forget) → `ApiClient.complete_run` + `LocalSave.push_to_cloud` |
+| Run finalize | `run_flow.gd:824` `_cloud_finalize_run` (fire-and-forget) â†’ `ApiClient.complete_run` + `LocalSave.push_to_cloud` |
 | Escape + leaderboard opt-in | `run_flow.gd:857` `_submit_leaderboard_async(current_biome_id, current_dungeon_tier, ...)` |
-| Explicit cloud pull | `local_save.gd:514` `sync_from_cloud` → `ApiClient.get_save` |
+| Explicit cloud pull | `local_save.gd:514` `sync_from_cloud` â†’ `ApiClient.get_save` |
 | Results screen | `results_screen.gd` `fetch_leaderboard` top-10 panel when signed in |
 
 `USE_ONLINE_PROCgen` is `false` with an intentional-off comment (`run_flow.gd:28-29`). `_try_online_generate` (`run_flow.gd:201-219`) calls `create_run` + `get_dungeon` when the flag is enabled.
@@ -112,7 +112,7 @@ Settings cloud panel (`settings_ui.gd`): email/password fields, sign-in, sign-up
 
 ## Related
 
-- Improvement plan: [`../actual_improvements/networking.md`](../actual_improvements/networking.md)
-- [`backend-api.md`](../actual_improvements/backend-api.md) — logout route, run-derived leaderboards
-- [`local-save.md`](local-save.md) — `sync_from_cloud` and `push_to_cloud`
-- [`run-flow.md`](run-flow.md) — run finalize callers
+- Improvement plan: [`../actual_improvements/networking.md`](../actual_improvements/networking.md) - **FINISHED**
+- [`backend-api.md`](../actual_improvements/backend-api.md) â€” logout route, run-derived leaderboards
+- [`local-save.md`](local-save.md) â€” `sync_from_cloud` and `push_to_cloud`
+- [`run-flow.md`](run-flow.md) â€” run finalize callers

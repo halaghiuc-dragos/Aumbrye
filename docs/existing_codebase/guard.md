@@ -1,4 +1,4 @@
-# Guard
+﻿# Guard
 
 Hold-to-block with a parry window at the start of each press, plus a riposte payoff. `Guard` is player-only and on the live play path (`player.tscn:80`). `ShieldHurtbox` is a separate, unrelated mitigation used by shield enemies.
 
@@ -26,7 +26,7 @@ Hold-to-block with a parry window at the start of each press, plus a riposte pay
 | `RIPOSTE_WINDOW` | 1.4 s |
 | `RIPOSTE_DAMAGE_MULT` | 2.0 |
 
-`_physics_process(delta)` (`:46`) runs a stagger timer first — while `_stagger_timer > 0.0` the node forces `IDLE` and returns, so a guard-broken player cannot re-guard for 0.8 s. Otherwise it ticks the riposte timer, then switches on state: `IDLE` waits for `block` to be *just pressed*, `GUARDING` counts the parry timer down and drops guard when `block` is released.
+`_physics_process(delta)` (`:46`) runs a stagger timer first â€” while `_stagger_timer > 0.0` the node forces `IDLE` and returns, so a guard-broken player cannot re-guard for 0.8 s. Otherwise it ticks the riposte timer, then switches on state: `IDLE` waits for `block` to be *just pressed*, `GUARDING` counts the parry timer down and drops guard when `block` is released.
 
 `_enter_guard()` sets `_parry_timer = PARRY_WINDOW` and emits `block_state_changed(true)`. Because the parry timer is only armed on a fresh press, holding block indefinitely gives one 0.18 s parry window and none afterward.
 
@@ -35,7 +35,7 @@ Hold-to-block with a parry window at the start of each press, plus a riposte pay
 `Hurtbox.receive_hit` calls `modify_incoming_hit(info)` (`guard.gd:101`) for every hit that survives i-frames and parry:
 
 1. Returns the hit unchanged if `_stagger_timer > 0.0` or `is_guard_active` is false.
-2. Returns unchanged if `_is_frontal_hit(info.direction)` is false. Frontality is `rad_to_deg(facing.angle_to(-direction.normalized())) <= 60.0` where facing comes from `_body.get_facing_direction()` — for the player that is `Facing.global_transform.basis.z` (`locomotion.gd:167-170`), which does rotate.
+2. Returns unchanged if `_is_frontal_hit(info.direction)` is false. Frontality is `rad_to_deg(facing.angle_to(-direction.normalized())) <= 60.0` where facing comes from `_body.get_facing_direction()` â€” for the player that is `Facing.global_transform.basis.z` (`locomotion.gd:167-170`), which does rotate.
 3. Calls `_stamina.consume(BLOCK_STAMINA_DRAIN_PER_HIT)`. If it fails (or `Stamina` is missing) it calls `_trigger_guard_break()` and returns the hit at **full** damage with `blocked: false`.
 4. Otherwise returns `amount * (1.0 - clampf(0.22 + blockReduction_talent, 0.0, 0.95))`, `poise * 0.5`, and `blocked: true`.
 
@@ -51,7 +51,7 @@ Hold-to-block with a parry window at the start of each press, plus a riposte pay
 
 ### HUD queries
 
-`combat_hud.gd:428-431` reads `get_parry_time_remaining()` and `get_block_time_remaining()`. The first returns the live `_parry_timer` while the window is open. The second returns the literal `1.0` whenever the state is `GUARDING` and `0.0` otherwise (`guard.gd:156-159`) — it is a boolean dressed as a duration.
+`combat_hud.gd:428-431` reads `get_parry_time_remaining()` and `get_block_time_remaining()`. The first returns the live `_parry_timer` while the window is open. The second returns the literal `1.0` whenever the state is `GUARDING` and `0.0` otherwise (`guard.gd:156-159`) â€” it is a boolean dressed as a duration.
 
 ### Stat modifiers
 
@@ -65,7 +65,7 @@ Hold-to-block with a parry window at the start of each press, plus a riposte pay
 
 ### ShieldHurtbox
 
-`shield_hurtbox.gd` extends `Hurtbox` and overrides `receive_hit`. Two `@export`s: `block_mitigation := 0.75`, `block_angle_deg := 100.0`. If the incoming `direction` is within a 50 deg half-arc of the owner body's `-basis.z`, it rebuilds a `DamageInfo` with `amount` and `poise_damage` both multiplied by `0.25` and forwards it to `super.receive_hit`. Note the rebuild drops `status_id` and `status_stacks` — `DamageInfo.create` is called with five arguments (`shield_hurtbox.gd:18-24`), so a status-carrying hit loses its status when it lands on a shield.
+`shield_hurtbox.gd` extends `Hurtbox` and overrides `receive_hit`. Two `@export`s: `block_mitigation := 0.75`, `block_angle_deg := 100.0`. If the incoming `direction` is within a 50 deg half-arc of the owner body's `-basis.z`, it rebuilds a `DamageInfo` with `amount` and `poise_damage` both multiplied by `0.25` and forwards it to `super.receive_hit`. Note the rebuild drops `status_id` and `status_stacks` â€” `DamageInfo.create` is called with five arguments (`shield_hurtbox.gd:18-24`), so a status-carrying hit loses its status when it lands on a shield.
 
 There is no stamina, no break, no timer and no state: a shield enemy mitigates 75% frontally forever.
 
@@ -87,8 +87,8 @@ There is no stamina, no break, no timer and no state: a shield enemy mitigates 7
 | Parry window and full negation | IMPLEMENTED | `guard.gd:117-130`, `hurtbox.gd:41-43` |
 | Riposte 2.0x multiplier | IMPLEMENTED | `guard.gd:133-139`, `weapon_controller.gd:341-346` |
 | Guard break on insufficient stamina | IMPLEMENTED | `guard.gd:106-108,176-184` |
-| Block damage reduction | PARTIAL | `guard.gd:9` — a flat 22% for every weapon and every attack; blocking a 20-damage hit still costs 15.6 HP and 18 stamina |
-| Block stamina cost | PARTIAL | `guard.gd:8` — a flat 18.0 per hit regardless of the attack's damage, poise damage or weight |
+| Block damage reduction | PARTIAL | `guard.gd:9` â€” a flat 22% for every weapon and every attack; blocking a 20-damage hit still costs 15.6 HP and 18 stamina |
+| Block stamina cost | PARTIAL | `guard.gd:8` â€” a flat 18.0 per hit regardless of the attack's damage, poise damage or weight |
 | Parry staggering the attacker | STUB | `get_parry_stagger_duration()` (`guard.gd:142-143`) has no caller under `apps/`; `parry_success` reaches only a mesh pulse (`player_combat_reactions.gd:107-108`) and a "PARRIED" label (`hit_feedback.gd:80-85`) |
 | `get_block_time_remaining()` | FAKE | `guard.gd:156-159` returns the literal `1.0`; `combat_hud.gd:430-431` treats it as a duration |
 | Parry re-arm while holding block | ABSENT | `_parry_timer` is set only in `_enter_guard()` (`guard.gd:79`), which requires a fresh `is_action_just_pressed` |
@@ -97,15 +97,15 @@ There is no stamina, no break, no timer and no state: a shield enemy mitigates 7
 | Shield bash or guard-cancel attack | ABSENT | `weapon_controller.gd:568` blocks all attack input while `is_guard_active` |
 | Equipment stats reaching guard | PARTIAL | `guard.gd:97-98` accepts `equipment_stats` and reads only the talent `blockReduction` |
 | Enemy guard | ABSENT | No enemy scene mounts a `Guard` node; `shield_hurtbox.gd` is the only enemy mitigation |
-| `ShieldHurtbox` | PARTIAL | `shield_hurtbox.gd:5` — flat 75% frontal mitigation with no stamina, no break, no timer; `:18-24` drops `status_id` and `status_stacks` from the rebuilt `DamageInfo` |
+| `ShieldHurtbox` | PARTIAL | `shield_hurtbox.gd:5` â€” flat 75% frontal mitigation with no stamina, no break, no timer; `:18-24` drops `status_id` and `status_stacks` from the rebuilt `DamageInfo` |
 
 ## Related
 
-- Improvement plan: [`../actual_improvements/guard.md`](../actual_improvements/guard.md)
-- [`combat-core.md`](combat-core.md) — where `modify_incoming_hit` and `try_parry_attack` are called
-- [`stamina-mana.md`](stamina-mana.md) — the 18.0 per-hit drain
-- [`weapons.md`](weapons.md) — riposte multiplier consumer, attack input blocking
-- [`hit-hurtboxes.md`](hit-hurtboxes.md) — `ShieldHurtbox` base class
-- [`hit-feedback.md`](hit-feedback.md) — "BLOCKED" and "PARRIED" labels
-- [`enemies.md`](enemies.md) — shield enemy behavior
+- Improvement plan: [`../actual_improvements/guard.md`](../actual_improvements/guard.md) - **FINISHED**
+- [`combat-core.md`](combat-core.md) â€” where `modify_incoming_hit` and `try_parry_attack` are called
+- [`stamina-mana.md`](stamina-mana.md) â€” the 18.0 per-hit drain
+- [`weapons.md`](weapons.md) â€” riposte multiplier consumer, attack input blocking
+- [`hit-hurtboxes.md`](hit-hurtboxes.md) â€” `ShieldHurtbox` base class
+- [`hit-feedback.md`](hit-feedback.md) â€” "BLOCKED" and "PARRIED" labels
+- [`enemies.md`](enemies.md) â€” shield enemy behavior
 - [`player-combat-reactions.md`](player-combat-reactions.md)

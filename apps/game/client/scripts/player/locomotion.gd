@@ -25,6 +25,7 @@ const SURFACE_PROBE_INTERVAL := 0.25
 const SURFACE_PROBE_LENGTH := 0.4
 const CharacterSkin := preload("res://scripts/art/characters/diorama_character_skin.gd")
 const AnimDirectorScript := preload("res://scripts/player/player_anim_director.gd")
+const FloorSnap := preload("res://scripts/art/characters/character_floor_snap.gd")
 
 @export var camera_yaw_path: NodePath
 @export var facing_path: NodePath = NodePath("Facing")
@@ -72,6 +73,7 @@ func _ready() -> void:
 		_facing = get_node_or_null(facing_path) as Node3D
 		if _facing:
 			var visual := CharacterSkin.build_player_body(_facing)
+			FloorSnap.snap_character(self, visual)
 			_anim_director = AnimDirectorScript.new()
 			_anim_director.name = "AnimDirector"
 			add_child(_anim_director)
@@ -97,6 +99,7 @@ func refresh_appearance_visual() -> void:
 	if _facing == null:
 		return
 	var visual := CharacterSkin.build_player_body(_facing)
+	FloorSnap.snap_character(self, visual)
 	if _anim_director:
 		_anim_director.bind(visual)
 	InventoryService.apply_equipment_to_player_node(self)

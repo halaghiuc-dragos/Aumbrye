@@ -19,6 +19,7 @@
   "patrol_radius": 0.0,
   "phase2_threshold": 0.5,
   "enemy_type": "boss",
+  "phaseCount": 2,
   "damage_type": "arcane",
   "resistances": {
     "frost": 0.45,

@@ -8,13 +8,15 @@ const RunModeConfigScript := preload("res://scripts/app/run_mode_config.gd")
 const CombatStatModifiersScript := preload("res://scripts/combat/combat_stat_modifiers.gd")
 const CharacterSkinScript := preload("res://scripts/art/characters/diorama_character_skin.gd")
 const PixelStyleScript := preload("res://scripts/art/style/pixel_diorama_style.gd")
+const ConsumableServiceScript := preload("res://scripts/inventory/consumable_service.gd")
+const WorldItemPickupScript := preload("res://scripts/inventory/world_item_pickup.gd")
 
 signal inventory_changed
 signal equipment_stats_changed(stats: Dictionary)
 signal inventory_rejected(reason: String)
 
 var inventory: GridInventory = GridInventory.new()
-var quick_slot_indices: Array[int] = [-1, -1, -1, -1]
+var quick_slot_instances: Array[String] = ["", "", "", ""]
 
 
 func _ready() -> void:
@@ -240,13 +242,13 @@ func get_item_def(item_id: String) -> Dictionary:
 
 func get_save_inventory() -> Dictionary:
 	var data := inventory.to_save_dict()
-	data["quickSlots"] = quick_slot_indices.duplicate()
+	data["quickSlotInstances"] = quick_slot_instances.duplicate()
 	return data
 
 
 func apply_save_inventory(data: Dictionary) -> void:
 	inventory.from_save_dict(data)
-	_restore_quick_slots(data.get("quickSlots", []))
+	_restore_quick_slots(data.get("quickSlotInstances", data.get("quickSlots", [])))
 	_apply_equipment_to_player()
 
 
@@ -361,7 +363,7 @@ func apply_equipment_to_player_node(player: Node) -> void:
 			weapon.set_damage_multiplier(
 				CombatStatModifiersScript.damage_multiplier(equip_stats, talent_stats)
 			)
-	var locomotion := PlayerControls.resolve_locomotion(player) if PlayerControls else null
+	var locomotion: Node = PlayerControls.resolve_locomotion(player) if PlayerControls else null
 	if locomotion and locomotion.has_method("set_speed_multiplier"):
 		locomotion.set_speed_multiplier(
 			CombatStatModifiersScript.move_speed_multiplier(equip_stats, talent_stats)
@@ -415,21 +417,40 @@ func _apply_equipment_to_player() -> void:
 		apply_equipment_to_player_node(player)
 
 
-func set_quick_slot(quick_index: int, grid_index: int) -> void:
+func try_use_slot_index(index: int) -> Dictionary:
+	if index < 0 or index >= inventory.slots.size():
+		return {"ok": false, "reason": ""}
+	var slot: Dictionary = inventory.slots[index]
+	var def := get_item_def(str(slot.get("itemId", "")))
+	if def.get("itemType", "") == "consumable":
+		var in_run := RunFlow != null and RunFlow.is_run_active()
+		var in_hub := not in_run
+		var guard := ConsumableServiceScript.can_use(def, in_run, in_hub)
+		if not bool(guard.get("ok", false)):
+			return guard
+	if _use_or_equip_index(index):
+		return {"ok": true, "reason": ""}
+	return {"ok": false, "reason": tr("INV_USE_FAILED")}
+
+
+func set_quick_slot(quick_index: int, instance_id: String) -> void:
 	if quick_index < 0 or quick_index > 3:
 		return
-	if grid_index < 0 or grid_index >= inventory.slots.size():
-		quick_slot_indices[quick_index] = -1
-	else:
-		quick_slot_indices[quick_index] = grid_index
+	quick_slot_instances[quick_index] = instance_id if instance_id != "" else ""
 	if LocalSave:
 		LocalSave.request_autosave()
 
 
 func get_quick_slot_index(quick_index: int) -> int:
-	if quick_index < 0 or quick_index >= quick_slot_indices.size():
+	if quick_index < 0 or quick_index >= quick_slot_instances.size():
 		return -1
-	return quick_slot_indices[quick_index]
+	return inventory.find_instance_index(quick_slot_instances[quick_index])
+
+
+func get_quick_slot_instance_id(quick_index: int) -> String:
+	if quick_index < 0 or quick_index >= quick_slot_instances.size():
+		return ""
+	return quick_slot_instances[quick_index]
 
 
 func get_quick_slot_label(quick_index: int) -> String:
@@ -472,21 +493,75 @@ func _use_consumable_at_index(index: int) -> bool:
 	var player := get_tree().get_first_node_in_group("player")
 	if player == null:
 		return false
-	var health := player.get_node_or_null("Health") as Health
-	if health == null or health.is_dead():
+	var slot: Dictionary = inventory.slots[index]
+	var def := get_item_def(slot.get("itemId", ""))
+	var in_run := RunFlow != null and RunFlow.is_run_active()
+	var in_hub := not in_run
+	var guard := ConsumableServiceScript.can_use(def, in_run, in_hub)
+	if not bool(guard.get("ok", false)):
 		return false
-	var def := inventory.consume_at(index)
-	if def.is_empty():
+	if not ConsumableServiceScript.apply(def, player):
 		return false
-	health.heal(def.get("healAmount", 30.0))
+	inventory.consume_at(index)
 	return true
 
 
+func drop_slot_at_index(index: int) -> bool:
+	if index < 0 or index >= inventory.slots.size():
+		return false
+	var slot: Dictionary = inventory.slots[index]
+	var item_id: String = str(slot.get("itemId", ""))
+	var qty: int = int(slot.get("quantity", 1))
+	if RunFlow and RunFlow.is_run_active():
+		var player := get_tree().get_first_node_in_group("player")
+		if player == null:
+			return false
+		var removed := inventory.remove_at(index)
+		if removed.is_empty():
+			return false
+		_spawn_world_pickup(player.global_position, item_id, qty)
+		return true
+	var result := MerchantService.sell_item(index, qty)
+	return bool(result.get("ok", false))
+
+
+func split_stack_at_index(index: int) -> bool:
+	return inventory.split_stack(index)
+
+
+static func migrate_quick_slots_from_indices(
+	slots: Array, quick_slots: Array
+) -> Array[String]:
+	var instances: Array[String] = ["", "", "", ""]
+	for i in mini(quick_slots.size(), 4):
+		var idx := int(quick_slots[i])
+		if idx < 0 or idx >= slots.size():
+			continue
+		var slot: Variant = slots[idx]
+		if slot is Dictionary:
+			instances[i] = str(slot.get("instanceId", ""))
+	return instances
+
+
+func _spawn_world_pickup(world_pos: Vector3, item_id: String, quantity: int) -> void:
+	var root := get_tree().current_scene
+	if root == null:
+		return
+	var pickup: Area3D = WorldItemPickupScript.new()
+	pickup.name = "DroppedItemPickup"
+	root.add_child(pickup)
+	pickup.global_position = world_pos + Vector3(0, 0.5, 1.0)
+	pickup.configure(item_id, quantity)
+
+
 func _restore_quick_slots(raw: Variant) -> void:
-	quick_slot_indices = [-1, -1, -1, -1]
+	quick_slot_instances = ["", "", "", ""]
 	if raw is Array:
-		for i in mini(raw.size(), 4):
-			quick_slot_indices[i] = int(raw[i])
+		if not raw.is_empty() and raw[0] is String:
+			for i in mini(raw.size(), 4):
+				quick_slot_instances[i] = str(raw[i])
+			return
+		quick_slot_instances = migrate_quick_slots_from_indices(inventory.slots, raw)
 
 
 func _merge_stat_dicts(a: Dictionary, b: Dictionary) -> Dictionary:

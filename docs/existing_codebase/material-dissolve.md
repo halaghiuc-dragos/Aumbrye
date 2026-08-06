@@ -1,82 +1,85 @@
-# Material dissolve
+﻿# Material dissolve
 
-Death dissolve for character bodies, driven by the `dissolve_clip` uniform on `pixel_diorama_surface.gdshader`. It is on the live play path for both teams: `player_combat_reactions.gd:118` dissolves the player body on death, `castle_enemy_base.gd:322` dissolves every enemy and boss body.
+Death dissolve for character bodies, driven by `dissolve_clip` on `pixel_diorama_surface.gdshader` and `pixel_diorama_emissive.gdshader`. On the live play path for player death, enemy and boss death, training dummy death, and illusory walls.
 
 ## Files
 | Path | Role |
 |------|------|
-| `apps/game/client/scripts/art/characters/material_dissolve.gd` | 72 lines: `dissolve`, `restore`, mesh gathering |
-| `apps/game/client/assets/shared/pixel_diorama_surface.gdshader` | Declares `dissolve_clip` and performs the dither discard |
-| `apps/game/client/scripts/player/player_combat_reactions.gd` | Player death and revive |
-| `apps/game/client/scripts/enemies/castle_enemy_base.gd` | Enemy and boss death |
+| `apps/game/client/scripts/art/characters/material_dissolve.gd` | `play_death_visual`, `reset_death_visual`, `dissolve`, `restore`, rig-kind defaults |
+| `apps/game/client/assets/shared/pixel_diorama_surface.gdshader` | Object-space dither discard with sweep |
+| `apps/game/client/assets/shared/pixel_diorama_emissive.gdshader` | Matching `dissolve_clip` / `flash_amount` discard |
+| `apps/game/client/scripts/art/characters/material_flash.gd` | `cancel(mesh)` for flash handoff |
+| `apps/game/client/scripts/player/player_combat_reactions.gd` | Player body and viewmodel death |
+| `apps/game/client/scripts/enemies/castle_enemy_base.gd` | Enemy death and `respawn_at_rest` restore |
+| `apps/game/client/scripts/enemies/training_grunt.gd` | Dummy death and `reset_enemy` restore |
+| `apps/game/client/scripts/art/pipeline/pixel_diorama_settings.gd` | Skips dissolve-owned meshes when tracking materials |
+| `apps/game/client/scripts/art/vfx/vfx_service.gd` | `play_death` with optional `debris_count` scaling |
 
 ## How it works
 
-`dissolve(node, duration = DISSOLVE_DURATION)` (`:12-45`):
-1. `_gather_meshes(node)` recursively collects every `MeshInstance3D` in the subtree (`:65-71`); returns if empty.
-2. For each mesh: stores `mesh.material_override` under the meta key `material_dissolve_saved_override` if not already stored (`:20-21`), reads `mesh.get_active_material(0)`, skips the mesh unless that is a `ShaderMaterial`, `duplicate()`s it, sets `dissolve_clip = 1.0` and `flash_amount = 0.0` on the duplicate, and assigns the duplicate as the new `material_override` (`:22-29`).
-3. Creates one parallel `Tween` and, per duplicate, tweens `dissolve_clip` from `1.0` to `0.0` over `duration` (`:35-45`).
+### `play_death_visual(visual, opts)` (`material_dissolve.gd:47-56`)
 
-`DISSOLVE_DURATION = 0.65`, annotated as matching `VfxService.DEATH_BURST_LIFETIME` (`:8`). `DISSOLVE_PARAM = &"dissolve_clip"`, `FLASH_PARAM = &"flash_amount"` (`:6-7`).
+1. Merges `opts` with rig-kind defaults from `DEATH_DEFAULTS` or manifest `death` block (`:147-158`).
+2. Records `position`, `scale`, and every mesh `material_override` under meta `death_visual_state` on the visual (`:175-186`).
+3. Calls `VfxService.play_death` when `opts` contains `vfx_position` (`:51-54`).
+4. Calls `dissolve(visual, merged)` (`:55`).
+5. Applies sink or fallback scale via `_apply_sink_and_scale` (`:201-219`): animator-bound rigs sink 1.2 m after 0.45 s; legacy rigs scale to `(0.2, 0.05, 0.2)` and move to `y = -0.8`; blob rigs squash height to 60% over 0.15 s.
 
-`restore(node)` (`:48-52`) calls `_restore_mesh` per mesh (`:55-62`): if the saved-override meta exists, it is put back and the meta removed; otherwise, if the current `material_override` is a `ShaderMaterial`, `dissolve_clip` is set to `1.0` and `flash_amount` to `0.0` **on that material directly**.
+### `reset_death_visual(visual)` (`:59-63`)
 
-## The shader side
+Calls `restore(visual)` then restores pose and materials from `death_visual_state` and removes the meta (`:189-200`).
 
-`pixel_diorama_surface.gdshader:23` declares `uniform float dissolve_clip : hint_range(0.0, 1.0) = 1.0`. The discard is at `:118-123`:
+### `dissolve(node, opts)` (`:66-121`)
 
-```
-if (dissolve_clip < 0.999) {
-    float dither = cell_hash(floor(v_world_pos.xz * pixel_scale * 0.5));
-    if (dither > dissolve_clip) { discard; }
-}
-```
+1. Returns immediately when the node is not inside the tree (`:69-71`) â€” no `material_override` mutation.
+2. For each mesh: calls `MaterialFlash.cancel(mesh)`, saves pre-dissolve override under `material_dissolve_saved_override`, duplicates the active `ShaderMaterial`, sets `dissolve_clip = 1.0`, `flash_amount = 0.0`, sweep uniforms, and tweens `dissolve_clip` from `1.0` to `0.0` over `opts.duration` with per-part stagger (`:79-121`).
 
-The hash is keyed on **world XZ only**, with no Y term. Every fragment in a vertical column shares one hash value, so the dissolve removes vertical columns of the body rather than scattered cells, and two bodies standing at the same XZ dissolve with an identical pattern. Because the coordinate is world space rather than object space, the pattern also stays fixed to the floor while the death clip moves the body through it.
+Per-part stagger offsets (`_stagger_for_mesh`, `:265-279`): legs `0.0`, arms `35%` of max stagger, torso/tail `55%`, head `100%`.
 
-`pixel_diorama_emissive.gdshader` declares no `dissolve_clip` uniform (uniform list at `:9-16`: `color_core`, `color_edge`, `pixel_scale`, `color_levels`, `emission_energy`, `grain_strength`, `pulse_speed`, `pulse_amount`). Setting the parameter on an emissive material is a silent no-op, so any body part built with an emissive material never dissolves. The training dummy's accent material is exactly that case: `diorama_character_skin.gd:177` calls `PixelStyle.make_material(ARENA_DUMMY_ACCENT, ARENA_DUMMY_GLOW)`, and a non-black emission argument routes `make_material` to `make_glow_material` and the emissive shader (`pixel_diorama_style.gd:404-406`).
+Rig-kind defaults (`DEATH_DEFAULTS`, `:22-29`): humanoid `0.65 s / 0.12 stagger / 6 debris`; quadruped `0.6 / 0.10 / 5`; blob `0.45 / 0 / 4`; flyer `0.5 / 0 / 3`; boss_humanoid `1.4 / 0.35 / 14`; construct `1.1 / 0.4 / 10`.
+
+### `restore(node)` / `_restore_mesh` (`:124-128`, `:222-230`)
+
+Restores `material_dissolve_saved_override` when present; otherwise warns and does not write shader uniforms onto shared materials.
+
+### Shader discard (`pixel_diorama_surface.gdshader:127-140`)
+
+Object-space cell hash with Y term: `cell3 = floor(v_local_pos * pixel_scale * 0.5)`, dither from `cell3.xz` plus Y offsets. Sweep via `dissolve_dir`, `dissolve_origin`, `dissolve_sweep` biases discard from feet upward by default. Emissive shader duplicates the same block (`pixel_diorama_emissive.gdshader`).
 
 ## Call sites
 
-### Player
+**Player** â€” `player_combat_reactions._run_death_sequence` (`:234-248`) builds opts from `death_opts_for_profile("player")`, passes killing-blow `sweep_dir`, calls `play_death_visual` on `Facing/DioramaVisual` and `Viewmodel/ViewRoot` (viewmodel opts omit `vfx_position` to avoid double burst). `reset_combat_state` (`:152-161`) calls `reset_death_visual` on both.
 
-`player_combat_reactions._on_died` (`:111-122`) breaks lock-on, sets `is_dead`, emits `player_died`, plays the death VFX, then resolves `Facing/DioramaVisual` and calls `MaterialDissolveScript.dissolve(visual)`. If the diorama visual is missing it falls back to scaling the legacy `Facing/MeshInstance3D` down over 0.35 s (`:119-121`).
+**Enemies** â€” `castle_enemy_base._play_death_visual` (`:384-398`) uses `death_opts_for_enemy` with archetype manifest, boss flag, and `_last_hit_direction`. `respawn_at_rest` (`:318-320`) calls `reset_death_visual` before `MaterialFlash.restore_all`.
 
-`player_combat_reactions.reset_combat_state` (`:70-83`) sets `visual.visible = true`, then `MaterialDissolveScript.restore(visual)` followed by `MaterialFlashScript.restore_all(visual)` (`:79-80`), then `AnimDirector.revive()`.
-
-### Enemies and bosses
-
-`castle_enemy_base._play_death_visual` (`:317-333`) plays the death VFX, picks `_diorama_visual` (falling back to the legacy `_mesh`), calls `MaterialDissolveScript.dissolve(visual)`, and — when the animator is bound — starts a tween that waits 0.45 s and then lowers `visual.position:y` by 1.2 m (`:325-328`).
-
-`castle_enemy_base.respawn_at_rest` (`:226-253`), invoked from `run_flow.gd:460-461` on a rest, restores health, poise, hitbox, telegraph, hurtbox, and health bar, and calls `_animator.revive()`. It does **not** call `MaterialDissolveScript.restore`, and it does not reset `_diorama_visual.position.y`. `_animator.revive()` -> `_apply_rest_pose()` (`diorama_anim_controller.gd:396-404`) iterates only the collected rest-pose keys (`Root`, `Torso`, and so on), never the `DioramaVisual` node itself, so the 1.2 m sink persists as well.
-
-`training_grunt` never calls dissolve at all; its death is the `death` clip only (`training_grunt.gd:222-231`).
+**Training dummy** â€” `training_grunt._on_died` (`:239-244`) calls `play_death_visual` with `duration = 0.4`. `reset_enemy` calls `reset_death_visual`.
 
 ## Contracts
 
-- **Meta key written on meshes** — `material_dissolve_saved_override`, holding the pre-dissolve `material_override` (which may be `null`).
-- **Shader uniforms required** — `dissolve_clip` and `flash_amount` on the material of every mesh that should dissolve.
-- **Interaction with `MaterialFlash`** — both scripts swap `material_override` and both key their saved override on a different meta name (`material_flash_saved_override`, `material_flash.gd:8`). `dissolve()` reads `get_active_material(0)`, which returns the flash duplicate if a flash is mid-flight, so the value it saves as "original" can itself be a flash duplicate.
-- **Requires the node to be in the tree** — `node.get_tree()` must be non-null for the tween to be created (`:32-34`).
+- Meta keys: `material_dissolve_saved_override` on meshes during dissolve; `death_visual_state` on visual root during death.
+- `owned_materials` meta on `DioramaVisual` and viewmodel holder (`diorama_character_skin.gd:747`, `diorama_viewmodel.gd:31`); dissolve warns when absent.
+- `MaterialFlash.cancel` must run before dissolve captures the saved override.
+- `PixelDioramaSettings._track_materials_recursive` skips meshes carrying `material_dissolve_saved_override` (`pixel_diorama_settings.gd:595-597`).
 
 ## Current state
 
 | Surface | Status | Evidence |
 |---------|--------|----------|
-| Player death dissolve | IMPLEMENTED | `player_combat_reactions.gd:116-118` |
-| Enemy and boss death dissolve | IMPLEMENTED | `castle_enemy_base.gd:317-322` |
-| Enemies are never restored after a rest respawn: no `restore()` call and the 1.2 m sink is not undone, so a respawned enemy is invisible and below the floor | BROKEN | `castle_enemy_base.gd:226-253` vs `:322`, `:325-328`; `run_flow.gd:460-461`; `diorama_anim_controller.gd:396-404` |
-| Dissolve dither is keyed on world XZ with no Y term, so it reads as vertical slicing rather than crumbling and is identical for co-located bodies | PARTIAL | `pixel_diorama_surface.gdshader:119` |
-| Emissive-shader parts never dissolve (no `dissolve_clip` uniform) | PARTIAL | `pixel_diorama_emissive.gdshader:9-16`; `diorama_character_skin.gd:177` |
-| `restore()` writes `dissolve_clip`/`flash_amount` onto the material currently in `material_override` when no saved meta exists — for a freshly built body that is the shared cached wall material | PARTIAL | `material_dissolve.gd:59-62`; `pixel_diorama_style.gd:250-252`, `:291-292`; `diorama_character_skin.gd:359` |
-| A flash in flight when death lands is captured as the "saved" original | PARTIAL | `:22-28` reads `get_active_material(0)`; `material_flash.gd:42-43` |
-| Fixed 0.65 s linear fade, no directional sweep, no per-part stagger, no ash or particle handoff | PLACEHOLDER | `:8`, `:38-45` |
-| Duration parameter is exposed but every call site uses the default | PARTIAL | `:12`; `player_combat_reactions.gd:118`, `castle_enemy_base.gd:322` |
-| `dissolve()` returns without a tween when the node is outside the tree, leaving duplicated materials in place | PARTIAL | `:32-34` |
-| `training_grunt` never dissolves | ABSENT | `training_grunt.gd:222-231` |
-| Registered in the pipeline existence check | IMPLEMENTED | `pixel_pipeline_suite.gd:23`, `:60-77` |
+| Player third-person death dissolve | IMPLEMENTED | `player_combat_reactions.gd:241-248` |
+| Player viewmodel death dissolve | IMPLEMENTED | `player_combat_reactions.gd:245-248` |
+| Enemy and boss death dissolve | IMPLEMENTED | `castle_enemy_base.gd:384-398` |
+| Rest respawn restores visual | IMPLEMENTED | `castle_enemy_base.gd:318-320` |
+| Training dummy dissolve and reset | IMPLEMENTED | `training_grunt.gd:239-244`, `:269` |
+| Object-space height-aware dither | IMPLEMENTED | `pixel_diorama_surface.gdshader:127-140` |
+| Emissive shader parity | IMPLEMENTED | `pixel_diorama_emissive.gdshader` |
+| Per-rig duration, stagger, debris | IMPLEMENTED | `material_dissolve.gd:22-29`, `death_opts_for_enemy` |
+| Flash dissolve handoff | IMPLEMENTED | `material_flash.gd:41`, `material_dissolve.gd:79-84` |
+| Out-of-tree dissolve is a no-op | IMPLEMENTED | `material_dissolve.gd:69-71` |
+| Settings skip in-flight duplicates | IMPLEMENTED | `pixel_diorama_settings.gd:595-597` |
+| Validation suite | IMPLEMENTED | `death_visual_suite.gd`, `pixel_pipeline_suite.gd` |
 
 ## Related
-- Improvement plan: [`../actual_improvements/material-dissolve.md`](../actual_improvements/material-dissolve.md)
-- [`material-flash.md`](material-flash.md), [`pixel-style.md`](pixel-style.md), [`vfx-service.md`](vfx-service.md)
-- [`diorama-character-skin.md`](diorama-character-skin.md), [`diorama-anim-controller.md`](diorama-anim-controller.md), [`enemies.md`](enemies.md), [`player-combat-reactions.md`](player-combat-reactions.md)
+- Improvement plan: [`../actual_improvements/material-dissolve.md`](../actual_improvements/material-dissolve.md) - **FINISHED**
+- [`material-flash.md`](material-flash.md), [`pixel-style.md`](pixel-style.md), [`pixel-diorama-pipeline.md`](pixel-diorama-pipeline.md), [`pixel-diorama-settings.md`](pixel-diorama-settings.md)
+- [`diorama-character-skin.md`](diorama-character-skin.md), [`diorama-viewmodel.md`](diorama-viewmodel.md), [`vfx-service.md`](vfx-service.md)
+- [`enemies.md`](enemies.md), [`player-combat-reactions.md`](player-combat-reactions.md), [`validation-suites.md`](validation-suites.md)

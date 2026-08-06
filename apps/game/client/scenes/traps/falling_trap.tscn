@@ -1,8 +1,7 @@
-[gd_scene load_steps=8 format=3 uid="uid://falling_trap"]
+[gd_scene load_steps=7 format=3 uid="uid://falling_trap"]
 
 [ext_resource type="Script" path="res://scripts/dungeon/traps/falling_trap.gd" id="1_fall"]
 [ext_resource type="Script" path="res://scripts/combat/trap_damage_area.gd" id="2_damage"]
-[ext_resource type="Material" path="res://assets/castle/mat_wall.tres" id="3_wall"]
 
 [sub_resource type="BoxMesh" id="BoxMesh_shadow"]
 size = Vector3(2.5, 0.05, 2.5)
@@ -31,7 +30,6 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 4, 0)
 
 [node name="MeshInstance3D" type="MeshInstance3D" parent="FallingBlock"]
 mesh = SubResource("BoxMesh_block")
-surface_material_override/0 = ExtResource("3_wall")
 
 [node name="DamageArea" type="Area3D" parent="FallingBlock"]
 collision_layer = 4

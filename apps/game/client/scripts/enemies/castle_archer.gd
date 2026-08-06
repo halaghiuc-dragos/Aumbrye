@@ -4,7 +4,6 @@ extends CastleEnemyBase
 
 const PROJECTILE_SCENE := preload("res://scenes/combat/enemy_projectile.tscn")
 
-var _draw_telegraph := false
 var _locked_shot_direction := Vector3.FORWARD
 var _locked_shot_speed := 12.0
 
@@ -39,9 +38,20 @@ func _process_chase(delta: float) -> void:
 func _start_windup() -> void:
 	_lock_shot_trajectory()
 	super._start_windup()
-	_draw_telegraph = true
-	if _telegraph:
-		_telegraph.scale = Vector3(1.4, 1.4, 1.4)
+
+
+func _show_attack_telegraph(duration: float) -> void:
+	var radius := float(
+		_current_attack_data.get("telegraph_radius", _data.get("telegraph_radius", 1.6))
+	) * 1.4
+	var shape := String(
+		_current_attack_data.get("telegraph_shape", _data.get("telegraph_shape", "circle"))
+	)
+	var tint := Color(0.95, 0.34, 0.28)
+	if _data.has("telegraph_tint"):
+		tint = Color(_data["telegraph_tint"])
+	var forward := -global_transform.basis.z
+	VfxService.play_telegraph(global_position, radius, duration, tint, shape, forward)
 
 
 func _lock_shot_trajectory() -> void:
@@ -64,10 +74,6 @@ func _start_attack() -> void:
 		return
 	_state = State.ATTACK
 	_state_timer = _data.get("active_duration", 0.05)
-	_draw_telegraph = false
-	if _telegraph:
-		_telegraph.visible = false
-		_telegraph.scale = Vector3.ONE
 	_fire_projectile()
 	attack_active.emit()
 

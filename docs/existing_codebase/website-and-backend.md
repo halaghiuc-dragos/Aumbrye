@@ -1,4 +1,4 @@
-# Website and backend integration
+﻿# Website and backend integration
 
 How `apps/web` reaches `services/backend`: a generated OpenAPI contract, a typed `request` helper with version headers, a Vite dev proxy for same-origin development, a CORS policy on the API for cross-origin production preview, and docker-compose profiles that optionally start the full stack.
 
@@ -6,11 +6,11 @@ How `apps/web` reaches `services/backend`: a generated OpenAPI contract, a typed
 
 | Path | Role |
 |------|------|
-| `apps/web/src/api/client.ts` | Typed transport — `request`, auth, saves, leaderboards |
+| `apps/web/src/api/client.ts` | Typed transport â€” `request`, auth, saves, leaderboards |
 | `apps/web/src/api/schema.d.ts` | Generated from OpenAPI via `npm run generate:api` |
 | `apps/web/src/auth/AuthProvider.tsx` | In-memory access token, `sessionStorage` refresh, scheduled refresh |
 | `apps/web/src/components/VersionGate.tsx` | Reload prompt on HTTP 426 |
-| `apps/web/vite.config.ts` | Dev proxy `/api` → `localhost:5000`, `__APP_VERSION__` define, production `VITE_API_URL` guard |
+| `apps/web/vite.config.ts` | Dev proxy `/api` â†’ `localhost:5000`, `__APP_VERSION__` define, production `VITE_API_URL` guard |
 | `apps/web/.env.example` | `VITE_API_URL=` (empty in dev) |
 | `packages/shared/openapi/aumbrye-api.v1.yaml` | Generated OpenAPI 3 spec (Swashbuckle) |
 | `packages/shared/Contracts/**/*.cs` | C# records shared by API, CLI, and tests |
@@ -19,7 +19,7 @@ How `apps/web` reaches `services/backend`: a generated OpenAPI contract, a typed
 | `apps/web/Dockerfile` | Node build + nginx SPA |
 | `.env.example` | Compose + API env vars (no `DATABASE_URL`/`REDIS_URL`) |
 | `services/backend/src/Aumbrye.Api/Program.cs` | CORS `"web"` policy, Swagger, `Migrate()` on start |
-| `services/backend/src/Aumbrye.Api/appsettings.json` | `Cors:AllowedOrigins` only — no secrets |
+| `services/backend/src/Aumbrye.Api/appsettings.json` | `Cors:AllowedOrigins` only â€” no secrets |
 | `apps/game/client/scripts/net/api_config.gd` | Godot base URL from env / `dev_api.json` / default |
 
 ## How it works
@@ -32,7 +32,7 @@ Three documented configuration points replace five hardcoded literals:
 |----------|--------|---------|
 | API | `ASPNETCORE_URLS` / `launchSettings.json` | `http://localhost:5000` |
 | Web | `VITE_API_URL` | `""` in dev (proxy); required in prod |
-| Godot | `AUMBRYE_API_URL` → `user://api_config.json` → `res://config/dev_api.json` | `https://api.aumbrye.example` |
+| Godot | `AUMBRYE_API_URL` â†’ `user://api_config.json` â†’ `res://config/dev_api.json` | `https://api.aumbrye.example` |
 | OpenAPI | `servers[0].variables.baseUrl` | `http://localhost:5000` |
 
 ### CORS and dev proxy
@@ -88,13 +88,13 @@ API errors use RFC 7807 `ProblemDetails` (`application/problem+json`). `client.t
 | Version headers + 426 handling | IMPLEMENTED | `client.ts`, `VersionGate.tsx` |
 | Playwright integration tests | IMPLEMENTED | `apps/web/e2e/integration.spec.ts`, `ci.yml` `e2e` |
 | Godot `apiBaseUrl` loading | IMPLEMENTED | `api_config.gd` `_ready` / `_resolve_base_url` |
-| Deployment topology documented | IMPLEMENTED | `actual_improvements/website-and-backend.md` §8 |
+| Deployment topology documented | IMPLEMENTED | `actual_improvements/website-and-backend.md` Â§8 |
 
 ## Related
 
-- Improvement plan: [`../actual_improvements/website-and-backend.md`](../actual_improvements/website-and-backend.md)
-- [`website.md`](website.md) — the client side
-- [`backend-api.md`](backend-api.md) — the server side
-- [`packages.md`](packages.md) — the shared contracts and the OpenAPI file
-- [`networking.md`](networking.md) — the Godot client's separate path to the same API
-- [`ci-cd.md`](ci-cd.md) — CI workflows, API image build, OpenAPI drift check
+- Improvement plan: [`../actual_improvements/website-and-backend.md`](../actual_improvements/website-and-backend.md) - **FINISHED**
+- [`website.md`](website.md) â€” the client side
+- [`backend-api.md`](backend-api.md) â€” the server side
+- [`packages.md`](packages.md) â€” the shared contracts and the OpenAPI file
+- [`networking.md`](networking.md) â€” the Godot client's separate path to the same API
+- [`ci-cd.md`](ci-cd.md) â€” CI workflows, API image build, OpenAPI drift check

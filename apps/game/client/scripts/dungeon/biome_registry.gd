@@ -128,78 +128,33 @@ static func get_grade_profile(biome_id: String) -> Dictionary:
 	return profile
 
 
-static func get_lighting_profile(biome_id: String) -> Dictionary:
-	var biome := get_biome(biome_id)
-	if biome.is_empty():
-		return {}
-	var lighting: Dictionary = biome.get("lighting", {})
-	return {
-		"ambient_color": _color_from_array(lighting.get("ambientColor", [0.4, 0.4, 0.45])),
-		"ambient_energy": float(lighting.get("ambientEnergy", 0.5)),
-		"fog_enabled": bool(lighting.get("fogEnabled", false)),
-		"fog_color": _color_from_array(lighting.get("fogColor", [0.2, 0.2, 0.25])),
-		"fog_density": float(lighting.get("fogDensity", 0.01)),
-		"torch_color": _color_from_array(lighting.get("torchColor", [1.0, 0.72, 0.38])),
-		"torch_energy": float(lighting.get("torchEnergy", 2.2)),
-	}
-
-
 static func apply_run_presentation(
 	parent: Node3D, biome_id: String, run_mode: String = ""
 ) -> WorldEnvironment:
-	var lighting := get_lighting_profile(biome_id)
-	if lighting.is_empty():
+	if get_biome(biome_id).is_empty():
 		return null
-	var env_node := WorldEnvironment.new()
-	env_node.name = "WorldEnvironment"
-	var environment := Environment.new()
-	environment.background_mode = Environment.BG_COLOR
-	environment.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
-	var profile_ambient: Color = lighting.get("ambient_color", Color(0.4, 0.4, 0.45))
-	var profile_energy: float = float(lighting.get("ambient_energy", 0.5))
-	environment.ambient_light_color = profile_ambient
-	environment.ambient_light_energy = profile_energy
-	environment.fog_enabled = bool(lighting.get("fog_enabled", false))
-	environment.fog_light_color = lighting.get("fog_color", Color(0.2, 0.2, 0.25))
-	environment.fog_density = float(lighting.get("fog_density", 0.01))
-
+	var profile_id := VisualLighting.profile_for_biome(biome_id)
+	if run_mode == RunModeConfig.MODE_WAVES:
+		profile_id = "waves_arena"
+	VisualLighting.apply_profile(parent, profile_id)
+	var env_node := parent.get_node_or_null("WorldEnvironment") as WorldEnvironment
+	if env_node == null:
+		return null
 	var uses_indoor_lighting := run_mode in [RunModeConfig.MODE_CASTLE, RunModeConfig.MODE_ENDLESS]
-	var needs_arena_boost := run_mode == RunModeConfig.MODE_WAVES
-	if needs_arena_boost:
-		var waves_tint := Color(0.48, 0.42, 0.62)
-		environment.ambient_light_color = profile_ambient.lerp(waves_tint, 0.4)
-		environment.ambient_light_energy = maxf(profile_energy, profile_energy * 1.3)
-		environment.background_color = profile_ambient.lerp(Color(0.12, 0.1, 0.18), 0.55)
-		environment.fog_enabled = false
-	elif uses_indoor_lighting:
-		VisualLighting.apply_indoor_environment(environment, lighting)
-	else:
-		environment.background_color = profile_ambient.lerp(Color(0.12, 0.11, 0.16), 0.55)
-		PixelDioramaSettings.configure_environment(environment)
-
-	env_node.environment = environment
-	parent.add_child(env_node)
-
 	var sun := parent.get_node_or_null("DirectionalLight3D") as DirectionalLight3D
-	if sun:
-		if uses_indoor_lighting:
-			sun.visible = false
-		elif needs_arena_boost:
-			sun.light_energy = 1.35
-			sun.light_color = Color(0.95, 0.92, 1.0)
-			PixelDioramaSettings.configure_directional_shadow(sun)
-
-	if needs_arena_boost and parent.get_node_or_null("ArenaFillLight") == null:
+	if sun and uses_indoor_lighting:
+		sun.visible = false
+	if run_mode == RunModeConfig.MODE_WAVES and parent.get_node_or_null("ArenaFillLight") == null:
+		var torch_cfg := VisualLighting.get_torch_config(profile_id)
 		var fill := OmniLight3D.new()
 		fill.name = "ArenaFillLight"
-		var torch: Color = lighting.get("torch_color", Color(0.72, 0.68, 0.9))
-		fill.light_color = torch.lerp(Color(0.72, 0.68, 0.9), 0.35)
-		fill.light_energy = float(lighting.get("torch_energy", 0.55)) * 0.25
+		var torch_color: Color = torch_cfg.get("color", Color(0.72, 0.68, 0.9))
+		fill.light_color = torch_color.lerp(Color(0.72, 0.68, 0.9), 0.35)
+		fill.light_energy = float(torch_cfg.get("energy", 0.55)) * 0.25
 		fill.omni_range = 28.0
 		fill.position = Vector3(0, 10, 0)
 		parent.add_child(fill)
-
-	VisualLighting.apply_biome_atmosphere(parent, biome_id)
+	VisualLighting.attach_atmosphere(parent, profile_id)
 	PixelDioramaSettings.set_biome_screen_grade(biome_id)
 	AudioDirector.set_biome(biome_id)
 	return env_node
@@ -255,21 +210,25 @@ static func _ensure_biome_index() -> void:
 
 
 static func _load_material(biome_id: String, slot: String) -> Material:
-	var biome := get_biome(biome_id)
-	if biome.is_empty():
+	var theme := PixelDioramaStyle.theme_from_biome(biome_id)
+	var base: Material = null
+	match slot:
+		"floor":
+			base = PixelDioramaStyle.make_floor_material(theme)
+		"wall":
+			base = PixelDioramaStyle.make_wall_material(theme)
+		"ceiling":
+			base = PixelDioramaStyle.make_ceiling_material(theme)
+		"accent":
+			base = PixelDioramaStyle.make_accent_material(theme)
+		_:
+			push_error("BiomeRegistry: unknown material slot '%s' for '%s'" % [slot, biome_id])
+			return null
+	if base == null:
 		return null
-	var materials: Dictionary = biome.get("materials", {})
-	var path := str(materials.get(slot, ""))
-	if path.is_empty() or not ResourceLoader.exists(path):
-		push_error("BiomeRegistry: missing material '%s' for '%s'" % [slot, biome_id])
-		return null
-	var mat := load(path) as Material
-	if mat == null:
-		return null
-	var dup := mat.duplicate()
-	if dup is ShaderMaterial:
-		return PixelDioramaSettings.track(dup as ShaderMaterial)
-	return dup
+	if base is ShaderMaterial:
+		return PixelDioramaSettings.track((base as ShaderMaterial).duplicate() as ShaderMaterial)
+	return base.duplicate()
 
 
 static func _color_from_array(raw: Variant) -> Color:

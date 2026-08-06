@@ -1,4 +1,4 @@
-# Local procgen
+﻿# Local procgen
 
 `LocalProcgen` is the single entry point every client run uses to obtain a `DungeonDefinition`. It derives per-floor seeds, runs the GDScript two-phase generator with a three-attempt retry ladder and `DungeonDefinitionValidator`, and only reaches for the C# `procgen-cli` when `allow_cli_fallback == true` (tooling / parity tests only). It is on the live play path: `RunFlow._generate_dungeon()` calls it for every floor of every mode.
 
@@ -8,7 +8,7 @@
 |------|------|
 | `apps/game/client/scripts/dungeon/local_procgen.gd` | Seed resolution, GDScript generation, optional CLI, result envelope |
 | `apps/game/client/scripts/dungeon/dungeon_definition_validator.gd` | Structural `DungeonDefinition` validation gate (LPG-02) |
-| `apps/game/client/scripts/dungeon/dungeon_seed_service.gd` | Base seed → tier seed → floor seed derivation, tier access gate |
+| `apps/game/client/scripts/dungeon/dungeon_seed_service.gd` | Base seed â†’ tier seed â†’ floor seed derivation, tier access gate |
 | `apps/game/client/scripts/dungeon/run_floor_config.gd` | `mix_seed` (SplitMix64 via `floor_seed_mix.gd`), floor caps |
 | `apps/game/client/scripts/dungeon/floor_seed_mix.gd` | uint64-safe `FloorSeedMix.mix` shared by `RunFloorConfig` |
 | `apps/game/client/scripts/dungeon/procgen/dungeon_procgen.gd` | GDScript generator; public `deterministic_run_id()` |
@@ -22,7 +22,7 @@ Entry point is `LocalProcgen.generate()` (`local_procgen.gd:14`), signature
 
 1. **Seed resolution.** `_resolve_seed()` (`local_procgen.gd:168`) returns `maxi(1, int(run_seed))` for an explicit seed; otherwise seeds a `RandomNumberGenerator` with `int(Time.get_unix_time_from_system() * 1000.0) ^ OS.get_process_id()` and rolls `randi_range(1, 2_147_483_646)`. Rolled seeds print as `[LocalProcgen] Rolled seed: %d` (`local_procgen.gd:27`).
 2. **Tier gate.** `DungeonSeedService.can_access_tier(dungeon_tier)` runs unconditionally unless `bypass_tier_lock` is true (`local_procgen.gd:29-34`). `RunFlow.start_new_run()` also checks tier access before starting (`run_flow.gd:99`).
-3. **Seed derivation.** `tier_seed = DungeonSeedService.derive_tier_seed(base_seed, dungeon_tier)` (`local_procgen.gd:35`), then `floor_seed = DungeonSeedService.mix_floor_seed(tier_seed, floor_index)` via `RunFloorConfig.mix_seed` → `FloorSeedMix.mix` (`local_procgen.gd:36`).
+3. **Seed derivation.** `tier_seed = DungeonSeedService.derive_tier_seed(base_seed, dungeon_tier)` (`local_procgen.gd:35`), then `floor_seed = DungeonSeedService.mix_floor_seed(tier_seed, floor_index)` via `RunFloorConfig.mix_seed` â†’ `FloorSeedMix.mix` (`local_procgen.gd:36`).
 4. **Final-floor flag.** `is_final = RunFloorConfig.is_final_floor(floor_index, run_mode)` (`local_procgen.gd:37`).
 5. **GDScript generation + validation.** Up to three attempts with salts `[0, 0x9E3779B9, 0x85EBCA6B]` XORed into `floor_seed` (`local_procgen.gd:40-76`). Each success path runs `DungeonDefinitionValidator.validate()`; failures record `RoomGraphGenerator.last_validate_reason()` when graph generation fails.
 6. **CLI fallback (tooling only).** When `allow_cli_fallback == true` and GDScript exhausts retries, `_generate_via_cli()` passes deterministic `run_id`, `--floor <n>`, and optional `--final-floor` (`local_procgen.gd:78-164`). Runtime callers never pass `allow_cli_fallback == true`.
@@ -31,8 +31,8 @@ Entry point is `LocalProcgen.generate()` (`local_procgen.gd:14`), signature
 
 | Function | Formula | Evidence |
 |----------|---------|----------|
-| `derive_tier_seed(base, tier)` | `tier <= 1` → `base`; else `maxi(1, base ^ (clampi(tier,1,DungeonCatalog.count()) * 104729))` | `dungeon_seed_service.gd:9-15` |
-| `mix_floor_seed(tier_seed, floor)` | `RunFloorConfig.mix_seed` → `FloorSeedMix.mix` (SplitMix64; floor 1 identity) | `run_floor_config.gd:14-17`, `floor_seed_mix.gd:6-14` |
+| `derive_tier_seed(base, tier)` | `tier <= 1` â†’ `base`; else `maxi(1, base ^ (clampi(tier,1,DungeonCatalog.count()) * 104729))` | `dungeon_seed_service.gd:9-15` |
+| `mix_floor_seed(tier_seed, floor)` | `RunFloorConfig.mix_seed` â†’ `FloorSeedMix.mix` (SplitMix64; floor 1 identity) | `run_floor_config.gd:14-17`, `floor_seed_mix.gd:6-14` |
 | `generation_seed(base, tier, floor)` | `mix_floor_seed(derive_tier_seed(base, tier), floor)` | `dungeon_seed_service.gd:22-23` |
 | C# parity | `DungeonSeedDeriver.MixFloorSeed` matches GDScript for 100 fixture rows | `content/fixtures/mix_seed_parity.json`, `cross_stack_parity_suite.gd` |
 
@@ -57,11 +57,11 @@ Success envelope from the GDScript path (`local_procgen.gd:63-75`):
 | `run_id` | String | `DungeonProcgen.deterministic_run_id` |
 | `generator` | String | `"gdscript"` or `"cli"` |
 | `warnings` | Array | Validator warnings (may be empty) |
-| `attempts` | int | Successful attempt index (1–3) |
+| `attempts` | int | Successful attempt index (1â€“3) |
 
 Failure envelope: `{ ok: false, error: "procgen_failed", reason: String, attempts: 3, input_seed, tier_seed, generation_seed }` (`local_procgen.gd:89-96`).
 
-`RunFlow` stores `generator`, `input_seed`, `tier_seed`, `generation_seed`, and `generationWarnings` on the active run snapshot (`run_flow.gd:300-305`, `run_flow.gd:688-693`). On `ok == false` it shows `Floor generation failed — seed <n>, reason <r>` and `return_to_hub()` (`run_flow.gd:172-178`).
+`RunFlow` stores `generator`, `input_seed`, `tier_seed`, `generation_seed`, and `generationWarnings` on the active run snapshot (`run_flow.gd:300-305`, `run_flow.gd:688-693`). On `ok == false` it shows `Floor generation failed â€” seed <n>, reason <r>` and `return_to_hub()` (`run_flow.gd:172-178`).
 
 ## Current state
 
@@ -80,8 +80,8 @@ Failure envelope: `{ ok: false, error: "procgen_failed", reason: String, attempt
 
 ## Related
 
-- Improvement plan: [`../actual_improvements/local-procgen.md`](../actual_improvements/local-procgen.md)
-- [`room-graph-procgen.md`](room-graph-procgen.md) — generator internals
-- [`dungeon-catalog-tiers.md`](dungeon-catalog-tiers.md) — tier unlocks
-- [`run-flow.md`](run-flow.md) — caller and failure UX
-- [`packages.md`](packages.md) — C# `packages/procedural`
+- Improvement plan: [`../actual_improvements/local-procgen.md`](../actual_improvements/local-procgen.md) - **FINISHED**
+- [`room-graph-procgen.md`](room-graph-procgen.md) â€” generator internals
+- [`dungeon-catalog-tiers.md`](dungeon-catalog-tiers.md) â€” tier unlocks
+- [`run-flow.md`](run-flow.md) â€” caller and failure UX
+- [`packages.md`](packages.md) â€” C# `packages/procedural`

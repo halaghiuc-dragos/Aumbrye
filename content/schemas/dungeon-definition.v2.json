@@ -237,6 +237,18 @@
           "type": "integer",
           "minimum": 0,
           "maximum": 2
+        },
+        "size": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "x": { "type": "number" },
+            "z": { "type": "number" }
+          }
+        },
+        "kind": {
+          "type": "string",
+          "enum": ["combat", "treasure", "shop", "key", "boss", "entrance", "stairs", "unknown"]
         }
       }
     },

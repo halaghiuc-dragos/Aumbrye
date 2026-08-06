@@ -1,5 +1,10 @@
 extends "res://scripts/validation/validation_suite.gd"
 
+const CharacterAppearanceScript := preload("res://scripts/save/character_appearance.gd")
+const CharacterSkinScript := preload("res://scripts/art/characters/diorama_character_skin.gd")
+const CharacterRigCatalogScript := preload("res://scripts/art/characters/character_rig_catalog.gd")
+const PixelStyleScript := preload("res://scripts/art/style/pixel_diorama_style.gd")
+
 
 func get_category() -> String:
 	return "hub_m4"
@@ -227,11 +232,11 @@ func _test_npc_dialogue_routing() -> void:
 	var start := Time.get_ticks_msec()
 	var aldric_def := NpcCatalog.get_definition("blacksmith_aldric")
 	var elara_def := NpcCatalog.get_definition("merchant_elara")
-	var has_dialogue_ids := (
+	var has_dialogue_ids: bool = (
 		aldric_def.get("dialogueId", "") == "aldric_greeting"
 		and elara_def.get("dialogueId", "") == "elara_greeting"
 	)
-	var routes_through_dialogue := (
+	var routes_through_dialogue: bool = (
 		ctx.file_contains("res://scripts/npc/npc_base.gd", "_greeted_this_visit")
 		and ctx.file_contains("res://scripts/npc/npc_base.gd", "dialogue_requested.emit(npc_id, greet_id)")
 	)
@@ -331,7 +336,7 @@ func _test_quest_service() -> void:
 	QuestService.register_kill("castle_grunt")
 	QuestService.register_kill("castle_grunt")
 	var waves_kill_wired := CharacterService.get_quest_state("kill_grunts") == "completed"
-	var waves_forwards_kills := ctx.file_contains(
+	var waves_forwards_kills: bool = ctx.file_contains(
 		"res://scripts/dungeon/waves_run.gd", "QuestService.register_kill"
 	)
 	ctx.timed_record(
@@ -346,10 +351,10 @@ func _test_quest_service() -> void:
 	start = Time.get_ticks_msec()
 	var tracker_scene := ResourceLoader.exists("res://scenes/ui/quest_tracker_ui.tscn")
 	var has_completed_api := QuestService.has_method("get_completed_quests")
-	var no_dead_escape_helper := not ctx.file_contains(
+	var no_dead_escape_helper: bool = not ctx.file_contains(
 		"res://scripts/quests/quest_service.gd", "check_escape_on_portal"
 	)
-	var no_empty_returned := not ctx.file_contains(
+	var no_empty_returned: bool = not ctx.file_contains(
 		"res://scripts/quests/quest_service.gd", "_on_returned_to_hub"
 	)
 	ctx.timed_record(
@@ -443,10 +448,10 @@ func _test_storage_transfer() -> void:
 	InventoryService.inventory = GridInventory.new()
 	InventoryService.inventory.add_item("iron_scrap", 2)
 	var start := Time.get_ticks_msec()
-	var moved := StorageService.move_to_storage(0).get("ok", false)
+	var moved: bool = bool(StorageService.move_to_storage(0).get("ok", false))
 	var back := false
 	if moved:
-		back = StorageService.move_to_inventory(0).get("ok", false)
+		back = bool(StorageService.move_to_inventory(0).get("ok", false))
 	ctx.timed_record(
 		"hub_m4.storage_transfer",
 		get_category(),
@@ -579,6 +584,52 @@ func _test_hub_tips() -> void:
 		"HUB-12"
 	)
 
+	start = Time.get_ticks_msec()
+	HubTutorialService.reset_for_character()
+	var tip_hub: Node3D = load("res://scenes/hub/hub.tscn").instantiate() as Node3D
+	ctx.owner.add_child(tip_hub)
+	tip_hub.call("_on_interact_enter", "castle_portal")
+	tip_hub.call("_on_save_loaded")
+	var first_tip_id := HubTutorialService.current_tip_id()
+	var interact_evt := InputEventAction.new()
+	interact_evt.action = "interact"
+	interact_evt.pressed = true
+	tip_hub.call("_unhandled_input", interact_evt)
+	var castle_menu: Control = tip_hub.get_node("CastleEntryMenu") as Control
+	var menu_closed := not (castle_menu.has_method("is_open") and castle_menu.call("is_open"))
+	var tip_consumed := HubTutorialService.seen_ids.has(first_tip_id)
+	tip_hub.queue_free()
+	ctx.timed_record(
+		"hub.tips.input_is_consumed",
+		get_category(),
+		tip_consumed and menu_closed,
+		"interact advances tip without opening nearby portal menu",
+		start,
+		"HUB-03"
+	)
+
+	start = Time.get_ticks_msec()
+	HubTutorialService.reset_for_character()
+	var surface_hub: Node3D = load("res://scenes/hub/hub.tscn").instantiate() as Node3D
+	surface_hub.call("_on_save_loaded")
+	surface_hub.call("show_hub_message", "Welcome back, Tester.")
+	var tip_label: Label3D = surface_hub.get_node("Player/MessageAnchor/TipLabel") as Label3D
+	var message_label: Label3D = surface_hub.get_node("Player/MessageAnchor/MessageLabel") as Label3D
+	var surface_ok := (
+		tip_label.visible
+		and not tip_label.text.is_empty()
+		and message_label.text == "Welcome back, Tester."
+	)
+	surface_hub.free()
+	ctx.timed_record(
+		"hub.tips.surface_not_clobbered",
+		get_category(),
+		surface_ok,
+		"tip surface and welcome message coexist after save load and boot greeting",
+		start,
+		"HUB-02"
+	)
+
 
 func _test_hub_interact() -> void:
 	var hub: Node3D = load("res://scenes/hub/hub.tscn").instantiate() as Node3D
@@ -594,7 +645,7 @@ func _test_hub_interact() -> void:
 	var ids_ok := true
 	var seen_ids := {}
 	for area in _collect_hub_interactables(hub):
-		var area_id := area.get_interact_id()
+		var area_id: String = area.get_interact_id()
 		if area_id.is_empty():
 			ids_ok = false
 			continue
@@ -723,7 +774,7 @@ func _test_hub_layout() -> void:
 func _test_hub_prompt() -> void:
 	var start := Time.get_ticks_msec()
 	var hub: Node3D = load("res://scenes/hub/hub.tscn").instantiate() as Node3D
-	var script := hub.get_script()
+	var script: Script = hub.get_script() as Script
 	var hub_inst: Object = script.new() if script != null else null
 	if hub_inst != null and hub_inst.has_method("get_prompt_write_count"):
 		var writes_before := int(hub_inst.call("get_prompt_write_count"))
@@ -801,10 +852,6 @@ func _layout_snapshot(hub: Node3D) -> Dictionary:
 
 
 func _test_appearance_mirror() -> void:
-	var CharacterAppearanceScript := preload("res://scripts/save/character_appearance.gd")
-	var CharacterSkinScript := preload("res://scripts/art/characters/diorama_character_skin.gd")
-	var CharacterRigCatalogScript := preload("res://scripts/art/characters/character_rig_catalog.gd")
-	var PixelStyleScript := preload("res://scripts/art/style/pixel_diorama_style.gd")
 	var start := Time.get_ticks_msec()
 	var hub: Node3D = load("res://scenes/hub/hub.tscn").instantiate() as Node3D
 	var mirror_present := hub.get_node_or_null("Mirror/InteractArea") != null
@@ -1284,8 +1331,8 @@ func _test_npc_vendor_flow() -> void:
 
 	start = Time.get_ticks_msec()
 	var warn_stage := Node3D.new()
-	var warn_profile := CharacterAppearanceScript.sanitize({"trim": 1})
-	var warn_visual := CharacterSkinScript.build_preview_body(warn_stage, warn_profile)
+	var warn_profile: Dictionary = CharacterAppearanceScript.sanitize({"trim": 1})
+	var warn_visual: Node3D = CharacterSkinScript.build_preview_body(warn_stage, warn_profile)
 	var warn_torso := CharacterSkinScript.find_part(warn_visual, "Torso")
 	if warn_torso:
 		warn_torso.queue_free()

@@ -1,6 +1,8 @@
-# Pixel diorama settings
+﻿# Pixel diorama settings
 
-`PixelDioramaSettings` is a `RefCounted` class with only static members. It is the single source of truth for every tunable that shapes the pixel look — internal render resolution, surface shader uniforms, shading bands, environment/shadow tuning, and the screen finish pass — and it persists them in the `LocalSave` meta block `pixel_diorama`. It is on the live play path: `PixelDioramaBootstrap.prime()` loads it at boot in four scenes, and `PixelDioramaViewport`, `PixelDioramaStyle`, `VisualLighting`, and `settings_ui.gd` all read from it.
+## Status: FINISHED
+
+`PixelDioramaSettings` is a `RefCounted` class with only static members. It is the single source of truth for every tunable that shapes the pixel look â€” internal render resolution, surface shader uniforms, shading bands, environment/shadow tuning, and the screen finish pass â€” and it persists them in the `LocalSave` meta block `pixel_diorama`. It is on the live play path: `PixelDioramaBootstrap.prime()` loads it at boot in four scenes, and `PixelDioramaViewport`, `PixelDioramaStyle`, `VisualLighting`, and `settings_ui.gd` all read from it.
 
 ## Files
 | Path | Role |
@@ -14,7 +16,7 @@
 
 ### Persisted statics
 
-31 statics (plus `active_render_height`), loaded in `load_from_save()` and written in `save()` under `SAVE_KEY = "pixel_diorama"`. The block carries `version` (`SETTINGS_VERSION = 1`) and `tuning_is_preset_default`.
+35 statics (plus `active_render_height` and runtime-only `pulse_tint`), loaded in `load_from_save()` and written in `save()` under `SAVE_KEY = "pixel_diorama"`. The block carries `version` (`SETTINGS_VERSION = 1`) and `tuning_is_preset_default`.
 
 | Static | Default constant | Value |
 |--------|------------------|-------|
@@ -34,7 +36,8 @@
 | `anti_aliasing_off` | `DEFAULT_ANTI_ALIASING_OFF` | `false` |
 | `low_res_viewport_enabled` | `DEFAULT_LOW_RES_VIEWPORT` | `true` |
 | `viewport_width` / `viewport_height` | `DEFAULT_VIEWPORT_WIDTH/HEIGHT` | `480` / `270` |
-| `camera_snap_enabled` | `DEFAULT_CAMERA_SNAP` | `false` |
+| `camera_snap_enabled` | `DEFAULT_CAMERA_SNAP` | `true` |
+| `gameplay_camera_snap_enabled` | `DEFAULT_GAMEPLAY_CAMERA_SNAP` | `true` |
 | `screen_finish_enabled` | `DEFAULT_SCREEN_FINISH` | `true` |
 | `screen_contrast` | `DEFAULT_CONTRAST` | `1.08` |
 | `screen_saturation` | `DEFAULT_SATURATION` | `1.06` |
@@ -42,7 +45,10 @@
 | `posterize_levels` | `DEFAULT_POSTERIZE_LEVELS` | `24.0` |
 | `shadow_quality` | `DEFAULT_SHADOW_QUALITY` | `1` |
 | `particle_quality` | `DEFAULT_PARTICLE_QUALITY` | `1` |
-| `tuning_is_preset_default` | — | `false` (migrated v0 saves → `true`) |
+| `light_animation` | `DEFAULT_LIGHT_ANIMATION` | `true` |
+| `hitstop_enabled` | `DEFAULT_HITSTOP_ENABLED` | `true` |
+| `screen_shake_scale` | `DEFAULT_SCREEN_SHAKE_SCALE` | `1.0` |
+| `tuning_is_preset_default` | â€” | `false` (migrated v0 saves â†’ `true`) |
 | `screen_lift` | `DEFAULT_SCREEN_LIFT` | `0.0` |
 | `shadow_tint` | `DEFAULT_SHADOW_TINT` | `Color(0.18, 0.16, 0.26)` |
 | `shadow_tint_amount` | `DEFAULT_SHADOW_TINT_AMOUNT` | `0.14` |
@@ -55,17 +61,17 @@
 
 ### Resolution presets
 
-`RESOLUTION_PRESETS` holds six 16:9 entries. Native HD presets (`1280×720`, `1920×1080`) carry a `tuning` sub-dictionary with six shader values. `set_resolution_preset()` applies `tuning` and sets `tuning_is_preset_default := true`. `load_from_save()` reapplies `tuning` only when `tuning_is_preset_default` is true and the saved size matches — never overwriting user-edited values. Any shader slider change calls `mark_tuning_user_edited()` to clear the flag.
+`RESOLUTION_PRESETS` holds six 16:9 entries. Native HD presets (`1280Ã—720`, `1920Ã—1080`) carry a `tuning` sub-dictionary with six shader values. `set_resolution_preset()` applies `tuning` and sets `tuning_is_preset_default := true`. `load_from_save()` reapplies `tuning` only when `tuning_is_preset_default` is true and the saved size matches â€” never overwriting user-edited values. Any shader slider change calls `mark_tuning_user_edited()` to clear the flag.
 
 ### Application entry points
 
-- `apply_all()` — `restamp_tracked()`, `_notify_viewport()` (calls `PixelDioramaViewport.apply_settings()`), then `apply_to_scene()` for world environments only.
-- `apply_live()` — `restamp_tracked()` + `_notify_viewport()`; used by settings sliders/toggles.
-- `request_save()` — debounced persist (`SAVE_DEBOUNCE_SEC = 0.35`); pairs with `apply_live()` from the settings UI.
-- `save_and_apply()` — synchronous `save()` + `apply_all()`; used for discrete commits (preset select, quality dropdowns, beauty defaults).
-- `apply_beauty_defaults()` — resets statics, reapplies native `tuning` when applicable, `save_and_apply()`.
-- `track(mat)` / `restamp_tracked()` — weak-ref registry stamped by `apply_to_shader_material()` without walking the scene tree or clearing material caches.
-- `bootstrap_scene_materials(root)` — one-time walk to `track()` materials already authored in `.tscn`.
+- `apply_all()` â€” `restamp_tracked()`, `_notify_viewport()` (calls `PixelDioramaViewport.apply_settings()`), then `apply_to_scene()` for world environments only.
+- `apply_live()` â€” `restamp_tracked()` + `_notify_viewport()`; used by settings sliders/toggles.
+- `request_save()` â€” debounced persist (`SAVE_DEBOUNCE_SEC = 0.35`); pairs with `apply_live()` from the settings UI.
+- `save_and_apply()` â€” synchronous `save()` + `apply_all()`; used for discrete commits (preset select, quality dropdowns, beauty defaults).
+- `apply_beauty_defaults()` â€” resets statics, reapplies native `tuning` when applicable, `save_and_apply()`.
+- `track(mat)` / `restamp_tracked()` â€” weak-ref registry stamped by `apply_to_shader_material()` without walking the scene tree or clearing material caches.
+- `bootstrap_scene_materials(root)` â€” one-time walk to `track()` materials already authored in `.tscn`.
 
 ### Render quality
 
@@ -73,7 +79,7 @@
 
 ### Tracked materials
 
-`PixelDioramaStyle.make_surface_material()`, `make_glow_material()`, and `make_portal_material()` route results through `track()`. `BiomeRegistry._load_material()` returns `duplicate()`d instances, also tracked. Settings changes restamp live materials without mutating shared `.tres` singletons.
+`PixelDioramaStyle.make_surface_material()`, `make_glow_material()`, and `make_portal_material()` route cached prototypes through `track()`. `BiomeRegistry._load_material()` duplicates the factory result on every getter call and tracks the copy, so callers never share one `ShaderMaterial` instance.
 
 ### Screen finish
 
@@ -81,7 +87,7 @@
 
 ### Meta migration
 
-`_migrate_settings(data, from_version)` routes unknown-or-zero blocks: v0 → v1 sets `tuning_is_preset_default := true` (safe default for saves that cannot distinguish preset tuning from user edits).
+`_migrate_settings(data, from_version)` routes unknown-or-zero blocks: v0 â†’ v1 sets `tuning_is_preset_default := true` (safe default for saves that cannot distinguish preset tuning from user edits).
 
 ## Contracts
 
@@ -106,10 +112,10 @@
 | Validation suite | IMPLEMENTED | `pixel_settings_suite.gd` |
 
 ## Related
-- Improvement plan: [`../actual_improvements/pixel-diorama-settings.md`](../actual_improvements/pixel-diorama-settings.md) — **FINISHED**
-- [`pixel-diorama-pipeline.md`](pixel-diorama-pipeline.md) — `pulse_screen()`, `active_render_height`
-- [`pixel-style.md`](pixel-style.md) — material factories that call `track()`
-- [`pixel-camera-snap.md`](pixel-camera-snap.md) — consumer of `camera_snap_step()`
-- [`visual-lighting.md`](visual-lighting.md) — per-biome grade consumer
-- [`biome-registry.md`](biome-registry.md) — duplicated material getters
-- [`local-save.md`](local-save.md) — meta block storage
+- Improvement plan: [`../actual_improvements/pixel-diorama-settings.md`](../actual_improvements/pixel-diorama-settings.md) - **FINISHED**
+- [`pixel-diorama-pipeline.md`](pixel-diorama-pipeline.md) â€” `pulse_screen()`, `active_render_height`
+- [`pixel-style.md`](pixel-style.md) â€” material factories that call `track()`
+- [`pixel-camera-snap.md`](pixel-camera-snap.md) â€” consumer of `camera_snap_step()`
+- [`visual-lighting.md`](visual-lighting.md) â€” per-biome grade consumer
+- [`biome-registry.md`](biome-registry.md) â€” duplicated material getters
+- [`local-save.md`](local-save.md) â€” meta block storage

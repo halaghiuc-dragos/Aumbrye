@@ -1,4 +1,4 @@
-# Audio director
+﻿# Audio director
 
 `AudioDirector` is the `res://scripts/audio/audio_director.gd` autoload (`project.godot`) that owns four music/ambience layers, a stinger player, an eight-player SFX pool, four `AudioStreamPlayer3D` SFX slots, five audio buses, per-biome reverb, and a sidechain duck. **Authored OGG stems are the default path** for every biome layer and SFX bank entry; synthesis is a fallback when a source file is absent.
 
@@ -32,7 +32,7 @@
 | `MusicPlayer` | `Music` | 196.0 | Boss / menu theme |
 | `ExplorePlayer` | `Music` | 110.0 | Non-combat dungeon layer |
 | `CombatPlayer` | `Music` | 130.0 | Combat dungeon layer |
-| `StingerPlayer` | `Music` | — | One-shot stingers (non-looping) |
+| `StingerPlayer` | `Music` | â€” | One-shot stingers (non-looping) |
 
 Then eight `AudioStreamPlayer` (`SfxPlayer0..7`) and four `AudioStreamPlayer3D` (`Sfx3dPlayer0..3`, `max_distance = 24.0`), all on the `SFX` bus. The SFX bank loads from `content/audio/sfx.json`; fallback tones are pre-baked into `AudioStreamWAV` at `_ready`. In debug builds, `_report_audio_content()` logs one line per biome listing which stems resolved from disk.
 
@@ -52,9 +52,9 @@ When all four layers hold file-backed streams, `_process` performs zero `sin()` 
 | `play_menu_music()` | `menu` | `set_biome("dark_cathedral")`, `_apply_mode_fallback_freqs(MENU_FALLBACK_FREQS)` for generator-backed layers only, `_ensure_layer_streams()`, `cathedral` reverb, fades music and explore in |
 | `play_hub_ambience()` | `hub` | `set_biome("umbral_chapel")`, hub fallback freqs, `_ensure_layer_streams()`, `umbral` reverb, fades ambience and music in |
 | `play_boss_music()` | `boss` | No generator restore; fades combat and explore out, crossfades music in over ambience |
-| `play_stinger(key)` | — | Loads stinger from profile `stingers` map, plays on `StingerPlayer`, ducks `Music` layer by 4 dB for duration |
-| `register_combat_engagement()` | — | Only acts in `dungeon` mode; on first engagement crossfades combat in over explore |
-| `unregister_combat_engagement()` | — | On last disengagement crossfades explore back in |
+| `play_stinger(key)` | â€” | Loads stinger from profile `stingers` map, plays on `StingerPlayer`, ducks `Music` layer by 4 dB for duration |
+| `register_combat_engagement()` | â€” | Only acts in `dungeon` mode; on first engagement crossfades combat in over explore |
+| `unregister_combat_engagement()` | â€” | On last disengagement crossfades explore back in |
 | `stop_all(fade)` | `none` | Fades all four out |
 
 Callers: `hub.gd`, `main_menu.gd`, `title_screen.gd`, `run_flow.gd`, `castle_run.gd`, boss scripts, `castle_enemy_base.gd`, `waves_run.gd`.
@@ -65,8 +65,8 @@ Callers: `hub.gd`, `main_menu.gd`, `title_screen.gd`, `run_flow.gd`, `castle_run
 
 Run start order:
 
-1. `castle_run.gd` → `_apply_biome_presentation()` → `BiomeRegistry.apply_run_presentation()` → `AudioDirector.set_biome(biome_id)`, which loads four layer stems via `_load_layer_stems()`.
-2. `castle_run.gd` → `AudioDirector.play_dungeon_ambience()` → `_ensure_layer_streams()` leaves file streams intact.
+1. `castle_run.gd` â†’ `_apply_biome_presentation()` â†’ `BiomeRegistry.apply_run_presentation()` â†’ `AudioDirector.set_biome(biome_id)`, which loads four layer stems via `_load_layer_stems()`.
+2. `castle_run.gd` â†’ `AudioDirector.play_dungeon_ambience()` â†’ `_ensure_layer_streams()` leaves file streams intact.
 3. `_crossfade_to()` starts playback.
 
 ### Biome profiles
@@ -112,7 +112,7 @@ Legacy `ambiencePath`/`bossPath`/`*Freq` keys remain accepted and are mapped int
 
 Legacy keys: `hit`, `block`, `parry`, `swing`, `death`, `footstep`, `windup`, `ui`. Additional keys: `hit_armor`, `heal_raise`, `heal_gulp`, `heal_commit`, `brazier`, `fountain`.
 
-Combat callers invoke `AudioDirector` directly — `hit_feedback.gd`, `weapon_controller.gd`, `castle_enemy_base.gd`, `locomotion.gd`, `player_anim_director.gd`. `VfxService` handles particles only; it does not call `AudioDirector`.
+Combat callers invoke `AudioDirector` directly â€” `hit_feedback.gd`, `weapon_controller.gd`, `castle_enemy_base.gd`, `locomotion.gd`, `player_anim_director.gd`. `VfxService` handles particles only; it does not call `AudioDirector`.
 
 ### Positional emitters
 
@@ -120,11 +120,11 @@ Combat callers invoke `AudioDirector` directly — `hit_feedback.gd`, `weapon_co
 
 ### Buses, reverb, duck
 
-`_setup_bus_effects()` adds an `AudioEffectReverb` to `Ambience` and `SFX` (idempotent) and an `AudioEffectCompressor` on `Ambience` sidechained from `Music` at threshold −20 dB, ratio 5, attack 120 ms, release 750 ms.
+`_setup_bus_effects()` adds an `AudioEffectReverb` to `Ambience` and `SFX` (idempotent) and an `AudioEffectCompressor` on `Ambience` sidechained from `Music` at threshold âˆ’20 dB, ratio 5, attack 120 ms, release 750 ms.
 
 `_apply_reverb_preset(id)` looks the id up in `REVERB_PRESETS` (eight presets) and writes `wet`, `room_size`, `damping`, `spread` onto both reverbs, scaling the `SFX` wet by 0.55.
 
-`AudioSettings` holds five static floats in 0–1, persists them under the `audio` key in `LocalSave` meta, and `apply()` writes `linear_to_db()` (or −80 dB at zero) onto the five buses.
+`AudioSettings` holds five static floats in 0â€“1, persists them under the `audio` key in `LocalSave` meta, and `apply()` writes `linear_to_db()` (or âˆ’80 dB at zero) onto the five buses.
 
 ### Assets
 
@@ -132,7 +132,7 @@ Combat callers invoke `AudioDirector` directly — `hit_feedback.gd`, `weapon_co
 
 | Category | Count | Location |
 |----------|-------|----------|
-| Biome layer stems | 40 | `<biome_id>/{ambience,explore,combat}_loop.ogg` + `boss_theme.ogg` × 10 biomes |
+| Biome layer stems | 40 | `<biome_id>/{ambience,explore,combat}_loop.ogg` + `boss_theme.ogg` Ã— 10 biomes |
 | Shared stingers | 2 | `shared/sting_boss.ogg`, `shared/sting_clear.ogg` |
 | SFX samples | 17 | `sfx/*.ogg` |
 | Legacy castle | 2 | `castle/{ambience_loop,boss_theme}.ogg` (orphaned; not referenced by profiles) |
@@ -177,15 +177,15 @@ All `*_loop.ogg.import` sidecars carry `loop=true`. Heal SFX (`heal_raise`, `hea
 
 ## Related
 
-- Improvement plan: [`../actual_improvements/audio-director.md`](../actual_improvements/audio-director.md)
-- [`biome-registry.md`](biome-registry.md) — resolves the profile path and calls `set_biome()`
-- [`vfx-service.md`](vfx-service.md) — combat particles only; audio fired separately
-- [`castle-run.md`](castle-run.md), [`waves-run.md`](waves-run.md), [`run-flow.md`](run-flow.md) — mode-change call sites
-- [`hub.md`](hub.md), [`ui/main_menu.md`](ui/main_menu.md), [`ui/title_screen.md`](ui/title_screen.md) — other mode callers
-- [`bosses.md`](bosses.md) — `play_boss_music()` and stinger callers
-- [`diorama-room-dressing.md`](diorama-room-dressing.md) — brazier emitters
-- [`ui/settings.md`](ui/settings.md) — the five volume sliders
-- [`local-save.md`](local-save.md) — the `audio` meta block
-- [`content-data.md`](content-data.md), [`content-catalog.md`](content-catalog.md) — profile and bank schemas
-- [`tools-scripts.md`](tools-scripts.md) — `generate-biome-audio.mjs`
-- [`ci-cd.md`](ci-cd.md) — stem check job
+- Improvement plan: [`../actual_improvements/audio-director.md`](../actual_improvements/audio-director.md) - **FINISHED**
+- [`biome-registry.md`](biome-registry.md) â€” resolves the profile path and calls `set_biome()`
+- [`vfx-service.md`](vfx-service.md) â€” combat particles only; audio fired separately
+- [`castle-run.md`](castle-run.md), [`waves-run.md`](waves-run.md), [`run-flow.md`](run-flow.md) â€” mode-change call sites
+- [`hub.md`](hub.md), [`ui/main_menu.md`](ui/main_menu.md), [`ui/title_screen.md`](ui/title_screen.md) â€” other mode callers
+- [`bosses.md`](bosses.md) â€” `play_boss_music()` and stinger callers
+- [`diorama-room-dressing.md`](diorama-room-dressing.md) â€” brazier emitters
+- [`ui/settings.md`](ui/settings.md) â€” the five volume sliders
+- [`local-save.md`](local-save.md) â€” the `audio` meta block
+- [`content-data.md`](content-data.md), [`content-catalog.md`](content-catalog.md) â€” profile and bank schemas
+- [`tools-scripts.md`](tools-scripts.md) â€” `generate-biome-audio.mjs`
+- [`ci-cd.md`](ci-cd.md) â€” stem check job

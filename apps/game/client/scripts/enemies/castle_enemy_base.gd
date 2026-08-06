@@ -14,15 +14,16 @@ const DATA_PATH := ""
 const ENEMY_TURN_SPEED := 22.0
 const HP_BAR_SCRIPT := preload("res://scripts/ui/enemy_health_bar.gd")
 const MaterialDissolveScript := preload("res://scripts/art/characters/material_dissolve.gd")
+const MaterialFlashScript := preload("res://scripts/art/characters/material_flash.gd")
 const GlobalDropServiceScript := preload("res://scripts/loot/global_drop_service.gd")
 const CharacterFloorSnapScript := preload("res://scripts/art/characters/character_floor_snap.gd")
 const CharacterSkin := preload("res://scripts/art/characters/diorama_character_skin.gd")
+const CharacterRigCatalogScript := preload("res://scripts/art/characters/character_rig_catalog.gd")
 const AnimControllerScript := preload("res://scripts/art/characters/diorama_anim_controller.gd")
 
 @export var player_path: NodePath
 
 @onready var _mesh: MeshInstance3D = $MeshInstance3D
-@onready var _telegraph: MeshInstance3D = $TelegraphMesh
 @onready var _body_collision: CollisionShape3D = $CollisionShape3D
 
 var _data: Dictionary = {}
@@ -51,8 +52,10 @@ var _combo_step := 0
 var _combat_registered := false
 var _deaggro_los_timer := 0.0
 var _windup_duration := 0.0
+var _last_hit_direction := Vector3.ZERO
 var _catalog_id_override := ""
 var _damage_multiplier := 1.0
+var _sync_hitbox_from_anim := false
 const DEAGGRO_LOS_TIMEOUT := 3.0
 
 
@@ -123,8 +126,6 @@ func _ready() -> void:
 	_setup_diorama_visual()
 	if _health:
 		_attach_health_bar()
-	if _telegraph:
-		_telegraph.visible = false
 	_pick_patrol_target()
 
 
@@ -169,7 +170,7 @@ func _setup_diorama_visual() -> void:
 	_diorama_visual = CharacterSkin.build_enemy_body(self, _anim_profile, theme, enemy_id, _data)
 	if _mesh:
 		_mesh.visible = false
-	CharacterFloorSnapScript.align_diorama_visual(self, _diorama_visual, _anim_profile)
+	CharacterFloorSnapScript.snap_character(self, _diorama_visual)
 	_animator = AnimControllerScript.new()
 	_animator.name = "AnimController"
 	add_child(_animator)
@@ -178,6 +179,19 @@ func _setup_diorama_visual() -> void:
 	_animator.set_weapon(String(_data.get("weapon_kit", _default_weapon_for_profile())))
 	_animator.bind(_diorama_visual)
 	_animator.swing_frame.connect(_on_anim_swing_frame)
+	_animator.hitbox_open_frame.connect(_on_anim_hitbox_open)
+	_animator.hitbox_close_frame.connect(_on_anim_hitbox_close)
+
+
+func _on_anim_hitbox_open() -> void:
+	if _state == State.ATTACK and _hitbox:
+		_hitbox.enable()
+
+
+func _on_anim_hitbox_close() -> void:
+	if _hitbox:
+		_hitbox.disable()
+		_hitbox.reset_swing()
 
 
 func _default_weapon_for_profile() -> String:
@@ -236,14 +250,6 @@ func _attach_health_bar() -> void:
 	_hp_bar.name = "HealthBar"
 	add_child(_hp_bar)
 	_hp_bar.setup(_health, get_hp_bar_height())
-	_update_telegraph_height()
-
-
-func _update_telegraph_height() -> void:
-	if _telegraph == null:
-		return
-	var height := get_hp_bar_height()
-	_telegraph.position.y = height
 
 
 func begin_attack_windup_bar(duration: float) -> void:
@@ -256,6 +262,20 @@ func hide_attack_windup_bar() -> void:
 	_windup_duration = 0.0
 	if _hp_bar:
 		_hp_bar.hide_attack_telegraph()
+
+
+func _show_attack_telegraph(duration: float) -> void:
+	var radius := float(
+		_current_attack_data.get("telegraph_radius", _data.get("telegraph_radius", 1.6))
+	)
+	var shape := String(
+		_current_attack_data.get("telegraph_shape", _data.get("telegraph_shape", "circle"))
+	)
+	var tint := Color(0.95, 0.34, 0.28)
+	if _data.has("telegraph_tint"):
+		tint = Color(_data["telegraph_tint"])
+	var forward := -global_transform.basis.z
+	VfxService.play_telegraph(global_position, radius, duration, tint, shape, forward)
 
 
 func _apply_hurtbox_data() -> void:
@@ -303,8 +323,6 @@ func respawn_at_rest() -> void:
 	if _hitbox:
 		_hitbox.disable()
 		_hitbox.reset_swing()
-	if _telegraph:
-		_telegraph.visible = false
 	hide_attack_windup_bar()
 	if _hurtbox:
 		_hurtbox.monitorable = true
@@ -313,6 +331,9 @@ func respawn_at_rest() -> void:
 		_hp_bar.visible = true
 	if _animator and _animator.is_bound():
 		_animator.revive()
+	if _diorama_visual:
+		MaterialDissolveScript.reset_death_visual(_diorama_visual)
+		MaterialFlashScript.restore_all(_diorama_visual)
 	_pick_patrol_target()
 
 
@@ -362,8 +383,6 @@ func _finalize_death(silent: bool) -> void:
 	if _hitbox:
 		_hitbox.disable()
 		_hitbox.reset_swing()
-	if _telegraph:
-		_telegraph.visible = false
 	hide_attack_windup_bar()
 	if _hp_bar:
 		_hp_bar.visible = false
@@ -378,23 +397,20 @@ func _finalize_death(silent: bool) -> void:
 
 
 func _play_death_visual() -> void:
-	VfxService.play_death(global_position, Color(0.55, 0.22, 0.18))
 	AudioDirector.play_sfx("death", global_position)
 	var visual := _diorama_visual if _diorama_visual else _mesh as Node3D
 	if visual == null:
 		return
-	MaterialDissolveScript.dissolve(visual)
-	if _animator and _animator.is_bound():
-		# The death clip already collapses the body; only sink it out of sight.
-		var sink := create_tween()
-		sink.tween_interval(0.45)
-		sink.tween_property(visual, "position:y", visual.position.y - 1.2, 0.4)
-		return
-	var death_scale := Vector3(0.2, 0.05, 0.2)
-	var tween := create_tween()
-	tween.tween_property(visual, "scale", death_scale, 0.35)
-	if _diorama_visual:
-		tween.parallel().tween_property(_diorama_visual, "position:y", -0.8, 0.35)
+	var archetype := CharacterRigCatalogScript.archetype_for_enemy(get_enemy_id(), _data)
+	var opts := MaterialDissolveScript.death_opts_for_enemy(
+		_anim_profile, _is_boss_enemy(), _data, archetype
+	)
+	opts["vfx_position"] = global_position
+	opts["vfx_tint"] = Color(0.55, 0.22, 0.18)
+	opts["has_animator"] = _animator != null and _animator.is_bound()
+	if _last_hit_direction.length_squared() > 0.01:
+		opts["sweep_dir"] = _last_hit_direction
+	MaterialDissolveScript.play_death_visual(visual, opts)
 
 
 func _award_kill_coins() -> void:
@@ -429,8 +445,6 @@ func apply_stagger(duration: float) -> void:
 	_stagger_timer = duration
 	if _hitbox:
 		_hitbox.disable()
-	if _telegraph:
-		_telegraph.visible = false
 	hide_attack_windup_bar()
 	if _animator and _animator.is_bound():
 		_animator.play_stagger(duration)
@@ -697,6 +711,9 @@ func _start_windup() -> void:
 	if windup_variance > 0.0:
 		windup += randf_range(-windup_variance, windup_variance)
 	_state_timer = maxf(0.05, windup)
+	_sync_hitbox_from_anim = (
+		_animator != null and _animator.is_bound() and not _animator._events_path.is_empty()
+	)
 	if _animator and _animator.is_bound():
 		_animator.play_attack(
 			_state_timer,
@@ -707,8 +724,7 @@ func _start_windup() -> void:
 		)
 	elif _mesh:
 		_mesh.scale = Vector3(1.08, 1.08, 1.08)
-	if _telegraph:
-		_telegraph.visible = true
+	_show_attack_telegraph(_state_timer)
 	begin_attack_windup_bar(_state_timer)
 	AudioDirector.play_sfx("windup", global_position + Vector3(0.0, 1.0, 0.0))
 	attack_telegraph_started.emit()
@@ -743,7 +759,8 @@ func _start_attack() -> void:
 				)
 			)
 		)
-		_hitbox.enable()
+		if not _sync_hitbox_from_anim:
+			_hitbox.enable()
 	attack_active.emit()
 
 
@@ -849,7 +866,9 @@ func _on_hit_resolved(res) -> void:
 	_on_hurt(DamageInfo.new())
 
 
-func _on_hurt(_info: DamageInfo) -> void:
+func _on_hurt(info: DamageInfo) -> void:
+	if info.direction.length_squared() > 0.01:
+		_last_hit_direction = info.direction
 	if is_dead():
 		return
 	if _animator and _animator.is_bound():

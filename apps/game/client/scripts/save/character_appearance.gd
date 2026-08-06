@@ -141,8 +141,16 @@ static func bulk_variant_from_legacy(bulk: float) -> String:
 	return BULK_VARIANT_STANDARD
 
 
+static func _character_service() -> Node:
+	var tree := Engine.get_main_loop() as SceneTree
+	if tree == null or tree.root == null:
+		return null
+	return tree.root.get_node_or_null("CharacterService")
+
+
 static func available_theme_options() -> Array[Dictionary]:
 	var out: Array[Dictionary] = []
+	var svc := _character_service()
 	for entry in THEME_OPTIONS:
 		var dungeon_id := str(entry.get("dungeonId", ""))
 		if dungeon_id == "":
@@ -152,7 +160,7 @@ static func available_theme_options() -> Array[Dictionary]:
 		if flag == "":
 			out.append(entry)
 			continue
-		if CharacterService != null and CharacterService.has_flag(flag):
+		if svc != null and svc.has_method("has_flag") and svc.call("has_flag", flag):
 			out.append(entry)
 	return out
 
@@ -269,12 +277,13 @@ static func skin_tint_vector(skin_tone: String) -> Vector3:
 
 
 static func apply_to_service(profile: Dictionary) -> void:
-	if CharacterService == null:
+	var svc := _character_service()
+	if svc == null:
 		return
 	var clean := sanitize(profile)
-	CharacterService.appearance_theme = int(clean["theme"])
-	CharacterService.appearance_profile = clean
-	CharacterService.appearance_changed.emit(clean)
+	svc.appearance_theme = int(clean["theme"])
+	svc.appearance_profile = clean
+	svc.appearance_changed.emit(clean)
 
 
 static func from_character_dict(character: Dictionary) -> Dictionary:
@@ -300,6 +309,7 @@ static func from_character_dict(character: Dictionary) -> Dictionary:
 
 
 static func from_service() -> Dictionary:
-	if CharacterService == null:
+	var svc := _character_service()
+	if svc == null:
 		return default_profile()
-	return sanitize(CharacterService.appearance_profile)
+	return sanitize(svc.appearance_profile)

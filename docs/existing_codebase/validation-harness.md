@@ -1,4 +1,4 @@
-# Validation harness
+﻿# Validation harness
 
 Hand-rolled Godot validation harness: **29 suites** in `validation_runner.gd`, schema v3 JSON + JUnit XML, CLI filtering (`runner_options.gd`), total and per-suite watchdogs, suite `setup()`/`teardown()` with save backup, leak detection, `assert_eq`/`assert_near`/`skip`, and `harness_suite.gd` registered first for fast harness regressions.
 
@@ -6,7 +6,7 @@ Hand-rolled Godot validation harness: **29 suites** in `validation_runner.gd`, s
 
 | Path | Role |
 |------|------|
-| `apps/game/client/scripts/validation/validation_main.gd` | Headless `SceneTree` entry — loads `mcp_validation.tscn` |
+| `apps/game/client/scripts/validation/validation_main.gd` | Headless `SceneTree` entry â€” loads `mcp_validation.tscn` |
 | `apps/game/client/scripts/validation/validation_runner.gd` | Orchestration, watchdogs, reporting, `SUITE_PATHS` |
 | `apps/game/client/scripts/validation/runner_options.gd` | CLI: `--suite`, `--test`, `--shuffle`, `--seed`, `--repeat`, `--fail-fast`, `--verbose`, `--report` |
 | `apps/game/client/scripts/validation/test_context.gd` | Recording, assertions, `skip`, duplicate-id detection |
@@ -38,7 +38,7 @@ Suites live in `apps/game/client/scripts/validation/suites/`; see [`validation-s
 5. Write schema v3 report + sibling `.xml`; print `FAIL <id> [category] message` lines for failures.
 6. Quit: 0 pass, 1 assertion fail, 2 harness fault (timeout/crash).
 
-Game-rule assertions call production APIs (`LocalSave.run_is_continuable()`, `CastleRun.should_persist_player_state()`, `DungeonSeedService.parse_run_seed()`, etc.) — not copies in `TestContext`.
+Game-rule assertions call production APIs (`LocalSave.run_is_continuable()`, `CastleRun.should_persist_player_state()`, `DungeonSeedService.parse_run_seed()`, etc.) â€” not copies in `TestContext`.
 
 ## Current state
 
@@ -56,10 +56,10 @@ Game-rule assertions call production APIs (`LocalSave.run_is_continuable()`, `Ca
 | Reachability metric | IMPLEMENTED | Report + `harness.reachability.*` |
 | Production-rule copies in context | REMOVED | `fixtures.gd` / `helpers.gd`; suites use autoloads |
 
-All VHA-01–VHA-19 gaps from the improvement plan are closed. See [`../actual_improvements/validation-harness.md`](../actual_improvements/validation-harness.md).
+All VHA-01â€“VHA-19 gaps from the improvement plan are closed. See [`../actual_improvements/validation-harness.md`](../actual_improvements/validation-harness.md).
 
 ## Related
 
-- Improvement plan: [`../actual_improvements/validation-harness.md`](../actual_improvements/validation-harness.md)
+- Improvement plan: [`../actual_improvements/validation-harness.md`](../actual_improvements/validation-harness.md) - **FINISHED**
 - [`validation-suites.md`](validation-suites.md), [`combat-validation.md`](combat-validation.md)
 - [`ci-cd.md`](ci-cd.md)

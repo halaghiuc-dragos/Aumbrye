@@ -31,5 +31,7 @@ func _attach_animation_player(visual: Node3D) -> void:
 		return
 	for lib_name in anim_player.get_animation_library_list():
 		anim_player.remove_animation_library(lib_name)
-	var library := AnimLibrary.build_library(rest_pose, "", "player")
+	var library := AnimLibrary.build_library(
+		rest_pose, AnimLibrary.events_path_for_profile("player"), "player"
+	)
 	anim_player.add_animation_library("", library)

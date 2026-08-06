@@ -124,6 +124,32 @@ static func get_action_binding_text(action: StringName) -> String:
 	return ", ".join(parts) if not parts.is_empty() else "(unbound)"
 
 
+static func find_conflict(action: StringName, event: InputEvent) -> StringName:
+	return _find_conflict(action, event)
+
+
+static func swap_binding(action: StringName, conflict: StringName, event: InputEvent) -> Dictionary:
+	if action not in REBINDABLE or conflict not in REBINDABLE:
+		return {"ok": false, "conflict": StringName()}
+	var give_to_conflict: InputEvent = null
+	for existing in _get_action_events(action):
+		if _same_device_family(existing, event):
+			give_to_conflict = existing
+			break
+	if give_to_conflict != null:
+		_replace_matching_device_events(conflict, give_to_conflict.duplicate())
+	else:
+		for existing in _get_action_events(conflict):
+			if _same_device_family(existing, event):
+				InputMap.action_erase_event(conflict, existing)
+				break
+	_replace_matching_device_events(action, event)
+	_persist_action_override(action)
+	_persist_action_override(conflict)
+	save()
+	return {"ok": true, "conflict": conflict}
+
+
 static func rebind(action: StringName, event: InputEvent) -> Dictionary:
 	if action not in REBINDABLE:
 		return {"ok": false, "conflict": StringName()}

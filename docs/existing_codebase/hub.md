@@ -1,4 +1,6 @@
-# Hub
+﻿# Hub
+
+## Status: FINISHED
 
 The hub (`AumbryeTower`) is the between-runs scene: portals, service tents, three NPCs, and a content-driven first-run tip sequence. `hub.gd` routes interaction by `interact_id` through `INTERACT_HANDLERS`; `hub_diorama.gd` dresses geometry without repositioning authored scene transforms.
 
@@ -12,13 +14,16 @@ The hub (`AumbryeTower`) is the between-runs scene: portals, service tents, thre
 | `apps/game/client/scripts/hub/hub_interactable.gd` | `Area3D` with `interact_id`, `enabled`, enter sound, highlight |
 | `apps/game/client/scripts/hub/hub_tutorial_service.gd` | Tips from `content/hub/tips.json`; glyph substitution; `seen` ids |
 | `content/hub/tips.json` | Tip catalog with `{action}` placeholders |
+| `content/schemas/hub-tips.v1.json` | JSON schema for tip catalog |
 | `apps/game/client/scripts/npc/npc_base.gd` | NPCs with `interact_id = npc:<id>` |
+| `apps/game/client/scripts/validation/suites/hub_suite.gd` | M3 hub menu/portal/seed validation |
+| `apps/game/client/scripts/validation/suites/hub_m4_suite.gd` | HUB-01..HUB-12 integration assertions |
 
 ## How it works
 
 ### Interaction
 
-`_nearby: Dictionary` maps `interact_id` → `HubInteractable`. `INTERACT_HANDLERS` maps ids to handler method names (`hub.gd:7-20`). `_unhandled_input` resolves the nearest enabled interactable and dispatches the handler. Tips are handled first in `_unhandled_input` with `set_input_as_handled()` so they do not double-fire with interact.
+`_nearby: Array[String]` tracks entered interact ids in order; the most recent entry wins (`hub.gd:38`, `:262-265`). `INTERACT_HANDLERS` maps ids to handler method names (`hub.gd:9-21`). `_unhandled_input` resolves the nearest enabled interactable and dispatches the handler. Tips are handled first in `_unhandled_input` with `set_input_as_handled()` so they do not double-fire with interact.
 
 Skies and Cathedral portal areas are disabled in `hub.tscn` (`enabled = false` on `HubInteractable`).
 
@@ -30,11 +35,11 @@ Skies and Cathedral portal areas are disabled in `hub.tscn` (`enabled = false` o
 
 ### Diorama
 
-`HubDiorama.apply(hub)` builds floor tiles, parapets, portal frames, tents, and NPC stand-ins. Scene-node transforms are authoritative — portal, player, and service positions are no longer overwritten at runtime.
+`HubDiorama.apply(hub)` builds floor tiles, parapets, portal frames, tents, and NPC stand-ins. Scene-node transforms are authoritative â€” portal, player, and service positions are no longer overwritten at runtime. `_service_world_position()` reads the live node transform from the scene.
 
 ## Contracts
 
-- **Interact ids:** `portal:castle`, `portal:endless`, `portal:waves`, `portal:skies`, `portal:cathedral`, `arena`, `blacksmith`, `merchant`, `storage`, `quest_board`, `npc:<npc_id>`.
+- **Interact ids:** `castle_portal`, `endless_portal`, `waves_portal`, `skies_portal`, `cathedral_portal`, `arena_door`, `blacksmith`, `merchant`, `storage`, `quest_board`, `appearance_mirror`, `npc:<npc_id>`.
 - **Save keys:** `meta.hub_tutorial.enabled`, `meta.hub_tutorial.completed`, `meta.hub_tutorial.seen`.
 - **Autoloads:** `LocalSave`, `RunFlow`, `CharacterService`, `InputGlyphService`, `AudioDirector`, etc.
 
@@ -42,7 +47,7 @@ Skies and Cathedral portal areas are disabled in `hub.tscn` (`enabled = false` o
 
 | Surface | Status | Evidence |
 |---------|--------|----------|
-| Id-based interact routing | IMPLEMENTED | `hub.gd:7-20`, `:250-253` |
+| Id-based interact routing | IMPLEMENTED | `hub.gd:9-21`, `:251-300` |
 | Content-driven tips + glyphs | IMPLEMENTED | `content/hub/tips.json`, `hub_tutorial_service.gd` |
 | Separate tip / welcome labels | IMPLEMENTED | `hub.tscn` `Player/MessageAnchor/*` |
 | Per-character tip state | IMPLEMENTED | `save_loaded` handler, `reset_for_character()` |
@@ -56,5 +61,5 @@ Skies and Cathedral portal areas are disabled in `hub.tscn` (`enabled = false` o
 
 ## Related
 
-- Improvement plan: [`../actual_improvements/hub.md`](../actual_improvements/hub.md) — **FINISHED**
+- Improvement plan: [`../actual_improvements/hub.md`](../actual_improvements/hub.md) - **FINISHED**
 - [`npc-hub-services.md`](npc-hub-services.md), [`dialogue-quests.md`](dialogue-quests.md), [`local-save.md`](local-save.md), [`ui/input_glyphs.md`](ui/input_glyphs.md)

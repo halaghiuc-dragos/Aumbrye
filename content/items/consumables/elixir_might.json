@@ -1,14 +1,18 @@
 {
-    "id":  "elixir_might",
-    "name":  "Elixir Might",
-    "itemType":  "consumable",
-    "gridWidth":  2,
-    "gridHeight":  2,
-    "stackSize":  10,
-    "rarity":  "rare",
-    "description":  "A burning draught — muscles answer before the mind protests.",
-    "value":  20,
-    "stats":  {
-
-              }
+  "id": "elixir_might",
+  "name": "Elixir Might",
+  "itemType": "consumable",
+  "gridWidth": 2,
+  "gridHeight": 2,
+  "stackSize": 10,
+  "rarity": "rare",
+  "description": "A burning draught — muscles answer before the mind protests.",
+  "consumableEffect": {
+    "kind": "applyStatus",
+    "statusId": "elixir_might",
+    "duration": 60,
+    "amount": 15
+  },
+  "value": 20,
+  "stats": {}
 }

@@ -1,4 +1,4 @@
-# Hit feedback
+﻿# Hit feedback
 
 `HitFeedback` is the player-side impact layer: hitstop, camera punch and shake, gamepad vibration, damage vignette, an audio hook, and damage-number spawning. It is mounted only on `player.tscn` (`:97`). Material flashing and world VFX are driven separately from `Hurtbox` and `Hitbox`.
 
@@ -38,7 +38,7 @@ Because no enemy scene mounts a `HitFeedback` node, the `on_hit` branch at `hitb
 - `_play_sfx_hook()`.
 - `_spawn_damage_number(target, damage)` when `show_damage_numbers`.
 
-The `damage` argument comes from `hitbox.gd:153`, which passes `damage_amount` — the value configured by `set_attack_values` — not `final_damage` (post-crit) and not what `Hurtbox` actually applied after block, backstab, defense and resistances.
+The `damage` argument comes from `hitbox.gd:153`, which passes `damage_amount` â€” the value configured by `set_attack_values` â€” not `final_damage` (post-crit) and not what `Hurtbox` actually applied after block, backstab, defense and resistances.
 
 ### `on_hit_received` (player was hit)
 
@@ -46,11 +46,11 @@ The `damage` argument comes from `hitbox.gd:153`, which passes `damage_amount` �
 
 ### `on_hit_blocked`
 
-`hit_feedback.gd:72`. Spawns a "BLOCKED" text label in `COLOR_BLOCK := Color(0.45, 0.78, 1.0)` and, when `chip_damage > 0.0`, a second damage number at `Vector3(0.35, -0.15, 0.0)`. It is called from `hurtbox.gd:127` in the middle of `receive_hit`, *before* backstab, defense and resistances run — so the chip number it shows is not the final figure. `_emit_victim_feedback` then runs at the end of the same `receive_hit` and calls `on_hit_received`, which spawns a third label. A single blocked hit therefore produces up to three floating labels with two different numbers.
+`hit_feedback.gd:72`. Spawns a "BLOCKED" text label in `COLOR_BLOCK := Color(0.45, 0.78, 1.0)` and, when `chip_damage > 0.0`, a second damage number at `Vector3(0.35, -0.15, 0.0)`. It is called from `hurtbox.gd:127` in the middle of `receive_hit`, *before* backstab, defense and resistances run â€” so the chip number it shows is not the final figure. `_emit_victim_feedback` then runs at the end of the same `receive_hit` and calls `on_hit_received`, which spawns a third label. A single blocked hit therefore produces up to three floating labels with two different numbers.
 
 ### Hitstop
 
-`_process(delta)` (`:40`) counts `_hitstop_timer` down and calls `_apply_animation_speed()` while it is positive, `_restore_animation_speed()` otherwise. Both reach `AnimDirector.set_speed_scale(...)` — 0.05 during hitstop, 1.0 otherwise. `_restore_animation_speed()` runs on every idle frame, so any other system that sets a speed scale is overwritten within one frame.
+`_process(delta)` (`:40`) counts `_hitstop_timer` down and calls `_apply_animation_speed()` while it is positive, `_restore_animation_speed()` otherwise. Both reach `AnimDirector.set_speed_scale(...)` â€” 0.05 during hitstop, 1.0 otherwise. `_restore_animation_speed()` runs on every idle frame, so any other system that sets a speed scale is overwritten within one frame.
 
 The effect is local to the player's own animation director. `Engine.time_scale` is never touched, and the *target's* animation is not slowed.
 
@@ -68,7 +68,7 @@ The effect is local to the player's own animation director. `Engine.time_scale` 
 
 ### Audio
 
-`_play_sfx_hook()` (`:171`) calls `AudioDirector.play_combat_sfx("hit")` for every hit — landed or received, any weapon, any damage, any material. `VfxService` separately plays `"swing"`, `"block"` and `"parry"` cues from `play_attack_swing`, `play_block` and `play_parry`.
+`_play_sfx_hook()` (`:171`) calls `AudioDirector.play_combat_sfx("hit")` for every hit â€” landed or received, any weapon, any damage, any material. `VfxService` separately plays `"swing"`, `"block"` and `"parry"` cues from `play_attack_swing`, `play_block` and `play_parry`.
 
 ### MaterialFlash
 
@@ -95,7 +95,7 @@ Autoload (`project.godot:48`). Pools 16 `CPUParticles3D`, 8 `GPUParticles3D` and
 
 | Surface | Status | Evidence |
 |---------|--------|----------|
-| Hitstop on landing and receiving hits | PARTIAL | `hit_feedback.gd:100-112` — applied only to the player's own `AnimDirector` speed scale; the target is never slowed and `Engine.time_scale` is untouched |
+| Hitstop on landing and receiving hits | PARTIAL | `hit_feedback.gd:100-112` â€” applied only to the player's own `AnimDirector` speed scale; the target is never slowed and `Engine.time_scale` is untouched |
 | Camera punch, noise shake, FOV kick | IMPLEMENTED | `hit_feedback.gd:115-154` |
 | Gamepad vibration with accessibility scaling | IMPLEMENTED | `hit_feedback.gd:156-163` |
 | Damage vignette on taking damage | IMPLEMENTED | `hit_feedback.gd:166-168` |
@@ -111,15 +111,15 @@ Autoload (`project.godot:48`). Pools 16 `CPUParticles3D`, 8 `GPUParticles3D` and
 | Enemy-side `HitFeedback` | ABSENT | No enemy scene under `apps/game/client/scenes/enemies/` mounts one, so `hitbox.gd:151` is a no-op for enemy attackers |
 | `feedback_intensity` accessibility binding | ABSENT | `hit_feedback.gd:13` is an `@export` with no writer; `AccessibilitySettings` exposes only `reduce_camera_shake` and `vibration_intensity` (`accessibility_settings.gd:9,12`) |
 | Damage-type coloring | ABSENT | `damage_number.gd:35` hardcodes `Color(1.0, 0.35, 0.25)`; `AccessibilitySettings.get_damage_color()` (`accessibility_settings.gd:37`) is called only by `m6_suite.gd:281` |
-| `camera_path` in non-player contexts | PARTIAL | `hit_feedback.gd:30-31` — a null camera silently disables punch, shake and FOV kick |
+| `camera_path` in non-player contexts | PARTIAL | `hit_feedback.gd:30-31` â€” a null camera silently disables punch, shake and FOV kick |
 
 ## Related
 
-- Improvement plan: [`../actual_improvements/hit-feedback.md`](../actual_improvements/hit-feedback.md)
-- [`material-flash.md`](material-flash.md) — the `flash_amount` shader pulse in detail
-- [`vfx-service.md`](vfx-service.md) — pools, bursts and decals
-- [`hit-hurtboxes.md`](hit-hurtboxes.md) — where `on_hit` is called from
-- [`combat-core.md`](combat-core.md) — the mitigation the numbers should reflect
-- [`guard.md`](guard.md), [`dodge.md`](dodge.md) — block/parry/dodge outcomes
+- Improvement plan: [`../actual_improvements/hit-feedback.md`](../actual_improvements/hit-feedback.md) - **FINISHED**
+- [`material-flash.md`](material-flash.md) â€” the `flash_amount` shader pulse in detail
+- [`vfx-service.md`](vfx-service.md) â€” pools, bursts and decals
+- [`hit-hurtboxes.md`](hit-hurtboxes.md) â€” where `on_hit` is called from
+- [`combat-core.md`](combat-core.md) â€” the mitigation the numbers should reflect
+- [`guard.md`](guard.md), [`dodge.md`](dodge.md) â€” block/parry/dodge outcomes
 - [`audio-director.md`](audio-director.md), [`accessibility.md`](accessibility.md)
-- [`pixel-diorama-settings.md`](pixel-diorama-settings.md) — `particle_quality`
+- [`pixel-diorama-settings.md`](pixel-diorama-settings.md) â€” `particle_quality`

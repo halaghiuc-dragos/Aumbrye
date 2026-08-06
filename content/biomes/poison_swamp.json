@@ -17,10 +17,10 @@
     "swamp_puzzle"
   ],
   "materials": {
-    "floor": "res://assets/swamp/mat_floor.tres",
-    "wall": "res://assets/swamp/mat_wall.tres",
-    "ceiling": "res://assets/swamp/mat_ceiling.tres",
-    "accent": "res://assets/swamp/mat_accent.tres"
+    "floor": "swamp",
+    "wall": "swamp",
+    "ceiling": "swamp",
+    "accent": "swamp"
   },
   "lighting": {
     "ambientColor": [0.25, 0.35, 0.2],

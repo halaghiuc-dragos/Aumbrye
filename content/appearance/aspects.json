@@ -1,0 +1,35 @@
+{
+  "schemaVersion": 1,
+  "aspects": [
+    {
+      "id": "castle_iron",
+      "nameKey": "ASPECT_CASTLE_IRON",
+      "paletteTheme": "castle",
+      "descKey": "ASPECT_CASTLE_IRON_DESC"
+    },
+    {
+      "id": "crystal_frost",
+      "nameKey": "ASPECT_CRYSTAL_FROST",
+      "paletteTheme": "crystal",
+      "descKey": "ASPECT_CRYSTAL_FROST_DESC"
+    },
+    {
+      "id": "umbral_void",
+      "nameKey": "ASPECT_UMBRAL_VOID",
+      "paletteTheme": "umbral",
+      "descKey": "ASPECT_UMBRAL_VOID_DESC"
+    },
+    {
+      "id": "cathedral_gold",
+      "nameKey": "ASPECT_CATHEDRAL_GOLD",
+      "paletteTheme": "cathedral",
+      "descKey": "ASPECT_CATHEDRAL_GOLD_DESC"
+    },
+    {
+      "id": "swamp_warden",
+      "nameKey": "ASPECT_SWAMP_WARDEN",
+      "paletteTheme": "swamp",
+      "descKey": "ASPECT_SWAMP_WARDEN_DESC"
+    }
+  ]
+}

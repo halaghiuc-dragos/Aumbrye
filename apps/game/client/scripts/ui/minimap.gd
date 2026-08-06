@@ -1,36 +1,89 @@
 extends Control
 
-## Room-graph minimap — reveals visited rooms from dungeon definition.
+## Room-graph minimap — fog-of-war, footprints, player marker, optional full-map overlay.
 
-const CELL := 10.0
+enum RevealTier { UNKNOWN = 0, SEEN = 1, VISITED = 2 }
+
 const PADDING := 6.0
+const HUD_SIZE := Vector2(140, 140)
+const ICON_CELL := 8
+const PLAYER_ARROW_HALF := 3.5
+const ZOOM_MIN := 0.5
+const ZOOM_MAX := 4.0
+const FALLBACK_ROOM_PX := 9.0
+
 const COLOR_VISITED := Color(0.55, 0.52, 0.48, 0.95)
 const COLOR_CURRENT := Color(0.95, 0.78, 0.28, 1.0)
+const COLOR_SEEN := Color(0.32, 0.30, 0.28, 0.75)
 const COLOR_EDGE := Color(0.35, 0.33, 0.30, 0.7)
 const COLOR_BG := Color(0.05, 0.05, 0.08, 0.82)
+const COLOR_PLAYER := Color(0.95, 0.92, 0.82, 1.0)
+
+const ICON_ATLAS_PATH := "res://assets/ui/minimap_icons.png"
+
+const KIND_CELLS := {
+	"combat": Vector2i(0, 0),
+	"treasure": Vector2i(1, 0),
+	"shop": Vector2i(2, 0),
+	"key": Vector2i(3, 0),
+	"boss": Vector2i(0, 1),
+	"entrance": Vector2i(1, 1),
+	"stairs": Vector2i(2, 1),
+	"unknown": Vector2i(3, 1),
+}
+
+const LEGEND_ENTRIES := [
+	{"kind": "combat", "label_key": "MAP_LEGEND_COMBAT"},
+	{"kind": "treasure", "label_key": "MAP_LEGEND_TREASURE"},
+	{"kind": "shop", "label_key": "MAP_LEGEND_SHOP"},
+	{"kind": "key", "label_key": "MAP_LEGEND_KEY"},
+	{"kind": "boss", "label_key": "MAP_LEGEND_BOSS"},
+	{"kind": "entrance", "label_key": "MAP_LEGEND_ENTRANCE"},
+	{"kind": "stairs", "label_key": "MAP_LEGEND_STAIRS"},
+]
 
 var _rooms: Array = []
 var _edges: Array = []
-var _visited: Dictionary = {}
-var _current_room_id := ""
 var _branch_previews: Array = []
+var _reveal: Dictionary = {}
+var _current_room_id := ""
 var _bounds := Rect2()
+var _room_by_id: Dictionary = {}
+var _center_by_id: Dictionary = {}
+var _neighbors: Dictionary = {}
+var _player: Node3D
+var _redraw_timer := 0.0
+var _last_player_pos := Vector3(INF, INF, INF)
+var _overlay_mode := false
+var _zoom := 1.0
+var _pan := Vector2.ZERO
+var _middle_drag := false
+var _drag_last := Vector2.ZERO
+var _icon_atlas: Texture2D
 
 
 func configure(definition: Dictionary) -> void:
 	_rooms = definition.get("rooms", [])
 	_edges = definition.get("edges", [])
 	_branch_previews = definition.get("branchPreviews", [])
-	_visited.clear()
+	_reveal.clear()
 	_current_room_id = ""
+	_build_caches()
 	_recompute_bounds()
 	queue_redraw()
+
+
+func has_graph() -> bool:
+	return not _rooms.is_empty()
 
 
 func mark_visited(room_id: String) -> void:
 	if room_id == "":
 		return
-	_visited[room_id] = true
+	_reveal[room_id] = RevealTier.VISITED
+	for neighbor in _neighbors.get(room_id, []):
+		if get_reveal_tier(neighbor) < RevealTier.SEEN:
+			_reveal[neighbor] = RevealTier.SEEN
 	queue_redraw()
 
 
@@ -39,41 +92,274 @@ func set_current_room(room_id: String) -> void:
 	queue_redraw()
 
 
-func _ready() -> void:
-	custom_minimum_size = Vector2(140, 140)
+func bind_player(player: Node3D) -> void:
+	_player = player
+	_last_player_pos = Vector3(INF, INF, INF)
+	queue_redraw()
+
+
+func get_reveal_tier(room_id: String) -> int:
+	return int(_reveal.get(room_id, RevealTier.UNKNOWN))
+
+
+func get_player_map_point() -> Vector2:
+	if _player == null or not is_instance_valid(_player):
+		return Vector2.ZERO
+	return _map_point(
+		Vector2(_player.global_position.x, _player.global_position.z), _content_rect()
+	)
+
+
+func get_bounds_for_test() -> Rect2:
+	return _bounds
+
+
+func map_point_for_test(world_xz: Vector2, map_rect: Rect2) -> Vector2:
+	return _map_point(world_xz, map_rect)
+
+
+func count_drawn_edges_for_test() -> int:
+	var count := 0
+	for edge in _edges:
+		if not edge is Dictionary:
+			continue
+		var from_id := str(edge.get("from", ""))
+		var to_id := str(edge.get("to", ""))
+		if _should_draw_edge(from_id, to_id):
+			count += 1
+	return count
+
+
+func icon_cell_for_kind(kind: String) -> Vector2i:
+	return KIND_CELLS.get(kind, KIND_CELLS["unknown"])
+
+
+func export_state() -> Dictionary:
+	return {
+		"definition":
+		{
+			"rooms": _rooms,
+			"edges": _edges,
+			"branchPreviews": _branch_previews,
+		},
+		"reveal": _reveal.duplicate(),
+		"current_room_id": _current_room_id,
+	}
+
+
+func import_state(state: Dictionary) -> void:
+	configure(state.get("definition", {}))
+	_reveal = state.get("reveal", {}).duplicate()
+	_current_room_id = str(state.get("current_room_id", ""))
+	queue_redraw()
+
+
+func enable_overlay_mode() -> void:
+	_overlay_mode = true
+	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	custom_minimum_size = Vector2.ZERO
+	mouse_filter = Control.MOUSE_FILTER_STOP
+	_zoom = 1.0
+	_pan = Vector2.ZERO
+	queue_redraw()
+
+
+func disable_overlay_mode() -> void:
+	_overlay_mode = false
+	set_anchors_and_offsets_preset(Control.PRESET_TOP_LEFT)
+	custom_minimum_size = HUD_SIZE
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_zoom = 1.0
+	_pan = Vector2.ZERO
+	queue_redraw()
+
+
+func _ready() -> void:
+	if not _overlay_mode:
+		custom_minimum_size = HUD_SIZE
+		mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_icon_atlas = load(ICON_ATLAS_PATH) as Texture2D
+
+
+func _process(delta: float) -> void:
+	if _player == null or not is_instance_valid(_player):
+		return
+	_redraw_timer += delta
+	if _redraw_timer < 0.1:
+		return
+	_redraw_timer = 0.0
+	var pos := _player.global_position
+	if _last_player_pos.distance_squared_to(pos) > 0.0625:
+		_last_player_pos = pos
+		queue_redraw()
+
+
+func _unhandled_input(event: InputEvent) -> void:
+	if not _overlay_mode:
+		return
+	if event is InputEventMouseButton:
+		var mb := event as InputEventMouseButton
+		if mb.button_index == MOUSE_BUTTON_WHEEL_UP and mb.pressed:
+			_zoom = clampf(_zoom * 1.1, ZOOM_MIN, ZOOM_MAX)
+			queue_redraw()
+			get_viewport().set_input_as_handled()
+		elif mb.button_index == MOUSE_BUTTON_WHEEL_DOWN and mb.pressed:
+			_zoom = clampf(_zoom / 1.1, ZOOM_MIN, ZOOM_MAX)
+			queue_redraw()
+			get_viewport().set_input_as_handled()
+		elif mb.button_index == MOUSE_BUTTON_MIDDLE:
+			_middle_drag = mb.pressed
+			_drag_last = mb.position
+			get_viewport().set_input_as_handled()
+	elif event is InputEventMouseMotion and _middle_drag:
+		var motion := event as InputEventMouseMotion
+		_pan += motion.position - _drag_last
+		_drag_last = motion.position
+		queue_redraw()
+		get_viewport().set_input_as_handled()
 
 
 func _draw() -> void:
 	if _rooms.is_empty():
 		return
-	var map_rect := Rect2(PADDING, PADDING, size.x - PADDING * 2.0, size.y - PADDING * 2.0)
+	var map_rect := _content_rect()
 	draw_rect(Rect2(Vector2.ZERO, size), COLOR_BG)
 	draw_rect(Rect2(Vector2.ZERO, size), Color(0.2, 0.18, 0.16), false, 1.0)
+	_draw_edges(map_rect)
+	_draw_rooms(map_rect)
+	_draw_branch_previews(map_rect)
+	_draw_player_marker(map_rect)
+	if _overlay_mode:
+		_draw_legend()
+
+
+func _content_rect() -> Rect2:
+	if _overlay_mode:
+		return Rect2(PADDING, PADDING, size.x - PADDING * 2.0, size.y - PADDING * 2.0 - 32.0)
+	return Rect2(PADDING, PADDING, size.x - PADDING * 2.0, size.y - PADDING * 2.0)
+
+
+func _draw_edges(map_rect: Rect2) -> void:
 	for edge in _edges:
 		if not edge is Dictionary:
 			continue
-		var from_pos := _room_center(str(edge.get("from", "")))
-		var to_pos := _room_center(str(edge.get("to", "")))
+		var from_id := str(edge.get("from", ""))
+		var to_id := str(edge.get("to", ""))
+		if not _should_draw_edge(from_id, to_id):
+			continue
+		var from_pos := _room_center(from_id)
+		var to_pos := _room_center(to_id)
 		if from_pos == Vector2.INF or to_pos == Vector2.INF:
 			continue
-		draw_line(_map_point(from_pos, map_rect), _map_point(to_pos, map_rect), COLOR_EDGE, 1.0)
+		var a := _map_point(from_pos, map_rect)
+		var b := _map_point(to_pos, map_rect)
+		var dashed := (
+			get_reveal_tier(from_id) == RevealTier.SEEN
+			or get_reveal_tier(to_id) == RevealTier.SEEN
+		)
+		if dashed:
+			draw_dashed_line(a, b, COLOR_EDGE, 1.0, 4.0, true)
+		else:
+			draw_line(a, b, COLOR_EDGE, 1.0)
+
+
+func _draw_rooms(map_rect: Rect2) -> void:
 	for room_def in _rooms:
 		if not room_def is Dictionary:
 			continue
 		var room_id := str(room_def.get("id", ""))
-		if not _visited.has(room_id):
+		var tier := get_reveal_tier(room_id)
+		if tier == RevealTier.UNKNOWN:
 			continue
 		var center := _map_point(_room_center(room_id), map_rect)
-		var color := COLOR_CURRENT if room_id == _current_room_id else COLOR_VISITED
-		draw_rect(
-			Rect2(center - Vector2(CELL * 0.45, CELL * 0.45), Vector2(CELL * 0.9, CELL * 0.9)),
-			color
-		)
-	_draw_branch_previews(map_rect)
+		var room_px := _room_pixel_size(room_def, map_rect)
+		var rect := Rect2(center - room_px * 0.5, room_px)
+		var fill := COLOR_CURRENT if room_id == _current_room_id else COLOR_VISITED
+		if tier == RevealTier.SEEN:
+			draw_rect(rect, COLOR_SEEN, false, 1.0)
+		else:
+			draw_rect(rect, fill)
+		if tier >= RevealTier.VISITED:
+			_draw_room_icon(room_def, center)
+
+
+func _draw_room_icon(room_def: Dictionary, center: Vector2) -> void:
+	if _icon_atlas == null:
+		return
+	var kind := str(room_def.get("kind", "unknown"))
+	var cell: Vector2i = icon_cell_for_kind(kind)
+	var region := Rect2(cell.x * ICON_CELL, cell.y * ICON_CELL, ICON_CELL, ICON_CELL)
+	var dest := Rect2(center - Vector2(ICON_CELL, ICON_CELL) * 0.5, Vector2(ICON_CELL, ICON_CELL))
+	draw_texture_rect_region(_icon_atlas, dest, region, Color.WHITE, false)
+
+
+func _draw_player_marker(map_rect: Rect2) -> void:
+	if _player == null or not is_instance_valid(_player):
+		return
+	var center := _map_point(
+		Vector2(_player.global_position.x, _player.global_position.z), map_rect
+	)
+	var yaw := _player.global_rotation.y
+	var half := PLAYER_ARROW_HALF
+	var tip := center + Vector2(0.0, -half).rotated(-yaw)
+	var left := center + Vector2(-half * 0.6, half * 0.55).rotated(-yaw)
+	var right := center + Vector2(half * 0.6, half * 0.55).rotated(-yaw)
+	draw_colored_polygon(
+		PackedVector2Array([tip.floor(), left.floor(), right.floor()]), COLOR_PLAYER
+	)
+
+
+func _draw_legend() -> void:
+	if _icon_atlas == null:
+		return
+	var font := ThemeDB.fallback_font
+	var font_size := ThemeDB.fallback_font_size
+	var y := size.y - 24.0
+	var x := 12.0
+	for entry in LEGEND_ENTRIES:
+		var kind: String = entry.get("kind", "unknown")
+		var cell: Vector2i = icon_cell_for_kind(kind)
+		var region := Rect2(cell.x * ICON_CELL, cell.y * ICON_CELL, ICON_CELL, ICON_CELL)
+		var icon_rect := Rect2(x, y, ICON_CELL, ICON_CELL)
+		draw_texture_rect_region(_icon_atlas, icon_rect, region, Color.WHITE, false)
+		var label := tr(str(entry.get("label_key", "")))
+		draw_string(font, Vector2(x + ICON_CELL + 4.0, y + ICON_CELL - 1.0), label, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size)
+		x += ICON_CELL + 4.0 + font.get_string_size(label, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x + 14.0
+
+
+func _build_caches() -> void:
+	_room_by_id.clear()
+	_center_by_id.clear()
+	_neighbors.clear()
+	for room_def in _rooms:
+		if not room_def is Dictionary:
+			continue
+		var room_id := str(room_def.get("id", ""))
+		if room_id == "":
+			continue
+		_room_by_id[room_id] = room_def
+		var t: Dictionary = room_def.get("transform", {})
+		_center_by_id[room_id] = Vector2(float(t.get("x", 0.0)), float(t.get("z", 0.0)))
+	for edge in _edges:
+		if not edge is Dictionary:
+			continue
+		var from_id := str(edge.get("from", ""))
+		var to_id := str(edge.get("to", ""))
+		if from_id == "" or to_id == "":
+			continue
+		if not _neighbors.has(from_id):
+			_neighbors[from_id] = []
+		if not _neighbors.has(to_id):
+			_neighbors[to_id] = []
+		_neighbors[from_id].append(to_id)
+		_neighbors[to_id].append(from_id)
 
 
 func _recompute_bounds() -> void:
+	if _rooms.is_empty():
+		_bounds = Rect2()
+		return
+	var first := true
 	var min_x := 0.0
 	var max_x := 0.0
 	var min_z := 0.0
@@ -84,35 +370,55 @@ func _recompute_bounds() -> void:
 		var t: Dictionary = room_def.get("transform", {})
 		var x := float(t.get("x", 0.0))
 		var z := float(t.get("z", 0.0))
-		min_x = minf(min_x, x)
-		max_x = maxf(max_x, x)
-		min_z = minf(min_z, z)
-		max_z = maxf(max_z, z)
+		if first:
+			min_x = x
+			max_x = x
+			min_z = z
+			max_z = z
+			first = false
+		else:
+			min_x = minf(min_x, x)
+			max_x = maxf(max_x, x)
+			min_z = minf(min_z, z)
+			max_z = maxf(max_z, z)
 	_bounds = Rect2(min_x, min_z, maxf(1.0, max_x - min_x), maxf(1.0, max_z - min_z))
 
 
 func _room_center(room_id: String) -> Vector2:
-	for room_def in _rooms:
-		if not room_def is Dictionary:
-			continue
-		if str(room_def.get("id", "")) != room_id:
-			continue
-		var t: Dictionary = room_def.get("transform", {})
-		return Vector2(float(t.get("x", 0.0)), float(t.get("z", 0.0)))
+	if _center_by_id.has(room_id):
+		return _center_by_id[room_id]
 	return Vector2.INF
+
+
+func _uniform_scale(map_rect: Rect2) -> float:
+	if _bounds.size.x <= 0.0 or _bounds.size.y <= 0.0:
+		return 1.0
+	return minf(map_rect.size.x / _bounds.size.x, map_rect.size.y / _bounds.size.y)
 
 
 func _map_point(world_xz: Vector2, map_rect: Rect2) -> Vector2:
 	if world_xz == Vector2.INF:
 		return Vector2.ZERO
-	var nx := 0.5
-	var ny := 0.5
-	if _bounds.size.x > 0.0:
-		nx = (world_xz.x - _bounds.position.x) / _bounds.size.x
-	if _bounds.size.y > 0.0:
-		ny = (world_xz.y - _bounds.position.y) / _bounds.size.y
-	return Vector2(
-		map_rect.position.x + nx * map_rect.size.x, map_rect.position.y + ny * map_rect.size.y
+	var s := _uniform_scale(map_rect) * _zoom
+	var content_size := _bounds.size * s
+	var offset := map_rect.position + (map_rect.size - content_size) * 0.5 + _pan
+	return (offset + (world_xz - _bounds.position) * s).floor()
+
+
+func _room_pixel_size(room_def: Dictionary, map_rect: Rect2) -> Vector2:
+	var size_def: Dictionary = room_def.get("size", {})
+	var world_w := float(size_def.get("x", 0.0))
+	var world_z := float(size_def.get("z", 0.0))
+	if world_w <= 0.0 or world_z <= 0.0:
+		return Vector2(FALLBACK_ROOM_PX, FALLBACK_ROOM_PX)
+	var s := _uniform_scale(map_rect) * _zoom
+	return Vector2(maxi(4.0, world_w * s), maxi(4.0, world_z * s)).floor()
+
+
+func _should_draw_edge(from_id: String, to_id: String) -> bool:
+	return (
+		get_reveal_tier(from_id) >= RevealTier.SEEN
+		and get_reveal_tier(to_id) >= RevealTier.SEEN
 	)
 
 
@@ -125,7 +431,7 @@ func _draw_branch_previews(map_rect: Rect2) -> void:
 		if str(preview.get("fromRoomId", "")) != _current_room_id:
 			continue
 		var to_id := str(preview.get("toRoomId", ""))
-		if to_id == "" or _visited.has(to_id):
+		if to_id == "" or get_reveal_tier(to_id) >= RevealTier.VISITED:
 			continue
 		var center := _map_point(_room_center(to_id), map_rect)
 		if center == Vector2.ZERO and _room_center(to_id) == Vector2.INF:
@@ -138,10 +444,10 @@ func _draw_branch_previews(map_rect: Rect2) -> void:
 			draw_colored_polygon(
 				PackedVector2Array(
 					[
-						center + Vector2(0.0, -half),
-						center + Vector2(half, 0.0),
-						center + Vector2(0.0, half),
-						center + Vector2(-half, 0.0),
+						(center + Vector2(0.0, -half)).floor(),
+						(center + Vector2(half, 0.0)).floor(),
+						(center + Vector2(0.0, half)).floor(),
+						(center + Vector2(-half, 0.0)).floor(),
 					]
 				),
 				Color(0.9, 0.22, 0.15, 0.95)

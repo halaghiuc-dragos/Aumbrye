@@ -2,6 +2,8 @@ extends "res://scripts/validation/validation_suite.gd"
 
 const PixelDioramaSettings := preload("res://scripts/art/pipeline/pixel_diorama_settings.gd")
 const PlayerScene := preload("res://scenes/player/player.tscn")
+const MaterialFlashScript := preload("res://scripts/art/characters/material_flash.gd")
+const PixelStyle := preload("res://scripts/art/style/pixel_diorama_style.gd")
 
 
 func _init(context) -> void:
@@ -10,13 +12,14 @@ func _init(context) -> void:
 
 
 func get_category() -> String:
-	return "graphics"
+	return "pixel_pipeline"
 
 
 func run() -> void:
 	_test_pipeline_paths()
 	_test_autoload_paths()
 	_test_shader_assets()
+	_test_emissive_shader_dissolve()
 	_test_default_preset()
 	_test_integer_shrink()
 	await _test_render_camera_current()
@@ -25,6 +28,10 @@ func run() -> void:
 	_test_no_dead_accessors()
 	await _test_screen_pulse_params()
 	_test_debug_dump_gated()
+	_test_flash_shader_uniforms()
+	await _test_flash_guard_paths()
+	await _test_flash_settles()
+	_test_flash_cached_material_untouched()
 
 
 func _test_pipeline_paths() -> void:
@@ -90,6 +97,26 @@ func _test_shader_assets() -> void:
 		"surface shader exposes flash_amount and dissolve_clip",
 		start,
 		"M7.graphics.shader"
+	)
+
+
+func _test_emissive_shader_dissolve() -> void:
+	var start := Time.get_ticks_msec()
+	var shader_path := "res://assets/shared/pixel_diorama_emissive.gdshader"
+	var exists := FileAccess.file_exists(shader_path)
+	var has_flash := false
+	var has_dissolve := false
+	if exists:
+		var text := FileAccess.get_file_as_string(shader_path)
+		has_flash = "flash_amount" in text
+		has_dissolve = "dissolve_clip" in text
+	ctx.timed_record(
+		"pixel_pipeline.emissive_shader_dissolve",
+		get_category(),
+		exists and has_flash and has_dissolve,
+		"emissive shader exposes flash_amount and dissolve_clip",
+		start,
+		"DIS-03"
 	)
 
 
@@ -310,4 +337,136 @@ func _test_debug_dump_gated() -> void:
 		"dump_render_state returns data without scheduling _dbg_dump",
 		start,
 		"PDP-05"
+	)
+
+
+func _test_flash_shader_uniforms() -> void:
+	var start := Time.get_ticks_msec()
+	var surface_text := FileAccess.get_file_as_string(
+		"res://assets/shared/pixel_diorama_surface.gdshader"
+	)
+	var emissive_text := FileAccess.get_file_as_string(
+		"res://assets/shared/pixel_diorama_emissive.gdshader"
+	)
+	var ok := (
+		"flash_amount" in surface_text
+		and "flash_color" in surface_text
+		and "flash_emission" in surface_text
+		and "flash_amount" in emissive_text
+		and "flash_color" in emissive_text
+		and "flash_emission" in emissive_text
+	)
+	ctx.timed_record(
+		"flash.shader_uniforms_present",
+		get_category(),
+		ok,
+		"surface and emissive shaders declare flash_amount, flash_color, flash_emission",
+		start,
+		"FLS-05"
+	)
+
+
+func _test_flash_guard_paths() -> void:
+	var start := Time.get_ticks_msec()
+	var fixture := Node3D.new()
+	fixture.name = "FlashGuardFixture"
+	ctx.owner.add_child(fixture)
+	var ok := true
+
+	var std_mesh := MeshInstance3D.new()
+	std_mesh.mesh = BoxMesh.new()
+	std_mesh.material_override = StandardMaterial3D.new()
+	fixture.add_child(std_mesh)
+	var std_before := std_mesh.material_override
+	MaterialFlashScript.flash(std_mesh, 1.0)
+	if std_mesh.material_override != std_before:
+		ok = false
+
+	var detached := MeshInstance3D.new()
+	detached.mesh = BoxMesh.new()
+	var wall_mat := PixelStyle.make_wall_material(PixelStyle.PaletteTheme.HUB) as ShaderMaterial
+	detached.material_override = wall_mat
+	var detached_before := detached.material_override
+	MaterialFlashScript.flash(detached, 1.0)
+	if detached.material_override != detached_before:
+		ok = false
+
+	fixture.queue_free()
+	ctx.timed_record(
+		"flash.no_mutation_on_guard_paths",
+		get_category(),
+		ok,
+		"flash skips StandardMaterial3D and nodes outside the tree",
+		start,
+		"FLS-01"
+	)
+
+
+func _test_flash_settles() -> void:
+	var start := Time.get_ticks_msec()
+	var fixture := Node3D.new()
+	fixture.name = "FlashSettleFixture"
+	ctx.owner.add_child(fixture)
+	var mesh := MeshInstance3D.new()
+	mesh.mesh = BoxMesh.new()
+	var mat := PixelStyle.make_wall_material(PixelStyle.PaletteTheme.HUB) as ShaderMaterial
+	mesh.material_override = mat
+	fixture.add_child(mesh)
+	var saved_override := mesh.material_override
+	MaterialFlashScript.flash(mesh, {"strength": 1.0, "duration": 0.12})
+	await ctx.owner.get_tree().create_timer(0.35).timeout
+	var dup := mesh.material_override as ShaderMaterial
+	var amount: float = 0.0
+	if dup:
+		var param: Variant = dup.get_shader_parameter("flash_amount")
+		if param is float:
+			amount = param
+	var ok := (
+		amount <= 0.001
+		and not mesh.has_meta("material_flash_tween")
+		and not mesh.has_meta("material_effect_owner")
+		and mesh.material_override == saved_override
+	)
+	fixture.queue_free()
+	ctx.timed_record(
+		"flash.always_settles",
+		get_category(),
+		ok,
+		"flash tween restores material_override and clears metas",
+		start,
+		"FLS-01"
+	)
+
+
+func _test_flash_cached_material_untouched() -> void:
+	var start := Time.get_ticks_msec()
+	var wall := PixelStyle.make_wall_material(PixelStyle.PaletteTheme.HUB) as ShaderMaterial
+	var accent := PixelStyle.make_accent_material(PixelStyle.PaletteTheme.HUB) as ShaderMaterial
+	var wall_before: Variant = wall.get_shader_parameter("flash_amount")
+	var accent_before: Variant = accent.get_shader_parameter("flash_amount")
+	var fixture := Node3D.new()
+	fixture.name = "FlashCacheFixture"
+	ctx.owner.add_child(fixture)
+	for i in 20:
+		var mesh := MeshInstance3D.new()
+		mesh.mesh = BoxMesh.new()
+		mesh.material_override = wall
+		fixture.add_child(mesh)
+		MaterialFlashScript.flash(mesh, 0.8)
+	fixture.queue_free()
+	var wall_after: Variant = wall.get_shader_parameter("flash_amount")
+	var accent_after: Variant = accent.get_shader_parameter("flash_amount")
+	var ok: bool = (
+		wall == PixelStyle.make_wall_material(PixelStyle.PaletteTheme.HUB)
+		and accent == PixelStyle.make_accent_material(PixelStyle.PaletteTheme.HUB)
+		and wall_after == wall_before
+		and accent_after == accent_before
+	)
+	ctx.timed_record(
+		"flash.no_cached_material_mutation",
+		get_category(),
+		ok,
+		"cached wall and accent materials keep flash_amount and instance identity",
+		start,
+		"FLS-06"
 	)

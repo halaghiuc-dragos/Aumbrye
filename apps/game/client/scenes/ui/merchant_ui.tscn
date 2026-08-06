@@ -37,11 +37,13 @@ theme_override_constants/margin_bottom = 12
 layout_mode = 2
 
 [node name="Title" type="Label" parent="Panel/Margin/VBox"]
+theme_type_variation = "MenuTitle"
 layout_mode = 2
 text = "Merchant"
 horizontal_alignment = 1
 
 [node name="GoldLabel" type="Label" parent="Panel/Margin/VBox"]
+theme_type_variation = "StatValue"
 layout_mode = 2
 text = "Gold: 0"
 
@@ -54,6 +56,7 @@ custom_minimum_size = Vector2(0, 100)
 layout_mode = 2
 
 [node name="DetailLabel" type="Label" parent="Panel/Margin/VBox"]
+theme_type_variation = "BodyText"
 layout_mode = 2
 text = "Buy or sell items"
 

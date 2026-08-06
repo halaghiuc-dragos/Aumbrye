@@ -1,6 +1,9 @@
 extends "res://scripts/validation/validation_suite.gd"
 
 const AnimLibrary := preload("res://scripts/art/characters/diorama_anim_library.gd")
+const FloorSnap := preload("res://scripts/art/characters/character_floor_snap.gd")
+const CharacterSkin := preload("res://scripts/art/characters/diorama_character_skin.gd")
+const CastleBlockoutScript := preload("res://scripts/dungeon/castle/castle_blockout.gd")
 
 
 func get_category() -> String:
@@ -26,6 +29,7 @@ func run() -> void:
 	await _test_body_movement_properties()
 	await _test_speed_breakdown_matches_velocity()
 	await _test_player_combat_reactions()
+	await _test_floor_snap()
 
 
 func _test_player_apis() -> void:
@@ -813,3 +817,357 @@ func _wait_until_weapon_phase(weapon: Node, phase: int, max_frames: int) -> bool
 			return true
 		await ctx.await_physics(1)
 	return false
+
+
+func _floor_snap_body() -> CharacterBody3D:
+	var body := CharacterBody3D.new()
+	body.name = "FloorSnapBody"
+	ctx.owner.add_child(body)
+	return body
+
+
+func _add_collision_shape(
+	body: CharacterBody3D, shape: Shape3D, local_y: float = 0.0, disabled: bool = false
+) -> CollisionShape3D:
+	var collision := CollisionShape3D.new()
+	collision.shape = shape
+	collision.position = Vector3(0.0, local_y, 0.0)
+	collision.disabled = disabled
+	body.add_child(collision)
+	return collision
+
+
+func _make_platform(top_y: float) -> StaticBody3D:
+	var platform := StaticBody3D.new()
+	platform.name = "FloorSnapPlatform"
+	platform.collision_layer = 1
+	var collision := CollisionShape3D.new()
+	var box := BoxShape3D.new()
+	box.size = Vector3(12.0, 0.4, 12.0)
+	collision.shape = box
+	collision.position = Vector3(0.0, top_y - 0.2, 0.0)
+	platform.add_child(collision)
+	ctx.owner.add_child(platform)
+	return platform
+
+
+func _make_steep_wall() -> StaticBody3D:
+	var ramp := StaticBody3D.new()
+	ramp.name = "FloorSnapSteepRamp"
+	ramp.collision_layer = 1
+	ramp.rotation_degrees = Vector3(70.0, 0.0, 0.0)
+	var collision := CollisionShape3D.new()
+	var box := BoxShape3D.new()
+	box.size = Vector3(12.0, 0.2, 12.0)
+	collision.shape = box
+	collision.position = Vector3(0.0, 0.0, -6.0)
+	ramp.add_child(collision)
+	ctx.owner.add_child(ramp)
+	return ramp
+
+
+func _convex_box_shape() -> ConvexPolygonShape3D:
+	var convex := ConvexPolygonShape3D.new()
+	convex.points = PackedVector3Array(
+		[
+			Vector3(-0.5, -0.5, -0.5),
+			Vector3(0.5, -0.5, -0.5),
+			Vector3(0.5, 0.5, -0.5),
+			Vector3(-0.5, 0.5, -0.5),
+			Vector3(-0.5, -0.5, 0.5),
+			Vector3(0.5, -0.5, 0.5),
+			Vector3(0.5, 0.5, 0.5),
+			Vector3(-0.5, 0.5, 0.5),
+		]
+	)
+	return convex
+
+
+func _test_floor_snap() -> void:
+	await _test_floor_snap_collision_bottom_capsule()
+	await _test_floor_snap_collision_bottom_sphere()
+	await _test_floor_snap_collision_bottom_multiple_shapes()
+	await _test_floor_snap_collision_bottom_ignores_disabled()
+	await _test_floor_snap_collision_bottom_unknown_shape()
+	await _test_floor_snap_snap_respects_parent_offset()
+	await _test_floor_snap_probe_finds_platform()
+	await _test_floor_snap_probe_rejects_steep_normal()
+	await _test_floor_snap_probe_miss_returns_fallback()
+	await _test_floor_snap_visual_aligned_under_offset_parent()
+	await _test_floor_snap_snap_character_aligns_both()
+	await _test_floor_snap_world_geometry_on_layer_one()
+	await _test_floor_snap_rig_feet_at_origin()
+
+
+func _test_floor_snap_collision_bottom_capsule() -> void:
+	var start := Time.get_ticks_msec()
+	var body := _floor_snap_body()
+	var capsule := CapsuleShape3D.new()
+	capsule.height = 1.6
+	_add_collision_shape(body, capsule, 0.9)
+	var bottom := FloorSnap.collision_bottom_local(body)
+	body.queue_free()
+	ctx.timed_record(
+		"floor_snap.collision_bottom_capsule",
+		get_category(),
+		absf(bottom - 0.1) < 0.01,
+		"1.6 m capsule at local y 0.9 returns bottom 0.1",
+		start,
+		"SNP-04"
+	)
+
+
+func _test_floor_snap_collision_bottom_sphere() -> void:
+	var start := Time.get_ticks_msec()
+	var body := _floor_snap_body()
+	var sphere := SphereShape3D.new()
+	sphere.radius = 0.5
+	_add_collision_shape(body, sphere, 0.5)
+	var bottom := FloorSnap.collision_bottom_local(body)
+	body.queue_free()
+	ctx.timed_record(
+		"floor_snap.collision_bottom_sphere",
+		get_category(),
+		absf(bottom - 0.0) < 0.01,
+		"0.5 m radius sphere at local y 0.5 returns bottom 0.0",
+		start,
+		"SNP-04"
+	)
+
+
+func _test_floor_snap_collision_bottom_multiple_shapes() -> void:
+	var start := Time.get_ticks_msec()
+	var body := _floor_snap_body()
+	var foot := BoxShape3D.new()
+	foot.size = Vector3(0.3, 0.3, 0.3)
+	_add_collision_shape(body, foot, 0.15)
+	var torso := CapsuleShape3D.new()
+	torso.height = 1.6
+	_add_collision_shape(body, torso, 1.4)
+	var bottom := FloorSnap.collision_bottom_local(body)
+	body.queue_free()
+	ctx.timed_record(
+		"floor_snap.collision_bottom_multiple_shapes",
+		get_category(),
+		absf(bottom - 0.0) < 0.01,
+		"foot box bottom wins over taller torso capsule",
+		start,
+		"SNP-05"
+	)
+
+
+func _test_floor_snap_collision_bottom_ignores_disabled() -> void:
+	var start := Time.get_ticks_msec()
+	var body := _floor_snap_body()
+	var foot := BoxShape3D.new()
+	foot.size = Vector3(0.3, 0.3, 0.3)
+	_add_collision_shape(body, foot, 0.15, true)
+	var torso := CapsuleShape3D.new()
+	torso.height = 1.6
+	_add_collision_shape(body, torso, 0.9)
+	var bottom := FloorSnap.collision_bottom_local(body)
+	body.queue_free()
+	ctx.timed_record(
+		"floor_snap.collision_bottom_ignores_disabled",
+		get_category(),
+		absf(bottom - 0.1) < 0.01,
+		"disabled lower shape is ignored",
+		start,
+		"SNP-05"
+	)
+
+
+func _test_floor_snap_collision_bottom_unknown_shape() -> void:
+	var start := Time.get_ticks_msec()
+	var body := _floor_snap_body()
+	_add_collision_shape(body, _convex_box_shape(), 1.0)
+	var bottom := FloorSnap.collision_bottom_local(body)
+	body.queue_free()
+	ctx.timed_record(
+		"floor_snap.collision_bottom_unknown_shape_warns",
+		get_category(),
+		bottom < 0.99,
+		"convex shape uses debug mesh AABB minimum, not position.y",
+		start,
+		"SNP-04"
+	)
+
+
+func _test_floor_snap_snap_respects_parent_offset() -> void:
+	var start := Time.get_ticks_msec()
+	var parent := Node3D.new()
+	parent.position = Vector3(0.0, 5.0, 0.0)
+	ctx.owner.add_child(parent)
+	var body := CharacterBody3D.new()
+	parent.add_child(body)
+	var capsule := CapsuleShape3D.new()
+	capsule.height = 1.6
+	_add_collision_shape(body, capsule, 0.8)
+	body.global_position = Vector3(0.0, 6.0, 0.0)
+	FloorSnap.snap_feet_to_world_y(body, 2.0)
+	var feet_y := FloorSnap.feet_world_y(body)
+	parent.queue_free()
+	ctx.timed_record(
+		"floor_snap.snap_respects_parent_offset",
+		get_category(),
+		absf(feet_y - 2.0) < 0.01,
+		"parent offset does not break world-space snap",
+		start,
+		"SNP-06"
+	)
+
+
+func _test_floor_snap_probe_finds_platform() -> void:
+	var start := Time.get_ticks_msec()
+	var platform := _make_platform(2.4)
+	await ctx.await_physics(2)
+	var world: World3D = platform.get_world_3d()
+	var floor_y := FloorSnap.probe_floor_y(world, Vector3(0.0, 4.0, 0.0), -1.0)
+	ctx.timed_record(
+		"floor_snap.probe_finds_platform",
+		get_category(),
+		absf(floor_y - 2.4) < 0.01,
+		"probe finds platform top at 2.4 m",
+		start,
+		"SNP-02"
+	)
+
+
+func _test_floor_snap_probe_rejects_steep_normal() -> void:
+	var start := Time.get_ticks_msec()
+	var wall := _make_steep_wall()
+	await ctx.await_physics(2)
+	var world: World3D = wall.get_world_3d()
+	var floor_y := FloorSnap.probe_floor_y(world, Vector3(0.0, 2.0, 0.0), 1.5)
+	ctx.timed_record(
+		"floor_snap.probe_rejects_steep_normal",
+		get_category(),
+		absf(floor_y - 1.5) < 0.01,
+		"steep ramp is rejected and fallback is returned",
+		start,
+		"SNP-02"
+	)
+
+
+func _test_floor_snap_probe_miss_returns_fallback() -> void:
+	var start := Time.get_ticks_msec()
+	var anchor := _floor_snap_body()
+	var world: World3D = anchor.get_world_3d()
+	var floor_y := FloorSnap.probe_floor_y(world, Vector3(40.0, 4.0, 40.0), 3.3)
+	anchor.queue_free()
+	ctx.timed_record(
+		"floor_snap.probe_miss_returns_fallback",
+		get_category(),
+		absf(floor_y - 3.3) < 0.01,
+		"probe miss returns fallback height",
+		start,
+		"SNP-02"
+	)
+
+
+func _test_floor_snap_visual_aligned_under_offset_parent() -> void:
+	var start := Time.get_ticks_msec()
+	var parent := Node3D.new()
+	parent.position = Vector3(0.0, 3.0, 0.0)
+	ctx.owner.add_child(parent)
+	var body := CharacterBody3D.new()
+	parent.add_child(body)
+	var capsule := CapsuleShape3D.new()
+	capsule.height = 2.4
+	_add_collision_shape(body, capsule, 0.0)
+	body.position = Vector3.ZERO
+	var visual := Node3D.new()
+	body.add_child(visual)
+	FloorSnap.align_diorama_visual(body, visual)
+	var delta := absf(FloorSnap.feet_world_y(body) - FloorSnap.visual_feet_world_y(visual))
+	parent.queue_free()
+	ctx.timed_record(
+		"floor_snap.visual_aligned_under_offset_parent",
+		get_category(),
+		delta < 0.01,
+		"visual feet match collision bottom under offset parent",
+		start,
+		"SNP-01"
+	)
+
+
+func _test_floor_snap_snap_character_aligns_both() -> void:
+	var start := Time.get_ticks_msec()
+	_make_platform(2.4)
+	var body := _floor_snap_body()
+	var capsule := CapsuleShape3D.new()
+	capsule.height = 2.4
+	_add_collision_shape(body, capsule, 0.0)
+	body.global_position = Vector3(0.0, 5.0, 0.0)
+	var visual := Node3D.new()
+	body.add_child(visual)
+	await ctx.await_physics(2)
+	FloorSnap.snap_character(body, visual)
+	var feet_ok := absf(FloorSnap.feet_world_y(body) - 2.4) < 0.01
+	var visual_ok := absf(FloorSnap.visual_feet_world_y(visual) - 2.4) < 0.01
+	body.queue_free()
+	ctx.timed_record(
+		"floor_snap.snap_character_aligns_both",
+		get_category(),
+		feet_ok and visual_ok,
+		"snap_character aligns collision and visual to probed floor",
+		start,
+		"SNP-07"
+	)
+
+
+func _test_floor_snap_world_geometry_on_layer_one() -> void:
+	var start := Time.get_ticks_msec()
+	var blockout := CastleBlockoutScript.new()
+	var root := Node3D.new()
+	ctx.owner.add_child(root)
+	root.add_child(blockout)
+	blockout.finalize_geometry()
+	await ctx.await_frame()
+	var ok := true
+	for node in blockout.find_children("*", "StaticBody3D", true, false):
+		var body := node as StaticBody3D
+		if (body.collision_layer & 1) == 0:
+			ok = false
+			break
+	root.queue_free()
+	ctx.timed_record(
+		"floor_snap.world_geometry_on_layer_one",
+		get_category(),
+		ok,
+		"castle blockout static bodies are on collision layer 1",
+		start,
+		"SNP-02"
+	)
+
+
+func _test_floor_snap_rig_feet_at_origin() -> void:
+	var start := Time.get_ticks_msec()
+	var holder := Node3D.new()
+	ctx.owner.add_child(holder)
+	var profiles := ["melee", "ranged", "shield", "brute", "dummy"]
+	var ok := true
+	for profile in profiles:
+		for child in holder.get_children():
+			child.queue_free()
+		var facing := Node3D.new()
+		holder.add_child(facing)
+		var visual := CharacterSkin.build_enemy_body(facing, profile)
+		if CharacterSkin.rig_mesh_min_y(visual) > 0.02:
+			ok = false
+			break
+	var player_facing := Node3D.new()
+	holder.add_child(player_facing)
+	var player_visual := CharacterSkin.build_player_body(player_facing)
+	if ok and CharacterSkin.rig_mesh_min_y(player_visual) > 0.02:
+		ok = false
+	holder.queue_free()
+	ctx.timed_record(
+		"floor_snap.rig_feet_at_origin",
+		get_category(),
+		ok,
+		"built character rigs keep mesh AABB min y within 0.02 m of origin",
+		start,
+		"SNP-03"
+	)
+

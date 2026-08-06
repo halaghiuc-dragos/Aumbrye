@@ -5,5 +5,9 @@
   "startingWeaponItemId": "training_greatsword",
   "statBonuses": { "physicalDamage": 0.05, "poiseDamage": 0.05 },
   "allowedWeapons": ["training_greatsword", "war_hammer", "flame_sword", "mythic_blade", "frost_warlord_blade"],
-  "perk": "bloodrage"
+  "perk": "bloodrage",
+  "iconPath": "class_icons:berserker",
+  "role": "CLASS_ROLE_BERSERKER",
+  "perkName": "CLASS_PERK_BLOODRAGE",
+  "perkDescription": "CLASS_PERK_BLOODRAGE_DESC"
 }

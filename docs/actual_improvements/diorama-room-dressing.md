@@ -1,26 +1,28 @@
 # Diorama room dressing — improvement plan
 
+## Status: FINISHED
+
 ## Current state
 
-Every prop in the game is a `BoxMesh` created at runtime by one of nine hard-coded GDScript recipes. Ten biomes × nine room suffixes gives 90 room scenes and they share those nine recipes, so a Frozen Reaches hall and a Cathedral hall are the same two pillars at the same coordinates in a different hue. The dressing is fully deterministic, so the same room looks identical in every run of every profile. No prop collides except the obstacle-course blocks. Torch fixtures use the biome accent surface material rather than an emissive, so they do not glow. Three interactable builders read a property that does not exist on the material they are holding. See [`../existing_codebase/diorama-room-dressing.md`](../existing_codebase/diorama-room-dressing.md).
+Every prop in the game is a `BoxMesh` created at runtime by one of nine hard-coded GDScript recipes. Ten biomes × eleven room suffixes gives 110 room scenes and they share those nine recipes (the `corridor` suffix and any unknown suffix get only `_spawn_generic_corners()`), so a Frozen Reaches hall and a Cathedral hall are the same two pillars at the same coordinates in a different hue. The dressing is fully deterministic, so the same room looks identical in every run of every profile. No decorative prop collides except the obstacle-course blocks. Torch fixtures use the biome accent surface material rather than an emissive, so they do not glow. Braziers attach a positional `"brazier"` loop via `AudioDirector.attach_loop_emitter()` but no dressing prop spawns ambient VFX. Three interactable builders read a property that does not exist on the material they hold. See [`../existing_codebase/diorama-room-dressing.md`](../existing_codebase/diorama-room-dressing.md).
 
 ## Gaps
 
 | ID | Sev | Gap | Evidence |
 |----|-----|-----|----------|
-| DRD-01 | P0 | `build_portal`, `build_loot_pickup`, and `build_cannon` pass `glow.emission` to `_add_orb()`, but `glow` holds the `ShaderMaterial` returned by `PixelStyle.make_emissive_material()` (declared `-> Material`). Neither `Material` nor `ShaderMaterial` has an `emission` property; the emissive shader's uniforms are `color_core`, `color_edge`, and `emission_energy`. All three are reachable from live gameplay: exit portals, XP shards, world item pickups, and the final boss cannon. | `diorama_interactable_skin.gd:79`, `:101`, `:118`; `pixel_diorama_style.gd:374-382`; `pixel_diorama_emissive.gdshader`; callers `dungeon_builder.gd:595`, `xp_shard_pickup.gd:21`, `world_item_pickup.gd:17`, `final_boss_cannon.gd:22` |
-| DRD-02 | P0 | Nine recipes dress 90 rooms. Every biome's `hall` is two 2.6 m pillars and sconces every 3.5 m; every `puzzle` is one core box and four orbs at 2.5 m on a circle. Biome identity is carried entirely by three material colours, so a run through ten biomes visits the same nine rooms ten times. | `diorama_room_dressing.gd:33-53`, `:192-257`; 90 files under `apps/game/client/scenes/rooms/` |
-| DRD-03 | P0 | Dressing has no run-to-run variation. `prop_rng` is seeded from the room id and then passed only to `_spawn_generic_corners`; `_spawn_prop_cluster` discards it and reseeds from `hash(biome_id)`. Every other recipe is a fixed list of coordinates. The same room in the same biome is byte-identical forever. | `diorama_room_dressing.gd:16-17`, `:53`, `:386` |
-| DRD-04 | P1 | No authored prop art of any kind. `DioramaPropFactory` builds four props from three boxes each and is dead code; the live recipes build theirs inline from `_add_box`. There is no prop catalogue, no data, and no asset. | `diorama_prop_factory.gd:53-147`; only caller `diorama_prop_kit.gd:23`, whose scene nothing instances; `_add_box` at `diorama_room_dressing.gd:400-410` |
-| DRD-05 | P1 | Props do not collide. `_add_obstacle_block()` is the only `StaticBody3D` in the file, so the player walks through pillars, braziers, pedestals, plinths, banners, and puzzle orbs. A room's geometry reads as solid and is not. | `diorama_room_dressing.gd:356-381`; every other spawner calls `_add_box` (`:400-410`), a bare `MeshInstance3D` |
-| DRD-06 | P1 | Light fixtures do not emit light-coloured pixels. Braziers, wall torches, and ceiling torches use the biome **accent surface** material, so the fixture is a matte box with an invisible omni floating near it. Combined with `_biome_light_color()` returning the biome's ambient colour, a lit room has no visible light source and no colour contrast between fill and torch. | `diorama_room_dressing.gd:314`, `:329`, `:343`, `:440-442` |
-| DRD-07 | P1 | `_spawn_wall_sconce()` adds a `Sconce` box and then calls `_spawn_wall_torch()` at the identical position, so every hall wall carries two interpenetrating boxes and two z-fighting faces per sconce. | `diorama_room_dressing.gd:322-325` |
-| DRD-08 | P1 | Light count is high and every light is shadowless. A 20 × 20 room gets roughly nine ceiling torches, four wall torches, and a room fill from `apply_ceiling_lighting()` alone, plus recipe braziers — fourteen-plus omnis, none casting a shadow, all the same hue. | `diorama_room_dressing.gd:98-107`, `:313-353`; `visual_lighting.gd:138` |
-| DRD-09 | P2 | `apply_to_waves_arena()` (19 lines) and `apply_shell_lighting()` (20 lines) have no callers. `apply_shell_lighting()` is the only reader of `VisualLighting.SHELL_TORCH_SPACING`, and `SHELL_TORCH_ENERGY` has no reader at all. | `diorama_room_dressing.gd:56-74`, `:138-157`; `visual_lighting.gd:19-20` |
-| DRD-10 | P2 | `DioramaPropFactory`, `diorama_prop_kit.gd`, and `diorama_prop_kit.tscn` are a dead three-file chain kept for editor reference. `create_prop_named()`'s string front door has no caller at all. | `diorama_prop_factory.gd:24-36`; `diorama_prop_kit.tscn` is instanced nowhere |
-| DRD-11 | P2 | `DioramaRoomDressing._add_box(parent, pos, size, ...)` and `PixelDioramaStyle.add_box(parent, size, position, ...)` have their first two arguments swapped, which is a silent-corruption footgun when code moves between the files. `_add_spot()` creates an `OmniLight3D` named `AccentFill`. `_material_light_color()` probes a `base_color` parameter no shader declares. | `diorama_room_dressing.gd:400-410`, `:413-423`, `:429`; `pixel_diorama_style.gd:422-443` |
-| DRD-12 | P2 | Dressing emits no audio and no ambient VFX. A brazier does not crackle and does not drop embers, so a lit room is silent and static. | no `AudioDirector` or `VfxService` reference in `diorama_room_dressing.gd` |
-| DRD-13 | P2 | No validation exercises dressing. `m7_suite.gd:315-321` greps `biome_registry.gd` for a string; nothing calls `apply_to_room()` or inspects the result. | `m7_suite.gd:315-321` |
+| DRD-01 | P0 | `build_portal`, `build_loot_pickup`, and `build_cannon` pass `glow.emission` / `crystal.emission` to `_add_orb()`, but `glow` holds the `ShaderMaterial` returned by `PixelStyle.make_emissive_material()` (declared `-> Material`). Neither `Material` nor `ShaderMaterial` has an `emission` property; the emissive shader's uniforms are `color_core`, `color_edge`, and `emission_energy`. All three are reachable from live gameplay: merchant stall portals, XP shards, world item pickups, and the final boss cannon. | `diorama_interactable_skin.gd:123`, `:145`, `:162`; `pixel_diorama_style.gd:394-402`; `pixel_diorama_emissive.gdshader:9-13`; callers `room_merchant_content.gd:27`, `exit_portal.gd:30` (via `build_portal`), `xp_shard_pickup.gd:21`, `world_item_pickup.gd:17`, `final_boss_cannon.gd:22` |
+| DRD-02 | P0 | Nine recipes dress 110 rooms. Every biome's `hall` is two 2.6 m pillars and sconces every 3.5 m; every `puzzle` is one core box and four orbs at 2.5 m on a circle; every `corridor` is two jittered corner braziers. Biome identity is carried entirely by three material colours, so a run through ten biomes visits the same nine rooms ten times. | `diorama_room_dressing.gd:6-16`, `:40-60`, `:213-351`; 110 files under `apps/game/client/scenes/rooms/` |
+| DRD-03 | P0 | Dressing has no run-to-run variation. `prop_rng` is seeded from the room id and then passed only to `_spawn_generic_corners`; `_spawn_prop_cluster` discards it and reseeds from `hash(biome_id)`. Every other recipe is a fixed list of coordinates. The same room in the same biome is byte-identical forever. | `diorama_room_dressing.gd:23-24`, `:60`, `:528` |
+| DRD-04 | P1 | No authored prop art of any kind. `DioramaPropFactory` builds four props from three boxes each and is dead code; the live recipes build theirs inline from `_add_box`. There is no prop catalogue, no data, and no asset. | `diorama_prop_factory.gd:57-155`; only caller `diorama_prop_kit.gd:23`, whose scene nothing instances; `_add_box` at `diorama_room_dressing.gd:560-572` |
+| DRD-05 | P1 | Props do not collide. `_add_obstacle_block()` is the only `StaticBody3D` in the file, so the player walks through pillars, braziers, pedestals, plinths, banners, and puzzle orbs. A room's geometry reads as solid and is not. | `diorama_room_dressing.gd:495-516`; every other spawner calls `_add_box` (`:560-572`), a bare `MeshInstance3D` |
+| DRD-06 | P1 | Light fixtures do not emit light-coloured pixels. Braziers, wall torches, and ceiling torches use the biome **accent surface** material, so the fixture is a matte box with an invisible omni floating near it. Combined with `_biome_light_color()` returning the biome's ambient colour, a lit room has no visible light source and no colour contrast between fill and torch. | `diorama_room_dressing.gd:446`, `:466`, `:482`, `:601-603` |
+| DRD-07 | P1 | `_spawn_wall_sconce()` adds a `Sconce` box and then calls `_spawn_wall_torch()` at the identical position, so every hall wall carries two interpenetrating boxes and two z-fighting faces per sconce. | `diorama_room_dressing.gd:455-460` |
+| DRD-08 | P1 | Light count is high and every light is shadowless. A 20 × 20 room gets roughly nine ceiling torches, four wall torches, and a room fill from `apply_ceiling_lighting()` alone, plus recipe braziers — fourteen-plus omnis, none casting a shadow, all the same hue. | `diorama_room_dressing.gd:112-120`, `:439-492`; `visual_lighting.gd:147` |
+| DRD-09 | P2 | `apply_to_waves_arena()` (20 lines) and `apply_shell_lighting()` (20 lines) have no callers. `apply_shell_lighting()` is the only reader of `VisualLighting.SHELL_TORCH_SPACING`, and `SHELL_TORCH_ENERGY` has no reader at all. | `diorama_room_dressing.gd:63-82`, `:149-168`; `visual_lighting.gd:19-20` |
+| DRD-10 | P2 | `DioramaPropFactory`, `diorama_prop_kit.gd`, and `diorama_prop_kit.tscn` are a dead three-file chain kept for editor reference. `create_prop_named()`'s string front door has no caller at all. | `diorama_prop_factory.gd:24-38`; `diorama_prop_kit.tscn` is instanced nowhere |
+| DRD-11 | P2 | `DioramaRoomDressing._add_box(parent, pos, size, ...)` and `PixelDioramaStyle.add_box(parent, size, position, ...)` have their first two arguments swapped, which is a silent-corruption footgun when code moves between the files. `_add_spot()` creates an `OmniLight3D` named `AccentFill`. `_material_light_color()` probes a `base_color` parameter no shader declares. | `diorama_room_dressing.gd:560-572`, `:575-584`, `:590`; `pixel_diorama_style.gd:442-454` |
+| DRD-12 | P2 | Dressing emits no ambient VFX. Brazier loop audio ships (`AudioDirector.attach_loop_emitter(brazier, "brazier", 6.0)` at `diorama_room_dressing.gd:452`) but torches and sconces are silent, and no fixture drops embers or smoke. | no `VfxService` reference in `diorama_room_dressing.gd`; brazier audio at `:452` |
+| DRD-13 | P2 | No validation exercises dressing. `m7_suite.gd:340-357` greps `floor_shell_builder.gd` and `biome_registry.gd` for indoor-lighting strings; nothing calls `apply_to_room()` or inspects the result. | `m7_suite.gd:340-357` |
 
 ## Target design
 
@@ -91,13 +93,20 @@ Rejected alternative: authoring each prop as its own `.tscn`. Rejected because a
         { "zone": "corner", "prop": "cobweb", "count": [0, 2], "biomes": ["forgotten_castle", "the_vault"] }
       ]
     },
+    "corridor": {
+      "extends": "base_interior",
+      "rules": [
+        { "zone": "wall_long", "prop": "sconce_wall", "spacing": [4.0, 5.0], "jitter": 0.15 },
+        { "zone": "floor_edge", "prop_any": ["barrel", "rubble_pile"], "count": [0, 2], "jitter": 0.4 }
+      ]
+    },
     "cathedral_hall": { "extends": "hall", "rules": [ { "zone": "wall_long", "prop": "stained_arch", "spacing": [6.0, 6.0] } ] }
   },
-  "room_recipe_map": { "cathedral_hall": "cathedral_hall", "*_hall": "hall" }
+  "room_recipe_map": { "cathedral_hall": "cathedral_hall", "*_hall": "hall", "*_corridor": "corridor" }
 }
 ```
 
-Zones are computed from the blockout: `wall_long`, `wall_short`, `corner`, `floor_edge`, `floor_mid`, `centre`, `ceiling`. `room_recipe_map` supports an exact template id first and then a `*_<suffix>` wildcard, so a biome can override one room type without duplicating the other eight — that is the mechanism that closes DRD-02 without writing 90 recipes by hand. The migration writes the nine current recipes plus a handful of biome overrides, and grows from there.
+Zones are computed from the blockout: `wall_long`, `wall_short`, `corner`, `floor_edge`, `floor_mid`, `centre`, `ceiling`. `room_recipe_map` supports an exact template id first and then a `*_<suffix>` wildcard, so a biome can override one room type without duplicating the other ten — that is the mechanism that closes DRD-02 without writing 110 recipes by hand. The migration writes the nine current recipes plus a dedicated `corridor` recipe and a handful of biome overrides, and grows from there.
 
 Placement uses the room RNG for real:
 
@@ -109,7 +118,7 @@ static func apply_to_room(room: RoomTemplate, biome_id: String, room_seed: int) 
 
 Every `count`, `spacing`, `jitter`, and `prop_any` choice draws from that one `RandomNumberGenerator`. `_spawn_prop_cluster()`'s private reseed is deleted. Closes DRD-02, DRD-03.
 
-Rejected alternative: authoring the props directly into the 90 room `.tscn` files. Rejected because it eliminates run-to-run variation entirely and multiplies the maintenance of every prop change by 90.
+Rejected alternative: authoring the props directly into the 110 room `.tscn` files. Rejected because it eliminates run-to-run variation entirely and multiplies the maintenance of every prop change by 110.
 
 ### 4. Collision and navigation
 
@@ -127,7 +136,7 @@ Failure behaviour: a rule that cannot place its minimum count logs one debug lin
 
 ### 6. Ambience
 
-`sfx.loop` attaches an `AudioStreamPlayer3D` with `unit_size` from `radius`, `vfx.ambient` attaches a low-rate `GPUParticles3D` from the VFX effect catalogue. Both are skipped when `PixelDioramaSettings.particle_quality == 0` or the audio bus is muted, and both are culled with the prop's visibility. Closes DRD-12.
+`sfx.loop` attaches an `AudioStreamPlayer3D` with `unit_size` from `radius` (brazier audio already uses `AudioDirector.attach_loop_emitter`; catalogue props migrate to the same key). `vfx.ambient` attaches a low-rate `GPUParticles3D` from the VFX effect catalogue. Both are skipped when `PixelDioramaSettings.particle_quality == 0` or the audio bus is muted, and both are culled with the prop's visibility. Closes DRD-12.
 
 ### 7. Cleanup
 
@@ -138,10 +147,10 @@ Delete `apply_to_waves_arena()` and `apply_shell_lighting()`, or wire the latter
 1. **Fix `glow.emission`** — three lines in `diorama_interactable_skin.gd`. Independent, fixes live breakage. Closes DRD-01.
 2. **Sconce overlap and small cleanup** — `_spawn_wall_sconce`, `_add_box` de-duplication, `_add_spot` rename, `base_color` probe, delete the two unused entry points and the two orphan constants. Independent. Closes DRD-07, DRD-09, DRD-11.
 3. **Prop catalogue** — `content/schemas/prop.v1.json`, `content/art/props.json` with roughly 30 props (transcribing the boxes the current recipes build, plus the four from `DioramaPropFactory`), `spawn_prop()`, prop-kit gallery. Depends on the structure loader from [`pixel-style.md`](pixel-style.md) step 6 for the shared part-list format. Closes DRD-04, DRD-05, DRD-10.
-4. **Recipe data and placer** — `content/schemas/room-dressing.v1.json`, `content/art/room_dressing.json` with the nine base recipes, zone computation, footprint rejection, seeded placement. Depends on 3. Closes DRD-02, DRD-03.
+4. **Recipe data and placer** — `content/schemas/room-dressing.v1.json`, `content/art/room_dressing.json` with the nine base recipes plus a `corridor` recipe, zone computation, footprint rejection, seeded placement. Depends on 3. Closes DRD-02, DRD-03.
 5. **Biome recipe overrides** — one override per biome for `hall`, `boss`, and `courtyard` to start; content work, no code. Depends on 4.
 6. **Lighting** — emissive fixture parts, `light.slot`, `max_lights`, shadow budget, flicker. Depends on 3 and on the `visual-lighting.md` steps 4 and 5. Closes DRD-06, DRD-08.
-7. **Ambience** — depends on 3, on the VFX effect catalogue, and on the audio work. Closes DRD-12.
+7. **Ambience** — migrate brazier audio into the prop catalogue `sfx` block; add torch crackle and `vfx.ambient` embers. Depends on 3, on the VFX effect catalogue, and on the audio work. Closes DRD-12.
 8. **Validation** — Closes DRD-13.
 
 Steps 1 and 2 are a single sitting and should land first.
@@ -149,7 +158,7 @@ Steps 1 and 2 are a single sitting and should land first.
 ## Data and schema changes
 
 - New `content/schemas/prop.v1.json` and `content/art/props.json` (~30 props).
-- New `content/schemas/room-dressing.v1.json` and `content/art/room_dressing.json` (9 base recipes plus overrides).
+- New `content/schemas/room-dressing.v1.json` and `content/art/room_dressing.json` (9 base recipes plus `corridor` and overrides).
 - `diorama_prop_factory.gd` loses `PropKind`, `create_prop()`, `create_prop_named()`, and the four `_make_*` functions, and gains `spawn_prop()`.
 - `diorama_room_dressing.gd` loses the nine `_spawn_*` recipes, `_spawn_prop_cluster`, `_add_biome_banner`, `_add_box`, `_biome_light_color`, `apply_to_waves_arena`, `apply_shell_lighting`.
 - `visual_lighting.gd` loses `SHELL_TORCH_SPACING` and `SHELL_TORCH_ENERGY`.
@@ -161,6 +170,7 @@ Steps 1 and 2 are a single sitting and should land first.
 
 - [ ] Entering a room with an exit portal, picking up an XP shard, and reaching the final boss cannon all produce a visible glow orb and no property-access error. (DRD-01)
 - [ ] A `cathedral_hall` and a `castle_hall` at the same size are visually distinguishable by prop silhouette, not only by colour. (DRD-02)
+- [ ] A `castle_corridor` and a `castle_hall` at the same size use different recipes, not the generic-corner fallback. (DRD-02)
 - [ ] The same room id dressed with two different seeds produces different prop counts and positions; the same seed twice produces identical output. (DRD-03)
 - [ ] Adding a prop to `props.json` and referencing it from a recipe puts it in the world with no code change. (DRD-04)
 - [ ] Walking into a pillar, a brazier, and a pedestal stops the player. (DRD-05)
@@ -181,7 +191,7 @@ New suite `apps/game/client/scripts/validation/suites/room_dressing_suite.gd`, c
 | `dressing.recipes_json_loads` | `content/art/room_dressing.json` parses and validates against `room-dressing.v1.json` |
 | `dressing.prop_refs_resolve` | every `prop` and every `prop_any` entry in every recipe exists in the prop catalogue |
 | `dressing.mat_slots_valid` | every part's `mat` is one of the six documented palette slots |
-| `dressing.recipe_coverage` | every one of the 90 room template ids resolves through `room_recipe_map` (exact or wildcard) to a declared recipe |
+| `dressing.recipe_coverage` | every one of the 110 room template ids resolves through `room_recipe_map` (exact or wildcard) to a declared recipe |
 | `dressing.extends_terminates` | no `extends` chain contains a cycle and every parent exists |
 | `dressing.unknown_prop_safe` | `spawn_prop(parent, "nope", ...)` returns an empty `Node3D`, warns once, and does not warn again |
 | `dressing.deterministic_by_seed` | dressing a room twice with seed 12345 produces identical child names and positions |
@@ -213,8 +223,10 @@ Manual checklist:
 - [`visual-lighting.md`](visual-lighting.md) — the shadow budget, flicker, and `configure_soft_omni()` signature this plan depends on
 - [`portal-ellipse-shader.md`](portal-ellipse-shader.md) — the `glow.emission` fix is shared, and `build_portal` gains the real portal shader
 - [`biome-registry.md`](biome-registry.md) — the material and light-colour source being replaced
-- [`room-templates.md`](room-templates.md), [`room-content.md`](room-content.md), [`procgen-placements.md`](procgen-placements.md) — the 90 rooms and the other placement passes the footprint check must respect
+- [`room-templates.md`](room-templates.md), [`room-content.md`](room-content.md), [`procgen-placements.md`](procgen-placements.md) — the 110 rooms and the other placement passes the footprint check must respect
 - [`floor-shell.md`](floor-shell.md) — owns the `apply_shell_lighting()` deletion decision
 - [`dungeon-builder.md`](dungeon-builder.md), [`dungeon-traps.md`](dungeon-traps.md), [`loot-and-equipment.md`](loot-and-equipment.md) — interactable skin consumers
 - [`vfx-service.md`](vfx-service.md), [`audio-director.md`](audio-director.md) — ambient embers and brazier crackle
 - [`content-data.md`](content-data.md) — where the two new JSON files live
+- [`validation-suites.md`](validation-suites.md) — suite registration for `room_dressing_suite.gd`
+- [`00-QUALITY-BAR.md`](00-QUALITY-BAR.md)

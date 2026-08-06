@@ -1,15 +1,8 @@
 extends RefCounted
 class_name PixelDioramaStyle
 
-## Shared pixel-diorama look: palettes, pixel-scale constants, and surface materials.
-##
-## Palette slot indices (same for every theme row in PALETTES):
-##   0 = floor_base, 1 = floor_shadow, 2 = wall_base, 3 = wall_shadow,
-##   4 = accent, 5 = prop_wood, 6 = prop_metal, 7 = emissive
-##
-## PaletteTheme row indices (use theme_from_biome() for BiomeRegistry ids):
-##   0 castle, 1 crystal, 2 swamp, 3 frozen, 4 cathedral,
-##   5 vault, 6 prism, 7 mire, 8 hollow, 9 umbral, 10 hub
+## Shared pixel-diorama look: palettes, material factories, and primitive builders.
+## Palette colours load from `content/art/palettes.json` with a GDScript fallback.
 
 enum PaletteSlot {
 	FLOOR_BASE,
@@ -38,32 +31,38 @@ enum PaletteTheme {
 
 enum SurfaceKind { FLOOR, WALL, PROP, ACCENT }
 
-## Performance budget (plan/systems/20-PERFORMANCE.md, M7 deferred profiling):
-## - Target: 1080p @ 60 FPS (16.67 ms/frame) on mid-tier GPU
-## - Pixel diorama stack: SubViewport + 4 shaders + SSAO — budget ~8 ms GPU
-## - Occlusion: OccluderInstance3D on castle wall segments (CastleBlockout)
-## - LOD: MeshInstance3D.lod_bias on wall meshes
-const PERF_TARGET_FRAME_MS := 16.67
-const PERF_PIXEL_STACK_BUDGET_MS := 8.0
+const PALETTE_JSON_PATH := "content/art/palettes.json"
+const STRUCTURE_DIR := "content/art/structures"
 
-## Fallback values only. Live tuning comes from PixelDioramaSettings, which is the
-## single source of truth; these keep the module usable before settings load.
-const PIXEL_SCALE := 8.0
-const PATTERN_STRENGTH := 0.58
-const COLOR_LEVELS := 6.0
-const EDGE_STRENGTH := 0.42
-const UV_TILE_METERS := 1.0
-const PROP_SNAP := 0.5
+const THEME_IDS: Array[String] = [
+	"castle",
+	"crystal",
+	"swamp",
+	"frozen",
+	"cathedral",
+	"vault",
+	"prism",
+	"mire",
+	"hollow",
+	"umbral",
+	"hub",
+]
 
 const SHADER_PATH := "res://assets/shared/pixel_diorama_surface.gdshader"
 const EMISSIVE_SHADER_PATH := "res://assets/shared/pixel_diorama_emissive.gdshader"
 const PORTAL_SHADER_PATH := "res://assets/shared/portal_ellipse.gdshader"
-const FLOOR_MATERIAL_PATH := "res://assets/shared/mat_pixel_floor.tres"
 
 static var _surface_material_cache: Dictionary = {}
 static var _prop_material_cache: Dictionary = {}
 static var _accent_material_cache: Dictionary = {}
 static var _emissive_material_cache: Dictionary = {}
+static var _palette_loaded := false
+static var _palette_rows: Array = []
+static var _biome_theme_map: Dictionary = {}
+static var _palette_tuning: Dictionary = {}
+static var _atlas_exists_cache: Dictionary = {}
+static var _warned_unknown_mats: Dictionary = {}
+static var _portal_material_cache: Dictionary = {}
 
 
 static func clear_material_caches() -> void:
@@ -71,6 +70,120 @@ static func clear_material_caches() -> void:
 	_prop_material_cache.clear()
 	_accent_material_cache.clear()
 	_emissive_material_cache.clear()
+
+
+static func set_authored_param(mat: ShaderMaterial, param: String, value: Variant) -> void:
+	mat.set_shader_parameter(param, value)
+	var authored: Array = mat.get_meta("authored_params", [])
+	if not authored.has(param):
+		authored.append(param)
+	mat.set_meta("authored_params", authored)
+
+
+static func _ensure_palettes_loaded() -> void:
+	if _palette_loaded:
+		return
+	_palette_loaded = true
+	var data := ContentLoader.load_json(PALETTE_JSON_PATH)
+	if data.is_empty():
+		push_warning("PixelDioramaStyle: failed to load %s; using fallback PALETTES" % PALETTE_JSON_PATH)
+		_palette_rows = _fallback_palette_rows()
+		_biome_theme_map = _fallback_biome_theme_map()
+		return
+	var palettes: Dictionary = data.get("palettes", {})
+	_palette_rows.clear()
+	for theme_id in THEME_IDS:
+		var entry: Dictionary = palettes.get(theme_id, {})
+		if entry.is_empty():
+			push_warning("PixelDioramaStyle: palette '%s' missing in palettes.json" % theme_id)
+			continue
+		_palette_rows.append(_palette_row_from_dict(entry))
+		if entry.has("tuning"):
+			_palette_tuning[theme_id] = entry.get("tuning", {})
+	_biome_theme_map = data.get("biome_theme_map", {})
+	if _palette_rows.size() != THEME_IDS.size():
+		push_warning("PixelDioramaStyle: palette row count mismatch; merging fallback rows")
+		_palette_rows = _merge_palette_rows(_palette_rows, _fallback_palette_rows())
+
+
+static func _palette_row_from_dict(entry: Dictionary) -> Array:
+	return [
+		Color.html(entry.get("floor_base", "#ffffff")),
+		Color.html(entry.get("floor_shadow", "#000000")),
+		Color.html(entry.get("wall_base", "#808080")),
+		Color.html(entry.get("wall_shadow", "#404040")),
+		Color.html(entry.get("accent", "#ffaa00")),
+		Color.html(entry.get("prop_wood", "#6b4a2c")),
+		Color.html(entry.get("prop_metal", "#808080")),
+		Color.html(entry.get("emissive", "#ffaa00")),
+	]
+
+
+static func _merge_palette_rows(primary: Array, fallback: Array) -> Array:
+	var merged: Array = []
+	for i in fallback.size():
+		if i < primary.size() and (primary[i] as Array).size() >= 8:
+			merged.append(primary[i])
+		else:
+			merged.append(fallback[i])
+	return merged
+
+
+static func _theme_id(theme: PaletteTheme) -> String:
+	var idx := clampi(int(theme), 0, THEME_IDS.size() - 1)
+	return THEME_IDS[idx]
+
+
+static func _atlas_path_for_theme(theme: PaletteTheme) -> String:
+	return "res://assets/textures/%s/tiles.png" % _theme_id(theme)
+
+
+static func _load_tile_atlas(path: String) -> Texture2D:
+	var image := Image.load_from_file(ProjectSettings.globalize_path(path))
+	if image == null:
+		return null
+	return ImageTexture.create_from_image(image)
+
+
+static func _theme_has_tile_atlas(theme: PaletteTheme) -> bool:
+	var theme_id := _theme_id(theme)
+	if _atlas_exists_cache.has(theme_id):
+		return bool(_atlas_exists_cache[theme_id])
+	var path := _atlas_path_for_theme(theme)
+	var global_path := ProjectSettings.globalize_path(path)
+	var exists := FileAccess.file_exists(global_path)
+	_atlas_exists_cache[theme_id] = exists
+	return exists
+
+
+static func _apply_palette_tuning(mat: ShaderMaterial, theme: PaletteTheme) -> void:
+	var tuning: Variant = _palette_tuning.get(_theme_id(theme), {})
+	if not tuning is Dictionary:
+		return
+	for key in (tuning as Dictionary).keys():
+		set_authored_param(mat, str(key), (tuning as Dictionary)[key])
+
+
+static func _resolve_structure_material(mats: Dictionary, mat_key: String) -> Material:
+	if mats.has(mat_key):
+		return mats[mat_key]
+	if not _warned_unknown_mats.has(mat_key):
+		_warned_unknown_mats[mat_key] = true
+		push_warning("PixelDioramaStyle.build_structure: unknown mat '%s', using wall" % mat_key)
+	return mats.get("wall", mats.values()[0])
+
+
+static func _vec3_from_array(raw: Variant, fallback := Vector3.ZERO) -> Vector3:
+	if raw is Array and (raw as Array).size() >= 3:
+		var arr: Array = raw
+		return Vector3(float(arr[0]), float(arr[1]), float(arr[2]))
+	return fallback
+
+
+static func _deg_to_rad_array(raw: Variant) -> Vector3:
+	var deg := _vec3_from_array(raw)
+	return Vector3(deg_to_rad(deg.x), deg_to_rad(deg.y), deg_to_rad(deg.z))
+	_portal_material_cache.clear()
 
 
 const PALETTES: Array = [
@@ -198,50 +311,55 @@ const PALETTES: Array = [
 ]
 
 
+static func _fallback_biome_theme_map() -> Dictionary:
+	return {
+		BiomeRegistry.BIOME_CRYSTAL: "crystal",
+		BiomeRegistry.BIOME_SWAMP: "swamp",
+		BiomeRegistry.BIOME_FROZEN: "frozen",
+		BiomeRegistry.BIOME_CATHEDRAL: "cathedral",
+		BiomeRegistry.BIOME_VAULT: "vault",
+		BiomeRegistry.BIOME_PRISM: "prism",
+		BiomeRegistry.BIOME_MIRE: "mire",
+		BiomeRegistry.BIOME_HOLLOW: "hollow",
+		BiomeRegistry.BIOME_UMBRAL: "umbral",
+	}
+
+
+static func _fallback_palette_rows() -> Array:
+	return PALETTES.duplicate(true)
+
+
 static func theme_from_biome(biome_id: String) -> PaletteTheme:
-	match biome_id:
-		BiomeRegistry.BIOME_CRYSTAL:
-			return PaletteTheme.CRYSTAL
-		BiomeRegistry.BIOME_SWAMP:
-			return PaletteTheme.SWAMP
-		BiomeRegistry.BIOME_FROZEN:
-			return PaletteTheme.FROZEN
-		BiomeRegistry.BIOME_CATHEDRAL:
-			return PaletteTheme.CATHEDRAL
-		BiomeRegistry.BIOME_VAULT:
-			return PaletteTheme.VAULT
-		BiomeRegistry.BIOME_PRISM:
-			return PaletteTheme.PRISM
-		BiomeRegistry.BIOME_MIRE:
-			return PaletteTheme.MIRE
-		BiomeRegistry.BIOME_HOLLOW:
-			return PaletteTheme.HOLLOW
-		BiomeRegistry.BIOME_UMBRAL:
-			return PaletteTheme.UMBRAL
-		_:
-			return PaletteTheme.CASTLE
+	_ensure_palettes_loaded()
+	var theme_name: String = str(_biome_theme_map.get(biome_id, "castle"))
+	var idx := THEME_IDS.find(theme_name)
+	if idx < 0:
+		return PaletteTheme.CASTLE
+	return idx as PaletteTheme
 
 
 static func get_palette(theme: PaletteTheme) -> Array[Color]:
-	var idx := clampi(int(theme), 0, PALETTES.size() - 1)
+	_ensure_palettes_loaded()
+	var idx := clampi(int(theme), 0, _palette_rows.size() - 1)
 	if idx != int(theme):
 		push_warning(
 			"PixelStyle.get_palette: theme %d out of range, clamped to %d" % [int(theme), idx]
 		)
-	var row: Array = PALETTES[idx]
+	var row: Array = _palette_rows[idx]
 	var colors: Array[Color] = []
 	colors.assign(row)
 	return colors
 
 
 static func get_palette_color(theme: PaletteTheme, slot: PaletteSlot) -> Color:
-	var idx := clampi(int(theme), 0, PALETTES.size() - 1)
+	_ensure_palettes_loaded()
+	var idx := clampi(int(theme), 0, _palette_rows.size() - 1)
 	if idx != int(theme):
 		push_warning(
 			"PixelStyle.get_palette_color: theme %d out of range, clamped to %d"
 			% [int(theme), idx]
 		)
-	return PALETTES[idx][slot] as Color
+	return _palette_rows[idx][slot] as Color
 
 
 static func _surface_material_key(
@@ -257,6 +375,7 @@ static func _configure_shader_material(mat: ShaderMaterial) -> void:
 static func make_surface_material(
 	surface: SurfaceKind, theme: PaletteTheme, pattern_strength: float = -1.0
 ) -> Material:
+	var authored_pattern := pattern_strength >= 0.0
 	if pattern_strength < 0.0:
 		pattern_strength = PixelDioramaSettings.pattern_strength
 	var key := _surface_material_key(theme, surface, pattern_strength)
@@ -291,7 +410,22 @@ static func make_surface_material(
 			mat.set_shader_parameter("color_accent", palette[PaletteSlot.EMISSIVE])
 			mat.set_shader_parameter("surface_kind", 3)
 
-	mat.set_shader_parameter("pattern_strength", pattern_strength)
+	if authored_pattern:
+		set_authored_param(mat, "pattern_strength", pattern_strength)
+	else:
+		mat.set_shader_parameter("pattern_strength", pattern_strength)
+	_apply_palette_tuning(mat, theme)
+	if _theme_has_tile_atlas(theme) and surface in [SurfaceKind.FLOOR, SurfaceKind.WALL]:
+		var atlas_tex := _load_tile_atlas(_atlas_path_for_theme(theme))
+		if atlas_tex:
+			mat.set_shader_parameter("tile_atlas", atlas_tex)
+			set_authored_param(mat, "use_tile_atlas", true)
+			set_authored_param(mat, "tile_row", 0 if surface == SurfaceKind.FLOOR else 1)
+			set_authored_param(mat, "tile_variants", 4)
+		else:
+			set_authored_param(mat, "use_tile_atlas", false)
+	else:
+		set_authored_param(mat, "use_tile_atlas", false)
 	_surface_material_cache[key] = mat
 	return PixelDioramaSettings.track(mat)
 
@@ -304,10 +438,19 @@ static func make_wall_material(theme: PaletteTheme) -> Material:
 	return make_surface_material(SurfaceKind.WALL, theme)
 
 
+static func make_ceiling_material(theme: PaletteTheme) -> Material:
+	var palette := get_palette(theme)
+	var mat := make_surface_material(SurfaceKind.WALL, theme).duplicate() as ShaderMaterial
+	set_authored_param(mat, "color_base", palette[PaletteSlot.WALL_BASE].darkened(0.12))
+	set_authored_param(mat, "color_shadow", palette[PaletteSlot.WALL_SHADOW].darkened(0.08))
+	set_authored_param(mat, "color_accent", palette[PaletteSlot.ACCENT].darkened(0.12))
+	return PixelDioramaSettings.track(mat)
+
+
 static func make_character_material(theme: PaletteTheme) -> Material:
 	var mat := make_surface_material(SurfaceKind.WALL, theme, 0.0).duplicate() as ShaderMaterial
-	mat.set_shader_parameter("pattern_strength", 0.0)
-	mat.set_shader_parameter("use_vertex_color", true)
+	set_authored_param(mat, "pattern_strength", 0.0)
+	set_authored_param(mat, "use_vertex_color", true)
 	return mat
 
 
@@ -316,17 +459,13 @@ static func make_prop_material(theme: PaletteTheme, use_metal: bool = false) -> 
 	if _prop_material_cache.has(key):
 		return _prop_material_cache[key] as Material
 
-	var mat: ShaderMaterial
+	var mat := make_surface_material(SurfaceKind.PROP, theme, 0.28).duplicate() as ShaderMaterial
 	if use_metal:
-		mat = make_surface_material(SurfaceKind.PROP, theme, 0.28).duplicate() as ShaderMaterial
 		var palette := get_palette(theme)
-		mat.set_shader_parameter("color_base", palette[PaletteSlot.PROP_METAL])
-		mat.set_shader_parameter("color_shadow", palette[PaletteSlot.WALL_SHADOW])
-	else:
-		mat = make_surface_material(SurfaceKind.PROP, theme, 0.28) as ShaderMaterial
-
+		set_authored_param(mat, "color_base", palette[PaletteSlot.PROP_METAL])
+		set_authored_param(mat, "color_shadow", palette[PaletteSlot.WALL_SHADOW])
 	_prop_material_cache[key] = mat
-	return mat
+	return PixelDioramaSettings.track(mat)
 
 
 static func make_accent_material(theme: PaletteTheme) -> Material:
@@ -342,20 +481,23 @@ static func make_hub_materials() -> Dictionary:
 	var theme := PaletteTheme.HUB
 	var palette := get_palette(theme)
 	var floor_alt := make_surface_material(SurfaceKind.FLOOR, theme).duplicate() as ShaderMaterial
-	floor_alt.set_shader_parameter("color_base", palette[PaletteSlot.FLOOR_SHADOW])
-	floor_alt.set_shader_parameter("color_shadow", palette[PaletteSlot.WALL_SHADOW])
+	set_authored_param(floor_alt, "color_base", palette[PaletteSlot.FLOOR_SHADOW])
+	set_authored_param(floor_alt, "color_shadow", palette[PaletteSlot.WALL_SHADOW])
+	set_authored_param(floor_alt, "pattern_strength", 0.34)
 	var accent_mat := (
 		make_surface_material(SurfaceKind.PROP, theme, 0.38).duplicate() as ShaderMaterial
 	)
-	accent_mat.set_shader_parameter("color_base", palette[PaletteSlot.ACCENT])
-	accent_mat.set_shader_parameter("color_shadow", palette[PaletteSlot.ACCENT].darkened(0.22))
-	accent_mat.set_shader_parameter("color_accent", palette[PaletteSlot.EMISSIVE])
+	set_authored_param(accent_mat, "color_base", palette[PaletteSlot.ACCENT])
+	set_authored_param(accent_mat, "color_shadow", palette[PaletteSlot.ACCENT].darkened(0.22))
+	set_authored_param(accent_mat, "color_accent", palette[PaletteSlot.EMISSIVE])
+	set_authored_param(accent_mat, "pattern_strength", 0.42)
 	var paper_mat := (
 		make_surface_material(SurfaceKind.PROP, theme, 0.18).duplicate() as ShaderMaterial
 	)
-	paper_mat.set_shader_parameter("color_base", Color(0.92, 0.86, 0.68))
-	paper_mat.set_shader_parameter("color_shadow", Color(0.78, 0.72, 0.55))
-	paper_mat.set_shader_parameter("color_accent", palette[PaletteSlot.ACCENT])
+	set_authored_param(paper_mat, "color_base", Color(0.92, 0.86, 0.68))
+	set_authored_param(paper_mat, "color_shadow", Color(0.78, 0.72, 0.55))
+	set_authored_param(paper_mat, "color_accent", palette[PaletteSlot.ACCENT])
+	set_authored_param(paper_mat, "pattern_strength", 0.18)
 	return {
 		"floor": make_floor_material(theme),
 		"floor_alt": floor_alt,
@@ -402,25 +544,6 @@ static func make_emissive_material(theme: PaletteTheme, energy: float = 1.6) -> 
 	return mat
 
 
-static func load_floor_material_template() -> ShaderMaterial:
-	return load(FLOOR_MATERIAL_PATH).duplicate() as ShaderMaterial
-
-
-static func apply_theme_to_blockout(blockout: CastleBlockout, biome_id: String) -> void:
-	if blockout == null:
-		return
-	var theme := theme_from_biome(biome_id)
-	blockout.floor_material = make_floor_material(theme)
-	blockout.wall_material = make_wall_material(theme)
-	blockout.accent_material = make_accent_material(theme)
-
-
-static func load_material(path: String) -> Material:
-	return load(path) as Material
-
-
-## Ad-hoc coloured surface for props and NPCs that are not palette driven.
-## Routed through the pixel shaders so nothing falls back to smooth PBR shading.
 static func make_material(color: Color, emission: Color = Color.BLACK) -> Material:
 	if emission != Color.BLACK:
 		return make_glow_material(color.lightened(0.1), color.darkened(0.25), 1.15)
@@ -434,7 +557,8 @@ static func make_material(color: Color, emission: Color = Color.BLACK) -> Materi
 	mat.set_shader_parameter("color_accent", color.lightened(0.2))
 	mat.set_shader_parameter("surface_kind", 2)
 	PixelDioramaSettings.apply_to_shader_material(mat)
-	mat.set_shader_parameter("pattern_strength", PixelDioramaSettings.pattern_strength * 0.45)
+	var prop_pattern := PixelDioramaSettings.pattern_strength * 0.45
+	set_authored_param(mat, "pattern_strength", prop_pattern)
 	_prop_material_cache[key] = PixelDioramaSettings.track(mat)
 	return mat
 
@@ -451,7 +575,7 @@ static func add_box(
 	mesh_inst.position = position
 	if material:
 		mesh_inst.material_override = material
-	if OS.has_environment("AUMBRYE_STD_MAT"):
+	if PixelDioramaSettings._debug_flat_cached:
 		var std := StandardMaterial3D.new()
 		std.albedo_color = Color(0.62, 0.56, 0.5)
 		mesh_inst.material_override = std
@@ -459,53 +583,80 @@ static func add_box(
 	return mesh_inst
 
 
-static func make_portal_material(theme: String) -> ShaderMaterial:
+static func make_portal_material(portal_id: String) -> ShaderMaterial:
+	if _portal_material_cache.has(portal_id):
+		return _portal_material_cache[portal_id] as ShaderMaterial
+
+	var def := PortalCatalog.resolve(portal_id)
+	var interior: Dictionary = def.get("interior", {})
 	var mat := ShaderMaterial.new()
 	mat.shader = load(PORTAL_SHADER_PATH) as Shader
-	match theme:
-		"castle":
-			mat.set_shader_parameter("color_inner", Color(0.55, 0.78, 1.0, 1.0))
-			mat.set_shader_parameter("color_outer", Color(0.16, 0.28, 0.62, 1.0))
-			mat.set_shader_parameter("color_accent", Color(0.9, 0.96, 1.0, 1.0))
-			mat.set_shader_parameter("ellipse_x", 0.72)
-			mat.set_shader_parameter("ellipse_y", 1.0)
-		"training":
-			mat.set_shader_parameter("color_inner", Color(1.0, 0.62, 0.18, 1.0))
-			mat.set_shader_parameter("color_outer", Color(0.58, 0.22, 0.05, 1.0))
-			mat.set_shader_parameter("color_accent", Color(1.0, 0.82, 0.42, 1.0))
-			mat.set_shader_parameter("ellipse_x", 0.7)
-			mat.set_shader_parameter("ellipse_y", 0.98)
-			mat.set_shader_parameter("spin_speed", 1.2)
-		"skies":
-			mat.set_shader_parameter("color_inner", Color(0.98, 0.42, 0.12, 1.0))
-			mat.set_shader_parameter("color_outer", Color(0.42, 0.08, 0.06, 1.0))
-			mat.set_shader_parameter("color_accent", Color(1.0, 0.72, 0.22, 1.0))
-			mat.set_shader_parameter("ellipse_x", 0.74)
-			mat.set_shader_parameter("ellipse_y", 1.02)
-			mat.set_shader_parameter("spin_speed", 2.1)
-		"cathedral":
-			mat.set_shader_parameter("color_inner", Color(1.0, 0.96, 0.78, 1.0))
-			mat.set_shader_parameter("color_outer", Color(0.82, 0.72, 0.28, 1.0))
-			mat.set_shader_parameter("color_accent", Color(1.0, 1.0, 0.92, 1.0))
-			mat.set_shader_parameter("ellipse_x", 0.7)
-			mat.set_shader_parameter("ellipse_y", 0.96)
-			mat.set_shader_parameter("spin_speed", 0.9)
-		_:  # umbral and fallback
-			mat.set_shader_parameter("color_inner", Color(0.62, 0.38, 0.92, 1.0))
-			mat.set_shader_parameter("color_outer", Color(0.22, 0.1, 0.38, 1.0))
-			mat.set_shader_parameter("color_accent", Color(0.85, 0.55, 1.0, 1.0))
-			mat.set_shader_parameter("ellipse_x", 0.68)
-			mat.set_shader_parameter("ellipse_y", 0.95)
-			mat.set_shader_parameter("spin_speed", 1.8)
-	return PixelDioramaSettings.track(mat)
+	mat.set_shader_parameter("color_inner", _color_from_hex(str(interior.get("color_inner", "#8cc7ff"))))
+	mat.set_shader_parameter("color_outer", _color_from_hex(str(interior.get("color_outer", "#29479e"))))
+	mat.set_shader_parameter("color_accent", _color_from_hex(str(interior.get("color_accent", "#e6f5ff"))))
+	var ellipse: Array = interior.get("ellipse", [0.72, 1.0])
+	mat.set_shader_parameter("ellipse_x", float(ellipse[0]))
+	mat.set_shader_parameter("ellipse_y", float(ellipse[1]))
+	mat.set_shader_parameter("spin_speed", float(interior.get("spin_speed", 2.2)))
+	mat.set_shader_parameter("spiral_tightness", float(interior.get("spiral_tightness", 5.5)))
+	PixelDioramaSettings.apply_to_shader_material(mat)
+	_portal_material_cache[portal_id] = PixelDioramaSettings.track(mat)
+	return _portal_material_cache[portal_id] as ShaderMaterial
+
+
+static func make_portal_layer_material(portal_id: String, spin_scale: float, alpha: float) -> ShaderMaterial:
+	var mat := make_portal_material(portal_id).duplicate() as ShaderMaterial
+	var base_spin := float(mat.get_shader_parameter("spin_speed"))
+	mat.set_shader_parameter("spin_speed", base_spin * spin_scale)
+	mat.set_shader_parameter("layer_alpha", alpha)
+	return mat
 
 
 static func add_portal_interior(
 	parent: Node3D,
 	size: Vector2,
 	position: Vector3,
-	theme: String,
+	portal_id: String,
+	depth: float = 0.35,
 	node_name: String = "PortalInterior"
+) -> Node3D:
+	var root := Node3D.new()
+	root.name = node_name
+	root.position = position
+	parent.add_child(root)
+
+	if depth <= 0.0:
+		_add_portal_quad(root, size, Vector3.ZERO, portal_id, 1.0, 1.0)
+		return root
+
+	var layers := [
+		{"z": 0.0, "scale": 1.0, "spin": 1.0, "alpha": 1.0},
+		{"z": -depth * 0.5, "scale": 0.92, "spin": 0.72, "alpha": 0.7},
+		{"z": -depth, "scale": 0.84, "spin": 0.5, "alpha": 0.45},
+	]
+	for i in layers.size():
+		var layer: Dictionary = layers[i]
+		var layer_size := size * float(layer["scale"])
+		_add_portal_quad(
+			root,
+			layer_size,
+			Vector3(0.0, 0.0, float(layer["z"])),
+			portal_id,
+			float(layer["spin"]),
+			float(layer["alpha"]),
+			"Layer%d" % i
+		)
+	return root
+
+
+static func _add_portal_quad(
+	parent: Node3D,
+	size: Vector2,
+	position: Vector3,
+	portal_id: String,
+	spin_scale: float,
+	alpha: float,
+	node_name: String = "Quad"
 ) -> MeshInstance3D:
 	var mesh_inst := MeshInstance3D.new()
 	mesh_inst.name = node_name
@@ -513,9 +664,255 @@ static func add_portal_interior(
 	quad.size = size
 	mesh_inst.mesh = quad
 	mesh_inst.position = position
-	mesh_inst.material_override = make_portal_material(theme)
+	mesh_inst.material_override = make_portal_layer_material(portal_id, spin_scale, alpha)
 	parent.add_child(mesh_inst)
 	return mesh_inst
+
+
+## Builds a complete portal: archway, layered interior, glow light, and accents.
+## `def` is a portal definition from `PortalCatalog.resolve()`.
+static func build_portal(
+	parent: Node3D,
+	def: Dictionary,
+	scale: float = 1.0,
+	hub_mats: Dictionary = {}
+) -> Node3D:
+	var existing := parent.get_node_or_null("DioramaVisuals")
+	if existing:
+		existing.queue_free()
+
+	hide_legacy_meshes(parent)
+	var visuals := Node3D.new()
+	visuals.name = "DioramaVisuals"
+	visuals.scale = Vector3(scale, scale, scale)
+	parent.add_child(visuals)
+
+	var portal_id := str(def.get("_id", PortalCatalog.FALLBACK_ID))
+	var mats := _portal_hub_mats(def, hub_mats)
+	var frame_mat: Material = _portal_frame_material(mats, def)
+	var accent_mat: Material = mats.get("accent", frame_mat)
+	var floor_mat: Material = mats.get("floor", accent_mat)
+	var interior: Dictionary = def.get("interior", {})
+	var depth := float(interior.get("depth", 0.35))
+	var o := Vector3.ZERO
+
+	add_box(visuals, Vector3(4.2, 0.22, 2.2), o + Vector3(0.0, 0.11, 0.0), frame_mat, "Base")
+	add_box(visuals, Vector3(3.6, 0.16, 1.8), o + Vector3(0.0, 0.28, 0.0), accent_mat, "Step")
+	add_box(visuals, Vector3(0.62, 3.6, 0.62), o + Vector3(-1.75, 1.8, 0.0), frame_mat, "PillarL")
+	add_box(visuals, Vector3(0.62, 3.6, 0.62), o + Vector3(1.75, 1.8, 0.0), frame_mat, "PillarR")
+	add_box(visuals, Vector3(0.92, 0.38, 0.92), o + Vector3(-1.75, 3.72, 0.0), accent_mat, "CapitalL")
+	add_box(visuals, Vector3(0.92, 0.38, 0.92), o + Vector3(1.75, 3.72, 0.0), accent_mat, "CapitalR")
+	add_box(visuals, Vector3(4.2, 0.55, 0.72), o + Vector3(0.0, 3.95, 0.0), frame_mat, "Lintel")
+	add_box(visuals, Vector3(3.0, 0.22, 0.22), o + Vector3(0.0, 3.2, 0.0), accent_mat, "ArchKeystone")
+	add_box(visuals, Vector3(0.35, 2.8, 0.35), o + Vector3(-1.2, 1.6, 0.28), frame_mat, "ButtressL")
+	add_box(visuals, Vector3(0.35, 2.8, 0.35), o + Vector3(1.2, 1.6, 0.28), frame_mat, "ButtressR")
+	add_portal_interior(visuals, Vector2(2.6, 2.2), o + Vector3(0.0, 1.55, 0.04), portal_id, depth)
+	add_box(visuals, Vector3(3.8, 0.16, 1.9), o + Vector3(0.0, 0.08, 0.0), floor_mat, "Pad")
+
+	_add_portal_accents(visuals, mats, def)
+
+	var glow: Dictionary = def.get("glow", {})
+	var portal_light := OmniLight3D.new()
+	portal_light.name = "PortalGlow"
+	portal_light.light_color = _color_from_hex(str(glow.get("color", "#d9b873")))
+	portal_light.light_energy = float(glow.get("energy", 1.0))
+	portal_light.omni_range = float(glow.get("range", 4.0))
+	portal_light.position = Vector3(0.0, 1.7, 0.75)
+	visuals.add_child(portal_light)
+
+	var sfx: Dictionary = def.get("sfx", {})
+	var ambient_key := str(sfx.get("ambient", ""))
+	if ambient_key != "":
+		AudioDirector.attach_loop_emitter(visuals, ambient_key, 6.0)
+
+	return visuals
+
+
+static func build_merchant_stall(parent: Node3D, biome_id: String) -> Node3D:
+	var existing := parent.get_node_or_null("DioramaVisuals")
+	if existing:
+		existing.queue_free()
+	var legacy := parent.get_node_or_null("DioramaVisual")
+	if legacy:
+		legacy.queue_free()
+
+	var theme := theme_from_biome(biome_id)
+	var wall := make_wall_material(theme)
+	var wood := make_prop_material(theme, false)
+	var accent := make_accent_material(theme)
+	var roof := make_prop_material(theme, true)
+
+	var visuals := Node3D.new()
+	visuals.name = "DioramaVisuals"
+	parent.add_child(visuals)
+
+	add_box(visuals, Vector3(2.8, 0.9, 1.2), Vector3(0.0, 0.45, 0.0), wall, "Counter")
+	add_box(visuals, Vector3(3.2, 0.12, 1.6), Vector3(0.0, 0.06, 0.0), wood, "FloorPad")
+	add_box(visuals, Vector3(3.4, 0.08, 0.35), Vector3(0.0, 1.15, -0.35), roof, "Awning")
+	add_box(visuals, Vector3(0.45, 0.45, 0.45), Vector3(-0.95, 0.22, 0.55), wood, "CrateL")
+	add_box(visuals, Vector3(0.45, 0.45, 0.45), Vector3(0.95, 0.22, 0.55), wood, "CrateR")
+	add_box(visuals, Vector3(0.35, 0.55, 0.08), Vector3(0.0, 1.35, -0.35), accent, "AwningTrim")
+	return visuals
+
+
+static func _portal_hub_mats(def: Dictionary, hub_mats: Dictionary) -> Dictionary:
+	if not hub_mats.is_empty():
+		return hub_mats
+	var theme := _palette_theme_from_string(str(def.get("palette_theme", "castle")))
+	return {
+		"wall": make_wall_material(theme),
+		"accent": make_accent_material(theme),
+		"floor": make_floor_material(theme),
+	}
+
+
+static func _portal_frame_material(mats: Dictionary, def: Dictionary) -> Material:
+	var frame_key := str(def.get("frame_material", ""))
+	if frame_key != "" and mats.has(frame_key):
+		return mats[frame_key]
+	if mats.has("wall"):
+		return mats.wall
+	return mats.get("accent", make_accent_material(PaletteTheme.CASTLE))
+
+
+static func _palette_theme_from_string(name: String) -> PaletteTheme:
+	match name:
+		"crystal":
+			return PaletteTheme.CRYSTAL
+		"swamp":
+			return PaletteTheme.SWAMP
+		"frozen":
+			return PaletteTheme.FROZEN
+		"cathedral":
+			return PaletteTheme.CATHEDRAL
+		"vault":
+			return PaletteTheme.VAULT
+		"prism":
+			return PaletteTheme.PRISM
+		"mire":
+			return PaletteTheme.MIRE
+		"hollow":
+			return PaletteTheme.HOLLOW
+		"umbral":
+			return PaletteTheme.UMBRAL
+		"hub":
+			return PaletteTheme.HUB
+		_:
+			return PaletteTheme.CASTLE
+
+
+static func color_from_hex(hex: String) -> Color:
+	var cleaned := hex.strip_edges()
+	if cleaned.begins_with("#"):
+		cleaned = cleaned.substr(1)
+	if cleaned.length() != 6:
+		return Color.WHITE
+	return Color(
+		cleaned.substr(0, 2).hex_to_int() / 255.0,
+		cleaned.substr(2, 2).hex_to_int() / 255.0,
+		cleaned.substr(4, 2).hex_to_int() / 255.0,
+		1.0
+	)
+
+
+static func _color_from_hex(hex: String) -> Color:
+	return color_from_hex(hex)
+
+
+static func _add_portal_accents(visuals: Node3D, mats: Dictionary, def: Dictionary) -> void:
+	var accents: Array = def.get("accents", [])
+	for accent_id in accents:
+		match str(accent_id):
+			"torch_pair":
+				add_box(
+					visuals, Vector3(0.2, 3.0, 0.2), Vector3(-1.55, 1.6, 0.15), mats.accent, "TorchL"
+				)
+				add_box(
+					visuals, Vector3(0.2, 3.0, 0.2), Vector3(1.55, 1.6, 0.15), mats.accent, "TorchR"
+				)
+			"rune_ring":
+				var umbral_mat: Material = mats.get("umbral", mats.accent)
+				add_box(
+					visuals, Vector3(3.2, 0.18, 0.18), Vector3(0.0, 0.2, 0.85), umbral_mat, "RuneRing"
+				)
+			"training_torches":
+				var training_mat: Material = mats.get("training", mats.accent)
+				add_box(
+					visuals,
+					Vector3(0.22, 0.22, 0.22),
+					Vector3(-1.0, 0.22, 0.75),
+					training_mat,
+					"EmberL"
+				)
+				add_box(
+					visuals,
+					Vector3(0.22, 0.22, 0.22),
+					Vector3(1.0, 0.22, 0.75),
+					training_mat,
+					"EmberR"
+				)
+				add_box(
+					visuals,
+					Vector3(0.18, 2.8, 0.18),
+					Vector3(-1.55, 1.6, 0.12),
+					training_mat,
+					"TorchL"
+				)
+				add_box(
+					visuals, Vector3(0.18, 2.8, 0.18), Vector3(1.55, 1.6, 0.12), training_mat, "TorchR"
+				)
+			"dragon_horns":
+				var dragon_mat: Material = mats.get("dragon", mats.accent)
+				add_box(
+					visuals, Vector3(0.28, 0.55, 0.28), Vector3(-0.55, 3.72, 0.0), dragon_mat, "HornL"
+				)
+				add_box(
+					visuals, Vector3(0.28, 0.55, 0.28), Vector3(0.55, 3.72, 0.0), dragon_mat, "HornR"
+				)
+				add_box(
+					visuals, Vector3(0.85, 0.12, 0.55), Vector3(-1.55, 1.9, 0.18), dragon_mat, "WingL"
+				)
+				add_box(
+					visuals, Vector3(0.85, 0.12, 0.55), Vector3(1.55, 1.9, 0.18), dragon_mat, "WingR"
+				)
+				var forge_mat: Material = mats.get("forge", dragon_mat)
+				add_box(
+					visuals,
+					Vector3(0.35, 0.35, 0.35),
+					Vector3(0.0, 0.28, 0.82),
+					forge_mat,
+					"DragonEye"
+				)
+			"cathedral_trim":
+				var cathedral_mat: Material = mats.get("cathedral", mats.accent)
+				add_box(
+					visuals,
+					Vector3(0.22, 0.75, 0.18),
+					Vector3(0.0, 3.55, 0.12),
+					cathedral_mat,
+					"CrossV"
+				)
+				add_box(
+					visuals,
+					Vector3(0.65, 0.18, 0.18),
+					Vector3(0.0, 3.82, 0.12),
+					cathedral_mat,
+					"CrossH"
+				)
+				add_box(
+					visuals,
+					Vector3(0.2, 2.9, 0.2),
+					Vector3(-1.55, 1.6, 0.12),
+					cathedral_mat,
+					"PillarTrimL"
+				)
+				add_box(
+					visuals,
+					Vector3(0.2, 2.9, 0.2),
+					Vector3(1.55, 1.6, 0.12),
+					cathedral_mat,
+					"PillarTrimR"
+				)
 
 
 static func add_collision_box(
@@ -552,54 +949,70 @@ static func add_portal_column(
 	)
 
 
-static func dress_portal_architecture(
-	visuals: Node3D, mats: Dictionary, theme: String, origin: Vector3 = Vector3.ZERO
-) -> void:
-	var frame_mat: Material = mats.wall if mats.has("wall") else mats.accent
-	var accent_mat: Material = mats.accent
-	var floor_mat: Material = mats.floor if mats.has("floor") else accent_mat
-	var theme_mat: Material = mats.get(theme, accent_mat)
-	var o := origin
-	add_box(visuals, Vector3(4.2, 0.22, 2.2), o + Vector3(0.0, 0.11, 0.0), frame_mat, "Base")
-	add_box(visuals, Vector3(3.6, 0.16, 1.8), o + Vector3(0.0, 0.28, 0.0), accent_mat, "Step")
-	add_portal_column(visuals, o + Vector3(-1.75, 1.8, 0.0), frame_mat, accent_mat, 3.6, 0.62, "L")
-	add_portal_column(visuals, o + Vector3(1.75, 1.8, 0.0), frame_mat, accent_mat, 3.6, 0.62, "R")
-	add_box(visuals, Vector3(4.2, 0.55, 0.72), o + Vector3(0.0, 3.95, 0.0), frame_mat, "Lintel")
-	add_box(
-		visuals, Vector3(3.0, 0.22, 0.22), o + Vector3(0.0, 3.2, 0.0), accent_mat, "ArchKeystone"
-	)
-	add_box(visuals, Vector3(0.35, 2.8, 0.35), o + Vector3(-1.2, 1.6, 0.28), frame_mat, "ButtressL")
-	add_box(visuals, Vector3(0.35, 2.8, 0.35), o + Vector3(1.2, 1.6, 0.28), frame_mat, "ButtressR")
-	add_portal_interior(visuals, Vector2(2.6, 2.2), o + Vector3(0.0, 1.55, 0.04), theme)
-	add_box(visuals, Vector3(3.8, 0.16, 1.9), o + Vector3(0.0, 0.08, 0.0), floor_mat, "Pad")
-	if theme == "training":
-		add_box(
-			visuals, Vector3(0.22, 0.22, 0.22), o + Vector3(-1.0, 0.22, 0.75), theme_mat, "EmberL"
-		)
-		add_box(
-			visuals, Vector3(0.22, 0.22, 0.22), o + Vector3(1.0, 0.22, 0.75), theme_mat, "EmberR"
-		)
-		add_box(
-			visuals, Vector3(0.18, 2.8, 0.18), o + Vector3(-1.55, 1.6, 0.12), theme_mat, "TorchL"
-		)
-		add_box(
-			visuals, Vector3(0.18, 2.8, 0.18), o + Vector3(1.55, 1.6, 0.12), theme_mat, "TorchR"
-		)
+static func build_structure(
+	parent: Node3D, def_name: String, mats: Dictionary, overrides: Dictionary = {}
+) -> Node3D:
+	var def := ContentLoader.load_json("%s/%s.json" % [STRUCTURE_DIR, def_name])
+	var params: Dictionary = def.get("params", {}).duplicate()
+	for key in overrides.keys():
+		if key != "facing_yaw":
+			params[key] = overrides[key]
+	var facing_yaw := float(overrides.get("facing_yaw", 0.0))
+	var generator := str(def.get("generator", ""))
+	if generator == "hub_tent":
+		return _build_hub_tent(parent, mats, params, facing_yaw, def)
+	return _build_structure_parts(parent, mats, def.get("parts", []), facing_yaw)
 
 
-static func add_hub_tent(
-	landmark: Node3D,
-	mats: Dictionary,
-	width: float,
-	depth: float,
-	wall_height: float,
-	entrance_width: float,
-	roof_peak: float = 1.2,
-	facing_yaw: float = 0.0
+static func _build_structure_parts(
+	parent: Node3D, mats: Dictionary, parts: Array, facing_yaw: float
 ) -> Node3D:
 	var visuals := Node3D.new()
 	visuals.name = "DioramaVisuals"
-	landmark.add_child(visuals)
+	parent.add_child(visuals)
+	visuals.rotation.y = facing_yaw
+	for raw in parts:
+		if not raw is Dictionary:
+			continue
+		var part: Dictionary = raw
+		var mat := _resolve_structure_material(mats, str(part.get("mat", "wall")))
+		var size := _vec3_from_array(part.get("size"), Vector3.ONE)
+		var pos := _vec3_from_array(part.get("pos"))
+		var rot := _deg_to_rad_array(part.get("rot_deg", null))
+		var node_name := str(part.get("name", ""))
+		var kind := str(part.get("kind", "box"))
+		if kind == "column":
+			add_portal_column(
+				visuals,
+				pos,
+				mat,
+				mats.get("accent", mat),
+				size.y,
+				size.x,
+				node_name
+			)
+		else:
+			var mesh := add_box(visuals, size, pos, mat, node_name)
+			mesh.rotation = rot
+	return visuals
+
+
+static func _build_hub_tent(
+	parent: Node3D,
+	mats: Dictionary,
+	params: Dictionary,
+	facing_yaw: float,
+	def: Dictionary
+) -> Node3D:
+	var width := float(params.get("width", 5.0))
+	var depth := float(params.get("depth", 4.2))
+	var wall_height := float(params.get("wall_height", 2.2))
+	var entrance_width := float(params.get("entrance_width", 1.8))
+	var roof_peak := float(params.get("roof_peak", 1.2))
+
+	var visuals := Node3D.new()
+	visuals.name = "DioramaVisuals"
+	parent.add_child(visuals)
 	visuals.rotation.y = facing_yaw
 
 	var fabric_mat: Material = mats.wall
@@ -612,20 +1025,18 @@ static func add_hub_tent(
 	var lip_z := half_d - wall_thickness * 0.5
 	var floor_alt: Material = mats.get("floor_alt", mats.get("floor", pole_mat))
 
-	add_box(
-		visuals,
-		Vector3(width + 0.55, 0.22, depth + 0.55),
-		Vector3(0.0, 0.11, 0.0),
-		floor_alt,
-		"Plinth"
-	)
-	add_box(
-		visuals,
-		Vector3(width + 0.38, 0.16, depth + 0.38),
-		Vector3(0.0, 0.28, 0.0),
-		roof_mat,
-		"PlinthStep"
-	)
+	for raw in def.get("parts", []):
+		if not raw is Dictionary:
+			continue
+		var part: Dictionary = raw
+		var mat := _resolve_structure_material(mats, str(part.get("mat", "wall")))
+		add_box(
+			visuals,
+			_vec3_from_array(part.get("size"), Vector3.ONE),
+			_vec3_from_array(part.get("pos")),
+			mat,
+			str(part.get("name", ""))
+		)
 
 	var column_h := wall_height
 	var corner_positions := [
@@ -818,11 +1229,11 @@ static func add_hub_tent(
 		"TentPadTrim"
 	)
 
-	var collision_root := landmark.get_node_or_null("TentCollision") as StaticBody3D
+	var collision_root := parent.get_node_or_null("TentCollision") as StaticBody3D
 	if collision_root == null:
 		collision_root = StaticBody3D.new()
 		collision_root.name = "TentCollision"
-		landmark.add_child(collision_root)
+		parent.add_child(collision_root)
 	else:
 		for child in collision_root.get_children():
 			child.queue_free()
@@ -863,6 +1274,31 @@ static func add_hub_tent(
 		)
 
 	return visuals
+
+
+static func add_hub_tent(
+	landmark: Node3D,
+	mats: Dictionary,
+	width: float,
+	depth: float,
+	wall_height: float,
+	entrance_width: float,
+	roof_peak: float = 1.2,
+	facing_yaw: float = 0.0
+) -> Node3D:
+	return build_structure(
+		landmark,
+		"hub_tent",
+		mats,
+		{
+			"width": width,
+			"depth": depth,
+			"wall_height": wall_height,
+			"entrance_width": entrance_width,
+			"roof_peak": roof_peak,
+			"facing_yaw": facing_yaw,
+		}
+	)
 
 
 static func add_hub_fountain(parent: Node3D, mats: Dictionary, position: Vector3) -> Node3D:
@@ -977,25 +1413,11 @@ static func _make_fountain_particle_mesh(radius: float) -> SphereMesh:
 
 static func _make_fountain_particle_material(
 	color: Color, emission_energy: float
-) -> StandardMaterial3D:
-	var mat := StandardMaterial3D.new()
-	var quantized := Color(
-		floorf(color.r * 6.0 + 0.5) / 6.0,
-		floorf(color.g * 6.0 + 0.5) / 6.0,
-		floorf(color.b * 6.0 + 0.5) / 6.0,
-		color.a
-	)
-	mat.albedo_color = quantized
-	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
-	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	mat.specular_mode = BaseMaterial3D.SPECULAR_DISABLED
-	mat.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
-	mat.emission_enabled = true
-	mat.emission = quantized
-	mat.emission_energy_multiplier = emission_energy
-	mat.texture_filter = PixelDioramaSettings.texture_filter_mode()
-	return mat
+) -> ShaderMaterial:
+	var mat := make_glow_material(color, color.darkened(0.18), emission_energy)
+	set_authored_param(mat, "color_core", color)
+	set_authored_param(mat, "color_edge", color.darkened(0.18))
+	return PixelDioramaSettings.track(mat)
 
 
 static func add_cylinder(
@@ -1023,13 +1445,22 @@ static func add_cylinder(
 
 
 static func hide_legacy_meshes(root: Node) -> void:
-	## Capsule/blockout meshes only — never recurse into authored diorama rigs.
+	## Hide only meshes explicitly marked as legacy blockout in the scene file.
 	const SKIP_SUBTREES := ["DioramaVisual", "DioramaVisuals", "Viewmodel"]
+	const LEGACY_NAMES := [
+		"Floor",
+		"NorthWall",
+		"EastWall",
+		"WestWall",
+		"SouthWall",
+		"Body",
+	]
 	for child in root.get_children():
 		if child.name in SKIP_SUBTREES:
 			continue
 		if child is MeshInstance3D:
-			child.visible = false
+			if child.has_meta(&"legacy_blockout") or child.name in LEGACY_NAMES:
+				child.visible = false
 		elif (
 			child.name != "InteractArea"
 			and child.name != "PortalLabel"

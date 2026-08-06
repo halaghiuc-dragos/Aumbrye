@@ -1,4 +1,4 @@
-# Room graph procgen
+﻿# Room graph procgen
 
 The two-phase GDScript dungeon generator. Phase 1 builds an abstract grid room graph (`RoomGraphGenerator`); Phase 2 assigns semantic ids and templates (`RoomGraphAssigner`) and resolves world positions by summing template half-extents (`RoomGraphGeometry`). `DungeonProcgen.generate()` orchestrates both and emits `dungeon-definition.v2.json` definitions. This is the live generator for every castle and endless floor.
 
@@ -11,7 +11,7 @@ The two-phase GDScript dungeon generator. Phase 1 builds an abstract grid room g
 | `apps/game/client/scripts/dungeon/procgen/room_graph.gd` | Graph container with O(1) `_index` lookup |
 | `apps/game/client/scripts/dungeon/procgen/room_graph_slot.gd` | One grid cell: `slot_type`, `door_mask`, `graph_distance`, `is_filler`, `height_level` |
 | `apps/game/client/scripts/dungeon/procgen/room_graph_config.gd` | Tunables derived from the biome JSON |
-| `apps/game/client/scripts/dungeon/procgen/room_graph_assigner.gd` | Phase 2a: slot → `semantic_id` + `template_id` + `type` (RNG tie-break) |
+| `apps/game/client/scripts/dungeon/procgen/room_graph_assigner.gd` | Phase 2a: slot â†’ `semantic_id` + `template_id` + `type` (RNG tie-break) |
 | `apps/game/client/scripts/dungeon/procgen/room_graph_geometry.gd` | Phase 2b: world positions, yaws, edges, door-topology check |
 | `apps/game/client/scripts/dungeon/procgen/room_graph_paths.gd` | Door-mask adjacency, BFS, `connected_component` |
 | `apps/game/client/scripts/dungeon/procgen/room_graph_debug.gd` | ASCII dump when `config.debug_ascii` |
@@ -32,38 +32,38 @@ The two-phase GDScript dungeon generator. Phase 1 builds an abstract grid room g
 | `max_secrets` | `biome.maxSecrets` (default 2) | 2 |
 | `max_height_level` | `biome.maxHeightLevel` (default 0) | 0 |
 
-### Phase 1 — `RoomGraphGenerator.generate()`
+### Phase 1 â€” `RoomGraphGenerator.generate()`
 
 `generate(config, run_seed)` (`room_graph_generator.gd:35`) loops `config.max_generation_attempts` times. On total failure returns `{ok: false, reason}` (`:44`); no fallback graph.
 
 `_try_generate_once()` order (`:52`):
 
 1. START slot via `graph.add_slot`
-2. `_grow_critical_path` — optional `height_level` step every 4 path cells when `max_height_level > 0`
+2. `_grow_critical_path` â€” optional `height_level` step every 4 path cells when `max_height_level > 0`
 3. `_grow_branches`
 4. `_fill_bounding_box` when below `min_rooms`
-5. `_connect_fillers` — walk edge to nearest grid neighbor; orphan fillers removed
-6. `_apply_door_connections` — walk edges + loop budget (fillers included)
-7. `_assign_special_rooms` — reservation pass: boss → stairs → treasure → shop (35%) → obstacle
+5. `_connect_fillers` â€” walk edge to nearest grid neighbor; orphan fillers removed
+6. `_apply_door_connections` â€” walk edges + loop budget (fillers included)
+7. `_assign_special_rooms` â€” reservation pass: boss â†’ stairs â†’ treasure â†’ shop (35%) â†’ obstacle
 8. `_place_secret_attachments`
 9. `_apply_secret_door_masks`
-10. `_validate_graph` — door-component reachability, required roles, sealed-room check, height gap ≤ 1
+10. `_validate_graph` â€” door-component reachability, required roles, sealed-room check, height gap â‰¤ 1
 
 `graph_distance` is populated from `RoomGraphPaths.bfs_distances` during special-room assignment.
 
-### Phase 2a — `RoomGraphAssigner.assign()`
+### Phase 2a â€” `RoomGraphAssigner.assign()`
 
-`assign(biome, graph, rng)` (`room_graph_assigner.gd:9`) maps slots including `SHOP` → `type: "shop"` and `OBSTACLE` → `type: "obstacle"`. Template substitution uses `RoomTemplateCatalog.pick_template_for_doors(..., rng)` for RNG tie-break among valid kits.
+`assign(biome, graph, rng)` (`room_graph_assigner.gd:9`) maps slots including `SHOP` â†’ `type: "shop"` and `OBSTACLE` â†’ `type: "obstacle"`. Template substitution uses `RoomTemplateCatalog.pick_template_for_doors(..., rng)` for RNG tie-break among valid kits.
 
-### Phase 2b — `RoomGraphGeometry`
+### Phase 2b â€” `RoomGraphGeometry`
 
-`build_edges()` emits `door`, `corridor`, `shortcut`, and `secret` kinds only — no `one_way`. `build_rooms()` writes `heightLevel` on each room from `slot.height_level`.
+`build_edges()` emits `door`, `corridor`, `shortcut`, and `secret` kinds only â€” no `one_way`. `build_rooms()` writes `heightLevel` on each room from `slot.height_level`.
 
 ### DungeonDefinition assembly
 
 `DungeonProcgen.generate()` emits `schemaVersion: 2` with `floorIndex`, `isFinalFloor`, `roomContent`, `locks`, `puzzles`, `branchPreviews`, `landmarks`, and `placements.cover`.
 
-`_generate_final_floor()` reads `biome.finalFloor.bossId` and builds a three-room entrance→arena→boss layout.
+`_generate_final_floor()` reads `biome.finalFloor.bossId` and builds a three-room entranceâ†’arenaâ†’boss layout.
 
 ### Schema conformance
 
@@ -99,7 +99,7 @@ GDScript output validates against `content/schemas/dungeon-definition.v2.json`. 
 
 ## Related
 
-- Improvement plan: [`../actual_improvements/room-graph-procgen.md`](../actual_improvements/room-graph-procgen.md)
+- Improvement plan: [`../actual_improvements/room-graph-procgen.md`](../actual_improvements/room-graph-procgen.md) - **FINISHED**
 - [`local-procgen.md`](local-procgen.md)
 - [`room-templates.md`](room-templates.md)
 - [`room-content.md`](room-content.md)

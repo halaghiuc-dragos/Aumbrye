@@ -14,6 +14,8 @@ signal swing_frame
 signal footstep_frame
 signal heal_gulp_frame
 signal heal_commit_frame
+signal hitbox_open_frame
+signal hitbox_close_frame
 
 enum Priority {
 	LOCOMOTION,
@@ -30,16 +32,16 @@ const AnimLibrary := preload("res://scripts/art/characters/diorama_anim_library.
 const LOCOMOTION_BLEND := 0.12
 const ACTION_BLEND := 0.06
 const LIBRARY_NAME := &""
-
-## Locomotion clip speed is scaled by how fast the body is actually moving, so
-## footfalls stay planted instead of skating.
-const WALK_REFERENCE_SPEED := 4.5
-const RUN_REFERENCE_SPEED := 7.0
+const RUNTIME_LIBRARY_NAME := &"runtime"
+const ATTACK_CACHE_LIMIT := 24
+const SPEED_SCALE_MIN := 0.5
+const SPEED_SCALE_MAX := 2.2
 
 var _visual: Node3D
 var _player: AnimationPlayer
 var _additive_player: AnimationPlayer
 var _library: AnimationLibrary
+var _runtime_library: AnimationLibrary
 var _additive_library: AnimationLibrary
 var _rest_pose: Dictionary = {}
 var _events_path := ""
@@ -54,6 +56,9 @@ var _desired_locomotion: StringName = &"idle"
 var _blocking := false
 var _dead := false
 var _compiled_attacks: Dictionary = {}
+var _attack_cache_order: Array = []
+var _missing_clips: Dictionary = {}
+var _hitbox_signals_warned := false
 var _mirrors: Array[DioramaAnimController] = []
 
 
@@ -63,6 +68,14 @@ var _mirrors: Array[DioramaAnimController] = []
 func add_mirror(other: DioramaAnimController) -> void:
 	if other != null and other != self and not _mirrors.has(other):
 		_mirrors.append(other)
+
+
+func remove_mirror(other: DioramaAnimController) -> void:
+	if other == null:
+		return
+	var idx := _mirrors.find(other)
+	if idx >= 0:
+		_mirrors.remove_at(idx)
 
 
 func bind(visual: Node3D) -> void:
@@ -88,6 +101,12 @@ func _finish_bind() -> void:
 		return
 	_rest_pose = CharacterSkin.collect_rest_pose(visual)
 	if _rest_pose.is_empty():
+		push_warning(
+			"DioramaAnimController[%s]: no rest pose from visual %s; bind will retry"
+			% [_profile, visual.name]
+		)
+		if not visual.tree_entered.is_connected(_on_bind_visual_tree_entered):
+			visual.tree_entered.connect(_on_bind_visual_tree_entered, CONNECT_ONE_SHOT)
 		return
 	_events_path = _resolve_events_path(visual)
 	var loaded := AnimLibrary.build_library(_rest_pose, _events_path, _profile)
@@ -95,12 +114,17 @@ func _finish_bind() -> void:
 		_library = loaded.duplicate(true)
 	else:
 		_library = loaded
+	_runtime_library = AnimationLibrary.new()
+	_missing_clips.clear()
+	_attack_cache_order.clear()
+	_hitbox_signals_warned = false
 	_player = AnimationPlayer.new()
 	_player.name = "DioramaAnimPlayer"
 	visual.add_child(_player)
 	# Tracks are authored relative to the visual root (parent of this player).
 	_player.root_node = NodePath("..")
 	_player.add_animation_library(LIBRARY_NAME, _library)
+	_player.add_animation_library(RUNTIME_LIBRARY_NAME, _runtime_library)
 	_player.animation_finished.connect(_on_animation_finished)
 	_player.playback_default_blend_time = LOCOMOTION_BLEND
 	_setup_additive_player(visual)
@@ -111,6 +135,7 @@ func _finish_bind() -> void:
 	if _weapon_id != "":
 		CharacterSkin.attach_weapon(visual, _weapon_id, _theme)
 	_play(&"idle", LOCOMOTION_BLEND)
+	call_deferred("_check_hitbox_signal_listeners")
 
 
 func is_bound() -> bool:
@@ -122,6 +147,11 @@ func _resolve_events_path(visual: Node3D) -> String:
 		return ""
 	var path := visual.get_path_to(self)
 	if path.is_empty():
+		return ""
+	if visual.get_node_or_null(path) != self:
+		push_warning(
+			"DioramaAnimController: events path %s does not resolve back to self" % path
+		)
 		return ""
 	return String(path)
 
@@ -189,7 +219,7 @@ func set_theme(theme: int) -> void:
 
 
 func set_weapon(weapon_id: String, archetype: String = "") -> void:
-	for mirror in _mirrors:
+	for mirror in _live_mirrors():
 		mirror.set_weapon(weapon_id, archetype)
 	_weapon_id = weapon_id
 	_weapon_archetype = archetype
@@ -199,42 +229,66 @@ func set_weapon(weapon_id: String, archetype: String = "") -> void:
 
 
 func has_clip(clip: StringName) -> bool:
-	return _library != null and _library.has_animation(clip)
+	if _library != null and _library.has_animation(clip):
+		return true
+	if clip.begins_with(RUNTIME_LIBRARY_NAME):
+		var local_name := _clip_name_from_player_path(clip)
+		return _runtime_library != null and _runtime_library.has_animation(local_name)
+	return false
+
+
+func select_locomotion_clip(speed: float) -> StringName:
+	var clip := AnimLibrary.select_locomotion_clip(speed)
+	if clip == &"jog" and not has_clip(&"jog"):
+		clip = &"walk"
+	if clip != &"idle" and not has_clip(clip) and has_clip(&"walk"):
+		clip = &"walk"
+	return clip
 
 
 ## state: idle | walk | run | air. speed_ratio scales playback for walk/run.
 func request_locomotion(state: StringName, params: Dictionary = {}) -> void:
-	for mirror in _mirrors:
+	for mirror in _live_mirrors():
 		mirror.request_locomotion(state, params)
 	if not is_bound():
 		return
 	_desired_locomotion = state
 	if _priority > Priority.LOCOMOTION:
 		return
-	var speed := 1.0
-	match state:
-		&"walk", &"walk_l", &"walk_r", &"walk_b", &"block_walk":
-			speed = clampf(
-				float(params.get("speed", WALK_REFERENCE_SPEED)) / WALK_REFERENCE_SPEED, 0.45, 1.6
-			)
-		&"run", &"run_l", &"run_r", &"run_b":
-			speed = clampf(
-				float(params.get("speed", RUN_REFERENCE_SPEED)) / RUN_REFERENCE_SPEED, 0.6, 1.5
-			)
-	_player.speed_scale = speed
+	_player.speed_scale = _locomotion_speed_scale(state, params)
 	if _player.current_animation != String(state):
 		_play(state, LOCOMOTION_BLEND)
+
+
+func _locomotion_speed_scale(state: StringName, params: Dictionary) -> float:
+	var meta := AnimLibrary.clip_meta(state)
+	var stride_m := float(meta.get("stride_m", 0.0))
+	if stride_m <= 0.0:
+		return 1.0
+	var travel := float(params.get("speed", 0.0))
+	var length := float(meta.get("length", 0.0))
+	if travel <= 0.0 or length <= 0.0:
+		return 1.0
+	var raw := travel * length / stride_m
+	if raw < SPEED_SCALE_MIN or raw > SPEED_SCALE_MAX:
+		_report_clamp(state, raw)
+	return clampf(raw, SPEED_SCALE_MIN, SPEED_SCALE_MAX)
 
 
 func play_dash(direction: StringName) -> void:
 	var clip: StringName = direction
 	if not has_clip(clip):
+		if clip != &"dash_f":
+			_report_missing(clip, "dash")
 		clip = &"dash_f"
+	if not has_clip(clip):
+		_report_missing(clip, "dash_fallback")
+		return
 	_start_action(clip, Priority.DASH)
 
 
 func set_blocking(holding: bool) -> void:
-	for mirror in _mirrors:
+	for mirror in _live_mirrors():
 		mirror.set_blocking(holding)
 	if not is_bound() or _blocking == holding:
 		return
@@ -268,8 +322,12 @@ func play_guard_break() -> void:
 
 
 func play_flinch(direction: Vector3 = Vector3.ZERO) -> void:
-	if _priority >= Priority.STAGGER:
+	if _priority > Priority.STAGGER:
 		return
+	if _priority == Priority.STAGGER and is_bound():
+		var current := _player.current_animation
+		if current != "flinch" and not current.begins_with("flinch_"):
+			return
 	var clip := _flinch_clip_for(direction)
 	_start_action(clip, Priority.STAGGER)
 
@@ -303,11 +361,12 @@ func play_stagger(duration: float = 0.0, direction: Vector3 = Vector3.ZERO) -> v
 	var clip := _stagger_clip_for(direction)
 	if not has_clip(clip):
 		clip = &"stagger"
-	_start_action(clip, Priority.STAGGER)
-	if duration > 0.05 and is_bound():
-		var clip_length := _player.current_animation_length
+	var scale := 1.0
+	if duration > 0.05 and _library != null and _library.has_animation(clip):
+		var clip_length := _library.get_animation(clip).length
 		if clip_length > 0.01:
-			_player.speed_scale = clip_length / duration
+			scale = clampf(clip_length / duration, 0.4, 2.5)
+	_begin_action(clip, Priority.STAGGER, scale)
 
 
 func _stagger_clip_for(world_dir: Vector3) -> StringName:
@@ -333,7 +392,7 @@ func _stagger_clip_for(world_dir: Vector3) -> StringName:
 
 
 func play_heal(duration: float = 1.35) -> void:
-	for mirror in _mirrors:
+	for mirror in _live_mirrors():
 		if mirror.has_method("play_heal"):
 			mirror.call("play_heal", duration)
 	_blocking = false
@@ -353,16 +412,18 @@ func play_death() -> void:
 
 
 func revive() -> void:
-	for mirror in _mirrors:
+	for mirror in _live_mirrors():
 		mirror.revive()
 	if not is_bound():
 		_dead = false
 		_priority = Priority.LOCOMOTION
+		reset_combo()
 		return
 	_dead = false
 	_blocking = false
 	_priority = Priority.LOCOMOTION
 	_desired_locomotion = &"idle"
+	reset_combo()
 	_player.speed_scale = 1.0
 	if has_clip(&"RESET"):
 		_play(&"RESET", 0.1)
@@ -383,11 +444,11 @@ func play_attack(
 		if _attack_clips.is_empty():
 			_refresh_attack_clips()
 		if _attack_clips.is_empty():
+			_report_missing(&"attack", "combo")
 			return
 		clip = _attack_clips[_combo_index % _attack_clips.size()]
 		_combo_index += 1
-	# Mirrors get the resolved clip so both rigs swing the same way.
-	for mirror in _mirrors:
+	for mirror in _live_mirrors():
 		mirror.play_attack(startup, active, recovery, clip)
 	var runtime_name := _ensure_attack_clip(clip, startup, active, recovery)
 	if runtime_name == &"":
@@ -414,48 +475,109 @@ func _refresh_attack_clips() -> void:
 func _ensure_attack_clip(
 	clip: StringName, startup: float, active: float, recovery: float
 ) -> StringName:
-	# Cache per rounded timing set; weapon data only offers a handful of values.
 	var key := (
 		"%s_%d_%d_%d"
 		% [clip, roundi(startup * 100.0), roundi(active * 100.0), roundi(recovery * 100.0)]
 	)
 	if _compiled_attacks.has(key):
+		var existing_idx := _attack_cache_order.find(key)
+		if existing_idx >= 0:
+			_attack_cache_order.remove_at(existing_idx)
+		_attack_cache_order.append(key)
 		return _compiled_attacks[key]
+	while _attack_cache_order.size() >= ATTACK_CACHE_LIMIT:
+		var evict_key: String = _attack_cache_order[0]
+		_attack_cache_order.remove_at(0)
+		var evict_path: StringName = _compiled_attacks.get(evict_key, &"")
+		_compiled_attacks.erase(evict_key)
+		var evict_name := _clip_name_from_player_path(evict_path)
+		if evict_name != &"" and _runtime_library.has_animation(evict_name):
+			_runtime_library.remove_animation(evict_name)
 	var anim := AnimLibrary.build_attack(clip, _rest_pose, _events_path, startup, active, recovery)
 	if anim == null:
 		return &""
 	var runtime_name := StringName(key)
-	_library.add_animation(runtime_name, anim)
-	_compiled_attacks[key] = runtime_name
-	return runtime_name
+	_runtime_library.add_animation(runtime_name, anim)
+	var player_path := StringName("%s/%s" % [RUNTIME_LIBRARY_NAME, key])
+	_compiled_attacks[key] = player_path
+	_attack_cache_order.append(key)
+	return player_path
 
 
 func _start_action(clip: StringName, priority: int) -> void:
+	_begin_action(clip, priority, 1.0)
+
+
+func _begin_action(clip: StringName, priority: int, scale: float) -> void:
 	if not is_bound():
 		return
 	if priority < _priority:
 		return
 	if not has_clip(clip):
+		_report_missing(clip, "action")
 		return
 	_priority = priority
-	_player.speed_scale = 1.0
-	_play(clip, ACTION_BLEND)
+	for mirror in _live_mirrors():
+		mirror.mirror_apply(priority, _desired_locomotion, clip, ACTION_BLEND, scale)
+	_player.speed_scale = scale
+	_play_local(clip, ACTION_BLEND)
 
 
 func _play(clip: StringName, blend: float) -> void:
-	for mirror in _mirrors:
-		mirror._priority = _priority
-		mirror._desired_locomotion = _desired_locomotion
-		mirror._play(clip, blend)
+	var scale := _player.speed_scale if _player else 1.0
+	for mirror in _live_mirrors():
+		mirror.mirror_apply(_priority, _desired_locomotion, clip, blend, scale)
+	_play_local(clip, blend)
+
+
+func _play_local(clip: StringName, blend: float) -> void:
 	if not has_clip(clip):
+		_report_missing(clip, "play")
 		return
-	# Never restart a loop that is already running, or idle would stutter every
-	# time a one-shot resolved back to it.
+	if _player == null:
+		return
+	var local_name := _clip_name_from_player_path(clip)
+	var library := _library_for_clip(clip)
 	if _player.current_animation == String(clip) and _player.is_playing():
-		var running := _library.get_animation(clip)
-		if running and running.loop_mode != Animation.LOOP_NONE:
-			return
+		var running := library.get_animation(local_name)
+		if running:
+			if running.loop_mode != Animation.LOOP_NONE:
+				return
+			_player.seek(0.0, true)
 	_player.play(clip, blend)
+
+
+func mirror_apply(
+	priority: int, locomotion: StringName, clip: StringName, blend: float, scale: float
+) -> void:
+	_priority = priority
+	_desired_locomotion = locomotion
+	if _player:
+		_player.speed_scale = scale
+	_play_local(clip, blend)
+
+
+func _live_mirrors() -> Array[DioramaAnimController]:
+	var out: Array[DioramaAnimController] = []
+	for mirror in _mirrors:
+		if mirror != null and is_instance_valid(mirror):
+			out.append(mirror)
+	if out.size() != _mirrors.size():
+		_mirrors = out
+	return out
+
+
+func _library_for_clip(clip: StringName) -> AnimationLibrary:
+	if clip.begins_with(RUNTIME_LIBRARY_NAME):
+		return _runtime_library
+	return _library
+
+
+func _clip_name_from_player_path(clip: StringName) -> StringName:
+	var text := String(clip)
+	if "/" in text:
+		return StringName(text.split("/")[-1])
+	return clip
 
 
 func _resume_locomotion() -> void:
@@ -477,11 +599,39 @@ func _on_animation_finished(anim_name: StringName) -> void:
 	if _dead:
 		return
 	var name_text := String(anim_name)
+	if "/" in name_text:
+		name_text = name_text.split("/")[-1]
 	if name_text == "block_start" or name_text == "block_hit":
 		return
-	if name_text.begins_with("block_hold") or name_text == "block_walk":
+	if name_text.begins_with("block_"):
 		return
 	_resume_locomotion()
+
+
+func _report_missing(clip: StringName, context: String) -> void:
+	if _missing_clips.has(clip):
+		return
+	_missing_clips[clip] = true
+	push_warning(
+		"DioramaAnimController[%s]: clip '%s' missing (%s)" % [_profile, clip, context]
+	)
+
+
+func _report_clamp(clip: StringName, raw_scale: float) -> void:
+	push_warning(
+		"DioramaAnimController[%s]: locomotion '%s' speed_scale %.2f clamped to [%.1f, %.1f]"
+		% [_profile, clip, raw_scale, SPEED_SCALE_MIN, SPEED_SCALE_MAX]
+	)
+
+
+func _check_hitbox_signal_listeners() -> void:
+	if _hitbox_signals_warned:
+		return
+	_hitbox_signals_warned = true
+	if _events_path.is_empty():
+		return
+	if hitbox_open_frame.get_connections().is_empty() and hitbox_close_frame.get_connections().is_empty():
+		push_warning("DioramaAnimController[%s]: hitbox signals have no listeners" % _profile)
 
 
 ## Called from AnimationPlayer method tracks. See DioramaAnimLibrary markers.
@@ -494,21 +644,11 @@ func anim_footstep() -> void:
 
 
 func anim_hitbox_on() -> void:
-	var body := get_parent() as CharacterBody3D
-	if body == null:
-		return
-	var weapon := body.get_node_or_null("WeaponController")
-	if weapon and weapon.has_method("enable_hitbox_from_anim"):
-		weapon.call("enable_hitbox_from_anim")
+	hitbox_open_frame.emit()
 
 
 func anim_hitbox_off() -> void:
-	var body := get_parent() as CharacterBody3D
-	if body == null:
-		return
-	var weapon := body.get_node_or_null("WeaponController")
-	if weapon and weapon.has_method("disable_hitbox_from_anim"):
-		weapon.call("disable_hitbox_from_anim")
+	hitbox_close_frame.emit()
 
 
 func anim_heal_gulp() -> void:
@@ -520,11 +660,12 @@ func anim_heal_commit() -> void:
 
 
 func set_speed_scale(scale: float) -> void:
+	var clamped := maxf(0.01, scale)
 	if _player:
-		_player.speed_scale = maxf(0.01, scale)
-	for mirror in _mirrors:
+		_player.speed_scale = clamped
+	for mirror in _live_mirrors():
 		if mirror._player:
-			mirror._player.speed_scale = maxf(0.01, scale)
+			mirror._player.speed_scale = clamped
 
 
 func get_weapon_mount() -> Node3D:
@@ -545,6 +686,7 @@ func _apply_rest_pose() -> void:
 
 
 func _teardown() -> void:
+	_mirrors = _live_mirrors()
 	if _additive_player and is_instance_valid(_additive_player):
 		_additive_player.queue_free()
 	_additive_player = null
@@ -553,7 +695,11 @@ func _teardown() -> void:
 		_player.queue_free()
 	_player = null
 	_library = null
+	_runtime_library = null
 	_compiled_attacks.clear()
+	_attack_cache_order.clear()
+	_missing_clips.clear()
+	AnimLibrary.clear_attack_cache()
 	_rest_pose.clear()
 	_blocking = false
 	_dead = false

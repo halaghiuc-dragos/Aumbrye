@@ -29,6 +29,7 @@ static func build(camera: Camera3D, theme: int) -> Node3D:
 
 	var holder := Node3D.new()
 	holder.name = NODE_NAME
+	holder.set_meta(&"owned_materials", true)
 	camera.add_child(holder)
 
 	var view_root := Node3D.new()
@@ -96,6 +97,8 @@ static func _apply_materials(node: Node, mats: Dictionary) -> void:
 
 
 static func remove(camera: Camera3D) -> void:
+	if camera == null:
+		return
 	var existing := camera.get_node_or_null(NODE_NAME)
 	if existing:
 		camera.remove_child(existing)
@@ -120,6 +123,6 @@ static func _materials(theme: int) -> Dictionary:
 		"color_shadow", palette[PixelStyle.PaletteSlot.ACCENT].darkened(0.25)
 	)
 	return {
-		"body": PixelStyle.make_wall_material(theme),
+		"body": PixelStyle.make_wall_material(theme).duplicate() as ShaderMaterial,
 		"accent": accent,
 	}

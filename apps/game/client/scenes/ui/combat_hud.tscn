@@ -1,0 +1,289 @@
+[gd_scene load_steps=7 format=3 uid="uid://combat_hud_scene"]
+
+[ext_resource type="Script" path="res://scripts/ui/combat_hud.gd" id="1_hud"]
+[ext_resource type="Script" path="res://scripts/ui/minimap.gd" id="2_minimap"]
+[ext_resource type="PackedScene" path="res://scenes/ui/status_pip.tscn" id="3_pip"]
+[ext_resource type="PackedScene" path="res://scenes/ui/quest_tracker_ui.tscn" id="4_quest"]
+[ext_resource type="Texture2D" path="res://assets/ui/hud_reticle.png" id="5_reticle"]
+[ext_resource type="Texture2D" path="res://assets/ui/hud_objective.png" id="6_objective"]
+
+[node name="CombatHUD" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+script = ExtResource("1_hud")
+
+[node name="ResourcePanel" type="MarginContainer" parent="."]
+layout_mode = 1
+anchors_preset = 0
+offset_left = 20.0
+offset_top = 20.0
+offset_right = 300.0
+offset_bottom = 132.0
+theme_override_constants/margin_left = 0
+theme_override_constants/margin_top = 0
+theme_override_constants/margin_right = 0
+theme_override_constants/margin_bottom = 0
+
+[node name="VBox" type="VBoxContainer" parent="ResourcePanel"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="HealthBar" type="ProgressBar" parent="ResourcePanel/VBox"]
+custom_minimum_size = Vector2(280, 22)
+layout_mode = 2
+max_value = 100.0
+value = 100.0
+show_percentage = false
+
+[node name="StaminaBar" type="ProgressBar" parent="ResourcePanel/VBox"]
+custom_minimum_size = Vector2(280, 16)
+layout_mode = 2
+max_value = 100.0
+value = 100.0
+show_percentage = false
+
+[node name="ManaBar" type="ProgressBar" parent="ResourcePanel/VBox"]
+custom_minimum_size = Vector2(280, 16)
+layout_mode = 2
+max_value = 100.0
+value = 100.0
+show_percentage = false
+
+[node name="AttackBar" type="ProgressBar" parent="ResourcePanel/VBox"]
+visible = false
+custom_minimum_size = Vector2(280, 10)
+layout_mode = 2
+max_value = 1.0
+show_percentage = false
+
+[node name="XpBar" type="ProgressBar" parent="ResourcePanel/VBox"]
+custom_minimum_size = Vector2(280, 12)
+layout_mode = 2
+max_value = 1.0
+show_percentage = false
+
+[node name="LevelLabel" type="Label" parent="ResourcePanel/VBox"]
+theme_type_variation = "StatValue"
+layout_mode = 2
+
+[node name="StatusRow" type="HBoxContainer" parent="ResourcePanel/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="GuardIndicators" type="VBoxContainer" parent="."]
+layout_mode = 1
+anchors_preset = 7
+anchor_left = 0.5
+anchor_top = 1.0
+anchor_right = 0.5
+anchor_bottom = 1.0
+offset_left = -160.0
+offset_top = -140.0
+offset_right = 160.0
+offset_bottom = -80.0
+grow_horizontal = 2
+grow_vertical = 0
+theme_override_constants/separation = 4
+
+[node name="ParryLabel" type="Label" parent="GuardIndicators"]
+theme_type_variation = "BodyText"
+visible = false
+layout_mode = 2
+horizontal_alignment = 1
+
+[node name="ParryBar" type="ProgressBar" parent="GuardIndicators"]
+visible = false
+custom_minimum_size = Vector2(320, 14)
+layout_mode = 2
+max_value = 0.18
+step = 0.001
+show_percentage = false
+fill_mode = 1
+
+[node name="BlockBar" type="ProgressBar" parent="GuardIndicators"]
+visible = false
+custom_minimum_size = Vector2(320, 10)
+layout_mode = 2
+max_value = 9.99
+step = 0.001
+show_percentage = false
+fill_mode = 1
+
+[node name="LockReticle" type="Control" parent="."]
+visible = false
+layout_mode = 0
+offset_right = 24.0
+offset_bottom = 24.0
+mouse_filter = 2
+
+[node name="Reticle" type="TextureRect" parent="LockReticle"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+texture = ExtResource("5_reticle")
+texture_filter = 0
+expand_mode = 1
+stretch_mode = 5
+
+[node name="BossBar" type="VBoxContainer" parent="."]
+visible = false
+layout_mode = 1
+anchors_preset = 5
+anchor_left = 0.5
+anchor_right = 0.5
+offset_left = -210.0
+offset_top = 52.0
+offset_right = 210.0
+offset_bottom = 100.0
+grow_horizontal = 2
+theme_override_constants/separation = 6
+
+[node name="BossName" type="Label" parent="BossBar"]
+theme_type_variation = "BodyText"
+layout_mode = 2
+horizontal_alignment = 1
+
+[node name="BossHealthBar" type="ProgressBar" parent="BossBar"]
+custom_minimum_size = Vector2(420, 18)
+layout_mode = 2
+show_percentage = false
+
+[node name="BossPhaseRow" type="HBoxContainer" parent="BossBar"]
+layout_mode = 2
+alignment = 1
+theme_override_constants/separation = 6
+
+[node name="BranchBanner" type="Label" parent="."]
+theme_type_variation = "BodyText"
+visible = false
+layout_mode = 1
+anchors_preset = 10
+anchor_right = 1.0
+offset_top = 8.0
+offset_bottom = 36.0
+grow_horizontal = 2
+horizontal_alignment = 1
+
+[node name="ObjectiveMarker" type="TextureRect" parent="."]
+visible = false
+layout_mode = 0
+offset_right = 18.0
+offset_bottom = 18.0
+texture = ExtResource("6_objective")
+texture_filter = 0
+expand_mode = 1
+stretch_mode = 5
+
+[node name="MinimapAnchor" type="MarginContainer" parent="."]
+layout_mode = 1
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -160.0
+offset_top = 20.0
+offset_right = -20.0
+offset_bottom = 160.0
+grow_horizontal = 0
+theme_override_constants/margin_left = 0
+theme_override_constants/margin_top = 0
+theme_override_constants/margin_right = 0
+theme_override_constants/margin_bottom = 0
+
+[node name="Minimap" type="Control" parent="MinimapAnchor"]
+layout_mode = 2
+script = ExtResource("2_minimap")
+
+[node name="ControlsHint" type="HBoxContainer" parent="."]
+layout_mode = 1
+anchors_preset = 12
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_top = -32.0
+offset_bottom = -6.0
+grow_horizontal = 2
+grow_vertical = 0
+alignment = 1
+theme_override_constants/separation = 4
+
+[node name="QuestTrackerUI" parent="." instance=ExtResource("4_quest")]
+layout_mode = 1
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -280.0
+offset_top = 180.0
+offset_right = -20.0
+offset_bottom = 320.0
+grow_horizontal = 0
+
+[node name="WarningBanner" type="Label" parent="."]
+theme_type_variation = "BodyText"
+visible = false
+layout_mode = 1
+anchors_preset = 10
+anchor_right = 1.0
+offset_top = 44.0
+offset_bottom = 72.0
+grow_horizontal = 2
+horizontal_alignment = 1
+autowrap_mode = 3
+
+[node name="RespawnOutcomeOverlay" type="Control" parent="."]
+visible = false
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="Panel" type="PanelContainer" parent="RespawnOutcomeOverlay"]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -230.0
+offset_top = -110.0
+offset_right = 230.0
+offset_bottom = 110.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Margin" type="MarginContainer" parent="RespawnOutcomeOverlay/Panel"]
+layout_mode = 2
+theme_override_constants/margin_left = 16
+theme_override_constants/margin_top = 16
+theme_override_constants/margin_right = 16
+theme_override_constants/margin_bottom = 16
+
+[node name="VBox" type="VBoxContainer" parent="RespawnOutcomeOverlay/Panel/Margin"]
+layout_mode = 2
+
+[node name="Title" type="Label" parent="RespawnOutcomeOverlay/Panel/Margin/VBox"]
+theme_type_variation = "MenuTitle"
+layout_mode = 2
+text = "Echo Returned"
+horizontal_alignment = 1
+
+[node name="Body" type="Label" parent="RespawnOutcomeOverlay/Panel/Margin/VBox"]
+theme_type_variation = "BodyText"
+layout_mode = 2
+autowrap_mode = 3
+
+[node name="Hint" type="Label" parent="RespawnOutcomeOverlay/Panel/Margin/VBox"]
+theme_type_variation = "HintText"
+layout_mode = 2
+text = "Enter to dismiss"
+horizontal_alignment = 1

@@ -18,6 +18,10 @@
       "type": "array",
       "items": { "type": "string", "minLength": 1 }
     },
-    "perk": { "type": "string" }
+    "perk": { "type": "string" },
+    "iconPath": { "type": "string", "minLength": 1 },
+    "role": { "type": "string", "minLength": 1 },
+    "perkName": { "type": "string", "minLength": 1 },
+    "perkDescription": { "type": "string", "minLength": 1 }
   }
 }

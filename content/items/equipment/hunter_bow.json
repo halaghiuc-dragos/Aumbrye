@@ -11,5 +11,6 @@
   "description": "A reliable bow for ranged hunts.",
   "value": 38,
   "maxDurability": 85,
+  "unlock": { "flag": "hunter_bow" },
   "stats": { "damagePercent": 4 }
 }

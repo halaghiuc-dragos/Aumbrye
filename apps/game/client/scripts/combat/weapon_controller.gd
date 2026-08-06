@@ -98,6 +98,7 @@ func _ready() -> void:
 		dodge.dodge_started.connect(_on_dodge_started)
 	if dodge and dodge.has_signal("dodge_ended"):
 		dodge.dodge_ended.connect(_on_dodge_ended)
+	_connect_anim_hitbox_signals()
 	if hitbox_path:
 		_hitbox = get_node_or_null(hitbox_path) as Area3D
 		if _hitbox:
@@ -323,6 +324,16 @@ func get_attack_lunge_velocity() -> Vector3:
 	if forward.length_squared() < 0.01:
 		return Vector3.ZERO
 	return forward.normalized() * speed
+
+
+func _connect_anim_hitbox_signals() -> void:
+	var director := _body.get_node_or_null("AnimDirector") if _body else null
+	if director == null:
+		return
+	if director.has_signal("hitbox_open_frame"):
+		director.hitbox_open_frame.connect(enable_hitbox_from_anim)
+	if director.has_signal("hitbox_close_frame"):
+		director.hitbox_close_frame.connect(disable_hitbox_from_anim)
 
 
 func enable_hitbox_from_anim() -> void:

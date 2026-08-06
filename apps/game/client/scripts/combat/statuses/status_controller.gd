@@ -57,10 +57,12 @@ func apply_status(status_id: String, stacks: int = 1, duration_override: float =
 		var entry: Dictionary = _active[status_id]
 		entry["stacks"] = mini(int(entry.get("stacks", 1)) + stacks, max_stacks)
 		entry["remaining"] = maxf(float(entry.get("remaining", 0.0)), duration)
+		entry["duration"] = maxf(float(entry.get("duration", duration)), duration)
 	else:
 		_active[status_id] = {
 			"stacks": mini(stacks, max_stacks),
 			"remaining": duration,
+			"duration": duration,
 			"tick_timer": float(def.get("tickInterval", 1.0)),
 			"elapsed": 0.0,
 		}
@@ -83,6 +85,7 @@ func get_active_statuses() -> Array[Dictionary]:
 					"id": status_id,
 					"stacks": int(entry.get("stacks", 1)),
 					"remaining": float(entry.get("remaining", 0.0)),
+					"duration": float(entry.get("duration", 0.0)),
 				}
 			)
 		)

@@ -820,6 +820,80 @@ func get_loot_collected() -> Array[String]:
 	return _loot_collected.duplicate()
 
 
+func get_run_elapsed_seconds() -> float:
+	if _run_start_time <= 0.0:
+		return 0.0
+	return maxf(0.0, (Time.get_ticks_msec() / 1000.0) - _run_start_time)
+
+
+func get_run_mode_label() -> String:
+	if not _run_active:
+		return "hub"
+	match run_mode:
+		RM.MODE_CASTLE:
+			return "castle"
+		RM.MODE_WAVES:
+			return "waves"
+		RM.MODE_ENDLESS:
+			return "endless"
+		_:
+			return run_mode
+
+
+func get_current_objective() -> String:
+	if not _run_active:
+		return tr("PAUSE_OBJECTIVE_HUB")
+	match run_mode:
+		RM.MODE_WAVES:
+			return tr("PAUSE_OBJECTIVE_WAVES") % WavesRunService.current_wave
+		RM.MODE_CASTLE, RM.MODE_ENDLESS:
+			if _boss_defeated and _cleared_floors.has(current_floor):
+				return tr("PAUSE_OBJECTIVE_STAIRS")
+			if _boss_fight_active or not _boss_defeated:
+				return tr("PAUSE_OBJECTIVE_BOSS")
+			return tr("PAUSE_OBJECTIVE_EXPLORE")
+		_:
+			return tr("PAUSE_OBJECTIVE_EXPLORE")
+
+
+func get_abandon_stakes() -> Dictionary:
+	var item_count := _loot_collected.size()
+	var gold := 0
+	for item_id in _loot_collected:
+		gold += ItemCatalog.get_loot_value(str(item_id))
+	return {"items": item_count, "gold": gold, "floor": current_floor}
+
+
+func can_restart_current_floor() -> bool:
+	return (
+		_run_active
+		and run_mode == RM.MODE_CASTLE
+		and not _cleared_floors.has(current_floor)
+	)
+
+
+func restart_current_floor() -> void:
+	if not can_restart_current_floor():
+		return
+	_boss_defeated = false
+	_boss_fight_active = false
+	_boss_fight_damage_taken = false
+	floor_definitions.erase(current_floor)
+	DungeonBuilder.clear_floor_cache()
+	var definition := await _resolve_floor_definition(current_floor)
+	if definition.is_empty():
+		_emit_run_warning("Could not restart floor %d." % current_floor)
+		return
+	current_dungeon_definition = definition
+	_set_current_floor_cache(definition)
+	var root := get_tree().root
+	root.set_meta("dungeon_definition", definition.duplicate(true))
+	root.set_meta("run_snapshot", {"restartFloor": true, "currentFloor": current_floor})
+	_persist_active_run()
+	get_tree().paused = false
+	_goto_scene(CASTLE_RUN_SCENE)
+
+
 func is_run_active() -> bool:
 	return _run_active
 

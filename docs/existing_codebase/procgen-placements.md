@@ -1,4 +1,4 @@
-# Procgen placements
+﻿# Procgen placements
 
 The pass that fills a laid-out floor with enemies, chests, traps, cover pillars, the boss, and secret-room markers. It runs after `RoomGraphAssigner` and before `RoomContentAssigner`. Placement positions come from `RoomTemplateCatalog.KIND_SPECS` anchor data; loot is rolled from `biome.lootTables` via `ProcgenLootRoller`.
 
@@ -11,7 +11,7 @@ The pass that fills a laid-out floor with enemies, chests, traps, cover pillars,
 | `apps/game/client/scripts/dungeon/procgen/procgen_rng.gd` | Named deterministic RNG streams |
 | `apps/game/client/scripts/dungeon/procgen/procgen_biome_loader.gd` | Validated, cached biome JSON `fetch()` |
 | `apps/game/client/scripts/dungeon/procgen/room_template_catalog.gd` | Per-kind anchor positions (`anchors_for`, `anchor_inside_kind`) |
-| `apps/game/client/scripts/content/trap_catalog.gd` | Trap id → scene path via `content/traps/<id>.json` |
+| `apps/game/client/scripts/content/trap_catalog.gd` | Trap id â†’ scene path via `content/traps/<id>.json` |
 | `content/traps/*.json` | Trap scene paths for builder resolution |
 
 ## How it works
@@ -24,7 +24,7 @@ The pass that fills a laid-out floor with enemies, chests, traps, cover pillars,
 
 `_place_enemies()` (`procgen_placements.gd:55`):
 
-- Threat budget = `budgets.baseEnemyThreat` + `budgets.threatPerTier` × `(tier - 1)` + `player_level` × 5 (`:64-68`).
+- Threat budget = `budgets.baseEnemyThreat` + `budgets.threatPerTier` Ã— `(tier - 1)` + `player_level` Ã— 5 (`:64-68`).
 - Combat rooms sorted by numeric suffix of `semantic_id` (`:318-333`).
 - Per room, `max_per_room = clampi(1 + int(door_distance / 3) + int((tier - 1) / 2), 1, 4)` using `RoomGraphPaths.bfs_distances` (`:72-82`).
 - Position from `RoomTemplateCatalog.anchors_for(template_id, "enemy")[i % n]` per room (`:86-99`).
@@ -34,7 +34,7 @@ The pass that fills a laid-out floor with enemies, chests, traps, cover pillars,
 
 `_place_loot()` (`procgen_placements.gd:117`):
 
-- Chest contents from `ProcgenLootRoller.roll_chest(biome, role, tier, loot_rng)` with budget `baseLootValue + lootPerTier × (tier - 1)` (`procgen_loot_roller.gd:20-25`).
+- Chest contents from `ProcgenLootRoller.roll_chest(biome, role, tier, loot_rng)` with budget `baseLootValue + lootPerTier Ã— (tier - 1)` (`procgen_loot_roller.gd:20-25`).
 - Roles: `treasure_main` (treasure room), `secret_vault_<n>` (secret rooms), `<room>_side` (random combat, depth-scaled role), `<room>_armory` (loot-stream random combat room).
 - Chest offsets from `anchors_for(..., "chest")`; trap offsets from `"trap"` anchors.
 - Trap ids from weighted `biome.trapPool`; count `clampi(1 + int(tier / 2), 1, 4)` on off-critical-path combat rooms plus one corridor/stairs trap (`:228-265`).
@@ -42,7 +42,7 @@ The pass that fills a laid-out floor with enemies, chests, traps, cover pillars,
 
 ### Cover
 
-`_place_cover()` (`procgen_placements.gd:295`) places 2–3 cover bodies per combat room from `"cover"` anchors. `kind` alternates `pillar` (height 2.4) and `chokepoint` (height 3.6). `DungeonBuilder._place_cover` reads `size.y` from placement (`dungeon_builder.gd:420-444`).
+`_place_cover()` (`procgen_placements.gd:295`) places 2â€“3 cover bodies per combat room from `"cover"` anchors. `kind` alternates `pillar` (height 2.4) and `chokepoint` (height 3.6). `DungeonBuilder._place_cover` reads `size.y` from placement (`dungeon_builder.gd:420-444`).
 
 ### Budgets reported
 
@@ -50,11 +50,11 @@ The pass that fills a laid-out floor with enemies, chests, traps, cover pillars,
 
 ## Contracts
 
-- `placements.enemies[]`: `{roomId, enemyId, offset, sampleNavmesh}` — `dungeon_builder.gd`
-- `placements.loot[]`: `{roomId, chestId, offset, items: [{itemId, quantity}]}` — `dungeon_builder.gd`
-- `placements.traps[]`: `{roomId, trapId, offset, sampleNavmesh}` — resolved via `TrapCatalog`
+- `placements.enemies[]`: `{roomId, enemyId, offset, sampleNavmesh}` â€” `dungeon_builder.gd`
+- `placements.loot[]`: `{roomId, chestId, offset, items: [{itemId, quantity}]}` â€” `dungeon_builder.gd`
+- `placements.traps[]`: `{roomId, trapId, offset, sampleNavmesh}` â€” resolved via `TrapCatalog`
 - `placements.secrets[]`: `{roomId, mechanism, parentRoomId, wallDirection}`
-- `placements.cover[]`: `{roomId, offset, size, kind}` — schema in `dungeon-definition.v1.json`
+- `placements.cover[]`: `{roomId, offset, size, kind}` â€” schema in `dungeon-definition.v1.json`
 - `placements.boss`: `{roomId, enemyId}` or generation fails
 - Biome inputs: `lootTables`, `trapPool`, `enemyPool`, `bossPool`, `budgets`
 
@@ -81,10 +81,10 @@ The pass that fills a laid-out floor with enemies, chests, traps, cover pillars,
 
 ## Related
 
-- Improvement plan: [`../actual_improvements/procgen-placements.md`](../actual_improvements/procgen-placements.md)
-- [`room-graph-procgen.md`](room-graph-procgen.md) — assignment consumed by this pass
-- [`room-content.md`](room-content.md) — parallel content tagging; reward chests use `ProcgenLootRoller`
-- [`dungeon-builder.md`](dungeon-builder.md) — consumes every placement array
-- [`biome-registry.md`](biome-registry.md) — biome JSON source
-- [`dungeon-traps.md`](dungeon-traps.md) — trap scenes
-- [`loot-and-equipment.md`](loot-and-equipment.md) — `ItemCatalog`, `LootChest`
+- Improvement plan: [`../actual_improvements/procgen-placements.md`](../actual_improvements/procgen-placements.md) - **FINISHED**
+- [`room-graph-procgen.md`](room-graph-procgen.md) â€” assignment consumed by this pass
+- [`room-content.md`](room-content.md) â€” parallel content tagging; reward chests use `ProcgenLootRoller`
+- [`dungeon-builder.md`](dungeon-builder.md) â€” consumes every placement array
+- [`biome-registry.md`](biome-registry.md) â€” biome JSON source
+- [`dungeon-traps.md`](dungeon-traps.md) â€” trap scenes
+- [`loot-and-equipment.md`](loot-and-equipment.md) â€” `ItemCatalog`, `LootChest`

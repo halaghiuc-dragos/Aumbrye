@@ -1,6 +1,6 @@
-# Character service
+﻿# Character service
 
-`CharacterService` is the autoload holding per-character currency, class id, appearance, registered flags, and split quest state/progress maps. It does not own level or XP — those live in `ProgressionService` and are proxied. Currency, flag, and quest mutations request deferred autosave; `spend_gold` requests immediate autosave.
+`CharacterService` is the autoload holding per-character currency, class id, appearance, registered flags, and split quest state/progress maps. It does not own level or XP â€” those live in `ProgressionService` and are proxied. Currency, flag, and quest mutations request deferred autosave; `spend_gold` requests immediate autosave.
 
 ## Files
 | Path | Role |
@@ -103,5 +103,5 @@ Deferred autosave: `set_flag`, `add_gold`, `set_quest_state`, `set_quest_progres
 | Content flag validation | IMPLEMENTED | `content_suite.gd` registry checks |
 
 ## Related
-- Improvement plan: [`../actual_improvements/character-service.md`](../actual_improvements/character-service.md)
+- Improvement plan: [`../actual_improvements/character-service.md`](../actual_improvements/character-service.md) - **FINISHED**
 - [`local-save.md`](local-save.md), [`save-migrator.md`](save-migrator.md), [`character-appearance.md`](character-appearance.md), [`progression-service.md`](progression-service.md), [`dialogue-quests.md`](dialogue-quests.md), [`npc-hub-services.md`](npc-hub-services.md), [`world-state.md`](world-state.md)

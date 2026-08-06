@@ -170,7 +170,7 @@ static func evaluate_exit_code(report: Dictionary, max_fallback_rate: float) -> 
 
 
 static func write_report_file(path: String, report: Dictionary) -> bool:
-	var absolute := _resolve_report_path(path)
+	var absolute: String = _resolve_report_path(path)
 	_ensure_parent_dir(absolute)
 	var body := serialize_report(report)
 	var file := FileAccess.open(absolute, FileAccess.WRITE)
@@ -429,7 +429,7 @@ static func _split_csv(value: String) -> PackedStringArray:
 	return out
 
 
-static func _ensure_parent_dir(absolute_path: String) -> void:
+static func _resolve_report_path(path: String) -> String:
 	if path.begins_with("res://") or path.begins_with("user://"):
 		return ProjectSettings.globalize_path(path)
 	if path.begins_with("/") or path.contains(":/"):

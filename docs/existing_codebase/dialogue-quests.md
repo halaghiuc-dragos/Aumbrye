@@ -1,15 +1,15 @@
-# Dialogue and quests
+﻿# Dialogue and quests
 
 Two small systems that share one storage bag. `DialogueCatalog` / `DialogueConditions` / `DialogueRunner` execute JSON branching trees; `QuestCatalog` / `QuestService` track three quests. Both write through `CharacterService.flags` and `CharacterService.quests`. There are five dialogue files and three quest files.
 
 ## Files
 | Path | Role |
 |------|------|
-| `apps/game/client/scripts/dialogue/dialogue_catalog.gd` | `DialogueCatalog.get_dialogue(id)` — loads `content/dialogue/*.json` |
-| `apps/game/client/scripts/dialogue/dialogue_conditions.gd` | `DialogueConditions.evaluate(condition)` — nine condition kinds |
-| `apps/game/client/scripts/dialogue/dialogue_runner.gd` | `DialogueRunner` — node walk, choices, five action types |
+| `apps/game/client/scripts/dialogue/dialogue_catalog.gd` | `DialogueCatalog.get_dialogue(id)` â€” loads `content/dialogue/*.json` |
+| `apps/game/client/scripts/dialogue/dialogue_conditions.gd` | `DialogueConditions.evaluate(condition)` â€” nine condition kinds |
+| `apps/game/client/scripts/dialogue/dialogue_runner.gd` | `DialogueRunner` â€” node walk, choices, five action types |
 | `apps/game/client/scripts/quests/quest_catalog.gd` | `QuestCatalog.get_definition(id)` / `get_all_ids()` |
-| `apps/game/client/scripts/quests/quest_service.gd` | `QuestService` autoload — accept, complete, kill/fetch/escape tracking, rewards |
+| `apps/game/client/scripts/quests/quest_service.gd` | `QuestService` autoload â€” accept, complete, kill/fetch/escape tracking, rewards |
 | `apps/game/client/scripts/ui/dialogue_ui.gd`, `quest_board_ui.gd`, `quest_tracker_ui.gd` | Presentation; see [`ui/dialogue_quests.md`](ui/dialogue_quests.md) |
 | `content/dialogue/*.json` | `aldric_greeting`, `elara_greeting`, `mira_greeting`, `dungeon_npc_stranded`, `dungeon_lore_default` |
 | `content/quests/*.json` | `kill_grunts`, `fetch_scrap`, `escape_castle` |
@@ -80,7 +80,7 @@ Three states only: `inactive`, `active`, `completed` (lines 7-9). There is no tu
 |----------|-------|-----------|
 | `accept_quest(id)` | 21-31 | Requires a known definition and a state that is neither active nor completed; sets `active`, sets progress `{"count": 0}`, emits `quest_updated` |
 | `complete_quest(id)` | 34-43 | Requires a known definition and `active`; grants rewards, sets `completed`, emits `quest_updated` |
-| `get_available_quests()` | 46-53 | Every definition whose state is `inactive` — no level, flag, or prerequisite gating |
+| `get_available_quests()` | 46-53 | Every definition whose state is `inactive` â€” no level, flag, or prerequisite gating |
 | `get_active_quests()` | 56-61 | Every definition whose state is `active` |
 | `get_completed_quests()` | 64-69 | Every definition whose state is `completed` |
 | `register_kill(enemy_id)` | 72-88 | For each active `kill` quest, skips when `targetId` and `enemy_id` are both non-empty and differ, increments `progress.count`, and completes at `requiredCount` (default 1) |
@@ -117,9 +117,9 @@ Three states only: `inactive`, `active`, `completed` (lines 7-9). There is no tu
 
 **Save keys:** `quests[<id>]` (state String) and `quests[<id>_progress]` (Dictionary), both through `CharacterService`; `flags[...]` for every `set_flag` action.
 
-**Content keys read — dialogue:** `id`, `startNode`, `nodes`, `speaker`, `text`, `condition`, `fallback`, `actions`, `next`, `auto`, `choices[].text`, `choices[].condition`, `choices[].actions`, `choices[].next`.
+**Content keys read â€” dialogue:** `id`, `startNode`, `nodes`, `speaker`, `text`, `condition`, `fallback`, `actions`, `next`, `auto`, `choices[].text`, `choices[].condition`, `choices[].actions`, `choices[].next`.
 
-**Content keys read — quests:** `id`, `title`, `description`, `type`, `targetId`, `targetItemId`, `requiredCount`, `rewards.gold`, `rewards.items[].itemId`, `rewards.items[].quantity`.
+**Content keys read â€” quests:** `id`, `title`, `description`, `type`, `targetId`, `targetItemId`, `requiredCount`, `rewards.gold`, `rewards.items[].itemId`, `rewards.items[].quantity`.
 
 ## Current state
 | Surface | Status | Evidence |
@@ -130,7 +130,7 @@ Three states only: `inactive`, `active`, `completed` (lines 7-9). There is no tu
 | Five dialogue action types | IMPLEMENTED | `dialogue_runner.gd:123-137` |
 | Choiceless line hold until advance | IMPLEMENTED | `dialogue_runner.gd:83-92`; optional `auto` key |
 | Kill quest tracking and completion | IMPLEMENTED | `quest_service.gd:72-88`, driven by `run_flow.gd:434-436` and `waves_run.gd:207-212` |
-| Fetch quest on inventory add | IMPLEMENTED | `inventory_service.gd` → `register_fetch` |
+| Fetch quest on inventory add | IMPLEMENTED | `inventory_service.gd` â†’ `register_fetch` |
 | Escape quest outcome gating | IMPLEMENTED | `quest_service.gd:103-104`, `register_run_outcome` |
 | Quest rewards (gold and items) | IMPLEMENTED | `quest_service.gd:136-144` |
 | Quest board accept flow | IMPLEMENTED | `quest_board_ui.gd:78-88` |
@@ -144,5 +144,5 @@ Three states only: `inactive`, `active`, `completed` (lines 7-9). There is no tu
 | Dialogue localisation | ABSENT | Text is inline in the content JSON with no key indirection |
 
 ## Related
-- Improvement plan: [`../actual_improvements/dialogue-quests.md`](../actual_improvements/dialogue-quests.md)
+- Improvement plan: [`../actual_improvements/dialogue-quests.md`](../actual_improvements/dialogue-quests.md) - **FINISHED**
 - [`character-service.md`](character-service.md), [`npc-hub-services.md`](npc-hub-services.md), [`hub.md`](hub.md), [`run-flow.md`](run-flow.md), [`inventory-service.md`](inventory-service.md), [`content-catalog.md`](content-catalog.md), [`content-data.md`](content-data.md), [`room-content.md`](room-content.md), [`waves-run.md`](waves-run.md), [`ui/dialogue_quests.md`](ui/dialogue_quests.md)

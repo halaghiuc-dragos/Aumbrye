@@ -1,0 +1,33 @@
+{
+  "schemaVersion": 1,
+  "texture": "res://assets/ui/atlas/class_icons.png",
+  "cellSize": 64,
+  "columns": 5,
+  "rows": 1,
+  "unknown": {
+    "col": 0,
+    "row": 0
+  },
+  "cells": {
+    "berserker": {
+      "col": 0,
+      "row": 0
+    },
+    "knight": {
+      "col": 1,
+      "row": 0
+    },
+    "rogue": {
+      "col": 2,
+      "row": 0
+    },
+    "scholar": {
+      "col": 3,
+      "row": 0
+    },
+    "sentinel": {
+      "col": 4,
+      "row": 0
+    }
+  }
+}

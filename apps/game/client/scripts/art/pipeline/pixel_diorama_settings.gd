@@ -13,7 +13,10 @@ const SAVE_DEBOUNCE_SEC := 0.35
 
 const SURFACE_SHADER_SUFFIX := "pixel_diorama_surface.gdshader"
 const EMISSIVE_SHADER_SUFFIX := "pixel_diorama_emissive.gdshader"
+const PORTAL_SHADER_SUFFIX := "portal_ellipse.gdshader"
 const SCREEN_FINISH_SHADER_PATH := "res://assets/shared/pixel_screen_finish.gdshader"
+const VfxServiceScript := preload("res://scripts/art/vfx/vfx_service.gd")
+const GameUISkinScript := preload("res://scripts/ui/game_ui_skin.gd")
 
 const DEFAULT_PIXEL_SCALE := 8.0
 const DEFAULT_COLOR_LEVELS := 6.0
@@ -41,6 +44,9 @@ const DEFAULT_VIGNETTE := 0.18
 const DEFAULT_POSTERIZE_LEVELS := 24.0
 const DEFAULT_SHADOW_QUALITY := 1
 const DEFAULT_PARTICLE_QUALITY := 1
+const DEFAULT_LIGHT_ANIMATION := true
+const DEFAULT_HITSTOP_ENABLED := true
+const DEFAULT_SCREEN_SHAKE_SCALE := 1.0
 const DEFAULT_SCREEN_LIFT := 0.0
 const DEFAULT_SHADOW_TINT := Color(0.18, 0.16, 0.26)
 const DEFAULT_SHADOW_TINT_AMOUNT := 0.14
@@ -114,6 +120,9 @@ static var vignette_strength: float = DEFAULT_VIGNETTE
 static var posterize_levels: float = DEFAULT_POSTERIZE_LEVELS
 static var shadow_quality: int = DEFAULT_SHADOW_QUALITY
 static var particle_quality: int = DEFAULT_PARTICLE_QUALITY
+static var light_animation: bool = DEFAULT_LIGHT_ANIMATION
+static var hitstop_enabled: bool = DEFAULT_HITSTOP_ENABLED
+static var screen_shake_scale: float = DEFAULT_SCREEN_SHAKE_SCALE
 static var tuning_is_preset_default: bool = false
 static var screen_lift: float = DEFAULT_SCREEN_LIFT
 static var shadow_tint: Color = DEFAULT_SHADOW_TINT
@@ -122,10 +131,17 @@ static var highlight_tint: Color = DEFAULT_HIGHLIGHT_TINT
 static var highlight_tint_amount: float = DEFAULT_HIGHLIGHT_TINT_AMOUNT
 static var vignette_softness: float = DEFAULT_VIGNETTE_SOFTNESS
 static var pulse_tint: Color = DEFAULT_PULSE_TINT
+static var debug_flat_materials: bool = false
+
+static var _debug_flat_cached: bool = false
 
 ## Height the SubViewport actually renders at, which is the requested preset
 ## rounded to an integer divisor of the window. Set by PixelDioramaViewport.
 static var active_render_height: int = DEFAULT_VIEWPORT_HEIGHT
+
+## Last source-camera fov mirrored by PixelDioramaViewport / orbit camera snap.
+## Runtime-only; not persisted. Used by PixelCameraSnap.rotation_step_radians().
+static var snap_fov_hint: float = 75.0
 
 static var _tracked: Array[WeakRef] = []
 static var _biome_grade_override: Dictionary = {}
@@ -169,6 +185,9 @@ static func load_from_save() -> void:
 	posterize_levels = float(data.get("posterize_levels", DEFAULT_POSTERIZE_LEVELS))
 	shadow_quality = int(data.get("shadow_quality", DEFAULT_SHADOW_QUALITY))
 	particle_quality = int(data.get("particle_quality", DEFAULT_PARTICLE_QUALITY))
+	light_animation = bool(data.get("light_animation", DEFAULT_LIGHT_ANIMATION))
+	hitstop_enabled = bool(data.get("hitstop_enabled", DEFAULT_HITSTOP_ENABLED))
+	screen_shake_scale = float(data.get("screen_shake_scale", DEFAULT_SCREEN_SHAKE_SCALE))
 	tuning_is_preset_default = bool(data.get("tuning_is_preset_default", false))
 	screen_lift = float(data.get("screen_lift", DEFAULT_SCREEN_LIFT))
 	shadow_tint = _color_from_save(data.get("shadow_tint", null), DEFAULT_SHADOW_TINT)
@@ -215,6 +234,9 @@ static func save() -> void:
 		"posterize_levels": posterize_levels,
 		"shadow_quality": shadow_quality,
 		"particle_quality": particle_quality,
+		"light_animation": light_animation,
+		"hitstop_enabled": hitstop_enabled,
+		"screen_shake_scale": screen_shake_scale,
 		"tuning_is_preset_default": tuning_is_preset_default,
 		"screen_lift": screen_lift,
 		"shadow_tint": _color_to_save(shadow_tint),
@@ -230,14 +252,21 @@ static func save() -> void:
 static func save_and_apply() -> void:
 	save()
 	apply_all()
+	_emit_symbol_preset_invalidated()
+
+
+static func _emit_symbol_preset_invalidated() -> void:
+	var tree := Engine.get_main_loop() as SceneTree
+	if tree == null:
+		return
+	var bus := tree.root.get_node_or_null("/root/UISymbolBus")
+	if bus:
+		bus.emit_invalidated(&"preset")
 
 
 static func apply_live() -> void:
 	restamp_tracked()
 	_notify_viewport()
-	var tree := Engine.get_main_loop() as SceneTree
-	if tree and tree.current_scene:
-		apply_to_scene(tree.current_scene)
 
 
 static func request_save() -> void:
@@ -253,11 +282,29 @@ static func request_save() -> void:
 
 
 static func apply_all() -> void:
+	_debug_flat_cached = debug_flat_materials
+	VfxServiceScript.clear_particle_material_cache()
 	restamp_tracked()
 	_notify_viewport()
+	_refresh_lighting_atmosphere()
 	var tree := Engine.get_main_loop() as SceneTree
 	if tree and tree.current_scene:
 		apply_to_scene(tree.current_scene)
+	_restyle_ui_trees(tree)
+
+
+static func _restyle_ui_trees(tree: SceneTree) -> void:
+	if tree == null or tree.root == null:
+		return
+	for child in tree.root.get_children():
+		if child is Control:
+			GameUISkinScript.restyle_tree(child as Control)
+
+
+static func _refresh_lighting_atmosphere() -> void:
+	var lighting_script: Script = load("res://scripts/art/lighting/visual_lighting.gd")
+	if lighting_script:
+		lighting_script.call("refresh_atmosphere")
 
 
 static func track(mat: ShaderMaterial) -> ShaderMaterial:
@@ -324,6 +371,9 @@ static func apply_beauty_defaults() -> void:
 	posterize_levels = DEFAULT_POSTERIZE_LEVELS
 	shadow_quality = DEFAULT_SHADOW_QUALITY
 	particle_quality = DEFAULT_PARTICLE_QUALITY
+	hitstop_enabled = DEFAULT_HITSTOP_ENABLED
+	screen_shake_scale = DEFAULT_SCREEN_SHAKE_SCALE
+	light_animation = DEFAULT_LIGHT_ANIMATION
 	screen_lift = DEFAULT_SCREEN_LIFT
 	shadow_tint = DEFAULT_SHADOW_TINT
 	shadow_tint_amount = DEFAULT_SHADOW_TINT_AMOUNT
@@ -506,19 +556,31 @@ static func apply_to_shader_material(mat: ShaderMaterial) -> void:
 	if mat == null or mat.shader == null:
 		return
 	var shader_path := mat.shader.resource_path
+	var authored: Array = mat.get_meta("authored_params", [])
 	if shader_path.ends_with(SURFACE_SHADER_SUFFIX):
-		mat.set_shader_parameter("pixel_scale", pixel_scale)
-		mat.set_shader_parameter("color_levels", color_levels)
-		mat.set_shader_parameter("edge_strength", edge_strength)
-		mat.set_shader_parameter("stitch_strength", stitch_strength)
-		mat.set_shader_parameter("pattern_strength", pattern_strength)
-		mat.set_shader_parameter("shade_bands", shade_bands)
-		mat.set_shader_parameter("shade_dither", shade_dither)
-		mat.set_shader_parameter("light_wrap", light_wrap)
-		mat.set_shader_parameter("rim_strength", rim_strength)
+		_set_shader_param_unless_authored(mat, authored, "pixel_scale", pixel_scale)
+		_set_shader_param_unless_authored(mat, authored, "color_levels", color_levels)
+		_set_shader_param_unless_authored(mat, authored, "edge_strength", edge_strength)
+		_set_shader_param_unless_authored(mat, authored, "stitch_strength", stitch_strength)
+		_set_shader_param_unless_authored(mat, authored, "pattern_strength", pattern_strength)
+		_set_shader_param_unless_authored(mat, authored, "shade_bands", shade_bands)
+		_set_shader_param_unless_authored(mat, authored, "shade_dither", shade_dither)
+		_set_shader_param_unless_authored(mat, authored, "light_wrap", light_wrap)
+		_set_shader_param_unless_authored(mat, authored, "rim_strength", rim_strength)
 	elif shader_path.ends_with(EMISSIVE_SHADER_SUFFIX):
-		mat.set_shader_parameter("pixel_scale", pixel_scale)
+		_set_shader_param_unless_authored(mat, authored, "pixel_scale", pixel_scale)
+		_set_shader_param_unless_authored(mat, authored, "color_levels", color_levels)
+	elif shader_path.ends_with(PORTAL_SHADER_SUFFIX):
+		mat.set_shader_parameter("pixel_scale", pixel_scale * (14.0 / DEFAULT_PIXEL_SCALE))
 		mat.set_shader_parameter("color_levels", color_levels)
+
+
+static func _set_shader_param_unless_authored(
+	mat: ShaderMaterial, authored: Array, param: String, value: Variant
+) -> void:
+	if authored.has(param):
+		return
+	mat.set_shader_parameter(param, value)
 
 
 static func apply_to_standard_material(mat: StandardMaterial3D) -> void:
@@ -593,6 +655,8 @@ static func _apply_world_environments(root: Node) -> void:
 static func _track_materials_recursive(node: Node) -> void:
 	if node is MeshInstance3D:
 		var mesh_inst := node as MeshInstance3D
+		if mesh_inst.has_meta(&"material_dissolve_saved_override"):
+			return
 		var override_mat := mesh_inst.material_override
 		if override_mat is ShaderMaterial:
 			track(override_mat as ShaderMaterial)

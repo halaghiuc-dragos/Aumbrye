@@ -69,8 +69,10 @@ func _test_all_resource_paths_resolve() -> void:
 	for biome_id in BiomeRegistry.ALL_BIOMES:
 		var biome := BiomeRegistry.get_biome(biome_id)
 		var materials: Dictionary = biome.get("materials", {})
+		var asset_folder := str(biome.get("assetFolder", ""))
 		for slot in ["floor", "wall", "ceiling", "accent"]:
-			if not ResourceLoader.exists(str(materials.get(slot, ""))):
+			var theme_id := str(materials.get(slot, ""))
+			if theme_id.is_empty() or theme_id != asset_folder:
 				ok = false
 		var prop_kit: Dictionary = biome.get("propKit", {})
 		if not ResourceLoader.exists(str(prop_kit.get("pillar", ""))):
@@ -143,7 +145,6 @@ func _test_unknown_biome_errors() -> void:
 	if ok:
 		ok = BiomeRegistry.get_display_name("nope_not_a_biome") == ""
 		ok = ok and BiomeRegistry.get_room_scenes("nope_not_a_biome").is_empty()
-		ok = ok and BiomeRegistry.get_lighting_profile("nope_not_a_biome").is_empty()
 	ctx.timed_record(
 		"biome_kit.unknown_biome_errors",
 		get_category(),
@@ -200,7 +201,9 @@ func _test_audio_paths_distinct() -> void:
 
 func _test_lighting_applied_per_mode() -> void:
 	var start := Time.get_ticks_msec()
-	var profile := BiomeRegistry.get_lighting_profile("umbral_chapel")
+	var profile := VisualLighting.profile_summary(
+		VisualLighting.profile_for_biome("umbral_chapel")
+	)
 	var profile_color: Color = profile.get("ambient_color", Color.WHITE)
 	var ok := true
 	for mode in [

@@ -1,27 +1,27 @@
 # Player animation director — improvement plan
 
+## Status: FINISHED
+
 ## Current state
 
-`PlayerAnimDirector` (`apps/game/client/scripts/player/player_anim_director.gd`) subclasses `DioramaAnimController`, subscribes to `Dodge`, `Guard`, `WeaponController`, `CombatReactions`, `Health`, and `Poise`, drives the third-person rig, and mirrors a first-person viewmodel. The priority stack, the phase-stretched attack compilation, and the dash direction picker all work. See [`../existing_codebase/player-anim-director.md`](../existing_codebase/player-anim-director.md).
-
-Every clip name the director requests exists in `DioramaAnimLibrary`. The failures are elsewhere: the whole animation-event system is dead because no library ever gets a method track, healing has no clip and borrows the hurt animation, the bow draw keys a pivot the player rig does not have, and hitstop never reaches the rig because of a `_ready` ordering bug.
+`PlayerAnimDirector` (`apps/game/client/scripts/player/player_anim_director.gd`) subclasses `DioramaAnimController`, subscribes to `Dodge`, `Guard`, `WeaponController`, `CombatReactions`, `Health`, `Hurtbox`, and `Poise`, drives the third-person rig, and mirrors a first-person viewmodel. Method tracks fire through a fixed `_resolve_events_path`, heal uses a dedicated `heal` clip with marker-timed commit, hitstop reaches the rig via lazy `HitFeedback._director()`, directional locomotion and `block_walk` are live, and a second `DioramaAdditivePlayer` layers `breathe`/`head_look`. See [`../existing_codebase/player-anim-director.md`](../existing_codebase/player-anim-director.md).
 
 ## Gaps
 
-| ID | Sev | Gap | Evidence |
-|----|-----|-----|----------|
-| PAD-01 | P0 | No animation method track is ever compiled, so `anim_footstep`, `anim_swing_vfx`, `anim_hitbox_on`, and `anim_hitbox_off` never fire for the player. Two independent causes: the exporter passes `events_path = ""`, and the runtime resolver rejects any visual that is not an ancestor of the controller | `apps/game/client/scripts/tools/export_diorama_anim_libraries.gd:81`, `apps/game/client/scripts/art/characters/diorama_anim_library.gd:550`, `apps/game/client/scripts/art/characters/diorama_anim_controller.gd:111-121` |
-| PAD-02 | P0 | Drinking a flask plays the `stagger` hurt clip. `play_heal(duration)` is a one-line alias for `play_stagger(duration)`, and `CLIPS` has no heal, drink, or quaff entry | `player_anim_director.gd:128-129`, `diorama_anim_library.gd:32-261` |
-| PAD-03 | P0 | Hitstop never reaches the player rig. `hit_feedback.gd` caches `AnimDirector` in its own `_ready`, which Godot runs before the parent `_ready` that creates the node, so `set_speed_scale(0.05)` is never called | `apps/game/client/scripts/combat/hit_feedback.gd:32-34`, `apps/game/client/scripts/player/locomotion.gd:40-42` |
-| PAD-04 | P1 | `attack_shoot` is the only bow clip and its bow motion keys a `Bow` pivot the player rig never builds. `PROFILES["player"]` declares no `extras`; only `"ranged"` adds `Bow` | `diorama_anim_library.gd:377`, `apps/game/client/scripts/art/characters/diorama_character_skin.gd:32-41`, `:57-59`, `:408-412` |
-| PAD-05 | P1 | No directional locomotion clips. `update_locomotion` receives only a speed magnitude, so a left strafe or a backpedal plays the forward walk cycle. `CLIPS` has no `walk_b`, `walk_l`, `walk_r`, `run_b`, or `turn_*` | `player_anim_director.gd:155-161`, `diorama_anim_library.gd:48-90` |
-| PAD-06 | P1 | Blocking cancels locomotion entirely: `block_hold` is a full-body looping clip at `Priority.BLOCK`, so a shielded player slides with static legs | `diorama_anim_controller.gd:181-187`, `diorama_anim_library.gd:174` |
-| PAD-07 | P1 | The viewmodel palette is hardcoded to `PaletteTheme.HUB`, so first-person arms never match the biome | `player_anim_director.gd:66` |
-| PAD-08 | P1 | The prebuilt `.res` libraries contain no `RESET` clip, because `_compile_reset` runs only on the compile branch that the authored load short-circuits. `revive()` falls back to `_apply_rest_pose()` writing transforms directly | `diorama_anim_library.gd:468-482`, `diorama_anim_controller.gd:231-244` |
-| PAD-09 | P1 | Double reaction trigger: a hit that costs both health and poise calls `_on_health_changed` (flinch) and `_on_poise_damaged` (flinch or stagger) in an order set by signal connection, so the same hit can play two clips back to back | `player_anim_director.gd:132-136`, `:268-276` |
-| PAD-10 | P2 | `request_locomotion(&"air", {"vertical_speed": ...})` passes a parameter no consumer reads; rising and falling look identical | `player_anim_director.gd:149`, `diorama_anim_controller.gd:156-162` |
-| PAD-11 | P2 | Attack clips are compiled into the shared `AnimationLibrary` returned by `ResourceLoader.load`, so runtime clips are written into a cached resource shared by every rig of that profile | `diorama_anim_controller.gd:295-300`, `diorama_anim_library.gd:468-472` |
-| PAD-12 | P2 | No additive layering. One `AnimationPlayer` plays one clip, so there is no upper-body-only reaction, no head look-at, and no breathing on top of movement | `diorama_anim_controller.gd:90-104` |
+| ID | Sev | Gap | Evidence | Status |
+|----|-----|-----|----------|--------|
+| PAD-01 | P0 | No animation method track is ever compiled, so `anim_footstep`, `anim_swing_vfx`, `anim_hitbox_on`, and `anim_hitbox_off` never fire for the player. Two independent causes: the exporter passes `events_path = ""`, and the runtime resolver rejects any visual that is not an ancestor of the controller | `export_diorama_anim_libraries.gd:13`, `diorama_anim_controller.gd:120-126`, `has_footstep_markers()` at `:129-145` | FINISHED |
+| PAD-02 | P0 | Drinking a flask plays the `stagger` hurt clip. `play_heal(duration)` is a one-line alias for `play_stagger(duration)`, and `CLIPS` has no heal, drink, or quaff entry | `diorama_anim_controller.gd:335-344`, `diorama_anim_library.gd` `heal` clip, `player_heal.gd:119-122` `heal_commit_frame` | FINISHED |
+| PAD-03 | P0 | Hitstop never reaches the player rig. `hit_feedback.gd` caches `AnimDirector` in its own `_ready`, which Godot runs before the parent `_ready` that creates the node, so `set_speed_scale(0.05)` is never called | `hit_feedback.gd:46-50` lazy `_director()`, `HITSTOP_TIME_SCALE = 0.08` | FINISHED |
+| PAD-04 | P1 | `attack_shoot` is the only bow clip and its bow motion keys a `Bow` pivot the player rig never builds. `PROFILES["player"]` declares no `extras`; only `"ranged"` adds `Bow` | `diorama_character_skin.gd:82`, `:470-477` lazy `Bow` pivot on `attach_weapon`, `player_anim_director.gd:774-782` re-bind on archetype change | FINISHED |
+| PAD-05 | P1 | No directional locomotion clips. `update_locomotion` receives only a speed magnitude, so a left strafe or a backpedal plays the forward walk cycle. `CLIPS` has no `walk_b`, `walk_l`, `walk_r`, `run_b`, or `turn_*` | `player_anim_director.gd:379-453`, `_locomotion_clip_for` at `:503-533`, `turn_l`/`turn_r` at `:459-497` | FINISHED |
+| PAD-06 | P1 | Blocking cancels locomotion entirely: `block_hold` is a full-body looping clip at `Priority.BLOCK`, so a shielded player slides with static legs | `diorama_anim_controller.gd:468-469` picks `block_walk` when moving | FINISHED |
+| PAD-07 | P1 | The viewmodel palette is hardcoded to `PaletteTheme.HUB`, so first-person arms never match the biome | `player_anim_director.gd:119-121`, `set_viewmodel_theme` at `:187-201`, `castle_run.gd:76-77`, `hub.gd:193-194` | FINISHED |
+| PAD-08 | P1 | The prebuilt `.res` libraries contain no `RESET` clip, because `_compile_reset` runs only on the compile branch that the authored load short-circuits. `revive()` falls back to `_apply_rest_pose()` writing transforms directly | `diorama_anim_controller.gd:367-368` blends to `RESET`, exporter `events_path` + `_compile_reset` in `build_library` | FINISHED |
+| PAD-09 | P1 | Double reaction trigger: a hit that costs both health and poise calls `_on_health_changed` (flinch) and `_on_poise_damaged` (flinch or stagger) in an order set by signal connection, so the same hit can play two clips back to back | `player_anim_director.gd:291-335` single `_arbitrate_hit_reaction` via `Hurtbox.damaged` | FINISHED |
+| PAD-10 | P2 | `request_locomotion(&"air", {"vertical_speed": ...})` passes a parameter no consumer reads; rising and falling look identical | `player_anim_director.gd:421-427` selects `air_rise` vs `air_fall` from `velocity.y` | FINISHED |
+| PAD-11 | P2 | Attack clips are compiled into the shared `AnimationLibrary` returned by `ResourceLoader.load`, so runtime clips are written into a cached resource shared by every rig of that profile | `diorama_anim_controller.gd:95` `loaded.duplicate(true)` on bind | FINISHED |
+| PAD-12 | P2 | No additive layering. One `AnimationPlayer` plays one clip, so there is no upper-body-only reaction, no head look-at, and no breathing on top of movement | `diorama_anim_controller.gd:166-179` `DioramaAdditivePlayer`, `player_anim_director.gd:549-570` `head_look` | FINISHED |
 
 ## Target design
 
@@ -115,18 +115,18 @@ Add the three new directional flinch clips (`0.26` s each, mirroring the existin
 
 ## Acceptance criteria
 
-- [ ] `walk`, `run`, and every attack clip in a bound player library contain a `TYPE_METHOD` track, and `swing_frame` and `footstep_frame` both fire during normal play. (PAD-01)
-- [ ] Drinking plays the `heal` clip, not `stagger`, and the health is applied at `0.95` s of the `1.35` s window. (PAD-02)
-- [ ] Landing a hit visibly freezes the attacker's rig for `0.077`–`0.122` s depending on damage. (PAD-03)
-- [ ] With a bow equipped, the `Bow` pivot exists on the player rig and rotates during `attack_shoot`. (PAD-04)
-- [ ] Strafing left plays `walk_l`; backpedalling plays `walk_b`; turning 180 deg in place plays `turn_l` or `turn_r`. (PAD-05)
-- [ ] Walking while blocking plays `block_walk` with moving legs and a raised guard. (PAD-06)
-- [ ] The first-person arms use the current biome palette in the castle run, not the hub palette. (PAD-07)
-- [ ] `player_locomotion.res` contains a `RESET` animation and `revive()` blends to it over `0.1` s. (PAD-08)
-- [ ] A single hit that deals both health and poise damage plays exactly one reaction clip. (PAD-09)
-- [ ] Rising and falling play different clips. (PAD-10)
-- [ ] Two `melee` enemies attacking with different weapon phase timings do not share compiled attack clips. (PAD-11)
-- [ ] The idle breathing layer remains visible while walking and while blocking. (PAD-12)
+- [x] `walk`, `run`, and every attack clip in a bound player library contain a `TYPE_METHOD` track, and `swing_frame` and `footstep_frame` both fire during normal play. (PAD-01)
+- [x] Drinking plays the `heal` clip, not `stagger`, and the health is applied at `0.95` s of the `1.35` s window. (PAD-02)
+- [x] Landing a hit visibly freezes the attacker's rig for `0.077`–`0.122` s depending on damage. (PAD-03)
+- [x] With a bow equipped, the `Bow` pivot exists on the player rig and rotates during `attack_shoot`. (PAD-04)
+- [x] Strafing left plays `walk_l`; backpedalling plays `walk_b`; turning 180 deg in place plays `turn_l` or `turn_r`. (PAD-05)
+- [x] Walking while blocking plays `block_walk` with moving legs and a raised guard. (PAD-06)
+- [x] The first-person arms use the current biome palette in the castle run, not the hub palette. (PAD-07)
+- [x] `player_locomotion.res` contains a `RESET` animation and `revive()` blends to it over `0.1` s. (PAD-08)
+- [x] A single hit that deals both health and poise damage plays exactly one reaction clip. (PAD-09)
+- [x] Rising and falling play different clips. (PAD-10)
+- [x] Two `melee` enemies attacking with different weapon phase timings do not share compiled attack clips. (PAD-11)
+- [x] The idle breathing layer remains visible while walking and while blocking. (PAD-12)
 
 ## Validation
 
@@ -146,6 +146,6 @@ Extend `apps/game/client/scripts/validation/suites/player_suite.gd`:
 - `player.directional_locomotion_clips` — drive `update_locomotion` with four directions and assert the requested clip names.
 
 ## Related
-- Existing state: [`../existing_codebase/player-anim-director.md`](../existing_codebase/player-anim-director.md)
+- Existing state: [`../existing_codebase/player-anim-director.md`](../existing_codebase/player-anim-director.md) — **FINISHED**
 - [`locomotion.md`](locomotion.md), [`player-heal.md`](player-heal.md), [`player-combat.md`](player-combat.md), [`player-combat-reactions.md`](player-combat-reactions.md), [`lock-on-movement.md`](lock-on-movement.md)
 - [`diorama-anim-controller.md`](diorama-anim-controller.md), [`diorama-anim-library.md`](diorama-anim-library.md), [`diorama-character-skin.md`](diorama-character-skin.md), [`diorama-viewmodel.md`](diorama-viewmodel.md), [`hit-feedback.md`](hit-feedback.md), [`export-tools.md`](export-tools.md)

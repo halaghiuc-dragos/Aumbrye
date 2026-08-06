@@ -6,7 +6,10 @@
   "gridHeight": 1,
   "stackSize": 5,
   "description": "Restores a small amount of health.",
-  "healAmount": 40,
+  "consumableEffect": {
+    "kind": "heal",
+    "amount": 40
+  },
   "value": 10,
   "lootValue": 5
 }

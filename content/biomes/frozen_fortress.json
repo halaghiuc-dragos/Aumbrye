@@ -17,10 +17,10 @@
     "frozen_puzzle"
   ],
   "materials": {
-    "floor": "res://assets/frozen/mat_floor.tres",
-    "wall": "res://assets/frozen/mat_wall.tres",
-    "ceiling": "res://assets/frozen/mat_ceiling.tres",
-    "accent": "res://assets/frozen/mat_accent.tres"
+    "floor": "frozen",
+    "wall": "frozen",
+    "ceiling": "frozen",
+    "accent": "frozen"
   },
   "lighting": {
     "ambientColor": [0.5, 0.6, 0.75],

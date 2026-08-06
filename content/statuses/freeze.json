@@ -7,5 +7,6 @@
   "maxStacks": 1,
   "duration": 3.0,
   "slowMultiplier": 0.45,
-  "iconColor": "#88ccff"
+  "iconColor": "#88ccff",
+  "polarity": "debuff"
 }

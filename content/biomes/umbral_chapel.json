@@ -17,10 +17,10 @@
     "umbral_puzzle"
   ],
   "materials": {
-    "floor": "res://assets/umbral/mat_floor.tres",
-    "wall": "res://assets/umbral/mat_wall.tres",
-    "ceiling": "res://assets/umbral/mat_ceiling.tres",
-    "accent": "res://assets/umbral/mat_accent.tres"
+    "floor": "umbral",
+    "wall": "umbral",
+    "ceiling": "umbral",
+    "accent": "umbral"
   },
   "lighting": {
     "ambientColor": [0.18, 0.12, 0.26],

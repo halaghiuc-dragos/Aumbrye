@@ -30,6 +30,11 @@ const AUTHORED_LIBRARY_PATHS := {
 	"ranged": "res://assets/animations/diorama/ranged_locomotion.res",
 }
 
+const POSE_MARKER := &"__pose__"
+const DIGESTS_PATH := "res://assets/animations/diorama/digests.json"
+
+static var _attack_cache: Dictionary = {}
+
 ## Locomotion, reaction, and guard clips. Times are in seconds.
 const CLIPS := {
 	&"idle":
@@ -61,6 +66,7 @@ const CLIPS := {
 	&"walk":
 	{
 		"length": 0.8,
+		"stride_m": 3.6,
 		"loop": true,
 		"tracks":
 		{
@@ -100,6 +106,7 @@ const CLIPS := {
 	&"run":
 	{
 		"length": 0.56,
+		"stride_m": 3.92,
 		"loop": true,
 		"tracks":
 		{
@@ -1895,12 +1902,9 @@ static func build_additive_library(rest_pose: Dictionary) -> AnimationLibrary:
 
 
 static func _compile_additive(spec: Dictionary, rest_pose: Dictionary) -> Animation:
-	var anim := _compile(spec, rest_pose, "", 1.0)
-	if anim == null:
-		return null
-	for track_idx in anim.get_track_count():
-		anim.track_set_blend_mode(track_idx, Animation.TrackBlendMode.TRACK_BLEND_ADD)
-	return anim
+	# Godot 4.7 removed per-track blend modes; additive clips run on a second
+	# AnimationPlayer that only keys Torso/Head so they layer without fighting legs.
+	return _compile(spec, rest_pose, "", 1.0)
 
 
 static func _authored_has_footstep_markers(library: AnimationLibrary) -> bool:
@@ -1910,10 +1914,91 @@ static func _authored_has_footstep_markers(library: AnimationLibrary) -> bool:
 		var anim := library.get_animation(clip_name)
 		if anim == null:
 			continue
+		var footstep_keys := 0
 		for track_idx in anim.get_track_count():
-			if anim.track_get_type(track_idx) == Animation.TYPE_METHOD:
-				return true
+			if anim.track_get_type(track_idx) != Animation.TYPE_METHOD:
+				continue
+			for key_idx in anim.track_get_key_count(track_idx):
+				var method_data: Dictionary = anim.track_get_key_value(track_idx, key_idx)
+				if String(method_data.get("method", "")) == "anim_footstep":
+					footstep_keys += 1
+		if footstep_keys >= 2:
+			return true
 	return false
+
+
+static func events_path_for_profile(profile: String) -> String:
+	return "../../AnimDirector" if profile == "player" else "../../AnimController"
+
+
+static func clip_meta(clip: StringName) -> Dictionary:
+	if not CLIPS.has(clip):
+		return {}
+	var spec: Dictionary = CLIPS[clip]
+	var contacts: Array = []
+	for entry in spec.get("methods", []):
+		if entry.size() >= 2 and entry[1] == FOOTSTEP:
+			contacts.append(float(entry[0]))
+	return {
+		"length": float(spec.get("length", 0.0)),
+		"loop": bool(spec.get("loop", false)),
+		"stride_m": float(spec.get("stride_m", 0.0)),
+		"contacts": contacts,
+	}
+
+
+static func select_locomotion_clip(speed: float) -> StringName:
+	if speed < 0.15:
+		return &"idle"
+	if speed < 2.4:
+		return &"walk"
+	if speed < 5.0:
+		return &"jog"
+	return &"run"
+
+
+static func clear_attack_cache() -> void:
+	_attack_cache.clear()
+
+
+static func library_digest(library: AnimationLibrary) -> String:
+	var lines: PackedStringArray = []
+	var names := library.get_animation_list()
+	names.sort()
+	for anim_name in names:
+		var anim: Animation = library.get_animation(anim_name)
+		lines.append("%s len=%.4f loop=%d" % [anim_name, anim.length, anim.loop_mode])
+		for track_idx in anim.get_track_count():
+			lines.append("  %s type=%d" % [anim.track_get_path(track_idx), anim.track_get_type(track_idx)])
+			for key_idx in anim.track_get_key_count(track_idx):
+				lines.append(
+					"    %.4f %s"
+					% [anim.track_get_key_time(track_idx, key_idx), anim.track_get_key_value(track_idx, key_idx)]
+				)
+	return "\n".join(lines).sha256_text()
+
+
+static func expected_exported_clip_count(rest_pose: Dictionary) -> int:
+	var count := 0
+	for clip_name in CLIPS:
+		if _compile(CLIPS[clip_name], rest_pose, "", 1.0) != null:
+			count += 1
+	return count + 2
+
+
+static func compile_authored_library(rest_pose: Dictionary, events_path: String, profile: String) -> AnimationLibrary:
+	var library := AnimationLibrary.new()
+	for clip_name in CLIPS:
+		var anim := _compile(CLIPS[clip_name], rest_pose, events_path, 1.0)
+		if anim:
+			library.add_animation(clip_name, anim)
+	var reset := _compile_reset(rest_pose)
+	if reset:
+		library.add_animation(&"RESET", reset)
+	var pose_marker := _compile_pose_marker(rest_pose)
+	if pose_marker:
+		library.add_animation(POSE_MARKER, pose_marker)
+	return library
 
 
 static func _can_use_authored_library(rest_pose: Dictionary, profile: String) -> bool:
@@ -1922,7 +2007,12 @@ static func _can_use_authored_library(rest_pose: Dictionary, profile: String) ->
 	if not rest_pose.has("Root"):
 		return false
 	var authored_path: String = AUTHORED_LIBRARY_PATHS.get(profile, "")
-	return authored_path != "" and ResourceLoader.exists(authored_path)
+	if authored_path == "" or not ResourceLoader.exists(authored_path):
+		return false
+	var loaded := ResourceLoader.load(authored_path) as AnimationLibrary
+	if loaded == null or not loaded.has_animation(POSE_MARKER):
+		return false
+	return _pose_hash(rest_pose) == _pose_hash_from_marker(loaded.get_animation(POSE_MARKER))
 
 
 static func build_library(
@@ -1937,16 +2027,7 @@ static func build_library(
 		if loaded != null:
 			_supplement_authored_library(loaded, rest_pose, events_path)
 			return loaded
-	var library := AnimationLibrary.new()
-	for clip_name in CLIPS:
-		var anim := _compile(CLIPS[clip_name], rest_pose, events_path, 1.0)
-		if anim:
-			library.add_animation(clip_name, anim)
-	# RESET lets AnimationPlayer blend cleanly back to the rest pose.
-	var reset := _compile_reset(rest_pose)
-	if reset:
-		library.add_animation(&"RESET", reset)
-	return library
+	return compile_authored_library(rest_pose, events_path, profile)
 
 
 static func _supplement_authored_library(
@@ -2001,6 +2082,9 @@ static func build_attack(
 	active: float,
 	recovery: float
 ) -> Animation:
+	var cache_key := _attack_cache_key(clip_name, rest_pose, events_path, startup, active, recovery)
+	if _attack_cache.has(cache_key):
+		return _attack_cache[cache_key]
 	var spec: Dictionary = ATTACKS.get(clip_name, {})
 	if spec.is_empty():
 		return null
@@ -2019,7 +2103,28 @@ static func build_attack(
 		"active_time": startup + active,
 		"total": total,
 	}
-	return _compile(spec_copy, rest_pose, events_path, 1.0, phase_map)
+	var anim := _compile(spec_copy, rest_pose, events_path, 1.0, phase_map)
+	if anim != null:
+		_attack_cache[cache_key] = anim
+	return anim
+
+
+static func _attack_cache_key(
+	clip_name: StringName,
+	rest_pose: Dictionary,
+	events_path: String,
+	startup: float,
+	active: float,
+	recovery: float
+) -> String:
+	return "%s|%s|%s|%d|%d|%d" % [
+		clip_name,
+		_pose_hash(rest_pose),
+		events_path,
+		roundi(startup * 1000.0),
+		roundi(active * 1000.0),
+		roundi(recovery * 1000.0),
+	]
 
 
 static func _compile(
@@ -2112,6 +2217,63 @@ static func _segment(
 	if span <= 0.0001:
 		return out_min
 	return out_min + (value - in_min) / span * (out_max - out_min)
+
+
+static func _pose_hash(rest_pose: Dictionary) -> String:
+	var lines: PackedStringArray = []
+	var names := rest_pose.keys()
+	names.sort()
+	for part_name in names:
+		var rest: Dictionary = rest_pose[part_name]
+		var pos: Vector3 = rest.get("position", Vector3.ZERO)
+		var rot: Vector3 = rest.get("rotation", Vector3.ZERO)
+		lines.append(
+			"%s pos=%s rot=%s"
+			% [part_name, _vec3_digest(pos), _vec3_digest(rot)]
+		)
+	return "\n".join(lines).sha256_text()
+
+
+static func _vec3_digest(value: Vector3) -> String:
+	return "%.4f,%.4f,%.4f" % [value.x, value.y, value.z]
+
+
+static func _compile_pose_marker(rest_pose: Dictionary) -> Animation:
+	var anim := Animation.new()
+	anim.length = 0.0
+	anim.loop_mode = Animation.LOOP_NONE
+	var wrote_any := false
+	for part_name in rest_pose:
+		var rest: Dictionary = rest_pose[part_name]
+		var node_path: String = rest.get("path", part_name)
+		var pos_track := anim.add_track(Animation.TYPE_VALUE)
+		anim.track_set_path(pos_track, NodePath("%s:position" % node_path))
+		anim.track_insert_key(pos_track, 0.0, rest.get("position", Vector3.ZERO))
+		var rot_track := anim.add_track(Animation.TYPE_VALUE)
+		anim.track_set_path(rot_track, NodePath("%s:rotation" % node_path))
+		anim.track_insert_key(rot_track, 0.0, rest.get("rotation", Vector3.ZERO))
+		wrote_any = true
+	return anim if wrote_any else null
+
+
+static func _pose_hash_from_marker(marker: Animation) -> String:
+	var pose: Dictionary = {}
+	for track_idx in marker.get_track_count():
+		var path := String(marker.track_get_path(track_idx))
+		var separator := path.rfind(":")
+		if separator < 0:
+			continue
+		var node_path := path.substr(0, separator)
+		var property_name := path.substr(separator + 1)
+		var part_name := node_path.get_file()
+		if not pose.has(part_name):
+			pose[part_name] = {"path": node_path, "position": Vector3.ZERO, "rotation": Vector3.ZERO}
+		var value: Variant = marker.track_get_key_value(track_idx, 0)
+		if property_name == "position":
+			pose[part_name]["position"] = value
+		elif property_name == "rotation":
+			pose[part_name]["rotation"] = value
+	return _pose_hash(pose)
 
 
 static func _compile_reset(rest_pose: Dictionary) -> Animation:

@@ -3,6 +3,11 @@ extends "res://scripts/validation/validation_suite.gd"
 const AccessibilitySettingsScript := preload(
 	"res://scripts/accessibility/accessibility_settings.gd"
 )
+const GameUISkinScript := preload("res://scripts/ui/game_ui_skin.gd")
+const ValidationHelpers := preload("res://scripts/validation/helpers.gd")
+const PixelDioramaSettingsScript := preload(
+	"res://scripts/art/pipeline/pixel_diorama_settings.gd"
+)
 
 const M6_ENEMIES: Array[String] = [
 	"frost_raider",
@@ -53,7 +58,7 @@ const M7_EXPANSION_BIOMES: Array[String] = [
 
 
 func get_category() -> String:
-	return "m6"
+	return "content"
 
 
 func run() -> void:
@@ -69,7 +74,6 @@ func run() -> void:
 	_test_m6_room_scene_load()
 	_test_m6_items_cap()
 	_test_achievements()
-	await _test_accessibility_settings()
 	_test_m6_audio_profiles()
 	_test_balance_doc()
 	_test_leaderboards()
@@ -81,6 +85,8 @@ func run() -> void:
 	_test_content_catalog_loader()
 	_test_item_catalog_strict_mode()
 	_test_content_reload_command()
+	_test_ui_skin()
+	await _test_display_service()
 
 
 func _test_content_catalog_loader() -> void:
@@ -99,7 +105,7 @@ func _test_content_catalog_loader() -> void:
 			uses_shared = false
 			break
 	ctx.timed_record(
-		"m6.content.shared_dir_loader",
+		"content.shared_dir_loader",
 		get_category(),
 		uses_shared,
 		"six catalogs share ContentDirLoader.load_id_map",
@@ -113,7 +119,7 @@ func _test_content_catalog_loader() -> void:
 			no_dup_walk = false
 			break
 	ctx.timed_record(
-		"m6.content.no_duplicate_dir_walk",
+		"content.no_duplicate_dir_walk",
 		get_category(),
 		no_dup_walk,
 		"catalogs do not reimplement DirAccess walks",
@@ -156,7 +162,7 @@ func _test_item_catalog_strict_mode() -> void:
 		DirAccess.remove_absolute(orphan_path)
 	var start := Time.get_ticks_msec()
 	ctx.timed_record(
-		"m6.content.strict_rejects_orphan",
+		"content.strict_rejects_orphan",
 		get_category(),
 		not loaded_with_orphan,
 		"strict mode excludes equipment JSON absent from catalog.json",
@@ -167,12 +173,12 @@ func _test_item_catalog_strict_mode() -> void:
 
 func _test_content_reload_command() -> void:
 	var start := Time.get_ticks_msec()
-	var has_command := (
+	var has_command: bool = (
 		ctx.file_contains("res://scripts/debug/debug_console.gd", "content_reload")
 		and ctx.file_contains("res://scripts/app/content_loader.gd", "func clear_all_caches")
 	)
 	ctx.timed_record(
-		"m6.content.reload_command",
+		"content.reload_command",
 		get_category(),
 		has_command,
 		"debug content_reload clears catalog caches",
@@ -185,7 +191,7 @@ func _test_content_reload_command() -> void:
 	ContentLoader.clear_all_caches()
 	var after_clear := ItemCatalog.has_item("castle_sword")
 	ctx.timed_record(
-		"m6.content.cache_clear_reload",
+		"content.cache_clear_reload",
 		get_category(),
 		before and after_clear,
 		"clear_all_caches repopulates ItemCatalog on next access",
@@ -197,7 +203,7 @@ func _test_content_reload_command() -> void:
 func _test_ten_biomes_registered() -> void:
 	var start := Time.get_ticks_msec()
 	ctx.timed_record(
-		"m6.biome.all_ten_registered",
+		"biome.registry.all_ten_registered",
 		get_category(),
 		BiomeRegistry.ALL_BIOMES.size() == 10,
 		"BiomeRegistry lists 10 EA biomes",
@@ -211,7 +217,7 @@ func _test_m6_biome_rooms() -> void:
 		var start := Time.get_ticks_msec()
 		var rooms: Dictionary = BiomeRegistry.get_room_scenes(biome_id)
 		ctx.timed_record(
-			"m6.biome.%s_room_count" % biome_id,
+			"biome.registry.%s_room_count" % biome_id,
 			get_category(),
 			rooms.size() >= 9,
 			"%s has %d room templates" % [biome_id, rooms.size()],
@@ -225,9 +231,11 @@ func _test_m6_materials_and_lighting() -> void:
 		var start := Time.get_ticks_msec()
 		var floor_mat: Material = BiomeRegistry.get_floor_material(biome_id)
 		var wall_mat: Material = BiomeRegistry.get_wall_material(biome_id)
-		var lighting: Dictionary = BiomeRegistry.get_lighting_profile(biome_id)
+		var lighting: Dictionary = VisualLighting.profile_summary(
+			VisualLighting.profile_for_biome(biome_id)
+		)
 		ctx.timed_record(
-			"m6.biome.%s_materials" % biome_id,
+			"biome.registry.%s_materials" % biome_id,
 			get_category(),
 			floor_mat != null and wall_mat != null and lighting.has("ambient_color"),
 			"%s materials + lighting load" % biome_id,
@@ -242,7 +250,7 @@ func _test_m6_procgen() -> void:
 		var start := Time.get_ticks_msec()
 		var gen := LocalProcgen.generate(biome_id, TC.SEED_A)
 		ctx.timed_record(
-			"m6.procgen.%s_generates" % biome_id,
+			"procgen.biome.%s_generates" % biome_id,
 			get_category(),
 			gen.get("ok", false),
 			"%s seed %d generates" % [biome_id, TC.SEED_A],
@@ -260,7 +268,7 @@ func _test_m6_procgen() -> void:
 				prefix_ok = false
 				break
 		ctx.timed_record(
-			"m6.procgen.%s_template_prefix" % biome_id,
+			"procgen.biome.%s_template_prefix" % biome_id,
 			get_category(),
 			prefix_ok,
 			"%s rooms use %s_ prefix" % [biome_id, prefix],
@@ -285,7 +293,7 @@ func _test_m7_expansion_procgen() -> void:
 		var start := Time.get_ticks_msec()
 		var gen := LocalProcgen.generate(biome_id, TC.SEED_A)
 		ctx.timed_record(
-			"m7.procgen.%s_generates" % biome_id,
+			"procgen.biome.%s_generates" % biome_id,
 			get_category(),
 			gen.get("ok", false),
 			"%s seed %d generates" % [biome_id, TC.SEED_A],
@@ -303,7 +311,7 @@ func _test_m7_expansion_procgen() -> void:
 				prefix_ok = false
 				break
 		ctx.timed_record(
-			"m7.procgen.%s_template_prefix" % biome_id,
+			"procgen.biome.%s_template_prefix" % biome_id,
 			get_category(),
 			prefix_ok,
 			"%s rooms use %s_ prefix" % [biome_id, prefix],
@@ -313,7 +321,7 @@ func _test_m7_expansion_procgen() -> void:
 		start = Time.get_ticks_msec()
 		var rooms: Dictionary = BiomeRegistry.get_room_scenes(biome_id)
 		ctx.timed_record(
-			"m7.biome.%s_room_count" % biome_id,
+			"biome.registry.%s_room_count" % biome_id,
 			get_category(),
 			rooms.size() >= 9,
 			"%s has %d room templates" % [biome_id, rooms.size()],
@@ -329,7 +337,7 @@ func _test_m6_enemies() -> void:
 			missing.append(enemy_id)
 	var start := Time.get_ticks_msec()
 	ctx.timed_record(
-		"m6.enemies.roster",
+		"content.enemies.roster",
 		get_category(),
 		missing.is_empty(),
 		"M6 enemy roster complete" if missing.is_empty() else "missing: %s" % ", ".join(missing),
@@ -345,7 +353,7 @@ func _test_m6_bosses() -> void:
 			missing.append(boss_id)
 	var start := Time.get_ticks_msec()
 	ctx.timed_record(
-		"m6.bosses.roster",
+		"content.bosses.roster",
 		get_category(),
 		missing.is_empty() and M6_BOSSES.size() <= 8,
 		"8 bosses registered" if missing.is_empty() else "missing: %s" % ", ".join(missing),
@@ -361,7 +369,7 @@ func _test_m6_items_cap() -> void:
 	var total: int = equip.size() + cons.size()
 	var start := Time.get_ticks_msec()
 	ctx.timed_record(
-		"m6.items.catalog_cap",
+		"content.items.catalog_cap",
 		get_category(),
 		total <= 84,
 		"catalog lists %d items (cap 84)" % total,
@@ -371,7 +379,7 @@ func _test_m6_items_cap() -> void:
 	for item_id in M6_UNIQUES:
 		start = Time.get_ticks_msec()
 		ctx.timed_record(
-			"m6.items.unique_%s" % item_id,
+			"content.items.unique_%s" % item_id,
 			get_category(),
 			ItemCatalog.has_item(item_id),
 			"theme unique %s in catalog" % item_id,
@@ -385,7 +393,7 @@ func _test_achievements() -> void:
 	var achievements: Array = data.get("achievements", [])
 	var start := Time.get_ticks_msec()
 	ctx.timed_record(
-		"m6.achievements.count",
+		"meta.achievements.count",
 		get_category(),
 		achievements.size() >= 20 and achievements.size() <= 30,
 		"%d achievements defined" % achievements.size(),
@@ -395,7 +403,7 @@ func _test_achievements() -> void:
 	if AchievementService:
 		start = Time.get_ticks_msec()
 		ctx.timed_record(
-			"m6.achievements.service",
+			"meta.achievements.service",
 			get_category(),
 			AchievementService.has_method("unlock"),
 			"AchievementService autoload present",
@@ -407,7 +415,7 @@ func _test_achievements() -> void:
 func _test_accessibility_settings() -> void:
 	var start := Time.get_ticks_msec()
 	ctx.timed_record(
-		"m6.a11y.settings_class",
+		"a11y.settings_class",
 		get_category(),
 		ResourceLoader.exists("res://scripts/accessibility/accessibility_settings.gd"),
 		"AccessibilitySettings loads",
@@ -418,7 +426,7 @@ func _test_accessibility_settings() -> void:
 	start = Time.get_ticks_msec()
 	var color: Color = AccessibilitySettingsScript.get_damage_color("fire")
 	ctx.timed_record(
-		"m6.a11y.damage_colors",
+		"a11y.damage_colors",
 		get_category(),
 		color != Color.WHITE,
 		"colorblind damage color helper works",
@@ -426,24 +434,22 @@ func _test_accessibility_settings() -> void:
 		"M6.a11y.colors"
 	)
 	start = Time.get_ticks_msec()
-	AccessibilitySettingsScript.ui_scale = 1.25
 	AccessibilitySettingsScript.subtitle_scale = 1.5
 	AccessibilitySettingsScript.reduce_camera_shake = true
 	var ok := (
-		AccessibilitySettingsScript.ui_scale == 1.25
-		and AccessibilitySettingsScript.subtitle_scale == 1.5
+		is_equal_approx(AccessibilitySettingsScript.subtitle_scale, 1.5)
 		and AccessibilitySettingsScript.reduce_camera_shake
 	)
 	ctx.timed_record(
-		"m6.a11y.ui_settings",
+		"a11y.ui_settings",
 		get_category(),
 		ok,
-		"UI scale, subtitle scale, and camera shake settings writable",
+		"subtitle scale and camera shake settings writable",
 		start,
 		"M6.a11y.baseline"
 	)
 	start = Time.get_ticks_msec()
-	var has_consumer := (
+	var has_consumer: bool = (
 		ctx.file_contains("res://scripts/combat/damage_number.gd", "get_damage_color")
 		or ctx.file_contains("res://scripts/ui/combat_hud.gd", "get_damage_color")
 	)
@@ -469,7 +475,7 @@ func _test_accessibility_settings() -> void:
 		"A11-01"
 	)
 	start = Time.get_ticks_msec()
-	var no_hardcoded_hit_colors := not ctx.file_contains(
+	var no_hardcoded_hit_colors: bool = not ctx.file_contains(
 		"res://scripts/combat/damage_number.gd", "Color(1.0, 0.35"
 	)
 	ctx.timed_record(
@@ -517,7 +523,7 @@ func _test_m6_audio_profiles() -> void:
 		var path := BiomeRegistry.get_audio_profile_path(biome_id)
 		var data: Dictionary = ContentLoader.load_json(path)
 		ctx.timed_record(
-			"m6.audio.%s_profile" % biome_id,
+			"audio.biome.%s_profile" % biome_id,
 			get_category(),
 			data.get("biomeId", "") == biome_id,
 			"%s audio profile valid" % biome_id,
@@ -530,7 +536,7 @@ func _test_balance_doc() -> void:
 	var start := Time.get_ticks_msec()
 	var path := _content_root().path_join("docs/existing_codebase/content-data.md")
 	ctx.timed_record(
-		"m6.balance.doc",
+		"docs.balance.doc",
 		get_category(),
 		FileAccess.file_exists(path),
 		"content data doc present",
@@ -545,7 +551,7 @@ func _test_m6_dungeon_build() -> void:
 		if not gen.get("ok", false):
 			var start := Time.get_ticks_msec()
 			ctx.timed_record(
-				"m6.dungeon.%s_build" % biome_id,
+				"dungeon.biome.%s_build" % biome_id,
 				get_category(),
 				false,
 				"procgen failed before dungeon build for %s" % biome_id,
@@ -570,7 +576,7 @@ func _test_m6_dungeon_build() -> void:
 		var room_count: int = builder.get_room_ids().size()
 		var enemy_count: int = builder.get_spawned_enemy_count()
 		ctx.timed_record(
-			"m6.dungeon.%s_rooms" % biome_id,
+			"dungeon.biome.%s_rooms" % biome_id,
 			get_category(),
 			room_count > 0,
 			"%s: %d rooms built" % [biome_id, room_count],
@@ -580,7 +586,7 @@ func _test_m6_dungeon_build() -> void:
 
 		start = Time.get_ticks_msec()
 		ctx.timed_record(
-			"m6.dungeon.%s_enemies" % biome_id,
+			"dungeon.biome.%s_enemies" % biome_id,
 			get_category(),
 			enemy_count > 0,
 			"%s: %d enemies spawned" % [biome_id, enemy_count],
@@ -599,7 +605,7 @@ func _test_m6_dungeon_build() -> void:
 			boss_door.call("release_door")
 			door_ok = door_ok and boss_door.call("is_opened")
 		ctx.timed_record(
-			"m6.dungeon.%s_boss_door" % biome_id,
+			"dungeon.biome.%s_boss_door" % biome_id,
 			get_category(),
 			door_ok,
 			"%s boss door open/seal/release" % biome_id,
@@ -615,7 +621,7 @@ func _test_m6_scenes() -> void:
 		var scene: PackedScene = EnemyCatalog.get_scene(enemy_id)
 		var start := Time.get_ticks_msec()
 		ctx.timed_record(
-			"m6.scene.%s" % enemy_id,
+			"content.scene.%s" % enemy_id,
 			get_category(),
 			not def.is_empty() and scene != null,
 			"%s enemy JSON + scene aligned" % enemy_id,
@@ -627,7 +633,7 @@ func _test_m6_scenes() -> void:
 	var hollow := EnemyCatalog.get_scene("boss_cathedral_hollow")
 	var start := Time.get_ticks_msec()
 	ctx.timed_record(
-		"m6.boss.m6_theme_scenes",
+		"dungeon.boss.m6_theme_scenes",
 		get_category(),
 		warlord != null and hollow != null,
 		"boss_frost_warlord and boss_cathedral_hollow scenes resolve",
@@ -647,7 +653,7 @@ func _test_m6_room_scene_load() -> void:
 				missing.append(room_id)
 		var start := Time.get_ticks_msec()
 		ctx.timed_record(
-			"m6.rooms.%s_load" % biome_id,
+			"biome.rooms.%s_load" % biome_id,
 			get_category(),
 			missing.is_empty(),
 			(
@@ -664,7 +670,7 @@ func _test_leaderboards() -> void:
 	var start := Time.get_ticks_msec()
 	var ok: bool = ResourceLoader.exists("res://scripts/meta/leaderboard_settings.gd")
 	ctx.timed_record(
-		"m6.leaderboard.settings",
+		"meta.leaderboard.settings",
 		get_category(),
 		ok,
 		"LeaderboardSettings opt-in class present",
@@ -674,7 +680,7 @@ func _test_leaderboards() -> void:
 	start = Time.get_ticks_msec()
 	ok = ctx.file_contains("res://scripts/net/api_client.gd", "func submit_leaderboard")
 	ctx.timed_record(
-		"m6.leaderboard.api_client",
+		"meta.leaderboard.api_client",
 		get_category(),
 		ok,
 		"ApiClient.submit_leaderboard wired",
@@ -684,7 +690,7 @@ func _test_leaderboards() -> void:
 	start = Time.get_ticks_msec()
 	ok = ctx.file_contains("res://scripts/app/run_flow.gd", "LeaderboardSettings.opt_in")
 	ctx.timed_record(
-		"m6.leaderboard.escape_submit",
+		"meta.leaderboard.escape_submit",
 		get_category(),
 		ok,
 		"escape flow checks leaderboard opt-in",
@@ -706,7 +712,7 @@ func _test_web_pages() -> void:
 		var start := Time.get_ticks_msec()
 		var path := root.path_join(page)
 		ctx.timed_record(
-			"m6.web.%s" % page.get_basename().to_lower(),
+			"docs.web.%s" % page.get_basename().to_lower(),
 			get_category(),
 			FileAccess.file_exists(path),
 			"web page %s exists" % page,
@@ -719,7 +725,7 @@ func _test_performance_doc() -> void:
 	var start := Time.get_ticks_msec()
 	var ok = ctx.file_contains("res://scripts/combat/enemy_pool.gd", "class_name EnemyPool")
 	ctx.timed_record(
-		"m6.perf.enemy_pool",
+		"performance.pool.enemy_pool",
 		get_category(),
 		ok,
 		"EnemyPool module present for M6 perf",
@@ -753,7 +759,7 @@ func _test_balance_export_schema() -> void:
 		ok,
 		"reports/balance_export.json matches balance-export schema shape",
 		start,
-		"BAL-6.1"
+		"TLS-05"
 	)
 
 
@@ -782,7 +788,7 @@ func _test_achievement_catalog_quality() -> void:
 			missing.append(req_id)
 	var start := Time.get_ticks_msec()
 	ctx.timed_record(
-		"m6.achievements.unique_ids",
+		"meta.achievements.unique_ids",
 		get_category(),
 		not duplicates and achievements.size() >= 25,
 		"%d achievements with unique IDs" % achievements.size(),
@@ -791,7 +797,7 @@ func _test_achievement_catalog_quality() -> void:
 	)
 	start = Time.get_ticks_msec()
 	ctx.timed_record(
-		"m6.achievements.required_ids",
+		"meta.achievements.required_ids",
 		get_category(),
 		missing.is_empty(),
 		(
@@ -804,7 +810,7 @@ func _test_achievement_catalog_quality() -> void:
 	)
 	start = Time.get_ticks_msec()
 	ctx.timed_record(
-		"m6.achievements.toast_scene",
+		"meta.achievements.toast_scene",
 		get_category(),
 		ResourceLoader.exists("res://scenes/ui/achievement_toast.tscn"),
 		"achievement toast scene exists",
@@ -822,12 +828,425 @@ func _test_escape_meta_wiring() -> void:
 		)
 	)
 	ctx.timed_record(
-		"m6.meta.escape_achievements",
+		"meta.escape.escape_achievements",
 		get_category(),
 		ok,
 		"escape meta unlocks achievements on boss clear",
 		start,
 		"META-6.1"
+	)
+
+
+func _test_display_service() -> void:
+	const DisplayServiceScript := preload("res://scripts/app/display_service.gd")
+	var start := Time.get_ticks_msec()
+	var autoload: Node = null
+	if Engine.get_main_loop() is SceneTree:
+		autoload = (Engine.get_main_loop() as SceneTree).root.get_node_or_null("/root/DisplayService")
+	var fields_ok := autoload != null
+	if fields_ok:
+		fields_ok = (
+			autoload.has_method("set_window_mode")
+			and autoload.has_method("set_ui_scale")
+			and "window_mode" in autoload
+			and "window_size" in autoload
+			and "monitor_index" in autoload
+			and "vsync_mode" in autoload
+			and "max_fps" in autoload
+			and "ui_scale" in autoload
+			and "hud_safe_area" in autoload
+		)
+	ctx.timed_record(
+		"display.service_present",
+		get_category(),
+		fields_ok,
+		"DisplayService autoload exposes all seven fields",
+		start,
+		"DSP-01"
+	)
+
+	start = Time.get_ticks_msec()
+	var legacy_gone := (
+		not ResourceLoader.exists("res://scripts/ui/display_settings.gd")
+		and not ctx.file_contains("res://scripts/ui/settings_ui.gd", "DisplaySettings")
+		and not ctx.file_contains("res://scripts/app/player_controls.gd", "DisplaySettings")
+	)
+	ctx.timed_record(
+		"display.legacy_helper_gone",
+		get_category(),
+		legacy_gone,
+		"display_settings.gd removed and no DisplaySettings references",
+		start,
+		"DSP-06"
+	)
+
+	start = Time.get_ticks_msec()
+	var service := DisplayServiceScript.new()
+	service.monitor_index = 0
+	service.window_mode = DisplayServiceScript.WINDOW_MODE_WINDOWED
+	service.window_size = Vector2i(1600, 900)
+	service.vsync_mode = DisplayServiceScript.VSYNC_ENABLED
+	service.max_fps = 60
+	service.ui_scale = 1.25
+	service.hud_safe_area = 0.02
+	var serialized := service.serialize()
+	var reloaded := DisplayServiceScript.new()
+	var data: Dictionary = serialized
+	reloaded.window_mode = reloaded._parse_window_mode(data.get("window_mode"))
+	var size_arr: Variant = data.get("window_size", [1920, 1080])
+	reloaded.window_size = Vector2i(int(size_arr[0]), int(size_arr[1]))
+	reloaded.monitor_index = int(data.get("monitor_index", 0))
+	reloaded.vsync_mode = reloaded._parse_vsync_mode(data.get("vsync_mode"))
+	reloaded.max_fps = int(data.get("max_fps", 0))
+	reloaded.ui_scale = float(data.get("ui_scale", 1.0))
+	reloaded.hud_safe_area = float(data.get("hud_safe_area", 0.0))
+	var roundtrip_ok := (
+		reloaded.window_mode == DisplayServiceScript.WINDOW_MODE_WINDOWED
+		and reloaded.window_size == Vector2i(1600, 900)
+		and reloaded.vsync_mode == DisplayServiceScript.VSYNC_ENABLED
+		and reloaded.max_fps == 60
+		and is_equal_approx(reloaded.ui_scale, 1.25)
+		and is_equal_approx(reloaded.hud_safe_area, 0.02)
+	)
+	ctx.timed_record(
+		"display.roundtrip",
+		get_category(),
+		roundtrip_ok,
+		"display fields serialize and reload consistently",
+		start,
+		"DSP-01"
+	)
+
+	start = Time.get_ticks_msec()
+	var single_source_ok := (
+		ctx.file_contains("res://scripts/ui/settings_ui.gd", "DisplayService.SCALE_MIN")
+		and ctx.file_contains("res://scripts/ui/settings_ui.gd", "DisplayService.SCALE_MAX")
+		and ctx.file_contains("res://scripts/app/display_service.gd", "const SCALE_MIN := 0.75")
+		and ctx.file_contains("res://scripts/app/display_service.gd", "const SCALE_MAX := 1.75")
+		and not ctx.file_contains("res://scripts/ui/settings_ui.gd", "0.8, 1.5")
+	)
+	ctx.timed_record(
+		"display.scale_single_source",
+		get_category(),
+		single_source_ok,
+		"UI scale bounds live on DisplayService and settings reads them",
+		start,
+		"DSP-03"
+	)
+
+	start = Time.get_ticks_msec()
+	if DisplayService:
+		DisplayService.set_ui_scale(1.25)
+		DisplayService.apply_all()
+	var tree := Engine.get_main_loop() as SceneTree
+	var content_scale := tree.root.content_scale_factor if tree and tree.root else 0.0
+	var theme: Theme = tree.root.theme if tree and tree.root else null
+	var body_size := theme.get_font_size(&"font_size", GameUISkinScript.VAR_BODY_TEXT) if theme else 0
+	var text_scale_ok := (
+		is_equal_approx(content_scale, 1.0)
+		and body_size > GameUISkinScript.FONT_SIZE_BODY
+	)
+	ctx.timed_record(
+		"display.text_scale_effect",
+		get_category(),
+		text_scale_ok,
+		"ui_scale 1.25 enlarges theme fonts while content_scale_factor stays integral",
+		start,
+		"DSP-02"
+	)
+
+	start = Time.get_ticks_msec()
+	var relayout_ok := false
+	if ctx.owner:
+		var settings_scene := load("res://scripts/ui/settings_ui.gd") as Script
+		var settings := settings_scene.new() as Control
+		ctx.owner.add_child(settings)
+		settings.call("open_settings")
+		await ctx.await_frame()
+		var panel_before := settings.get_node_or_null("Panel") as PanelContainer
+		var size_before := panel_before.size if panel_before else Vector2.ZERO
+		DisplayService.set_ui_scale(DisplayService.SCALE_MAX)
+		await ctx.await_frame()
+		var panel_after := settings.get_node_or_null("Panel") as PanelContainer
+		relayout_ok = panel_after != null and panel_after.size != size_before
+		settings.call("close_settings")
+		settings.queue_free()
+	ctx.timed_record(
+		"display.relayout_on_change",
+		get_category(),
+		relayout_ok,
+		"open settings modal relayouts when display_changed fires",
+		start,
+		"DSP-04"
+	)
+
+	start = Time.get_ticks_msec()
+	var fallback_service := DisplayServiceScript.new()
+	fallback_service.window_size = Vector2i(4000, 3000)
+	fallback_service.monitor_index = 0
+	fallback_service.sanitize_persisted_settings_for_test()
+	var fallback_ok := (
+		fallback_service.window_mode == DisplayServiceScript.WINDOW_MODE_WINDOWED
+		and fallback_service.window_size_fits_any_monitor(fallback_service.window_size)
+	)
+	ctx.timed_record(
+		"display.window_size_fallback",
+		get_category(),
+		fallback_ok,
+		"oversized saved window size falls back to a fitting windowed size",
+		start,
+		"DSP-01"
+	)
+
+	start = Time.get_ticks_msec()
+	var monitor_service := DisplayServiceScript.new()
+	monitor_service.monitor_index = DisplayServer.get_screen_count() + 5
+	monitor_service.sanitize_persisted_settings_for_test()
+	ctx.timed_record(
+		"display.monitor_fallback",
+		get_category(),
+		monitor_service.monitor_index == 0,
+		"invalid monitor index falls back to 0",
+		start,
+		"DSP-01"
+	)
+
+	start = Time.get_ticks_msec()
+	var fullscreen_service := DisplayServiceScript.new()
+	fullscreen_service.window_mode = DisplayServiceScript.WINDOW_MODE_WINDOWED
+	fullscreen_service._fullscreen_saved_mode = DisplayServiceScript.WINDOW_MODE_WINDOWED
+	fullscreen_service._fullscreen_confirm_active = true
+	fullscreen_service.window_mode = DisplayServiceScript.WINDOW_MODE_FULLSCREEN
+	fullscreen_service._on_fullscreen_confirm_timeout()
+	var revert_ok := fullscreen_service.window_mode == DisplayServiceScript.WINDOW_MODE_WINDOWED
+	ctx.timed_record(
+		"display.fullscreen_revert",
+		get_category(),
+		revert_ok,
+		"unconfirmed fullscreen switch reverts after timeout",
+		start,
+		"DSP-01"
+	)
+
+	start = Time.get_ticks_msec()
+	var SaveMigratorScript := preload("res://scripts/save/save_migrator.gd")
+	var legacy_save := {
+		"schemaVersion": 8,
+		"meta": {"accessibility": {"ui_scale": 1.2, "reduce_camera_shake": false}},
+	}
+	var migrated: Dictionary = SaveMigratorScript.migrate(legacy_save)
+	var display_block: Dictionary = migrated.get("meta", {}).get("display", {})
+	var migration_ok := (
+		int(migrated.get("schemaVersion", 0)) == SaveMigratorScript.CURRENT_VERSION
+		and is_equal_approx(float(display_block.get("ui_scale", 0.0)), 1.2)
+	)
+	ctx.timed_record(
+		"display.migration_ui_scale",
+		get_category(),
+		migration_ok,
+		"accessibility.ui_scale migrates into meta.display.ui_scale",
+		start,
+		"DSP-01"
+	)
+
+
+func _test_ui_skin() -> void:
+	var start := Time.get_ticks_msec()
+	var theme_exists: bool = ResourceLoader.exists(GameUISkinScript.THEME_PATH)
+	var theme: Theme = null
+	if theme_exists:
+		theme = load(GameUISkinScript.THEME_PATH) as Theme
+	ctx.timed_record(
+		"ui.skin.theme_resource",
+		get_category(),
+		theme_exists and theme != null,
+		"aumbrye_ui.tres exists and loads as Theme",
+		start,
+		"SKN-01"
+	)
+
+	start = Time.get_ticks_msec()
+	var registered: bool = (
+		ProjectSettings.get_setting("gui/theme/custom") == GameUISkinScript.THEME_PATH
+	)
+	ctx.timed_record(
+		"ui.skin.theme_registered",
+		get_category(),
+		registered,
+		"project.godot registers gui/theme/custom",
+		start,
+		"SKN-01"
+	)
+
+	start = Time.get_ticks_msec()
+	var built := GameUISkinScript.build_theme()
+	var regen_ok: bool = built.get_color("font_color", "Label").is_equal_approx(
+		GameUISkinScript.BODY_COLOR
+	)
+	ctx.timed_record(
+		"ui.skin.theme_regenerates",
+		get_category(),
+		regen_ok,
+		"build_theme() Label font_color matches BODY_COLOR",
+		start,
+		"SKN-01"
+	)
+
+	start = Time.get_ticks_msec()
+	var variations_ok := true
+	if theme == null:
+		variations_ok = false
+	else:
+		for variation in GameUISkinScript.LABEL_VARIATIONS:
+			if theme.get_type_variation_base(variation) != "Label":
+				variations_ok = false
+				break
+	ctx.timed_record(
+		"ui.skin.variations_present",
+		get_category(),
+		variations_ok,
+		"theme defines all seven label variations",
+		start,
+		"SKN-02"
+	)
+
+	start = Time.get_ticks_msec()
+	var font_ok := false
+	if theme != null and theme.default_font != null:
+		var font_path := theme.default_font.resource_path
+		font_ok = font_path.ends_with("aumbrye_pixel.ttf")
+	ctx.timed_record(
+		"ui.skin.font_default",
+		get_category(),
+		font_ok,
+		"theme default_font points at aumbrye_pixel.ttf",
+		start,
+		"SKN-03"
+	)
+
+	start = Time.get_ticks_msec()
+	var saved_low_res := PixelDioramaSettingsScript.low_res_viewport_enabled
+	var saved_width := PixelDioramaSettingsScript.viewport_width
+	var saved_height := PixelDioramaSettingsScript.viewport_height
+	PixelDioramaSettingsScript.low_res_viewport_enabled = true
+	PixelDioramaSettingsScript.viewport_width = 480
+	PixelDioramaSettingsScript.viewport_height = 270
+	var pixel_panel := GameUISkinScript.make_panel_style()
+	var pixel_ok: bool = (
+		pixel_panel.corner_radius_top_left == 0 and pixel_panel.shadow_size == 0
+	)
+	PixelDioramaSettingsScript.low_res_viewport_enabled = saved_low_res
+	PixelDioramaSettingsScript.viewport_width = saved_width
+	PixelDioramaSettingsScript.viewport_height = saved_height
+	ctx.timed_record(
+		"ui.skin.pixel_panel_square",
+		get_category(),
+		pixel_ok,
+		"pixel mode panel style has zero radius and shadow",
+		start,
+		"SKN-05"
+	)
+
+	start = Time.get_ticks_msec()
+	PixelDioramaSettingsScript.set_resolution_preset(4)
+	var hd_panel := GameUISkinScript.make_panel_style()
+	var hd_ok: bool = hd_panel.corner_radius_top_left == GameUISkinScript.PANEL_CORNER_RADIUS_HD
+	PixelDioramaSettingsScript.viewport_width = saved_width
+	PixelDioramaSettingsScript.viewport_height = saved_height
+	ctx.timed_record(
+		"ui.skin.hd_panel_rounded",
+		get_category(),
+		hd_ok,
+		"native-HD panel style keeps rounded corners",
+		start,
+		"SKN-05"
+	)
+
+	start = Time.get_ticks_msec()
+	var focus_ok := true
+	if theme == null:
+		focus_ok = false
+	else:
+		for control_type in ["Button", "ItemList", "OptionButton", "CheckBox", "LineEdit"]:
+			if theme.get_stylebox("focus", control_type) == null:
+				focus_ok = false
+				break
+	ctx.timed_record(
+		"ui.skin.focus_styleboxes",
+		get_category(),
+		focus_ok,
+		"theme defines focus styleboxes for interactive controls",
+		start,
+		"SKN-10"
+	)
+
+	start = Time.get_ticks_msec()
+	var no_label_walk: bool = not ctx.file_contains(
+		"res://scripts/ui/game_ui_skin.gd", '"Label", true'
+	)
+	ctx.timed_record(
+		"ui.skin.no_label_walk",
+		get_category(),
+		no_label_walk,
+		"apply_modal_menu does not walk labels by name",
+		start,
+		"SKN-02"
+	)
+
+	start = Time.get_ticks_msec()
+	var no_dead: bool = (
+		not ctx.file_contains("res://scripts/ui/game_ui_skin.gd", "const CELL_SIZE")
+		and not ctx.file_contains("res://scripts/ui/game_ui_skin.gd", "const EQUIP_CELL_SIZE")
+	)
+	ctx.timed_record(
+		"ui.skin.no_dead_constants",
+		get_category(),
+		no_dead,
+		"game_ui_skin.gd has no dead cell-size constants",
+		start,
+		"SKN-08"
+	)
+
+	start = Time.get_ticks_msec()
+	var button_files := [
+		"res://scripts/ui/stair_menu.gd",
+		"res://scripts/ui/umbral_endless_menu.gd",
+		"res://scripts/ui/blacksmith_ui.gd",
+	]
+	var buttons_ok := true
+	for path in button_files:
+		if ctx.file_contains(path, "Button.new()"):
+			buttons_ok = false
+			break
+	ctx.timed_record(
+		"ui.skin.button_sfx_coverage",
+		get_category(),
+		buttons_ok,
+		"hub menu scripts use GameUISkin.make_button",
+		start,
+		"SKN-07"
+	)
+
+	start = Time.get_ticks_msec()
+	var paperdoll_ok: bool = ResourceLoader.exists(GameUISkinScript.PAPERDOLL_TEXTURE_PATH)
+	if paperdoll_ok:
+		var dir := DirAccess.open("res://scripts/ui")
+		if dir:
+			dir.list_dir_begin()
+			var file_name := dir.get_next()
+			while file_name != "":
+				if not dir.current_is_dir() and file_name.ends_with(".gd"):
+					if ctx.file_contains("res://scripts/ui/%s" % file_name, "build_human_silhouette"):
+						paperdoll_ok = false
+						break
+				file_name = dir.get_next()
+	ctx.timed_record(
+		"ui.skin.paperdoll_texture",
+		get_category(),
+		paperdoll_ok,
+		"paperdoll texture exists and no UI script calls build_human_silhouette",
+		start,
+		"SKN-04"
 	)
 
 

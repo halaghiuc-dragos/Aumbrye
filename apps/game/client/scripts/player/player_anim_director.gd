@@ -30,6 +30,8 @@ const TURN_FACING_ERROR := 1.4
 
 const Viewmodel := preload("res://scripts/art/characters/diorama_viewmodel.gd")
 
+const MaterialFlashScript := preload("res://scripts/art/characters/material_flash.gd")
+
 const PixelStyle := preload("res://scripts/art/style/pixel_diorama_style.gd")
 
 const DamageInfoScript := preload("res://scripts/combat/damage_info.gd")
@@ -148,6 +150,14 @@ func _build_viewmodel() -> void:
 
 		return
 
+	if _viewmodel_anim != null and is_instance_valid(_viewmodel_anim):
+
+		remove_mirror(_viewmodel_anim)
+
+		_viewmodel_anim.queue_free()
+
+		_viewmodel_anim = null
+
 	var holder := Viewmodel.build(camera, _viewmodel_theme)
 
 	if holder == null:
@@ -202,6 +212,10 @@ func set_viewmodel_theme(theme: int) -> void:
 
 
 
+func flash_viewmodel(params: Dictionary) -> void:
+	if _viewmodel_root and is_instance_valid(_viewmodel_root):
+		MaterialFlashScript.flash(_viewmodel_root, params)
+
 
 
 ## Called on camera toggle: only one of the two rigs may be visible at a time.
@@ -214,11 +228,15 @@ func sync_camera_mode() -> void:
 
 	var first_person := bool(_spring.call("is_first_person"))
 
-	var holder := _viewmodel_root.get_parent() if _viewmodel_root else null
+	var camera := _body.get_node_or_null(CAMERA_PATH) as Camera3D if _body else null
 
-	if holder is Node3D:
+	if camera:
 
-		(holder as Node3D).visible = first_person
+		var holder := camera.get_node_or_null(Viewmodel.NODE_NAME)
+
+		if holder and holder.has_method("set_pass_visible"):
+
+			holder.call("set_pass_visible", first_person)
 
 	if _visual and is_instance_valid(_visual):
 
@@ -833,10 +851,10 @@ func _sync_first_person_weapon_shadows() -> void:
 
 	var spring := _body.get_node_or_null(SPRING_PATH)
 
-	var first_person := (
-
-		spring != null and spring.has_method("is_first_person") and spring.call("is_first_person")
-
+	var first_person: bool = (
+		spring != null
+		and spring.has_method("is_first_person")
+		and bool(spring.call("is_first_person"))
 	)
 
 	CharacterSkin.sync_first_person_weapon_shadows(_visual, first_person)

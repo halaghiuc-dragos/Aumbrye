@@ -1,0 +1,143 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://aumbrye.dev/schemas/lighting-profile.v1.json",
+  "title": "LightingProfileCatalog",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version", "profiles", "biome_profile_map"],
+  "properties": {
+    "version": { "type": "integer", "const": 1 },
+    "profiles": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": { "$ref": "#/$defs/profile" }
+    },
+    "biome_profile_map": {
+      "type": "object",
+      "additionalProperties": { "type": "string", "minLength": 1 }
+    }
+  },
+  "$defs": {
+    "hexColor": {
+      "type": "string",
+      "pattern": "^#[0-9a-fA-F]{6}$"
+    },
+    "colorBlock": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["color"],
+      "properties": {
+        "color": { "$ref": "#/$defs/hexColor" },
+        "energy": { "type": "number", "minimum": 0, "maximum": 8 }
+      }
+    },
+    "fogBlock": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["enabled"],
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "color": { "$ref": "#/$defs/hexColor" },
+        "density": { "type": "number", "minimum": 0, "maximum": 0.2 },
+        "aerial": { "type": "number", "minimum": 0, "maximum": 1 },
+        "sky_affect": { "type": "number", "minimum": 0, "maximum": 1 }
+      }
+    },
+    "directionalBlock": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "color": { "$ref": "#/$defs/hexColor" },
+        "energy": { "type": "number", "minimum": 0, "maximum": 8 },
+        "rotation_deg": {
+          "type": "array",
+          "items": { "type": "number" },
+          "minItems": 3,
+          "maxItems": 3
+        },
+        "shadows": { "type": "boolean" }
+      }
+    },
+    "skyBlock": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["zenith", "horizon", "ground"],
+      "properties": {
+        "zenith": { "$ref": "#/$defs/hexColor" },
+        "horizon": { "$ref": "#/$defs/hexColor" },
+        "ground": { "$ref": "#/$defs/hexColor" },
+        "bands": { "type": "number", "minimum": 2, "maximum": 24 },
+        "horizon_falloff": { "type": "number", "minimum": 0.5, "maximum": 8 },
+        "sun_size": { "type": "number", "minimum": 0, "maximum": 0.3 },
+        "sun_glow": { "type": "number", "minimum": 0, "maximum": 1 },
+        "cloud_amount": { "type": "number", "minimum": 0, "maximum": 1 },
+        "cloud_color": { "$ref": "#/$defs/hexColor" }
+      }
+    },
+    "motesBlock": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "tint": { "$ref": "#/$defs/hexColor" },
+        "alpha": { "type": "number", "minimum": 0, "maximum": 1 },
+        "amount": { "type": "integer", "minimum": 0, "maximum": 128 },
+        "radius": { "type": "number", "minimum": 1, "maximum": 32 },
+        "fall_speed": { "type": "number", "minimum": 0, "maximum": 2 }
+      }
+    },
+    "torchBlock": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "color": { "$ref": "#/$defs/hexColor" },
+        "energy": { "type": "number", "minimum": 0, "maximum": 8 },
+        "range": { "type": "number", "minimum": 1, "maximum": 32 },
+        "flicker": { "type": "number", "minimum": 0, "maximum": 1 },
+        "flicker_hz": { "type": "number", "minimum": 0.5, "maximum": 20 },
+        "max_shadow_omnis": { "type": "integer", "minimum": 0, "maximum": 8 }
+      }
+    },
+    "profile": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["ambient", "fog"],
+      "properties": {
+        "display_name": { "type": "string" },
+        "ambient": { "$ref": "#/$defs/colorBlock" },
+        "fog": { "$ref": "#/$defs/fogBlock" },
+        "sun": { "$ref": "#/$defs/directionalBlock" },
+        "fill": { "$ref": "#/$defs/directionalBlock" },
+        "key_light": { "$ref": "#/$defs/directionalBlock" },
+        "sky": { "$ref": "#/$defs/skyBlock" },
+        "atmosphere": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "motes": { "$ref": "#/$defs/motesBlock" },
+            "fog_volume": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "enabled": { "type": "boolean" },
+                "size": {
+                  "type": "array",
+                  "items": { "type": "number" },
+                  "minItems": 3,
+                  "maxItems": 3
+                }
+              }
+            }
+          }
+        },
+        "torch": { "$ref": "#/$defs/torchBlock" },
+        "grade": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "white": { "type": "number", "minimum": 0.5, "maximum": 2 }
+          }
+        }
+      }
+    }
+  }
+}

@@ -596,7 +596,7 @@ func _spawn_player() -> void:
 	var entrance := get_room(entrance_id)
 	if entrance:
 		_player.global_position = entrance.get_player_spawn_global()
-		CharacterFloorSnapScript.snap_feet_to_floor(_player)
+		CharacterFloorSnapScript.snap_to_floor_below(_player)
 	_player.add_to_group("player")
 
 
@@ -637,7 +637,7 @@ func _spawn_enemy(placement: Dictionary, index: int) -> void:
 	enemy.position = _sample_placement_offset(room, placement)
 	room.add_child(enemy)
 	if enemy is CharacterBody3D:
-		CharacterFloorSnapScript.snap_feet_to_floor(enemy as CharacterBody3D)
+		CharacterFloorSnapScript.snap_to_floor_below(enemy as CharacterBody3D)
 	enemy.set_meta("placement_id", placement_key)
 	if enemy.has_method("set_player"):
 		enemy.call("set_player", _player)
@@ -730,7 +730,7 @@ func _setup_boss() -> void:
 	else:
 		_boss.position = Vector3.ZERO
 	if _boss is CharacterBody3D:
-		CharacterFloorSnapScript.snap_feet_to_floor(_boss as CharacterBody3D)
+		CharacterFloorSnapScript.snap_to_floor_below(_boss as CharacterBody3D)
 	if _boss.has_method("set_player"):
 		_boss.call("set_player", _player)
 	_apply_floor_scaling(_boss)

@@ -60,7 +60,7 @@ func _test_main_scene() -> void:
 
 func _test_platform_gates() -> void:
 	var start := Time.get_ticks_msec()
-	var offline_default := ctx.file_contains(
+	var offline_default: bool = ctx.file_contains(
 		"res://scripts/app/run_flow.gd", "const USE_ONLINE_PROCgen := false"
 	)
 	ctx.timed_record(
@@ -73,11 +73,11 @@ func _test_platform_gates() -> void:
 	)
 
 	start = Time.get_ticks_msec()
-	var workflow_path := ctx.repo_root().path_join(".github/workflows/ci.yml")
+	var workflow_path: String = ctx.repo_root().path_join(".github/workflows/ci.yml")
 	var workflow_text := ""
 	if FileAccess.file_exists(workflow_path):
 		workflow_text = FileAccess.get_file_as_string(workflow_path)
-	var godot_version_path := ctx.repo_root().path_join("apps/game/client/.godot-version")
+	var godot_version_path: String = ctx.repo_root().path_join("apps/game/client/.godot-version")
 	var pinned := ""
 	if FileAccess.file_exists(godot_version_path):
 		pinned = FileAccess.get_file_as_string(godot_version_path).strip_edges()
@@ -102,7 +102,7 @@ func _test_platform_gates() -> void:
 
 func _test_character_authoring() -> void:
 	var start := Time.get_ticks_msec()
-	var repo := ctx.repo_root()
+	var repo: String = ctx.repo_root()
 	var manifest_ok := (
 		FileAccess.file_exists(repo.path_join("content/characters/player_warden.json"))
 		and ResourceLoader.exists("res://assets/characters/player_warden/torso.mesh")
@@ -117,7 +117,7 @@ func _test_character_authoring() -> void:
 	)
 
 	start = Time.get_ticks_msec()
-	var uses_manifest := ctx.file_contains(
+	var uses_manifest: bool = ctx.file_contains(
 		"res://scripts/art/characters/diorama_character_skin.gd", "build_from_manifest"
 	)
 	ctx.timed_record(
@@ -130,7 +130,7 @@ func _test_character_authoring() -> void:
 	)
 
 	start = Time.get_ticks_msec()
-	var grid_ok := ctx.file_contains("res://scripts/art/characters/voxel_grid.gd", "EDGE := 0.04")
+	var grid_ok: bool = ctx.file_contains("res://scripts/art/characters/voxel_grid.gd", "EDGE := 0.04")
 	ctx.timed_record(
 		"quality.character.voxel_grid",
 		get_category(),
@@ -141,7 +141,7 @@ func _test_character_authoring() -> void:
 	)
 
 	start = Time.get_ticks_msec()
-	var palette_ok := (
+	var palette_ok: bool = (
 		ctx.file_contains("res://scripts/art/characters/voxel_mesh_builder.gd", "_snap_to_palette")
 		and ctx.file_contains(
 			"res://scripts/art/characters/diorama_character_skin.gd", "use_vertex_color"
@@ -157,7 +157,7 @@ func _test_character_authoring() -> void:
 	)
 
 	start = Time.get_ticks_msec()
-	var equip_ok := (
+	var equip_ok: bool = (
 		ctx.file_contains(
 			"res://scripts/art/characters/diorama_character_skin.gd", "func apply_equipment"
 		)
@@ -192,7 +192,7 @@ func _test_character_authoring() -> void:
 	)
 
 	start = Time.get_ticks_msec()
-	var weapon_ok := (
+	var weapon_ok: bool = (
 		ctx.file_contains("res://scripts/art/props/diorama_weapon_kit.gd", "_build_unknown")
 		and ctx.file_contains("res://scripts/art/props/diorama_weapon_kit.gd", "_build_axe")
 		and ctx.file_contains("res://scripts/art/props/diorama_weapon_kit.gd", "_build_staff")
@@ -207,7 +207,7 @@ func _test_character_authoring() -> void:
 	)
 
 	start = Time.get_ticks_msec()
-	var custom_ok := (
+	var custom_ok: bool = (
 		ctx.file_contains("res://scripts/save/character_appearance.gd", "skinTone")
 		and ctx.file_contains("res://scripts/save/character_appearance.gd", "hair")
 		and ctx.file_contains(
@@ -238,7 +238,7 @@ func _test_character_authoring() -> void:
 	)
 
 	start = Time.get_ticks_msec()
-	var comments_ok := (
+	var comments_ok: bool = (
 		not ctx.file_contains("res://scripts/art/props/diorama_weapon_kit.gd", "0.02 m grid")
 		and ctx.file_contains(
 			"res://assets/shared/pixel_diorama_surface.gdshader", "use_vertex_color"
@@ -254,7 +254,7 @@ func _test_character_authoring() -> void:
 	)
 
 	start = Time.get_ticks_msec()
-	var rig_validation := (
+	var rig_validation: bool = (
 		ResourceLoader.exists("res://scripts/validation/suites/voxel_grid_suite.gd")
 		and ctx.file_contains(
 			"res://scripts/validation/suites/diorama_anim_suite.gd", "_test_rig_contracts"
@@ -292,7 +292,7 @@ func _test_combat_honesty_signals() -> void:
 	)
 
 	start = Time.get_ticks_msec()
-	var lunge_ok := ctx.file_contains(
+	var lunge_ok: bool = ctx.file_contains(
 		"res://scripts/combat/weapon_controller.gd", "_lunge_distance"
 	)
 	ctx.timed_record(
@@ -307,7 +307,7 @@ func _test_combat_honesty_signals() -> void:
 
 func _test_loot_ui_signals() -> void:
 	var start := Time.get_ticks_msec()
-	var fetch_registered := (
+	var fetch_registered: bool = (
 		ctx.file_contains("res://scripts/quests/quest_service.gd", "func register_fetch")
 		and _grep_tree_for("register_fetch", "res://scripts")
 	)
@@ -325,7 +325,7 @@ func _test_loot_ui_signals() -> void:
 	)
 
 	start = Time.get_ticks_msec()
-	var icons_ok := (
+	var icons_ok: bool = (
 		ctx.file_contains("res://scripts/ui/inventory_ui.gd", "ItemIconAtlas")
 		and not ctx.file_contains("res://scripts/ui/inventory_ui.gd", "⚔")
 	)

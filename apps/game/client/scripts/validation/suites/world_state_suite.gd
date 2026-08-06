@@ -58,7 +58,7 @@ func _test_deep_copy() -> void:
 	WorldState.set_flag(flag_id, payload)
 	payload["enemies"].append("grunt")
 	var snapshot := WorldState.all_flags()
-	var ok := snapshot[flag_id]["enemies"].is_empty()
+	var ok: bool = snapshot[flag_id]["enemies"].is_empty()
 	WorldState.reset()
 	ctx.timed_record(
 		"world_state.copy.deep",

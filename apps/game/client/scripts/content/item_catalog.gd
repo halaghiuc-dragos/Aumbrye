@@ -31,6 +31,17 @@ static func has_item(item_id: String) -> bool:
 	return _definitions.has(item_id)
 
 
+static func get_items_by_type(item_type: String) -> Array[String]:
+	_ensure_loaded()
+	var out: Array[String] = []
+	for item_id in _definitions:
+		var def: Dictionary = _definitions[item_id]
+		if str(def.get("itemType", "")) == item_type:
+			out.append(str(item_id))
+	out.sort()
+	return out
+
+
 static func get_loot_value(item_id: String) -> int:
 	var def := get_definition(item_id)
 	if def.is_empty():

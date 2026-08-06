@@ -29,6 +29,14 @@
       "col": 4,
       "row": 0
     },
+    "frame_buff": {
+      "col": 7,
+      "row": 4
+    },
+    "frame_debuff": {
+      "col": 6,
+      "row": 5
+    },
     "unknown": {
       "col": 7,
       "row": 5

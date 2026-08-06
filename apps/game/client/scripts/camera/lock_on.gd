@@ -69,7 +69,7 @@ func _unhandled_input(event: InputEvent) -> void:
 func _physics_process(delta: float) -> void:
 	if get_tree().paused:
 		return
-	if PlayerInput.has_method("is_gameplay_blocked") and PlayerInput.call("is_gameplay_blocked"):
+	if PlayerInput.is_gameplay_blocked():
 		return
 	if _switch_cooldown > 0.0:
 		_switch_cooldown -= delta

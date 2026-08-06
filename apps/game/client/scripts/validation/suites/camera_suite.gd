@@ -287,7 +287,7 @@ func _test_shoulder_offset_applied() -> void:
 
 func _test_effect_entry_points_exist() -> void:
 	var start := Time.get_ticks_msec()
-	var spring_script := OrbitCameraScript
+	var spring_script: GDScript = OrbitCameraScript
 	var methods := [
 		"apply_shake",
 		"apply_punch",
@@ -295,9 +295,9 @@ func _test_effect_entry_points_exist() -> void:
 		"enter_death_framing",
 		"exit_death_framing",
 	]
-	var ok := true
+	var ok: bool = true
 	for method_name in methods:
-		if not spring_script.has_method(method_name):
+		if not _script_declares_method(spring_script, method_name):
 			ok = false
 	ok = ok and ctx.file_contains(
 		"res://scripts/combat/hit_feedback.gd", "apply_punch"
@@ -329,7 +329,7 @@ func _test_toggle_breaks_lock() -> void:
 	lock_on.request_lock(enemy)
 	await ctx.await_physics(2)
 	spring.call("_toggle_camera_mode")
-	var ok := not lock_on.is_locked and spring.call("is_first_person")
+	var ok: bool = not lock_on.is_locked and bool(spring.call("is_first_person"))
 	player.queue_free()
 	enemy.queue_free()
 	var start := Time.get_ticks_msec()
@@ -375,3 +375,10 @@ func _test_state_round_trip_with_lock() -> void:
 		start,
 		"M3.camera.state_lock"
 	)
+
+
+static func _script_declares_method(script: GDScript, method_name: String) -> bool:
+	for entry in script.get_script_method_list():
+		if str(entry.get("name", "")) == method_name:
+			return true
+	return false

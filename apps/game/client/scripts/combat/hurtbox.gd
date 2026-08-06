@@ -128,7 +128,7 @@ func receive_hit(info: DamageInfo) -> void:
 		res.poise_outgoing = poise_hit
 
 	_apply_status_from_hit(info)
-	_emit_victim_feedback(final_amount, info.direction, info.damage_type)
+	_emit_victim_feedback(final_amount, info.direction, info.damage_type, res.blocked, res.backstab)
 	hit_resolved.emit(res)
 	damaged.emit(info)
 	if team == "player" and (final_amount > 0.0 or final_poise > 0.0):
@@ -240,18 +240,52 @@ func _emit_block_feedback(chip_damage: float) -> void:
 
 
 func _emit_victim_feedback(
-	damage: float, direction: Vector3 = Vector3.ZERO, damage_type: String = "physical"
+	damage: float,
+	direction: Vector3 = Vector3.ZERO,
+	damage_type: String = "physical",
+	blocked: bool = false,
+	crit: bool = false,
 ) -> void:
 	if damage <= 0.0:
 		return
 	var body := _find_character_body()
 	if body == null:
 		return
-	var visual := body.get_node_or_null("Facing/DioramaVisual") as Node3D
+	var visual: Node3D = null
+	if body.has_method("get_diorama_visual"):
+		visual = body.call("get_diorama_visual") as Node3D
+	if visual == null:
+		visual = body.get_node_or_null("Facing/DioramaVisual") as Node3D
 	if visual:
-		MaterialFlashScript.flash(visual)
-	VfxService.play_blood_decal(body.global_position + Vector3(0.0, 1.0, 0.0), direction)
-	VfxService.play_impact_decal(body.global_position + Vector3(0.0, 1.0, 0.0), direction)
+		var max_hp := 1.0
+		if _health:
+			max_hp = maxf(1.0, _health.max_health)
+		var proportion := clampf(damage / maxf(1.0, max_hp * 0.25), 0.15, 1.0)
+		var strength := lerpf(0.35, 1.0, proportion)
+		var duration := lerpf(0.14, 0.30, proportion)
+		var tint: Color = MaterialFlashScript.FLASH_TINTS.get(damage_type, Color.WHITE)
+		var anchor: Array = VfxService.resolve_combat_anchor(body)
+		var params := {
+			"strength": strength,
+			"duration": duration,
+			"tint": tint,
+			"blocked": blocked,
+			"crit": crit,
+			"epicenter": anchor[0],
+		}
+		MaterialFlashScript.flash(visual, params)
+		if body.is_in_group("player"):
+			var director := body.get_node_or_null("AnimDirector")
+			if director and director.has_method("flash_viewmodel"):
+				var vm_params := params.duplicate()
+				vm_params["strength"] = strength * 0.35
+				director.call("flash_viewmodel", vm_params)
+	VfxService.play_blood_decal(
+		body.global_position + Vector3(0.0, 1.0, 0.0), direction, _surface_normal_from_direction(direction)
+	)
+	VfxService.play_impact_decal(
+		body.global_position + Vector3(0.0, 1.0, 0.0), direction, _surface_normal_from_direction(direction)
+	)
 	var feedback := body.get_node_or_null("HitFeedback")
 	if feedback and feedback.has_method("on_hit_received"):
 		feedback.call("on_hit_received", damage, direction, damage_type)
@@ -325,3 +359,12 @@ func _find_character_body() -> Node3D:
 			return node as Node3D
 		node = node.get_parent()
 	return null
+
+
+func _surface_normal_from_direction(direction: Vector3) -> Vector3:
+	if direction.length_squared() < 0.01:
+		return Vector3.UP
+	var flat := Vector3(direction.x, 0.0, direction.z)
+	if flat.length_squared() > 0.04:
+		return (-flat).normalized()
+	return Vector3.UP

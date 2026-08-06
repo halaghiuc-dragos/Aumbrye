@@ -42,7 +42,7 @@ func _test_relative_links_resolve() -> void:
 	var start := Time.get_ticks_msec()
 	var broken: PackedStringArray = []
 	for rel_root in DOC_ROOTS:
-		var abs_root := ctx.repo_root().path_join(rel_root)
+		var abs_root: String = ctx.repo_root().path_join(rel_root)
 		_collect_broken_links(abs_root, broken)
 	ctx.timed_record(
 		"docs.relative_links_resolve",
@@ -60,7 +60,7 @@ func _test_relative_links_resolve() -> void:
 
 func _test_manual_checklist_exists() -> void:
 	var start := Time.get_ticks_msec()
-	var path := ctx.repo_root().path_join("docs/validation/manual-checklist.md")
+	var path: String = ctx.repo_root().path_join("docs/validation/manual-checklist.md")
 	var ok := FileAccess.file_exists(path) and FileAccess.get_file_as_string(path).length() > 0
 	ctx.timed_record(
 		"docs.checklist_refs_resolve",
@@ -143,11 +143,11 @@ func _collect_suite_doc_paths() -> Array[String]:
 					var pos := text.find(token, idx)
 					if pos < 0:
 						break
-					var end := pos + token.length()
+					var end: int = pos + token.length()
 					while end < text.length() and text[end] not in ['"', "'", ")", " ", "\n", "\t"]:
 						end += 1
 					var rel := text.substr(pos, end - pos)
-					var abs := ctx.repo_root().path_join(rel)
+					var abs: String = ctx.repo_root().path_join(rel)
 					if abs not in paths:
 						paths.append(abs)
 					idx = pos + 1

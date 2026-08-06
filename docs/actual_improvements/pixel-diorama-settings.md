@@ -1,28 +1,28 @@
 # Pixel diorama settings — improvement plan
 
-**Status: FINISHED** (implementation synced to [`../existing_codebase/pixel-diorama-settings.md`](../existing_codebase/pixel-diorama-settings.md))
+## Status: FINISHED
 
 ## Current state
 
-`PixelDioramaSettings` is a static-only `RefCounted` that owns 24 persisted tunables and every `apply_*` helper for environment, shadows, materials, and the screen finish. See [`../existing_codebase/pixel-diorama-settings.md`](../existing_codebase/pixel-diorama-settings.md). Three things are actually broken rather than merely rough: `load_from_save()` overwrites the player's saved shader tuning every launch when the resolution is a native preset; `apply_rendering_project_settings()` writes `ProjectSettings` keys that Godot has already consumed, so the texture-filter and MSAA toggles do nothing while the UI claims they apply at runtime; and `apply_to_scene()` mutates the shared `load()`ed instances of the 30 biome `mat_*.tres` files, so a settings change silently rewrites the on-disk resources' in-memory state for every scene.
+`PixelDioramaSettings` is a static-only `RefCounted` that owns 35 persisted tunables (plus `version` and `tuning_is_preset_default`), every `apply_*` helper for environment, shadows, materials, and the screen finish, and a weak-ref material registry. Native preset tuning is non-destructive via `tuning_is_preset_default`; MSAA and screen-space AA apply through `apply_render_quality()` on live `Viewport` nodes; biome materials are duplicated and tracked so `restamp_tracked()` updates them without mutating shared resources; slider changes use `apply_live()` + debounced `request_save()`; and `pixel_settings_suite.gd` asserts the full contract. See [`../existing_codebase/pixel-diorama-settings.md`](../existing_codebase/pixel-diorama-settings.md).
 
 ## Gaps
 
-| ID | Sev | Gap | Evidence |
-|----|-----|-----|----------|
-| PDS-01 | P0 | `load_from_save()` reads the saved statics and then calls `_apply_native_hd_shader_tuning()` when the saved size is a native preset, destroying six user-tuned values (`pixel_scale`, `color_levels`, `shade_bands`, `edge_strength`, `pattern_strength`, `shade_dither`) plus `nearest_texture_filter` and `anti_aliasing_off` on every launch. At the shipped default size of `1920 x 1080` this happens for every player. | `pixel_diorama_settings.gd:138-140`, `:262-270`, `:32-33` |
-| PDS-02 | P0 | The "Nearest texture filtering" and "Disable MSAA / screen AA" toggles are inert. `apply_rendering_project_settings()` writes five `ProjectSettings` keys in memory and never touches a `Viewport` property or calls `ProjectSettings.save()`; the Settings screen tells the player they apply at runtime. | `pixel_diorama_settings.gd:289-316`; `settings_ui.gd:252-261`, `:374-377` |
-| PDS-03 | P0 | `apply_to_scene()` reaches into shared resources. `BiomeRegistry.get_floor_material()` / `get_wall_material()` / `get_accent_material()` return the `load()` singleton for each `mat_*.tres` with no `duplicate()`, and `_apply_materials_recursive()` calls `set_shader_parameter()` on whatever it finds in `material_override`. One settings change rewrites the parameters of the materials every room in every biome shares. | `pixel_diorama_settings.gd:472-489`; `biome_registry.gd:71-84` |
-| PDS-04 | P1 | `apply_all()` calls `PixelDioramaStyle.clear_material_caches()` on every slider tick. Dragging one `HSlider` fires `save_and_apply()` per step (`settings_ui.gd:487-491`), so each step discards all four material caches, re-`load()`s the shaders, rebuilds every material, walks the whole scene tree twice, and writes the save file. | `pixel_diorama_settings.gd:181-190`; `settings_ui.gd:487-491`; `:143-173` |
-| PDS-05 | P1 | `LEGACY_SHADER_SUFFIX` (`pixel_diorama.gdshader`) and `pixel_scale_for_pattern_type()` are dead. No such shader exists in `apps/game/client/assets/`, so the branch and its three-way `pattern_type` scaling can never run. | `pixel_diorama_settings.gd:14`, `:383-390`, `:419-425` |
-| PDS-06 | P1 | `apply_to_screen_finish()` pushes 5 of `pixel_screen_finish.gdshader`'s 12 uniforms. `lift`, `shadow_tint`, `shadow_tint_amount`, `highlight_tint`, `highlight_tint_amount`, `vignette_softness`, and `damage_tint` are hardcoded in the shader and unreachable from data or UI, even though the split-tone pair is what gives the palette its depth. | `pixel_diorama_settings.gd:441-448`; `assets/shared/pixel_screen_finish.gdshader:9-17` |
-| PDS-07 | P1 | `nearest_texture_filter` defaults to `false` and `posterize_levels` defaults to `0.0`. A pixel-art game ships with bilinear filtering and the palette-posterize pass off. | `pixel_diorama_settings.gd:29`, `:39` |
-| PDS-08 | P1 | `camera_snap_step()` reads `active_render_height`, which `PixelDioramaViewport` only writes while `low_res_viewport_enabled` is true. With the low-res viewport off, the value keeps its stale last write (or the `1080` default), so the snap grid silently uses the wrong scale. | `pixel_diorama_settings.gd:106`, `:283-286`; `pixel_diorama_viewport.gd:87-88`, `:194`, `:204` |
-| PDS-09 | P2 | The `pixel_diorama` meta block has no version field and no migration. Renaming or re-ranging any key silently falls back to the default with no way to detect an old block. `save_migrator.gd` versions the character save's `schemaVersion` and does not see meta. | `pixel_diorama_settings.gd:143-173`; `save_migrator.gd:11-26` |
-| PDS-10 | P2 | The unreachable `match` arm `0: light.shadow_enabled = false` in `configure_directional_shadow()` — `shadows_on` already gated on `shadow_quality > 0` and returned early. | `pixel_diorama_settings.gd:364-371` |
-| PDS-11 | P2 | No validation suite asserts any settings behaviour; the only reference is a file-existence check. | `pixel_pipeline_suite.gd:19` |
+| ID | Sev | Gap | Evidence | Status |
+|----|-----|-----|----------|--------|
+| PDS-01 | P0 | `load_from_save()` overwrote user shader tuning on native presets | was `pixel_diorama_settings.gd` `_apply_native_hd_shader_tuning()` on load | **FINISHED** — `tuning_is_preset_default` + preset `tuning` dicts |
+| PDS-02 | P0 | Nearest-filter and MSAA toggles wrote inert `ProjectSettings` keys | was `apply_rendering_project_settings()` | **FINISHED** — `apply_render_quality(viewports)` |
+| PDS-03 | P0 | `apply_to_scene()` mutated shared biome `mat_*.tres` singletons | was `biome_registry.gd` `load()` without `duplicate()` | **FINISHED** — `track()` / `restamp_tracked()` + duplicated factory materials |
+| PDS-04 | P1 | Every slider tick cleared material caches and autosaved | was `save_and_apply()` per `HSlider` step | **FINISHED** — `apply_live()` + debounced `request_save()` |
+| PDS-05 | P1 | Dead `LEGACY_SHADER_SUFFIX` and `pixel_scale_for_pattern_type()` | was `pixel_diorama_settings.gd:14`, `:383-390` | **FINISHED** — symbols removed |
+| PDS-06 | P1 | Screen finish pushed 5 of 12 shader uniforms | was `apply_to_screen_finish()` partial coverage | **FINISHED** — six grade statics + biome `grade` JSON + three UI sliders |
+| PDS-07 | P1 | Defaults shipped bilinear filtering and posterize off | was `DEFAULT_NEAREST_TEXTURE_FILTER = false`, `DEFAULT_POSTERIZE_LEVELS = 0.0` | **FINISHED** — `true` and `24.0` |
+| PDS-08 | P1 | `active_render_height` stale when low-res viewport off | was `pixel_diorama_viewport.gd` write only in enabled branch | **FINISHED** — written in both `_apply_internal_size()` branches and `_disable_pipeline()` |
+| PDS-09 | P2 | No `pixel_diorama` meta version or migration | was unversioned `save()` block | **FINISHED** — `SETTINGS_VERSION`, `_migrate_settings()` |
+| PDS-10 | P2 | Unreachable `shadow_quality` match arm `0:` | was `configure_directional_shadow()` | **FINISHED** — arm removed |
+| PDS-11 | P2 | No validation suite for settings behaviour | was `pixel_pipeline_suite.gd:19` file check only | **FINISHED** — `pixel_settings_suite.gd` (12 tests) + `content_suite.gd` biome grades |
 
-`color_levels` is pushed into the surface material at `pixel_diorama_settings.gd:408` but the surface shader never reads it. That gap is owned by [`pixel-style.md`](pixel-style.md) as `PXS-01` because the fix is in the shader.
+`color_levels` is pushed into the surface material by `apply_to_shader_material()` but the surface shader never reads it. That gap is owned by [`pixel-style.md`](pixel-style.md) as `PXS-01` because the fix is in the shader.
 
 ## Target design
 
@@ -136,22 +136,12 @@ The seven unreachable uniforms become persisted statics with the shader's curren
 
 ## Work plan
 
-1. **Preset tuning is non-destructive** — `pixel_diorama_settings.gd`: add `tuning` sub-dictionaries and the `tuning_is_preset_default` static, rewrite `set_resolution_preset()` and `load_from_save()`, delete `_apply_native_hd_shader_tuning()`'s call from load. Add the version key and `_migrate_settings()`. Closes PDS-01, PDS-09.
-2. **Viewport-level filter and AA** — add `apply_render_quality(viewports)`, delete `apply_rendering_project_settings()`, call the new function from `PixelDioramaViewport.apply_settings()` and `PixelDioramaBootstrap.prime()`, rewrite the Settings note. Closes PDS-02.
-3. **Tracked materials** — add `track()` / `restamp_tracked()`; route `PixelDioramaStyle` factories and `BiomeRegistry`'s three getters through it; add `duplicate()` in the three `BiomeRegistry` getters; rewrite `apply_all()`. Closes PDS-03.
-4. **Debounced persist** — split `save_and_apply()` into `apply_live()` + `request_save()`; migrate `settings_ui.gd:_toggle()` and `_labeled_slider()`. Closes PDS-04.
-5. **Dead-code removal** — drop `LEGACY_SHADER_SUFFIX`, `pixel_scale_for_pattern_type()`, and the unreachable shadow-quality arm. Closes PDS-05, PDS-10.
-6. **Full screen-finish grade** — add the six statics, push all uniforms in `apply_to_screen_finish()`, add three sliders in `settings_ui.gd`. Closes PDS-06.
-7. **Honest defaults** — flip `DEFAULT_NEAREST_TEXTURE_FILTER` and `DEFAULT_POSTERIZE_LEVELS`. Closes PDS-07.
-8. **`active_render_height` always current** — write it in both branches of `_apply_internal_size()` and in `_disable_pipeline()`. Closes PDS-08.
-9. **Validation** — new suite file, assertions below. Closes PDS-11.
-
-Steps 1–8 are independently landable; step 3 must land before step 4 because `apply_live()` calls `restamp_tracked()`.
+All nine steps completed. Preset tuning and meta migration (PDS-01, PDS-09), viewport render quality (PDS-02), tracked duplicate materials (PDS-03), debounced slider persist (PDS-04), dead-code removal (PDS-05, PDS-10), full screen-finish grade (PDS-06), pixel-honest defaults (PDS-07), `active_render_height` always current (PDS-08), and `pixel_settings_suite.gd` validation (PDS-11).
 
 ## Data and schema changes
 
 - `LocalSave` meta block `pixel_diorama` gains: `version` (int, `1`), `tuning_is_preset_default` (bool), `screen_lift` (float), `shadow_tint` (Color), `shadow_tint_amount` (float), `highlight_tint` (Color), `highlight_tint_amount` (float), `vignette_softness` (float). Colours are stored as `Color`, which `LocalSave`'s JSON round-trip must handle — if it does not, store them as 3-element float arrays and convert in `load_from_save()`.
-- No `content/schemas/` file governs these; they are per-machine display settings. The per-biome grade table added in step 6 lives in `content/biomes/<biome_id>.json` under a new `"grade"` object and requires `content/schemas/biome.v1.json` to gain `grade: {shadowTint, shadowTintAmount, highlightTint, highlightTintAmount}` with `additionalProperties: false`.
+- No `content/schemas/` file governs display settings keys; they are per-machine meta. Per-biome `grade` objects live in `content/biomes/<biome_id>.json` and validate through `content/schemas/biome-definition.v2.json` (`content_suite.gd` optional-key checks).
 - No character-save format change, so no `save_migrator.gd` version bump. The settings block carries its own `version` and is migrated in `_migrate_settings()`.
 
 ## Acceptance criteria

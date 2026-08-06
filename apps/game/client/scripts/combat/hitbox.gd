@@ -154,7 +154,7 @@ func _try_hit(area: Area3D) -> void:
 	var hit_pos := area.global_position
 	if area.get_parent() is Node3D:
 		hit_pos = (area.get_parent() as Node3D).global_position + Vector3(0.0, 1.0, 0.0)
-	VfxService.play_hit_spark(hit_pos, direction)
+	VfxService.play_hit_spark(hit_pos, direction, _hit_normal_from_direction(direction))
 	var feedback := _owner_node.get_node_or_null("HitFeedback")
 	if feedback and feedback.has_method("on_hit"):
 		feedback.on_hit(area.get_parent(), damage_amount, direction, _damage_type)
@@ -213,3 +213,12 @@ func _has_clear_line_to(target: Area3D) -> bool:
 		excludes.append((target_parent as CollisionObject3D).get_rid())
 	params.exclude = excludes
 	return space.intersect_ray(params).is_empty()
+
+
+func _hit_normal_from_direction(direction: Vector3) -> Vector3:
+	if direction.length_squared() < 0.01:
+		return Vector3.UP
+	var flat := Vector3(direction.x, 0.0, direction.z)
+	if flat.length_squared() > 0.04:
+		return (-flat).normalized()
+	return Vector3.UP

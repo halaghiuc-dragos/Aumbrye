@@ -1,0 +1,138 @@
+{
+  "version": 1,
+  "palettes": {
+    "castle": {
+      "display_name": "Forgotten Castle",
+      "floor_base": "#595261",
+      "floor_shadow": "#3d3847",
+      "wall_base": "#383347",
+      "wall_shadow": "#241f2e",
+      "accent": "#8c6b47",
+      "prop_wood": "#6b4d2e",
+      "prop_metal": "#7a7580",
+      "emissive": "#ff9e47"
+    },
+    "crystal": {
+      "display_name": "Crystal Caverns",
+      "floor_base": "#6b8cc7",
+      "floor_shadow": "#476194",
+      "wall_base": "#527ab8",
+      "wall_shadow": "#2e4773",
+      "accent": "#a6d1f2",
+      "prop_wood": "#596b8c",
+      "prop_metal": "#8c9eb8",
+      "emissive": "#8cd9ff"
+    },
+    "swamp": {
+      "display_name": "Poison Swamp",
+      "floor_base": "#475733",
+      "floor_shadow": "#2e3d1f",
+      "wall_base": "#334729",
+      "wall_shadow": "#1f291a",
+      "accent": "#738c38",
+      "prop_wood": "#523d24",
+      "prop_metal": "#666157",
+      "emissive": "#b3e659"
+    },
+    "frozen": {
+      "display_name": "Frozen Fortress",
+      "floor_base": "#b8cce0",
+      "floor_shadow": "#8ca5c7",
+      "wall_base": "#9eb8d1",
+      "wall_shadow": "#6b85a5",
+      "accent": "#d9ebfa",
+      "prop_wood": "#7a6147",
+      "prop_metal": "#949ead",
+      "emissive": "#bfe6ff"
+    },
+    "cathedral": {
+      "display_name": "Dark Cathedral",
+      "floor_base": "#332947",
+      "floor_shadow": "#1f1a2e",
+      "wall_base": "#291f38",
+      "wall_shadow": "#140f1f",
+      "accent": "#9e7a47",
+      "prop_wood": "#573824",
+      "prop_metal": "#736b7a",
+      "emissive": "#f2b859"
+    },
+    "vault": {
+      "display_name": "Iron Vault",
+      "floor_base": "#59524d",
+      "floor_shadow": "#38332e",
+      "wall_base": "#47423d",
+      "wall_shadow": "#29241f",
+      "accent": "#948052",
+      "prop_wood": "#523d29",
+      "prop_metal": "#857a7a",
+      "emissive": "#ff8c33"
+    },
+    "prism": {
+      "display_name": "Prism Depths",
+      "floor_base": "#8cb8eb",
+      "floor_shadow": "#6185b8",
+      "wall_base": "#6b94d1",
+      "wall_shadow": "#426194",
+      "accent": "#c78cf2",
+      "prop_wood": "#61527a",
+      "prop_metal": "#948f9e",
+      "emissive": "#a673ff"
+    },
+    "mire": {
+      "display_name": "Venom Mire",
+      "floor_base": "#476b38",
+      "floor_shadow": "#2e4724",
+      "wall_base": "#385729",
+      "wall_shadow": "#1f331a",
+      "accent": "#8cb847",
+      "prop_wood": "#574224",
+      "prop_metal": "#6b6661",
+      "emissive": "#bff259"
+    },
+    "hollow": {
+      "display_name": "Glacial Hollow",
+      "floor_base": "#b8cce0",
+      "floor_shadow": "#8ca3bd",
+      "wall_base": "#99b3cc",
+      "wall_shadow": "#667a94",
+      "accent": "#d1e6fa",
+      "prop_wood": "#6b5742",
+      "prop_metal": "#8f99a8",
+      "emissive": "#b3e0ff"
+    },
+    "umbral": {
+      "display_name": "Umbral Chapel",
+      "floor_base": "#241a33",
+      "floor_shadow": "#140f1f",
+      "wall_base": "#1f142e",
+      "wall_shadow": "#0f0a1a",
+      "accent": "#8c619e",
+      "prop_wood": "#472e38",
+      "prop_metal": "#665c70",
+      "emissive": "#d98cf2"
+    },
+    "hub": {
+      "display_name": "Aumbrye Hub",
+      "floor_base": "#9e8566",
+      "floor_shadow": "#8a7057",
+      "wall_base": "#7a6b5c",
+      "wall_shadow": "#5c5247",
+      "accent": "#c78c47",
+      "prop_wood": "#5c3d29",
+      "prop_metal": "#944738",
+      "emissive": "#e66b1f"
+    }
+  },
+  "biome_theme_map": {
+    "forgotten_castle": "castle",
+    "crystal_caverns": "crystal",
+    "poison_swamp": "swamp",
+    "frozen_fortress": "frozen",
+    "dark_cathedral": "cathedral",
+    "iron_vault": "vault",
+    "prism_depths": "prism",
+    "venom_mire": "mire",
+    "glacial_hollow": "hollow",
+    "umbral_chapel": "umbral"
+  }
+}

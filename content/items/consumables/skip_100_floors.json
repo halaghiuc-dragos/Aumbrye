@@ -4,8 +4,14 @@
   "itemType": "consumable",
   "gridWidth": 1,
   "gridHeight": 1,
-  "stackSize": 2,
+  "stackSize": 5,
   "description": "Start an Umbral Endless run at floor 101.",
-  "value": 8000,
-  "lootValue": 4000
+  "consumableEffect": {
+    "kind": "skipFloors",
+    "floors": 100,
+    "usableInRun": false,
+    "usableInHub": false
+  },
+  "value": 500,
+  "lootValue": 250
 }

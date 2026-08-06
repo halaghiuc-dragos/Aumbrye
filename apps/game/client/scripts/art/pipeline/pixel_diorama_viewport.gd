@@ -167,8 +167,12 @@ func _focus_distance() -> float:
 ## Snapping happens on the render camera only. Snapping the gameplay CameraPivot
 ## decouples yaw from player movement and breaks SpringArm follow.
 func _mirrored_transform() -> Transform3D:
+	PixelDioramaSettings.snap_fov_hint = _source_camera.fov
 	return PixelCameraSnap.snap_transform(
-		_source_camera.global_transform, _source_camera.fov, _focus_distance()
+		_source_camera.global_transform,
+		_source_camera.fov,
+		_focus_distance(),
+		PixelDioramaSettings.camera_snap_enabled
 	)
 
 

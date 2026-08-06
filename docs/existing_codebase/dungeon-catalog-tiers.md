@@ -1,4 +1,4 @@
-# Dungeon catalog and tiers
+﻿# Dungeon catalog and tiers
 
 Ten dungeons loaded from `content/dungeons/*.json`, each mapped to a biome and a ladder `order`. `DungeonCatalog` is the data reader, `DungeonTierService` tracks dungeon unlock count and per-dungeon difficulty caps, `CastleTierDifficulty` and `EndlessDifficulty` scale enemies, `RunFloorConfig` holds floor constants and seed mixing, and `SkipFloorService` gates endless skip consumables.
 
@@ -27,7 +27,7 @@ Each entry includes:
 
 | Field | Purpose |
 |-------|---------|
-| `order` | Ladder position (1–10); replaces array index |
+| `order` | Ladder position (1â€“10); replaces array index |
 | `biomeId` | Procgen / display bridge |
 | `difficultyTiers` | 3+ tiers with `hpMult`, `damageMult`, `lootBonus`, `modifiers` |
 | `floorHpGrowth` / `floorDamageGrowth` | Per-floor multipliers inside a run (default 0.06 / 0.04) |
@@ -42,7 +42,7 @@ Each entry includes:
 
 | Flag | Meaning |
 |------|---------|
-| `dungeon_unlocked_count` | How many dungeons in the ladder are selectable (1–10) |
+| `dungeon_unlocked_count` | How many dungeons in the ladder are selectable (1â€“10) |
 | `dungeon_tier_<id>` | Highest difficulty tier unlocked for that dungeon (starts at 1) |
 
 Legacy `dungeon_max_tier` is read as fallback (`dungeon_tier_service.gd:20-23`). `on_dungeon_cleared(dungeon_id, difficulty_tier)` (`dungeon_tier_service.gd:77-85`) unlocks the next dungeon when clearing at the frontier and bumps the per-dungeon difficulty cap when the cleared tier equals the current cap.
@@ -57,17 +57,17 @@ Consumers:
 
 ### Difficulty scaling
 
-**Castle mode** — tier stats from catalog × floor growth:
+**Castle mode** â€” tier stats from catalog Ã— floor growth:
 
 | Function | Formula |
 |----------|---------|
 | `hp_multiplier(dungeon_id, tier)` | `difficultyTiers[tier].hpMult` |
-| `floor_hp_factor(dungeon_id, floor)` | `1 + floorHpGrowth × (floor - 1)` |
+| `floor_hp_factor(dungeon_id, floor)` | `1 + floorHpGrowth Ã— (floor - 1)` |
 | `combined_hp_multiplier(...)` | product of the two |
 
-Applied in `DungeonBuilder._apply_floor_scaling` (`dungeon_builder.gd:1145-1165`). Elite enemies (`isElite` placement flag) get ×1.5 HP / ×1.25 damage.
+Applied in `DungeonBuilder._apply_floor_scaling` (`dungeon_builder.gd:1145-1165`). Elite enemies (`isElite` placement flag) get Ã—1.5 HP / Ã—1.25 damage.
 
-**Endless mode** — bounded curve (`endless_difficulty.gd`):
+**Endless mode** â€” bounded curve (`endless_difficulty.gd`):
 
 | Constant | Value |
 |----------|-------|
@@ -95,7 +95,7 @@ From `difficultyTiers[].modifiers` at run start (`run_flow.gd:115-117`) or endle
 
 `is_stairs_room` / `find_stairs_room_id` match `templateId` ending `_stairs` (`run_floor_config.gd:47-56`). `DungeonBuilder._setup_stair_levers` uses the same helper (`dungeon_builder.gd:787`).
 
-`stairs_spawn_facing_y(stair_room)` uses the SOUTH socket yaw + π (`run_floor_config.gd:59-65`).
+`stairs_spawn_facing_y(stair_room)` uses the SOUTH socket yaw + Ï€ (`run_floor_config.gd:59-65`).
 
 ### Skip-floor consumables
 
@@ -126,10 +126,10 @@ From `difficultyTiers[].modifiers` at run start (`run_flow.gd:115-117`) or endle
 
 ## Related
 
-- Improvement plan: [`../actual_improvements/dungeon-catalog-tiers.md`](../actual_improvements/dungeon-catalog-tiers.md)
-- [`local-procgen.md`](local-procgen.md) — floor seed derivation
-- [`biome-registry.md`](biome-registry.md) — display names, `maxSecrets`
-- [`dungeon-builder.md`](dungeon-builder.md) — scaling application
-- [`run-flow.md`](run-flow.md) — skip path, modifiers, unlock-on-clear
-- [`save-migrator.md`](save-migrator.md) — v7 migration
-- [`loot-and-equipment.md`](loot-and-equipment.md) — `lootBonus` consumer
+- Improvement plan: [`../actual_improvements/dungeon-catalog-tiers.md`](../actual_improvements/dungeon-catalog-tiers.md) - **FINISHED**
+- [`local-procgen.md`](local-procgen.md) â€” floor seed derivation
+- [`biome-registry.md`](biome-registry.md) â€” display names, `maxSecrets`
+- [`dungeon-builder.md`](dungeon-builder.md) â€” scaling application
+- [`run-flow.md`](run-flow.md) â€” skip path, modifiers, unlock-on-clear
+- [`save-migrator.md`](save-migrator.md) â€” v7 migration
+- [`loot-and-equipment.md`](loot-and-equipment.md) â€” `lootBonus` consumer

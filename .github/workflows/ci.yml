@@ -265,8 +265,14 @@ jobs:
         with:
           version: ${{ steps.godot_version.outputs.value }}
           include-templates: false
-      - name: Export diorama animation libraries
-        run: godot --path . --headless --script res://scripts/tools/export_diorama_anim_libraries.gd
+      - name: Verify diorama animation libraries are current
+        run: godot --path . --headless --script res://scripts/tools/export_diorama_anim_libraries.gd -- --verify
+      - name: Show drift on failure
+        if: failure()
+        run: |
+          godot --path . --headless --script res://scripts/tools/export_diorama_anim_libraries.gd
+          git --no-pager diff --stat -- assets/animations/diorama/
+          echo "Run the exporter and commit the result." >> "$GITHUB_STEP_SUMMARY"
       - name: Procgen seed health
         run: |
           godot --path . --headless --script res://scripts/tools/procgen_seed_health.gd -- --from 1 --count 500 --max-fallback-rate 0.01 --report reports/procgen_seed_health.json
@@ -274,6 +280,9 @@ jobs:
         with:
           name: procgen-seed-health
           path: reports/procgen_seed_health.json
+      - name: Generate balance export
+        run: node scripts/balance/balance-cli.mjs
+        working-directory: ${{ github.workspace }}
       - name: Run headless validation suites
         run: |
           mkdir -p artifacts

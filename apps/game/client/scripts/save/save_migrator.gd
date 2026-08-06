@@ -3,7 +3,7 @@ class_name SaveMigrator
 
 ## SCHEMA-7.1 — versioned save migrations.
 
-const CURRENT_VERSION := 8
+const CURRENT_VERSION := 10
 const MIGRATION_DOC := "docs/SAVE_MIGRATIONS.md"
 const NIL_ACCOUNT_ID := "00000000-0000-4000-8000-000000000000"
 const TALENT_TREE_PATH := "content/talents/tree.json"
@@ -60,6 +60,18 @@ const STEPS: Array[Dictionary] = [
 		"to": 8,
 		"fn": "_migrate_v7_to_v8",
 		"summary": "meta.accessibility camera settings defaults",
+	},
+	{
+		"from": 8,
+		"to": 9,
+		"fn": "_migrate_v8_to_v9",
+		"summary": "meta.display block; ui_scale moved from accessibility",
+	},
+	{
+		"from": 9,
+		"to": 10,
+		"fn": "_migrate_v9_to_v10",
+		"summary": "inventory.quickSlotInstances replaces quickSlots index array",
 	},
 ]
 
@@ -135,6 +147,22 @@ const STEPS_DOC: Array[Dictionary] = [
 			"meta.accessibility.cameraFov",
 			"meta.accessibility.cameraStickCurve",
 			"meta.accessibility.cameraStickDeadzone",
+		],
+		"removed": [],
+		"recovery": "Step failure quarantines the file; pre-migration artefact retained.",
+	},
+	{
+		"from": 8,
+		"to": 9,
+		"summary": "meta.display block; ui_scale moved from accessibility",
+		"added": [
+			"meta.display.window_mode",
+			"meta.display.window_size",
+			"meta.display.monitor_index",
+			"meta.display.vsync_mode",
+			"meta.display.max_fps",
+			"meta.display.ui_scale",
+			"meta.display.hud_safe_area",
 		],
 		"removed": [],
 		"recovery": "Step failure quarantines the file; pre-migration artefact retained.",
@@ -223,6 +251,10 @@ static func _run_step(step: Dictionary, data: Dictionary) -> Dictionary:
 			return _migrate_v6_to_v7(data)
 		"_migrate_v7_to_v8":
 			return _migrate_v7_to_v8(data)
+		"_migrate_v8_to_v9":
+			return _migrate_v8_to_v9(data)
+		"_migrate_v9_to_v10":
+			return _migrate_v9_to_v10(data)
 		_:
 			return data
 
@@ -554,7 +586,7 @@ static func _normalize_meta(copy: Dictionary) -> void:
 	if not meta is Dictionary:
 		meta = {}
 	var normalized: Dictionary = meta.duplicate(true)
-	for sub_key in ["accessibility", "leaderboard", "hub_tutorial", "achievements"]:
+	for sub_key in ["accessibility", "display", "leaderboard", "hub_tutorial", "achievements"]:
 		if normalized.has(sub_key) and not normalized[sub_key] is Dictionary:
 			normalized.erase(sub_key)
 	if normalized.has("hub_tutorial") and normalized["hub_tutorial"] is Dictionary:
@@ -666,6 +698,67 @@ static func _migrate_v7_to_v8(data: Dictionary) -> Dictionary:
 	AccessibilitySettings.apply_camera_defaults_to_dict(a11y)
 	meta_dict["accessibility"] = a11y
 	copy["meta"] = meta_dict
+	return copy
+
+
+static func _migrate_v8_to_v9(data: Dictionary) -> Dictionary:
+	var copy: Dictionary = data.duplicate(true)
+	copy["schemaVersion"] = 9
+	var meta: Variant = copy.get("meta", {})
+	if not meta is Dictionary:
+		meta = {}
+	var meta_dict: Dictionary = meta.duplicate(true)
+	var display: Variant = meta_dict.get("display", {})
+	if not display is Dictionary:
+		display = {}
+	var display_dict: Dictionary = display.duplicate(true)
+	var accessibility: Variant = meta_dict.get("accessibility", {})
+	if accessibility is Dictionary:
+		var a11y: Dictionary = accessibility
+		if a11y.has("ui_scale") and not display_dict.has("ui_scale"):
+			display_dict["ui_scale"] = float(a11y.get("ui_scale", 1.0))
+	if not display_dict.has("window_mode"):
+		display_dict["window_mode"] = "windowed"
+	if not display_dict.has("window_size"):
+		display_dict["window_size"] = [1920, 1080]
+	if not display_dict.has("monitor_index"):
+		display_dict["monitor_index"] = 0
+	if not display_dict.has("vsync_mode"):
+		display_dict["vsync_mode"] = "enabled"
+	if not display_dict.has("max_fps"):
+		display_dict["max_fps"] = 0
+	if not display_dict.has("ui_scale"):
+		display_dict["ui_scale"] = 1.0
+	if not display_dict.has("hud_safe_area"):
+		display_dict["hud_safe_area"] = 0.0
+	meta_dict["display"] = display_dict
+	copy["meta"] = meta_dict
+	return copy
+
+
+static func _migrate_v9_to_v10(data: Dictionary) -> Dictionary:
+	var copy: Dictionary = data.duplicate(true)
+	copy["schemaVersion"] = 10
+	var inv: Variant = copy.get("inventory", {})
+	if not inv is Dictionary:
+		return copy
+	var inv_dict: Dictionary = inv.duplicate(true)
+	if inv_dict.has("quickSlotInstances"):
+		copy["inventory"] = inv_dict
+		return copy
+	var slots: Array = inv_dict.get("slots", [])
+	var legacy: Array = inv_dict.get("quickSlots", [])
+	var instances: Array[String] = ["", "", "", ""]
+	for i in mini(legacy.size(), 4):
+		var idx := int(legacy[i])
+		if idx < 0 or idx >= slots.size():
+			continue
+		var slot: Variant = slots[idx]
+		if slot is Dictionary:
+			instances[i] = str(slot.get("instanceId", ""))
+	inv_dict["quickSlotInstances"] = instances
+	inv_dict.erase("quickSlots")
+	copy["inventory"] = inv_dict
 	return copy
 
 

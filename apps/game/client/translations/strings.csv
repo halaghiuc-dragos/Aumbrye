@@ -1,4 +1,32 @@
 keys,en,ro
+INV_TITLE_STASH,Stash,Depozit
+INV_TITLE_WAVES_STASH,Waves Stash,Depozit valuri
+INV_TITLE_CHARACTER,Character,Personaj
+INV_SEARCH_PLACEHOLDER,Search...,Căutare...
+INV_BTN_EQUIP,Equip,Echipează
+INV_BTN_UNEQUIP,Unequip,Dezechipează
+INV_BTN_USE,Use,Folosește
+INV_BTN_DROP,Drop,Aruncă
+INV_BTN_BIND,Bind %d,Asociază %d
+INV_FILTER_ROW,%s: %s   %s: %s   %s: %s,%s: %s   %s: %s   %s: %s
+INV_SORT,Sort,Sortare
+INV_TYPE,Type,Tip
+INV_RARITY,Rarity,Raritate
+INV_EMPTY_SLOT,Empty %s slot,Slot %s gol
+INV_HINT_UNEQUIP,Unequip,Dezechipează
+INV_HINT_EQUIP,Equip,Echipează
+INV_HINT_USE,Use,Folosește
+INV_HINT_MOVE,Move,Mută
+INV_VS_EQUIPPED,vs equipped: %s,vs echipat: %s
+MAP_TITLE,Map,Hartă
+MAP_HINT,Scroll to zoom · Middle-drag to pan · Esc to close,Rotiți pentru zoom · Trageți cu mijlocul pentru panoramare · Esc pentru închidere
+MAP_LEGEND_COMBAT,Combat,Luptă
+MAP_LEGEND_TREASURE,Treasure,Comoară
+MAP_LEGEND_SHOP,Shop,Magazin
+MAP_LEGEND_KEY,Key,Cheie
+MAP_LEGEND_BOSS,Boss,Șef
+MAP_LEGEND_ENTRANCE,Entrance,Intrare
+MAP_LEGEND_STAIRS,Stairs,Scări
 UI_PAUSE,Paused,Pauză
 UI_RESUME,Resume,Continuă
 STORY_PREMISE,The Umbral Tower binds fallen wardens as echoes until the oath is fulfilled.,Turnul Umbral leagă gardienii căzuți ca ecouri până când jurământul este împlinit.
@@ -23,3 +51,155 @@ talent.apt_3,Treasure Sense,Simț al comorii
 talent.apt_4,Quick Study,Învățare rapidă
 talent.apt_5,Midas Touch,Atingerea lui Midas
 talent.apt_6,Flow State,Stare de flux
+HUD_PARRY,PARRY,PARARE
+HUD_LEVEL,Lv %d,Nv %d
+HUD_BRANCH_AHEAD,Branch ahead — %s,Ramură în față — %s
+HUD_BRANCH_REWARD,%d reward path(s),%d cale(i) recompensă
+HUD_BRANCH_DANGER,%d danger path(s),%d cale(i) pericol
+HUD_BOSS_FALLBACK,Boss,Șef
+UI_CONFIRM,Confirm,Confirmă
+UI_CANCEL,Cancel,Anulează
+PAUSE_TITLE,Paused,Pauză
+PAUSE_RESUME,Resume,Continuă
+PAUSE_SETTINGS,Settings,Setări
+PAUSE_ACHIEVEMENTS,Achievements,Realizări
+PAUSE_ABANDON,Abandon run,Abandonează alergarea
+PAUSE_LEAVE_WAVES,Leave waves,Părăsește valurile
+PAUSE_RESTART_FLOOR,Restart floor,Repornește etajul
+PAUSE_QUIT,Quit to menu,Ieși în meniu
+PAUSE_HINT_RESUME,to resume,ca să continui
+PAUSE_INFO_SECTION,Run info,Info alergare
+PAUSE_INFO_MODE,Mode,Mod
+PAUSE_INFO_FLOOR,Floor,Etaj
+PAUSE_INFO_TIME,Time,Timp
+PAUSE_INFO_SEED,Seed,Sămânță
+PAUSE_INFO_OBJECTIVE,Objective,Obiectiv
+PAUSE_MODE_HUB,Hub,Turn
+PAUSE_MODE_CASTLE,Castle Run,Alergare castel
+PAUSE_MODE_WAVES,Umbral Waves,Valuri umbrale
+PAUSE_MODE_ENDLESS,Umbral Endless,Infinit umbral
+PAUSE_FLOOR_FMT,Floor %d of %d,Etaj %d din %d
+PAUSE_WAVE_FMT,Wave %d,Val %d
+PAUSE_OBJECTIVE_HUB,Explore the tower,Explorează turnul
+PAUSE_OBJECTIVE_WAVES,Survive wave %d,Supraviețuiește valului %d
+PAUSE_OBJECTIVE_STAIRS,Reach the stairs,Ajungi la scări
+PAUSE_OBJECTIVE_BOSS,Defeat the boss,Învinge șeful
+PAUSE_OBJECTIVE_EXPLORE,Explore the floor,Explorează etajul
+PAUSE_CONFIRM_ABANDON_TITLE,Abandon Run,Abandonează alergarea
+PAUSE_CONFIRM_ABANDON_BODY,Abandon floor %d? %d items and %d gold from this run are lost.,Abandonezi etajul %d? %d obiecte și %d aur din această alergare se pierd.
+PAUSE_CONFIRM_ABANDON_OK,Abandon,Abandonează
+PAUSE_CONFIRM_ABANDON_CANCEL,Keep Playing,Continuă să joci
+PAUSE_CONFIRM_QUIT_TITLE,Quit to Menu,Ieși în meniu
+PAUSE_CONFIRM_QUIT_BODY,Save progress and return to the main menu? You can continue this run later from the hub.,Salvezi progresul și revii la meniul principal? Poți continua alergarea mai târziu din turn.
+PAUSE_CONFIRM_QUIT_OK,Quit to Menu,Ieși în meniu
+PAUSE_CONFIRM_QUIT_CANCEL,Keep Playing,Continuă să joci
+PAUSE_CONFIRM_LEAVE_TITLE,Leave Waves,Părăsește valurile
+PAUSE_CONFIRM_LEAVE_BODY,Leave the waves run and return to the hub? Rewards from this session may be lost.,Părăsești valurile și revii în turn? Recompensele din sesiune se pot pierde.
+PAUSE_CONFIRM_LEAVE_OK,Leave,Părăsește
+PAUSE_CONFIRM_LEAVE_CANCEL,Keep Playing,Continuă să joci
+PAUSE_CLOUD_SYNCING,Cloud: syncing...,Cloud: sincronizare...
+PAUSE_CLOUD_ERROR,Cloud: sync error,Cloud: eroare sincronizare
+PAUSE_CLOUD_UPDATE,Cloud: update required,Cloud: actualizare necesară
+CREATE_TITLE,Create Your Warden,Creează-ți Gardianul
+CREATE_CLASS_HEADER,Choose Your Class,Alege Clasa
+CREATE_NAME_PLACEHOLDER,Warden name (required),Nume gardian (obligatoriu)
+CREATE_NAME_ERR_SHORT,Name must be at least 2 characters.,Numele trebuie să aibă cel puțin 2 caractere.
+CREATE_NAME_ERR_LONG,Name cannot exceed 18 characters.,Numele nu poate depăși 18 caractere.
+CREATE_NAME_ERR_CHARS,Use letters numbers spaces hyphens or apostrophes only.,Folosește doar litere cifre spații cratime sau apostroafe.
+CREATE_NAME_ERR_TAKEN,That name is already taken.,Acest nume este deja folosit.
+CREATE_NAME_ERR_BLOCKED,That name is not allowed.,Acest nume nu este permis.
+CREATE_ROW_ASPECT,Aspect,Aspect
+CREATE_ROW_STATURE,Stature,Statură
+CREATE_ROW_BUILD,Build,Constituție
+CREATE_ROW_HEAD,Head,Cap
+CREATE_ROW_TRIM,Trim,Ornament
+CREATE_ROW_SKIN,Skin,Piele
+CREATE_ROW_HAIR,Hair,Păr
+CREATE_ROW_FACE,Face,Față
+CREATE_RANDOMIZE,Randomize,Aleator
+CREATE_RANDOM_NAME,Suggest Name,Sugerează Nume
+CREATE_BACK,Back,Înapoi
+CREATE_BEGIN,Begin,Începe
+CREATE_STARTING_WEAPON,Starting weapon: %s,Armă inițială: %s
+CREATE_PERK,Perk — %s: %s,Avantaj — %s: %s
+CREATE_NO_CLASSES,No classes are available.,Nicio clasă disponibilă.
+CREATE_CONFIRM_TITLE,Begin as Warden?,Începi ca Gardian?
+CREATE_CONFIRM_MESSAGE,Begin as %s warden %s?,Începi ca gardian %s %s?
+CREATE_STAT_HEALTH,Health,Viață
+CREATE_STAT_ARMOR,Armor,Armură
+CREATE_STAT_SPEED,Speed,Viteză
+CREATE_STAT_POISE,Poise,Echilibru
+CREATE_STAT_STAMINA,Stamina,Rezistență
+STAT_CRIT,Crit Chance,Șansă critică
+STAT_DAMAGE,Damage,Daune
+STAT_POISE_DMG,Poise Damage,Daune echilibru
+STAT_STAMINA_REGEN,Stamina Regen,Regenerare rezistență
+STAT_BLOCK,Block Reduction,Reducere blocare
+ASPECT_CASTLE_IRON,Iron Oath,Jurământ de Fier
+ASPECT_CASTLE_IRON_DESC,Castle-forged plate and oathbound steel.,Placă turnată și oțel legat de jurământ.
+ASPECT_CRYSTAL_FROST,Crystal Warden,Gardian de Cristal
+ASPECT_CRYSTAL_FROST_DESC,Frost-touched crystal and glacial light.,Cristal atins de ger și lumină glaciară.
+ASPECT_UMBRAL_VOID,Umbral Warden,Gardian Umbral
+ASPECT_UMBRAL_VOID_DESC,Void-wreathed armor from the deep tower.,Armură învăluită în vid din turnul adânc.
+ASPECT_CATHEDRAL_GOLD,Cathedral Warden,Gardian de Catedrală
+ASPECT_CATHEDRAL_GOLD_DESC,Gilded rites and sanctified plate.,Rituri aurite și placă sfințită.
+ASPECT_SWAMP_WARDEN,Swamp Warden,Gardian de Mlaștină
+ASPECT_SWAMP_WARDEN_DESC,Venom-stained leather and bog iron.,Piele pătată de venin și fier de mlaștină.
+CLASS_ROLE_BERSERKER,Frontline / Damage,Front / Daune
+CLASS_ROLE_KNIGHT,Frontline / Sustain,Front / Rezistență
+CLASS_ROLE_ROGUE,Skirmisher / Crit,Hărțuitor / Crit
+CLASS_ROLE_SCHOLAR,Support / Stamina,Suport / Rezistență
+CLASS_ROLE_SENTINEL,Defender / Poise,Apărător / Echilibru
+CLASS_PERK_BLOODRAGE,Bloodrage,Sânge Furios
+CLASS_PERK_BLOODRAGE_DESC,Gain momentum as health falls.,Câștigă avânt pe măsură ce viața scade.
+CLASS_PERK_STEADFAST,Steadfast,Neclintit
+CLASS_PERK_STEADFAST_DESC,Extra armor and health for long fights.,Armură și viață suplimentare pentru lupte lungi.
+CLASS_PERK_SHADOWSTEP,Shadowstep,Pas din Umbră
+CLASS_PERK_SHADOWSTEP_DESC,Move faster and strike from the flank.,Mișcă-te mai repede și lovește din flanc.
+CLASS_PERK_ARCANE_FOCUS,Arcane Focus,Focalizare Arcană
+CLASS_PERK_ARCANE_FOCUS_DESC,Improved stamina flow for sustained casting.,Flux de rezistență îmbunătățit pentru vrăji susținute.
+CLASS_PERK_BULWARK,Bulwark,Zid
+CLASS_PERK_BULWARK_DESC,High poise and block mastery.,Echilibru ridicat și măiestrie la blocare.
+PAUSE_TITLE,Paused,Pauză
+PAUSE_RESUME,Resume,Continuă
+PAUSE_SETTINGS,Settings,Setări
+PAUSE_ABANDON,Abandon run,Renunță la run
+PAUSE_LEAVE_WAVES,Leave waves,Părăsește valurile
+PAUSE_RESTART_FLOOR,Restart floor,Repornește etajul
+PAUSE_QUIT,Quit to menu,Ieși în meniu
+PAUSE_ACHIEVEMENTS,Achievements,Realizări
+PAUSE_HINT_RESUME,to resume,ca să continui
+PAUSE_INFO_SECTION,Run info,Info run
+PAUSE_INFO_MODE,Mode,Mod
+PAUSE_INFO_FLOOR,Floor,Etaj
+PAUSE_INFO_TIME,Time,Timp
+PAUSE_INFO_SEED,Seed,Seed
+PAUSE_INFO_OBJECTIVE,Objective,Obiectiv
+PAUSE_MODE_HUB,Hub,Hub
+PAUSE_MODE_CASTLE,Castle Run,Run castel
+PAUSE_MODE_WAVES,Umbral Waves,Valuri umbrale
+PAUSE_MODE_ENDLESS,Umbral Endless,Endless umbral
+PAUSE_FLOOR_FMT,Floor %d of %d,Etaj %d din %d
+PAUSE_WAVE_FMT,Wave %d,Val %d
+PAUSE_OBJECTIVE_HUB,Explore the tower,Explorează turnul
+PAUSE_OBJECTIVE_WAVES,Survive wave %d,Supraviețuiește valului %d
+PAUSE_OBJECTIVE_STAIRS,Reach the stairs,Urcă scările
+PAUSE_OBJECTIVE_BOSS,Defeat the boss,Învinge șeful
+PAUSE_OBJECTIVE_EXPLORE,Explore the floor,Explorează etajul
+PAUSE_CONFIRM_ABANDON_TITLE,Abandon Run,Renunță la run
+PAUSE_CONFIRM_ABANDON_BODY,Abandon floor %d? %d items and %d gold from this run are lost.,Renunți la etajul %d? %d obiecte și %d aur din acest run se pierd.
+PAUSE_CONFIRM_ABANDON_OK,Abandon,Renunță
+PAUSE_CONFIRM_ABANDON_CANCEL,Keep Playing,Continuă
+PAUSE_CONFIRM_QUIT_TITLE,Quit to Menu,Ieși în meniu
+PAUSE_CONFIRM_QUIT_BODY,Save progress and return to the main menu? You can continue this run later from the hub.,Salvezi progresul și revii la meniul principal? Poți continua run-ul din hub.
+PAUSE_CONFIRM_QUIT_OK,Quit to Menu,Ieși în meniu
+PAUSE_CONFIRM_QUIT_CANCEL,Keep Playing,Continuă
+PAUSE_CONFIRM_LEAVE_TITLE,Leave Waves,Părăsește valurile
+PAUSE_CONFIRM_LEAVE_BODY,Leave this waves run and return to the hub? Rewards from this attempt may be lost.,Părăsești valurile și revii la hub? Recompensele acestei încercări pot fi pierdute.
+PAUSE_CONFIRM_LEAVE_OK,Leave,Părăsește
+PAUSE_CONFIRM_LEAVE_CANCEL,Keep Playing,Continuă
+PAUSE_CLOUD_SYNCING,Cloud: syncing...,Cloud: sincronizare...
+PAUSE_CLOUD_ERROR,Cloud: sync error,Cloud: eroare sincronizare
+PAUSE_CLOUD_UPDATE,Cloud: update required,Cloud: actualizare necesară
+UI_CONFIRM,Confirm,Confirmă
+UI_CANCEL,Cancel,Anulează

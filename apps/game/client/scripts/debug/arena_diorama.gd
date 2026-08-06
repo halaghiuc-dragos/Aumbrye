@@ -185,28 +185,8 @@ static func _add_wall_collision_box(
 static func _dress_hub_return(portal: Node3D, mats: Dictionary) -> void:
 	if portal == null:
 		return
-	PixelDioramaStyle.hide_legacy_meshes(portal)
-
-	var visuals := portal.get_node_or_null("DioramaVisuals") as Node3D
-	if visuals == null:
-		visuals = Node3D.new()
-		visuals.name = "DioramaVisuals"
-		portal.add_child(visuals)
-	else:
-		for child in visuals.get_children():
-			child.queue_free()
-
-	var portal_mats := mats.duplicate()
-	portal_mats["training"] = mats.accent
-	PixelDioramaStyle.dress_portal_architecture(visuals, portal_mats, "training")
-
-	var portal_light := OmniLight3D.new()
-	portal_light.name = "PortalGlow"
-	portal_light.light_color = Color(1.0, 0.58, 0.18)
-	portal_light.light_energy = 0.9
-	portal_light.omni_range = 4.0
-	portal_light.position = Vector3(0.0, 1.7, 0.75)
-	visuals.add_child(portal_light)
+	var def := PortalCatalog.resolve("hub_return")
+	PixelDioramaStyle.build_portal(portal, def, 1.0, mats)
 
 
 static func _add_arena_accent_lights(arena: Node3D) -> void:

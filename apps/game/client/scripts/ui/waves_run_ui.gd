@@ -81,11 +81,9 @@ func show_reward_pick() -> void:
 		var item_id: String = str(slot.get("itemId", ""))
 		if item_id == "":
 			continue
-		var btn := Button.new()
-		btn.text = "Take %s" % item_id
+		var btn := GameUISkinScript.make_button("Take %s" % item_id)
 		btn.toggle_mode = true
 		btn.pressed.connect(_on_pick_reward.bind(item_id, btn))
-		GameUISkinScript.wire_button_sfx(btn)
 		_reward_box.add_child(btn)
 	_confirm_hint = Label.new()
 	_confirm_hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART

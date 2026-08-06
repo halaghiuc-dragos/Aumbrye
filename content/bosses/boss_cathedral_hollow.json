@@ -18,5 +18,6 @@
     "deaggro_range":  30,
     "patrol_radius":  0,
     "enemy_type":  "boss",
+    "phaseCount": 2,
     "phase2_threshold":  0.5
 }

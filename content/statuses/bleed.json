@@ -6,5 +6,6 @@
   "tickInterval": 0.8,
   "maxStacks": 5,
   "duration": 6.0,
-  "iconColor": "#cc2233"
+  "iconColor": "#cc2233",
+  "polarity": "debuff"
 }

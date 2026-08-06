@@ -10,9 +10,9 @@ var _hint_label: Label
 
 
 func _ready() -> void:
+	add_to_group("front_end")
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	AccessibilitySettings.load_from_save()
-	DisplaySettings.apply()
 	PixelDioramaBootstrap.prime()
 	AudioDirector.play_menu_music()
 	_build_ui()

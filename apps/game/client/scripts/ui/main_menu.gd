@@ -5,6 +5,7 @@ extends Control
 const GameUISkinScript := preload("res://scripts/ui/game_ui_skin.gd")
 const MenuShellScript := preload("res://scripts/ui/menu_shell.gd")
 const CharacterCreateUIScript := preload("res://scripts/ui/character_create_ui.gd")
+const CHARACTER_CREATE_SCENE := preload("res://scenes/ui/character_create.tscn")
 const ContinueMenuScript := preload("res://scripts/ui/continue_menu.gd")
 const LOADING_SCENE := "res://scenes/ui/loading_screen.tscn"
 
@@ -15,14 +16,14 @@ var _quit_overlay: Control
 
 
 func _ready() -> void:
+	add_to_group("front_end")
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	AccessibilitySettings.load_from_save()
-	DisplaySettings.apply()
 	AudioSettings.load_from_save()
 	AudioDirector.play_menu_music()
 	_build_ui()
 	_connect_global_settings()
-	_character_create = CharacterCreateUIScript.new()
+	_character_create = CHARACTER_CREATE_SCENE.instantiate() as Control
 	_character_create.name = "CharacterCreateUI"
 	add_child(_character_create)
 	_character_create.completed.connect(_on_character_created)
@@ -205,6 +206,8 @@ func _input(event: InputEvent) -> void:
 		get_viewport().set_input_as_handled()
 		return
 	if _character_create != null and _character_create.is_open():
+		_character_create.request_cancel()
+		get_viewport().set_input_as_handled()
 		return
 	if _continue_menu != null and _continue_menu.is_open():
 		return

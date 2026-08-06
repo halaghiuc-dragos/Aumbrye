@@ -1,6 +1,6 @@
-# Weapons
+﻿# Weapons
 
-`WeaponController` is the player's entire offensive input path: it reads a weapon JSON, runs a startup/active/recovery state machine, spends stamina, resizes the hitbox by archetype, and enables it. It is on the live play path — `player.tscn` mounts it and `InventoryService` swaps its data on every equipment change.
+`WeaponController` is the player's entire offensive input path: it reads a weapon JSON, runs a startup/active/recovery state machine, spends stamina, resizes the hitbox by archetype, and enables it. It is on the live play path â€” `player.tscn` mounts it and `InventoryService` swaps its data on every equipment change.
 
 ## Files
 
@@ -16,7 +16,7 @@
 
 ### Loading
 
-`_ready()` (`weapon_controller.gd:77`) resolves `_body` (parent `CharacterBody3D`), `Stamina`, `CombatReactions`, `Guard`, `LockOn`, connects to `Dodge.dodge_started` / `dodge_ended`, resolves the hitbox from the `hitbox_path` export, then calls `_load_weapon_data()` → `load_weapon_from_path("content/weapons/sword_basic.json")` (`WEAPON_DATA_RELATIVE`, `weapon_controller.gd:6`).
+`_ready()` (`weapon_controller.gd:77`) resolves `_body` (parent `CharacterBody3D`), `Stamina`, `CombatReactions`, `Guard`, `LockOn`, connects to `Dodge.dodge_started` / `dodge_ended`, resolves the hitbox from the `hitbox_path` export, then calls `_load_weapon_data()` â†’ `load_weapon_from_path("content/weapons/sword_basic.json")` (`WEAPON_DATA_RELATIVE`, `weapon_controller.gd:6`).
 
 `load_weapon_from_path()` (`:141`) reads through `ContentLoader.load_json()`, falls back to the inline `FALLBACK_WEAPON_DATA` dictionary (`:18-40`) with a `push_warning`, recomputes `_weapon_scaling_multiplier`, refreshes `_damage_multiplier`, applies the hitbox profile, and emits `weapon_changed(archetype)`.
 
@@ -43,7 +43,7 @@ dmg   = attack.damage       * _damage_multiplier
 poise = attack.poise_damage * _damage_multiplier
 ```
 
-then, if `Guard.get_riposte_damage_multiplier()` exceeds 1.0, multiplies both by it and calls `Guard.consume_riposte()`. It resolves `damage_type` from the attack then the weapon, `status` from the attack then the weapon's `status_on_hit`, and `status_stacks`, then calls `Hitbox.set_attack_values(dmg, poise, dmg_type, status_id, status_stacks)` — five arguments; the sixth `crit_chance` parameter is left at its 0.0 default. Finally it sets `_hyperarmor_active` from the attack's `hyperarmor` flag or a nonzero `poise_threshold`, and plays `VfxService.play_attack_swing`.
+then, if `Guard.get_riposte_damage_multiplier()` exceeds 1.0, multiplies both by it and calls `Guard.consume_riposte()`. It resolves `damage_type` from the attack then the weapon, `status` from the attack then the weapon's `status_on_hit`, and `status_stacks`, then calls `Hitbox.set_attack_values(dmg, poise, dmg_type, status_id, status_stacks)` â€” five arguments; the sixth `crit_chance` parameter is left at its 0.0 default. Finally it sets `_hyperarmor_active` from the attack's `hyperarmor` flag or a nonzero `poise_threshold`, and plays `VfxService.play_attack_swing`.
 
 `_damage_multiplier = _base_damage_multiplier * _weapon_scaling_multiplier * stance_mult` (`:435-437`), where `stance_mult` is `TWO_HAND_DAMAGE_MULT := 1.25` when two-handing.
 
@@ -106,7 +106,7 @@ Authored coverage:
 ## Contracts
 
 - **Node names:** parent must be a `CharacterBody3D` with children named `Stamina`, `Guard`, `Dodge`, `LockOn`, `CombatReactions`, `StatusController`, `Facing`, and (for soft lock through the camera) `CameraPivot`.
-- **`@export var hitbox_path: NodePath`** — set to `../Facing/WeaponPivot/Hitbox` in `player.tscn:95`. The target must expose `enable()`, `disable()`, `reset_swing()`, `set_attack_values()`.
+- **`@export var hitbox_path: NodePath`** â€” set to `../Facing/WeaponPivot/Hitbox` in `player.tscn:95`. The target must expose `enable()`, `disable()`, `reset_swing()`, `set_attack_values()`.
 - **Signals emitted:** `attack_started(attack_name)`, `attack_ended`, `weapon_changed(archetype)`. Attack names are `light_1`..`light_N`, `heavy`, `weapon_art`, `bow_shot`.
 - **Public state read by others:** `is_attacking` (`locomotion.gd:125`), `current_phase`, `is_bow_aiming`, `has_hyperarmor()`, `get_debug_state()`, `get_attack_phase_progress()`.
 - **Input actions:** `light_attack`, `heavy_attack`, `block`, `two_hand`, `weapon_art`.
@@ -118,23 +118,23 @@ Authored coverage:
 |---------|--------|----------|
 | Light/heavy/combo state machine | IMPLEMENTED | `weapon_controller.gd:255-334` |
 | Stamina gating and talent cost reduction | IMPLEMENTED | `weapon_controller.gd:273-277,456-457` |
-| Per-archetype hitbox reach | PARTIAL | `weapon_controller.gd:531-561` — hardcoded in GDScript, not in `content/weapons/` or the schema |
+| Per-archetype hitbox reach | PARTIAL | `weapon_controller.gd:531-561` â€” hardcoded in GDScript, not in `content/weapons/` or the schema |
 | Attack lunge | STUB | `weapon_controller.gd:238-239` returns `Vector3.ZERO`; no caller anywhere under `apps/`. `lunge_distance` is authored in 6 of 8 weapons (`content/weapons/spear.json:45` = 0.75) and read by nothing |
 | Weapon art | STUB | `_try_weapon_art()` (`weapon_controller.gd:282-285`) returns when `_weapon_data.art` is empty. No `content/weapons/*.json` has an `"art"` key, and `weapon-definition.v1.json:7` sets `additionalProperties: false`, so one cannot be added without a schema change |
 | `scaling` block semantics | BROKEN | `combat_stat_modifiers.gd:14-22` multiplies *damage* by every scaling key; `dagger.json:9` `critChance: 2.0` and `staff.json:8` `staminaRegen: 1.0` therefore inflate raw damage |
 | Crit from weapons | ABSENT | `weapon_controller.gd:350` passes five arguments to `set_attack_values`; the `crit_chance` parameter (`hitbox.gd:72`) stays 0.0 |
-| Two-hand stance | PARTIAL | `weapon_controller.gd:428-437` — +25% damage and +10% reach with no stamina, speed or guard cost. `TWO_HAND_POISE_MULT := 1.35` (`:16`) is declared and never read |
+| Two-hand stance | PARTIAL | `weapon_controller.gd:428-437` â€” +25% damage and +10% reach with no stamina, speed or guard cost. `TWO_HAND_POISE_MULT := 1.35` (`:16`) is declared and never read |
 | Hyperarmor on weapon attacks | PARTIAL | `weapon_controller.gd:352-354` reads `hyperarmor` / `poise_threshold` from attack data, but `weapon-definition.v1.json:34-45` forbids both keys, so only the dead weapon-art path (`:299`) can set it |
-| Bow | PARTIAL | `weapon_controller.gd:400-418` — no projectile; an 8 m box hitbox on the player for one `_phase_timer = 0.08` frame budget; the authored `startup` is ignored |
+| Bow | PARTIAL | `weapon_controller.gd:400-418` â€” no projectile; an 8 m box hitbox on the player for one `_phase_timer = 0.08` frame budget; the authored `startup` is ignored |
 | Weapon-to-item archetype validation | ABSENT | `equipment.gd:31-47` and `grid_inventory.gd:315-321` accept any `weaponId` and fall back to `sword_basic` |
 | Weapon visuals | PLACEHOLDER | Box meshes from `scripts/art/characters/diorama_weapon_kit.gd`; see [`diorama-weapon-kit.md`](diorama-weapon-kit.md) |
 
 ## Related
 
-- Improvement plan: [`../actual_improvements/weapons.md`](../actual_improvements/weapons.md)
-- [`combat-core.md`](combat-core.md) — what happens to the damage this file produces
-- [`hit-hurtboxes.md`](hit-hurtboxes.md) — `Hitbox.set_attack_values` and overlap scanning
-- [`stamina-mana.md`](stamina-mana.md) — the resource every attack spends
-- [`guard.md`](guard.md) — riposte multiplier consumer
-- [`loot-and-equipment.md`](loot-and-equipment.md), [`inventory-service.md`](inventory-service.md) — where `weaponId` and stats come from
+- Improvement plan: [`../actual_improvements/weapons.md`](../actual_improvements/weapons.md) - **FINISHED**
+- [`combat-core.md`](combat-core.md) â€” what happens to the damage this file produces
+- [`hit-hurtboxes.md`](hit-hurtboxes.md) â€” `Hitbox.set_attack_values` and overlap scanning
+- [`stamina-mana.md`](stamina-mana.md) â€” the resource every attack spends
+- [`guard.md`](guard.md) â€” riposte multiplier consumer
+- [`loot-and-equipment.md`](loot-and-equipment.md), [`inventory-service.md`](inventory-service.md) â€” where `weaponId` and stats come from
 - [`player-combat.md`](player-combat.md), [`lock-on.md`](lock-on.md)

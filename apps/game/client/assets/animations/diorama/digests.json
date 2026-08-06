@@ -1,0 +1,12 @@
+{
+	"generator": "export_diorama_anim_libraries.gd",
+	"godot": "4.7.1-stable (official)",
+	"profiles": {
+		"brute": "65c9a35db945464aeb629edb7fb0c1e7a8037909f60d7e242f205c1e05a6ef79",
+		"hound": "d8519771962ca957b6e96e5724b5dc3b44f2e6d548b5dd91b95cabfcde514aff",
+		"melee": "4d4d411e846788493b300c4a61eea92463d55b0ee2589ed633e1766d228ce877",
+		"player": "ee95af03e1d5ef68588cefef0329e2372bb2996dd420499ff826bc36dadd3249",
+		"ranged": "453d7efcc946830868f6cc964679cd46d4f5fc2a3572bb4ed56c51e56fe8375e",
+		"shield": "73834a14a1b8fd01fc038ad0564fed346b88d44f6e9d81616b5f97be42bcd669"
+	}
+}

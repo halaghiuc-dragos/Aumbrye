@@ -1,0 +1,55 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://aumbrye.dev/schemas/palette.v1.json",
+  "title": "PixelDioramaPalettes",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version", "palettes", "biome_theme_map"],
+  "properties": {
+    "version": { "const": 1 },
+    "palettes": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "display_name",
+          "floor_base",
+          "floor_shadow",
+          "wall_base",
+          "wall_shadow",
+          "accent",
+          "prop_wood",
+          "prop_metal",
+          "emissive"
+        ],
+        "properties": {
+          "display_name": { "type": "string", "minLength": 1 },
+          "floor_base": { "type": "string", "pattern": "^#[0-9a-fA-F]{6}$" },
+          "floor_shadow": { "type": "string", "pattern": "^#[0-9a-fA-F]{6}$" },
+          "wall_base": { "type": "string", "pattern": "^#[0-9a-fA-F]{6}$" },
+          "wall_shadow": { "type": "string", "pattern": "^#[0-9a-fA-F]{6}$" },
+          "accent": { "type": "string", "pattern": "^#[0-9a-fA-F]{6}$" },
+          "prop_wood": { "type": "string", "pattern": "^#[0-9a-fA-F]{6}$" },
+          "prop_metal": { "type": "string", "pattern": "^#[0-9a-fA-F]{6}$" },
+          "emissive": { "type": "string", "pattern": "^#[0-9a-fA-F]{6}$" },
+          "tuning": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "pattern_strength": { "type": "number", "minimum": 0, "maximum": 1 },
+              "stitch_strength": { "type": "number", "minimum": 0, "maximum": 1 },
+              "edge_strength": { "type": "number", "minimum": 0, "maximum": 1 },
+              "light_wrap": { "type": "number", "minimum": 0, "maximum": 1 }
+            }
+          }
+        }
+      }
+    },
+    "biome_theme_map": {
+      "type": "object",
+      "additionalProperties": { "type": "string", "minLength": 1 }
+    }
+  }
+}

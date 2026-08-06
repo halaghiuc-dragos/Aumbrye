@@ -2,12 +2,15 @@ extends Control
 
 ## Achievement unlock toast (M6 META-6.1).
 
+const GameUISkinScript := preload("res://scripts/ui/game_ui_skin.gd")
+
 @onready var _label: Label = $Panel/Margin/Label
 
 
 func _ready() -> void:
 	visible = false
 	modulate.a = 0.0
+	GameUISkinScript.apply_modal_menu(self, "Panel", "Backdrop")
 
 
 func show_achievement(display_name: String) -> void:

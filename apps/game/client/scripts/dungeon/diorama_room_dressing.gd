@@ -15,6 +15,10 @@ const ROOM_SUFFIXES := [
 	"puzzle",
 ]
 
+static var _shadow_omni_budget: int = 0
+static var _max_shadow_omnis: int = 2
+static var _torch_flicker: Dictionary = {}
+
 
 static func apply_to_room(room: RoomTemplate, biome_id: String, room_seed: int = 0) -> void:
 	var blockout := room.get_blockout()
@@ -85,6 +89,7 @@ static func apply_to_waves_arena(
 static func apply_ceiling_lighting(
 	room: RoomTemplate, biome_id: String, lighting_role: String = ""
 ) -> void:
+	_begin_room_torch_pass(biome_id)
 	var blockout := room.get_blockout()
 	if blockout == null:
 		return
@@ -120,6 +125,19 @@ static func apply_ceiling_lighting(
 	_spawn_room_center_fill(lights, half_w, half_d, biome_id)
 
 
+## Validation fixture: hall torch pass without a RoomTemplate.
+static func spawn_hall_torches_fixture(
+	parent: Node3D, biome_id: String, half_w: float, half_d: float
+) -> void:
+	_begin_room_torch_pass(biome_id)
+	var accent_mat := BiomeRegistry.get_accent_material(biome_id)
+	var torch_y := CastleRoomConstants.WALL_HEIGHT - 0.35
+	_spawn_ceiling_torch(parent, Vector3(0.0, torch_y, 0.0), accent_mat, biome_id)
+	_spawn_ceiling_torch(parent, Vector3(-4.0, torch_y, 0.0), accent_mat, biome_id)
+	_spawn_ceiling_torch(parent, Vector3(4.0, torch_y, 0.0), accent_mat, biome_id)
+	_spawn_wall_midpoint_torches(parent, half_w, half_d, accent_mat, biome_id)
+
+
 static func _spawn_wall_midpoint_torches(
 	parent: Node3D, half_w: float, half_d: float, accent_mat: Material, biome_id: String
 ) -> void:
@@ -141,7 +159,8 @@ static func _spawn_room_center_fill(
 		light,
 		_biome_light_color(biome_id).lerp(Color(0.92, 0.86, 0.78), 0.35),
 		VisualLighting.ROOM_FILL_ENERGY,
-		maxf(minf(half_w, half_d) * 1.75, 9.0)
+		maxf(minf(half_w, half_d) * 1.75, 9.0),
+		false
 	)
 	parent.add_child(light)
 
@@ -149,6 +168,7 @@ static func _spawn_room_center_fill(
 static func apply_shell_lighting(shell: Node3D, bounds: AABB, biome_id: String) -> void:
 	if shell.get_node_or_null("ShellLighting") != null:
 		return
+	_begin_room_torch_pass(biome_id)
 	var lights := Node3D.new()
 	lights.name = "ShellLighting"
 	shell.add_child(lights)
@@ -447,8 +467,7 @@ static func _spawn_brazier(
 	var light := OmniLight3D.new()
 	light.name = "BrazierLight"
 	light.position = Vector3(0.0, 1.1, 0.0)
-	VisualLighting.configure_soft_omni(light, _biome_light_color(biome_id), energy, 9.0)
-	brazier.add_child(light)
+	_configure_torch_light(light, _biome_light_color(biome_id), energy, 9.0, brazier)
 	AudioDirector.attach_loop_emitter(brazier, "brazier", 6.0)
 
 
@@ -467,13 +486,13 @@ static func _spawn_wall_torch(
 	var light := OmniLight3D.new()
 	light.name = "WallTorchLight"
 	light.position = pos + Vector3(0.0, 0.05, 0.0)
-	VisualLighting.configure_soft_omni(
+	_configure_torch_light(
 		light,
 		_biome_light_color(biome_id),
 		VisualLighting.WALL_TORCH_ENERGY,
-		VisualLighting.WALL_TORCH_RANGE
+		VisualLighting.WALL_TORCH_RANGE,
+		parent
 	)
-	parent.add_child(light)
 
 
 static func _spawn_ceiling_torch(
@@ -483,13 +502,13 @@ static func _spawn_ceiling_torch(
 	var light := OmniLight3D.new()
 	light.name = "CeilingTorchOmni"
 	light.position = pos + Vector3(0.0, -0.18, 0.0)
-	VisualLighting.configure_soft_omni(
+	_configure_torch_light(
 		light,
 		_biome_light_color(biome_id),
 		VisualLighting.TORCH_OMNI_ENERGY,
-		VisualLighting.TORCH_OMNI_RANGE
+		VisualLighting.TORCH_OMNI_RANGE,
+		parent
 	)
-	parent.add_child(light)
 
 
 static func _add_obstacle_block(
@@ -579,7 +598,7 @@ static func _add_spot(
 	light.name = "AccentFill"
 	light.position = pos
 	VisualLighting.configure_soft_omni(
-		light, _material_light_color(accent_mat, biome_id), energy * 0.9, 10.0
+		light, _material_light_color(accent_mat, biome_id), energy * 0.9, 10.0, false
 	)
 	parent.add_child(light)
 
@@ -598,6 +617,36 @@ static func _material_light_color(mat: Material, biome_id: String = "") -> Color
 	return Color(0.9, 0.75, 0.5)
 
 
+static func _begin_room_torch_pass(biome_id: String) -> void:
+	_torch_flicker = VisualLighting.get_torch_config_for_biome(biome_id)
+	_max_shadow_omnis = int(_torch_flicker.get("max_shadow_omnis", 2))
+	_shadow_omni_budget = 0
+
+
+static func _take_shadow_slot() -> bool:
+	var cast_shadows := _shadow_omni_budget < _max_shadow_omnis
+	if cast_shadows:
+		_shadow_omni_budget += 1
+	return cast_shadows
+
+
+static func _configure_torch_light(
+	light: OmniLight3D, color: Color, energy: float, light_range: float, parent: Node
+) -> void:
+	parent.add_child(light)
+	VisualLighting.configure_soft_omni(light, color, energy, light_range, _take_shadow_slot())
+	_attach_torch_flicker(light)
+
+
+static func _attach_torch_flicker(light: OmniLight3D) -> void:
+	VisualLighting.attach_flicker(
+		light,
+		float(_torch_flicker.get("flicker", 0.12)),
+		float(_torch_flicker.get("flicker_hz", 7.5))
+	)
+
+
 static func _biome_light_color(biome_id: String) -> Color:
-	var profile := BiomeRegistry.get_lighting_profile(biome_id)
-	return profile.get("ambient_color", Color(0.9, 0.75, 0.5))
+	return VisualLighting.get_torch_config_for_biome(biome_id).get(
+		"color", Color(0.9, 0.75, 0.5)
+	)

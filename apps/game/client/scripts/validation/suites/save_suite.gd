@@ -1,5 +1,7 @@
 extends "res://scripts/validation/validation_suite.gd"
 
+const CastleRunScript := preload("res://scripts/dungeon/castle_run.gd")
+
 
 func get_category() -> String:
 	return "save"
@@ -174,7 +176,7 @@ func _test_death_snapshot_guard() -> void:
 	ctx.timed_record(
 		"save.death_snapshot_skipped",
 		get_category(),
-		not CastleRun.should_persist_player_state(0.0, true),
+		not CastleRunScript.should_persist_player_state(0.0, true),
 		"castle_run would skip persisting dead player snapshot",
 		start,
 		"M3.save.death_guard"
@@ -280,7 +282,7 @@ func _test_storage_roundtrip() -> void:
 	var saved := StorageService.get_save_storage()
 	StorageService.storage.clear()
 	StorageService.apply_save_storage(saved)
-	var ok := false
+	var ok: bool = false
 	for slot in StorageService.storage.slots:
 		if slot.get("itemId", "") == "castle_sword":
 			ok = true
@@ -301,7 +303,7 @@ func _test_world_flags_restore() -> void:
 	var other_flag := WorldFlags.lock_opened("suite_other")
 	WorldState.set_flag(door_flag, true)
 	WorldState.restore_flags({door_flag: true, other_flag: 2})
-	var ok := WorldState.has_flag(door_flag) and int(WorldState.get_flag(other_flag, 0)) == 2
+	var ok: bool = WorldState.has_flag(door_flag) and int(WorldState.get_flag(other_flag, 0)) == 2
 	WorldState.reset()
 	ctx.timed_record(
 		"save.world_flags_restore",
@@ -344,7 +346,7 @@ func _test_world_flags_migration() -> void:
 	var checkpoint_flags: Dictionary = migrated.get("activeRun", {}).get("lastCheckpoint", {}).get(
 		"worldFlags", {}
 	)
-	var ok := (
+	var ok: bool = (
 		int(migrated.get("schemaVersion", 0)) == SaveMigratorScript.CURRENT_VERSION
 		and flags.get(WorldFlags.lock_opened("lock_entrance_hall"), false) == true
 		and flags.get(WorldFlags.secret_opened("stranded"), false) == true
@@ -367,7 +369,7 @@ func _test_checkpoint_migration() -> void:
 	var v3 := {"schemaVersion": 3, "activeRun": {"snapshot": {"player": {"health": 1.0}}}}
 	var migrated: Dictionary = SaveMigratorScript.migrate(v3.duplicate(true))
 	var run: Dictionary = migrated.get("activeRun", {})
-	var ok := (
+	var ok: bool = (
 		int(migrated.get("schemaVersion", 0)) == SaveMigratorScript.CURRENT_VERSION
 		and run.has("lastCheckpoint")
 	)
@@ -473,7 +475,7 @@ func _test_camera_settings_migration() -> void:
 	var migrated: Dictionary = SaveMigratorScript.migrate(legacy)
 	var a11y: Dictionary = migrated.get("meta", {}).get("accessibility", {})
 	var defaults := AccessibilitySettings.camera_settings_defaults()
-	var ok := int(migrated.get("schemaVersion", 0)) == SaveMigratorScript.CURRENT_VERSION
+	var ok: bool = int(migrated.get("schemaVersion", 0)) == SaveMigratorScript.CURRENT_VERSION
 	for key in defaults:
 		if not a11y.has(key):
 			ok = false
@@ -520,7 +522,7 @@ func _test_migrate_chain_v1_to_v5(SaveMigratorScript: Script) -> void:
 	var migrated: Dictionary = SaveMigratorScript.migrate(_minimal_v1_save())
 	var inv: Dictionary = migrated.get("inventory", {})
 	var equipped: Dictionary = inv.get("equipped", {})
-	var ok := (
+	var ok: bool = (
 		not migrated.get("migrationFailed", false)
 		and int(migrated.get("schemaVersion", 0)) == SaveMigratorScript.CURRENT_VERSION
 		and migrated.has("character")
@@ -542,7 +544,7 @@ func _test_migrate_chain_v1_to_v5(SaveMigratorScript: Script) -> void:
 func _test_migrate_step_table(SaveMigratorScript: Script) -> void:
 	var start := Time.get_ticks_msec()
 	var steps: Array = SaveMigratorScript.STEPS
-	var ok := false
+	var ok: bool = false
 	if not steps.is_empty():
 		ok = int(steps.back()["to"]) == SaveMigratorScript.CURRENT_VERSION
 		var expected_from := 1
@@ -564,7 +566,7 @@ func _test_migrate_too_new(SaveMigratorScript: Script) -> void:
 	var result: Dictionary = SaveMigratorScript.migrate(
 		{"schemaVersion": 6, "character": {"name": "X"}}
 	)
-	var ok := (
+	var ok: bool = (
 		result.get("migrationFailed", false)
 		and str(result.get("migrationKind", "")) == "too_new"
 		and result.has("character")
@@ -589,7 +591,7 @@ func _test_migrate_failure_preserves_payload(SaveMigratorScript: Script) -> void
 	}
 	var result: Dictionary = SaveMigratorScript.migrate(source)
 	var character: Dictionary = result.get("character", {})
-	var ok := (
+	var ok: bool = (
 		result.get("migrationFailed", false)
 		and character.get("name", "") == "KeepMe"
 		and int(character.get("level", 0)) == 3
@@ -620,7 +622,7 @@ func _test_migrate_normalizes_equipped_legacy_string(SaveMigratorScript: Script)
 	)
 	var migrated: Dictionary = SaveMigratorScript.migrate(source)
 	var weapon: Dictionary = migrated.get("inventory", {}).get("equipped", {}).get("weapon", {})
-	var ok := weapon.get("itemId", "") == "castle_sword" and int(weapon.get("quantity", 0)) == 1
+	var ok: bool = weapon.get("itemId", "") == "castle_sword" and int(weapon.get("quantity", 0)) == 1
 	ctx.timed_record(
 		"save.migrate.normalizes_equipped_legacy_string",
 		get_category(),
@@ -635,7 +637,7 @@ func _test_migrate_normalizes_float_talents(SaveMigratorScript: Script) -> void:
 	var start := Time.get_ticks_msec()
 	var source := _minimal_v1_save({"talents": {"arms_1": 2.0}})
 	var migrated: Dictionary = SaveMigratorScript.migrate(source)
-	var ok := int(migrated.get("talents", {}).get("arms_1", -1)) == 2
+	var ok: bool = int(migrated.get("talents", {}).get("arms_1", -1)) == 2
 	ctx.timed_record(
 		"save.migrate.normalizes_float_talents",
 		get_category(),
@@ -708,7 +710,7 @@ func _test_migrate_normalizes_affix_arrays(SaveMigratorScript: Script) -> void:
 	)
 	var migrated: Dictionary = SaveMigratorScript.migrate(source)
 	var affixes: Array = migrated.get("inventory", {}).get("slots", [{}])[0].get("affixes", [])
-	var ok := affixes.size() == 1 and affixes[0].get("affixId", "") == "sharp"
+	var ok: bool = affixes.size() == 1 and affixes[0].get("affixId", "") == "sharp"
 	ctx.timed_record(
 		"save.migrate.normalizes_affix_arrays",
 		get_category(),
@@ -724,7 +726,7 @@ func _test_migrate_dry_run_applies_nothing(SaveMigratorScript: Script) -> void:
 	var source := _minimal_v1_save()
 	var before := JSON.stringify(source)
 	var steps: Array = SaveMigratorScript.plan(1)
-	var ok := steps.size() == 4 and before == JSON.stringify(source)
+	var ok: bool = steps.size() == 4 and before == JSON.stringify(source)
 	ctx.timed_record(
 		"save.migrate.dry_run_applies_nothing",
 		get_category(),
@@ -741,7 +743,7 @@ func _test_migrate_current_version_is_deep_copied(SaveMigratorScript: Script) ->
 	source["schemaVersion"] = SaveMigratorScript.CURRENT_VERSION
 	var migrated: Dictionary = SaveMigratorScript.migrate(source)
 	migrated["character"]["name"] = "Mutated"
-	var ok := str(source["character"]["name"]) != "Mutated"
+	var ok: bool = str(source["character"]["name"]) != "Mutated"
 	ctx.timed_record(
 		"save.migrate.current_version_is_deep_copied",
 		get_category(),
@@ -759,7 +761,7 @@ func _test_migrate_premigrate_artefact_written(SaveMigratorScript: Script) -> vo
 	DirAccess.make_dir_recursive_absolute(LocalSave.CHARACTERS_DIR)
 	var v4 := _minimal_v1_save({"schemaVersion": 4})
 	var file := FileAccess.open(path, FileAccess.WRITE)
-	var ok := false
+	var ok: bool = false
 	if file:
 		file.store_string(JSON.stringify(v4, "\t"))
 		file.close()
@@ -851,7 +853,7 @@ func _test_atomic_write_rejects_bad_payload() -> void:
 	LocalSave._active_character_id = char_id
 	var bad := good.duplicate(true)
 	bad.erase("character")
-	var ok := not LocalSave._write_save(bad, false)
+	var ok: bool = not LocalSave._write_save(bad, false)
 	ok = ok and FileAccess.get_file_as_string(path) == good_text
 	ok = ok and not FileAccess.file_exists("%s.tmp" % path)
 	LocalSave._active_character_id = ""
@@ -945,7 +947,7 @@ func _test_save_validator_problems() -> void:
 	bad_equipped["equipped"] = []
 	var equipped_array: Array = SaveValidatorScript.validate({"schemaVersion": 5, "character": {"name": "X", "level": 1, "xp": 0}, "currencies": {"gold": 0}, "inventory": bad_equipped, "talents": {}, "flags": {}})
 	var bad_level: Array = SaveValidatorScript.validate(_minimal_v1_save({"character": {"name": "X", "level": -1, "xp": 0}, "schemaVersion": 5}))
-	var ok := (
+	var ok: bool = (
 		"character" in missing_character
 		and "inventory.equipped" in equipped_array
 		and "character.level" in bad_level
@@ -984,7 +986,7 @@ func _test_item_instances_round_trip() -> void:
 	InventoryService.inventory.equipped["weapon"] = equipped_slot.duplicate(true)
 	var payload := LocalSave._build_save_payload()
 	var instances: Dictionary = payload.get("itemInstances", {})
-	var ok := instances.size() == 2
+	var ok: bool = instances.size() == 2
 	var stripped := payload.duplicate(true)
 	(stripped["inventory"] as Dictionary)["slots"][0].erase("affixes")
 	(stripped["inventory"] as Dictionary)["equipped"]["weapon"].erase("affixes")
@@ -1034,7 +1036,7 @@ func _test_cloud_conflict_backup() -> void:
 	LocalSave._active_character_id = char_id
 	LocalSave.autosave()
 	var backup_path := LocalSave._backup_local_save()
-	var ok := backup_path != "" and FileAccess.file_exists(backup_path)
+	var ok: bool = backup_path != "" and FileAccess.file_exists(backup_path)
 	ok = ok and backup_path.find(char_id) >= 0
 	LocalSave._active_character_id = ""
 	ctx.timed_record(
@@ -1059,7 +1061,7 @@ func _test_migrate_v4_to_v5_account_id_reset() -> void:
 	var migrated: Dictionary = SaveMigratorScript.migrate(source)
 	LocalSave._cached_state = migrated.duplicate(true)
 	var resolved := LocalSave._resolve_account_id()
-	var ok := str(migrated.get("accountId", "x")) == "" and resolved != "" and resolved != SaveMigratorScript.NIL_ACCOUNT_ID
+	var ok: bool = str(migrated.get("accountId", "x")) == "" and resolved != "" and resolved != SaveMigratorScript.NIL_ACCOUNT_ID
 	ctx.timed_record(
 		"save.migrate.v4_to_v5_account_id_reset",
 		get_category(),
@@ -1086,7 +1088,7 @@ func _test_migrate_quests_split_v4_to_v5() -> void:
 	)
 	var migrated: Dictionary = SaveMigratorScript.migrate(source)
 	var quests: Variant = migrated.get("quests", {})
-	var ok := false
+	var ok: bool = false
 	if quests is Dictionary:
 		var states: Dictionary = quests.get("states", {})
 		var progress: Dictionary = quests.get("progress", {})
@@ -1117,7 +1119,7 @@ func _test_migrate_coins_folded_into_gold() -> void:
 	)
 	var migrated: Dictionary = SaveMigratorScript.migrate(source)
 	var currencies: Variant = migrated.get("currencies", {})
-	var ok := false
+	var ok: bool = false
 	if currencies is Dictionary:
 		ok = int(currencies.get("gold", 0)) == 90 and not currencies.has("coins")
 	ctx.timed_record(

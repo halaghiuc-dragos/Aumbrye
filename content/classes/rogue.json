@@ -5,5 +5,9 @@
   "startingWeaponItemId": "rogue_dagger",
   "statBonuses": { "moveSpeed": 0.05, "critChance": 0.02 },
   "allowedWeapons": ["rogue_dagger", "swamp_toxin_dagger", "venom_dagger", "cathedral_shadow_dagger", "hunter_bow"],
-  "perk": "shadowstep"
+  "perk": "shadowstep",
+  "iconPath": "class_icons:rogue",
+  "role": "CLASS_ROLE_ROGUE",
+  "perkName": "CLASS_PERK_SHADOWSTEP",
+  "perkDescription": "CLASS_PERK_SHADOWSTEP_DESC"
 }

@@ -110,27 +110,20 @@ static func build_npc(parent: Node3D, biome_id: String) -> Node3D:
 
 static func build_portal(parent: Node3D, biome_id: String) -> Node3D:
 	_remove_visual(parent)
-	var root := _make_root(parent)
-	var theme := PixelStyle.theme_from_biome(biome_id)
-	var wall := PixelStyle.make_wall_material(theme)
-	var accent := PixelStyle.make_accent_material(theme)
-	var floor_mat := PixelStyle.make_floor_material(theme)
-	var glow := PixelStyle.make_emissive_material(theme, 1.2)
-	_add_box(root, Vector3(0.35, 3.2, 0.35), wall, Vector3(-1.35, 1.6, 0.0))
-	_add_box(root, Vector3(0.35, 3.2, 0.35), wall, Vector3(1.35, 1.6, 0.0))
-	_add_box(root, Vector3(3.05, 0.35, 0.35), wall, Vector3(0.0, 3.15, 0.0))
-	_add_box(root, Vector3(2.4, 0.12, 2.4), floor_mat, Vector3(0.0, 0.06, 0.0))
-	_add_orb(root, glow.emission, Vector3(0.0, 0.35, 0.0), 0.55, Vector3(0.18, 0.08, 0.18))
-	_add_box(root, Vector3(1.6, 0.08, 1.6), glow, Vector3(0.0, 0.14, 0.0))
-	_add_box(root, Vector3(0.2, 2.8, 0.2), accent, Vector3(-1.35, 1.6, 0.2))
-	_add_box(root, Vector3(0.2, 2.8, 0.2), accent, Vector3(1.35, 1.6, 0.2))
-	return root
+	var portal_id := PortalCatalog.portal_id_for_biome(biome_id)
+	var def := PortalCatalog.resolve(portal_id)
+	return PixelStyle.build_portal(parent, def, 1.0)
 
 
 static func build_exit_portal(parent: Node3D, biome_id: String) -> Node3D:
-	var root := build_portal(parent, biome_id)
-	root.scale = Vector3(0.85, 0.85, 0.85)
-	return root
+	_remove_visual(parent)
+	var portal_id := PortalCatalog.portal_id_for_biome(biome_id)
+	var def := PortalCatalog.resolve(portal_id)
+	return PixelStyle.build_portal(parent, def, 0.85)
+
+
+static func build_merchant_stall(parent: Node3D, biome_id: String) -> Node3D:
+	return PixelStyle.build_merchant_stall(parent, biome_id)
 
 
 static func build_loot_pickup(parent: Node3D, biome_id: String) -> Node3D:
@@ -142,7 +135,7 @@ static func build_loot_pickup(parent: Node3D, biome_id: String) -> Node3D:
 	var glow := PixelStyle.make_emissive_material(theme, 1.4)
 	_add_box(root, Vector3(0.45, 0.45, 0.45), wall, Vector3(0.0, 0.35, 0.0))
 	_add_box(root, Vector3(0.52, 0.1, 0.52), accent, Vector3(0.0, 0.62, 0.0))
-	_add_orb(root, glow.emission, Vector3(0.0, 0.85, 0.0), 0.16)
+	_add_orb(root, PixelStyle.get_palette_color(theme, PixelStyle.PaletteSlot.EMISSIVE), Vector3(0.0, 0.85, 0.0), 0.16)
 	root.set_meta("bob_base_y", root.position.y)
 	return root
 
@@ -153,13 +146,17 @@ static func build_cannon(parent: Node3D, biome_id: String) -> Node3D:
 	var theme := PixelStyle.theme_from_biome(biome_id)
 	var wall := PixelStyle.make_wall_material(theme)
 	var accent := PixelStyle.make_accent_material(theme)
-	var crystal := PixelStyle.make_emissive_material(PixelStyle.PaletteTheme.CRYSTAL, 1.5)
 	_add_box(root, Vector3(1.8, 0.35, 1.4), wall, Vector3(0.0, 0.18, 0.0))
 	_add_box(root, Vector3(1.5, 0.55, 0.55), accent, Vector3(0.0, 0.55, 0.35))
 	_add_box(root, Vector3(0.35, 0.35, 0.9), accent, Vector3(0.55, 0.72, 0.55))
 	for i in 3:
 		var offset := Vector3(-0.35 + float(i) * 0.35, 0.42, -0.25)
-		_add_orb(root, crystal.emission, offset, 0.12)
+		_add_orb(
+			root,
+			PixelStyle.get_palette_color(PixelStyle.PaletteTheme.CRYSTAL, PixelStyle.PaletteSlot.EMISSIVE),
+			offset,
+			0.12
+		)
 	return root
 
 
@@ -251,6 +248,9 @@ static func _remove_visual(parent: Node3D) -> void:
 	var existing := parent.get_node_or_null(VISUAL_NAME)
 	if existing:
 		existing.queue_free()
+	var visuals := parent.get_node_or_null("DioramaVisuals")
+	if visuals:
+		visuals.queue_free()
 	for child in parent.get_children():
 		if child is MeshInstance3D and child.name == "MeshInstance3D":
 			child.queue_free()

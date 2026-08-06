@@ -113,6 +113,13 @@ const PROFILES := {
 }
 
 
+static func _character_service() -> Node:
+	var tree := Engine.get_main_loop() as SceneTree
+	if tree == null or tree.root == null:
+		return null
+	return tree.root.get_node_or_null("CharacterService")
+
+
 static func build_player_body(facing: Node3D, theme: int = -1) -> Node3D:
 	_remove_visual(facing)
 	PixelStyle.hide_legacy_meshes(facing)
@@ -128,6 +135,7 @@ static func build_player_body(facing: Node3D, theme: int = -1) -> Node3D:
 		_apply_player_appearance(visual, profile, _body_materials(theme, "player"))
 	else:
 		_apply_player_appearance(visual, profile, _body_materials(theme, "player"))
+	_assert_feet_at_origin(visual)
 	return visual
 
 
@@ -297,7 +305,10 @@ static func _apply_face(visual: Node3D, profile: Dictionary, mats: Dictionary) -
 
 
 static func _apply_class_armor(visual: Node3D, _profile: Dictionary, mats: Dictionary) -> void:
-	var class_id := CharacterService.class_id if CharacterService else ""
+	var svc := _character_service()
+	var class_id := ""
+	if svc and svc.has_method("get_class_id"):
+		class_id = str(svc.call("get_class_id"))
 	if class_id == "":
 		return
 	var torso := find_part(visual, "Torso")
@@ -368,6 +379,7 @@ static func build_enemy_body(
 		if CharacterRigCatalogScript.has_manifest(hound_archetype):
 			var hound_root := build_from_manifest(visual, hound_archetype, theme)
 			if hound_root != null:
+				_assert_feet_at_origin(visual)
 				return visual
 		_build_quadruped(visual, mats)
 	else:
@@ -381,6 +393,7 @@ static func build_enemy_body(
 				"DioramaCharacterSkin: %s manifest missing — using box fallback" % archetype
 			)
 			_build_humanoid(visual, resolved if PROFILES.has(profile) else "melee", mats)
+	_assert_feet_at_origin(visual)
 	return visual
 
 
@@ -395,13 +408,48 @@ static func build_training_dummy(parent: Node3D) -> Node3D:
 	if root == null:
 		push_error("DioramaCharacterSkin: enemy_dummy manifest missing — using box fallback")
 		_build_humanoid(visual, "dummy", mats)
+	_assert_feet_at_origin(visual)
 	return visual
 
 
-## Feet sit on the rig origin, so the visual root can be placed straight on the
-## floor without a per-profile fudge factor.
-static func feet_local_y(_profile: String) -> float:
-	return 0.0
+static func _assert_feet_at_origin(visual: Node3D) -> void:
+	var min_y := rig_mesh_min_y(visual)
+	if min_y > 0.02:
+		push_error(
+			"DioramaCharacterSkin: rig feet not at origin (min y %.3f on %s)"
+			% [min_y, visual.get_parent().name if visual.get_parent() else "visual"]
+		)
+
+
+static func rig_mesh_min_y(visual: Node3D) -> float:
+	var aabb := _combined_mesh_aabb_local(visual)
+	return aabb.position.y if aabb.size != Vector3.ZERO else 0.0
+
+
+static func _combined_mesh_aabb_local(root: Node3D) -> AABB:
+	var result := AABB()
+	var has_any := false
+	for mesh in _gather_mesh_instances(root):
+		if mesh.mesh == null:
+			continue
+		var mesh_aabb := mesh.mesh.get_aabb()
+		var local_xform := root.global_transform.affine_inverse() * mesh.global_transform
+		var local_aabb := local_xform * mesh_aabb
+		if not has_any:
+			result = local_aabb
+			has_any = true
+		else:
+			result = result.merge(local_aabb)
+	return result if has_any else AABB()
+
+
+static func _gather_mesh_instances(node: Node) -> Array[MeshInstance3D]:
+	var out: Array[MeshInstance3D] = []
+	if node is MeshInstance3D:
+		out.append(node)
+	for child in node.get_children():
+		out.append_array(_gather_mesh_instances(child))
+	return out
 
 
 static func theme_for_enemy_id(enemy_id: String) -> int:
@@ -439,6 +487,75 @@ static func profile_for_enemy_data(data: Dictionary) -> String:
 	if enemy_id.contains("brute") or enemy_id.contains("golem") or enemy_id.contains("guardian"):
 		return "brute"
 	return enemy_type
+
+
+## Builds a throwaway rig for `profile` and returns its rest pose.
+## Same code path as the runtime rig, so the exporter and the game cannot diverge.
+static func rest_pose_for_profile(profile: String) -> Dictionary:
+	var holder := Node3D.new()
+	var visual := _make_visual(holder)
+	if profile == "hound":
+		_build_reference_quadruped(visual)
+	elif PROFILES.has(profile):
+		_build_reference_humanoid(visual, profile)
+	else:
+		holder.free()
+		return {}
+	var pose := collect_rest_pose(visual)
+	holder.free()
+	return pose
+
+
+static func _build_reference_humanoid(visual: Node3D, profile: String) -> Node3D:
+	var spec: Dictionary = PROFILES.get(profile, PROFILES["melee"])
+	var leg: Vector3 = spec["leg"]
+	var torso: Vector3 = spec["torso"]
+	var head: Vector3 = spec["head"]
+	var arm: Vector3 = spec["arm"]
+	var hip_x: float = spec["hip_x"]
+	var shoulder_x: float = spec["shoulder_x"]
+	var root := _add_pivot(visual, ROOT_NAME, Vector3.ZERO)
+	var waist_y := leg.y
+	for side in [-1.0, 1.0]:
+		var leg_name := "LegL" if side < 0.0 else "LegR"
+		_add_pivot(root, leg_name, Vector3(hip_x * side, waist_y, 0.0))
+	var torso_pivot := _add_pivot(root, "Torso", Vector3(0.0, waist_y, 0.0))
+	_add_pivot(torso_pivot, "Head", Vector3(0.0, torso.y, 0.0))
+	var shoulder_y := torso.y * 0.88
+	for side in [-1.0, 1.0]:
+		var arm_name := "ArmL" if side < 0.0 else "ArmR"
+		var shoulder := _add_pivot(
+			torso_pivot, arm_name, Vector3(shoulder_x * side, shoulder_y, 0.0)
+		)
+		var mount_name := SHIELD_MOUNT if side < 0.0 else WEAPON_MOUNT
+		_add_pivot(shoulder, mount_name, Vector3(0.0, -arm.y, 0.0))
+	var extras: Array = spec.get("extras", [])
+	if extras.has("bow"):
+		var bow_mount := find_part(root, WEAPON_MOUNT)
+		if bow_mount:
+			_add_pivot(bow_mount, "Bow", Vector3.ZERO)
+	if extras.has("shield"):
+		var shield_mount := find_part(root, SHIELD_MOUNT)
+		if shield_mount:
+			_add_pivot(shield_mount, "Shield", Vector3.ZERO)
+	return root
+
+
+static func _build_reference_quadruped(visual: Node3D) -> Node3D:
+	var root := _add_pivot(visual, ROOT_NAME, Vector3.ZERO)
+	var leg_h := 0.3
+	var body_y := leg_h
+	var torso_pivot := _add_pivot(root, "Torso", Vector3(0.0, body_y, 0.0))
+	_add_pivot(torso_pivot, "Head", Vector3(0.0, 0.2, 0.36))
+	_add_pivot(torso_pivot, "Tail", Vector3(0.0, 0.24, -0.38))
+	for entry in [
+		{"name": "LegL", "pos": Vector3(-0.16, body_y, 0.26)},
+		{"name": "LegR", "pos": Vector3(0.16, body_y, 0.26)},
+		{"name": "LegBL", "pos": Vector3(-0.16, body_y, -0.26)},
+		{"name": "LegBR", "pos": Vector3(0.16, body_y, -0.26)},
+	]:
+		_add_pivot(root, entry["name"], entry["pos"])
+	return root
 
 
 ## Maps every animatable pivot to its rest transform and path from the visual root.
@@ -719,6 +836,7 @@ static func _collect_rest_pose_recursive(node: Node3D, visual: Node3D, pose: Dic
 static func _make_visual(parent: Node3D) -> Node3D:
 	var visual := Node3D.new()
 	visual.name = VISUAL_NAME
+	visual.set_meta(&"owned_materials", true)
 	parent.add_child(visual)
 	return visual
 
@@ -741,10 +859,13 @@ static func build_from_manifest(visual: Node3D, archetype_id: String, theme: int
 	var skin_tint := CharacterAppearance.skin_tint_vector(
 		CharacterAppearance.SKIN_TONE_NEUTRAL
 	)
-	if CharacterService:
-		skin_tint = CharacterAppearance.skin_tint_vector(
-			str(CharacterService.appearance_profile.get("skinTone", CharacterAppearance.SKIN_TONE_NEUTRAL))
-		)
+	var svc := _character_service()
+	if svc:
+		var appearance: Dictionary = svc.get("appearance_profile") as Dictionary
+		if not appearance.is_empty():
+			skin_tint = CharacterAppearance.skin_tint_vector(
+				str(appearance.get("skinTone", CharacterAppearance.SKIN_TONE_NEUTRAL))
+			)
 	var mat := _make_voxel_material(theme, skin_tint)
 	var root := _add_pivot(visual, ROOT_NAME, Vector3.ZERO)
 	var built: Dictionary = {ROOT_NAME: root}
