@@ -1,7 +1,15 @@
 #!/usr/bin/env python3
 """Generate 5 expansion biomes: rooms, materials, content JSON."""
 
+from __future__ import annotations
+
+import argparse
+import json
+import subprocess
+import sys
 from pathlib import Path
+
+from generated_manifest import prepare_write, record_write
 
 ROOT = Path(__file__).resolve().parents[1]
 CLIENT = ROOT / "apps" / "game" / "client"
@@ -185,10 +193,12 @@ def write_room(
     room_type: str,
     door_s: bool,
     door_n: bool,
+    *,
+    force: bool,
+    dry_run: bool,
 ) -> None:
     template_id = f"{prefix}_{suffix}"
     node_name = "".join(p.capitalize() for p in template_id.split("_"))
-    folder.mkdir(parents=True, exist_ok=True)
     tscn = f"""[gd_scene load_steps=6 format=3 uid="uid://{template_id}"]
 
 [ext_resource type="Script" path="res://scripts/dungeon/castle/castle_room_scene.gd" id="1_room"]
@@ -231,10 +241,15 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -3)
 [node name="RunEntrance" type="Marker3D" parent="SpawnPoints"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -4)
 """
-    (folder / f"{template_id}.tscn").write_text(tscn, encoding="utf-8")
+    path = folder / f"{template_id}.tscn"
+    if not prepare_write(path, tscn, force=force, dry_run=dry_run):
+        return
+    folder.mkdir(parents=True, exist_ok=True)
+    path.write_text(tscn, encoding="utf-8")
+    record_write(path, tscn)
 
 
-def write_biome_json(biome: dict) -> None:
+def write_biome_json(biome: dict, *, force: bool, dry_run: bool) -> None:
     templates = [f"{biome['prefix']}_{s[0]}" for s in ROOM_SPECS]
     enemy_pool = [{"enemyId": eid, "weight": w} for eid, w in biome["enemy_pool"]]
     enemy_pool.append({"enemyId": biome["miniboss"], "weight": 1})
@@ -255,14 +270,14 @@ def write_biome_json(biome: dict) -> None:
         "requiresSecret": True,
     }
     path = CONTENT / "biomes" / f"{biome['id']}.json"
-    import json
+    text = json.dumps(data, indent=2) + "\n"
+    if not prepare_write(path, text, force=force, dry_run=dry_run):
+        return
+    path.write_text(text, encoding="utf-8")
+    record_write(path, text)
 
-    path.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
 
-
-def write_audio_profile(biome: dict) -> None:
-    import json
-
+def write_audio_profile(biome: dict, *, force: bool, dry_run: bool) -> None:
     data = {
         "id": biome["id"],
         "biomeId": biome["id"],
@@ -275,14 +290,35 @@ def write_audio_profile(biome: dict) -> None:
         "crossfadeSeconds": 0.8,
     }
     path = CONTENT / "audio_profiles" / f"{biome['id']}.json"
-    path.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
+    text = json.dumps(data, indent=2) + "\n"
+    if not prepare_write(path, text, force=force, dry_run=dry_run):
+        return
+    path.write_text(text, encoding="utf-8")
+    record_write(path, text)
+
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--dry-run", action="store_true", help="Print files that would be written")
+    parser.add_argument("--force", action="store_true", help="Overwrite manually edited generated files")
+    parser.add_argument(
+        "--only",
+        action="append",
+        dest="only",
+        metavar="biomeId",
+        help="Limit to biome id (repeatable)",
+    )
+    return parser.parse_args()
 
 
 def main() -> None:
-    import subprocess
-    import sys
+    args = parse_args()
+    only = set(args.only or [])
+    selected = [b for b in BIOMES if not only or b["id"] in only]
+    if only and not selected:
+        raise SystemExit(f"No biomes matched --only {sorted(only)}")
 
-    for biome in BIOMES:
+    for biome in selected:
         room_dir = CLIENT / "scenes" / "rooms" / biome["folder"]
         for suffix, room_type, door_s, door_n in ROOM_SPECS:
             write_room(
@@ -293,12 +329,23 @@ def main() -> None:
                 room_type,
                 door_s,
                 door_n,
+                force=args.force,
+                dry_run=args.dry_run,
             )
-        write_biome_json(biome)
-        write_audio_profile(biome)
-        print(f"Generated {biome['id']}")
+        write_biome_json(biome, force=args.force, dry_run=args.dry_run)
+        write_audio_profile(biome, force=args.force, dry_run=args.dry_run)
+        if not args.dry_run:
+            print(f"Generated {biome['id']}")
+
     materials_script = ROOT / "tools" / "generate_pixel_diorama_materials.py"
-    subprocess.run([sys.executable, str(materials_script)], check=True)
+    mat_args = [sys.executable, str(materials_script)]
+    if args.dry_run:
+        mat_args.append("--dry-run")
+    if args.force:
+        mat_args.append("--force")
+    for folder in {b["folder"] for b in selected}:
+        mat_args.extend(["--only", folder])
+    subprocess.run(mat_args, check=True)
 
 
 if __name__ == "__main__":

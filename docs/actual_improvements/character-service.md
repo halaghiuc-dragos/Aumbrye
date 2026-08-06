@@ -1,23 +1,25 @@
 # Character service — improvement plan
 
+## Status: FINISHED
+
 ## Current state
-`CharacterService` (`apps/game/client/scripts/save/character_service.gd`, 179 lines) holds gold, class id, appearance, and two untyped Dictionaries named `flags` and `quests`. See [`../existing_codebase/character-service.md`](../existing_codebase/character-service.md). Gold works and is consumed by the merchant and blacksmith. Everything around it is loose: `coins` is a duplicate of `gold` that is persisted separately, `to_save_dict()` is dead code while `LocalSave` reimplements the same mapping inline, three of the five signals have no consumers, `flags` and `quests` share no registry and no value validation, quest state and quest progress live in the same Dictionary under colliding key names, two theme-unlock flags are read but never written, and six mutators each trigger a full `LocalSave.autosave()` — including the per-enemy coin reward, so a normal floor produces dozens of full save writes.
+`CharacterService` holds gold, class id, appearance, registered flags, and split quest state/progress maps. See [`../existing_codebase/character-service.md`](../existing_codebase/character-service.md). All gaps below are closed in code and validation suites.
 
 ## Gaps
-| ID | Sev | Gap | Evidence |
-|----|-----|-----|----------|
-| CHS-01 | P0 | Quest state and quest progress share one Dictionary keyed `id` and `id + "_progress"`, so a quest id ending in `_progress` silently overwrites another quest's progress and any iteration over `quests` treats progress rows as quest ids | `character_service.gd:109`, `character_service.gd:115`, `character_service.gd:120` |
-| CHS-02 | P0 | `loadout_ui.gd` gates the `guard_spear` and `hunter_bow` weapons on `theme_forgotten_castle_cleared` and `theme_crystal_caverns_cleared`, and nothing in `apps/` or `content/` ever sets them; the flag half of both unlocks is dead, leaving only the level gate | `loadout_ui.gd:80-82`; no `set_flag` for either id in `apps/` or `content/` |
-| CHS-03 | P0 | `flags` and `quests` are mutated by `from_save_dict` and `reset_to_defaults` without emitting `flags_changed` / `quests_changed`, so any future reactive UI is wrong immediately after a load or a character switch | `character_service.gd:155-165`, `character_service.gd:174-178` |
-| CHS-04 | P1 | Every enemy kill awards coins, and `add_gold` autosaves, so clearing a floor writes the full save document once per enemy | `castle_enemy_base.gd:336-339` -> `character_service.gd:81` |
-| CHS-05 | P1 | `to_save_dict()` is never called; `local_save.gd:589-591` and `569-573` reimplement the mapping, so the two can diverge without a compile error | `character_service.gd:134-143` vs `local_save.gd:569-591` |
-| CHS-06 | P1 | `flags` accepts any Variant with no validation; a value JSON cannot serialise reaches `_write_save` and produces a corrupt document | `character_service.gd:48-51`, no type check before `local_save.gd:590` |
-| CHS-07 | P1 | No flag id registry; ids are bare literals across `run_flow.gd`, `castle_run.gd`, `dungeon_tier_service.gd`, and arbitrary content strings from `dialogue_runner.gd`, so a typo is undetectable | `run_flow.gd:412`, `castle_run.gd:478`, `dungeon_tier_service.gd:33`, `dialogue_runner.gd:127` |
-| CHS-08 | P2 | `coins` is always assigned `= gold` yet stored as a separate save key; a save with divergent values silently keeps `coins` and discards `gold` | `character_service.gd:78`, `88`; `local_save.gd:589`; `character_service.gd:147` |
-| CHS-09 | P2 | `set_level(int)` discards its argument and only re-emits | `character_service.gd:99-101` |
-| CHS-10 | P2 | `level_changed`, `flags_changed`, `quests_changed` have zero consumers, so the observable surface is decorative | Grep of `apps/` finds only the emitters in `character_service.gd` |
-| CHS-11 | P2 | `_reset_to_defaults` seeds `currencies.gold = 0` while `reset_to_defaults` seeds 100; the disagreement is invisible only because the write path overwrites the cached value | `local_save.gd:634` vs `character_service.gd:169` |
-| CHS-12 | P2 | `set_quest_progress` uses a shallow `duplicate()`, so a nested Dictionary passed by a caller stays aliased into save state | `character_service.gd:120` |
+| ID | Sev | Gap | Evidence | Status |
+|----|-----|-----|----------|--------|
+| CHS-01 | P0 | Quest state and quest progress share one Dictionary keyed `id` and `id + "_progress"` | `character_service.gd:109`, `115`, `120` | FINISHED |
+| CHS-02 | P0 | `theme_forgotten_castle_cleared` and `theme_crystal_caverns_cleared` never set | `loadout_ui.gd:80-82` | FINISHED |
+| CHS-03 | P0 | `from_save_dict` / `reset_to_defaults` omit `flags_changed` / `quests_changed` | `character_service.gd:155-165`, `174-178` | FINISHED |
+| CHS-04 | P1 | Per-kill `add_gold` autosaves | `castle_enemy_base.gd:336-339` | FINISHED |
+| CHS-05 | P1 | `to_save_dict()` dead code; `local_save` duplicates mapping | `character_service.gd:134-143` vs `local_save.gd:589-591` | FINISHED |
+| CHS-06 | P1 | `flags` accepts any Variant with no validation | `character_service.gd:48-51` | FINISHED |
+| CHS-07 | P1 | No flag id registry | `run_flow.gd:412`, `dialogue_runner.gd:127` | FINISHED |
+| CHS-08 | P2 | `coins` duplicate of `gold` persisted separately | `character_service.gd:78`, `88`; `local_save.gd:589` | FINISHED |
+| CHS-09 | P2 | `set_level(int)` discards its argument | `character_service.gd:99-101` | FINISHED |
+| CHS-10 | P2 | `level_changed`, `flags_changed`, `quests_changed` have zero consumers | grep `apps/` | FINISHED |
+| CHS-11 | P2 | `_reset_to_defaults` seeds gold 0 vs `reset_to_defaults` 100 | `local_save.gd:634` vs `character_service.gd:169` | FINISHED |
+| CHS-12 | P2 | `set_quest_progress` shallow-copies nested dicts | `character_service.gd:120` | FINISHED |
 
 ## Target design
 
@@ -200,17 +202,17 @@ The `_progress` split is ambiguous for a quest literally named `x_progress`; no 
 | `spend_gold` called with a value above `gold` | Returns `false` before any mutation (`character_service.gd:85`), unchanged |
 
 ## Acceptance criteria
-- [ ] A quest with id `relic_progress` and a quest with id `relic` keep independent state and progress. (CHS-01)
-- [ ] Escaping a `forgotten_castle` run sets `theme_forgotten_castle_cleared`, and `loadout_ui` offers `guard_spear` at level 1. (CHS-02)
-- [ ] Loading a second character emits `flags_changed` and `quests_changed`, and the quest board redraws without being reopened. (CHS-03)
-- [ ] Killing 30 enemies on one floor produces at most one deferred save write plus the floor-transition write. (CHS-04)
-- [ ] `to_save_dict()` is the only place that maps service state to save keys; grep finds no field reads of `CharacterService.flags` or `.quests` in `local_save.gd`. (CHS-05)
-- [ ] `set_flag("x", Node.new())` leaves the flag at its default and emits one warning; the save file remains valid JSON. (CHS-06)
-- [ ] A dialogue action naming an unregistered flag fails `content_suite`. (CHS-07)
-- [ ] A v4 save with `currencies: {"gold": 40, "coins": 90}` migrates to `gold: 90` with no `coins` key. (CHS-08)
-- [ ] `set_level` no longer exists and no call site references it. (CHS-09)
-- [ ] `_reset_to_defaults` and `reset_to_defaults` agree on the starting gold value. (CHS-11)
-- [ ] `set_quest_progress({"nested": {"count": 1}})` followed by mutating the caller's nested Dictionary does not change stored progress. (CHS-12)
+- [x] A quest with id `relic_progress` and a quest with id `relic` keep independent state and progress. (CHS-01)
+- [x] Escaping a `forgotten_castle` run sets `theme_forgotten_castle_cleared`, and `loadout_ui` offers `guard_spear` at level 1. (CHS-02)
+- [x] Loading a second character emits `flags_changed` and `quests_changed`, and the quest board redraws without being reopened. (CHS-03)
+- [x] Killing 30 enemies on one floor produces at most one deferred save write plus the floor-transition write. (CHS-04)
+- [x] `to_save_dict()` is the only place that maps service state to save keys; grep finds no field reads of `CharacterService.flags` or `.quests` in `local_save.gd`. (CHS-05)
+- [x] `set_flag("x", Node.new())` leaves the flag at its default and emits one warning; the save file remains valid JSON. (CHS-06)
+- [x] A dialogue action naming an unregistered flag fails `content_suite`. (CHS-07)
+- [x] A v4 save with `currencies: {"gold": 40, "coins": 90}` migrates to `gold: 90` with no `coins` key. (CHS-08)
+- [x] `set_level` no longer exists and no call site references it. (CHS-09)
+- [x] `_reset_to_defaults` and `reset_to_defaults` agree on the starting gold value. (CHS-11)
+- [x] `set_quest_progress({"nested": {"count": 1}})` followed by mutating the caller's nested Dictionary does not change stored progress. (CHS-12)
 
 ## Validation
 Extend `apps/game/client/scripts/validation/suites/progression_suite.gd`:

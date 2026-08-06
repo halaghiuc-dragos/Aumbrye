@@ -1,16 +1,50 @@
 extends Node
 
-## Legacy API settings — dungeon generation is fully offline (LocalProcgen).
-## Kept for future online features (leaderboards, cloud saves).
+## API base URL, session tokens, cloud state, and pooled HTTP transport.
 
-const DEFAULT_BASE_URL := "http://localhost:5000"
-const CLIENT_VERSION := "0.3.0"
+signal cloud_state_changed(state: int, detail: String)
+signal version_mismatch
+
+enum CloudState { DISABLED, SIGNED_OUT, SYNCING, SYNCED, ERROR, VERSION_MISMATCH }
+
+const DEFAULT_BASE_URL := "https://api.aumbrye.example"
+const CLIENT_VERSION := "0.4.0"
 const CONTENT_VERSION := "1"
+const REQUEST_TIMEOUT_SECONDS := 8.0
+const SESSION_PATH := "user://session.json"
+const USER_API_CONFIG_PATH := "user://api_config.json"
+const DEV_API_CONFIG_PATH := "res://config/dev_api.json"
+const HTTP_POOL_SIZE := 2
 
-@export var base_url: String = DEFAULT_BASE_URL
-
+var base_url: String = ""
 var access_token: String = ""
 var refresh_token: String = ""
+var account_id: String = ""
+var session_email: String = ""
+var cloud_state: CloudState = CloudState.DISABLED
+var version_mismatch_flag: bool = false
+
+var _http_pool: Array[HTTPRequest] = []
+var _http_busy: Dictionary = {}
+var _active_http: Array[HTTPRequest] = []
+
+var _test_is_debug_build: Variant = null
+var _test_env_api_url: Variant = null
+var _test_user_api_config: Variant = null
+var _test_dev_api_config: Variant = null
+var _last_acquired_http: HTTPRequest = null
+
+
+func _ready() -> void:
+	_init_http_pool()
+	base_url = _resolve_base_url()
+	_update_cloud_state_from_config()
+	_load_session_and_refresh()
+
+
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_WM_CLOSE_REQUEST:
+		cancel_all()
 
 
 func get_base_url() -> String:
@@ -18,9 +52,199 @@ func get_base_url() -> String:
 
 
 func auth_headers() -> PackedStringArray:
-	return PackedStringArray([
-		"Authorization: Bearer %s" % access_token,
-		"X-Client-Version: %s" % CLIENT_VERSION,
-		"X-Content-Version: %s" % CONTENT_VERSION,
-		"Content-Type: application/json",
-	])
+	return PackedStringArray(
+		[
+			"Authorization: Bearer %s" % access_token,
+			"X-Client-Version: %s" % CLIENT_VERSION,
+			"X-Content-Version: %s" % CONTENT_VERSION,
+			"Content-Type: application/json",
+		]
+	)
+
+
+func cloud_calls_enabled() -> bool:
+	return get_base_url() != "" and not version_mismatch_flag
+
+
+func set_cloud_state(state: CloudState, detail: String = "") -> void:
+	if cloud_state == state and detail == "":
+		return
+	cloud_state = state
+	cloud_state_changed.emit(state, detail)
+
+
+func _update_cloud_state_from_config() -> void:
+	if version_mismatch_flag:
+		set_cloud_state(CloudState.VERSION_MISMATCH, "Client update required")
+	elif get_base_url() == "":
+		set_cloud_state(CloudState.DISABLED, "")
+	elif refresh_token == "" and access_token == "":
+		set_cloud_state(CloudState.SIGNED_OUT, "")
+	else:
+		set_cloud_state(CloudState.SYNCED, session_email)
+
+
+func _init_http_pool() -> void:
+	for i in HTTP_POOL_SIZE:
+		var http := HTTPRequest.new()
+		http.name = "HttpPool_%d" % i
+		add_child(http)
+		_http_pool.append(http)
+
+
+func acquire_http() -> HTTPRequest:
+	while true:
+		for http in _http_pool:
+			var id := http.get_instance_id()
+			if not _http_busy.has(id):
+				_http_busy[id] = true
+				_active_http.append(http)
+				_last_acquired_http = http
+				return http
+		await get_tree().process_frame
+	return _http_pool[0]
+
+
+func release_http(http: HTTPRequest) -> void:
+	var id := http.get_instance_id()
+	_http_busy.erase(id)
+	_active_http.erase(http)
+	if _last_acquired_http == http:
+		_last_acquired_http = null
+
+
+func cancel_all() -> void:
+	for http in _http_pool:
+		if http.get_http_client_status() != HTTPClient.STATUS_DISCONNECTED:
+			http.cancel_request()
+		if http.get_parent() == self:
+			remove_child(http)
+		http.queue_free()
+	_http_pool.clear()
+	_http_busy.clear()
+	_active_http.clear()
+	_last_acquired_http = null
+
+
+func persist_session() -> void:
+	if refresh_token == "":
+		clear_session_file()
+		return
+	var data := {
+		"refreshToken": refresh_token,
+		"accountId": account_id,
+		"email": session_email,
+	}
+	var file := FileAccess.open_encrypted_with_pass(SESSION_PATH, FileAccess.WRITE, _session_pass())
+	if file == null:
+		push_warning("ApiConfig: failed to write session file")
+		return
+	file.store_string(JSON.stringify(data))
+
+
+func load_session() -> bool:
+	if not FileAccess.file_exists(SESSION_PATH):
+		return false
+	var file := FileAccess.open_encrypted_with_pass(SESSION_PATH, FileAccess.READ, _session_pass())
+	if file == null:
+		return false
+	var parsed: Variant = JSON.parse_string(file.get_as_text())
+	if not parsed is Dictionary:
+		return false
+	var data: Dictionary = parsed
+	refresh_token = str(data.get("refreshToken", ""))
+	account_id = str(data.get("accountId", ""))
+	session_email = str(data.get("email", ""))
+	access_token = ""
+	return refresh_token != ""
+
+
+func clear_session() -> void:
+	access_token = ""
+	refresh_token = ""
+	account_id = ""
+	session_email = ""
+	clear_session_file()
+	_update_cloud_state_from_config()
+
+
+func clear_session_file() -> void:
+	if FileAccess.file_exists(SESSION_PATH):
+		DirAccess.remove_absolute(SESSION_PATH)
+
+
+func mark_version_mismatch(detail: String = "Client update required") -> void:
+	version_mismatch_flag = true
+	set_cloud_state(CloudState.VERSION_MISMATCH, detail)
+	version_mismatch.emit()
+
+
+func _load_session_and_refresh() -> void:
+	if not cloud_calls_enabled():
+		return
+	if not load_session():
+		return
+	if refresh_token == "":
+		return
+	_refresh_session_background()
+
+
+func _refresh_session_background() -> void:
+	set_cloud_state(CloudState.SYNCING, session_email)
+	var ok: bool = await ApiClient.refresh_session()
+	if ok:
+		set_cloud_state(CloudState.SYNCED, session_email)
+	else:
+		clear_session()
+		set_cloud_state(CloudState.SIGNED_OUT, "")
+
+
+func _resolve_base_url() -> String:
+	var resolved := ""
+	if _test_env_api_url != null:
+		resolved = str(_test_env_api_url).strip_edges()
+	elif OS.has_environment("AUMBRYE_API_URL"):
+		resolved = OS.get_environment("AUMBRYE_API_URL").strip_edges()
+	elif _test_user_api_config != null:
+		if _test_user_api_config is Dictionary:
+			resolved = str(_test_user_api_config.get("apiBaseUrl", "")).strip_edges()
+	elif FileAccess.file_exists(USER_API_CONFIG_PATH):
+		var user_parsed: Variant = JSON.parse_string(FileAccess.get_file_as_string(USER_API_CONFIG_PATH))
+		if user_parsed is Dictionary:
+			resolved = str(user_parsed.get("apiBaseUrl", "")).strip_edges()
+	if resolved == "":
+		var dev_cfg: Dictionary
+		if _test_dev_api_config != null and _test_dev_api_config is Dictionary:
+			dev_cfg = _test_dev_api_config
+		else:
+			dev_cfg = ContentLoader.load_json(DEV_API_CONFIG_PATH)
+		resolved = str(dev_cfg.get("apiBaseUrl", "")).strip_edges()
+	if resolved == "":
+		resolved = DEFAULT_BASE_URL
+	resolved = resolved.strip_edges().trim_suffix("/")
+	if _is_release_build() and not resolved.begins_with("https://"):
+		push_error("ApiConfig: refusing non-HTTPS base URL in a release build")
+		return ""
+	return resolved
+
+
+func _session_pass() -> String:
+	return OS.get_unique_id()
+
+
+func _is_release_build() -> bool:
+	if _test_is_debug_build != null:
+		return not bool(_test_is_debug_build)
+	return not OS.is_debug_build()
+
+
+func reset_test_overrides() -> void:
+	_test_is_debug_build = null
+	_test_env_api_url = null
+	_test_user_api_config = null
+	_test_dev_api_config = null
+
+
+func apply_test_base_url_resolution() -> void:
+	base_url = _resolve_base_url()
+	_update_cloud_state_from_config()

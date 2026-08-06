@@ -16,19 +16,28 @@ static func get_available_skips(inventory: GridInventory) -> Array[Dictionary]:
 	for item_id in SKIP_ITEMS:
 		var qty := _count_item(inventory, item_id)
 		if qty > 0:
-			found.append({
-				"itemId": item_id,
-				"startFloor": int(SKIP_ITEMS[item_id]),
-				"quantity": qty,
-			})
-	found.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
-		return int(a.get("startFloor", 0)) > int(b.get("startFloor", 0))
+			(
+				found
+				. append(
+					{
+						"itemId": item_id,
+						"startFloor": int(SKIP_ITEMS[item_id]),
+						"quantity": qty,
+					}
+				)
+			)
+	found.sort_custom(
+		func(a: Dictionary, b: Dictionary) -> bool:
+			return int(a.get("startFloor", 0)) > int(b.get("startFloor", 0))
 	)
 	return found
 
 
 static func consume_skip(inventory: GridInventory, item_id: String) -> bool:
 	if not SKIP_ITEMS.has(item_id):
+		return false
+	if not ItemCatalog.has_item(item_id):
+		push_warning("SkipFloorService: unknown skip item '%s'" % item_id)
 		return false
 	return inventory.remove_items_by_id(item_id, 1) > 0
 

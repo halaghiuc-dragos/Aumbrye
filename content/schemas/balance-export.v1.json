@@ -1,0 +1,73 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://aumbrye.dev/schemas/balance-export.v1.json",
+  "title": "BalanceExport",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "generatedAt",
+    "enemies",
+    "items",
+    "weapons",
+    "progression",
+    "outliers"
+  ],
+  "properties": {
+    "schemaVersion": { "type": "integer", "const": 1 },
+    "generatedAt": { "type": "string", "format": "date-time" },
+    "enemies": {
+      "type": "object",
+      "required": ["count", "byBiome", "threatCostHistogram", "hpPerLevelSlope"],
+      "properties": {
+        "count": { "type": "integer", "minimum": 0 },
+        "byBiome": { "type": "object", "additionalProperties": { "type": "integer" } },
+        "threatCostHistogram": { "type": "object", "additionalProperties": { "type": "integer" } },
+        "hpPerLevelSlope": { "type": "number" }
+      }
+    },
+    "items": {
+      "type": "object",
+      "required": ["count", "byRarity", "byEquipmentSlot", "statTotalsByRarity", "unauthoredCount"],
+      "properties": {
+        "count": { "type": "integer", "minimum": 0 },
+        "byRarity": { "type": "object", "additionalProperties": { "type": "integer" } },
+        "byEquipmentSlot": { "type": "object", "additionalProperties": { "type": "integer" } },
+        "statTotalsByRarity": { "type": "object", "additionalProperties": { "type": "number" } },
+        "unauthoredCount": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "weapons": {
+      "type": "object",
+      "required": ["count", "dpsByWeaponId", "staminaPerDamage"],
+      "properties": {
+        "count": { "type": "integer", "minimum": 0 },
+        "dpsByWeaponId": { "type": "object", "additionalProperties": { "type": "number" } },
+        "staminaPerDamage": { "type": "object", "additionalProperties": { "type": "number" } }
+      }
+    },
+    "progression": {
+      "type": "object",
+      "required": ["levelCap", "xpToLevel", "runsToLevelCap"],
+      "properties": {
+        "levelCap": { "type": "integer", "minimum": 0 },
+        "xpToLevel": { "type": "array", "items": { "type": "number" } },
+        "runsToLevelCap": { "type": "number", "minimum": 0 }
+      }
+    },
+    "outliers": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["kind", "id", "value", "medianForRarity", "ratio"],
+        "properties": {
+          "kind": { "type": "string" },
+          "id": { "type": "string" },
+          "value": { "type": "number" },
+          "medianForRarity": { "type": "number" },
+          "ratio": { "type": "number" }
+        }
+      }
+    }
+  }
+}

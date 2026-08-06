@@ -13,8 +13,8 @@ room_type = "puzzle"
 
 [node name="CastleBlockout" type="Node3D" parent="."]
 script = ExtResource("2_blockout")
-room_width = 14.0
-room_depth = 14.0
+room_width = 16.0
+room_depth = 16.0
 door_north = true
 door_south = true
 floor_material = ExtResource("4_floor")

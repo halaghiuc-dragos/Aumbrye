@@ -1,5 +1,5 @@
 extends CastleEnemyBase
 
-func get_enemy_id() -> String:
-	return "cathedral_warden"
 
+func _resolve_enemy_id() -> String:
+	return "cathedral_warden"

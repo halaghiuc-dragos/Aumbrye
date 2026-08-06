@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Runtime.InteropServices;
+using Aumbrye.ProcgenCli;
 using Xunit;
 
 namespace Aumbrye.UnitTests;
@@ -32,6 +33,37 @@ public class ProcgenCliTests
         var (exitCode, _, stderr) = RunCli(csproj, "generate forgotten_castle 0");
         Assert.NotEqual(0, exitCode);
         Assert.Contains("Seed", stderr, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void ParseGenerateArgs_AcceptsFloorFlag()
+    {
+        var options = ProcgenCliArgs.ParseGenerateArgs(["generate", "forgotten_castle", "42", "--floor", "3"]);
+        Assert.Equal(3, options.FloorIndex);
+        Assert.False(options.IsFinalFloor);
+    }
+
+    [Fact]
+    public void ParseGenerateArgs_AcceptsFinalFloorFlag()
+    {
+        var options = ProcgenCliArgs.ParseGenerateArgs(["generate", "forgotten_castle", "42", "--final-floor"]);
+        Assert.True(options.IsFinalFloor);
+    }
+
+    [Fact]
+    public void ParseGenerateArgs_RejectsUnknownArgument()
+    {
+        var ex = Assert.Throws<ArgumentException>(() =>
+            ProcgenCliArgs.ParseGenerateArgs(["generate", "forgotten_castle", "42", "--nope"]));
+        Assert.Contains("Unknown argument", ex.Message);
+    }
+
+    [Fact]
+    public void ParseGenerateArgs_RejectsNonIntegerSeed()
+    {
+        var ex = Assert.Throws<ArgumentException>(() =>
+            ProcgenCliArgs.ParseGenerateArgs(["generate", "forgotten_castle", "abc"]));
+        Assert.Contains("Seed", ex.Message);
     }
 
     [Fact]

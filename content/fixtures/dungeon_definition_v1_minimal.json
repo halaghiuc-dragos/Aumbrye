@@ -8,14 +8,14 @@
   "rooms": [
     {
       "id": "r0",
-      "templateId": "castle_hall_a",
+      "templateId": "castle_courtyard",
       "type": "combat",
       "transform": { "x": 0, "y": 0, "z": 0, "yaw": 0 },
       "tags": []
     },
     {
       "id": "r1",
-      "templateId": "castle_hall_b",
+      "templateId": "castle_hall",
       "type": "combat",
       "transform": { "x": 20, "y": 0, "z": 0, "yaw": 0 },
       "tags": []

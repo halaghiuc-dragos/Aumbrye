@@ -1,4 +1,15 @@
+using System.Text.Json;
+
 namespace Aumbrye.Procedural.Models;
+
+public sealed record RoomContentEntry(
+    string RoomId,
+    string ContentType,
+    IReadOnlyDictionary<string, JsonElement> Params);
+
+public sealed record DungeonLock(string RoomId, string LockId, string KeyItemId);
+
+public sealed record DungeonPuzzle(string RoomId, string PuzzleId, string Kind);
 
 public sealed record DungeonDefinition(
     int SchemaVersion,
@@ -13,9 +24,9 @@ public sealed record DungeonDefinition(
     DungeonBudgets Budgets,
     int FloorIndex = 1,
     bool IsFinalFloor = false,
-    IReadOnlyList<object>? RoomContent = null,
-    IReadOnlyList<object>? Locks = null,
-    IReadOnlyList<object>? Puzzles = null,
+    IReadOnlyList<RoomContentEntry>? RoomContent = null,
+    IReadOnlyList<DungeonLock>? Locks = null,
+    IReadOnlyList<DungeonPuzzle>? Puzzles = null,
     string? Checksum = null);
 
 public sealed record DungeonRoom(
@@ -32,7 +43,7 @@ public sealed record DungeonEdge(string From, string To, string Kind);
 public sealed record DungeonPlacements(
     IReadOnlyList<EnemyPlacement> Enemies,
     IReadOnlyList<LootPlacement> Loot,
-    IReadOnlyList<object> Puzzles,
+    IReadOnlyList<DungeonPuzzle> Puzzles,
     IReadOnlyList<TrapPlacement> Traps,
     IReadOnlyList<SecretPlacement> Secrets,
     BossPlacement? Boss,

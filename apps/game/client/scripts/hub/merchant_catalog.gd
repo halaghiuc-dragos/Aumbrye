@@ -6,6 +6,7 @@ class_name MerchantCatalog
 const MERCHANT_DIR := "content/merchant"
 
 static var _stocks: Dictionary = {}
+static var _loaded := false
 
 
 static func get_stock(merchant_id: String) -> Array:
@@ -14,13 +15,29 @@ static func get_stock(merchant_id: String) -> Array:
 	return entry if entry is Array else []
 
 
+static func has_merchant(merchant_id: String) -> bool:
+	_ensure_loaded()
+	return _stocks.has(merchant_id)
+
+
+static func reload() -> void:
+	_stocks.clear()
+	_loaded = false
+	_ensure_loaded()
+
+
+static func is_loaded() -> bool:
+	return _loaded
+
+
 static func _ensure_loaded() -> void:
-	if not _stocks.is_empty():
+	if _loaded:
 		return
 	var abs_dir := ContentLoader.content_path(MERCHANT_DIR)
 	var dir := DirAccess.open(abs_dir)
 	if dir == null:
 		push_warning("MerchantCatalog: missing directory %s" % abs_dir)
+		_loaded = true
 		return
 	dir.list_dir_begin()
 	var file_name := dir.get_next()
@@ -32,3 +49,4 @@ static func _ensure_loaded() -> void:
 				_stocks[merchant_id] = data.get("items", [])
 		file_name = dir.get_next()
 	dir.list_dir_end()
+	_loaded = true

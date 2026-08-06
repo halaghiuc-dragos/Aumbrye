@@ -53,7 +53,7 @@ public static class TalentValidator
         var tree = TalentCatalog.GetTree();
         var character = state["character"] as JsonObject;
         var level = character?["level"]?.GetValue<int>() ?? 1;
-        var maxPoints = ProgressionCatalog.XpCurve.TalentPointsForLevel(level, tree.TalentPointsPerLevel);
+        var maxPoints = Aumbrye.Procedural.Content.XpCurve.TalentPointsForLevel(level, tree.TalentPointsPerLevel);
 
         var talents = state["talents"] as JsonObject ?? new JsonObject();
         var totalSpent = 0;
@@ -241,11 +241,11 @@ public static class ProgressionApplier
         }
 
         for (var y = 0; y < height; y++)
-        for (var x = 0; x < width; x++)
-        {
-            if (!occupied.Contains((x, y)))
-                return (x, y);
-        }
+            for (var x = 0; x < width; x++)
+            {
+                if (!occupied.Contains((x, y)))
+                    return (x, y);
+            }
 
         return (0, height);
     }

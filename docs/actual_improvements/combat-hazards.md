@@ -1,5 +1,7 @@
 # Combat hazards — improvement plan
 
+## Status: FINISHED
+
 ## Current state
 
 Boss telegraphed zones and enemy projectiles correctly route through `Hurtbox.receive_hit`, so dodge i-frames and guard work. Environmental poison pools and poison DoT ticks bypass that pipeline entirely. Swamp "cleanse" zones are visual props with an unused `is_cleanse_active()` API. Hydra phase-2 pools spawn fire-styled `arena_hazard` while naming the function `_spawn_poison_pool`. Parent hazard `@export damage` values never reach the damaging child. See [`../existing_codebase/combat-hazards.md`](../existing_codebase/combat-hazards.md).

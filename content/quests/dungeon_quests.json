@@ -1,0 +1,22 @@
+{
+  "quests": [
+    {
+      "questId": "dungeon_stranded_scout",
+      "dialogueId": "dungeon_npc_stranded",
+      "questKeyId": "met_dungeon_npc",
+      "biomes": [
+        "forgotten_castle",
+        "iron_vault",
+        "crystal_caverns",
+        "poison_swamp",
+        "frozen_fortress",
+        "dark_cathedral",
+        "prism_depths",
+        "venom_mire",
+        "glacial_hollow",
+        "umbral_chapel"
+      ],
+      "rewardItemId": "iron_scrap"
+    }
+  ]
+}

@@ -51,7 +51,47 @@ var _combo_step := 0
 var _combat_registered := false
 var _deaggro_los_timer := 0.0
 var _windup_duration := 0.0
+var _catalog_id_override := ""
+var _damage_multiplier := 1.0
 const DEAGGRO_LOS_TIMEOUT := 3.0
+
+
+func set_damage_multiplier(mult: float) -> void:
+	_damage_multiplier = maxf(0.1, mult)
+
+
+func get_lock_threat() -> float:
+	if _state in [State.WINDUP, State.ATTACK]:
+		return 0.6
+	if _aggro_locked:
+		return 0.3
+	return 0.0
+
+
+func get_lock_priority() -> float:
+	return 0.0
+
+
+func get_lock_orbit_radius() -> float:
+	var collision_radius := _get_collision_radius()
+	if _is_boss_enemy():
+		return maxf(LockOnMovement.ORBIT_RADIUS_BOSS_MIN, collision_radius + LockOnMovement.ORBIT_RADIUS_BOSS_PAD)
+	if collision_radius <= 0.38:
+		return LockOnMovement.ORBIT_RADIUS_SMALL
+	if _anim_profile == "brute" or collision_radius >= 0.55:
+		return LockOnMovement.ORBIT_RADIUS_LARGE
+	return LockOnMovement.ORBIT_RADIUS_STANDARD
+
+
+func _get_collision_radius() -> float:
+	if _body_collision and _body_collision.shape is CapsuleShape3D:
+		return (_body_collision.shape as CapsuleShape3D).radius
+	return 0.45
+
+
+func _is_boss_enemy() -> bool:
+	var enemy_id := get_enemy_id()
+	return enemy_id.contains("boss") or enemy_id.contains("miniboss")
 
 
 func _ready() -> void:
@@ -73,10 +113,12 @@ func _ready() -> void:
 		_health.configure(_data.get("health", 80.0))
 		_health.died.connect(_on_died)
 	if _poise:
-		_poise.configure(_data.get("poise", 40.0))
+		_poise.configure(_data.get("poise", 40.0), float(_data.get("stagger_duration", 1.0)))
 		_poise.poise_broken.connect(_on_poise_broken)
 	if _hurtbox:
 		_hurtbox.damaged.connect(_on_hurt)
+		if _hurtbox.has_signal("hit_resolved"):
+			_hurtbox.hit_resolved.connect(_on_hit_resolved)
 		_apply_hurtbox_data()
 	_setup_diorama_visual()
 	if _health:
@@ -90,7 +132,24 @@ func set_player(player: Node3D) -> void:
 	_player = player
 
 
+func set_catalog_id(id: String) -> void:
+	_catalog_id_override = id
+	if not _data.is_empty() or id.is_empty():
+		return
+	_data = EnemyCatalog.get_definition(id)
+	if _health and not _data.is_empty():
+		_health.configure(_data.get("health", 80.0))
+	if _poise and not _data.is_empty():
+		_poise.configure(_data.get("poise", 40.0))
+
+
 func get_enemy_id() -> String:
+	if not _catalog_id_override.is_empty():
+		return _catalog_id_override
+	return _resolve_enemy_id()
+
+
+func _resolve_enemy_id() -> String:
 	return ""
 
 
@@ -107,7 +166,7 @@ func _setup_diorama_visual() -> void:
 		enemy_id = str(_data.get("id", ""))
 	_anim_profile = CharacterSkin.profile_for_enemy_data(_data)
 	var theme := CharacterSkin.theme_for_enemy_id(enemy_id)
-	_diorama_visual = CharacterSkin.build_enemy_body(self, _anim_profile, theme)
+	_diorama_visual = CharacterSkin.build_enemy_body(self, _anim_profile, theme, enemy_id, _data)
 	if _mesh:
 		_mesh.visible = false
 	CharacterFloorSnapScript.align_diorama_visual(self, _diorama_visual, _anim_profile)
@@ -218,7 +277,11 @@ func _apply_mesh_tint(color: Color) -> void:
 		shader_mat.set_shader_parameter("color_shadow", color.darkened(0.3))
 		_mesh.set_surface_override_material(0, shader_mat)
 		return
-	var standard := (mat.duplicate() as StandardMaterial3D) if mat is StandardMaterial3D else StandardMaterial3D.new()
+	var standard := (
+		(mat.duplicate() as StandardMaterial3D)
+		if mat is StandardMaterial3D
+		else StandardMaterial3D.new()
+	)
 	standard.albedo_color = color
 	_mesh.set_surface_override_material(0, standard)
 
@@ -236,7 +299,7 @@ func respawn_at_rest() -> void:
 	if _health:
 		_health.configure(_data.get("health", 80.0))
 	if _poise:
-		_poise.configure(_data.get("poise", 40.0))
+		_poise.configure(_data.get("poise", 40.0), float(_data.get("stagger_duration", 1.0)))
 	if _hitbox:
 		_hitbox.disable()
 		_hitbox.reset_swing()
@@ -259,7 +322,7 @@ func is_dead() -> bool:
 
 func capture_state() -> Dictionary:
 	var defeated := is_dead() or (_health != null and _health.is_dead())
-	var state := { "alive": not defeated }
+	var state := {"alive": not defeated}
 	if _health and not defeated:
 		state["health"] = _health.current
 	return state
@@ -316,6 +379,7 @@ func _finalize_death(silent: bool) -> void:
 
 func _play_death_visual() -> void:
 	VfxService.play_death(global_position, Color(0.55, 0.22, 0.18))
+	AudioDirector.play_sfx("death", global_position)
 	var visual := _diorama_visual if _diorama_visual else _mesh as Node3D
 	if visual == null:
 		return
@@ -345,10 +409,13 @@ func _try_roll_global_drop() -> void:
 	if RunFlow.get_run_mode() == "waves":
 		return
 	var floor_index := RunFlow.get_current_floor()
-	var tier := RunFlow.get_dungeon_tier() if RunFlow.get_run_mode() == "castle" else 1
-	var drop_id := GlobalDropServiceScript.roll_enemy_drop(get_instance_id(), floor_index, tier)
+	var tier := RunFlow.get_difficulty_tier() if RunFlow.get_run_mode() == "castle" else 1
+	var dungeon_id := RunFlow.current_dungeon_id if RunFlow.get_run_mode() == "castle" else ""
+	var drop_id := GlobalDropServiceScript.roll_enemy_drop(
+		get_instance_id(), floor_index, tier, dungeon_id
+	)
 	if drop_id != "":
-		InventoryService.add_item(drop_id, 1)
+		InventoryService.add_loot(drop_id)
 
 
 func _force_dead_silent() -> void:
@@ -369,6 +436,11 @@ func apply_stagger(duration: float) -> void:
 		_animator.play_stagger(duration)
 	elif _mesh:
 		_mesh.scale = Vector3.ONE
+
+
+func cancel_attack() -> void:
+	if _state in [State.WINDUP, State.ATTACK]:
+		_end_attack()
 
 
 func _physics_process(delta: float) -> void:
@@ -430,7 +502,9 @@ func _update_ai(delta: float) -> void:
 			if _windup_duration > 0.0:
 				var elapsed := _windup_duration - _state_timer
 				if _hp_bar:
-					_hp_bar.set_attack_telegraph_progress(clampf(elapsed / _windup_duration, 0.0, 1.0))
+					_hp_bar.set_attack_telegraph_progress(
+						clampf(elapsed / _windup_duration, 0.0, 1.0)
+					)
 			if _state_timer <= 0.0:
 				_start_attack()
 		State.ATTACK:
@@ -614,8 +688,12 @@ func _start_windup() -> void:
 		return
 	_attack_token_held = true
 	_state = State.WINDUP
-	var windup: float = float(_current_attack_data.get("windup_duration", _data.get("windup_duration", 0.7)))
-	var windup_variance: float = float(_current_attack_data.get("windup_variance", _data.get("windup_variance", 0.0)))
+	var windup: float = float(
+		_current_attack_data.get("windup_duration", _data.get("windup_duration", 0.7))
+	)
+	var windup_variance: float = float(
+		_current_attack_data.get("windup_variance", _data.get("windup_variance", 0.0))
+	)
 	if windup_variance > 0.0:
 		windup += randf_range(-windup_variance, windup_variance)
 	_state_timer = maxf(0.05, windup)
@@ -623,10 +701,14 @@ func _start_windup() -> void:
 		_animator.play_attack(
 			_state_timer,
 			float(_current_attack_data.get("active_duration", _data.get("active_duration", 0.15))),
-			float(_current_attack_data.get("recovery_duration", _data.get("recovery_duration", 0.9)))
+			float(
+				_current_attack_data.get("recovery_duration", _data.get("recovery_duration", 0.9))
+			)
 		)
 	elif _mesh:
 		_mesh.scale = Vector3(1.08, 1.08, 1.08)
+	if _telegraph:
+		_telegraph.visible = true
 	begin_attack_windup_bar(_state_timer)
 	AudioDirector.play_sfx("windup", global_position + Vector3(0.0, 1.0, 0.0))
 	attack_telegraph_started.emit()
@@ -637,15 +719,29 @@ func _start_attack() -> void:
 		_release_attack_token()
 		return
 	_state = State.ATTACK
-	_state_timer = float(_current_attack_data.get("active_duration", _data.get("active_duration", 0.15)))
+	_state_timer = float(
+		_current_attack_data.get("active_duration", _data.get("active_duration", 0.15))
+	)
 	hide_attack_windup_bar()
 	if _hitbox:
 		_hitbox.set_attack_values(
-			float(_current_attack_data.get("attack_damage", _data.get("attack_damage", 14.0))),
-			float(_current_attack_data.get("attack_poise_damage", _data.get("attack_poise_damage", 12.0))),
-			_current_attack_data.get("damage_type", _data.get("damage_type", DamageInfo.TYPE_PHYSICAL)),
+			float(_current_attack_data.get("attack_damage", _data.get("attack_damage", 14.0)))
+			* _damage_multiplier,
+			float(
+				_current_attack_data.get(
+					"attack_poise_damage", _data.get("attack_poise_damage", 12.0)
+				)
+			)
+			* _damage_multiplier,
+			_current_attack_data.get(
+				"damage_type", _data.get("damage_type", DamageInfo.TYPE_PHYSICAL)
+			),
 			_current_attack_data.get("status_on_hit", _data.get("status_on_hit", "")),
-			int(_current_attack_data.get("status_stacks_on_hit", _data.get("status_stacks_on_hit", 1)))
+			int(
+				_current_attack_data.get(
+					"status_stacks_on_hit", _data.get("status_stacks_on_hit", 1)
+				)
+			)
 		)
 		_hitbox.enable()
 	attack_active.emit()
@@ -660,7 +756,9 @@ func _end_attack() -> void:
 	elif _mesh:
 		_mesh.scale = Vector3.ONE
 	_state = State.RECOVERY
-	_state_timer = float(_current_attack_data.get("recovery_duration", _data.get("recovery_duration", 0.9)))
+	_state_timer = float(
+		_current_attack_data.get("recovery_duration", _data.get("recovery_duration", 0.9))
+	)
 	_release_attack_token()
 	var combo: Array = _current_attack_data.get("combo_followups", [])
 	if combo.size() > 0 and _combo_step < combo.size() and _has_aggro():
@@ -743,6 +841,12 @@ func _on_poise_broken() -> void:
 	if is_dead() or (_health and _health.is_dead()):
 		return
 	apply_stagger(_data.get("stagger_duration", 1.0))
+
+
+func _on_hit_resolved(res) -> void:
+	if res.outgoing <= 0.0:
+		return
+	_on_hurt(DamageInfo.new())
 
 
 func _on_hurt(_info: DamageInfo) -> void:

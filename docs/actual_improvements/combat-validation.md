@@ -1,5 +1,7 @@
 # Combat validation — improvement plan
 
+## Status: FINISHED
+
 Current state: [`../existing_codebase/combat-validation.md`](../existing_codebase/combat-validation.md)
 
 ## Problem
@@ -10,21 +12,21 @@ The fix is not "add more tests". It is to build the two things the harness lacks
 
 ## Gaps
 
-| ID | Priority | Gap | Evidence |
-|----|----------|-----|----------|
-| CVA-1 | P0 | No test exercises `Hurtbox.receive_hit`; the entire mitigation pipeline is untested | No `receive_hit` reference anywhere under `scripts/validation/` |
-| CVA-2 | P0 | `combat.hitbox_team_filter` asserts `"player" == "player"` and tests nothing | `combat_suite.gd:76-80` |
-| CVA-3 | P0 | `combat.guard_parry_block_api` is four `func <name>` greps; empty bodies pass | `combat_suite.gd:56-73` |
-| CVA-4 | P0 | No content-vs-code drift check; a status, weapon key or relic stat with no reader fails nothing | `m5_suite.gd:263-309` checks definitions load, not that they are consumed |
-| CVA-5 | P1 | `combat.dodge_stamina_cost` greps for a constant name and never verifies the deduction | `combat_suite.gd:97-98` |
-| CVA-6 | P1 | No attack-input coverage: combo chain, cancel windows, stamina refusal, stun refusal | Nothing drives `WeaponController` |
-| CVA-7 | P1 | No i-frame, backstab, crit, defense or poise-gate assertions | `combat_suite.gd` has no `receive_hit` path |
-| CVA-8 | P1 | `lock_on_suite` drives private `_set_lock`/`_update_lock` instead of the input path | `lock_on_suite.gd:116,132` |
-| CVA-9 | P2 | `TestContext` has no assertion vocabulary; failures report a fixed string with no observed-vs-expected diff | `test_context.gd:89-127` |
-| CVA-10 | P2 | Suites leak `Node`s created with `.new()` and never freed | `combat_suite.gd:15,31,43,76,78` |
-| CVA-11 | P2 | No suite covers `HitFeedback`, damage numbers, hitstop or `AttackTokenService` | Not referenced under `scripts/validation/` |
-| CVA-12 | P2 | Three `arena_suite` records are file greps | `arena_suite.gd:83,92-93,103` |
-| CVA-13 | P3 | No coverage gate; a suite that records nothing passes | `validation_runner.gd:48` |
+| ID | Priority | Gap | Evidence | Status |
+|----|----------|-----|----------|--------|
+| CVA-1 | P0 | No test exercises `Hurtbox.receive_hit`; the entire mitigation pipeline is untested | No `receive_hit` reference anywhere under `scripts/validation/` | FINISHED — `combat_fixture.gd` + `combat.damage_reaches_health` |
+| CVA-2 | P0 | `combat.hitbox_team_filter` asserts `"player" == "player"` and tests nothing | `combat_suite.gd:76-80` | FINISHED — `combat.team_filter_blocks_friendly` / `combat.team_filter_allows_hostile` |
+| CVA-3 | P0 | `combat.guard_parry_block_api` is four `func <name>` greps; empty bodies pass | `combat_suite.gd:56-73` | FINISHED — `guard.block_*` behavioral tests; grep removed |
+| CVA-4 | P0 | No content-vs-code drift check; a status, weapon key or relic stat with no reader fails nothing | `m5_suite.gd:263-309` checks definitions load, not that they are consumed | FINISHED — `content_drift_suite.gd` |
+| CVA-5 | P1 | `combat.dodge_stamina_cost` greps for a constant name and never verifies the deduction | `combat_suite.gd:97-98` | FINISHED — `dodge.stamina_deducted` |
+| CVA-6 | P1 | No attack-input coverage: combo chain, cancel windows, stamina refusal, stun refusal | Nothing drives `WeaponController` | FINISHED — `weapon.*` behavioral tests in `combat_suite.gd` |
+| CVA-7 | P1 | No i-frame, backstab, crit, defense or poise-gate assertions | `combat_suite.gd` has no `receive_hit` path | FINISHED — `combat.iframes_block_all_damage`, `combat.defense_reduces_damage`, `combat.crit_applies_multiplier` |
+| CVA-8 | P1 | `lock_on_suite` drives private `_set_lock`/`_update_lock` instead of the input path | `lock_on_suite.gd:116,132` | FINISHED — `LockOn.request_lock()` / `cycle_target()`; runtime aim and FP tests |
+| CVA-9 | P2 | `TestContext` has no assertion vocabulary; failures report a fixed string with no observed-vs-expected diff | `test_context.gd:89-127` | FINISHED — `assert_eq`, `assert_near`, `assert_true`, `observed` |
+| CVA-10 | P2 | Suites leak `Node`s created with `.new()` and never freed | `combat_suite.gd:15,31,43,76,78` | FINISHED — `CombatFixture.teardown()`; unit nodes `.free()` |
+| CVA-11 | P2 | No suite covers `HitFeedback`, damage numbers, hitstop or `AttackTokenService` | Not referenced under `scripts/validation/` | FINISHED — `feedback.*` and `tokens.*` in `combat_suite.gd` |
+| CVA-12 | P2 | Three `arena_suite` records are file greps | `arena_suite.gd:83,92-93,103` | FINISHED — runtime reset, death-restore, and loadout sync tests |
+| CVA-13 | P3 | No coverage gate; a suite that records nothing passes | `validation_runner.gd:48` | FINISHED — `MIN_ASSERTIONS` in `validation_runner.gd` |
 
 ## Target design
 

@@ -83,10 +83,11 @@ func _on_to_storage() -> void:
 	if selected.is_empty():
 		_detail_label.text = "Select inventory item"
 		return
-	if StorageService.move_to_storage(_inv_indices[selected[0]]):
+	var result := StorageService.move_to_storage(_inv_indices[selected[0]])
+	if result.get("ok", false):
 		_detail_label.text = "Moved to storage"
 	else:
-		_detail_label.text = "Storage full or move failed"
+		_detail_label.text = str(result.get("error", "move failed")).replace("_", " ")
 	_refresh()
 
 
@@ -95,8 +96,9 @@ func _on_to_inv() -> void:
 	if selected.is_empty():
 		_detail_label.text = "Select storage item"
 		return
-	if StorageService.move_to_inventory(_storage_indices[selected[0]]):
+	var result := StorageService.move_to_inventory(_storage_indices[selected[0]])
+	if result.get("ok", false):
 		_detail_label.text = "Moved to inventory"
 	else:
-		_detail_label.text = "Inventory full or move failed"
+		_detail_label.text = str(result.get("error", "move failed")).replace("_", " ")
 	_refresh()

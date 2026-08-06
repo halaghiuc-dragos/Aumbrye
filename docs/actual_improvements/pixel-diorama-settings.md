@@ -1,5 +1,7 @@
 # Pixel diorama settings — improvement plan
 
+**Status: FINISHED** (implementation synced to [`../existing_codebase/pixel-diorama-settings.md`](../existing_codebase/pixel-diorama-settings.md))
+
 ## Current state
 
 `PixelDioramaSettings` is a static-only `RefCounted` that owns 24 persisted tunables and every `apply_*` helper for environment, shadows, materials, and the screen finish. See [`../existing_codebase/pixel-diorama-settings.md`](../existing_codebase/pixel-diorama-settings.md). Three things are actually broken rather than merely rough: `load_from_save()` overwrites the player's saved shader tuning every launch when the resolution is a native preset; `apply_rendering_project_settings()` writes `ProjectSettings` keys that Godot has already consumed, so the texture-filter and MSAA toggles do nothing while the UI claims they apply at runtime; and `apply_to_scene()` mutates the shared `load()`ed instances of the 30 biome `mat_*.tres` files, so a settings change silently rewrites the on-disk resources' in-memory state for every scene.
@@ -154,15 +156,15 @@ Steps 1–8 are independently landable; step 3 must land before step 4 because `
 
 ## Acceptance criteria
 
-- [ ] Set `pixel_scale` to `9.5` at the `1920 x 1080` preset, restart, and the value is still `9.5`. (PDS-01)
-- [ ] Toggling "Disable MSAA / screen AA" changes `PixelDioramaViewport.get_subviewport().msaa_3d` between `MSAA_DISABLED` and `MSAA_2X` within one frame, and no `ProjectSettings.set_setting` call remains in `pixel_diorama_settings.gd`. (PDS-02)
-- [ ] `BiomeRegistry.get_wall_material("forgotten_castle")` called twice returns two distinct `Resource` instances, and mutating one does not change the other. (PDS-03)
-- [ ] Dragging the "Pattern strength" slider from 0.0 to 1.0 in one gesture produces exactly one `LocalSave.autosave()` call and zero `clear_material_caches()` calls. (PDS-04)
-- [ ] `pixel_diorama_settings.gd` contains no reference to `pixel_diorama.gdshader` and no `pattern_type` handling. (PDS-05)
-- [ ] All 12 uniforms of `pixel_screen_finish.gdshader` are written by `apply_to_screen_finish()` or `pulse_screen()`. (PDS-06)
-- [ ] A profile with no `pixel_diorama` meta block boots with `nearest_texture_filter == true` and `posterize_levels == 24.0`. (PDS-07)
-- [ ] With `low_res_viewport_enabled == false` in a 1440-line window, `camera_snap_step(75.0, 5.0)` uses `active_render_height == 1440`. (PDS-08)
-- [ ] Loading a meta block with no `version` key yields `tuning_is_preset_default == true` and preserves all other saved values. (PDS-09)
+- [x] Set `pixel_scale` to `9.5` at the `1920 x 1080` preset, restart, and the value is still `9.5`. (PDS-01)
+- [x] Toggling "Disable MSAA / screen AA" changes `PixelDioramaViewport.get_subviewport().msaa_3d` between `MSAA_DISABLED` and `MSAA_2X` within one frame, and no `ProjectSettings.set_setting` call remains in `pixel_diorama_settings.gd`. (PDS-02)
+- [x] `BiomeRegistry.get_wall_material("forgotten_castle")` called twice returns two distinct `Resource` instances, and mutating one does not change the other. (PDS-03)
+- [x] Dragging the "Pattern strength" slider from 0.0 to 1.0 in one gesture produces exactly one `LocalSave.autosave()` call and zero `clear_material_caches()` calls. (PDS-04)
+- [x] `pixel_diorama_settings.gd` contains no reference to `pixel_diorama.gdshader` and no `pattern_type` handling. (PDS-05)
+- [x] All 12 uniforms of `pixel_screen_finish.gdshader` are written by `apply_to_screen_finish()` or `pulse_screen()`. (PDS-06)
+- [x] A profile with no `pixel_diorama` meta block boots with `nearest_texture_filter == true` and `posterize_levels == 24.0`. (PDS-07)
+- [x] With `low_res_viewport_enabled == false` in a 1440-line window, `camera_snap_step(75.0, 5.0)` uses `active_render_height == 1440`. (PDS-08)
+- [x] Loading a meta block with no `version` key yields `tuning_is_preset_default == true` and preserves all other saved values. (PDS-09)
 
 ## Validation
 

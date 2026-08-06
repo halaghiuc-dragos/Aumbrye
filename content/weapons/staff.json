@@ -5,7 +5,10 @@
   "damage_type": "arcane",
   "buffer_window": 0.2,
   "lunge_distance": 0.25,
-  "scaling": { "staminaRegen": 1.0, "physicalDamage": 0.6 },
+  "scaling": {
+    "staminaRegen": 1.0,
+    "physicalDamage": 0.6
+  },
   "light_attacks": [
     {
       "damage": 10,
@@ -43,5 +46,18 @@
     "active": 0.18,
     "recovery": 0.45,
     "lunge_distance": 0.3
+  },
+  "art": {
+    "id": "arcane_nova",
+    "name": "Arcane Nova",
+    "stamina_cost": 30,
+    "damage": 32,
+    "poise_damage": 28,
+    "startup": 0.36,
+    "active": 0.2,
+    "recovery": 0.52,
+    "lunge_distance": 0.0,
+    "hyperarmor": true,
+    "cooldown": 9.0
   }
 }

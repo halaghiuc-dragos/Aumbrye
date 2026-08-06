@@ -1,71 +1,25 @@
 class_name ProcgenLootTables
 extends RefCounted
 
-## Theme loot/trap tables (mirrors C# ThemeLootTables).
+## Deprecated — use LootTableLoader + biome JSON. Kept for legacy call sites.
+
+const LootTableLoaderScript := preload("res://scripts/loot/loot_table_loader.gd")
 
 
 static func treasure_loot(biome_id: String) -> Array:
-	match biome_id:
-		"crystal_caverns", "prism_depths":
-			return [_item("health_potion", 2), _item("wind_relic_charm", 1)]
-		"poison_swamp", "venom_mire":
-			return [_item("health_potion", 2), _item("poison_relic_vial", 1)]
-		"frozen_fortress", "glacial_hollow":
-			return [_item("health_potion", 2), _item("frost_relic_shard", 1)]
-		"dark_cathedral", "umbral_chapel":
-			return [_item("health_potion", 2), _item("shadow_relic_veil", 1)]
-		"iron_vault":
-			return [_item("health_potion", 2), _item("stone_relic_heart", 1)]
-		_:
-			return [_item("health_potion", 2), _item("bloodlust_charm", 1)]
+	return _legacy_items(biome_id, "treasure")
 
 
 static func secret_loot(biome_id: String) -> Array:
-	match biome_id:
-		"crystal_caverns", "prism_depths":
-			return [_item("wind_relic_charm", 1), _item("health_potion", 3)]
-		"poison_swamp", "venom_mire":
-			return [_item("poison_relic_vial", 1), _item("health_potion", 3)]
-		"frozen_fortress", "glacial_hollow":
-			return [_item("frost_relic_shard", 1), _item("health_potion", 3)]
-		"dark_cathedral", "umbral_chapel":
-			return [_item("shadow_relic_veil", 1), _item("health_potion", 3)]
-		"iron_vault":
-			return [_item("stone_relic_heart", 1), _item("health_potion", 4)]
-		_:
-			return [_item("knight_relic", 1), _item("health_potion", 3)]
+	return _legacy_items(biome_id, "secret")
 
 
 static func side_loot(biome_id: String) -> Array:
-	match biome_id:
-		"crystal_caverns", "prism_depths":
-			return [_item("crystal_shard_blade", 1), _item("flame_relic_core", 1)]
-		"poison_swamp", "venom_mire":
-			return [_item("swamp_bog_boots", 1), _item("blood_relic_stone", 1)]
-		"frozen_fortress", "glacial_hollow":
-			return [_item("frost_raider_boots", 1), _item("frost_relic_shard", 1)]
-		"dark_cathedral", "umbral_chapel":
-			return [_item("cathedral_warden_helm", 1), _item("sun_relic_medallion", 1)]
-		"iron_vault":
-			return [_item("castle_gauntlets", 1), _item("swift_step_charm", 1)]
-		_:
-			return [_item("iron_scrap", 2), _item("bloodlust_charm", 1)]
+	return _legacy_items(biome_id, "side")
 
 
 static func armory_loot(biome_id: String) -> Array:
-	match biome_id:
-		"crystal_caverns", "prism_depths":
-			return [_item("crystal_shard_blade", 1)]
-		"poison_swamp", "venom_mire":
-			return [_item("swamp_toxin_dagger", 1)]
-		"frozen_fortress", "glacial_hollow":
-			return [_item("frost_glacier_sword", 1)]
-		"dark_cathedral", "umbral_chapel":
-			return [_item("cathedral_arcane_staff", 1)]
-		"iron_vault":
-			return [_item("war_hammer", 1)]
-		_:
-			return [_item("castle_sword", 1)]
+	return _legacy_items(biome_id, "armory")
 
 
 static func corridor_trap(biome_id: String) -> String:
@@ -78,6 +32,25 @@ static func corridor_trap(biome_id: String) -> String:
 			return "shadow_trap"
 		_:
 			return "spike_trap"
+
+
+static func _legacy_items(biome_id: String, role: String) -> Array:
+	var tables: Dictionary = LootTableLoaderScript.load_for_biome(biome_id)
+	if tables.is_empty():
+		tables = BiomeRegistry.get_biome(biome_id).get("lootTables", {})
+	var entries: Array = tables.get(role, [])
+	var out: Array = []
+	for entry in entries:
+		if not entry is Dictionary:
+			continue
+		var qty: Variant = entry.get("quantity", 1)
+		var quantity := 1
+		if qty is Array and (qty as Array).size() > 0:
+			quantity = int((qty as Array)[0])
+		elif qty is int or qty is float:
+			quantity = int(qty)
+		out.append(_item(str(entry.get("itemId", "")), quantity))
+	return out
 
 
 static func _item(item_id: String, quantity: int) -> Dictionary:

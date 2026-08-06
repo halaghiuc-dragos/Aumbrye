@@ -9,6 +9,7 @@ const RarityRegistryScript := preload("res://scripts/loot/rarity_registry.gd")
 const BlacksmithServiceScript := preload("res://scripts/hub/blacksmith_service.gd")
 const InputGlyphServiceScript := preload("res://scripts/ui/input_glyph_service.gd")
 const RunModeConfigScript := preload("res://scripts/app/run_mode_config.gd")
+const ItemIconAtlasScript := preload("res://scripts/ui/item_icon_atlas.gd")
 
 const CELL_SIZE := InventoryUILayoutScript.CELL_SIZE
 const EQUIP_CELL_SIZE := InventoryUILayoutScript.EQUIP_CELL_SIZE
@@ -65,9 +66,7 @@ func _ready() -> void:
 	_build_equipment_panel()
 	_bind_inventory_context()
 	InventoryService.inventory_changed.connect(_on_main_inventory_changed)
-	get_tree().scene_changed.connect(func() -> void:
-		call_deferred("_bind_inventory_context")
-	)
+	get_tree().scene_changed.connect(func() -> void: call_deferred("_bind_inventory_context"))
 	if WavesRunService:
 		WavesRunService.inventory_changed.connect(_on_waves_inventory_changed)
 	_refresh_all()
@@ -111,7 +110,7 @@ func _ensure_grid_dimensions() -> void:
 	_grid.columns = inv.grid_width
 	for y in inv.grid_height:
 		for x in inv.grid_width:
-			var cell := _make_item_cell(CELL_SIZE, "", "common", 0)
+			var cell := _make_item_cell(CELL_SIZE, "common", 0)
 			cell.gui_input.connect(_on_cell_gui_input.bind(x, y))
 			cell.mouse_entered.connect(_on_cell_mouse_entered.bind(x, y))
 			cell.mouse_exited.connect(_on_cell_mouse_exited)
@@ -129,9 +128,7 @@ func _build_ui_shell() -> void:
 	_backdrop = GameUISkinScript.make_backdrop(self)
 	_backdrop.mouse_filter = Control.MOUSE_FILTER_STOP
 	var panel := GameUISkinScript.make_center_panel(
-		self,
-		GameUISkinScript.INVENTORY_PANEL_HALF_W,
-		GameUISkinScript.INVENTORY_PANEL_HALF_H
+		self, GameUISkinScript.INVENTORY_PANEL_HALF_W, GameUISkinScript.INVENTORY_PANEL_HALF_H
 	)
 	panel.name = "Panel"
 	var margin := MarginContainer.new()
@@ -177,8 +174,10 @@ func _build_ui_shell() -> void:
 	_action_row.add_child(_btn_equip)
 	_action_row.add_child(_btn_unequip)
 	_action_row.add_child(_btn_use)
-	for i in 3:
-		var bind_btn := MenuShellScript.make_menu_button("Bind %d" % (i + 1), _on_bind_quick_slot_pressed.bind(i))
+	for i in 4:
+		var bind_btn := MenuShellScript.make_menu_button(
+			"Bind %d" % (i + 1), _on_bind_quick_slot_pressed.bind(i)
+		)
 		_btn_bind.append(bind_btn)
 		_action_row.add_child(bind_btn)
 	footer.add_child(_action_row)
@@ -203,8 +202,7 @@ func _build_ui_shell() -> void:
 	_equip_wrap = Control.new()
 	_equip_wrap.name = "EquipWrap"
 	_equip_wrap.custom_minimum_size = Vector2(
-		EQUIP_CELL_SIZE * 3 + GRID_GAP * 2 + 24,
-		EQUIP_CELL_SIZE * 4 + GRID_GAP * 3 + 24
+		EQUIP_CELL_SIZE * 3 + GRID_GAP * 2 + 24, EQUIP_CELL_SIZE * 4 + GRID_GAP * 3 + 24
 	)
 	equip_vbox.add_child(_equip_wrap)
 	GameUISkinScript.build_human_silhouette(_equip_wrap, EQUIP_CELL_SIZE, GRID_GAP, 1.12)
@@ -214,7 +212,7 @@ func _build_ui_shell() -> void:
 	_equip_host.add_theme_constant_override("h_separation", GRID_GAP)
 	_equip_host.add_theme_constant_override("v_separation", GRID_GAP)
 	_equip_wrap.add_child(_equip_host)
-	_drag_ghost = _make_item_cell(CELL_SIZE, "?", "common", 0)
+	_drag_ghost = _make_item_cell(CELL_SIZE, "common", 0)
 	_drag_ghost.visible = false
 	_drag_ghost.z_index = 100
 	_drag_ghost.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -321,62 +319,64 @@ func _build_equipment_panel() -> void:
 			_equip_cells[slot_key] = cell
 
 
-func _build_grid() -> void:
-	_ensure_grid_dimensions()
-
-
 func _make_equip_cell(slot_name: String) -> PanelContainer:
-	var cell := _make_item_cell(EQUIP_CELL_SIZE, SLOT_LABELS.get(slot_name, slot_name), "common", 0)
+	var cell := _make_item_cell(EQUIP_CELL_SIZE, "common", 0)
 	cell.set_meta("slot_name", slot_name)
 	return cell
 
 
-func _make_item_cell(cell_size: int, text: String, rarity: String, upgrade_level: int) -> PanelContainer:
+func _make_item_cell(cell_size: int, rarity: String, upgrade_level: int) -> PanelContainer:
 	var cell := PanelContainer.new()
 	cell.custom_minimum_size = Vector2(cell_size, cell_size)
-	var style := GameUISkinScript.make_item_cell_style(rarity, text != "")
+	var style := GameUISkinScript.make_item_cell_style(rarity, false)
 	cell.add_theme_stylebox_override("panel", style)
-	var vbox := VBoxContainer.new()
-	vbox.name = "VBox"
-	vbox.set_anchors_preset(Control.PRESET_FULL_RECT)
-	vbox.alignment = BoxContainer.ALIGNMENT_CENTER
-	vbox.add_theme_constant_override("separation", 1)
-	cell.add_child(vbox)
-	var glyph_label := Label.new()
-	glyph_label.name = "GlyphLabel"
-	glyph_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	glyph_label.add_theme_font_size_override("font_size", 18)
-	glyph_label.add_theme_color_override("font_color", RarityRegistryScript.display_color(rarity))
-	glyph_label.text = ""
-	vbox.add_child(glyph_label)
-	var name_label := Label.new()
-	name_label.name = "NameLabel"
-	name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	name_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	name_label.add_theme_font_size_override("font_size", 11)
-	name_label.text = text
-	vbox.add_child(name_label)
+	var icon := TextureRect.new()
+	icon.name = "Icon"
+	icon.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	icon.offset_left = 2
+	icon.offset_top = 2
+	icon.offset_right = -2
+	icon.offset_bottom = -2
+	icon.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	cell.add_child(icon)
 	var upgrade_label := Label.new()
 	upgrade_label.name = "UpgradeLabel"
-	upgrade_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	upgrade_label.set_anchors_preset(Control.PRESET_TOP_RIGHT)
+	upgrade_label.offset_left = -cell_size + 2
+	upgrade_label.offset_top = 0
+	upgrade_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	upgrade_label.add_theme_font_size_override("font_size", 10)
 	upgrade_label.add_theme_color_override("font_color", Color(1.0, 0.85, 0.45))
+	upgrade_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	upgrade_label.text = ("+%d" % upgrade_level) if upgrade_level > 0 else ""
-	vbox.add_child(upgrade_label)
+	cell.add_child(upgrade_label)
 	return cell
 
 
-func _set_cell_content(cell: PanelContainer, text: String, rarity: String, upgrade_level: int, empty_slot_label: String = "", slot: Dictionary = {}) -> void:
-	var display_text := text if text != "" else empty_slot_label
-	var display_rarity := rarity if text != "" else "common"
-	var style := GameUISkinScript.make_item_cell_style(display_rarity, text != "")
+func _set_cell_content(
+	cell: PanelContainer,
+	rarity: String,
+	upgrade_level: int,
+	slot: Dictionary = {},
+	empty_slot_name: String = ""
+) -> void:
+	var filled := not slot.is_empty()
+	var display_rarity := rarity if filled else "common"
+	var style := GameUISkinScript.make_item_cell_style(display_rarity, filled)
 	cell.add_theme_stylebox_override("panel", style)
-	var glyph_label: Label = cell.get_node("VBox/GlyphLabel")
-	var name_label: Label = cell.get_node("VBox/NameLabel")
-	var upgrade_label: Label = cell.get_node("VBox/UpgradeLabel")
-	glyph_label.text = _item_glyph(slot) if not slot.is_empty() else (_slot_glyph_for_label(empty_slot_label) if text == "" else "")
-	glyph_label.add_theme_color_override("font_color", RarityRegistryScript.display_color(display_rarity))
-	name_label.text = display_text
+	var icon: TextureRect = cell.get_node("Icon")
+	var upgrade_label: Label = cell.get_node("UpgradeLabel")
+	if filled:
+		var item_id: String = str(slot.get("itemId", ""))
+		var def := _item_def(item_id)
+		icon.texture = ItemIconAtlasScript.get_icon(item_id, str(def.get("iconPath", "")))
+	elif empty_slot_name != "":
+		icon.texture = ItemIconAtlasScript.get_slot_icon(empty_slot_name)
+	else:
+		icon.texture = null
 	upgrade_label.text = ("+%d" % upgrade_level) if upgrade_level > 0 else ""
 
 
@@ -402,10 +402,15 @@ func _rebuild_visible_indices() -> void:
 func _refresh_grid() -> void:
 	var inv := _inventory()
 	for cell in _cells:
-		_set_cell_content(cell, "", "common", 0)
+		_set_cell_content(cell, "common", 0)
 		cell.self_modulate = Color.WHITE
 	var occupied: Dictionary = {}
+	var visible_set: Dictionary = {}
+	for idx in _visible_indices:
+		visible_set[idx] = true
 	for i in inv.slots.size():
+		if _visible_indices.size() > 0 and not visible_set.has(i):
+			continue
 		var slot: Dictionary = inv.slots[i]
 		var def := _item_def(slot.get("itemId", ""))
 		var w: int = int(def.get("gridWidth", 1))
@@ -414,7 +419,6 @@ func _refresh_grid() -> void:
 		var oy: int = int(slot.get("y", 0))
 		var rarity := inv.get_slot_rarity(slot)
 		var upgrade := BlacksmithServiceScript.get_slot_upgrade_level(slot)
-		var abbrev := _item_abbrev(slot)
 		for dy in h:
 			for dx in w:
 				var gx := ox + dx
@@ -425,12 +429,7 @@ func _refresh_grid() -> void:
 				occupied[idx] = true
 				var is_origin := dx == 0 and dy == 0
 				_set_cell_content(
-					_cells[idx],
-					abbrev if is_origin else "",
-					rarity,
-					upgrade if is_origin else 0,
-					"",
-					slot if is_origin else {}
+					_cells[idx], rarity, upgrade if is_origin else 0, slot if is_origin else {}
 				)
 				if i == _drag_index:
 					_cells[idx].self_modulate = Color(1.1, 1.0, 0.55)
@@ -447,11 +446,11 @@ func _refresh_equipment() -> void:
 			continue
 		var inst: Dictionary = inv.equipped.get(slot_name, {})
 		if inst.is_empty():
-			_set_cell_content(cell, "", "common", 0, SLOT_LABELS.get(slot_name, slot_name))
+			_set_cell_content(cell, "common", 0, {}, slot_name)
 		else:
 			var rarity := inv.get_slot_rarity(inst)
 			var upgrade := BlacksmithServiceScript.get_slot_upgrade_level(inst)
-			_set_cell_content(cell, _item_abbrev(inst), rarity, upgrade, "", inst)
+			_set_cell_content(cell, rarity, upgrade, inst)
 		var nav_idx := _equip_nav_slots.find(slot_name)
 		var focused := _focus_area == FocusArea.EQUIPMENT and nav_idx == _equip_cursor
 		var hovered := _hover_equip_slot == slot_name
@@ -485,7 +484,9 @@ func _update_detail() -> void:
 	var detail_slot: Dictionary = {}
 	var compare_index := -1
 	if _focus_area == FocusArea.EQUIPMENT or _hover_equip_slot != "":
-		var slot_name := _hover_equip_slot if _hover_equip_slot != "" else _equip_nav_slots[_equip_cursor]
+		var slot_name := (
+			_hover_equip_slot if _hover_equip_slot != "" else _equip_nav_slots[_equip_cursor]
+		)
 		detail_slot = inv.equipped.get(slot_name, {})
 		if detail_slot.is_empty():
 			_detail_label.text = "%s — empty" % SLOT_LABELS.get(slot_name, slot_name.capitalize())
@@ -509,11 +510,14 @@ func _update_detail() -> void:
 	var delta := _compare_slot_to_equipped(compare_index)
 	var rarity := inv.get_slot_rarity(detail_slot)
 	var rarity_name := RarityRegistryScript.display_name(rarity)
-	_detail_label.text = "[%s] %s\n%s" % [
-		rarity_name,
-		_item_def(detail_slot.get("itemId", "")).get("name", detail_slot.get("itemId", "?")),
-		_format_slot_tooltip(detail_slot, delta),
-	]
+	_detail_label.text = (
+		"[%s] %s\n%s"
+		% [
+			rarity_name,
+			_item_def(detail_slot.get("itemId", "")).get("name", detail_slot.get("itemId", "?")),
+			_format_slot_tooltip(detail_slot, delta),
+		]
+	)
 	var compare_lines: PackedStringArray = []
 	for stat in Equipment.STAT_KEYS:
 		if delta.has(stat) and not is_zero_approx(delta[stat]):
@@ -763,7 +767,7 @@ func _show_drag_ghost_from_slot(slot: Dictionary) -> void:
 	var inv := _inventory()
 	var rarity := inv.get_slot_rarity(slot)
 	var upgrade := BlacksmithServiceScript.get_slot_upgrade_level(slot)
-	_set_cell_content(_drag_ghost, _item_abbrev(slot), rarity, upgrade, "", slot)
+	_set_cell_content(_drag_ghost, rarity, upgrade, slot)
 	_drag_ghost.visible = true
 
 
@@ -784,62 +788,22 @@ func _apply_equipment() -> void:
 		InventoryService.apply_equipment_to_player_node(player)
 
 
-func _item_abbrev(slot: Dictionary) -> String:
-	var def := _item_def(slot.get("itemId", ""))
-	var item_name: String = def.get("name", slot.get("itemId", "?"))
-	if item_name.length() <= 5:
-		return item_name
-	return item_name.substr(0, 4)
-
-
-func _item_glyph(slot: Dictionary) -> String:
-	if slot.is_empty():
-		return ""
-	var def := _item_def(slot.get("itemId", ""))
-	match def.get("itemType", ""):
-		"weapon":
-			return "⚔"
-		"armor":
-			match def.get("equipmentSlot", ""):
-				"helmet": return "⛨"
-				"chest": return "▣"
-				"gloves": return "✋"
-				"boots": return "▼"
-				"ring": return "◯"
-				_: return "▣"
-		"accessory":
-			return "✦"
-		"consumable":
-			return "✚"
-		"material":
-			return "◆"
-		_:
-			return "•"
-
-
-func _slot_glyph_for_label(slot_label: String) -> String:
-	match slot_label:
-		"Head": return "⛨"
-		"Chest": return "▣"
-		"Hands": return "✋"
-		"Feet": return "▼"
-		"Main": return "⚔"
-		"Off": return "⬛"
-		"Ring": return "◯"
-		"Neck": return "✦"
-		"Relic": return "✧"
-		_: return ""
-
-
 func _footer_hint_default() -> String:
-	return "%s navigate  |  %s pick/equip  |  %s close  |  %s sort  |  %s type  |  %s rarity" % [
-		InputGlyphServiceScript.get_action_glyph("ui_left") + "/" + InputGlyphServiceScript.get_action_glyph("ui_up"),
-		InputGlyphServiceScript.get_action_glyph("ui_accept"),
-		InputGlyphServiceScript.get_action_glyph("ui_cancel"),
-		InputGlyphServiceScript.get_action_glyph("sprint"),
-		InputGlyphServiceScript.get_action_glyph("lock_on"),
-		InputGlyphServiceScript.get_action_glyph("interact"),
-	]
+	return (
+		"%s navigate  |  %s pick/equip  |  %s close  |  %s sort  |  %s type  |  %s rarity"
+		% [
+			(
+				InputGlyphServiceScript.get_action_glyph("ui_left")
+				+ "/"
+				+ InputGlyphServiceScript.get_action_glyph("ui_up")
+			),
+			InputGlyphServiceScript.get_action_glyph("ui_accept"),
+			InputGlyphServiceScript.get_action_glyph("ui_cancel"),
+			InputGlyphServiceScript.get_action_glyph("sprint"),
+			InputGlyphServiceScript.get_action_glyph("lock_on"),
+			InputGlyphServiceScript.get_action_glyph("interact"),
+		]
+	)
 
 
 func _index_at_grid_cell(cell_index: int) -> int:
@@ -874,11 +838,7 @@ func _compare_slot_to_equipped(index: int) -> Dictionary:
 	var slot_name := Equipment.slot_for_item_def(def)
 	if slot_name == "":
 		return {}
-	return Equipment.compare_stats(
-		inv.equipped,
-		slot,
-		Callable(AffixRoller, "get_affix_stat")
-	)
+	return Equipment.compare_stats(inv.equipped, slot, Callable(AffixRoller, "get_affix_stat"))
 
 
 func _format_slot_tooltip(slot: Dictionary, compare_delta: Dictionary = {}) -> String:
@@ -908,7 +868,7 @@ func _refresh_quick_slot_row() -> void:
 		child.queue_free()
 	if _waves_mode:
 		return
-	for i in 3:
+	for i in 4:
 		var label := Label.new()
 		GameUISkinScript.style_hint_label(label)
 		label.text = "[%d] %s" % [i + 1, InventoryService.get_quick_slot_label(i)]
@@ -924,7 +884,9 @@ func _update_action_buttons() -> void:
 	var can_unequip := false
 	var bind_index := -1
 	if _focus_area == FocusArea.EQUIPMENT or _hover_equip_slot != "":
-		var slot_name := _hover_equip_slot if _hover_equip_slot != "" else _equip_nav_slots[_equip_cursor]
+		var slot_name := (
+			_hover_equip_slot if _hover_equip_slot != "" else _equip_nav_slots[_equip_cursor]
+		)
 		can_unequip = not inv.equipped.get(slot_name, {}).is_empty()
 	elif _selected_index >= 0:
 		bind_index = _selected_index
@@ -949,7 +911,9 @@ func _on_action_equip_pressed() -> void:
 
 
 func _on_action_unequip_pressed() -> void:
-	var slot_name := _hover_equip_slot if _hover_equip_slot != "" else _equip_nav_slots[_equip_cursor]
+	var slot_name := (
+		_hover_equip_slot if _hover_equip_slot != "" else _equip_nav_slots[_equip_cursor]
+	)
 	_unequip_slot(slot_name)
 
 
@@ -982,6 +946,10 @@ func _try_quick_slot_bind_input(event: InputEvent) -> bool:
 			return true
 		KEY_3:
 			InventoryService.set_quick_slot(2, _selected_index)
+			_refresh_quick_slot_row()
+			return true
+		KEY_4:
+			InventoryService.set_quick_slot(3, _selected_index)
 			_refresh_quick_slot_row()
 			return true
 	return false

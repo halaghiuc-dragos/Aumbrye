@@ -58,9 +58,51 @@
     },
     "checksum": {
       "type": "string"
+    },
+    "roomContent": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/roomContentEntry" }
+    },
+    "locks": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/dungeonLock" }
+    },
+    "puzzles": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/dungeonPuzzle" }
     }
   },
   "$defs": {
+    "roomContentEntry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["roomId", "contentType", "params"],
+      "properties": {
+        "roomId": { "type": "string", "minLength": 1 },
+        "contentType": { "type": "string", "minLength": 1 },
+        "params": { "type": "object" }
+      }
+    },
+    "dungeonLock": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["roomId", "lockId", "keyItemId"],
+      "properties": {
+        "roomId": { "type": "string", "minLength": 1 },
+        "lockId": { "type": "string", "minLength": 1 },
+        "keyItemId": { "type": "string", "minLength": 1 }
+      }
+    },
+    "dungeonPuzzle": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["roomId", "puzzleId", "kind"],
+      "properties": {
+        "roomId": { "type": "string", "minLength": 1 },
+        "puzzleId": { "type": "string", "minLength": 1 },
+        "kind": { "type": "string", "minLength": 1 }
+      }
+    },
     "transform": {
       "type": "object",
       "additionalProperties": false,
@@ -99,7 +141,7 @@
         "to": { "type": "string", "minLength": 1 },
         "kind": {
           "type": "string",
-          "enum": ["corridor", "door", "secret", "one_way"]
+          "enum": ["corridor", "door", "secret", "shortcut", "one_way"]
         }
       }
     },
@@ -119,9 +161,32 @@
       "properties": {
         "enemies": { "type": "array", "items": { "type": "object" } },
         "loot": { "type": "array", "items": { "type": "object" } },
-        "puzzles": { "type": "array", "items": { "type": "object" } },
+        "puzzles": { "type": "array", "items": { "$ref": "#/$defs/dungeonPuzzle" } },
         "traps": { "type": "array", "items": { "type": "object" } },
         "secrets": { "type": "array", "items": { "type": "object" } },
+        "cover": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["roomId", "offset", "size", "kind"],
+            "properties": {
+              "roomId": { "type": "string", "minLength": 1 },
+              "offset": { "$ref": "#/$defs/transform" },
+              "size": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["x", "y", "z"],
+                "properties": {
+                  "x": { "type": "number" },
+                  "y": { "type": "number" },
+                  "z": { "type": "number" }
+                }
+              },
+              "kind": { "type": "string", "enum": ["pillar", "chokepoint"] }
+            }
+          }
+        },
         "boss": { "type": ["object", "null"] },
         "exit": { "type": ["string", "null"] },
         "entrance": { "type": "string", "minLength": 1 }

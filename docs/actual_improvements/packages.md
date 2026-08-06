@@ -1,23 +1,25 @@
 # Packages — improvement plan
 
+## Status: FINISHED
+
 ## Current state
 
-`Aumbrye.Procedural` is a complete, deterministic dungeon generator with SplitMix64 seeding, canonical key-sorted JSON, SHA-256 checksums, and v5-UUID loot instance IDs (see [`../existing_codebase/packages.md`](../existing_codebase/packages.md)). `Aumbrye.Shared` holds the API DTOs and the OpenAPI 3.0.3 spec. The weak points are contract drift rather than generation logic: the leaderboards endpoints exist on the API but are missing from both the OpenAPI spec and `packages/shared/Contracts`, three declared DTO fields are never populated, and `DungeonDefinition.RoomContent`/`Locks`/`Puzzles` are permanently empty arrays that the GDScript stack does populate.
+`Aumbrye.Procedural` and `Aumbrye.Shared` share typed dungeon definitions, leaderboard DTOs, Swashbuckle-generated OpenAPI with CI drift checks, checksum-returning serialization, and strict Release builds. See [`../existing_codebase/packages.md`](../existing_codebase/packages.md).
 
 ## Gaps
 
-| ID | Sev | Gap | Evidence |
-|----|-----|-----|----------|
-| PKG-01 | P0 | Leaderboards are absent from the OpenAPI spec. Two live endpoints have no contract, so no consumer can be generated and no reviewer can see the shape. | `packages/shared/openapi/aumbrye-api.v1.yaml:8-150` lists 7 paths; `services/backend/src/Aumbrye.Api/Endpoints/LeaderboardsEndpoints.cs:11,35` maps two more |
-| PKG-02 | P0 | `SubmitLeaderboardRequest` lives in the API assembly, not `packages/shared`. It is the only request DTO not shareable with clients. | `services/backend/src/Aumbrye.Api/Endpoints/LeaderboardsEndpoints.cs:54-58` |
-| PKG-03 | P1 | `DungeonDefinition.RoomContent`, `Locks`, and `Puzzles` are hardcoded to `Array.Empty<object>()`, and `DungeonPlacements.Puzzles` is an untyped `IReadOnlyList<object>`. The C# stack cannot express room content that the GDScript generator produces, so cross-stack parity is structurally impossible for those keys. | `packages/procedural/Generation/DungeonGenerator.cs:122-124`, `packages/procedural/Models/DungeonDefinition.cs:16-18,35` |
-| PKG-04 | P1 | Three declared DTO fields are dead: `RunResultRequest` (no reference anywhere), `CompleteRunProgressionResponse.CharacterStateJson` (never set), `PutSaveResponse.Conflict` (never set — the 409 path returns an anonymous object). Clients reading the DTO see fields that never arrive. | `packages/shared/Contracts/Runs/RunContracts.cs:29,39-46`, `packages/shared/Contracts/Saves/SaveContracts.cs:13` vs `services/backend/src/Aumbrye.Api/Endpoints/ApiEndpoints.cs:125-137,197-208` |
-| PKG-05 | P1 | The OpenAPI spec documents response bodies for exactly one operation. Six operations state only a status code and a prose description, so a generated client would produce `object` return types. | `packages/shared/openapi/aumbrye-api.v1.yaml:24-119` versus `:126-131` |
-| PKG-06 | P1 | Nothing verifies that the OpenAPI spec matches the routes the API actually maps. The spec is hand-written and already 2 paths behind. | No Swashbuckle/NSwag document generation; `Program.cs:46` registers `AddEndpointsApiExplorer` but no generator |
-| PKG-07 | P2 | `ExtractChecksum` re-scans the serialized JSON string for a `"checksum":"` literal instead of returning the value `CanonicalJsonSerializer.Serialize` already computed. Any future key named `checksum` inside a nested object would be matched first. | `packages/procedural/Generation/DungeonGenerator.cs:130-139` |
-| PKG-08 | P2 | `ProceduralAssembly.Version = "0.3.0"` and `ApiVersions.ExpectedClientVersion = "0.3.0"` are unrelated constants that must be bumped together by hand. | `packages/procedural/ProceduralAssembly.cs:8`, `packages/shared/Contracts/ApiVersions.cs:7` |
-| PKG-09 | P2 | `ContentPaths.Root` is a static property evaluated once per process and throws if `content/` is not found. A published CLI or containerized API without a sibling `content/` fails at first catalog access with no actionable message about `AUMBRYE_CONTENT_ROOT`. | `packages/procedural/Content/ContentPaths.cs:5,30` |
-| PKG-10 | P2 | Neither csproj sets `TreatWarningsAsErrors`, `AnalysisLevel`, or `EnforceCodeStyleInBuild`, so nullable and analyzer warnings accumulate silently through `dotnet build --configuration Release`. | `packages/procedural/Aumbrye.Procedural.csproj:3-8`, `packages/shared/Aumbrye.Shared.csproj:3-8` |
+| ID | Sev | Gap | Status |
+|----|-----|-----|--------|
+| PKG-01 | P0 | Leaderboards absent from OpenAPI | **FINISHED** — routes in `aumbrye-api.v1.yaml` |
+| PKG-02 | P0 | `SubmitLeaderboardRequest` not in shared | **FINISHED** — `Contracts/Leaderboards/` |
+| PKG-03 | P1 | Untyped `RoomContent`/`Locks`/`Puzzles` | **FINISHED** — `RoomContentEntry`, typed records |
+| PKG-04 | P1 | Dead DTO fields | **FINISHED** — `RunResultRequest` removed; `CharacterStateJson`, `Conflict` populated |
+| PKG-05 | P1 | OpenAPI missing 200 response schemas | **FINISHED** — `.Produces<T>` on all routes |
+| PKG-06 | P1 | No spec drift check | **FINISHED** — CI `swagger tofile` + diff |
+| PKG-07 | P2 | `ExtractChecksum` string scan | **FINISHED** — `Serialize` returns checksum tuple |
+| PKG-08 | P2 | Unrelated version constants | **FINISHED** — `ProceduralAssembly.Version` → `ApiVersions` |
+| PKG-09 | P2 | `ContentPaths` opaque failure | **FINISHED** — actionable `AUMBRYE_CONTENT_ROOT` message |
+| PKG-10 | P2 | Silent analyzer warnings | **FINISHED** — `TreatWarningsAsErrors` on both csprojs |
 
 ## Target design
 
@@ -97,16 +99,16 @@ Set AUMBRYE_CONTENT_ROOT to an absolute path containing biomes/, enemies/, items
 
 ## Acceptance criteria
 
-- [ ] `packages/shared/openapi/aumbrye-api.v1.yaml` lists all 11 routes the API maps, including both leaderboards routes.
-- [ ] Every operation in the spec declares a response schema for its 200 case.
-- [ ] The `backend` CI job fails if the generated spec differs from the committed one.
-- [ ] `SubmitLeaderboardRequest` is declared in `packages/shared/Contracts/Leaderboards/`, and `LeaderboardsEndpoints.cs` contains no record declarations.
-- [ ] `grep -r "RunResultRequest" packages services apps` returns no matches.
-- [ ] A successful `POST /api/v1/runs/{id}/complete` response body contains a non-null `characterStateJson`.
-- [ ] A 409 from `PUT /api/v1/saves/current` deserializes into `SaveConflictResponse` with non-empty `state`.
-- [ ] `DungeonDefinition.RoomContent` is `IReadOnlyList<RoomContentEntry>`, and `content/schemas/dungeon-definition.v1.json` validates the shape.
-- [ ] `CanonicalJsonSerializer.Serialize` returns the checksum; `ExtractChecksum` no longer exists.
-- [ ] `dotnet build Aumbrye.sln --configuration Release` emits zero warnings.
+- [x] `packages/shared/openapi/aumbrye-api.v1.yaml` lists all 11 routes the API maps, including both leaderboards routes.
+- [x] Every operation in the spec declares a response schema for its 200 case.
+- [x] The `backend` CI job fails if the generated spec differs from the committed one.
+- [x] `SubmitLeaderboardRequest` is declared in `packages/shared/Contracts/Leaderboards/`, and `LeaderboardsEndpoints.cs` contains no record declarations.
+- [x] `grep -r "RunResultRequest" packages services apps` returns no matches.
+- [x] A successful `POST /api/v1/runs/{id}/complete` response body contains a non-null `characterStateJson`.
+- [x] A 409 from `PUT /api/v1/saves/current` deserializes into `SaveConflictResponse` with non-empty `state`.
+- [x] `DungeonDefinition.RoomContent` is `IReadOnlyList<RoomContentEntry>`, and `content/schemas/dungeon-definition.v1.json` validates the shape.
+- [x] `CanonicalJsonSerializer.Serialize` returns the checksum; `ExtractChecksum` no longer exists.
+- [x] `dotnet build Aumbrye.sln --configuration Release` emits zero warnings.
 
 ## Validation
 

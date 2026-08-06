@@ -3,38 +3,239 @@ extends RefCounted
 
 ## Room kit dimensions and doorway masks (mirrors C# RoomTemplateCatalog).
 
+const ALL_DOORS := (
+	RoomGraphSlot.DOOR_NORTH
+	| RoomGraphSlot.DOOR_EAST
+	| RoomGraphSlot.DOOR_SOUTH
+	| RoomGraphSlot.DOOR_WEST
+)
+
 const KIND_SPECS := {
-	"entrance": {"width": 16.0, "depth": 12.0, "doors": RoomGraphSlot.DOOR_SOUTH},
-	"stairs": {"width": 8.0, "depth": 16.0, "doors": RoomGraphSlot.DOOR_NORTH | RoomGraphSlot.DOOR_SOUTH},
-	"corridor": {"width": 8.0, "depth": 12.0, "doors": RoomGraphSlot.DOOR_NORTH | RoomGraphSlot.DOOR_SOUTH},
+	"entrance": {
+		"width": 16.0,
+		"depth": 12.0,
+		"doors": ALL_DOORS,
+		"anchors": {
+			"enemy":
+			[
+				Vector3(4, 0, 2),
+				Vector3(-4, 0, -2),
+				Vector3(0, 0, 0),
+				Vector3(3, 0, -3),
+				Vector3(-3, 0, 3),
+				Vector3(5, 0, 1),
+			],
+			"cover":
+			[Vector3(-3, 0, -2), Vector3(3, 0, 2), Vector3(0, 0, -3), Vector3(-2, 0, 3)],
+			"chest": [Vector3(5, 0, 4), Vector3(-5, 0, 4)],
+			"trap": [Vector3(0, 0, 3)],
+		},
+	},
+	"stairs": {
+		"width": 8.0,
+		"depth": 16.0,
+		"doors": ALL_DOORS,
+		"anchors": {
+			"enemy":
+			[
+				Vector3(0, 0, 0),
+				Vector3(2, 0, 4),
+				Vector3(-2, 0, -4),
+				Vector3(2, 0, -3),
+				Vector3(-2, 0, 3),
+				Vector3(0, 0, -5),
+			],
+			"cover":
+			[Vector3(-2, 0, -2), Vector3(2, 0, 2), Vector3(0, 0, -4), Vector3(1, 0, 4)],
+			"chest": [Vector3(0, 0, 5), Vector3(-2, 0, 4)],
+			"trap": [Vector3(0, 0, 4)],
+		},
+	},
+	"corridor": {
+		"width": 8.0,
+		"depth": 12.0,
+		"doors": RoomGraphSlot.DOOR_NORTH | RoomGraphSlot.DOOR_SOUTH,
+		"anchors": {
+			"enemy":
+			[
+				Vector3(0, 0, 0),
+				Vector3(2, 0, 2),
+				Vector3(-2, 0, -2),
+				Vector3(2, 0, -2),
+				Vector3(-2, 0, 2),
+				Vector3(0, 0, 3),
+			],
+			"cover": [Vector3(-2, 0, -1), Vector3(2, 0, 1), Vector3(0, 0, -3), Vector3(1, 0, 2)],
+			"chest": [Vector3(0, 0, 3), Vector3(-2, 0, 2)],
+			"trap": [Vector3(0, 0, 3)],
+		},
+	},
 	"courtyard": {
 		"width": 20.0,
 		"depth": 20.0,
-		"doors": RoomGraphSlot.DOOR_NORTH | RoomGraphSlot.DOOR_SOUTH | RoomGraphSlot.DOOR_EAST | RoomGraphSlot.DOOR_WEST,
+		"doors": ALL_DOORS,
+		"anchors": {
+			"enemy":
+			[
+				Vector3(6, 0, 4),
+				Vector3(-6, 0, -5),
+				Vector3(0, 0, 0),
+				Vector3(7, 0, -4),
+				Vector3(-5, 0, 6),
+				Vector3(4, 0, -3),
+			],
+			"cover":
+			[Vector3(-4, 0, -3), Vector3(4, 0, 3), Vector3(0, 0, -6), Vector3(-3, 0, 5)],
+			"chest": [Vector3(8, 0, 7), Vector3(-8, 0, 7)],
+			"trap": [Vector3(0, 0, 5)],
+		},
 	},
-	"hall": {"width": 16.0, "depth": 16.0, "doors": RoomGraphSlot.DOOR_EAST | RoomGraphSlot.DOOR_SOUTH | RoomGraphSlot.DOOR_WEST},
-	"treasure": {"width": 10.0, "depth": 10.0, "doors": RoomGraphSlot.DOOR_NORTH},
-	"secret": {"width": 8.0, "depth": 8.0, "doors": RoomGraphSlot.DOOR_EAST},
-	"arena": {"width": 24.0, "depth": 24.0, "doors": RoomGraphSlot.DOOR_SOUTH | RoomGraphSlot.DOOR_WEST},
-	"boss": {"width": 28.0, "depth": 28.0, "doors": RoomGraphSlot.DOOR_NORTH},
-	"puzzle": {"width": 14.0, "depth": 14.0, "doors": RoomGraphSlot.DOOR_NORTH | RoomGraphSlot.DOOR_SOUTH},
+	"hall": {
+		"width": 16.0,
+		"depth": 16.0,
+		"doors": ALL_DOORS,
+		"anchors": {
+			"enemy":
+			[
+				Vector3(5, 0, 3),
+				Vector3(-5, 0, -4),
+				Vector3(0, 0, 0),
+				Vector3(4, 0, -3),
+				Vector3(-4, 0, 4),
+				Vector3(3, 0, -2),
+			],
+			"cover":
+			[Vector3(-3, 0, -2), Vector3(3, 0, 2), Vector3(0, 0, -4), Vector3(-2, 0, 3)],
+			"chest": [Vector3(6, 0, 5), Vector3(-6, 0, 5)],
+			"trap": [Vector3(0, 0, 4)],
+		},
+	},
+	"treasure": {
+		"width": 12.0,
+		"depth": 12.0,
+		"doors": RoomGraphSlot.DOOR_NORTH,
+		"anchors": {
+			"enemy":
+			[
+				Vector3(3, 0, 2),
+				Vector3(-3, 0, -2),
+				Vector3(0, 0, 0),
+				Vector3(4, 0, -1),
+				Vector3(-4, 0, 1),
+				Vector3(2, 0, -2),
+			],
+			"cover": [Vector3(-3, 0, -1), Vector3(3, 0, 1), Vector3(0, 0, -3), Vector3(-2, 0, 2)],
+			"chest": [Vector3(0, 0, 0), Vector3(3, 0, 2)],
+			"trap": [Vector3(0, 0, 3)],
+		},
+	},
+	"secret": {
+		"width": 8.0,
+		"depth": 8.0,
+		"doors": RoomGraphSlot.DOOR_EAST,
+		"anchors": {
+			"enemy":
+			[
+				Vector3(0, 0, 0),
+				Vector3(2, 0, 1),
+				Vector3(-2, 0, -1),
+				Vector3(1, 0, -2),
+				Vector3(-1, 0, 2),
+				Vector3(0, 0, 2),
+			],
+			"cover": [Vector3(-1, 0, -1), Vector3(1, 0, 1), Vector3(0, 0, -2), Vector3(-1, 0, 1)],
+			"chest": [Vector3(0, 0, 0), Vector3(1, 0, 1)],
+			"trap": [Vector3(0, 0, 1)],
+		},
+	},
+	"arena": {
+		"width": 24.0,
+		"depth": 24.0,
+		"doors": RoomGraphSlot.DOOR_SOUTH | RoomGraphSlot.DOOR_WEST,
+		"anchors": {
+			"enemy":
+			[
+				Vector3(7, 0, 5),
+				Vector3(-7, 0, -6),
+				Vector3(0, 0, 0),
+				Vector3(8, 0, -5),
+				Vector3(-6, 0, 7),
+				Vector3(5, 0, -4),
+			],
+			"cover":
+			[Vector3(-5, 0, -4), Vector3(5, 0, 4), Vector3(0, 0, -7), Vector3(-4, 0, 6)],
+			"chest": [Vector3(9, 0, 8), Vector3(-9, 0, 8)],
+			"trap": [Vector3(0, 0, 6)],
+		},
+	},
+	"boss": {
+		"width": 28.0,
+		"depth": 28.0,
+		"doors": RoomGraphSlot.DOOR_NORTH,
+		"anchors": {
+			"enemy":
+			[
+				Vector3(8, 0, 6),
+				Vector3(-8, 0, -7),
+				Vector3(0, 0, 0),
+				Vector3(9, 0, -6),
+				Vector3(-7, 0, 8),
+				Vector3(6, 0, -5),
+			],
+			"cover":
+			[Vector3(-6, 0, -5), Vector3(6, 0, 5), Vector3(0, 0, -8), Vector3(-5, 0, 7)],
+			"chest": [Vector3(10, 0, 9), Vector3(-10, 0, 9)],
+			"trap": [Vector3(0, 0, 7)],
+		},
+	},
+	"puzzle": {
+		"width": 16.0,
+		"depth": 16.0,
+		"doors": ALL_DOORS,
+		"anchors": {
+			"enemy":
+			[
+				Vector3(5, 0, 3),
+				Vector3(-5, 0, -3),
+				Vector3(0, 0, 0),
+				Vector3(4, 0, -2),
+				Vector3(-4, 0, 3),
+				Vector3(3, 0, -1),
+			],
+			"cover": [Vector3(-3, 0, -2), Vector3(3, 0, 2), Vector3(0, 0, -4), Vector3(-2, 0, 3)],
+			"chest": [Vector3(6, 0, 5), Vector3(-6, 0, 5)],
+			"trap": [Vector3(0, 0, 4)],
+		},
+	},
+	"shop": {
+		"width": 12.0,
+		"depth": 12.0,
+		"doors": RoomGraphSlot.DOOR_NORTH | RoomGraphSlot.DOOR_SOUTH,
+		"anchors": {
+			"enemy":
+			[
+				Vector3(3, 0, 2),
+				Vector3(-3, 0, -2),
+				Vector3(0, 0, 0),
+				Vector3(2, 0, -2),
+				Vector3(-2, 0, 2),
+				Vector3(1, 0, -1),
+			],
+			"cover": [Vector3(-2, 0, -2), Vector3(2, 0, 2), Vector3(0, 0, -3), Vector3(-1, 0, 2)],
+			"chest": [Vector3(4, 0, 3), Vector3(-4, 0, 3)],
+			"trap": [Vector3(0, 0, 2)],
+		},
+	},
 }
 
 const FALLBACK_KINDS := ["courtyard", "hall", "arena"]
 
 
 static func template_prefix_for_biome(biome_id: String) -> String:
-	match biome_id:
-		"crystal_caverns": return "crystal"
-		"poison_swamp": return "swamp"
-		"frozen_fortress": return "frozen"
-		"dark_cathedral": return "cathedral"
-		"iron_vault": return "vault"
-		"prism_depths": return "prism"
-		"venom_mire": return "mire"
-		"glacial_hollow": return "hollow"
-		"umbral_chapel": return "umbral"
-		_: return "castle"
+	var biome := BiomeRegistry.get_biome(biome_id)
+	if biome.is_empty():
+		return ""
+	return str(biome.get("templatePrefix", ""))
 
 
 static func kind_from_template_id(template_id: String) -> String:
@@ -57,6 +258,25 @@ static func get_spec(template_id: String) -> Dictionary:
 		"half_width": float(base["width"]) * 0.5,
 		"half_depth": float(base["depth"]) * 0.5,
 	}
+
+
+static func anchors_for(template_id: String, role: String) -> Array:
+	var kind := kind_from_template_id(template_id)
+	var base: Dictionary = KIND_SPECS.get(kind, KIND_SPECS["courtyard"])
+	var anchors: Dictionary = base.get("anchors", {})
+	var list: Array = anchors.get(role, [])
+	if list.is_empty():
+		return [Vector3.ZERO]
+	return list
+
+
+static func anchor_inside_kind(kind: String, anchor: Vector3, margin: float = 1.5) -> bool:
+	var base: Dictionary = KIND_SPECS.get(kind, {})
+	if base.is_empty():
+		return false
+	var hw := float(base["width"]) * 0.5 - margin
+	var hd := float(base["depth"]) * 0.5 - margin
+	return absf(anchor.x) <= hw and absf(anchor.z) <= hd
 
 
 static func has_door(template_id: String, door_mask: int) -> bool:
@@ -136,8 +356,19 @@ static func half_extent_z(spec: Dictionary, yaw_rad: float) -> float:
 	return hw * absf(sin(yaw_rad)) + hd * absf(cos(yaw_rad))
 
 
-static func _yaw_to_align(from_door: int, to_door: int) -> float:
-	return yaw_to_align_doors(from_door, to_door)
+static func socket_wall_position(
+	direction: CastleRoomConstants.Direction, half_width: float, half_depth: float
+) -> Vector3:
+	match direction:
+		CastleRoomConstants.Direction.NORTH:
+			return Vector3(0.0, 0.0, -half_depth)
+		CastleRoomConstants.Direction.SOUTH:
+			return Vector3(0.0, 0.0, half_depth)
+		CastleRoomConstants.Direction.EAST:
+			return Vector3(half_width, 0.0, 0.0)
+		CastleRoomConstants.Direction.WEST:
+			return Vector3(-half_width, 0.0, 0.0)
+	return Vector3.ZERO
 
 
 static func _door_yaw(door: int) -> float:
@@ -155,22 +386,44 @@ static func _door_yaw(door: int) -> float:
 static func pick_template_for_doors(
 	preferred_template_id: String,
 	required_doors: int,
-	biome_templates: Array = []
+	biome_templates: Array = [],
+	rng: RandomNumberGenerator = null,
+	required_kind: String = ""
 ) -> String:
+	var candidates: Array[String] = []
 	if supports_doors(preferred_template_id, required_doors):
-		return preferred_template_id
+		candidates.append(preferred_template_id)
 	for template_id in biome_templates:
-		if supports_doors(str(template_id), required_doors):
-			return str(template_id)
-	var prefix := template_prefix_for_biome("forgotten_castle")
-	if not biome_templates.is_empty():
-		prefix = str(biome_templates[0]).split("_", false)[0]
-	for kind in FALLBACK_KINDS:
-		var candidate := "%s_%s" % [prefix, kind]
-		if supports_doors(candidate, required_doors):
-			return candidate
-	for kind in FALLBACK_KINDS:
-		var castle_candidate := "castle_%s" % kind
-		if supports_doors(castle_candidate, required_doors):
-			return castle_candidate
-	return "%s_courtyard" % prefix
+		var tid := str(template_id)
+		if tid == preferred_template_id:
+			continue
+		if supports_doors(tid, required_doors):
+			candidates.append(tid)
+	if candidates.is_empty():
+		var prefix := template_prefix_for_biome("forgotten_castle")
+		if not biome_templates.is_empty():
+			prefix = str(biome_templates[0]).split("_", false)[0]
+		for fallback_kind in FALLBACK_KINDS + ["shop"]:
+			var candidate := "%s_%s" % [prefix, fallback_kind]
+			if supports_doors(candidate, required_doors):
+				candidates.append(candidate)
+		for fallback_kind in FALLBACK_KINDS:
+			var castle_candidate := "castle_%s" % fallback_kind
+			if supports_doors(castle_candidate, required_doors):
+				candidates.append(castle_candidate)
+	if required_kind != "":
+		var filtered: Array[String] = []
+		for candidate in candidates:
+			if kind_from_template_id(candidate) == required_kind:
+				filtered.append(candidate)
+		candidates = filtered
+		if candidates.is_empty():
+			return ""
+	if candidates.is_empty():
+		var fallback_prefix := template_prefix_for_biome("forgotten_castle")
+		if not biome_templates.is_empty():
+			fallback_prefix = str(biome_templates[0]).split("_", false)[0]
+		return "%s_courtyard" % fallback_prefix
+	if rng != null and candidates.size() > 1:
+		return candidates[rng.randi_range(0, candidates.size() - 1)]
+	return candidates[0]

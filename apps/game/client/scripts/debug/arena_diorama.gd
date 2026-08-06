@@ -8,6 +8,7 @@ const FLOOR_SIZE := 30.0
 const WALL_HEIGHT := 5.0
 const HUB_RETURN_Z := -6.0
 
+
 static func apply(arena: Node3D) -> void:
 	var mats := _load_materials()
 	VisualLighting.apply_arena(arena)
@@ -19,12 +20,18 @@ static func apply(arena: Node3D) -> void:
 
 static func _load_materials() -> Dictionary:
 	var theme := PixelDioramaStyle.theme_from_biome(BiomeRegistry.BIOME_CASTLE)
-	var floor_alt := PixelDioramaStyle.make_surface_material(
-		PixelDioramaStyle.SurfaceKind.FLOOR,
-		theme
-	).duplicate() as ShaderMaterial
+	var floor_alt := (
+		(
+			PixelDioramaStyle
+			. make_surface_material(PixelDioramaStyle.SurfaceKind.FLOOR, theme)
+			. duplicate()
+		)
+		as ShaderMaterial
+	)
 	var palette := PixelDioramaStyle.get_palette(theme)
-	floor_alt.set_shader_parameter("color_base", palette[PixelDioramaStyle.PaletteSlot.FLOOR_SHADOW])
+	floor_alt.set_shader_parameter(
+		"color_base", palette[PixelDioramaStyle.PaletteSlot.FLOOR_SHADOW]
+	)
 	return {
 		"floor": PixelDioramaStyle.make_floor_material(theme),
 		"floor_alt": floor_alt,
@@ -91,20 +98,30 @@ static func _dress_walls(arena: Node3D, mats: Dictionary) -> void:
 	var wall_y := WALL_HEIGHT * 0.5
 
 	for side in [
-		{"name": "NorthWall", "pos": Vector3(0.0, wall_y, -half), "size": Vector3(span, WALL_HEIGHT, thickness)},
-		{"name": "SouthWall", "pos": Vector3(0.0, wall_y, half), "size": Vector3(span, WALL_HEIGHT, thickness)},
-		{"name": "EastWall", "pos": Vector3(half, wall_y, 0.0), "size": Vector3(thickness, WALL_HEIGHT, span)},
-		{"name": "WestWall", "pos": Vector3(-half, wall_y, 0.0), "size": Vector3(thickness, WALL_HEIGHT, span)},
+		{
+			"name": "NorthWall",
+			"pos": Vector3(0.0, wall_y, -half),
+			"size": Vector3(span, WALL_HEIGHT, thickness)
+		},
+		{
+			"name": "SouthWall",
+			"pos": Vector3(0.0, wall_y, half),
+			"size": Vector3(span, WALL_HEIGHT, thickness)
+		},
+		{
+			"name": "EastWall",
+			"pos": Vector3(half, wall_y, 0.0),
+			"size": Vector3(thickness, WALL_HEIGHT, span)
+		},
+		{
+			"name": "WestWall",
+			"pos": Vector3(-half, wall_y, 0.0),
+			"size": Vector3(thickness, WALL_HEIGHT, span)
+		},
 	]:
 		var existing := walls.get_node_or_null(side.name) as MeshInstance3D
 		if existing == null:
-			existing = PixelDioramaStyle.add_box(
-				walls,
-				side.size,
-				side.pos,
-				mats.wall,
-				side.name
-			)
+			existing = PixelDioramaStyle.add_box(walls, side.size, side.pos, mats.wall, side.name)
 		else:
 			existing.position = side.pos
 
@@ -119,10 +136,27 @@ static func _dress_walls(arena: Node3D, mats: Dictionary) -> void:
 	wall_collision.collision_layer = 1
 	wall_collision.collision_mask = 0
 
-	_add_wall_collision_box(wall_collision, "ColNorth", Vector3(0.0, wall_y, -half), Vector3(span, WALL_HEIGHT, thickness))
-	_add_wall_collision_box(wall_collision, "ColSouth", Vector3(0.0, wall_y, half), Vector3(span, WALL_HEIGHT, thickness))
-	_add_wall_collision_box(wall_collision, "ColEast", Vector3(half, wall_y, 0.0), Vector3(thickness, WALL_HEIGHT, span))
-	_add_wall_collision_box(wall_collision, "ColWest", Vector3(-half, wall_y, 0.0), Vector3(thickness, WALL_HEIGHT, span))
+	_add_wall_collision_box(
+		wall_collision,
+		"ColNorth",
+		Vector3(0.0, wall_y, -half),
+		Vector3(span, WALL_HEIGHT, thickness)
+	)
+	_add_wall_collision_box(
+		wall_collision,
+		"ColSouth",
+		Vector3(0.0, wall_y, half),
+		Vector3(span, WALL_HEIGHT, thickness)
+	)
+	_add_wall_collision_box(
+		wall_collision, "ColEast", Vector3(half, wall_y, 0.0), Vector3(thickness, WALL_HEIGHT, span)
+	)
+	_add_wall_collision_box(
+		wall_collision,
+		"ColWest",
+		Vector3(-half, wall_y, 0.0),
+		Vector3(thickness, WALL_HEIGHT, span)
+	)
 
 	for side_name in ["NorthWall", "SouthWall"]:
 		var banner_x := -8.0 if side_name == "NorthWall" else 8.0
@@ -137,10 +171,7 @@ static func _dress_walls(arena: Node3D, mats: Dictionary) -> void:
 
 
 static func _add_wall_collision_box(
-	parent: StaticBody3D,
-	node_name: String,
-	center: Vector3,
-	size: Vector3
+	parent: StaticBody3D, node_name: String, center: Vector3, size: Vector3
 ) -> void:
 	var shape_node := CollisionShape3D.new()
 	shape_node.name = node_name
@@ -185,7 +216,12 @@ static func _add_arena_accent_lights(arena: Node3D) -> void:
 	lights.name = "ArenaAccentLights"
 	arena.add_child(lights)
 
-	for corner in [Vector3(-10.0, 3.2, -10.0), Vector3(10.0, 3.2, -10.0), Vector3(-10.0, 3.2, 10.0), Vector3(10.0, 3.2, 10.0)]:
+	for corner in [
+		Vector3(-10.0, 3.2, -10.0),
+		Vector3(10.0, 3.2, -10.0),
+		Vector3(-10.0, 3.2, 10.0),
+		Vector3(10.0, 3.2, 10.0)
+	]:
 		var torch := OmniLight3D.new()
 		torch.light_color = Color(1.0, 0.78, 0.45)
 		torch.light_energy = 0.55

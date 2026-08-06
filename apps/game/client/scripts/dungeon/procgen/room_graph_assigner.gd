@@ -6,8 +6,10 @@ extends RefCounted
 const COMBAT_SEMANTICS := ["courtyard", "hall", "arena"]
 
 
-static func assign(biome: Dictionary, graph: RoomGraph, _rng: RandomNumberGenerator) -> Dictionary:
-	var prefix := RoomTemplateCatalog.template_prefix_for_biome(str(biome.get("id", "forgotten_castle")))
+static func assign(biome: Dictionary, graph: RoomGraph, rng: RandomNumberGenerator) -> Dictionary:
+	var prefix := RoomTemplateCatalog.template_prefix_for_biome(
+		str(biome.get("id", "forgotten_castle"))
+	)
 	var biome_templates: Array = biome.get("roomTemplateIds", [])
 	var combat_preferred := {
 		"courtyard": "%s_courtyard" % prefix,
@@ -20,25 +22,24 @@ static func assign(biome: Dictionary, graph: RoomGraph, _rng: RandomNumberGenera
 	for layout_id in _sorted_layout_ids(graph):
 		var slot := graph.get_slot(layout_id)
 		var resolved := _resolve_room(
-			graph,
-			slot,
-			prefix,
-			combat_preferred,
-			biome_templates,
-			combat_index,
-			filler_index
+			graph, slot, prefix, combat_preferred, biome_templates, combat_index, filler_index, rng
 		)
 		if resolved["type"] == "combat":
 			combat_index += 1
 		if resolved["type"] == "filler":
 			filler_index += 1
-		rooms.append({
-			"layout_id": layout_id,
-			"semantic_id": resolved["semantic_id"],
-			"template_id": resolved["template_id"],
-			"type": resolved["type"],
-			"tags": resolved["tags"],
-		})
+		(
+			rooms
+			. append(
+				{
+					"layout_id": layout_id,
+					"semantic_id": resolved["semantic_id"],
+					"template_id": resolved["template_id"],
+					"type": resolved["type"],
+					"tags": resolved["tags"],
+				}
+			)
+		)
 	return {
 		"rooms": rooms,
 		"entrance_layout_id": graph.start_id,
@@ -63,14 +64,16 @@ static func _resolve_room(
 	combat_preferred: Dictionary,
 	biome_templates: Array,
 	combat_index: int,
-	filler_index: int
+	filler_index: int,
+	rng: RandomNumberGenerator
 ) -> Dictionary:
 	if slot.is_filler:
 		var filler_doors := _required_doors_for_slot(graph, slot)
 		return {
 			"semantic_id": "filler_%d" % filler_index,
-			"template_id": RoomTemplateCatalog.pick_template_for_doors(
-				"%s_hall" % prefix, filler_doors, biome_templates
+			"template_id":
+			RoomTemplateCatalog.pick_template_for_doors(
+				"%s_hall" % prefix, filler_doors, biome_templates, rng
 			),
 			"type": "filler",
 			"tags": ["filler"],
@@ -80,8 +83,9 @@ static func _resolve_room(
 			var start_doors := _required_doors_for_slot(graph, slot)
 			return {
 				"semantic_id": "entrance",
-				"template_id": RoomTemplateCatalog.pick_template_for_doors(
-					"%s_entrance" % prefix, start_doors, biome_templates
+				"template_id":
+				RoomTemplateCatalog.pick_template_for_doors(
+					"%s_entrance" % prefix, start_doors, biome_templates, rng, "entrance"
 				),
 				"type": "hub",
 				"tags": ["spawn"],
@@ -97,8 +101,9 @@ static func _resolve_room(
 			var treasure_doors := _required_doors_for_slot(graph, slot)
 			return {
 				"semantic_id": "treasure",
-				"template_id": RoomTemplateCatalog.pick_template_for_doors(
-					"%s_treasure" % prefix, treasure_doors, biome_templates
+				"template_id":
+				RoomTemplateCatalog.pick_template_for_doors(
+					"%s_treasure" % prefix, treasure_doors, biome_templates, rng
 				),
 				"type": "treasure",
 				"tags": [],
@@ -107,18 +112,31 @@ static func _resolve_room(
 			var stairs_doors := _required_doors_for_slot(graph, slot)
 			return {
 				"semantic_id": "stairs",
-				"template_id": RoomTemplateCatalog.pick_template_for_doors(
-					"%s_stairs" % prefix, stairs_doors, biome_templates
+				"template_id":
+				RoomTemplateCatalog.pick_template_for_doors(
+					"%s_stairs" % prefix, stairs_doors, biome_templates, rng, "stairs"
 				),
 				"type": "corridor",
 				"tags": [],
+			}
+		RoomGraphSlot.SlotType.SHOP:
+			var shop_doors := _required_doors_for_slot(graph, slot)
+			return {
+				"semantic_id": "shop",
+				"template_id":
+				RoomTemplateCatalog.pick_template_for_doors(
+					"%s_shop" % prefix, shop_doors, biome_templates, rng
+				),
+				"type": "shop",
+				"tags": ["merchant"],
 			}
 		RoomGraphSlot.SlotType.OBSTACLE:
 			var obstacle_doors := _required_doors_for_slot(graph, slot)
 			return {
 				"semantic_id": "obstacle",
-				"template_id": RoomTemplateCatalog.pick_template_for_doors(
-					"%s_puzzle" % prefix, obstacle_doors, biome_templates
+				"template_id":
+				RoomTemplateCatalog.pick_template_for_doors(
+					"%s_puzzle" % prefix, obstacle_doors, biome_templates, rng
 				),
 				"type": "obstacle",
 				"tags": ["traversal"],
@@ -131,8 +149,9 @@ static func _resolve_room(
 			var secret_doors := _required_doors_for_secret(graph, slot)
 			return {
 				"semantic_id": semantic,
-				"template_id": RoomTemplateCatalog.pick_template_for_doors(
-					"%s_secret" % prefix, secret_doors, biome_templates
+				"template_id":
+				RoomTemplateCatalog.pick_template_for_doors(
+					"%s_secret" % prefix, secret_doors, biome_templates, rng, "secret"
 				),
 				"type": "secret",
 				"tags": ["secret_room"],
@@ -147,8 +166,9 @@ static func _resolve_room(
 			var preferred: String = combat_preferred.get(semantic, "%s_courtyard" % prefix)
 			return {
 				"semantic_id": semantic,
-				"template_id": RoomTemplateCatalog.pick_template_for_doors(
-					preferred, required_doors, biome_templates
+				"template_id":
+				RoomTemplateCatalog.pick_template_for_doors(
+					preferred, required_doors, biome_templates, rng
 				),
 				"type": "combat",
 				"tags": [],

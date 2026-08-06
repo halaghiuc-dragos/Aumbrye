@@ -1,5 +1,7 @@
 # Lock-on movement — improvement plan
 
+## Status: FINISHED
+
 ## Current state
 
 `LockOnMovement` (`apps/game/client/scripts/player/lock_on_movement.gd`) is a static-only helper: it converts stick input into a tangential strafe around the target, applies a spring correction toward `ORBIT_RADIUS = 1.75` m, converts world directions into `Facing`-local yaw, and rotates `Facing` toward the aim point at `FACING_SPEED = 10.0`. See [`../existing_codebase/lock-on-movement.md`](../existing_codebase/lock-on-movement.md).
@@ -8,17 +10,17 @@ The maths is correct and cleanly separated. What is missing is that locked movem
 
 ## Gaps
 
-| ID | Sev | Gap | Evidence |
-|----|-----|-----|----------|
-| LKM-01 | P0 | The radius spring fights deliberate retreat. `apply_orbit_radius_correction` runs on any input with `absf(input_dir.x) >= 0.01`, so a back-and-left retreat is pulled inward at up to `3.0` m/s toward the `1.75` m radius while the player is trying to disengage | `lock_on_movement.gd:71-85` |
-| LKM-02 | P0 | Locked strafing plays the forward run cycle. The helper produces a world direction and `locomotion.gd` passes only a speed magnitude to the animation director, so a circling player moon-walks | `apps/game/client/scripts/player/locomotion.gd:135-141`, `apps/game/client/scripts/player/player_anim_director.gd:155-161` |
-| LKM-03 | P1 | No speed differentiation while locked. Strafe and backpedal use `WALK_SPEED = 4.5` / `SPRINT_SPEED = 7.0` exactly as forward running, so orbiting a boss is as fast as charging it | `locomotion.gd:96-110` |
-| LKM-04 | P1 | `ORBIT_RADIUS` is one global constant shared by every enemy size. A `1.75` m orbit around a boss whose collision radius is larger than that puts the player inside the target | `lock_on_movement.gd:5`, `apps/game/client/scripts/camera/lock_on.gd:5`, `:72-73` |
-| LKM-05 | P1 | The strafe direction is quantized by `signf(stick_x)`, discarding analog magnitude, so a 20 percent stick tilt orbits at full speed | `lock_on_movement.gd:61` |
-| LKM-06 | P1 | Diagonal input is normalized after combining, so pure forward and forward-plus-strafe both move at full speed but along different arcs; there is no explicit orbit-versus-approach blend and no dead zone between them | `lock_on_movement.gd:45-51` |
-| LKM-07 | P2 | `FACING_SPEED = 10.0` is a fixed lerp rate, so facing snap is frame-rate-shaped and identical for a 5 deg correction and a 170 deg turn; there is no maximum turn rate in degrees per second | `lock_on_movement.gd:6`, `:115` |
-| LKM-08 | P2 | The correction gain `6.0` and clamp `3.0` are inline literals with no names, so the orbit spring cannot be tuned or documented | `lock_on_movement.gd:84` |
-| LKM-09 | P2 | No dodge integration. A locked dodge uses the same direction pipeline, so there is no dedicated sidestep or backstep flavour and the orbit correction still applies mid-dash | `apps/game/client/scripts/player/dodge.gd` dash direction path |
+| ID | Sev | Gap | Evidence | Resolution |
+|----|-----|-----|----------|------------|
+| LKM-01 | P0 | The radius spring fights deliberate retreat. `apply_orbit_radius_correction` runs on any input with `absf(input_dir.x) >= 0.01`, so a back-and-left retreat is pulled inward at up to `3.0` m/s toward the `1.75` m radius while the player is trying to disengage | `lock_on_movement.gd:71-85` | **FINISHED** — correction gated on strafe dominance, deadband, and outward scale (`lock_on_movement.gd`) |
+| LKM-02 | P0 | Locked strafing plays the forward run cycle. The helper produces a world direction and `locomotion.gd` passes only a speed magnitude to the animation director, so a circling player moon-walks | `apps/game/client/scripts/player/locomotion.gd:135-141`, `apps/game/client/scripts/player/player_anim_director.gd:155-161` | **FINISHED** — `locomotion.gd` passes `Facing`-local direction; `player_anim_director.gd` selects `walk_l`/`walk_r`/`walk_b` |
+| LKM-03 | P1 | No speed differentiation while locked. Strafe and backpedal use `WALK_SPEED = 4.5` / `SPRINT_SPEED = 7.0` exactly as forward running, so orbiting a boss is as fast as charging it | `locomotion.gd:96-110` | **FINISHED** — locked speed table (`LOCKED_SPEED_*`) and sprint breaks lock |
+| LKM-04 | P1 | `ORBIT_RADIUS` is one global constant shared by every enemy size. A `1.75` m orbit around a boss whose collision radius is larger than that puts the player inside the target | `lock_on_movement.gd:5`, `apps/game/client/scripts/camera/lock_on.gd:5`, `:72-73` | **FINISHED** — `get_lock_orbit_radius()` on `castle_enemy_base.gd`, threaded through `get_orbit_radius(lock_on, target)` |
+| LKM-05 | P1 | The strafe direction is quantized by `signf(stick_x)`, discarding analog magnitude, so a 20 percent stick tilt orbits at full speed | `lock_on_movement.gd:61` | **FINISHED** — raw axis with `ORBIT_INPUT_DEADZONE` |
+| LKM-06 | P1 | Diagonal input is normalized after combining, so pure forward and forward-plus-strafe both move at full speed but along different arcs; there is no explicit orbit-versus-approach blend and no dead zone between them | `lock_on_movement.gd:45-51` | **FINISHED** — analog blend with radial-forward approach |
+| LKM-07 | P2 | `FACING_SPEED = 10.0` is a fixed lerp rate, so facing snap is frame-rate-shaped and identical for a 5 deg correction and a 170 deg turn; there is no maximum turn rate in degrees per second | `lock_on_movement.gd:6`, `:115` | **FINISHED** — `FACING_TURN_RATE_DEG` / `FACING_SNAP_DEG` clamped turn rate |
+| LKM-08 | P2 | The correction gain `6.0` and clamp `3.0` are inline literals with no names, so the orbit spring cannot be tuned or documented | `lock_on_movement.gd:84` | **FINISHED** — `ORBIT_CORRECTION_GAIN` / `ORBIT_CORRECTION_CLAMP` named constants |
+| LKM-09 | P2 | No dodge integration. A locked dodge uses the same direction pipeline, so there is no dedicated sidestep or backstep flavour and the orbit correction still applies mid-dash | `apps/game/client/scripts/player/dodge.gd` dash direction path | **FINISHED** — `get_locked_dodge_direction()` in `dodge.gd`; orbit correction skipped while dashing |
 
 ## Target design
 
@@ -95,15 +97,15 @@ A 170 deg correction then completes in `0.31` s regardless of frame rate.
 
 ## Acceptance criteria
 
-- [ ] Holding back-and-left while locked at `1.75` m increases the distance to the target monotonically for 1 s. (LKM-01)
-- [ ] Strafing left while locked plays a left strafe clip, not the forward run. (LKM-02)
-- [ ] Orbiting speed is `3.51` m/s against `4.5` m/s approaching, and retreat is `2.79` m/s. (LKM-03)
-- [ ] Pressing `sprint` while locked breaks the lock instead of raising the orbit speed. (LKM-03)
-- [ ] Locking a boss with a `3.0` m collision radius orbits at `4.8` m, not `1.75` m. (LKM-04)
-- [ ] A 20 percent stick tilt orbits at roughly 20 percent of the orbit speed; a 10 percent tilt produces no movement. (LKM-05)
-- [ ] Locked forward input moves straight at the target even when the camera is 40 deg off axis. (LKM-06)
-- [ ] A 170 deg facing correction completes in `0.31` s +/- 0.03 s at both 60 and 144 FPS. (LKM-07)
-- [ ] A locked dodge with no input backsteps away from the target; with left input it sidesteps along the tangent; neither is bent by the orbit spring. (LKM-09)
+- [x] Holding back-and-left while locked at `1.75` m increases the distance to the target monotonically for 1 s. (LKM-01)
+- [x] Strafing left while locked plays a left strafe clip, not the forward run. (LKM-02)
+- [x] Orbiting speed is `3.51` m/s against `4.5` m/s approaching, and retreat is `2.79` m/s. (LKM-03)
+- [x] Pressing `sprint` while locked breaks the lock instead of raising the orbit speed. (LKM-03)
+- [x] Locking a boss with a `3.0` m collision radius orbits at `4.8` m, not `1.75` m. (LKM-04)
+- [x] A 20 percent stick tilt orbits at roughly 20 percent of the orbit speed; a 10 percent tilt produces no movement. (LKM-05)
+- [x] Locked forward input moves straight at the target even when the camera is 40 deg off axis. (LKM-06)
+- [x] A 170 deg facing correction completes in `0.31` s +/- 0.03 s at both 60 and 144 FPS. (LKM-07)
+- [x] A locked dodge with no input backsteps away from the target; with left input it sidesteps along the tangent; neither is bent by the orbit spring. (LKM-09)
 
 ## Validation
 

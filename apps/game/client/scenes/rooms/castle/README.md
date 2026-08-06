@@ -15,4 +15,4 @@ Modular blockout templates for the Forgotten Castle vertical slice.
 
 Socket convention: `DoorwaySocket` markers (N/E/S/W). See `scripts/dungeon/doorway_socket.gd`.
 
-Playable layout: `scenes/dungeon/forgotten_castle_slice.tscn`
+Playable layout (editor fixture only, not on live play path): `scenes/dungeon/forgotten_castle_slice.tscn`. Production runs load `scenes/dungeon/castle_run.tscn` with procgen definitions; the slice fixture JSON is the default for `DungeonBuilder.build()` validation.

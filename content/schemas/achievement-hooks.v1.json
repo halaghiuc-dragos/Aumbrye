@@ -1,0 +1,30 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "content/schemas/achievement-hooks.v1.json",
+  "title": "AchievementHooks",
+  "type": "object",
+  "required": ["schemaVersion", "manualUnlock", "hooks"],
+  "properties": {
+    "schemaVersion": { "type": "integer", "const": 1 },
+    "manualUnlock": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "hooks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["event", "achievementId"],
+        "properties": {
+          "event": { "type": "string", "minLength": 1 },
+          "achievementId": { "type": "string", "minLength": 1 },
+          "threshold": { "type": "integer", "minimum": 1 },
+          "counterKey": { "type": "string" },
+          "incrementKey": { "type": "string" },
+          "contextKey": { "type": "string" },
+          "contextValue": { "type": "string" }
+        }
+      }
+    }
+  }
+}

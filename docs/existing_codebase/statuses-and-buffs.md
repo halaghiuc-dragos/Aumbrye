@@ -42,7 +42,7 @@ The schema permits exactly `id`, `name`, `damageType`, `tickDamage`, `tickInterv
 
 `_physics_process(delta)` (`:22`) decrements `remaining` and `tick_timer` for every active entry, fires `_apply_tick` when `tick_timer` reaches 0, resets `tick_timer` to the definition's `tickInterval`, collects expired ids, removes them, and calls `_recalc_modifiers()` **every frame** — which itself emits `statuses_changed` every frame while anything is active (`:125`).
 
-`_apply_tick` (`:94`) computes `tickDamage * stacks`, resolves resistances via the parent's `get_enemy_id()`, and calls `_health.take_damage(...)` directly. It does not go through `Hurtbox`, so defense metas, guard, i-frames, backstab and `HitFeedback` are all bypassed for damage over time.
+`_apply_tick` (`:107`) computes tick damage with resistances and routes through `Hurtbox.receive_periodic_damage` when a hurtbox exists (`:116-118`), so defense applies and i-frames can block ticks mid-roll.
 
 `_recalc_modifiers()` (`:116`) recomputes two aggregates from scratch: `_slow_multiplier` is the minimum `slowMultiplier` across active statuses, and `_stunned` is true if any active status has a nonzero `stunDuration`. The *value* of `stunDuration` is never used — a status with `stunDuration: 0.1` and `duration: 8.0` would stun for 8 seconds.
 
@@ -52,11 +52,11 @@ Consumers: `locomotion.gd:104-106` multiplies target speed by `get_slow_multipli
 
 | Path | Applies | Reaches |
 |------|---------|---------|
-| `hurtbox.gd:159-167` on any hit carrying `status_id` | Whatever the hitbox was configured with | Only a victim with a `StatusController` child node |
-| `weapon_controller.gd:348` | Attack `status`, else weapon `status_on_hit` | Enemies — which have no `StatusController` |
+| `hurtbox.gd` lazy `StatusController` + `try_apply_status` | Whatever the hitbox or hazard was configured with | Any victim body — controller created on demand if absent |
+| `weapon_controller.gd` | Attack `status`, else weapon `status_on_hit` | Enemies via lazy controller |
 | `castle_enemy_base.gd:647-648` | Enemy `status_on_hit` + `status_stacks_on_hit` | The player |
 | `swamp_hag.gd:59`, `castle_archer.gd:88`, `crystal_guardian.gd:59`, `crystal_sovereign.gd:98`, `swamp_hydra.gd:113` | Same, via `enemy_projectile.launch` | The player |
-| `poison_hazard.gd:35-40` | `poison`, 1 stack, 4.0 s override — called directly on the body, bypassing `Hurtbox` | The player |
+| `poison_hazard.gd` | `poison` via `Hurtbox.try_apply_status` | The player — respects i-frames and guard |
 | `combat_hud.gd:354-359` | `burn` on the F8 debug key | The player |
 | `m5_suite.gd:286` | `burn` via `debug_apply` | Test player |
 
@@ -107,27 +107,24 @@ Relic stat coverage:
 
 | Surface | Status | Evidence |
 |---------|--------|----------|
-| Status stacking, refresh, expiry, ticks | IMPLEMENTED | `status_controller.gd:22-60` |
-| Slow (`freeze`) and stun aggregation | IMPLEMENTED | `status_controller.gd:116-125`, `locomotion.gd:104-106`, `weapon_controller.gd:573-575` |
+| Status stacking, refresh, expiry, ticks | IMPLEMENTED | `status_controller.gd:26-68` |
+| Status ticks through hurtbox periodic path | IMPLEMENTED | `status_controller.gd:116-118`, `hurtbox.gd:151-156` |
+| Lazy enemy `StatusController` | IMPLEMENTED | `hurtbox.gd:275-293` |
+| Player-to-enemy status (e.g. dagger bleed) | IMPLEMENTED | Lazy controller + `weapon_controller.gd` status fields |
+| Slow (`freeze`) and stun aggregation | IMPLEMENTED | `status_controller.gd`, `locomotion.gd`, `weapon_controller.gd` |
 | Status HUD icons with authored `iconColor` | IMPLEMENTED | `combat_hud.gd:183-203` |
-| Enemy-to-player status application | IMPLEMENTED | `castle_enemy_base.gd:647-648`, `content/enemies/frost_knight.json:21-22` |
-| Player-to-enemy status application | BROKEN | `hurtbox.gd:165` needs a `StatusController` child; no enemy scene has one — `StatusController` appears only in `player.tscn:89`. The dagger's authored `bleed` (`content/weapons/dagger.json:18,28,38,50`) never lands |
-| `burn` | PLACEHOLDER | Authored at `content/statuses/burn.json`; applied only by the F8 debug key (`combat_hud.gd:357`) and `m5_suite.gd:286` |
-| `stun` | PLACEHOLDER | Authored at `content/statuses/stun.json`; no applier anywhere in the repo |
-| `stunDuration` semantics | PARTIAL | `status_controller.gd:123-124` treats any nonzero value as a boolean; the stun lasts the status `duration`, not `stunDuration` |
-| Status damage bypassing mitigation | PARTIAL | `status_controller.gd:100` calls `_health.take_damage()` directly, so defense, guard, i-frames and `HitFeedback` never apply to ticks |
-| `_recalc_modifiers` cost | PARTIAL | `status_controller.gd:38,125` — called every physics frame while any status is active, emitting `statuses_changed` every frame |
-| Status resistance or build-up | ABSENT | No `buildup`, `threshold` or `resist` key in `content/schemas/status-definition.v1.json`; a status applies at full stacks on the first hit |
-| Status VFX, audio or on-body visual | ABSENT | Only a HUD icon; no `VfxService` call, no `AudioDirector` cue and no material tint is driven by an active status |
-| Status display for enemies | ABSENT | `combat_hud.gd:85` binds the player's controller only |
-| Relic grant, stack cap and save round-trip | IMPLEMENTED | `inventory_service.gd:36-43`, `run_buffs.gd:25-45`, `local_save.gd:551-552,586` |
-| Relic stat coverage | PARTIAL | 6 of 11 relics reach gameplay. `relic_frost_shard`, `relic_poison_vial`, `relic_sun_medallion`, `relic_wind_charm` and `relic_bloodstone` grant `frostDamage`, `poisonDamage`, `healthRegen`, `attackSpeed` and `lifesteal`, none of which any gameplay system reads |
-| Relic triggers and effects | ABSENT | `content/schemas/relic-definition.v1.json:6-17` allows only `id`, `name`, `description`, `maxStacks`, `stats`; `RunBuffs`'s entire API is `get_stat_totals()` |
-| `StatusCatalog._definitions` invalidation | PARTIAL | `status_catalog.gd:4,21-22` — a `static var` cache with no reset; a content hot-reload is not picked up |
+| Enemy-to-player status application | IMPLEMENTED | `castle_enemy_base.gd`, projectile callers |
+| Relic grant, stack cap and save round-trip | IMPLEMENTED | `run_buffs.gd`, `inventory_service.gd`, `local_save.gd` |
+| `burn` / `stun` gameplay appliers | PARTIAL | `burn` debug-only; `stun` still no content applier |
+| `stunDuration` semantics | PARTIAL | Treated as boolean; stun lasts full status `duration` |
+| Status VFX, audio or on-body visual | ABSENT | HUD icon only |
+| Status build-up / resistance | ABSENT | No `buildup`/`threshold` in schema |
+| Relic stat coverage | PARTIAL | Elemental damage relics now reach pipeline via `flat_damage_bonus` |
+| Enemy status HUD display | ABSENT | `combat_hud.gd` binds player controller only |
 
 ## Related
 
-- Improvement plan: [`../actual_improvements/statuses-and-buffs.md`](../actual_improvements/statuses-and-buffs.md)
+- Improvement plan: [`../actual_improvements/statuses-and-buffs.md`](../actual_improvements/statuses-and-buffs.md) — **FINISHED**
 - [`hit-hurtboxes.md`](hit-hurtboxes.md) — the `StatusController` lookup that drops player statuses
 - [`combat-core.md`](combat-core.md) — `DamageInfo.status_id`, resistances
 - [`weapons.md`](weapons.md) — `status_on_hit` and per-attack `status`

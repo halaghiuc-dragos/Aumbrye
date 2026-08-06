@@ -64,9 +64,7 @@ static func add_hint(parent: VBoxContainer, text: String) -> Label:
 
 
 static func make_menu_button(
-	text: String,
-	on_pressed: Callable,
-	min_size: Vector2 = DEFAULT_BUTTON_MIN
+	text: String, on_pressed: Callable, min_size: Vector2 = DEFAULT_BUTTON_MIN
 ) -> Button:
 	var btn := Button.new()
 	btn.text = text
@@ -108,14 +106,18 @@ static func show_confirmation(
 	msg.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	GameUISkinScript.style_body_label(msg)
 	vbox.add_child(msg)
-	var cancel := make_menu_button(cancel_text, func() -> void:
-		overlay.queue_free()
-		if on_cancel.is_valid():
-			on_cancel.call()
+	var cancel := make_menu_button(
+		cancel_text,
+		func() -> void:
+			overlay.queue_free()
+			if on_cancel.is_valid():
+				on_cancel.call()
 	)
-	var confirm := make_menu_button(confirm_text, func() -> void:
-		overlay.queue_free()
-		on_confirm.call()
+	var confirm := make_menu_button(
+		confirm_text,
+		func() -> void:
+			overlay.queue_free()
+			on_confirm.call()
 	)
 	add_button_row(vbox, [cancel, confirm])
 	cancel.focus_neighbor_right = confirm.get_path()

@@ -24,9 +24,31 @@
       "minItems": 1,
       "items": { "$ref": "#/$defs/attack_frame_data" }
     },
-    "heavy_attack": { "$ref": "#/$defs/attack_frame_data" }
+    "heavy_attack": { "$ref": "#/$defs/attack_frame_data" },
+    "art": { "$ref": "#/$defs/weapon_art" }
   },
   "$defs": {
+    "weapon_art": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "name", "stamina_cost", "damage", "poise_damage", "startup", "active", "recovery"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "name": { "type": "string", "minLength": 1 },
+        "stamina_cost": { "type": "number", "minimum": 0 },
+        "damage": { "type": "number", "minimum": 0 },
+        "poise_damage": { "type": "number", "minimum": 0 },
+        "startup": { "type": "number", "minimum": 0 },
+        "active": { "type": "number", "minimum": 0 },
+        "recovery": { "type": "number", "minimum": 0 },
+        "lunge_distance": { "type": "number", "minimum": 0 },
+        "hyperarmor": { "type": "boolean" },
+        "damage_type": { "type": "string" },
+        "status": { "type": "string" },
+        "status_stacks": { "type": "integer", "minimum": 1 },
+        "cooldown": { "type": "number", "minimum": 0 }
+      }
+    },
     "attack_frame_data": {
       "type": "object",
       "additionalProperties": false,

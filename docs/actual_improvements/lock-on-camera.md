@@ -1,5 +1,7 @@
 # Lock-on camera framing — improvement plan
 
+## Status: FINISHED
+
 ## Current state
 
 The framing path is `LockOn._update_lock_camera` (`apps/game/client/scripts/camera/lock_on.gd:161-174`) calling `update_lock_on_frame(aim, player_eye, delta)` on the spring arm (`apps/game/client/scripts/camera/orbit_camera.gd:135-176`). It blends yaw toward the target, shifts the yaw pivot sideways so both combatants sit in frame, derives pitch from the aim vector, and allows a bounded manual pitch bias. See [`../existing_codebase/lock-on-camera.md`](../existing_codebase/lock-on-camera.md).
@@ -88,15 +90,15 @@ desired_zoom = clamp(
 
 ## Acceptance criteria
 
-- [ ] Locking on in first person points the camera at the target, not 180 deg away, and tracking follows it. (LKC-01)
-- [ ] `orbit_camera.gd` has a `_update_lock_on_frame_fp` method and the suite assertion passes for a real reason. (LKC-02)
-- [ ] A 1.8 m target at 4 m frames at `5.0` m arm length; a 4.0 m target at 8 m frames at `6.6` m; both are reached within `0.5` s. (LKC-03, LKC-04)
-- [ ] All eight former literals are named constants and the pre-change camera behaviour is bit-identical at their defaults. (LKC-05)
-- [ ] Backing into a wall while locked pushes the camera in smoothly rather than snapping. (LKC-06)
-- [ ] Acquiring a target 90 deg off centre completes the swing in `0.18` s +/- 0.03 s. (LKC-07)
-- [ ] Mouse and stick pitch bias share one `22` deg clamp and both decay to zero within `0.5` s of releasing the input. (LKC-08)
-- [ ] With the pause menu open, the locked camera does not move. (LKC-09)
-- [ ] A target stepping behind a `0.6` m pillar lifts the camera by up to `10` deg and holds the lock instead of dropping it. (LKC-10)
+- [x] Locking on in first person points the camera at the target, not 180 deg away, and tracking follows it. (LKC-01)
+- [x] `orbit_camera.gd` has a `_update_lock_on_frame_fp` method and the suite assertion passes for a real reason. (LKC-02)
+- [x] A 1.8 m target at 4 m frames at `5.0` m arm length; a 4.0 m target at 8 m frames at `6.6` m; both are reached within `0.5` s. (LKC-03, LKC-04)
+- [x] All eight former literals are named constants and the pre-change camera behaviour is bit-identical at their defaults. (LKC-05)
+- [x] Backing into a wall while locked pushes the camera in smoothly rather than snapping. (LKC-06)
+- [x] Acquiring a target 90 deg off centre completes the swing in `0.18` s +/- 0.03 s. (LKC-07)
+- [x] Mouse and stick pitch bias share one `22` deg clamp and both decay to zero within `0.5` s of releasing the input. (LKC-08)
+- [x] With the pause menu open, the locked camera does not move. (LKC-09)
+- [x] A target stepping behind a `0.6` m pillar lifts the camera by up to `10` deg and holds the lock instead of dropping it. (LKC-10)
 
 ## Validation
 

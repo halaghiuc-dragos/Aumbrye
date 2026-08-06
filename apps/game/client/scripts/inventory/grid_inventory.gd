@@ -8,8 +8,12 @@ const DEFAULT_WIDTH := 6
 const DEFAULT_HEIGHT := 4
 
 const SORT_MODES: Array[String] = ["default", "name", "type", "rarity"]
-const FILTER_TYPES: Array[String] = ["all", "weapon", "armor", "accessory", "consumable", "material"]
-const FILTER_RARITIES: Array[String] = ["all", "common", "magic", "rare", "epic", "legendary", "aumbral"]
+const FILTER_TYPES: Array[String] = [
+	"all", "weapon", "armor", "accessory", "consumable", "material"
+]
+const FILTER_RARITIES: Array[String] = [
+	"all", "common", "magic", "rare", "epic", "legendary", "aumbral"
+]
 
 signal changed
 signal item_equipped(item_id: String, slot: String)
@@ -94,6 +98,37 @@ func can_place(item_id: String, x: int, y: int, ignore_index: int = -1) -> bool:
 	return true
 
 
+func add_slot(slot: Dictionary) -> bool:
+	var item_id: String = slot.get("itemId", "")
+	if item_id == "" or get_item_def(item_id).is_empty():
+		return false
+	var pos := _find_first_fit(item_id)
+	if pos.x < 0:
+		return false
+	var copy := slot.duplicate(true)
+	copy["x"] = pos.x
+	copy["y"] = pos.y
+	slots.append(_normalize_slot(copy))
+	changed.emit()
+	return true
+
+
+func has_space_for(item_id: String) -> bool:
+	return _find_first_fit(item_id).x >= 0
+
+
+func remove_quantity_at(index: int, quantity: int) -> Dictionary:
+	if index < 0 or index >= slots.size() or quantity <= 0:
+		return {}
+	var slot: Dictionary = slots[index]
+	var slot_qty := maxi(1, int(slot.get("quantity", 1)))
+	if quantity >= slot_qty:
+		return remove_at(index)
+	slot["quantity"] = slot_qty - quantity
+	changed.emit()
+	return slot.duplicate(true)
+
+
 func add_item(item_id: String, quantity: int = 1, instance_data: Dictionary = {}) -> bool:
 	var def := get_item_def(item_id)
 	if def.is_empty():
@@ -140,10 +175,17 @@ func add_item(item_id: String, quantity: int = 1, instance_data: Dictionary = {}
 	return true
 
 
-func add_rolled_item(item_id: String, roll_seed: int = -1, run_mode: String = "") -> bool:
+func add_rolled_item(
+	item_id: String,
+	roll_seed: int = -1,
+	run_mode: String = "",
+	instance_data: Dictionary = {}
+) -> bool:
 	var instance := AffixRoller.roll_instance(item_id, roll_seed, "", run_mode)
 	if instance.is_empty():
 		return false
+	if not instance_data.is_empty():
+		instance.merge(instance_data, true)
 	return _place_rolled_instance(instance)
 
 
@@ -208,18 +250,21 @@ func find_slot_at(x: int, y: int) -> int:
 func sort_slots(mode: String) -> void:
 	match mode:
 		"name":
-			slots.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
-				return get_slot_display_name(a) < get_slot_display_name(b)
+			slots.sort_custom(
+				func(a: Dictionary, b: Dictionary) -> bool:
+					return get_slot_display_name(a) < get_slot_display_name(b)
 			)
 		"type":
-			slots.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
-				var da := get_item_def(a.get("itemId", ""))
-				var db := get_item_def(b.get("itemId", ""))
-				return da.get("itemType", "") < db.get("itemType", "")
+			slots.sort_custom(
+				func(a: Dictionary, b: Dictionary) -> bool:
+					var da := get_item_def(a.get("itemId", ""))
+					var db := get_item_def(b.get("itemId", ""))
+					return da.get("itemType", "") < db.get("itemType", "")
 			)
 		"rarity":
-			slots.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
-				return _rarity_weight(get_slot_rarity(a)) > _rarity_weight(get_slot_rarity(b))
+			slots.sort_custom(
+				func(a: Dictionary, b: Dictionary) -> bool:
+					return _rarity_weight(get_slot_rarity(a)) > _rarity_weight(get_slot_rarity(b))
 			)
 		_:
 			pass
@@ -321,6 +366,26 @@ func get_equipped_weapon_data_path() -> String:
 	return "content/weapons/%s.json" % weapon_id
 
 
+func strip_equipped_run_loot(item_id_set: Dictionary = {}) -> void:
+	var stripped := false
+	for slot_name in EquipmentHelper.SLOT_ORDER:
+		var inst: Dictionary = equipped.get(slot_name, {})
+		if inst.is_empty():
+			continue
+		var should_remove: bool = bool(inst.get("runLoot", false))
+		if not should_remove:
+			var equipped_id := str(inst.get("itemId", ""))
+			if item_id_set.has(equipped_id):
+				should_remove = true
+		if not should_remove:
+			continue
+		equipped[slot_name] = {}
+		item_unequipped.emit(slot_name)
+		stripped = true
+	if stripped:
+		changed.emit()
+
+
 func remove_items_by_id(item_id: String, quantity: int = 1) -> int:
 	var removed := 0
 	var i := slots.size() - 1
@@ -373,7 +438,7 @@ func _deserialize_equipped(data: Variant) -> void:
 	if data.has("weapon") and data["weapon"] is String:
 		var legacy_id: String = data["weapon"]
 		if legacy_id != "":
-			equipped["weapon"] = { "itemId": legacy_id, "quantity": 1 }
+			equipped["weapon"] = {"itemId": legacy_id, "quantity": 1}
 	for slot_name in EquipmentHelper.SLOT_ORDER:
 		var inst: Variant = data.get(slot_name, {})
 		if inst is String:
@@ -449,9 +514,17 @@ func _passes_filter(slot: Dictionary, type_filter: String, rarity_filter: String
 
 func _rarity_weight(rarity: String) -> int:
 	match rarity:
-		"legendary": return 5
-		"epic": return 4
-		"rare": return 3
-		"magic": return 2
-		"common": return 1
-		_: return 0
+		"aumbral":
+			return 6
+		"legendary":
+			return 5
+		"epic":
+			return 4
+		"rare":
+			return 3
+		"magic":
+			return 2
+		"common":
+			return 1
+		_:
+			return 0

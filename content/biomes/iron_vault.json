@@ -1,14 +1,13 @@
 {
   "id": "iron_vault",
   "name": "Iron Vault",
-  "roomCount": {
-    "min": 6,
-    "max": 10
-  },
-  "gridStep": 14,
+  "templatePrefix": "vault",
+  "assetFolder": "vault",
+  "roomCount": { "min": 6, "max": 10 },
   "roomTemplateIds": [
     "vault_entrance",
     "vault_stairs",
+    "vault_corridor",
     "vault_courtyard",
     "vault_hall",
     "vault_treasure",
@@ -17,32 +16,40 @@
     "vault_boss",
     "vault_puzzle"
   ],
+  "materials": {
+    "floor": "res://assets/vault/mat_floor.tres",
+    "wall": "res://assets/vault/mat_wall.tres",
+    "ceiling": "res://assets/vault/mat_ceiling.tres",
+    "accent": "res://assets/vault/mat_accent.tres"
+  },
+  "lighting": {
+    "ambientColor": [0.4, 0.35, 0.32],
+    "ambientEnergy": 0.45,
+    "fogEnabled": true,
+    "fogColor": [0.12, 0.1, 0.08],
+    "fogDensity": 0.018,
+    "torchColor": [0.95, 0.65, 0.35],
+    "torchEnergy": 2.0
+  },
+  "audioProfile": "content/audio_profiles/iron_vault.json",
+  "propKit": {
+    "pillar": "res://scenes/props/vault/pillar.tscn",
+    "sconce": "res://scenes/props/vault/sconce.tscn",
+    "rubble": [
+      "res://scenes/props/vault/rubble_a.tscn",
+      "res://scenes/props/vault/rubble_b.tscn"
+    ]
+  },
   "enemyPool": [
-    {
-      "enemyId": "castle_grunt",
-      "weight": 3
-    },
-    {
-      "enemyId": "castle_archer",
-      "weight": 2
-    },
-    {
-      "enemyId": "castle_shield",
-      "weight": 2
-    },
-    {
-      "enemyId": "castle_hound",
-      "weight": 2
-    },
-    {
-      "enemyId": "miniboss_castle_captain",
-      "weight": 1
-    }
+    { "enemyId": "castle_grunt", "weight": 3 },
+    { "enemyId": "castle_archer", "weight": 2 },
+    { "enemyId": "castle_shield", "weight": 2 },
+    { "enemyId": "castle_hound", "weight": 2 },
+    { "enemyId": "miniboss_castle_captain", "weight": 1 }
   ],
   "bossPool": [
-    {
-      "enemyId": "boss_castle_knight"
-    }
+    { "enemyId": "boss_castle_knight", "weight": 3 },
+    { "enemyId": "miniboss_castle_captain", "weight": 1 }
   ],
   "budgets": {
     "baseEnemyThreat": 100,
@@ -50,5 +57,25 @@
     "threatPerTier": 20,
     "lootPerTier": 10
   },
-  "requiresSecret": true
+  "lootTables": {
+    "treasure": [
+      { "itemId": "health_potion", "quantity": [2, 3], "weight": 3 },
+      { "itemId": "stone_relic_heart", "quantity": [1, 1], "weight": 2 }
+    ],
+    "secret": [
+      { "itemId": "stone_relic_heart", "quantity": [1, 1], "weight": 2 },
+      { "itemId": "health_potion", "quantity": [4, 5], "weight": 3 }
+    ],
+    "side": [
+      { "itemId": "castle_gauntlets", "quantity": [1, 1], "weight": 2 },
+      { "itemId": "swift_step_charm", "quantity": [1, 1], "weight": 2 }
+    ],
+    "armory": [{ "itemId": "war_hammer", "quantity": [1, 1], "weight": 1 }]
+  },
+  "trapPool": [
+    { "trapId": "spike_trap", "weight": 3 },
+    { "trapId": "falling_trap", "weight": 1 }
+  ],
+  "requiresSecret": true,
+  "finalFloor": { "bossId": "boss_castle_knight" }
 }

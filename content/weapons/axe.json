@@ -5,7 +5,10 @@
   "damage_type": "physical",
   "buffer_window": 0.15,
   "lunge_distance": 0.45,
-  "scaling": { "physicalDamage": 1.8, "poiseDamage": 1.2 },
+  "scaling": {
+    "physicalDamage": 1.8,
+    "poiseDamage": 1.2
+  },
   "light_attacks": [
     {
       "damage": 20,
@@ -43,5 +46,18 @@
     "active": 0.22,
     "recovery": 0.58,
     "lunge_distance": 0.6
+  },
+  "art": {
+    "id": "rend",
+    "name": "Rend",
+    "stamina_cost": 26,
+    "damage": 38,
+    "poise_damage": 42,
+    "startup": 0.34,
+    "active": 0.18,
+    "recovery": 0.48,
+    "lunge_distance": 0.45,
+    "hyperarmor": true,
+    "cooldown": 6.0
   }
 }

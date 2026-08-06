@@ -6,7 +6,10 @@
   "status_on_hit": "bleed",
   "buffer_window": 0.25,
   "lunge_distance": 0.3,
-  "scaling": { "critChance": 2.0, "moveSpeed": 0.5 },
+  "scaling": {
+    "critChance": 2.0,
+    "moveSpeed": 0.5
+  },
   "light_attacks": [
     {
       "damage": 7,
@@ -50,5 +53,18 @@
     "status": "bleed",
     "status_stacks": 3,
     "lunge_distance": 0.4
+  },
+  "art": {
+    "id": "shadowstep",
+    "name": "Shadowstep",
+    "stamina_cost": 20,
+    "damage": 24,
+    "poise_damage": 18,
+    "startup": 0.18,
+    "active": 0.12,
+    "recovery": 0.35,
+    "lunge_distance": 0.6,
+    "hyperarmor": false,
+    "cooldown": 7.0
   }
 }

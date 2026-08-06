@@ -1,14 +1,13 @@
 {
   "id": "venom_mire",
   "name": "Venom Mire",
-  "roomCount": {
-    "min": 6,
-    "max": 10
-  },
-  "gridStep": 14,
+  "templatePrefix": "mire",
+  "assetFolder": "mire",
+  "roomCount": { "min": 6, "max": 10 },
   "roomTemplateIds": [
     "mire_entrance",
     "mire_stairs",
+    "mire_corridor",
     "mire_courtyard",
     "mire_hall",
     "mire_treasure",
@@ -17,32 +16,40 @@
     "mire_boss",
     "mire_puzzle"
   ],
+  "materials": {
+    "floor": "res://assets/mire/mat_floor.tres",
+    "wall": "res://assets/mire/mat_wall.tres",
+    "ceiling": "res://assets/mire/mat_ceiling.tres",
+    "accent": "res://assets/mire/mat_accent.tres"
+  },
+  "lighting": {
+    "ambientColor": [0.28, 0.42, 0.22],
+    "ambientEnergy": 0.42,
+    "fogEnabled": true,
+    "fogColor": [0.08, 0.18, 0.06],
+    "fogDensity": 0.038,
+    "torchColor": [0.45, 0.65, 0.25],
+    "torchEnergy": 1.9
+  },
+  "audioProfile": "content/audio_profiles/venom_mire.json",
+  "propKit": {
+    "pillar": "res://scenes/props/mire/pillar.tscn",
+    "sconce": "res://scenes/props/mire/sconce.tscn",
+    "rubble": [
+      "res://scenes/props/mire/rubble_a.tscn",
+      "res://scenes/props/mire/rubble_b.tscn"
+    ]
+  },
   "enemyPool": [
-    {
-      "enemyId": "swamp_bogling",
-      "weight": 3
-    },
-    {
-      "enemyId": "swamp_leech",
-      "weight": 2
-    },
-    {
-      "enemyId": "swamp_spitter",
-      "weight": 2
-    },
-    {
-      "enemyId": "swamp_brute",
-      "weight": 2
-    },
-    {
-      "enemyId": "swamp_hydra",
-      "weight": 1
-    }
+    { "enemyId": "swamp_bogling", "weight": 3 },
+    { "enemyId": "swamp_leech", "weight": 2 },
+    { "enemyId": "swamp_spitter", "weight": 2 },
+    { "enemyId": "swamp_brute", "weight": 2 },
+    { "enemyId": "swamp_hydra", "weight": 1 }
   ],
   "bossPool": [
-    {
-      "enemyId": "boss_swamp_devourer"
-    }
+    { "enemyId": "boss_swamp_devourer", "weight": 3 },
+    { "enemyId": "swamp_hydra", "weight": 1 }
   ],
   "budgets": {
     "baseEnemyThreat": 100,
@@ -50,5 +57,25 @@
     "threatPerTier": 20,
     "lootPerTier": 10
   },
-  "requiresSecret": true
+  "lootTables": {
+    "treasure": [
+      { "itemId": "health_potion", "quantity": [2, 3], "weight": 3 },
+      { "itemId": "poison_relic_vial", "quantity": [1, 1], "weight": 2 }
+    ],
+    "secret": [
+      { "itemId": "poison_relic_vial", "quantity": [1, 1], "weight": 2 },
+      { "itemId": "health_potion", "quantity": [3, 4], "weight": 3 }
+    ],
+    "side": [
+      { "itemId": "swamp_bog_boots", "quantity": [1, 1], "weight": 2 },
+      { "itemId": "blood_relic_stone", "quantity": [1, 1], "weight": 2 }
+    ],
+    "armory": [{ "itemId": "swamp_toxin_dagger", "quantity": [1, 1], "weight": 1 }]
+  },
+  "trapPool": [
+    { "trapId": "poison_pool", "weight": 3 },
+    { "trapId": "falling_trap", "weight": 1 }
+  ],
+  "requiresSecret": true,
+  "finalFloor": { "bossId": "boss_swamp_devourer" }
 }

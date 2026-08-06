@@ -1,0 +1,11 @@
+{
+  "id": "boss_sigil",
+  "name": "Boss Sigil",
+  "itemType": "material",
+  "gridWidth": 1,
+  "gridHeight": 1,
+  "stackSize": 1,
+  "description": "Opens the boss arena door on this floor.",
+  "value": 0,
+  "lootValue": 0
+}

@@ -23,6 +23,9 @@ public class RunService : IRunService
         _cache = cache;
     }
 
+    private static int GenerationSeedFor(Run run) =>
+        DungeonSeedDeriver.GenerationSeed(run.Seed, run.Tier, 1);
+
     public async Task<CreateRunResult> CreateRunAsync(
         Guid accountId,
         string biomeId,
@@ -67,6 +70,7 @@ public class RunService : IRunService
             return new CreateRunResult(false, Error: ex.Message);
         }
 
+        var lootIds = LootInstanceIds.ParseLoot(json).Keys.ToArray();
         var run = new Run
         {
             Id = runId,
@@ -78,11 +82,13 @@ public class RunService : IRunService
             Status = RunStatus.Active,
             CreatedAt = DateTimeOffset.UtcNow,
             DefinitionChecksum = checksum,
+            LootInstanceIdsJson = JsonSerializer.Serialize(lootIds),
         };
         _db.Set<Run>().Add(run);
         await _db.SaveChangesAsync(ct);
         await _cache.SetAsync(runId, json, CacheTtl, ct);
 
+        ApiMetrics.RunsCreated.Add(1);
         return new CreateRunResult(true, runId, baseSeed, biomeId, json);
     }
 
@@ -97,7 +103,7 @@ public class RunService : IRunService
         if (cached != null)
             return cached;
 
-        var generationSeed = DungeonSeedDeriver.GenerationSeed(run.Seed, run.Tier, 1);
+        var generationSeed = GenerationSeedFor(run);
         var (json, _) = _generator.Generate(
             run.BiomeId,
             generationSeed,
@@ -117,8 +123,8 @@ public class RunService : IRunService
         var run = await _db.Set<Run>()
             .FirstOrDefaultAsync(r => r.Id == runId && r.AccountId == accountId, ct);
         if (run == null)
-            return new CompleteRunResult(false, Error: "Run not found.");
-        if (run.Status == RunStatus.Completed)
+            return new CompleteRunResult(false, runId, Error: "Run not found.");
+        if (run.Status is RunStatus.Completed or RunStatus.Abandoned)
             return new CompleteRunResult(false, runId, Error: "Run already completed.");
 
         if (input.Outcome is not ("escaped" or "died" or "abandoned"))
@@ -133,9 +139,12 @@ public class RunService : IRunService
         if (input.LootClaimedInstanceIds.Count > 64)
             return new CompleteRunResult(false, runId, Error: "Too many loot claims.");
 
-        if (input.LootClaimedInstanceIds.Distinct(StringComparer.Ordinal).Count()
+        if (input.LootClaimedInstanceIds.Distinct(StringComparer.OrdinalIgnoreCase).Count()
             != input.LootClaimedInstanceIds.Count)
+        {
+            ApiMetrics.LootClaimsRejected.Add(1);
             return new CompleteRunResult(false, runId, Error: "Duplicate loot instance id.");
+        }
 
         if (input.Outcome == "escaped" && input.ElapsedSeconds < 5)
             return new CompleteRunResult(false, runId, Error: "Elapsed time too short for escape.");
@@ -146,23 +155,29 @@ public class RunService : IRunService
                 return new CompleteRunResult(false, runId, Error: "Invalid loot instance id.");
         }
 
+        var persistedLootIds = ParsePersistedLootIds(run.LootInstanceIdsJson);
+        foreach (var lootId in input.LootClaimedInstanceIds)
+        {
+            if (!persistedLootIds.Contains(lootId))
+            {
+                ApiMetrics.LootClaimsRejected.Add(1);
+                return new CompleteRunResult(false, runId, Error: "Unknown loot instance id.");
+            }
+        }
+
         var definitionJson = await _cache.GetAsync(runId, ct);
         if (definitionJson == null)
         {
+            var generationSeed = GenerationSeedFor(run);
             (definitionJson, _) = _generator.Generate(
                 run.BiomeId,
-                run.Seed,
+                generationSeed,
                 run.Tier,
                 run.PlayerLevelSnapshot,
                 run.Id);
         }
 
         var lootMap = LootInstanceIds.ParseLoot(definitionJson);
-        foreach (var lootId in input.LootClaimedInstanceIds)
-        {
-            if (!lootMap.ContainsKey(lootId))
-                return new CompleteRunResult(false, runId, Error: "Unknown loot instance id.");
-        }
 
         var account = await _db.Set<Account>()
             .Include(a => a.SaveBlob)
@@ -202,11 +217,33 @@ public class RunService : IRunService
             account.SaveBlob.UpdatedAt = now;
         }
 
-        run.Status = RunStatus.Completed;
+        run.Status = input.Outcome == "abandoned" ? RunStatus.Abandoned : RunStatus.Completed;
         run.CompletedAt = now;
         await _db.SaveChangesAsync(ct);
 
-        return new CompleteRunResult(true, runId, "completed", progression);
+        ApiMetrics.RunsCompleted.Add(1);
+        var statusLabel = input.Outcome == "abandoned" ? "abandoned" : "completed";
+        return new CompleteRunResult(
+            true,
+            runId,
+            statusLabel,
+            progression with { CharacterStateJson = stateJson });
+    }
+
+    private static HashSet<string> ParsePersistedLootIds(string? json)
+    {
+        if (string.IsNullOrWhiteSpace(json))
+            return new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        try
+        {
+            var ids = JsonSerializer.Deserialize<string[]>(json) ?? [];
+            return ids.ToHashSet(StringComparer.OrdinalIgnoreCase);
+        }
+        catch
+        {
+            return new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        }
     }
 }
 

@@ -9,10 +9,14 @@ static func ensure_stair_collision(room: RoomTemplate) -> void:
 		return
 	var props := room.get_node_or_null("Props")
 	if props == null:
+		push_error("StairCollisionBuilder: room '%s' has no Props node" % room.room_id)
 		return
 	if props.get_node_or_null("StairCollision"):
 		return
 	var ramp := props.get_node_or_null("StairRamp") as MeshInstance3D
+	if ramp == null:
+		push_error("StairCollisionBuilder: room '%s' Props missing StairRamp" % room.room_id)
+		return
 	var body := StaticBody3D.new()
 	body.name = "StairCollision"
 	body.collision_layer = 1

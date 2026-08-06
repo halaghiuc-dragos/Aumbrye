@@ -13,7 +13,7 @@ func _ready() -> void:
 		facing = Node3D.new()
 		facing.name = "Facing"
 		add_child(facing)
-	var visual := CharacterSkin.build_player_body(facing, PixelStyle.PaletteTheme.CASTLE)
+	var visual := CharacterSkin.build_player_body(facing, -1)
 	_attach_animation_player(visual)
 
 

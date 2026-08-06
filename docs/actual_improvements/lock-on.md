@@ -1,5 +1,7 @@
 # Lock-on — improvement plan
 
+## Status: FINISHED
+
 ## Current state
 
 `LockOn` (`apps/game/client/scripts/camera/lock_on.gd`) acquires a target inside an `18.0` m range and a `75` deg cone, retains it through a `0.75` s line-of-sight grace, advances to the next enemy when the current one dies, and switches horizontally and vertically on stick flicks and the mouse wheel. The acquisition ordering, the AABB-based aim point, and the defeated-enemy raycast exclusions are all well built. See [`../existing_codebase/lock-on.md`](../existing_codebase/lock-on.md).
@@ -126,7 +128,7 @@ Extend `apps/game/client/scripts/validation/suites/lock_on_suite.gd`:
 - `lock_on.lock_priority_opt_out` — a `lockable` stub returning `-1.0` is excluded from `_get_lockable_targets`.
 - `lock_on.reticle_follows_target` — instance the reticle, lock a target, and assert its position equals `camera.unproject_position(aim)` rounded to whole pixels.
 
-Remove or implement the stale assertion: `lock_on_suite.gd` currently asserts `orbit_camera.gd` has a `_update_lock_on_frame_fp` method that does not exist. See LKC-02 in [`lock-on-camera.md`](lock-on-camera.md).
+First-person lock-on framing is implemented in [`lock-on-camera.md`](lock-on-camera.md) (`_update_lock_on_frame_fp`, LKC-01/LKC-02).
 
 ## Related
 - Existing state: [`../existing_codebase/lock-on.md`](../existing_codebase/lock-on.md)

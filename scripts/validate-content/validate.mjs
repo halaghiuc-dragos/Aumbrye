@@ -11,6 +11,44 @@ const schemasRoot = join(contentRoot, "schemas");
 const strictContent = process.argv.includes("--strict-content");
 const PLACEHOLDER_DESC = /^M6 content item\.?$/i;
 
+const UNSCHEMA_ALLOWLIST = new Set([
+  "content/fixtures/mix_seed_parity.json",
+  "content/fixtures/room_kit_specs.json",
+]);
+
+const SCHEMA_PREFIXES = [
+  "fixtures/dungeon_definition",
+  "fixtures/forgotten_castle_slice.json",
+  "fixtures/inventory_sample.v1.json",
+  "fixtures/item_instance_roll_sample.v1.json",
+  "fixtures/character_state_sample.v1.json",
+  "fixtures/input_bindings_sample.v1.json",
+  "enemies/",
+  "weapons/",
+  "items/",
+  "bosses/",
+  "biomes/",
+  "affixes/",
+  "progression/",
+  "talents/",
+  "npcs/",
+  "quests/",
+  "dialogue/",
+  "relics/",
+  "recipes/",
+  "merchant/",
+  "classes/",
+  "audio_profiles/",
+  "achievements/",
+  "statuses/",
+  "loot/",
+  "hub/",
+  "waves/",
+  "audio/",
+  "ui/",
+  "characters/",
+];
+
 const ALLOWED_ITEM_STAT_KEYS = new Set([
   "maxHealth",
   "healthRegen",
@@ -41,15 +79,6 @@ const ALLOWED_ITEM_STAT_KEYS = new Set([
   "cooldownReduction",
 ]);
 
-
-const SCHEMA_MAP = {
-  dungeon_definition: "dungeon-definition.v1.json",
-  enemy_definition: "enemy-definition.v1.json",
-  weapon_definition: "weapon-definition.v1.json",
-  item_instance: "item-instance.v1.json",
-  inventory: "inventory.v1.json",
-};
-
 function collectJsonFiles(dir) {
   const results = [];
   for (const entry of readdirSync(dir)) {
@@ -68,10 +97,19 @@ function collectJsonFiles(dir) {
 function resolveSchemaForFile(filePath) {
   const name = relative(contentRoot, filePath).replace(/\\/g, "/");
   if (name.startsWith("fixtures/dungeon_definition") || name === "fixtures/forgotten_castle_slice.json") {
+    if (name === "fixtures/dungeon_definition_v2_gdscript.json") {
+      return join(schemasRoot, "dungeon-definition.v2.json");
+    }
     return join(schemasRoot, "dungeon-definition.v1.json");
   }
   if (name === "fixtures/inventory_sample.v1.json") {
     return join(schemasRoot, "inventory.v1.json");
+  }
+  if (name === "fixtures/inventory_sample.v2.json") {
+    return join(schemasRoot, "inventory.v2.json");
+  }
+  if (name === "fixtures/item_instance_roll_sample.v1.json") {
+    return join(schemasRoot, "item-instance-roll.v1.json");
   }
   if (name.startsWith("enemies/")) {
     return join(schemasRoot, "enemy-definition.v1.json");
@@ -83,13 +121,16 @@ function resolveSchemaForFile(filePath) {
     return join(schemasRoot, "item-catalog.v1.json");
   }
   if (name.startsWith("items/")) {
-    return join(schemasRoot, "item-instance.v1.json");
+    return join(schemasRoot, "item-definition.v1.json");
   }
   if (name.startsWith("bosses/")) {
     return join(schemasRoot, "enemy-definition.v1.json");
   }
   if (name.startsWith("biomes/")) {
-    return join(schemasRoot, "biome-definition.v1.json");
+    return join(schemasRoot, "biome-definition.v2.json");
+  }
+  if (name.startsWith("dungeons/")) {
+    return join(schemasRoot, "dungeon-catalog-entry.v1.json");
   }
   if (name === "affixes/prefixes.json" || name === "affixes/suffixes.json") {
     return join(schemasRoot, "affix-pack.v1.json");
@@ -105,6 +146,12 @@ function resolveSchemaForFile(filePath) {
   }
   if (name === "fixtures/character_state_sample.v1.json") {
     return join(schemasRoot, "character-state.v1.json");
+  }
+  if (name === "fixtures/character_state_sample.v2.json") {
+    return join(schemasRoot, "character-state.v2.json");
+  }
+  if (name === "fixtures/input_bindings_sample.v1.json") {
+    return join(schemasRoot, "input-bindings.v1.json");
   }
   if (name.startsWith("npcs/")) {
     return join(schemasRoot, "npc-definition.v1.json");
@@ -130,14 +177,38 @@ function resolveSchemaForFile(filePath) {
   if (name.startsWith("audio_profiles/")) {
     return join(schemasRoot, "audio-profile.v1.json");
   }
+  if (name === "achievements/hooks.json") {
+    return join(schemasRoot, "achievement-hooks.v1.json");
+  }
   if (name.startsWith("achievements/")) {
     return join(schemasRoot, "achievement-catalog.v1.json");
   }
   if (name.startsWith("statuses/")) {
     return join(schemasRoot, "status-definition.v1.json");
   }
-  if (name.startsWith("loot/")) {
+  if (name === "loot/global_drops.json") {
     return join(schemasRoot, "global-drops.v1.json");
+  }
+  if (name.startsWith("loot/tables/")) {
+    return join(schemasRoot, "loot-table.v1.json");
+  }
+  if (name === "hub/tips.json") {
+    return join(schemasRoot, "hub-tips.v1.json");
+  }
+  if (name.startsWith("waves/")) {
+    return join(schemasRoot, "waves-definition.v1.json");
+  }
+  if (name === "audio/sfx.json") {
+    return join(schemasRoot, "sfx-bank.v1.json");
+  }
+  if (name === "ui/item_icon_atlas.json") {
+    return join(schemasRoot, "item-icon-atlas.v1.json");
+  }
+  if (name === "ui/status_icon_atlas.json") {
+    return join(schemasRoot, "status-icon-atlas.v1.json");
+  }
+  if (name.startsWith("characters/")) {
+    return join(schemasRoot, "character-rig.v1.json");
   }
   return null;
 }
@@ -152,12 +223,20 @@ function loadSchema(schemaPath) {
     const schema = JSON.parse(readFileSync(schemaPath, "utf8"));
     ajv.addSchema(schema);
     schemaCache.set(schemaPath, schema.$id ?? schemaPath);
-    // Preload nested refs used by character-state and affix-pack.
     if (schemaPath.endsWith("character-state.v1.json")) {
       loadSchema(join(schemasRoot, "inventory.v1.json"));
     }
+    if (schemaPath.endsWith("character-state.v2.json")) {
+      loadSchema(join(schemasRoot, "inventory.v2.json"));
+    }
     if (schemaPath.endsWith("affix-pack.v1.json")) {
       loadSchema(join(schemasRoot, "affix-definition.v1.json"));
+    }
+    if (
+      schemaPath.endsWith("item-icon-atlas.v1.json")
+      || schemaPath.endsWith("status-icon-atlas.v1.json")
+    ) {
+      loadSchema(join(schemasRoot, "ui-symbol-atlas.v1.json"));
     }
   }
   return schemaCache.get(schemaPath);
@@ -167,9 +246,16 @@ const files = collectJsonFiles(contentRoot);
 let failures = 0;
 
 for (const filePath of files) {
+  const relPath = relative(repoRoot, filePath).replace(/\\/g, "/");
   const schemaPath = resolveSchemaForFile(filePath);
   if (!schemaPath) {
-    console.warn(`SKIP (no schema): ${relative(repoRoot, filePath)}`);
+    if (UNSCHEMA_ALLOWLIST.has(relPath)) {
+      console.log(`ALLOWLIST (no schema): ${relPath}`);
+      continue;
+    }
+    console.error(`FAIL: ${relPath} has no schema mapping`);
+    console.error(`  Tried prefixes: ${SCHEMA_PREFIXES.join(", ")}`);
+    failures++;
     continue;
   }
 
@@ -178,19 +264,19 @@ for (const filePath of files) {
   const validate = ajv.getSchema(schemaId);
 
   if (!validate) {
-    console.error(`FAIL: could not compile schema for ${relative(repoRoot, filePath)}`);
+    console.error(`FAIL: could not compile schema for ${relPath}`);
     failures++;
     continue;
   }
 
   if (!validate(data)) {
-    console.error(`FAIL: ${relative(repoRoot, filePath)}`);
+    console.error(`FAIL: ${relPath}`);
     for (const err of validate.errors ?? []) {
       console.error(`  - ${err.instancePath || "/"} ${err.message}`);
     }
     failures++;
   } else {
-    console.log(`OK: ${relative(repoRoot, filePath)}`);
+    console.log(`OK: ${relPath}`);
   }
 }
 
@@ -222,7 +308,6 @@ function validateItemCatalogConsistency() {
 
   let errors = 0;
   const catalogIds = new Set();
-  const fileIds = new Map();
 
   for (const [category, dirPath] of Object.entries(categories)) {
     const listed = catalog[category] ?? [];
@@ -252,7 +337,6 @@ function validateItemCatalogConsistency() {
         continue;
       }
       idsOnDisk.push(itemId);
-      fileIds.set(itemId, relative(contentRoot, itemPath).replace(/\\/g, "/"));
       if (!listed.includes(itemId)) {
         console.error(`FAIL: ${itemId} exists in ${category}/ but is missing from catalog.json`);
         errors++;
@@ -263,9 +347,10 @@ function validateItemCatalogConsistency() {
         materials: ["material", "key"],
       };
       if (!expectedTypes[category].includes(item.itemType)) {
-        console.warn(
-          `WARN: ${itemId} itemType "${item.itemType}" unexpected in folder "${category}"`
+        console.error(
+          `FAIL: ${itemId} itemType "${item.itemType}" unexpected in folder "${category}"`
         );
+        errors++;
       }
     }
 
@@ -283,43 +368,191 @@ function validateItemCatalogConsistency() {
   return errors;
 }
 
+function isAuthoredItem(item) {
+  if (item.authored === false) return false;
+  const description = String(item.description ?? "");
+  if (description.trim() === "") return false;
+  if (PLACEHOLDER_DESC.test(description)) return false;
+  if (item.value === null) return false;
+  return true;
+}
+
+function validateAuthoredContent(itemPath, item) {
+  let errors = 0;
+  const rel = relative(repoRoot, itemPath);
+  const authored = item.authored !== false;
+  const description = String(item.description ?? "");
+  if (!authored) {
+    console.error(`FAIL: ${rel} has authored: false`);
+    errors++;
+  }
+  if (description.trim() === "") {
+    console.error(`FAIL: ${rel} has empty description`);
+    errors++;
+  }
+  if (PLACEHOLDER_DESC.test(description)) {
+    console.error(`FAIL: ${rel} uses placeholder description`);
+    errors++;
+  }
+  if (item.value === null) {
+    console.error(`FAIL: ${rel} has null value`);
+    errors++;
+  }
+  if (strictContent && !isAuthoredItem(item)) {
+    // --strict-content retained for CI script compatibility; rules are always enforced.
+  }
+  return errors;
+}
+
 function validateContentRules() {
   let errors = 0;
-  const equipmentDir = join(contentRoot, "items", "equipment");
-  for (const entry of readdirSync(equipmentDir)) {
+  errors += validateXpCurveKeys();
+  errors += validateAffixRarityNaming();
+  errors += validateLootTableCatalog();
+  const itemDirs = [
+    join(contentRoot, "items", "equipment"),
+    join(contentRoot, "items", "consumables"),
+    join(contentRoot, "items", "materials"),
+  ];
+  const relicsDir = join(contentRoot, "relics");
+
+  for (const dir of itemDirs) {
+    if (!existsSync(dir)) continue;
+    for (const entry of readdirSync(dir)) {
+      if (!entry.endsWith(".json")) continue;
+      const itemPath = join(dir, entry);
+      const item = JSON.parse(readFileSync(itemPath, "utf8"));
+      errors += validateAuthoredContent(itemPath, item);
+      errors += validateItemStatRules(itemPath, item);
+    }
+  }
+
+  if (existsSync(relicsDir)) {
+    for (const entry of readdirSync(relicsDir)) {
+      if (!entry.endsWith(".json")) continue;
+      const itemPath = join(relicsDir, entry);
+      const item = JSON.parse(readFileSync(itemPath, "utf8"));
+      errors += validateAuthoredContent(itemPath, item);
+    }
+  }
+
+  if (errors === 0) {
+    console.log("OK: content authorship, stat keys, and weaponId rules");
+  }
+  return errors;
+}
+
+function validateItemStatRules(itemPath, item) {
+  let errors = 0;
+  const stats = item.stats ?? {};
+  for (const stat of Object.keys(stats)) {
+    if (!ALLOWED_ITEM_STAT_KEYS.has(stat)) {
+      console.error(`FAIL: ${relative(repoRoot, itemPath)} uses unknown stat key "${stat}"`);
+      errors++;
+    }
+  }
+  const slot = item.equipmentSlot ?? "";
+  if (item.itemType === "weapon" && slot === "weapon" && !item.weaponId) {
+    console.error(`FAIL: ${relative(repoRoot, itemPath)} weapon item missing weaponId`);
+    errors++;
+  }
+  if (item.weaponId) {
+    const weaponPath = join(contentRoot, "weapons", `${item.weaponId}.json`);
+    if (!existsSync(weaponPath)) {
+      console.error(
+        `FAIL: ${relative(repoRoot, itemPath)} weaponId "${item.weaponId}" has no content/weapons/${item.weaponId}.json`
+      );
+      errors++;
+    }
+  }
+  return errors;
+}
+
+function validateXpCurveKeys() {
+  const curvePath = join(contentRoot, "progression", "xp_curve.json");
+  if (!existsSync(curvePath)) {
+    console.error("FAIL: content/progression/xp_curve.json not found");
+    return 1;
+  }
+  const curve = JSON.parse(readFileSync(curvePath, "utf8"));
+  let errors = 0;
+  for (const legacyKey of ["baseXpPerRun", "tierXpBonus"]) {
+    if (Object.prototype.hasOwnProperty.call(curve, legacyKey)) {
+      console.error(`FAIL: xp_curve.json still uses legacy key "${legacyKey}"`);
+      errors++;
+    }
+  }
+  for (const requiredKey of [
+    "baseXpPerKill",
+    "bossBonusXp",
+    "escapeBonusXp",
+    "talentPointsPerLevel",
+    "levels",
+  ]) {
+    if (!Object.prototype.hasOwnProperty.call(curve, requiredKey)) {
+      console.error(`FAIL: xp_curve.json missing required key "${requiredKey}"`);
+      errors++;
+    }
+  }
+  if (errors === 0) {
+    console.log("OK: xp_curve runtime keys");
+  }
+  return errors;
+}
+
+function validateAffixRarityNaming() {
+  let errors = 0;
+  for (const rel of ["affixes/prefixes.json", "affixes/suffixes.json", "affixes/rarity_rules.json"]) {
+    const text = readFileSync(join(contentRoot, rel), "utf8");
+    if (text.includes('"mythic"')) {
+      console.error(`FAIL: ${rel} still contains mythic rarity key`);
+      errors++;
+    }
+  }
+  if (errors === 0) {
+    console.log("OK: affix content uses aumbral only");
+  }
+  return errors;
+}
+
+function validateLootTableCatalog() {
+  const catalogPath = join(contentRoot, "items", "catalog.json");
+  if (!existsSync(catalogPath)) {
+    return 0;
+  }
+  const catalog = JSON.parse(readFileSync(catalogPath, "utf8"));
+  const catalogIds = new Set();
+  for (const category of ["equipment", "consumables", "materials"]) {
+    for (const itemId of catalog[category] ?? []) {
+      catalogIds.add(itemId);
+    }
+  }
+
+  const tablesDir = join(contentRoot, "loot", "tables");
+  if (!existsSync(tablesDir)) {
+    return 0;
+  }
+
+  let errors = 0;
+  for (const entry of readdirSync(tablesDir)) {
     if (!entry.endsWith(".json")) continue;
-    const itemPath = join(equipmentDir, entry);
-    const item = JSON.parse(readFileSync(itemPath, "utf8"));
-    const itemId = item.id ?? entry.replace(/\.json$/, "");
-    const description = String(item.description ?? "");
-    if (strictContent && PLACEHOLDER_DESC.test(description)) {
-      console.error(`FAIL: ${relative(repoRoot, itemPath)} uses placeholder description`);
-      errors++;
-    }
-    const stats = item.stats ?? {};
-    for (const stat of Object.keys(stats)) {
-      if (!ALLOWED_ITEM_STAT_KEYS.has(stat)) {
-        console.error(`FAIL: ${relative(repoRoot, itemPath)} uses unknown stat key "${stat}"`);
-        errors++;
-      }
-    }
-    const slot = item.equipmentSlot ?? "";
-    if (item.itemType === "weapon" && slot === "weapon" && !item.weaponId) {
-      console.error(`FAIL: ${relative(repoRoot, itemPath)} weapon item missing weaponId`);
-      errors++;
-    }
-    if (item.weaponId) {
-      const weaponPath = join(contentRoot, "weapons", `${item.weaponId}.json`);
-      if (!existsSync(weaponPath)) {
-        console.error(
-          `FAIL: ${relative(repoRoot, itemPath)} weaponId "${item.weaponId}" has no content/weapons/${item.weaponId}.json`
-        );
-        errors++;
+    const tablePath = join(tablesDir, entry);
+    const table = JSON.parse(readFileSync(tablePath, "utf8"));
+    const lootTables = table.lootTables ?? {};
+    for (const role of ["treasure", "secret", "side", "armory"]) {
+      for (const row of lootTables[role] ?? []) {
+        const itemId = row.itemId;
+        if (!catalogIds.has(itemId)) {
+          console.error(
+            `FAIL: ${relative(repoRoot, tablePath)} role ${role} references unknown itemId "${itemId}"`
+          );
+          errors++;
+        }
       }
     }
   }
   if (errors === 0) {
-    console.log("OK: content stat keys and weaponId rules");
+    console.log("OK: loot table itemIds exist in catalog");
   }
   return errors;
 }

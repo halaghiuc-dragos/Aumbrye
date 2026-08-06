@@ -146,7 +146,9 @@ func _process_state(delta: float) -> void:
 			if _windup_duration > 0.0:
 				var elapsed := _windup_duration - _state_timer
 				if _hp_bar:
-					_hp_bar.set_attack_telegraph_progress(clampf(elapsed / _windup_duration, 0.0, 1.0))
+					_hp_bar.set_attack_telegraph_progress(
+						clampf(elapsed / _windup_duration, 0.0, 1.0)
+					)
 			if _state_timer <= 0.0:
 				_start_attack()
 		State.ATTACK:
@@ -191,8 +193,7 @@ func _start_attack() -> void:
 	hide_attack_windup_bar()
 	if _hitbox:
 		_hitbox.set_attack_values(
-			_data.get("attack_damage", 14.0),
-			_data.get("attack_poise_damage", 12.0)
+			_data.get("attack_damage", 14.0), _data.get("attack_poise_damage", 12.0)
 		)
 		_hitbox.enable()
 	attack_active.emit()

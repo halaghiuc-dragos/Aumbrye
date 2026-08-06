@@ -2,11 +2,17 @@
 
 ## Current state
 
-24 suites, 304 assertion call sites, all registered (see [`../existing_codebase/validation-suites.md`](../existing_codebase/validation-suites.md)). Two P0 problems: seven assertions demand documentation files that do not exist, so the run fails on every invocation for reasons unrelated to code, and the networking layer has no functional test, which is why a one-word bug has kept cloud save pull broken indefinitely. Beneath those, 116 of the assertions are substring greps or path-existence checks, and 47 percent of the total sits in three milestone-shaped suites that do not localize a failure to a subsystem.
+29 suites registered in `validation_runner.gd` (including `harness_suite.gd` for registration parity and reachability). `docs_suite.gd` guards documentation paths and links. `harness.registration.every_suite_file_is_registered` enforces on-disk ↔ `SUITE_PATHS` parity in both directions. Per-category `MIN_ASSERTIONS` gates remain in the runner. Remaining suite-quality gaps are VSU-02 through VSU-16 (subsystem suites, grep-to-behavior conversions, milestone dissolution).
 
 ## Gaps
 
 Carried from [`../existing_codebase/validation-suites.md`](../existing_codebase/validation-suites.md): VSU-01 through VSU-17.
+
+| ID | Status |
+|----|--------|
+| VSU-01 | FINISHED — doc paths repointed; `docs_suite.gd`; `docs/validation/manual-checklist.md` |
+| VSU-03 | FINISHED — combat tautology/grep assertions replaced with `CombatFixture` pipeline tests |
+| VSU-17 | FINISHED — `harness_suite.gd` reachability metric + `validation_runner.gd` per-category `MIN_ASSERTIONS` coverage gates |
 
 ## Target design
 

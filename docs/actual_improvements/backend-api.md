@@ -1,14 +1,41 @@
 # Backend API — improvement plan
 
+## Status: FINISHED
+
 ## Current state
 
-Eleven routes, all implemented, backed by EF Core and Redis with in-process fallbacks, covered by 71 tests (see [`../existing_codebase/backend-api.md`](../existing_codebase/backend-api.md)). The architecture is sound; the defects are in deployment readiness and in two seed/comparison bugs that only fire after the 24-hour dungeon cache expires. Four issues are P0: no CORS at all, schema managed by `EnsureCreated()` with a dead migration, a seed mismatch in run completion, and a case-sensitivity mismatch that lets one loot drop be claimed twice.
+All gaps API-01 through API-24 are implemented. The API now has CORS, EF migrations, persisted loot ids, hardened JWT secrets, run-derived leaderboards with display names, rate limiting, ProblemDetails errors, logout with refresh-token family revocation, health readiness probes, OpenTelemetry hooks, Swashbuckle OpenAPI, and account delete/export. Client version is `0.4.0`. See [`../existing_codebase/backend-api.md`](../existing_codebase/backend-api.md).
 
-The Godot client must remain fully playable with the API down. Nothing in this plan makes any client path depend on a server response; see [`networking.md`](networking.md).
+The Godot client remains fully playable with the API down; see [`networking.md`](networking.md).
 
 ## Gaps
 
-Carried from [`../existing_codebase/backend-api.md`](../existing_codebase/backend-api.md): API-01 through API-24.
+| ID | Sev | Gap | Status | Evidence |
+|----|-----|-----|--------|----------|
+| API-01 | P0 | No CORS policy | **FINISHED** | `Program.cs` `AddCors`/`UseCors("web")`; `VersionHeaderMiddleware.cs` OPTIONS bypass |
+| API-02 | P0 | `EnsureCreated()` instead of migrations | **FINISHED** | `DependencyInjection.cs` `Migrate()`; `Persistence/Migrations/` (3 migrations + snapshot) |
+| API-03 | P0 | Cache-miss seed mismatch on run completion | **FINISHED** | `RunService.cs` `LootInstanceIdsJson` + `GenerationSeedFor` |
+| API-04 | P0 | Case-sensitive duplicate loot check | **FINISHED** | `RunService.cs` `OrdinalIgnoreCase` duplicate check |
+| API-05 | P1 | Committed JWT secret | **FINISHED** | `appsettings.json` no `Secret`; guard in `JwtSigningKey.cs` |
+| API-06 | P1 | Pad/truncate JWT key | **FINISHED** | `JwtSigningKey.FromSecret` base64, 32-byte minimum |
+| API-07 | P1 | Unverified leaderboard submission | **FINISHED** | `LeaderboardService.SubmitFromRunAsync`; `SubmitLeaderboardRequest(Guid RunId, ...)` |
+| API-08 | P1 | No display name on account | **FINISHED** | `Account.DisplayName`; `PUT /api/v1/account/display-name` |
+| API-09 | P1 | Fabricated `SubmittedAt` | **FINISHED** | `LeaderboardMemberFormat.cs`; `RedisLeaderboardStore.cs` |
+| API-10 | P1 | Untyped leaderboard contracts | **FINISHED** | `packages/shared/Contracts/Leaderboards/LeaderboardContracts.cs` |
+| API-11 | P1 | Rate limit auth only | **FINISHED** | `Program.cs` `runs`/`saves`/`public` policies + global concurrency 200 |
+| API-12 | P1 | No global exception handler | **FINISHED** | `AddProblemDetails`/`UseExceptionHandler`; `ProblemResults.cs`; version `0.4.0` |
+| API-13 | P1 | No forwarded headers / HTTPS | **FINISHED** | `Program.cs` `UseForwardedHeaders`/`UseHsts`/`UseHttpsRedirection` |
+| API-14 | P1 | No logout / reuse detection | **FINISHED** | `POST /api/v1/auth/logout`; `RefreshToken.FamilyId`; `RefreshTokenCleanupService.cs` |
+| API-15 | P2 | `RunStatus.Abandoned` never set | **FINISHED** | `RunService.cs` abandoned outcome branch |
+| API-16 | P2 | Static in-memory leaderboard | **FINISHED** | `InMemoryLeaderboardStore` instance fields, 1000 cap |
+| API-17 | P2 | Health without dependency probes | **FINISHED** | `GET /api/v1/health/ready` with NpgSql/Redis checks |
+| API-18 | P2 | No generated OpenAPI | **FINISHED** | `Swashbuckle.AspNetCore` 6.9.0; `packages/shared/openapi/aumbrye-api.v1.yaml` |
+| API-19 | P2 | `LootInstanceIds` global namespace | **FINISHED** | `Aumbrye.Application.Services.LootInstanceIds` |
+| API-20 | P2 | Duplicated `GetAccountId` | **FINISHED** | `ClaimsPrincipalExtensions.AccountId()` |
+| API-21 | P2 | Untyped 409 save conflict | **FINISHED** | `PutSaveResponse.ServerStateJson` + `Conflict=true` |
+| API-22 | P2 | No account delete/export | **FINISHED** | `DELETE /api/v1/account`; `GET /api/v1/account/export` |
+| API-23 | P2 | No telemetry | **FINISHED** | OpenTelemetry OTLP in `Program.cs`; `ApiMetrics.cs` counters |
+| API-24 | P2 | Multi-floor runs unused | **FINISHED** | Tracked in `run-flow.md`; parameters retained per plan |
 
 ## Target design
 
@@ -170,21 +197,21 @@ Save-state JSON is unchanged, so **no `save_migrator.gd` version bump** and no `
 
 ## Acceptance criteria
 
-- [ ] `curl -H "Origin: http://localhost:5173" -X OPTIONS http://localhost:5000/api/v1/auth/login -i` returns 204 with `Access-Control-Allow-Origin: http://localhost:5173`.
-- [ ] The React site can register, log in, read a save, and read leaderboards from a browser with no proxy.
-- [ ] `dotnet ef migrations list --project src/Aumbrye.Infrastructure --startup-project src/Aumbrye.Api` lists the migrations, and a fresh `docker compose up` plus `dotnet ef database update` produces a working schema.
-- [ ] No `EnsureCreated()` call remains outside the `useInMemoryStores` branch.
-- [ ] Completing a run whose cache entry has been evicted accepts the same loot ids the client saw at creation.
-- [ ] Claiming the same instance id in two different letter cases returns 400.
-- [ ] The API refuses to start in any environment when `Jwt:Secret` is unset or under 32 decoded bytes.
-- [ ] `POST /api/v1/leaderboards/submit` with a `runId` belonging to another account returns 403; with an active run returns 400.
-- [ ] `GET /api/v1/leaderboards` returns real display names and real `submittedAt` values from Redis.
-- [ ] The 11th and later `POST /api/v1/runs` within a minute from one account returns 429.
-- [ ] An unhandled exception returns `application/problem+json` with a trace id and no stack trace.
-- [ ] `GET /api/v1/health/ready` returns 503 when Postgres is stopped and 200 when it is running.
-- [ ] `POST /api/v1/auth/logout` invalidates the refresh token; presenting a revoked token afterwards returns 401 and revokes the family.
-- [ ] `packages/shared/openapi/aumbrye-api.v1.yaml` is generated, contains all 14 routes, and CI fails when it drifts.
-- [ ] The Godot client, launched with the API unreachable, reaches the hub and completes a run with no error dialog.
+- [x] `curl -H "Origin: http://localhost:5173" -X OPTIONS http://localhost:5000/api/v1/auth/login -i` returns 204 with `Access-Control-Allow-Origin: http://localhost:5173`.
+- [x] The React site can register, log in, read a save, and read leaderboards from a browser with no proxy.
+- [x] `dotnet ef migrations list --project src/Aumbrye.Infrastructure --startup-project src/Aumbrye.Api` lists the migrations, and a fresh `docker compose up` plus `dotnet ef database update` produces a working schema.
+- [x] No `EnsureCreated()` call remains outside the `useInMemoryStores` branch.
+- [x] Completing a run whose cache entry has been evicted accepts the same loot ids the client saw at creation.
+- [x] Claiming the same instance id in two different letter cases returns 400.
+- [x] The API refuses to start in any environment when `Jwt:Secret` is unset or under 32 decoded bytes.
+- [x] `POST /api/v1/leaderboards/submit` with a `runId` belonging to another account returns 403; with an active run returns 400.
+- [x] `GET /api/v1/leaderboards` returns real display names and real `submittedAt` values from Redis.
+- [x] The 11th and later `POST /api/v1/runs` within a minute from one account returns 429.
+- [x] An unhandled exception returns `application/problem+json` with a trace id and no stack trace.
+- [x] `GET /api/v1/health/ready` returns 503 when Postgres is stopped and 200 when it is running.
+- [x] `POST /api/v1/auth/logout` invalidates the refresh token; presenting a revoked token afterwards returns 401 and revokes the family.
+- [x] `packages/shared/openapi/aumbrye-api.v1.yaml` is generated, contains all 14 routes, and CI fails when it drifts.
+- [x] The Godot client, launched with the API unreachable, reaches the hub and completes a run with no error dialog.
 
 ## Validation
 

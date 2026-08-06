@@ -1,8 +1,10 @@
 # Combat core — improvement plan
 
+## Status: FINISHED
+
 ## Current state
 
-`Hurtbox.receive_hit()` is a single 28-line function that runs i-frames, parry, block, backstab, defense and resistances in a fixed order and then writes to `Health` and `Poise` (see [`../existing_codebase/combat-core.md`](../existing_codebase/combat-core.md)). It works, but three of the four multipliers a player can earn never reach it: `flat_damage_bonus`, `crit_chance` and `poise_damage_multiplier` in `combat_stat_modifiers.gd` have no call sites, so `bonusDamage`, `critChance` and `poiseDamage` from equipment, affixes, talents and relics are aggregated, displayed in the inventory tooltip, and then discarded. The backstab multiplier reads a transform that never rotates and rewards the wrong arc. Poise is a meter that triggers a stagger animation but never gates a single point of damage, and hyperarmor is declared on `WeaponController` and never read by the hurtbox.
+`Hurtbox.receive_hit()` now builds a `DamageResolution` (`damage_resolution.gd`), emits `hit_resolved` at every exit (including dodge i-frames with `dodged = true`), and runs a named mitigation chain: i-frames, immunity, parry, block, arc multipliers via `DamageInfo.classify_arc()`, flat defense, resistances (player `combat_resistances` meta and enemy catalog), poise-broken damage bonus, hyperarmor poise absorption, and exhausted poise multiplier. `weapon_controller.gd` passes crit chance and flat/poise damage bonuses into `Hitbox.set_attack_values`; damage numbers use `AccessibilitySettings.get_damage_color()`. See [`../existing_codebase/combat-core.md`](../existing_codebase/combat-core.md).
 
 ## Gaps
 

@@ -1,6 +1,7 @@
 using Aumbrye.Application.Abstractions;
 using Aumbrye.Application.Services;
 using Aumbrye.Infrastructure.Caching;
+using Aumbrye.Infrastructure.Hosted;
 using Aumbrye.Infrastructure.Persistence;
 using Aumbrye.Infrastructure.Security;
 using Microsoft.Data.Sqlite;
@@ -30,7 +31,7 @@ public static class DependencyInjection
                 options.UseSqlite(sp.GetRequiredService<SqliteConnection>()));
             services.AddScoped<DbContext>(sp => sp.GetRequiredService<AumbryeDbContext>());
             services.AddSingleton<IDungeonCache, InMemoryDungeonCache>();
-            services.AddSingleton<ILeaderboardService, InMemoryLeaderboardService>();
+            services.AddSingleton<ILeaderboardStore, InMemoryLeaderboardStore>();
         }
         else
         {
@@ -43,21 +44,26 @@ public static class DependencyInjection
                 services.AddSingleton<IConnectionMultiplexer>(_ =>
                     ConnectionMultiplexer.Connect(redisConn));
                 services.AddSingleton<IDungeonCache, RedisDungeonCache>();
-                services.AddSingleton<ILeaderboardService, RedisLeaderboardService>();
+                services.AddSingleton<ILeaderboardStore, RedisLeaderboardStore>();
             }
             else
             {
                 services.AddSingleton<IDungeonCache, InMemoryDungeonCache>();
-                services.AddSingleton<ILeaderboardService, InMemoryLeaderboardService>();
+                services.AddSingleton<ILeaderboardStore, InMemoryLeaderboardStore>();
             }
         }
 
+        services.AddHostedService<RefreshTokenCleanupService>();
         services.AddScoped<IPasswordHasher, BcryptPasswordHasher>();
         services.AddSingleton<ITokenService, JwtTokenService>();
         services.AddScoped<IAuthService, AuthService>();
+        services.AddScoped<IAccountService, AccountService>();
+        services.AddHttpClient<SteamAuthService>();
+        services.AddSingleton<ISteamAuthService>(sp => sp.GetRequiredService<SteamAuthService>());
         services.AddSingleton<IDungeonGenerator, ProceduralDungeonGenerator>();
         services.AddScoped<IRunService, RunService>();
         services.AddScoped<ISaveService, SaveService>();
+        services.AddScoped<ILeaderboardService, LeaderboardService>();
 
         return services;
     }
@@ -66,6 +72,6 @@ public static class DependencyInjection
     {
         using var scope = services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<AumbryeDbContext>();
-        db.Database.EnsureCreated();
+        db.Database.Migrate();
     }
 }

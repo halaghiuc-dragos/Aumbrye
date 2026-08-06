@@ -30,6 +30,11 @@ func _ready() -> void:
 	$Panel/Margin/VBox/Buttons.add_child(respec_button)
 	_close_button.pressed.connect(close)
 	_item_list.item_selected.connect(_on_item_selected)
+	var unlock_button := Button.new()
+	unlock_button.text = "Unlock Weapons"
+	unlock_button.pressed.connect(_on_unlock_pressed)
+	$Panel/Margin/VBox/Buttons.add_child(unlock_button)
+	$Panel/Margin/VBox/Buttons.move_child(unlock_button, 0)
 	CharacterService.coins_changed.connect(_on_coins_changed)
 	InventoryService.inventory_changed.connect(_refresh)
 
@@ -77,7 +82,12 @@ func _refresh() -> void:
 		var dur := BlacksmithService.get_slot_durability(slot)
 		var max_dur := BlacksmithService.get_max_durability(item_id)
 		var rarity := RarityRegistryScript.display_name(inv.get_slot_rarity(slot))
-		_item_list.add_item("%s %s +%d/%d (%d/%d)" % [rarity, def.get("name", item_id), level, max_level, dur, max_dur])
+		_item_list.add_item(
+			(
+				"%s %s +%d/%d (%d/%d)"
+				% [rarity, def.get("name", item_id), level, max_level, dur, max_dur]
+			)
+		)
 		_item_indices.append(i)
 	if _item_indices.is_empty():
 		_detail_label.text = "No equippable items to upgrade or repair."
@@ -97,8 +107,12 @@ func _on_item_selected(index: int) -> void:
 	var level := BlacksmithService.get_slot_upgrade_level(slot)
 	var max_level := BlacksmithService.get_max_upgrade_level_for_slot(slot)
 	var upgrade_cost := BlacksmithService.get_upgrade_cost(item_id, level)
-	var rarity := RarityRegistryScript.display_name(InventoryService.inventory.get_slot_rarity(slot))
-	_detail_label.text = "%s — upgrade cost: %d coins (+%d/%d)" % [rarity, upgrade_cost, level, max_level]
+	var rarity := RarityRegistryScript.display_name(
+		InventoryService.inventory.get_slot_rarity(slot)
+	)
+	_detail_label.text = (
+		"%s — upgrade cost: %d coins (+%d/%d)" % [rarity, upgrade_cost, level, max_level]
+	)
 	_upgrade_button.disabled = not BlacksmithService.can_upgrade(inv_index)
 	_repair_button.disabled = not BlacksmithService.can_repair(inv_index)
 
@@ -125,7 +139,29 @@ func _on_repair_pressed() -> void:
 
 func _on_respec_pressed() -> void:
 	var result := BlacksmithService.respec_talents()
-	_detail_label.text = "Talents reset." if result.get("ok", false) else str(result.get("error", "respec failed"))
+	_detail_label.text = (
+		"Talents reset." if result.get("ok", false) else str(result.get("error", "respec failed"))
+	)
+	_refresh()
+
+
+func _on_unlock_pressed() -> void:
+	var unlocks := BlacksmithService.get_available_unlocks()
+	var next: Dictionary = {}
+	for row in unlocks:
+		if row.get("owned", false):
+			continue
+		next = row
+		break
+	if next.is_empty():
+		_detail_label.text = "No weapon unlocks available."
+		return
+	var item_id := str(next.get("itemId", ""))
+	var result := BlacksmithService.unlock_item(item_id)
+	if result.get("ok", false):
+		_detail_label.text = "Unlocked %s" % item_id
+	else:
+		_detail_label.text = str(result.get("error", "unlock failed"))
 	_refresh()
 
 

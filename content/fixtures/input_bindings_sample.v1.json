@@ -1,0 +1,9 @@
+{
+  "schemaVersion": 1,
+  "bindings": {
+    "light_attack": [
+      { "device": "keyboard", "physicalKeycode": 74 },
+      { "device": "joypad_button", "buttonIndex": 2 }
+    ]
+  }
+}

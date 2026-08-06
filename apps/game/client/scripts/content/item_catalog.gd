@@ -7,7 +7,11 @@ const CATEGORY_DIRS: Array[String] = [
 	"content/items/equipment",
 	"content/items/consumables",
 	"content/items/materials",
+	"content/items/quest",
 ]
+
+const CATALOG_PATH := "content/items/catalog.json"
+const STRICT_SETTING := "aumbrye/strict_item_catalog"
 
 static var _definitions: Dictionary = {}
 
@@ -36,30 +40,41 @@ static func get_loot_value(item_id: String) -> int:
 	return int(def.get("value", 1))
 
 
+static func clear_cache() -> void:
+	_definitions.clear()
+
+
 static func _ensure_loaded() -> void:
 	if not _definitions.is_empty():
 		return
-	for relative_dir in CATEGORY_DIRS:
-		_load_directory(relative_dir)
+	var loaded := ContentDirLoader.load_id_map(CATEGORY_DIRS, "id", "ItemCatalog", true, true)
+	if _is_strict():
+		loaded = _apply_strict_allowlist(loaded)
+	_definitions = loaded
 
 
-static func _load_directory(relative_dir: String) -> void:
-	var abs_dir := ContentLoader.content_path(relative_dir)
-	var dir := DirAccess.open(abs_dir)
-	if dir == null:
-		push_warning("ItemCatalog: missing directory %s" % abs_dir)
-		return
-	dir.list_dir_begin()
-	var file_name := dir.get_next()
-	while file_name != "":
-		if not dir.current_is_dir() and file_name.ends_with(".json"):
-			var relative := "%s/%s" % [relative_dir, file_name]
-			var data: Dictionary = ContentLoader.load_json(relative)
-			var item_id: String = data.get("id", "")
-			if item_id.is_empty():
-				push_warning("ItemCatalog: skipping %s (missing id)" % relative)
-			else:
-				data["content_path"] = relative
-				_definitions[item_id] = data
-		file_name = dir.get_next()
-	dir.list_dir_end()
+static func _is_strict() -> bool:
+	return bool(ProjectSettings.get_setting(STRICT_SETTING, false))
+
+
+static func _apply_strict_allowlist(disk_map: Dictionary) -> Dictionary:
+	var catalog := ContentLoader.load_json(CATALOG_PATH)
+	var allowed := _catalog_id_set(catalog)
+	var filtered: Dictionary = {}
+	for item_id in disk_map:
+		if allowed.has(item_id):
+			filtered[item_id] = disk_map[item_id]
+		else:
+			push_error("ItemCatalog: strict mode rejects orphan item %s" % item_id)
+	for item_id in allowed:
+		if not disk_map.has(item_id):
+			push_error("ItemCatalog: strict mode missing catalog item %s on disk" % item_id)
+	return filtered
+
+
+static func _catalog_id_set(catalog: Dictionary) -> Dictionary:
+	var allowed: Dictionary = {}
+	for category in ["equipment", "consumables", "materials"]:
+		for item_id in catalog.get(category, []):
+			allowed[str(item_id)] = true
+	return allowed

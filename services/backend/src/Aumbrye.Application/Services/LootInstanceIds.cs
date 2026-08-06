@@ -1,5 +1,7 @@
 using System.Text.Json;
 
+namespace Aumbrye.Application.Services;
+
 public static class LootInstanceIds
 {
     public static HashSet<string> FromDefinitionJson(string json) =>

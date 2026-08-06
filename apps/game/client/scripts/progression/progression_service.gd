@@ -3,6 +3,7 @@ extends Node
 ## Permanent XP, level, and talent points (PROG-4.1 / PROG-4.2 client).
 
 signal progression_changed
+signal xp_granted(amount: int, reason: String)
 
 const XP_CURVE_PATH := "content/progression/xp_curve.json"
 const TALENT_TREE_PATH := "content/talents/tree.json"
@@ -42,19 +43,25 @@ func xp_progress_ratio() -> float:
 	return clampf(float(xp - current_req) / float(next_req - current_req), 0.0, 1.0)
 
 
-func grant_xp(amount: int, _reason: String = "") -> Dictionary:
+func grant_xp(amount: int, reason: String = "") -> Dictionary:
 	if amount <= 0:
-		return { "gained": 0, "levels_gained": 0 }
+		return {"gained": 0, "levels_gained": 0}
+	var xp_gain_bonus: float = float(get_talent_stat_totals().get("xpGain", 0.0))
+	var adjusted := int(float(amount) * (1.0 + xp_gain_bonus))
+	if adjusted <= 0:
+		return {"gained": 0, "levels_gained": 0}
 	var before_level := level
-	xp += amount
+	xp += adjusted
 	_recalc_level()
 	var result := {
-		"gained": amount,
+		"gained": adjusted,
 		"levels_gained": level - before_level,
 		"level": level,
 		"xp": xp,
 	}
 	progression_changed.emit()
+	if reason != "":
+		xp_granted.emit(adjusted, reason)
 	return result
 
 
@@ -70,6 +77,11 @@ func calculate_run_xp(kills: int, boss_defeated: bool, escaped: bool) -> int:
 
 func apply_death_xp_fraction(full_xp: int) -> int:
 	var fraction: float = float(_curve.get("deathXpFraction", 0.5))
+	return int(full_xp * fraction)
+
+
+func apply_abandon_xp_fraction(full_xp: int) -> int:
+	var fraction: float = float(_curve.get("abandonedXpFraction", 0.0))
 	return int(full_xp * fraction)
 
 
@@ -105,6 +117,8 @@ func unlock_talent(node_id: String) -> bool:
 	talent_points_spent += cost
 	progression_changed.emit()
 	LocalSave.autosave()
+	if AchievementService:
+		AchievementService.notify("talent_points_spent", {"cost": cost})
 	return true
 
 

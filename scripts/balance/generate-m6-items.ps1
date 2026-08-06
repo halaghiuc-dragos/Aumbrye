@@ -18,8 +18,9 @@ function Write-Item($id, $slot, $rarity, $stats, $theme = "") {
         gridHeight = 2
         stackSize = if ($slot -eq "consumable") { 10 } else { 1 }
         rarity = $rarity
-        description = "M6 content item."
-        value = 20
+        description = ""
+        value = $null
+        authored = $false
         stats = $stats
     }
     if ($equipSlot) { $obj.equipmentSlot = $equipSlot }

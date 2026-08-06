@@ -14,7 +14,7 @@ enum State { IDLE, TELEGRAPH, FALLING, RESET }
 
 @onready var _block: Node3D = $FallingBlock
 @onready var _telegraph: MeshInstance3D = $TelegraphShadow
-@onready var _hitbox: Area3D = $FallingBlock/DamageArea
+@onready var _hitbox: TrapDamageArea = $FallingBlock/DamageArea
 
 var _state := State.IDLE
 var _timer := 0.0
@@ -30,7 +30,10 @@ func _ready() -> void:
 	_rest_y = _block.position.y
 	_telegraph.material_override = DioramaSkin.make_telegraph_material(Color(0.2, 0.2, 0.2, 0.6))
 	_telegraph.visible = false
-	_hitbox.monitoring = false
+	_hitbox.damage = damage
+	_hitbox.poise_damage = poise_damage
+	_hitbox.set_damage_active(false)
+	_sync_trigger_radius_from_hitbox()
 	_player = get_tree().get_first_node_in_group("player")
 
 
@@ -39,7 +42,10 @@ func _physics_process(delta: float) -> void:
 		_player = get_tree().get_first_node_in_group("player")
 	match _state:
 		State.IDLE:
-			if _player and _block.global_position.distance_to(_player.global_position) <= trigger_radius:
+			if (
+				_player
+				and _block.global_position.distance_to(_player.global_position) <= trigger_radius
+			):
 				_state = State.TELEGRAPH
 				_timer = telegraph_time
 				_telegraph.visible = true
@@ -48,16 +54,34 @@ func _physics_process(delta: float) -> void:
 			if _timer <= 0.0:
 				_state = State.FALLING
 				_telegraph.visible = false
-				_hitbox.monitoring = true
+				_hitbox.set_damage_active(true)
 		State.FALLING:
 			_block.position.y -= fall_speed * delta
 			if _block.position.y <= 0.2:
 				_block.position.y = 0.2
+				_hitbox.set_damage_active(false)
+				_block.position.y = _rest_y
 				_state = State.RESET
 				_timer = 2.0
-				_hitbox.monitoring = false
 		State.RESET:
 			_timer -= delta
 			if _timer <= 0.0:
-				_block.position.y = _rest_y
 				_state = State.IDLE
+
+
+func _sync_trigger_radius_from_hitbox() -> void:
+	var shape_node := _hitbox.get_node_or_null("CollisionShape3D") as CollisionShape3D
+	if shape_node == null or shape_node.shape == null:
+		return
+	var horizontal := 0.0
+	var shape := shape_node.shape
+	if shape is BoxShape3D:
+		var box := shape as BoxShape3D
+		horizontal = maxf(box.size.x, box.size.z) * 0.5
+	elif shape is CapsuleShape3D:
+		var cap := shape as CapsuleShape3D
+		horizontal = cap.radius
+	elif shape is CylinderShape3D:
+		var cyl := shape as CylinderShape3D
+		horizontal = cyl.radius
+	trigger_radius = maxf(trigger_radius, horizontal + 0.5)

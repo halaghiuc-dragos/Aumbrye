@@ -1,0 +1,78 @@
+{
+  "schemaVersion": 1,
+  "id": "umbral_waves",
+  "milestones": [5, 10, 20, 50],
+  "count": {
+    "base": 2,
+    "per_half_wave": 1,
+    "cap": 12,
+    "milestone_bonus": 2
+  },
+  "base_roster": [
+    "castle_grunt",
+    "castle_archer",
+    "castle_shield",
+    "castle_hound"
+  ],
+  "roster_unlocks": [
+    { "wave": 5, "ids": ["castle_knight"] }
+  ],
+  "milestone_bosses": ["boss_castle_knight", "miniboss_castle_captain"],
+  "chests": [
+    {
+      "id": "potions",
+      "label": "Potions",
+      "rarity_weights": { "common": 45, "magic": 35, "rare": 15, "epic": 5 },
+      "pool": ["health_potion", "mana_potion", "stamina_potion"]
+    },
+    {
+      "id": "scrolls",
+      "label": "Buff Scrolls",
+      "rarity_weights": { "common": 30, "magic": 35, "rare": 25, "epic": 8, "legendary": 2 },
+      "pool": ["elixir_might", "elixir_vigor", "mana_potion", "stamina_potion"]
+    },
+    {
+      "id": "armor",
+      "label": "Armor",
+      "rarity_weights": { "common": 25, "magic": 30, "rare": 25, "epic": 15, "legendary": 5 },
+      "pool": [
+        "iron_boots",
+        "iron_helm",
+        "steel_plate",
+        "steel_helm",
+        "castle_plate",
+        "castle_helm"
+      ]
+    },
+    {
+      "id": "rings",
+      "label": "Rings",
+      "rarity_weights": { "magic": 30, "rare": 35, "epic": 25, "legendary": 8, "aumbral": 2 },
+      "pool": ["gold_ring", "silver_ring", "castle_ring", "ruby_amulet", "mythic_ring"]
+    },
+    {
+      "id": "weapons",
+      "label": "Weapons",
+      "rarity_weights": { "rare": 30, "epic": 35, "legendary": 25, "aumbral": 10 },
+      "pool": ["iron_sword", "knight_blade", "flame_sword", "war_hammer", "mythic_blade"]
+    },
+    {
+      "id": "supplies",
+      "label": "Supply Cache",
+      "rarity_weights": { "common": 35, "magic": 35, "rare": 20, "epic": 8, "legendary": 2 },
+      "pool": [
+        "health_potion",
+        "mana_potion",
+        "stamina_potion",
+        "elixir_might",
+        "gold_ring",
+        "iron_boots",
+        "iron_sword",
+        "steel_sword",
+        "castle_ring",
+        "ruby_amulet"
+      ],
+      "multi_grant": { "min": 2, "max": 4 }
+    }
+  ]
+}

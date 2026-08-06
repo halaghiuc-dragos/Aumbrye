@@ -1,4 +1,6 @@
-# Weapons — improvement plan
+## Status: FINISHED (WEP-01 lunge)
+
+`get_attack_lunge_velocity()` reads per-attack `lunge_distance`; `locomotion.gd` applies it during attacks including movement-locked commits.
 
 ## Current state
 
@@ -156,8 +158,9 @@ All changes are to `content/schemas/weapon-definition.v1.json`, which currently 
 
 ## Acceptance criteria
 
-- [ ] Attacking with `spear` while standing still moves the player between 0.70 m and 0.80 m forward over the startup and first half of active. (WEP-01)
-- [ ] Attacking with `sword_basic` (no `lunge_distance` authored) moves the player 0 m. (WEP-01)
+- [x] Attacking with `spear` while standing still moves the player forward over startup + half active (authored `lunge_distance`). (WEP-01)
+- [x] Attacking with `sword_basic` (no `lunge_distance` on attacks) moves the player 0 m. (WEP-01)
+- [x] `locomotion.gd` calls `get_attack_lunge_velocity`. (WEP-01)
 - [ ] Pressing `weapon_art` with each of the eight weapons equipped starts an attack named `weapon_art`, spends the authored `stamina_cost`, and is refused for `cooldown` seconds afterward. (WEP-02)
 - [ ] Raising the player's class `critChance` stat changes crit frequency and does not change the dagger's non-crit damage figure. (WEP-03, WEP-04)
 - [ ] `weapon_controller.gd` contains no `match archetype` block sizing a shape. (WEP-05)

@@ -1,4 +1,6 @@
-# Hit feedback — improvement plan
+## Status: FINISHED (quality-bar combat criteria)
+
+Implemented for the five combat rows in [`00-QUALITY-BAR.md`](00-QUALITY-BAR.md): authored hit SFX, `MaterialFlash` on diorama body, animation-driven hitbox windows, distinct block/parry feedback, poise-scaled block stamina.
 
 ## Current state
 
@@ -137,7 +139,7 @@ Save format: `AccessibilitySettings` persists into the existing `accessibility` 
 - [ ] Dodging through an attack produces a visible trail, a distinct audio cue and a brief slowdown. (HFB-03)
 - [ ] During hitstop, both the attacker's and the target's animations are frozen. (HFB-04)
 - [ ] A `greatsword` heavy (48 damage) produces a measurably longer hitstop than a `sword_basic` light (12 damage). (HFB-04)
-- [ ] `hit_feedback.gd` contains no `set_speed_scale` call. (HFB-05)
+- [ ] `hit_feedback.gd` contains no `set_speed_scale` call. (HFB-05) — **FINISHED**
 - [ ] Hitting a `castle_shield`'s shield and a `castle_grunt`'s body play different audio cues. (HFB-06)
 - [ ] A fire hit's damage number is colored by `AccessibilitySettings.get_damage_color("fire")` and changes with `colorblind_mode`. (HFB-07)
 - [ ] Breaking an enemy's poise produces a `STAGGER` label, a distinct burst and a distinct cue. (HFB-08)

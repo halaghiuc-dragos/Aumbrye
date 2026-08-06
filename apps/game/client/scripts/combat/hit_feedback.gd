@@ -3,7 +3,9 @@ extends Node
 const DEFAULT_HITSTOP := 0.09
 const DEFAULT_CAMERA_PUNCH := 0.15
 const DEFAULT_INTENSITY := 1.0
+const HITSTOP_TIME_SCALE := 0.08
 const DAMAGE_NUMBER := preload("res://scripts/combat/damage_number.gd")
+const MaterialFlashScript := preload("res://scripts/art/characters/material_flash.gd")
 const COLOR_PARRY := Color(1.0, 0.88, 0.2)
 const COLOR_BLOCK := Color(0.45, 0.78, 1.0)
 
@@ -14,12 +16,12 @@ signal hit_landed(target: Node, damage: float)
 
 var show_damage_numbers := true
 
-var _camera: Camera3D
-var _hitstop_timer := 0.0
+var _orbit_camera: Node
 var _anim_director: Node
-var _shake_timer := 0.0
-var _shake_strength := 0.0
-var _shake_direction := Vector3.ZERO
+var _hitstop_timer := 0.0
+var _hitstop_restore_scale := 1.0
+var _anim_hitstop_timer := 0.0
+var _anim_hitstop_restore := 1.0
 var _shake_noise: FastNoiseLite
 
 
@@ -27,49 +29,93 @@ func _ready() -> void:
 	_shake_noise = FastNoiseLite.new()
 	_shake_noise.noise_type = FastNoiseLite.TYPE_SIMPLEX
 	_shake_noise.frequency = 4.0
-	if camera_path:
-		_camera = get_node_or_null(camera_path) as Camera3D
-	var body := get_parent() as CharacterBody3D
-	if body:
-		_anim_director = body.get_node_or_null("AnimDirector")
+	_resolve_orbit_camera()
 	var guard := get_parent().get_node_or_null("Guard")
 	if guard and guard.has_signal("parry_success"):
 		guard.parry_success.connect(_on_parry_success)
 
 
+func _resolve_orbit_camera() -> void:
+	if camera_path == NodePath():
+		return
+	_orbit_camera = get_node_or_null(camera_path)
+	if _orbit_camera == null:
+		_orbit_camera = get_node_or_null("../" + String(camera_path))
+
+
+func _director() -> Node:
+	if _anim_director == null or not is_instance_valid(_anim_director):
+		var body := get_parent()
+		_anim_director = body.get_node_or_null("AnimDirector") if body else null
+	return _anim_director
+
+
 func _process(delta: float) -> void:
 	if _hitstop_timer > 0.0:
 		_hitstop_timer -= delta
-		_apply_animation_speed()
-	else:
-		_restore_animation_speed()
-	_apply_camera_shake(delta)
+		if _hitstop_timer <= 0.0:
+			Engine.time_scale = _hitstop_restore_scale
+	if _anim_hitstop_timer > 0.0:
+		_anim_hitstop_timer -= delta
+		if _anim_hitstop_timer <= 0.0:
+			var director := _director()
+			if director and director.has_method("set_speed_scale"):
+				director.call("set_speed_scale", _anim_hitstop_restore)
 
 
-func on_hit(target: Node, damage: float, direction: Vector3 = Vector3.ZERO) -> void:
+func on_hit(
+	target: Node,
+	damage: float,
+	direction: Vector3 = Vector3.ZERO,
+	damage_type: String = "physical"
+) -> void:
 	hit_landed.emit(target, damage)
 	var weight := clampf(damage / 20.0, 0.85, 1.35)
-	_apply_local_hitstop(weight)
+	_apply_hitstop(weight)
 	_apply_camera_punch(direction, weight)
 	_apply_vibration()
-	_play_sfx_hook()
+	_play_hit_sfx(target, direction)
 	if show_damage_numbers and target is Node3D:
-		_spawn_damage_number(target as Node3D, damage)
+		_spawn_damage_number(target as Node3D, damage, Vector3.ZERO, damage_type)
+	_flash_diorama_body(target as Node3D)
 
 
-func on_hit_received(damage: float, direction: Vector3 = Vector3.ZERO) -> void:
-	_apply_local_hitstop()
+func preview_hitstop_duration(damage: float) -> float:
+	if feedback_intensity <= 0.0 or AccessibilitySettings.reduce_hitstop:
+		return 0.0
+	var weight := clampf(damage / 20.0, 0.85, 1.35)
+	return DEFAULT_HITSTOP * feedback_intensity * weight
+
+
+func on_dodge_iframe() -> void:
+	if AudioDirector:
+		AudioDirector.play_combat_sfx("dodge_perfect")
+	if AchievementService:
+		AchievementService.notify("dodge")
+
+
+func on_hit_received(
+	damage: float, direction: Vector3 = Vector3.ZERO, damage_type: String = "physical"
+) -> void:
+	_apply_hitstop()
 	_apply_camera_punch(direction)
 	_apply_vibration()
-	_play_sfx_hook()
+	_play_combat_sfx_at_body("hit")
 	_pulse_damage_vignette()
-	if show_damage_numbers:
-		var body := get_parent() as Node3D
-		if body:
-			_spawn_damage_number(body, damage, Vector3(-0.2, 0.15, 0.0))
+	var body := get_parent() as Node3D
+	if body:
+		_flash_diorama_body(body)
+	if show_damage_numbers and body:
+		_spawn_damage_number(body, damage, Vector3(-0.2, 0.15, 0.0), damage_type)
 
 
 func on_hit_blocked(blocker: Node3D, chip_damage: float) -> void:
+	_apply_hitstop(0.75)
+	_play_combat_sfx_at_body("block", blocker)
+	if blocker:
+		_flash_diorama_body(blocker, 0.65, Color(0.45, 0.78, 1.0))
+		var anchor: Array = VfxService.resolve_combat_anchor(blocker)
+		VfxService.play_block(anchor[0], anchor[1])
 	if not show_damage_numbers or blocker == null:
 		return
 	_spawn_combat_text(blocker, "BLOCKED", COLOR_BLOCK)
@@ -78,11 +124,16 @@ func on_hit_blocked(blocker: Node3D, chip_damage: float) -> void:
 
 
 func _on_parry_success(_attacker: Node) -> void:
-	if not show_damage_numbers:
-		return
+	_apply_hitstop(1.2)
+	_play_combat_sfx_at_body("parry")
+	if AchievementService:
+		AchievementService.notify("parry")
 	var body := get_parent() as Node3D
 	if body:
-		_spawn_combat_text(body, "PARRIED", COLOR_PARRY)
+		_flash_diorama_body(body, 1.0, COLOR_PARRY)
+	if not show_damage_numbers or body == null:
+		return
+	_spawn_combat_text(body, "PARRIED", COLOR_PARRY)
 
 
 func _spawn_combat_text(at_node: Node3D, text: String, color: Color) -> void:
@@ -91,66 +142,43 @@ func _spawn_combat_text(at_node: Node3D, text: String, color: Color) -> void:
 		DAMAGE_NUMBER.spawn_text(at_node.global_position, text, root, color)
 
 
-func _spawn_damage_number(at_node: Node3D, damage: float, offset: Vector3 = Vector3.ZERO) -> void:
+func _spawn_damage_number(
+	at_node: Node3D,
+	damage: float,
+	offset: Vector3 = Vector3.ZERO,
+	damage_type: String = "physical"
+) -> void:
 	var root := get_tree().current_scene
 	if root:
-		DAMAGE_NUMBER.spawn(at_node.global_position + offset, damage, root)
+		DAMAGE_NUMBER.spawn(at_node.global_position + offset, damage, root, damage_type)
 
 
-func _apply_local_hitstop(weight: float = 1.0) -> void:
-	_hitstop_timer = maxf(_hitstop_timer, DEFAULT_HITSTOP * feedback_intensity * weight)
-	_apply_animation_speed()
-
-
-func _apply_animation_speed() -> void:
-	if _anim_director and _anim_director.has_method("set_speed_scale"):
-		_anim_director.call("set_speed_scale", 0.05)
-
-
-func _restore_animation_speed() -> void:
-	if _anim_director and _anim_director.has_method("set_speed_scale"):
-		_anim_director.call("set_speed_scale", 1.0)
+func _apply_hitstop(weight: float = 1.0) -> void:
+	if feedback_intensity <= 0.0 or AccessibilitySettings.reduce_hitstop:
+		return
+	var duration := DEFAULT_HITSTOP * feedback_intensity * weight
+	_hitstop_timer = maxf(_hitstop_timer, duration)
+	if Engine.time_scale >= HITSTOP_TIME_SCALE:
+		_hitstop_restore_scale = Engine.time_scale
+	Engine.time_scale = HITSTOP_TIME_SCALE
+	var director := _director()
+	if director and director.has_method("set_speed_scale"):
+		_anim_hitstop_timer = maxf(_anim_hitstop_timer, duration)
+		if _anim_hitstop_timer == duration:
+			_anim_hitstop_restore = 1.0
+		director.call("set_speed_scale", 0.05)
 
 
 func _apply_camera_punch(direction: Vector3 = Vector3.ZERO, weight: float = 1.0) -> void:
-	if AccessibilitySettings.reduce_camera_shake:
+	if AccessibilitySettings.reduce_camera_shake or feedback_intensity <= 0.0:
 		return
-	var dir := direction
-	if dir.length_squared() < 0.01 and _camera:
-		dir = -_camera.global_transform.basis.z
-	if dir.length_squared() > 0.01:
-		_shake_direction = dir.normalized()
-	_shake_strength = DEFAULT_CAMERA_PUNCH * feedback_intensity * weight
-	_shake_timer = 0.11
-	if _camera and weight >= 1.1:
-		var fov := _camera.fov
-		_camera.fov = fov - 1.5 * weight
-		var tween := create_tween()
-		tween.tween_property(_camera, "fov", fov, 0.12)
-
-
-func _apply_camera_shake(delta: float) -> void:
-	if _camera == null or _shake_timer <= 0.0:
-		if _camera:
-			_camera.h_offset = 0.0
-			_camera.v_offset = 0.0
-		return
-	if AccessibilitySettings.reduce_camera_shake:
-		_shake_timer = 0.0
-		_camera.h_offset = 0.0
-		_camera.v_offset = 0.0
-		return
-	_shake_timer -= delta
-	var t := 1.0 - clampf(_shake_timer / 0.11, 0.0, 1.0)
-	var side := _shake_direction.cross(Vector3.UP)
-	if side.length_squared() < 0.01:
-		side = Vector3.RIGHT
-	else:
-		side = side.normalized()
-	var noise := _shake_noise.get_noise_1d(Time.get_ticks_msec() * 0.02)
-	var amp := _shake_strength * (1.0 - t)
-	_camera.h_offset = side.x * noise * amp + _shake_direction.x * amp * 0.35
-	_camera.v_offset = absf(noise) * amp * 0.55
+	if _orbit_camera == null:
+		_resolve_orbit_camera()
+	if _orbit_camera and _orbit_camera.has_method("apply_punch"):
+		var strength := DEFAULT_CAMERA_PUNCH * feedback_intensity * weight
+		_orbit_camera.call("apply_punch", direction, strength)
+		if weight >= 1.1 and _orbit_camera.has_method("apply_shake"):
+			_orbit_camera.call("apply_shake", strength * 0.35, 0.11)
 
 
 func _apply_vibration() -> void:
@@ -168,6 +196,35 @@ func _pulse_damage_vignette() -> void:
 		PixelDioramaViewport.call("pulse_damage_vignette", 0.72 * feedback_intensity)
 
 
-func _play_sfx_hook() -> void:
-	if AudioDirector:
-		AudioDirector.play_combat_sfx("hit")
+func _play_hit_sfx(target: Node, direction: Vector3) -> void:
+	var cue := "hit"
+	if target is Node3D:
+		var body := target as Node3D
+		if body.has_method("get_enemy_id"):
+			var enemy_id: String = body.call("get_enemy_id")
+			if enemy_id.contains("shield") or enemy_id.contains("knight"):
+				cue = "hit_armor"
+	_play_combat_sfx_at_body(cue, target if target is Node3D else null)
+
+
+func _play_combat_sfx_at_body(cue: String, body: Node3D = null) -> void:
+	if not AudioDirector:
+		return
+	var pos: Variant = null
+	if body:
+		var anchor: Array = VfxService.resolve_combat_anchor(body)
+		pos = anchor[0]
+	AudioDirector.play_combat_sfx(cue, pos)
+
+
+func _flash_diorama_body(body: Node3D, strength: float = 1.0, _tint: Color = Color.WHITE) -> void:
+	if body == null:
+		return
+	var visual := body.get_node_or_null("Facing/DioramaVisual") as Node3D
+	if visual == null:
+		visual = body.get_node_or_null("DioramaVisual") as Node3D
+	if visual == null:
+		return
+	MaterialFlashScript.flash(visual, strength)
+	var anchor: Array = VfxService.resolve_combat_anchor(body)
+	VfxService.play_hit_spark(anchor[0], anchor[1])

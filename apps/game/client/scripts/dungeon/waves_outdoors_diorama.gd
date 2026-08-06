@@ -9,7 +9,6 @@ const ARENA_HALF := 34.0
 const CASTLE_BACK_Z := -88.0
 
 
-
 static func apply(root: Node3D) -> void:
 	var mats := _load_materials()
 	VisualLighting.apply_waves_outdoors(root)
@@ -25,10 +24,14 @@ static func apply(root: Node3D) -> void:
 
 static func _load_materials() -> Dictionary:
 	var theme := PixelDioramaStyle.theme_from_biome(BiomeRegistry.BIOME_CASTLE)
-	var grass := PixelDioramaStyle.make_surface_material(
-		PixelDioramaStyle.SurfaceKind.FLOOR,
-		theme
-	).duplicate() as ShaderMaterial
+	var grass := (
+		(
+			PixelDioramaStyle
+			. make_surface_material(PixelDioramaStyle.SurfaceKind.FLOOR, theme)
+			. duplicate()
+		)
+		as ShaderMaterial
+	)
 	grass.set_shader_parameter("color_base", Color(0.28, 0.52, 0.24))
 	var grass_alt := grass.duplicate() as ShaderMaterial
 	grass_alt.set_shader_parameter("color_base", Color(0.22, 0.46, 0.2))
@@ -46,7 +49,9 @@ static func _load_materials() -> Dictionary:
 	var flower_white := PixelDioramaStyle.make_glow_material(
 		Color(0.92, 0.9, 0.82), Color(0.66, 0.64, 0.58), 0.45
 	)
-	var birch_trunk := PixelDioramaStyle.make_prop_material(theme, false).duplicate() as ShaderMaterial
+	var birch_trunk := (
+		PixelDioramaStyle.make_prop_material(theme, false).duplicate() as ShaderMaterial
+	)
 	birch_trunk.set_shader_parameter("color_base", Color(0.82, 0.78, 0.72))
 	birch_trunk.set_shader_parameter("color_shadow", Color(0.54, 0.5, 0.46))
 	return {
@@ -123,11 +128,7 @@ static func _spawn_grass_patches(root: Node3D, mats: Dictionary) -> void:
 		var h := rng.randf_range(0.14, 0.48)
 		var mat: Material = mats.grass_dark if rng.randf() > 0.55 else mats.accent
 		PixelDioramaStyle.add_box(
-			patches,
-			Vector3(0.1, h, 0.1),
-			Vector3(x, h * 0.5, z),
-			mat,
-			"GrassBlade_%d" % i
+			patches, Vector3(0.1, h, 0.1), Vector3(x, h * 0.5, z), mat, "GrassBlade_%d" % i
 		)
 
 
@@ -157,11 +158,7 @@ static func _spawn_flowers(root: Node3D, mats: Dictionary) -> void:
 			"Stem_%d" % i
 		)
 		PixelDioramaStyle.add_box(
-			flowers,
-			Vector3(0.18, 0.14, 0.18),
-			Vector3(x, stem_h + 0.08, z),
-			mat,
-			"Bloom_%d" % i
+			flowers, Vector3(0.18, 0.14, 0.18), Vector3(x, stem_h + 0.08, z), mat, "Bloom_%d" % i
 		)
 
 
@@ -213,12 +210,7 @@ static func _spawn_trees(root: Node3D, mats: Dictionary) -> void:
 
 
 static func _spawn_tree_species(
-	parent: Node3D,
-	pos: Vector3,
-	mats: Dictionary,
-	species: int,
-	scale: float,
-	index: int
+	parent: Node3D, pos: Vector3, mats: Dictionary, species: int, scale: float, index: int
 ) -> void:
 	var tree := Node3D.new()
 	tree.name = "Tree_%d" % index
@@ -358,9 +350,7 @@ static func _spawn_birds(root: Node3D) -> void:
 		bird.name = "Bird_%d" % i
 		bird.add_to_group("waves_bird")
 		var home := Vector3(
-			rng.randf_range(-55.0, 55.0),
-			rng.randf_range(7.0, 16.0),
-			rng.randf_range(-45.0, 45.0)
+			rng.randf_range(-55.0, 55.0), rng.randf_range(7.0, 16.0), rng.randf_range(-45.0, 45.0)
 		)
 		bird.position = home
 		bird.set_meta("home_x", home.x)
@@ -401,11 +391,7 @@ static func _build_castle_backdrop(root: Node3D, mats: Dictionary) -> void:
 	var wall_h := 12.0
 	var span := 52.0
 	PixelDioramaStyle.add_box(
-		castle,
-		Vector3(span, wall_h, 1.2),
-		Vector3(0.0, wall_h * 0.5, 0.0),
-		mats.wall,
-		"MainWall"
+		castle, Vector3(span, wall_h, 1.2), Vector3(0.0, wall_h * 0.5, 0.0), mats.wall, "MainWall"
 	)
 	for tower_x in [-span * 0.42, span * 0.42]:
 		PixelDioramaStyle.add_box(
@@ -433,9 +419,5 @@ static func _build_castle_backdrop(root: Node3D, mats: Dictionary) -> void:
 			"Merlon_%d" % i
 		)
 	PixelDioramaStyle.add_box(
-		castle,
-		Vector3(5.0, 6.5, 2.2),
-		Vector3(0.0, 3.25, 1.2),
-		mats.accent,
-		"Gatehouse"
+		castle, Vector3(5.0, 6.5, 2.2), Vector3(0.0, 3.25, 1.2), mats.accent, "Gatehouse"
 	)

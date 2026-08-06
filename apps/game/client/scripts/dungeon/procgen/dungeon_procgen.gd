@@ -7,10 +7,10 @@ const RoomGraphGeneratorScript := preload("res://scripts/dungeon/procgen/room_gr
 const RoomGraphConfigScript := preload("res://scripts/dungeon/procgen/room_graph_config.gd")
 const RoomGraphAssignerScript := preload("res://scripts/dungeon/procgen/room_graph_assigner.gd")
 const RoomGraphGeometryScript := preload("res://scripts/dungeon/procgen/room_graph_geometry.gd")
-const ProcgenBiomeLoaderScript := preload("res://scripts/dungeon/procgen/procgen_biome_loader.gd")
 const ProcgenPlacementsScript := preload("res://scripts/dungeon/procgen/procgen_placements.gd")
 const RoomContentAssignerScript := preload("res://scripts/dungeon/procgen/room_content_assigner.gd")
 const RoomContentConfigScript := preload("res://scripts/dungeon/procgen/room_content_config.gd")
+const RoomTemplateCatalogScript := preload("res://scripts/dungeon/procgen/room_template_catalog.gd")
 
 const MAX_ASSIGNMENT_ATTEMPTS := 12
 
@@ -26,23 +26,26 @@ static func generate(
 ) -> Dictionary:
 	if is_final_floor:
 		return _generate_final_floor(biome_id, run_seed, tier, player_level, floor_index)
-	var biome := ProcgenBiomeLoaderScript.load(biome_id)
+	var biome := BiomeRegistry.get_biome(biome_id)
 	if biome.is_empty():
 		return {"ok": false, "error": "Unknown biome '%s'" % biome_id}
 	var config := RoomGraphConfigScript.from_biome(biome)
 	config.debug_ascii = debug_ascii
-	var graph_result := RoomGraphGeneratorScript.generate(config, run_seed)
+	var graph_seed := ProcgenRng.stream(run_seed, "graph").seed
+	var graph_result := RoomGraphGeneratorScript.generate(config, graph_seed)
 	if not graph_result.get("ok", false):
-		return {"ok": false, "error": "Room graph generation failed"}
-	if graph_result.get("used_fallback", false):
-		push_warning("Room graph used fallback layout for seed %d (floor %d)" % [run_seed, floor_index])
+		return {
+			"ok": false,
+			"error": str(graph_result.get("reason", "Room graph generation failed")),
+		}
 	var graph: RoomGraph = graph_result.get("graph")
 	var assignment: Dictionary = {}
 	var rooms: Array = []
 	var edges: Array = []
-	var assign_rng := RandomNumberGenerator.new()
+	var assign_rng := ProcgenRng.stream(run_seed, "assign")
 	for attempt in MAX_ASSIGNMENT_ATTEMPTS:
-		assign_rng.seed = run_seed ^ 0x5EED + attempt * 1_000_003
+		if attempt > 0:
+			assign_rng.seed = FloorSeedMix.mix(assign_rng.seed, attempt * 1_000_003)
 		assignment = RoomGraphAssignerScript.assign(biome, graph, assign_rng)
 		var door_check := RoomGraphGeometryScript.validate_door_topology(graph, assignment)
 		if not door_check.get("ok", false):
@@ -58,16 +61,22 @@ static func generate(
 			"error": "Geometry build failed after %d assignment attempts" % MAX_ASSIGNMENT_ATTEMPTS,
 		}
 	var placements := ProcgenPlacementsScript.place(
-		biome, assignment, run_seed, tier, player_level, assign_rng, graph
+		biome, assignment, run_seed, tier, player_level, floor_index, graph
 	)
+	if not placements.get("ok", true):
+		return {
+			"ok": false,
+			"error": str(placements.get("error", "Placement failed")),
+		}
+	var content_rng := ProcgenRng.stream(run_seed, "content")
 	var content_result := RoomContentAssignerScript.assign(
-		graph, assignment, assign_rng, RoomContentConfigScript.default()
+		graph, assignment, content_rng, RoomContentConfigScript.default(), biome_id
 	)
 	var content: Dictionary = content_result.get("content", {})
 	var landmarks := _build_landmark_hints(rooms, graph)
 	var run_id := _deterministic_run_id(run_seed, biome_id, floor_index)
 	var definition := {
-		"schemaVersion": 1,
+		"schemaVersion": 2,
 		"runId": run_id,
 		"seed": run_seed,
 		"biomeId": biome_id,
@@ -75,7 +84,8 @@ static func generate(
 		"playerLevelSnapshot": maxi(1, player_level),
 		"rooms": rooms,
 		"edges": edges,
-		"placements": {
+		"placements":
+		{
 			"enemies": placements.get("enemies", []),
 			"loot": placements.get("loot", []),
 			"puzzles": placements.get("puzzles", []),
@@ -86,88 +96,78 @@ static func generate(
 			"exit": placements.get("exit"),
 			"entrance": placements.get("entrance"),
 		},
-		"budgets": {
+		"budgets":
+		{
 			"enemyThreat": placements.get("threat_used", 0.0),
 			"lootValue": placements.get("loot_value", 0.0),
 		},
 		"floorIndex": floor_index,
 		"isFinalFloor": false,
+		"maxHeightLevel": config.max_height_level,
 		"roomContent": content.get("roomContent", []),
 		"locks": content.get("locks", []),
 		"puzzles": content.get("puzzles", []),
-		"branchPreviews": RoomContentAssignerScript.build_branch_previews(
+		"branchPreviews":
+		RoomContentAssignerScript.build_branch_previews(
 			graph, assignment, content.get("roomContent", [])
 		),
 		"landmarks": landmarks,
 	}
+	var secret_count := RunFloorConfig.count_secrets(definition)
+	if secret_count > config.max_secrets:
+		return {
+			"ok": false,
+			"error": "Secret cap exceeded (%d > %d)" % [secret_count, config.max_secrets],
+		}
 	return {
 		"ok": true,
 		"definition": definition,
 		"generation_seed": run_seed,
 		"run_id": run_id,
-		"used_fallback": graph_result.get("used_fallback", false),
 	}
 
 
 static func _generate_final_floor(
-	biome_id: String,
-	run_seed: int,
-	tier: int,
-	player_level: int,
-	floor_index: int
+	biome_id: String, run_seed: int, tier: int, player_level: int, floor_index: int
 ) -> Dictionary:
-	var prefix := RoomTemplateCatalog.template_prefix_for_biome(biome_id)
+	var biome := BiomeRegistry.get_biome(biome_id)
+	if biome.is_empty():
+		return {"ok": false, "error": "Unknown biome '%s'" % biome_id}
+	var prefix := RoomTemplateCatalogScript.template_prefix_for_biome(biome_id)
+	var final_floor: Dictionary = biome.get("finalFloor", {})
+	var boss_enemy_id := _resolve_final_boss_id(biome, final_floor)
+	var lobby_chests: Array = final_floor.get("lobbyChests", _default_final_lobby_chests())
+	var layout := _build_final_floor_layout(prefix)
 	var run_id := _deterministic_run_id(run_seed, biome_id, floor_index)
 	var definition := {
-		"schemaVersion": 1,
+		"schemaVersion": 2,
 		"runId": run_id,
 		"seed": run_seed,
 		"biomeId": biome_id,
 		"tier": maxi(1, tier),
 		"playerLevelSnapshot": maxi(1, player_level),
-		"rooms": [
-			{
-				"id": "entrance",
-				"templateId": "%s_entrance" % prefix,
-				"type": "hub",
-				"transform": {"x": 0.0, "y": 0.0, "z": 0.0, "yaw": 0.0},
-				"tags": ["spawn", "final_lobby"],
-			},
-			{
-				"id": "boss",
-				"templateId": "%s_boss" % prefix,
-				"type": "boss",
-				"transform": {"x": 0.0, "y": 0.0, "z": 20.0, "yaw": 0.0},
-				"tags": ["final_boss"],
-			},
-		],
-		"edges": [{"from": "entrance", "to": "boss", "kind": "door"}],
-		"placements": {
+		"rooms": layout.get("rooms", []),
+		"edges": layout.get("edges", []),
+		"placements":
+		{
 			"enemies": [],
-			"loot": [
-				{
-					"roomId": "entrance",
-					"chestId": "final_lobby_potion",
-					"offset": {"x": 2.0, "y": 0.0, "z": 4.0},
-					"items": [{"itemId": "health_potion", "quantity": 1}],
-				},
-				{
-					"roomId": "entrance",
-					"chestId": "final_lobby_scroll",
-					"offset": {"x": -2.0, "y": 0.0, "z": 4.0},
-					"items": [{"itemId": "elixir_might", "quantity": 1}],
-				},
-			],
+			"loot": lobby_chests,
 			"puzzles": [],
 			"traps": [],
 			"secrets": [],
-			"boss": {"roomId": "boss", "enemyId": "final_boss_forgotten_castle"},
+			"boss": {"roomId": "boss", "enemyId": boss_enemy_id},
 			"exit": "boss",
 			"entrance": "entrance",
 		},
 		"budgets": {"enemyThreat": 0.0, "lootValue": 0.0},
 		"floorIndex": floor_index,
 		"isFinalFloor": true,
+		"maxHeightLevel": 0,
+		"roomContent": [],
+		"locks": [],
+		"puzzles": [],
+		"branchPreviews": [],
+		"landmarks": [],
 	}
 	return {
 		"ok": true,
@@ -175,6 +175,79 @@ static func _generate_final_floor(
 		"generation_seed": run_seed,
 		"run_id": run_id,
 	}
+
+
+static func _resolve_final_boss_id(biome: Dictionary, final_floor: Dictionary) -> String:
+	var configured: String = str(final_floor.get("bossId", ""))
+	if configured != "":
+		return configured
+	var boss_pool: Array = biome.get("bossPool", [])
+	if not boss_pool.is_empty():
+		return str(boss_pool[0].get("enemyId", "boss_castle_knight"))
+	return "boss_castle_knight"
+
+
+static func _default_final_lobby_chests() -> Array:
+	return [
+		{
+			"roomId": "entrance",
+			"chestId": "final_lobby_potion",
+			"offset": {"x": 2.0, "y": 0.0, "z": 4.0},
+			"items": [{"itemId": "health_potion", "quantity": 1}],
+		},
+		{
+			"roomId": "entrance",
+			"chestId": "final_lobby_scroll",
+			"offset": {"x": -2.0, "y": 0.0, "z": 4.0},
+			"items": [{"itemId": "elixir_might", "quantity": 1}],
+		},
+	]
+
+
+static func _build_final_floor_layout(prefix: String) -> Dictionary:
+	var entrance_id := "%s_entrance" % prefix
+	var arena_id := "%s_arena" % prefix
+	var boss_id := "%s_boss" % prefix
+	var entrance_spec := RoomTemplateCatalogScript.get_spec(entrance_id)
+	var arena_spec := RoomTemplateCatalogScript.get_spec(arena_id)
+	var boss_spec := RoomTemplateCatalogScript.get_spec(boss_id)
+	var arena_z := float(entrance_spec["half_depth"]) + float(arena_spec["half_depth"])
+	var boss_z := arena_z + float(arena_spec["half_depth"]) + float(boss_spec["half_depth"])
+	return {
+		"rooms":
+		[
+			{
+				"id": "entrance",
+				"templateId": entrance_id,
+				"type": "hub",
+				"transform": {"x": 0.0, "y": 0.0, "z": 0.0, "yaw": 0.0},
+				"tags": ["spawn", "final_lobby"],
+			},
+			{
+				"id": "arena",
+				"templateId": arena_id,
+				"type": "arena",
+				"transform": {"x": 0.0, "y": 0.0, "z": arena_z, "yaw": 0.0},
+				"tags": ["final_arena"],
+			},
+			{
+				"id": "boss",
+				"templateId": boss_id,
+				"type": "boss",
+				"transform": {"x": 0.0, "y": 0.0, "z": boss_z, "yaw": 0.0},
+				"tags": ["final_boss"],
+			},
+		],
+		"edges":
+		[
+			{"from": "entrance", "to": "arena", "kind": "door"},
+			{"from": "arena", "to": "boss", "kind": "door"},
+		],
+	}
+
+
+static func deterministic_run_id(run_seed: int, biome_id: String, floor_index: int) -> String:
+	return _deterministic_run_id(run_seed, biome_id, floor_index)
 
 
 static func _deterministic_run_id(run_seed: int, biome_id: String, floor_index: int) -> String:
@@ -196,26 +269,66 @@ static func _build_landmark_hints(rooms: Array, graph: RoomGraph) -> Array:
 		if room_type == "hub":
 			entrance_pos = pos
 	if boss_pos != Vector3.ZERO:
-		landmarks.append({
-			"kind": "boss_spire",
-			"position": {"x": boss_pos.x, "y": boss_pos.y + 18.0, "z": boss_pos.z},
-			"scale": {"x": 2.0, "y": 24.0, "z": 2.0},
-		})
-		landmarks.append({
-			"kind": "boss_silhouette",
-			"position": {"x": boss_pos.x, "y": boss_pos.y + 8.0, "z": boss_pos.z - 6.0},
-			"scale": {"x": 6.0, "y": 10.0, "z": 1.0},
-		})
+		(
+			landmarks
+			. append(
+				{
+					"kind": "boss_spire",
+					"position": {"x": boss_pos.x, "y": boss_pos.y + 18.0, "z": boss_pos.z},
+					"scale": {"x": 2.0, "y": 24.0, "z": 2.0},
+				}
+			)
+		)
+		(
+			landmarks
+			. append(
+				{
+					"kind": "boss_silhouette",
+					"position": {"x": boss_pos.x, "y": boss_pos.y + 8.0, "z": boss_pos.z - 6.0},
+					"scale": {"x": 6.0, "y": 10.0, "z": 1.0},
+				}
+			)
+		)
 	if entrance_pos != Vector3.ZERO and graph != null and graph.boss_id != "":
 		var boss_slot := graph.get_slot(graph.boss_id)
 		if boss_slot:
-			landmarks.append({
-				"kind": "orientation_spire",
-				"position": {
-					"x": entrance_pos.x + float(boss_slot.grid_pos.x - graph.get_slot(graph.start_id).grid_pos.x) * 2.0,
-					"y": entrance_pos.y + 14.0,
-					"z": entrance_pos.z + float(boss_slot.grid_pos.y - graph.get_slot(graph.start_id).grid_pos.y) * 2.0,
-				},
-				"scale": {"x": 1.5, "y": 16.0, "z": 1.5},
-			})
+			(
+				landmarks
+				. append(
+					{
+						"kind": "orientation_spire",
+						"position":
+						{
+							"x":
+							(
+								entrance_pos.x
+								+ (
+									float(
+										(
+											boss_slot.grid_pos.x
+											- graph.get_slot(graph.start_id).grid_pos.x
+										)
+									)
+									* 2.0
+								)
+							),
+							"y": entrance_pos.y + 14.0,
+							"z":
+							(
+								entrance_pos.z
+								+ (
+									float(
+										(
+											boss_slot.grid_pos.y
+											- graph.get_slot(graph.start_id).grid_pos.y
+										)
+									)
+									* 2.0
+								)
+							),
+						},
+						"scale": {"x": 1.5, "y": 16.0, "z": 1.5},
+					}
+				)
+			)
 	return landmarks

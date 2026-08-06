@@ -1,64 +1,70 @@
 # World state
 
-`WorldState` is a 52-line autoload holding a flat run-scoped key/value dictionary for dungeon locks, levers, keys, and room content. It is on the live play path — dungeon interactables read and write it every run — but it is deliberately not persisted to the save file. Persistence happens indirectly: `castle_run.gd` copies `WorldState.all_flags()` into the `activeRun.snapshot.worldFlags` blob.
+`WorldState` is a run-scoped key/value store for dungeon locks, levers, keys, and room content. It is on the live play path — dungeon interactables read and write it every run — but it is deliberately not persisted to the save file. Persistence happens indirectly: `castle_run.gd` copies `WorldState.all_flags()` into the `activeRun.snapshot.worldFlags` blob.
 
 ## Files
 | Path | Role |
 |------|------|
-| `apps/game/client/scripts/app/world_state.gd` | Autoload `WorldState` — the entire system |
+| `apps/game/client/scripts/app/world_state.gd` | Autoload `WorldState` — flag store, signals, lifecycle |
+| `apps/game/client/scripts/app/world_flags.gd` | `WorldFlags` registry — namespaced id builders and validation |
 
 ## How it works
 
-Backing store is one dictionary, `_flags`, declared at `world_state.gd:7`. There is no schema, no namespace convention, and no type constraint on values.
+Backing store is one dictionary, `_flags`, declared at `world_state.gd:8`. Flag ids must be three-segment namespaced strings produced by `WorldFlags` builders; `set_flag` rejects anything that fails `WorldFlags.is_valid_id`.
 
-| Member | Line | Behaviour |
-|--------|------|-----------|
-| `flag_changed(flag_id: String, value: Variant)` | 5 | Emitted on every `set_flag` |
-| `reset()` | 16 | `_flags.clear()` |
-| `set_flag(flag_id, value = true)` | 20 | Assigns and emits `flag_changed` |
-| `has_flag(flag_id)` | 25 | `bool(_flags.get(flag_id, false))` — a flag set to `0`, `""`, or `false` reads as absent |
-| `get_flag(flag_id, default_value = false)` | 29 | Raw `Variant` read |
-| `all_flags()` | 33 | Shallow `duplicate()` |
-| `restore_flags(flags)` | 37 | Clears, then copies every key from the supplied dictionary |
+| Member | Behaviour |
+|--------|-----------|
+| `flag_changed(flag_id, value)` | Emitted on every `set_flag` and `erase_flag` (value is `null` on erase) |
+| `namespace_changed(namespace, flag_id, value)` | Emitted on every `set_flag` and `erase_flag` for cheap namespace filtering |
+| `reset()` | `_flags.clear()` |
+| `set_flag(flag_id, value = true)` | Validates id, deep-stores value, emits both signals |
+| `has_flag(flag_id)` | `_flags.has(flag_id)` — presence, not truthiness |
+| `is_flag_true(flag_id)` | `bool(_flags.get(flag_id, false))` |
+| `get_flag(flag_id, default_value = null)` | Raw `Variant` read |
+| `erase_flag(flag_id)` | Removes key; emits `flag_changed(id, null)` |
+| `all_flags()` | `duplicate(true)` deep copy |
+| `restore_flags(flags)` | Clears, validates keys and scalar/container values, returns rejection count |
 
 ### Lifecycle
-`_ready()` (`world_state.gd:10-13`) sets `process_mode = PROCESS_MODE_ALWAYS` and connects to two `RunFlow` signals:
+`_ready()` (`world_state.gd:11-15`) sets `process_mode = PROCESS_MODE_ALWAYS` and connects to three `RunFlow` signals:
 
-- `run_started` → `_on_run_started()` (line 43): returns early when `RunFlow.is_continue_restore()` is true, otherwise calls `reset()` and `InventoryService.clear_dungeon_keys()`.
-- `run_ended` → `_on_run_ended()` (line 50): calls `reset()`.
-
-`returned_to_hub` is not connected, so retreating (`RunFlow.retreat_to_hub`) and abandoning (`RunFlow.abandon_active_run`) leave `_flags` populated while the player is in the hub.
+- `run_started` → `_on_run_started()`: returns early when `RunFlow.is_continue_restore()` is true, otherwise calls `reset()` and `InventoryService.clear_dungeon_keys()`.
+- `run_ended` → `_on_run_ended()`: calls `reset()`.
+- `returned_to_hub` → `_on_returned_to_hub()`: calls `reset()`.
 
 ### Persistence path
 `WorldState` never touches `LocalSave`. The flags reach disk only through the run snapshot:
 
-- Capture: `castle_run.gd:435` writes `"worldFlags": WorldState.all_flags()` into the snapshot returned by `_capture_run_snapshot()`.
-- Restore on continue: `castle_run.gd:315` calls `WorldState.restore_flags(snapshot.get("worldFlags", {}))`.
-- Restore on bonfire respawn: `run_flow.gd:835` calls `WorldState.restore_flags(checkpoint.get("worldFlags", {}))`.
-- Migration default: `save_migrator.gd:67-70` inserts `snapshot.worldFlags = {}` when upgrading a v3 save to v4.
+- Capture: `castle_run.gd:436` writes `"worldFlags": WorldState.all_flags()` into the snapshot returned by `_capture_run_snapshot()`.
+- Restore on continue: `castle_run.gd:316` calls `WorldState.restore_flags(snapshot.get("worldFlags", {}))` and logs rejections.
+- Restore on bonfire respawn: `run_flow.gd:837` calls `WorldState.restore_flags(checkpoint.get("worldFlags", {}))`.
+- Migration: `save_migrator.gd` v4→v5 rewrites legacy `key_*` and `quest_*_active` ids to namespaced `WorldFlags` ids in both `snapshot.worldFlags` and `lastCheckpoint.worldFlags`.
 
-`all_flags()` is a *shallow* duplicate, so a flag whose value is a Dictionary or Array is captured by reference into the snapshot.
+`all_flags()` is a deep duplicate, so nested container values do not alias live state into the snapshot.
+
+### Flag id registry
+`WorldFlags` (`world_flags.gd`) defines namespaces `lock`, `lever`, `door`, `room`, `secret`, `chest`, `trap` and builders such as `lock_opened(lock_id)` → `lock.{lock_id}.opened`. Dungeon interactables use these builders exclusively.
 
 ## Contracts
 
 **Autoload dependencies:** `RunFlow` (signals), `InventoryService` (`clear_dungeon_keys`).
 
-**Signal emitted:** `flag_changed(flag_id, value)`. No consumer connects to it anywhere under `apps/game/client/scripts/`.
+**Signals emitted:** `flag_changed`, `namespace_changed`. `room_locked_door_content.gd` and `room_locked_vault_content.gd` subscribe to `namespace_changed` for the `lock` namespace.
 
 **Save keys touched indirectly:** `activeRun.snapshot.worldFlags`, `activeRun.lastCheckpoint.worldFlags`.
-
-**Flag id namespace:** none enforced. Ids are plain strings supplied by callers; there is no registry, no prefix rule, and no validation that a read matches a write.
 
 ## Current state
 | Surface | Status | Evidence |
 |---------|--------|----------|
-| Run-scoped flag store, reset on run start and end | IMPLEMENTED | `world_state.gd:16-51` |
-| Snapshot capture / restore of `worldFlags` | IMPLEMENTED | `castle_run.gd:435`, `castle_run.gd:315`, `run_flow.gd:835` |
-| `flag_changed` signal | STUB | Declared at `world_state.gd:5`, emitted at `world_state.gd:22`, no connection anywhere under `apps/game/client/scripts/` |
-| Flags survive retreat / abandon into the hub | PARTIAL | `returned_to_hub` is not connected in `world_state.gd:10-13`; only `run_started` and `run_ended` clear state |
-| `has_flag` conflates "unset" with "falsy" | PARTIAL | `world_state.gd:26` returns `bool(...)`, so `set_flag(id, 0)` is indistinguishable from never setting it |
-| Deep values captured by reference | PARTIAL | `all_flags()` uses `duplicate()` without `true` (`world_state.gd:34`), so nested containers alias the live flag |
-| Flag id registry / naming convention | ABSENT | No constant list, prefix rule, or validation exists in `world_state.gd` or anywhere that calls it |
+| Run-scoped flag store, reset on run start, end, and hub return | IMPLEMENTED | `world_state.gd:17-88` |
+| Snapshot capture / restore of `worldFlags` | IMPLEMENTED | `castle_run.gd:316`, `castle_run.gd:436`, `run_flow.gd:837` |
+| `flag_changed` / `namespace_changed` reactive consumers | IMPLEMENTED | `room_locked_door_content.gd:24`, `room_locked_vault_content.gd:50` |
+| Presence vs truthiness (`has_flag` / `is_flag_true`) | IMPLEMENTED | `world_state.gd:35-40` |
+| Deep values captured by copy | IMPLEMENTED | `world_state.gd:56-57`, `world_state.gd:115-118` |
+| Flag id registry / naming convention | IMPLEMENTED | `world_flags.gd` |
+| Validated restore with rejection count | IMPLEMENTED | `world_state.gd:60-75` |
+| `erase_flag` | IMPLEMENTED | `world_state.gd:47-53` |
+| v4→v5 legacy worldFlags migration | IMPLEMENTED | `save_migrator.gd:79-108` |
 
 ## Related
 - Improvement plan: [`../actual_improvements/world-state.md`](../actual_improvements/world-state.md)

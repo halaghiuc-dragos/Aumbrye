@@ -1,13 +1,15 @@
 # Waves run
 
-Umbral Waves is a separate run mode: lobby with six chests, then up to 50 combat waves in a procedural outdoors arena. Wave composition, chest pools, and milestones are **formula/hardcoded in GDScript** — there is no wave-definition JSON. On the live play path from the hub Umbral Waves portal. `umbral_endless_menu.gd` belongs to endless dungeon mode, not waves.
+Umbral Waves is a separate run mode: lobby with six chests, then up to 50 combat waves in a procedural outdoors arena. Wave composition, chest pools, and milestones are authored in `content/waves/umbral_waves.json` (schema `waves-definition.v1.json`). On the live play path from the hub Umbral Waves portal. `umbral_endless_menu.gd` belongs to endless dungeon mode, not waves.
 
 ## Files
 
 | Path | Role |
 |------|------|
+| `content/waves/umbral_waves.json` | Milestones, enemy formula, roster unlocks, lobby chest tables |
+| `content/schemas/waves-definition.v1.json` | JSON schema for wave definitions |
 | `apps/game/client/scripts/dungeon/waves_run.gd` | Scene controller: lobby, walls, spawn, death, victory |
-| `apps/game/client/scripts/dungeon/waves_run_service.gd` | Autoload state: chests, inventory, wave formula, save |
+| `apps/game/client/scripts/dungeon/waves_run_service.gd` | Autoload state: chests, inventory, wave data load, save |
 | `apps/game/client/scripts/dungeon/waves_chest.gd` | Lobby chest interactable |
 | `apps/game/client/scripts/dungeon/waves_outdoors_diorama.gd` | Procedural 210×210 outskirts + 34 arena |
 | `apps/game/client/scenes/dungeon/waves_run.tscn` | Root script + light + Player (geometry is code-built) |
@@ -15,6 +17,8 @@ Umbral Waves is a separate run mode: lobby with six chests, then up to 50 combat
 | `apps/game/client/scripts/ui/umbral_endless_menu.gd` | Endless portal menu (not waves) |
 | `apps/game/client/scripts/ui/waves_run_ui.gd` | In-run lobby/combat/prep/reward UI |
 | `apps/game/client/scripts/app/run_flow.gd` | `start_waves_run`, `complete_waves_run`, `on_waves_failed`, `quit_waves_run` |
+| `apps/game/client/scripts/app/run_lifecycle.gd` | `build_results` for waves outcomes |
+| `apps/game/client/scripts/ui/results_screen.gd` | Waves Cleared / Waves Failed titles |
 
 ## How it works
 
@@ -24,34 +28,34 @@ Umbral Waves is a separate run mode: lobby with six chests, then up to 50 combat
 
 ### Lobby and combat (`waves_run.gd`)
 
-- Six chests on a ring (`:100-161`); `WavesRunService.open_chest` rolls rarity/item into isolated `waves_inventory` (`waves_run_service.gd:113-154`).
+- Six chests on a ring (`:100-161`); `WavesRunService.open_chest` rolls rarity/item into isolated `waves_inventory` from JSON chest defs (`waves_run_service.gd:113-154`).
 - Ready → combat walls (34×34, `ARENA_HALF`) → `_start_wave`.
-- Milestones `[5, 10, 20, 50]` (`waves_run_service.gd:8`): after clear, 5s prep, then advance.
-- Wave 50 clear → reward pick (≤3 items) → `RunFlow.complete_waves_run`.
-- Death → 1.5s → `RunFlow.on_waves_failed` (`waves_run.gd:362-364`).
+- Milestones `[5, 10, 20, 50]` from `umbral_waves.json` (`waves_run_service.gd`): after clear, 5s prep via `enter_prep`, then advance.
+- Wave 50 clear → reward pick (≤3 items, confirm requires ≥1 when inventory non-empty) → `RunFlow.complete_waves_run`.
+- Death → 1.5s → `RunFlow.on_waves_failed` (`waves_run.gd:376-379`).
 
-### Wave data — formula, not authored JSON
+### Wave data — JSON-driven
 
-`get_enemies_for_wave` (`waves_run_service.gd:280-297`):
+`WavesRunService` loads `content/waves/umbral_waves.json` on ready (`waves_run_service.gd:29-46`). `get_enemies_for_wave` (`:288-305`):
 
-| Rule | Value |
-|------|-------|
-| Count | `mini(2 + (wave >> 1), 12)` +2 on milestones |
-| Roster | grunt/archer/shield/hound; +`castle_knight` at wave ≥ 5 |
-| Milestone add | Random of `boss_castle_knight`, `miniboss_castle_captain` |
+| Rule | Value (default JSON) |
+|------|----------------------|
+| Count | `mini(base + (wave >> 1) * per_half_wave, cap)` + `milestone_bonus` on milestones |
+| Roster | `base_roster`; `roster_unlocks` add `castle_knight` at wave ≥ 5 |
+| Milestone add | Random of `milestone_bosses` |
 
-`waves_run.gd:5-12` `ENEMY_SCENES` maps six castle ids + `boss_castle_knight` → `castle_knight.tscn`. **`miniboss_castle_captain` is missing** — spawn returns early when that id is rolled (`:186-188`).
+`waves_run.gd:5-12` `ENEMY_SCENES` maps castle ids + `boss_castle_knight` + `miniboss_castle_captain` → `castle_knight.tscn`. Boss/miniboss ids call `set_catalog_id` before spawn (`:186-192`) so `miniboss_castle_captain` uses 350 HP from `content/bosses/miniboss_castle_captain.json`.
 
-Chest types, labels, rarity weights, and item pools are consts in `waves_run_service.gd:10-37`.
+Chest types, labels, rarity weights, and item pools are in `umbral_waves.json` `chests` array.
 
 ### Outcomes and results honesty
 
 | Path | Behaviour | Honesty |
 |------|-----------|---------|
-| `complete_waves_run` (`run_flow.gd:951-966`) | Grants `WAVES_COMPLETION_XP` (500), adds chosen loot, outcome `waves_complete` | `xp_gained` real; **`levels_gained` hardcoded `0`** despite `grant_xp` returning levels |
-| `on_waves_failed` (`:975-988`) | Empty loot, 0 XP, outcome `waves_failed` | Omits `run_relics_lost`; waves inventory discarded via clear save |
+| `complete_waves_run` (`run_flow.gd:1081-1113`) | Grants `WAVES_COMPLETION_XP` (500), adds chosen loot, `RunLifecycle.build_results` | `levels_gained` from `grant_xp` via `build_results` |
+| `on_waves_failed` (`:1116-1148`) | Empty loot, 0 XP, `OUTCOME_WAVES_FAILED` | Includes `run_relics_lost` from `_had_run_relics()` |
 | `quit_waves_run` (`:929-948`) | Milestone keep-fraction transfer → hub | No results screen |
-| `results_screen.gd` | Generic "Run Complete" for non-death | No waves-specific title; level-up line never shows for waves |
+| `results_screen.gd` | `OUTCOME_WAVES_COMPLETE` → "Waves Cleared"; `OUTCOME_WAVES_FAILED` → "Waves Failed" | Level-up line when `levels_gained > 0` |
 
 ### Diorama
 
@@ -63,19 +67,23 @@ Chest types, labels, rarity weights, and item pools are consts in `waves_run_ser
 |----------|--------|
 | Autoload | `WavesRunService` (`project.godot`) |
 | Group | `"waves_run"` |
-| Save | `LocalSave` waves active run schema v1 via service `81-92` |
-| Enemy ids | Must exist in `ENEMY_SCENES` or spawn is skipped |
-| Results keys | Hand-built dicts in `RunFlow` (not `RunLifecycle`) |
+| Save | `LocalSave` waves active run schema v1 via service `74-85` |
+| Content | `content/waves/umbral_waves.json`; validated by `waves-definition.v1.json` |
+| Enemy ids | Must exist in `ENEMY_SCENES`; boss/miniboss use `set_catalog_id` |
+| Results keys | `RunLifecycle.build_results` (parity with escape/death) |
+| Prep | `prep_active` only during post-milestone countdown (`enter_prep` / `leave_prep`) |
 
 ## Current state
 
 | Surface | Status | Evidence |
 |---------|--------|----------|
 | Lobby → 50 waves → reward pick | IMPLEMENTED | `waves_run.gd` + service |
-| Wave composition | PLACEHOLDER | Formula in `get_enemies_for_wave`; no JSON |
-| Milestone `miniboss_castle_captain` | BROKEN | Rolled but absent from `ENEMY_SCENES` |
-| Completion XP | PARTIAL | 500 XP granted; `levels_gained` always 0 (`run_flow.gd:961-962`) |
-| Failure results schema | PARTIAL | Missing `run_relics_lost` (`:979-988`) |
+| Wave composition | IMPLEMENTED | `content/waves/umbral_waves.json` + `get_enemies_for_wave` |
+| Milestone `miniboss_castle_captain` | IMPLEMENTED | `ENEMY_SCENES` + `set_catalog_id` (`waves_run.gd:11-12`, `:186-192`) |
+| Completion XP / levels | IMPLEMENTED | `run_flow.gd:1086-1105` |
+| Failure results schema | IMPLEMENTED | `run_relics_lost` in `on_waves_failed` (`:1136`) |
+| Results titles | IMPLEMENTED | `results_screen.gd:94-97` |
+| Reward confirm gate | IMPLEMENTED | `waves_run_ui.gd` confirm disabled + hint |
 | Outdoors diorama | IMPLEMENTED | Procedural, seeded |
 | `umbral_endless_menu` | N/A (other mode) | Endless skip-floor UI only |
 

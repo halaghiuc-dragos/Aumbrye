@@ -5,6 +5,9 @@ extends Node
 const JUMP_VELOCITY := 4.8
 const COYOTE_TIME := 0.12
 const JUMP_BUFFER_TIME := 0.15
+const DODGE_BURST_FRACTION := 0.35
+const DODGE_PEAK_SPEED := 11.0
+const DODGE_END_SPEED := 3.0
 const DODGE_SPEED := 9.0
 const DODGE_BACK_SPEED := 6.0
 const DODGE_DURATION := 0.45
@@ -31,6 +34,7 @@ var _dodge_timer := 0.0
 var _recovery_timer := 0.0
 var _dodge_direction := Vector3.ZERO
 var _dodge_speed := DODGE_SPEED
+var _stamina_cost_mult := 1.0
 var _was_on_floor := false
 
 
@@ -48,6 +52,24 @@ func _physics_process(delta: float) -> void:
 		_recovery_timer -= delta
 
 
+func configure(_data: Dictionary = {}, weight_class: String = "medium") -> void:
+	match weight_class:
+		"light":
+			_stamina_cost_mult = 0.85
+		"heavy":
+			_stamina_cost_mult = 1.25
+		_:
+			_stamina_cost_mult = 1.0
+
+
+func set_stamina_cost_multiplier(mult: float) -> void:
+	_stamina_cost_mult = maxf(0.1, mult)
+
+
+func _scaled_dodge_cost() -> float:
+	return DODGE_STAMINA_COST * _stamina_cost_mult
+
+
 func process_dash_physics(delta: float) -> void:
 	process_dodge_physics(delta)
 
@@ -56,7 +78,7 @@ func process_dodge_physics(delta: float) -> void:
 	if is_dodging:
 		_process_dash(delta)
 		return
-	if Input.is_action_just_pressed("dodge") and _can_dash():
+	if PlayerInput.just_pressed(&"dodge") and _can_dash():
 		_start_dash()
 
 
@@ -74,6 +96,22 @@ func locks_movement() -> bool:
 	return _recovery_timer > 0.0
 
 
+func grant_external_iframes(active: bool) -> void:
+	if iframes_active == active:
+		return
+	iframes_active = active
+	iframes_changed.emit(iframes_active)
+
+
+func try_rollout_dash(stamina_cost: float) -> bool:
+	if is_dodging or _recovery_timer > 0.0:
+		return false
+	if _stamina and not _stamina.consume(stamina_cost):
+		return false
+	_start_dash(true)
+	return true
+
+
 func _update_timers(delta: float) -> void:
 	if _body and _body.is_on_floor():
 		_coyote_timer = COYOTE_TIME
@@ -81,7 +119,7 @@ func _update_timers(delta: float) -> void:
 		_coyote_timer = maxf(0.0, _coyote_timer - delta)
 	_was_on_floor = _body.is_on_floor() if _body else false
 
-	if Input.is_action_just_pressed("jump"):
+	if PlayerInput.just_pressed(&"jump"):
 		_jump_buffer_timer = JUMP_BUFFER_TIME
 	elif _jump_buffer_timer > 0.0:
 		_jump_buffer_timer -= delta
@@ -101,25 +139,24 @@ func _handle_jump_buffer() -> void:
 func _can_dash() -> bool:
 	if is_dodging or _recovery_timer > 0.0:
 		return false
-	if _stamina and not _stamina.has(DODGE_STAMINA_COST):
+	if _stamina and not _stamina.has(_scaled_dodge_cost()):
 		return false
 	return true
 
 
-func _start_dash() -> void:
-	if not _stamina.consume(DODGE_STAMINA_COST):
+func _start_dash(skip_cost: bool = false) -> void:
+	if not skip_cost and _stamina and not _stamina.consume(_scaled_dodge_cost()):
 		return
-	var input_dir := Input.get_vector("move_left", "move_right", "move_forward", "move_back")
+	if _stamina:
+		_stamina.set_regen_state(Stamina.RegenState.SUPPRESSED)
+	var input_dir := PlayerInput.move_vector()
 	var lock_on := _body.get_node_or_null("LockOn")
 	if LockOnMovement.is_active(lock_on):
-		if input_dir.length_squared() > 0.01:
+		_dodge_direction = LockOnMovement.get_locked_dodge_direction(_body, lock_on, input_dir)
+		if input_dir.length_squared() > 0.01 and absf(input_dir.x) >= 0.01:
 			_dodge_speed = DODGE_SPEED
-			_dodge_direction = LockOnMovement.get_move_direction(
-				_body, lock_on, input_dir, _get_camera_relative_direction
-			)
 		else:
 			_dodge_speed = DODGE_BACK_SPEED
-			_dodge_direction = _get_attack_backstep_direction()
 	elif input_dir.length_squared() > 0.01:
 		_dodge_speed = DODGE_SPEED
 		_dodge_direction = _get_camera_relative_direction(input_dir)
@@ -131,7 +168,6 @@ func _start_dash() -> void:
 	is_dodging = true
 	_dodge_timer = DODGE_DURATION
 	dash_started.emit()
-	dodge_started.emit()
 
 
 func _get_attack_backstep_direction() -> Vector3:
@@ -162,9 +198,18 @@ func _get_facing_forward() -> Vector3:
 
 func _process_dash(delta: float) -> void:
 	_dodge_timer -= delta
-	_body.velocity.x = _dodge_direction.x * _dodge_speed
-	_body.velocity.z = _dodge_direction.z * _dodge_speed
 	var elapsed := DODGE_DURATION - _dodge_timer
+	var t := clampf(elapsed / DODGE_DURATION, 0.0, 1.0)
+	var speed := DODGE_PEAK_SPEED
+	if t >= DODGE_BURST_FRACTION:
+		var blend := (t - DODGE_BURST_FRACTION) / maxf(0.001, 1.0 - DODGE_BURST_FRACTION)
+		speed = lerpf(DODGE_PEAK_SPEED, DODGE_END_SPEED, blend)
+	_body.velocity.x = _dodge_direction.x * speed
+	_body.velocity.z = _dodge_direction.z * speed
+	if not _body.is_on_floor():
+		_body.velocity += _body.get_gravity() * delta
+	elif _body.velocity.y > 0.0:
+		_body.velocity.y = 0.0
 	var iframes := elapsed >= IFRAME_START and elapsed <= IFRAME_END
 	if iframes != iframes_active:
 		iframes_active = iframes
@@ -180,5 +225,6 @@ func _end_dash() -> void:
 	iframes_changed.emit(false)
 	_recovery_timer = DODGE_RECOVERY
 	_dodge_speed = DODGE_SPEED
+	if _stamina:
+		_stamina.set_regen_state(Stamina.RegenState.NORMAL)
 	dash_ended.emit()
-	dodge_ended.emit()

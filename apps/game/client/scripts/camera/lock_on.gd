@@ -1,18 +1,27 @@
 extends Node
 class_name LockOn
 
-const LOCK_RANGE := 18.0
+const LOCK_ACQUIRE_RANGE := 18.0
+const LOCK_BREAK_RANGE := 22.0
+const LOCK_BREAK_GRACE := 0.4
+const LOCK_VERTICAL_LIMIT := 8.0
+const SCORE_DISTANCE_WEIGHT := 1.0
+const SCORE_ANGLE_WEIGHT := 0.75
+const SCORE_THREAT_WEIGHT := 0.5
+const SWITCH_COOLDOWN_STICK := 0.15
+const SWITCH_COOLDOWN_WHEEL := 0.05
 const ORBIT_RADIUS := 1.75
 const SWITCH_THRESHOLD := 0.55
-const SWITCH_COOLDOWN := 0.15
 const TOGGLE_COOLDOWN := 0.2
 
 var _prev_stick_x := 0.0
 var _switch_blend_boost := 0.0
+var _break_grace_timer := 0.0
 const LOS_GRACE_TIME := 0.75
 const LOCK_PICK_CONE_DEG := 75.0
 
 signal lock_changed(target: Node3D, locked: bool)
+signal lock_occluded(occluded: bool)
 
 @export var player_path: NodePath
 @export var facing_path: NodePath = NodePath("Facing")
@@ -26,6 +35,7 @@ var _switch_cooldown := 0.0
 var _toggle_cooldown := 0.0
 var _target_health: Health
 var _los_grace_timer := 0.0
+var _was_occluded := false
 var _camera_spring: Node
 
 
@@ -49,14 +59,18 @@ func _unhandled_input(event: InputEvent) -> void:
 		get_viewport().set_input_as_handled()
 	if is_locked and event is InputEventMouseButton and event.pressed:
 		if event.button_index == MOUSE_BUTTON_WHEEL_UP:
-			_switch_target(1)
-			get_viewport().set_input_as_handled()
+			if _switch_target(1):
+				get_viewport().set_input_as_handled()
 		elif event.button_index == MOUSE_BUTTON_WHEEL_DOWN:
-			_switch_target(-1)
-			get_viewport().set_input_as_handled()
+			if _switch_target(-1):
+				get_viewport().set_input_as_handled()
 
 
 func _physics_process(delta: float) -> void:
+	if get_tree().paused:
+		return
+	if PlayerInput.has_method("is_gameplay_blocked") and PlayerInput.call("is_gameplay_blocked"):
+		return
 	if _switch_cooldown > 0.0:
 		_switch_cooldown -= delta
 	if _toggle_cooldown > 0.0:
@@ -70,12 +84,33 @@ func _physics_process(delta: float) -> void:
 
 
 func get_orbit_radius() -> float:
-	return ORBIT_RADIUS
+	return LockOnMovement.get_orbit_radius(self, current_target)
 
 
 func break_lock() -> void:
 	if is_locked:
 		_break_lock()
+
+
+func request_lock(target: Node3D = null) -> bool:
+	if target != null and is_instance_valid(target):
+		_set_lock(target)
+		return true
+	var best := _find_best_target(true)
+	if best == null:
+		best = _find_best_target(false)
+	if best:
+		_set_lock(best)
+		return true
+	return false
+
+
+func cycle_target(direction: int) -> bool:
+	if not is_locked or direction == 0:
+		return false
+	var before := current_target
+	_switch_target(direction)
+	return current_target != before and current_target != null
 
 
 func _toggle_lock() -> void:
@@ -100,9 +135,11 @@ func _set_lock(target: Node3D) -> void:
 	current_target = target
 	is_locked = true
 	_los_grace_timer = 0.0
+	_was_occluded = false
 	_target_health = target.get_node_or_null("Health") as Health
 	if _target_health and not _target_health.died.is_connected(_on_lock_target_died):
 		_target_health.died.connect(_on_lock_target_died)
+	_push_lock_target_height(target)
 	_set_camera_lock_on_active(true)
 	lock_changed.emit(target, true)
 
@@ -114,6 +151,7 @@ func _break_lock() -> void:
 	current_target = null
 	is_locked = false
 	_los_grace_timer = 0.0
+	_was_occluded = false
 	_set_camera_lock_on_active(false)
 	lock_changed.emit(null, false)
 
@@ -146,15 +184,26 @@ func _update_lock(delta: float) -> void:
 		return
 	if not _player:
 		return
-	var distance := _player.global_position.distance_to(current_target.global_position)
-	if distance > LOCK_RANGE:
-		_break_lock()
+	var planar := _planar_distance_to(current_target)
+	if planar > LOCK_BREAK_RANGE:
+		_break_grace_timer -= delta
+		if _break_grace_timer <= 0.0:
+			_break_lock()
 		return
+	_break_grace_timer = LOCK_BREAK_GRACE
 	if _has_line_of_sight_to(current_target):
+		if _was_occluded:
+			_was_occluded = false
+			lock_occluded.emit(false)
 		_los_grace_timer = LOS_GRACE_TIME
 	elif _los_grace_timer > 0.0:
+		if not _was_occluded:
+			_was_occluded = true
+			lock_occluded.emit(true)
 		_los_grace_timer -= delta
 	else:
+		if _was_occluded:
+			lock_occluded.emit(false)
 		_break_lock()
 
 
@@ -176,7 +225,11 @@ func _update_lock_camera(delta: float) -> void:
 func _get_player_eye_position() -> Vector3:
 	if _player == null:
 		return Vector3.ZERO
-	if _camera_spring and _camera_spring.has_method("is_first_person") and _camera_spring.call("is_first_person"):
+	if (
+		_camera_spring
+		and _camera_spring.has_method("is_first_person")
+		and _camera_spring.call("is_first_person")
+	):
 		var camera := _camera_spring.get_node_or_null("Camera3D") as Camera3D
 		if camera:
 			return camera.global_position
@@ -184,11 +237,36 @@ func _get_player_eye_position() -> Vector3:
 
 
 func _set_camera_lock_on_active(active: bool) -> void:
-	if _camera_spring and _camera_spring.has_method("set_lock_on_active"):
+	_resolve_camera_spring()
+	if _camera_spring == null:
+		return
+	if _camera_spring.has_method("set_lock_on_active"):
 		_camera_spring.call("set_lock_on_active", active)
+	if active:
+		if not lock_occluded.is_connected(_on_lock_occluded_camera):
+			lock_occluded.connect(_on_lock_occluded_camera)
+	else:
+		if lock_occluded.is_connected(_on_lock_occluded_camera):
+			lock_occluded.disconnect(_on_lock_occluded_camera)
+		if _was_occluded:
+			_was_occluded = false
+			lock_occluded.emit(false)
+
+
+func _on_lock_occluded_camera(occluded: bool) -> void:
+	if _camera_spring and _camera_spring.has_method("on_lock_occluded"):
+		_camera_spring.call("on_lock_occluded", occluded)
+
+
+func _push_lock_target_height(target: Node3D) -> void:
+	_resolve_camera_spring()
+	if _camera_spring and _camera_spring.has_method("set_lock_target_height"):
+		_camera_spring.call("set_lock_target_height", get_target_height(target))
 
 
 func _handle_target_switch() -> void:
+	if get_tree().paused:
+		return
 	if _switch_cooldown > 0.0:
 		return
 	var stick := Input.get_vector("look_left", "look_right", "look_up", "look_down")
@@ -220,25 +298,38 @@ func _switch_target_vertical(stick_y: float) -> void:
 			best = enemy
 	if best:
 		_set_lock(best)
-		_switch_cooldown = SWITCH_COOLDOWN
+		_switch_cooldown = SWITCH_COOLDOWN_STICK
 		_switch_blend_boost = 1.0
 
 
-func _switch_target(direction: int) -> void:
+func _planar_distance_to(target: Node3D) -> float:
+	if _player == null or target == null:
+		return INF
+	var offset := target.global_position - _player.global_position
+	offset.y = 0.0
+	return offset.length()
+
+
+func _vertical_delta_to(target: Node3D) -> float:
+	return absf(get_target_aim_point(target).y - _player.global_position.y)
+
+
+func _switch_target(direction: int) -> bool:
 	if direction == 0:
-		return
+		return false
 	var candidates := _get_lockable_targets()
 	if candidates.size() < 2:
-		return
+		return false
 	var ordered := candidates.duplicate()
-	ordered.sort_custom(func(a: Node3D, b: Node3D) -> bool:
-		var offset_a := a.global_position - _player.global_position
-		var offset_b := b.global_position - _player.global_position
-		offset_a.y = 0.0
-		offset_b.y = 0.0
-		var local_a := offset_a.rotated(Vector3.UP, -_get_facing_yaw())
-		var local_b := offset_b.rotated(Vector3.UP, -_get_facing_yaw())
-		return atan2(local_a.x, local_a.z) < atan2(local_b.x, local_b.z)
+	ordered.sort_custom(
+		func(a: Node3D, b: Node3D) -> bool:
+			var offset_a := a.global_position - _player.global_position
+			var offset_b := b.global_position - _player.global_position
+			offset_a.y = 0.0
+			offset_b.y = 0.0
+			var local_a := offset_a.rotated(Vector3.UP, -_get_facing_yaw())
+			var local_b := offset_b.rotated(Vector3.UP, -_get_facing_yaw())
+			return atan2(local_a.x, local_a.z) < atan2(local_b.x, local_b.z)
 	)
 	var current_idx := ordered.find(current_target)
 	if current_idx < 0:
@@ -249,8 +340,10 @@ func _switch_target(direction: int) -> void:
 	var best: Node3D = ordered[next_idx]
 	if best and best != current_target:
 		_set_lock(best)
-		_switch_cooldown = SWITCH_COOLDOWN
+		_switch_cooldown = SWITCH_COOLDOWN_WHEEL
 		_switch_blend_boost = 1.0
+		return true
+	return false
 
 
 func _resolve_player() -> void:
@@ -271,13 +364,14 @@ func _find_best_target(require_los: bool = true, ignore_cone: bool = false) -> N
 		return null
 	var aim_dir := _get_lock_search_direction()
 	var best: Node3D
-	var best_distance := INF
-	var best_angle := INF
+	var best_score := INF
 	for enemy in _get_lockable_targets():
 		var offset := enemy.global_position - _player.global_position
 		offset.y = 0.0
 		var distance := offset.length()
-		if distance > LOCK_RANGE or distance < 0.01:
+		if distance > LOCK_ACQUIRE_RANGE or distance < 0.01:
+			continue
+		if _vertical_delta_to(enemy) > LOCK_VERTICAL_LIMIT:
 			continue
 		if require_los and not _has_line_of_sight_to(enemy):
 			continue
@@ -287,9 +381,16 @@ func _find_best_target(require_los: bool = true, ignore_cone: bool = false) -> N
 			angle = rad_to_deg(aim_dir.angle_to(dir))
 			if angle > LOCK_PICK_CONE_DEG:
 				continue
-		if distance < best_distance - 0.05 or (is_equal_approx(distance, best_distance) and angle < best_angle):
-			best_distance = distance
-			best_angle = angle
+		var threat := 0.0
+		if enemy.has_method("get_lock_threat"):
+			threat = float(enemy.call("get_lock_threat"))
+		var score := (
+			SCORE_DISTANCE_WEIGHT * (distance / LOCK_ACQUIRE_RANGE)
+			+ SCORE_ANGLE_WEIGHT * (angle / LOCK_PICK_CONE_DEG)
+			- SCORE_THREAT_WEIGHT * threat
+		)
+		if score < best_score:
+			best_score = score
 			best = enemy
 	return best
 
@@ -326,6 +427,9 @@ func _get_lockable_targets() -> Array[Node3D]:
 		if node is Node3D and is_instance_valid(node):
 			if _is_defeated(node):
 				continue
+			if node.has_method("get_lock_priority"):
+				if float(node.call("get_lock_priority")) < 0.0:
+					continue
 			result.append(node as Node3D)
 	return result
 
@@ -353,7 +457,17 @@ static func get_target_aim_point(target: Node3D) -> Vector3:
 	return target.global_position + Vector3(0.0, 1.2, 0.0)
 
 
-static func _aim_point_from_meshes(root: Node) -> Vector3:
+static func get_target_height(target: Node3D) -> float:
+	if target == null or not is_instance_valid(target):
+		return 1.8
+	var visual := target.get_node_or_null("DioramaVisual") as Node3D
+	var aabb := _mesh_aabb_from_root(visual if visual else target)
+	if aabb.size.y > 0.01:
+		return aabb.size.y
+	return 1.8
+
+
+static func _mesh_aabb_from_root(root: Node) -> AABB:
 	var combined := AABB()
 	var found := false
 	for node in root.find_children("*", "MeshInstance3D", true, false):
@@ -372,6 +486,13 @@ static func _aim_point_from_meshes(root: Node) -> Vector3:
 		else:
 			combined = combined.merge(global_aabb)
 	if found:
+		return combined
+	return AABB()
+
+
+static func _aim_point_from_meshes(root: Node) -> Vector3:
+	var combined := _mesh_aabb_from_root(root)
+	if combined.size.length_squared() > 0.0001:
 		return combined.get_center()
 	return Vector3.INF
 

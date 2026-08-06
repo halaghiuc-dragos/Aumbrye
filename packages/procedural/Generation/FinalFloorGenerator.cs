@@ -61,17 +61,7 @@ public static class FinalFloorGenerator
             FloorIndex: floorIndex,
             IsFinalFloor: true);
 
-        var json = CanonicalJsonSerializer.Serialize(definition);
-        return new GenerationResult(definition with { Checksum = ExtractChecksum(json) }, json);
-    }
-
-    private static string? ExtractChecksum(string json)
-    {
-        const string marker = "\"checksum\":\"";
-        var idx = json.IndexOf(marker, StringComparison.Ordinal);
-        if (idx < 0) return null;
-        var start = idx + marker.Length;
-        var end = json.IndexOf('"', start);
-        return end > start ? json[start..end] : null;
+        var (json, checksum) = CanonicalJsonSerializer.Serialize(definition);
+        return new GenerationResult(definition with { Checksum = checksum }, json);
     }
 }

@@ -6,7 +6,19 @@ class_name PixelDioramaBootstrap
 
 static func prime() -> void:
 	PixelDioramaSettings.load_from_save()
-	PixelDioramaSettings.apply_rendering_project_settings()
+	var tree := Engine.get_main_loop() as SceneTree
+	if tree == null:
+		return
+	var pixel_viewport := tree.root.get_node_or_null("PixelDioramaViewport")
+	var sub_vp: SubViewport = null
+	if pixel_viewport:
+		sub_vp = pixel_viewport.get_node_or_null(
+			"PixelDioramaViewportLayer/PixelViewportContainer/PixelSubViewport"
+		) as SubViewport
+	if sub_vp:
+		PixelDioramaSettings.apply_render_quality([tree.root, sub_vp])
+	else:
+		PixelDioramaSettings.apply_render_quality([tree.root])
 
 
 static func attach(scene: Node) -> void:

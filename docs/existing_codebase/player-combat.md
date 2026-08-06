@@ -93,16 +93,16 @@ Enemy scenes mirror this with `team = "enemy"` (for example `scenes/enemies/cast
 | Attack phase machine, stamina cost, combo index, buffered input | IMPLEMENTED | `weapon_controller.gd:109-138`, `:255-280` |
 | Hitbox profile per weapon archetype | IMPLEMENTED | `weapon_controller.gd:531-561` |
 | Soft-lock facing snap | IMPLEMENTED | `weapon_controller.gd:460-528` |
-| Two-hand stance | PARTIAL | `TWO_HAND_DAMAGE_MULT = 1.25` and a 1.1x hitbox apply; `TWO_HAND_POISE_MULT = 1.35` is declared at `weapon_controller.gd:16` and never read |
-| Camera punch, camera shake, FOV kick on the player | BROKEN | `player.tscn:99` sets `camera_path = "CameraPivot/SpringArm3D/Camera3D"`, but `hit_feedback.gd:31` resolves it from the `HitFeedback` node, so it needs `../CameraPivot/...`; `_camera` stays `null` and `_apply_camera_punch` / `_apply_camera_shake` do nothing (`hit_feedback.gd:119-153`) |
-| Hitstop on the player rig | BROKEN | `hit_feedback.gd:34` caches `AnimDirector` during its own `_ready`, which runs before the parent `_ready` that creates that node |
-| Animation-driven hitbox windows | BROKEN | `enable_hitbox_from_anim` / `disable_hitbox_from_anim` exist (`weapon_controller.gd:242-248`) but the method tracks that call them are never compiled; see [`player-anim-director.md`](player-anim-director.md) |
-| Blockout capsule mesh | PLACEHOLDER | `player.tscn:48-50` ships a `CapsuleMesh`, hidden at runtime by `hide_legacy_meshes` (`diorama_character_skin.gd:91`) |
-| Attack lunge | STUB | `get_attack_lunge_velocity()` returns `Vector3.ZERO` and has no call site (`weapon_controller.gd:238-239`) |
-| Backstab, riposte prompt, guard-break punish animation | ABSENT | `Guard` exposes `get_riposte_damage_multiplier` / `consume_riposte` used at `weapon_controller.gd:341-346`, but no positional or prompt logic exists in the player scripts |
-| Mana spending by the player | ABSENT | `Mana` node exists (`player.tscn:71-72`); no player script consumes it |
+| Two-hand stance | IMPLEMENTED | `TWO_HAND_DAMAGE_MULT`, hitbox scale, `TWO_HAND_POISE_MULT` at `weapon_controller.gd:465` |
+| Camera punch, camera shake, FOV kick on the player | IMPLEMENTED | `player.tscn:99`, `hit_feedback.gd:39-43` |
+| Hitstop on the player rig | IMPLEMENTED | Deferred `AnimDirector` lookup in `hit_feedback.gd` |
+| Animation-driven hitbox windows | IMPLEMENTED | `diorama_anim_controller.gd:389-390` calls `enable_hitbox_from_anim` |
+| Blockout capsule mesh | PLACEHOLDER | `player.tscn:48-50`, hidden at runtime |
+| Attack lunge | STUB | `get_attack_lunge_velocity()` returns `Vector3.ZERO` |
+| Backstab, riposte prompt, guard-break punish animation | ABSENT | No positional or prompt logic in player scripts |
+| Mana spending by the player | IMPLEMENTED | `weapon_controller.gd`, `player_heal.gd` |
 
 ## Related
-- Improvement plan: [`../actual_improvements/player-combat.md`](../actual_improvements/player-combat.md)
+- Improvement plan: [`../actual_improvements/player-combat.md`](../actual_improvements/player-combat.md) — **FINISHED**
 - [`combat-core.md`](combat-core.md), [`weapons.md`](weapons.md), [`guard.md`](guard.md), [`dodge.md`](dodge.md), [`hit-hurtboxes.md`](hit-hurtboxes.md), [`hit-feedback.md`](hit-feedback.md), [`stamina-mana.md`](stamina-mana.md), [`statuses-and-buffs.md`](statuses-and-buffs.md)
 - [`player-combat-reactions.md`](player-combat-reactions.md), [`player-anim-director.md`](player-anim-director.md), [`locomotion.md`](locomotion.md), [`lock-on.md`](lock-on.md)

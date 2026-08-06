@@ -5,7 +5,10 @@
   "damage_type": "physical",
   "buffer_window": 0.2,
   "lunge_distance": 0.42,
-  "scaling": { "physicalDamage": 1.0, "armor": 0.02 },
+  "scaling": {
+    "physicalDamage": 1.0,
+    "armor": 0.02
+  },
   "light_attacks": [
     {
       "damage": 16,
@@ -43,5 +46,18 @@
     "active": 0.18,
     "recovery": 0.45,
     "lunge_distance": 0.58
+  },
+  "art": {
+    "id": "guard_break",
+    "name": "Guard Break",
+    "stamina_cost": 22,
+    "damage": 36,
+    "poise_damage": 48,
+    "startup": 0.28,
+    "active": 0.16,
+    "recovery": 0.42,
+    "lunge_distance": 0.55,
+    "hyperarmor": true,
+    "cooldown": 5.0
   }
 }

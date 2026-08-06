@@ -1,15 +1,17 @@
 # Accessibility — improvement plan
 
+## Status: FINISHED
+
 ## Current state
-Five prefs persist under `LocalSave` meta `accessibility` and four of them affect the live client (`ui_scale`, `reduce_camera_shake`, `subtitle_scale`, `vibration_intensity`). See [`../existing_codebase/accessibility.md`](../existing_codebase/accessibility.md). `colorblind_mode` is exposed in Settings and has a full palette helper (`get_damage_color`), but nothing in combat HUD, hit numbers, status icons, or VFX calls it — the control is a fake affordance.
+Five prefs persist under `LocalSave` meta `accessibility` and all affect the live client. `colorblind_mode` routes floating damage numbers and status icon borders/tints through `get_damage_color`. Subtitle scale refreshes an open `DialogueUI` panel; accessibility sliders show live multiplier labels. See [`../existing_codebase/accessibility.md`](../existing_codebase/accessibility.md).
 
 ## Gaps
 | ID | Sev | Gap | Evidence |
 |----|-----|-----|----------|
-| A11-01 | P0 | `colorblind_mode` / `get_damage_color` has no gameplay consumer; the Settings option changes nothing visible | `accessibility_settings.gd:37-69`; callers: only `m6_suite.gd:281` |
-| A11-02 | P1 | Subtitle scale is applied only when a dialogue line fires; changing the slider mid-session does not update an open panel or any other text surface | `dialogue_ui.gd:79-81`, `settings_ui.gd:94-96` |
-| A11-03 | P1 | Vibration and shake prefs have no labels in Settings beyond the checkbox/slider existence; no "off" wording for vibration at `0.0` | `settings_ui.gd:80-108` |
-| A11-04 | P2 | No shared damage-number / status-color path — even after wiring A11-01, other red/green HUD cues (health bars, status icons) stay on authored colors | Searched `get_damage_color` under `scripts/` |
+| A11-01 | P0 | ~~`colorblind_mode` / `get_damage_color` has no gameplay consumer~~ **FINISHED** — `damage_number.gd`, `hit_feedback.gd`, `hitbox.gd`, `hurtbox.gd` | was `accessibility_settings.gd:37-69` only in `m6_suite.gd` |
+| A11-02 | P1 | ~~Subtitle scale applied only on new line~~ **FINISHED** — `dialogue_ui.gd:refresh_accessibility`, `settings_ui.gd:_refresh_open_dialogue_subtitles` | was `dialogue_ui.gd:79-81` |
+| A11-03 | P1 | ~~Vibration/shake prefs lack labels; no Off at 0.0~~ **FINISHED** — `settings_ui.gd:_format_vibration_label`, scale row labels | was `settings_ui.gd:80-108` |
+| A11-04 | P2 | ~~No shared damage-number / status-color path~~ **FINISHED** — `combat_hud.gd:_refresh_status_icons` tints from `damageType` | was zero `get_damage_color` callers outside a11y |
 
 ## Target design
 
@@ -51,10 +53,10 @@ Label the vibration slider `"Controller vibration"` and treat `0.0` as off in th
 No `content/` schema change. Save shape already has `colorblind_mode` (`accessibility_settings.gd:29`); no migrator bump.
 
 ## Acceptance criteria
-- [ ] With `colorblind_mode = "protanopia"`, a fire hit's on-screen damage cue is not the default `Color(1.0, 0.4, 0.1)` and matches `AccessibilitySettings.get_damage_color("fire")`. (A11-01)
-- [ ] Changing `subtitle_scale` while `DialogueUI` is open updates speaker and body font sizes on the same frame. (A11-02)
-- [ ] Vibration slider shows a numeric or "Off" label; `0.0` produces no `start_joy_vibration` call. (A11-03)
-- [ ] Grep for hardcoded elemental damage colors in hit presentation returns zero hits outside `accessibility_settings.gd` tests. (A11-04)
+- [x] With `colorblind_mode = "protanopia"`, a fire hit's on-screen damage cue is not the default `Color(1.0, 0.4, 0.1)` and matches `AccessibilitySettings.get_damage_color("fire")`. (A11-01)
+- [x] Changing `subtitle_scale` while `DialogueUI` is open updates speaker and body font sizes on the same frame. (A11-02)
+- [x] Vibration slider shows a numeric or "Off" label; `0.0` produces no `start_joy_vibration` call. (A11-03)
+- [x] Grep for hardcoded elemental damage colors in hit presentation returns zero hits outside `accessibility_settings.gd` tests. (A11-04)
 
 ## Validation
 Extend `apps/game/client/scripts/validation/suites/m6_suite.gd`:

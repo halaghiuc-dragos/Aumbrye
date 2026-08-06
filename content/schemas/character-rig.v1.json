@@ -1,0 +1,31 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://aumbrye.dev/schemas/character-rig.v1.json",
+  "title": "CharacterRigManifest",
+  "type": "object",
+  "required": ["id", "grid", "profile", "parts"],
+  "properties": {
+    "id": { "type": "string" },
+    "grid": { "type": "number", "minimum": 0.01 },
+    "profile": { "enum": ["biped", "quadruped"] },
+    "parts": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "required": ["mesh", "joint"],
+        "properties": {
+          "mesh": { "type": "string" },
+          "joint": {
+            "type": "array",
+            "items": { "type": "integer" },
+            "minItems": 3,
+            "maxItems": 3
+          },
+          "parent": { "type": "string" },
+          "mount": { "type": "string" },
+          "offset_y_voxels": { "type": "integer" }
+        }
+      }
+    }
+  }
+}

@@ -2,8 +2,28 @@ extends Node
 
 const MaterialDissolveScript := preload("res://scripts/art/characters/material_dissolve.gd")
 const MaterialFlashScript := preload("res://scripts/art/characters/material_flash.gd")
+const DodgeScript := preload("res://scripts/player/dodge.gd")
 
-const POISE_STAGGER_DURATION := 0.85
+const LOCK_SOURCES := [
+	["Dodge", "locks_movement"],
+	["Guard", "locks_movement"],
+	["WeaponController", "locks_movement"],
+	["PlayerHeal", "locks_movement"],
+]
+
+const STAGGER_DURATION_MIN := 0.45
+const STAGGER_DURATION_MAX := 1.25
+const STAGGER_POISE_LOW := 10.0
+const STAGGER_POISE_HIGH := 45.0
+const STAGGER_WAKEUP_IFRAMES := 0.14
+const STAGGER_ROLLOUT_WINDOW := 0.22
+const STAGGER_ROLLOUT_COST := 1.5
+
+const DEATH_SLOW_SCALE := 0.35
+const DEATH_SLOW_DURATION := 0.60
+const DEATH_DESATURATE_TIME := 1.40
+const DEATH_HANDOFF_TIME := 2.20
+const DEATH_DESATURATE_SATURATION := 0.25
 
 signal stagger_started
 signal stagger_ended
@@ -11,40 +31,59 @@ signal player_died
 
 var is_staggered := false
 var is_dead := false
+var is_guard_broken := false
+var stagger_direction := Vector3.ZERO
+var stagger_duration := 0.0
 
 var _body: CharacterBody3D
-var _mesh: MeshInstance3D
 var _health: Health
 var _poise: Poise
 var _guard: Node
 var _dodge: Node
+var _stamina: Stamina
+var _status: StatusController
+var _orbit_camera: Node
 var _stagger_timer := 0.0
+var _last_poise_damage := STAGGER_POISE_LOW
+var _last_hit_direction := Vector3.ZERO
+var _wakeup_iframes_active := false
+var _death_sequence_running := false
+var _saved_screen_saturation := -1.0
 
 
 func _ready() -> void:
 	_body = get_parent() as CharacterBody3D
-	_mesh = _body.get_node_or_null("Facing/MeshInstance3D") as MeshInstance3D
 	_health = _body.get_node_or_null("Health") as Health
 	_poise = _body.get_node_or_null("Poise") as Poise
 	_guard = _body.get_node_or_null("Guard")
 	_dodge = _body.get_node_or_null("Dodge")
+	_stamina = _body.get_node_or_null("Stamina") as Stamina
+	_status = _body.get_node_or_null("StatusController") as StatusController
+	_orbit_camera = _body.get_node_or_null("CameraPivot/SpringArm3D")
 	if _health:
 		_health.died.connect(_on_died)
 	if _poise:
 		_poise.poise_broken.connect(_on_poise_broken)
+		_poise.poise_damaged.connect(_on_poise_damaged)
 	if _guard and _guard.has_signal("parry_success"):
 		_guard.parry_success.connect(_on_parry_success)
 	if _guard and _guard.has_signal("guard_broken"):
 		_guard.guard_broken.connect(_on_guard_broken)
+	var hurtbox := _body.get_node_or_null("Hurtbox") as Hurtbox
+	if hurtbox and hurtbox.has_signal("hurt_received"):
+		hurtbox.hurt_received.connect(_on_hurt_received)
 
 
 func _physics_process(delta: float) -> void:
-	if _stagger_timer > 0.0:
+	_sync_guard_broken_mirror()
+	if is_staggered and _stagger_timer > 0.0:
 		_stagger_timer -= delta
+		_update_stagger_iframes()
+		_try_stagger_rollout()
 		if _stagger_timer <= 0.0:
-			is_staggered = false
-			stagger_ended.emit()
-			_on_stagger_ended()
+			_end_stagger()
+	elif _wakeup_iframes_active:
+		_clear_wakeup_iframes()
 
 
 func can_act() -> bool:
@@ -54,26 +93,63 @@ func can_act() -> bool:
 func is_movement_locked() -> bool:
 	if is_dead or is_staggered:
 		return true
-	if _dodge and _dodge.has_method("locks_movement") and _dodge.call("locks_movement"):
-		return true
-	if _guard and _guard.has_method("locks_movement"):
-		return _guard.call("locks_movement")
-	var weapon := _body.get_node_or_null("WeaponController")
-	if weapon and weapon.has_method("locks_movement") and weapon.call("locks_movement"):
-		return true
-	var heal := _body.get_node_or_null("PlayerHeal")
-	if heal and heal.has_method("locks_movement") and heal.call("locks_movement"):
-		return true
+	for entry in LOCK_SOURCES:
+		var node := _body.get_node_or_null(entry[0])
+		if node and node.has_method(entry[1]) and node.call(entry[1]):
+			return true
 	return false
+
+
+func get_lock_sources() -> PackedStringArray:
+	var sources := PackedStringArray()
+	if is_dead:
+		sources.append("Death")
+	if is_staggered:
+		sources.append("Stagger")
+	for entry in LOCK_SOURCES:
+		var node := _body.get_node_or_null(entry[0])
+		if node and node.has_method(entry[1]) and node.call(entry[1]):
+			sources.append(entry[0])
+	return sources
+
+
+func stagger_duration_for_poise(poise_damage: float) -> float:
+	var t := inverse_lerp(STAGGER_POISE_LOW, STAGGER_POISE_HIGH, poise_damage)
+	return lerpf(STAGGER_DURATION_MIN, STAGGER_DURATION_MAX, clampf(t, 0.0, 1.0))
+
+
+func get_stagger_clip_for_direction(world_direction: Vector3) -> StringName:
+	return _stagger_clip_for(world_direction)
+
+
+func apply_stagger_from_poise(poise_damage: float, direction: Vector3 = Vector3.ZERO) -> void:
+	_apply_stagger(stagger_duration_for_poise(poise_damage), direction)
 
 
 func reset_combat_state() -> void:
 	is_dead = false
 	is_staggered = false
+	is_guard_broken = false
 	_stagger_timer = 0.0
-	if _mesh:
-		_mesh.scale = Vector3.ONE
-	var visual := _body.get_node_or_null("Facing/DioramaVisual") as Node3D
+	_death_sequence_running = false
+	_clear_wakeup_iframes()
+	Engine.time_scale = 1.0
+	if _saved_screen_saturation >= 0.0:
+		PixelDioramaSettings.screen_saturation = _saved_screen_saturation
+		_saved_screen_saturation = -1.0
+	if _health and _health.has_method("reset_health"):
+		_health.reset_health()
+	if _stamina and _stamina.has_method("reset_stamina"):
+		_stamina.reset_stamina()
+	if _poise and _poise.has_method("reset_poise"):
+		_poise.reset_poise()
+	if _guard and _guard.has_method("reset_after_revive"):
+		_guard.reset_after_revive()
+	if _status and _status.has_method("clear_all"):
+		_status.clear_all()
+	if _orbit_camera and _orbit_camera.has_method("exit_death_framing"):
+		_orbit_camera.call("exit_death_framing")
+	var visual := _get_diorama_visual()
 	if visual:
 		visual.visible = true
 		MaterialDissolveScript.restore(visual)
@@ -83,16 +159,49 @@ func reset_combat_state() -> void:
 		director.call("revive")
 
 
-func _apply_stagger(duration: float) -> void:
+func _apply_stagger(duration: float, direction: Vector3 = Vector3.ZERO) -> void:
 	_break_player_lock()
 	is_staggered = true
 	_stagger_timer = duration
+	stagger_duration = duration
+	stagger_direction = direction
 	stagger_started.emit()
-	_pulse_mesh()
+	_flash_stagger_feedback()
+
+
+func _end_stagger() -> void:
+	is_staggered = false
+	_stagger_timer = 0.0
+	_clear_wakeup_iframes()
+	stagger_ended.emit()
+	_on_stagger_ended()
+
+
+func _cancel_stagger() -> void:
+	if not is_staggered:
+		return
+	_stagger_timer = 0.0
+	is_staggered = false
+	_clear_wakeup_iframes()
+	stagger_ended.emit()
+	_on_stagger_ended()
+
+
+func _on_poise_damaged(amount: float, _remaining: float) -> void:
+	_last_poise_damage = amount
 
 
 func _on_poise_broken() -> void:
-	_apply_stagger(POISE_STAGGER_DURATION)
+	var direction := _last_hit_direction
+	if direction.length_squared() < 0.01:
+		direction = -_get_facing_forward()
+	_apply_stagger(stagger_duration_for_poise(_last_poise_damage), direction)
+
+
+func _on_hurt_received(_amount: float, poise_damage: float, direction: Vector3) -> void:
+	_last_poise_damage = poise_damage
+	if direction.length_squared() > 0.01:
+		_last_hit_direction = direction
 
 
 func _on_stagger_ended() -> void:
@@ -101,32 +210,131 @@ func _on_stagger_ended() -> void:
 
 
 func _on_guard_broken() -> void:
-	_pulse_mesh()
+	is_guard_broken = true
+	_flash_guard_break_feedback()
 
 
 func _on_parry_success(_target: Node) -> void:
-	_pulse_mesh(1.14)
+	_flash_parry_feedback()
 
 
 func _on_died() -> void:
+	if _death_sequence_running:
+		return
+	_death_sequence_running = true
 	_break_player_lock()
 	is_dead = true
-	player_died.emit()
+	_run_death_sequence()
+
+
+func _run_death_sequence() -> void:
+	var director := _body.get_node_or_null("AnimDirector")
+	if director and director.has_method("play_death"):
+		director.call("play_death")
+	Engine.time_scale = DEATH_SLOW_SCALE
+	AudioDirector.play_sfx("death", _body.global_position)
 	VfxService.play_death(_body.global_position, Color(0.72, 0.28, 0.22))
-	var visual := _body.get_node_or_null("Facing/DioramaVisual") as Node3D
+	var visual := _get_diorama_visual()
 	if visual:
 		MaterialDissolveScript.dissolve(visual)
-	elif _mesh:
-		var tween := create_tween()
-		tween.tween_property(_mesh, "scale", Vector3(0.25, 0.08, 0.25), 0.35)
+	await get_tree().create_timer(DEATH_SLOW_DURATION).timeout
+	Engine.time_scale = 1.0
+	if _orbit_camera and _orbit_camera.has_method("enter_death_framing"):
+		_orbit_camera.call("enter_death_framing", _body)
+	await get_tree().create_timer(DEATH_DESATURATE_TIME - DEATH_SLOW_DURATION).timeout
+	_saved_screen_saturation = PixelDioramaSettings.screen_saturation
+	PixelDioramaSettings.screen_saturation = DEATH_DESATURATE_SATURATION
+	await get_tree().create_timer(DEATH_HANDOFF_TIME - DEATH_DESATURATE_TIME).timeout
+	player_died.emit()
 
 
-func _pulse_mesh(scale_peak: float = 1.1) -> void:
-	if not _mesh:
+func _flash_parry_feedback() -> void:
+	var visual := _get_diorama_visual()
+	if visual:
+		MaterialFlashScript.flash(visual, 1.0, 0.10)
+	AudioDirector.play_sfx("parry", _body.global_position)
+	var anchor: Array = VfxService.resolve_combat_anchor(_body)
+	VfxService.play_parry_spark(anchor[0], anchor[1])
+
+
+func _flash_guard_break_feedback() -> void:
+	var visual := _get_diorama_visual()
+	if visual:
+		MaterialFlashScript.flash(visual, 0.9, 0.16)
+	if _orbit_camera and _orbit_camera.has_method("apply_camera_dip"):
+		_orbit_camera.call("apply_camera_dip", 0.35, 0.35)
+
+
+func _flash_stagger_feedback() -> void:
+	var visual := _get_diorama_visual()
+	if visual:
+		MaterialFlashScript.flash(visual, 0.85, 0.12)
+
+
+func _update_stagger_iframes() -> void:
+	if _stagger_timer <= STAGGER_WAKEUP_IFRAMES and _stagger_timer > 0.0:
+		_grant_wakeup_iframes()
+	else:
+		_clear_wakeup_iframes()
+
+
+func _grant_wakeup_iframes() -> void:
+	if _wakeup_iframes_active:
 		return
-	var tween := create_tween()
-	_mesh.scale = Vector3(scale_peak, scale_peak, scale_peak)
-	tween.tween_property(_mesh, "scale", Vector3.ONE, 0.12)
+	_wakeup_iframes_active = true
+	if _dodge and _dodge.has_method("grant_external_iframes"):
+		_dodge.call("grant_external_iframes", true)
+
+
+func _clear_wakeup_iframes() -> void:
+	if not _wakeup_iframes_active:
+		return
+	_wakeup_iframes_active = false
+	if _dodge and _dodge.has_method("grant_external_iframes"):
+		_dodge.call("grant_external_iframes", false)
+
+
+func _try_stagger_rollout() -> void:
+	if not is_staggered or _stagger_timer <= 0.0 or _stagger_timer > STAGGER_ROLLOUT_WINDOW:
+		return
+	if not PlayerInput.just_pressed(&"dodge"):
+		return
+	var cost := DodgeScript.DODGE_STAMINA_COST * STAGGER_ROLLOUT_COST
+	if _dodge and _dodge.has_method("try_rollout_dash") and _dodge.call("try_rollout_dash", cost):
+		_cancel_stagger()
+
+
+func _sync_guard_broken_mirror() -> void:
+	if _guard == null:
+		is_guard_broken = false
+		return
+	is_guard_broken = bool(_guard.get("guard_broken_state"))
+
+
+func _stagger_clip_for(world_dir: Vector3) -> StringName:
+	if world_dir.length_squared() < 0.01:
+		return &"stagger_f"
+	var facing := _body.get_node_or_null("Facing") as Node3D
+	if facing == null:
+		return &"stagger_f"
+	var forward := -facing.global_transform.basis.z
+	var right := facing.global_transform.basis.x
+	var flat := Vector3(world_dir.x, 0.0, world_dir.z).normalized()
+	var fwd_dot := forward.dot(flat)
+	var right_dot := right.dot(flat)
+	if absf(fwd_dot) >= absf(right_dot):
+		return &"stagger_f" if fwd_dot >= 0.0 else &"stagger_b"
+	return &"stagger_r" if right_dot >= 0.0 else &"stagger_l"
+
+
+func _get_diorama_visual() -> Node3D:
+	return _body.get_node_or_null("Facing/DioramaVisual") as Node3D
+
+
+func _get_facing_forward() -> Vector3:
+	if _body.has_method("get_facing_direction"):
+		return _body.call("get_facing_direction")
+	return -_body.global_transform.basis.z
 
 
 func _break_player_lock() -> void:

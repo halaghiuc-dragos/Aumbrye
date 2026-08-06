@@ -1,222 +1,663 @@
-openapi: 3.0.3
+openapi: 3.0.1
 info:
   title: Aumbrye API
-  version: 1.0.0
   description: M4 gameplay loop API (auth + runs + saves + progression).
+  version: 1.0.0
 servers:
-  - url: http://localhost:5000
+  - url: '{baseUrl}'
+    variables:
+      baseUrl:
+        default: http://localhost:5000
 paths:
-  /api/v1/health:
-    get:
-      summary: Health check
-      responses:
-        "200":
-          description: OK
   /api/v1/auth/register:
     post:
-      summary: Register account
+      tags:
+        - Auth
       requestBody:
-        required: true
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/RegisterRequest"
-      responses:
-        "200":
-          description: Tokens issued
-        "400":
-          description: Validation error
-  /api/v1/auth/login:
-    post:
-      summary: Login
-      requestBody:
+              $ref: '#/components/schemas/RegisterRequest'
         required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/LoginRequest"
       responses:
-        "200":
-          description: Tokens issued
-        "401":
-          description: Invalid credentials
-  /api/v1/auth/refresh:
-    post:
-      summary: Refresh access token
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/RefreshRequest"
-      responses:
-        "200":
-          description: New tokens
-        "401":
-          description: Invalid refresh token
-  /api/v1/runs:
-    post:
-      summary: Create run and generate dungeon
-      security:
-        - bearerAuth: []
-      parameters:
-        - $ref: "#/components/parameters/XClientVersion"
-        - $ref: "#/components/parameters/XContentVersion"
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/CreateRunRequest"
-      responses:
-        "200":
-          description: Run created with dungeon definition JSON
-        "400":
-          description: Generation or validation error
-        "401":
-          description: Unauthorized
-  /api/v1/runs/{id}/dungeon:
-    get:
-      summary: Get cached dungeon definition
-      security:
-        - bearerAuth: []
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: string
-            format: uuid
-        - $ref: "#/components/parameters/XClientVersion"
-        - $ref: "#/components/parameters/XContentVersion"
-      responses:
-        "200":
-          description: DungeonDefinition JSON
-        "404":
-          description: Run not found
-  /api/v1/runs/{id}/complete:
-    post:
-      summary: Complete run (stub validation)
-      security:
-        - bearerAuth: []
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: string
-            format: uuid
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/CompleteRunRequest"
-      responses:
-        "200":
-          description: Run marked completed
-        "400":
-          description: Already completed or invalid payload
-  /api/v1/saves/current:
-    get:
-      summary: Get current character save
-      security:
-        - bearerAuth: []
-      responses:
-        "200":
-          description: CharacterState JSON
+        '200':
+          description: OK
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/SaveResponse"
-        "401":
-          description: Unauthorized
-    put:
-      summary: Update current character save
-      security:
-        - bearerAuth: []
+                $ref: '#/components/schemas/AuthResponse'
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '429':
+          description: Too Many Requests
+  /api/v1/auth/login:
+    post:
+      tags:
+        - Auth
       requestBody:
-        required: true
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/PutSaveRequest"
+              $ref: '#/components/schemas/LoginRequest'
+        required: true
       responses:
-        "200":
-          description: Save updated
-        "400":
-          description: Validation error
-        "409":
-          description: Conflict — server save is newer (server wins)
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '429':
+          description: Too Many Requests
+  /api/v1/auth/refresh:
+    post:
+      tags:
+        - Auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RefreshRequest'
+        required: true
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '429':
+          description: Too Many Requests
+  /api/v1/auth/logout:
+    post:
+      tags:
+        - Auth
+      security:
+        - bearerAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LogoutRequest'
+        required: true
+      responses:
+        '204':
+          description: No Content
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/v1/health:
+    get:
+      tags:
+        - Health
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+  /api/v1/health/ready:
+    get:
+      tags:
+        - Health
+      responses:
+        '200':
+          description: OK
+        '503':
+          description: Service Unavailable
+  /api/v1/account:
+    delete:
+      tags:
+        - Account
+      security:
+        - bearerAuth: []
+      responses:
+        '204':
+          description: No Content
+        '401':
+          description: Unauthorized
+  /api/v1/account/display-name:
+    put:
+      tags:
+        - Account
+      security:
+        - bearerAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateDisplayNameRequest'
+        required: true
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UpdateDisplayNameResponse'
+  /api/v1/account/export:
+    get:
+      tags:
+        - Account
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: OK
+  /api/v1/telemetry/crash:
+    post:
+      tags:
+        - Telemetry
+      responses:
+        '204':
+          description: No Content
+  /api/v1/leaderboards:
+    get:
+      tags:
+        - Leaderboards
+      parameters:
+        - name: biomeId
+          in: query
+          schema:
+            type: string
+        - name: tier
+          in: query
+          schema:
+            type: integer
+            format: int32
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            format: int32
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LeaderboardPageResponse'
+  /api/v1/leaderboards/submit:
+    post:
+      tags:
+        - Leaderboards
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SubmitLeaderboardRequest'
+        required: true
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SubmitLeaderboardResponse'
+        '401':
+          description: Unauthorized
+  /api/v1/runs:
+    post:
+      tags:
+        - Runs
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateRunRequest'
+        required: true
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreateRunResponse'
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  '/api/v1/runs/{id}/dungeon':
+    get:
+      tags:
+        - Runs
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: string
+        '401':
+          description: Unauthorized
+        '404':
+          description: Not Found
+  '/api/v1/runs/{id}/complete':
+    post:
+      tags:
+        - Runs
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CompleteRunRequest'
+        required: true
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CompleteRunResponse'
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+  /api/v1/saves/current:
+    get:
+      tags:
+        - Saves
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SaveResponse'
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+    put:
+      tags:
+        - Saves
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PutSaveRequest'
+        required: true
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PutSaveResponse'
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+        '409':
+          description: Conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PutSaveResponse'
 components:
+  schemas:
+    AuthResponse:
+      type: object
+      properties:
+        tokens:
+          $ref: '#/components/schemas/AuthTokensResponse'
+        user:
+          $ref: '#/components/schemas/AuthUserResponse'
+      additionalProperties: false
+    AuthTokensResponse:
+      type: object
+      properties:
+        accessToken:
+          type: string
+          nullable: true
+        refreshToken:
+          type: string
+          nullable: true
+        accessTokenExpiresAt:
+          type: string
+          format: date-time
+      additionalProperties: false
+    AuthUserResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+          nullable: true
+      additionalProperties: false
+    CompleteRunProgressionResponse:
+      type: object
+      properties:
+        xpGained:
+          type: integer
+          format: int32
+        totalXp:
+          type: integer
+          format: int32
+        level:
+          type: integer
+          format: int32
+        talentPointsEarned:
+          type: integer
+          format: int32
+        lootGranted:
+          type: array
+          items:
+            $ref: '#/components/schemas/LootGrantedResponse'
+          nullable: true
+        economyNote:
+          type: string
+          nullable: true
+        characterStateJson:
+          type: string
+          nullable: true
+      additionalProperties: false
+    CompleteRunRequest:
+      type: object
+      properties:
+        outcome:
+          type: string
+          nullable: true
+        elapsedSeconds:
+          type: number
+          format: double
+        bossDefeated:
+          type: boolean
+        lootClaimedInstanceIds:
+          type: array
+          items:
+            type: string
+          nullable: true
+      additionalProperties: false
+    CompleteRunResponse:
+      type: object
+      properties:
+        runId:
+          type: string
+          format: uuid
+        status:
+          type: string
+          nullable: true
+        progression:
+          $ref: '#/components/schemas/CompleteRunProgressionResponse'
+      additionalProperties: false
+    CreateRunRequest:
+      type: object
+      properties:
+        biomeId:
+          type: string
+          nullable: true
+        seed:
+          type: integer
+          format: int32
+          nullable: true
+        tier:
+          type: integer
+          format: int32
+      additionalProperties: false
+    CreateRunResponse:
+      type: object
+      properties:
+        runId:
+          type: string
+          format: uuid
+        seed:
+          type: integer
+          format: int32
+        biomeId:
+          type: string
+          nullable: true
+        definitionJson:
+          type: string
+          nullable: true
+      additionalProperties: false
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+          nullable: true
+      additionalProperties: false
+    HealthResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          nullable: true
+      additionalProperties: false
+    LeaderboardEntryResponse:
+      type: object
+      properties:
+        accountId:
+          type: string
+          format: uuid
+        displayName:
+          type: string
+          nullable: true
+        elapsedSeconds:
+          type: number
+          format: double
+        submittedAt:
+          type: string
+          format: date-time
+      additionalProperties: false
+    LeaderboardPageResponse:
+      type: object
+      properties:
+        biomeId:
+          type: string
+          nullable: true
+        tier:
+          type: integer
+          format: int32
+        entries:
+          type: array
+          items:
+            $ref: '#/components/schemas/LeaderboardEntryResponse'
+          nullable: true
+      additionalProperties: false
+    LoginRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          nullable: true
+        password:
+          type: string
+          nullable: true
+      additionalProperties: false
+    LogoutRequest:
+      type: object
+      properties:
+        refreshToken:
+          type: string
+          nullable: true
+      additionalProperties: false
+    LootGrantedResponse:
+      type: object
+      properties:
+        instanceId:
+          type: string
+          nullable: true
+        itemDefId:
+          type: string
+          nullable: true
+        itemId:
+          type: string
+          nullable: true
+        rarity:
+          type: string
+          nullable: true
+        affixCount:
+          type: integer
+          format: int32
+          nullable: true
+        quantity:
+          type: integer
+          format: int32
+          nullable: true
+      additionalProperties: false
+    PutSaveRequest:
+      type: object
+      properties:
+        stateJson:
+          type: string
+          nullable: true
+        clientUpdatedAt:
+          type: string
+          format: date-time
+          nullable: true
+      additionalProperties: false
+    PutSaveResponse:
+      type: object
+      properties:
+        updatedAt:
+          type: string
+          format: date-time
+        conflict:
+          type: boolean
+        serverStateJson:
+          type: string
+          nullable: true
+      additionalProperties: false
+    RefreshRequest:
+      type: object
+      properties:
+        refreshToken:
+          type: string
+          nullable: true
+      additionalProperties: false
+    RegisterRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          nullable: true
+        password:
+          type: string
+          nullable: true
+      additionalProperties: false
+    SaveConflictResponse:
+      type: object
+      properties:
+        error:
+          type: string
+          nullable: true
+        state:
+          type: string
+          nullable: true
+        updatedAt:
+          type: string
+          format: date-time
+      additionalProperties: false
+    SaveResponse:
+      type: object
+      properties:
+        stateJson:
+          type: string
+          nullable: true
+        updatedAt:
+          type: string
+          format: date-time
+      additionalProperties: false
+    SubmitLeaderboardRequest:
+      type: object
+      properties:
+        runId:
+          type: string
+          format: uuid
+        optIn:
+          type: boolean
+      additionalProperties: false
+    SubmitLeaderboardResponse:
+      type: object
+      properties:
+        submitted:
+          type: boolean
+        rank:
+          type: integer
+          format: int32
+          nullable: true
+        reason:
+          type: string
+          nullable: true
+      additionalProperties: false
+    UpdateDisplayNameRequest:
+      type: object
+      properties:
+        displayName:
+          type: string
+          nullable: true
+      additionalProperties: false
+    UpdateDisplayNameResponse:
+      type: object
+      properties:
+        displayName:
+          type: string
+          nullable: true
+      additionalProperties: false
   securitySchemes:
     bearerAuth:
       type: http
       scheme: bearer
       bearerFormat: JWT
-  parameters:
-    XClientVersion:
-      name: X-Client-Version
-      in: header
-      schema:
-        type: string
-        example: "0.3.0"
-    XContentVersion:
-      name: X-Content-Version
-      in: header
-      schema:
-        type: string
-        example: "1"
-  schemas:
-    RegisterRequest:
-      type: object
-      required: [email, password]
-      properties:
-        email: { type: string, format: email }
-        password: { type: string, minLength: 8 }
-    LoginRequest:
-      type: object
-      required: [email, password]
-      properties:
-        email: { type: string }
-        password: { type: string }
-    RefreshRequest:
-      type: object
-      required: [refreshToken]
-      properties:
-        refreshToken: { type: string }
-    CreateRunRequest:
-      type: object
-      required: [biomeId]
-      properties:
-        biomeId: { type: string }
-        seed: { type: integer }
-        tier: { type: integer, default: 1 }
-    CompleteRunRequest:
-      type: object
-      required: [outcome, elapsedSeconds, bossDefeated]
-      properties:
-        outcome: { type: string, enum: [escaped, died, abandoned] }
-        elapsedSeconds: { type: number }
-        bossDefeated: { type: boolean }
-        lootClaimedInstanceIds:
-          type: array
-          items: { type: string }
-    SaveResponse:
-      type: object
-      required: [stateJson, updatedAt]
-      properties:
-        stateJson: { type: string }
-        updatedAt: { type: string, format: date-time }
-    PutSaveRequest:
-      type: object
-      required: [stateJson]
-      properties:
-        stateJson: { type: string }
-        clientUpdatedAt: { type: string, format: date-time }
-    PutSaveResponse:
-      type: object
-      required: [updatedAt]
-      properties:
-        updatedAt: { type: string, format: date-time }
-        conflict: { type: boolean }
+security:
+  - bearerAuth: [ ]

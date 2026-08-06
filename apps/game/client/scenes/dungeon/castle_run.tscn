@@ -150,4 +150,4 @@ offset_top = 16.0
 offset_right = 500.0
 offset_bottom = 200.0
 theme_override_colors/font_color = Color(1, 1, 1, 1)
-text = "M2 Castle Run"
+text = "Castle Run"

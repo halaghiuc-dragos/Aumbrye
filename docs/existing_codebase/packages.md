@@ -12,17 +12,19 @@ Two C# libraries shared by the API and the CLI: `Aumbrye.Procedural` (dungeon ge
 | `Contracts/ApiVersions.cs` | Header names and expected versions |
 | `Contracts/HealthResponse.cs` | `record HealthResponse(string Status)` |
 | `Contracts/Auth/AuthContracts.cs` | `RegisterRequest`, `LoginRequest`, `RefreshRequest`, `AuthTokensResponse`, `AuthUserResponse`, `AuthResponse` |
-| `Contracts/Runs/RunContracts.cs` | `CreateRunRequest/Response`, `CompleteRunRequest/Response`, `CompleteRunProgressionResponse`, `LootGrantedResponse`, `RunResultRequest` |
-| `Contracts/Saves/SaveContracts.cs` | `SaveResponse`, `PutSaveRequest`, `PutSaveResponse` |
-| `openapi/aumbrye-api.v1.yaml` | OpenAPI 3.0.3, 8 paths, `bearerAuth` scheme |
+| `Contracts/Runs/RunContracts.cs` | `CreateRunRequest/Response`, `CompleteRunRequest/Response`, `CompleteRunProgressionResponse`, `LootGrantedResponse` |
+| `Contracts/Saves/SaveContracts.cs` | `SaveResponse`, `PutSaveRequest`, `PutSaveResponse`, `SaveConflictResponse` |
+| `Contracts/Leaderboards/LeaderboardContracts.cs` | `SubmitLeaderboardRequest/Response`, `LeaderboardPageResponse`, `LeaderboardEntryResponse` |
+| `Contracts/ErrorResponse.cs` | `ErrorResponse(string Error)` |
+| `openapi/aumbrye-api.v1.yaml` | OpenAPI 3.0.3, 11 paths; CI-checked against Swashbuckle dump |
 
 ### `packages/procedural/`
 
 | Path | Role |
 |------|------|
 | `Aumbrye.Procedural.csproj` | `net8.0`, references `..\shared\Aumbrye.Shared.csproj` |
-| `ProceduralAssembly.cs` | `const string Version = "0.3.0"` |
-| `Models/DungeonDefinition.cs` | The 13-field `DungeonDefinition` record plus `DungeonRoom`, `DungeonTransform`, `DungeonEdge`, `DungeonPlacements`, `EnemyPlacement`, `LootPlacement`, `LootItem`, `TrapPlacement`, `SecretPlacement`, `BossPlacement`, `Position3`, `DungeonBudgets` |
+| `ProceduralAssembly.cs` | `Version => ApiVersions.ExpectedClientVersion` |
+| `Models/DungeonDefinition.cs` | `DungeonDefinition` plus typed `RoomContentEntry`, `DungeonLock`, `DungeonPuzzle` |
 | `Generation/DungeonGenerator.cs` | Entry point `Generate(...)`; retry loop; loot instance-id assignment; `GuidExtensions.CreateVersion5` |
 | `Generation/DungeonSeedDeriver.cs` | `DeriveTierSeed`, `MixFloorSeed`, `GenerationSeed` |
 | `Generation/FinalFloorGenerator.cs` | Separate generator for the final floor |
@@ -65,7 +67,7 @@ Two C# libraries shared by the API and the CLI: `Aumbrye.Procedural` (dungeon ge
 6. `EnemyPlacer.Place` returns placements plus `threatUsed`.
 7. `LootPlacer.Place`, then `AssignLootInstanceIds`.
 8. `lootValue` summed as `quantity * ItemCatalog.GetLootValue(itemId)` (`DungeonGenerator.cs:105-107`).
-9. Build `DungeonDefinition`, serialize canonically, extract the checksum back out of the JSON string with a literal `"checksum":"` scan (`DungeonGenerator.cs:130-139`).
+9. Build `DungeonDefinition`, serialize via `CanonicalJsonSerializer.Serialize` returning `(json, checksum)`.
 
 ### Determinism mechanics
 
@@ -80,7 +82,11 @@ Two C# libraries shared by the API and the CLI: `Aumbrye.Procedural` (dungeon ge
 
 ### Content loading
 
-`ContentPaths.Root` (`Content/ContentPaths.cs:5`) is a static property evaluated once. It prefers `AUMBRYE_CONTENT_ROOT` if set and the directory exists, otherwise walks parent directories from `AppContext.BaseDirectory` looking for a `content` folder, and throws `InvalidOperationException("Could not locate content/ directory.")` if none is found (`ContentPaths.cs:30`). All five catalogs resolve their JSON through it.
+`ContentPaths.Root` prefers `AUMBRYE_CONTENT_ROOT`, else walks parents from `AppContext.BaseDirectory`. On failure throws a message naming searched paths and the env override.
+
+### OpenAPI drift check
+
+CI builds the API in Release, runs `dotnet tool run swagger tofile`, and `diff`s against `packages/shared/openapi/aumbrye-api.v1.yaml`.
 
 ### Shared contracts
 
@@ -99,31 +105,27 @@ Two C# libraries shared by the API and the CLI: `Aumbrye.Procedural` (dungeon ge
 
 - **`content/` is a build-time dependency of `Aumbrye.Procedural`.** The catalogs read JSON at runtime through `ContentPaths`, so publishing the CLI or the API without a sibling `content/` directory throws on first catalog access.
 - **`DungeonDefinition` JSON shape** is the cross-stack contract with the GDScript generator; `content/schemas/dungeon-definition.v1.json` is the schema and `cross_stack_parity_suite.gd` asserts parity on prefixes, schema keys, and affix determinism.
-- **`ProceduralAssembly.Version = "0.3.0"`** and `ApiVersions.ExpectedClientVersion = "0.3.0"` are separate constants that happen to match; nothing enforces that they stay in sync.
-- **`Aumbrye.Shared` has zero dependencies**, so it can be referenced from any of the four projects without pulling in EF Core or ASP.NET.
-- **Solution membership**: both packages are projects in `services/backend/Aumbrye.sln:18-20`, so `dotnet build Aumbrye.sln` builds them.
+- **`ProceduralAssembly.Version`** delegates to `ApiVersions.ExpectedClientVersion`.
+- **`Aumbrye.Shared` has zero dependencies**, so it can be referenced from any project without pulling in EF Core or ASP.NET.
+- **Solution membership**: both packages are in `services/backend/Aumbrye.sln`; `TreatWarningsAsErrors` enabled on both csprojs.
 
 ## Current state
 
 | Surface | Status | Evidence |
 |---------|--------|----------|
-| `Aumbrye.Procedural` generation pipeline | IMPLEMENTED | `packages/procedural/Generation/DungeonGenerator.cs:27-128` |
-| Deterministic seeding and checksums | IMPLEMENTED | `Random/SeededRandom.cs`, `Serialization/CanonicalJsonSerializer.cs` |
+| `Aumbrye.Procedural` generation pipeline | IMPLEMENTED | `DungeonGenerator.cs` |
+| Deterministic seeding and checksums | IMPLEMENTED | `SeededRandom.cs`, `CanonicalJsonSerializer.Serialize` tuple |
 | `Aumbrye.Shared` DTOs | IMPLEMENTED | `packages/shared/Contracts/**` |
-| `RoomContent`, `Locks`, `Puzzles` on `DungeonDefinition` | STUB | Always `Array.Empty<object>()` at `Generation/DungeonGenerator.cs:122-124`; serialized as empty arrays at `Serialization/CanonicalJsonSerializer.cs:63-65` |
-| `DungeonPlacements.Puzzles` | STUB | Typed `IReadOnlyList<object>` and passed through untouched at `Serialization/CanonicalJsonSerializer.cs:111` |
-| `RunResultRequest` DTO | STUB | Declared at `packages/shared/Contracts/Runs/RunContracts.cs:39-46`; no endpoint, service, or test references it |
-| `CompleteRunProgressionResponse.CharacterStateJson` | STUB | Declared at `RunContracts.cs:29` with default `null`; the endpoint constructs the record without it (`services/backend/src/Aumbrye.Api/Endpoints/ApiEndpoints.cs:125-137`) |
-| `PutSaveResponse.Conflict` | STUB | Declared at `SaveContracts.cs:13` with default `false`; the 409 path returns an anonymous object instead (`ApiEndpoints.cs:197-203`) |
-| Leaderboards in the OpenAPI spec | ABSENT | `packages/shared/openapi/aumbrye-api.v1.yaml` declares 8 paths (`:9,15,29,43,57,78,97,120`); `/api/v1/leaderboards` and `/api/v1/leaderboards/submit` are not among them, though both are mapped at `services/backend/src/Aumbrye.Api/Endpoints/LeaderboardsEndpoints.cs:11,35` |
-| Leaderboard DTOs in `packages/shared` | ABSENT | `SubmitLeaderboardRequest` is declared in the API project at `LeaderboardsEndpoints.cs:54`, not in `packages/shared/Contracts` |
-| Checksum extraction | PARTIAL | `DungeonGenerator.ExtractChecksum` re-parses the serialized string for a literal `"checksum":"` marker instead of using the value `CanonicalJsonSerializer` already computed (`DungeonGenerator.cs:130-139`) |
-| OpenAPI response schemas | PARTIAL | Only `SaveResponse` has a `content`/`schema` block (`aumbrye-api.v1.yaml:128-131`); the other 7 paths document status codes with prose descriptions only |
-| Generated client from OpenAPI | ABSENT | No NSwag/openapi-generator config, no generated client in `apps/web` or `apps/game/client`; the spec is hand-maintained alongside hand-written clients |
+| Typed `RoomContent` / `Locks` / `Puzzles` | IMPLEMENTED | `RoomContentEntry`, `DungeonLock`, `DungeonPuzzle` in `DungeonDefinition.cs` |
+| Leaderboards in OpenAPI + shared DTOs | IMPLEMENTED | `aumbrye-api.v1.yaml`, `LeaderboardContracts.cs` |
+| `CompleteRunProgressionResponse.CharacterStateJson` | IMPLEMENTED | populated in `RunService.CompleteRunAsync` |
+| `PutSaveResponse` + `SaveConflictResponse` on 409 | IMPLEMENTED | `ApiEndpoints.cs` |
+| OpenAPI response schemas | IMPLEMENTED | `.Produces<T>` on all routes; CI swagger diff |
+| Generated client from OpenAPI | ABSENT | no NSwag/openapi-generator config in client or web |
 
 ## Related
 
-- Improvement plan: [`../actual_improvements/packages.md`](../actual_improvements/packages.md)
+- Improvement plan: [`../actual_improvements/packages.md`](../actual_improvements/packages.md) — **FINISHED**
 - [`backend-api.md`](backend-api.md) — the API that consumes both packages
 - [`website-and-backend.md`](website-and-backend.md) — the OpenAPI contract in use
 - [`local-procgen.md`](local-procgen.md) — the GDScript generator this package must stay in parity with

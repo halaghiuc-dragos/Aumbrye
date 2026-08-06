@@ -11,17 +11,13 @@ extends RefCounted
 
 const PixelStyle := preload("res://scripts/art/style/pixel_diorama_style.gd")
 const CharacterSkin := preload("res://scripts/art/characters/diorama_character_skin.gd")
+const ViewmodelPass := preload("res://scripts/art/characters/diorama_viewmodel_pass.gd")
 
 const NODE_NAME := "Viewmodel"
 const VIEW_ROOT := "ViewRoot"
 
-## Metres from the eye. Close enough to fill the lower corners, far enough that
-## the near plane never clips a swinging blade.
 const SHOULDER_OFFSET := Vector3(0.3, -0.26, -0.18)
 const ARM_SIZE := Vector3(0.16, 0.46, 0.16)
-
-## Rest pose is already raised and angled inward: clips are stored as offsets, so
-## this is what brings the swing into frame without touching the clip tables.
 const ARM_REST_ROTATION := Vector3(-0.62, 0.0, 0.0)
 const ARM_REST_ROLL := 0.22
 
@@ -37,19 +33,14 @@ static func build(camera: Camera3D, theme: int) -> Node3D:
 
 	var view_root := Node3D.new()
 	view_root.name = VIEW_ROOT
-	holder.add_child(view_root)
 
 	var mats := _materials(theme)
 	for side in [-1.0, 1.0]:
 		var arm_name := "ArmL" if side < 0.0 else "ArmR"
 		var shoulder := Node3D.new()
 		shoulder.name = arm_name
-		shoulder.position = Vector3(
-			SHOULDER_OFFSET.x * side, SHOULDER_OFFSET.y, SHOULDER_OFFSET.z
-		)
-		shoulder.rotation = Vector3(
-			ARM_REST_ROTATION.x, 0.0, ARM_REST_ROLL * -side
-		)
+		shoulder.position = Vector3(SHOULDER_OFFSET.x * side, SHOULDER_OFFSET.y, SHOULDER_OFFSET.z)
+		shoulder.rotation = Vector3(ARM_REST_ROTATION.x, 0.0, ARM_REST_ROLL * -side)
 		view_root.add_child(shoulder)
 
 		PixelStyle.add_box(
@@ -68,17 +59,40 @@ static func build(camera: Camera3D, theme: int) -> Node3D:
 		mount.position = Vector3(0.0, -ARM_SIZE.y, 0.0)
 		shoulder.add_child(mount)
 
-	_disable_shadows(holder)
+	_disable_shadows(view_root)
+
+	holder.set_script(ViewmodelPass)
+	(holder as Node).call("setup_pass", camera, view_root)
 	return holder
 
 
 static func get_root(camera: Camera3D) -> Node3D:
 	if camera == null:
 		return null
-	var holder := camera.get_node_or_null(NODE_NAME) as Node3D
-	if holder == null:
-		return null
-	return holder.get_node_or_null(VIEW_ROOT) as Node3D
+	var holder := camera.get_node_or_null(NODE_NAME)
+	if holder and holder.has_method("get_view_root"):
+		return holder.call("get_view_root") as Node3D
+	var legacy := camera.get_node_or_null(NODE_NAME + "/" + VIEW_ROOT) as Node3D
+	return legacy
+
+
+static func retint(camera: Camera3D, theme: int) -> void:
+	var root := get_root(camera)
+	if root == null:
+		return
+	var mats := _materials(theme)
+	_apply_materials(root, mats)
+
+
+static func _apply_materials(node: Node, mats: Dictionary) -> void:
+	if node is MeshInstance3D:
+		var mesh := node as MeshInstance3D
+		if mesh.name == "Glove":
+			mesh.material_override = mats["accent"]
+		elif mesh.name == "Mesh":
+			mesh.material_override = mats["body"]
+	for child in node.get_children():
+		_apply_materials(child, mats)
 
 
 static func remove(camera: Camera3D) -> void:
@@ -88,8 +102,6 @@ static func remove(camera: Camera3D) -> void:
 		existing.queue_free()
 
 
-## The viewmodel lives inside the near plane, so a shadow from it would be a
-## giant blob on the floor in front of the player.
 static func _disable_shadows(node: Node) -> void:
 	if node is GeometryInstance3D:
 		(node as GeometryInstance3D).cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
@@ -99,9 +111,10 @@ static func _disable_shadows(node: Node) -> void:
 
 static func _materials(theme: int) -> Dictionary:
 	var palette := PixelStyle.get_palette(theme)
-	var accent := PixelStyle.make_surface_material(
-		PixelStyle.SurfaceKind.PROP, theme, 0.3
-	).duplicate() as ShaderMaterial
+	var accent := (
+		PixelStyle.make_surface_material(PixelStyle.SurfaceKind.PROP, theme, 0.3).duplicate()
+		as ShaderMaterial
+	)
 	accent.set_shader_parameter("color_base", palette[PixelStyle.PaletteSlot.ACCENT])
 	accent.set_shader_parameter(
 		"color_shadow", palette[PixelStyle.PaletteSlot.ACCENT].darkened(0.25)

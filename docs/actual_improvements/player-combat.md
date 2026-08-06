@@ -1,5 +1,7 @@
 # Player combat (scene wiring) — improvement plan
 
+## Status: FINISHED
+
 ## Current state
 
 `player.tscn` wires 16 authored nodes plus two created at runtime (`AnimDirector`, `Facing/DioramaVisual`). Attacks, hitbox profiles per archetype, soft-lock facing, stamina costs, and the combo index all work; see [`../existing_codebase/player-combat.md`](../existing_codebase/player-combat.md).

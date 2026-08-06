@@ -1,5 +1,7 @@
 # Dodge — improvement plan
 
+## Status: FINISHED
+
 ## Current state
 
 The dash works: 9.0 m/s for 0.45 s, 32 stamina, a 0.25 s i-frame window from 0.05 s to 0.30 s, lock-on-aware direction, and a 0.25 s recovery lockout (see [`../existing_codebase/dodge.md`](../existing_codebase/dodge.md)). It is also the single most correct answer to every threat in the game, and the game never confirms it. `Hurtbox.receive_hit` returns silently on `iframes_active` — no signal, no flash, no sound, no damage number — so a perfect roll and a missed enemy swing look identical. The dash runs at a constant velocity with no gravity, all eleven tuning numbers are GDScript constants with no equip-weight or class input, and `dodge_started` / `dodge_ended` each fire twice per dash because the direct emissions and the `dash_*` relays are both wired.

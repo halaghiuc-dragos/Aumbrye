@@ -25,7 +25,11 @@ public static class DungeonSeedDeriver
         floorIndex = Math.Max(1, floorIndex);
         if (floorIndex <= 1)
             return tierSeed;
-        return Math.Max(1, unchecked(tierSeed + floorIndex * FloorSeedMultiplier));
+        ulong x = ((ulong)(uint)tierSeed * 0x9E3779B1UL) ^ ((ulong)(uint)floorIndex * 0xBF58476D1CE4E5B9UL);
+        x = (x ^ (x >> 30)) * 0xBF58476D1CE4E5B9UL;
+        x = (x ^ (x >> 27)) * 0x94D049BB133111EBUL;
+        x = x ^ (x >> 31);
+        return Math.Max(1, (int)(x & 0x7FFFFFFFUL));
     }
 
     public static int GenerationSeed(int baseSeed, int tier, int floorIndex) =>

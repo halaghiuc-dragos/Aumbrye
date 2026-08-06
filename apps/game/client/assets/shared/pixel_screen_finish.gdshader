@@ -14,7 +14,7 @@ uniform float highlight_tint_amount : hint_range(0.0, 1.0) = 0.1;
 uniform float vignette_strength : hint_range(0.0, 1.0) = 0.18;
 uniform float vignette_softness : hint_range(0.1, 2.0) = 0.85;
 uniform float damage_pulse : hint_range(0.0, 1.0) = 0.0;
-uniform vec4 damage_tint : source_color = vec4(0.62, 0.08, 0.08, 1.0);
+uniform vec4 pulse_tint : source_color = vec4(0.62, 0.08, 0.08, 1.0);
 uniform float posterize_levels : hint_range(0.0, 64.0) = 0.0;
 
 float luminance(vec3 color) {
@@ -44,7 +44,7 @@ void fragment() {
 	if (damage_pulse > 0.001) {
 		vec2 centered = UV - vec2(0.5);
 		float edge = smoothstep(0.15, 0.55, length(centered));
-		col = mix(col, damage_tint.rgb * col * 1.35, damage_pulse * edge);
+		col = mix(col, pulse_tint.rgb * col * 1.35, damage_pulse * edge);
 	}
 
 	if (posterize_levels >= 2.0) {

@@ -76,19 +76,6 @@
     "skip_50_floors",
     "stamina_potion"
   ],
-  "relics": [
-    "bloodlust",
-    "iron_will",
-    "relic_bloodstone",
-    "relic_flame_core",
-    "relic_frost_shard",
-    "relic_poison_vial",
-    "relic_shadow_veil",
-    "relic_stone_heart",
-    "relic_sun_medallion",
-    "relic_wind_charm",
-    "swift_step"
-  ],
   "materials": [
     "dungeon_key",
     "iron_scrap",
@@ -105,6 +92,7 @@
     "wind_relic_charm",
     "blood_relic_stone",
     "bloodlust_charm",
-    "swift_step_charm"
+    "swift_step_charm",
+    "boss_sigil"
   ]
 }

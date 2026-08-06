@@ -72,6 +72,7 @@ static func clear_material_caches() -> void:
 	_accent_material_cache.clear()
 	_emissive_material_cache.clear()
 
+
 const PALETTES: Array = [
 	# castle
 	[
@@ -222,17 +223,30 @@ static func theme_from_biome(biome_id: String) -> PaletteTheme:
 
 
 static func get_palette(theme: PaletteTheme) -> Array[Color]:
-	var row: Array = PALETTES[theme]
+	var idx := clampi(int(theme), 0, PALETTES.size() - 1)
+	if idx != int(theme):
+		push_warning(
+			"PixelStyle.get_palette: theme %d out of range, clamped to %d" % [int(theme), idx]
+		)
+	var row: Array = PALETTES[idx]
 	var colors: Array[Color] = []
 	colors.assign(row)
 	return colors
 
 
 static func get_palette_color(theme: PaletteTheme, slot: PaletteSlot) -> Color:
-	return PALETTES[theme][slot] as Color
+	var idx := clampi(int(theme), 0, PALETTES.size() - 1)
+	if idx != int(theme):
+		push_warning(
+			"PixelStyle.get_palette_color: theme %d out of range, clamped to %d"
+			% [int(theme), idx]
+		)
+	return PALETTES[idx][slot] as Color
 
 
-static func _surface_material_key(theme: PaletteTheme, surface: SurfaceKind, pattern_strength: float) -> String:
+static func _surface_material_key(
+	theme: PaletteTheme, surface: SurfaceKind, pattern_strength: float
+) -> String:
 	return "%d_%d_%.4f" % [theme, surface, pattern_strength]
 
 
@@ -241,9 +255,7 @@ static func _configure_shader_material(mat: ShaderMaterial) -> void:
 
 
 static func make_surface_material(
-	surface: SurfaceKind,
-	theme: PaletteTheme,
-	pattern_strength: float = -1.0
+	surface: SurfaceKind, theme: PaletteTheme, pattern_strength: float = -1.0
 ) -> Material:
 	if pattern_strength < 0.0:
 		pattern_strength = PixelDioramaSettings.pattern_strength
@@ -281,7 +293,7 @@ static func make_surface_material(
 
 	mat.set_shader_parameter("pattern_strength", pattern_strength)
 	_surface_material_cache[key] = mat
-	return mat
+	return PixelDioramaSettings.track(mat)
 
 
 static func make_floor_material(theme: PaletteTheme) -> Material:
@@ -290,6 +302,13 @@ static func make_floor_material(theme: PaletteTheme) -> Material:
 
 static func make_wall_material(theme: PaletteTheme) -> Material:
 	return make_surface_material(SurfaceKind.WALL, theme)
+
+
+static func make_character_material(theme: PaletteTheme) -> Material:
+	var mat := make_surface_material(SurfaceKind.WALL, theme, 0.0).duplicate() as ShaderMaterial
+	mat.set_shader_parameter("pattern_strength", 0.0)
+	mat.set_shader_parameter("use_vertex_color", true)
+	return mat
 
 
 static func make_prop_material(theme: PaletteTheme, use_metal: bool = false) -> Material:
@@ -325,11 +344,15 @@ static func make_hub_materials() -> Dictionary:
 	var floor_alt := make_surface_material(SurfaceKind.FLOOR, theme).duplicate() as ShaderMaterial
 	floor_alt.set_shader_parameter("color_base", palette[PaletteSlot.FLOOR_SHADOW])
 	floor_alt.set_shader_parameter("color_shadow", palette[PaletteSlot.WALL_SHADOW])
-	var accent_mat := make_surface_material(SurfaceKind.PROP, theme, 0.38).duplicate() as ShaderMaterial
+	var accent_mat := (
+		make_surface_material(SurfaceKind.PROP, theme, 0.38).duplicate() as ShaderMaterial
+	)
 	accent_mat.set_shader_parameter("color_base", palette[PaletteSlot.ACCENT])
 	accent_mat.set_shader_parameter("color_shadow", palette[PaletteSlot.ACCENT].darkened(0.22))
 	accent_mat.set_shader_parameter("color_accent", palette[PaletteSlot.EMISSIVE])
-	var paper_mat := make_surface_material(SurfaceKind.PROP, theme, 0.18).duplicate() as ShaderMaterial
+	var paper_mat := (
+		make_surface_material(SurfaceKind.PROP, theme, 0.18).duplicate() as ShaderMaterial
+	)
 	paper_mat.set_shader_parameter("color_base", Color(0.92, 0.86, 0.68))
 	paper_mat.set_shader_parameter("color_shadow", Color(0.78, 0.72, 0.55))
 	paper_mat.set_shader_parameter("color_accent", palette[PaletteSlot.ACCENT])
@@ -352,10 +375,7 @@ static func make_hub_materials() -> Dictionary:
 ## Quantized glow surface. Emissives go through the pixel shader too, otherwise
 ## torches and crystals read as smooth blobs next to banded pixel geometry.
 static func make_glow_material(
-	core: Color,
-	edge: Color,
-	energy: float,
-	pulse_speed: float = 0.0
+	core: Color, edge: Color, energy: float, pulse_speed: float = 0.0
 ) -> ShaderMaterial:
 	var mat := ShaderMaterial.new()
 	mat.shader = load(EMISSIVE_SHADER_PATH) as Shader
@@ -364,7 +384,7 @@ static func make_glow_material(
 	mat.set_shader_parameter("emission_energy", energy)
 	mat.set_shader_parameter("pulse_speed", pulse_speed)
 	PixelDioramaSettings.apply_to_shader_material(mat)
-	return mat
+	return PixelDioramaSettings.track(mat)
 
 
 static func make_custom_emissive(color: Color, energy: float = 1.1) -> Material:
@@ -415,16 +435,12 @@ static func make_material(color: Color, emission: Color = Color.BLACK) -> Materi
 	mat.set_shader_parameter("surface_kind", 2)
 	PixelDioramaSettings.apply_to_shader_material(mat)
 	mat.set_shader_parameter("pattern_strength", PixelDioramaSettings.pattern_strength * 0.45)
-	_prop_material_cache[key] = mat
+	_prop_material_cache[key] = PixelDioramaSettings.track(mat)
 	return mat
 
 
 static func add_box(
-	parent: Node3D,
-	size: Vector3,
-	position: Vector3,
-	material: Material,
-	node_name: String = ""
+	parent: Node3D, size: Vector3, position: Vector3, material: Material, node_name: String = ""
 ) -> MeshInstance3D:
 	var mesh_inst := MeshInstance3D.new()
 	if node_name != "":
@@ -474,14 +490,14 @@ static func make_portal_material(theme: String) -> ShaderMaterial:
 			mat.set_shader_parameter("ellipse_x", 0.7)
 			mat.set_shader_parameter("ellipse_y", 0.96)
 			mat.set_shader_parameter("spin_speed", 0.9)
-		_: # umbral and fallback
+		_:  # umbral and fallback
 			mat.set_shader_parameter("color_inner", Color(0.62, 0.38, 0.92, 1.0))
 			mat.set_shader_parameter("color_outer", Color(0.22, 0.1, 0.38, 1.0))
 			mat.set_shader_parameter("color_accent", Color(0.85, 0.55, 1.0, 1.0))
 			mat.set_shader_parameter("ellipse_x", 0.68)
 			mat.set_shader_parameter("ellipse_y", 0.95)
 			mat.set_shader_parameter("spin_speed", 1.8)
-	return mat
+	return PixelDioramaSettings.track(mat)
 
 
 static func add_portal_interior(
@@ -503,10 +519,7 @@ static func add_portal_interior(
 
 
 static func add_collision_box(
-	parent: Node3D,
-	size: Vector3,
-	position: Vector3,
-	node_name: String = "Collision"
+	parent: Node3D, size: Vector3, position: Vector3, node_name: String = "Collision"
 ) -> CollisionShape3D:
 	var shape_node := CollisionShape3D.new()
 	shape_node.name = node_name
@@ -540,10 +553,7 @@ static func add_portal_column(
 
 
 static func dress_portal_architecture(
-	visuals: Node3D,
-	mats: Dictionary,
-	theme: String,
-	origin: Vector3 = Vector3.ZERO
+	visuals: Node3D, mats: Dictionary, theme: String, origin: Vector3 = Vector3.ZERO
 ) -> void:
 	var frame_mat: Material = mats.wall if mats.has("wall") else mats.accent
 	var accent_mat: Material = mats.accent
@@ -555,16 +565,26 @@ static func dress_portal_architecture(
 	add_portal_column(visuals, o + Vector3(-1.75, 1.8, 0.0), frame_mat, accent_mat, 3.6, 0.62, "L")
 	add_portal_column(visuals, o + Vector3(1.75, 1.8, 0.0), frame_mat, accent_mat, 3.6, 0.62, "R")
 	add_box(visuals, Vector3(4.2, 0.55, 0.72), o + Vector3(0.0, 3.95, 0.0), frame_mat, "Lintel")
-	add_box(visuals, Vector3(3.0, 0.22, 0.22), o + Vector3(0.0, 3.2, 0.0), accent_mat, "ArchKeystone")
+	add_box(
+		visuals, Vector3(3.0, 0.22, 0.22), o + Vector3(0.0, 3.2, 0.0), accent_mat, "ArchKeystone"
+	)
 	add_box(visuals, Vector3(0.35, 2.8, 0.35), o + Vector3(-1.2, 1.6, 0.28), frame_mat, "ButtressL")
 	add_box(visuals, Vector3(0.35, 2.8, 0.35), o + Vector3(1.2, 1.6, 0.28), frame_mat, "ButtressR")
 	add_portal_interior(visuals, Vector2(2.6, 2.2), o + Vector3(0.0, 1.55, 0.04), theme)
 	add_box(visuals, Vector3(3.8, 0.16, 1.9), o + Vector3(0.0, 0.08, 0.0), floor_mat, "Pad")
 	if theme == "training":
-		add_box(visuals, Vector3(0.22, 0.22, 0.22), o + Vector3(-1.0, 0.22, 0.75), theme_mat, "EmberL")
-		add_box(visuals, Vector3(0.22, 0.22, 0.22), o + Vector3(1.0, 0.22, 0.75), theme_mat, "EmberR")
-		add_box(visuals, Vector3(0.18, 2.8, 0.18), o + Vector3(-1.55, 1.6, 0.12), theme_mat, "TorchL")
-		add_box(visuals, Vector3(0.18, 2.8, 0.18), o + Vector3(1.55, 1.6, 0.12), theme_mat, "TorchR")
+		add_box(
+			visuals, Vector3(0.22, 0.22, 0.22), o + Vector3(-1.0, 0.22, 0.75), theme_mat, "EmberL"
+		)
+		add_box(
+			visuals, Vector3(0.22, 0.22, 0.22), o + Vector3(1.0, 0.22, 0.75), theme_mat, "EmberR"
+		)
+		add_box(
+			visuals, Vector3(0.18, 2.8, 0.18), o + Vector3(-1.55, 1.6, 0.12), theme_mat, "TorchL"
+		)
+		add_box(
+			visuals, Vector3(0.18, 2.8, 0.18), o + Vector3(1.55, 1.6, 0.12), theme_mat, "TorchR"
+		)
 
 
 static func add_hub_tent(
@@ -592,8 +612,20 @@ static func add_hub_tent(
 	var lip_z := half_d - wall_thickness * 0.5
 	var floor_alt: Material = mats.get("floor_alt", mats.get("floor", pole_mat))
 
-	add_box(visuals, Vector3(width + 0.55, 0.22, depth + 0.55), Vector3(0.0, 0.11, 0.0), floor_alt, "Plinth")
-	add_box(visuals, Vector3(width + 0.38, 0.16, depth + 0.38), Vector3(0.0, 0.28, 0.0), roof_mat, "PlinthStep")
+	add_box(
+		visuals,
+		Vector3(width + 0.55, 0.22, depth + 0.55),
+		Vector3(0.0, 0.11, 0.0),
+		floor_alt,
+		"Plinth"
+	)
+	add_box(
+		visuals,
+		Vector3(width + 0.38, 0.16, depth + 0.38),
+		Vector3(0.0, 0.28, 0.0),
+		roof_mat,
+		"PlinthStep"
+	)
 
 	var column_h := wall_height
 	var corner_positions := [
@@ -604,13 +636,7 @@ static func add_hub_tent(
 	]
 	for i in corner_positions.size():
 		add_portal_column(
-			visuals,
-			corner_positions[i],
-			pole_mat,
-			roof_mat,
-			column_h,
-			0.48,
-			"Corner%d" % i
+			visuals, corner_positions[i], pole_mat, roof_mat, column_h, 0.48, "Corner%d" % i
 		)
 
 	var entrance_z := lip_z - 0.08
@@ -663,8 +689,16 @@ static func add_hub_tent(
 	)
 
 	var ridge_y := wall_height + roof_peak
-	add_box(visuals, Vector3(width + 0.42, 0.18, 0.18), Vector3(0.0, ridge_y, 0.0), roof_mat, "Ridge")
-	add_box(visuals, Vector3(width + 0.22, 0.08, 0.08), Vector3(0.0, ridge_y + 0.1, 0.0), pole_mat, "RidgeCap")
+	add_box(
+		visuals, Vector3(width + 0.42, 0.18, 0.18), Vector3(0.0, ridge_y, 0.0), roof_mat, "Ridge"
+	)
+	add_box(
+		visuals,
+		Vector3(width + 0.22, 0.08, 0.08),
+		Vector3(0.0, ridge_y + 0.1, 0.0),
+		pole_mat,
+		"RidgeCap"
+	)
 
 	var front_slope_len := sqrt(half_d * half_d + roof_peak * roof_peak)
 	var front_slope_angle := atan2(roof_peak, half_d)
@@ -704,7 +738,13 @@ static func add_hub_tent(
 	)
 	right_roof.rotation.z = -side_slope_angle
 
-	add_box(visuals, Vector3(width + 0.5, 0.14, 0.5), Vector3(0.0, 0.38, half_d + 0.18), roof_mat, "AwningTrim")
+	add_box(
+		visuals,
+		Vector3(width + 0.5, 0.14, 0.5),
+		Vector3(0.0, 0.38, half_d + 0.18),
+		roof_mat,
+		"AwningTrim"
+	)
 
 	add_box(
 		visuals,
@@ -763,8 +803,20 @@ static func add_hub_tent(
 		"FlapR"
 	)
 
-	add_box(visuals, Vector3(width + 0.55, 0.12, depth + 0.55), Vector3(0.0, 0.06, 0.0), floor_alt, "TentPad")
-	add_box(visuals, Vector3(width + 0.35, 0.08, depth + 0.35), Vector3(0.0, 0.14, 0.0), roof_mat, "TentPadTrim")
+	add_box(
+		visuals,
+		Vector3(width + 0.55, 0.12, depth + 0.55),
+		Vector3(0.0, 0.06, 0.0),
+		floor_alt,
+		"TentPad"
+	)
+	add_box(
+		visuals,
+		Vector3(width + 0.35, 0.08, depth + 0.35),
+		Vector3(0.0, 0.14, 0.0),
+		roof_mat,
+		"TentPadTrim"
+	)
 
 	var collision_root := landmark.get_node_or_null("TentCollision") as StaticBody3D
 	if collision_root == null:
@@ -909,6 +961,7 @@ static func add_hub_fountain(parent: Node3D, mats: Dictionary, position: Vector3
 	glow.omni_range = 3.2
 	glow.position = Vector3(0.0, 0.85, 0.0)
 	fountain.add_child(glow)
+	AudioDirector.attach_loop_emitter(fountain, "fountain", 8.0)
 
 	return fountain
 
@@ -922,7 +975,9 @@ static func _make_fountain_particle_mesh(radius: float) -> SphereMesh:
 	return mesh
 
 
-static func _make_fountain_particle_material(color: Color, emission_energy: float) -> StandardMaterial3D:
+static func _make_fountain_particle_material(
+	color: Color, emission_energy: float
+) -> StandardMaterial3D:
 	var mat := StandardMaterial3D.new()
 	var quantized := Color(
 		floorf(color.r * 6.0 + 0.5) / 6.0,
@@ -975,5 +1030,11 @@ static func hide_legacy_meshes(root: Node) -> void:
 			continue
 		if child is MeshInstance3D:
 			child.visible = false
-		elif child.name != "InteractArea" and child.name != "PortalLabel" and child.name != "Label" and child.name != "DoorLabel" and child.name != "NameLabel":
+		elif (
+			child.name != "InteractArea"
+			and child.name != "PortalLabel"
+			and child.name != "Label"
+			and child.name != "DoorLabel"
+			and child.name != "NameLabel"
+		):
 			hide_legacy_meshes(child)

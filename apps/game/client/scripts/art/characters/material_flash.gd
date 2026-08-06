@@ -9,11 +9,11 @@ const META_SAVED_OVERRIDE := &"material_flash_saved_override"
 const META_ACTIVE_TWEEN := &"material_flash_tween"
 
 
-static func flash(node: Node3D, strength: float = 1.0) -> void:
+static func flash(node: Node3D, strength: float = 1.0, duration: float = FLASH_DURATION) -> void:
 	if node == null or not is_instance_valid(node):
 		return
 	for mesh in _gather_meshes(node):
-		_flash_mesh(mesh, strength)
+		_flash_mesh(mesh, strength, duration)
 
 
 static func _gather_meshes(root: Node) -> Array[MeshInstance3D]:
@@ -25,7 +25,7 @@ static func _gather_meshes(root: Node) -> Array[MeshInstance3D]:
 	return out
 
 
-static func _flash_mesh(mesh: MeshInstance3D, strength: float) -> void:
+static func _flash_mesh(mesh: MeshInstance3D, strength: float, duration: float = FLASH_DURATION) -> void:
 	if mesh.has_meta(META_ACTIVE_TWEEN):
 		var active_tween := mesh.get_meta(META_ACTIVE_TWEEN) as Tween
 		if active_tween and active_tween.is_valid():
@@ -53,17 +53,18 @@ static func _flash_mesh(mesh: MeshInstance3D, strength: float) -> void:
 				dup.set_shader_parameter(FLASH_PARAM, v),
 		strength,
 		0.0,
-		FLASH_DURATION
+		maxf(0.05, duration)
 	)
-	tween.tween_callback(func() -> void:
-		if not is_instance_valid(mesh):
-			return
-		if mesh.has_meta(META_SAVED_OVERRIDE):
-			mesh.material_override = mesh.get_meta(META_SAVED_OVERRIDE)
-			mesh.remove_meta(META_SAVED_OVERRIDE)
-		elif is_instance_valid(dup):
-			dup.set_shader_parameter(FLASH_PARAM, 0.0)
-		mesh.remove_meta(META_ACTIVE_TWEEN)
+	tween.tween_callback(
+		func() -> void:
+			if not is_instance_valid(mesh):
+				return
+			if mesh.has_meta(META_SAVED_OVERRIDE):
+				mesh.material_override = mesh.get_meta(META_SAVED_OVERRIDE)
+				mesh.remove_meta(META_SAVED_OVERRIDE)
+			elif is_instance_valid(dup):
+				dup.set_shader_parameter(FLASH_PARAM, 0.0)
+			mesh.remove_meta(META_ACTIVE_TWEEN)
 	)
 
 

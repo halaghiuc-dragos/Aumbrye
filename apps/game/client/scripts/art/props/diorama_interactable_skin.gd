@@ -29,7 +29,9 @@ static func resolve_biome(node: Node, fallback: String = BiomeRegistry.BIOME_CAS
 	return fallback
 
 
-static func build_chest(parent: Node3D, biome_id: String, glow_color: Color = Color(0, 0, 0, 0)) -> Node3D:
+static func build_chest(
+	parent: Node3D, biome_id: String, glow_color: Color = Color(0, 0, 0, 0)
+) -> Node3D:
 	_remove_visual(parent)
 	var root := _make_root(parent)
 	var theme := PixelStyle.theme_from_biome(biome_id)
@@ -60,7 +62,49 @@ static func build_lever(parent: Node3D, biome_id: String) -> Node3D:
 	_add_box(root, Vector3(0.9, 0.55, 0.9), wall, Vector3(0.0, 0.28, 0.0))
 	_add_box(root, Vector3(0.16, 0.75, 0.16), accent, Vector3(0.0, 0.78, 0.0))
 	_add_box(root, Vector3(0.55, 0.12, 0.12), accent, Vector3(0.0, 1.05, 0.0))
-	_add_orb(root, PixelStyle.get_palette_color(theme, PixelStyle.PaletteSlot.EMISSIVE), Vector3(0.28, 1.05, 0.0), 0.1)
+	_add_orb(
+		root,
+		PixelStyle.get_palette_color(theme, PixelStyle.PaletteSlot.EMISSIVE),
+		Vector3(0.28, 1.05, 0.0),
+		0.1
+	)
+	return root
+
+
+static func build_bonfire(parent: Node3D, biome_id: String) -> Node3D:
+	_remove_visual(parent)
+	var root := _make_root(parent)
+	var theme := PixelStyle.theme_from_biome(biome_id)
+	var wall := PixelStyle.make_wall_material(theme)
+	var accent := PixelStyle.make_accent_material(theme)
+	_add_box(root, Vector3(0.7, 0.35, 0.7), wall, Vector3(0.0, 0.18, 0.0))
+	_add_box(root, Vector3(0.45, 0.55, 0.45), accent, Vector3(0.0, 0.55, 0.0))
+	_add_orb(root, Color(1.0, 0.55, 0.15), Vector3(0.0, 1.05, 0.0), 0.22)
+	_add_orb(root, Color(1.0, 0.35, 0.05, 0.45), Vector3(0.0, 1.35, 0.0), 0.14)
+	return root
+
+
+static func build_lectern(parent: Node3D, biome_id: String) -> Node3D:
+	_remove_visual(parent)
+	var root := _make_root(parent)
+	var theme := PixelStyle.theme_from_biome(biome_id)
+	var wall := PixelStyle.make_wall_material(theme)
+	var accent := PixelStyle.make_accent_material(theme)
+	_add_box(root, Vector3(0.55, 1.1, 0.55), wall, Vector3(0.0, 0.55, 0.0))
+	_add_box(root, Vector3(0.75, 0.08, 0.55), accent, Vector3(0.0, 1.15, 0.0))
+	_add_box(root, Vector3(0.35, 0.45, 0.08), accent, Vector3(0.0, 1.35, 0.22))
+	return root
+
+
+static func build_npc(parent: Node3D, biome_id: String) -> Node3D:
+	_remove_visual(parent)
+	var root := _make_root(parent)
+	var theme := PixelStyle.theme_from_biome(biome_id)
+	var wall := PixelStyle.make_wall_material(theme)
+	var accent := PixelStyle.make_accent_material(theme)
+	_add_box(root, Vector3(0.55, 0.9, 0.35), wall, Vector3(0.0, 0.45, 0.0))
+	_add_box(root, Vector3(0.35, 0.35, 0.35), accent, Vector3(0.0, 1.15, 0.0))
+	_add_orb(root, PixelStyle.get_palette_color(theme, PixelStyle.PaletteSlot.ACCENT), Vector3(0.0, 1.55, 0.0), 0.18)
 	return root
 
 
@@ -170,12 +214,19 @@ static func build_poison_pool(parent: Node3D, biome_id: String) -> Node3D:
 	)
 	_add_box(root, Vector3(4.1, 0.12, 4.1), rim, Vector3(0.0, 0.02, 0.0))
 	_add_box(root, Vector3(3.6, 0.06, 3.6), pool, Vector3(0.0, 0.08, 0.0))
-	for corner in [Vector3(-1.85, 0.08, -1.85), Vector3(1.85, 0.08, -1.85), Vector3(-1.85, 0.08, 1.85), Vector3(1.85, 0.08, 1.85)]:
+	for corner in [
+		Vector3(-1.85, 0.08, -1.85),
+		Vector3(1.85, 0.08, -1.85),
+		Vector3(-1.85, 0.08, 1.85),
+		Vector3(1.85, 0.08, 1.85)
+	]:
 		_add_box(root, Vector3(0.25, 0.16, 0.25), wall, corner)
 	return root
 
 
-static func build_crystal_pillar(parent: Node3D, biome_id: String = BiomeRegistry.BIOME_CRYSTAL) -> Node3D:
+static func build_crystal_pillar(
+	parent: Node3D, biome_id: String = BiomeRegistry.BIOME_CRYSTAL
+) -> Node3D:
 	_remove_visual(parent)
 	var root := _make_root(parent)
 	var theme := PixelStyle.theme_from_biome(biome_id)
@@ -205,11 +256,15 @@ static func _remove_visual(parent: Node3D) -> void:
 			child.queue_free()
 
 
-static func _add_box(parent: Node3D, size: Vector3, material: Material, pos: Vector3) -> MeshInstance3D:
+static func _add_box(
+	parent: Node3D, size: Vector3, material: Material, pos: Vector3
+) -> MeshInstance3D:
 	return PixelStyle.add_box(parent, size, pos, material)
 
 
-static func _add_orb(parent: Node3D, color: Color, pos: Vector3, radius: float, scale := Vector3.ONE) -> MeshInstance3D:
+static func _add_orb(
+	parent: Node3D, color: Color, pos: Vector3, radius: float, scale := Vector3.ONE
+) -> MeshInstance3D:
 	var mesh_inst := MeshInstance3D.new()
 	var sphere := SphereMesh.new()
 	sphere.radius = radius

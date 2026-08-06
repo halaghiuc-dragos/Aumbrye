@@ -5,8 +5,8 @@
 ## Files
 | Path | Role |
 |------|------|
-| `apps/game/client/scripts/app/run_flow.gd` | Autoload `RunFlow` (996 lines). Run state, entry points, floor cache, outcome resolution |
-| `apps/game/client/scripts/app/run_lifecycle.gd` | `RunLifecycle` — static builders for the escape and death results dictionaries |
+| `apps/game/client/scripts/app/run_flow.gd` | Autoload `RunFlow` (~1100 lines). Run state, entry points, floor cache, outcome resolution |
+| `apps/game/client/scripts/app/run_lifecycle.gd` | `RunLifecycle.build_results` — shared results dictionary builder |
 | `apps/game/client/scripts/app/run_mode_config.gd` | `RunModeConfig` — mode ids `castle` / `endless` / `waves` and predicates |
 | `apps/game/client/scripts/app/run_scene_router.gd` | `RunSceneRouter` — scene path constants and the deferred `change_scene_to_file` call |
 | `apps/game/client/scripts/app/game_facade.gd` | `GameFacade` — dictionary accessors grouping autoloads; `run()` returns `RunFlow`, `WavesRunService`, `DungeonTierService` |
@@ -75,7 +75,7 @@ Writes six root metas consumed by `castle_run.tscn` and `DungeonBuilder`:
 | `run_id` | `current_run_id` |
 | `run_snapshot` | `_pending_snapshot` when continuing; removed otherwise |
 
-Then writes `activeRun` through `LocalSave.set_active_run()` with keys `schemaVersion` (literal `4`), `runMode`, `runId`, `seed`, `biomeId`, `dungeonId`, `dungeonTier`, `currentFloor`, `maxFloors`, `dungeonDefinition`, `clearedFloors`, plus `snapshot` when continuing. Sets `_run_active = true`, stamps `_run_start_time` from `Time.get_ticks_msec() / 1000.0`, increments the `runs_started` character flag (`_register_run_started`, line 885), routes to `CASTLE_RUN_SCENE`, and emits `run_started`.
+Then writes `activeRun` through `LocalSave.set_active_run()` with keys `schemaVersion` (`SaveMigrator.CURRENT_VERSION`), `runMode`, `runId`, `seed`, `biomeId`, `dungeonId`, `dungeonTier`, `currentFloor`, `maxFloors`, `dungeonDefinition`, `clearedFloors`, plus `snapshot` when continuing. Sets `_run_active = true`, stamps `_run_start_time` from `Time.get_ticks_msec() / 1000.0`, increments the `runs_started` character flag (`_register_run_started`), routes to `CASTLE_RUN_SCENE`, and emits `run_started`.
 
 Waves never uses `_enter_run`: `_start_waves_run()` (line 907) sets `_run_active` itself, calls `WavesRunService.begin_new_run()` or `restore_from_save()`, routes to `WAVES_RUN_SCENE`, and emits `run_started`.
 
@@ -96,45 +96,30 @@ Then restores `_kill_count`, `_boss_defeated`, `_loot_collected`, `_loot_claimed
 
 `_transition_floor()` (548-574) clears `current_dungeon_definition`, prefers `_get_cached_floor_definition(current_floor)` (in-memory `floor_definitions` keyed by `str(floor)`, else `DungeonBuilder.get_floor_cache`), otherwise regenerates. It sets root metas `dungeon_definition`, `floor_transition` (`{"ascending": bool, "floor": int}`) and `run_snapshot` (`_build_floor_transition_snapshot`, line 577: `floorTransition`, `ascending`, `currentFloor`, `bossDefeated`, `clearedFloors`, `killCount`, `lootCollected`, `lootClaimedInstanceIds`), calls `_persist_active_run()`, and reloads `CASTLE_RUN_SCENE`.
 
-Floor cache trimming: `_trim_floor_cache()` (630) keeps at most `MAX_CACHED_FLOORS` entries and drops the lexicographically smallest string key.
+Floor cache trimming: `_trim_floor_cache()` keeps at most `MAX_CACHED_FLOORS` entries and evicts floors farthest from `current_floor` (integer keys, not string sort).
 
 ### Outcomes
 
 **Escape — `complete_run_via_portal()` (355-392).** Refused when not active, in endless mode, when `can_escape_run()` is false (`_boss_defeated and is_final_floor()`, line 479), or when `current_floor < max_floors`. Grants `ProgressionService.calculate_run_xp(_kill_count, _boss_defeated, true)` with reason `"escape"`, clears `RunBuffs`, builds results via `RunLifecycle.build_escape_results`, clears the active run, autosaves, emits `run_ended`, sets root meta `run_results`, runs `_handle_escape_meta`, fires `_cloud_finalize_run(run_id, "escaped", ...)`, calls `DungeonTierService.on_dungeon_cleared(cleared_dungeon)` for castle mode, and routes to `RESULTS_SCENE`.
 
-**Death — `on_player_died()` (395-431).** Returns immediately if a node is in group `training_arena`. If `activeRun.lastCheckpoint` is a non-empty dictionary it diverts to `_bonfire_death_respawn(checkpoint)` and no results screen is shown. Otherwise: `full_xp = calculate_run_xp(kills, boss, false)`, `death_xp = apply_death_xp_fraction(full_xp)` (0.5 from `content/progression/xp_curve.json`), grants `death_xp` with reason `"death"`, stores the remainder as a recoverable shard, calls `InventoryService.remove_run_loot(_loot_collected)`, clears `RunBuffs`, increments the `deaths` character flag, builds `RunLifecycle.build_death_results`, clears the active run, autosaves, and routes to `RESULTS_SCENE`.
+**Death — `on_player_died()`.** Returns immediately if a node is in group `training_arena`. If `activeRun.lastCheckpoint` is non-empty, diverts to `_bonfire_death_respawn(checkpoint)` (respawn flow with `run_respawn_results` meta). Otherwise grants death XP fraction, stores recoverable shard, strips run loot, builds results via `RunLifecycle.build_results(OUTCOME_DIED)`, calls `QuestService.register_run_outcome`, clears the active run, sets `run_results` meta, and routes to `RESULTS_SCENE`.
 
-**Bonfire respawn — `_bonfire_death_respawn()` (815-847).** Grants death XP, stores a shard at the death position, strips loot gained since the checkpoint (`_strip_loot_since_checkpoint`, 850), clears `RunBuffs`, increments `deaths`, restores `killCount` / `bossDefeated` / loot arrays / `worldFlags` from the checkpoint, writes `playerDead = true` then immediately `false` with an autosave after each, and reloads `CASTLE_RUN_SCENE`.
+**Bonfire respawn — `_bonfire_death_respawn()`.** Grants death XP, stores shard, strips loot since checkpoint, restores checkpoint state, builds `OUTCOME_RESPAWNED` results, erases stale `playerDead` from `activeRun`, autosaves, sets `run_respawn_results` + `run_snapshot` metas, and reloads `CASTLE_RUN_SCENE`.
 
 **Retreat — `retreat_to_hub()` (491-509).** Allowed only when `can_retreat_to_hub()` (485) is true: active run, `_boss_defeated`, and mode `castle` or `endless`. Calls `castle_run._persist_snapshot()`, refreshes `currentFloor` / `dungeonTier` / `dungeonId` / `dungeonDefinition` in `activeRun`, and returns to the hub with `Retreated to Aumbrye Tower. Continue from the portal.`
 
 **Abandon — `abandon_active_run()` (344-352).** Removes run loot, clears `RunBuffs`, clears the active run, and returns to the hub with `Run abandoned. Loot from this run was lost.`
 
-**Waves.** `quit_waves_run()` (929) reads `WavesRunService.get_early_exit_keep_fraction()` and transfers a fraction of items. `complete_waves_run(rewards)` (951) adds each reward item, grants `WAVES_COMPLETION_XP = 500`, and hand-builds a results dictionary. `on_waves_failed()` (975) builds a zero-reward results dictionary.
+**Waves.** `quit_waves_run()`, `complete_waves_run(rewards)`, and `on_waves_failed()` all assemble results through `RunLifecycle.build_results` with `xp_result.levels_gained` and `run_relics_lost` where applicable.
 
 ### Results dictionary shape
-`RunLifecycle` (`run_lifecycle.gd:7-46`) emits:
-
-| Key | Escape | Death |
-|-----|--------|-------|
-| `outcome` | `"escaped"` | `"died"` |
-| `time_seconds` | elapsed | elapsed |
-| `kills` | `_kill_count` | `_kill_count` |
-| `loot` | copy of `_loot_collected` | copy of `_loot_collected` |
-| `xp_gained` | `xp_result.gained` | `xp_result.gained` |
-| `xp_full_would_be` | absent | `full_xp` |
-| `levels_gained` | `xp_result.levels_gained` | `xp_result.levels_gained` |
-| `loot_kept` | `true` | `false` |
-| `run_relics_lost` | `false` | `true` |
-| `rules_summary` | `_escape_rules_summary()` | `_death_rules_summary()` |
-
-The waves dictionaries built inline in `run_flow.gd:956-966` and `979-988` use `outcome` values `"waves_complete"` / `"waves_failed"`, hardcode `levels_gained` to `0`, and `on_waves_failed` omits `run_relics_lost` entirely.
+`RunLifecycle.build_results` centralizes outcome keys (`outcome`, `time_seconds`, `kills`, `loot`, `xp_gained`, `levels_gained`, `loot_kept`, `run_relics_lost`, `rules_summary`, plus per-outcome extras such as `loot_lost`, `xp_deferred`, `xp_full_would_be`).
 
 ## Contracts
 
-**Signals emitted:** `run_started`, `run_ended(results: Dictionary)`, `returned_to_hub(message: String)`. Consumers: `WorldState` (`world_state.gd:12-13`), `QuestService` (`quest_service.gd:14-16`), `hub.gd:78`.
+**Signals emitted:** `run_started`, `run_ended(results: Dictionary)`, `returned_to_hub(message: String)`, `run_warning(message: String)`. Consumers include `WorldState`, `QuestService`, and hub UI.
 
-**Root metas written:** `dungeon_definition`, `run_seed`, `tier_generation_seed`, `run_id`, `run_snapshot`, `floor_transition`, `run_results`. `_clear_run_meta()` (889) removes the first five but never `floor_transition` or `run_results`.
+**Root metas written:** `RUN_META_KEYS` — `dungeon_definition`, `run_seed`, `tier_generation_seed`, `run_id`, `run_snapshot`, `floor_transition`, `run_results`; plus `run_respawn_results` during bonfire respawn. `_clear_run_meta()` clears all `RUN_META_KEYS` and `run_respawn_results`.
 
 **Autoloads depended on:** `LocalSave`, `ProgressionService`, `CharacterService`, `InventoryService`, `RunBuffs`, `QuestService`, `AchievementService`, `WavesRunService`, `DungeonTierService`, `AudioDirector`, `WorldState`, `PixelDioramaBootstrap`, `DungeonBuilder`, `LocalProcgen`, `ApiClient`, `LeaderboardSettings`.
 
@@ -147,22 +132,20 @@ The waves dictionaries built inline in `run_flow.gd:956-966` and `979-988` use `
 ## Current state
 | Surface | Status | Evidence |
 |---------|--------|----------|
-| Castle start → floor → boss → ascend → escape → results → hub | IMPLEMENTED | `run_flow.gd:132`, `524`, `355` |
-| Online dungeon generation | STUB | `run_flow.gd:17` flag `false`; `_try_online_generate` unreachable at `run_flow.gd:195` |
-| Escape-quest completion on death | BROKEN | `run_ended` fires on death (`run_flow.gd:426`) and `quest_service.gd:102-103` completes all `escape` quests unconditionally |
-| Floor-cache eviction order | BROKEN | `_trim_floor_cache` sorts string keys (`run_flow.gd:633-634`), so `"10"` is evicted before `"2"` |
-| Mid-run generation failure recovery | PARTIAL | `_transition_floor` reverts `current_floor` but leaves `current_dungeon_definition` empty and performs no scene change (`run_flow.gd:557-563`) |
-| `last_hub_message` on a failed start | PARTIAL | set at `run_flow.gd:156` with no scene change, so the player stays in the hub with no visible feedback until the next hub refresh |
-| Bonfire death has no results screen | PARTIAL | `_bonfire_death_respawn` routes straight back to `CASTLE_RUN_SCENE` (`run_flow.gd:847`) |
-| `playerDead` written `true` then `false` in the same frame | PARTIAL | `run_flow.gd:837-846`; a crash between the two writes leaves the run non-continuable |
-| Waves results honesty | FAKE | `levels_gained` hardcoded `0` at `run_flow.gd:963` despite `grant_xp` returning it; `run_relics_lost` missing at `run_flow.gd:979-988` |
-| `floor_transition` / `run_results` metas never cleared | PARTIAL | `_clear_run_meta` (`run_flow.gd:889-900`) handles neither |
-| `_unload_current_floor_chunk()` | STUB | Defined at `run_flow.gd:649` with no call site |
-| `_start_run()` | STUB | Defined at `run_flow.gd:176` with no call site |
-| Cloud finalize error surfacing | PARTIAL | `run_flow.gd:747-755` downgrades everything to `push_warning` and silences `"auth failed"` |
+| Castle start → floor → boss → ascend → escape → results → hub | IMPLEMENTED | `start_new_run`, `ascend_floor`, `complete_run_via_portal` |
+| Online dungeon generation | STUB | `USE_ONLINE_PROCgen := false` |
+| Escape-quest outcome gating | IMPLEMENTED | `QuestService.register_run_outcome` on escape/death |
+| Floor-cache eviction by distance from current floor | IMPLEMENTED | `_trim_floor_cache` integer sort |
+| Mid-run generation failure recovery | IMPLEMENTED | `_transition_floor` reverts floor + definition, emits `run_warning` |
+| Failed dungeon start feedback | IMPLEMENTED | `run_warning` + `last_hub_message` |
+| Bonfire respawn with respawn results meta | IMPLEMENTED | `_bonfire_death_respawn`, `run_respawn_results` |
+| `playerDead` stale key cleanup | IMPLEMENTED | `active.erase("playerDead")` before continue |
+| Waves results honesty | IMPLEMENTED | `build_results` with `xp_result.levels_gained`, `run_relics_lost` |
+| Run meta hygiene | IMPLEMENTED | `_clear_run_meta` clears `RUN_META_KEYS` |
+| Cloud finalize error surfacing | IMPLEMENTED | awaited `_cloud_finalize_run`; `cloud_synced` on results; offline message in `results_screen.gd` |
 
 ## Related
-- Improvement plan: [`../actual_improvements/run-flow.md`](../actual_improvements/run-flow.md)
+- Improvement plan: [`../actual_improvements/run-flow.md`](../actual_improvements/run-flow.md) — **FINISHED**
 - [`world-state.md`](world-state.md), [`local-save.md`](local-save.md), [`hub.md`](hub.md), [`progression-service.md`](progression-service.md), [`achievements-meta.md`](achievements-meta.md), [`dialogue-quests.md`](dialogue-quests.md)
 - Run scenes owned elsewhere: [`castle-run.md`](castle-run.md), [`waves-run.md`](waves-run.md)
 - Results UI: [`ui/run_outcome.md`](ui/run_outcome.md), [`ui/run_flow_ui.md`](../actual_improvements/ui/run_flow_ui.md)

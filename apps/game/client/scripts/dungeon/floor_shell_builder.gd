@@ -19,21 +19,8 @@ static func build(parent: Node3D, rooms: Dictionary, biome_id: String) -> void:
 	parent.add_child(shell)
 
 	var wall_mat := BiomeRegistry.get_wall_material(biome_id)
-	var center_xz := Vector3(
-		bounds.position.x + bounds.size.x * 0.5,
-		0.0,
-		bounds.position.z + bounds.size.z * 0.5
-	)
-	# Rooms already have their own floors via CastleBlockout — a monolithic shell floor
-	# would bridge empty grid cells and expose the full graph layout.
-	var ceiling_pos := Vector3(
-		center_xz.x,
-		CastleRoomConstants.WALL_HEIGHT + CEILING_THICKNESS * 0.5,
-		center_xz.z
-	)
-	var ceiling_size := Vector3(bounds.size.x, CEILING_THICKNESS, bounds.size.z)
-	_add_slab(shell, "CeilingSlab", ceiling_pos, ceiling_size, wall_mat, true)
-
+	# Rooms already have their own floors and ceilings via CastleBlockout — a monolithic
+	# shell floor or ceiling would bridge empty grid cells and expose the full graph layout.
 	_build_perimeter_walls(shell, bounds, wall_mat)
 
 	for room in rooms.values():
@@ -118,13 +105,6 @@ static func _compute_bounds(parent: Node3D, rooms: Dictionary) -> AABB:
 		min_v.z = minf(min_v.z, room_bounds[0].z)
 		max_v.x = maxf(max_v.x, room_bounds[1].x)
 		max_v.z = maxf(max_v.z, room_bounds[1].z)
-	for child in parent.get_children():
-		if child.name.begins_with("Shortcut"):
-			var shortcut_bounds := _shortcut_corner_bounds(parent, child as Node3D)
-			min_v.x = minf(min_v.x, shortcut_bounds[0].x)
-			min_v.z = minf(min_v.z, shortcut_bounds[0].z)
-			max_v.x = maxf(max_v.x, shortcut_bounds[1].x)
-			max_v.z = maxf(max_v.z, shortcut_bounds[1].z)
 	min_v.x -= SHELL_PADDING
 	min_v.z -= SHELL_PADDING
 	max_v.x += SHELL_PADDING
@@ -157,28 +137,6 @@ static func _room_corner_bounds(parent: Node3D, room: RoomTemplate) -> Array:
 	return [min_v, max_v]
 
 
-static func _shortcut_corner_bounds(parent: Node3D, shortcut: Node3D) -> Array:
-	var min_v := Vector3(INF, 0.0, INF)
-	var max_v := Vector3(-INF, 0.0, -INF)
-	for child in shortcut.get_children():
-		if not child.get("room_width"):
-			continue
-		var half_w: float = float(child.get("room_width")) * 0.5
-		var half_d: float = float(child.get("room_depth")) * 0.5
-		for corner in [
-			Vector3(-half_w, 0.0, -half_d),
-			Vector3(half_w, 0.0, -half_d),
-			Vector3(-half_w, 0.0, half_d),
-			Vector3(half_w, 0.0, half_d),
-		]:
-			var local := parent.to_local(shortcut.to_global(corner))
-			min_v.x = minf(min_v.x, local.x)
-			min_v.z = minf(min_v.z, local.z)
-			max_v.x = maxf(max_v.x, local.x)
-			max_v.z = maxf(max_v.z, local.z)
-	return [min_v, max_v]
-
-
 static func _add_slab(
 	parent: Node3D,
 	node_name: String,
@@ -192,6 +150,7 @@ static func _add_slab(
 	body.collision_layer = 1
 	body.collision_mask = 0
 	body.position = center
+	body.set_meta("surface", "stone")
 	parent.add_child(body)
 
 	var mesh_instance := MeshInstance3D.new()
@@ -211,16 +170,13 @@ static func _add_slab(
 
 
 static func _add_wall_segment(
-	parent: Node3D,
-	center: Vector3,
-	size: Vector3,
-	material: Material,
-	node_name: String
+	parent: Node3D, center: Vector3, size: Vector3, material: Material, node_name: String
 ) -> void:
 	var wall_body := StaticBody3D.new()
 	wall_body.name = node_name
 	wall_body.collision_layer = 1
 	wall_body.collision_mask = 0
+	wall_body.set_meta("surface", "stone")
 	parent.add_child(wall_body)
 
 	var mesh_instance := MeshInstance3D.new()

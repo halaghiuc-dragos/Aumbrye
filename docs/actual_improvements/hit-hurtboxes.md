@@ -1,5 +1,7 @@
 # Hitboxes and hurtboxes — improvement plan
 
+## Status: FINISHED
+
 ## Current state
 
 The `Hitbox` / `Hurtbox` pair does real work: a per-frame shape query, a team filter, a line-of-sight raycast, a boss-boundary check and per-swing target deduplication (see [`../existing_codebase/hit-hurtboxes.md`](../existing_codebase/hit-hurtboxes.md)). Two things it delivers are wrong. Statuses never arrive: `Hurtbox._apply_status_from_hit` requires a child node named `StatusController` and no enemy scene has one, so the dagger's authored `bleed` and every enemy-facing status is dropped without a warning. And the `damaged` signal carries the *pre-mitigation* `DamageInfo`, so enemies flinch on hits that were fully blocked and no listener can know what actually landed. Beyond that, the crit parameter is dead, sustained hitboxes are impossible, and the debug draw shows a shape that no longer matches the one being queried.

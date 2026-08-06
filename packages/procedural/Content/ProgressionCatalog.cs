@@ -51,7 +51,7 @@ public sealed record XpCurve(
         return entry?.XpRequired ?? 0;
     }
 
-    public int TalentPointsForLevel(int level, int pointsPerLevel) =>
+    public static int TalentPointsForLevel(int level, int pointsPerLevel) =>
         Math.Max(0, (level - 1) * pointsPerLevel);
 }
 

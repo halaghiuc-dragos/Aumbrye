@@ -16,7 +16,7 @@ var _hazards: Array[Node3D] = []
 var _arena_bounds := Rect2(-12, -12, 24, 24)
 
 
-func get_enemy_id() -> String:
+func _resolve_enemy_id() -> String:
 	return "castle_knight"
 
 
@@ -119,7 +119,7 @@ func _enter_phase_2() -> void:
 		var tween := create_tween()
 		tween.tween_property(_mesh, "scale", Vector3(1.25, 1.25, 1.25), 0.3)
 		tween.tween_property(_mesh, "scale", Vector3.ONE, 0.2)
-	apply_stagger(0.0) # brief pause
+	apply_stagger(0.0)  # brief pause
 	_state = State.CHASE
 	if _poise:
 		_poise.configure(_data.get("poise", 120.0) * 1.2)
@@ -156,6 +156,10 @@ func apply_state(state: Dictionary) -> void:
 
 func _clamp_to_arena() -> void:
 	var offset := global_position - _arena_center
-	offset.x = clampf(offset.x, _arena_bounds.position.x, _arena_bounds.position.x + _arena_bounds.size.x)
-	offset.z = clampf(offset.z, _arena_bounds.position.y, _arena_bounds.position.y + _arena_bounds.size.y)
+	offset.x = clampf(
+		offset.x, _arena_bounds.position.x, _arena_bounds.position.x + _arena_bounds.size.x
+	)
+	offset.z = clampf(
+		offset.z, _arena_bounds.position.y, _arena_bounds.position.y + _arena_bounds.size.y
+	)
 	global_position = _arena_center + offset

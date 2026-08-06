@@ -2,7 +2,30 @@
 
 How an AI agent should use the two Godot MCP servers to implement `docs/design/AUDIT_2026-08.md` with maximum success and minimum wasted tokens.
 
-**Validated 2026-08-03.** Both servers respond. Live editor is **Godot 4.7.1-stable, Windows, debug build, editor_scale 1.5**.
+**Validated 2026-08-05.** Both servers respond. Live editor is **Godot 4.7.1-stable, Windows, debug build, editor_scale 1.5**.
+
+---
+
+## Headless Godot (validation without live editor)
+
+Agents and CI use the **console** binary, not the GUI editor.
+
+| Variable / script | Value |
+|---|---|
+| `GODOT_BIN` | `C:\Users\halag\Downloads\Godot\Godot_x64_console.exe` (override via env) |
+| Resolver | `scripts/godot-bin.ps1` — checks `GODOT_BIN`, default path, then `godot` on PATH |
+| Smoke test | `powershell -File scripts/godot-bin.ps1 --headless --path apps/game/client --quit` |
+| Full validation | `powershell -File scripts/godot-bin.ps1 --headless --path apps/game/client --script res://scripts/validation/validation_main.gd` |
+| Single suite | `powershell -File scripts/godot-bin.ps1 --headless --path apps/game/client --script res://scripts/validation/validation_main.gd -- --suite=combat_suite` |
+
+`godot-bin.ps1` forwards any arguments after the script path to Godot (use `$GODOT = & scripts/godot-bin.ps1` when you only need the binary path).
+
+PowerShell example:
+
+```powershell
+$GODOT = & "$PSScriptRoot/../scripts/godot-bin.ps1"
+& $GODOT --headless --path apps/game/client --quit
+```
 
 ---
 
@@ -274,3 +297,16 @@ scene_run            { action: "stop" }
 ```
 
 Known live scene paths for orientation: `res://scenes/hub/hub.tscn` (root `AumbryeTower`), player at `Player` with children `Health`, `Stamina`, `Poise`, `Dodge`, `Guard`, `CombatReactions`, `StatusController`, `WeaponController`, `HitFeedback`, `LockOn`, `Hurtbox`, `Facing/WeaponPivot/Hitbox`, `CameraPivot/SpringArm3D/Camera3D`.
+
+---
+
+## 8. Enable the Godot MCP editor plugin locally
+
+The committed `project.godot` no longer enables `godot_mcp` by default. To use MCP tools against the live editor on your machine:
+
+1. Open `apps/game/client` in Godot 4.7.
+2. Go to **Project → Project Settings → Plugins**.
+3. Enable **Godot MCP**.
+4. The plugin files remain at `res://addons/godot_mcp/`; validation only checks that `plugin.cfg` exists.
+
+Do not commit the plugin as enabled in `project.godot` — that would load MCP for every contributor and in headless CI.

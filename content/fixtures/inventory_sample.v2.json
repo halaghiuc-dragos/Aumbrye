@@ -1,0 +1,56 @@
+{
+  "schemaVersion": 1,
+  "gridWidth": 6,
+  "gridHeight": 4,
+  "slots": [
+    {
+      "itemId": "health_potion",
+      "quantity": 2,
+      "x": 2,
+      "y": 0
+    },
+    {
+      "itemId": "castle_sword",
+      "instanceId": "castle_sword_42",
+      "quantity": 1,
+      "x": 0,
+      "y": 0,
+      "rarity": "magic",
+      "rollSeed": 42,
+      "affixes": [
+        { "affixId": "prefix_damage", "value": 3.0 }
+      ]
+    },
+    {
+      "itemId": "dungeon_key",
+      "instanceId": "dungeon_key_7",
+      "quantity": 1,
+      "x": 4,
+      "y": 0,
+      "keyId": "key_a",
+      "lockId": "lock_a",
+      "keyLabel": "Bronze Key"
+    }
+  ],
+  "equipped": {
+    "helmet": {},
+    "chest": {},
+    "gloves": {},
+    "boots": {},
+    "weapon": {
+      "itemId": "castle_sword",
+      "instanceId": "castle_sword_99",
+      "quantity": 1,
+      "rarity": "rare",
+      "rollSeed": 99,
+      "upgradeLevel": 1,
+      "affixes": [
+        { "affixId": "prefix_damage", "value": 5.0 }
+      ]
+    },
+    "secondary": {},
+    "ring": {},
+    "amulet": {},
+    "relic": {}
+  }
+}

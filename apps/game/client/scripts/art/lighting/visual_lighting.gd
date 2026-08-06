@@ -25,7 +25,8 @@ const SKY_SHADER_PATH := "res://assets/shared/pixel_sky.gdshader"
 ## silhouette into the background colour, which is the opposite of the crisp
 ## read the diorama style depends on; depth comes from the banded sky instead.
 const OUTDOOR_PRESETS := {
-	"hub": {
+	"hub":
+	{
 		"sky_zenith": Color(0.29, 0.42, 0.68),
 		"sky_horizon": Color(0.93, 0.72, 0.46),
 		"sky_ground": Color(0.24, 0.19, 0.18),
@@ -44,7 +45,8 @@ const OUTDOOR_PRESETS := {
 		"fill_energy": 0.0,
 		"fill_rotation": Vector3(-0.25, -2.1, 0.0),
 	},
-	"arena": {
+	"arena":
+	{
 		"sky_zenith": Color(0.16, 0.22, 0.42),
 		"sky_horizon": Color(0.56, 0.56, 0.72),
 		"sky_ground": Color(0.14, 0.14, 0.2),
@@ -63,7 +65,8 @@ const OUTDOOR_PRESETS := {
 		"fill_energy": 0.3,
 		"fill_rotation": Vector3(-0.2, -1.35, 0.0),
 	},
-	"waves_outdoors": {
+	"waves_outdoors":
+	{
 		"sky_zenith": Color(0.3, 0.52, 0.86),
 		"sky_horizon": Color(0.82, 0.9, 0.96),
 		"sky_ground": Color(0.2, 0.28, 0.2),
@@ -106,13 +109,17 @@ static func apply_outdoor(root: Node3D, preset_id: String) -> void:
 	_apply_fill(root, preset)
 
 
-static func apply_indoor_environment(environment: Environment, lighting_profile: Dictionary) -> void:
+static func apply_indoor_environment(
+	environment: Environment, lighting_profile: Dictionary
+) -> void:
 	if environment == null:
 		return
 	var base_ambient: Color = lighting_profile.get("ambient_color", Color(0.58, 0.5, 0.44))
 	environment.background_color = base_ambient.lerp(Color(0.1, 0.09, 0.12), 0.68)
 	environment.ambient_light_color = base_ambient.lerp(Color(0.78, 0.68, 0.55), 0.42)
-	environment.ambient_light_energy = maxf(float(lighting_profile.get("ambient_energy", 0.5)) * 0.82, 0.5)
+	environment.ambient_light_energy = maxf(
+		float(lighting_profile.get("ambient_energy", 0.5)) * 0.82, 0.5
+	)
 	var fog_enabled := bool(lighting_profile.get("fog_enabled", false))
 	environment.fog_enabled = fog_enabled
 	if fog_enabled:
@@ -130,7 +137,9 @@ static func apply_indoor_environment(environment: Environment, lighting_profile:
 		environment.tonemap_white = 1.42
 
 
-static func configure_soft_omni(light: OmniLight3D, color: Color, energy: float, light_range: float) -> void:
+static func configure_soft_omni(
+	light: OmniLight3D, color: Color, energy: float, light_range: float
+) -> void:
 	light.light_color = color
 	light.light_energy = energy
 	light.omni_range = light_range
@@ -238,17 +247,15 @@ static func apply_biome_atmosphere(root: Node3D, biome_id: String) -> void:
 
 
 static func _add_ambient_particles(
-	parent: Node3D,
-	tint: Color,
-	amount: int,
-	range_size: float,
-	fall_speed: float
+	parent: Node3D, tint: Color, amount: int, range_size: float, fall_speed: float
 ) -> void:
 	var particles := GPUParticles3D.new()
 	particles.name = "AmbientMotes"
 	particles.amount = int(amount * PixelDioramaSettings.particle_amount_scale())
 	particles.lifetime = 6.0
-	particles.visibility_aabb = AABB(Vector3(-range_size, -2.0, -range_size), Vector3(range_size * 2.0, 8.0, range_size * 2.0))
+	particles.visibility_aabb = AABB(
+		Vector3(-range_size, -2.0, -range_size), Vector3(range_size * 2.0, 8.0, range_size * 2.0)
+	)
 	var chunk := BoxMesh.new()
 	chunk.size = Vector3(0.08, 0.08, 0.08)
 	particles.draw_pass_1 = chunk

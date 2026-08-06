@@ -4,7 +4,10 @@
   "archetype": "sword",
   "damage_type": "physical",
   "buffer_window": 0.2,
-  "scaling": { "physicalDamage": 1.0 },
+  "lunge_distance": 0.35,
+  "scaling": {
+    "physicalDamage": 1.0
+  },
   "light_attacks": [
     {
       "damage": 12,
@@ -38,5 +41,18 @@
     "startup": 0.35,
     "active": 0.18,
     "recovery": 0.45
+  },
+  "art": {
+    "id": "guard_break",
+    "name": "Guard Break",
+    "stamina_cost": 22,
+    "damage": 34,
+    "poise_damage": 45,
+    "startup": 0.28,
+    "active": 0.16,
+    "recovery": 0.42,
+    "lunge_distance": 0.5,
+    "hyperarmor": true,
+    "cooldown": 5.0
   }
 }

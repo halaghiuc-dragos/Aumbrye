@@ -2,14 +2,13 @@ extends CastleEnemyBase
 
 ## Swamp hag miniboss — poison phase escalation (BOSS-5.2).
 
-
 signal phase_changed(phase: int)
 
 var _phase := 1
 var _phase_transition_done := false
 
 
-func get_enemy_id() -> String:
+func _resolve_enemy_id() -> String:
 	return "swamp_hag"
 
 

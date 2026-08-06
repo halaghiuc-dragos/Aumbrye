@@ -1,0 +1,15 @@
+{
+  "id": "crystal_caverns",
+  "biomeId": "crystal_caverns",
+  "order": 2,
+  "clearFlag": "theme_crystal_caverns_cleared",
+  "unlockRequirement": { "kind": "clear_dungeon", "dungeonId": "forgotten_castle" },
+  "floorHpGrowth": 0.06,
+  "floorDamageGrowth": 0.04,
+  "bossDoorRequirement": "none",
+  "difficultyTiers": [
+    { "tier": 1, "label": "Shimmering", "hpMult": 1.0, "damageMult": 1.0, "lootBonus": 0.0, "modifiers": [] },
+    { "tier": 2, "label": "Fractured", "hpMult": 1.35, "damageMult": 1.18, "lootBonus": 0.15, "modifiers": ["elite_packs"] },
+    { "tier": 3, "label": "Unstable", "hpMult": 1.8, "damageMult": 1.4, "lootBonus": 0.35, "modifiers": ["elite_packs", "no_rest"] }
+  ]
+}

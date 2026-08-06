@@ -16,8 +16,7 @@ static func build_rooms(graph: RoomGraph, assignment: Dictionary) -> Array:
 	var entrance_id: String = assignment.get("entrance_layout_id", graph.start_id)
 	positions[entrance_id] = Vector2.ZERO
 	yaws[entrance_id] = RoomTemplateCatalog.yaw_rad_for_entrance(
-		rooms_by_layout[entrance_id]["template_id"],
-		graph.get_slot(entrance_id).door_mask
+		rooms_by_layout[entrance_id]["template_id"], graph.get_slot(entrance_id).door_mask
 	)
 	visited[entrance_id] = true
 	var queue: Array[String] = [entrance_id]
@@ -49,10 +48,14 @@ static func build_rooms(graph: RoomGraph, assignment: Dictionary) -> Array:
 			var child_yaw := RoomTemplateCatalog.yaw_rad_for_incoming_door(
 				neighbor_room["template_id"], incoming_door
 			)
-			if not _doors_aligned(current_room, neighbor_room, door_pair, parent_yaw, child_yaw, dx, dz):
+			if not _doors_aligned(
+				current_room, neighbor_room, door_pair, parent_yaw, child_yaw, dx, dz
+			):
 				push_error(
-					"Door mismatch %s→%s on step (%d,%d)"
-					% [current_room["template_id"], neighbor_room["template_id"], dx, dz]
+					(
+						"Door mismatch %s→%s on step (%d,%d)"
+						% [current_room["template_id"], neighbor_room["template_id"], dx, dz]
+					)
 				)
 			var next_pos := current_pos
 			if dz == -1:
@@ -92,16 +95,23 @@ static func build_rooms(graph: RoomGraph, assignment: Dictionary) -> Array:
 		var height_y := 0.0
 		if slot != null:
 			height_y = float(slot.height_level) * HEIGHT_STEP
-		built.append({
-			"id": room["semantic_id"],
-			"templateId": room["template_id"],
-			"type": room["type"],
-			"transform": {"x": pos.x, "y": height_y, "z": pos.y, "yaw": rad_to_deg(yaw_rad)},
-			"tags": room.get("tags", []),
-			"heightLevel": slot.height_level if slot != null else 0,
-		})
-	built.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
-		return str(a.get("id", "")) < str(b.get("id", ""))
+		(
+			built
+			. append(
+				{
+					"id": room["semantic_id"],
+					"templateId": room["template_id"],
+					"type": room["type"],
+					"transform":
+					{"x": pos.x, "y": height_y, "z": pos.y, "yaw": rad_to_deg(yaw_rad)},
+					"tags": room.get("tags", []),
+					"heightLevel": slot.height_level if slot != null else 0,
+				}
+			)
+		)
+	built.sort_custom(
+		func(a: Dictionary, b: Dictionary) -> bool:
+			return str(a.get("id", "")) < str(b.get("id", ""))
 	)
 	return built
 
@@ -134,22 +144,29 @@ static func build_edges(graph: RoomGraph, assignment: Dictionary) -> Array:
 				continue
 			seen[key] = true
 			var kind := "door"
-			if type_by_layout.get(slot.slot_id, "") == "corridor" or type_by_layout.get(neighbor.slot_id, "") == "corridor":
+			if (
+				type_by_layout.get(slot.slot_id, "") == "corridor"
+				or type_by_layout.get(neighbor.slot_id, "") == "corridor"
+			):
 				kind = "corridor"
+			elif not _is_spanning_edge(graph, cell, cell + dir):
+				kind = "shortcut"
 			edges.append({"from": from_id, "to": to_id, "kind": kind})
 	for secret_id in graph.secret_ids:
 		var secret_slot := graph.get_slot(secret_id)
 		if secret_slot == null or secret_slot.secret_parent_id == "":
 			continue
-		var from_semantic: String = semantic_by_layout.get(secret_slot.secret_parent_id, secret_slot.secret_parent_id)
+		var from_semantic: String = semantic_by_layout.get(
+			secret_slot.secret_parent_id, secret_slot.secret_parent_id
+		)
 		var to_semantic: String = semantic_by_layout.get(secret_id, secret_id)
 		edges.append({"from": from_semantic, "to": to_semantic, "kind": "secret"})
-	edges.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
-		var ak := "%s>%s" % [a.get("from", ""), a.get("to", "")]
-		var bk := "%s>%s" % [b.get("from", ""), b.get("to", "")]
-		return ak < bk
+	edges.sort_custom(
+		func(a: Dictionary, b: Dictionary) -> bool:
+			var ak := "%s>%s" % [a.get("from", ""), a.get("to", "")]
+			var bk := "%s>%s" % [b.get("from", ""), b.get("to", "")]
+			return ak < bk
 	)
-	_append_shortcut_edges(graph, semantic_by_layout, edges)
 	return edges
 
 
@@ -163,8 +180,7 @@ static func validate_door_topology(graph: RoomGraph, assignment: Dictionary) -> 
 	var entrance_id: String = assignment.get("entrance_layout_id", graph.start_id)
 	positions[entrance_id] = Vector2.ZERO
 	yaws[entrance_id] = RoomTemplateCatalog.yaw_rad_for_entrance(
-		rooms_by_layout[entrance_id]["template_id"],
-		graph.get_slot(entrance_id).door_mask
+		rooms_by_layout[entrance_id]["template_id"], graph.get_slot(entrance_id).door_mask
 	)
 	visited[entrance_id] = true
 	var queue: Array[String] = [entrance_id]
@@ -196,11 +212,16 @@ static func validate_door_topology(graph: RoomGraph, assignment: Dictionary) -> 
 			var child_yaw := RoomTemplateCatalog.yaw_rad_for_incoming_door(
 				neighbor_room["template_id"], incoming_door
 			)
-			if not _doors_aligned(current_room, neighbor_room, door_pair, parent_yaw, child_yaw, dx, dz):
+			if not _doors_aligned(
+				current_room, neighbor_room, door_pair, parent_yaw, child_yaw, dx, dz
+			):
 				return {
 					"ok": false,
-					"reason": "Door mismatch %s→%s on step (%d,%d)"
-					% [current_room["template_id"], neighbor_room["template_id"], dx, dz],
+					"reason":
+					(
+						"Door mismatch %s→%s on step (%d,%d)"
+						% [current_room["template_id"], neighbor_room["template_id"], dx, dz]
+					),
 				}
 			var next_pos := current_pos
 			if dz == -1:
@@ -230,13 +251,18 @@ static func validate_door_topology(graph: RoomGraph, assignment: Dictionary) -> 
 	return {"ok": true}
 
 
-static func _append_shortcut_edges(
-	_graph: RoomGraph,
-	_semantic_by_layout: Dictionary,
-	_edges: Array
-) -> void:
-	# Disabled: one-way shortcut edges created phantom nav links without geometry bridges.
-	pass
+static func _is_spanning_edge(graph: RoomGraph, cell_a: Vector2i, cell_b: Vector2i) -> bool:
+	var key := _edge_key(cell_a, cell_b)
+	for edge in graph.walk_edges:
+		if edge.get("key", "") == key:
+			return true
+	return false
+
+
+static func _edge_key(a: Vector2i, b: Vector2i) -> String:
+	if a.x < b.x or (a.x == b.x and a.y < b.y):
+		return "%d,%d|%d,%d" % [a.x, a.y, b.x, b.y]
+	return "%d,%d|%d,%d" % [b.x, b.y, a.x, a.y]
 
 
 static func _place_secret_rooms(
@@ -309,22 +335,6 @@ static func _doors_aligned(
 	if not _door_satisfied(neighbor_room["template_id"], child_in, child_yaw):
 		return false
 	return true
-
-
-static func _warn_door_mismatch(
-	current_room: Dictionary,
-	neighbor_room: Dictionary,
-	door_pair: Array,
-	parent_yaw: float,
-	child_yaw: float,
-	dx: int,
-	dz: int
-) -> void:
-	if not _doors_aligned(current_room, neighbor_room, door_pair, parent_yaw, child_yaw, dx, dz):
-		push_warning(
-			"Door mismatch %s→%s parent door on step (%d,%d)"
-			% [current_room["template_id"], neighbor_room["template_id"], dx, dz]
-		)
 
 
 static func _door_satisfied(template_id: String, door_mask: int, yaw_rad: float) -> bool:

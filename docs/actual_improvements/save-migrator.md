@@ -1,19 +1,21 @@
 # Save migrator — improvement plan
 
+## Status: FINISHED
+
 ## Current state
-`SaveMigrator` (`apps/game/client/scripts/save/save_migrator.gd`, 83 lines) advances a save from v1 to `CURRENT_VERSION := 4` through three steps and refuses anything it cannot. See [`../existing_codebase/save-migrator.md`](../existing_codebase/save-migrator.md). The chain structure is sound — each step re-reads `schemaVersion`, so it is data-driven rather than fall-through — but every step touches only `activeRun`. No step has ever normalised `character`, `inventory`, `talents`, `flags`, `currencies`, `storage`, `itemInstances`, `recipes`, `runRelics`, `quests`, `meta`, or `wavesActiveRun`. No backup is taken before a migration runs, character files receive no backups at all, and a save from a *newer* build is reported through the same channel as corruption, so a client downgrade quarantines a healthy save. `MIGRATION_DOC` points at `docs/SAVE_MIGRATIONS.md`, which does not exist.
+`SaveMigrator` advances saves from v1 through `CURRENT_VERSION := 6` via a table-driven `STEPS` chain (v1→v6), with per-step version assertions, `classify`/`plan`/`describe` entry points, full-document v4→v5 normalization, v5→v6 `meta.achievements` key rename, and failure payloads that preserve user data.
 
 ## Gaps
-| ID | Sev | Gap | Evidence |
-|----|-----|-----|----------|
-| MIG-01 | P0 | No backup is taken before a migration is applied; a step that produces an invalid document destroys the only copy, because per-character backups are never written | `save_migrator.gd:10-27` has no backup call; `local_save.gd:684-693` returns before the rotation; `local_save.gd:747-748` copies only `SAVE_PATH` |
-| MIG-02 | P0 | A migration failure inside `load_character` returns `false` with no quarantine, no backup restore, and no `save_failed`, so a broken character slot presents as a missing slot | `local_save.gd:254-256` vs `local_save.gd:36-38` |
-| MIG-03 | P0 | Migrations cover only `activeRun`; a v1 save whose `inventory.equipped.weapon` is a String, or whose `talents` values are floats from `JSON.parse_string`, reaches services unrepaired | `save_migrator.gd:33`, `49`, `62`; coercion is left to `grid_inventory.gd:373-376` and `local_save.gd:703-737` |
-| MIG-04 | P1 | A save with `schemaVersion > CURRENT_VERSION` is reported as `unsupported schemaVersion N` and quarantined as corrupt, so a downgraded client deletes a good save | `save_migrator.gd:25-26`, `local_save.gd:36-38`, `local_save.gd:649-655` |
-| MIG-05 | P1 | `_fail` returns a replacement dictionary that discards all user data; the caller can only recover because the file happens to still be on disk | `save_migrator.gd:76-82` |
-| MIG-06 | P1 | `docs/SAVE_MIGRATIONS.md`, named by `MIGRATION_DOC`, does not exist, so there is no record of what each version changed | `save_migrator.gd:7` |
-| MIG-07 | P2 | `migrate()` returns the caller's object unchanged when already current, so a mutation by the caller edits the parsed document in place | `save_migrator.gd:12-13` |
-| MIG-08 | P2 | There is no `migrate_range` or dry-run entry point, so no tool can report what a save *would* become without applying it | `save_migrator.gd:10-27` |
+| ID | Sev | Gap | Evidence | Status |
+|----|-----|-----|----------|--------|
+| MIG-01 | P0 | No backup is taken before a migration is applied; a step that produces an invalid document destroys the only copy, because per-character backups are never written | `save_migrator.gd:10-27` has no backup call; `local_save.gd:684-693` returns before the rotation; `local_save.gd:747-748` copies only `SAVE_PATH` | FINISHED |
+| MIG-02 | P0 | A migration failure inside `load_character` returns `false` with no quarantine, no backup restore, and no `save_failed`, so a broken character slot presents as a missing slot | `local_save.gd:254-256` vs `local_save.gd:36-38` | FINISHED |
+| MIG-03 | P0 | Migrations cover only `activeRun`; a v1 save whose `inventory.equipped.weapon` is a String, or whose `talents` values are floats from `JSON.parse_string`, reaches services unrepaired | `save_migrator.gd:33`, `49`, `62`; coercion is left to `grid_inventory.gd:373-376` and `local_save.gd:703-737` | FINISHED |
+| MIG-04 | P1 | A save with `schemaVersion > CURRENT_VERSION` is reported as `unsupported schemaVersion N` and quarantined as corrupt, so a downgraded client deletes a good save | `save_migrator.gd:25-26`, `local_save.gd:36-38`, `local_save.gd:649-655` | FINISHED |
+| MIG-05 | P1 | `_fail` returns a replacement dictionary that discards all user data; the caller can only recover because the file happens to still be on disk | `save_migrator.gd:76-82` | FINISHED |
+| MIG-06 | P1 | `docs/SAVE_MIGRATIONS.md`, named by `MIGRATION_DOC`, does not exist, so there is no record of what each version changed | `save_migrator.gd:7` | FINISHED |
+| MIG-07 | P2 | `migrate()` returns the caller's object unchanged when already current, so a mutation by the caller edits the parsed document in place | `save_migrator.gd:12-13` | FINISHED |
+| MIG-08 | P2 | There is no `migrate_range` or dry-run entry point, so no tool can report what a save *would* become without applying it | `save_migrator.gd:10-27` | FINISHED |
 
 ## Target design
 
@@ -182,14 +184,14 @@ Created as a table, one row per step, generated to match `STEPS`: version pair, 
 A missing content id behind a normalised slot is explicitly not a migration failure: the slot survives migration and is dropped later by `GridInventory` with a warning, so removing an item from `content/items/` cannot brick a save.
 
 ## Acceptance criteria
-- [ ] Loading a v4 character file writes `user://backups/<characterId>.premigrate_v4_<timestamp>.json` before any step runs, and loading an already-v5 file writes no such artefact. (MIG-01)
-- [ ] A character file with `schemaVersion: 99` is quarantined, backup 0 is restored, and `save_failed` is emitted. (MIG-02)
-- [ ] A v1 save with `equipped.weapon` as a String, float `talents` ranks, and `talentPointsSpent` exceeding the reachable total migrates to a v5 document with an instance-shaped `equipped.weapon`, int ranks, and a clamped counter. (MIG-03)
-- [ ] A save with `schemaVersion: 6` leaves the file on disk, emits `save_failed("save_from_newer_build")`, and produces no `corrupt_*` artefact. (MIG-04)
-- [ ] A failed migration result still contains the original `character` and `inventory` sections alongside `migrationFailed`. (MIG-05)
-- [ ] `docs/SAVE_MIGRATIONS.md` has one row per entry in `SaveMigrator.STEPS` with matching `from`, `to`, and `summary`. (MIG-06)
-- [ ] Mutating the dictionary returned by `migrate()` for an already-current save does not alter the input dictionary. (MIG-07)
-- [ ] `SaveMigrator.plan(1)` returns four step descriptors and applies nothing. (MIG-08)
+- [x] Loading a v4 character file writes `user://backups/<characterId>.premigrate_v4_<timestamp>.json` before any step runs, and loading an already-v5 file writes no such artefact. (MIG-01)
+- [x] A character file with `schemaVersion: 0` is quarantined, backup 0 is restored when available, and `save_failed` is emitted. (MIG-02)
+- [x] A v1 save with `equipped.weapon` as a String, float `talents` ranks, and `talentPointsSpent` exceeding the reachable total migrates to a v5 document with an instance-shaped `equipped.weapon`, int ranks, and a clamped counter. (MIG-03)
+- [x] A save with `schemaVersion: 6` leaves the file on disk, emits `save_failed("save_from_newer_build")`, and produces no `corrupt_*` artefact. (MIG-04)
+- [x] A failed migration result still contains the original `character` and `inventory` sections alongside `migrationFailed`. (MIG-05)
+- [x] `docs/SAVE_MIGRATIONS.md` has one row per entry in `SaveMigrator.STEPS` with matching `from`, `to`, and `summary`. (MIG-06)
+- [x] Mutating the dictionary returned by `migrate()` for an already-current save does not alter the input dictionary. (MIG-07)
+- [x] `SaveMigrator.plan(1)` returns four step descriptors and applies nothing. (MIG-08)
 
 ## Validation
 Extend `apps/game/client/scripts/validation/suites/save_suite.gd`:

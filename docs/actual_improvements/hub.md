@@ -1,23 +1,25 @@
 # Hub — improvement plan
 
+**Status: FINISHED**
+
 ## Current state
 The hub works: ten interactables, three run-mode menus wired to `RunFlow`, four service UIs, three data-driven NPCs, and a full procedural diorama pass. See [`../existing_codebase/hub.md`](../existing_codebase/hub.md). The problems are in the seams. The first-run tip system is a hardcoded GDScript array whose text is factually wrong about two key bindings, is overwritten a frame after it appears, double-fires with the interact action, and loads its state from the wrong character. `HubInteractable.interact_id` is an exported field with zero readers anywhere in the repository, so all ten landmarks are routed through ten hand-maintained booleans and a fixed `if / elif` chain instead. Two portals are hidden with their interact areas left live. Service and portal positions are declared twice, once in `hub.tscn` and once in `hub_diorama.gd`, and the diorama wins.
 
 ## Gaps
-| ID | Sev | Gap | Evidence |
-|----|-----|-----|----------|
-| HUB-01 | P0 | Two of five hub tips name the wrong key: tip 2 says right-click for block (bound to `Q`), tip 5 says Esc for the inventory (bound to Tab) | `hub_tutorial_service.gd:14`, `hub_tutorial_service.gd:17` vs `project.godot:173-177`, `project.godot:250-255`, `hub.tscn:343` |
-| HUB-02 | P0 | The tip text is written into `MessageLabel` by the deferred `_maybe_show_hub_tips`, then overwritten by `_boot_save_and_services` when it resumes after its `await`, so a first-time player usually never reads tip 1 | `hub.gd:81-82`, `hub.gd:86`, `hub.gd:94`, `hub.gd:419-420` |
-| HUB-03 | P0 | The tip handler in `_input` does not mark the event handled, so one `interact` press both advances the tip and triggers the nearby portal or vendor | `hub.gd:429-432` vs `hub.gd:120-168` |
-| HUB-04 | P0 | `HubTutorialService.load_from_save()` runs before the deferred save load, so on a character switch the tips state comes from the previous character's `meta` | `hub.gd:80` before `hub.gd:81`; `hub_tutorial_service.gd:21-25` reads `LocalSave.get_meta_data()` which is backed by `_cached_state` (`local_save.gd:396-398`) |
-| HUB-05 | P1 | Tip content is a hardcoded GDScript array with no content file, no ordering rules, no per-tip trigger condition, and no localisation path | `hub_tutorial_service.gd:12-18`; nothing under `content/` mentions tips |
-| HUB-06 | P1 | `HubInteractable.interact_id` is exported and never read; interact routing is ten booleans and a 40-line `if / elif` chain that must be edited for every new landmark | `hub_interactable.gd:11` (no other reference in the repository), `hub.gd:29-38`, `hub.gd:120-168`, `hub.gd:226-255` |
-| HUB-07 | P1 | The Skies and Cathedral portals are hidden but their `InteractArea` nodes stay enabled, so the player gets a "coming soon" message from an invisible volume | `hub.gd:56-59`; `hub.tscn:493-501`, `hub.tscn:522-530` |
-| HUB-08 | P1 | Hub messages appear on a `Label3D` fixed at world `(0, 3.5, 2)` while the player spawns at `(12, 0, 2)`, so the welcome message and every tip are 12 m to the player's left | `hub.tscn:258-262`, `hub_diorama.gd:29` |
-| HUB-09 | P2 | Portal, arena-door, and service positions exist twice — in the `hub.tscn` transforms and in `hub_diorama.gd` constants — and the diorama silently overwrites the scene | `hub.tscn:92`, `hub.tscn:121` vs `hub_diorama.gd:160-181`; `hub.tscn:150`, `174`, `198`, `222` vs `hub_diorama.gd:135-145` |
-| HUB-10 | P2 | `_update_prompt` runs every frame and iterates the `hub_npc` group plus reassigns `Label3D.text` even when nothing changed | `hub.gd:171-172`, `hub.gd:250-255` |
-| HUB-11 | P2 | Entering an interact zone produces no audio and no visual highlight; the only feedback is the prompt label | `hub_interactable.gd:33-42` emits signals only |
-| HUB-12 | P2 | `HubTutorialService` state lives in `static var`s on a `RefCounted`, so it is process-global rather than per-character, and `advance_tip` triggers a full `LocalSave.autosave()` per tip | `hub_tutorial_service.gd:8-10`, `hub_tutorial_service.gd:36` |
+| ID | Sev | Gap | Status |
+|----|-----|-----|--------|
+| HUB-01 | P0 | Two of five hub tips name the wrong key: tip 2 says right-click for block (bound to `Q`), tip 5 says Esc for the inventory (bound to Tab) | FINISHED |
+| HUB-02 | P0 | The tip text is written into `MessageLabel` by the deferred `_maybe_show_hub_tips`, then overwritten by `_boot_save_and_services` when it resumes after its `await`, so a first-time player usually never reads tip 1 | FINISHED |
+| HUB-03 | P0 | The tip handler in `_input` does not mark the event handled, so one `interact` press both advances the tip and triggers the nearby portal or vendor | FINISHED |
+| HUB-04 | P0 | `HubTutorialService.load_from_save()` runs before the deferred save load, so on a character switch the tips state comes from the previous character's `meta` | FINISHED |
+| HUB-05 | P1 | Tip content is a hardcoded GDScript array with no content file, no ordering rules, no per-tip trigger condition, and no localisation path | FINISHED |
+| HUB-06 | P1 | `HubInteractable.interact_id` is exported and never read; interact routing is ten booleans and a 40-line `if / elif` chain that must be edited for every new landmark | FINISHED |
+| HUB-07 | P1 | The Skies and Cathedral portals are hidden but their `InteractArea` nodes stay enabled, so the player gets a "coming soon" message from an invisible volume | FINISHED |
+| HUB-08 | P1 | Hub messages appear on a `Label3D` fixed at world `(0, 3.5, 2)` while the player spawns at `(12, 0, 2)`, so the welcome message and every tip are 12 m to the player's left | FINISHED |
+| HUB-09 | P2 | Portal, arena-door, and service positions exist twice — in the `hub.tscn` transforms and in `hub_diorama.gd` constants — and the diorama silently overwrites the scene | FINISHED |
+| HUB-10 | P2 | `_update_prompt` runs every frame and iterates the `hub_npc` group plus reassigns `Label3D.text` even when nothing changed | FINISHED |
+| HUB-11 | P2 | Entering an interact zone produces no audio and no visual highlight; the only feedback is the prompt label | FINISHED |
+| HUB-12 | P2 | `HubTutorialService` state lives in `static var`s on a `RefCounted`, so it is process-global rather than per-character, and `advance_tip` triggers a full `LocalSave.autosave()` per tip | FINISHED |
 
 ## Target design
 
@@ -277,18 +279,18 @@ if tut.has("index") and not tut.has("seen"):
 | `hub.tscn` is missing a node `hub.gd` requires | Unchanged: `@onready` produces a hard failure. A `hub.scene.required_nodes_present` assertion catches it in CI first |
 
 ## Acceptance criteria
-- [ ] Every hub tip that names a control renders the live binding, and rebinding `block` to `F` changes the tip text without a code edit. (HUB-01)
-- [ ] A brand-new character reads tip 1 on the tip surface, and the welcome message appears on `MessageLabel` at the same time without either clobbering the other. (HUB-02)
-- [ ] While tips are visible, standing on the castle portal and pressing `interact` advances the tip and does not open the run menu. (HUB-03)
-- [ ] Creating character B after finishing tips on character A shows B the tips from the start. (HUB-04)
-- [ ] Adding a tip to `content/hub/tips.json` changes the in-game sequence with no GDScript change. (HUB-05)
-- [ ] Adding an eleventh landmark requires only a node with an `interact_id` and one `INTERACT_HANDLERS` row. (HUB-06)
-- [ ] Walking through the Skies portal's former volume produces no prompt and no message. (HUB-07)
-- [ ] The welcome message and tips are legible from the player spawn without turning the camera. (HUB-08)
-- [ ] Opening `hub.tscn` in the editor shows the portals on the north wall where they appear in game. (HUB-09)
-- [ ] Standing still in the hub performs no per-frame group query and no `Label3D.text` assignment. (HUB-10)
-- [ ] Entering the blacksmith zone plays one cue and pulses the ridge sign; leaving stops it. (HUB-11)
-- [ ] Advancing all tips produces one deferred save write rather than one per tip. (HUB-12)
+- [x] Every hub tip that names a control renders the live binding, and rebinding `block` to `F` changes the tip text without a code edit. (HUB-01)
+- [x] A brand-new character reads tip 1 on the tip surface, and the welcome message appears on `MessageLabel` at the same time without either clobbering the other. (HUB-02)
+- [x] While tips are visible, standing on the castle portal and pressing `interact` advances the tip and does not open the run menu. (HUB-03)
+- [x] Creating character B after finishing tips on character A shows B the tips from the start. (HUB-04)
+- [x] Adding a tip to `content/hub/tips.json` changes the in-game sequence with no GDScript change. (HUB-05)
+- [x] Adding an eleventh landmark requires only a node with an `interact_id` and one `INTERACT_HANDLERS` row. (HUB-06)
+- [x] Walking through the Skies portal's former volume produces no prompt and no message. (HUB-07)
+- [x] The welcome message and tips are legible from the player spawn without turning the camera. (HUB-08)
+- [x] Opening `hub.tscn` in the editor shows the portals on the north wall where they appear in game. (HUB-09)
+- [x] Standing still in the hub performs no per-frame group query and no `Label3D.text` assignment. (HUB-10)
+- [x] Entering the blacksmith zone plays one cue and pulses the ridge sign; leaving stops it. (HUB-11)
+- [x] Advancing all tips produces one deferred save write rather than one per tip. (HUB-12)
 
 ## Validation
 Extend `apps/game/client/scripts/validation/suites/hub_m4_suite.gd`:

@@ -25,6 +25,20 @@ static func build_adjacency(graph: RoomGraph) -> Dictionary:
 	return adj
 
 
+static func connected_component(graph: RoomGraph, start_id: String) -> Dictionary:
+	var adj := build_adjacency(graph)
+	var component := {start_id: true}
+	var queue: Array[String] = [start_id]
+	while not queue.is_empty():
+		var current: String = queue.pop_front()
+		for next_id in adj.get(current, []):
+			if component.has(next_id):
+				continue
+			component[next_id] = true
+			queue.append(next_id)
+	return component
+
+
 static func bfs_distances(graph: RoomGraph, start_id: String) -> Dictionary:
 	var adj := build_adjacency(graph)
 	var distances := {start_id: 0}

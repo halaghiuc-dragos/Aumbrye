@@ -4,7 +4,12 @@ class_name RarityRegistry
 ## Global rarity tiers, display names, upgrade caps, and mode drop bonuses.
 
 const TIER_ORDER: Array[String] = [
-	"common", "magic", "rare", "epic", "legendary", "aumbral",
+	"common",
+	"magic",
+	"rare",
+	"epic",
+	"legendary",
+	"aumbral",
 ]
 
 const LEGACY_ALIASES: Dictionary = {
@@ -22,7 +27,13 @@ const DISPLAY_NAMES: Dictionary = {
 }
 
 const FILTER_RARITIES: Array[String] = [
-	"all", "common", "magic", "rare", "epic", "legendary", "aumbral",
+	"all",
+	"common",
+	"magic",
+	"rare",
+	"epic",
+	"legendary",
+	"aumbral",
 ]
 
 const MODE_RARE_BONUS: Dictionary = {
@@ -59,6 +70,13 @@ static func tier_index(rarity: String) -> int:
 
 static func max_upgrade_level(rarity: String) -> int:
 	return 10 if normalize(rarity) == "aumbral" else 5
+
+
+static func sell_multiplier(rarity: String) -> float:
+	var idx := tier_index(rarity)
+	if idx < 0:
+		return 1.0
+	return 1.0 + float(idx) * 0.25
 
 
 static func mode_drop_bonus(run_mode: String) -> float:

@@ -1,0 +1,31 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://aumbrye.dev/schemas/item-instance-roll.v1.json",
+  "title": "ItemInstanceRoll",
+  "description": "Rolled inventory item instance produced by AffixRoller.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["instanceId", "itemId", "quantity", "rarity", "affixes", "rollSeed"],
+  "properties": {
+    "instanceId": { "type": "string", "minLength": 1 },
+    "itemId": { "type": "string", "minLength": 1 },
+    "quantity": { "type": "integer", "minimum": 1 },
+    "rarity": {
+      "type": "string",
+      "enum": ["common", "magic", "rare", "epic", "legendary", "aumbral"]
+    },
+    "affixes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["affixId", "value"],
+        "properties": {
+          "affixId": { "type": "string", "minLength": 1 },
+          "value": { "type": "number" }
+        }
+      }
+    },
+    "rollSeed": { "type": "integer" }
+  }
+}

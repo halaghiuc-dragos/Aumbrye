@@ -118,7 +118,10 @@ func _on_delete_pressed() -> void:
 	MenuShellScript.show_confirmation(
 		self,
 		"Delete Warden",
-		"Permanently delete %s?\nAll progress, inventory, and hub state for this warden will be erased." % slot_name,
+		(
+			"Permanently delete %s?\nAll progress, inventory, and hub state for this warden will be erased."
+			% slot_name
+		),
 		func() -> void:
 			if LocalSave.delete_character(character_id):
 				slot_deleted.emit(character_id)

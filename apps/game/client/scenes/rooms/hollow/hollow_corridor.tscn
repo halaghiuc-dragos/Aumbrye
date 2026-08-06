@@ -1,0 +1,45 @@
+[gd_scene load_steps=6 format=3 uid="uid://hollow_corridor"]
+
+[ext_resource type="Script" path="res://scripts/dungeon/castle/castle_room_scene.gd" id="1_room"]
+[ext_resource type="Script" path="res://scripts/dungeon/castle/castle_blockout.gd" id="2_blockout"]
+[ext_resource type="Script" path="res://scripts/dungeon/doorway_socket.gd" id="3_socket"]
+[ext_resource type="Material" path="res://assets/hollow/mat_floor.tres" id="4_floor"]
+[ext_resource type="Material" path="res://assets/hollow/mat_wall.tres" id="5_wall"]
+
+[node name="HollowCorridor" type="Node3D"]
+script = ExtResource("1_room")
+template_id = "hollow_corridor"
+room_type = "combat"
+
+[node name="CastleBlockout" type="Node3D" parent="."]
+script = ExtResource("2_blockout")
+kind = &"corridor"
+floor_material = ExtResource("4_floor")
+wall_material = ExtResource("5_wall")
+
+[node name="DoorwaySockets" type="Node3D" parent="."]
+
+[node name="Socket_N" type="Marker3D" parent="DoorwaySockets"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -6)
+script = ExtResource("3_socket")
+
+[node name="Socket_E" type="Marker3D" parent="DoorwaySockets"]
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 4, 0, 0)
+script = ExtResource("3_socket")
+direction = 1
+
+[node name="Socket_S" type="Marker3D" parent="DoorwaySockets"]
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 0, 0, 6)
+script = ExtResource("3_socket")
+direction = 2
+
+[node name="Socket_W" type="Marker3D" parent="DoorwaySockets"]
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -4, 0, 0)
+script = ExtResource("3_socket")
+direction = 3
+
+[node name="SpawnPoints" type="Node3D" parent="."]
+
+[node name="PlayerSpawn" type="Marker3D" parent="SpawnPoints"]
+
+[node name="Props" type="Node3D" parent="."]

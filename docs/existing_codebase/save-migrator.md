@@ -1,86 +1,91 @@
 # Save migrator
 
-`SaveMigrator` is an 83-line `RefCounted` static utility that gates every validated save load. It refuses to load a document it cannot bring to the current version, which makes it the single decision point for whether a save file is playable. It is on the live play path: `LocalSave.load_into_services()` and `LocalSave.load_character()` both call it.
+`SaveMigrator` is a `RefCounted` static utility that gates every validated save load. It refuses to load a document it cannot bring to the current version, which makes it the single decision point for whether a save file is playable. It is on the live play path: `LocalSave.load_into_services()` and `LocalSave.load_character()` both route through `_load_document()`, which calls `SaveMigrator.migrate()`.
 
 ## Files
 | Path | Role |
 |------|------|
-| `apps/game/client/scripts/save/save_migrator.gd` | `SaveMigrator` — version constant, `migrate()`, three step functions, `_fail()` |
-| `apps/game/client/scripts/save/local_save.gd` | Only caller; also re-exports the version as `SAVE_SCHEMA_VERSION` |
+| `apps/game/client/scripts/save/save_migrator.gd` | `SaveMigrator` — version constant, `STEPS`, `classify()`, `plan()`, `describe()`, `migrate()`, five step functions, `_normalize_*` helpers, `_fail()` |
+| `apps/game/client/scripts/save/local_save.gd` | Caller; `_load_document`, `_snapshot_before_migration`, `_recover_from_corruption`; re-exports version as `SAVE_SCHEMA_VERSION` |
+| `apps/game/client/scripts/app/world_flags.gd` | Legacy `worldFlags` id mapping during v4→v5 |
 | `apps/game/client/scripts/dungeon/run_floor_config.gd` | Supplies `MAX_FLOORS` used by the v1→v2 step |
+| `docs/SAVE_MIGRATIONS.md` | Human-readable migration history (`MIGRATION_DOC`) |
 
 ## How it works
 
 ### Constants
 | Constant | Value | Line |
 |----------|-------|------|
-| `CURRENT_VERSION` | `4` | 6 |
+| `CURRENT_VERSION` | `6` | 6 |
 | `MIGRATION_DOC` | `docs/SAVE_MIGRATIONS.md` | 7 |
+| `RESULT_CURRENT` / `RESULT_MIGRATABLE` / `RESULT_TOO_NEW` / `RESULT_UNKNOWN` | `0` / `1` / `2` / `3` | 11-14 |
 
-`local_save.gd:11` sets `SAVE_SCHEMA_VERSION := SaveMigrator.CURRENT_VERSION`, so the writer and the migrator can never disagree on the target version.
+`local_save.gd:11` sets `SAVE_SCHEMA_VERSION := SaveMigrator.CURRENT_VERSION`, so the writer and the migrator agree on the target version.
 
-### `migrate(data) -> Dictionary` (lines 10-27)
-1. Reads `version = int(data.get("schemaVersion", 0))`.
-2. `version == CURRENT_VERSION` → returns `data` unchanged (no deep copy, no normalisation).
-3. `version == 0` → `_fail(data, "missing schemaVersion")`.
-4. Applies `_migrate_v1_to_v2`, `_migrate_v2_to_v3`, `_migrate_v3_to_v4` in sequence, re-reading `schemaVersion` from the returned dictionary after each step so the chain is data-driven rather than fall-through.
-5. If the result is still not `CURRENT_VERSION` → `_fail(data, "unsupported schemaVersion %d" % version)`.
+### `STEPS` table (lines 26-52)
+Five registered steps from v1→v6. Each entry has `from`, `to`, `fn`, and `summary`. `plan(from_version)` returns the steps that would apply without mutating input. `describe(from_version)` returns a human-readable summary string.
 
-A version above `CURRENT_VERSION` (a save written by a newer build) falls through every `if` and lands on the final `_fail`, reported as `unsupported schemaVersion 5`.
+### `classify(data) -> int` (lines 96-104)
+Returns `RESULT_CURRENT`, `RESULT_MIGRATABLE`, `RESULT_TOO_NEW`, or `RESULT_UNKNOWN` before `migrate()` runs. `LocalSave` uses this to decide whether to write a pre-migration snapshot and whether to quarantine on failure.
+
+### `migrate(data) -> Dictionary` (lines 124-158)
+1. `version == CURRENT_VERSION` → returns `data.duplicate(true)` (deep copy).
+2. `version > CURRENT_VERSION` → `_fail(..., "too_new", ...)`.
+3. `version == 0` → `_fail(..., "missing_version", ...)`.
+4. Walks `STEPS`; after each step asserts `schemaVersion == step.to` or returns `_fail(..., "step_error", ...)`.
+5. If still not `CURRENT_VERSION` → `_fail(..., "unknown_version", ...)`.
 
 ### Migration steps
-Each step deep-copies with `data.duplicate(true)` and touches only `activeRun`; none of them modify `character`, `inventory`, `talents`, `flags`, `currencies`, `storage`, `itemInstances`, `recipes`, `runRelics`, `quests`, `meta`, or `wavesActiveRun`.
+**v1→v2** — `activeRun` floor defaults (`currentFloor`, `maxFloors`, `floorDefinitions`).
 
-**`_migrate_v1_to_v2` (lines 30-43)** — sets `schemaVersion = 2`; when `activeRun` is a non-empty Dictionary, defaults `currentFloor` to `1`, `maxFloors` to `RunFloorConfig.MAX_FLOORS` (10), and `floorDefinitions` to `{}`.
+**v2→v3** — `activeRun.runMode`; erases `floorDefinitions`.
 
-**`_migrate_v2_to_v3` (lines 46-56)** — sets `schemaVersion = 3`; when `activeRun` is a non-empty Dictionary, defaults `runMode` to `"castle"` and **erases** `floorDefinitions` (the key the previous step had just added, dropped in favour of `RunFlow`'s in-memory floor cache).
+**v3→v4** — `activeRun.lastCheckpoint`, `snapshot.worldFlags`, `activeRun.schemaVersion`.
 
-**`_migrate_v3_to_v4` (lines 59-73)** — sets `schemaVersion = 4`; when `activeRun` is a non-empty Dictionary, defaults `lastCheckpoint` to `{}`, defaults `snapshot.worldFlags` to `{}` when `snapshot` is a Dictionary that lacks it, and stamps `activeRun.schemaVersion = 4`.
+**v4→v5** — Full-document normalization via `_normalize_character`, `_normalize_currencies`, `_normalize_inventory`, `_normalize_storage`, `_normalize_talents`, `_normalize_flags`, `_normalize_quests`, `_normalize_item_instances`, `_normalize_meta`, `_normalize_active_run`. Resets nil `accountId`, recovers `playerDead` from `lastCheckpoint`, namespaces `worldFlags` through `WorldFlags.migrate_legacy_id`.
+
+**v5→v6** — Renames `meta.achievements.mythic_loot` to `aumbral_loot` when the legacy key was true (see [`achievements-meta.md`](achievements-meta.md)).
 
 ### Failure contract
-`_fail(data, reason)` (lines 76-82) `push_error`s and returns a *replacement* dictionary, not the original:
+`_fail(data, kind, reason)` (lines 571-579) preserves the original payload and adds:
 
 ```gdscript
 {
     "migrationFailed": true,
-    "migrationReason": reason,
-    "originalSchemaVersion": int(data.get("schemaVersion", 0)),
+    "migrationKind": "too_new" | "missing_version" | "unknown_version" | "step_error",
+    "migrationReason": String,
+    "originalSchemaVersion": int,
+    "requiredVersion": CURRENT_VERSION,
 }
 ```
 
-All user data is discarded from the returned value. `LocalSave` checks `data.get("migrationFailed", false)` at `local_save.gd:36` and `local_save.gd:255`:
+`LocalSave._load_document` treats `migrationKind == "too_new"` as refuse-without-quarantine (`save_failed("save_from_newer_build")`). All other failure kinds route through `_recover_from_corruption`.
 
-- `load_into_services()` calls `_handle_corrupt_save(migrationReason)`, which quarantines `SAVE_PATH`, walks the rotating backups, and emits `save_failed`.
-- `load_character()` simply returns `false` — no quarantine, no backup walk, no signal.
+### Pre-migration snapshot
+`LocalSave._snapshot_before_migration` (called when `classify == RESULT_MIGRATABLE`) writes `user://backups/<characterId>.premigrate_v<from>_<timestamp>.json` and prunes to five per character.
 
 ## Contracts
 
-**Called by:** `local_save.gd:35` (`load_into_services`), `local_save.gd:254` (`load_character`).
+**Called by:** `local_save.gd` `_load_document`.
 
-**Not called by:** the `_ready` warm load at `local_save.gd:64-73`, which parses `_cached_state` from raw JSON directly.
+**Depends on:** `RunFloorConfig`, `Equipment`, `CharacterAppearance`, `RarityRegistry`, `ContentLoader`, `WorldFlags`.
 
-**Depends on:** `RunFloorConfig.MAX_FLOORS`.
-
-**Result keys the caller must handle:** `migrationFailed`, `migrationReason`, `originalSchemaVersion`.
-
-**Documentation pointer:** `MIGRATION_DOC` names `docs/SAVE_MIGRATIONS.md`.
-
-**`activeRun` keys the chain guarantees at v4:** `currentFloor`, `maxFloors`, `runMode`, `lastCheckpoint`, `schemaVersion`, and `snapshot.worldFlags` when a `snapshot` exists. `floorDefinitions` is guaranteed absent.
+**Documentation pointer:** `MIGRATION_DOC` → `docs/SAVE_MIGRATIONS.md`.
 
 ## Current state
 | Surface | Status | Evidence |
 |---------|--------|----------|
-| Sequential v1→v2→v3→v4 chain with per-step re-read | IMPLEMENTED | `save_migrator.gd:16-24` |
-| Refusal of version 0 and of unknown versions | IMPLEMENTED | `save_migrator.gd:14-15`, `save_migrator.gd:25-26` |
-| Coverage of non-`activeRun` sections | ABSENT | All three steps touch only `activeRun` (`save_migrator.gd:33`, `49`, `62`); no step normalises `character`, `inventory`, `talents`, `flags`, `currencies`, `storage`, `itemInstances`, `recipes`, `runRelics`, `quests`, `meta`, or `wavesActiveRun` |
-| Backup taken before a migration is applied | ABSENT | No backup call in `save_migrator.gd`; `LocalSave._rotate_backups` runs on write, not before load, and only for `SAVE_PATH` (`local_save.gd:694-695`, `740-748`) |
-| Character-file backup coverage during migration failure | ABSENT | `load_character` returns `false` at `local_save.gd:255-256` without quarantine or backup restore; per-character backups are never written at all (`local_save.gd:684-693`) |
-| Newer-than-current saves | PARTIAL | Reported as `unsupported schemaVersion N` via the same path as corruption (`save_migrator.gd:26`), so a downgraded client quarantines a perfectly good save |
-| `_fail` discards user data | PARTIAL | `save_migrator.gd:78-82` returns a replacement dictionary; the original is only still reachable because `LocalSave` kept the file until `_handle_corrupt_save` copies it |
-| `migrate()` on an already-current save | PARTIAL | Returns the same object without duplication (`save_migrator.gd:12-13`), so `_apply_save_data`'s `duplicate(true)` is the only isolation |
-| `docs/SAVE_MIGRATIONS.md` | ABSENT | Named by `save_migrator.gd:7` but not present in the repository |
-| Downgrade / rollback path | ABSENT | Only forward steps exist in `save_migrator.gd` |
+| Table-driven v1→v6 chain with per-step version assertion | IMPLEMENTED | `save_migrator.gd:26-52`, `migrate()` |
+| `classify`, `plan`, `describe` | IMPLEMENTED | `save_migrator.gd` |
+| Full-document v4→v5 normalization | IMPLEMENTED | `save_migrator.gd` `_normalize_*` |
+| v5→v6 achievement key rename | IMPLEMENTED | `_migrate_v5_to_v6` |
+| Pre-migration snapshot before migratable load | IMPLEMENTED | `local_save.gd` `_snapshot_before_migration` |
+| Newer-than-current saves refused without quarantine | IMPLEMENTED | `save_migrator.gd:128-133`, `local_save.gd` `_load_document` |
+| `_fail` preserves user payload | IMPLEMENTED | `save_migrator.gd:571-579` |
+| `migrate()` deep-copies current-version input | IMPLEMENTED | `save_migrator.gd:126-127` |
+| `docs/SAVE_MIGRATIONS.md` | IMPLEMENTED | `docs/SAVE_MIGRATIONS.md` |
+| `load_character` shared recovery path | IMPLEMENTED | `local_save.gd` `_load_document`, `_recover_from_corruption` |
 
 ## Related
 - Improvement plan: [`../actual_improvements/save-migrator.md`](../actual_improvements/save-migrator.md)
-- [`local-save.md`](local-save.md), [`character-service.md`](character-service.md), [`inventory-service.md`](inventory-service.md), [`run-flow.md`](run-flow.md), [`content-catalog.md`](content-catalog.md)
+- [`local-save.md`](local-save.md), [`character-service.md`](character-service.md), [`inventory-service.md`](inventory-service.md), [`run-flow.md`](run-flow.md), [`world-state.md`](world-state.md)

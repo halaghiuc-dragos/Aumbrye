@@ -3,5 +3,5 @@
   "displayName": "Aldric the Blacksmith",
   "interactType": "blacksmith",
   "dialogueId": "aldric_greeting",
-  "position": { "x": -16, "y": 0, "z": -2 }
+  "position": { "x": -14.9, "y": 0, "z": -3.4 }
 }

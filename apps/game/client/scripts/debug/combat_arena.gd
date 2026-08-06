@@ -104,6 +104,8 @@ func _wire_dummy_death_reset() -> void:
 
 
 func _on_dummy_died(enemy: Node) -> void:
+	if AchievementService:
+		AchievementService.notify("arena_won")
 	await get_tree().create_timer(0.8).timeout
 	if enemy.has_method("reset_enemy"):
 		enemy.call("reset_enemy")

@@ -86,24 +86,19 @@ Poise never gates health damage. It only emits `poise_broken`, consumed by `play
 
 | Surface | Status | Evidence |
 |---------|--------|----------|
-| `Health` HP pool, `died` signal | IMPLEMENTED | `health.gd:29-36` |
-| `Poise` meter, regen, `poise_broken` | IMPLEMENTED | `poise.gd:30-56` |
-| Poise gating damage or granting hyperarmor | ABSENT | `hurtbox.gd:55-58` applies health damage with no poise or hyperarmor check; `weapon_controller.gd:208` `has_hyperarmor()` has no reader in `hurtbox.gd` |
-| Backstab bonus | BROKEN | `hurtbox.gd:70` reads `body.global_transform.basis.z`; the player body never rotates (`locomotion.gd:129-135` rotates the `Facing` child only), and `hurtbox.gd:79` rewards `angle <= 70` — the attacker being in *front* |
-| `damaged` signal payload | BROKEN | `hurtbox.gd:61` emits the pre-mitigation `info`; listeners flinch on 0-damage hits |
-| Flat defense from equipment | IMPLEMENTED | `hurtbox.gd:84-95` + `inventory_service.gd:213-214` |
-| `CombatStatModifiers.incoming_damage_multiplier` | STUB | `combat_stat_modifiers.gd:41` — no call site; its 1%/point defense math is superseded by `DEFENSE_PER_POINT := 0.02` in `hurtbox.gd:8` |
-| `CombatStatModifiers.flat_damage_bonus` | STUB | `combat_stat_modifiers.gd:25` — no call site, so `bonusDamage` from equipment/affixes never reaches damage |
-| `CombatStatModifiers.crit_chance` | STUB | `combat_stat_modifiers.gd:37` — no call site; `Hitbox._crit_chance` stays 0.0 (`hitbox.gd:20,135`) |
-| `CombatStatModifiers.poise_damage_multiplier` | STUB | `combat_stat_modifiers.gd:29` — no call site, so talent `poiseDamage` is inert |
-| Enemy elemental resistances | IMPLEMENTED | `hurtbox.gd:150-156`, `content/enemies/swamp_toad.json:22` |
-| Player elemental resistances | ABSENT | `hurtbox.gd:152` requires `get_enemy_id()`; the player has no such method and no resistance source under `content/` |
-| Damage numbers | PARTIAL | `damage_number.gd:34-35` hardcodes one red tint; `AccessibilitySettings.get_damage_color()` exists (`accessibility_settings.gd:37`) and is never called by it |
-| `DamageInfo` resistance clamp | PARTIAL | `damage_info.gd:49` clamps the floor only |
+| `DamageResolution` + `hit_resolved` mitigation chain | IMPLEMENTED | `damage_resolution.gd`, `hurtbox.gd` |
+| Backstab via `DamageInfo.classify_arc()` + `Facing` | IMPLEMENTED | `damage_info.gd`, `hurtbox.gd` |
+| Flat damage, crit, poise mult from equipment/talents | IMPLEMENTED | `weapon_controller.gd` → `hitbox.set_attack_values` |
+| Flat defense from equipment meta | IMPLEMENTED | `hurtbox.gd` + `inventory_service` `combat_defense` |
+| Poise meter + authored `stagger_duration` | IMPLEMENTED | `poise.gd` `configure(max, stagger_duration)` |
+| Player elemental resistances | IMPLEMENTED | `combat_resistances` meta in `hurtbox.gd` |
+| Enemy elemental resistances | IMPLEMENTED | `hurtbox.gd` via `get_enemy_id()` |
+| Damage numbers use accessibility colors | IMPLEMENTED | `damage_number.gd` `get_damage_color()` |
+| `Health` HP pool, `died` signal | IMPLEMENTED | `health.gd` |
 
 ## Related
 
-- Improvement plan: [`../actual_improvements/combat-core.md`](../actual_improvements/combat-core.md)
+- Improvement plan: [`../actual_improvements/combat-core.md`](../actual_improvements/combat-core.md) — **FINISHED**
 - [`hit-hurtboxes.md`](hit-hurtboxes.md) — how `DamageInfo` is produced and delivered
 - [`weapons.md`](weapons.md) — where player `amount` / `poise_damage` come from
 - [`guard.md`](guard.md), [`dodge.md`](dodge.md) — the two gates ahead of mitigation

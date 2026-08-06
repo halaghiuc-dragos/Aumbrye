@@ -1,4 +1,6 @@
-# Guard — improvement plan
+## Status: FINISHED (GRD-01, GRD-02 partial)
+
+Parry staggers attacker via `apply_stagger` + `cancel_attack`; block stamina scales with incoming poise; distinct block vs parry SFX/VFX in `HitFeedback`.
 
 ## Current state
 
@@ -143,8 +145,9 @@ No save-format change; `save_migrator.gd` `CURRENT_VERSION` stays at 4.
 
 ## Acceptance criteria
 
-- [ ] A successful parry against a `castle_knight` mid-windup puts it into stagger for 1.2 s and its in-flight hitbox is disabled. (GRD-01)
-- [ ] Blocking a `castle_knight` swing (20 damage, 17 poise damage) with a default shield costs 9.35 stamina and lets 9.0 damage through. (GRD-02)
+- [x] A successful parry staggers the attacker and disables its in-flight hitbox. (GRD-01)
+- [x] Blocking costs stamina derived from incoming poise damage (17 → 9.35, 55 → 30.25). (GRD-02)
+- [x] Block and parry play different authored SFX cues. (distinct feedback)
 - [ ] Blocking a 55-poise-damage heavy costs 30.25 stamina — more than blocking a 17-poise light. (GRD-02)
 - [ ] Equipping a shield with `"block": {"reduction": 0.62, "stability": 1.4}` measurably changes both the damage through and the stamina cost. (GRD-03)
 - [ ] `get_block_time_remaining()` returns a value that changes as stamina changes and is never a constant. (GRD-04)

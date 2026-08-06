@@ -1,5 +1,7 @@
 extends "res://scripts/validation/validation_suite.gd"
 
+const CastleRunScript := preload("res://scripts/dungeon/castle_run.gd")
+
 
 func get_category() -> String:
 	return "flow"
@@ -11,12 +13,36 @@ func run() -> void:
 	_test_debug_overlay_seed()
 	_test_results_screen()
 	_test_run_outcome_flow()
+	_test_run_lifecycle_results()
+	await _test_floor_transition_failure()
+	await _test_floor_transition_stair_spawn()
+	_test_floor_cache_eviction()
+	_test_run_meta_cleared_on_return()
+	_test_portal_completes_run()
+
+
+func _test_portal_completes_run() -> void:
+	var start := Time.get_ticks_msec()
+	var ok := ctx.file_contains(
+		"res://scripts/dungeon/exit_portal.gd",
+		"RunFlow.complete_run_via_portal"
+	) and RunFlow.has_method("complete_run_via_portal")
+	ctx.timed_record(
+		"flow.portal_completes_run",
+		get_category(),
+		ok,
+		"portal confirmation path calls complete_run_via_portal",
+		start,
+		"BDP-02"
+	)
 
 
 func _test_run_outcome_flow() -> void:
 	var start := Time.get_ticks_msec()
 	var has_death := RunFlow.has_method("on_player_died")
-	var has_escape_rules: bool = ctx.file_contains("res://scripts/app/run_flow.gd", "_escape_rules_summary")
+	var has_escape_rules: bool = ctx.file_contains(
+		"res://scripts/app/run_flow.gd", "_escape_rules_summary"
+	)
 	ctx.timed_record(
 		"flow.death_escape_api",
 		get_category(),
@@ -60,7 +86,9 @@ func _test_run_flow_scene_paths() -> void:
 
 func _test_run_flow_offline_procgen() -> void:
 	var start := Time.get_ticks_msec()
-	var uses_local: bool = ctx.file_contains("res://scripts/app/run_flow.gd", "LocalProcgen.generate")
+	var uses_local: bool = ctx.file_contains(
+		"res://scripts/app/run_flow.gd", "LocalProcgen.generate"
+	)
 	ctx.timed_record(
 		"flow.offline_procgen",
 		get_category(),
@@ -93,15 +121,12 @@ func _test_run_flow_offline_procgen() -> void:
 		"M3.flow.results"
 	)
 
-
 	start = Time.get_ticks_msec()
 	var has_loot_claim_api: bool = ctx.file_contains(
-		"res://scripts/app/run_flow.gd",
-		"lootClaimedInstanceIds"
+		"res://scripts/app/run_flow.gd", "lootClaimedInstanceIds"
 	)
 	var has_cloud_finalize: bool = ctx.file_contains(
-		"res://scripts/app/run_flow.gd",
-		"_cloud_finalize_run"
+		"res://scripts/app/run_flow.gd", "_cloud_finalize_run"
 	)
 	ctx.timed_record(
 		"flow.complete_run_loot_ids",
@@ -113,10 +138,7 @@ func _test_run_flow_offline_procgen() -> void:
 	)
 
 	start = Time.get_ticks_msec()
-	var hub_cloud_sync: bool = ctx.file_contains(
-		"res://scripts/hub/hub.gd",
-		"sync_from_cloud"
-	)
+	var hub_cloud_sync: bool = ctx.file_contains("res://scripts/hub/hub.gd", "sync_from_cloud")
 	ctx.timed_record(
 		"flow.hub_cloud_sync",
 		get_category(),
@@ -129,7 +151,9 @@ func _test_run_flow_offline_procgen() -> void:
 
 func _test_debug_overlay_seed() -> void:
 	var start := Time.get_ticks_msec()
-	var has_seed_display: bool = ctx.file_contains("res://scripts/debug/debug_overlay.gd", "run_seed")
+	var has_seed_display: bool = ctx.file_contains(
+		"res://scripts/debug/debug_overlay.gd", "run_seed"
+	)
 	ctx.timed_record(
 		"flow.debug_overlay_seed",
 		get_category(),
@@ -150,4 +174,292 @@ func _test_results_screen() -> void:
 		"results screen script exists",
 		start,
 		"M3.flow.results"
+	)
+
+	start = Time.get_ticks_msec()
+	var waves_outcomes: bool = (
+		ctx.file_contains("res://scripts/ui/results_screen.gd", "OUTCOME_WAVES_FAILED")
+		and ctx.file_contains("res://scripts/ui/results_screen.gd", "OUTCOME_WAVES_COMPLETE")
+	)
+	ctx.timed_record(
+		"flow.results_waves_outcomes",
+		get_category(),
+		waves_outcomes,
+		"results screen branches on waves_complete and waves_failed",
+		start,
+		"M4.flow.results"
+	)
+
+
+func _test_run_lifecycle_results() -> void:
+	var start := Time.get_ticks_msec()
+	var xp := {"gained": 10, "levels_gained": 0}
+	var base_extra := {
+		"run_mode": "castle",
+		"floor_reached": 1,
+		"boss_defeated": false,
+		"loot_kept": true,
+		"run_relics_lost": false,
+		"loot_lost": [],
+	}
+	var outcomes: Array[String] = [
+		RunLifecycle.OUTCOME_ESCAPED,
+		RunLifecycle.OUTCOME_DIED,
+		RunLifecycle.OUTCOME_RESPAWNED,
+		RunLifecycle.OUTCOME_RETREATED,
+		RunLifecycle.OUTCOME_ABANDONED,
+		RunLifecycle.OUTCOME_WAVES_COMPLETE,
+		RunLifecycle.OUTCOME_WAVES_FAILED,
+	]
+	var reference_keys: Array = []
+	var parity_ok := true
+	for outcome in outcomes:
+		var built: Dictionary = RunLifecycle.build_results(
+			outcome, 1.0, 0, [], xp, 10, "rules", base_extra
+		)
+		if reference_keys.is_empty():
+			reference_keys = built.keys()
+		else:
+			var keys_a: Array = reference_keys.duplicate()
+			var keys_b: Array = built.keys()
+			keys_a.sort()
+			keys_b.sort()
+			if keys_a != keys_b:
+				parity_ok = false
+				break
+	ctx.timed_record(
+		"flow.results.key_parity",
+		get_category(),
+		parity_ok,
+		"all seven outcomes share identical results keys",
+		start,
+		"RFL.results"
+	)
+
+	start = Time.get_ticks_msec()
+	var level_before := ProgressionService.level
+	var xp_before := ProgressionService.xp
+	var xp_result := ProgressionService.grant_xp(ProgressionService.xp_to_next_level() + 1, "validation")
+	var waves_results: Dictionary = RunLifecycle.build_results(
+		RunLifecycle.OUTCOME_WAVES_COMPLETE,
+		1.0,
+		0,
+		[],
+		xp_result,
+		RunFlow.WAVES_COMPLETION_XP,
+		"waves",
+		base_extra
+	)
+	var levels_honest := int(waves_results.get("levels_gained", 0)) >= 1
+	ctx.timed_record(
+		"flow.results.waves_levels_honest",
+		get_category(),
+		levels_honest,
+		"waves completion reports grant_xp levels_gained",
+		start,
+		"WAV-01"
+	)
+	ProgressionService.level = level_before
+	ProgressionService.xp = xp_before
+
+	start = Time.get_ticks_msec()
+	var failed_results: Dictionary = RunLifecycle.build_results(
+		RunLifecycle.OUTCOME_WAVES_FAILED,
+		1.0,
+		0,
+		[],
+		{"gained": 0, "levels_gained": 0},
+		0,
+		"waves failed",
+		base_extra
+	)
+	var failed_keys_ok := failed_results.has("run_relics_lost")
+	ctx.timed_record(
+		"wav.results.failed_keys",
+		get_category(),
+		failed_keys_ok,
+		"waves failed results include run_relics_lost",
+		start,
+		"WAV-02"
+	)
+
+	start = Time.get_ticks_msec()
+	var inv_backup = InventoryService.inventory
+	InventoryService.inventory = GridInventory.new()
+	InventoryService.add_item("iron_scrap", 1)
+	InventoryService.add_item("castle_sword", 1)
+	var loot_lost: Array[String] = ["iron_scrap", "castle_sword"]
+	InventoryService.remove_run_loot(loot_lost)
+	var missing: Array[String] = []
+	for item_id in loot_lost:
+		var found := false
+		for slot in InventoryService.inventory.slots:
+			if slot.get("itemId", "") == item_id:
+				found = true
+				break
+		if not found:
+			missing.append(item_id)
+	var death_results: Dictionary = RunLifecycle.build_results(
+		RunLifecycle.OUTCOME_DIED,
+		1.0,
+		0,
+		[],
+		xp,
+		20,
+		"death",
+		{"loot_lost": loot_lost, "loot_kept": false, "run_relics_lost": true}
+	)
+	var loot_diff_ok := (
+		death_results.get("loot_lost", []) == loot_lost and missing.size() == loot_lost.size()
+	)
+	InventoryService.inventory = inv_backup
+	ctx.timed_record(
+		"flow.results.loot_lost_diff",
+		get_category(),
+		loot_diff_ok,
+		"loot_lost matches inventory removal",
+		start,
+		"RFL.results"
+	)
+
+
+func _test_floor_transition_failure() -> void:
+	var start := Time.get_ticks_msec()
+	var warned := false
+	var warn_cb := func(_msg: String) -> void: warned = true
+	if RunFlow.run_warning.is_connected(warn_cb):
+		RunFlow.run_warning.disconnect(warn_cb)
+	RunFlow.run_warning.connect(warn_cb)
+	var prev_def := {"seed": 42, "rooms": []}
+	var prev_floor := 2
+	RunFlow._run_active = true
+	RunFlow.current_floor = 3
+	RunFlow.current_dungeon_definition = prev_def.duplicate(true)
+	RunFlow._test_resolve_floor_override = false
+	await RunFlow._transition_floor(true)
+	var floor_ok := RunFlow.current_floor == prev_floor
+	var def_ok := RunFlow.current_dungeon_definition == prev_def
+	RunFlow.run_warning.disconnect(warn_cb)
+	ctx.timed_record(
+		"flow.transition.generation_failure_restores",
+		get_category(),
+		floor_ok and def_ok and warned,
+		"failed floor generation restores floor and definition",
+		start,
+		"RFL.transition"
+	)
+
+
+func _test_floor_transition_stair_spawn() -> void:
+	var start := Time.get_ticks_msec()
+	var definition := {
+		"biomeId": "forgotten_castle",
+		"rooms": [
+			{
+				"id": "entrance",
+				"templateId": "castle_entrance",
+				"type": "hub",
+				"transform": {"x": 0, "y": 0, "z": 0, "yaw": 0},
+			},
+			{
+				"id": "stairs",
+				"templateId": "castle_stairs",
+				"type": "corridor",
+				"transform": {"x": 0, "y": 0, "z": 14, "yaw": 0},
+			},
+		],
+		"edges": [{"from": "entrance", "to": "stairs", "kind": "corridor"}],
+		"placements": {
+			"entrance": "entrance",
+			"enemies": [],
+			"loot": [],
+			"traps": [],
+			"secrets": [],
+			"boss": null,
+		},
+	}
+	var root := Node3D.new()
+	root.name = "FloorTransitionTest"
+	ctx.owner.add_child(root)
+	var player: CharacterBody3D = (
+		load("res://scenes/player/player.tscn").instantiate() as CharacterBody3D
+	)
+	root.add_child(player)
+	var builder := DungeonBuilder.new()
+	root.add_child(builder)
+	builder.build_from_definition(root, player, definition)
+	await ctx.await_frame()
+	var entrance_pos := player.global_position
+	var stair_id := RunFloorConfig.find_stairs_room_id(definition)
+	var expected := builder.get_stair_spawn_global(stair_id, true)
+	var castle := Node3D.new()
+	castle.set_script(CastleRunScript)
+	root.add_child(castle)
+	castle.set("_player", player)
+	castle.set("_builder", builder)
+	castle.set("_dungeon_def", definition)
+	var snapshot := {
+		"floorTransition": true,
+		"ascending": true,
+	}
+	castle.call("_restore_saved_snapshot", snapshot)
+	castle.call("_apply_floor_transition_spawn", snapshot)
+	var target: Vector3 = expected.get("position", Vector3.ZERO)
+	var dist := player.global_position.distance_to(target)
+	var moved := entrance_pos.distance_to(player.global_position) > 1.0
+	root.queue_free()
+	ctx.timed_record(
+		"castle.floor_transition.stair_spawn",
+		get_category(),
+		moved and dist < 3.0,
+		"floor transition restore places player at ascending stair spawn",
+		start,
+		"CST-01"
+	)
+
+
+func _test_floor_cache_eviction() -> void:
+	var start := Time.get_ticks_msec()
+	var backup_cache: Dictionary = RunFlow.floor_definitions.duplicate(true)
+	var backup_floor: int = RunFlow.current_floor
+	RunFlow.floor_definitions.clear()
+	for floor_index in range(1, 5):
+		RunFlow.floor_definitions[floor_index] = {"floor": floor_index}
+	RunFlow.current_floor = 4
+	RunFlow._trim_floor_cache()
+	var evicted_one := not RunFlow.floor_definitions.has(1)
+	var kept_three := RunFlow.floor_definitions.has(3)
+	RunFlow.floor_definitions = backup_cache
+	RunFlow.current_floor = backup_floor
+	ctx.timed_record(
+		"flow.cache.evicts_farthest",
+		get_category(),
+		evicted_one and kept_three,
+		"floor cache evicts farthest floor from current",
+		start,
+		"RFL.cache"
+	)
+
+
+func _test_run_meta_cleared_on_return() -> void:
+	var start := Time.get_ticks_msec()
+	var root := RunFlow.get_tree().root
+	for key in RunFlow.RUN_META_KEYS:
+		root.set_meta(key, true)
+	root.set_meta("run_respawn_results", true)
+	RunFlow._clear_run_meta()
+	var cleared := true
+	for key in RunFlow.RUN_META_KEYS:
+		if root.has_meta(key):
+			cleared = false
+			break
+	if root.has_meta("run_respawn_results"):
+		cleared = false
+	ctx.timed_record(
+		"flow.meta.cleared_on_return",
+		get_category(),
+		cleared,
+		"_clear_run_meta clears RUN_META_KEYS (invoked by return_to_hub)",
+		start,
+		"RFL.meta"
 	)

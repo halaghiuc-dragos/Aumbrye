@@ -1,26 +1,27 @@
 # Floor shell — improvement plan
 
+## Status: FINISHED
+
 ## Current state
 
-`CastleBlockout` is a competent runtime box-builder: correct walls, door cutouts, per-wall occluders, and a baked navmesh from six numbers. It is also the reason 84 of 90 room scenes have no authored geometry, and its navmesh is baked from two floor triangles that ignore walls and cover, so pathfinding believes every room is an empty rectangle. `FloorShellBuilder` deliberately avoids a monolithic floor and then adds a monolithic ceiling that covers every empty grid cell, and its `FloorShell` node is never freed on a floor transition. See [`../existing_codebase/floor-shell.md`](../existing_codebase/floor-shell.md).
+`CastleBlockout` bakes navmesh from static colliders via `parse_source_geometry_data`, defers rebuilds behind `finalize_geometry()`, stores cover in a preserved `CoverObstacles` sibling, builds per-room ceilings with lintels above doorways, and exposes `hide_walls` for authored kits. `FloorShellBuilder` parents perimeter walls under `DungeonRoot` with no dungeon-floor `CeilingSlab`. `CastleRoomScene._resolve_biome_id()` prefers the template's biome. See [`../existing_codebase/floor-shell.md`](../existing_codebase/floor-shell.md).
 
 ## Gaps
 
-| ID | Sev | Gap | Evidence |
-|----|-----|-----|----------|
-| FSH-01 | P0 | The navmesh is baked from two flat floor triangles, so walls, cover pillars, and props are invisible to pathfinding and enemies walk into them | `castle_blockout.gd:223-233`, cover added afterward at `:252-273` |
-| FSH-02 | P0 | Cover obstacles are children of `Geometry`, so any later `_rebuild()` deletes them silently | `castle_blockout.gd:79-86,256` |
-| FSH-03 | P1 | Each of the four door setters triggers a full geometry teardown plus navmesh re-bake, so opening a room's doors rebuilds it up to four times per build | `castle_blockout.gd:22-40,57-59`, `dungeon_builder.gd:182-183` |
-| FSH-04 | P1 | The ceiling is one slab spanning the whole floor bounding box, covering every empty grid cell, with collision and no occluder | `floor_shell_builder.gd:29-35` |
-| FSH-05 | P1 | `FloorShell` is never freed, so ceilings and perimeter walls accumulate across floor transitions | `dungeon_builder.gd:897-918` vs `floor_shell_builder.gd:17-19` |
-| FSH-06 | P1 | Doorways are full-height 3.0 x 6.0 gaps; `DOOR_HEIGHT` is never used to cut them, so no room has a door lintel | `castle_blockout.gd:119-141`, `castle_room_constants.gd:7` |
-| FSH-07 | P1 | `CastleRoomScene` resolves its biome from the global `RunFlow.current_biome_id` before its own `template_id`, so a room can be dressed and materialled as the wrong biome | `castle_room_scene.gd:26-29` |
-| FSH-08 | P2 | `add_height_stairs()` is implemented with no call sites | `castle_blockout.gd:276` |
-| FSH-09 | P2 | `FloorShellBuilder` scans for `Shortcut*` children to serve `_build_shortcut_corridors`, which has no call site | `floor_shell_builder.gd:121-127`, `dungeon_builder.gd:388` |
-| FSH-10 | P2 | Each wall segment is its own `StaticBody3D` with its own occluder and `BoxMesh`, so a four-door room is 9 bodies and 8 occluders | `castle_blockout.gd:144-197` |
-| FSH-11 | P2 | `GRID_UNIT` is only a minimum clamp and encodes no real grid relationship to `RoomGraphConfig` spacing | `castle_room_constants.gd:5`, `castle_blockout.gd:9,14` |
-| FSH-12 | P2 | The blockout has no exported way to suppress its generated walls, which blocks authored geometry from reusing it for collision and navmesh | no `hide_walls`-style export in `castle_blockout.gd:7-45` |
-
+| ID | Sev | Gap | Status |
+|----|-----|-----|--------|
+| FSH-01 | P0 | Navmesh ignored walls and cover | **FINISHED** — `parse_source_geometry_data` bake (`castle_blockout.gd:323-348`); agent radius 0.45 |
+| FSH-02 | P0 | Cover deleted on rebuild | **FINISHED** — `CoverObstacles` sibling preserved (`castle_blockout.gd:151-168`, `:381-395`) |
+| FSH-03 | P1 | Four door setters = four bakes | **FINISHED** — `_geometry_dirty` + `finalize_geometry()` (`castle_blockout.gd:84-99`); builder calls once (`dungeon_builder.gd:589`) |
+| FSH-04 | P1 | Monolithic ceiling slab | **FINISHED** — per-room `_build_ceiling()` (`castle_blockout.gd:218-256`); `FloorShellBuilder` perimeter only (`floor_shell_builder.gd:21-24`) |
+| FSH-05 | P1 | `FloorShell` never freed | **FINISHED** — parented under `DungeonRoot` (`dungeon_builder.gd:112,579`); freed at `:1076-1077` |
+| FSH-06 | P1 | No door lintel | **FINISHED** — third segment above `DOOR_HEIGHT` (`castle_blockout.gd:283-295`) |
+| FSH-07 | P1 | Wrong biome from `RunFlow` | **FINISHED** — template id first (`castle_room_scene.gd:48-52`) |
+| FSH-08 | P2 | `add_height_stairs` dead | **FINISHED** — `DungeonBuilder._build_height_transitions()` (`dungeon_builder.gd:371`) |
+| FSH-09 | P2 | `Shortcut*` scan dead | **FINISHED** — removed from `_compute_bounds` |
+| FSH-10 | P2 | Per-segment wall bodies | **FINISHED** — shared `_walls_body` via `_create_walls_body()` (`castle_blockout.gd:298-318`) |
+| FSH-11 | P2 | `GRID_UNIT` meaningless | **FINISHED** — all `KIND_SPECS` dims multiples of 4 (`room_template_catalog.gd:113-193`); `floor_shell_suite.gd` `grid_quantum` |
+| FSH-12 | P2 | No `hide_walls` | **FINISHED** — `@export hide_walls` (`castle_blockout.gd:54-57`, `:300-301`) |
 ## Target design
 
 The blockout stays — it is the right tool for collision, navmesh, and graybox iteration. What changes is that it stops being the *visible* geometry, and its navmesh starts telling the truth.
@@ -112,40 +113,26 @@ None to `content/schemas/`. This topic is code and scene work only.
 
 ## Acceptance criteria
 
-- [ ] A room's baked navmesh excludes every wall segment and every cover obstacle: no navmesh polygon overlaps a wall or cover collider in XZ (FSH-01).
-- [ ] `agent_radius >= 0.45` and `agent_max_climb >= 0.5` on every baked room navmesh (FSH-01).
-- [ ] Setting a door flag after `add_cover_obstacle` leaves the cover body alive (FSH-02).
-- [ ] Building a four-door room performs exactly one navmesh bake (FSH-03).
-- [ ] No `CeilingSlab` exists under `FloorShell` for a dungeon floor; every room has its own ceiling (FSH-04).
-- [ ] Freeing `DungeonRoot` leaves no `FloorShell` node in the run scene (FSH-05).
-- [ ] Every blockout doorway has a wall segment above `DOOR_HEIGHT` (FSH-06).
-- [ ] Instantiating a `crystal_courtyard` while `RunFlow.current_biome_id == "poison_swamp"` yields crystal materials (FSH-07).
-- [ ] With `hide_walls = true`, the blockout has zero wall `MeshInstance3D`s and the same number of `CollisionShape3D`s as with it false (FSH-12).
-- [ ] Every `KIND_SPECS` width and depth is a multiple of `GRID_UNIT` (FSH-11).
-- [ ] `FloorShellBuilder._compute_bounds` contains no reference to `Shortcut` (FSH-09).
+- [x] Navmesh excludes walls and cover in XZ (FSH-01) — `floor_shell_suite.gd` `navmesh_excludes_walls`, `navmesh_excludes_cover`.
+- [x] `agent_radius >= 0.45` and `agent_max_climb >= 0.5` (FSH-01) — `floor_shell_suite.gd` `navmesh_agent_params`.
+- [x] Cover survives door flag change (FSH-02) — `floor_shell_suite.gd` `cover_survives_door_change`.
+- [x] Exactly one navmesh bake per room build (FSH-03) — `floor_shell_suite.gd` `single_bake_per_room`.
+- [x] No dungeon `CeilingSlab`; per-room ceilings (FSH-04) — `floor_shell_suite.gd` `per_room_ceiling`; `dungeon_suite.gd` `no_ceiling_over_empty_cells`.
+- [x] `DungeonRoot` free removes `FloorShell` (FSH-05) — `dungeon_suite.gd` `shell_freed_on_unload`.
+- [x] Door lintels above `DOOR_HEIGHT` (FSH-06) — `floor_shell_suite.gd` `door_has_lintel`.
+- [x] Template biome beats `RunFlow` (FSH-07) — `floor_shell_suite.gd` `biome_precedence`.
+- [x] `hide_walls` suppresses meshes, keeps colliders (FSH-12) — `floor_shell_suite.gd` `hide_walls`.
+- [x] All `KIND_SPECS` dims are `GRID_UNIT` multiples (FSH-11) — `floor_shell_suite.gd` `grid_quantum`.
+- [x] `add_height_stairs()` called from builder (FSH-08) — `dungeon_builder.gd:371`.
+- [x] No `Shortcut` in `_compute_bounds` (FSH-09).
 
 ## Validation
 
-New suite `apps/game/client/scripts/validation/suites/floor_shell_suite.gd`:
+`floor_shell_suite.gd` — 10 assertions (FSH-01 through FSH-12). Registered in `validation_runner.gd:51`.
 
-- `test_navmesh_excludes_walls` — build a 20 x 20 four-door blockout; for 200 sampled navmesh points assert none is within `WALL_THICKNESS / 2 + 0.4` of a wall plane.
-- `test_navmesh_excludes_cover` — add three cover obstacles, finalize, and assert no navmesh point falls inside a cover AABB.
-- `test_navmesh_agent_params` — assert `agent_radius`, `agent_height`, `agent_max_climb`, `cell_size` on every room's navmesh.
-- `test_single_bake_per_room` — instrument the bake with a counter; set all four door flags and place cover; assert the counter is 1.
-- `test_cover_survives_door_change` — assert the cover body is still in the tree after a door flag flip.
-- `test_door_has_lintel` — assert a wall with a door has three segments and that one spans `DOOR_HEIGHT` to `wall_height`.
-- `test_per_room_ceiling` — assert every room has a ceiling collider at `wall_height` and that `FloorShell` has no `CeilingSlab` on a dungeon floor.
-- `test_hide_walls` — assert the collider count matches and the mesh count is zero.
-- `test_grid_quantum` — assert every `KIND_SPECS` dimension is a multiple of `GRID_UNIT`.
-- `test_biome_precedence` — set `RunFlow.current_biome_id` to a mismatching biome, instantiate a room, assert the material matches the template's biome.
+`dungeon_suite.gd` — `shell_freed_on_unload`, `no_ceiling_over_empty_cells`.
 
-Extend `apps/game/client/scripts/validation/suites/dungeon_suite.gd`:
-
-- `test_shell_freed_on_unload` — build, unload, assert no `FloorShell`.
-- `test_no_ceiling_over_empty_cells` — for 20 seeds, assert every ceiling collider's XZ footprint is contained in some room's footprint.
-
-Manual checklist: with a debug camera above the floor, confirm empty grid cells show open space rather than a ceiling underside, and that doorways read as framed openings from inside a room.
-
+Godot headless (2026-08-06): `--suite=floor_shell_suite` exited 0 via `scripts/godot-bin.ps1`.
 ## Related
 
 - [`../existing_codebase/floor-shell.md`](../existing_codebase/floor-shell.md)

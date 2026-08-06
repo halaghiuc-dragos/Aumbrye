@@ -28,7 +28,7 @@ var _immune := false
 var _cannon: Node3D
 
 
-func get_enemy_id() -> String:
+func _resolve_enemy_id() -> String:
 	return "final_boss_forgotten_castle"
 
 
@@ -161,7 +161,8 @@ func capture_state() -> Dictionary:
 		"phase": int(_phase),
 		"shieldActive": _shield_active,
 		"crystalsCollected": _crystals_collected,
-		"cannonLoaded": _cannon.get_loaded_count() if _cannon and _cannon.has_method("get_loaded_count") else 0,
+		"cannonLoaded":
+		_cannon.get_loaded_count() if _cannon and _cannon.has_method("get_loaded_count") else 0,
 	}
 
 

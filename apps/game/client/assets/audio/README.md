@@ -7,7 +7,11 @@ frequency profile). Regenerate with:
 node scripts/tools/generate-biome-audio.mjs
 ```
 
-Profiles reference these paths in `content/audio_profiles/<biome_id>.json`. Short combat SFX
-use procedural tones via `AudioDirector`; add `.wav` under `res://assets/audio/sfx/` when authored.
+Combat SFX are authored as `.ogg`/`.wav` under `res://assets/audio/sfx/` and wired through
+`content/audio/sfx.json` and `AudioDirector.SFX_PROFILES`. Regenerate with:
+
+```bash
+node scripts/tools/generate-combat-sfx.mjs
+```
 
 Replace per-biome files when real stems are ready.

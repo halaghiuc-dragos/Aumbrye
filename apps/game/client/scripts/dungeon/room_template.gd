@@ -36,20 +36,29 @@ func door_mask_toward(other: RoomTemplate) -> int:
 
 
 func socket_toward(other: RoomTemplate) -> DoorwaySocket:
-	return _socket_for_mask(door_mask_toward(other))
+	var want := other.global_position - global_position
+	want.y = 0.0
+	if want.length_squared() < 0.0001:
+		return null
+	want = want.normalized()
+	var best: DoorwaySocket = null
+	var best_dot := 0.5
+	for socket in get_sockets():
+		var dot := socket.get_world_facing().dot(want)
+		if dot > best_dot:
+			best_dot = dot
+			best = socket
+	return best
 
 
-func _socket_for_mask(door_mask: int) -> DoorwaySocket:
-	match door_mask:
-		RoomGraphSlot.DOOR_NORTH:
-			return find_socket(CastleRoomConstants.Direction.NORTH)
-		RoomGraphSlot.DOOR_EAST:
-			return find_socket(CastleRoomConstants.Direction.EAST)
-		RoomGraphSlot.DOOR_SOUTH:
-			return find_socket(CastleRoomConstants.Direction.SOUTH)
-		RoomGraphSlot.DOOR_WEST:
-			return find_socket(CastleRoomConstants.Direction.WEST)
-	return null
+func socket_for_direction(
+	direction: CastleRoomConstants.Direction, prefer_secret: bool = false
+) -> DoorwaySocket:
+	if prefer_secret:
+		for socket in get_sockets():
+			if socket.direction == direction and socket.is_secret:
+				return socket
+	return find_socket(direction)
 
 
 func get_player_spawn_global() -> Vector3:

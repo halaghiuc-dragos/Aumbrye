@@ -8,16 +8,19 @@ const WORLD_COLLISION_MASK := 1
 @export var poise_damage := 15.0
 @export var team: String = "player"
 
+@export var rehit_interval := 0.0
+
 var _owner_node: Node
 var _combat_owner: Node
 var _collision_shape: CollisionShape3D
-var _hit_targets: Array[int] = []
+var _hit_times: Dictionary = {}
 var _active := false
 var _last_overlap_count := 0
 var _damage_type := DamageInfo.TYPE_PHYSICAL
 var _status_id := ""
 var _status_stacks := 1
 var _crit_chance := 0.0
+var _crit_multiplier := 1.5
 
 
 func _ready() -> void:
@@ -60,7 +63,7 @@ func disable() -> void:
 
 
 func reset_swing() -> void:
-	_hit_targets.clear()
+	_hit_times.clear()
 
 
 func set_attack_values(
@@ -69,7 +72,8 @@ func set_attack_values(
 	dmg_type: String = DamageInfo.TYPE_PHYSICAL,
 	apply_status: String = "",
 	status_stacks: int = 1,
-	crit_chance: float = 0.0
+	crit_chance: float = 0.0,
+	crit_multiplier: float = 1.5
 ) -> void:
 	damage_amount = damage
 	poise_damage = poise
@@ -77,6 +81,7 @@ func set_attack_values(
 	_status_id = apply_status
 	_status_stacks = status_stacks
 	_crit_chance = crit_chance
+	_crit_multiplier = crit_multiplier
 
 
 func set_combat_owner(node: Node) -> void:
@@ -106,7 +111,8 @@ func _scan_overlaps() -> void:
 	params.collide_with_areas = true
 	params.collide_with_bodies = false
 	params.exclude = [get_rid()]
-	for result in space.intersect_shape(params, 16):
+	const MAX_OVERLAP_RESULTS := 32
+	for result in space.intersect_shape(params, MAX_OVERLAP_RESULTS):
 		var collider = result.get("collider")
 		if collider is Area3D:
 			_last_overlap_count += 1
@@ -125,24 +131,25 @@ func _try_hit(area: Area3D) -> void:
 	if not _has_clear_line_to(area):
 		return
 	var target_id := area.get_instance_id()
-	if target_id in _hit_targets:
-		return
-	_hit_targets.append(target_id)
+	var now := Time.get_ticks_msec() / 1000.0
+	if _hit_times.has(target_id):
+		if rehit_interval <= 0.0:
+			return
+		if now - float(_hit_times[target_id]) < rehit_interval:
+			return
+	_hit_times[target_id] = now
 	var direction := Vector3.ZERO
 	if _owner_node:
 		direction = (area.global_position - _owner_node.global_position).normalized()
 	var final_damage := damage_amount
+	var is_crit := false
 	if _crit_chance > 0.0 and randf() < _crit_chance:
-		final_damage *= 1.5
+		final_damage *= _crit_multiplier
+		is_crit = true
 	var info := DamageInfo.create(
-		final_damage,
-		poise_damage,
-		_owner_node,
-		_damage_type,
-		direction,
-		_status_id,
-		_status_stacks
+		final_damage, poise_damage, _owner_node, _damage_type, direction, _status_id, _status_stacks
 	)
+	info.crit = is_crit
 	area.call("receive_hit", info)
 	var hit_pos := area.global_position
 	if area.get_parent() is Node3D:
@@ -150,7 +157,7 @@ func _try_hit(area: Area3D) -> void:
 	VfxService.play_hit_spark(hit_pos, direction)
 	var feedback := _owner_node.get_node_or_null("HitFeedback")
 	if feedback and feedback.has_method("on_hit"):
-		feedback.on_hit(area.get_parent(), damage_amount, direction)
+		feedback.on_hit(area.get_parent(), damage_amount, direction, _damage_type)
 
 
 func _find_combat_owner() -> Node:

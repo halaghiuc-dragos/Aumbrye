@@ -1,7 +1,9 @@
 extends RefCounted
 class_name BiomeRegistry
 
-## Client-side biome → room scenes, materials, lighting, audio (M5 + M7 expansion).
+## Data-driven biome kit loader: room scenes, materials, lighting, audio.
+
+const LootTableLoaderScript := preload("res://scripts/loot/loot_table_loader.gd")
 
 const BIOME_CASTLE := "forgotten_castle"
 const BIOME_CRYSTAL := "crystal_caverns"
@@ -14,210 +16,165 @@ const BIOME_MIRE := "venom_mire"
 const BIOME_HOLLOW := "glacial_hollow"
 const BIOME_UMBRAL := "umbral_chapel"
 
-const ALL_BIOMES: Array[String] = [
-	BIOME_CASTLE, BIOME_CRYSTAL, BIOME_SWAMP, BIOME_FROZEN, BIOME_CATHEDRAL,
-	BIOME_VAULT, BIOME_PRISM, BIOME_MIRE, BIOME_HOLLOW, BIOME_UMBRAL,
+const ROOM_KINDS := [
+	"entrance",
+	"stairs",
+	"corridor",
+	"courtyard",
+	"hall",
+	"treasure",
+	"secret",
+	"arena",
+	"boss",
+	"puzzle",
 ]
+
+static var ALL_BIOMES: Array[String] = []
+static var _cache: Dictionary = {}
+static var _room_scene_cache: Dictionary = {}
+static var _index_ready := false
+
+
+static func warm_index() -> void:
+	_ensure_biome_index()
+
+
+static func get_biome(biome_id: String) -> Dictionary:
+	if _cache.has(biome_id):
+		return (_cache[biome_id] as Dictionary).duplicate(true)
+	var data := ContentLoader.load_json("content/biomes/%s.json" % biome_id)
+	if data.is_empty():
+		push_error("BiomeRegistry: unknown biome '%s'" % biome_id)
+		return {}
+	if not _validate_biome(data, biome_id):
+		return {}
+	data = _resolve_loot_tables(data, biome_id)
+	_cache[biome_id] = data.duplicate(true)
+	return data.duplicate(true)
 
 
 static func get_display_name(biome_id: String) -> String:
-	match biome_id:
-		BIOME_CRYSTAL:
-			return "Crystal Caverns"
-		BIOME_SWAMP:
-			return "Poison Swamp"
-		BIOME_FROZEN:
-			return "Frozen Fortress"
-		BIOME_CATHEDRAL:
-			return "Dark Cathedral"
-		BIOME_VAULT:
-			return "Iron Vault"
-		BIOME_PRISM:
-			return "Prism Depths"
-		BIOME_MIRE:
-			return "Venom Mire"
-		BIOME_HOLLOW:
-			return "Glacial Hollow"
-		BIOME_UMBRAL:
-			return "Umbral Chapel"
-		_:
-			return "Forgotten Castle"
+	var biome := get_biome(biome_id)
+	if biome.is_empty():
+		return ""
+	return str(biome.get("name", ""))
 
 
 static func get_room_scenes(biome_id: String) -> Dictionary:
-	match biome_id:
-		BIOME_CRYSTAL:
-			return _crystal_rooms()
-		BIOME_SWAMP:
-			return _swamp_rooms()
-		BIOME_FROZEN:
-			return _frozen_rooms()
-		BIOME_CATHEDRAL:
-			return _cathedral_rooms()
-		BIOME_VAULT:
-			return _vault_rooms()
-		BIOME_PRISM:
-			return _prism_rooms()
-		BIOME_MIRE:
-			return _mire_rooms()
-		BIOME_HOLLOW:
-			return _hollow_rooms()
-		BIOME_UMBRAL:
-			return _umbral_rooms()
-		_:
-			return _castle_rooms()
+	if _room_scene_cache.has(biome_id):
+		return _room_scene_cache[biome_id]
+	var biome := get_biome(biome_id)
+	if biome.is_empty():
+		return {}
+	var prefix := str(biome.get("templatePrefix", ""))
+	var folder := str(biome.get("assetFolder", ""))
+	var scenes := {}
+	for kind in ROOM_KINDS:
+		var template_id := "%s_%s" % [prefix, kind]
+		var path := "res://scenes/rooms/%s/%s.tscn" % [folder, template_id]
+		if ResourceLoader.exists(path):
+			scenes[template_id] = ResourceLoader.load(path)
+	_room_scene_cache[biome_id] = scenes
+	return scenes
+
+
+static func get_room_scene(biome_id: String, template_id: String) -> Variant:
+	return get_room_scenes(biome_id).get(template_id, null)
 
 
 static func get_floor_material(biome_id: String) -> Material:
-	return load(_material_path(biome_id, "mat_floor.tres"))
+	return _load_material(biome_id, "floor")
 
 
 static func get_wall_material(biome_id: String) -> Material:
-	return load(_material_path(biome_id, "mat_wall.tres"))
+	return _load_material(biome_id, "wall")
 
 
 static func get_ceiling_material(biome_id: String) -> Material:
-	return get_wall_material(biome_id)
+	return _load_material(biome_id, "ceiling")
 
 
 static func get_accent_material(biome_id: String) -> Material:
-	return load(_material_path(biome_id, "mat_accent.tres"))
+	return _load_material(biome_id, "accent")
 
 
 static func biome_from_template_id(template_id: String) -> String:
+	_ensure_biome_index()
 	var prefix := template_id.get_slice("_", 0)
-	match prefix:
-		"crystal":
-			return BIOME_CRYSTAL
-		"swamp":
-			return BIOME_SWAMP
-		"frozen":
-			return BIOME_FROZEN
-		"cathedral":
-			return BIOME_CATHEDRAL
-		"vault":
-			return BIOME_VAULT
-		"prism":
-			return BIOME_PRISM
-		"mire":
-			return BIOME_MIRE
-		"hollow":
-			return BIOME_HOLLOW
-		"umbral":
-			return BIOME_UMBRAL
-		_:
-			return BIOME_CASTLE
+	for biome_id in ALL_BIOMES:
+		var biome := get_biome(biome_id)
+		if str(biome.get("templatePrefix", "")) == prefix:
+			return biome_id
+	return BIOME_CASTLE if prefix == "castle" else ""
+
+
+static func get_grade_profile(biome_id: String) -> Dictionary:
+	var biome := get_biome(biome_id)
+	if biome.is_empty():
+		return {}
+	var grade: Variant = biome.get("grade", {})
+	if not grade is Dictionary:
+		return {}
+	var raw: Dictionary = grade as Dictionary
+	var profile := {}
+	if raw.has("shadowTint"):
+		profile["shadow_tint"] = _color_from_array(raw.get("shadowTint"))
+	if raw.has("shadowTintAmount"):
+		profile["shadow_tint_amount"] = float(raw.get("shadowTintAmount"))
+	if raw.has("highlightTint"):
+		profile["highlight_tint"] = _color_from_array(raw.get("highlightTint"))
+	if raw.has("highlightTintAmount"):
+		profile["highlight_tint_amount"] = float(raw.get("highlightTintAmount"))
+	return profile
 
 
 static func get_lighting_profile(biome_id: String) -> Dictionary:
-	match biome_id:
-		BIOME_CRYSTAL:
-			return {
-				"ambient_color": Color(0.35, 0.5, 0.75),
-				"ambient_energy": 0.55,
-				"fog_enabled": true,
-				"fog_color": Color(0.12, 0.2, 0.35),
-				"fog_density": 0.02,
-			}
-		BIOME_SWAMP:
-			return {
-				"ambient_color": Color(0.25, 0.35, 0.2),
-				"ambient_energy": 0.4,
-				"fog_enabled": true,
-				"fog_color": Color(0.1, 0.15, 0.08),
-				"fog_density": 0.035,
-			}
-		BIOME_FROZEN:
-			return {
-				"ambient_color": Color(0.5, 0.6, 0.75),
-				"ambient_energy": 0.6,
-				"fog_enabled": true,
-				"fog_color": Color(0.7, 0.8, 0.9),
-				"fog_density": 0.025,
-			}
-		BIOME_CATHEDRAL:
-			return {
-				"ambient_color": Color(0.2, 0.15, 0.28),
-				"ambient_energy": 0.35,
-				"fog_enabled": true,
-				"fog_color": Color(0.08, 0.05, 0.12),
-				"fog_density": 0.02,
-			}
-		BIOME_VAULT:
-			return {
-				"ambient_color": Color(0.4, 0.35, 0.32),
-				"ambient_energy": 0.45,
-				"fog_enabled": true,
-				"fog_color": Color(0.12, 0.1, 0.08),
-				"fog_density": 0.018,
-			}
-		BIOME_PRISM:
-			return {
-				"ambient_color": Color(0.42, 0.58, 0.82),
-				"ambient_energy": 0.58,
-				"fog_enabled": true,
-				"fog_color": Color(0.15, 0.25, 0.42),
-				"fog_density": 0.022,
-			}
-		BIOME_MIRE:
-			return {
-				"ambient_color": Color(0.28, 0.42, 0.22),
-				"ambient_energy": 0.42,
-				"fog_enabled": true,
-				"fog_color": Color(0.08, 0.18, 0.06),
-				"fog_density": 0.038,
-			}
-		BIOME_HOLLOW:
-			return {
-				"ambient_color": Color(0.58, 0.68, 0.82),
-				"ambient_energy": 0.62,
-				"fog_enabled": true,
-				"fog_color": Color(0.75, 0.85, 0.95),
-				"fog_density": 0.028,
-			}
-		BIOME_UMBRAL:
-			return {
-				"ambient_color": Color(0.18, 0.12, 0.26),
-				"ambient_energy": 0.34,
-				"fog_enabled": true,
-				"fog_color": Color(0.06, 0.04, 0.1),
-				"fog_density": 0.024,
-			}
-		_:
-			return {
-				"ambient_color": Color(0.58, 0.5, 0.44),
-				"ambient_energy": 0.78,
-				"fog_enabled": false,
-				"fog_color": Color(0.2, 0.18, 0.22),
-				"fog_density": 0.008,
-			}
+	var biome := get_biome(biome_id)
+	if biome.is_empty():
+		return {}
+	var lighting: Dictionary = biome.get("lighting", {})
+	return {
+		"ambient_color": _color_from_array(lighting.get("ambientColor", [0.4, 0.4, 0.45])),
+		"ambient_energy": float(lighting.get("ambientEnergy", 0.5)),
+		"fog_enabled": bool(lighting.get("fogEnabled", false)),
+		"fog_color": _color_from_array(lighting.get("fogColor", [0.2, 0.2, 0.25])),
+		"fog_density": float(lighting.get("fogDensity", 0.01)),
+		"torch_color": _color_from_array(lighting.get("torchColor", [1.0, 0.72, 0.38])),
+		"torch_energy": float(lighting.get("torchEnergy", 2.2)),
+	}
 
 
-static func apply_run_presentation(parent: Node3D, biome_id: String, run_mode: String = "") -> WorldEnvironment:
+static func apply_run_presentation(
+	parent: Node3D, biome_id: String, run_mode: String = ""
+) -> WorldEnvironment:
 	var lighting := get_lighting_profile(biome_id)
+	if lighting.is_empty():
+		return null
 	var env_node := WorldEnvironment.new()
 	env_node.name = "WorldEnvironment"
 	var environment := Environment.new()
 	environment.background_mode = Environment.BG_COLOR
 	environment.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
-	environment.ambient_light_color = lighting.get("ambient_color", Color(0.4, 0.4, 0.45))
-	environment.ambient_light_energy = lighting.get("ambient_energy", 0.5)
+	var profile_ambient: Color = lighting.get("ambient_color", Color(0.4, 0.4, 0.45))
+	var profile_energy: float = float(lighting.get("ambient_energy", 0.5))
+	environment.ambient_light_color = profile_ambient
+	environment.ambient_light_energy = profile_energy
 	environment.fog_enabled = bool(lighting.get("fog_enabled", false))
 	environment.fog_light_color = lighting.get("fog_color", Color(0.2, 0.2, 0.25))
-	environment.fog_density = lighting.get("fog_density", 0.01)
+	environment.fog_density = float(lighting.get("fog_density", 0.01))
 
 	var uses_indoor_lighting := run_mode in [RunModeConfig.MODE_CASTLE, RunModeConfig.MODE_ENDLESS]
 	var needs_arena_boost := run_mode == RunModeConfig.MODE_WAVES
 	if needs_arena_boost:
-		environment.background_color = Color(0.12, 0.1, 0.18)
-		environment.ambient_light_color = Color(0.48, 0.42, 0.62)
-		environment.ambient_light_energy = maxf(float(environment.ambient_light_energy), 0.72)
+		var waves_tint := Color(0.48, 0.42, 0.62)
+		environment.ambient_light_color = profile_ambient.lerp(waves_tint, 0.4)
+		environment.ambient_light_energy = maxf(profile_energy, profile_energy * 1.3)
+		environment.background_color = profile_ambient.lerp(Color(0.12, 0.1, 0.18), 0.55)
 		environment.fog_enabled = false
 	elif uses_indoor_lighting:
 		VisualLighting.apply_indoor_environment(environment, lighting)
 	else:
-		var ambient: Color = environment.ambient_light_color
-		environment.background_color = ambient.lerp(Color(0.12, 0.11, 0.16), 0.55)
+		environment.background_color = profile_ambient.lerp(Color(0.12, 0.11, 0.16), 0.55)
 		PixelDioramaSettings.configure_environment(environment)
 
 	env_node.environment = environment
@@ -235,19 +192,24 @@ static func apply_run_presentation(parent: Node3D, biome_id: String, run_mode: S
 	if needs_arena_boost and parent.get_node_or_null("ArenaFillLight") == null:
 		var fill := OmniLight3D.new()
 		fill.name = "ArenaFillLight"
-		fill.light_color = Color(0.72, 0.68, 0.9)
-		fill.light_energy = 0.55
+		var torch: Color = lighting.get("torch_color", Color(0.72, 0.68, 0.9))
+		fill.light_color = torch.lerp(Color(0.72, 0.68, 0.9), 0.35)
+		fill.light_energy = float(lighting.get("torch_energy", 0.55)) * 0.25
 		fill.omni_range = 28.0
 		fill.position = Vector3(0, 10, 0)
 		parent.add_child(fill)
 
 	VisualLighting.apply_biome_atmosphere(parent, biome_id)
+	PixelDioramaSettings.set_biome_screen_grade(biome_id)
 	AudioDirector.set_biome(biome_id)
 	return env_node
 
 
 static func get_audio_profile_path(biome_id: String) -> String:
-	return "content/audio_profiles/%s.json" % biome_id
+	var biome := get_biome(biome_id)
+	if biome.is_empty():
+		return ""
+	return str(biome.get("audioProfile", ""))
 
 
 static func resolve_biome_id(definition: Dictionary, fallback: String = BIOME_CASTLE) -> String:
@@ -257,165 +219,99 @@ static func resolve_biome_id(definition: Dictionary, fallback: String = BIOME_CA
 	return biome_id
 
 
-static func _material_path(biome_id: String, file_name: String) -> String:
-	match biome_id:
-		BIOME_CRYSTAL:
-			return "res://assets/crystal/%s" % file_name
-		BIOME_SWAMP:
-			return "res://assets/swamp/%s" % file_name
-		BIOME_FROZEN:
-			return "res://assets/frozen/%s" % file_name
-		BIOME_CATHEDRAL:
-			return "res://assets/cathedral/%s" % file_name
-		BIOME_VAULT:
-			return "res://assets/vault/%s" % file_name
-		BIOME_PRISM:
-			return "res://assets/prism/%s" % file_name
-		BIOME_MIRE:
-			return "res://assets/mire/%s" % file_name
-		BIOME_HOLLOW:
-			return "res://assets/hollow/%s" % file_name
-		BIOME_UMBRAL:
-			return "res://assets/umbral/%s" % file_name
-		_:
-			return "res://assets/castle/%s" % file_name
+static func room_scene_path(biome_id: String, kind: String) -> String:
+	var biome := get_biome(biome_id)
+	if biome.is_empty():
+		return ""
+	var prefix := str(biome.get("templatePrefix", ""))
+	var folder := str(biome.get("assetFolder", ""))
+	return "res://scenes/rooms/%s/%s_%s.tscn" % [folder, prefix, kind]
 
 
-static func _castle_rooms() -> Dictionary:
-	return {
-		"castle_entrance": preload("res://scenes/rooms/castle/castle_entrance.tscn"),
-		"castle_stairs": preload("res://scenes/rooms/castle/castle_stairs.tscn"),
-		"castle_courtyard": preload("res://scenes/rooms/castle/castle_courtyard.tscn"),
-		"castle_hall": preload("res://scenes/rooms/castle/castle_hall.tscn"),
-		"castle_treasure": preload("res://scenes/rooms/castle/castle_treasure.tscn"),
-		"castle_secret": preload("res://scenes/rooms/castle/castle_secret.tscn"),
-		"castle_arena": preload("res://scenes/rooms/castle/castle_arena.tscn"),
-		"castle_boss": preload("res://scenes/rooms/castle/castle_boss.tscn"),
-		"castle_puzzle": preload("res://scenes/rooms/castle/castle_puzzle.tscn"),
-	}
+static func clear_caches() -> void:
+	_cache.clear()
+	_room_scene_cache.clear()
 
 
-static func _crystal_rooms() -> Dictionary:
-	return {
-		"crystal_entrance": preload("res://scenes/rooms/crystal/crystal_entrance.tscn"),
-		"crystal_stairs": preload("res://scenes/rooms/crystal/crystal_stairs.tscn"),
-		"crystal_courtyard": preload("res://scenes/rooms/crystal/crystal_courtyard.tscn"),
-		"crystal_hall": preload("res://scenes/rooms/crystal/crystal_hall.tscn"),
-		"crystal_treasure": preload("res://scenes/rooms/crystal/crystal_treasure.tscn"),
-		"crystal_secret": preload("res://scenes/rooms/crystal/crystal_secret.tscn"),
-		"crystal_arena": preload("res://scenes/rooms/crystal/crystal_arena.tscn"),
-		"crystal_boss": preload("res://scenes/rooms/crystal/crystal_boss.tscn"),
-		"crystal_puzzle": preload("res://scenes/rooms/crystal/crystal_puzzle.tscn"),
-	}
+static func _ensure_biome_index() -> void:
+	if _index_ready:
+		return
+	_index_ready = true
+	ALL_BIOMES.clear()
+	var dir_path := ContentLoader.content_path("content/biomes")
+	var dir := DirAccess.open(dir_path)
+	if dir == null:
+		push_error("BiomeRegistry: cannot open %s" % dir_path)
+		return
+	dir.list_dir_begin()
+	var entry := dir.get_next()
+	while entry != "":
+		if not dir.current_is_dir() and entry.ends_with(".json"):
+			var biome_id := entry.get_basename()
+			ALL_BIOMES.append(biome_id)
+		entry = dir.get_next()
+	dir.list_dir_end()
+	ALL_BIOMES.sort()
 
 
-static func _swamp_rooms() -> Dictionary:
-	return {
-		"swamp_entrance": preload("res://scenes/rooms/swamp/swamp_entrance.tscn"),
-		"swamp_stairs": preload("res://scenes/rooms/swamp/swamp_stairs.tscn"),
-		"swamp_courtyard": preload("res://scenes/rooms/swamp/swamp_courtyard.tscn"),
-		"swamp_hall": preload("res://scenes/rooms/swamp/swamp_hall.tscn"),
-		"swamp_treasure": preload("res://scenes/rooms/swamp/swamp_treasure.tscn"),
-		"swamp_secret": preload("res://scenes/rooms/swamp/swamp_secret.tscn"),
-		"swamp_arena": preload("res://scenes/rooms/swamp/swamp_arena.tscn"),
-		"swamp_boss": preload("res://scenes/rooms/swamp/swamp_boss.tscn"),
-		"swamp_puzzle": preload("res://scenes/rooms/swamp/swamp_puzzle.tscn"),
-	}
+static func _load_material(biome_id: String, slot: String) -> Material:
+	var biome := get_biome(biome_id)
+	if biome.is_empty():
+		return null
+	var materials: Dictionary = biome.get("materials", {})
+	var path := str(materials.get(slot, ""))
+	if path.is_empty() or not ResourceLoader.exists(path):
+		push_error("BiomeRegistry: missing material '%s' for '%s'" % [slot, biome_id])
+		return null
+	var mat := load(path) as Material
+	if mat == null:
+		return null
+	var dup := mat.duplicate()
+	if dup is ShaderMaterial:
+		return PixelDioramaSettings.track(dup as ShaderMaterial)
+	return dup
 
 
-static func _frozen_rooms() -> Dictionary:
-	return {
-		"frozen_entrance": preload("res://scenes/rooms/frozen/frozen_entrance.tscn"),
-		"frozen_stairs": preload("res://scenes/rooms/frozen/frozen_stairs.tscn"),
-		"frozen_courtyard": preload("res://scenes/rooms/frozen/frozen_courtyard.tscn"),
-		"frozen_hall": preload("res://scenes/rooms/frozen/frozen_hall.tscn"),
-		"frozen_treasure": preload("res://scenes/rooms/frozen/frozen_treasure.tscn"),
-		"frozen_secret": preload("res://scenes/rooms/frozen/frozen_secret.tscn"),
-		"frozen_arena": preload("res://scenes/rooms/frozen/frozen_arena.tscn"),
-		"frozen_boss": preload("res://scenes/rooms/frozen/frozen_boss.tscn"),
-		"frozen_puzzle": preload("res://scenes/rooms/frozen/frozen_puzzle.tscn"),
-	}
+static func _color_from_array(raw: Variant) -> Color:
+	if raw is Array and (raw as Array).size() >= 3:
+		var arr: Array = raw
+		return Color(float(arr[0]), float(arr[1]), float(arr[2]))
+	return Color(0.4, 0.4, 0.45)
 
 
-static func _cathedral_rooms() -> Dictionary:
-	return {
-		"cathedral_entrance": preload("res://scenes/rooms/cathedral/cathedral_entrance.tscn"),
-		"cathedral_stairs": preload("res://scenes/rooms/cathedral/cathedral_stairs.tscn"),
-		"cathedral_courtyard": preload("res://scenes/rooms/cathedral/cathedral_courtyard.tscn"),
-		"cathedral_hall": preload("res://scenes/rooms/cathedral/cathedral_hall.tscn"),
-		"cathedral_treasure": preload("res://scenes/rooms/cathedral/cathedral_treasure.tscn"),
-		"cathedral_secret": preload("res://scenes/rooms/cathedral/cathedral_secret.tscn"),
-		"cathedral_arena": preload("res://scenes/rooms/cathedral/cathedral_arena.tscn"),
-		"cathedral_boss": preload("res://scenes/rooms/cathedral/cathedral_boss.tscn"),
-		"cathedral_puzzle": preload("res://scenes/rooms/cathedral/cathedral_puzzle.tscn"),
-	}
+static func _validate_biome(data: Dictionary, biome_id: String) -> bool:
+	if str(data.get("id", "")) != biome_id:
+		push_error("BiomeRegistry: id mismatch for '%s'" % biome_id)
+		return false
+	for key in [
+		"templatePrefix",
+		"assetFolder",
+		"materials",
+		"lighting",
+		"audioProfile",
+		"propKit",
+		"enemyPool",
+		"bossPool",
+		"budgets",
+		"trapPool",
+	]:
+		if not data.has(key):
+			push_error("BiomeRegistry: missing '%s' in '%s'" % [key, biome_id])
+			return false
+	if not data.has("lootTables") and not data.has("lootTablePath"):
+		push_error("BiomeRegistry: missing lootTables or lootTablePath in '%s'" % biome_id)
+		return false
+	var tables: Dictionary = LootTableLoaderScript.resolve_loot_tables(data)
+	for role in ["treasure", "secret", "side", "armory"]:
+		if not tables.has(role) or not (tables[role] is Array):
+			push_error("BiomeRegistry: lootTables.%s missing in '%s'" % [role, biome_id])
+			return false
+	return true
 
 
-static func _vault_rooms() -> Dictionary:
-	return {
-		"vault_entrance": preload("res://scenes/rooms/vault/vault_entrance.tscn"),
-		"vault_stairs": preload("res://scenes/rooms/vault/vault_stairs.tscn"),
-		"vault_courtyard": preload("res://scenes/rooms/vault/vault_courtyard.tscn"),
-		"vault_hall": preload("res://scenes/rooms/vault/vault_hall.tscn"),
-		"vault_treasure": preload("res://scenes/rooms/vault/vault_treasure.tscn"),
-		"vault_secret": preload("res://scenes/rooms/vault/vault_secret.tscn"),
-		"vault_arena": preload("res://scenes/rooms/vault/vault_arena.tscn"),
-		"vault_boss": preload("res://scenes/rooms/vault/vault_boss.tscn"),
-		"vault_puzzle": preload("res://scenes/rooms/vault/vault_puzzle.tscn"),
-	}
-
-
-static func _prism_rooms() -> Dictionary:
-	return {
-		"prism_entrance": preload("res://scenes/rooms/prism/prism_entrance.tscn"),
-		"prism_stairs": preload("res://scenes/rooms/prism/prism_stairs.tscn"),
-		"prism_courtyard": preload("res://scenes/rooms/prism/prism_courtyard.tscn"),
-		"prism_hall": preload("res://scenes/rooms/prism/prism_hall.tscn"),
-		"prism_treasure": preload("res://scenes/rooms/prism/prism_treasure.tscn"),
-		"prism_secret": preload("res://scenes/rooms/prism/prism_secret.tscn"),
-		"prism_arena": preload("res://scenes/rooms/prism/prism_arena.tscn"),
-		"prism_boss": preload("res://scenes/rooms/prism/prism_boss.tscn"),
-		"prism_puzzle": preload("res://scenes/rooms/prism/prism_puzzle.tscn"),
-	}
-
-
-static func _mire_rooms() -> Dictionary:
-	return {
-		"mire_entrance": preload("res://scenes/rooms/mire/mire_entrance.tscn"),
-		"mire_stairs": preload("res://scenes/rooms/mire/mire_stairs.tscn"),
-		"mire_courtyard": preload("res://scenes/rooms/mire/mire_courtyard.tscn"),
-		"mire_hall": preload("res://scenes/rooms/mire/mire_hall.tscn"),
-		"mire_treasure": preload("res://scenes/rooms/mire/mire_treasure.tscn"),
-		"mire_secret": preload("res://scenes/rooms/mire/mire_secret.tscn"),
-		"mire_arena": preload("res://scenes/rooms/mire/mire_arena.tscn"),
-		"mire_boss": preload("res://scenes/rooms/mire/mire_boss.tscn"),
-		"mire_puzzle": preload("res://scenes/rooms/mire/mire_puzzle.tscn"),
-	}
-
-
-static func _hollow_rooms() -> Dictionary:
-	return {
-		"hollow_entrance": preload("res://scenes/rooms/hollow/hollow_entrance.tscn"),
-		"hollow_stairs": preload("res://scenes/rooms/hollow/hollow_stairs.tscn"),
-		"hollow_courtyard": preload("res://scenes/rooms/hollow/hollow_courtyard.tscn"),
-		"hollow_hall": preload("res://scenes/rooms/hollow/hollow_hall.tscn"),
-		"hollow_treasure": preload("res://scenes/rooms/hollow/hollow_treasure.tscn"),
-		"hollow_secret": preload("res://scenes/rooms/hollow/hollow_secret.tscn"),
-		"hollow_arena": preload("res://scenes/rooms/hollow/hollow_arena.tscn"),
-		"hollow_boss": preload("res://scenes/rooms/hollow/hollow_boss.tscn"),
-		"hollow_puzzle": preload("res://scenes/rooms/hollow/hollow_puzzle.tscn"),
-	}
-
-
-static func _umbral_rooms() -> Dictionary:
-	return {
-		"umbral_entrance": preload("res://scenes/rooms/umbral/umbral_entrance.tscn"),
-		"umbral_stairs": preload("res://scenes/rooms/umbral/umbral_stairs.tscn"),
-		"umbral_courtyard": preload("res://scenes/rooms/umbral/umbral_courtyard.tscn"),
-		"umbral_hall": preload("res://scenes/rooms/umbral/umbral_hall.tscn"),
-		"umbral_treasure": preload("res://scenes/rooms/umbral/umbral_treasure.tscn"),
-		"umbral_secret": preload("res://scenes/rooms/umbral/umbral_secret.tscn"),
-		"umbral_arena": preload("res://scenes/rooms/umbral/umbral_arena.tscn"),
-		"umbral_boss": preload("res://scenes/rooms/umbral/umbral_boss.tscn"),
-		"umbral_puzzle": preload("res://scenes/rooms/umbral/umbral_puzzle.tscn"),
-	}
+static func _resolve_loot_tables(data: Dictionary, _biome_id: String) -> Dictionary:
+	var resolved := data.duplicate(true)
+	var tables: Dictionary = LootTableLoaderScript.resolve_loot_tables(resolved)
+	if not tables.is_empty():
+		resolved["lootTables"] = tables
+	return resolved

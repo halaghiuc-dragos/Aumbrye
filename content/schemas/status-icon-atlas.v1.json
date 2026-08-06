@@ -1,0 +1,6 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://aumbrye.dev/schemas/status-icon-atlas.v1.json",
+  "title": "StatusIconAtlas",
+  "allOf": [{ "$ref": "ui-symbol-atlas.v1.json" }]
+}

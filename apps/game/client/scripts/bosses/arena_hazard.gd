@@ -7,6 +7,7 @@ const DioramaSkin := preload("res://scripts/art/props/diorama_interactable_skin.
 enum State { TELEGRAPH, ACTIVE, FADE }
 
 @export var damage := 8.0
+@export var poise_damage := 5.0
 @export var telegraph_time := 1.0
 @export var active_time := 2.5
 
@@ -23,6 +24,10 @@ func _ready() -> void:
 	_active_zone.material_override = DioramaSkin.make_telegraph_material(Color(1, 0.2, 0, 0.9))
 	_active_zone.visible = false
 	_damage_area.monitoring = false
+	if _damage_area:
+		_damage_area.damage = damage
+		if _damage_area.get("poise_damage") != null:
+			_damage_area.poise_damage = poise_damage
 	_timer = telegraph_time
 
 

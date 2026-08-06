@@ -66,7 +66,10 @@ func _draw() -> void:
 			continue
 		var center := _map_point(_room_center(room_id), map_rect)
 		var color := COLOR_CURRENT if room_id == _current_room_id else COLOR_VISITED
-		draw_rect(Rect2(center - Vector2(CELL * 0.45, CELL * 0.45), Vector2(CELL * 0.9, CELL * 0.9)), color)
+		draw_rect(
+			Rect2(center - Vector2(CELL * 0.45, CELL * 0.45), Vector2(CELL * 0.9, CELL * 0.9)),
+			color
+		)
 	_draw_branch_previews(map_rect)
 
 
@@ -109,8 +112,7 @@ func _map_point(world_xz: Vector2, map_rect: Rect2) -> Vector2:
 	if _bounds.size.y > 0.0:
 		ny = (world_xz.y - _bounds.position.y) / _bounds.size.y
 	return Vector2(
-		map_rect.position.x + nx * map_rect.size.x,
-		map_rect.position.y + ny * map_rect.size.y
+		map_rect.position.x + nx * map_rect.size.x, map_rect.position.y + ny * map_rect.size.y
 	)
 
 
@@ -134,11 +136,13 @@ func _draw_branch_previews(map_rect: Rect2) -> void:
 		else:
 			var half := 3.0
 			draw_colored_polygon(
-				PackedVector2Array([
-					center + Vector2(0.0, -half),
-					center + Vector2(half, 0.0),
-					center + Vector2(0.0, half),
-					center + Vector2(-half, 0.0),
-				]),
+				PackedVector2Array(
+					[
+						center + Vector2(0.0, -half),
+						center + Vector2(half, 0.0),
+						center + Vector2(0.0, half),
+						center + Vector2(-half, 0.0),
+					]
+				),
 				Color(0.9, 0.22, 0.15, 0.95)
 			)

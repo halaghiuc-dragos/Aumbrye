@@ -1,14 +1,13 @@
 {
   "id": "dark_cathedral",
   "name": "Dark Cathedral",
-  "roomCount": {
-    "min": 6,
-    "max": 10
-  },
-  "gridStep": 14,
+  "templatePrefix": "cathedral",
+  "assetFolder": "cathedral",
+  "roomCount": { "min": 6, "max": 10 },
   "roomTemplateIds": [
     "cathedral_entrance",
     "cathedral_stairs",
+    "cathedral_corridor",
     "cathedral_courtyard",
     "cathedral_hall",
     "cathedral_treasure",
@@ -17,6 +16,30 @@
     "cathedral_boss",
     "cathedral_puzzle"
   ],
+  "materials": {
+    "floor": "res://assets/cathedral/mat_floor.tres",
+    "wall": "res://assets/cathedral/mat_wall.tres",
+    "ceiling": "res://assets/cathedral/mat_ceiling.tres",
+    "accent": "res://assets/cathedral/mat_accent.tres"
+  },
+  "lighting": {
+    "ambientColor": [0.2, 0.15, 0.28],
+    "ambientEnergy": 0.35,
+    "fogEnabled": true,
+    "fogColor": [0.08, 0.05, 0.12],
+    "fogDensity": 0.02,
+    "torchColor": [0.75, 0.55, 0.95],
+    "torchEnergy": 2.0
+  },
+  "audioProfile": "content/audio_profiles/dark_cathedral.json",
+  "propKit": {
+    "pillar": "res://scenes/props/cathedral/pillar.tscn",
+    "sconce": "res://scenes/props/cathedral/sconce.tscn",
+    "rubble": [
+      "res://scenes/props/cathedral/rubble_a.tscn",
+      "res://scenes/props/cathedral/rubble_b.tscn"
+    ]
+  },
   "enemyPool": [
     { "enemyId": "cathedral_acolyte", "weight": 3 },
     { "enemyId": "cathedral_warden", "weight": 2 },
@@ -24,7 +47,8 @@
     { "enemyId": "miniboss_cathedral_bell", "weight": 1 }
   ],
   "bossPool": [
-    { "enemyId": "boss_cathedral_hollow" }
+    { "enemyId": "boss_cathedral_hollow", "weight": 3 },
+    { "enemyId": "miniboss_cathedral_bell", "weight": 1 }
   ],
   "budgets": {
     "baseEnemyThreat": 100,
@@ -32,5 +56,25 @@
     "threatPerTier": 20,
     "lootPerTier": 10
   },
-  "requiresSecret": true
+  "lootTables": {
+    "treasure": [
+      { "itemId": "health_potion", "quantity": [2, 3], "weight": 3 },
+      { "itemId": "shadow_relic_veil", "quantity": [1, 1], "weight": 2 }
+    ],
+    "secret": [
+      { "itemId": "shadow_relic_veil", "quantity": [1, 1], "weight": 2 },
+      { "itemId": "health_potion", "quantity": [3, 4], "weight": 3 }
+    ],
+    "side": [
+      { "itemId": "cathedral_warden_helm", "quantity": [1, 1], "weight": 2 },
+      { "itemId": "sun_relic_medallion", "quantity": [1, 1], "weight": 2 }
+    ],
+    "armory": [{ "itemId": "cathedral_arcane_staff", "quantity": [1, 1], "weight": 1 }]
+  },
+  "trapPool": [
+    { "trapId": "shadow_trap", "weight": 3 },
+    { "trapId": "falling_trap", "weight": 1 }
+  ],
+  "requiresSecret": true,
+  "finalFloor": { "bossId": "boss_cathedral_hollow" }
 }

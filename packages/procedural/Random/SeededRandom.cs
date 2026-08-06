@@ -16,15 +16,13 @@ public sealed class SeededRandom
 
     public int NextInt(int maxExclusive)
     {
-        if (maxExclusive <= 0)
-            throw new ArgumentOutOfRangeException(nameof(maxExclusive));
+        ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(maxExclusive, 0);
         return (int)(NextULong() % (ulong)maxExclusive);
     }
 
     public int NextInt(int minInclusive, int maxExclusive)
     {
-        if (maxExclusive <= minInclusive)
-            throw new ArgumentOutOfRangeException(nameof(maxExclusive));
+        ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(maxExclusive, minInclusive);
         var range = (ulong)(maxExclusive - minInclusive);
         return minInclusive + (int)(NextULong() % range);
     }

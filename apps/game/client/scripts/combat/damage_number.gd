@@ -7,7 +7,13 @@ const RISE_SPEED := 1.2
 @onready var _label: Label3D = $Label3D
 
 
-static func spawn(world_position: Vector3, amount: float, parent: Node) -> void:
+func _ready() -> void:
+	add_to_group("damage_number")
+
+
+static func spawn(
+	world_position: Vector3, amount: float, parent: Node, damage_type: String = "physical"
+) -> void:
 	var scene := load("res://scenes/combat/damage_number.tscn") as PackedScene
 	if scene == null:
 		return
@@ -15,10 +21,12 @@ static func spawn(world_position: Vector3, amount: float, parent: Node) -> void:
 	parent.add_child(node)
 	node.global_position = world_position + Vector3(0.0, 1.8, 0.0)
 	if node.has_method("show_amount"):
-		node.call("show_amount", amount)
+		node.call("show_amount", amount, damage_type)
 
 
-static func spawn_text(world_position: Vector3, text: String, parent: Node, color: Color = Color.WHITE) -> void:
+static func spawn_text(
+	world_position: Vector3, text: String, parent: Node, color: Color = Color.WHITE
+) -> void:
 	var scene := load("res://scenes/combat/damage_number.tscn") as PackedScene
 	if scene == null:
 		return
@@ -29,10 +37,10 @@ static func spawn_text(world_position: Vector3, text: String, parent: Node, colo
 		node.call("show_text", text, color)
 
 
-func show_amount(amount: float) -> void:
+func show_amount(amount: float, damage_type: String = "physical") -> void:
 	if _label:
 		_label.text = str(int(round(amount)))
-		_label.modulate = Color(1.0, 0.35, 0.25)
+		_label.modulate = AccessibilitySettings.get_damage_color(damage_type)
 	_animate_float()
 
 

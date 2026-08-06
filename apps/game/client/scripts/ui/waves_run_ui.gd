@@ -8,6 +8,8 @@ const MenuShellScript := preload("res://scripts/ui/menu_shell.gd")
 var _label: Label
 var _ready_button: Button
 var _reward_box: VBoxContainer
+var _confirm_button: Button
+var _confirm_hint: Label
 var _selected_rewards: Array[String] = []
 
 
@@ -48,7 +50,10 @@ func refresh_lobby() -> void:
 	for i in total:
 		if WavesRunService.chests_opened.get(str(i), false):
 			opened += 1
-	_label.text = "Open all %d chests (%d/%d). Walk to chest + E. Waves loadout only." % [total, opened, total]
+	_label.text = (
+		"Open all %d chests (%d/%d). Walk to chest + E. Waves loadout only."
+		% [total, opened, total]
+	)
 	_ready_button.disabled = not WavesRunService.all_chests_opened()
 	if WavesRunService.all_chests_opened() and not WavesRunService.lobby_ready:
 		_label.text += "\nAll chests open — press Ready."
@@ -82,8 +87,13 @@ func show_reward_pick() -> void:
 		btn.pressed.connect(_on_pick_reward.bind(item_id, btn))
 		GameUISkinScript.wire_button_sfx(btn)
 		_reward_box.add_child(btn)
-	var confirm := MenuShellScript.make_menu_button("Confirm selection", _on_confirm_rewards)
-	_reward_box.add_child(confirm)
+	_confirm_hint = Label.new()
+	_confirm_hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	GameUISkinScript.style_body_label(_confirm_hint)
+	_reward_box.add_child(_confirm_hint)
+	_confirm_button = MenuShellScript.make_menu_button("Confirm selection", _on_confirm_rewards)
+	_reward_box.add_child(_confirm_button)
+	_refresh_confirm_state()
 
 
 func _on_ready_pressed() -> void:
@@ -101,9 +111,30 @@ func _on_pick_reward(item_id: String, btn: Button) -> void:
 	elif _selected_rewards.size() < 3:
 		_selected_rewards.append(item_id)
 		btn.button_pressed = true
+	_refresh_confirm_state()
+
+
+func _inventory_item_count() -> int:
+	var count := 0
+	for slot in WavesRunService.waves_inventory.slots:
+		if str(slot.get("itemId", "")) != "":
+			count += 1
+	return count
+
+
+func _refresh_confirm_state() -> void:
+	if _confirm_button == null:
+		return
+	var item_count := _inventory_item_count()
+	var needs_pick := item_count > 0 and _selected_rewards.is_empty()
+	_confirm_button.disabled = needs_pick
+	if _confirm_hint:
+		_confirm_hint.text = "Pick at least one reward" if needs_pick else ""
 
 
 func _on_confirm_rewards() -> void:
+	if _confirm_button and _confirm_button.disabled:
+		return
 	var run := get_tree().get_first_node_in_group("waves_run")
 	if run and run.has_method("complete_waves_with_rewards"):
 		run.call("complete_waves_with_rewards", _selected_rewards.duplicate())

@@ -10,4 +10,5 @@ public sealed record PutSaveRequest(
 
 public sealed record PutSaveResponse(
     DateTimeOffset UpdatedAt,
-    bool Conflict = false);
+    bool Conflict = false,
+    string? ServerStateJson = null);

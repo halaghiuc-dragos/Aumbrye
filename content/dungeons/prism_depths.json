@@ -1,0 +1,15 @@
+{
+  "id": "prism_depths",
+  "biomeId": "prism_depths",
+  "order": 7,
+  "clearFlag": "theme_prism_depths_cleared",
+  "unlockRequirement": { "kind": "clear_dungeon", "dungeonId": "iron_vault" },
+  "floorHpGrowth": 0.06,
+  "floorDamageGrowth": 0.04,
+  "bossDoorRequirement": "none",
+  "difficultyTiers": [
+    { "tier": 1, "label": "Refracted", "hpMult": 1.0, "damageMult": 1.0, "lootBonus": 0.0, "modifiers": [] },
+    { "tier": 2, "label": "Prismatic", "hpMult": 1.35, "damageMult": 1.18, "lootBonus": 0.15, "modifiers": ["elite_packs"] },
+    { "tier": 3, "label": "Kaleidoscopic", "hpMult": 1.8, "damageMult": 1.4, "lootBonus": 0.35, "modifiers": ["elite_packs", "no_rest"] }
+  ]
+}

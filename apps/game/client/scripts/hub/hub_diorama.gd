@@ -44,11 +44,11 @@ static func apply(hub: Node3D) -> void:
 	_dress_merchant(hub.get_node_or_null("Merchant"), mats)
 	_dress_storage(hub.get_node_or_null("Storage"), mats)
 	_dress_quest_board(hub.get_node_or_null("QuestBoard"), mats)
-	_position_portals(hub)
+	_dress_mirror(hub.get_node_or_null("Mirror"), mats)
 	_spawn_fountain(hub, mats)
-	_position_player_spawn(hub)
-	_position_service_npcs(hub)
 	_dress_npcs(hub)
+	_position_npcs_from_content(hub)
+	_wire_interact_feedback(hub)
 
 
 static func _load_materials() -> Dictionary:
@@ -65,6 +65,7 @@ static func _dress_floor(hub: Node3D, mats: Dictionary) -> void:
 	var floor_body := hub.get_node_or_null("Floor") as StaticBody3D
 	if floor_body == null:
 		return
+	floor_body.set_meta("surface", "stone")
 	var floor_mesh := floor_body.get_node_or_null("MeshInstance3D") as MeshInstance3D
 	if floor_mesh:
 		floor_mesh.visible = false
@@ -89,16 +90,11 @@ static func _dress_floor(hub: Node3D, mats: Dictionary) -> void:
 			)
 
 	_spawn_accent_path(tiles, mats, origin_x, origin_z, cols, rows)
-	_spawn_tent_door_pads(tiles, mats)
+	_spawn_tent_door_pads(tiles, mats, hub)
 
 
 static func _spawn_accent_path(
-	tiles: Node3D,
-	mats: Dictionary,
-	origin_x: float,
-	origin_z: float,
-	cols: int,
-	rows: int
+	tiles: Node3D, mats: Dictionary, origin_x: float, origin_z: float, cols: int, rows: int
 ) -> void:
 	var center_col: int = cols >> 1
 	for row in rows:
@@ -113,13 +109,14 @@ static func _spawn_accent_path(
 			mats.accent,
 			"PathTile%d" % row
 		)
+		_add_wood_path_collider(tiles, Vector3(origin_x + col * TILE_SIZE, 0.08, z))
 
 
-static func _spawn_tent_door_pads(tiles: Node3D, mats: Dictionary) -> void:
+static func _spawn_tent_door_pads(tiles: Node3D, mats: Dictionary, hub: Node3D) -> void:
 	for service_name in SERVICE_TENTS.keys():
-		var hub_pos: Vector3 = _service_world_position(service_name)
+		var hub_pos: Vector3 = _service_world_position(hub, service_name)
 		var cfg: Dictionary = SERVICE_TENTS[service_name]
-		var yaw: float = _service_yaw(service_name)
+		var yaw: float = _service_yaw(hub, service_name)
 		var half_d: float = float(cfg.get("depth", 5.0)) * 0.5
 		var door_dir: Vector3 = Vector3(0.0, 0.0, 1.0).rotated(Vector3.UP, yaw)
 		var pad_pos: Vector3 = hub_pos + door_dir * (half_d + 0.55)
@@ -132,17 +129,24 @@ static func _spawn_tent_door_pads(tiles: Node3D, mats: Dictionary) -> void:
 		)
 
 
-static func _service_world_position(service_name: String) -> Vector3:
-	match service_name:
-		"Blacksmith":
-			return Vector3(-18.0, 0.0, -4.0)
-		"Merchant":
-			return Vector3(-12.0, 0.0, 14.0)
-		"Storage":
-			return Vector3(0.0, 0.0, 14.0)
-		"QuestBoard":
-			return Vector3(12.0, 0.0, 14.0)
-	return Vector3.ZERO
+static func _service_world_position(hub: Node3D, service_name: String) -> Vector3:
+	var node := hub.get_node_or_null(service_name) as Node3D
+	return node.position if node else Vector3.ZERO
+
+
+static func _add_wood_path_collider(parent: Node3D, center: Vector3) -> void:
+	var body := StaticBody3D.new()
+	body.name = "PathCollider"
+	body.collision_layer = 1
+	body.collision_mask = 0
+	body.position = center
+	body.set_meta("surface", "wood")
+	parent.add_child(body)
+	var collision := CollisionShape3D.new()
+	var shape := BoxShape3D.new()
+	shape.size = Vector3(TILE_SIZE * 0.72, 0.14, TILE_SIZE * 0.72)
+	collision.shape = shape
+	body.add_child(collision)
 
 
 static func _plaza_facing_yaw(world_pos: Vector3) -> float:
@@ -153,47 +157,8 @@ static func _plaza_facing_yaw(world_pos: Vector3) -> float:
 	return atan2(to_plaza.x, to_plaza.z)
 
 
-static func _service_yaw(service_name: String) -> float:
-	return _plaza_facing_yaw(_service_world_position(service_name))
-
-
-static func _position_portals(hub: Node3D) -> void:
-	var portal_names := [
-		"CastlePortal",
-		"UmbralEndlessPortal",
-		"UmbralWavesPortal",
-		"ArenaDoor",
-	]
-	for i in portal_names.size():
-		var portal := hub.get_node_or_null(portal_names[i]) as Node3D
-		if portal == null:
-			continue
-		var x := PORTAL_WALL_X_START - float(i) * PORTAL_WALL_SPACING
-		portal.position = Vector3(x, 0.0, NORTH_WALL_Z)
-		portal.rotation.y = 0.0
-	var hidden_names := ["SkiesPortal", "CathedralPortal"]
-	for j in hidden_names.size():
-		var hidden := hub.get_node_or_null(hidden_names[j]) as Node3D
-		if hidden == null:
-			continue
-		var hidden_x := PORTAL_WALL_X_START - float(portal_names.size() + j) * PORTAL_WALL_SPACING
-		hidden.position = Vector3(hidden_x, 0.0, NORTH_WALL_Z)
-		hidden.rotation.y = 0.0
-
-
-static func _position_player_spawn(hub: Node3D) -> void:
-	var player := hub.get_node_or_null("Player") as Node3D
-	if player == null:
-		return
-	player.position = PLAYER_SPAWN_POS
-	player.rotation.y = 0.0
-	var facing := player.get_node_or_null("Facing") as Node3D
-	var face_portals := Vector3(PORTAL_WALL_X_START, 0.0, NORTH_WALL_Z) - PLAYER_SPAWN_POS
-	face_portals.y = 0.0
-	if facing and face_portals.length_squared() > 0.0001:
-		facing.rotation.y = LockOnMovement.world_direction_to_local_facing_y(
-			player, face_portals
-		)
+static func _service_yaw(hub: Node3D, service_name: String) -> float:
+	return _plaza_facing_yaw(_service_world_position(hub, service_name))
 
 
 static func _spawn_fountain(hub: Node3D, mats: Dictionary) -> void:
@@ -283,10 +248,18 @@ static func _dress_walls(hub: Node3D, mats: Dictionary) -> void:
 	wall_collision.collision_layer = 1
 	wall_collision.collision_mask = 0
 
-	_add_wall_collision_box(wall_collision, "ColNorth", Vector3(0.0, 2.5, -20.0), Vector3(48.0, 5.0, 1.0))
-	_add_wall_collision_box(wall_collision, "ColSouth", Vector3(0.0, 2.5, 18.0), Vector3(48.0, 5.0, 1.0))
-	_add_wall_collision_box(wall_collision, "ColEast", Vector3(24.0, 2.5, 0.0), Vector3(1.0, 5.0, 40.0))
-	_add_wall_collision_box(wall_collision, "ColWest", Vector3(-24.0, 2.5, 0.0), Vector3(1.0, 5.0, 40.0))
+	_add_wall_collision_box(
+		wall_collision, "ColNorth", Vector3(0.0, 2.5, -20.0), Vector3(48.0, 5.0, 1.0)
+	)
+	_add_wall_collision_box(
+		wall_collision, "ColSouth", Vector3(0.0, 2.5, 18.0), Vector3(48.0, 5.0, 1.0)
+	)
+	_add_wall_collision_box(
+		wall_collision, "ColEast", Vector3(24.0, 2.5, 0.0), Vector3(1.0, 5.0, 40.0)
+	)
+	_add_wall_collision_box(
+		wall_collision, "ColWest", Vector3(-24.0, 2.5, 0.0), Vector3(1.0, 5.0, 40.0)
+	)
 
 	_add_perimeter_accents(walls, mats, parapet_h)
 
@@ -307,7 +280,9 @@ static func _add_tower_parapet_run(
 	run.rotation.y = yaw
 	parent.add_child(run)
 
-	PixelDioramaStyle.add_box(run, Vector3(length, height, thickness), Vector3.ZERO, mats.wall, "Walkway")
+	PixelDioramaStyle.add_box(
+		run, Vector3(length, height, thickness), Vector3.ZERO, mats.wall, "Walkway"
+	)
 	PixelDioramaStyle.add_box(
 		run,
 		Vector3(length + 0.18, 0.14, thickness + 0.14),
@@ -332,10 +307,7 @@ static func _add_tower_parapet_run(
 
 
 static func _add_corner_turret(
-	parent: Node3D,
-	mats: Dictionary,
-	corner_pos: Vector3,
-	parapet_h: float
+	parent: Node3D, mats: Dictionary, corner_pos: Vector3, parapet_h: float
 ) -> void:
 	var turret_h := parapet_h + 2.45
 	PixelDioramaStyle.add_box(
@@ -365,10 +337,7 @@ static func _add_corner_turret(
 
 
 static func _add_wall_collision_box(
-	parent: StaticBody3D,
-	node_name: String,
-	center: Vector3,
-	size: Vector3
+	parent: StaticBody3D, node_name: String, center: Vector3, size: Vector3
 ) -> void:
 	var shape_node := CollisionShape3D.new()
 	shape_node.name = node_name
@@ -386,11 +355,7 @@ static func _add_perimeter_accents(parent: Node3D, mats: Dictionary, parapet_h: 
 		{"pos": Vector3(18.0, accent_y, -19.2), "name": "BannerN2"},
 	]:
 		PixelDioramaStyle.add_box(
-			parent,
-			Vector3(0.35, 1.1, 0.12),
-			side.pos,
-			mats.accent,
-			side.name
+			parent, Vector3(0.35, 1.1, 0.12), side.pos, mats.accent, side.name
 		)
 
 
@@ -405,23 +370,42 @@ static func _dress_portal(portal: Node3D, mats: Dictionary, theme: String) -> vo
 	var frame_mat: Material = mats.wall if mats.has("wall") else _portal_frame_material(mats, theme)
 	var accent_mat: Material = _portal_frame_material(mats, theme)
 
-	PixelDioramaStyle.add_box(visuals, Vector3(4.2, 0.22, 2.2), Vector3(0.0, 0.11, 0.0), frame_mat, "Base")
-	PixelDioramaStyle.add_box(visuals, Vector3(3.6, 0.16, 1.8), Vector3(0.0, 0.28, 0.0), accent_mat, "Step")
-	PixelDioramaStyle.add_box(visuals, Vector3(0.62, 3.6, 0.62), Vector3(-1.75, 1.8, 0.0), frame_mat, "PillarL")
-	PixelDioramaStyle.add_box(visuals, Vector3(0.62, 3.6, 0.62), Vector3(1.75, 1.8, 0.0), frame_mat, "PillarR")
-	PixelDioramaStyle.add_box(visuals, Vector3(0.92, 0.38, 0.92), Vector3(-1.75, 3.72, 0.0), accent_mat, "CapitalL")
-	PixelDioramaStyle.add_box(visuals, Vector3(0.92, 0.38, 0.92), Vector3(1.75, 3.72, 0.0), accent_mat, "CapitalR")
-	PixelDioramaStyle.add_box(visuals, Vector3(4.2, 0.55, 0.72), Vector3(0.0, 3.95, 0.0), frame_mat, "Lintel")
-	PixelDioramaStyle.add_box(visuals, Vector3(3.0, 0.22, 0.22), Vector3(0.0, 3.2, 0.0), accent_mat, "ArchKeystone")
-	PixelDioramaStyle.add_box(visuals, Vector3(0.35, 2.8, 0.35), Vector3(-1.2, 1.6, 0.28), frame_mat, "ButtressL")
-	PixelDioramaStyle.add_box(visuals, Vector3(0.35, 2.8, 0.35), Vector3(1.2, 1.6, 0.28), frame_mat, "ButtressR")
-	PixelDioramaStyle.add_portal_interior(
-		visuals,
-		Vector2(2.6, 2.2),
-		Vector3(0.0, 1.55, 0.04),
-		theme
+	PixelDioramaStyle.add_box(
+		visuals, Vector3(4.2, 0.22, 2.2), Vector3(0.0, 0.11, 0.0), frame_mat, "Base"
 	)
-	PixelDioramaStyle.add_box(visuals, Vector3(3.8, 0.16, 1.9), Vector3(0.0, 0.08, 0.0), mats.floor, "Pad")
+	PixelDioramaStyle.add_box(
+		visuals, Vector3(3.6, 0.16, 1.8), Vector3(0.0, 0.28, 0.0), accent_mat, "Step"
+	)
+	PixelDioramaStyle.add_box(
+		visuals, Vector3(0.62, 3.6, 0.62), Vector3(-1.75, 1.8, 0.0), frame_mat, "PillarL"
+	)
+	PixelDioramaStyle.add_box(
+		visuals, Vector3(0.62, 3.6, 0.62), Vector3(1.75, 1.8, 0.0), frame_mat, "PillarR"
+	)
+	PixelDioramaStyle.add_box(
+		visuals, Vector3(0.92, 0.38, 0.92), Vector3(-1.75, 3.72, 0.0), accent_mat, "CapitalL"
+	)
+	PixelDioramaStyle.add_box(
+		visuals, Vector3(0.92, 0.38, 0.92), Vector3(1.75, 3.72, 0.0), accent_mat, "CapitalR"
+	)
+	PixelDioramaStyle.add_box(
+		visuals, Vector3(4.2, 0.55, 0.72), Vector3(0.0, 3.95, 0.0), frame_mat, "Lintel"
+	)
+	PixelDioramaStyle.add_box(
+		visuals, Vector3(3.0, 0.22, 0.22), Vector3(0.0, 3.2, 0.0), accent_mat, "ArchKeystone"
+	)
+	PixelDioramaStyle.add_box(
+		visuals, Vector3(0.35, 2.8, 0.35), Vector3(-1.2, 1.6, 0.28), frame_mat, "ButtressL"
+	)
+	PixelDioramaStyle.add_box(
+		visuals, Vector3(0.35, 2.8, 0.35), Vector3(1.2, 1.6, 0.28), frame_mat, "ButtressR"
+	)
+	PixelDioramaStyle.add_portal_interior(
+		visuals, Vector2(2.6, 2.2), Vector3(0.0, 1.55, 0.04), theme
+	)
+	PixelDioramaStyle.add_box(
+		visuals, Vector3(3.8, 0.16, 1.9), Vector3(0.0, 0.08, 0.0), mats.floor, "Pad"
+	)
 
 	_add_portal_theme_accents(visuals, mats, theme)
 
@@ -467,31 +451,96 @@ static func _portal_light_color(theme: String) -> Color:
 static func _add_portal_theme_accents(visuals: Node3D, mats: Dictionary, theme: String) -> void:
 	match theme:
 		"castle":
-			PixelDioramaStyle.add_box(visuals, Vector3(0.2, 3.0, 0.2), Vector3(-1.55, 1.6, 0.15), mats.accent, "TorchL")
-			PixelDioramaStyle.add_box(visuals, Vector3(0.2, 3.0, 0.2), Vector3(1.55, 1.6, 0.15), mats.accent, "TorchR")
+			PixelDioramaStyle.add_box(
+				visuals, Vector3(0.2, 3.0, 0.2), Vector3(-1.55, 1.6, 0.15), mats.accent, "TorchL"
+			)
+			PixelDioramaStyle.add_box(
+				visuals, Vector3(0.2, 3.0, 0.2), Vector3(1.55, 1.6, 0.15), mats.accent, "TorchR"
+			)
 		"umbral":
-			PixelDioramaStyle.add_box(visuals, Vector3(3.2, 0.18, 0.18), Vector3(0.0, 0.2, 0.85), mats.umbral, "RuneRing")
+			PixelDioramaStyle.add_box(
+				visuals, Vector3(3.2, 0.18, 0.18), Vector3(0.0, 0.2, 0.85), mats.umbral, "RuneRing"
+			)
 		"training":
-			PixelDioramaStyle.add_box(visuals, Vector3(0.22, 0.22, 0.22), Vector3(-1.0, 0.22, 0.75), mats.training, "EmberL")
-			PixelDioramaStyle.add_box(visuals, Vector3(0.22, 0.22, 0.22), Vector3(1.0, 0.22, 0.75), mats.training, "EmberR")
-			PixelDioramaStyle.add_box(visuals, Vector3(0.18, 2.8, 0.18), Vector3(-1.55, 1.6, 0.12), mats.training, "TorchL")
-			PixelDioramaStyle.add_box(visuals, Vector3(0.18, 2.8, 0.18), Vector3(1.55, 1.6, 0.12), mats.training, "TorchR")
+			PixelDioramaStyle.add_box(
+				visuals,
+				Vector3(0.22, 0.22, 0.22),
+				Vector3(-1.0, 0.22, 0.75),
+				mats.training,
+				"EmberL"
+			)
+			PixelDioramaStyle.add_box(
+				visuals,
+				Vector3(0.22, 0.22, 0.22),
+				Vector3(1.0, 0.22, 0.75),
+				mats.training,
+				"EmberR"
+			)
+			PixelDioramaStyle.add_box(
+				visuals,
+				Vector3(0.18, 2.8, 0.18),
+				Vector3(-1.55, 1.6, 0.12),
+				mats.training,
+				"TorchL"
+			)
+			PixelDioramaStyle.add_box(
+				visuals, Vector3(0.18, 2.8, 0.18), Vector3(1.55, 1.6, 0.12), mats.training, "TorchR"
+			)
 		"skies":
-			PixelDioramaStyle.add_box(visuals, Vector3(0.28, 0.55, 0.28), Vector3(-0.55, 3.72, 0.0), mats.dragon, "HornL")
-			PixelDioramaStyle.add_box(visuals, Vector3(0.28, 0.55, 0.28), Vector3(0.55, 3.72, 0.0), mats.dragon, "HornR")
-			PixelDioramaStyle.add_box(visuals, Vector3(0.85, 0.12, 0.55), Vector3(-1.55, 1.9, 0.18), mats.dragon, "WingL")
-			PixelDioramaStyle.add_box(visuals, Vector3(0.85, 0.12, 0.55), Vector3(1.55, 1.9, 0.18), mats.dragon, "WingR")
-			PixelDioramaStyle.add_box(visuals, Vector3(0.35, 0.35, 0.35), Vector3(0.0, 0.28, 0.82), mats.forge, "DragonEye")
+			PixelDioramaStyle.add_box(
+				visuals, Vector3(0.28, 0.55, 0.28), Vector3(-0.55, 3.72, 0.0), mats.dragon, "HornL"
+			)
+			PixelDioramaStyle.add_box(
+				visuals, Vector3(0.28, 0.55, 0.28), Vector3(0.55, 3.72, 0.0), mats.dragon, "HornR"
+			)
+			PixelDioramaStyle.add_box(
+				visuals, Vector3(0.85, 0.12, 0.55), Vector3(-1.55, 1.9, 0.18), mats.dragon, "WingL"
+			)
+			PixelDioramaStyle.add_box(
+				visuals, Vector3(0.85, 0.12, 0.55), Vector3(1.55, 1.9, 0.18), mats.dragon, "WingR"
+			)
+			PixelDioramaStyle.add_box(
+				visuals,
+				Vector3(0.35, 0.35, 0.35),
+				Vector3(0.0, 0.28, 0.82),
+				mats.forge,
+				"DragonEye"
+			)
 		"cathedral":
-			PixelDioramaStyle.add_box(visuals, Vector3(0.22, 0.75, 0.18), Vector3(0.0, 3.55, 0.12), mats.cathedral, "CrossV")
-			PixelDioramaStyle.add_box(visuals, Vector3(0.65, 0.18, 0.18), Vector3(0.0, 3.82, 0.12), mats.cathedral, "CrossH")
-			PixelDioramaStyle.add_box(visuals, Vector3(0.2, 2.9, 0.2), Vector3(-1.55, 1.6, 0.12), mats.cathedral, "PillarTrimL")
-			PixelDioramaStyle.add_box(visuals, Vector3(0.2, 2.9, 0.2), Vector3(1.55, 1.6, 0.12), mats.cathedral, "PillarTrimR")
+			PixelDioramaStyle.add_box(
+				visuals,
+				Vector3(0.22, 0.75, 0.18),
+				Vector3(0.0, 3.55, 0.12),
+				mats.cathedral,
+				"CrossV"
+			)
+			PixelDioramaStyle.add_box(
+				visuals,
+				Vector3(0.65, 0.18, 0.18),
+				Vector3(0.0, 3.82, 0.12),
+				mats.cathedral,
+				"CrossH"
+			)
+			PixelDioramaStyle.add_box(
+				visuals,
+				Vector3(0.2, 2.9, 0.2),
+				Vector3(-1.55, 1.6, 0.12),
+				mats.cathedral,
+				"PillarTrimL"
+			)
+			PixelDioramaStyle.add_box(
+				visuals,
+				Vector3(0.2, 2.9, 0.2),
+				Vector3(1.55, 1.6, 0.12),
+				mats.cathedral,
+				"PillarTrimR"
+			)
 
 
 static func _dress_blacksmith(building: Node3D, mats: Dictionary) -> void:
 	if building == null:
 		return
+	var hub := building.get_parent() as Node3D
 	PixelDioramaStyle.hide_legacy_meshes(building)
 	var dark_wall := mats.wall.duplicate() as ShaderMaterial
 	dark_wall.set_shader_parameter("color_base", Color(0.32, 0.28, 0.24))
@@ -499,18 +548,30 @@ static func _dress_blacksmith(building: Node3D, mats: Dictionary) -> void:
 	var tent_mats := mats.duplicate()
 	tent_mats.wall = dark_wall
 
-	var yaw := _service_yaw("Blacksmith")
-	var visuals := PixelDioramaStyle.add_hub_tent(building, tent_mats, 5.4, 5.0, 2.5, 2.2, 1.35, yaw)
+	var yaw := _service_yaw(hub, "Blacksmith")
+	var visuals := PixelDioramaStyle.add_hub_tent(
+		building, tent_mats, 5.4, 5.0, 2.5, 2.2, 1.35, yaw
+	)
 	var dressing := Node3D.new()
 	dressing.name = "Dressing"
 	visuals.add_child(dressing)
 
 	var forge_mat := (mats.forge as Material).duplicate()
-	var forge := PixelDioramaStyle.add_box(dressing, Vector3(1.2, 1.0, 1.2), Vector3(1.4, 0.5, -0.8), forge_mat, "Forge")
-	PixelDioramaStyle.add_box(dressing, Vector3(0.5, 1.8, 0.5), Vector3(1.4, 1.4, -0.8), mats.wall, "Chimney")
-	PixelDioramaStyle.add_box(dressing, Vector3(0.7, 0.35, 0.5), Vector3(-0.8, 0.55, -0.6), mats.accent, "Anvil")
-	PixelDioramaStyle.add_box(dressing, Vector3(2.0, 0.85, 0.75), Vector3(-1.2, 0.42, -1.2), mats.wood, "Workbench")
-	PixelDioramaStyle.add_box(dressing, Vector3(0.25, 0.9, 0.25), Vector3(-2.0, 0.45, -1.0), mats.accent, "ToolRack")
+	var forge := PixelDioramaStyle.add_box(
+		dressing, Vector3(1.2, 1.0, 1.2), Vector3(1.4, 0.5, -0.8), forge_mat, "Forge"
+	)
+	PixelDioramaStyle.add_box(
+		dressing, Vector3(0.5, 1.8, 0.5), Vector3(1.4, 1.4, -0.8), mats.wall, "Chimney"
+	)
+	PixelDioramaStyle.add_box(
+		dressing, Vector3(0.7, 0.35, 0.5), Vector3(-0.8, 0.55, -0.6), mats.accent, "Anvil"
+	)
+	PixelDioramaStyle.add_box(
+		dressing, Vector3(2.0, 0.85, 0.75), Vector3(-1.2, 0.42, -1.2), mats.wood, "Workbench"
+	)
+	PixelDioramaStyle.add_box(
+		dressing, Vector3(0.25, 0.9, 0.25), Vector3(-2.0, 0.45, -1.0), mats.accent, "ToolRack"
+	)
 
 	var forge_light := OmniLight3D.new()
 	forge_light.name = "ForgeLight"
@@ -532,8 +593,9 @@ static func _dress_blacksmith(building: Node3D, mats: Dictionary) -> void:
 static func _dress_merchant(building: Node3D, mats: Dictionary) -> void:
 	if building == null:
 		return
+	var hub := building.get_parent() as Node3D
 	PixelDioramaStyle.hide_legacy_meshes(building)
-	var yaw := _service_yaw("Merchant")
+	var yaw := _service_yaw(hub, "Merchant")
 	var depth := 4.8
 	var half_d := depth * 0.5
 	var visuals := PixelDioramaStyle.add_hub_tent(building, mats, 5.2, depth, 2.6, 2.4, 1.1, yaw)
@@ -550,11 +612,21 @@ static func _dress_merchant(building: Node3D, mats: Dictionary) -> void:
 			stripe_mat,
 			"Awning%d" % i
 		)
-	PixelDioramaStyle.add_box(dressing, Vector3(3.2, 0.95, 0.65), Vector3(0.0, 0.48, -0.8), mats.wood, "Counter")
-	PixelDioramaStyle.add_box(dressing, Vector3(0.65, 0.65, 0.65), Vector3(-1.3, 0.32, -1.4), mats.accent, "CrateA")
-	PixelDioramaStyle.add_box(dressing, Vector3(0.65, 0.65, 0.65), Vector3(1.3, 0.32, -1.5), mats.accent, "CrateB")
-	PixelDioramaStyle.add_box(dressing, Vector3(2.4, 1.4, 0.3), Vector3(-1.8, 1.05, -1.0), mats.wood, "ShelfL")
-	PixelDioramaStyle.add_box(dressing, Vector3(2.4, 1.4, 0.3), Vector3(1.8, 1.05, -1.0), mats.wood, "ShelfR")
+	PixelDioramaStyle.add_box(
+		dressing, Vector3(3.2, 0.95, 0.65), Vector3(0.0, 0.48, -0.8), mats.wood, "Counter"
+	)
+	PixelDioramaStyle.add_box(
+		dressing, Vector3(0.65, 0.65, 0.65), Vector3(-1.3, 0.32, -1.4), mats.accent, "CrateA"
+	)
+	PixelDioramaStyle.add_box(
+		dressing, Vector3(0.65, 0.65, 0.65), Vector3(1.3, 0.32, -1.5), mats.accent, "CrateB"
+	)
+	PixelDioramaStyle.add_box(
+		dressing, Vector3(2.4, 1.4, 0.3), Vector3(-1.8, 1.05, -1.0), mats.wood, "ShelfL"
+	)
+	PixelDioramaStyle.add_box(
+		dressing, Vector3(2.4, 1.4, 0.3), Vector3(1.8, 1.05, -1.0), mats.wood, "ShelfR"
+	)
 
 	var lantern := OmniLight3D.new()
 	lantern.name = "LanternLight"
@@ -571,15 +643,18 @@ static func _dress_merchant(building: Node3D, mats: Dictionary) -> void:
 static func _dress_storage(building: Node3D, mats: Dictionary) -> void:
 	if building == null:
 		return
+	var hub := building.get_parent() as Node3D
 	PixelDioramaStyle.hide_legacy_meshes(building)
-	var yaw := _service_yaw("Storage")
+	var yaw := _service_yaw(hub, "Storage")
 	var depth := 5.2
 	var visuals := PixelDioramaStyle.add_hub_tent(building, mats, 5.6, depth, 2.8, 2.3, 1.0, yaw)
 	var dressing := Node3D.new()
 	dressing.name = "Dressing"
 	visuals.add_child(dressing)
 
-	PixelDioramaStyle.add_box(dressing, Vector3(3.4, 1.8, 0.35), Vector3(0.0, 0.9, -1.4), mats.wood, "ShelfBack")
+	PixelDioramaStyle.add_box(
+		dressing, Vector3(3.4, 1.8, 0.35), Vector3(0.0, 0.9, -1.4), mats.wood, "ShelfBack"
+	)
 	for i in 3:
 		PixelDioramaStyle.add_box(
 			dressing,
@@ -588,8 +663,12 @@ static func _dress_storage(building: Node3D, mats: Dictionary) -> void:
 			mats.accent,
 			"Crate%d" % i
 		)
-	PixelDioramaStyle.add_cylinder(dressing, 0.4, 0.4, 1.0, Vector3(-1.8, 0.5, -1.0), mats.wood, "BarrelA")
-	PixelDioramaStyle.add_cylinder(dressing, 0.4, 0.4, 1.0, Vector3(1.8, 0.5, -1.0), mats.wood, "BarrelB")
+	PixelDioramaStyle.add_cylinder(
+		dressing, 0.4, 0.4, 1.0, Vector3(-1.8, 0.5, -1.0), mats.wood, "BarrelA"
+	)
+	PixelDioramaStyle.add_cylinder(
+		dressing, 0.4, 0.4, 1.0, Vector3(1.8, 0.5, -1.0), mats.wood, "BarrelB"
+	)
 
 	var lamp := OmniLight3D.new()
 	lamp.name = "StorageLight"
@@ -600,20 +679,15 @@ static func _dress_storage(building: Node3D, mats: Dictionary) -> void:
 	dressing.add_child(lamp)
 
 	_add_ridge_sign(visuals, "Storage", 3.8, mats.accent)
-	_position_door_interact(
-		building,
-		depth,
-		2.3,
-		yaw,
-		Vector3(2.3 + 1.0, 3.0, 3.0)
-	)
+	_position_door_interact(building, depth, 2.3, yaw, Vector3(2.3 + 1.0, 3.0, 3.0))
 
 
 static func _dress_quest_board(board: Node3D, mats: Dictionary) -> void:
 	if board == null:
 		return
+	var hub := board.get_parent() as Node3D
 	PixelDioramaStyle.hide_legacy_meshes(board)
-	var yaw := _service_yaw("QuestBoard")
+	var yaw := _service_yaw(hub, "QuestBoard")
 	var depth := 3.6
 	var half_d := depth * 0.5
 	var visuals := PixelDioramaStyle.add_hub_tent(board, mats, 4.2, depth, 2.2, 2.0, 0.85, yaw)
@@ -621,7 +695,9 @@ static func _dress_quest_board(board: Node3D, mats: Dictionary) -> void:
 	dressing.name = "Dressing"
 	visuals.add_child(dressing)
 
-	PixelDioramaStyle.add_box(dressing, Vector3(2.8, 1.8, 0.16), Vector3(0.0, 1.35, half_d - 0.25), mats.accent, "Board")
+	PixelDioramaStyle.add_box(
+		dressing, Vector3(2.8, 1.8, 0.16), Vector3(0.0, 1.35, half_d - 0.25), mats.accent, "Board"
+	)
 	for i in 4:
 		PixelDioramaStyle.add_box(
 			dressing,
@@ -630,7 +706,9 @@ static func _dress_quest_board(board: Node3D, mats: Dictionary) -> void:
 			mats.paper,
 			"Notice%d" % i
 		)
-	PixelDioramaStyle.add_box(dressing, Vector3(0.45, 0.45, 0.45), Vector3(1.3, 0.22, -0.4), mats.wood, "BenchCrate")
+	PixelDioramaStyle.add_box(
+		dressing, Vector3(0.45, 0.45, 0.45), Vector3(1.3, 0.22, -0.4), mats.wood, "BenchCrate"
+	)
 
 	var paper_light := OmniLight3D.new()
 	paper_light.name = "QuestLight"
@@ -644,12 +722,28 @@ static func _dress_quest_board(board: Node3D, mats: Dictionary) -> void:
 	_position_door_interact(board, depth, 2.0, yaw)
 
 
-static func _add_ridge_sign(visuals: Node3D, label_text: String, ridge_y: float, mat: Material) -> void:
+static func _dress_mirror(mirror: Node3D, mats: Dictionary) -> void:
+	if mirror == null:
+		return
+	PixelDioramaStyle.hide_legacy_meshes(mirror)
+	var frame := mirror.get_node_or_null("Frame") as MeshInstance3D
+	if frame:
+		frame.material_override = mats.accent
+	var label := mirror.get_node_or_null("Label") as Label3D
+	if label:
+		label.text = "Mirror"
+
+
+static func _add_ridge_sign(
+	visuals: Node3D, label_text: String, ridge_y: float, mat: Material
+) -> void:
 	var sign_root := Node3D.new()
 	sign_root.name = "RidgeSign"
 	sign_root.position = Vector3(0.0, ridge_y + 0.72, 0.0)
 	visuals.add_child(sign_root)
-	PixelDioramaStyle.add_box(sign_root, Vector3(1.6, 0.35, 0.12), Vector3(0.0, 0.25, 0.08), mat, "SignBacking")
+	PixelDioramaStyle.add_box(
+		sign_root, Vector3(1.6, 0.35, 0.12), Vector3(0.0, 0.25, 0.08), mat, "SignBacking"
+	)
 	var label := Label3D.new()
 	label.name = "SignLabel"
 	label.text = label_text
@@ -696,30 +790,42 @@ static func _position_door_interact(
 		label.position = door_dir * (half_d + 0.35) + Vector3(0.0, 4.55, 0.0)
 
 
-static func _position_service_npcs(hub: Node3D) -> void:
-	var blacksmith := hub.get_node_or_null("NpcAldric") as Node3D
-	if blacksmith:
-		var bs_yaw := _service_yaw("Blacksmith")
-		var bs_door := Vector3(0.0, 0.0, 1.0).rotated(Vector3.UP, bs_yaw)
-		var bs_pos := _service_world_position("Blacksmith")
-		blacksmith.position = bs_pos + bs_door * 3.1
-		blacksmith.rotation.y = bs_yaw + PI
+static func _wire_interact_feedback(hub: Node3D) -> void:
+	var service_map := {
+		"Blacksmith": "DioramaVisuals/RidgeSign",
+		"Merchant": "DioramaVisuals/RidgeSign",
+		"Storage": "DioramaVisuals/RidgeSign",
+		"QuestBoard": "DioramaVisuals/RidgeSign",
+	}
+	for service_name in service_map.keys():
+		var building := hub.get_node_or_null(service_name) as Node3D
+		if building == null:
+			continue
+		var area := building.get_node_or_null("InteractArea") as HubInteractable
+		if area == null:
+			continue
+		var ridge := building.get_node_or_null(service_map[service_name]) as Node3D
+		if ridge != null:
+			area.highlight_target = area.get_path_to(ridge)
 
-	var merchant := hub.get_node_or_null("NpcElara") as Node3D
-	if merchant:
-		var m_yaw := _service_yaw("Merchant")
-		var m_door := Vector3(0.0, 0.0, 1.0).rotated(Vector3.UP, m_yaw)
-		var m_pos := _service_world_position("Merchant")
-		merchant.position = m_pos + m_door * 2.8
-		merchant.rotation.y = m_yaw + PI
-
-	var mira := hub.get_node_or_null("NpcMira") as Node3D
-	if mira:
-		var q_yaw := _service_yaw("QuestBoard")
-		var q_door := Vector3(0.0, 0.0, 1.0).rotated(Vector3.UP, q_yaw)
-		var q_pos := _service_world_position("QuestBoard")
-		mira.position = q_pos + q_door * 2.6
-		mira.rotation.y = q_yaw + PI
+	var portal_names := [
+		"CastlePortal",
+		"UmbralEndlessPortal",
+		"UmbralWavesPortal",
+		"ArenaDoor",
+		"SkiesPortal",
+		"CathedralPortal",
+	]
+	for portal_name in portal_names:
+		var portal := hub.get_node_or_null(portal_name) as Node3D
+		if portal == null:
+			continue
+		var portal_area := portal.get_node_or_null("InteractArea") as HubInteractable
+		if portal_area == null:
+			continue
+		var glow := portal.get_node_or_null("DioramaVisuals/PortalGlow") as Node3D
+		if glow != null:
+			portal_area.highlight_target = portal_area.get_path_to(glow)
 
 
 static func _dress_npcs(hub: Node3D) -> void:
@@ -727,6 +833,25 @@ static func _dress_npcs(hub: Node3D) -> void:
 		if not child.is_in_group("hub_npc"):
 			continue
 		_style_npc(child as Node3D)
+
+
+static func _position_npcs_from_content(hub: Node3D) -> void:
+	for npc in hub.get_children():
+		if not npc.is_in_group("hub_npc"):
+			continue
+		var npc_id := ""
+		if npc.has_method("get_npc_id"):
+			npc_id = str(npc.call("get_npc_id"))
+		elif "npc_id" in npc:
+			npc_id = str(npc.get("npc_id"))
+		if npc_id == "":
+			continue
+		var def := NpcCatalog.get_definition(npc_id)
+		var pos: Variant = def.get("position", null)
+		if pos is Dictionary:
+			(npc as Node3D).position = Vector3(
+				float(pos.get("x", 0.0)), float(pos.get("y", 0.0)), float(pos.get("z", 0.0))
+			)
 
 
 static func _style_npc(npc: Node3D) -> void:
@@ -751,6 +876,12 @@ static func _style_npc(npc: Node3D) -> void:
 	var visuals := Node3D.new()
 	visuals.name = "DioramaBody"
 	npc.add_child(visuals)
-	PixelDioramaStyle.add_box(visuals, Vector3(0.75, 1.1, 0.45), Vector3(0.0, 0.55, 0.0), body_mat, "Torso")
-	PixelDioramaStyle.add_box(visuals, Vector3(0.42, 0.42, 0.42), Vector3(0.0, 1.35, 0.0), accent_mat, "Head")
-	PixelDioramaStyle.add_box(visuals, Vector3(0.85, 0.18, 0.5), Vector3(0.0, 0.08, 0.0), accent_mat, "Feet")
+	PixelDioramaStyle.add_box(
+		visuals, Vector3(0.75, 1.1, 0.45), Vector3(0.0, 0.55, 0.0), body_mat, "Torso"
+	)
+	PixelDioramaStyle.add_box(
+		visuals, Vector3(0.42, 0.42, 0.42), Vector3(0.0, 1.35, 0.0), accent_mat, "Head"
+	)
+	PixelDioramaStyle.add_box(
+		visuals, Vector3(0.85, 0.18, 0.5), Vector3(0.0, 0.08, 0.0), accent_mat, "Feet"
+	)

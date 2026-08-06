@@ -5,10 +5,17 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <RootNamespace>Aumbrye.Procedural</RootNamespace>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <AnalysisLevel>latest-recommended</AnalysisLevel>
+    <NoWarn>CA1822</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\shared\Aumbrye.Shared.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Aumbrye.UnitTests" />
   </ItemGroup>
 
 </Project>

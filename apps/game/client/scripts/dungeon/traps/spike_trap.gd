@@ -15,7 +15,7 @@ enum State { IDLE, TELEGRAPH, ACTIVE, COOLDOWN }
 
 @onready var _telegraph_mesh: MeshInstance3D = $TelegraphMesh
 var _spikes_mesh: Node3D
-@onready var _hitbox: Area3D = $DamageArea
+@onready var _hitbox: TrapDamageArea = $DamageArea
 
 var _state := State.IDLE
 var _timer := 0.0
@@ -24,14 +24,14 @@ var _player: Node3D
 
 func _ready() -> void:
 	var biome := DioramaSkin.resolve_biome(self)
-	var old_spikes := get_node_or_null("SpikesMesh") as MeshInstance3D
-	if old_spikes:
-		old_spikes.visible = false
 	_spikes_mesh = DioramaSkin.build_spikes(self, biome)
 	_spikes_mesh.visible = false
 	_telegraph_mesh.material_override = DioramaSkin.make_telegraph_material(Color(1, 0.2, 0.2, 0.5))
 	_telegraph_mesh.visible = false
-	_hitbox.monitoring = false
+	_hitbox.damage = damage
+	_hitbox.poise_damage = poise_damage
+	_hitbox.set_damage_active(false)
+	_sync_trigger_radius_from_hitbox()
 	_player = get_tree().get_first_node_in_group("player")
 
 
@@ -63,11 +63,29 @@ func _activate_spikes() -> void:
 	_timer = active_time
 	_telegraph_mesh.visible = false
 	_spikes_mesh.visible = true
-	_hitbox.monitoring = true
+	_hitbox.set_damage_active(true)
 
 
 func _deactivate_spikes() -> void:
 	_state = State.COOLDOWN
 	_timer = cooldown_time
 	_spikes_mesh.visible = false
-	_hitbox.monitoring = false
+	_hitbox.set_damage_active(false)
+
+
+func _sync_trigger_radius_from_hitbox() -> void:
+	var shape_node := _hitbox.get_node_or_null("CollisionShape3D") as CollisionShape3D
+	if shape_node == null or shape_node.shape == null:
+		return
+	var horizontal := 0.0
+	var shape := shape_node.shape
+	if shape is BoxShape3D:
+		var box := shape as BoxShape3D
+		horizontal = maxf(box.size.x, box.size.z) * 0.5
+	elif shape is CapsuleShape3D:
+		var cap := shape as CapsuleShape3D
+		horizontal = cap.radius
+	elif shape is CylinderShape3D:
+		var cyl := shape as CylinderShape3D
+		horizontal = cyl.radius
+	trigger_radius = maxf(trigger_radius, horizontal + 0.5)

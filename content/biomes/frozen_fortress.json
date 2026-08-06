@@ -1,14 +1,13 @@
 {
   "id": "frozen_fortress",
   "name": "Frozen Fortress",
-  "roomCount": {
-    "min": 6,
-    "max": 10
-  },
-  "gridStep": 14,
+  "templatePrefix": "frozen",
+  "assetFolder": "frozen",
+  "roomCount": { "min": 6, "max": 10 },
   "roomTemplateIds": [
     "frozen_entrance",
     "frozen_stairs",
+    "frozen_corridor",
     "frozen_courtyard",
     "frozen_hall",
     "frozen_treasure",
@@ -17,6 +16,30 @@
     "frozen_boss",
     "frozen_puzzle"
   ],
+  "materials": {
+    "floor": "res://assets/frozen/mat_floor.tres",
+    "wall": "res://assets/frozen/mat_wall.tres",
+    "ceiling": "res://assets/frozen/mat_ceiling.tres",
+    "accent": "res://assets/frozen/mat_accent.tres"
+  },
+  "lighting": {
+    "ambientColor": [0.5, 0.6, 0.75],
+    "ambientEnergy": 0.6,
+    "fogEnabled": true,
+    "fogColor": [0.7, 0.8, 0.9],
+    "fogDensity": 0.025,
+    "torchColor": [0.85, 0.92, 1.0],
+    "torchEnergy": 2.1
+  },
+  "audioProfile": "content/audio_profiles/frozen_fortress.json",
+  "propKit": {
+    "pillar": "res://scenes/props/frozen/pillar.tscn",
+    "sconce": "res://scenes/props/frozen/sconce.tscn",
+    "rubble": [
+      "res://scenes/props/frozen/rubble_a.tscn",
+      "res://scenes/props/frozen/rubble_b.tscn"
+    ]
+  },
   "enemyPool": [
     { "enemyId": "frost_raider", "weight": 3 },
     { "enemyId": "frost_archer", "weight": 2 },
@@ -24,7 +47,8 @@
     { "enemyId": "frost_hound", "weight": 2 }
   ],
   "bossPool": [
-    { "enemyId": "boss_frost_warlord" }
+    { "enemyId": "boss_frost_warlord", "weight": 3 },
+    { "enemyId": "miniboss_castle_captain", "weight": 1 }
   ],
   "budgets": {
     "baseEnemyThreat": 100,
@@ -32,5 +56,31 @@
     "threatPerTier": 20,
     "lootPerTier": 10
   },
-  "requiresSecret": true
+  "lootTables": {
+    "treasure": [
+      { "itemId": "health_potion", "quantity": [2, 3], "weight": 3 },
+      { "itemId": "frost_relic_shard", "quantity": [1, 1], "weight": 2 }
+    ],
+    "secret": [
+      { "itemId": "frost_relic_shard", "quantity": [1, 1], "weight": 2 },
+      { "itemId": "health_potion", "quantity": [3, 4], "weight": 3 }
+    ],
+    "side": [
+      { "itemId": "frost_raider_boots", "quantity": [1, 1], "weight": 2 },
+      { "itemId": "frost_relic_shard", "quantity": [1, 1], "weight": 2 }
+    ],
+    "armory": [{ "itemId": "frost_glacier_sword", "quantity": [1, 1], "weight": 1 }]
+  },
+  "trapPool": [
+    { "trapId": "frost_trap", "weight": 3 },
+    { "trapId": "falling_trap", "weight": 1 }
+  ],
+  "grade": {
+    "shadowTint": [0.16, 0.2, 0.32],
+    "shadowTintAmount": 0.12,
+    "highlightTint": [1.0, 0.98, 0.92],
+    "highlightTintAmount": 0.14
+  },
+  "requiresSecret": true,
+  "finalFloor": { "bossId": "boss_frost_warlord" }
 }

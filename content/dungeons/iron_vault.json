@@ -1,0 +1,15 @@
+{
+  "id": "iron_vault",
+  "biomeId": "iron_vault",
+  "order": 6,
+  "clearFlag": "theme_iron_vault_cleared",
+  "unlockRequirement": { "kind": "clear_dungeon", "dungeonId": "dark_cathedral" },
+  "floorHpGrowth": 0.06,
+  "floorDamageGrowth": 0.04,
+  "bossDoorRequirement": "none",
+  "difficultyTiers": [
+    { "tier": 1, "label": "Sealed", "hpMult": 1.0, "damageMult": 1.0, "lootBonus": 0.0, "modifiers": [] },
+    { "tier": 2, "label": "Fortified", "hpMult": 1.35, "damageMult": 1.18, "lootBonus": 0.15, "modifiers": ["elite_packs"] },
+    { "tier": 3, "label": "Impenetrable", "hpMult": 1.8, "damageMult": 1.4, "lootBonus": 0.35, "modifiers": ["elite_packs", "no_rest"] }
+  ]
+}

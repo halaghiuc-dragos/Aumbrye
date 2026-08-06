@@ -1,0 +1,162 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://aumbrye.dev/schemas/character-state.v2.json",
+  "title": "CharacterState",
+  "description": "Runtime character save document (local + cloud cache).",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "schemaVersion",
+    "accountId",
+    "character",
+    "currencies",
+    "inventory",
+    "itemInstances",
+    "talents",
+    "flags",
+    "recipes"
+  ],
+  "properties": {
+    "schemaVersion": { "type": "integer", "minimum": 1, "maximum": 6 },
+    "accountId": { "type": "string", "minLength": 1 },
+    "character": { "$ref": "#/$defs/characterProfile" },
+    "currencies": { "$ref": "#/$defs/currencies" },
+    "inventory": { "$ref": "https://aumbrye.dev/schemas/inventory.v2.json" },
+    "storage": { "$ref": "https://aumbrye.dev/schemas/inventory.v2.json" },
+    "itemInstances": {
+      "type": "object",
+      "additionalProperties": { "$ref": "#/$defs/rolledItemInstance" }
+    },
+    "talents": {
+      "type": "object",
+      "additionalProperties": { "type": "integer", "minimum": 0 }
+    },
+    "talentPointsSpent": { "type": "integer", "minimum": 0 },
+    "flags": {
+      "type": "object",
+      "additionalProperties": {
+        "type": ["boolean", "string", "number", "object"]
+      }
+    },
+    "quests": {
+      "type": "object",
+      "required": ["states", "progress"],
+      "properties": {
+        "states": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string",
+            "enum": ["inactive", "active", "completed", "turned_in"]
+          }
+        },
+        "progress": {
+          "type": "object",
+          "additionalProperties": { "type": "object" }
+        }
+      }
+    },
+    "recipes": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "activeRun": { "type": "object" },
+    "wavesActiveRun": { "type": "object" },
+    "runRelics": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "meta": { "$ref": "#/$defs/meta" },
+    "cloudUpdatedAt": { "type": "string" }
+  },
+  "$defs": {
+    "characterProfile": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["name", "level", "xp"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "level": { "type": "integer", "minimum": 1 },
+        "xp": { "type": "integer", "minimum": 0 },
+        "classId": { "type": "string" },
+        "firstPersonCamera": { "type": "boolean" },
+        "appearanceTheme": { "type": "integer", "minimum": 0, "maximum": 10 },
+        "appearance": { "$ref": "#/$defs/appearanceProfile" }
+      }
+    },
+    "appearanceProfile": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "profileVersion",
+        "theme",
+        "heightVariant",
+        "bulkVariant",
+        "skinTone",
+        "hair",
+        "face",
+        "head",
+        "trim"
+      ],
+      "properties": {
+        "profileVersion": { "const": 1 },
+        "theme": { "type": "integer", "minimum": 0, "maximum": 10 },
+        "heightVariant": { "enum": ["compact", "standard", "tall"] },
+        "bulkVariant": { "enum": ["lean", "standard", "heavy"] },
+        "skinTone": { "enum": ["warm", "neutral", "cool"] },
+        "hair": { "enum": ["none", "short", "long"] },
+        "face": { "enum": ["open", "stern", "kind"] },
+        "head": { "enum": ["open", "visor", "hood"] },
+        "trim": { "type": "integer", "minimum": 0, "maximum": 2 }
+      }
+    },
+    "currencies": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["gold"],
+      "properties": {
+        "gold": { "type": "number", "minimum": 0 }
+      }
+    },
+    "rolledAffix": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["affixId", "value"],
+      "properties": {
+        "affixId": { "type": "string", "minLength": 1 },
+        "value": { "type": "number" }
+      }
+    },
+    "rolledItemInstance": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["schemaVersion", "instanceId", "rarity", "affixes", "rollSeed"],
+      "properties": {
+        "schemaVersion": { "type": "integer", "const": 1 },
+        "instanceId": { "type": "string", "minLength": 1 },
+        "itemDefId": { "type": "string", "minLength": 1 },
+        "itemId": { "type": "string", "minLength": 1 },
+        "rarity": {
+          "type": "string",
+          "enum": ["common", "magic", "rare", "epic", "legendary", "mythic", "aumbral"]
+        },
+        "affixes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/rolledAffix" }
+        },
+        "durability": { "type": "number", "minimum": 0, "maximum": 100 },
+        "bound": { "type": "boolean" },
+        "rollSeed": { "type": "integer" }
+      }
+    },
+    "meta": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "accessibility": { "type": "object" },
+        "leaderboard": { "type": "object" },
+        "hub_tutorial": { "type": "object" },
+        "achievements": { "type": "object" }
+      }
+    }
+  }
+}

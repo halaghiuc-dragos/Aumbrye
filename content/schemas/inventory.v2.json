@@ -1,0 +1,90 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://aumbrye.dev/schemas/inventory.v2.json",
+  "title": "InventorySave",
+  "description": "M2 persisted inventory layout (grid slots + full equipment instances).",
+  "type": "object",
+  "additionalProperties": true,
+  "required": ["schemaVersion", "gridWidth", "gridHeight", "slots", "equipped"],
+  "properties": {
+    "schemaVersion": { "type": "integer", "const": 1 },
+    "gridWidth": { "type": "integer", "minimum": 1 },
+    "gridHeight": { "type": "integer", "minimum": 1 },
+    "slots": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/inventorySlot" }
+    },
+    "equipped": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "helmet": { "$ref": "#/$defs/equippedSlot" },
+        "chest": { "$ref": "#/$defs/equippedSlot" },
+        "gloves": { "$ref": "#/$defs/equippedSlot" },
+        "boots": { "$ref": "#/$defs/equippedSlot" },
+        "weapon": { "$ref": "#/$defs/equippedSlot" },
+        "secondary": { "$ref": "#/$defs/equippedSlot" },
+        "ring": { "$ref": "#/$defs/equippedSlot" },
+        "amulet": { "$ref": "#/$defs/equippedSlot" },
+        "relic": { "$ref": "#/$defs/equippedSlot" }
+      }
+    }
+  },
+  "$defs": {
+    "rolledAffix": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["affixId", "value"],
+      "properties": {
+        "affixId": { "type": "string", "minLength": 1 },
+        "value": { "type": "number" }
+      }
+    },
+    "inventorySlot": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["itemId", "quantity", "x", "y"],
+      "properties": {
+        "itemId": { "type": "string", "minLength": 1 },
+        "instanceId": { "type": "string", "minLength": 1 },
+        "quantity": { "type": "integer", "minimum": 1 },
+        "x": { "type": "integer", "minimum": 0 },
+        "y": { "type": "integer", "minimum": 0 },
+        "rarity": {
+          "type": "string",
+          "enum": ["common", "magic", "rare", "epic", "legendary", "mythic", "aumbral"]
+        },
+        "affixes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/rolledAffix" }
+        },
+        "rollSeed": { "type": "integer" },
+        "upgradeLevel": { "type": "integer", "minimum": 0 },
+        "durability": { "type": "number", "minimum": 0, "maximum": 100 },
+        "keyId": { "type": "string" },
+        "lockId": { "type": "string" },
+        "keyLabel": { "type": "string" }
+      }
+    },
+    "equippedSlot": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "itemId": { "type": "string", "minLength": 1 },
+        "instanceId": { "type": "string", "minLength": 1 },
+        "quantity": { "type": "integer", "minimum": 1 },
+        "rarity": {
+          "type": "string",
+          "enum": ["common", "magic", "rare", "epic", "legendary", "mythic", "aumbral"]
+        },
+        "affixes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/rolledAffix" }
+        },
+        "rollSeed": { "type": "integer" },
+        "upgradeLevel": { "type": "integer", "minimum": 0 },
+        "durability": { "type": "number", "minimum": 0, "maximum": 100 }
+      }
+    }
+  }
+}

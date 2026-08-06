@@ -49,6 +49,10 @@ layout_mode = 2
 custom_minimum_size = Vector2(0, 80)
 layout_mode = 2
 
+[node name="CompletedList" type="ItemList" parent="Panel/Margin/VBox"]
+custom_minimum_size = Vector2(0, 60)
+layout_mode = 2
+
 [node name="DetailLabel" type="Label" parent="Panel/Margin/VBox"]
 layout_mode = 2
 autowrap_mode = 3

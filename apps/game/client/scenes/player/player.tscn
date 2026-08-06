@@ -35,6 +35,11 @@ size = Vector3(0.9, 1.6, 0.9)
 
 [node name="Player" type="CharacterBody3D"]
 collision_layer = 2
+floor_max_angle = 0.837758
+floor_snap_length = 0.35
+floor_stop_on_slope = true
+max_slides = 6
+wall_min_slide_angle = 0.261799
 script = ExtResource("1_locomotion")
 camera_yaw_path = NodePath("CameraPivot")
 facing_path = NodePath("Facing")
@@ -96,7 +101,7 @@ hitbox_path = NodePath("../Facing/WeaponPivot/Hitbox")
 
 [node name="HitFeedback" type="Node" parent="."]
 script = ExtResource("9_feedback")
-camera_path = NodePath("CameraPivot/SpringArm3D/Camera3D")
+camera_path = NodePath("../CameraPivot/SpringArm3D")
 
 [node name="LockOn" type="Node" parent="."]
 script = ExtResource("13_lockon")
@@ -112,7 +117,7 @@ collision_mask = 1
 script = ExtResource("12_camera")
 yaw_pivot_path = NodePath("..")
 
-[node name="Camera3D" type="Camera3D" parent="CameraPivot/SpringArm3D"]
+[node name="Camera3D" type="Camera3D" parent="CameraPivot/SpringArm3D" groups=["pixel_render_source"]]
 current = true
 
 [node name="Hurtbox" type="Area3D" parent="."]

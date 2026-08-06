@@ -3,7 +3,7 @@ extends "res://scripts/enemies/castle_archer.gd"
 ## Swamp witch — poison ranged caster (THEME-5.3).
 
 
-func get_enemy_id() -> String:
+func _resolve_enemy_id() -> String:
 	return "swamp_witch"
 
 

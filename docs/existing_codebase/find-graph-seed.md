@@ -1,99 +1,105 @@
-# find_graph_seed diagnostic
+# procgen seed health tool
 
-A 29-line headless script that reports whether one seed produces a valid `forgotten_castle` room graph on its first attempt, or the validation reason it failed. It is the only diagnostic tooling that exists for the room graph generator.
+Headless procgen health reporter that sweeps seed ranges across all ten EA biomes, writes `procgen-seed-health.v1` JSON, prints a summary table, and exits non-zero when fallback or generation-error thresholds are exceeded. Replaces the deleted `find_graph_seed.gd` single-attempt diagnostic.
 
 ## Files
 
 | Path | Role |
 |------|------|
-| `apps/game/client/scripts/tools/find_graph_seed.gd` | `SceneTree` script: load biome, build config, run one generation attempt, print the result |
+| `apps/game/client/scripts/tools/procgen_seed_health.gd` | `SceneTree` entry: argument parsing, sweep, JSON report, exit codes |
+| `apps/game/client/scripts/dungeon/procgen/room_graph_generator.gd` | `GenerationReport` + `generate_reported()` public API used by the tool |
+| `content/schemas/procgen-seed-health.v1.json` | JSON Schema for the report artifact |
+| `apps/game/client/scripts/validation/suites/procgen_seed_health_suite.gd` | Validation suite (registered in `validation_runner.gd:33`) |
+| `.github/workflows/ci.yml:270-276` | CI sweep step + artifact upload |
 
 ## How it works
 
+### Invocation
+
+From repo root (`apps/game/client/project.godot`):
+
 ```
-godot --path . --headless --script res://scripts/tools/find_graph_seed.gd [seed]
+godot --path apps/game/client --headless --script res://scripts/tools/procgen_seed_health.gd -- --from 1 --count 500
 ```
 
-That invocation line is copied from the file header (`find_graph_seed.gd:4`). `--path .` only resolves when the working directory is `apps/game/client`, since that is where `project.godot` lives — from the repo root the command needs `--path apps/game/client`.
+From `apps/game/client`:
 
-`_initialize()` (`:11-29`) does five things:
+```
+godot --path . --headless --script res://scripts/tools/procgen_seed_health.gd -- --from 1 --count 500
+```
 
-1. Defaults `seed` to `42001` and scans `OS.get_cmdline_args()` for the first argument that satisfies `is_valid_int()` (`:12-17`). Engine flags are included in that array, so any numeric-looking engine argument that appears before the intended seed wins.
-2. Loads the biome with `ProcgenBiomeLoader.load("forgotten_castle")` (`:18`), which reads `content/biomes/forgotten_castle.json` through the `ContentLoader` autoload (`procgen_biome_loader.gd:5-6`). The biome id is hardcoded; the other nine biomes cannot be tested.
-3. Builds a `RoomGraphConfig` with `from_biome` (`:19`).
-4. Seeds a fresh `RandomNumberGenerator` and calls `RoomGraphGeneratorScript._try_generate_once(config, rng)` (`:20-22`) — the private single-attempt function, not the public `generate()`.
-5. Prints either `seed %d FAIL: %s` with `RoomGraphGeneratorScript._last_validate_reason` (`:24`) or `seed %d OK main=%d` with `_count_main_slots(graph)` (`:26-28`), then `quit()` with the default exit code 0 (`:29`).
+User arguments are read from `OS.get_cmdline_user_args()` (`procgen_seed_health.gd:54`), so engine flags such as `--fixed-fps 60` do not affect parsing (FGS-07).
 
-### What "FAIL" does and does not mean
+| Argument | Default | Meaning |
+|----------|---------|---------|
+| `--seed <int>` | — | single-seed mode: print metrics + optional ASCII |
+| `--from <int>` | `1` | sweep start, inclusive |
+| `--count <int>` | `1000` | seeds per biome |
+| `--biome <id>` | all 10 ids in `BIOME_IDS` | comma-separated biome filter |
+| `--max-fallback-rate <float>` | `0.01` | exit `1` when any biome exceeds this |
+| `--report <path>` | `reports/procgen_seed_health.json` | JSON output (repo-root relative) |
+| `--ascii` | off | print ASCII graph in single-seed mode |
+| `--find-first-fallback` | off | walk upward from `--from` for first retry seed |
 
-The public generator retries. `RoomGraphGenerator.generate()` (`room_graph_generator.gd:34-49`) loops `config.max_generation_attempts` times, reseeding with `run_seed + (attempt + 1) * 1_000_003` after each miss, and only then builds a fallback graph with `run_seed ^ 0xFA11BAC`. The tool runs attempt one only. A `FAIL` line therefore says "this seed missed on its first attempt", not "the game falls back on this seed", and an `OK` line says nothing about the retry path.
+### Per-seed generation
 
-The tool also never reports the thing an operator actually wants to know: whether `generate()` returned `used_fallback` (`:49`). Reading that flag would require calling the public function.
+Each seed calls `RoomGraphGenerator.generate_reported(config, seed_value)` (`room_graph_generator.gd:42-61`), which mirrors the shipping retry loop in `generate()` (`:64-79`): up to `config.max_generation_attempts` attempts with reseed `run_seed + (attempt + 1) * 1_000_003`. There is no fallback graph today (`used_fallback` is always `false`; see [`room-graph-procgen.md`](room-graph-procgen.md)).
 
-### Validation reasons it can print
+The tool never calls private generator members (`_try_generate_once`, `_last_validate_reason`, `_count_main_slots`).
 
-`_last_validate_reason` is a static var (`room_graph_generator.gd:31`) set by `_validate_graph` (`:486-522`), so the tool can print any of:
+### Sweep output
 
-| Reason | Line |
-|--------|------|
-| `Room count %d below minimum %d` | `:486` |
-| `Unreachable room '%s' from start` | `:496` |
-| `Boss room not assigned` | `:499` |
-| `Boss too close to start (%d < %d)` | `:502` |
-| `Not enough dead ends (%d < %d)` | `:512` |
-| `2x2 block detected at %s` | `:520` |
+`build_sweep_report()` (`procgen_seed_health.gd:133-161`) iterates biomes in sorted id order and seeds ascending. Per biome it accumulates `firstAttemptOk`, `retriedOk`, `usedFallback`, `attemptHistogram`, bucketed `failureReasons`, `mainRoomCount` stats, and `worstSeeds` (top 10 by attempts desc, seed asc).
 
-The var is cleared to `""` on success (`:522`) and is process-global, so a stale value from an earlier attempt in the same process would be printed as-is. In this one-attempt tool that cannot happen, but nothing in the design prevents it.
+Stdout prints a fixed-width table via `print_summary_table()` (`:218-238`). JSON is written to `reports/` (gitignored per `.gitignore:175`).
 
-### Root JSON artifacts
+### Exit codes
 
-`seed1.json` and `seed99999.json` at the repo root are **not** output of this tool. It prints one text line and writes no files. Both artifacts are canonical-JSON `DungeonDefinition` dumps from the C# `tools/procgen-cli`: alphabetically ordered keys, a `checksum` field, a GUID `runId`, `position` keys inside placements, and no `roomContent` / `locks` / `landmarks` / `branchPreviews` — all C# CLI markers, none of which the GDScript generator produces.
+`evaluate_exit_code()` (`procgen_seed_health.gd:164-171`):
 
-| File | `seed` field | Rooms | `checksum` |
-|------|-------------|-------|-----------|
-| `seed1.json:1` | `2000007` | 9 | `7cfec53d...` |
-| `seed99999.json:1` | `99999` | 10 | `1564465e...` |
+| Code | Condition |
+|------|-----------|
+| `0` | every biome `fallbackRate` ≤ `--max-fallback-rate` |
+| `1` | any biome exceeds the threshold |
+| `2` | biome JSON load failure or `generate_reported().ok == false` |
 
-Note that `seed1.json` contains seed `2000007`, so the filename does not match its contents. Both files are untracked and covered by `.gitignore:177` (`/seed*.json`). They are treated as stray root artifacts by [`repository-root.md`](repository-root.md).
+### Single-seed mode
 
-### Comparison with the other tool script
+`--seed 42001 --ascii` prints room count, boss distance, dead-end count against config thresholds and calls `RoomGraphDebug.print_graph()` (`procgen_seed_health.gd:244-246`).
 
-`apps/game/client/scripts/tools/` contains exactly two scripts (`find_graph_seed.gd`, `export_diorama_anim_libraries.gd`). The export tool runs in CI (`.github/workflows/ci.yml:118`); `find_graph_seed.gd` has no CI step, no wrapper in `tools/`, and no mention in any workflow or `package.json` script.
+### Headless biome loading
+
+The tool reads biome JSON directly via `_fetch_biome()` (`:468-478`) using `_content_root()` — no `ContentLoader` autoload required, matching the `export_diorama_anim_libraries.gd` pattern.
 
 ## Contracts
 
-- Invocation: `godot --path <project> --headless --script res://scripts/tools/find_graph_seed.gd [seed]`; a `SceneTree` script, so no scene is loaded.
-- Depends on the `ContentLoader` autoload through `ProcgenBiomeLoader`.
-- Depends on three private members of `room_graph_generator.gd`: `_try_generate_once`, `_last_validate_reason`, `_count_main_slots`. Renaming any of them breaks the tool silently at parse or call time.
-- Output is unstructured stdout text; the exit code is always 0.
+- Depends on `RoomGraphGenerator.generate_reported()` only (public API).
+- Report schema: `content/schemas/procgen-seed-health.v1.json`; `schemaVersion: 1`.
+- CI artifact: `reports/procgen_seed_health.json` uploaded as `procgen-seed-health` (`.github/workflows/ci.yml:273-276`).
+- `ProcgenBiomeLoader.load()` is an alias for `fetch()` (`procgen_biome_loader.gd:21-22`) for validation-suite compatibility.
 
 ## Current state
 
 | Surface | Status | Evidence |
 |---------|--------|----------|
-| Single-seed pass/fail report with reason | IMPLEMENTED | `find_graph_seed.gd:22-28` |
-| Seed override from the command line | PARTIAL | first int-valued arg of `OS.get_cmdline_args()` wins, engine flags included (`:13-17`) |
-| Documented invocation | PARTIAL | `--path .` is wrong from the repo root (`:4`); `project.godot` is at `apps/game/client` |
-| Range scan despite the name "find seed" | ABSENT | one seed per process, no loop (`:12-22`) |
-| Retry-aware verdict / `used_fallback` reporting | ABSENT | calls `_try_generate_once`, not `generate()` (`:22` vs `room_graph_generator.gd:34-49`) |
-| Biome selection | ABSENT | `"forgotten_castle"` hardcoded (`:18`) |
-| Tier / floor / player-level inputs | ABSENT | graph config only; no `DungeonProcgen` call |
-| ASCII map output | ABSENT | `RoomGraphDebug.print_graph` exists but is not called; `config.debug_ascii` is never set |
-| Machine-readable output | ABSENT | `print()` only, no JSON, no file write |
-| Non-zero exit on failure | ABSENT | plain `quit()` (`:29`) |
-| CI usage | ABSENT | no reference in `.github/workflows/` |
-| Statistics across seeds (fallback rate, room-count distribution) | ABSENT | no aggregation anywhere in the repo |
-| Uses private API of the generator | PARTIAL | `_try_generate_once`, `_last_validate_reason`, `_count_main_slots` (`:22,24,27`) |
-| `var seed` shadows the global `seed()` function | PARTIAL | `:12` |
-| `seed1.json` / `seed99999.json` provenance | ABSENT from this tool | C# CLI dumps; see the table above |
+| Retry-aware sweep across 10 biomes | IMPLEMENTED | `procgen_seed_health.gd:133-161`, `BIOME_IDS:19-30` |
+| `generate_reported()` public API | IMPLEMENTED | `room_graph_generator.gd:26-61` |
+| JSON report + schema | IMPLEMENTED | `procgen_seed_health.gd:174-181`, `content/schemas/procgen-seed-health.v1.json` |
+| Exit codes 0 / 1 / 2 | IMPLEMENTED | `procgen_seed_health.gd:164-171` |
+| User-args parsing (no engine-flag collision) | IMPLEMENTED | `procgen_seed_health.gd:54-108` |
+| Single-seed ASCII + metrics | IMPLEMENTED | `procgen_seed_health.gd:207-247` |
+| CI sweep + artifact | IMPLEMENTED | `.github/workflows/ci.yml:270-276` |
+| Validation suite | IMPLEMENTED | `procgen_seed_health_suite.gd`, `validation_runner.gd:33` |
+| Root `seed*.json` artifacts | ABSENT | `content_suite.gd` `test_no_root_seed_dumps`; no files at repo root |
+| Fallback graph generation | ABSENT | `used_fallback` always `false`; no `0xFA11BAC` path in generator |
 
 ## Related
 
 - Improvement plan: [`../actual_improvements/find-graph-seed.md`](../actual_improvements/find-graph-seed.md)
-- [`room-graph-procgen.md`](room-graph-procgen.md) — the generator, its validation rules, retry and fallback
-- [`local-procgen.md`](local-procgen.md) — the seed derivation the tool bypasses
-- [`biome-registry.md`](biome-registry.md) — the biome JSON the tool loads
-- [`tools-scripts.md`](tools-scripts.md) — the wider tool inventory
-- [`export-tools.md`](export-tools.md) — the sibling tool script that does run in CI
-- [`validation-harness.md`](validation-harness.md), [`validation-suites.md`](validation-suites.md) — where seed coverage belongs long term
-- [`repository-root.md`](repository-root.md) — the stray root artifacts
+- [`room-graph-procgen.md`](room-graph-procgen.md) — generator, validation rules, retry loop
+- [`local-procgen.md`](local-procgen.md) — seed derivation the tool bypasses
+- [`biome-registry.md`](biome-registry.md) — biome ids (tool uses hardcoded `BIOME_IDS` for headless independence)
+- [`tools-scripts.md`](tools-scripts.md), [`export-tools.md`](export-tools.md) — tool inventory
+- [`validation-harness.md`](validation-harness.md), [`validation-suites.md`](validation-suites.md)
+- [`ci-cd.md`](ci-cd.md) — CI wiring
+- [`repository-root.md`](repository-root.md) — root artifact policy

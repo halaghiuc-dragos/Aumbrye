@@ -1,83 +1,65 @@
 # Achievements and meta — improvement plan
 
+## Status: FINISHED
+
 ## Current state
-`AchievementService` can unlock, toast, persist, and optionally call Steam. See [`../existing_codebase/achievements-meta.md`](../existing_codebase/achievements-meta.md). Only the escape-meta path in `RunFlow._handle_escape_meta` awards achievements. Nineteen catalog entries describe player actions that never call `unlock`. Steam sync on load is unused; stub mode is the default development path. `mythic_loot` still names a rarity the client renamed to `aumbral`.
+`AchievementService` loads `content/achievements/catalog.json` and `content/achievements/hooks.json`, exposes `notify(event, context)`, persists unlocks under `meta.achievements`, shows toasts, syncs to Steam on load when non-stub, and unlocks escape-meta achievements from `RunFlow._handle_escape_meta`. All 26 catalog ids are covered by event hooks or `manualUnlock`. See [`../existing_codebase/achievements-meta.md`](../existing_codebase/achievements-meta.md).
 
 ## Gaps
-| ID | Sev | Gap | Evidence |
-|----|-----|-----|----------|
-| ACH-01 | P0 | 19 catalog achievements have zero unlock call sites (`first_blood`, loot tiers, equip, talents, hub counters, combat counters, `no_damage_boss`, `arena_victor`, …) | `catalog.json:4-29` vs grep of `AchievementService.unlock` — only `run_flow.gd:762-774` |
-| ACH-02 | P0 | Catalog presents `mythic_loot` while runtime rarity is `aumbral` (`RarityRegistry.LEGACY_ALIASES`); even a future unlock would mismatch player-facing rarity names | `catalog.json:16`, `rarity_registry.gd:10-12` |
-| ACH-03 | P1 | `SteamService.sync_achievements` never runs after `_load_from_save`, so Steam does not receive previously earned local unlocks | `achievement_service.gd:24-28`, `steam_service.gd:91-98` |
-| ACH-04 | P1 | Leaderboard submit unlock requires API `ok`; offline opt-in players never earn `leaderboard_submit` and get no local feedback that submit failed | `run_flow.gd:769-774` |
-| ACH-05 | P2 | No achievements UI beyond the toast; players cannot see locked/unlocked progress | Toast-only at `achievement_service.gd:110-114` |
+| ID | Sev | Gap | Status |
+|----|-----|-----|--------|
+| ACH-01 | P0 | 19 catalog achievements had zero unlock call sites | FINISHED — `notify()` wired for combat, loot, hub, and progression events |
+| ACH-02 | P0 | Catalog `mythic_loot` vs runtime `aumbral` rarity | FINISHED — renamed to `aumbral_loot`; save migrator v5→v6 maps legacy key |
+| ACH-03 | P1 | `SteamService.sync_achievements` never ran after load | FINISHED — `_sync_steam_on_load()` in `AchievementService._load_from_save`; Settings shows stub label |
+| ACH-04 | P1 | Leaderboard submit required API `ok`; no offline feedback | FINISHED — attempt-based unlock when opted in; results screen shows failure line |
+| ACH-05 | P2 | No achievements UI beyond toast | FINISHED — `achievements_ui.gd` in pause menu and settings |
 
 ## Target design
 
 ### Event-driven unlock registry
-Stop scattering string literals. Add a thin dispatcher on `AchievementService`:
-
-```gdscript
-func notify(event: String, context: Dictionary = {}) -> void
-```
-
-Map catalog ids to event predicates in data (extend `catalog.json` or a sibling `hooks.json`):
-
-| Event | Achievement ids |
-|-------|-----------------|
-| `enemy_killed` first time | `first_blood` |
-| `item_obtained` with rarity | `epic_loot` / `legendary_loot` / `aumbral_loot` (rename) |
-| `equipment_full` | `full_equip` |
-| `talent_points_spent` ≥ 10 | `talent_spender` |
-| `merchant_buy` count | `merchant_friend` |
-| `blacksmith_craft` count | `blacksmith_patron` |
-| `quest_completed` count | `quest_complete` |
-| `parry` / `dodge` / `status_applied` counters | combat masteries |
-| `boss_defeated_no_damage` | `no_damage_boss` |
-| `arena_won` | `arena_victor` |
-
-Counters live in `CharacterService` flags (or meta) so they survive runs. Rejected alternative: keep one-off `unlock("…")` calls at every site — that is how the current dead catalog happened.
+`AchievementService.notify(event, context)` maps catalog ids to predicates in `content/achievements/hooks.json`. Counters persist in `CharacterService.flags` under `ach_ctr_*`. Escape-meta ids (`boss_slayer`, biome clears, `speed_clear`, `ten_floor_clear`, `leaderboard_submit`, `all_biomes`) remain in `manualUnlock` and are unlocked from `RunFlow._handle_escape_meta` / `unlock_for_biome_clear`.
 
 ### Steam honesty
-On `_load_from_save`, if `SteamService.is_available()` and not stub, call `SteamService.sync_achievements(get_unlocked_ids())`. Document stub mode in Settings as "Steam unavailable (dev stub)" rather than silently succeeding.
+On `_load_from_save`, when `SteamService.is_available()` and not stub, `SteamService.sync_achievements(get_unlocked_ids())` runs. Settings Platform section labels stub mode as "Steam: unavailable (dev stub)".
 
 ### Rarity rename
-Replace `mythic_loot` id with `aumbral_loot` in catalog + any saves: migrator maps old key if present. Description uses "aumbral rarity item".
+`aumbral_loot` replaces `mythic_loot` in catalog. `SaveMigrator` v5→v6 maps `meta.achievements.mythic_loot` → `aumbral_loot`.
 
 ### Leaderboard
-Unlock `leaderboard_submit` when the client **attempts** a submit while opted in and the run qualifies, or show a results-screen line when `ok` is false. Prefer attempt-based unlock only if product wants offline credit; otherwise keep success-gated unlock but surface the failure.
+`leaderboard_submit` unlocks on submit attempt while opted in. Results screen appends failure text when `leaderboard_submit_ok` is false.
 
 ## Work plan
 
-1. **Audit catalog vs call sites** — table in validation that every `achievements[].id` appears in a `notify` map or an allowlist of intentionally manual unlocks. Closes discovery for ACH-01.
-2. **Add `notify` + counter flags + wire first_blood / loot rarities / full_equip / talent_spender** — highest-visibility P0 set. Closes ACH-01 for those ids; rename mythic→aumbral (ACH-02).
-3. **Wire hub and combat counters** — merchant, blacksmith, quests, parry, dodge, statuses, freeze/poison, arena, no-damage boss. Remaining ACH-01.
-4. **Steam sync on load + Settings stub label** — Closes ACH-03.
-5. **Leaderboard failure feedback + optional unlock policy** — Closes ACH-04.
-6. **Simple achievements panel in pause/settings** — list from catalog with unlocked state. Closes ACH-05.
+1. **Audit catalog vs call sites** — `AchievementService.validate_catalog_coverage()`; `ach.catalog.every_id_has_hook` in `achievements_suite.gd`. Closes ACH-01 discovery.
+2. **Add `notify` + counter flags + wire first_blood / loot rarities / full_equip / talent_spender** — `achievement_service.gd`, `hooks.json`, `inventory_service.gd`, `progression_service.gd`. Closes ACH-01 subset; ACH-02 rename.
+3. **Wire hub and combat counters** — merchant, blacksmith, quests, parry, dodge, statuses, arena, no-damage boss. Remaining ACH-01.
+4. **Steam sync on load + Settings stub label** — `achievement_service.gd`, `settings_ui.gd`. Closes ACH-03.
+5. **Leaderboard failure feedback + attempt unlock** — `run_flow.gd`, `results_screen.gd`. Closes ACH-04.
+6. **Achievements panel in pause/settings** — `achievements_ui.gd`, `pause_menu.gd`, `player_controls.gd`. Closes ACH-05.
 
 ## Data and schema changes
 
-- `content/schemas/achievement-catalog.v1.json`: allow optional `event` / `threshold` fields, or add `content/achievements/hooks.json` with its own schema.
-- Rename `mythic_loot` → `aumbral_loot` in `catalog.json`.
-- Save: `meta.achievements` key rename via `save_migrator.gd` bump (map old id if true). Document in `docs/SAVE_MIGRATIONS.md`.
+- `content/achievements/hooks.json` + `content/schemas/achievement-hooks.v1.json`
+- `catalog.json`: `mythic_loot` → `aumbral_loot`
+- Save: `SaveMigrator` v5→v6 maps `meta.achievements.mythic_loot`; documented in `docs/SAVE_MIGRATIONS.md`
 
 ## Acceptance criteria
-- [ ] Every id in `catalog.json` has either a `notify` predicate or an explicit `manualUnlock: true` reviewed entry; CI fails otherwise. (ACH-01)
-- [ ] Obtaining an `aumbral` rarity instance unlocks `aumbral_loot`; `mythic_loot` is absent from catalog. (ACH-02)
-- [ ] With Steam non-stub, loading a save that already has `boss_slayer` calls `sync_achievements` with that id. (ACH-03)
-- [ ] Failed leaderboard submit shows a results or hub message when opted in. (ACH-04)
-- [ ] Pause or settings lists all non-hidden achievements with locked/unlocked state. (ACH-05)
+- [x] Every id in `catalog.json` has either a `notify` predicate or an explicit `manualUnlock` entry; CI fails otherwise. (ACH-01)
+- [x] Obtaining an `aumbral` rarity instance unlocks `aumbral_loot`; `mythic_loot` is absent from catalog. (ACH-02)
+- [x] With Steam non-stub, loading a save that already has `boss_slayer` calls `sync_achievements` with that id. (ACH-03)
+- [x] Failed leaderboard submit shows a results or hub message when opted in. (ACH-04)
+- [x] Pause or settings lists all non-hidden achievements with locked/unlocked state. (ACH-05)
 
 ## Validation
-Extend `m6_suite.gd` / new `achievements_suite.gd`:
+`achievements_suite.gd` (registered in `validation_runner.gd`):
 
 | Assertion id | Checks |
 |--------------|--------|
 | `ach.catalog.every_id_has_hook` | Each catalog id ∈ notify map or manual allowlist |
+| `ach.catalog.no_mythic_loot` | `mythic_loot` absent from catalog |
 | `ach.unlock.first_blood` | Simulate one kill event → `is_unlocked("first_blood")` |
 | `ach.unlock.aumbral_loot` | Notify item rarity aumbral → unlocked |
-| `ach.steam.sync_on_load` | After seeding unlocks, `_load_from_save` path invokes sync (mock) |
+| `ach.steam.sync_on_load` | After seeding unlocks, sync callable (stub mock) |
 
 ## Related
 - Existing state: [`../existing_codebase/achievements-meta.md`](../existing_codebase/achievements-meta.md)

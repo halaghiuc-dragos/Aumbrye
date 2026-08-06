@@ -1,0 +1,7 @@
+[
+  { "id": "forgotten_castle", "label": "Forgotten Castle" },
+  { "id": "crystal_caverns", "label": "Crystal Caverns" },
+  { "id": "poison_swamp", "label": "Poison Swamp" },
+  { "id": "frozen_fortress", "label": "Frozen Fortress" },
+  { "id": "dark_cathedral", "label": "Dark Cathedral" }
+]

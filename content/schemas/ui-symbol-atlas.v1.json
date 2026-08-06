@@ -1,0 +1,37 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://aumbrye.dev/schemas/ui-symbol-atlas.v1.json",
+  "title": "UISymbolAtlas",
+  "description": "Shared manifest for authored UI symbol atlases (status icons, item icons, input glyphs).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "texture", "cellSize", "columns", "rows", "cells"],
+  "properties": {
+    "schemaVersion": { "type": "integer", "minimum": 1 },
+    "texture": { "type": "string", "minLength": 1 },
+    "cellSize": { "type": "integer", "minimum": 8, "maximum": 64 },
+    "columns": { "type": "integer", "minimum": 1 },
+    "rows": { "type": "integer", "minimum": 1 },
+    "unknown": {
+      "type": "object",
+      "required": ["col", "row"],
+      "properties": {
+        "col": { "type": "integer", "minimum": 0 },
+        "row": { "type": "integer", "minimum": 0 }
+      },
+      "additionalProperties": false
+    },
+    "cells": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "required": ["col", "row"],
+        "properties": {
+          "col": { "type": "integer", "minimum": 0 },
+          "row": { "type": "integer", "minimum": 0 }
+        },
+        "additionalProperties": false
+      }
+    }
+  }
+}

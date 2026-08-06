@@ -2,14 +2,13 @@ extends CastleEnemyBase
 
 ## Crystal caverns miniboss — arcane guardian with phase shift (BOSS-5.1).
 
-
 signal phase_changed(phase: int)
 
 var _phase := 1
 var _phase_transition_done := false
 
 
-func get_enemy_id() -> String:
+func _resolve_enemy_id() -> String:
 	return "crystal_guardian"
 
 

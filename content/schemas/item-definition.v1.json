@@ -1,0 +1,55 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://aumbrye.dev/schemas/item-definition.v1.json",
+  "title": "ItemDefinition",
+  "description": "M2+ item definition for inventory and world pickups.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "name", "itemType", "gridWidth", "gridHeight", "stackSize"],
+  "properties": {
+    "id": { "type": "string", "minLength": 1 },
+    "name": { "type": "string", "minLength": 1 },
+    "itemType": {
+      "type": "string",
+      "enum": ["weapon", "armor", "accessory", "consumable", "material", "key", "relic"]
+    },
+    "equipmentSlot": {
+      "type": "string",
+      "enum": ["helmet", "chest", "gloves", "boots", "weapon", "secondary", "ring", "amulet", "relic"]
+    },
+    "gridWidth": { "type": "integer", "minimum": 1, "maximum": 4 },
+    "gridHeight": { "type": "integer", "minimum": 1, "maximum": 4 },
+    "stackSize": { "type": "integer", "minimum": 1 },
+    "weaponId": { "type": "string" },
+    "healAmount": { "type": "number", "exclusiveMinimum": 0 },
+    "description": { "type": "string" },
+    "value": { "type": ["number", "null"], "minimum": 0 },
+    "authored": { "type": "boolean" },
+    "lootValue": { "type": "number", "minimum": 0 },
+    "rarity": {
+      "type": "string",
+      "enum": ["common", "magic", "rare", "epic", "legendary", "aumbral"]
+    },
+    "stats": {
+      "type": "object",
+      "additionalProperties": { "type": "number" }
+    },
+    "maxDurability": { "type": "number", "minimum": 0 },
+    "runRelicId": { "type": "string" },
+    "runOnly": { "type": "boolean" },
+    "rollAffixes": {
+      "type": "boolean",
+      "description": "When true, non-equipment items roll affixes through add_loot."
+    },
+    "theme": { "type": "string" },
+    "iconPath": { "type": "string", "description": "Optional res:// override texture; atlas cell is the default." },
+    "visual": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "attach": { "type": "string" },
+        "mesh": { "type": "string" }
+      }
+    }
+  }
+}

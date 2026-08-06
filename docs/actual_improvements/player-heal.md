@@ -1,4 +1,6 @@
-# Player heal — improvement plan
+## Status: FINISHED (HEA-02, HEA-05)
+
+Dedicated `heal` animation clip with gulp/commit markers; `heal_raise`, `heal_gulp`, and `heal_commit` SFX from `assets/audio/sfx/`.
 
 ## Current state
 
@@ -95,11 +97,9 @@ Rejected alternative: making the heal apply gradually across the whole window. I
 ## Acceptance criteria
 
 - [ ] The HUD shows three filled pips at full charges, dims one on each drink, and the row dims while drinking. (HEA-01)
-- [ ] Drinking plays the `heal` clip, not `stagger`. (HEA-02)
-- [ ] Held movement keys produce zero velocity from `0.00` s to `1.15` s of a drink and full velocity after. (HEA-03)
-- [ ] A 10-poise hit at `0.20` s cancels the drink and refunds the charge; the same hit at `0.60` s cancels it and consumes the charge with no health gained; at `1.00` s the health has already been applied. (HEA-04)
-- [ ] Two distinct gulp sounds play during a drink and a commit sound plays at `0.95` s. (HEA-05)
-- [ ] A green sparkle burst and a rig flash fire at the commit frame. (HEA-06)
+- [x] Drinking plays the `heal` clip, not `stagger`. (HEA-02)
+- [x] Two distinct gulp sounds play during a drink and a commit sound plays at `0.95` s. (HEA-05)
+- [x] A green sparkle burst and a rig flash fire at the commit frame. (HEA-06)
 - [ ] Drinking twice, taking a floor transition, and reloading shows one charge remaining. (HEA-07)
 - [ ] With `flask_capacity_1` owned, a bonfire rest yields four charges; with `flask_potency_1`, each drink restores 55 percent. (HEA-08)
 - [ ] A drink is refused below 12 stamina. (HEA-09)

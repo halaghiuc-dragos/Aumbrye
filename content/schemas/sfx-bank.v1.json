@@ -1,0 +1,50 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://aumbrye.dev/schemas/sfx-bank.v1.json",
+  "title": "SfxBank",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version", "sfx"],
+  "properties": {
+    "version": { "type": "integer", "minimum": 1 },
+    "sfx": {
+      "type": "object",
+      "additionalProperties": { "$ref": "#/$defs/sfxEntry" }
+    }
+  },
+  "$defs": {
+    "fallbackTone": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["freq", "duration"],
+      "properties": {
+        "freq": { "type": "number", "minimum": 0 },
+        "duration": { "type": "number", "minimum": 0 }
+      }
+    },
+    "sfxEntry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["bus"],
+      "properties": {
+        "bus": { "type": "string", "enum": ["SFX", "UI"] },
+        "variants": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "surface_variants": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "array",
+            "items": { "type": "string", "minLength": 1 }
+          }
+        },
+        "volume_db": { "type": "number" },
+        "pitch_jitter": { "type": "number", "minimum": 0, "maximum": 1 },
+        "max_concurrent": { "type": "integer", "minimum": 1 },
+        "cooldown_ms": { "type": "integer", "minimum": 0 },
+        "fallback_tone": { "$ref": "#/$defs/fallbackTone" }
+      }
+    }
+  }
+}

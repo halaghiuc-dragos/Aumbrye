@@ -10,6 +10,7 @@ Doc shape, evidence rules, and status tags are defined in [../DOC-CONVENTIONS.md
 - [README.md](README.md) — This complete documentation index.
 - [_INDEX.md](_INDEX.md) — Compact category rollup.
 - [00-GAME-LOOP.md](00-GAME-LOOP.md) — Documented game-loop flow.
+- [00-ADDICTION-AND-FUN.md](00-ADDICTION-AND-FUN.md) — Player feedback and loop-honesty surfaces.
 - [00-PLACEHOLDER-INVENTORY.md](00-PLACEHOLDER-INVENTORY.md) — Recorded placeholder inventory.
 - [repository-root.md](repository-root.md) — Repository layout and entry points.
 - [project-config-autoloads.md](project-config-autoloads.md) — Godot project configuration and autoloads.

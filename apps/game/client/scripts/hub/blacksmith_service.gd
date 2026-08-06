@@ -4,6 +4,7 @@ class_name BlacksmithService
 ## Upgrade and repair logic for hub blacksmith (HUB-4.2).
 
 const DEFAULT_MAX_DURABILITY := 100
+const DEATH_DURABILITY_LOSS := 15
 const UPGRADEABLE_TYPES: Array[String] = ["weapon", "armor", "accessory"]
 const RarityRegistryScript := preload("res://scripts/loot/rarity_registry.gd")
 
@@ -69,8 +70,83 @@ static func upgrade_item(inv_index: int) -> Dictionary:
 		return {"ok": false, "error": "not enough coins"}
 	slot["upgradeLevel"] = level + 1
 	inv.changed.emit()
-	LocalSave.autosave()
+	LocalSave.request_autosave()
+	if AchievementService:
+		AchievementService.notify("blacksmith_craft")
 	return {"ok": true, "newLevel": slot["upgradeLevel"]}
+
+
+static func is_unlocked(item_id: String) -> bool:
+	var recipe := RecipeCatalog.get_unlock_recipe_for_item(item_id)
+	if recipe.is_empty():
+		return ItemCatalog.has_item(item_id)
+	if LocalSave.has_recipe(str(recipe.get("id", ""))):
+		return true
+	var flag_id := str(recipe.get("unlockFlag", ""))
+	return flag_id != "" and CharacterService.is_flag_truthy(flag_id)
+
+
+static func get_available_unlocks() -> Array[Dictionary]:
+	var rows: Array[Dictionary] = []
+	for recipe in RecipeCatalog.get_unlock_recipes():
+		var item_id := str(recipe.get("itemId", ""))
+		if item_id == "" or not ItemCatalog.has_item(item_id):
+			if item_id != "":
+				push_warning("BlacksmithService: unlock recipe references missing item %s" % item_id)
+			continue
+		rows.append(
+			{
+				"itemId": item_id,
+				"recipeId": str(recipe.get("id", "")),
+				"goldCost": int(recipe.get("goldCost", recipe.get("coinCost", 0))),
+				"requiredLevel": int(recipe.get("requiredLevel", 1)),
+				"owned": is_unlocked(item_id),
+			}
+		)
+	return rows
+
+
+static func can_unlock(item_id: String) -> bool:
+	if is_unlocked(item_id):
+		return false
+	var recipe := RecipeCatalog.get_unlock_recipe_for_item(item_id)
+	if recipe.is_empty():
+		return false
+	if ProgressionService and ProgressionService.level < int(recipe.get("requiredLevel", 1)):
+		return false
+	var cost := int(recipe.get("goldCost", recipe.get("coinCost", 0)))
+	return CharacterService.can_afford(cost)
+
+
+static func unlock_item(item_id: String) -> Dictionary:
+	if not can_unlock(item_id):
+		return {"ok": false, "error": "cannot unlock"}
+	var recipe := RecipeCatalog.get_unlock_recipe_for_item(item_id)
+	var recipe_id := str(recipe.get("id", ""))
+	var cost := int(recipe.get("goldCost", recipe.get("coinCost", 0)))
+	if not CharacterService.spend_coins(cost):
+		return {"ok": false, "error": "not enough coins"}
+	LocalSave.add_owned_recipe(recipe_id)
+	if not InventoryService.add_item(item_id, 1):
+		CharacterService.add_coins(cost)
+		return {"ok": false, "error": "inventory full"}
+	if AchievementService:
+		AchievementService.notify("blacksmith_craft")
+	return {"ok": true, "recipeId": recipe_id}
+
+
+static func can_unlock_recipe(recipe_id: String) -> bool:
+	var recipe := RecipeCatalog.get_unlock_recipe(recipe_id)
+	if recipe.is_empty():
+		return false
+	return can_unlock(str(recipe.get("itemId", "")))
+
+
+static func unlock_recipe(recipe_id: String) -> Dictionary:
+	var recipe := RecipeCatalog.get_unlock_recipe(recipe_id)
+	if recipe.is_empty():
+		return {"ok": false, "error": "cannot unlock"}
+	return unlock_item(str(recipe.get("itemId", "")))
 
 
 static func can_repair(inv_index: int) -> bool:

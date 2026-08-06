@@ -1,0 +1,9 @@
+{
+  "name": "aumbrye",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "validate": "node scripts/validate-content/validate.mjs",
+    "validate:strict": "node scripts/validate-content/validate.mjs --strict-content"
+  }
+}

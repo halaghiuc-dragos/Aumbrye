@@ -1,116 +1,128 @@
 # Character appearance
 
-`CharacterAppearance` is a 102-line static `RefCounted` helper that defines the appearance profile shape, sanitises it, and converts between the save document and `CharacterService`. It is the only appearance schema in the game: five keys, chosen once at character creation, consumed by one function in the diorama skin builder.
+`CharacterAppearance` is a static `RefCounted` helper that defines the warden appearance profile, sanitises it, describes it for UI, and converts between the save document and `CharacterService`. The profile drives palette theme, stature archetype, build offsets, skin tone, hair, face accent, head style, and trim tier. `DioramaCharacterSkin` is the sole visual consumer; `character_create_ui.gd` is the producer at creation and through the hub mirror.
 
 ## Files
 | Path | Role |
 |------|------|
-| `apps/game/client/scripts/save/character_appearance.gd` | `CharacterAppearance` — presets, labels, `default_profile`, `profile_from_indices`, `sanitize`, `apply_to_service`, `from_character_dict`, `from_service`, `theme_from_service` |
-| `apps/game/client/scripts/art/characters/diorama_character_skin.gd` | `build_player_body` reads the profile; `_apply_player_appearance` is the only consumer |
-| `apps/game/client/scripts/ui/character_create_ui.gd` | Only producer; builds a profile from five `OptionButton` indices (see [`ui/character_create.md`](ui/character_create.md)) |
-| `apps/game/client/scripts/save/character_service.gd` | Holds `appearance_theme` and `appearance_profile` at runtime |
-| `apps/game/client/scripts/save/local_save.gd` | Persists it to `character.appearanceTheme` and `character.appearance` |
-| `apps/game/client/scripts/player/locomotion.gd` | Rebuilds the body via `build_player_body` / `refresh_appearance_visual` |
-| `apps/game/client/scripts/art/style/pixel_diorama_style.gd` | `PaletteTheme` enum and the `PALETTES` table the `theme` value indexes |
+| `apps/game/client/scripts/save/character_appearance.gd` | `CharacterAppearance` — variants, labels, `sanitize`, `is_valid`, `describe`, `apply_to_service`, `from_character_dict`, `from_service`, `available_theme_options` |
+| `apps/game/client/scripts/art/characters/diorama_character_skin.gd` | `build_player_body`, `build_preview_body`, `_apply_player_appearance`, `_require_part` |
+| `apps/game/client/scripts/art/characters/character_rig_catalog.gd` | Maps `heightVariant` to `player_warden` / `player_warden_compact` / `player_warden_tall` manifests |
+| `apps/game/client/scripts/ui/character_create_ui.gd` | Creation UI and mirror edit mode; SubViewport 3D preview via `build_preview_body` |
+| `apps/game/client/scripts/hub/hub.gd` | `appearance_mirror` interact handler; hosts mirror UI |
+| `apps/game/client/scenes/hub/hub.tscn` | `Mirror` landmark with `interact_id = appearance_mirror` |
+| `apps/game/client/scripts/save/character_service.gd` | `appearance_theme`, `appearance_profile`, `appearance_changed` signal |
+| `apps/game/client/scripts/save/local_save.gd` | `set_appearance_profile`, `get_appearance_profile`; persists `character.appearance` and `character.appearanceTheme` |
+| `apps/game/client/scripts/player/locomotion.gd` | Subscribes to `appearance_changed`; `refresh_appearance_visual` rebuilds the body |
+| `apps/game/client/scripts/art/style/pixel_diorama_style.gd` | `PaletteTheme`, `PALETTES`, defensive `get_palette` / `get_palette_color` clamps |
+| `content/schemas/character-state.v2.json` | `appearanceProfile` sub-schema under `$defs` |
+| `content/fixtures/character_state_sample.v2.json` | Fixture with a valid `appearance` block |
 
 ## How it works
 
 ### Profile shape
-`default_profile()` (lines 23-30) defines every key:
+`default_profile()` defines every key:
 
 | Key | Type | Default | Allowed values |
 |-----|------|---------|----------------|
-| `theme` | int | `PixelStyle.PaletteTheme.CASTLE` (0) | Not constrained by `sanitize` (see gaps) |
-| `height` | float | `1.0` | Clamped to `0.82 .. 1.18` (line 63); presets `[0.9, 1.0, 1.1]` |
-| `bulk` | float | `1.0` | Clamped to `0.82 .. 1.22` (line 64); presets `[0.88, 1.0, 1.14]` |
-| `head` | String | `HEAD_VISOR` = `"visor"` | `"open"`, `"visor"`, `"hood"` (lines 8-10, 66) |
-| `trim` | int | `1` | Clamped to `0 .. 2` (line 68) |
+| `profileVersion` | int | `1` | `PROFILE_VERSION` const |
+| `theme` | int | `PaletteTheme.CASTLE` (0) | Clamped `0 .. PALETTES.size() - 1` |
+| `heightVariant` | String | `"standard"` | `"compact"`, `"standard"`, `"tall"` |
+| `bulkVariant` | String | `"standard"` | `"lean"`, `"standard"`, `"heavy"` |
+| `skinTone` | String | `"neutral"` | `"warm"`, `"neutral"`, `"cool"` |
+| `hair` | String | `"none"` | `"none"`, `"short"`, `"long"` |
+| `face` | String | `"open"` | `"open"`, `"stern"`, `"kind"` |
+| `head` | String | `"visor"` | `"open"`, `"visor"`, `"hood"` |
+| `trim` | int | `1` | `0 .. 2` |
 
-Label arrays for the creation UI: `HEIGHT_LABELS` = Compact / Standard / Tall, `BULK_LABELS` = Lean / Standard / Heavy, `HEAD_LABELS` = Open face / Visor helm / Hooded, `TRIM_LABELS` = Plain / Trimmed / Pauldrons (lines 13-20).
+Legacy float keys `height` and `bulk` are accepted by `sanitize` and mapped into `heightVariant` / `bulkVariant` via `height_variant_from_legacy` and `bulk_variant_from_legacy`. `HEIGHT_MIN` / `HEIGHT_MAX` and `BULK_MIN` / `BULK_MAX` bound those legacy floats during migration.
+
+Label arrays for the creation UI: `HEIGHT_LABELS`, `BULK_LABELS`, `SKIN_TONE_LABELS`, `HAIR_LABELS`, `FACE_LABELS`, `HEAD_LABELS`, `TRIM_LABELS`.
 
 ### Construction and sanitising
-`profile_from_indices(theme, height_idx, bulk_idx, head_idx, trim_idx)` (lines 33-46) maps UI indices to preset values, clamping each index into range and routing `head_idx` through `_head_from_index` (lines 49-56), which maps 0 -> open, 1 -> visor, anything else -> hood.
+`profile_from_indices(theme, height_idx, bulk_idx, head_idx, trim_idx, skin_idx, hair_idx, face_idx)` maps UI indices to profile values.
 
-`sanitize(profile)` (lines 59-69) starts from `default_profile()` and overwrites each key from the input. `theme` is only copied when the key is present, and is passed through `int()` with **no range clamp**. The other four are clamped.
+`sanitize(profile)` repairs any input: clamps `theme`, normalises variants and enums, stamps `profileVersion`. Unknown types log one `push_warning` and yield the default profile.
 
-### Conversions
-| Function | Lines | Behaviour | Callers |
-|----------|-------|-----------|---------|
-| `apply_to_service(profile)` | 72-77 | Sanitises, writes `CharacterService.appearance_theme` and `.appearance_profile` | None found in `apps/`, `scripts/`, or `tools/` |
-| `from_character_dict(character)` | 80-91 | Reads `appearanceTheme` with a fallback to the nested `appearance.theme`, then the four nested keys, then sanitises | `local_save.gd:132` only |
-| `from_service()` | 94-97 | `sanitize(CharacterService.appearance_profile)` | `diorama_character_skin.gd:95` only |
-| `theme_from_service()` | 100-101 | `int(from_service().theme)` | None found |
+`is_valid(profile)` is strict (no repair) for save writes and validation suites.
+
+`describe(profile)` returns a one-line summary, e.g. `Tall / Heavy / Hooded / Pauldrons / Castle iron`.
+
+`available_theme_options()` returns `THEME_OPTIONS` entries that are always available or unlocked via `DungeonCatalog.get_clear_flag` and `CharacterService.has_flag`.
+
+### Conversions and service mirroring
+| Function | Behaviour | Callers |
+|----------|-----------|---------|
+| `apply_to_service(profile)` | Sanitises, writes `CharacterService.appearance_theme` and `.appearance_profile`, emits `appearance_changed` | `LocalSave.set_appearance_profile` |
+| `from_character_dict(character)` | Merges `appearanceTheme` and nested `appearance`, then sanitises | `LocalSave.get_appearance_profile`, save load |
+| `from_service()` | `sanitize(CharacterService.appearance_profile)` | `DioramaCharacterSkin.build_player_body` |
+
+`set_appearance_theme`, `theme_from_service`, and `get_appearance_theme` were removed; theme is edited only through the full profile.
 
 ### Where the profile comes from
-Exactly one path writes a profile in normal play:
+**Creation:** `character_create_ui.gd` emits `completed` with `_build_appearance_profile()` → `LocalSave.queue_boot_new_game` → `_apply_new_game_boot` → `set_appearance_profile`.
 
-1. `character_create_ui.gd:197` emits `completed(class_id, name, _build_appearance_profile())`.
-2. `LocalSave.queue_boot_new_game(class_id, name, appearance)` sanitises it into `_pending_new_game` (`local_save.gd:167-173`).
-3. `_apply_new_game_boot` re-sanitises and calls `set_appearance_profile` (`local_save.gd:227-231`).
-4. `LocalSave.set_appearance_profile` writes `character.appearanceTheme` and `character.appearance`, mirrors both onto `CharacterService`, and autosaves (`local_save.gd:117-128`).
+**Mirror:** Hub `Mirror` interactable (`interact_id = appearance_mirror`) opens `character_create_ui.open_edit_mode()` (class and name hidden). Confirm calls `LocalSave.set_appearance_profile`; success emits `appearance_saved` and hub message.
 
-On load, `local_save.gd:546-547` feeds `character.appearanceTheme` and `character.appearance` into `CharacterService.from_save_dict`, which sanitises again (`character_service.gd:150-154`). On save, `local_save.gd:572-573` reads the service fields back out.
+**Load:** `local_save` reads `character.appearanceTheme` and `character.appearance` into `CharacterService.from_save_dict`.
 
-There is no post-creation appearance editor: `LocalSave.set_appearance_theme` (line 113) and `LocalSave.get_appearance_profile` / `get_appearance_theme` (lines 131-136) have no callers anywhere in the repository.
+**Save:** `local_save` writes both keys from `CharacterService` fields; `appearanceTheme` mirrors `appearance.theme`.
 
-### How the skin consumes it
-`build_player_body(facing, theme = -1)` (`diorama_character_skin.gd:89-98`):
-1. Removes the previous visual and hides legacy meshes.
-2. Resolves `theme` from `CharacterService.appearance_theme` when the argument is negative, falling back to `PaletteTheme.HUB`.
-3. Reads the profile with `CharacterAppearance.from_service()` — the profile's own `theme` is fetched but never used, because materials come from the `theme` argument.
-4. Builds the base humanoid from `PROFILES["player"]`, then calls `_apply_player_appearance`.
+### Preview and in-game body
+`build_preview_body(parent, profile)` clears `parent`, builds the same manifest/box body as gameplay, and runs `_apply_player_appearance` against the explicit profile (not `from_service()`).
 
-`_apply_player_appearance(visual, profile, mats)` (lines 101-151) is the entire visual effect of the appearance system:
+`character_create_ui` hosts the preview in a `SubViewportContainer` with camera, light, and slow turntable rotation. `_on_appearance_selected` calls `_rebuild_preview()`.
 
-| Profile key | Effect | Lines |
-|-------------|--------|-------|
-| `height`, `bulk` | `root.scale = Vector3(bulk, height, bulk)` on the part named `ROOT_NAME` | 105-107 |
-| `head == "visor"` | Shows the existing `Head/Mesh/Visor` node | 111-113 |
-| `head == "hood"` | Shows the existing `Head/Hood` node, or builds one with `PixelStyle.add_box` sized from `PROFILES["player"].head` when absent | 114-126 |
-| `head == "open"` | Both visor and hood hidden | 111-116 |
-| `trim >= 1` | Adds a `BeltTrim` box on `Torso` in the accent material | 127-139 |
-| `trim >= 2` | Adds a `Pauldron` box on `ArmL` and `ArmR` in the accent material | 140-151 |
+`build_player_body(facing, theme = -1)` reads the profile from service; when `theme < 0`, uses `profile.theme`. `diorama_character_rig_player.gd` passes `-1` so the saved theme applies in-editor.
 
-`theme` is not read by `_apply_player_appearance` at all.
+### How the skin applies the profile
+`_apply_player_appearance` uses named-part constants and `_require_part` (warns once per missing part):
+
+| Profile key | Effect |
+|-------------|--------|
+| `heightVariant` | `CharacterRigCatalog.archetype_for_player` selects compact / standard / tall manifest |
+| `bulkVariant` | `_apply_bulk_joint_offsets` shifts leg and arm pivot X by ±`VoxelGrid.EDGE` for lean / heavy |
+| `skinTone` | `skin_tint` shader parameter on head mesh |
+| `hair` | Voxel hair mesh from `assets/characters/player_warden/hair_{style}.voxels.json` |
+| `face` | Stern or kind accent boxes on head |
+| `head` | Visor visibility, hood visibility or procedural hood box |
+| `trim` | `BeltTrim` on torso (trim ≥ 1), `Pauldron` boxes on arms (trim ≥ 2) |
+
+Root scale stays `Vector3.ONE`; collider and hurtbox are unchanged. Stature is expressed through archetype manifests, not scale.
+
+`CharacterService.class_id` still drives `_apply_class_armor` on the torso during preview and in-game builds.
 
 ### Rebuild triggers
-`build_player_body` is called from `locomotion.gd:39` (`_ready`, via `facing_path`), `locomotion.gd:54` (`refresh_appearance_visual`), and `diorama_character_rig_player.gd:16` (passing `PaletteTheme.CASTLE` explicitly). `refresh_appearance_visual` is reached only through `PlayerControls.sync_player_loadout` (`player_controls.gd:75-77`), which returns early for waves mode (`player_controls.gd:70-71`) and is itself called from `player_controls.gd:56` and `combat_arena.gd:42`.
+- `locomotion._ready` → `build_player_body`
+- `CharacterService.appearance_changed` → `locomotion.refresh_appearance_visual` (hub mirror, creation boot, any `apply_to_service` path)
+- `player_controls.sync_player_loadout` → `refresh_appearance_visual` for non-waves modes only; waves rely on the signal subscription because `sync_player_loadout` returns early in waves mode
 
 ## Contracts
-**Save keys:** `character.appearanceTheme` (int), `character.appearance` (Dictionary of the five keys above).
+**Save keys:** `character.appearanceTheme` (int), `character.appearance` (full profile per `appearanceProfile` schema).
 
-**Runtime holders:** `CharacterService.appearance_theme`, `CharacterService.appearance_profile`.
+**Runtime:** `CharacterService.appearance_theme`, `CharacterService.appearance_profile`, signal `appearance_changed(profile)`.
 
-**Node names the skin depends on:** `ROOT_NAME` (from `diorama_character_skin.gd`), `Head`, `Head/Mesh/Visor`, `Head/Hood`, `Torso`, `ArmL`, `ArmR`. A rename in the humanoid builder silently disables the corresponding appearance feature.
+**Node names:** `Root`, `Head`, `Head/Mesh/Visor`, `Head/Hood`, `Torso`, `ArmL`, `ArmR` — missing nodes log via `_require_part` and skip that feature.
 
-**Material keys required from `_body_materials`:** `body`, `accent`.
-
-**Enum dependency:** `theme` is an index into `PixelStyle.PALETTES` (`pixel_diorama_style.gd:75`), whose valid range is `0 .. 10` per the `PaletteTheme` enum (lines 25-37).
-
-**Signals:** none. `CharacterAppearance` has no signals and appearance changes emit nothing.
+**Save version:** Appearance profile clamping and variant migration run in `SaveMigrator._migrate_v4_to_v5` when bumping to schema v5.
 
 ## Current state
-| Surface | Status | Evidence |
-|---------|--------|----------|
-| Five-key profile with clamped ranges | IMPLEMENTED | `character_appearance.gd:59-69` |
-| Index-to-preset construction from the creation UI | IMPLEMENTED | `character_appearance.gd:33-46`, `character_create_ui.gd:176-183` |
-| Save round-trip of all five keys | IMPLEMENTED | `local_save.gd:572-573` write, `local_save.gd:546-547` read, `character_service.gd:150-154` sanitise |
-| Height and bulk applied to the visual | IMPLEMENTED | `diorama_character_skin.gd:105-107` |
-| Head style (open / visor / hood) | IMPLEMENTED | `diorama_character_skin.gd:108-126` |
-| Trim tiers (belt, pauldrons) | IMPLEMENTED | `diorama_character_skin.gd:127-151` |
-| `theme` range validation | BROKEN | `sanitize` does not clamp `theme` (`character_appearance.gd:61-62`); `PixelStyle.get_palette` indexes `PALETTES[theme]` with no bounds check (`pixel_diorama_style.gd:224-232`), so a save with `appearanceTheme: 42` raises an index error when the body is built |
-| `theme` effect on the player body | PARTIAL | `build_player_body` takes materials from its own `theme` argument, not from the profile (`diorama_character_skin.gd:93-97`); `diorama_character_rig_player.gd:16` hardcodes `PaletteTheme.CASTLE`, so that rig ignores the saved theme entirely |
-| `apply_to_service(profile)` | FAKE | Defined at `character_appearance.gd:72-77`, zero callers |
-| `theme_from_service()` | FAKE | Defined at `character_appearance.gd:100-101`, zero callers |
-| `LocalSave.set_appearance_theme` | FAKE | `local_save.gd:113-114`, zero callers |
-| `LocalSave.get_appearance_profile` / `get_appearance_theme` | FAKE | `local_save.gd:131-136`, zero callers; `from_character_dict` exists only to serve the first of these |
-| Post-creation appearance editing | ABSENT | No UI writes a profile after `_apply_new_game_boot`; searched `apps/game/client/scripts/ui/` for `set_appearance_profile` and `apply_to_service` |
-| Creation-screen preview of height / bulk / head / trim | FAKE | `character_create_ui.gd:159-162` updates only a `ColorRect` accent swatch; the silhouette is built once with fixed parameters at `character_create_ui.gd:63` and never re-driven by the selections |
-| Appearance effect on collision, hurtbox, or camera height | ABSENT | `profile.height` and `profile.bulk` are read only at `diorama_character_skin.gd:105-107`; no collider, hurtbox, or camera pivot is rescaled, so a `Tall` warden's visual head sits above its hurtbox |
-| Appearance refresh in waves mode | BROKEN | `player_controls.gd:70-71` returns before `refresh_appearance_visual` for waves runs |
-| Colour or palette customisation beyond the five themes | ABSENT | `APPEARANCE_OPTIONS` offers five of the eleven `PaletteTheme` rows (`character_create_ui.gd:13-19`); no per-slot colour picking exists |
-| JSON schema for the appearance profile | ABSENT | `content/schemas/character-state.v1.json` declares `character` without an `appearance` sub-object; searched all of `content/schemas/` |
+| Surface | Status |
+|---------|--------|
+| Profile with clamped theme and variants | IMPLEMENTED |
+| `is_valid`, `describe`, `PROFILE_VERSION` | IMPLEMENTED |
+| 3D creation preview via `build_preview_body` | IMPLEMENTED |
+| Hub mirror post-creation editing | IMPLEMENTED |
+| Stature via archetype manifests (not collider scale) | IMPLEMENTED |
+| Build via joint offsets (not root scale) | IMPLEMENTED |
+| Theme from profile in `build_player_body` | IMPLEMENTED |
+| `appearance_changed` + locomotion subscription | IMPLEMENTED |
+| Waves runs use saved profile (signal path) | IMPLEMENTED |
+| `appearanceProfile` JSON schema + fixture | IMPLEMENTED |
+| Gated theme roster via dungeon clear flags | IMPLEMENTED |
+| `_require_part` warnings on rename | IMPLEMENTED |
+| Validation suites (`save_suite`, `hub_m4_suite`, `content_suite`) | IMPLEMENTED |
 
 ## Related
 - Improvement plan: [`../actual_improvements/character-appearance.md`](../actual_improvements/character-appearance.md)
-- [`character-service.md`](character-service.md), [`local-save.md`](local-save.md), [`save-migrator.md`](save-migrator.md), [`diorama-character-skin.md`](diorama-character-skin.md), [`pixel-style.md`](pixel-style.md), [`ui/character_create.md`](ui/character_create.md), [`locomotion.md`](locomotion.md)
+- [`character-service.md`](character-service.md), [`local-save.md`](local-save.md), [`save-migrator.md`](save-migrator.md), [`hub.md`](hub.md), [`diorama-character-skin.md`](diorama-character-skin.md), [`pixel-style.md`](pixel-style.md), [`ui/character_create.md`](ui/character_create.md), [`locomotion.md`](locomotion.md)

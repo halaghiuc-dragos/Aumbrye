@@ -179,7 +179,7 @@ public class RunsIntegrationTests : IClassFixture<AumbryeWebApplicationFactory>
             new AuthenticationHeaderValue("Bearer", auth.Tokens.AccessToken);
 
         var create = await _client.PostAsJsonAsync("/api/v1/runs",
-            new CreateRunRequest("forgotten_castle", Seed: 777, Tier: 1));
+            new CreateRunRequest("forgotten_castle", Seed: 42_001, Tier: 1));
         Assert.Equal(HttpStatusCode.OK, create.StatusCode);
         var run = await create.Content.ReadFromJsonAsync<CreateRunResponse>();
         Assert.NotNull(run);

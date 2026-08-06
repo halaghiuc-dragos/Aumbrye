@@ -1,13 +1,15 @@
 # Inventory UI — improvement plan
 
 ## Current state
-`inventory_ui.gd` is 988 lines of runtime-constructed UI with no scene. Items are represented by a Unicode character in a `Label` plus a 4-character truncation of their name (`:787-817`), because no item JSON carries an `iconPath` and the client ships zero `.png` files. The type and rarity filters compute `_visible_indices` and then never use it (`:394-399` written, never read), so filtering only changes a label. Every consumable heals 30 HP because only `health_potion.json` defines `healAmount` (`:640`). Quick slots store raw grid indices that the sort button invalidates. Nothing in the file calls `grab_focus`, and no string passes through `tr()`. See [`../existing_codebase/ui/inventory_ui.md`](../existing_codebase/ui/inventory_ui.md).
+`inventory_ui.gd` uses `ItemIconAtlas` `TextureRect` cells (no Unicode glyphs). Item art resolves through `content/ui/item_icon_atlas.json` with optional per-item `iconPath` override in the schema. Filtering, consumable dispatch, and quick-slot stability remain open gaps — see table below. See [`../existing_codebase/ui/inventory_ui.md`](../existing_codebase/ui/inventory_ui.md).
+
+**Quality bar (icons): FINISHED** — INV-01, INV-02 closed 2026-08-05.
 
 ## Gaps
 | ID | Sev | Gap | Evidence |
 |----|-----|-----|----------|
-| INV-01 | P0 | Item identity is a Unicode character plus a 4-character name stub. `Castle Sword`, `Castle Crown`, and `Castle Chalice` all render as `Cast` with the same or near-same glyph, so the stash is unreadable. | `inventory_ui.gd:787-792` truncation; `:795-817` returns `⚔`, `⛨`, `▣`, `✋`, `▼`, `◯`, `✦`, `✚`, `◆`, `•`; `:820-831` adds `✧` and `⬛` |
-| INV-02 | P0 | No item in `content/items/**` (89 files) has an `iconPath` or `icon` key, and `content/schemas/item-instance.v1.json` does not define one, so there is no data path for authored icons even if art existed. | grep for `iconPath` and `"icon"` across `content/` returns 0 matches |
+| INV-01 | P0 | ~~Item identity is a Unicode character~~ **FINISHED** — `TextureRect` + `ItemIconAtlas` | was `inventory_ui.gd:787-817` |
+| INV-02 | P0 | ~~No `iconPath` / atlas path~~ **FINISHED** — `item_icon_atlas.json`, schema `iconPath`, `item_icons.png` | was 0 `iconPath` in content |
 | INV-03 | P0 | The type and rarity filters do nothing visible: `_rebuild_visible_indices` populates `_visible_indices`, `_refresh_grid` iterates `inv.slots` in full and ignores it. Pressing `lock_on` or `interact` only edits the label at `:478`. | `:393-399` (write) vs `:402-439` (read `inv.slots`); `_visible_indices` has no reader |
 | INV-04 | P0 | Every consumable is a 30 HP heal. `mana_potion`, `stamina_potion`, `elixir_might`, `elixir_vigor`, and `skip_10/50/100/500_floors` all restore health and are destroyed, so the four Umbral Skip items — 500 gold each — are consumed for a heal. | `:630-641` `def.get("healAmount", 30.0)`; only `content/items/consumables/health_potion.json:9` defines `healAmount` |
 | INV-05 | P0 | Quick-slot bindings are grid indices, and the sort button reorders `slots` in place and repacks, so `sprint` silently repoints all three quick slots. | `inventory_service.gd:224-233` stores `grid_index`; `grid_inventory.gd:208-227` sorts and repacks; `inventory_ui.gd:644-647` |
@@ -122,9 +124,9 @@ Steps 1-3 are behavior fixes with no art dependency and should land first.
 - `save_migrator.gd`: one new step converting `quickSlots` indices to `instanceId` strings; bump the save version.
 
 ## Acceptance criteria
-- [ ] No item cell contains a `Label` whose text is a non-ASCII code point; `inventory_ui.gd` contains no non-ASCII literal.
-- [ ] `inventory_ui.gd` contains no `_item_abbrev`, `_item_glyph`, or `_slot_glyph_for_label`.
-- [ ] Every id in `content/items/catalog.json` resolves to an item-atlas cell, or to an explicit `iconPath`.
+- [x] No item cell contains a `Label` whose text is a non-ASCII code point; `inventory_ui.gd` contains no non-ASCII literal.
+- [x] `inventory_ui.gd` contains no `_item_abbrev`, `_item_glyph`, or `_slot_glyph_for_label`.
+- [x] Every id in `content/items/catalog.json` resolves to an item-atlas cell, or to an explicit `iconPath`.
 - [ ] Setting the type filter to `weapon` dims every non-weapon slot and leaves weapons at full alpha.
 - [ ] Typing `cro` in the search field leaves only `Castle Crown` and `Mythic Crown` at full alpha.
 - [ ] Using `mana_potion` restores mana and not health; using `skip_10_floors` in a run is refused with a reason in the hint label and does not consume the item.

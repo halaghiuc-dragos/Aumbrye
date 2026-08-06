@@ -93,7 +93,14 @@
       { "roomId": "stairs", "trapId": "spike_trap", "position": { "x": 0, "y": 0, "z": 4 } },
       { "roomId": "hall", "trapId": "falling_trap", "position": { "x": -2, "y": 3, "z": -5 } }
     ],
-    "secrets": [{ "roomId": "secret" }],
+    "secrets": [
+      {
+        "roomId": "secret",
+        "parentRoomId": "courtyard",
+        "mechanism": "illusory_wall",
+        "wallDirection": "W"
+      }
+    ],
     "boss": { "roomId": "boss", "enemyId": "boss_castle_knight" },
     "exit": "boss",
     "entrance": "entrance"

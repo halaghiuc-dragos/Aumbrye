@@ -5,7 +5,8 @@ Builds the first-person arms and weapon mount as a child of the player camera. I
 ## Files
 | Path | Role |
 |------|------|
-| `apps/game/client/scripts/art/characters/diorama_viewmodel.gd` | 113 lines: builds the `Viewmodel/ViewRoot` hierarchy, arm boxes, mounts, materials |
+| `apps/game/client/scripts/art/characters/diorama_viewmodel.gd` | Builds viewmodel hierarchy; delegates compositing to `diorama_viewmodel_pass.gd` |
+| `apps/game/client/scripts/art/characters/diorama_viewmodel_pass.gd` | SubViewport + dedicated camera (`near = 0.01`, `fov = 60`) composited over gameplay view |
 | `apps/game/client/scripts/player/player_anim_director.gd` | Builds it, registers it as an animation mirror, drives sway and bob, syncs visibility |
 | `apps/game/client/scripts/camera/orbit_camera.gd` | Owns the first/third-person toggle and calls back into the director |
 
@@ -96,5 +97,5 @@ That is the whole viewmodel: **four boxes**, two per arm. There is no hand, no f
 ## Related
 - Improvement plan: [`../actual_improvements/diorama-viewmodel.md`](../actual_improvements/diorama-viewmodel.md)
 - [`diorama-character-skin.md`](diorama-character-skin.md), [`diorama-anim-controller.md`](diorama-anim-controller.md), [`diorama-anim-library.md`](diorama-anim-library.md), [`diorama-weapon-kit.md`](diorama-weapon-kit.md)
-- [`orbit-camera.md`](orbit-camera.md), [`player-anim-director.md`](player-anim-director.md), [`pixel-style.md`](pixel-style.md)
+- [`orbit-camera.md`](orbit-camera.md) — **FINISHED** (viewmodel pass, settings-driven camera)
 - Cross-cutting decision on authored character and arm assets: [`character-authoring.md`](character-authoring.md)

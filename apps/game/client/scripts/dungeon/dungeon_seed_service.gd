@@ -4,7 +4,6 @@ class_name DungeonSeedService
 ## Base run seed → per-tier generation seeds. Tier 1 uses base seed X; tier 2+ derives Y.
 
 const TIER_SEED_MULTIPLIER := 104729
-const FLOOR_SEED_MULTIPLIER := 7919
 
 
 static func derive_tier_seed(base_seed: int, tier: int) -> int:
@@ -41,3 +40,13 @@ static func describe_tier_seed(base_seed: int, tier: int) -> String:
 	if tier <= 1:
 		return "Base seed %d" % base_seed
 	return "Base seed %d → Tier %d seed %d" % [base_seed, tier, tier_seed]
+
+
+static func parse_run_seed(text: String) -> Variant:
+	var trimmed := text.strip_edges()
+	if trimmed == "" or not trimmed.is_valid_int():
+		return null
+	var value := int(trimmed)
+	if value < 1:
+		return null
+	return value

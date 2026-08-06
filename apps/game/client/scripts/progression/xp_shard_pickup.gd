@@ -38,7 +38,9 @@ func configure(world_pos: Vector3, xp_amount: int) -> void:
 
 func _process(_delta: float) -> void:
 	if _visual:
-		_visual.position.y = float(_visual.get_meta("bob_base_y", 0.0)) + sin(Time.get_ticks_msec() * 0.004) * 0.1
+		_visual.position.y = (
+			float(_visual.get_meta("bob_base_y", 0.0)) + sin(Time.get_ticks_msec() * 0.004) * 0.1
+		)
 	if _player == null:
 		return
 	if Input.is_action_just_pressed("interact"):

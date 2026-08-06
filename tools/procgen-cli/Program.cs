@@ -1,20 +1,33 @@
+using System.Text.Json;
+using Aumbrye.Procedural.Biome;
 using Aumbrye.Procedural.Generation;
+using Aumbrye.ProcgenCli;
 
-if (args.Length == 0 || args[0] is not ("generate" or "-h" or "--help"))
+if (args.Length == 0 || args[0] is "-h" or "--help")
 {
     PrintUsage();
     return args.Length == 0 ? 1 : 0;
 }
 
-if (args[0] is "-h" or "--help")
-{
-    PrintUsage();
-    return 0;
-}
-
 try
 {
-    var options = ParseGenerateArgs(args);
+    return args[0] switch
+    {
+        "generate" => RunGenerate(args),
+        "mix-seed-table" => RunMixSeedTable(),
+        "room-kit-specs" => RunRoomKitSpecs(),
+        _ => UnknownCommand(args[0]),
+    };
+}
+catch (Exception ex)
+{
+    Console.Error.WriteLine(ex.Message);
+    return 1;
+}
+
+static int RunGenerate(string[] args)
+{
+    var options = ProcgenCliArgs.ParseGenerateArgs(args);
     var result = DungeonGenerator.Generate(
         options.BiomeId,
         options.Seed,
@@ -27,67 +40,69 @@ try
     Console.Out.WriteLine(result.Json);
     return 0;
 }
-catch (Exception ex)
+
+static int RunMixSeedTable()
 {
-    Console.Error.WriteLine(ex.Message);
-    return 1;
-}
-
-static GenerateOptions ParseGenerateArgs(string[] args)
-{
-    if (args.Length < 3)
-        throw new ArgumentException("Usage: procgen-cli generate <biomeId> <seed> [runId] [--tier N] [--player-level N]");
-
-    var biomeId = args[1];
-    if (!int.TryParse(args[2], out var seed) || seed < 1)
-        throw new ArgumentException("Seed must be a positive integer.");
-
-    var runId = Guid.NewGuid();
-    var tier = 1;
-    var playerLevel = 1;
-    var floorIndex = 1;
-    var isFinalFloor = false;
-    var index = 3;
-
-    if (index < args.Length && Guid.TryParse(args[index], out var parsedRunId))
+    var seeds = new[] { 1, 2, 12345, 2147483646 };
+    var rows = new List<Dictionary<string, int>>();
+    foreach (var seed in seeds)
     {
-        runId = parsedRunId;
-        index++;
-    }
-
-    while (index < args.Length)
-    {
-        switch (args[index])
+        for (var floor = 1; floor <= 25; floor++)
         {
-            case "--floor" when index + 1 < args.Length && int.TryParse(args[index + 1], out var parsedFloor):
-                floorIndex = Math.Max(1, parsedFloor);
-                index += 2;
-                break;
-            case "--final-floor":
-                isFinalFloor = true;
-                index += 1;
-                break;
-            case "--tier" when index + 1 < args.Length && int.TryParse(args[index + 1], out var parsedTier):
-                tier = Math.Max(1, parsedTier);
-                index += 2;
-                break;
-            case "--player-level" when index + 1 < args.Length && int.TryParse(args[index + 1], out var parsedLevel):
-                playerLevel = Math.Max(1, parsedLevel);
-                index += 2;
-                break;
-            default:
-                throw new ArgumentException($"Unknown argument: {args[index]}");
+            rows.Add(new Dictionary<string, int>
+            {
+                ["seed"] = seed,
+                ["floor"] = floor,
+                ["mixed"] = DungeonSeedDeriver.MixFloorSeed(seed, floor),
+            });
         }
     }
+    Console.Out.WriteLine(JsonSerializer.Serialize(rows));
+    return 0;
+}
 
-    return new GenerateOptions(biomeId, seed, runId, tier, playerLevel, floorIndex, isFinalFloor);
+static int RunRoomKitSpecs()
+{
+  var prefixes = new[]
+  {
+    "castle", "crystal", "swamp", "frozen", "cathedral", "vault", "prism", "mire", "hollow", "umbral",
+  };
+  var kinds = new[]
+  {
+    "entrance", "stairs", "courtyard", "hall", "treasure", "secret", "arena", "boss", "puzzle",
+  };
+  var entries = new List<Dictionary<string, object>>();
+  foreach (var prefix in prefixes)
+  {
+    foreach (var kind in kinds)
+    {
+      var templateId = $"{prefix}_{kind}";
+      var spec = RoomTemplateCatalog.GetRequired(templateId);
+      entries.Add(new Dictionary<string, object>
+      {
+        ["templateId"] = templateId,
+        ["width"] = spec.Width,
+        ["depth"] = spec.Depth,
+        ["doors"] = (int)spec.DoorMask,
+      });
+    }
+  }
+  Console.Out.WriteLine(JsonSerializer.Serialize(entries));
+  return 0;
+}
+
+static int UnknownCommand(string command)
+{
+    Console.Error.WriteLine($"Unknown command: {command}");
+    PrintUsage();
+    return 1;
 }
 
 static void PrintUsage()
 {
     Console.Error.WriteLine("Aumbrye local dungeon generator");
-    Console.Error.WriteLine("Usage: procgen-cli generate <biomeId> <seed> [runId] [--floor N] [--final-floor] [--tier N] [--player-level N]");
-    Console.Error.WriteLine("Writes canonical dungeon JSON to stdout.");
+    Console.Error.WriteLine("Usage:");
+    Console.Error.WriteLine("  procgen-cli generate <biomeId> <seed> [runId] [--floor N] [--final-floor] [--tier N] [--player-level N]");
+    Console.Error.WriteLine("  procgen-cli mix-seed-table");
+    Console.Error.WriteLine("  procgen-cli room-kit-specs");
 }
-
-sealed record GenerateOptions(string BiomeId, int Seed, Guid RunId, int Tier, int PlayerLevel, int FloorIndex, bool IsFinalFloor);

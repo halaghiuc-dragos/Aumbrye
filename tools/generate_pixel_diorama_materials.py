@@ -3,18 +3,17 @@
 
 from __future__ import annotations
 
+import argparse
 from pathlib import Path
+
+from generated_manifest import prepare_write, record_write
 
 ROOT = Path(__file__).resolve().parents[1]
 CLIENT = ROOT / "apps" / "game" / "client"
 SHADER = "res://assets/shared/pixel_diorama_surface.gdshader"
 
-# surface_kind 3 is the accent pattern (sparkle band), kept in sync with
-# PixelDioramaStyle.SurfaceKind.ACCENT.
 ACCENT_SURFACE_KIND = 3
 
-# Emissive palette slot per biome; accents pick this up as their highlight so
-# trim reads as the same family as torches and runes in that biome.
 ACCENT_HIGHLIGHTS = {
     "castle": (1.00, 0.62, 0.28),
     "crystal": (0.55, 0.85, 1.00),
@@ -116,15 +115,13 @@ def color_str(rgb: tuple[float, float, float]) -> str:
     return f"Color({rgb[0]}, {rgb[1]}, {rgb[2]}, 1.0)"
 
 
-def write_surface_material(
-    path: Path,
+def render_surface_material(
     surface_kind: int,
     color_base,
     color_shadow,
     color_accent,
-) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    text = f"""[gd_resource type="ShaderMaterial" load_steps=2 format=3]
+) -> str:
+    return f"""[gd_resource type="ShaderMaterial" load_steps=2 format=3]
 
 [ext_resource type="Shader" path="{SHADER}" id="1_shader"]
 
@@ -145,11 +142,48 @@ shader_parameter/rim_strength = 0.08
 shader_parameter/surface_kind = {surface_kind}
 texture_filter = 0
 """
-    path.write_text(text, encoding="utf-8")
+
+
+def write_surface_material(
+    path: Path,
+    surface_kind: int,
+    color_base,
+    color_shadow,
+    color_accent,
+    *,
+    force: bool,
+    dry_run: bool,
+) -> None:
+    content = render_surface_material(surface_kind, color_base, color_shadow, color_accent)
+    if not prepare_write(path, content, force=force, dry_run=dry_run):
+        return
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(content, encoding="utf-8")
+    record_write(path, content)
+
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--dry-run", action="store_true", help="Print files that would be written")
+    parser.add_argument("--force", action="store_true", help="Overwrite manually edited generated files")
+    parser.add_argument(
+        "--only",
+        action="append",
+        dest="only",
+        metavar="folder",
+        help="Limit to biome asset folder (repeatable)",
+    )
+    return parser.parse_args()
 
 
 def main() -> None:
-    for biome in BIOMES:
+    args = parse_args()
+    only = set(args.only or [])
+    selected = [b for b in BIOMES if not only or b["folder"] in only]
+    if only and not selected:
+        raise SystemExit(f"No biome folders matched --only {sorted(only)}")
+
+    for biome in selected:
         folder = CLIENT / "assets" / biome["folder"]
         write_surface_material(
             folder / "mat_floor.tres",
@@ -157,6 +191,8 @@ def main() -> None:
             biome["floor"],
             biome["floor_shadow"],
             biome["accent"],
+            force=args.force,
+            dry_run=args.dry_run,
         )
         write_surface_material(
             folder / "mat_wall.tres",
@@ -164,6 +200,8 @@ def main() -> None:
             biome["wall"],
             biome["wall_shadow"],
             biome["accent"],
+            force=args.force,
+            dry_run=args.dry_run,
         )
         write_surface_material(
             folder / "mat_accent.tres",
@@ -171,8 +209,11 @@ def main() -> None:
             biome["accent"],
             biome["wall_shadow"],
             ACCENT_HIGHLIGHTS.get(biome["folder"], biome["accent"]),
+            force=args.force,
+            dry_run=args.dry_run,
         )
-        print(f"Wrote pixel-diorama materials for {biome['folder']}")
+        if not args.dry_run:
+            print(f"Wrote pixel-diorama materials for {biome['folder']}")
 
 
 if __name__ == "__main__":

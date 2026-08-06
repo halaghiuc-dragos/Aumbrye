@@ -1,22 +1,24 @@
 # Run flow — improvement plan
 
+## Status: FINISHED
+
 ## Current state
-`RunFlow` (`apps/game/client/scripts/app/run_flow.gd`, 996 lines) drives a complete castle loop: generate → floor → boss → ascend → escape → results → hub, with continue, retreat, abandon, bonfire respawn, and waves branches. See [`../existing_codebase/run-flow.md`](../existing_codebase/run-flow.md). The loop works, but three classes of defect ship today: outcome reporting is not honest to the event that occurred (waves `levels_gained` is hardcoded `0`, escape quests complete on death), failure paths have no recovery (a mid-run generation failure leaves the run with an empty definition and no scene change), and the floor cache evicts the wrong floor because keys are compared as strings. The online generation branch is dead code behind `USE_ONLINE_PROCgen := false`.
+`RunFlow` drives castle and waves loops with unified outcome reporting via `RunLifecycle.build_results`, `run_warning` for in-frame hub/combat feedback, distance-based floor cache eviction, bonfire respawn overlays, awaited cloud finalize, and `RUN_META_KEYS` hygiene. See [`../existing_codebase/run-flow.md`](../existing_codebase/run-flow.md).
 
 ## Gaps
 | ID | Sev | Gap | Evidence |
 |----|-----|-----|----------|
-| RFL-01 | P0 | `run_ended` fires on death, and `QuestService._on_run_ended` completes every active `escape` quest unconditionally, so dying rewards a "escape the castle" quest | `run_flow.gd:426`, `quest_service.gd:102-103`, `quest_service.gd:114-122` |
-| RFL-02 | P0 | A failed mid-run floor generation reverts `current_floor` but leaves `current_dungeon_definition` empty and performs no scene change; the run becomes unplayable with no message shown | `run_flow.gd:548-563` |
-| RFL-03 | P0 | Waves completion reports `levels_gained: 0` even when `grant_xp` levelled the player, and `on_waves_failed` omits `run_relics_lost` | `run_flow.gd:963`, `run_flow.gd:979-988` |
-| RFL-04 | P1 | `_trim_floor_cache` sorts `String` keys, so on a 10-floor run `"10"` is evicted before `"2"` and the adjacent floor is regenerated every transition | `run_flow.gd:630-638` |
-| RFL-05 | P1 | Bonfire death silently reloads the dungeon with no outcome screen; the player is never told how much XP was lost or what loot was stripped | `run_flow.gd:815-847` |
-| RFL-06 | P1 | `activeRun.playerDead` is written `true` and then `false` with an autosave after each; a crash between the writes leaves a run that `LocalSave.has_continuable_run()` rejects | `run_flow.gd:836-846`, `local_save.gd:338-339` |
-| RFL-07 | P1 | A failed run start sets `last_hub_message` and returns with no scene change and no signal, so the hub label only updates on the next `_refresh_hub_message()` | `run_flow.gd:154-158`, `hub.gd:345-348` |
-| RFL-08 | P1 | Cloud finalize failures are `push_warning` only and `"auth failed"` is silenced; a run that never reached the server looks identical to one that did | `run_flow.gd:743-755` |
-| RFL-09 | P2 | `_clear_run_meta()` leaves `floor_transition` and `run_results` on the root, so a stale transition can leak into the next scene load | `run_flow.gd:889-900`, `run_flow.gd:568`, `run_flow.gd:386` |
-| RFL-10 | P2 | `_try_online_generate()`, `_start_run()`, and `_unload_current_floor_chunk()` are unreachable dead code | `run_flow.gd:195`, `run_flow.gd:176`, `run_flow.gd:649` |
-| RFL-11 | P2 | Waves results are hand-built inline instead of going through `RunLifecycle`, so the two paths drift | `run_flow.gd:956-966`, `run_lifecycle.gd:7-46` |
+| RFL-01 | P0 | ~~Escape quest on death~~ **FINISHED** — `register_run_outcome(OUTCOME_ESCAPED)` from portal only | `quest_service.gd:95-97` |
+| RFL-02 | P0 | ~~Mid-run generation failure leaves run unplayable~~ **FINISHED** — `_transition_floor` restores definition; `run_warning` emitted | `run_flow.gd:_transition_floor` |
+| RFL-03 | P0 | ~~Waves `levels_gained` / `run_relics_lost` dishonest~~ **FINISHED** — all outcomes via `build_results` | `run_lifecycle.gd`, `run_flow.gd` |
+| RFL-04 | P1 | ~~Floor cache string-key eviction~~ **FINISHED** — int keys, distance eviction | `run_flow.gd:_trim_floor_cache` |
+| RFL-05 | P1 | ~~Bonfire death silent reload~~ **FINISHED** — `run_respawn_results` overlay in `castle_run` / `combat_hud` | `run_flow.gd:_bonfire_death_respawn` |
+| RFL-06 | P1 | ~~`playerDead` flip-flop autosave~~ **FINISHED** — single write, `playerDead` erased | `run_flow.gd:_bonfire_death_respawn` |
+| RFL-07 | P1 | ~~Failed run start silent in hub~~ **FINISHED** — `run_warning` + hub subscribe | `run_flow.gd:run_warning`, `hub.gd:_on_run_warning` |
+| RFL-08 | P1 | ~~Cloud finalize swallowed~~ **FINISHED** — awaited status, `cloud_synced` on results | `run_flow.gd:_cloud_finalize_run` |
+| RFL-09 | P2 | ~~Stale `floor_transition` / `run_results` metas~~ **FINISHED** — `RUN_META_KEYS` + `_clear_run_meta` | `run_flow.gd:RUN_META_KEYS` |
+| RFL-10 | P2 | ~~Dead code in `run_flow.gd`~~ **FINISHED** — removed `_start_run`, `_try_online_generate`, `_unload_current_floor_chunk` | `run_flow.gd` |
+| RFL-11 | P2 | ~~Waves results drift from `RunLifecycle`~~ **FINISHED** — waves paths use `build_results` | `run_flow.gd:complete_waves_run` |
 
 ## Target design
 
@@ -189,17 +191,17 @@ Register it in `migrate()` after the v3→v4 step, and update `local_save.gd:11`
 **Failure behaviour.** A v5 save whose `activeRun` fails the checkpoint recovery above loses only the active run, never the character: `copy.erase("activeRun")` leaves `character`, `inventory`, `talents`, and `flags` intact, so `_validate_save` still passes and the player returns to the hub with their permanent progress.
 
 ## Acceptance criteria
-- [ ] Dying with an active `escape_castle` quest leaves it `active` and grants no gold; escaping completes it exactly once. (RFL-01)
-- [ ] Forcing `LocalProcgen.generate` to fail during `ascend_floor` leaves the player on the original floor with the original geometry loaded and shows a `run_warning` toast. (RFL-02)
-- [ ] `complete_waves_run` results report `levels_gained` equal to `grant_xp(...).levels_gained`, and `on_waves_failed` results contain `run_relics_lost`. (RFL-03)
-- [ ] After transitioning 1→2→…→10 in castle mode, `floor_definitions` contains floors 9, 10, and one neighbour — never floor 1. (RFL-04)
-- [ ] Dying at a bonfire checkpoint shows an in-scene outcome overlay stating XP granted, XP deferred to the shard, and the item ids stripped. (RFL-05)
-- [ ] `activeRun` is written exactly once during `_bonfire_death_respawn`, and `playerDead` never appears in a save written by that path. (RFL-06)
-- [ ] A refused run start (locked dungeon, locked tier, generation failure) updates the hub message within the same frame via `run_warning`. (RFL-07)
-- [ ] `run_results.cloud_synced` is `false` and the results screen reads "saved locally (offline)" when `ApiConfig.access_token` is empty. (RFL-08)
-- [ ] After returning to the hub, `get_tree().root.has_meta("floor_transition")` and `has_meta("run_results")` are both false. (RFL-09)
-- [ ] `run_flow.gd` contains no function without a call site. (RFL-10)
-- [ ] All seven outcomes produce dictionaries with an identical key set. (RFL-03, RFL-11)
+- [x] Dying with an active `escape_castle` quest leaves it `active` and grants no gold; escaping completes it exactly once. (RFL-01)
+- [x] Forcing `LocalProcgen.generate` to fail during `ascend_floor` leaves the player on the original floor with the original geometry loaded and shows a `run_warning` toast. (RFL-02)
+- [x] `complete_waves_run` results report `levels_gained` equal to `grant_xp(...).levels_gained`, and `on_waves_failed` results contain `run_relics_lost`. (RFL-03)
+- [x] After transitioning 1→2→…→10 in castle mode, `floor_definitions` contains floors 9, 10, and one neighbour — never floor 1. (RFL-04)
+- [x] Dying at a bonfire checkpoint shows an in-scene outcome overlay stating XP granted, XP deferred to the shard, and the item ids stripped. (RFL-05)
+- [x] `activeRun` is written exactly once during `_bonfire_death_respawn`, and `playerDead` never appears in a save written by that path. (RFL-06)
+- [x] A refused run start (locked dungeon, locked tier, generation failure) updates the hub message within the same frame via `run_warning`. (RFL-07)
+- [x] `run_results.cloud_synced` is `false` and the results screen reads "saved locally (offline)" when `ApiConfig.access_token` is empty. (RFL-08)
+- [x] After returning to the hub, `get_tree().root.has_meta("floor_transition")` and `has_meta("run_results")` are both false. (RFL-09)
+- [x] `run_flow.gd` contains no function without a call site. (RFL-10)
+- [x] All seven outcomes produce dictionaries with an identical key set. (RFL-03, RFL-11)
 
 ## Validation
 Extend `apps/game/client/scripts/validation/suites/flow_suite.gd`:

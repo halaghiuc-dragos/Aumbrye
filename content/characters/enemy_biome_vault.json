@@ -1,0 +1,83 @@
+{
+  "id": "enemy_biome_vault",
+  "grid": 0.04,
+  "profile": "biped",
+  "parts": {
+    "LegL": {
+      "mesh": "res://assets/characters/enemy_biome_vault/legl.voxels.json",
+      "joint": [
+        -4,
+        12,
+        0
+      ]
+    },
+    "LegR": {
+      "mesh": "res://assets/characters/enemy_biome_vault/legr.voxels.json",
+      "joint": [
+        4,
+        12,
+        0
+      ]
+    },
+    "Torso": {
+      "mesh": "res://assets/characters/enemy_biome_vault/torso.voxels.json",
+      "joint": [
+        0,
+        12,
+        0
+      ]
+    },
+    "Head": {
+      "mesh": "res://assets/characters/enemy_biome_vault/head.voxels.json",
+      "joint": [
+        0,
+        16,
+        0
+      ],
+      "parent": "Torso"
+    },
+    "ArmL": {
+      "mesh": "res://assets/characters/enemy_biome_vault/arml.voxels.json",
+      "joint": [
+        -8,
+        14,
+        0
+      ],
+      "parent": "Torso",
+      "mount": "ShieldMount",
+      "meshOffset": [
+        0,
+        -14,
+        0
+      ]
+    },
+    "ArmR": {
+      "mesh": "res://assets/characters/enemy_biome_vault/armr.voxels.json",
+      "joint": [
+        8,
+        14,
+        0
+      ],
+      "parent": "Torso",
+      "mount": "WeaponMount",
+      "meshOffset": [
+        0,
+        -14,
+        0
+      ]
+    }
+  },
+  "animationLibrary": "res://assets/animations/diorama/melee_locomotion.res",
+  "slots": {
+    "head": "Head",
+    "chest": "Torso",
+    "hands": [
+      "ArmL",
+      "ArmR"
+    ],
+    "feet": [
+      "LegL",
+      "LegR"
+    ]
+  }
+}

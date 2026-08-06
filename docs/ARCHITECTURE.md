@@ -57,6 +57,7 @@ Main scene: `apps/game/client/scenes/ui/title_screen.tscn` (`project.godot` → 
 | `PixelDioramaViewport` | `scripts/art/pipeline/pixel_diorama_viewport.gd` | Low-res SubViewport mirror |
 | `AttackTokenService` | `scripts/combat/attack_token_service.gd` | Per-room attacker concurrency |
 | `GameFacade` | `scripts/app/game_facade.gd` | Thin grouping accessors |
+| `DebugConsole` | `scripts/debug/debug_console.gd` | Debug-only commands (`content_reload` clears catalog caches) |
 
 Non-autoload helpers include catalogs under `scripts/content/`, `BiomeRegistry`, `DungeonCatalog`, `ContentLoader`, scene routers under `scripts/app/`.
 
@@ -193,6 +194,10 @@ flowchart LR
 
 - Source: `content/**/*.json` + `content/schemas/*.v1.json`
 - Client load: `ContentLoader` resolves repo root (`res://` → `../../..`) or `aumbrye/content_root`
+- Directory catalogs (`ItemCatalog`, `EnemyCatalog`, `ClassCatalog`, `RelicCatalog`, `QuestCatalog`, `DialogueCatalog`) share `ContentDirLoader.load_id_map()` — one `DirAccess` walk helper under `scripts/content/content_dir_loader.gd`
+- `content/items/catalog.json` is the tooling index (equipment / consumables / materials). Optional runtime allowlist: set `aumbrye/strict_item_catalog=true` in ProjectSettings to intersect disk ids with `catalog.json` (`push_error` on extras/missing; default `false` in player builds)
+- Run relics live under `content/relics/` via `RelicCatalog`, not in `items/catalog.json`
+- Dev reload: `DebugConsole` autoload (`F12` → `content_reload`) calls `ContentLoader.clear_all_caches()` so catalogs repopulate without restart
 - CI: `scripts/validate-content/validate.mjs` (strict placeholder run has `continue-on-error: true`)
 - Domains present on disk: enemies, bosses, weapons, items, biomes, affixes, progression, talents, relics, statuses, quests, dialogue, NPCs, recipes, merchant, classes, audio_profiles, achievements, loot, fixtures
 
@@ -248,13 +253,13 @@ Display: 1920×1080, `canvas_items` stretch, integer scale (`project.godot`). De
 | backend | `dotnet` build/test + procgen-cli |
 | web | lint + build |
 | python | `ruff` on `tools/` |
-| content | `scripts/validate-content` (strict pass has `continue-on-error: true`) |
-| gdscript | gdtoolkit on an **allowlist of ~8 files** (~3% of client `.gd`) |
-| godot | headless anim export + `validation_main.gd` |
+| content | `scripts/validate-content` strict gate (`validate:strict`) |
+| gdscript | gdtoolkit on all `apps/game/client/scripts/**/*.gd` (excludes addons) |
+| godot | headless anim export + `validation_main.gd` (report artifact on failure) |
 
-**Skew:** CI / release pin Godot **4.4.0**; `project.godot` features **4.7**.
+**Godot pin:** CI and release read `apps/game/client/.godot-version` (`4.7.0`), matching `project.godot` features **4.7**.
 
-**Release:** `.github/workflows/release.yml` builds `services/backend/Dockerfile` (ABSENT) and needs a gitignored `export_presets.cfg` — both jobs fail on a clean checkout.
+**Release:** `.github/workflows/release.yml` builds `services/backend/Dockerfile`, pushes to GHCR, and exports Godot using committed `export_presets.cfg` (credentials in gitignored `export_presets.local.cfg`).
 
 Validation runner registers **24** suites in `SUITE_PATHS` (matches the 24 files on disk). Several assertions still require deleted documentation paths and fail for non-code reasons.
 

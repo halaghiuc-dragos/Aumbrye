@@ -21,7 +21,9 @@ static func create_prop(kind: PropKind, biome_id: String = BiomeRegistry.BIOME_C
 			return Node3D.new()
 
 
-static func create_prop_named(kind_name: String, biome_id: String = BiomeRegistry.BIOME_CASTLE) -> Node3D:
+static func create_prop_named(
+	kind_name: String, biome_id: String = BiomeRegistry.BIOME_CASTLE
+) -> Node3D:
 	match kind_name.to_lower():
 		"crate":
 			return create_prop(PropKind.CRATE, biome_id)
@@ -36,7 +38,9 @@ static func create_prop_named(kind_name: String, biome_id: String = BiomeRegistr
 			return Node3D.new()
 
 
-static func _make_mesh_instance(mesh: Mesh, material: Material, mesh_name: String = "Mesh") -> MeshInstance3D:
+static func _make_mesh_instance(
+	mesh: Mesh, material: Material, mesh_name: String = "Mesh"
+) -> MeshInstance3D:
 	var instance := MeshInstance3D.new()
 	instance.name = mesh_name
 	instance.mesh = mesh
@@ -65,7 +69,9 @@ static func _make_crate(theme: PixelDioramaStyle.PaletteTheme) -> Node3D:
 	plank.position = Vector3(0.0, 0.55, 0.46)
 	root.add_child(plank)
 
-	var plank_side := _make_mesh_instance(_make_box(Vector3(0.22, 0.08, 0.95)), trim_mat, "PlankSide")
+	var plank_side := _make_mesh_instance(
+		_make_box(Vector3(0.22, 0.08, 0.95)), trim_mat, "PlankSide"
+	)
 	plank_side.position = Vector3(0.46, 0.55, 0.0)
 	root.add_child(plank_side)
 
@@ -115,7 +121,9 @@ static func _make_torch(theme: PixelDioramaStyle.PaletteTheme) -> Node3D:
 
 	var light := OmniLight3D.new()
 	light.name = "TorchLight"
-	light.light_color = PixelDioramaStyle.get_palette_color(theme, PixelDioramaStyle.PaletteSlot.EMISSIVE)
+	light.light_color = PixelDioramaStyle.get_palette_color(
+		theme, PixelDioramaStyle.PaletteSlot.EMISSIVE
+	)
 	light.light_energy = 0.55
 	light.omni_range = 4.5
 	light.shadow_enabled = false

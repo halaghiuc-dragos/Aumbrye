@@ -64,6 +64,52 @@ func _ready() -> void:
 		decal.visible = false
 		_root.add_child(decal)
 		_decal_pool.append(decal)
+	if PixelDioramaViewport:
+		PixelDioramaViewport.world_attached.connect(_on_pixel_world_attached)
+
+
+func _on_pixel_world_attached(scene_root: Node) -> void:
+	if scene_root == null or not is_instance_valid(scene_root):
+		return
+	if not is_instance_valid(_root):
+		_ready_vfx_root()
+	if _root.get_parent() == scene_root:
+		return
+	if _root.get_parent():
+		_root.reparent(scene_root)
+	else:
+		scene_root.add_child(_root)
+
+
+func _ready_vfx_root() -> void:
+	_root = Node3D.new()
+	_root.name = "VfxRoot"
+	add_child(_root)
+	_burst_pool.clear()
+	_gpu_burst_pool.clear()
+	_decal_pool.clear()
+	for i in BURST_POOL_SIZE:
+		var particles := CPUParticles3D.new()
+		particles.name = "BurstPool%d" % i
+		particles.emitting = false
+		particles.one_shot = true
+		particles.mesh = _pixel_chunk_mesh()
+		particles.top_level = true
+		particles.visibility_aabb = AABB(Vector3(-2.0, -1.0, -2.0), Vector3(4.0, 4.0, 4.0))
+		_root.add_child(particles)
+		_burst_pool.append(particles)
+	for i in GPU_BURST_POOL_SIZE:
+		var gpu := _make_gpu_burst()
+		gpu.name = "GpuBurstPool%d" % i
+		_root.add_child(gpu)
+		_gpu_burst_pool.append(gpu)
+	for i in DECAL_POOL_SIZE:
+		var decal := Decal.new()
+		decal.name = "DecalPool%d" % i
+		decal.top_level = true
+		decal.visible = false
+		_root.add_child(decal)
+		_decal_pool.append(decal)
 
 
 func resolve_combat_anchor(body: Node3D) -> Array:
@@ -83,17 +129,18 @@ func resolve_combat_anchor(body: Node3D) -> Array:
 
 func play_attack_swing(world_pos: Vector3, forward: Vector3 = Vector3.FORWARD) -> void:
 	_play_combat_burst("AttackSwing", world_pos, forward, Color(1.0, 0.92, 0.55, 0.98), 2.2)
-	AudioDirector.play_sfx("swing", world_pos)
 
 
 func play_block(world_pos: Vector3, forward: Vector3 = Vector3.FORWARD) -> void:
 	_play_combat_burst("BlockSpark", world_pos, forward, Color(0.55, 0.82, 1.0, 0.92), 0.8)
-	AudioDirector.play_sfx("block", world_pos)
 
 
 func play_parry(world_pos: Vector3, forward: Vector3 = Vector3.FORWARD) -> void:
 	_play_combat_burst("ParrySpark", world_pos, forward, Color(1.0, 0.88, 0.2, 0.95), 0.85)
-	AudioDirector.play_sfx("parry", world_pos)
+
+
+func play_parry_spark(world_pos: Vector3, forward: Vector3 = Vector3.FORWARD) -> void:
+	play_parry(world_pos, forward)
 
 
 func play_hit_spark(world_pos: Vector3, direction: Vector3 = Vector3.UP) -> void:
@@ -135,6 +182,32 @@ func play_blood_decal(world_pos: Vector3, direction: Vector3 = Vector3.FORWARD) 
 
 func play_impact_decal(world_pos: Vector3, direction: Vector3 = Vector3.FORWARD) -> void:
 	_spawn_decal(world_pos, direction, _impact_decal_tex, 0.28, 2.4)
+
+
+func play_rune_flare(world_pos: Vector3) -> void:
+	play_hit_spark(world_pos, Vector3.UP)
+	if PixelDioramaSettings.particle_quality > 0:
+		_emit_gpu_burst(
+			"RuneFlareGpu",
+			world_pos,
+			Vector3.UP,
+			Color(0.72, 0.55, 0.95, 0.9),
+			int(18 * PixelDioramaSettings.particle_amount_scale()),
+			0.45
+		)
+
+
+func play_portal_activate(world_pos: Vector3) -> void:
+	play_hit_spark(world_pos + Vector3(0.0, 1.0, 0.0), Vector3.UP)
+	if PixelDioramaSettings.particle_quality > 0:
+		_emit_gpu_burst(
+			"PortalActivateGpu",
+			world_pos + Vector3(0.0, 0.8, 0.0),
+			Vector3.UP,
+			Color(0.35, 0.82, 0.95, 0.85),
+			int(24 * PixelDioramaSettings.particle_amount_scale()),
+			0.55
+		)
 
 
 func play_death(world_pos: Vector3, tint: Color = Color(0.85, 0.35, 0.28)) -> void:
@@ -195,10 +268,9 @@ func play_death(world_pos: Vector3, tint: Color = Color(0.85, 0.35, 0.28)) -> vo
 			}
 		)
 	play_blood_decal(world_pos, Vector3(randf_range(-1.0, 1.0), 0.0, randf_range(-1.0, 1.0)))
-	AudioDirector.play_sfx("death", world_pos)
 
 
-func play_footstep(world_pos: Vector3, forward: Vector3 = Vector3.FORWARD) -> void:
+func play_footstep(world_pos: Vector3, forward: Vector3 = Vector3.FORWARD, surface: StringName = &"stone") -> void:
 	var dir := forward.normalized() if forward.length_squared() > 0.01 else Vector3(0.0, 0.0, -1.0)
 	var side := dir.cross(Vector3.UP)
 	if side.length_squared() < 0.01:
@@ -208,6 +280,7 @@ func play_footstep(world_pos: Vector3, forward: Vector3 = Vector3.FORWARD) -> vo
 	var foot_side := 1.0 if _foot_alt else -1.0
 	_foot_alt = not _foot_alt
 	var foot_pos := world_pos + side * 0.18 * foot_side
+	var tint := _footstep_color(surface)
 	_make_burst_particles(
 		"Footstep",
 		foot_pos,
@@ -221,14 +294,25 @@ func play_footstep(world_pos: Vector3, forward: Vector3 = Vector3.FORWARD) -> vo
 			"gravity": Vector3(0.0, -5.5, 0.0),
 			"scale_min": 0.07,
 			"scale_max": 0.13,
-			"color": Color(0.72, 0.64, 0.48, 0.78),
+			"color": tint,
 			"emission": 0.15,
 			"direction": Vector3(0.0, 1.0, 0.0),
 			"flatness": 0.9,
 			"orient_yaw": false,
 		}
 	)
-	AudioDirector.play_sfx("footstep", foot_pos)
+
+
+static func _footstep_color(surface: StringName) -> Color:
+	match String(surface):
+		"wood":
+			return Color(0.58, 0.42, 0.28, 0.78)
+		"water":
+			return Color(0.42, 0.62, 0.82, 0.65)
+		"snow":
+			return Color(0.88, 0.92, 0.96, 0.85)
+		_:
+			return Color(0.72, 0.64, 0.48, 0.78)
 
 
 func play_weapon_trail(
@@ -281,8 +365,13 @@ func play_weapon_trail(
 
 
 ## Floor glyph: outer ring, inner fill, and center marker. Shape: circle | cone | line.
-func play_telegraph(world_pos: Vector3, radius: float = 1.6, duration: float = 0.6,
-		tint: Color = Color(0.95, 0.34, 0.28), shape: String = "circle") -> void:
+func play_telegraph(
+	world_pos: Vector3,
+	radius: float = 1.6,
+	duration: float = 0.6,
+	tint: Color = Color(0.95, 0.34, 0.28),
+	shape: String = "circle"
+) -> void:
 	var glyph := Node3D.new()
 	glyph.name = "TelegraphGlyph"
 	glyph.top_level = true
@@ -295,9 +384,7 @@ func play_telegraph(world_pos: Vector3, radius: float = 1.6, duration: float = 0
 		1.35
 	)
 	var fill_mat := PixelStyle.make_glow_material(
-		Color(tint.r, tint.g, tint.b, 0.42),
-		Color(tint.r, tint.g, tint.b, 0.22).darkened(0.2),
-		0.55
+		Color(tint.r, tint.g, tint.b, 0.42), Color(tint.r, tint.g, tint.b, 0.22).darkened(0.2), 0.55
 	)
 	match shape:
 		"line":
@@ -318,7 +405,9 @@ func play_telegraph(world_pos: Vector3, radius: float = 1.6, duration: float = 0
 				wedge.size = Vector3(0.18, 0.02, radius * 0.9)
 				block.mesh = wedge
 				block.material_override = rim_mat if i == 0 or i == wedge_segments - 1 else fill_mat
-				block.position = Vector3(sin(angle) * radius * 0.45, 0.0, -cos(angle) * radius * 0.45)
+				block.position = Vector3(
+					sin(angle) * radius * 0.45, 0.0, -cos(angle) * radius * 0.45
+				)
 				block.rotation.y = angle
 				block.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 				glyph.add_child(block)
@@ -362,11 +451,7 @@ func play_telegraph(world_pos: Vector3, radius: float = 1.6, duration: float = 0
 
 
 func _play_combat_burst(
-	node_name: String,
-	world_pos: Vector3,
-	forward: Vector3,
-	color: Color,
-	emission: float
+	node_name: String, world_pos: Vector3, forward: Vector3, color: Color, emission: float
 ) -> void:
 	var dir := forward.normalized() if forward.length_squared() > 0.01 else Vector3(0.0, 0.0, -1.0)
 	var cfg := _COMBAT_BURST.duplicate()
@@ -386,7 +471,9 @@ func _resolve_forward(body: Node3D) -> Vector3:
 	return -body.global_transform.basis.z
 
 
-func _make_burst_particles(node_name: String, world_pos: Vector3, cfg: Dictionary) -> CPUParticles3D:
+func _make_burst_particles(
+	node_name: String, world_pos: Vector3, cfg: Dictionary
+) -> CPUParticles3D:
 	var particles := _acquire_burst()
 	particles.name = node_name
 	particles.amount = int(cfg.get("amount", 12))
@@ -403,8 +490,7 @@ func _make_burst_particles(node_name: String, world_pos: Vector3, cfg: Dictionar
 	particles.scale_amount_max = float(cfg.get("scale_max", 0.1))
 	particles.color = cfg.get("color", Color.WHITE)
 	particles.material_override = _make_particle_material(
-		particles.color,
-		float(cfg.get("emission", 0.0))
+		particles.color, float(cfg.get("emission", 0.0))
 	)
 	particles.global_position = world_pos
 	particles.restart()
@@ -429,9 +515,10 @@ func _acquire_burst() -> CPUParticles3D:
 
 func _schedule_pool_return(particles: CPUParticles3D, delay: float) -> void:
 	var timer := get_tree().create_timer(delay)
-	timer.timeout.connect(func() -> void:
-		if is_instance_valid(particles):
-			particles.emitting = false
+	timer.timeout.connect(
+		func() -> void:
+			if is_instance_valid(particles):
+				particles.emitting = false
 	)
 
 
@@ -541,18 +628,15 @@ func _acquire_gpu_burst() -> GPUParticles3D:
 
 func _schedule_gpu_return(particles: GPUParticles3D, delay: float) -> void:
 	var timer := get_tree().create_timer(delay)
-	timer.timeout.connect(func() -> void:
-		if is_instance_valid(particles):
-			particles.emitting = false
+	timer.timeout.connect(
+		func() -> void:
+			if is_instance_valid(particles):
+				particles.emitting = false
 	)
 
 
 func _spawn_decal(
-	world_pos: Vector3,
-	direction: Vector3,
-	texture: Texture2D,
-	size: float,
-	lifetime: float
+	world_pos: Vector3, direction: Vector3, texture: Texture2D, size: float, lifetime: float
 ) -> void:
 	var decal := _acquire_decal()
 	decal.texture_albedo = texture
@@ -581,9 +665,10 @@ func _acquire_decal() -> Decal:
 
 func _schedule_decal_return(decal: Decal, delay: float) -> void:
 	var timer := get_tree().create_timer(delay)
-	timer.timeout.connect(func() -> void:
-		if is_instance_valid(decal):
-			decal.visible = false
+	timer.timeout.connect(
+		func() -> void:
+			if is_instance_valid(decal):
+				decal.visible = false
 	)
 
 

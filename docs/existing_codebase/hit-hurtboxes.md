@@ -19,7 +19,7 @@ The `Area3D` pair that turns an attack into a `DamageInfo` delivery, plus the de
 
 `enable()` sets `_active`, `monitoring`, physics processing, and immediately calls `_scan_overlaps()` so a target already inside the box is hit on the activation frame rather than on the next `area_entered`. `disable()` reverses it and zeroes `_last_overlap_count`. `reset_swing()` clears `_hit_targets`.
 
-`set_attack_values(damage, poise, dmg_type, apply_status, status_stacks, crit_chance)` (`:66`) is the whole configuration surface. All three callers pass five arguments: `weapon_controller.gd:350`, `castle_enemy_base.gd:643-649`, `enemy_projectile.gd:31`. The sixth parameter therefore keeps its `0.0` default.
+`set_attack_values(damage, poise, dmg_type, apply_status, status_stacks, crit_chance, crit_multiplier)` (`:69`) is the configuration surface. `weapon_controller.gd` passes crit from `CombatStatModifiers.crit_chance`; enemy callers pass five arguments (crit defaults to 0).
 
 ### Overlap detection
 
@@ -39,9 +39,9 @@ There is no swept or continuous test; each frame samples the shape at its curren
 3. `area.get("team") == team` — same-team hits are dropped. Teams are the strings `"player"`, `"enemy"` and `"trap"`.
 4. `_is_cross_boss_boundary(area)` — asks the node in the `castle_run` group whether attacker and target are on opposite sides of a boss boundary.
 5. `_has_clear_line_to(area)` — see below.
-6. `target_id in _hit_targets` — one hit per target per swing.
+6. `_hit_times` per-target dedup with optional `rehit_interval` (`:133-139`) — when `rehit_interval > 0`, the same target can be hit again after the interval elapses.
 
-On acceptance it appends the instance id, computes `direction = (area.global_position - _owner_node.global_position).normalized()`, rolls a crit (`final_damage *= 1.5` when `randf() < _crit_chance`, which is never true because `_crit_chance` is always 0.0), builds the `DamageInfo`, calls `area.receive_hit(info)`, plays `VfxService.play_hit_spark` at the target parent's position +1 m, and calls `HitFeedback.on_hit(area.get_parent(), damage_amount, direction)` on the **attacker's** `HitFeedback` child if it has one.
+On acceptance it records the hit time, computes `direction`, rolls crit (`final_damage *= _crit_multiplier` when `randf() < _crit_chance`), builds `DamageInfo` with `info.crit`, calls `area.receive_hit(info)`, then plays VFX and `HitFeedback.on_hit`.
 
 `on_hit` receives `damage_amount` — the pre-crit, pre-mitigation configured value — not `final_damage` and not what the hurtbox actually applied.
 
@@ -51,9 +51,9 @@ On acceptance it appends the instance id, computes `direction = (area.global_pos
 
 ### Hurtbox
 
-Covered in detail in [`combat-core.md`](combat-core.md). Structurally: an `Area3D` in the `combat_hurtbox` group with `monitorable = true`, three `@export`s (`team`, `health_path`, `poise_path`), one signal (`damaged(info)`), and ancestor-walking lookups for `Guard`, `Dodge`, `StatusController`, `HitFeedback` and the owning `CharacterBody3D`.
+Covered in detail in [`combat-core.md`](combat-core.md). `receive_hit` builds a `DamageResolution`, emits `hit_resolved` at every exit, and lazy-creates a `StatusController` on the victim body when status application is needed (`hurtbox.gd:275-293`). `@export region` and `region_damage_mult` / `region_poise_mult` support per-region multipliers.
 
-`damaged.emit(info)` (`hurtbox.gd:61`) passes the original, unmitigated `DamageInfo`. Consumers: `castle_enemy_base.gd:79` → `_on_hurt` plays a flinch animation or a mesh pulse; `training_grunt.gd:70` → same; `final_boss_forgotten_castle.gd:50` overrides `_on_hurt` to skip the flinch while immune — the health damage has already been applied by that point.
+`damaged.emit(info)` (`hurtbox.gd:132`) still passes the original unmitigated `DamageInfo`. `castle_enemy_base.gd` also listens to `hit_resolved` for flinch when `outgoing > 0`.
 
 `ShieldHurtbox` (`shield_hurtbox.gd`) is the only subclass; see [`guard.md`](guard.md).
 
@@ -97,25 +97,22 @@ Autoload (`project.godot:52`). `DEFAULT_MAX_TOKENS := 2`. `request_token(group_i
 
 | Surface | Status | Evidence |
 |---------|--------|----------|
-| Shape-query overlap scan with team, LOS and boss-boundary filters | IMPLEMENTED | `hitbox.gd:95-130` |
-| One hit per target per swing | IMPLEMENTED | `hitbox.gd:127-130,62-63` |
-| Debug draw for both box types | IMPLEMENTED | `combat_collision_debug.gd`, `debug_overlay.gd:178-185` |
-| `AttackTokenService` concurrency cap | IMPLEMENTED | `attack_token_service.gd`, `castle_enemy_base.gd:613,664` |
-| Status delivery to enemies | BROKEN | `hurtbox.gd:165` requires a child node named `StatusController`; no enemy scene under `apps/game/client/scenes/enemies/` has one — only `player.tscn:89` does. Every player-applied status (e.g. `content/weapons/dagger.json:18` `"status": "bleed"`) is silently dropped |
-| `damaged` signal payload | BROKEN | `hurtbox.gd:61` emits the pre-mitigation `info`, so `_on_hurt` flinches on hits that dealt 0 damage after blocking |
-| Crit parameter on `set_attack_values` | STUB | `hitbox.gd:72` — the sixth parameter is never passed by any of the three callers (`weapon_controller.gd:350`, `castle_enemy_base.gd:643`, `enemy_projectile.gd:31`), so `hitbox.gd:135` never fires |
-| Multi-hit / sustained hitboxes | ABSENT | `_hit_targets` is cleared only by `reset_swing()`; there is no per-target re-hit interval. `trap_damage_area.gd:9,28-30` maintains its own `hit_interval` dictionary for exactly this reason |
-| Swept / continuous collision | ABSENT | `hitbox.gd:95-113` samples the shape once per physics frame at its current transform |
-| Overlap result cap | PARTIAL | `hitbox.gd:109` — `intersect_shape(params, 16)` silently drops the 17th and later overlaps in a frame |
-| Line-of-sight accuracy | PARTIAL | `hitbox.gd:194-196` clamps both endpoints to `y >= 0.75`, and the test runs center-to-center, so a waist-high prop between two centers cancels an otherwise legal hit |
-| Debug mesh tracking shape changes | BROKEN | `combat_collision_debug.gd:16` only toggles `visible`; the mesh is built once at `_ready()` from the then-current size, so `WeaponController._apply_hitbox_profile()` archetype resizes (`weapon_controller.gd:531-561`) are never reflected |
-| `_owner_node` freshness | PARTIAL | `hitbox.gd:32` resolves it once in `_ready()`; `enemy_pool.gd` reuse or reparenting keeps the stale owner. `set_combat_owner()` (`:82`) exists as the override but has one caller, `enemy_projectile.gd:30` |
-| `AttackTokenService.reset_group` / `reset_all` | STUB | `attack_token_service.gd:26,30` — no callers, so a token held by an enemy freed outside `_end_attack` leaks for the lifetime of the run |
-| Hurtbox hit regions (head, limbs) | ABSENT | One box per character; no per-region multiplier data anywhere under `content/` |
+| Shape-query overlap scan with team, LOS and boss-boundary filters | IMPLEMENTED | `hitbox.gd:100-130` |
+| Per-target dedup with optional `rehit_interval` | IMPLEMENTED | `hitbox.gd:133-139`, `@export rehit_interval` |
+| Crit from player talents/equipment | IMPLEMENTED | `weapon_controller.gd:477-479`, `hitbox.gd:146-148` |
+| Lazy `StatusController` on enemies | IMPLEMENTED | `hurtbox.gd:275-293` |
+| `hit_resolved` + `DamageResolution` pipeline | IMPLEMENTED | `hurtbox.gd:43-132`, `damage_resolution.gd` |
+| Debug draw for both box types | IMPLEMENTED | `combat_collision_debug.gd` |
+| `AttackTokenService` concurrency cap | IMPLEMENTED | `attack_token_service.gd`, `castle_enemy_base.gd` |
+| `damaged` signal payload | PARTIAL | Still emits pre-mitigation `info`; use `hit_resolved.outgoing` for applied damage |
+| Debug mesh tracking shape changes | PARTIAL | Mesh built once at `_ready()`; archetype resizes not reflected |
+| `AttackTokenService.reset_group` / `reset_all` | STUB | No callers — token leak if enemy freed mid-windup |
+| Swept / continuous collision | ABSENT | Per-frame shape sample only |
+| Hurtbox hit regions (head, limbs) | PARTIAL | `@export region` exists; no per-enemy scene authoring yet |
 
 ## Related
 
-- Improvement plan: [`../actual_improvements/hit-hurtboxes.md`](../actual_improvements/hit-hurtboxes.md)
+- Improvement plan: [`../actual_improvements/hit-hurtboxes.md`](../actual_improvements/hit-hurtboxes.md) — **FINISHED**
 - [`combat-core.md`](combat-core.md) — the `receive_hit` mitigation chain in full
 - [`weapons.md`](weapons.md) — `set_attack_values` caller and hitbox sizing
 - [`hit-feedback.md`](hit-feedback.md) — `HitFeedback.on_hit` caller

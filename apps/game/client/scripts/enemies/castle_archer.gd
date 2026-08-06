@@ -9,7 +9,7 @@ var _locked_shot_direction := Vector3.FORWARD
 var _locked_shot_speed := 12.0
 
 
-func get_enemy_id() -> String:
+func _resolve_enemy_id() -> String:
 	return "castle_archer"
 
 

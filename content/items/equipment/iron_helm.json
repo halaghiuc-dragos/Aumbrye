@@ -11,5 +11,10 @@
     "stats":  {
                   "defense":  3
               },
-    "equipmentSlot":  "helmet"
+    "equipmentSlot":  "helmet",
+    "visual": {
+        "attach": "Head",
+        "mesh": "res://assets/characters/equipment/iron_helm.mesh",
+        "hide": ["Head"]
+    }
 }

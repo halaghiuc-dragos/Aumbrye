@@ -1,0 +1,66 @@
+{
+  "id": "enemy_hound",
+  "grid": 0.04,
+  "profile": "quadruped",
+  "parts": {
+    "Torso": {
+      "mesh": "res://assets/characters/enemy_hound/torso.voxels.json",
+      "joint": [
+        0,
+        8,
+        0
+      ]
+    },
+    "Head": {
+      "mesh": "res://assets/characters/enemy_hound/head.voxels.json",
+      "joint": [
+        0,
+        5,
+        9
+      ],
+      "parent": "Torso"
+    },
+    "Tail": {
+      "mesh": "res://assets/characters/enemy_hound/tail.voxels.json",
+      "joint": [
+        0,
+        6,
+        -10
+      ],
+      "parent": "Torso"
+    },
+    "LegL": {
+      "mesh": "res://assets/characters/enemy_hound/legl.voxels.json",
+      "joint": [
+        -4,
+        8,
+        7
+      ]
+    },
+    "LegR": {
+      "mesh": "res://assets/characters/enemy_hound/legr.voxels.json",
+      "joint": [
+        4,
+        8,
+        7
+      ]
+    },
+    "LegBL": {
+      "mesh": "res://assets/characters/enemy_hound/legbl.voxels.json",
+      "joint": [
+        -4,
+        8,
+        -7
+      ]
+    },
+    "LegBR": {
+      "mesh": "res://assets/characters/enemy_hound/legbr.voxels.json",
+      "joint": [
+        4,
+        8,
+        -7
+      ]
+    }
+  },
+  "animationLibrary": "res://assets/animations/diorama/hound_locomotion.res"
+}

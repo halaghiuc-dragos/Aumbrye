@@ -1,0 +1,162 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://aumbrye.dev/schemas/procgen-seed-health.v1.json",
+  "title": "ProcgenSeedHealthReport",
+  "description": "Headless room-graph seed sweep report from procgen_seed_health.gd.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "generatedAtUnix",
+    "seedFrom",
+    "seedCount",
+    "biomes",
+    "totals"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "type": "integer",
+      "const": 1
+    },
+    "generatedAtUnix": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "seedFrom": {
+      "type": "integer"
+    },
+    "seedCount": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "biomes": {
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/$defs/biomeStats"
+      }
+    },
+    "totals": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["seeds", "usedFallback", "fallbackRate"],
+      "properties": {
+        "seeds": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "usedFallback": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "fallbackRate": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        }
+      }
+    }
+  },
+  "$defs": {
+    "biomeStats": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "seeds",
+        "firstAttemptOk",
+        "retriedOk",
+        "usedFallback",
+        "fallbackRate",
+        "attemptHistogram",
+        "failureReasons",
+        "mainRoomCount",
+        "worstSeeds"
+      ],
+      "properties": {
+        "seeds": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "firstAttemptOk": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "retriedOk": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "usedFallback": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "fallbackRate": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "attemptHistogram": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "failureReasons": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "mainRoomCount": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["min", "max", "mean", "histogram"],
+          "properties": {
+            "min": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "max": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "mean": {
+              "type": "number",
+              "minimum": 0
+            },
+            "histogram": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "integer",
+                "minimum": 0
+              }
+            }
+          }
+        },
+        "worstSeeds": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["seed", "attempts", "reasons"],
+            "properties": {
+              "seed": {
+                "type": "integer"
+              },
+              "attempts": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "reasons": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

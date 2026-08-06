@@ -42,9 +42,7 @@ func _build_ui() -> void:
 	backdrop.set_anchors_preset(Control.PRESET_FULL_RECT)
 	add_child(backdrop)
 	_menu_panel = GameUISkinScript.make_center_panel(
-		self,
-		GameUISkinScript.MENU_HALF_W + 60.0,
-		GameUISkinScript.MENU_HALF_H + 120.0
+		self, GameUISkinScript.MENU_HALF_W + 60.0, GameUISkinScript.MENU_HALF_H + 120.0
 	)
 	_menu_panel.name = "MenuPanel"
 	var margin := MarginContainer.new()
@@ -161,8 +159,7 @@ func _prompt_quit() -> void:
 		func() -> void:
 			_quit_overlay = null
 			get_tree().quit(),
-		func() -> void:
-			_quit_overlay = null,
+		func() -> void: _quit_overlay = null,
 		"Quit Game",
 		"Stay"
 	)
@@ -173,7 +170,9 @@ func _on_settings_closed() -> void:
 	_refresh_continue_button()
 
 
-func _on_character_created(class_id: String, character_name: String, appearance: Dictionary) -> void:
+func _on_character_created(
+	class_id: String, character_name: String, appearance: Dictionary
+) -> void:
 	LocalSave.queue_boot_new_game(class_id, character_name, appearance)
 	get_tree().change_scene_to_file(LOADING_SCENE)
 

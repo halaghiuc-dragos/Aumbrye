@@ -17,9 +17,13 @@ public class AumbryeDbContext : DbContext
         modelBuilder.Entity<Account>(e =>
         {
             e.HasKey(x => x.Id);
-            e.HasIndex(x => x.Email).IsUnique();
+            e.HasIndex(x => x.Email).IsUnique().HasFilter("\"Email\" IS NOT NULL");
+            e.HasIndex(x => x.DisplayName).IsUnique();
+            e.HasIndex(x => x.SteamId).IsUnique().HasFilter("\"SteamId\" IS NOT NULL");
             e.Property(x => x.Email).HasMaxLength(256);
+            e.Property(x => x.DisplayName).HasMaxLength(32);
             e.Property(x => x.PasswordHash).HasMaxLength(512);
+            e.Property(x => x.SteamId).HasColumnType("bigint");
             e.HasOne(x => x.SaveBlob).WithOne(x => x.Account).HasForeignKey<SaveBlob>(x => x.AccountId);
         });
 
@@ -28,6 +32,7 @@ public class AumbryeDbContext : DbContext
             e.HasKey(x => x.Id);
             e.HasIndex(x => x.TokenHash);
             e.Property(x => x.TokenHash).HasMaxLength(128);
+            e.Property(x => x.ReplacedByTokenHash).HasMaxLength(128);
         });
 
         modelBuilder.Entity<Run>(e =>

@@ -25,7 +25,7 @@
         "rare": { "$ref": "#/$defs/tier" },
         "epic": { "$ref": "#/$defs/tier" },
         "legendary": { "$ref": "#/$defs/tier" },
-        "mythic": { "$ref": "#/$defs/tier" }
+        "aumbral": { "$ref": "#/$defs/tier" }
       }
     },
     "weight": { "type": "integer", "minimum": 1 }

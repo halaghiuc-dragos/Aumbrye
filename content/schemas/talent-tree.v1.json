@@ -2,13 +2,12 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://aumbrye.dev/schemas/talent-tree.v1.json",
   "title": "TalentTree",
-  "description": "M4 talent tree definition (3 branches × ~6 nodes).",
+  "description": "M4 talent tree definition (3 branches × ~6 nodes). Talent points per level are authored on the XP curve.",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schemaVersion", "talentPointsPerLevel", "branches"],
+  "required": ["schemaVersion", "branches"],
   "properties": {
     "schemaVersion": { "type": "integer", "const": 1 },
-    "talentPointsPerLevel": { "type": "integer", "minimum": 1 },
     "branches": {
       "type": "array",
       "minItems": 1,

@@ -1,0 +1,46 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://aumbrye.dev/schemas/loot-table.v1.json",
+  "title": "BiomeLootTable",
+  "description": "Weighted loot entries for procgen chest roles (treasure, secret, side, armory).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "biomeId", "lootTables"],
+  "properties": {
+    "schemaVersion": { "type": "integer", "const": 1 },
+    "biomeId": { "type": "string", "minLength": 1 },
+    "lootTables": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["treasure", "secret", "side", "armory"],
+      "properties": {
+        "treasure": { "$ref": "#/definitions/lootEntries" },
+        "secret": { "$ref": "#/definitions/lootEntries" },
+        "side": { "$ref": "#/definitions/lootEntries" },
+        "armory": { "$ref": "#/definitions/lootEntries" }
+      }
+    }
+  },
+  "definitions": {
+    "lootEntries": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["itemId", "quantity", "weight"],
+        "properties": {
+          "itemId": { "type": "string", "minLength": 1 },
+          "quantity": {
+            "type": "array",
+            "items": { "type": "integer", "minimum": 1 },
+            "minItems": 2,
+            "maxItems": 2
+          },
+          "weight": { "type": "integer", "minimum": 1 },
+          "minTier": { "type": "integer", "minimum": 1 }
+        }
+      },
+      "minItems": 1
+    }
+  }
+}

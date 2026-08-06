@@ -1,24 +1,30 @@
 # Audio director
 
-`AudioDirector` is the `*res://scripts/audio/audio_director.gd` autoload (`project.godot:42`) that owns four music/ambience layers, a 12-player SFX pool, five audio buses, per-biome reverb, and a sidechain duck. **All game audio is synthesized sine waves.** Every combat, footstep, and UI sound is a decaying sine burst pushed into an `AudioStreamGenerator` at play time. Every ambience and music layer is a two-partial sine generated per frame in `_process`. The ten biome audio profiles point at 20 `.ogg` files, **none of which exist in the repository** — only their `.import` sidecars are committed — and even if they did, `_restore_generator_streams()` replaces every loaded stream with a fresh generator before playback starts.
+`AudioDirector` is the `res://scripts/audio/audio_director.gd` autoload (`project.godot`) that owns four music/ambience layers, a stinger player, an eight-player SFX pool, four `AudioStreamPlayer3D` SFX slots, five audio buses, per-biome reverb, and a sidechain duck. **Authored OGG stems are the default path** for every biome layer and SFX bank entry; synthesis is a fallback when a source file is absent.
 
 ## Files
+
 | Path | Role |
 |------|------|
-| `apps/game/client/scripts/audio/audio_director.gd` | The autoload: layers, SFX pool, generators, buses, reverb, duck |
+| `apps/game/client/scripts/audio/audio_director.gd` | Autoload: layers, SFX bank, generators, buses, reverb, duck, emitters |
 | `apps/game/client/scripts/audio/audio_settings.gd` | Persisted bus volumes (`master`, `music`, `sfx`, `ambience`, `ui`) |
-| `content/audio_profiles/*.json` | Ten per-biome profiles |
-| `content/schemas/audio-profile.v1.json` | Draft-07 schema, `additionalProperties: false`, requires `id` and `biomeId` |
-| `apps/game/client/assets/audio/default_bus_layout.tres` | The five buses, all at 0 dB, all sending to `Master` |
-| `apps/game/client/assets/audio/<biome_id>/*.ogg.import` | 22 import sidecars with no source files |
-| `apps/game/client/assets/audio/castle/*.wav` | The only two audio source files in the repo |
-| `scripts/tools/generate-biome-audio.mjs` | Node script that writes the placeholder loops and needs `ffmpeg` |
+| `content/audio_profiles/*.json` | Ten per-biome profiles with `layers` and `stingers` |
+| `content/schemas/audio-profile.v1.json` | Draft-07 schema; `layers` and `stingers` keys |
+| `content/audio/sfx.json` | SFX bank: variants, surface sets, concurrency, fallback tones |
+| `content/schemas/sfx-bank.v1.json` | Schema for the SFX bank |
+| `apps/game/client/assets/audio/<biome_id>/*.ogg` | Four layer stems per biome (40 files) |
+| `apps/game/client/assets/audio/shared/*.ogg` | Shared stingers (`sting_boss`, `sting_clear`) |
+| `apps/game/client/assets/audio/sfx/*.ogg` | Combat and ambient SFX samples (17 OGG files) |
+| `apps/game/client/assets/audio/default_bus_layout.tres` | Five buses, all at 0 dB, all sending to `Master` |
+| `scripts/tools/generate-biome-audio.mjs` | Delegates to `generate-game-audio.mjs`; supports `--check` |
+| `scripts/tools/generate-game-audio.mjs` | Generates procedural OGG stems and SFX when sources are missing |
+| `apps/game/client/scripts/validation/suites/audio_suite.gd` | Content validation suite (22 assertions) |
 
 ## How it works
 
 ### Layers and setup
 
-`_ready()` (`:70-95`) sets `PROCESS_MODE_ALWAYS`, loads `AudioSettings`, installs bus effects, then creates four `AudioStreamPlayer` layers, each pre-loaded with an `AudioStreamGenerator` at 44100 Hz and a 0.25 s buffer:
+`_ready()` sets `PROCESS_MODE_ALWAYS`, loads `AudioSettings`, installs bus effects, then creates four `AudioStreamPlayer` layers pre-loaded with an `AudioStreamGenerator` at 44100 Hz and a 0.25 s buffer, plus a fifth `StingerPlayer` on the `Music` bus:
 
 | Node | Bus | Default freq | Role |
 |------|-----|--------------|------|
@@ -26,105 +32,123 @@
 | `MusicPlayer` | `Music` | 196.0 | Boss / menu theme |
 | `ExplorePlayer` | `Music` | 110.0 | Non-combat dungeon layer |
 | `CombatPlayer` | `Music` | 130.0 | Combat dungeon layer |
+| `StingerPlayer` | `Music` | — | One-shot stingers (non-looping) |
 
-Then eight `AudioStreamPlayer` (`SfxPlayer0..7`) and four `AudioStreamPlayer3D` (`Sfx3dPlayer0..3`, `max_distance = 24.0`), all on the `SFX` bus.
+Then eight `AudioStreamPlayer` (`SfxPlayer0..7`) and four `AudioStreamPlayer3D` (`Sfx3dPlayer0..3`, `max_distance = 24.0`), all on the `SFX` bus. The SFX bank loads from `content/audio/sfx.json`; fallback tones are pre-baked into `AudioStreamWAV` at `_ready`. In debug builds, `_report_audio_content()` logs one line per biome listing which stems resolved from disk.
 
-### Per-frame synthesis
+### Per-frame synthesis (fallback only)
 
-`_process()` (`:98-106`) checks each of the four layers and, when it is playing **and** its stream is an `AudioStreamGenerator`, calls `_fill_generator_for_mode()`.
+`_process()` returns immediately when `_current_mode == "none"`. For each playing layer whose stream is an `AudioStreamGenerator`, it calls `_fill_generator_for_mode(player, freq, phase, mode, layer_id)`.
 
-`_fill_generator_for_mode(player, freq, phase, mode)` (`:434-468`) reads `get_frames_available()` and pushes that many frames. The base waveform is `sin(phase) * 0.22 + sin(phase * 0.5) * 0.08`. In `menu` mode the mix branches by node name — `MusicPlayer` gets `sin + sin*2`, `ExplorePlayer` gets `sin + sin*1.5`, everything else gets a quieter `sin + sin*0.5`. In `hub` mode `AmbiencePlayer` and `MusicPlayer` get their own two-partial mixes. No other mode has a branch, so `dungeon` and `boss` use the base waveform for all four layers.
+`_fill_generator_for_mode()` takes an explicit `LayerId` enum (`AMBIENCE`, `MUSIC`, `EXPLORE`, `COMBAT`) rather than reading `player.name`. The base waveform is `sin(phase) * 0.22 + sin(phase * 0.5) * 0.08`. `menu`, `hub`, `dungeon`, and `boss` modes each branch by `layer_id`, so explore/combat crossfades are distinguishable even without stems.
 
-At 44100 Hz per playing layer this is up to 176 400 GDScript `sin()` evaluations per second on the main thread when all four layers play.
-
-`_fill_generator()` (`:430-431`) is a one-line wrapper with no callers.
+When all four layers hold file-backed streams, `_process` performs zero `sin()` evaluations.
 
 ### Modes
 
 | Entry point | `_current_mode` | Behaviour |
 |-------------|-----------------|-----------|
-| `play_dungeon_ambience()` (`:137-142`) | `dungeon` | `_restore_generator_streams()`, then crossfades ambience in over music and explore in over combat |
-| `play_menu_music()` (`:145-161`) | `menu` | Overwrites all four freqs (98 / 392 / 523 / 294), `_restore_generator_streams()`, `cathedral` reverb, fades music and explore in |
-| `play_hub_ambience()` (`:164-181`) | `hub` | Overwrites all four freqs (110 / 220 / 165 / 87.5), `_restore_generator_streams()`, `umbral` reverb, fades ambience and music in |
-| `play_boss_music()` (`:184-189`) | `boss` | No generator restore; fades combat and explore out, crossfades music in over ambience |
-| `register_combat_engagement()` (`:192-197`) | — | Only acts in `dungeon` mode; on the first engagement crossfades combat in over explore |
-| `unregister_combat_engagement()` (`:200-205`) | — | On the last disengagement crossfades explore back in |
-| `stop_all(fade)` (`:208-214`) | `none` | Fades all four out |
+| `play_dungeon_ambience()` | `dungeon` | `_ensure_layer_streams()`, then crossfades ambience in over music and explore in over combat |
+| `play_menu_music()` | `menu` | `set_biome("dark_cathedral")`, `_apply_mode_fallback_freqs(MENU_FALLBACK_FREQS)` for generator-backed layers only, `_ensure_layer_streams()`, `cathedral` reverb, fades music and explore in |
+| `play_hub_ambience()` | `hub` | `set_biome("umbral_chapel")`, hub fallback freqs, `_ensure_layer_streams()`, `umbral` reverb, fades ambience and music in |
+| `play_boss_music()` | `boss` | No generator restore; fades combat and explore out, crossfades music in over ambience |
+| `play_stinger(key)` | — | Loads stinger from profile `stingers` map, plays on `StingerPlayer`, ducks `Music` layer by 4 dB for duration |
+| `register_combat_engagement()` | — | Only acts in `dungeon` mode; on first engagement crossfades combat in over explore |
+| `unregister_combat_engagement()` | — | On last disengagement crossfades explore back in |
+| `stop_all(fade)` | `none` | Fades all four out |
 
-Callers: `hub.gd:79`, `main_menu.gd:22`, `title_screen.gd:17`, `run_flow.gd:702-703`, `castle_run.gd:57` and `:475`, the four boss scripts, and `castle_enemy_base.gd:698,705`.
+Callers: `hub.gd`, `main_menu.gd`, `title_screen.gd`, `run_flow.gd`, `castle_run.gd`, boss scripts, `castle_enemy_base.gd`, `waves_run.gd`.
 
-`_crossfade_to()` (`:288-290`) fades the outgoing player then `call_deferred`s the fade-in. `_fade_in_player()` (`:293-303`) returns early when `stream == null`, sets `-40 dB`, plays, and tweens to 0 dB over `_crossfade`. `_fade_out_player()` (`:306-318`) tweens to `-80 dB` then stops and resets to 0 dB. `_active_tweens` maps player to tween, killed on re-entry by `_kill_tween()` (`:321-326`).
+### Stream preservation
+
+`_ensure_layer_streams()` only installs a generator when a layer's stream is null or already a generator. File-backed streams loaded by `set_biome()` survive `play_dungeon_ambience()` and subsequent mode changes.
+
+Run start order:
+
+1. `castle_run.gd` → `_apply_biome_presentation()` → `BiomeRegistry.apply_run_presentation()` → `AudioDirector.set_biome(biome_id)`, which loads four layer stems via `_load_layer_stems()`.
+2. `castle_run.gd` → `AudioDirector.play_dungeon_ambience()` → `_ensure_layer_streams()` leaves file streams intact.
+3. `_crossfade_to()` starts playback.
 
 ### Biome profiles
 
-`set_biome(biome_id)` (`:109-134`):
-1. Loads `content/audio_profiles/<biome_id>.json` via `ContentLoader.load_json(BiomeRegistry.get_audio_profile_path(...))`, defaulting to `{ambienceFreq: 110, bossFreq: 196, crossfadeSeconds: 0.8}` when empty.
-2. Reads `ambienceFreq`, `exploreFreq` (defaults to `ambienceFreq`), `combatFreq` (defaults to the **current** `_music_freq`, not the profile's `bossFreq`), `bossFreq`, `crossfadeSeconds`; mirrors each into a `freq` meta on the corresponding player.
-3. Calls `_try_load_file_stream()` for `ambiencePath` into `_ambience` and `bossPath` into `_music`.
-4. Applies the reverb preset from `reverbPreset`, falling back to `BIOME_REVERB_PRESETS[biome_id]` and then `indoor_castle`.
+`set_biome(biome_id)`:
 
-`_try_load_file_stream()` (`:343-350`) walks `_audio_path_candidates()` (`:353-361`), which appends the `.wav`/`.ogg` sibling of the requested path, and assigns the first candidate that `ResourceLoader.exists()` and loads as an `AudioStream`.
+1. Loads `content/audio_profiles/<biome_id>.json` via `ContentLoader.load_json(BiomeRegistry.get_audio_profile_path(...))`.
+2. Normalizes legacy profiles (missing `layers`) into the v2 shape via `_normalize_profile()`.
+3. Applies fallback frequencies from `layers.*.fallback_freq` (or legacy `*Freq` keys); `combatFreq` defaults to `DEFAULT_COMBAT_FALLBACK_FREQ` (130.0), not the previous biome's `_music_freq`.
+4. Calls `_load_layer_stems()` for `ambience`, `explore`, `combat`, and `boss` paths.
+5. Applies the reverb preset from `reverbPreset`, falling back to `BIOME_REVERB_PRESETS[biome_id]` and then `indoor_castle`.
 
-Callers of `set_biome()`: `biome_registry.gd:245` (from `apply_run_presentation`), `waves_run.gd:55`, `m5_suite.gd:519`.
+`_load_audio_stream(path)` requires `FileAccess.file_exists()` on the globalized path before calling `ResourceLoader.load()`, so a missing source file cannot pass validation via the `.import` remap alone.
 
-### The generator restore, precisely
+Profile v2 shape (all ten profiles migrated):
 
-`_restore_generator_streams()` (`:471-476`):
-
-```gdscript
-for player in [_ambience, _music, _explore, _combat_layer]:
-    var generator := AudioStreamGenerator.new()
-    generator.mix_rate = MIX_RATE
-    generator.buffer_length = GENERATOR_BUFFER_SEC
-    player.stream = generator
+```json
+{
+  "layers": {
+    "ambience": { "path": "res://assets/audio/forgotten_castle/ambience_loop.ogg", "volume_db": -6.0, "fallback_freq": 110.0 },
+    "explore":  { "path": "res://assets/audio/forgotten_castle/explore_loop.ogg",  "volume_db": -9.0, "fallback_freq": 110.0 },
+    "combat":   { "path": "res://assets/audio/forgotten_castle/combat_loop.ogg",   "volume_db": -6.0, "fallback_freq": 130.0 },
+    "boss":     { "path": "res://assets/audio/forgotten_castle/boss_theme.ogg",    "volume_db": -4.0, "fallback_freq": 196.0 }
+  },
+  "stingers": {
+    "boss_reveal": "res://assets/audio/shared/sting_boss.ogg",
+    "floor_clear": "res://assets/audio/shared/sting_clear.ogg"
+  }
+}
 ```
 
-It is unconditional: it does not check whether the player currently holds a file stream, and it has no "only if generator" guard. It is called from `play_dungeon_ambience()` (`:140`), `play_menu_music()` (`:156`), and `play_hub_ambience()` (`:175`).
+Legacy `ambiencePath`/`bossPath`/`*Freq` keys remain accepted and are mapped into `layers` by `_normalize_profile()`.
 
-The run start order settles the question:
+### SFX bank
 
-1. `castle_run.gd:45` → `_apply_biome_presentation()` → `biome_registry.gd:196` `apply_run_presentation()` → `biome_registry.gd:245` `AudioDirector.set_biome(biome_id)`, which loads `ambiencePath` into `_ambience` and `bossPath` into `_music`.
-2. `castle_run.gd:57` → `AudioDirector.play_dungeon_ambience()` → `_restore_generator_streams()` replaces both.
-3. Only then does `_crossfade_to()` start playback.
+`play_sfx(kind, world_pos, surface)` resolves the entry from `content/audio/sfx.json`:
 
-So the file streams `set_biome()` installs are always discarded before any layer plays. `play_boss_music()` does not restore, but by then step 2 has already replaced `_music`, so boss music is also a generator. `_on_boss_defeated()` (`castle_run.gd:475`) calls `play_dungeon_ambience()` again and restores again.
+- Unknown keys warn once and fall back to `"hit"`.
+- `variants` rotate round-robin; `surface_variants` select by floor material (`stone`, `wood`, `water`).
+- `pitch_jitter`, `max_concurrent`, and `cooldown_ms` are enforced per entry.
+- Missing files fall back to pre-baked `fallback_tone` WAVs baked at `_ready`.
+- `world_pos is Vector3` routes through the 3D pool; otherwise the 2D pool.
 
-`waves_run.gd:55` calls `set_biome()` and no `play_*` entry point, so the streams it installs are never started at all.
+Legacy keys: `hit`, `block`, `parry`, `swing`, `death`, `footstep`, `windup`, `ui`. Additional keys: `hit_armor`, `heal_raise`, `heal_gulp`, `heal_commit`, `brazier`, `fountain`.
 
-### Combat SFX, precisely
+Combat callers invoke `AudioDirector` directly — `hit_feedback.gd`, `weapon_controller.gd`, `castle_enemy_base.gd`, `locomotion.gd`, `player_anim_director.gd`. `VfxService` handles particles only; it does not call `AudioDirector`.
 
-`play_sfx(kind, world_pos)` (`:221-226`) looks `kind` up in `SFX_PROFILES` (`:34-43`) with `hit` as the fallback for any unknown key, then routes to `_play_sfx_3d()` when `world_pos is Vector3` and `_play_sfx_2d()` otherwise. `play_combat_sfx()` (`:217-218`) is an alias; `play_ui_sfx()` (`:229-230`) plays the `ui` key.
+### Positional emitters
 
-`SFX_PROFILES` has eight entries, each `{freq, duration, bus}`: `hit` 220 Hz / 0.08 s, `block` 160 / 0.10, `parry` 440 / 0.12, `swing` 130 / 0.06, `death` 90 / 0.35, `footstep` 80 / 0.05, `windup` 72 / 0.22, `ui` 520 / 0.04 on the `UI` bus.
-
-`_prime_tone_burst(player, profile)` (`:263-285`) is the only sound generator for SFX. It assigns the bus, creates a fresh `AudioStreamGenerator` with `buffer_length = max(duration, 0.25)`, assigns it, calls `play()`, then synchronously pushes `duration * 44100` frames of `sin(phase) * 0.35 * (1 - i / frame_count)` — a pure sine with a linear decay envelope, identical in both channels. For `death` that is 15 435 frames pushed inside one function call on the main thread.
-
-There is no file-based SFX anywhere: no `res://assets/audio/sfx/` directory exists, and `_try_load_file_stream()` is never called for an SFX player.
+`attach_loop_emitter(host, key, radius)` creates an `AudioStreamPlayer3D` child on `host`, resolves the stream from the SFX bank, sets `unit_size` and `max_distance`, and autoplays. Wired from `diorama_room_dressing.gd` (braziers) and `pixel_diorama_style.gd` (hub fountain).
 
 ### Buses, reverb, duck
 
-`_setup_bus_effects()` (`:364-367`) adds an `AudioEffectReverb` to `Ambience` and to `SFX` (idempotent — it returns the index of an existing reverb if present) and an `AudioEffectCompressor` on `Ambience` sidechained from `Music` at threshold −20 dB, ratio 5, attack 120 ms, release 750 ms.
+`_setup_bus_effects()` adds an `AudioEffectReverb` to `Ambience` and `SFX` (idempotent) and an `AudioEffectCompressor` on `Ambience` sidechained from `Music` at threshold −20 dB, ratio 5, attack 120 ms, release 750 ms.
 
-`_apply_reverb_preset(id)` (`:407-410`) looks the id up in `REVERB_PRESETS` (`:10-19`, eight presets) and writes `wet`, `room_size`, `damping`, `spread` onto both reverbs, scaling the `SFX` wet by 0.55.
+`_apply_reverb_preset(id)` looks the id up in `REVERB_PRESETS` (eight presets) and writes `wet`, `room_size`, `damping`, `spread` onto both reverbs, scaling the `SFX` wet by 0.55.
 
-`AudioSettings` (`audio_settings.gd`) holds five static floats in 0–1, persists them under the `audio` key in `LocalSave` meta, and `apply()` writes `linear_to_db()` (or −80 dB at zero) onto the five buses.
+`AudioSettings` holds five static floats in 0–1, persists them under the `audio` key in `LocalSave` meta, and `apply()` writes `linear_to_db()` (or −80 dB at zero) onto the five buses.
 
 ### Assets
 
-`apps/game/client/assets/audio/` contains, in full: `README.md`, `castle/README.md`, `default_bus_layout.tres`, 22 `*.ogg.import` files across 11 folders, 2 `*.wav.import`, and 2 `*.wav`. A repository-wide glob for `**/*.ogg` returns zero files. `.gitignore` contains no audio pattern.
+`apps/game/client/assets/audio/` contains 61 committed OGG files:
 
-The two real files are `castle/ambience_loop.wav` and `castle/boss_theme.wav`. No profile references `assets/audio/castle/` — `forgotten_castle.json:8-9` points at `assets/audio/forgotten_castle/` — so the folder is orphaned. Both `.wav.import` files carry `edit/loop_mode=0` and all `.ogg.import` files carry `loop=false`, so none of the intended loops would loop even if they existed.
+| Category | Count | Location |
+|----------|-------|----------|
+| Biome layer stems | 40 | `<biome_id>/{ambience,explore,combat}_loop.ogg` + `boss_theme.ogg` × 10 biomes |
+| Shared stingers | 2 | `shared/sting_boss.ogg`, `shared/sting_clear.ogg` |
+| SFX samples | 17 | `sfx/*.ogg` |
+| Legacy castle | 2 | `castle/{ambience_loop,boss_theme}.ogg` (orphaned; not referenced by profiles) |
 
-`generate-biome-audio.mjs` writes an 8 s ambience and a 6 s boss loop per profile: a base sine at the profile frequency plus two harmonics, windowed by a full-cycle `sin` envelope and a 50 ms fade, then shelled out to `ffmpeg -c:a libvorbis` and the temp WAVs deleted. It requires `ffmpeg` on `PATH` and is not wired into CI.
+All `*_loop.ogg.import` sidecars carry `loop=true`. Heal SFX (`heal_raise`, `heal_gulp`, `heal_commit`) remain WAV files referenced from the bank.
+
+`generate-biome-audio.mjs` delegates to `generate-game-audio.mjs`, which checks `ffmpeg` up front, uses `node:fs.rmSync` for temp cleanup, and supports `--check` to assert every profile and bank path exists on disk. CI runs `node scripts/tools/generate-biome-audio.mjs --check` in `.github/workflows/ci.yml`.
 
 ## Contracts
 
-- Autoload name `AudioDirector` (`project.godot:42`); asserted by `setup_suite.gd:27`.
-- Bus names `Master`, `Music`, `SFX`, `Ambience`, `UI` are the contract between `default_bus_layout.tres`, `AudioSettings._set_bus_volume()`, `SFX_PROFILES[*].bus`, and `_ensure_sidechain_compressor(&"Ambience", &"Music")`.
-- Player node names `AmbiencePlayer`, `MusicPlayer`, `ExplorePlayer`, `CombatPlayer` are read back inside `_fill_generator_for_mode()` to select a waveform, so renaming a player silently changes the mix.
-- Audio-profile keys: `id`, `biomeId`, `ambienceFreq`, `exploreFreq`, `combatFreq`, `bossFreq`, `ambiencePath`, `bossPath`, `reverbPreset`, `crossfadeSeconds`. The schema forbids any other key.
+- Autoload name `AudioDirector`; asserted by `setup_suite.gd`.
+- Bus names `Master`, `Music`, `SFX`, `Ambience`, `UI` are the contract between `default_bus_layout.tres`, `AudioSettings`, the SFX bank `bus` fields, and `_ensure_sidechain_compressor(&"Ambience", &"Music")`.
+- `LayerId` enum drives generator waveform selection; player node names are no longer read for mix branching.
+- Audio-profile keys: `id`, `biomeId`, `layers`, `stingers`, `reverbPreset`, `crossfadeSeconds`; legacy `ambiencePath`/`bossPath`/`*Freq` accepted.
 - `reverbPreset` values must be one of the eight `REVERB_PRESETS` keys; the schema enumerates the same eight.
-- SFX keys in use across the codebase: `hit`, `block`, `parry`, `swing`, `death`, `footstep`, `windup`, `ui`.
+- SFX bank keys validated by `audio_suite.gd`; heal keys used by `player_heal.gd`.
 - `LocalSave` meta key `audio` with the five volume floats.
 - `_current_mode` values: `none`, `dungeon`, `menu`, `hub`, `boss`. Combat engagement counting only applies in `dungeon`.
 
@@ -132,37 +156,36 @@ The two real files are `castle/ambience_loop.wav` and `castle/boss_theme.wav`. N
 
 | Surface | Status | Evidence |
 |---------|--------|----------|
-| Four-layer mode machine with crossfades and combat layering | IMPLEMENTED | `audio_director.gd:137-214` |
-| Eight-preset reverb, per-biome mapping, sidechain duck | IMPLEMENTED | `:10-32`, `:364-427` |
-| Persisted five-bus volume settings | IMPLEMENTED | `audio_settings.gd:15-52` |
-| Ten schema-validated biome profiles | IMPLEMENTED | `content/audio_profiles/*.json`; `content/schemas/audio-profile.v1.json` |
-| All music and ambience are generated two-partial sine waves | PLACEHOLDER | `:434-468` |
-| All SFX are generated decaying sine bursts | PLACEHOLDER | `:263-285`; no `res://assets/audio/sfx/` exists |
-| `_restore_generator_streams()` discards loaded file streams unconditionally | BROKEN | `:471-476`, called `:140`, `:156`, `:175`; run order `castle_run.gd:45` then `:57` via `biome_registry.gd:245` |
-| No `.ogg` file exists in the repository | ABSENT | `**/*.ogg` glob returns 0 files; 22 `*.ogg.import` sidecars present; `.gitignore` has no audio pattern |
-| The only two audio source files sit in an unreferenced folder | PLACEHOLDER | `assets/audio/castle/*.wav`; profiles point at `assets/audio/<biome_id>/` (`forgotten_castle.json:8-9`) |
-| Import settings disable looping on every intended loop | BROKEN | `forgotten_castle/ambience_loop.ogg.import:15` `loop=false`; `castle/ambience_loop.wav.import:21` `edit/loop_mode=0` |
-| Waves runs never start audio | PARTIAL | `waves_run.gd:55` calls `set_biome()` with no following `play_*`; `_fade_in_player` is never reached |
-| `combatFreq` falls back to the live `_music_freq`, not the profile's `bossFreq` | PARTIAL | `:120` reads `_music_freq` before `:121` overwrites it, so the fallback depends on the previously loaded biome |
-| Only `menu` and `hub` modes have per-layer waveforms | PARTIAL | `:450-465` — `dungeon` and `boss` share one waveform across all four layers |
-| Per-frame synthesis on the main thread | PARTIAL | `:98-106`, `:448-467` — up to 176 400 GDScript `sin()` calls per second with four layers playing |
-| `_prime_tone_burst` pushes an entire burst synchronously | PARTIAL | `:281-285` — 15 435 iterations for `death`, on every death |
-| A fresh `AudioStreamGenerator` per SFX | PARTIAL | `:269-272` — one allocation per footstep and per hit |
-| `_fill_generator()` | STUB | defined `:430-431`; no caller |
-| `_ambience_duck_idx` | STUB | assigned `:367`; never read |
-| Combat SFX are triggered from the VFX layer | PARTIAL | `vfx_service.gd:86,91,96,198,231` |
-| No music stems, stingers, or transitions; no positional ambience emitters | ABSENT | only the four layers exist; no `AudioStreamPlayer3D` is created outside the SFX pool (`:89-95`) |
-| Validation coverage | PARTIAL | `content_suite.gd:126-148` asserts ten method names exist; `content_suite.gd:152-181` asserts each profile's `ambiencePath`/`bossPath` resolves through `ResourceLoader.exists()`, which is satisfied by the `.import` remap even with the source file absent; `m5_suite.gd:505-528` asserts each profile loads and `set_biome()` is callable. No suite asserts that a stream survives a mode change, that anything audible is produced, or that a source file exists on disk |
+| Four-layer mode machine with crossfades and combat layering | IMPLEMENTED | `audio_director.gd:183-258` |
+| File-backed stems preserved across mode changes | IMPLEMENTED | `_ensure_layer_streams()` `:475-479`; `audio_suite.gd` `audio.file_stream_survives_mode_change` |
+| Ten biome profiles with `layers` and `stingers` | IMPLEMENTED | `content/audio_profiles/*.json`; `audio-profile.v1.json` |
+| 61 OGG assets on disk | IMPLEMENTED | `apps/game/client/assets/audio/**/*.ogg` |
+| SFX bank with variants, surface sets, concurrency, cooldown | IMPLEMENTED | `content/audio/sfx.json`; `play_sfx()` `:274-293` |
+| Pre-baked fallback tones (no per-shot synthesis) | IMPLEMENTED | `_bake_fallback_tones()` `:639-648` |
+| Stinger player with music duck | IMPLEMENTED | `play_stinger()` `:226-242`; `castle_run.gd` boss reveal |
+| Positional loop emitters | IMPLEMENTED | `attach_loop_emitter()` `:299-319`; brazier/fountain callers |
+| Waves runs start audio | IMPLEMENTED | `waves_run.gd:55-56` `set_biome` + `play_dungeon_ambience` |
+| Per-layer generator waveforms in dungeon/boss | IMPLEMENTED | `_fill_generator_for_mode()` `:789-798` |
+| `combatFreq` from profile, not previous biome | IMPLEMENTED | `_apply_profile_freqs()` `:590-593`; `DEFAULT_COMBAT_FALLBACK_FREQ` |
+| VFX decoupled from audio | IMPLEMENTED | `vfx_service.gd` has no `AudioDirector` calls; combat scripts call `play_sfx` directly |
+| Loop imports enabled | IMPLEMENTED | `*_loop.ogg.import` `loop=true`; `audio_suite.gd` `audio.loop_imports_loop` |
+| Debug content report | IMPLEMENTED | `_report_audio_content()` `:671-687` |
+| CI stem check | IMPLEMENTED | `.github/workflows/ci.yml` `generate-biome-audio.mjs --check` |
+| Validation suite | IMPLEMENTED | `audio_suite.gd` (22 tests); registered in `validation_runner.gd` |
+| Generator synthesis fallback | IMPLEMENTED | `_fill_generator_for_mode()` when stems absent |
+| Synthesis skipped when stems present | IMPLEMENTED | `_process()` generator guard `:144-158`; `audio.no_process_synthesis_with_stems` |
 
 ## Related
+
 - Improvement plan: [`../actual_improvements/audio-director.md`](../actual_improvements/audio-director.md)
 - [`biome-registry.md`](biome-registry.md) — resolves the profile path and calls `set_biome()`
-- [`vfx-service.md`](vfx-service.md) — fires five of the eight SFX keys
-- [`castle-run.md`](castle-run.md), [`waves-run.md`](waves-run.md), [`run-flow.md`](run-flow.md) — the mode-change call sites and the clobber ordering
-- [`hub.md`](hub.md), [`ui/main_menu.md`](ui/main_menu.md), [`ui/title_screen.md`](ui/title_screen.md) — the other mode callers
-- [`bosses.md`](bosses.md) — `play_boss_music()` callers
+- [`vfx-service.md`](vfx-service.md) — combat particles only; audio fired separately
+- [`castle-run.md`](castle-run.md), [`waves-run.md`](waves-run.md), [`run-flow.md`](run-flow.md) — mode-change call sites
+- [`hub.md`](hub.md), [`ui/main_menu.md`](ui/main_menu.md), [`ui/title_screen.md`](ui/title_screen.md) — other mode callers
+- [`bosses.md`](bosses.md) — `play_boss_music()` and stinger callers
+- [`diorama-room-dressing.md`](diorama-room-dressing.md) — brazier emitters
 - [`ui/settings.md`](ui/settings.md) — the five volume sliders
 - [`local-save.md`](local-save.md) — the `audio` meta block
-- [`content-data.md`](content-data.md), [`content-catalog.md`](content-catalog.md) — the profile schema
+- [`content-data.md`](content-data.md), [`content-catalog.md`](content-catalog.md) — profile and bank schemas
 - [`tools-scripts.md`](tools-scripts.md) — `generate-biome-audio.mjs`
-- [`00-PLACEHOLDER-INVENTORY.md`](00-PLACEHOLDER-INVENTORY.md)
+- [`ci-cd.md`](ci-cd.md) — stem check job

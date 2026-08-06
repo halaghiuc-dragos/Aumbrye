@@ -60,28 +60,74 @@ func _process(_delta: float) -> void:
 		return
 	var lines: PackedStringArray = []
 	var fps := Engine.get_frames_per_second()
-	lines.append("F1: overlay | F2: hitboxes | F3: dmg nums | P: camera | R: reset | Q: tap block | FPS: %d" % fps)
+	(
+		lines
+		. append(
+			(
+				"F1: overlay | F2: hitboxes | F3: dmg nums | P: camera | R: reset | Q: tap block | FPS: %d"
+				% fps
+			)
+		)
+	)
 	if _dodge:
 		var dashing := "DASHING" if _dodge.get("is_dodging") else "off"
 		lines.append("dash i-frames: %s" % ("ON" if _dodge.get("iframes_active") else dashing))
 	if _guard:
-		lines.append("guard: %s | parry: %s | block: %s" % [
-			"active" if _guard.get("is_guard_active") else "off",
-			"OPEN" if _guard.get("parry_window_active") else "closed",
-			"ON" if _guard.get("is_blocking") else "off",
-		])
+		(
+			lines
+			. append(
+				(
+					"guard: %s | parry: %s | block: %s"
+					% [
+						"active" if _guard.get("is_guard_active") else "off",
+						"OPEN" if _guard.get("parry_window_active") else "closed",
+						"ON" if _guard.get("is_blocking") else "off",
+					]
+				)
+			)
+		)
 	if _player:
 		_append_player_location_lines(lines)
 		_append_camera_facing_lines(lines)
 		var spring_arm := _player.get_node_or_null("CameraPivot/SpringArm3D")
 		if spring_arm and spring_arm.has_method("is_first_person"):
 			lines.append("camera: %s" % ("1P" if spring_arm.call("is_first_person") else "3P"))
+		if spring_arm and spring_arm.has_method("get_lock_tuning_debug"):
+			var tuning: Dictionary = spring_arm.call("get_lock_tuning_debug")
+			if tuning.get("lock_active", false):
+				lines.append(
+					(
+						"lock cam: h=%.1f zoom=%.1f shift=[%.2f-%.2f] occ=%.2f"
+						% [
+							float(tuning.get("target_height", 0.0)),
+							float(tuning.get("zoom_base", 0.0)),
+							float(tuning.get("shift_min", 0.0)),
+							float(tuning.get("shift_max", 0.0)),
+							float(tuning.get("occlusion_blend", 0.0)),
+						]
+					)
+				)
 		var health := _player.get_node_or_null("Health") as Health
 		var stamina := _player.get_node_or_null("Stamina") as Stamina
 		if health:
 			lines.append("HP: %.0f" % health.current)
 		if stamina:
 			lines.append("Stamina: %.0f" % stamina.current)
+		if _player.has_method("get_current_speed_breakdown"):
+			var breakdown: Dictionary = _player.call("get_current_speed_breakdown")
+			lines.append(
+				(
+					"speed: %.2f (base %.2f x equip %.2f x status %.2f x weapon %.2f x dir %.2f)"
+					% [
+						float(breakdown.get("final", 0.0)),
+						float(breakdown.get("base", 0.0)),
+						float(breakdown.get("equipment", 1.0)),
+						float(breakdown.get("status", 1.0)),
+						float(breakdown.get("weapon", 1.0)),
+						float(breakdown.get("direction", 1.0)),
+					]
+				)
+			)
 	if _enemy:
 		var enemy_health := _enemy.get_node_or_null("Health") as Health
 		if enemy_health:
@@ -93,11 +139,19 @@ func _process(_delta: float) -> void:
 		var hit_nodes := get_tree().get_nodes_in_group("combat_hitbox")
 		var hurt_nodes := get_tree().get_nodes_in_group("combat_hurtbox")
 		var visible_meshes := _count_visible_debug_meshes()
-		lines.append("hitbox draw: ON (%d hit, %d hurt, %d meshes)" % [
-			hit_nodes.size(),
-			hurt_nodes.size(),
-			visible_meshes,
-		])
+		(
+			lines
+			. append(
+				(
+					"hitbox draw: ON (%d hit, %d hurt, %d meshes)"
+					% [
+						hit_nodes.size(),
+						hurt_nodes.size(),
+						visible_meshes,
+					]
+				)
+			)
+		)
 	if _hit_feedback:
 		lines.append("damage numbers: %s" % ("ON" if _hit_feedback.show_damage_numbers else "off"))
 	if _weapon and _weapon.has_method("get_debug_state"):
@@ -135,8 +189,10 @@ func _append_camera_facing_lines(lines: PackedStringArray) -> void:
 	var yaw_deg := rad_to_deg(atan2(forward.x, forward.z))
 	var pitch_deg := rad_to_deg(asin(clampf(forward.y, -1.0, 1.0)))
 	lines.append(
-		"camera facing: yaw %.0f° pitch %.0f° | (%.2f, %.2f, %.2f)"
-		% [yaw_deg, pitch_deg, forward.x, forward.y, forward.z]
+		(
+			"camera facing: yaw %.0f° pitch %.0f° | (%.2f, %.2f, %.2f)"
+			% [yaw_deg, pitch_deg, forward.x, forward.y, forward.z]
+		)
 	)
 
 
@@ -213,7 +269,11 @@ func reset_duel() -> void:
 			stamina.reset_stamina()
 		if poise:
 			poise.reset_poise()
-		_player.global_position = CombatArenaScript.PLAYER_SPAWN if _has_combat_arena_constants() else Vector3(-0.02, 0.0, 9.5)
+		_player.global_position = (
+			CombatArenaScript.PLAYER_SPAWN
+			if _has_combat_arena_constants()
+			else Vector3(-0.02, 0.0, 9.5)
+		)
 		_player.velocity = Vector3.ZERO
 		if arena and arena.has_method("orient_player_to_hub_return"):
 			arena.call("orient_player_to_hub_return")

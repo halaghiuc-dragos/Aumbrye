@@ -14,6 +14,20 @@
     "bossFreq": { "type": "number", "minimum": 0 },
     "ambiencePath": { "type": "string" },
     "bossPath": { "type": "string" },
+    "layers": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "ambience": { "$ref": "#/$defs/layer" },
+        "explore": { "$ref": "#/$defs/layer" },
+        "combat": { "$ref": "#/$defs/layer" },
+        "boss": { "$ref": "#/$defs/layer" }
+      }
+    },
+    "stingers": {
+      "type": "object",
+      "additionalProperties": { "type": "string" }
+    },
     "reverbPreset": {
       "type": "string",
       "enum": [
@@ -28,5 +42,17 @@
       ]
     },
     "crossfadeSeconds": { "type": "number", "minimum": 0, "maximum": 2 }
+  },
+  "$defs": {
+    "layer": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path"],
+      "properties": {
+        "path": { "type": "string", "minLength": 1 },
+        "volume_db": { "type": "number" },
+        "fallback_freq": { "type": "number", "minimum": 0 }
+      }
+    }
   }
 }

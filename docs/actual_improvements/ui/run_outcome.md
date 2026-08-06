@@ -1,13 +1,13 @@
 # Run outcome — improvement plan
 
 ## Current state
-`RunFlow` writes four distinct `outcome` values into `last_run_results` (`escaped`, `died`, `waves_complete`, `waves_failed`), but `results_screen.gd` only special-cases `"died"`. Every other outcome — including **`waves_failed`** — gets the success title and the hub message `"Run complete! Your progress was saved."` (`:46-50`, `:87-91`). Loading, toast, epilogue, and boss intro are functional overlays with placeholder copy and no shared menu stack. See [`../existing_codebase/ui/run_outcome.md`](../existing_codebase/ui/run_outcome.md) and the P0 in [`../existing_codebase/00-GAME-LOOP.md`](../existing_codebase/00-GAME-LOOP.md).
+`RunFlow` writes four distinct `outcome` values; **`ROC-01` / `ROC-02 FINISHED`**: `results_screen.gd` matches `waves_complete`, `waves_failed`, `died`, and `escaped` with distinct titles and hub messages; Continue button added. See [`../existing_codebase/ui/run_outcome.md`](../existing_codebase/ui/run_outcome.md).
 
 ## Gaps
 | ID | Sev | Gap | Evidence |
 |----|-----|-----|----------|
-| ROC-01 | P0 | `waves_failed` is shown as a successful run: success title path and `"Run complete! Your progress was saved."` on accept. | `results_screen.gd:42-50`, `:87-91`; producer `run_flow.gd:979-988` |
-| ROC-02 | P0 | `waves_complete` has no dedicated title or hub message; it is indistinguishable from a castle escape on the results screen. | `:46-50`, `:90-91` vs `run_flow.gd:956-966` |
+| ROC-01 | P0 | ~~`waves_failed` shown as success~~ **FINISHED** — `_title_for_outcome` / `_hub_message_for_outcome` | was `results_screen.gd:42-50` |
+| ROC-02 | P0 | ~~`waves_complete` indistinguishable~~ **FINISHED** — dedicated waves victory title/message | was `results_screen.gd:46-50` |
 | ROC-03 | P1 | Results screen has no focused control — only `_unhandled_input` on accept/interact — so the dismiss affordance is invisible and easy to miss on pad. | `:80-91`; no Button in the scene for dismiss |
 | ROC-04 | P1 | Epilogue and boss intro do not pause the run; combat and camera continue under the card. | `epilogue_card.gd:10-14`; `boss_intro_ui.gd:12-16`; no `get_tree().paused` |
 | ROC-05 | P1 | Boss intro cannot be skipped; fixed ~3 s timeline. | `boss_intro_ui.gd:27-31` |
@@ -61,8 +61,8 @@ Align with the loading redesign in [`title_main_continue.md`](title_main_continu
 - No save-format change.
 
 ## Acceptance criteria
-- [ ] Completing a waves run shows a waves-specific victory title and hub message.
-- [ ] Failing a waves run shows a failure title; accept returns with a failure hub message that does **not** say `"Run complete!"`.
+- [x] Completing a waves run shows a waves-specific victory title and hub message.
+- [x] Failing a waves run shows a failure title; accept returns with a failure hub message that does **not** say `"Run complete!"`.
 - [ ] Death and escape titles/messages remain distinct from waves.
 - [ ] Results screen focuses a Continue button on open.
 - [ ] Two achievements unlocked in the same frame show sequentially, not overlapping.

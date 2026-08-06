@@ -8,6 +8,7 @@ const GameUISkinScript := preload("res://scripts/ui/game_ui_skin.gd")
 const MenuShellScript := preload("res://scripts/ui/menu_shell.gd")
 
 var _open := false
+var _cloud_status_label: Label
 
 
 func _ready() -> void:
@@ -51,13 +52,18 @@ func close_menu() -> void:
 
 func _build_ui() -> void:
 	var shell: Dictionary = MenuShellScript.build_modal(
-		self,
-		"Paused",
-		GameUISkinScript.MENU_HALF_W + 40.0,
-		GameUISkinScript.MENU_HALF_H + 80.0
+		self, "Paused", GameUISkinScript.MENU_HALF_W + 40.0, GameUISkinScript.MENU_HALF_H + 80.0
 	)
 	var vbox: VBoxContainer = shell["content_vbox"]
+	_cloud_status_label = Label.new()
+	_cloud_status_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	GameUISkinScript.style_body_label(_cloud_status_label)
+	vbox.add_child(_cloud_status_label)
+	_refresh_cloud_status()
+	if not ApiConfig.cloud_state_changed.is_connected(_on_cloud_state_changed):
+		ApiConfig.cloud_state_changed.connect(_on_cloud_state_changed)
 	vbox.add_child(MenuShellScript.make_menu_button("Resume", _on_resume))
+	vbox.add_child(MenuShellScript.make_menu_button("Achievements", _on_achievements))
 	vbox.add_child(MenuShellScript.make_menu_button("Settings", _on_settings))
 	if RunFlow.is_run_active():
 		vbox.add_child(MenuShellScript.make_menu_button("Abandon run", _on_abandon))
@@ -80,6 +86,11 @@ func _on_resume() -> void:
 func _on_settings() -> void:
 	if PlayerControls:
 		PlayerControls.open_settings()
+
+
+func _on_achievements() -> void:
+	if PlayerControls:
+		PlayerControls.open_achievements()
 
 
 func _on_abandon() -> void:
@@ -108,3 +119,26 @@ func _on_quit_to_menu() -> void:
 		"Quit to Menu",
 		"Keep Playing"
 	)
+
+
+func _on_cloud_state_changed(_state: int, _detail: String) -> void:
+	_refresh_cloud_status()
+
+
+func _refresh_cloud_status() -> void:
+	if _cloud_status_label == null:
+		return
+	match ApiConfig.cloud_state:
+		ApiConfig.CloudState.DISABLED, ApiConfig.CloudState.SIGNED_OUT, ApiConfig.CloudState.SYNCED:
+			_cloud_status_label.visible = false
+		ApiConfig.CloudState.SYNCING:
+			_cloud_status_label.visible = true
+			_cloud_status_label.text = "Cloud: syncing..."
+		ApiConfig.CloudState.ERROR:
+			_cloud_status_label.visible = true
+			_cloud_status_label.text = "Cloud: sync error"
+		ApiConfig.CloudState.VERSION_MISMATCH:
+			_cloud_status_label.visible = true
+			_cloud_status_label.text = "Cloud: update required"
+		_:
+			_cloud_status_label.visible = false

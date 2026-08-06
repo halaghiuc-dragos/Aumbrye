@@ -1,5 +1,7 @@
 # Stamina and mana — improvement plan
 
+## Status: FINISHED
+
 ## Current state
 
 `Stamina` works and is genuinely load-bearing: eight call sites spend it and equipment scales both its cap and its regen (see [`../existing_codebase/stamina-mana.md`](../existing_codebase/stamina-mana.md)). `Mana` is a complete resource node with a HUD bar and zero spenders — `consume`, `drain`, `has`, `configure` and `reset_mana` have no callers anywhere under `apps/game/client/scripts/`, so the bar sits at 100% for an entire run. Beyond that, stamina has no teeth: regen is not suppressed while attacking or blocking, the `depleted` and `insufficient` signals have no listeners so a refused attack is silent, and `drain()` bypasses the exhaustion gate that `consume()` enforces.

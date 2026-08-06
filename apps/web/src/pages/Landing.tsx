@@ -1,8 +1,14 @@
-type Props = { onNavigate: (page: string) => void };
+import { Link } from "react-router-dom";
+import { PageHelmet } from "../components/Layout";
 
-export default function LandingPage({ onNavigate }: Props) {
+export default function LandingPage() {
   return (
     <section className="landing">
+      <PageHelmet
+        title="Aumbrye — Action Roguelite RPG"
+        description="Handcrafted runs, soulslike combat, and five deadly biomes await in Aumbrye."
+        path="/"
+      />
       <div className="hero">
         <p className="eyebrow">Action Roguelite RPG</p>
         <h1>Aumbrye</h1>
@@ -10,18 +16,19 @@ export default function LandingPage({ onNavigate }: Props) {
           Handcrafted runs. Soulslike combat. Five deadly biomes await.
         </p>
         <div className="cta-row">
-          <a className="cta primary" href="https://store.steampowered.com/" target="_blank" rel="noreferrer">
-            Wishlist on Steam
+          <a className="cta primary" href="#mailing-list">
+            Join the mailing list
           </a>
-          <button type="button" className="cta secondary" onClick={() => onNavigate("account")}>
+          <Link className="cta secondary" to="/account">
             Sign in
-          </button>
+          </Link>
         </div>
       </div>
-      <div className="screenshot-row">
-        <div className="screenshot placeholder">Trailer / screenshot slot</div>
-        <div className="screenshot placeholder">Biome showcase</div>
-        <div className="screenshot placeholder">Combat highlight</div>
+      <div className="screenshot-panel" id="mailing-list">
+        <p>Screenshots coming soon</p>
+        <p className="muted">
+          Wishlist updates will land here once the Steam app page is live.
+        </p>
       </div>
     </section>
   );

@@ -8,10 +8,11 @@ class_name PixelDioramaSettings
 ## finish pass. Art modules read from here rather than defining their own defaults.
 
 const SAVE_KEY := "pixel_diorama"
+const SETTINGS_VERSION := 1
+const SAVE_DEBOUNCE_SEC := 0.35
 
 const SURFACE_SHADER_SUFFIX := "pixel_diorama_surface.gdshader"
 const EMISSIVE_SHADER_SUFFIX := "pixel_diorama_emissive.gdshader"
-const LEGACY_SHADER_SUFFIX := "pixel_diorama.gdshader"
 const SCREEN_FINISH_SHADER_PATH := "res://assets/shared/pixel_screen_finish.gdshader"
 
 const DEFAULT_PIXEL_SCALE := 8.0
@@ -26,19 +27,27 @@ const DEFAULT_AMBIENT_OCCLUSION := true
 const DEFAULT_RIM_STRENGTH := 0.08
 const DEFAULT_LINEAR_TONEMAP := true
 const DEFAULT_GLOW_ENABLED := true
-const DEFAULT_NEAREST_TEXTURE_FILTER := false
+const DEFAULT_NEAREST_TEXTURE_FILTER := true
 const DEFAULT_ANTI_ALIASING_OFF := false
 const DEFAULT_LOW_RES_VIEWPORT := true
-const DEFAULT_VIEWPORT_WIDTH := 1920
-const DEFAULT_VIEWPORT_HEIGHT := 1080
-const DEFAULT_CAMERA_SNAP := false
+const DEFAULT_VIEWPORT_WIDTH := 480
+const DEFAULT_VIEWPORT_HEIGHT := 270
+const DEFAULT_CAMERA_SNAP := true
+const DEFAULT_GAMEPLAY_CAMERA_SNAP := true
 const DEFAULT_SCREEN_FINISH := true
 const DEFAULT_CONTRAST := 1.08
 const DEFAULT_SATURATION := 1.06
 const DEFAULT_VIGNETTE := 0.18
-const DEFAULT_POSTERIZE_LEVELS := 0.0
+const DEFAULT_POSTERIZE_LEVELS := 24.0
 const DEFAULT_SHADOW_QUALITY := 1
 const DEFAULT_PARTICLE_QUALITY := 1
+const DEFAULT_SCREEN_LIFT := 0.0
+const DEFAULT_SHADOW_TINT := Color(0.18, 0.16, 0.26)
+const DEFAULT_SHADOW_TINT_AMOUNT := 0.14
+const DEFAULT_HIGHLIGHT_TINT := Color(1.0, 0.94, 0.82)
+const DEFAULT_HIGHLIGHT_TINT_AMOUNT := 0.1
+const DEFAULT_VIGNETTE_SOFTNESS := 0.85
+const DEFAULT_PULSE_TINT := Color(0.62, 0.08, 0.08)
 
 const QUALITY_LABELS: Array[String] = ["Low", "Medium", "High"]
 
@@ -46,32 +55,36 @@ const QUALITY_LABELS: Array[String] = ["Low", "Medium", "High"]
 ## nearest-neighbour upscale stays square-pixel at common window sizes.
 const RESOLUTION_PRESETS: Array = [
 	{"label": "320 x 180 (chunky)", "width": 320, "height": 180},
-	{"label": "480 x 270 (chunky)", "width": 480, "height": 270},
+	{"label": "480 x 270 (chunky, default)", "width": 480, "height": 270, "default": true},
 	{"label": "640 x 360 (fine)", "width": 640, "height": 360},
-	{"label": "854 x 480 (soft)", "width": 854, "height": 480},
+	{"label": "960 x 540 (soft)", "width": 960, "height": 540},
 	{
 		"label": "1280 x 720 (HD)",
 		"width": 1280,
 		"height": 720,
 		"native": true,
-		"pixel_scale": 3.0,
-		"color_levels": 12.0,
-		"shade_bands": 6.0,
-		"edge_strength": 0.14,
-		"pattern_strength": 0.28,
-		"shade_dither": 0.35,
+		"tuning": {
+			"pixel_scale": 3.0,
+			"color_levels": 12.0,
+			"shade_bands": 6.0,
+			"edge_strength": 0.14,
+			"pattern_strength": 0.28,
+			"shade_dither": 0.35,
+		},
 	},
 	{
-		"label": "1920 x 1080 (Full HD, default)",
+		"label": "1920 x 1080 (Full HD)",
 		"width": 1920,
 		"height": 1080,
 		"native": true,
-		"pixel_scale": 2.0,
-		"color_levels": 16.0,
-		"shade_bands": 8.0,
-		"edge_strength": 0.1,
-		"pattern_strength": 0.2,
-		"shade_dither": 0.25,
+		"tuning": {
+			"pixel_scale": 2.0,
+			"color_levels": 16.0,
+			"shade_bands": 8.0,
+			"edge_strength": 0.1,
+			"pattern_strength": 0.2,
+			"shade_dither": 0.25,
+		},
 	},
 ]
 
@@ -93,6 +106,7 @@ static var low_res_viewport_enabled: bool = DEFAULT_LOW_RES_VIEWPORT
 static var viewport_width: int = DEFAULT_VIEWPORT_WIDTH
 static var viewport_height: int = DEFAULT_VIEWPORT_HEIGHT
 static var camera_snap_enabled: bool = DEFAULT_CAMERA_SNAP
+static var gameplay_camera_snap_enabled: bool = DEFAULT_GAMEPLAY_CAMERA_SNAP
 static var screen_finish_enabled: bool = DEFAULT_SCREEN_FINISH
 static var screen_contrast: float = DEFAULT_CONTRAST
 static var screen_saturation: float = DEFAULT_SATURATION
@@ -100,14 +114,29 @@ static var vignette_strength: float = DEFAULT_VIGNETTE
 static var posterize_levels: float = DEFAULT_POSTERIZE_LEVELS
 static var shadow_quality: int = DEFAULT_SHADOW_QUALITY
 static var particle_quality: int = DEFAULT_PARTICLE_QUALITY
+static var tuning_is_preset_default: bool = false
+static var screen_lift: float = DEFAULT_SCREEN_LIFT
+static var shadow_tint: Color = DEFAULT_SHADOW_TINT
+static var shadow_tint_amount: float = DEFAULT_SHADOW_TINT_AMOUNT
+static var highlight_tint: Color = DEFAULT_HIGHLIGHT_TINT
+static var highlight_tint_amount: float = DEFAULT_HIGHLIGHT_TINT_AMOUNT
+static var vignette_softness: float = DEFAULT_VIGNETTE_SOFTNESS
+static var pulse_tint: Color = DEFAULT_PULSE_TINT
 
 ## Height the SubViewport actually renders at, which is the requested preset
 ## rounded to an integer divisor of the window. Set by PixelDioramaViewport.
 static var active_render_height: int = DEFAULT_VIEWPORT_HEIGHT
 
+static var _tracked: Array[WeakRef] = []
+static var _biome_grade_override: Dictionary = {}
+static var _save_timer: SceneTreeTimer = null
+
 
 static func load_from_save() -> void:
 	var data: Dictionary = LocalSave.get_meta_data().get(SAVE_KEY, {})
+	var version := int(data.get("version", 0))
+	if version != SETTINGS_VERSION:
+		data = _migrate_settings(data, version)
 	pixel_scale = float(data.get("pixel_scale", DEFAULT_PIXEL_SCALE))
 	color_levels = float(data.get("color_levels", DEFAULT_COLOR_LEVELS))
 	edge_strength = float(data.get("edge_strength", DEFAULT_EDGE_STRENGTH))
@@ -122,12 +151,17 @@ static func load_from_save() -> void:
 	ambient_occlusion_enabled = bool(
 		data.get("ambient_occlusion_enabled", DEFAULT_AMBIENT_OCCLUSION)
 	)
-	nearest_texture_filter = bool(data.get("nearest_texture_filter", DEFAULT_NEAREST_TEXTURE_FILTER))
+	nearest_texture_filter = bool(
+		data.get("nearest_texture_filter", DEFAULT_NEAREST_TEXTURE_FILTER)
+	)
 	anti_aliasing_off = bool(data.get("anti_aliasing_off", DEFAULT_ANTI_ALIASING_OFF))
 	low_res_viewport_enabled = bool(data.get("low_res_viewport_enabled", DEFAULT_LOW_RES_VIEWPORT))
 	viewport_width = int(data.get("viewport_width", DEFAULT_VIEWPORT_WIDTH))
 	viewport_height = int(data.get("viewport_height", DEFAULT_VIEWPORT_HEIGHT))
 	camera_snap_enabled = bool(data.get("camera_snap_enabled", DEFAULT_CAMERA_SNAP))
+	gameplay_camera_snap_enabled = bool(
+		data.get("gameplayCameraSnap", data.get("gameplay_camera_snap", DEFAULT_GAMEPLAY_CAMERA_SNAP))
+	)
 	screen_finish_enabled = bool(data.get("screen_finish_enabled", DEFAULT_SCREEN_FINISH))
 	screen_contrast = float(data.get("screen_contrast", DEFAULT_CONTRAST))
 	screen_saturation = float(data.get("screen_saturation", DEFAULT_SATURATION))
@@ -135,14 +169,26 @@ static func load_from_save() -> void:
 	posterize_levels = float(data.get("posterize_levels", DEFAULT_POSTERIZE_LEVELS))
 	shadow_quality = int(data.get("shadow_quality", DEFAULT_SHADOW_QUALITY))
 	particle_quality = int(data.get("particle_quality", DEFAULT_PARTICLE_QUALITY))
-	var preset := _preset_for_size(viewport_width, viewport_height)
-	if bool(preset.get("native", false)):
-		_apply_native_hd_shader_tuning(preset)
+	tuning_is_preset_default = bool(data.get("tuning_is_preset_default", false))
+	screen_lift = float(data.get("screen_lift", DEFAULT_SCREEN_LIFT))
+	shadow_tint = _color_from_save(data.get("shadow_tint", null), DEFAULT_SHADOW_TINT)
+	shadow_tint_amount = float(data.get("shadow_tint_amount", DEFAULT_SHADOW_TINT_AMOUNT))
+	highlight_tint = _color_from_save(data.get("highlight_tint", null), DEFAULT_HIGHLIGHT_TINT)
+	highlight_tint_amount = float(
+		data.get("highlight_tint_amount", DEFAULT_HIGHLIGHT_TINT_AMOUNT)
+	)
+	vignette_softness = float(data.get("vignette_softness", DEFAULT_VIGNETTE_SOFTNESS))
+	if tuning_is_preset_default:
+		var preset := _preset_for_size(viewport_width, viewport_height)
+		var tuning: Variant = preset.get("tuning", {})
+		if tuning is Dictionary and not (tuning as Dictionary).is_empty():
+			_apply_preset_tuning(tuning as Dictionary)
 
 
 static func save() -> void:
 	var meta := LocalSave.get_meta_data()
 	meta[SAVE_KEY] = {
+		"version": SETTINGS_VERSION,
 		"pixel_scale": pixel_scale,
 		"color_levels": color_levels,
 		"edge_strength": edge_strength,
@@ -161,6 +207,7 @@ static func save() -> void:
 		"viewport_width": viewport_width,
 		"viewport_height": viewport_height,
 		"camera_snap_enabled": camera_snap_enabled,
+		"gameplayCameraSnap": gameplay_camera_snap_enabled,
 		"screen_finish_enabled": screen_finish_enabled,
 		"screen_contrast": screen_contrast,
 		"screen_saturation": screen_saturation,
@@ -168,6 +215,13 @@ static func save() -> void:
 		"posterize_levels": posterize_levels,
 		"shadow_quality": shadow_quality,
 		"particle_quality": particle_quality,
+		"tuning_is_preset_default": tuning_is_preset_default,
+		"screen_lift": screen_lift,
+		"shadow_tint": _color_to_save(shadow_tint),
+		"shadow_tint_amount": shadow_tint_amount,
+		"highlight_tint": _color_to_save(highlight_tint),
+		"highlight_tint_amount": highlight_tint_amount,
+		"vignette_softness": vignette_softness,
 	}
 	LocalSave.set_meta_data(meta)
 	LocalSave.autosave()
@@ -178,16 +232,62 @@ static func save_and_apply() -> void:
 	apply_all()
 
 
-static func apply_all() -> void:
-	apply_rendering_project_settings()
-	PixelDioramaStyle.clear_material_caches()
+static func apply_live() -> void:
+	restamp_tracked()
+	_notify_viewport()
 	var tree := Engine.get_main_loop() as SceneTree
-	if tree:
-		var pixel_viewport := tree.root.get_node_or_null("PixelDioramaViewport")
-		if pixel_viewport and pixel_viewport.has_method("apply_settings"):
-			pixel_viewport.call("apply_settings")
-		if tree.current_scene:
-			apply_to_scene(tree.current_scene)
+	if tree and tree.current_scene:
+		apply_to_scene(tree.current_scene)
+
+
+static func request_save() -> void:
+	var tree := Engine.get_main_loop() as SceneTree
+	if tree == null:
+		save()
+		return
+	if _save_timer != null and is_instance_valid(_save_timer):
+		_save_timer.time_left = SAVE_DEBOUNCE_SEC
+		return
+	_save_timer = tree.create_timer(SAVE_DEBOUNCE_SEC)
+	_save_timer.timeout.connect(_on_save_debounce_timeout, CONNECT_ONE_SHOT)
+
+
+static func apply_all() -> void:
+	restamp_tracked()
+	_notify_viewport()
+	var tree := Engine.get_main_loop() as SceneTree
+	if tree and tree.current_scene:
+		apply_to_scene(tree.current_scene)
+
+
+static func track(mat: ShaderMaterial) -> ShaderMaterial:
+	if mat != null:
+		_tracked.append(weakref(mat))
+	return mat
+
+
+static func restamp_tracked() -> void:
+	var alive: Array[WeakRef] = []
+	for ref in _tracked:
+		var mat := ref.get_ref() as ShaderMaterial
+		if mat != null:
+			apply_to_shader_material(mat)
+			alive.append(ref)
+	_tracked = alive
+
+
+static func set_biome_screen_grade(biome_id: String) -> void:
+	_biome_grade_override = BiomeRegistry.get_grade_profile(biome_id)
+	_notify_viewport()
+
+
+static func clear_biome_screen_grade() -> void:
+	_biome_grade_override = {}
+	_notify_viewport()
+
+
+static func mark_tuning_user_edited() -> void:
+	tuning_is_preset_default = false
 
 
 ## Restores the tuned "crisp diorama" look, discarding user experimentation.
@@ -207,12 +307,16 @@ static func apply_beauty_defaults() -> void:
 	nearest_texture_filter = DEFAULT_NEAREST_TEXTURE_FILTER
 	anti_aliasing_off = DEFAULT_ANTI_ALIASING_OFF
 	low_res_viewport_enabled = DEFAULT_LOW_RES_VIEWPORT
-	viewport_width = DEFAULT_VIEWPORT_WIDTH
-	viewport_height = DEFAULT_VIEWPORT_HEIGHT
-	var preset := _preset_for_size(viewport_width, viewport_height)
-	if bool(preset.get("native", false)):
-		_apply_native_hd_shader_tuning(preset)
-	camera_snap_enabled = false
+	var preset := _default_preset()
+	viewport_width = int(preset.get("width", DEFAULT_VIEWPORT_WIDTH))
+	viewport_height = int(preset.get("height", DEFAULT_VIEWPORT_HEIGHT))
+	tuning_is_preset_default = false
+	var tuning: Variant = preset.get("tuning", {})
+	if tuning is Dictionary and not (tuning as Dictionary).is_empty():
+		_apply_preset_tuning(tuning as Dictionary)
+		tuning_is_preset_default = true
+	camera_snap_enabled = DEFAULT_CAMERA_SNAP
+	gameplay_camera_snap_enabled = DEFAULT_GAMEPLAY_CAMERA_SNAP
 	screen_finish_enabled = true
 	screen_contrast = DEFAULT_CONTRAST
 	screen_saturation = DEFAULT_SATURATION
@@ -220,6 +324,12 @@ static func apply_beauty_defaults() -> void:
 	posterize_levels = DEFAULT_POSTERIZE_LEVELS
 	shadow_quality = DEFAULT_SHADOW_QUALITY
 	particle_quality = DEFAULT_PARTICLE_QUALITY
+	screen_lift = DEFAULT_SCREEN_LIFT
+	shadow_tint = DEFAULT_SHADOW_TINT
+	shadow_tint_amount = DEFAULT_SHADOW_TINT_AMOUNT
+	highlight_tint = DEFAULT_HIGHLIGHT_TINT
+	highlight_tint_amount = DEFAULT_HIGHLIGHT_TINT_AMOUNT
+	vignette_softness = DEFAULT_VIGNETTE_SOFTNESS
 	save_and_apply()
 
 
@@ -243,13 +353,22 @@ static func set_resolution_preset(index: int) -> void:
 	var preset: Dictionary = RESOLUTION_PRESETS[index]
 	viewport_width = int(preset.get("width", DEFAULT_VIEWPORT_WIDTH))
 	viewport_height = int(preset.get("height", DEFAULT_VIEWPORT_HEIGHT))
-	if bool(preset.get("native", false)):
-		_apply_native_hd_shader_tuning(preset)
+	var tuning: Variant = preset.get("tuning", {})
+	if tuning is Dictionary and not (tuning as Dictionary).is_empty():
+		_apply_preset_tuning(tuning as Dictionary)
+		tuning_is_preset_default = true
 
 
 static func is_native_hd_preset() -> bool:
 	var preset := _preset_for_size(viewport_width, viewport_height)
 	return not preset.is_empty() and bool(preset.get("native", false))
+
+
+static func _default_preset() -> Dictionary:
+	for entry in RESOLUTION_PRESETS:
+		if bool(entry.get("default", false)):
+			return entry
+	return RESOLUTION_PRESETS[1]
 
 
 static func _preset_for_size(width: int, height: int) -> Dictionary:
@@ -259,21 +378,30 @@ static func _preset_for_size(width: int, height: int) -> Dictionary:
 	return {}
 
 
-static func _apply_native_hd_shader_tuning(preset: Dictionary) -> void:
-	pixel_scale = float(preset.get("pixel_scale", 2.5))
-	color_levels = float(preset.get("color_levels", 14.0))
-	shade_bands = float(preset.get("shade_bands", 7.0))
-	edge_strength = float(preset.get("edge_strength", 0.12))
-	pattern_strength = float(preset.get("pattern_strength", 0.24))
-	shade_dither = float(preset.get("shade_dither", 0.3))
-	nearest_texture_filter = false
-	anti_aliasing_off = false
+static func _apply_preset_tuning(tuning: Dictionary) -> void:
+	pixel_scale = float(tuning.get("pixel_scale", pixel_scale))
+	color_levels = float(tuning.get("color_levels", color_levels))
+	shade_bands = float(tuning.get("shade_bands", shade_bands))
+	edge_strength = float(tuning.get("edge_strength", edge_strength))
+	pattern_strength = float(tuning.get("pattern_strength", pattern_strength))
+	shade_dither = float(tuning.get("shade_dither", shade_dither))
+
+
+static func _migrate_settings(data: Dictionary, from_version: int) -> Dictionary:
+	var migrated := data.duplicate(true)
+	if from_version <= 0:
+		migrated["tuning_is_preset_default"] = true
+	migrated["version"] = SETTINGS_VERSION
+	return migrated
 
 
 static func current_resolution_preset() -> int:
 	for i in RESOLUTION_PRESETS.size():
 		var preset: Dictionary = RESOLUTION_PRESETS[i]
-		if int(preset.get("width", 0)) == viewport_width and int(preset.get("height", 0)) == viewport_height:
+		if (
+			int(preset.get("width", 0)) == viewport_width
+			and int(preset.get("height", 0)) == viewport_height
+		):
 			return i
 	return -1
 
@@ -286,34 +414,20 @@ static func camera_snap_step(fov_degrees: float = 75.0, focus_distance: float = 
 	return maxf(0.001, 2.0 * maxf(0.5, focus_distance) * half_extent / height)
 
 
-static func apply_rendering_project_settings() -> void:
-	if nearest_texture_filter:
-		ProjectSettings.set_setting(
-			"rendering/textures/default_filters/texture_filter",
-			BaseMaterial3D.TEXTURE_FILTER_NEAREST
-		)
-		ProjectSettings.set_setting("rendering/textures/default_filters/anisotropic_filtering_level", 0)
-		ProjectSettings.set_setting(
-			"rendering/textures/canvas_textures/default_texture_filter",
-			BaseMaterial3D.TEXTURE_FILTER_NEAREST
-		)
-	else:
-		ProjectSettings.set_setting(
-			"rendering/textures/default_filters/texture_filter",
-			BaseMaterial3D.TEXTURE_FILTER_LINEAR
-		)
-		ProjectSettings.set_setting("rendering/textures/default_filters/anisotropic_filtering_level", 2)
-		ProjectSettings.set_setting(
-			"rendering/textures/canvas_textures/default_texture_filter",
-			BaseMaterial3D.TEXTURE_FILTER_LINEAR
-		)
-
-	if anti_aliasing_off:
-		ProjectSettings.set_setting("rendering/anti_aliasing/quality/msaa_3d", 0)
-		ProjectSettings.set_setting("rendering/anti_aliasing/quality/screen_space_aa", 0)
-	else:
-		ProjectSettings.set_setting("rendering/anti_aliasing/quality/msaa_3d", 2)
-		ProjectSettings.set_setting("rendering/anti_aliasing/quality/screen_space_aa", 1)
+static func apply_render_quality(viewports: Array) -> void:
+	var msaa := (
+		Viewport.MSAA_DISABLED if anti_aliasing_off else Viewport.MSAA_2X
+	)
+	var ss_aa := (
+		Viewport.SCREEN_SPACE_AA_DISABLED
+		if anti_aliasing_off
+		else Viewport.SCREEN_SPACE_AA_FXAA
+	)
+	for vp in viewports:
+		if vp == null:
+			continue
+		(vp as Viewport).msaa_3d = msaa
+		(vp as Viewport).screen_space_aa = ss_aa
 
 
 static func configure_environment(environment: Environment) -> void:
@@ -358,7 +472,9 @@ static func _configure_occlusion(environment: Environment) -> void:
 ## Large flat box tops sit near-parallel to the sun and acne badly on the depth
 ## test alone, so normal bias does the real work here and depth bias stays low
 ## enough that contact points don't visibly detach.
-static func configure_directional_shadow(light: DirectionalLight3D, enable_shadows: bool = true) -> void:
+static func configure_directional_shadow(
+	light: DirectionalLight3D, enable_shadows: bool = true
+) -> void:
 	if light == null:
 		return
 	var shadows_on := enable_shadows and shadow_quality > 0
@@ -367,8 +483,6 @@ static func configure_directional_shadow(light: DirectionalLight3D, enable_shado
 		return
 	light.directional_shadow_mode = DirectionalLight3D.SHADOW_ORTHOGONAL
 	match clampi(shadow_quality, 0, 2):
-		0:
-			light.shadow_enabled = false
 		2:
 			light.directional_shadow_max_distance = 32.0
 			light.shadow_bias = 0.008
@@ -378,16 +492,6 @@ static func configure_directional_shadow(light: DirectionalLight3D, enable_shado
 			light.shadow_bias = 0.01
 			light.shadow_normal_bias = 0.2
 	light.shadow_opacity = 1.0
-
-
-static func pixel_scale_for_pattern_type(pattern_type: int) -> float:
-	match pattern_type:
-		0:
-			return pixel_scale * (7.5 / DEFAULT_PIXEL_SCALE)
-		1:
-			return pixel_scale * (7.0 / DEFAULT_PIXEL_SCALE)
-		_:
-			return pixel_scale * (8.0 / DEFAULT_PIXEL_SCALE) * 1.05
 
 
 static func texture_filter_mode() -> BaseMaterial3D.TextureFilter:
@@ -402,7 +506,6 @@ static func apply_to_shader_material(mat: ShaderMaterial) -> void:
 	if mat == null or mat.shader == null:
 		return
 	var shader_path := mat.shader.resource_path
-	# ShaderMaterial has no texture_filter; nearest filtering is project-wide.
 	if shader_path.ends_with(SURFACE_SHADER_SUFFIX):
 		mat.set_shader_parameter("pixel_scale", pixel_scale)
 		mat.set_shader_parameter("color_levels", color_levels)
@@ -416,13 +519,6 @@ static func apply_to_shader_material(mat: ShaderMaterial) -> void:
 	elif shader_path.ends_with(EMISSIVE_SHADER_SUFFIX):
 		mat.set_shader_parameter("pixel_scale", pixel_scale)
 		mat.set_shader_parameter("color_levels", color_levels)
-	elif shader_path.ends_with(LEGACY_SHADER_SUFFIX):
-		var pattern_type := int(mat.get_shader_parameter("pattern_type"))
-		mat.set_shader_parameter("pixel_scale", pixel_scale_for_pattern_type(pattern_type))
-		mat.set_shader_parameter("color_levels", color_levels)
-		mat.set_shader_parameter("edge_strength", edge_strength)
-		mat.set_shader_parameter("stitch_strength", stitch_strength)
-		mat.set_shader_parameter("pattern_strength", pattern_strength)
 
 
 static func apply_to_standard_material(mat: StandardMaterial3D) -> void:
@@ -441,18 +537,43 @@ static func make_screen_finish_material() -> ShaderMaterial:
 static func apply_to_screen_finish(mat: ShaderMaterial) -> void:
 	if mat == null:
 		return
+	var effective_shadow_tint := shadow_tint
+	var effective_shadow_amount := shadow_tint_amount
+	var effective_highlight_tint := highlight_tint
+	var effective_highlight_amount := highlight_tint_amount
+	if _biome_grade_override.has("shadow_tint"):
+		effective_shadow_tint = _biome_grade_override["shadow_tint"] as Color
+	if _biome_grade_override.has("shadow_tint_amount"):
+		effective_shadow_amount = float(_biome_grade_override["shadow_tint_amount"])
+	if _biome_grade_override.has("highlight_tint"):
+		effective_highlight_tint = _biome_grade_override["highlight_tint"] as Color
+	if _biome_grade_override.has("highlight_tint_amount"):
+		effective_highlight_amount = float(_biome_grade_override["highlight_tint_amount"])
 	mat.set_shader_parameter("contrast", screen_contrast)
 	mat.set_shader_parameter("saturation", screen_saturation)
+	mat.set_shader_parameter("lift", screen_lift)
+	mat.set_shader_parameter("shadow_tint", effective_shadow_tint)
+	mat.set_shader_parameter("shadow_tint_amount", effective_shadow_amount)
+	mat.set_shader_parameter("highlight_tint", effective_highlight_tint)
+	mat.set_shader_parameter("highlight_tint_amount", effective_highlight_amount)
 	mat.set_shader_parameter("vignette_strength", vignette_strength)
-	mat.set_shader_parameter("posterize_levels", posterize_levels)
+	mat.set_shader_parameter("vignette_softness", vignette_softness)
 	mat.set_shader_parameter("damage_pulse", 0.0)
+	mat.set_shader_parameter("pulse_tint", pulse_tint)
+	mat.set_shader_parameter("posterize_levels", posterize_levels)
 
 
 static func apply_to_scene(root: Node) -> void:
 	if root == null:
 		return
 	_apply_world_environments(root)
-	_apply_materials_recursive(root)
+
+
+static func bootstrap_scene_materials(root: Node) -> void:
+	if root == null:
+		return
+	_track_materials_recursive(root)
+	restamp_tracked()
 
 
 static func _apply_world_environments(root: Node) -> void:
@@ -469,21 +590,42 @@ static func _apply_world_environments(root: Node) -> void:
 		_apply_world_environments(child)
 
 
-static func _apply_materials_recursive(node: Node) -> void:
+static func _track_materials_recursive(node: Node) -> void:
 	if node is MeshInstance3D:
 		var mesh_inst := node as MeshInstance3D
 		var override_mat := mesh_inst.material_override
 		if override_mat is ShaderMaterial:
-			apply_to_shader_material(override_mat as ShaderMaterial)
-		elif override_mat is StandardMaterial3D:
-			apply_to_standard_material(override_mat as StandardMaterial3D)
+			track(override_mat as ShaderMaterial)
 		var mesh := mesh_inst.mesh
 		if mesh:
 			for surface_idx in mesh.get_surface_count():
 				var surface_mat := mesh.surface_get_material(surface_idx)
 				if surface_mat is ShaderMaterial:
-					apply_to_shader_material(surface_mat as ShaderMaterial)
-				elif surface_mat is StandardMaterial3D:
-					apply_to_standard_material(surface_mat as StandardMaterial3D)
+					track(surface_mat as ShaderMaterial)
 	for child in node.get_children():
-		_apply_materials_recursive(child)
+		_track_materials_recursive(child)
+
+
+static func _notify_viewport() -> void:
+	var tree := Engine.get_main_loop() as SceneTree
+	if tree == null:
+		return
+	var pixel_viewport := tree.root.get_node_or_null("PixelDioramaViewport")
+	if pixel_viewport and pixel_viewport.has_method("apply_settings"):
+		pixel_viewport.call("apply_settings")
+
+
+static func _on_save_debounce_timeout() -> void:
+	_save_timer = null
+	save()
+
+
+static func _color_to_save(color: Color) -> Array:
+	return [color.r, color.g, color.b]
+
+
+static func _color_from_save(raw: Variant, default_color: Color) -> Color:
+	if raw is Array and (raw as Array).size() >= 3:
+		var arr: Array = raw
+		return Color(float(arr[0]), float(arr[1]), float(arr[2]))
+	return default_color

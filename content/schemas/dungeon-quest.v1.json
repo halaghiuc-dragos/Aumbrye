@@ -1,0 +1,29 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://aumbrye.dev/schemas/dungeon-quest.v1.json",
+  "title": "DungeonQuestCatalog",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["quests"],
+  "properties": {
+    "quests": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["questId", "dialogueId", "questKeyId", "biomes", "rewardItemId"],
+        "properties": {
+          "questId": { "type": "string", "minLength": 1 },
+          "dialogueId": { "type": "string", "minLength": 1 },
+          "questKeyId": { "type": "string", "minLength": 1 },
+          "biomes": {
+            "type": "array",
+            "minItems": 1,
+            "items": { "type": "string", "minLength": 1 }
+          },
+          "rewardItemId": { "type": "string", "minLength": 1 }
+        }
+      }
+    }
+  }
+}

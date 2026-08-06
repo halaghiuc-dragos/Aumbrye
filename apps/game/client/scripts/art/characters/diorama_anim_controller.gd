@@ -12,6 +12,8 @@ extends Node
 
 signal swing_frame
 signal footstep_frame
+signal heal_gulp_frame
+signal heal_commit_frame
 
 enum Priority {
 	LOCOMOTION,
@@ -36,7 +38,9 @@ const RUN_REFERENCE_SPEED := 7.0
 
 var _visual: Node3D
 var _player: AnimationPlayer
+var _additive_player: AnimationPlayer
 var _library: AnimationLibrary
+var _additive_library: AnimationLibrary
 var _rest_pose: Dictionary = {}
 var _events_path := ""
 var _profile := "player"
@@ -86,7 +90,11 @@ func _finish_bind() -> void:
 	if _rest_pose.is_empty():
 		return
 	_events_path = _resolve_events_path(visual)
-	_library = AnimLibrary.build_library(_rest_pose, _events_path, _profile)
+	var loaded := AnimLibrary.build_library(_rest_pose, _events_path, _profile)
+	if AnimLibrary.can_use_authored_library(_rest_pose, _profile):
+		_library = loaded.duplicate(true)
+	else:
+		_library = loaded
 	_player = AnimationPlayer.new()
 	_player.name = "DioramaAnimPlayer"
 	visual.add_child(_player)
@@ -95,6 +103,7 @@ func _finish_bind() -> void:
 	_player.add_animation_library(LIBRARY_NAME, _library)
 	_player.animation_finished.connect(_on_animation_finished)
 	_player.playback_default_blend_time = LOCOMOTION_BLEND
+	_setup_additive_player(visual)
 	_dead = false
 	_priority = Priority.LOCOMOTION
 	_desired_locomotion = &"idle"
@@ -111,14 +120,63 @@ func is_bound() -> bool:
 func _resolve_events_path(visual: Node3D) -> String:
 	if not is_inside_tree() or not visual.is_inside_tree():
 		return ""
-	# Method tracks (hitbox, footstep) only work when the visual and this controller
-	# share a subtree — not true for the first-person viewmodel on the camera.
-	if not visual.is_ancestor_of(self):
-		return ""
 	var path := visual.get_path_to(self)
 	if path.is_empty():
 		return ""
 	return String(path)
+
+
+func has_footstep_markers() -> bool:
+	if not is_bound() or _library == null:
+		return false
+	for clip_name in [&"walk", &"run"]:
+		if not _library.has_animation(clip_name):
+			continue
+		var anim := _library.get_animation(clip_name)
+		if anim == null:
+			continue
+		for track_idx in anim.get_track_count():
+			if anim.track_get_type(track_idx) != Animation.TYPE_METHOD:
+				continue
+			for key_idx in anim.track_get_key_count(track_idx):
+				var method_data: Dictionary = anim.track_get_key_value(track_idx, key_idx)
+				if String(method_data.get("method", "")) == "anim_footstep":
+					return true
+	return false
+
+
+func has_marker_tracks() -> bool:
+	if not is_bound() or _library == null:
+		return false
+	for clip_name in [&"walk", &"run"]:
+		if not _library.has_animation(clip_name):
+			continue
+		var anim := _library.get_animation(clip_name)
+		if anim == null:
+			continue
+		var method_count := 0
+		for track_idx in anim.get_track_count():
+			if anim.track_get_type(track_idx) == Animation.TYPE_METHOD:
+				method_count += anim.track_get_key_count(track_idx)
+		if method_count >= 2:
+			return true
+	return false
+
+
+func _setup_additive_player(visual: Node3D) -> void:
+	if _additive_player and is_instance_valid(_additive_player):
+		_additive_player.queue_free()
+	_additive_library = AnimLibrary.build_additive_library(_rest_pose)
+	if _additive_library == null or _additive_library.get_animation_list().is_empty():
+		_additive_player = null
+		return
+	_additive_player = AnimationPlayer.new()
+	_additive_player.name = "DioramaAdditivePlayer"
+	visual.add_child(_additive_player)
+	_additive_player.root_node = NodePath("..")
+	_additive_player.add_animation_library(LIBRARY_NAME, _additive_library)
+	if _additive_library.has_animation(&"breathe"):
+		_additive_player.play(&"breathe")
 
 
 func set_profile(profile: String) -> void:
@@ -155,10 +213,14 @@ func request_locomotion(state: StringName, params: Dictionary = {}) -> void:
 		return
 	var speed := 1.0
 	match state:
-		&"walk":
-			speed = clampf(float(params.get("speed", WALK_REFERENCE_SPEED)) / WALK_REFERENCE_SPEED, 0.45, 1.6)
-		&"run":
-			speed = clampf(float(params.get("speed", RUN_REFERENCE_SPEED)) / RUN_REFERENCE_SPEED, 0.6, 1.5)
+		&"walk", &"walk_l", &"walk_r", &"walk_b", &"block_walk":
+			speed = clampf(
+				float(params.get("speed", WALK_REFERENCE_SPEED)) / WALK_REFERENCE_SPEED, 0.45, 1.6
+			)
+		&"run", &"run_l", &"run_r", &"run_b":
+			speed = clampf(
+				float(params.get("speed", RUN_REFERENCE_SPEED)) / RUN_REFERENCE_SPEED, 0.6, 1.5
+			)
 	_player.speed_scale = speed
 	if _player.current_animation != String(state):
 		_play(state, LOCOMOTION_BLEND)
@@ -205,15 +267,77 @@ func play_guard_break() -> void:
 	_start_action(&"guard_break", Priority.STAGGER)
 
 
-func play_flinch() -> void:
+func play_flinch(direction: Vector3 = Vector3.ZERO) -> void:
 	if _priority >= Priority.STAGGER:
 		return
-	_start_action(&"flinch", Priority.STAGGER)
+	var clip := _flinch_clip_for(direction)
+	_start_action(clip, Priority.STAGGER)
 
 
-func play_stagger(duration: float = 0.0) -> void:
+func _flinch_clip_for(world_dir: Vector3) -> StringName:
+	if world_dir.length_squared() < 0.01:
+		return &"flinch_f" if has_clip(&"flinch_f") else &"flinch"
+	var body := get_parent() as CharacterBody3D
+	if body == null:
+		return &"flinch_f" if has_clip(&"flinch_f") else &"flinch"
+	var facing := body.get_node_or_null("Facing") as Node3D
+	if facing == null:
+		return &"flinch_f" if has_clip(&"flinch_f") else &"flinch"
+	var forward := -facing.global_transform.basis.z
+	var right := facing.global_transform.basis.x
+	var flat := Vector3(world_dir.x, 0.0, world_dir.z).normalized()
+	var fwd_dot := forward.dot(flat)
+	var right_dot := right.dot(flat)
+	var clip: StringName
+	if absf(fwd_dot) >= absf(right_dot):
+		clip = &"flinch_f" if fwd_dot >= 0.0 else &"flinch_b"
+	else:
+		clip = &"flinch_r" if right_dot >= 0.0 else &"flinch_l"
+	if has_clip(clip):
+		return clip
+	return &"flinch"
+
+
+func play_stagger(duration: float = 0.0, direction: Vector3 = Vector3.ZERO) -> void:
 	_blocking = false
-	_start_action(&"stagger", Priority.STAGGER)
+	var clip := _stagger_clip_for(direction)
+	if not has_clip(clip):
+		clip = &"stagger"
+	_start_action(clip, Priority.STAGGER)
+	if duration > 0.05 and is_bound():
+		var clip_length := _player.current_animation_length
+		if clip_length > 0.01:
+			_player.speed_scale = clip_length / duration
+
+
+func _stagger_clip_for(world_dir: Vector3) -> StringName:
+	if world_dir.length_squared() < 0.01:
+		return &"stagger"
+	var body := get_parent() as CharacterBody3D
+	if body == null:
+		return &"stagger"
+	var facing := body.get_node_or_null("Facing") as Node3D
+	if facing == null:
+		return &"stagger"
+	var forward := -facing.global_transform.basis.z
+	var right := facing.global_transform.basis.x
+	var flat := Vector3(world_dir.x, 0.0, world_dir.z).normalized()
+	var fwd_dot := forward.dot(flat)
+	var right_dot := right.dot(flat)
+	var clip: StringName
+	if absf(fwd_dot) >= absf(right_dot):
+		clip = &"stagger_f" if fwd_dot >= 0.0 else &"stagger_b"
+	else:
+		clip = &"stagger_r" if right_dot >= 0.0 else &"stagger_l"
+	return clip if has_clip(clip) else &"stagger"
+
+
+func play_heal(duration: float = 1.35) -> void:
+	for mirror in _mirrors:
+		if mirror.has_method("play_heal"):
+			mirror.call("play_heal", duration)
+	_blocking = false
+	_start_action(&"heal", Priority.ATTACK)
 	if duration > 0.05 and is_bound():
 		var clip_length := _player.current_animation_length
 		if clip_length > 0.01:
@@ -240,13 +364,18 @@ func revive() -> void:
 	_priority = Priority.LOCOMOTION
 	_desired_locomotion = &"idle"
 	_player.speed_scale = 1.0
-	_apply_rest_pose()
-	_play(&"idle", 0.0)
+	if has_clip(&"RESET"):
+		_play(&"RESET", 0.1)
+	else:
+		_apply_rest_pose()
+		_play(&"idle", 0.0)
 
 
 ## Plays the next combo swing stretched onto the weapon's real phase timings, so
 ## the visual strike lands in the same frame the hitbox opens.
-func play_attack(startup: float, active: float, recovery: float, clip_override: StringName = &"") -> void:
+func play_attack(
+	startup: float, active: float, recovery: float, clip_override: StringName = &""
+) -> void:
 	if not is_bound() or _dead:
 		return
 	var clip: StringName = clip_override
@@ -283,13 +412,13 @@ func _refresh_attack_clips() -> void:
 
 
 func _ensure_attack_clip(
-	clip: StringName,
-	startup: float,
-	active: float,
-	recovery: float
+	clip: StringName, startup: float, active: float, recovery: float
 ) -> StringName:
 	# Cache per rounded timing set; weapon data only offers a handful of values.
-	var key := "%s_%d_%d_%d" % [clip, roundi(startup * 100.0), roundi(active * 100.0), roundi(recovery * 100.0)]
+	var key := (
+		"%s_%d_%d_%d"
+		% [clip, roundi(startup * 100.0), roundi(active * 100.0), roundi(recovery * 100.0)]
+	)
 	if _compiled_attacks.has(key):
 		return _compiled_attacks[key]
 	var anim := AnimLibrary.build_attack(clip, _rest_pose, _events_path, startup, active, recovery)
@@ -335,7 +464,10 @@ func _resume_locomotion() -> void:
 	_player.speed_scale = 1.0
 	if _blocking:
 		_priority = Priority.BLOCK
-		_play(&"block_hold", ACTION_BLEND)
+		var block_clip := &"block_hold"
+		if _desired_locomotion != &"idle" and has_clip(&"block_walk"):
+			block_clip = &"block_walk"
+		_play(block_clip, ACTION_BLEND)
 		return
 	_priority = Priority.LOCOMOTION
 	_play(_desired_locomotion, LOCOMOTION_BLEND)
@@ -347,7 +479,7 @@ func _on_animation_finished(anim_name: StringName) -> void:
 	var name_text := String(anim_name)
 	if name_text == "block_start" or name_text == "block_hit":
 		return
-	if name_text.begins_with("block_hold"):
+	if name_text.begins_with("block_hold") or name_text == "block_walk":
 		return
 	_resume_locomotion()
 
@@ -379,6 +511,14 @@ func anim_hitbox_off() -> void:
 		weapon.call("disable_hitbox_from_anim")
 
 
+func anim_heal_gulp() -> void:
+	heal_gulp_frame.emit()
+
+
+func anim_heal_commit() -> void:
+	heal_commit_frame.emit()
+
+
 func set_speed_scale(scale: float) -> void:
 	if _player:
 		_player.speed_scale = maxf(0.01, scale)
@@ -405,6 +545,10 @@ func _apply_rest_pose() -> void:
 
 
 func _teardown() -> void:
+	if _additive_player and is_instance_valid(_additive_player):
+		_additive_player.queue_free()
+	_additive_player = null
+	_additive_library = null
 	if _player and is_instance_valid(_player):
 		_player.queue_free()
 	_player = null

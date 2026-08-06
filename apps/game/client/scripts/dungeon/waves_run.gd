@@ -9,6 +9,7 @@ const ENEMY_SCENES := {
 	"castle_knight": preload("res://scenes/enemies/castle_knight.tscn"),
 	"castle_hound": preload("res://scenes/enemies/castle_hound.tscn"),
 	"boss_castle_knight": preload("res://scenes/enemies/castle_knight.tscn"),
+	"miniboss_castle_captain": preload("res://scenes/enemies/castle_knight.tscn"),
 }
 
 @export var player_path: NodePath = NodePath("Player")
@@ -53,6 +54,7 @@ func _notification(what: int) -> void:
 func _build_arena() -> void:
 	WavesOutdoorsDioramaScript.apply(self)
 	AudioDirector.set_biome(BiomeRegistry.BIOME_UMBRAL)
+	AudioDirector.play_dungeon_ambience()
 	_build_walls(true)
 
 
@@ -189,24 +191,37 @@ func _spawn_enemy(enemy_id: String) -> void:
 	var enemy: CharacterBody3D = scene.instantiate() as CharacterBody3D
 	if enemy == null:
 		return
+	if enemy.has_method("set_catalog_id") and (
+		enemy_id.begins_with("boss_") or enemy_id.begins_with("miniboss_")
+	):
+		enemy.call("set_catalog_id", enemy_id)
 	var rng := RandomNumberGenerator.new()
-	rng.seed = WavesRunService.to_save_dict().get("seed", 1) + WavesRunService.current_wave * 17 + _active_enemies.size()
+	rng.seed = (
+		WavesRunService.to_save_dict().get("seed", 1)
+		+ WavesRunService.current_wave * 17
+		+ _active_enemies.size()
+	)
 	enemy.position = Vector3(rng.randf_range(-28, 28), 0.0, rng.randf_range(-28, 28))
 	CharacterFloorSnapScript.snap_feet_to_floor(enemy)
 	if enemy.has_method("set_player"):
 		enemy.call("set_player", _player)
 	add_child(enemy)
 	if enemy.has_signal("enemy_died"):
-		enemy.enemy_died.connect(_on_enemy_died)
+		enemy.enemy_died.connect(_on_enemy_died.bind(enemy))
 	elif enemy.has_signal("boss_defeated"):
-		enemy.boss_defeated.connect(_on_enemy_died)
+		enemy.boss_defeated.connect(_on_enemy_died.bind(enemy))
 	_active_enemies.append(enemy)
 
 
-func _on_enemy_died() -> void:
+func _on_enemy_died(enemy: Node) -> void:
 	WavesRunService.register_kill()
-	_active_enemies = _active_enemies.filter(func(e: Node) -> bool:
-		return is_instance_valid(e) and not (e.has_method("is_dead") and e.call("is_dead"))
+	var enemy_id := ""
+	if enemy and enemy.has_method("get_enemy_id"):
+		enemy_id = str(enemy.call("get_enemy_id"))
+	QuestService.register_kill(enemy_id)
+	_active_enemies = _active_enemies.filter(
+		func(e: Node) -> bool:
+			return is_instance_valid(e) and not (e.has_method("is_dead") and e.call("is_dead"))
 	)
 	if _active_enemies.is_empty():
 		_on_wave_cleared()
@@ -343,7 +358,12 @@ func _persist_waves_save() -> void:
 		"y": _player.global_position.y if _player else 0.0,
 		"z": _player.global_position.z if _player else 0.0,
 		"rotationY": _player.rotation.y if _player else 0.0,
-		"health": (_player.get_node("Health") as Health).current if _player and _player.get_node_or_null("Health") else 100.0,
+		"health":
+		(
+			(_player.get_node("Health") as Health).current
+			if _player and _player.get_node_or_null("Health")
+			else 100.0
+		),
 	}
 	var spring := _player.get_node_or_null("CameraPivot/SpringArm3D") if _player else null
 	if spring and spring.has_method("capture_state"):

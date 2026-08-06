@@ -5,36 +5,10 @@ extends Node
 signal waves_changed
 signal inventory_changed
 
-const MILESTONES: Array[int] = [5, 10, 20, 50]
 const RarityRegistryScript := preload("res://scripts/loot/rarity_registry.gd")
-const CHEST_TYPES: Array[String] = ["potions", "scrolls", "armor", "rings", "weapons", "supplies"]
-const CHEST_TYPE_LABELS: Dictionary = {
-	"potions": "Potions",
-	"scrolls": "Buff Scrolls",
-	"armor": "Armor",
-	"rings": "Rings",
-	"weapons": "Weapons",
-	"supplies": "Supply Cache",
-}
-const CHEST_RARITY_WEIGHTS: Dictionary = {
-	"potions": {"common": 45, "magic": 35, "rare": 15, "epic": 5},
-	"scrolls": {"common": 30, "magic": 35, "rare": 25, "epic": 8, "legendary": 2},
-	"armor": {"common": 25, "magic": 30, "rare": 25, "epic": 15, "legendary": 5},
-	"rings": {"magic": 30, "rare": 35, "epic": 25, "legendary": 8, "aumbral": 2},
-	"weapons": {"rare": 30, "epic": 35, "legendary": 25, "aumbral": 10},
-	"supplies": {"common": 35, "magic": 35, "rare": 20, "epic": 8, "legendary": 2},
-}
-const CHEST_POOLS: Dictionary = {
-	"potions": ["health_potion", "mana_potion", "stamina_potion"],
-	"scrolls": ["elixir_might", "elixir_vigor", "mana_potion", "stamina_potion"],
-	"armor": ["iron_boots", "iron_helm", "steel_plate", "steel_helm", "castle_plate", "castle_helm"],
-	"rings": ["gold_ring", "silver_ring", "castle_ring", "ruby_amulet", "mythic_ring"],
-	"weapons": ["iron_sword", "knight_blade", "flame_sword", "war_hammer", "mythic_blade"],
-	"supplies": [
-		"health_potion", "mana_potion", "stamina_potion", "elixir_might", "gold_ring",
-		"iron_boots", "iron_sword", "steel_sword", "castle_ring", "ruby_amulet",
-	],
-}
+const WAVES_DEFINITION_PATH := "content/waves/umbral_waves.json"
+
+var MILESTONES: Array[int] = [5, 10, 20, 50]
 
 var current_wave: int = 0
 var prep_active: bool = false
@@ -43,12 +17,32 @@ var chests_opened: Dictionary = {}
 var waves_inventory: GridInventory = GridInventory.new(8, 5)
 var _kill_count := 0
 var _run_seed := 0
+var _definition: Dictionary = {}
+var _chest_defs: Array = []
 
 
 func _ready() -> void:
-	waves_inventory.changed.connect(func() -> void:
-		inventory_changed.emit()
-	)
+	waves_inventory.changed.connect(func() -> void: inventory_changed.emit())
+	_load_definition()
+
+
+func _load_definition() -> void:
+	if not _definition.is_empty():
+		return
+	var data: Dictionary = ContentLoader.load_json(WAVES_DEFINITION_PATH)
+	if data.is_empty():
+		push_error("WavesRunService: failed to load %s" % WAVES_DEFINITION_PATH)
+		return
+	_definition = data
+	_chest_defs = []
+	for entry in data.get("chests", []):
+		if entry is Dictionary:
+			_chest_defs.append(entry)
+	var loaded_milestones: Variant = data.get("milestones", [])
+	if loaded_milestones is Array and not (loaded_milestones as Array).is_empty():
+		MILESTONES.clear()
+		for wave in loaded_milestones:
+			MILESTONES.append(int(wave))
 
 
 func begin_new_run() -> void:
@@ -93,18 +87,25 @@ func to_save_dict() -> Dictionary:
 
 
 func get_chest_count() -> int:
-	return CHEST_TYPES.size()
+	_ensure_definition()
+	return _chest_defs.size()
 
 
 func get_chest_label(index: int) -> String:
-	if index < 0 or index >= CHEST_TYPES.size():
+	if index < 0 or index >= _chest_defs.size():
 		return ""
-	var chest_type: String = CHEST_TYPES[index]
-	return str(CHEST_TYPE_LABELS.get(chest_type, chest_type.capitalize()))
+	var chest_def: Dictionary = _chest_defs[index]
+	return str(chest_def.get("label", chest_def.get("id", "")))
+
+
+func _chest_def_for_index(index: int) -> Dictionary:
+	if index < 0 or index >= _chest_defs.size():
+		return {}
+	return _chest_defs[index]
 
 
 func all_chests_opened() -> bool:
-	for i in CHEST_TYPES.size():
+	for i in _chest_defs.size():
 		if not chests_opened.get(str(i), false):
 			return false
 	return true
@@ -114,13 +115,14 @@ func open_chest(index: int) -> Dictionary:
 	var key := str(index)
 	if chests_opened.get(key, false):
 		return {}
-	if index < 0 or index >= CHEST_TYPES.size():
+	var chest_def := _chest_def_for_index(index)
+	if chest_def.is_empty():
 		return {}
-	var chest_type: String = CHEST_TYPES[index]
+	var chest_type: String = str(chest_def.get("id", ""))
 	if chest_type == "supplies":
-		return _open_supplies_chest(index)
-	var rarity := _roll_chest_rarity(chest_type, index)
-	var item_id := _roll_chest_item(chest_type, index)
+		return _open_supplies_chest(index, chest_def)
+	var rarity := _roll_chest_rarity(chest_def, index)
+	var item_id := _roll_chest_item(chest_def, index)
 	if item_id == "":
 		item_id = "health_potion"
 	var roll_seed := _run_seed + index * 997 + rarity.hash()
@@ -131,20 +133,21 @@ func open_chest(index: int) -> Dictionary:
 	return {"itemId": item_id, "rarity": rarity, "chestType": chest_type}
 
 
-func _open_supplies_chest(index: int) -> Dictionary:
+func _open_supplies_chest(index: int, chest_def: Dictionary) -> Dictionary:
 	var key := str(index)
 	if chests_opened.get(key, false):
 		return {}
-	var pool: Array = CHEST_POOLS.get("supplies", [])
+	var pool: Array = chest_def.get("pool", [])
 	if pool.is_empty():
 		return {}
+	var multi: Dictionary = chest_def.get("multi_grant", {"min": 2, "max": 4})
 	var rng := RandomNumberGenerator.new()
 	rng.seed = _run_seed + index * 1597
-	var item_count := rng.randi_range(2, 4)
+	var item_count := rng.randi_range(int(multi.get("min", 2)), int(multi.get("max", 4)))
 	var granted: Array[Dictionary] = []
 	for i in item_count:
 		var item_id := str(pool[rng.randi_range(0, pool.size() - 1)])
-		var rarity := _roll_chest_rarity("supplies", index + i * 17)
+		var rarity := _roll_chest_rarity(chest_def, index + i * 17)
 		var roll_seed := _run_seed + index * 997 + rarity.hash() + i * 131
 		if not waves_inventory.add_rolled_item_with_rarity(item_id, rarity, roll_seed):
 			waves_inventory.add_item(item_id, 1, {"rarity": rarity})
@@ -154,8 +157,9 @@ func _open_supplies_chest(index: int) -> Dictionary:
 	return {"items": granted, "chestType": "supplies"}
 
 
-func _roll_chest_rarity(chest_type: String, index: int) -> String:
-	var weights: Dictionary = CHEST_RARITY_WEIGHTS.get(chest_type, {"common": 100})
+func _roll_chest_rarity(chest_def: Dictionary, index: int) -> String:
+	var weights: Dictionary = chest_def.get("rarity_weights", {"common": 100})
+	var chest_type: String = str(chest_def.get("id", ""))
 	var total := 0
 	for rarity in weights:
 		total += int(weights[rarity])
@@ -174,8 +178,9 @@ func _roll_chest_rarity(chest_type: String, index: int) -> String:
 	return "common"
 
 
-func _roll_chest_item(chest_type: String, index: int) -> String:
-	var pool: Array = CHEST_POOLS.get(chest_type, CHEST_POOLS["potions"]).duplicate()
+func _roll_chest_item(chest_def: Dictionary, index: int) -> String:
+	var chest_type: String = str(chest_def.get("id", ""))
+	var pool: Array = chest_def.get("pool", ["health_potion"]).duplicate()
 	if chest_type == "weapons":
 		pool = _filter_weapon_pool(pool)
 	if pool.is_empty():
@@ -214,8 +219,6 @@ func start_waves() -> void:
 
 func advance_wave() -> void:
 	current_wave += 1
-	if is_milestone(current_wave):
-		prep_active = true
 	waves_changed.emit()
 
 
@@ -277,23 +280,52 @@ func transfer_early_exit_items(keep_fraction: float) -> Array[String]:
 	return picked
 
 
-func get_enemies_for_wave(wave: int) -> Array[String]:
-	var count := mini(2 + (wave >> 1), 12)
+func _roster_for_wave(wave: int) -> Array[String]:
+	var roster: Array[String] = []
+	for enemy_id in _definition.get("base_roster", [
+		"castle_grunt", "castle_archer", "castle_shield", "castle_hound"
+	]):
+		roster.append(str(enemy_id))
+	for unlock in _definition.get("roster_unlocks", []):
+		if not unlock is Dictionary:
+			continue
+		if wave < int(unlock.get("wave", 0)):
+			continue
+		for enemy_id in unlock.get("ids", []):
+			roster.append(str(enemy_id))
+	return roster
+
+
+func _enemy_count_for_wave(wave: int) -> int:
+	var count_cfg: Dictionary = _definition.get(
+		"count", {"base": 2, "per_half_wave": 1, "cap": 12, "milestone_bonus": 2}
+	)
+	var count := mini(
+		int(count_cfg.get("base", 2)) + (wave >> 1) * int(count_cfg.get("per_half_wave", 1)),
+		int(count_cfg.get("cap", 12))
+	)
 	if is_milestone(wave):
-		count += 2
-	var roster := ["castle_grunt", "castle_archer", "castle_shield", "castle_hound"]
-	if wave >= 5:
-		roster.append("castle_knight")
+		count += int(count_cfg.get("milestone_bonus", 2))
+	return count
+
+
+func get_enemies_for_wave(wave: int) -> Array[String]:
+	_ensure_definition()
+	var count := _enemy_count_for_wave(wave)
+	var roster := _roster_for_wave(wave)
 	var enemies: Array[String] = []
 	var rng := RandomNumberGenerator.new()
 	rng.seed = _run_seed + wave * 313
 	for i in count:
 		enemies.append(roster[rng.randi_range(0, roster.size() - 1)])
-	if wave == 5 or wave == 10 or wave == 20 or wave == 50:
-		var boss_rng := RandomNumberGenerator.new()
-		boss_rng.seed = _run_seed + wave * 911
-		var milestone_bosses := ["boss_castle_knight", "miniboss_castle_captain"]
-		enemies.append(milestone_bosses[boss_rng.randi_range(0, milestone_bosses.size() - 1)])
+	if is_milestone(wave):
+		var milestone_bosses: Array = _definition.get(
+			"milestone_bosses", ["boss_castle_knight", "miniboss_castle_captain"]
+		)
+		if not milestone_bosses.is_empty():
+			var boss_rng := RandomNumberGenerator.new()
+			boss_rng.seed = _run_seed + wave * 911
+			enemies.append(str(milestone_bosses[boss_rng.randi_range(0, milestone_bosses.size() - 1)]))
 	return enemies
 
 
@@ -301,8 +333,7 @@ func apply_equipment_to_player(player: Node) -> void:
 	if player == null:
 		return
 	var stats := Equipment.aggregate_stats(
-		waves_inventory.equipped,
-		Callable(AffixRoller, "get_affix_stat")
+		waves_inventory.equipped, Callable(AffixRoller, "get_affix_stat")
 	)
 	var health := player.get_node_or_null("Health") as Health
 	if health:
@@ -318,3 +349,8 @@ func apply_equipment_to_player(player: Node) -> void:
 	if locomotion and locomotion.has_method("set_speed_multiplier"):
 		var move_bonus: float = float(stats.get("moveSpeedPercent", 0.0))
 		locomotion.set_speed_multiplier(1.0 + move_bonus / 100.0)
+
+
+func _ensure_definition() -> void:
+	if _definition.is_empty():
+		_load_definition()

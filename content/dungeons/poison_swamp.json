@@ -1,0 +1,15 @@
+{
+  "id": "poison_swamp",
+  "biomeId": "poison_swamp",
+  "order": 3,
+  "clearFlag": "theme_poison_swamp_cleared",
+  "unlockRequirement": { "kind": "clear_dungeon", "dungeonId": "crystal_caverns" },
+  "floorHpGrowth": 0.06,
+  "floorDamageGrowth": 0.04,
+  "bossDoorRequirement": "none",
+  "difficultyTiers": [
+    { "tier": 1, "label": "Murky", "hpMult": 1.0, "damageMult": 1.0, "lootBonus": 0.0, "modifiers": [] },
+    { "tier": 2, "label": "Toxic", "hpMult": 1.35, "damageMult": 1.18, "lootBonus": 0.15, "modifiers": ["elite_packs"] },
+    { "tier": 3, "label": "Lethal", "hpMult": 1.8, "damageMult": 1.4, "lootBonus": 0.35, "modifiers": ["elite_packs", "no_rest"] }
+  ]
+}

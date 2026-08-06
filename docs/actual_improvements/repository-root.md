@@ -1,21 +1,23 @@
 # Repository root — improvement plan
 
+## Status: FINISHED
+
 ## Current state
 
-The root layout is coherent and every stack has a working entry point (see [`../existing_codebase/repository-root.md`](../existing_codebase/repository-root.md)). Five untracked artifacts sit at root (`debug-d7fbce.log`, `seed1.json`, `seed99999.json`, `reports/`, `.ruff_cache/`); four are covered by `.gitignore`, `.ruff_cache/` is covered only by Ruff's own self-ignoring file. The bigger problem is that `README.md` — the first file a new contributor reads — points at six documentation paths that no longer exist and states the wrong main scene and the wrong Node version.
+The root layout is coherent and every stack has a working entry point (see [`../existing_codebase/repository-root.md`](../existing_codebase/repository-root.md)). `README.md` links resolve, names the correct main scene (`scenes/ui/title_screen.tscn`) and Node 24, and omits stale test counts. Root hygiene files (`.editorconfig`, `CONTRIBUTING.md`, `LICENSE`, `SECURITY.md`, `.github/CODEOWNERS`, `.github/PULL_REQUEST_TEMPLATE.md`) are in place; `.ruff_cache/` is listed in `.gitignore`; pre-commit runs content validation, Ruff, gdformat, and ESLint; CI includes a `docs-links` job; `setup.readme_main_scene` guards README accuracy in the Godot validation suite.
 
 ## Gaps
 
-| ID | Sev | Gap | Evidence |
-|----|-----|-----|----------|
-| REP-01 | P0 | `README.md` links six paths that do not exist: `docs/plan/00-AGENT-README.md`, `docs/plan/01-LOCKED-DECISIONS.md`, `docs/plan/M-PHASES-STATUS.md`, `docs/plan/07-EA-DEFINITION-OF-DONE.md`, `docs/design/AUDIT_2026-08.md`, `docs/CODING.md`, `docs/CONTENT_SCHEMA.md`. Only `ARCHITECTURE.md`, `DOC-CONVENTIONS.md`, `MCP_AGENT_GUIDE.md`, `ADR/`, `existing_codebase/`, `actual_improvements/` exist under `docs/`. | `README.md:15,62-64,76-79` vs `docs/` listing |
-| REP-02 | P1 | `README.md` states the Godot main scene is `scenes/hub/hub.tscn`; the project boots `res://scenes/ui/title_screen.tscn`. | `README.md:58` vs `apps/game/client/project.godot:19` |
-| REP-03 | P1 | `README.md` requires Node 20 LTS; both CI Node jobs pin Node 24. | `README.md:23` vs `.github/workflows/ci.yml:40,72` |
-| REP-04 | P1 | `README.md:86` claims "283 Godot + 79 backend tests as of M6 close". The runner currently registers 24 suites and the last local report recorded 429 client assertions. The number is stale and unverifiable from code. | `README.md:86`, `apps/game/client/scripts/validation/validation_runner.gd:13-38` |
-| REP-05 | P2 | `.ruff_cache/` is not in the repo `.gitignore`; it is only ignored because Ruff writes `.ruff_cache/.gitignore`. A Ruff version that stops doing that would start dirtying `git status`. | `.gitignore:187-193`, `.ruff_cache/.gitignore:2` |
-| REP-06 | P2 | Root has no `.editorconfig`, so C#, GDScript, TypeScript, Python, YAML, and JSON all rely on per-tool config with no shared line-ending or indentation rule. | Root listing: no `.editorconfig` |
-| REP-07 | P2 | No `CONTRIBUTING.md`, `LICENSE`, `SECURITY.md`, or `CODEOWNERS`. The remote is a public GitHub repo (`README.md:83`). | Root listing; `.github/` contains only `workflows/` |
-| REP-08 | P2 | `.pre-commit-config.yaml` runs only content JSON validation. It does not run `ruff`, `gdformat`, `eslint`, or `dotnet format`, so every other lint failure is discovered in CI. | `.pre-commit-config.yaml:1-9` |
+| ID | Sev | Gap | Evidence | Status |
+|----|-----|-----|----------|--------|
+| REP-01 | P0 | `README.md` links six paths that do not exist: `docs/plan/00-AGENT-README.md`, `docs/plan/01-LOCKED-DECISIONS.md`, `docs/plan/M-PHASES-STATUS.md`, `docs/plan/07-EA-DEFINITION-OF-DONE.md`, `docs/design/AUDIT_2026-08.md`, `docs/CODING.md`, `docs/CONTENT_SCHEMA.md`. Only `ARCHITECTURE.md`, `DOC-CONVENTIONS.md`, `MCP_AGENT_GUIDE.md`, `ADR/`, `existing_codebase/`, `actual_improvements/` exist under `docs/`. | `README.md:15,62-64,76-79` vs `docs/` listing | FINISHED |
+| REP-02 | P1 | `README.md` states the Godot main scene is `scenes/hub/hub.tscn`; the project boots `res://scenes/ui/title_screen.tscn`. | `README.md:58` vs `apps/game/client/project.godot:19` | FINISHED |
+| REP-03 | P1 | `README.md` requires Node 20 LTS; both CI Node jobs pin Node 24. | `README.md:23` vs `.github/workflows/ci.yml:40,72` | FINISHED |
+| REP-04 | P1 | `README.md:86` claims "283 Godot + 79 backend tests as of M6 close". The runner currently registers 24 suites and the last local report recorded 429 client assertions. The number is stale and unverifiable from code. | `README.md:86`, `apps/game/client/scripts/validation/validation_runner.gd:13-38` | FINISHED |
+| REP-05 | P2 | `.ruff_cache/` is not in the repo `.gitignore`; it is only ignored because Ruff writes `.ruff_cache/.gitignore`. A Ruff version that stops doing that would start dirtying `git status`. | `.gitignore:187-193`, `.ruff_cache/.gitignore:2` | FINISHED |
+| REP-06 | P2 | Root has no `.editorconfig`, so C#, GDScript, TypeScript, Python, YAML, and JSON all rely on per-tool config with no shared line-ending or indentation rule. | Root listing: no `.editorconfig` | FINISHED |
+| REP-07 | P2 | No `CONTRIBUTING.md`, `LICENSE`, `SECURITY.md`, or `CODEOWNERS`. The remote is a public GitHub repo (`README.md:83`). | Root listing; `.github/` contains only `workflows/` | FINISHED |
+| REP-08 | P2 | `.pre-commit-config.yaml` runs only content JSON validation. It does not run `ruff`, `gdformat`, `eslint`, or `dotnet format`, so every other lint failure is discovered in CI. | `.pre-commit-config.yaml:1-9` | FINISHED |
 
 ## Target design
 
@@ -74,7 +76,7 @@ Target README structure (headings only; content must be verified against code at
 2. Prerequisites table — Godot version taken from `project.godot` `config/features`, .NET 8.x, Node 24 (matching CI), Docker Compose v2.
 3. Run the game — `godot --path apps/game/client`, main scene `scenes/ui/title_screen.tscn`, note that the client is fully playable with no backend.
 4. Run the optional services — `docker compose up -d`, `dotnet run --project services/backend/src/Aumbrye.Api`, `npm run dev` in `apps/web`.
-5. Validation — `./scripts/run-all-validation.ps1` and the three CI-equivalent commands, with no hardcoded pass counts.
+5. Validation — `node scripts/validate.mjs` and the four CI-equivalent layer commands, with no hardcoded pass counts.
 6. Documentation — links to `docs/ARCHITECTURE.md`, `docs/DOC-CONVENTIONS.md`, `docs/existing_codebase/_INDEX.md`, `docs/actual_improvements/_INDEX.md`, `docs/ADR/`.
 
 ## Work plan
@@ -94,13 +96,13 @@ None. No `content/schemas/` file changes and no save-format change, so no `save_
 
 ## Acceptance criteria
 
-- [ ] Every relative Markdown link in `README.md` and under `docs/` resolves to an existing file, enforced by the `docs-links` CI job.
-- [ ] `README.md` names `scenes/ui/title_screen.tscn` as the main scene.
-- [ ] `README.md` names Node 24, matching `.github/workflows/ci.yml:40,72`.
-- [ ] `README.md` contains no hardcoded pass/fail test counts.
-- [ ] `git status --porcelain` is empty on a clean clone after running `ruff check tools/` and `./scripts/run-all-validation.ps1`.
-- [ ] `.editorconfig`, `CONTRIBUTING.md`, `LICENSE`, `SECURITY.md`, `.github/CODEOWNERS` exist at their target paths.
-- [ ] `pre-commit run --all-files` executes ruff, gdformat, eslint, and content validation.
+- [x] Every relative Markdown link in `README.md` and under `docs/` resolves to an existing file, enforced by the `docs-links` CI job.
+- [x] `README.md` names `scenes/ui/title_screen.tscn` as the main scene.
+- [x] `README.md` names Node 24, matching `.github/workflows/ci.yml:40,72`.
+- [x] `README.md` contains no hardcoded pass/fail test counts.
+- [x] `git status --porcelain` is empty on a clean clone after running `ruff check tools/` and `node scripts/validate.mjs`.
+- [x] `.editorconfig`, `CONTRIBUTING.md`, `LICENSE`, `SECURITY.md`, `.github/CODEOWNERS` exist at their target paths.
+- [x] `pre-commit run --all-files` executes ruff, gdformat, eslint, and content validation.
 
 ## Validation
 
@@ -111,6 +113,6 @@ None. No `content/schemas/` file changes and no save-format change, so no `save_
 ## Related
 
 - Existing behavior: [`../existing_codebase/repository-root.md`](../existing_codebase/repository-root.md)
-- [`ci-cd.md`](ci-cd.md) — the `docs-links` job and the missing `Dockerfile`
+- [`ci-cd.md`](ci-cd.md) — `docs-links` job, API `Dockerfile`, and OpenAPI drift gate
 - [`tools-scripts.md`](tools-scripts.md) — pre-commit hook coverage
 - [`project-config-autoloads.md`](project-config-autoloads.md) — main scene and Godot version

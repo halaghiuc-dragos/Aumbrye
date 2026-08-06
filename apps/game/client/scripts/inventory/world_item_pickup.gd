@@ -27,7 +27,9 @@ func configure(id: String, qty: int = 1) -> void:
 
 func _process(_delta: float) -> void:
 	if _visual:
-		_visual.position.y = float(_visual.get_meta("bob_base_y", 0.0)) + sin(Time.get_ticks_msec() * 0.003) * 0.08
+		_visual.position.y = (
+			float(_visual.get_meta("bob_base_y", 0.0)) + sin(Time.get_ticks_msec() * 0.003) * 0.08
+		)
 	if _player == null:
 		return
 	if Input.is_action_just_pressed("interact"):
@@ -48,6 +50,6 @@ func _on_body_exited(body: Node3D) -> void:
 
 
 func _pickup() -> void:
-	if InventoryService.add_item(item_id, quantity):
+	if InventoryService.add_loot(item_id, {"quantity": quantity}):
 		RunFlow.register_loot(item_id)
 		queue_free()

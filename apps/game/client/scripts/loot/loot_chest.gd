@@ -68,8 +68,12 @@ func _open() -> void:
 	for entry in _items:
 		var item_id: String = entry.get("itemId", "")
 		var qty: int = entry.get("quantity", 1)
-		if item_id != "":
-			InventoryService.add_item(item_id, qty)
+		if item_id == "":
+			continue
+		var opts := {"quantity": qty, "roll": bool(entry.get("roll", false))}
+		if entry.has("rollSeed"):
+			opts["rollSeed"] = int(entry.get("rollSeed", -1))
+		if InventoryService.add_loot(item_id, opts):
 			RunFlow.register_loot(item_id, str(entry.get("instanceId", "")))
 	opened.emit()
 	if _mesh:

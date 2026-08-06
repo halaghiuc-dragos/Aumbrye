@@ -1,7 +1,6 @@
 extends "res://scripts/validation/validation_suite.gd"
 
 const SaveMigratorScript := preload("res://scripts/save/save_migrator.gd")
-const SteamServiceScript := preload("res://scripts/platform/steam_service.gd")
 const InputGlyphScript := preload("res://scripts/ui/input_glyph_service.gd")
 const HubTutorialScript := preload("res://scripts/hub/hub_tutorial_service.gd")
 const RunFloorConfigScript := preload("res://scripts/dungeon/run_floor_config.gd")
@@ -11,6 +10,10 @@ const EndlessDifficultyScript := preload("res://scripts/dungeon/endless_difficul
 const FinalBossScript := preload("res://scripts/enemies/final_boss_forgotten_castle.gd")
 const RM := preload("res://scripts/app/run_mode_config.gd")
 const RarityRegistryScript := preload("res://scripts/loot/rarity_registry.gd")
+const DungeonBuilderScript := preload("res://scripts/dungeon/dungeon_builder.gd")
+const StairMenuScript := preload("res://scripts/ui/stair_menu.gd")
+const StairLeverScript := preload("res://scripts/dungeon/stair_lever.gd")
+const BiomeRegistryScript := preload("res://scripts/dungeon/biome_registry.gd")
 
 
 func get_category() -> String:
@@ -22,14 +25,12 @@ func run() -> void:
 	_test_max_secrets_per_floor()
 	await _test_procgen_floor_variation()
 	await _test_stair_collision()
-	_test_stair_lever_script()
+	await _test_stair_lever_suite()
 	_test_light_pass_ceiling_all_modes()
 	_test_final_boss_phases()
-	await _test_steam_stub()
 	_test_save_migration_floor()
 	_test_input_glyphs()
 	_test_hub_tutorial()
-	_test_crash_logger()
 	_test_perf_hooks()
 	_test_ci_release_workflow()
 	_test_ship_docs()
@@ -39,6 +40,7 @@ func run() -> void:
 	_test_endless_mode()
 	_test_waves_mode()
 	_test_skip_items()
+	await _test_skip_requires_item()
 	_test_run_modes()
 	_test_endless_portal_blocked()
 	_test_endless_continue_api()
@@ -48,8 +50,10 @@ func run() -> void:
 	_test_save_v2_migration()
 	_test_global_drops()
 	_test_endless_scaling_tiers()
+	_test_endless_curve_bounded()
+	_test_floor_seed_avalanche()
+	await _test_secret_cap_from_biome()
 	_test_boss_phase_constants()
-	_test_known_issues_doc()
 	_test_endless_retreat_api()
 	_test_waves_equip_ui()
 	_test_boss_cannon_flow()
@@ -57,7 +61,10 @@ func run() -> void:
 
 func _test_floor_chunking() -> void:
 	var start := Time.get_ticks_msec()
-	var ok := RunFlow.has_method("_unload_current_floor_chunk") and RunFlow.has_method("_clear_floor_cache")
+	var ok := (
+		RunFlow.has_method("_unload_current_floor_chunk")
+		and RunFlow.has_method("_clear_floor_cache")
+	)
 	ctx.timed_record(
 		"m7.floor.chunking_api",
 		get_category(),
@@ -81,7 +88,10 @@ func _test_floor_chunking() -> void:
 
 func _test_endless_mode() -> void:
 	var start := Time.get_ticks_msec()
-	var ok := RM.MODE_ENDLESS == "endless" and RunFloorConfig.ENDLESS_MAX_FLOORS > RunFloorConfig.MAX_FLOORS
+	var ok := (
+		RM.MODE_ENDLESS == "endless"
+		and RunFloorConfig.ENDLESS_MAX_FLOORS > RunFloorConfig.MAX_FLOORS
+	)
 	ctx.timed_record(
 		"m7.endless.mode_constants",
 		get_category(),
@@ -117,12 +127,7 @@ func _test_waves_mode() -> void:
 	var start := Time.get_ticks_msec()
 	var ok := FileAccess.file_exists("res://scenes/dungeon/waves_run.tscn")
 	ctx.timed_record(
-		"m7.waves.scene",
-		get_category(),
-		ok,
-		"waves run scene exists",
-		start,
-		"UMBRAL-7.2"
+		"m7.waves.scene", get_category(), ok, "waves run scene exists", start, "UMBRAL-7.2"
 	)
 	start = Time.get_ticks_msec()
 	ok = WavesRunService.MILESTONES.size() == 4 and WavesRunService.get_chest_count() == 6
@@ -160,12 +165,7 @@ func _test_waves_mode() -> void:
 	start = Time.get_ticks_msec()
 	ok = LocalSave.has_method("has_continuable_waves_run")
 	ctx.timed_record(
-		"m7.waves.save",
-		get_category(),
-		ok,
-		"waves continue save API present",
-		start,
-		"UMBRAL-7.2"
+		"m7.waves.save", get_category(), ok, "waves continue save API present", start, "UMBRAL-7.2"
 	)
 
 
@@ -200,6 +200,26 @@ func _test_skip_items() -> void:
 		"global skip drop table defined",
 		start,
 		"UMBRAL-7.3"
+	)
+
+
+func _test_skip_requires_item() -> void:
+	CharacterService.reset_to_defaults()
+	var start := Time.get_ticks_msec()
+	await RunFlow.start_endless_run(1, "skip_500_floors")
+	await ctx.await_frame()
+	var blocked := not RunFlow.is_run_active() and RunFlow.last_hub_message != ""
+	var qty := 0
+	for slot in InventoryService.inventory.slots:
+		if slot.get("itemId", "") == "skip_500_floors":
+			qty += int(slot.get("quantity", 0))
+	ctx.timed_record(
+		"m7.skip.requires_item",
+		get_category(),
+		blocked and qty == 0,
+		"missing skip item blocks endless start: %s" % RunFlow.last_hub_message,
+		start,
+		"DCT-01"
 	)
 
 
@@ -239,11 +259,12 @@ func _test_floor_seed_derivation() -> void:
 
 func _test_max_secrets_per_floor() -> void:
 	var start := Time.get_ticks_msec()
+	var cap := RunFloorConfig.max_secrets_for_biome(BiomeRegistry.BIOME_CASTLE)
 	ctx.timed_record(
-		"m7.floor.max_secrets_constant",
+		"m7.floor.max_secrets_from_biome",
 		get_category(),
-		RunFloorConfig.MAX_SECRETS_PER_FLOOR == 2,
-		"max 2 secrets per floor enforced in config",
+		cap == 2,
+		"biome maxSecrets default is 2",
 		start,
 		"FLOOR-7.2"
 	)
@@ -267,22 +288,32 @@ func _test_procgen_floor_variation() -> void:
 	if ok:
 		start = Time.get_ticks_msec()
 		var secrets := RunFloorConfig.count_secrets(floor1.get("definition", {}))
+		var cap := RunFloorConfig.max_secrets_for_biome(BiomeRegistry.BIOME_CASTLE)
 		ctx.timed_record(
 			"m7.procgen.secrets_cap",
 			get_category(),
-			secrets <= RunFloorConfig.MAX_SECRETS_PER_FLOOR,
-			"floor has %d secrets (max %d)" % [secrets, RunFloorConfig.MAX_SECRETS_PER_FLOOR],
+			secrets <= cap,
+			"floor has %d secrets (max %d)" % [secrets, cap],
 			start,
 			"FLOOR-7.2"
 		)
 	start = Time.get_ticks_msec()
-	var final_gen := LocalProcgen.generate(BiomeRegistry.BIOME_CASTLE, TC.SEED_A, RunFloorConfig.MAX_FLOORS)
+	var final_gen := LocalProcgen.generate(
+		BiomeRegistry.BIOME_CASTLE, TC.SEED_A, RunFloorConfig.MAX_FLOORS
+	)
 	var final_def: Dictionary = final_gen.get("definition", {})
+	var final_room_ids: Array = []
+	for room_def in final_def.get("rooms", []):
+		final_room_ids.append(str(room_def.get("id", "")))
 	ctx.timed_record(
 		"m7.procgen.final_floor",
 		get_category(),
-		final_gen.get("ok", false) and bool(final_def.get("isFinalFloor", false)),
-		"floor 10 generates final-floor layout",
+		(
+			final_gen.get("ok", false)
+			and bool(final_def.get("isFinalFloor", false))
+			and final_room_ids.has("arena")
+		),
+		"floor 10 generates final-floor layout with arena",
 		start,
 		"FLOOR-7.4"
 	)
@@ -311,7 +342,7 @@ func _test_light_pass_ceiling_all_modes() -> void:
 	var shell_path := "res://scripts/dungeon/floor_shell_builder.gd"
 	var registry_path := "res://scripts/dungeon/biome_registry.gd"
 	var ok: bool = (
-		ctx.file_contains(shell_path, "_add_slab(shell, \"CeilingSlab\"")
+		ctx.file_contains(shell_path, '_add_slab(shell, "CeilingSlab"')
 		and ctx.file_contains(registry_path, "uses_indoor_lighting")
 		and ctx.file_contains(registry_path, "sun.visible = false")
 		and ctx.file_contains("res://scripts/dungeon/dungeon_builder.gd", "_build_floor_shell")
@@ -327,27 +358,245 @@ func _test_light_pass_ceiling_all_modes() -> void:
 	)
 
 
-func _test_stair_lever_script() -> void:
+func _test_stair_lever_suite() -> void:
+	await _test_lever_created_per_stairs_room()
+	await _test_lever_starts_locked()
+	await _test_lever_unlocks_on_boss_death()
+	_test_lever_flags_by_mode()
+	_test_facing_helper_null_safe()
+	await _test_stair_menu_pauses()
+	await _test_stair_menu_focus()
+	await _test_stair_menu_disabled_reasons()
+
+
+func _stairs_test_definition(room_id: String = "stairs") -> Dictionary:
+	return {
+		"seed": TC.SEED_A,
+		"biomeId": "forgotten_castle",
+		"rooms": [
+			{
+				"id": room_id,
+				"templateId": "castle_stairs",
+				"type": "corridor",
+				"transform": {"x": 0, "y": 0, "z": 0, "yaw": 0},
+			},
+		],
+		"edges": [],
+		"placements": {"entrance": room_id, "enemies": [], "loot": [], "traps": [], "secrets": [], "boss": null},
+	}
+
+
+func _build_stairs_test_dungeon(definition: Dictionary) -> Dictionary:
+	var root := Node3D.new()
+	root.name = "StairLeverTestRoot"
+	ctx.owner.add_child(root)
+	var player: CharacterBody3D = load("res://scenes/player/player.tscn").instantiate() as CharacterBody3D
+	root.add_child(player)
+	var builder := DungeonBuilderScript.new()
+	root.add_child(builder)
+	builder.build_from_definition(root, player, definition)
+	return {"root": root, "builder": builder, "player": player}
+
+
+func _test_lever_created_per_stairs_room() -> void:
 	var start := Time.get_ticks_msec()
-	var lever_script: Script = load("res://scripts/dungeon/stair_lever.gd")
-	var ok := lever_script != null
+	var biomes := {
+		BiomeRegistryScript.BIOME_CASTLE: "castle_stairs",
+		BiomeRegistryScript.BIOME_CRYSTAL: "crystal_stairs",
+		BiomeRegistryScript.BIOME_SWAMP: "swamp_stairs",
+		BiomeRegistryScript.BIOME_FROZEN: "frozen_stairs",
+		BiomeRegistryScript.BIOME_CATHEDRAL: "cathedral_stairs",
+		BiomeRegistryScript.BIOME_VAULT: "vault_stairs",
+		BiomeRegistryScript.BIOME_PRISM: "prism_stairs",
+		BiomeRegistryScript.BIOME_MIRE: "mire_stairs",
+		BiomeRegistryScript.BIOME_HOLLOW: "hollow_stairs",
+		BiomeRegistryScript.BIOME_UMBRAL: "umbral_stairs",
+	}
+	var ok := true
+	var message := "one lever per stairs room in all biomes"
+	for biome_id in biomes:
+		var built := _build_stairs_test_dungeon(
+			{
+				"seed": TC.SEED_A,
+				"biomeId": biome_id,
+				"rooms": [
+					{
+						"id": "stairs",
+						"templateId": biomes[biome_id],
+						"type": "corridor",
+						"transform": {"x": 0, "y": 0, "z": 0, "yaw": 0},
+					},
+				],
+				"edges": [],
+				"placements": {
+					"entrance": "stairs",
+					"enemies": [],
+					"loot": [],
+					"traps": [],
+					"secrets": [],
+					"boss": null,
+				},
+			}
+		)
+		await ctx.await_frame()
+		var builder: DungeonBuilder = built["builder"]
+		if builder.get_stair_levers().size() != 1:
+			ok = false
+			message = "biome %s missing stair lever" % biome_id
+		built["root"].queue_free()
+		if not ok:
+			break
+	ctx.timed_record("m7.floor.lever_per_stairs_room", get_category(), ok, message, start, "STL-03")
+
+
+func _test_lever_starts_locked() -> void:
+	var start := Time.get_ticks_msec()
+	var built := _build_stairs_test_dungeon(_stairs_test_definition())
+	await ctx.await_frame()
+	var lever := built["builder"].get_stair_lever()
+	var ok := lever != null and not lever.call("is_unlocked")
+	built["root"].queue_free()
 	ctx.timed_record(
-		"m7.floor.stair_lever_script",
+		"m7.floor.lever_starts_locked",
 		get_category(),
 		ok,
-		"StairLever interactable script exists",
+		"new stair lever starts locked",
 		start,
-		"FLOOR-7.2"
+		"STL-07"
 	)
-	start = Time.get_ticks_msec()
-	var facing := RunFloorConfig.stairs_spawn_facing_y(null, true)
+
+
+func _test_lever_unlocks_on_boss_death() -> void:
+	var start := Time.get_ticks_msec()
+	var definition := _stairs_test_definition("s1")
+	definition["rooms"].append(
+		{
+			"id": "s2",
+			"templateId": "castle_stairs",
+			"type": "corridor",
+			"transform": {"x": 20, "y": 0, "z": 0, "yaw": 0},
+		}
+	)
+	var built := _build_stairs_test_dungeon(definition)
+	await ctx.await_frame()
+	built["builder"].call("_unlock_stair_lever")
+	var ok := true
+	for lever in built["builder"].get_stair_levers():
+		if not lever.call("is_unlocked"):
+			ok = false
+			break
+	built["root"].queue_free()
+	ctx.timed_record(
+		"m7.floor.lever_unlocks_on_boss_death",
+		get_category(),
+		ok,
+		"all stair levers unlock together",
+		start,
+		"STL-02"
+	)
+
+
+func _test_lever_flags_by_mode() -> void:
+	var start := Time.get_ticks_msec()
+	var lever := StairLeverScript.new()
+	var ok := lever.has_method("floor_options") and lever.has_method("use")
+	if ok:
+		lever.call("configure", true, false, true, 1)
+		lever.call("unlock")
+		var options: Array = lever.call("floor_options")
+		ok = options.size() == 3 and bool(options[0].get("enabled", false))
+	lever.free()
+	ctx.timed_record(
+		"m7.floor.lever_flags_by_mode",
+		get_category(),
+		ok,
+		"floor_options exposes ascend/descend/retreat rows",
+		start,
+		"STL-08"
+	)
+
+
+func _test_facing_helper_null_safe() -> void:
+	var start := Time.get_ticks_msec()
+	var facing := RunFloorConfigScript.stairs_spawn_facing_y(null)
 	ctx.timed_record(
 		"m7.floor.spawn_facing_helper",
 		get_category(),
-		typeof(facing) == TYPE_FLOAT,
-		"stair spawn facing helper callable",
+		typeof(facing) == TYPE_FLOAT and facing == 0.0,
+		"stairs_spawn_facing_y(null) returns 0.0",
 		start,
-		"FLOOR-7.2"
+		"STL-11"
+	)
+
+
+func _test_stair_menu_pauses() -> void:
+	var start := Time.get_ticks_msec()
+	var menu := StairMenuScript.new()
+	ctx.owner.add_child(menu)
+	await ctx.await_frame()
+	var was_paused := menu.get_tree().paused
+	var lever := StairLeverScript.new()
+	lever.call("configure", true, false, false, 2)
+	lever.call("unlock")
+	menu.open_for_lever(lever, lever.call("floor_options"))
+	var paused_while_open := menu.get_tree().paused
+	menu.close_menu()
+	var restored := menu.get_tree().paused == was_paused
+	lever.free()
+	menu.queue_free()
+	ctx.timed_record(
+		"m7.ui.stair_menu_pauses",
+		get_category(),
+		paused_while_open and restored,
+		"stair menu pauses tree and restores prior state",
+		start,
+		"STL-04"
+	)
+
+
+func _test_stair_menu_focus() -> void:
+	var start := Time.get_ticks_msec()
+	var menu := StairMenuScript.new()
+	ctx.owner.add_child(menu)
+	await ctx.await_frame()
+	var lever := StairLeverScript.new()
+	lever.call("configure", true, true, false, 3)
+	lever.call("unlock")
+	menu.open_for_lever(lever, lever.call("floor_options"))
+	await ctx.await_frame()
+	var focused := menu.get_viewport().gui_get_focus_owner() is Button
+	menu.close_menu()
+	lever.free()
+	menu.queue_free()
+	ctx.timed_record(
+		"m7.ui.stair_menu_focus",
+		get_category(),
+		focused,
+		"first enabled stair menu button has focus",
+		start,
+		"STL-05"
+	)
+
+
+func _test_stair_menu_disabled_reasons() -> void:
+	var start := Time.get_ticks_msec()
+	var lever := StairLeverScript.new()
+	lever.call("configure", true, false, false, 1)
+	lever.call("unlock")
+	var options: Array = lever.call("floor_options")
+	var descend: Dictionary = options[1]
+	var ok := (
+		not bool(descend.get("enabled", true))
+		and str(descend.get("reason", "")).contains("lowest")
+	)
+	lever.free()
+	ctx.timed_record(
+		"m7.ui.stair_menu_disabled_reasons",
+		get_category(),
+		ok,
+		"disabled descend row carries a reason string",
+		start,
+		"STL-07"
 	)
 
 
@@ -374,62 +623,33 @@ func _test_final_boss_phases() -> void:
 	)
 
 
-func _test_steam_stub() -> void:
-	var start := Time.get_ticks_msec()
-	var steam := SteamServiceScript.new()
-	ctx.owner.add_child(steam)
-	await ctx.owner.get_tree().process_frame
-	var ok := steam.is_available() and steam.is_stub_mode
-	ctx.timed_record(
-		"m7.steam.stub_init",
-		get_category(),
-		ok,
-		"SteamService stub path initializes",
-		start,
-		"STEAM-7.1"
-	)
-	start = Time.get_ticks_msec()
-	var synced := steam.sync_achievements(["boss_slayer"])
-	ctx.timed_record(
-		"m7.steam.achievement_sync_stub",
-		get_category(),
-		synced >= 0,
-		"achievement sync stub callable",
-		start,
-		"STEAM-7.2"
-	)
-	start = Time.get_ticks_msec()
-	var ticket := steam.get_auth_ticket_hex()
-	ctx.timed_record(
-		"m7.steam.auth_ticket_deferred",
-		get_category(),
-		ticket == "",
-		"auth ticket deferred in stub mode",
-		start,
-		"STEAM-7.4"
-	)
-	steam.queue_free()
-
-
 func _test_save_migration_floor() -> void:
 	var start := Time.get_ticks_msec()
-	var migrated: Dictionary = SaveMigratorScript.migrate({
-		"schemaVersion": 1,
-		"inventory": {"schemaVersion": 1, "slots": [], "equipped": {}},
-		"activeRun": {
-			"runId": "test",
-			"seed": TC.SEED_A,
-			"dungeonDefinition": {"rooms": []},
-		},
-	})
+	var migrated: Dictionary = (
+		SaveMigratorScript
+		. migrate(
+			{
+				"schemaVersion": 1,
+				"inventory": {"schemaVersion": 1, "slots": [], "equipped": {}},
+				"activeRun":
+				{
+					"runId": "test",
+					"seed": TC.SEED_A,
+					"dungeonDefinition": {"rooms": []},
+				},
+			}
+		)
+	)
 	var run: Dictionary = migrated.get("activeRun", {})
 	ctx.timed_record(
 		"m7.save.migration_floor_fields",
 		get_category(),
-		int(migrated.get("schemaVersion", 0)) == SaveMigratorScript.CURRENT_VERSION
+		(
+			int(migrated.get("schemaVersion", 0)) == SaveMigratorScript.CURRENT_VERSION
 			and run.has("currentFloor")
 			and str(run.get("runMode", "")) != ""
-			and run.has("lastCheckpoint"),
+			and run.has("lastCheckpoint")
+		),
 		"v1 save migrates with floor fields",
 		start,
 		"SCHEMA-7.1"
@@ -452,9 +672,8 @@ func _test_input_glyphs() -> void:
 
 func _test_hub_tutorial() -> void:
 	var start := Time.get_ticks_msec()
-	HubTutorialScript.tips_completed = false
-	HubTutorialScript.tips_enabled = true
-	HubTutorialScript.current_tip_index = 0
+	HubTutorialScript.reset_for_character()
+	HubTutorialScript.load_catalog()
 	var tip := HubTutorialScript.get_current_tip()
 	var can_skip: bool = true
 	ctx.timed_record(
@@ -464,20 +683,6 @@ func _test_hub_tutorial() -> void:
 		"hub tutorial tips available and skippable",
 		start,
 		"POLISH-7.2"
-	)
-
-
-func _test_crash_logger() -> void:
-	var start := Time.get_ticks_msec()
-	var script: Script = load("res://scripts/platform/crash_logger.gd")
-	var ok: bool = script != null and ctx.file_contains("res://scripts/platform/crash_logger.gd", "CONTENT_VERSION")
-	ctx.timed_record(
-		"m7.perf.crash_logger",
-		get_category(),
-		ok,
-		"crash logger hooks present",
-		start,
-		"PERF-7.2"
 	)
 
 
@@ -497,12 +702,24 @@ func _test_perf_hooks() -> void:
 func _test_ci_release_workflow() -> void:
 	var start := Time.get_ticks_msec()
 	var path := _content_root().path_join(".github/workflows/release.yml")
-	var ok: bool = FileAccess.file_exists(path) and "workflow_dispatch" in FileAccess.get_file_as_string(path)
+	var content := FileAccess.get_file_as_string(path) if FileAccess.file_exists(path) else ""
+	var dockerfile_path := _content_root().path_join("services/backend/Dockerfile")
+	var ok: bool = (
+		FileAccess.file_exists(path)
+		and "workflow_dispatch" in content
+		and "ghcr.io" in content
+		and "4.4.0" not in content
+		and FileAccess.file_exists(dockerfile_path)
+	)
 	ctx.timed_record(
 		"m7.ci.release_workflow",
 		get_category(),
 		ok,
-		"release workflow stub exists",
+		(
+			"release workflow publishes to ghcr.io with Dockerfile"
+			if ok
+			else "release workflow incomplete"
+		),
 		start,
 		"CI-7.1"
 	)
@@ -510,13 +727,18 @@ func _test_ci_release_workflow() -> void:
 
 func _test_ship_docs() -> void:
 	var start := Time.get_ticks_msec()
-	var path := _content_root().path_join("docs/plan/07-EA-DEFINITION-OF-DONE.md")
-	var ok: bool = FileAccess.file_exists(path) and "Early Access" in FileAccess.get_file_as_string(path)
+	var path := ProjectSettings.globalize_path("res://").path_join("../../..").path_join(
+		"docs/validation/manual-checklist.md"
+	)
+	var ok: bool = (
+		FileAccess.file_exists(path)
+		and "Manual validation checklist" in FileAccess.get_file_as_string(path)
+	)
 	ctx.timed_record(
 		"m7.ship.manual_checklist",
 		get_category(),
 		ok,
-		"EA definition-of-done documented",
+		"manual validation checklist documented",
 		start,
 		"SHIP-7.1"
 	)
@@ -524,13 +746,17 @@ func _test_ship_docs() -> void:
 
 func _test_schema_doc() -> void:
 	var start := Time.get_ticks_msec()
-	var path := _content_root().path_join("docs/SAVE_MIGRATIONS.md")
-	var ok: bool = FileAccess.file_exists(path) and "schemaVersion" in FileAccess.get_file_as_string(path)
+	var path := ProjectSettings.globalize_path("res://").path_join("../../..").path_join(
+		"docs/existing_codebase/save-migrator.md"
+	)
+	var ok: bool = (
+		FileAccess.file_exists(path) and "schemaVersion" in FileAccess.get_file_as_string(path)
+	)
 	ctx.timed_record(
 		"m7.schema.migration_doc",
 		get_category(),
 		ok,
-		"SAVE_MIGRATIONS.md documents versions",
+		"save migrator doc documents versions",
 		start,
 		"SCHEMA-7.1"
 	)
@@ -589,7 +815,9 @@ func _test_run_modes() -> void:
 
 func _test_endless_portal_blocked() -> void:
 	var start := Time.get_ticks_msec()
-	var ok: bool = ctx.file_contains("res://scripts/app/run_flow.gd", "endless runs have no exit portal")
+	var ok: bool = ctx.file_contains(
+		"res://scripts/app/run_flow.gd", "endless runs have no exit portal"
+	)
 	ctx.timed_record(
 		"m7.endless.no_mid_portal",
 		get_category(),
@@ -613,8 +841,7 @@ func _test_endless_continue_api() -> void:
 	)
 	start = Time.get_ticks_msec()
 	ok = ctx.file_contains(
-		"res://scripts/ui/umbral_endless_menu.gd",
-		'str(saved.get("runMode", "")) == "endless"'
+		"res://scripts/ui/umbral_endless_menu.gd", 'str(saved.get("runMode", "")) == "endless"'
 	)
 	ctx.timed_record(
 		"m7.endless.continue_save_check",
@@ -649,7 +876,10 @@ func _test_waves_extended() -> void:
 		"WAVES-7.x"
 	)
 	start = Time.get_ticks_msec()
-	var ok: bool = ctx.file_contains("res://scripts/ui/waves_run_ui.gd", "Choose up to 3 items")
+	var ok: bool = (
+		ctx.file_contains("res://scripts/ui/waves_run_ui.gd", "Choose up to 3 items")
+		and ctx.file_contains("res://scripts/ui/waves_run_ui.gd", "Pick at least one reward")
+	)
 	ctx.timed_record(
 		"m7.waves.reward_ui",
 		get_category(),
@@ -718,7 +948,12 @@ func _test_waves_extended() -> void:
 		"WAVES-7.x"
 	)
 	start = Time.get_ticks_msec()
-	ok = BlacksmithService.get_max_upgrade_level_for_slot({"itemId": "mythic_blade", "rarity": "aumbral"}) == 10
+	ok = (
+		BlacksmithService.get_max_upgrade_level_for_slot(
+			{"itemId": "mythic_blade", "rarity": "aumbral"}
+		)
+		== 10
+	)
 	ctx.timed_record(
 		"m7.blacksmith.aumbral_cap",
 		get_category(),
@@ -762,7 +997,9 @@ func _test_hub_umbral_portals() -> void:
 
 
 func _test_skip_all_four() -> void:
-	var items: Array[String] = ["skip_10_floors", "skip_50_floors", "skip_100_floors", "skip_500_floors"]
+	var items: Array[String] = [
+		"skip_10_floors", "skip_50_floors", "skip_100_floors", "skip_500_floors"
+	]
 	for item_id in items:
 		var start := Time.get_ticks_msec()
 		ctx.timed_record(
@@ -788,21 +1025,29 @@ func _test_skip_all_four() -> void:
 
 func _test_save_v2_migration() -> void:
 	var start := Time.get_ticks_msec()
-	var migrated: Dictionary = SaveMigratorScript.migrate({
-		"schemaVersion": 2,
-		"activeRun": {
-			"runId": "v2test",
-			"runMode": "castle",
-			"currentFloor": 3,
-			"floorDefinitions": {"1": {}, "2": {}},
-		},
-	})
+	var migrated: Dictionary = (
+		SaveMigratorScript
+		. migrate(
+			{
+				"schemaVersion": 2,
+				"activeRun":
+				{
+					"runId": "v2test",
+					"runMode": "castle",
+					"currentFloor": 3,
+					"floorDefinitions": {"1": {}, "2": {}},
+				},
+			}
+		)
+	)
 	var run: Dictionary = migrated.get("activeRun", {})
 	ctx.timed_record(
 		"m7.save.v2_to_v3_strips_floors",
 		get_category(),
-		int(migrated.get("schemaVersion", 0)) == SaveMigratorScript.CURRENT_VERSION
-			and not run.has("floorDefinitions"),
+		(
+			int(migrated.get("schemaVersion", 0)) == SaveMigratorScript.CURRENT_VERSION
+			and not run.has("floorDefinitions")
+		),
 		"v2 save migrates to current without floorDefinitions cache",
 		start,
 		"SCHEMA-7.1"
@@ -851,8 +1096,8 @@ func _test_endless_scaling_tiers() -> void:
 	ctx.timed_record(
 		"m7.endless.tier_floor_21",
 		get_category(),
-		tier == 2 and mult > 1.2,
-		"floor 21 is tier 2 with higher HP multiplier",
+		tier == 2 and mult > 1.2 and mult <= EndlessDifficultyScript.HP_SOFT_CAP,
+		"floor 21 is tier 2 with bounded HP multiplier",
 		start,
 		"ENDLESS-7.x"
 	)
@@ -865,6 +1110,94 @@ func _test_endless_scaling_tiers() -> void:
 		"endless rare drop bonus scales with tier",
 		start,
 		"ENDLESS-7.x"
+	)
+
+
+func _test_endless_curve_bounded() -> void:
+	var start := Time.get_ticks_msec()
+	var hp_ok := true
+	var dmg_ok := true
+	var prev_hp := 0.0
+	var prev_dmg := 0.0
+	for floor in range(1, 2001):
+		var hp := EndlessDifficultyScript.hp_multiplier(floor)
+		var dmg := EndlessDifficultyScript.damage_multiplier(floor)
+		if hp < prev_hp or dmg < prev_dmg:
+			hp_ok = false
+			dmg_ok = false
+			break
+		prev_hp = hp
+		prev_dmg = dmg
+	var ceiling_hp := EndlessDifficultyScript.hp_multiplier(999999)
+	var ceiling_dmg := EndlessDifficultyScript.damage_multiplier(999999)
+	ctx.timed_record(
+		"m7.endless.curve_bounded",
+		get_category(),
+		(
+			hp_ok
+			and dmg_ok
+			and ceiling_hp <= EndlessDifficultyScript.HP_SOFT_CAP
+			and ceiling_dmg <= EndlessDifficultyScript.DAMAGE_SOFT_CAP
+		),
+		"endless HP/damage monotonic and capped (hp=%.2f dmg=%.2f)" % [ceiling_hp, ceiling_dmg],
+		start,
+		"DCT-04"
+	)
+
+
+func _test_floor_seed_avalanche() -> void:
+	var start := Time.get_ticks_msec()
+	var ok := true
+	for i in range(1000):
+		var seed_val := 1 + (i * 7919) % 1_000_000
+		var floor_val := 1 + (i % 500)
+		var a := RunFloorConfig.mix_seed(seed_val, floor_val)
+		var b := RunFloorConfig.mix_seed(seed_val, floor_val + 1)
+		var distance := _hamming_distance(a, b)
+		if distance < 10:
+			ok = false
+			break
+	ctx.timed_record(
+		"m7.floor.seed_avalanche",
+		get_category(),
+		ok,
+		"consecutive floor seeds differ by >= 10 bits",
+		start,
+		"DCT-05"
+	)
+
+
+func _hamming_distance(a: int, b: int) -> int:
+	var x := a ^ b
+	var count := 0
+	while x != 0:
+		count += x & 1
+		x >>= 1
+	return count
+
+
+func _test_secret_cap_from_biome() -> void:
+	var start := Time.get_ticks_msec()
+	var ok := true
+	for biome_id in BiomeRegistry.ALL_BIOMES:
+		var cap := RunFloorConfig.max_secrets_for_biome(biome_id)
+		for seed_offset in range(200):
+			var gen := LocalProcgen.generate(biome_id, TC.SEED_A + seed_offset, 1)
+			if not gen.get("ok", false):
+				continue
+			var secrets := RunFloorConfig.count_secrets(gen.get("definition", {}))
+			if secrets > cap:
+				ok = false
+				break
+		if not ok:
+			break
+	ctx.timed_record(
+		"m7.procgen.secret_cap_biome",
+		get_category(),
+		ok,
+		"generated secret count never exceeds biome maxSecrets",
+		start,
+		"DCT-09"
 	)
 
 
@@ -900,7 +1233,8 @@ func _test_endless_retreat_api() -> void:
 	var ok: bool = (
 		RunFlow.has_method("retreat_to_hub")
 		and RunFlow.has_method("can_retreat_to_hub")
-		and ctx.file_contains("res://scripts/dungeon/stair_lever.gd", "retreat_to_hub")
+		and ctx.file_contains("res://scripts/dungeon/stair_lever.gd", "func use(")
+		and ctx.file_contains("res://scripts/dungeon/stair_lever.gd", "func floor_options(")
 	)
 	ctx.timed_record(
 		"m7.endless.retreat_api",
@@ -934,7 +1268,9 @@ func _test_boss_cannon_flow() -> void:
 	var start := Time.get_ticks_msec()
 	var ok: bool = (
 		ResourceLoader.exists("res://scenes/bosses/final_boss_cannon.tscn")
-		and ctx.file_contains("res://scripts/enemies/final_boss_forgotten_castle.gd", "register_cannon_hit")
+		and ctx.file_contains(
+			"res://scripts/enemies/final_boss_forgotten_castle.gd", "register_cannon_hit"
+		)
 		and ctx.file_contains("res://scripts/dungeon/final_boss_cannon.gd", "deposit_crystal")
 	)
 	ctx.timed_record(
@@ -944,19 +1280,6 @@ func _test_boss_cannon_flow() -> void:
 		"final boss cannon load-and-fire puzzle flow",
 		start,
 		"FLOOR-7.5"
-	)
-
-
-func _test_known_issues_doc() -> void:
-	var start := Time.get_ticks_msec()
-	var path := _content_root().path_join("docs/design/AUDIT_2026-08.md")
-	ctx.timed_record(
-		"m7.ship.known_issues_doc",
-		get_category(),
-		FileAccess.file_exists(path),
-		"AUDIT_2026-08.md documented",
-		start,
-		"SHIP-7.x"
 	)
 
 

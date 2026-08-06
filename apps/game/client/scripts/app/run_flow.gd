@@ -5,6 +5,17 @@ extends Node
 signal run_started
 signal run_ended(results: Dictionary)
 signal returned_to_hub(message: String)
+signal run_warning(message: String)
+
+const RUN_META_KEYS: Array[String] = [
+	"dungeon_definition",
+	"run_seed",
+	"tier_generation_seed",
+	"run_id",
+	"run_snapshot",
+	"floor_transition",
+	"run_results",
+]
 
 const HUB_SCENE := RunSceneRouter.HUB_SCENE
 const TOWER_DISPLAY_NAME := "Aumbrye Tower"
@@ -14,6 +25,7 @@ const ARENA_SCENE := RunSceneRouter.ARENA_SCENE
 const RESULTS_SCENE := RunSceneRouter.RESULTS_SCENE
 const MAIN_MENU_SCENE := "res://scenes/ui/main_menu.tscn"
 const DEFAULT_BIOME := "forgotten_castle"
+## Intentionally off pending server-authoritative runs; net_suite covers the stub path.
 const USE_ONLINE_PROCgen := false
 
 ## Achievement / progression tuning
@@ -30,6 +42,7 @@ var run_mode: String = "castle"
 var current_biome_id: String = DEFAULT_BIOME
 var current_dungeon_id: String = DungeonCatalog.DEFAULT_DUNGEON_ID
 var current_dungeon_tier: int = 1
+var current_difficulty_tier: int = 1
 var current_floor: int = 1
 var max_floors: int = RunFloorConfig.MAX_FLOORS
 ## Chunking: only the active floor definition is kept in memory (not all floors).
@@ -40,15 +53,23 @@ var last_run_results: Dictionary = {}
 var current_run_id: String = ""
 var current_dungeon_definition: Dictionary = {}
 var current_seed: int = 0
+var current_generator: String = ""
+var current_tier_seed: int = 0
+var current_generation_seed: int = 0
+var current_generation_warnings: Array = []
 var _run_active := false
 var _run_start_time := 0.0
 var _kill_count := 0
 var _boss_defeated := false
+var _boss_fight_active := false
+var _boss_fight_damage_taken := false
 var _loot_collected: Array[String] = []
 var _loot_claimed_instance_ids: Array[String] = []
 var _pending_snapshot: Dictionary = {}
 var _is_continue := false
 var _cleared_floors: Array[int] = []
+## Validation-only: when set, the next `_resolve_floor_definition` call returns this value ([] = empty).
+var _test_resolve_floor_override: Variant = null
 
 
 func _ready() -> void:
@@ -62,8 +83,11 @@ func start_new_castle_run() -> void:
 
 func start_endless_run(start_floor: int = 1, skip_item_id: String = "") -> void:
 	if skip_item_id != "":
-		SkipFloorSvc.consume_skip(InventoryService.inventory, skip_item_id)
+		if not SkipFloorSvc.consume_skip(InventoryService.inventory, skip_item_id):
+			last_hub_message = "You do not have that skip item."
+			return
 		start_floor = SkipFloorSvc.start_floor_for_item(skip_item_id)
+	RunModifierService.apply_endless_floor_modifiers(start_floor)
 	await _start_mode_run(RM.MODE_ENDLESS, BiomeRegistry.BIOME_UMBRAL, null, start_floor)
 
 
@@ -75,18 +99,25 @@ func continue_waves_run() -> void:
 	_start_waves_run(true)
 
 
-func start_new_run(dungeon_id: String, run_seed: Variant = null) -> void:
+func start_new_run(dungeon_id: String, run_seed: Variant = null, difficulty_tier: int = 1) -> void:
 	var resolved_id := _resolve_dungeon_id(dungeon_id)
 	if not DungeonTierService.is_dungeon_unlocked(resolved_id):
-		last_hub_message = "That dungeon is not unlocked yet."
+		_emit_run_warning("That dungeon is not unlocked yet.")
 		return
-	var tier := DungeonCatalog.get_tier_for_dungeon(resolved_id)
-	if run_seed != null and not DungeonSeedService.can_access_tier(tier):
-		last_hub_message = "Tier %d is locked — you cannot use a seed for that tier yet." % tier
+	if not DungeonTierService.is_difficulty_tier_unlocked(resolved_id, difficulty_tier):
+		_emit_run_warning("That difficulty is not unlocked yet.")
+		return
+	var order := DungeonCatalog.get_order_for_dungeon(resolved_id)
+	if not DungeonSeedService.can_access_tier(order):
+		_emit_run_warning("Tier %d is locked — you cannot use a seed for that tier yet." % order)
 		return
 	current_dungeon_id = resolved_id
 	current_biome_id = DungeonCatalog.get_biome_id(resolved_id)
-	current_dungeon_tier = tier
+	current_dungeon_tier = order
+	current_difficulty_tier = difficulty_tier
+	RunModifierService.set_modifiers(
+		DungeonCatalog.get_modifiers_for_difficulty(resolved_id, difficulty_tier)
+	)
 	await _start_mode_run(RM.MODE_CASTLE, current_biome_id, run_seed, 1)
 
 
@@ -129,36 +160,47 @@ func start_castle_run() -> void:
 	start_new_castle_run()
 
 
-func _start_mode_run(
-	mode: String,
-	biome_id: String,
-	run_seed: Variant,
-	start_floor: int
-) -> void:
+func _start_mode_run(mode: String, biome_id: String, run_seed: Variant, start_floor: int) -> void:
 	run_mode = mode
 	_is_continue = false
 	_pending_snapshot.clear()
 	var preserved_tier := current_dungeon_tier
+	var preserved_difficulty := current_difficulty_tier
 	var preserved_dungeon_id := current_dungeon_id
 	_reset_run_stats()
 	current_dungeon_tier = preserved_tier
+	current_difficulty_tier = preserved_difficulty
 	current_dungeon_id = preserved_dungeon_id
 	max_floors = RunFloorConfig.max_floors_for_mode(run_mode)
 	current_dungeon_definition = {}
 	current_run_id = ""
 	current_seed = 0
+	current_generator = ""
+	current_tier_seed = 0
+	current_generation_seed = 0
+	current_generation_warnings.clear()
 	current_biome_id = biome_id
 	current_floor = maxi(1, start_floor)
 	_clear_floor_cache()
 
 	var gen := await _generate_dungeon(biome_id, run_seed, current_floor)
 	if not gen.get("ok", false):
-		last_hub_message = "Could not generate dungeon: %s" % gen.get("error", "unknown error")
-		push_error("RunFlow: %s" % last_hub_message)
+		var reason := str(gen.get("reason", gen.get("error", "unknown")))
+		var fail_seed := maxi(1, int(gen.get("input_seed", _resolved_run_seed(run_seed))))
+		var fail_msg := "Floor generation failed — seed %d, reason %s" % [fail_seed, reason]
+		if CrashLogger:
+			CrashLogger.log_error("run_flow.procgen_failed", {"message": fail_msg})
+		else:
+			push_error("RunFlow: %s" % fail_msg)
+		return_to_hub(fail_msg)
 		return
 
 	current_dungeon_definition = gen.get("definition", {})
 	current_run_id = str(gen.get("run_id", ""))
+	current_generator = str(gen.get("generator", "gdscript"))
+	current_tier_seed = int(gen.get("tier_seed", 0))
+	current_generation_seed = int(gen.get("generation_seed", 0))
+	current_generation_warnings = gen.get("warnings", [])
 	if run_seed != null:
 		current_seed = maxi(1, int(run_seed))
 	else:
@@ -173,13 +215,15 @@ func _start_mode_run(
 	_enter_run()
 
 
-func _start_run(biome_id: String, run_seed: Variant) -> void:
-	await _start_mode_run(RM.MODE_CASTLE, biome_id, run_seed, 1)
+func _resolved_run_seed(run_seed: Variant) -> int:
+	if run_seed != null:
+		return maxi(1, int(run_seed))
+	return 0
 
 
 func _generate_dungeon(biome_id: String, run_seed: Variant, floor_index: int = 1) -> Dictionary:
-	if USE_ONLINE_PROCgen and ApiConfig.get_base_url() != "":
-		var online := await _try_online_generate(biome_id, run_seed)
+	if USE_ONLINE_PROCgen and ApiConfig.cloud_calls_enabled():
+		var online := await _try_online_generate(biome_id, run_seed, floor_index)
 		if online.get("ok", false):
 			return online
 	return LocalProcgen.generate(
@@ -192,26 +236,24 @@ func _generate_dungeon(biome_id: String, run_seed: Variant, floor_index: int = 1
 	)
 
 
-func _try_online_generate(biome_id: String, run_seed: Variant) -> Dictionary:
-	var create := await ApiClient.create_run(biome_id, run_seed, current_dungeon_tier)
-	if not create.get("ok", false):
-		return {"ok": false, "error": create.get("error", "online create failed")}
-	var body: Dictionary = create.get("body", {})
-	var run_id: String = str(body.get("runId", body.get("id", "")))
+func _try_online_generate(biome_id: String, run_seed: Variant, floor_index: int = 1) -> Dictionary:
+	var created := await ApiClient.create_run(biome_id, run_seed, current_dungeon_tier)
+	if not created.get("ok", false):
+		return {"ok": false, "error": str(created.get("error", "create_run failed"))}
+	var run_id := str(created.get("body", {}).get("runId", ""))
 	if run_id == "":
-		return {"ok": false, "error": "online run missing id"}
+		return {"ok": false, "error": "missing run id"}
 	var dungeon := await ApiClient.get_dungeon(run_id)
 	if not dungeon.get("ok", false):
-		return {"ok": false, "error": dungeon.get("error", "dungeon fetch failed")}
-	var definition: Dictionary = dungeon.get("definition", {})
-	if definition.is_empty():
-		return {"ok": false, "error": "empty dungeon definition from API"}
+		return {"ok": false, "error": str(dungeon.get("error", "get_dungeon failed"))}
+	var definition: Dictionary = dungeon.get("body", {})
 	return {
 		"ok": true,
 		"definition": definition,
 		"run_id": run_id,
-		"input_seed": int(definition.get("seed", 0)),
-		"generation_seed": int(definition.get("seed", 0)),
+		"input_seed": run_seed,
+		"generation_seed": definition.get("seed", run_seed),
+		"floor_index": floor_index,
 	}
 
 
@@ -222,7 +264,13 @@ func _restore_castle_run(saved: Dictionary) -> void:
 	run_mode = str(saved.get("runMode", RM.MODE_CASTLE))
 	current_floor = int(saved.get("currentFloor", 1))
 	max_floors = int(saved.get("maxFloors", RunFloorConfig.max_floors_for_mode(run_mode)))
-	current_dungeon_tier = int(saved.get("dungeonTier", 1))
+	current_dungeon_tier = int(saved.get("dungeonTier", DungeonCatalog.get_order_for_dungeon(current_dungeon_id)))
+	current_difficulty_tier = int(saved.get("difficultyTier", 1))
+	RunModifierService.set_modifiers(
+		DungeonCatalog.get_modifiers_for_difficulty(current_dungeon_id, current_difficulty_tier)
+	)
+	if run_mode == RM.MODE_ENDLESS:
+		RunModifierService.apply_endless_floor_modifiers(current_floor)
 	current_dungeon_id = str(saved.get("dungeonId", DungeonCatalog.DEFAULT_DUNGEON_ID))
 	if not DungeonCatalog.is_valid(current_dungeon_id):
 		if DungeonCatalog.is_valid(current_biome_id):
@@ -271,7 +319,9 @@ func _restore_castle_run(saved: Dictionary) -> void:
 	var max_cleared := _max_cleared_floor()
 	if current_floor > max_cleared + 1:
 		current_floor = maxi(1, max_cleared + 1)
-		last_hub_message = "Saved floor was ahead of progression — restored to floor %d." % current_floor
+		last_hub_message = (
+			"Saved floor was ahead of progression — restored to floor %d." % current_floor
+		)
 	_kill_count = int(_pending_snapshot.get("killCount", 0))
 	_boss_defeated = bool(_pending_snapshot.get("bossDefeated", false))
 	if _boss_defeated and not _cleared_floors.has(current_floor):
@@ -293,7 +343,9 @@ func _enter_run() -> void:
 	root.set_meta("run_seed", current_seed)
 	root.set_meta(
 		"tier_generation_seed",
-		DungeonSeedService.generation_seed(current_seed, current_dungeon_tier, current_floor)
+		current_generation_seed if current_generation_seed > 0 else (
+			DungeonSeedService.generation_seed(current_seed, current_dungeon_tier, current_floor)
+		)
 	)
 	root.set_meta("run_id", current_run_id)
 	if _is_continue and not _pending_snapshot.is_empty():
@@ -302,17 +354,23 @@ func _enter_run() -> void:
 		root.remove_meta("run_snapshot")
 
 	var active_run := {
-		"schemaVersion": 4,
+		"schemaVersion": SaveMigrator.CURRENT_VERSION,
 		"runMode": run_mode,
 		"runId": current_run_id,
 		"seed": current_seed,
 		"biomeId": current_biome_id,
 		"dungeonId": current_dungeon_id,
 		"dungeonTier": current_dungeon_tier,
+		"difficultyTier": current_difficulty_tier,
 		"currentFloor": current_floor,
 		"maxFloors": max_floors,
 		"dungeonDefinition": definition_copy,
 		"clearedFloors": _cleared_floors.duplicate(),
+		"generator": current_generator,
+		"input_seed": current_seed,
+		"tier_seed": current_tier_seed,
+		"generation_seed": current_generation_seed,
+		"generationWarnings": current_generation_warnings.duplicate(),
 	}
 	if _is_continue and not _pending_snapshot.is_empty():
 		active_run["snapshot"] = _pending_snapshot.duplicate(true)
@@ -345,6 +403,10 @@ func abandon_active_run() -> void:
 	if not _run_active:
 		return_to_hub("Returned to Aumbrye Tower.")
 		return
+	var full_xp := ProgressionService.calculate_run_xp(_kill_count, _boss_defeated, false)
+	var abandon_xp := ProgressionService.apply_abandon_xp_fraction(full_xp)
+	if abandon_xp > 0:
+		ProgressionService.grant_xp(abandon_xp, "abandon")
 	InventoryService.remove_run_loot(_loot_collected)
 	RunBuffs.clear_all()
 	LocalSave.clear_active_run()
@@ -369,12 +431,25 @@ func complete_run_via_portal() -> void:
 	var full_xp := ProgressionService.calculate_run_xp(_kill_count, _boss_defeated, true)
 	var xp_result := ProgressionService.grant_xp(full_xp, "escape")
 	RunBuffs.clear_all()
-	last_run_results = RunLifecycle.build_escape_results(
-		elapsed,
-		_kill_count,
-		_loot_collected,
-		xp_result,
-		_escape_rules_summary()
+	last_run_results = (
+		RunLifecycle
+		. build_results(
+			RunLifecycle.OUTCOME_ESCAPED,
+			elapsed,
+			_kill_count,
+			_loot_collected,
+			xp_result,
+			full_xp,
+			_escape_rules_summary(),
+			{
+				"run_mode": run_mode,
+				"floor_reached": current_floor,
+				"boss_defeated": _boss_defeated,
+				"loot_kept": true,
+				"run_relics_lost": false,
+				"loot_lost": [],
+			}
+		)
 	)
 	var run_id := current_run_id
 	var loot_instance_ids := _loot_claimed_instance_ids.duplicate()
@@ -382,13 +457,17 @@ func complete_run_via_portal() -> void:
 	var cleared_dungeon := current_dungeon_id
 	LocalSave.clear_active_run()
 	LocalSave.autosave()
+	QuestService.register_run_outcome(RunLifecycle.OUTCOME_ESCAPED, {"run_mode": run_mode})
+	MerchantService.restock_all()
 	run_ended.emit(last_run_results)
-	get_tree().root.set_meta("run_results", last_run_results)
-	_clear_run_meta()
-	_handle_escape_meta(elapsed, boss)
 	_cloud_finalize_run(run_id, "escaped", elapsed, boss, loot_instance_ids)
+	get_tree().root.set_meta("run_results", last_run_results)
+	_clear_in_run_meta()
+	_handle_escape_meta(elapsed, boss)
+	get_tree().root.set_meta("run_results", last_run_results)
 	if run_mode == RM.MODE_CASTLE:
-		DungeonTierService.on_dungeon_cleared(cleared_dungeon)
+		_mark_dungeon_cleared(cleared_dungeon)
+		DungeonTierService.on_dungeon_cleared(cleared_dungeon, current_difficulty_tier)
 	_goto_scene(RESULTS_SCENE)
 
 
@@ -406,40 +485,77 @@ func on_player_died() -> void:
 	var full_xp := ProgressionService.calculate_run_xp(_kill_count, _boss_defeated, false)
 	var death_xp := ProgressionService.apply_death_xp_fraction(full_xp)
 	var xp_result := ProgressionService.grant_xp(death_xp, "death")
-	_store_recoverable_xp_shard_from_active_run(full_xp - death_xp)
+	var xp_deferred := full_xp - death_xp
+	_store_recoverable_xp_shard_from_active_run(xp_deferred)
+	var loot_lost := _loot_collected.duplicate()
 	InventoryService.remove_run_loot(_loot_collected)
+	InventoryService.apply_death_durability_loss(BlacksmithService.DEATH_DURABILITY_LOSS)
+	var had_relics := _had_run_relics()
 	RunBuffs.clear_all()
 	CharacterService.set_flag("deaths", int(CharacterService.get_flag("deaths", 0)) + 1)
-	last_run_results = RunLifecycle.build_death_results(
-		elapsed,
-		_kill_count,
-		_loot_collected,
-		xp_result,
-		full_xp,
-		_death_rules_summary()
+	last_run_results = (
+		RunLifecycle
+		. build_results(
+			RunLifecycle.OUTCOME_DIED,
+			elapsed,
+			_kill_count,
+			[],
+			xp_result,
+			full_xp,
+			_death_rules_summary(),
+			{
+				"run_mode": run_mode,
+				"floor_reached": current_floor,
+				"boss_defeated": _boss_defeated,
+				"loot_kept": false,
+				"run_relics_lost": had_relics,
+				"loot_lost": loot_lost,
+				"xp_deferred": xp_deferred,
+			}
+		)
 	)
 	var run_id := current_run_id
 	var loot_instance_ids := _loot_claimed_instance_ids.duplicate()
 	var boss := _boss_defeated
 	LocalSave.clear_active_run()
 	LocalSave.autosave()
+	QuestService.register_run_outcome(RunLifecycle.OUTCOME_DIED, {"run_mode": run_mode})
+	MerchantService.restock_all()
 	run_ended.emit(last_run_results)
+	_cloud_finalize_run(run_id, "died", elapsed, boss, loot_instance_ids)
 	get_tree().root.set_meta("run_results", last_run_results)
 	_run_active = false
-	_clear_run_meta()
-	_cloud_finalize_run(run_id, "died", elapsed, boss, loot_instance_ids)
+	_clear_in_run_meta()
 	_goto_scene(RESULTS_SCENE)
 
 
 func register_kill(enemy_id: String = "") -> void:
 	_kill_count += 1
 	QuestService.register_kill(enemy_id)
+	if AchievementService:
+		AchievementService.notify("enemy_killed")
+
+
+func begin_boss_fight() -> void:
+	_boss_fight_active = true
+	_boss_fight_damage_taken = false
+
+
+func register_player_boss_damage() -> void:
+	if _boss_fight_active:
+		_boss_fight_damage_taken = true
 
 
 func register_boss_defeated() -> void:
 	_boss_defeated = true
 	if not _cleared_floors.has(current_floor):
 		_cleared_floors.append(current_floor)
+	if AchievementService:
+		if _boss_fight_active and not _boss_fight_damage_taken:
+			AchievementService.notify("boss_defeated_no_damage")
+	_boss_fight_active = false
+	if run_mode == RM.MODE_CASTLE:
+		_mark_dungeon_cleared(current_dungeon_id)
 
 
 func rest_at_bonfire(player: Node = null) -> void:
@@ -498,12 +614,13 @@ func retreat_to_hub() -> void:
 	if not active.is_empty():
 		active["currentFloor"] = current_floor
 		active["dungeonTier"] = current_dungeon_tier
+		active["difficultyTier"] = current_difficulty_tier
 		active["dungeonId"] = current_dungeon_id
 		active["dungeonDefinition"] = current_dungeon_definition.duplicate(true)
 		LocalSave.set_active_run(active)
 	_run_active = false
 	last_hub_message = "Retreated to %s. Continue from the portal." % TOWER_DISPLAY_NAME
-	_clear_run_meta()
+	_clear_in_run_meta()
 	LocalSave.autosave()
 	_goto_scene(HUB_SCENE)
 	returned_to_hub.emit(last_hub_message)
@@ -511,6 +628,10 @@ func retreat_to_hub() -> void:
 
 func get_dungeon_tier() -> int:
 	return current_dungeon_tier
+
+
+func get_difficulty_tier() -> int:
+	return current_difficulty_tier
 
 
 func get_dungeon_id() -> String:
@@ -546,32 +667,59 @@ func descend_floor() -> void:
 
 
 func _transition_floor(ascending: bool) -> void:
-	current_dungeon_definition = {}
-	var cached := _get_cached_floor_definition(current_floor)
-	if not cached.is_empty():
-		current_dungeon_definition = cached
-	else:
-		var gen := await _generate_dungeon(current_biome_id, current_seed, current_floor)
-		if gen.get("ok", false):
-			current_dungeon_definition = gen.get("definition", {})
+	var previous_definition := current_dungeon_definition.duplicate(true)
+	var attempted_floor := current_floor
+	var definition := await _resolve_floor_definition(current_floor)
+	if definition.is_empty():
+		if ascending:
+			current_floor -= 1
 		else:
-			last_hub_message = "Could not generate floor %d." % current_floor
-			if ascending:
-				current_floor -= 1
-			else:
-				current_floor += 1
-			return
+			current_floor += 1
+		current_dungeon_definition = previous_definition
+		_emit_run_warning(
+			(
+				"Could not generate floor %d — you are still on floor %d."
+				% [attempted_floor, current_floor]
+			)
+		)
+		return
+	current_dungeon_definition = definition
 	_set_current_floor_cache(current_dungeon_definition)
+	if run_mode == RM.MODE_ENDLESS:
+		RunModifierService.apply_endless_floor_modifiers(current_floor)
 
 	var root := get_tree().root
 	root.set_meta("dungeon_definition", current_dungeon_definition.duplicate(true))
-	root.set_meta("floor_transition", {
-		"ascending": ascending,
-		"floor": current_floor,
-	})
+	(
+		root
+		. set_meta(
+			"floor_transition",
+			{
+				"ascending": ascending,
+				"floor": current_floor,
+			}
+		)
+	)
 	root.set_meta("run_snapshot", _build_floor_transition_snapshot(ascending))
 	_persist_active_run()
+	LocalSave.autosave()
 	_goto_scene(CASTLE_RUN_SCENE)
+
+
+func _resolve_floor_definition(floor_index: int) -> Dictionary:
+	if _test_resolve_floor_override != null:
+		var override: Variant = _test_resolve_floor_override
+		_test_resolve_floor_override = null
+		if override is Dictionary:
+			return override
+		return {}
+	var cached := _get_cached_floor_definition(floor_index)
+	if not cached.is_empty():
+		return cached
+	var gen := await _generate_dungeon(current_biome_id, current_seed, floor_index)
+	if gen.get("ok", false):
+		return gen.get("definition", {})
+	return {}
 
 
 func _build_floor_transition_snapshot(ascending: bool) -> Dictionary:
@@ -591,7 +739,7 @@ func _persist_active_run() -> void:
 	var active := LocalSave.get_active_run()
 	if active.is_empty():
 		active = {
-			"schemaVersion": 4,
+			"schemaVersion": SaveMigrator.CURRENT_VERSION,
 			"runMode": run_mode,
 			"runId": current_run_id,
 			"seed": current_seed,
@@ -600,11 +748,17 @@ func _persist_active_run() -> void:
 	active["runMode"] = run_mode
 	active["currentFloor"] = current_floor
 	active["dungeonTier"] = current_dungeon_tier
+	active["difficultyTier"] = current_difficulty_tier
 	active["dungeonId"] = current_dungeon_id
 	active["maxFloors"] = max_floors
 	active["dungeonDefinition"] = current_dungeon_definition.duplicate(true)
 	active["clearedFloors"] = _cleared_floors.duplicate()
-	LocalSave.set_active_run(active)
+	active["generator"] = current_generator
+	active["input_seed"] = current_seed
+	active["tier_seed"] = current_tier_seed
+	active["generation_seed"] = current_generation_seed
+	active["generationWarnings"] = current_generation_warnings.duplicate()
+	LocalSave.set_active_run(active, false)
 
 
 func _clear_floor_cache() -> void:
@@ -615,42 +769,36 @@ func _clear_floor_cache() -> void:
 func _stash_current_floor_in_cache() -> void:
 	if current_dungeon_definition.is_empty():
 		return
-	floor_definitions[str(current_floor)] = current_dungeon_definition.duplicate(true)
+	floor_definitions[current_floor] = current_dungeon_definition.duplicate(true)
 	DungeonBuilder.store_floor_cache(current_floor, current_dungeon_definition)
 	_trim_floor_cache()
 
 
 func _get_cached_floor_definition(floor_index: int) -> Dictionary:
-	var key := str(floor_index)
-	if floor_definitions.has(key):
-		return floor_definitions[key].duplicate(true)
+	if floor_definitions.has(floor_index):
+		return floor_definitions[floor_index].duplicate(true)
 	return DungeonBuilder.get_floor_cache(floor_index)
 
 
 func _trim_floor_cache() -> void:
 	if floor_definitions.size() <= MAX_CACHED_FLOORS:
 		return
-	var keys: Array = floor_definitions.keys()
-	keys.sort()
+	var keys: Array[int] = []
+	for key in floor_definitions:
+		keys.append(int(key))
+	keys.sort_custom(
+		func(a: int, b: int) -> bool: return absi(a - current_floor) > absi(b - current_floor)
+	)
 	while floor_definitions.size() > MAX_CACHED_FLOORS:
-		var drop_key: String = keys[0]
-		floor_definitions.erase(drop_key)
-		keys.remove_at(0)
+		floor_definitions.erase(keys.pop_front())
 
 
 func _set_current_floor_cache(definition: Dictionary) -> void:
 	if definition.is_empty():
 		return
-	floor_definitions[str(current_floor)] = definition.duplicate(true)
+	floor_definitions[current_floor] = definition.duplicate(true)
 	DungeonBuilder.store_floor_cache(current_floor, definition)
 	_trim_floor_cache()
-
-
-func _unload_current_floor_chunk() -> void:
-	current_dungeon_definition = {}
-	var root := get_tree().root
-	if root.has_meta("dungeon_definition"):
-		root.remove_meta("dungeon_definition")
 
 
 func register_loot(item_id: String, instance_id: String = "") -> void:
@@ -726,6 +874,8 @@ func _max_cleared_floor() -> int:
 func _reset_run_stats() -> void:
 	_kill_count = 0
 	_boss_defeated = false
+	_boss_fight_active = false
+	_boss_fight_damage_taken = false
 	_cleared_floors.clear()
 	_loot_collected.clear()
 	_loot_claimed_instance_ids.clear()
@@ -734,25 +884,36 @@ func _reset_run_stats() -> void:
 
 
 func _cloud_finalize_run(
-	run_id: String,
-	outcome: String,
-	elapsed: float,
-	boss_defeated: bool,
-	loot_instance_ids: Array
+	run_id: String, outcome: String, elapsed: float, boss_defeated: bool, loot_instance_ids: Array
 ) -> void:
+	_cloud_finalize_run_async(run_id, outcome, elapsed, boss_defeated, loot_instance_ids)
+
+
+func _cloud_finalize_run_async(
+	run_id: String, outcome: String, elapsed: float, boss_defeated: bool, loot_instance_ids: Array
+) -> void:
+	if not ApiConfig.cloud_calls_enabled():
+		return
 	if run_id != "":
 		var result := await ApiClient.complete_run(
 			run_id, outcome, elapsed, boss_defeated, loot_instance_ids
 		)
 		if not result.get("ok", false):
-			var err := str(result.get("error", "unknown"))
-			if err != "auth failed":
-				push_warning("RunFlow: complete_run failed — %s" % err)
+			if CrashLogger:
+				CrashLogger.log_warning(
+					"run_flow.complete_run",
+					{"error": str(result.get("error", "unknown"))}
+				)
+			else:
+				push_warning("RunFlow: complete_run failed — %s" % str(result.get("error", "unknown")))
 	var push := await LocalSave.push_to_cloud()
 	if not push.get("ok", false) and not push.get("conflict", false):
-		var push_err := str(push.get("error", "unknown"))
-		if push_err != "auth failed":
-			push_warning("RunFlow: cloud push failed — %s" % push_err)
+		if CrashLogger:
+			CrashLogger.log_warning(
+				"run_flow.cloud_push", {"error": str(push.get("error", "unknown"))}
+			)
+		else:
+			push_warning("RunFlow: cloud push failed — %s" % str(push.get("error", "unknown")))
 
 
 func _handle_escape_meta(elapsed: float, boss_defeated: bool) -> void:
@@ -767,11 +928,23 @@ func _handle_escape_meta(elapsed: float, boss_defeated: bool) -> void:
 			AchievementService.unlock("speed_clear")
 	LeaderboardSettings.load_from_save()
 	if LeaderboardSettings.opt_in:
-		var lb := await ApiClient.submit_leaderboard(
-			current_biome_id, current_floor, elapsed, true
-		)
-		if lb.get("ok", false) and AchievementService:
-			AchievementService.unlock("leaderboard_submit")
+		_submit_leaderboard_async(current_biome_id, current_dungeon_tier, elapsed)
+
+
+func _submit_leaderboard_async(biome_id: String, tier: int, elapsed: float) -> void:
+	var lb := await ApiClient.submit_leaderboard(current_run_id, true)
+	last_run_results["leaderboard_submit_attempted"] = true
+	last_run_results["leaderboard_submit_ok"] = lb.get("ok", false)
+	if not lb.get("ok", false):
+		last_run_results["leaderboard_submit_error"] = str(lb.get("error", "unknown"))
+	if AchievementService:
+		AchievementService.unlock("leaderboard_submit")
+
+
+func _mark_dungeon_cleared(dungeon_id: String) -> void:
+	var flag_id := DungeonCatalog.get_clear_flag(dungeon_id)
+	if flag_id != "":
+		CharacterService.set_flag(flag_id, true)
 
 
 func _escape_rules_summary() -> String:
@@ -788,17 +961,41 @@ func _death_rules_summary() -> String:
 	)
 
 
-func store_recoverable_xp_shard(world_pos: Vector3, floor_index: int, dungeon_id: String, xp_amount: int) -> void:
+func _respawn_rules_summary() -> String:
+	return (
+		"Bonfire respawn: 50% XP saved, the rest lingers as a recoverable echo at your death spot. "
+		+ "Loot gained since the last bonfire was stripped."
+	)
+
+
+func _emit_run_warning(message: String) -> void:
+	last_hub_message = message
+	run_warning.emit(message)
+
+
+func _had_run_relics() -> bool:
+	return not RunBuffs.get_active_buffs().is_empty()
+
+
+func store_recoverable_xp_shard(
+	world_pos: Vector3, floor_index: int, dungeon_id: String, xp_amount: int
+) -> void:
 	if xp_amount <= 0:
 		return
-	CharacterService.set_flag(XP_SHARD_FLAG, {
-		"x": world_pos.x,
-		"y": world_pos.y,
-		"z": world_pos.z,
-		"floor": floor_index,
-		"dungeonId": dungeon_id,
-		"xp": xp_amount,
-	})
+	(
+		CharacterService
+		. set_flag(
+			XP_SHARD_FLAG,
+			{
+				"x": world_pos.x,
+				"y": world_pos.y,
+				"z": world_pos.z,
+				"floor": floor_index,
+				"dungeonId": dungeon_id,
+				"xp": xp_amount,
+			}
+		)
+	)
 
 
 func get_recoverable_xp_shard() -> Dictionary:
@@ -817,11 +1014,16 @@ func _bonfire_death_respawn(checkpoint: Dictionary) -> void:
 	var death_pos: Vector3 = Vector3.ZERO
 	if player is Node3D:
 		death_pos = (player as Node3D).global_position
+	var elapsed := 0.0
+	if _run_start_time > 0.0:
+		elapsed = (Time.get_ticks_msec() / 1000.0) - _run_start_time
 	var full_xp := ProgressionService.calculate_run_xp(_kill_count, _boss_defeated, false)
 	var death_xp := ProgressionService.apply_death_xp_fraction(full_xp)
-	ProgressionService.grant_xp(death_xp, "death")
-	store_recoverable_xp_shard(death_pos, current_floor, current_dungeon_id, full_xp - death_xp)
-	_strip_loot_since_checkpoint(checkpoint)
+	var xp_result := ProgressionService.grant_xp(death_xp, "death")
+	var xp_deferred := full_xp - death_xp
+	store_recoverable_xp_shard(death_pos, current_floor, current_dungeon_id, xp_deferred)
+	var loot_lost := _strip_loot_since_checkpoint(checkpoint)
+	var had_relics := _had_run_relics()
 	RunBuffs.clear_all()
 	CharacterService.set_flag("deaths", int(CharacterService.get_flag("deaths", 0)) + 1)
 	_kill_count = int(checkpoint.get("killCount", 0))
@@ -833,21 +1035,40 @@ func _bonfire_death_respawn(checkpoint: Dictionary) -> void:
 	for inst_id in checkpoint.get("lootClaimedInstanceIds", []):
 		_loot_claimed_instance_ids.append(str(inst_id))
 	WorldState.restore_flags(checkpoint.get("worldFlags", {}))
+	var respawn_results := (
+		RunLifecycle
+		. build_results(
+			RunLifecycle.OUTCOME_RESPAWNED,
+			elapsed,
+			_kill_count,
+			_loot_collected,
+			xp_result,
+			full_xp,
+			_respawn_rules_summary(),
+			{
+				"run_mode": run_mode,
+				"floor_reached": current_floor,
+				"boss_defeated": _boss_defeated,
+				"loot_kept": loot_lost.is_empty(),
+				"run_relics_lost": had_relics,
+				"loot_lost": loot_lost,
+				"xp_deferred": xp_deferred,
+			}
+		)
+	)
 	var active := LocalSave.get_active_run()
-	active["playerDead"] = true
 	active["snapshot"] = checkpoint.duplicate(true)
+	active.erase("playerDead")
 	LocalSave.set_active_run(active)
 	LocalSave.autosave()
 	_is_continue = true
 	_pending_snapshot = checkpoint.duplicate(true)
 	get_tree().root.set_meta("run_snapshot", checkpoint.duplicate(true))
-	active["playerDead"] = false
-	LocalSave.set_active_run(active)
-	LocalSave.autosave()
+	get_tree().root.set_meta("run_respawn_results", respawn_results)
 	_goto_scene(CASTLE_RUN_SCENE)
 
 
-func _strip_loot_since_checkpoint(checkpoint: Dictionary) -> void:
+func _strip_loot_since_checkpoint(checkpoint: Dictionary) -> Array[String]:
 	var kept: Array[String] = []
 	for item in checkpoint.get("lootCollected", []):
 		kept.append(str(item))
@@ -858,6 +1079,7 @@ func _strip_loot_since_checkpoint(checkpoint: Dictionary) -> void:
 	if not to_remove.is_empty():
 		InventoryService.remove_run_loot(to_remove)
 	_loot_collected = kept.duplicate()
+	return to_remove
 
 
 func _store_recoverable_xp_shard_from_active_run(xp_amount: int) -> void:
@@ -872,9 +1094,7 @@ func _store_recoverable_xp_shard_from_active_run(xp_amount: int) -> void:
 		return
 	store_recoverable_xp_shard(
 		Vector3(
-			float(player.get("x", 0.0)),
-			float(player.get("y", 0.0)),
-			float(player.get("z", 0.0))
+			float(player.get("x", 0.0)), float(player.get("y", 0.0)), float(player.get("z", 0.0))
 		),
 		current_floor,
 		current_dungeon_id,
@@ -886,18 +1106,22 @@ func _register_run_started() -> void:
 	CharacterService.set_flag("runs_started", int(CharacterService.get_flag("runs_started", 0)) + 1)
 
 
+func _clear_in_run_meta() -> void:
+	var root := get_tree().root
+	for key in RUN_META_KEYS:
+		if key == "run_results":
+			continue
+		if root.has_meta(key):
+			root.remove_meta(key)
+
+
 func _clear_run_meta() -> void:
 	var root := get_tree().root
-	if root.has_meta("dungeon_definition"):
-		root.remove_meta("dungeon_definition")
-	if root.has_meta("run_seed"):
-		root.remove_meta("run_seed")
-	if root.has_meta("tier_generation_seed"):
-		root.remove_meta("tier_generation_seed")
-	if root.has_meta("run_id"):
-		root.remove_meta("run_id")
-	if root.has_meta("run_snapshot"):
-		root.remove_meta("run_snapshot")
+	for key in RUN_META_KEYS:
+		if root.has_meta(key):
+			root.remove_meta(key)
+	if root.has_meta("run_respawn_results"):
+		root.remove_meta("run_respawn_results")
 
 
 func _goto_scene(path: String) -> void:
@@ -911,7 +1135,9 @@ func _start_waves_run(is_continue: bool) -> void:
 	_run_start_time = Time.get_ticks_msec() / 1000.0
 	if is_continue:
 		var saved := LocalSave.get_waves_active_run()
-		_pending_snapshot = saved.get("snapshot", {}) if saved.get("snapshot", {}) is Dictionary else {}
+		_pending_snapshot = (
+			saved.get("snapshot", {}) if saved.get("snapshot", {}) is Dictionary else {}
+		)
 		WavesRunService.restore_from_save(saved)
 	else:
 		_pending_snapshot.clear()
@@ -944,7 +1170,7 @@ func quit_waves_run() -> void:
 		)
 	else:
 		last_hub_message = "Left waves early — loadout was not kept."
-	_clear_run_meta()
+	_clear_in_run_meta()
 	return_to_hub(last_hub_message)
 
 
@@ -953,22 +1179,34 @@ func complete_waves_run(rewards: Array[String]) -> void:
 	var elapsed := (Time.get_ticks_msec() / 1000.0) - _run_start_time
 	for item_id in rewards:
 		InventoryService.add_item(item_id, 1)
-	last_run_results = {
-		"outcome": "waves_complete",
-		"time_seconds": elapsed,
-		"kills": WavesRunService.get_kill_count(),
-		"loot": rewards.duplicate(),
-		"xp_gained": ProgressionService.grant_xp(WAVES_COMPLETION_XP, "waves").get("gained", 0),
-		"levels_gained": 0,
-		"loot_kept": true,
-		"run_relics_lost": false,
-		"rules_summary": "Waves cleared: kept up to 3 chosen items.",
-	}
+	var xp_result := ProgressionService.grant_xp(WAVES_COMPLETION_XP, "waves")
+	last_run_results = (
+		RunLifecycle
+		. build_results(
+			RunLifecycle.OUTCOME_WAVES_COMPLETE,
+			elapsed,
+			WavesRunService.get_kill_count(),
+			rewards,
+			xp_result,
+			WAVES_COMPLETION_XP,
+			"Waves cleared: kept up to 3 chosen items.",
+			{
+				"run_mode": RM.MODE_WAVES,
+				"floor_reached": 0,
+				"boss_defeated": false,
+				"loot_kept": true,
+				"run_relics_lost": false,
+				"loot_lost": [],
+			}
+		)
+	)
 	LocalSave.clear_waves_active_run()
 	LocalSave.autosave()
+	QuestService.register_run_outcome(RunLifecycle.OUTCOME_WAVES_COMPLETE, {"run_mode": run_mode})
+	MerchantService.restock_all()
 	run_ended.emit(last_run_results)
 	get_tree().root.set_meta("run_results", last_run_results)
-	_clear_run_meta()
+	_clear_in_run_meta()
 	_goto_scene(RESULTS_SCENE)
 
 
@@ -976,20 +1214,33 @@ func on_waves_failed() -> void:
 	var elapsed := 0.0
 	if _run_start_time > 0.0:
 		elapsed = (Time.get_ticks_msec() / 1000.0) - _run_start_time
-	last_run_results = {
-		"outcome": "waves_failed",
-		"time_seconds": elapsed,
-		"kills": WavesRunService.get_kill_count(),
-		"loot": [],
-		"xp_gained": 0,
-		"levels_gained": 0,
-		"loot_kept": false,
-		"rules_summary": "Waves failed: no items transferred to main inventory.",
-	}
+	var had_relics := _had_run_relics()
+	last_run_results = (
+		RunLifecycle
+		. build_results(
+			RunLifecycle.OUTCOME_WAVES_FAILED,
+			elapsed,
+			WavesRunService.get_kill_count(),
+			[],
+			{"gained": 0, "levels_gained": 0},
+			0,
+			"Waves failed: no items transferred to main inventory.",
+			{
+				"run_mode": RM.MODE_WAVES,
+				"floor_reached": 0,
+				"boss_defeated": false,
+				"loot_kept": false,
+				"run_relics_lost": had_relics,
+				"loot_lost": [],
+			}
+		)
+	)
 	LocalSave.clear_waves_active_run()
 	LocalSave.autosave()
+	QuestService.register_run_outcome(RunLifecycle.OUTCOME_WAVES_FAILED, {"run_mode": run_mode})
+	MerchantService.restock_all()
 	run_ended.emit(last_run_results)
 	get_tree().root.set_meta("run_results", last_run_results)
 	_run_active = false
-	_clear_run_meta()
+	_clear_in_run_meta()
 	_goto_scene(RESULTS_SCENE)

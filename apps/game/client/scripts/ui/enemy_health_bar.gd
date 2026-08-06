@@ -97,7 +97,9 @@ func set_attack_telegraph_progress(ratio: float) -> void:
 	if _attack_fill_sprite == null:
 		return
 	var fill_ratio := clampf(ratio, 0.0, 1.0)
-	_attack_fill_texture = _make_bar_texture(Color(0.95, 0.55, 0.15, 1.0), fill_ratio, ATTACK_BAR_TEX_H)
+	_attack_fill_texture = _make_bar_texture(
+		Color(0.95, 0.55, 0.15, 1.0), fill_ratio, ATTACK_BAR_TEX_H
+	)
 	_attack_fill_sprite.texture = _attack_fill_texture
 	var inner_w := BAR_WORLD_W - 0.03
 	var fill_w := inner_w * fill_ratio
@@ -112,7 +114,9 @@ func hide_attack_telegraph() -> void:
 		_attack_fill_sprite.visible = false
 
 
-func _make_bar_texture(color: Color, fill_ratio: float, bar_height: int = BAR_TEX_H) -> ImageTexture:
+func _make_bar_texture(
+	color: Color, fill_ratio: float, bar_height: int = BAR_TEX_H
+) -> ImageTexture:
 	var img := Image.create(BAR_TEX_W, bar_height, false, Image.FORMAT_RGBA8)
 	img.fill(Color(0, 0, 0, 0))
 	var fill_w := int(round(float(BAR_TEX_W - 2) * clampf(fill_ratio, 0.0, 1.0)))

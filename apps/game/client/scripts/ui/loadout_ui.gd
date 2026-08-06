@@ -76,10 +76,8 @@ func _is_weapon_unlocked(item_id: String) -> bool:
 	match item_id:
 		"castle_sword", "training_greatsword", "rogue_dagger":
 			return true
-		"guard_spear":
-			return ProgressionService.level >= 5 or CharacterService.has_flag("theme_forgotten_castle_cleared")
-		"hunter_bow":
-			return ProgressionService.level >= 8 or CharacterService.has_flag("theme_crystal_caverns_cleared")
+		"guard_spear", "hunter_bow":
+			return BlacksmithService.is_unlocked(item_id)
 		_:
 			return ItemCatalog.has_item(item_id)
 

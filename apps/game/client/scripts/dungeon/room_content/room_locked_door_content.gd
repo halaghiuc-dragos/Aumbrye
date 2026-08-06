@@ -6,7 +6,9 @@ const DIORAMA_SKIN := preload("res://scripts/art/props/diorama_interactable_skin
 
 var _key_id := ""
 var _lock_id := ""
+var _lock_flag_id := ""
 var _to_room_id := ""
+var _keys_required := 1
 var _barrier: StaticBody3D
 var _label: Label3D
 var _interact_area: Area3D
@@ -17,15 +19,17 @@ var _unlocked := false
 func configure(lock: Dictionary, from_room: RoomTemplate, to_room: RoomTemplate) -> void:
 	_key_id = str(lock.get("keyId", ""))
 	_lock_id = str(lock.get("lockId", ""))
+	_keys_required = maxi(1, int(lock.get("keysRequired", 1)))
+	_lock_flag_id = WorldFlags.lock_opened(_lock_id) if _lock_id != "" else ""
 	_to_room_id = str(lock.get("to", ""))
 	_build_at_socket(from_room, to_room)
 	_refresh_state()
-	WorldState.flag_changed.connect(_on_flag_changed)
+	if _lock_flag_id != "":
+		WorldState.namespace_changed.connect(_on_namespace_changed)
 
 
 func _build_at_socket(from_room: RoomTemplate, to_room: RoomTemplate) -> void:
-	var door_mask := _door_mask_toward(from_room, to_room)
-	var socket := _socket_for_mask(from_room, door_mask)
+	var socket := from_room.socket_toward(to_room)
 	if socket:
 		position = socket.position
 		rotation.y = socket.rotation.y
@@ -75,26 +79,6 @@ func _build_at_socket(from_room: RoomTemplate, to_room: RoomTemplate) -> void:
 	add_child(_label)
 
 
-func _door_mask_toward(from_room: RoomTemplate, to_room: RoomTemplate) -> int:
-	var delta := to_room.global_position - from_room.global_position
-	if absf(delta.x) > absf(delta.z):
-		return RoomGraphSlot.DOOR_EAST if delta.x > 0.0 else RoomGraphSlot.DOOR_WEST
-	return RoomGraphSlot.DOOR_SOUTH if delta.z > 0.0 else RoomGraphSlot.DOOR_NORTH
-
-
-func _socket_for_mask(room: RoomTemplate, door_mask: int) -> DoorwaySocket:
-	match door_mask:
-		RoomGraphSlot.DOOR_NORTH:
-			return room.find_socket(CastleRoomConstants.Direction.NORTH)
-		RoomGraphSlot.DOOR_EAST:
-			return room.find_socket(CastleRoomConstants.Direction.EAST)
-		RoomGraphSlot.DOOR_SOUTH:
-			return room.find_socket(CastleRoomConstants.Direction.SOUTH)
-		RoomGraphSlot.DOOR_WEST:
-			return room.find_socket(CastleRoomConstants.Direction.WEST)
-	return null
-
-
 func _on_body_entered(body: Node3D) -> void:
 	if body.is_in_group("player"):
 		_near_player = true
@@ -112,20 +96,24 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 	if not event.is_action_pressed("interact"):
 		return
-	if InventoryService.has_dungeon_key(_key_id):
+	var keys_needed := _keys_required
+	while keys_needed > 0 and InventoryService.has_dungeon_key(_key_id):
 		InventoryService.consume_dungeon_key(_key_id)
-		WorldState.set_flag(_key_id, true)
-		_unlock()
-		get_viewport().set_input_as_handled()
+		keys_needed -= 1
+	if keys_needed > 0:
+		return
+	WorldState.set_flag(_lock_flag_id, true)
+	_unlock()
+	get_viewport().set_input_as_handled()
 
 
-func _on_flag_changed(flag_id: String, _value: Variant) -> void:
-	if flag_id == _key_id:
+func _on_namespace_changed(flag_namespace: String, flag_id: String, _value: Variant) -> void:
+	if flag_namespace == WorldFlags.NS_LOCK and flag_id == _lock_flag_id:
 		_refresh_state()
 
 
 func _refresh_state() -> void:
-	if _key_id != "" and WorldState.has_flag(_key_id):
+	if _lock_flag_id != "" and WorldState.is_flag_true(_lock_flag_id):
 		_unlock()
 	else:
 		_update_label()
@@ -148,6 +136,9 @@ func _update_label() -> void:
 		return
 	_label.visible = _near_player
 	if InventoryService.has_dungeon_key(_key_id):
-		_label.text = "E — Unlock door"
+		if _keys_required > 1:
+			_label.text = "E — Unlock door (%d keys)" % _keys_required
+		else:
+			_label.text = "E — Unlock door"
 	else:
 		_label.text = "Locked — find key"

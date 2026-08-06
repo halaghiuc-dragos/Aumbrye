@@ -106,7 +106,10 @@ func _refresh() -> void:
 		var rank := ProgressionService.get_talent_rank(node.get("id", ""))
 		var max_rank: int = int(node.get("maxRank", 1))
 		_node_list.add_item(
-			"[%s] %s (%d/%d)" % [_branch_display_name(node), _talent_display_name(node), rank, max_rank]
+			(
+				"[%s] %s (%d/%d)"
+				% [_branch_display_name(node), _talent_display_name(node), rank, max_rank]
+			)
 		)
 	if _points_label:
 		_points_label.text = "Points: %d" % ProgressionService.get_available_talent_points()
@@ -127,19 +130,36 @@ func _update_detail() -> void:
 			continue
 		var stat: String = str(effect.get("stat", ""))
 		var value: float = float(effect.get("valuePerRank", 0.0))
-		if stat in ["physicalDamage", "critChance", "poiseDamage", "blockReduction", "damageReduction",
-				"staminaRegen", "staminaCostReduction", "moveSpeed", "lootQuality", "xpGain", "goldFind",
-				"cooldownReduction"]:
+		if (
+			stat
+			in [
+				"physicalDamage",
+				"critChance",
+				"poiseDamage",
+				"blockReduction",
+				"damageReduction",
+				"staminaRegen",
+				"staminaCostReduction",
+				"moveSpeed",
+				"lootQuality",
+				"xpGain",
+				"goldFind",
+				"cooldownReduction"
+			]
+		):
 			effect_lines.append("%s +%.0f%%" % [stat, value * 100.0])
 		else:
 			effect_lines.append("%s +%s" % [stat, value])
 	var can := ProgressionService.can_unlock_talent(node.get("id", ""))
 	var display_name: String = _talent_display_name(node)
-	_detail_label.text = "%s\n%s\n%s" % [
-		display_name,
-		", ".join(effect_lines),
-		"Can unlock" if can else "Locked",
-	]
+	_detail_label.text = (
+		"%s\n%s\n%s"
+		% [
+			display_name,
+			", ".join(effect_lines),
+			"Can unlock" if can else "Locked",
+		]
+	)
 
 
 func _unlock_selected() -> void:
@@ -147,7 +167,9 @@ func _unlock_selected() -> void:
 		return
 	var node_id: String = _nodes[_cursor].get("id", "")
 	if ProgressionService.unlock_talent(node_id):
-		InventoryService.apply_equipment_to_player_node(get_tree().get_first_node_in_group("player"))
+		InventoryService.apply_equipment_to_player_node(
+			get_tree().get_first_node_in_group("player")
+		)
 		_refresh()
 
 

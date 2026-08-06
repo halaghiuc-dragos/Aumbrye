@@ -20,4 +20,5 @@ public class Run
     public DateTimeOffset CreatedAt { get; set; }
     public DateTimeOffset? CompletedAt { get; set; }
     public string? DefinitionChecksum { get; set; }
+    public string? LootInstanceIdsJson { get; set; }
 }

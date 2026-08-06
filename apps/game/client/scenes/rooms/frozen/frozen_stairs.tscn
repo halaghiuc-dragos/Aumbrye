@@ -1,10 +1,13 @@
-[gd_scene load_steps=6 format=3 uid="uid://frozen_stairs"]
+[gd_scene load_steps=7 format=3 uid="uid://frozen_stairs"]
 
 [ext_resource type="Script" path="res://scripts/dungeon/castle/castle_room_scene.gd" id="1_room"]
 [ext_resource type="Script" path="res://scripts/dungeon/castle/castle_blockout.gd" id="2_blockout"]
 [ext_resource type="Script" path="res://scripts/dungeon/doorway_socket.gd" id="3_socket"]
 [ext_resource type="Material" path="res://assets/frozen/mat_floor.tres" id="4_floor"]
 [ext_resource type="Material" path="res://assets/frozen/mat_wall.tres" id="5_wall"]
+
+[sub_resource type="BoxMesh" id="BoxMesh_ramp"]
+size = Vector3(4, 0.4, 12)
 
 [node name="FrozenStairs" type="Node3D"]
 script = ExtResource("1_room")
@@ -37,5 +40,14 @@ direction = 0
 [node name="PlayerSpawn" type="Marker3D" parent="SpawnPoints"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -3)
 
+[node name="LeverSpawn" type="Marker3D" parent="SpawnPoints"]
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -7.45, 0, -1.5)
+
 [node name="RunEntrance" type="Marker3D" parent="SpawnPoints"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -4)
+
+[node name="Props" type="Node3D" parent="."]
+
+[node name="StairRamp" type="MeshInstance3D" parent="Props"]
+transform = Transform3D(1, 0, 0, 0, 0.906308, 0.422618, 0, -0.422618, 0.906308, 0, 1.2, 0)
+mesh = SubResource("BoxMesh_ramp")

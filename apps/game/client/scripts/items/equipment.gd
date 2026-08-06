@@ -4,21 +4,59 @@ class_name Equipment
 ## Equipment slot helpers and stat aggregation (LOOT-4.2).
 
 const SLOT_ORDER: Array[String] = [
-	"helmet", "chest", "gloves", "boots",
-	"weapon", "secondary", "ring", "amulet", "relic",
+	"helmet",
+	"chest",
+	"gloves",
+	"boots",
+	"weapon",
+	"secondary",
+	"ring",
+	"amulet",
+	"relic",
 ]
 
 const STAT_KEYS: Array[String] = [
-	"maxHealth", "healthRegen", "evasion", "defense", "damagePercent", "moveSpeedPercent", "staminaMax",
-	"bonusDamage", "critChance", "poiseDamage", "armor",
-	"blockReduction", "poise", "staminaRegen", "staminaCostReduction",
-	"damageReduction", "moveSpeed", "lootQuality", "xpGain", "goldFind",
+	"maxHealth",
+	"healthRegen",
+	"evasion",
+	"defense",
+	"damagePercent",
+	"moveSpeedPercent",
+	"staminaMax",
+	"bonusDamage",
+	"critChance",
+	"poiseDamage",
+	"armor",
+	"blockReduction",
+	"poise",
+	"staminaRegen",
+	"staminaCostReduction",
+	"damageReduction",
+	"moveSpeed",
+	"manaMax",
+	"manaRegen",
+	"resistPhysical",
+	"resistFire",
+	"resistFrost",
+	"resistPoison",
+	"resistLightning",
+	"resistArcane",
+	"lootQuality",
+	"xpGain",
+	"goldFind",
 	"cooldownReduction",
 ]
 
 const FLAT_DAMAGE_STAT_KEYS: Array[String] = [
-	"physicalDamage", "fireDamage", "frostDamage", "arcaneDamage", "poisonDamage",
+	"physicalDamage",
+	"fireDamage",
+	"frostDamage",
+	"arcaneDamage",
+	"poisonDamage",
 ]
+
+const UPGRADE_STEP := 0.06
+const BlacksmithServiceScript := preload("res://scripts/hub/blacksmith_service.gd")
 
 
 static func empty_equipped() -> Dictionary:
@@ -47,7 +85,9 @@ static func can_equip_in_slot(def: Dictionary, slot: String) -> bool:
 	return slot_for_item_def(def) == slot
 
 
-static func aggregate_stats(equipped: Dictionary, affix_resolver: Callable = Callable()) -> Dictionary:
+static func aggregate_stats(
+	equipped: Dictionary, affix_resolver: Callable = Callable()
+) -> Dictionary:
 	var totals: Dictionary = {}
 	for stat in STAT_KEYS:
 		totals[stat] = 0.0
@@ -60,8 +100,7 @@ static func aggregate_stats(equipped: Dictionary, affix_resolver: Callable = Cal
 
 
 static func stats_for_instance(
-	instance: Dictionary,
-	affix_resolver: Callable = Callable()
+	instance: Dictionary, affix_resolver: Callable = Callable()
 ) -> Dictionary:
 	var fake := empty_equipped()
 	var def := ItemCatalog.get_definition(instance.get("itemId", ""))
@@ -72,9 +111,7 @@ static func stats_for_instance(
 
 
 static func compare_stats(
-	current: Dictionary,
-	candidate: Dictionary,
-	affix_resolver: Callable = Callable()
+	current: Dictionary, candidate: Dictionary, affix_resolver: Callable = Callable()
 ) -> Dictionary:
 	var base := aggregate_stats(current, affix_resolver)
 	var slot := slot_for_item_def(ItemCatalog.get_definition(candidate.get("itemId", "")))
@@ -137,19 +174,41 @@ static func format_delta_line(stat: String, delta: float) -> String:
 			return "%s%.0f %s" % [delta_sign, delta, stat]
 
 
-static func _add_instance_stats(
-	totals: Dictionary,
-	instance: Dictionary,
-	affix_resolver: Callable
-) -> void:
-	var item_id: String = instance.get("itemId", "")
+static func upgrade_multiplier(upgrade_level: int) -> float:
+	return 1.0 + UPGRADE_STEP * float(maxi(0, upgrade_level))
+
+
+static func slot_stats(slot: Dictionary, affix_resolver: Callable = Callable()) -> Dictionary:
+	var item_id: String = slot.get("itemId", "")
+	if item_id == "":
+		return {}
+	if BlacksmithServiceScript.get_slot_durability(slot) <= 0:
+		var empty: Dictionary = {}
+		for stat in STAT_KEYS:
+			empty[stat] = 0.0
+		return empty
 	var def := ItemCatalog.get_definition(item_id)
+	var upgrade_level := int(slot.get("upgradeLevel", 0))
 	var base_stats: Dictionary = def.get("stats", {})
+	var recipe_bonus := RecipeCatalog.upgrade_stat_bonus(item_id, upgrade_level)
+	var use_recipe_bonus := not recipe_bonus.is_empty()
+	var mult := upgrade_multiplier(upgrade_level)
+	var totals: Dictionary = {}
 	for stat in STAT_KEYS:
-		totals[stat] = totals.get(stat, 0.0) + float(base_stats.get(stat, 0.0))
+		var base_val := float(base_stats.get(stat, 0.0))
+		if use_recipe_bonus:
+			totals[stat] = base_val + float(recipe_bonus.get(stat, 0.0))
+		else:
+			totals[stat] = base_val * mult
 	for flat_stat in FLAT_DAMAGE_STAT_KEYS:
-		totals["bonusDamage"] = totals.get("bonusDamage", 0.0) + float(base_stats.get(flat_stat, 0.0))
-	for affix in instance.get("affixes", []):
+		var base_val := float(base_stats.get(flat_stat, 0.0))
+		if use_recipe_bonus:
+			totals["bonusDamage"] = totals.get("bonusDamage", 0.0) + base_val + float(
+				recipe_bonus.get(flat_stat, 0.0)
+			)
+		else:
+			totals["bonusDamage"] = totals.get("bonusDamage", 0.0) + base_val * mult
+	for affix in slot.get("affixes", []):
 		if not affix is Dictionary:
 			continue
 		var affix_id: String = affix.get("affixId", "")
@@ -157,4 +216,16 @@ static func _add_instance_stats(
 		if affix_resolver.is_valid():
 			var stat_name: String = affix_resolver.call(affix_id)
 			if stat_name != "":
-				totals[stat_name] = totals.get(stat_name, 0.0) + value
+				if stat_name in FLAT_DAMAGE_STAT_KEYS:
+					totals["bonusDamage"] = totals.get("bonusDamage", 0.0) + value
+				elif stat_name in STAT_KEYS:
+					totals[stat_name] = totals.get(stat_name, 0.0) + value
+	return totals
+
+
+static func _add_instance_stats(
+	totals: Dictionary, instance: Dictionary, affix_resolver: Callable
+) -> void:
+	var instance_stats := slot_stats(instance, affix_resolver)
+	for stat in STAT_KEYS:
+		totals[stat] = totals.get(stat, 0.0) + float(instance_stats.get(stat, 0.0))

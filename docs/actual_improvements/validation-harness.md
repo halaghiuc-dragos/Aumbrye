@@ -1,12 +1,36 @@
 # Validation harness — improvement plan
 
+## Status: FINISHED
+
 ## Current state
 
-426 lines of hand-rolled harness running 24 suites and 304 assertion call sites (see [`../existing_codebase/validation-harness.md`](../existing_codebase/validation-harness.md)). Two P0 problems share one root cause: nothing bounds a suite's execution. A runtime error or a never-firing signal breaks the awaited chain, so the report is never written, the process never exits, and CI — which sets no `timeout-minutes` — burns a six-hour runner. Everything else follows from the assertion surface being a single `bool`.
+29 suites registered in `validation_runner.gd` (including `harness_suite.gd` first for fast harness failures). Report schema v3 with `status`, `skipped`, `exitReason`, JUnit XML, reachability metric, and bounded execution via total and per-suite watchdogs. CI writes `artifacts/mcp_validation.json` directly via `--report` with a 30-minute job timeout.
 
 ## Gaps
 
-Carried from [`../existing_codebase/validation-harness.md`](../existing_codebase/validation-harness.md): VHA-01 through VHA-19.
+All items from [`../existing_codebase/validation-harness.md`](../existing_codebase/validation-harness.md) VHA-01 through VHA-19 are closed.
+
+| ID | Status |
+|----|--------|
+| VHA-01 | FINISHED — total watchdog, `_finish()`, exit code 2 on harness fault; CI `timeout-minutes: 30` |
+| VHA-02 | FINISHED — per-suite watchdog with `suite.timeout_*` records |
+| VHA-03 | FINISHED — `--suite`, `--test`, `--report`, `--verbose`, `--fail-fast` via `runner_options.gd` |
+| VHA-04 | FINISHED — `TestContext.assert_eq`, `assert_near`, `assert_true`, optional `observed` field |
+| VHA-05 | FINISHED — `ValidationSuite.setup()`/`teardown()`, save backup in base class, `_isolate()` leaked-node pass |
+| VHA-06 | FINISHED — `--shuffle`, `--seed`, `--repeat` with flaky detection |
+| VHA-07 | FINISHED — `_print_failures()` writes `FAIL <id> [<category>] <message>` to stdout |
+| VHA-08 | FINISHED — `skip()` status; `perf.frame_time_ms` skips in `perf_gate_suite.gd` |
+| VHA-09 | FINISHED — JUnit XML at `--report` sibling `.xml`; CI uploads JSON + XML |
+| VHA-10 | FINISHED — duplicate id records `runner.duplicate_id` |
+| VHA-11 | FINISHED — `coverage` block uses `manualChecklist` + reachability; `MANUAL_REMAINING` removed from harness |
+| VHA-12 | FINISHED — `fixtures.gd`, `helpers.gd`; game-rule copies removed; suites use `LocalSave.run_is_continuable`, `CastleRun.should_persist_player_state`, `DungeonSeedService.parse_run_seed` |
+| VHA-13 | FINISHED — `CombatFixture.teardown()` frees arena nodes; combat pipeline uses fixture lifecycle |
+| VHA-14 | FINISHED — `get_suite_name()` used in suite results; `validation_main.gd` loads `mcp_validation.tscn` |
+| VHA-15 | FINISHED — `ValidationSuite.check_*` forwarders with implicit category |
+| VHA-16 | FINISHED — script and scene entry points both instantiate the same `validation_runner.gd` node |
+| VHA-17 | FINISHED — report `flush()`/`close()`; `runner.report_write_failed` on open failure |
+| VHA-18 | FINISHED — reachability metric in report and `harness.reachability.reports_untested_scripts` |
+| VHA-19 | FINISHED — `harness_suite.gd` registration parity; `docs_suite.gd`; `MIN_ASSERTIONS` coverage gates |
 
 ## Target design
 
@@ -200,24 +224,24 @@ No save-format change, so **no `save_migrator.gd` version bump**. No `content/sc
 
 ## Acceptance criteria
 
-- [ ] A suite that awaits a signal that never fires is abandoned after 120 seconds; the report is written and the process exits.
-- [ ] A suite whose `run()` raises a script error does not prevent the report from being written or the process from exiting.
-- [ ] The total run cannot exceed 900 seconds; exceeding it writes a partial report and exits 2.
-- [ ] Exit code is 0 on all-pass, 1 on assertion failure, 2 on harness fault.
-- [ ] Every failing test prints `FAIL <id> [<category>] <message>` to stdout.
-- [ ] A `check_eq` failure message contains both the expected and the actual value.
-- [ ] `--report=artifacts/mcp_validation.json` writes there, and CI uploads it with no copy step from the user data directory.
-- [ ] `mcp_validation.xml` is valid JUnit and GitHub annotates the pull request with failing tests.
-- [ ] `-- --suite=combat` runs only `combat_suite.gd`.
-- [ ] `-- --test=combat.parry` runs only tests whose id starts with that prefix.
-- [ ] `-- --shuffle --seed=7` reproduces the same order twice, and the full run passes under three different seeds.
-- [ ] `-- --repeat=3` reports any test whose result varies across runs as flaky.
-- [ ] A suite that leaves a node under `/root` produces a `suite.leaked_node_*` failure.
-- [ ] `skip()` produces a `skip` status and does not affect the exit code.
-- [ ] Two suites registering the same test id produce a `runner.duplicate_id` failure.
-- [ ] `test_context.gd` contains no game-logic reimplementation; `eval_continuable`, `player_snapshot_allowed`, and `parse_castle_seed` are gone.
-- [ ] Every `checklist_ref` in the report resolves to a heading in `docs/validation/manual-checklist.md`.
-- [ ] The scene entry point and the script entry point produce byte-identical reports apart from timestamps.
+- [x] A suite that awaits a signal that never fires is abandoned after 120 seconds; the report is written and the process exits.
+- [x] A suite whose `run()` raises a script error does not prevent the report from being written or the process from exiting.
+- [x] The total run cannot exceed 900 seconds; exceeding it writes a partial report and exits 2.
+- [x] Exit code is 0 on all-pass, 1 on assertion failure, 2 on harness fault.
+- [x] Every failing test prints `FAIL <id> [<category>] <message>` to stdout.
+- [x] A `check_eq` failure message contains both the expected and the actual value.
+- [x] `--report=artifacts/mcp_validation.json` writes there, and CI uploads it with no copy step from the user data directory.
+- [x] `mcp_validation.xml` is valid JUnit and GitHub annotates the pull request with failing tests.
+- [x] `-- --suite=combat` runs only `combat_suite.gd`.
+- [x] `-- --test=combat.parry` runs only tests whose id starts with that prefix.
+- [x] `-- --shuffle --seed=7` reproduces the same order twice, and the full run passes under three different seeds.
+- [x] `-- --repeat=3` reports any test whose result varies across runs as flaky.
+- [x] A suite that leaves a node under `/root` produces a `suite.leaked_node_*` failure.
+- [x] `skip()` produces a `skip` status and does not affect the exit code.
+- [x] Two suites registering the same test id produce a `runner.duplicate_id` failure.
+- [x] `test_context.gd` contains no game-logic reimplementation; `eval_continuable`, `player_snapshot_allowed`, and `parse_castle_seed` are gone.
+- [x] Every `checklist_ref` in the report resolves to a heading in `docs/validation/manual-checklist.md`.
+- [x] The scene entry point and the script entry point produce byte-identical reports apart from timestamps.
 
 ## Validation
 

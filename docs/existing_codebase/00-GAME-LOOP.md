@@ -69,7 +69,7 @@ flowchart TD
 | **Gate** | `loading_screen.gd` → `LocalSave.execute_boot()` → `hub.tscn` |
 | **Failure** | Returns to main menu |
 | **Hub guard** | `hub.gd` `_boot_save_and_services()` — empty `class_id` → main menu |
-| **Audio** | `AudioDirector.play_hub_ambience()` — generator tones (PLACEHOLDER / clobbers OGG) |
+| **Audio** | `AudioDirector` — file-backed combat SFX + biome layer stems; generators are fallback-only |
 | **Cloud** | `await LocalSave.sync_from_cloud()` — soft-fails without auth |
 | **Status** | Works offline. Cloud is optional/noisy. |
 
@@ -127,7 +127,7 @@ flowchart TD
 |------|----------|--------|
 | Victory pick | `waves_run_ui` → `complete_waves_run` → results with `waves_complete` | Loop OK |
 | Failure | `on_waves_failed` → results with `waves_failed` | Loop OK |
-| Results UI | `results_screen.gd` does **not** branch on waves outcomes | **BROKEN presentation** — failure can read as success |
+| Results UI | `results_screen.gd` branches on castle + waves outcomes | Honest titles and hub messages per outcome |
 
 ### 10. Results → hub → meta
 
@@ -136,7 +136,7 @@ flowchart TD
 | Enter | `results_screen.gd` → `RunFlow.return_to_hub(message)` | OK scene change |
 | Message text | Death vs “Run complete!” only | **Wrong for waves_failed** |
 | Persist | `LocalSave.autosave` already on run end | OK |
-| Quests | `QuestService` on `run_ended` | **BROKEN** escape-on-any-end; fetch never registers |
+| Quests | `QuestService` via `register_run_outcome` / `register_fetch` | Escape on real outcomes; fetch on pickup |
 | Achievements | Local catalog + toast | OK; Steam stub |
 | Leaderboard / cloud finalize | `_cloud_finalize_run` | Soft-fail without backend/auth |
 
@@ -144,21 +144,14 @@ flowchart TD
 
 ## Broken / missing links (checklist)
 
-Use this as the acceptance gate for “the loop is closed.”
+Remaining gaps for “the loop is closed” (honesty/feedback items from addiction-and-fun are implemented — see [`../actual_improvements/00-ADDICTION-AND-FUN.md`](../actual_improvements/00-ADDICTION-AND-FUN.md)).
 
 | # | Link | Severity | Fix locus |
 |---|------|----------|-----------|
-| 1 | Waves results ignore `waves_complete` / `waves_failed` | P0 UX | `results_screen.gd` |
-| 2 | Escape quest completes on death / any `run_ended` | P0 meta lie | `quest_service.gd` `_on_run_ended` / `_check_escape_quests` |
-| 3 | `register_fetch` never called → `fetch_scrap` impossible | P0 meta | Inventory/loot pickup → `QuestService.register_fetch` |
-| 4 | Boss placement ID ≠ `get_enemy_id()` (crystal/swamp) | P0 balance/tracking | Boss scripts or spawn resolver |
-| 5 | Affix rolls ignore rarity tier tables | P0 loot rarity honesty | `affix_roller.gd` |
-| 6 | Audio OGG loaded then replaced by generators | P0 feel | `audio_director.gd` stop clobbering file streams |
-| 7 | Skies / Cathedral portals | P1 content hole | Ship biome or remove interactables entirely |
-| 8 | Floor 10 always uses the Forgotten Sovereign layout | P1 finale biome hardcode | `dungeon_procgen` final floor |
-| 9 | Heal/hit feedback on wrong mesh / stagger-as-heal | P1 combat feel | `player_anim_director`, `player_combat_reactions` |
-| 10 | Online procgen / Steam / cloud | P2 platform | Flags + real SDK — not required for local loop |
-| 11 | Onboarding beyond tip toast | P1 onboarding gap | Guided first run / arena → first castle |
+| 1 | Skies / Cathedral portals | P1 content hole | Ship biome or remove interactables entirely |
+| 2 | Online procgen / Steam / cloud | P2 platform | Flags + real SDK — not required for local loop |
+| 3 | Onboarding beyond tip toast | P1 onboarding gap | Guided first run / arena → first castle |
+| 4 | Unmapped enemy profiles still box fallback | P1 art | Extend voxel manifests beyond core archetypes |
 
 ---
 
@@ -168,7 +161,7 @@ Use this as the acceptance gate for “the loop is closed.”
 |------|-------|-----|------|---------|
 | Castle tier | `castle_run` | Final boss + exit portal | Death (or bonfire retry) | XP / loot rules / tier unlock |
 | Endless | `castle_run` | Survive / deepen floors | Death | XP; no escape portal |
-| Waves | `waves_run` | Wave clear + reward pick | Player death | Outcome keys (UI broken) |
+| Waves | `waves_run` | Wave clear + reward pick | Player death | Outcome keys + honest results UI |
 | Arena | `combat_arena` | Leave when done | N/A | No run economy |
 
 ---
@@ -185,7 +178,7 @@ The current loop exposes these state transitions:
 
 The documented gaps above remain: hit audio uses generated tones, chest loot does not consistently use rolled rarity, quest completion can be inaccurate, waves results do not branch by outcome, and floor 10 is hardcoded to the Forgotten Sovereign layout.
 
-Across every stage the player sees **placeholder character art** — every body is a runtime box assembly, not authored pixels. That is out of scope for the loop wiring itself but dominates the feel of every combat and hub beat; see [`character-authoring.md`](character-authoring.md).
+Across combat and hub beats, the player sees **voxel-authored silhouettes** for the player warden and core enemy archetypes, with box fallback for unmapped ids. See [`character-authoring.md`](character-authoring.md).
 
 ---
 

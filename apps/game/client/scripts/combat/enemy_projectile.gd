@@ -38,7 +38,9 @@ func _physics_process(delta: float) -> void:
 	if motion.length_squared() > 0.0:
 		var space := get_world_3d().direct_space_state
 		if space:
-			var params := PhysicsRayQueryParameters3D.create(global_position, global_position + motion)
+			var params := PhysicsRayQueryParameters3D.create(
+				global_position, global_position + motion
+			)
 			params.collision_mask = 1
 			params.collide_with_areas = false
 			params.collide_with_bodies = true

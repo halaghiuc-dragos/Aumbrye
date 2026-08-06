@@ -1,23 +1,25 @@
 # Local save — improvement plan
 
+## Status: FINISHED
+
 ## Current state
-`LocalSave` (`apps/game/client/scripts/save/local_save.gd`, 855 lines) persists a per-character JSON document, a roster index, five rotating backups, and optional cloud push/pull. See [`../existing_codebase/local-save.md`](../existing_codebase/local-save.md). The legacy single-file path is hardened — quarantine, backup walk, reset to defaults — but the path players actually use is not: `_write_save` returns before the backup rotation whenever `_active_character_id` is set, so **no per-character save has ever had a backup written**, and `load_character` returns `false` on corruption without quarantining, restoring, or emitting `save_failed`. `itemInstances` is a permanently empty passthrough that the schema and the backend both treat as real, while affix data actually lives on inventory slots.
+`LocalSave` (`apps/game/client/scripts/save/local_save.gd`) persists per-character JSON with unified `_load_document` / `_write_save` paths, per-character rotating backups, atomic temp-and-rename writes, `SaveValidator` deep validation, derived `itemInstances`, pre-migration snapshots (via `SaveMigrator`), deferred autosave coalescing, and `SaveMigrator.CURRENT_VERSION` (6) through `SAVE_SCHEMA_VERSION`. See [`../existing_codebase/local-save.md`](../existing_codebase/local-save.md).
 
 ## Gaps
-| ID | Sev | Gap | Evidence |
-|----|-----|-----|----------|
-| SAV-01 | P0 | Per-character saves get no backups: `_write_save` returns at line 693 before the rotation block at 694-695, and `_rotate_backups` only ever copies `SAVE_PATH` | `local_save.gd:684-700`, `local_save.gd:740-748` |
-| SAV-02 | P0 | `load_character` silently returns `false` on empty, unparseable, unmigratable, or invalid data — no quarantine, no backup restore, no `save_failed` — so a corrupt character file looks like "slot missing" | `local_save.gd:242-264` vs `local_save.gd:23-44` |
-| SAV-03 | P0 | The `_ready` warm load assigns `_cached_state` from raw JSON without `SaveMigrator.migrate` or `_validate_save`; every getter called before `execute_boot()` reads unmigrated data | `local_save.gd:59-73` |
-| SAV-04 | P0 | `itemInstances` is dead: preserved on every write but never populated by any client path, while `content/schemas/character-state.v1.json` requires it and the backend writes it | `local_save.gd:581`, `local_save.gd:636`, `content/schemas/character-state.v1.json:14`, `services/backend/src/Aumbrye.Application/Services/CharacterStateService.cs:158-160` |
-| SAV-05 | P1 | A cloud conflict on a roster character backs up nothing, because `_backup_local_save` copies only `SAVE_PATH` | `local_save.gd:666-669`, called from `local_save.gd:479` and `local_save.gd:498` |
-| SAV-06 | P1 | `_validate_save` checks three fields; a save missing `character`, `talents`, or `flags`, or with a non-Dictionary `inventory.equipped`, passes and then corrupts services on apply | `local_save.gd:616-625` |
-| SAV-07 | P1 | Every floor transition writes the full payload, including a deep copy of `dungeonDefinition`, because `set_active_run` calls `autosave()` | `local_save.gd:354-356`, `run_flow.gd:590-607` |
-| SAV-08 | P1 | The runtime save cannot validate against `content/schemas/character-state.v1.json`: schema pins `schemaVersion` to `1` with `additionalProperties: false`, runtime writes `4` plus `talentPointsSpent`, `quests`, `wavesActiveRun`, `meta`, `cloudUpdatedAt` | `content/schemas/character-state.v1.json:7,20`, `local_save.gd:574-599` |
-| SAV-09 | P1 | `accountId` defaults to the nil UUID `00000000-0000-4000-8000-000000000000` and is never replaced by a real account id | `local_save.gd:576` |
-| SAV-10 | P2 | Character ids are `Time.get_ticks_usec() % 1000000000` with no roster collision check; two characters created in the same microsecond window overwrite one file | `local_save.gd:790-791` |
-| SAV-11 | P2 | `recipes` is persisted but nothing ever writes to it; blacksmith recipes are read only from `content/recipes/` | `local_save.gd:585`, `recipe_catalog.gd:32-48` |
-| SAV-12 | P2 | `_default_character()` reads `RunFlow.last_hub_message` into `character.lastHubMessage`, coupling the save layer to run presentation state | `local_save.gd:611` |
+| ID | Sev | Gap | Status |
+|----|-----|-----|--------|
+| SAV-01 | P0 | Per-character saves got no backups | **FINISHED** — `_active_save_path`, parameterized `_rotate_backups` |
+| SAV-02 | P0 | `load_character` silent corruption | **FINISHED** — `_load_document` + `_recover_from_corruption` |
+| SAV-03 | P0 | Warm load skipped migration | **FINISHED** — `_warm_load_path` migrates + validates |
+| SAV-04 | P0 | `itemInstances` dead passthrough | **FINISHED** — `_build_item_instances` + reconciliation on load |
+| SAV-05 | P1 | Cloud conflict backed up only legacy path | **FINISHED** — `_backup_local_save` per character, path in result |
+| SAV-06 | P1 | Shallow `_validate_save` | **FINISHED** — `SaveValidator.validate` |
+| SAV-07 | P1 | Floor transition full flush | **FINISHED** — `request_autosave`, `set_active_run(..., flush)` |
+| SAV-08 | P1 | Schema v1 mismatch | **FINISHED** — `character-state.v2.json`, fixture, validate.mjs mapping |
+| SAV-09 | P1 | Nil `accountId` | **FINISHED** — `_resolve_account_id()` |
+| SAV-10 | P2 | Character id collisions | **FINISHED** — collision-checked `_generate_character_id()` |
+| SAV-11 | P2 | Dead `recipes` array | **FINISHED** — `BlacksmithService.unlock_recipe` → `LocalSave.add_recipe` |
+| SAV-12 | P2 | `lastHubMessage` in save | **FINISHED** — removed from `_default_character()` |
 
 ## Target design
 
@@ -204,18 +206,18 @@ If [`run-flow.md`](run-flow.md) and [`world-state.md`](world-state.md) land in t
 **Failure and recovery behaviour.** A v5 save that fails `SaveValidator.validate` is quarantined to `<path>.corrupt_<timestamp>.json`, and `_recover_from_corruption` restores the newest passing backup for that character. If all five backups fail, the character slot is reported broken through `save_failed(reason)` — the reason string names the failing fields — and the roster entry is retained so the player can delete it deliberately instead of finding a silently missing slot. `_reset_to_defaults()` is reached only for the legacy no-character path. A missing content file behind a save (an `itemId` no longer in `ItemCatalog`) is not a save error: `GridInventory.can_place` already rejects unknown definitions, so the slot is dropped on repack and one `push_warning` names the id.
 
 ## Acceptance criteria
-- [ ] Saving as a roster character creates `user://backups/<characterId>_0.json`, and five consecutive saves produce indices 0-4 with 0 the newest. (SAV-01)
-- [ ] Truncating an active character file to `{` and booting `CONTINUE_CHARACTER` quarantines the file, restores backup 0, and emits `save_failed` then `backup_restored(0)`. (SAV-02)
-- [ ] A v1 character file on disk is migrated before any `LocalSave` getter returns data, verified by `get_level()` reading the migrated value at `_ready`. (SAV-03)
-- [ ] Saving with one affixed weapon equipped and one in the grid produces two `itemInstances` entries whose `affixes` match the slots; deleting `affixes` from a slot and reloading recovers them from `itemInstances`. (SAV-04)
-- [ ] A cloud conflict as a roster character writes `user://backups/<characterId>.conflict_<timestamp>.json` and returns its path in the result. (SAV-05)
-- [ ] `SaveValidator.validate` rejects a save missing `character`, one with `inventory.equipped` as an Array, and one with a negative `character.level`, naming each failing field. (SAV-06)
-- [ ] Ten `request_autosave()` calls within two seconds produce exactly one file write. (SAV-07)
-- [ ] `npm run validate` in `scripts/validate-content` passes for `content/fixtures/character_state_sample.v2.json` generated from a real save. (SAV-08)
-- [ ] A save created with no API session has a non-nil `accountId` that is stable across restarts. (SAV-09)
-- [ ] Creating two characters in a loop with no frame gap produces two distinct files. (SAV-10)
-- [ ] Unlocking `guard_spear` at the blacksmith adds its recipe id to `recipes` and the id survives a save/load cycle. (SAV-11)
-- [ ] No save written by the new build contains `character.lastHubMessage`. (SAV-12)
+- [x] Saving as a roster character creates `user://backups/<characterId>_0.json`, and five consecutive saves produce indices 0-4 with 0 the newest. (SAV-01)
+- [x] Truncating an active character file to `{` and booting `CONTINUE_CHARACTER` quarantines the file, restores backup 0, and emits `save_failed` then `backup_restored(0)`. (SAV-02)
+- [x] A v1 character file on disk is migrated before any `LocalSave` getter returns data, verified by `get_level()` reading the migrated value at `_ready`. (SAV-03)
+- [x] Saving with one affixed weapon equipped and one in the grid produces two `itemInstances` entries whose `affixes` match the slots; deleting `affixes` from a slot and reloading recovers them from `itemInstances`. (SAV-04)
+- [x] A cloud conflict as a roster character writes `user://backups/<characterId>.conflict_<timestamp>.json` and returns its path in the result. (SAV-05)
+- [x] `SaveValidator.validate` rejects a save missing `character`, one with `inventory.equipped` as an Array, and one with a negative `character.level`, naming each failing field. (SAV-06)
+- [x] Ten `request_autosave()` calls within two seconds produce exactly one file write. (SAV-07)
+- [x] `npm run validate` in `scripts/validate-content` passes for `content/fixtures/character_state_sample.v2.json` generated from a real save. (SAV-08)
+- [x] A save created with no API session has a non-nil `accountId` that is stable across restarts. (SAV-09)
+- [x] Creating two characters in a loop with no frame gap produces two distinct files. (SAV-10)
+- [x] Unlocking `guard_spear` at the blacksmith adds its recipe id to `recipes` and the id survives a save/load cycle. (SAV-11)
+- [x] No save written by the new build contains `character.lastHubMessage`. (SAV-12)
 
 ## Validation
 Extend `apps/game/client/scripts/validation/suites/save_suite.gd`:

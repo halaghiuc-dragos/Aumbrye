@@ -9,7 +9,9 @@ func get_category() -> String:
 
 func run() -> void:
 	await _test_training_arena()
-	_test_arena_reset_api()
+	await _test_arena_reset_api()
+	await _test_training_death_reset()
+	await _test_global_player_controls()
 
 
 func _test_training_arena() -> void:
@@ -76,31 +78,90 @@ func _test_training_arena() -> void:
 
 
 func _test_arena_reset_api() -> void:
+	var arena: Node3D = load("res://scenes/debug/combat_arena.tscn").instantiate() as Node3D
+	ctx.owner.add_child(arena)
+	await ctx.await_physics(2)
+	var player := arena.get_node_or_null("Player") as CharacterBody3D
+	var overlay := arena.get_node_or_null("DebugOverlay")
+	var dummy := arena.get_node_or_null("TrainingDummies/TrainingGruntA") as CharacterBody3D
+	if player and dummy:
+		var player_health := player.get_node_or_null("Health") as Health
+		var dummy_health := dummy.get_node_or_null("Health") as Health
+		if player_health:
+			player_health.take_damage(25.0)
+		if dummy_health:
+			dummy_health.take_damage(20.0)
+		player.global_position = Vector3(2.0, 0.0, 2.0)
+	if overlay and overlay.has_method("reset_duel"):
+		overlay.call("reset_duel")
+	await ctx.await_physics(2)
 	var start := Time.get_ticks_msec()
+	var reset_ok := false
+	if player and dummy:
+		var player_health := player.get_node_or_null("Health") as Health
+		var dummy_health := dummy.get_node_or_null("Health") as Health
+		reset_ok = (
+			player_health != null
+			and dummy_health != null
+			and player_health.current == player_health.max_health
+			and dummy_health.current == dummy_health.max_health
+			and player.global_position.distance_to(Vector3(-0.02, 0.0, 9.5)) < 0.25
+		)
 	ctx.timed_record(
 		"arena.reset_duel_api",
 		get_category(),
-		ctx.file_contains("res://scripts/debug/debug_overlay.gd", "func reset_duel"),
-		"debug overlay exposes reset_duel() for arena",
+		reset_ok,
+		"reset_duel restores player and dummy health and position",
 		start,
 		"M1.arena.reset"
 	)
-	start = Time.get_ticks_msec()
+	arena.queue_free()
+
+
+func _test_training_death_reset() -> void:
+	var arena: Node3D = load("res://scenes/debug/combat_arena.tscn").instantiate() as Node3D
+	ctx.owner.add_child(arena)
+	await ctx.await_physics(2)
+	var player := arena.get_node_or_null("Player") as CharacterBody3D
+	var start := Time.get_ticks_msec()
+	var restored := false
+	if player:
+		var health := player.get_node_or_null("Health") as Health
+		if health:
+			health.take_damage(health.max_health + 10.0)
+			for _i in 40:
+				await ctx.await_physics()
+				if not health.is_dead():
+					restored = true
+					break
 	ctx.timed_record(
 		"arena.training_death_reset",
 		get_category(),
-		ctx.file_contains("res://scripts/debug/combat_arena.gd", "func reset_training_player")
-		and ctx.file_contains("res://scripts/debug/combat_arena.gd", "_on_training_player_died"),
-		"training arena restores player on death without run penalties",
+		restored,
+		"training arena restores player after death without run penalties",
 		start,
 		"M1.arena.death_reset"
 	)
-	start = Time.get_ticks_msec()
+	arena.queue_free()
+
+
+func _test_global_player_controls() -> void:
+	var start := Time.get_ticks_msec()
+	var has_autoload := ProjectSettings.has_setting("autoload/PlayerControls")
+	var sync_ok := false
+	if has_autoload and PlayerControls:
+		var arena: Node3D = load("res://scenes/debug/combat_arena.tscn").instantiate() as Node3D
+		ctx.owner.add_child(arena)
+		await ctx.await_physics(2)
+		PlayerControls.sync_player_loadout()
+		await ctx.await_frame()
+		var player := arena.get_node_or_null("Player")
+		sync_ok = player != null and player.get_node_or_null("WeaponController") != null
+		arena.queue_free()
 	ctx.timed_record(
 		"arena.global_player_controls",
 		get_category(),
-		ProjectSettings.has_setting("autoload/PlayerControls")
-		and ctx.file_contains("res://scripts/app/player_controls.gd", "func sync_player_loadout"),
+		has_autoload and sync_ok,
 		"training arena uses global player controls autoload",
 		start,
 		"M1.arena.controls"

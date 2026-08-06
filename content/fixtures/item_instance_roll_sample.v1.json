@@ -1,0 +1,11 @@
+{
+  "instanceId": "iron_sword_424242",
+  "itemId": "iron_sword",
+  "quantity": 1,
+  "rarity": "legendary",
+  "affixes": [
+    { "affixId": "sharp", "value": 24 },
+    { "affixId": "of_flames", "value": 25 }
+  ],
+  "rollSeed": 424242
+}

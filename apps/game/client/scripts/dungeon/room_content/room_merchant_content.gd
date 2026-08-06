@@ -23,7 +23,7 @@ func configure(_entry: Dictionary, _definition: Dictionary) -> void:
 	stall.add_child(interact)
 	interact.body_entered.connect(_on_body_entered)
 	interact.body_exited.connect(_on_body_exited)
-	stall.position = Vector3(-1.5, 0.0, 0.0)
+	stall.position = _anchor(0).position
 	DioramaSkin.build_portal(stall, DioramaSkin.resolve_biome(self))
 	_content_root().add_child(stall)
 

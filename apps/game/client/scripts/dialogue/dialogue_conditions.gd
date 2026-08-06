@@ -52,4 +52,5 @@ static func evaluate(condition: Variant) -> bool:
 	if condition.has("minDeaths"):
 		return int(CharacterService.get_flag("deaths", 0)) >= int(condition.get("minDeaths", 0))
 
-	return true
+	push_warning("DialogueConditions: unrecognized condition keys: %s" % str(condition.keys()))
+	return false

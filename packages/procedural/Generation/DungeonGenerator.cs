@@ -39,12 +39,12 @@ public static class DungeonGenerator
         if (isFinalFloor)
             return FinalFloorGenerator.Generate(biome, seed, tier, playerLevel, runId, floorIndex);
 
-        var effectiveSeed = floorIndex <= 1 ? seed : unchecked(seed + floorIndex * 7919);
+        var effectiveSeed = DungeonSeedDeriver.MixFloorSeed(seed, floorIndex);
         var layoutRules = new BiomeLayoutRules(
             biome.Id,
             biome.RoomCountMin,
             biome.RoomCountMax,
-            biome.GridStep);
+            14);
 
         Exception? lastError = null;
         for (var attempt = 0; attempt < options.MaxAttempts; attempt++)
@@ -119,23 +119,12 @@ public static class DungeonGenerator
             Budgets: new DungeonBudgets(threatUsed, lootValue),
             FloorIndex: floorIndex,
             IsFinalFloor: isFinalFloor,
-            RoomContent: Array.Empty<object>(),
-            Locks: Array.Empty<object>(),
-            Puzzles: Array.Empty<object>());
+            RoomContent: Array.Empty<RoomContentEntry>(),
+            Locks: Array.Empty<DungeonLock>(),
+            Puzzles: Array.Empty<DungeonPuzzle>());
 
-        var json = CanonicalJsonSerializer.Serialize(definition);
-        return new GenerationResult(definition with { Checksum = ExtractChecksum(json) }, json);
-    }
-
-    private static string? ExtractChecksum(string json)
-    {
-        const string marker = "\"checksum\":\"";
-        var idx = json.IndexOf(marker, StringComparison.Ordinal);
-        if (idx < 0)
-            return null;
-        var start = idx + marker.Length;
-        var end = json.IndexOf('"', start);
-        return end > start ? json[start..end] : null;
+        var (json, checksum) = CanonicalJsonSerializer.Serialize(definition);
+        return new GenerationResult(definition with { Checksum = checksum }, json);
     }
 
     private static DungeonPlacements AssignLootInstanceIds(DungeonPlacements placements, Guid runId)
@@ -165,6 +154,10 @@ public static class DungeonGenerator
 
 internal static class GuidExtensions
 {
+    [System.Diagnostics.CodeAnalysis.SuppressMessage(
+        "Security",
+        "CA5350:Do Not Use Weak Cryptographic Algorithms",
+        Justification = "RFC 4122 UUID v5 name hashing requires SHA-1.")]
     public static Guid CreateVersion5(Guid namespaceId, byte[] name)
     {
         var namespaceBytes = namespaceId.ToByteArray();
@@ -172,7 +165,9 @@ internal static class GuidExtensions
         var data = new byte[namespaceBytes.Length + name.Length];
         Buffer.BlockCopy(namespaceBytes, 0, data, 0, namespaceBytes.Length);
         Buffer.BlockCopy(name, 0, data, namespaceBytes.Length, name.Length);
+#pragma warning disable CA5350 // SHA-1 required for UUID v5 (RFC 4122)
         var hash = System.Security.Cryptography.SHA1.HashData(data);
+#pragma warning restore CA5350
         var newGuid = new byte[16];
         Array.Copy(hash, 0, newGuid, 0, 16);
         newGuid[6] = (byte)((newGuid[6] & 0x0F) | 0x50);

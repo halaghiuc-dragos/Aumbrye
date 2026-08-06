@@ -35,7 +35,7 @@ func add_relic(relic_id: String) -> bool:
 	if current_stacks >= max_stacks:
 		return false
 	if current_stacks == 0:
-		_active.append({ "relicId": relic_id, "stacks": 1 })
+		_active.append({"relicId": relic_id, "stacks": 1})
 	else:
 		for entry in _active:
 			if entry.get("relicId", "") == relic_id:

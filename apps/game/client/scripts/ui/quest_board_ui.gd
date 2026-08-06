@@ -6,6 +6,7 @@ signal closed
 
 @onready var _available_list: ItemList = $Panel/Margin/VBox/AvailableList
 @onready var _active_list: ItemList = $Panel/Margin/VBox/ActiveList
+@onready var _completed_list: ItemList = $Panel/Margin/VBox/CompletedList
 @onready var _detail_label: Label = $Panel/Margin/VBox/DetailLabel
 @onready var _accept_button: Button = $Panel/Margin/VBox/Buttons/AcceptButton
 @onready var _close_button: Button = $Panel/Margin/VBox/Buttons/CloseButton
@@ -21,6 +22,8 @@ func _ready() -> void:
 	_close_button.pressed.connect(close)
 	_available_list.item_selected.connect(_on_available_selected)
 	QuestService.quest_updated.connect(func(_id: String, _s: String) -> void: _refresh())
+	if CharacterService:
+		CharacterService.quests_changed.connect(_refresh)
 
 
 func is_open() -> bool:
@@ -63,8 +66,14 @@ func _refresh() -> void:
 		var progress: Dictionary = CharacterService.get_quest_progress(quest_id)
 		var detail: String = str(quest.get("description", ""))
 		if quest.get("type", "") == "kill":
-			detail += " (%d/%d)" % [int(progress.get("count", 0)), int(quest.get("requiredCount", 1))]
+			detail += (
+				" (%d/%d)" % [int(progress.get("count", 0)), int(quest.get("requiredCount", 1))]
+			)
 		_active_list.add_item("%s — %s" % [quest.get("title", quest_id), detail])
+	_completed_list.clear()
+	for quest in QuestService.get_completed_quests():
+		var completed_id: String = quest.get("id", "")
+		_completed_list.add_item("%s — completed" % quest.get("title", completed_id))
 
 
 func _on_available_selected(index: int) -> void:

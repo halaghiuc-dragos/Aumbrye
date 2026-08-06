@@ -3,7 +3,7 @@ extends CastleEnemyBase
 ## Swamp bogling — basic melee mire creature (THEME-5.3).
 
 
-func get_enemy_id() -> String:
+func _resolve_enemy_id() -> String:
 	return "swamp_bogling"
 
 

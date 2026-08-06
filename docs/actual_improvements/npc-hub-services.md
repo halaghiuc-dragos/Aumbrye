@@ -4,24 +4,24 @@
 The four hub services and three catalogs are wired end to end and load real content. See [`../existing_codebase/npc-hub-services.md`](../existing_codebase/npc-hub-services.md). What they do with that content is the problem. Upgrading an item costs gold and changes nothing but a `"+N"` label, because no stat path reads `upgradeLevel` and no code reads the `statBonus` in the recipe files. Repair is unreachable, because nothing in the game ever reduces `durability`. The two `unlock` recipes are inert, because `RecipeCatalog` only ever queries `upgrade` and `repair`, and the flags they name are the same two flags `loadout_ui.gd` checks and nothing writes. Merchant stock resets every time the UI opens, is keyed by item id across all merchants, and is never saved. Selling a stack of ten potions pays for one. Moving an item to storage silently strips its rarity, affixes, upgrade level, and durability.
 
 ## Gaps
-| ID | Sev | Gap | Evidence |
-|----|-----|-----|----------|
-| NPC-01 | P0 | Item upgrades have no mechanical effect; `upgradeLevel` is written and displayed but no stat path reads it, and recipe `statBonus` is never read | `blacksmith_service.gd:70`; grep of `apps/` shows `upgradeLevel` read only in `blacksmith_service.gd`, `blacksmith_ui.gd`, `inventory_ui.gd:364`; `statBonus` appears only in `content/recipes/*.json` |
-| NPC-02 | P0 | Selling a stack pays for one unit: `get_sell_price` returns a per-unit price and `remove_at` deletes the whole slot with its `quantity` | `merchant_service.gd:69-71`, `grid_inventory.gd:169-175` |
-| NPC-03 | P0 | Storage transfers discard everything except `itemId` and `quantity`, so putting a rolled legendary in storage returns a base-rarity item | `storage_service.gd:32-37`, `storage_service.gd:44-49` vs `grid_inventory.gd:97` |
-| NPC-04 | P0 | Merchant stock limits do not work: `merchant_ui.open()` clears `_purchased` every time the UI opens | `merchant_ui.gd:41`, `merchant_service.gd:9-10` |
-| NPC-05 | P0 | Repair is unreachable: nothing decrements `durability`, and a slot without the key reports full durability, so `can_repair` is always false | Only `durability` writes in `apps/` are `blacksmith_service.gd:138`; `blacksmith_service.gd:15-18`, `blacksmith_service.gd:87-88` |
-| NPC-06 | P1 | `type: "unlock"` recipes are never queried; `requiredLevel` and `unlockFlag` are dead keys, and the flags they name are exactly the two `loadout_ui` checks that nothing sets | `recipe_catalog.gd:15`, `recipe_catalog.gd:27`; `content/recipes/unlock_guard_spear.json`, `unlock_hunter_bow.json`; `loadout_ui.gd:80-82` |
-| NPC-07 | P1 | `_purchased` is keyed by item id with no merchant scope, so buying from the dungeon merchant consumes hub merchant stock | `merchant_service.gd:31`, `merchant_service.gd:54` |
-| NPC-08 | P1 | Merchant stock is not persisted at all, so quitting and reloading restores every limited item | `_purchased` is a `static var` (`merchant_service.gd:6`); no merchant key in `local_save.gd` |
-| NPC-09 | P1 | Sell price ignores the slot's rarity, affixes, and upgrade level, so an upgraded legendary sells for the base item value | `merchant_service.gd:20-21` |
-| NPC-10 | P1 | Aldric's and Elara's dialogue files are named by their NPC definitions but unreachable, because the `blacksmith` and `merchant` branches never emit `dialogue_requested` | `npc_base.gd:53-56`; `content/npcs/blacksmith_aldric.json:5`, `merchant_elara.json:5`; `content/dialogue/aldric_greeting.json`, `elara_greeting.json` |
-| NPC-11 | P2 | `buy_item` grants the item before debiting gold, so a failed debit leaves a free item | `merchant_service.gd:50-53` |
-| NPC-12 | P2 | Storage transfers return a bare `false` with no reason, so the UI cannot say "storage full" | `storage_service.gd:35`, `storage_service.gd:47` |
-| NPC-13 | P2 | NPC `position` is present in all three content files and read by nothing; positions are hardcoded in the diorama | `content/npcs/*.json`, `hub_diorama.gd:699-722` |
-| NPC-14 | P2 | Every storage grid change writes the full save document, including intermediate states of one drag | `storage_service.gd:14-16` |
-| NPC-15 | P2 | All three catalogs treat "non-empty" as "loaded", so an empty directory re-walks on every call and there is no reload hook for tooling | `npc_catalog.gd:25-26`, `merchant_catalog.gd:18-19`, `recipe_catalog.gd:33-34` |
-| NPC-16 | P2 | `save.recipes` is persisted and initialised but never populated or read | `local_save.gd:585`, `local_save.gd:638` |
+| ID | Sev | Gap | Status | Evidence |
+|----|-----|-----|--------|----------|
+| NPC-01 | P0 | Item upgrades have no mechanical effect | **FINISHED** | `equipment.gd:78-118` `upgrade_multiplier` / `slot_stats`; `recipe_catalog.gd:upgrade_stat_bonus`; `hub_m4_suite.gd` `blacksmith.upgrade_changes_stats` |
+| NPC-02 | P0 | Selling a stack pays for one unit | **FINISHED** | `merchant_service.gd:99-121` `sell_item(inv_index, quantity)`; `hub_m4_suite.gd` `merchant.sell_pays_for_full_stack`, `merchant.sell_partial_stack` |
+| NPC-03 | P0 | Storage transfers discard rolled item data | **FINISHED** | `grid_inventory.gd:add_slot`; `storage_service.gd:36-60`; `hub_m4_suite.gd` `storage.transfer_preserves_instance` |
+| NPC-04 | P0 | Merchant stock resets every UI open | **FINISHED** | `merchant_ui.gd:46` no `reset_session`; save-backed `get_purchased`; `run_flow.gd` `restock_all`; `hub_m4_suite.gd` `merchant.stock_persists_across_ui_open`, `merchant.stock_restocks_on_run_end` |
+| NPC-05 | P0 | Repair unreachable — no durability loss | **FINISHED** | `inventory_service.gd:117-131` `apply_death_durability_loss`; `run_flow.gd:on_player_died`; `equipment.gd` zero-durability guard; `hub_m4_suite.gd` `blacksmith.repair_is_reachable_after_death` |
+| NPC-06 | P1 | `unlock` recipes never queried; loadout level gates dead | **FINISHED** | `recipe_catalog.gd:26-41`; `blacksmith_service.gd:79-130`; `loadout_ui.gd:79-80`; `hub_m4_suite.gd` `blacksmith.unlock_recipe_purchase`, `blacksmith.unlock_flag_grants_free_access` |
+| NPC-07 | P1 | `_purchased` keyed by item id only | **FINISHED** | `merchant_service.gd:41-43` per-merchant `get_purchased(merchant_id)`; `hub_m4_suite.gd` `merchant.stock_is_per_merchant` |
+| NPC-08 | P1 | Merchant stock not persisted | **FINISHED** | `local_save.gd:256-288` `merchants` section; `hub_m4_suite.gd` `merchant.stock_round_trips_through_save` |
+| NPC-09 | P1 | Sell price ignores rarity/affixes/upgrade | **FINISHED** | `merchant_service.gd:24-38` `get_slot_unit_sell_price`; `rarity_registry.gd:75-79`; `hub_m4_suite.gd` `merchant.sell_price_respects_rarity_and_upgrade` |
+| NPC-10 | P1 | Aldric/Elara dialogue unreachable | **FINISHED** | `npc_base.gd:51-72` greet-then-shop; `aldric_greeting.json` / `elara_greeting.json` `open_blacksmith` / `open_merchant`; `hub_m4_suite.gd` `npc.vendor_greets_then_shops` |
+| NPC-11 | P2 | `buy_item` grants before debiting gold | **FINISHED** | `merchant_service.gd:77-96` gold-first with refund; `hub_m4_suite.gd` `merchant.buy_refunds_on_inventory_full` |
+| NPC-12 | P2 | Storage transfers return bare `false` | **FINISHED** | `storage_service.gd:36-60` `{"ok","error"}`; `storage_ui.gd:86-103`; `hub_m4_suite.gd` `storage.transfer_reports_full` |
+| NPC-13 | P2 | NPC `position` never read | **FINISHED** | `hub_diorama.gd:821-836`; `content/npcs/*.json` corrected to scene transforms; `hub_m4_suite.gd` `npc.position_from_content` |
+| NPC-14 | P2 | Every storage change writes full save immediately | **FINISHED** | `storage_service.gd:14-16` `request_autosave(DEFERRED)` |
+| NPC-15 | P2 | Catalogs lack explicit loaded flag / reload | **FINISHED** | `npc_catalog.gd`, `merchant_catalog.gd`, `recipe_catalog.gd` `_loaded` / `reload()` / `is_loaded()`; `hub_m4_suite.gd` `npc.catalog_reload` |
+| NPC-16 | P2 | `save.recipes` never populated or read | **FINISHED** | `local_save.gd:238-252` `get_owned_recipes` / `add_owned_recipe`; `blacksmith_service.gd:unlock_item`; `hub_m4_suite.gd` `blacksmith.unlock_recipe_purchase` |
 
 ## Target design
 
@@ -265,22 +265,22 @@ for slot in _slots_of(copy):
 | `spend_gold` succeeds but `add_item` fails | Gold is refunded in the same call before any save is requested |
 
 ## Acceptance criteria
-- [ ] Upgrading `castle_sword` from +0 to +1 increases the player's damage stat by the recipe's `statBonus.damage`, and upgrading an item with no recipe increases its own stats by 6 percent per level. (NPC-01)
-- [ ] Selling a stack of ten `health_potion` pays ten times the unit price, and selling five leaves five in the slot. (NPC-02)
-- [ ] Moving a `legendary` sword with two affixes and `+3` to storage and back returns the identical slot, including `instanceId`. (NPC-03)
-- [ ] Buying the single `gold_ring`, closing the merchant UI, and reopening shows it out of stock; completing a run restocks it. (NPC-04)
-- [ ] Dying with equipped gear reduces its durability, the blacksmith offers a repair, and repairing restores full durability. (NPC-05)
-- [ ] The blacksmith lists `guard_spear` for 120 gold at level 5; buying it makes it equippable, and clearing the Forgotten Castle makes it equippable without paying. (NPC-06)
-- [ ] Buying a `health_potion` from the dungeon merchant does not change hub merchant stock. (NPC-07)
-- [ ] Merchant stock survives a quit and reload. (NPC-08)
-- [ ] An upgraded legendary sells for more than the same base item at `common` +0. (NPC-09)
-- [ ] Talking to Aldric plays `aldric_greeting` and the dialogue opens the blacksmith UI; the next interact in the same visit opens the shop directly. (NPC-10)
-- [ ] With a full inventory, buying returns `inventory full` and the player's gold is unchanged. (NPC-11)
-- [ ] Filling storage and attempting another transfer surfaces "storage full" in the UI. (NPC-12)
-- [ ] Editing `warden_mira.json`'s `position` moves her in game. (NPC-13)
-- [ ] Moving five items to storage produces one deferred save write. (NPC-14)
-- [ ] `NpcCatalog.reload()` picks up a newly added NPC file without a restart. (NPC-15)
-- [ ] `save.recipes` contains `unlock_guard_spear` after the purchase and is read back on load. (NPC-16)
+- [x] Upgrading `castle_sword` from +0 to +1 increases the player's damage stat by the recipe's `statBonus.damage`, and upgrading an item with no recipe increases its own stats by 6 percent per level. (NPC-01)
+- [x] Selling a stack of ten `health_potion` pays ten times the unit price, and selling five leaves five in the slot. (NPC-02)
+- [x] Moving a `legendary` sword with two affixes and `+3` to storage and back returns the identical slot, including `instanceId`. (NPC-03)
+- [x] Buying the single `gold_ring`, closing the merchant UI, and reopening shows it out of stock; completing a run restocks it. (NPC-04)
+- [x] Dying with equipped gear reduces its durability, the blacksmith offers a repair, and repairing restores full durability. (NPC-05)
+- [x] The blacksmith lists `guard_spear` for 120 gold at level 5; buying it makes it equippable, and clearing the Forgotten Castle makes it equippable without paying. (NPC-06)
+- [x] Buying a `health_potion` from the dungeon merchant does not change hub merchant stock. (NPC-07)
+- [x] Merchant stock survives a quit and reload. (NPC-08)
+- [x] An upgraded legendary sells for more than the same base item at `common` +0. (NPC-09)
+- [x] Talking to Aldric plays `aldric_greeting` and the dialogue opens the blacksmith UI; the next interact in the same visit opens the shop directly. (NPC-10)
+- [x] With a full inventory, buying returns `inventory full` and the player's gold is unchanged. (NPC-11)
+- [x] Filling storage and attempting another transfer surfaces "storage full" in the UI. (NPC-12)
+- [x] Editing `warden_mira.json`'s `position` moves her in game. (NPC-13)
+- [x] Moving five items to storage produces one deferred save write. (NPC-14)
+- [x] `NpcCatalog.reload()` picks up a newly added NPC file without a restart. (NPC-15)
+- [x] `save.recipes` contains `unlock_guard_spear` after the purchase and is read back on load. (NPC-16)
 
 ## Validation
 Extend `apps/game/client/scripts/validation/suites/hub_m4_suite.gd`:
@@ -328,3 +328,7 @@ Extend `apps/game/client/scripts/validation/suites/content_suite.gd`:
 ## Related
 - Existing state: [`../existing_codebase/npc-hub-services.md`](../existing_codebase/npc-hub-services.md)
 - [`hub.md`](hub.md), [`dialogue-quests.md`](dialogue-quests.md), [`inventory-service.md`](inventory-service.md), [`loot-and-equipment.md`](loot-and-equipment.md), [`character-service.md`](character-service.md), [`progression-service.md`](progression-service.md), [`local-save.md`](local-save.md), [`save-migrator.md`](save-migrator.md), [`content-catalog.md`](content-catalog.md), [`content-data.md`](content-data.md), [`run-flow.md`](run-flow.md), [`ui/hub_vendors.md`](ui/hub_vendors.md), [`ui/inventory_ui.md`](ui/inventory_ui.md)
+
+## Status: FINISHED
+
+All sixteen gaps (NPC-01 through NPC-16) are implemented and covered by `hub_m4_suite.gd` assertions. Save normalization for `merchants`, `recipes`, and default equipment `durability` lives in `save_migrator.gd:_normalize_merchants`, `_normalize_recipes`, and `_normalize_slot_entry` at `CURRENT_VERSION` 6.

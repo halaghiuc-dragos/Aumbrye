@@ -85,7 +85,7 @@ public static class AffixRoller
         return rng.NextInt(range.Min, range.Max + 1);
     }
 
-    private static IReadOnlyList<RolledAffix> PickAffixes(
+    private static List<RolledAffix> PickAffixes(
         string itemType,
         string rarity,
         int affixCount,

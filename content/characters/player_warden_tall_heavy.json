@@ -1,0 +1,83 @@
+{
+  "id": "player_warden_tall_heavy",
+  "grid": 0.04,
+  "profile": "biped",
+  "parts": {
+    "LegL": {
+      "mesh": "res://assets/characters/player_warden_tall_heavy/legl.mesh",
+      "joint": [
+        -3,
+        13,
+        0
+      ]
+    },
+    "LegR": {
+      "mesh": "res://assets/characters/player_warden_tall_heavy/legr.mesh",
+      "joint": [
+        3,
+        13,
+        0
+      ]
+    },
+    "Torso": {
+      "mesh": "res://assets/characters/player_warden_tall_heavy/torso.mesh",
+      "joint": [
+        0,
+        13,
+        0
+      ]
+    },
+    "Head": {
+      "mesh": "res://assets/characters/player_warden_tall_heavy/head.mesh",
+      "joint": [
+        0,
+        18,
+        0
+      ],
+      "parent": "Torso"
+    },
+    "ArmL": {
+      "mesh": "res://assets/characters/player_warden_tall_heavy/arml.mesh",
+      "joint": [
+        -8,
+        16,
+        0
+      ],
+      "parent": "Torso",
+      "mount": "ShieldMount",
+      "meshOffset": [
+        0,
+        -14,
+        0
+      ]
+    },
+    "ArmR": {
+      "mesh": "res://assets/characters/player_warden_tall_heavy/armr.mesh",
+      "joint": [
+        8,
+        16,
+        0
+      ],
+      "parent": "Torso",
+      "mount": "WeaponMount",
+      "meshOffset": [
+        0,
+        -14,
+        0
+      ]
+    }
+  },
+  "animationLibrary": "res://assets/animations/diorama/player_locomotion.res",
+  "slots": {
+    "head": "Head",
+    "chest": "Torso",
+    "hands": [
+      "ArmL",
+      "ArmR"
+    ],
+    "feet": [
+      "LegL",
+      "LegR"
+    ]
+  }
+}

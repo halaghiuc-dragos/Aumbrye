@@ -28,13 +28,21 @@ static func render_ascii(graph: RoomGraph) -> String:
 				conn_row += _connection_glyph(slot)
 		lines.append(row)
 		lines.append(conn_row)
-	lines.append("Start=%s Boss=%s Treasure=%s Stairs=%s Secrets=%s" % [
-		graph.start_id,
-		graph.boss_id,
-		graph.treasure_id,
-		graph.stairs_id,
-		",".join(graph.secret_ids),
-	])
+	(
+		lines
+		. append(
+			(
+				"Start=%s Boss=%s Treasure=%s Stairs=%s Secrets=%s"
+				% [
+					graph.start_id,
+					graph.boss_id,
+					graph.treasure_id,
+					graph.stairs_id,
+					",".join(graph.secret_ids),
+				]
+			)
+		)
+	)
 	return "\n".join(lines)
 
 

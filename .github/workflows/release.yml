@@ -8,21 +8,40 @@ on:
         required: true
         type: string
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   backend-image:
     name: API Docker image
     runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      packages: write
     steps:
       - uses: actions/checkout@v5
-      - name: Build API image
-        run: docker build -t aumbrye-api:${{ inputs.tag }} -f services/backend/Dockerfile services/backend
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: services/backend/Dockerfile
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/aumbrye-api:${{ inputs.tag }}
+            ghcr.io/${{ github.repository_owner }}/aumbrye-api:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
   web-build:
     name: Web static build
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: apps/web
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
@@ -31,21 +50,32 @@ jobs:
           cache: npm
           cache-dependency-path: apps/web/package-lock.json
       - run: npm ci
+        working-directory: apps/web
       - run: npm run build
+        working-directory: apps/web
+        env:
+          VITE_API_URL: ${{ vars.WEB_API_URL }}
       - uses: actions/upload-artifact@v4
         with:
           name: web-dist-${{ inputs.tag }}
           path: apps/web/dist
+      - name: Deploy web (optional)
+        if: vars.DEPLOY_WEB == 'true'
+        run: echo "DEPLOY_WEB is set; wire host deploy step here."
 
   godot-export:
     name: Godot Windows export
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v5
+      - name: Read Godot version
+        id: godot_version
+        run: echo "value=$(cat apps/game/client/.godot-version)" >> $GITHUB_OUTPUT
       - name: Setup Godot with export templates
         uses: chickensoft-games/setup-godot@v1
         with:
-          version: 4.4.0
+          version: ${{ steps.godot_version.outputs.value }}
           include-templates: true
       - name: Export Windows Desktop
         working-directory: apps/game/client
@@ -61,5 +91,11 @@ jobs:
     name: Release summary
     needs: [backend-image, web-build, godot-export]
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
-      - run: echo "Release artifacts prepared for tag ${{ inputs.tag }}. Steam upload requires manual confirm (CI-7.1)."
+      - run: |
+          echo "Release tag: ${{ inputs.tag }}"
+          echo "API image: ghcr.io/${{ github.repository_owner }}/aumbrye-api:${{ inputs.tag }} (+ :latest)"
+          echo "Web artifact: web-dist-${{ inputs.tag }}"
+          echo "Godot artifact: godot-export-${{ inputs.tag }}"
+          echo "Steam upload: manual — requires steamcmd, Steam Guard secret, and app id (not automated)."

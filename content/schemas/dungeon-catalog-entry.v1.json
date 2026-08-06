@@ -1,0 +1,19 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://aumbrye.dev/schemas/dungeon-catalog-entry.v1.json",
+  "title": "DungeonCatalogEntry",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "name", "biomeId"],
+  "properties": {
+    "id": { "type": "string", "minLength": 1 },
+    "name": { "type": "string", "minLength": 1 },
+    "biomeId": { "type": "string", "minLength": 1 },
+    "clearFlag": { "type": "string" },
+    "bossDoorRequirement": {
+      "type": "string",
+      "enum": ["none", "sigil", "all_keys"],
+      "default": "none"
+    }
+  }
+}

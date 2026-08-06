@@ -1,0 +1,33 @@
+{
+  "schemaVersion": 1,
+  "manualUnlock": [
+    "castle_clear",
+    "crystal_clear",
+    "swamp_clear",
+    "frozen_clear",
+    "cathedral_clear",
+    "boss_slayer",
+    "all_biomes",
+    "ten_floor_clear",
+    "speed_clear",
+    "leaderboard_submit"
+  ],
+  "hooks": [
+    { "event": "enemy_killed", "achievementId": "first_blood", "threshold": 1, "counterKey": "kills" },
+    { "event": "item_obtained", "achievementId": "epic_loot", "contextKey": "rarity", "contextValue": "epic" },
+    { "event": "item_obtained", "achievementId": "legendary_loot", "contextKey": "rarity", "contextValue": "legendary" },
+    { "event": "item_obtained", "achievementId": "aumbral_loot", "contextKey": "rarity", "contextValue": "aumbral" },
+    { "event": "equipment_full", "achievementId": "full_equip" },
+    { "event": "talent_points_spent", "achievementId": "talent_spender", "threshold": 10, "counterKey": "talent_points", "incrementKey": "cost" },
+    { "event": "merchant_buy", "achievementId": "merchant_friend", "threshold": 10, "counterKey": "merchant_buys" },
+    { "event": "blacksmith_craft", "achievementId": "blacksmith_patron", "threshold": 5, "counterKey": "blacksmith_crafts" },
+    { "event": "quest_completed", "achievementId": "quest_complete", "threshold": 5, "counterKey": "quests_completed" },
+    { "event": "parry", "achievementId": "parry_master", "threshold": 50, "counterKey": "parries" },
+    { "event": "dodge", "achievementId": "dodge_artist", "threshold": 100, "counterKey": "dodges" },
+    { "event": "status_applied", "achievementId": "status_applier", "threshold": 25, "counterKey": "statuses_applied" },
+    { "event": "status_applied", "achievementId": "freeze_master", "threshold": 20, "counterKey": "freeze_applied", "contextKey": "status_id", "contextValue": "freeze" },
+    { "event": "status_applied", "achievementId": "poison_master", "threshold": 20, "counterKey": "poison_applied", "contextKey": "status_id", "contextValue": "poison" },
+    { "event": "boss_defeated_no_damage", "achievementId": "no_damage_boss" },
+    { "event": "arena_won", "achievementId": "arena_victor" }
+  ]
+}

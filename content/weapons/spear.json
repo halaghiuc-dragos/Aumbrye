@@ -5,7 +5,10 @@
   "damage_type": "physical",
   "buffer_window": 0.2,
   "lunge_distance": 0.6,
-  "scaling": { "poiseDamage": 1.0, "physicalDamage": 0.8 },
+  "scaling": {
+    "poiseDamage": 1.0,
+    "physicalDamage": 0.8
+  },
   "light_attacks": [
     {
       "damage": 14,
@@ -43,5 +46,18 @@
     "active": 0.16,
     "recovery": 0.38,
     "lunge_distance": 0.75
+  },
+  "art": {
+    "id": "charging_thrust",
+    "name": "Charging Thrust",
+    "stamina_cost": 26,
+    "damage": 34,
+    "poise_damage": 40,
+    "startup": 0.32,
+    "active": 0.2,
+    "recovery": 0.5,
+    "lunge_distance": 2.4,
+    "hyperarmor": true,
+    "cooldown": 6.0
   }
 }

@@ -5,17 +5,14 @@ class_name RunFloorConfig
 
 const MAX_FLOORS := 10
 const ENDLESS_MAX_FLOORS := 999999
-const MAX_SECRETS_PER_FLOOR := 2
-const FLOOR_SEED_MULTIPLIER := 7919
 const DROP_RATE_BONUS_PER_TIER := 0.02
 const DROP_RATE_BONUS_CAP := 0.30
 
+const FloorSeedMixScript := preload("res://scripts/dungeon/floor_seed_mix.gd")
+
 
 static func mix_seed(run_seed: int, floor_index: int) -> int:
-	if floor_index <= 1:
-		return maxi(1, int(run_seed))
-	var mixed := int(run_seed) + int(floor_index) * FLOOR_SEED_MULTIPLIER
-	return maxi(1, mixed)
+	return FloorSeedMixScript.mix(run_seed, floor_index)
 
 
 static func clamp_floor(floor_index: int, run_mode: String = "castle") -> int:
@@ -44,20 +41,27 @@ static func count_secrets(definition: Dictionary) -> int:
 	return count
 
 
+static func max_secrets_for_biome(biome_id: String) -> int:
+	var biome: Dictionary = ContentLoader.load_json("content/biomes/%s.json" % biome_id)
+	return int(biome.get("maxSecrets", 2))
+
+
+static func is_stairs_room(room: Dictionary) -> bool:
+	var tid := str(room.get("templateId", room.get("template_id", "")))
+	return tid.ends_with("_stairs")
+
+
 static func find_stairs_room_id(definition: Dictionary) -> String:
 	for room in definition.get("rooms", []):
-		if room is Dictionary:
-			var tid: String = room.get("templateId", "")
-			if tid.ends_with("_stairs") or room.get("type", "") == "corridor":
-				return str(room.get("id", "stairs"))
+		if room is Dictionary and is_stairs_room(room):
+			return str(room.get("id", "stairs"))
 	return "stairs"
 
 
-static func stairs_spawn_facing_y(stair_room: RoomTemplate, ascending: bool) -> float:
-	# Player spawns at top of stair set, facing opposite stairs (walk down into floor).
+static func stairs_spawn_facing_y(stair_room: RoomTemplate) -> float:
+	if stair_room == null:
+		return 0.0
 	var south_socket := stair_room.find_socket(CastleRoomConstants.Direction.SOUTH)
 	if south_socket:
 		return south_socket.global_rotation.y + PI
-	if ascending:
-		return stair_room.global_rotation.y
 	return stair_room.global_rotation.y + PI

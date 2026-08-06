@@ -6,6 +6,7 @@ const MIX_RATE := 44100.0
 const GENERATOR_BUFFER_SEC := 0.25
 const DEFAULT_CROSSFADE := 0.8
 const SFX_POOL_SIZE := 8
+const SFX_BANK_PATH := "content/audio/sfx.json"
 
 const REVERB_PRESETS := {
 	"indoor_castle": {"wet": 0.22, "room_size": 0.55, "damping": 0.48, "spread": 0.35},
@@ -31,16 +32,37 @@ const BIOME_REVERB_PRESETS := {
 	"iron_vault": "vault",
 }
 
+## Primary path for each SFX key. Bank variants in `content/audio/sfx.json` take precedence.
 const SFX_PROFILES := {
-	"hit": {"freq": 220.0, "duration": 0.08, "bus": &"SFX"},
-	"block": {"freq": 160.0, "duration": 0.1, "bus": &"SFX"},
-	"parry": {"freq": 440.0, "duration": 0.12, "bus": &"SFX"},
-	"swing": {"freq": 130.0, "duration": 0.06, "bus": &"SFX"},
-	"death": {"freq": 90.0, "duration": 0.35, "bus": &"SFX"},
-	"footstep": {"freq": 80.0, "duration": 0.05, "bus": &"SFX"},
-	"windup": {"freq": 72.0, "duration": 0.22, "bus": &"SFX"},
-	"ui": {"freq": 520.0, "duration": 0.04, "bus": &"UI"},
+	"hit": {"path": "res://assets/audio/sfx/hit.ogg", "bus": &"SFX"},
+	"hit_armor": {"path": "res://assets/audio/sfx/hit_armor.ogg", "bus": &"SFX"},
+	"block": {"path": "res://assets/audio/sfx/block.ogg", "bus": &"SFX"},
+	"parry": {"path": "res://assets/audio/sfx/parry.ogg", "bus": &"SFX"},
+	"swing": {"path": "res://assets/audio/sfx/swing_01.ogg", "bus": &"SFX"},
+	"death": {"path": "res://assets/audio/sfx/death_01.ogg", "bus": &"SFX"},
+	"footstep": {"path": "res://assets/audio/sfx/step_stone_01.ogg", "bus": &"SFX"},
+	"footstep_stone": {"freq": 80.0, "duration": 0.05, "bus": &"SFX"},
+	"footstep_wood": {"freq": 120.0, "duration": 0.05, "bus": &"SFX"},
+	"footstep_water": {"freq": 200.0, "duration": 0.09, "bus": &"SFX"},
+	"footstep_snow": {"freq": 60.0, "duration": 0.07, "bus": &"SFX"},
+	"windup": {"path": "res://assets/audio/sfx/windup_01.ogg", "bus": &"SFX"},
+	"heal_raise": {"path": "res://assets/audio/sfx/heal_raise.ogg", "bus": &"SFX"},
+	"heal_gulp": {"path": "res://assets/audio/sfx/heal_gulp.ogg", "bus": &"SFX"},
+	"heal_commit": {"path": "res://assets/audio/sfx/heal_commit.ogg", "bus": &"SFX"},
+	"lever_pull": {"path": "res://assets/audio/sfx/ui_click_01.ogg", "bus": &"SFX"},
+	"lever_unlock": {"path": "res://assets/audio/sfx/heal_commit.ogg", "bus": &"SFX"},
+	"ui": {"path": "res://assets/audio/sfx/ui_click_01.ogg", "bus": &"UI"},
+	"door_open": {"path": "res://assets/audio/sfx/swing_01.ogg", "bus": &"SFX"},
+	"door_seal": {"path": "res://assets/audio/sfx/block_01.ogg", "bus": &"SFX"},
+	"door_release": {"path": "res://assets/audio/sfx/heal_raise.ogg", "bus": &"SFX"},
+	"portal_open": {"path": "res://assets/audio/sfx/heal_commit.ogg", "bus": &"SFX"},
+	"portal_enter": {"path": "res://assets/audio/sfx/ui_click_01.ogg", "bus": &"UI"},
+	"boss_reveal": {"path": "res://assets/audio/shared/sting_boss.ogg", "bus": &"Music"},
 }
+
+const COMBAT_SFX_KEYS: Array[String] = [
+	"hit", "hit_armor", "block", "parry", "swing", "death", "footstep", "windup",
+]
 
 var _ambience: AudioStreamPlayer
 var _music: AudioStreamPlayer
@@ -65,13 +87,20 @@ var _combat_engagements := 0
 var _ambience_reverb_idx := -1
 var _sfx_reverb_idx := -1
 var _ambience_duck_idx := -1
+var _sfx_bank: Dictionary = {}
+var _sfx_streams: Dictionary = {}
+var _sfx_last_played_ms: Dictionary = {}
+var _sfx_active_counts: Dictionary = {}
+var _rng := RandomNumberGenerator.new()
 
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	set_process(true)
+	_rng.randomize()
 	AudioSettings.load_from_save()
 	_setup_bus_effects()
+	_load_sfx_bank()
 	_ambience = _create_player("AmbiencePlayer", _ambience_freq, &"Ambience")
 	_music = _create_player("MusicPlayer", _music_freq, &"Music")
 	_explore = _create_player("ExplorePlayer", _explore_freq, &"Music")
@@ -214,20 +243,197 @@ func stop_all(fade: float = 0.3) -> void:
 	_fade_out_player(_combat_layer, fade)
 
 
-func play_combat_sfx(kind: String, world_pos: Variant = null) -> void:
-	play_sfx(kind, world_pos)
+func play_combat_sfx(kind: String, world_pos: Variant = null, surface: String = "stone") -> void:
+	play_sfx(kind, world_pos, surface)
 
 
-func play_sfx(kind: String, world_pos: Variant = null) -> void:
-	var profile: Dictionary = SFX_PROFILES.get(kind, SFX_PROFILES["hit"])
+func play_sfx(kind: String, world_pos: Variant = null, surface: String = "stone") -> void:
+	var entry: Dictionary = _sfx_bank.get(kind, {})
+	var streams: Array = _sfx_streams.get(kind, [])
+	if streams.is_empty():
+		_warn_missing_sfx(kind)
+		_play_fallback_tone(kind, world_pos, entry)
+		return
+	if not _can_play_sfx(kind, entry):
+		return
+	var stream: AudioStream = _pick_sfx_stream(kind, entry, surface)
+	if stream == null:
+		_warn_missing_sfx(kind)
+		_play_fallback_tone(kind, world_pos, entry)
+		return
+	_play_stream(stream, world_pos, entry, kind)
+	_mark_sfx_played(kind)
+
+
+func play_ui_sfx() -> void:
+	play_sfx("ui")
+
+
+func play_cue(cue_name: StringName, world_pos: Variant = null) -> void:
+	play_sfx(String(cue_name), world_pos)
+
+
+func play_stinger(stinger_id: String) -> void:
+	var before_db := _music.volume_db if _music else 0.0
+	play_sfx(stinger_id)
+	if _music and _music.playing:
+		_kill_tween(_music)
+		_music.volume_db = before_db - 8.0
+		var tween := create_tween()
+		_active_tweens[_music] = tween
+		tween.tween_property(_music, "volume_db", before_db, 1.2)
+
+
+func has_combat_sfx(kind: String) -> bool:
+	return _sfx_streams.has(kind) and not (_sfx_streams[kind] as Array).is_empty()
+
+
+func _load_sfx_bank() -> void:
+	var bank_data := ContentLoader.load_json(SFX_BANK_PATH)
+	_sfx_bank = bank_data.get("sfx", {})
+	for kind in SFX_PROFILES:
+		_cache_sfx_kind(str(kind))
+	for kind in _sfx_bank:
+		_cache_sfx_kind(str(kind))
+
+
+func _cache_sfx_kind(kind: String) -> void:
+	if _sfx_streams.has(kind):
+		return
+	var paths := _resolve_sfx_paths(kind)
+	var streams: Array[AudioStream] = []
+	for path in paths:
+		var stream := _load_audio_stream(path)
+		if stream != null:
+			streams.append(stream)
+	if not streams.is_empty():
+		_sfx_streams[kind] = streams
+
+
+func _resolve_sfx_paths(kind: String) -> Array[String]:
+	var paths: Array[String] = []
+	if _sfx_bank.has(kind):
+		var entry: Dictionary = _sfx_bank[kind]
+		for path in entry.get("variants", []):
+			paths.append(str(path))
+		if paths.is_empty():
+			var surface_variants: Dictionary = entry.get("surface_variants", {})
+			for surface_paths in surface_variants.values():
+				for path in surface_paths:
+					paths.append(str(path))
+	if paths.is_empty() and SFX_PROFILES.has(kind):
+		var profile: Dictionary = SFX_PROFILES[kind]
+		if profile.has("path"):
+			paths.append(str(profile["path"]))
+	return paths
+
+
+func _pick_sfx_stream(kind: String, entry: Dictionary, surface: String) -> AudioStream:
+	var streams: Array = _sfx_streams.get(kind, [])
+	if streams.is_empty():
+		return null
+	if entry.has("surface_variants"):
+		var surface_variants: Dictionary = entry["surface_variants"]
+		if surface_variants.has(surface):
+			var surface_paths: Array = surface_variants[surface]
+			var surface_streams: Array[AudioStream] = []
+			for path in surface_paths:
+				var stream := _load_audio_stream(str(path))
+				if stream != null:
+					surface_streams.append(stream)
+			if not surface_streams.is_empty():
+				return surface_streams[_rng.randi_range(0, surface_streams.size() - 1)]
+	return streams[_rng.randi_range(0, streams.size() - 1)]
+
+
+func _can_play_sfx(kind: String, entry: Dictionary) -> bool:
+	var cooldown_ms := int(entry.get("cooldown_ms", 0))
+	if cooldown_ms > 0 and _sfx_last_played_ms.has(kind):
+		if Time.get_ticks_msec() - int(_sfx_last_played_ms[kind]) < cooldown_ms:
+			return false
+	var max_concurrent := int(entry.get("max_concurrent", 8))
+	var active := int(_sfx_active_counts.get(kind, 0))
+	return active < max_concurrent
+
+
+func _mark_sfx_played(kind: String) -> void:
+	_sfx_last_played_ms[kind] = Time.get_ticks_msec()
+	_sfx_active_counts[kind] = int(_sfx_active_counts.get(kind, 0)) + 1
+	var timer := get_tree().create_timer(0.5)
+	timer.timeout.connect(func() -> void:
+		_sfx_active_counts[kind] = maxi(0, int(_sfx_active_counts.get(kind, 0)) - 1)
+	, CONNECT_ONE_SHOT)
+
+
+func _play_stream(stream: AudioStream, world_pos: Variant, entry: Dictionary, kind: String) -> void:
+	var bus: StringName = &"SFX"
+	if entry.has("bus"):
+		bus = StringName(str(entry["bus"]))
+	elif SFX_PROFILES.has(kind):
+		bus = SFX_PROFILES[kind].get("bus", &"SFX")
+	var volume_db := float(entry.get("volume_db", 0.0))
+	var pitch_jitter := float(entry.get("pitch_jitter", 0.0))
+	var pitch_scale := 1.0
+	if pitch_jitter > 0.0:
+		pitch_scale = 1.0 + _rng.randf_range(-pitch_jitter, pitch_jitter)
+	if world_pos is Vector3:
+		var player3d := _acquire_sfx_3d_player()
+		if player3d == null:
+			_play_stream_2d(stream, bus, volume_db, pitch_scale)
+			return
+		player3d.global_position = world_pos
+		player3d.bus = bus
+		player3d.volume_db = volume_db
+		player3d.pitch_scale = pitch_scale
+		player3d.stream = stream
+		player3d.play()
+	else:
+		_play_stream_2d(stream, bus, volume_db, pitch_scale)
+
+
+func _play_stream_2d(stream: AudioStream, bus: StringName, volume_db: float, pitch_scale: float) -> void:
+	var player := _acquire_sfx_player()
+	if player == null:
+		return
+	player.bus = bus
+	player.volume_db = volume_db
+	player.pitch_scale = pitch_scale
+	player.stream = stream
+	player.play()
+
+
+func _play_fallback_tone(kind: String, world_pos: Variant, entry: Dictionary) -> void:
+	var profile := _fallback_profile(kind, entry)
 	if world_pos is Vector3:
 		_play_sfx_3d(profile, world_pos)
 	else:
 		_play_sfx_2d(profile)
 
 
-func play_ui_sfx() -> void:
-	play_sfx("ui")
+func _fallback_profile(kind: String, entry: Dictionary = {}) -> Dictionary:
+	var profile: Dictionary = {}
+	if entry.has("fallback_tone"):
+		var tone: Dictionary = entry["fallback_tone"]
+		profile = {
+			"freq": float(tone.get("freq", 220.0)),
+			"duration": float(tone.get("duration", 0.08)),
+			"bus": StringName(str(entry.get("bus", "SFX"))),
+		}
+	elif SFX_PROFILES.has(kind):
+		var sfx_profile: Dictionary = SFX_PROFILES[kind]
+		profile = {
+			"bus": sfx_profile.get("bus", &"SFX"),
+			"freq": float(sfx_profile.get("freq", 220.0)),
+			"duration": float(sfx_profile.get("duration", 0.08)),
+		}
+	else:
+		profile = {"freq": 220.0, "duration": 0.08, "bus": &"SFX"}
+	return profile
+
+
+func _warn_missing_sfx(kind: String) -> void:
+	if OS.is_debug_build():
+		push_warning("AudioDirector: missing authored SFX for '%s'" % kind)
 
 
 func _play_sfx_2d(profile: Dictionary) -> void:
@@ -283,6 +489,16 @@ func _prime_tone_burst(player: Node, profile: Dictionary) -> void:
 		var sample := sin(phase) * 0.35 * env
 		gen_playback.push_frame(Vector2(sample, sample))
 		phase = fmod(phase + phase_step, TAU)
+
+
+func _load_audio_stream(path: String) -> AudioStream:
+	for candidate in _audio_path_candidates(path):
+		if not ResourceLoader.exists(candidate):
+			continue
+		var loaded: Variant = ResourceLoader.load(candidate)
+		if loaded is AudioStream:
+			return loaded
+	return null
 
 
 func _crossfade_to(fade_in: AudioStreamPlayer, fade_out: AudioStreamPlayer) -> void:
@@ -341,13 +557,9 @@ func _create_player(player_name: String, freq: float, bus: StringName) -> AudioS
 
 
 func _try_load_file_stream(player: AudioStreamPlayer, path: String) -> void:
-	for candidate in _audio_path_candidates(path):
-		if not ResourceLoader.exists(candidate):
-			continue
-		var loaded: Variant = ResourceLoader.load(candidate)
-		if loaded is AudioStream:
-			player.stream = loaded
-			return
+	var stream := _load_audio_stream(path)
+	if stream != null:
+		player.stream = stream
 
 
 func _audio_path_candidates(path: String) -> Array[String]:
@@ -469,8 +681,15 @@ func _fill_generator_for_mode(
 
 
 func _restore_generator_streams() -> void:
-	for player in [_ambience, _music, _explore, _combat_layer]:
-		var generator := AudioStreamGenerator.new()
-		generator.mix_rate = MIX_RATE
-		generator.buffer_length = GENERATOR_BUFFER_SEC
-		player.stream = generator
+	for player in [_explore, _combat_layer]:
+		_assign_generator_stream(player)
+	for player in [_ambience, _music]:
+		if player.stream == null or player.stream is AudioStreamGenerator:
+			_assign_generator_stream(player)
+
+
+func _assign_generator_stream(player: AudioStreamPlayer) -> void:
+	var generator := AudioStreamGenerator.new()
+	generator.mix_rate = MIX_RATE
+	generator.buffer_length = GENERATOR_BUFFER_SEC
+	player.stream = generator

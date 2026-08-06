@@ -1,5 +1,7 @@
 extends "res://scripts/dungeon/room_content/room_content_base.gd"
 
+const DIORAMA_SKIN := preload("res://scripts/art/props/diorama_interactable_skin.gd")
+
 const INTERACT_RADIUS := 1.6
 
 var _configured := false
@@ -11,16 +13,14 @@ func configure(_entry: Dictionary, _definition: Dictionary) -> void:
 		return
 	_configured = true
 	var root := _content_root()
-	var bonfire := MeshInstance3D.new()
+	var bonfire := Node3D.new()
 	bonfire.name = "BonfireVisual"
-	bonfire.position = Vector3(0.0, 0.35, 0.0)
-	var mesh := BoxMesh.new()
-	mesh.size = Vector3(0.5, 0.7, 0.5)
-	bonfire.mesh = mesh
+	bonfire.position = _anchor(0).position
+	DIORAMA_SKIN.build_bonfire(bonfire, DIORAMA_SKIN.resolve_biome(self))
 	root.add_child(bonfire)
 	_rest_area = Area3D.new()
 	_rest_area.name = "RestArea"
-	_rest_area.position = Vector3(0.0, 0.5, 0.0)
+	_rest_area.position = _anchor(0).position + Vector3(0.0, 0.5, 0.0)
 	var shape := CollisionShape3D.new()
 	var sphere := SphereShape3D.new()
 	sphere.radius = INTERACT_RADIUS

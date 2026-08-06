@@ -4,6 +4,7 @@ const StatusIconAtlasScript := preload("res://scripts/ui/status_icon_atlas.gd")
 const InputGlyphServiceScript := preload("res://scripts/ui/input_glyph_service.gd")
 const MinimapScript := preload("res://scripts/ui/minimap.gd")
 const GameUISkinScript := preload("res://scripts/ui/game_ui_skin.gd")
+const QuestTrackerUIScene := preload("res://scenes/ui/quest_tracker_ui.tscn")
 
 const BAR_WIDTH := 280.0
 const HEALTH_BAR_HEIGHT := 22.0
@@ -43,6 +44,7 @@ var _camera: Camera3D
 var _status_row: HBoxContainer
 var _status_controller: StatusController
 var _minimap: Control
+var _quest_tracker: Control
 var _branch_banner: Label
 var _objective_marker: Control
 var _objective_world_pos: Vector3 = Vector3.INF
@@ -55,6 +57,8 @@ var _boss_health: Health
 var _boss_phase_count := 2
 var _boss_current_phase := 1
 var _lock_reticle_alpha := 0.0
+var _warning_banner: Label
+var _respawn_overlay: Control
 
 
 func _ready() -> void:
@@ -72,6 +76,7 @@ func _ready() -> void:
 	_ensure_progression_widgets()
 	_ensure_controls_hint()
 	_ensure_minimap()
+	_ensure_quest_tracker()
 	_ensure_objective_marker()
 	_ensure_boss_bar()
 	_lock_reticle = get_node_or_null("LockReticle") as Control
@@ -94,6 +99,10 @@ func _ready() -> void:
 	if ProgressionService:
 		ProgressionService.progression_changed.connect(_on_progression_changed)
 		_on_progression_changed()
+	if RunFlow and not RunFlow.run_warning.is_connected(_on_run_warning):
+		RunFlow.run_warning.connect(_on_run_warning)
+	if InventoryService and not InventoryService.inventory_rejected.is_connected(_on_inventory_rejected):
+		InventoryService.inventory_rejected.connect(_on_inventory_rejected)
 
 
 func _ensure_status_row() -> void:
@@ -114,7 +123,14 @@ func _apply_screen_layout() -> void:
 	margin.offset_left = HUD_MARGIN
 	margin.offset_top = HUD_MARGIN
 	margin.offset_right = HUD_MARGIN + BAR_WIDTH
-	margin.offset_bottom = HUD_MARGIN + HEALTH_BAR_HEIGHT + STAMINA_BAR_HEIGHT + MANA_BAR_HEIGHT + ATTACK_BAR_HEIGHT + 34.0
+	margin.offset_bottom = (
+		HUD_MARGIN
+		+ HEALTH_BAR_HEIGHT
+		+ STAMINA_BAR_HEIGHT
+		+ MANA_BAR_HEIGHT
+		+ ATTACK_BAR_HEIGHT
+		+ 34.0
+	)
 	margin.grow_horizontal = Control.GROW_DIRECTION_END
 	margin.grow_vertical = Control.GROW_DIRECTION_END
 	var vbox := margin.get_node_or_null("VBox") as VBoxContainer
@@ -176,7 +192,14 @@ func _update_status_row_position() -> void:
 		return
 	_status_row.position = Vector2(
 		HUD_MARGIN,
-		HUD_MARGIN + HEALTH_BAR_HEIGHT + STAMINA_BAR_HEIGHT + MANA_BAR_HEIGHT + ATTACK_BAR_HEIGHT + 22.0
+		(
+			HUD_MARGIN
+			+ HEALTH_BAR_HEIGHT
+			+ STAMINA_BAR_HEIGHT
+			+ MANA_BAR_HEIGHT
+			+ ATTACK_BAR_HEIGHT
+			+ 22.0
+		)
 	)
 
 
@@ -191,16 +214,28 @@ func _refresh_status_icons() -> void:
 		var def := StatusCatalog.get_definition(entry.get("id", ""))
 		var status_id: String = entry.get("id", "")
 		var icon := TextureRect.new()
-		icon.custom_minimum_size = Vector2(22, 22)
-		icon.texture = StatusIconAtlasScript.get_icon(
-			status_id,
-			Color.from_string(def.get("iconColor", "#ffffff"), Color.WHITE)
+		icon.custom_minimum_size = Vector2(
+			StatusIconAtlasScript.icon_size(), StatusIconAtlasScript.icon_size()
 		)
+		icon.texture = StatusIconAtlasScript.get_icon(status_id)
 		icon.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 		icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 		icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 		icon.tooltip_text = "%s x%d" % [def.get("name", status_id), entry.get("stacks", 1)]
-		_status_row.add_child(icon)
+		var damage_type := str(def.get("damageType", ""))
+		if damage_type != "":
+			var tint := AccessibilitySettings.get_damage_color(damage_type)
+			icon.modulate = tint
+			var border := PanelContainer.new()
+			var style := StyleBoxFlat.new()
+			style.bg_color = Color(0.0, 0.0, 0.0, 0.0)
+			style.set_border_width_all(2)
+			style.border_color = tint
+			border.add_theme_stylebox_override("panel", style)
+			border.add_child(icon)
+			_status_row.add_child(border)
+		else:
+			_status_row.add_child(icon)
 
 
 func _ensure_progression_widgets() -> void:
@@ -232,12 +267,15 @@ func _ensure_controls_hint() -> void:
 	hint.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.72))
 	hint.add_theme_constant_override("shadow_offset_x", 1)
 	hint.add_theme_constant_override("shadow_offset_y", 1)
-	hint.text = "%s  |  %s  |  %s  |  %s" % [
-		InputGlyphServiceScript.format_action_hint("dodge"),
-		InputGlyphServiceScript.format_action_hint("jump"),
-		InputGlyphServiceScript.format_action_hint("lock_on"),
-		InputGlyphServiceScript.format_action_hint("inventory"),
-	]
+	hint.text = (
+		"%s  |  %s  |  %s  |  %s"
+		% [
+			InputGlyphServiceScript.format_action_hint("dodge"),
+			InputGlyphServiceScript.format_action_hint("jump"),
+			InputGlyphServiceScript.format_action_hint("lock_on"),
+			InputGlyphServiceScript.format_action_hint("inventory"),
+		]
+	)
 	add_child(hint)
 
 
@@ -259,7 +297,10 @@ func bind_boss(boss: Node) -> void:
 	_boss_phase_count = _resolve_boss_phase_count(boss)
 	_boss_current_phase = 1
 	_boss_health.health_changed.connect(_on_boss_health_changed)
-	if boss.has_signal("phase_changed") and not boss.phase_changed.is_connected(_on_boss_phase_changed):
+	if (
+		boss.has_signal("phase_changed")
+		and not boss.phase_changed.is_connected(_on_boss_phase_changed)
+	):
 		boss.phase_changed.connect(_on_boss_phase_changed)
 	if boss.has_signal("boss_defeated") and not boss.boss_defeated.is_connected(unbind_boss):
 		boss.boss_defeated.connect(unbind_boss)
@@ -283,9 +324,15 @@ func _unbind_boss() -> void:
 	if _boss_health and _boss_health.health_changed.is_connected(_on_boss_health_changed):
 		_boss_health.health_changed.disconnect(_on_boss_health_changed)
 	if _boss_node and is_instance_valid(_boss_node):
-		if _boss_node.has_signal("phase_changed") and _boss_node.phase_changed.is_connected(_on_boss_phase_changed):
+		if (
+			_boss_node.has_signal("phase_changed")
+			and _boss_node.phase_changed.is_connected(_on_boss_phase_changed)
+		):
 			_boss_node.phase_changed.disconnect(_on_boss_phase_changed)
-		if _boss_node.has_signal("boss_defeated") and _boss_node.boss_defeated.is_connected(unbind_boss):
+		if (
+			_boss_node.has_signal("boss_defeated")
+			and _boss_node.boss_defeated.is_connected(unbind_boss)
+		):
 			_boss_node.boss_defeated.disconnect(unbind_boss)
 		if _boss_node.has_signal("enemy_died") and _boss_node.enemy_died.is_connected(unbind_boss):
 			_boss_node.enemy_died.disconnect(unbind_boss)
@@ -352,11 +399,28 @@ func _ensure_boss_bar() -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
+	if _respawn_overlay and _respawn_overlay.visible:
+		if event.is_action_pressed("ui_accept") or event.is_action_pressed("interact"):
+			get_viewport().set_input_as_handled()
+			_dismiss_respawn_overlay()
+			return
 	if event is InputEventKey and event.pressed and not event.echo:
 		if event.keycode == KEY_F8 and _status_controller:
 			_status_controller.debug_apply("burn")
 			_refresh_status_icons()
 			get_viewport().set_input_as_handled()
+
+
+func _dismiss_respawn_overlay() -> void:
+	if _respawn_overlay == null or not _respawn_overlay.visible:
+		return
+	var tween := create_tween()
+	tween.tween_property(_respawn_overlay, "modulate:a", 0.0, 0.25)
+	tween.tween_callback(
+		func() -> void:
+			if _respawn_overlay:
+				_respawn_overlay.visible = false
+	)
 
 
 func _bind_player_resources() -> void:
@@ -368,9 +432,12 @@ func _bind_player_resources() -> void:
 		_on_health_changed(health.current, Health.MAX_HEALTH)
 	if stamina:
 		stamina.stamina_changed.connect(_on_stamina_changed)
+		stamina.insufficient.connect(_on_stamina_insufficient)
+		stamina.depleted.connect(_on_stamina_depleted)
 		_on_stamina_changed(stamina.current, Stamina.MAX_STAMINA)
 	if mana:
 		mana.mana_changed.connect(_on_mana_changed)
+		mana.insufficient.connect(_on_mana_insufficient)
 		_on_mana_changed(mana.current, Mana.MAX_MANA)
 
 
@@ -401,7 +468,12 @@ func _update_lock_reticle() -> void:
 	var aim_point := LockOn.get_target_aim_point(target)
 	var screen_pos := camera.unproject_position(aim_point)
 	var viewport_size := get_viewport_rect().size
-	var on_screen := screen_pos.x >= 0.0 and screen_pos.y >= 0.0 and screen_pos.x <= viewport_size.x and screen_pos.y <= viewport_size.y
+	var on_screen := (
+		screen_pos.x >= 0.0
+		and screen_pos.y >= 0.0
+		and screen_pos.x <= viewport_size.x
+		and screen_pos.y <= viewport_size.y
+	)
 	var target_alpha := 1.0 if on_screen and not camera.is_position_behind(aim_point) else 0.35
 	_lock_reticle_alpha = lerpf(_lock_reticle_alpha, target_alpha, 0.22)
 	_lock_reticle.visible = _lock_reticle_alpha > 0.05
@@ -459,8 +531,10 @@ func _on_health_changed(current: float, max_value: float) -> void:
 	_health_bar.max_value = max_value
 	_health_bar.value = current
 	if max_value > 0.0 and current / max_value <= 0.25:
-		if PixelDioramaViewport and PixelDioramaViewport.has_method("pulse_damage_vignette"):
-			PixelDioramaViewport.call("pulse_damage_vignette", 0.22)
+		if PixelDioramaViewport and PixelDioramaViewport.has_method("pulse_screen"):
+			PixelDioramaViewport.pulse_screen(
+				PixelDioramaViewport.ScreenPulse.DAMAGE, 0.22 / 0.72
+			)
 
 
 func _on_stamina_changed(current: float, max_value: float) -> void:
@@ -475,6 +549,29 @@ func _on_mana_changed(current: float, max_value: float) -> void:
 		return
 	_mana_bar.max_value = max_value
 	_mana_bar.value = current
+
+
+func _on_stamina_insufficient() -> void:
+	_flash_resource_bar(_stamina_bar, Color(0.9, 0.3, 0.25))
+
+
+func _on_stamina_depleted() -> void:
+	if _stamina_bar:
+		_stamina_bar.modulate = Color(0.55, 0.22, 0.18)
+	AudioDirector.play_sfx("exhausted")
+
+
+func _on_mana_insufficient() -> void:
+	_flash_resource_bar(_mana_bar, Color(0.35, 0.45, 0.95))
+
+
+func _flash_resource_bar(bar: ProgressBar, flash_color: Color) -> void:
+	if bar == null:
+		return
+	var tween := create_tween()
+	tween.tween_property(bar, "modulate", flash_color, 0.09)
+	tween.tween_property(bar, "modulate", Color.WHITE, 0.18)
+	AudioDirector.play_sfx("resource_denied")
 
 
 func _update_attack_bar() -> void:
@@ -558,6 +655,14 @@ func _ensure_minimap() -> void:
 	add_child(_minimap)
 
 
+func _ensure_quest_tracker() -> void:
+	if _quest_tracker != null:
+		return
+	_quest_tracker = QuestTrackerUIScene.instantiate() as Control
+	_quest_tracker.name = "QuestTrackerUI"
+	add_child(_quest_tracker)
+
+
 func _ensure_branch_banner() -> void:
 	if _branch_banner != null:
 		return
@@ -602,3 +707,102 @@ func _update_objective_marker() -> void:
 	var screen_edge := screen_center + Vector2(to_target.x, -to_target.z).normalized() * 120.0
 	_objective_marker.visible = true
 	_objective_marker.position = screen_edge - _objective_marker.size * 0.5
+
+
+func show_run_warning(message: String) -> void:
+	_ensure_warning_banner()
+	_warning_banner.text = message
+	_warning_banner.visible = true
+	_warning_banner.modulate.a = 1.0
+	var tween := create_tween()
+	tween.tween_interval(4.0)
+	tween.tween_property(_warning_banner, "modulate:a", 0.0, 0.5)
+	tween.tween_callback(
+		func() -> void:
+			if _warning_banner:
+				_warning_banner.visible = false
+	)
+
+
+func show_respawn_outcome(results: Dictionary) -> void:
+	_ensure_respawn_overlay()
+	var xp_gained: int = int(results.get("xp_gained", 0))
+	var xp_deferred: int = int(results.get("xp_deferred", 0))
+	var loot_lost: Array = results.get("loot_lost", [])
+	var lines: PackedStringArray = [
+		"XP gained: %d" % xp_gained,
+	]
+	if xp_deferred > 0:
+		lines.append("XP deferred to shard: %d" % xp_deferred)
+	if loot_lost.size() > 0:
+		lines.append("Loot stripped: %s" % ", ".join(loot_lost))
+	else:
+		lines.append("No loot stripped since bonfire.")
+	var body: Label = _respawn_overlay.get_node("Panel/Margin/VBox/Body")
+	body.text = "\n".join(lines)
+	_respawn_overlay.visible = true
+	_respawn_overlay.modulate.a = 0.0
+	var tween := create_tween()
+	tween.tween_property(_respawn_overlay, "modulate:a", 1.0, 0.35)
+
+
+func _on_run_warning(message: String) -> void:
+	show_run_warning(message)
+
+
+func _on_inventory_rejected(reason: String) -> void:
+	if reason == "full":
+		show_run_warning("Inventory full")
+
+
+func _ensure_warning_banner() -> void:
+	if _warning_banner != null:
+		return
+	_warning_banner = Label.new()
+	_warning_banner.name = "WarningBanner"
+	_warning_banner.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_warning_banner.set_anchors_preset(Control.PRESET_TOP_WIDE)
+	_warning_banner.offset_top = 44.0
+	_warning_banner.offset_bottom = 72.0
+	_warning_banner.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_warning_banner.add_theme_color_override("font_color", Color(0.98, 0.86, 0.55))
+	_warning_banner.visible = false
+	add_child(_warning_banner)
+
+
+func _ensure_respawn_overlay() -> void:
+	if _respawn_overlay != null:
+		return
+	_respawn_overlay = Control.new()
+	_respawn_overlay.name = "RespawnOutcomeOverlay"
+	_respawn_overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_respawn_overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_respawn_overlay.visible = false
+	add_child(_respawn_overlay)
+	GameUISkinScript.make_backdrop(_respawn_overlay)
+	var panel := GameUISkinScript.make_center_panel(_respawn_overlay, 460.0, 220.0)
+	panel.name = "Panel"
+	var margin := MarginContainer.new()
+	margin.name = "Margin"
+	margin.add_theme_constant_override("margin_left", 16)
+	margin.add_theme_constant_override("margin_top", 16)
+	margin.add_theme_constant_override("margin_right", 16)
+	margin.add_theme_constant_override("margin_bottom", 16)
+	panel.add_child(margin)
+	var vbox := VBoxContainer.new()
+	vbox.name = "VBox"
+	margin.add_child(vbox)
+	var title := Label.new()
+	title.text = "Echo Returned"
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	GameUISkinScript.style_menu_title(title)
+	vbox.add_child(title)
+	var body := Label.new()
+	body.name = "Body"
+	body.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	vbox.add_child(body)
+	var hint := Label.new()
+	hint.text = "Enter to dismiss"
+	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	GameUISkinScript.style_hint_label(hint)
+	vbox.add_child(hint)

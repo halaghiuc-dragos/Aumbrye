@@ -22,6 +22,8 @@ uniform float rim_strength : hint_range(0.0, 1.0) = 0.08;
 uniform float flash_amount : hint_range(0.0, 1.0) = 0.0;
 uniform float dissolve_clip : hint_range(0.0, 1.0) = 1.0;
 uniform int surface_kind : hint_range(0, 3) = 0;
+uniform bool use_vertex_color = false;
+uniform vec3 skin_tint = vec3(1.0);
 
 varying vec3 v_world_pos;
 varying vec3 v_world_normal;
@@ -35,9 +37,8 @@ void vertex() {
 	v_world_normal = normalize((MODEL_MATRIX * vec4(NORMAL, 0.0)).xyz);
 }
 
-// Architecture is metres across and props are centimetres, so one cell density
-// cannot serve both. Floors and walls get quarter-density cells (~0.5 m tiles at
-// the default scale); props keep the fine grid that reads as voxel facets.
+// Authored character meshes supply ARRAY_COLOR per voxel; when use_vertex_color is
+// set, skip the procedural prop pattern. Floors and walls still use world-space cells.
 const float WORLD_CELL_RATIO = 0.25;
 
 vec2 pattern_coords() {
@@ -99,7 +100,9 @@ void fragment() {
 	float detail = 1.0 - smoothstep(9.0, 26.0, length(VERTEX));
 
 	vec3 col;
-	if (surface_kind == 0) {
+	if (use_vertex_color) {
+		col = COLOR.rgb * skin_tint;
+	} else if (surface_kind == 0) {
 		col = shade_floor(uv, cell, grain, detail);
 	} else if (surface_kind == 1) {
 		col = shade_wall(uv, grain, detail);

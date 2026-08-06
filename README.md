@@ -1,49 +1,45 @@
 # Aumbrye
 
-Single-player action roguelite RPG with Soulslike combat. Early Access target: Windows via Steam.
-
-## Repository layout
-
-| Path | Purpose |
-|------|---------|
-| `apps/game/client/` | Godot 4 client |
-| `apps/web/` | React + TypeScript + Vite website |
-| `services/backend/` | ASP.NET Core 8 API |
-| `packages/shared/` | Shared DTOs and contracts (C#) |
-| `packages/procedural/` | Dungeon generator library (C#) |
-| `content/` | JSON content definitions + JSON Schema |
-| `docs/plan/` | Implementation plan (agent entry: `docs/plan/00-AGENT-README.md`) |
+Single-player action roguelite RPG with Soulslike combat. Early Access target: Windows via Steam. The Godot client is fully playable offline — no backend or web stack required for the core loop.
 
 ## Prerequisites
 
 | Tool | Version |
 |------|---------|
-| Godot | 4.7 (standard build) |
+| Godot | 4.7 (standard build; see `apps/game/client/project.godot` `config/features`) |
 | .NET SDK | 8.x |
-| Node.js | 20 LTS |
+| Node.js | 24 (matches CI) |
 | Docker | Compose v2 |
 
-## First boot
+## Run the game
 
-### 1. Infrastructure
+Open `apps/game/client/project.godot` in Godot 4.7, or from a shell:
 
 ```bash
-docker compose up -d postgres redis
+godot --path apps/game/client
+```
+
+Press **F5** — main scene is **`scenes/ui/title_screen.tscn`**. Hub, dungeon runs, combat, and results work with no API or database.
+
+## Run the optional services
+
+Infrastructure (Postgres + Redis):
+
+```bash
+docker compose up -d
 ```
 
 Copy `.env.example` to `.env` if you need to override defaults.
 
-### 2. Backend API
+Backend API:
 
 ```bash
-cd services/backend
-dotnet restore
-dotnet run --project src/Aumbrye.Api
+dotnet run --project services/backend/src/Aumbrye.Api
 ```
 
 Health check: `GET http://localhost:5000/api/v1/health` → `{ "status": "ok" }`
 
-### 3. Web
+Web site:
 
 ```bash
 cd apps/web
@@ -51,19 +47,9 @@ npm install
 npm run dev
 ```
 
-Set `VITE_API_URL` in `.env.development` (see `.env.example` in `apps/web/`).
+Set `VITE_API_URL` in `.env.development` (see `apps/web/.env.example`).
 
-### 4. Godot client
-
-Open `apps/game/client/project.godot` in Godot 4.7. Press **F5** — main scene is **`scenes/hub/hub.tscn`**.
-
-**Full loop:** Hub → biome portal (**E**) → dungeon → boss → exit → results → hub (5 EA biomes).
-
-**Combat controls (locked):** [docs/plan/01-LOCKED-DECISIONS.md](docs/plan/01-LOCKED-DECISIONS.md) (`DEC-G07`–`DEC-G10`)  
-**Current work:** [docs/design/AUDIT_2026-08.md](docs/design/AUDIT_2026-08.md) · [docs/MCP_AGENT_GUIDE.md](docs/MCP_AGENT_GUIDE.md)  
-**Phase status:** [docs/plan/M-PHASES-STATUS.md](docs/plan/M-PHASES-STATUS.md) · **EA ship gate:** [docs/plan/07-EA-DEFINITION-OF-DONE.md](docs/plan/07-EA-DEFINITION-OF-DONE.md)
-
-### 5. Content validation
+Content schema validation:
 
 ```bash
 cd scripts/validate-content
@@ -71,16 +57,57 @@ npm install
 npm run validate
 ```
 
+## Validation
+
+Full local suite (dotnet, content, Python lint, Godot in-engine):
+
+```bash
+node scripts/validate.mjs
+```
+
+Cross-platform wrappers: `./scripts/validate.ps1` (Windows) or `./scripts/validate.sh` (Linux/macOS).
+
+Run individual layers:
+
+```bash
+node scripts/validate.mjs --layer content --layer python
+```
+
+CI-equivalent commands (run individually when iterating):
+
+```bash
+dotnet test services/backend/Aumbrye.sln --configuration Release
+```
+
+```bash
+npm run validate:strict
+```
+
+```bash
+godot --path apps/game/client --headless --script res://scripts/validation/validation_main.gd
+```
+
+```bash
+pip install ruff && ruff check tools/
+```
+
+Balance export:
+
+```bash
+node scripts/balance/balance-cli.mjs --summary
+```
+
 ## Documentation
 
-- [Coding standards](docs/CODING.md)
-- [Content schema guide](docs/CONTENT_SCHEMA.md)
+- [Architecture](docs/ARCHITECTURE.md)
+- [Documentation conventions](docs/DOC-CONVENTIONS.md)
+- [Existing codebase index](docs/existing_codebase/_INDEX.md)
+- [Improvement plans index](docs/actual_improvements/_INDEX.md)
 - [ADR-0001: Client/server authority](docs/ADR/0001-client-server-authority.md)
-- [Implementation plan](docs/plan/00-AGENT-README.md)
 
 ## Development
 
 - Remote: `https://github.com/halaghiuc-dragos/Aumbrye`
 - Default branch: `main`
-- PRs required; CI runs backend tests, web build, and content schema validation.
-- Full validation: `./scripts/run-all-validation.ps1` (283 Godot + 79 backend tests as of M6 close)
+- Pull requests required; see [CONTRIBUTING.md](CONTRIBUTING.md)
+- CI runs backend tests, web build, content validation, GDScript lint, docs link check, and Godot headless validation

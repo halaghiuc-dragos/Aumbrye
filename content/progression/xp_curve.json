@@ -1,9 +1,11 @@
 {
   "schemaVersion": 1,
-  "baseXpPerRun": 100,
-  "tierXpBonus": 25,
+  "baseXpPerKill": 25,
+  "bossBonusXp": 150,
+  "escapeBonusXp": 50,
   "deathXpFraction": 0.5,
   "abandonedXpFraction": 0,
+  "talentPointsPerLevel": 1,
   "levels": [
     { "level": 1, "xpRequired": 0 },
     { "level": 2, "xpRequired": 100 },

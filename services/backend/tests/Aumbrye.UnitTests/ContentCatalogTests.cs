@@ -76,7 +76,7 @@ public class ContentCatalogTests
     {
         var result = DungeonGenerator.Generate("forgotten_castle", 77_777, 1, 1, Guid.NewGuid());
         foreach (var chest in result.Definition.Placements.Loot)
-        foreach (var item in chest.Items)
-            Assert.True(ItemCatalog.TryGet(item.ItemId, out _));
+            foreach (var item in chest.Items)
+                Assert.True(ItemCatalog.TryGet(item.ItemId, out _));
     }
 }

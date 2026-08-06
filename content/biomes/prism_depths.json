@@ -1,14 +1,13 @@
 {
   "id": "prism_depths",
   "name": "Prism Depths",
-  "roomCount": {
-    "min": 6,
-    "max": 10
-  },
-  "gridStep": 14,
+  "templatePrefix": "prism",
+  "assetFolder": "prism",
+  "roomCount": { "min": 6, "max": 10 },
   "roomTemplateIds": [
     "prism_entrance",
     "prism_stairs",
+    "prism_corridor",
     "prism_courtyard",
     "prism_hall",
     "prism_treasure",
@@ -17,32 +16,40 @@
     "prism_boss",
     "prism_puzzle"
   ],
+  "materials": {
+    "floor": "res://assets/prism/mat_floor.tres",
+    "wall": "res://assets/prism/mat_wall.tres",
+    "ceiling": "res://assets/prism/mat_ceiling.tres",
+    "accent": "res://assets/prism/mat_accent.tres"
+  },
+  "lighting": {
+    "ambientColor": [0.42, 0.58, 0.82],
+    "ambientEnergy": 0.58,
+    "fogEnabled": true,
+    "fogColor": [0.15, 0.25, 0.42],
+    "fogDensity": 0.022,
+    "torchColor": [0.75, 0.85, 1.0],
+    "torchEnergy": 2.1
+  },
+  "audioProfile": "content/audio_profiles/prism_depths.json",
+  "propKit": {
+    "pillar": "res://scenes/props/prism/pillar.tscn",
+    "sconce": "res://scenes/props/prism/sconce.tscn",
+    "rubble": [
+      "res://scenes/props/prism/rubble_a.tscn",
+      "res://scenes/props/prism/rubble_b.tscn"
+    ]
+  },
   "enemyPool": [
-    {
-      "enemyId": "crystal_slime",
-      "weight": 3
-    },
-    {
-      "enemyId": "crystal_bat",
-      "weight": 2
-    },
-    {
-      "enemyId": "crystal_spitter",
-      "weight": 2
-    },
-    {
-      "enemyId": "crystal_wisp",
-      "weight": 2
-    },
-    {
-      "enemyId": "miniboss_crystal_guardian",
-      "weight": 1
-    }
+    { "enemyId": "crystal_slime", "weight": 3 },
+    { "enemyId": "crystal_bat", "weight": 2 },
+    { "enemyId": "crystal_spitter", "weight": 2 },
+    { "enemyId": "crystal_wisp", "weight": 2 },
+    { "enemyId": "miniboss_crystal_guardian", "weight": 1 }
   ],
   "bossPool": [
-    {
-      "enemyId": "boss_crystal_sovereign"
-    }
+    { "enemyId": "boss_crystal_sovereign", "weight": 3 },
+    { "enemyId": "miniboss_crystal_guardian", "weight": 1 }
   ],
   "budgets": {
     "baseEnemyThreat": 100,
@@ -50,5 +57,25 @@
     "threatPerTier": 20,
     "lootPerTier": 10
   },
-  "requiresSecret": true
+  "lootTables": {
+    "treasure": [
+      { "itemId": "health_potion", "quantity": [2, 3], "weight": 3 },
+      { "itemId": "wind_relic_charm", "quantity": [1, 1], "weight": 2 }
+    ],
+    "secret": [
+      { "itemId": "wind_relic_charm", "quantity": [1, 1], "weight": 2 },
+      { "itemId": "health_potion", "quantity": [3, 4], "weight": 3 }
+    ],
+    "side": [
+      { "itemId": "crystal_shard_blade", "quantity": [1, 1], "weight": 2 },
+      { "itemId": "flame_relic_core", "quantity": [1, 1], "weight": 2 }
+    ],
+    "armory": [{ "itemId": "crystal_shard_blade", "quantity": [1, 1], "weight": 1 }]
+  },
+  "trapPool": [
+    { "trapId": "spike_trap", "weight": 3 },
+    { "trapId": "falling_trap", "weight": 1 }
+  ],
+  "requiresSecret": true,
+  "finalFloor": { "bossId": "final_boss_crystal" }
 }

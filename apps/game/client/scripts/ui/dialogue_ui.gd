@@ -76,14 +76,24 @@ func _unhandled_input(event: InputEvent) -> void:
 func _on_line_changed(speaker: String, text: String, choices: Array) -> void:
 	_speaker_label.text = speaker
 	_text_label.text = text
-	var subtitle_scale := AccessibilitySettings.subtitle_scale
-	_speaker_label.add_theme_font_size_override("font_size", int(14 * subtitle_scale))
-	_text_label.add_theme_font_size_override("font_size", int(16 * subtitle_scale))
+	_apply_subtitle_scale()
 	_rebuild_choices(choices)
 	if choices.is_empty():
 		_hint_label.text = "Enter to continue — Esc to close"
 	else:
 		_hint_label.text = "D-pad + Enter to choose — Esc to close"
+
+
+func refresh_accessibility() -> void:
+	if not visible:
+		return
+	_apply_subtitle_scale()
+
+
+func _apply_subtitle_scale() -> void:
+	var subtitle_scale := AccessibilitySettings.subtitle_scale
+	_speaker_label.add_theme_font_size_override("font_size", int(14 * subtitle_scale))
+	_text_label.add_theme_font_size_override("font_size", int(16 * subtitle_scale))
 
 
 func _rebuild_choices(choices: Array) -> void:

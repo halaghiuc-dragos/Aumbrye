@@ -1,25 +1,25 @@
-keys,en
-UI_PAUSE,Paused
-UI_RESUME,Resume
-STORY_PREMISE,The Umbral Tower binds fallen wardens as echoes until the oath is fulfilled.
-talent.branch.arms,Arms
-talent.branch.guard,Guard
-talent.branch.aptitude,Aptitude
-talent.arms_1,Keen Edge
-talent.arms_2,Sharpened Steel
-talent.arms_3,Efficient Strikes
-talent.arms_4,Deadly Precision
-talent.arms_5,Breaker
-talent.arms_6,Ruinous Blow
-talent.guard_1,Hardy
-talent.guard_2,Iron Skin
-talent.guard_3,Shield Mastery
-talent.guard_4,Unshakable
-talent.guard_5,Defiant
-talent.guard_6,Bulwark
-talent.apt_1,Second Wind
-talent.apt_2,Swift Feet
-talent.apt_3,Treasure Sense
-talent.apt_4,Quick Study
-talent.apt_5,Midas Touch
-talent.apt_6,Flow State
+keys,en,ro
+UI_PAUSE,Paused,Pauză
+UI_RESUME,Resume,Continuă
+STORY_PREMISE,The Umbral Tower binds fallen wardens as echoes until the oath is fulfilled.,Turnul Umbral leagă gardienii căzuți ca ecouri până când jurământul este împlinit.
+talent.branch.arms,Arms,Arme
+talent.branch.guard,Guard,Apărare
+talent.branch.aptitude,Aptitude,Aptitudine
+talent.arms_1,Keen Edge,Tăiș ascuțit
+talent.arms_2,Sharpened Steel,Oțel ascuțit
+talent.arms_3,Efficient Strikes,Lovituri eficiente
+talent.arms_4,Deadly Precision,Precizie mortală
+talent.arms_5,Breaker,Distrugător
+talent.arms_6,Ruinous Blow,Lovitură ruină
+talent.guard_1,Hardy,Rezistent
+talent.guard_2,Iron Skin,Piele de fier
+talent.guard_3,Shield Mastery,Măiestrie scut
+talent.guard_4,Unshakable,De neclintit
+talent.guard_5,Defiant,Rebel
+talent.guard_6,Bulwark,Zid
+talent.apt_1,Second Wind,Al doilea suflu
+talent.apt_2,Swift Feet,Picioare iuți
+talent.apt_3,Treasure Sense,Simț al comorii
+talent.apt_4,Quick Study,Învățare rapidă
+talent.apt_5,Midas Touch,Atingerea lui Midas
+talent.apt_6,Flow State,Stare de flux

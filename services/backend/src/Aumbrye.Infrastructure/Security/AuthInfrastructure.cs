@@ -1,6 +1,7 @@
 using System.Security.Cryptography;
-using System.Text;
 using Aumbrye.Application.Abstractions;
+using Microsoft.Extensions.Configuration;
+using Aumbrye.Infrastructure.Security;
 
 namespace Aumbrye.Infrastructure.Security;
 
@@ -22,8 +23,12 @@ public class JwtTokenService : ITokenService
     {
         _issuer = configuration["Jwt:Issuer"] ?? "aumbrye";
         _audience = configuration["Jwt:Audience"] ?? "aumbrye-client";
-        var secret = configuration["Jwt:Secret"] ?? "dev-only-change-me-in-production-32chars!!";
-        _key = Encoding.UTF8.GetBytes(secret.PadRight(32).Substring(0, 32));
+        var useInMemory = configuration.GetValue<bool>("UseInMemoryStores")
+                          || string.Equals(
+                              configuration["ASPNETCORE_ENVIRONMENT"],
+                              "Testing",
+                              StringComparison.OrdinalIgnoreCase);
+        _key = JwtSigningKey.FromConfiguration(configuration, useInMemory);
         _accessLifetime = TimeSpan.FromMinutes(
             int.TryParse(configuration["Jwt:AccessTokenMinutes"], out var m) ? m : 15);
     }
@@ -32,13 +37,15 @@ public class JwtTokenService : ITokenService
     {
         expiresAt = DateTimeOffset.UtcNow.Add(_accessLifetime);
         var handler = new System.IdentityModel.Tokens.Jwt.JwtSecurityTokenHandler();
+        var claims = new List<System.Security.Claims.Claim>
+        {
+            new(System.Security.Claims.ClaimTypes.NameIdentifier, account.Id.ToString()),
+        };
+        if (!string.IsNullOrEmpty(account.Email))
+            claims.Add(new System.Security.Claims.Claim(System.Security.Claims.ClaimTypes.Email, account.Email));
         var descriptor = new Microsoft.IdentityModel.Tokens.SecurityTokenDescriptor
         {
-            Subject = new System.Security.Claims.ClaimsIdentity(
-            [
-                new System.Security.Claims.Claim(System.Security.Claims.ClaimTypes.NameIdentifier, account.Id.ToString()),
-                new System.Security.Claims.Claim(System.Security.Claims.ClaimTypes.Email, account.Email),
-            ]),
+            Subject = new System.Security.Claims.ClaimsIdentity(claims),
             Expires = expiresAt.UtcDateTime,
             Issuer = _issuer,
             Audience = _audience,
@@ -53,7 +60,7 @@ public class JwtTokenService : ITokenService
 
     public string HashToken(string token)
     {
-        var bytes = SHA256.HashData(Encoding.UTF8.GetBytes(token));
+        var bytes = SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(token));
         return Convert.ToHexString(bytes).ToLowerInvariant();
     }
 

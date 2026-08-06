@@ -1,0 +1,132 @@
+{
+  "schemaVersion": 6,
+  "accountId": "a1b2c3d4-e5f6-4789-a012-3456789abcde",
+  "character": {
+    "name": "Warden",
+    "classId": "knight",
+    "level": 5,
+    "xp": 240,
+    "appearanceTheme": 1,
+    "appearance": {
+      "profileVersion": 1,
+      "theme": 1,
+      "heightVariant": "standard",
+      "bulkVariant": "standard",
+      "skinTone": "neutral",
+      "hair": "none",
+      "face": "open",
+      "head": "visor",
+      "trim": 1
+    },
+    "firstPersonCamera": false
+  },
+  "currencies": {
+    "gold": 320
+  },
+  "inventory": {
+    "schemaVersion": 1,
+    "gridWidth": 6,
+    "gridHeight": 4,
+    "slots": [
+      {
+        "itemId": "castle_sword",
+        "instanceId": "castle_sword_42",
+        "quantity": 1,
+        "x": 0,
+        "y": 0,
+        "rarity": "magic",
+        "rollSeed": 42,
+        "affixes": [
+          { "affixId": "prefix_damage", "value": 3.0 }
+        ]
+      }
+    ],
+    "equipped": {
+      "helmet": {},
+      "chest": {},
+      "gloves": {},
+      "boots": {},
+      "weapon": {
+        "itemId": "castle_sword",
+        "instanceId": "castle_sword_99",
+        "quantity": 1,
+        "rarity": "rare",
+        "rollSeed": 99,
+        "upgradeLevel": 1,
+        "affixes": [
+          { "affixId": "prefix_damage", "value": 5.0 }
+        ]
+      },
+      "secondary": {},
+      "ring": {},
+      "amulet": {},
+      "relic": {}
+    }
+  },
+  "storage": {
+    "schemaVersion": 1,
+    "gridWidth": 8,
+    "gridHeight": 6,
+    "slots": [],
+    "equipped": {
+      "helmet": {},
+      "chest": {},
+      "gloves": {},
+      "boots": {},
+      "weapon": {},
+      "secondary": {},
+      "ring": {},
+      "amulet": {},
+      "relic": {}
+    }
+  },
+  "itemInstances": {
+    "castle_sword_42": {
+      "schemaVersion": 1,
+      "instanceId": "castle_sword_42",
+      "itemDefId": "castle_sword",
+      "itemId": "castle_sword",
+      "rarity": "magic",
+      "affixes": [
+        { "affixId": "prefix_damage", "value": 3.0 }
+      ],
+      "rollSeed": 42
+    },
+    "castle_sword_99": {
+      "schemaVersion": 1,
+      "instanceId": "castle_sword_99",
+      "itemDefId": "castle_sword",
+      "itemId": "castle_sword",
+      "rarity": "rare",
+      "affixes": [
+        { "affixId": "prefix_damage", "value": 5.0 }
+      ],
+      "rollSeed": 99,
+      "upgradeLevel": 1
+    }
+  },
+  "talents": {
+    "arms_1": 1
+  },
+  "talentPointsSpent": 1,
+  "flags": {
+    "theme_forgotten_castle_cleared": true
+  },
+  "quests": {
+    "states": {
+      "intro_quest": "active"
+    },
+    "progress": {}
+  },
+  "recipes": [
+    "unlock_guard_spear"
+  ],
+  "runRelics": [],
+  "meta": {
+    "accessibility": { "highContrast": false },
+    "leaderboard": { "optIn": true },
+    "hub_tutorial": { "seen": true },
+    "achievements": { "unlocked": [] }
+  },
+  "cloudUpdatedAt": "2026-08-05T12:00:00Z"
+}

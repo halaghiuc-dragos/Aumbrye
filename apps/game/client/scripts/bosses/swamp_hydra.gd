@@ -6,6 +6,7 @@ signal boss_defeated
 signal phase_changed(phase: int)
 
 const CLEANSE_SCENE := preload("res://scenes/bosses/swamp_cleanse_zone.tscn")
+const POISON_POOL_SCENE := preload("res://scenes/traps/poison_pool.tscn")
 const HAZARD_SCENE := preload("res://scenes/bosses/arena_hazard.tscn")
 
 enum BossAttack { BITE, TAIL_SWEEP, POISON_SPIT, MIRE_BURST }
@@ -21,7 +22,7 @@ var _arena_bounds := Rect2(-12, -12, 24, 24)
 var _arena_center := Vector3.ZERO
 
 
-func get_enemy_id() -> String:
+func _resolve_enemy_id() -> String:
 	return "swamp_hydra"
 
 
@@ -146,12 +147,10 @@ func _enter_phase_2() -> void:
 
 
 func _spawn_poison_pool() -> void:
-	var hazard := HAZARD_SCENE.instantiate()
+	var hazard := POISON_POOL_SCENE.instantiate()
 	get_parent().add_child(hazard)
 	var offset := Vector3(randf_range(-7, 7), 0.05, randf_range(-7, 7))
 	hazard.global_position = global_position + offset
-	if hazard.has_method("set"):
-		hazard.set("damage", 6.0)
 	_hazards.append(hazard)
 
 
@@ -190,6 +189,10 @@ func apply_state(state: Dictionary) -> void:
 
 func _clamp_to_arena() -> void:
 	var offset := global_position - _arena_center
-	offset.x = clampf(offset.x, _arena_bounds.position.x, _arena_bounds.position.x + _arena_bounds.size.x)
-	offset.z = clampf(offset.z, _arena_bounds.position.y, _arena_bounds.position.y + _arena_bounds.size.y)
+	offset.x = clampf(
+		offset.x, _arena_bounds.position.x, _arena_bounds.position.x + _arena_bounds.size.x
+	)
+	offset.z = clampf(
+		offset.z, _arena_bounds.position.y, _arena_bounds.position.y + _arena_bounds.size.y
+	)
 	global_position = _arena_center + offset

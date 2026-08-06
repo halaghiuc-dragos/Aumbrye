@@ -3,5 +3,5 @@
   "displayName": "Elara the Merchant",
   "interactType": "merchant",
   "dialogueId": "elara_greeting",
-  "position": { "x": -10, "y": 0, "z": 12 }
+  "position": { "x": -12, "y": 0, "z": 11.2 }
 }

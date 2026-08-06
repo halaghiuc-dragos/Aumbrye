@@ -1,13 +1,15 @@
 # Status icon atlas — improvement plan
 
 ## Current state
-`status_icon_atlas.gd` is a runtime pixel plotter, not an atlas: `get_icon` builds a 22×22 `Image` and fills circles, rings, diamonds, or a bolt polygon one pixel at a time, caching the result in a never-invalidated `static var _cache` (`status_icon_atlas.gd:8-21`, `:49-92`). Four of the five authored statuses hit a named branch with hardcoded colors that override the `iconColor` the caller already looked up; the fifth, `freeze`, misses entirely because the match arm spells `frost` / `chill` (`status_icon_atlas.gd:38` vs `content/statuses/freeze.json:2`). The repo contains no `.png` at all, so there is no authored icon art to fall back on. See [`../existing_codebase/ui/status_icon_atlas.md`](../existing_codebase/ui/status_icon_atlas.md).
+`StatusIconAtlas` loads authored cells from `content/ui/status_icon_atlas.json` and `assets/ui/status_icons.png` via `UISymbolAtlas`. Procedural `set_pixel` renderer removed; `freeze` has a distinct cell. See [`../existing_codebase/ui/status_icon_atlas.md`](../existing_codebase/ui/status_icon_atlas.md).
+
+**Quality bar (icons): FINISHED** — SIA-01, SIA-02 closed 2026-08-05.
 
 ## Gaps
 | ID | Sev | Gap | Evidence |
 |----|-----|-----|----------|
-| SIA-01 | P0 | Status icons are procedural blobs, not authored art. The class name promises an atlas and delivers per-pixel `set_pixel` loops. | `status_icon_atlas.gd:14-21`, `:49-92`; `apps/game/client/**/*.png` returns 0 files |
-| SIA-02 | P0 | `freeze` — the only frost status in the game — renders as the generic fallback circle because the branch matches `"frost", "chill"`. A player cannot distinguish being frozen from an unknown effect. | `status_icon_atlas.gd:38`; `content/statuses/freeze.json:2` sets `"id": "freeze"` |
+| SIA-01 | P0 | ~~Procedural blobs~~ **FINISHED** — `status_icons.png` + manifest | was `set_pixel` loops |
+| SIA-02 | P0 | ~~`freeze` hits generic fallback~~ **FINISHED** — manifest cell `freeze` col 2 | was `frost`/`chill` match only |
 | SIA-03 | P1 | `iconColor` from `content/statuses/*.json` is read by `combat_hud.gd:196-197` and then thrown away by every named branch, so authoring a new color has no visible effect for `burn`, `poison`, `stun`, or `bleed`. | `status_icon_atlas.gd:32-43` |
 | SIA-04 | P1 | Icons carry no stack count, no remaining duration, and no buff/debuff polarity. | `status_icon_atlas.gd:11-21` returns a flat glyph |
 | SIA-05 | P1 | Colors are hardcoded and `AccessibilitySettings.colorblind_mode` is never consulted, so the colorblind option in settings cannot help status readability. | grep `colorblind` returns no hit in `status_icon_atlas.gd`; `accessibility_settings.gd:10` |
@@ -90,14 +92,14 @@ Step 1 lands with the old renderer intact, so the game stays runnable; step 2 fl
 - No save-format change, so no `save_migrator.gd` bump.
 
 ## Acceptance criteria
-- [ ] `content/ui/status_icon_atlas.json` validates against `content/schemas/status-icon-atlas.v1.json`.
-- [ ] Every `content/statuses/*.json` id has a cell in the manifest, and every manifest cell id except `unknown` has a status file.
-- [ ] `StatusIconAtlas.get_icon("freeze")` returns a distinct region from `get_icon("burn")` and from the `unknown` cell.
-- [ ] `get_icon` returns an `AtlasTexture` and all five statuses share one `atlas` object.
-- [ ] `status_icon_atlas.gd` contains no `set_pixel` call and no `_fill_` function.
-- [ ] `get_icon` has no `fallback_color` parameter, and `combat_hud.gd` passes no color.
-- [ ] `get_icon("not_a_status")` returns the `unknown` cell and emits a warning containing the id.
-- [ ] `combat_hud.gd` sizes status icons from `StatusIconAtlas.icon_size()`, not from a literal.
+- [x] `content/ui/status_icon_atlas.json` validates against `content/schemas/status-icon-atlas.v1.json`.
+- [x] Every `content/statuses/*.json` id has a cell in the manifest, and every manifest cell id except `unknown` has a status file.
+- [x] `StatusIconAtlas.get_icon("freeze")` returns a distinct region from `get_icon("burn")` and from the `unknown` cell.
+- [x] `get_icon` returns an `AtlasTexture` and all five statuses share one `atlas` object.
+- [x] `status_icon_atlas.gd` contains no `set_pixel` call and no `_fill_` function.
+- [x] `get_icon` has no `fallback_color` parameter, and `combat_hud.gd` passes no color.
+- [x] `get_icon("not_a_status")` returns the `unknown` cell and emits a warning containing the id.
+- [x] `combat_hud.gd` sizes status icons from `StatusIconAtlas.icon_size()`, not from a literal.
 - [ ] Setting `AccessibilitySettings.colorblind_mode = "deuteranopia"` and calling `reload()` makes `get_icon("burn").atlas.resource_path` end in `status_icons_cb.png`.
 - [ ] Each status file declares `polarity`, and buff and debuff pips draw different frames.
 

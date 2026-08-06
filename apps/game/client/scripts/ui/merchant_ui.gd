@@ -14,6 +14,7 @@ signal closed
 @onready var _sell_button: Button = $Panel/Margin/VBox/Buttons/SellButton
 @onready var _close_button: Button = $Panel/Margin/VBox/Buttons/CloseButton
 
+var _sell_qty_spin: SpinBox
 var _buy_item_ids: Array[String] = []
 var _sell_indices: Array[int] = []
 var _merchant_id := "hub_merchant"
@@ -27,10 +28,21 @@ func _ready() -> void:
 	_buy_button.pressed.connect(_on_buy_pressed)
 	_sell_button.pressed.connect(_on_sell_pressed)
 	_close_button.pressed.connect(close)
-	_buy_list.item_selected.connect(func(_i: int) -> void: _detail_label.text = "Select Buy or Sell")
-	_sell_list.item_selected.connect(func(_i: int) -> void: _detail_label.text = "Select Buy or Sell")
-	CharacterService.gold_changed.connect(func(_g: int) -> void: _gold_label.text = "Gold: %d" % CharacterService.gold)
+	_buy_list.item_selected.connect(
+		func(_i: int) -> void: _detail_label.text = "Select Buy or Sell"
+	)
+	_sell_list.item_selected.connect(_on_sell_selected)
+	CharacterService.gold_changed.connect(
+		func(_g: int) -> void: _gold_label.text = "Gold: %d" % CharacterService.gold
+	)
 	InventoryService.inventory_changed.connect(_refresh)
+	_sell_qty_spin = SpinBox.new()
+	_sell_qty_spin.name = "SellQtySpin"
+	_sell_qty_spin.min_value = 1
+	_sell_qty_spin.max_value = 999
+	_sell_qty_spin.value = 1
+	$Panel/Margin/VBox.add_child(_sell_qty_spin)
+	$Panel/Margin/VBox.move_child(_sell_qty_spin, _sell_list.get_index() + 1)
 
 
 func is_open() -> bool:
@@ -38,7 +50,6 @@ func is_open() -> bool:
 
 
 func open() -> void:
-	MerchantService.reset_session()
 	_refresh()
 	visible = true
 	mouse_filter = Control.MOUSE_FILTER_STOP
@@ -74,7 +85,9 @@ func _refresh() -> void:
 		var item_id: String = entry.get("itemId", "")
 		var def := ItemCatalog.get_definition(item_id)
 		var price := MerchantService.get_buy_price(item_id, _merchant_id)
-		_buy_list.add_item("%s — %d g (%d left)" % [def.get("name", item_id), price, entry.get("remaining", 0)])
+		_buy_list.add_item(
+			"%s — %d g (%d left)" % [def.get("name", item_id), price, entry.get("remaining", 0)]
+		)
 		_buy_item_ids.append(item_id)
 	_sell_list.clear()
 	_sell_indices.clear()
@@ -83,9 +96,25 @@ func _refresh() -> void:
 		var slot: Dictionary = inv.slots[i]
 		var item_id: String = slot.get("itemId", "")
 		var def := ItemCatalog.get_definition(item_id)
-		var price := MerchantService.get_sell_price(item_id)
-		_sell_list.add_item("%s — sell %d g" % [def.get("name", item_id), price])
+		var price := MerchantService.get_slot_sell_price(slot)
+		var qty := int(slot.get("quantity", 1))
+		var label := "%s — sell %d g" % [def.get("name", item_id), price]
+		if qty > 1:
+			label = "%s x%d — sell %d g" % [def.get("name", item_id), qty, price]
+		_sell_list.add_item(label)
 		_sell_indices.append(i)
+
+
+func _on_sell_selected(_index: int) -> void:
+	var selected := _sell_list.get_selected_items()
+	if selected.is_empty():
+		return
+	var inv_index: int = _sell_indices[selected[0]]
+	var slot: Dictionary = InventoryService.inventory.slots[inv_index]
+	var qty := maxi(1, int(slot.get("quantity", 1)))
+	_sell_qty_spin.max_value = qty
+	_sell_qty_spin.value = qty
+	_detail_label.text = "Sell quantity (max %d)" % qty
 
 
 func _on_buy_pressed() -> void:
@@ -108,7 +137,8 @@ func _on_sell_pressed() -> void:
 		_detail_label.text = "Select an item to sell"
 		return
 	var inv_index: int = _sell_indices[selected[0]]
-	var result := MerchantService.sell_item(inv_index)
+	var sell_qty := int(_sell_qty_spin.value)
+	var result := MerchantService.sell_item(inv_index, sell_qty)
 	if result.get("ok", false):
 		_detail_label.text = "Sold for %d gold" % int(result.get("gold", 0))
 	else:

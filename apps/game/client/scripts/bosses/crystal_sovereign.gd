@@ -17,7 +17,7 @@ var _arena_bounds := Rect2(-12, -12, 24, 24)
 var _arena_center := Vector3.ZERO
 
 
-func get_enemy_id() -> String:
+func _resolve_enemy_id() -> String:
 	return "crystal_sovereign"
 
 
@@ -163,6 +163,10 @@ func apply_state(state: Dictionary) -> void:
 
 func _clamp_to_arena() -> void:
 	var offset := global_position - _arena_center
-	offset.x = clampf(offset.x, _arena_bounds.position.x, _arena_bounds.position.x + _arena_bounds.size.x)
-	offset.z = clampf(offset.z, _arena_bounds.position.y, _arena_bounds.position.y + _arena_bounds.size.y)
+	offset.x = clampf(
+		offset.x, _arena_bounds.position.x, _arena_bounds.position.x + _arena_bounds.size.x
+	)
+	offset.z = clampf(
+		offset.z, _arena_bounds.position.y, _arena_bounds.position.y + _arena_bounds.size.y
+	)
 	global_position = _arena_center + offset

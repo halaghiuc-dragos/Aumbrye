@@ -1,14 +1,13 @@
 {
   "id": "forgotten_castle",
   "name": "Forgotten Castle",
-  "roomCount": {
-    "min": 18,
-    "max": 22
-  },
-  "gridStep": 14,
+  "templatePrefix": "castle",
+  "assetFolder": "castle",
+  "roomCount": { "min": 18, "max": 22 },
   "roomTemplateIds": [
     "castle_entrance",
     "castle_stairs",
+    "castle_corridor",
     "castle_courtyard",
     "castle_hall",
     "castle_treasure",
@@ -17,6 +16,30 @@
     "castle_boss",
     "castle_puzzle"
   ],
+  "materials": {
+    "floor": "res://assets/castle/mat_floor.tres",
+    "wall": "res://assets/castle/mat_wall.tres",
+    "ceiling": "res://assets/castle/mat_ceiling.tres",
+    "accent": "res://assets/castle/mat_accent.tres"
+  },
+  "lighting": {
+    "ambientColor": [0.58, 0.5, 0.44],
+    "ambientEnergy": 0.78,
+    "fogEnabled": false,
+    "fogColor": [0.2, 0.18, 0.22],
+    "fogDensity": 0.008,
+    "torchColor": [1.0, 0.72, 0.38],
+    "torchEnergy": 2.2
+  },
+  "audioProfile": "content/audio_profiles/forgotten_castle.json",
+  "propKit": {
+    "pillar": "res://scenes/props/castle/pillar.tscn",
+    "sconce": "res://scenes/props/castle/sconce.tscn",
+    "rubble": [
+      "res://scenes/props/castle/rubble_a.tscn",
+      "res://scenes/props/castle/rubble_b.tscn"
+    ]
+  },
   "enemyPool": [
     { "enemyId": "castle_grunt", "weight": 3 },
     { "enemyId": "castle_archer", "weight": 2 },
@@ -25,8 +48,8 @@
     { "enemyId": "miniboss_castle_captain", "weight": 1 }
   ],
   "bossPool": [
-    { "enemyId": "boss_castle_knight" },
-    { "enemyId": "miniboss_castle_captain" }
+    { "enemyId": "boss_castle_knight", "weight": 3 },
+    { "enemyId": "miniboss_castle_captain", "weight": 1 }
   ],
   "budgets": {
     "baseEnemyThreat": 200,
@@ -34,5 +57,11 @@
     "threatPerTier": 35,
     "lootPerTier": 14
   },
-  "requiresSecret": true
+  "lootTablePath": "content/loot/tables/forgotten_castle.json",
+  "trapPool": [
+    { "trapId": "spike_trap", "weight": 3 },
+    { "trapId": "falling_trap", "weight": 1 }
+  ],
+  "requiresSecret": true,
+  "finalFloor": { "bossId": "final_boss_forgotten_castle" }
 }

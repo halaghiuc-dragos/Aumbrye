@@ -1,21 +1,33 @@
 extends "res://scripts/validation/validation_suite.gd"
 
 const CRYSTAL_ENEMIES: Array[String] = [
-	"crystal_slime", "crystal_bat", "crystal_golem", "crystal_shade",
-	"crystal_guardian", "crystal_sovereign",
+	"crystal_slime",
+	"crystal_bat",
+	"crystal_golem",
+	"crystal_shade",
+	"crystal_guardian",
+	"crystal_sovereign",
 ]
 const SWAMP_ENEMIES: Array[String] = [
-	"swamp_bogling", "swamp_leech", "swamp_toad", "swamp_witch",
-	"swamp_hag", "swamp_hydra",
+	"swamp_bogling",
+	"swamp_leech",
+	"swamp_toad",
+	"swamp_witch",
+	"swamp_hag",
+	"swamp_hydra",
 ]
 const M5_WEAPONS: Array[String] = ["greatsword", "dagger", "spear", "bow"]
 const M5_STATUSES: Array[String] = ["burn", "bleed", "poison", "freeze", "stun"]
 const CASTLE_UNIQUES: Array[String] = ["castle_banner", "castle_chalice", "castle_crown"]
 const CRYSTAL_UNIQUES: Array[String] = [
-	"crystal_frost_ring", "crystal_prism_amulet", "crystal_shard_blade",
+	"crystal_frost_ring",
+	"crystal_prism_amulet",
+	"crystal_shard_blade",
 ]
 const SWAMP_UNIQUES: Array[String] = [
-	"swamp_bog_boots", "swamp_mire_charm", "swamp_toxin_dagger",
+	"swamp_bog_boots",
+	"swamp_mire_charm",
+	"swamp_toxin_dagger",
 ]
 const M5_SCHEMAS: Array[String] = [
 	"content/schemas/npc-definition.v1.json",
@@ -44,6 +56,9 @@ func run() -> void:
 	await _test_loadout_unlocks()
 	_test_castle_entry_biome_select()
 	_test_dungeon_tier_progression()
+	_test_catalog_from_data()
+	_test_difficulty_tier_selection()
+	_test_tier_unlock_per_dungeon()
 	_test_theme_enemies_and_bosses()
 	_test_theme_unique_items()
 	_test_audio_profiles()
@@ -59,9 +74,11 @@ func _test_biome_registry() -> void:
 	ctx.timed_record(
 		"m5.biome.all_three_registered",
 		get_category(),
-		BiomeRegistry.ALL_BIOMES.has(BiomeRegistry.BIOME_CASTLE)
+		(
+			BiomeRegistry.ALL_BIOMES.has(BiomeRegistry.BIOME_CASTLE)
 			and BiomeRegistry.ALL_BIOMES.has(BiomeRegistry.BIOME_CRYSTAL)
-			and BiomeRegistry.ALL_BIOMES.has(BiomeRegistry.BIOME_SWAMP),
+			and BiomeRegistry.ALL_BIOMES.has(BiomeRegistry.BIOME_SWAMP)
+		),
 		"M5 biomes (castle, crystal, swamp) still registered",
 		start,
 		"M5.theme.biomes"
@@ -182,7 +199,9 @@ func _test_dungeon_build_biomes() -> void:
 		var root := Node3D.new()
 		root.name = "M5Dungeon_%s" % biome_id
 		ctx.owner.add_child(root)
-		var player: CharacterBody3D = load("res://scenes/player/player.tscn").instantiate() as CharacterBody3D
+		var player: CharacterBody3D = (
+			load("res://scenes/player/player.tscn").instantiate() as CharacterBody3D
+		)
 		root.add_child(player)
 		var builder := DungeonBuilder.new()
 		root.add_child(builder)
@@ -276,7 +295,9 @@ func _test_status_system() -> void:
 		"M5.dmg.status"
 	)
 
-	var player: CharacterBody3D = load("res://scenes/player/player.tscn").instantiate() as CharacterBody3D
+	var player: CharacterBody3D = (
+		load("res://scenes/player/player.tscn").instantiate() as CharacterBody3D
+	)
 	ctx.owner.add_child(player)
 	await ctx.await_frame()
 	var status_ctrl := player.get_node_or_null("StatusController") as StatusController
@@ -306,6 +327,47 @@ func _test_status_system() -> void:
 		start,
 		"M5.dmg.status_hud"
 	)
+
+	start = Time.get_ticks_msec()
+	var burn_icon := StatusIconAtlas.get_icon("burn")
+	var freeze_icon := StatusIconAtlas.get_icon("freeze")
+	var atlas_ok := burn_icon is AtlasTexture and freeze_icon is AtlasTexture
+	if atlas_ok:
+		atlas_ok = burn_icon.atlas == freeze_icon.atlas
+		atlas_ok = atlas_ok and burn_icon.region != freeze_icon.region
+	ctx.timed_record(
+		"m5.status.atlas_texture",
+		get_category(),
+		atlas_ok,
+		"status icons share one atlas texture with distinct regions",
+		start,
+		"M5.ui.atlas"
+	)
+
+	start = Time.get_ticks_msec()
+	var no_plotter := not ctx.file_contains("res://scripts/ui/status_icon_atlas.gd", "set_pixel")
+	ctx.timed_record(
+		"m5.status.no_plotter",
+		get_category(),
+		no_plotter,
+		"status icon atlas has no procedural set_pixel renderer",
+		start,
+		"M5.ui.atlas"
+	)
+
+	start = Time.get_ticks_msec()
+	var uses_icon_size := ctx.file_contains(
+		"res://scripts/ui/combat_hud.gd", "StatusIconAtlas.icon_size()"
+	)
+	ctx.timed_record(
+		"m5.status.icon_size_shared",
+		get_category(),
+		uses_icon_size,
+		"combat HUD sizes status icons from StatusIconAtlas.icon_size()",
+		start,
+		"M5.ui.atlas"
+	)
+
 	player.queue_free()
 
 
@@ -389,7 +451,8 @@ func _test_castle_entry_biome_select() -> void:
 		"M5.hub.biome_select"
 	)
 
-	CharacterService.set_flag(DungeonTierService.FLAG_MAX_TIER, DungeonCatalog.count())
+	CharacterService.set_flag(DungeonTierService.FLAG_UNLOCKED_COUNT, DungeonCatalog.count())
+	CharacterService.set_flag(DungeonTierService.FLAG_MAX_TIER_LEGACY, DungeonCatalog.count())
 	menu.call("_build_dungeon_dropdown")
 	item_count = dropdown.item_count if dropdown else 0
 	start = Time.get_ticks_msec()
@@ -435,7 +498,7 @@ func _test_dungeon_tier_progression() -> void:
 	)
 
 	start = Time.get_ticks_msec()
-	DungeonTierService.on_dungeon_cleared(DungeonCatalog.DEFAULT_DUNGEON_ID)
+	DungeonTierService.on_dungeon_cleared(DungeonCatalog.DEFAULT_DUNGEON_ID, 1)
 	var tier2_ok := (
 		DungeonTierService.get_max_unlocked_tier() == 2
 		and DungeonTierService.is_dungeon_unlocked("crystal_caverns")
@@ -532,11 +595,18 @@ func _test_m5_schemas() -> void:
 	for relative in M5_SCHEMAS:
 		var start := Time.get_ticks_msec()
 		var full := _content_root().path_join(relative)
-		var parsed: Variant = JSON.parse_string(FileAccess.get_file_as_string(full)) if FileAccess.file_exists(full) else null
-		var ok: bool = parsed is Dictionary and (
-			(parsed as Dictionary).has("schemaVersion")
-			or (parsed as Dictionary).has("$schema")
-			or (parsed as Dictionary).has("$id")
+		var parsed: Variant = (
+			JSON.parse_string(FileAccess.get_file_as_string(full))
+			if FileAccess.file_exists(full)
+			else null
+		)
+		var ok: bool = (
+			parsed is Dictionary
+			and (
+				(parsed as Dictionary).has("schemaVersion")
+				or (parsed as Dictionary).has("$schema")
+				or (parsed as Dictionary).has("$id")
+			)
 		)
 		ctx.timed_record(
 			"m5.schema.%s" % relative.get_file().get_basename(),
@@ -554,11 +624,14 @@ func _test_loot_epic_affix_counts() -> void:
 	var counts: Dictionary = data.get("affixCounts", {})
 	var epic: Dictionary = counts.get("epic", {})
 	var legendary: Dictionary = counts.get("legendary", {})
-	var aumbral: Dictionary = counts.get("aumbral", counts.get("mythic", {}))
+	var aumbral: Dictionary = counts.get("aumbral", {})
 	var ok := (
-		int(epic.get("min", 0)) == 2 and int(epic.get("max", 0)) == 3
-		and int(legendary.get("min", 0)) == 3 and int(legendary.get("max", 0)) == 4
-		and int(aumbral.get("min", 0)) == 4 and int(aumbral.get("max", 0)) == 5
+		int(epic.get("min", 0)) == 2
+		and int(epic.get("max", 0)) == 3
+		and int(legendary.get("min", 0)) == 3
+		and int(legendary.get("max", 0)) == 4
+		and int(aumbral.get("min", 0)) == 4
+		and int(aumbral.get("max", 0)) == 5
 	)
 	ctx.timed_record(
 		"m5.loot.epic_affix_counts",
@@ -574,18 +647,27 @@ func _test_save_integer_normalization() -> void:
 	var backup: Dictionary = ctx.backup_save_file()
 	LocalSave.delete_save()
 	InventoryService.inventory = GridInventory.new()
-	InventoryService.inventory.from_save_dict({
-		"gridWidth": 10.0,
-		"gridHeight": 6.0,
-		"slots": [{
-			"itemId": "iron_scrap",
-			"quantity": 2.0,
-			"x": 1.0,
-			"y": 0.0,
-			"rollSeed": 42.0,
-		}],
-		"equipped": {},
-	})
+	(
+		InventoryService
+		. inventory
+		. from_save_dict(
+			{
+				"gridWidth": 10.0,
+				"gridHeight": 6.0,
+				"slots":
+				[
+					{
+						"itemId": "iron_scrap",
+						"quantity": 2.0,
+						"x": 1.0,
+						"y": 0.0,
+						"rollSeed": 42.0,
+					}
+				],
+				"equipped": {},
+			}
+		)
+	)
 	LocalSave.autosave()
 	var start := Time.get_ticks_msec()
 	var text := FileAccess.get_file_as_string(TC.SAVE_PATH)
@@ -622,12 +704,12 @@ func _test_save_integer_normalization() -> void:
 
 func _test_balance_doc() -> void:
 	var start := Time.get_ticks_msec()
-	var path := _content_root().path_join("docs/plan/systems/24-BALANCING.md")
+	var path := _content_root().path_join("docs/existing_codebase/content-data.md")
 	ctx.timed_record(
 		"m5.balance.doc_exists",
 		get_category(),
 		FileAccess.file_exists(path),
-		"balancing system doc present",
+		"content data doc present",
 		start,
 		"M5.bal.doc"
 	)
@@ -635,8 +717,12 @@ func _test_balance_doc() -> void:
 
 func _test_online_procgen_optional_path() -> void:
 	var start := Time.get_ticks_msec()
-	var has_online: bool = ctx.file_contains("res://scripts/app/run_flow.gd", "func _try_online_generate")
-	var offline_default: bool = ctx.file_contains("res://scripts/app/run_flow.gd", "const USE_ONLINE_PROCgen := false")
+	var has_online: bool = ctx.file_contains(
+		"res://scripts/app/run_flow.gd", "func _try_online_generate"
+	)
+	var offline_default: bool = ctx.file_contains(
+		"res://scripts/app/run_flow.gd", "const USE_ONLINE_PROCgen := false"
+	)
 	ctx.timed_record(
 		"m5.net.online_path_optional",
 		get_category(),
@@ -649,3 +735,82 @@ func _test_online_procgen_optional_path() -> void:
 
 func _content_root() -> String:
 	return ProjectSettings.globalize_path("res://").path_join("../../..")
+
+
+func _test_catalog_from_data() -> void:
+	DungeonCatalog.reload()
+	var start := Time.get_ticks_msec()
+	var ids := DungeonCatalog.all_dungeon_ids()
+	var dir := DirAccess.open(ContentLoader.content_path("content/dungeons"))
+	var file_count := 0
+	if dir:
+		dir.list_dir_begin()
+		var file_name := dir.get_next()
+		while file_name != "":
+			if file_name.ends_with(".json"):
+				file_count += 1
+			file_name = dir.get_next()
+		dir.list_dir_end()
+	var ok := ids.size() == file_count and ids.size() == 10
+	ok = ok and DungeonCatalog.get_display_name("forgotten_castle") == str(
+		ContentLoader.load_json("content/biomes/forgotten_castle.json").get("name", "")
+	)
+	ctx.timed_record(
+		"m5.dungeon.catalog_from_data",
+		get_category(),
+		ok,
+		"catalog ids match content/dungeons and display names delegate to BiomeRegistry",
+		start,
+		"DCT-06"
+	)
+
+
+func _test_difficulty_tier_selection() -> void:
+	var start := Time.get_ticks_msec()
+	var ok := true
+	for dungeon_id in DungeonCatalog.all_dungeon_ids():
+		var tiers := DungeonCatalog.get_difficulty_tiers(dungeon_id)
+		if tiers.size() < 3:
+			ok = false
+			break
+		var prev_hp := 0.0
+		var prev_loot := -1.0
+		for tier_data in tiers:
+			if not tier_data is Dictionary:
+				ok = false
+				break
+			var hp := float(tier_data.get("hpMult", 0.0))
+			var loot := float(tier_data.get("lootBonus", 0.0))
+			if hp <= prev_hp or loot <= prev_loot:
+				ok = false
+				break
+			prev_hp = hp
+			prev_loot = loot
+	ctx.timed_record(
+		"m5.dungeon.difficulty_tiers",
+		get_category(),
+		ok,
+		"each dungeon has >=3 strictly increasing difficulty tiers",
+		start,
+		"DCT-03"
+	)
+
+
+func _test_tier_unlock_per_dungeon() -> void:
+	CharacterService.reset_to_defaults()
+	var start := Time.get_ticks_msec()
+	DungeonTierService.on_dungeon_cleared(DungeonCatalog.DEFAULT_DUNGEON_ID, 1)
+	var flag := DungeonTierService.FLAG_DIFFICULTY_PREFIX + "forgotten_castle"
+	var ok := (
+		int(CharacterService.get_flag(flag)) == 2
+		and DungeonTierService.get_max_unlocked_tier() == 2
+	)
+	ctx.timed_record(
+		"m5.dungeon.tier_unlock_per_dungeon",
+		get_category(),
+		ok,
+		"clearing tier 1 unlocks difficulty tier 2 and next dungeon",
+		start,
+		"DCT-03"
+	)
+	CharacterService.reset_to_defaults()

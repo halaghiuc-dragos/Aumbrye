@@ -14,7 +14,7 @@
         "rare": { "min": 9, "max": 14 },
         "epic": { "min": 15, "max": 20 },
         "legendary": { "min": 21, "max": 28 },
-        "mythic": { "min": 30, "max": 40 }
+        "aumbral": { "min": 30, "max": 40 }
       }
     },
     {
@@ -30,7 +30,7 @@
         "rare": { "min": 7, "max": 10 },
         "epic": { "min": 11, "max": 15 },
         "legendary": { "min": 16, "max": 22 },
-        "mythic": { "min": 24, "max": 32 }
+        "aumbral": { "min": 24, "max": 32 }
       }
     },
     {
@@ -46,7 +46,7 @@
         "rare": { "min": 6, "max": 8 },
         "epic": { "min": 9, "max": 12 },
         "legendary": { "min": 13, "max": 16 },
-        "mythic": { "min": 18, "max": 24 }
+        "aumbral": { "min": 18, "max": 24 }
       }
     },
     {
@@ -62,7 +62,7 @@
         "rare": { "min": 0.04, "max": 0.06 },
         "epic": { "min": 0.06, "max": 0.08 },
         "legendary": { "min": 0.08, "max": 0.1 },
-        "mythic": { "min": 0.1, "max": 0.12 }
+        "aumbral": { "min": 0.1, "max": 0.12 }
       }
     },
     {
@@ -78,7 +78,7 @@
         "rare": { "min": 10, "max": 14 },
         "epic": { "min": 15, "max": 20 },
         "legendary": { "min": 21, "max": 28 },
-        "mythic": { "min": 30, "max": 40 }
+        "aumbral": { "min": 30, "max": 40 }
       }
     },
     {
@@ -94,7 +94,7 @@
         "rare": { "min": 9, "max": 14 },
         "epic": { "min": 15, "max": 20 },
         "legendary": { "min": 21, "max": 28 },
-        "mythic": { "min": 30, "max": 40 }
+        "aumbral": { "min": 30, "max": 40 }
       }
     },
     {
@@ -110,7 +110,7 @@
         "rare": { "min": 9, "max": 12 },
         "epic": { "min": 13, "max": 18 },
         "legendary": { "min": 19, "max": 25 },
-        "mythic": { "min": 28, "max": 36 }
+        "aumbral": { "min": 28, "max": 36 }
       }
     }
   ]

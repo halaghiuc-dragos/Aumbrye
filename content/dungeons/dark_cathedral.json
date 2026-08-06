@@ -1,0 +1,15 @@
+{
+  "id": "dark_cathedral",
+  "biomeId": "dark_cathedral",
+  "order": 5,
+  "clearFlag": "theme_dark_cathedral_cleared",
+  "unlockRequirement": { "kind": "clear_dungeon", "dungeonId": "frozen_fortress" },
+  "floorHpGrowth": 0.06,
+  "floorDamageGrowth": 0.04,
+  "bossDoorRequirement": "sigil",
+  "difficultyTiers": [
+    { "tier": 1, "label": "Dim", "hpMult": 1.0, "damageMult": 1.0, "lootBonus": 0.0, "modifiers": [] },
+    { "tier": 2, "label": "Profane", "hpMult": 1.35, "damageMult": 1.18, "lootBonus": 0.15, "modifiers": ["elite_packs"] },
+    { "tier": 3, "label": "Damned", "hpMult": 1.8, "damageMult": 1.4, "lootBonus": 0.35, "modifiers": ["elite_packs", "no_rest"] }
+  ]
+}

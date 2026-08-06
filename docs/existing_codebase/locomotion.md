@@ -19,8 +19,17 @@
 | `DECELERATION` | `14.0` | m/s^2 with no input |
 | `SPRINT_STAMINA_DRAIN` | `18.0` | stamina/s while sprinting |
 | `ROTATION_SPEED` | `10.0` | `lerp_angle` rate for `Facing` |
+| `SPEED_SCALE_FORWARD` | `1.0` | full speed within 45 deg of facing |
+| `SPEED_SCALE_STRAFE` | `0.82` | strafe speed scale |
+| `SPEED_SCALE_BACK` | `0.65` | backpedal speed scale |
+| `SPRINT_MIN_FORWARD_DOT` | `0.5` | sprint denied beyond 60 deg off facing |
+| `AIR_ACCELERATION` | `4.0` | airborne horizontal acceleration |
+| `AIR_CONTROL_MAX_TURN_DEG` | `55.0` | max airborne turn from takeoff heading |
+| `TERMINAL_FALL_SPEED` | `22.0` | m/s downward velocity cap |
+| `SPRINT_RAMP_UP` | `0.35` | s to reach full sprint |
+| `SPRINT_RAMP_DOWN` | `0.5` | s to leave sprint |
 
-All six are `const` at `locomotion.gd:3-8`. `WALK_SPEED` and `SPRINT_SPEED` are duplicated as `DioramaAnimController.WALK_REFERENCE_SPEED` / `RUN_REFERENCE_SPEED` (`diorama_anim_controller.gd:34-35`) to scale clip playback.
+All ground locomotion constants are `const` at `locomotion.gd:3-26`. `WALK_SPEED` and `SPRINT_SPEED` are duplicated as `DioramaAnimController.WALK_REFERENCE_SPEED` / `RUN_REFERENCE_SPEED` (`diorama_anim_controller.gd:34-35`) to scale clip playback.
 
 ## How it works
 
@@ -33,28 +42,29 @@ All six are `const` at `locomotion.gd:3-8`. `WALK_SPEED` and `SPRINT_SPEED` are 
 
 `_physics_process(delta)` (`locomotion.gd:68`) runs in this order:
 
-1. **Movement lock.** If `CombatReactions.is_movement_locked()` returns true, gravity still applies, horizontal velocity decays at `DECELERATION`, `move_and_slide()` runs, the animation is updated, and the frame returns (`locomotion.gd:69-77`).
+1. **Movement lock.** If `CombatReactions.is_movement_locked()` or `_landing_lock_timer > 0`, gravity still applies, horizontal velocity decays at `DECELERATION`, `move_and_slide()` runs, the animation is updated, and the frame returns (`locomotion.gd:69-77`).
 2. **Dash.** `Dodge.process_dash_physics(delta)` is called; if `Dodge.is_dodging` is true the frame returns after updating animation (`locomotion.gd:79-88`). `dodge.gd` calls `move_and_slide()` itself (`dodge.gd:172`).
-3. **Gravity** when not `is_on_floor()` (`locomotion.gd:90-91`).
-4. **Direction.** `Input.get_vector("move_left", "move_right", "move_forward", "move_back")` then `_get_move_direction()`, which routes through `LockOnMovement.get_move_direction` while locked on and otherwise through `_get_camera_relative_direction` (`locomotion.gd:142-160`). Camera-relative direction is `Basis(Vector3.UP, _camera_yaw.global_rotation.y) * Vector3(input.x, 0, input.y)`, normalized.
-5. **Target speed.** `(SPRINT_SPEED if sprinting else WALK_SPEED) * _speed_multiplier * attack_speed_mult`, then multiplied by `StatusController.get_slow_multiplier()` (`locomotion.gd:103-106`). `attack_speed_mult` comes from `WeaponController.get_move_speed_multiplier()` — `0.2` during startup/active/drawing, `0.65` during recovery (`weapon_controller.gd:222-229`).
-6. **Sprint stamina.** `Stamina.drain(SPRINT_STAMINA_DRAIN * delta)`; on failure the target speed drops back to walk for that frame (`locomotion.gd:108-110`).
-7. **Velocity blend.** `horizontal.move_toward(direction * target_speed, rate * delta)` with `rate = ACCELERATION` when there is input, `DECELERATION` otherwise.
+3. **Gravity** when not `is_on_floor()` with terminal velocity clamp (`locomotion.gd:90-91`).
+4. **Direction.** `PlayerInput.move_vector()` then `_get_move_direction()`, which routes through `LockOnMovement.get_move_direction` while locked on and otherwise through `_get_camera_relative_direction` (`locomotion.gd:142-160`). Camera-relative direction is `Basis(Vector3.UP, _camera_yaw.global_rotation.y) * Vector3(input.x, 0, input.y)`, normalized.
+5. **Target speed.** Sprint ramps over `SPRINT_RAMP_UP`/`SPRINT_RAMP_DOWN`. Base speed lerps walk→sprint, then multiplied by `_speed_multiplier`, weapon commit, stamina, `_direction_speed_scale(direction)`, and `StatusController.get_slow_multiplier()` (`locomotion.gd:103-106`). Sprint is denied when movement is more than 60 deg off facing (`SPRINT_MIN_FORWARD_DOT`).
+6. **Sprint stamina.** `Stamina.drain(SPRINT_STAMINA_DRAIN * delta)`; on failure the sprint ramp decays toward walk (`locomotion.gd:108-110`).
+7. **Velocity blend.** `horizontal.move_toward(direction * target_speed, rate * delta)` with `rate = ACCELERATION` on ground, `AIR_ACCELERATION` airborne, `DECELERATION` with no input. Airborne turns are clamped to `AIR_CONTROL_MAX_TURN_DEG` from takeoff heading.
 8. **Orbit correction.** While locked on, `LockOnMovement.apply_orbit_radius_correction` nudges velocity toward the 1.75 m orbit radius (`locomotion.gd:117-120`).
 9. **Facing.** While locked on, `LockOnMovement.update_facing_toward_target(_facing, target, delta, ROTATION_SPEED)`. Otherwise, if not attacking and there is input, `_facing.rotation.y` lerps toward the movement direction at `ROTATION_SPEED * rotation_cap_mult`, where `rotation_cap_mult` is `WeaponController.get_rotation_cap_multiplier()` (`0.15` during startup/active/drawing) (`locomotion.gd:125-135`).
-10. `move_and_slide()`, then `_update_footstep_vfx(delta)`, then `_update_character_animation(delta)`.
+10. `move_and_slide()`, then landing detection via `_update_floor_state()` → `_on_landed(fall_height)`, then `_update_footstep_vfx(delta)`, then `_update_character_animation(delta, fall_height)`.
 
-`_update_footstep_vfx()` (`locomotion.gd:181`) is an explicit fallback: it returns immediately when `_anim_director.is_bound()` is true, because footsteps are supposed to come from the animation method track instead. Its own pacing uses `VfxService.FOOTSTEP_INTERVAL_WALK = 0.42` and `FOOTSTEP_INTERVAL_SPRINT = 0.28` (`vfx_service.gd:5-6`) above a `0.35` m/s speed floor.
+`_update_footstep_vfx()` (`locomotion.gd:181`) is a procedural fallback: it returns early only when `_anim_director.has_footstep_markers()` is true. Otherwise it paces at `VfxService.FOOTSTEP_INTERVAL_WALK = 0.42` and `FOOTSTEP_INTERVAL_SPRINT = 0.28` (`vfx_service.gd:5-6`) above a `0.35` m/s speed floor. Both paths call `play_footstep_effects()`, which resolves surface from a cached downward raycast and drives `VfxService.play_footstep(pos, forward, surface)` plus `AudioDirector.play_sfx("footstep_{surface}", ...)`.
 
-`_update_character_animation()` (`locomotion.gd:200`) forwards `is_on_floor()`, `velocity`, and `Input.is_action_pressed("sprint")` to `PlayerAnimDirector.update_locomotion`.
+`_update_character_animation()` (`locomotion.gd:200`) forwards `is_on_floor()`, `velocity`, sprint state, and `fall_height` to `PlayerAnimDirector.update_locomotion`.
 
 ## Contracts
 
 - Root node must be a `CharacterBody3D`; `collision_layer = 2` (`player_body`) (`player.tscn:37`).
+- `floor_max_angle = deg(48)`, `floor_snap_length = 0.35`, `floor_stop_on_slope = true`, `max_slides = 6`, `wall_min_slide_angle = deg(15)` set on the root body (`player.tscn:36-42`).
 - Sibling node names read by name: `Stamina`, `Dodge`, `CombatReactions`, `LockOn`, `WeaponController`, `StatusController`, `CameraPivot/SpringArm3D`.
 - Child `Facing` is the yaw node for the visual, weapon pivot, and hitbox. The body itself never rotates.
 - Creates and owns the `AnimDirector` child node; `player_combat_reactions.gd:81` and `hit_feedback.gd:34` look it up by that name.
-- Public API: `set_speed_multiplier(float)`, `refresh_appearance_visual()`, `get_camera_relative_direction(Vector2) -> Vector3`, `get_facing_direction() -> Vector3`, `get_facing_yaw() -> float`.
+- Public API: `set_speed_multiplier(float)`, `get_current_speed_breakdown() -> Dictionary`, `play_footstep_effects()`, `refresh_appearance_visual()`, `get_camera_relative_direction(Vector2) -> Vector3`, `get_facing_direction() -> Vector3`, `get_facing_yaw() -> float`.
 - `get_facing_direction()` returns `+basis.z` of `Facing`, not `-basis.z` (`locomotion.gd:167-170`). `LockOnMovement.world_direction_to_local_facing_y` matches that convention (`lock_on_movement.gd:95`).
 
 ## Current state
@@ -64,15 +74,19 @@ All six are `const` at `locomotion.gd:3-8`. `WALK_SPEED` and `SPRINT_SPEED` are 
 | Walk, sprint, acceleration, camera-relative direction | IMPLEMENTED | `locomotion.gd:93-123` |
 | Facing rotation and attack rotation cap | IMPLEMENTED | `locomotion.gd:125-135` |
 | Lock-on strafe and orbit correction | IMPLEMENTED (see [`lock-on-movement.md`](lock-on-movement.md) for its limits) | `locomotion.gd:117-128` |
-| Footstep VFX | BROKEN | The fallback is disabled whenever the rig is bound (`locomotion.gd:182`), and the animation path that replaces it has no method track: the authored library is exported with `events_path = ""` (`apps/game/client/scripts/tools/export_diorama_anim_libraries.gd:81`) and the runtime path is rejected by `diorama_anim_controller.gd:116`. No footstep VFX or SFX plays for the player |
-| Equipment/talent move-speed multiplier | BROKEN | `set_speed_multiplier` exists (`locomotion.gd:47`) but `inventory_service.gd:206` calls it on a non-existent `Locomotion` child node |
+| Footstep VFX and SFX | IMPLEMENTED | Animation method tracks via `has_footstep_markers()`; procedural fallback when absent (`locomotion.gd:198-220`, `diorama_anim_controller.gd:113-131`) |
+| Equipment/talent move-speed multiplier | IMPLEMENTED | `inventory_service.gd:295-299` via `PlayerControls.resolve_locomotion` |
 | Waves move-speed multiplier | IMPLEMENTED | `waves_run_service.gd:317-320` calls it on the body |
+| Directional speed and sprint gating | IMPLEMENTED | `_direction_speed_scale`, `SPRINT_MIN_FORWARD_DOT` (`locomotion.gd:9-12`, `:175-195`) |
+| Air control and terminal velocity | IMPLEMENTED | `AIR_ACCELERATION`, `_clamp_airborne_turn` (`locomotion.gd:13-15`, `:197-205`) |
+| Landing weight (clip, lock, dip, damage) | IMPLEMENTED | `_on_landed`, `land_hard` clip, `orbit_camera.apply_landing_dip` |
+| Movement input while meta UI open | IMPLEMENTED | `PlayerInput.move_vector()` (`player_input.gd:11-14`) |
+| Slope/step handling | IMPLEMENTED | `player.tscn` body properties |
+| Sprint ramp | IMPLEMENTED | `_sprint_blend` (`locomotion.gd:22-23`, `:119-127`) |
+| Speed breakdown query | IMPLEMENTED | `get_current_speed_breakdown()`; debug overlay reads it |
+| Surface-aware footsteps | IMPLEMENTED | `_resolve_footstep_surface`, floor `surface` metadata |
 | Jump | Owned elsewhere | `jump` is read only by `dodge.gd:84`; `JUMP_VELOCITY = 4.8`, `COYOTE_TIME = 0.12`, `JUMP_BUFFER_TIME = 0.15`, `JUMP_STAMINA_COST = 18.0` (`dodge.gd:5-13`) |
-| Air control | ABSENT | No horizontal input scaling while `not is_on_floor()`; the same `ACCELERATION` applies airborne (`locomotion.gd:112-123`) |
-| Slope/step handling | ABSENT | `floor_max_angle`, `floor_snap_length`, and `max_slides` are left at `CharacterBody3D` defaults; not set in `player.tscn` |
-| Landing impact scaling | PARTIAL | `land` is triggered as a fixed clip with no fall-height input (`player_anim_director.gd:151-153`) |
-| Movement input while a meta UI is open | BROKEN | `Input.get_vector` at `locomotion.gd:93` ignores `PlayerControls.is_player_meta_ui_open()` |
 
 ## Related
-- Improvement plan: [`../actual_improvements/locomotion.md`](../actual_improvements/locomotion.md)
+- Improvement plan: [`../actual_improvements/locomotion.md`](../actual_improvements/locomotion.md) — **FINISHED**
 - [`player-anim-director.md`](player-anim-director.md), [`lock-on-movement.md`](lock-on-movement.md), [`orbit-camera.md`](orbit-camera.md), [`dodge.md`](dodge.md), [`stamina-mana.md`](stamina-mana.md), [`player-controls.md`](player-controls.md)

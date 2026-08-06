@@ -1,5 +1,7 @@
 # Bosses — improvement plan
 
+## Status: FINISHED
+
 ## Current state
 
 Three biome bosses (knight, hydra, sovereign) and the forgotten-castle final boss have real phase transitions and hazard kits. Frost warlord and cathedral hollow are 4-line stubs without `boss_defeated`, so defeating them never unlocks stairs or the exit portal. Final-boss `is_immune()` only gates `_on_hurt` flinch after `Hurtbox` has already applied HP loss. Multiple biome JSON ids (`boss_swamp_devourer`, `boss_crystal_sovereign`, `miniboss_castle_captain`, `miniboss_crystal_guardian`) point at scenes whose scripts load a different catalog id, so authored HP/poise never apply. See [`../existing_codebase/bosses.md`](../existing_codebase/bosses.md).

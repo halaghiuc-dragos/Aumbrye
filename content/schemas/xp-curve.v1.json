@@ -7,18 +7,22 @@
   "additionalProperties": false,
   "required": [
     "schemaVersion",
-    "baseXpPerRun",
-    "tierXpBonus",
+    "baseXpPerKill",
+    "bossBonusXp",
+    "escapeBonusXp",
     "deathXpFraction",
     "abandonedXpFraction",
+    "talentPointsPerLevel",
     "levels"
   ],
   "properties": {
     "schemaVersion": { "type": "integer", "const": 1 },
-    "baseXpPerRun": { "type": "integer", "minimum": 1 },
-    "tierXpBonus": { "type": "integer", "minimum": 0 },
+    "baseXpPerKill": { "type": "integer", "minimum": 1 },
+    "bossBonusXp": { "type": "integer", "minimum": 0 },
+    "escapeBonusXp": { "type": "integer", "minimum": 0 },
     "deathXpFraction": { "type": "number", "minimum": 0, "maximum": 1 },
     "abandonedXpFraction": { "type": "number", "minimum": 0, "maximum": 1 },
+    "talentPointsPerLevel": { "type": "integer", "minimum": 1 },
     "levels": {
       "type": "array",
       "minItems": 2,

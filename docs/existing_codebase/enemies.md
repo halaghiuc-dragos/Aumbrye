@@ -198,14 +198,17 @@ the current biome's `enemyPool`. Cross-referencing `content/biomes/*.json`:
 | Ranged kiting | IMPLEMENTED | `castle_archer.gd:16-37` |
 | Shield archetype behaviour | PARTIAL | Only `block_mitigation: 0.75` / `block_angle_deg: 100.0` in `castle_shield.json:20-21` piped into `Hurtbox`; `castle_shield.gd` has no behaviour, and there is no shield-raise/guard-break state |
 | Multi-attack / combo movesets | STUB | `_select_attack_data` and `combo_followups` read `attacks` (`castle_enemy_base.gd:665-685`); no `content/**/*.json` defines it |
-| `TelegraphMesh` windup visual | BROKEN | Declared `castle_enemy_base.gd:25`, set `false` at lines 85/244/303/366, never set `true` anywhere |
+| `TelegraphMesh` windup visual | IMPLEMENTED | `_telegraph.visible = true` during attack windup |
 | Windup audio | PLACEHOLDER | `audio_director.gd:41` — 72 Hz generator tone |
 | `attack_telegraph_started` / `attack_active` | STUB | Emitted at `castle_enemy_base.gd:632`, `:651`; zero `connect()` call sites |
 | Per-variant meshes | PLACEHOLDER | `diorama_character_skin.gd:154` builds one of 5 box silhouettes; scenes are byte-identical apart from name/script |
 | `_apply_mesh_tint` colour differentiation | STUB | Writes to `$MeshInstance3D` which is hidden at `castle_enemy_base.gd:112` |
 | `enemy_type: "boss"` visual profile | FAKE | Falls back to `"melee"` at `diorama_character_skin.gd:167`; `PROFILES` has no `boss` key (`:32-86`) |
 | `caster` / `beast` weapon profiles | ABSENT | `castle_enemy_base.gd:130` branches unreachable — `profile_for_enemy_data` can only return `hound`, `brute`, or a schema `enemy_type` value |
-| Endless / tier damage scaling on enemies | BROKEN | `dungeon_builder.gd:929`, `:938` call `set_damage_multiplier`; no enemy script defines it (only `weapon_controller.gd:189`). HP scales, damage does not |
+| Endless / tier damage scaling on enemies | IMPLEMENTED | `castle_enemy_base.gd` `set_damage_multiplier` |
+| Telegraph windup visual | IMPLEMENTED | `_telegraph.visible = true` during windup (`castle_enemy_base.gd:689`) |
+| Lock-on threat scoring hook | IMPLEMENTED | `get_lock_threat()` |
+| Hit flinch via `hit_resolved` | IMPLEMENTED | `_on_hit_resolved` on hurtbox |
 | Hurtbox sized per enemy | ABSENT | Every scene uses `BoxShape3D_hurt` 1.0 x 1.8 x 1.0, including `crystal_golem` at `scale 1.35` |
 | Patrol routes | PLACEHOLDER | `_pick_patrol_target` picks a uniform random point in a `patrol_radius` square around spawn (`castle_enemy_base.gd:732`) |
 | Pathfinding | ABSENT | No `NavigationAgent3D` in any enemy scene; movement is `velocity = to_target.normalized() * speed` + `move_and_slide()` |
@@ -219,7 +222,7 @@ the current biome's `enemyPool`. Cross-referencing `content/biomes/*.json`:
 
 ## Related
 
-- Improvement plan: [`../actual_improvements/enemies.md`](../actual_improvements/enemies.md)
+- Improvement plan: [`../actual_improvements/enemies.md`](../actual_improvements/enemies.md) — **FINISHED**
 - [`bosses.md`](bosses.md) — boss subclasses of the same base
 - [`combat-core.md`](combat-core.md), [`hit-hurtboxes.md`](hit-hurtboxes.md), [`statuses-and-buffs.md`](statuses-and-buffs.md)
 - [`combat-hazards.md`](combat-hazards.md) — `enemy_projectile.gd`

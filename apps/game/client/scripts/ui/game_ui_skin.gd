@@ -73,10 +73,7 @@ static func ensure_full_rect(control: Control) -> void:
 
 static func clamped_panel_half_size(half_w: float, half_h: float, parent: Control) -> Vector2:
 	var viewport_size := parent.get_viewport().get_visible_rect().size
-	return Vector2(
-		minf(half_w, viewport_size.x * 0.48),
-		minf(half_h, viewport_size.y * 0.48)
-	)
+	return Vector2(minf(half_w, viewport_size.x * 0.48), minf(half_h, viewport_size.y * 0.48))
 
 
 static func make_center_panel(
@@ -204,7 +201,9 @@ static func apply_modal_menu(
 			style_body_label(label)
 
 
-static func build_human_silhouette(parent: Control, cell_size: int, gap: int, scale: float = 1.0) -> void:
+static func build_human_silhouette(
+	parent: Control, cell_size: int, gap: int, scale: float = 1.0
+) -> void:
 	var layer := Control.new()
 	layer.name = "Silhouette"
 	layer.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -223,21 +222,40 @@ static func build_human_silhouette(parent: Control, cell_size: int, gap: int, sc
 		part.position = pos
 		part.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		layer.add_child(part)
-	add_part.call(Vector2(scaled_cell * 0.72, scaled_cell * 0.72), Vector2(center_x - scaled_cell * 0.36, row_h * 0.15))
-	add_part.call(Vector2(scaled_cell * 1.05, scaled_cell * 1.35), Vector2(center_x - scaled_cell * 0.52, row_h * 1.05))
-	add_part.call(Vector2(scaled_cell * 0.42, scaled_cell * 1.05), Vector2(center_x - scaled_cell * 1.12, row_h * 1.1))
-	add_part.call(Vector2(scaled_cell * 0.42, scaled_cell * 1.05), Vector2(center_x + scaled_cell * 0.7, row_h * 1.1))
-	add_part.call(Vector2(scaled_cell * 0.38, scaled_cell * 1.2), Vector2(center_x - scaled_cell * 0.62, row_h * 2.35))
-	add_part.call(Vector2(scaled_cell * 0.38, scaled_cell * 1.2), Vector2(center_x + scaled_cell * 0.24, row_h * 2.35))
+	add_part.call(
+		Vector2(scaled_cell * 0.72, scaled_cell * 0.72),
+		Vector2(center_x - scaled_cell * 0.36, row_h * 0.15)
+	)
+	add_part.call(
+		Vector2(scaled_cell * 1.05, scaled_cell * 1.35),
+		Vector2(center_x - scaled_cell * 0.52, row_h * 1.05)
+	)
+	add_part.call(
+		Vector2(scaled_cell * 0.42, scaled_cell * 1.05),
+		Vector2(center_x - scaled_cell * 1.12, row_h * 1.1)
+	)
+	add_part.call(
+		Vector2(scaled_cell * 0.42, scaled_cell * 1.05),
+		Vector2(center_x + scaled_cell * 0.7, row_h * 1.1)
+	)
+	add_part.call(
+		Vector2(scaled_cell * 0.38, scaled_cell * 1.2),
+		Vector2(center_x - scaled_cell * 0.62, row_h * 2.35)
+	)
+	add_part.call(
+		Vector2(scaled_cell * 0.38, scaled_cell * 1.2),
+		Vector2(center_x + scaled_cell * 0.24, row_h * 2.35)
+	)
 
 
 static func wire_button_sfx(button: BaseButton) -> void:
 	if button.has_meta(&"ui_sfx_wired"):
 		return
 	button.set_meta(&"ui_sfx_wired", true)
-	button.pressed.connect(func() -> void:
-		if AudioDirector:
-			AudioDirector.play_ui_sfx()
+	button.pressed.connect(
+		func() -> void:
+			if AudioDirector:
+				AudioDirector.play_ui_sfx()
 	)
 
 

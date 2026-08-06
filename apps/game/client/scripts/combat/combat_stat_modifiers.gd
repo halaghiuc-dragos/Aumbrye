@@ -38,11 +38,16 @@ static func crit_chance(talent_stats: Dictionary) -> float:
 	return clampf(float(talent_stats.get("critChance", 0.0)), 0.0, 1.0)
 
 
-static func incoming_damage_multiplier(equipment_stats: Dictionary, talent_stats: Dictionary) -> float:
-	var reduction := float(equipment_stats.get("defense", 0.0)) * 0.01
-	reduction += float(talent_stats.get("damageReduction", 0.0))
-	reduction += float(talent_stats.get("armor", 0.0)) * 0.01
-	return maxf(0.0, 1.0 - reduction)
+static func crit_multiplier(talent_stats: Dictionary) -> float:
+	return 1.5 + float(talent_stats.get("critDamage", 0.0))
+
+
+static func max_mana_bonus(equipment_stats: Dictionary, _talent_stats: Dictionary) -> float:
+	return float(equipment_stats.get("manaMax", 0.0))
+
+
+static func mana_regen_multiplier(talent_stats: Dictionary) -> float:
+	return 1.0 + float(talent_stats.get("manaRegen", 0.0))
 
 
 static func block_reduction_bonus(talent_stats: Dictionary) -> float:

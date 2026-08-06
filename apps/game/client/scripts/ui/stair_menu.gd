@@ -3,11 +3,15 @@ extends Control
 ## Floor transition menu — ascend, descend, retreat without modifier keys.
 
 const GameUISkinScript := preload("res://scripts/ui/game_ui_skin.gd")
+const MenuShellScript := preload("res://scripts/ui/menu_shell.gd")
 
 signal closed
 
 var _lever: Node3D
 var _open := false
+var _was_paused := false
+var _saved_mouse_mode := Input.MOUSE_MODE_CAPTURED
+var _action_buttons: Array[Button] = []
 
 
 func _ready() -> void:
@@ -22,78 +26,108 @@ func is_open() -> bool:
 	return _open
 
 
-func open_for_lever(lever: Node3D) -> void:
+func open_for_lever(lever: Node3D, options: Array = []) -> void:
+	if _open:
+		return
 	_lever = lever
 	_open = true
+	_was_paused = get_tree().paused
+	_saved_mouse_mode = Input.mouse_mode
 	visible = true
 	mouse_filter = Control.MOUSE_FILTER_STOP
+	get_tree().paused = true
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
-	_rebuild_buttons()
+	if _lever and _lever.has_method("set_menu_open"):
+		_lever.call("set_menu_open", true)
+	_rebuild_buttons(options)
 
 
 func close_menu() -> void:
+	if not _open:
+		return
 	_open = false
 	visible = false
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
-	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+	get_tree().paused = _was_paused
+	Input.mouse_mode = _saved_mouse_mode
+	if _lever and _lever.has_method("set_menu_open"):
+		_lever.call("set_menu_open", false)
 	_lever = null
+	_action_buttons.clear()
 	closed.emit()
 
 
 func _build_ui() -> void:
-	GameUISkinScript.make_backdrop(self)
-	var panel := GameUISkinScript.make_center_panel(self, GameUISkinScript.MENU_HALF_W + 20.0, GameUISkinScript.MENU_HALF_H + 40.0)
-	panel.name = "Panel"
-	var margin := MarginContainer.new()
-	margin.name = "Margin"
-	margin.add_theme_constant_override("margin_left", 16)
-	margin.add_theme_constant_override("margin_top", 16)
-	margin.add_theme_constant_override("margin_right", 16)
-	margin.add_theme_constant_override("margin_bottom", 16)
-	panel.add_child(margin)
-	var vbox := VBoxContainer.new()
-	vbox.name = "VBox"
-	margin.add_child(vbox)
-	var title := Label.new()
-	title.name = "Title"
-	title.text = "Stair Lever"
-	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	GameUISkinScript.style_menu_title(title)
-	vbox.add_child(title)
+	var shell: Dictionary = MenuShellScript.build_modal(
+		self, "Stair Lever", GameUISkinScript.MENU_HALF_W + 20.0, GameUISkinScript.MENU_HALF_H + 40.0
+	)
+	MenuShellScript.add_hint(shell["content_vbox"], "Esc to close")
 
 
-func _rebuild_buttons() -> void:
-	var vbox := get_node_or_null("Panel/Margin/VBox") as VBoxContainer
-	if vbox == null or _lever == null:
+func _rebuild_buttons(options: Array) -> void:
+	var vbox := get_node_or_null("Panel/Margin/ContentVBox") as VBoxContainer
+	if vbox == null:
 		return
 	for child in vbox.get_children():
-		if child.name != "Title":
+		if child.name != "TitleLabel" and child.name != "HintLabel":
 			child.queue_free()
-	if _lever.get("_can_ascend"):
-		vbox.add_child(_action_button("Ascend floor", func() -> void: _use_lever("ascend")))
-	if _lever.get("_can_descend"):
-		vbox.add_child(_action_button("Descend floor", func() -> void: _use_lever("descend")))
-	if _lever.get("_can_retreat") and RunFlow.can_retreat_to_hub():
-		vbox.add_child(_action_button("Retreat to hub", _retreat))
-	vbox.add_child(_action_button("Close", close_menu))
+	_action_buttons.clear()
+	for option in options:
+		if not option is Dictionary:
+			continue
+		var row: Dictionary = option
+		var enabled := bool(row.get("enabled", false))
+		var label := str(row.get("label", "Action"))
+		if not enabled:
+			var reason := str(row.get("reason", ""))
+			if reason != "":
+				label = "%s (%s)" % [label, reason]
+		var option_id := str(row.get("id", ""))
+		var btn := MenuShellScript.make_menu_button(
+			label,
+			func() -> void:
+				if enabled:
+					_on_option_pressed(option_id)
+		)
+		btn.disabled = not enabled
+		vbox.add_child(btn)
+		_action_buttons.append(btn)
+	vbox.add_child(MenuShellScript.make_menu_button("Close", close_menu))
+	_wire_focus_ring()
+	_focus_first_enabled()
 
 
-func _action_button(text: String, on_pressed: Callable) -> Button:
-	var btn := Button.new()
-	btn.text = text
-	btn.pressed.connect(on_pressed)
-	return btn
+func _wire_focus_ring() -> void:
+	if _action_buttons.is_empty():
+		return
+	for i in _action_buttons.size():
+		var btn := _action_buttons[i]
+		var prev := _action_buttons[(i - 1 + _action_buttons.size()) % _action_buttons.size()]
+		var next := _action_buttons[(i + 1) % _action_buttons.size()]
+		btn.focus_neighbor_top = prev.get_path()
+		btn.focus_neighbor_bottom = next.get_path()
 
 
-func _use_lever(direction: String) -> void:
-	if _lever and _lever.has_method("_use_lever"):
-		_lever.call("_use_lever", direction)
+func _focus_first_enabled() -> void:
+	for btn in _action_buttons:
+		if not btn.disabled:
+			btn.grab_focus()
+			return
+	if not _action_buttons.is_empty():
+		_action_buttons[0].grab_focus()
+
+
+func _on_option_pressed(option_id: String) -> void:
+	if _lever == null:
+		close_menu()
+		return
+	if option_id == "retreat":
+		close_menu()
+		RunFlow.retreat_to_hub()
+		return
+	if _lever.has_method("use"):
+		_lever.call("use", option_id)
 	close_menu()
-
-
-func _retreat() -> void:
-	close_menu()
-	RunFlow.retreat_to_hub()
 
 
 func _unhandled_input(event: InputEvent) -> void:

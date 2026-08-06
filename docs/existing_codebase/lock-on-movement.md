@@ -6,9 +6,12 @@
 | Path | Role |
 |------|------|
 | `apps/game/client/scripts/player/lock_on_movement.gd` | `class_name LockOnMovement`, all `static func` |
-| `apps/game/client/scripts/player/locomotion.gd` | Caller: `:117-120`, `:126-128`, `:143-149` |
-| `apps/game/client/scripts/player/dodge.gd` | Caller: `:114-118` |
-| `apps/game/client/scripts/combat/weapon_controller.gd` | Caller: `:496` |
+| `apps/game/client/scripts/player/locomotion.gd` | Caller: locked speed, correction, facing, animation local dir |
+| `apps/game/client/scripts/player/dodge.gd` | Caller: `get_locked_dodge_direction` |
+| `apps/game/client/scripts/player/player_anim_director.gd` | Directional `walk_*` / `run_*` clip selection |
+| `apps/game/client/scripts/enemies/castle_enemy_base.gd` | `get_lock_orbit_radius()` per enemy scale |
+| `apps/game/client/scripts/camera/lock_on.gd` | Delegates `get_orbit_radius()` to target |
+| `apps/game/client/scripts/combat/weapon_controller.gd` | Caller: `world_direction_to_local_facing_y` |
 
 The file has no `extends`; it is a bare `class_name` script used purely as a namespace. The header comment cites decision `DEC-G08`.
 
@@ -16,50 +19,66 @@ The file has no `extends`; it is a bare `class_name` script used purely as a nam
 
 | Constant | Value | Meaning |
 |----------|-------|---------|
-| `DEFAULT_ORBIT_RADIUS` | `1.75` | m; used only when the lock-on node has no `get_orbit_radius()` |
-| `FACING_SPEED` | `10.0` | default `lerp_angle` rate; `locomotion.gd:128` overrides it with its own `ROTATION_SPEED = 10.0` |
+| `DEFAULT_ORBIT_RADIUS` | `1.75` | m; fallback when target has no `get_lock_orbit_radius()` |
+| `ORBIT_RADIUS_SMALL` / `STANDARD` / `LARGE` | `1.4` / `1.75` / `2.6` | per-enemy orbit radii from collision size |
+| `ORBIT_RADIUS_BOSS_PAD` / `BOSS_MIN` | `1.8` / `3.5` | boss orbit = `collision_radius + pad`, minimum `3.5` m |
+| `ORBIT_CORRECTION_GAIN` / `CLAMP` | `6.0` / `3.0` | spring stiffness and max correction m/s |
+| `ORBIT_CORRECTION_DEADBAND` | `0.35` | m; no correction inside this radius error |
+| `ORBIT_STRAFE_DOMINANCE` | `0.7` | correction only when strafe exceeds this fraction of input magnitude |
+| `ORBIT_CORRECTION_OUTWARD_SCALE` | `0.25` | outward correction is quarter strength |
+| `ORBIT_INPUT_DEADZONE` | `0.15` | stick axis below this contributes nothing |
+| `LOCKED_SPEED_APPROACH` / `ORBIT` / `RETREAT` | `1.0` / `0.78` / `0.62` | locked movement speed multipliers |
+| `LOCKED_SPRINT_ALLOWED` | `false` | sprint breaks lock instead of speeding orbit |
+| `FACING_TURN_RATE_DEG` / `FACING_SNAP_DEG` | `540.0` / `1.5` | clamped yaw rate toward target |
 
 ## API
 
 | Function | Behaviour |
 |----------|-----------|
-| `is_active(lock_on)` | `lock_on is LockOn and lock_on.is_locked` (`:9-10`) |
+| `is_active(lock_on)` | `lock_on is LockOn and lock_on.is_locked` |
 | `get_target(lock_on)` | `current_target` when active, else `null` |
-| `get_orbit_radius(lock_on)` | Duck-typed `get_orbit_radius()` call, else `DEFAULT_ORBIT_RADIUS` |
-| `get_move_direction(player, lock_on, input_dir, camera_relative_fn)` | Splits the stick: forward/back stays camera-relative through the callable, left/right becomes a tangent orbit vector. Sums and normalizes (`:25-51`) |
-| `get_orbit_strafe_direction(player, stick_x, enemy)` | `Vector3.UP.cross(radial).normalized() * signf(stick_x)`, where `radial` is the flattened player-minus-enemy offset (`:54-61`) |
-| `apply_orbit_radius_correction(player, lock_on, input_dir, horizontal_velocity, delta)` | Only when `abs(input_dir.x) >= 0.01`. Adds `-radial * clamp((dist - radius) * 6.0, -3.0, 3.0) * delta` to the velocity (`:64-85`) |
-| `world_direction_to_local_facing_y(body, world_direction)` | `atan2(dir.x, dir.z) - body.rotation.y`. The `+basis.z` forward convention is documented in the comment at `:94` and matches `locomotion.get_facing_direction` (`locomotion.gd:169`) |
-| `update_facing_toward_target(facing, target, delta, speed)` | `lerp_angle` of `facing.rotation.y` toward `LockOn.get_target_aim_point(target)` flattened (`:100-115`) |
+| `get_orbit_radius(lock_on, target)` | Duck-typed `get_lock_orbit_radius()` on target, else `DEFAULT_ORBIT_RADIUS` |
+| `get_move_direction(player, lock_on, input_dir, camera_relative_fn)` | Analog tangent + radial-forward blend with input deadzone |
+| `get_orbit_strafe_direction(player, stick_x, enemy)` | Tangent orbit vector scaled by raw stick axis |
+| `get_locked_dodge_direction(player, lock_on, input_dir)` | Radial backstep or tangent sidestep while locked |
+| `get_locked_speed_scale(input_dir)` | Blended approach / orbit / retreat multiplier |
+| `break_lock_on_sprint(lock_on, sprint_requested)` | Breaks lock when sprint pressed; returns effective sprint state |
+| `apply_orbit_radius_correction(..., skip_correction)` | Strafe-gated spring with deadband and outward scale |
+| `world_direction_to_local_facing_y(body, world_direction)` | `atan2(dir.x, dir.z) - body.rotation.y` |
+| `world_velocity_to_local_facing(body, velocity)` | Facing-local movement direction for animation |
+| `update_facing_toward_target(facing, target, delta)` | Clamped turn rate toward `LockOn.get_target_aim_point` |
 
 ## Behaviour while locked on
 
-1. `locomotion.gd:143-149` replaces the camera-relative direction with `get_move_direction`, so `A`/`D` orbit the target instead of moving relative to the camera.
-2. `locomotion.gd:117-120` adds the radius correction, pulling the player toward a 1.75 m ring while strafing. Proportional gain `6.0`, clamped to `+/-3.0` m/s.
-3. `locomotion.gd:126-128` replaces movement-driven facing with target-driven facing, so the player always faces the target regardless of the stick.
+1. `locomotion.gd` replaces camera-relative direction with `get_move_direction`, so `A`/`D` orbit the target and `W`/`S` approach/retreat radially.
+2. `locomotion.gd` applies strafe-gated radius correction toward the per-target orbit ring.
+3. `locomotion.gd` uses `get_locked_speed_scale` instead of free-movement directional speed.
+4. Sprint while locked calls `LockOn.break_lock()`.
+5. `locomotion.gd` drives target-facing via clamped turn rate.
+6. `locomotion.gd` passes `Facing`-local velocity to `PlayerAnimDirector` for `walk_l`/`walk_r`/`walk_b` clips.
+7. `dodge.gd` uses `get_locked_dodge_direction`; orbit correction is skipped while dashing.
 
 ## Contracts
 
-- Consumers must be `Node3D`s; `get_orbit_strafe_direction` and `apply_orbit_radius_correction` read `global_position` on both player and target.
-- `world_direction_to_local_facing_y` assumes the visual forward is `+basis.z` and that the yaw is applied to a child node while the body's own `rotation.y` stays at whatever the caller has. Anything that rotates the body itself must keep `body.rotation.y` consistent.
-- `update_facing_toward_target` depends on `LockOn.get_target_aim_point` being static (`lock_on.gd:340`).
+- Consumers must be `Node3D`s; strafe and correction read `global_position` on both player and target.
+- `world_direction_to_local_facing_y` assumes the visual forward is `+basis.z` and that yaw is applied to a child `Facing` node.
+- `update_facing_toward_target` depends on `LockOn.get_target_aim_point` being static.
+- Targets may implement `get_lock_orbit_radius() -> float`; `castle_enemy_base.gd` derives it from collision radius and enemy scale.
 
 ## Current state
 
 | Surface | Status | Evidence |
 |---------|--------|----------|
-| Tangential strafe on the horizontal axis | IMPLEMENTED | `lock_on_movement.gd:54-61` |
-| Orbit radius correction | IMPLEMENTED | `lock_on_movement.gd:64-85` |
-| Target-facing rotation | IMPLEMENTED | `lock_on_movement.gd:100-115` |
-| Locked dash direction | IMPLEMENTED | `dodge.gd:114-122`, including the backstep fallback with no stick input |
-| Speed parity between strafe and forward run | BROKEN | `locomotion.gd:103` uses the same `WALK_SPEED`/`SPRINT_SPEED` for every direction. A locked-on player strafes and backpedals at 4.5 m/s walking and 7.0 m/s sprinting, identical to running forward |
-| Sprint while locked on | PARTIAL | `sprint` is not gated by lock-on, so the player can orbit a boss at 7.0 m/s (`locomotion.gd:96`, `:103`) |
-| Orbit correction while moving forward or back | ABSENT | `apply_orbit_radius_correction` returns unchanged when `abs(input_dir.x) < 0.01` (`:71-72`), so approach and retreat have no radius influence at all |
-| Diagonal normalization bias | PARTIAL | Forward/back and strafe are summed then normalized (`:51`), so a diagonal input yields a direction that is neither purely tangential nor purely radial and the orbit ring is only held on pure strafe |
-| Strafe animation | ABSENT | `PlayerAnimDirector.update_locomotion` receives only speed magnitude and picks `walk`/`run` (`player_anim_director.gd:155-161`); there are no `walk_l`/`walk_r`/`walk_b` clips in `diorama_anim_library.gd`, so a left strafe plays a forward walk cycle |
-| Facing during attacks while locked on | PARTIAL | `locomotion.gd:126-128` runs the lock-on facing branch before the `attacking` check at `:129`, so the rig keeps turning toward the target during an attack's startup and active frames, bypassing the `ATTACK_ROT_CAP_MULT = 0.15` cap that applies when unlocked (`weapon_controller.gd:232-235`) |
-| Dedicated validation coverage | ABSENT | No suite under `apps/game/client/scripts/validation/suites/` references `LockOnMovement`; `lock_on_suite.gd` covers acquisition only |
+| Tangential strafe on the horizontal axis | IMPLEMENTED | `lock_on_movement.gd` analog tangent blend |
+| Orbit radius correction | IMPLEMENTED | Strafe-gated spring with deadband and outward scale |
+| Per-target orbit radius | IMPLEMENTED | `castle_enemy_base.gd:get_lock_orbit_radius` |
+| Locked speed differentiation | IMPLEMENTED | `LOCKED_SPEED_*` table in `locomotion.gd` |
+| Sprint breaks lock | IMPLEMENTED | `break_lock_on_sprint` in `locomotion.gd` |
+| Directional strafe animation | IMPLEMENTED | `player_anim_director.gd:_locomotion_clip_for` |
+| Clamped facing turn rate | IMPLEMENTED | `FACING_TURN_RATE_DEG` in `update_facing_toward_target` |
+| Locked dodge backstep / sidestep | IMPLEMENTED | `get_locked_dodge_direction` in `dodge.gd` |
+| Dedicated validation coverage | IMPLEMENTED | `lock_on_suite.gd` movement tests |
 
 ## Related
-- Improvement plan: [`../actual_improvements/lock-on-movement.md`](../actual_improvements/lock-on-movement.md)
+- Improvement plan: [`../actual_improvements/lock-on-movement.md`](../actual_improvements/lock-on-movement.md) — **FINISHED**
 - [`lock-on.md`](lock-on.md), [`lock-on-camera.md`](lock-on-camera.md), [`locomotion.md`](locomotion.md), [`dodge.md`](dodge.md), [`player-anim-director.md`](player-anim-director.md)

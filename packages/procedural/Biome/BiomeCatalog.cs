@@ -13,6 +13,8 @@ public static class BiomeCatalog
 
     private static readonly Lazy<Dictionary<string, BiomeDefinition>> ById = new(LoadAll);
 
+    public static IReadOnlyCollection<string> AllIds => ById.Value.Keys;
+
     public static BiomeDefinition GetRequired(string biomeId)
     {
         if (ById.Value.TryGetValue(biomeId, out var biome))
@@ -48,7 +50,8 @@ public static class BiomeCatalog
             var bossPool = raw.BossPool?
                 .Select(entry => new BossPoolEntry(
                     entry.EnemyId,
-                    EnemyCatalog.GetThreatCost(entry.EnemyId)))
+                    EnemyCatalog.GetThreatCost(entry.EnemyId),
+                    entry.Weight))
                 .ToList()
                 ?? [];
 
@@ -56,9 +59,10 @@ public static class BiomeCatalog
             biomes[raw.Id] = new BiomeDefinition(
                 raw.Id,
                 raw.Name ?? raw.Id,
+                raw.TemplatePrefix ?? raw.Id.Split('_')[0],
+                raw.AssetFolder ?? raw.TemplatePrefix ?? "castle",
                 raw.RoomCount?.Min ?? 6,
                 raw.RoomCount?.Max ?? 10,
-                raw.GridStep,
                 raw.RoomTemplateIds ?? [],
                 enemyPool,
                 bossPool,
@@ -76,8 +80,9 @@ public static class BiomeCatalog
     private sealed record BiomeDefinitionJson(
         string Id,
         string? Name,
+        string? TemplatePrefix,
+        string? AssetFolder,
         RoomCountJson? RoomCount,
-        int GridStep,
         IReadOnlyList<string>? RoomTemplateIds,
         IReadOnlyList<EnemyPoolEntryJson>? EnemyPool,
         IReadOnlyList<BossPoolEntryJson>? BossPool,
@@ -88,7 +93,7 @@ public static class BiomeCatalog
 
     private sealed record EnemyPoolEntryJson(string EnemyId, int Weight);
 
-    private sealed record BossPoolEntryJson(string EnemyId);
+    private sealed record BossPoolEntryJson(string EnemyId, int Weight = 1);
 
     private sealed record BiomeBudgetsJson(
         [property: JsonPropertyName("baseEnemyThreat")] int BaseEnemyThreat = 100,

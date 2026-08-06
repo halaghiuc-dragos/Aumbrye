@@ -31,6 +31,41 @@ services:
       timeout: 3s
       retries: 5
 
+  api:
+    profiles: ["app"]
+    build:
+      context: .
+      dockerfile: services/backend/Dockerfile
+    container_name: aumbrye-api
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_URLS: http://+:8080
+      ConnectionStrings__DefaultConnection: Host=postgres;Port=5432;Database=${POSTGRES_DB:-aumbrye};Username=${POSTGRES_USER:-aumbrye};Password=${POSTGRES_PASSWORD:-aumbrye_dev}
+      ConnectionStrings__Redis: redis:6379
+      Jwt__Secret: ${JWT_SECRET:?JWT_SECRET must be set}
+      Cors__AllowedOrigins__0: http://localhost:5173
+      Cors__AllowedOrigins__1: http://localhost:8081
+    ports:
+      - "5000:8080"
+
+  web:
+    profiles: ["app"]
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+      args:
+        VITE_API_URL: http://localhost:5000
+    container_name: aumbrye-web
+    depends_on:
+      - api
+    ports:
+      - "8081:80"
+
 volumes:
   aumbrye_postgres_data:
   aumbrye_redis_data:

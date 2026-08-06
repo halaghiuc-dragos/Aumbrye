@@ -1,42 +1,47 @@
 # Progression service
 
-`ProgressionService` is the autoload for permanent XP, level, and talents. Run outcomes call `grant_xp` / `calculate_run_xp` / `apply_death_xp_fraction`. Recoverable death XP uses `XpShardPickup` spawned by `castle_run.gd`. The talent tree defines 18 nodes across three branches; four aptitude stats are aggregated but never read by combat, loot, or economy code.
+`ProgressionService` is the autoload for permanent XP, level, and talents. Run outcomes call `grant_xp` / `calculate_run_xp` / `apply_death_xp_fraction` / `apply_abandon_xp_fraction`. Recoverable death XP uses `XpShardPickup` spawned by `castle_run.gd`. The talent tree defines 18 nodes across three branches; all aptitude stats have runtime consumers.
 
 ## Files
 | Path | Role |
 |------|------|
-| `apps/game/client/scripts/progression/progression_service.gd` | XP, level, talents, save dict |
+| `apps/game/client/scripts/progression/progression_service.gd` | XP, level, talents, save dict, `xp_granted` signal |
 | `apps/game/client/scripts/progression/xp_shard_pickup.gd` | World interact → `grant_xp` + clear shard flag |
-| `content/progression/xp_curve.json` | Level thresholds + (mismatched) economy keys |
+| `content/progression/xp_curve.json` | Level thresholds + run XP economy keys |
 | `content/talents/tree.json` | Three branches × six nodes |
 | `apps/game/client/scripts/dungeon/castle_run.gd` | Spawns `XpShardPickup` from `RunFlow` shard meta |
-| `apps/game/client/scripts/combat/combat_stat_modifiers.gd` | Applies a subset of talent stats in combat |
+| `apps/game/client/scripts/combat/combat_stat_modifiers.gd` | Applies combat talent stats |
+| `apps/game/client/scripts/loot/affix_roller.gd` | `lootQuality` → rare+ rarity weight bonus |
+| `apps/game/client/scripts/save/character_service.gd` | `goldFind` → `add_gold` multiplier |
+| `apps/game/client/scripts/combat/weapon_controller.gd` | `cooldownReduction` → weapon art cooldown scale |
+| `apps/game/client/scripts/meta/achievement_service.gd` | Listens to `xp_granted` for per-reason analytics flags |
+| `apps/game/client/scripts/app/run_flow.gd` | Escape/death/abandon XP grants |
 
 ## How it works
 
 ### XP and level
 Loads `XP_CURVE_PATH` into `_curve` / `_levels` (`progression_service.gd:161-163`).
 
-`grant_xp(amount, reason)` (`progression_service.gd:45-58`) adds XP, `_recalc_level()`, emits `progression_changed`, returns `{ gained, levels_gained, level, xp }`.
+`grant_xp(amount, reason)` (`progression_service.gd:46-66`) multiplies by `1.0 + xpGain` talent total, adds XP, `_recalc_level()`, emits `progression_changed`, and when `reason` is non-empty emits `xp_granted(amount, reason)`.
 
 `_recalc_level` (`progression_service.gd:177-184`) sets level to the highest `levels[].level` whose `xpRequired` ≤ current XP.
 
-`calculate_run_xp(kills, boss_defeated, escaped)` (`progression_service.gd:61-68`):
+`calculate_run_xp(kills, boss_defeated, escaped)` (`progression_service.gd:69-76`):
 
 ```text
-kills * baseXpPerKill(default 25)
-+ bossBonusXp(default 150) if boss
-+ escapeBonusXp(default 50) if escaped
+kills * baseXpPerKill (25 in file)
++ bossBonusXp (150) if boss
++ escapeBonusXp (50) if escaped
 ```
 
-`xp_curve.json` instead authors `baseXpPerRun`, `tierXpBonus`, `abandonedXpFraction` — **none of those keys are read**. Defaults always apply today.
+`apply_death_xp_fraction` uses `deathXpFraction` (0.5) (`progression_service.gd:79-81`).
 
-`apply_death_xp_fraction` uses `deathXpFraction` (0.5 in file) (`progression_service.gd:71-73`).
+`apply_abandon_xp_fraction` uses `abandonedXpFraction` (0 in file → no abandon XP) (`progression_service.gd:84-86`).
 
-Talent points available: `(level - 1) * talentPointsPerLevel` from **curve** dict default `1` (`progression_service.gd:187-189`). `tree.json` also has `talentPointsPerLevel: 1` but that field is never read by the service.
+Talent points available: `(level - 1) * talentPointsPerLevel` from curve (`progression_service.gd:195-197`).
 
 ### Talents
-`unlock_talent` checks max rank, cost, and `requires` (`progression_service.gd:84-108`). `get_talent_stat_totals` sums `effects[].stat` × `valuePerRank` × rank (`progression_service.gd:111-131`).
+`unlock_talent` checks max rank, cost, and `requires` (`progression_service.gd:92-116`). `get_talent_stat_totals` sums `effects[].stat` × `valuePerRank` × rank (`progression_service.gd:119-139`).
 
 Tree branches (`tree.json`):
 
@@ -61,36 +66,39 @@ Tree branches (`tree.json`):
 | `damageReduction` | Yes | `incoming_damage_multiplier` + player meta |
 | `staminaRegen` | Yes | `stamina_regen_multiplier` (`combat_stat_modifiers.gd:56-57`) |
 | `moveSpeed` | Yes | `move_speed_multiplier` (`combat_stat_modifiers.gd:64-67`) |
-| `lootQuality` | No | Only listed in `Equipment.STAT_KEYS` / talents UI — no loot/AffixRoller reader |
-| `xpGain` | No | `grant_xp` does not multiply by talent totals |
-| `goldFind` | No | No merchant/coin path reads it |
-| `cooldownReduction` | No | No weapon art / ability cooldown reader |
+| `lootQuality` | Yes | `AffixRoller.rarity_weights` rare+ weight bonus (`affix_roller.gd:110-125`) |
+| `xpGain` | Yes | `grant_xp` multiplier (`progression_service.gd:49-50`) |
+| `goldFind` | Yes | `CharacterService.add_gold` multiplier (`character_service.gd:73-80`) |
+| `cooldownReduction` | Yes | `WeaponController.get_weapon_art_cooldown_duration` (`weapon_controller.gd:208-216`) |
+
+### Abandon XP
+`RunFlow.abandon_active_run` (`run_flow.gd:326-338`) computes full run XP, applies `apply_abandon_xp_fraction`, and grants with reason `"abandon"` when result > 0.
 
 ### XP shard
 `RunFlow` stores recoverable XP on death; `castle_run._spawn_recoverable_xp_shard` (`castle_run.gd:152-170`) instances `XpShardPickup`, which on interact calls `ProgressionService.grant_xp(..., "xp_shard")` and `RunFlow.clear_recoverable_xp_shard()` (`xp_shard_pickup.gd:60-66`).
 
 ### Save
-`to_save_dict` / `from_save_dict` (`progression_service.gd:140-158`): `level`, `xp`, `talentPointsSpent`, `talents`.
+`to_save_dict` / `from_save_dict` (`progression_service.gd:148-166`): `level`, `xp`, `talentPointsSpent`, `talents`.
 
 ## Contracts
 
-**Signal:** `progression_changed` — InventoryService reapplies gear; UI listeners.
+**Signals:** `progression_changed` — InventoryService reapplies gear; UI listeners. `xp_granted(amount, reason)` — `AchievementService` records `xp_granted_<reason>` on `CharacterService.flags`.
 
-**Content keys read:** `levels[].level`, `levels[].xpRequired`, `deathXpFraction`, `baseXpPerKill`, `bossBonusXp`, `escapeBonusXp`, `talentPointsPerLevel` (curve); talent `branches[].nodes[]` with `id`, `maxRank`, `costPerRank`, `requires`, `effects[].stat`, `effects[].valuePerRank`.
+**Content keys read:** `levels[].level`, `levels[].xpRequired`, `deathXpFraction`, `abandonedXpFraction`, `baseXpPerKill`, `bossBonusXp`, `escapeBonusXp`, `talentPointsPerLevel` (curve); talent `branches[].nodes[]` with `id`, `maxRank`, `costPerRank`, `requires`, `effects[].stat`, `effects[].valuePerRank`.
 
-**Callers of grant/calculate:** `RunFlow` escape/death/waves paths.
+**Callers of grant/calculate:** `RunFlow` escape/death/abandon/waves paths.
 
 ## Current state
 | Surface | Status | Evidence |
 |---------|--------|----------|
-| XP grant + level from curve thresholds | IMPLEMENTED | `progression_service.gd:45-58`, `177-184` |
-| Death XP fraction from JSON | IMPLEMENTED | `deathXpFraction` in file + `apply_death_xp_fraction` |
-| Run XP economy keys in JSON | BROKEN | File has `baseXpPerRun`; code reads `baseXpPerKill` defaults (`progression_service.gd:62-67`) |
-| Talent unlock + combat arms/guard/aptitude move/stam | IMPLEMENTED | Tree + `CombatStatModifiers` / Health |
-| `lootQuality` / `xpGain` / `goldFind` / `cooldownReduction` | FAKE | Aggregated in `get_talent_stat_totals`; zero gameplay readers (grep under `scripts/`) |
+| XP grant + level from curve thresholds | IMPLEMENTED | `progression_service.gd:46-66`, `185-192` |
+| Death XP fraction from JSON | IMPLEMENTED | `deathXpFraction` + `apply_death_xp_fraction` |
+| Run XP economy keys in JSON | IMPLEMENTED | `xp_curve.json:3-5`, `calculate_run_xp` |
+| Talent unlock + all branch stats | IMPLEMENTED | Tree + combat/loot/economy readers |
+| Abandon XP fraction | IMPLEMENTED | `apply_abandon_xp_fraction`, `run_flow.gd:326-338` |
+| XP grant reason analytics | IMPLEMENTED | `xp_granted` signal, `achievement_service.gd:122-126` |
 | XP shard pickup | IMPLEMENTED | `xp_shard_pickup.gd`, `castle_run.gd:152-170` |
-| `tree.json` `talentPointsPerLevel` | FAKE | Authored but unread (`progression_service.gd:187-189` reads curve) |
-| Respec | PARTIAL | `respec_talents` clears state (`progression_service.gd:134-137`); hub UX coverage owned elsewhere |
+| Respec | PARTIAL | `respec_talents` clears state (`progression_service.gd:142-145`); hub UX coverage owned elsewhere |
 
 ## Related
 - Improvement plan: [`../actual_improvements/progression-service.md`](../actual_improvements/progression-service.md)

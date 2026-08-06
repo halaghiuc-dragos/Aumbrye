@@ -1,6 +1,6 @@
 # Floor shell
 
-All dungeon room geometry is generated at runtime. `CastleBlockout` builds a room's floor, four walls with door cutouts, occluders, and a navmesh from six exported numbers; `CastleRoomScene` is the `RoomTemplate` subclass that fills in biome materials and normalizes socket rotations; `FloorShellBuilder` wraps the assembled floor in one ceiling slab and four perimeter walls. `CastleRoomConstants` holds the shared dimensions.
+All dungeon room geometry is generated at runtime. `CastleBlockout` builds floor, walls with door lintels, per-room ceiling, occluders, and a collider-sourced navmesh; cover lives in a preserved `CoverObstacles` sibling. `CastleRoomScene` fills biome materials (template id first), normalizes sockets, and calls dressing. `FloorShellBuilder` wraps the floor in perimeter walls only — no monolithic dungeon ceiling. `DungeonBuilder` parents everything under `DungeonRoot` and frees it on unload.
 
 ## Files
 
@@ -99,27 +99,24 @@ There is deliberately no monolithic floor slab: the comment at `:27-28` explains
 
 | Surface | Status | Evidence |
 |---------|--------|----------|
-| Procedural room geometry with door cutouts | IMPLEMENTED | `castle_blockout.gd:62-141` |
-| Per-wall occluders | IMPLEMENTED | `castle_blockout.gd:164-188` |
-| Per-room navmesh | IMPLEMENTED | `castle_blockout.gd:200-233` |
-| Biome material fill and socket normalization | IMPLEMENTED | `castle_room_scene.gd:7-42` |
-| Ceiling slab and perimeter walls | IMPLEMENTED | `floor_shell_builder.gd:29-37` |
-| Navmesh ignores walls and cover | PARTIAL | baked from 2 floor triangles only (`castle_blockout.gd:223-233`) |
-| Navmesh joins the world default map | PARTIAL | no `set_navigation_map` anywhere; see [`dungeon-builder.md`](dungeon-builder.md) DBL-02 |
-| Door cutouts have no lintel | PARTIAL | `DOOR_HEIGHT` unused in `_build_wall`, gap is full `WALL_HEIGHT` (`castle_blockout.gd:119-141`) |
-| Rebuild churn | PARTIAL | each door setter triggers a full rebuild plus navmesh bake (`castle_blockout.gd:22-40,57-59`) |
-| Cover obstacles survive a rebuild | BROKEN | `_clear_children` frees `Geometry`, which owns them (`castle_blockout.gd:79-86,256`) |
-| `add_height_stairs()` | STUB | implemented, no call sites |
-| Monolithic ceiling slab | PLACEHOLDER | one box over the whole bounding box including empty cells (`floor_shell_builder.gd:29-35`) |
-| `FloorShell` cleanup | BROKEN | never freed on floor transition (`dungeon_builder.gd:897-918`) |
-| `Shortcut*` bounds handling | STUB | serves `DungeonBuilder._build_shortcut_corridors`, which has no call site (`floor_shell_builder.gd:121-127`) |
-| Biome resolution in a room scene | PARTIAL | prefers the global `RunFlow.current_biome_id` over the room's own template id (`castle_room_scene.gd:26-29`) |
-| Authored geometry in room scenes | ABSENT | 84 of 90 scenes are blockout only; see [`room-templates.md`](room-templates.md) |
-| Ceiling occlusion / room-level culling | ABSENT | walls have occluders, the ceiling slab does not |
+| Procedural room geometry with door cutouts and lintels | IMPLEMENTED | `castle_blockout.gd:259-295` |
+| Navmesh from static colliders (walls + cover) | IMPLEMENTED | `castle_blockout.gd:323-348` |
+| Deferred rebuild / single bake via `finalize_geometry()` | IMPLEMENTED | `castle_blockout.gd:84-99`, `dungeon_builder.gd:589` |
+| Cover obstacles survive rebuild | IMPLEMENTED | `CoverObstacles` sibling (`castle_blockout.gd:151-168`) |
+| Per-room ceiling with occluder | IMPLEMENTED | `castle_blockout.gd:218-256` |
+| `hide_walls` for authored kits | IMPLEMENTED | `castle_blockout.gd:54-57`, `:300-301` |
+| Shared wall `StaticBody3D` | IMPLEMENTED | `_create_walls_body()` (`castle_blockout.gd:298-318`) |
+| Perimeter-only `FloorShell` (no dungeon `CeilingSlab`) | IMPLEMENTED | `floor_shell_builder.gd:21-24` |
+| `FloorShell` freed with `DungeonRoot` | IMPLEMENTED | `dungeon_builder.gd:1076-1077` |
+| Biome from template id first | IMPLEMENTED | `castle_room_scene.gd:48-52` |
+| Height steps between rooms | IMPLEMENTED | `dungeon_builder.gd:371`, `castle_blockout.gd:451` |
+| `GRID_UNIT` quantum on all `KIND_SPECS` | IMPLEMENTED | `room_template_catalog.gd`; `floor_shell_suite.gd` |
+| Arena shell still uses monolithic ceiling | IMPLEMENTED | `floor_shell_builder.gd:32-46` (`build_arena_shell` only) |
+| Authored visible geometry in room scenes | PARTIAL | blockout supplies collision/nav; see [`room-templates.md`](room-templates.md) |
 
 ## Related
 
-- Improvement plan: [`../actual_improvements/floor-shell.md`](../actual_improvements/floor-shell.md)
+- Improvement plan: [`../actual_improvements/floor-shell.md`](../actual_improvements/floor-shell.md) — **FINISHED**
 - [`room-templates.md`](room-templates.md) — the 90 scenes that instantiate `CastleBlockout`
 - [`dungeon-builder.md`](dungeon-builder.md) — sets door flags, cover, nav links, and owns `FloorShell`'s lifetime
 - [`biome-registry.md`](biome-registry.md) — material lookup

@@ -7,7 +7,9 @@ const DROPS_PATH := "content/loot/global_drops.json"
 const EndlessDifficultyScript := preload("res://scripts/dungeon/endless_difficulty.gd")
 
 
-static func roll_enemy_drop(enemy_seed: int, floor_index: int = 1, dungeon_tier: int = 1) -> String:
+static func roll_enemy_drop(
+	enemy_seed: int, floor_index: int = 1, difficulty_tier: int = 1, dungeon_id: String = ""
+) -> String:
 	var data: Dictionary = ContentLoader.load_json(DROPS_PATH)
 	var entries: Array = data.get("skipItems", [])
 	if entries.is_empty():
@@ -15,8 +17,13 @@ static func roll_enemy_drop(enemy_seed: int, floor_index: int = 1, dungeon_tier:
 	var bonus := 0.0
 	if floor_index > 1:
 		bonus += EndlessDifficultyScript.rare_drop_bonus(floor_index)
-	if dungeon_tier > 1:
-		bonus += CastleTierDifficulty.loot_bonus(dungeon_tier)
+	if difficulty_tier > 1:
+		var resolved_id := dungeon_id
+		if resolved_id == "" and RunFlow:
+			resolved_id = RunFlow.current_dungeon_id
+		if resolved_id == "":
+			resolved_id = DungeonCatalog.DEFAULT_DUNGEON_ID
+		bonus += CastleTierDifficulty.loot_bonus(resolved_id, difficulty_tier)
 	var rng := RandomNumberGenerator.new()
 	rng.seed = int(enemy_seed) + floor_index * 1337
 	for entry in entries:

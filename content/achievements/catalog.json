@@ -13,7 +13,7 @@
     { "id": "speed_clear", "name": "Swift Escape", "description": "Complete a run in under 15 minutes.", "category": "speed", "hidden": false },
     { "id": "epic_loot", "name": "Epic Find", "description": "Obtain an epic rarity item.", "category": "loot", "hidden": false },
     { "id": "legendary_loot", "name": "Legendary Hoard", "description": "Obtain a legendary rarity item.", "category": "loot", "hidden": false },
-    { "id": "mythic_loot", "name": "Mythic Claim", "description": "Obtain a mythic rarity item.", "category": "loot", "hidden": true },
+    { "id": "aumbral_loot", "name": "Aumbral Claim", "description": "Obtain an aumbral rarity item.", "category": "loot", "hidden": true },
     { "id": "full_equip", "name": "Fully Armed", "description": "Equip items in every slot.", "category": "progression", "hidden": false },
     { "id": "talent_spender", "name": "Talented", "description": "Spend 10 talent points.", "category": "progression", "hidden": false },
     { "id": "merchant_friend", "name": "Regular Customer", "description": "Buy 10 items from the merchant.", "category": "hub", "hidden": false },

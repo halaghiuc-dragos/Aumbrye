@@ -1,5 +1,7 @@
 # Statuses and buffs — improvement plan
 
+## Status: FINISHED
+
 Current state: [`../existing_codebase/statuses-and-buffs.md`](../existing_codebase/statuses-and-buffs.md)
 
 ## Problem

@@ -68,7 +68,9 @@ func _unhandled_input(event: InputEvent) -> void:
 
 func _refresh_continue_state() -> void:
 	var saved := LocalSave.get_active_run()
-	var can_continue := LocalSave.has_continuable_run() and str(saved.get("runMode", "")) == "endless"
+	var can_continue := (
+		LocalSave.has_continuable_run() and str(saved.get("runMode", "")) == "endless"
+	)
 	_continue_button.disabled = not can_continue
 	if can_continue:
 		var saved_floor := int(saved.get("currentFloor", 1))

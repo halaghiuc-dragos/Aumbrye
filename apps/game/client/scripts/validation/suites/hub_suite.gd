@@ -67,12 +67,17 @@ func _test_continue_button_states() -> void:
 	menu.queue_free()
 
 	start = Time.get_ticks_msec()
-	LocalSave.set_active_run({
-		"schemaVersion": 2,
-		"runId": "validation-continue",
-		"seed": TC.SEED_A,
-		"snapshot": {"player": {"health": 80.0}, "enemies": {}},
-	})
+	(
+		LocalSave
+		. set_active_run(
+			{
+				"schemaVersion": 2,
+				"runId": "validation-continue",
+				"seed": TC.SEED_A,
+				"snapshot": {"player": {"health": 80.0}, "enemies": {}},
+			}
+		)
+	)
 	menu = load("res://scenes/ui/castle_entry_menu.tscn").instantiate() as Control
 	ctx.owner.add_child(menu)
 	await ctx.await_frame()
@@ -90,15 +95,46 @@ func _test_continue_button_states() -> void:
 	)
 	menu.queue_free()
 	LocalSave.clear_active_run()
+
+	start = Time.get_ticks_msec()
+	(
+		LocalSave
+		. set_active_run(
+			{
+				"schemaVersion": 4,
+				"runId": "validation-endless",
+				"runMode": "endless",
+				"seed": TC.SEED_A,
+				"snapshot": {"player": {"health": 80.0}, "enemies": {}},
+			}
+		)
+	)
+	menu = load("res://scenes/ui/castle_entry_menu.tscn").instantiate() as Control
+	ctx.owner.add_child(menu)
+	await ctx.await_frame()
+	menu.call("open_menu")
+	await ctx.await_frame()
+	continue_btn = menu.get_node("MainPanel/Margin/VBox/ContinueButton") as Button
+	var endless_disabled := continue_btn.disabled and LocalSave.has_continuable_run()
+	ctx.timed_record(
+		"castle.menu.continue_mode_filter",
+		get_category(),
+		endless_disabled,
+		"castle entry Continue disabled when activeRun runMode is endless",
+		start,
+		"CST-03"
+	)
+	menu.queue_free()
+	LocalSave.clear_active_run()
 	ctx.restore_save_file(backup)
 
 
 func _test_seed_validation() -> void:
 	var start := Time.get_ticks_msec()
 	var invalid := (
-		ctx.parse_castle_seed("abc") == null
-		and ctx.parse_castle_seed("0") == null
-		and ctx.parse_castle_seed("") == null
+		DungeonSeedService.parse_run_seed("abc") == null
+		and DungeonSeedService.parse_run_seed("0") == null
+		and DungeonSeedService.parse_run_seed("") == null
 	)
 	ctx.timed_record(
 		"seed.invalid_rejected",
@@ -113,7 +149,7 @@ func _test_seed_validation() -> void:
 	ctx.timed_record(
 		"seed.valid_accepted",
 		get_category(),
-		ctx.parse_castle_seed("42001") == 42001,
+		DungeonSeedService.parse_run_seed("42001") == 42001,
 		"valid numeric seed accepted",
 		start,
 		"M3.hub.seed_valid"

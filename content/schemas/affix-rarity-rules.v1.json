@@ -11,28 +11,26 @@
     "affixCounts": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["common", "magic", "rare", "epic", "legendary", "mythic", "aumbral"],
+      "required": ["common", "magic", "rare", "epic", "legendary", "aumbral"],
       "properties": {
         "common": { "$ref": "#/$defs/countRange" },
         "magic": { "$ref": "#/$defs/countRange" },
         "rare": { "$ref": "#/$defs/countRange" },
         "epic": { "$ref": "#/$defs/countRange" },
         "legendary": { "$ref": "#/$defs/countRange" },
-        "mythic": { "$ref": "#/$defs/countRange" },
         "aumbral": { "$ref": "#/$defs/countRange" }
       }
     },
     "rarityWeights": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["common", "magic", "rare", "epic", "legendary", "mythic", "aumbral"],
+      "required": ["common", "magic", "rare", "epic", "legendary", "aumbral"],
       "properties": {
         "common": { "type": "integer", "minimum": 0 },
         "magic": { "type": "integer", "minimum": 0 },
         "rare": { "type": "integer", "minimum": 0 },
         "epic": { "type": "integer", "minimum": 0 },
         "legendary": { "type": "integer", "minimum": 0 },
-        "mythic": { "type": "integer", "minimum": 0 },
         "aumbral": { "type": "integer", "minimum": 0 }
       }
     }

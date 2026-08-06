@@ -132,11 +132,11 @@ project.lock.json
 # =============================================================================
 **/.godot/
 **/.import/
-**/export_presets.cfg
+**/export_presets.local.cfg
 override.cfg
 *.translation
 
-# Godot export binaries (credentials live in export_presets.cfg)
+# Godot export binaries (signing credentials live in export_presets.local.cfg)
 **/export/
 **/builds/
 *.pck
@@ -157,8 +157,10 @@ mcp_validation.json
 # =============================================================================
 steam_appid.txt
 steam_api_key.txt
-# GodotSteam optional build artifacts (not in repo)
-addons/godotsteam/
+# GodotSteam binaries (gdextension config is committed)
+**/addons/godotsteam/**/*.dll
+**/addons/godotsteam/**/*.so
+**/addons/godotsteam/**/*.dylib
 
 # =============================================================================
 # Build artifacts & binaries
@@ -191,6 +193,7 @@ __pycache__/
 *.py[cod]
 .pytest_cache/
 .mypy_cache/
+.ruff_cache/
 
 # =============================================================================
 # Terraform / infra state (if added later)

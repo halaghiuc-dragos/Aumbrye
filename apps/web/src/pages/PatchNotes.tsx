@@ -1,18 +1,27 @@
-import patchNotes from "../content/patch-notes/entries.json";
+import { Link } from "react-router-dom";
+import { patchNotes } from "../content/loader";
+import { PageHelmet } from "../components/Layout";
 
 export default function PatchNotesPage() {
   return (
     <section className="page">
+      <PageHelmet
+        title="Patch Notes — Aumbrye"
+        description="Release notes for Aumbrye game updates."
+        path="/patch-notes"
+      />
       <h2>Patch Notes</h2>
-      {patchNotes.entries.map((entry) => (
+      {patchNotes.map((entry) => (
         <article key={entry.version} className="card">
           <h3>
-            v{entry.version} — {entry.title}
+            <Link to={`/patch-notes/${entry.version}`}>
+              v{entry.version} — {entry.title}
+            </Link>
           </h3>
           <p className="muted">{entry.date}</p>
           <ul>
-            {entry.highlights.map((h) => (
-              <li key={h}>{h}</li>
+            {entry.highlights.map((highlight) => (
+              <li key={highlight}>{highlight}</li>
             ))}
           </ul>
         </article>

@@ -1,0 +1,22 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/dungeon/exit_portal.gd" id="1_script"]
+
+[sub_resource type="BoxShape3D" id="BoxShape_portal"]
+size = Vector3(3, 3, 1)
+
+[node name="ExitPortal" type="Area3D"]
+collision_layer = 0
+collision_mask = 2
+monitoring = false
+visible = false
+script = ExtResource("1_script")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="."]
+shape = SubResource("BoxShape_portal")
+
+[node name="Label3D" type="Label3D" parent="."]
+billboard = 1
+font_size = 24
+position = Vector3(0, 2.5, 0)
+visible = false

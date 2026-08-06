@@ -6,6 +6,7 @@ class_name NpcCatalog
 const NPC_DIR := "content/npcs"
 
 static var _definitions: Dictionary = {}
+static var _loaded := false
 
 
 static func get_definition(npc_id: String) -> Dictionary:
@@ -21,13 +22,24 @@ static func get_all_ids() -> Array[String]:
 	return ids
 
 
+static func reload() -> void:
+	_definitions.clear()
+	_loaded = false
+	_ensure_loaded()
+
+
+static func is_loaded() -> bool:
+	return _loaded
+
+
 static func _ensure_loaded() -> void:
-	if not _definitions.is_empty():
+	if _loaded:
 		return
 	var abs_dir := ContentLoader.content_path(NPC_DIR)
 	var dir := DirAccess.open(abs_dir)
 	if dir == null:
 		push_warning("NpcCatalog: missing directory %s" % abs_dir)
+		_loaded = true
 		return
 	dir.list_dir_begin()
 	var file_name := dir.get_next()
@@ -43,3 +55,4 @@ static func _ensure_loaded() -> void:
 				_definitions[npc_id] = data
 		file_name = dir.get_next()
 	dir.list_dir_end()
+	_loaded = true

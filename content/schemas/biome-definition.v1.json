@@ -5,7 +5,7 @@
   "description": "Biome procgen config — room templates, enemy pools, loot budgets.",
   "type": "object",
   "additionalProperties": false,
-  "required": ["id", "name", "roomCount", "gridStep", "roomTemplateIds", "enemyPool", "bossPool", "budgets"],
+  "required": ["id", "name", "roomCount", "roomTemplateIds", "enemyPool", "bossPool", "budgets", "lootTables", "trapPool"],
   "properties": {
     "id": { "type": "string", "minLength": 1 },
     "name": { "type": "string", "minLength": 1 },
@@ -43,7 +43,32 @@
         "additionalProperties": false,
         "required": ["enemyId"],
         "properties": {
-          "enemyId": { "type": "string", "minLength": 1 }
+          "enemyId": { "type": "string", "minLength": 1 },
+          "weight": { "type": "integer", "minimum": 1 }
+        }
+      },
+      "minItems": 1
+    },
+    "lootTables": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["treasure", "secret", "side", "armory"],
+      "properties": {
+        "treasure": { "$ref": "#/$defs/lootTable" },
+        "secret": { "$ref": "#/$defs/lootTable" },
+        "side": { "$ref": "#/$defs/lootTable" },
+        "armory": { "$ref": "#/$defs/lootTable" }
+      }
+    },
+    "trapPool": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["trapId", "weight"],
+        "properties": {
+          "trapId": { "type": "string", "minLength": 1 },
+          "weight": { "type": "integer", "minimum": 1 }
         }
       },
       "minItems": 1
@@ -59,6 +84,43 @@
         "lootPerTier": { "type": "integer", "minimum": 0 }
       }
     },
-    "requiresSecret": { "type": "boolean" }
+    "requiresSecret": { "type": "boolean" },
+    "maxSecrets": { "type": "integer", "minimum": 0, "maximum": 4 },
+    "maxHeightLevel": { "type": "integer", "minimum": 0, "maximum": 2 },
+    "finalFloor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["bossId"],
+      "properties": {
+        "bossId": { "type": "string", "minLength": 1 },
+        "lobbyChests": {
+          "type": "array",
+          "items": { "type": "object" }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "lootEntry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["itemId", "quantity", "weight"],
+      "properties": {
+        "itemId": { "type": "string", "minLength": 1 },
+        "quantity": {
+          "type": "array",
+          "items": { "type": "integer", "minimum": 1 },
+          "minItems": 2,
+          "maxItems": 2
+        },
+        "weight": { "type": "integer", "minimum": 1 },
+        "minTier": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "lootTable": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/lootEntry" },
+      "minItems": 1
+    }
   }
 }

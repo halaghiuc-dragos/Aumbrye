@@ -5,8 +5,9 @@ extends Node
 
 const CombatStatModifiersScript := preload("res://scripts/combat/combat_stat_modifiers.gd")
 
-const BLOCK_STAMINA_DRAIN_PER_HIT := 18.0
-const BLOCK_DAMAGE_REDUCTION := 0.22
+const BLOCK_STAMINA_PER_POISE := 0.55
+const BLOCK_DAMAGE_REDUCTION := 0.55
+const BLOCK_POISE_TRANSFER := 0.35
 const GUARD_BREAK_STAGGER := 0.8
 const BLOCK_ARC_DEGREES := 120.0
 const PARRY_WINDOW := 0.18
@@ -35,6 +36,8 @@ var _state := GuardState.IDLE
 var _parry_timer := 0.0
 var _riposte_timer := 0.0
 var _block_reduction_bonus := 0.0
+var _block_stability := 1.0
+var _last_block_cost := 0.0
 
 
 func _ready() -> void:
@@ -61,14 +64,14 @@ func _physics_process(delta: float) -> void:
 			is_blocking = false
 			parry_window_active = false
 			is_guard_active = false
-			if Input.is_action_just_pressed("block") and not guard_broken_state:
+			if PlayerInput.just_pressed(&"block") and not guard_broken_state:
 				_enter_guard()
 		GuardState.GUARDING:
 			_parry_timer -= delta
 			parry_window_active = _parry_timer > 0.0
 			is_blocking = true
 			is_guard_active = true
-			if not Input.is_action_pressed("block"):
+			if not PlayerInput.pressed(&"block"):
 				_end_guard()
 		GuardState.GUARD_BROKEN:
 			_reset_guard_state()
@@ -78,10 +81,14 @@ func _enter_guard() -> void:
 	_state = GuardState.GUARDING
 	_parry_timer = PARRY_WINDOW
 	is_guard_active = true
+	if _stamina:
+		_stamina.set_regen_state(Stamina.RegenState.BLOCKING)
 	block_state_changed.emit(true)
 
 
 func _end_guard() -> void:
+	if _stamina:
+		_stamina.set_regen_state(Stamina.RegenState.NORMAL)
 	_reset_guard_state()
 	block_state_changed.emit(false)
 
@@ -94,8 +101,14 @@ func _reset_guard_state() -> void:
 	is_guard_active = false
 
 
-func set_combat_stat_modifiers(_equipment_stats: Dictionary, talent_stats: Dictionary) -> void:
+func set_combat_stat_modifiers(
+	equipment_stats: Dictionary, talent_stats: Dictionary, block_data: Dictionary = {}
+) -> void:
 	_block_reduction_bonus = CombatStatModifiersScript.block_reduction_bonus(talent_stats)
+	_block_stability = maxf(0.1, float(block_data.get("stability", 1.0)))
+	if block_data.has("reduction"):
+		# Equipment block reduction overrides the default when authored on shield.
+		_block_reduction_bonus += float(block_data.get("reduction", 0.0)) - BLOCK_DAMAGE_REDUCTION
 
 
 func modify_incoming_hit(info: DamageInfo) -> Dictionary:
@@ -103,13 +116,16 @@ func modify_incoming_hit(info: DamageInfo) -> Dictionary:
 		return {"amount": info.amount, "poise": info.poise_damage}
 	if not _is_frontal_hit(info.direction):
 		return {"amount": info.amount, "poise": info.poise_damage}
-	if _stamina == null or not _stamina.consume(BLOCK_STAMINA_DRAIN_PER_HIT):
+	var stamina_cost := info.poise_damage * BLOCK_STAMINA_PER_POISE / _block_stability
+	_last_block_cost = stamina_cost
+	if _stamina == null or not _stamina.consume(stamina_cost):
 		_trigger_guard_break()
 		return {"amount": info.amount, "poise": info.poise_damage, "blocked": false}
 	var reduction := clampf(BLOCK_DAMAGE_REDUCTION + _block_reduction_bonus, 0.0, 0.95)
+	var poise_mult := BLOCK_POISE_TRANSFER / _block_stability
 	return {
 		"amount": info.amount * (1.0 - reduction),
-		"poise": info.poise_damage * 0.5,
+		"poise": info.poise_damage * poise_mult,
 		"blocked": true,
 	}
 
@@ -117,6 +133,7 @@ func modify_incoming_hit(info: DamageInfo) -> Dictionary:
 func try_parry_attack(attacker: Node) -> bool:
 	if _state != GuardState.GUARDING or not parry_window_active:
 		return false
+	_stagger_attacker(attacker)
 	parry_success.emit(attacker)
 	riposte_active = true
 	_riposte_timer = RIPOSTE_WINDOW
@@ -128,6 +145,19 @@ func try_parry_attack(attacker: Node) -> bool:
 	_end_guard()
 	block_state_changed.emit(false)
 	return true
+
+
+func _stagger_attacker(attacker: Node) -> void:
+	var target: Node = attacker
+	if target and not target.has_method("apply_stagger"):
+		if target.get_parent() and target.get_parent().has_method("apply_stagger"):
+			target = target.get_parent()
+	if target and target.has_method("apply_stagger"):
+		target.call("apply_stagger", PARRY_STAGGER_ENEMY)
+	if target and target.has_method("cancel_attack"):
+		target.call("cancel_attack")
+	elif attacker and attacker.has_method("disable"):
+		attacker.call("disable")
 
 
 func get_riposte_damage_multiplier() -> float:
@@ -147,6 +177,13 @@ func locks_movement() -> bool:
 	return _stagger_timer > 0.0
 
 
+func reset_after_revive() -> void:
+	guard_broken_state = false
+	_stagger_timer = 0.0
+	_state = GuardState.IDLE
+	_reset_guard_state()
+
+
 func get_parry_time_remaining() -> float:
 	if _state == GuardState.GUARDING and parry_window_active:
 		return maxf(0.0, _parry_timer)
@@ -154,9 +191,11 @@ func get_parry_time_remaining() -> float:
 
 
 func get_block_time_remaining() -> float:
-	if _state == GuardState.GUARDING:
-		return 1.0
-	return 0.0
+	if _state != GuardState.GUARDING or _stamina == null:
+		return 0.0
+	if _last_block_cost <= 0.0:
+		return 9.99
+	return clampf(_stamina.current / _last_block_cost, 0.0, 9.99)
 
 
 func _get_block_facing() -> Vector3:

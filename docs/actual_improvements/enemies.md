@@ -1,5 +1,7 @@
 # Enemies — improvement plan
 
+## Status: FINISHED
+
 ## Current state
 
 Twenty-nine enemy definitions share one 641-line state machine

@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "tips": [
+    {
+      "id": "dodge_basics",
+      "text": "Dodge with {dodge} to roll through attacks. Practice in the training arena.",
+      "actions": ["dodge"],
+      "showWhen": { "minLevel": 1 }
+    },
+    {
+      "id": "block_basics",
+      "text": "Block with {block}; a well-timed parry staggers enemies.",
+      "actions": ["block"]
+    },
+    {
+      "id": "ascend",
+      "text": "Defeat the floor boss, then pull the stair lever to ascend.",
+      "actions": []
+    },
+    {
+      "id": "inventory",
+      "text": "Open your inventory with {inventory} to equip better gear.",
+      "actions": ["inventory"]
+    }
+  ]
+}

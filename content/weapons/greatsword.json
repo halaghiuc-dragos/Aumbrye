@@ -5,7 +5,10 @@
   "damage_type": "physical",
   "buffer_window": 0.15,
   "lunge_distance": 0.35,
-  "scaling": { "physicalDamage": 1.5, "poiseDamage": 1.0 },
+  "scaling": {
+    "physicalDamage": 1.5,
+    "poiseDamage": 1.0
+  },
   "light_attacks": [
     {
       "damage": 22,
@@ -34,5 +37,18 @@
     "active": 0.22,
     "recovery": 0.55,
     "lunge_distance": 0.5
+  },
+  "art": {
+    "id": "stance_slam",
+    "name": "Stance Slam",
+    "stamina_cost": 34,
+    "damage": 48,
+    "poise_damage": 55,
+    "startup": 0.45,
+    "active": 0.22,
+    "recovery": 0.55,
+    "lunge_distance": 0.4,
+    "hyperarmor": true,
+    "cooldown": 8.0
   }
 }

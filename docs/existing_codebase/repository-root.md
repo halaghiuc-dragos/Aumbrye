@@ -21,11 +21,17 @@ Top-level layout of the Aumbrye monorepo: what each root entry is, which entry p
 | `.env.example` | Compose and out-of-Docker API connection variables. |
 | `pyproject.toml` | Ruff config for `tools/`. |
 | `.gdlintrc` | gdtoolkit lint/format config. |
-| `.pre-commit-config.yaml` | Single local hook: content JSON validation. |
-| `.gitignore` | 216 lines; secrets, build output, Godot artifacts, reports, seed dumps. |
+| `.editorconfig` | Shared charset, EOL, indentation across stacks. |
+| `.pre-commit-config.yaml` | Content validation, `ruff` on `tools/`, `gdformat` on health GDScript set, `eslint` on staged `apps/web` files. |
+| `.gitignore` | Secrets, build output, Godot artifacts, reports, seed dumps, `.ruff_cache/`. |
 | `README.md` | Repo onboarding. |
+| `CONTRIBUTING.md` | Branch model, validation commands, doc conventions. |
+| `LICENSE` | Project license. |
+| `SECURITY.md` | Security reporting. |
+| `.github/CODEOWNERS` | Default review routing. |
+| `.github/PULL_REQUEST_TEMPLATE.md` | PR checklist template. |
 
-Tracked root-level files, verified with `git ls-files`: `.env.example`, `.gdlintrc`, `.gitignore`, `.pre-commit-config.yaml`, `README.md`, `docker-compose.yml`, `pyproject.toml`.
+Tracked root-level files include the hygiene set above plus `.env.example`, `.gdlintrc`, `.gitignore`, `.pre-commit-config.yaml`, `README.md`, `docker-compose.yml`, `pyproject.toml`, `.editorconfig`, `CONTRIBUTING.md`, `LICENSE`, `SECURITY.md`, `.github/CODEOWNERS`, `.github/PULL_REQUEST_TEMPLATE.md`.
 
 ## How it works
 
@@ -39,7 +45,7 @@ Tracked root-level files, verified with `git ls-files`: `.env.example`, `.gdlint
 | Web | `npm run dev` in `apps/web` | `apps/web/src/main.tsx:6` |
 | Procgen CLI | `dotnet run --project tools/procgen-cli -- generate <biomeId> <seed>` | `tools/procgen-cli/Program.cs:3` |
 | Content validation | `npm run validate` in `scripts/validate-content` | `scripts/validate-content/validate.mjs:166` |
-| Full local validation | `./scripts/run-all-validation.ps1` | `scripts/run-all-validation.ps1:41` |
+| Full local validation | `node scripts/validate.mjs` | `scripts/validate.mjs` |
 
 ### Stray artifacts at root
 
@@ -50,12 +56,10 @@ Five entries exist on disk but are not part of the tracked tree. Each was verifi
 | `debug-d7fbce.log` | Loose log file | `.gitignore:108` (`*.log`) | Untracked local artifact |
 | `seed1.json` | procgen-cli stdout dump | `.gitignore:177` (`/seed*.json`) | Untracked local artifact |
 | `seed99999.json` | procgen-cli stdout dump for `TestContext.SEED_B` (`test_context.gd:10`) | `.gitignore:177` | Untracked local artifact |
-| `reports/` | Contains `procgen-test.json`, `validation-run.log`, `validation-summary.json` written by `scripts/run-all-validation.ps1:8` | `.gitignore:173` (`reports/`) | Untracked build output |
-| `.ruff_cache/` | Ruff cache for version `0.16.1`; self-ignoring via its own `.ruff_cache/.gitignore` | `.ruff_cache/.gitignore:2` | Untracked tool cache |
+| `reports/` | Contains `validation-summary.json` and `balance_export.json` written by `scripts/validate.mjs` and `balance-cli.mjs` | `.gitignore:173` (`reports/`) | Untracked build output |
+| `.ruff_cache/` | Ruff cache | `.gitignore:194` (`.ruff_cache/`) | Untracked tool cache |
 
-`.ruff_cache/` is the only one not covered by the repo `.gitignore`. It is excluded only because Ruff writes a self-ignoring `.gitignore` inside the directory; the repo `.gitignore` lists `.pytest_cache/` and `.mypy_cache/` (`.gitignore:192-193`) but not `.ruff_cache/`.
-
-None of the five are tracked, so none pollute clones.
+All five stray entries are untracked and do not pollute clones.
 
 ### `.gitignore` coverage of interest
 
@@ -76,11 +80,14 @@ None of the five are tracked, so none pollute clones.
 | Surface | Status | Evidence |
 |---------|--------|----------|
 | Root layout and entry points | IMPLEMENTED | `apps/game/client/project.godot:19`, `services/backend/src/Aumbrye.Api/Program.cs:13` |
-| `Dockerfile` for the API | ABSENT | Repo-wide `dir /b /s Dockerfile*` returns no match; `release.yml:18` still builds `-f services/backend/Dockerfile` |
-| `.ruff_cache/` in repo `.gitignore` | ABSENT | `.gitignore:187-193` lists `__pycache__/`, `*.py[cod]`, `.pytest_cache/`, `.mypy_cache/` only |
-| `README.md` accuracy | BROKEN | `README.md:58` claims main scene is `scenes/hub/hub.tscn`; `project.godot:19` is `res://scenes/ui/title_screen.tscn`. `README.md:15,62-64,76-79` link `docs/plan/`, `docs/design/`, `docs/CODING.md`, `docs/CONTENT_SCHEMA.md` — none exist under `docs/` |
-| `README.md` Node version | BROKEN | `README.md:23` says Node 20 LTS; `ci.yml:40,72` pin Node 24 |
-| Stray root artifacts | PLACEHOLDER | `debug-d7fbce.log`, `seed1.json`, `seed99999.json`, `reports/`, `.ruff_cache/` all present on disk, all untracked |
+| Contributor hygiene files | IMPLEMENTED | `.editorconfig`, `CONTRIBUTING.md`, `LICENSE`, `SECURITY.md`, `.github/CODEOWNERS`, `.github/PULL_REQUEST_TEMPLATE.md` |
+| `docs-links` CI job | IMPLEMENTED | `ci.yml:128` `lychee-action@v2` on `README.md` and `docs/**/*.md` |
+| `setup.readme_main_scene` | IMPLEMENTED | `setup_suite.gd:90` asserts README names `application/run/main_scene` |
+| Pre-commit coverage | IMPLEMENTED | `.pre-commit-config.yaml` — content, ruff, gdformat, eslint |
+| `Dockerfile` for the API | IMPLEMENTED | `services/backend/Dockerfile`; built in CI `api-image` and `release.yml` |
+| `.ruff_cache/` in repo `.gitignore` | IMPLEMENTED | `.gitignore:194` |
+| `README.md` accuracy | IMPLEMENTED | `README.md` links `docs/ARCHITECTURE.md` and paired doc trees; main scene `scenes/ui/title_screen.tscn`; Node 24 |
+| Stray root artifacts | PLACEHOLDER | `debug-d7fbce.log`, `seed1.json`, `seed99999.json`, `reports/`, `.ruff_cache/` on disk, all untracked |
 | Multiplayer / dedicated server code | ABSENT | Repo-wide grep for `multiplayer`, `ENetMultiplayerPeer`, `MultiplayerAPI`, `@rpc`, `rpc(`, `dedicated`, `WebSocketPeer`, `SignalR`, `IHubContext` (case-insensitive, excluding `docs/`) returns zero matches |
 
 ## Related

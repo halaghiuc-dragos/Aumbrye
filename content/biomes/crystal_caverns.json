@@ -1,14 +1,13 @@
 {
   "id": "crystal_caverns",
   "name": "Crystal Caverns",
-  "roomCount": {
-    "min": 6,
-    "max": 10
-  },
-  "gridStep": 14,
+  "templatePrefix": "crystal",
+  "assetFolder": "crystal",
+  "roomCount": { "min": 6, "max": 10 },
   "roomTemplateIds": [
     "crystal_entrance",
     "crystal_stairs",
+    "crystal_corridor",
     "crystal_courtyard",
     "crystal_hall",
     "crystal_treasure",
@@ -17,6 +16,30 @@
     "crystal_boss",
     "crystal_puzzle"
   ],
+  "materials": {
+    "floor": "res://assets/crystal/mat_floor.tres",
+    "wall": "res://assets/crystal/mat_wall.tres",
+    "ceiling": "res://assets/crystal/mat_ceiling.tres",
+    "accent": "res://assets/crystal/mat_accent.tres"
+  },
+  "lighting": {
+    "ambientColor": [0.35, 0.5, 0.75],
+    "ambientEnergy": 0.55,
+    "fogEnabled": true,
+    "fogColor": [0.12, 0.2, 0.35],
+    "fogDensity": 0.02,
+    "torchColor": [0.65, 0.82, 0.95],
+    "torchEnergy": 2.0
+  },
+  "audioProfile": "content/audio_profiles/crystal_caverns.json",
+  "propKit": {
+    "pillar": "res://scenes/props/crystal/pillar.tscn",
+    "sconce": "res://scenes/props/crystal/sconce.tscn",
+    "rubble": [
+      "res://scenes/props/crystal/rubble_a.tscn",
+      "res://scenes/props/crystal/rubble_b.tscn"
+    ]
+  },
   "enemyPool": [
     { "enemyId": "crystal_crawler", "weight": 3 },
     { "enemyId": "crystal_spitter", "weight": 2 },
@@ -25,7 +48,8 @@
     { "enemyId": "miniboss_crystal_guardian", "weight": 1 }
   ],
   "bossPool": [
-    { "enemyId": "boss_crystal_sovereign" }
+    { "enemyId": "boss_crystal_sovereign", "weight": 3 },
+    { "enemyId": "miniboss_crystal_guardian", "weight": 1 }
   ],
   "budgets": {
     "baseEnemyThreat": 100,
@@ -33,5 +57,25 @@
     "threatPerTier": 20,
     "lootPerTier": 10
   },
-  "requiresSecret": true
+  "lootTables": {
+    "treasure": [
+      { "itemId": "health_potion", "quantity": [2, 3], "weight": 3 },
+      { "itemId": "wind_relic_charm", "quantity": [1, 1], "weight": 2 }
+    ],
+    "secret": [
+      { "itemId": "wind_relic_charm", "quantity": [1, 1], "weight": 2 },
+      { "itemId": "health_potion", "quantity": [3, 4], "weight": 3 }
+    ],
+    "side": [
+      { "itemId": "crystal_shard_blade", "quantity": [1, 1], "weight": 2 },
+      { "itemId": "flame_relic_core", "quantity": [1, 1], "weight": 2 }
+    ],
+    "armory": [{ "itemId": "crystal_shard_blade", "quantity": [1, 1], "weight": 1 }]
+  },
+  "trapPool": [
+    { "trapId": "spike_trap", "weight": 3 },
+    { "trapId": "falling_trap", "weight": 1 }
+  ],
+  "requiresSecret": true,
+  "finalFloor": { "bossId": "final_boss_crystal" }
 }

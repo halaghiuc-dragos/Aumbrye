@@ -18,6 +18,7 @@
           "speaker": { "type": "string" },
           "text": { "type": "string" },
           "next": { "type": "string" },
+          "auto": { "type": "boolean" },
           "condition": { "type": "object" },
           "actions": { "type": "array" },
           "choices": {

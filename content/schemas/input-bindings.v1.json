@@ -1,0 +1,36 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://aumbrye.dev/schemas/input-bindings.v1.json",
+  "title": "InputBindings",
+  "description": "User input binding overrides written by InputRebindService.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "bindings"],
+  "properties": {
+    "schemaVersion": { "type": "integer", "const": 1 },
+    "bindings": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "array",
+        "items": { "$ref": "#/$defs/bindingEvent" }
+      }
+    }
+  },
+  "$defs": {
+    "bindingEvent": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["device"],
+      "properties": {
+        "device": {
+          "type": "string",
+          "enum": ["keyboard", "mouse_button", "joypad_button", "joypad_motion"]
+        },
+        "physicalKeycode": { "type": "integer" },
+        "buttonIndex": { "type": "integer" },
+        "axis": { "type": "integer" },
+        "axisValue": { "type": "number" }
+      }
+    }
+  }
+}

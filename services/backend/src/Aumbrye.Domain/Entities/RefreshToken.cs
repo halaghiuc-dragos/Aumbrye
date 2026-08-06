@@ -6,6 +6,8 @@ public class RefreshToken
     public Guid AccountId { get; set; }
     public Account Account { get; set; } = null!;
     public string TokenHash { get; set; } = string.Empty;
+    public Guid FamilyId { get; set; }
+    public string? ReplacedByTokenHash { get; set; }
     public DateTimeOffset ExpiresAt { get; set; }
     public DateTimeOffset CreatedAt { get; set; }
     public DateTimeOffset? RevokedAt { get; set; }

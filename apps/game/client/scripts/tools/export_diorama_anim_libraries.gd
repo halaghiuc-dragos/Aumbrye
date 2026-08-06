@@ -8,61 +8,155 @@ const AnimLibrary := preload("res://scripts/art/characters/diorama_anim_library.
 const OUTPUT_DIR := "res://assets/animations/diorama/"
 
 const REST_POSES := {
-	"player": {
+	"player":
+	{
+		"events_path": "../../AnimDirector",
 		"Root": {"path": "Root", "position": Vector3.ZERO, "rotation": Vector3.ZERO},
-		"LegL": {"path": "Root/LegL", "position": Vector3(-0.13, 0.46, 0.0), "rotation": Vector3.ZERO},
-		"LegR": {"path": "Root/LegR", "position": Vector3(0.13, 0.46, 0.0), "rotation": Vector3.ZERO},
-		"Torso": {"path": "Root/Torso", "position": Vector3(0.0, 0.46, 0.0), "rotation": Vector3.ZERO},
-		"Head": {"path": "Root/Torso/Head", "position": Vector3(0.0, 0.62, 0.0), "rotation": Vector3.ZERO},
-		"ArmL": {"path": "Root/Torso/ArmL", "position": Vector3(-0.3, 0.5456, 0.0), "rotation": Vector3.ZERO},
-		"ArmR": {"path": "Root/Torso/ArmR", "position": Vector3(0.3, 0.5456, 0.0), "rotation": Vector3.ZERO},
+		"LegL":
+		{"path": "Root/LegL", "position": Vector3(-0.13, 0.46, 0.0), "rotation": Vector3.ZERO},
+		"LegR":
+		{"path": "Root/LegR", "position": Vector3(0.13, 0.46, 0.0), "rotation": Vector3.ZERO},
+		"Torso":
+		{"path": "Root/Torso", "position": Vector3(0.0, 0.46, 0.0), "rotation": Vector3.ZERO},
+		"Head":
+		{"path": "Root/Torso/Head", "position": Vector3(0.0, 0.62, 0.0), "rotation": Vector3.ZERO},
+		"ArmL":
+		{
+			"path": "Root/Torso/ArmL",
+			"position": Vector3(-0.3, 0.5456, 0.0),
+			"rotation": Vector3.ZERO
+		},
+		"ArmR":
+		{
+			"path": "Root/Torso/ArmR",
+			"position": Vector3(0.3, 0.5456, 0.0),
+			"rotation": Vector3.ZERO
+		},
 	},
-	"melee": {
+	"melee":
+	{
+		"events_path": "../../AnimController",
 		"Root": {"path": "Root", "position": Vector3.ZERO, "rotation": Vector3.ZERO},
-		"LegL": {"path": "Root/LegL", "position": Vector3(-0.14, 0.48, 0.0), "rotation": Vector3.ZERO},
-		"LegR": {"path": "Root/LegR", "position": Vector3(0.14, 0.48, 0.0), "rotation": Vector3.ZERO},
-		"Torso": {"path": "Root/Torso", "position": Vector3(0.0, 0.48, 0.0), "rotation": Vector3.ZERO},
-		"Head": {"path": "Root/Torso/Head", "position": Vector3(0.0, 0.64, 0.0), "rotation": Vector3.ZERO},
-		"ArmL": {"path": "Root/Torso/ArmL", "position": Vector3(-0.33, 0.5632, 0.0), "rotation": Vector3.ZERO},
-		"ArmR": {"path": "Root/Torso/ArmR", "position": Vector3(0.33, 0.5632, 0.0), "rotation": Vector3.ZERO},
+		"LegL":
+		{"path": "Root/LegL", "position": Vector3(-0.14, 0.48, 0.0), "rotation": Vector3.ZERO},
+		"LegR":
+		{"path": "Root/LegR", "position": Vector3(0.14, 0.48, 0.0), "rotation": Vector3.ZERO},
+		"Torso":
+		{"path": "Root/Torso", "position": Vector3(0.0, 0.48, 0.0), "rotation": Vector3.ZERO},
+		"Head":
+		{"path": "Root/Torso/Head", "position": Vector3(0.0, 0.64, 0.0), "rotation": Vector3.ZERO},
+		"ArmL":
+		{
+			"path": "Root/Torso/ArmL",
+			"position": Vector3(-0.33, 0.5632, 0.0),
+			"rotation": Vector3.ZERO
+		},
+		"ArmR":
+		{
+			"path": "Root/Torso/ArmR",
+			"position": Vector3(0.33, 0.5632, 0.0),
+			"rotation": Vector3.ZERO
+		},
 	},
-	"hound": {
+	"hound":
+	{
+		"events_path": "../../AnimController",
 		"Root": {"path": "Root", "position": Vector3.ZERO, "rotation": Vector3.ZERO},
-		"Torso": {"path": "Root/Torso", "position": Vector3(0.0, 0.3, 0.0), "rotation": Vector3.ZERO},
-		"Head": {"path": "Root/Torso/Head", "position": Vector3(0.0, 0.2, 0.36), "rotation": Vector3.ZERO},
-		"Tail": {"path": "Root/Torso/Tail", "position": Vector3(0.0, 0.24, -0.38), "rotation": Vector3.ZERO},
-		"LegL": {"path": "Root/LegL", "position": Vector3(-0.16, 0.3, 0.26), "rotation": Vector3.ZERO},
-		"LegR": {"path": "Root/LegR", "position": Vector3(0.16, 0.3, 0.26), "rotation": Vector3.ZERO},
-		"LegBL": {"path": "Root/LegBL", "position": Vector3(-0.16, 0.3, -0.26), "rotation": Vector3.ZERO},
-		"LegBR": {"path": "Root/LegBR", "position": Vector3(0.16, 0.3, -0.26), "rotation": Vector3.ZERO},
+		"Torso":
+		{"path": "Root/Torso", "position": Vector3(0.0, 0.3, 0.0), "rotation": Vector3.ZERO},
+		"Head":
+		{"path": "Root/Torso/Head", "position": Vector3(0.0, 0.2, 0.36), "rotation": Vector3.ZERO},
+		"Tail":
+		{
+			"path": "Root/Torso/Tail",
+			"position": Vector3(0.0, 0.24, -0.38),
+			"rotation": Vector3.ZERO
+		},
+		"LegL":
+		{"path": "Root/LegL", "position": Vector3(-0.16, 0.3, 0.26), "rotation": Vector3.ZERO},
+		"LegR":
+		{"path": "Root/LegR", "position": Vector3(0.16, 0.3, 0.26), "rotation": Vector3.ZERO},
+		"LegBL":
+		{"path": "Root/LegBL", "position": Vector3(-0.16, 0.3, -0.26), "rotation": Vector3.ZERO},
+		"LegBR":
+		{"path": "Root/LegBR", "position": Vector3(0.16, 0.3, -0.26), "rotation": Vector3.ZERO},
 	},
-	"shield": {
+	"shield":
+	{
+		"events_path": "../../AnimController",
 		"Root": {"path": "Root", "position": Vector3.ZERO, "rotation": Vector3.ZERO},
-		"LegL": {"path": "Root/LegL", "position": Vector3(-0.15, 0.46, 0.0), "rotation": Vector3.ZERO},
-		"LegR": {"path": "Root/LegR", "position": Vector3(0.15, 0.46, 0.0), "rotation": Vector3.ZERO},
-		"Torso": {"path": "Root/Torso", "position": Vector3(0.0, 0.46, 0.0), "rotation": Vector3.ZERO},
-		"Head": {"path": "Root/Torso/Head", "position": Vector3(0.0, 0.68, 0.0), "rotation": Vector3.ZERO},
-		"ArmL": {"path": "Root/Torso/ArmL", "position": Vector3(-0.36, 0.5984, 0.0), "rotation": Vector3.ZERO},
-		"ArmR": {"path": "Root/Torso/ArmR", "position": Vector3(0.36, 0.5984, 0.0), "rotation": Vector3.ZERO},
+		"LegL":
+		{"path": "Root/LegL", "position": Vector3(-0.15, 0.46, 0.0), "rotation": Vector3.ZERO},
+		"LegR":
+		{"path": "Root/LegR", "position": Vector3(0.15, 0.46, 0.0), "rotation": Vector3.ZERO},
+		"Torso":
+		{"path": "Root/Torso", "position": Vector3(0.0, 0.46, 0.0), "rotation": Vector3.ZERO},
+		"Head":
+		{"path": "Root/Torso/Head", "position": Vector3(0.0, 0.68, 0.0), "rotation": Vector3.ZERO},
+		"ArmL":
+		{
+			"path": "Root/Torso/ArmL",
+			"position": Vector3(-0.36, 0.5984, 0.0),
+			"rotation": Vector3.ZERO
+		},
+		"ArmR":
+		{
+			"path": "Root/Torso/ArmR",
+			"position": Vector3(0.36, 0.5984, 0.0),
+			"rotation": Vector3.ZERO
+		},
 	},
-	"brute": {
+	"brute":
+	{
+		"events_path": "../../AnimController",
 		"Root": {"path": "Root", "position": Vector3.ZERO, "rotation": Vector3.ZERO},
-		"LegL": {"path": "Root/LegL", "position": Vector3(-0.18, 0.5, 0.0), "rotation": Vector3.ZERO},
-		"LegR": {"path": "Root/LegR", "position": Vector3(0.18, 0.5, 0.0), "rotation": Vector3.ZERO},
-		"Torso": {"path": "Root/Torso", "position": Vector3(0.0, 0.5, 0.0), "rotation": Vector3.ZERO},
-		"Head": {"path": "Root/Torso/Head", "position": Vector3(0.0, 0.82, 0.0), "rotation": Vector3.ZERO},
-		"ArmL": {"path": "Root/Torso/ArmL", "position": Vector3(-0.46, 0.7216, 0.0), "rotation": Vector3.ZERO},
-		"ArmR": {"path": "Root/Torso/ArmR", "position": Vector3(0.46, 0.7216, 0.0), "rotation": Vector3.ZERO},
+		"LegL":
+		{"path": "Root/LegL", "position": Vector3(-0.18, 0.5, 0.0), "rotation": Vector3.ZERO},
+		"LegR":
+		{"path": "Root/LegR", "position": Vector3(0.18, 0.5, 0.0), "rotation": Vector3.ZERO},
+		"Torso":
+		{"path": "Root/Torso", "position": Vector3(0.0, 0.5, 0.0), "rotation": Vector3.ZERO},
+		"Head":
+		{"path": "Root/Torso/Head", "position": Vector3(0.0, 0.82, 0.0), "rotation": Vector3.ZERO},
+		"ArmL":
+		{
+			"path": "Root/Torso/ArmL",
+			"position": Vector3(-0.46, 0.7216, 0.0),
+			"rotation": Vector3.ZERO
+		},
+		"ArmR":
+		{
+			"path": "Root/Torso/ArmR",
+			"position": Vector3(0.46, 0.7216, 0.0),
+			"rotation": Vector3.ZERO
+		},
 	},
-	"ranged": {
+	"ranged":
+	{
+		"events_path": "../../AnimController",
 		"Root": {"path": "Root", "position": Vector3.ZERO, "rotation": Vector3.ZERO},
-		"LegL": {"path": "Root/LegL", "position": Vector3(-0.11, 0.44, 0.0), "rotation": Vector3.ZERO},
-		"LegR": {"path": "Root/LegR", "position": Vector3(0.11, 0.44, 0.0), "rotation": Vector3.ZERO},
-		"Torso": {"path": "Root/Torso", "position": Vector3(0.0, 0.44, 0.0), "rotation": Vector3.ZERO},
-		"Head": {"path": "Root/Torso/Head", "position": Vector3(0.0, 0.56, 0.0), "rotation": Vector3.ZERO},
-		"ArmL": {"path": "Root/Torso/ArmL", "position": Vector3(-0.25, 0.4928, 0.0), "rotation": Vector3.ZERO},
-		"ArmR": {"path": "Root/Torso/ArmR", "position": Vector3(0.25, 0.4928, 0.0), "rotation": Vector3.ZERO},
-		"Bow": {
+		"LegL":
+		{"path": "Root/LegL", "position": Vector3(-0.11, 0.44, 0.0), "rotation": Vector3.ZERO},
+		"LegR":
+		{"path": "Root/LegR", "position": Vector3(0.11, 0.44, 0.0), "rotation": Vector3.ZERO},
+		"Torso":
+		{"path": "Root/Torso", "position": Vector3(0.0, 0.44, 0.0), "rotation": Vector3.ZERO},
+		"Head":
+		{"path": "Root/Torso/Head", "position": Vector3(0.0, 0.56, 0.0), "rotation": Vector3.ZERO},
+		"ArmL":
+		{
+			"path": "Root/Torso/ArmL",
+			"position": Vector3(-0.25, 0.4928, 0.0),
+			"rotation": Vector3.ZERO
+		},
+		"ArmR":
+		{
+			"path": "Root/Torso/ArmR",
+			"position": Vector3(0.25, 0.4928, 0.0),
+			"rotation": Vector3.ZERO
+		},
+		"Bow":
+		{
 			"path": "Root/Torso/ArmR/WeaponMount/Bow",
 			"position": Vector3.ZERO,
 			"rotation": Vector3.ZERO,
@@ -77,8 +171,11 @@ func _initialize() -> void:
 		DirAccess.make_dir_recursive_absolute(global_dir)
 
 	for profile_key in REST_POSES:
-		var rest_pose: Dictionary = REST_POSES[profile_key]
-		var library := AnimLibrary.build_library(rest_pose, "", profile_key, true)
+		var profile_data: Dictionary = REST_POSES[profile_key].duplicate(true)
+		var events_path := str(profile_data.get("events_path", ""))
+		assert(events_path != "", "REST_POSES[%s] missing events_path" % profile_key)
+		profile_data.erase("events_path")
+		var library := AnimLibrary.build_library(profile_data, events_path, profile_key, true)
 		var out_path := "%s%s_locomotion.res" % [OUTPUT_DIR, profile_key]
 		var err := ResourceSaver.save(library, out_path)
 		if err != OK:

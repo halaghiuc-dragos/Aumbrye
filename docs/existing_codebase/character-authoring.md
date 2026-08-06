@@ -1,65 +1,54 @@
 # Character authoring
 
-How character art actually gets into the game today. Every character in Aumbrye — player, enemy, boss, NPC, training dummy — is **assembled at runtime from axis-aligned `BoxMesh` primitives**. There is no authored character art of any kind in the repository: no sprites, no textures, no voxel models, no imported meshes. The "pixel" appearance is produced entirely by procedural shaders drawn over smooth primitive geometry, plus an optional low-resolution render pass.
+How character art gets into the game. The **primary path** is authored voxel manifests: `content/characters/*.json` plus `assets/characters/*/*.voxels.json` loaded by `build_from_manifest()` in `diorama_character_skin.gd`. Player height variants (`player_warden`, `player_warden_compact`, `player_warden_tall`), combat archetypes (`enemy_melee`, `enemy_ranged`, `enemy_brute`, `enemy_hound`, `enemy_shield`, `enemy_dummy`), and ten biome silhouettes (`enemy_biome_castle` … `enemy_biome_umbral`) ship palette-snapped vertex colours via `VoxelMeshBuilder`.
 
-This doc exists because the distinction is easy to miss: the code calls itself voxel and pixel, but nothing is authored from pixels or voxels.
+A **fallback path** still exists: unmapped profiles assemble 6–9 runtime `BoxMesh` primitives from the hardcoded `PROFILES` dictionary (`_build_humanoid`). Equipment with `"visual"` blocks can swap head meshes through `apply_equipment()`.
 
 ## Files
 
 | Path | Role |
 |------|------|
-| `apps/game/client/scripts/art/characters/diorama_character_skin.gd` | Builds every body from boxes; owns the `PROFILES` proportion table |
-| `apps/game/client/scripts/art/style/pixel_diorama_style.gd` | `add_box()` / `add_cylinder()` primitive factories and all materials |
-| `apps/game/client/scripts/art/props/diorama_weapon_kit.gd` | Hand-held weapon meshes, also boxes |
-| `apps/game/client/scripts/art/characters/diorama_viewmodel.gd` | First-person arms, also boxes |
-| `apps/game/client/scripts/art/characters/diorama_anim_library.gd` | Procedurally keyframed clips driving the box pivots |
-| `apps/game/client/scripts/save/character_appearance.gd` | The player's customization options |
-| `apps/game/client/assets/shared/pixel_diorama_surface.gdshader` | The procedural pattern that supplies the "pixel" look |
-| `apps/game/client/assets/shared/pixel_diorama_finish.gdshaderinc` | Shared helpers: `triplanar_pattern_uv`, `voxel_edge_mask`, `band_light`, `cell_hash` |
-| `apps/game/client/scripts/art/pipeline/pixel_diorama_viewport.gd` | Optional low-res SubViewport + nearest-neighbour upscale |
+| `apps/game/client/scripts/art/characters/voxel_grid.gd` | `EDGE := 0.04`, `REQUIRED_PIVOTS`, joint helpers |
+| `apps/game/client/scripts/art/characters/voxel_mesh_builder.gd` | Greedy voxel mesh builder + palette snap |
+| `apps/game/client/scripts/art/characters/character_rig_catalog.gd` | Manifest loader; `BIOME_ARCHETYPE_IDS`, height-variant resolution |
+| `apps/game/client/scripts/art/characters/diorama_character_skin.gd` | Builds every body; `build_from_manifest`, `build_enemy_body`, `apply_equipment`, appearance overlays |
+| `apps/game/client/scripts/art/props/diorama_weapon_kit.gd` | Hand-held weapon meshes (sword, greatsword, dagger, spear, bow, shield, axe, staff, unknown) |
+| `apps/game/client/scripts/art/style/pixel_diorama_style.gd` | `add_box()` / materials |
+| `apps/game/client/scripts/art/characters/diorama_viewmodel.gd` | First-person arms |
+| `apps/game/client/scripts/art/characters/diorama_anim_library.gd` | Procedurally keyframed clips driving pivots |
+| `apps/game/client/scripts/save/character_appearance.gd` | Player customization profile (variants, skin, hair, face, trim) |
+| `apps/game/client/assets/shared/pixel_diorama_surface.gdshader` | `use_vertex_color` path for authored meshes; procedural pattern for props |
+| `content/characters/*.json` | Rig manifests (`character-rig.v1.json` schema) |
+| `content/schemas/character-rig.v1.json` | Manifest schema |
+| `tools/generate_character_voxels.py` | Generates `.voxels.json` assets and manifests from `tools/voxel-import/archetypes.py` |
+| `tools/voxel-import/` | `.vox` conversion, palette snap, mesh grid tests |
 
 ## Asset inventory
 
-Searching `apps/game/client/` for `*.png`, `*.jpg`, `*.jpeg`, `*.webp`, `*.aseprite`, `*.vox`, `*.glb`, `*.gltf`, `*.obj`, `*.fbx` outside `.godot/` returns **zero** files. The only image in the client is `apps/game/client/icon.svg`, the Godot project icon.
+Character voxel data lives under `apps/game/client/assets/characters/`:
 
-Everything under `apps/game/client/assets/` is one of:
+| Archetype | Parts |
+|-----------|-------|
+| `player_warden` | `head`, `torso`, `arml`, `armr`, `legl`, `legr`, `hair_short`, `hair_long` |
+| `enemy_melee`, `enemy_ranged`, `enemy_brute` | six body parts each |
+| `enemy_biome_castle`, `enemy_biome_crystal`, `enemy_biome_swamp`, `enemy_biome_frost`, `enemy_biome_cathedral`, `enemy_biome_vault`, `enemy_biome_prism`, `enemy_biome_mire`, `enemy_biome_hollow`, `enemy_biome_umbral` | six body parts each, theme palette from `archetypes.py` |
+| `enemy_hound` | quadruped: `torso`, `head`, `tail`, `legl`, `legr`, `legbl`, `legbr` |
+| `enemy_shield`, `enemy_dummy` | six body parts each |
+| `equipment/` | `iron_helm`, `castle_helm` |
 
-| Kind | Files |
-|------|-------|
-| Shaders | `assets/shared/*.gdshader`, `pixel_diorama_finish.gdshaderinc` |
-| Material resources | `assets/shared/mat_pixel_floor.tres`, `assets/<theme>/mat_{floor,wall,accent}.tres` |
-| Animation libraries | `assets/animations/diorama/*.res` (6 files, generated by an export tool) |
-| Audio | `assets/audio/<biome>/{ambience_loop,boss_theme}.ogg` |
-
-There is therefore no art pipeline in the usual sense — no source art, no importer, no atlas, no texture budget.
+Manifests under `content/characters/` (19 total): three player height variants, six combat archetypes, ten biome archetypes.
 
 ## How a body is built
 
-`DioramaCharacterSkin.build_player_body()` / `build_enemy_body()` / `build_training_dummy()` all follow the same path:
+1. `build_player_body()` / `build_enemy_body()` remove any existing `DioramaVisual`, hide legacy meshes, create a new visual root.
+2. **Manifest path:** `CharacterRigCatalog.archetype_for_player(profile)` or `archetype_for_enemy(enemy_id, data)` picks the manifest; `build_from_manifest()` instantiates pivots at `joint * VoxelGrid.EDGE`, attaches `ArrayMesh` from `.voxels.json` with `use_vertex_color` materials.
+3. **Fallback:** `_build_humanoid()` reads `PROFILES` and attaches `BoxMesh` primitives.
+4. **Appearance:** `_apply_player_appearance()` applies bulk joint offsets (no `Root.scale`), skin-tone shader tint, hair voxels, face accents, class armour overlays, hood/visor/trim boxes.
+5. **Equipment:** `apply_equipment()` attaches equipment voxel meshes and hides replaced parts.
 
-1. Remove any existing `DioramaVisual` child and hide legacy capsule meshes (`PixelDioramaStyle.hide_legacy_meshes`).
-2. Create a `DioramaVisual` `Node3D`.
-3. Pick a profile string and call `_build_humanoid()` (or `_build_quadruped()` for `hound`).
-4. `_build_humanoid()` reads a proportion dictionary out of `PROFILES` and creates a hierarchy of empty `Node3D` pivots, attaching one `BoxMesh` under each via `PixelDioramaStyle.add_box()`.
-
-`diorama_character_skin.gd:32-86` defines six profiles — `player`, `melee`, `ranged`, `shield`, `brute`, `dummy` — each a dictionary of four `Vector3` box sizes (`leg`, `torso`, `head`, `arm`), two scalar offsets (`hip_x`, `shoulder_x`), and optional flags (`visor`, `head_accent`, `extras`).
-
-### Box budget per body
-
-| Profile | Boxes | Composition |
-|---------|-------|-------------|
-| `melee`, `dummy` | 6 | 2 legs, torso, head, 2 arms |
-| `player` | 7 (+3) | above + `Visor`; `Hood`, `BeltTrim`, and 2 `Pauldron` boxes added conditionally by appearance |
-| `ranged` | 7 | above + `Bow` |
-| `shield` | 7 | above + `Shield` |
-| `brute` | 6 | as `melee`, larger sizes, accent head material |
-| `hound` (quadruped) | 9 | torso, head, 2 ears, tail, 4 legs |
-
-A held weapon adds 4-6 further boxes from `DioramaWeaponKit` (`diorama_weapon_kit.gd:65-125`). So a fully equipped player is roughly a dozen boxes. There is no geometry below that granularity: no hands, no feet, no faces, no hair, no cloth, no separate armour pieces.
+`build_enemy_body()` signature: `(parent, enemy_type, theme, enemy_id, enemy_data)`. `castle_enemy_base.gd:128` passes enemy id and catalog data so biome melee grunts resolve to `enemy_biome_<theme>` manifests.
 
 ### The rig contract
-
-`_build_humanoid()` produces this exact tree, and the node names are a contract shared with `DioramaAnimLibrary`, which keys clip tracks by name:
 
 ```
 DioramaVisual/Root/LegL/Mesh
@@ -72,73 +61,62 @@ DioramaVisual/Root/Torso/ArmR/Mesh
 DioramaVisual/Root/Torso/ArmR/WeaponMount
 ```
 
-Each mesh is offset beneath its pivot so a limb rotates about the joint rather than about its own centre (`diorama_character_skin.gd:382`, `:403`). Feet sit at the rig origin — `feet_local_y()` returns `0.0` for every profile (`diorama_character_skin.gd:195-196`) — so the visual root can be dropped straight onto the floor.
+`VoxelGrid.REQUIRED_PIVOTS["biped"]` lists every pivot animation clips may key. `diorama_anim_suite._test_rig_contracts` builds each manifest and asserts pivots, track resolution, uniform scale, and `ArrayMesh` leaf meshes.
 
-`DioramaViewmodel` deliberately mirrors the `ArmL` / `ArmR` / `WeaponMount` / `ShieldMount` names under a `ViewRoot` parent so the same clips drive first-person arms, while skipping whole-body tracks (`diorama_viewmodel.gd:1-27`).
+## Pixel look
 
-## Where the "pixel" look comes from
-
-None of it comes from the geometry or from authored art. Three separate procedural effects stack up:
-
-1. **Surface pattern.** `pixel_diorama_surface.gdshader` computes a cell grid in *object space* for props and characters (`surface_kind == 2`) via `triplanar_pattern_uv(v_local_pos, v_local_normal, pixel_scale)`, then tints per cell using `cell_hash()` and draws a fake bevel with `voxel_edge_mask()`. The cell size is `pixel_scale` cells per object-space metre, defaulting to `8.0` (`pixel_diorama_settings.gd:17`).
-2. **Banded lighting.** The shader's `light()` function replaces smooth diffuse with `band_light(..., shade_bands, shade_dither, FRAGCOORD.xy)`, default 4 bands with 0.55 dither.
-3. **Optional low-res pass.** `PixelDioramaViewport` renders the shared world through a `SubViewport` sized to an integer divisor of the window and upscales it, with `snap_2d_transforms_to_pixel` and `snap_2d_vertices_to_pixel` on.
-
-Consequences worth stating plainly:
-
-- The pattern is a **screen-independent procedural texture**, not pixel data. Nobody authored where any coloured cell sits.
-- Because character/prop cells are computed in object space, the grid is **per-box**. Adjacent boxes in the same body do not share a cell grid, so the "pixels" of the torso and the head are not aligned with each other.
-- `_apply_player_appearance()` sets `root.scale = Vector3(bulk, height, bulk)` (`diorama_character_skin.gd:107`). Object-space pattern coordinates scale with the node, so a `Tall`/`Heavy` character's cells are a different world size than a `Compact`/`Lean` one's.
-- The default resolution preset is `1920 x 1080 (Full HD, default)` with `native: true`, `pixel_scale: 2.0`, `color_levels: 16.0` (`pixel_diorama_settings.gd:64-75`). At the default settings the chunky-pixel effect is largely tuned out; the `320 x 180` and `480 x 270` presets are opt-in.
-
-At the `480 x 270` preset, `PixelDioramaSettings.camera_snap_step(75.0, 5.0)` evaluates to about `0.028` m — one rendered pixel is ~2.8 cm of world at the third-person camera boom. That number is the useful reference for any future authored-voxel grid.
-
-## Naming that overstates what is there
-
-| Claim in code | Reality |
-|---------------|---------|
-| `diorama_weapon_kit.gd:3` "Voxel weapon meshes" | Six hand-authored *box* assemblies; no voxel data |
-| `diorama_weapon_kit.gd:7` "same 0.02 m grid as the bodies" | No code enforces a 0.02 m grid; `PROFILES` sizes are arbitrary floats such as `0.22`, `0.46`, `0.62` |
-| `pixel_diorama_surface.gdshader:40` "reads as voxel facets" | A per-cell hash tint plus an edge mask on a smooth box face |
-| `pixel_diorama_finish.gdshaderinc` `voxel_edge_mask` | Fragment-space bevel, unrelated to any voxel |
+- **Authored characters:** vertex colours from `.voxels.json`, snapped to `PixelDioramaStyle.PALETTES` in `VoxelMeshBuilder._snap_to_palette()`. Shader `use_vertex_color` skips per-box procedural cells.
+- **Props / fallback boxes:** procedural `triplanar_pattern_uv` in object space (`pixel_diorama_surface.gdshader`).
+- **Default viewport:** `480×270` (`pixel_diorama_settings.gd`).
 
 ## Customization surface
 
-`character_appearance.gd` is the entire player-visual customization system:
+`character_appearance.gd` profile fields:
 
-| Option | Values | Effect on the rig |
-|--------|--------|-------------------|
-| `theme` | 11 `PixelStyle.PaletteTheme` rows | Swaps the palette feeding the body/accent shader materials |
-| `height` | `0.9`, `1.0`, `1.1` (`HEIGHT_PRESETS`) | `Root.scale.y` |
-| `bulk` | `0.88`, `1.0`, `1.14` (`BULK_PRESETS`) | `Root.scale.x` and `.z` |
-| `head` | `open`, `visor`, `hood` | Toggles the `Visor` box; adds a `Hood` box |
-| `trim` | `0`, `1`, `2` | Adds a `BeltTrim` box; adds two `Pauldron` boxes |
+| Field | Values | Effect |
+|-------|--------|--------|
+| `theme` | 11 `PaletteTheme` rows | Body palette |
+| `heightVariant` | `compact`, `standard`, `tall` | Manifest selection (`player_warden_*`) |
+| `bulkVariant` | `lean`, `standard`, `heavy` | ±1 voxel hip/shoulder joint offset |
+| `skinTone` | `warm`, `neutral`, `cool` | `skin_tint` shader uniform on head |
+| `hair` | `none`, `short`, `long` | Voxel hair mesh on head |
+| `face` | `open`, `stern`, `kind` | Accent boxes on head |
+| `head` | `open`, `visor`, `hood` | Visor/hood toggles |
+| `trim` | `0`, `1`, `2` | Belt trim / pauldrons |
 
-That is 3 x 3 x 3 x 3 = 81 silhouette combinations across 11 palettes, all expressed as box scale and box addition. There is no skin tone, hair, face, gender, class-distinct armour, or per-slot equipment visual. Equipping a helmet or chestplate from `content/items/equipment/` changes stats but not the body.
+Class-distinct armour overlays (`_apply_class_armor`) read `CharacterService.class_id` at runtime. Legacy `height`/`bulk` floats migrate via `CharacterAppearance.sanitize()` (save schema v5).
+
+## Validation
+
+| Suite | Checks |
+|-------|--------|
+| `voxel_grid_suite.gd` | All `assets/characters/**` vertices on `VoxelGrid.EDGE`; colours on palette |
+| `diorama_anim_suite.gd` | Required pivots; animation track paths; uniform scale; `ArrayMesh` leaves; weapon kit coverage |
+| `content_suite.gd` | Manifest fields; mesh paths exist; equipment visual attach pivots |
+| `quality_bar_suite.gd` | CHA-01–CHA-12 regression guards |
+
+CI job `voxel-import` (`.github/workflows/ci.yml`) runs `pytest` on `tools/voxel-import/` and verifies `generate_character_voxels.py` output matches committed assets.
 
 ## Current state
 
-| Surface | Status | Evidence |
-|---------|--------|----------|
-| Authored character art (any format) | ABSENT | Zero raster/model/voxel files under `apps/game/client/` |
-| Character geometry | PLACEHOLDER | `diorama_character_skin.gd:365-451` — 6-9 `BoxMesh` per body |
-| Character profiles | PLACEHOLDER | `diorama_character_skin.gd:32-86` — 6 hardcoded proportion sets, not data-driven |
-| Enemy visual variety | PLACEHOLDER | `build_enemy_body()` maps every enemy to one of 6 profiles; palette theme is derived from the id prefix (`theme_for_enemy_id` at `:199-207`) |
-| Weapon geometry | PLACEHOLDER | `diorama_weapon_kit.gd:37-53` — 6 kits, everything unrecognized falls through to `_build_sword` |
-| First-person arms | PLACEHOLDER | `diorama_viewmodel.gd:55-64` — 2 box arms + 2 glove boxes |
-| Player customization | PARTIAL | `character_appearance.gd` — 4 axes, all box scale/toggle |
-| Equipment visuals | ABSENT | No armour/helmet mesh path; nothing in `diorama_character_skin.gd` reads equipped items |
-| Faces / hands / feet | ABSENT | No geometry exists at that granularity |
-| Pixel-cell alignment across parts | BROKEN | Object-space `pattern_coords()` (`pixel_diorama_surface.gdshader:43-48`) gives every box its own grid |
-| Pixel-cell stability under appearance scale | BROKEN | `root.scale` at `diorama_character_skin.gd:107` rescales object-space cells |
-| Chunky pixel look at default settings | PARTIAL | Default preset is native 1080p with `pixel_scale: 2.0` (`pixel_diorama_settings.gd:64-75`) |
+| Surface | Status |
+|---------|--------|
+| Authored voxel meshes | IMPLEMENTED |
+| Manifest loader + height variants | IMPLEMENTED |
+| Biome enemy silhouettes (10 themes) | IMPLEMENTED |
+| Equipment visuals | IMPLEMENTED |
+| Pixel-cell coherence (vertex colour) | IMPLEMENTED |
+| Appearance without Root.scale | IMPLEMENTED |
+| Weapon kit (8 archetypes + unknown) | IMPLEMENTED |
+| Customization (skin, hair, face, class armour) | IMPLEMENTED |
+| Chunky default preset (480×270) | IMPLEMENTED |
+| Rig-contract validation | IMPLEMENTED |
+| Voxel generation CI drift check | IMPLEMENTED |
+| Box fallback | PARTIAL (error + fallback) |
 
 ## Related
 
-- Improvement plan: [`../actual_improvements/character-authoring.md`](../actual_improvements/character-authoring.md)
-- [`diorama-character-skin.md`](diorama-character-skin.md) — the rig builder in detail
-- [`diorama-weapon-kit.md`](diorama-weapon-kit.md), [`diorama-viewmodel.md`](diorama-viewmodel.md)
-- [`diorama-anim-library.md`](diorama-anim-library.md), [`diorama-anim-controller.md`](diorama-anim-controller.md)
-- [`pixel-style.md`](pixel-style.md), [`pixel-diorama-pipeline.md`](pixel-diorama-pipeline.md), [`pixel-diorama-settings.md`](pixel-diorama-settings.md)
-- [`character-appearance.md`](character-appearance.md)
-- [`00-PLACEHOLDER-INVENTORY.md`](00-PLACEHOLDER-INVENTORY.md)
+- Improvement plan: [`../actual_improvements/character-authoring.md`](../actual_improvements/character-authoring.md) — **FINISHED**
+- [`diorama-character-skin.md`](diorama-character-skin.md), [`diorama-weapon-kit.md`](diorama-weapon-kit.md), [`diorama-viewmodel.md`](diorama-viewmodel.md)
+- [`diorama-anim-library.md`](diorama-anim-library.md), [`character-appearance.md`](character-appearance.md)
+- [`pixel-diorama-settings.md`](pixel-diorama-settings.md), [`pixel-diorama-pipeline.md`](pixel-diorama-pipeline.md)

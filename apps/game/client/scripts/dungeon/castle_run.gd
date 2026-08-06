@@ -10,10 +10,10 @@ const EpilogueCardScript := preload("res://scripts/ui/epilogue_card.gd")
 const StairMenuScript := preload("res://scripts/ui/stair_menu.gd")
 const CharacterFloorSnapScript := preload("res://scripts/art/characters/character_floor_snap.gd")
 const XpShardPickupScript := preload("res://scripts/progression/xp_shard_pickup.gd")
+const PixelStyle := preload("res://scripts/art/style/pixel_diorama_style.gd")
 
 @export var player_path: NodePath = NodePath("Player")
 @export var hud_path: NodePath = NodePath("CombatHUD")
-@export var inventory_ui_path: NodePath = NodePath("InventoryUI")
 
 var player_room_id := ""
 var _player: CharacterBody3D
@@ -44,8 +44,9 @@ func _ready() -> void:
 	_builder.build_from_definition(self, _player, def)
 	_apply_biome_presentation(def)
 	_wire_run_ui(def)
-	_restore_saved_snapshot()
-	_apply_floor_transition_spawn()
+	var snapshot := _take_run_snapshot_meta()
+	_restore_saved_snapshot(snapshot)
+	_apply_floor_transition_spawn(snapshot)
 	player_room_id = _find_room_id_at(_player.global_position)
 	call_deferred("_ensure_safe_player_spawn")
 	_wire_player_death()
@@ -53,6 +54,7 @@ func _ready() -> void:
 	_wire_weapon_from_inventory()
 	_wire_inventory_autosave()
 	_spawn_recoverable_xp_shard()
+	_show_respawn_outcome_if_needed()
 	InventoryService.apply_equipment_to_player_node(_player)
 	AudioDirector.play_dungeon_ambience()
 	set_physics_process(true)
@@ -61,10 +63,18 @@ func _ready() -> void:
 	call_deferred("_apply_pixel_diorama_scene")
 
 
-
 func _apply_biome_presentation(def: Dictionary) -> void:
 	var biome_id := BiomeRegistry.resolve_biome_id(def)
 	BiomeRegistry.apply_run_presentation(self, biome_id, RunFlow.get_run_mode())
+	_apply_player_viewmodel_theme(PixelStyle.theme_from_biome(biome_id))
+
+
+func _apply_player_viewmodel_theme(theme: int) -> void:
+	if _player == null:
+		return
+	var director := _player.get_node_or_null("AnimDirector")
+	if director and director.has_method("set_viewmodel_theme"):
+		director.call("set_viewmodel_theme", theme)
 
 
 func _resolve_dungeon_definition() -> Dictionary:
@@ -91,7 +101,12 @@ func _physics_process(_delta: float) -> void:
 		player_room_id = room_id
 		_notify_room(room_id)
 		_persist_snapshot()
-	if _boss_door and not _boss_defeated and _boss_door.call("is_opened") and _is_player_deep_in_boss_room():
+	if (
+		_boss_door
+		and not _boss_defeated
+		and _boss_door.call("is_opened")
+		and _is_player_deep_in_boss_room()
+	):
 		if not _boss_door.call("is_sealed"):
 			_boss_door.call("seal_door")
 			_persist_snapshot()
@@ -115,6 +130,16 @@ func _wire_run_ui(def: Dictionary) -> void:
 	_notify_room(player_room_id)
 
 
+func _show_respawn_outcome_if_needed() -> void:
+	var root := get_tree().root
+	if not root.has_meta("run_respawn_results"):
+		return
+	var results: Variant = root.get_meta("run_respawn_results")
+	root.remove_meta("run_respawn_results")
+	if results is Dictionary and _hud and _hud.has_method("show_respawn_outcome"):
+		_hud.call("show_respawn_outcome", results)
+
+
 func _notify_room(room_id: String) -> void:
 	if room_id == "":
 		return
@@ -133,6 +158,7 @@ func _notify_room(room_id: String) -> void:
 			boss_id = str(boss_placement.get("enemyId", boss_id))
 		if _boss_intro and _boss_intro.has_method("show_intro"):
 			_boss_intro.call("show_intro", boss_id)
+		AudioDirector.play_stinger("boss_reveal")
 		if _hud and _hud.has_method("bind_boss") and _builder and _builder.has_method("get_boss"):
 			var boss: Node = _builder.get_boss()
 			if boss:
@@ -161,11 +187,7 @@ func _spawn_recoverable_xp_shard() -> void:
 	pickup.name = "XpShardPickup"
 	add_child(pickup)
 	pickup.configure(
-		Vector3(
-			float(shard.get("x", 0.0)),
-			float(shard.get("y", 0.0)),
-			float(shard.get("z", 0.0))
-		),
+		Vector3(float(shard.get("x", 0.0)), float(shard.get("y", 0.0)), float(shard.get("z", 0.0))),
 		int(shard.get("xp", 0))
 	)
 
@@ -200,8 +222,15 @@ func _on_boss_door_opened() -> void:
 	_persist_snapshot()
 
 
+func _get_boss_room_id() -> String:
+	var boss_placement: Variant = _dungeon_def.get("placements", {}).get("boss", {})
+	if boss_placement is Dictionary:
+		return str(boss_placement.get("roomId", BOSS_ROOM_ID))
+	return BOSS_ROOM_ID
+
+
 func _is_player_deep_in_boss_room() -> bool:
-	var room := _builder.get_room(BOSS_ROOM_ID)
+	var room := _builder.get_room(_get_boss_room_id())
 	if room == null or _player == null:
 		return false
 	var local := room.to_local(_player.global_position)
@@ -213,13 +242,13 @@ func _is_player_deep_in_boss_room() -> bool:
 func _is_in_boss_fight() -> bool:
 	if _boss_defeated or _player == null:
 		return false
-	return _find_room_id_at(_player.global_position) == BOSS_ROOM_ID
+	return _find_room_id_at(_player.global_position) == _get_boss_room_id()
 
 
 func is_cross_boss_boundary(attacker: Node, target: Node) -> bool:
 	var attacker_room := _get_entity_room_id(attacker)
 	var target_room := _get_entity_room_id(target)
-	if attacker_room == BOSS_ROOM_ID or target_room == BOSS_ROOM_ID:
+	if attacker_room == _get_boss_room_id() or target_room == _get_boss_room_id():
 		return attacker_room != target_room
 	return false
 
@@ -281,15 +310,25 @@ func _on_inventory_changed() -> void:
 	_persist_snapshot()
 
 
-func _apply_floor_transition_spawn() -> void:
+func _take_run_snapshot_meta() -> Dictionary:
 	var root := get_tree().root
 	if not root.has_meta("run_snapshot"):
-		return
+		return {}
 	var snapshot: Variant = root.get_meta("run_snapshot")
-	if not snapshot is Dictionary:
+	root.remove_meta("run_snapshot")
+	if snapshot is Dictionary:
+		return snapshot
+	return {}
+
+
+func _apply_floor_transition_spawn(snapshot: Dictionary = {}) -> void:
+	if snapshot.is_empty():
 		return
-	if not snapshot.get("floorTransition", false):
-		return
+	if bool(snapshot.get("floorTransition", false)):
+		_place_at_stair_from_snapshot(snapshot)
+
+
+func _place_at_stair_from_snapshot(snapshot: Dictionary) -> void:
 	var ascending := bool(snapshot.get("ascending", true))
 	var stair_id := RunFloorConfig.find_stairs_room_id(_resolve_dungeon_definition())
 	var spawn_info := _builder.get_stair_spawn_global(stair_id, ascending)
@@ -300,22 +339,24 @@ func _apply_floor_transition_spawn() -> void:
 	player_room_id = stair_id
 
 
-func _restore_saved_snapshot() -> void:
-	var root := get_tree().root
-	if not root.has_meta("run_snapshot"):
-		return
-	var snapshot: Variant = root.get_meta("run_snapshot")
-	if not snapshot is Dictionary or snapshot.is_empty():
+func _restore_saved_snapshot(snapshot: Dictionary = {}) -> void:
+	if snapshot.is_empty():
 		return
 	_apply_snapshot(snapshot)
-	root.remove_meta("run_snapshot")
 
 
 func _apply_snapshot(snapshot: Dictionary) -> void:
-	WorldState.restore_flags(snapshot.get("worldFlags", {}))
+	var rejected := WorldState.restore_flags(snapshot.get("worldFlags", {}))
+	if rejected > 0:
+		push_warning("CastleRun: dropped %d invalid world flag(s) from snapshot" % rejected)
 	_builder.apply_snapshot(snapshot)
 	_boss_defeated = snapshot.get("bossDefeated", false)
-	if _boss_defeated and _boss_door:
+	var door_state := str(snapshot.get("bossDoorState", ""))
+	if door_state == "":
+		door_state = "RELEASED" if _boss_defeated else "CLOSED"
+	if _boss_door and _boss_door.has_method("apply_state"):
+		_boss_door.call("apply_state", door_state)
+	elif _boss_defeated and _boss_door:
 		_boss_door.call("release_door")
 
 	if snapshot.get("inBossFight", false):
@@ -381,7 +422,9 @@ func _teleport_to_safe_spawn(snapshot: Dictionary) -> void:
 			CharacterFloorSnapScript.snap_feet_to_floor(_player)
 			player_room_id = room_id
 			return
-	var entrance_id := str(_resolve_dungeon_definition().get("placements", {}).get("entrance", "entrance"))
+	var entrance_id := str(
+		_resolve_dungeon_definition().get("placements", {}).get("entrance", "entrance")
+	)
 	var entrance := _builder.get_room(entrance_id)
 	if entrance != null:
 		_player.global_position = entrance.get_player_spawn_global()
@@ -394,7 +437,7 @@ func _apply_boss_fight_continue() -> void:
 		_boss_door.call("reset_door")
 	var boss: Node = _builder.get_tracked_enemy("boss")
 	if boss and is_instance_valid(boss) and boss.has_method("apply_state"):
-		boss.call("apply_state", { "alive": true })
+		boss.call("apply_state", {"alive": true})
 	_player.global_position = _builder.get_boss_door_outside_spawn()
 	player_room_id = _find_room_id_at(_player.global_position)
 
@@ -416,7 +459,8 @@ func _capture_run_snapshot() -> Dictionary:
 	if health:
 		player_health = health.current
 	return {
-		"player": {
+		"player":
+		{
 			"x": _player.global_position.x,
 			"y": _player.global_position.y,
 			"z": _player.global_position.z,
@@ -428,6 +472,11 @@ func _capture_run_snapshot() -> Dictionary:
 		"enemies": _builder.capture_enemy_states(),
 		"loot": _builder.capture_loot_states(),
 		"bossDefeated": _boss_defeated,
+		"bossDoorState": (
+			_boss_door.call("get_state_name")
+			if _boss_door and _boss_door.has_method("get_state_name")
+			else ""
+		),
 		"inBossFight": _is_in_boss_fight(),
 		"killCount": RunFlow.get_kill_count(),
 		"lootCollected": RunFlow.get_loot_collected(),
@@ -444,7 +493,7 @@ func persist_bonfire_checkpoint() -> void:
 	var active := LocalSave.get_active_run()
 	if active.is_empty():
 		return
-	active["schemaVersion"] = 4
+	active["schemaVersion"] = SaveMigrator.CURRENT_VERSION
 	active["lastCheckpoint"] = snapshot.duplicate(true)
 	active["snapshot"] = snapshot.duplicate(true)
 	LocalSave.set_active_run(active)
@@ -460,7 +509,7 @@ func _persist_snapshot() -> void:
 	var active := LocalSave.get_active_run()
 	if active.is_empty():
 		return
-	active["schemaVersion"] = 4
+	active["schemaVersion"] = SaveMigrator.CURRENT_VERSION
 	active["snapshot"] = snapshot
 	LocalSave.set_active_run(active)
 
@@ -477,10 +526,15 @@ func _on_boss_defeated() -> void:
 	if RunFlow.is_final_floor() and RunFlow.get_run_mode() == "castle":
 		CharacterService.set_flag("story_completed", true)
 		if _epilogue_card and _epilogue_card.has_method("show_epilogue"):
-			await _epilogue_card.call(
-				"show_epilogue",
-				"The Forgotten Sovereign falls. The tower's reset slows — for one breath the oath is fulfilled. "
-				+ "Your echo endures in Aumbrye Tower until the next summons."
+			await (
+				_epilogue_card
+				. call(
+					"show_epilogue",
+					(
+						"The Forgotten Sovereign falls. The tower's reset slows — for one breath the oath is fulfilled. "
+						+ "Your echo endures in Aumbrye Tower until the next summons."
+					)
+				)
 			)
 
 
@@ -495,10 +549,19 @@ func _should_persist_snapshot() -> bool:
 	if not RunFlow.is_run_active() or _player == null:
 		return false
 	var health := _player.get_node_or_null("Health") as Health
-	if health and health.is_dead():
-		return false
 	var reactions := _player.get_node_or_null("CombatReactions")
-	if reactions and reactions.get("is_dead"):
+	var reactions_dead := reactions != null and bool(reactions.get("is_dead"))
+	var health_value := health.current if health else 0.0
+	var is_dead := health.is_dead() if health else false
+	return should_persist_player_state(health_value, is_dead, reactions_dead)
+
+
+static func should_persist_player_state(
+	health: float, is_dead: bool, reactions_dead: bool = false
+) -> bool:
+	if is_dead or reactions_dead:
+		return false
+	if health <= 0.0:
 		return false
 	return true
 

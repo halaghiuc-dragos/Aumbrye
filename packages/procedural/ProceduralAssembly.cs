@@ -1,3 +1,5 @@
+using Aumbrye.Shared.Contracts;
+
 namespace Aumbrye.Procedural;
 
 /// <summary>
@@ -5,5 +7,5 @@ namespace Aumbrye.Procedural;
 /// </summary>
 public static class ProceduralAssembly
 {
-    public const string Version = "0.3.0";
+    public static string Version => ApiVersions.ExpectedClientVersion;
 }

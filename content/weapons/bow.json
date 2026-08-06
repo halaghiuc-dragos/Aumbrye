@@ -5,7 +5,9 @@
   "damage_type": "physical",
   "draw_time": 0.75,
   "buffer_window": 0.15,
-  "scaling": { "critChance": 1.5 },
+  "scaling": {
+    "critChance": 1.5
+  },
   "light_attacks": [
     {
       "damage": 10,
@@ -23,5 +25,18 @@
     "startup": 0.05,
     "active": 0.1,
     "recovery": 0.35
+  },
+  "art": {
+    "id": "piercing_shot",
+    "name": "Piercing Shot",
+    "stamina_cost": 24,
+    "damage": 30,
+    "poise_damage": 22,
+    "startup": 0.3,
+    "active": 0.14,
+    "recovery": 0.4,
+    "lunge_distance": 0.0,
+    "hyperarmor": false,
+    "cooldown": 7.0
   }
 }

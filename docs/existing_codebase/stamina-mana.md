@@ -17,7 +17,7 @@ Two near-identical resource nodes mounted on `player.tscn`. `Stamina` is on the 
 
 `stamina.gd`. Constants: `MAX_STAMINA := 100.0`, `REGEN_DELAY := 0.7` seconds, `REGEN_RATE := 25.0` per second, `EXHAUSTION_RECOVERY := 15.0`.
 
-`_process(delta)` (`:33`) clears `_exhausted` once `current >= EXHAUSTION_RECOVERY`, decrements `_regen_timer` and returns while it is positive, then regenerates `REGEN_RATE * _regen_multiplier * delta`. Regen is not gated on combat state — it runs during attacks, blocks and dodges alike; the only brake is the 0.7 s window after each spend.
+`_process(delta)` (`:54`) clears `_exhausted` once `current >= EXHAUSTION_RECOVERY`, decrements `_regen_timer` and returns while it is positive, then regenerates at a rate chosen by state: `0` while `RegenState.SUPPRESSED` (attacks, dodges), `REGEN_RATE_BLOCKING := 6.0` while blocking, `REGEN_RATE_EXHAUSTED := 12.0` while exhausted, else `REGEN_RATE * _regen_multiplier`. `set_regen_state()` is called from `weapon_controller.gd`, `dodge.gd`, and `guard.gd`.
 
 Three spend paths, which behave differently:
 
@@ -27,9 +27,9 @@ Three spend paths, which behave differently:
 | `drain(amount)` (`:60`) | no | yes | no | yes |
 | `has(amount)` (`:72`) | returns false | returns false | no | n/a |
 
-Both `consume` and `drain` set `_exhausted = true` and emit `depleted` when `current` reaches 0.
+Both `consume` and `drain` refuse while `_exhausted`, emit `insufficient` on failure, set `_exhausted = true` and emit `depleted` when `current` reaches 0. `get_speed_multiplier()` returns `0.75` while exhausted (read by `locomotion.gd`).
 
-`configure(max_value, regen_multiplier)` (`:24`) sets `max_stamina` (floor 1.0) and `_regen_multiplier` (floor 0.1), clamps `current` down to the new max — it does **not** refill — and clears exhaustion. Called from `inventory_service.gd:193-194` with `Stamina.MAX_STAMINA + max_stamina_bonus(equip_stats, talent_stats)` and `stamina_regen_multiplier(talent_stats)`.
+`configure(max_value, regen_multiplier, preserve_ratio)` (`:29`) sets `max_stamina` (floor 1.0) and `_regen_multiplier` (floor 0.1). With `preserve_ratio := true`, `current` scales proportionally when max rises; otherwise it clamps down. Clears exhaustion. Called from `inventory_service.gd` with `Stamina.MAX_STAMINA + max_stamina_bonus(...)` and `stamina_regen_multiplier(...)`. `Mana.configure` uses the same API with `max_mana_bonus` / `mana_regen_multiplier`.
 
 `reset_stamina()` refills and clears exhaustion; called from `run_flow.gd:455`, `combat_arena.gd:80`, `debug_overlay.gd:213`.
 
@@ -52,7 +52,7 @@ Authored attack costs range from 8 (`bow` light) to 38 (`greatsword` heavy). At 
 
 `mana.gd`. Constants: `MAX_MANA := 100.0`, `REGEN_DELAY := 0.7`, `REGEN_RATE := 20.0`. The API mirrors `Stamina` minus exhaustion: `configure`, `consume`, `drain`, `has`, `reset_mana`, plus `mana_changed`, `depleted` and `insufficient` signals.
 
-Every one of `configure`, `consume`, `drain`, `has` and `reset_mana` is defined and has no caller anywhere under `apps/game/client/scripts/`. The only code that touches the node is `combat_hud.gd:365-374`, which connects `mana_changed` and seeds the bar with `Mana.MAX_MANA`. Because nothing spends it and it starts full, the bar renders at 100% for the entire game.
+`inventory_service.gd` configures max and regen via `max_mana_bonus` / `mana_regen_multiplier`. `combat_hud.gd` connects `mana_changed`, `insufficient`, and `depleted`. Staff heavy attacks and weapon arts can spend mana via `weapon_controller.gd`; `player_heal.gd` spends mana for heals. Consumables with `manaRestore` restore mana through the inventory consumption path.
 
 `waves_run_service.gd:28-29,34` lists a `mana_potion` item id in its reward tables, but no consumable code path calls `Mana.heal`-equivalent restoration.
 
@@ -60,7 +60,7 @@ Every one of `configure`, `consume`, `drain`, `has` and `reset_mana` is defined 
 
 - **Node names:** children of the player `CharacterBody3D` named exactly `Stamina` and `Mana`. `WeaponController` (`:79`), `Guard` (`:42`), `Dodge` (`:39`) and `Locomotion` (`:29`) each resolve `Stamina` by that name.
 - **Class names:** `Stamina` and `Mana` are `class_name` types; `combat_hud.gd` casts to both.
-- **Signals:** `stamina_changed(current, max_value)` / `mana_changed(current, max_value)` — consumed by `combat_hud.gd`. `depleted` and `insufficient` are declared on both nodes and have no `connect` call anywhere under `apps/`.
+- **Signals:** `stamina_changed(current, max_value)` / `mana_changed(current, max_value)` — consumed by `combat_hud.gd`. `depleted` and `insufficient` connect to `combat_hud.gd` bar flash and `AudioDirector` denial cues.
 - **Stat keys read (indirectly, via `CombatStatModifiers`):** `staminaMax`, `staminaRegen`, `staminaCostReduction`.
 - **Constants read by other files:** `Stamina.MAX_STAMINA` and `Mana.MAX_MANA` in `combat_hud.gd:371,374`; `Stamina.MAX_STAMINA` in `inventory_service.gd:193`.
 
@@ -68,22 +68,20 @@ Every one of `configure`, `consume`, `drain`, `has` and `reset_mana` is defined 
 
 | Surface | Status | Evidence |
 |---------|--------|----------|
-| Stamina pool, regen, exhaustion | IMPLEMENTED | `stamina.gd:33-79` |
-| Stamina gating on attacks, dodge, jump, sprint, block, heal | IMPLEMENTED | `weapon_controller.gd:274`, `dodge.gd:94,110`, `locomotion.gd:109`, `guard.gd:106`, `player_heal.gd:62` |
-| Equipment/talent scaling of max stamina and regen | IMPLEMENTED | `inventory_service.gd:193-194` |
-| `Stamina.drain()` ignoring exhaustion | PARTIAL | `stamina.gd:60-69` has no `_exhausted` check and never emits `insufficient`, so sprint can drain from below `EXHAUSTION_RECOVERY := 15.0` down to 0 while `consume()` would refuse |
-| Regen suppression during combat actions | ABSENT | `stamina.gd:33-41` — the only brake is the flat 0.7 s post-spend delay |
-| Exhaustion consequence beyond refusal | ABSENT | `_exhausted` is read only by `consume()` and `has()`; `depleted` has no listener |
-| `insufficient` feedback | ABSENT | Signal declared at `stamina.gd:6` and `mana.gd:6`; no `connect` anywhere under `apps/` |
-| Bow shot cost bypassing talent reduction | PARTIAL | `weapon_controller.gd:402` reads `stamina_cost` raw, unlike `:273` |
-| `Mana.consume` / `drain` / `has` / `configure` / `reset_mana` | STUB | Defined in `mana.gd:22,39,51,62,66`; no call site under `apps/game/client/scripts/` |
-| Mana HUD bar | FAKE | `combat_hud.gd:140-154,473-477` renders a bar that is permanently 100/100 because nothing spends mana |
-| Mana scaling from equipment/talents | ABSENT | `inventory_service.gd:187-198` configures `Health`, `Stamina` and `Poise`; `Mana` is not touched |
-| `mana_potion` item | PARTIAL | Listed in `waves_run_service.gd:28-29,34`; no consumption code path restores mana |
+| Stamina pool, regen, exhaustion | IMPLEMENTED | `stamina.gd:54-119` |
+| `RegenState` suppression during attack/block/dodge | IMPLEMENTED | `stamina.gd:8,44-67`; callers in `weapon_controller.gd`, `guard.gd`, `dodge.gd` |
+| Stamina gating on attacks, dodge, jump, sprint, block, heal | IMPLEMENTED | `weapon_controller.gd`, `dodge.gd`, `locomotion.gd`, `guard.gd`, `player_heal.gd` |
+| Equipment/talent scaling of max stamina and regen | IMPLEMENTED | `inventory_service.gd` |
+| Exhaustion speed penalty + poise vulnerability | IMPLEMENTED | `get_speed_multiplier()` `stamina.gd:48-51`; `EXHAUSTED_POISE_MULT` in `hurtbox.gd:124` |
+| `insufficient` / `depleted` HUD and audio feedback | IMPLEMENTED | `combat_hud.gd:433-434,550-557` |
+| `drain()` aligned with `consume()` exhaustion gate | IMPLEMENTED | `stamina.gd:88-101` |
+| Mana equipment scaling and spenders | IMPLEMENTED | `inventory_service.gd:283-285`, `weapon_controller.gd`, `player_heal.gd` |
+| Class `resources` block tuning | PARTIAL | Schema exists; not all classes authored with overrides |
+| `mana_potion` consumable restore | PARTIAL | Item listed in waves rewards; restore path depends on `manaRestore` key on item defs |
 
 ## Related
 
-- Improvement plan: [`../actual_improvements/stamina-mana.md`](../actual_improvements/stamina-mana.md)
+- Improvement plan: [`../actual_improvements/stamina-mana.md`](../actual_improvements/stamina-mana.md) — **FINISHED**
 - [`weapons.md`](weapons.md) — attack costs
 - [`dodge.md`](dodge.md) — dodge and jump costs
 - [`guard.md`](guard.md) — per-hit block drain

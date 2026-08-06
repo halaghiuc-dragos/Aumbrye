@@ -1,0 +1,15 @@
+{
+  "id": "forgotten_castle",
+  "biomeId": "forgotten_castle",
+  "order": 1,
+  "clearFlag": "theme_forgotten_castle_cleared",
+  "unlockRequirement": { "kind": "none", "dungeonId": null },
+  "floorHpGrowth": 0.06,
+  "floorDamageGrowth": 0.04,
+  "bossDoorRequirement": "none",
+  "difficultyTiers": [
+    { "tier": 1, "label": "Ruined", "hpMult": 1.0, "damageMult": 1.0, "lootBonus": 0.0, "modifiers": [] },
+    { "tier": 2, "label": "Haunted", "hpMult": 1.35, "damageMult": 1.18, "lootBonus": 0.15, "modifiers": ["elite_packs"] },
+    { "tier": 3, "label": "Cursed", "hpMult": 1.8, "damageMult": 1.4, "lootBonus": 0.35, "modifiers": ["elite_packs", "no_rest"] }
+  ]
+}

@@ -23,8 +23,8 @@ func configure(entry: Dictionary, _definition: Dictionary) -> void:
 	prop.add_child(interact)
 	interact.body_entered.connect(_on_body_entered)
 	interact.body_exited.connect(_on_body_exited)
-	prop.position = Vector3(1.5, 0.0, 0.5)
-	DioramaSkin.build_chest(prop, DioramaSkin.resolve_biome(self), Color(0.45, 0.55, 0.85, 0.35))
+	prop.position = _anchor(0).position
+	DioramaSkin.build_lectern(prop, DioramaSkin.resolve_biome(self))
 	_content_root().add_child(prop)
 
 

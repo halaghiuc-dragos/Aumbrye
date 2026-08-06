@@ -81,15 +81,16 @@ func _advance_to_node(node_id: String) -> void:
 	var text: String = str(node.get("text", ""))
 	var choices: Array = _get_visible_choices(node)
 	line_changed.emit(speaker, text, choices)
-	if choices.is_empty() and not node.has("next"):
+	if not choices.is_empty():
 		return
-	if choices.is_empty():
-		var next_id: String = str(node.get("next", ""))
-		if next_id.is_empty() or next_id == "end":
-			end_dialogue()
-			return
-		_current_node_id = next_id
-		_advance_to_node(_current_node_id)
+	if not node.get("auto", false):
+		return
+	var next_id: String = str(node.get("next", ""))
+	if next_id.is_empty() or next_id == "end":
+		end_dialogue()
+		return
+	_current_node_id = next_id
+	_advance_to_node(_current_node_id)
 
 
 func _get_current_node() -> Dictionary:

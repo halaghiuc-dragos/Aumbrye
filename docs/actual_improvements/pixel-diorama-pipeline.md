@@ -1,22 +1,24 @@
 # Pixel diorama pipeline — improvement plan
 
+## Status: FINISHED
+
 ## Current state
 
 `PixelDioramaViewport` correctly solves the hard part: it mirrors the gameplay camera into a shared-world `SubViewport` sized to an integer divisor of the window, so the nearest-neighbour upscale lands on whole pixels. See [`../existing_codebase/pixel-diorama-pipeline.md`](../existing_codebase/pixel-diorama-pipeline.md). What is wrong is the configuration it ships with and the observability around it: the default resolution preset is `1920 x 1080` native with `pixel_scale = 2.0`, so a fresh install renders at full resolution with a pixel filter faint enough that the whole art direction is invisible. Three public accessors and one signal have no consumers, the snap grid is sized for a hard-coded 5 m camera boom, and the validation suite asserts only that files exist.
 
 ## Gaps
 
-| ID | Sev | Gap | Evidence |
-|----|-----|-----|----------|
-| PDP-01 | P0 | Shipped default is the `1920 x 1080 (Full HD, default)` native preset: `stretch_shrink = 1` and shader tuning `pixel_scale 2.0 / color_levels 16 / shade_bands 8 / edge_strength 0.1 / pattern_strength 0.2`. A new install does not look like a pixel diorama. | `pixel_diorama_settings.gd:32-33`, `:64-75`; `pixel_diorama_viewport.gd:192-196` |
-| PDP-02 | P0 | No behavioural validation. The suite checks file existence, two autoload paths, and two substrings in a shader. Nothing asserts that the render camera is `current`, that `SubViewport.size * stretch_shrink` equals the window height, or that the finish material is bound. | `pixel_pipeline_suite.gd:14-77` |
-| PDP-03 | P1 | `SNAP_FOCUS_DISTANCE` is a constant `5.0` m. The actual boom length is whatever `CameraPivot/SpringArm3D.spring_length` is at the time, so the world-space pixel step used for snapping is wrong whenever the camera zooms or the lock-on camera pulls back. | `pixel_diorama_viewport.gd:12`, `:106-111` |
-| PDP-04 | P1 | `world_attached(scene_root)` is emitted but has no listeners, and `get_subviewport()`, `get_render_camera()`, and `get_world_root()` have no call sites. Four public API surfaces with no contract. | `pixel_diorama_viewport.gd:9`, `:144`, `:168`, `:172`, `:176` |
-| PDP-05 | P1 | `_dbg_dump()` walks the entire scene tree and prints per-light lines 3.0 s after boot in every debug build, with no setting and no way to re-trigger it on demand. | `pixel_diorama_viewport.gd:29`, `:32-55` |
-| PDP-06 | P1 | `_process()` does unconditional per-frame work: six property copies, a transform snap, and (for native presets) `_enforce_native_viewport_size()` which compares and may resize the viewport every frame. No dirty check on the source camera transform. | `pixel_diorama_viewport.gd:86-101`, `:215-224` |
-| PDP-07 | P1 | The source camera is resolved by the literal path `CameraPivot/SpringArm3D/Camera3D` with no error when it is missing; `_process` silently re-binds every frame forever, so a renamed rig produces a black screen with no diagnostic. | `pixel_diorama_viewport.gd:91-94`, `:280-289` |
-| PDP-08 | P2 | `pulse_damage_vignette()` is the only screen-space game feedback hook, is invoked through `has_method` string calls from two places, and has no companion for heal, parry, low-stamina, or status-applied. Strength values are magic numbers at the call sites (`0.72 * feedback_intensity`, `0.22`). | `pixel_diorama_viewport.gd:239-251`; `hit_feedback.gd:168`; `combat_hud.gd:463` |
-| PDP-09 | P2 | `_root_3d_was_disabled` is captured only when `_layer.visible` is false. If `_enable_pipeline()` runs while the layer is already visible (it does — `attach_to_scene()` → deferred `_bind_source_camera()` → `_enable_pipeline()`), the saved value is whatever the previous attach recorded, so `_disable_pipeline()` restores a stale flag. | `pixel_diorama_viewport.gd:259-261`, `:272` |
+| ID | Sev | Gap | Evidence | Status |
+|----|-----|-----|----------|--------|
+| PDP-01 | P0 | Shipped default is the `1920 x 1080 (Full HD, default)` native preset: `stretch_shrink = 1` and shader tuning `pixel_scale 2.0 / color_levels 16 / shade_bands 8 / edge_strength 0.1 / pattern_strength 0.2`. A new install does not look like a pixel diorama. | `pixel_diorama_settings.gd:32-33`, `:64-75`; `pixel_diorama_viewport.gd:192-196` | FINISHED |
+| PDP-02 | P0 | No behavioural validation. The suite checks file existence, two autoload paths, and two substrings in a shader. Nothing asserts that the render camera is `current`, that `SubViewport.size * stretch_shrink` equals the window height, or that the finish material is bound. | `pixel_pipeline_suite.gd:14-77` | FINISHED |
+| PDP-03 | P1 | `SNAP_FOCUS_DISTANCE` is a constant `5.0` m. The actual boom length is whatever `CameraPivot/SpringArm3D.spring_length` is at the time, so the world-space pixel step used for snapping is wrong whenever the camera zooms or the lock-on camera pulls back. | `pixel_diorama_viewport.gd:12`, `:106-111` | FINISHED |
+| PDP-04 | P1 | `world_attached(scene_root)` is emitted but has no listeners, and `get_subviewport()`, `get_render_camera()`, and `get_world_root()` have no call sites. Four public API surfaces with no contract. | `pixel_diorama_viewport.gd:9`, `:144`, `:168`, `:172`, `:176` | FINISHED |
+| PDP-05 | P1 | `_dbg_dump()` walks the entire scene tree and prints per-light lines 3.0 s after boot in every debug build, with no setting and no way to re-trigger it on demand. | `pixel_diorama_viewport.gd:29`, `:32-55` | FINISHED |
+| PDP-06 | P1 | `_process()` does unconditional per-frame work: six property copies, a transform snap, and (for native presets) `_enforce_native_viewport_size()` which compares and may resize the viewport every frame. No dirty check on the source camera transform. | `pixel_diorama_viewport.gd:86-101`, `:215-224` | FINISHED |
+| PDP-07 | P1 | The source camera is resolved by the literal path `CameraPivot/SpringArm3D/Camera3D` with no error when it is missing; `_process` silently re-binds every frame forever, so a renamed rig produces a black screen with no diagnostic. | `pixel_diorama_viewport.gd:91-94`, `:280-289` | FINISHED |
+| PDP-08 | P2 | `pulse_damage_vignette()` is the only screen-space game feedback hook, is invoked through `has_method` string calls from two places, and has no companion for heal, parry, low-stamina, or status-applied. Strength values are magic numbers at the call sites (`0.72 * feedback_intensity`, `0.22`). | `pixel_diorama_viewport.gd:239-251`; `hit_feedback.gd:168`; `combat_hud.gd:463` | FINISHED |
+| PDP-09 | P2 | `_root_3d_was_disabled` is captured only when `_layer.visible` is false. If `_enable_pipeline()` runs while the layer is already visible (it does — `attach_to_scene()` → deferred `_bind_source_camera()` → `_enable_pipeline()`), the saved value is whatever the previous attach recorded, so `_disable_pipeline()` restores a stale flag. | `pixel_diorama_viewport.gd:259-261`, `:272` | FINISHED |
 
 ## Target design
 
@@ -141,14 +143,14 @@ Each step leaves the game runnable: steps 1–8 are independent of one another, 
 
 ## Acceptance criteria
 
-- [ ] A profile with no `pixel_diorama` meta block boots at internal height 270 and `SubViewportContainer.stretch_shrink == 4` in a 1920x1080 window. (PDP-01)
-- [ ] With the camera zoomed to `spring_length = 2.0`, `PixelDioramaSettings.camera_snap_step()` receives `2.0`, not `5.0`. (PDP-03)
-- [ ] Grepping the repo for `get_subviewport`, `get_render_camera`, and `get_world_root` returns no matches; `world_attached` has exactly one `connect` call site. (PDP-04)
-- [ ] With `AUMBRYE_GFX_DUMP` unset, a debug build produces no `[DBG]` output. (PDP-05)
-- [ ] Holding the camera still for 60 frames results in zero writes to `_render_camera.global_transform`. (PDP-06)
-- [ ] Renaming `CameraPivot` in a test scene produces exactly one `push_warning` and no per-frame log spam. (PDP-07)
-- [ ] `pulse_screen(ScreenPulse.HEAL)` tints the vignette green; `pulse_damage_vignette(0.7)` still tints it red. (PDP-08)
-- [ ] Attaching scene A, then scene B, then disabling the low-res viewport restores `root.disable_3d` to the value it had before scene A attached. (PDP-09)
+- [x] A profile with no `pixel_diorama` meta block boots at internal height 270 and `SubViewportContainer.stretch_shrink == 4` in a 1920x1080 window. (PDP-01)
+- [x] With the camera zoomed to `spring_length = 2.0`, `PixelDioramaSettings.camera_snap_step()` receives `2.0`, not `5.0`. (PDP-03)
+- [x] Grepping the repo for `get_subviewport`, `get_render_camera`, and `get_world_root` returns no matches; `world_attached` has exactly one `connect` call site. (PDP-04)
+- [x] With `AUMBRYE_GFX_DUMP` unset, a debug build produces no `[DBG]` output. (PDP-05)
+- [x] Holding the camera still for 60 frames results in zero writes to `_render_camera.global_transform`. (PDP-06)
+- [x] Renaming `CameraPivot` in a test scene produces exactly one `push_warning` and no per-frame log spam. (PDP-07)
+- [x] `pulse_screen(ScreenPulse.HEAL)` tints the vignette green; `pulse_damage_vignette(0.7)` still tints it red. (PDP-08)
+- [x] Attaching scene A, then scene B, then disabling the low-res viewport restores `root.disable_3d` to the value it had before scene A attached. (PDP-09)
 
 ## Validation
 

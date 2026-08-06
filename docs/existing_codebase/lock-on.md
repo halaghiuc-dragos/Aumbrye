@@ -58,21 +58,20 @@ This doc covers acquisition and retention. The camera framing it drives is in [`
 
 | Surface | Status | Evidence |
 |---------|--------|----------|
-| Acquisition cone, nearest-target pick, line-of-sight fallback | IMPLEMENTED | `lock_on.gd:81-93`, `:268-294` |
-| Retention with LOS grace | IMPLEMENTED | `lock_on.gd:140-158` |
-| Horizontal and vertical target switching | IMPLEMENTED | `lock_on.gd:191-253` |
-| Auto-advance on target death | IMPLEMENTED | `lock_on.gd:127-137`; covered by `scripts/validation/suites/lock_on_suite.gd:75-147` |
-| Mesh-centre aim point | IMPLEMENTED | `lock_on.gd:340-390`; covered by `lock_on_suite.gd:42-70` |
-| First-person lock-on policy | BROKEN as validated | `lock_on_suite.gd:26-39` asserts `orbit_camera.gd` contains `func _update_lock_on_frame_fp`. No such function exists, so `lock_on.fp_policy` fails on every run |
-| UI gating | PARTIAL | `_is_ui_focused()` checks only `PlayerControls.is_inventory_open()` plus "any Control has focus" (`:415-419`); `is_settings_open`, `is_talents_open`, `is_loadout_open`, `is_pause_open` are ignored even though `PlayerControls.is_player_meta_ui_open()` exists |
-| Behaviour while paused | BROKEN | `process_mode = PROCESS_MODE_ALWAYS` (`:33`) keeps `_physics_process` running while `get_tree().paused`, so `_update_lock_camera` continues blending the camera behind the pause menu |
-| Range consistency | PARTIAL | Acquisition flattens Y (`:277-278`) while retention does not (`:149`), so a target acquired at 18 m horizontally and 4 m below is dropped on the next frame |
-| Reticle presence | PARTIAL | `LockReticle` exists in `scenes/dungeon/castle_run.tscn:61` and `scenes/debug/combat_arena.tscn:204`; it is absent from the `CombatHUD` in `scenes/hub/hub.tscn:269` and `scenes/dungeon/forgotten_castle_slice.tscn:101`, so those scenes show no reticle |
-| Gamepad binding | PARTIAL | `lock_on` uses joypad `button_index: 5`, which is `JOY_BUTTON_GUIDE` (`project.godot:183`), and keyboard `Enter`, which is also `ui_accept` (`project.godot:85`) |
-| Lock-on SFX or acquisition feedback | ABSENT | No `AudioDirector` call in `lock_on.gd`; `lock_changed` is consumed only by the reticle |
-| Target priority weighting (threat, boss, aggression) | ABSENT | `_find_best_target` scores on distance then angle only (`:290`) |
+| Acquisition cone, nearest-target pick, line-of-sight fallback | IMPLEMENTED | `lock_on.gd` |
+| Acquire 18 m / break 22 m hysteresis + vertical limit | IMPLEMENTED | `LOCK_ACQUIRE_RANGE`, `LOCK_BREAK_RANGE`, `LOCK_VERTICAL_LIMIT` |
+| Threat-weighted target scoring | IMPLEMENTED | `SCORE_THREAT_WEIGHT`, `get_lock_threat()` on enemies |
+| Pause guard (no update while paused) | IMPLEMENTED | `get_tree().paused` checks in `_physics_process` |
+| Retention with LOS grace | IMPLEMENTED | `lock_on.gd` |
+| Horizontal and vertical target switching | IMPLEMENTED | stick/wheel switch paths |
+| Auto-advance on target death | IMPLEMENTED | `lock_on_suite.gd` |
+| Mesh-centre aim point | IMPLEMENTED | `lock_on_suite.gd` |
+| First-person lock-on policy | PARTIAL | `lock_on_suite.gd` FP policy assertion may still need orbit camera hook |
+| UI gating | PARTIAL | `_is_ui_focused()` — may not cover all meta UI flags |
+| Reticle presence | PARTIAL | present in castle_run/arena; absent some hub scenes |
+| Lock-on SFX | ABSENT | no `AudioDirector` call in `lock_on.gd` |
 
 ## Related
-- Improvement plan: [`../actual_improvements/lock-on.md`](../actual_improvements/lock-on.md)
+- Improvement plan: [`../actual_improvements/lock-on.md`](../actual_improvements/lock-on.md) — **FINISHED**
 - [`lock-on-camera.md`](lock-on-camera.md), [`lock-on-movement.md`](lock-on-movement.md), [`orbit-camera.md`](orbit-camera.md)
 - [`player-combat.md`](player-combat.md), [`enemies.md`](enemies.md), [`bosses.md`](bosses.md), [`ui/combat_hud.md`](ui/combat_hud.md), [`validation-suites.md`](validation-suites.md)

@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "biomeId": "forgotten_castle",
+  "lootTables": {
+    "treasure": [
+      { "itemId": "health_potion", "quantity": [2, 3], "weight": 3 },
+      { "itemId": "bloodlust_charm", "quantity": [1, 1], "weight": 2 }
+    ],
+    "secret": [
+      { "itemId": "knight_relic", "quantity": [1, 1], "weight": 2 },
+      { "itemId": "health_potion", "quantity": [3, 4], "weight": 3 }
+    ],
+    "side": [
+      { "itemId": "iron_scrap", "quantity": [2, 3], "weight": 3 },
+      { "itemId": "bloodlust_charm", "quantity": [1, 1], "weight": 2 }
+    ],
+    "armory": [{ "itemId": "castle_sword", "quantity": [1, 1], "weight": 1 }]
+  }
+}

@@ -7,6 +7,16 @@
   "bossFreq": 124,
   "ambiencePath": "res://assets/audio/frozen_fortress/ambience_loop.ogg",
   "bossPath": "res://assets/audio/frozen_fortress/boss_theme.ogg",
+  "layers": {
+    "ambience": { "path": "res://assets/audio/frozen_fortress/ambience_loop.ogg", "volume_db": -6.0, "fallback_freq": 68.0 },
+    "explore": { "path": "res://assets/audio/frozen_fortress/explore_loop.ogg", "volume_db": -9.0, "fallback_freq": 74.0 },
+    "combat": { "path": "res://assets/audio/frozen_fortress/combat_loop.ogg", "volume_db": -6.0, "fallback_freq": 92.0 },
+    "boss": { "path": "res://assets/audio/frozen_fortress/boss_theme.ogg", "volume_db": -4.0, "fallback_freq": 124.0 }
+  },
+  "stingers": {
+    "boss_reveal": "res://assets/audio/shared/sting_boss.ogg",
+    "floor_clear": "res://assets/audio/shared/sting_clear.ogg"
+  },
   "reverbPreset": "frozen",
   "crossfadeSeconds": 0.85
 }

@@ -3,7 +3,7 @@ extends CastleEnemyBase
 ## Crystal caverns melee slime — frost-vulnerable (THEME-5.2).
 
 
-func get_enemy_id() -> String:
+func _resolve_enemy_id() -> String:
 	return "crystal_slime"
 
 

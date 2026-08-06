@@ -27,12 +27,8 @@ func _test_vfx_pooling() -> void:
 
 
 func _test_frame_budget_placeholder() -> void:
-	# Documented budget (plan/systems/20-PERFORMANCE.md): 1080p60 → 16.67 ms/frame.
-	# Headless validation cannot sample GPU frame time; gate is informational until
-	# an in-editor profiling harness writes user://perf_baseline.json.
-	const TARGET_FRAME_MS := 16.67
-	const BUDGET_DOC := "1080p60 frame budget %.2f ms (GPU profiling deferred)" % TARGET_FRAME_MS
-	var start := Time.get_ticks_msec()
-	ctx.timed_record(
-		"perf.headless_budget_gate", get_category(), true, BUDGET_DOC, start, "M7.perf.gate"
+	skip(
+		"perf.frame_time_ms",
+		"GPU frame time requires an in-editor profiling harness",
+		"M7.perf.gate"
 	)

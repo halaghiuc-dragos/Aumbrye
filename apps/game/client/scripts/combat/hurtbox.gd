@@ -3,18 +3,27 @@ class_name Hurtbox
 
 const DEBUG_SCRIPT := preload("res://scripts/combat/combat_collision_debug.gd")
 const MaterialFlashScript := preload("res://scripts/art/characters/material_flash.gd")
-const BACKSTAB_ARC_DEGREES := 70.0
-const BACKSTAB_DAMAGE_MULT := 1.5
+const DamageResolutionScript := preload("res://scripts/combat/damage_resolution.gd")
 const DEFENSE_PER_POINT := 0.02
+const DEFENSE_CAP := 0.9
+const HYPERARMOR_POISE_MULT := 0.25
+const POISE_BROKEN_DAMAGE_MULT := 1.35
+const EXHAUSTED_POISE_MULT := 1.5
 
 signal damaged(info: DamageInfo)
+signal hurt_received(amount: float, poise_damage: float, direction: Vector3)
+signal hit_resolved(resolution: RefCounted)
 
 @export var team: String = "enemy"
 @export var health_path: NodePath
 @export var poise_path: NodePath
+@export var region: String = "body"
+@export var region_damage_mult := 1.0
+@export var region_poise_mult := 1.0
 
 var _health: Health
 var _poise: Poise
+var _status_controller: StatusController
 
 
 func _ready() -> void:
@@ -24,6 +33,7 @@ func _ready() -> void:
 		_health = get_node(health_path) as Health
 	if poise_path:
 		_poise = get_node(poise_path) as Poise
+	_status_controller = _resolve_status_controller()
 	DEBUG_SCRIPT.set_debug_draw(self, false, DEBUG_SCRIPT.HURTBOX_COLOR)
 
 
@@ -32,15 +42,49 @@ func set_debug_draw(enabled: bool) -> void:
 
 
 func receive_hit(info: DamageInfo) -> void:
+	var res: RefCounted = DamageResolutionScript.new()
+	res.incoming = info.amount
+	res.outgoing = info.amount
+	res.poise_incoming = info.poise_damage
+	res.poise_outgoing = info.poise_damage
+	res.damage_type = info.damage_type
+	res.crit = info.crit
+	res.region = region
+
 	if _health and _health.is_dead():
+		hit_resolved.emit(res)
 		return
-	var dodge := _find_dodge()
-	if dodge and dodge.get("iframes_active"):
+
+	if not info.ignore_iframes:
+		var dodge := _find_dodge()
+		if dodge and dodge.get("iframes_active"):
+			res.dodged = true
+			res.outgoing = 0.0
+			res.poise_outgoing = 0.0
+			var iframe_body := _find_character_body()
+			if iframe_body:
+				var iframe_feedback := iframe_body.get_node_or_null("HitFeedback")
+				if iframe_feedback and iframe_feedback.has_method("on_dodge_iframe"):
+					iframe_feedback.call("on_dodge_iframe")
+			hit_resolved.emit(res)
+			return
+
+	var owner_body := _find_character_body()
+	if owner_body and owner_body.has_method("is_immune") and owner_body.call("is_immune"):
+		res.outgoing = 0.0
+		res.poise_outgoing = 0.0
+		hit_resolved.emit(res)
 		return
-	var guard := _find_guard()
+
+	var guard := _find_guard() if not info.ignore_guard else null
 	if guard and guard.has_method("try_parry_attack") and info.source:
 		if guard.call("try_parry_attack", info.source):
+			res.parried = true
+			res.outgoing = 0.0
+			res.poise_outgoing = 0.0
+			hit_resolved.emit(res)
 			return
+
 	var final_amount := info.amount
 	var final_poise := info.poise_damage
 	if guard and guard.has_method("modify_incoming_hit"):
@@ -48,37 +92,96 @@ func receive_hit(info: DamageInfo) -> void:
 		final_amount = modified.get("amount", final_amount)
 		final_poise = modified.get("poise", final_poise)
 		if modified.get("blocked", false):
+			res.blocked = true
 			_emit_block_feedback(final_amount)
-	final_amount = _apply_backstab(final_amount, info)
+
+	final_amount = _apply_arc_multipliers(final_amount, final_poise, info, res)
+	final_poise = res.poise_outgoing
+	final_amount *= region_damage_mult
+	final_poise *= region_poise_mult
 	final_amount = _apply_defense(final_amount)
 	final_amount = _apply_resistances(final_amount, info.damage_type)
+
+	if _poise and _poise.is_broken():
+		final_amount *= POISE_BROKEN_DAMAGE_MULT
+
+	res.outgoing = final_amount
+	res.poise_outgoing = final_poise
+
 	if _health and final_amount > 0.0:
 		_health.take_damage(final_amount)
+		if team == "player" and RunFlow:
+			RunFlow.register_player_boss_damage()
+
+	var hyperarmor := _is_hyperarmor_active()
 	if _poise and final_poise > 0.0 and (_health == null or not _health.is_dead()):
-		_poise.take_poise_damage(final_poise)
+		var poise_hit := final_poise
+		if hyperarmor:
+			poise_hit *= HYPERARMOR_POISE_MULT
+			res.absorbed_by_poise = true
+		if owner_body and owner_body.is_in_group("player"):
+			var stamina := owner_body.get_node_or_null("Stamina") as Stamina
+			if stamina and stamina.is_exhausted():
+				poise_hit *= EXHAUSTED_POISE_MULT
+		if not hyperarmor:
+			_poise.take_poise_damage(poise_hit)
+		res.poise_outgoing = poise_hit
+
 	_apply_status_from_hit(info)
-	_emit_victim_feedback(final_amount, info.direction)
+	_emit_victim_feedback(final_amount, info.direction, info.damage_type)
+	hit_resolved.emit(res)
 	damaged.emit(info)
+	if team == "player" and (final_amount > 0.0 or final_poise > 0.0):
+		hurt_received.emit(final_amount, final_poise, info.direction)
 
 
-func _apply_backstab(amount: float, info: DamageInfo) -> float:
+func try_apply_status(status_id: String, stacks: int = 1, duration: float = -1.0) -> bool:
+	if status_id == "":
+		return false
+	var dodge := _find_dodge()
+	if dodge and dodge.get("iframes_active"):
+		return false
+	var guard := _find_guard()
+	if guard and guard.get("is_guard_active"):
+		return false
+	var ctrl := _resolve_status_controller()
+	if ctrl == null:
+		return false
+	ctrl.apply_status(status_id, stacks, duration)
+	return true
+
+
+func receive_periodic_damage(amount: float, dmg_type: String = DamageInfo.TYPE_PHYSICAL) -> void:
+	var info := DamageInfo.create(amount, 0.0, null, dmg_type)
+	info.ignore_iframes = true
+	info.ignore_guard = true
+	info.periodic = true
+	receive_hit(info)
+
+
+func _apply_arc_multipliers(
+	amount: float, poise: float, info: DamageInfo, res: RefCounted
+) -> float:
 	if amount <= 0.0 or info.source == null:
 		return amount
 	var body := _find_character_body()
 	if body == null:
 		return amount
-	var victim_facing := body.global_transform.basis.z
-	victim_facing.y = 0.0
-	if victim_facing.length_squared() < 0.01:
-		return amount
-	var to_attacker: Vector3 = info.source.global_position - body.global_position
-	to_attacker.y = 0.0
-	if to_attacker.length_squared() < 0.01:
-		return amount
-	var angle := rad_to_deg(victim_facing.angle_to(to_attacker.normalized()))
-	if angle <= BACKSTAB_ARC_DEGREES:
-		return amount * BACKSTAB_DAMAGE_MULT
-	return amount
+	var arc := DamageInfo.classify_arc(body, info.source.global_position)
+	var dmg_mult := DamageInfo.arc_damage_multiplier(arc)
+	var poise_mult := DamageInfo.arc_poise_multiplier(arc)
+	res.backstab = arc == DamageInfo.HitArc.BACK
+	# poise is returned via caller modifying final_poise separately — store in res stages
+	res.stages.append(
+		{
+			"stage": "arc",
+			"arc": arc,
+			"damage_before": amount,
+			"damage_after": amount * dmg_mult,
+		}
+	)
+	res.poise_outgoing = poise * poise_mult
+	return amount * dmg_mult
 
 
 func _apply_defense(amount: float) -> float:
@@ -91,7 +194,7 @@ func _apply_defense(amount: float) -> float:
 	var damage_reduction := float(body.get_meta("combat_damage_reduction", 0.0))
 	if defense <= 0.0 and damage_reduction <= 0.0:
 		return amount
-	var reduction := clampf(defense * DEFENSE_PER_POINT + damage_reduction, 0.0, 0.9)
+	var reduction := clampf(defense * DEFENSE_PER_POINT + damage_reduction, 0.0, DEFENSE_CAP)
 	return amount * (1.0 - reduction)
 
 
@@ -115,31 +218,43 @@ func _find_dodge() -> Node:
 	return null
 
 
+func _is_hyperarmor_active() -> bool:
+	var body := _find_character_body()
+	if body == null:
+		return false
+	var weapon := body.get_node_or_null("WeaponController")
+	if weapon and weapon.has_method("has_hyperarmor") and weapon.call("has_hyperarmor"):
+		return true
+	if body.has_method("is_hyperarmor_active") and body.call("is_hyperarmor_active"):
+		return true
+	return false
+
+
 func _emit_block_feedback(chip_damage: float) -> void:
 	var body := _find_character_body()
 	if body == null:
 		return
-	var anchor: Array = VfxService.resolve_combat_anchor(body)
-	VfxService.play_block(anchor[0], anchor[1])
-	VfxService.play_impact_decal(anchor[0], anchor[1])
 	var feedback := body.get_node_or_null("HitFeedback")
 	if feedback and feedback.has_method("on_hit_blocked"):
 		feedback.call("on_hit_blocked", body, chip_damage)
 
 
-func _emit_victim_feedback(damage: float, direction: Vector3 = Vector3.ZERO) -> void:
+func _emit_victim_feedback(
+	damage: float, direction: Vector3 = Vector3.ZERO, damage_type: String = "physical"
+) -> void:
 	if damage <= 0.0:
 		return
 	var body := _find_character_body()
 	if body == null:
 		return
-	MaterialFlashScript.flash(body)
-	var hit_pos := body.global_position + Vector3(0.0, 1.0, 0.0)
-	VfxService.play_blood_decal(hit_pos, direction)
-	VfxService.play_impact_decal(hit_pos, direction)
+	var visual := body.get_node_or_null("Facing/DioramaVisual") as Node3D
+	if visual:
+		MaterialFlashScript.flash(visual)
+	VfxService.play_blood_decal(body.global_position + Vector3(0.0, 1.0, 0.0), direction)
+	VfxService.play_impact_decal(body.global_position + Vector3(0.0, 1.0, 0.0), direction)
 	var feedback := body.get_node_or_null("HitFeedback")
 	if feedback and feedback.has_method("on_hit_received"):
-		feedback.call("on_hit_received", damage, direction)
+		feedback.call("on_hit_received", damage, direction, damage_type)
 
 
 func _apply_resistances(amount: float, damage_type: String) -> float:
@@ -149,22 +264,58 @@ func _apply_resistances(amount: float, damage_type: String) -> float:
 
 func _get_resistances() -> Dictionary:
 	var body := _find_character_body()
-	if body and body.has_method("get_enemy_id"):
+	if body == null:
+		return {}
+	if body.is_in_group("player") and body.has_meta("combat_resistances"):
+		return body.get_meta("combat_resistances")
+	if body.has_method("get_enemy_id"):
 		var enemy_id: String = body.call("get_enemy_id")
 		if enemy_id != "":
 			return EnemyCatalog.get_definition(enemy_id).get("resistances", {})
 	return {}
 
 
+func _resolve_status_controller() -> StatusController:
+	if _status_controller and is_instance_valid(_status_controller):
+		return _status_controller
+	var body := _find_character_body()
+	if body == null:
+		return null
+	var ctrl := body.get_node_or_null("StatusController") as StatusController
+	if ctrl:
+		_status_controller = ctrl
+		return ctrl
+	if _health == null:
+		return null
+	ctrl = StatusController.new()
+	ctrl.name = "StatusController"
+	ctrl.team = team
+	body.add_child(ctrl)
+	ctrl.set_health(_health)
+	_status_controller = ctrl
+	return ctrl
+
+
 func _apply_status_from_hit(info: DamageInfo) -> void:
 	if info.status_id == "":
 		return
-	var body := _find_character_body()
-	if body == null:
-		return
-	var status_ctrl := body.get_node_or_null("StatusController") as StatusController
+	var status_ctrl := _resolve_status_controller()
 	if status_ctrl:
 		status_ctrl.apply_status(info.status_id, info.status_stacks)
+		_notify_player_status_applied(info, _find_character_body())
+
+
+func _notify_player_status_applied(info: DamageInfo, victim_body: Node3D) -> void:
+	if info.source == null or not info.source.is_in_group("player"):
+		return
+	if victim_body == null or not victim_body.has_method("get_enemy_id"):
+		return
+	if str(victim_body.call("get_enemy_id")) == "":
+		return
+	if AchievementService:
+		AchievementService.notify(
+			"status_applied", {"status_id": info.status_id}
+		)
 
 
 func _find_character_body() -> Node3D:

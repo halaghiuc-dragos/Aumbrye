@@ -1,12 +1,13 @@
 extends RefCounted
 class_name AffixRoller
 
-## Local affix roller stub when backend LOOT-4.1 is unavailable.
+## Local affix roller — rarity weights, item-type pools, and tiered values.
 
 const PREFIXES_PATH := "content/affixes/prefixes.json"
 const SUFFIXES_PATH := "content/affixes/suffixes.json"
 const RARITY_PATH := "content/affixes/rarity_rules.json"
 const RarityRegistryScript := preload("res://scripts/loot/rarity_registry.gd")
+const ContentSchemaValidator := preload("res://scripts/app/content_schema_validator.gd")
 
 static var _prefixes: Array = []
 static var _suffixes: Array = []
@@ -14,7 +15,9 @@ static var _rarity_rules: Dictionary = {}
 static var _loaded := false
 
 
-static func roll_instance(item_id: String, roll_seed: int = -1, forced_rarity: String = "", run_mode: String = "") -> Dictionary:
+static func roll_instance(
+	item_id: String, roll_seed: int = -1, forced_rarity: String = "", run_mode: String = ""
+) -> Dictionary:
 	_ensure_loaded()
 	var def := ItemCatalog.get_definition(item_id)
 	if def.is_empty():
@@ -24,20 +27,19 @@ static func roll_instance(item_id: String, roll_seed: int = -1, forced_rarity: S
 		rng.seed = roll_seed
 	else:
 		rng.randomize()
-	var rarity: String = RarityRegistryScript.normalize(forced_rarity) if forced_rarity != "" else _pick_rarity(rng, run_mode)
+	var loot_quality: float = 0.0
+	if ProgressionService:
+		loot_quality = float(ProgressionService.get_talent_stat_totals().get("lootQuality", 0.0))
+	var rarity: String = (
+		RarityRegistryScript.normalize(forced_rarity)
+		if forced_rarity != ""
+		else _pick_rarity(rng, run_mode, loot_quality)
+	)
 	var affix_count := _roll_affix_count(rarity, rng)
-	var affixes: Array = []
-	var pool: Array = _prefixes.duplicate()
-	pool.append_array(_suffixes)
-	_shuffle_with_rng(pool, rng)
-	for i in mini(affix_count, pool.size()):
-		var affix_def: Dictionary = pool[i]
-		var value := rng.randi_range(int(affix_def.get("min", 1)), int(affix_def.get("max", 3)))
-		affixes.append({
-			"affixId": affix_def.get("id", ""),
-			"value": value,
-		})
-	return {
+	var item_type: String = str(def.get("itemType", ""))
+	var pool: Array = _build_affix_pool(item_type)
+	var affixes: Array = _pick_weighted_affixes(pool, affix_count, rarity, rng)
+	var instance := {
 		"instanceId": _make_instance_id(item_id, roll_seed if roll_seed >= 0 else rng.randi()),
 		"itemId": item_id,
 		"quantity": 1,
@@ -45,6 +47,9 @@ static func roll_instance(item_id: String, roll_seed: int = -1, forced_rarity: S
 		"affixes": affixes,
 		"rollSeed": roll_seed if roll_seed >= 0 else rng.seed,
 	}
+	if OS.is_debug_build():
+		ContentSchemaValidator.validate_roll_instance(instance, item_id)
+	return instance
 
 
 static func get_affix_stat(affix_id: String) -> String:
@@ -106,18 +111,29 @@ static func _roll_affix_count(rarity: String, rng: RandomNumberGenerator) -> int
 	return rng.randi_range(min_c, max_c)
 
 
-static func _pick_rarity(rng: RandomNumberGenerator, run_mode: String = "") -> String:
-	var bonus: float = RarityRegistryScript.mode_drop_bonus(run_mode)
+static func rarity_weights(run_mode: String = "", loot_quality_bonus: float = 0.0) -> Dictionary:
+	_ensure_loaded()
+	var bonus: float = RarityRegistryScript.mode_drop_bonus(run_mode) + loot_quality_bonus
 	var weights: Dictionary = {}
-	var total_weight := 0
 	for rarity in _rarity_rules:
 		var norm: String = RarityRegistryScript.normalize(rarity)
 		if int(_rarity_rules[rarity].get("weight", 0)) <= 0:
 			continue
 		var weight := int(_rarity_rules[rarity].get("weight", 0))
-		if bonus > 0.0 and RarityRegistryScript.tier_index(norm) >= RarityRegistryScript.tier_index("rare"):
+		if (
+			bonus > 0.0
+			and RarityRegistryScript.tier_index(norm) >= RarityRegistryScript.tier_index("rare")
+		):
 			weight = int(round(float(weight) * (1.0 + bonus)))
 		weights[norm] = int(weights.get(norm, 0)) + weight
+	return weights
+
+
+static func _pick_rarity(
+	rng: RandomNumberGenerator, run_mode: String = "", loot_quality_bonus: float = 0.0
+) -> String:
+	var weights: Dictionary = rarity_weights(run_mode, loot_quality_bonus)
+	var total_weight := 0
 	for rarity in weights:
 		total_weight += int(weights[rarity])
 	if total_weight <= 0:
@@ -133,13 +149,85 @@ static func _pick_rarity(rng: RandomNumberGenerator, run_mode: String = "") -> S
 	return "common"
 
 
+static func _build_affix_pool(item_type: String) -> Array:
+	var pool: Array = []
+	for affix in _prefixes:
+		if _affix_applies_to_item(affix, item_type):
+			pool.append(affix)
+	for affix in _suffixes:
+		if _affix_applies_to_item(affix, item_type):
+			pool.append(affix)
+	return pool
+
+
+static func _affix_applies_to_item(affix_def: Dictionary, item_type: String) -> bool:
+	var types: Variant = affix_def.get("itemTypes", [])
+	if not types is Array or (types as Array).is_empty():
+		return true
+	return item_type in types
+
+
+static func _pick_weighted_affixes(
+	pool: Array, count: int, rarity: String, rng: RandomNumberGenerator
+) -> Array:
+	var result: Array = []
+	if count <= 0 or pool.is_empty():
+		return result
+	var candidates: Array = pool.duplicate()
+	while result.size() < count and not candidates.is_empty():
+		var total_weight := 0
+		for affix_def in candidates:
+			total_weight += maxi(1, int(affix_def.get("weight", 1)))
+		var roll := rng.randi_range(1, total_weight)
+		var cumulative := 0
+		var picked_index := -1
+		for i in candidates.size():
+			var affix_def: Dictionary = candidates[i]
+			cumulative += maxi(1, int(affix_def.get("weight", 1)))
+			if roll <= cumulative:
+				picked_index = i
+				break
+		if picked_index < 0:
+			break
+		var chosen: Dictionary = candidates[picked_index]
+		candidates.remove_at(picked_index)
+		var value := _roll_tier_value(chosen, rarity, rng)
+		(
+			result
+			. append(
+				{
+					"affixId": chosen.get("id", ""),
+					"value": value,
+				}
+			)
+		)
+	return result
+
+
+static func _roll_tier_value(
+	affix_def: Dictionary, rarity: String, rng: RandomNumberGenerator
+) -> float:
+	var tiers: Variant = affix_def.get("tiers", {})
+	if not tiers is Dictionary:
+		return float(rng.randi_range(1, 3))
+	var norm := RarityRegistryScript.normalize(rarity)
+	var tier: Variant = (tiers as Dictionary).get(norm)
+	if tier == null:
+		tier = (tiers as Dictionary).get("aumbral")
+	if tier == null:
+		tier = (tiers as Dictionary).get("mythic")
+	if tier == null:
+		tier = (tiers as Dictionary).get("legendary")
+	if not tier is Dictionary:
+		return float(rng.randi_range(1, 3))
+	var min_v: float = float(tier.get("min", 1))
+	var max_v: float = float(tier.get("max", min_v))
+	if max_v <= min_v:
+		return min_v
+	if min_v == floor(min_v) and max_v == floor(max_v):
+		return float(rng.randi_range(int(min_v), int(max_v)))
+	return min_v + rng.randf() * (max_v - min_v)
+
+
 static func _make_instance_id(item_id: String, instance_seed: int) -> String:
 	return "%s_%d" % [item_id, instance_seed]
-
-
-static func _shuffle_with_rng(arr: Array, rng: RandomNumberGenerator) -> void:
-	for i in range(arr.size() - 1, 0, -1):
-		var j: int = rng.randi_range(0, i)
-		var tmp = arr[i]
-		arr[i] = arr[j]
-		arr[j] = tmp

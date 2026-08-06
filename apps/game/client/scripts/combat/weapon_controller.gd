@@ -14,12 +14,17 @@ const SOFT_LOCK_CONE_DEG := 100.0
 const SOFT_LOCK_RANGE := 14.0
 const TWO_HAND_DAMAGE_MULT := 1.25
 const TWO_HAND_POISE_MULT := 1.35
+const LUNGE_FRACTION_OF_STARTUP := 1.0
+const LUNGE_FRACTION_OF_ACTIVE := 0.5
+const LUNGE_MIN_SPEED := 0.5
 
 const FALLBACK_WEAPON_DATA := {
 	"archetype": "sword",
 	"damage_type": "physical",
 	"buffer_window": 0.2,
-	"light_attacks": [
+	"lunge_distance": 0.35,
+	"light_attacks":
+	[
 		{
 			"damage": 12.0,
 			"poise_damage": 10.0,
@@ -29,7 +34,8 @@ const FALLBACK_WEAPON_DATA := {
 			"recovery": 0.25,
 		}
 	],
-	"heavy_attack": {
+	"heavy_attack":
+	{
 		"damage": 28.0,
 		"poise_damage": 35.0,
 		"stamina_cost": 32.0,
@@ -71,7 +77,14 @@ var _base_damage_multiplier := 1.0
 var _weapon_scaling_multiplier := 1.0
 var _class_stats: Dictionary = {}
 var _talent_stats: Dictionary = {}
+var _equipment_stats: Dictionary = {}
 var _post_dodge_attack_buffer := 0.0
+var _art_cooldown_timer := 0.0
+var _lunge_distance := 0.0
+var _lunge_duration := 0.0
+var _lunge_elapsed := 0.0
+var _hitbox_opened_this_swing := false
+var _sync_hitbox_from_anim := false
 
 
 func _ready() -> void:
@@ -113,22 +126,24 @@ func _physics_process(delta: float) -> void:
 			_combo_index = 0
 	if _post_dodge_attack_buffer > 0.0:
 		_post_dodge_attack_buffer -= delta
+	if _art_cooldown_timer > 0.0:
+		_art_cooldown_timer -= delta
 	if _is_action_blocked():
 		return
 	var archetype: String = _weapon_data.get("archetype", "sword")
 	if archetype == "bow":
 		_process_bow_input(delta)
 		return
-	if Input.is_action_just_pressed("two_hand"):
+	if PlayerInput.just_pressed(&"two_hand"):
 		_toggle_two_hand()
-	if Input.is_action_just_pressed("weapon_art"):
+	if PlayerInput.just_pressed(&"weapon_art"):
 		_try_weapon_art()
 	if is_attacking:
 		_process_attack_phase(delta)
 		return
-	if Input.is_action_just_pressed("light_attack"):
+	if PlayerInput.just_pressed(&"light_attack"):
 		_try_attack("light")
-	elif Input.is_action_just_pressed("heavy_attack"):
+	elif PlayerInput.just_pressed(&"heavy_attack"):
 		_try_attack("heavy")
 	if _post_dodge_attack_buffer > 0.0 and _buffered_attack != "" and not is_attacking:
 		_try_attack(_buffered_attack)
@@ -144,8 +159,7 @@ func load_weapon_from_path(relative: String) -> void:
 		push_warning("WeaponController: using fallback weapon data")
 		_weapon_data = FALLBACK_WEAPON_DATA.duplicate(true)
 	_weapon_scaling_multiplier = CombatStatModifiersScript.weapon_scaling_multiplier(
-		_weapon_data.get("scaling", {}),
-		_class_stats
+		_weapon_data.get("scaling", {}), _class_stats
 	)
 	_refresh_damage_multiplier()
 	_apply_hitbox_profile()
@@ -154,6 +168,58 @@ func load_weapon_from_path(relative: String) -> void:
 
 func get_archetype() -> String:
 	return String(_weapon_data.get("archetype", "sword"))
+
+
+func request_light_attack() -> bool:
+	if _is_action_blocked():
+		return false
+	var was_attacking := is_attacking
+	_try_attack("light")
+	return is_attacking and not was_attacking
+
+
+func request_heavy_attack() -> bool:
+	if _is_action_blocked():
+		return false
+	var was_attacking := is_attacking
+	_try_attack("heavy")
+	return is_attacking and not was_attacking
+
+
+func request_weapon_art() -> bool:
+	if _is_action_blocked():
+		return false
+	var was_attacking := is_attacking
+	_try_weapon_art()
+	return is_attacking and not was_attacking
+
+
+func get_combo_index() -> int:
+	return _combo_index
+
+
+func get_hitbox() -> Area3D:
+	return _hitbox
+
+
+func get_weapon_data() -> Dictionary:
+	return _weapon_data
+
+
+func get_weapon_art_cooldown_duration() -> float:
+	var art: Dictionary = _weapon_data.get("art", {})
+	if art.is_empty():
+		return 0.0
+	return float(art.get("cooldown", 5.0)) * _cooldown_duration_multiplier()
+
+
+func _cooldown_duration_multiplier() -> float:
+	var reduction: float = float(_talent_stats.get("cooldownReduction", 0.0))
+	return maxf(0.1, 1.0 - reduction)
+
+
+func get_lunge_distance() -> float:
+	return _lunge_distance
 
 
 func get_current_attack_phases() -> Dictionary:
@@ -192,17 +258,17 @@ func set_damage_multiplier(multiplier: float) -> void:
 
 
 func set_combat_stat_modifiers(
-	equipment_stats: Dictionary,
-	talent_stats: Dictionary,
-	class_stats: Dictionary = {}
+	equipment_stats: Dictionary, talent_stats: Dictionary, class_stats: Dictionary = {}
 ) -> void:
+	_equipment_stats = equipment_stats
 	_class_stats = class_stats
 	_talent_stats = talent_stats
 	_weapon_scaling_multiplier = CombatStatModifiersScript.weapon_scaling_multiplier(
-		_weapon_data.get("scaling", {}),
-		_class_stats
+		_weapon_data.get("scaling", {}), _class_stats
 	)
-	set_damage_multiplier(CombatStatModifiersScript.damage_multiplier(equipment_stats, talent_stats))
+	set_damage_multiplier(
+		CombatStatModifiersScript.damage_multiplier(equipment_stats, talent_stats)
+	)
 
 
 func has_hyperarmor() -> bool:
@@ -230,22 +296,56 @@ func get_move_speed_multiplier() -> float:
 
 
 func get_rotation_cap_multiplier() -> float:
-	if is_attacking and current_phase in [AttackPhase.STARTUP, AttackPhase.ACTIVE, AttackPhase.DRAWING]:
+	if (
+		is_attacking
+		and current_phase in [AttackPhase.STARTUP, AttackPhase.ACTIVE, AttackPhase.DRAWING]
+	):
 		return ATTACK_ROT_CAP_MULT
 	return 1.0
 
 
 func get_attack_lunge_velocity() -> Vector3:
-	return Vector3.ZERO
+	if not is_attacking or _body == null:
+		return Vector3.ZERO
+	if current_phase != AttackPhase.STARTUP and current_phase != AttackPhase.ACTIVE:
+		return Vector3.ZERO
+	if _lunge_distance <= 0.0 or _lunge_duration <= 0.0:
+		return Vector3.ZERO
+	if _lunge_elapsed >= _lunge_duration:
+		return Vector3.ZERO
+	var speed := maxf(LUNGE_MIN_SPEED, _lunge_distance / _lunge_duration)
+	var forward: Vector3 = (
+		_body.get_facing_direction()
+		if _body.has_method("get_facing_direction")
+		else -_body.global_transform.basis.z
+	)
+	forward.y = 0.0
+	if forward.length_squared() < 0.01:
+		return Vector3.ZERO
+	return forward.normalized() * speed
 
 
 func enable_hitbox_from_anim() -> void:
-	if is_attacking and current_phase == AttackPhase.ACTIVE:
-		_enable_hitbox_for_attack()
+	if not is_attacking:
+		return
+	if current_phase != AttackPhase.STARTUP and current_phase != AttackPhase.ACTIVE:
+		return
+	if _hitbox_opened_this_swing:
+		return
+	_hitbox_opened_this_swing = true
+	if current_phase == AttackPhase.STARTUP:
+		current_phase = AttackPhase.ACTIVE
+		_phase_timer = float(_current_attack.get("active", 0.15))
+		_snap_soft_lock_facing()
+	_enable_hitbox_for_attack()
 
 
 func disable_hitbox_from_anim() -> void:
 	_disable_hitbox()
+	if not _sync_hitbox_from_anim or current_phase != AttackPhase.ACTIVE:
+		return
+	current_phase = AttackPhase.RECOVERY
+	_phase_timer = float(_current_attack.get("recovery", 0.3))
 
 
 func _load_weapon_data() -> void:
@@ -280,7 +380,7 @@ func _try_attack(kind: String) -> void:
 
 
 func _try_weapon_art() -> void:
-	if is_attacking:
+	if is_attacking or _art_cooldown_timer > 0.0:
 		return
 	var art: Dictionary = _weapon_data.get("art", {})
 	if art.is_empty():
@@ -296,24 +396,40 @@ func _try_weapon_art() -> void:
 		"startup": float(art.get("startup", 0.25)),
 		"active": float(art.get("active", 0.18)),
 		"recovery": float(art.get("recovery", 0.4)),
-		"hyperarmor": true,
+		"lunge_distance": float(art.get("lunge_distance", _weapon_data.get("lunge_distance", 0.0))),
+		"hyperarmor": bool(art.get("hyperarmor", true)),
 	}
 	_attack_name = "weapon_art"
+	_art_cooldown_timer = get_weapon_art_cooldown_duration()
 	_snap_soft_lock_facing()
 	_start_attack(attack)
 
 
 func _start_attack(attack: Dictionary) -> void:
+	if _stamina:
+		_stamina.set_regen_state(Stamina.RegenState.SUPPRESSED)
 	_current_attack = attack
 	is_attacking = true
 	current_phase = AttackPhase.STARTUP
 	_phase_timer = attack.get("startup", 0.2)
+	_hitbox_opened_this_swing = false
+	var startup := float(attack.get("startup", 0.2))
+	var active := float(attack.get("active", 0.15))
+	_lunge_distance = float(attack.get("lunge_distance", _weapon_data.get("lunge_distance", 0.0)))
+	_lunge_duration = startup * LUNGE_FRACTION_OF_STARTUP + active * LUNGE_FRACTION_OF_ACTIVE
+	_lunge_elapsed = 0.0
 	if _hitbox and _hitbox.has_method("reset_swing"):
 		_hitbox.call("reset_swing")
+	var director := _body.get_node_or_null("AnimDirector") if _body else null
+	_sync_hitbox_from_anim = (
+		director != null and director.has_method("is_bound") and bool(director.call("is_bound"))
+	)
 	attack_started.emit(_attack_name)
 
 
 func _process_attack_phase(delta: float) -> void:
+	if current_phase in [AttackPhase.STARTUP, AttackPhase.ACTIVE]:
+		_lunge_elapsed += delta
 	_phase_timer -= delta
 	if _phase_timer > 0.0:
 		return
@@ -322,7 +438,9 @@ func _process_attack_phase(delta: float) -> void:
 			current_phase = AttackPhase.ACTIVE
 			_phase_timer = _current_attack.get("active", 0.15)
 			_snap_soft_lock_facing()
-			_enable_hitbox_for_attack()
+			if not _sync_hitbox_from_anim and not _hitbox_opened_this_swing:
+				_enable_hitbox_for_attack()
+				_hitbox_opened_this_swing = true
 		AttackPhase.ACTIVE:
 			current_phase = AttackPhase.RECOVERY
 			_phase_timer = _current_attack.get("recovery", 0.3)
@@ -337,17 +455,28 @@ func _enable_hitbox_for_attack() -> void:
 	if _hitbox == null or not _hitbox.has_method("enable"):
 		return
 	var dmg: float = float(_current_attack.get("damage", 10.0)) * _damage_multiplier
-	var poise: float = float(_current_attack.get("poise_damage", 10.0)) * _damage_multiplier
+	dmg += CombatStatModifiersScript.flat_damage_bonus(_equipment_stats)
+	var poise: float = (
+		float(_current_attack.get("poise_damage", 10.0))
+		* _damage_multiplier
+		* CombatStatModifiersScript.poise_damage_multiplier(_talent_stats)
+	)
+	if _two_hand:
+		poise *= TWO_HAND_POISE_MULT
 	if _guard and _guard.has_method("get_riposte_damage_multiplier"):
 		var riposte_mult: float = _guard.call("get_riposte_damage_multiplier")
 		if riposte_mult > 1.0:
 			dmg *= riposte_mult
 			poise *= riposte_mult
 			_guard.call("consume_riposte")
-	var dmg_type: String = _current_attack.get("damage_type", _weapon_data.get("damage_type", "physical"))
+	var dmg_type: String = _current_attack.get(
+		"damage_type", _weapon_data.get("damage_type", "physical")
+	)
 	var status_id: String = _current_attack.get("status", _weapon_data.get("status_on_hit", ""))
 	var status_stacks: int = int(_current_attack.get("status_stacks", 1))
-	_hitbox.call("set_attack_values", dmg, poise, dmg_type, status_id, status_stacks)
+	var crit := CombatStatModifiersScript.crit_chance(_talent_stats)
+	var crit_mult := CombatStatModifiersScript.crit_multiplier(_talent_stats)
+	_hitbox.call("set_attack_values", dmg, poise, dmg_type, status_id, status_stacks, crit, crit_mult)
 	_hitbox.call("enable")
 	_hyperarmor_active = bool(_current_attack.get("hyperarmor", false))
 	if not _hyperarmor_active:
@@ -355,6 +484,7 @@ func _enable_hitbox_for_attack() -> void:
 	if _body:
 		var anchor: Array = VfxService.resolve_combat_anchor(_body)
 		VfxService.play_attack_swing(anchor[0], anchor[1])
+		AudioDirector.play_sfx("swing", anchor[0])
 
 
 func _disable_hitbox() -> void:
@@ -364,9 +494,15 @@ func _disable_hitbox() -> void:
 
 
 func _end_attack() -> void:
+	if _stamina:
+		_stamina.set_regen_state(Stamina.RegenState.NORMAL)
 	is_attacking = false
 	current_phase = AttackPhase.IDLE
 	_hyperarmor_active = false
+	_lunge_distance = 0.0
+	_lunge_duration = 0.0
+	_lunge_elapsed = 0.0
+	_hitbox_opened_this_swing = false
 	var buffer_window: float = _weapon_data.get("buffer_window", 0.2)
 	var recovery: float = float(_current_attack.get("recovery", 0.3))
 	_combo_idle_timer = buffer_window + recovery
@@ -376,10 +512,12 @@ func _end_attack() -> void:
 
 
 func _process_bow_input(delta: float) -> void:
-	is_bow_aiming = Input.is_action_pressed("block") or Input.is_action_pressed("light_attack")
+	is_bow_aiming = PlayerInput.pressed(&"block") or PlayerInput.pressed(&"light_attack")
 	if is_attacking and current_phase == AttackPhase.DRAWING:
-		if Input.is_action_pressed("heavy_attack"):
-			_draw_charge = minf(1.0, _draw_charge + delta / float(_weapon_data.get("draw_time", 0.8)))
+		if PlayerInput.pressed(&"heavy_attack"):
+			_draw_charge = minf(
+				1.0, _draw_charge + delta / float(_weapon_data.get("draw_time", 0.8))
+			)
 		elif _draw_charge > 0.05:
 			_fire_bow_shot()
 		else:
@@ -388,12 +526,12 @@ func _process_bow_input(delta: float) -> void:
 	if is_attacking:
 		_process_attack_phase(delta)
 		return
-	if Input.is_action_pressed("heavy_attack"):
+	if PlayerInput.pressed(&"heavy_attack"):
 		current_phase = AttackPhase.DRAWING
 		is_attacking = true
 		_draw_charge = minf(1.0, _draw_charge + delta / float(_weapon_data.get("draw_time", 0.8)))
 		return
-	if Input.is_action_just_pressed("light_attack"):
+	if PlayerInput.just_pressed(&"light_attack"):
 		_try_attack("light")
 
 

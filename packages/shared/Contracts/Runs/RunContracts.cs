@@ -35,12 +35,3 @@ public sealed record LootGrantedResponse(
     string? Rarity,
     int? AffixCount,
     int? Quantity);
-
-public sealed record RunResultRequest(
-    int SchemaVersion,
-    Guid RunId,
-    string Outcome,
-    double ElapsedSeconds,
-    bool BossDefeated,
-    IReadOnlyList<string> LootClaimedInstanceIds,
-    string? ClientChecksum);

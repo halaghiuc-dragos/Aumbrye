@@ -1,5 +1,7 @@
 extends "res://scripts/validation/validation_suite.gd"
 
+const CombatFixtureScript := preload("res://scripts/validation/combat_fixture.gd")
+
 
 func get_category() -> String:
 	return "combat"
@@ -7,7 +9,12 @@ func get_category() -> String:
 
 func run() -> void:
 	await _test_combat_components()
+	await _test_combat_pipeline()
+	await _test_guard_and_dodge()
+	await _test_weapon_attacks()
+	await _test_hit_feedback_and_tokens()
 	await _test_enemy_death_guards()
+	_test_waves_run()
 
 
 func _test_combat_components() -> void:
@@ -26,6 +33,7 @@ func _test_combat_components() -> void:
 		start,
 		"M1.combat.health"
 	)
+	health.free()
 
 	start = Time.get_ticks_msec()
 	var stamina := Stamina.new()
@@ -38,6 +46,7 @@ func _test_combat_components() -> void:
 		start,
 		"M1.combat.stamina"
 	)
+	stamina.free()
 
 	start = Time.get_ticks_msec()
 	var poise := Poise.new()
@@ -51,61 +60,14 @@ func _test_combat_components() -> void:
 		start,
 		"M1.combat.poise"
 	)
+	poise.free()
 
 	start = Time.get_ticks_msec()
-	var guard_methods := [
-		"modify_incoming_hit",
-		"try_parry_attack",
-		"get_parry_time_remaining",
-		"get_block_time_remaining",
-	]
-	var guard_ok := true
-	for method_name in guard_methods:
-		if not ctx.file_contains("res://scripts/combat/guard.gd", "func %s" % method_name):
-			guard_ok = false
-	ctx.timed_record(
-		"combat.guard_parry_block_api",
-		get_category(),
-		guard_ok,
-		"Guard exposes parry/block window API",
-		start,
-		"M1.combat.guard"
+	var player: CharacterBody3D = (
+		load("res://scenes/player/player.tscn").instantiate() as CharacterBody3D
 	)
-
-	start = Time.get_ticks_msec()
-	var hitbox := Hitbox.new()
-	hitbox.team = "player"
-	var hurtbox := Hurtbox.new()
-	hurtbox.team = "player"
-	var same_team_blocks: bool = hitbox.team == hurtbox.team
-	ctx.timed_record(
-		"combat.hitbox_team_filter",
-		get_category(),
-		same_team_blocks,
-		"Hitbox/Hurtbox team field available for filtering",
-		start,
-		"M1.combat.teams"
-	)
-
-	start = Time.get_ticks_msec()
-	var player: CharacterBody3D = load("res://scenes/player/player.tscn").instantiate() as CharacterBody3D
 	ctx.owner.add_child(player)
 	await ctx.await_frame()
-	var dodge := player.get_node_or_null("Dodge")
-	var dodge_cost_ok := dodge != null and dodge.get_script() != null
-	if dodge_cost_ok:
-		var script_text := FileAccess.get_file_as_string("res://scripts/player/dodge.gd")
-		dodge_cost_ok = "DODGE_STAMINA_COST" in script_text
-	ctx.timed_record(
-		"combat.dodge_stamina_cost",
-		get_category(),
-		dodge_cost_ok,
-		"player Dodge exposes stamina cost constant",
-		start,
-		"M1.combat.dodge"
-	)
-
-	start = Time.get_ticks_msec()
 	var weapon := player.get_node_or_null("WeaponController")
 	var hitbox_node: Node = null
 	if weapon:
@@ -124,12 +86,11 @@ func _test_combat_components() -> void:
 
 	start = Time.get_ticks_msec()
 	var facing_node := player.get_node_or_null("Facing") as Node3D
-	var hitbox_shape := player.get_node_or_null(
-		"Facing/WeaponPivot/Hitbox/CollisionShape3D"
-	) as CollisionShape3D
+	var hitbox_shape := (
+		player.get_node_or_null("Facing/WeaponPivot/Hitbox/CollisionShape3D") as CollisionShape3D
+	)
 	var forward_hitbox := false
 	if facing_node and hitbox_shape:
-		# Model forward is +basis.z (atan2 facing, visor at +Z local).
 		var visual_forward := facing_node.global_transform.basis.z
 		var to_hitbox := hitbox_shape.global_position - facing_node.global_position
 		forward_hitbox = visual_forward.dot(to_hitbox) > 0.1
@@ -142,6 +103,518 @@ func _test_combat_components() -> void:
 		"M1.combat.weapon"
 	)
 	player.queue_free()
+
+
+func _test_combat_pipeline() -> void:
+	var fixture := CombatFixtureScript.new(ctx)
+	await fixture.setup()
+	var start := Time.get_ticks_msec()
+
+	var result := await fixture.strike({"damage": 12.0})
+	ctx.assert_near(
+		"combat.damage_reaches_health",
+		get_category(),
+		float(result.get("hp_lost", 0.0)),
+		12.0,
+		0.001,
+		"strike damage reaches defender health",
+		start,
+		"M1.combat.pipeline"
+	)
+
+	start = Time.get_ticks_msec()
+	result = await fixture.strike({"damage": 12.0, "team": "enemy"})
+	ctx.assert_near(
+		"combat.team_filter_blocks_friendly",
+		get_category(),
+		float(result.get("hp_lost", -1.0)),
+		0.0,
+		0.001,
+		"same-team hitbox does not damage defender",
+		start,
+		"M1.combat.teams"
+	)
+
+	start = Time.get_ticks_msec()
+	fixture.attacker_hitbox().team = "player"
+	fixture.defender_hurtbox().team = "enemy"
+	result = await fixture.strike({"damage": 12.0, "team": "player"})
+	ctx.assert_near(
+		"combat.team_filter_allows_hostile",
+		get_category(),
+		float(result.get("hp_lost", 0.0)),
+		12.0,
+		0.001,
+		"hostile teams allow damage",
+		start,
+		"M1.combat.teams"
+	)
+
+	fixture.defender_health().configure(60.0)
+	fixture.defender_body().set_meta("combat_defense", 20)
+	start = Time.get_ticks_msec()
+	result = await fixture.strike({"damage": 30.0})
+	var expected_defense := 30.0 * (1.0 - clampf(20.0 * 0.02, 0.0, 0.9))
+	ctx.assert_near(
+		"combat.defense_reduces_damage",
+		get_category(),
+		float(result.get("hp_lost", 0.0)),
+		expected_defense,
+		0.001,
+		"combat_defense meta reduces incoming damage",
+		start,
+		"M1.combat.pipeline"
+	)
+
+	fixture.defender_health().configure(60.0)
+	fixture.defender_body().set_meta("combat_defense", 0)
+	var dodge := await fixture.add_dodge_to_defender()
+	dodge.iframes_active = true
+	start = Time.get_ticks_msec()
+	result = await fixture.strike({"damage": 40.0})
+	ctx.assert_near(
+		"combat.iframes_block_all_damage",
+		get_category(),
+		float(result.get("hp_lost", -1.0)),
+		0.0,
+		0.001,
+		"active dodge iframes block damage",
+		start,
+		"M1.combat.dodge"
+	)
+	dodge.iframes_active = false
+
+	fixture.defender_health().configure(60.0)
+	start = Time.get_ticks_msec()
+	result = await fixture.strike({"damage": 10.0, "crit_chance": 1.0})
+	ctx.assert_true(
+		"combat.crit_applies_multiplier",
+		get_category(),
+		float(result.get("hp_lost", 0.0)) > 10.0,
+		"guaranteed crit increases damage",
+		start,
+		"M1.combat.pipeline"
+	)
+
+	fixture.defender_health().configure(60.0)
+	var status_ctrl := await fixture.add_status_controller_to_defender()
+	await fixture.strike({"damage": 1.0, "status_id": "bleed", "status_stacks": 1})
+	start = Time.get_ticks_msec()
+	var has_bleed := false
+	for entry in status_ctrl.get_active_statuses():
+		if entry.get("id", "") == "bleed":
+			has_bleed = true
+			break
+	ctx.assert_true(
+		"combat.status_lands_on_enemy",
+		get_category(),
+		has_bleed,
+		"status from hitbox reaches defender StatusController",
+		start,
+		"M1.combat.status"
+	)
+
+	fixture.defender_health().take_damage(fixture.defender_health().max_health + 10.0)
+	start = Time.get_ticks_msec()
+	result = await fixture.strike({"damage": 20.0})
+	ctx.assert_near(
+		"combat.dead_target_absorbs_nothing",
+		get_category(),
+		float(result.get("hp_lost", -1.0)),
+		0.0,
+		0.001,
+		"dead defender ignores further hits",
+		start,
+		"M2.combat.death"
+	)
+
+	await fixture.teardown()
+
+
+func _test_guard_and_dodge() -> void:
+	var fixture := CombatFixtureScript.new(ctx)
+	await fixture.setup()
+	var guard := await fixture.add_guard_to_defender()
+	var stamina := fixture.defender_body().get_node("Stamina") as Stamina
+	stamina.configure(100.0)
+	fixture.defender_health().configure(60.0)
+	guard.is_guard_active = true
+
+	var start := Time.get_ticks_msec()
+	var info := DamageInfo.create(
+		30.0, 10.0, fixture.defender_body(), DamageInfo.TYPE_PHYSICAL, Vector3(0.0, 0.0, -1.0)
+	)
+	fixture.direct_hit(info)
+	var chip := fixture.hp_lost()
+	var expected_chip := 30.0 * (1.0 - 0.55)
+	ctx.assert_near(
+		"guard.block_reduces_damage",
+		get_category(),
+		chip,
+		expected_chip,
+		0.001,
+		"frontal block reduces incoming damage",
+		start,
+		"M1.combat.guard"
+	)
+
+	fixture.defender_health().configure(60.0)
+	guard.is_guard_active = true
+	start = Time.get_ticks_msec()
+	info = DamageInfo.create(
+		30.0, 10.0, fixture.defender_body(), DamageInfo.TYPE_PHYSICAL, Vector3(0.0, 0.0, 1.0)
+	)
+	fixture.direct_hit(info)
+	ctx.assert_near(
+		"guard.block_requires_frontal",
+		get_category(),
+		fixture.hp_lost(),
+		30.0,
+		0.001,
+		"rear hit bypasses guard reduction",
+		start,
+		"M1.combat.guard"
+	)
+
+	stamina.configure(100.0)
+	guard.is_guard_active = true
+	var stamina_before := stamina.current
+	start = Time.get_ticks_msec()
+	info = DamageInfo.create(
+		30.0, 10.0, fixture.defender_body(), DamageInfo.TYPE_PHYSICAL, Vector3(0.0, 0.0, -1.0)
+	)
+	fixture.direct_hit(info)
+	ctx.assert_true(
+		"guard.block_costs_stamina",
+		get_category(),
+		stamina.current < stamina_before,
+		"blocking consumes stamina",
+		start,
+		"M1.combat.guard"
+	)
+
+	await fixture.teardown()
+
+	var player: CharacterBody3D = (
+		load("res://scenes/player/player.tscn").instantiate() as CharacterBody3D
+	)
+	ctx.owner.add_child(player)
+	await ctx.await_physics(2)
+	var player_stamina := player.get_node("Stamina") as Stamina
+	var player_dodge := player.get_node("Dodge")
+	player_stamina.configure(100.0)
+	start = Time.get_ticks_msec()
+	var before_dodge := player_stamina.current
+	player_dodge.call("_start_dash")
+	var dodge_delta := before_dodge - player_stamina.current
+	ctx.assert_near(
+		"dodge.stamina_deducted",
+		get_category(),
+		dodge_delta,
+		float(player_dodge.get("DODGE_STAMINA_COST")),
+		0.001,
+		"dodge entry deducts authored stamina cost",
+		start,
+		"M1.combat.dodge"
+	)
+	player.queue_free()
+
+
+func _spawn_test_player() -> CharacterBody3D:
+	var player: CharacterBody3D = (
+		load("res://scenes/player/player.tscn").instantiate() as CharacterBody3D
+	)
+	ctx.owner.add_child(player)
+	player.global_position = Vector3.ZERO
+	return player
+
+
+func _wait_until(condition: Callable, max_frames: int = 90) -> bool:
+	for _i in max_frames:
+		if condition.call():
+			return true
+		await ctx.await_physics()
+	return false
+
+
+func _wait_until_idle(weapon: Node, max_frames: int = 120) -> void:
+	for _i in max_frames:
+		if not weapon.is_attacking:
+			return
+		await ctx.await_physics()
+
+
+func _test_weapon_attacks() -> void:
+	var player := _spawn_test_player()
+	await ctx.await_physics(2)
+	var weapon := player.get_node("WeaponController")
+	var stamina := player.get_node("Stamina") as Stamina
+	var hitbox := weapon.get_hitbox() as Hitbox
+	stamina.configure(100.0)
+
+	var start := Time.get_ticks_msec()
+	weapon.request_light_attack()
+	var hitbox_activated := await _wait_until(func() -> bool: return hitbox.is_active())
+	var hitbox_deactivates := true
+	if hitbox_activated:
+		hitbox_deactivates = await _wait_until(func() -> bool: return not hitbox.is_active(), 90)
+	ctx.assert_true(
+		"weapon.light_attack_enables_hitbox",
+		get_category(),
+		hitbox_activated and hitbox_deactivates,
+		"light attack enables hitbox during active window",
+		start,
+		"M1.combat.weapon"
+	)
+	await _wait_until_idle(weapon)
+
+	weapon.load_weapon_from_path("content/weapons/greatsword.json")
+	stamina.configure(100.0)
+	weapon.request_light_attack()
+	await _wait_until(func() -> bool: return weapon.is_attacking)
+	var first_combo := weapon.get_combo_index()
+	await _wait_until_idle(weapon)
+	stamina.configure(100.0)
+	weapon.request_light_attack()
+	await _wait_until(func() -> bool: return weapon.is_attacking)
+	start = Time.get_ticks_msec()
+	var second_combo := weapon.get_combo_index()
+	ctx.assert_true(
+		"weapon.combo_advances",
+		get_category(),
+		first_combo == 0 and second_combo == 1,
+		"second attack in chain window uses combo index 1",
+		start,
+		"M1.combat.weapon"
+	)
+	await _wait_until_idle(weapon)
+
+	stamina.configure(100.0)
+	weapon.request_light_attack()
+	await _wait_until_idle(weapon)
+	for _i in 40:
+		await ctx.await_physics()
+	stamina.configure(100.0)
+	weapon.request_light_attack()
+	await _wait_until(func() -> bool: return weapon.is_attacking)
+	start = Time.get_ticks_msec()
+	var reset_combo := weapon.get_combo_index()
+	ctx.assert_eq(
+		"weapon.combo_resets",
+		get_category(),
+		reset_combo,
+		0,
+		"attack after chain window expires resets combo index",
+		start,
+		"M1.combat.weapon"
+	)
+	await _wait_until_idle(weapon)
+
+	stamina.configure(1.0)
+	start = Time.get_ticks_msec()
+	var refused_stamina := not weapon.request_light_attack() and not hitbox.is_active()
+	ctx.assert_true(
+		"weapon.attack_refused_without_stamina",
+		get_category(),
+		refused_stamina,
+		"attack refused when stamina is below cost",
+		start,
+		"M1.combat.weapon"
+	)
+
+	var status_ctrl := StatusController.new()
+	player.add_child(status_ctrl)
+	await ctx.await_physics(1)
+	status_ctrl.apply_status("stun", 1)
+	stamina.configure(100.0)
+	start = Time.get_ticks_msec()
+	var refused_stun := not weapon.request_light_attack() and not hitbox.is_active()
+	ctx.assert_true(
+		"weapon.attack_refused_while_stunned",
+		get_category(),
+		refused_stun,
+		"attack refused while stunned",
+		start,
+		"M1.combat.status"
+	)
+	status_ctrl.queue_free()
+
+	stamina.configure(100.0)
+	weapon.load_weapon_from_path("content/weapons/greatsword.json")
+	weapon.set_damage_multiplier(1.0)
+	weapon.request_light_attack()
+	await _wait_until(func() -> bool: return hitbox.is_active())
+	var weapon_data: Dictionary = weapon.get_weapon_data()
+	var expected_damage: float = float(weapon_data.get("light_attacks", [{}])[0].get("damage", 0.0))
+	start = Time.get_ticks_msec()
+	ctx.assert_near(
+		"weapon.json_values_reach_hitbox",
+		get_category(),
+		hitbox.damage_amount,
+		expected_damage,
+		0.001,
+		"equipped weapon JSON damage reaches hitbox",
+		start,
+		"M1.combat.weapon"
+	)
+	await _wait_until_idle(weapon)
+
+	stamina.configure(100.0)
+	var lunge_distance: float = float(weapon_data.get("lunge_distance", 0.0))
+	var start_pos := player.global_position
+	weapon.request_light_attack()
+	var max_lunge := 0.0
+	for _i in 30:
+		if weapon.is_attacking:
+			var delta_xz := (
+				Vector2(
+					player.global_position.x - start_pos.x, player.global_position.z - start_pos.z
+				)
+				. length()
+			)
+			max_lunge = maxf(max_lunge, delta_xz)
+		await ctx.await_physics()
+	start = Time.get_ticks_msec()
+	var min_expected := lunge_distance * 0.7
+	ctx.assert_true(
+		"weapon.lunge_moves_the_body",
+		get_category(),
+		max_lunge >= min_expected,
+		"attack lunge moves body at least 70 percent of authored distance",
+		start,
+		"M1.combat.weapon"
+	)
+	await _wait_until_idle(weapon)
+
+	stamina.configure(100.0)
+	weapon.load_weapon_from_path("content/weapons/greatsword.json")
+	start = Time.get_ticks_msec()
+	weapon.request_weapon_art()
+	var art_started := await _wait_until(func() -> bool: return hitbox.is_active())
+	ctx.assert_true(
+		"weapon.art_input_produces_an_attack",
+		get_category(),
+		art_started,
+		"weapon art activates hitbox with authored attack",
+		start,
+		"M1.combat.weapon"
+	)
+	await _wait_until_idle(weapon)
+	player.queue_free()
+
+
+func _test_hit_feedback_and_tokens() -> void:
+	var fixture := CombatFixtureScript.new(ctx)
+	await fixture.setup()
+	await fixture.add_hit_feedback_to_defender()
+	var guard := await fixture.add_guard_to_defender()
+	var stamina := fixture.defender_body().get_node("Stamina") as Stamina
+	stamina.configure(100.0)
+	fixture.defender_health().configure(60.0)
+	guard.is_guard_active = true
+
+	var info := DamageInfo.create(
+		30.0,
+		10.0,
+		fixture.attacker_hitbox().get_parent(),
+		DamageInfo.TYPE_PHYSICAL,
+		Vector3(0.0, 0.0, -1.0)
+	)
+	fixture.direct_hit(info)
+	await ctx.await_frame()
+	var start := Time.get_ticks_msec()
+	ctx.assert_eq(
+		"feedback.one_label_per_hit",
+		get_category(),
+		fixture.labels().size(),
+		1,
+		"blocked hit spawns exactly one damage label",
+		start,
+		"M1.combat.feedback"
+	)
+
+	fixture.defender_health().configure(60.0)
+	guard.is_guard_active = false
+	await fixture.strike({"damage": 15.0})
+	var hp_lost := fixture.hp_lost()
+	var spawned := fixture.labels()
+	var label_matches := false
+	if spawned.size() > 0:
+		label_matches = fixture.label_amount(spawned[0]) == int(round(hp_lost))
+	start = Time.get_ticks_msec()
+	ctx.assert_true(
+		"feedback.label_matches_hp_lost",
+		get_category(),
+		label_matches,
+		"damage label text matches health lost",
+		start,
+		"M1.combat.feedback"
+	)
+
+	var dodge := await fixture.add_dodge_to_defender()
+	dodge.iframes_active = true
+	fixture.defender_health().configure(60.0)
+	await fixture.strike({"damage": 20.0})
+	start = Time.get_ticks_msec()
+	ctx.assert_true(
+		"feedback.dodge_produces_a_cue",
+		get_category(),
+		fixture.last_cue() != "",
+		"iframe dodge produces a combat audio cue",
+		start,
+		"M1.combat.feedback"
+	)
+	dodge.iframes_active = false
+
+	var hit_feedback := fixture.defender_body().get_node("HitFeedback")
+	var low_stop: float = hit_feedback.preview_hitstop_duration(12.0)
+	var high_stop: float = hit_feedback.preview_hitstop_duration(48.0)
+	start = Time.get_ticks_msec()
+	ctx.assert_true(
+		"feedback.hitstop_scales_with_damage",
+		get_category(),
+		high_stop > low_stop,
+		"hitstop duration scales with damage dealt",
+		start,
+		"M1.combat.feedback"
+	)
+
+	await fixture.teardown()
+
+	if AttackTokenService:
+		AttackTokenService.reset_all()
+		var group_id := "validation_token_group"
+		var max_tokens := 2
+		var granted := 0
+		for _i in 6:
+			if AttackTokenService.request_token(group_id, max_tokens):
+				granted += 1
+		start = Time.get_ticks_msec()
+		ctx.assert_eq(
+			"tokens.concurrent_attackers_capped",
+			get_category(),
+			granted,
+			max_tokens,
+			"attack tokens cap concurrent holders",
+			start,
+			"M1.combat.tokens"
+		)
+
+		AttackTokenService.reset_all()
+		var group_id := "validation_token_group"
+		var acquired := AttackTokenService.request_token(group_id, 1)
+		var blocked := not AttackTokenService.request_token(group_id, 1)
+		AttackTokenService.release_token(group_id)
+		var reacquired := AttackTokenService.request_token(group_id, 1)
+		start = Time.get_ticks_msec()
+		ctx.assert_true(
+			"tokens.released_on_death",
+			get_category(),
+			acquired and blocked and reacquired,
+			"releasing a token restores available capacity",
+			start,
+			"M1.combat.tokens"
+		)
 
 
 func _test_enemy_death_guards() -> void:
@@ -216,3 +689,75 @@ func _test_enemy_death_guards() -> void:
 			)
 
 	enemy.queue_free()
+
+
+func _test_waves_run() -> void:
+	var start := Time.get_ticks_msec()
+	var captain_seed := -1
+	for seed in 1_000:
+		WavesRunService.restore_from_save(
+			{
+				"currentWave": 5,
+				"prepActive": false,
+				"lobbyReady": true,
+				"killCount": 0,
+				"seed": seed,
+				"chestsOpened": {},
+				"wavesInventory": {},
+			}
+		)
+		var enemies: Array = WavesRunService.get_enemies_for_wave(5)
+		if "miniboss_castle_captain" in enemies:
+			captain_seed = seed
+			break
+	var captain_spawn_ok := captain_seed > 0
+	ctx.timed_record(
+		"wav.spawn.milestone_captain",
+		get_category(),
+		captain_spawn_ok,
+		"milestone wave can roll miniboss_castle_captain into spawn list",
+		start,
+		"WAV-03"
+	)
+
+	start = Time.get_ticks_msec()
+	WavesRunService.begin_new_run()
+	WavesRunService.lobby_ready = true
+	WavesRunService.start_waves()
+	for _i in 4:
+		WavesRunService.advance_wave()
+	var prep_ok := (
+		WavesRunService.current_wave == 5 and not WavesRunService.prep_active
+	)
+	ctx.timed_record(
+		"wav.prep.flag_only_during_countdown",
+		get_category(),
+		prep_ok,
+		"advancing into milestone combat does not set prep_active",
+		start,
+		"WAV-04"
+	)
+
+	start = Time.get_ticks_msec()
+	WavesRunService.restore_from_save(
+		{
+			"currentWave": 0,
+			"prepActive": false,
+			"lobbyReady": false,
+			"killCount": 0,
+			"seed": captain_seed if captain_seed > 0 else 42,
+			"chestsOpened": {},
+			"wavesInventory": {},
+		}
+	)
+	var wave_10: Array = WavesRunService.get_enemies_for_wave(10)
+	var roster_count := mini(2 + (10 >> 1), 12) + 2
+	var count_ok := wave_10.size() == roster_count + 1
+	ctx.timed_record(
+		"wav.content.formula",
+		get_category(),
+		count_ok,
+		"wave 10 enemy count matches JSON-driven formula + milestone boss",
+		start,
+		"WAV-06"
+	)

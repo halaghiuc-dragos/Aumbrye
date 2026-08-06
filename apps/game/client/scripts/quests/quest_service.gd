@@ -8,12 +8,13 @@ const STATE_INACTIVE := "inactive"
 const STATE_ACTIVE := "active"
 const STATE_COMPLETED := "completed"
 
+const RunLifecycleScript := preload("res://scripts/app/run_lifecycle.gd")
+
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	RunFlow.run_started.connect(_on_run_started)
 	RunFlow.run_ended.connect(_on_run_ended)
-	RunFlow.returned_to_hub.connect(_on_returned_to_hub)
 
 
 func accept_quest(quest_id: String) -> bool:
@@ -38,6 +39,8 @@ func complete_quest(quest_id: String) -> bool:
 	_grant_rewards(def)
 	CharacterService.set_quest_state(quest_id, STATE_COMPLETED)
 	quest_updated.emit(quest_id, STATE_COMPLETED)
+	if AchievementService:
+		AchievementService.notify("quest_completed")
 	return true
 
 
@@ -55,6 +58,14 @@ func get_active_quests() -> Array[Dictionary]:
 	var result: Array[Dictionary] = []
 	for quest_id in QuestCatalog.get_all_ids():
 		if CharacterService.get_quest_state(quest_id) == STATE_ACTIVE:
+			result.append(QuestCatalog.get_definition(quest_id))
+	return result
+
+
+func get_completed_quests() -> Array[Dictionary]:
+	var result: Array[Dictionary] = []
+	for quest_id in QuestCatalog.get_all_ids():
+		if CharacterService.get_quest_state(quest_id) == STATE_COMPLETED:
 			result.append(QuestCatalog.get_definition(quest_id))
 	return result
 
@@ -90,6 +101,10 @@ func register_fetch(item_id: String) -> void:
 		complete_quest(quest_id)
 
 
+func register_run_outcome(outcome: String, _context: Dictionary = {}) -> void:
+	_check_escape_quests(outcome == RunLifecycleScript.OUTCOME_ESCAPED)
+
+
 func _on_run_started() -> void:
 	for quest_id in QuestCatalog.get_all_ids():
 		if CharacterService.get_quest_state(quest_id) != STATE_ACTIVE:
@@ -100,15 +115,12 @@ func _on_run_started() -> void:
 
 
 func _on_run_ended(_results: Dictionary) -> void:
-	_check_escape_quests(true)
-
-
-func _on_returned_to_hub(_message: String) -> void:
-	pass
-
-
-func check_escape_on_portal() -> void:
-	_check_escape_quests(true)
+	for quest_id in QuestCatalog.get_all_ids():
+		if CharacterService.get_quest_state(quest_id) != STATE_ACTIVE:
+			continue
+		var def := QuestCatalog.get_definition(quest_id)
+		if def.get("type", "") == "escape":
+			CharacterService.set_quest_progress(quest_id, {"escaped": false})
 
 
 func _check_escape_quests(escaped: bool) -> void:
@@ -130,4 +142,6 @@ func _grant_rewards(def: Dictionary) -> void:
 		CharacterService.add_gold(int(rewards.get("gold", 0)))
 	for item_entry in rewards.get("items", []):
 		if item_entry is Dictionary:
-			InventoryService.add_item(str(item_entry.get("itemId", "")), int(item_entry.get("quantity", 1)))
+			InventoryService.add_item(
+				str(item_entry.get("itemId", "")), int(item_entry.get("quantity", 1))
+			)

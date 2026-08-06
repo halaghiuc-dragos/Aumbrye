@@ -1,20 +1,13 @@
 extends Node3D
 
-## Hand-authored Forgotten Castle vertical slice layout (DUNGEON-2.1).
-
-const ROOM_SCENES := {
-	"castle_entrance": preload("res://scenes/rooms/castle/castle_entrance.tscn"),
-	"castle_stairs": preload("res://scenes/rooms/castle/castle_stairs.tscn"),
-	"castle_courtyard": preload("res://scenes/rooms/castle/castle_courtyard.tscn"),
-	"castle_hall": preload("res://scenes/rooms/castle/castle_hall.tscn"),
-	"castle_treasure": preload("res://scenes/rooms/castle/castle_treasure.tscn"),
-	"castle_secret": preload("res://scenes/rooms/castle/castle_secret.tscn"),
-	"castle_arena": preload("res://scenes/rooms/castle/castle_arena.tscn"),
-	"castle_boss": preload("res://scenes/rooms/castle/castle_boss.tscn"),
-}
+## Editor/validation fixture only — hand-authored Forgotten Castle layout (DUNGEON-2.1).
+## Not wired to RunFlow; production runs use `castle_run.tscn` + procgen definitions.
+## Fixture JSON: `content/fixtures/forgotten_castle_slice.json` for `DungeonBuilder.build()`.
 
 @export var player_path: NodePath = NodePath("Player")
 @export var hud_path: NodePath = NodePath("CombatHUD")
+
+const EXIT_ROOM_ID := "boss"
 
 var _player: CharacterBody3D
 var _boss_door_open := false
@@ -44,7 +37,16 @@ func open_boss_door() -> void:
 
 
 func open_exit_portal() -> void:
-	var portal := get_node_or_null("Rooms/CastleBoss/Props/ExitPortal") as Area3D
-	if portal:
-		portal.monitoring = true
-		portal.visible = true
+	var portal := _find_exit_portal()
+	if portal and portal.has_method("activate"):
+		portal.call("activate")
+
+
+func _find_exit_portal() -> Area3D:
+	var rooms := get_node_or_null("Rooms")
+	if rooms == null:
+		return null
+	for child in rooms.get_children():
+		if child is RoomTemplate and (child as RoomTemplate).room_id == EXIT_ROOM_ID:
+			return child.get_node_or_null("Props/ExitPortal") as Area3D
+	return null

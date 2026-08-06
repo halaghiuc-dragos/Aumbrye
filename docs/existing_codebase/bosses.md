@@ -30,7 +30,7 @@ Bosses are `CastleEnemyBase` subclasses (or 4-line id shims) spawned into the fl
 
 `DungeonBuilder._setup_boss` (`dungeon_builder.gd:533-564`) reads `definition.placements.boss`, defaults `enemyId` to `"boss_castle_knight"`, and on final floor + `BIOME_CASTLE` forces `"final_boss_forgotten_castle"`. Scene comes from `EnemyCatalog.get_scene(enemy_id)`. If the instance has a `boss_defeated` signal, it is connected; otherwise stair unlock / exit portal never fire from that path (`dungeon_builder.gd:562-563`, `602-607`).
 
-Stats load in `CastleEnemyBase._ready` via `get_enemy_id()` → `EnemyCatalog.get_definition`, not from the placement id. Floor tier HP scaling is applied after spawn (`dungeon_builder.gd:561`).
+Stats load in `CastleEnemyBase._ready` via `get_enemy_id()` → `EnemyCatalog.get_definition`. `DungeonBuilder` calls `set_catalog_id(enemy_id)` before `add_child` (`dungeon_builder.gd:635-636,722-723`) so placement ids override script defaults.
 
 ### Implemented phase bosses
 
@@ -45,11 +45,11 @@ Stats load in `CastleEnemyBase._ready` via `get_enemy_id()` → `EnemyCatalog.ge
 
 ### Final boss immunity
 
-`is_immune()` is true during SPIKES and PUZZLE+shield (`final_boss_forgotten_castle.gd:46-47`). It is checked only in `_on_hurt` (`:50-53`), which is connected to `Hurtbox.damaged` — emitted **after** `Health.take_damage` (`hurtbox.gd:55-61`, `castle_enemy_base.gd:79`). Immunity skips flinch, not HP loss.
+`is_immune()` is true during SPIKES and PUZZLE+shield (`final_boss_forgotten_castle.gd:46-47`). `Hurtbox.receive_hit` checks `is_immune()` before mitigation (`hurtbox.gd:72-75`) and emits `hit_resolved` with `outgoing = 0` — HP is not reduced while immune.
 
 ### Stub bosses
 
-`boss_frost_warlord.gd` and `boss_cathedral_hollow.gd` are four lines each: extend base AI, return their catalog id. No `boss_defeated`, no custom attacks. `miniboss_cathedral_bell` is the same pattern and is listed in biome `enemyPool`, not `bossPool`.
+`boss_frost_warlord.gd` and `boss_cathedral_hollow.gd` extend base AI, emit `boss_defeated` on death, and return their catalog ids. No custom phase kits beyond the shared state machine. `miniboss_cathedral_bell` remains a four-line id shim.
 
 ### UI
 
@@ -57,7 +57,7 @@ On first entry to room `"boss"`, `castle_run.gd:128-139` shows `BossIntro.show_i
 
 ### Hazard damage path
 
-`arena_hazard` / `crystal_pillar_hazard` toggle `$DamageArea.monitoring` while ACTIVE. The child script is `trap_damage_area.gd`, which calls `Hurtbox.receive_hit` — i-frames, guard, and defense apply. Parent `@export var damage` is never read; scene child values (8 / 10) win. `swamp_hydra` `hazard.set("damage", 6.0)` therefore does nothing to the trap.
+`arena_hazard` / `crystal_pillar_hazard` forward `@export damage` to the child `trap_damage_area` in `_ready` (`arena_hazard.gd:27-30`). Hydra `_spawn_poison_pool` instantiates `poison_pool.tscn` (`swamp_hydra.gd:9,149-154`).
 
 ## Contracts
 
@@ -74,14 +74,17 @@ On first entry to room `"boss"`, `castle_run.gd:128-139` shows `BossIntro.show_i
 | Surface | Status | Evidence |
 |---------|--------|----------|
 | Knight / hydra / sovereign kits | IMPLEMENTED | Phase scripts + hazard scenes |
-| Final boss 3-phase fight | PARTIAL | Phases real; immunity does not block damage (`final_boss_forgotten_castle.gd:50-53`) |
-| Frost / cathedral bosses | STUB | `boss_frost_warlord.gd:1-4`; no `boss_defeated` |
-| Swamp cleanse zones | PLACEHOLDER | Visual only; `is_cleanse_active` unused (`swamp_cleanse_zone.gd:29-30`) |
-| Biome `boss_*` JSON vs script ids | BROKEN | Script `get_enemy_id` ignores placement id — wrong stats load |
-| `miniboss_castle_captain` | FAKE | Points at `castle_knight.tscn`; loads 600 HP knight stats |
+| Final boss 3-phase fight + real immunity | IMPLEMENTED | `final_boss_forgotten_castle.gd`, `hurtbox.gd:72-75` |
+| Frost / cathedral `boss_defeated` | IMPLEMENTED | `boss_frost_warlord.gd`, `boss_cathedral_hollow.gd` |
+| Placement catalog id override | IMPLEMENTED | `set_catalog_id` in `dungeon_builder.gd` |
+| Swamp cleanse zones | IMPLEMENTED | `swamp_cleanse_zone.gd:35-48` clears poison on overlap |
+| Hydra poison pools | IMPLEMENTED | `POISON_POOL_SCENE` in `swamp_hydra.gd:9,149` |
+| Hazard damage export forwarding | IMPLEMENTED | `arena_hazard.gd:27-30` |
+| Frost / cathedral phase kits | STUB | Base AI only — no custom attacks |
+| Multi-phase boss save state | PARTIAL | Only final boss extends `capture_state` |
 | Boss intro / epilogue | IMPLEMENTED | `castle_run.gd:128-139`, `:477-484` |
 
 ## Related
 
-- Improvement plan: [`../actual_improvements/bosses.md`](../actual_improvements/bosses.md)
+- Improvement plan: [`../actual_improvements/bosses.md`](../actual_improvements/bosses.md) — **FINISHED**
 - [`enemies.md`](enemies.md), [`combat-hazards.md`](combat-hazards.md), [`dungeon-traps.md`](dungeon-traps.md), [`castle-run.md`](castle-run.md), [`hit-hurtboxes.md`](hit-hurtboxes.md)
