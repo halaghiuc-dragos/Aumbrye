@@ -261,7 +261,7 @@ jobs:
         id: godot_version
         run: echo "value=$(cat .godot-version)" >> $GITHUB_OUTPUT
       - name: Setup Godot
-        uses: chickensoft-games/setup-godot@v1
+        uses: chickensoft-games/setup-godot@v2
         with:
           version: ${{ steps.godot_version.outputs.value }}
           include-templates: false
@@ -310,7 +310,7 @@ jobs:
         id: godot_version
         run: echo "value=$(cat apps/game/client/.godot-version)" >> $GITHUB_OUTPUT
       - name: Setup Godot with export templates
-        uses: chickensoft-games/setup-godot@v1
+        uses: chickensoft-games/setup-godot@v2
         with:
           version: ${{ steps.godot_version.outputs.value }}
           include-templates: true
