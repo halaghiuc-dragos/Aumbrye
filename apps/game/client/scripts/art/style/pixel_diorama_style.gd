@@ -86,7 +86,9 @@ static func _ensure_palettes_loaded() -> void:
 	_palette_loaded = true
 	var data := ContentLoader.load_json(PALETTE_JSON_PATH)
 	if data.is_empty():
-		push_warning("PixelDioramaStyle: failed to load %s; using fallback PALETTES" % PALETTE_JSON_PATH)
+		push_warning(
+			"PixelDioramaStyle: failed to load %s; using fallback PALETTES" % PALETTE_JSON_PATH
+		)
 		_palette_rows = _fallback_palette_rows()
 		_biome_theme_map = _fallback_biome_theme_map()
 		return
@@ -139,10 +141,10 @@ static func _atlas_path_for_theme(theme: PaletteTheme) -> String:
 
 
 static func _load_tile_atlas(path: String) -> Texture2D:
-	var image := Image.load_from_file(ProjectSettings.globalize_path(path))
-	if image == null:
-		return null
-	return ImageTexture.create_from_image(image)
+	var loaded := load(path)
+	if loaded is Texture2D:
+		return loaded
+	return null
 
 
 static func _theme_has_tile_atlas(theme: PaletteTheme) -> bool:
@@ -150,8 +152,7 @@ static func _theme_has_tile_atlas(theme: PaletteTheme) -> bool:
 	if _atlas_exists_cache.has(theme_id):
 		return bool(_atlas_exists_cache[theme_id])
 	var path := _atlas_path_for_theme(theme)
-	var global_path := ProjectSettings.globalize_path(path)
-	var exists := FileAccess.file_exists(global_path)
+	var exists := ResourceLoader.exists(path)
 	_atlas_exists_cache[theme_id] = exists
 	return exists
 
@@ -356,8 +357,7 @@ static func get_palette_color(theme: PaletteTheme, slot: PaletteSlot) -> Color:
 	var idx := clampi(int(theme), 0, _palette_rows.size() - 1)
 	if idx != int(theme):
 		push_warning(
-			"PixelStyle.get_palette_color: theme %d out of range, clamped to %d"
-			% [int(theme), idx]
+			"PixelStyle.get_palette_color: theme %d out of range, clamped to %d" % [int(theme), idx]
 		)
 	return _palette_rows[idx][slot] as Color
 
@@ -591,9 +591,15 @@ static func make_portal_material(portal_id: String) -> ShaderMaterial:
 	var interior: Dictionary = def.get("interior", {})
 	var mat := ShaderMaterial.new()
 	mat.shader = load(PORTAL_SHADER_PATH) as Shader
-	mat.set_shader_parameter("color_inner", _color_from_hex(str(interior.get("color_inner", "#8cc7ff"))))
-	mat.set_shader_parameter("color_outer", _color_from_hex(str(interior.get("color_outer", "#29479e"))))
-	mat.set_shader_parameter("color_accent", _color_from_hex(str(interior.get("color_accent", "#e6f5ff"))))
+	mat.set_shader_parameter(
+		"color_inner", _color_from_hex(str(interior.get("color_inner", "#8cc7ff")))
+	)
+	mat.set_shader_parameter(
+		"color_outer", _color_from_hex(str(interior.get("color_outer", "#29479e")))
+	)
+	mat.set_shader_parameter(
+		"color_accent", _color_from_hex(str(interior.get("color_accent", "#e6f5ff")))
+	)
 	var ellipse: Array = interior.get("ellipse", [0.72, 1.0])
 	mat.set_shader_parameter("ellipse_x", float(ellipse[0]))
 	mat.set_shader_parameter("ellipse_y", float(ellipse[1]))
@@ -604,7 +610,9 @@ static func make_portal_material(portal_id: String) -> ShaderMaterial:
 	return _portal_material_cache[portal_id] as ShaderMaterial
 
 
-static func make_portal_layer_material(portal_id: String, spin_scale: float, alpha: float) -> ShaderMaterial:
+static func make_portal_layer_material(
+	portal_id: String, spin_scale: float, alpha: float
+) -> ShaderMaterial:
 	var mat := make_portal_material(portal_id).duplicate() as ShaderMaterial
 	var base_spin := float(mat.get_shader_parameter("spin_speed"))
 	mat.set_shader_parameter("spin_speed", base_spin * spin_scale)
@@ -672,10 +680,7 @@ static func _add_portal_quad(
 ## Builds a complete portal: archway, layered interior, glow light, and accents.
 ## `def` is a portal definition from `PortalCatalog.resolve()`.
 static func build_portal(
-	parent: Node3D,
-	def: Dictionary,
-	scale: float = 1.0,
-	hub_mats: Dictionary = {}
+	parent: Node3D, def: Dictionary, scale: float = 1.0, hub_mats: Dictionary = {}
 ) -> Node3D:
 	var existing := parent.get_node_or_null("DioramaVisuals")
 	if existing:
@@ -700,10 +705,16 @@ static func build_portal(
 	add_box(visuals, Vector3(3.6, 0.16, 1.8), o + Vector3(0.0, 0.28, 0.0), accent_mat, "Step")
 	add_box(visuals, Vector3(0.62, 3.6, 0.62), o + Vector3(-1.75, 1.8, 0.0), frame_mat, "PillarL")
 	add_box(visuals, Vector3(0.62, 3.6, 0.62), o + Vector3(1.75, 1.8, 0.0), frame_mat, "PillarR")
-	add_box(visuals, Vector3(0.92, 0.38, 0.92), o + Vector3(-1.75, 3.72, 0.0), accent_mat, "CapitalL")
-	add_box(visuals, Vector3(0.92, 0.38, 0.92), o + Vector3(1.75, 3.72, 0.0), accent_mat, "CapitalR")
+	add_box(
+		visuals, Vector3(0.92, 0.38, 0.92), o + Vector3(-1.75, 3.72, 0.0), accent_mat, "CapitalL"
+	)
+	add_box(
+		visuals, Vector3(0.92, 0.38, 0.92), o + Vector3(1.75, 3.72, 0.0), accent_mat, "CapitalR"
+	)
 	add_box(visuals, Vector3(4.2, 0.55, 0.72), o + Vector3(0.0, 3.95, 0.0), frame_mat, "Lintel")
-	add_box(visuals, Vector3(3.0, 0.22, 0.22), o + Vector3(0.0, 3.2, 0.0), accent_mat, "ArchKeystone")
+	add_box(
+		visuals, Vector3(3.0, 0.22, 0.22), o + Vector3(0.0, 3.2, 0.0), accent_mat, "ArchKeystone"
+	)
 	add_box(visuals, Vector3(0.35, 2.8, 0.35), o + Vector3(-1.2, 1.6, 0.28), frame_mat, "ButtressL")
 	add_box(visuals, Vector3(0.35, 2.8, 0.35), o + Vector3(1.2, 1.6, 0.28), frame_mat, "ButtressR")
 	add_portal_interior(visuals, Vector2(2.6, 2.2), o + Vector3(0.0, 1.55, 0.04), portal_id, depth)
@@ -825,7 +836,11 @@ static func _add_portal_accents(visuals: Node3D, mats: Dictionary, def: Dictiona
 		match str(accent_id):
 			"torch_pair":
 				add_box(
-					visuals, Vector3(0.2, 3.0, 0.2), Vector3(-1.55, 1.6, 0.15), mats.accent, "TorchL"
+					visuals,
+					Vector3(0.2, 3.0, 0.2),
+					Vector3(-1.55, 1.6, 0.15),
+					mats.accent,
+					"TorchL"
 				)
 				add_box(
 					visuals, Vector3(0.2, 3.0, 0.2), Vector3(1.55, 1.6, 0.15), mats.accent, "TorchR"
@@ -833,7 +848,11 @@ static func _add_portal_accents(visuals: Node3D, mats: Dictionary, def: Dictiona
 			"rune_ring":
 				var umbral_mat: Material = mats.get("umbral", mats.accent)
 				add_box(
-					visuals, Vector3(3.2, 0.18, 0.18), Vector3(0.0, 0.2, 0.85), umbral_mat, "RuneRing"
+					visuals,
+					Vector3(3.2, 0.18, 0.18),
+					Vector3(0.0, 0.2, 0.85),
+					umbral_mat,
+					"RuneRing"
 				)
 			"training_torches":
 				var training_mat: Material = mats.get("training", mats.accent)
@@ -859,21 +878,41 @@ static func _add_portal_accents(visuals: Node3D, mats: Dictionary, def: Dictiona
 					"TorchL"
 				)
 				add_box(
-					visuals, Vector3(0.18, 2.8, 0.18), Vector3(1.55, 1.6, 0.12), training_mat, "TorchR"
+					visuals,
+					Vector3(0.18, 2.8, 0.18),
+					Vector3(1.55, 1.6, 0.12),
+					training_mat,
+					"TorchR"
 				)
 			"dragon_horns":
 				var dragon_mat: Material = mats.get("dragon", mats.accent)
 				add_box(
-					visuals, Vector3(0.28, 0.55, 0.28), Vector3(-0.55, 3.72, 0.0), dragon_mat, "HornL"
+					visuals,
+					Vector3(0.28, 0.55, 0.28),
+					Vector3(-0.55, 3.72, 0.0),
+					dragon_mat,
+					"HornL"
 				)
 				add_box(
-					visuals, Vector3(0.28, 0.55, 0.28), Vector3(0.55, 3.72, 0.0), dragon_mat, "HornR"
+					visuals,
+					Vector3(0.28, 0.55, 0.28),
+					Vector3(0.55, 3.72, 0.0),
+					dragon_mat,
+					"HornR"
 				)
 				add_box(
-					visuals, Vector3(0.85, 0.12, 0.55), Vector3(-1.55, 1.9, 0.18), dragon_mat, "WingL"
+					visuals,
+					Vector3(0.85, 0.12, 0.55),
+					Vector3(-1.55, 1.9, 0.18),
+					dragon_mat,
+					"WingL"
 				)
 				add_box(
-					visuals, Vector3(0.85, 0.12, 0.55), Vector3(1.55, 1.9, 0.18), dragon_mat, "WingR"
+					visuals,
+					Vector3(0.85, 0.12, 0.55),
+					Vector3(1.55, 1.9, 0.18),
+					dragon_mat,
+					"WingR"
 				)
 				var forge_mat: Material = mats.get("forge", dragon_mat)
 				add_box(
@@ -982,15 +1021,7 @@ static func _build_structure_parts(
 		var node_name := str(part.get("name", ""))
 		var kind := str(part.get("kind", "box"))
 		if kind == "column":
-			add_portal_column(
-				visuals,
-				pos,
-				mat,
-				mats.get("accent", mat),
-				size.y,
-				size.x,
-				node_name
-			)
+			add_portal_column(visuals, pos, mat, mats.get("accent", mat), size.y, size.x, node_name)
 		else:
 			var mesh := add_box(visuals, size, pos, mat, node_name)
 			mesh.rotation = rot
@@ -998,11 +1029,7 @@ static func _build_structure_parts(
 
 
 static func _build_hub_tent(
-	parent: Node3D,
-	mats: Dictionary,
-	params: Dictionary,
-	facing_yaw: float,
-	def: Dictionary
+	parent: Node3D, mats: Dictionary, params: Dictionary, facing_yaw: float, def: Dictionary
 ) -> Node3D:
 	var width := float(params.get("width", 5.0))
 	var depth := float(params.get("depth", 4.2))

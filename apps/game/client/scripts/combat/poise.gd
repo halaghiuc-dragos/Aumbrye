@@ -23,12 +23,21 @@ func _ready() -> void:
 	poise_changed.emit(current, max_poise)
 
 
-func configure(max_value: float, stagger_duration: float = 1.2) -> void:
+## BUG-13: preserve_ratio=true scales the current build-up proportionally instead of refilling
+## it — required for callers that reconfigure max poise mid-run (the equipment path) so a stat
+## change cannot also erase in-progress stagger build-up. Spawn-time callers keep the default.
+func configure(
+	max_value: float, stagger_duration: float = 1.2, preserve_ratio: bool = false
+) -> void:
+	var old_max := max_poise
 	max_poise = max_value
-	current = max_value
-	_broken = false
+	if preserve_ratio and old_max > 0.0:
+		current = clampf((current / old_max) * max_poise, 0.0, max_poise)
+	else:
+		current = max_value
+		_broken = false
+		_break_timer = 0.0
 	_regen_timer = 0.0
-	_break_timer = 0.0
 	break_duration = maxf(0.1, stagger_duration)
 	poise_changed.emit(current, max_poise)
 

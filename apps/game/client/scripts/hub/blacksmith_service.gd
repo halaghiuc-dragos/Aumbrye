@@ -92,16 +92,21 @@ static func get_available_unlocks() -> Array[Dictionary]:
 		var item_id := str(recipe.get("itemId", ""))
 		if item_id == "" or not ItemCatalog.has_item(item_id):
 			if item_id != "":
-				push_warning("BlacksmithService: unlock recipe references missing item %s" % item_id)
+				push_warning(
+					"BlacksmithService: unlock recipe references missing item %s" % item_id
+				)
 			continue
-		rows.append(
-			{
-				"itemId": item_id,
-				"recipeId": str(recipe.get("id", "")),
-				"goldCost": int(recipe.get("goldCost", recipe.get("coinCost", 0))),
-				"requiredLevel": int(recipe.get("requiredLevel", 1)),
-				"owned": is_unlocked(item_id),
-			}
+		(
+			rows
+			. append(
+				{
+					"itemId": item_id,
+					"recipeId": str(recipe.get("id", "")),
+					"goldCost": int(recipe.get("goldCost", recipe.get("coinCost", 0))),
+					"requiredLevel": int(recipe.get("requiredLevel", 1)),
+					"owned": is_unlocked(item_id),
+				}
+			)
 		)
 	return rows
 
@@ -118,18 +123,25 @@ static func can_unlock(item_id: String) -> bool:
 	return CharacterService.can_afford(cost)
 
 
+## BUG-43: validate space before spending, and only record the recipe as owned after the item
+## has actually been granted. The old order spent gold, granted the permanent recipe unlock, and
+## only then checked inventory space — so a full bag on a failed unlock refunded the gold (with
+## the BUG-42 goldFind bonus stacked on top) but kept the recipe, leaving is_unlocked() true for
+## an item the player never received and can no longer buy through this path.
 static func unlock_item(item_id: String) -> Dictionary:
 	if not can_unlock(item_id):
 		return {"ok": false, "error": "cannot unlock"}
 	var recipe := RecipeCatalog.get_unlock_recipe_for_item(item_id)
 	var recipe_id := str(recipe.get("id", ""))
 	var cost := int(recipe.get("goldCost", recipe.get("coinCost", 0)))
+	if not InventoryService.inventory.has_space_for(item_id):
+		return {"ok": false, "error": "inventory full"}
 	if not CharacterService.spend_coins(cost):
 		return {"ok": false, "error": "not enough coins"}
-	LocalSave.add_owned_recipe(recipe_id)
 	if not InventoryService.add_item(item_id, 1):
-		CharacterService.add_coins(cost)
+		CharacterService.add_coins(cost, false)
 		return {"ok": false, "error": "inventory full"}
+	LocalSave.add_owned_recipe(recipe_id)
 	if AchievementService:
 		AchievementService.notify("blacksmith_craft")
 	return {"ok": true, "recipeId": recipe_id}

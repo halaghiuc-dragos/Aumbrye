@@ -24,6 +24,23 @@ var grid_height: int = DEFAULT_HEIGHT
 var slots: Array[Dictionary] = []
 var equipped: Dictionary = {}
 
+## BUG-18: single non-colliding source of instance ids, shared by every site that used to mint
+## its own — _normalize_slot (was `item_id_(x+y)`, which two stacks at (0,2) and (2,0) both
+## produce) and split_stack (was a millisecond timestamp, which two splits in the same
+## millisecond both produce). AffixRoller uses the same helper for naturally rolled drops.
+static var _next_instance_ordinal := 1
+
+
+static func mint_instance_id(item_id: String) -> String:
+	_next_instance_ordinal += 1
+	return "%s#%d" % [item_id, _next_instance_ordinal]
+
+
+## Restores the high-water mark from a save so newly minted ids cannot collide with ids already
+## on disk from a prior session.
+static func seed_instance_ordinal(high_water: int) -> void:
+	_next_instance_ordinal = maxi(_next_instance_ordinal, high_water)
+
 
 func _init(width: int = DEFAULT_WIDTH, height: int = DEFAULT_HEIGHT) -> void:
 	grid_width = width
@@ -133,6 +150,13 @@ func add_item(item_id: String, quantity: int = 1, instance_data: Dictionary = {}
 	var def := get_item_def(item_id)
 	if def.is_empty():
 		return false
+	# BUG-16: snapshot before mutating. The stacking pre-pass and the grid-placement pass both
+	# mutate `slots` directly; a stack that only partially fits used to leave that partial
+	# mutation in place while still returning false and skipping `changed` — the player was told
+	# the pickup failed while the items were, in fact, already in the grid.
+	var snapshot: Array[Dictionary] = []
+	for existing_slot in slots:
+		snapshot.append(existing_slot.duplicate(true))
 	var max_stack: int = def.get("stackSize", 1)
 	if max_stack > 1 and instance_data.is_empty():
 		for i in slots.size():
@@ -170,16 +194,14 @@ func add_item(item_id: String, quantity: int = 1, instance_data: Dictionary = {}
 			slots.append(_normalize_slot(slot_data))
 			quantity -= place_qty
 	if quantity > 0:
+		slots = snapshot
 		return false
 	changed.emit()
 	return true
 
 
 func add_rolled_item(
-	item_id: String,
-	roll_seed: int = -1,
-	run_mode: String = "",
-	instance_data: Dictionary = {}
+	item_id: String, roll_seed: int = -1, run_mode: String = "", instance_data: Dictionary = {}
 ) -> bool:
 	var instance := AffixRoller.roll_instance(item_id, roll_seed, "", run_mode)
 	if instance.is_empty():
@@ -250,8 +272,8 @@ func split_stack(index: int) -> bool:
 	slot["quantity"] = qty - half
 	var new_slot: Dictionary = slot.duplicate(true)
 	new_slot["quantity"] = half
-	new_slot["instanceId"] = "%s_%d" % [str(slot.get("instanceId", "item")), Time.get_ticks_msec()]
 	var item_id: String = str(slot.get("itemId", ""))
+	new_slot["instanceId"] = mint_instance_id(item_id)
 	var pos := _find_first_fit(item_id)
 	if pos.x < 0:
 		slot["quantity"] = qty
@@ -317,6 +339,11 @@ func filter_slots(type_filter: String, rarity_filter: String) -> Array[Dictionar
 	return filtered
 
 
+## BUG-17: free the incoming item's cells *before* the outgoing item looks for space. A
+## same-size-or-smaller swap is space-neutral overall, but the old order called
+## _return_equipped_to_grid() (which runs _find_first_fit()) while the incoming item was still
+## occupying its own cells — so a full grid refused a swap that should always have succeeded,
+## because the outgoing item was never given the room the incoming item was about to vacate.
 func equip_from_index(index: int, slot_name: String = "") -> bool:
 	if index < 0 or index >= slots.size():
 		return false
@@ -327,14 +354,15 @@ func equip_from_index(index: int, slot_name: String = "") -> bool:
 	if target_slot == "" or not EquipmentHelper.can_equip_in_slot(def, target_slot):
 		return false
 	var previous: Dictionary = equipped.get(target_slot, {})
+	slots.remove_at(index)
 	if not previous.is_empty():
 		if not _return_equipped_to_grid(target_slot):
+			slots.insert(index, slot)
 			return false
 	var instance := slot.duplicate()
 	instance.erase("x")
 	instance.erase("y")
 	equipped[target_slot] = instance
-	slots.remove_at(index)
 	item_equipped.emit(item_id, target_slot)
 	changed.emit()
 	return true
@@ -450,9 +478,10 @@ func _normalize_slot(slot: Dictionary) -> Dictionary:
 	if slot.has("rollSeed"):
 		slot["rollSeed"] = int(slot.get("rollSeed", 0))
 	if not slot.has("instanceId"):
+		# BUG-18: was `item_id_(x+y)`, which collides for any two same-named stacks whose grid
+		# coordinates sum to the same value (e.g. (0,2) and (2,0)) — a monotonic mint cannot.
 		var item_id: String = slot.get("itemId", "")
-		var seed_val: int = int(slot.get("rollSeed", slot.get("x", 0) + slot.get("y", 0)))
-		slot["instanceId"] = "%s_%d" % [item_id, seed_val]
+		slot["instanceId"] = mint_instance_id(item_id)
 	return slot
 
 
@@ -504,7 +533,14 @@ func _find_first_fit(item_id: String) -> Vector2i:
 	return Vector2i(-1, -1)
 
 
+## BUG-16 (repack variant): a sort must never delete items. `_find_first_fit` is a greedy
+## placement and a different sort order can fragment the grid enough that not everything fits
+## even though the total occupied area is unchanged — the old code silently dropped whatever
+## didn't fit. Abort and restore the pre-sort layout instead.
 func _repack_slots() -> void:
+	var original: Array[Dictionary] = []
+	for slot in slots:
+		original.append(slot.duplicate(true))
 	var packed: Array[Dictionary] = []
 	for slot in slots:
 		packed.append(slot.duplicate())
@@ -513,7 +549,8 @@ func _repack_slots() -> void:
 		var item_id: String = slot.get("itemId", "")
 		var pos := _find_first_fit(item_id)
 		if pos.x < 0:
-			continue
+			slots = original
+			return
 		slot["x"] = pos.x
 		slot["y"] = pos.y
 		slots.append(slot)

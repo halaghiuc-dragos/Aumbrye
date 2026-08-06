@@ -23,7 +23,9 @@ static func get_sell_price(item_id: String) -> int:
 static func get_slot_unit_sell_price(slot: Dictionary) -> int:
 	var item_id: String = slot.get("itemId", "")
 	var base := maxi(1, ItemCatalog.get_loot_value(item_id))
-	var rarity := str(slot.get("rarity", ItemCatalog.get_definition(item_id).get("rarity", "common")))
+	var rarity := str(
+		slot.get("rarity", ItemCatalog.get_definition(item_id).get("rarity", "common"))
+	)
 	var price := int(round(float(base) * RarityRegistryScript.sell_multiplier(rarity)))
 	price = int(
 		round(float(price) * EquipmentScript.upgrade_multiplier(int(slot.get("upgradeLevel", 0))))
@@ -73,27 +75,38 @@ static func get_available_stock(merchant_id: String = "hub_merchant") -> Array[D
 	return result
 
 
+## BUG-43: validate everything, then commit — never spend and refund. Stock, affordability and
+## inventory space are all checked before CharacterService.spend_gold() runs, so the common
+## failure paths no longer need a refund at all. add_loot() can still fail after the space check
+## (a stack/placement edge case) — that residual path still refunds, and BUG-42 makes sure the
+## refund does not also apply the goldFind bonus.
 static func buy_item(item_id: String, merchant_id: String = "hub_merchant") -> Dictionary:
-	var price := get_buy_price(item_id, merchant_id)
-	if not CharacterService.spend_gold(price):
-		return {"ok": false, "error": "not enough gold"}
+	var found_entry: Dictionary = {}
 	for entry in MerchantCatalog.get_stock(merchant_id):
 		if entry is Dictionary and entry.get("itemId", "") == item_id:
-			var stock: int = int(entry.get("stock", 99))
-			var bought: int = int(get_purchased(merchant_id).get(item_id, 0))
-			if bought >= stock:
-				CharacterService.add_gold(price)
-				return {"ok": false, "error": "out of stock"}
-			if not InventoryService.add_loot(item_id, {"quantity": 1}):
-				CharacterService.add_gold(price)
-				return {"ok": false, "error": "inventory full"}
-			LocalSave.increment_merchant_purchase(merchant_id, item_id)
-			LocalSave.request_autosave(LocalSave.SavePriority.DEFERRED)
-			if AchievementService:
-				AchievementService.notify("merchant_buy")
-			return {"ok": true}
-	CharacterService.add_gold(price)
-	return {"ok": false, "error": "item not sold here"}
+			found_entry = entry
+			break
+	if found_entry.is_empty():
+		return {"ok": false, "error": "item not sold here"}
+	var stock: int = int(found_entry.get("stock", 99))
+	var bought: int = int(get_purchased(merchant_id).get(item_id, 0))
+	if bought >= stock:
+		return {"ok": false, "error": "out of stock"}
+	var price := get_buy_price(item_id, merchant_id)
+	if not CharacterService.can_afford(price):
+		return {"ok": false, "error": "not enough gold"}
+	if not InventoryService.inventory.has_space_for(item_id):
+		return {"ok": false, "error": "inventory full"}
+	if not CharacterService.spend_gold(price):
+		return {"ok": false, "error": "not enough gold"}
+	if not InventoryService.add_loot(item_id, {"quantity": 1}):
+		CharacterService.add_gold(price, false)
+		return {"ok": false, "error": "inventory full"}
+	LocalSave.increment_merchant_purchase(merchant_id, item_id)
+	LocalSave.request_autosave(LocalSave.SavePriority.DEFERRED)
+	if AchievementService:
+		AchievementService.notify("merchant_buy")
+	return {"ok": true}
 
 
 static func sell_item(inv_index: int, quantity: int = -1) -> Dictionary:

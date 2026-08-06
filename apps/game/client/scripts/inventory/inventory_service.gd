@@ -67,9 +67,16 @@ func add_loot(item_id: String, opts: Dictionary = {}) -> bool:
 	var quantity: int = int(opts.get("quantity", 1))
 	var added := false
 	if _should_roll_loot(def, bool(opts.get("roll", false))):
-		var roll_seed := int(opts.get("rollSeed", _loot_roll_seed(item_id)))
+		# BUG-14: an explicit rollSeed (opts) is an intentional reproduce-this-exact-item
+		# request and is reused verbatim across quantity — a natural loot roll instead mixes a
+		# fresh per-drop ordinal into the seed on every unit, so two copies of the same item in
+		# one run (or two units of one add_loot(quantity=N) call) do not roll identically.
+		var explicit_seed: Variant = opts.get("rollSeed")
 		var run_mode := RunFlow.get_run_mode() if RunFlow else ""
 		for _i in quantity:
+			var roll_seed := (
+				int(explicit_seed) if explicit_seed != null else _loot_roll_seed(item_id)
+			)
 			added = inventory.add_rolled_item(item_id, roll_seed, run_mode, instance_data)
 			if not added:
 				break
@@ -97,10 +104,15 @@ func _should_roll_loot(def: Dictionary, force_roll: bool = false) -> bool:
 	return bool(def.get("rollAffixes", false))
 
 
+## BUG-14: mixes a monotonic per-run drop ordinal into the seed so every natural drop is unique
+## even for repeat copies of the same item — the previous formula was a pure function of
+## (run seed, item_id), constant for the whole run, so every iron_greatsword drop in one run
+## rolled the same rarity, the same affixes and the same instance id.
 func _loot_roll_seed(item_id: String) -> int:
 	if not RunFlow or RunFlow.current_seed <= 0:
 		return -1
-	return RunFlow.current_seed + hash(item_id) & 0x7fffffff
+	var ordinal := RunFlow.next_loot_drop_ordinal()
+	return (RunFlow.current_seed ^ (hash(item_id) * 2654435761) ^ (ordinal * 40503)) & 0x7fffffff
 
 
 func _on_item_added_success(item_id: String, instance_data: Dictionary) -> void:
@@ -124,9 +136,7 @@ func _notify_item_obtained(item_id: String, instance_data: Dictionary) -> void:
 	var rarity := str(instance_data.get("rarity", ""))
 	if rarity == "":
 		rarity = str(get_item_def(item_id).get("rarity", "common"))
-	AchievementService.notify(
-		"item_obtained", {"rarity": RarityRegistryScript.normalize(rarity)}
-	)
+	AchievementService.notify("item_obtained", {"rarity": RarityRegistryScript.normalize(rarity)})
 	_check_full_equip_achievement()
 
 
@@ -331,7 +341,10 @@ func apply_equipment_to_player_node(player: Node) -> void:
 	var health := player.get_node_or_null("Health") as Health
 	if health:
 		var bonus_hp: float = float(merged_stats.get("maxHealth", 0.0))
-		health.configure(Health.MAX_HEALTH + bonus_hp)
+		# BUG-13: preserve_ratio=true — this path runs on every inventory change (add, remove,
+		# move, split, sort all emit `changed`), so refilling here would full-heal the player
+		# for free on any pickup, mid-fight.
+		health.configure(Health.MAX_HEALTH + bonus_hp, true)
 	var stamina := player.get_node_or_null("Stamina") as Stamina
 	if stamina:
 		var max_stamina := (
@@ -347,7 +360,9 @@ func apply_equipment_to_player_node(player: Node) -> void:
 			Poise.MAX_POISE + CombatStatModifiersScript.max_poise_bonus(equip_stats, talent_stats)
 		)
 		var break_dur := float(get_class_stats().get("poise_break_duration", 1.2))
-		poise.configure(max_poise, break_dur)
+		# BUG-13: preserve_ratio=true for the same reason as Health above — this must not clear
+		# an in-progress stagger build-up just because the inventory changed.
+		poise.configure(max_poise, break_dur, true)
 	var mana := player.get_node_or_null("Mana") as Mana
 	if mana:
 		var max_mana := (
@@ -381,18 +396,24 @@ func apply_equipment_to_player_node(player: Node) -> void:
 	)
 	player.set_meta("combat_defense", defense_points)
 	player.set_meta("combat_damage_reduction", float(talent_stats.get("damageReduction", 0.0)))
-	player.set_meta(
-		"combat_resistances",
-		{
-			DamageInfo.TYPE_PHYSICAL: clampf(float(merged_stats.get("resistPhysical", 0.0)), 0.0, 0.85),
-			DamageInfo.TYPE_FIRE: clampf(float(merged_stats.get("resistFire", 0.0)), 0.0, 0.85),
-			DamageInfo.TYPE_FROST: clampf(float(merged_stats.get("resistFrost", 0.0)), 0.0, 0.85),
-			DamageInfo.TYPE_POISON: clampf(float(merged_stats.get("resistPoison", 0.0)), 0.0, 0.85),
-			DamageInfo.TYPE_LIGHTNING: clampf(
-				float(merged_stats.get("resistLightning", 0.0)), 0.0, 0.85
-			),
-			DamageInfo.TYPE_ARCANE: clampf(float(merged_stats.get("resistArcane", 0.0)), 0.0, 0.85),
-		}
+	(
+		player
+		. set_meta(
+			"combat_resistances",
+			{
+				DamageInfo.TYPE_PHYSICAL:
+				clampf(float(merged_stats.get("resistPhysical", 0.0)), 0.0, 0.85),
+				DamageInfo.TYPE_FIRE: clampf(float(merged_stats.get("resistFire", 0.0)), 0.0, 0.85),
+				DamageInfo.TYPE_FROST:
+				clampf(float(merged_stats.get("resistFrost", 0.0)), 0.0, 0.85),
+				DamageInfo.TYPE_POISON:
+				clampf(float(merged_stats.get("resistPoison", 0.0)), 0.0, 0.85),
+				DamageInfo.TYPE_LIGHTNING:
+				clampf(float(merged_stats.get("resistLightning", 0.0)), 0.0, 0.85),
+				DamageInfo.TYPE_ARCANE:
+				clampf(float(merged_stats.get("resistArcane", 0.0)), 0.0, 0.85),
+			}
+		)
 	)
 	_apply_equipment_visuals(player)
 	equipment_stats_changed.emit(merged_stats)
@@ -529,9 +550,7 @@ func split_stack_at_index(index: int) -> bool:
 	return inventory.split_stack(index)
 
 
-static func migrate_quick_slots_from_indices(
-	slots: Array, quick_slots: Array
-) -> Array[String]:
+static func migrate_quick_slots_from_indices(slots: Array, quick_slots: Array) -> Array[String]:
 	var instances: Array[String] = ["", "", "", ""]
 	for i in mini(quick_slots.size(), 4):
 		var idx := int(quick_slots[i])

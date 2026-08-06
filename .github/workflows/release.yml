@@ -85,6 +85,8 @@ jobs:
         run: |
           mkdir -p ../../../artifacts/godot
           godot --headless --path . --export-release "Windows Desktop" ../../../artifacts/godot/aumbrye.exe
+      - name: Copy content data next to the export
+        run: rsync -a --exclude 'fixtures/' content/ artifacts/godot/content/
       - uses: actions/upload-artifact@v4
         with:
           name: godot-export-${{ inputs.tag }}

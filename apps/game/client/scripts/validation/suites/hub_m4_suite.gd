@@ -238,7 +238,9 @@ func _test_npc_dialogue_routing() -> void:
 	)
 	var routes_through_dialogue: bool = (
 		ctx.file_contains("res://scripts/npc/npc_base.gd", "_greeted_this_visit")
-		and ctx.file_contains("res://scripts/npc/npc_base.gd", "dialogue_requested.emit(npc_id, greet_id)")
+		and ctx.file_contains(
+			"res://scripts/npc/npc_base.gd", "dialogue_requested.emit(npc_id, greet_id)"
+		)
 	)
 	ctx.timed_record(
 		"hub_m4.npc.shop_dialogue_first",
@@ -614,7 +616,9 @@ func _test_hub_tips() -> void:
 	surface_hub.call("_on_save_loaded")
 	surface_hub.call("show_hub_message", "Welcome back, Tester.")
 	var tip_label: Label3D = surface_hub.get_node("Player/MessageAnchor/TipLabel") as Label3D
-	var message_label: Label3D = surface_hub.get_node("Player/MessageAnchor/MessageLabel") as Label3D
+	var message_label: Label3D = (
+		surface_hub.get_node("Player/MessageAnchor/MessageLabel") as Label3D
+	)
 	var surface_ok := (
 		tip_label.visible
 		and not tip_label.text.is_empty()
@@ -867,20 +871,12 @@ func _test_appearance_mirror() -> void:
 
 	start = Time.get_ticks_msec()
 	var profile := CharacterAppearanceScript.profile_from_indices(
-		PixelStyleScript.PaletteTheme.CASTLE,
-		2,
-		2,
-		2,
-		2,
-		1,
-		0,
-		0
+		PixelStyleScript.PaletteTheme.CASTLE, 2, 2, 2, 2, 1, 0, 0
 	)
 	profile["head"] = CharacterAppearanceScript.HEAD_HOOD
 	profile["trim"] = 2
 	var changed := false
-	var handler := func(_p: Dictionary) -> void:
-		changed = true
+	var handler := func(_p: Dictionary) -> void: changed = true
 	if not CharacterService.appearance_changed.is_connected(handler):
 		CharacterService.appearance_changed.connect(handler)
 	var before := LocalSave.get_appearance_profile()
@@ -923,13 +919,16 @@ func _test_appearance_mirror() -> void:
 
 	start = Time.get_ticks_msec()
 	var stage := Node3D.new()
-	var preview_profile := CharacterAppearanceScript.sanitize(
-		{
-			"head": CharacterAppearanceScript.HEAD_HOOD,
-			"trim": 2,
-			"heightVariant": CharacterAppearanceScript.HEIGHT_VARIANT_TALL,
-			"bulkVariant": CharacterAppearanceScript.BULK_VARIANT_HEAVY,
-		}
+	var preview_profile := (
+		CharacterAppearanceScript
+		. sanitize(
+			{
+				"head": CharacterAppearanceScript.HEAD_HOOD,
+				"trim": 2,
+				"heightVariant": CharacterAppearanceScript.HEIGHT_VARIANT_TALL,
+				"bulkVariant": CharacterAppearanceScript.BULK_VARIANT_HEAVY,
+			}
+		)
 	)
 	var visual := CharacterSkinScript.build_preview_body(stage, preview_profile)
 	var hood := CharacterSkinScript.find_part(visual, "Hood")
@@ -1040,13 +1039,19 @@ func _test_merchant_stock_and_sell() -> void:
 	)
 
 	start = Time.get_ticks_msec()
-	var common_slot := {"itemId": "iron_sword", "quantity": 1, "rarity": "common", "upgradeLevel": 0}
-	var legendary_slot := {"itemId": "iron_sword", "quantity": 1, "rarity": "legendary", "upgradeLevel": 3}
+	var common_slot := {
+		"itemId": "iron_sword", "quantity": 1, "rarity": "common", "upgradeLevel": 0
+	}
+	var legendary_slot := {
+		"itemId": "iron_sword", "quantity": 1, "rarity": "legendary", "upgradeLevel": 3
+	}
 	ctx.timed_record(
 		"merchant.sell_price_respects_rarity_and_upgrade",
 		get_category(),
-		MerchantService.get_slot_unit_sell_price(legendary_slot)
-		> MerchantService.get_slot_unit_sell_price(common_slot),
+		(
+			MerchantService.get_slot_unit_sell_price(legendary_slot)
+			> MerchantService.get_slot_unit_sell_price(common_slot)
+		),
 		"legendary +3 sells above common +0",
 		start,
 		"NPC-09"
@@ -1062,9 +1067,11 @@ func _test_merchant_stock_and_sell() -> void:
 	ctx.timed_record(
 		"merchant.buy_refunds_on_inventory_full",
 		get_category(),
-		not buy_fail.get("ok", false)
-		and buy_fail.get("error", "") == "inventory full"
-		and CharacterService.gold == gold_before,
+		(
+			not buy_fail.get("ok", false)
+			and buy_fail.get("error", "") == "inventory full"
+			and CharacterService.gold == gold_before
+		),
 		"inventory full buy refunds gold",
 		start,
 		"NPC-11"
@@ -1090,12 +1097,18 @@ func _test_blacksmith_systems() -> void:
 	)
 
 	start = Time.get_ticks_msec()
-	var aumbral_ok := BlacksmithService.get_max_upgrade_level_for_slot(
-		{"itemId": "castle_sword", "rarity": "aumbral"}
-	) == 10
-	var common_ok := BlacksmithService.get_max_upgrade_level_for_slot(
-		{"itemId": "castle_sword", "rarity": "common"}
-	) == 5
+	var aumbral_ok := (
+		BlacksmithService.get_max_upgrade_level_for_slot(
+			{"itemId": "castle_sword", "rarity": "aumbral"}
+		)
+		== 10
+	)
+	var common_ok := (
+		BlacksmithService.get_max_upgrade_level_for_slot(
+			{"itemId": "castle_sword", "rarity": "common"}
+		)
+		== 5
+	)
 	ctx.timed_record(
 		"blacksmith.upgrade_respects_rarity_cap",
 		get_category(),
@@ -1158,12 +1171,43 @@ func _test_blacksmith_systems() -> void:
 	ctx.timed_record(
 		"blacksmith.unlock_recipe_purchase",
 		get_category(),
-		unlock.get("ok", false)
-		and LocalSave.has_recipe("unlock_guard_spear")
-		and BlacksmithService.is_unlocked("guard_spear"),
+		(
+			unlock.get("ok", false)
+			and LocalSave.has_recipe("unlock_guard_spear")
+			and BlacksmithService.is_unlocked("guard_spear")
+		),
 		"unlock_item charges and records recipe",
 		start,
 		"NPC-06"
+	)
+
+	# BUG-43 regression: a full inventory must refuse the unlock before spending gold and
+	# without granting the recipe. The old order spent gold, recorded the recipe, then checked
+	# space — so a failed unlock refunded gold (with the BUG-42 bonus) but kept the recipe.
+	start = Time.get_ticks_msec()
+	LocalSave._cached_state["recipes"] = []
+	ProgressionService.level = 5
+	_set_test_gold(200)
+	var gold_before_full_bag := CharacterService.gold
+	var full_inv := GridInventory.new()
+	for _i in full_inv.grid_width * full_inv.grid_height:
+		full_inv.add_item("iron_scrap", 1)
+	var inv_backup := InventoryService.inventory
+	InventoryService.inventory = full_inv
+	var unlock_full := BlacksmithService.unlock_item("guard_spear")
+	InventoryService.inventory = inv_backup
+	ctx.timed_record(
+		"blacksmith.unlock_full_inventory_is_transactional",
+		get_category(),
+		(
+			not unlock_full.get("ok", false)
+			and unlock_full.get("error", "") == "inventory full"
+			and not LocalSave.has_recipe("unlock_guard_spear")
+			and CharacterService.gold == gold_before_full_bag
+		),
+		"failed unlock spends no gold and grants no recipe",
+		start,
+		"BUG-43"
 	)
 
 	start = Time.get_ticks_msec()
@@ -1209,18 +1253,22 @@ func _test_storage_fidelity() -> void:
 	var start := Time.get_ticks_msec()
 	var to_storage := StorageService.move_to_storage(0)
 	var back := (
-		StorageService.move_to_inventory(0)
-		if to_storage.get("ok", false)
-		else {"ok": false}
+		StorageService.move_to_inventory(0) if to_storage.get("ok", false) else {"ok": false}
 	)
-	var roundtrip := InventoryService.inventory.slots[0] if not InventoryService.inventory.slots.is_empty() else {}
+	var roundtrip := (
+		InventoryService.inventory.slots[0]
+		if not InventoryService.inventory.slots.is_empty()
+		else {}
+	)
 	ctx.timed_record(
 		"storage.transfer_preserves_instance",
 		get_category(),
-		to_storage.get("ok", false)
-		and back.get("ok", false)
-		and str(roundtrip.get("instanceId", "")) == "test_instance_1"
-		and int(roundtrip.get("upgradeLevel", 0)) == 3,
+		(
+			to_storage.get("ok", false)
+			and back.get("ok", false)
+			and str(roundtrip.get("instanceId", "")) == "test_instance_1"
+			and int(roundtrip.get("upgradeLevel", 0)) == 3
+		),
 		"storage transfer preserves rolled slot fields",
 		start,
 		"NPC-03"
@@ -1237,9 +1285,7 @@ func _test_storage_fidelity() -> void:
 	ctx.timed_record(
 		"storage.transfer_reports_full",
 		get_category(),
-		not full.get("ok", false)
-		and full.get("error", "") == "storage full"
-		and source_intact,
+		not full.get("ok", false) and full.get("error", "") == "storage full" and source_intact,
 		"storage full returns error and leaves source",
 		start,
 		"NPC-12"
@@ -1259,11 +1305,18 @@ func _test_storage_fidelity() -> void:
 	InventoryService.inventory.slots.append(key_slot)
 	StorageService.move_to_storage(0)
 	StorageService.move_to_inventory(0)
-	var key_back := InventoryService.inventory.slots[0] if not InventoryService.inventory.slots.is_empty() else {}
+	var key_back := (
+		InventoryService.inventory.slots[0]
+		if not InventoryService.inventory.slots.is_empty()
+		else {}
+	)
 	ctx.timed_record(
 		"storage.dungeon_key_survives_transfer",
 		get_category(),
-		str(key_back.get("keyId", "")) == "vault_a" and str(key_back.get("lockId", "")) == "vault_a",
+		(
+			str(key_back.get("keyId", "")) == "vault_a"
+			and str(key_back.get("lockId", "")) == "vault_a"
+		),
 		"dungeon key metadata survives storage transfer",
 		start,
 		"NPC-03"

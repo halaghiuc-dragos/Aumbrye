@@ -88,8 +88,8 @@ func get_coins() -> int:
 	return gold
 
 
-func add_coins(amount: int) -> void:
-	add_gold(amount)
+func add_coins(amount: int, apply_bonus: bool = true) -> void:
+	add_gold(amount, apply_bonus)
 
 
 func spend_coins(amount: int) -> bool:
@@ -100,13 +100,19 @@ func can_afford_coins(amount: int) -> bool:
 	return can_afford(amount)
 
 
-func add_gold(amount: int) -> void:
+## BUG-42: apply_bonus must be false for every refund/credit path (a failed purchase, a failed
+## unlock, a save restore) — goldFind is meant to reward *earning* gold, not crediting it back.
+## Applying it to refunds turned "fail a purchase with a full bag" into a repeatable money
+## printer, since the refund itself compounded the same bonus that made the bag fill up.
+func add_gold(amount: int, apply_bonus: bool = true) -> void:
 	if amount <= 0:
 		return
-	var bonus: float = 0.0
-	if ProgressionService:
-		bonus = float(ProgressionService.get_talent_stat_totals().get("goldFind", 0.0))
-	var adjusted := int(round(float(amount) * (1.0 + bonus)))
+	var adjusted := amount
+	if apply_bonus:
+		var bonus: float = 0.0
+		if ProgressionService:
+			bonus = float(ProgressionService.get_talent_stat_totals().get("goldFind", 0.0))
+		adjusted = int(round(float(amount) * (1.0 + bonus)))
 	if adjusted <= 0:
 		return
 	gold += adjusted
@@ -135,7 +141,9 @@ func get_quest_state(quest_id: String) -> String:
 
 func set_quest_state(quest_id: String, state: String) -> void:
 	if state not in VALID_QUEST_STATES:
-		push_warning("CharacterService: rejected unknown quest state '%s' for '%s'" % [state, quest_id])
+		push_warning(
+			"CharacterService: rejected unknown quest state '%s' for '%s'" % [state, quest_id]
+		)
 		return
 	quest_states[quest_id] = state
 	quests_changed.emit()
@@ -184,7 +192,8 @@ func to_save_dict() -> Dictionary:
 		"appearanceTheme": appearance_theme,
 		"appearance": appearance_profile.duplicate(true),
 		"flags": flags.duplicate(true),
-		"quests": {
+		"quests":
+		{
 			"states": quest_states.duplicate(true),
 			"progress": quest_progress.duplicate(true),
 		},
@@ -231,9 +240,7 @@ func _load_quests_from_save(saved: Variant) -> void:
 	quest_states.clear()
 	quest_progress.clear()
 	if not saved is Dictionary:
-		push_warning(
-			"CharacterService: quests payload is %s, expected Dictionary" % typeof(saved)
-		)
+		push_warning("CharacterService: quests payload is %s, expected Dictionary" % typeof(saved))
 		return
 	var quests: Dictionary = saved
 	if quests.has("states") or quests.has("progress"):

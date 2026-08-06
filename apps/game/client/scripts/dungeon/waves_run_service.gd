@@ -282,9 +282,9 @@ func transfer_early_exit_items(keep_fraction: float) -> Array[String]:
 
 func _roster_for_wave(wave: int) -> Array[String]:
 	var roster: Array[String] = []
-	for enemy_id in _definition.get("base_roster", [
-		"castle_grunt", "castle_archer", "castle_shield", "castle_hound"
-	]):
+	for enemy_id in _definition.get(
+		"base_roster", ["castle_grunt", "castle_archer", "castle_shield", "castle_hound"]
+	):
 		roster.append(str(enemy_id))
 	for unlock in _definition.get("roster_unlocks", []):
 		if not unlock is Dictionary:
@@ -325,7 +325,9 @@ func get_enemies_for_wave(wave: int) -> Array[String]:
 		if not milestone_bosses.is_empty():
 			var boss_rng := RandomNumberGenerator.new()
 			boss_rng.seed = _run_seed + wave * 911
-			enemies.append(str(milestone_bosses[boss_rng.randi_range(0, milestone_bosses.size() - 1)]))
+			enemies.append(
+				str(milestone_bosses[boss_rng.randi_range(0, milestone_bosses.size() - 1)])
+			)
 	return enemies
 
 
@@ -338,7 +340,9 @@ func apply_equipment_to_player(player: Node) -> void:
 	var health := player.get_node_or_null("Health") as Health
 	if health:
 		var bonus_hp: float = float(stats.get("maxHealth", 0.0))
-		health.configure(Health.MAX_HEALTH + bonus_hp)
+		# BUG-13: same fix as InventoryService.apply_equipment_to_player_node — this is called
+		# from the waves inventory UI on every equipment change, not only at wave start.
+		health.configure(Health.MAX_HEALTH + bonus_hp, true)
 	var weapon := player.get_node_or_null("WeaponController")
 	if weapon and weapon.has_method("load_weapon_from_path"):
 		weapon.load_weapon_from_path(waves_inventory.get_equipped_weapon_data_path())

@@ -27,6 +27,9 @@ func run() -> void:
 	_test_move_slot()
 	_test_inventory_ui_icons()
 	_test_add_loot_pipeline()
+	_test_add_item_is_transactional()
+	_test_equip_swap_when_grid_full()
+	await _test_inventory_change_does_not_heal_player()
 
 
 func _test_m2_basics() -> void:
@@ -193,8 +196,7 @@ func _test_add_loot() -> void:
 	start = Time.get_ticks_msec()
 	var external: Dictionary = LootTableLoaderScript.load_for_biome("forgotten_castle")
 	var has_armory: bool = (
-		external.has("armory")
-		and (external.get("armory", []) as Array).size() > 0
+		external.has("armory") and (external.get("armory", []) as Array).size() > 0
 	)
 	ctx.timed_record(
 		"inventory.loot_table.external_biome",
@@ -275,6 +277,44 @@ func _test_add_loot_pipeline() -> void:
 	_test_remove_equipped_run_loot()
 
 
+## BUG-13 regression: Health.configure/Poise.configure used to unconditionally refill to max,
+## and the equipment path (wired to inventory.changed among other signals) called configure() on
+## every add/remove/move/split/sort — so any inventory change mid-fight full-healed the player
+## and cleared in-progress poise build-up. This spawns a real player, damages health and poise,
+## fires inventory.changed the way a pickup or a drag would, and asserts neither moved.
+func _test_inventory_change_does_not_heal_player() -> void:
+	var start := Time.get_ticks_msec()
+	var player: CharacterBody3D = (
+		load("res://scenes/player/player.tscn").instantiate() as CharacterBody3D
+	)
+	ctx.owner.add_child(player)
+	player.global_position = Vector3(0.0, 1.0, 0.0)
+	await ctx.await_physics(2)
+	var health := player.get_node_or_null("Health") as Health
+	var poise := player.get_node_or_null("Poise") as Poise
+	var ok := false
+	if health and poise:
+		health.current = health.max_health * 0.5
+		poise.current = poise.max_poise * 0.5
+		var hp_before := health.current
+		var poise_before := poise.current
+		InventoryService.inventory.changed.emit()
+		await ctx.await_frame()
+		ok = (
+			is_equal_approx(health.current, hp_before)
+			and is_equal_approx(poise.current, poise_before)
+		)
+	player.queue_free()
+	ctx.timed_record(
+		"inventory.change_does_not_heal_player",
+		get_category(),
+		ok,
+		"emitting inventory.changed does not refill player health or poise",
+		start,
+		"BUG-13"
+	)
+
+
 func _test_add_loot_rolls_equipment() -> void:
 	var start := Time.get_ticks_msec()
 	var inv_backup = InventoryService.inventory
@@ -337,6 +377,53 @@ func _test_full_grid_rejects() -> void:
 		"INV.full"
 	)
 	InventoryService.inventory = inv_backup
+
+
+## BUG-16 regression: a stack that partially fits (fills the rest of an existing stack, then
+## finds no room for the remainder) used to keep the partial stacking mutation while still
+## returning false. add_item() must be all-or-nothing.
+func _test_add_item_is_transactional() -> void:
+	var start := Time.get_ticks_msec()
+	var grid := GridInventory.new(1, 1)
+	grid.add_item("health_potion", 3)
+	var before_qty := int(grid.slots[0].get("quantity", 0))
+	var call_ok := grid.add_item("health_potion", 4)
+	var after_qty := int(grid.slots[0].get("quantity", 0)) if grid.slots.size() > 0 else -1
+	var ok := not call_ok and grid.slots.size() == 1 and after_qty == before_qty
+	ctx.timed_record(
+		"inventory.add_item_is_transactional",
+		get_category(),
+		ok,
+		"a partially-fitting add_item rolls back instead of keeping a partial mutation",
+		start,
+		"BUG-16"
+	)
+
+
+## BUG-17 regression: equipping from a full grid must succeed when the swap is space-neutral —
+## the incoming item is about to vacate the exact cells the outgoing item needs.
+func _test_equip_swap_when_grid_full() -> void:
+	var start := Time.get_ticks_msec()
+	var grid := GridInventory.new(2, 2)
+	grid.add_item("iron_sword", 1)
+	var equipped_first := grid.equip_from_index(0, "weapon")
+	grid.add_item("war_hammer", 1)
+	var swapped := grid.equip_from_index(0, "weapon")
+	var ok := (
+		equipped_first
+		and swapped
+		and str(grid.equipped.get("weapon", {}).get("itemId", "")) == "war_hammer"
+		and grid.slots.size() == 1
+		and str(grid.slots[0].get("itemId", "")) == "iron_sword"
+	)
+	ctx.timed_record(
+		"inventory.equip_swap_succeeds_on_full_grid",
+		get_category(),
+		ok,
+		"equip swap frees the incoming item's cells before the outgoing item looks for space",
+		start,
+		"BUG-17"
+	)
 
 
 func _test_rarity_weight_aumbral() -> void:

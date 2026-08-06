@@ -12,12 +12,9 @@ static func load_mesh(path: String, theme: int = -1) -> ArrayMesh:
 		return _cache[cache_key]
 	var data: Dictionary = {}
 	if path.ends_with(".voxels.json"):
-		var file_path := path
-		if file_path.begins_with("res://"):
-			file_path = ProjectSettings.globalize_path(file_path)
-		var file := FileAccess.open(file_path, FileAccess.READ)
-		if file:
-			var parsed = JSON.parse_string(file.get_as_text())
+		var text := FileAccess.get_file_as_string(path)
+		if not text.is_empty():
+			var parsed = JSON.parse_string(text)
 			if parsed is Dictionary:
 				data = parsed
 	else:

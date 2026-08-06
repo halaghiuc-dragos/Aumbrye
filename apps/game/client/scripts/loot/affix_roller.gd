@@ -22,11 +22,14 @@ static func roll_instance(
 	var def := ItemCatalog.get_definition(item_id)
 	if def.is_empty():
 		return {}
+	# BUG-15: capture the effective seed *before* consuming any randomness.
+	# RandomNumberGenerator.seed reads the generator's current internal state, not the value it
+	# was seeded with — storing it after rolling (as this used to) recorded a value that does not
+	# reproduce the roll, so roll_identical(item_id, stored_seed) silently produced a different
+	# item than the one the player was shown.
+	var effective_seed := roll_seed if roll_seed >= 0 else (randi() & 0x7fffffff)
 	var rng := RandomNumberGenerator.new()
-	if roll_seed >= 0:
-		rng.seed = roll_seed
-	else:
-		rng.randomize()
+	rng.seed = effective_seed
 	var loot_quality: float = 0.0
 	if ProgressionService:
 		loot_quality = float(ProgressionService.get_talent_stat_totals().get("lootQuality", 0.0))
@@ -40,12 +43,15 @@ static func roll_instance(
 	var pool: Array = _build_affix_pool(item_type)
 	var affixes: Array = _pick_weighted_affixes(pool, affix_count, rarity, rng)
 	var instance := {
-		"instanceId": _make_instance_id(item_id, roll_seed if roll_seed >= 0 else rng.randi()),
+		# BUG-14/BUG-18: instanceId is opaque and minted from a monotonic counter, never derived
+		# from the seed — two drops that happen to share a seed (or a save that re-mints on
+		# load) cannot collide.
+		"instanceId": GridInventory.mint_instance_id(item_id),
 		"itemId": item_id,
 		"quantity": 1,
 		"rarity": rarity,
 		"affixes": affixes,
-		"rollSeed": roll_seed if roll_seed >= 0 else rng.seed,
+		"rollSeed": effective_seed,
 	}
 	if OS.is_debug_build():
 		ContentSchemaValidator.validate_roll_instance(instance, item_id)
@@ -227,7 +233,3 @@ static func _roll_tier_value(
 	if min_v == floor(min_v) and max_v == floor(max_v):
 		return float(rng.randi_range(int(min_v), int(max_v)))
 	return min_v + rng.randf() * (max_v - min_v)
-
-
-static func _make_instance_id(item_id: String, instance_seed: int) -> String:
-	return "%s_%d" % [item_id, instance_seed]

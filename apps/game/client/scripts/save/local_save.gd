@@ -656,6 +656,7 @@ func _character() -> Dictionary:
 func _apply_save_data(data: Dictionary) -> void:
 	var working := data.duplicate(true)
 	_reconcile_item_instances(working)
+	GridInventory.seed_instance_ordinal(int(working.get("itemInstanceOrdinal", 0)))
 	_cached_state = working
 	if is_instance_valid(InventoryService):
 		InventoryService.apply_save_inventory(working.get("inventory", {}))
@@ -724,8 +725,13 @@ func _build_save_payload() -> Dictionary:
 		"schemaVersion": SAVE_SCHEMA_VERSION,
 		"accountId": account_id,
 		"character": character,
-		"currencies": _cached_state.get("currencies", {"gold": CharacterService.DEFAULT_GOLD if is_instance_valid(CharacterService) else 0}),
-		"inventory": (
+		"currencies":
+		_cached_state.get(
+			"currencies",
+			{"gold": CharacterService.DEFAULT_GOLD if is_instance_valid(CharacterService) else 0}
+		),
+		"inventory":
+		(
 			InventoryService.get_save_inventory()
 			if is_instance_valid(InventoryService)
 			else _cached_state.get("inventory", {})
@@ -733,13 +739,17 @@ func _build_save_payload() -> Dictionary:
 		"storage":
 		StorageService.get_save_storage() if StorageService else _cached_state.get("storage", {}),
 		"itemInstances": _build_item_instances(),
+		# BUG-18: persist the instance-id high-water mark so a fresh session cannot mint an id
+		# that collides with one already on disk from a prior session.
+		"itemInstanceOrdinal": GridInventory._next_instance_ordinal,
 		"talents":
 		(
 			ProgressionService.talents.duplicate()
 			if ProgressionService
 			else _cached_state.get("talents", {})
 		),
-		"talentPointsSpent": ProgressionService.talent_points_spent if is_instance_valid(ProgressionService) else 0,
+		"talentPointsSpent":
+		ProgressionService.talent_points_spent if is_instance_valid(ProgressionService) else 0,
 		"flags": _cached_state.get("flags", {}),
 		"recipes": get_recipes(),
 		"merchants": get_merchants(),
@@ -841,16 +851,21 @@ func _load_document(path: String, character_id: String = "") -> bool:
 	return true
 
 
-func _snapshot_before_migration(path: String, from_version: int, character_id: String = "") -> String:
+func _snapshot_before_migration(
+	path: String, from_version: int, character_id: String = ""
+) -> String:
 	if character_id == "":
 		character_id = _active_character_id
 	var prefix := character_id if character_id != "" else "legacy"
-	var target := "%s%s.premigrate_v%d_%s.json" % [
-		BACKUP_DIR,
-		prefix,
-		from_version,
-		Time.get_datetime_string_from_system().replace(":", "-"),
-	]
+	var target := (
+		"%s%s.premigrate_v%d_%s.json"
+		% [
+			BACKUP_DIR,
+			prefix,
+			from_version,
+			Time.get_datetime_string_from_system().replace(":", "-"),
+		]
+	)
 	DirAccess.copy_absolute(path, target)
 	_prune_premigrate_artefacts(prefix)
 	return target
@@ -882,8 +897,7 @@ func _recover_from_corruption(path: String, character_id: String, reason: String
 		DirAccess.remove_absolute(path)
 		if CrashLogger:
 			CrashLogger.log_error(
-				"local_save.corrupt",
-				{"reason": reason, "quarantinePath": corrupt_path}
+				"local_save.corrupt", {"reason": reason, "quarantinePath": corrupt_path}
 			)
 		else:
 			push_error("LocalSave: corrupt save (%s) — quarantined to %s" % [reason, corrupt_path])
@@ -969,6 +983,7 @@ func _write_save(data: Dictionary, rotate_backups: bool = true) -> bool:
 			push_warning("LocalSave: could not write %s" % temp_path)
 		return false
 	file.store_string(JSON.stringify(normalized, "\t"))
+	file.close()
 	var verified = JSON.parse_string(_read_raw_text(temp_path))
 	if not verified is Dictionary:
 		DirAccess.remove_absolute(temp_path)
@@ -1010,10 +1025,7 @@ func _mirror_to_steam_cloud(payload: Dictionary) -> void:
 		return
 	var json_text := JSON.stringify(payload, "\t")
 	if not SteamService.write_cloud_file(STEAM_CLOUD_SAVE_NAME, json_text) and CrashLogger:
-		CrashLogger.log_warning(
-			"local_save.steam_cloud_write",
-			{"file": STEAM_CLOUD_SAVE_NAME}
-		)
+		CrashLogger.log_warning("local_save.steam_cloud_write", {"file": STEAM_CLOUD_SAVE_NAME})
 
 
 func _normalize_save_integers(data: Dictionary) -> Dictionary:
@@ -1184,6 +1196,7 @@ func _save_roster() -> void:
 	if not file:
 		return
 	file.store_string(JSON.stringify(_roster, "\t"))
+	file.close()
 
 
 func _character_path(character_id: String) -> String:
@@ -1262,6 +1275,7 @@ func _migrate_legacy_save_if_needed() -> void:
 	var char_file := FileAccess.open(_character_path(character_id), FileAccess.WRITE)
 	if char_file:
 		char_file.store_string(JSON.stringify(parsed, "\t"))
+		char_file.close()
 	_add_roster_entry(
 		character_id,
 		str(summary.get("name", "Warden")),

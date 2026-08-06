@@ -374,9 +374,7 @@ func _test_directional_speed_scale() -> void:
 	var strafe := float(player.call("_direction_speed_scale", right))
 	var back := float(player.call("_direction_speed_scale", -flat_facing))
 	var ok := (
-		absf(forward - 1.0) <= 0.01
-		and absf(strafe - 0.82) <= 0.01
-		and absf(back - 0.65) <= 0.01
+		absf(forward - 1.0) <= 0.01 and absf(strafe - 0.82) <= 0.01 and absf(back - 0.65) <= 0.01
 	)
 	var start := Time.get_ticks_msec()
 	ctx.timed_record(
@@ -424,7 +422,9 @@ func _test_air_control_turn_clamp() -> void:
 	Input.action_release("move_back")
 	var flat := Vector3(player.velocity.x, 0.0, player.velocity.z)
 	var initial := Vector3(0.0, 0.0, 1.0)
-	var angle := rad_to_deg(initial.angle_to(flat.normalized())) if flat.length_squared() > 0.01 else 0.0
+	var angle := (
+		rad_to_deg(initial.angle_to(flat.normalized())) if flat.length_squared() > 0.01 else 0.0
+	)
 	var start := Time.get_ticks_msec()
 	ctx.timed_record(
 		"player.air_control_turn_clamp",
@@ -588,11 +588,7 @@ func _test_movement_lock_during_attack() -> void:
 			active_locked = reactions.is_movement_locked()
 			break
 	var start := Time.get_ticks_msec()
-	var ok: bool = (
-		startup_locked
-		and active_locked
-		and "WeaponController" in startup_sources
-	)
+	var ok: bool = startup_locked and active_locked and "WeaponController" in startup_sources
 	ctx.timed_record(
 		"player.movement_lock_during_attack",
 		get_category(),
@@ -755,7 +751,7 @@ func _test_revive_resets_all_subsystems() -> void:
 	poise.current = 0.0
 	guard.guard_broken_state = true
 	status.apply_status("burn", 1, 2.0)
-	Engine.time_scale = 0.35
+	VfxService.push_time_scale(&"death", 0.35)
 	PixelDioramaSettings.screen_saturation = 0.2
 	reactions.reset_combat_state()
 	var start := Time.get_ticks_msec()
@@ -1170,4 +1166,3 @@ func _test_floor_snap_rig_feet_at_origin() -> void:
 		start,
 		"SNP-03"
 	)
-

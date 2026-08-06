@@ -18,9 +18,7 @@ var show_damage_numbers := true
 
 var _orbit_camera: Node
 var _anim_director: Node
-var _hitstop_timer := 0.0
-var _hitstop_restore_scale := 1.0
-var _anim_hitstop_timer := 0.0
+var _anim_hitstop_until_ms := 0
 var _anim_hitstop_restore := 1.0
 var _shake_noise: FastNoiseLite
 
@@ -50,24 +48,19 @@ func _director() -> Node:
 	return _anim_director
 
 
-func _process(delta: float) -> void:
-	if _hitstop_timer > 0.0:
-		_hitstop_timer -= delta
-		if _hitstop_timer <= 0.0:
-			Engine.time_scale = _hitstop_restore_scale
-	if _anim_hitstop_timer > 0.0:
-		_anim_hitstop_timer -= delta
-		if _anim_hitstop_timer <= 0.0:
-			var director := _director()
-			if director and director.has_method("set_speed_scale"):
-				director.call("set_speed_scale", _anim_hitstop_restore)
+func _process(_delta: float) -> void:
+	# Measured against unscaled wall time, not the delta this callback receives — delta is
+	# itself scaled by the hit-stop this timer is tracking, which was BUG-40 (a 0.09s freeze
+	# measuring itself on an 0.08x clock runs ~12x long).
+	if _anim_hitstop_until_ms > 0 and Time.get_ticks_msec() >= _anim_hitstop_until_ms:
+		_anim_hitstop_until_ms = 0
+		var director := _director()
+		if director and director.has_method("set_speed_scale"):
+			director.call("set_speed_scale", _anim_hitstop_restore)
 
 
 func on_hit(
-	target: Node,
-	damage: float,
-	direction: Vector3 = Vector3.ZERO,
-	damage_type: String = "physical"
+	target: Node, damage: float, direction: Vector3 = Vector3.ZERO, damage_type: String = "physical"
 ) -> void:
 	hit_landed.emit(target, damage)
 	var weight := clampf(damage / 20.0, 0.85, 1.35)
@@ -141,10 +134,7 @@ func _spawn_combat_text(at_node: Node3D, text: String, color: Color) -> void:
 
 
 func _spawn_damage_number(
-	at_node: Node3D,
-	damage: float,
-	offset: Vector3 = Vector3.ZERO,
-	damage_type: String = "physical"
+	at_node: Node3D, damage: float, offset: Vector3 = Vector3.ZERO, damage_type: String = "physical"
 ) -> void:
 	var root := get_tree().current_scene
 	if root:
@@ -155,14 +145,16 @@ func _apply_hitstop(weight: float = 1.0) -> void:
 	if feedback_intensity <= 0.0 or AccessibilitySettings.reduce_hitstop:
 		return
 	var duration := DEFAULT_HITSTOP * feedback_intensity * weight
-	_hitstop_timer = maxf(_hitstop_timer, duration)
-	if Engine.time_scale >= HITSTOP_TIME_SCALE:
-		_hitstop_restore_scale = Engine.time_scale
-	Engine.time_scale = HITSTOP_TIME_SCALE
+	var duration_ms := int(duration * 1000.0)
+	# BUG-41: Engine.time_scale has exactly one owner (VfxService). Pushing/releasing by id
+	# means a second hit landing mid-freeze extends the existing request instead of caching
+	# the already-slowed scale as its own "restore to" value (BUG-39).
+	VfxService.push_time_scale(&"hitstop", HITSTOP_TIME_SCALE, duration_ms)
 	var director := _director()
 	if director and director.has_method("set_speed_scale"):
-		_anim_hitstop_timer = maxf(_anim_hitstop_timer, duration)
-		if _anim_hitstop_timer == duration:
+		var until_ms := Time.get_ticks_msec() + duration_ms
+		if until_ms > _anim_hitstop_until_ms:
+			_anim_hitstop_until_ms = until_ms
 			_anim_hitstop_restore = 1.0
 		director.call("set_speed_scale", 0.05)
 

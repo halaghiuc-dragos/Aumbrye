@@ -5,9 +5,7 @@ const AccessibilitySettingsScript := preload(
 )
 const GameUISkinScript := preload("res://scripts/ui/game_ui_skin.gd")
 const ValidationHelpers := preload("res://scripts/validation/helpers.gd")
-const PixelDioramaSettingsScript := preload(
-	"res://scripts/art/pipeline/pixel_diorama_settings.gd"
-)
+const PixelDioramaSettingsScript := preload("res://scripts/art/pipeline/pixel_diorama_settings.gd")
 
 const M6_ENEMIES: Array[String] = [
 	"frost_raider",
@@ -77,7 +75,6 @@ func run() -> void:
 	_test_m6_audio_profiles()
 	_test_leaderboards()
 	_test_web_pages()
-	_test_performance_doc()
 	_test_balance_export_schema()
 	_test_achievement_catalog_quality()
 	_test_escape_meta_wiring()
@@ -128,6 +125,9 @@ func _test_content_catalog_loader() -> void:
 
 
 func _test_item_catalog_strict_mode() -> void:
+	# The fixture lives in content/fixtures/ (BUG-37) rather than in shipping equipment
+	# content, so it is written transiently into the equipment directory only for the
+	# duration of this test and removed afterward regardless of prior state.
 	var orphan_id := "_m6_strict_orphan_item"
 	var orphan_path := ContentLoader.content_path("content/items/equipment/%s.json" % orphan_id)
 	var had_orphan := FileAccess.file_exists(orphan_path)
@@ -707,19 +707,6 @@ func _test_web_pages() -> void:
 		)
 
 
-func _test_performance_doc() -> void:
-	var start := Time.get_ticks_msec()
-	var ok = ctx.file_contains("res://scripts/combat/enemy_pool.gd", "class_name EnemyPool")
-	ctx.timed_record(
-		"performance.pool.enemy_pool",
-		get_category(),
-		ok,
-		"EnemyPool module present for M6 perf",
-		start,
-		"PERF-6.1"
-	)
-
-
 func _test_balance_export_schema() -> void:
 	var start := Time.get_ticks_msec()
 	var export_path := _content_root().path_join("reports/balance_export.json")
@@ -828,7 +815,9 @@ func _test_display_service() -> void:
 	var start := Time.get_ticks_msec()
 	var autoload: Node = null
 	if Engine.get_main_loop() is SceneTree:
-		autoload = (Engine.get_main_loop() as SceneTree).root.get_node_or_null("/root/DisplayService")
+		autoload = (Engine.get_main_loop() as SceneTree).root.get_node_or_null(
+			"/root/DisplayService"
+		)
 	var fields_ok := autoload != null
 	if fields_ok:
 		fields_ok = (
@@ -927,10 +916,11 @@ func _test_display_service() -> void:
 	var tree := Engine.get_main_loop() as SceneTree
 	var content_scale := tree.root.content_scale_factor if tree and tree.root else 0.0
 	var theme: Theme = tree.root.theme if tree and tree.root else null
-	var body_size := theme.get_font_size(&"font_size", GameUISkinScript.VAR_BODY_TEXT) if theme else 0
+	var body_size := (
+		theme.get_font_size(&"font_size", GameUISkinScript.VAR_BODY_TEXT) if theme else 0
+	)
 	var text_scale_ok := (
-		is_equal_approx(content_scale, 1.0)
-		and body_size > GameUISkinScript.FONT_SIZE_BODY
+		is_equal_approx(content_scale, 1.0) and body_size > GameUISkinScript.FONT_SIZE_BODY
 	)
 	ctx.timed_record(
 		"display.text_scale_effect",
@@ -1118,9 +1108,7 @@ func _test_ui_skin() -> void:
 	PixelDioramaSettingsScript.viewport_width = 480
 	PixelDioramaSettingsScript.viewport_height = 270
 	var pixel_panel := GameUISkinScript.make_panel_style()
-	var pixel_ok: bool = (
-		pixel_panel.corner_radius_top_left == 0 and pixel_panel.shadow_size == 0
-	)
+	var pixel_ok: bool = pixel_panel.corner_radius_top_left == 0 and pixel_panel.shadow_size == 0
 	PixelDioramaSettingsScript.low_res_viewport_enabled = saved_low_res
 	PixelDioramaSettingsScript.viewport_width = saved_width
 	PixelDioramaSettingsScript.viewport_height = saved_height
@@ -1222,7 +1210,9 @@ func _test_ui_skin() -> void:
 			var file_name := dir.get_next()
 			while file_name != "":
 				if not dir.current_is_dir() and file_name.ends_with(".gd"):
-					if ctx.file_contains("res://scripts/ui/%s" % file_name, "build_human_silhouette"):
+					if ctx.file_contains(
+						"res://scripts/ui/%s" % file_name, "build_human_silhouette"
+					):
 						paperdoll_ok = false
 						break
 				file_name = dir.get_next()

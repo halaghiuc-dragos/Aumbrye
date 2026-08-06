@@ -17,16 +17,19 @@ func run() -> void:
 	await _test_floor_transition_failure()
 	await _test_floor_transition_stair_spawn()
 	_test_floor_cache_eviction()
+	_test_dungeon_builder_static_cache_bounded()
+	_test_cleared_floors_bounded()
+	_test_loot_history_bounded()
 	_test_run_meta_cleared_on_return()
 	_test_portal_completes_run()
 
 
 func _test_portal_completes_run() -> void:
 	var start := Time.get_ticks_msec()
-	var ok: bool = ctx.file_contains(
-		"res://scripts/dungeon/exit_portal.gd",
-		"RunFlow.complete_run_via_portal"
-	) and RunFlow.has_method("complete_run_via_portal")
+	var ok: bool = (
+		ctx.file_contains("res://scripts/dungeon/exit_portal.gd", "RunFlow.complete_run_via_portal")
+		and RunFlow.has_method("complete_run_via_portal")
+	)
 	ctx.timed_record(
 		"flow.portal_completes_run",
 		get_category(),
@@ -239,7 +242,9 @@ func _test_run_lifecycle_results() -> void:
 	start = Time.get_ticks_msec()
 	var level_before := ProgressionService.level
 	var xp_before := ProgressionService.xp
-	var xp_result := ProgressionService.grant_xp(ProgressionService.xp_to_next_level() + 1, "validation")
+	var xp_result := ProgressionService.grant_xp(
+		ProgressionService.xp_to_next_level() + 1, "validation"
+	)
 	var waves_results: Dictionary = RunLifecycle.build_results(
 		RunLifecycle.OUTCOME_WAVES_COMPLETE,
 		1.0,
@@ -354,7 +359,8 @@ func _test_floor_transition_stair_spawn() -> void:
 	var start := Time.get_ticks_msec()
 	var definition := {
 		"biomeId": "forgotten_castle",
-		"rooms": [
+		"rooms":
+		[
 			{
 				"id": "entrance",
 				"templateId": "castle_entrance",
@@ -369,7 +375,8 @@ func _test_floor_transition_stair_spawn() -> void:
 			},
 		],
 		"edges": [{"from": "entrance", "to": "stairs", "kind": "corridor"}],
-		"placements": {
+		"placements":
+		{
 			"entrance": "entrance",
 			"enemies": [],
 			"loot": [],
@@ -438,6 +445,79 @@ func _test_floor_cache_eviction() -> void:
 		"floor cache evicts farthest floor from current",
 		start,
 		"RFL.cache"
+	)
+
+
+## BUG-30 regression: DungeonBuilder._floor_definition_cache is a *static* cache with no
+## per-run eviction of its own — only clear_floor_cache(), called at run start/end. An endless
+## run used to hold every floor definition it had ever generated for the life of the run.
+func _test_dungeon_builder_static_cache_bounded() -> void:
+	var start := Time.get_ticks_msec()
+	DungeonBuilder.clear_floor_cache()
+	for floor_index in range(1, DungeonBuilder.MAX_CACHED_FLOORS + 6):
+		DungeonBuilder.store_floor_cache(floor_index, {"floor": floor_index})
+	var bounded := DungeonBuilder._floor_definition_cache.size() <= DungeonBuilder.MAX_CACHED_FLOORS
+	var newest_kept := not (
+		DungeonBuilder.get_floor_cache(DungeonBuilder.MAX_CACHED_FLOORS + 5).is_empty()
+	)
+	var oldest_evicted := DungeonBuilder.get_floor_cache(1).is_empty()
+	DungeonBuilder.clear_floor_cache()
+	ctx.timed_record(
+		"flow.dungeon_builder_static_cache_bounded",
+		get_category(),
+		bounded and newest_kept and oldest_evicted,
+		"DungeonBuilder's static floor cache stays bounded across a long endless run",
+		start,
+		"BUG-30"
+	)
+
+
+## BUG-30 regression: _cleared_floors used to be a fully unbounded array, duplicate()d into the
+## autosave payload on every save.
+func _test_cleared_floors_bounded() -> void:
+	var start := Time.get_ticks_msec()
+	var backup: Array[int] = RunFlow._cleared_floors.duplicate()
+	RunFlow._cleared_floors.clear()
+	for floor_index in range(1, RunFlow.MAX_CLEARED_FLOORS_TRACKED + 21):
+		RunFlow._register_cleared_floor(floor_index)
+	var bounded := RunFlow._cleared_floors.size() <= RunFlow.MAX_CLEARED_FLOORS_TRACKED
+	var newest_kept := RunFlow._cleared_floors.has(RunFlow.MAX_CLEARED_FLOORS_TRACKED + 20)
+	var oldest_evicted := not RunFlow._cleared_floors.has(1)
+	RunFlow._cleared_floors = backup
+	ctx.timed_record(
+		"flow.cleared_floors_bounded",
+		get_category(),
+		bounded and newest_kept and oldest_evicted,
+		"_cleared_floors stays bounded across a long endless run",
+		start,
+		"BUG-30"
+	)
+
+
+## BUG-30 regression: _loot_claimed_instance_ids grows one entry per unique drop and used to be
+## unbounded — realistic over hundreds of endless floors.
+func _test_loot_history_bounded() -> void:
+	var start := Time.get_ticks_msec()
+	var backup_collected: Array[String] = RunFlow._loot_collected.duplicate()
+	var backup_claimed: Array[String] = RunFlow._loot_claimed_instance_ids.duplicate()
+	RunFlow._loot_collected.clear()
+	RunFlow._loot_claimed_instance_ids.clear()
+	for i in RunFlow.MAX_LOOT_HISTORY_TRACKED + 20:
+		RunFlow.register_loot("castle_sword", "castle_sword#%d" % i)
+	var bounded := RunFlow._loot_claimed_instance_ids.size() <= RunFlow.MAX_LOOT_HISTORY_TRACKED
+	var newest_kept := RunFlow._loot_claimed_instance_ids.has(
+		"castle_sword#%d" % (RunFlow.MAX_LOOT_HISTORY_TRACKED + 19)
+	)
+	var oldest_evicted := not RunFlow._loot_claimed_instance_ids.has("castle_sword#0")
+	RunFlow._loot_collected = backup_collected
+	RunFlow._loot_claimed_instance_ids = backup_claimed
+	ctx.timed_record(
+		"flow.loot_history_bounded",
+		get_category(),
+		bounded and newest_kept and oldest_evicted,
+		"_loot_claimed_instance_ids stays bounded across a long endless run",
+		start,
+		"BUG-30"
 	)
 
 

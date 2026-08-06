@@ -15,10 +15,18 @@ func _ready() -> void:
 	health_changed.emit(current, max_health)
 
 
-func configure(max_hp: float) -> void:
+## BUG-13: preserve_ratio=false (the default) is only correct for a fresh spawn/respawn, where
+## refilling to the new max is the intended behaviour. Every other caller — most importantly
+## the equipment path, which fires on every inventory change (add/remove/move/split/sort) —
+## must pass preserve_ratio=true so changing max HP does not also refill current HP.
+func configure(max_hp: float, preserve_ratio: bool = false) -> void:
+	var old_max := max_health
 	max_health = max_hp
-	current = max_hp
-	_dead = false
+	if preserve_ratio and old_max > 0.0:
+		current = clampf((current / old_max) * max_health, 0.0, max_health)
+	else:
+		current = max_health
+		_dead = false
 	health_changed.emit(current, max_health)
 
 

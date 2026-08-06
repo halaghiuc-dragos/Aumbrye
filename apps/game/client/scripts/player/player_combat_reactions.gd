@@ -134,10 +134,7 @@ func reset_combat_state() -> void:
 	_stagger_timer = 0.0
 	_death_sequence_running = false
 	_clear_wakeup_iframes()
-	Engine.time_scale = 1.0
-	if _saved_screen_saturation >= 0.0:
-		PixelDioramaSettings.screen_saturation = _saved_screen_saturation
-		_saved_screen_saturation = -1.0
+	_restore_death_presentation()
 	if _health and _health.has_method("reset_health"):
 		_health.reset_health()
 	if _stamina and _stamina.has_method("reset_stamina"):
@@ -236,7 +233,10 @@ func _run_death_sequence() -> void:
 	var director := _body.get_node_or_null("AnimDirector")
 	if director and director.has_method("play_death"):
 		director.call("play_death")
-	Engine.time_scale = DEATH_SLOW_SCALE
+	# BUG-41: request the slow-mo through VfxService (the sole Engine.time_scale owner) rather
+	# than writing it directly. duration_ms=0 means "holds until release_time_scale" — this
+	# sequence's length spans several awaits, not one fixed window.
+	VfxService.push_time_scale(&"death", DEATH_SLOW_SCALE)
 	AudioDirector.play_sfx("death", _body.global_position)
 	var opts := MaterialDissolveScript.death_opts_for_profile("player")
 	opts["vfx_position"] = _body.global_position
@@ -252,15 +252,42 @@ func _run_death_sequence() -> void:
 		var vm_opts := opts.duplicate()
 		vm_opts.erase("vfx_position")
 		MaterialDissolveScript.play_death_visual(viewmodel, vm_opts)
-	await get_tree().create_timer(DEATH_SLOW_DURATION).timeout
-	Engine.time_scale = 1.0
+	# BUG-27: ignore_time_scale=true (the 4th arg) so these beats keep their authored wall-clock
+	# length instead of being stretched by the 0.35x scale this same sequence just requested.
+	await get_tree().create_timer(DEATH_SLOW_DURATION, true, false, true).timeout
+	VfxService.release_time_scale(&"death")
 	if _orbit_camera and _orbit_camera.has_method("enter_death_framing"):
 		_orbit_camera.call("enter_death_framing", _body)
-	await get_tree().create_timer(DEATH_DESATURATE_TIME - DEATH_SLOW_DURATION).timeout
+	await (
+		get_tree()
+		. create_timer(DEATH_DESATURATE_TIME - DEATH_SLOW_DURATION, true, false, true)
+		. timeout
+	)
 	_saved_screen_saturation = PixelDioramaSettings.screen_saturation
 	PixelDioramaSettings.screen_saturation = DEATH_DESATURATE_SATURATION
-	await get_tree().create_timer(DEATH_HANDOFF_TIME - DEATH_DESATURATE_TIME).timeout
+	await (
+		get_tree()
+		. create_timer(DEATH_HANDOFF_TIME - DEATH_DESATURATE_TIME, true, false, true)
+		. timeout
+	)
 	player_died.emit()
+
+
+## BUG-27: guarantees the slow-mo request and the saturation override are released even if this
+## node (and therefore the death-sequence coroutine above) is torn down mid-await — quitting to
+## hub, a forced run end, a floor transition racing the death sequence. Without this, an
+## interrupted coroutine simply stops executing and its restore lines never run, leaving the
+## whole game slowed and desaturated until the process restarts.
+func _restore_death_presentation() -> void:
+	if VfxService:
+		VfxService.release_time_scale(&"death")
+	if _saved_screen_saturation >= 0.0:
+		PixelDioramaSettings.screen_saturation = _saved_screen_saturation
+		_saved_screen_saturation = -1.0
+
+
+func _exit_tree() -> void:
+	_restore_death_presentation()
 
 
 func _flash_parry_feedback() -> void:

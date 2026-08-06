@@ -1,0 +1,17 @@
+{
+  "mcpServers": {
+    "godot-mcp": {
+      "type": "sse",
+      "url": "http://127.0.0.1:3000/mcp"
+    },
+    "godot-mcp-docs": {
+      "command": "docker",
+      "args": [
+        "run",
+        "--rm",
+        "-i",
+        "godot-mcp-docs:local"
+      ]
+    }
+  }
+}

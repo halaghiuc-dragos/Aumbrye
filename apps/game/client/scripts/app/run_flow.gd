@@ -32,6 +32,12 @@ const USE_ONLINE_PROCgen := false
 const SPEED_CLEAR_MAX_SECONDS := 900.0
 const WAVES_COMPLETION_XP := 500
 const MAX_CACHED_FLOORS := 3
+## BUG-30: endless runs can reach hundreds of floors; these bound the run-history arrays so
+## RAM and save size stop growing linearly with floor count in the one mode meant to be played
+## forever. Gating logic only ever queries near current_floor, so keeping the highest-numbered
+## entries (rather than an arbitrary window) never drops something a live check still needs.
+const MAX_CLEARED_FLOORS_TRACKED := 50
+const MAX_LOOT_HISTORY_TRACKED := 500
 
 const RM := preload("res://scripts/app/run_mode_config.gd")
 const SkipFloorSvc := preload("res://scripts/dungeon/skip_floor_service.gd")
@@ -65,6 +71,11 @@ var _boss_fight_active := false
 var _boss_fight_damage_taken := false
 var _loot_collected: Array[String] = []
 var _loot_claimed_instance_ids: Array[String] = []
+## BUG-14: monotonic per-run counter mixed into every loot roll seed so two drops of the same
+## item in one run cannot roll identical affixes. Persisted with the run so it stays unique
+## across save/load and deterministic for a given seed (never rolled back on death, so ordinals
+## are never reused even after a checkpoint strips collected loot).
+var _loot_drop_ordinal := 0
 var _pending_snapshot: Dictionary = {}
 var _is_continue := false
 var _cleared_floors: Array[int] = []
@@ -264,7 +275,9 @@ func _restore_castle_run(saved: Dictionary) -> void:
 	run_mode = str(saved.get("runMode", RM.MODE_CASTLE))
 	current_floor = int(saved.get("currentFloor", 1))
 	max_floors = int(saved.get("maxFloors", RunFloorConfig.max_floors_for_mode(run_mode)))
-	current_dungeon_tier = int(saved.get("dungeonTier", DungeonCatalog.get_order_for_dungeon(current_dungeon_id)))
+	current_dungeon_tier = int(
+		saved.get("dungeonTier", DungeonCatalog.get_order_for_dungeon(current_dungeon_id))
+	)
 	current_difficulty_tier = int(saved.get("difficultyTier", 1))
 	RunModifierService.set_modifiers(
 		DungeonCatalog.get_modifiers_for_difficulty(current_dungeon_id, current_difficulty_tier)
@@ -301,6 +314,7 @@ func _restore_castle_run(saved: Dictionary) -> void:
 		var floor_index := int(floor_num)
 		if floor_index > 0 and not _cleared_floors.has(floor_index):
 			_cleared_floors.append(floor_index)
+	_trim_cleared_floors()
 	var saved_tier := int(saved.get("dungeonTier", 1))
 	if saved_tier > DungeonTierService.get_max_unlocked_tier():
 		_is_continue = false
@@ -332,6 +346,10 @@ func _restore_castle_run(saved: Dictionary) -> void:
 		_loot_collected.append(str(item))
 	for inst_id in _pending_snapshot.get("lootClaimedInstanceIds", []):
 		_loot_claimed_instance_ids.append(str(inst_id))
+	_trim_loot_history()
+	_loot_drop_ordinal = int(
+		_pending_snapshot.get("lootDropOrdinal", saved.get("lootDropOrdinal", 0))
+	)
 
 	_enter_run()
 
@@ -343,8 +361,12 @@ func _enter_run() -> void:
 	root.set_meta("run_seed", current_seed)
 	root.set_meta(
 		"tier_generation_seed",
-		current_generation_seed if current_generation_seed > 0 else (
-			DungeonSeedService.generation_seed(current_seed, current_dungeon_tier, current_floor)
+		(
+			current_generation_seed
+			if current_generation_seed > 0
+			else (DungeonSeedService.generation_seed(
+				current_seed, current_dungeon_tier, current_floor
+			))
 		)
 	)
 	root.set_meta("run_id", current_run_id)
@@ -548,8 +570,7 @@ func register_player_boss_damage() -> void:
 
 func register_boss_defeated() -> void:
 	_boss_defeated = true
-	if not _cleared_floors.has(current_floor):
-		_cleared_floors.append(current_floor)
+	_register_cleared_floor(current_floor)
 	if AchievementService:
 		if _boss_fight_active and not _boss_fight_damage_taken:
 			AchievementService.notify("boss_defeated_no_damage")
@@ -732,6 +753,7 @@ func _build_floor_transition_snapshot(ascending: bool) -> Dictionary:
 		"killCount": _kill_count,
 		"lootCollected": _loot_collected.duplicate(),
 		"lootClaimedInstanceIds": _loot_claimed_instance_ids.duplicate(),
+		"lootDropOrdinal": _loot_drop_ordinal,
 	}
 
 
@@ -758,6 +780,7 @@ func _persist_active_run() -> void:
 	active["tier_seed"] = current_tier_seed
 	active["generation_seed"] = current_generation_seed
 	active["generationWarnings"] = current_generation_warnings.duplicate()
+	active["lootDropOrdinal"] = _loot_drop_ordinal
 	LocalSave.set_active_run(active, false)
 
 
@@ -806,10 +829,18 @@ func register_loot(item_id: String, instance_id: String = "") -> void:
 		_loot_collected.append(item_id)
 	if instance_id != "" and instance_id not in _loot_claimed_instance_ids:
 		_loot_claimed_instance_ids.append(instance_id)
+	_trim_loot_history()
 
 
 func get_loot_claimed_instance_ids() -> Array[String]:
 	return _loot_claimed_instance_ids.duplicate()
+
+
+## BUG-14: call once per rolled-loot unit; mix the result into the roll seed so identical items
+## dropped in the same run do not roll identical affixes.
+func next_loot_drop_ordinal() -> int:
+	_loot_drop_ordinal += 1
+	return _loot_drop_ordinal
 
 
 func get_kill_count() -> int:
@@ -865,11 +896,7 @@ func get_abandon_stakes() -> Dictionary:
 
 
 func can_restart_current_floor() -> bool:
-	return (
-		_run_active
-		and run_mode == RM.MODE_CASTLE
-		and not _cleared_floors.has(current_floor)
-	)
+	return _run_active and run_mode == RM.MODE_CASTLE and not _cleared_floors.has(current_floor)
 
 
 func restart_current_floor() -> void:
@@ -945,6 +972,28 @@ func _max_cleared_floor() -> int:
 	return max_floor
 
 
+func _register_cleared_floor(floor_index: int) -> void:
+	if _cleared_floors.has(floor_index):
+		return
+	_cleared_floors.append(floor_index)
+	_trim_cleared_floors()
+
+
+func _trim_cleared_floors() -> void:
+	if _cleared_floors.size() <= MAX_CLEARED_FLOORS_TRACKED:
+		return
+	_cleared_floors.sort()
+	while _cleared_floors.size() > MAX_CLEARED_FLOORS_TRACKED:
+		_cleared_floors.pop_front()
+
+
+func _trim_loot_history() -> void:
+	while _loot_collected.size() > MAX_LOOT_HISTORY_TRACKED:
+		_loot_collected.pop_front()
+	while _loot_claimed_instance_ids.size() > MAX_LOOT_HISTORY_TRACKED:
+		_loot_claimed_instance_ids.pop_front()
+
+
 func _reset_run_stats() -> void:
 	_kill_count = 0
 	_boss_defeated = false
@@ -953,6 +1002,7 @@ func _reset_run_stats() -> void:
 	_cleared_floors.clear()
 	_loot_collected.clear()
 	_loot_claimed_instance_ids.clear()
+	_loot_drop_ordinal = 0
 	current_floor = 1
 	_clear_floor_cache()
 
@@ -975,11 +1025,12 @@ func _cloud_finalize_run_async(
 		if not result.get("ok", false):
 			if CrashLogger:
 				CrashLogger.log_warning(
-					"run_flow.complete_run",
-					{"error": str(result.get("error", "unknown"))}
+					"run_flow.complete_run", {"error": str(result.get("error", "unknown"))}
 				)
 			else:
-				push_warning("RunFlow: complete_run failed — %s" % str(result.get("error", "unknown")))
+				push_warning(
+					"RunFlow: complete_run failed — %s" % str(result.get("error", "unknown"))
+				)
 	var push := await LocalSave.push_to_cloud()
 	if not push.get("ok", false) and not push.get("conflict", false):
 		if CrashLogger:
@@ -1108,6 +1159,7 @@ func _bonfire_death_respawn(checkpoint: Dictionary) -> void:
 		_loot_collected.append(str(item))
 	for inst_id in checkpoint.get("lootClaimedInstanceIds", []):
 		_loot_claimed_instance_ids.append(str(inst_id))
+	_trim_loot_history()
 	WorldState.restore_flags(checkpoint.get("worldFlags", {}))
 	var respawn_results := (
 		RunLifecycle

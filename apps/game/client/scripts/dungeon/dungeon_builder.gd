@@ -55,13 +55,25 @@ var _stair_levers: Dictionary = {}
 var _is_final_floor := false
 
 ## In-run floor definition cache (paired with RunFlow.floor_definitions).
+## BUG-30: bounded to MAX_CACHED_FLOORS with insertion-order eviction — this is a *static* cache
+## with no per-run eviction of its own (only clear_floor_cache(), called at run start/end), so an
+## endless run used to hold every floor definition it had ever generated in memory for as long
+## as the run lasted.
+const MAX_CACHED_FLOORS := 8
+
 static var _floor_definition_cache: Dictionary = {}
+static var _floor_cache_order: Array[String] = []
 
 
 static func store_floor_cache(floor_index: int, floor_definition: Dictionary) -> void:
 	if floor_definition.is_empty():
 		return
-	_floor_definition_cache[str(floor_index)] = floor_definition.duplicate(true)
+	var key := str(floor_index)
+	if not _floor_definition_cache.has(key):
+		_floor_cache_order.append(key)
+	_floor_definition_cache[key] = floor_definition.duplicate(true)
+	while _floor_cache_order.size() > MAX_CACHED_FLOORS:
+		_floor_definition_cache.erase(_floor_cache_order.pop_front())
 
 
 static func get_floor_cache(floor_index: int) -> Dictionary:
@@ -71,6 +83,7 @@ static func get_floor_cache(floor_index: int) -> Dictionary:
 
 static func clear_floor_cache() -> void:
 	_floor_definition_cache.clear()
+	_floor_cache_order.clear()
 
 
 func build(
@@ -790,8 +803,10 @@ func _setup_stair_levers() -> void:
 		stairs_count += 1
 		if stairs_count > 1:
 			push_error(
-				"DungeonBuilder: multiple stairs rooms on floor — expected exactly one (found %s)"
-				% str(room_id)
+				(
+					"DungeonBuilder: multiple stairs rooms on floor — expected exactly one (found %s)"
+					% str(room_id)
+				)
 			)
 		_create_stair_lever(room, str(room_id))
 
@@ -836,9 +851,7 @@ func get_stair_levers() -> Array[Node3D]:
 func _place_stair_lever_on_wall(lever: Node3D, room: RoomTemplate) -> bool:
 	var spawn := room.get_node_or_null("SpawnPoints/LeverSpawn") as Node3D
 	if spawn == null:
-		push_error(
-			"DungeonBuilder: missing SpawnPoints/LeverSpawn in %s" % str(room.template_id)
-		)
+		push_error("DungeonBuilder: missing SpawnPoints/LeverSpawn in %s" % str(room.template_id))
 		return false
 	lever.position = spawn.position
 	lever.rotation = spawn.rotation
@@ -889,13 +902,7 @@ func _setup_boss_door(castle_run: Node3D) -> void:
 	var requirement := DungeonCatalog.get_boss_door_requirement(RunFlow.current_dungeon_id)
 	var locks: Array = definition.get("locks", [])
 	if door.has_method("configure"):
-		door.call(
-			"configure",
-			biome_id,
-			requirement,
-			RunFlow.get_current_floor(),
-			locks
-		)
+		door.call("configure", biome_id, requirement, RunFlow.get_current_floor(), locks)
 
 	var socket := _boss_approach_socket(room)
 	if socket:

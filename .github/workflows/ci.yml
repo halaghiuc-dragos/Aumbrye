@@ -300,6 +300,37 @@ jobs:
           jq -r '.tests[] | select(.status == "fail" or .pass == false) | "FAIL \(.id) [\(.category)] \(.message)"' \
             apps/game/client/artifacts/mcp_validation.json >> "$GITHUB_STEP_SUMMARY" || true
 
+  smoke-test:
+    name: Export smoke test
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+      - name: Read Godot version
+        id: godot_version
+        run: echo "value=$(cat apps/game/client/.godot-version)" >> $GITHUB_OUTPUT
+      - name: Setup Godot with export templates
+        uses: chickensoft-games/setup-godot@v1
+        with:
+          version: ${{ steps.godot_version.outputs.value }}
+          include-templates: true
+      - name: Export Linux headless build
+        working-directory: apps/game/client
+        run: |
+          mkdir -p ../../../artifacts/smoke
+          godot --headless --path . --export-release "Linux" ../../../artifacts/smoke/aumbrye_smoke.x86_64
+      - name: Copy content data next to the export
+        run: rsync -a --exclude 'fixtures/' content/ artifacts/smoke/content/
+      - name: Run smoke test
+        run: |
+          chmod +x artifacts/smoke/aumbrye_smoke.x86_64
+          ./artifacts/smoke/aumbrye_smoke.x86_64 --headless --smoke-test
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: smoke-test-export
+          path: artifacts/smoke
+
   openapi-drift:
     name: OpenAPI drift
     runs-on: ubuntu-latest
@@ -316,6 +347,6 @@ jobs:
     steps:
       - uses: actions/checkout@v5
       - name: Lychee
-        uses: lychee-action@v2
+        uses: lycheeverse/lychee-action@v2
         with:
           args: --offline --no-progress README.md 'docs/**/*.md'

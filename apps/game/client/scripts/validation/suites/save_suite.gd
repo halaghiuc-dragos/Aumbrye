@@ -30,6 +30,7 @@ func run() -> void:
 	_test_camera_settings_migration()
 	_test_per_character_backup_rotation()
 	_test_atomic_write_rejects_bad_payload()
+	_test_large_payload_write_verifies()
 	_test_character_corruption_recovery()
 	_test_warm_load_migration()
 	_test_save_validator_problems()
@@ -392,8 +393,10 @@ func _test_v4_to_v5_playerdead_migration() -> void:
 	var v4_recover := {
 		"schemaVersion": 4,
 		"character": {"name": "Tester", "classId": "warden", "level": 1, "xp": 0},
-		"inventory": {"schemaVersion": 1, "gridWidth": 8, "gridHeight": 6, "slots": [], "equipped": {}},
-		"activeRun": {
+		"inventory":
+		{"schemaVersion": 1, "gridWidth": 8, "gridHeight": 6, "slots": [], "equipped": {}},
+		"activeRun":
+		{
 			"schemaVersion": 4,
 			"playerDead": true,
 			"lastCheckpoint": checkpoint,
@@ -422,8 +425,10 @@ func _test_v4_to_v5_playerdead_migration() -> void:
 	var v4_drop := {
 		"schemaVersion": 4,
 		"character": {"name": "Tester", "classId": "warden", "level": 1, "xp": 0},
-		"inventory": {"schemaVersion": 1, "gridWidth": 8, "gridHeight": 6, "slots": [], "equipped": {}},
-		"activeRun": {
+		"inventory":
+		{"schemaVersion": 1, "gridWidth": 8, "gridHeight": 6, "slots": [], "equipped": {}},
+		"activeRun":
+		{
 			"schemaVersion": 4,
 			"playerDead": true,
 			"lastCheckpoint": {},
@@ -479,7 +484,12 @@ func _test_camera_settings_migration() -> void:
 	for key in defaults:
 		if not a11y.has(key):
 			ok = false
-		elif key.contains("Sensitivity") or key == "cameraFov" or key.contains("Curve") or key.contains("Deadzone"):
+		elif (
+			key.contains("Sensitivity")
+			or key == "cameraFov"
+			or key.contains("Curve")
+			or key.contains("Deadzone")
+		):
 			if float(a11y.get(key, 0.0)) == 0.0:
 				ok = false
 	ctx.timed_record(
@@ -622,7 +632,9 @@ func _test_migrate_normalizes_equipped_legacy_string(SaveMigratorScript: Script)
 	)
 	var migrated: Dictionary = SaveMigratorScript.migrate(source)
 	var weapon: Dictionary = migrated.get("inventory", {}).get("equipped", {}).get("weapon", {})
-	var ok: bool = weapon.get("itemId", "") == "castle_sword" and int(weapon.get("quantity", 0)) == 1
+	var ok: bool = (
+		weapon.get("itemId", "") == "castle_sword" and int(weapon.get("quantity", 0)) == 1
+	)
 	ctx.timed_record(
 		"save.migrate.normalizes_equipped_legacy_string",
 		get_category(),
@@ -869,6 +881,46 @@ func _test_atomic_write_rejects_bad_payload() -> void:
 	)
 
 
+## BUG-03 regression: the write+verify path used to read the temp file back through a second
+## FileAccess handle before the write handle was flushed/closed, so Godot's internal write buffer
+## could make the verify read observe a truncated file on large payloads and discard a good save.
+func _test_large_payload_write_verifies() -> void:
+	var start := Time.get_ticks_msec()
+	var char_id := "save_large_%d" % (Time.get_ticks_usec() % 1000000)
+	DirAccess.make_dir_recursive_absolute(LocalSave.CHARACTERS_DIR)
+	LocalSave._active_character_id = char_id
+	var good := LocalSave._build_save_payload()
+	var padding: Array = []
+	padding.resize(4000)
+	for i in padding.size():
+		padding[i] = {
+			"affixId": "regression_padding_%d" % i,
+			"value": float(i),
+			"note": "0123456789abcdef0123456789abcdef",
+		}
+	good["itemInstances"]["__bug03_padding__"] = {"affixes": padding}
+	var payload_size := JSON.stringify(good, "\t").length()
+	var wrote := LocalSave._write_save(good, false)
+	var path := LocalSave._active_save_path()
+	var ok := (
+		payload_size > 65536
+		and wrote
+		and FileAccess.file_exists(path)
+		and JSON.parse_string(FileAccess.get_file_as_string(path)) is Dictionary
+	)
+	LocalSave._active_character_id = ""
+	if FileAccess.file_exists(path):
+		DirAccess.remove_absolute(path)
+	ctx.timed_record(
+		"save.write.large_payload_verifies",
+		get_category(),
+		ok,
+		"a >64 KiB payload writes and verifies without a flush race",
+		start,
+		"BUG-03"
+	)
+
+
 func _test_character_corruption_recovery() -> void:
 	var start := Time.get_ticks_msec()
 	var char_id := "save_corr_%d" % (Time.get_ticks_usec() % 1000000)
@@ -878,10 +930,8 @@ func _test_character_corruption_recovery() -> void:
 	LocalSave.autosave()
 	var failed_reason := ""
 	var restored_index := -1
-	var on_failed := func(reason: String) -> void:
-		failed_reason = reason
-	var on_restored := func(index: int) -> void:
-		restored_index = index
+	var on_failed := func(reason: String) -> void: failed_reason = reason
+	var on_restored := func(index: int) -> void: restored_index = index
 	if not LocalSave.save_failed.is_connected(on_failed):
 		LocalSave.save_failed.connect(on_failed)
 	if not LocalSave.backup_restored.is_connected(on_restored):
@@ -917,7 +967,9 @@ func _test_warm_load_migration() -> void:
 	var char_id := "save_warm_%d" % (Time.get_ticks_usec() % 1000000)
 	var path := "%s%s.json" % [LocalSave.CHARACTERS_DIR, char_id]
 	DirAccess.make_dir_recursive_absolute(LocalSave.CHARACTERS_DIR)
-	var v1 := _minimal_v1_save({"character": {"name": "Warm", "classId": "knight", "level": 7, "xp": 0}})
+	var v1 := _minimal_v1_save(
+		{"character": {"name": "Warm", "classId": "knight", "level": 7, "xp": 0}}
+	)
 	var file := FileAccess.open(path, FileAccess.WRITE)
 	if file:
 		file.store_string(JSON.stringify(v1, "\t"))
@@ -942,11 +994,37 @@ func _test_warm_load_migration() -> void:
 func _test_save_validator_problems() -> void:
 	var SaveValidatorScript := preload("res://scripts/save/save_validator.gd")
 	var start := Time.get_ticks_msec()
-	var missing_character: Array = SaveValidatorScript.validate({"schemaVersion": 5, "currencies": {}, "inventory": {"schemaVersion": 1, "gridWidth": 1, "gridHeight": 1, "slots": [], "equipped": Equipment.empty_equipped()}, "talents": {}, "flags": {}})
+	var missing_character: Array = SaveValidatorScript.validate(
+		{
+			"schemaVersion": 5,
+			"currencies": {},
+			"inventory":
+			{
+				"schemaVersion": 1,
+				"gridWidth": 1,
+				"gridHeight": 1,
+				"slots": [],
+				"equipped": Equipment.empty_equipped()
+			},
+			"talents": {},
+			"flags": {}
+		}
+	)
 	var bad_equipped: Dictionary = _minimal_v1_save()["inventory"]
 	bad_equipped["equipped"] = []
-	var equipped_array: Array = SaveValidatorScript.validate({"schemaVersion": 5, "character": {"name": "X", "level": 1, "xp": 0}, "currencies": {"gold": 0}, "inventory": bad_equipped, "talents": {}, "flags": {}})
-	var bad_level: Array = SaveValidatorScript.validate(_minimal_v1_save({"character": {"name": "X", "level": -1, "xp": 0}, "schemaVersion": 5}))
+	var equipped_array: Array = SaveValidatorScript.validate(
+		{
+			"schemaVersion": 5,
+			"character": {"name": "X", "level": 1, "xp": 0},
+			"currencies": {"gold": 0},
+			"inventory": bad_equipped,
+			"talents": {},
+			"flags": {}
+		}
+	)
+	var bad_level: Array = SaveValidatorScript.validate(
+		_minimal_v1_save({"character": {"name": "X", "level": -1, "xp": 0}, "schemaVersion": 5})
+	)
 	var ok: bool = (
 		"character" in missing_character
 		and "inventory.equipped" in equipped_array
@@ -1061,7 +1139,11 @@ func _test_migrate_v4_to_v5_account_id_reset() -> void:
 	var migrated: Dictionary = SaveMigratorScript.migrate(source)
 	LocalSave._cached_state = migrated.duplicate(true)
 	var resolved := LocalSave._resolve_account_id()
-	var ok: bool = str(migrated.get("accountId", "x")) == "" and resolved != "" and resolved != SaveMigratorScript.NIL_ACCOUNT_ID
+	var ok: bool = (
+		str(migrated.get("accountId", "x")) == ""
+		and resolved != ""
+		and resolved != SaveMigratorScript.NIL_ACCOUNT_ID
+	)
 	ctx.timed_record(
 		"save.migrate.v4_to_v5_account_id_reset",
 		get_category(),
@@ -1078,7 +1160,8 @@ func _test_migrate_quests_split_v4_to_v5() -> void:
 	var source := _minimal_v1_save(
 		{
 			"schemaVersion": 4,
-			"quests": {
+			"quests":
+			{
 				"kill_grunts": "active",
 				"kill_grunts_progress": {"count": 2},
 				"relic_progress": "active",
@@ -1159,7 +1242,9 @@ func _test_character_currency_autosave_deferred() -> void:
 
 func _test_character_id_uniqueness() -> void:
 	var start := Time.get_ticks_msec()
-	LocalSave._roster["characters"] = [{"id": "warden_1", "name": "A", "classId": "knight", "level": 1}]
+	LocalSave._roster["characters"] = [
+		{"id": "warden_1", "name": "A", "classId": "knight", "level": 1}
+	]
 	var first := LocalSave._generate_character_id()
 	var second := LocalSave._generate_character_id()
 	ctx.timed_record(
@@ -1233,7 +1318,10 @@ func _test_appearance_profile() -> void:
 	start = Time.get_ticks_msec()
 	var presets_ok := true
 	for height in CharacterAppearanceScript.HEIGHT_PRESETS:
-		if height < CharacterAppearanceScript.HEIGHT_MIN or height > CharacterAppearanceScript.HEIGHT_MAX:
+		if (
+			height < CharacterAppearanceScript.HEIGHT_MIN
+			or height > CharacterAppearanceScript.HEIGHT_MAX
+		):
 			presets_ok = false
 	for bulk in CharacterAppearanceScript.BULK_PRESETS:
 		if bulk < CharacterAppearanceScript.BULK_MIN or bulk > CharacterAppearanceScript.BULK_MAX:
@@ -1271,9 +1359,11 @@ func _test_appearance_profile() -> void:
 	var source := _minimal_v1_save(
 		{
 			"schemaVersion": 4,
-			"character": {
+			"character":
+			{
 				"appearanceTheme": 42,
-				"appearance": {"theme": 42, "height": 1.18, "bulk": 1.22, "head": "hood", "trim": 2},
+				"appearance":
+				{"theme": 42, "height": 1.18, "bulk": 1.22, "head": "hood", "trim": 2},
 			},
 		}
 	)
@@ -1282,7 +1372,10 @@ func _test_appearance_profile() -> void:
 	var migrated_profile: Dictionary = migrated_char.get("appearance", {})
 	var migrate_ok := (
 		int(migrated_profile.get("theme", -1)) <= CharacterAppearanceScript.theme_max()
-		and str(migrated_profile.get("heightVariant", "")) in CharacterAppearanceScript.HEIGHT_VARIANTS
+		and (
+			str(migrated_profile.get("heightVariant", ""))
+			in CharacterAppearanceScript.HEIGHT_VARIANTS
+		)
 	)
 	ctx.timed_record(
 		"appearance.migrate_v4_clamps_profile",

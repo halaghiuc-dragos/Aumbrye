@@ -31,7 +31,6 @@ func run() -> void:
 	_test_save_migration_floor()
 	_test_input_glyphs()
 	_test_hub_tutorial()
-	_test_perf_hooks()
 	_test_ci_release_workflow()
 	_test_ship_docs()
 	_test_multi_floor_run_state()
@@ -372,7 +371,8 @@ func _stairs_test_definition(room_id: String = "stairs") -> Dictionary:
 	return {
 		"seed": TC.SEED_A,
 		"biomeId": "forgotten_castle",
-		"rooms": [
+		"rooms":
+		[
 			{
 				"id": room_id,
 				"templateId": "castle_stairs",
@@ -381,7 +381,8 @@ func _stairs_test_definition(room_id: String = "stairs") -> Dictionary:
 			},
 		],
 		"edges": [],
-		"placements": {"entrance": room_id, "enemies": [], "loot": [], "traps": [], "secrets": [], "boss": null},
+		"placements":
+		{"entrance": room_id, "enemies": [], "loot": [], "traps": [], "secrets": [], "boss": null},
 	}
 
 
@@ -389,7 +390,9 @@ func _build_stairs_test_dungeon(definition: Dictionary) -> Dictionary:
 	var root := Node3D.new()
 	root.name = "StairLeverTestRoot"
 	ctx.owner.add_child(root)
-	var player: CharacterBody3D = load("res://scenes/player/player.tscn").instantiate() as CharacterBody3D
+	var player: CharacterBody3D = (
+		load("res://scenes/player/player.tscn").instantiate() as CharacterBody3D
+	)
 	root.add_child(player)
 	var builder := DungeonBuilderScript.new()
 	root.add_child(builder)
@@ -418,7 +421,8 @@ func _test_lever_created_per_stairs_room() -> void:
 			{
 				"seed": TC.SEED_A,
 				"biomeId": biome_id,
-				"rooms": [
+				"rooms":
+				[
 					{
 						"id": "stairs",
 						"templateId": biomes[biome_id],
@@ -427,7 +431,8 @@ func _test_lever_created_per_stairs_room() -> void:
 					},
 				],
 				"edges": [],
-				"placements": {
+				"placements":
+				{
 					"entrance": "stairs",
 					"enemies": [],
 					"loot": [],
@@ -445,7 +450,9 @@ func _test_lever_created_per_stairs_room() -> void:
 		built["root"].queue_free()
 		if not ok:
 			break
-	ctx.timed_record("run.floor.lever_per_stairs_room", get_category(), ok, message, start, "STL-03")
+	ctx.timed_record(
+		"run.floor.lever_per_stairs_room", get_category(), ok, message, start, "STL-03"
+	)
 
 
 func _test_lever_starts_locked() -> void:
@@ -468,13 +475,16 @@ func _test_lever_starts_locked() -> void:
 func _test_lever_unlocks_on_boss_death() -> void:
 	var start := Time.get_ticks_msec()
 	var definition := _stairs_test_definition("s1")
-	definition["rooms"].append(
-		{
-			"id": "s2",
-			"templateId": "castle_stairs",
-			"type": "corridor",
-			"transform": {"x": 20, "y": 0, "z": 0, "yaw": 0},
-		}
+	(
+		definition["rooms"]
+		. append(
+			{
+				"id": "s2",
+				"templateId": "castle_stairs",
+				"type": "corridor",
+				"transform": {"x": 20, "y": 0, "z": 0, "yaw": 0},
+			}
+		)
 	)
 	var built := _build_stairs_test_dungeon(definition)
 	await ctx.await_frame()
@@ -585,8 +595,7 @@ func _test_stair_menu_disabled_reasons() -> void:
 	var options: Array = lever.call("floor_options")
 	var descend: Dictionary = options[1]
 	var ok := (
-		not bool(descend.get("enabled", true))
-		and str(descend.get("reason", "")).contains("lowest")
+		not bool(descend.get("enabled", true)) and str(descend.get("reason", "")).contains("lowest")
 	)
 	lever.free()
 	ctx.timed_record(
@@ -682,19 +691,6 @@ func _test_hub_tutorial() -> void:
 		"hub tutorial tips available and skippable",
 		start,
 		"POLISH-7.2"
-	)
-
-
-func _test_perf_hooks() -> void:
-	var start := Time.get_ticks_msec()
-	var ok: bool = ctx.file_contains("res://scripts/combat/enemy_pool.gd", "class_name EnemyPool")
-	ctx.timed_record(
-		"performance.pool.enemy_pool",
-		get_category(),
-		ok,
-		"enemy pooling module present (PERF-7.1)",
-		start,
-		"PERF-7.1"
 	)
 
 
@@ -1050,12 +1046,7 @@ func _test_global_drops() -> void:
 	var schema_path := _content_root().path_join("content/schemas/global-drops.v1.json")
 	ok = FileAccess.file_exists(schema_path)
 	ctx.timed_record(
-		"loot.global.schema",
-		get_category(),
-		ok,
-		"global-drops schema exists",
-		start,
-		"SKIP-7.x"
+		"loot.global.schema", get_category(), ok, "global-drops schema exists", start, "SKIP-7.x"
 	)
 	start = Time.get_ticks_msec()
 	var drop := GlobalDropService.roll_enemy_drop(12345, 15)

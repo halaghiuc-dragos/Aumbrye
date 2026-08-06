@@ -38,8 +38,13 @@ var _acquire_counter := 0
 var _sweep_entries: Array[Dictionary] = []
 var _free_nodes: Array[Node] = []
 
-var _hitstop_until_ms := 0
-var _hitstop_restore_scale := 1.0
+## BUG-41: VfxService is the single owner of Engine.time_scale. Every requester (hit-stop,
+## the death sequence, …) calls push_time_scale(id, scale, duration_ms) / release_time_scale(id)
+## instead of writing Engine.time_scale directly, so overlapping or interrupted requests cannot
+## corrupt a private restore cache (BUG-39) or strand the engine at a slowed scale (BUG-27).
+## duration_ms == 0 means "persists until release_time_scale(id) is called" — used by the death
+## sequence, whose length spans several awaits rather than one fixed window.
+var _time_scale_requests: Dictionary = {}
 var _shake_amount := 0.0
 var _shake_decay_rate := 9.0
 
@@ -57,7 +62,7 @@ func _ready() -> void:
 
 func _process(delta: float) -> void:
 	_sweep_pools()
-	_update_hitstop()
+	_update_time_scale()
 	_shake_amount = lerpf(_shake_amount, 0.0, delta * _shake_decay_rate)
 	for node in _free_nodes:
 		if is_instance_valid(node):
@@ -197,7 +202,9 @@ func play_parry_spark(world_pos: Vector3, forward: Vector3 = Vector3.FORWARD) ->
 	play_parry(world_pos, forward)
 
 
-func play_hit_spark(world_pos: Vector3, direction: Vector3 = Vector3.UP, normal: Vector3 = Vector3.UP) -> void:
+func play_hit_spark(
+	world_pos: Vector3, direction: Vector3 = Vector3.UP, normal: Vector3 = Vector3.UP
+) -> void:
 	play("hit_spark", world_pos, direction, Color(0, 0, 0, 0), normal)
 
 
@@ -241,7 +248,9 @@ func play_death(
 	)
 
 
-func play_footstep(world_pos: Vector3, forward: Vector3 = Vector3.FORWARD, surface: StringName = &"stone") -> void:
+func play_footstep(
+	world_pos: Vector3, forward: Vector3 = Vector3.FORWARD, surface: StringName = &"stone"
+) -> void:
 	var effect_id := _footstep_effect_id(surface)
 	var dir := forward.normalized() if forward.length_squared() > 0.01 else Vector3(0.0, 0.0, -1.0)
 	var side := dir.cross(Vector3.UP)
@@ -261,14 +270,7 @@ func play_weapon_trail(
 	tint: Color = Color(1.0, 0.95, 0.72),
 	radius: float = 1.05
 ) -> void:
-	play(
-		"weapon_trail",
-		world_pos,
-		forward,
-		tint,
-		Vector3.UP,
-		{"radius": radius}
-	)
+	play("weapon_trail", world_pos, forward, tint, Vector3.UP, {"radius": radius})
 
 
 func play_telegraph(
@@ -297,11 +299,56 @@ func request_hitstop(duration_ms: int, strength: float = 0.05) -> void:
 		return
 	if AccessibilitySettings.reduce_hitstop:
 		return
+	push_time_scale(&"vfx_hitstop", strength, duration_ms)
+
+
+## Requests Engine.time_scale = scale for at least duration_ms of unscaled wall time (or until
+## release_time_scale(id) if duration_ms is 0). Repeated pushes to the same id extend the
+## deadline and keep the strongest (lowest) scale rather than resetting it — the same
+## "never shorten an in-flight freeze" rule the old per-caller implementations each hand-rolled.
+func push_time_scale(id: StringName, scale: float, duration_ms: int = 0) -> void:
+	var until_ms := 0
+	if duration_ms > 0:
+		until_ms = Time.get_ticks_msec() + duration_ms
+	if _time_scale_requests.has(id):
+		var existing: Dictionary = _time_scale_requests[id]
+		var existing_until := int(existing.get("until_ms", 0))
+		if existing_until == 0 or (until_ms != 0 and until_ms < existing_until):
+			until_ms = existing_until
+		scale = minf(scale, float(existing.get("scale", 1.0)))
+	_time_scale_requests[id] = {"scale": scale, "until_ms": until_ms}
+	_apply_time_scale()
+
+
+func release_time_scale(id: StringName) -> void:
+	if _time_scale_requests.erase(id):
+		_apply_time_scale()
+
+
+func _apply_time_scale() -> void:
+	if _time_scale_requests.is_empty():
+		Engine.time_scale = 1.0
+		return
+	var strongest := 1.0
+	for id in _time_scale_requests:
+		strongest = minf(strongest, float(_time_scale_requests[id].get("scale", 1.0)))
+	Engine.time_scale = strongest
+
+
+func _update_time_scale() -> void:
+	if _time_scale_requests.is_empty():
+		return
 	var now_ms := Time.get_ticks_msec()
-	if _hitstop_until_ms <= now_ms:
-		_hitstop_restore_scale = Engine.time_scale
-	_hitstop_until_ms = maxi(_hitstop_until_ms, now_ms + duration_ms)
-	Engine.time_scale = strength
+	var expired: Array = []
+	for id in _time_scale_requests:
+		var until_ms := int((_time_scale_requests[id] as Dictionary).get("until_ms", 0))
+		if until_ms > 0 and now_ms >= until_ms:
+			expired.append(id)
+	if expired.is_empty():
+		return
+	for id in expired:
+		_time_scale_requests.erase(id)
+	_apply_time_scale()
 
 
 func request_shake(amount: float, duration_ms: int) -> void:
@@ -314,9 +361,7 @@ func request_shake(amount: float, duration_ms: int) -> void:
 func consume_shake() -> Vector3:
 	if _shake_amount < 0.001:
 		return Vector3.ZERO
-	return (
-		Vector3(randf_range(-1.0, 1.0), randf_range(-1.0, 1.0), 0.0) * _shake_amount * 0.06
-	)
+	return Vector3(randf_range(-1.0, 1.0), randf_range(-1.0, 1.0), 0.0) * _shake_amount * 0.06
 
 
 func get_burst_pool_size() -> int:
@@ -460,7 +505,11 @@ func _play_impact_layer(layer: Dictionary) -> void:
 	if shake > 0.0 and shake_ms > 0:
 		request_shake(shake, shake_ms)
 	var vignette := float(layer.get("vignette", 0.0))
-	if vignette > 0.0 and PixelDioramaViewport and PixelDioramaViewport.has_method("pulse_damage_vignette"):
+	if (
+		vignette > 0.0
+		and PixelDioramaViewport
+		and PixelDioramaViewport.has_method("pulse_damage_vignette")
+	):
 		PixelDioramaViewport.call("pulse_damage_vignette", vignette)
 
 
@@ -473,7 +522,9 @@ func _play_sfx_layer(layer: Dictionary, world_pos: Vector3) -> void:
 	AudioDirector.play_sfx(key, world_pos)
 
 
-func _make_burst_particles(node_name: String, world_pos: Vector3, cfg: Dictionary) -> CPUParticles3D:
+func _make_burst_particles(
+	node_name: String, world_pos: Vector3, cfg: Dictionary
+) -> CPUParticles3D:
 	var particles := _acquire_burst()
 	particles.name = node_name
 	particles.amount = int(cfg.get("amount", 12))
@@ -490,7 +541,9 @@ func _make_burst_particles(node_name: String, world_pos: Vector3, cfg: Dictionar
 	particles.scale_amount_max = float(cfg.get("scale_max", 0.1))
 	particles.color = cfg.get("color", Color.WHITE)
 	particles.mesh = _chunk_mesh(String(cfg.get("chunk", "shard_small")))
-	particles.material_override = _particle_material(particles.color, float(cfg.get("emission", 0.0)))
+	particles.material_override = _particle_material(
+		particles.color, float(cfg.get("emission", 0.0))
+	)
 	particles.visibility_aabb = _burst_visibility_aabb(cfg)
 	particles.global_position = world_pos
 	particles.restart()
@@ -538,14 +591,18 @@ func _acquire_burst() -> CPUParticles3D:
 
 
 func _acquire_gpu_burst() -> GPUParticles3D:
-	return _acquire_from_pool(_gpu_burst_pool, _gpu_acquire_gen, GPU_BURST_POOL_MAX, _make_gpu_burst_node)
+	return _acquire_from_pool(
+		_gpu_burst_pool, _gpu_acquire_gen, GPU_BURST_POOL_MAX, _make_gpu_burst_node
+	)
 
 
 func _acquire_decal() -> Decal:
 	return _acquire_from_pool(_decal_pool, _decal_acquire_gen, DECAL_POOL_MAX, _make_decal_node)
 
 
-func _acquire_from_pool(pool: Array, gens: PackedInt64Array, cap: int, factory: Callable) -> Variant:
+func _acquire_from_pool(
+	pool: Array, gens: PackedInt64Array, cap: int, factory: Callable
+) -> Variant:
 	var best_idx := -1
 	var best_gen := 9223372036854775807
 	for i in pool.size():
@@ -642,21 +699,37 @@ func _make_decal_node(node_name: String) -> Decal:
 
 func _schedule_pool_return(particles: CPUParticles3D, delay: float) -> void:
 	_mark_acquired(_burst_pool, _burst_acquire_gen, particles)
-	_sweep_entries.append({"node": particles, "expires_at": Time.get_ticks_msec() + int(delay * 1000.0), "kind": "cpu"})
+	_sweep_entries.append(
+		{
+			"node": particles,
+			"expires_at": Time.get_ticks_msec() + int(delay * 1000.0),
+			"kind": "cpu"
+		}
+	)
 
 
 func _schedule_gpu_return(particles: GPUParticles3D, delay: float) -> void:
 	_mark_acquired(_gpu_burst_pool, _gpu_acquire_gen, particles)
-	_sweep_entries.append({"node": particles, "expires_at": Time.get_ticks_msec() + int(delay * 1000.0), "kind": "gpu"})
+	_sweep_entries.append(
+		{
+			"node": particles,
+			"expires_at": Time.get_ticks_msec() + int(delay * 1000.0),
+			"kind": "gpu"
+		}
+	)
 
 
 func _schedule_decal_return(decal: Decal, delay: float) -> void:
 	_mark_acquired(_decal_pool, _decal_acquire_gen, decal)
-	_sweep_entries.append({"node": decal, "expires_at": Time.get_ticks_msec() + int(delay * 1000.0), "kind": "decal"})
+	_sweep_entries.append(
+		{"node": decal, "expires_at": Time.get_ticks_msec() + int(delay * 1000.0), "kind": "decal"}
+	)
 
 
 func _schedule_free(node: Node, delay: float) -> void:
-	_sweep_entries.append({"node": node, "expires_at": Time.get_ticks_msec() + int(delay * 1000.0), "kind": "free"})
+	_sweep_entries.append(
+		{"node": node, "expires_at": Time.get_ticks_msec() + int(delay * 1000.0), "kind": "free"}
+	)
 
 
 func _sweep_pools() -> void:
@@ -677,14 +750,6 @@ func _sweep_pools() -> void:
 			"free":
 				_free_nodes.append(node)
 	_sweep_entries = remaining
-
-
-func _update_hitstop() -> void:
-	if _hitstop_until_ms <= 0:
-		return
-	if Time.get_ticks_msec() >= _hitstop_until_ms:
-		_hitstop_until_ms = 0
-		Engine.time_scale = _hitstop_restore_scale
 
 
 func _particle_material(color: Color, emission_energy: float) -> ShaderMaterial:
@@ -747,9 +812,8 @@ func _pick_decal_texture(decal_id: String) -> Texture2D:
 		if ResourceLoader.exists(path):
 			tex = load(path) as Texture2D
 		if tex == null:
-			var disk_path := ProjectSettings.globalize_path(path)
-			if FileAccess.file_exists(disk_path):
-				var img := Image.load_from_file(disk_path)
+			if FileAccess.file_exists(path):
+				var img := Image.load_from_file(path)
 				if img:
 					tex = ImageTexture.create_from_image(img)
 		if tex != null:
@@ -841,7 +905,9 @@ func _build_weapon_trail(
 	var mesh_instance := MeshInstance3D.new()
 	var ribbon := ImmediateMesh.new()
 	mesh_instance.mesh = ribbon
-	mesh_instance.material_override = _particle_material(Color(tint.r, tint.g, tint.b, 0.98), emission)
+	mesh_instance.material_override = _particle_material(
+		Color(tint.r, tint.g, tint.b, 0.98), emission
+	)
 	mesh_instance.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	trail.add_child(mesh_instance)
 	var half_arc := deg_to_rad(arc_degrees) * 0.5
@@ -865,12 +931,7 @@ func _build_weapon_trail(
 
 
 func _build_telegraph_glyph(
-	world_pos: Vector3,
-	radius: float,
-	duration: float,
-	tint: Color,
-	shape: String,
-	forward: Vector3
+	world_pos: Vector3, radius: float, duration: float, tint: Color, shape: String, forward: Vector3
 ) -> void:
 	var glyph := Node3D.new()
 	glyph.name = "TelegraphGlyph"
@@ -954,7 +1015,9 @@ func _burst_visibility_aabb(cfg: Dictionary) -> AABB:
 	var lifetime := float(cfg.get("lifetime", 0.3))
 	var scale_max := float(cfg.get("scale_max", 0.1))
 	var extent := (velocity_max * lifetime + scale_max) * 1.25
-	return AABB(Vector3(-extent, -extent * 0.5, -extent), Vector3(extent * 2.0, extent * 2.0, extent * 2.0))
+	return AABB(
+		Vector3(-extent, -extent * 0.5, -extent), Vector3(extent * 2.0, extent * 2.0, extent * 2.0)
+	)
 
 
 func _resolve_forward(body: Node3D) -> Vector3:
