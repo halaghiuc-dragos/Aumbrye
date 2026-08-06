@@ -12,7 +12,6 @@ func run() -> void:
 	_test_death_xp_fraction()
 	_test_run_buffs()
 	_test_talent_unlock()
-	_test_run_economy_docs()
 	_test_m4_content_schemas()
 	_test_xp_curve_runtime_keys()
 	_test_talent_points_from_curve()
@@ -94,20 +93,6 @@ func _test_talent_unlock() -> void:
 		"talent unlock spends points at sufficient level",
 		start,
 		"M4.prog.talents"
-	)
-
-
-func _test_run_economy_docs() -> void:
-	var start := Time.get_ticks_msec()
-	var path: String = ctx.repo_root().path_join("docs/existing_codebase/progression-service.md")
-	var exists := FileAccess.file_exists(path)
-	ctx.timed_record(
-		"progression.run_economy_doc",
-		get_category(),
-		exists,
-		"progression system doc present",
-		start,
-		"M4.flow.economy"
 	)
 
 

@@ -65,7 +65,6 @@ func run() -> void:
 	_test_m5_schemas()
 	_test_loot_epic_affix_counts()
 	await _test_save_integer_normalization()
-	_test_balance_doc()
 	_test_online_procgen_optional_path()
 	await _test_combat_hud()
 
@@ -756,19 +755,6 @@ func _test_save_integer_normalization() -> void:
 		"autosave writes integer quantity/x/y/rollSeed",
 		start,
 		"M5.save.integers"
-	)
-
-
-func _test_balance_doc() -> void:
-	var start := Time.get_ticks_msec()
-	var path := _content_root().path_join("docs/existing_codebase/content-data.md")
-	ctx.timed_record(
-		"docs.balance.doc_exists",
-		get_category(),
-		FileAccess.file_exists(path),
-		"content data doc present",
-		start,
-		"M5.bal.doc"
 	)
 
 

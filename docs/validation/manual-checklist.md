@@ -1,6 +1,13 @@
 # Manual validation checklist
 
-Headless suites cannot cover these items. Each `checklist_ref` used in validation reports should have a matching heading below.
+Headless suites cannot cover these items.
+
+> **Coverage is partial, and the automated check is inert.** Validation suites pass a checklist
+> reference as the sixth positional argument to `ctx.timed_record()`; 229 distinct references are in use
+> and only 52 have a heading below. `docs_suite._collect_checklist_refs_from_suites()` searches suite
+> source for the literal token `checklist_ref`, which appears nowhere, so it always returns an empty list
+> and the heading assertion always passes vacuously. Fix the collector to read the sixth argument, then
+> either add the missing headings or stop emitting references that have none.
 
 ## M3.seed.spot_check
 

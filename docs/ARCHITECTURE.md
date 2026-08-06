@@ -1,10 +1,13 @@
 # Aumbrye — Architecture
 
-> Source of truth: current repository code only. Prior deleted documentation is intentionally ignored.
+> **Source of truth: the code on disk.** Every claim below was verified against the repository on
+> 2026-08-06. Where a system is genuinely missing, it is tagged **ABSENT** with where it was looked for.
+> Known defects are catalogued separately in [`../REFACTOR_OPTIMISE_BUGFIX.md`](../REFACTOR_OPTIMISE_BUGFIX.md)
+> and referenced here by ID (e.g. `BUG-01`).
 
-How the repo is wired **today**, verified against paths on disk. Claims about missing pieces are marked **ABSENT FROM CODEBASE**.
-
-**Stack:** Godot 4.7 client; ASP.NET Core 8 API; C# procgen (`packages/procedural`); React/Vite site (`apps/web`); JSON `content/` + schemas. Play loop is offline-first; online procgen is compiled off.
+**Stack:** Godot 4.7 client (`.godot-version` pins `4.7.0`); ASP.NET Core 8 API; C# procgen
+(`packages/procedural`); React 19 + Vite SPA (`apps/web`); JSON `content/` with schemas under
+`content/schemas/`. The play loop is offline-first — online procgen is compiled off.
 
 ---
 
@@ -12,63 +15,77 @@ How the repo is wired **today**, verified against paths on disk. Claims about mi
 
 ```
 Aumbrye/
-├── apps/game/client/     # Godot 4.7 project (PRIMARY gameplay)
-├── apps/web/             # React + TS + Vite (Landing, Account, Wiki, Patch Notes, Leaderboards)
+├── apps/game/client/     # Godot 4.7 project (primary gameplay)
+├── apps/web/             # React 19 + TypeScript + Vite marketing/account site
 ├── services/backend/     # ASP.NET Core 8 (Api / Application / Domain / Infrastructure)
-├── packages/procedural/  # C# dungeon generator
+├── packages/procedural/  # C# dungeon generator (server-authoritative + parity tests)
 ├── packages/shared/      # C# DTOs + OpenAPI yaml
-├── content/              # JSON defs + content/schemas/*.v1.json + fixtures
+├── content/              # 323 JSON definitions + content/schemas/*.v1.json + fixtures
 ├── tools/procgen-cli/    # CLI over packages/procedural
-├── scripts/              # validate-content, validation runners
-├── assets/               # Shared asset notes (Godot runtime assets live under apps/game/client/assets/)
-├── docs/                 # ARCHITECTURE, ADR, existing_codebase/, actual_improvements/
-├── docker-compose.yml    # postgres + redis only (no API container)
-└── .github/workflows/    # ci.yml, release.yml
+├── tools/voxel-import/   # Voxel art import tooling
+├── art-source/           # 262 authored .vox character sources
+├── scripts/              # validate-content, balance, openapi-drift, audio generators
+├── docker-compose.yml    # postgres + redis + api
+└── .github/workflows/    # ci.yml, release.yml, codeql.yml
 ```
-
-**ABSENT FROM CODEBASE:** `Dockerfile` / API container image. API is run with `dotnet run --project services/backend/src/Aumbrye.Api`.
 
 Main scene: `apps/game/client/scenes/ui/title_screen.tscn` (`project.godot` → `run/main_scene`).
 
+The API **does** have a container image: `services/backend/Dockerfile` exists, `docker-compose.yml`
+defines an `api` service (`container_name: aumbrye-api`), CI builds it in the `api-image` job, and
+`release.yml` pushes it to `ghcr.io`.
+
 ---
 
-## 2. Client autoloads (`apps/game/client/project.godot`)
+## 2. Client autoloads
+
+27 autoloads are registered in `apps/game/client/project.godot` under `[autoload]`. All paths below are
+`res://`-relative.
 
 | Autoload | Script | Role |
 |----------|--------|------|
 | `RunFlow` | `scripts/app/run_flow.gd` | Hub ↔ dungeon ↔ results; floor cache; `USE_ONLINE_PROCgen := false` |
-| `ApiConfig` | `scripts/net/api_config.gd` | Base URL + tokens |
+| `ApiConfig` | `scripts/net/api_config.gd` | Base URL, token storage, HTTP request pool |
 | `LocalSave` | `scripts/save/local_save.gd` | JSON save, roster, active-run snapshots |
-| `CharacterService` | `scripts/save/character_service.gd` | Gold/coins, flags, quests, class/appearance |
+| `CharacterService` | `scripts/save/character_service.gd` | Gold/coins, flags, class, appearance |
 | `ProgressionService` | `scripts/progression/progression_service.gd` | XP, level, talents |
-| `RunBuffs` | `scripts/combat/run_buffs.gd` | Run-scoped buffs/relics |
+| `RunBuffs` | `scripts/combat/run_buffs.gd` | Run-scoped buffs and relics |
 | `InventoryService` | `scripts/inventory/inventory_service.gd` | Grid inventory + equipment |
 | `StorageService` | `scripts/hub/storage_service.gd` | Hub stash |
-| `QuestService` | `scripts/quests/quest_service.gd` | Quests |
-| `AudioDirector` | `scripts/audio/audio_director.gd` | Buses / audio profiles |
-| `AchievementService` | `scripts/meta/achievement_service.gd` | Local achievements → Steam sync hooks |
+| `QuestService` | `scripts/quests/quest_service.gd` | Quest state |
+| `AudioDirector` | `scripts/audio/audio_director.gd` | Buses, layers, SFX bank, reverb |
+| `AchievementService` | `scripts/meta/achievement_service.gd` | Local achievements + Steam sync hooks |
 | `SteamService` | `scripts/platform/steam_service.gd` | GodotSteam or dev stub (`DEV_APP_ID := 480`) |
-| `CrashLogger` | `scripts/platform/crash_logger.gd` | Crash breadcrumbs under `user://crash_reports/` |
-| `WavesRunService` | `scripts/dungeon/waves_run_service.gd` | Waves mode state |
-| `DungeonTierService` | `scripts/dungeon/dungeon_tier_service.gd` | Theme tier unlocks |
-| `VfxService` | `scripts/art/vfx/vfx_service.gd` | Hit/burst VFX |
-| `PlayerControls` | `scripts/app/player_controls.gd` | Meta UI (inventory/settings/talents/pause) — **not** locomotion |
+| `CrashLogger` | `scripts/platform/crash_logger.gd` | Breadcrumbs under `user://crash_reports/` |
+| `WavesRunService` | `scripts/dungeon/waves_run_service.gd` | Waves-mode state |
+| `DungeonTierService` | `scripts/dungeon/dungeon_tier_service.gd` | Per-dungeon tier unlocks |
+| `VfxService` | `scripts/art/vfx/vfx_service.gd` | Pooled bursts, decals, hitstop, shake |
+| `DisplayService` | `scripts/app/display_service.gd` | Window mode, vsync, FPS cap, UI scale |
+| `PlayerControls` | `scripts/app/player_controls.gd` | Meta UI gating — **not** locomotion |
+| `MenuStack` | `scripts/ui/menu_stack.gd` | Menu push/pop |
 | `WorldState` | `scripts/app/world_state.gd` | Run-scoped key/value flags |
-| `PixelDioramaViewport` | `scripts/art/pipeline/pixel_diorama_viewport.gd` | Low-res SubViewport mirror |
+| `PixelDioramaViewport` | `scripts/art/pipeline/pixel_diorama_viewport.gd` | Low-res SubViewport camera mirror |
 | `AttackTokenService` | `scripts/combat/attack_token_service.gd` | Per-room attacker concurrency |
-| `GameFacade` | `scripts/app/game_facade.gd` | Thin grouping accessors |
-| `DebugConsole` | `scripts/debug/debug_console.gd` | Debug-only commands (`content_reload` clears catalog caches) |
+| `GameFacade` | `scripts/app/game_facade.gd` | Grouping accessors |
+| `InputRebindService` | `scripts/app/input_rebind_service.gd` | Runtime input remapping |
+| `DebugConsole` | `scripts/debug/debug_console.gd` | `F12` console (`content_reload` clears catalog caches) |
+| `InputGlyphWatcher` | `scripts/ui/input_glyph_watcher.gd` | Device-change → glyph refresh |
+| `UISymbolBus` | `scripts/ui/ui_symbol_bus.gd` | Shared UI symbol lookup |
 
-Non-autoload helpers include catalogs under `scripts/content/`, `BiomeRegistry`, `DungeonCatalog`, `ContentLoader`, scene routers under `scripts/app/`.
+Non-autoload statics carry a large share of state: catalogs under `scripts/content/`, plus
+`BiomeRegistry`, `DungeonCatalog`, `ContentLoader`, `EnemyPool`, `VoxelMeshBuilder`.
+
+> The size of this list is itself a finding — see `REF-01`.
 
 ---
 
-## 3. Scene flow
+## 3. Scene and run flow
 
 ```mermaid
 flowchart LR
   Title[title_screen.tscn] --> Menu[main_menu / character_create]
-  Menu --> Hub[hub.tscn]
+  Menu --> Loading[loading_screen.tscn]
+  Loading --> Hub[hub.tscn]
   Hub -->|castle / endless| Castle[castle_run.tscn]
   Hub -->|waves| Waves[waves_run.tscn]
   Hub -->|arena| Arena[combat_arena.tscn]
@@ -77,18 +94,28 @@ flowchart LR
   Results --> Hub
 ```
 
-| Mode | Floors / end | Biome | Scene |
-|------|--------------|-------|-------|
-| `castle` | 10; floor 10 final | Selected dungeon biome | `scenes/dungeon/castle_run.tscn` |
-| `endless` | unbounded | Forced `umbral_chapel` | same |
-| `waves` | wave counter → 50 | Waves service / umbral | `scenes/dungeon/waves_run.tscn` |
+Floor counts come from `scripts/dungeon/run_floor_config.gd`:
 
-Room kits: `scenes/rooms/{castle,crystal,swamp,frozen,cathedral,vault,prism,mire,hollow,umbral}/`.  
-Player: `scenes/player/player.tscn`.
+| Mode | Floors | Biome | Scene |
+|------|--------|-------|-------|
+| `castle` | `MAX_FLOORS := 10`; floor 10 is final | Selected dungeon biome | `scenes/dungeon/castle_run.tscn` |
+| `endless` | `ENDLESS_MAX_FLOORS := 999999`; `is_final_floor()` always false | Forced `umbral_chapel` | same |
+| `waves` | Wave counter | Waves service | `scenes/dungeon/waves_run.tscn` |
+
+Ten biomes, each with a matching dungeon definition and room kit:
+`forgotten_castle`, `crystal_caverns`, `poison_swamp`, `frozen_fortress`, `dark_cathedral`,
+`iron_vault`, `prism_depths`, `venom_mire`, `glacial_hollow`, `umbral_chapel`.
+
+Room kits live at `scenes/rooms/{castle,crystal,swamp,frozen,cathedral,vault,prism,mire,hollow,umbral}/`
+and are resolved by **string interpolation**, not by static reference:
+`BiomeRegistry.room_scene_path()` builds `"res://scenes/rooms/%s/%s_%s.tscn"`. A typo in a content
+`scene` field therefore fails at spawn time, not at import time.
+
+Player scene: `scenes/player/player.tscn`.
 
 ---
 
-## 4. Run / dungeon assembly
+## 4. Dungeon assembly
 
 ```mermaid
 sequenceDiagram
@@ -100,189 +127,203 @@ sequenceDiagram
   participant LocalSave
 
   Hub->>RunFlow: start_new_run / endless / waves
-  RunFlow->>LocalProcgen: generate(...)
-  LocalProcgen-->>RunFlow: DungeonDefinition JSON
-  RunFlow->>CastleRun: change_scene
+  RunFlow->>LocalProcgen: generate(biome, seed, floor)
+  LocalProcgen-->>RunFlow: DungeonDefinition
+  RunFlow->>CastleRun: change_scene_to_file
   CastleRun->>DungeonBuilder: build_from_definition
   CastleRun->>RunFlow: ascend / death / escape
   RunFlow->>LocalSave: results + autosave
   RunFlow->>Hub: return
 ```
 
-- **Primary offline gen:** `scripts/dungeon/local_procgen.gd` → GDScript `scripts/dungeon/procgen/dungeon_procgen.gd`
-- **Fallback:** `dotnet run` on `tools/procgen-cli` → `packages/procedural` (emits a materially poorer shape: no `roomContent` / `locks` / `puzzles`; swap is silent)
-- **Online path:** `RunFlow.USE_ONLINE_PROCgen` is **`false`** — `ApiClient.create_run` is not used in the live play path
+- **Live offline path:** `scripts/dungeon/local_procgen.gd` → `scripts/dungeon/procgen/dungeon_procgen.gd`
+  (GDScript).
+- **Online path:** `RunFlow.USE_ONLINE_PROCgen` is `false` (`run_flow.gd:29`), so
+  `ApiClient.create_run` is not on the live play path. The check is at `run_flow.gd:225`.
+- **Server / parity path:** `packages/procedural` (C#), exercised by `tools/procgen-cli` and
+  `cross_stack_parity_suite.gd`.
 
-**Incomplete builder hooks** (`scripts/dungeon/dungeon_builder.gd`):
+The duplication between the GDScript and C# generators is tracked as `REF-02`.
 
-| Hook | Status |
-|------|--------|
-| `_build_height_transitions()` | Explicit `pass` (called, no-op) |
-| `_build_shortcut_corridors()` | Implemented, **no call site** |
+Room geometry is `MeshInstance3D` boxes plus `StaticBody3D` from `castle_blockout.gd` — not CSG.
+`DungeonBuilder.build_from_source()` is fully synchronous (zero `await`), which is the main cause of
+floor-transition stalls (`PERF-03`).
 
-Room geometry is `MeshInstance3D` boxes + `StaticBody3D` from `castle_blockout.gd` — **not CSG**. `cross_stack_parity_suite.gd` currently asserts GDScript-only behaviour, not C# parity.
+Builder hooks worth knowing:
 
----
-
-## 5. Combat (client-authoritative)
-
-**Happy path:** `WeaponController` → `Hitbox` → `Hurtbox.receive_hit` → guard / i-frames / defense → `Health` / `Poise` / statuses → hit feedback / `VfxService`.
-
-**Bypasses (also live):** `poison_hazard` apply and poison DoT ticks call `Health` directly and never enter `receive_hit`, so dodge i-frames and defense do not apply. Detail: [`existing_codebase/combat-hazards.md`](existing_codebase/combat-hazards.md).
-
-Present systems (scripts under `scripts/combat/`, `scripts/player/`, `scripts/enemies/`, `scripts/bosses/`): stamina, mana node + HUD, guard/parry, dodge i-frames, lock-on, weapons from `content/weapons/`, statuses from `content/statuses/`, `RunBuffs`, `AttackTokenService`.
-
-**Noted gaps (code):**
-
-- `Mana.consume` — **no gameplay callers** (HUD bar stays full)
-- `WeaponController.get_attack_lunge_velocity()` returns `Vector3.ZERO`
-- Weapon art is **unreachable**: input + `_try_weapon_art()` exist, but no `content/weapons/*.json` has `"art"`, and `content/schemas/weapon-definition.v1.json` sets `additionalProperties: false` without that key
-- Enemy scenes lack a `StatusController` child (only `player.tscn` mounts one) — player-inflicted statuses are dropped
-- Player hit feedback is often inert (`HitFeedback.camera_path` wrong; `AnimDirector` cached before creation) — see [`existing_codebase/player-combat.md`](existing_codebase/player-combat.md)
-- Character / weapon / prop visuals are procedural box diorama under `scripts/art/`
+| Hook | State |
+|------|-------|
+| `_build_height_transitions()` | Implemented — reads `maxHeightLevel`, walks rooms and edges (`dungeon_builder.gd:332`) |
+| `_build_shortcut_corridors()` | **ABSENT** — no such function; shortcut edges are handled by `_wire_shortcut_edges()` (`:236`) |
 
 ---
 
-## 6. Hub & meta
+## 5. Combat
 
-`scripts/hub/hub.gd` + `scenes/hub/hub.tscn`: castle / endless / waves portals, arena entry, merchant, blacksmith, storage, quest board.
+Client-authoritative. Happy path:
 
-**Hidden at runtime:** `hub.gd` sets `$SkiesPortal.visible = false` and `$CathedralPortal.visible = false` after `hub_diorama.gd` dresses them. Treat as not player-facing until shown.
+`WeaponController` → `Hitbox` → `Hurtbox.receive_hit()` → i-frames / immunity / parry / block / arc
+multipliers / defense / resistances → `Health` + `Poise` + `StatusController` → `HitFeedback` +
+`VfxService`.
 
-Related: `BlacksmithService`, merchant UI, `StorageService`, `QuestService`, dialogue under `scripts/dialogue/` + `scripts/ui/dialogue_ui.gd`.
+`Hurtbox.receive_hit()` (`scripts/combat/hurtbox.gd:44`) builds a `DamageResolution`
+(`scripts/combat/damage_resolution.gd`) and emits `hit_resolved` at every exit, including dodged and
+parried hits. The legacy `damaged(info)` signal is still emitted for existing listeners.
+
+**Node names are the API.** `Hurtbox` locates `Guard`, `Dodge`, `StatusController` and `HitFeedback` by
+literal node name; renaming any of them silently disables that stage.
+
+Collision layers (`project.godot` → `[layer_names]`):
+
+| Layer | Name |
+|-------|------|
+| 1 | `world` |
+| 2 | `player_body` |
+| 3 | `hitbox` |
+| 4 | `hurtbox` |
+| 5 | `interactable` |
+| 6 | `trap` |
+| 7 | `projectile` |
+| 8 | `camera_blocker` |
+
+Hit detection currently polls: `Hitbox` connects `area_entered` **and** runs a shape query every physics
+frame while active, with a per-candidate raycast and a group lookup (`PERF-01`). Enemy AI raycasts for
+line-of-sight two to three times per physics frame with no distance LOD (`PERF-02`).
 
 ---
 
-## 7. Backend / packages / web
+## 6. Character art pipeline
 
-```mermaid
-flowchart LR
-  Client[ApiClient GDScript] -.->|optional, partially broken| API[Aumbrye.Api]
-  API --> App[Application]
-  App --> Proc[packages/procedural]
-  App --> PG[(Postgres)]
-  App --> Redis[(Redis)]
-  Web[apps/web] -.->|no CORS / no Vite proxy| API
-  CLI[procgen-cli] --> Proc
-  Content[content/] --> Proc
-  Content --> Client
-```
+Characters are **not** runtime box primitives only — there are three parallel representations on disk:
 
-**API** (`services/backend/src/Aumbrye.Api/` — 11 routes including health):
+| Representation | Count | Location | Used at runtime |
+|---|---|---|---|
+| `.vox` authored source | 262 | `art-source/characters/` | No (source) |
+| `.mesh` exported ArrayMesh | 262 | `apps/game/client/assets/characters/` | Yes — 40 referenced; **222 orphaned** |
+| `.voxels.json` runtime JSON | 115 | `apps/game/client/assets/characters/` | Yes — 133 manifest references |
 
-| Group | Routes |
-|-------|--------|
-| Health | `GET /api/v1/health` |
-| Auth | `POST /api/v1/auth/register`, `/login`, `/refresh` |
-| Runs | `POST /api/v1/runs/`, `GET .../{id}/dungeon`, `POST .../{id}/complete` |
-| Saves | `GET/PUT /api/v1/saves/current` |
-| Leaderboards | `GET /api/v1/leaderboards/`, `POST .../submit` |
+Rig manifests under `content/characters/*.json` map part names (`LegL`, `Torso`, `Head`, `ArmL`, …) to a
+mesh path and a joint offset. `DioramaCharacterSkin` walks the manifest and builds a pivot hierarchy,
+loading meshes through `VoxelMeshBuilder.load_mesh()`. Profiles for bodies without a manifest fall back to
+`PROFILES` box primitives in `scripts/art/characters/diorama_character_skin.gd`.
 
-**Web** (`apps/web/src/App.tsx`): button-switched SPA pages — Landing, Account, Patch Notes, Wiki, Leaderboards. **ABSENT:** React Router / URL routes. API via `apps/web/src/api/client.ts` + `VITE_API_URL`. Browser→API is non-functional without a CORS policy or Vite proxy. Account page reads `save.state` while the API returns `stateJson`.
+Two defects sit in this pipeline: `VoxelMeshBuilder` reads through `ProjectSettings.globalize_path()`,
+which cannot read from an exported `.pck` (`BUG-02`), and its "greedy-merged" docstring is false — it
+emits two unindexed triangles per exposed voxel face (`PERF-14`). Consolidation is tracked as `REF-05`.
 
-**Client networking:** `ApiClient.get_save()` reads `result.body` while GET payloads land under `definition` — cloud save pull never succeeds. See [`existing_codebase/networking.md`](existing_codebase/networking.md).
+**Rendering:** `PixelDioramaViewport` mirrors the gameplay camera into a low-res `SubViewport`
+(`render_target_update_mode = UPDATE_ALWAYS`) and sets `root.disable_3d = true`. The scene graph is never
+reparented; only the camera is mirrored.
 
-**Steam auth ticket exchange endpoint:** **ABSENT FROM CODEBASE** (`get_auth_ticket_hex()` returns `""` from both branches).
+---
 
-**Multiplayer / co-op / dedicated game server:** **ABSENT FROM CODEBASE** under `apps/game/client/scripts/`.
+## 7. Audio
 
-**ABSENT:** `Dockerfile` for the API. `.github/workflows/release.yml` still builds from that path and fails on a clean checkout.
+`AudioDirector` owns four layers (`ambience`, `music`, `explore`, `combat`), a stinger player, an
+eight-player SFX pool, four `AudioStreamPlayer3D` slots, five buses, per-biome reverb and a duck.
+
+Authored OGG stems are the live path. All ten biomes have all four stems under
+`apps/game/client/assets/audio/<biome_id>/`, plus `shared/sting_boss.ogg`, `shared/sting_clear.ogg` and
+24 SFX files. `AudioStreamGenerator` synthesis is a genuine fallback: `_process()` only fills a layer
+whose `stream is AudioStreamGenerator`, and loaded stems replace the generator, so synthesis does not run
+in normal play. `audio_suite.gd` asserts this behaviourally (`audio.no_process_synthesis_with_stems`).
+
+`apps/game/client/assets/audio/castle/` is a **legacy unreferenced folder** (`BIOME_CASTLE` resolves to
+`forgotten_castle`), and 24 `.wav` files sit alongside their `.ogg` counterparts — both are dead weight
+(`DEAD-06`).
 
 ---
 
 ## 8. Content pipeline
 
-- Source: `content/**/*.json` + `content/schemas/*.v1.json`
-- Client load: `ContentLoader` resolves repo root (`res://` → `../../..`) or `aumbrye/content_root`
-- Directory catalogs (`ItemCatalog`, `EnemyCatalog`, `ClassCatalog`, `RelicCatalog`, `QuestCatalog`, `DialogueCatalog`) share `ContentDirLoader.load_id_map()` — one `DirAccess` walk helper under `scripts/content/content_dir_loader.gd`
-- `content/items/catalog.json` is the tooling index (equipment / consumables / materials). Optional runtime allowlist: set `aumbrye/strict_item_catalog=true` in ProjectSettings to intersect disk ids with `catalog.json` (`push_error` on extras/missing; default `false` in player builds)
-- Run relics live under `content/relics/` via `RelicCatalog`, not in `items/catalog.json`
-- Dev reload: `DebugConsole` autoload (`F12` → `content_reload`) calls `ContentLoader.clear_all_caches()` so catalogs repopulate without restart
-- CI: `scripts/validate-content/validate.mjs` (strict placeholder run has `continue-on-error: true`)
-- Domains present on disk: enemies, bosses, weapons, items, biomes, affixes, progression, talents, relics, statuses, quests, dialogue, NPCs, recipes, merchant, classes, audio_profiles, achievements, loot, fixtures
+- Source: `content/**/*.json` validated against `content/schemas/*.v1.json`.
+- Client load: `ContentLoader.content_root()` resolves `globalize_path("res://")/../../..`, i.e. the
+  **repo root** — outside `res://`. This works in the editor and breaks in an exported build (`BUG-01`).
+  `aumbrye/content_root` in `project.godot` is `""`.
+- Directory catalogs (`ItemCatalog`, `EnemyCatalog`, `ClassCatalog`, `RelicCatalog`, `QuestCatalog`,
+  `DialogueCatalog`) share `ContentDirLoader.load_id_map()`.
+- `content/items/catalog.json` is the tooling index. Set `aumbrye/strict_item_catalog=true` to intersect
+  disk ids against it; default is `false`.
+- Run relics live under `content/relics/` via `RelicCatalog`, not in `items/catalog.json`.
+- Dev reload: `DebugConsole` → `content_reload` calls `ContentLoader.clear_all_caches()`.
+- `ContentLoader.load_json()` has **no cache** and re-parses on every call (`PERF-07`).
 
-DungeonDefinition produced by offline GDScript gen (primary) or C# CLI (fallback). The two shapes differ; do not assume parity from `cross_stack_parity_suite.gd` alone.
-
----
-
-## 9. Save & progression
-
-- Runtime save `schemaVersion` = **4** (`scripts/save/save_migrator.gd` → `CURRENT_VERSION := 4`)
-- Paths: `user://aumbrye_save.json`, `user://character_roster.json`, `user://characters/*.json`, backups under `user://backups/` (legacy path rotation; character-file backup coverage is limited)
-- `itemInstances` field exists and is preserved when present; new defaults are `{}` — affix data primarily lives on inventory slots
-- Progression: `ProgressionService` + `content/progression/xp_curve.json` + `content/talents/tree.json`
-  - Schema economy keys (`baseXpPerRun`, …) are **not** what `calculate_run_xp` reads (`baseXpPerKill` / `bossBonusXp` / `escapeBonusXp` — absent → hardcoded defaults)
-  - Several aptitude talents (`lootQuality`, `xpGain`, `goldFind`, `cooldownReduction`) have **no runtime consumer**
-- Affix rolling (`AffixRoller`) is effectively **waves-only**; castle chest/pickup paths use plain `add_item`
-- Active run + waves snapshots via `LocalSave` / `WavesRunService`
-- `WorldState`: run flags only (not a durable world sim)
-
-Optional cloud hooks exist but `get_save()` is broken (wrong result key) — offline play is unaffected.
+Save format: `SaveMigrator.CURRENT_VERSION` is **10**. See [`SAVE_MIGRATIONS.md`](SAVE_MIGRATIONS.md).
 
 ---
 
-## 10. Art / pixel diorama
+## 9. Backend, packages, web
 
-| Piece | Path |
-|-------|------|
-| Viewport mirror | `scripts/art/pipeline/pixel_diorama_viewport.gd` |
-| Settings / style | `pixel_diorama_settings.gd`, `pixel_diorama_style.gd` |
-| Shaders | `assets/shared/pixel_diorama_*.gdshader`, `pixel_diorama_finish.gdshaderinc`, `portal_ellipse.gdshader`, `pixel_sky.gdshader` |
-| Lighting | `scripts/art/lighting/visual_lighting.gd` (sole owner of outdoor/indoor lighting) |
-| Camera snap | `scripts/art/pipeline/pixel_camera_snap.gd` — off by default; applied only to the pixel **render** camera, never the gameplay camera |
-| Characters / anims | `diorama_character_skin.gd`, `diorama_anim_library.gd`, controller |
-| Weapons / props | `diorama_weapon_kit.gd`; `DioramaPropFactory` / `diorama_prop_kit.tscn` are editor-only (no gameplay call site) |
-| Room dressing | `diorama_room_dressing.gd` + biome materials |
-| VFX | `VfxService` |
-| Audio | `AudioDirector` + `content/audio_profiles/` + `assets/audio/` |
+```mermaid
+flowchart LR
+  Client[ApiClient GDScript] -.->|optional, off by default| API[Aumbrye.Api]
+  API --> App[Application]
+  App --> Proc[packages/procedural]
+  App --> PG[(Postgres)]
+  App --> Redis[(Redis)]
+  Web[apps/web] --> API
+  CLI[procgen-cli] --> Proc
+  Content[content/] --> Proc
+  Content --> Client
+```
 
-Display: 1920×1080, `canvas_items` stretch, integer scale (`project.godot`). Default pixel preset is native 1080p.
+**API** (`services/backend/src/Aumbrye.Api/Endpoints/`), grouped:
 
-**Critical art-direction fact:** characters are **not** authored from pixels or voxels. `DioramaCharacterSkin` assembles every body at runtime from 6–9 `BoxMesh` primitives (`PROFILES` + `PixelDioramaStyle.add_box`). There are **zero** raster / model / voxel character assets under `apps/game/client/` (only `icon.svg`). The "pixel" look is a procedural shader pattern plus an optional low-res SubViewport. See [`existing_codebase/character-authoring.md`](existing_codebase/character-authoring.md) and the replacement plan [`actual_improvements/character-authoring.md`](actual_improvements/character-authoring.md).
+| Group | Routes |
+|-------|--------|
+| Health | `GET /api/v1/health`, `GET /api/v1/health/ready` |
+| Auth | `POST /api/v1/auth/register`, `/login`, `/refresh`, `/logout`, `/steam` |
+| Account | `GET /api/v1/account`, `POST /api/v1/account/link-steam` |
+| Runs | `POST /api/v1/runs`, `GET /api/v1/runs/{id}/dungeon`, `POST /api/v1/runs/{id}/complete` |
+| Saves | `GET/PUT /api/v1/saves/current` |
+| Leaderboards | `GET /api/v1/leaderboards`, `POST /api/v1/leaderboards/submit` |
+| Telemetry | `POST /api/v1/telemetry/crash` |
 
-**Animation events are dead:** the exporter writes `events_path = ""`, and the runtime resolver rejects every shipped node layout, so `FOOTSTEP` / `SWING_VFX` / `HITBOX_ON` / `HITBOX_OFF` method tracks never fire.
+A Steam auth ticket exchange endpoint **does** exist (`/api/v1/auth/steam`, backed by
+`Infrastructure/Security/SteamAuthService.cs`). What is missing is the client half: GodotSteam binaries
+are absent, so `SteamService` runs in stub mode and cannot produce a ticket (`DEP-04`).
 
-**Audio:** OGG ambience/boss themes exist under `assets/audio/`, but `AudioDirector._restore_generator_streams()` unconditionally replaces loaded streams with `AudioStreamGenerator` sine tones after biome load. Combat SFX have no file-backed path.
+CORS **is** configured — `Program.cs:87-89` reads `Cors:AllowedOrigins` and `Program.cs:215` calls
+`app.UseCors("web")`; `CorsTests.cs` covers it.
 
----
+**Web** (`apps/web/src/`, 27 files): React 19 SPA using React Router 7 with real URL routes
+(`App.tsx` declares `/`, `/account`, `/patch-notes`, `/wiki`, `/leaderboards`). API access via
+`src/api/client.ts` + `VITE_API_URL`. `vite.config.ts` prerenders five routes with Puppeteer at build
+time (`WEB-01`).
 
-## 11. CI (`.github/workflows/ci.yml`)
+> **Defect:** `main.tsx` wraps `<App/>` in a `<BrowserRouter>` imported from `react-router` while
+> `App.tsx` renders a second `<BrowserRouter>` from `react-router-dom` — nested routers, from two package
+> specifiers (`WEB-03`).
 
-| Area | What runs |
-|------|-----------|
-| backend | `dotnet` build/test + procgen-cli |
-| web | lint + build |
-| python | `ruff` on `tools/` |
-| content | `scripts/validate-content` strict gate (`validate:strict`) |
-| gdscript | gdtoolkit on all `apps/game/client/scripts/**/*.gd` (excludes addons) |
-| godot | headless anim export + `validation_main.gd` (report artifact on failure) |
-
-**Godot pin:** CI and release read `apps/game/client/.godot-version` (`4.7.0`), matching `project.godot` features **4.7**.
-
-**Release:** `.github/workflows/release.yml` builds `services/backend/Dockerfile`, pushes to GHCR, and exports Godot using committed `export_presets.cfg` (credentials in gitignored `export_presets.local.cfg`).
-
-Validation runner registers **24** suites in `SUITE_PATHS` (matches the 24 files on disk). Several assertions still require deleted documentation paths and fail for non-code reasons.
-
----
-
-## 12. Extension hooks (code that exists)
-
-| Goal | Where |
-|------|-------|
-| New biome/theme | `content/biomes/`, `BiomeRegistry`, `scenes/rooms/<theme>/`, dungeon catalog entries |
-| New enemy | `content/enemies/` + scene/script (often extends `CastleEnemyBase`) |
-| New weapon | `content/weapons/` + equipment item + diorama kit |
-| New room content type | `scripts/dungeon/room_content/*` + assigner/spawner |
-| Enable online runs | Flip `USE_ONLINE_PROCgen`, run API, harden CompleteRun |
-| New validation | Suite under `scripts/validation/suites/` + `SUITE_PATHS` |
-| Web page | `apps/web/src/pages/` + `App.tsx` nav |
+**Multiplayer / co-op / dedicated game server:** **ABSENT** — no networking code for it under
+`apps/game/client/scripts/`.
 
 ---
 
-## Related
+## 10. Build and CI
 
-- Doc conventions: [DOC-CONVENTIONS.md](DOC-CONVENTIONS.md)
-- Inventory: [existing_codebase/README.md](existing_codebase/README.md)
-- Improvements: [actual_improvements/README.md](actual_improvements/README.md)
-- Character authoring (largest art gap): [existing_codebase/character-authoring.md](existing_codebase/character-authoring.md) / [actual_improvements/character-authoring.md](actual_improvements/character-authoring.md)
-- ADR on disk: [ADR/0001-client-server-authority.md](ADR/0001-client-server-authority.md) (authority notes; play path remains offline-first)
+`.github/workflows/ci.yml` jobs: `backend`, `api-image`, `web`, `contract`, `e2e`, `python-lint`,
+`voxel-import`, `gdlint`, `godot`, `openapi-drift`, `docs-link-check`.
+
+The `godot` job runs, in order: animation-library drift verification, a 500-seed procgen health sweep, the
+balance export, and the full headless validation suite
+(`godot --headless --script res://scripts/validation/validation_main.gd`).
+
+Two gaps worth knowing before trusting CI:
+
+- No job runs an **exported** build, so `BUG-01` and `BUG-02` — both of which only manifest outside the
+  editor — cannot be caught (`QA-05`).
+- The frame-budget gate skips when `user://perf_baseline.json` is absent, which is always true on a fresh
+  runner (`QA-02`).
+
+`release.yml` builds the API image, the web bundle, and a Windows Godot export.
+
+---
+
+## 11. Related
+
+- [`../REFACTOR_OPTIMISE_BUGFIX.md`](../REFACTOR_OPTIMISE_BUGFIX.md) — the live defect and improvement backlog
+- [`ADR/0001-client-server-authority.md`](ADR/0001-client-server-authority.md) — authority boundaries
+- [`SAVE_MIGRATIONS.md`](SAVE_MIGRATIONS.md) — save schema history
+- [`DOC-CONVENTIONS.md`](DOC-CONVENTIONS.md) — how to write docs in this repo
+- [`validation/manual-checklist.md`](validation/manual-checklist.md) — manual QA items

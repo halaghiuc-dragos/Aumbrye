@@ -34,7 +34,6 @@ func run() -> void:
 	_test_perf_hooks()
 	_test_ci_release_workflow()
 	_test_ship_docs()
-	_test_schema_doc()
 	_test_multi_floor_run_state()
 	_test_floor_chunking()
 	_test_endless_mode()
@@ -741,24 +740,6 @@ func _test_ship_docs() -> void:
 		"manual validation checklist documented",
 		start,
 		"SHIP-7.1"
-	)
-
-
-func _test_schema_doc() -> void:
-	var start := Time.get_ticks_msec()
-	var path := ProjectSettings.globalize_path("res://").path_join("../../..").path_join(
-		"docs/existing_codebase/save-migrator.md"
-	)
-	var ok: bool = (
-		FileAccess.file_exists(path) and "schemaVersion" in FileAccess.get_file_as_string(path)
-	)
-	ctx.timed_record(
-		"docs.schema.migration_doc",
-		get_category(),
-		ok,
-		"save migrator doc documents versions",
-		start,
-		"SCHEMA-7.1"
 	)
 
 

@@ -1,27 +1,43 @@
 # Save migrations
 
-Version history for `SaveMigrator` (`apps/game/client/scripts/save/save_migrator.gd`). `CURRENT_VERSION` is **6**. Each row matches one entry in `SaveMigrator.STEPS`.
+Version history for `SaveMigrator` (`apps/game/client/scripts/save/save_migrator.gd`).
+`CURRENT_VERSION` is **10**. Each row matches one entry in `SaveMigrator.STEPS`.
 
-| From | To | Summary | Keys added | Keys removed | Recovery on failure |
-|------|-----|---------|------------|--------------|---------------------|
-| 1 | 2 | activeRun floor fields | `activeRun.currentFloor`, `activeRun.maxFloors`, `activeRun.floorDefinitions` | — | File quarantined; pre-migration artefact at `user://backups/<characterId>.premigrate_v1_<timestamp>.json` |
-| 2 | 3 | activeRun.runMode; drop floorDefinitions | `activeRun.runMode` | `activeRun.floorDefinitions` | File quarantined; pre-migration artefact retained |
-| 3 | 4 | lastCheckpoint; snapshot.worldFlags | `activeRun.lastCheckpoint`, `activeRun.snapshot.worldFlags`, `activeRun.schemaVersion` | — | File quarantined; pre-migration artefact retained |
-| 4 | 5 | typed sections; equipped instances; accountId reset | `character.appearance`, `character.appearanceTheme`, `currencies.coins`, `inventory.equipped.<slot>`, `inventory.slots[*].instanceId`, `activeRun.clearedFloors`, `activeRun.schemaVersion` | `character.lastHubMessage`, `activeRun.playerDead`, `activeRun.floorDefinitions` | `playerDead` with checkpoint restores snapshot; without checkpoint drops `activeRun` only; other sections preserved |
-| 5 | 6 | meta.achievements mythic_loot renamed to aumbral_loot | `meta.achievements.aumbral_loot` (when `mythic_loot` was true) | `meta.achievements.mythic_loot` | File quarantined; pre-migration artefact retained |
+| From | To | Summary | Keys added | Keys removed |
+|------|-----|---------|------------|--------------|
+| 1 | 2 | activeRun floor fields | `activeRun.currentFloor`, `activeRun.maxFloors`, `activeRun.floorDefinitions` | — |
+| 2 | 3 | activeRun.runMode; drop floorDefinitions | `activeRun.runMode` | `activeRun.floorDefinitions` |
+| 3 | 4 | lastCheckpoint; snapshot.worldFlags | `activeRun.lastCheckpoint`, `activeRun.snapshot.worldFlags`, `activeRun.schemaVersion` | — |
+| 4 | 5 | typed sections; equipped instances; accountId reset | `character.appearance`, `character.appearanceTheme`, `currencies.coins`, `inventory.equipped.<slot>`, `inventory.slots[*].instanceId`, `activeRun.clearedFloors`, `activeRun.schemaVersion` | `character.lastHubMessage`, `activeRun.playerDead`, `activeRun.floorDefinitions` |
+| 5 | 6 | `mythic_loot` achievement renamed to `aumbral_loot` | `meta.achievements.aumbral_loot` | `meta.achievements.mythic_loot` |
+| 6 | 7 | dungeon unlock count and per-dungeon difficulty tiers | `flags.dungeon_unlocked_count`, `flags.dungeon_tier_<id>` | — |
+| 7 | 8 | accessibility camera defaults | `meta.accessibility.cameraMouseSensitivity`, `.cameraStickSensitivity`, `.cameraInvertY`, `.cameraFov`, `.cameraStickCurve`, `.cameraStickDeadzone` | — |
+| 8 | 9 | display block; `ui_scale` moved out of accessibility | `meta.display.window_mode`, `.window_size`, `.monitor_index`, `.vsync_mode`, `.max_fps`, `.ui_scale`, `.hud_safe_area` | — |
+| 9 | 10 | quick slots keyed by instance id instead of slot index | `inventory.quickSlotInstances` (4 entries) | `inventory.quickSlots` |
 
-## v6 guarantees
+Unless noted, a failed step quarantines the file and retains a pre-migration artefact at
+`user://backups/<characterId>.premigrate_v<n>_<timestamp>.json`. The v4→v5 step is the exception: a
+`playerDead` flag with a checkpoint restores the snapshot, and without one drops `activeRun` only,
+preserving every other section.
 
-After migration to version 6, achievement unlock keys use `aumbral_loot` instead of legacy `mythic_loot` under `meta.achievements`.
+## v10 guarantees
+
+`inventory.quickSlotInstances` is a four-element array of item instance ids (empty string for an unused
+slot), derived from the legacy `inventory.quickSlots` index array by resolving each index against
+`inventory.slots[*].instanceId`. Indices outside the slot array are dropped. The migration is idempotent:
+a save that already has `quickSlotInstances` passes through untouched
+(`save_migrator.gd:739-762`).
 
 ## v5 guarantees
 
-After migration to version 5, these sections are normalized:
+After migration to version 5 these sections are normalized:
 
 - **character** — `name`, `classId`, `level`, `xp`, `appearanceTheme`, `appearance`; `lastHubMessage` removed
 - **currencies** — `gold` and `coins` as ints `>= 0`
-- **inventory** / **storage** — `schemaVersion: 1`, grid dimensions, slot instances with `itemId`, `quantity`, `instanceId`, normalized `rarity` and `affixes`; `equipped` has all nine `Equipment.SLOT_ORDER` keys
-- **talents** — int ranks `>= 0`; `talentPointsSpent` clamped to reachable total
+- **inventory** / **storage** — `schemaVersion: 1`, grid dimensions, slot instances with `itemId`,
+  `quantity`, `instanceId`, normalized `rarity` and `affixes`; `equipped` has all nine
+  `Equipment.SLOT_ORDER` keys
+- **talents** — int ranks `>= 0`; `talentPointsSpent` clamped to the reachable total
 - **flags** — bool / int / float / String values only
 - **quests** — string states; `<id>_progress` as dictionaries
 - **itemInstances** — dictionary of dictionaries
@@ -30,9 +46,22 @@ After migration to version 5, these sections are normalized:
 
 ## Newer builds
 
-Saves with `schemaVersion > 6` are refused without quarantine. `LocalSave` emits `save_failed("save_from_newer_build")` and leaves the file on disk.
+A save whose `schemaVersion` exceeds `CURRENT_VERSION` is refused **without** quarantine.
+`SaveMigrator.classify()` returns the newer-build result, `LocalSave` emits
+`save_failed("save_from_newer_build")` (`local_save.gd:816`, `:825`) and the file is left untouched on disk.
+
+A save with no `schemaVersion` at all is classified `RESULT_UNKNOWN` and routed through
+`LocalSave._recover_from_corruption()`.
+
+## Maintenance note
+
+`save_migrator.gd` also declares a `STEPS_DOC` constant intended to mirror `STEPS` for documentation.
+It currently holds **8** entries against `STEPS`' **9**, stopping at the 8→9 step, and it has **no reader
+anywhere in the project**. Either wire it into a validation assertion that fails when it falls out of sync
+with `STEPS`, or delete it — a documentation table nothing checks will keep drifting.
 
 ## Related
 
-- [`actual_improvements/save-migrator.md`](actual_improvements/save-migrator.md)
-- [`existing_codebase/save-migrator.md`](existing_codebase/save-migrator.md)
+- [`ARCHITECTURE.md`](ARCHITECTURE.md) — content and save pipeline in context
+- [`../REFACTOR_OPTIMISE_BUGFIX.md`](../REFACTOR_OPTIMISE_BUGFIX.md) — `BUG-03` (unflushed verify read),
+  `PERF-15` (autosave cost)

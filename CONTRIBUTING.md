@@ -47,9 +47,10 @@ Hooks cover content JSON validation, Ruff on `tools/`, gdformat on health-critic
 
 All documentation changes must follow [docs/DOC-CONVENTIONS.md](docs/DOC-CONVENTIONS.md):
 
-- **Code is the only source of truth** — cite `path:line` or real identifiers; never document intent as implemented
-- **Paired trees** — `docs/existing_codebase/<topic>.md` describes current behavior; `docs/actual_improvements/<topic>.md` describes gaps and target design. Topic filenames are mirrored between trees
-- **Status tags** — use `IMPLEMENTED`, `PARTIAL`, `PLACEHOLDER`, `STUB`, `FAKE`, `BROKEN`, or `ABSENT` in status tables
+- **Code is the only source of truth** — verify against the file before you write; never document intent as implemented
+- **Cite identifiers, not line numbers** — `Hurtbox.receive_hit()` survives edits, `hurtbox.gd:34` does not
+- **Descriptive docs live in `docs/`; defects and plans live in [REFACTOR_OPTIMISE_BUGFIX.md](REFACTOR_OPTIMISE_BUGFIX.md)** — fixed items are deleted from the backlog, not marked finished
+- **Status tags** — use `IMPLEMENTED`, `PARTIAL`, `PLACEHOLDER`, `STUB`, `BROKEN`, or `ABSENT` in status tables
 - **No filler** — delete empty sections rather than writing placeholder prose
 
 Relative Markdown links in `README.md` and `docs/` are checked in CI; broken links fail the build.

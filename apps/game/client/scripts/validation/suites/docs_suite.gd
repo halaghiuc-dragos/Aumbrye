@@ -3,8 +3,7 @@ extends "res://scripts/validation/validation_suite.gd"
 ## Documentation path and link integrity for validation suites.
 
 const DOC_ROOTS := [
-	"docs/existing_codebase",
-	"docs/actual_improvements",
+	"docs",
 ]
 
 
@@ -135,9 +134,7 @@ func _collect_suite_doc_paths() -> Array[String]:
 			var text := FileAccess.get_file_as_string(
 				"res://scripts/validation/suites/%s" % file_name
 			)
-			for token in [
-				"docs/existing_codebase/", "docs/actual_improvements/", "docs/validation/"
-			]:
+			for token in ["docs/validation/"]:
 				var idx := 0
 				while true:
 					var pos := text.find(token, idx)

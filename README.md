@@ -101,8 +101,9 @@ node scripts/balance/balance-cli.mjs --summary
 
 - [Architecture](docs/ARCHITECTURE.md)
 - [Documentation conventions](docs/DOC-CONVENTIONS.md)
-- [Existing codebase index](docs/existing_codebase/_INDEX.md)
-- [Improvement plans index](docs/actual_improvements/_INDEX.md)
+- [Refactor / optimise / bugfix backlog](REFACTOR_OPTIMISE_BUGFIX.md)
+- [Save migrations](docs/SAVE_MIGRATIONS.md)
+- [Manual validation checklist](docs/validation/manual-checklist.md)
 - [ADR-0001: Client/server authority](docs/ADR/0001-client-server-authority.md)
 
 ## Development

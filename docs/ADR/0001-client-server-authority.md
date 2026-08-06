@@ -25,6 +25,13 @@ Aumbrye is a single-player action roguelite with online persistence. We need cle
 
 ## References
 
-- [docs/plan/01-LOCKED-DECISIONS.md](../plan/01-LOCKED-DECISIONS.md) — DEC-B07, DEC-B08
-- [docs/plan/04-ARCHITECTURE.md](../plan/04-ARCHITECTURE.md)
-- [docs/design/AUTOLOAD_FACADES.md](../design/AUTOLOAD_FACADES.md)
+- [ARCHITECTURE.md](../ARCHITECTURE.md) — sections 4 (dungeon assembly) and 9 (backend / web)
+- [REFACTOR_OPTIMISE_BUGFIX.md](../../REFACTOR_OPTIMISE_BUGFIX.md) — `REF-02` tracks collapsing the two
+  procgen implementations
+- Code anchors: `apps/game/client/scripts/app/run_flow.gd` (`USE_ONLINE_PROCgen`),
+  `packages/procedural/Generation/DungeonGenerator.cs`,
+  `apps/game/client/scripts/validation/suites/cross_stack_parity_suite.gd`
+
+> Verified 2026-08-06: `USE_ONLINE_PROCgen := false` (`run_flow.gd:29`), both generators present, and
+> `cross_stack_parity_suite.gd` asserts seed-mix, kind-spec and biome-catalog parity only — not full
+> layout equivalence, exactly as the Consequences section states.

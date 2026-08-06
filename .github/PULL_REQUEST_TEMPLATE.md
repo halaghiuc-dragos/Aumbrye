@@ -11,7 +11,8 @@
 ## Documentation
 
 - [ ] Doc changes follow [docs/DOC-CONVENTIONS.md](docs/DOC-CONVENTIONS.md)
-- [ ] Paired `existing_codebase/` and `actual_improvements/` topics updated when behavior changed
+- [ ] `docs/ARCHITECTURE.md` updated when structure, autoloads, or pipelines changed
+- [ ] Backlog items in `REFACTOR_OPTIMISE_BUGFIX.md` that this PR fixes are **deleted**, not marked done
 
 ## Test plan
 
