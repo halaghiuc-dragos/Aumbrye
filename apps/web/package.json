@@ -40,7 +40,7 @@
     "eslint-plugin-jsx-a11y": "^6.10.2",
     "eslint-plugin-react-hooks": "^5.2.0",
     "globals": "^16.0.0",
-    "jsdom": "^26.0.0",
+    "jsdom": "^30.0.1",
     "msw": "^2.7.3",
     "openapi-typescript": "^7.6.1",
     "typescript": "~5.7.2",
