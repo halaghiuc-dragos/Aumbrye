@@ -2,8 +2,8 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://vfximpactsmall01"
-path="res://.godot/imported/impact_small.png-vfx03.ctex"
+uid="uid://c52vsf5jw4b5i"
+path="res://.godot/imported/impact_small.png-5516c0d090276aacba27328e6dacedb0.ctex"
 metadata={
 "vram_texture": false
 }
@@ -11,7 +11,7 @@ metadata={
 [deps]
 
 source_file="res://assets/textures/vfx/impact_small.png"
-dest_files=["res://.godot/imported/impact_small.png-vfx03.ctex"]
+dest_files=["res://.godot/imported/impact_small.png-5516c0d090276aacba27328e6dacedb0.ctex"]
 
 [params]
 

@@ -363,7 +363,7 @@ func apply_equipment_to_player_node(player: Node) -> void:
 			weapon.set_damage_multiplier(
 				CombatStatModifiersScript.damage_multiplier(equip_stats, talent_stats)
 			)
-	var locomotion := PlayerControls.resolve_locomotion(player) if PlayerControls else null
+	var locomotion: Node = PlayerControls.resolve_locomotion(player) if PlayerControls else null
 	if locomotion and locomotion.has_method("set_speed_multiplier"):
 		locomotion.set_speed_multiplier(
 			CombatStatModifiersScript.move_speed_multiplier(equip_stats, talent_stats)

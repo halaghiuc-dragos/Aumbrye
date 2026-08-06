@@ -2,8 +2,8 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://vfxbloodsmall01"
-path="res://.godot/imported/blood_small.png-vfx01.ctex"
+uid="uid://duu10ispejho"
+path="res://.godot/imported/blood_small.png-b254b1b2ae043cbf060e75ddf5564d78.ctex"
 metadata={
 "vram_texture": false
 }
@@ -11,7 +11,7 @@ metadata={
 [deps]
 
 source_file="res://assets/textures/vfx/blood_small.png"
-dest_files=["res://.godot/imported/blood_small.png-vfx01.ctex"]
+dest_files=["res://.godot/imported/blood_small.png-b254b1b2ae043cbf060e75ddf5564d78.ctex"]
 
 [params]
 

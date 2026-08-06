@@ -1,4 +1,23 @@
 keys,en,ro
+INV_TITLE_STASH,Stash,Depozit
+INV_TITLE_WAVES_STASH,Waves Stash,Depozit valuri
+INV_TITLE_CHARACTER,Character,Personaj
+INV_SEARCH_PLACEHOLDER,Search...,Căutare...
+INV_BTN_EQUIP,Equip,Echipează
+INV_BTN_UNEQUIP,Unequip,Dezechipează
+INV_BTN_USE,Use,Folosește
+INV_BTN_DROP,Drop,Aruncă
+INV_BTN_BIND,Bind %d,Asociază %d
+INV_FILTER_ROW,%s: %s   %s: %s   %s: %s,%s: %s   %s: %s   %s: %s
+INV_SORT,Sort,Sortare
+INV_TYPE,Type,Tip
+INV_RARITY,Rarity,Raritate
+INV_EMPTY_SLOT,Empty %s slot,Slot %s gol
+INV_HINT_UNEQUIP,Unequip,Dezechipează
+INV_HINT_EQUIP,Equip,Echipează
+INV_HINT_USE,Use,Folosește
+INV_HINT_MOVE,Move,Mută
+INV_VS_EQUIPPED,vs equipped: %s,vs echipat: %s
 MAP_TITLE,Map,Hartă
 MAP_HINT,Scroll to zoom · Middle-drag to pan · Esc to close,Rotiți pentru zoom · Trageți cu mijlocul pentru panoramare · Esc pentru închidere
 MAP_LEGEND_COMBAT,Combat,Luptă

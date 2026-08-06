@@ -131,6 +131,36 @@ func _ensure_grid_dimensions() -> void:
 	_wire_grid_focus_neighbors()
 
 
+func _on_cell_focus_entered(x: int, y: int) -> void:
+	if not _inventory_open:
+		return
+	_cursor = Vector2i(x, y)
+	_focus_area = FocusArea.GRID
+	_selected_index = _inventory().find_slot_at(x, y)
+	_highlight_cursor()
+	_refresh_equipment()
+	_update_detail()
+	_update_action_buttons()
+
+
+func _wire_grid_focus_neighbors() -> void:
+	var inv := _inventory()
+	for y in inv.grid_height:
+		for x in inv.grid_width:
+			var idx := y * inv.grid_width + x
+			if idx >= _cells.size():
+				continue
+			var cell := _cells[idx]
+			if x > 0:
+				cell.focus_neighbor_left = _cells[idx - 1].get_path()
+			if x < inv.grid_width - 1:
+				cell.focus_neighbor_right = _cells[idx + 1].get_path()
+			if y > 0:
+				cell.focus_neighbor_top = _cells[idx - inv.grid_width].get_path()
+			if y < inv.grid_height - 1:
+				cell.focus_neighbor_bottom = _cells[idx + inv.grid_width].get_path()
+
+
 func is_open() -> bool:
 	return _inventory_open
 
@@ -374,6 +404,16 @@ func _make_equip_cell(slot_name: String) -> PanelContainer:
 	return cell
 
 
+func _on_equip_focus_entered(slot_name: String) -> void:
+	if not _inventory_open:
+		return
+	_focus_area = FocusArea.EQUIPMENT
+	_equip_cursor = _equip_nav_slots.find(slot_name)
+	_refresh_equipment()
+	_update_detail()
+	_update_action_buttons()
+
+
 func _make_item_cell(cell_size: int, rarity: String, upgrade_level: int) -> PanelContainer:
 	var cell := PanelContainer.new()
 	cell.custom_minimum_size = Vector2(cell_size, cell_size)
@@ -415,7 +455,6 @@ func _make_item_cell(cell_size: int, rarity: String, upgrade_level: int) -> Pane
 	durability.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
 	durability.offset_top = -2
 	durability.custom_minimum_size = Vector2(0, 2)
-	durability.show_percentage = false
 	durability.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	durability.visible = false
 	cell.add_child(durability)
@@ -485,6 +524,13 @@ func _rebuild_visible_indices() -> void:
 		if _search_text.strip_edges() != "" and not _passes_search(inv.slots[idx]):
 			continue
 		_visible_indices.append(idx)
+
+
+func _passes_search(slot: Dictionary) -> bool:
+	var needle := _search_text.strip_edges().to_lower()
+	if needle == "":
+		return true
+	return _inventory().get_slot_display_name(slot).to_lower().contains(needle)
 
 
 func _refresh_grid() -> void:
@@ -763,6 +809,18 @@ func _use_selected_consumable() -> void:
 	_refresh_all()
 
 
+func _split_selected_stack() -> void:
+	if _selected_index < 0:
+		return
+	if InventoryService.split_stack_at_index(_selected_index):
+		_refresh_all()
+
+
+func _on_search_changed(text: String) -> void:
+	_search_text = text
+	_refresh_all()
+
+
 func _cycle_sort() -> void:
 	_sort_mode_idx = (_sort_mode_idx + 1) % GridInventory.SORT_MODES.size()
 	_inventory().sort_slots(GridInventory.SORT_MODES[_sort_mode_idx])
@@ -932,7 +990,7 @@ func _append_hint_separator() -> void:
 
 func _append_action_hint(action: String, caption: String) -> void:
 	_hint_row.add_child(
-		GameUISkinScript.make_symbol_caption_row(
+		GameUISkinScript.make_symbol_icon_caption_row(
 			InputGlyphServiceScript.get_action_glyph_texture(action),
 			caption,
 			ItemIconAtlasScript.icon_size()
@@ -1036,6 +1094,14 @@ func _compare_slot_to_equipped(index: int) -> Dictionary:
 	return Equipment.compare_stats(inv.equipped, slot, Callable(AffixRoller, "get_affix_stat"))
 
 
+func _slot_label(slot_name: String) -> String:
+	return str(SLOT_LABELS.get(slot_name, slot_name))
+
+
+func _build_tooltip_header(slot: Dictionary) -> String:
+	return _inventory().get_slot_display_name(slot)
+
+
 func _format_slot_tooltip(slot: Dictionary, compare_delta: Dictionary = {}) -> String:
 	var inv := _inventory()
 	var lines: PackedStringArray = []
@@ -1122,6 +1188,14 @@ func _on_action_use_pressed() -> void:
 	if _selected_index < 0:
 		return
 	_use_selected_consumable()
+
+
+func _on_action_drop_pressed() -> void:
+	if _selected_index < 0:
+		return
+	if InventoryService.drop_slot_at_index(_selected_index):
+		_selected_index = -1
+		_refresh_all()
 
 
 func _on_bind_quick_slot_pressed(quick_index: int) -> void:

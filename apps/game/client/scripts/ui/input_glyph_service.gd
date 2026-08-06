@@ -152,7 +152,7 @@ static func _primary_event(action: String, family: DeviceFamily) -> InputEvent:
 
 static func _event_cell_key(event: InputEvent, family: DeviceFamily) -> String:
 	if event is InputEventKey:
-		var keycode := event.physical_keycode if event.physical_keycode != 0 else event.keycode
+		var keycode: Key = event.physical_keycode if event.physical_keycode != 0 else event.keycode
 		var key_name := OS.get_keycode_string(keycode).to_upper()
 		if key_name.is_empty():
 			key_name = OS.get_keycode_string(event.keycode).to_upper()
@@ -272,7 +272,7 @@ static func _generic_cell_key(action: String) -> String:
 static func _text_for_action(action: String, family: DeviceFamily) -> String:
 	var event := _primary_event(action, family)
 	if event is InputEventKey:
-		var keycode := event.physical_keycode if event.physical_keycode != 0 else event.keycode
+		var keycode: Key = event.physical_keycode if event.physical_keycode != 0 else event.keycode
 		var label := OS.get_keycode_string(keycode)
 		if label.is_empty():
 			label = OS.get_keycode_string(event.keycode)

@@ -38,8 +38,7 @@ static func entries() -> Array[Dictionary]:
 			func(v: bool) -> void:
 				AccessibilitySettings.reduce_camera_shake = v
 				AccessibilitySettings.apply_live("reduce_camera_shake", v)
-				AccessibilitySettings.request_commit()
-		),
+				AccessibilitySettings.request_commit()),
 		_toggle_row(
 			"show_control_hints",
 			"accessibility",
@@ -47,8 +46,7 @@ static func entries() -> Array[Dictionary]:
 			func(v: bool) -> void:
 				AccessibilitySettings.show_control_hints = v
 				AccessibilitySettings.apply_live("show_control_hints", v)
-				AccessibilitySettings.request_commit()
-		),
+				AccessibilitySettings.request_commit()),
 		_slider_row(
 			"subtitle_scale",
 			"accessibility",
@@ -123,8 +121,7 @@ static func entries() -> Array[Dictionary]:
 			func(v: bool) -> void:
 				AccessibilitySettings.camera_invert_y = v
 				AccessibilitySettings.apply_live("camera_invert_y", v)
-				AccessibilitySettings.request_commit()
-		),
+				AccessibilitySettings.request_commit()),
 	]
 
 
@@ -256,10 +253,7 @@ static func _monitor_row() -> Dictionary:
 
 
 static func _monitor_option_labels() -> Array:
-	var labels: Array = []
-	for i in DisplayServer.get_screen_count():
-		labels.append(DisplayServer.get_screen_name(i))
-	return labels
+	return Array(DisplayService.get_monitor_labels())
 
 
 static func _vsync_row() -> Dictionary:

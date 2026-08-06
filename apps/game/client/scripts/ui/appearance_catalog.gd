@@ -35,7 +35,7 @@ static func theme_for_index(index: int) -> int:
 static func label_for_index(index: int) -> String:
 	var aspect := aspect_at(index)
 	var key := str(aspect.get("nameKey", ""))
-	return tr(key) if key != "" else "?"
+	return TranslationServer.translate(key) if key != "" else "?"
 
 
 static func index_for_theme(theme: int) -> int:

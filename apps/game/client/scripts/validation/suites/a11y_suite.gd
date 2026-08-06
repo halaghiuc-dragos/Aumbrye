@@ -45,11 +45,11 @@ func _test_damage_colors() -> void:
 
 func _test_ui_settings() -> void:
 	var start := Time.get_ticks_msec()
-	AccessibilitySettingsScript.ui_scale = 1.25
+	DisplayService.ui_scale = 1.25
 	AccessibilitySettingsScript.subtitle_scale = 1.5
 	AccessibilitySettingsScript.reduce_camera_shake = true
 	var ok := (
-		AccessibilitySettingsScript.ui_scale == 1.25
+		DisplayService.ui_scale == 1.25
 		and AccessibilitySettingsScript.subtitle_scale == 1.5
 		and AccessibilitySettingsScript.reduce_camera_shake
 	)

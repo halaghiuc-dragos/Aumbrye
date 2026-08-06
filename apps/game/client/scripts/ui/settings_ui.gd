@@ -211,9 +211,7 @@ func _populate_pixel_section(parent: VBoxContainer) -> void:
 				if on and get_tree().current_scene:
 					PixelDioramaViewport.attach_to_scene(get_tree().current_scene)
 				elif not on:
-					PixelDioramaViewport.detach()
-		)
-	)
+					PixelDioramaViewport.detach()))
 	for slider_def in [
 		["pixel_scale", 1.0, 32.0, 0.5, PixelDioramaSettings.pixel_scale],
 		["color_levels", 4.0, 16.0, 1.0, PixelDioramaSettings.color_levels],

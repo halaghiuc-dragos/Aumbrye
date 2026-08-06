@@ -547,7 +547,7 @@ func _existing_names_for_validation() -> PackedStringArray:
 
 
 func _on_random_name_pressed() -> void:
-	_name_input.text = NameValidatorScript.random_name(_existing_names_for_validation())
+	_name_input.text = NameValidatorScript.random_valid_name(_existing_names_for_validation())
 	_update_name_validation()
 
 
@@ -557,7 +557,7 @@ func _on_randomize_pressed() -> void:
 	_build_row.select(randi() % CharacterAppearanceScript.BULK_LABELS.size())
 	_head_row.select(randi() % CharacterAppearanceScript.HEAD_LABELS.size())
 	_trim_row.select(randi() % CharacterAppearanceScript.TRIM_LABELS.size())
-	_name_input.text = NameValidatorScript.random_name(_existing_names_for_validation())
+	_name_input.text = NameValidatorScript.random_valid_name(_existing_names_for_validation())
 	_refresh_preview()
 	_update_name_validation()
 	_save_draft_profile()
@@ -598,12 +598,12 @@ func _on_confirm_pressed() -> void:
 	var class_def := _classes[_selected_class_index]
 	var class_id: String = str(class_def.get("id", ""))
 	var character_name := _name_input.text.strip_edges()
-	var class_name := str(class_def.get("name", class_id))
+	var class_display_name := str(class_def.get("name", class_id))
 	AudioDirector.play_ui_sfx()
 	MenuShellScript.show_confirmation(
 		self,
 		tr("CREATE_CONFIRM_TITLE"),
-		tr("CREATE_CONFIRM_MESSAGE") % [class_name, character_name],
+		tr("CREATE_CONFIRM_MESSAGE") % [class_display_name, character_name],
 		func() -> void:
 			visible = false
 			_unregister_menu_stack()

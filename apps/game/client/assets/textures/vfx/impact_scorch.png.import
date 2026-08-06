@@ -2,8 +2,8 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://vfximpactscorch01"
-path="res://.godot/imported/impact_scorch.png-vfx04.ctex"
+uid="uid://cgo1oqa15yqjw"
+path="res://.godot/imported/impact_scorch.png-36e816754a868be94b8be272b5cae951.ctex"
 metadata={
 "vram_texture": false
 }
@@ -11,7 +11,7 @@ metadata={
 [deps]
 
 source_file="res://assets/textures/vfx/impact_scorch.png"
-dest_files=["res://.godot/imported/impact_scorch.png-vfx04.ctex"]
+dest_files=["res://.godot/imported/impact_scorch.png-36e816754a868be94b8be272b5cae951.ctex"]
 
 [params]
 

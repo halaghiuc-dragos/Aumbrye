@@ -617,7 +617,7 @@ static func make_symbol_rect(tex: Texture2D, size_px: int = 16) -> TextureRect:
 	return rect
 
 
-static func make_symbol_caption_row(tex: AtlasTexture, caption: String, size_px: int = 16) -> HBoxContainer:
+static func make_symbol_icon_caption_row(tex: AtlasTexture, caption: String, size_px: int = 16) -> HBoxContainer:
 	var row := HBoxContainer.new()
 	row.alignment = BoxContainer.ALIGNMENT_CENTER
 	row.add_theme_constant_override("separation", 4)

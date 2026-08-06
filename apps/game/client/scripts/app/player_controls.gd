@@ -86,17 +86,6 @@ func gameplay_input_blocked() -> bool:
 	return is_player_meta_ui_open() or get_tree().paused
 
 
-func allows_player_ui() -> bool:
-
-	var scene := get_tree().current_scene
-
-	if scene and scene.is_in_group("front_end"):
-
-		return false
-
-	return true
-
-
 func capture_mouse_if_allowed() -> void:
 	if gameplay_input_blocked():
 		return

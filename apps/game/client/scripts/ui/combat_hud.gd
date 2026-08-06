@@ -729,7 +729,7 @@ func _rebuild_controls_hint() -> void:
 			sep.mouse_filter = Control.MOUSE_FILTER_IGNORE
 			_controls_hint.add_child(sep)
 		_controls_hint.add_child(
-			GameUISkinScript.make_symbol_caption_row(
+			GameUISkinScript.make_symbol_icon_caption_row(
 				InputGlyphServiceScript.get_action_glyph_texture(actions[i]),
 				InputGlyphServiceScript.get_action_display_name(actions[i]),
 				size_px
@@ -753,6 +753,21 @@ func _on_accessibility_settings_changed() -> void:
 	StatusIconAtlasScript.reload()
 	_refresh_status_icons()
 	_apply_controls_hint_visibility()
+
+
+func _on_display_changed(field: StringName, _value: Variant) -> void:
+	if field == &"hud_safe_area":
+		_apply_hud_safe_area()
+
+
+func _apply_hud_safe_area() -> void:
+	var margin: float = DisplayService.hud_safe_area if DisplayService else 0.0
+	var viewport_size := get_viewport_rect().size
+	var margin_px := viewport_size * margin
+	offset_left = margin_px.x
+	offset_top = margin_px.y
+	offset_right = -margin_px.x
+	offset_bottom = -margin_px.y
 
 
 func _update_controls_hint_visibility(delta: float) -> void:

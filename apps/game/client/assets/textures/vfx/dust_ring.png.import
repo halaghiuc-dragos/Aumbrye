@@ -2,8 +2,8 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://vfxdustring01"
-path="res://.godot/imported/dust_ring.png-vfx05.ctex"
+uid="uid://b3v0wi8iom277"
+path="res://.godot/imported/dust_ring.png-1841f41b6dc0e8a65cc4934a067a3648.ctex"
 metadata={
 "vram_texture": false
 }
@@ -11,7 +11,7 @@ metadata={
 [deps]
 
 source_file="res://assets/textures/vfx/dust_ring.png"
-dest_files=["res://.godot/imported/dust_ring.png-vfx05.ctex"]
+dest_files=["res://.godot/imported/dust_ring.png-1841f41b6dc0e8a65cc4934a067a3648.ctex"]
 
 [params]
 

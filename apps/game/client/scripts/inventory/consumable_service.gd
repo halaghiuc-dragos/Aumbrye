@@ -7,15 +7,15 @@ class_name ConsumableService
 static func can_use(def: Dictionary, in_run: bool, in_hub: bool) -> Dictionary:
 	var effect: Dictionary = def.get("consumableEffect", {})
 	if effect.is_empty():
-		return {"ok": false, "reason": tr("INV_CONSUMABLE_NO_EFFECT")}
+		return {"ok": false, "reason": TranslationServer.translate("INV_CONSUMABLE_NO_EFFECT")}
 	var usable_run := bool(effect.get("usableInRun", true))
 	var usable_hub := bool(effect.get("usableInHub", true))
 	if in_run and not usable_run:
-		return {"ok": false, "reason": tr("INV_CONSUMABLE_RUN_BLOCKED")}
+		return {"ok": false, "reason": TranslationServer.translate("INV_CONSUMABLE_RUN_BLOCKED")}
 	if in_hub and not usable_hub:
-		return {"ok": false, "reason": tr("INV_CONSUMABLE_HUB_BLOCKED")}
+		return {"ok": false, "reason": TranslationServer.translate("INV_CONSUMABLE_HUB_BLOCKED")}
 	if str(effect.get("kind", "")) == "skipFloors":
-		return {"ok": false, "reason": tr("INV_SKIP_PORTAL_ONLY")}
+		return {"ok": false, "reason": TranslationServer.translate("INV_SKIP_PORTAL_ONLY")}
 	return {"ok": true, "reason": ""}
 
 

@@ -218,7 +218,8 @@ func window_size_fits_any_monitor(size: Vector2i) -> bool:
 func get_monitor_labels() -> PackedStringArray:
 	var labels := PackedStringArray()
 	for i in DisplayServer.get_screen_count():
-		labels.append(DisplayServer.get_screen_name(i))
+		var rect := DisplayServer.screen_get_usable_rect(i)
+		labels.append("Monitor %d (%dx%d)" % [i + 1, rect.size.x, rect.size.y])
 	return labels
 
 
