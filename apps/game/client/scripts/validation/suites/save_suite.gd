@@ -888,17 +888,24 @@ func _test_large_payload_write_verifies() -> void:
 	var start := Time.get_ticks_msec()
 	var char_id := "save_large_%d" % (Time.get_ticks_usec() % 1000000)
 	DirAccess.make_dir_recursive_absolute(LocalSave.CHARACTERS_DIR)
+	# Isolate from whatever InventoryService.inventory earlier suites in this run left behind —
+	# _build_save_payload() snapshots the live inventory, and a stray slot missing itemId (from
+	# unrelated suites) would fail SaveValidator for reasons that have nothing to do with the
+	# large-payload flush race this test targets.
+	var inv_backup = InventoryService.inventory
+	InventoryService.inventory = GridInventory.new()
 	LocalSave._active_character_id = char_id
 	var good := LocalSave._build_save_payload()
-	var padding: Array = []
-	padding.resize(4000)
-	for i in padding.size():
-		padding[i] = {
-			"affixId": "regression_padding_%d" % i,
-			"value": float(i),
-			"note": "0123456789abcdef0123456789abcdef",
-		}
-	good["itemInstances"]["__bug03_padding__"] = {"affixes": padding}
+	# _write_save() re-derives itemInstances from the live inventory rather than trusting the
+	# caller's dict, and re-validates against a JSON round-trip of the write (JSON.parse_string
+	# returns float for every number, so any field SaveValidator checks with a strict
+	# typeof(x) != TYPE_INT — character.level/xp, talents values — would spuriously fail once
+	# padded there). "flags" is validated only for being a Dictionary, with no per-entry checks,
+	# so it's a safe place to pad without tripping that unrelated strictness.
+	var padded_flags: Dictionary = {}
+	for i in 4000:
+		padded_flags["regression_padding_%d" % i] = "0123456789abcdef0123456789abcdef"
+	good["flags"] = padded_flags
 	var payload_size := JSON.stringify(good, "\t").length()
 	var wrote := LocalSave._write_save(good, false)
 	var path := LocalSave._active_save_path()
@@ -909,6 +916,7 @@ func _test_large_payload_write_verifies() -> void:
 		and JSON.parse_string(FileAccess.get_file_as_string(path)) is Dictionary
 	)
 	LocalSave._active_character_id = ""
+	InventoryService.inventory = inv_backup
 	if FileAccess.file_exists(path):
 		DirAccess.remove_absolute(path)
 	ctx.timed_record(

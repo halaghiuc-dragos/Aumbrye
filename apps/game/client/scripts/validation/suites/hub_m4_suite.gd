@@ -598,7 +598,10 @@ func _test_hub_tips() -> void:
 	interact_evt.pressed = true
 	tip_hub.call("_unhandled_input", interact_evt)
 	var castle_menu: Control = tip_hub.get_node("CastleEntryMenu") as Control
-	var menu_closed := not (castle_menu.has_method("is_open") and castle_menu.call("is_open"))
+	# Pre-existing type-inference bug (unrelated to any Phase 0/0.5 item): `bool and Variant`
+	# (Node.call() always returns Variant) has no statically inferrable type under `:=`, which
+	# failed this whole file to parse. An explicit `: bool` annotation sidesteps the inference.
+	var menu_closed: bool = not (castle_menu.has_method("is_open") and castle_menu.call("is_open"))
 	var tip_consumed := HubTutorialService.seen_ids.has(first_tip_id)
 	tip_hub.queue_free()
 	ctx.timed_record(
@@ -1058,9 +1061,12 @@ func _test_merchant_stock_and_sell() -> void:
 	)
 
 	start = Time.get_ticks_msec()
-	InventoryService.inventory = GridInventory.new()
-	for _i in InventoryService.inventory.grid_width * InventoryService.inventory.grid_height:
-		InventoryService.inventory.add_item("iron_scrap", 1)
+	# iron_scrap is stackable, so looping add_item across grid_width*grid_height calls just
+	# grows one stack instead of filling every cell (see BUG-43 note on the analogous
+	# blacksmith test below). Use a grid sized exactly to a non-stackable 2x2 item instead, so
+	# a single add_item genuinely occupies every cell.
+	InventoryService.inventory = GridInventory.new(2, 2)
+	InventoryService.inventory.add_item("castle_helm", 1)
 	_set_test_gold(100)
 	var gold_before := CharacterService.gold
 	var buy_fail := MerchantService.buy_item("health_potion")
@@ -1189,11 +1195,14 @@ func _test_blacksmith_systems() -> void:
 	ProgressionService.level = 5
 	_set_test_gold(200)
 	var gold_before_full_bag := CharacterService.gold
-	var full_inv := GridInventory.new()
-	for _i in full_inv.grid_width * full_inv.grid_height:
-		full_inv.add_item("iron_scrap", 1)
+	# guard_spear is a 1x4 item; a 1x1 grid can never fit it regardless of contents, which
+	# tests the same has_space_for()-refuses-before-spending path without depending on whether
+	# a filler item actually occupies every cell (see the fix note on
+	# merchant.buy_refunds_on_inventory_full above for why looping a stackable filler item
+	# doesn't actually fill a grid).
+	var too_small_inv := GridInventory.new(1, 1)
 	var inv_backup := InventoryService.inventory
-	InventoryService.inventory = full_inv
+	InventoryService.inventory = too_small_inv
 	var unlock_full := BlacksmithService.unlock_item("guard_spear")
 	InventoryService.inventory = inv_backup
 	ctx.timed_record(

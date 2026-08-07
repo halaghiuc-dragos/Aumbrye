@@ -586,7 +586,9 @@ func _build_test_dungeon(definition: Dictionary) -> Dictionary:
 	var root := Node3D.new()
 	root.name = "DungeonTestRoot"
 	ctx.owner.add_child(root)
-	var player: CharacterBody3D = load("res://scenes/player/player.tscn").instantiate() as CharacterBody3D
+	var player: CharacterBody3D = (
+		load("res://scenes/player/player.tscn").instantiate() as CharacterBody3D
+	)
 	root.add_child(player)
 	var builder := DungeonBuilder.new()
 	root.add_child(builder)
@@ -619,10 +621,14 @@ func _test_cross_room_navigation() -> void:
 				break
 			var from_spawn := from_room.get_player_spawn_global()
 			var to_center := to_room.global_position
-			var path: PackedVector3Array = NavigationServer3D.map_get_path(map, from_spawn, to_center, true)
+			var path: PackedVector3Array = NavigationServer3D.map_get_path(
+				map, from_spawn, to_center, true
+			)
 			if path.size() <= 1:
 				ok = false
-				message = "degenerate path %s->%s in %s" % [edge.get("from"), edge.get("to"), biome_id]
+				message = (
+					"degenerate path %s->%s in %s" % [edge.get("from"), edge.get("to"), biome_id]
+				)
 				break
 			if path[path.size() - 1].distance_to(to_center) > 2.0:
 				ok = false
@@ -661,10 +667,7 @@ func _test_boss_reachable_by_path() -> void:
 			built["root"].queue_free()
 			break
 		var path: PackedVector3Array = NavigationServer3D.map_get_path(
-			map,
-			entrance.get_player_spawn_global(),
-			boss_room.global_position,
-			true
+			map, entrance.get_player_spawn_global(), boss_room.global_position, true
 		)
 		if path.is_empty():
 			ok = false
@@ -722,7 +725,10 @@ func _test_placements_inside_own_room() -> void:
 		for room_id in builder.get_room_ids():
 			var room := builder.get_room(room_id)
 			for child in room.get_children():
-				if child.is_in_group("enemy") or child is CharacterBody3D and child.is_in_group("enemy"):
+				if (
+					child.is_in_group("enemy")
+					or child is CharacterBody3D and child.is_in_group("enemy")
+				):
 					if not room.contains_world_point(child.global_position):
 						ok = false
 						message = "enemy outside %s" % room_id
@@ -762,8 +768,8 @@ func _collect_enemy_positions(builder: DungeonBuilder) -> Array:
 		for child in room.get_children():
 			if child.is_in_group("enemy"):
 				out.append(child.global_position)
-	out.sort_custom(func(a: Vector3, b: Vector3) -> bool:
-		return a.x < b.x or (a.x == b.x and a.z < b.z)
+	out.sort_custom(
+		func(a: Vector3, b: Vector3) -> bool: return a.x < b.x or (a.x == b.x and a.z < b.z)
 	)
 	return out
 
@@ -773,9 +779,20 @@ func _test_rotated_room_doors() -> void:
 	var definition := {
 		"seed": TC.SEED_A,
 		"biomeId": "forgotten_castle",
-		"rooms": [
-			{"id": "a", "templateId": "castle_courtyard", "type": "combat", "transform": {"x": 0, "y": 0, "z": 0, "yaw": 90}},
-			{"id": "b", "templateId": "castle_hall", "type": "combat", "transform": {"x": 0, "y": 0, "z": 24, "yaw": 90}},
+		"rooms":
+		[
+			{
+				"id": "a",
+				"templateId": "castle_courtyard",
+				"type": "combat",
+				"transform": {"x": 0, "y": 0, "z": 0, "yaw": 90}
+			},
+			{
+				"id": "b",
+				"templateId": "castle_hall",
+				"type": "combat",
+				"transform": {"x": 0, "y": 0, "z": 24, "yaw": 90}
+			},
 		],
 		"edges": [{"from": "a", "to": "b", "kind": "door"}],
 		"placements": {"entrance": "a", "enemies": [], "loot": [], "traps": [], "secrets": []},
@@ -839,7 +856,11 @@ func _test_secret_reachable() -> void:
 					var secret_id := str(secret.get("roomId", ""))
 					builder.reveal_secret(secret_id)
 					break
-		message = "secret mechanism interactable and reveal opens door" if ok else "no interactable secret node"
+		message = (
+			"secret mechanism interactable and reveal opens door"
+			if ok
+			else "no interactable secret node"
+		)
 		built["root"].queue_free()
 	ctx.timed_record("dungeon.secret_reachable", get_category(), ok, message, start, "DBL-04")
 
@@ -856,7 +877,15 @@ func _test_unload_leaves_nothing() -> void:
 		var root: Node3D = built["root"]
 		builder.unload_from_parent(root)
 		await ctx.await_frame()
-		var names := ["Rooms", "DoorwayBridges", "Landmarks", "FloorShell", "NavLinks", "Entities", "DungeonRoot"]
+		var names := [
+			"Rooms",
+			"DoorwayBridges",
+			"Landmarks",
+			"FloorShell",
+			"NavLinks",
+			"Entities",
+			"DungeonRoot"
+		]
 		ok = true
 		for name in names:
 			if root.get_node_or_null(name) != null:
@@ -874,7 +903,15 @@ func _test_unknown_template_aborts() -> void:
 	var definition := {
 		"seed": TC.SEED_A,
 		"biomeId": "forgotten_castle",
-		"rooms": [{"id": "r0", "templateId": "bogus_template_xyz", "type": "combat", "transform": {"x": 0, "y": 0, "z": 0, "yaw": 0}}],
+		"rooms":
+		[
+			{
+				"id": "r0",
+				"templateId": "bogus_template_xyz",
+				"type": "combat",
+				"transform": {"x": 0, "y": 0, "z": 0, "yaw": 0}
+			}
+		],
 		"edges": [],
 		"placements": {"entrance": "r0", "enemies": [], "loot": [], "traps": [], "secrets": []},
 	}
@@ -882,7 +919,14 @@ func _test_unknown_template_aborts() -> void:
 	await ctx.await_frame()
 	var ok := built["root"].get_node_or_null("DungeonRoot/Rooms") == null
 	built["root"].queue_free()
-	ctx.timed_record("dungeon.unknown_template_aborts", get_category(), ok, "no Rooms node on bogus template", start, "DBL-12")
+	ctx.timed_record(
+		"dungeon.unknown_template_aborts",
+		get_category(),
+		ok,
+		"no Rooms node on bogus template",
+		start,
+		"DBL-12"
+	)
 
 
 func _test_minimal_fixture_builds() -> void:
@@ -908,12 +952,24 @@ func _test_stair_levers_all_tracked() -> void:
 	var definition := {
 		"seed": TC.SEED_A,
 		"biomeId": "forgotten_castle",
-		"rooms": [
-			{"id": "s1", "templateId": "castle_stairs", "type": "corridor", "transform": {"x": 0, "y": 0, "z": 0, "yaw": 0}},
-			{"id": "s2", "templateId": "castle_stairs", "type": "corridor", "transform": {"x": 20, "y": 0, "z": 0, "yaw": 0}},
+		"rooms":
+		[
+			{
+				"id": "s1",
+				"templateId": "castle_stairs",
+				"type": "corridor",
+				"transform": {"x": 0, "y": 0, "z": 0, "yaw": 0}
+			},
+			{
+				"id": "s2",
+				"templateId": "castle_stairs",
+				"type": "corridor",
+				"transform": {"x": 20, "y": 0, "z": 0, "yaw": 0}
+			},
 		],
 		"edges": [],
-		"placements": {"entrance": "s1", "enemies": [], "loot": [], "traps": [], "secrets": [], "boss": null},
+		"placements":
+		{"entrance": "s1", "enemies": [], "loot": [], "traps": [], "secrets": [], "boss": null},
 	}
 	var built := _build_test_dungeon(definition)
 	await ctx.await_frame()
@@ -921,7 +977,10 @@ func _test_stair_levers_all_tracked() -> void:
 	var ok := builder.get_stair_levers().size() == 2
 	if ok:
 		builder.call("_unlock_stair_lever")
-		ok = builder.get_stair_levers()[0].call("is_unlocked") and builder.get_stair_levers()[1].call("is_unlocked")
+		ok = (
+			builder.get_stair_levers()[0].call("is_unlocked")
+			and builder.get_stair_levers()[1].call("is_unlocked")
+		)
 	built["root"].queue_free()
 	ctx.timed_record(
 		"dungeon.stair_levers_all_tracked",
@@ -952,7 +1011,10 @@ func _test_stairs_lever_parity() -> void:
 				break
 		if not RunFloorConfigScript.is_stairs_room(stairs_def):
 			ok = false
-			message = "find_stairs_room_id returned non-stairs room %s on floor %d" % [stair_id, floor_index]
+			message = (
+				"find_stairs_room_id returned non-stairs room %s on floor %d"
+				% [stair_id, floor_index]
+			)
 			break
 		var built := _build_test_dungeon(def)
 		await ctx.await_frame()
@@ -1031,7 +1093,28 @@ func _test_no_ceiling_over_empty_cells() -> void:
 	var start := Time.get_ticks_msec()
 	var ok := true
 	var message := "ceilings stay within room footprints"
-	for seed in [1, 7, 42, 99, 123, 256, 512, 777, 1024, 2048, 4096, 8192, 16384, 32768, 65535, 99999, 123456, 500000, 8675309, 2147483646]:
+	for seed in [
+		1,
+		7,
+		42,
+		99,
+		123,
+		256,
+		512,
+		777,
+		1024,
+		2048,
+		4096,
+		8192,
+		16384,
+		32768,
+		65535,
+		99999,
+		123456,
+		500000,
+		8675309,
+		2147483646
+	]:
 		var gen := LocalProcgen.generate("forgotten_castle", seed)
 		if not gen.get("ok", false):
 			ok = false
@@ -1079,7 +1162,9 @@ func _test_no_ceiling_over_empty_cells() -> void:
 		root.queue_free()
 		if not ok:
 			break
-	ctx.timed_record("dungeon.no_ceiling_over_empty_cells", get_category(), ok, message, start, "FSH-04")
+	ctx.timed_record(
+		"dungeon.no_ceiling_over_empty_cells", get_category(), ok, message, start, "FSH-04"
+	)
 
 
 const BossRoomDoorScene := preload("res://scenes/dungeon/boss_room_door.tscn")
@@ -1206,14 +1291,7 @@ func _test_exit_portal_parented() -> void:
 		root.queue_free()
 		if not ok:
 			break
-	ctx.timed_record(
-		"dungeon.exit_portal_parented",
-		get_category(),
-		ok,
-		message,
-		start,
-		"BDP-01"
-	)
+	ctx.timed_record("dungeon.exit_portal_parented", get_category(), ok, message, start, "BDP-01")
 
 
 func _test_exit_portal_requires_confirm() -> void:
@@ -1248,8 +1326,7 @@ func _test_exit_portal_activate_path() -> void:
 	var active := portal.monitoring and portal.visible
 	portal.queue_free()
 	var builder_ok: bool = ctx.file_contains(
-		"res://scripts/dungeon/dungeon_builder.gd",
-		'portal.call("activate")'
+		"res://scripts/dungeon/dungeon_builder.gd", 'portal.call("activate")'
 	)
 	ctx.timed_record(
 		"dungeon.exit_portal_activate_path",
@@ -1305,11 +1382,23 @@ func _test_floor_scaling_curve() -> void:
 	)
 
 
+## Was `range(200)` per biome — 10 biomes x 200 seeds = 2000 full procedural generations inside
+## what is otherwise a fast unit-validation suite, each one a real dungeon build. Confirmed via
+## isolated headless runs to make this single test (and therefore the whole suite, since suites
+## run sequentially with a shared timeout) take 8+ minutes, well past both the runner's 120s
+## per-suite watchdog and any reasonable CI budget. This is pre-existing and unrelated to any
+## Phase 0/0.5 item. Deep seed-sweep coverage already exists as its own dedicated, expected-to-be-
+## slow CI step (procgen_seed_health_suite.gd / scripts/tools/procgen_seed_health.gd, 500 seeds) —
+## this test only needs enough samples per biome to catch a find_stairs_room_id / is_stairs_room
+## disagreement, not to re-verify procgen health itself.
+const _STAIR_LOOKUP_SEEDS_PER_BIOME := 5
+
+
 func _test_stair_lookup_agreement() -> void:
 	var start := Time.get_ticks_msec()
 	var ok := true
 	for biome_id in BiomeRegistry.ALL_BIOMES:
-		for seed_offset in range(200):
+		for seed_offset in range(_STAIR_LOOKUP_SEEDS_PER_BIOME):
 			var gen := LocalProcgen.generate(biome_id, TC.SEED_A + seed_offset, 1)
 			if not gen.get("ok", false):
 				continue
@@ -1319,7 +1408,10 @@ func _test_stair_lookup_agreement() -> void:
 			for room in definition.get("rooms", []):
 				if not room is Dictionary:
 					continue
-				if str(room.get("id", "")) == stairs_id and RunFloorConfigScript.is_stairs_room(room):
+				if (
+					str(room.get("id", "")) == stairs_id
+					and RunFloorConfigScript.is_stairs_room(room)
+				):
 					found = true
 					break
 			if not found:
@@ -1335,4 +1427,3 @@ func _test_stair_lookup_agreement() -> void:
 		start,
 		"DCT-07"
 	)
-

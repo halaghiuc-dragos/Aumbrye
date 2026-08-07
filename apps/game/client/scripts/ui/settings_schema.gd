@@ -35,18 +35,14 @@ static func entries() -> Array[Dictionary]:
 			"reduce_camera_shake",
 			"accessibility",
 			func() -> bool: return AccessibilitySettings.reduce_camera_shake,
-			func(v: bool) -> void:
-				AccessibilitySettings.reduce_camera_shake = v
-				AccessibilitySettings.apply_live("reduce_camera_shake", v)
-				AccessibilitySettings.request_commit()),
+			Callable(SettingsSchema, "_set_reduce_camera_shake")
+		),
 		_toggle_row(
 			"show_control_hints",
 			"accessibility",
 			func() -> bool: return AccessibilitySettings.show_control_hints,
-			func(v: bool) -> void:
-				AccessibilitySettings.show_control_hints = v
-				AccessibilitySettings.apply_live("show_control_hints", v)
-				AccessibilitySettings.request_commit()),
+			Callable(SettingsSchema, "_set_show_control_hints")
+		),
 		_slider_row(
 			"subtitle_scale",
 			"accessibility",
@@ -55,10 +51,7 @@ static func entries() -> Array[Dictionary]:
 			0.05,
 			"multiplier",
 			func() -> float: return AccessibilitySettings.subtitle_scale,
-			func(v: float) -> void:
-				AccessibilitySettings.subtitle_scale = v
-				AccessibilitySettings.apply_live("subtitle_scale", v)
-				_refresh_dialogue(),
+			Callable(SettingsSchema, "_set_subtitle_scale"),
 			func() -> void: AccessibilitySettings.request_commit()
 		),
 		_slider_row(
@@ -69,9 +62,7 @@ static func entries() -> Array[Dictionary]:
 			0.05,
 			"percent",
 			func() -> float: return AccessibilitySettings.vibration_intensity,
-			func(v: float) -> void:
-				AccessibilitySettings.vibration_intensity = v
-				AccessibilitySettings.apply_live("vibration_intensity", v),
+			Callable(SettingsSchema, "_set_vibration_intensity"),
 			func() -> void: AccessibilitySettings.request_commit()
 		),
 		_colorblind_row(),
@@ -83,9 +74,7 @@ static func entries() -> Array[Dictionary]:
 			0.05,
 			"multiplier",
 			func() -> float: return AccessibilitySettings.camera_mouse_sensitivity,
-			func(v: float) -> void:
-				AccessibilitySettings.camera_mouse_sensitivity = v
-				AccessibilitySettings.apply_live("camera_mouse_sensitivity", v),
+			Callable(SettingsSchema, "_set_camera_mouse_sensitivity"),
 			func() -> void: AccessibilitySettings.request_commit()
 		),
 		_slider_row(
@@ -96,9 +85,7 @@ static func entries() -> Array[Dictionary]:
 			0.05,
 			"multiplier",
 			func() -> float: return AccessibilitySettings.camera_stick_sensitivity,
-			func(v: float) -> void:
-				AccessibilitySettings.camera_stick_sensitivity = v
-				AccessibilitySettings.apply_live("camera_stick_sensitivity", v),
+			Callable(SettingsSchema, "_set_camera_stick_sensitivity"),
 			func() -> void: AccessibilitySettings.request_commit()
 		),
 		_slider_row(
@@ -109,20 +96,64 @@ static func entries() -> Array[Dictionary]:
 			1.0,
 			"decimal1",
 			func() -> float: return AccessibilitySettings.camera_fov,
-			func(v: float) -> void:
-				AccessibilitySettings.camera_fov = v
-				AccessibilitySettings.apply_live("camera_fov", v),
+			Callable(SettingsSchema, "_set_camera_fov"),
 			func() -> void: AccessibilitySettings.request_commit()
 		),
 		_toggle_row(
 			"camera_invert_y",
 			"accessibility",
 			func() -> bool: return AccessibilitySettings.camera_invert_y,
-			func(v: bool) -> void:
-				AccessibilitySettings.camera_invert_y = v
-				AccessibilitySettings.apply_live("camera_invert_y", v)
-				AccessibilitySettings.request_commit()),
+			Callable(SettingsSchema, "_set_camera_invert_y")
+		),
 	]
+
+
+## See the note above _window_mode_row(): these setters used to be inline multi-line lambdas
+## whose last statement carried the array/call's own separator comma. Godot's actual compiler
+## errors on that ambiguity even where gdlint's independent grammar (gdtoolkit, not the engine)
+## accepts it — named functions are unambiguous under both.
+static func _set_reduce_camera_shake(v: bool) -> void:
+	AccessibilitySettings.reduce_camera_shake = v
+	AccessibilitySettings.apply_live("reduce_camera_shake", v)
+	AccessibilitySettings.request_commit()
+
+
+static func _set_show_control_hints(v: bool) -> void:
+	AccessibilitySettings.show_control_hints = v
+	AccessibilitySettings.apply_live("show_control_hints", v)
+	AccessibilitySettings.request_commit()
+
+
+static func _set_subtitle_scale(v: float) -> void:
+	AccessibilitySettings.subtitle_scale = v
+	AccessibilitySettings.apply_live("subtitle_scale", v)
+	_refresh_dialogue()
+
+
+static func _set_vibration_intensity(v: float) -> void:
+	AccessibilitySettings.vibration_intensity = v
+	AccessibilitySettings.apply_live("vibration_intensity", v)
+
+
+static func _set_camera_mouse_sensitivity(v: float) -> void:
+	AccessibilitySettings.camera_mouse_sensitivity = v
+	AccessibilitySettings.apply_live("camera_mouse_sensitivity", v)
+
+
+static func _set_camera_stick_sensitivity(v: float) -> void:
+	AccessibilitySettings.camera_stick_sensitivity = v
+	AccessibilitySettings.apply_live("camera_stick_sensitivity", v)
+
+
+static func _set_camera_fov(v: float) -> void:
+	AccessibilitySettings.camera_fov = v
+	AccessibilitySettings.apply_live("camera_fov", v)
+
+
+static func _set_camera_invert_y(v: bool) -> void:
+	AccessibilitySettings.camera_invert_y = v
+	AccessibilitySettings.apply_live("camera_invert_y", v)
+	AccessibilitySettings.request_commit()
 
 
 static func entries_for_page(page: String) -> Array[Dictionary]:
@@ -194,13 +225,27 @@ static func _leaderboard_row() -> Dictionary:
 		"format": "enum",
 		"default": false,
 		"getter": func() -> bool: return LeaderboardSettings.opt_in,
-		"setter":
-		func(v: bool) -> void:
-			LeaderboardSettings.opt_in = v
-			LeaderboardSettings.save(),
+		"setter": Callable(SettingsSchema, "_set_leaderboard_opt_in"),
 	}
 
 
+static func _set_leaderboard_opt_in(v: bool) -> void:
+	LeaderboardSettings.opt_in = v
+	LeaderboardSettings.save()
+
+
+## Pre-existing syntax bug (unrelated to any Phase 0/0.5 item): several rows below embedded a
+## multi-line `match` statement inside an anonymous lambda used directly as a dict value, with
+## the lambda's last statement carrying the dict's own entry-separator comma
+## (`... return 0,`). Godot's real match-statement grammar accepts a comma-separated pattern
+## list before a `:` (`1, 2, 3:`), so the parser reads that trailing comma as the start of
+## *another* match pattern rather than as the enclosing dict's separator, and fails with
+## "Expected expression for match pattern". That failed this whole file to parse, which
+## cascaded into every script that references SettingsSchema (settings_row.gd, settings_ui.gd)
+## and, transitively, dozens of unrelated "cannot infer type" errors project-wide wherever
+## Godot's project-wide script/class resolution pass got interrupted by it. Named static
+## functions (already the working pattern used by format_value() above) sidestep the
+## ambiguity entirely instead of relying on comma placement inside an inline lambda body.
 static func _window_mode_row() -> Dictionary:
 	return {
 		"id": "window_mode",
@@ -211,30 +256,35 @@ static func _window_mode_row() -> Dictionary:
 		"format": "enum",
 		"default": "windowed",
 		"options": ["windowed", "borderless", "fullscreen"],
-		"option_labels": [
+		"option_labels":
+		[
 			"SETTINGS_WINDOW_MODE_WINDOWED",
 			"SETTINGS_WINDOW_MODE_BORDERLESS",
 			"SETTINGS_WINDOW_MODE_FULLSCREEN",
 		],
-		"getter":
-		func() -> int:
-			match DisplayService.window_mode:
-				DisplayService.WINDOW_MODE_BORDERLESS:
-					return 1
-				DisplayService.WINDOW_MODE_FULLSCREEN:
-					return 2
-				_:
-					return 0,
-		"setter":
-		func(idx: int) -> void:
-			match idx:
-				1:
-					DisplayService.set_window_mode(DisplayService.WINDOW_MODE_BORDERLESS)
-				2:
-					DisplayService.set_window_mode(DisplayService.WINDOW_MODE_FULLSCREEN)
-				_:
-					DisplayService.set_window_mode(DisplayService.WINDOW_MODE_WINDOWED),
+		"getter": Callable(SettingsSchema, "_get_window_mode_index"),
+		"setter": Callable(SettingsSchema, "_set_window_mode_index"),
 	}
+
+
+static func _get_window_mode_index() -> int:
+	match DisplayService.window_mode:
+		DisplayService.WINDOW_MODE_BORDERLESS:
+			return 1
+		DisplayService.WINDOW_MODE_FULLSCREEN:
+			return 2
+		_:
+			return 0
+
+
+static func _set_window_mode_index(idx: int) -> void:
+	match idx:
+		1:
+			DisplayService.set_window_mode(DisplayService.WINDOW_MODE_BORDERLESS)
+		2:
+			DisplayService.set_window_mode(DisplayService.WINDOW_MODE_FULLSCREEN)
+		_:
+			DisplayService.set_window_mode(DisplayService.WINDOW_MODE_WINDOWED)
 
 
 static func _monitor_row() -> Dictionary:
@@ -266,30 +316,35 @@ static func _vsync_row() -> Dictionary:
 		"format": "enum",
 		"default": "enabled",
 		"options": ["disabled", "enabled", "adaptive"],
-		"option_labels": [
+		"option_labels":
+		[
 			"SETTINGS_VSYNC_DISABLED",
 			"SETTINGS_VSYNC_ENABLED",
 			"SETTINGS_VSYNC_ADAPTIVE",
 		],
-		"getter":
-		func() -> int:
-			match DisplayService.vsync_mode:
-				DisplayService.VSYNC_DISABLED:
-					return 0
-				DisplayService.VSYNC_ADAPTIVE:
-					return 2
-				_:
-					return 1,
-		"setter":
-		func(idx: int) -> void:
-			match idx:
-				0:
-					DisplayService.set_vsync_mode(DisplayService.VSYNC_DISABLED)
-				2:
-					DisplayService.set_vsync_mode(DisplayService.VSYNC_ADAPTIVE)
-				_:
-					DisplayService.set_vsync_mode(DisplayService.VSYNC_ENABLED),
+		"getter": Callable(SettingsSchema, "_get_vsync_index"),
+		"setter": Callable(SettingsSchema, "_set_vsync_index"),
 	}
+
+
+static func _get_vsync_index() -> int:
+	match DisplayService.vsync_mode:
+		DisplayService.VSYNC_DISABLED:
+			return 0
+		DisplayService.VSYNC_ADAPTIVE:
+			return 2
+		_:
+			return 1
+
+
+static func _set_vsync_index(idx: int) -> void:
+	match idx:
+		0:
+			DisplayService.set_vsync_mode(DisplayService.VSYNC_DISABLED)
+		2:
+			DisplayService.set_vsync_mode(DisplayService.VSYNC_ADAPTIVE)
+		_:
+			DisplayService.set_vsync_mode(DisplayService.VSYNC_ENABLED)
 
 
 static func _max_fps_row() -> Dictionary:
@@ -302,7 +357,8 @@ static func _max_fps_row() -> Dictionary:
 		"format": "fps",
 		"default": 0,
 		"options": [0, 30, 60, 120, 144, 240],
-		"option_labels": [
+		"option_labels":
+		[
 			"SETTINGS_MAX_FPS_UNCAPPED",
 			"SETTINGS_MAX_FPS_30",
 			"SETTINGS_MAX_FPS_60",
@@ -310,15 +366,19 @@ static func _max_fps_row() -> Dictionary:
 			"SETTINGS_MAX_FPS_144",
 			"SETTINGS_MAX_FPS_240",
 		],
-		"getter":
-		func() -> int:
-			var opts: Array = [0, 30, 60, 120, 144, 240]
-			return opts.find(DisplayService.max_fps),
-		"setter":
-		func(idx: int) -> void:
-			var opts: Array = [0, 30, 60, 120, 144, 240]
-			DisplayService.set_max_fps(int(opts[idx])),
+		"getter": Callable(SettingsSchema, "_get_max_fps_index"),
+		"setter": Callable(SettingsSchema, "_set_max_fps_index"),
 	}
+
+
+static func _get_max_fps_index() -> int:
+	var opts: Array = [0, 30, 60, 120, 144, 240]
+	return opts.find(DisplayService.max_fps)
+
+
+static func _set_max_fps_index(idx: int) -> void:
+	var opts: Array = [0, 30, 60, 120, 144, 240]
+	DisplayService.set_max_fps(int(opts[idx]))
 
 
 static func _ui_scale_row() -> Dictionary:
@@ -330,7 +390,8 @@ static func _ui_scale_row() -> Dictionary:
 		"desc_key": "SETTINGS_UI_SCALE_DESC",
 		"format": "percent",
 		"default": 1.0,
-		"range": {
+		"range":
+		{
 			"min": DisplayService.SCALE_MIN,
 			"max": DisplayService.SCALE_MAX,
 			"step": DisplayService.SCALE_STEP,
@@ -351,37 +412,41 @@ static func _volume_row(id: String, bus_key: String) -> Dictionary:
 		"format": "percent",
 		"default": 1.0,
 		"range": {"min": 0.0, "max": 1.0, "step": 0.05},
-		"getter":
-		func() -> float:
-			match bus_key:
-				"master":
-					return AudioSettings.master_volume
-				"music":
-					return AudioSettings.music_volume
-				"sfx":
-					return AudioSettings.sfx_volume
-				"ambience":
-					return AudioSettings.ambience_volume
-				"ui":
-					return AudioSettings.ui_volume
-				_:
-					return 1.0,
-		"setter":
-		func(v: float) -> void:
-			match bus_key:
-				"master":
-					AudioSettings.master_volume = v
-				"music":
-					AudioSettings.music_volume = v
-				"sfx":
-					AudioSettings.sfx_volume = v
-				"ambience":
-					AudioSettings.ambience_volume = v
-				"ui":
-					AudioSettings.ui_volume = v
-			AudioSettings.apply_live(id, v),
+		"getter": Callable(SettingsSchema, "_get_volume").bind(bus_key),
+		"setter": Callable(SettingsSchema, "_set_volume").bind(bus_key, id),
 		"commit": func() -> void: AudioSettings.request_commit(),
 	}
+
+
+static func _get_volume(bus_key: String) -> float:
+	match bus_key:
+		"master":
+			return AudioSettings.master_volume
+		"music":
+			return AudioSettings.music_volume
+		"sfx":
+			return AudioSettings.sfx_volume
+		"ambience":
+			return AudioSettings.ambience_volume
+		"ui":
+			return AudioSettings.ui_volume
+		_:
+			return 1.0
+
+
+static func _set_volume(bus_key: String, id: String, v: float) -> void:
+	match bus_key:
+		"master":
+			AudioSettings.master_volume = v
+		"music":
+			AudioSettings.music_volume = v
+		"sfx":
+			AudioSettings.sfx_volume = v
+		"ambience":
+			AudioSettings.ambience_volume = v
+		"ui":
+			AudioSettings.ui_volume = v
+	AudioSettings.apply_live(id, v)
 
 
 static func _colorblind_row() -> Dictionary:
@@ -394,23 +459,28 @@ static func _colorblind_row() -> Dictionary:
 		"format": "enum",
 		"default": "default",
 		"options": ["default", "protanopia", "deuteranopia", "tritanopia"],
-		"option_labels": [
+		"option_labels":
+		[
 			"SETTINGS_COLORBLIND_DEFAULT",
 			"SETTINGS_COLORBLIND_PROTANOPIA",
 			"SETTINGS_COLORBLIND_DEUTERANOPIA",
 			"SETTINGS_COLORBLIND_TRITANOPIA",
 		],
-		"getter":
-		func() -> int:
-			var modes := ["default", "protanopia", "deuteranopia", "tritanopia"]
-			return modes.find(AccessibilitySettings.colorblind_mode),
-		"setter":
-		func(idx: int) -> void:
-			var modes := ["default", "protanopia", "deuteranopia", "tritanopia"]
-			AccessibilitySettings.colorblind_mode = modes[idx]
-			AccessibilitySettings.apply_live("colorblind_mode", modes[idx])
-			AccessibilitySettings.request_commit(),
+		"getter": Callable(SettingsSchema, "_get_colorblind_index"),
+		"setter": Callable(SettingsSchema, "_set_colorblind_index"),
 	}
+
+
+static func _get_colorblind_index() -> int:
+	var modes := ["default", "protanopia", "deuteranopia", "tritanopia"]
+	return modes.find(AccessibilitySettings.colorblind_mode)
+
+
+static func _set_colorblind_index(idx: int) -> void:
+	var modes := ["default", "protanopia", "deuteranopia", "tritanopia"]
+	AccessibilitySettings.colorblind_mode = modes[idx]
+	AccessibilitySettings.apply_live("colorblind_mode", modes[idx])
+	AccessibilitySettings.request_commit()
 
 
 static func _slider_row(
@@ -439,9 +509,7 @@ static func _slider_row(
 	}
 
 
-static func _toggle_row(
-	id: String, page: String, getter: Callable, setter: Callable
-) -> Dictionary:
+static func _toggle_row(id: String, page: String, getter: Callable, setter: Callable) -> Dictionary:
 	return {
 		"id": id,
 		"page": page,

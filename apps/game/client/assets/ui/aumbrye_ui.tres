@@ -1,6 +1,6 @@
-[gd_resource type="Theme" format=3]
+[gd_resource type="Theme" format=3 uid="uid://cw2bvpfdwb2ne"]
 
-[ext_resource type="FontFile" path="res://assets/ui/fonts/aumbrye_pixel.ttf" id="1_s7h28"]
+[ext_resource type="FontFile" uid="uid://bjuhy33ff0c4o" path="res://assets/ui/fonts/aumbrye_pixel.ttf" id="1_s7h28"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_s7h28"]
 content_margin_left = 8.0

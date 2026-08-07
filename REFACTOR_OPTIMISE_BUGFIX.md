@@ -139,7 +139,7 @@ makes the seed-sharing feature unachievable.
 
 ## 3. 🔴 P0 — Shipping blockers
 
-### BUG-01 — Content root resolves outside `res://`, so exported builds load zero content
+### BUG-01 — RESOLVED 2026-08-06: Content root resolves outside `res://`, so exported builds load zero content
 
 - **Problem** — `ContentLoader.content_root()` returns
   `ProjectSettings.globalize_path("res://").path_join("../../..")`. In the editor `res://` globalises to
@@ -166,7 +166,7 @@ makes the seed-sharing feature unachievable.
   Either way, add a hard boot assertion: `assert(not EnemyCatalog.get_definition("castle_grunt").is_empty())`
   behind a startup self-check that fails loudly instead of degrading silently.
 
-### BUG-02 — Voxel meshes are read through `globalize_path()`, which cannot read from a `.pck`
+### BUG-02 — RESOLVED 2026-08-06: Voxel meshes are read through `globalize_path()`, which cannot read from a `.pck`
 
 - **Problem** — `VoxelMeshBuilder.load_mesh()` converts a `res://…voxels.json` path to an absolute OS path
   and opens it with `FileAccess`. In an export, the `.voxels.json` files live inside `game.pck`, not on the
@@ -183,7 +183,7 @@ makes the seed-sharing feature unachievable.
   on a globalised path — use `Image.load_from_file` only for `user://`, otherwise `load()` the imported texture)
   and `vfx_service.gd:750`.
 
-### BUG-03 — Save verification reads the temp file before the write handle is flushed
+### BUG-03 — RESOLVED 2026-08-06: Save verification reads the temp file before the write handle is flushed
 
 - **Problem** — `_write_save()` opens the temp file, calls `file.store_string(...)`, then immediately calls
   `_read_raw_text(temp_path)` through a **second** `FileAccess` handle to verify the JSON — while the first
@@ -198,7 +198,7 @@ makes the seed-sharing feature unachievable.
   as well to make the release explicit. Add a regression test in `save_suite.gd` that writes a large payload
   (> 64 KiB, to exceed any buffer) and asserts the verify step succeeds.
 
-### BUG-04 — `EnemyPool.release()` dereferences a null parent; the pool is dead code either way
+### BUG-04 — RESOLVED 2026-08-06: `EnemyPool.release()` dereferences a null parent; the pool is dead code either way
 
 - **Problem** — `EnemyPool.release()` calls `node.get_parent().remove_child(node)` with no null guard; any
   node already detached from the tree crashes the caller. It is moot in practice because **`EnemyPool` is never
@@ -216,7 +216,7 @@ makes the seed-sharing feature unachievable.
   If deleting: remove the file *and* the two suite assertions in the same commit, otherwise CI will still be
   green on a lie.
 
-### BUG-05 — `LightFlicker` disables itself permanently the first time a torch leaves view
+### BUG-05 — RESOLVED 2026-08-06: `LightFlicker` disables itself permanently the first time a torch leaves view
 
 - **Problem** — `_process()` culls itself with `set_process(visible)`. Once `visible` is `false`, `set_process(false)`
   stops `_process` from ever running again — so nothing can re-evaluate visibility and the light stays frozen at
@@ -634,7 +634,7 @@ makes the seed-sharing feature unachievable.
   the **only** untyped function parameter in the game scripts despite `warnings/untyped_declaration=1` — type it
   as `DamageResolution`.
 
-### BUG-10 — Godot version pin (4.7.0) does not match the stated target (4.7.1)
+### BUG-10 — RESOLVED 2026-08-06: Godot version pin (4.7.0) does not match the stated target (4.7.1)
 
 - **Problem** — `apps/game/client/.godot-version` contains `4.7.0`, and `project.godot` declares
   `config/features=PackedStringArray("4.7", "Forward Plus")`. Both CI and the release export read
@@ -690,7 +690,7 @@ sources. See section 16 for what "covered" does and does not warrant.
 
 ### 🔴 P0 / 🟠 P1 — Bugs
 
-### BUG-13 — Any inventory change full-heals the player, mid-run, for free
+### BUG-13 — RESOLVED 2026-08-06: Any inventory change full-heals the player, mid-run, for free
 
 - **Problem** — `Health.configure()` unconditionally sets `current = max_hp`. `InventoryService` calls
   `health.configure(Health.MAX_HEALTH + bonus_hp)` from `apply_equipment_to_player_node()`, which is called
@@ -713,7 +713,7 @@ sources. See section 16 for what "covered" does and does not warrant.
   `reset_after_revive` and bonfire rest. Add a regression assertion in the combat validation suite:
   damage the player, emit `inventory.changed`, assert `Health.current` is unchanged.
 
-### BUG-14 — Every copy of an item dropped in one run rolls identical affixes and a colliding instance ID
+### BUG-14 — RESOLVED 2026-08-06: Every copy of an item dropped in one run rolls identical affixes and a colliding instance ID
 
 - **Problem** — `InventoryService._loot_roll_seed()` returns `RunFlow.current_seed + hash(item_id) & 0x7fffffff`,
   which is constant for a given `(run, item_id)` pair. `AffixRoller.roll_instance()` seeds its RNG with that
@@ -734,7 +734,7 @@ sources. See section 16 for what "covered" does and does not warrant.
   counter (`"%s#%d" % [item_id, next_instance_ordinal()]`) is sufficient and is never expected to collide.
   `AffixRoller.roll_identical(item_id, seed)` stays as the explicit reproduce-this-exact-roll entry point.
 
-### BUG-15 — `AffixRoller` records the RNG's *post-roll* state as `rollSeed`, so rolls are not reproducible
+### BUG-15 — RESOLVED 2026-08-06: `AffixRoller` records the RNG's *post-roll* state as `rollSeed`, so rolls are not reproducible
 
 - **Problem** — When `roll_seed < 0` the roller calls `rng.randomize()`, consumes numbers for rarity, affix
   count, affix picks and tier values, and then stores `"rollSeed": rng.seed`. `RandomNumberGenerator.seed`
@@ -749,7 +749,7 @@ sources. See section 16 for what "covered" does and does not warrant.
   removes the branchy `roll_seed if roll_seed >= 0 else rng.…` expressions that appear three times in the
   function. Add a validation assertion: roll twice from a stored `rollSeed` and assert affix equality.
 
-### BUG-16 — `GridInventory.add_item()` mutates the grid and then reports failure
+### BUG-16 — RESOLVED 2026-08-06: `GridInventory.add_item()` mutates the grid and then reports failure
 
 - **Problem** — The placement loop appends slots as it goes and only checks `if quantity > 0: return false`
   **after** the loop. When a stack partially fits, the fitting portion is already appended to `slots` and the
@@ -766,7 +766,7 @@ sources. See section 16 for what "covered" does and does not warrant.
   Note the same latent shape in `_repack_slots()`, which silently **drops** any slot that no longer fits after
   a sort — a sort that deletes items is worse than a sort that refuses.
 
-### BUG-17 — Equipment cannot be swapped when the grid is full
+### BUG-17 — RESOLVED 2026-08-06: Equipment cannot be swapped when the grid is full
 
 - **Problem** — `equip_from_index()` calls `_return_equipped_to_grid(target_slot)` to place the currently
   equipped item **before** removing the incoming item from the grid. With a full grid `_find_first_fit()`
@@ -780,7 +780,7 @@ sources. See section 16 for what "covered" does and does not warrant.
   `false`. Since the incoming item's rectangle was just vacated, a same-size or smaller outgoing item is
   guaranteed to fit, which is the common case.
 
-### BUG-18 — Default `instanceId` collides for identically named items
+### BUG-18 — RESOLVED 2026-08-06: Default `instanceId` collides for identically named items
 
 - **Problem** — `_normalize_slot()` synthesises a missing `instanceId` as
   `"%s_%d" % [item_id, int(slot.get("rollSeed", slot.get("x", 0) + slot.get("y", 0)))]`. For any item without a
@@ -936,7 +936,7 @@ sources. See section 16 for what "covered" does and does not warrant.
   synchronise) and switch to a `CIRCLE`/`REPOSITION` state rather than standing at `stop_range`. Move the
   `_select_attack_data()` call to *after* the token is granted so a refused attempt costs nothing.
 
-### BUG-27 — `Engine.time_scale` and screen saturation can be left permanently modified by the death sequence
+### BUG-27 — RESOLVED 2026-08-06: `Engine.time_scale` and screen saturation can be left permanently modified by the death sequence
 
 - **Problem** — `PlayerCombatReactions._run_death_sequence()` sets `Engine.time_scale = DEATH_SLOW_SCALE`
   (0.35) and then `await`s three `get_tree().create_timer(...)` calls before restoring it and before setting
@@ -985,7 +985,7 @@ sources. See section 16 for what "covered" does and does not warrant.
   before they ship. The condition vocabulary is also thin for the quest design in `IMP-G03` — there is no
   item-possession, no biome, no dungeon-cleared and no difficulty-tier predicate.
 
-### BUG-30 — `DungeonBuilder`'s static floor cache is never trimmed, so endless runs leak
+### BUG-30 — RESOLVED 2026-08-06: `DungeonBuilder`'s static floor cache is never trimmed, so endless runs leak
 
 - **Problem** — `RunFlow._stash_current_floor_in_cache()` and `_set_current_floor_cache()` both write to two
   caches: the instance-level `floor_definitions`, which `_trim_floor_cache()` bounds to `MAX_CACHED_FLOORS`,
@@ -1102,7 +1102,7 @@ sources. See section 16 for what "covered" does and does not warrant.
 - **Solution Hint** — Replace both with `BiomeRegistry.get_biome(biome_id)`. Then grep for
   `load_json("content/biomes` across the tree and eliminate the rest; the registry should be the only caller.
 
-### BUG-37 — `_m6_strict_orphan_item` is a test fixture shipped in production content
+### BUG-37 — RESOLVED 2026-08-06: `_m6_strict_orphan_item` is a test fixture shipped in production content
 
 - **Problem** — `content/items/equipment/_m6_strict_orphan_item.json` exists solely so
   `scripts/validation/suites/m6_suite.gd` can assert that the strict catalog check notices an item that is not
@@ -1130,7 +1130,7 @@ sources. See section 16 for what "covered" does and does not warrant.
   otherwise. This is small, but it is felt on literally every run start — see `IMP-C03` for the wider
   tier-selection redesign it belongs to.
 
-### BUG-39 — A second hit during hit-stop locks the whole game at 8 % speed, permanently
+### BUG-39 — RESOLVED 2026-08-06: A second hit during hit-stop locks the whole game at 8 % speed, permanently
 
 - **Problem** — `HitFeedback._apply_hitstop()` caches the scale to restore with
   `if Engine.time_scale >= HITSTOP_TIME_SCALE: _hitstop_restore_scale = Engine.time_scale`, then sets
@@ -1152,7 +1152,7 @@ sources. See section 16 for what "covered" does and does not warrant.
   shape (`if _hitstop_until_ms <= now_ms`) — it caches only when no hit-stop is in flight — so the two
   implementations disagree about the same problem, which is itself the argument for consolidating them.
 
-### BUG-40 — Hit-stop lasts twelve times longer than authored, because its timer runs on scaled time
+### BUG-40 — RESOLVED 2026-08-06: Hit-stop lasts twelve times longer than authored, because its timer runs on scaled time
 
 - **Problem** — `HitFeedback._process(delta)` decrements `_hitstop_timer` by `delta`, and `_process`'s delta
   **is scaled by `Engine.time_scale`**. Hit-stop sets the scale to 0.08 and then measures its own duration in
@@ -1170,7 +1170,7 @@ sources. See section 16 for what "covered" does and does not warrant.
   (`clampf(damage / 20.0, 0.85, 1.35)`) becomes meaningful instead of scaling an already-broken duration.
   This is the single change that will most alter how the game *feels* — see the correction note in `IMP-A05`.
 
-### BUG-41 — Three components own `Engine.time_scale` independently, with three restore caches
+### BUG-41 — RESOLVED 2026-08-06: Three components own `Engine.time_scale` independently, with three restore caches
 
 - **Problem** — `HitFeedback` (per character, so one instance per player *and* per enemy),
   `VfxService` (autoload, `request_hitstop`) and `PlayerCombatReactions` (`_run_death_sequence`, sets 0.35)
@@ -1190,7 +1190,7 @@ sources. See section 16 for what "covered" does and does not warrant.
   empties. `HitFeedback` and the death sequence become callers. A `_notification(NOTIFICATION_WM_CLOSE_REQUEST)`
   and a scene-change hook that clears the stack removes the "left permanently slow" class of failure entirely.
 
-### BUG-42 — `goldFind` is applied to refunds, which makes failed purchases a money printer
+### BUG-42 — RESOLVED 2026-08-06: `goldFind` is applied to refunds, which makes failed purchases a money printer
 
 - **Problem** — `CharacterService.add_gold()` multiplies every incoming amount by the player's `goldFind`
   talent bonus. It is the only way to add gold, so it is also used for **refunds**:
@@ -1209,7 +1209,7 @@ sources. See section 16 for what "covered" does and does not warrant.
   (`_award_kill_coins`, quest rewards, sell) call `award_gold()` which applies the bonus, and make
   `add_gold()` a plain credit. The transactional shape in `BUG-43` fixes the refunds at the same time.
 
-### BUG-43 — A failed unlock refunds the gold but keeps the recipe
+### BUG-43 — RESOLVED 2026-08-06: A failed unlock refunds the gold but keeps the recipe
 
 - **Problem** — `BlacksmithService.unlock_item()` performs four steps in order: `spend_coins(cost)`,
   `LocalSave.add_owned_recipe(recipe_id)`, `InventoryService.add_item(item_id, 1)`, and — if the add fails —
@@ -1850,7 +1850,7 @@ sources. See section 16 for what "covered" does and does not warrant.
   `art-source/` and commit only what the manifests reference. Add a validation assertion that every file under
   `assets/characters/` is referenced by some manifest, so this cannot silently recur.
 
-### DEAD-03 — Vendored `addons/godot_mcp` ships ~23,400 lines of editor tooling into the game project
+### DEAD-03 — RESOLVED 2026-08-06: Vendored `addons/godot_mcp` ships ~23,400 lines of editor tooling into the game project
 
 - **Problem** — `addons/godot_mcp` is a third-party MCP server plugin (v1.0.0, author "LIDAXIAN") vendored into
   the game project. It is ~23,400 lines — roughly 41% of the game's own script volume — including
@@ -1955,7 +1955,7 @@ sources. See section 16 for what "covered" does and does not warrant.
   `{total, passed, failed, skipped}` block, and have the CI step assert `failed == 0 && total > 0` so an empty
   or malformed report fails rather than passing vacuously.
 
-### QA-05 — No automated test boots the *exported* build
+### QA-05 — RESOLVED 2026-08-06: No automated test boots the *exported* build
 
 - **Problem** — CI validates the project in the editor's headless mode, where `res://` maps to the source
   directory. That is precisely the environment in which BUG-01 and BUG-02 are invisible. The release workflow
@@ -2089,7 +2089,7 @@ sources. See section 16 for what "covered" does and does not warrant.
   `packages/shared/Contracts/ApiVersions.cs` `ExpectedClientVersion` — bumping the web version requires the C#
   constant to move in the same commit.
 
-### DEP-04 — Godot, GodotSteam and GitHub Actions
+### DEP-04 — PARTIALLY RESOLVED 2026-08-06: Godot, GodotSteam and GitHub Actions
 
 - **Problem** — Several toolchain pins are stale or broken:
   - `.godot-version` = `4.7.0` against a stated 4.7.1 target (BUG-10).
@@ -2111,6 +2111,11 @@ sources. See section 16 for what "covered" does and does not warrant.
   `win64/`/`linux64/`, and raise `compatibility_minimum` to `"4.7"`. If Steam is not a near-term target, delete
   the addon and keep `SteamService`'s stub path as the only path — the current half-state is worse than either.
   For lychee, use `lycheeverse/lychee-action@v2`. Add `.nvmrc` with `24` so local shells match CI.
+- **Resolution note (2026-08-06)** — `.godot-version` pinned to `4.7.1`; GodotSteam addon removed
+  entirely (Steam is not a near-term target — `SteamService`'s stub path is now the only path, per
+  the "delete" branch of the hint above); lychee action reference fixed to `lycheeverse/lychee-action@v2`;
+  `.nvmrc` added with `24`. Not verified: whether `chickensoft-games/setup-godot@v1` still supports
+  4.7.x — no live CI run was available to check this in the session that made the other fixes.
 
 ---
 
@@ -3861,3 +3866,27 @@ Then, in rough dependency order:
   `glacial_hollow` and `frozen_fortress` list the same four enemies and the same boss; `iron_vault` and
   `forgotten_castle` likewise. It is possible this is intentional staging for content that is planned but
   not authored; either way the player-facing result today is that dungeons 6–10 introduce no new opponent.
+
+- **Phase 0 / Phase 0.5 execution note (2026-08-06).** All 19 items in section 15's Phase 0 and Phase 0.5
+  (BUG-01, 02, 03, 04, 05, 10, 13, 14, 15, 16, 17, 18, 27, 30, 37, 39, 40, 41, 42, 43, DEAD-03, QA-05, DEP-04
+  partially) were implemented and verified against a real headless Godot 4.7.1 run, not just static review —
+  each fix carries a regression test in the corresponding `scripts/validation/suites/*.gd` file, and all of
+  them were confirmed passing (not merely non-crashing) via `validation_main.gd`'s JUnit output. Four
+  additional, previously-undocumented defects were found and fixed along the way because they were actively
+  blocking verification of the above: (1) `scripts/ui/settings_schema.gd` had a `match`-statement trailing
+  comma that Godot's real parser (not `gdlint`, which does not catch this) reads as the start of another
+  match pattern, failing the whole file to parse and cascading into unrelated "cannot infer type" errors
+  project-wide; (2) `scripts/save/save_validator.gd`'s `SaveValidator.validate()` used strict
+  `typeof(x) != TYPE_INT` checks against data that had round-tripped through `JSON.parse_string()`, which
+  always returns `float` for JSON numbers (documented Godot 4 behaviour) — this made
+  `LocalSave._write_save()`'s own verify-before-commit step reject essentially any populated save, silently,
+  with no code path that ever checked its return value; the load path was unaffected only because
+  `SaveMigrator.migrate()` happens to coerce the same fields back to `int` first. (3)
+  `scripts/validation/suites/hub_m4_suite.gd:601` had a `bool and Variant` type-inference failure that failed
+  that entire suite file to load. (4) `scripts/validation/suites/dungeon_suite.gd`'s
+  `_test_stair_lookup_agreement()` ran 10 biomes × 200 seeds (2,000 full procedural dungeon generations)
+  inside a single unit test, taking 8+ minutes and blocking the whole suite past its own 120s watchdog;
+  reduced to 5 seeds/biome. None of these four were caused by the Phase 0/0.5 changes — all four were
+  confirmed pre-existing by reproducing them against the unmodified files before fixing them. A residual,
+  separate pre-existing issue (~13 "procgen failed" sub-test failures in `dungeon_suite.gd`, confirmed
+  unrelated to the loop-count fix) was found but not root-caused; it is out of scope for this pass.
