@@ -38,7 +38,7 @@ public class RunCompletionTests : IClassFixture<AumbryeWebApplicationFactory>
         using (var scope = _factory.Services.CreateScope())
         {
             var cache = scope.ServiceProvider.GetRequiredService<IDungeonCache>();
-            await cache.SetAsync(run.RunId, string.Empty, TimeSpan.Zero);
+            await cache.SetAsync(run.RunId, 1, string.Empty, TimeSpan.Zero);
         }
 
         var complete = await _client.PostAsJsonAsync($"/api/v1/runs/{run.RunId}/complete",

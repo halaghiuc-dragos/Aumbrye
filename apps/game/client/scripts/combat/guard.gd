@@ -11,6 +11,8 @@ const BLOCK_POISE_TRANSFER := 0.35
 const GUARD_BREAK_STAGGER := 0.8
 const BLOCK_ARC_DEGREES := 120.0
 const PARRY_WINDOW := 0.18
+const PARRY_STAMINA_COST := 10.0
+const PARRY_COOLDOWN := 0.4
 const BLOCK_DISPLAY_MAX := 9.99
 const PARRY_STAGGER_ENEMY := 1.2
 const RIPOSTE_WINDOW := 1.4
@@ -39,6 +41,7 @@ var _riposte_timer := 0.0
 var _block_reduction_bonus := 0.0
 var _block_stability := 1.0
 var _last_block_cost := 0.0
+var _parry_cooldown_timer := 0.0
 
 
 func _ready() -> void:
@@ -48,6 +51,8 @@ func _ready() -> void:
 
 
 func _physics_process(delta: float) -> void:
+	if _parry_cooldown_timer > 0.0:
+		_parry_cooldown_timer -= delta
 	if _stagger_timer > 0.0:
 		_stagger_timer -= delta
 		if _stagger_timer <= 0.0:
@@ -65,7 +70,11 @@ func _physics_process(delta: float) -> void:
 			is_blocking = false
 			parry_window_active = false
 			is_guard_active = false
-			if PlayerInput.just_pressed(&"block") and not guard_broken_state:
+			if (
+				PlayerInput.just_pressed(&"block")
+				and not guard_broken_state
+				and _parry_cooldown_timer <= 0.0
+			):
 				_enter_guard()
 		GuardState.GUARDING:
 			_parry_timer -= delta
@@ -81,9 +90,11 @@ func _physics_process(delta: float) -> void:
 func _enter_guard() -> void:
 	_state = GuardState.GUARDING
 	_parry_timer = PARRY_WINDOW
+	_parry_cooldown_timer = PARRY_COOLDOWN
 	is_guard_active = true
 	if _stamina:
 		_stamina.set_regen_state(Stamina.RegenState.BLOCKING)
+		_stamina.consume(PARRY_STAMINA_COST)
 	block_state_changed.emit(true)
 
 
@@ -105,17 +116,22 @@ func _reset_guard_state() -> void:
 func set_combat_stat_modifiers(
 	equipment_stats: Dictionary, talent_stats: Dictionary, block_data: Dictionary = {}
 ) -> void:
-	_block_reduction_bonus = CombatStatModifiersScript.block_reduction_bonus(talent_stats)
-	_block_stability = maxf(0.1, float(block_data.get("stability", 1.0)))
+	_block_reduction_bonus = (
+		CombatStatModifiersScript.block_reduction_bonus(talent_stats)
+		+ float(equipment_stats.get("blockReduction", 0.0))
+	)
+	_block_stability = maxf(
+		0.1, float(block_data.get("stability", 1.0)) + ClassPerks.bulwark_stability_bonus(_body)
+	)
 	if block_data.has("reduction"):
 		# Equipment block reduction overrides the default when authored on shield.
 		_block_reduction_bonus += float(block_data.get("reduction", 0.0)) - BLOCK_DAMAGE_REDUCTION
 
 
-func modify_incoming_hit(info: DamageInfo) -> Dictionary:
+func modify_incoming_hit(info: DamageInfo, arc: DamageInfo.HitArc = DamageInfo.HitArc.FRONT) -> Dictionary:
 	if _stagger_timer > 0.0 or not is_guard_active:
 		return {"amount": info.amount, "poise": info.poise_damage}
-	if not _is_frontal_hit(info.direction):
+	if arc != DamageInfo.HitArc.FRONT:
 		return {"amount": info.amount, "poise": info.poise_damage}
 	var stamina_cost := info.poise_damage * BLOCK_STAMINA_PER_POISE / _block_stability
 	_last_block_cost = stamina_cost
@@ -133,6 +149,8 @@ func modify_incoming_hit(info: DamageInfo) -> Dictionary:
 
 func try_parry_attack(attacker: Node) -> bool:
 	if _state != GuardState.GUARDING or not parry_window_active:
+		return false
+	if _stamina and _stamina.is_exhausted():
 		return false
 	_stagger_attacker(attacker)
 	parry_success.emit(attacker)
@@ -210,7 +228,7 @@ func get_block_time_remaining() -> float:
 func _get_block_facing() -> Vector3:
 	if _body.has_method("get_facing_direction"):
 		return _body.call("get_facing_direction")
-	return -_body.global_transform.basis.z
+	return CombatFacing.forward_of(_body)
 
 
 func _is_frontal_hit(direction: Vector3) -> bool:

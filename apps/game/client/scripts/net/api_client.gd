@@ -267,6 +267,8 @@ static func _request_once(url: String, method: int, payload: Dictionary, auth: b
 		)
 
 	var http: HTTPRequest = await ApiConfig.acquire_http()
+	if http == null:
+		return {"ok": false, "error": "connection pool exhausted", "code": 0}
 	http.timeout = ApiConfig.REQUEST_TIMEOUT_SECONDS
 	var body := ""
 	if method != HTTPClient.METHOD_GET:

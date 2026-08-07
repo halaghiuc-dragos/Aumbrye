@@ -26,6 +26,7 @@ const AnimControllerScript := preload("res://scripts/art/characters/diorama_anim
 @onready var _mesh: MeshInstance3D = $MeshInstance3D
 @onready var _body_collision: CollisionShape3D = $CollisionShape3D
 
+var _enemy_rng := RandomNumberGenerator.new()
 var _data: Dictionary = {}
 var _hp_bar: EnemyHealthBar
 var _state := State.PATROL
@@ -101,6 +102,9 @@ func _ready() -> void:
 	add_to_group("lockable")
 	add_to_group("enemy")
 	_spawn_origin = global_position
+	_enemy_rng.seed = (
+		FloorSeedMix.mix(RunFlow.current_seed, RunFlow.current_floor) ^ hash(str(get_path()))
+	)
 	var enemy_id := get_enemy_id()
 	if enemy_id.is_empty():
 		_data = ContentLoader.load_json(get_data_path())
@@ -458,25 +462,28 @@ func cancel_attack() -> void:
 
 
 func _physics_process(delta: float) -> void:
-	if _health and _health.is_dead():
-		if not is_dead():
-			_finalize_death(true)
-		return
-	if is_dead():
-		return
+	if _health and _health.is_dead() and not is_dead():
+		_finalize_death(true)
+	var staggered := false
 	if _cooldown > 0.0:
 		_cooldown -= delta
-	if _stagger_timer > 0.0:
+	if not is_dead() and _stagger_timer > 0.0:
 		_stagger_timer -= delta
+		staggered = true
 		if _stagger_timer <= 0.0:
+			staggered = false
 			if _health and _health.is_dead():
 				_finalize_death(true)
-				return
-			_state = State.PATROL
-		return
-	_update_ai(delta)
-	if _should_track_player():
-		_track_player_facing(delta)
+			else:
+				_state = State.PATROL
+	var ai_enabled := not is_dead() and not staggered
+	if ai_enabled:
+		_update_ai(delta)
+		if _should_track_player():
+			_track_player_facing(delta)
+	else:
+		velocity.x = 0.0
+		velocity.z = 0.0
 	if not is_on_floor():
 		velocity += get_gravity() * delta
 	move_and_slide()
@@ -545,7 +552,7 @@ func _process_patrol(delta: float) -> void:
 	var to_target := _patrol_target - global_position
 	to_target.y = 0.0
 	if to_target.length() < 0.5:
-		_patrol_wait = randf_range(1.0, 2.5)
+		_patrol_wait = _enemy_rng.randf_range(1.0, 2.5)
 		_pick_patrol_target()
 		return
 	velocity = to_target.normalized() * _data.get("move_speed", 3.0)
@@ -696,31 +703,36 @@ func _is_cross_boss_boundary_with_player() -> bool:
 func _start_windup() -> void:
 	if is_dead() or (_health and _health.is_dead()):
 		return
-	_select_attack_data()
 	_attack_token_group = str(_data.get("attack_token_group", "room_default"))
 	if AttackTokenService and not AttackTokenService.request_token(_attack_token_group):
+		# Refused: back off instead of re-requesting a token every physics frame.
+		_cooldown = _enemy_rng.randf_range(0.25, 0.6)
 		return
 	_attack_token_held = true
+	_select_attack_data()
+	_enter_windup(_current_attack_data)
+
+
+func _enter_windup(attack_data: Dictionary) -> void:
+	_current_attack_data = attack_data
 	_state = State.WINDUP
 	var windup: float = float(
-		_current_attack_data.get("windup_duration", _data.get("windup_duration", 0.7))
+		attack_data.get("windup_duration", _data.get("windup_duration", 0.7))
 	)
 	var windup_variance: float = float(
-		_current_attack_data.get("windup_variance", _data.get("windup_variance", 0.0))
+		attack_data.get("windup_variance", _data.get("windup_variance", 0.0))
 	)
 	if windup_variance > 0.0:
-		windup += randf_range(-windup_variance, windup_variance)
+		windup += _enemy_rng.randf_range(-windup_variance, windup_variance)
 	_state_timer = maxf(0.05, windup)
 	_sync_hitbox_from_anim = (
-		_animator != null and _animator.is_bound() and not _animator._events_path.is_empty()
+		_animator != null and _animator.is_bound() and _animator.drives_hitbox_events()
 	)
 	if _animator and _animator.is_bound():
 		_animator.play_attack(
 			_state_timer,
-			float(_current_attack_data.get("active_duration", _data.get("active_duration", 0.15))),
-			float(
-				_current_attack_data.get("recovery_duration", _data.get("recovery_duration", 0.9))
-			)
+			float(attack_data.get("active_duration", _data.get("active_duration", 0.15))),
+			float(attack_data.get("recovery_duration", _data.get("recovery_duration", 0.9)))
 		)
 	elif _mesh:
 		_mesh.scale = Vector3(1.08, 1.08, 1.08)
@@ -772,20 +784,17 @@ func _end_attack() -> void:
 		_diorama_visual.scale = Vector3.ONE
 	elif _mesh:
 		_mesh.scale = Vector3.ONE
+	var combo: Array = _current_attack_data.get("combo_followups", [])
+	if combo.size() > 0 and _combo_step < combo.size() and _has_aggro():
+		_combo_step += 1
+		_enter_windup(combo[_combo_step - 1])
+		return
+	_combo_step = 0
+	_release_attack_token()
 	_state = State.RECOVERY
 	_state_timer = float(
 		_current_attack_data.get("recovery_duration", _data.get("recovery_duration", 0.9))
 	)
-	_release_attack_token()
-	var combo: Array = _current_attack_data.get("combo_followups", [])
-	if combo.size() > 0 and _combo_step < combo.size() and _has_aggro():
-		_combo_step += 1
-		_current_attack_data = combo[_combo_step - 1]
-		_state = State.WINDUP
-		_state_timer = float(_current_attack_data.get("windup_duration", 0.35))
-		begin_attack_windup_bar(_state_timer)
-	else:
-		_combo_step = 0
 
 
 func _select_attack_data() -> void:
@@ -796,7 +805,7 @@ func _select_attack_data() -> void:
 		return
 	if _combo_step > 0:
 		return
-	_current_attack_data = attacks[randi() % attacks.size()]
+	_current_attack_data = attacks[_enemy_rng.randi() % attacks.size()]
 	_combo_step = 0
 
 
@@ -846,7 +855,9 @@ func _track_player_facing(delta: float) -> void:
 
 func _pick_patrol_target() -> void:
 	var radius: float = _data.get("patrol_radius", 4.0)
-	var offset := Vector3(randf_range(-radius, radius), 0.0, randf_range(-radius, radius))
+	var offset := Vector3(
+		_enemy_rng.randf_range(-radius, radius), 0.0, _enemy_rng.randf_range(-radius, radius)
+	)
 	_patrol_target = _spawn_origin + offset
 
 
@@ -860,7 +871,7 @@ func _on_poise_broken() -> void:
 	apply_stagger(_data.get("stagger_duration", 1.0))
 
 
-func _on_hit_resolved(res) -> void:
+func _on_hit_resolved(res: DamageResolution) -> void:
 	if res.outgoing <= 0.0:
 		return
 	_on_hurt(DamageInfo.new())

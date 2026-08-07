@@ -127,6 +127,8 @@ func _physics_process(delta: float) -> void:
 			_combo_index = 0
 	if _post_dodge_attack_buffer > 0.0:
 		_post_dodge_attack_buffer -= delta
+		if _post_dodge_attack_buffer <= 0.0:
+			_buffered_attack = ""
 	if _art_cooldown_timer > 0.0:
 		_art_cooldown_timer -= delta
 	if _is_action_blocked():
@@ -146,10 +148,7 @@ func _physics_process(delta: float) -> void:
 		_try_attack("light")
 	elif PlayerInput.just_pressed(&"heavy_attack"):
 		_try_attack("heavy")
-	if _post_dodge_attack_buffer > 0.0 and _buffered_attack != "" and not is_attacking:
-		_try_attack(_buffered_attack)
-		_buffered_attack = ""
-	if _buffered_attack != "" and not is_attacking:
+	if _buffered_attack != "" and not is_attacking and _post_dodge_attack_buffer > 0.0:
 		_try_attack(_buffered_attack)
 		_buffered_attack = ""
 
@@ -318,7 +317,7 @@ func get_attack_lunge_velocity() -> Vector3:
 	var forward: Vector3 = (
 		_body.get_facing_direction()
 		if _body.has_method("get_facing_direction")
-		else -_body.global_transform.basis.z
+		else CombatFacing.forward_of(_body)
 	)
 	forward.y = 0.0
 	if forward.length_squared() < 0.01:
@@ -357,6 +356,7 @@ func disable_hitbox_from_anim() -> void:
 		return
 	current_phase = AttackPhase.RECOVERY
 	_phase_timer = float(_current_attack.get("recovery", 0.3))
+	_hyperarmor_active = false
 
 
 func _load_weapon_data() -> void:
@@ -423,6 +423,9 @@ func _start_attack(attack: Dictionary) -> void:
 	is_attacking = true
 	current_phase = AttackPhase.STARTUP
 	_phase_timer = attack.get("startup", 0.2)
+	_hyperarmor_active = bool(attack.get("hyperarmor", false))
+	if not _hyperarmor_active:
+		_hyperarmor_active = float(attack.get("poise_threshold", 0.0)) > 0.0
 	_hitbox_opened_this_swing = false
 	var startup := float(attack.get("startup", 0.2))
 	var active := float(attack.get("active", 0.15))
@@ -456,6 +459,7 @@ func _process_attack_phase(delta: float) -> void:
 			current_phase = AttackPhase.RECOVERY
 			_phase_timer = _current_attack.get("recovery", 0.3)
 			_disable_hitbox()
+			_hyperarmor_active = false
 		AttackPhase.RECOVERY:
 			_end_attack()
 		AttackPhase.DRAWING:
@@ -467,6 +471,10 @@ func _enable_hitbox_for_attack() -> void:
 		return
 	var dmg: float = float(_current_attack.get("damage", 10.0)) * _damage_multiplier
 	dmg += CombatStatModifiersScript.flat_damage_bonus(_equipment_stats)
+	if _body:
+		dmg *= ClassPerks.bloodrage_damage_multiplier(
+			_body, _body.get_node_or_null("Health") as Health
+		)
 	var poise: float = (
 		float(_current_attack.get("poise_damage", 10.0))
 		* _damage_multiplier
@@ -489,9 +497,6 @@ func _enable_hitbox_for_attack() -> void:
 	var crit_mult := CombatStatModifiersScript.crit_multiplier(_talent_stats)
 	_hitbox.call("set_attack_values", dmg, poise, dmg_type, status_id, status_stacks, crit, crit_mult)
 	_hitbox.call("enable")
-	_hyperarmor_active = bool(_current_attack.get("hyperarmor", false))
-	if not _hyperarmor_active:
-		_hyperarmor_active = float(_current_attack.get("poise_threshold", 0.0)) > 0.0
 	if _body:
 		var anchor: Array = VfxService.resolve_combat_anchor(_body)
 		VfxService.play_attack_swing(anchor[0], anchor[1])
@@ -499,7 +504,6 @@ func _enable_hitbox_for_attack() -> void:
 
 
 func _disable_hitbox() -> void:
-	_hyperarmor_active = false
 	if _hitbox and _hitbox.has_method("disable"):
 		_hitbox.call("disable")
 

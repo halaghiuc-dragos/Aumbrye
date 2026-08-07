@@ -5,6 +5,7 @@ class_name MerchantService
 
 const RarityRegistryScript := preload("res://scripts/loot/rarity_registry.gd")
 const EquipmentScript := preload("res://scripts/items/equipment.gd")
+const AFFIX_BASE_SELL_PRICE := 6
 
 static var _warned_missing_items: Dictionary = {}
 
@@ -30,9 +31,14 @@ static func get_slot_unit_sell_price(slot: Dictionary) -> int:
 	price = int(
 		round(float(price) * EquipmentScript.upgrade_multiplier(int(slot.get("upgradeLevel", 0))))
 	)
+	# Affix values are in whatever unit their stat uses (fractions, flat points,
+	# multipliers) — pricing off the raw number is scale-blind. Price instead from
+	# the item's rarity tier, which is what the affix's own value band was rolled
+	# against, so a stronger rarity always sells for more regardless of affix unit.
+	var affix_tier := maxi(0, RarityRegistryScript.tier_index(rarity))
 	for affix in slot.get("affixes", []):
 		if affix is Dictionary:
-			price += int(round(float(affix.get("value", 0.0))))
+			price += (affix_tier + 1) * AFFIX_BASE_SELL_PRICE
 	return maxi(1, price)
 
 

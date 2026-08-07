@@ -52,7 +52,7 @@ public interface ISteamAuthService
 public interface IRunService
 {
     Task<CreateRunResult> CreateRunAsync(Guid accountId, string biomeId, int? seed, int tier, CancellationToken ct = default);
-    Task<string?> GetDungeonDefinitionAsync(Guid accountId, Guid runId, CancellationToken ct = default);
+    Task<string?> GetDungeonDefinitionAsync(Guid accountId, Guid runId, int floor = 1, CancellationToken ct = default);
     Task<CompleteRunResult> CompleteRunAsync(Guid accountId, Guid runId, CompleteRunInput input, CancellationToken ct = default);
 }
 
@@ -62,13 +62,15 @@ public sealed record CreateRunResult(
     int Seed = 0,
     string? BiomeId = null,
     string? DefinitionJson = null,
-    string? Error = null);
+    string? Error = null,
+    bool IsInternalError = false);
 
 public sealed record CompleteRunInput(
     string Outcome,
     double ElapsedSeconds,
     bool BossDefeated,
-    IReadOnlyList<string> LootClaimedInstanceIds);
+    IReadOnlyList<string> LootClaimedInstanceIds,
+    int Floor = 1);
 
 public sealed record CompleteRunResult(
     bool Success,
@@ -112,8 +114,8 @@ public interface IAccountService
 
 public interface IDungeonCache
 {
-    Task SetAsync(Guid runId, string definitionJson, TimeSpan ttl, CancellationToken ct = default);
-    Task<string?> GetAsync(Guid runId, CancellationToken ct = default);
+    Task SetAsync(Guid runId, int floor, string definitionJson, TimeSpan ttl, CancellationToken ct = default);
+    Task<string?> GetAsync(Guid runId, int floor, CancellationToken ct = default);
 }
 
 public interface IDungeonGenerator

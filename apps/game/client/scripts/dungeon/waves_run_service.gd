@@ -45,13 +45,13 @@ func _load_definition() -> void:
 			MILESTONES.append(int(wave))
 
 
-func begin_new_run() -> void:
+func begin_new_run(run_seed: int = 0) -> void:
 	current_wave = 0
 	prep_active = false
 	lobby_ready = false
 	chests_opened.clear()
 	_kill_count = 0
-	_run_seed = randi_range(1, 2_147_483_646)
+	_run_seed = run_seed if run_seed > 0 else randi_range(1, 2_147_483_646)
 	waves_inventory = GridInventory.new(8, 5)
 	waves_changed.emit()
 

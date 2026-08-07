@@ -201,9 +201,15 @@ func to_save_dict() -> Dictionary:
 
 
 func from_save_dict(data: Dictionary) -> void:
-	var saved_gold := int(data.get("gold", DEFAULT_GOLD))
-	var saved_coins: Variant = data.get("coins", saved_gold)
-	gold = maxi(saved_gold, int(saved_coins))
+	# A pre-migration save may carry a stale "coins" field alongside "gold" — "gold"
+	# is the single source of truth once present; "coins" is read only when a save
+	# predates the field being written at all.
+	if data.has("gold"):
+		gold = int(data.get("gold", DEFAULT_GOLD))
+	elif data.has("coins"):
+		gold = int(data.get("coins", DEFAULT_GOLD))
+	else:
+		gold = DEFAULT_GOLD
 	class_id = str(data.get("classId", ""))
 	appearance_theme = int(data.get("appearanceTheme", 0))
 	appearance_profile = CharacterAppearance.sanitize(

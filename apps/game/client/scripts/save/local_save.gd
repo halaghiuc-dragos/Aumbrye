@@ -685,8 +685,8 @@ func _apply_save_data(data: Dictionary) -> void:
 			CharacterService
 			. from_save_dict(
 				{
-					"gold": cur.get("gold", CharacterService.DEFAULT_GOLD),
-					"coins": cur.get("coins", cur.get("gold", CharacterService.DEFAULT_GOLD)),
+					"gold":
+					cur.get("gold", cur.get("coins", CharacterService.DEFAULT_GOLD)),
 					"classId": character.get("classId", ""),
 					"appearanceTheme": character.get("appearanceTheme", 0),
 					"appearance": character.get("appearance", {}),

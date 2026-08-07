@@ -353,6 +353,13 @@ func equip_from_index(index: int, slot_name: String = "") -> bool:
 	var target_slot := slot_name if slot_name != "" else EquipmentHelper.slot_for_item_def(def)
 	if target_slot == "" or not EquipmentHelper.can_equip_in_slot(def, target_slot):
 		return false
+	if (
+		target_slot == "weapon"
+		and CharacterService
+		and CharacterService.class_id != ""
+		and not ClassCatalog.is_weapon_allowed(CharacterService.class_id, item_id)
+	):
+		return false
 	var previous: Dictionary = equipped.get(target_slot, {})
 	slots.remove_at(index)
 	if not previous.is_empty():

@@ -21,6 +21,7 @@ var _status_id := ""
 var _status_stacks := 1
 var _crit_chance := 0.0
 var _crit_multiplier := 1.5
+var _crit_rng := RandomNumberGenerator.new()
 
 
 func _ready() -> void:
@@ -33,6 +34,9 @@ func _ready() -> void:
 	monitorable = false
 	set_physics_process(false)
 	_owner_node = _find_combat_owner()
+	if _owner_node:
+		_owner_node.tree_exiting.connect(disable)
+	_crit_rng.seed = FloorSeedMix.mix(RunFlow.current_seed, hash(str(get_path())))
 	DEBUG_SCRIPT.set_debug_draw(self, false, DEBUG_SCRIPT.HITBOX_COLOR)
 
 
@@ -120,6 +124,8 @@ func _scan_overlaps() -> void:
 
 
 func _try_hit(area: Area3D) -> void:
+	if not is_instance_valid(_owner_node):
+		return
 	if not _active or area == self:
 		return
 	if not area.has_method("receive_hit"):
@@ -143,7 +149,7 @@ func _try_hit(area: Area3D) -> void:
 		direction = (area.global_position - _owner_node.global_position).normalized()
 	var final_damage := damage_amount
 	var is_crit := false
-	if _crit_chance > 0.0 and randf() < _crit_chance:
+	if _crit_chance > 0.0 and _crit_rng.randf() < _crit_chance:
 		final_damage *= _crit_multiplier
 		is_crit = true
 	var info := DamageInfo.create(
@@ -151,6 +157,11 @@ func _try_hit(area: Area3D) -> void:
 	)
 	info.crit = is_crit
 	area.call("receive_hit", info)
+	var mana_restore := ClassPerks.arcane_focus_mana_on_hit(_owner_node)
+	if mana_restore > 0.0:
+		var mana := _owner_node.get_node_or_null("Mana") as Mana
+		if mana:
+			mana.restore(mana_restore)
 	var hit_pos := area.global_position
 	if area.get_parent() is Node3D:
 		hit_pos = (area.get_parent() as Node3D).global_position + Vector3(0.0, 1.0, 0.0)

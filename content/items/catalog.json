@@ -72,6 +72,7 @@
     "mana_potion",
     "skip_10_floors",
     "skip_100_floors",
+    "skip_250_floors",
     "skip_500_floors",
     "skip_50_floors",
     "stamina_potion"

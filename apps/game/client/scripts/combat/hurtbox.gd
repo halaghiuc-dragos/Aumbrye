@@ -24,6 +24,9 @@ signal hit_resolved(resolution: RefCounted)
 var _health: Health
 var _poise: Poise
 var _status_controller: StatusController
+var _cached_dodge: Node
+var _cached_guard: Node
+var _cached_character_body: Node3D
 
 
 func _ready() -> void:
@@ -35,6 +38,14 @@ func _ready() -> void:
 		_poise = get_node(poise_path) as Poise
 	_status_controller = _resolve_status_controller()
 	DEBUG_SCRIPT.set_debug_draw(self, false, DEBUG_SCRIPT.HURTBOX_COLOR)
+	tree_entered.connect(_refresh_sibling_cache)
+	_refresh_sibling_cache()
+
+
+func _refresh_sibling_cache() -> void:
+	_cached_dodge = _find_dodge()
+	_cached_guard = _find_guard()
+	_cached_character_body = _find_character_body()
 
 
 func set_debug_draw(enabled: bool) -> void:
@@ -56,12 +67,12 @@ func receive_hit(info: DamageInfo) -> void:
 		return
 
 	if not info.ignore_iframes:
-		var dodge := _find_dodge()
+		var dodge := _cached_dodge
 		if dodge and dodge.get("iframes_active"):
 			res.dodged = true
 			res.outgoing = 0.0
 			res.poise_outgoing = 0.0
-			var iframe_body := _find_character_body()
+			var iframe_body := _cached_character_body
 			if iframe_body:
 				var iframe_feedback := iframe_body.get_node_or_null("HitFeedback")
 				if iframe_feedback and iframe_feedback.has_method("on_dodge_iframe"):
@@ -69,14 +80,18 @@ func receive_hit(info: DamageInfo) -> void:
 			hit_resolved.emit(res)
 			return
 
-	var owner_body := _find_character_body()
+	var owner_body := _cached_character_body
 	if owner_body and owner_body.has_method("is_immune") and owner_body.call("is_immune"):
 		res.outgoing = 0.0
 		res.poise_outgoing = 0.0
 		hit_resolved.emit(res)
 		return
 
-	var guard := _find_guard() if not info.ignore_guard else null
+	var arc := DamageInfo.HitArc.FRONT
+	if owner_body and info.source:
+		arc = DamageInfo.classify_arc(owner_body, info.source.global_position)
+
+	var guard := _cached_guard if not info.ignore_guard else null
 	if guard and guard.has_method("try_parry_attack") and info.source:
 		if guard.call("try_parry_attack", info.source):
 			res.parried = true
@@ -87,15 +102,20 @@ func receive_hit(info: DamageInfo) -> void:
 
 	var final_amount := info.amount
 	var final_poise := info.poise_damage
+	var blocked := false
 	if guard and guard.has_method("modify_incoming_hit"):
-		var modified: Dictionary = guard.call("modify_incoming_hit", info)
+		var modified: Dictionary = guard.call("modify_incoming_hit", info, arc)
 		final_amount = modified.get("amount", final_amount)
 		final_poise = modified.get("poise", final_poise)
 		if modified.get("blocked", false):
+			blocked = true
 			res.blocked = true
 			_emit_block_feedback(final_amount)
 
-	final_amount = _apply_arc_multipliers(final_amount, final_poise, info, res)
+	# A successful block absorbs the hit frontally; it cannot also be a backstab.
+	final_amount = _apply_arc_multipliers(
+		final_amount, final_poise, info, res, DamageInfo.HitArc.FRONT if blocked else arc
+	)
 	final_poise = res.poise_outgoing
 	final_amount *= region_damage_mult
 	final_poise *= region_poise_mult
@@ -138,10 +158,10 @@ func receive_hit(info: DamageInfo) -> void:
 func try_apply_status(status_id: String, stacks: int = 1, duration: float = -1.0) -> bool:
 	if status_id == "":
 		return false
-	var dodge := _find_dodge()
+	var dodge := _cached_dodge
 	if dodge and dodge.get("iframes_active"):
 		return false
-	var guard := _find_guard()
+	var guard := _cached_guard
 	if guard and guard.get("is_guard_active"):
 		return false
 	var ctrl := _resolve_status_controller()
@@ -160,14 +180,10 @@ func receive_periodic_damage(amount: float, dmg_type: String = DamageInfo.TYPE_P
 
 
 func _apply_arc_multipliers(
-	amount: float, poise: float, info: DamageInfo, res: RefCounted
+	amount: float, poise: float, info: DamageInfo, res: RefCounted, arc: DamageInfo.HitArc
 ) -> float:
 	if amount <= 0.0 or info.source == null:
 		return amount
-	var body := _find_character_body()
-	if body == null:
-		return amount
-	var arc := DamageInfo.classify_arc(body, info.source.global_position)
 	var dmg_mult := DamageInfo.arc_damage_multiplier(arc)
 	var poise_mult := DamageInfo.arc_poise_multiplier(arc)
 	res.backstab = arc == DamageInfo.HitArc.BACK
@@ -187,7 +203,7 @@ func _apply_arc_multipliers(
 func _apply_defense(amount: float) -> float:
 	if amount <= 0.0:
 		return amount
-	var body := _find_character_body()
+	var body := _cached_character_body
 	if body == null:
 		return amount
 	var defense := float(body.get_meta("combat_defense", 0.0))
@@ -219,7 +235,7 @@ func _find_dodge() -> Node:
 
 
 func _is_hyperarmor_active() -> bool:
-	var body := _find_character_body()
+	var body := _cached_character_body
 	if body == null:
 		return false
 	var weapon := body.get_node_or_null("WeaponController")
@@ -231,7 +247,7 @@ func _is_hyperarmor_active() -> bool:
 
 
 func _emit_block_feedback(chip_damage: float) -> void:
-	var body := _find_character_body()
+	var body := _cached_character_body
 	if body == null:
 		return
 	var feedback := body.get_node_or_null("HitFeedback")
@@ -248,7 +264,7 @@ func _emit_victim_feedback(
 ) -> void:
 	if damage <= 0.0:
 		return
-	var body := _find_character_body()
+	var body := _cached_character_body
 	if body == null:
 		return
 	var visual: Node3D = null
@@ -336,7 +352,7 @@ func _apply_status_from_hit(info: DamageInfo) -> void:
 	var status_ctrl := _resolve_status_controller()
 	if status_ctrl:
 		status_ctrl.apply_status(info.status_id, info.status_stacks)
-		_notify_player_status_applied(info, _find_character_body())
+		_notify_player_status_applied(info, _cached_character_body)
 
 
 func _notify_player_status_applied(info: DamageInfo, victim_body: Node3D) -> void:

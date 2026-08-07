@@ -16,6 +16,7 @@ var _regen_multiplier := 1.0
 
 
 func _ready() -> void:
+	set_process(false)
 	mana_changed.emit(current, max_mana)
 
 
@@ -27,13 +28,20 @@ func configure(max_value: float, regen_multiplier: float = 1.0) -> void:
 	mana_changed.emit(current, max_mana)
 
 
-func _process(delta: float) -> void:
+func _physics_process(delta: float) -> void:
 	if _regen_timer > 0.0:
 		_regen_timer -= delta
 		return
 	if current < max_mana:
 		current = minf(max_mana, current + REGEN_RATE * _regen_multiplier * delta)
 		mana_changed.emit(current, max_mana)
+
+
+func restore(amount: float) -> void:
+	if amount <= 0.0 or current >= max_mana:
+		return
+	current = minf(max_mana, current + amount)
+	mana_changed.emit(current, max_mana)
 
 
 func consume(amount: float) -> bool:

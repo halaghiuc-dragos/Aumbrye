@@ -33,6 +33,7 @@ var _jump_buffer_timer := 0.0
 var _dodge_timer := 0.0
 var _recovery_timer := 0.0
 var _dodge_direction := Vector3.ZERO
+var _is_backstep := false
 var _dodge_speed := DODGE_SPEED
 var _stamina_cost_mult := 1.0
 var _was_on_floor := false
@@ -165,6 +166,7 @@ func _start_dash(skip_cost: bool = false) -> void:
 		_dodge_direction = _get_attack_backstep_direction()
 	if _dodge_direction.length_squared() < 0.01:
 		_dodge_direction = _get_attack_backstep_direction()
+	_is_backstep = is_equal_approx(_dodge_speed, DODGE_BACK_SPEED)
 	is_dodging = true
 	_dodge_timer = DODGE_DURATION
 	dash_started.emit()
@@ -173,11 +175,11 @@ func _start_dash(skip_cost: bool = false) -> void:
 func _get_attack_backstep_direction() -> Vector3:
 	var facing := _body.get_node_or_null("Facing") as Node3D
 	if facing:
-		var back := -facing.global_transform.basis.z
+		var back := -CombatFacing.forward_of(facing)
 		back.y = 0.0
 		if back.length_squared() > 0.01:
 			return back.normalized()
-	var fallback := _get_facing_forward()
+	var fallback := -_get_facing_forward()
 	fallback.y = 0.0
 	if fallback.length_squared() > 0.01:
 		return fallback.normalized()
@@ -193,7 +195,7 @@ func _get_camera_relative_direction(input_dir: Vector2) -> Vector3:
 func _get_facing_forward() -> Vector3:
 	if _body.has_method("get_facing_direction"):
 		return _body.call("get_facing_direction")
-	return -_body.global_transform.basis.z
+	return CombatFacing.forward_of(_body)
 
 
 func _process_dash(delta: float) -> void:
@@ -210,7 +212,8 @@ func _process_dash(delta: float) -> void:
 		_body.velocity += _body.get_gravity() * delta
 	elif _body.velocity.y > 0.0:
 		_body.velocity.y = 0.0
-	var iframes := elapsed >= IFRAME_START and elapsed <= IFRAME_END
+	var iframe_end := IFRAME_END + ClassPerks.shadowstep_iframe_bonus(_body, _is_backstep)
+	var iframes := elapsed >= IFRAME_START and elapsed <= iframe_end
 	if iframes != iframes_active:
 		iframes_active = iframes
 		iframes_changed.emit(iframes_active)

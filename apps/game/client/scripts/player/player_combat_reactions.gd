@@ -359,7 +359,7 @@ func _stagger_clip_for(world_dir: Vector3) -> StringName:
 	var facing := _body.get_node_or_null("Facing") as Node3D
 	if facing == null:
 		return &"stagger_f"
-	var forward := -facing.global_transform.basis.z
+	var forward := CombatFacing.forward_of(facing)
 	var right := facing.global_transform.basis.x
 	var flat := Vector3(world_dir.x, 0.0, world_dir.z).normalized()
 	var fwd_dot := forward.dot(flat)
@@ -383,7 +383,7 @@ func _get_viewmodel_root() -> Node3D:
 func _get_facing_forward() -> Vector3:
 	if _body.has_method("get_facing_direction"):
 		return _body.call("get_facing_direction")
-	return -_body.global_transform.basis.z
+	return CombatFacing.forward_of(_body)
 
 
 func _break_player_lock() -> void:

@@ -9,6 +9,7 @@ static var _scenes: Dictionary = {}
 ## Legacy boss IDs removed from content; map to canonical definitions.
 const LEGACY_ALIASES: Dictionary = {
 	"castle_knight": "boss_castle_knight",
+	"crystal_sovereign": "boss_crystal_sovereign",
 }
 
 const ENEMY_DIRS: Array[String] = [

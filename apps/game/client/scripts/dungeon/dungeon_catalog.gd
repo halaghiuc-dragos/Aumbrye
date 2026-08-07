@@ -67,7 +67,7 @@ static func get_entry(dungeon_id: String) -> Dictionary:
 
 static func get_display_name(dungeon_id: String) -> String:
 	var biome_id := get_biome_id(dungeon_id)
-	var biome := ContentLoader.load_json("content/biomes/%s.json" % biome_id)
+	var biome := BiomeRegistry.get_biome(biome_id)
 	return str(biome.get("name", biome_id))
 
 

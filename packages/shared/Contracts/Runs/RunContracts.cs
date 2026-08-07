@@ -12,7 +12,8 @@ public sealed record CompleteRunRequest(
     string Outcome,
     double ElapsedSeconds,
     bool BossDefeated,
-    IReadOnlyList<string>? LootClaimedInstanceIds);
+    IReadOnlyList<string>? LootClaimedInstanceIds,
+    int Floor = 1);
 
 public sealed record CompleteRunResponse(
     Guid RunId,

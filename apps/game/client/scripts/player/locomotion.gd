@@ -362,8 +362,8 @@ func get_camera_relative_direction(input_dir: Vector2) -> Vector3:
 
 func get_facing_direction() -> Vector3:
 	if _facing:
-		return _facing.global_transform.basis.z
-	return global_transform.basis.z
+		return CombatFacing.forward_of(_facing)
+	return CombatFacing.forward_of(self)
 
 
 func get_facing_yaw() -> float:

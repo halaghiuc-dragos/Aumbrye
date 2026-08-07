@@ -13,6 +13,7 @@ const REGEN_RATE := 25.0
 const REGEN_RATE_BLOCKING := 6.0
 const REGEN_RATE_EXHAUSTED := 12.0
 const EXHAUSTION_RECOVERY := 15.0
+const INSUFFICIENT_EMIT_COOLDOWN := 0.4
 
 var current: float = MAX_STAMINA
 var max_stamina: float = MAX_STAMINA
@@ -20,10 +21,19 @@ var _regen_timer := 0.0
 var _regen_multiplier := 1.0
 var _exhausted := false
 var _regen_state := RegenState.NORMAL
+var _insufficient_cooldown := 0.0
 
 
 func _ready() -> void:
+	set_process(false)
 	stamina_changed.emit(current, max_stamina)
+
+
+func _emit_insufficient() -> void:
+	if _insufficient_cooldown > 0.0:
+		return
+	_insufficient_cooldown = INSUFFICIENT_EMIT_COOLDOWN
+	insufficient.emit()
 
 
 func configure(
@@ -51,7 +61,9 @@ func get_speed_multiplier() -> float:
 	return 1.0
 
 
-func _process(delta: float) -> void:
+func _physics_process(delta: float) -> void:
+	if _insufficient_cooldown > 0.0:
+		_insufficient_cooldown -= delta
 	if _exhausted and current >= EXHAUSTION_RECOVERY:
 		_exhausted = false
 	if _regen_timer > 0.0:
@@ -71,10 +83,10 @@ func _process(delta: float) -> void:
 
 func consume(amount: float) -> bool:
 	if _exhausted:
-		insufficient.emit()
+		_emit_insufficient()
 		return false
 	if current < amount:
-		insufficient.emit()
+		_emit_insufficient()
 		return false
 	current -= amount
 	_regen_timer = REGEN_DELAY
@@ -86,19 +98,7 @@ func consume(amount: float) -> bool:
 
 
 func drain(amount: float) -> bool:
-	if _exhausted:
-		insufficient.emit()
-		return false
-	if current < amount:
-		insufficient.emit()
-		return false
-	current -= amount
-	_regen_timer = REGEN_DELAY
-	stamina_changed.emit(current, max_stamina)
-	if current <= 0.0:
-		_exhausted = true
-		depleted.emit()
-	return true
+	return consume(amount)
 
 
 func has(amount: float) -> bool:

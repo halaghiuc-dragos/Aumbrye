@@ -183,6 +183,39 @@ static func room_scene_path(biome_id: String, kind: String) -> String:
 	return "res://scenes/rooms/%s/%s_%s.tscn" % [folder, prefix, kind]
 
 
+const ENDLESS_SEGMENT_MIN_FLOORS := 10
+const ENDLESS_SEGMENT_MAX_FLOORS := 20
+
+
+## Deterministic biome schedule for endless runs: partitions the floor axis into
+## seeded 10-20 floor segments and draws a biome per segment without immediate
+## repeats. Pure function of (run_seed, floor_index), so it stays correct across
+## save/load and across a floor skip that jumps straight to a distant floor.
+static func biome_for_floor(run_seed: int, floor_index: int) -> String:
+	_ensure_biome_index()
+	if ALL_BIOMES.is_empty():
+		return BIOME_UMBRAL
+	var rng := RandomNumberGenerator.new()
+	var floor_cursor := 1
+	var previous_biome := ""
+	var chosen := ALL_BIOMES[0]
+	var segment_index := 0
+	while true:
+		rng.seed = hash("%d:%d" % [run_seed, segment_index])
+		var segment_length := rng.randi_range(
+			ENDLESS_SEGMENT_MIN_FLOORS, ENDLESS_SEGMENT_MAX_FLOORS
+		)
+		var candidates: Array[String] = ALL_BIOMES.duplicate()
+		if candidates.size() > 1 and previous_biome != "":
+			candidates.erase(previous_biome)
+		chosen = candidates[rng.randi_range(0, candidates.size() - 1)]
+		if floor_index < floor_cursor + segment_length:
+			return chosen
+		floor_cursor += segment_length
+		previous_biome = chosen
+		segment_index += 1
+
+
 static func clear_caches() -> void:
 	_cache.clear()
 	_room_scene_cache.clear()

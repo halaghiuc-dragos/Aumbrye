@@ -9,5 +9,6 @@
   "rarity": "common",
   "description": "A small shield for off-hand defense.",
   "value": 18,
-  "stats": { "defense": 8 }
+  "stats": { "defense": 8 },
+  "block": { "stability": 1.1, "reduction": 0.58 }
 }

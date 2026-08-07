@@ -3,6 +3,10 @@ class_name DialogueConditions
 
 ## Evaluates dialogue/quest condition blocks against CharacterService state (DLG-4.1).
 
+const KNOWN_KEYS := [
+	"all", "any", "not", "flag", "minLevel", "maxLevel", "quest", "gold", "minRuns", "minDeaths"
+]
+
 
 static func evaluate(condition: Variant) -> bool:
 	if condition == null:
@@ -53,4 +57,6 @@ static func evaluate(condition: Variant) -> bool:
 		return int(CharacterService.get_flag("deaths", 0)) >= int(condition.get("minDeaths", 0))
 
 	push_warning("DialogueConditions: unrecognized condition keys: %s" % str(condition.keys()))
-	return false
+	assert(false, "DialogueConditions: unrecognized condition keys: %s" % str(condition.keys()))
+	# Release builds fail open: an unknown key must never silently hide content.
+	return true

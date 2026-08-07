@@ -60,9 +60,10 @@ func open_menu() -> void:
 	_open = true
 	visible = true
 	mouse_filter = Control.MOUSE_FILTER_STOP
-	get_tree().paused = true
 	if MenuStack:
-		MenuStack.push(self)
+		MenuStack.push(self, true)
+	else:
+		get_tree().paused = true
 	AudioDirector.set_pause_mix(true)
 	if _initial_focus:
 		_initial_focus.grab_focus()
@@ -74,9 +75,10 @@ func close_menu() -> void:
 	_open = false
 	visible = false
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
-	get_tree().paused = false
 	if MenuStack:
 		MenuStack.pop(self)
+	else:
+		get_tree().paused = false
 	AudioDirector.set_pause_mix(false)
 	closed.emit()
 

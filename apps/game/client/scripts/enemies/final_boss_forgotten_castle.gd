@@ -103,7 +103,9 @@ func _process_spike_phase(delta: float) -> void:
 func _spawn_spike_burst() -> void:
 	for _i in range(6):
 		var trap: Node3D = SPIKE_SCENE.instantiate() as Node3D
-		trap.position = Vector3(randf_range(-8.0, 8.0), 0.0, randf_range(-8.0, 8.0))
+		trap.position = Vector3(
+			_enemy_rng.randf_range(-8.0, 8.0), 0.0, _enemy_rng.randf_range(-8.0, 8.0)
+		)
 		get_parent().add_child(trap)
 
 

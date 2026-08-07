@@ -6,6 +6,7 @@ using Aumbrye.Domain.Entities;
 using Aumbrye.Procedural.Biome;
 using Aumbrye.Procedural.Generation;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace Aumbrye.Application.Services;
 
@@ -14,17 +15,19 @@ public class RunService : IRunService
     private readonly DbContext _db;
     private readonly IDungeonGenerator _generator;
     private readonly IDungeonCache _cache;
+    private readonly ILogger<RunService> _logger;
     private static readonly TimeSpan CacheTtl = TimeSpan.FromHours(24);
 
-    public RunService(DbContext db, IDungeonGenerator generator, IDungeonCache cache)
+    public RunService(DbContext db, IDungeonGenerator generator, IDungeonCache cache, ILogger<RunService> logger)
     {
         _db = db;
         _generator = generator;
         _cache = cache;
+        _logger = logger;
     }
 
-    private static int GenerationSeedFor(Run run) =>
-        DungeonSeedDeriver.GenerationSeed(run.Seed, run.Tier, 1);
+    private static int GenerationSeedFor(Run run, int floor) =>
+        DungeonSeedDeriver.GenerationSeed(run.Seed, run.Tier, floor);
 
     public async Task<CreateRunResult> CreateRunAsync(
         Guid accountId,
@@ -67,7 +70,17 @@ public class RunService : IRunService
         }
         catch (Exception ex)
         {
-            return new CreateRunResult(false, Error: ex.Message);
+            var correlationId = Guid.NewGuid();
+            _logger.LogError(
+                ex,
+                "Dungeon generation failed (correlationId={CorrelationId}, biomeId={BiomeId}, tier={Tier})",
+                correlationId,
+                biomeId,
+                tier);
+            return new CreateRunResult(
+                false,
+                Error: $"generation_failed (reference: {correlationId})",
+                IsInternalError: true);
         }
 
         var lootIds = LootInstanceIds.ParseLoot(json).Keys.ToArray();
@@ -86,31 +99,33 @@ public class RunService : IRunService
         };
         _db.Set<Run>().Add(run);
         await _db.SaveChangesAsync(ct);
-        await _cache.SetAsync(runId, json, CacheTtl, ct);
+        await _cache.SetAsync(runId, 1, json, CacheTtl, ct);
 
         ApiMetrics.RunsCreated.Add(1);
         return new CreateRunResult(true, runId, baseSeed, biomeId, json);
     }
 
-    public async Task<string?> GetDungeonDefinitionAsync(Guid accountId, Guid runId, CancellationToken ct = default)
+    public async Task<string?> GetDungeonDefinitionAsync(Guid accountId, Guid runId, int floor = 1, CancellationToken ct = default)
     {
         var run = await _db.Set<Run>()
             .FirstOrDefaultAsync(r => r.Id == runId && r.AccountId == accountId, ct);
         if (run == null)
             return null;
 
-        var cached = await _cache.GetAsync(runId, ct);
+        floor = Math.Max(1, floor);
+        var cached = await _cache.GetAsync(runId, floor, ct);
         if (cached != null)
             return cached;
 
-        var generationSeed = GenerationSeedFor(run);
+        var generationSeed = GenerationSeedFor(run, floor);
         var (json, _) = _generator.Generate(
             run.BiomeId,
             generationSeed,
             run.Tier,
             run.PlayerLevelSnapshot,
-            run.Id);
-        await _cache.SetAsync(runId, json, CacheTtl, ct);
+            run.Id,
+            floor);
+        await _cache.SetAsync(runId, floor, json, CacheTtl, ct);
         return json;
     }
 
@@ -165,16 +180,18 @@ public class RunService : IRunService
             }
         }
 
-        var definitionJson = await _cache.GetAsync(runId, ct);
+        var completedFloor = Math.Max(1, input.Floor);
+        var definitionJson = await _cache.GetAsync(runId, completedFloor, ct);
         if (definitionJson == null)
         {
-            var generationSeed = GenerationSeedFor(run);
+            var generationSeed = GenerationSeedFor(run, completedFloor);
             (definitionJson, _) = _generator.Generate(
                 run.BiomeId,
                 generationSeed,
                 run.Tier,
                 run.PlayerLevelSnapshot,
-                run.Id);
+                run.Id,
+                completedFloor);
         }
 
         var lootMap = LootInstanceIds.ParseLoot(definitionJson);

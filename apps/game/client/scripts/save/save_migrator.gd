@@ -3,7 +3,7 @@ class_name SaveMigrator
 
 ## SCHEMA-7.1 — versioned save migrations.
 
-const CURRENT_VERSION := 10
+const CURRENT_VERSION := 11
 const MIGRATION_DOC := "docs/SAVE_MIGRATIONS.md"
 const NIL_ACCOUNT_ID := "00000000-0000-4000-8000-000000000000"
 const TALENT_TREE_PATH := "content/talents/tree.json"
@@ -72,6 +72,12 @@ const STEPS: Array[Dictionary] = [
 		"to": 10,
 		"fn": "_migrate_v9_to_v10",
 		"summary": "inventory.quickSlotInstances replaces quickSlots index array",
+	},
+	{
+		"from": 10,
+		"to": 11,
+		"fn": "_migrate_v10_to_v11",
+		"summary": "currencies.coins collapsed into currencies.gold",
 	},
 ]
 
@@ -255,6 +261,8 @@ static func _run_step(step: Dictionary, data: Dictionary) -> Dictionary:
 			return _migrate_v8_to_v9(data)
 		"_migrate_v9_to_v10":
 			return _migrate_v9_to_v10(data)
+		"_migrate_v10_to_v11":
+			return _migrate_v10_to_v11(data)
 		_:
 			return data
 
@@ -349,9 +357,14 @@ static func _normalize_currencies(copy: Dictionary) -> void:
 	if not currencies is Dictionary:
 		currencies = {}
 	var cur: Dictionary = currencies
-	var gold: int = maxi(0, int(cur.get("gold", 0)))
-	var coins: int = maxi(0, int(cur.get("coins", gold)))
-	cur["gold"] = maxi(gold, coins)
+	# "gold" is authoritative when present; "coins" is read only as a fallback for
+	# saves that predate "gold" being written at all — never reconciled by max().
+	var resolved_gold: int
+	if cur.has("gold"):
+		resolved_gold = maxi(0, int(cur.get("gold", 0)))
+	else:
+		resolved_gold = maxi(0, int(cur.get("coins", 0)))
+	cur["gold"] = resolved_gold
 	cur.erase("coins")
 	copy["currencies"] = cur
 
@@ -759,6 +772,13 @@ static func _migrate_v9_to_v10(data: Dictionary) -> Dictionary:
 	inv_dict["quickSlotInstances"] = instances
 	inv_dict.erase("quickSlots")
 	copy["inventory"] = inv_dict
+	return copy
+
+
+static func _migrate_v10_to_v11(data: Dictionary) -> Dictionary:
+	var copy: Dictionary = data.duplicate(true)
+	copy["schemaVersion"] = 11
+	_normalize_currencies(copy)
 	return copy
 
 

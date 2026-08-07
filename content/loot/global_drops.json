@@ -4,6 +4,7 @@
     { "itemId": "skip_10_floors", "chance": 0.002 },
     { "itemId": "skip_50_floors", "chance": 0.0004 },
     { "itemId": "skip_100_floors", "chance": 0.0001 },
+    { "itemId": "skip_250_floors", "chance": 0.00005 },
     { "itemId": "skip_500_floors", "chance": 0.00002 }
   ]
 }

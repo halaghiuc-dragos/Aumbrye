@@ -50,6 +50,10 @@ static func get_starting_weapon_item_id(class_id: String) -> String:
 	return str(get_definition(class_id).get("startingWeaponItemId", "castle_sword"))
 
 
+static func get_perk(class_id: String) -> String:
+	return str(get_definition(class_id).get("perk", ""))
+
+
 static func clear_cache() -> void:
 	_definitions.clear()
 

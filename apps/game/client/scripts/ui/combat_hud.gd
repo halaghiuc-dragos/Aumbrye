@@ -577,16 +577,14 @@ func _open_map_overlay() -> void:
 	_map_overlay_minimap.call("import_state", state)
 	if _player and _map_overlay_minimap.has_method("bind_player"):
 		_map_overlay_minimap.call("bind_player", _player)
-	get_tree().paused = true
-	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	MenuStack.push(_map_overlay, true)
 
 
 func _close_map_overlay() -> void:
 	if _map_overlay == null or not _map_overlay.visible:
 		return
 	_map_overlay.visible = false
-	get_tree().paused = false
-	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+	MenuStack.pop(_map_overlay)
 
 
 func _init_map_overlay() -> void:

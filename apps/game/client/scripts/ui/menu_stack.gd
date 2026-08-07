@@ -9,8 +9,9 @@ const MenuShellScript := preload("res://scripts/ui/menu_shell.gd")
 const ConfirmSpecScript := preload("res://scripts/ui/confirm_spec.gd")
 
 var _stack: Array[Control] = []
-var _focus_stack: Array[Control] = []
+var _focus_records: Array[Dictionary] = []
 var _saved_mouse_mode: Input.MouseMode = Input.MOUSE_MODE_CAPTURED
+var _saved_paused := false
 var _confirm_layer: CanvasLayer
 var _active_confirm: Control
 var _active_spec: ConfirmSpec
@@ -25,13 +26,18 @@ func _ready() -> void:
 	add_child(_confirm_layer)
 
 
-func push(modal: Control) -> void:
+func push(modal: Control, owns_pause: bool = false) -> void:
 	if modal == null or modal in _stack:
 		return
 	if _stack.is_empty():
 		_saved_mouse_mode = Input.mouse_mode
 		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
-	_focus_stack.append(get_viewport().gui_get_focus_owner() as Control)
+		_saved_paused = get_tree().paused
+	if owns_pause:
+		get_tree().paused = true
+	_focus_records.append(
+		{"modal": modal, "focus": get_viewport().gui_get_focus_owner() as Control}
+	)
 	_stack.append(modal)
 	stack_changed.emit(depth())
 
@@ -41,12 +47,16 @@ func pop(modal: Control) -> void:
 	if idx < 0:
 		return
 	_stack.remove_at(idx)
-	if not _focus_stack.is_empty():
-		var prev := _focus_stack.pop_back() as Control
-		if is_instance_valid(prev) and prev.is_inside_tree():
-			prev.grab_focus()
+	for i in range(_focus_records.size() - 1, -1, -1):
+		if _focus_records[i].get("modal") == modal:
+			var prev := _focus_records[i].get("focus") as Control
+			_focus_records.remove_at(i)
+			if is_instance_valid(prev) and prev.is_inside_tree():
+				prev.grab_focus()
+			break
 	if _stack.is_empty() and _active_confirm == null:
 		Input.mouse_mode = _saved_mouse_mode
+		get_tree().paused = _saved_paused
 	stack_changed.emit(depth())
 
 
@@ -144,6 +154,7 @@ func _dismiss_confirm(confirmed: bool, run_callbacks: bool) -> void:
 	_focus_before_confirm = null
 	if _stack.is_empty():
 		Input.mouse_mode = _saved_mouse_mode
+		get_tree().paused = _saved_paused
 	else:
 		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	stack_changed.emit(depth())

@@ -99,7 +99,9 @@ func start_endless_run(start_floor: int = 1, skip_item_id: String = "") -> void:
 			return
 		start_floor = SkipFloorSvc.start_floor_for_item(skip_item_id)
 	RunModifierService.apply_endless_floor_modifiers(start_floor)
-	await _start_mode_run(RM.MODE_ENDLESS, BiomeRegistry.BIOME_UMBRAL, null, start_floor)
+	var endless_seed := randi_range(1, 2_147_483_646)
+	var starting_biome := BiomeRegistry.biome_for_floor(endless_seed, start_floor)
+	await _start_mode_run(RM.MODE_ENDLESS, starting_biome, endless_seed, start_floor)
 
 
 func start_waves_run() -> void:
@@ -690,6 +692,8 @@ func descend_floor() -> void:
 func _transition_floor(ascending: bool) -> void:
 	var previous_definition := current_dungeon_definition.duplicate(true)
 	var attempted_floor := current_floor
+	if run_mode == RM.MODE_ENDLESS:
+		current_biome_id = BiomeRegistry.biome_for_floor(current_seed, current_floor)
 	var definition := await _resolve_floor_definition(current_floor)
 	if definition.is_empty():
 		if ascending:
@@ -1267,7 +1271,7 @@ func _start_waves_run(is_continue: bool) -> void:
 		WavesRunService.restore_from_save(saved)
 	else:
 		_pending_snapshot.clear()
-		WavesRunService.begin_new_run()
+		WavesRunService.begin_new_run(randi_range(1, 2_147_483_646))
 	var root := get_tree().root
 	if _is_continue and not _pending_snapshot.is_empty():
 		root.set_meta("run_snapshot", _pending_snapshot.duplicate(true))

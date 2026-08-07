@@ -390,7 +390,12 @@ func apply_equipment_to_player_node(player: Node) -> void:
 		)
 	var guard := player.get_node_or_null("Guard")
 	if guard and guard.has_method("set_combat_stat_modifiers"):
-		guard.set_combat_stat_modifiers(equip_stats, talent_stats)
+		var shield_inst := inventory.get_equipped_instance("secondary")
+		var block_data: Dictionary = {}
+		if not shield_inst.is_empty():
+			var shield_def := get_item_def(str(shield_inst.get("itemId", "")))
+			block_data = shield_def.get("block", {})
+		guard.set_combat_stat_modifiers(equip_stats, talent_stats, block_data)
 	var defense_points := (
 		float(equip_stats.get("defense", 0.0)) + float(talent_stats.get("armor", 0.0))
 	)

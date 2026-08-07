@@ -7,6 +7,7 @@ const SKIP_ITEMS: Dictionary = {
 	"skip_10_floors": 11,
 	"skip_50_floors": 51,
 	"skip_100_floors": 101,
+	"skip_250_floors": 251,
 	"skip_500_floors": 501,
 }
 

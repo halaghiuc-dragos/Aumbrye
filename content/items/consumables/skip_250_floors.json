@@ -1,0 +1,17 @@
+{
+  "id": "skip_250_floors",
+  "name": "Umbral Skip (250)",
+  "itemType": "consumable",
+  "gridWidth": 1,
+  "gridHeight": 1,
+  "stackSize": 5,
+  "description": "Start an Umbral Endless run at floor 251.",
+  "consumableEffect": {
+    "kind": "skipFloors",
+    "floors": 250,
+    "usableInRun": false,
+    "usableInHub": false
+  },
+  "value": 500,
+  "lootValue": 250
+}

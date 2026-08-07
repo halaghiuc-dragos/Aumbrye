@@ -285,6 +285,10 @@
       "col": 4,
       "row": 4
     },
+    "skip_250_floors": {
+      "col": 12,
+      "row": 6
+    },
     "skip_500_floors": {
       "col": 5,
       "row": 4

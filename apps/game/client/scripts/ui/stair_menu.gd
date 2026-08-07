@@ -9,8 +9,6 @@ signal closed
 
 var _lever: Node3D
 var _open := false
-var _was_paused := false
-var _saved_mouse_mode := Input.MOUSE_MODE_CAPTURED
 var _action_buttons: Array[Button] = []
 
 
@@ -31,12 +29,13 @@ func open_for_lever(lever: Node3D, options: Array = []) -> void:
 		return
 	_lever = lever
 	_open = true
-	_was_paused = get_tree().paused
-	_saved_mouse_mode = Input.mouse_mode
 	visible = true
 	mouse_filter = Control.MOUSE_FILTER_STOP
-	get_tree().paused = true
-	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	if MenuStack:
+		MenuStack.push(self, true)
+	else:
+		get_tree().paused = true
+		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	if _lever and _lever.has_method("set_menu_open"):
 		_lever.call("set_menu_open", true)
 	_rebuild_buttons(options)
@@ -48,8 +47,8 @@ func close_menu() -> void:
 	_open = false
 	visible = false
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
-	get_tree().paused = _was_paused
-	Input.mouse_mode = _saved_mouse_mode
+	if MenuStack:
+		MenuStack.pop(self)
 	if _lever and _lever.has_method("set_menu_open"):
 		_lever.call("set_menu_open", false)
 	_lever = null

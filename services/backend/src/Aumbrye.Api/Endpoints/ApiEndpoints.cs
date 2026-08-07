@@ -122,7 +122,9 @@ public static class RunsEndpoints
                 return Results.Unauthorized();
             var result = await runs.CreateRunAsync(accountId.Value, req.BiomeId, req.Seed, req.Tier, ct);
             if (!result.Success)
-                return ProblemResults.BadRequest(result.Error!);
+                return result.IsInternalError
+                    ? ProblemResults.InternalError(result.Error!)
+                    : ProblemResults.BadRequest(result.Error!);
             return Results.Ok(new CreateRunResponse(
                 result.RunId,
                 result.Seed,
@@ -137,6 +139,7 @@ public static class RunsEndpoints
 
         group.MapGet("/{id:guid}/dungeon", async (
             Guid id,
+            int? floor,
             ClaimsPrincipal user,
             IRunService runs,
             CancellationToken ct) =>
@@ -144,7 +147,7 @@ public static class RunsEndpoints
             var accountId = user.AccountId();
             if (accountId == null)
                 return Results.Unauthorized();
-            var json = await runs.GetDungeonDefinitionAsync(accountId.Value, id, ct);
+            var json = await runs.GetDungeonDefinitionAsync(accountId.Value, id, floor ?? 1, ct);
             if (json == null)
                 return Results.NotFound();
             return Results.Content(json, "application/json");
@@ -167,7 +170,12 @@ public static class RunsEndpoints
             var result = await runs.CompleteRunAsync(
                 accountId.Value,
                 id,
-                new CompleteRunInput(req.Outcome, req.ElapsedSeconds, req.BossDefeated, req.LootClaimedInstanceIds ?? []),
+                new CompleteRunInput(
+                    req.Outcome,
+                    req.ElapsedSeconds,
+                    req.BossDefeated,
+                    req.LootClaimedInstanceIds ?? [],
+                    req.Floor),
                 ct);
             if (!result.Success)
                 return ProblemResults.BadRequest(result.Error!);

@@ -1,9 +1,4 @@
-{
-  "mcpServers": {
-    "godot-mcp": {
-      "type": "sse",
-      "url": "http://127.0.0.1:3000/mcp"
-    },
+"mcpServers": {
     "godot-mcp-docs": {
       "command": "docker",
       "args": [
@@ -12,6 +7,19 @@
         "-i",
         "godot-mcp-docs:local"
       ]
-    }
-  }
-}
+    },
+    "godot": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@coding-solo/godot-mcp"
+      ],
+      "env": {
+        "GODOT_PATH": "C:/Users/halag/Downloads/Godot/Godot_x64.exe"
+      }
+    },
+    "godot-mcp": {
+      "type": "sse",
+      "url": "http://127.0.0.1:3000/mcp"
+    },
+  },

@@ -7,18 +7,18 @@ namespace Aumbrye.Infrastructure.Caching;
 public class RedisDungeonCache : IDungeonCache
 {
     private readonly IConnectionMultiplexer? _redis;
-    private readonly ConcurrentDictionary<Guid, (string Json, DateTimeOffset Expires)> _fallback = new();
+    private readonly ConcurrentDictionary<(Guid RunId, int Floor), (string Json, DateTimeOffset Expires)> _fallback = new();
 
     public RedisDungeonCache(IConnectionMultiplexer? redis = null) => _redis = redis;
 
-    public async Task SetAsync(Guid runId, string definitionJson, TimeSpan ttl, CancellationToken ct = default)
+    public async Task SetAsync(Guid runId, int floor, string definitionJson, TimeSpan ttl, CancellationToken ct = default)
     {
         if (_redis != null)
         {
             try
             {
                 var db = _redis.GetDatabase();
-                await db.StringSetAsync(CacheKey(runId), definitionJson, ttl);
+                await db.StringSetAsync(CacheKey(runId, floor), definitionJson, ttl);
                 return;
             }
             catch (RedisException)
@@ -26,18 +26,18 @@ public class RedisDungeonCache : IDungeonCache
                 // Fall through to in-memory when Redis is unavailable.
             }
         }
-        _fallback[runId] = (definitionJson, DateTimeOffset.UtcNow.Add(ttl));
+        _fallback[(runId, floor)] = (definitionJson, DateTimeOffset.UtcNow.Add(ttl));
         await Task.CompletedTask;
     }
 
-    public async Task<string?> GetAsync(Guid runId, CancellationToken ct = default)
+    public async Task<string?> GetAsync(Guid runId, int floor, CancellationToken ct = default)
     {
         if (_redis != null)
         {
             try
             {
                 var db = _redis.GetDatabase();
-                var value = await db.StringGetAsync(CacheKey(runId));
+                var value = await db.StringGetAsync(CacheKey(runId, floor));
                 if (value.HasValue)
                     return value.ToString();
             }
@@ -46,27 +46,27 @@ public class RedisDungeonCache : IDungeonCache
                 // Fall through to in-memory fallback.
             }
         }
-        if (_fallback.TryGetValue(runId, out var entry) && entry.Expires > DateTimeOffset.UtcNow)
+        if (_fallback.TryGetValue((runId, floor), out var entry) && entry.Expires > DateTimeOffset.UtcNow)
             return entry.Json;
         return null;
     }
 
-    private static string CacheKey(Guid runId) => $"dungeon:{runId:N}";
+    private static string CacheKey(Guid runId, int floor) => $"dungeon:{runId:N}:{floor}";
 }
 
 public class InMemoryDungeonCache : IDungeonCache
 {
-    private readonly ConcurrentDictionary<Guid, (string Json, DateTimeOffset Expires)> _store = new();
+    private readonly ConcurrentDictionary<(Guid RunId, int Floor), (string Json, DateTimeOffset Expires)> _store = new();
 
-    public Task SetAsync(Guid runId, string definitionJson, TimeSpan ttl, CancellationToken ct = default)
+    public Task SetAsync(Guid runId, int floor, string definitionJson, TimeSpan ttl, CancellationToken ct = default)
     {
-        _store[runId] = (definitionJson, DateTimeOffset.UtcNow.Add(ttl));
+        _store[(runId, floor)] = (definitionJson, DateTimeOffset.UtcNow.Add(ttl));
         return Task.CompletedTask;
     }
 
-    public Task<string?> GetAsync(Guid runId, CancellationToken ct = default)
+    public Task<string?> GetAsync(Guid runId, int floor, CancellationToken ct = default)
     {
-        if (_store.TryGetValue(runId, out var entry) && entry.Expires > DateTimeOffset.UtcNow)
+        if (_store.TryGetValue((runId, floor), out var entry) && entry.Expires > DateTimeOffset.UtcNow)
             return Task.FromResult<string?>(entry.Json);
         return Task.FromResult<string?>(null);
     }

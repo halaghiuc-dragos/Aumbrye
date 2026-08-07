@@ -65,32 +65,40 @@ func end_dialogue() -> void:
 
 
 func _advance_to_node(node_id: String) -> void:
-	var node: Dictionary = _get_node(node_id)
-	if node.is_empty():
-		end_dialogue()
-		return
-	if not DialogueConditions.evaluate(node.get("condition")):
-		var fallback: String = str(node.get("fallback", ""))
-		if fallback != "":
-			_advance_to_node(fallback)
-		else:
+	var visited: Dictionary = {}
+	var current_id := node_id
+	while true:
+		if visited.has(current_id):
+			push_error("DialogueRunner: cyclic dialogue graph detected at node '%s'" % current_id)
 			end_dialogue()
-		return
-	_apply_actions(node.get("actions", []))
-	var speaker: String = str(node.get("speaker", ""))
-	var text: String = str(node.get("text", ""))
-	var choices: Array = _get_visible_choices(node)
-	line_changed.emit(speaker, text, choices)
-	if not choices.is_empty():
-		return
-	if not node.get("auto", false):
-		return
-	var next_id: String = str(node.get("next", ""))
-	if next_id.is_empty() or next_id == "end":
-		end_dialogue()
-		return
-	_current_node_id = next_id
-	_advance_to_node(_current_node_id)
+			return
+		visited[current_id] = true
+		var node: Dictionary = _get_node(current_id)
+		if node.is_empty():
+			end_dialogue()
+			return
+		if not DialogueConditions.evaluate(node.get("condition")):
+			var fallback: String = str(node.get("fallback", ""))
+			if fallback != "":
+				current_id = fallback
+				continue
+			end_dialogue()
+			return
+		_apply_actions(node.get("actions", []))
+		var speaker: String = str(node.get("speaker", ""))
+		var text: String = str(node.get("text", ""))
+		var choices: Array = _get_visible_choices(node)
+		_current_node_id = current_id
+		line_changed.emit(speaker, text, choices)
+		if not choices.is_empty():
+			return
+		if not node.get("auto", false):
+			return
+		var next_id: String = str(node.get("next", ""))
+		if next_id.is_empty() or next_id == "end":
+			end_dialogue()
+			return
+		current_id = next_id
 
 
 func _get_current_node() -> Dictionary:

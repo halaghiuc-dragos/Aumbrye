@@ -43,7 +43,7 @@ static func count_secrets(definition: Dictionary) -> int:
 
 
 static func max_secrets_for_biome(biome_id: String) -> int:
-	var biome: Dictionary = ContentLoader.load_json("content/biomes/%s.json" % biome_id)
+	var biome: Dictionary = BiomeRegistry.get_biome(biome_id)
 	return int(biome.get("maxSecrets", 2))
 
 

@@ -142,6 +142,10 @@ func is_bound() -> bool:
 	return _player != null and is_instance_valid(_player)
 
 
+func drives_hitbox_events() -> bool:
+	return not _events_path.is_empty()
+
+
 func _resolve_events_path(visual: Node3D) -> String:
 	if not is_inside_tree() or not visual.is_inside_tree():
 		return ""

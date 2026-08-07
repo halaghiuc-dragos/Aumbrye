@@ -556,7 +556,7 @@ makes the seed-sharing feature unachievable.
 
 ## 5. 🟡 P2 — Correctness bugs
 
-### BUG-06 — Buffered attack fires regardless of the buffer window
+### BUG-06 — RESOLVED 2026-08-07: Buffered attack fires regardless of the buffer window
 
 - **Problem** — `WeaponController._physics_process` contains two consecutive blocks:
   ```gdscript
@@ -586,7 +586,7 @@ makes the seed-sharing feature unachievable.
   ```
   Add a combat-suite test that buffers an input, advances 1 s of simulated time, and asserts no attack fires.
 
-### BUG-07 — `ApiConfig.acquire_http()` can spin forever with no timeout
+### BUG-07 — RESOLVED 2026-08-07: `ApiConfig.acquire_http()` can spin forever with no timeout
 
 - **Problem** — `acquire_http()` is a `while true` loop that scans the HTTP pool for a free request node and
   `await get_tree().process_frame` when none is available. If a caller ever fails to call `release_http()` — an
@@ -601,7 +601,7 @@ makes the seed-sharing feature unachievable.
   timeout. Better still: wrap acquire/release so callers cannot forget —
   `func with_http(fn: Callable) -> Variant` that acquires, `await`s the callable, and releases in all paths.
 
-### BUG-08 — 318 signal connections against 28 disconnections
+### BUG-08 — RESOLVED 2026-08-07: 318 signal connections against 28 disconnections
 
 - **Problem** — The game scripts contain 318 `.connect(` calls and only 28 `.disconnect(` calls. Several
   connections target autoloads (`AudioDirector`, `RunFlow`, `PixelDioramaViewport.world_attached`,
@@ -620,7 +620,7 @@ makes the seed-sharing feature unachievable.
   validation assertion that walks a torn-down gameplay scene and asserts
   `AudioDirector.get_signal_connection_list(...)` is empty.
 
-### BUG-09 — `CastleEnemyBase` reaches into the animation controller's private state
+### BUG-09 — RESOLVED 2026-08-07: `CastleEnemyBase` reaches into the animation controller's private state
 
 - **Problem** — `_start_windup()` reads `_animator._events_path` — a private member of `DioramaAnimController` —
   to decide whether hitbox timing comes from animation events. This silently breaks if the controller is
@@ -649,7 +649,7 @@ makes the seed-sharing feature unachievable.
   codebase: `SubViewport` sizing while `SubViewportContainer.stretch` is on (already commented at
   `pixel_diorama_viewport.gd:263`), `Viewport.disable_3d`, and `physics_interpolation` semantics (PERF-12).
 
-### BUG-11 — `Hitbox._try_hit` assumes `_owner_node` is alive
+### BUG-11 — RESOLVED 2026-08-07: `Hitbox._try_hit` assumes `_owner_node` is alive
 
 - **Problem** — `_try_hit` dereferences `_owner_node.get_node_or_null("HitFeedback")` without an
   `is_instance_valid` check. `_owner_node` is resolved once in `_ready()` by walking up to the first
@@ -662,7 +662,7 @@ makes the seed-sharing feature unachievable.
   `disable()` from the owner's `tree_exiting`. Same audit applies to `_find_combat_owner()` results held across
   frames elsewhere in `scripts/combat/`.
 
-### BUG-12 — `Hurtbox.receive_hit` allocates and re-searches the node tree on every hit
+### BUG-12 — RESOLVED 2026-08-07: `Hurtbox.receive_hit` allocates and re-searches the node tree on every hit
 
 - **Problem** — Each hit constructs a fresh `DamageResolution` `RefCounted`, then calls `_find_dodge()`,
   `_find_character_body()` and `_find_guard()` — node-tree searches — before any damage math runs. Combined with
@@ -796,7 +796,7 @@ sources. See section 16 for what "covered" does and does not warrant.
   version with a migration step that re-mints duplicates found in existing saves (see `DOC-03` for the
   migration table that must be updated at the same time).
 
-### BUG-19 — Shield stats are never applied: `Guard` is configured with two of three arguments
+### BUG-19 — RESOLVED 2026-08-07: Shield stats are never applied: `Guard` is configured with two of three arguments
 
 - **Problem** — `Guard.set_combat_stat_modifiers(equipment_stats, talent_stats, block_data)` reads
   `block_data["stability"]` and `block_data["reduction"]` to derive `_block_stability` and the shield's own
@@ -816,7 +816,7 @@ sources. See section 16 for what "covered" does and does not warrant.
   While there, note that `set_combat_stat_modifiers` ignores its `equipment_stats` parameter entirely; either
   use it for a `blockReduction` equipment stat or drop the parameter.
 
-### BUG-20 — Two contradictory "forward" conventions, in the same file
+### BUG-20 — RESOLVED 2026-08-07: Two contradictory "forward" conventions, in the same file
 
 - **Problem** — `Locomotion.get_facing_direction()` returns `_facing.global_transform.basis.z`, i.e. this
   project treats the `Facing` node's **+Z** as forward. `Dodge._get_attack_backstep_direction()` and
@@ -839,7 +839,7 @@ sources. See section 16 for what "covered" does and does not warrant.
   prerequisite for `IMP-A03` (backstab/riposte readability): directional reactions cannot be tuned while two
   conventions are live.
 
-### BUG-21 — Blocking does not prevent a backstab multiplier
+### BUG-21 — RESOLVED 2026-08-07: Blocking does not prevent a backstab multiplier
 
 - **Problem** — `Hurtbox.receive_hit()` runs `_apply_arc_multipliers()` **after** `Guard.modify_incoming_hit()`
   and unconditionally. `Guard._is_frontal_hit()` decides frontality from `info.direction` (the attack's travel
@@ -858,7 +858,7 @@ sources. See section 16 for what "covered" does and does not warrant.
   suppresses `SIDE`/`BACK` multipliers (you cannot be backstabbed through a raised shield) — or, if you want
   backstabs to beat shields, make that a deliberate design statement rather than an emergent disagreement.
 
-### BUG-22 — Parry has no whiff cost, so tapping block is strictly better than holding it
+### BUG-22 — RESOLVED 2026-08-07: Parry has no whiff cost, so tapping block is strictly better than holding it
 
 - **Problem** — `Guard` opens a `PARRY_WINDOW = 0.18` s window on **entering** guard, and closes it on the
   timer. There is no cooldown, no stamina cost and no recovery on a failed parry: `_enter_guard()` is reachable
@@ -875,7 +875,7 @@ sources. See section 16 for what "covered" does and does not warrant.
   stamina charge, so mashing drains the bar. Either way, gate on `_stamina.consume()` so a parry attempt at
   low stamina is a real risk. See `IMP-A04` for how this interacts with the riposte window.
 
-### BUG-23 — Hyperarmor only exists once the hitbox opens, so heavy attacks are always interrupted
+### BUG-23 — RESOLVED 2026-08-07: Hyperarmor only exists once the hitbox opens, so heavy attacks are always interrupted
 
 - **Problem** — `WeaponController._hyperarmor_active` is assigned in `_enable_hitbox_for_attack()`, which runs
   at the **start of the ACTIVE phase**, and is cleared in `_disable_hitbox()` and `_end_attack()`. During
@@ -892,7 +892,7 @@ sources. See section 16 for what "covered" does and does not warrant.
   "startup through active") so `content/weapons/*.json` can tune poise frames per swing — that is the same
   data-driven treatment `IMP-B01` asks for on the enemy side.
 
-### BUG-24 — A staggered or dead enemy freezes in mid-air
+### BUG-24 — RESOLVED 2026-08-07: A staggered or dead enemy freezes in mid-air
 
 - **Problem** — `CastleEnemyBase._physics_process()` returns early on both `is_dead()` and
   `_stagger_timer > 0.0`, **before** the `if not is_on_floor(): velocity += get_gravity() * delta` /
@@ -905,7 +905,7 @@ sources. See section 16 for what "covered" does and does not warrant.
   run `_update_ai(delta)` and facing only when `ai_enabled`, zero the horizontal velocity when staggered, and
   fall through to gravity + `move_and_slide()` + `_update_diorama_animation()` in all cases.
 
-### BUG-25 — Enemy combo follow-ups have no telegraph and bypass the attack-token budget
+### BUG-25 — RESOLVED 2026-08-07: Enemy combo follow-ups have no telegraph and bypass the attack-token budget
 
 - **Problem** — `_end_attack()` chains into `combo_followups` by setting `_state = State.WINDUP` and
   `_state_timer` directly. It does not call `_show_attack_telegraph()`, does not call
@@ -921,7 +921,7 @@ sources. See section 16 for what "covered" does and does not warrant.
   Note this bug is currently *latent for content reasons*: no enemy JSON defines `combo_followups` at all
   (see `IMP-B01`), so the code path never runs. Fix it before authoring combos, not after.
 
-### BUG-26 — Token-starved enemies re-request an attack token every physics frame
+### BUG-26 — RESOLVED 2026-08-07: Token-starved enemies re-request an attack token every physics frame
 
 - **Problem** — `_start_windup()` calls `_select_attack_data()`, then `AttackTokenService.request_token()`, and
   `return`s if the token is refused — without setting `_cooldown` or changing `_state`. The enemy is still in
@@ -956,7 +956,7 @@ sources. See section 16 for what "covered" does and does not warrant.
   `Tween` owned by the node — Godot cancels a node's tweens when it leaves the tree, which converts this from
   a manual-cleanup problem into a structural guarantee.
 
-### BUG-28 — `DialogueRunner` recurses without a visited set, so a cyclic tree overflows the stack
+### BUG-28 — RESOLVED 2026-08-07: `DialogueRunner` recurses without a visited set, so a cyclic tree overflows the stack
 
 - **Problem** — `_advance_to_node()` calls itself for `fallback` nodes and for `auto` nodes with a `next`
   target. Nothing tracks which nodes have been visited during a single advance. A dialogue whose `next` chain
@@ -970,7 +970,7 @@ sources. See section 16 for what "covered" does and does not warrant.
   dialogue graph and fails the build on an auto-cycle, so the error is caught at authoring time rather than at
   runtime.
 
-### BUG-29 — An unrecognised dialogue condition key silently hides content
+### BUG-29 — RESOLVED 2026-08-07: An unrecognised dialogue condition key silently hides content
 
 - **Problem** — `DialogueConditions.evaluate()` ends with `push_warning(...)` and `return false`. A misspelled
   key (`"minLvl"`, `"questState"`, `"hasItem"` — the last of which is not implemented at all) makes the
@@ -1006,7 +1006,7 @@ sources. See section 16 for what "covered" does and does not warrant.
   and `_loot_collected` / `_loot_claimed_instance_ids` should be capped ring buffers — the results screen only
   reads the tail. Measure with a scripted 500-floor endless run before and after.
 
-### BUG-31 — `Poise`, `Stamina`, `Health` and `StatusController` regenerate in `_process`, so balance is frame-rate dependent
+### BUG-31 — RESOLVED 2026-08-07: `Poise`, `Stamina`, `Health` and `StatusController` regenerate in `_process`, so balance is frame-rate dependent
 
 - **Problem** — `Poise._process()` and `Stamina._process()` advance regeneration timers and integrate regen
   rates using the **render** delta, while all damage, stamina consumption and poise damage are applied from
@@ -1026,7 +1026,7 @@ sources. See section 16 for what "covered" does and does not warrant.
   removes most of the HUD churn in `PERF-10`. A validation test that runs 600 fixed ticks and asserts an exact
   stamina total is cheap to write once the loop is deterministic.
 
-### BUG-32 — `Stamina.insufficient` fires every frame while sprinting on empty
+### BUG-32 — RESOLVED 2026-08-07: `Stamina.insufficient` fires every frame while sprinting on empty
 
 - **Problem** — `Locomotion._physics_process()` calls `_stamina.drain(SPRINT_STAMINA_DRAIN * delta)` every
   frame the sprint key is held. `drain()` emits `insufficient` on every refusal. Holding sprint with an empty
@@ -1039,7 +1039,7 @@ sources. See section 16 for what "covered" does and does not warrant.
   cue), or emit only on the transition into insufficiency. Separately: `drain()` and `consume()` are
   byte-identical duplicates — see `REF-09`.
 
-### BUG-33 — Endless mode never changes biome
+### BUG-33 — RESOLVED 2026-08-07: Endless mode never changes biome
 
 - **Problem** — `RunFlow.start_endless_run()` calls `_start_mode_run(RM.MODE_ENDLESS, BiomeRegistry.BIOME_UMBRAL, …)`
   and `_resolve_floor_definition()` generates every subsequent floor with the unchanged `current_biome_id`.
@@ -1057,7 +1057,7 @@ sources. See section 16 for what "covered" does and does not warrant.
   instead of reading `current_biome_id`. Because it is a pure function of `(seed, floor)` it stays deterministic
   across save/load and across a floor skip that jumps straight to floor 501.
 
-### BUG-34 — The 250-floor skip does not exist
+### BUG-34 — RESOLVED 2026-08-07: The 250-floor skip does not exist
 
 - **Problem** — `SkipFloorService.SKIP_ITEMS` defines exactly four entries — `skip_10_floors` (start 11),
   `skip_50_floors` (51), `skip_100_floors` (101) and `skip_500_floors` (501). The intended ladder is
@@ -1073,7 +1073,7 @@ sources. See section 16 for what "covered" does and does not warrant.
   fix the presentation bug in the same feature: `umbral_endless_menu._build_skip_buttons()` labels buttons with
   the raw item id (`"Use skip_10_floors → floor 11"`) instead of `ItemCatalog.get_definition(id).name`.
 
-### BUG-35 — Enemy patrol and wind-up variance use the global RNG, breaking seed determinism
+### BUG-35 — RESOLVED 2026-08-07: Enemy patrol and wind-up variance use the global RNG, breaking seed determinism
 
 - **Problem** — `CastleEnemyBase._process_patrol()` calls `randf_range(1.0, 2.5)` for patrol waits and
   `_start_windup()` calls `randf_range(-windup_variance, windup_variance)`. Both use Godot's global RNG, which
@@ -1089,7 +1089,7 @@ sources. See section 16 for what "covered" does and does not warrant.
   Reserve the global RNG strictly for cosmetics (VFX jitter, particle lifetimes) and say so in a comment, so the
   distinction survives future edits.
 
-### BUG-36 — `RunFloorConfig.max_secrets_for_biome()` re-reads and re-parses a JSON file on every call
+### BUG-36 — RESOLVED 2026-08-07: `RunFloorConfig.max_secrets_for_biome()` re-reads and re-parses a JSON file on every call
 
 - **Problem** — `max_secrets_for_biome()` calls `ContentLoader.load_json("content/biomes/%s.json" % biome_id)`
   directly rather than going through `BiomeRegistry.get_biome()`, which is the cached accessor. It therefore
@@ -1116,7 +1116,7 @@ sources. See section 16 for what "covered" does and does not warrant.
   files. Move it there, point the suite at the new path, and add an export `exclude_filter` for
   `content/fixtures/*` (see `PERF-06b`, which proposes the same mechanism for stale audio).
 
-### BUG-38 — The castle entry menu discards the player's dungeon selection every time it opens
+### BUG-38 — RESOLVED 2026-08-07: The castle entry menu discards the player's dungeon selection every time it opens
 
 - **Problem** — `CastleEntryMenu.open_menu()` calls `_build_dungeon_dropdown()`, which ends with
   `_dungeon_dropdown.select(0)` and `_selected_dungeon = <first entry>`. A player who has unlocked all ten
@@ -1227,7 +1227,7 @@ sources. See section 16 for what "covered" does and does not warrant.
   `can_unlock()` already runs the affordability and level checks, so `unlock_item()` re-running them is
   cheap; the missing check is the inventory-space one.
 
-### BUG-44 — Closing the map overlay unpauses the game underneath any other open menu
+### BUG-44 — RESOLVED 2026-08-07: Closing the map overlay unpauses the game underneath any other open menu
 
 - **Problem** — `CombatHUD._open_map_overlay()` sets `get_tree().paused = true` and
   `Input.mouse_mode = MOUSE_MODE_VISIBLE`; `_close_map_overlay()` sets `paused = false` and
@@ -1247,7 +1247,7 @@ sources. See section 16 for what "covered" does and does not warrant.
   overlay, which currently bypasses `MenuStack` entirely — push and pop instead of writing the globals. This
   is the concrete, player-visible instance of `REF-08`.
 
-### BUG-45 — Crit rolls, enemy attack selection and waves seeds all use the unseeded global RNG
+### BUG-45 — RESOLVED 2026-08-07: Crit rolls, enemy attack selection and waves seeds all use the unseeded global RNG
 
 - **Problem** — Extending `BUG-35`, four more gameplay-affecting rolls bypass any seeded stream:
   `Hitbox._try_hit` rolls crits with `randf() < _crit_chance`;
@@ -1271,7 +1271,7 @@ sources. See section 16 for what "covered" does and does not warrant.
   Add a validation assertion that greps for bare `randf(`/`randi(` outside `scripts/art/` and fails —
   this is the rare case where `QA-01`'s source-text assertion style is the right tool.
 
-### BUG-46 — Sell price adds raw affix values, so pricing is scale-blind and exploitable
+### BUG-46 — RESOLVED 2026-08-07: Sell price adds raw affix values, so pricing is scale-blind and exploitable
 
 - **Problem** — `MerchantService.get_slot_unit_sell_price()` finishes with
   `for affix in slot.get("affixes", []): price += int(round(float(affix.get("value", 0.0))))`. Affix values
@@ -1288,7 +1288,7 @@ sources. See section 16 for what "covered" does and does not warrant.
   the band the roll landed. That makes an item's price a function of how good the roll was, which is what a
   player expects, and removes the unit mismatch entirely. Fold this into `IMP-F02`'s affix expansion.
 
-### BUG-47 — `crystal_sovereign.json` is an orphan duplicate of `boss_crystal_sovereign.json`
+### BUG-47 — RESOLVED 2026-08-07: `crystal_sovereign.json` is an orphan duplicate of `boss_crystal_sovereign.json`
 
 - **Problem** — `content/bosses/` holds both `boss_crystal_sovereign` (hp 580) and `crystal_sovereign`
   (hp 650), two definitions of the same fight with different numbers. No biome's `bossPool` or `enemyPool`
@@ -1306,7 +1306,7 @@ sources. See section 16 for what "covered" does and does not warrant.
   reference still resolves. Then extend `scripts/validate-content` with a reachability check across
   `enemyPool` / `bossPool` / `trapPool` — the same check would have caught `BUG-37`.
 
-### BUG-48 — `CharacterService` restores gold as `max(gold, coins)` from two save fields
+### BUG-48 — RESOLVED 2026-08-07: `CharacterService` restores gold as `max(gold, coins)` from two save fields
 
 - **Problem** — `apply_save()` reads `saved_gold = data.get("gold", …)` and
   `saved_coins = data.get("coins", saved_gold)`, then sets `gold = maxi(saved_gold, int(saved_coins))`.
@@ -1321,7 +1321,7 @@ sources. See section 16 for what "covered" does and does not warrant.
   `coins`, and bumps `CURRENT_VERSION`. Then read `gold` alone. `REF-15` removes the duplicate runtime API
   that made two fields plausible in the first place.
 
-### BUG-49 — The backend returns raw exception messages to API clients
+### BUG-49 — RESOLVED 2026-08-07: The backend returns raw exception messages to API clients
 
 - **Problem** — `RunService.CreateRunAsync()` wraps generation in
   `catch (Exception ex) { return new CreateRunResult(false, Error: ex.Message); }`, and the endpoint surfaces
@@ -1336,7 +1336,7 @@ sources. See section 16 for what "covered" does and does not warrant.
   specific exception types the generator can throw rather than `Exception`, so genuinely unexpected failures
   still surface as 500s rather than being flattened into a 400-shaped result.
 
-### BUG-50 — `MenuStack`'s focus stack desynchronises when modals close out of order
+### BUG-50 — RESOLVED 2026-08-07: `MenuStack`'s focus stack desynchronises when modals close out of order
 
 - **Problem** — `push()` appends the current focus owner to `_focus_stack` and `pop()` pops the **last**
   entry regardless of which modal was removed: `pop()` finds the modal by index in `_stack`, removes it from
@@ -1351,7 +1351,7 @@ sources. See section 16 for what "covered" does and does not warrant.
   Combine with `BUG-44`: once `MenuStack` also owns pause and mouse mode, all three pieces of restore state
   live in one record and cannot drift independently.
 
-### BUG-51 — The online generator has no concept of floors, so it can only ever produce floor 1
+### BUG-51 — RESOLVED 2026-08-07: The online generator has no concept of floors, so it can only ever produce floor 1
 
 - **Problem** — `RunService.GenerationSeedFor(run)` is
   `DungeonSeedDeriver.GenerationSeed(run.Seed, run.Tier, 1)` — the floor argument is the literal `1`, and the
@@ -1371,7 +1371,7 @@ sources. See section 16 for what "covered" does and does not warrant.
   worth of duplicated logic and the parity burden with it. Given the client ships offline-first and the flag
   has been false, deleting is the cheaper answer.
 
-### BUG-52 — Class perks are authored, named, localised — and never read by any code
+### BUG-52 — RESOLVED 2026-08-07: Class perks are authored, named, localised — and never read by any code
 
 - **Problem** — Each of the five class definitions declares `perk` (`bloodrage`, `steadfast`, `shadowstep`,
   `bulwark`, `arcane_focus`), `perkName` and `perkDescription`, with translation keys for all of them. A grep
@@ -1393,7 +1393,7 @@ sources. See section 16 for what "covered" does and does not warrant.
   `arcane_focus` = mana regen on hit. Add `ClassCatalog.get_perk(class_id)` and register the hook in
   `RunBuffs` when a run starts. See `EXT-E01` for the wider class-identity design.
 
-### BUG-53 — Class weapon restrictions are enforced in one UI screen and bypassed everywhere else
+### BUG-53 — RESOLVED 2026-08-07: Class weapon restrictions are enforced in one UI screen and bypassed everywhere else
 
 - **Problem** — `ClassCatalog.is_weapon_allowed(class_id, item_id)` has exactly one caller in the entire
   codebase: `loadout_ui.gd`. The actual equip paths — `GridInventory.equip_from_index()`,

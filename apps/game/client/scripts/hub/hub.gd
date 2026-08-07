@@ -80,6 +80,19 @@ func _ready() -> void:
 	call_deferred("_boot_save_and_services")
 
 
+func _exit_tree() -> void:
+	if DungeonTierService and DungeonTierService.tier_unlocked.is_connected(_refresh_castle_portal_label):
+		DungeonTierService.tier_unlocked.disconnect(_refresh_castle_portal_label)
+	if RunFlow.returned_to_hub.is_connected(_on_returned_to_hub):
+		RunFlow.returned_to_hub.disconnect(_on_returned_to_hub)
+	if RunFlow.run_warning.is_connected(_on_run_warning):
+		RunFlow.run_warning.disconnect(_on_run_warning)
+	if InventoryService and InventoryService.inventory_rejected.is_connected(_on_inventory_rejected):
+		InventoryService.inventory_rejected.disconnect(_on_inventory_rejected)
+	if LocalSave.save_loaded.is_connected(_on_save_loaded):
+		LocalSave.save_loaded.disconnect(_on_save_loaded)
+
+
 func _boot_save_and_services() -> void:
 	var result: Dictionary = await LocalSave.sync_from_cloud()
 	var synced: bool = bool(result.get("ok", false))

@@ -15,6 +15,8 @@ const SESSION_PATH := "user://session.json"
 const USER_API_CONFIG_PATH := "user://api_config.json"
 const DEV_API_CONFIG_PATH := "res://config/dev_api.json"
 const HTTP_POOL_SIZE := 2
+const HTTP_ACQUIRE_TIMEOUT_SECONDS := 10.0
+const HTTP_BUSY_WATCHDOG_SECONDS := REQUEST_TIMEOUT_SECONDS + 5.0
 
 var base_url: String = ""
 var access_token: String = ""
@@ -26,7 +28,9 @@ var version_mismatch_flag: bool = false
 
 var _http_pool: Array[HTTPRequest] = []
 var _http_busy: Dictionary = {}
+var _http_busy_since_msec: Dictionary = {}
 var _active_http: Array[HTTPRequest] = []
+var _watchdog_accum: float = 0.0
 
 var _test_is_debug_build: Variant = null
 var _test_env_api_url: Variant = null
@@ -93,24 +97,46 @@ func _init_http_pool() -> void:
 
 
 func acquire_http() -> HTTPRequest:
-	while true:
+	var deadline_msec := Time.get_ticks_msec() + int(HTTP_ACQUIRE_TIMEOUT_SECONDS * 1000.0)
+	while Time.get_ticks_msec() < deadline_msec:
+		_release_stalled_http()
 		for http in _http_pool:
 			var id := http.get_instance_id()
 			if not _http_busy.has(id):
 				_http_busy[id] = true
+				_http_busy_since_msec[id] = Time.get_ticks_msec()
 				_active_http.append(http)
 				_last_acquired_http = http
 				return http
 		await get_tree().process_frame
-	return _http_pool[0]
+	push_warning("ApiConfig: acquire_http timed out waiting for a free connection")
+	return null
 
 
 func release_http(http: HTTPRequest) -> void:
+	if http == null:
+		return
 	var id := http.get_instance_id()
 	_http_busy.erase(id)
+	_http_busy_since_msec.erase(id)
 	_active_http.erase(http)
 	if _last_acquired_http == http:
 		_last_acquired_http = null
+
+
+func _release_stalled_http() -> void:
+	var stall_deadline_msec := int(HTTP_BUSY_WATCHDOG_SECONDS * 1000.0)
+	var now_msec := Time.get_ticks_msec()
+	for http in _http_pool:
+		var id := http.get_instance_id()
+		if not _http_busy.has(id):
+			continue
+		var since: int = _http_busy_since_msec.get(id, now_msec)
+		if now_msec - since >= stall_deadline_msec:
+			push_warning("ApiConfig: force-releasing stalled HTTP connection")
+			if http.get_http_client_status() != HTTPClient.STATUS_DISCONNECTED:
+				http.cancel_request()
+			release_http(http)
 
 
 func cancel_all() -> void:
@@ -122,6 +148,7 @@ func cancel_all() -> void:
 		http.queue_free()
 	_http_pool.clear()
 	_http_busy.clear()
+	_http_busy_since_msec.clear()
 	_active_http.clear()
 	_last_acquired_http = null
 

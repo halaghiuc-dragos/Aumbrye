@@ -20,6 +20,7 @@ var break_duration := 1.2
 
 
 func _ready() -> void:
+	set_process(false)
 	poise_changed.emit(current, max_poise)
 
 
@@ -42,7 +43,7 @@ func configure(
 	poise_changed.emit(current, max_poise)
 
 
-func _process(delta: float) -> void:
+func _physics_process(delta: float) -> void:
 	if _broken:
 		_break_timer -= delta
 		if _break_timer <= 0.0:
@@ -56,7 +57,8 @@ func _process(delta: float) -> void:
 		return
 	if _regen_timer > 0.0:
 		return
-	current = minf(max_poise, current + REGEN_RATE * delta)
+	var regen_rate := REGEN_RATE * ClassPerks.steadfast_poise_regen_multiplier(get_parent())
+	current = minf(max_poise, current + regen_rate * delta)
 	poise_changed.emit(current, max_poise)
 
 

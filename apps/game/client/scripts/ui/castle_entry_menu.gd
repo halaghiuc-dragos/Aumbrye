@@ -4,6 +4,9 @@ extends Control
 
 const GameUISkinScript := preload("res://scripts/ui/game_ui_skin.gd")
 
+const LAST_DUNGEON_FLAG := "castle_menu_last_dungeon_id"
+const LAST_DIFFICULTY_FLAG := "castle_menu_last_difficulty_tier"
+
 signal continue_requested
 signal seed_run_requested(seed: int)
 signal dungeon_run_requested(dungeon_id: String, difficulty_tier: int)
@@ -54,6 +57,8 @@ func _build_dungeon_dropdown() -> void:
 	var tier := DungeonTierService.get_max_unlocked_tier()
 	if _title_label:
 		_title_label.text = DungeonTierService.get_menu_title(tier)
+	var last_dungeon_id := str(CharacterService.get_flag(LAST_DUNGEON_FLAG, ""))
+	var restore_index := -1
 	for entry in DungeonCatalog.ENTRIES:
 		var dungeon_id := str(entry.get("id", ""))
 		if not DungeonTierService.is_dungeon_unlocked(dungeon_id):
@@ -61,9 +66,12 @@ func _build_dungeon_dropdown() -> void:
 		var label := DungeonCatalog.get_display_name(dungeon_id)
 		_dungeon_dropdown.add_item(label)
 		_dungeon_dropdown.set_item_metadata(_dungeon_dropdown.item_count - 1, dungeon_id)
+		if dungeon_id == last_dungeon_id:
+			restore_index = _dungeon_dropdown.item_count - 1
 	if _dungeon_dropdown.item_count > 0:
-		_dungeon_dropdown.select(0)
-		_selected_dungeon = str(_dungeon_dropdown.get_item_metadata(0))
+		var select_index := restore_index if restore_index >= 0 else 0
+		_dungeon_dropdown.select(select_index)
+		_selected_dungeon = str(_dungeon_dropdown.get_item_metadata(select_index))
 	_build_difficulty_dropdown()
 
 
@@ -72,6 +80,8 @@ func _build_difficulty_dropdown() -> void:
 		return
 	_difficulty_dropdown.clear()
 	var cap := DungeonTierService.get_unlocked_difficulty_cap(_selected_dungeon)
+	var last_difficulty := int(CharacterService.get_flag(LAST_DIFFICULTY_FLAG, 1))
+	var restore_index := -1
 	for tier_data in DungeonCatalog.get_difficulty_tiers(_selected_dungeon):
 		if not tier_data is Dictionary:
 			continue
@@ -81,9 +91,12 @@ func _build_difficulty_dropdown() -> void:
 		var label := "%d — %s" % [tier_num, str(tier_data.get("label", "Tier %d" % tier_num))]
 		_difficulty_dropdown.add_item(label)
 		_difficulty_dropdown.set_item_metadata(_difficulty_dropdown.item_count - 1, tier_num)
+		if tier_num == last_difficulty:
+			restore_index = _difficulty_dropdown.item_count - 1
 	if _difficulty_dropdown.item_count > 0:
-		_difficulty_dropdown.select(0)
-		_selected_difficulty = int(_difficulty_dropdown.get_item_metadata(0))
+		var select_index := restore_index if restore_index >= 0 else 0
+		_difficulty_dropdown.select(select_index)
+		_selected_difficulty = int(_difficulty_dropdown.get_item_metadata(select_index))
 	else:
 		_selected_difficulty = 1
 
@@ -92,7 +105,9 @@ func _on_dungeon_selected(index: int) -> void:
 	if _dungeon_dropdown == null:
 		return
 	_selected_dungeon = str(_dungeon_dropdown.get_item_metadata(index))
+	CharacterService.set_flag(LAST_DUNGEON_FLAG, _selected_dungeon)
 	_build_difficulty_dropdown()
+	CharacterService.set_flag(LAST_DIFFICULTY_FLAG, _selected_difficulty)
 	if _seed_panel.visible:
 		_refresh_seed_hint()
 
@@ -101,6 +116,7 @@ func _on_difficulty_selected(index: int) -> void:
 	if _difficulty_dropdown == null:
 		return
 	_selected_difficulty = int(_difficulty_dropdown.get_item_metadata(index))
+	CharacterService.set_flag(LAST_DIFFICULTY_FLAG, _selected_difficulty)
 
 
 func open_menu() -> void:
