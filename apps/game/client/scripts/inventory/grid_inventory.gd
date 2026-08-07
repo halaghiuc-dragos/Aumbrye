@@ -24,6 +24,14 @@ var grid_height: int = DEFAULT_HEIGHT
 var slots: Array[Dictionary] = []
 var equipped: Dictionary = {}
 
+## Occupancy bitmap: one entry per grid cell holding the `slots` index occupying it (-1 if
+## empty). `_occupancy_dirty` is set by any mutation whose effect on the bitmap is cheaper to
+## re-derive lazily than to track precisely (removals shift every later slot's index). Pure
+## appends update the bitmap incrementally instead, since appending never invalidates an
+## existing index.
+var _occupancy: PackedInt32Array = []
+var _occupancy_dirty := true
+
 ## BUG-18: single non-colliding source of instance ids, shared by every site that used to mint
 ## its own — _normalize_slot (was `item_id_(x+y)`, which two stacks at (0,2) and (2,0) both
 ## produce) and split_stack (was a millisecond timestamp, which two splits in the same
@@ -46,6 +54,52 @@ func _init(width: int = DEFAULT_WIDTH, height: int = DEFAULT_HEIGHT) -> void:
 	grid_width = width
 	grid_height = height
 	equipped = EquipmentHelper.empty_equipped()
+	_occupancy_dirty = true
+
+
+func _cell_index(x: int, y: int) -> int:
+	return y * grid_width + x
+
+
+func _mark_occupancy_dirty() -> void:
+	_occupancy_dirty = true
+
+
+func _ensure_occupancy() -> void:
+	if not _occupancy_dirty and _occupancy.size() == grid_width * grid_height:
+		return
+	_occupancy = PackedInt32Array()
+	_occupancy.resize(grid_width * grid_height)
+	_occupancy.fill(-1)
+	for i in slots.size():
+		_occupy_slot_rect(i)
+	_occupancy_dirty = false
+
+
+func _occupy_slot_rect(index: int) -> void:
+	if index < 0 or index >= slots.size() or _occupancy.size() != grid_width * grid_height:
+		return
+	var slot: Dictionary = slots[index]
+	var def := get_item_def(slot.get("itemId", ""))
+	if def.is_empty():
+		return
+	var x: int = int(slot.get("x", 0))
+	var y: int = int(slot.get("y", 0))
+	var w: int = def.get("gridWidth", 1)
+	var h: int = def.get("gridHeight", 1)
+	for yy in range(y, y + h):
+		for xx in range(x, x + w):
+			if xx >= 0 and xx < grid_width and yy >= 0 and yy < grid_height:
+				_occupancy[_cell_index(xx, yy)] = index
+
+
+func _free_rect(x: int, y: int, w: int, h: int) -> void:
+	if _occupancy.size() != grid_width * grid_height:
+		return
+	for yy in range(y, y + h):
+		for xx in range(x, x + w):
+			if xx >= 0 and xx < grid_width and yy >= 0 and yy < grid_height:
+				_occupancy[_cell_index(xx, yy)] = -1
 
 
 func to_save_dict() -> Dictionary:
@@ -66,6 +120,7 @@ func from_save_dict(data: Dictionary) -> void:
 		if entry is Dictionary:
 			slots.append(_normalize_slot(entry.duplicate()))
 	_deserialize_equipped(data.get("equipped", {}))
+	_mark_occupancy_dirty()
 	changed.emit()
 
 
@@ -99,19 +154,12 @@ func can_place(item_id: String, x: int, y: int, ignore_index: int = -1) -> bool:
 	var h: int = def.get("gridHeight", 1)
 	if x < 0 or y < 0 or x + w > grid_width or y + h > grid_height:
 		return false
-	for i in slots.size():
-		if i == ignore_index:
-			continue
-		var slot: Dictionary = slots[i]
-		var other_def := get_item_def(slot.get("itemId", ""))
-		if other_def.is_empty():
-			continue
-		var ox: int = slot.get("x", 0)
-		var oy: int = slot.get("y", 0)
-		var ow: int = other_def.get("gridWidth", 1)
-		var oh: int = other_def.get("gridHeight", 1)
-		if Rect2i(x, y, w, h).intersects(Rect2i(ox, oy, ow, oh)):
-			return false
+	_ensure_occupancy()
+	for yy in range(y, y + h):
+		for xx in range(x, x + w):
+			var occupant := _occupancy[_cell_index(xx, yy)]
+			if occupant != -1 and occupant != ignore_index:
+				return false
 	return true
 
 
@@ -126,6 +174,7 @@ func add_slot(slot: Dictionary) -> bool:
 	copy["x"] = pos.x
 	copy["y"] = pos.y
 	slots.append(_normalize_slot(copy))
+	_occupy_slot_rect(slots.size() - 1)
 	changed.emit()
 	return true
 
@@ -174,27 +223,27 @@ func add_item(item_id: String, quantity: int = 1, instance_data: Dictionary = {}
 			if quantity <= 0:
 				changed.emit()
 				return true
-	for y in grid_height:
-		for x in grid_width:
-			if quantity <= 0:
-				break
-			if not can_place(item_id, x, y):
-				continue
-			var place_qty := mini(quantity, max_stack)
-			var slot_data := {
-				"itemId": item_id,
-				"quantity": place_qty,
-				"x": x,
-				"y": y,
-			}
-			if not instance_data.is_empty():
-				slot_data.merge(instance_data, true)
-			elif def.get("rarity", "common") != "common":
-				slot_data["rarity"] = def.get("rarity", "common")
-			slots.append(_normalize_slot(slot_data))
-			quantity -= place_qty
+	while quantity > 0:
+		var pos := _find_first_fit(item_id)
+		if pos.x < 0:
+			break
+		var place_qty := mini(quantity, max_stack)
+		var slot_data := {
+			"itemId": item_id,
+			"quantity": place_qty,
+			"x": pos.x,
+			"y": pos.y,
+		}
+		if not instance_data.is_empty():
+			slot_data.merge(instance_data, true)
+		elif def.get("rarity", "common") != "common":
+			slot_data["rarity"] = def.get("rarity", "common")
+		slots.append(_normalize_slot(slot_data))
+		_occupy_slot_rect(slots.size() - 1)
+		quantity -= place_qty
 	if quantity > 0:
 		slots = snapshot
+		_mark_occupancy_dirty()
 		return false
 	changed.emit()
 	return true
@@ -226,6 +275,7 @@ func _place_rolled_instance(instance: Dictionary) -> bool:
 	instance["x"] = x_y.x
 	instance["y"] = x_y.y
 	slots.append(_normalize_slot(instance))
+	_occupy_slot_rect(slots.size() - 1)
 	changed.emit()
 	return true
 
@@ -235,6 +285,7 @@ func remove_at(index: int) -> Dictionary:
 		return {}
 	var removed: Dictionary = slots[index]
 	slots.remove_at(index)
+	_mark_occupancy_dirty()
 	changed.emit()
 	return removed
 
@@ -246,8 +297,13 @@ func move_slot(index: int, to_x: int, to_y: int) -> bool:
 	var item_id: String = slot.get("itemId", "")
 	if not can_place(item_id, to_x, to_y, index):
 		return false
+	var def := get_item_def(item_id)
+	var w: int = def.get("gridWidth", 1)
+	var h: int = def.get("gridHeight", 1)
+	_free_rect(int(slot.get("x", 0)), int(slot.get("y", 0)), w, h)
 	slot["x"] = to_x
 	slot["y"] = to_y
+	_occupy_slot_rect(index)
 	changed.emit()
 	return true
 
@@ -281,25 +337,16 @@ func split_stack(index: int) -> bool:
 	new_slot["x"] = pos.x
 	new_slot["y"] = pos.y
 	slots.append(_normalize_slot(new_slot))
+	_occupy_slot_rect(slots.size() - 1)
 	changed.emit()
 	return true
 
 
 func find_slot_at(x: int, y: int) -> int:
-	for i in slots.size():
-		var slot: Dictionary = slots[i]
-		var def := get_item_def(slot.get("itemId", ""))
-		if def.is_empty():
-			continue
-		var rect := Rect2i(
-			int(slot.get("x", 0)),
-			int(slot.get("y", 0)),
-			int(def.get("gridWidth", 1)),
-			int(def.get("gridHeight", 1))
-		)
-		if rect.has_point(Vector2i(x, y)):
-			return i
-	return -1
+	if x < 0 or y < 0 or x >= grid_width or y >= grid_height:
+		return -1
+	_ensure_occupancy()
+	return _occupancy[_cell_index(x, y)]
 
 
 func sort_slots(mode: String) -> void:
@@ -362,9 +409,11 @@ func equip_from_index(index: int, slot_name: String = "") -> bool:
 		return false
 	var previous: Dictionary = equipped.get(target_slot, {})
 	slots.remove_at(index)
+	_mark_occupancy_dirty()
 	if not previous.is_empty():
 		if not _return_equipped_to_grid(target_slot):
 			slots.insert(index, slot)
+			_mark_occupancy_dirty()
 			return false
 	var instance := slot.duplicate()
 	instance.erase("x")
@@ -393,6 +442,7 @@ func unequip(slot_name: String) -> bool:
 	grid_slot["x"] = pos.x
 	grid_slot["y"] = pos.y
 	slots.append(_normalize_slot(grid_slot))
+	_occupy_slot_rect(slots.size() - 1)
 	equipped[slot_name] = {}
 	item_unequipped.emit(slot_name)
 	changed.emit()
@@ -410,6 +460,7 @@ func consume_at(index: int) -> Dictionary:
 	var qty: int = slot.get("quantity", 1) - 1
 	if qty <= 0:
 		slots.remove_at(index)
+		_mark_occupancy_dirty()
 	else:
 		slot["quantity"] = qty
 	changed.emit()
@@ -466,6 +517,7 @@ func remove_items_by_id(item_id: String, quantity: int = 1) -> int:
 		if qty <= quantity - removed:
 			removed += qty
 			slots.remove_at(i)
+			_mark_occupancy_dirty()
 		else:
 			slot["quantity"] = qty - (quantity - removed)
 			removed = quantity
@@ -528,6 +580,7 @@ func _return_equipped_to_grid(slot_name: String) -> bool:
 	grid_slot["x"] = pos.x
 	grid_slot["y"] = pos.y
 	slots.append(_normalize_slot(grid_slot))
+	_occupy_slot_rect(slots.size() - 1)
 	equipped[slot_name] = {}
 	return true
 
@@ -552,15 +605,18 @@ func _repack_slots() -> void:
 	for slot in slots:
 		packed.append(slot.duplicate())
 	slots.clear()
+	_mark_occupancy_dirty()
 	for slot in packed:
 		var item_id: String = slot.get("itemId", "")
 		var pos := _find_first_fit(item_id)
 		if pos.x < 0:
 			slots = original
+			_mark_occupancy_dirty()
 			return
 		slot["x"] = pos.x
 		slot["y"] = pos.y
 		slots.append(slot)
+		_occupy_slot_rect(slots.size() - 1)
 
 
 func _passes_filter(slot: Dictionary, type_filter: String, rarity_filter: String) -> bool:

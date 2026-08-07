@@ -30,6 +30,18 @@ func _ready() -> void:
 	add_child(_label)
 	body_entered.connect(_on_body_entered)
 	body_exited.connect(_on_body_exited)
+	set_process_unhandled_input(false)
+	_start_bob()
+
+
+func _start_bob() -> void:
+	if _visual == null:
+		return
+	var base_y := float(_visual.get_meta("bob_base_y", 0.0))
+	var tween := create_tween()
+	tween.set_loops()
+	tween.tween_property(_visual, "position:y", base_y + 0.08, 0.83).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	tween.tween_property(_visual, "position:y", base_y - 0.08, 0.83).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
 
 
 func configure(id: String, qty: int = 1) -> void:
@@ -39,14 +51,10 @@ func configure(id: String, qty: int = 1) -> void:
 	_label.text = def.get("name", item_id)
 
 
-func _process(_delta: float) -> void:
-	if _visual:
-		_visual.position.y = (
-			float(_visual.get_meta("bob_base_y", 0.0)) + sin(Time.get_ticks_msec() * 0.003) * 0.08
-		)
+func _unhandled_input(event: InputEvent) -> void:
 	if _player == null:
 		return
-	if Input.is_action_just_pressed("interact"):
+	if event.is_action_pressed("interact"):
 		_pickup()
 
 
@@ -54,12 +62,14 @@ func _on_body_entered(body: Node3D) -> void:
 	if body.is_in_group("player"):
 		_player = body
 		_label.visible = true
+		set_process_unhandled_input(true)
 
 
 func _on_body_exited(body: Node3D) -> void:
 	if body == _player:
 		_player = null
 		_label.visible = false
+		set_process_unhandled_input(false)
 
 
 func _pickup() -> void:

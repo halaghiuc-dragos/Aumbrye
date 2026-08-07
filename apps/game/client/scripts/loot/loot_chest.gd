@@ -22,6 +22,7 @@ func _ready() -> void:
 	_interact_area.body_entered.connect(_on_body_entered)
 	_interact_area.body_exited.connect(_on_body_exited)
 	_label.visible = false
+	set_process_unhandled_input(false)
 
 
 func configure(placement: Dictionary) -> void:
@@ -39,10 +40,10 @@ func apply_opened_state(was_opened: bool) -> void:
 	_label.visible = false
 
 
-func _process(_delta: float) -> void:
+func _unhandled_input(event: InputEvent) -> void:
 	if _opened or _player == null:
 		return
-	if Input.is_action_just_pressed("interact"):
+	if event.is_action_pressed("interact"):
 		_open()
 
 
@@ -52,12 +53,14 @@ func _on_body_entered(body: Node3D) -> void:
 		if not _opened:
 			_label.visible = true
 			_label.text = "Press E"
+			set_process_unhandled_input(true)
 
 
 func _on_body_exited(body: Node3D) -> void:
 	if body == _player:
 		_player = null
 		_label.visible = false
+		set_process_unhandled_input(false)
 
 
 func _open() -> void:

@@ -108,6 +108,7 @@ func _try_godot_steam() -> void:
 	overlay_available = steam.isOverlayEnabled()
 	cloud_enabled = steam.isCloudEnabledForApp()
 	_initialized = true
+	set_process(true)
 	steam_ready.emit()
 
 
@@ -117,6 +118,7 @@ func _init_stub(reason: String) -> void:
 	overlay_available = false
 	cloud_enabled = false
 	_initialized = true
+	set_process(false)
 	print_verbose("SteamService: %s" % reason)
 	steam_ready.emit()
 

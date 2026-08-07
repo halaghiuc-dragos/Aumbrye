@@ -61,6 +61,14 @@ func _ready() -> void:
 
 
 func _process(delta: float) -> void:
+	if (
+		_sweep_entries.is_empty()
+		and _free_nodes.is_empty()
+		and _time_scale_requests.is_empty()
+		and is_zero_approx(_shake_amount)
+	):
+		set_process(false)
+		return
 	_sweep_pools()
 	_update_time_scale()
 	_shake_amount = lerpf(_shake_amount, 0.0, delta * _shake_decay_rate)
@@ -307,6 +315,7 @@ func request_hitstop(duration_ms: int, strength: float = 0.05) -> void:
 ## deadline and keep the strongest (lowest) scale rather than resetting it — the same
 ## "never shorten an in-flight freeze" rule the old per-caller implementations each hand-rolled.
 func push_time_scale(id: StringName, scale: float, duration_ms: int = 0) -> void:
+	set_process(true)
 	var until_ms := 0
 	if duration_ms > 0:
 		until_ms = Time.get_ticks_msec() + duration_ms
@@ -355,6 +364,7 @@ func request_shake(amount: float, duration_ms: int) -> void:
 	var scale := PixelDioramaSettings.screen_shake_scale
 	if scale <= 0.0 or AccessibilitySettings.reduce_camera_shake:
 		return
+	set_process(true)
 	_shake_amount = maxf(_shake_amount, amount * scale)
 
 
@@ -698,6 +708,7 @@ func _make_decal_node(node_name: String) -> Decal:
 
 
 func _schedule_pool_return(particles: CPUParticles3D, delay: float) -> void:
+	set_process(true)
 	_mark_acquired(_burst_pool, _burst_acquire_gen, particles)
 	_sweep_entries.append(
 		{
@@ -709,6 +720,7 @@ func _schedule_pool_return(particles: CPUParticles3D, delay: float) -> void:
 
 
 func _schedule_gpu_return(particles: GPUParticles3D, delay: float) -> void:
+	set_process(true)
 	_mark_acquired(_gpu_burst_pool, _gpu_acquire_gen, particles)
 	_sweep_entries.append(
 		{
@@ -720,6 +732,7 @@ func _schedule_gpu_return(particles: GPUParticles3D, delay: float) -> void:
 
 
 func _schedule_decal_return(decal: Decal, delay: float) -> void:
+	set_process(true)
 	_mark_acquired(_decal_pool, _decal_acquire_gen, decal)
 	_sweep_entries.append(
 		{"node": decal, "expires_at": Time.get_ticks_msec() + int(delay * 1000.0), "kind": "decal"}
@@ -727,18 +740,21 @@ func _schedule_decal_return(decal: Decal, delay: float) -> void:
 
 
 func _schedule_free(node: Node, delay: float) -> void:
+	set_process(true)
 	_sweep_entries.append(
 		{"node": node, "expires_at": Time.get_ticks_msec() + int(delay * 1000.0), "kind": "free"}
 	)
 
 
 func _sweep_pools() -> void:
+	if _sweep_entries.is_empty():
+		return
 	var now := Time.get_ticks_msec()
-	var remaining: Array[Dictionary] = []
-	for entry in _sweep_entries:
+	for i in range(_sweep_entries.size() - 1, -1, -1):
+		var entry := _sweep_entries[i]
 		if now < int(entry.get("expires_at", 0)):
-			remaining.append(entry)
 			continue
+		_sweep_entries.remove_at(i)
 		var node: Variant = entry.get("node")
 		if not is_instance_valid(node):
 			continue
@@ -749,7 +765,6 @@ func _sweep_pools() -> void:
 				(node as Decal).visible = false
 			"free":
 				_free_nodes.append(node)
-	_sweep_entries = remaining
 
 
 func _particle_material(color: Color, emission_energy: float) -> ShaderMaterial:

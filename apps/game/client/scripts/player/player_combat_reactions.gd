@@ -1,16 +1,10 @@
 extends Node
+class_name PlayerCombatReactions
 
 const MaterialDissolveScript := preload("res://scripts/art/characters/material_dissolve.gd")
 const MaterialFlashScript := preload("res://scripts/art/characters/material_flash.gd")
 const DioramaViewmodelScript := preload("res://scripts/art/characters/diorama_viewmodel.gd")
 const DodgeScript := preload("res://scripts/player/dodge.gd")
-
-const LOCK_SOURCES := [
-	["Dodge", "locks_movement"],
-	["Guard", "locks_movement"],
-	["WeaponController", "locks_movement"],
-	["PlayerHeal", "locks_movement"],
-]
 
 const STAGGER_DURATION_MIN := 0.45
 const STAGGER_DURATION_MAX := 1.25
@@ -39,10 +33,12 @@ var stagger_duration := 0.0
 var _body: CharacterBody3D
 var _health: Health
 var _poise: Poise
-var _guard: Node
-var _dodge: Node
+var _guard: Guard
+var _dodge: Dodge
 var _stamina: Stamina
 var _status: StatusController
+var _weapon: WeaponController
+var _heal: PlayerHeal
 var _orbit_camera: Node
 var _stagger_timer := 0.0
 var _last_poise_damage := STAGGER_POISE_LOW
@@ -56,10 +52,12 @@ func _ready() -> void:
 	_body = get_parent() as CharacterBody3D
 	_health = _body.get_node_or_null("Health") as Health
 	_poise = _body.get_node_or_null("Poise") as Poise
-	_guard = _body.get_node_or_null("Guard")
-	_dodge = _body.get_node_or_null("Dodge")
+	_guard = _body.get_node_or_null("Guard") as Guard
+	_dodge = _body.get_node_or_null("Dodge") as Dodge
 	_stamina = _body.get_node_or_null("Stamina") as Stamina
 	_status = _body.get_node_or_null("StatusController") as StatusController
+	_weapon = _body.get_node_or_null("WeaponController") as WeaponController
+	_heal = _body.get_node_or_null("PlayerHeal") as PlayerHeal
 	_orbit_camera = _body.get_node_or_null("CameraPivot/SpringArm3D")
 	if _health:
 		_health.died.connect(_on_died)
@@ -94,10 +92,14 @@ func can_act() -> bool:
 func is_movement_locked() -> bool:
 	if is_dead or is_staggered:
 		return true
-	for entry in LOCK_SOURCES:
-		var node := _body.get_node_or_null(entry[0])
-		if node and node.has_method(entry[1]) and node.call(entry[1]):
-			return true
+	if _dodge and _dodge.locks_movement():
+		return true
+	if _guard and _guard.locks_movement():
+		return true
+	if _weapon and _weapon.locks_movement():
+		return true
+	if _heal and _heal.locks_movement():
+		return true
 	return false
 
 
@@ -107,10 +109,14 @@ func get_lock_sources() -> PackedStringArray:
 		sources.append("Death")
 	if is_staggered:
 		sources.append("Stagger")
-	for entry in LOCK_SOURCES:
-		var node := _body.get_node_or_null(entry[0])
-		if node and node.has_method(entry[1]) and node.call(entry[1]):
-			sources.append(entry[0])
+	if _dodge and _dodge.locks_movement():
+		sources.append("Dodge")
+	if _guard and _guard.locks_movement():
+		sources.append("Guard")
+	if _weapon and _weapon.locks_movement():
+		sources.append("WeaponController")
+	if _heal and _heal.locks_movement():
+		sources.append("PlayerHeal")
 	return sources
 
 
@@ -324,16 +330,16 @@ func _grant_wakeup_iframes() -> void:
 	if _wakeup_iframes_active:
 		return
 	_wakeup_iframes_active = true
-	if _dodge and _dodge.has_method("grant_external_iframes"):
-		_dodge.call("grant_external_iframes", true)
+	if _dodge:
+		_dodge.grant_external_iframes(true)
 
 
 func _clear_wakeup_iframes() -> void:
 	if not _wakeup_iframes_active:
 		return
 	_wakeup_iframes_active = false
-	if _dodge and _dodge.has_method("grant_external_iframes"):
-		_dodge.call("grant_external_iframes", false)
+	if _dodge:
+		_dodge.grant_external_iframes(false)
 
 
 func _try_stagger_rollout() -> void:
@@ -342,7 +348,7 @@ func _try_stagger_rollout() -> void:
 	if not PlayerInput.just_pressed(&"dodge"):
 		return
 	var cost := DodgeScript.DODGE_STAMINA_COST * STAGGER_ROLLOUT_COST
-	if _dodge and _dodge.has_method("try_rollout_dash") and _dodge.call("try_rollout_dash", cost):
+	if _dodge and _dodge.try_rollout_dash(cost):
 		_cancel_stagger()
 
 
@@ -350,7 +356,7 @@ func _sync_guard_broken_mirror() -> void:
 	if _guard == null:
 		is_guard_broken = false
 		return
-	is_guard_broken = bool(_guard.get("guard_broken_state"))
+	is_guard_broken = _guard.guard_broken_state
 
 
 func _stagger_clip_for(world_dir: Vector3) -> StringName:

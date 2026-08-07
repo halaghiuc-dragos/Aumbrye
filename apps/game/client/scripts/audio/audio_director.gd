@@ -92,6 +92,7 @@ var _sfx_streams: Dictionary = {}
 var _sfx_last_played_ms: Dictionary = {}
 var _sfx_active_counts: Dictionary = {}
 var _rng := RandomNumberGenerator.new()
+var _generator_active := true
 
 
 func _ready() -> void:
@@ -122,6 +123,17 @@ func _ready() -> void:
 		player3d.max_distance = 24.0
 		add_child(player3d)
 		_sfx_3d_pool.append(player3d)
+	_recompute_generator_active()
+
+
+func _recompute_generator_active() -> void:
+	_generator_active = (
+		_ambience.stream is AudioStreamGenerator
+		or _music.stream is AudioStreamGenerator
+		or _explore.stream is AudioStreamGenerator
+		or _combat_layer.stream is AudioStreamGenerator
+	)
+	set_process(_generator_active)
 
 
 func _process(_delta: float) -> void:
@@ -575,6 +587,7 @@ func _create_player(player_name: String, freq: float, bus: StringName) -> AudioS
 	generator.buffer_length = GENERATOR_BUFFER_SEC
 	player.stream = generator
 	player.set_meta(&"freq", freq)
+	_generator_active = true
 	return player
 
 
@@ -582,6 +595,7 @@ func _try_load_file_stream(player: AudioStreamPlayer, path: String) -> void:
 	var stream := _load_audio_stream(path)
 	if stream != null:
 		player.stream = stream
+		_recompute_generator_active()
 
 
 func _audio_path_candidates(path: String) -> Array[String]:
@@ -744,3 +758,5 @@ func _assign_generator_stream(player: AudioStreamPlayer) -> void:
 	generator.mix_rate = MIX_RATE
 	generator.buffer_length = GENERATOR_BUFFER_SEC
 	player.stream = generator
+	_generator_active = true
+	set_process(true)

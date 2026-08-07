@@ -239,7 +239,7 @@ makes the seed-sharing feature unachievable.
 > `--profiler` / the Godot debugger's *Monitors* + *Profiler* tabs in a 20-enemy arena, and record the
 > baseline into `user://perf_baseline.json` so QA-02 stops skipping.
 
-### PERF-01 — Hitboxes run a shape query *and* a raycast per candidate, every physics frame
+### PERF-01 — RESOLVED 2026-08-07: Hitboxes run a shape query *and* a raycast per candidate, every physics frame
 
 - **Problem** — `Hitbox` connects `area_entered` **and** runs `_scan_overlaps()` from `_physics_process` while
   active. Each scan allocates a fresh `PhysicsShapeQueryParameters3D`, a fresh `exclude` array and a fresh result
@@ -264,7 +264,7 @@ makes the seed-sharing feature unachievable.
   5. `_hit_times` currently only clears on `reset_swing()`; make `disable()` clear it too so long-lived hitboxes
      do not accumulate dead instance ids.
 
-### PERF-02 — Enemy AI raycasts 2–3× per physics frame per enemy, with no LOD
+### PERF-02 — RESOLVED 2026-08-07: Enemy AI raycasts 2–3× per physics frame per enemy, with no LOD
 
 - **Problem** — `CastleEnemyBase._physics_process` calls `_update_ai`, which calls `_has_aggro()`, which calls
   `_has_line_of_sight_to_player()` (a `PhysicsRayQueryParameters3D` allocation + `intersect_ray` + result
@@ -314,7 +314,7 @@ makes the seed-sharing feature unachievable.
      e.g. keep a 1500 ms wall-clock budget for the whole build but add a **per-frame** budget of 8 ms and assert
      no single frame exceeds it.
 
-### PERF-04 — Characters are dozens of separate `MeshInstance3D`s with per-instance materials
+### PERF-04 — RESOLVED 2026-08-07 (tier 1 — shared hair/equipment materials; body material intentionally left per-instance, see report): Characters are dozens of separate `MeshInstance3D`s with per-instance materials
 
 - **Problem** — `DioramaCharacterSkin` builds each body as a pivot hierarchy where every part (LegL, LegR, Torso,
   Head, ArmL, ArmR, Visor, Hood, BeltTrim, Pauldron, PauldronR, hair, face accents, class armour, equipment
@@ -339,7 +339,7 @@ makes the seed-sharing feature unachievable.
      rather than per-pivot transform writes. This also removes the need for the runtime hierarchy builder
      entirely (see REF-05).
 
-### PERF-05 — Enemy health bars CPU-billboard every frame and rebuild a GPU texture on every hit
+### PERF-05 — RESOLVED 2026-08-07: Enemy health bars CPU-billboard every frame and rebuild a GPU texture on every hit
 
 - **Problem** — Two independent wastes in the same file:
   1. `_build_sprites()` sets `billboard = BaseMaterial3D.BILLBOARD_ENABLED` on all four sprites — the GPU already
@@ -360,7 +360,7 @@ makes the seed-sharing feature unachievable.
   **once** as a solid 1×1 or 2×2 colour and drive the bar purely with `scale.x` + `position.x`. Additionally,
   gate the whole node on distance/visibility: connect a `VisibleOnScreenNotifier3D` and hide bars beyond ~25 m.
 
-### PERF-06 — `AudioDirector._process` runs every frame to do nothing once stems are loaded
+### PERF-06 — RESOLVED 2026-08-07: `AudioDirector._process` runs every frame to do nothing once stems are loaded
 
 > **Corrected 2026-08-06.** An earlier revision of this item claimed the director synthesises four sine
 > streams on the main thread every frame and ranked it P1. That was wrong. `_process()` only fills a layer
@@ -400,7 +400,7 @@ makes the seed-sharing feature unachievable.
   file under `assets/audio/` is reachable from some `content/audio_profiles/*.json` or `content/audio/sfx.json`
   entry, mirroring the character-asset check proposed in DEAD-02.
 
-### PERF-07 — Content catalogues re-walk and re-parse the entire content directory when a load fails
+### PERF-07 — RESOLVED 2026-08-07: Content catalogues re-walk and re-parse the entire content directory when a load fails
 
 - **Problem** — Every catalogue guards with `if not _definitions.is_empty(): return`. When loading genuinely
   fails — which is exactly the BUG-01 export case, but also any transient I/O failure — `_definitions` stays
@@ -443,7 +443,7 @@ makes the seed-sharing feature unachievable.
   the bool per frame. Prefer signals or a small typed interface (`class_name MovementModifier`) over
   `has_method` probing.
 
-### PERF-09 — `VfxService._process` allocates a fresh array every frame and never sleeps
+### PERF-09 — RESOLVED 2026-08-07: `VfxService._process` allocates a fresh array every frame and never sleeps
 
 - **Problem** — `_sweep_pools()` builds a brand-new `Array[Dictionary] remaining` every frame and reassigns
   `_sweep_entries`, even when the list is empty. `_process` also runs `_update_hitstop()`, a `lerpf` on
@@ -457,7 +457,7 @@ makes the seed-sharing feature unachievable.
   _hitstop_until_ms == 0 and is_zero_approx(_shake_amount)`. Better: call `set_process(false)` when the service
   goes idle and re-enable it from `play()` / `request_hitstop()` / `request_shake()`.
 
-### PERF-10 — `CombatHUD._process` runs six unthrottled update passes every frame
+### PERF-10 — RESOLVED 2026-08-07: `CombatHUD._process` runs six unthrottled update passes every frame
 
 - **Problem** — `_process` calls `_update_lock_reticle`, `_update_guard_indicators`, `_update_objective_marker`,
   `_update_attack_bar`, `_update_status_timers` and `_update_controls_hint_visibility` every frame. Only
@@ -470,7 +470,7 @@ makes the seed-sharing feature unachievable.
   move `_update_objective_marker` and `_update_controls_hint_visibility` to a 10 Hz accumulator. Guard indicators
   should be driven by `Guard` signals (`guard_started` / `guard_broken`) rather than polled.
 
-### PERF-11 — `SteamService._process` runs every frame even in stub mode
+### PERF-11 — RESOLVED 2026-08-07: `SteamService._process` runs every frame even in stub mode
 
 - **Problem** — `_process` checks `if not is_stub_mode and Engine.has_singleton("Steam")` every frame.
   `_init_stub()` sets `is_stub_mode = true` but never calls `set_process(false)`, so the callback is dispatched
@@ -483,7 +483,7 @@ makes the seed-sharing feature unachievable.
   real init. Then sweep every autoload in `project.godot` and assert each one either has no `_process`/
   `_physics_process` or explicitly disables it when idle. Worth a validation assertion.
 
-### PERF-12 — Camera updates in `_process` while bodies move in `_physics_process`, with interpolation off
+### PERF-12 — RESOLVED 2026-08-07: Camera updates in `_process` while bodies move in `_physics_process`, with interpolation off
 
 - **Problem** — `OrbitCamera` splits its work: `_physics_process` handles stick look, mode blend and spring-arm
   length; `_process` handles camera effects, shoulder offset, optics and the pixel snap. The player moves in
@@ -502,7 +502,7 @@ makes the seed-sharing feature unachievable.
   `pixel_camera_snap.gd` — snapping must happen *after* interpolation, on the render camera only (which
   `PixelDioramaViewport._mirrored_transform()` already does correctly).
 
-### PERF-13 — The low-res SubViewport runs `UPDATE_ALWAYS` with the root 3D disabled
+### PERF-13 — RESOLVED 2026-08-07: The low-res SubViewport runs `UPDATE_ALWAYS` with the root 3D disabled
 
 - **Problem** — `PixelDioramaViewport` sets `render_target_update_mode = SubViewport.UPDATE_ALWAYS` and
   `root.disable_3d = true`, mirroring the gameplay camera into a low-res SubViewport. The design is sound, but:
@@ -518,7 +518,7 @@ makes the seed-sharing feature unachievable.
   per-node deferred allocation). For (c), `PROCESS_MODE_ALWAYS` is needed so the mirror keeps up during a paused
   pause-menu render — keep it, but early-return when `_layer.visible == false`.
 
-### PERF-14 — Voxel meshing is advertised as greedy but emits two triangles per exposed face
+### PERF-14 — RESOLVED 2026-08-07: Voxel meshing is advertised as greedy but emits two triangles per exposed face
 
 - **Problem** — `voxel_mesh_builder.gd`'s docstring says "Builds greedy-merged voxel ArrayMeshes". There is **no
   greedy meshing** — `_build_from_voxels` iterates every solid cell and emits 2 unindexed triangles for each of
@@ -536,7 +536,7 @@ makes the seed-sharing feature unachievable.
   Also: `_snap_to_palette` runs an 8-way colour-distance search per mesh; hoist the palette into a
   precomputed array.
 
-### PERF-15 — Deep-copy + pretty-print + full re-read + full re-validate on every autosave
+### PERF-15 — RESOLVED 2026-08-07: Deep-copy + pretty-print + full re-read + full re-validate on every autosave
 
 - **Problem** — `_write_save()` performs, synchronously on the main thread: `data.duplicate(true)` (deep copy of
   the whole save state), `_normalize_save_integers`, `_build_item_instances`, `JSON.stringify(normalized, "\t")`
@@ -1415,7 +1415,7 @@ sources. See section 16 for what "covered" does and does not warrant.
 
 ### 🟠 P1 / 🟡 P2 — Optimisations
 
-### PERF-16 — `PlayerCombatReactions.is_movement_locked()` performs four node lookups per physics frame
+### PERF-16 — RESOLVED 2026-08-07: `PlayerCombatReactions.is_movement_locked()` performs four node lookups per physics frame
 
 - **Problem** — `is_movement_locked()` iterates the `LOCK_SOURCES` table and, for each of the four entries,
   runs `_body.get_node_or_null(name)`, `has_method(...)` and `call(...)`. `Locomotion._physics_process()` calls
@@ -1430,7 +1430,7 @@ sources. See section 16 for what "covered" does and does not warrant.
   data the debug overlay iterates, or delete it and have the overlay ask for a `PackedStringArray` the
   fast path fills. This is the same fix shape as `PERF-08`/`REF-03`, applied to the single hottest caller.
 
-### PERF-17 — `WeaponController._is_action_blocked()` re-resolves `Dodge` and `StatusController` every frame
+### PERF-17 — RESOLVED 2026-08-07: `WeaponController._is_action_blocked()` re-resolves `Dodge` and `StatusController` every frame
 
 - **Problem** — `_is_action_blocked()` is the first thing `WeaponController._physics_process()` does, and it
   calls `_body.get_node_or_null("Dodge")` and `_body.get_node_or_null("StatusController")` on every tick even
@@ -1446,7 +1446,7 @@ sources. See section 16 for what "covered" does and does not warrant.
   duck typing; see `REF-03`). `_start_attack()` also re-resolves `AnimDirector` on every swing for the same
   reason.
 
-### PERF-18 — `Locomotion` resolves `StatusController` and dispatches four weapon methods per physics frame
+### PERF-18 — RESOLVED 2026-08-07: `Locomotion` resolves `StatusController` and dispatches four weapon methods per physics frame
 
 - **Problem** — `Locomotion._physics_process()` contains
   `var status_ctrl := get_node_or_null("StatusController") as StatusController` inline, plus four
@@ -1461,7 +1461,7 @@ sources. See section 16 for what "covered" does and does not warrant.
   `has_method` guards disappear. Also note `get_attack_lunge_velocity()` is called twice per frame on two
   different code paths — hoist it to a single local.
 
-### PERF-19 — `GridInventory` placement is O(cells × slots) and `_repack_slots()` is O(n²) on every sort
+### PERF-19 — RESOLVED 2026-08-07: `GridInventory` placement is O(cells × slots) and `_repack_slots()` is O(n²) on every sort
 
 - **Problem** — `can_place()` scans every existing slot to test one candidate cell. `_find_first_fit()` calls
   it for every cell in the grid. `add_item()` calls `_find_first_fit()`-equivalent logic inside a nested
@@ -1478,7 +1478,7 @@ sources. See section 16 for what "covered" does and does not warrant.
   dead `if quantity <= 0: break` in `add_item`, which breaks only the inner loop and lets the outer loop spin
   through every remaining row.
 
-### PERF-20 — `GlobalDropService` re-reads and re-parses `global_drops.json` on every enemy death
+### PERF-20 — RESOLVED 2026-08-07: `GlobalDropService` re-reads and re-parses `global_drops.json` on every enemy death
 
 - **Problem** — `roll_enemy_drop()` opens with `var data: Dictionary = ContentLoader.load_json(DROPS_PATH)`.
   It is called from `CastleEnemyBase._try_roll_global_drop()` on every kill. In a wave or a dense room that is
@@ -1492,7 +1492,7 @@ sources. See section 16 for what "covered" does and does not warrant.
   item appears in the JSON the more likely it is to drop, regardless of its authored `chance`. If that is not
   intentional (it reads as accidental), convert to a single weighted draw.
 
-### PERF-21 — `WorldItemPickup` runs a full `_process` per dropped item to bob a mesh and poll a key
+### PERF-21 — RESOLVED 2026-08-07: `WorldItemPickup` runs a full `_process` per dropped item to bob a mesh and poll a key
 
 - **Problem** — Every dropped or spawned pickup runs `_process()` every frame: a `Time.get_ticks_msec()` call,
   a `sin()`, a `get_meta()` string lookup and a `Vector3` write for the bob, plus
@@ -1507,7 +1507,7 @@ sources. See section 16 for what "covered" does and does not warrant.
   `_on_body_entered` / `_on_body_exited`, so an idle pickup costs nothing. `xp_shard_pickup.gd` and
   `loot_chest.gd` should get the same treatment.
 
-### PERF-22 — `Hurtbox` walks the node tree six or more times per hit
+### PERF-22 — RESOLVED 2026-08-07: `Hurtbox` walks the node tree six or more times per hit
 
 - **Problem** — `receive_hit()` and its helpers call `_find_character_body()` from `_apply_arc_multipliers`,
   `_apply_defense`, `_get_resistances`, `_emit_victim_feedback`, `_is_hyperarmor_active` and the i-frame
@@ -1523,7 +1523,7 @@ sources. See section 16 for what "covered" does and does not warrant.
   `is_instance_valid()` fails (which covers re-parenting and pooled enemies). Then pass the resolved body into
   the helpers as a parameter instead of having each one re-derive it.
 
-### PERF-23 — `QuestService` scans every quest definition on every kill and every pickup
+### PERF-23 — RESOLVED 2026-08-07: `QuestService` scans every quest definition on every kill and every pickup
 
 - **Problem** — `register_kill()` and `register_fetch()` both loop `QuestCatalog.get_all_ids()`, and for each
   id call `CharacterService.get_quest_state()` and `QuestCatalog.get_definition()` — a dictionary lookup and a
@@ -1537,7 +1537,7 @@ sources. See section 16 for what "covered" does and does not warrant.
   rebuilt only in `accept_quest` / `complete_quest` / save load. `register_kill(enemy_id)` then touches only
   the kill quests, and a second level of indexing by `targetId` makes the common case O(1).
 
-### PERF-24 — `RoomGraphGenerator._creates_2x2_block()` runs a 16-cell scan per placement candidate
+### PERF-24 — RESOLVED 2026-08-07: `RoomGraphGenerator._creates_2x2_block()` runs a 16-cell scan per placement candidate
 
 - **Problem** — `_can_place_room()` is called for every direction of every walk step and every branch
   frontier expansion. For each call, `_creates_2x2_block()` performs a 2×2 sweep of 2×2 blocks — sixteen
@@ -1742,7 +1742,7 @@ sources. See section 16 for what "covered" does and does not warrant.
   `@onready var _dodge := $Dodge as Dodge` and call directly. Resolve the `process_dash_physics` /
   `process_dodge_physics` duplication to a single name in the same commit.
 
-### REF-04 — `_data.get(...)` Variant lookups in physics loops
+### REF-04 — RESOLVED 2026-08-07: `_data.get(...)` Variant lookups in physics loops
 
 - **Problem** — Enemy tuning is read from an untyped `Dictionary` inside the hot path:
   `velocity = to_target.normalized() * _data.get("move_speed", 3.0)` performs a hash lookup returning a `Variant`,
@@ -1801,7 +1801,7 @@ sources. See section 16 for what "covered" does and does not warrant.
   `const` aliases so callers keep compiling), then migrate call sites file-by-file. Fix the two `globalize_path`
   texture loads while the file is open.
 
-### REF-08 — `MenuStack` / `PlayerControls` / pause ownership is spread across five files
+### REF-08 — RESOLVED 2026-08-07: `MenuStack` / `PlayerControls` / pause ownership is spread across five files
 
 - **Problem** — `get_tree().paused` is written from `RunFlow` (2 sites), `CombatHUD` (2 sites), `PauseMenu`
   (2 sites) and `StairMenu` (2 sites, with its own `_was_paused` restore). `PlayerControls.is_gameplay_blocked()`
@@ -3890,3 +3890,22 @@ Then, in rough dependency order:
   confirmed pre-existing by reproducing them against the unmodified files before fixing them. A residual,
   separate pre-existing issue (~13 "procgen failed" sub-test failures in `dungeon_suite.gd`, confirmed
   unrelated to the loop-count fix) was found but not root-caused; it is out of scope for this pass.
+
+- **Phase 1 execution note (2026-08-07, partial).** The combat-performance cluster called out first in
+  section 15's Phase 1 ordering — `PERF-01`, `PERF-02`, `REF-04`, `PERF-16`, `PERF-17`, `PERF-18`, `PERF-22`
+  — has been implemented and reviewed against source (typed cached sibling references replacing
+  `has_method`/`call` duck typing in `locomotion.gd`, `weapon_controller.gd`, `player_combat_reactions.gd`;
+  a hoisted, reused `PhysicsShapeQueryParameters3D` and per-swing LOS memoisation with alternate-frame,
+  empty-skip polling in `hitbox.gd`; a per-physics-frame memoised line-of-sight/distance cache plus a
+  distance-and-visibility LOD tick-stride scheme (near = every tick, mid = every 4th, far/off-screen = every
+  16th, phase-staggered by instance id) and typed unpacked tuning fields (`_move_speed`, `_attack_range`,
+  `_aggro_range`, `_deaggro_range`, `_patrol_radius`, `_attack_cooldown_data`, `_retreat_threshold`,
+  `_stagger_duration_data`) replacing per-frame `_data.get(...)` Variant lookups in `castle_enemy_base.gd`;
+  and completion of `hurtbox.gd`'s owner-body caching for `_get_resistances()`, the one call site BUG-12's
+  fix had not yet routed through `_cached_character_body`). **Unlike every other item marked RESOLVED in
+  this document, this cluster has not yet been verified against a real headless Godot run or the
+  `validation_main.gd` suite** — verification was deferred at the user's explicit direction in this pass.
+  Treat these seven items as implemented-but-unverified until a headless validation pass confirms no
+  regressions (particularly `castle_enemy_base.gd`'s LOD stride, which changes enemy AI update cadence and
+  is the highest-risk change in the cluster) and the changes are committed. The remaining Phase 1 items
+  (`PERF-03` through `PERF-15`, `PERF-19`/`PERF-20`/`PERF-21`/`PERF-23`/`PERF-24`) are not yet started.

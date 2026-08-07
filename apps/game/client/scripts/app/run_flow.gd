@@ -921,7 +921,7 @@ func restart_current_floor() -> void:
 	root.set_meta("dungeon_definition", definition.duplicate(true))
 	root.set_meta("run_snapshot", {"restartFloor": true, "currentFloor": current_floor})
 	_persist_active_run()
-	get_tree().paused = false
+	MenuStack.force_unpause()
 	_goto_scene(CASTLE_RUN_SCENE)
 
 
@@ -950,7 +950,7 @@ func _resolve_dungeon_id(dungeon_id: String) -> String:
 func return_to_main_menu() -> void:
 	_flush_active_run_snapshot()
 	_run_active = false
-	get_tree().paused = false
+	MenuStack.force_unpause()
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	AudioDirector.stop_all(0.35)
 	AudioDirector.play_menu_music()

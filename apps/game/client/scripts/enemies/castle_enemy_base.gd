@@ -59,6 +59,27 @@ var _damage_multiplier := 1.0
 var _sync_hitbox_from_anim := false
 const DEAGGRO_LOS_TIMEOUT := 3.0
 
+var _move_speed := 3.5
+var _attack_range := 2.2
+var _aggro_range := 10.0
+var _deaggro_range := 16.0
+var _patrol_radius := 4.0
+var _attack_cooldown_data := 1.5
+var _retreat_threshold := 0.0
+var _stagger_duration_data := 1.0
+
+var _castle_run: Node
+var _los_cache_frame := -1
+var _los_cache_result := false
+var _dist_to_player_sq_cache_frame := -1
+var _dist_to_player_sq_cache := INF
+
+const AI_LOD_NEAR_RANGE_SQ := 400.0
+const AI_LOD_MID_RANGE_SQ := 1600.0
+const AI_LOD_MID_STRIDE := 4
+const AI_LOD_FAR_STRIDE := 16
+var _ai_tick_phase := 0
+
 
 func set_damage_multiplier(mult: float) -> void:
 	_damage_multiplier = maxf(0.1, mult)
@@ -127,10 +148,24 @@ func _ready() -> void:
 		if _hurtbox.has_signal("hit_resolved"):
 			_hurtbox.hit_resolved.connect(_on_hit_resolved)
 		_apply_hurtbox_data()
+	_unpack_tuning()
+	_castle_run = get_tree().get_first_node_in_group("castle_run")
+	_ai_tick_phase = int(get_instance_id() % AI_LOD_FAR_STRIDE)
 	_setup_diorama_visual()
 	if _health:
 		_attach_health_bar()
 	_pick_patrol_target()
+
+
+func _unpack_tuning() -> void:
+	_move_speed = maxf(0.01, float(_data.get("move_speed", 3.5)))
+	_attack_range = float(_data.get("attack_range", 2.2))
+	_aggro_range = float(_data.get("aggro_range", 10.0))
+	_deaggro_range = float(_data.get("deaggro_range", _aggro_range * 1.6))
+	_patrol_radius = float(_data.get("patrol_radius", 4.0))
+	_attack_cooldown_data = float(_data.get("attack_cooldown", 1.5))
+	_retreat_threshold = float(_data.get("retreat_threshold", 0.0))
+	_stagger_duration_data = float(_data.get("stagger_duration", 1.0))
 
 
 func set_player(player: Node3D) -> void:
@@ -146,6 +181,8 @@ func set_catalog_id(id: String) -> void:
 		_health.configure(_data.get("health", 80.0))
 	if _poise and not _data.is_empty():
 		_poise.configure(_data.get("poise", 40.0))
+	if not _data.is_empty():
+		_unpack_tuning()
 
 
 func get_enemy_id() -> String:
@@ -478,9 +515,12 @@ func _physics_process(delta: float) -> void:
 				_state = State.PATROL
 	var ai_enabled := not is_dead() and not staggered
 	if ai_enabled:
-		_update_ai(delta)
-		if _should_track_player():
-			_track_player_facing(delta)
+		var stride := _ai_lod_stride()
+		if _should_run_ai_tick(stride):
+			var ai_delta := delta * stride
+			_update_ai(ai_delta)
+			if _should_track_player():
+				_track_player_facing(ai_delta)
 	else:
 		velocity.x = 0.0
 		velocity.z = 0.0
@@ -500,7 +540,7 @@ func _update_diorama_animation(_delta: float) -> void:
 	var shield_up := _anim_profile == "shield" and _state == State.CHASE and speed < 0.2
 	_animator.set_blocking(shield_up)
 	if speed > 0.35:
-		var move_speed: float = maxf(float(_data.get("move_speed", 3.5)), 0.01)
+		var move_speed: float = _move_speed
 		var clip := &"run" if speed > move_speed * 0.85 and _animator.has_clip(&"run") else &"walk"
 		_animator.request_locomotion(clip, {"speed": speed})
 	else:
@@ -538,7 +578,7 @@ func _update_ai(delta: float) -> void:
 			_state_timer -= delta
 			if _state_timer <= 0.0:
 				_state = State.CHASE if _has_aggro() else State.PATROL
-				_cooldown = _data.get("attack_cooldown", 1.5)
+				_cooldown = _attack_cooldown_data
 
 
 func _process_patrol(delta: float) -> void:
@@ -555,7 +595,7 @@ func _process_patrol(delta: float) -> void:
 		_patrol_wait = _enemy_rng.randf_range(1.0, 2.5)
 		_pick_patrol_target()
 		return
-	velocity = to_target.normalized() * _data.get("move_speed", 3.0)
+	velocity = to_target.normalized() * _move_speed
 	_face_direction(to_target, delta)
 
 
@@ -583,7 +623,7 @@ func _process_investigate(delta: float) -> void:
 	var to_last := _last_known_player_pos - global_position
 	to_last.y = 0.0
 	if to_last.length() > 0.75:
-		velocity = to_last.normalized() * _data.get("move_speed", 3.0) * 0.75
+		velocity = to_last.normalized() * _move_speed * 0.75
 		_face_direction(to_last, delta)
 	else:
 		velocity = Vector3.ZERO
@@ -600,7 +640,7 @@ func _process_retreat(delta: float) -> void:
 	var away := global_position - _player.global_position
 	away.y = 0.0
 	if away.length_squared() > 0.01:
-		velocity = away.normalized() * _data.get("move_speed", 3.0)
+		velocity = away.normalized() * _move_speed
 		_face_direction(-away, delta)
 	if _state_timer <= 0.0:
 		_state = State.CHASE if _has_aggro() else State.PATROL
@@ -609,7 +649,7 @@ func _process_retreat(delta: float) -> void:
 func _should_retreat() -> bool:
 	if _health == null:
 		return false
-	var threshold: float = float(_data.get("retreat_threshold", 0.0))
+	var threshold: float = _retreat_threshold
 	if threshold <= 0.0:
 		return false
 	return _health.current / _health.max_health <= threshold
@@ -622,9 +662,9 @@ func _apply_chase_velocity(_delta: float, speed_mult: float = 1.0) -> void:
 	var to_player := _player.global_position - global_position
 	to_player.y = 0.0
 	var dist := to_player.length()
-	var stop_range: float = _data.get("attack_range", 2.2) * 0.85
+	var stop_range: float = _attack_range * 0.85
 	if dist > stop_range:
-		velocity = to_player.normalized() * _data.get("move_speed", 3.5) * speed_mult
+		velocity = to_player.normalized() * _move_speed * speed_mult
 	else:
 		velocity = Vector3.ZERO
 
@@ -632,10 +672,8 @@ func _apply_chase_velocity(_delta: float, speed_mult: float = 1.0) -> void:
 func _has_aggro() -> bool:
 	if _player == null:
 		return false
-	var aggro: float = _data.get("aggro_range", 10.0)
 	if _aggro_locked:
-		var deaggro: float = _data.get("deaggro_range", aggro * 1.6)
-		if global_position.distance_to(_player.global_position) > deaggro:
+		if _distance_to_player_sq() > _deaggro_range * _deaggro_range:
 			_drop_aggro()
 			return false
 		if _has_line_of_sight_to_player():
@@ -646,7 +684,7 @@ func _has_aggro() -> bool:
 				_drop_aggro()
 				return false
 		return true
-	if global_position.distance_to(_player.global_position) > aggro:
+	if _distance_to_player_sq() > _aggro_range * _aggro_range:
 		return false
 	if _has_line_of_sight_to_player():
 		_register_combat_engagement()
@@ -667,8 +705,7 @@ func _can_attack() -> bool:
 		return false
 	if _is_cross_boss_boundary_with_player():
 		return false
-	var attack_range: float = _data.get("attack_range", 2.2)
-	if global_position.distance_to(_player.global_position) > attack_range:
+	if _distance_to_player_sq() > _attack_range * _attack_range:
 		return false
 	return _has_line_of_sight_to_player()
 
@@ -676,8 +713,13 @@ func _can_attack() -> bool:
 func _has_line_of_sight_to_player() -> bool:
 	if _player == null:
 		return false
+	var frame := Engine.get_physics_frames()
+	if frame == _los_cache_frame:
+		return _los_cache_result
+	_los_cache_frame = frame
 	var space := get_world_3d().direct_space_state
 	if space == null:
+		_los_cache_result = true
 		return true
 	var from := global_position + Vector3(0, 1.2, 0)
 	var to := _player.global_position + Vector3(0, 1.0, 0)
@@ -688,16 +730,47 @@ func _has_line_of_sight_to_player() -> bool:
 	params.exclude = [get_rid()]
 	if _player is CollisionObject3D:
 		params.exclude.append((_player as CollisionObject3D).get_rid())
-	return space.intersect_ray(params).is_empty()
+	_los_cache_result = space.intersect_ray(params).is_empty()
+	return _los_cache_result
+
+
+func _distance_to_player_sq() -> float:
+	if _player == null:
+		return INF
+	var frame := Engine.get_physics_frames()
+	if frame == _dist_to_player_sq_cache_frame:
+		return _dist_to_player_sq_cache
+	_dist_to_player_sq_cache_frame = frame
+	_dist_to_player_sq_cache = global_position.distance_squared_to(_player.global_position)
+	return _dist_to_player_sq_cache
 
 
 func _is_cross_boss_boundary_with_player() -> bool:
 	if _player == null:
 		return false
-	var castle_run: Node = get_tree().get_first_node_in_group("castle_run")
-	if castle_run and castle_run.has_method("is_cross_boss_boundary"):
-		return castle_run.call("is_cross_boss_boundary", self, _player)
+	if _castle_run == null or not is_instance_valid(_castle_run):
+		_castle_run = get_tree().get_first_node_in_group("castle_run")
+	if _castle_run and _castle_run.has_method("is_cross_boss_boundary"):
+		return _castle_run.call("is_cross_boss_boundary", self, _player)
 	return false
+
+
+func _ai_lod_stride() -> int:
+	if is_visible_in_tree():
+		var dist_sq := _distance_to_player_sq()
+		if dist_sq <= AI_LOD_NEAR_RANGE_SQ:
+			return 1
+		if dist_sq <= AI_LOD_MID_RANGE_SQ:
+			return AI_LOD_MID_STRIDE
+		return AI_LOD_FAR_STRIDE
+	return AI_LOD_FAR_STRIDE
+
+
+func _should_run_ai_tick(stride: int) -> bool:
+	if stride <= 1:
+		return true
+	var frame := Engine.get_physics_frames()
+	return (frame + _ai_tick_phase) % stride == 0
 
 
 func _start_windup() -> void:
@@ -854,7 +927,7 @@ func _track_player_facing(delta: float) -> void:
 
 
 func _pick_patrol_target() -> void:
-	var radius: float = _data.get("patrol_radius", 4.0)
+	var radius: float = _patrol_radius
 	var offset := Vector3(
 		_enemy_rng.randf_range(-radius, radius), 0.0, _enemy_rng.randf_range(-radius, radius)
 	)
@@ -868,7 +941,7 @@ func _on_died() -> void:
 func _on_poise_broken() -> void:
 	if is_dead() or (_health and _health.is_dead()):
 		return
-	apply_stagger(_data.get("stagger_duration", 1.0))
+	apply_stagger(_stagger_duration_data)
 
 
 func _on_hit_resolved(res: DamageResolution) -> void:

@@ -60,6 +60,21 @@ func pop(modal: Control) -> void:
 	stack_changed.emit(depth())
 
 
+## Scene teardown (floor restart, return to main menu) can leave a modal mid-close if the old
+## scene is freed out from under it. RunFlow calls this instead of writing `get_tree().paused`
+## itself, keeping MenuStack the sole owner of pause state.
+func force_unpause() -> void:
+	_stack.clear()
+	_focus_records.clear()
+	if _active_confirm and is_instance_valid(_active_confirm):
+		_active_confirm.queue_free()
+	_active_confirm = null
+	_active_spec = null
+	_focus_before_confirm = null
+	get_tree().paused = false
+	stack_changed.emit(depth())
+
+
 func top() -> Control:
 	if _active_confirm != null:
 		return _active_confirm

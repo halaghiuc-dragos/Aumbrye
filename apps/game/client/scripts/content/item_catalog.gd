@@ -14,6 +14,7 @@ const CATALOG_PATH := "content/items/catalog.json"
 const STRICT_SETTING := "aumbrye/strict_item_catalog"
 
 static var _definitions: Dictionary = {}
+static var _load_attempted := false
 
 
 static func get_definition(item_id: String) -> Dictionary:
@@ -53,15 +54,19 @@ static func get_loot_value(item_id: String) -> int:
 
 static func clear_cache() -> void:
 	_definitions.clear()
+	_load_attempted = false
 
 
 static func _ensure_loaded() -> void:
-	if not _definitions.is_empty():
+	if _load_attempted:
 		return
+	_load_attempted = true
 	var loaded := ContentDirLoader.load_id_map(CATEGORY_DIRS, "id", "ItemCatalog", true, true)
 	if _is_strict():
 		loaded = _apply_strict_allowlist(loaded)
 	_definitions = loaded
+	if _definitions.is_empty():
+		push_error("ItemCatalog: no item definitions loaded from %s" % str(CATEGORY_DIRS))
 
 
 static func _is_strict() -> bool:

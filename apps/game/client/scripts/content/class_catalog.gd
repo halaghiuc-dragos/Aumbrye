@@ -6,6 +6,7 @@ class_name ClassCatalog
 const CLASSES_DIR := "content/classes"
 
 static var _definitions: Dictionary = {}
+static var _load_attempted := false
 
 
 static func get_definition(class_id: String) -> Dictionary:
@@ -56,9 +57,13 @@ static func get_perk(class_id: String) -> String:
 
 static func clear_cache() -> void:
 	_definitions.clear()
+	_load_attempted = false
 
 
 static func _ensure_loaded() -> void:
-	if not _definitions.is_empty():
+	if _load_attempted:
 		return
+	_load_attempted = true
 	_definitions = ContentDirLoader.load_id_map([CLASSES_DIR], "id", "ClassCatalog", false, true)
+	if _definitions.is_empty():
+		push_error("ClassCatalog: no class definitions loaded from %s" % CLASSES_DIR)

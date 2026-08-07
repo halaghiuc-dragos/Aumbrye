@@ -5,6 +5,12 @@ extends RefCounted
 
 var slots: Dictionary = {}  # Vector2i -> RoomGraphSlot
 var _index: Dictionary = {}  # slot_id -> Vector2i
+
+## Incrementally maintained: 2x2-anchor Vector2i -> count of that block's 4 cells which are
+## currently occupied by a non-filler, non-secret slot. A count of 4 means all four cells of
+## that anchor's block are "solid", which is exactly what `_creates_2x2_block` used to
+## re-derive with a 16-lookup scan per placement candidate.
+var _block_counts: Dictionary = {}
 var start_id: String = ""
 var boss_id: String = ""
 var secret_ids: Array[String] = []
@@ -18,13 +24,36 @@ var config: RoomGraphConfig
 func add_slot(cell: Vector2i, slot: RoomGraphSlot) -> void:
 	slots[cell] = slot
 	_index[slot.slot_id] = cell
+	if _is_block_eligible(slot):
+		_adjust_block_counts(cell, 1)
 
 
 func remove_slot(cell: Vector2i) -> void:
 	var slot: RoomGraphSlot = slots.get(cell) as RoomGraphSlot
 	if slot != null:
 		_index.erase(slot.slot_id)
+		if _is_block_eligible(slot):
+			_adjust_block_counts(cell, -1)
 	slots.erase(cell)
+
+
+func block_count_at(anchor: Vector2i) -> int:
+	return int(_block_counts.get(anchor, 0))
+
+
+func _is_block_eligible(slot: RoomGraphSlot) -> bool:
+	return not slot.is_filler and slot.slot_type != RoomGraphSlot.SlotType.SECRET
+
+
+func _adjust_block_counts(cell: Vector2i, delta: int) -> void:
+	for ox in 2:
+		for oy in 2:
+			var anchor := cell + Vector2i(-ox, -oy)
+			var count := int(_block_counts.get(anchor, 0)) + delta
+			if count <= 0:
+				_block_counts.erase(anchor)
+			else:
+				_block_counts[anchor] = count
 
 
 func get_slot(slot_id: String) -> RoomGraphSlot:

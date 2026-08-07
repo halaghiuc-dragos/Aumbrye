@@ -18,6 +18,15 @@ extends Node
 
 const ContentSchemaValidator := preload("res://scripts/app/content_schema_validator.gd")
 
+## Parsed-and-validated JSON keyed by relative path. `load_json` is called from many catalogue
+## `_ensure_loaded()` paths and from ad-hoc one-off readers alike; caching here means the schema
+## validator and the directory walk in `ContentDirLoader` only ever pay for a given file once per
+## session, including the failure case (a missing/malformed file is cached as `{}` rather than
+## re-opened and re-parsed on every subsequent call). Callers always get their own duplicate so
+## in-place mutation (e.g. `ContentDirLoader` stamping `content_path` onto the result) can never
+## corrupt the cached copy.
+static var _json_cache: Dictionary = {}
+
 
 static func content_root() -> String:
 	var configured := str(ProjectSettings.get_setting("aumbrye/content_root", ""))
@@ -33,6 +42,8 @@ static func content_path(relative: String) -> String:
 
 
 static func load_json(relative: String) -> Dictionary:
+	if _json_cache.has(relative):
+		return (_json_cache[relative] as Dictionary).duplicate(true)
 	var path := content_path(relative)
 	var file := FileAccess.open(path, FileAccess.READ)
 	if not file:
@@ -43,15 +54,18 @@ static func load_json(relative: String) -> Dictionary:
 			push_error(msg)
 		else:
 			push_warning(msg)
+		_json_cache[relative] = {}
 		return {}
 	var parsed = JSON.parse_string(file.get_as_text())
 	var result: Dictionary = parsed if parsed is Dictionary else {}
 	if OS.is_debug_build() and not result.is_empty():
 		ContentSchemaValidator.validate_loaded(relative, result)
-	return result
+	_json_cache[relative] = result
+	return result.duplicate(true)
 
 
 static func clear_all_caches() -> void:
+	_json_cache.clear()
 	ItemCatalog.clear_cache()
 	EnemyCatalog.clear_cache()
 	ClassCatalog.clear_cache()

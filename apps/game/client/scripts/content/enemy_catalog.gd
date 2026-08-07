@@ -5,6 +5,7 @@ class_name EnemyCatalog
 
 static var _definitions: Dictionary = {}
 static var _scenes: Dictionary = {}
+static var _load_attempted := false
 
 ## Legacy boss IDs removed from content; map to canonical definitions.
 const LEGACY_ALIASES: Dictionary = {
@@ -55,9 +56,11 @@ static func has_enemy(enemy_id: String) -> bool:
 static func clear_cache() -> void:
 	_definitions.clear()
 	_scenes.clear()
+	_load_attempted = false
 
 
 static func _ensure_loaded() -> void:
-	if not _definitions.is_empty():
+	if _load_attempted:
 		return
+	_load_attempted = true
 	_definitions = ContentDirLoader.load_id_map(ENEMY_DIRS, "id", "EnemyCatalog", true, true)

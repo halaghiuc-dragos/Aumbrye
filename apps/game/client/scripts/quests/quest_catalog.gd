@@ -6,6 +6,7 @@ class_name QuestCatalog
 const QUEST_DIR := "content/quests"
 
 static var _definitions: Dictionary = {}
+static var _load_attempted := false
 
 
 static func get_definition(quest_id: String) -> Dictionary:
@@ -23,9 +24,11 @@ static func get_all_ids() -> Array[String]:
 
 static func clear_cache() -> void:
 	_definitions.clear()
+	_load_attempted = false
 
 
 static func _ensure_loaded() -> void:
-	if not _definitions.is_empty():
+	if _load_attempted:
 		return
+	_load_attempted = true
 	_definitions = ContentDirLoader.load_id_map([QUEST_DIR], "id", "QuestCatalog", false, true)

@@ -10,11 +10,39 @@ const STATE_COMPLETED := "completed"
 
 const RunLifecycleScript := preload("res://scripts/app/run_lifecycle.gd")
 
+## Active quest ids indexed by trigger type ("kill", "fetch", "escape"), rebuilt only when
+## quest state actually changes (accept/complete/save load) rather than scanned per trigger.
+var _active_by_type: Dictionary = {}
+var _index_built := false
+
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	RunFlow.run_started.connect(_on_run_started)
 	RunFlow.run_ended.connect(_on_run_ended)
+	if CharacterService and not CharacterService.quests_changed.is_connected(_rebuild_active_index):
+		CharacterService.quests_changed.connect(_rebuild_active_index)
+
+
+func _rebuild_active_index() -> void:
+	_active_by_type.clear()
+	for quest_id in QuestCatalog.get_all_ids():
+		if CharacterService.get_quest_state(quest_id) != STATE_ACTIVE:
+			continue
+		var def := QuestCatalog.get_definition(quest_id)
+		var quest_type := str(def.get("type", ""))
+		if quest_type == "":
+			continue
+		if not _active_by_type.has(quest_type):
+			_active_by_type[quest_type] = []
+		(_active_by_type[quest_type] as Array).append(quest_id)
+	_index_built = true
+
+
+func _active_quest_ids(quest_type: String) -> Array:
+	if not _index_built:
+		_rebuild_active_index()
+	return _active_by_type.get(quest_type, [])
 
 
 func accept_quest(quest_id: String) -> bool:
@@ -26,6 +54,7 @@ func accept_quest(quest_id: String) -> bool:
 		return false
 	CharacterService.set_quest_state(quest_id, STATE_ACTIVE)
 	CharacterService.set_quest_progress(quest_id, {"count": 0})
+	_rebuild_active_index()
 	quest_updated.emit(quest_id, STATE_ACTIVE)
 	return true
 
@@ -38,6 +67,7 @@ func complete_quest(quest_id: String) -> bool:
 		return false
 	_grant_rewards(def)
 	CharacterService.set_quest_state(quest_id, STATE_COMPLETED)
+	_rebuild_active_index()
 	quest_updated.emit(quest_id, STATE_COMPLETED)
 	if AchievementService:
 		AchievementService.notify("quest_completed")
@@ -71,12 +101,8 @@ func get_completed_quests() -> Array[Dictionary]:
 
 
 func register_kill(enemy_id: String = "") -> void:
-	for quest_id in QuestCatalog.get_all_ids():
-		if CharacterService.get_quest_state(quest_id) != STATE_ACTIVE:
-			continue
+	for quest_id in _active_quest_ids("kill").duplicate():
 		var def := QuestCatalog.get_definition(quest_id)
-		if def.get("type", "") != "kill":
-			continue
 		var target: String = str(def.get("targetId", ""))
 		if target != "" and enemy_id != "" and target != enemy_id:
 			continue
@@ -90,12 +116,8 @@ func register_kill(enemy_id: String = "") -> void:
 
 
 func register_fetch(item_id: String) -> void:
-	for quest_id in QuestCatalog.get_all_ids():
-		if CharacterService.get_quest_state(quest_id) != STATE_ACTIVE:
-			continue
+	for quest_id in _active_quest_ids("fetch").duplicate():
 		var def := QuestCatalog.get_definition(quest_id)
-		if def.get("type", "") != "fetch":
-			continue
 		if str(def.get("targetItemId", "")) != item_id:
 			continue
 		complete_quest(quest_id)
@@ -106,32 +128,20 @@ func register_run_outcome(outcome: String, _context: Dictionary = {}) -> void:
 
 
 func _on_run_started() -> void:
-	for quest_id in QuestCatalog.get_all_ids():
-		if CharacterService.get_quest_state(quest_id) != STATE_ACTIVE:
-			continue
-		var def := QuestCatalog.get_definition(quest_id)
-		if def.get("type", "") == "escape":
-			CharacterService.set_quest_progress(quest_id, {"escaped": false})
+	for quest_id in _active_quest_ids("escape"):
+		CharacterService.set_quest_progress(quest_id, {"escaped": false})
 
 
 func _on_run_ended(_results: Dictionary) -> void:
-	for quest_id in QuestCatalog.get_all_ids():
-		if CharacterService.get_quest_state(quest_id) != STATE_ACTIVE:
-			continue
-		var def := QuestCatalog.get_definition(quest_id)
-		if def.get("type", "") == "escape":
-			CharacterService.set_quest_progress(quest_id, {"escaped": false})
+	for quest_id in _active_quest_ids("escape"):
+		CharacterService.set_quest_progress(quest_id, {"escaped": false})
 
 
 func _check_escape_quests(escaped: bool) -> void:
 	if not escaped:
 		return
-	for quest_id in QuestCatalog.get_all_ids():
-		if CharacterService.get_quest_state(quest_id) != STATE_ACTIVE:
-			continue
-		var def := QuestCatalog.get_definition(quest_id)
-		if def.get("type", "") == "escape":
-			complete_quest(quest_id)
+	for quest_id in _active_quest_ids("escape").duplicate():
+		complete_quest(quest_id)
 
 
 func _grant_rewards(def: Dictionary) -> void:

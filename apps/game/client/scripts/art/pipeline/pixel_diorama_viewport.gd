@@ -52,6 +52,8 @@ var _root_3d_was_disabled: Variant = null
 var _bind_warned := false
 var _last_source_xform: Transform3D
 var _last_source_fov := -1.0
+var _pipeline_active := false
+var _menu_hidden := false
 
 
 func _ready() -> void:
@@ -59,8 +61,20 @@ func _ready() -> void:
 	_build_nodes()
 	get_tree().root.size_changed.connect(_on_root_size_changed)
 	get_tree().root.child_entered_tree.connect(_on_root_child_entered)
+	if MenuStack and not MenuStack.stack_changed.is_connected(_on_menu_stack_changed):
+		MenuStack.stack_changed.connect(_on_menu_stack_changed)
 	if OS.get_environment("AUMBRYE_GFX_DUMP") != "":
 		get_tree().create_timer(3.0).timeout.connect(_dbg_dump)
+
+
+func _on_menu_stack_changed(depth: int) -> void:
+	_menu_hidden = depth > 0
+	_update_layer_visibility()
+
+
+func _update_layer_visibility() -> void:
+	if _layer:
+		_layer.visible = _pipeline_active and not _menu_hidden
 
 
 func dump_render_state() -> Dictionary:
@@ -127,7 +141,7 @@ func _build_nodes() -> void:
 	_viewport.transparent_bg = false
 	_viewport.handle_input_locally = false
 	_viewport.gui_disable_input = true
-	_viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS
+	_viewport.render_target_update_mode = SubViewport.UPDATE_WHEN_VISIBLE
 	_container.add_child(_viewport)
 	_render_camera = Camera3D.new()
 	_render_camera.name = "PixelRenderCamera"
@@ -137,6 +151,8 @@ func _build_nodes() -> void:
 
 
 func _process(_delta: float) -> void:
+	if not _layer.visible:
+		return
 	if not PixelDioramaSettings.low_res_viewport_enabled:
 		return
 	if _source_camera == null or not is_instance_valid(_source_camera):
@@ -341,7 +357,8 @@ func _enable_pipeline() -> void:
 	if _root_3d_was_disabled == null:
 		_root_3d_was_disabled = root.disable_3d
 	root.disable_3d = true
-	_layer.visible = true
+	_pipeline_active = true
+	_update_layer_visibility()
 	if _source_camera and is_instance_valid(_source_camera):
 		_source_camera.current = false
 	_render_camera.current = true
@@ -359,7 +376,8 @@ func _disable_pipeline() -> void:
 		_render_camera.current = false
 	if _source_camera and is_instance_valid(_source_camera):
 		_source_camera.current = true
-	_layer.visible = false
+	_pipeline_active = false
+	_update_layer_visibility()
 
 
 func _bind_source_camera(scene_root: Node) -> void:
@@ -405,6 +423,8 @@ func _on_root_child_entered(node: Node) -> void:
 	if not PixelDioramaSettings.low_res_viewport_enabled:
 		return
 	if node is Window:
+		return
+	if node != get_tree().current_scene:
 		return
 	call_deferred("_try_auto_attach", node)
 

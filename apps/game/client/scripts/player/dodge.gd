@@ -1,4 +1,5 @@
 extends Node
+class_name Dodge
 
 ## Dash (Space / gamepad B) and jump (F / gamepad A). Bindings locked per DEC-G07–DEC-G10.
 

@@ -6,12 +6,23 @@ class_name GlobalDropService
 const DROPS_PATH := "content/loot/global_drops.json"
 const EndlessDifficultyScript := preload("res://scripts/dungeon/endless_difficulty.gd")
 
+static var _entries: Array = []
+static var _loaded := false
+
+
+static func _ensure_loaded() -> void:
+	if _loaded:
+		return
+	var data: Dictionary = ContentLoader.load_json(DROPS_PATH)
+	_entries = data.get("skipItems", [])
+	_loaded = true
+
 
 static func roll_enemy_drop(
 	enemy_seed: int, floor_index: int = 1, difficulty_tier: int = 1, dungeon_id: String = ""
 ) -> String:
-	var data: Dictionary = ContentLoader.load_json(DROPS_PATH)
-	var entries: Array = data.get("skipItems", [])
+	_ensure_loaded()
+	var entries: Array = _entries
 	if entries.is_empty():
 		return ""
 	var bonus := 0.0

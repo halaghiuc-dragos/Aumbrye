@@ -249,23 +249,7 @@ static func _creates_2x2_block(graph: RoomGraph, cell: Vector2i) -> bool:
 	for ox in 2:
 		for oy in 2:
 			var anchor := cell + Vector2i(-ox, -oy)
-			var block := true
-			for bx in 2:
-				for by in 2:
-					var check_cell := anchor + Vector2i(bx, by)
-					if not graph.slots.has(check_cell):
-						block = false
-						break
-					var check_slot: RoomGraphSlot = graph.get_slot_at(check_cell)
-					if (
-						check_slot.is_filler
-						or check_slot.slot_type == RoomGraphSlotScript.SlotType.SECRET
-					):
-						block = false
-						break
-				if not block:
-					break
-			if block:
+			if graph.block_count_at(anchor) == 4:
 				return true
 	return false
 

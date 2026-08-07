@@ -346,6 +346,11 @@ locale/translations=PackedStringArray("res://translations/strings.en.translation
 3d_physics/layer_7="projectile"
 3d_physics/layer_8="camera_blocker"
 
+[physics]
+
+common/physics_interpolation=true
+common/physics_ticks_per_second=60
+
 [rendering]
 
 textures/canvas_textures/default_texture_filter=0

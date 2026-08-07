@@ -1,4 +1,5 @@
 extends Node
+class_name WeaponController
 
 enum AttackPhase { IDLE, STARTUP, ACTIVE, RECOVERY, DRAWING }
 
@@ -59,8 +60,10 @@ var _body: CharacterBody3D
 var _stamina: Stamina
 var _hitbox: Area3D
 var _hitbox_shape: CollisionShape3D
-var _combat_reactions: Node
-var _guard: Node
+var _combat_reactions: PlayerCombatReactions
+var _guard: Guard
+var _dodge: Dodge
+var _status: StatusController
 var _lock_on: LockOn
 var _weapon_data: Dictionary = {}
 var _combo_index := 0
@@ -90,14 +93,14 @@ var _sync_hitbox_from_anim := false
 func _ready() -> void:
 	_body = get_parent() as CharacterBody3D
 	_stamina = _body.get_node_or_null("Stamina") as Stamina
-	_combat_reactions = _body.get_node_or_null("CombatReactions")
-	_guard = _body.get_node_or_null("Guard")
+	_combat_reactions = _body.get_node_or_null("CombatReactions") as PlayerCombatReactions
+	_guard = _body.get_node_or_null("Guard") as Guard
+	_dodge = _body.get_node_or_null("Dodge") as Dodge
+	_status = _body.get_node_or_null("StatusController") as StatusController
 	_lock_on = _body.get_node_or_null("LockOn") as LockOn
-	var dodge := _body.get_node_or_null("Dodge")
-	if dodge and dodge.has_signal("dodge_started"):
-		dodge.dodge_started.connect(_on_dodge_started)
-	if dodge and dodge.has_signal("dodge_ended"):
-		dodge.dodge_ended.connect(_on_dodge_ended)
+	if _dodge:
+		_dodge.dodge_started.connect(_on_dodge_started)
+		_dodge.dodge_ended.connect(_on_dodge_ended)
 	_connect_anim_hitbox_signals()
 	if hitbox_path:
 		_hitbox = get_node_or_null(hitbox_path) as Area3D
@@ -715,15 +718,12 @@ func _apply_hitbox_profile(for_bow_shot: bool = false) -> void:
 
 
 func _is_action_blocked() -> bool:
-	var dodge := _body.get_node_or_null("Dodge")
-	if dodge and dodge.get("is_dodging"):
+	if _dodge and _dodge.is_dodging:
 		return true
-	if _guard and _guard.get("is_guard_active"):
+	if _guard and _guard.is_guard_active:
 		return true
-	if _combat_reactions and _combat_reactions.has_method("can_act"):
-		if not _combat_reactions.call("can_act") and not _hyperarmor_active:
-			return true
-	var status_ctrl := _body.get_node_or_null("StatusController") as StatusController
-	if status_ctrl and status_ctrl.is_stunned():
+	if _combat_reactions and not _combat_reactions.can_act() and not _hyperarmor_active:
+		return true
+	if _status and _status.is_stunned():
 		return true
 	return false

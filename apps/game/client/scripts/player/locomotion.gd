@@ -33,11 +33,12 @@ const FloorSnap := preload("res://scripts/art/characters/character_floor_snap.gd
 var _camera_yaw: Node3D
 var _facing: Node3D
 var _stamina: Stamina
-var _dodge: Node
-var _combat_reactions: Node
+var _dodge: Dodge
+var _combat_reactions: PlayerCombatReactions
 var _lock_on: LockOn
 var _speed_multiplier := 1.0
-var _weapon: Node
+var _weapon: WeaponController
+var _status: StatusController
 var _anim_director: PlayerAnimDirector
 var _footstep_timer := 0.0
 var _was_on_floor := true
@@ -63,10 +64,11 @@ func _ready() -> void:
 	if CharacterService and not CharacterService.appearance_changed.is_connected(_on_appearance_changed):
 		CharacterService.appearance_changed.connect(_on_appearance_changed)
 	_stamina = get_node_or_null("Stamina") as Stamina
-	_dodge = get_node_or_null("Dodge")
-	_combat_reactions = get_node_or_null("CombatReactions")
+	_dodge = get_node_or_null("Dodge") as Dodge
+	_combat_reactions = get_node_or_null("CombatReactions") as PlayerCombatReactions
 	_lock_on = get_node_or_null("LockOn") as LockOn
-	_weapon = get_node_or_null("WeaponController")
+	_weapon = get_node_or_null("WeaponController") as WeaponController
+	_status = get_node_or_null("StatusController") as StatusController
 	if camera_yaw_path:
 		_camera_yaw = get_node(camera_yaw_path) as Node3D
 	if facing_path:
@@ -120,19 +122,18 @@ func _physics_process(delta: float) -> void:
 	if _landing_penalty_timer > 0.0:
 		_landing_penalty_timer = maxf(0.0, _landing_penalty_timer - delta)
 
-	if _combat_reactions and _combat_reactions.has_method("is_movement_locked"):
-		if _combat_reactions.call("is_movement_locked"):
-			var lunge := Vector3.ZERO
-			if _weapon and _weapon.has_method("get_attack_lunge_velocity"):
-				lunge = _weapon.call("get_attack_lunge_velocity")
-			if not is_on_floor():
-				velocity += get_gravity() * delta
-			velocity.x = lunge.x
-			velocity.z = lunge.z
-			move_and_slide()
-			_update_floor_state()
-			_update_character_animation(delta, 0.0)
-			return
+	if _combat_reactions and _combat_reactions.is_movement_locked():
+		var lunge := Vector3.ZERO
+		if _weapon:
+			lunge = _weapon.get_attack_lunge_velocity()
+		if not is_on_floor():
+			velocity += get_gravity() * delta
+		velocity.x = lunge.x
+		velocity.z = lunge.z
+		move_and_slide()
+		_update_floor_state()
+		_update_character_animation(delta, 0.0)
+		return
 
 	if _landing_lock_timer > 0.0:
 		if not is_on_floor():
@@ -147,15 +148,9 @@ func _physics_process(delta: float) -> void:
 		_update_character_animation(delta, 0.0)
 		return
 
-	if _dodge and _dodge.has_method("process_dash_physics"):
-		_dodge.call("process_dash_physics", delta)
-		if _dodge.get("is_dodging"):
-			_update_floor_state()
-			_update_character_animation(delta, 0.0)
-			return
-	elif _dodge and _dodge.has_method("process_dodge_physics"):
-		_dodge.call("process_dodge_physics", delta)
-		if _dodge.get("is_dodging"):
+	if _dodge:
+		_dodge.process_dash_physics(delta)
+		if _dodge.is_dodging:
 			_update_floor_state()
 			_update_character_animation(delta, 0.0)
 			return
@@ -179,12 +174,11 @@ func _physics_process(delta: float) -> void:
 
 	var attack_speed_mult := 1.0
 	var rotation_cap_mult := 1.0
-	if _weapon and _weapon.has_method("get_move_speed_multiplier"):
-		attack_speed_mult = _weapon.call("get_move_speed_multiplier")
-	if _weapon and _weapon.has_method("get_rotation_cap_multiplier"):
-		rotation_cap_mult = _weapon.call("get_rotation_cap_multiplier")
+	if _weapon:
+		attack_speed_mult = _weapon.get_move_speed_multiplier()
+		rotation_cap_mult = _weapon.get_rotation_cap_multiplier()
 	var stamina_mult := 1.0
-	if _stamina and _stamina.has_method("get_speed_multiplier"):
+	if _stamina:
 		stamina_mult = _stamina.get_speed_multiplier()
 
 	var sprint_ramp_target := 1.0 if sprint_requested else 0.0
@@ -200,10 +194,9 @@ func _physics_process(delta: float) -> void:
 		else _direction_speed_scale(direction)
 	)
 	var target_speed := base_speed * _speed_multiplier * attack_speed_mult * stamina_mult * direction_scale
-	var status_ctrl := get_node_or_null("StatusController") as StatusController
 	var status_mult := 1.0
-	if status_ctrl:
-		status_mult = status_ctrl.get_slow_multiplier()
+	if _status:
+		status_mult = _status.get_slow_multiplier()
 		target_speed *= status_mult
 
 	if sprint_requested and _stamina:
@@ -235,13 +228,13 @@ func _physics_process(delta: float) -> void:
 	if not is_on_floor() and horizontal.length_squared() > 0.01:
 		horizontal = _clamp_airborne_turn(horizontal)
 
-	if _weapon and _weapon.has_method("get_attack_lunge_velocity"):
-		var lunge: Vector3 = _weapon.call("get_attack_lunge_velocity")
+	if _weapon:
+		var lunge := _weapon.get_attack_lunge_velocity()
 		if lunge.length_squared() > 0.01:
 			horizontal += lunge
 
 	if locked_on:
-		var dodging := _dodge != null and bool(_dodge.get("is_dodging"))
+		var dodging := _dodge != null and _dodge.is_dodging
 		horizontal = LockOnMovement.apply_orbit_radius_correction(
 			self, _lock_on, input_dir, horizontal, delta, dodging
 		)
@@ -249,7 +242,7 @@ func _physics_process(delta: float) -> void:
 	velocity.x = horizontal.x
 	velocity.z = horizontal.z
 
-	var attacking: bool = _weapon != null and bool(_weapon.get("is_attacking"))
+	var attacking: bool = _weapon != null and _weapon.is_attacking
 	if locked_on:
 		var target := LockOnMovement.get_target(_lock_on)
 		LockOnMovement.update_facing_toward_target(_facing, target, delta)

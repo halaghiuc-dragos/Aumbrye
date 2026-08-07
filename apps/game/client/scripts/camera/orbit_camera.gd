@@ -56,6 +56,14 @@ var _death_framing := false
 var _fov_kick := 0.0
 var _snap_base_transform := Transform3D.IDENTITY
 
+## Mouse-look deltas arrive from `_unhandled_input` at render-event cadence, but the SpringArm3D's
+## own transform must only ever be written from `_physics_process` — with 3D physics interpolation
+## enabled, Godot interpolates a physics-driven node's rendered transform between ticks, and a
+## write from any other callback would fight that interpolation and reintroduce camera judder.
+## Buffer here, consume (and clear) in `_physics_process`.
+var _pending_mouse_yaw := 0.0
+var _pending_mouse_pitch := 0.0
+
 
 func _ready() -> void:
 	_target_zoom = spring_length
@@ -99,10 +107,15 @@ func _unhandled_input(event: InputEvent) -> void:
 			_apply_lock_pitch_look(-event.relative.y * _mouse_sensitivity())
 			get_viewport().set_input_as_handled()
 			return
-		_apply_look(-event.relative.x * _mouse_sensitivity(), -event.relative.y * _mouse_sensitivity())
+		_pending_mouse_yaw += -event.relative.x * _mouse_sensitivity()
+		_pending_mouse_pitch += -event.relative.y * _mouse_sensitivity()
 
 
 func _physics_process(delta: float) -> void:
+	if _pending_mouse_yaw != 0.0 or _pending_mouse_pitch != 0.0:
+		_apply_look(_pending_mouse_yaw, _pending_mouse_pitch)
+		_pending_mouse_yaw = 0.0
+		_pending_mouse_pitch = 0.0
 	if not _lock_on_active:
 		var stick := Input.get_vector("look_left", "look_right", "look_up", "look_down")
 		if stick.length_squared() > 0.01:
@@ -217,6 +230,8 @@ func snap_look_direction(world_direction: Vector3) -> void:
 	dir = dir.normalized()
 	var yaw := _yaw_for_look_direction(dir)
 	_yaw_pivot.rotation.y = yaw
+	_yaw_pivot.reset_physics_interpolation()
+	reset_physics_interpolation()
 
 
 func blend_look_direction(world_direction: Vector3, blend_rate: float) -> void:
@@ -238,12 +253,14 @@ func set_lock_on_active(active: bool) -> void:
 		_lock_pitch_bias = 0.0
 		if _yaw_pivot:
 			_yaw_pivot.position = _lock_pivot_base
+			_yaw_pivot.reset_physics_interpolation()
 	else:
 		_lock_focus = Vector3.ZERO
 		_lock_pivot_offset = Vector3.ZERO
 		_lock_pitch_bias = 0.0
 		if _yaw_pivot:
 			_yaw_pivot.position = _lock_pivot_base
+			_yaw_pivot.reset_physics_interpolation()
 
 
 func update_lock_on_frame(focus_world: Vector3, player_eye: Vector3, delta: float) -> void:
@@ -312,8 +329,10 @@ func snap_camera_forward(world_forward: Vector3) -> void:
 			if _first_person:
 				yaw += PI
 			_yaw_pivot.rotation.y = yaw
+			_yaw_pivot.reset_physics_interpolation()
 	_pitch = clampf(asin(clampf(fwd.y, -1.0, 1.0)), _min_pitch(), _max_pitch())
 	rotation.x = _pitch
+	reset_physics_interpolation()
 
 
 func is_first_person() -> bool:
@@ -341,6 +360,7 @@ func apply_state(state: Dictionary) -> void:
 		return
 	if _yaw_pivot and state.has("yaw"):
 		_yaw_pivot.rotation.y = float(state.get("yaw", _yaw_pivot.rotation.y))
+		_yaw_pivot.reset_physics_interpolation()
 	if state.has("pitch"):
 		_pitch = float(state.get("pitch", _pitch))
 		rotation.x = _pitch
@@ -348,6 +368,7 @@ func apply_state(state: Dictionary) -> void:
 		_target_zoom = float(state.get("zoom", _target_zoom))
 		spring_length = _target_zoom
 		_smoothed_arm_length = _target_zoom
+	reset_physics_interpolation()
 	if state.has("firstPerson"):
 		_apply_first_person(bool(state.get("firstPerson", _first_person)))
 	if state.has("lockTargetPath"):

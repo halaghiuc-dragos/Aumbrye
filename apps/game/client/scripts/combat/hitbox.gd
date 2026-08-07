@@ -14,6 +14,7 @@ var _owner_node: Node
 var _combat_owner: Node
 var _collision_shape: CollisionShape3D
 var _hit_times: Dictionary = {}
+var _los_clear_this_swing: Dictionary = {}
 var _active := false
 var _last_overlap_count := 0
 var _damage_type := DamageInfo.TYPE_PHYSICAL
@@ -22,6 +23,9 @@ var _status_stacks := 1
 var _crit_chance := 0.0
 var _crit_multiplier := 1.5
 var _crit_rng := RandomNumberGenerator.new()
+var _shape_query := PhysicsShapeQueryParameters3D.new()
+var _castle_run: Node
+var _poll_alternate := false
 
 
 func _ready() -> void:
@@ -38,6 +42,10 @@ func _ready() -> void:
 		_owner_node.tree_exiting.connect(disable)
 	_crit_rng.seed = FloorSeedMix.mix(RunFlow.current_seed, hash(str(get_path())))
 	DEBUG_SCRIPT.set_debug_draw(self, false, DEBUG_SCRIPT.HITBOX_COLOR)
+	_shape_query.collide_with_areas = true
+	_shape_query.collide_with_bodies = false
+	_shape_query.exclude = [get_rid()]
+	_castle_run = get_tree().get_first_node_in_group("castle_run")
 
 
 func is_active() -> bool:
@@ -55,6 +63,7 @@ func set_debug_draw(enabled: bool) -> void:
 func enable() -> void:
 	_active = true
 	monitoring = true
+	_poll_alternate = false
 	set_physics_process(true)
 	_scan_overlaps()
 
@@ -64,10 +73,13 @@ func disable() -> void:
 	monitoring = false
 	set_physics_process(false)
 	_last_overlap_count = 0
+	_hit_times.clear()
+	_los_clear_this_swing.clear()
 
 
 func reset_swing() -> void:
 	_hit_times.clear()
+	_los_clear_this_swing.clear()
 
 
 func set_attack_values(
@@ -93,8 +105,14 @@ func set_combat_owner(node: Node) -> void:
 
 
 func _physics_process(_delta: float) -> void:
-	if _active:
-		_scan_overlaps()
+	if not _active:
+		return
+	_poll_alternate = not _poll_alternate
+	if not _poll_alternate:
+		return
+	if get_overlapping_areas().is_empty():
+		return
+	_scan_overlaps()
 
 
 func _on_area_entered(area: Area3D) -> void:
@@ -108,15 +126,11 @@ func _scan_overlaps() -> void:
 	var space := get_world_3d().direct_space_state
 	if space == null:
 		return
-	var params := PhysicsShapeQueryParameters3D.new()
-	params.shape = _collision_shape.shape
-	params.transform = _collision_shape.global_transform
-	params.collision_mask = collision_mask
-	params.collide_with_areas = true
-	params.collide_with_bodies = false
-	params.exclude = [get_rid()]
+	_shape_query.shape = _collision_shape.shape
+	_shape_query.transform = _collision_shape.global_transform
+	_shape_query.collision_mask = collision_mask
 	const MAX_OVERLAP_RESULTS := 32
-	for result in space.intersect_shape(params, MAX_OVERLAP_RESULTS):
+	for result in space.intersect_shape(_shape_query, MAX_OVERLAP_RESULTS):
 		var collider = result.get("collider")
 		if collider is Area3D:
 			_last_overlap_count += 1
@@ -134,9 +148,11 @@ func _try_hit(area: Area3D) -> void:
 		return
 	if _is_cross_boss_boundary(area):
 		return
-	if not _has_clear_line_to(area):
-		return
 	var target_id := area.get_instance_id()
+	if not _los_clear_this_swing.get(target_id, false):
+		if not _has_clear_line_to(area):
+			return
+		_los_clear_this_swing[target_id] = true
 	var now := Time.get_ticks_msec() / 1000.0
 	if _hit_times.has(target_id):
 		if rehit_interval <= 0.0:
@@ -191,9 +207,10 @@ func _is_cross_boss_boundary(target: Area3D) -> bool:
 	var target_body := target.get_parent()
 	if attacker == null or target_body == null:
 		return false
-	var castle_run := get_tree().get_first_node_in_group("castle_run")
-	if castle_run and castle_run.has_method("is_cross_boss_boundary"):
-		return castle_run.call("is_cross_boss_boundary", attacker, target_body)
+	if _castle_run == null or not is_instance_valid(_castle_run):
+		_castle_run = get_tree().get_first_node_in_group("castle_run")
+	if _castle_run and _castle_run.has_method("is_cross_boss_boundary"):
+		return _castle_run.call("is_cross_boss_boundary", attacker, target_body)
 	return false
 
 

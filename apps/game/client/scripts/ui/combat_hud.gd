@@ -81,6 +81,10 @@ var _hint_actions_used: Dictionary = {
 var _hint_hidden_by_usage := false
 var _map_overlay: Control
 var _map_overlay_minimap: Control
+var _guard_indicator_active := false
+var _slow_update_timer := 0.0
+
+const SLOW_UPDATE_INTERVAL := 0.1
 
 
 func _ready() -> void:
@@ -101,6 +105,10 @@ func _ready() -> void:
 	if player_path:
 		_player = get_node(player_path) as Node3D
 		_guard = _player.get_node_or_null("Guard")
+		if _guard and _guard.has_signal("block_state_changed"):
+			_guard.block_state_changed.connect(_on_guard_block_state_changed)
+		if _guard and _guard.has_signal("guard_broken"):
+			_guard.guard_broken.connect(_on_guard_broken)
 		_weapon_controller = _player.get_node_or_null("WeaponController")
 		_status_controller = _player.get_node_or_null("StatusController") as StatusController
 		_bind_player_resources()
@@ -216,11 +224,16 @@ func _refresh_status_icons() -> void:
 func _process(delta: float) -> void:
 	_vignette_cooldown = maxf(0.0, _vignette_cooldown - delta)
 	_update_lock_reticle()
-	_update_guard_indicators()
-	_update_objective_marker()
+	if _guard_indicator_active:
+		_update_guard_indicators()
 	_update_attack_bar()
 	_update_status_timers(delta)
-	_update_controls_hint_visibility(delta)
+	_track_controls_hint_usage()
+	_slow_update_timer -= delta
+	if _slow_update_timer <= 0.0:
+		_slow_update_timer = SLOW_UPDATE_INTERVAL
+		_update_objective_marker()
+		_update_controls_hint_visibility(delta)
 
 
 func _update_status_timers(delta: float) -> void:
@@ -427,6 +440,23 @@ func _update_lock_reticle() -> void:
 	screen_pos.x = floor(screen_pos.x)
 	screen_pos.y = floor(screen_pos.y)
 	_lock_reticle.position = screen_pos - _lock_reticle.size * 0.5
+
+
+func _on_guard_block_state_changed(blocking: bool) -> void:
+	_guard_indicator_active = blocking
+	if blocking:
+		_update_guard_indicators()
+	else:
+		_parry_bar.visible = false
+		_block_bar.visible = false
+		_parry_label.visible = false
+
+
+func _on_guard_broken() -> void:
+	_guard_indicator_active = false
+	_parry_bar.visible = false
+	_block_bar.visible = false
+	_parry_label.visible = false
 
 
 func _update_guard_indicators() -> void:
@@ -768,18 +798,25 @@ func _apply_hud_safe_area() -> void:
 	offset_bottom = -margin_px.y
 
 
-func _update_controls_hint_visibility(delta: float) -> void:
+func _track_controls_hint_usage() -> void:
 	if _controls_hint == null or not AccessibilitySettings.show_control_hints:
 		return
 	for action in _hint_actions_used.keys():
 		if Input.is_action_just_pressed(action):
 			_hint_actions_used[action] = true
+
+
+func _update_controls_hint_visibility(_delta: float) -> void:
+	if _controls_hint == null or not AccessibilitySettings.show_control_hints:
+		return
+	if _hint_hidden_by_usage:
+		return
 	var all_used := true
 	for used in _hint_actions_used.values():
 		if not used:
 			all_used = false
 			break
-	if all_used and not _hint_hidden_by_usage:
+	if all_used:
 		var elapsed := (Time.get_ticks_msec() / 1000.0) - _hint_session_start
 		if elapsed >= HINT_AUTO_HIDE_SECONDS:
 			_hint_hidden_by_usage = true

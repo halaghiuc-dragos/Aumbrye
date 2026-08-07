@@ -313,7 +313,7 @@ func _apply_resistances(amount: float, damage_type: String) -> float:
 
 
 func _get_resistances() -> Dictionary:
-	var body := _find_character_body()
+	var body := _cached_character_body
 	if body == null:
 		return {}
 	if body.is_in_group("player") and body.has_meta("combat_resistances"):

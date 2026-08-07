@@ -31,11 +31,7 @@ func open_for_lever(lever: Node3D, options: Array = []) -> void:
 	_open = true
 	visible = true
 	mouse_filter = Control.MOUSE_FILTER_STOP
-	if MenuStack:
-		MenuStack.push(self, true)
-	else:
-		get_tree().paused = true
-		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	MenuStack.push(self, true)
 	if _lever and _lever.has_method("set_menu_open"):
 		_lever.call("set_menu_open", true)
 	_rebuild_buttons(options)
@@ -47,8 +43,7 @@ func close_menu() -> void:
 	_open = false
 	visible = false
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
-	if MenuStack:
-		MenuStack.pop(self)
+	MenuStack.pop(self)
 	if _lever and _lever.has_method("set_menu_open"):
 		_lever.call("set_menu_open", false)
 	_lever = null

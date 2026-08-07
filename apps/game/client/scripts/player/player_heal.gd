@@ -1,4 +1,5 @@
 extends Node
+class_name PlayerHeal
 
 ## Estus-style bound heal: limited charges, vulnerable drink animation.
 

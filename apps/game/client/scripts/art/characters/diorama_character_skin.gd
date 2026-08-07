@@ -866,7 +866,7 @@ static func build_from_manifest(visual: Node3D, archetype_id: String, theme: int
 			skin_tint = CharacterAppearance.skin_tint_vector(
 				str(appearance.get("skinTone", CharacterAppearance.SKIN_TONE_NEUTRAL))
 			)
-	var mat := _make_voxel_material(theme, skin_tint)
+	var mat := _make_voxel_material(theme, skin_tint, false)
 	var root := _add_pivot(visual, ROOT_NAME, Vector3.ZERO)
 	var built: Dictionary = {ROOT_NAME: root}
 	var remaining: Array = parts.keys()
@@ -960,14 +960,33 @@ static func _archetype_id_for_profile(profile: String) -> String:
 			return "enemy_melee"
 
 
-static func _make_voxel_material(theme: int, skin_tint: Vector3 = Vector3.ONE) -> ShaderMaterial:
+## Materials that are never mutated after creation (hair, equipment) are cached and shared by
+## every character of a given theme instead of duplicated per mesh. The body material is
+## excluded via `cacheable = false` — `_apply_skin_tone` mutates it in place on a skin-tone
+## change, and a body built with the (common) neutral tint is otherwise indistinguishable from
+## a cacheable material, which would let that later mutation bleed into every other character
+## sharing the cached instance.
+static var _untinted_material_cache: Dictionary = {}
+
+
+static func _make_voxel_material(
+	theme: int, skin_tint: Vector3 = Vector3.ONE, cacheable: bool = true
+) -> ShaderMaterial:
+	if cacheable and skin_tint.is_equal_approx(Vector3.ONE) and _untinted_material_cache.has(theme):
+		return _untinted_material_cache[theme]
 	var mat := (
 		PixelStyle.make_surface_material(PixelStyle.SurfaceKind.PROP, theme, 0.38).duplicate()
 		as ShaderMaterial
 	)
 	mat.set_shader_parameter("use_vertex_color", true)
 	mat.set_shader_parameter("skin_tint", skin_tint)
+	if cacheable and skin_tint.is_equal_approx(Vector3.ONE):
+		_untinted_material_cache[theme] = mat
 	return mat
+
+
+static func clear_material_cache() -> void:
+	_untinted_material_cache.clear()
 
 
 static func apply_equipment(visual: Node3D, equipped: Dictionary, theme: int) -> void:

@@ -1,4 +1,5 @@
 extends Node
+class_name Guard
 
 ## Hold-to-block guard with a parry window at the start of each guard.
 ## Bindings: keyboard Q, gamepad LT (DEC-G10 — do not rebind without user request).

@@ -8,6 +8,7 @@ const PixelDioramaStyle := preload("res://scripts/art/style/pixel_diorama_style.
 const ASPECTS_PATH := "content/appearance/aspects.json"
 
 static var _aspects: Array[Dictionary] = []
+static var _load_attempted := false
 
 
 static func get_all_aspects() -> Array[Dictionary]:
@@ -41,11 +42,13 @@ static func index_for_theme(theme: int) -> int:
 
 static func clear_cache() -> void:
 	_aspects.clear()
+	_load_attempted = false
 
 
 static func _ensure_loaded() -> void:
-	if not _aspects.is_empty():
+	if _load_attempted:
 		return
+	_load_attempted = true
 	var data: Dictionary = ContentLoader.load_json(ASPECTS_PATH)
 	var raw: Variant = data.get("aspects", [])
 	_aspects.clear()

@@ -515,14 +515,14 @@ func _flush_deferred_autosave() -> void:
 	if not _autosave_pending:
 		return
 	_autosave_pending = false
-	autosave()
+	autosave(SavePriority.DEFERRED)
 
 
-func autosave() -> void:
+func autosave(priority: SavePriority = SavePriority.IMMEDIATE) -> void:
 	_autosave_pending = false
 	if _autosave_timer != null and not _autosave_timer.is_stopped():
 		_autosave_timer.stop()
-	_write_save(_build_save_payload())
+	_write_save(_build_save_payload(), true, priority)
 
 
 func delete_save() -> void:
@@ -963,7 +963,9 @@ func _active_save_path(character_id: String = "") -> String:
 	return SAVE_PATH
 
 
-func _write_save(data: Dictionary, rotate_backups: bool = true) -> bool:
+func _write_save(
+	data: Dictionary, rotate_backups: bool = true, priority: SavePriority = SavePriority.IMMEDIATE
+) -> bool:
 	var normalized := _normalize_save_integers(data.duplicate(true))
 	normalized["itemInstances"] = _build_item_instances()
 	normalized["accountId"] = _resolve_account_id()
@@ -982,15 +984,31 @@ func _write_save(data: Dictionary, rotate_backups: bool = true) -> bool:
 		else:
 			push_warning("LocalSave: could not write %s" % temp_path)
 		return false
-	file.store_string(JSON.stringify(normalized, "\t"))
+	var json_text := (
+		JSON.stringify(normalized, "\t") if OS.is_debug_build() else JSON.stringify(normalized)
+	)
+	file.store_string(json_text)
 	file.close()
-	var verified = JSON.parse_string(_read_raw_text(temp_path))
-	if not verified is Dictionary:
-		DirAccess.remove_absolute(temp_path)
-		return false
-	if not SaveValidator.validate(verified).is_empty():
-		DirAccess.remove_absolute(temp_path)
-		return false
+	if priority == SavePriority.IMMEDIATE:
+		# Read back through a fresh handle and re-parse — the strongest corruption guard, worth
+		# the cost for a save the caller is treating as urgent (e.g. before quitting).
+		var verified = JSON.parse_string(_read_raw_text(temp_path))
+		if not verified is Dictionary:
+			DirAccess.remove_absolute(temp_path)
+			return false
+		if not SaveValidator.validate(verified).is_empty():
+			DirAccess.remove_absolute(temp_path)
+			return false
+	else:
+		# Deferred autosaves validate the in-memory payload that was just serialized instead of
+		# reading the file back — the write handle is already flushed and closed above, so the
+		# on-disk bytes match `normalized`; this is the expensive re-read/re-parse round trip
+		# a background autosave does not need to pay for.
+		if not SaveValidator.validate(normalized).is_empty():
+			DirAccess.remove_absolute(temp_path)
+			if CrashLogger:
+				CrashLogger.log_error("local_save.deferred_validate_failed", {"path": temp_path})
+			return false
 	if DirAccess.rename_absolute(temp_path, target_path) != OK:
 		DirAccess.remove_absolute(temp_path)
 		if CrashLogger:

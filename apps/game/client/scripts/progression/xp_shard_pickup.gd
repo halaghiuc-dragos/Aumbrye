@@ -28,6 +28,18 @@ func _ready() -> void:
 	add_child(_label)
 	body_entered.connect(_on_body_entered)
 	body_exited.connect(_on_body_exited)
+	set_process_unhandled_input(false)
+	_start_bob()
+
+
+func _start_bob() -> void:
+	if _visual == null:
+		return
+	var base_y := float(_visual.get_meta("bob_base_y", 0.0))
+	var tween := create_tween()
+	tween.set_loops()
+	tween.tween_property(_visual, "position:y", base_y + 0.1, 0.63).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	tween.tween_property(_visual, "position:y", base_y - 0.1, 0.63).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
 
 
 func configure(world_pos: Vector3, xp_amount: int) -> void:
@@ -36,14 +48,10 @@ func configure(world_pos: Vector3, xp_amount: int) -> void:
 	_label.text = "Echo shard (+%d XP)" % _xp_amount
 
 
-func _process(_delta: float) -> void:
-	if _visual:
-		_visual.position.y = (
-			float(_visual.get_meta("bob_base_y", 0.0)) + sin(Time.get_ticks_msec() * 0.004) * 0.1
-		)
+func _unhandled_input(event: InputEvent) -> void:
 	if _player == null:
 		return
-	if Input.is_action_just_pressed("interact"):
+	if event.is_action_pressed("interact"):
 		_collect()
 
 
@@ -51,12 +59,14 @@ func _on_body_entered(body: Node3D) -> void:
 	if body.is_in_group("player"):
 		_player = body
 		_label.visible = true
+		set_process_unhandled_input(true)
 
 
 func _on_body_exited(body: Node3D) -> void:
 	if body == _player:
 		_player = null
 		_label.visible = false
+		set_process_unhandled_input(false)
 
 
 func _collect() -> void:

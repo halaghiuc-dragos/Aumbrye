@@ -8,6 +8,7 @@ const FALLBACK_ID := "hub_return"
 
 static var _data: Dictionary = {}
 static var _unknown_warned := false
+static var _load_attempted := false
 
 
 static func resolve(portal_id: String) -> Dictionary:
@@ -37,11 +38,13 @@ static func portal_id_for_biome(biome_id: String) -> String:
 static func clear_cache() -> void:
 	_data.clear()
 	_unknown_warned = false
+	_load_attempted = false
 
 
 static func _ensure_loaded() -> void:
-	if not _data.is_empty():
+	if _load_attempted:
 		return
+	_load_attempted = true
 	var loaded := ContentLoader.load_json(DATA_PATH)
 	if loaded.is_empty():
 		push_error("PortalCatalog: failed to load %s" % DATA_PATH)
