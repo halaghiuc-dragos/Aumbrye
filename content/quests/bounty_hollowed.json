@@ -1,0 +1,24 @@
+{
+  "id": "bounty_hollowed",
+  "title": "Bounty: The Hollowed",
+  "type": "kill",
+  "targetId": "glacial_hollowed",
+  "requiredCount": 6,
+  "repeatable": true,
+  "cooldownRuns": 1,
+  "availableWhen": {
+    "minTier": 5
+  },
+  "bounty": "weekly",
+  "description": "Standing bounty. Six of the hollowed, out of the drift. They were garrison once and the order to hold was posted over the top of them.",
+  "rewards": {
+    "gold": 150,
+    "bountyTokens": 6,
+    "items": [
+      {
+        "itemId": "hoarfrost_shard",
+        "quantity": 2
+      }
+    ]
+  }
+}

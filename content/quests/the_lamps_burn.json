@@ -1,0 +1,17 @@
+{
+  "id": "the_lamps_burn",
+  "title": "Standing Order: Trim the Wicks",
+  "type": "discover",
+  "requiredCount": 3,
+  "repeatable": true,
+  "cooldownRuns": 1,
+  "availableWhen": {
+    "flag": "lamps_relit"
+  },
+  "bounty": "daily",
+  "description": "Corrin has brackets with something in them now. Three more readings by lamplight, and he will keep the lamps for as long as you keep bringing them.",
+  "rewards": {
+    "gold": 130,
+    "bountyTokens": 3
+  }
+}

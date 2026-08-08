@@ -3,7 +3,10 @@
   "name": "Prism Depths",
   "templatePrefix": "prism",
   "assetFolder": "prism",
-  "roomCount": { "min": 6, "max": 10 },
+  "roomCount": {
+    "min": 20,
+    "max": 26
+  },
   "roomTemplateIds": [
     "prism_entrance",
     "prism_stairs",
@@ -23,12 +26,24 @@
     "accent": "prism"
   },
   "lighting": {
-    "ambientColor": [0.42, 0.58, 0.82],
+    "ambientColor": [
+      0.42,
+      0.58,
+      0.82
+    ],
     "ambientEnergy": 0.58,
     "fogEnabled": true,
-    "fogColor": [0.15, 0.25, 0.42],
+    "fogColor": [
+      0.15,
+      0.25,
+      0.42
+    ],
     "fogDensity": 0.022,
-    "torchColor": [0.75, 0.85, 1.0],
+    "torchColor": [
+      0.75,
+      0.85,
+      1
+    ],
     "torchEnergy": 2.1
   },
   "audioProfile": "content/audio_profiles/prism_depths.json",
@@ -41,15 +56,36 @@
     ]
   },
   "enemyPool": [
-    { "enemyId": "crystal_slime", "weight": 3 },
-    { "enemyId": "crystal_bat", "weight": 2 },
-    { "enemyId": "crystal_spitter", "weight": 2 },
-    { "enemyId": "crystal_wisp", "weight": 2 },
-    { "enemyId": "miniboss_crystal_guardian", "weight": 1 }
+    {
+      "enemyId": "prism_shardling",
+      "weight": 3
+    },
+    {
+      "enemyId": "prism_lantern",
+      "weight": 2
+    },
+    {
+      "enemyId": "prism_refractor",
+      "weight": 2
+    },
+    {
+      "enemyId": "prism_facet_golem",
+      "weight": 2
+    },
+    {
+      "enemyId": "prism_cantor",
+      "weight": 1
+    }
   ],
   "bossPool": [
-    { "enemyId": "boss_crystal_sovereign", "weight": 3 },
-    { "enemyId": "miniboss_crystal_guardian", "weight": 1 }
+    {
+      "enemyId": "prism_choirmaster",
+      "weight": 3
+    },
+    {
+      "enemyId": "prism_cantor",
+      "weight": 1
+    }
   ],
   "budgets": {
     "baseEnemyThreat": 100,
@@ -59,23 +95,126 @@
   },
   "lootTables": {
     "treasure": [
-      { "itemId": "health_potion", "quantity": [2, 3], "weight": 3 },
-      { "itemId": "wind_relic_charm", "quantity": [1, 1], "weight": 2 }
+      {
+        "itemId": "health_potion",
+        "quantity": [
+          2,
+          3
+        ],
+        "weight": 3
+      },
+      {
+        "itemId": "wind_relic_charm",
+        "quantity": [
+          1,
+          1
+        ],
+        "weight": 2
+      }
     ],
     "secret": [
-      { "itemId": "wind_relic_charm", "quantity": [1, 1], "weight": 2 },
-      { "itemId": "health_potion", "quantity": [3, 4], "weight": 3 }
+      {
+        "itemId": "wind_relic_charm",
+        "quantity": [
+          1,
+          1
+        ],
+        "weight": 2
+      },
+      {
+        "itemId": "health_potion",
+        "quantity": [
+          3,
+          4
+        ],
+        "weight": 3
+      }
     ],
     "side": [
-      { "itemId": "crystal_shard_blade", "quantity": [1, 1], "weight": 2 },
-      { "itemId": "flame_relic_core", "quantity": [1, 1], "weight": 2 }
+      {
+        "itemId": "crystal_shard_blade",
+        "quantity": [
+          1,
+          1
+        ],
+        "weight": 2
+      },
+      {
+        "itemId": "flame_relic_core",
+        "quantity": [
+          1,
+          1
+        ],
+        "weight": 2
+      }
     ],
-    "armory": [{ "itemId": "crystal_shard_blade", "quantity": [1, 1], "weight": 1 }]
+    "armory": [
+      {
+        "itemId": "crystal_shard_blade",
+        "quantity": [
+          1,
+          1
+        ],
+        "weight": 1
+      }
+    ]
   },
   "trapPool": [
-    { "trapId": "spike_trap", "weight": 3 },
-    { "trapId": "falling_trap", "weight": 1 }
+    {
+      "trapId": "spike_trap",
+      "weight": 2
+    },
+    {
+      "trapId": "arrow_line",
+      "weight": 3
+    },
+    {
+      "trapId": "collapsing_floor",
+      "weight": 2
+    },
+    {
+      "trapId": "swinging_blade",
+      "weight": 2
+    },
+    {
+      "trapId": "gas_vent",
+      "weight": 1
+    }
   ],
   "requiresSecret": true,
-  "finalFloor": { "bossId": "final_boss_crystal" }
+  "finalFloor": {
+    "bossId": "prism_choirmaster"
+  },
+  "maxHeightLevel": 2,
+  "maxSecrets": 3,
+  "generator": {
+    "bossMinDistance": 5,
+    "minDeadEnds": 5,
+    "branchMaxDepth": 8,
+    "maxNeighborCount": 4,
+    "loopBudget": 4,
+    "maxGenerationAttempts": 256,
+    "maxWalkAttempts": 8192,
+    "allow2x2Blocks": true,
+    "fillBoundingBox": true
+  },
+  "grade": {
+    "shadowTint": [
+      0.16,
+      0.1,
+      0.28
+    ],
+    "shadowTintAmount": 0.22,
+    "highlightTint": [
+      0.72,
+      0.96,
+      1
+    ],
+    "highlightTintAmount": 0.22,
+    "saturation": 1.18,
+    "contrast": 1.1,
+    "lift": 0.02,
+    "vignette": 0.22
+  },
+  "lootTablePath": "content/loot/tables/prism_depths.json"
 }

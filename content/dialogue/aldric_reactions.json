@@ -1,0 +1,84 @@
+{
+  "id": "aldric_reactions",
+  "startNode": "start",
+  "nodes": {
+    "start": {
+      "speaker": "Aldric",
+      "text": "You killed the thing at the bottom and it killed you back. That is not a loss. That is a receipt for a purchase you made.",
+      "condition": {
+        "all": [
+          {
+            "lastRunOutcome": "died"
+          },
+          {
+            "lastRunBoss": true
+          }
+        ]
+      },
+      "fallback": "r2",
+      "next": "end"
+    },
+    "r2": {
+      "speaker": "Aldric",
+      "text": "Four floors. You went four floors and the fourth one kept you. Bring me the plate and I will tell you which strap failed.",
+      "condition": {
+        "all": [
+          {
+            "lastRunOutcome": "died"
+          },
+          {
+            "minLastRunFloor": 4
+          }
+        ]
+      },
+      "fallback": "r3",
+      "next": "end"
+    },
+    "r3": {
+      "speaker": "Aldric",
+      "text": "Down, through, and out. I will not congratulate you, because you will want it again, and the wanting is the dangerous part.",
+      "condition": {
+        "all": [
+          {
+            "lastRunOutcome": "escaped"
+          },
+          {
+            "lastRunBoss": true
+          }
+        ]
+      },
+      "fallback": "r4",
+      "next": "end"
+    },
+    "r4": {
+      "speaker": "Aldric",
+      "text": "The fortress. Nothing forged there was forged for a second winter. Whatever you brought up, I can only make it last, not last long.",
+      "condition": {
+        "lastRunBiome": "frozen_fortress"
+      },
+      "fallback": "r5",
+      "next": "end"
+    },
+    "r5": {
+      "speaker": "Aldric",
+      "text": "Ten times now. I have stopped setting the second cup out. Sit anyway.",
+      "condition": {
+        "all": [
+          {
+            "lastRunOutcome": "died"
+          },
+          {
+            "minDeaths": 10
+          }
+        ]
+      },
+      "fallback": "quiet",
+      "next": "end"
+    },
+    "quiet": {
+      "speaker": "Aldric",
+      "text": "The forge is hot. It stays hot. That is the only promise this place has kept.",
+      "next": "end"
+    }
+  }
+}

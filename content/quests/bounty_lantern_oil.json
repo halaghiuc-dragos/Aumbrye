@@ -1,0 +1,17 @@
+{
+  "id": "bounty_lantern_oil",
+  "title": "Bounty: Lamp Iron",
+  "type": "fetch",
+  "targetItemId": "iron_scrap",
+  "requiredCount": 6,
+  "repeatable": true,
+  "availableWhen": {
+    "minTier": 1
+  },
+  "bounty": "daily",
+  "description": "Standing bounty. Corrin needs iron for the brackets. Not good iron. Iron.",
+  "rewards": {
+    "gold": 70,
+    "bountyTokens": 1
+  }
+}

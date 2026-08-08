@@ -1,0 +1,84 @@
+{
+  "id": "veil_reactions",
+  "startNode": "start",
+  "nodes": {
+    "start": {
+      "speaker": "The Widow",
+      "text": "It died and you died. Only one of you was owed anything, and it was not the one with the crown.",
+      "condition": {
+        "all": [
+          {
+            "lastRunOutcome": "died"
+          },
+          {
+            "lastRunBoss": true
+          }
+        ]
+      },
+      "fallback": "r2",
+      "next": "end"
+    },
+    "r2": {
+      "speaker": "The Widow",
+      "text": "Four floors down is where my husband stopped. You went past him and came back. I am not going to thank you for that.",
+      "condition": {
+        "all": [
+          {
+            "lastRunOutcome": "died"
+          },
+          {
+            "minLastRunFloor": 4
+          }
+        ]
+      },
+      "fallback": "r3",
+      "next": "end"
+    },
+    "r3": {
+      "speaker": "The Widow",
+      "text": "You came up the stair whole. I sit at the bottom of it every evening and that has happened four times.",
+      "condition": {
+        "all": [
+          {
+            "lastRunOutcome": "escaped"
+          },
+          {
+            "lastRunBoss": true
+          }
+        ]
+      },
+      "fallback": "r4",
+      "next": "end"
+    },
+    "r4": {
+      "speaker": "The Widow",
+      "text": "The chapel. The socket above the altar is warm. It has been warm for eleven years and there is nothing in it.",
+      "condition": {
+        "lastRunBiome": "umbral_chapel"
+      },
+      "fallback": "r5",
+      "next": "end"
+    },
+    "r5": {
+      "speaker": "The Widow",
+      "text": "Ten. I know the count. I have always known the count. It is the only thing anybody leaves with me.",
+      "condition": {
+        "all": [
+          {
+            "lastRunOutcome": "died"
+          },
+          {
+            "minDeaths": 10
+          }
+        ]
+      },
+      "fallback": "quiet",
+      "next": "end"
+    },
+    "quiet": {
+      "speaker": "The Widow",
+      "text": "Sit if you like. I am at the bottom of the stair either way.",
+      "next": "end"
+    }
+  }
+}

@@ -1,0 +1,27 @@
+{
+  "id": "ivo_arrival",
+  "startNode": "start",
+  "nodes": {
+    "start": {
+      "speaker": "Ivo Kell",
+      "text": "You will want the page, not me. Take the page. — No. Take both. I have carried it eleven years and I would like, once, to have somebody else read the total.",
+      "actions": [
+        {
+          "type": "set_relationship",
+          "npc": "ivo",
+          "delta": 2
+        },
+        {
+          "type": "advance_story_beat",
+          "beat": 2
+        },
+        {
+          "type": "set_flag",
+          "flag": "heard_the_keeping",
+          "value": true
+        }
+      ],
+      "next": "end"
+    }
+  }
+}

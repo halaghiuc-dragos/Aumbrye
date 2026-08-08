@@ -1,0 +1,22 @@
+{
+  "id": "the_kept_vigil",
+  "name": "The Kept Vigil",
+  "description": "Falling low refills a flask, once in a long while.",
+  "maxStacks": 1,
+  "stats": {
+    "maxHealth": 10
+  },
+  "tags": [
+    "vigil"
+  ],
+  "weight": 0.7,
+  "rules": [
+    {
+      "event": "onLowHealth",
+      "effect": "refund_flask",
+      "amount": 1,
+      "cooldown": 120
+    }
+  ],
+  "offerable": true
+}

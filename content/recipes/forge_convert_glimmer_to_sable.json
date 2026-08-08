@@ -1,0 +1,12 @@
+{
+  "id": "forge_convert_glimmer_to_sable",
+  "type": "convert",
+  "itemId": "sable_grain",
+  "goldCost": 140,
+  "materials": [
+    {
+      "itemId": "glimmer_ash",
+      "quantity": 5
+    }
+  ]
+}

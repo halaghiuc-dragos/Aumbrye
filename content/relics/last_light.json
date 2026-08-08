@@ -1,0 +1,25 @@
+{
+  "id": "last_light",
+  "name": "Last Light",
+  "description": "At the edge, rarely, the sickness leaves you and some strength returns.",
+  "maxStacks": 1,
+  "tags": [
+    "vigil",
+    "ward"
+  ],
+  "weight": 0.7,
+  "rules": [
+    {
+      "event": "onLowHealth",
+      "effect": "clear_status",
+      "cooldown": 90
+    },
+    {
+      "event": "onLowHealth",
+      "effect": "restore_health",
+      "amount": 18,
+      "cooldown": 90
+    }
+  ],
+  "offerable": true
+}

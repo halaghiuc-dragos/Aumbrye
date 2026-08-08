@@ -1,0 +1,31 @@
+{
+  "id": "unique_the_singing_stone",
+  "name": "The Singing Stone",
+  "itemType": "accessory",
+  "equipmentSlot": "ring",
+  "gridWidth": 1,
+  "gridHeight": 1,
+  "stackSize": 1,
+  "rarity": "legendary",
+  "description": "It is audible only in the last room of a floor, and only to whoever is wearing it.",
+  "value": 700,
+  "lootValue": 350,
+  "maxDurability": 60,
+  "unique": true,
+  "baseId": "band",
+  "biome": "crystal_caverns",
+  "scaling": {},
+  "ruleText": "Entering a floor restores 60 mana.",
+  "rules": [
+    {
+      "event": "onFloorEnter",
+      "effect": "restore_mana",
+      "amount": 60.0
+    }
+  ],
+  "stats": {
+    "manaMax": 45,
+    "manaRegen": 0.1,
+    "lootQuality": 0.1
+  }
+}

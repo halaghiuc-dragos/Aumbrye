@@ -1,0 +1,26 @@
+{
+  "id": "hoarfrost_longsword",
+  "name": "Hoarfrost Longsword",
+  "itemType": "weapon",
+  "equipmentSlot": "weapon",
+  "gridWidth": 2,
+  "gridHeight": 3,
+  "stackSize": 1,
+  "rarity": "magic",
+  "description": "Long enough to keep a stranger honest. Quenched in meltwater that never fully melted. Scaling: Strength C, Dexterity C.",
+  "value": 129,
+  "lootValue": 65,
+  "maxDurability": 110,
+  "baseId": "longsword",
+  "materialTier": "hoarfrost",
+  "biome": "frozen_fortress",
+  "scaling": {
+    "strength": "C",
+    "dexterity": "C"
+  },
+  "stats": {
+    "physicalDamage": 10,
+    "resistFrost": 0.08
+  },
+  "weaponId": "sword_basic"
+}

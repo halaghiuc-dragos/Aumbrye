@@ -1,0 +1,238 @@
+{
+  "schemaVersion": 1,
+  "biomeId": "dark_cathedral",
+  "lootTables": {
+    "treasure": [
+      {
+        "itemId": "elixir_might",
+        "quantity": [
+          1,
+          3
+        ],
+        "weight": 4
+      },
+      {
+        "itemId": "frost_flask",
+        "quantity": [
+          1,
+          3
+        ],
+        "weight": 6
+      },
+      {
+        "itemId": "whetstone_ember",
+        "quantity": [
+          1,
+          3
+        ],
+        "weight": 6
+      }
+    ],
+    "secret": [
+      {
+        "itemId": "frost_warlord_blade",
+        "quantity": [
+          1,
+          1
+        ],
+        "weight": 1
+      },
+      {
+        "itemId": "mythic_ring",
+        "quantity": [
+          1,
+          1
+        ],
+        "weight": 1
+      },
+      {
+        "itemId": "unique_crown_of_the_crystal_sovereign",
+        "quantity": [
+          1,
+          1
+        ],
+        "weight": 1
+      },
+      {
+        "itemId": "unique_hearthless_cuirass",
+        "quantity": [
+          1,
+          1
+        ],
+        "weight": 1
+      },
+      {
+        "itemId": "unique_prism_of_no_colour",
+        "quantity": [
+          1,
+          1
+        ],
+        "weight": 1
+      },
+      {
+        "itemId": "unique_stonewife_band",
+        "quantity": [
+          1,
+          1
+        ],
+        "weight": 4
+      }
+    ],
+    "side": [
+      {
+        "itemId": "reliquary_gilt",
+        "quantity": [
+          1,
+          3
+        ],
+        "weight": 10
+      },
+      {
+        "itemId": "shadow_essence",
+        "quantity": [
+          1,
+          3
+        ],
+        "weight": 10
+      }
+    ],
+    "armory": [
+      {
+        "itemId": "reliquary_band",
+        "quantity": [
+          1,
+          1
+        ],
+        "weight": 4
+      },
+      {
+        "itemId": "reliquary_cuirass",
+        "quantity": [
+          1,
+          1
+        ],
+        "weight": 4
+      },
+      {
+        "itemId": "reliquary_gauntlets",
+        "quantity": [
+          1,
+          1
+        ],
+        "weight": 4
+      },
+      {
+        "itemId": "reliquary_greatsword",
+        "quantity": [
+          1,
+          1
+        ],
+        "weight": 4
+      },
+      {
+        "itemId": "reliquary_helm",
+        "quantity": [
+          1,
+          1
+        ],
+        "weight": 4
+      },
+      {
+        "itemId": "reliquary_kiteshield",
+        "quantity": [
+          1,
+          1
+        ],
+        "weight": 4
+      },
+      {
+        "itemId": "reliquary_longsword",
+        "quantity": [
+          1,
+          1
+        ],
+        "weight": 4
+      },
+      {
+        "itemId": "reliquary_pendant",
+        "quantity": [
+          1,
+          1
+        ],
+        "weight": 4
+      },
+      {
+        "itemId": "reliquary_rapier",
+        "quantity": [
+          1,
+          1
+        ],
+        "weight": 4
+      },
+      {
+        "itemId": "reliquary_spear",
+        "quantity": [
+          1,
+          1
+        ],
+        "weight": 4
+      },
+      {
+        "itemId": "reliquary_staff",
+        "quantity": [
+          1,
+          1
+        ],
+        "weight": 4
+      },
+      {
+        "itemId": "reliquary_towershield",
+        "quantity": [
+          1,
+          1
+        ],
+        "weight": 4
+      },
+      {
+        "itemId": "castle_banner",
+        "quantity": [
+          1,
+          1
+        ],
+        "weight": 6
+      },
+      {
+        "itemId": "cathedral_gloves",
+        "quantity": [
+          1,
+          1
+        ],
+        "weight": 10
+      },
+      {
+        "itemId": "crystal_shard_blade",
+        "quantity": [
+          1,
+          1
+        ],
+        "weight": 6
+      },
+      {
+        "itemId": "swamp_mire_charm",
+        "quantity": [
+          1,
+          1
+        ],
+        "weight": 4
+      },
+      {
+        "itemId": "venom_dagger",
+        "quantity": [
+          1,
+          1
+        ],
+        "weight": 4
+      }
+    ]
+  }
+}

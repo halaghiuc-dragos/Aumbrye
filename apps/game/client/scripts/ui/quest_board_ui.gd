@@ -27,6 +27,7 @@ func _ready() -> void:
 	QuestService.quest_updated.connect(func(_id: String, _s: String) -> void: _refresh())
 	if CharacterService:
 		CharacterService.quests_changed.connect(_refresh)
+		CharacterService.quest_progress_changed.connect(_refresh)
 
 
 func is_open() -> bool:

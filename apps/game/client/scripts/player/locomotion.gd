@@ -55,6 +55,7 @@ var _last_speed_breakdown := {
 	"status": 1.0,
 	"weapon": 1.0,
 	"direction": 1.0,
+	"dodge": 1.0,
 	"final": 0.0,
 }
 
@@ -91,6 +92,10 @@ func set_speed_multiplier(multiplier: float) -> void:
 
 func get_current_speed_breakdown() -> Dictionary:
 	return _last_speed_breakdown.duplicate()
+
+
+func get_sprint_blend() -> float:
+	return _sprint_blend
 
 
 func _on_appearance_changed(_profile: Dictionary) -> void:
@@ -180,6 +185,9 @@ func _physics_process(delta: float) -> void:
 	var stamina_mult := 1.0
 	if _stamina:
 		stamina_mult = _stamina.get_speed_multiplier()
+	var dodge_mult := 1.0
+	if _dodge:
+		dodge_mult = _dodge.get_move_speed_multiplier()
 
 	var sprint_ramp_target := 1.0 if sprint_requested else 0.0
 	var ramp_rate := (
@@ -193,7 +201,9 @@ func _physics_process(delta: float) -> void:
 		if locked_on
 		else _direction_speed_scale(direction)
 	)
-	var target_speed := base_speed * _speed_multiplier * attack_speed_mult * stamina_mult * direction_scale
+	var target_speed := (
+		base_speed * _speed_multiplier * attack_speed_mult * stamina_mult * direction_scale * dodge_mult
+	)
 	var status_mult := 1.0
 	if _status:
 		status_mult = _status.get_slow_multiplier()
@@ -204,7 +214,13 @@ func _physics_process(delta: float) -> void:
 			_sprint_blend = move_toward(_sprint_blend, 0.0, ramp_rate * delta)
 			base_speed = lerpf(WALK_SPEED, SPRINT_SPEED, _sprint_blend)
 			target_speed = (
-				base_speed * _speed_multiplier * attack_speed_mult * stamina_mult * direction_scale
+				base_speed
+				* _speed_multiplier
+				* attack_speed_mult
+				* stamina_mult
+				* direction_scale
+				* dodge_mult
+				* status_mult
 			)
 
 	if _landing_penalty_timer > 0.0:
@@ -216,6 +232,7 @@ func _physics_process(delta: float) -> void:
 		"status": status_mult,
 		"weapon": attack_speed_mult,
 		"direction": direction_scale,
+		"dodge": dodge_mult,
 		"final": target_speed,
 	}
 

@@ -1,9 +1,22 @@
 {
-    "description":  "Chills enemies on hit.",
-    "name":  "Relic Frost Shard",
-    "id":  "relic_frost_shard",
-    "stats":  {
-                  "frostDamage":  4
-              },
-    "maxStacks":  1
+  "id": "relic_frost_shard",
+  "name": "Relic Frost Shard",
+  "description": "Cold enough to slow a wound. Backstabs leave frost in the bone.",
+  "maxStacks": 1,
+  "stats": {
+    "frostDamage": 4
+  },
+  "tags": [
+    "frost"
+  ],
+  "weight": 1,
+  "rules": [
+    {
+      "event": "onBackstab",
+      "effect": "apply_status",
+      "statusId": "freeze",
+      "stacks": 1
+    }
+  ],
+  "offerable": true
 }

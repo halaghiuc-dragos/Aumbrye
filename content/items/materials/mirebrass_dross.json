@@ -1,0 +1,12 @@
+{
+  "id": "mirebrass_dross",
+  "name": "Mirebrass Dross",
+  "itemType": "material",
+  "gridWidth": 1,
+  "gridHeight": 1,
+  "stackSize": 20,
+  "description": "Green residue, scraped from the crucible with a flat blade.",
+  "value": 24,
+  "lootValue": 14,
+  "materialTier": "mirebrass"
+}

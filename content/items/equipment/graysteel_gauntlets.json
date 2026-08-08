@@ -1,0 +1,25 @@
+{
+  "id": "graysteel_gauntlets",
+  "name": "Graysteel Gauntlets",
+  "itemType": "armor",
+  "equipmentSlot": "gloves",
+  "gridWidth": 2,
+  "gridHeight": 2,
+  "stackSize": 1,
+  "rarity": "common",
+  "description": "Worn thin at the knuckles, thick everywhere else. Vault-stock, stamped and stacked for a war that was called off. Scaling: Strength D.",
+  "value": 32,
+  "lootValue": 16,
+  "maxDurability": 95,
+  "baseId": "gauntlets",
+  "materialTier": "graysteel",
+  "biome": "iron_vault",
+  "scaling": {
+    "strength": "D"
+  },
+  "stats": {
+    "armor": 3,
+    "staminaMax": 5,
+    "resistPhysical": 0.02
+  }
+}

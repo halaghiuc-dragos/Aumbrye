@@ -1,0 +1,27 @@
+{
+  "id": "hoarfrost_warhammer",
+  "name": "Hoarfrost Warhammer",
+  "itemType": "weapon",
+  "equipmentSlot": "weapon",
+  "gridWidth": 2,
+  "gridHeight": 4,
+  "stackSize": 1,
+  "rarity": "magic",
+  "description": "Plate is a suggestion. This is the rebuttal. Quenched in meltwater that never fully melted. Scaling: Strength A, Dexterity E.",
+  "value": 177,
+  "lootValue": 88,
+  "maxDurability": 140,
+  "baseId": "warhammer",
+  "materialTier": "hoarfrost",
+  "biome": "frozen_fortress",
+  "scaling": {
+    "strength": "A",
+    "dexterity": "E"
+  },
+  "stats": {
+    "poiseDamage": 0.336,
+    "physicalDamage": 13,
+    "resistFrost": 0.08
+  },
+  "weaponId": "greatsword"
+}

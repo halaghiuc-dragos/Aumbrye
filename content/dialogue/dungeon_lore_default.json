@@ -3,8 +3,4298 @@
   "startNode": "start",
   "nodes": {
     "start": {
+      "speaker": "Order of the day",
+      "text": "Order of the day, unsigned: the gate holds until the light returns. No provision was made for the light not returning.",
+      "condition": {
+        "all": [
+          {
+            "biome": "forgotten_castle"
+          },
+          {
+            "not": {
+              "flag": "lore_forgotten_castle_read",
+              "atLeast": 1
+            }
+          }
+        ]
+      },
+      "fallback": "forgotten_castle_2",
+      "actions": [
+        {
+          "type": "increment_flag",
+          "flag": "lore_forgotten_castle_read",
+          "amount": 1
+        },
+        {
+          "type": "increment_flag",
+          "flag": "discoveries_found",
+          "amount": 1
+        },
+        {
+          "type": "record_discovery",
+          "discoveryId": "forgotten_castle_lore_1"
+        }
+      ],
+      "next": "end"
+    },
+    "forgotten_castle_2": {
+      "speaker": "Scratched inside a helm",
+      "text": "Forty-one at muster. Thirty at supper. The Serjeant went on calling the whole roll, and the room went on being quiet in the same eleven places.",
+      "condition": {
+        "all": [
+          {
+            "biome": "forgotten_castle"
+          },
+          {
+            "not": {
+              "flag": "lore_forgotten_castle_read",
+              "atLeast": 2
+            }
+          }
+        ]
+      },
+      "fallback": "forgotten_castle_3",
+      "actions": [
+        {
+          "type": "increment_flag",
+          "flag": "lore_forgotten_castle_read",
+          "amount": 1
+        },
+        {
+          "type": "increment_flag",
+          "flag": "discoveries_found",
+          "amount": 1
+        },
+        {
+          "type": "record_discovery",
+          "discoveryId": "forgotten_castle_lore_2"
+        }
+      ],
+      "next": "end"
+    },
+    "forgotten_castle_3": {
+      "speaker": "Guardroom tally",
+      "text": "The tally stops at eleven hundred. Below it, in another hand: we stopped counting days and started counting lamps.",
+      "condition": {
+        "all": [
+          {
+            "biome": "forgotten_castle"
+          },
+          {
+            "not": {
+              "flag": "lore_forgotten_castle_read",
+              "atLeast": 3
+            }
+          }
+        ]
+      },
+      "fallback": "forgotten_castle_4",
+      "actions": [
+        {
+          "type": "increment_flag",
+          "flag": "lore_forgotten_castle_read",
+          "amount": 1
+        },
+        {
+          "type": "increment_flag",
+          "flag": "discoveries_found",
+          "amount": 1
+        },
+        {
+          "type": "record_discovery",
+          "discoveryId": "forgotten_castle_lore_3"
+        }
+      ],
+      "next": "end"
+    },
+    "forgotten_castle_4": {
+      "speaker": "Notice at the sallyport",
+      "text": "Nobody descends. Countersigned by three officers. All three signatures are below the door.",
+      "condition": {
+        "all": [
+          {
+            "biome": "forgotten_castle"
+          },
+          {
+            "not": {
+              "flag": "lore_forgotten_castle_read",
+              "atLeast": 4
+            }
+          }
+        ]
+      },
+      "fallback": "forgotten_castle_5",
+      "actions": [
+        {
+          "type": "increment_flag",
+          "flag": "lore_forgotten_castle_read",
+          "amount": 1
+        },
+        {
+          "type": "increment_flag",
+          "flag": "discoveries_found",
+          "amount": 1
+        },
+        {
+          "type": "record_discovery",
+          "discoveryId": "forgotten_castle_lore_4"
+        }
+      ],
+      "next": "end"
+    },
+    "forgotten_castle_5": {
+      "speaker": "Quartermaster's slate",
+      "text": "Lamp oil: none. Candles: none. Requisition submitted the day the shaft was opened. Countersigned, unfilled, still pinned up.",
+      "condition": {
+        "all": [
+          {
+            "biome": "forgotten_castle"
+          },
+          {
+            "not": {
+              "flag": "lore_forgotten_castle_read",
+              "atLeast": 5
+            }
+          }
+        ]
+      },
+      "fallback": "forgotten_castle_6",
+      "actions": [
+        {
+          "type": "increment_flag",
+          "flag": "lore_forgotten_castle_read",
+          "amount": 1
+        },
+        {
+          "type": "increment_flag",
+          "flag": "discoveries_found",
+          "amount": 1
+        },
+        {
+          "type": "record_discovery",
+          "discoveryId": "forgotten_castle_lore_5"
+        }
+      ],
+      "next": "end"
+    },
+    "forgotten_castle_6": {
+      "speaker": "Letter, undelivered",
+      "text": "You will have heard by now that the light is being kept safe. Please tell mother it is being kept safe.",
+      "condition": {
+        "all": [
+          {
+            "biome": "forgotten_castle"
+          },
+          {
+            "not": {
+              "flag": "lore_forgotten_castle_read",
+              "atLeast": 6
+            }
+          }
+        ]
+      },
+      "fallback": "forgotten_castle_7",
+      "actions": [
+        {
+          "type": "increment_flag",
+          "flag": "lore_forgotten_castle_read",
+          "amount": 1
+        },
+        {
+          "type": "increment_flag",
+          "flag": "discoveries_found",
+          "amount": 1
+        },
+        {
+          "type": "record_discovery",
+          "discoveryId": "forgotten_castle_lore_6"
+        }
+      ],
+      "next": "end"
+    },
+    "forgotten_castle_7": {
+      "speaker": "Chalked on the muster wall",
+      "text": "Names below this line reported to the Chapter. Do not strike them. They are coming back up.",
+      "condition": {
+        "all": [
+          {
+            "biome": "forgotten_castle"
+          },
+          {
+            "not": {
+              "flag": "lore_forgotten_castle_read",
+              "atLeast": 7
+            }
+          }
+        ]
+      },
+      "fallback": "forgotten_castle_8",
+      "actions": [
+        {
+          "type": "increment_flag",
+          "flag": "lore_forgotten_castle_read",
+          "amount": 1
+        },
+        {
+          "type": "increment_flag",
+          "flag": "discoveries_found",
+          "amount": 1
+        },
+        {
+          "type": "record_discovery",
+          "discoveryId": "forgotten_castle_lore_7"
+        }
+      ],
+      "next": "end"
+    },
+    "forgotten_castle_8": {
+      "speaker": "Cut into a bench in the guardroom",
+      "text": "Eleven years of watches. Nine hundred bells. One order, and it was the first one.",
+      "condition": {
+        "all": [
+          {
+            "biome": "forgotten_castle"
+          },
+          {
+            "not": {
+              "flag": "lore_forgotten_castle_read",
+              "atLeast": 8
+            }
+          }
+        ]
+      },
+      "fallback": "forgotten_castle_9",
+      "actions": [
+        {
+          "type": "increment_flag",
+          "flag": "lore_forgotten_castle_read",
+          "amount": 1
+        },
+        {
+          "type": "increment_flag",
+          "flag": "discoveries_found",
+          "amount": 1
+        },
+        {
+          "type": "record_discovery",
+          "discoveryId": "forgotten_castle_lore_8"
+        }
+      ],
+      "next": "end"
+    },
+    "forgotten_castle_9": {
+      "speaker": "Physician's day-book",
+      "text": "Treated: exhaustion, exhaustion, exhaustion. There is nothing in the book for what is actually wrong with them.",
+      "condition": {
+        "all": [
+          {
+            "biome": "forgotten_castle"
+          },
+          {
+            "not": {
+              "flag": "lore_forgotten_castle_read",
+              "atLeast": 9
+            }
+          }
+        ]
+      },
+      "fallback": "forgotten_castle_10",
+      "actions": [
+        {
+          "type": "increment_flag",
+          "flag": "lore_forgotten_castle_read",
+          "amount": 1
+        },
+        {
+          "type": "increment_flag",
+          "flag": "discoveries_found",
+          "amount": 1
+        },
+        {
+          "type": "record_discovery",
+          "discoveryId": "forgotten_castle_lore_9"
+        }
+      ],
+      "next": "end"
+    },
+    "forgotten_castle_10": {
+      "speaker": "A child's hand, low on the wall",
+      "text": "The stair goes down and the light goes down and I am not allowed to.",
+      "condition": {
+        "all": [
+          {
+            "biome": "forgotten_castle"
+          },
+          {
+            "not": {
+              "flag": "lore_forgotten_castle_read",
+              "atLeast": 10
+            }
+          }
+        ]
+      },
+      "fallback": "forgotten_castle_11",
+      "actions": [
+        {
+          "type": "increment_flag",
+          "flag": "lore_forgotten_castle_read",
+          "amount": 1
+        },
+        {
+          "type": "increment_flag",
+          "flag": "discoveries_found",
+          "amount": 1
+        },
+        {
+          "type": "record_discovery",
+          "discoveryId": "forgotten_castle_lore_10"
+        }
+      ],
+      "next": "end"
+    },
+    "forgotten_castle_11": {
+      "speaker": "Order of the day, later",
+      "text": "The gate holds. Nobody is to ask what it is holding against. Signed in a hand that shakes.",
+      "condition": {
+        "all": [
+          {
+            "biome": "forgotten_castle"
+          },
+          {
+            "not": {
+              "flag": "lore_forgotten_castle_read",
+              "atLeast": 11
+            }
+          }
+        ]
+      },
+      "fallback": "forgotten_castle_12",
+      "actions": [
+        {
+          "type": "increment_flag",
+          "flag": "lore_forgotten_castle_read",
+          "amount": 1
+        },
+        {
+          "type": "increment_flag",
+          "flag": "discoveries_found",
+          "amount": 1
+        },
+        {
+          "type": "record_discovery",
+          "discoveryId": "forgotten_castle_lore_11"
+        }
+      ],
+      "next": "end"
+    },
+    "forgotten_castle_12": {
+      "speaker": "Scratched under the sallyport hinge",
+      "text": "We opened it once for the Chapter. It has been ours to hold ever since, and it was never ours.",
+      "condition": {
+        "all": [
+          {
+            "biome": "forgotten_castle"
+          },
+          {
+            "not": {
+              "flag": "lore_forgotten_castle_read",
+              "atLeast": 12
+            }
+          }
+        ]
+      },
+      "fallback": "forgotten_castle_reread",
+      "actions": [
+        {
+          "type": "increment_flag",
+          "flag": "lore_forgotten_castle_read",
+          "amount": 1
+        },
+        {
+          "type": "increment_flag",
+          "flag": "discoveries_found",
+          "amount": 1
+        },
+        {
+          "type": "record_discovery",
+          "discoveryId": "forgotten_castle_lore_12"
+        }
+      ],
+      "next": "end"
+    },
+    "forgotten_castle_reread": {
+      "speaker": "Scratched under the sallyport hinge",
+      "text": "We opened it once for the Chapter. It has been ours to hold ever since, and it was never ours.",
+      "condition": {
+        "biome": "forgotten_castle"
+      },
+      "fallback": "iron_vault_1",
+      "next": "end"
+    },
+    "iron_vault_1": {
+      "speaker": "Requisition ledger",
+      "text": "Received: one measure of daylight, sealed. Issued: nothing. Balance carried forward, and carried forward, and carried forward.",
+      "condition": {
+        "all": [
+          {
+            "biome": "iron_vault"
+          },
+          {
+            "not": {
+              "flag": "lore_iron_vault_read",
+              "atLeast": 1
+            }
+          }
+        ]
+      },
+      "fallback": "iron_vault_2",
+      "actions": [
+        {
+          "type": "increment_flag",
+          "flag": "lore_iron_vault_read",
+          "amount": 1
+        },
+        {
+          "type": "increment_flag",
+          "flag": "discoveries_found",
+          "amount": 1
+        },
+        {
+          "type": "record_discovery",
+          "discoveryId": "iron_vault_lore_1"
+        }
+      ],
+      "next": "end"
+    },
+    "iron_vault_2": {
+      "speaker": "Clerk's marginal note",
+      "text": "The Chapter says the light is stored, not spent. I have audited both columns. They are the same column.",
+      "condition": {
+        "all": [
+          {
+            "biome": "iron_vault"
+          },
+          {
+            "not": {
+              "flag": "lore_iron_vault_read",
+              "atLeast": 2
+            }
+          }
+        ]
+      },
+      "fallback": "iron_vault_3",
+      "actions": [
+        {
+          "type": "increment_flag",
+          "flag": "lore_iron_vault_read",
+          "amount": 1
+        },
+        {
+          "type": "increment_flag",
+          "flag": "discoveries_found",
+          "amount": 1
+        },
+        {
+          "type": "record_discovery",
+          "discoveryId": "iron_vault_lore_2"
+        }
+      ],
+      "next": "end"
+    },
+    "iron_vault_3": {
+      "speaker": "Crate stamp",
+      "text": "PROPERTY OF THE KEEPING, in fresh paint. Under it, where the paint is thin: PROPERTY OF THE CITY.",
+      "condition": {
+        "all": [
+          {
+            "biome": "iron_vault"
+          },
+          {
+            "not": {
+              "flag": "lore_iron_vault_read",
+              "atLeast": 3
+            }
+          }
+        ]
+      },
+      "fallback": "iron_vault_4",
+      "actions": [
+        {
+          "type": "increment_flag",
+          "flag": "lore_iron_vault_read",
+          "amount": 1
+        },
+        {
+          "type": "increment_flag",
+          "flag": "discoveries_found",
+          "amount": 1
+        },
+        {
+          "type": "record_discovery",
+          "discoveryId": "iron_vault_lore_3"
+        }
+      ],
+      "next": "end"
+    },
+    "iron_vault_4": {
+      "speaker": "The long aisle",
+      "text": "The vault door was barred from the inside. So is everything else in here, including the people who did the barring.",
+      "condition": {
+        "all": [
+          {
+            "biome": "iron_vault"
+          },
+          {
+            "not": {
+              "flag": "lore_iron_vault_read",
+              "atLeast": 4
+            }
+          }
+        ]
+      },
+      "fallback": "iron_vault_5",
+      "actions": [
+        {
+          "type": "increment_flag",
+          "flag": "lore_iron_vault_read",
+          "amount": 1
+        },
+        {
+          "type": "increment_flag",
+          "flag": "discoveries_found",
+          "amount": 1
+        },
+        {
+          "type": "record_discovery",
+          "discoveryId": "iron_vault_lore_4"
+        }
+      ],
+      "next": "end"
+    },
+    "iron_vault_5": {
+      "speaker": "Inventory tag",
+      "text": "Contents: one measure. Condition: sealed. Reweighed annually. The weight has never once been the same.",
+      "condition": {
+        "all": [
+          {
+            "biome": "iron_vault"
+          },
+          {
+            "not": {
+              "flag": "lore_iron_vault_read",
+              "atLeast": 5
+            }
+          }
+        ]
+      },
+      "fallback": "iron_vault_6",
+      "actions": [
+        {
+          "type": "increment_flag",
+          "flag": "lore_iron_vault_read",
+          "amount": 1
+        },
+        {
+          "type": "increment_flag",
+          "flag": "discoveries_found",
+          "amount": 1
+        },
+        {
+          "type": "record_discovery",
+          "discoveryId": "iron_vault_lore_5"
+        }
+      ],
+      "next": "end"
+    },
+    "iron_vault_6": {
+      "speaker": "Conclave minute",
+      "text": "Motion carried. The vault is to be sealed from within, the quorum remaining inside, until the account balances.",
+      "condition": {
+        "all": [
+          {
+            "biome": "iron_vault"
+          },
+          {
+            "not": {
+              "flag": "lore_iron_vault_read",
+              "atLeast": 6
+            }
+          }
+        ]
+      },
+      "fallback": "iron_vault_7",
+      "actions": [
+        {
+          "type": "increment_flag",
+          "flag": "lore_iron_vault_read",
+          "amount": 1
+        },
+        {
+          "type": "increment_flag",
+          "flag": "discoveries_found",
+          "amount": 1
+        },
+        {
+          "type": "record_discovery",
+          "discoveryId": "iron_vault_lore_6"
+        }
+      ],
+      "next": "end"
+    },
+    "iron_vault_7": {
+      "speaker": "Stamped on a crate lid",
+      "text": "Not for issue. Not for inspection. Not for the Chapter. Struck through, all three, in the same ink.",
+      "condition": {
+        "all": [
+          {
+            "biome": "iron_vault"
+          },
+          {
+            "not": {
+              "flag": "lore_iron_vault_read",
+              "atLeast": 7
+            }
+          }
+        ]
+      },
+      "fallback": "iron_vault_8",
+      "actions": [
+        {
+          "type": "increment_flag",
+          "flag": "lore_iron_vault_read",
+          "amount": 1
+        },
+        {
+          "type": "increment_flag",
+          "flag": "discoveries_found",
+          "amount": 1
+        },
+        {
+          "type": "record_discovery",
+          "discoveryId": "iron_vault_lore_7"
+        }
+      ],
+      "next": "end"
+    },
+    "iron_vault_8": {
+      "speaker": "Vault keeper's note",
+      "text": "I have counted the cells eleven times. There are eleven fewer than the ledger says and the ledger is in my hand.",
+      "condition": {
+        "all": [
+          {
+            "biome": "iron_vault"
+          },
+          {
+            "not": {
+              "flag": "lore_iron_vault_read",
+              "atLeast": 8
+            }
+          }
+        ]
+      },
+      "fallback": "iron_vault_9",
+      "actions": [
+        {
+          "type": "increment_flag",
+          "flag": "lore_iron_vault_read",
+          "amount": 1
+        },
+        {
+          "type": "increment_flag",
+          "flag": "discoveries_found",
+          "amount": 1
+        },
+        {
+          "type": "record_discovery",
+          "discoveryId": "iron_vault_lore_8"
+        }
+      ],
+      "next": "end"
+    },
+    "iron_vault_9": {
+      "speaker": "Wax seal, broken and re-poured",
+      "text": "Reseal authorised. Reason for opening: not recorded. Reason for resealing: not recorded.",
+      "condition": {
+        "all": [
+          {
+            "biome": "iron_vault"
+          },
+          {
+            "not": {
+              "flag": "lore_iron_vault_read",
+              "atLeast": 9
+            }
+          }
+        ]
+      },
+      "fallback": "iron_vault_10",
+      "actions": [
+        {
+          "type": "increment_flag",
+          "flag": "lore_iron_vault_read",
+          "amount": 1
+        },
+        {
+          "type": "increment_flag",
+          "flag": "discoveries_found",
+          "amount": 1
+        },
+        {
+          "type": "record_discovery",
+          "discoveryId": "iron_vault_lore_9"
+        }
+      ],
+      "next": "end"
+    },
+    "iron_vault_10": {
+      "speaker": "Scratched inside a cell door",
+      "text": "It was warm when they put it in. I checked it every winter. It has not been warm for nine.",
+      "condition": {
+        "all": [
+          {
+            "biome": "iron_vault"
+          },
+          {
+            "not": {
+              "flag": "lore_iron_vault_read",
+              "atLeast": 10
+            }
+          }
+        ]
+      },
+      "fallback": "iron_vault_11",
+      "actions": [
+        {
+          "type": "increment_flag",
+          "flag": "lore_iron_vault_read",
+          "amount": 1
+        },
+        {
+          "type": "increment_flag",
+          "flag": "discoveries_found",
+          "amount": 1
+        },
+        {
+          "type": "record_discovery",
+          "discoveryId": "iron_vault_lore_10"
+        }
+      ],
+      "next": "end"
+    },
+    "iron_vault_11": {
+      "speaker": "Requisition, refused",
+      "text": "Application to withdraw one measure for the town above. Refused. Grounds: the store is not for spending.",
+      "condition": {
+        "all": [
+          {
+            "biome": "iron_vault"
+          },
+          {
+            "not": {
+              "flag": "lore_iron_vault_read",
+              "atLeast": 11
+            }
+          }
+        ]
+      },
+      "fallback": "iron_vault_12",
+      "actions": [
+        {
+          "type": "increment_flag",
+          "flag": "lore_iron_vault_read",
+          "amount": 1
+        },
+        {
+          "type": "increment_flag",
+          "flag": "discoveries_found",
+          "amount": 1
+        },
+        {
+          "type": "record_discovery",
+          "discoveryId": "iron_vault_lore_11"
+        }
+      ],
+      "next": "end"
+    },
+    "iron_vault_12": {
+      "speaker": "Last entry in the day ledger",
+      "text": "Balance carried forward. There is no page after this one. Somebody removed the page after this one.",
+      "condition": {
+        "all": [
+          {
+            "biome": "iron_vault"
+          },
+          {
+            "not": {
+              "flag": "lore_iron_vault_read",
+              "atLeast": 12
+            }
+          }
+        ]
+      },
+      "fallback": "iron_vault_reread",
+      "actions": [
+        {
+          "type": "increment_flag",
+          "flag": "lore_iron_vault_read",
+          "amount": 1
+        },
+        {
+          "type": "increment_flag",
+          "flag": "discoveries_found",
+          "amount": 1
+        },
+        {
+          "type": "record_discovery",
+          "discoveryId": "iron_vault_lore_12"
+        }
+      ],
+      "next": "end"
+    },
+    "iron_vault_reread": {
+      "speaker": "Last entry in the day ledger",
+      "text": "Balance carried forward. There is no page after this one. Somebody removed the page after this one.",
+      "condition": {
+        "biome": "iron_vault"
+      },
+      "fallback": "crystal_caverns_1",
+      "next": "end"
+    },
+    "crystal_caverns_1": {
+      "speaker": "Survey mark",
+      "text": "The seam runs true for nine miles and holds a light nobody remembers giving it.",
+      "condition": {
+        "all": [
+          {
+            "biome": "crystal_caverns"
+          },
+          {
+            "not": {
+              "flag": "lore_crystal_caverns_read",
+              "atLeast": 1
+            }
+          }
+        ]
+      },
+      "fallback": "crystal_caverns_2",
+      "actions": [
+        {
+          "type": "increment_flag",
+          "flag": "lore_crystal_caverns_read",
+          "amount": 1
+        },
+        {
+          "type": "increment_flag",
+          "flag": "discoveries_found",
+          "amount": 1
+        },
+        {
+          "type": "record_discovery",
+          "discoveryId": "crystal_caverns_lore_1"
+        }
+      ],
+      "next": "end"
+    },
+    "crystal_caverns_2": {
+      "speaker": "Cutter's complaint, filed",
+      "text": "The stone takes the shine out of the lamp and gives back a shine that does not warm. Filed. No reply recorded.",
+      "condition": {
+        "all": [
+          {
+            "biome": "crystal_caverns"
+          },
+          {
+            "not": {
+              "flag": "lore_crystal_caverns_read",
+              "atLeast": 2
+            }
+          }
+        ]
+      },
+      "fallback": "crystal_caverns_3",
+      "actions": [
+        {
+          "type": "increment_flag",
+          "flag": "lore_crystal_caverns_read",
+          "amount": 1
+        },
+        {
+          "type": "increment_flag",
+          "flag": "discoveries_found",
+          "amount": 1
+        },
+        {
+          "type": "record_discovery",
+          "discoveryId": "crystal_caverns_lore_2"
+        }
+      ],
+      "next": "end"
+    },
+    "crystal_caverns_3": {
+      "speaker": "Gallery wall",
+      "text": "Names scratched deep and then grown over. The stone did not object to being written on. It objected later.",
+      "condition": {
+        "all": [
+          {
+            "biome": "crystal_caverns"
+          },
+          {
+            "not": {
+              "flag": "lore_crystal_caverns_read",
+              "atLeast": 3
+            }
+          }
+        ]
+      },
+      "fallback": "crystal_caverns_4",
+      "actions": [
+        {
+          "type": "increment_flag",
+          "flag": "lore_crystal_caverns_read",
+          "amount": 1
+        },
+        {
+          "type": "increment_flag",
+          "flag": "discoveries_found",
+          "amount": 1
+        },
+        {
+          "type": "record_discovery",
+          "discoveryId": "crystal_caverns_lore_3"
+        }
+      ],
+      "next": "end"
+    },
+    "crystal_caverns_4": {
+      "speaker": "Chapter directive",
+      "text": "Every facet cut is a measure kept. Nobody asked what the measure was being kept from.",
+      "condition": {
+        "all": [
+          {
+            "biome": "crystal_caverns"
+          },
+          {
+            "not": {
+              "flag": "lore_crystal_caverns_read",
+              "atLeast": 4
+            }
+          }
+        ]
+      },
+      "fallback": "crystal_caverns_5",
+      "actions": [
+        {
+          "type": "increment_flag",
+          "flag": "lore_crystal_caverns_read",
+          "amount": 1
+        },
+        {
+          "type": "increment_flag",
+          "flag": "discoveries_found",
+          "amount": 1
+        },
+        {
+          "type": "record_discovery",
+          "discoveryId": "crystal_caverns_lore_4"
+        }
+      ],
+      "next": "end"
+    },
+    "crystal_caverns_5": {
+      "speaker": "Surveyor's peg tag",
+      "text": "Seam runs true to the shaft. Recommend no cutting. Recommendation acknowledged and overruled.",
+      "condition": {
+        "all": [
+          {
+            "biome": "crystal_caverns"
+          },
+          {
+            "not": {
+              "flag": "lore_crystal_caverns_read",
+              "atLeast": 5
+            }
+          }
+        ]
+      },
+      "fallback": "crystal_caverns_6",
+      "actions": [
+        {
+          "type": "increment_flag",
+          "flag": "lore_crystal_caverns_read",
+          "amount": 1
+        },
+        {
+          "type": "increment_flag",
+          "flag": "discoveries_found",
+          "amount": 1
+        },
+        {
+          "type": "record_discovery",
+          "discoveryId": "crystal_caverns_lore_5"
+        }
+      ],
+      "next": "end"
+    },
+    "crystal_caverns_6": {
+      "speaker": "Chalk on a cut face",
+      "text": "Clear when we found it. It took the colour off something. Nobody will say off what.",
+      "condition": {
+        "all": [
+          {
+            "biome": "crystal_caverns"
+          },
+          {
+            "not": {
+              "flag": "lore_crystal_caverns_read",
+              "atLeast": 6
+            }
+          }
+        ]
+      },
+      "fallback": "crystal_caverns_7",
+      "actions": [
+        {
+          "type": "increment_flag",
+          "flag": "lore_crystal_caverns_read",
+          "amount": 1
+        },
+        {
+          "type": "increment_flag",
+          "flag": "discoveries_found",
+          "amount": 1
+        },
+        {
+          "type": "record_discovery",
+          "discoveryId": "crystal_caverns_lore_6"
+        }
+      ],
+      "next": "end"
+    },
+    "crystal_caverns_7": {
+      "speaker": "Cutter's tally",
+      "text": "Four faces opened. Three men to a face. The count of faces is the only count anybody kept.",
+      "condition": {
+        "all": [
+          {
+            "biome": "crystal_caverns"
+          },
+          {
+            "not": {
+              "flag": "lore_crystal_caverns_read",
+              "atLeast": 7
+            }
+          }
+        ]
+      },
+      "fallback": "crystal_caverns_8",
+      "actions": [
+        {
+          "type": "increment_flag",
+          "flag": "lore_crystal_caverns_read",
+          "amount": 1
+        },
+        {
+          "type": "increment_flag",
+          "flag": "discoveries_found",
+          "amount": 1
+        },
+        {
+          "type": "record_discovery",
+          "discoveryId": "crystal_caverns_lore_7"
+        }
+      ],
+      "next": "end"
+    },
+    "crystal_caverns_8": {
+      "speaker": "Note pinned to a lamp bracket",
+      "text": "Do not bring a light past the second gallery. The galleries have started keeping them.",
+      "condition": {
+        "all": [
+          {
+            "biome": "crystal_caverns"
+          },
+          {
+            "not": {
+              "flag": "lore_crystal_caverns_read",
+              "atLeast": 8
+            }
+          }
+        ]
+      },
+      "fallback": "crystal_caverns_9",
+      "actions": [
+        {
+          "type": "increment_flag",
+          "flag": "lore_crystal_caverns_read",
+          "amount": 1
+        },
+        {
+          "type": "increment_flag",
+          "flag": "discoveries_found",
+          "amount": 1
+        },
+        {
+          "type": "record_discovery",
+          "discoveryId": "crystal_caverns_lore_8"
+        }
+      ],
+      "next": "end"
+    },
+    "crystal_caverns_9": {
+      "speaker": "Scratched beside a socket in the rock",
+      "text": "Something was set here and taken out again. The hole is the shape of a lantern and warm.",
+      "condition": {
+        "all": [
+          {
+            "biome": "crystal_caverns"
+          },
+          {
+            "not": {
+              "flag": "lore_crystal_caverns_read",
+              "atLeast": 9
+            }
+          }
+        ]
+      },
+      "fallback": "crystal_caverns_10",
+      "actions": [
+        {
+          "type": "increment_flag",
+          "flag": "lore_crystal_caverns_read",
+          "amount": 1
+        },
+        {
+          "type": "increment_flag",
+          "flag": "discoveries_found",
+          "amount": 1
+        },
+        {
+          "type": "record_discovery",
+          "discoveryId": "crystal_caverns_lore_9"
+        }
+      ],
+      "next": "end"
+    },
+    "crystal_caverns_10": {
+      "speaker": "Foreman's complaint",
+      "text": "The Chapter's men come down with empty glass and go up with full glass and we are told not to look at the glass.",
+      "condition": {
+        "all": [
+          {
+            "biome": "crystal_caverns"
+          },
+          {
+            "not": {
+              "flag": "lore_crystal_caverns_read",
+              "atLeast": 10
+            }
+          }
+        ]
+      },
+      "fallback": "crystal_caverns_11",
+      "actions": [
+        {
+          "type": "increment_flag",
+          "flag": "lore_crystal_caverns_read",
+          "amount": 1
+        },
+        {
+          "type": "increment_flag",
+          "flag": "discoveries_found",
+          "amount": 1
+        },
+        {
+          "type": "record_discovery",
+          "discoveryId": "crystal_caverns_lore_10"
+        }
+      ],
+      "next": "end"
+    },
+    "crystal_caverns_11": {
+      "speaker": "Carved above a collapsed gallery",
+      "text": "Nine behind this. We were told they would be relit. We were told this by a man holding a list.",
+      "condition": {
+        "all": [
+          {
+            "biome": "crystal_caverns"
+          },
+          {
+            "not": {
+              "flag": "lore_crystal_caverns_read",
+              "atLeast": 11
+            }
+          }
+        ]
+      },
+      "fallback": "crystal_caverns_12",
+      "actions": [
+        {
+          "type": "increment_flag",
+          "flag": "lore_crystal_caverns_read",
+          "amount": 1
+        },
+        {
+          "type": "increment_flag",
+          "flag": "discoveries_found",
+          "amount": 1
+        },
+        {
+          "type": "record_discovery",
+          "discoveryId": "crystal_caverns_lore_11"
+        }
+      ],
+      "next": "end"
+    },
+    "crystal_caverns_12": {
+      "speaker": "Cut small, near the floor",
+      "text": "The stone remembers being bright. That is all it remembers, and it will not stop.",
+      "condition": {
+        "all": [
+          {
+            "biome": "crystal_caverns"
+          },
+          {
+            "not": {
+              "flag": "lore_crystal_caverns_read",
+              "atLeast": 12
+            }
+          }
+        ]
+      },
+      "fallback": "crystal_caverns_reread",
+      "actions": [
+        {
+          "type": "increment_flag",
+          "flag": "lore_crystal_caverns_read",
+          "amount": 1
+        },
+        {
+          "type": "increment_flag",
+          "flag": "discoveries_found",
+          "amount": 1
+        },
+        {
+          "type": "record_discovery",
+          "discoveryId": "crystal_caverns_lore_12"
+        }
+      ],
+      "next": "end"
+    },
+    "crystal_caverns_reread": {
+      "speaker": "Cut small, near the floor",
+      "text": "The stone remembers being bright. That is all it remembers, and it will not stop.",
+      "condition": {
+        "biome": "crystal_caverns"
+      },
+      "fallback": "prism_depths_1",
+      "next": "end"
+    },
+    "prism_depths_1": {
+      "speaker": "The Lampwright's paper",
+      "text": "Cut it thin enough and one lamp lights a city. Cut it thinner and it lights nothing at all, very brightly.",
+      "condition": {
+        "all": [
+          {
+            "biome": "prism_depths"
+          },
+          {
+            "not": {
+              "flag": "lore_prism_depths_read",
+              "atLeast": 1
+            }
+          }
+        ]
+      },
+      "fallback": "prism_depths_2",
+      "actions": [
+        {
+          "type": "increment_flag",
+          "flag": "lore_prism_depths_read",
+          "amount": 1
+        },
+        {
+          "type": "increment_flag",
+          "flag": "discoveries_found",
+          "amount": 1
+        },
+        {
+          "type": "record_discovery",
+          "discoveryId": "prism_depths_lore_1"
+        }
+      ],
+      "next": "end"
+    },
+    "prism_depths_2": {
+      "speaker": "Choir rota",
+      "text": "The choir here was tuned to the angle of the light, not to any key. When the angle moved they kept singing, which is the part that is hard to hear about.",
+      "condition": {
+        "all": [
+          {
+            "biome": "prism_depths"
+          },
+          {
+            "not": {
+              "flag": "lore_prism_depths_read",
+              "atLeast": 2
+            }
+          }
+        ]
+      },
+      "fallback": "prism_depths_3",
+      "actions": [
+        {
+          "type": "increment_flag",
+          "flag": "lore_prism_depths_read",
+          "amount": 1
+        },
+        {
+          "type": "increment_flag",
+          "flag": "discoveries_found",
+          "amount": 1
+        },
+        {
+          "type": "record_discovery",
+          "discoveryId": "prism_depths_lore_2"
+        }
+      ],
+      "next": "end"
+    },
+    "prism_depths_3": {
+      "speaker": "Schedule of refractions",
+      "text": "A careful hand, ending mid-column. The last entry is a fraction with no numerator.",
+      "condition": {
+        "all": [
+          {
+            "biome": "prism_depths"
+          },
+          {
+            "not": {
+              "flag": "lore_prism_depths_read",
+              "atLeast": 3
+            }
+          }
+        ]
+      },
+      "fallback": "prism_depths_4",
+      "actions": [
+        {
+          "type": "increment_flag",
+          "flag": "lore_prism_depths_read",
+          "amount": 1
+        },
+        {
+          "type": "increment_flag",
+          "flag": "discoveries_found",
+          "amount": 1
+        },
+        {
+          "type": "record_discovery",
+          "discoveryId": "prism_depths_lore_3"
+        }
+      ],
+      "next": "end"
+    },
+    "prism_depths_4": {
+      "speaker": "Painted above the shaft",
+      "text": "LIGHT ENTERS HERE. Nothing is painted anywhere to say where it leaves.",
+      "condition": {
+        "all": [
+          {
+            "biome": "prism_depths"
+          },
+          {
+            "not": {
+              "flag": "lore_prism_depths_read",
+              "atLeast": 4
+            }
+          }
+        ]
+      },
+      "fallback": "prism_depths_5",
+      "actions": [
+        {
+          "type": "increment_flag",
+          "flag": "lore_prism_depths_read",
+          "amount": 1
+        },
+        {
+          "type": "increment_flag",
+          "flag": "discoveries_found",
+          "amount": 1
+        },
+        {
+          "type": "record_discovery",
+          "discoveryId": "prism_depths_lore_4"
+        }
+      ],
+      "next": "end"
+    },
+    "prism_depths_5": {
+      "speaker": "Chapter working note",
+      "text": "Light admits of division. Divided light may be stored. Stored light may be returned. Each sentence was true when written.",
+      "condition": {
+        "all": [
+          {
+            "biome": "prism_depths"
+          },
+          {
+            "not": {
+              "flag": "lore_prism_depths_read",
+              "atLeast": 5
+            }
+          }
+        ]
+      },
+      "fallback": "prism_depths_6",
+      "actions": [
+        {
+          "type": "increment_flag",
+          "flag": "lore_prism_depths_read",
+          "amount": 1
+        },
+        {
+          "type": "increment_flag",
+          "flag": "discoveries_found",
+          "amount": 1
+        },
+        {
+          "type": "record_discovery",
+          "discoveryId": "prism_depths_lore_5"
+        }
+      ],
+      "next": "end"
+    },
+    "prism_depths_6": {
+      "speaker": "Ledger of the store",
+      "text": "Received, in trust, from the town of Aumbrye: their evening. To be returned entire.",
+      "condition": {
+        "all": [
+          {
+            "biome": "prism_depths"
+          },
+          {
+            "not": {
+              "flag": "lore_prism_depths_read",
+              "atLeast": 6
+            }
+          }
+        ]
+      },
+      "fallback": "prism_depths_7",
+      "actions": [
+        {
+          "type": "increment_flag",
+          "flag": "lore_prism_depths_read",
+          "amount": 1
+        },
+        {
+          "type": "increment_flag",
+          "flag": "discoveries_found",
+          "amount": 1
+        },
+        {
+          "type": "record_discovery",
+          "discoveryId": "prism_depths_lore_6"
+        }
+      ],
+      "next": "end"
+    },
+    "prism_depths_7": {
+      "speaker": "Instrument label",
+      "text": "Angle of incidence to be held at the mark. Off the mark the measure runs out and cannot be recovered.",
+      "condition": {
+        "all": [
+          {
+            "biome": "prism_depths"
+          },
+          {
+            "not": {
+              "flag": "lore_prism_depths_read",
+              "atLeast": 7
+            }
+          }
+        ]
+      },
+      "fallback": "prism_depths_8",
+      "actions": [
+        {
+          "type": "increment_flag",
+          "flag": "lore_prism_depths_read",
+          "amount": 1
+        },
+        {
+          "type": "increment_flag",
+          "flag": "discoveries_found",
+          "amount": 1
+        },
+        {
+          "type": "record_discovery",
+          "discoveryId": "prism_depths_lore_7"
+        }
+      ],
+      "next": "end"
+    },
+    "prism_depths_8": {
+      "speaker": "Scratched on a cell frame",
+      "text": "They asked for volunteers and then they stopped asking.",
+      "condition": {
+        "all": [
+          {
+            "biome": "prism_depths"
+          },
+          {
+            "not": {
+              "flag": "lore_prism_depths_read",
+              "atLeast": 8
+            }
+          }
+        ]
+      },
+      "fallback": "prism_depths_9",
+      "actions": [
+        {
+          "type": "increment_flag",
+          "flag": "lore_prism_depths_read",
+          "amount": 1
+        },
+        {
+          "type": "increment_flag",
+          "flag": "discoveries_found",
+          "amount": 1
+        },
+        {
+          "type": "record_discovery",
+          "discoveryId": "prism_depths_lore_8"
+        }
+      ],
+      "next": "end"
+    },
+    "prism_depths_9": {
+      "speaker": "Cantor's margin note",
+      "text": "The liturgy is longer than the process. That is deliberate. It is easier to repeat than a reason.",
+      "condition": {
+        "all": [
+          {
+            "biome": "prism_depths"
+          },
+          {
+            "not": {
+              "flag": "lore_prism_depths_read",
+              "atLeast": 9
+            }
+          }
+        ]
+      },
+      "fallback": "prism_depths_10",
+      "actions": [
+        {
+          "type": "increment_flag",
+          "flag": "lore_prism_depths_read",
+          "amount": 1
+        },
+        {
+          "type": "increment_flag",
+          "flag": "discoveries_found",
+          "amount": 1
+        },
+        {
+          "type": "record_discovery",
+          "discoveryId": "prism_depths_lore_9"
+        }
+      ],
+      "next": "end"
+    },
+    "prism_depths_10": {
+      "speaker": "Struck through, still legible",
+      "text": "The store is not full. The store has never been full. We have been issuing against a balance that does not exist.",
+      "condition": {
+        "all": [
+          {
+            "biome": "prism_depths"
+          },
+          {
+            "not": {
+              "flag": "lore_prism_depths_read",
+              "atLeast": 10
+            }
+          }
+        ]
+      },
+      "fallback": "prism_depths_11",
+      "actions": [
+        {
+          "type": "increment_flag",
+          "flag": "lore_prism_depths_read",
+          "amount": 1
+        },
+        {
+          "type": "increment_flag",
+          "flag": "discoveries_found",
+          "amount": 1
+        },
+        {
+          "type": "record_discovery",
+          "discoveryId": "prism_depths_lore_10"
+        }
+      ],
+      "next": "end"
+    },
+    "prism_depths_11": {
+      "speaker": "A list, in a careful hand",
+      "text": "Order of relighting. Names, with a mark against each. The marks are not ticks.",
+      "condition": {
+        "all": [
+          {
+            "biome": "prism_depths"
+          },
+          {
+            "not": {
+              "flag": "lore_prism_depths_read",
+              "atLeast": 11
+            }
+          }
+        ]
+      },
+      "fallback": "prism_depths_12",
+      "actions": [
+        {
+          "type": "increment_flag",
+          "flag": "lore_prism_depths_read",
+          "amount": 1
+        },
+        {
+          "type": "increment_flag",
+          "flag": "discoveries_found",
+          "amount": 1
+        },
+        {
+          "type": "record_discovery",
+          "discoveryId": "prism_depths_lore_11"
+        }
+      ],
+      "next": "end"
+    },
+    "prism_depths_12": {
+      "speaker": "On the underside of a bench",
+      "text": "I signed for it. I signed for all of it. My name is on every page and I did not read one.",
+      "condition": {
+        "all": [
+          {
+            "biome": "prism_depths"
+          },
+          {
+            "not": {
+              "flag": "lore_prism_depths_read",
+              "atLeast": 12
+            }
+          }
+        ]
+      },
+      "fallback": "prism_depths_reread",
+      "actions": [
+        {
+          "type": "increment_flag",
+          "flag": "lore_prism_depths_read",
+          "amount": 1
+        },
+        {
+          "type": "increment_flag",
+          "flag": "discoveries_found",
+          "amount": 1
+        },
+        {
+          "type": "record_discovery",
+          "discoveryId": "prism_depths_lore_12"
+        }
+      ],
+      "next": "end"
+    },
+    "prism_depths_reread": {
+      "speaker": "On the underside of a bench",
+      "text": "I signed for it. I signed for all of it. My name is on every page and I did not read one.",
+      "condition": {
+        "biome": "prism_depths"
+      },
+      "fallback": "poison_swamp_1",
+      "next": "end"
+    },
+    "poison_swamp_1": {
+      "speaker": "Drainage order",
+      "text": "What the Vault cannot hold, send south. The south is where the water goes, and the water does not come back.",
+      "condition": {
+        "all": [
+          {
+            "biome": "poison_swamp"
+          },
+          {
+            "not": {
+              "flag": "lore_poison_swamp_read",
+              "atLeast": 1
+            }
+          }
+        ]
+      },
+      "fallback": "poison_swamp_2",
+      "actions": [
+        {
+          "type": "increment_flag",
+          "flag": "lore_poison_swamp_read",
+          "amount": 1
+        },
+        {
+          "type": "increment_flag",
+          "flag": "discoveries_found",
+          "amount": 1
+        },
+        {
+          "type": "record_discovery",
+          "discoveryId": "poison_swamp_lore_1"
+        }
+      ],
+      "next": "end"
+    },
+    "poison_swamp_2": {
+      "speaker": "Physician's note",
+      "text": "The fen is not poisoned. The fen is full. There is a difference, and it stopped mattering in the third year.",
+      "condition": {
+        "all": [
+          {
+            "biome": "poison_swamp"
+          },
+          {
+            "not": {
+              "flag": "lore_poison_swamp_read",
+              "atLeast": 2
+            }
+          }
+        ]
+      },
+      "fallback": "poison_swamp_3",
+      "actions": [
+        {
+          "type": "increment_flag",
+          "flag": "lore_poison_swamp_read",
+          "amount": 1
+        },
+        {
+          "type": "increment_flag",
+          "flag": "discoveries_found",
+          "amount": 1
+        },
+        {
+          "type": "record_discovery",
+          "discoveryId": "poison_swamp_lore_2"
+        }
+      ],
+      "next": "end"
+    },
+    "poison_swamp_3": {
+      "speaker": "Marker post, half sunk",
+      "text": "THE CITY — FOUR MILES. There is no road and there is no city, but the post is honest about the distance.",
+      "condition": {
+        "all": [
+          {
+            "biome": "poison_swamp"
+          },
+          {
+            "not": {
+              "flag": "lore_poison_swamp_read",
+              "atLeast": 3
+            }
+          }
+        ]
+      },
+      "fallback": "poison_swamp_4",
+      "actions": [
+        {
+          "type": "increment_flag",
+          "flag": "lore_poison_swamp_read",
+          "amount": 1
+        },
+        {
+          "type": "increment_flag",
+          "flag": "discoveries_found",
+          "amount": 1
+        },
+        {
+          "type": "record_discovery",
+          "discoveryId": "poison_swamp_lore_3"
+        }
+      ],
+      "next": "end"
+    },
+    "poison_swamp_4": {
+      "speaker": "Boat transom, upside down in the mud",
+      "text": "We carried it out and we carried it out, and it was always the same weight going back.",
+      "condition": {
+        "all": [
+          {
+            "biome": "poison_swamp"
+          },
+          {
+            "not": {
+              "flag": "lore_poison_swamp_read",
+              "atLeast": 4
+            }
+          }
+        ]
+      },
+      "fallback": "poison_swamp_5",
+      "actions": [
+        {
+          "type": "increment_flag",
+          "flag": "lore_poison_swamp_read",
+          "amount": 1
+        },
+        {
+          "type": "increment_flag",
+          "flag": "discoveries_found",
+          "amount": 1
+        },
+        {
+          "type": "record_discovery",
+          "discoveryId": "poison_swamp_lore_4"
+        }
+      ],
+      "next": "end"
+    },
+    "poison_swamp_5": {
+      "speaker": "Waterman's mark on a post",
+      "text": "Level rising. Level rising. Level rising. Four years of the same three words.",
+      "condition": {
+        "all": [
+          {
+            "biome": "poison_swamp"
+          },
+          {
+            "not": {
+              "flag": "lore_poison_swamp_read",
+              "atLeast": 5
+            }
+          }
+        ]
+      },
+      "fallback": "poison_swamp_6",
+      "actions": [
+        {
+          "type": "increment_flag",
+          "flag": "lore_poison_swamp_read",
+          "amount": 1
+        },
+        {
+          "type": "increment_flag",
+          "flag": "discoveries_found",
+          "amount": 1
+        },
+        {
+          "type": "record_discovery",
+          "discoveryId": "poison_swamp_lore_5"
+        }
+      ],
+      "next": "end"
+    },
+    "poison_swamp_6": {
+      "speaker": "Physician's note",
+      "text": "The water is not sick. Something upstream is being filtered and this is what comes through.",
+      "condition": {
+        "all": [
+          {
+            "biome": "poison_swamp"
+          },
+          {
+            "not": {
+              "flag": "lore_poison_swamp_read",
+              "atLeast": 6
+            }
+          }
+        ]
+      },
+      "fallback": "poison_swamp_7",
+      "actions": [
+        {
+          "type": "increment_flag",
+          "flag": "lore_poison_swamp_read",
+          "amount": 1
+        },
+        {
+          "type": "increment_flag",
+          "flag": "discoveries_found",
+          "amount": 1
+        },
+        {
+          "type": "record_discovery",
+          "discoveryId": "poison_swamp_lore_6"
+        }
+      ],
+      "next": "end"
+    },
+    "poison_swamp_7": {
+      "speaker": "Board nailed to a drowned door",
+      "text": "House of the Fen family. Six within. Do not open, the water is holding them still.",
+      "condition": {
+        "all": [
+          {
+            "biome": "poison_swamp"
+          },
+          {
+            "not": {
+              "flag": "lore_poison_swamp_read",
+              "atLeast": 7
+            }
+          }
+        ]
+      },
+      "fallback": "poison_swamp_8",
+      "actions": [
+        {
+          "type": "increment_flag",
+          "flag": "lore_poison_swamp_read",
+          "amount": 1
+        },
+        {
+          "type": "increment_flag",
+          "flag": "discoveries_found",
+          "amount": 1
+        },
+        {
+          "type": "record_discovery",
+          "discoveryId": "poison_swamp_lore_7"
+        }
+      ],
+      "next": "end"
+    },
+    "poison_swamp_8": {
+      "speaker": "Ferryman's tally",
+      "text": "Down: forty-one. Up: none. Fare unpaid, both directions, by agreement.",
+      "condition": {
+        "all": [
+          {
+            "biome": "poison_swamp"
+          },
+          {
+            "not": {
+              "flag": "lore_poison_swamp_read",
+              "atLeast": 8
+            }
+          }
+        ]
+      },
+      "fallback": "poison_swamp_9",
+      "actions": [
+        {
+          "type": "increment_flag",
+          "flag": "lore_poison_swamp_read",
+          "amount": 1
+        },
+        {
+          "type": "increment_flag",
+          "flag": "discoveries_found",
+          "amount": 1
+        },
+        {
+          "type": "record_discovery",
+          "discoveryId": "poison_swamp_lore_8"
+        }
+      ],
+      "next": "end"
+    },
+    "poison_swamp_9": {
+      "speaker": "Cut into a boat rib",
+      "text": "The low road out of the castle comes out here. Everything that came down it came up wrong.",
+      "condition": {
+        "all": [
+          {
+            "biome": "poison_swamp"
+          },
+          {
+            "not": {
+              "flag": "lore_poison_swamp_read",
+              "atLeast": 9
+            }
+          }
+        ]
+      },
+      "fallback": "poison_swamp_10",
+      "actions": [
+        {
+          "type": "increment_flag",
+          "flag": "lore_poison_swamp_read",
+          "amount": 1
+        },
+        {
+          "type": "increment_flag",
+          "flag": "discoveries_found",
+          "amount": 1
+        },
+        {
+          "type": "record_discovery",
+          "discoveryId": "poison_swamp_lore_9"
+        }
+      ],
+      "next": "end"
+    },
+    "poison_swamp_10": {
+      "speaker": "Fen-wife's receipt",
+      "text": "One remedy against the rot. Payment: whatever you have. It will not be enough and take it anyway.",
+      "condition": {
+        "all": [
+          {
+            "biome": "poison_swamp"
+          },
+          {
+            "not": {
+              "flag": "lore_poison_swamp_read",
+              "atLeast": 10
+            }
+          }
+        ]
+      },
+      "fallback": "poison_swamp_11",
+      "actions": [
+        {
+          "type": "increment_flag",
+          "flag": "lore_poison_swamp_read",
+          "amount": 1
+        },
+        {
+          "type": "increment_flag",
+          "flag": "discoveries_found",
+          "amount": 1
+        },
+        {
+          "type": "record_discovery",
+          "discoveryId": "poison_swamp_lore_10"
+        }
+      ],
+      "next": "end"
+    },
+    "poison_swamp_11": {
+      "speaker": "Scratched on a sluice gate",
+      "text": "Opened by order of the Chapter to drain the overflow. There is no record of what was overflowing.",
+      "condition": {
+        "all": [
+          {
+            "biome": "poison_swamp"
+          },
+          {
+            "not": {
+              "flag": "lore_poison_swamp_read",
+              "atLeast": 11
+            }
+          }
+        ]
+      },
+      "fallback": "poison_swamp_12",
+      "actions": [
+        {
+          "type": "increment_flag",
+          "flag": "lore_poison_swamp_read",
+          "amount": 1
+        },
+        {
+          "type": "increment_flag",
+          "flag": "discoveries_found",
+          "amount": 1
+        },
+        {
+          "type": "record_discovery",
+          "discoveryId": "poison_swamp_lore_11"
+        }
+      ],
+      "next": "end"
+    },
+    "poison_swamp_12": {
+      "speaker": "Half sunk, still readable",
+      "text": "We were told the mire was natural. The mire is eleven years old and so is my daughter.",
+      "condition": {
+        "all": [
+          {
+            "biome": "poison_swamp"
+          },
+          {
+            "not": {
+              "flag": "lore_poison_swamp_read",
+              "atLeast": 12
+            }
+          }
+        ]
+      },
+      "fallback": "poison_swamp_reread",
+      "actions": [
+        {
+          "type": "increment_flag",
+          "flag": "lore_poison_swamp_read",
+          "amount": 1
+        },
+        {
+          "type": "increment_flag",
+          "flag": "discoveries_found",
+          "amount": 1
+        },
+        {
+          "type": "record_discovery",
+          "discoveryId": "poison_swamp_lore_12"
+        }
+      ],
+      "next": "end"
+    },
+    "poison_swamp_reread": {
+      "speaker": "Half sunk, still readable",
+      "text": "We were told the mire was natural. The mire is eleven years old and so is my daughter.",
+      "condition": {
+        "biome": "poison_swamp"
+      },
+      "fallback": "venom_mire_1",
+      "next": "end"
+    },
+    "venom_mire_1": {
+      "speaker": "Later drainage order",
+      "text": "Same seal, shakier hand: send it further south. There is no further south. The order was carried out anyway.",
+      "condition": {
+        "all": [
+          {
+            "biome": "venom_mire"
+          },
+          {
+            "not": {
+              "flag": "lore_venom_mire_read",
+              "atLeast": 1
+            }
+          }
+        ]
+      },
+      "fallback": "venom_mire_2",
+      "actions": [
+        {
+          "type": "increment_flag",
+          "flag": "lore_venom_mire_read",
+          "amount": 1
+        },
+        {
+          "type": "increment_flag",
+          "flag": "discoveries_found",
+          "amount": 1
+        },
+        {
+          "type": "record_discovery",
+          "discoveryId": "venom_mire_lore_1"
+        }
+      ],
+      "next": "end"
+    },
+    "venom_mire_2": {
+      "speaker": "The reeds",
+      "text": "The procession walked in single file with a censer each. The reeds still lean the way they went.",
+      "condition": {
+        "all": [
+          {
+            "biome": "venom_mire"
+          },
+          {
+            "not": {
+              "flag": "lore_venom_mire_read",
+              "atLeast": 2
+            }
+          }
+        ]
+      },
+      "fallback": "venom_mire_3",
+      "actions": [
+        {
+          "type": "increment_flag",
+          "flag": "lore_venom_mire_read",
+          "amount": 1
+        },
+        {
+          "type": "increment_flag",
+          "flag": "discoveries_found",
+          "amount": 1
+        },
+        {
+          "type": "record_discovery",
+          "discoveryId": "venom_mire_lore_2"
+        }
+      ],
+      "next": "end"
+    },
+    "venom_mire_3": {
+      "speaker": "Widow's petition",
+      "text": "My husband was assigned to the overflow. I ask only which measure he became.",
+      "condition": {
+        "all": [
+          {
+            "biome": "venom_mire"
+          },
+          {
+            "not": {
+              "flag": "lore_venom_mire_read",
+              "atLeast": 3
+            }
+          }
+        ]
+      },
+      "fallback": "venom_mire_4",
+      "actions": [
+        {
+          "type": "increment_flag",
+          "flag": "lore_venom_mire_read",
+          "amount": 1
+        },
+        {
+          "type": "increment_flag",
+          "flag": "discoveries_found",
+          "amount": 1
+        },
+        {
+          "type": "record_discovery",
+          "discoveryId": "venom_mire_lore_3"
+        }
+      ],
+      "next": "end"
+    },
+    "venom_mire_4": {
+      "speaker": "Chapter reply, drafted, never sent",
+      "text": "The Keeping does not itemise persons. It itemises measures.",
+      "condition": {
+        "all": [
+          {
+            "biome": "venom_mire"
+          },
+          {
+            "not": {
+              "flag": "lore_venom_mire_read",
+              "atLeast": 4
+            }
+          }
+        ]
+      },
+      "fallback": "venom_mire_5",
+      "actions": [
+        {
+          "type": "increment_flag",
+          "flag": "lore_venom_mire_read",
+          "amount": 1
+        },
+        {
+          "type": "increment_flag",
+          "flag": "discoveries_found",
+          "amount": 1
+        },
+        {
+          "type": "record_discovery",
+          "discoveryId": "venom_mire_lore_4"
+        }
+      ],
+      "next": "end"
+    },
+    "venom_mire_5": {
+      "speaker": "Marker post",
+      "text": "Beyond this the water drains inward. That is not how water behaves.",
+      "condition": {
+        "all": [
+          {
+            "biome": "venom_mire"
+          },
+          {
+            "not": {
+              "flag": "lore_venom_mire_read",
+              "atLeast": 5
+            }
+          }
+        ]
+      },
+      "fallback": "venom_mire_6",
+      "actions": [
+        {
+          "type": "increment_flag",
+          "flag": "lore_venom_mire_read",
+          "amount": 1
+        },
+        {
+          "type": "increment_flag",
+          "flag": "discoveries_found",
+          "amount": 1
+        },
+        {
+          "type": "record_discovery",
+          "discoveryId": "venom_mire_lore_5"
+        }
+      ],
+      "next": "end"
+    },
+    "venom_mire_6": {
+      "speaker": "Cull tally, kept in charcoal",
+      "text": "Eight a day and eight the next day. The number does not fall. Nothing is being reduced.",
+      "condition": {
+        "all": [
+          {
+            "biome": "venom_mire"
+          },
+          {
+            "not": {
+              "flag": "lore_venom_mire_read",
+              "atLeast": 6
+            }
+          }
+        ]
+      },
+      "fallback": "venom_mire_7",
+      "actions": [
+        {
+          "type": "increment_flag",
+          "flag": "lore_venom_mire_read",
+          "amount": 1
+        },
+        {
+          "type": "increment_flag",
+          "flag": "discoveries_found",
+          "amount": 1
+        },
+        {
+          "type": "record_discovery",
+          "discoveryId": "venom_mire_lore_6"
+        }
+      ],
+      "next": "end"
+    },
+    "venom_mire_7": {
+      "speaker": "Note weighted under a stone",
+      "text": "Nettle: the reeds are the same age as the seal on the vault. Ask yourself what was poured out.",
+      "condition": {
+        "all": [
+          {
+            "biome": "venom_mire"
+          },
+          {
+            "not": {
+              "flag": "lore_venom_mire_read",
+              "atLeast": 7
+            }
+          }
+        ]
+      },
+      "fallback": "venom_mire_8",
+      "actions": [
+        {
+          "type": "increment_flag",
+          "flag": "lore_venom_mire_read",
+          "amount": 1
+        },
+        {
+          "type": "increment_flag",
+          "flag": "discoveries_found",
+          "amount": 1
+        },
+        {
+          "type": "record_discovery",
+          "discoveryId": "venom_mire_lore_7"
+        }
+      ],
+      "next": "end"
+    },
+    "venom_mire_8": {
+      "speaker": "Cut into a drowned lintel",
+      "text": "The mire has a middle and everything is walking toward it, including the water.",
+      "condition": {
+        "all": [
+          {
+            "biome": "venom_mire"
+          },
+          {
+            "not": {
+              "flag": "lore_venom_mire_read",
+              "atLeast": 8
+            }
+          }
+        ]
+      },
+      "fallback": "venom_mire_9",
+      "actions": [
+        {
+          "type": "increment_flag",
+          "flag": "lore_venom_mire_read",
+          "amount": 1
+        },
+        {
+          "type": "increment_flag",
+          "flag": "discoveries_found",
+          "amount": 1
+        },
+        {
+          "type": "record_discovery",
+          "discoveryId": "venom_mire_lore_8"
+        }
+      ],
+      "next": "end"
+    },
+    "venom_mire_9": {
+      "speaker": "Reed-cutter's complaint",
+      "text": "The harvest engines have not stopped since the Keeping. There has been no harvest since the Keeping.",
+      "condition": {
+        "all": [
+          {
+            "biome": "venom_mire"
+          },
+          {
+            "not": {
+              "flag": "lore_venom_mire_read",
+              "atLeast": 9
+            }
+          }
+        ]
+      },
+      "fallback": "venom_mire_10",
+      "actions": [
+        {
+          "type": "increment_flag",
+          "flag": "lore_venom_mire_read",
+          "amount": 1
+        },
+        {
+          "type": "increment_flag",
+          "flag": "discoveries_found",
+          "amount": 1
+        },
+        {
+          "type": "record_discovery",
+          "discoveryId": "venom_mire_lore_9"
+        }
+      ],
+      "next": "end"
+    },
+    "venom_mire_10": {
+      "speaker": "Scrawled on a barrel stave",
+      "text": "Overflow, sealed, do not breach. Breached. In another hand: it was going to breach anyway.",
+      "condition": {
+        "all": [
+          {
+            "biome": "venom_mire"
+          },
+          {
+            "not": {
+              "flag": "lore_venom_mire_read",
+              "atLeast": 10
+            }
+          }
+        ]
+      },
+      "fallback": "venom_mire_11",
+      "actions": [
+        {
+          "type": "increment_flag",
+          "flag": "lore_venom_mire_read",
+          "amount": 1
+        },
+        {
+          "type": "increment_flag",
+          "flag": "discoveries_found",
+          "amount": 1
+        },
+        {
+          "type": "record_discovery",
+          "discoveryId": "venom_mire_lore_10"
+        }
+      ],
+      "next": "end"
+    },
+    "venom_mire_11": {
+      "speaker": "Prayer card, sunk and recovered",
+      "text": "Let it be given back. Let it be given back entire. The reverse is blank, which is unusual for a prayer card.",
+      "condition": {
+        "all": [
+          {
+            "biome": "venom_mire"
+          },
+          {
+            "not": {
+              "flag": "lore_venom_mire_read",
+              "atLeast": 11
+            }
+          }
+        ]
+      },
+      "fallback": "venom_mire_12",
+      "actions": [
+        {
+          "type": "increment_flag",
+          "flag": "lore_venom_mire_read",
+          "amount": 1
+        },
+        {
+          "type": "increment_flag",
+          "flag": "discoveries_found",
+          "amount": 1
+        },
+        {
+          "type": "record_discovery",
+          "discoveryId": "venom_mire_lore_11"
+        }
+      ],
+      "next": "end"
+    },
+    "venom_mire_12": {
+      "speaker": "Scratched at the waterline",
+      "text": "Eleven years downhill. Everything the vaults let go arrived here and stayed.",
+      "condition": {
+        "all": [
+          {
+            "biome": "venom_mire"
+          },
+          {
+            "not": {
+              "flag": "lore_venom_mire_read",
+              "atLeast": 12
+            }
+          }
+        ]
+      },
+      "fallback": "venom_mire_reread",
+      "actions": [
+        {
+          "type": "increment_flag",
+          "flag": "lore_venom_mire_read",
+          "amount": 1
+        },
+        {
+          "type": "increment_flag",
+          "flag": "discoveries_found",
+          "amount": 1
+        },
+        {
+          "type": "record_discovery",
+          "discoveryId": "venom_mire_lore_12"
+        }
+      ],
+      "next": "end"
+    },
+    "venom_mire_reread": {
+      "speaker": "Scratched at the waterline",
+      "text": "Eleven years downhill. Everything the vaults let go arrived here and stayed.",
+      "condition": {
+        "biome": "venom_mire"
+      },
+      "fallback": "frozen_fortress_1",
+      "next": "end"
+    },
+    "frozen_fortress_1": {
+      "speaker": "Quartermaster's standing order",
+      "text": "No fires. Cold keeps what warmth spends. The garrison was informed, and the garrison complied, and the garrison is still complying.",
+      "condition": {
+        "all": [
+          {
+            "biome": "frozen_fortress"
+          },
+          {
+            "not": {
+              "flag": "lore_frozen_fortress_read",
+              "atLeast": 1
+            }
+          }
+        ]
+      },
+      "fallback": "frozen_fortress_2",
+      "actions": [
+        {
+          "type": "increment_flag",
+          "flag": "lore_frozen_fortress_read",
+          "amount": 1
+        },
+        {
+          "type": "increment_flag",
+          "flag": "discoveries_found",
+          "amount": 1
+        },
+        {
+          "type": "record_discovery",
+          "discoveryId": "frozen_fortress_lore_1"
+        }
+      ],
+      "next": "end"
+    },
+    "frozen_fortress_2": {
+      "speaker": "Ration returns",
+      "text": "Two winters of returns in the same hand, all identical. The hand does not change in the third winter either.",
+      "condition": {
+        "all": [
+          {
+            "biome": "frozen_fortress"
+          },
+          {
+            "not": {
+              "flag": "lore_frozen_fortress_read",
+              "atLeast": 2
+            }
+          }
+        ]
+      },
+      "fallback": "frozen_fortress_3",
+      "actions": [
+        {
+          "type": "increment_flag",
+          "flag": "lore_frozen_fortress_read",
+          "amount": 1
+        },
+        {
+          "type": "increment_flag",
+          "flag": "discoveries_found",
+          "amount": 1
+        },
+        {
+          "type": "record_discovery",
+          "discoveryId": "frozen_fortress_lore_2"
+        }
+      ],
+      "next": "end"
+    },
+    "frozen_fortress_3": {
+      "speaker": "Oath cut into the north wall",
+      "text": "Bare palm to cold iron: to hold what was given until it is asked for. Nobody ever came to ask.",
+      "condition": {
+        "all": [
+          {
+            "biome": "frozen_fortress"
+          },
+          {
+            "not": {
+              "flag": "lore_frozen_fortress_read",
+              "atLeast": 3
+            }
+          }
+        ]
+      },
+      "fallback": "frozen_fortress_4",
+      "actions": [
+        {
+          "type": "increment_flag",
+          "flag": "lore_frozen_fortress_read",
+          "amount": 1
+        },
+        {
+          "type": "increment_flag",
+          "flag": "discoveries_found",
+          "amount": 1
+        },
+        {
+          "type": "record_discovery",
+          "discoveryId": "frozen_fortress_lore_3"
+        }
+      ],
+      "next": "end"
+    },
+    "frozen_fortress_4": {
+      "speaker": "Undelivered dispatch",
+      "text": "We have preserved it perfectly. Tell the Chapter it is perfect. Tell them to come and take it. Tell them soon.",
+      "condition": {
+        "all": [
+          {
+            "biome": "frozen_fortress"
+          },
+          {
+            "not": {
+              "flag": "lore_frozen_fortress_read",
+              "atLeast": 4
+            }
+          }
+        ]
+      },
+      "fallback": "frozen_fortress_5",
+      "actions": [
+        {
+          "type": "increment_flag",
+          "flag": "lore_frozen_fortress_read",
+          "amount": 1
+        },
+        {
+          "type": "increment_flag",
+          "flag": "discoveries_found",
+          "amount": 1
+        },
+        {
+          "type": "record_discovery",
+          "discoveryId": "frozen_fortress_lore_4"
+        }
+      ],
+      "next": "end"
+    },
+    "frozen_fortress_5": {
+      "speaker": "Standing order, posted",
+      "text": "The fortress will hold through the winter. There is no order for the winter after this one.",
+      "condition": {
+        "all": [
+          {
+            "biome": "frozen_fortress"
+          },
+          {
+            "not": {
+              "flag": "lore_frozen_fortress_read",
+              "atLeast": 5
+            }
+          }
+        ]
+      },
+      "fallback": "frozen_fortress_6",
+      "actions": [
+        {
+          "type": "increment_flag",
+          "flag": "lore_frozen_fortress_read",
+          "amount": 1
+        },
+        {
+          "type": "increment_flag",
+          "flag": "discoveries_found",
+          "amount": 1
+        },
+        {
+          "type": "record_discovery",
+          "discoveryId": "frozen_fortress_lore_5"
+        }
+      ],
+      "next": "end"
+    },
+    "frozen_fortress_6": {
+      "speaker": "Ration book",
+      "text": "Three arrows a day. Two meals. One lamp between eight. Struck through: one lamp between sixteen.",
+      "condition": {
+        "all": [
+          {
+            "biome": "frozen_fortress"
+          },
+          {
+            "not": {
+              "flag": "lore_frozen_fortress_read",
+              "atLeast": 6
+            }
+          }
+        ]
+      },
+      "fallback": "frozen_fortress_7",
+      "actions": [
+        {
+          "type": "increment_flag",
+          "flag": "lore_frozen_fortress_read",
+          "amount": 1
+        },
+        {
+          "type": "increment_flag",
+          "flag": "discoveries_found",
+          "amount": 1
+        },
+        {
+          "type": "record_discovery",
+          "discoveryId": "frozen_fortress_lore_6"
+        }
+      ],
+      "next": "end"
+    },
+    "frozen_fortress_7": {
+      "speaker": "Cut into the parapet",
+      "text": "The cold came the same week the light went. We were told these were unrelated.",
+      "condition": {
+        "all": [
+          {
+            "biome": "frozen_fortress"
+          },
+          {
+            "not": {
+              "flag": "lore_frozen_fortress_read",
+              "atLeast": 7
+            }
+          }
+        ]
+      },
+      "fallback": "frozen_fortress_8",
+      "actions": [
+        {
+          "type": "increment_flag",
+          "flag": "lore_frozen_fortress_read",
+          "amount": 1
+        },
+        {
+          "type": "increment_flag",
+          "flag": "discoveries_found",
+          "amount": 1
+        },
+        {
+          "type": "record_discovery",
+          "discoveryId": "frozen_fortress_lore_7"
+        }
+      ],
+      "next": "end"
+    },
+    "frozen_fortress_8": {
+      "speaker": "Officer's private note",
+      "text": "I have admitted the raiders. I have not put it to a vote. There will not be a vote.",
+      "condition": {
+        "all": [
+          {
+            "biome": "frozen_fortress"
+          },
+          {
+            "not": {
+              "flag": "lore_frozen_fortress_read",
+              "atLeast": 8
+            }
+          }
+        ]
+      },
+      "fallback": "frozen_fortress_9",
+      "actions": [
+        {
+          "type": "increment_flag",
+          "flag": "lore_frozen_fortress_read",
+          "amount": 1
+        },
+        {
+          "type": "increment_flag",
+          "flag": "discoveries_found",
+          "amount": 1
+        },
+        {
+          "type": "record_discovery",
+          "discoveryId": "frozen_fortress_lore_8"
+        }
+      ],
+      "next": "end"
+    },
+    "frozen_fortress_9": {
+      "speaker": "Chalked in the muster hall",
+      "text": "Names in this column are on the wall. Names in this column are under it.",
+      "condition": {
+        "all": [
+          {
+            "biome": "frozen_fortress"
+          },
+          {
+            "not": {
+              "flag": "lore_frozen_fortress_read",
+              "atLeast": 9
+            }
+          }
+        ]
+      },
+      "fallback": "frozen_fortress_10",
+      "actions": [
+        {
+          "type": "increment_flag",
+          "flag": "lore_frozen_fortress_read",
+          "amount": 1
+        },
+        {
+          "type": "increment_flag",
+          "flag": "discoveries_found",
+          "amount": 1
+        },
+        {
+          "type": "record_discovery",
+          "discoveryId": "frozen_fortress_lore_9"
+        }
+      ],
+      "next": "end"
+    },
+    "frozen_fortress_10": {
+      "speaker": "Note left in a quiver",
+      "text": "Whoever picks this up: the wall is not the problem. The wall has never once been the problem.",
+      "condition": {
+        "all": [
+          {
+            "biome": "frozen_fortress"
+          },
+          {
+            "not": {
+              "flag": "lore_frozen_fortress_read",
+              "atLeast": 10
+            }
+          }
+        ]
+      },
+      "fallback": "frozen_fortress_11",
+      "actions": [
+        {
+          "type": "increment_flag",
+          "flag": "lore_frozen_fortress_read",
+          "amount": 1
+        },
+        {
+          "type": "increment_flag",
+          "flag": "discoveries_found",
+          "amount": 1
+        },
+        {
+          "type": "record_discovery",
+          "discoveryId": "frozen_fortress_lore_10"
+        }
+      ],
+      "next": "end"
+    },
+    "frozen_fortress_11": {
+      "speaker": "Scratched inside a helm",
+      "text": "Nine hundred nights and the sun has not been the argument. Somebody took it and filed the paperwork.",
+      "condition": {
+        "all": [
+          {
+            "biome": "frozen_fortress"
+          },
+          {
+            "not": {
+              "flag": "lore_frozen_fortress_read",
+              "atLeast": 11
+            }
+          }
+        ]
+      },
+      "fallback": "frozen_fortress_12",
+      "actions": [
+        {
+          "type": "increment_flag",
+          "flag": "lore_frozen_fortress_read",
+          "amount": 1
+        },
+        {
+          "type": "increment_flag",
+          "flag": "discoveries_found",
+          "amount": 1
+        },
+        {
+          "type": "record_discovery",
+          "discoveryId": "frozen_fortress_lore_11"
+        }
+      ],
+      "next": "end"
+    },
+    "frozen_fortress_12": {
+      "speaker": "Last page of the watch book",
+      "text": "Relieved of the watch. By whom is not stated. The handwriting stops mid-word.",
+      "condition": {
+        "all": [
+          {
+            "biome": "frozen_fortress"
+          },
+          {
+            "not": {
+              "flag": "lore_frozen_fortress_read",
+              "atLeast": 12
+            }
+          }
+        ]
+      },
+      "fallback": "frozen_fortress_reread",
+      "actions": [
+        {
+          "type": "increment_flag",
+          "flag": "lore_frozen_fortress_read",
+          "amount": 1
+        },
+        {
+          "type": "increment_flag",
+          "flag": "discoveries_found",
+          "amount": 1
+        },
+        {
+          "type": "record_discovery",
+          "discoveryId": "frozen_fortress_lore_12"
+        }
+      ],
+      "next": "end"
+    },
+    "frozen_fortress_reread": {
+      "speaker": "Last page of the watch book",
+      "text": "Relieved of the watch. By whom is not stated. The handwriting stops mid-word.",
+      "condition": {
+        "biome": "frozen_fortress"
+      },
+      "fallback": "glacial_hollow_1",
+      "next": "end"
+    },
+    "glacial_hollow_1": {
+      "speaker": "Posting on the drift",
+      "text": "The drift took the outer works in one night. The order to hold was posted the next morning, over the top of the drift.",
+      "condition": {
+        "all": [
+          {
+            "biome": "glacial_hollow"
+          },
+          {
+            "not": {
+              "flag": "lore_glacial_hollow_read",
+              "atLeast": 1
+            }
+          }
+        ]
+      },
+      "fallback": "glacial_hollow_2",
+      "actions": [
+        {
+          "type": "increment_flag",
+          "flag": "lore_glacial_hollow_read",
+          "amount": 1
+        },
+        {
+          "type": "increment_flag",
+          "flag": "discoveries_found",
+          "amount": 1
+        },
+        {
+          "type": "record_discovery",
+          "discoveryId": "glacial_hollow_lore_1"
+        }
+      ],
+      "next": "end"
+    },
+    "glacial_hollow_2": {
+      "speaker": "Pilgrim's mark",
+      "text": "Cut into the ice, redone each season by a different hand, always the same three words: STILL BEING KEPT.",
+      "condition": {
+        "all": [
+          {
+            "biome": "glacial_hollow"
+          },
+          {
+            "not": {
+              "flag": "lore_glacial_hollow_read",
+              "atLeast": 2
+            }
+          }
+        ]
+      },
+      "fallback": "glacial_hollow_3",
+      "actions": [
+        {
+          "type": "increment_flag",
+          "flag": "lore_glacial_hollow_read",
+          "amount": 1
+        },
+        {
+          "type": "increment_flag",
+          "flag": "discoveries_found",
+          "amount": 1
+        },
+        {
+          "type": "record_discovery",
+          "discoveryId": "glacial_hollow_lore_2"
+        }
+      ],
+      "next": "end"
+    },
+    "glacial_hollow_3": {
+      "speaker": "Keener's lament, transcribed",
+      "text": "Eleven verses by someone who did not speak the language. The eleventh verse is a list of names.",
+      "condition": {
+        "all": [
+          {
+            "biome": "glacial_hollow"
+          },
+          {
+            "not": {
+              "flag": "lore_glacial_hollow_read",
+              "atLeast": 3
+            }
+          }
+        ]
+      },
+      "fallback": "glacial_hollow_4",
+      "actions": [
+        {
+          "type": "increment_flag",
+          "flag": "lore_glacial_hollow_read",
+          "amount": 1
+        },
+        {
+          "type": "increment_flag",
+          "flag": "discoveries_found",
+          "amount": 1
+        },
+        {
+          "type": "record_discovery",
+          "discoveryId": "glacial_hollow_lore_3"
+        }
+      ],
+      "next": "end"
+    },
+    "glacial_hollow_4": {
+      "speaker": "Found in a cairn",
+      "text": "A lamp, unlit, wrapped in three coats. Whoever wrapped it had two.",
+      "condition": {
+        "all": [
+          {
+            "biome": "glacial_hollow"
+          },
+          {
+            "not": {
+              "flag": "lore_glacial_hollow_read",
+              "atLeast": 4
+            }
+          }
+        ]
+      },
+      "fallback": "glacial_hollow_5",
+      "actions": [
+        {
+          "type": "increment_flag",
+          "flag": "lore_glacial_hollow_read",
+          "amount": 1
+        },
+        {
+          "type": "increment_flag",
+          "flag": "discoveries_found",
+          "amount": 1
+        },
+        {
+          "type": "record_discovery",
+          "discoveryId": "glacial_hollow_lore_4"
+        }
+      ],
+      "next": "end"
+    },
+    "glacial_hollow_5": {
+      "speaker": "Cairn tag",
+      "text": "Marker set for the bearers to find on the way back up. Set eleven times. Moved once, by something.",
+      "condition": {
+        "all": [
+          {
+            "biome": "glacial_hollow"
+          },
+          {
+            "not": {
+              "flag": "lore_glacial_hollow_read",
+              "atLeast": 5
+            }
+          }
+        ]
+      },
+      "fallback": "glacial_hollow_6",
+      "actions": [
+        {
+          "type": "increment_flag",
+          "flag": "lore_glacial_hollow_read",
+          "amount": 1
+        },
+        {
+          "type": "increment_flag",
+          "flag": "discoveries_found",
+          "amount": 1
+        },
+        {
+          "type": "record_discovery",
+          "discoveryId": "glacial_hollow_lore_5"
+        }
+      ],
+      "next": "end"
+    },
+    "glacial_hollow_6": {
+      "speaker": "Anchorite's rule, cut into a cell wall",
+      "text": "I am sealed in at my own request. Do not unseal me. The request stands.",
+      "condition": {
+        "all": [
+          {
+            "biome": "glacial_hollow"
+          },
+          {
+            "not": {
+              "flag": "lore_glacial_hollow_read",
+              "atLeast": 6
+            }
+          }
+        ]
+      },
+      "fallback": "glacial_hollow_7",
+      "actions": [
+        {
+          "type": "increment_flag",
+          "flag": "lore_glacial_hollow_read",
+          "amount": 1
+        },
+        {
+          "type": "increment_flag",
+          "flag": "discoveries_found",
+          "amount": 1
+        },
+        {
+          "type": "record_discovery",
+          "discoveryId": "glacial_hollow_lore_6"
+        }
+      ],
+      "next": "end"
+    },
+    "glacial_hollow_7": {
+      "speaker": "Pilgrim's note, frozen to a post",
+      "text": "Walking to the light. If found, the light was further than stated.",
+      "condition": {
+        "all": [
+          {
+            "biome": "glacial_hollow"
+          },
+          {
+            "not": {
+              "flag": "lore_glacial_hollow_read",
+              "atLeast": 7
+            }
+          }
+        ]
+      },
+      "fallback": "glacial_hollow_8",
+      "actions": [
+        {
+          "type": "increment_flag",
+          "flag": "lore_glacial_hollow_read",
+          "amount": 1
+        },
+        {
+          "type": "increment_flag",
+          "flag": "discoveries_found",
+          "amount": 1
+        },
+        {
+          "type": "record_discovery",
+          "discoveryId": "glacial_hollow_lore_7"
+        }
+      ],
+      "next": "end"
+    },
+    "glacial_hollow_8": {
+      "speaker": "Bearer's ledger",
+      "text": "Empty measures carried up: two hundred. Full measures carried down: none. This is the wrong way round.",
+      "condition": {
+        "all": [
+          {
+            "biome": "glacial_hollow"
+          },
+          {
+            "not": {
+              "flag": "lore_glacial_hollow_read",
+              "atLeast": 8
+            }
+          }
+        ]
+      },
+      "fallback": "glacial_hollow_9",
+      "actions": [
+        {
+          "type": "increment_flag",
+          "flag": "lore_glacial_hollow_read",
+          "amount": 1
+        },
+        {
+          "type": "increment_flag",
+          "flag": "discoveries_found",
+          "amount": 1
+        },
+        {
+          "type": "record_discovery",
+          "discoveryId": "glacial_hollow_lore_8"
+        }
+      ],
+      "next": "end"
+    },
+    "glacial_hollow_9": {
+      "speaker": "Scratched on a stair",
+      "text": "The Warden watches this stair. The Warden has always watched this stair. Nothing has ever come up it.",
+      "condition": {
+        "all": [
+          {
+            "biome": "glacial_hollow"
+          },
+          {
+            "not": {
+              "flag": "lore_glacial_hollow_read",
+              "atLeast": 9
+            }
+          }
+        ]
+      },
+      "fallback": "glacial_hollow_10",
+      "actions": [
+        {
+          "type": "increment_flag",
+          "flag": "lore_glacial_hollow_read",
+          "amount": 1
+        },
+        {
+          "type": "increment_flag",
+          "flag": "discoveries_found",
+          "amount": 1
+        },
+        {
+          "type": "record_discovery",
+          "discoveryId": "glacial_hollow_lore_9"
+        }
+      ],
+      "next": "end"
+    },
+    "glacial_hollow_10": {
+      "speaker": "Keening rota",
+      "text": "Mourners to attend in pairs. Struck through. Mourners to attend alone. Struck through. Mourners to attend.",
+      "condition": {
+        "all": [
+          {
+            "biome": "glacial_hollow"
+          },
+          {
+            "not": {
+              "flag": "lore_glacial_hollow_read",
+              "atLeast": 10
+            }
+          }
+        ]
+      },
+      "fallback": "glacial_hollow_11",
+      "actions": [
+        {
+          "type": "increment_flag",
+          "flag": "lore_glacial_hollow_read",
+          "amount": 1
+        },
+        {
+          "type": "increment_flag",
+          "flag": "discoveries_found",
+          "amount": 1
+        },
+        {
+          "type": "record_discovery",
+          "discoveryId": "glacial_hollow_lore_10"
+        }
+      ],
+      "next": "end"
+    },
+    "glacial_hollow_11": {
+      "speaker": "Carved beside a sealed door",
+      "text": "They kept the practice after they ran out of dead. Then they were the dead and kept it anyway.",
+      "condition": {
+        "all": [
+          {
+            "biome": "glacial_hollow"
+          },
+          {
+            "not": {
+              "flag": "lore_glacial_hollow_read",
+              "atLeast": 11
+            }
+          }
+        ]
+      },
+      "fallback": "glacial_hollow_12",
+      "actions": [
+        {
+          "type": "increment_flag",
+          "flag": "lore_glacial_hollow_read",
+          "amount": 1
+        },
+        {
+          "type": "increment_flag",
+          "flag": "discoveries_found",
+          "amount": 1
+        },
+        {
+          "type": "record_discovery",
+          "discoveryId": "glacial_hollow_lore_11"
+        }
+      ],
+      "next": "end"
+    },
+    "glacial_hollow_12": {
+      "speaker": "A single line, deep in the ice",
+      "text": "The hollow is not empty. The hollow is what is left after something was taken out cleanly.",
+      "condition": {
+        "all": [
+          {
+            "biome": "glacial_hollow"
+          },
+          {
+            "not": {
+              "flag": "lore_glacial_hollow_read",
+              "atLeast": 12
+            }
+          }
+        ]
+      },
+      "fallback": "glacial_hollow_reread",
+      "actions": [
+        {
+          "type": "increment_flag",
+          "flag": "lore_glacial_hollow_read",
+          "amount": 1
+        },
+        {
+          "type": "increment_flag",
+          "flag": "discoveries_found",
+          "amount": 1
+        },
+        {
+          "type": "record_discovery",
+          "discoveryId": "glacial_hollow_lore_12"
+        }
+      ],
+      "next": "end"
+    },
+    "glacial_hollow_reread": {
+      "speaker": "A single line, deep in the ice",
+      "text": "The hollow is not empty. The hollow is what is left after something was taken out cleanly.",
+      "condition": {
+        "biome": "glacial_hollow"
+      },
+      "fallback": "dark_cathedral_1",
+      "next": "end"
+    },
+    "dark_cathedral_1": {
+      "speaker": "Amended order of service",
+      "text": "The line that asked for morning has been struck out. The amendment is in the Hierarch's hand, and it is a very steady hand.",
+      "condition": {
+        "all": [
+          {
+            "biome": "dark_cathedral"
+          },
+          {
+            "not": {
+              "flag": "lore_dark_cathedral_read",
+              "atLeast": 1
+            }
+          }
+        ]
+      },
+      "fallback": "dark_cathedral_2",
+      "actions": [
+        {
+          "type": "increment_flag",
+          "flag": "lore_dark_cathedral_read",
+          "amount": 1
+        },
+        {
+          "type": "increment_flag",
+          "flag": "discoveries_found",
+          "amount": 1
+        },
+        {
+          "type": "record_discovery",
+          "discoveryId": "dark_cathedral_lore_1"
+        }
+      ],
+      "next": "end"
+    },
+    "dark_cathedral_2": {
+      "speaker": "Lector's marginalia",
+      "text": "I have read the same page aloud for thirty years. It has not once read me back.",
+      "condition": {
+        "all": [
+          {
+            "biome": "dark_cathedral"
+          },
+          {
+            "not": {
+              "flag": "lore_dark_cathedral_read",
+              "atLeast": 2
+            }
+          }
+        ]
+      },
+      "fallback": "dark_cathedral_3",
+      "actions": [
+        {
+          "type": "increment_flag",
+          "flag": "lore_dark_cathedral_read",
+          "amount": 1
+        },
+        {
+          "type": "increment_flag",
+          "flag": "discoveries_found",
+          "amount": 1
+        },
+        {
+          "type": "record_discovery",
+          "discoveryId": "dark_cathedral_lore_2"
+        }
+      ],
+      "next": "end"
+    },
+    "dark_cathedral_3": {
+      "speaker": "Confession, folded small",
+      "text": "I signed for the measures. I did not know they were counted in people. I knew by the second year. I signed for six more.",
+      "condition": {
+        "all": [
+          {
+            "biome": "dark_cathedral"
+          },
+          {
+            "not": {
+              "flag": "lore_dark_cathedral_read",
+              "atLeast": 3
+            }
+          }
+        ]
+      },
+      "fallback": "dark_cathedral_4",
+      "actions": [
+        {
+          "type": "increment_flag",
+          "flag": "lore_dark_cathedral_read",
+          "amount": 1
+        },
+        {
+          "type": "increment_flag",
+          "flag": "discoveries_found",
+          "amount": 1
+        },
+        {
+          "type": "record_discovery",
+          "discoveryId": "dark_cathedral_lore_3"
+        }
+      ],
+      "next": "end"
+    },
+    "dark_cathedral_4": {
+      "speaker": "Above the altar",
+      "text": "Where a sun was, a socket. Cleaned. Sized for something that was taken away carefully, rather than stolen.",
+      "condition": {
+        "all": [
+          {
+            "biome": "dark_cathedral"
+          },
+          {
+            "not": {
+              "flag": "lore_dark_cathedral_read",
+              "atLeast": 4
+            }
+          }
+        ]
+      },
+      "fallback": "dark_cathedral_5",
+      "actions": [
+        {
+          "type": "increment_flag",
+          "flag": "lore_dark_cathedral_read",
+          "amount": 1
+        },
+        {
+          "type": "increment_flag",
+          "flag": "discoveries_found",
+          "amount": 1
+        },
+        {
+          "type": "record_discovery",
+          "discoveryId": "dark_cathedral_lore_4"
+        }
+      ],
+      "next": "end"
+    },
+    "dark_cathedral_5": {
+      "speaker": "Order of service",
+      "text": "For the Return of the Light. Printed in a quantity of four hundred. None appear to have been used.",
+      "condition": {
+        "all": [
+          {
+            "biome": "dark_cathedral"
+          },
+          {
+            "not": {
+              "flag": "lore_dark_cathedral_read",
+              "atLeast": 5
+            }
+          }
+        ]
+      },
+      "fallback": "dark_cathedral_6",
+      "actions": [
+        {
+          "type": "increment_flag",
+          "flag": "lore_dark_cathedral_read",
+          "amount": 1
+        },
+        {
+          "type": "increment_flag",
+          "flag": "discoveries_found",
+          "amount": 1
+        },
+        {
+          "type": "record_discovery",
+          "discoveryId": "dark_cathedral_lore_5"
+        }
+      ],
+      "next": "end"
+    },
+    "dark_cathedral_6": {
+      "speaker": "Note in the sacristy",
+      "text": "The vestments are for an office with no holder. Keep them aired. Somebody may yet hold it.",
+      "condition": {
+        "all": [
+          {
+            "biome": "dark_cathedral"
+          },
+          {
+            "not": {
+              "flag": "lore_dark_cathedral_read",
+              "atLeast": 6
+            }
+          }
+        ]
+      },
+      "fallback": "dark_cathedral_7",
+      "actions": [
+        {
+          "type": "increment_flag",
+          "flag": "lore_dark_cathedral_read",
+          "amount": 1
+        },
+        {
+          "type": "increment_flag",
+          "flag": "discoveries_found",
+          "amount": 1
+        },
+        {
+          "type": "record_discovery",
+          "discoveryId": "dark_cathedral_lore_6"
+        }
+      ],
+      "next": "end"
+    },
+    "dark_cathedral_7": {
+      "speaker": "Bell-ringer's log",
+      "text": "Rung to call the Chapter up. Rung again. Rung again. Rung until the rope parted.",
+      "condition": {
+        "all": [
+          {
+            "biome": "dark_cathedral"
+          },
+          {
+            "not": {
+              "flag": "lore_dark_cathedral_read",
+              "atLeast": 7
+            }
+          }
+        ]
+      },
+      "fallback": "dark_cathedral_8",
+      "actions": [
+        {
+          "type": "increment_flag",
+          "flag": "lore_dark_cathedral_read",
+          "amount": 1
+        },
+        {
+          "type": "increment_flag",
+          "flag": "discoveries_found",
+          "amount": 1
+        },
+        {
+          "type": "record_discovery",
+          "discoveryId": "dark_cathedral_lore_7"
+        }
+      ],
+      "next": "end"
+    },
+    "dark_cathedral_8": {
+      "speaker": "Cut into a pew back",
+      "text": "Kneel here for the eleven. The eleven are not named because naming them was made an offence.",
+      "condition": {
+        "all": [
+          {
+            "biome": "dark_cathedral"
+          },
+          {
+            "not": {
+              "flag": "lore_dark_cathedral_read",
+              "atLeast": 8
+            }
+          }
+        ]
+      },
+      "fallback": "dark_cathedral_9",
+      "actions": [
+        {
+          "type": "increment_flag",
+          "flag": "lore_dark_cathedral_read",
+          "amount": 1
+        },
+        {
+          "type": "increment_flag",
+          "flag": "discoveries_found",
+          "amount": 1
+        },
+        {
+          "type": "record_discovery",
+          "discoveryId": "dark_cathedral_lore_8"
+        }
+      ],
+      "next": "end"
+    },
+    "dark_cathedral_9": {
+      "speaker": "Warden's key tag",
+      "text": "Keys handed to the laity. Reason: the clergy have gone below and have not set a date.",
+      "condition": {
+        "all": [
+          {
+            "biome": "dark_cathedral"
+          },
+          {
+            "not": {
+              "flag": "lore_dark_cathedral_read",
+              "atLeast": 9
+            }
+          }
+        ]
+      },
+      "fallback": "dark_cathedral_10",
+      "actions": [
+        {
+          "type": "increment_flag",
+          "flag": "lore_dark_cathedral_read",
+          "amount": 1
+        },
+        {
+          "type": "increment_flag",
+          "flag": "discoveries_found",
+          "amount": 1
+        },
+        {
+          "type": "record_discovery",
+          "discoveryId": "dark_cathedral_lore_9"
+        }
+      ],
+      "next": "end"
+    },
+    "dark_cathedral_10": {
+      "speaker": "Torn from a hymnal",
+      "text": "The verse about restoring is missing from every copy in the building. It was cut, not lost.",
+      "condition": {
+        "all": [
+          {
+            "biome": "dark_cathedral"
+          },
+          {
+            "not": {
+              "flag": "lore_dark_cathedral_read",
+              "atLeast": 10
+            }
+          }
+        ]
+      },
+      "fallback": "dark_cathedral_11",
+      "actions": [
+        {
+          "type": "increment_flag",
+          "flag": "lore_dark_cathedral_read",
+          "amount": 1
+        },
+        {
+          "type": "increment_flag",
+          "flag": "discoveries_found",
+          "amount": 1
+        },
+        {
+          "type": "record_discovery",
+          "discoveryId": "dark_cathedral_lore_10"
+        }
+      ],
+      "next": "end"
+    },
+    "dark_cathedral_11": {
+      "speaker": "Confessor's slate, wiped and rewritten",
+      "text": "Heard, not recorded. Heard, not recorded. Heard, not recorded.",
+      "condition": {
+        "all": [
+          {
+            "biome": "dark_cathedral"
+          },
+          {
+            "not": {
+              "flag": "lore_dark_cathedral_read",
+              "atLeast": 11
+            }
+          }
+        ]
+      },
+      "fallback": "dark_cathedral_12",
+      "actions": [
+        {
+          "type": "increment_flag",
+          "flag": "lore_dark_cathedral_read",
+          "amount": 1
+        },
+        {
+          "type": "increment_flag",
+          "flag": "discoveries_found",
+          "amount": 1
+        },
+        {
+          "type": "record_discovery",
+          "discoveryId": "dark_cathedral_lore_11"
+        }
+      ],
+      "next": "end"
+    },
+    "dark_cathedral_12": {
+      "speaker": "Chalked behind the altar",
+      "text": "We prayed toward the sky for nine years. The shaft is the other way.",
+      "condition": {
+        "all": [
+          {
+            "biome": "dark_cathedral"
+          },
+          {
+            "not": {
+              "flag": "lore_dark_cathedral_read",
+              "atLeast": 12
+            }
+          }
+        ]
+      },
+      "fallback": "dark_cathedral_reread",
+      "actions": [
+        {
+          "type": "increment_flag",
+          "flag": "lore_dark_cathedral_read",
+          "amount": 1
+        },
+        {
+          "type": "increment_flag",
+          "flag": "discoveries_found",
+          "amount": 1
+        },
+        {
+          "type": "record_discovery",
+          "discoveryId": "dark_cathedral_lore_12"
+        }
+      ],
+      "next": "end"
+    },
+    "dark_cathedral_reread": {
+      "speaker": "Chalked behind the altar",
+      "text": "We prayed toward the sky for nine years. The shaft is the other way.",
+      "condition": {
+        "biome": "dark_cathedral"
+      },
+      "fallback": "umbral_chapel_1",
+      "next": "end"
+    },
+    "umbral_chapel_1": {
+      "speaker": "The chapel keeps no hours",
+      "text": "Between the last bell and the first, nothing is permitted to happen. The Hierarch works in that gap, and the gap is where everything happened.",
+      "condition": {
+        "all": [
+          {
+            "biome": "umbral_chapel"
+          },
+          {
+            "not": {
+              "flag": "lore_umbral_chapel_read",
+              "atLeast": 1
+            }
+          }
+        ]
+      },
+      "fallback": "umbral_chapel_2",
+      "actions": [
+        {
+          "type": "increment_flag",
+          "flag": "lore_umbral_chapel_read",
+          "amount": 1
+        },
+        {
+          "type": "increment_flag",
+          "flag": "discoveries_found",
+          "amount": 1
+        },
+        {
+          "type": "record_discovery",
+          "discoveryId": "umbral_chapel_lore_1"
+        }
+      ],
+      "next": "end"
+    },
+    "umbral_chapel_2": {
+      "speaker": "Penitent's ledger-page",
+      "text": "What I owe, in measures. What is owed to me: the same column, crossed through.",
+      "condition": {
+        "all": [
+          {
+            "biome": "umbral_chapel"
+          },
+          {
+            "not": {
+              "flag": "lore_umbral_chapel_read",
+              "atLeast": 2
+            }
+          }
+        ]
+      },
+      "fallback": "umbral_chapel_3",
+      "actions": [
+        {
+          "type": "increment_flag",
+          "flag": "lore_umbral_chapel_read",
+          "amount": 1
+        },
+        {
+          "type": "increment_flag",
+          "flag": "discoveries_found",
+          "amount": 1
+        },
+        {
+          "type": "record_discovery",
+          "discoveryId": "umbral_chapel_lore_2"
+        }
+      ],
+      "next": "end"
+    },
+    "umbral_chapel_3": {
+      "speaker": "The Hierarch's note",
+      "text": "The account will balance. It has always been a matter of finding the last entry.",
+      "condition": {
+        "all": [
+          {
+            "biome": "umbral_chapel"
+          },
+          {
+            "not": {
+              "flag": "lore_umbral_chapel_read",
+              "atLeast": 3
+            }
+          }
+        ]
+      },
+      "fallback": "umbral_chapel_4",
+      "actions": [
+        {
+          "type": "increment_flag",
+          "flag": "lore_umbral_chapel_read",
+          "amount": 1
+        },
+        {
+          "type": "increment_flag",
+          "flag": "discoveries_found",
+          "amount": 1
+        },
+        {
+          "type": "record_discovery",
+          "discoveryId": "umbral_chapel_lore_3"
+        }
+      ],
+      "next": "end"
+    },
+    "umbral_chapel_4": {
+      "speaker": "Cut into the doorframe by someone leaving",
+      "text": "THE LIGHT WAS NEVER STORED. IT WAS SPENT. WE ARE THE RECEIPT.",
+      "condition": {
+        "all": [
+          {
+            "biome": "umbral_chapel"
+          },
+          {
+            "not": {
+              "flag": "lore_umbral_chapel_read",
+              "atLeast": 4
+            }
+          }
+        ]
+      },
+      "fallback": "umbral_chapel_5",
+      "actions": [
+        {
+          "type": "increment_flag",
+          "flag": "lore_umbral_chapel_read",
+          "amount": 1
+        },
+        {
+          "type": "increment_flag",
+          "flag": "discoveries_found",
+          "amount": 1
+        },
+        {
+          "type": "record_discovery",
+          "discoveryId": "umbral_chapel_lore_4"
+        }
+      ],
+      "next": "end"
+    },
+    "umbral_chapel_5": {
+      "speaker": "Reliquary label",
+      "text": "Contents: one measure of daylight, sealed. Later hand: was.",
+      "condition": {
+        "all": [
+          {
+            "biome": "umbral_chapel"
+          },
+          {
+            "not": {
+              "flag": "lore_umbral_chapel_read",
+              "atLeast": 5
+            }
+          }
+        ]
+      },
+      "fallback": "umbral_chapel_6",
+      "actions": [
+        {
+          "type": "increment_flag",
+          "flag": "lore_umbral_chapel_read",
+          "amount": 1
+        },
+        {
+          "type": "increment_flag",
+          "flag": "discoveries_found",
+          "amount": 1
+        },
+        {
+          "type": "record_discovery",
+          "discoveryId": "umbral_chapel_lore_5"
+        }
+      ],
+      "next": "end"
+    },
+    "umbral_chapel_6": {
+      "speaker": "Penitent's term",
+      "text": "Sentence: a term of years, to be served kneeling. The term has run. The sentence has not been lifted.",
+      "condition": {
+        "all": [
+          {
+            "biome": "umbral_chapel"
+          },
+          {
+            "not": {
+              "flag": "lore_umbral_chapel_read",
+              "atLeast": 6
+            }
+          }
+        ]
+      },
+      "fallback": "umbral_chapel_7",
+      "actions": [
+        {
+          "type": "increment_flag",
+          "flag": "lore_umbral_chapel_read",
+          "amount": 1
+        },
+        {
+          "type": "increment_flag",
+          "flag": "discoveries_found",
+          "amount": 1
+        },
+        {
+          "type": "record_discovery",
+          "discoveryId": "umbral_chapel_lore_6"
+        }
+      ],
+      "next": "end"
+    },
+    "umbral_chapel_7": {
+      "speaker": "Struck from every copy",
+      "text": "The name of the Hierarch is to be struck from every copy. The strokes are all in one hand and it is his.",
+      "condition": {
+        "all": [
+          {
+            "biome": "umbral_chapel"
+          },
+          {
+            "not": {
+              "flag": "lore_umbral_chapel_read",
+              "atLeast": 7
+            }
+          }
+        ]
+      },
+      "fallback": "umbral_chapel_8",
+      "actions": [
+        {
+          "type": "increment_flag",
+          "flag": "lore_umbral_chapel_read",
+          "amount": 1
+        },
+        {
+          "type": "increment_flag",
+          "flag": "discoveries_found",
+          "amount": 1
+        },
+        {
+          "type": "record_discovery",
+          "discoveryId": "umbral_chapel_lore_7"
+        }
+      ],
+      "next": "end"
+    },
+    "umbral_chapel_8": {
+      "speaker": "Censer chain tag",
+      "text": "The smoke carries the prayer upward. Note beneath: the shaft goes down. Nobody corrected the rite.",
+      "condition": {
+        "all": [
+          {
+            "biome": "umbral_chapel"
+          },
+          {
+            "not": {
+              "flag": "lore_umbral_chapel_read",
+              "atLeast": 8
+            }
+          }
+        ]
+      },
+      "fallback": "umbral_chapel_9",
+      "actions": [
+        {
+          "type": "increment_flag",
+          "flag": "lore_umbral_chapel_read",
+          "amount": 1
+        },
+        {
+          "type": "increment_flag",
+          "flag": "discoveries_found",
+          "amount": 1
+        },
+        {
+          "type": "record_discovery",
+          "discoveryId": "umbral_chapel_lore_8"
+        }
+      ],
+      "next": "end"
+    },
+    "umbral_chapel_9": {
+      "speaker": "Cowl inventory",
+      "text": "Issued to the inner orders so the outer orders need not recognise them afterwards. Afterwards is doing a great deal of work.",
+      "condition": {
+        "all": [
+          {
+            "biome": "umbral_chapel"
+          },
+          {
+            "not": {
+              "flag": "lore_umbral_chapel_read",
+              "atLeast": 9
+            }
+          }
+        ]
+      },
+      "fallback": "umbral_chapel_10",
+      "actions": [
+        {
+          "type": "increment_flag",
+          "flag": "lore_umbral_chapel_read",
+          "amount": 1
+        },
+        {
+          "type": "increment_flag",
+          "flag": "discoveries_found",
+          "amount": 1
+        },
+        {
+          "type": "record_discovery",
+          "discoveryId": "umbral_chapel_lore_9"
+        }
+      ],
+      "next": "end"
+    },
+    "umbral_chapel_10": {
+      "speaker": "Scratched at the altar socket",
+      "text": "Something was set here and taken. The socket is warm and has been warm for eleven years.",
+      "condition": {
+        "all": [
+          {
+            "biome": "umbral_chapel"
+          },
+          {
+            "not": {
+              "flag": "lore_umbral_chapel_read",
+              "atLeast": 10
+            }
+          }
+        ]
+      },
+      "fallback": "umbral_chapel_11",
+      "actions": [
+        {
+          "type": "increment_flag",
+          "flag": "lore_umbral_chapel_read",
+          "amount": 1
+        },
+        {
+          "type": "increment_flag",
+          "flag": "discoveries_found",
+          "amount": 1
+        },
+        {
+          "type": "record_discovery",
+          "discoveryId": "umbral_chapel_lore_10"
+        }
+      ],
+      "next": "end"
+    },
+    "umbral_chapel_11": {
+      "speaker": "A page of the account, recovered",
+      "text": "Spent: all of it. Recovered: none of it. Returned to the town: the dead, relit, at cost.",
+      "condition": {
+        "all": [
+          {
+            "biome": "umbral_chapel"
+          },
+          {
+            "not": {
+              "flag": "lore_umbral_chapel_read",
+              "atLeast": 11
+            }
+          }
+        ]
+      },
+      "fallback": "umbral_chapel_12",
+      "actions": [
+        {
+          "type": "increment_flag",
+          "flag": "lore_umbral_chapel_read",
+          "amount": 1
+        },
+        {
+          "type": "increment_flag",
+          "flag": "discoveries_found",
+          "amount": 1
+        },
+        {
+          "type": "record_discovery",
+          "discoveryId": "umbral_chapel_lore_11"
+        }
+      ],
+      "next": "end"
+    },
+    "umbral_chapel_12": {
+      "speaker": "Last line, cut deep and unsigned",
+      "text": "The account balances when there is nobody left to be owed.",
+      "condition": {
+        "all": [
+          {
+            "biome": "umbral_chapel"
+          },
+          {
+            "not": {
+              "flag": "lore_umbral_chapel_read",
+              "atLeast": 12
+            }
+          }
+        ]
+      },
+      "fallback": "umbral_chapel_reread",
+      "actions": [
+        {
+          "type": "increment_flag",
+          "flag": "lore_umbral_chapel_read",
+          "amount": 1
+        },
+        {
+          "type": "increment_flag",
+          "flag": "discoveries_found",
+          "amount": 1
+        },
+        {
+          "type": "record_discovery",
+          "discoveryId": "umbral_chapel_lore_12"
+        }
+      ],
+      "next": "end"
+    },
+    "umbral_chapel_reread": {
+      "speaker": "Last line, cut deep and unsigned",
+      "text": "The account balances when there is nobody left to be owed.",
+      "condition": {
+        "biome": "umbral_chapel"
+      },
+      "fallback": "closing",
+      "next": "end"
+    },
+    "closing": {
       "speaker": "Wall inscription",
-      "text": "They swore to hold the gate until the kingdom returned. The tower still waits.",
+      "text": "They swore to hold the gate until the kingdom returned. Nobody wrote down what the kingdom was supposed to return from.",
       "next": "end"
     }
   }

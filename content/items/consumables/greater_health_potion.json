@@ -1,0 +1,16 @@
+{
+  "id": "greater_health_potion",
+  "name": "Greater Health Potion",
+  "itemType": "consumable",
+  "gridWidth": 1,
+  "gridHeight": 1,
+  "stackSize": 5,
+  "rarity": "magic",
+  "description": "Twice the measure, at rather more than twice the price.",
+  "consumableEffect": {
+    "kind": "heal",
+    "amount": 110
+  },
+  "value": 60,
+  "lootValue": 30
+}

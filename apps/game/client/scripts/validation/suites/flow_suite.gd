@@ -427,22 +427,22 @@ func _test_floor_transition_stair_spawn() -> void:
 
 func _test_floor_cache_eviction() -> void:
 	var start := Time.get_ticks_msec()
-	var backup_cache: Dictionary = RunFlow.floor_definitions.duplicate(true)
+	DungeonBuilder.clear_floor_cache()
 	var backup_floor: int = RunFlow.current_floor
-	RunFlow.floor_definitions.clear()
-	for floor_index in range(1, 5):
-		RunFlow.floor_definitions[floor_index] = {"floor": floor_index}
-	RunFlow.current_floor = 4
-	RunFlow._trim_floor_cache()
-	var evicted_one := not RunFlow.floor_definitions.has(1)
-	var kept_three := RunFlow.floor_definitions.has(3)
-	RunFlow.floor_definitions = backup_cache
+	for floor_index in range(1, DungeonBuilder.MAX_CACHED_FLOORS + 2):
+		RunFlow.current_floor = floor_index
+		RunFlow._set_current_floor_cache({"floor": floor_index})
+	var evicted_one := DungeonBuilder.get_floor_cache(1).is_empty()
+	var kept_newest := not DungeonBuilder.get_floor_cache(
+		DungeonBuilder.MAX_CACHED_FLOORS + 1
+	).is_empty()
+	DungeonBuilder.clear_floor_cache()
 	RunFlow.current_floor = backup_floor
 	ctx.timed_record(
 		"flow.cache.evicts_farthest",
 		get_category(),
-		evicted_one and kept_three,
-		"floor cache evicts farthest floor from current",
+		evicted_one and kept_newest,
+		"floor cache (owned by DungeonBuilder) evicts farthest floor from RunFlow's current floor",
 		start,
 		"RFL.cache"
 	)

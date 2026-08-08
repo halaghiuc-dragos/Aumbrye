@@ -1,0 +1,26 @@
+{
+  "id": "mirebrass_dagger",
+  "name": "Mirebrass Dagger",
+  "itemType": "weapon",
+  "equipmentSlot": "weapon",
+  "gridWidth": 1,
+  "gridHeight": 2,
+  "stackSize": 1,
+  "rarity": "magic",
+  "description": "Short enough to carry where blades are forbidden. Green to the touch. The swamp finished it for the smith. Scaling: Strength E, Dexterity B.",
+  "value": 53,
+  "lootValue": 26,
+  "maxDurability": 80,
+  "baseId": "dagger",
+  "materialTier": "mirebrass",
+  "biome": "poison_swamp",
+  "scaling": {
+    "strength": "E",
+    "dexterity": "B"
+  },
+  "stats": {
+    "critChance": 0.051,
+    "resistPoison": 0.06
+  },
+  "weaponId": "dagger"
+}

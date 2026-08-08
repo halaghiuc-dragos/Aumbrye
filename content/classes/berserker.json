@@ -3,11 +3,56 @@
   "name": "Berserker",
   "description": "Heavy hitter who trades defense for raw damage.",
   "startingWeaponItemId": "training_greatsword",
-  "statBonuses": { "physicalDamage": 0.05, "poiseDamage": 0.05 },
-  "allowedWeapons": ["training_greatsword", "war_hammer", "flame_sword", "mythic_blade", "frost_warlord_blade"],
+  "statBonuses": {
+    "physicalDamage": 0.05,
+    "poiseDamage": 0.05
+  },
+  "allowedWeapons": [
+    "training_greatsword",
+    "war_hammer",
+    "flame_sword",
+    "mythic_blade",
+    "frost_warlord_blade"
+  ],
+  "allowedWeaponFamilies": [
+    "greatsword",
+    "axe",
+    "castle_sword"
+  ],
   "perk": "bloodrage",
+  "talentBranchId": "ruin",
+  "rules": [
+    {
+      "event": "onHitTaken",
+      "effect": "add_stack",
+      "stackId": "bloodrage",
+      "maxStacks": 5,
+      "stat": "physicalDamage",
+      "perStack": 0.04,
+      "resetOn": [
+        "onRoomClear"
+      ]
+    },
+    {
+      "event": "onKill",
+      "effect": "restore_health",
+      "amount": 7,
+      "chance": 1,
+      "cooldown": 0
+    },
+    {
+      "event": "onLowHealth",
+      "effect": "restore_stamina",
+      "amount": 40,
+      "chance": 1,
+      "cooldown": 20
+    }
+  ],
   "iconPath": "class_icons:berserker",
   "role": "CLASS_ROLE_BERSERKER",
   "perkName": "CLASS_PERK_BLOODRAGE",
-  "perkDescription": "CLASS_PERK_BLOODRAGE_DESC"
+  "perkDescription": "CLASS_PERK_BLOODRAGE_DESC",
+  "roleText": "Bruiser / Damage",
+  "perkNameText": "Bloodrage",
+  "perkDescriptionText": "Damage taken feeds a rage that sharpens every swing until the room is quiet."
 }

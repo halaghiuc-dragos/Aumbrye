@@ -1,0 +1,24 @@
+{
+  "id": "pitiron_gauntlets",
+  "name": "Pit-Iron Gauntlets",
+  "itemType": "armor",
+  "equipmentSlot": "gloves",
+  "gridWidth": 2,
+  "gridHeight": 2,
+  "stackSize": 1,
+  "rarity": "common",
+  "description": "Worn thin at the knuckles, thick everywhere else. Dug out of the courtyard pit and never properly cleaned. Scaling: Strength D.",
+  "value": 20,
+  "lootValue": 10,
+  "maxDurability": 95,
+  "baseId": "gauntlets",
+  "materialTier": "pitiron",
+  "biome": "forgotten_castle",
+  "scaling": {
+    "strength": "D"
+  },
+  "stats": {
+    "armor": 2,
+    "staminaMax": 4
+  }
+}

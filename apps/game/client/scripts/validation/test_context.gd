@@ -48,7 +48,6 @@ func record(
 					"id": "runner.duplicate_id",
 					"category": "runner",
 					"status": "fail",
-					"pass": false,
 					"message": "duplicate test id %s (category %s)" % [id, str(_seen_ids[id])],
 					"duration_ms": 0,
 				}
@@ -59,7 +58,6 @@ func record(
 		"id": id,
 		"category": category,
 		"status": status,
-		"pass": passed_test,
 		"message": message,
 		"duration_ms": duration_ms,
 	}

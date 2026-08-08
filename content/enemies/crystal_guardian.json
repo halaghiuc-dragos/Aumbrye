@@ -1,8 +1,11 @@
 {
   "id": "crystal_guardian",
   "name": "Crystal Guardian",
+  "title": "Warden Of The Slow Growth",
+  "loreText": "It has stood so long the caverns have grown into its joints.",
   "scene": "res://scenes/enemies/crystal_guardian.tscn",
   "threat_cost": 45,
+  "isBoss": true,
   "health": 350,
   "poise": 90,
   "move_speed": 3.8,
@@ -14,15 +17,239 @@
   "attack_range": 2.8,
   "attack_cooldown": 1.1,
   "stagger_duration": 1.3,
-  "aggro_range": 18.0,
-  "deaggro_range": 26.0,
-  "patrol_radius": 0.0,
-  "phase2_threshold": 0.45,
+  "aggro_range": 18,
+  "deaggro_range": 26,
+  "patrol_radius": 0,
+  "vision_cone_deg": 170,
+  "hearing_range": 10,
+  "awareness_rate": 4,
+  "alert_radius": 14,
+  "circle_radius_mult": 1.2,
+  "phaseCount": 2,
   "enemy_type": "boss",
   "damage_type": "arcane",
   "resistances": {
     "frost": 0.35,
     "arcane": 0.4,
     "physical": 0.2
-  }
+  },
+  "attacks": [
+    {
+      "id": "probe",
+      "name": "Testing Thrust",
+      "weight": 3,
+      "windup_duration": 0.39,
+      "windup_variance": 0.08,
+      "active_duration": 0.18,
+      "recovery_duration": 0.64,
+      "attack_damage": 16,
+      "attack_poise_damage": 20,
+      "max_range": 2.8,
+      "telegraph_radius": 1.96,
+      "telegraph_shape": "circle",
+      "damage_type": "arcane"
+    },
+    {
+      "id": "cleave",
+      "name": "High Cleave",
+      "weight": 2,
+      "windup_duration": 0.94,
+      "windup_variance": 0.16,
+      "active_duration": 0.22,
+      "recovery_duration": 1.01,
+      "attack_damage": 30,
+      "attack_poise_damage": 35,
+      "max_range": 3.08,
+      "telegraph_radius": 2.8,
+      "telegraph_shape": "cone",
+      "damage_type": "arcane"
+    },
+    {
+      "id": "chain",
+      "name": "Measured Chain",
+      "weight": 2,
+      "windup_duration": 0.55,
+      "windup_variance": 0.1,
+      "active_duration": 0.18,
+      "recovery_duration": 0.75,
+      "attack_damage": 17,
+      "attack_poise_damage": 21,
+      "max_range": 2.8,
+      "telegraph_radius": 2.38,
+      "telegraph_shape": "circle",
+      "damage_type": "arcane",
+      "combo_followups": [
+        {
+          "id": "chain_two",
+          "name": "Chain Close",
+          "weight": 1,
+          "windup_duration": 0.28,
+          "windup_variance": 0.05,
+          "active_duration": 0.18,
+          "recovery_duration": 0.98,
+          "attack_damage": 19,
+          "attack_poise_damage": 24,
+          "max_range": 2.8,
+          "telegraph_radius": 2.52,
+          "telegraph_shape": "cone",
+          "damage_type": "arcane"
+        }
+      ]
+    }
+  ],
+  "phases": [
+    {
+      "id": "dormant",
+      "name": "Barely Waking",
+      "hpBelow": 1,
+      "attacks": [
+        {
+          "id": "probe",
+          "name": "Testing Thrust",
+          "weight": 3,
+          "windup_duration": 0.39,
+          "windup_variance": 0.08,
+          "active_duration": 0.18,
+          "recovery_duration": 0.64,
+          "attack_damage": 16,
+          "attack_poise_damage": 20,
+          "max_range": 2.8,
+          "telegraph_radius": 1.96,
+          "telegraph_shape": "circle",
+          "damage_type": "arcane"
+        },
+        {
+          "id": "cleave",
+          "name": "High Cleave",
+          "weight": 2,
+          "windup_duration": 0.94,
+          "windup_variance": 0.16,
+          "active_duration": 0.22,
+          "recovery_duration": 1.01,
+          "attack_damage": 30,
+          "attack_poise_damage": 35,
+          "max_range": 3.08,
+          "telegraph_radius": 2.8,
+          "telegraph_shape": "cone",
+          "damage_type": "arcane"
+        },
+        {
+          "id": "chain",
+          "name": "Measured Chain",
+          "weight": 2,
+          "windup_duration": 0.55,
+          "windup_variance": 0.1,
+          "active_duration": 0.18,
+          "recovery_duration": 0.75,
+          "attack_damage": 17,
+          "attack_poise_damage": 21,
+          "max_range": 2.8,
+          "telegraph_radius": 2.38,
+          "telegraph_shape": "circle",
+          "damage_type": "arcane",
+          "combo_followups": [
+            {
+              "id": "chain_two",
+              "name": "Chain Close",
+              "weight": 1,
+              "windup_duration": 0.28,
+              "windup_variance": 0.05,
+              "active_duration": 0.18,
+              "recovery_duration": 0.98,
+              "attack_damage": 19,
+              "attack_poise_damage": 24,
+              "max_range": 2.8,
+              "telegraph_radius": 2.52,
+              "telegraph_shape": "cone",
+              "damage_type": "arcane"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "roused",
+      "name": "Roused",
+      "hpBelow": 0.45,
+      "attacks": [
+        {
+          "id": "probe",
+          "name": "Testing Thrust",
+          "weight": 3,
+          "windup_duration": 0.39,
+          "windup_variance": 0.08,
+          "active_duration": 0.18,
+          "recovery_duration": 0.64,
+          "attack_damage": 16,
+          "attack_poise_damage": 20,
+          "max_range": 2.8,
+          "telegraph_radius": 1.96,
+          "telegraph_shape": "circle",
+          "damage_type": "arcane"
+        },
+        {
+          "id": "cleave",
+          "name": "High Cleave",
+          "weight": 2,
+          "windup_duration": 0.94,
+          "windup_variance": 0.16,
+          "active_duration": 0.22,
+          "recovery_duration": 1.01,
+          "attack_damage": 30,
+          "attack_poise_damage": 35,
+          "max_range": 3.08,
+          "telegraph_radius": 2.8,
+          "telegraph_shape": "cone",
+          "damage_type": "arcane"
+        },
+        {
+          "id": "sweepback",
+          "name": "Turning Sweep",
+          "weight": 2,
+          "windup_duration": 0.69,
+          "windup_variance": 0.13,
+          "active_duration": 0.22,
+          "recovery_duration": 0.9,
+          "attack_damage": 23,
+          "attack_poise_damage": 29,
+          "max_range": 4.48,
+          "telegraph_radius": 3.5,
+          "telegraph_shape": "cone",
+          "damage_type": "arcane"
+        },
+        {
+          "id": "feint",
+          "name": "Held Swing",
+          "weight": 2,
+          "windup_duration": 1.05,
+          "windup_variance": 0.45,
+          "active_duration": 0.22,
+          "recovery_duration": 1.05,
+          "attack_damage": 27,
+          "attack_poise_damage": 34,
+          "max_range": 3.5,
+          "telegraph_radius": 3.22,
+          "telegraph_shape": "cone",
+          "damage_type": "arcane"
+        }
+      ],
+      "moveSpeedMult": 1.08,
+      "attackCooldownMult": 0.85,
+      "damageMult": 1.2,
+      "poiseMult": 1.15,
+      "onEnter": {
+        "tellDuration": 0.95,
+        "invulnerableFor": 0.8,
+        "telegraphRadius": 5,
+        "telegraphShape": "ring",
+        "telegraphTint": [
+          0.5,
+          0.75,
+          1
+        ],
+        "sfx": "windup",
+        "shake": 0.3
+      }
+    }
+  ]
 }

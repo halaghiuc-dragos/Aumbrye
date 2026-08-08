@@ -1,0 +1,26 @@
+{
+  "id": "graysteel_waraxe",
+  "name": "Graysteel War Axe",
+  "itemType": "weapon",
+  "equipmentSlot": "weapon",
+  "gridWidth": 2,
+  "gridHeight": 3,
+  "stackSize": 1,
+  "rarity": "common",
+  "description": "It began as a tool. Nobody remembers for what. Vault-stock, stamped and stacked for a war that was called off. Scaling: Strength B, Dexterity D.",
+  "value": 67,
+  "lootValue": 34,
+  "maxDurability": 115,
+  "baseId": "waraxe",
+  "materialTier": "graysteel",
+  "biome": "iron_vault",
+  "scaling": {
+    "strength": "B",
+    "dexterity": "D"
+  },
+  "stats": {
+    "physicalDamage": 8,
+    "resistPhysical": 0.02
+  },
+  "weaponId": "axe"
+}

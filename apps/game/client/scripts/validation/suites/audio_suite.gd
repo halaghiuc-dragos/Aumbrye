@@ -40,6 +40,7 @@ func run() -> void:
 	_test_stinger_ducks()
 	_test_emitter_frees_with_host()
 	_test_no_process_synthesis_with_stems()
+	_test_no_orphan_audio_assets()
 
 
 func _test_profiles_load() -> void:
@@ -493,6 +494,70 @@ func _test_no_process_synthesis_with_stems() -> void:
 		start,
 		"M2.audio.no_synth"
 	)
+
+
+func _test_no_orphan_audio_assets() -> void:
+	var start := Time.get_ticks_msec()
+	var referenced := _collect_referenced_audio_paths()
+	var audio_root := ProjectSettings.globalize_path("res://assets/audio/")
+	var orphans: Array[String] = []
+	var dir := DirAccess.open(audio_root)
+	if dir:
+		_scan_for_orphan_audio(dir, audio_root, "res://assets/audio/", referenced, orphans)
+	ctx.timed_record(
+		"audio.no_orphan_assets",
+		get_category(),
+		orphans.is_empty(),
+		(
+			"every assets/audio/**/*.ogg is reachable from an audio_profiles or sfx.json entry"
+			if orphans.is_empty()
+			else "orphan audio assets: %s" % ", ".join(orphans)
+		),
+		start,
+		"M2.audio.no_orphans"
+	)
+
+
+func _collect_referenced_audio_paths() -> Dictionary:
+	var referenced: Dictionary = {}
+	for biome_id in BiomeRegistry.ALL_BIOMES:
+		var profile: Dictionary = ContentLoader.load_json(BiomeRegistry.get_audio_profile_path(biome_id))
+		_collect_string_paths(profile, referenced)
+	var bank: Dictionary = ContentLoader.load_json("content/audio/sfx.json")
+	_collect_string_paths(bank, referenced)
+	_collect_string_paths(AudioDirector.SFX_PROFILES, referenced)
+	return referenced
+
+
+func _collect_string_paths(node: Variant, referenced: Dictionary) -> void:
+	if node is Dictionary:
+		for value in (node as Dictionary).values():
+			_collect_string_paths(value, referenced)
+	elif node is Array:
+		for value in node as Array:
+			_collect_string_paths(value, referenced)
+	elif node is String and (node as String).begins_with("res://assets/audio/"):
+		referenced[node] = true
+
+
+func _scan_for_orphan_audio(
+	dir: DirAccess, root: String, res_prefix: String, referenced: Dictionary, orphans: Array[String]
+) -> void:
+	dir.list_dir_begin()
+	var name := dir.get_next()
+	while name != "":
+		if name == "." or name == "..":
+			name = dir.get_next()
+			continue
+		var res_path := res_prefix + name
+		if dir.current_is_dir():
+			var sub := DirAccess.open(root.path_join(name))
+			if sub:
+				_scan_for_orphan_audio(sub, root.path_join(name), res_path + "/", referenced, orphans)
+		elif name.ends_with(".ogg") and not referenced.has(res_path):
+			orphans.append(res_path)
+		name = dir.get_next()
+	dir.list_dir_end()
 
 
 func _content_root() -> String:

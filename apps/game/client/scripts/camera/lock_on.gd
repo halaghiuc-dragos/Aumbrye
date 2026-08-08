@@ -8,6 +8,7 @@ const LOCK_VERTICAL_LIMIT := 8.0
 const SCORE_DISTANCE_WEIGHT := 1.0
 const SCORE_ANGLE_WEIGHT := 0.75
 const SCORE_THREAT_WEIGHT := 0.5
+const SCORE_PRIORITY_WEIGHT := 0.5
 const SWITCH_COOLDOWN_STICK := 0.15
 const SWITCH_COOLDOWN_WHEEL := 0.05
 const ORBIT_RADIUS := 1.75
@@ -36,7 +37,7 @@ var _toggle_cooldown := 0.0
 var _target_health: Health
 var _los_grace_timer := 0.0
 var _was_occluded := false
-var _camera_spring: Node
+var _camera_spring: OrbitCamera
 
 
 func _ready() -> void:
@@ -48,7 +49,7 @@ func _ready() -> void:
 	if facing_path and _player:
 		_facing = _player.get_node_or_null(facing_path) as Node3D
 	if _player:
-		_camera_spring = _player.get_node_or_null("CameraPivot/SpringArm3D")
+		_camera_spring = _player.get_node_or_null("CameraPivot/SpringArm3D") as OrbitCamera
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -139,7 +140,6 @@ func _set_lock(target: Node3D) -> void:
 	_target_health = target.get_node_or_null("Health") as Health
 	if _target_health and not _target_health.died.is_connected(_on_lock_target_died):
 		_target_health.died.connect(_on_lock_target_died)
-	_push_lock_target_height(target)
 	_set_camera_lock_on_active(true)
 	lock_changed.emit(target, true)
 
@@ -212,24 +212,14 @@ func _update_lock_camera(delta: float) -> void:
 		return
 	var aim := get_target_aim_point(current_target)
 	var player_eye := _get_player_eye_position()
-	if _camera_spring.has_method("update_lock_on_frame"):
-		var blend_boost := 1.0 + _switch_blend_boost * 3.0
-		_camera_spring.call("update_lock_on_frame", aim, player_eye, delta * blend_boost)
-	elif _camera_spring.has_method("blend_look_direction"):
-		var to_focus := aim - player_eye
-		to_focus.y = 0.0
-		if to_focus.length_squared() > 0.01:
-			_camera_spring.call("blend_look_direction", to_focus.normalized(), 8.0 * delta)
+	var blend_boost := 1.0 + _switch_blend_boost * 3.0
+	_camera_spring.update_lock_on_frame(aim, player_eye, delta * blend_boost)
 
 
 func _get_player_eye_position() -> Vector3:
 	if _player == null:
 		return Vector3.ZERO
-	if (
-		_camera_spring
-		and _camera_spring.has_method("is_first_person")
-		and _camera_spring.call("is_first_person")
-	):
+	if _camera_spring and _camera_spring.is_first_person():
 		var camera := _camera_spring.get_node_or_null("Camera3D") as Camera3D
 		if camera:
 			return camera.global_position
@@ -240,28 +230,10 @@ func _set_camera_lock_on_active(active: bool) -> void:
 	_resolve_camera_spring()
 	if _camera_spring == null:
 		return
-	if _camera_spring.has_method("set_lock_on_active"):
-		_camera_spring.call("set_lock_on_active", active)
-	if active:
-		if not lock_occluded.is_connected(_on_lock_occluded_camera):
-			lock_occluded.connect(_on_lock_occluded_camera)
-	else:
-		if lock_occluded.is_connected(_on_lock_occluded_camera):
-			lock_occluded.disconnect(_on_lock_occluded_camera)
-		if _was_occluded:
-			_was_occluded = false
-			lock_occluded.emit(false)
-
-
-func _on_lock_occluded_camera(occluded: bool) -> void:
-	if _camera_spring and _camera_spring.has_method("on_lock_occluded"):
-		_camera_spring.call("on_lock_occluded", occluded)
-
-
-func _push_lock_target_height(target: Node3D) -> void:
-	_resolve_camera_spring()
-	if _camera_spring and _camera_spring.has_method("set_lock_target_height"):
-		_camera_spring.call("set_lock_target_height", get_target_height(target))
+	_camera_spring.set_lock_on_active(active)
+	if not active and _was_occluded:
+		_was_occluded = false
+		lock_occluded.emit(false)
 
 
 func _handle_target_switch() -> void:
@@ -355,7 +327,7 @@ func _resolve_player() -> void:
 
 func _resolve_camera_spring() -> void:
 	if _camera_spring == null and _player:
-		_camera_spring = _player.get_node_or_null("CameraPivot/SpringArm3D")
+		_camera_spring = _player.get_node_or_null("CameraPivot/SpringArm3D") as OrbitCamera
 
 
 func _find_best_target(require_los: bool = true, ignore_cone: bool = false) -> Node3D:
@@ -384,10 +356,14 @@ func _find_best_target(require_los: bool = true, ignore_cone: bool = false) -> N
 		var threat := 0.0
 		if enemy.has_method("get_lock_threat"):
 			threat = float(enemy.call("get_lock_threat"))
+		var priority := 0.0
+		if enemy.has_method("get_lock_priority"):
+			priority = float(enemy.call("get_lock_priority"))
 		var score := (
 			SCORE_DISTANCE_WEIGHT * (distance / LOCK_ACQUIRE_RANGE)
 			+ SCORE_ANGLE_WEIGHT * (angle / LOCK_PICK_CONE_DEG)
 			- SCORE_THREAT_WEIGHT * threat
+			- SCORE_PRIORITY_WEIGHT * priority
 		)
 		if score < best_score:
 			best_score = score

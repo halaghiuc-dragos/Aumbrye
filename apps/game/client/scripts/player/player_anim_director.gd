@@ -773,7 +773,15 @@ func _on_attack_started(attack_name: String) -> void:
 
 	var recovery := float(phases.get("recovery", 0.3))
 
-	if attack_name.begins_with("heavy"):
+	if attack_name == "riposte":
+
+		play_riposte(startup, active, recovery)
+
+	elif attack_name == "backstab":
+
+		play_backstab(startup, active, recovery)
+
+	elif attack_name.begins_with("heavy"):
 
 		play_heavy_attack(startup, active, recovery)
 
@@ -784,6 +792,31 @@ func _on_attack_started(attack_name: String) -> void:
 	else:
 
 		play_attack(startup, active, recovery)
+
+
+
+
+func play_riposte(startup: float, active: float, recovery: float) -> void:
+
+	play_attack(startup, active, recovery, _execution_clip())
+
+
+
+
+func play_backstab(startup: float, active: float, recovery: float) -> void:
+
+	play_attack(startup, active, recovery, _execution_clip())
+
+
+
+
+func _execution_clip() -> StringName:
+
+	if AnimLibrary.ATTACKS.has(&"attack_thrust"):
+
+		return &"attack_thrust"
+
+	return AnimLibrary.heavy_clip_for(_weapon_archetype)
 
 
 

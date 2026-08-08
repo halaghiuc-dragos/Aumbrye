@@ -1,0 +1,73 @@
+{
+  "id": "clerk_ivo",
+  "displayName": "Ivo Kell",
+  "interactType": "storage",
+  "dialogueId": "ivo_greeting",
+  "requiresFlag": "rescued_ivo",
+  "dialogueRules": [
+    {
+      "condition": {
+        "not": {
+          "relationship": "ivo",
+          "atLeast": 1
+        }
+      },
+      "dialogueId": "ivo_arrival"
+    },
+    {
+      "condition": {
+        "any": [
+          {
+            "all": [
+              {
+                "lastRunOutcome": "died"
+              },
+              {
+                "lastRunBoss": true
+              }
+            ]
+          },
+          {
+            "all": [
+              {
+                "lastRunOutcome": "died"
+              },
+              {
+                "minLastRunFloor": 4
+              }
+            ]
+          },
+          {
+            "all": [
+              {
+                "lastRunOutcome": "escaped"
+              },
+              {
+                "lastRunBoss": true
+              }
+            ]
+          },
+          {
+            "lastRunBiome": "iron_vault"
+          },
+          {
+            "all": [
+              {
+                "lastRunOutcome": "died"
+              },
+              {
+                "minDeaths": 10
+              }
+            ]
+          }
+        ]
+      },
+      "dialogueId": "ivo_reactions"
+    }
+  ],
+  "position": {
+    "x": -3.6,
+    "y": 0,
+    "z": 10.8
+  }
+}

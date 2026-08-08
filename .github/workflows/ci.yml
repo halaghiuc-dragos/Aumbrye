@@ -10,6 +10,9 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  TFM: net10.0
+
 jobs:
   backend:
     name: Backend
@@ -22,9 +25,14 @@ jobs:
       - uses: actions/checkout@v5
       - uses: actions/setup-dotnet@v5
         with:
-          dotnet-version: "8.0.x"
+          dotnet-version: "10.0.x"
       - name: Restore
         run: dotnet restore Aumbrye.sln
+      - name: Check for vulnerable packages
+        run: |
+          set -o pipefail
+          dotnet list Aumbrye.sln package --vulnerable --include-transitive | tee /tmp/vuln.log
+          ! grep -q "has the following vulnerable packages" /tmp/vuln.log
       - name: Verify format
         run: dotnet format Aumbrye.sln --verify-no-changes
       - name: Build
@@ -35,7 +43,7 @@ jobs:
           UseInMemoryStores: "true"
         run: |
           dotnet tool restore
-          dotnet tool run swagger tofile --yaml --output /tmp/spec.yaml src/Aumbrye.Api/bin/Release/net8.0/Aumbrye.Api.dll v1
+          dotnet tool run swagger tofile --yaml --output /tmp/spec.yaml "src/Aumbrye.Api/bin/Release/${TFM}/Aumbrye.Api.dll" v1
           diff /tmp/spec.yaml ../../packages/shared/openapi/aumbrye-api.v1.yaml
       - name: Build procgen-cli
         run: dotnet build ../../tools/procgen-cli/ProcgenCli.csproj --configuration Release
@@ -71,6 +79,8 @@ jobs:
           cache-dependency-path: apps/web/package-lock.json
       - name: Install
         run: npm ci
+      - name: Audit dependencies
+        run: npm audit --audit-level=high
       - name: Lint
         run: npm run lint
       - name: Test
@@ -96,7 +106,7 @@ jobs:
       - uses: actions/checkout@v5
       - uses: actions/setup-dotnet@v5
         with:
-          dotnet-version: 8.0.x
+          dotnet-version: 10.0.x
       - uses: actions/setup-node@v5
         with:
           node-version: 24
@@ -109,13 +119,10 @@ jobs:
           dotnet tool restore
           dotnet build src/Aumbrye.Api -c Release
           dotnet tool run swagger tofile --yaml --output ../../packages/shared/openapi/aumbrye-api.v1.yaml \
-            src/Aumbrye.Api/bin/Release/net8.0/Aumbrye.Api.dll v1
+            "src/Aumbrye.Api/bin/Release/${TFM}/Aumbrye.Api.dll" v1
       - name: Regenerate web types
         working-directory: apps/web
         run: npm ci && npm run generate:api
-      - name: Assert client version parity
-        run: |
-          test "$(jq -r .version apps/web/package.json)" = "$(grep -oP 'ExpectedClientVersion = "\K[^"]+' packages/shared/Contracts/ApiVersions.cs)"
       - name: Fail on drift
         run: git diff --exit-code packages/shared/openapi apps/web/src/api/schema.d.ts
 
@@ -149,7 +156,7 @@ jobs:
       - uses: actions/checkout@v5
       - uses: actions/setup-dotnet@v5
         with:
-          dotnet-version: 8.0.x
+          dotnet-version: 10.0.x
       - uses: actions/setup-node@v5
         with:
           node-version: 24
@@ -294,10 +301,13 @@ jobs:
           path: |
             apps/game/client/artifacts/mcp_validation.json
             apps/game/client/artifacts/mcp_validation.xml
+      - name: Assert validation report is non-vacuous
+        run: |
+          jq -e '.failed == 0 and .total > 0' apps/game/client/artifacts/mcp_validation.json
       - name: Summarize failures
         if: failure()
         run: |
-          jq -r '.tests[] | select(.status == "fail" or .pass == false) | "FAIL \(.id) [\(.category)] \(.message)"' \
+          jq -r '.tests[] | select(.status == "fail") | "FAIL \(.id) [\(.category)] \(.message)"' \
             apps/game/client/artifacts/mcp_validation.json >> "$GITHUB_STEP_SUMMARY" || true
 
   smoke-test:

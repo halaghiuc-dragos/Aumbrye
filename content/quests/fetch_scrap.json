@@ -3,6 +3,8 @@
   "title": "Salvage Duty",
   "type": "fetch",
   "targetItemId": "iron_scrap",
-  "description": "Bring iron scrap back from a run (auto-completes on pickup).",
-  "rewards": { "gold": 20 }
+  "description": "Bring up a length of scrap. Aldric will not ask which wall it came out of.",
+  "rewards": {
+    "gold": 20
+  }
 }

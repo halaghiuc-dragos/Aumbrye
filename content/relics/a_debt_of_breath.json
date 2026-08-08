@@ -1,0 +1,21 @@
+{
+  "id": "a_debt_of_breath",
+  "name": "A Debt Of Breath",
+  "description": "Five percent of your damage surrendered. Every kill returns a full breath.",
+  "maxStacks": 1,
+  "stats": {
+    "damagePercent": -5
+  },
+  "tags": [
+    "swift"
+  ],
+  "weight": 0.7,
+  "rules": [
+    {
+      "event": "onKill",
+      "effect": "restore_stamina",
+      "amount": 26
+    }
+  ],
+  "offerable": true
+}

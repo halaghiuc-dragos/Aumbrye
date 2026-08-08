@@ -1,0 +1,20 @@
+{
+  "id": "everburning_torch",
+  "name": "Everburning Torch",
+  "itemType": "consumable",
+  "gridWidth": 1,
+  "gridHeight": 2,
+  "stackSize": 1,
+  "rarity": "rare",
+  "description": "It has never gone out. That is the whole of what is known about it.",
+  "consumableEffect": {
+    "kind": "applyStatus",
+    "statusId": "elixir_torchlight",
+    "duration": 180,
+    "stat": "lootQuality",
+    "amount": 0.2,
+    "usableInHub": false
+  },
+  "value": 240,
+  "lootValue": 120
+}

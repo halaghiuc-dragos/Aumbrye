@@ -1,0 +1,28 @@
+{
+  "id": "reliquary_rapier",
+  "name": "Reliquary Rapier",
+  "itemType": "weapon",
+  "equipmentSlot": "weapon",
+  "gridWidth": 1,
+  "gridHeight": 3,
+  "stackSize": 1,
+  "rarity": "rare",
+  "description": "A duelling blade, in a place that stopped keeping duels. Melted down from offering plate. Nobody asked the congregation. Scaling: Strength D, Dexterity B.",
+  "value": 144,
+  "lootValue": 72,
+  "maxDurability": 90,
+  "baseId": "rapier",
+  "materialTier": "reliquary",
+  "biome": "dark_cathedral",
+  "scaling": {
+    "strength": "D",
+    "dexterity": "B"
+  },
+  "stats": {
+    "critChance": 0.052,
+    "physicalDamage": 5,
+    "resistArcane": 0.08,
+    "resistFire": 0.04
+  },
+  "weaponId": "sword_basic"
+}

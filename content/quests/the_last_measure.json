@@ -1,0 +1,21 @@
+{
+  "id": "the_last_measure",
+  "title": "The Last Measure",
+  "type": "escort",
+  "chainId": "overflow",
+  "targetNpcId": "fenwife_nettle",
+  "requiredCount": 1,
+  "availableWhen": {
+    "minTier": 3
+  },
+  "description": "There is a woman in the Venom Mire who has been minding her boots for years. Bring her up before the mire finishes the argument.",
+  "rewards": {
+    "gold": 160,
+    "items": [
+      {
+        "itemId": "antidote",
+        "quantity": 2
+      }
+    ]
+  }
+}

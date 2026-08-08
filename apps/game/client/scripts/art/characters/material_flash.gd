@@ -2,6 +2,11 @@ extends RefCounted
 class_name MaterialFlash
 
 ## Brief albedo flash on hit via pixel_diorama shader flash uniforms.
+##
+## REF-06: flash uniforms are `instance uniform` on the shared pixel-diorama shaders, so a hit
+## flash is a per-`MeshInstance3D` shader-parameter write, not a per-hit material duplication —
+## every character/prop keeps sharing one `ShaderMaterial` resource regardless of how often it
+## flashes.
 
 const FLASH_PARAM := &"flash_amount"
 const FLASH_COLOR_PARAM := &"flash_color"
@@ -13,10 +18,7 @@ const CRIT_HOLD := 0.04
 const DEFAULT_FALLOFF := 1.2
 const MIN_LOCAL_STRENGTH := 0.35
 
-const META_SAVED_OVERRIDE := &"material_flash_saved_override"
 const META_ACTIVE_TWEEN := &"material_flash_tween"
-const META_OWNER := &"material_effect_owner"
-const OWNER_FLASH := &"flash"
 
 const FLASH_TINTS: Dictionary = {
 	"physical": Color.WHITE,
@@ -46,11 +48,8 @@ static func cancel(mesh: MeshInstance3D) -> void:
 		if active_tween and active_tween.is_valid():
 			active_tween.kill()
 		mesh.remove_meta(META_ACTIVE_TWEEN)
-	if mesh.has_meta(META_SAVED_OVERRIDE):
-		mesh.material_override = mesh.get_meta(META_SAVED_OVERRIDE)
-		mesh.remove_meta(META_SAVED_OVERRIDE)
-	if mesh.has_meta(META_OWNER) and mesh.get_meta(META_OWNER) == OWNER_FLASH:
-		mesh.remove_meta(META_OWNER)
+	if _mesh_shader(mesh) != null:
+		mesh.set_instance_shader_parameter(FLASH_PARAM, 0.0)
 
 
 static func restore_all(node: Node3D) -> void:
@@ -91,24 +90,28 @@ static func _gather_meshes(root: Node) -> Array[MeshInstance3D]:
 	return out
 
 
+static func _mesh_shader(mesh: MeshInstance3D) -> Shader:
+	var mat := mesh.material_override as ShaderMaterial
+	if mat == null:
+		mat = mesh.get_active_material(0) as ShaderMaterial
+	if mat == null or mat.shader == null:
+		return null
+	if not _shader_declares(mat.shader, FLASH_PARAM):
+		return null
+	return mat.shader
+
+
 static func _flash_mesh(mesh: MeshInstance3D, params: Dictionary) -> void:
 	if mesh.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_SHADOWS_ONLY:
 		return
 
-	var base_mat := mesh.material_override as ShaderMaterial
-	if base_mat == null:
-		base_mat = mesh.get_active_material(0) as ShaderMaterial
-	if base_mat == null or base_mat.shader == null:
-		return
-	if not _shader_declares(base_mat.shader, FLASH_PARAM):
+	var shader := _mesh_shader(mesh)
+	if shader == null:
 		return
 
 	if not mesh.is_inside_tree():
 		return
 	var tree := mesh.get_tree()
-
-	if mesh.has_meta(META_OWNER) and mesh.get_meta(META_OWNER) != OWNER_FLASH:
-		return
 
 	cancel(mesh)
 
@@ -127,23 +130,18 @@ static func _flash_mesh(mesh: MeshInstance3D, params: Dictionary) -> void:
 	var duration := maxf(0.05, float(params.get("duration", FLASH_DURATION)))
 	var crit := bool(params.get("crit", false))
 
-	mesh.set_meta(META_SAVED_OVERRIDE, mesh.material_override)
-	mesh.set_meta(META_OWNER, OWNER_FLASH)
-
-	var dup := base_mat.duplicate() as ShaderMaterial
-	mesh.material_override = dup
-	dup.set_shader_parameter(FLASH_PARAM, 0.0)
-	if _shader_declares(dup.shader, FLASH_COLOR_PARAM):
-		dup.set_shader_parameter(FLASH_COLOR_PARAM, Vector3(tint.r, tint.g, tint.b))
-	if _shader_declares(dup.shader, FLASH_EMISSION_PARAM):
-		dup.set_shader_parameter(FLASH_EMISSION_PARAM, DEFAULT_FLASH_EMISSION)
+	mesh.set_instance_shader_parameter(FLASH_PARAM, 0.0)
+	if _shader_declares(shader, FLASH_COLOR_PARAM):
+		mesh.set_instance_shader_parameter(FLASH_COLOR_PARAM, Vector3(tint.r, tint.g, tint.b))
+	if _shader_declares(shader, FLASH_EMISSION_PARAM):
+		mesh.set_instance_shader_parameter(FLASH_EMISSION_PARAM, DEFAULT_FLASH_EMISSION)
 
 	var tween := tree.create_tween()
 	mesh.set_meta(META_ACTIVE_TWEEN, tween)
 	tween.tween_method(
 		func(v: float) -> void:
-			if is_instance_valid(dup):
-				dup.set_shader_parameter(FLASH_PARAM, v),
+			if is_instance_valid(mesh):
+				mesh.set_instance_shader_parameter(FLASH_PARAM, v),
 		0.0,
 		strength,
 		RAMP_IN
@@ -152,8 +150,8 @@ static func _flash_mesh(mesh: MeshInstance3D, params: Dictionary) -> void:
 		tween.tween_interval(CRIT_HOLD)
 	tween.tween_method(
 		func(v: float) -> void:
-			if is_instance_valid(dup):
-				dup.set_shader_parameter(FLASH_PARAM, v),
+			if is_instance_valid(mesh):
+				mesh.set_instance_shader_parameter(FLASH_PARAM, v),
 		strength,
 		0.0,
 		duration
@@ -162,11 +160,7 @@ static func _flash_mesh(mesh: MeshInstance3D, params: Dictionary) -> void:
 		func() -> void:
 			if not is_instance_valid(mesh):
 				return
-			if mesh.has_meta(META_SAVED_OVERRIDE):
-				mesh.material_override = mesh.get_meta(META_SAVED_OVERRIDE)
-				mesh.remove_meta(META_SAVED_OVERRIDE)
-			if mesh.has_meta(META_OWNER) and mesh.get_meta(META_OWNER) == OWNER_FLASH:
-				mesh.remove_meta(META_OWNER)
+			mesh.set_instance_shader_parameter(FLASH_PARAM, 0.0)
 			mesh.remove_meta(META_ACTIVE_TWEEN)
 	)
 

@@ -1,0 +1,31 @@
+{
+  "id": "unique_leechbound_band",
+  "name": "Leechbound Band",
+  "itemType": "accessory",
+  "equipmentSlot": "ring",
+  "gridWidth": 1,
+  "gridHeight": 1,
+  "stackSize": 1,
+  "rarity": "epic",
+  "description": "Worn until the finger beneath went grey, and then worn a while longer.",
+  "value": 460,
+  "lootValue": 230,
+  "maxDurability": 60,
+  "unique": true,
+  "baseId": "band",
+  "biome": "poison_swamp",
+  "scaling": {},
+  "ruleText": "Hits on poisoned enemies heal you for 6% of the damage dealt.",
+  "rules": [
+    {
+      "event": "onHit",
+      "effect": "lifesteal",
+      "pct": 0.06,
+      "ifTargetHasStatus": "poison"
+    }
+  ],
+  "stats": {
+    "maxHealth": 26,
+    "poisonDamage": 5
+  }
+}

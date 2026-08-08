@@ -1,0 +1,35 @@
+{
+  "id": "unique_rot_and_remedy",
+  "name": "Rot and Remedy",
+  "itemType": "weapon",
+  "equipmentSlot": "weapon",
+  "gridWidth": 1,
+  "gridHeight": 4,
+  "stackSize": 1,
+  "rarity": "legendary",
+  "description": "The physician carried both in the same jar and stopped labelling which was which.",
+  "value": 740,
+  "lootValue": 370,
+  "maxDurability": 90,
+  "unique": true,
+  "baseId": "staff",
+  "biome": "poison_swamp",
+  "scaling": {
+    "strength": "E",
+    "arcane": "A"
+  },
+  "ruleText": "At low health, clears all statuses from you.",
+  "rules": [
+    {
+      "event": "onLowHealth",
+      "effect": "clear_status",
+      "cooldown": 45.0
+    }
+  ],
+  "stats": {
+    "arcaneDamage": 10,
+    "poisonDamage": 8,
+    "manaMax": 30
+  },
+  "weaponId": "staff"
+}

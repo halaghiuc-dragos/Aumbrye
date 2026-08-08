@@ -1,0 +1,24 @@
+{
+  "id": "bounty_fen_cull",
+  "title": "Bounty: The Overflow",
+  "type": "kill",
+  "targetId": "venom_drifter",
+  "requiredCount": 8,
+  "repeatable": true,
+  "cooldownRuns": 1,
+  "availableWhen": {
+    "minTier": 3
+  },
+  "bounty": "daily",
+  "description": "Standing bounty. Nettle counts drifters the way other people count debts. Eight.",
+  "rewards": {
+    "gold": 120,
+    "bountyTokens": 3,
+    "items": [
+      {
+        "itemId": "antidote",
+        "quantity": 2
+      }
+    ]
+  }
+}

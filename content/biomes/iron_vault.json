@@ -3,7 +3,10 @@
   "name": "Iron Vault",
   "templatePrefix": "vault",
   "assetFolder": "vault",
-  "roomCount": { "min": 6, "max": 10 },
+  "roomCount": {
+    "min": 20,
+    "max": 26
+  },
   "roomTemplateIds": [
     "vault_entrance",
     "vault_stairs",
@@ -23,13 +26,25 @@
     "accent": "vault"
   },
   "lighting": {
-    "ambientColor": [0.4, 0.35, 0.32],
+    "ambientColor": [
+      0.4,
+      0.35,
+      0.32
+    ],
     "ambientEnergy": 0.45,
     "fogEnabled": true,
-    "fogColor": [0.12, 0.1, 0.08],
+    "fogColor": [
+      0.12,
+      0.1,
+      0.08
+    ],
     "fogDensity": 0.018,
-    "torchColor": [0.95, 0.65, 0.35],
-    "torchEnergy": 2.0
+    "torchColor": [
+      0.95,
+      0.65,
+      0.35
+    ],
+    "torchEnergy": 2
   },
   "audioProfile": "content/audio_profiles/iron_vault.json",
   "propKit": {
@@ -41,15 +56,36 @@
     ]
   },
   "enemyPool": [
-    { "enemyId": "castle_grunt", "weight": 3 },
-    { "enemyId": "castle_archer", "weight": 2 },
-    { "enemyId": "castle_shield", "weight": 2 },
-    { "enemyId": "castle_hound", "weight": 2 },
-    { "enemyId": "miniboss_castle_captain", "weight": 1 }
+    {
+      "enemyId": "iron_ratchet",
+      "weight": 3
+    },
+    {
+      "enemyId": "iron_needle",
+      "weight": 2
+    },
+    {
+      "enemyId": "iron_sentinel",
+      "weight": 2
+    },
+    {
+      "enemyId": "iron_bellows_golem",
+      "weight": 2
+    },
+    {
+      "enemyId": "iron_foreman",
+      "weight": 1
+    }
   ],
   "bossPool": [
-    { "enemyId": "boss_castle_knight", "weight": 3 },
-    { "enemyId": "miniboss_castle_captain", "weight": 1 }
+    {
+      "enemyId": "iron_conclave",
+      "weight": 3
+    },
+    {
+      "enemyId": "iron_foreman",
+      "weight": 1
+    }
   ],
   "budgets": {
     "baseEnemyThreat": 100,
@@ -59,23 +95,126 @@
   },
   "lootTables": {
     "treasure": [
-      { "itemId": "health_potion", "quantity": [2, 3], "weight": 3 },
-      { "itemId": "stone_relic_heart", "quantity": [1, 1], "weight": 2 }
+      {
+        "itemId": "health_potion",
+        "quantity": [
+          2,
+          3
+        ],
+        "weight": 3
+      },
+      {
+        "itemId": "stone_relic_heart",
+        "quantity": [
+          1,
+          1
+        ],
+        "weight": 2
+      }
     ],
     "secret": [
-      { "itemId": "stone_relic_heart", "quantity": [1, 1], "weight": 2 },
-      { "itemId": "health_potion", "quantity": [4, 5], "weight": 3 }
+      {
+        "itemId": "stone_relic_heart",
+        "quantity": [
+          1,
+          1
+        ],
+        "weight": 2
+      },
+      {
+        "itemId": "health_potion",
+        "quantity": [
+          4,
+          5
+        ],
+        "weight": 3
+      }
     ],
     "side": [
-      { "itemId": "castle_gauntlets", "quantity": [1, 1], "weight": 2 },
-      { "itemId": "swift_step_charm", "quantity": [1, 1], "weight": 2 }
+      {
+        "itemId": "castle_gauntlets",
+        "quantity": [
+          1,
+          1
+        ],
+        "weight": 2
+      },
+      {
+        "itemId": "swift_step_charm",
+        "quantity": [
+          1,
+          1
+        ],
+        "weight": 2
+      }
     ],
-    "armory": [{ "itemId": "war_hammer", "quantity": [1, 1], "weight": 1 }]
+    "armory": [
+      {
+        "itemId": "war_hammer",
+        "quantity": [
+          1,
+          1
+        ],
+        "weight": 1
+      }
+    ]
   },
   "trapPool": [
-    { "trapId": "spike_trap", "weight": 3 },
-    { "trapId": "falling_trap", "weight": 1 }
+    {
+      "trapId": "spike_trap",
+      "weight": 3
+    },
+    {
+      "trapId": "swinging_blade",
+      "weight": 3
+    },
+    {
+      "trapId": "ember_grate",
+      "weight": 2
+    },
+    {
+      "trapId": "arrow_line",
+      "weight": 2
+    },
+    {
+      "trapId": "collapsing_floor",
+      "weight": 2
+    }
   ],
   "requiresSecret": true,
-  "finalFloor": { "bossId": "boss_castle_knight" }
+  "finalFloor": {
+    "bossId": "iron_conclave"
+  },
+  "maxHeightLevel": 2,
+  "maxSecrets": 3,
+  "generator": {
+    "bossMinDistance": 5,
+    "minDeadEnds": 5,
+    "branchMaxDepth": 8,
+    "maxNeighborCount": 4,
+    "loopBudget": 4,
+    "maxGenerationAttempts": 256,
+    "maxWalkAttempts": 8192,
+    "allow2x2Blocks": true,
+    "fillBoundingBox": true
+  },
+  "grade": {
+    "shadowTint": [
+      0.16,
+      0.12,
+      0.1
+    ],
+    "shadowTintAmount": 0.24,
+    "highlightTint": [
+      1,
+      0.8,
+      0.54
+    ],
+    "highlightTintAmount": 0.2,
+    "saturation": 0.88,
+    "contrast": 1.16,
+    "lift": -0.01,
+    "vignette": 0.28
+  },
+  "lootTablePath": "content/loot/tables/iron_vault.json"
 }

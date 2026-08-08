@@ -1,7 +1,23 @@
 {
   "id": "bloodlust",
   "name": "Bloodlust",
-  "description": "+5% damage for this run.",
+  "description": "A kill steadies the hands. +5% damage, and each kill returns stamina.",
   "maxStacks": 2,
-  "stats": { "damagePercent": 5 }
+  "stats": {
+    "damagePercent": 5
+  },
+  "tags": [
+    "blood",
+    "ruin"
+  ],
+  "weight": 1,
+  "rules": [
+    {
+      "event": "onKill",
+      "effect": "restore_stamina",
+      "amount": 14,
+      "chance": 1
+    }
+  ],
+  "offerable": true
 }

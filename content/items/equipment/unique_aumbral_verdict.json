@@ -1,0 +1,43 @@
+{
+  "id": "unique_aumbral_verdict",
+  "name": "Aumbral Verdict",
+  "itemType": "weapon",
+  "equipmentSlot": "weapon",
+  "gridWidth": 2,
+  "gridHeight": 4,
+  "stackSize": 1,
+  "rarity": "aumbral",
+  "description": "The sentence was passed in a room with no windows and carried out immediately.",
+  "value": 1800,
+  "lootValue": 900,
+  "maxDurability": 130,
+  "unique": true,
+  "baseId": "greatsword",
+  "biome": "umbral_chapel",
+  "scaling": {
+    "strength": "B",
+    "dexterity": "E"
+  },
+  "ruleText": "Killing a bleeding enemy spreads bleed to nearby enemies. Backstabs restore 25 stamina.",
+  "rules": [
+    {
+      "event": "onKill",
+      "effect": "spread_status",
+      "statusId": "bleed",
+      "stacks": 1,
+      "radius": 5.0,
+      "ifTargetHasStatus": "bleed"
+    },
+    {
+      "event": "onBackstab",
+      "effect": "restore_stamina",
+      "amount": 25.0
+    }
+  ],
+  "stats": {
+    "physicalDamage": 30,
+    "critChance": 0.06,
+    "poiseDamage": 0.2
+  },
+  "weaponId": "greatsword"
+}

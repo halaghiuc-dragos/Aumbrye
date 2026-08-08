@@ -1,9 +1,23 @@
 {
-    "description":  "Toxic residue coats your strikes.",
-    "name":  "Relic Poison Vial",
-    "id":  "relic_poison_vial",
-    "stats":  {
-                  "poisonDamage":  4
-              },
-    "maxStacks":  1
+  "id": "relic_poison_vial",
+  "name": "Relic Poison Vial",
+  "description": "It was never sealed properly. One hit in five carries the rot.",
+  "maxStacks": 1,
+  "stats": {
+    "poisonDamage": 4
+  },
+  "tags": [
+    "venom"
+  ],
+  "weight": 1,
+  "rules": [
+    {
+      "event": "onHit",
+      "effect": "apply_status",
+      "statusId": "poison",
+      "stacks": 1,
+      "chance": 0.2
+    }
+  ],
+  "offerable": true
 }

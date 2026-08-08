@@ -1,0 +1,18 @@
+{
+  "id": "roll_call",
+  "title": "The Roll",
+  "type": "escort",
+  "chainId": "roll",
+  "targetNpcId": "serjeant_halbrek",
+  "requiredCount": 1,
+  "description": "Somebody is still calling forty-one names at the sallyport. Vessit would like the caller brought up, and is careful not to say why.",
+  "rewards": {
+    "gold": 120,
+    "flags": [
+      {
+        "flag": "gate_reopened",
+        "value": true
+      }
+    ]
+  }
+}

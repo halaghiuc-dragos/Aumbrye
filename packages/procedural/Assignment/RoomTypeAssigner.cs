@@ -115,7 +115,7 @@ public static class RoomTypeAssigner
         string layoutId,
         string entranceId,
         string bossId,
-        IReadOnlyList<string> secretIds,
+        List<string> secretIds,
         string treasureId,
         string corridorId,
         string? obstacleId,

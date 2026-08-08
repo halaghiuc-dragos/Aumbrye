@@ -1,0 +1,26 @@
+{
+  "id": "reliquary_gauntlets",
+  "name": "Reliquary Gauntlets",
+  "itemType": "armor",
+  "equipmentSlot": "gloves",
+  "gridWidth": 2,
+  "gridHeight": 2,
+  "stackSize": 1,
+  "rarity": "rare",
+  "description": "Worn thin at the knuckles, thick everywhere else. Melted down from offering plate. Nobody asked the congregation. Scaling: Strength D.",
+  "value": 96,
+  "lootValue": 48,
+  "maxDurability": 95,
+  "baseId": "gauntlets",
+  "materialTier": "reliquary",
+  "biome": "dark_cathedral",
+  "scaling": {
+    "strength": "D"
+  },
+  "stats": {
+    "armor": 5,
+    "staminaMax": 10,
+    "resistArcane": 0.08,
+    "resistFire": 0.04
+  }
+}

@@ -1,0 +1,38 @@
+{
+  "id": "reliquary_kiteshield",
+  "name": "Reliquary Kite Shield",
+  "itemType": "armor",
+  "equipmentSlot": "secondary",
+  "gridWidth": 2,
+  "gridHeight": 3,
+  "stackSize": 1,
+  "rarity": "rare",
+  "description": "The heraldry has worn to a shape nobody can name. Melted down from offering plate. Nobody asked the congregation. Scaling: Strength C.",
+  "value": 192,
+  "lootValue": 96,
+  "maxDurability": 115,
+  "baseId": "kiteshield",
+  "materialTier": "reliquary",
+  "biome": "dark_cathedral",
+  "scaling": {
+    "strength": "C"
+  },
+  "stats": {
+    "defense": 23,
+    "poise": 8,
+    "resistArcane": 0.08,
+    "resistFire": 0.04
+  },
+  "block": {
+    "stability": 1.35,
+    "guardBreakPoise": 52,
+    "reduction": {
+      "physical": 0.74,
+      "fire": 0.6,
+      "frost": 0.38,
+      "poison": 0.38,
+      "lightning": 0.38,
+      "arcane": 0.68
+    }
+  }
+}

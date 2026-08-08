@@ -75,7 +75,12 @@ static func _definition_adjacency(definition: Dictionary) -> Dictionary:
 	return adjacency
 
 
-static func validate(graph: RoomGraph, assignment: Dictionary, content: Dictionary) -> Dictionary:
+static func validate(
+	graph: RoomGraph,
+	assignment: Dictionary,
+	content: Dictionary,
+	config: RoomContentConfig = null
+) -> Dictionary:
 	var layout_to_semantic := _layout_to_semantic(assignment)
 	var start_semantic := _semantic_for_layout(assignment, graph.start_id)
 	var boss_semantic := _semantic_for_layout(assignment, graph.boss_id)
@@ -113,6 +118,50 @@ static func validate(graph: RoomGraph, assignment: Dictionary, content: Dictiona
 	var collectible_check := _validate_collectibles(content, path_semantic)
 	if not collectible_check.get("ok", false):
 		return collectible_check
+	if config != null:
+		var pacing_check := validate_pacing(content, path_semantic, config)
+		if not pacing_check.get("ok", false):
+			return pacing_check
+	return {"ok": true}
+
+
+## Pacing guarantees, checked after assignment has already tried to satisfy them.
+static func validate_pacing(
+	content: Dictionary, path_semantic: Array[String], config: RoomContentConfig
+) -> Dictionary:
+	var room_content: Array = content.get("roomContent", [])
+	if config.min_reward_rooms > 0:
+		var rewards := 0
+		for entry in room_content:
+			if not entry is Dictionary:
+				continue
+			if str((entry as Dictionary).get("contentType", "")) == RoomContentTypes.REWARD:
+				rewards += 1
+		if rewards < config.min_reward_rooms:
+			return {
+				"ok": false,
+				"reason": "Floor has %d reward rooms, needs %d" % [rewards, config.min_reward_rooms],
+			}
+	if config.max_consecutive_combat > 0:
+		var by_room := {}
+		for entry in room_content:
+			if entry is Dictionary:
+				by_room[str((entry as Dictionary).get("roomId", ""))] = entry
+		var streak := 0
+		for room_id in path_semantic:
+			var entry: Variant = by_room.get(room_id)
+			if not entry is Dictionary:
+				streak = 0
+				continue
+			if str((entry as Dictionary).get("contentType", "")) != RoomContentTypes.COMBAT:
+				streak = 0
+				continue
+			streak += 1
+			if streak > config.max_consecutive_combat:
+				return {
+					"ok": false,
+					"reason": "More than %d combat rooms in a row" % config.max_consecutive_combat,
+				}
 	return {"ok": true}
 
 

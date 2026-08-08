@@ -1,27 +1,7 @@
-[gd_scene load_steps=5 format=3]
+[gd_scene load_steps=2 format=3]
 
-[ext_resource type="Script" path="res://scripts/combat/poison_hazard.gd" id="1"]
+[ext_resource type="Script" path="res://scripts/dungeon/traps/hazard_trap.gd" id="1_hazard"]
 
-[sub_resource type="BoxShape3D" id="BoxShape3D_pool"]
-size = Vector3(4, 0.2, 4)
-
-[sub_resource type="BoxMesh" id="BoxMesh_pool"]
-size = Vector3(4, 0.1, 4)
-
-[sub_resource type="StandardMaterial3D" id="Mat_pool"]
-transparency = 1
-albedo_color = Color(0.35, 0.65, 0.95, 0.75)
-
-[node name="FrostTrap" type="Area3D"]
-collision_layer = 0
-collision_mask = 2
-script = ExtResource("1")
-
-[node name="CollisionShape3D" type="CollisionShape3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.05, 0)
-shape = SubResource("BoxShape3D_pool")
-
-[node name="MeshInstance3D" type="MeshInstance3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.05, 0)
-mesh = SubResource("BoxMesh_pool")
-surface_material_override/0 = SubResource("Mat_pool")
+[node name="FrostTrap" type="Node3D"]
+script = ExtResource("1_hazard")
+trap_id = "frost_trap"

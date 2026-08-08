@@ -1,0 +1,25 @@
+{
+  "id": "graysteel_helm",
+  "name": "Graysteel Helm",
+  "itemType": "armor",
+  "equipmentSlot": "helmet",
+  "gridWidth": 2,
+  "gridHeight": 2,
+  "stackSize": 1,
+  "rarity": "common",
+  "description": "The visor is dented inward. It was not removed in time. Vault-stock, stamped and stacked for a war that was called off. Scaling: Strength D.",
+  "value": 38,
+  "lootValue": 19,
+  "maxDurability": 100,
+  "baseId": "helm",
+  "materialTier": "graysteel",
+  "biome": "iron_vault",
+  "scaling": {
+    "strength": "D"
+  },
+  "stats": {
+    "armor": 4,
+    "poise": 3,
+    "resistPhysical": 0.02
+  }
+}

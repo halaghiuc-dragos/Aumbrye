@@ -1,0 +1,72 @@
+{
+  "id": "rescue_halbrek",
+  "startNode": "start",
+  "nodes": {
+    "start": {
+      "speaker": "Serjeant Halbrek",
+      "text": "Who is that? Step into the light — there is no light. Habit. I am the serjeant of this gate and the gate is behind me and I have not been up in a long while. Are you going up? I can walk. I have been telling myself that for a while now.",
+      "condition": {
+        "all": [
+          {
+            "not": {
+              "flag": "rescued_halbrek"
+            }
+          },
+          {
+            "not": {
+              "flag": "lost_halbrek"
+            }
+          }
+        ]
+      },
+      "fallback": "already",
+      "choices": [
+        {
+          "text": "Walk behind me. Stay close.",
+          "next": "taken"
+        },
+        {
+          "text": "I am going down, not up.",
+          "next": "left"
+        }
+      ]
+    },
+    "taken": {
+      "speaker": "Serjeant Halbrek",
+      "text": "Then I will keep up, and if I do not keep up you will not stop. Say it. — Good. That is the arrangement everybody else lied about.",
+      "actions": [
+        {
+          "type": "set_flag",
+          "flag": "rescued_halbrek",
+          "value": true
+        },
+        {
+          "type": "record_rescue",
+          "npcId": "serjeant_halbrek"
+        },
+        {
+          "type": "play_sfx",
+          "sfxId": "ui"
+        }
+      ],
+      "next": "end"
+    },
+    "left": {
+      "speaker": "Serjeant Halbrek",
+      "text": "Down. Of course down. Go on, then — I will keep this landing warm, which is a joke, and it is the last one I have.",
+      "actions": [
+        {
+          "type": "set_flag",
+          "flag": "lost_halbrek",
+          "value": true
+        }
+      ],
+      "next": "end"
+    },
+    "already": {
+      "speaker": "An empty landing",
+      "text": "Somebody sat here long enough to wear the stone smooth. Whoever it was is not sitting here now.",
+      "next": "end"
+    }
+  }
+}

@@ -4,6 +4,14 @@
   "type": "kill",
   "targetId": "castle_grunt",
   "requiredCount": 3,
-  "description": "Defeat 3 castle grunts during any run.",
-  "rewards": { "gold": 30, "items": [{ "itemId": "health_potion", "quantity": 1 }] }
+  "description": "Three of them still hold the courtyard against an order nobody has rescinded.",
+  "rewards": {
+    "gold": 30,
+    "items": [
+      {
+        "itemId": "health_potion",
+        "quantity": 1
+      }
+    ]
+  }
 }

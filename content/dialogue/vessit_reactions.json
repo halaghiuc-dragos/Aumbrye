@@ -1,0 +1,84 @@
+{
+  "id": "vessit_reactions",
+  "startNode": "start",
+  "nodes": {
+    "start": {
+      "speaker": "Vessit",
+      "text": "Boss down, bearer down. I record both. The board does not care in which order.",
+      "condition": {
+        "all": [
+          {
+            "lastRunOutcome": "died"
+          },
+          {
+            "lastRunBoss": true
+          }
+        ]
+      },
+      "fallback": "r2",
+      "next": "end"
+    },
+    "r2": {
+      "speaker": "Vessit",
+      "text": "Four floors, no return of stores. That goes in the column that has no heading.",
+      "condition": {
+        "all": [
+          {
+            "lastRunOutcome": "died"
+          },
+          {
+            "minLastRunFloor": 4
+          }
+        ]
+      },
+      "fallback": "r3",
+      "next": "end"
+    },
+    "r3": {
+      "speaker": "Vessit",
+      "text": "Cleared and returned. I will mark the bounty settled and you will find another one on the board by tomorrow. That is how a board works.",
+      "condition": {
+        "all": [
+          {
+            "lastRunOutcome": "escaped"
+          },
+          {
+            "lastRunBoss": true
+          }
+        ]
+      },
+      "fallback": "r4",
+      "next": "end"
+    },
+    "r4": {
+      "speaker": "Vessit",
+      "text": "The swamp. Half of what I issue for the swamp comes back and none of it comes back dry.",
+      "condition": {
+        "lastRunBiome": "poison_swamp"
+      },
+      "fallback": "r5",
+      "next": "end"
+    },
+    "r5": {
+      "speaker": "Vessit",
+      "text": "Ten. I keep the count because someone kept it for me once and it turned out to matter.",
+      "condition": {
+        "all": [
+          {
+            "lastRunOutcome": "died"
+          },
+          {
+            "minDeaths": 10
+          }
+        ]
+      },
+      "fallback": "quiet",
+      "next": "end"
+    },
+    "quiet": {
+      "speaker": "Vessit",
+      "text": "Bounties rotate. Take what is up today; tomorrow is a different sheet.",
+      "next": "end"
+    }
+  }
+}

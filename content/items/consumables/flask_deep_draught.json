@@ -1,0 +1,17 @@
+{
+  "id": "flask_deep_draught",
+  "name": "Deep Draught",
+  "itemType": "consumable",
+  "gridWidth": 1,
+  "gridHeight": 2,
+  "stackSize": 3,
+  "rarity": "rare",
+  "description": "Drawn from the well beneath the chapel, where the rope runs out before the water does.",
+  "consumableEffect": {
+    "kind": "refillFlask",
+    "amount": 2,
+    "usableInHub": false
+  },
+  "value": 180,
+  "lootValue": 90
+}

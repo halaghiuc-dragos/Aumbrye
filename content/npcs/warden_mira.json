@@ -3,5 +3,61 @@
   "displayName": "Warden Mira",
   "interactType": "dialogue",
   "dialogueId": "mira_greeting",
-  "position": { "x": 12, "y": 0, "z": 11.2 }
+  "dialogueRules": [
+    {
+      "condition": {
+        "any": [
+          {
+            "all": [
+              {
+                "lastRunOutcome": "died"
+              },
+              {
+                "lastRunBoss": true
+              }
+            ]
+          },
+          {
+            "all": [
+              {
+                "lastRunOutcome": "died"
+              },
+              {
+                "minLastRunFloor": 4
+              }
+            ]
+          },
+          {
+            "all": [
+              {
+                "lastRunOutcome": "escaped"
+              },
+              {
+                "lastRunBoss": true
+              }
+            ]
+          },
+          {
+            "lastRunBiome": "glacial_hollow"
+          },
+          {
+            "all": [
+              {
+                "lastRunOutcome": "died"
+              },
+              {
+                "minDeaths": 10
+              }
+            ]
+          }
+        ]
+      },
+      "dialogueId": "mira_reactions"
+    }
+  ],
+  "position": {
+    "x": 12,
+    "y": 0,
+    "z": 11.2
+  }
 }

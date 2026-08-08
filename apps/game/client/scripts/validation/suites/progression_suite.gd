@@ -346,18 +346,15 @@ func _test_character_signals() -> void:
 	CharacterService.reset_to_defaults()
 	var counts := {
 		"gold": 0,
-		"coins": 0,
 		"level": 0,
 		"flags": 0,
 		"quests": 0,
 	}
 	var on_gold := func(_a: int) -> void: counts["gold"] += 1
-	var on_coins := func(_a: int) -> void: counts["coins"] += 1
 	var on_level := func(_a: int) -> void: counts["level"] += 1
 	var on_flags := func() -> void: counts["flags"] += 1
 	var on_quests := func() -> void: counts["quests"] += 1
 	CharacterService.gold_changed.connect(on_gold)
-	CharacterService.coins_changed.connect(on_coins)
 	CharacterService.level_changed.connect(on_level)
 	CharacterService.flags_changed.connect(on_flags)
 	CharacterService.quests_changed.connect(on_quests)
@@ -370,13 +367,11 @@ func _test_character_signals() -> void:
 	)
 	var load_ok: bool = (
 		counts["gold"] == 1
-		and counts["coins"] == 1
 		and counts["level"] == 1
 		and counts["flags"] == 1
 		and counts["quests"] == 1
 	)
 	CharacterService.gold_changed.disconnect(on_gold)
-	CharacterService.coins_changed.disconnect(on_coins)
 	CharacterService.level_changed.disconnect(on_level)
 	CharacterService.flags_changed.disconnect(on_flags)
 	CharacterService.quests_changed.disconnect(on_quests)
@@ -390,22 +385,19 @@ func _test_character_signals() -> void:
 	)
 
 	start = Time.get_ticks_msec()
-	counts = {"gold": 0, "coins": 0, "level": 0, "flags": 0, "quests": 0}
+	counts = {"gold": 0, "level": 0, "flags": 0, "quests": 0}
 	CharacterService.gold_changed.connect(on_gold)
-	CharacterService.coins_changed.connect(on_coins)
 	CharacterService.level_changed.connect(on_level)
 	CharacterService.flags_changed.connect(on_flags)
 	CharacterService.quests_changed.connect(on_quests)
 	CharacterService.reset_to_defaults()
 	var reset_ok: bool = (
 		counts["gold"] == 1
-		and counts["coins"] == 1
 		and counts["level"] == 1
 		and counts["flags"] == 1
 		and counts["quests"] == 1
 	)
 	CharacterService.gold_changed.disconnect(on_gold)
-	CharacterService.coins_changed.disconnect(on_coins)
 	CharacterService.level_changed.disconnect(on_level)
 	CharacterService.flags_changed.disconnect(on_flags)
 	CharacterService.quests_changed.disconnect(on_quests)
@@ -449,27 +441,17 @@ func _test_character_currency() -> void:
 	var start := Time.get_ticks_msec()
 	CharacterService.reset_to_defaults()
 	var gold_before := CharacterService.gold
-	var coins_before := CharacterService.get_coins()
 	var gold_hits := 0
-	var coin_hits := 0
 	var on_gold := func(_a: int) -> void: gold_hits += 1
-	var on_coins := func(_a: int) -> void: coin_hits += 1
 	CharacterService.gold_changed.connect(on_gold)
-	CharacterService.coins_changed.connect(on_coins)
-	CharacterService.add_coins(10)
-	var alias_ok := (
-		CharacterService.gold == gold_before + 10
-		and CharacterService.get_coins() == coins_before + 10
-		and gold_hits == 1
-		and coin_hits == 1
-	)
+	CharacterService.add_gold(10)
+	var currency_ok := CharacterService.gold == gold_before + 10 and gold_hits == 1
 	CharacterService.gold_changed.disconnect(on_gold)
-	CharacterService.coins_changed.disconnect(on_coins)
 	ctx.timed_record(
-		"character.currency.coins_alias_tracks_gold",
+		"character.currency.add_gold_emits_once",
 		get_category(),
-		alias_ok,
-		"coins alias tracks gold and emits both signals",
+		currency_ok,
+		"add_gold updates the single gold balance and emits gold_changed once",
 		start,
 		"CHS-08"
 	)

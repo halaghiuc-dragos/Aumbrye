@@ -61,6 +61,7 @@ func _ready() -> void:
 	_orbit_camera = _body.get_node_or_null("CameraPivot/SpringArm3D")
 	if _health:
 		_health.died.connect(_on_died)
+		_health.health_changed.connect(_on_health_changed)
 	if _poise:
 		_poise.poise_broken.connect(_on_poise_broken)
 		_poise.poise_damaged.connect(_on_poise_damaged)
@@ -193,6 +194,12 @@ func _cancel_stagger() -> void:
 	_clear_wakeup_iframes()
 	stagger_ended.emit()
 	_on_stagger_ended()
+
+
+func _on_health_changed(current: float, max_value: float) -> void:
+	if not CombatEvents or max_value <= 0.0:
+		return
+	CombatEvents.notify_health_ratio(current / max_value, _body)
 
 
 func _on_poise_damaged(amount: float, _remaining: float) -> void:

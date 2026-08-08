@@ -1,0 +1,25 @@
+{
+  "id": "pitiron_longsword",
+  "name": "Pit-Iron Longsword",
+  "itemType": "weapon",
+  "equipmentSlot": "weapon",
+  "gridWidth": 2,
+  "gridHeight": 3,
+  "stackSize": 1,
+  "rarity": "common",
+  "description": "Long enough to keep a stranger honest. Dug out of the courtyard pit and never properly cleaned. Scaling: Strength C, Dexterity C.",
+  "value": 38,
+  "lootValue": 19,
+  "maxDurability": 110,
+  "baseId": "longsword",
+  "materialTier": "pitiron",
+  "biome": "forgotten_castle",
+  "scaling": {
+    "strength": "C",
+    "dexterity": "C"
+  },
+  "stats": {
+    "physicalDamage": 5
+  },
+  "weaponId": "sword_basic"
+}

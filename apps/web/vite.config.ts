@@ -36,7 +36,8 @@ export default defineConfig(({ mode }) => {
             routes: staticRoutes,
             renderer: PuppeteerRenderer,
             rendererOptions: {
-              renderAfterTime: 1000,
+              renderAfterElementExists: "[data-prerender-ready]",
+              timeout: 10_000,
             },
           }),
         ],

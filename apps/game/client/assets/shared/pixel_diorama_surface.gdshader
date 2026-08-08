@@ -19,16 +19,18 @@ uniform float shade_bands : hint_range(2.0, 16.0) = 4.0;
 uniform float shade_dither : hint_range(0.0, 1.0) = 0.55;
 uniform float light_wrap : hint_range(0.0, 1.0) = 0.25;
 uniform float rim_strength : hint_range(0.0, 1.0) = 0.08;
-uniform float flash_amount : hint_range(0.0, 1.0) = 0.0;
-uniform vec3 flash_color : source_color = vec3(1.0);
-uniform float flash_emission : hint_range(0.0, 4.0) = 0.0;
-uniform float dissolve_clip : hint_range(0.0, 1.0) = 1.0;
-uniform vec3 dissolve_origin = vec3(0.0);
-uniform vec3 dissolve_dir = vec3(0.0, 1.0, 0.0);
-uniform float dissolve_sweep : hint_range(0.0, 1.0) = 0.6;
+// instance uniform: per-MeshInstance3D via set_instance_shader_parameter(), so every character
+// and prop can share one ShaderMaterial resource instead of a duplicate per flash/dissolve event.
+instance uniform float flash_amount : hint_range(0.0, 1.0) = 0.0;
+instance uniform vec3 flash_color : source_color = vec3(1.0);
+instance uniform float flash_emission : hint_range(0.0, 4.0) = 0.0;
+instance uniform float dissolve_clip : hint_range(0.0, 1.0) = 1.0;
+instance uniform vec3 dissolve_origin = vec3(0.0);
+instance uniform vec3 dissolve_dir = vec3(0.0, 1.0, 0.0);
+instance uniform float dissolve_sweep : hint_range(0.0, 1.0) = 0.6;
 uniform int surface_kind : hint_range(0, 3) = 0;
 uniform bool use_vertex_color = false;
-uniform vec3 skin_tint = vec3(1.0);
+instance uniform vec3 skin_tint = vec3(1.0);
 uniform sampler2D tile_atlas : source_color, filter_nearest, repeat_enable;
 uniform bool use_tile_atlas = false;
 uniform int tile_row = 0;

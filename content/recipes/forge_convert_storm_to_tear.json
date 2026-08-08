@@ -1,0 +1,12 @@
+{
+  "id": "forge_convert_storm_to_tear",
+  "type": "convert",
+  "itemId": "aumbral_tear",
+  "goldCost": 700,
+  "materials": [
+    {
+      "itemId": "storm_salt",
+      "quantity": 5
+    }
+  ]
+}

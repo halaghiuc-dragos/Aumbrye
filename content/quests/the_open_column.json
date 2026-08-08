@@ -1,0 +1,15 @@
+{
+  "id": "the_open_column",
+  "title": "The Open Column",
+  "type": "escort",
+  "chainId": "ledger",
+  "targetNpcId": "clerk_ivo",
+  "requiredCount": 1,
+  "availableWhen": {
+    "minTier": 2
+  },
+  "description": "A clerk is somewhere in the Iron Vault with a page he has carried for eleven years. He will hand it over. He would rather hand over both.",
+  "rewards": {
+    "gold": 140
+  }
+}

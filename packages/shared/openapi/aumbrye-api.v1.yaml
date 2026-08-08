@@ -1,18 +1,128 @@
-openapi: 3.0.1
+openapi: 3.0.4
 info:
   title: Aumbrye API
   description: M4 gameplay loop API (auth + runs + saves + progression).
   version: 1.0.0
-servers:
-  - url: '{baseUrl}'
-    variables:
-      baseUrl:
-        default: http://localhost:5000
 paths:
+  /api/v1/account/display-name:
+    put:
+      tags:
+        - Account
+      operationId: UpdateDisplayName
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateDisplayNameRequest'
+        required: true
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UpdateDisplayNameResponse'
+        '400':
+          description: Bad Request
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '401':
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+  /api/v1/account:
+    delete:
+      tags:
+        - Account
+      operationId: DeleteAccount
+      responses:
+        '204':
+          description: No Content
+        '401':
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: Not Found
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+  /api/v1/account/export:
+    get:
+      tags:
+        - Account
+      operationId: ExportAccount
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties:
+                  $ref: '#/components/schemas/JsonNode'
+        '401':
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: Not Found
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+  /api/v1/account/link-steam:
+    post:
+      tags:
+        - Account
+      operationId: LinkSteam
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LinkSteamRequest'
+        required: true
+      responses:
+        '204':
+          description: No Content
+        '400':
+          description: Bad Request
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '401':
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '409':
+          description: Conflict
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '503':
+          description: Service Unavailable
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
   /api/v1/auth/register:
     post:
       tags:
         - Auth
+      operationId: Register
       requestBody:
         content:
           application/json:
@@ -29,15 +139,16 @@ paths:
         '400':
           description: Bad Request
           content:
-            application/json:
+            application/problem+json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
+                $ref: '#/components/schemas/ProblemDetails'
         '429':
           description: Too Many Requests
   /api/v1/auth/login:
     post:
       tags:
         - Auth
+      operationId: Login
       requestBody:
         content:
           application/json:
@@ -54,15 +165,16 @@ paths:
         '401':
           description: Unauthorized
           content:
-            application/json:
+            application/problem+json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
+                $ref: '#/components/schemas/ProblemDetails'
         '429':
           description: Too Many Requests
   /api/v1/auth/refresh:
     post:
       tags:
         - Auth
+      operationId: Refresh
       requestBody:
         content:
           application/json:
@@ -79,17 +191,16 @@ paths:
         '401':
           description: Unauthorized
           content:
-            application/json:
+            application/problem+json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
+                $ref: '#/components/schemas/ProblemDetails'
         '429':
           description: Too Many Requests
   /api/v1/auth/logout:
     post:
       tags:
         - Auth
-      security:
-        - bearerAuth: []
+      operationId: Logout
       requestBody:
         content:
           application/json:
@@ -102,51 +213,19 @@ paths:
         '401':
           description: Unauthorized
           content:
-            application/json:
+            application/problem+json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
-  /api/v1/health:
-    get:
+                $ref: '#/components/schemas/ProblemDetails'
+  /api/v1/auth/steam:
+    post:
       tags:
-        - Health
-      responses:
-        '200':
-          description: OK
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HealthResponse'
-  /api/v1/health/ready:
-    get:
-      tags:
-        - Health
-      responses:
-        '200':
-          description: OK
-        '503':
-          description: Service Unavailable
-  /api/v1/account:
-    delete:
-      tags:
-        - Account
-      security:
-        - bearerAuth: []
-      responses:
-        '204':
-          description: No Content
-        '401':
-          description: Unauthorized
-  /api/v1/account/display-name:
-    put:
-      tags:
-        - Account
-      security:
-        - bearerAuth: []
+        - Auth
+      operationId: SteamAuth
       requestBody:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/UpdateDisplayNameRequest'
+              $ref: '#/components/schemas/SteamAuthRequest'
         required: true
       responses:
         '200':
@@ -154,27 +233,44 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/UpdateDisplayNameResponse'
-  /api/v1/account/export:
+                $ref: '#/components/schemas/AuthResponse'
+        '400':
+          description: Bad Request
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '401':
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '503':
+          description: Service Unavailable
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '429':
+          description: Too Many Requests
+  /api/v1/health:
     get:
       tags:
-        - Account
-      security:
-        - bearerAuth: []
+        - Health
+      operationId: Health
       responses:
         '200':
           description: OK
-  /api/v1/telemetry/crash:
-    post:
-      tags:
-        - Telemetry
-      responses:
-        '204':
-          description: No Content
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
   /api/v1/leaderboards:
     get:
       tags:
         - Leaderboards
+      operationId: GetLeaderboard
       parameters:
         - name: biomeId
           in: query
@@ -197,10 +293,17 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/LeaderboardPageResponse'
+        '400':
+          description: Bad Request
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
   /api/v1/leaderboards/submit:
     post:
       tags:
         - Leaderboards
+      operationId: SubmitLeaderboard
       requestBody:
         content:
           application/json:
@@ -214,12 +317,35 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/SubmitLeaderboardResponse'
+        '400':
+          description: Bad Request
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
         '401':
           description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '403':
+          description: Forbidden
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: Not Found
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
   /api/v1/runs:
     post:
       tags:
         - Runs
+      operationId: CreateRun
       requestBody:
         content:
           application/json:
@@ -236,21 +362,26 @@ paths:
         '400':
           description: Bad Request
           content:
-            application/json:
+            application/problem+json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
+                $ref: '#/components/schemas/ProblemDetails'
         '401':
           description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
         '500':
           description: Internal Server Error
           content:
-            application/json:
+            application/problem+json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
+                $ref: '#/components/schemas/ProblemDetails'
   '/api/v1/runs/{id}/dungeon':
     get:
       tags:
         - Runs
+      operationId: GetRunDungeon
       parameters:
         - name: id
           in: path
@@ -258,6 +389,11 @@ paths:
           schema:
             type: string
             format: uuid
+        - name: floor
+          in: query
+          schema:
+            type: integer
+            format: int32
       responses:
         '200':
           description: OK
@@ -267,12 +403,17 @@ paths:
                 type: string
         '401':
           description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
         '404':
           description: Not Found
   '/api/v1/runs/{id}/complete':
     post:
       tags:
         - Runs
+      operationId: CompleteRun
       parameters:
         - name: id
           in: path
@@ -296,15 +437,20 @@ paths:
         '400':
           description: Bad Request
           content:
-            application/json:
+            application/problem+json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
+                $ref: '#/components/schemas/ProblemDetails'
         '401':
           description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
   /api/v1/saves/current:
     get:
       tags:
         - Saves
+      operationId: GetCurrentSave
       responses:
         '200':
           description: OK
@@ -315,14 +461,19 @@ paths:
         '400':
           description: Bad Request
           content:
-            application/json:
+            application/problem+json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
+                $ref: '#/components/schemas/ProblemDetails'
         '401':
           description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
     put:
       tags:
         - Saves
+      operationId: PutCurrentSave
       requestBody:
         content:
           application/json:
@@ -339,17 +490,34 @@ paths:
         '400':
           description: Bad Request
           content:
-            application/json:
+            application/problem+json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
+                $ref: '#/components/schemas/ProblemDetails'
         '401':
           description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
         '409':
           description: Conflict
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/PutSaveResponse'
+  /api/v1/telemetry/crash:
+    post:
+      tags:
+        - Telemetry
+      operationId: CrashTelemetry
+      requestBody:
+        content:
+          application/json:
+            schema: { }
+        required: true
+      responses:
+        '204':
+          description: No Content
 components:
   schemas:
     AuthResponse:
@@ -426,6 +594,9 @@ components:
           items:
             type: string
           nullable: true
+        floor:
+          type: integer
+          format: int32
       additionalProperties: false
     CompleteRunResponse:
       type: object
@@ -469,19 +640,28 @@ components:
           type: string
           nullable: true
       additionalProperties: false
-    ErrorResponse:
-      type: object
-      properties:
-        error:
-          type: string
-          nullable: true
-      additionalProperties: false
     HealthResponse:
       type: object
       properties:
         status:
           type: string
           nullable: true
+      additionalProperties: false
+    JsonNode:
+      type: object
+      properties:
+        options:
+          $ref: '#/components/schemas/JsonNodeOptions'
+        parent:
+          $ref: '#/components/schemas/JsonNode'
+        root:
+          $ref: '#/components/schemas/JsonNode'
+      additionalProperties: false
+    JsonNodeOptions:
+      type: object
+      properties:
+        propertyNameCaseInsensitive:
+          type: boolean
       additionalProperties: false
     LeaderboardEntryResponse:
       type: object
@@ -513,6 +693,16 @@ components:
           items:
             $ref: '#/components/schemas/LeaderboardEntryResponse'
           nullable: true
+      additionalProperties: false
+    LinkSteamRequest:
+      type: object
+      properties:
+        ticketHex:
+          type: string
+          nullable: true
+        appId:
+          type: integer
+          format: int32
       additionalProperties: false
     LoginRequest:
       type: object
@@ -555,6 +745,26 @@ components:
           format: int32
           nullable: true
       additionalProperties: false
+    ProblemDetails:
+      type: object
+      properties:
+        type:
+          type: string
+          nullable: true
+        title:
+          type: string
+          nullable: true
+        status:
+          type: integer
+          format: int32
+          nullable: true
+        detail:
+          type: string
+          nullable: true
+        instance:
+          type: string
+          nullable: true
+      additionalProperties: { }
     PutSaveRequest:
       type: object
       properties:
@@ -595,19 +805,6 @@ components:
           type: string
           nullable: true
       additionalProperties: false
-    SaveConflictResponse:
-      type: object
-      properties:
-        error:
-          type: string
-          nullable: true
-        state:
-          type: string
-          nullable: true
-        updatedAt:
-          type: string
-          format: date-time
-      additionalProperties: false
     SaveResponse:
       type: object
       properties:
@@ -617,6 +814,16 @@ components:
         updatedAt:
           type: string
           format: date-time
+      additionalProperties: false
+    SteamAuthRequest:
+      type: object
+      properties:
+        ticketHex:
+          type: string
+          nullable: true
+        appId:
+          type: integer
+          format: int32
       additionalProperties: false
     SubmitLeaderboardRequest:
       type: object
@@ -661,3 +868,11 @@ components:
       bearerFormat: JWT
 security:
   - bearerAuth: [ ]
+tags:
+  - name: Account
+  - name: Auth
+  - name: Health
+  - name: Leaderboards
+  - name: Runs
+  - name: Saves
+  - name: Telemetry

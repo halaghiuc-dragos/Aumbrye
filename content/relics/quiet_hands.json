@@ -1,0 +1,19 @@
+{
+  "id": "quiet_hands",
+  "name": "Quiet Hands",
+  "description": "A backstab that lands returns half its damage as health.",
+  "maxStacks": 1,
+  "tags": [
+    "blood",
+    "swift"
+  ],
+  "weight": 0.9,
+  "rules": [
+    {
+      "event": "onBackstab",
+      "effect": "lifesteal",
+      "pct": 0.5
+    }
+  ],
+  "offerable": true
+}

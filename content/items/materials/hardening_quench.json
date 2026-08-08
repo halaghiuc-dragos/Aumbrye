@@ -1,0 +1,12 @@
+{
+  "id": "hardening_quench",
+  "name": "Hardening Quench",
+  "itemType": "material",
+  "gridWidth": 1,
+  "gridHeight": 1,
+  "stackSize": 20,
+  "description": "Water from under the fortress. It has been cold for a very long time.",
+  "value": 34,
+  "lootValue": 20,
+  "materialTier": "mirebrass"
+}

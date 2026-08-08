@@ -1,0 +1,23 @@
+{
+  "id": "mourners_interest",
+  "name": "Mourner’s Interest",
+  "description": "Three percent more damage, and kills against the frozen return health.",
+  "maxStacks": 2,
+  "stats": {
+    "damagePercent": 3
+  },
+  "tags": [
+    "frost",
+    "blood"
+  ],
+  "weight": 0.8,
+  "rules": [
+    {
+      "event": "onKill",
+      "effect": "restore_health",
+      "amount": 10,
+      "ifTargetHasStatus": "freeze"
+    }
+  ],
+  "offerable": true
+}

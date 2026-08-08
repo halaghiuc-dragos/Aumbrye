@@ -1,0 +1,12 @@
+{
+  "id": "forge_convert_cinder_to_glimmer",
+  "type": "convert",
+  "itemId": "glimmer_ash",
+  "goldCost": 60,
+  "materials": [
+    {
+      "itemId": "cinder_dust",
+      "quantity": 5
+    }
+  ]
+}

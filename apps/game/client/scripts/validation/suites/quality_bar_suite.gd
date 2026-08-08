@@ -60,9 +60,7 @@ func _test_main_scene() -> void:
 
 func _test_platform_gates() -> void:
 	var start := Time.get_ticks_msec()
-	var offline_default: bool = ctx.file_contains(
-		"res://scripts/app/run_flow.gd", "const USE_ONLINE_PROCgen := false"
-	)
+	var offline_default: bool = RunFlow.USE_ONLINE_PROCgen == false
 	ctx.timed_record(
 		"quality.platform.online_procgen_gated",
 		get_category(),
@@ -130,7 +128,7 @@ func _test_character_authoring() -> void:
 	)
 
 	start = Time.get_ticks_msec()
-	var grid_ok: bool = ctx.file_contains("res://scripts/art/characters/voxel_grid.gd", "EDGE := 0.04")
+	var grid_ok: bool = is_equal_approx(VoxelGrid.EDGE, 0.04)
 	ctx.timed_record(
 		"quality.character.voxel_grid",
 		get_category(),
@@ -308,8 +306,7 @@ func _test_combat_honesty_signals() -> void:
 func _test_loot_ui_signals() -> void:
 	var start := Time.get_ticks_msec()
 	var fetch_registered: bool = (
-		ctx.file_contains("res://scripts/quests/quest_service.gd", "func register_fetch")
-		and _grep_tree_for("register_fetch", "res://scripts")
+		QuestService.has_method("register_fetch") and _grep_tree_for("register_fetch", "res://scripts")
 	)
 	ctx.timed_record(
 		"quality.quest.fetch_registration_wired",

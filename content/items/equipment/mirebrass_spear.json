@@ -1,0 +1,26 @@
+{
+  "id": "mirebrass_spear",
+  "name": "Mirebrass Spear",
+  "itemType": "weapon",
+  "equipmentSlot": "weapon",
+  "gridWidth": 1,
+  "gridHeight": 4,
+  "stackSize": 1,
+  "rarity": "magic",
+  "description": "The oldest argument for keeping your distance. Green to the touch. The swamp finished it for the smith. Scaling: Strength D, Dexterity B.",
+  "value": 82,
+  "lootValue": 41,
+  "maxDurability": 105,
+  "baseId": "spear",
+  "materialTier": "mirebrass",
+  "biome": "poison_swamp",
+  "scaling": {
+    "strength": "D",
+    "dexterity": "B"
+  },
+  "stats": {
+    "physicalDamage": 7,
+    "resistPoison": 0.06
+  },
+  "weaponId": "spear"
+}

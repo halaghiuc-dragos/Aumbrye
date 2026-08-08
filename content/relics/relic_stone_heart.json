@@ -1,9 +1,23 @@
 {
-    "description":  "Hardens the body against blows.",
-    "name":  "Relic Stone Heart",
-    "id":  "relic_stone_heart",
-    "stats":  {
-                  "armor":  8
-              },
-    "maxStacks":  1
+  "id": "relic_stone_heart",
+  "name": "Relic Stone Heart",
+  "description": "Weight where the fear used to be. +8 armour, and a guard well kept pays back.",
+  "maxStacks": 1,
+  "stats": {
+    "armor": 8
+  },
+  "tags": [
+    "ward",
+    "poise"
+  ],
+  "weight": 1,
+  "rules": [
+    {
+      "event": "onBlock",
+      "effect": "restore_stamina",
+      "amount": 10,
+      "cooldown": 1
+    }
+  ],
+  "offerable": true
 }

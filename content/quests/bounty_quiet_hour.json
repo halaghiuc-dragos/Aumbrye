@@ -1,0 +1,24 @@
+{
+  "id": "bounty_quiet_hour",
+  "title": "Bounty: The Quiet Hour",
+  "type": "clear_without",
+  "maxSeconds": 600,
+  "requiresBoss": true,
+  "repeatable": true,
+  "cooldownRuns": 2,
+  "availableWhen": {
+    "minTier": 3
+  },
+  "bounty": "weekly",
+  "description": "Standing bounty. Down, through the boss, and out inside ten minutes. Between the last bell and the first, nothing is permitted to happen.",
+  "rewards": {
+    "gold": 260,
+    "bountyTokens": 8,
+    "items": [
+      {
+        "itemId": "greater_health_potion",
+        "quantity": 1
+      }
+    ]
+  }
+}

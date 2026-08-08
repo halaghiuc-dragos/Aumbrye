@@ -11,7 +11,8 @@
     "kind": "applyStatus",
     "statusId": "elixir_vigor",
     "duration": 60,
-    "amount": 25
+    "amount": 25,
+    "stat": "staminaMax"
   },
   "value": 20,
   "stats": {}

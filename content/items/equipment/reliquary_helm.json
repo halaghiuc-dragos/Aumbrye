@@ -1,0 +1,26 @@
+{
+  "id": "reliquary_helm",
+  "name": "Reliquary Helm",
+  "itemType": "armor",
+  "equipmentSlot": "helmet",
+  "gridWidth": 2,
+  "gridHeight": 2,
+  "stackSize": 1,
+  "rarity": "rare",
+  "description": "The visor is dented inward. It was not removed in time. Melted down from offering plate. Nobody asked the congregation. Scaling: Strength D.",
+  "value": 115,
+  "lootValue": 58,
+  "maxDurability": 100,
+  "baseId": "helm",
+  "materialTier": "reliquary",
+  "biome": "dark_cathedral",
+  "scaling": {
+    "strength": "D"
+  },
+  "stats": {
+    "armor": 8,
+    "poise": 5,
+    "resistArcane": 0.08,
+    "resistFire": 0.04
+  }
+}

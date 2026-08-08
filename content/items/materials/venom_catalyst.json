@@ -1,0 +1,12 @@
+{
+  "id": "venom_catalyst",
+  "name": "Venom Catalyst",
+  "itemType": "material",
+  "gridWidth": 1,
+  "gridHeight": 1,
+  "stackSize": 20,
+  "description": "Sealed twice, because once was found to be optimistic.",
+  "value": 45,
+  "lootValue": 27,
+  "materialTier": "mirebrass"
+}

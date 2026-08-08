@@ -1,0 +1,38 @@
+{
+  "id": "unique_refraction_greaves",
+  "name": "Refraction Greaves",
+  "itemType": "armor",
+  "equipmentSlot": "boots",
+  "gridWidth": 2,
+  "gridHeight": 2,
+  "stackSize": 1,
+  "rarity": "epic",
+  "description": "You arrive slightly before the sound of arriving. It is not restful.",
+  "value": 470,
+  "lootValue": 235,
+  "maxDurability": 95,
+  "unique": true,
+  "baseId": "greaves",
+  "biome": "crystal_caverns",
+  "scaling": {
+    "strength": "D"
+  },
+  "ruleText": "Each dodge raises evasion by 5, up to 5 stacks. Resets when you are hit.",
+  "rules": [
+    {
+      "event": "onDodge",
+      "effect": "add_stack",
+      "stackId": "refraction",
+      "maxStacks": 5,
+      "stat": "evasion",
+      "perStack": 5.0,
+      "resetOn": [
+        "onHitTaken"
+      ]
+    }
+  ],
+  "stats": {
+    "evasion": 10,
+    "moveSpeed": 0.06
+  }
+}

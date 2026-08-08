@@ -1,0 +1,12 @@
+{
+  "id": "reliquary_gilt",
+  "name": "Reliquary Gilt",
+  "itemType": "material",
+  "gridWidth": 1,
+  "gridHeight": 1,
+  "stackSize": 20,
+  "description": "Gold leaf lifted from a case that held something else.",
+  "value": 62,
+  "lootValue": 37,
+  "materialTier": "reliquary"
+}

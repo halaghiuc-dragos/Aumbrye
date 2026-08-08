@@ -3,7 +3,7 @@ class_name SaveMigrator
 
 ## SCHEMA-7.1 — versioned save migrations.
 
-const CURRENT_VERSION := 11
+const CURRENT_VERSION := 12
 const MIGRATION_DOC := "docs/SAVE_MIGRATIONS.md"
 const NIL_ACCOUNT_ID := "00000000-0000-4000-8000-000000000000"
 const TALENT_TREE_PATH := "content/talents/tree.json"
@@ -12,6 +12,21 @@ const RESULT_CURRENT := 0
 const RESULT_MIGRATABLE := 1
 const RESULT_TOO_NEW := 2
 const RESULT_UNKNOWN := 3
+
+const ACCOUNT_SCOPE_FLAG_IDS: Array[String] = [
+	"dungeon_max_tier",
+	"dungeon_unlocked_count",
+	"bestiary_kills",
+	"bestiary_studied_count",
+	"bestiary_mastered_count",
+	"bestiary_complete",
+	"discoveries_found",
+]
+
+const ACCOUNT_SCOPE_FLAG_PREFIXES: Array[String] = [
+	"theme_",
+	"lore_",
+]
 
 const WORLD_FLAG_NAMESPACES: Array[String] = [
 	"lock",
@@ -78,6 +93,12 @@ const STEPS: Array[Dictionary] = [
 		"to": 11,
 		"fn": "_migrate_v10_to_v11",
 		"summary": "currencies.coins collapsed into currencies.gold",
+	},
+	{
+		"from": 11,
+		"to": 12,
+		"fn": "_migrate_v11_to_v12",
+		"summary": "account scope block; talent ids revalidated against the grown tree",
 	},
 ]
 
@@ -170,6 +191,30 @@ const STEPS_DOC: Array[Dictionary] = [
 			"meta.display.ui_scale",
 			"meta.display.hud_safe_area",
 		],
+		"removed": [],
+		"recovery": "Step failure quarantines the file; pre-migration artefact retained.",
+	},
+	{
+		"from": 9,
+		"to": 10,
+		"summary": "inventory.quickSlotInstances replaces quickSlots index array",
+		"added": ["inventory.quickSlotInstances"],
+		"removed": ["inventory.quickSlots"],
+		"recovery": "Step failure quarantines the file; pre-migration artefact retained.",
+	},
+	{
+		"from": 10,
+		"to": 11,
+		"summary": "currencies.coins collapsed into currencies.gold",
+		"added": ["currencies.gold"],
+		"removed": ["currencies.coins"],
+		"recovery": "Step failure quarantines the file; pre-migration artefact retained.",
+	},
+	{
+		"from": 11,
+		"to": 12,
+		"summary": "account scope block; talent ids revalidated against the grown tree",
+		"added": ["account.storage", "account.flags", "account.endlessBestFloor", "account.descentTokens"],
 		"removed": [],
 		"recovery": "Step failure quarantines the file; pre-migration artefact retained.",
 	},
@@ -780,6 +825,42 @@ static func _migrate_v10_to_v11(data: Dictionary) -> Dictionary:
 	copy["schemaVersion"] = 11
 	_normalize_currencies(copy)
 	return copy
+
+
+## Splits the single-character document into character scope and account scope. The
+## character keeps everything it had; the account block is a copy the stash and the
+## world-knowledge flags are adopted from, so a second warden starts where the first
+## one left the shared parts of the world.
+static func _migrate_v11_to_v12(data: Dictionary) -> Dictionary:
+	var copy: Dictionary = data.duplicate(true)
+	copy["schemaVersion"] = 12
+	_normalize_talents(copy)
+	if copy.has("account") and copy["account"] is Dictionary:
+		return copy
+	var storage: Variant = copy.get("storage", {})
+	var flags: Variant = copy.get("flags", {})
+	var account_flags: Dictionary = {}
+	if flags is Dictionary:
+		for flag_id in flags as Dictionary:
+			if is_account_scope_flag(str(flag_id)):
+				account_flags[str(flag_id)] = (flags as Dictionary)[flag_id]
+	copy["account"] = {
+		"schemaVersion": 1,
+		"storage": (storage as Dictionary).duplicate(true) if storage is Dictionary else {},
+		"flags": account_flags,
+		"endlessBestFloor": 0,
+		"descentTokens": 0,
+	}
+	return copy
+
+
+static func is_account_scope_flag(flag_id: String) -> bool:
+	if flag_id in ACCOUNT_SCOPE_FLAG_IDS:
+		return true
+	for prefix in ACCOUNT_SCOPE_FLAG_PREFIXES:
+		if flag_id.begins_with(prefix):
+			return true
+	return false
 
 
 static func _migrate_world_flags_in_snapshot(snapshot: Variant) -> void:

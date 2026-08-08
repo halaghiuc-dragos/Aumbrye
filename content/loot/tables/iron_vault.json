@@ -1,0 +1,254 @@
+{
+  "schemaVersion": 1,
+  "biomeId": "iron_vault",
+  "lootTables": {
+    "treasure": [
+      {
+        "itemId": "antidote",
+        "quantity": [
+          1,
+          3
+        ],
+        "weight": 10
+      },
+      {
+        "itemId": "escape_stone",
+        "quantity": [
+          1,
+          1
+        ],
+        "weight": 2
+      },
+      {
+        "itemId": "homeward_bone",
+        "quantity": [
+          1,
+          1
+        ],
+        "weight": 4
+      }
+    ],
+    "secret": [
+      {
+        "itemId": "cathedral_shadow_cloak",
+        "quantity": [
+          1,
+          1
+        ],
+        "weight": 2
+      },
+      {
+        "itemId": "unique_bog_oath",
+        "quantity": [
+          1,
+          1
+        ],
+        "weight": 4
+      },
+      {
+        "itemId": "unique_facet_and_fracture",
+        "quantity": [
+          1,
+          1
+        ],
+        "weight": 1
+      },
+      {
+        "itemId": "unique_last_muster",
+        "quantity": [
+          1,
+          1
+        ],
+        "weight": 1
+      },
+      {
+        "itemId": "unique_rimeglass_pendant",
+        "quantity": [
+          1,
+          1
+        ],
+        "weight": 2
+      },
+      {
+        "itemId": "unique_the_long_winter",
+        "quantity": [
+          1,
+          1
+        ],
+        "weight": 1
+      }
+    ],
+    "side": [
+      {
+        "itemId": "graysteel_ingot",
+        "quantity": [
+          1,
+          3
+        ],
+        "weight": 10
+      },
+      {
+        "itemId": "vault_sealing_wax",
+        "quantity": [
+          1,
+          3
+        ],
+        "weight": 10
+      },
+      {
+        "itemId": "blood_relic_stone",
+        "quantity": [
+          1,
+          3
+        ],
+        "weight": 10
+      },
+      {
+        "itemId": "swift_step_charm",
+        "quantity": [
+          1,
+          3
+        ],
+        "weight": 10
+      }
+    ],
+    "armory": [
+      {
+        "itemId": "graysteel_band",
+        "quantity": [
+          1,
+          1
+        ],
+        "weight": 10
+      },
+      {
+        "itemId": "graysteel_cuirass",
+        "quantity": [
+          1,
+          1
+        ],
+        "weight": 10
+      },
+      {
+        "itemId": "graysteel_gauntlets",
+        "quantity": [
+          1,
+          1
+        ],
+        "weight": 10
+      },
+      {
+        "itemId": "graysteel_greatsword",
+        "quantity": [
+          1,
+          1
+        ],
+        "weight": 10
+      },
+      {
+        "itemId": "graysteel_greaves",
+        "quantity": [
+          1,
+          1
+        ],
+        "weight": 10
+      },
+      {
+        "itemId": "graysteel_halberd",
+        "quantity": [
+          1,
+          1
+        ],
+        "weight": 10
+      },
+      {
+        "itemId": "graysteel_helm",
+        "quantity": [
+          1,
+          1
+        ],
+        "weight": 10
+      },
+      {
+        "itemId": "graysteel_kiteshield",
+        "quantity": [
+          1,
+          1
+        ],
+        "weight": 10
+      },
+      {
+        "itemId": "graysteel_longsword",
+        "quantity": [
+          1,
+          1
+        ],
+        "weight": 10
+      },
+      {
+        "itemId": "graysteel_pendant",
+        "quantity": [
+          1,
+          1
+        ],
+        "weight": 10
+      },
+      {
+        "itemId": "graysteel_shortsword",
+        "quantity": [
+          1,
+          1
+        ],
+        "weight": 10
+      },
+      {
+        "itemId": "graysteel_waraxe",
+        "quantity": [
+          1,
+          1
+        ],
+        "weight": 10
+      },
+      {
+        "itemId": "graysteel_warhammer",
+        "quantity": [
+          1,
+          1
+        ],
+        "weight": 10
+      },
+      {
+        "itemId": "castle_crown",
+        "quantity": [
+          1,
+          1
+        ],
+        "weight": 4
+      },
+      {
+        "itemId": "frost_gauntlets",
+        "quantity": [
+          1,
+          1
+        ],
+        "weight": 4
+      },
+      {
+        "itemId": "iron_plate",
+        "quantity": [
+          1,
+          1
+        ],
+        "weight": 10
+      },
+      {
+        "itemId": "silver_ring",
+        "quantity": [
+          1,
+          1
+        ],
+        "weight": 6
+      }
+    ]
+  }
+}

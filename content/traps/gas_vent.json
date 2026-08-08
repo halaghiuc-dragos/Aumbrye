@@ -1,0 +1,24 @@
+{
+  "id": "gas_vent",
+  "name": "Cinder Vent",
+  "description": "The room breathes out. Do not be downwind of it.",
+  "scene": "res://scenes/traps/gas_vent.tscn",
+  "trigger": "cycle",
+  "telegraph": 1,
+  "active": 2.4,
+  "cooldown": 4,
+  "triggerRadius": 3.6,
+  "damage": 6,
+  "poiseDamage": 0,
+  "damageType": "fire",
+  "hitInterval": 0.6,
+  "statusId": "burn",
+  "statusBuildUp": 26,
+  "enemyDamageMultiplier": 1,
+  "size": [
+    3.5,
+    2.5,
+    3.5
+  ],
+  "color": "#ff8844"
+}

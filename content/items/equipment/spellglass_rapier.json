@@ -1,0 +1,28 @@
+{
+  "id": "spellglass_rapier",
+  "name": "Spellglass Rapier",
+  "itemType": "weapon",
+  "equipmentSlot": "weapon",
+  "gridWidth": 1,
+  "gridHeight": 3,
+  "stackSize": 1,
+  "rarity": "rare",
+  "description": "A duelling blade, in a place that stopped keeping duels. Grown, not forged. It rings on a note the ear dislikes. Scaling: Strength D, Dexterity B.",
+  "value": 195,
+  "lootValue": 98,
+  "maxDurability": 90,
+  "baseId": "rapier",
+  "materialTier": "spellglass",
+  "biome": "crystal_caverns",
+  "scaling": {
+    "strength": "D",
+    "dexterity": "B"
+  },
+  "stats": {
+    "critChance": 0.064,
+    "physicalDamage": 6,
+    "resistArcane": 0.1,
+    "resistLightning": 0.05
+  },
+  "weaponId": "sword_basic"
+}

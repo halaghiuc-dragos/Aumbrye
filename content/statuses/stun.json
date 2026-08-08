@@ -1,9 +1,10 @@
 {
   "id": "stun",
   "name": "Stun",
+  "description": "A moment taken from you, and given to whoever took it.",
   "damageType": "physical",
   "tickDamage": 0,
-  "tickInterval": 1.0,
+  "tickInterval": 1,
   "maxStacks": 1,
   "duration": 1.2,
   "stunDuration": 1.2,

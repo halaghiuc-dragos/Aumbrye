@@ -1,0 +1,27 @@
+{
+  "id": "graysteel_halberd",
+  "name": "Graysteel Halberd",
+  "itemType": "weapon",
+  "equipmentSlot": "weapon",
+  "gridWidth": 2,
+  "gridHeight": 4,
+  "stackSize": 1,
+  "rarity": "common",
+  "description": "Carried by gatekeepers who never once opened the gate. Vault-stock, stamped and stacked for a war that was called off. Scaling: Strength B, Dexterity C.",
+  "value": 77,
+  "lootValue": 38,
+  "maxDurability": 125,
+  "baseId": "halberd",
+  "materialTier": "graysteel",
+  "biome": "iron_vault",
+  "scaling": {
+    "strength": "B",
+    "dexterity": "C"
+  },
+  "stats": {
+    "physicalDamage": 9,
+    "poiseDamage": 0.108,
+    "resistPhysical": 0.02
+  },
+  "weaponId": "spear"
+}

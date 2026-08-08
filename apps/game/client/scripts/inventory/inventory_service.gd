@@ -17,6 +17,7 @@ signal inventory_rejected(reason: String)
 
 var inventory: GridInventory = GridInventory.new()
 var quick_slot_instances: Array[String] = ["", "", "", ""]
+var _registered_rule_sources: Array = []
 
 
 func _ready() -> void:
@@ -30,7 +31,35 @@ func _ready() -> void:
 func _on_inventory_changed() -> void:
 	inventory_changed.emit()
 	_check_full_equip_achievement()
+	_sync_unique_rules()
 	_apply_equipment_to_player()
+
+
+func _sync_unique_rules() -> void:
+	if not CombatEvents:
+		return
+	var wanted: Dictionary = {}
+	for slot_name in EquipmentHelper.SLOT_ORDER:
+		var instance: Dictionary = inventory.equipped.get(slot_name, {})
+		if instance.is_empty():
+			continue
+		var item_id := str(instance.get("itemId", ""))
+		var def := get_item_def(item_id)
+		var rules: Variant = def.get("rules", [])
+		if not rules is Array or (rules as Array).is_empty():
+			continue
+		wanted[_rule_source_id(item_id)] = rules
+	for source_id in _registered_rule_sources:
+		if not wanted.has(source_id):
+			CombatEvents.unregister(str(source_id))
+	for source_id in wanted:
+		if not CombatEvents.is_registered(str(source_id)):
+			CombatEvents.register(str(source_id), wanted[source_id])
+	_registered_rule_sources = wanted.keys()
+
+
+func _rule_source_id(item_id: String) -> String:
+	return "item/%s" % item_id
 
 
 func _on_run_buffs_changed() -> void:
@@ -155,60 +184,35 @@ func add_dungeon_key(key_id: String, lock_id: String, label: String = "Dungeon K
 
 
 func has_dungeon_key(key_id: String) -> bool:
-	for slot in inventory.slots:
-		if slot.get("itemId", "") != "dungeon_key":
-			continue
-		if str(slot.get("keyId", "")) == key_id:
-			return true
-	return false
+	return not inventory.find_slots_where(
+		func(slot: Dictionary) -> bool:
+			return slot.get("itemId", "") == "dungeon_key" and str(slot.get("keyId", "")) == key_id
+	).is_empty()
 
 
 func count_item(item_id: String) -> int:
-	var total := 0
-	for slot in inventory.slots:
-		if slot.get("itemId", "") == item_id:
-			total += int(slot.get("quantity", 1))
-	return total
+	return inventory.count_by_id(item_id)
 
 
 func consume_boss_sigil() -> bool:
-	for i in inventory.slots.size():
-		var slot: Dictionary = inventory.slots[i]
-		if slot.get("itemId", "") != "boss_sigil":
-			continue
-		var qty: int = int(slot.get("quantity", 1)) - 1
-		if qty <= 0:
-			inventory.slots.remove_at(i)
-		else:
-			slot["quantity"] = qty
-		inventory.changed.emit()
-		return true
-	return false
+	return inventory.remove_one_where(
+		func(slot: Dictionary) -> bool: return slot.get("itemId", "") == "boss_sigil"
+	)
 
 
 func consume_dungeon_key(key_id: String) -> bool:
-	for i in inventory.slots.size():
-		var slot: Dictionary = inventory.slots[i]
-		if slot.get("itemId", "") != "dungeon_key":
-			continue
-		if str(slot.get("keyId", "")) != key_id:
-			continue
-		var qty: int = int(slot.get("quantity", 1)) - 1
-		if qty <= 0:
-			inventory.slots.remove_at(i)
-		else:
-			slot["quantity"] = qty
-		inventory.changed.emit()
-		return true
-	return false
+	return inventory.remove_one_where(
+		func(slot: Dictionary) -> bool:
+			return slot.get("itemId", "") == "dungeon_key" and str(slot.get("keyId", "")) == key_id
+	)
 
 
 func dungeon_keys_for_floor() -> Array[String]:
 	var keys: Array[String] = []
-	for slot in inventory.slots:
-		if slot.get("itemId", "") != "dungeon_key":
-			continue
-		var key_id := str(slot.get("keyId", ""))
+	for i in inventory.find_slots_where(
+		func(slot: Dictionary) -> bool: return slot.get("itemId", "") == "dungeon_key"
+	):
+		var key_id := str(inventory.slots[i].get("keyId", ""))
 		if key_id != "":
 			keys.append(key_id)
 	return keys
@@ -271,9 +275,20 @@ func get_equipment_stats() -> Dictionary:
 	)
 	var talent_stats := ProgressionService.get_talent_stat_totals() if ProgressionService else {}
 	var run_stats := RunBuffs.get_stat_totals() if RunBuffs else {}
+	var buff_stats := get_consumable_buff_stats()
 	return _merge_stat_dicts(
-		_merge_stat_dicts(_merge_stat_dicts(equip_stats, class_stats), talent_stats), run_stats
+		_merge_stat_dicts(
+			_merge_stat_dicts(_merge_stat_dicts(equip_stats, class_stats), talent_stats), run_stats
+		),
+		buff_stats
 	)
+
+
+func get_consumable_buff_stats() -> Dictionary:
+	var player := get_tree().get_first_node_in_group("player")
+	if player == null:
+		return {}
+	return ConsumableServiceScript.active_buff_stats(player)
 
 
 func get_equipment_only_stats() -> Dictionary:
@@ -301,18 +316,115 @@ func format_slot_tooltip(slot: Dictionary, compare_delta: Dictionary = {}) -> St
 	var lines: PackedStringArray = []
 	lines.append(inventory.get_slot_display_name(slot))
 	var def := get_item_def(slot.get("itemId", ""))
+	var subtitle := _format_item_subtitle(slot, def)
+	if subtitle != "":
+		lines.append(subtitle)
 	if def.has("description"):
-		lines.append(def.get("description", ""))
+		lines.append(str(def.get("description", "")))
+	var rule_text := str(def.get("ruleText", ""))
+	if rule_text != "":
+		lines.append("")
+		lines.append(rule_text)
 	var stats := Equipment.stats_for_instance(slot, Callable(AffixRoller, "get_affix_stat"))
+	var stat_lines: PackedStringArray = []
 	for stat in Equipment.STAT_KEYS:
 		var line := Equipment.format_stat_line(stat, stats.get(stat, 0.0))
-		if line != "":
-			if compare_delta.has(stat) and not is_zero_approx(compare_delta[stat]):
-				line += " (%s)" % Equipment.format_delta_line(stat, compare_delta[stat])
-			lines.append(line)
+		if line == "":
+			continue
+		if compare_delta.has(stat) and not is_zero_approx(compare_delta[stat]):
+			line += " (%s)" % Equipment.format_delta_line(stat, compare_delta[stat])
+		stat_lines.append(line)
+	if not stat_lines.is_empty():
+		lines.append("")
+		lines.append_array(stat_lines)
+	var affix_lines: PackedStringArray = []
 	for affix in slot.get("affixes", []):
-		if affix is Dictionary:
-			lines.append("  %s +%s" % [affix.get("affixId", ""), affix.get("value", 0)])
+		if not affix is Dictionary:
+			continue
+		var affix_line := AffixRoller.format_affix_line(affix)
+		if affix_line != "":
+			affix_lines.append(affix_line)
+	if not affix_lines.is_empty():
+		lines.append("")
+		lines.append_array(affix_lines)
+	var footer := _format_item_footer(slot, def)
+	if footer != "":
+		lines.append("")
+		lines.append(footer)
+	return "\n".join(lines)
+
+
+func _format_item_subtitle(slot: Dictionary, def: Dictionary) -> String:
+	var parts: PackedStringArray = []
+	var slot_name := Equipment.slot_for_item_def(def)
+	if slot_name != "":
+		parts.append(slot_name.capitalize())
+	var infusion := Equipment.infusion_label(str(slot.get("infusion", "")))
+	if infusion != "":
+		parts.append(infusion)
+	var upgrade_level := int(slot.get("upgradeLevel", 0))
+	if upgrade_level > 0:
+		parts.append(
+			"%s +%d" % [Equipment.upgrade_path_label(str(slot.get("upgradePath", ""))), upgrade_level]
+		)
+	var scaling: Variant = def.get("scaling", {})
+	if scaling is Dictionary and not (scaling as Dictionary).is_empty():
+		var grades: PackedStringArray = []
+		for attribute in scaling:
+			grades.append("%s %s" % [str(attribute).capitalize(), str(scaling[attribute])])
+		parts.append(" ".join(grades))
+	return "  ".join(parts)
+
+
+func _format_item_footer(slot: Dictionary, def: Dictionary) -> String:
+	if def.get("itemType", "") not in BlacksmithService.UPGRADEABLE_TYPES:
+		return ""
+	var item_id := str(slot.get("itemId", ""))
+	var current := BlacksmithService.get_slot_durability(slot)
+	var maximum := BlacksmithService.get_max_durability(item_id)
+	if current <= 0:
+		return tr("INV_DURABILITY_BROKEN")
+	return tr("INV_DURABILITY") % [current, maximum]
+
+
+func format_comparison_bbcode(slot: Dictionary) -> String:
+	var def := get_item_def(slot.get("itemId", ""))
+	var slot_name := Equipment.slot_for_item_def(def)
+	if slot_name == "":
+		return ""
+	var resolver := Callable(AffixRoller, "get_affix_stat")
+	var equipped_instance: Dictionary = inventory.equipped.get(slot_name, {})
+	if equipped_instance.is_empty() or equipped_instance.get("instanceId", "") == slot.get(
+		"instanceId", ""
+	):
+		return ""
+	var current := Equipment.slot_stats(equipped_instance, resolver)
+	var candidate := Equipment.slot_stats(slot, resolver)
+	var lines: PackedStringArray = []
+	var title: String = tr("INV_COMPARE_TITLE") % inventory.get_slot_display_name(equipped_instance)
+	lines.append("[b]%s[/b]" % title)
+	for stat in Equipment.STAT_KEYS:
+		var new_value := float(candidate.get(stat, 0.0))
+		var old_value := float(current.get(stat, 0.0))
+		if is_zero_approx(new_value) and is_zero_approx(old_value):
+			continue
+		var delta := new_value - old_value
+		var row := (
+			"%s  %s → %s"
+			% [
+				Equipment.stat_display_name(stat),
+				Equipment.format_stat_value(stat, old_value, false),
+				Equipment.format_stat_value(stat, new_value, false),
+			]
+		)
+		if is_zero_approx(delta):
+			lines.append(row)
+		else:
+			var color := "#7fd67f" if delta > 0.0 else "#e07a7a"
+			row += "  [color=%s]%s[/color]" % [color, Equipment.format_stat_value(stat, delta)]
+			lines.append(row)
+	if lines.size() <= 1:
+		return ""
 	return "\n".join(lines)
 
 
@@ -545,7 +657,9 @@ func drop_slot_at_index(index: int) -> bool:
 		var removed := inventory.remove_at(index)
 		if removed.is_empty():
 			return false
-		_spawn_world_pickup(player.global_position, item_id, qty)
+		_spawn_world_pickup(
+			player.global_position, item_id, qty, inventory.get_slot_rarity(removed)
+		)
 		return true
 	var result := MerchantService.sell_item(index, qty)
 	return bool(result.get("ok", false))
@@ -567,7 +681,9 @@ static func migrate_quick_slots_from_indices(slots: Array, quick_slots: Array) -
 	return instances
 
 
-func _spawn_world_pickup(world_pos: Vector3, item_id: String, quantity: int) -> void:
+func _spawn_world_pickup(
+	world_pos: Vector3, item_id: String, quantity: int, rarity: String = ""
+) -> void:
 	var root := get_tree().current_scene
 	if root == null:
 		return
@@ -575,7 +691,7 @@ func _spawn_world_pickup(world_pos: Vector3, item_id: String, quantity: int) -> 
 	pickup.name = "DroppedItemPickup"
 	root.add_child(pickup)
 	pickup.global_position = world_pos + Vector3(0, 0.5, 1.0)
-	pickup.configure(item_id, quantity)
+	pickup.configure(item_id, quantity, rarity)
 
 
 func _restore_quick_slots(raw: Variant) -> void:

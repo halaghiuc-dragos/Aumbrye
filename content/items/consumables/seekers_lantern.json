@@ -1,0 +1,20 @@
+{
+  "id": "seekers_lantern",
+  "name": "Seeker's Lantern",
+  "itemType": "consumable",
+  "gridWidth": 1,
+  "gridHeight": 2,
+  "stackSize": 1,
+  "rarity": "epic",
+  "description": "The flame leans toward whatever is hidden, and away from whoever is holding it.",
+  "consumableEffect": {
+    "kind": "applyStatus",
+    "statusId": "elixir_seeking",
+    "duration": 240,
+    "stat": "lootQuality",
+    "amount": 0.35,
+    "usableInHub": false
+  },
+  "value": 360,
+  "lootValue": 180
+}

@@ -1,0 +1,44 @@
+{
+  "id": "unique_courtyard_vigil",
+  "name": "Courtyard Vigil",
+  "itemType": "armor",
+  "equipmentSlot": "secondary",
+  "gridWidth": 2,
+  "gridHeight": 3,
+  "stackSize": 1,
+  "rarity": "epic",
+  "description": "Propped upright against the well, still angled toward the gate it was set to watch.",
+  "value": 430,
+  "lootValue": 215,
+  "maxDurability": 115,
+  "unique": true,
+  "baseId": "kiteshield",
+  "biome": "forgotten_castle",
+  "scaling": {
+    "strength": "C"
+  },
+  "ruleText": "Blocking restores 12 stamina.",
+  "rules": [
+    {
+      "event": "onBlock",
+      "effect": "restore_stamina",
+      "amount": 12
+    }
+  ],
+  "stats": {
+    "defense": 16,
+    "poise": 8
+  },
+  "block": {
+    "stability": 1.35,
+    "guardBreakPoise": 52,
+    "reduction": {
+      "physical": 0.74,
+      "fire": 0.38,
+      "frost": 0.38,
+      "poison": 0.38,
+      "lightning": 0.38,
+      "arcane": 0.38
+    }
+  }
+}

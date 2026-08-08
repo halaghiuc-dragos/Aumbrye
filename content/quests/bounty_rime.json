@@ -1,0 +1,23 @@
+{
+  "id": "bounty_rime",
+  "title": "Bounty: Cold Storage",
+  "type": "fetch",
+  "targetItemId": "hoarfrost_shard",
+  "requiredCount": 4,
+  "repeatable": true,
+  "availableWhen": {
+    "minTier": 4
+  },
+  "bounty": "daily",
+  "description": "Standing bounty. Four shards, still cold when they reach the board. Vessit checks.",
+  "rewards": {
+    "gold": 130,
+    "bountyTokens": 3,
+    "items": [
+      {
+        "itemId": "frost_crystal",
+        "quantity": 1
+      }
+    ]
+  }
+}

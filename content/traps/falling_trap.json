@@ -1,1 +1,14 @@
-{ "id": "falling_trap", "scene": "res://scenes/traps/falling_trap.tscn" }
+{
+  "id": "falling_trap",
+  "name": "Falling Block",
+  "description": "The ceiling remembers where the floor is.",
+  "scene": "res://scenes/traps/falling_trap.tscn",
+  "trigger": "proximity",
+  "telegraph": 1.5,
+  "triggerRadius": 2.5,
+  "damageType": "physical",
+  "hitInterval": 0.5,
+  "statusId": "torpor",
+  "statusBuildUp": 26,
+  "enemyDamageMultiplier": 0.8
+}

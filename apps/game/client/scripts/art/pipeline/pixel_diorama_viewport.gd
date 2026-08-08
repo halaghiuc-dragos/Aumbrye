@@ -63,7 +63,7 @@ func _ready() -> void:
 	get_tree().root.child_entered_tree.connect(_on_root_child_entered)
 	if MenuStack and not MenuStack.stack_changed.is_connected(_on_menu_stack_changed):
 		MenuStack.stack_changed.connect(_on_menu_stack_changed)
-	if OS.get_environment("AUMBRYE_GFX_DUMP") != "":
+	if OS.is_debug_build() and OS.get_environment("AUMBRYE_GFX_DUMP") != "":
 		get_tree().create_timer(3.0).timeout.connect(_dbg_dump)
 
 
@@ -90,7 +90,7 @@ func dump_render_state() -> Dictionary:
 
 
 func _dbg_dump() -> void:
-	if OS.get_environment("AUMBRYE_GFX_DUMP") == "":
+	if not OS.is_debug_build() or OS.get_environment("AUMBRYE_GFX_DUMP") == "":
 		return
 	var state := dump_render_state()
 	print("[DBG] cast_shadow counts: ", state.get("cast_shadow_counts", {}))

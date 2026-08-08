@@ -1,17 +1,17 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { describe, expect, it } from "vitest";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { HelmetProvider } from "react-helmet-async";
-import Layout from "../components/Layout";
-import NotFound from "../components/NotFound";
-import AccountPage from "../pages/Account";
-import LandingPage from "../pages/Landing";
-import LeaderboardsPage from "../pages/Leaderboards";
-import PatchNotesPage from "../pages/PatchNotes";
-import WikiIndexPage from "../pages/Wiki";
-import { AuthProvider } from "../auth/AuthProvider";
+import Layout from "./components/Layout";
+import NotFound from "./components/NotFound";
+import AccountPage from "./pages/Account";
+import LandingPage from "./pages/Landing";
+import LeaderboardsPage from "./pages/Leaderboards";
+import PatchNotesPage from "./pages/PatchNotes";
+import WikiIndexPage from "./pages/Wiki";
+import { AuthProvider } from "./auth/AuthProvider";
 
 function renderAt(path: string) {
   const queryClient = new QueryClient({

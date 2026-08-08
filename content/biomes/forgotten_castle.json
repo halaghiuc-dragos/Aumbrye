@@ -3,7 +3,10 @@
   "name": "Forgotten Castle",
   "templatePrefix": "castle",
   "assetFolder": "castle",
-  "roomCount": { "min": 18, "max": 22 },
+  "roomCount": {
+    "min": 16,
+    "max": 20
+  },
   "roomTemplateIds": [
     "castle_entrance",
     "castle_stairs",
@@ -23,12 +26,24 @@
     "accent": "castle"
   },
   "lighting": {
-    "ambientColor": [0.58, 0.5, 0.44],
+    "ambientColor": [
+      0.58,
+      0.5,
+      0.44
+    ],
     "ambientEnergy": 0.78,
     "fogEnabled": false,
-    "fogColor": [0.2, 0.18, 0.22],
+    "fogColor": [
+      0.2,
+      0.18,
+      0.22
+    ],
     "fogDensity": 0.008,
-    "torchColor": [1.0, 0.72, 0.38],
+    "torchColor": [
+      1,
+      0.72,
+      0.38
+    ],
     "torchEnergy": 2.2
   },
   "audioProfile": "content/audio_profiles/forgotten_castle.json",
@@ -41,15 +56,36 @@
     ]
   },
   "enemyPool": [
-    { "enemyId": "castle_grunt", "weight": 3 },
-    { "enemyId": "castle_archer", "weight": 2 },
-    { "enemyId": "castle_shield", "weight": 2 },
-    { "enemyId": "castle_hound", "weight": 2 },
-    { "enemyId": "miniboss_castle_captain", "weight": 1 }
+    {
+      "enemyId": "castle_grunt",
+      "weight": 3
+    },
+    {
+      "enemyId": "castle_archer",
+      "weight": 2
+    },
+    {
+      "enemyId": "castle_shield",
+      "weight": 2
+    },
+    {
+      "enemyId": "castle_hound",
+      "weight": 2
+    },
+    {
+      "enemyId": "miniboss_castle_captain",
+      "weight": 1
+    }
   ],
   "bossPool": [
-    { "enemyId": "boss_castle_knight", "weight": 3 },
-    { "enemyId": "miniboss_castle_captain", "weight": 1 }
+    {
+      "enemyId": "boss_castle_knight",
+      "weight": 3
+    },
+    {
+      "enemyId": "miniboss_castle_captain",
+      "weight": 1
+    }
   ],
   "budgets": {
     "baseEnemyThreat": 200,
@@ -59,9 +95,60 @@
   },
   "lootTablePath": "content/loot/tables/forgotten_castle.json",
   "trapPool": [
-    { "trapId": "spike_trap", "weight": 3 },
-    { "trapId": "falling_trap", "weight": 1 }
+    {
+      "trapId": "spike_trap",
+      "weight": 3
+    },
+    {
+      "trapId": "falling_trap",
+      "weight": 2
+    },
+    {
+      "trapId": "swinging_blade",
+      "weight": 2
+    },
+    {
+      "trapId": "arrow_line",
+      "weight": 2
+    },
+    {
+      "trapId": "collapsing_floor",
+      "weight": 1
+    }
   ],
   "requiresSecret": true,
-  "finalFloor": { "bossId": "final_boss_forgotten_castle" }
+  "finalFloor": {
+    "bossId": "final_boss_forgotten_castle"
+  },
+  "maxHeightLevel": 1,
+  "maxSecrets": 2,
+  "generator": {
+    "bossMinDistance": 4,
+    "minDeadEnds": 4,
+    "branchMaxDepth": 8,
+    "maxNeighborCount": 4,
+    "loopBudget": 4,
+    "maxGenerationAttempts": 256,
+    "maxWalkAttempts": 8192,
+    "allow2x2Blocks": true,
+    "fillBoundingBox": true
+  },
+  "grade": {
+    "shadowTint": [
+      0.2,
+      0.18,
+      0.24
+    ],
+    "shadowTintAmount": 0.16,
+    "highlightTint": [
+      1,
+      0.93,
+      0.8
+    ],
+    "highlightTintAmount": 0.14,
+    "saturation": 0.94,
+    "contrast": 1.1,
+    "lift": 0,
+    "vignette": 0.2
+  }
 }

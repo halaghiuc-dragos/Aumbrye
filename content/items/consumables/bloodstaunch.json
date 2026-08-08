@@ -1,0 +1,16 @@
+{
+  "id": "bloodstaunch",
+  "name": "Bloodstaunch",
+  "itemType": "consumable",
+  "gridWidth": 1,
+  "gridHeight": 1,
+  "stackSize": 8,
+  "rarity": "common",
+  "description": "Moss packed in a twist of linen. Field medicine, from a field that lost.",
+  "consumableEffect": {
+    "kind": "heal",
+    "amount": 65
+  },
+  "value": 45,
+  "lootValue": 22
+}

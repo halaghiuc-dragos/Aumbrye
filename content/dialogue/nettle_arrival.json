@@ -1,0 +1,23 @@
+{
+  "id": "nettle_arrival",
+  "startNode": "start",
+  "nodes": {
+    "start": {
+      "speaker": "Nettle",
+      "text": "Mind the boots. Whatever is on them came out of the overflow and it is patient. — Thank you. That is not a word I have had cause for. I will boil something for you.",
+      "actions": [
+        {
+          "type": "set_relationship",
+          "npc": "nettle",
+          "delta": 2
+        },
+        {
+          "type": "give_item",
+          "itemId": "antidote",
+          "quantity": 2
+        }
+      ],
+      "next": "end"
+    }
+  }
+}

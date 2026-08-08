@@ -1,0 +1,16 @@
+{
+  "id": "resolve",
+  "name": "Resolve",
+  "description": "Not healing. Only the refusal to worsen.",
+  "damageType": "physical",
+  "tickDamage": 0,
+  "tickInterval": 1,
+  "maxStacks": 1,
+  "duration": 12,
+  "tickHeal": 2,
+  "iconColor": "#e8d9a0",
+  "polarity": "buff",
+  "stats": {
+    "healthRegen": 1
+  }
+}

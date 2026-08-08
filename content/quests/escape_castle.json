@@ -2,6 +2,8 @@
   "id": "escape_castle",
   "title": "Safe Return",
   "type": "escape",
-  "description": "Escape the castle through the exit portal during a run.",
-  "rewards": { "gold": 50 }
+  "description": "Come back up the way you went down. Mira does not count that as an achievement, only as a habit worth forming.",
+  "rewards": {
+    "gold": 50
+  }
 }

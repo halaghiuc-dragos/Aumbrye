@@ -1,0 +1,33 @@
+{
+  "id": "unique_cavernlight_helm",
+  "name": "Cavernlight Helm",
+  "itemType": "armor",
+  "equipmentSlot": "helmet",
+  "gridWidth": 2,
+  "gridHeight": 2,
+  "stackSize": 1,
+  "rarity": "epic",
+  "description": "Set with a shard that lights nothing but shows the wearer where the walls are.",
+  "value": 440,
+  "lootValue": 220,
+  "maxDurability": 100,
+  "unique": true,
+  "baseId": "helm",
+  "biome": "crystal_caverns",
+  "scaling": {
+    "strength": "D"
+  },
+  "ruleText": "Entering a floor yields 60 gold.",
+  "rules": [
+    {
+      "event": "onFloorEnter",
+      "effect": "bonus_gold",
+      "amount": 60.0
+    }
+  ],
+  "stats": {
+    "armor": 10,
+    "goldFind": 0.18,
+    "lootQuality": 0.08
+  }
+}

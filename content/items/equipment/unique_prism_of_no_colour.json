@@ -1,0 +1,41 @@
+{
+  "id": "unique_prism_of_no_colour",
+  "name": "Prism of No Colour",
+  "itemType": "weapon",
+  "equipmentSlot": "weapon",
+  "gridWidth": 1,
+  "gridHeight": 4,
+  "stackSize": 1,
+  "rarity": "aumbral",
+  "description": "Light enters it. Something leaves. The two have never been shown to be the same light.",
+  "value": 1400,
+  "lootValue": 700,
+  "maxDurability": 90,
+  "unique": true,
+  "baseId": "staff",
+  "biome": "crystal_caverns",
+  "scaling": {
+    "strength": "E",
+    "arcane": "A"
+  },
+  "ruleText": "Each critical hit raises damage 5%, up to 10 stacks. Resets when you are hit.",
+  "rules": [
+    {
+      "event": "onCrit",
+      "effect": "add_stack",
+      "stackId": "prism",
+      "maxStacks": 10,
+      "stat": "damagePercent",
+      "perStack": 5.0,
+      "resetOn": [
+        "onHitTaken"
+      ]
+    }
+  ],
+  "stats": {
+    "arcaneDamage": 24,
+    "manaMax": 50,
+    "critChance": 0.06
+  },
+  "weaponId": "staff"
+}

@@ -1,0 +1,18 @@
+{
+  "id": "answered_in_kind",
+  "name": "Answered In Kind",
+  "description": "A riposte mends what the parry risked.",
+  "maxStacks": 1,
+  "tags": [
+    "poise"
+  ],
+  "weight": 0.9,
+  "rules": [
+    {
+      "event": "onRiposte",
+      "effect": "restore_health",
+      "amount": 14
+    }
+  ],
+  "offerable": true
+}

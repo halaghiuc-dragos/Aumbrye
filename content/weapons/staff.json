@@ -5,9 +5,25 @@
   "damage_type": "arcane",
   "buffer_window": 0.2,
   "lunge_distance": 0.25,
+  "cancel_into": [
+    "dodge",
+    "guard"
+  ],
+  "cancel_after": 0.5,
   "scaling": {
-    "staminaRegen": 1.0,
+    "staminaRegen": 1,
     "physicalDamage": 0.6
+  },
+  "hitbox": {
+    "shape": "capsule",
+    "radius": 0.3,
+    "height": 2,
+    "offset": [
+      0,
+      0,
+      0.9
+    ],
+    "pitch_deg": 90
   },
   "light_attacks": [
     {
@@ -26,16 +42,8 @@
       "startup": 0.22,
       "active": 0.14,
       "recovery": 0.3,
-      "lunge_distance": 0.22
-    },
-    {
-      "damage": 15,
-      "poise_damage": 10,
-      "stamina_cost": 15,
-      "startup": 0.25,
-      "active": 0.16,
-      "recovery": 0.35,
-      "lunge_distance": 0.25
+      "lunge_distance": 0.22,
+      "heavy_branch": 0
     }
   ],
   "heavy_attack": {
@@ -47,6 +55,41 @@
     "recovery": 0.45,
     "lunge_distance": 0.3
   },
+  "heavy_attacks": [
+    {
+      "damage": 28,
+      "poise_damage": 22,
+      "stamina_cost": 24,
+      "startup": 0.3,
+      "active": 0.16,
+      "recovery": 0.4,
+      "damage_type": "arcane",
+      "lunge_distance": 0.3,
+      "cancel_after": 0.6
+    }
+  ],
+  "running_attack": {
+    "damage": 13,
+    "poise_damage": 8,
+    "stamina_cost": 12,
+    "startup": 0.16,
+    "active": 0.12,
+    "recovery": 0.3,
+    "damage_type": "arcane",
+    "lunge_distance": 0.9,
+    "cancel_after": 0.45
+  },
+  "rolling_attack": {
+    "damage": 11,
+    "poise_damage": 6,
+    "stamina_cost": 11,
+    "startup": 0.14,
+    "active": 0.1,
+    "recovery": 0.28,
+    "damage_type": "arcane",
+    "lunge_distance": 0.35,
+    "cancel_after": 0.4
+  },
   "art": {
     "id": "arcane_nova",
     "name": "Arcane Nova",
@@ -56,8 +99,8 @@
     "startup": 0.36,
     "active": 0.2,
     "recovery": 0.52,
-    "lunge_distance": 0.0,
+    "lunge_distance": 0,
     "hyperarmor": true,
-    "cooldown": 9.0
+    "cooldown": 9
   }
 }

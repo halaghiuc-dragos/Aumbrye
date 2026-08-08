@@ -5,9 +5,24 @@
   "damage_type": "physical",
   "buffer_window": 0.15,
   "lunge_distance": 0.45,
+  "cancel_into": [
+    "dodge",
+    "guard"
+  ],
+  "cancel_after": 0.65,
   "scaling": {
     "physicalDamage": 1.8,
     "poiseDamage": 1.2
+  },
+  "hitbox": {
+    "shape": "arc",
+    "radius": 1.15,
+    "height": 0.95,
+    "offset": [
+      0,
+      0,
+      0.65
+    ]
   },
   "light_attacks": [
     {
@@ -26,7 +41,8 @@
       "startup": 0.34,
       "active": 0.18,
       "recovery": 0.44,
-      "lunge_distance": 0.45
+      "lunge_distance": 0.45,
+      "heavy_branch": 0
     },
     {
       "damage": 30,
@@ -47,6 +63,39 @@
     "recovery": 0.58,
     "lunge_distance": 0.6
   },
+  "heavy_attacks": [
+    {
+      "damage": 50,
+      "poise_damage": 56,
+      "stamina_cost": 34,
+      "startup": 0.42,
+      "active": 0.2,
+      "recovery": 0.54,
+      "lunge_distance": 0.55,
+      "hyperarmor": true,
+      "cancel_after": 0.8
+    }
+  ],
+  "running_attack": {
+    "damage": 26,
+    "poise_damage": 30,
+    "stamina_cost": 22,
+    "startup": 0.24,
+    "active": 0.18,
+    "recovery": 0.42,
+    "lunge_distance": 1.2,
+    "cancel_after": 0.6
+  },
+  "rolling_attack": {
+    "damage": 21,
+    "poise_damage": 24,
+    "stamina_cost": 20,
+    "startup": 0.2,
+    "active": 0.16,
+    "recovery": 0.4,
+    "lunge_distance": 0.55,
+    "cancel_after": 0.55
+  },
   "art": {
     "id": "rend",
     "name": "Rend",
@@ -58,6 +107,6 @@
     "recovery": 0.48,
     "lunge_distance": 0.45,
     "hyperarmor": true,
-    "cooldown": 6.0
+    "cooldown": 6
   }
 }

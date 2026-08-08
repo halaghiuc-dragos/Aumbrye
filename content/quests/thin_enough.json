@@ -1,0 +1,21 @@
+{
+  "id": "thin_enough",
+  "title": "Thin Enough",
+  "type": "fetch",
+  "chainId": "lamps",
+  "prerequisites": [
+    "lampwright"
+  ],
+  "targetItemId": "spellglass_sliver",
+  "requiredCount": 3,
+  "description": "Cut it thin enough and one lamp lights a city. Corrin wants three slivers and promises not to prove the second half of that sentence again.",
+  "rewards": {
+    "gold": 220,
+    "items": [
+      {
+        "itemId": "arcane_catalyst",
+        "quantity": 1
+      }
+    ]
+  }
+}

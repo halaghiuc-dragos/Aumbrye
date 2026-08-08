@@ -1,0 +1,33 @@
+{
+  "id": "unique_ironmongers_promise",
+  "name": "The Ironmonger's Promise",
+  "itemType": "weapon",
+  "equipmentSlot": "weapon",
+  "gridWidth": 2,
+  "gridHeight": 3,
+  "stackSize": 1,
+  "rarity": "rare",
+  "description": "He swore it would outlast the man who bought it. It has outlasted several.",
+  "value": 300,
+  "lootValue": 150,
+  "maxDurability": 115,
+  "unique": true,
+  "baseId": "waraxe",
+  "biome": "iron_vault",
+  "scaling": {
+    "strength": "B",
+    "dexterity": "D"
+  },
+  "ruleText": "Hits heal you for 4% of the damage dealt.",
+  "rules": [
+    {
+      "event": "onHit",
+      "effect": "lifesteal",
+      "pct": 0.04
+    }
+  ],
+  "stats": {
+    "physicalDamage": 11
+  },
+  "weaponId": "axe"
+}

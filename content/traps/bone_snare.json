@@ -1,0 +1,24 @@
+{
+  "id": "bone_snare",
+  "name": "Bone Snare",
+  "description": "Set for something heavier than you. Bring it something heavier.",
+  "scene": "res://scenes/traps/bone_snare.tscn",
+  "trigger": "plate",
+  "telegraph": 0.4,
+  "active": 1.2,
+  "cooldown": 3.5,
+  "triggerRadius": 3,
+  "damage": 8,
+  "poiseDamage": 24,
+  "damageType": "physical",
+  "hitInterval": 0.6,
+  "statusId": "freeze",
+  "statusBuildUp": 34,
+  "enemyDamageMultiplier": 1,
+  "size": [
+    3,
+    0.9,
+    3
+  ],
+  "color": "#cfc6b0"
+}

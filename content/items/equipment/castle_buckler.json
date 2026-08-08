@@ -9,6 +9,19 @@
   "rarity": "common",
   "description": "A small shield for off-hand defense.",
   "value": 18,
-  "stats": { "defense": 8 },
-  "block": { "stability": 1.1, "reduction": 0.58 }
+  "stats": {
+    "defense": 8
+  },
+  "block": {
+    "stability": 1.1,
+    "guardBreakPoise": 34,
+    "reduction": {
+      "physical": 0.56,
+      "fire": 0.3,
+      "frost": 0.3,
+      "poison": 0.3,
+      "lightning": 0.3,
+      "arcane": 0.3
+    }
+  }
 }

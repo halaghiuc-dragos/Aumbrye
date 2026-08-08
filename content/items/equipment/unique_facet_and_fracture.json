@@ -1,0 +1,35 @@
+{
+  "id": "unique_facet_and_fracture",
+  "name": "Facet and Fracture",
+  "itemType": "weapon",
+  "equipmentSlot": "weapon",
+  "gridWidth": 1,
+  "gridHeight": 2,
+  "stackSize": 1,
+  "rarity": "legendary",
+  "description": "It broke on the first strike and has broken on every strike since, without getting shorter.",
+  "value": 720,
+  "lootValue": 360,
+  "maxDurability": 80,
+  "unique": true,
+  "baseId": "dagger",
+  "biome": "crystal_caverns",
+  "scaling": {
+    "strength": "E",
+    "dexterity": "B"
+  },
+  "ruleText": "Critical hits cause bleeding.",
+  "rules": [
+    {
+      "event": "onCrit",
+      "effect": "apply_status",
+      "statusId": "bleed",
+      "stacks": 1
+    }
+  ],
+  "stats": {
+    "critChance": 0.1,
+    "physicalDamage": 13
+  },
+  "weaponId": "dagger"
+}

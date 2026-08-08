@@ -14,23 +14,22 @@ func _resolve_enemy_id() -> String:
 
 func _process_chase(delta: float) -> void:
 	if not _has_aggro():
-		_state = State.PATROL
-		_pick_patrol_target()
+		_state = State.INVESTIGATE
+		_state_timer = 2.5
 		return
+	_last_known_player_pos = _player.global_position
 	if _can_attack():
 		_start_windup()
 		return
 	var to_player := _player.global_position - global_position
 	to_player.y = 0.0
 	var dist := to_player.length()
-	var preferred: float = _data.get("preferred_range", 10.0)
-	var retreat: float = _data.get("retreat_range", 6.0)
 	var move_dir := Vector3.ZERO
-	if dist < retreat:
+	if dist < _retreat_range:
 		move_dir = -to_player.normalized()
-	elif dist > preferred:
-		move_dir = to_player.normalized()
-	velocity = move_dir * _data.get("move_speed", 3.0)
+	elif dist > _preferred_range:
+		move_dir = _direction_toward(_player.global_position, delta, true)
+	velocity = move_dir * _move_speed
 	if to_player.length_squared() > 0.01:
 		_face_direction(to_player, delta)
 
@@ -71,9 +70,13 @@ func _lock_shot_trajectory() -> void:
 
 func _start_attack() -> void:
 	if is_dead() or (_health and _health.is_dead()):
+		_release_attack_token()
 		return
 	_state = State.ATTACK
-	_state_timer = _data.get("active_duration", 0.05)
+	_state_timer = float(
+		_current_attack_data.get("active_duration", _data.get("active_duration", 0.05))
+	)
+	hide_attack_windup_bar()
 	_fire_projectile()
 	attack_active.emit()
 
@@ -82,22 +85,24 @@ func _fire_projectile() -> void:
 	var projectile: Node3D = PROJECTILE_SCENE.instantiate() as Node3D
 	get_tree().current_scene.add_child(projectile)
 	projectile.global_position = global_position + Vector3(0, 1.2, 0)
-	if projectile.has_method("launch"):
-		projectile.call(
-			"launch",
-			_locked_shot_direction,
-			_locked_shot_speed,
-			_data.get("attack_damage", 12.0),
-			_data.get("attack_poise_damage", 8.0),
-			self,
-			_data.get("damage_type", DamageInfo.TYPE_PHYSICAL),
-			_data.get("status_on_hit", ""),
-			int(_data.get("status_stacks_on_hit", 1))
+	if not projectile.has_method("launch"):
+		return
+	projectile.call(
+		"launch",
+		_locked_shot_direction,
+		float(_current_attack_data.get("projectile_speed", _locked_shot_speed)),
+		float(_current_attack_data.get("attack_damage", _data.get("attack_damage", 12.0)))
+		* _damage_multiplier,
+		float(
+			_current_attack_data.get("attack_poise_damage", _data.get("attack_poise_damage", 8.0))
 		)
-
-
-func _end_attack() -> void:
-	if _mesh:
-		_mesh.scale = Vector3.ONE
-	_state = State.RECOVERY
-	_state_timer = _data.get("recovery_duration", 1.1)
+		* _damage_multiplier,
+		self,
+		_current_attack_data.get("damage_type", _data.get("damage_type", DamageInfo.TYPE_PHYSICAL)),
+		_current_attack_data.get("status_on_hit", _data.get("status_on_hit", "")),
+		int(
+			_current_attack_data.get(
+				"status_stacks_on_hit", _data.get("status_stacks_on_hit", 1)
+			)
+		)
+	)

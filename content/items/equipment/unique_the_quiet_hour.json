@@ -1,0 +1,37 @@
+{
+  "id": "unique_the_quiet_hour",
+  "name": "The Quiet Hour",
+  "itemType": "accessory",
+  "equipmentSlot": "amulet",
+  "gridWidth": 1,
+  "gridHeight": 2,
+  "stackSize": 1,
+  "rarity": "aumbral",
+  "description": "Between the last bell and the first, nothing was permitted to happen. Something did.",
+  "value": 1550,
+  "lootValue": 775,
+  "maxDurability": 60,
+  "unique": true,
+  "baseId": "pendant",
+  "biome": "umbral_chapel",
+  "scaling": {},
+  "ruleText": "At low health, clears all statuses from you and restores 80 health. Once every two minutes.",
+  "rules": [
+    {
+      "event": "onLowHealth",
+      "effect": "clear_status",
+      "cooldown": 120.0
+    },
+    {
+      "event": "onLowHealth",
+      "effect": "restore_health",
+      "amount": 80.0,
+      "cooldown": 120.0
+    }
+  ],
+  "stats": {
+    "maxHealth": 55,
+    "healthRegen": 4,
+    "resistArcane": 0.16
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "id": "bounty_deep_survey",
+  "title": "Bounty: Survey",
+  "type": "reach_depth",
+  "requiredCount": 4,
+  "repeatable": true,
+  "cooldownRuns": 1,
+  "description": "Standing bounty. Reach the fourth floor of anything. Coming back up is not part of the contract, which Vessit says is the honest part.",
+  "rewards": {
+    "gold": 100,
+    "bountyTokens": 7
+  },
+  "bounty": "weekly"
+}

@@ -1,0 +1,24 @@
+{
+  "id": "gravekeepers_due",
+  "name": "Gravekeeper’s Due",
+  "description": "A room emptied is a room owed. Clearing one pays in coin and blood.",
+  "maxStacks": 1,
+  "tags": [
+    "greed",
+    "vigil"
+  ],
+  "weight": 0.8,
+  "rules": [
+    {
+      "event": "onRoomClear",
+      "effect": "bonus_gold",
+      "amount": 35
+    },
+    {
+      "event": "onRoomClear",
+      "effect": "restore_health",
+      "amount": 10
+    }
+  ],
+  "offerable": true
+}

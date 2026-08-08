@@ -1,11 +1,20 @@
 {
   "id": "burn",
   "name": "Burn",
+  "description": "It feeds on what it finds. The longer it holds, the hungrier it grows.",
   "damageType": "fire",
   "tickDamage": 3,
-  "tickInterval": 1.0,
+  "tickInterval": 1,
   "maxStacks": 3,
-  "duration": 5.0,
+  "duration": 5,
   "iconColor": "#ff6622",
-  "polarity": "debuff"
+  "polarity": "debuff",
+  "buildUpThreshold": 80,
+  "buildUpPerHit": 20,
+  "buildUpDecay": 12,
+  "buildUpGrace": 0.8,
+  "buildUpResistGain": 10,
+  "buildUpResistCap": 40,
+  "buildUpStacks": 1,
+  "tickGrowth": 0.5
 }

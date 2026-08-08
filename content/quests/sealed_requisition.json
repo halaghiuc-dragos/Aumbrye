@@ -1,0 +1,21 @@
+{
+  "id": "sealed_requisition",
+  "title": "Sealed Requisition",
+  "type": "fetch",
+  "chainId": "ledger",
+  "prerequisites": [
+    "the_open_column"
+  ],
+  "targetItemId": "vault_sealing_wax",
+  "requiredCount": 3,
+  "description": "Three seals, unbroken. Kell wants to compare the stamp against the one on the crates in the long aisle.",
+  "rewards": {
+    "gold": 180,
+    "items": [
+      {
+        "itemId": "greater_health_potion",
+        "quantity": 1
+      }
+    ]
+  }
+}

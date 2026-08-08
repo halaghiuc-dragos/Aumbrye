@@ -185,6 +185,7 @@ func _rebuild_actions() -> void:
 			abandon.name = "AbandonRun"
 			buttons.append(abandon)
 	buttons.append(MenuShellScript.make_menu_button(tr("PAUSE_ACHIEVEMENTS"), _on_achievements))
+	buttons.append(MenuShellScript.make_menu_button(tr("PAUSE_BESTIARY"), _on_bestiary))
 	buttons.append(MenuShellScript.make_menu_button(tr("PAUSE_SETTINGS"), _on_settings))
 	buttons.append(MenuShellScript.make_menu_button(tr("PAUSE_QUIT"), _on_quit_to_menu))
 	for i in buttons.size():
@@ -266,6 +267,11 @@ func _on_settings() -> void:
 func _on_achievements() -> void:
 	if PlayerControls:
 		PlayerControls.open_achievements()
+
+
+func _on_bestiary() -> void:
+	if PlayerControls:
+		PlayerControls.open_bestiary()
 
 
 func _on_leave_waves() -> void:

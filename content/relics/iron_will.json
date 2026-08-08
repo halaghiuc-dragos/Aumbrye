@@ -1,7 +1,22 @@
 {
   "id": "iron_will",
   "name": "Iron Will",
-  "description": "+15 max health for this run.",
+  "description": "Endurance bought slowly. +15 health, and clearing a room mends a little of it.",
   "maxStacks": 3,
-  "stats": { "maxHealth": 15 }
+  "stats": {
+    "maxHealth": 15
+  },
+  "tags": [
+    "ward",
+    "vigil"
+  ],
+  "weight": 1,
+  "rules": [
+    {
+      "event": "onRoomClear",
+      "effect": "restore_health",
+      "amount": 12
+    }
+  ],
+  "offerable": true
 }

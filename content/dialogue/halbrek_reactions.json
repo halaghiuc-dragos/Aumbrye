@@ -1,0 +1,84 @@
+{
+  "id": "halbrek_reactions",
+  "startNode": "start",
+  "nodes": {
+    "start": {
+      "speaker": "Halbrek",
+      "text": "You took the thing that held the hall. Then it took you. In the muster book that is one line, and the line is not about you.",
+      "condition": {
+        "all": [
+          {
+            "lastRunOutcome": "died"
+          },
+          {
+            "lastRunBoss": true
+          }
+        ]
+      },
+      "fallback": "r2",
+      "next": "end"
+    },
+    "r2": {
+      "speaker": "Halbrek",
+      "text": "Four down. I got to three, twice, and both times somebody carried me. Nobody carried you and you still came up. Note the difference and do not be proud of it.",
+      "condition": {
+        "all": [
+          {
+            "lastRunOutcome": "died"
+          },
+          {
+            "minLastRunFloor": 4
+          }
+        ]
+      },
+      "fallback": "r3",
+      "next": "end"
+    },
+    "r3": {
+      "speaker": "Halbrek",
+      "text": "Through and out. I will call the roll tonight and there will be one fewer silence in it.",
+      "condition": {
+        "all": [
+          {
+            "lastRunOutcome": "escaped"
+          },
+          {
+            "lastRunBoss": true
+          }
+        ]
+      },
+      "fallback": "r4",
+      "next": "end"
+    },
+    "r4": {
+      "speaker": "Halbrek",
+      "text": "The castle. You will have seen the sallyport notice. Three signatures. I knew all three and I countersigned it fourth, and my name is not on it because I asked for it off.",
+      "condition": {
+        "lastRunBiome": "forgotten_castle"
+      },
+      "fallback": "r5",
+      "next": "end"
+    },
+    "r5": {
+      "speaker": "Halbrek",
+      "text": "Ten deaths and you are still standing in front of me. I have seen better soldiers stop at four.",
+      "condition": {
+        "all": [
+          {
+            "lastRunOutcome": "died"
+          },
+          {
+            "minDeaths": 10
+          }
+        ]
+      },
+      "fallback": "quiet",
+      "next": "end"
+    },
+    "quiet": {
+      "speaker": "Halbrek",
+      "text": "The muster board is up. It is not a request. It is only a list, and lists are what I have.",
+      "next": "end"
+    }
+  }
+}

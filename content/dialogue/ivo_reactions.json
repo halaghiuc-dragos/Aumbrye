@@ -1,0 +1,84 @@
+{
+  "id": "ivo_reactions",
+  "startNode": "start",
+  "nodes": {
+    "start": {
+      "speaker": "Ivo",
+      "text": "Both entries on the same line. Killed, killed. The vault kept books like that and look what it did to the vault.",
+      "condition": {
+        "all": [
+          {
+            "lastRunOutcome": "died"
+          },
+          {
+            "lastRunBoss": true
+          }
+        ]
+      },
+      "fallback": "r2",
+      "next": "end"
+    },
+    "r2": {
+      "speaker": "Ivo",
+      "text": "Four floors. I will file it under attempts. There is a whole drawer of attempts and it is the heaviest drawer.",
+      "condition": {
+        "all": [
+          {
+            "lastRunOutcome": "died"
+          },
+          {
+            "minLastRunFloor": 4
+          }
+        ]
+      },
+      "fallback": "r3",
+      "next": "end"
+    },
+    "r3": {
+      "speaker": "Ivo",
+      "text": "Cleared. I have entered it in ink. That is not something I do lightly and I would like you to know it.",
+      "condition": {
+        "all": [
+          {
+            "lastRunOutcome": "escaped"
+          },
+          {
+            "lastRunBoss": true
+          }
+        ]
+      },
+      "fallback": "r4",
+      "next": "end"
+    },
+    "r4": {
+      "speaker": "Ivo",
+      "text": "The vault. They sealed the quorum in with the measure. I was on the wrong side of the door and I have never been able to decide which side that was.",
+      "condition": {
+        "lastRunBiome": "iron_vault"
+      },
+      "fallback": "r5",
+      "next": "end"
+    },
+    "r5": {
+      "speaker": "Ivo",
+      "text": "Ten. I have a column for it now. I did not want to open the column.",
+      "condition": {
+        "all": [
+          {
+            "lastRunOutcome": "died"
+          },
+          {
+            "minDeaths": 10
+          }
+        ]
+      },
+      "fallback": "quiet",
+      "next": "end"
+    },
+    "quiet": {
+      "speaker": "Ivo",
+      "text": "Everything you leave with me is entered. Everything entered is findable. It is the only useful thing I know how to do.",
+      "next": "end"
+    }
+  }
+}

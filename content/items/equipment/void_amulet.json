@@ -1,16 +1,16 @@
 {
-    "id":  "void_amulet",
-    "name":  "Void Amulet",
-    "itemType":  "armor",
-    "gridWidth":  2,
-    "gridHeight":  2,
-    "stackSize":  1,
-    "rarity":  "legendary",
-    "description":  "Dark glass that seems to swallow the torchlight around your throat.",
-    "value":  20,
-    "stats":  {
-                  "maxHealth":  20,
-                  "arcaneDamage":  12
-              },
-    "equipmentSlot":  "amulet"
+  "id": "void_amulet",
+  "name": "Void Amulet",
+  "itemType": "armor",
+  "gridWidth": 1,
+  "gridHeight": 2,
+  "stackSize": 1,
+  "rarity": "legendary",
+  "description": "Dark glass that seems to swallow the torchlight around your throat.",
+  "value": 20,
+  "stats": {
+    "maxHealth": 20,
+    "arcaneDamage": 12
+  },
+  "equipmentSlot": "amulet"
 }

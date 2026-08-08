@@ -1,13 +1,13 @@
 import { Helmet } from "react-helmet-async";
 import { NavLink, Outlet } from "react-router-dom";
 
-const NAV = [
+const NAV: { to: string; label: string; end?: boolean }[] = [
   { to: "/", label: "Home", end: true },
   { to: "/account", label: "Account" },
   { to: "/patch-notes", label: "Patch Notes" },
   { to: "/wiki", label: "Wiki" },
   { to: "/leaderboards", label: "Leaderboards" },
-] as const;
+];
 
 export default function Layout() {
   return (

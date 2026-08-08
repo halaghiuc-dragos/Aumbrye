@@ -1,0 +1,32 @@
+{
+  "id": "unique_censer_of_small_mercies",
+  "name": "Censer of Small Mercies",
+  "itemType": "accessory",
+  "equipmentSlot": "amulet",
+  "gridWidth": 1,
+  "gridHeight": 2,
+  "stackSize": 1,
+  "rarity": "legendary",
+  "description": "Swung down the aisle for the dying, never for the dead. The distinction mattered to someone.",
+  "value": 830,
+  "lootValue": 415,
+  "maxDurability": 60,
+  "unique": true,
+  "baseId": "pendant",
+  "biome": "dark_cathedral",
+  "scaling": {},
+  "ruleText": "At low health, refunds one flask charge. Once every three minutes.",
+  "rules": [
+    {
+      "event": "onLowHealth",
+      "effect": "refund_flask",
+      "amount": 1.0,
+      "cooldown": 180.0
+    }
+  ],
+  "stats": {
+    "maxHealth": 40,
+    "healthRegen": 3,
+    "resistFire": 0.1
+  }
+}

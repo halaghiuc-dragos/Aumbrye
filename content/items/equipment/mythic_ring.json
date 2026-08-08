@@ -1,17 +1,17 @@
 {
-    "id":  "mythic_ring",
-    "name":  "Mythic Ring",
-    "itemType":  "armor",
-    "gridWidth":  2,
-    "gridHeight":  2,
-    "stackSize":  1,
-    "rarity":  "aumbral",
-    "description":  "A band of star-metal humming at the tower's threshold.",
-    "value":  20,
-    "stats":  {
-                  "physicalDamage":  10,
-                  "arcaneDamage":  10,
-                  "maxHealth":  25
-              },
-    "equipmentSlot":  "ring"
+  "id": "mythic_ring",
+  "name": "Mythic Ring",
+  "itemType": "armor",
+  "gridWidth": 1,
+  "gridHeight": 1,
+  "stackSize": 1,
+  "rarity": "aumbral",
+  "description": "A band of star-metal humming at the tower's threshold.",
+  "value": 20,
+  "stats": {
+    "physicalDamage": 10,
+    "arcaneDamage": 10,
+    "maxHealth": 25
+  },
+  "equipmentSlot": "ring"
 }

@@ -1,1 +1,16 @@
-{ "id": "shadow_trap", "scene": "res://scenes/traps/shadow_trap.tscn" }
+{
+  "id": "shadow_trap",
+  "name": "Shadow Snare",
+  "description": "It does not care whose weight it takes. Give it something else to hold.",
+  "scene": "res://scenes/traps/shadow_trap.tscn",
+  "trigger": "plate",
+  "telegraph": 0.9,
+  "active": 0.7,
+  "cooldown": 3,
+  "triggerRadius": 3.2,
+  "damageType": "dark",
+  "hitInterval": 0.5,
+  "statusId": "torpor",
+  "statusBuildUp": 32,
+  "enemyDamageMultiplier": 1
+}

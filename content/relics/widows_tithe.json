@@ -1,0 +1,18 @@
+{
+  "id": "widows_tithe",
+  "name": "Widow’s Tithe",
+  "description": "The dead pay their debts. Every kill yields coin.",
+  "maxStacks": 2,
+  "tags": [
+    "greed"
+  ],
+  "weight": 1,
+  "rules": [
+    {
+      "event": "onKill",
+      "effect": "bonus_gold",
+      "amount": 9
+    }
+  ],
+  "offerable": true
+}

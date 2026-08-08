@@ -1,1 +1,24 @@
-{ "id": "poison_pool", "scene": "res://scenes/traps/poison_pool.tscn" }
+{
+  "id": "poison_pool",
+  "name": "Fouled Pool",
+  "description": "The slow kind of drowning.",
+  "scene": "res://scenes/traps/poison_pool.tscn",
+  "trigger": "proximity",
+  "telegraph": 0.6,
+  "active": 3.2,
+  "cooldown": 2,
+  "triggerRadius": 3.4,
+  "damage": 4,
+  "poiseDamage": 0,
+  "damageType": "poison",
+  "hitInterval": 0.8,
+  "statusId": "poison",
+  "statusBuildUp": 20,
+  "enemyDamageMultiplier": 0.75,
+  "size": [
+    4,
+    1.6,
+    4
+  ],
+  "color": "#4f7a34"
+}

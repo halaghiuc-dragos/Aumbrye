@@ -1,0 +1,26 @@
+{
+  "id": "graysteel_shortsword",
+  "name": "Graysteel Shortsword",
+  "itemType": "weapon",
+  "equipmentSlot": "weapon",
+  "gridWidth": 2,
+  "gridHeight": 2,
+  "stackSize": 1,
+  "rarity": "common",
+  "description": "Issued by the hundred, buried by the hundred. Vault-stock, stamped and stacked for a war that was called off. Scaling: Strength C, Dexterity C.",
+  "value": 42,
+  "lootValue": 21,
+  "maxDurability": 100,
+  "baseId": "shortsword",
+  "materialTier": "graysteel",
+  "biome": "iron_vault",
+  "scaling": {
+    "strength": "C",
+    "dexterity": "C"
+  },
+  "stats": {
+    "physicalDamage": 4,
+    "resistPhysical": 0.02
+  },
+  "weaponId": "sword_basic"
+}

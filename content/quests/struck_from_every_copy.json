@@ -1,0 +1,15 @@
+{
+  "id": "struck_from_every_copy",
+  "title": "Struck From Every Copy",
+  "type": "discover",
+  "chainId": "prayer",
+  "prerequisites": [
+    "the_lector"
+  ],
+  "biomeId": "dark_cathedral",
+  "requiredCount": 3,
+  "description": "The amendment is in one hand throughout. Odile wants three examples of it, so that she can stop calling it a rumour.",
+  "rewards": {
+    "gold": 240
+  }
+}

@@ -21,7 +21,7 @@ static func place(
 	var cover_rng := ProcgenRng.stream(run_seed, "cover")
 	var boss_rng := ProcgenRng.stream_with_mix(run_seed, "boss", tier * 1009 + floor_index * 9176)
 	var enemies_result := _place_enemies(
-		biome, assignment, tier, player_level, enemies_rng, graph
+		biome, assignment, run_seed, tier, player_level, enemies_rng, graph
 	)
 	var loot_result := _place_loot(
 		biome,
@@ -35,7 +35,7 @@ static func place(
 	)
 	if not loot_result.get("ok", true):
 		return loot_result
-	var cover := _place_cover(assignment, cover_rng)
+	var cover := _place_cover(biome, assignment, run_seed, cover_rng)
 	return {
 		"ok": true,
 		"enemies": enemies_result["enemies"],
@@ -55,11 +55,21 @@ static func place(
 static func _place_enemies(
 	biome: Dictionary,
 	assignment: Dictionary,
+	run_seed: int,
 	tier: int,
 	player_level: int,
 	rng: RandomNumberGenerator,
 	graph: RoomGraph = null
 ) -> Dictionary:
+	var biome_id := str(biome.get("id", ""))
+	var elite_rule := (
+		RunModifierService.has_modifier(RunModifierService.MODIFIER_ELITE_PACKS)
+		or RunModifierService.has_modifier(RunModifierService.MODIFIER_ELITE_VIGIL)
+	)
+	var elites_required := 0
+	if RunModifierService.has_modifier(RunModifierService.MODIFIER_ELITE_VIGIL):
+		elites_required = 1
+	var elites_placed := 0
 	var budgets: Dictionary = biome.get("budgets", {})
 	var budget := (
 		float(budgets.get("baseEnemyThreat", 200))
@@ -81,8 +91,14 @@ static func _place_enemies(
 			1 + int(depth / 3.0) + int((tier - 1) / 2.0), 1, 4
 		)
 		var anchor_idx := 0
-		var anchors: Array = RoomTemplateCatalog.anchors_for(
-			str(room.get("template_id", "")), "enemy"
+		var room_template := str(room.get("template_id", ""))
+		var anchors: Array = RoomLayoutCatalog.anchors_for(
+			biome_id,
+			room_template,
+			"enemy",
+			RoomLayoutCatalog.variant_for_room(
+				biome_id, run_seed, str(room.get("semantic_id", "")), room_template
+			)
 		)
 		for i in max_per_room:
 			var placed := false
@@ -98,12 +114,18 @@ static func _place_enemies(
 					break
 				var offset: Vector3 = anchors[anchor_idx % anchors.size()]
 				anchor_idx += 1
+				var is_elite := false
+				if elite_rule and i == 0:
+					if elites_placed < elites_required or rng.randf() < 0.3:
+						is_elite = true
+						elites_placed += 1
 				placements.append(
 					{
 						"roomId": room["semantic_id"],
 						"enemyId": enemy_id,
 						"offset": _vec_dict(offset),
 						"sampleNavmesh": true,
+						"isElite": is_elite,
 					}
 				)
 				threat_used += threat_cost
@@ -117,21 +139,22 @@ static func _place_enemies(
 static func _place_loot(
 	biome: Dictionary,
 	assignment: Dictionary,
-	_run_seed: int,
+	run_seed: int,
 	tier: int,
 	loot_rng: RandomNumberGenerator,
 	traps_rng: RandomNumberGenerator,
 	boss_rng: RandomNumberGenerator,
 	graph: RoomGraph = null
 ) -> Dictionary:
+	var biome_id := str(biome.get("id", ""))
 	var loot: Array = []
 	var traps: Array = []
 	var secrets: Array = []
 	var rooms: Array = assignment.get("rooms", [])
 	var treasure_room: Dictionary = _first_room_of_type(rooms, "treasure")
 	if not treasure_room.is_empty():
-		var chest_anchors: Array = RoomTemplateCatalog.anchors_for(
-			str(treasure_room.get("template_id", "")), "chest"
+		var chest_anchors: Array = _room_anchors(
+			biome_id, run_seed, treasure_room, "chest"
 		)
 		loot.append(
 			_loot_placement(
@@ -174,15 +197,22 @@ static func _place_loot(
 					"wallDirection": wall_direction,
 				}
 			)
-			var secret_anchors: Array = RoomTemplateCatalog.anchors_for(
-				str(room.get("template_id", "")), "chest"
-			)
+			var secret_anchors: Array = _room_anchors(biome_id, run_seed, room, "chest")
+			var secret_rank := secrets.size()
+			var secret_role := "secret"
+			if secret_rank >= 3:
+				secret_role = "armory"
+			elif secret_rank >= 2 and mechanism == "hidden_lever":
+				secret_role = "treasure"
+			if not _has_loot_role(biome, secret_role):
+				secret_role = "secret"
+			var secret_tier := tier + secret_rank - 1
 			loot.append(
 				_loot_placement(
 					room["semantic_id"],
 					"secret_vault_%d" % secrets.size(),
 					secret_anchors[0],
-					ProcgenLootRoller.roll_chest(biome, "secret", tier, loot_rng)
+					ProcgenLootRoller.roll_chest(biome, secret_role, secret_tier, loot_rng)
 				)
 			)
 	var combat_rooms: Array = _sorted_combat_rooms(assignment)
@@ -199,9 +229,9 @@ static func _place_loot(
 			side_role = "armory"
 		elif side_depth >= 4:
 			side_role = "treasure"
-		var side_anchors: Array = RoomTemplateCatalog.anchors_for(
-			str(side_room.get("template_id", "")), "chest"
-		)
+		if RunModifierService.has_modifier(RunModifierService.MODIFIER_RICH_VEINS):
+			side_role = "armory" if _has_loot_role(biome, "armory") else "treasure"
+		var side_anchors: Array = _room_anchors(biome_id, run_seed, side_room, "chest")
 		loot.append(
 			_loot_placement(
 				side_room["semantic_id"],
@@ -214,9 +244,7 @@ static func _place_loot(
 		var armory_room: Dictionary = combat_rooms[
 			loot_rng.randi_range(0, combat_rooms.size() - 1)
 		]
-		var armory_anchors: Array = RoomTemplateCatalog.anchors_for(
-			str(armory_room.get("template_id", "")), "chest"
-		)
+		var armory_anchors: Array = _room_anchors(biome_id, run_seed, armory_room, "chest")
 		var armory_offset: Vector3 = (
 			armory_anchors[1] if armory_anchors.size() > 1 else armory_anchors[0]
 		)
@@ -237,9 +265,7 @@ static func _place_loot(
 				corridor = room
 				break
 	if not corridor.is_empty():
-		var trap_anchors: Array = RoomTemplateCatalog.anchors_for(
-			str(corridor.get("template_id", "")), "trap"
-		)
+		var trap_anchors: Array = _room_anchors(biome_id, run_seed, corridor, "trap")
 		traps.append(
 			{
 				"roomId": corridor["semantic_id"],
@@ -250,15 +276,15 @@ static func _place_loot(
 		)
 	var off_path_rooms := _off_path_combat_rooms(assignment, graph)
 	var trap_count := clampi(1 + int(tier / 2.0), 1, 4)
+	if RunModifierService.has_modifier(RunModifierService.MODIFIER_THICK_TRAPS):
+		trap_count = clampi(trap_count * 2, 1, 8)
 	for _i in mini(trap_count, off_path_rooms.size()):
 		if off_path_rooms.is_empty():
 			break
 		var pick_idx := traps_rng.randi_range(0, off_path_rooms.size() - 1)
 		var trap_room: Dictionary = off_path_rooms[pick_idx]
 		off_path_rooms.remove_at(pick_idx)
-		var trap_anchors: Array = RoomTemplateCatalog.anchors_for(
-			str(trap_room.get("template_id", "")), "trap"
-		)
+		var trap_anchors: Array = _room_anchors(biome_id, run_seed, trap_room, "trap")
 		traps.append(
 			{
 				"roomId": trap_room["semantic_id"],
@@ -287,6 +313,17 @@ static func _place_loot(
 			"entrance": "entrance",
 			"loot_value": ProcgenLootRoller.estimate_loot_value(loot),
 		}
+	if RunModifierService.has_modifier(RunModifierService.MODIFIER_BOSS_HOARD):
+		var hoard_role := "treasure" if _has_loot_role(biome, "treasure") else "secret"
+		var hoard_anchors: Array = _room_anchors(biome_id, run_seed, boss_room, "chest")
+		loot.append(
+			_loot_placement(
+				boss_room["semantic_id"],
+				"boss_hoard",
+				hoard_anchors[hoard_anchors.size() - 1],
+				ProcgenLootRoller.roll_chest(biome, hoard_role, tier + 2, loot_rng)
+			)
+		)
 	return {
 		"ok": true,
 		"loot": loot,
@@ -303,16 +340,37 @@ static func _place_loot(
 	}
 
 
-static func _place_cover(
-	assignment: Dictionary, rng: RandomNumberGenerator, _graph: RoomGraph = null
+static func _room_anchors(
+	biome_id: String, run_seed: int, room: Dictionary, role: String
 ) -> Array:
+	var template_id := str(room.get("template_id", ""))
+	var variant := RoomLayoutCatalog.variant_for_room(
+		biome_id, run_seed, str(room.get("semantic_id", "")), template_id
+	)
+	return RoomLayoutCatalog.anchors_for(biome_id, template_id, role, variant)
+
+
+static func _has_loot_role(biome: Dictionary, role: String) -> bool:
+	var tables: Variant = biome.get("lootTables", {})
+	if not tables is Dictionary:
+		return false
+	var table: Variant = (tables as Dictionary).get(role, [])
+	return table is Array and not (table as Array).is_empty()
+
+
+static func _place_cover(
+	biome: Dictionary,
+	assignment: Dictionary,
+	run_seed: int,
+	rng: RandomNumberGenerator,
+	_graph: RoomGraph = null
+) -> Array:
+	var biome_id := str(biome.get("id", ""))
 	var cover: Array = []
 	for room in assignment.get("rooms", []):
 		if room.get("type", "") != "combat":
 			continue
-		var anchors: Array = RoomTemplateCatalog.anchors_for(
-			str(room.get("template_id", "")), "cover"
-		)
+		var anchors: Array = _room_anchors(biome_id, run_seed, room, "cover")
 		var pillar_count := rng.randi_range(2, 3)
 		for i in pillar_count:
 			var offset: Vector3 = anchors[i % anchors.size()]

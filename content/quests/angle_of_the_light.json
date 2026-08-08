@@ -1,0 +1,21 @@
+{
+  "id": "angle_of_the_light",
+  "title": "The Angle of the Light",
+  "type": "discover",
+  "chainId": "lamps",
+  "prerequisites": [
+    "thin_enough"
+  ],
+  "biomeId": "prism_depths",
+  "requiredCount": 3,
+  "description": "Corrin's schedules end mid-column. Read three of the notices still standing in the Prism Depths and bring back what they say.",
+  "rewards": {
+    "gold": 260,
+    "flags": [
+      {
+        "flag": "lamps_relit",
+        "value": true
+      }
+    ]
+  }
+}

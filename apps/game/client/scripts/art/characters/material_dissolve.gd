@@ -2,6 +2,10 @@ extends RefCounted
 class_name MaterialDissolve
 
 ## Death dissolve via dither-clip on pixel_diorama_surface materials.
+##
+## REF-06: dissolve uniforms are `instance uniform` on the shared pixel-diorama shaders, so
+## dissolving a character is a per-`MeshInstance3D` shader-parameter write, not a per-death
+## material duplication across every mesh part.
 
 const MaterialFlashScript := preload("res://scripts/art/characters/material_flash.gd")
 const CharacterRigCatalogScript := preload("res://scripts/art/characters/character_rig_catalog.gd")
@@ -14,9 +18,8 @@ const DIR_PARAM := &"dissolve_dir"
 const SWEEP_PARAM := &"dissolve_sweep"
 static func default_dissolve_duration() -> float:
 	return VfxServiceScript.get_death_burst_lifetime()
-const META_SAVED_OVERRIDE := &"material_dissolve_saved_override"
+const META_ACTIVE_TWEEN := &"material_dissolve_tween"
 const META_DEATH_STATE := &"death_visual_state"
-const META_OWNED_MATERIALS := &"owned_materials"
 const SINK_DELAY := 0.45
 const SINK_DEPTH := 1.2
 const SINK_DURATION := 0.4
@@ -71,52 +74,35 @@ static func dissolve(node: Node3D, opts: Dictionary = {}) -> void:
 	var meshes := _gather_meshes(node)
 	if meshes.is_empty():
 		return
-	_warn_owned_materials(node)
 	var duration := float(merged.get("duration", default_dissolve_duration()))
 	var max_stagger := float(merged.get("stagger", 0.0))
 	var sweep_dir := merged.get("sweep_dir", Vector3.ZERO) as Vector3
 	var object_sweep := _object_sweep_dir(node, sweep_dir, str(merged.get("sweep", "up")))
-	var overrides: Array[Dictionary] = []
+	var sweep_strength := _sweep_strength(str(merged.get("sweep", "up")))
+	var targets: Array[Dictionary] = []
 	for mesh in meshes:
-		var flash_saved: Variant = null
-		if mesh.has_meta(MaterialFlashScript.META_SAVED_OVERRIDE):
-			flash_saved = mesh.get_meta(MaterialFlashScript.META_SAVED_OVERRIDE)
-		MaterialFlashScript.cancel(mesh)
-		if not mesh.has_meta(META_SAVED_OVERRIDE):
-			if flash_saved != null:
-				mesh.set_meta(META_SAVED_OVERRIDE, flash_saved)
-			else:
-				mesh.set_meta(META_SAVED_OVERRIDE, mesh.material_override)
-		var base_mat: ShaderMaterial = null
-		if mesh.material_override is ShaderMaterial:
-			base_mat = mesh.material_override as ShaderMaterial
-		else:
-			var active := mesh.get_active_material(0)
-			if active is ShaderMaterial:
-				base_mat = active as ShaderMaterial
-		if base_mat == null or base_mat.shader == null:
+		if not _has_dissolve_shader(mesh):
 			continue
-		var dup := base_mat.duplicate() as ShaderMaterial
-		dup.set_shader_parameter(DISSOLVE_PARAM, 1.0)
-		dup.set_shader_parameter(FLASH_PARAM, 0.0)
-		dup.set_shader_parameter(ORIGIN_PARAM, Vector3.ZERO)
-		dup.set_shader_parameter(DIR_PARAM, object_sweep)
-		dup.set_shader_parameter(SWEEP_PARAM, _sweep_strength(str(merged.get("sweep", "up"))))
-		mesh.material_override = dup
+		MaterialFlashScript.cancel(mesh)
+		mesh.set_instance_shader_parameter(DISSOLVE_PARAM, 1.0)
+		mesh.set_instance_shader_parameter(ORIGIN_PARAM, Vector3.ZERO)
+		mesh.set_instance_shader_parameter(DIR_PARAM, object_sweep)
+		mesh.set_instance_shader_parameter(SWEEP_PARAM, sweep_strength)
 		var stagger := _stagger_for_mesh(mesh, max_stagger)
-		overrides.append({"mat": dup, "stagger": stagger})
-	if overrides.is_empty():
+		targets.append({"mesh": mesh, "stagger": stagger})
+	if targets.is_empty():
 		return
-	for entry in overrides:
-		var mat := entry["mat"] as ShaderMaterial
+	for entry in targets:
+		var mesh: MeshInstance3D = entry["mesh"]
 		var stagger := float(entry["stagger"])
 		var mesh_tween := tree.create_tween()
+		mesh.set_meta(META_ACTIVE_TWEEN, mesh_tween)
 		if stagger > 0.0:
 			mesh_tween.tween_interval(stagger)
 		mesh_tween.tween_method(
 			func(v: float) -> void:
-				if is_instance_valid(mat):
-					mat.set_shader_parameter(DISSOLVE_PARAM, v),
+				if is_instance_valid(mesh):
+					mesh.set_instance_shader_parameter(DISSOLVE_PARAM, v),
 			1.0,
 			0.0,
 			duration
@@ -175,15 +161,11 @@ static func _merge_opts(node: Node3D, opts: Dictionary) -> Dictionary:
 
 
 static func _record_death_state(visual: Node3D) -> void:
-	var materials: Dictionary = {}
-	for mesh in _gather_meshes(visual):
-		materials[mesh.get_instance_id()] = mesh.material_override
 	visual.set_meta(
 		META_DEATH_STATE,
 		{
 			"position": visual.position,
 			"scale": visual.scale,
-			"materials": materials,
 		}
 	)
 
@@ -194,11 +176,6 @@ static func _restore_death_state(visual: Node3D) -> void:
 	var state: Dictionary = visual.get_meta(META_DEATH_STATE)
 	visual.position = state.get("position", visual.position)
 	visual.scale = state.get("scale", visual.scale)
-	var materials: Dictionary = state.get("materials", {})
-	for mesh in _gather_meshes(visual):
-		var key := mesh.get_instance_id()
-		if materials.has(key):
-			mesh.material_override = materials[key]
 	visual.remove_meta(META_DEATH_STATE)
 
 
@@ -222,23 +199,22 @@ static func _apply_sink_and_scale(visual: Node3D, opts: Dictionary) -> void:
 
 
 static func _restore_mesh(mesh: MeshInstance3D) -> void:
-	if mesh.has_meta(META_SAVED_OVERRIDE):
-		mesh.material_override = mesh.get_meta(META_SAVED_OVERRIDE)
-		mesh.remove_meta(META_SAVED_OVERRIDE)
-	else:
-		push_warning(
-			"MaterialDissolve: restore on mesh '%s' with no saved override — skipped material write"
-			% mesh.name
-		)
-
-
-static func _warn_owned_materials(node: Node3D) -> void:
-	if node.has_meta(META_OWNED_MATERIALS):
+	if mesh == null or not is_instance_valid(mesh):
 		return
-	push_warning(
-		"MaterialDissolve: '%s' has no owned_materials meta — dissolve may target shared geometry"
-		% node.name
-	)
+	if mesh.has_meta(META_ACTIVE_TWEEN):
+		var active_tween := mesh.get_meta(META_ACTIVE_TWEEN) as Tween
+		if active_tween and active_tween.is_valid():
+			active_tween.kill()
+		mesh.remove_meta(META_ACTIVE_TWEEN)
+	if _has_dissolve_shader(mesh):
+		mesh.set_instance_shader_parameter(DISSOLVE_PARAM, 1.0)
+
+
+static func _has_dissolve_shader(mesh: MeshInstance3D) -> bool:
+	var mat := mesh.material_override as ShaderMaterial
+	if mat == null:
+		mat = mesh.get_active_material(0) as ShaderMaterial
+	return mat != null and mat.shader != null
 
 
 static func _object_sweep_dir(node: Node3D, world_dir: Vector3, sweep_mode: String) -> Vector3:

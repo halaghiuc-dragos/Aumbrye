@@ -3,21 +3,53 @@
   "$id": "https://aumbrye.dev/schemas/quest-definition.v1.json",
   "title": "QuestDefinition",
   "type": "object",
-  "additionalProperties": true,
+  "additionalProperties": false,
   "required": ["id", "title", "type", "description"],
   "properties": {
     "id": { "type": "string", "minLength": 1 },
     "title": { "type": "string", "minLength": 1 },
-    "type": { "type": "string", "minLength": 1 },
-    "targetId": { "type": "string" },
-    "targetItemId": { "type": "string" },
+    "type": {
+      "enum": [
+        "kill",
+        "fetch",
+        "escape",
+        "clear_without",
+        "reach_depth",
+        "discover",
+        "escort",
+        "defeat_with"
+      ]
+    },
+    "description": { "type": "string", "minLength": 1 },
+    "chainId": { "type": "string", "minLength": 1 },
+    "prerequisites": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "availableWhen": { "type": "object" },
+    "bounty": { "enum": ["daily", "weekly"] },
+    "repeatable": { "type": "boolean" },
+    "maxCompletions": { "type": "integer", "minimum": 1 },
+    "cooldownRuns": { "type": "integer", "minimum": 1 },
+    "targetId": { "type": "string", "minLength": 1 },
+    "targetItemId": { "type": "string", "minLength": 1 },
+    "targetNpcId": { "type": "string", "minLength": 1 },
+    "targetDiscoveryId": { "type": "string", "minLength": 1 },
+    "weaponItemId": { "type": "string", "minLength": 1 },
     "requiredCount": { "type": "integer", "minimum": 1 },
-    "description": { "type": "string" },
+    "dungeonId": { "type": "string", "minLength": 1 },
+    "biomeId": { "type": "string", "minLength": 1 },
+    "minDifficultyTier": { "type": "integer", "minimum": 1 },
+    "maxSeconds": { "type": "number", "minimum": 1 },
+    "maxKills": { "type": "integer", "minimum": 0 },
+    "requiresBoss": { "type": "boolean" },
     "rewards": {
       "type": "object",
       "additionalProperties": false,
       "properties": {
         "gold": { "type": "integer", "minimum": 0 },
+        "bountyTokens": { "type": "integer", "minimum": 1 },
+        "recipeId": { "type": "string", "minLength": 1 },
         "items": {
           "type": "array",
           "items": {
@@ -27,6 +59,18 @@
             "properties": {
               "itemId": { "type": "string", "minLength": 1 },
               "quantity": { "type": "integer", "minimum": 1 }
+            }
+          }
+        },
+        "flags": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["flag"],
+            "properties": {
+              "flag": { "type": "string", "minLength": 1 },
+              "value": {}
             }
           }
         }

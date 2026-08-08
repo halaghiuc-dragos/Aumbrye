@@ -1,0 +1,24 @@
+{
+  "id": "spellglass_pendant",
+  "name": "Spellglass Pendant",
+  "itemType": "accessory",
+  "equipmentSlot": "amulet",
+  "gridWidth": 1,
+  "gridHeight": 2,
+  "stackSize": 1,
+  "rarity": "rare",
+  "description": "The chain is newer than the stone by several centuries. Grown, not forged. It rings on a note the ear dislikes.",
+  "value": 221,
+  "lootValue": 110,
+  "maxDurability": 60,
+  "baseId": "pendant",
+  "materialTier": "spellglass",
+  "biome": "crystal_caverns",
+  "scaling": {},
+  "stats": {
+    "manaMax": 32,
+    "healthRegen": 3,
+    "resistArcane": 0.1,
+    "resistLightning": 0.05
+  }
+}

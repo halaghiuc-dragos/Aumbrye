@@ -1,0 +1,19 @@
+{
+  "id": "firebomb",
+  "name": "Firebomb",
+  "itemType": "consumable",
+  "gridWidth": 1,
+  "gridHeight": 1,
+  "stackSize": 8,
+  "rarity": "common",
+  "description": "Pitch in a clay shell. Thrown underarm, and thrown early.",
+  "consumableEffect": {
+    "kind": "throw",
+    "statusId": "burn",
+    "duration": 10,
+    "radius": 4.5,
+    "usableInHub": false
+  },
+  "value": 45,
+  "lootValue": 22
+}

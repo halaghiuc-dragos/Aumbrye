@@ -1,0 +1,12 @@
+{
+  "id": "hoarfrost_shard",
+  "name": "Hoarfrost Shard",
+  "itemType": "material",
+  "gridWidth": 1,
+  "gridHeight": 1,
+  "stackSize": 20,
+  "description": "It does not melt in the hand. It does not warm, either.",
+  "value": 40,
+  "lootValue": 24,
+  "materialTier": "hoarfrost"
+}

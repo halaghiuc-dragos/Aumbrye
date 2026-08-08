@@ -1,0 +1,32 @@
+{
+  "id": "unique_rimeglass_pendant",
+  "name": "Rimeglass Pendant",
+  "itemType": "accessory",
+  "equipmentSlot": "amulet",
+  "gridWidth": 1,
+  "gridHeight": 2,
+  "stackSize": 1,
+  "rarity": "epic",
+  "description": "Ice that will not thaw, in a setting that was made to hold something else.",
+  "value": 480,
+  "lootValue": 240,
+  "maxDurability": 60,
+  "unique": true,
+  "baseId": "pendant",
+  "biome": "frozen_fortress",
+  "scaling": {},
+  "ruleText": "Killing a frozen enemy yields 20 gold.",
+  "rules": [
+    {
+      "event": "onKill",
+      "effect": "bonus_gold",
+      "amount": 20.0,
+      "ifTargetHasStatus": "freeze"
+    }
+  ],
+  "stats": {
+    "resistFrost": 0.16,
+    "frostDamage": 6,
+    "goldFind": 0.1
+  }
+}

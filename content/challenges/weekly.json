@@ -1,0 +1,112 @@
+{
+  "schemaVersion": 1,
+  "epochUnix": 1704153600,
+  "seedSalt": 2654435761,
+  "rotation": [
+    {
+      "id": "week_cold_iron",
+      "name": "Cold Iron",
+      "description": "The wardens have been given plate, and the hearths were never lit.",
+      "dungeonId": "forgotten_castle",
+      "difficultyTier": 3,
+      "modifiers": [
+        "armoured_foes",
+        "no_rest",
+        "elite_packs"
+      ],
+      "scoring": "time"
+    },
+    {
+      "id": "week_starved_light",
+      "name": "Starved Light",
+      "description": "The map remembers nothing. Neither will the fires.",
+      "dungeonId": "frozen_fortress",
+      "difficultyTier": 3,
+      "modifiers": [
+        "fog_of_war",
+        "starved_hearth",
+        "hostile_halls"
+      ],
+      "scoring": "time"
+    },
+    {
+      "id": "week_old_malice",
+      "name": "Old Malice",
+      "description": "Someone laid this floor with intent, a long time ago.",
+      "dungeonId": "poison_swamp",
+      "difficultyTier": 4,
+      "modifiers": [
+        "thick_traps",
+        "barred_ways",
+        "frenzied_foes"
+      ],
+      "scoring": "kills"
+    },
+    {
+      "id": "week_the_vigil",
+      "name": "The Vigil",
+      "description": "A warden walks every floor, and no one is trading this deep.",
+      "dungeonId": "iron_vault",
+      "difficultyTier": 4,
+      "modifiers": [
+        "elite_vigil",
+        "no_merchant",
+        "sealed_doors"
+      ],
+      "scoring": "time"
+    },
+    {
+      "id": "week_thin_skin",
+      "name": "Thin Skin",
+      "description": "Everything down here breaks easily, yours included.",
+      "dungeonId": "crystal_caverns",
+      "difficultyTier": 4,
+      "modifiers": [
+        "volatile_foes",
+        "relentless_foes"
+      ],
+      "scoring": "time"
+    },
+    {
+      "id": "week_locked_ways",
+      "name": "Locked Ways",
+      "description": "Two keys for every door, and fewer doors worth opening.",
+      "dungeonId": "dark_cathedral",
+      "difficultyTier": 5,
+      "modifiers": [
+        "sealed_doors",
+        "barred_ways",
+        "no_rest"
+      ],
+      "scoring": "depth"
+    },
+    {
+      "id": "week_rich_and_cruel",
+      "name": "Rich and Cruel",
+      "description": "The vaults are full because nothing that opened them came back.",
+      "dungeonId": "glacial_hollow",
+      "difficultyTier": 5,
+      "modifiers": [
+        "rich_veins",
+        "boss_hoard",
+        "elite_packs",
+        "armoured_foes"
+      ],
+      "scoring": "kills"
+    },
+    {
+      "id": "week_long_dark",
+      "name": "The Long Dark",
+      "description": "Unlit, unrested, and it does not stop coming.",
+      "dungeonId": "umbral_chapel",
+      "difficultyTier": 5,
+      "modifiers": [
+        "fog_of_war",
+        "no_rest",
+        "relentless_foes",
+        "hostile_halls"
+      ],
+      "scoring": "depth"
+    }
+  ]
+}

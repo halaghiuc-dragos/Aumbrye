@@ -17,6 +17,63 @@
         "umbral_chapel"
       ],
       "rewardItemId": "iron_scrap"
+    },
+    {
+      "questId": "rescue_halbrek",
+      "dialogueId": "rescue_halbrek",
+      "questKeyId": "rescued_halbrek",
+      "biomes": [
+        "forgotten_castle"
+      ],
+      "rewardItemId": "iron_scrap"
+    },
+    {
+      "questId": "rescue_ivo",
+      "dialogueId": "rescue_ivo",
+      "questKeyId": "rescued_ivo",
+      "biomes": [
+        "iron_vault"
+      ],
+      "rewardItemId": "vault_sealing_wax"
+    },
+    {
+      "questId": "rescue_nettle",
+      "dialogueId": "rescue_nettle",
+      "questKeyId": "rescued_nettle",
+      "biomes": [
+        "venom_mire",
+        "poison_swamp"
+      ],
+      "rewardItemId": "bog_resin"
+    },
+    {
+      "questId": "rescue_corrin",
+      "dialogueId": "rescue_corrin",
+      "questKeyId": "rescued_corrin",
+      "biomes": [
+        "prism_depths",
+        "crystal_caverns"
+      ],
+      "rewardItemId": "spellglass_sliver"
+    },
+    {
+      "questId": "rescue_odile",
+      "dialogueId": "rescue_odile",
+      "questKeyId": "rescued_odile",
+      "biomes": [
+        "dark_cathedral"
+      ],
+      "rewardItemId": "chapel_wax"
+    },
+    {
+      "questId": "rescue_veil",
+      "dialogueId": "rescue_veil",
+      "questKeyId": "rescued_veil",
+      "biomes": [
+        "umbral_chapel",
+        "glacial_hollow"
+      ],
+      "rewardItemId": "sable_grain"
     }
   ]
 }

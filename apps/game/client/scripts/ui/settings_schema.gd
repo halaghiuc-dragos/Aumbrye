@@ -105,6 +105,45 @@ static func entries() -> Array[Dictionary]:
 			func() -> bool: return AccessibilitySettings.camera_invert_y,
 			Callable(SettingsSchema, "_set_camera_invert_y")
 		),
+		_slider_row(
+			"assist_damage_taken",
+			"accessibility",
+			AccessibilitySettings.ASSIST_DAMAGE_TAKEN_MIN,
+			AccessibilitySettings.ASSIST_DAMAGE_TAKEN_MAX,
+			0.05,
+			"multiplier",
+			func() -> float: return AccessibilitySettings.assist_damage_taken,
+			Callable(SettingsSchema, "_set_assist_damage_taken"),
+			func() -> void: AccessibilitySettings.request_commit()
+		),
+		_slider_row(
+			"assist_iframe_generosity",
+			"accessibility",
+			AccessibilitySettings.ASSIST_IFRAME_MIN,
+			AccessibilitySettings.ASSIST_IFRAME_MAX,
+			0.05,
+			"multiplier",
+			func() -> float: return AccessibilitySettings.assist_iframe_generosity,
+			Callable(SettingsSchema, "_set_assist_iframe_generosity"),
+			func() -> void: AccessibilitySettings.request_commit()
+		),
+		_slider_row(
+			"assist_lock_on_range",
+			"accessibility",
+			AccessibilitySettings.ASSIST_LOCK_ON_MIN,
+			AccessibilitySettings.ASSIST_LOCK_ON_MAX,
+			0.05,
+			"multiplier",
+			func() -> float: return AccessibilitySettings.assist_lock_on_range,
+			Callable(SettingsSchema, "_set_assist_lock_on_range"),
+			func() -> void: AccessibilitySettings.request_commit()
+		),
+		_toggle_row(
+			"assist_telegraph_emphasis",
+			"accessibility",
+			func() -> bool: return AccessibilitySettings.assist_telegraph_emphasis,
+			Callable(SettingsSchema, "_set_assist_telegraph_emphasis")
+		),
 	]
 
 
@@ -112,6 +151,27 @@ static func entries() -> Array[Dictionary]:
 ## whose last statement carried the array/call's own separator comma. Godot's actual compiler
 ## errors on that ambiguity even where gdlint's independent grammar (gdtoolkit, not the engine)
 ## accepts it — named functions are unambiguous under both.
+static func _set_assist_damage_taken(v: float) -> void:
+	AccessibilitySettings.assist_damage_taken = v
+	AccessibilitySettings.apply_live("assist_damage_taken", v)
+
+
+static func _set_assist_iframe_generosity(v: float) -> void:
+	AccessibilitySettings.assist_iframe_generosity = v
+	AccessibilitySettings.apply_live("assist_iframe_generosity", v)
+
+
+static func _set_assist_lock_on_range(v: float) -> void:
+	AccessibilitySettings.assist_lock_on_range = v
+	AccessibilitySettings.apply_live("assist_lock_on_range", v)
+
+
+static func _set_assist_telegraph_emphasis(v: bool) -> void:
+	AccessibilitySettings.assist_telegraph_emphasis = v
+	AccessibilitySettings.apply_live("assist_telegraph_emphasis", v)
+	AccessibilitySettings.request_commit()
+
+
 static func _set_reduce_camera_shake(v: bool) -> void:
 	AccessibilitySettings.reduce_camera_shake = v
 	AccessibilitySettings.apply_live("reduce_camera_shake", v)

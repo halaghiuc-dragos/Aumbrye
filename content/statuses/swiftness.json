@@ -1,0 +1,16 @@
+{
+  "id": "swiftness",
+  "name": "Quickening",
+  "description": "The floor gives back a little of what it takes.",
+  "damageType": "physical",
+  "tickDamage": 0,
+  "tickInterval": 1,
+  "maxStacks": 1,
+  "duration": 10,
+  "speedMultiplier": 1.18,
+  "iconColor": "#a8e0d8",
+  "polarity": "buff",
+  "stats": {
+    "moveSpeedPercent": 8
+  }
+}

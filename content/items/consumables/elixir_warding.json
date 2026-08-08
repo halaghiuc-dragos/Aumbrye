@@ -1,0 +1,19 @@
+{
+  "id": "elixir_warding",
+  "name": "Elixir of Warding",
+  "itemType": "consumable",
+  "gridWidth": 1,
+  "gridHeight": 2,
+  "stackSize": 5,
+  "rarity": "epic",
+  "description": "Poured over the tongue rather than drunk. The distinction was insisted upon.",
+  "consumableEffect": {
+    "kind": "applyStatus",
+    "statusId": "elixir_warding",
+    "duration": 90,
+    "stat": "damageReduction",
+    "amount": 0.12
+  },
+  "value": 220,
+  "lootValue": 110
+}

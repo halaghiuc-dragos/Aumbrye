@@ -15,9 +15,20 @@ const SOFT_LOCK_CONE_DEG := 100.0
 const SOFT_LOCK_RANGE := 14.0
 const TWO_HAND_DAMAGE_MULT := 1.25
 const TWO_HAND_POISE_MULT := 1.35
+const DEFAULT_CANCEL_INTO: Array[String] = ["dodge", "guard"]
+const DEFAULT_CANCEL_AFTER := 0.55
+const RUNNING_ATTACK_SPRINT_BLEND := 0.6
+const EXECUTION_RANGE := 2.3
+const EXECUTION_OFFSET := 1.15
+const EXECUTION_FACING_DOT := 0.55
+const EXECUTION_STARTUP := 0.22
+const EXECUTION_ACTIVE := 0.2
+const EXECUTION_RECOVERY := 0.5
 const LUNGE_FRACTION_OF_STARTUP := 1.0
 const LUNGE_FRACTION_OF_ACTIVE := 0.5
 const LUNGE_MIN_SPEED := 0.5
+const PLAYER_ARROW_SCENE := preload("res://scenes/combat/player_arrow.tscn")
+const ARROW_BASE_SPEED := 26.0
 
 const FALLBACK_WEAPON_DATA := {
 	"archetype": "sword",
@@ -88,6 +99,11 @@ var _lunge_duration := 0.0
 var _lunge_elapsed := 0.0
 var _hitbox_opened_this_swing := false
 var _sync_hitbox_from_anim := false
+var _last_light_index := -1
+var _execution_kind := ""
+var _execution_target: Node3D = null
+var _execution_iframes := false
+var _body_reports_sprint := false
 
 
 func _ready() -> void:
@@ -101,6 +117,9 @@ func _ready() -> void:
 	if _dodge:
 		_dodge.dodge_started.connect(_on_dodge_started)
 		_dodge.dodge_ended.connect(_on_dodge_ended)
+	if _guard:
+		_guard.block_state_changed.connect(_on_guard_state_changed)
+	_body_reports_sprint = _body != null and _body.has_method("get_sprint_blend")
 	_connect_anim_hitbox_signals()
 	if hitbox_path:
 		_hitbox = get_node_or_null(hitbox_path) as Area3D
@@ -128,22 +147,30 @@ func _physics_process(delta: float) -> void:
 		_combo_idle_timer -= delta
 		if _combo_idle_timer <= 0.0:
 			_combo_index = 0
+			_last_light_index = -1
 	if _post_dodge_attack_buffer > 0.0:
 		_post_dodge_attack_buffer -= delta
 		if _post_dodge_attack_buffer <= 0.0:
 			_buffered_attack = ""
 	if _art_cooldown_timer > 0.0:
 		_art_cooldown_timer -= delta
+	if _dodge and _dodge.is_dodging and not is_attacking and _buffered_attack == "":
+		if PlayerInput.just_pressed(&"light_attack"):
+			_buffered_attack = "light"
+		elif PlayerInput.just_pressed(&"heavy_attack"):
+			_buffered_attack = "heavy"
 	if _is_action_blocked():
-		return
-	var archetype: String = _weapon_data.get("archetype", "sword")
-	if archetype == "bow":
-		_process_bow_input(delta)
+		if is_attacking and current_phase != AttackPhase.DRAWING:
+			_cancel_attack()
 		return
 	if PlayerInput.just_pressed(&"two_hand"):
 		_toggle_two_hand()
 	if PlayerInput.just_pressed(&"weapon_art"):
 		_try_weapon_art()
+	var archetype: String = _weapon_data.get("archetype", "sword")
+	if archetype == "bow":
+		_process_bow_input(delta)
+		return
 	if is_attacking:
 		_process_attack_phase(delta)
 		return
@@ -283,9 +310,38 @@ func locks_movement() -> bool:
 		return false
 	if current_phase == AttackPhase.DRAWING:
 		return true
-	if current_phase == AttackPhase.RECOVERY and _can_dodge_cancel():
+	if current_phase == AttackPhase.RECOVERY and _can_cancel_any():
 		return false
 	return current_phase in [AttackPhase.STARTUP, AttackPhase.ACTIVE, AttackPhase.RECOVERY]
+
+
+func allows_cancel_into(action: String) -> bool:
+	if not is_attacking:
+		return true
+	if current_phase != AttackPhase.RECOVERY:
+		return false
+	var options: Array = _current_attack.get(
+		"cancel_into", _weapon_data.get("cancel_into", DEFAULT_CANCEL_INTO)
+	)
+	if not options.has(action):
+		return false
+	var recovery := float(_current_attack.get("recovery", 0.3))
+	if recovery <= 0.0:
+		return true
+	var after := clampf(
+		float(
+			_current_attack.get(
+				"cancel_after", _weapon_data.get("cancel_after", DEFAULT_CANCEL_AFTER)
+			)
+		),
+		0.0,
+		1.0
+	)
+	return _phase_timer <= recovery * (1.0 - after)
+
+
+func _can_cancel_any() -> bool:
+	return allows_cancel_into("dodge") or allows_cancel_into("guard")
 
 
 func get_move_speed_multiplier() -> float:
@@ -372,18 +428,25 @@ func _try_attack(kind: String) -> void:
 		if _phase_timer <= buffer_window or current_phase == AttackPhase.RECOVERY:
 			_buffered_attack = kind
 		return
-	var attack: Dictionary
-	if kind == "heavy":
-		attack = _weapon_data.get("heavy_attack", {})
-		_attack_name = "heavy"
-		_combo_index = 0
-	else:
-		var lights: Array = _weapon_data.get("light_attacks", [])
-		if lights.is_empty():
-			return
-		_combo_index = _combo_index % lights.size()
-		attack = lights[_combo_index]
-		_attack_name = "light_%d" % (_combo_index + 1)
+	if _try_start_execution():
+		return
+	var attack: Dictionary = _situational_attack(kind)
+	if attack.is_empty():
+		if kind == "heavy":
+			attack = _resolve_heavy_attack()
+			_attack_name = "heavy"
+			_combo_index = 0
+			_last_light_index = -1
+		else:
+			var lights: Array = _weapon_data.get("light_attacks", [])
+			if lights.is_empty():
+				return
+			_combo_index = _combo_index % lights.size()
+			attack = lights[_combo_index]
+			_attack_name = "light_%d" % (_combo_index + 1)
+			_last_light_index = _combo_index
+	if attack.is_empty():
+		return
 	var cost: float = _scaled_stamina_cost(float(attack.get("stamina_cost", 10.0)))
 	if _stamina and not _stamina.has(cost):
 		return
@@ -391,6 +454,44 @@ func _try_attack(kind: String) -> void:
 		_stamina.consume(cost)
 	_snap_soft_lock_facing()
 	_start_attack(attack)
+
+
+func _situational_attack(kind: String) -> Dictionary:
+	if kind != "light":
+		return {}
+	if _post_dodge_attack_buffer > 0.0:
+		var rolling: Dictionary = _weapon_data.get("rolling_attack", {})
+		if not rolling.is_empty():
+			_attack_name = "rolling"
+			_combo_index = 0
+			_last_light_index = -1
+			return rolling
+	if _sprint_blend() >= RUNNING_ATTACK_SPRINT_BLEND:
+		var running: Dictionary = _weapon_data.get("running_attack", {})
+		if not running.is_empty():
+			_attack_name = "running"
+			_combo_index = 0
+			_last_light_index = -1
+			return running
+	return {}
+
+
+func _sprint_blend() -> float:
+	if not _body_reports_sprint:
+		return 0.0
+	return float(_body.call("get_sprint_blend"))
+
+
+func _resolve_heavy_attack() -> Dictionary:
+	var lights: Array = _weapon_data.get("light_attacks", [])
+	if _last_light_index >= 0 and _combo_idle_timer > 0.0 and _last_light_index < lights.size():
+		var entry: Dictionary = lights[_last_light_index]
+		if entry.has("heavy_branch"):
+			var chain: Array = _weapon_data.get("heavy_attacks", [])
+			var branch := int(entry.get("heavy_branch", -1))
+			if branch >= 0 and branch < chain.size():
+				return chain[branch]
+	return _weapon_data.get("heavy_attack", {})
 
 
 func _try_weapon_art() -> void:
@@ -417,6 +518,137 @@ func _try_weapon_art() -> void:
 	_art_cooldown_timer = get_weapon_art_cooldown_duration()
 	_snap_soft_lock_facing()
 	_start_attack(attack)
+
+
+func _try_start_execution() -> bool:
+	if _body == null or get_archetype() == "bow":
+		return false
+	var kind := "riposte"
+	var victim := _resolve_riposte_target()
+	if victim == null:
+		victim = _resolve_backstab_target()
+		kind = "backstab"
+	if victim == null:
+		return false
+	var attack := _execution_attack(kind)
+	var cost := _scaled_stamina_cost(float(attack.get("stamina_cost", 20.0)))
+	if _stamina and not _stamina.has(cost):
+		return false
+	if _stamina:
+		_stamina.consume(cost)
+	if kind == "riposte" and _guard:
+		_guard.consume_riposte()
+	_execution_kind = kind
+	_execution_target = victim
+	_snap_to_execution_position(victim, kind)
+	if _dodge and not _execution_iframes:
+		_execution_iframes = true
+		_dodge.grant_external_iframes(true)
+	_attack_name = kind
+	_combo_index = 0
+	_last_light_index = -1
+	_start_attack(attack)
+	return true
+
+
+func _execution_attack(kind: String) -> Dictionary:
+	var base: Dictionary = _weapon_data.get("heavy_attack", {})
+	if base.is_empty():
+		base = FALLBACK_WEAPON_DATA["heavy_attack"]
+	var attack: Dictionary = base.duplicate(true)
+	attack["startup"] = EXECUTION_STARTUP
+	attack["active"] = EXECUTION_ACTIVE
+	attack["recovery"] = EXECUTION_RECOVERY
+	attack["lunge_distance"] = 0.0
+	attack["hyperarmor"] = true
+	attack["cancel_into"] = [] as Array[String]
+	if kind == "riposte":
+		attack["damage"] = float(attack.get("damage", 28.0)) * Guard.RIPOSTE_DAMAGE_MULT
+		attack["poise_damage"] = float(attack.get("poise_damage", 35.0)) * Guard.RIPOSTE_DAMAGE_MULT
+	return attack
+
+
+func _resolve_riposte_target() -> Node3D:
+	if _guard == null or not _guard.riposte_active:
+		return null
+	var victim := _guard.parried_target as Node3D
+	if victim == null or not is_instance_valid(victim):
+		return null
+	if victim.has_method("is_dead") and victim.call("is_dead"):
+		return null
+	if not _is_in_execution_range(victim):
+		return null
+	return victim
+
+
+func _resolve_backstab_target() -> Node3D:
+	var facing := _facing_forward()
+	if facing.length_squared() < 0.01:
+		return null
+	var origin := _body.global_position
+	var best: Node3D = null
+	var best_dist := EXECUTION_RANGE * EXECUTION_RANGE
+	for node in get_tree().get_nodes_in_group("enemy"):
+		var enemy := node as Node3D
+		if enemy == null or not is_instance_valid(enemy):
+			continue
+		if enemy.has_method("is_dead") and enemy.call("is_dead"):
+			continue
+		var offset := enemy.global_position - origin
+		offset.y = 0.0
+		var dist_sq := offset.length_squared()
+		if dist_sq >= best_dist or dist_sq < 0.0004:
+			continue
+		if facing.dot(offset.normalized()) < EXECUTION_FACING_DOT:
+			continue
+		if DamageInfo.classify_arc(enemy, origin) != DamageInfo.HitArc.BACK:
+			continue
+		best_dist = dist_sq
+		best = enemy
+	return best
+
+
+func _is_in_execution_range(victim: Node3D) -> bool:
+	var offset := victim.global_position - _body.global_position
+	offset.y = 0.0
+	return offset.length_squared() <= EXECUTION_RANGE * EXECUTION_RANGE
+
+
+func _facing_forward() -> Vector3:
+	var forward: Vector3 = (
+		_body.get_facing_direction()
+		if _body.has_method("get_facing_direction")
+		else CombatFacing.forward_of(_body)
+	)
+	forward.y = 0.0
+	if forward.length_squared() < 0.01:
+		return Vector3.ZERO
+	return forward.normalized()
+
+
+func _snap_to_execution_position(victim: Node3D, kind: String) -> void:
+	var facing_node := victim.get_node_or_null("Facing") as Node3D
+	var forward := CombatFacing.forward_of(facing_node if facing_node else victim)
+	forward.y = 0.0
+	if forward.length_squared() >= 0.01:
+		forward = forward.normalized()
+		var target_pos := victim.global_position + forward * EXECUTION_OFFSET
+		if kind == "backstab":
+			target_pos = victim.global_position - forward * EXECUTION_OFFSET
+		target_pos.y = _body.global_position.y
+		_body.global_position = target_pos
+		_body.velocity = Vector3.ZERO
+		_body.reset_physics_interpolation()
+	_face_target(victim)
+
+
+func _clear_execution_state() -> void:
+	if _execution_iframes:
+		_execution_iframes = false
+		if _dodge:
+			_dodge.grant_external_iframes(false)
+	_execution_kind = ""
+	_execution_target = null
 
 
 func _start_attack(attack: Dictionary) -> void:
@@ -485,12 +717,6 @@ func _enable_hitbox_for_attack() -> void:
 	)
 	if _two_hand:
 		poise *= TWO_HAND_POISE_MULT
-	if _guard and _guard.has_method("get_riposte_damage_multiplier"):
-		var riposte_mult: float = _guard.call("get_riposte_damage_multiplier")
-		if riposte_mult > 1.0:
-			dmg *= riposte_mult
-			poise *= riposte_mult
-			_guard.call("consume_riposte")
 	var dmg_type: String = _current_attack.get(
 		"damage_type", _weapon_data.get("damage_type", "physical")
 	)
@@ -499,6 +725,8 @@ func _enable_hitbox_for_attack() -> void:
 	var crit := CombatStatModifiersScript.crit_chance(_talent_stats)
 	var crit_mult := CombatStatModifiersScript.crit_multiplier(_talent_stats)
 	_hitbox.call("set_attack_values", dmg, poise, dmg_type, status_id, status_stacks, crit, crit_mult)
+	if _hitbox.has_method("set_execution"):
+		_hitbox.call("set_execution", _execution_target, _execution_kind)
 	_hitbox.call("enable")
 	if _body:
 		var anchor: Array = VfxService.resolve_combat_anchor(_body)
@@ -511,9 +739,17 @@ func _disable_hitbox() -> void:
 		_hitbox.call("disable")
 
 
+func _cancel_attack() -> void:
+	_disable_hitbox()
+	_end_attack()
+	_combo_index = 0
+	_last_light_index = -1
+
+
 func _end_attack() -> void:
 	if _stamina:
 		_stamina.set_regen_state(Stamina.RegenState.NORMAL)
+	_clear_execution_state()
 	is_attacking = false
 	current_phase = AttackPhase.IDLE
 	_hyperarmor_active = false
@@ -563,15 +799,68 @@ func _fire_bow_shot() -> void:
 		_stamina.consume(cost)
 	var scaled := heavy.duplicate()
 	scaled["damage"] = float(heavy.get("damage", 20.0)) * lerpf(0.5, 1.5, _draw_charge)
+	var charge := _draw_charge
 	_draw_charge = 0.0
 	_current_attack = scaled
 	is_attacking = true
 	current_phase = AttackPhase.STARTUP
 	_phase_timer = 0.08
 	_attack_name = "bow_shot"
-	_apply_hitbox_profile(true)
+	# The shot is a real Projectile, not the melee hitbox — mark it "already opened" so
+	# _process_attack_phase's STARTUP->ACTIVE transition never enables the melee Hitbox for this
+	# swing (REF-14: the old path stretched the melee box into an 8m ray glued to the player).
+	_hitbox_opened_this_swing = true
 	_snap_soft_lock_facing()
+	_spawn_arrow(scaled, charge)
 	attack_started.emit(_attack_name)
+
+
+func _spawn_arrow(attack: Dictionary, charge: float) -> void:
+	if _body == null or not is_instance_valid(_body):
+		return
+	var tree := _body.get_tree()
+	if tree == null or tree.current_scene == null:
+		return
+	var arrow: Node3D = PLAYER_ARROW_SCENE.instantiate() as Node3D
+	tree.current_scene.add_child(arrow)
+	var origin := _body.global_position + Vector3(0.0, 1.2, 0.0)
+	arrow.global_position = origin
+	var direction := _get_soft_lock_aim_direction()
+	if _lock_on and _lock_on.is_locked and _lock_on.current_target:
+		var to_target: Vector3 = (_lock_on.current_target as Node3D).global_position - origin
+		if to_target.length_squared() > 0.01:
+			direction = to_target.normalized()
+	var dmg: float = float(attack.get("damage", 20.0)) * _damage_multiplier
+	dmg += CombatStatModifiersScript.flat_damage_bonus(_equipment_stats)
+	var poise: float = (
+		float(attack.get("poise_damage", 15.0))
+		* _damage_multiplier
+		* CombatStatModifiersScript.poise_damage_multiplier(_talent_stats)
+	)
+	var dmg_type: String = attack.get("damage_type", _weapon_data.get("damage_type", "physical"))
+	var status_id: String = attack.get("status", _weapon_data.get("status_on_hit", ""))
+	var status_stacks: int = int(attack.get("status_stacks", 1))
+	var crit := CombatStatModifiersScript.crit_chance(_talent_stats)
+	var crit_mult := CombatStatModifiersScript.crit_multiplier(_talent_stats)
+	var speed := ARROW_BASE_SPEED * lerpf(0.75, 1.25, charge)
+	if arrow.has_method("launch"):
+		arrow.call(
+			"launch",
+			direction,
+			speed,
+			dmg,
+			poise,
+			_body,
+			dmg_type,
+			status_id,
+			status_stacks,
+			crit,
+			crit_mult
+		)
+	if _body:
+		var anchor: Array = VfxService.resolve_combat_anchor(_body)
+		VfxService.play_attack_swing(anchor[0], anchor[1])
+		AudioDirector.play_sfx("swing", anchor[0])
 
 
 func _reset_bow() -> void:
@@ -586,6 +875,7 @@ func _toggle_two_hand() -> void:
 		return
 	_two_hand = not _two_hand
 	_refresh_damage_multiplier()
+	_apply_hitbox_profile()
 
 
 func _refresh_damage_multiplier() -> void:
@@ -593,16 +883,14 @@ func _refresh_damage_multiplier() -> void:
 	_damage_multiplier = _base_damage_multiplier * _weapon_scaling_multiplier * stance_mult
 
 
-func _can_dodge_cancel() -> bool:
-	if current_phase != AttackPhase.RECOVERY:
-		return false
-	var recovery: float = float(_current_attack.get("recovery", 0.3))
-	return _phase_timer <= recovery * 0.55
-
-
 func _on_dodge_started() -> void:
-	if is_attacking and current_phase == AttackPhase.RECOVERY:
-		_end_attack()
+	if is_attacking:
+		_cancel_attack()
+
+
+func _on_guard_state_changed(blocking: bool) -> void:
+	if blocking and is_attacking:
+		_cancel_attack()
 
 
 func _on_dodge_ended() -> void:
@@ -684,37 +972,52 @@ func _find_soft_lock_target() -> Node3D:
 	return best
 
 
-func _apply_hitbox_profile(for_bow_shot: bool = false) -> void:
-	if _hitbox_shape == null or _hitbox_shape.shape == null:
+func _apply_hitbox_profile() -> void:
+	if _hitbox_shape == null:
 		return
-	var archetype: String = _weapon_data.get("archetype", "sword")
-	var size := DEFAULT_HITBOX_SIZE
-	var offset := DEFAULT_HITBOX_OFFSET
-	match archetype:
-		"spear":
-			size = Vector3(1.0, 0.75, 1.65)
-			offset = Vector3(0.0, 0.0, 0.72)
-		"dagger":
-			size = Vector3(0.8, 0.6, 0.9)
-			offset = Vector3(0.0, 0.0, 0.4)
-		"greatsword":
-			size = Vector3(1.6, 1.0, 1.8)
-			offset = Vector3(0.0, 0.0, 0.85)
-		"axe":
-			size = Vector3(1.4, 0.9, 1.5)
-			offset = Vector3(0.0, 0.0, 0.75)
-		"staff":
-			size = Vector3(0.8, 0.7, 2.0)
-			offset = Vector3(0.0, 0.0, 1.1)
-		"bow":
-			size = Vector3(0.6, 0.6, 8.0 if for_bow_shot else 1.0)
-			offset = Vector3(0.0, 0.0, 4.0 if for_bow_shot else 0.5)
-	if _two_hand and archetype != "bow":
-		size *= 1.1
+	var profile: Dictionary = _weapon_data.get("hitbox", {})
+	var scale := 1.0
+	if _two_hand and get_archetype() != "bow":
+		scale = 1.1
+	var offset := _vector_from(profile.get("offset"), DEFAULT_HITBOX_OFFSET)
+	if scale > 1.0:
 		offset.z *= 1.08
-	if _hitbox_shape.shape is BoxShape3D:
-		(_hitbox_shape.shape as BoxShape3D).size = size
+	match String(profile.get("shape", "box")):
+		"capsule":
+			var capsule := _hitbox_shape.shape as CapsuleShape3D
+			if capsule == null:
+				capsule = CapsuleShape3D.new()
+				_hitbox_shape.shape = capsule
+			capsule.radius = maxf(0.05, float(profile.get("radius", 0.35)) * scale)
+			capsule.height = maxf(capsule.radius * 2.0, float(profile.get("height", 2.0)) * scale)
+		"arc":
+			var cylinder := _hitbox_shape.shape as CylinderShape3D
+			if cylinder == null:
+				cylinder = CylinderShape3D.new()
+				_hitbox_shape.shape = cylinder
+			cylinder.radius = maxf(0.05, float(profile.get("radius", 1.1)) * scale)
+			cylinder.height = maxf(0.05, float(profile.get("height", 0.9)) * scale)
+		"sphere":
+			var sphere := _hitbox_shape.shape as SphereShape3D
+			if sphere == null:
+				sphere = SphereShape3D.new()
+				_hitbox_shape.shape = sphere
+			sphere.radius = maxf(0.05, float(profile.get("radius", 0.9)) * scale)
+		_:
+			var box := _hitbox_shape.shape as BoxShape3D
+			if box == null:
+				box = BoxShape3D.new()
+				_hitbox_shape.shape = box
+			box.size = _vector_from(profile.get("size"), DEFAULT_HITBOX_SIZE) * scale
 	_hitbox_shape.position = offset
+	_hitbox_shape.rotation = Vector3(deg_to_rad(float(profile.get("pitch_deg", 0.0))), 0.0, 0.0)
+
+
+func _vector_from(value: Variant, fallback: Vector3) -> Vector3:
+	if value is Array and (value as Array).size() >= 3:
+		var values: Array = value
+		return Vector3(float(values[0]), float(values[1]), float(values[2]))
+	return fallback
 
 
 func _is_action_blocked() -> bool:

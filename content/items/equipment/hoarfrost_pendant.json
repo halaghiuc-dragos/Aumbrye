@@ -1,0 +1,23 @@
+{
+  "id": "hoarfrost_pendant",
+  "name": "Hoarfrost Pendant",
+  "itemType": "accessory",
+  "equipmentSlot": "amulet",
+  "gridWidth": 1,
+  "gridHeight": 2,
+  "stackSize": 1,
+  "rarity": "magic",
+  "description": "The chain is newer than the stone by several centuries. Quenched in meltwater that never fully melted.",
+  "value": 116,
+  "lootValue": 58,
+  "maxDurability": 60,
+  "baseId": "pendant",
+  "materialTier": "hoarfrost",
+  "biome": "frozen_fortress",
+  "scaling": {},
+  "stats": {
+    "manaMax": 21,
+    "healthRegen": 2,
+    "resistFrost": 0.08
+  }
+}

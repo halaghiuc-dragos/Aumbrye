@@ -1,0 +1,126 @@
+{
+  "schemaVersion": 1,
+  "biomeId": "umbral_chapel",
+  "lootTables": {
+    "treasure": [
+      {
+        "itemId": "elixir_clarity",
+        "quantity": [
+          1,
+          3
+        ],
+        "weight": 4
+      },
+      {
+        "itemId": "flask_ashen_measure",
+        "quantity": [
+          1,
+          3
+        ],
+        "weight": 6
+      },
+      {
+        "itemId": "thunder_stone",
+        "quantity": [
+          1,
+          3
+        ],
+        "weight": 4
+      }
+    ],
+    "secret": [
+      {
+        "itemId": "mythic_aegis",
+        "quantity": [
+          1,
+          1
+        ],
+        "weight": 1
+      },
+      {
+        "itemId": "unique_choirless_helm",
+        "quantity": [
+          1,
+          1
+        ],
+        "weight": 4
+      },
+      {
+        "itemId": "unique_frostbitten_oath",
+        "quantity": [
+          1,
+          1
+        ],
+        "weight": 2
+      },
+      {
+        "itemId": "unique_ledger_of_debts",
+        "quantity": [
+          1,
+          1
+        ],
+        "weight": 2
+      },
+      {
+        "itemId": "unique_sealed_requisition",
+        "quantity": [
+          1,
+          1
+        ],
+        "weight": 1
+      },
+      {
+        "itemId": "unique_the_unsaid_prayer",
+        "quantity": [
+          1,
+          1
+        ],
+        "weight": 1
+      }
+    ],
+    "side": [
+      {
+        "itemId": "frost_crystal",
+        "quantity": [
+          1,
+          3
+        ],
+        "weight": 10
+      }
+    ],
+    "armory": [
+      {
+        "itemId": "castle_plate",
+        "quantity": [
+          1,
+          1
+        ],
+        "weight": 6
+      },
+      {
+        "itemId": "crystal_bow",
+        "quantity": [
+          1,
+          1
+        ],
+        "weight": 4
+      },
+      {
+        "itemId": "frost_knight_helm",
+        "quantity": [
+          1,
+          1
+        ],
+        "weight": 4
+      },
+      {
+        "itemId": "steel_helm",
+        "quantity": [
+          1,
+          1
+        ],
+        "weight": 6
+      }
+    ]
+  }
+}

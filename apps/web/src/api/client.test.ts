@@ -57,9 +57,11 @@ describe("api client request", () => {
     vi.stubGlobal(
       "fetch",
       vi.fn(
-        () =>
-          new Promise(() => {
-            /* never resolves */
+        (_url: string, init?: RequestInit) =>
+          new Promise((_resolve, reject) => {
+            init?.signal?.addEventListener("abort", () => {
+              reject(new DOMException("Aborted", "AbortError"));
+            });
           }),
       ),
     );

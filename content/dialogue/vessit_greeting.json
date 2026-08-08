@@ -1,0 +1,112 @@
+{
+  "id": "vessit_greeting",
+  "startNode": "start",
+  "nodes": {
+    "start": {
+      "speaker": "Quartermaster Vessit",
+      "text": "The board. Standing bounties on the left, matters of record on the right. I count what goes out. I count what comes back. The two numbers have never once agreed.",
+      "choices": [
+        {
+          "text": "Read the board",
+          "actions": [
+            {
+              "type": "open_quest_board"
+            }
+          ]
+        },
+        {
+          "text": "Matters of record?",
+          "next": "record"
+        },
+        {
+          "text": "You have counted me out a few times now.",
+          "next": "counted",
+          "condition": {
+            "minDeaths": 3
+          }
+        },
+        {
+          "text": "Kell says the columns are the same column.",
+          "next": "kell",
+          "condition": {
+            "flag": "rescued_ivo"
+          }
+        },
+        {
+          "text": "Who set the bounties before you?",
+          "next": "vessit_arc",
+          "condition": {
+            "all": [
+              {
+                "relationship": "vessit",
+                "atLeast": 5
+              },
+              {
+                "not": {
+                  "flag": "vessit_bounties_open"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "text": "Not today.",
+          "next": "end"
+        }
+      ]
+    },
+    "record": {
+      "speaker": "Quartermaster Vessit",
+      "text": "Things somebody wants brought back up. A name, a page, a person. I do not pay well for those. I pay honestly, which is rarer and worth less.",
+      "actions": [
+        {
+          "type": "set_relationship",
+          "npc": "vessit",
+          "delta": 1
+        }
+      ],
+      "next": "end"
+    },
+    "counted": {
+      "speaker": "Quartermaster Vessit",
+      "text": "Three times. I counted a hammer twice once, and then I stopped counting hammers. I have not yet stopped counting you.",
+      "actions": [
+        {
+          "type": "set_relationship",
+          "npc": "vessit",
+          "delta": 1
+        }
+      ],
+      "next": "end"
+    },
+    "kell": {
+      "speaker": "Quartermaster Vessit",
+      "text": "Kell is a clerk and clerks are right about arithmetic and wrong about everything the arithmetic is for. He is right about this one.",
+      "actions": [
+        {
+          "type": "set_relationship",
+          "npc": "vessit",
+          "delta": 1
+        }
+      ],
+      "next": "end"
+    },
+    "vessit_arc": {
+      "speaker": "Vessit",
+      "text": "The Chapter did, and the bounties were people. I set mine on things that were never anybody. It is a small distinction and I hold it very tightly.",
+      "actions": [
+        {
+          "type": "set_flag",
+          "flag": "vessit_bounties_open",
+          "value": true
+        },
+        {
+          "type": "set_relationship",
+          "npc": "vessit",
+          "delta": 1
+        }
+      ],
+      "next": "end"
+    }
+  }
+}

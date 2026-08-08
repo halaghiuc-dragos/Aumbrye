@@ -1,9 +1,23 @@
 {
-    "description":  "Warm embers pulse within this run relic.",
-    "name":  "Relic Flame Core",
-    "id":  "relic_flame_core",
-    "stats":  {
-                  "damagePercent":  5
-              },
-    "maxStacks":  1
+  "id": "relic_flame_core",
+  "name": "Relic Flame Core",
+  "description": "It keeps a fire that was put out long ago. Kills carry it to the next body.",
+  "maxStacks": 1,
+  "stats": {
+    "damagePercent": 5
+  },
+  "tags": [
+    "flame"
+  ],
+  "weight": 1,
+  "rules": [
+    {
+      "event": "onKill",
+      "effect": "spread_status",
+      "statusId": "burn",
+      "stacks": 1,
+      "radius": 5
+    }
+  ],
+  "offerable": true
 }

@@ -1,0 +1,12 @@
+{
+  "id": "bog_resin",
+  "name": "Bog Resin",
+  "itemType": "material",
+  "gridWidth": 1,
+  "gridHeight": 1,
+  "stackSize": 20,
+  "description": "Amber-dark and slow. Something small is suspended in the middle of it.",
+  "value": 16,
+  "lootValue": 10,
+  "materialTier": "graysteel"
+}

@@ -1,0 +1,28 @@
+{
+  "id": "the_narrow_path",
+  "name": "The Narrow Path",
+  "description": "Consecutive dodges sharpen you until something lands.",
+  "maxStacks": 1,
+  "stats": {
+    "moveSpeedPercent": 4
+  },
+  "tags": [
+    "swift",
+    "ruin"
+  ],
+  "weight": 0.8,
+  "rules": [
+    {
+      "event": "onDodge",
+      "effect": "add_stack",
+      "stackId": "narrow",
+      "maxStacks": 6,
+      "stat": "damagePercent",
+      "perStack": 3,
+      "resetOn": [
+        "onHitTaken"
+      ]
+    }
+  ],
+  "offerable": true
+}

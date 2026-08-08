@@ -15,11 +15,60 @@
   "attack_cooldown": 1.7,
   "stagger_duration": 1.1,
   "aggro_range": 8.5,
-  "deaggro_range": 13.0,
-  "patrol_radius": 3.0,
+  "deaggro_range": 13,
+  "patrol_radius": 3,
+  "vision_cone_deg": 110,
+  "hearing_range": 11,
+  "awareness_rate": 1.7,
+  "alert_radius": 10,
+  "circle_radius_mult": 1.2,
   "enemy_type": "melee",
   "resistances": {
     "poison": 0.4,
     "physical": 0.1
-  }
+  },
+  "attacks": [
+    {
+      "id": "hammer",
+      "name": "Downward Hammer",
+      "weight": 3,
+      "windup_duration": 0.81,
+      "windup_variance": 0.1,
+      "active_duration": 0.18,
+      "recovery_duration": 0.95,
+      "attack_damage": 20,
+      "attack_poise_damage": 23,
+      "max_range": 2.5,
+      "telegraph_radius": 2.13,
+      "telegraph_shape": "circle"
+    },
+    {
+      "id": "slam",
+      "name": "Ground Slam",
+      "weight": 2,
+      "windup_duration": 1.37,
+      "windup_variance": 0.2,
+      "active_duration": 0.24,
+      "recovery_duration": 1.42,
+      "attack_damage": 29,
+      "attack_poise_damage": 35,
+      "max_range": 2.75,
+      "telegraph_radius": 2.88,
+      "telegraph_shape": "circle"
+    },
+    {
+      "id": "held_sweep",
+      "name": "Held Sweep",
+      "weight": 2,
+      "windup_duration": 1.05,
+      "windup_variance": 0.3,
+      "active_duration": 0.22,
+      "recovery_duration": 1.23,
+      "attack_damage": 23,
+      "attack_poise_damage": 28,
+      "max_range": 3.5,
+      "telegraph_radius": 3,
+      "telegraph_shape": "cone"
+    }
+  ]
 }

@@ -4,164 +4,1861 @@
     {
       "id": "arms",
       "nameKey": "talent.branch.arms",
+      "name": "Arms",
       "nodes": [
         {
           "id": "arms_1",
           "nameKey": "talent.arms_1",
+          "name": "Keen Edge",
           "maxRank": 1,
           "costPerRank": 1,
           "requires": [],
-          "effects": [{ "stat": "physicalDamage", "valuePerRank": 0.03 }]
+          "effects": [
+            {
+              "stat": "physicalDamage",
+              "valuePerRank": 0.03
+            }
+          ]
         },
         {
           "id": "arms_2",
           "nameKey": "talent.arms_2",
+          "name": "Weight Behind It",
           "maxRank": 1,
           "costPerRank": 1,
-          "requires": ["arms_1"],
-          "effects": [{ "stat": "physicalDamage", "valuePerRank": 0.05 }]
+          "requires": [
+            "arms_1"
+          ],
+          "effects": [
+            {
+              "stat": "physicalDamage",
+              "valuePerRank": 0.04
+            }
+          ]
         },
         {
           "id": "arms_3",
           "nameKey": "talent.arms_3",
+          "name": "Economy of Motion",
           "maxRank": 1,
           "costPerRank": 1,
-          "requires": ["arms_2"],
-          "effects": [{ "stat": "staminaCostReduction", "valuePerRank": 0.05 }]
+          "requires": [
+            "arms_2"
+          ],
+          "effects": [
+            {
+              "stat": "staminaCostReduction",
+              "valuePerRank": 0.05
+            }
+          ]
         },
         {
           "id": "arms_4",
           "nameKey": "talent.arms_4",
+          "name": "The Gap in the Guard",
           "maxRank": 1,
           "costPerRank": 1,
-          "requires": ["arms_3"],
-          "effects": [{ "stat": "critChance", "valuePerRank": 0.02 }]
+          "requires": [
+            "arms_3"
+          ],
+          "effects": [
+            {
+              "stat": "critChance",
+              "valuePerRank": 0.02
+            }
+          ]
         },
         {
           "id": "arms_5",
           "nameKey": "talent.arms_5",
+          "name": "Break the Stance",
           "maxRank": 1,
           "costPerRank": 1,
-          "requires": ["arms_4"],
-          "effects": [{ "stat": "poiseDamage", "valuePerRank": 0.08 }]
+          "requires": [
+            "arms_4"
+          ],
+          "effects": [
+            {
+              "stat": "poiseDamage",
+              "valuePerRank": 0.08
+            }
+          ]
         },
         {
           "id": "arms_6",
           "nameKey": "talent.arms_6",
+          "name": "Follow Through",
           "maxRank": 1,
-          "costPerRank": 2,
-          "requires": ["arms_5"],
-          "effects": [{ "stat": "physicalDamage", "valuePerRank": 0.1 }]
+          "costPerRank": 1,
+          "requires": [
+            "arms_5"
+          ],
+          "effects": [
+            {
+              "stat": "bonusDamage",
+              "valuePerRank": 4
+            }
+          ]
+        },
+        {
+          "id": "arms_7",
+          "nameKey": "talent.arms_7",
+          "name": "Practised Hands",
+          "maxRank": 1,
+          "costPerRank": 1,
+          "requires": [
+            "arms_6"
+          ],
+          "effects": [
+            {
+              "stat": "staminaRegen",
+              "valuePerRank": 0.06
+            }
+          ]
+        },
+        {
+          "id": "arms_8",
+          "nameKey": "talent.arms_8",
+          "name": "No Wasted Swing",
+          "maxRank": 1,
+          "costPerRank": 1,
+          "requires": [
+            "arms_7"
+          ],
+          "effects": [
+            {
+              "stat": "physicalDamage",
+              "valuePerRank": 0.05
+            },
+            {
+              "stat": "critChance",
+              "valuePerRank": 0.01
+            }
+          ]
+        },
+        {
+          "id": "arms_9",
+          "nameKey": "talent.arms_9",
+          "name": "The Killing Half-Second",
+          "maxRank": 1,
+          "costPerRank": 1,
+          "requires": [
+            "arms_8"
+          ],
+          "effects": [
+            {
+              "stat": "critChance",
+              "valuePerRank": 0.03
+            }
+          ]
+        },
+        {
+          "id": "arms_keystone",
+          "nameKey": "talent.arms_keystone",
+          "name": "Executioner's Patience",
+          "maxRank": 1,
+          "costPerRank": 3,
+          "requires": [
+            "arms_9"
+          ],
+          "effects": [
+            {
+              "stat": "physicalDamage",
+              "valuePerRank": 0.06
+            }
+          ],
+          "keystone": true,
+          "description": "A killing blow leaves you steady enough for the next one.",
+          "rules": [
+            {
+              "event": "onKill",
+              "effect": "restore_stamina",
+              "amount": 18,
+              "chance": 1,
+              "cooldown": 0
+            }
+          ]
         }
       ]
     },
     {
       "id": "guard",
       "nameKey": "talent.branch.guard",
+      "name": "Guard",
       "nodes": [
         {
           "id": "guard_1",
           "nameKey": "talent.guard_1",
+          "name": "Old Scars",
           "maxRank": 1,
           "costPerRank": 1,
           "requires": [],
-          "effects": [{ "stat": "maxHealth", "valuePerRank": 15 }]
+          "effects": [
+            {
+              "stat": "maxHealth",
+              "valuePerRank": 15
+            }
+          ]
         },
         {
           "id": "guard_2",
           "nameKey": "talent.guard_2",
+          "name": "Plated",
           "maxRank": 1,
           "costPerRank": 1,
-          "requires": ["guard_1"],
-          "effects": [{ "stat": "armor", "valuePerRank": 5 }]
+          "requires": [
+            "guard_1"
+          ],
+          "effects": [
+            {
+              "stat": "armor",
+              "valuePerRank": 5
+            }
+          ]
         },
         {
           "id": "guard_3",
           "nameKey": "talent.guard_3",
+          "name": "Set Feet",
           "maxRank": 1,
           "costPerRank": 1,
-          "requires": ["guard_2"],
-          "effects": [{ "stat": "blockReduction", "valuePerRank": 0.03 }]
+          "requires": [
+            "guard_2"
+          ],
+          "effects": [
+            {
+              "stat": "poise",
+              "valuePerRank": 8
+            }
+          ]
         },
         {
           "id": "guard_4",
           "nameKey": "talent.guard_4",
+          "name": "Take It on the Shield",
           "maxRank": 1,
           "costPerRank": 1,
-          "requires": ["guard_3"],
-          "effects": [{ "stat": "poise", "valuePerRank": 10 }]
+          "requires": [
+            "guard_3"
+          ],
+          "effects": [
+            {
+              "stat": "blockReduction",
+              "valuePerRank": 0.03
+            }
+          ]
         },
         {
           "id": "guard_5",
           "nameKey": "talent.guard_5",
+          "name": "Slow to Fall",
           "maxRank": 1,
           "costPerRank": 1,
-          "requires": ["guard_4"],
-          "effects": [{ "stat": "damageReduction", "valuePerRank": 0.02 }]
+          "requires": [
+            "guard_4"
+          ],
+          "effects": [
+            {
+              "stat": "damageReduction",
+              "valuePerRank": 0.03
+            }
+          ]
         },
         {
           "id": "guard_6",
           "nameKey": "talent.guard_6",
+          "name": "Second Wind",
           "maxRank": 1,
-          "costPerRank": 2,
-          "requires": ["guard_5"],
-          "effects": [{ "stat": "maxHealth", "valuePerRank": 40 }]
+          "costPerRank": 1,
+          "requires": [
+            "guard_5"
+          ],
+          "effects": [
+            {
+              "stat": "healthRegen",
+              "valuePerRank": 0.6
+            }
+          ]
+        },
+        {
+          "id": "guard_7",
+          "nameKey": "talent.guard_7",
+          "name": "Banded Iron",
+          "maxRank": 1,
+          "costPerRank": 1,
+          "requires": [
+            "guard_6"
+          ],
+          "effects": [
+            {
+              "stat": "armor",
+              "valuePerRank": 6
+            }
+          ]
+        },
+        {
+          "id": "guard_8",
+          "nameKey": "talent.guard_8",
+          "name": "Weathered",
+          "maxRank": 1,
+          "costPerRank": 1,
+          "requires": [
+            "guard_7"
+          ],
+          "effects": [
+            {
+              "stat": "resistFire",
+              "valuePerRank": 0.04
+            },
+            {
+              "stat": "resistFrost",
+              "valuePerRank": 0.04
+            }
+          ]
+        },
+        {
+          "id": "guard_9",
+          "nameKey": "talent.guard_9",
+          "name": "Unmoved",
+          "maxRank": 1,
+          "costPerRank": 1,
+          "requires": [
+            "guard_8"
+          ],
+          "effects": [
+            {
+              "stat": "poise",
+              "valuePerRank": 10
+            }
+          ]
+        },
+        {
+          "id": "guard_keystone",
+          "nameKey": "talent.guard_keystone",
+          "name": "The Long Vigil",
+          "maxRank": 1,
+          "costPerRank": 3,
+          "requires": [
+            "guard_9"
+          ],
+          "effects": [
+            {
+              "stat": "maxHealth",
+              "valuePerRank": 25
+            }
+          ],
+          "keystone": true,
+          "description": "A parry turns the moment: stone settles over you, and the blood stops.",
+          "rules": [
+            {
+              "event": "onParry",
+              "effect": "apply_status",
+              "statusId": "stoneskin",
+              "stacks": 1,
+              "chance": 1,
+              "cooldown": 10
+            },
+            {
+              "event": "onBlock",
+              "effect": "restore_stamina",
+              "amount": 6,
+              "chance": 1,
+              "cooldown": 1
+            }
+          ]
         }
       ]
     },
     {
       "id": "aptitude",
       "nameKey": "talent.branch.aptitude",
+      "name": "Aptitude",
       "nodes": [
         {
-          "id": "apt_1",
-          "nameKey": "talent.apt_1",
+          "id": "aptitude_1",
+          "nameKey": "talent.aptitude_1",
+          "name": "Reader of Signs",
           "maxRank": 1,
           "costPerRank": 1,
           "requires": [],
-          "effects": [{ "stat": "staminaRegen", "valuePerRank": 0.05 }]
+          "effects": [
+            {
+              "stat": "xpGain",
+              "valuePerRank": 0.05
+            }
+          ]
         },
         {
-          "id": "apt_2",
-          "nameKey": "talent.apt_2",
+          "id": "aptitude_2",
+          "nameKey": "talent.aptitude_2",
+          "name": "Careful Hands",
           "maxRank": 1,
           "costPerRank": 1,
-          "requires": ["apt_1"],
-          "effects": [{ "stat": "moveSpeed", "valuePerRank": 0.03 }]
+          "requires": [
+            "aptitude_1"
+          ],
+          "effects": [
+            {
+              "stat": "lootQuality",
+              "valuePerRank": 0.05
+            }
+          ]
         },
         {
-          "id": "apt_3",
-          "nameKey": "talent.apt_3",
+          "id": "aptitude_3",
+          "nameKey": "talent.aptitude_3",
+          "name": "Coin Sense",
           "maxRank": 1,
           "costPerRank": 1,
-          "requires": ["apt_2"],
-          "effects": [{ "stat": "lootQuality", "valuePerRank": 0.02 }]
+          "requires": [
+            "aptitude_2"
+          ],
+          "effects": [
+            {
+              "stat": "goldFind",
+              "valuePerRank": 0.06
+            }
+          ]
         },
         {
-          "id": "apt_4",
-          "nameKey": "talent.apt_4",
+          "id": "aptitude_4",
+          "nameKey": "talent.aptitude_4",
+          "name": "Long Breath",
           "maxRank": 1,
           "costPerRank": 1,
-          "requires": ["apt_3"],
-          "effects": [{ "stat": "xpGain", "valuePerRank": 0.05 }]
+          "requires": [
+            "aptitude_3"
+          ],
+          "effects": [
+            {
+              "stat": "staminaMax",
+              "valuePerRank": 10
+            }
+          ]
         },
         {
-          "id": "apt_5",
-          "nameKey": "talent.apt_5",
+          "id": "aptitude_5",
+          "nameKey": "talent.aptitude_5",
+          "name": "Clear Head",
           "maxRank": 1,
           "costPerRank": 1,
-          "requires": ["apt_4"],
-          "effects": [{ "stat": "goldFind", "valuePerRank": 0.05 }]
+          "requires": [
+            "aptitude_4"
+          ],
+          "effects": [
+            {
+              "stat": "cooldownReduction",
+              "valuePerRank": 0.04
+            }
+          ]
         },
         {
-          "id": "apt_6",
-          "nameKey": "talent.apt_6",
+          "id": "aptitude_6",
+          "nameKey": "talent.aptitude_6",
+          "name": "Light Step",
           "maxRank": 1,
-          "costPerRank": 2,
-          "requires": ["apt_5"],
-          "effects": [{ "stat": "cooldownReduction", "valuePerRank": 0.05 }]
+          "costPerRank": 1,
+          "requires": [
+            "aptitude_5"
+          ],
+          "effects": [
+            {
+              "stat": "moveSpeed",
+              "valuePerRank": 0.03
+            }
+          ]
+        },
+        {
+          "id": "aptitude_7",
+          "nameKey": "talent.aptitude_7",
+          "name": "Deep Pockets",
+          "maxRank": 1,
+          "costPerRank": 1,
+          "requires": [
+            "aptitude_6"
+          ],
+          "effects": [
+            {
+              "stat": "goldFind",
+              "valuePerRank": 0.07
+            }
+          ]
+        },
+        {
+          "id": "aptitude_8",
+          "nameKey": "talent.aptitude_8",
+          "name": "Study of the Dead",
+          "maxRank": 1,
+          "costPerRank": 1,
+          "requires": [
+            "aptitude_7"
+          ],
+          "effects": [
+            {
+              "stat": "xpGain",
+              "valuePerRank": 0.06
+            }
+          ]
+        },
+        {
+          "id": "aptitude_9",
+          "nameKey": "talent.aptitude_9",
+          "name": "Scavenger",
+          "maxRank": 1,
+          "costPerRank": 1,
+          "requires": [
+            "aptitude_8"
+          ],
+          "effects": [
+            {
+              "stat": "lootQuality",
+              "valuePerRank": 0.06
+            }
+          ]
+        },
+        {
+          "id": "aptitude_keystone",
+          "nameKey": "talent.aptitude_keystone",
+          "name": "The Ledger Balances",
+          "maxRank": 1,
+          "costPerRank": 3,
+          "requires": [
+            "aptitude_9"
+          ],
+          "effects": [
+            {
+              "stat": "goldFind",
+              "valuePerRank": 0.08
+            }
+          ],
+          "keystone": true,
+          "description": "Every room cleared pays a small, reliable dividend.",
+          "rules": [
+            {
+              "event": "onRoomClear",
+              "effect": "bonus_gold",
+              "amount": 35,
+              "chance": 1,
+              "cooldown": 0
+            },
+            {
+              "event": "onRoomClear",
+              "effect": "restore_health",
+              "amount": 8,
+              "chance": 1,
+              "cooldown": 0
+            }
+          ]
         }
       ]
+    },
+    {
+      "id": "oath",
+      "nameKey": "talent.branch.oath",
+      "name": "Oath",
+      "nodes": [
+        {
+          "id": "oath_1",
+          "nameKey": "talent.oath_1",
+          "name": "Sworn Weight",
+          "maxRank": 1,
+          "costPerRank": 1,
+          "requires": [],
+          "effects": [
+            {
+              "stat": "maxHealth",
+              "valuePerRank": 18
+            }
+          ]
+        },
+        {
+          "id": "oath_2",
+          "nameKey": "talent.oath_2",
+          "name": "Answer in Kind",
+          "maxRank": 1,
+          "costPerRank": 1,
+          "requires": [
+            "oath_1"
+          ],
+          "effects": [
+            {
+              "stat": "physicalDamage",
+              "valuePerRank": 0.03
+            }
+          ]
+        },
+        {
+          "id": "oath_3",
+          "nameKey": "talent.oath_3",
+          "name": "Shield Discipline",
+          "maxRank": 1,
+          "costPerRank": 1,
+          "requires": [
+            "oath_2"
+          ],
+          "effects": [
+            {
+              "stat": "blockReduction",
+              "valuePerRank": 0.04
+            }
+          ]
+        },
+        {
+          "id": "oath_4",
+          "nameKey": "talent.oath_4",
+          "name": "Unbroken Line",
+          "maxRank": 1,
+          "costPerRank": 1,
+          "requires": [
+            "oath_3"
+          ],
+          "effects": [
+            {
+              "stat": "poise",
+              "valuePerRank": 10
+            }
+          ]
+        },
+        {
+          "id": "oath_5",
+          "nameKey": "talent.oath_5",
+          "name": "Measured Advance",
+          "maxRank": 1,
+          "costPerRank": 1,
+          "requires": [
+            "oath_4"
+          ],
+          "effects": [
+            {
+              "stat": "staminaCostReduction",
+              "valuePerRank": 0.05
+            }
+          ]
+        },
+        {
+          "id": "oath_6",
+          "nameKey": "talent.oath_6",
+          "name": "Held Ground",
+          "maxRank": 1,
+          "costPerRank": 1,
+          "requires": [
+            "oath_5"
+          ],
+          "effects": [
+            {
+              "stat": "damageReduction",
+              "valuePerRank": 0.03
+            }
+          ]
+        },
+        {
+          "id": "oath_7",
+          "nameKey": "talent.oath_7",
+          "name": "Sword and Board",
+          "maxRank": 1,
+          "costPerRank": 1,
+          "requires": [
+            "oath_6"
+          ],
+          "effects": [
+            {
+              "stat": "physicalDamage",
+              "valuePerRank": 0.03
+            },
+            {
+              "stat": "armor",
+              "valuePerRank": 4
+            }
+          ]
+        },
+        {
+          "id": "oath_8",
+          "nameKey": "talent.oath_8",
+          "name": "The Oath Remembered",
+          "maxRank": 1,
+          "costPerRank": 1,
+          "requires": [
+            "oath_7"
+          ],
+          "effects": [
+            {
+              "stat": "healthRegen",
+              "valuePerRank": 0.8
+            }
+          ]
+        },
+        {
+          "id": "oath_9",
+          "nameKey": "talent.oath_9",
+          "name": "Retribution",
+          "maxRank": 1,
+          "costPerRank": 1,
+          "requires": [
+            "oath_8"
+          ],
+          "effects": [
+            {
+              "stat": "critChance",
+              "valuePerRank": 0.02
+            }
+          ]
+        },
+        {
+          "id": "oath_keystone",
+          "nameKey": "talent.oath_keystone",
+          "name": "Answered in Kind",
+          "maxRank": 1,
+          "costPerRank": 3,
+          "requires": [
+            "oath_9"
+          ],
+          "effects": [
+            {
+              "stat": "armor",
+              "valuePerRank": 8
+            }
+          ],
+          "keystone": true,
+          "description": "A riposte closes the wound it was owed.",
+          "rules": [
+            {
+              "event": "onRiposte",
+              "effect": "restore_health",
+              "amount": 18,
+              "chance": 1,
+              "cooldown": 0
+            },
+            {
+              "event": "onRiposte",
+              "effect": "restore_stamina",
+              "amount": 15,
+              "chance": 1,
+              "cooldown": 0
+            }
+          ]
+        }
+      ],
+      "classId": "knight"
+    },
+    {
+      "id": "ruin",
+      "nameKey": "talent.branch.ruin",
+      "name": "Ruin",
+      "nodes": [
+        {
+          "id": "ruin_1",
+          "nameKey": "talent.ruin_1",
+          "name": "Fed on Ruin",
+          "maxRank": 1,
+          "costPerRank": 1,
+          "requires": [],
+          "effects": [
+            {
+              "stat": "physicalDamage",
+              "valuePerRank": 0.04
+            }
+          ]
+        },
+        {
+          "id": "ruin_2",
+          "nameKey": "talent.ruin_2",
+          "name": "Careless of the Body",
+          "maxRank": 1,
+          "costPerRank": 1,
+          "requires": [
+            "ruin_1"
+          ],
+          "effects": [
+            {
+              "stat": "physicalDamage",
+              "valuePerRank": 0.04
+            },
+            {
+              "stat": "damageReduction",
+              "valuePerRank": -0.02
+            }
+          ]
+        },
+        {
+          "id": "ruin_3",
+          "nameKey": "talent.ruin_3",
+          "name": "Heavy Arms",
+          "maxRank": 1,
+          "costPerRank": 1,
+          "requires": [
+            "ruin_2"
+          ],
+          "effects": [
+            {
+              "stat": "poiseDamage",
+              "valuePerRank": 0.1
+            }
+          ]
+        },
+        {
+          "id": "ruin_4",
+          "nameKey": "talent.ruin_4",
+          "name": "Blood in the Mouth",
+          "maxRank": 1,
+          "costPerRank": 1,
+          "requires": [
+            "ruin_3"
+          ],
+          "effects": [
+            {
+              "stat": "healthRegen",
+              "valuePerRank": 0.5
+            }
+          ]
+        },
+        {
+          "id": "ruin_5",
+          "nameKey": "talent.ruin_5",
+          "name": "Unstopping",
+          "maxRank": 1,
+          "costPerRank": 1,
+          "requires": [
+            "ruin_4"
+          ],
+          "effects": [
+            {
+              "stat": "poise",
+              "valuePerRank": 12
+            }
+          ]
+        },
+        {
+          "id": "ruin_6",
+          "nameKey": "talent.ruin_6",
+          "name": "Wider Arc",
+          "maxRank": 1,
+          "costPerRank": 1,
+          "requires": [
+            "ruin_5"
+          ],
+          "effects": [
+            {
+              "stat": "bonusDamage",
+              "valuePerRank": 6
+            }
+          ]
+        },
+        {
+          "id": "ruin_7",
+          "nameKey": "talent.ruin_7",
+          "name": "No Guard At All",
+          "maxRank": 1,
+          "costPerRank": 1,
+          "requires": [
+            "ruin_6"
+          ],
+          "effects": [
+            {
+              "stat": "physicalDamage",
+              "valuePerRank": 0.05
+            }
+          ]
+        },
+        {
+          "id": "ruin_8",
+          "nameKey": "talent.ruin_8",
+          "name": "Deeper Cuts",
+          "maxRank": 1,
+          "costPerRank": 1,
+          "requires": [
+            "ruin_7"
+          ],
+          "effects": [
+            {
+              "stat": "critChance",
+              "valuePerRank": 0.02
+            }
+          ]
+        },
+        {
+          "id": "ruin_9",
+          "nameKey": "talent.ruin_9",
+          "name": "Last Strength",
+          "maxRank": 1,
+          "costPerRank": 1,
+          "requires": [
+            "ruin_8"
+          ],
+          "effects": [
+            {
+              "stat": "maxHealth",
+              "valuePerRank": 20
+            }
+          ]
+        },
+        {
+          "id": "ruin_keystone",
+          "nameKey": "talent.ruin_keystone",
+          "name": "Nothing Left to Spend",
+          "maxRank": 1,
+          "costPerRank": 3,
+          "requires": [
+            "ruin_9"
+          ],
+          "effects": [
+            {
+              "stat": "physicalDamage",
+              "valuePerRank": 0.08
+            }
+          ],
+          "keystone": true,
+          "description": "At the edge of death, the wounds you open feed you back.",
+          "rules": [
+            {
+              "event": "onLowHealth",
+              "effect": "clear_status",
+              "amount": 0,
+              "chance": 1,
+              "cooldown": 45
+            },
+            {
+              "event": "onHit",
+              "effect": "lifesteal",
+              "pct": 0.06,
+              "chance": 1,
+              "cooldown": 0
+            }
+          ]
+        }
+      ],
+      "classId": "berserker"
+    },
+    {
+      "id": "unlit",
+      "nameKey": "talent.branch.unlit",
+      "name": "Unlit",
+      "nodes": [
+        {
+          "id": "unlit_1",
+          "nameKey": "talent.unlit_1",
+          "name": "Quiet Approach",
+          "maxRank": 1,
+          "costPerRank": 1,
+          "requires": [],
+          "effects": [
+            {
+              "stat": "moveSpeed",
+              "valuePerRank": 0.03
+            }
+          ]
+        },
+        {
+          "id": "unlit_2",
+          "nameKey": "talent.unlit_2",
+          "name": "Between the Plates",
+          "maxRank": 1,
+          "costPerRank": 1,
+          "requires": [
+            "unlit_1"
+          ],
+          "effects": [
+            {
+              "stat": "critChance",
+              "valuePerRank": 0.02
+            }
+          ]
+        },
+        {
+          "id": "unlit_3",
+          "nameKey": "talent.unlit_3",
+          "name": "Short Blade Work",
+          "maxRank": 1,
+          "costPerRank": 1,
+          "requires": [
+            "unlit_2"
+          ],
+          "effects": [
+            {
+              "stat": "physicalDamage",
+              "valuePerRank": 0.04
+            }
+          ]
+        },
+        {
+          "id": "unlit_4",
+          "nameKey": "talent.unlit_4",
+          "name": "Read the Turn",
+          "maxRank": 1,
+          "costPerRank": 1,
+          "requires": [
+            "unlit_3"
+          ],
+          "effects": [
+            {
+              "stat": "evasion",
+              "valuePerRank": 0.03
+            }
+          ]
+        },
+        {
+          "id": "unlit_5",
+          "nameKey": "talent.unlit_5",
+          "name": "Cheap Footwork",
+          "maxRank": 1,
+          "costPerRank": 1,
+          "requires": [
+            "unlit_4"
+          ],
+          "effects": [
+            {
+              "stat": "staminaCostReduction",
+              "valuePerRank": 0.06
+            }
+          ]
+        },
+        {
+          "id": "unlit_6",
+          "nameKey": "talent.unlit_6",
+          "name": "Opened Vein",
+          "maxRank": 1,
+          "costPerRank": 1,
+          "requires": [
+            "unlit_5"
+          ],
+          "effects": [
+            {
+              "stat": "bonusDamage",
+              "valuePerRank": 4
+            }
+          ]
+        },
+        {
+          "id": "unlit_7",
+          "nameKey": "talent.unlit_7",
+          "name": "Practised Cruelty",
+          "maxRank": 1,
+          "costPerRank": 1,
+          "requires": [
+            "unlit_6"
+          ],
+          "effects": [
+            {
+              "stat": "critChance",
+              "valuePerRank": 0.03
+            }
+          ]
+        },
+        {
+          "id": "unlit_8",
+          "nameKey": "talent.unlit_8",
+          "name": "Nothing Wasted",
+          "maxRank": 1,
+          "costPerRank": 1,
+          "requires": [
+            "unlit_7"
+          ],
+          "effects": [
+            {
+              "stat": "staminaRegen",
+              "valuePerRank": 0.07
+            }
+          ]
+        },
+        {
+          "id": "unlit_9",
+          "nameKey": "talent.unlit_9",
+          "name": "Faster Than Sorry",
+          "maxRank": 1,
+          "costPerRank": 1,
+          "requires": [
+            "unlit_8"
+          ],
+          "effects": [
+            {
+              "stat": "moveSpeed",
+              "valuePerRank": 0.03
+            }
+          ]
+        },
+        {
+          "id": "unlit_keystone",
+          "nameKey": "talent.unlit_keystone",
+          "name": "The Unlit Hour",
+          "maxRank": 1,
+          "costPerRank": 3,
+          "requires": [
+            "unlit_9"
+          ],
+          "effects": [
+            {
+              "stat": "critChance",
+              "valuePerRank": 0.04
+            }
+          ],
+          "keystone": true,
+          "description": "A backstab leaves nothing behind but the debt it collected.",
+          "rules": [
+            {
+              "event": "onBackstab",
+              "effect": "lifesteal",
+              "pct": 0.2,
+              "chance": 1,
+              "cooldown": 0
+            },
+            {
+              "event": "onBackstab",
+              "effect": "apply_status",
+              "statusId": "bleed",
+              "stacks": 3,
+              "chance": 1,
+              "cooldown": 0
+            }
+          ]
+        }
+      ],
+      "classId": "rogue"
+    },
+    {
+      "id": "vigil",
+      "nameKey": "talent.branch.vigil",
+      "name": "Vigil",
+      "nodes": [
+        {
+          "id": "vigil_1",
+          "nameKey": "talent.vigil_1",
+          "name": "Late Reading",
+          "maxRank": 1,
+          "costPerRank": 1,
+          "requires": [],
+          "effects": [
+            {
+              "stat": "manaMax",
+              "valuePerRank": 15
+            }
+          ]
+        },
+        {
+          "id": "vigil_2",
+          "nameKey": "talent.vigil_2",
+          "name": "Steady Draw",
+          "maxRank": 1,
+          "costPerRank": 1,
+          "requires": [
+            "vigil_1"
+          ],
+          "effects": [
+            {
+              "stat": "manaRegen",
+              "valuePerRank": 0.08
+            }
+          ]
+        },
+        {
+          "id": "vigil_3",
+          "nameKey": "talent.vigil_3",
+          "name": "Written Fire",
+          "maxRank": 1,
+          "costPerRank": 1,
+          "requires": [
+            "vigil_2"
+          ],
+          "effects": [
+            {
+              "stat": "fireDamage",
+              "valuePerRank": 4
+            }
+          ]
+        },
+        {
+          "id": "vigil_4",
+          "nameKey": "talent.vigil_4",
+          "name": "Written Frost",
+          "maxRank": 1,
+          "costPerRank": 1,
+          "requires": [
+            "vigil_3"
+          ],
+          "effects": [
+            {
+              "stat": "frostDamage",
+              "valuePerRank": 4
+            }
+          ]
+        },
+        {
+          "id": "vigil_5",
+          "nameKey": "talent.vigil_5",
+          "name": "Copied Hand",
+          "maxRank": 1,
+          "costPerRank": 1,
+          "requires": [
+            "vigil_4"
+          ],
+          "effects": [
+            {
+              "stat": "cooldownReduction",
+              "valuePerRank": 0.05
+            }
+          ]
+        },
+        {
+          "id": "vigil_6",
+          "nameKey": "talent.vigil_6",
+          "name": "Marginalia",
+          "maxRank": 1,
+          "costPerRank": 1,
+          "requires": [
+            "vigil_5"
+          ],
+          "effects": [
+            {
+              "stat": "arcaneDamage",
+              "valuePerRank": 5
+            }
+          ]
+        },
+        {
+          "id": "vigil_7",
+          "nameKey": "talent.vigil_7",
+          "name": "The Longer Book",
+          "maxRank": 1,
+          "costPerRank": 1,
+          "requires": [
+            "vigil_6"
+          ],
+          "effects": [
+            {
+              "stat": "manaMax",
+              "valuePerRank": 20
+            }
+          ]
+        },
+        {
+          "id": "vigil_8",
+          "nameKey": "talent.vigil_8",
+          "name": "Unhurried",
+          "maxRank": 1,
+          "costPerRank": 1,
+          "requires": [
+            "vigil_7"
+          ],
+          "effects": [
+            {
+              "stat": "staminaRegen",
+              "valuePerRank": 0.05
+            }
+          ]
+        },
+        {
+          "id": "vigil_9",
+          "nameKey": "talent.vigil_9",
+          "name": "Annotation",
+          "maxRank": 1,
+          "costPerRank": 1,
+          "requires": [
+            "vigil_8"
+          ],
+          "effects": [
+            {
+              "stat": "xpGain",
+              "valuePerRank": 0.06
+            }
+          ]
+        },
+        {
+          "id": "vigil_keystone",
+          "nameKey": "talent.vigil_keystone",
+          "name": "What the Margins Said",
+          "maxRank": 1,
+          "costPerRank": 3,
+          "requires": [
+            "vigil_9"
+          ],
+          "effects": [
+            {
+              "stat": "arcaneDamage",
+              "valuePerRank": 8
+            }
+          ],
+          "keystone": true,
+          "description": "A critical strike returns the study it cost.",
+          "rules": [
+            {
+              "event": "onCrit",
+              "effect": "restore_mana",
+              "amount": 25,
+              "chance": 1,
+              "cooldown": 0
+            },
+            {
+              "event": "onRoomClear",
+              "effect": "apply_status",
+              "statusId": "focus",
+              "stacks": 2,
+              "chance": 1,
+              "cooldown": 0
+            }
+          ]
+        }
+      ],
+      "classId": "scholar"
+    },
+    {
+      "id": "watch",
+      "nameKey": "talent.branch.watch",
+      "name": "Watch",
+      "nodes": [
+        {
+          "id": "watch_1",
+          "nameKey": "talent.watch_1",
+          "name": "The Long Watch",
+          "maxRank": 1,
+          "costPerRank": 1,
+          "requires": [],
+          "effects": [
+            {
+              "stat": "poise",
+              "valuePerRank": 12
+            }
+          ]
+        },
+        {
+          "id": "watch_2",
+          "nameKey": "talent.watch_2",
+          "name": "Braced",
+          "maxRank": 1,
+          "costPerRank": 1,
+          "requires": [
+            "watch_1"
+          ],
+          "effects": [
+            {
+              "stat": "blockReduction",
+              "valuePerRank": 0.04
+            }
+          ]
+        },
+        {
+          "id": "watch_3",
+          "nameKey": "talent.watch_3",
+          "name": "Spear Length",
+          "maxRank": 1,
+          "costPerRank": 1,
+          "requires": [
+            "watch_2"
+          ],
+          "effects": [
+            {
+              "stat": "physicalDamage",
+              "valuePerRank": 0.03
+            }
+          ]
+        },
+        {
+          "id": "watch_4",
+          "nameKey": "talent.watch_4",
+          "name": "Root and Stand",
+          "maxRank": 1,
+          "costPerRank": 1,
+          "requires": [
+            "watch_3"
+          ],
+          "effects": [
+            {
+              "stat": "damageReduction",
+              "valuePerRank": 0.03
+            }
+          ]
+        },
+        {
+          "id": "watch_5",
+          "nameKey": "talent.watch_5",
+          "name": "Watchful",
+          "maxRank": 1,
+          "costPerRank": 1,
+          "requires": [
+            "watch_4"
+          ],
+          "effects": [
+            {
+              "stat": "evasion",
+              "valuePerRank": 0.02
+            }
+          ]
+        },
+        {
+          "id": "watch_6",
+          "nameKey": "talent.watch_6",
+          "name": "Shield Weight",
+          "maxRank": 1,
+          "costPerRank": 1,
+          "requires": [
+            "watch_5"
+          ],
+          "effects": [
+            {
+              "stat": "armor",
+              "valuePerRank": 6
+            }
+          ]
+        },
+        {
+          "id": "watch_7",
+          "nameKey": "talent.watch_7",
+          "name": "Never Yielding",
+          "maxRank": 1,
+          "costPerRank": 1,
+          "requires": [
+            "watch_6"
+          ],
+          "effects": [
+            {
+              "stat": "maxHealth",
+              "valuePerRank": 22
+            }
+          ]
+        },
+        {
+          "id": "watch_8",
+          "nameKey": "talent.watch_8",
+          "name": "Cold Patience",
+          "maxRank": 1,
+          "costPerRank": 1,
+          "requires": [
+            "watch_7"
+          ],
+          "effects": [
+            {
+              "stat": "resistFrost",
+              "valuePerRank": 0.05
+            },
+            {
+              "stat": "resistPoison",
+              "valuePerRank": 0.05
+            }
+          ]
+        },
+        {
+          "id": "watch_9",
+          "nameKey": "talent.watch_9",
+          "name": "The Line Holds",
+          "maxRank": 1,
+          "costPerRank": 1,
+          "requires": [
+            "watch_8"
+          ],
+          "effects": [
+            {
+              "stat": "poise",
+              "valuePerRank": 12
+            }
+          ]
+        },
+        {
+          "id": "watch_keystone",
+          "nameKey": "talent.watch_keystone",
+          "name": "Nothing Passes",
+          "maxRank": 1,
+          "costPerRank": 3,
+          "requires": [
+            "watch_9"
+          ],
+          "effects": [
+            {
+              "stat": "blockReduction",
+              "valuePerRank": 0.05
+            }
+          ],
+          "keystone": true,
+          "description": "Every blow turned aside is a little breath and a little blood returned.",
+          "rules": [
+            {
+              "event": "onBlock",
+              "effect": "restore_health",
+              "amount": 7,
+              "chance": 1,
+              "cooldown": 1
+            },
+            {
+              "event": "onBlock",
+              "effect": "restore_stamina",
+              "amount": 10,
+              "chance": 1,
+              "cooldown": 1
+            }
+          ]
+        }
+      ],
+      "classId": "sentinel"
+    },
+    {
+      "id": "mile",
+      "nameKey": "talent.branch.mile",
+      "name": "Mile",
+      "nodes": [
+        {
+          "id": "mile_1",
+          "nameKey": "talent.mile_1",
+          "name": "The Quiet Mile",
+          "maxRank": 1,
+          "costPerRank": 1,
+          "requires": [],
+          "effects": [
+            {
+              "stat": "moveSpeed",
+              "valuePerRank": 0.04
+            }
+          ]
+        },
+        {
+          "id": "mile_2",
+          "nameKey": "talent.mile_2",
+          "name": "Drawn Slow",
+          "maxRank": 1,
+          "costPerRank": 1,
+          "requires": [
+            "mile_1"
+          ],
+          "effects": [
+            {
+              "stat": "critChance",
+              "valuePerRank": 0.03
+            }
+          ]
+        },
+        {
+          "id": "mile_3",
+          "nameKey": "talent.mile_3",
+          "name": "Steady Arm",
+          "maxRank": 1,
+          "costPerRank": 1,
+          "requires": [
+            "mile_2"
+          ],
+          "effects": [
+            {
+              "stat": "staminaRegen",
+              "valuePerRank": 0.06
+            }
+          ]
+        },
+        {
+          "id": "mile_4",
+          "nameKey": "talent.mile_4",
+          "name": "Counted Arrows",
+          "maxRank": 1,
+          "costPerRank": 1,
+          "requires": [
+            "mile_3"
+          ],
+          "effects": [
+            {
+              "stat": "bonusDamage",
+              "valuePerRank": 5
+            }
+          ]
+        },
+        {
+          "id": "mile_5",
+          "nameKey": "talent.mile_5",
+          "name": "Wind Read",
+          "maxRank": 1,
+          "costPerRank": 1,
+          "requires": [
+            "mile_4"
+          ],
+          "effects": [
+            {
+              "stat": "evasion",
+              "valuePerRank": 0.03
+            }
+          ]
+        },
+        {
+          "id": "mile_6",
+          "nameKey": "talent.mile_6",
+          "name": "Marked",
+          "maxRank": 1,
+          "costPerRank": 1,
+          "requires": [
+            "mile_5"
+          ],
+          "effects": [
+            {
+              "stat": "physicalDamage",
+              "valuePerRank": 0.04
+            }
+          ]
+        },
+        {
+          "id": "mile_7",
+          "nameKey": "talent.mile_7",
+          "name": "Long Sight",
+          "maxRank": 1,
+          "costPerRank": 1,
+          "requires": [
+            "mile_6"
+          ],
+          "effects": [
+            {
+              "stat": "critChance",
+              "valuePerRank": 0.03
+            }
+          ]
+        },
+        {
+          "id": "mile_8",
+          "nameKey": "talent.mile_8",
+          "name": "Field Dressing",
+          "maxRank": 1,
+          "costPerRank": 1,
+          "requires": [
+            "mile_7"
+          ],
+          "effects": [
+            {
+              "stat": "healthRegen",
+              "valuePerRank": 0.7
+            }
+          ]
+        },
+        {
+          "id": "mile_9",
+          "nameKey": "talent.mile_9",
+          "name": "Trapline",
+          "maxRank": 1,
+          "costPerRank": 1,
+          "requires": [
+            "mile_8"
+          ],
+          "effects": [
+            {
+              "stat": "lootQuality",
+              "valuePerRank": 0.06
+            }
+          ]
+        },
+        {
+          "id": "mile_keystone",
+          "nameKey": "talent.mile_keystone",
+          "name": "One Shot Is Enough",
+          "maxRank": 1,
+          "costPerRank": 3,
+          "requires": [
+            "mile_9"
+          ],
+          "effects": [
+            {
+              "stat": "critChance",
+              "valuePerRank": 0.04
+            }
+          ],
+          "keystone": true,
+          "description": "A clean kill pays for the next arrow, and for the walk between.",
+          "rules": [
+            {
+              "event": "onKill",
+              "effect": "restore_stamina",
+              "amount": 30,
+              "chance": 1,
+              "cooldown": 0
+            },
+            {
+              "event": "onCrit",
+              "effect": "apply_status",
+              "statusId": "bleed",
+              "stacks": 3,
+              "chance": 1,
+              "cooldown": 0
+            }
+          ]
+        }
+      ],
+      "classId": "hunter"
+    },
+    {
+      "id": "tide",
+      "nameKey": "talent.branch.tide",
+      "name": "Tide",
+      "nodes": [
+        {
+          "id": "tide_1",
+          "nameKey": "talent.tide_1",
+          "name": "Carried Rot",
+          "maxRank": 1,
+          "costPerRank": 1,
+          "requires": [],
+          "effects": [
+            {
+              "stat": "poisonDamage",
+              "valuePerRank": 5
+            }
+          ]
+        },
+        {
+          "id": "tide_2",
+          "nameKey": "talent.tide_2",
+          "name": "Slow Fever",
+          "maxRank": 1,
+          "costPerRank": 1,
+          "requires": [
+            "tide_1"
+          ],
+          "effects": [
+            {
+              "stat": "fireDamage",
+              "valuePerRank": 4
+            }
+          ]
+        },
+        {
+          "id": "tide_3",
+          "nameKey": "talent.tide_3",
+          "name": "Open Vessel",
+          "maxRank": 1,
+          "costPerRank": 1,
+          "requires": [
+            "tide_2"
+          ],
+          "effects": [
+            {
+              "stat": "manaMax",
+              "valuePerRank": 15
+            }
+          ]
+        },
+        {
+          "id": "tide_4",
+          "nameKey": "talent.tide_4",
+          "name": "Damp Hands",
+          "maxRank": 1,
+          "costPerRank": 1,
+          "requires": [
+            "tide_3"
+          ],
+          "effects": [
+            {
+              "stat": "resistPoison",
+              "valuePerRank": 0.06
+            }
+          ]
+        },
+        {
+          "id": "tide_5",
+          "nameKey": "talent.tide_5",
+          "name": "The Message",
+          "maxRank": 1,
+          "costPerRank": 1,
+          "requires": [
+            "tide_4"
+          ],
+          "effects": [
+            {
+              "stat": "arcaneDamage",
+              "valuePerRank": 4
+            }
+          ]
+        },
+        {
+          "id": "tide_6",
+          "nameKey": "talent.tide_6",
+          "name": "Passed Along",
+          "maxRank": 1,
+          "costPerRank": 1,
+          "requires": [
+            "tide_5"
+          ],
+          "effects": [
+            {
+              "stat": "cooldownReduction",
+              "valuePerRank": 0.05
+            }
+          ]
+        },
+        {
+          "id": "tide_7",
+          "nameKey": "talent.tide_7",
+          "name": "Deeper Water",
+          "maxRank": 1,
+          "costPerRank": 1,
+          "requires": [
+            "tide_6"
+          ],
+          "effects": [
+            {
+              "stat": "poisonDamage",
+              "valuePerRank": 6
+            }
+          ]
+        },
+        {
+          "id": "tide_8",
+          "nameKey": "talent.tide_8",
+          "name": "Patient Contagion",
+          "maxRank": 1,
+          "costPerRank": 1,
+          "requires": [
+            "tide_7"
+          ],
+          "effects": [
+            {
+              "stat": "manaRegen",
+              "valuePerRank": 0.08
+            }
+          ]
+        },
+        {
+          "id": "tide_9",
+          "nameKey": "talent.tide_9",
+          "name": "Everything Spreads",
+          "maxRank": 1,
+          "costPerRank": 1,
+          "requires": [
+            "tide_8"
+          ],
+          "effects": [
+            {
+              "stat": "arcaneDamage",
+              "valuePerRank": 5
+            }
+          ]
+        },
+        {
+          "id": "tide_keystone",
+          "nameKey": "talent.tide_keystone",
+          "name": "It Was Always Going to Spread",
+          "maxRank": 1,
+          "costPerRank": 3,
+          "requires": [
+            "tide_9"
+          ],
+          "effects": [
+            {
+              "stat": "poisonDamage",
+              "valuePerRank": 8
+            }
+          ],
+          "keystone": true,
+          "description": "What one of them carries, the room carries.",
+          "rules": [
+            {
+              "event": "onKill",
+              "effect": "spread_status",
+              "statusId": "poison",
+              "stacks": 2,
+              "radius": 6,
+              "chance": 1,
+              "cooldown": 0
+            },
+            {
+              "event": "onStatusApplied",
+              "effect": "spread_status",
+              "statusId": "bleed",
+              "stacks": 1,
+              "radius": 5,
+              "ifTargetHasStatus": "bleed",
+              "chance": 1,
+              "cooldown": 1
+            }
+          ]
+        }
+      ],
+      "classId": "herald"
     }
   ]
 }

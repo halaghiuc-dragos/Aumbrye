@@ -1,0 +1,45 @@
+{
+  "id": "unique_bog_oath",
+  "name": "Bog-Oath",
+  "itemType": "armor",
+  "equipmentSlot": "secondary",
+  "gridWidth": 2,
+  "gridHeight": 2,
+  "stackSize": 1,
+  "rarity": "rare",
+  "description": "Bound with reed cord swollen tight. Cutting it would take longer than the fight.",
+  "value": 270,
+  "lootValue": 135,
+  "maxDurability": 90,
+  "unique": true,
+  "baseId": "buckler",
+  "biome": "poison_swamp",
+  "scaling": {
+    "strength": "D"
+  },
+  "ruleText": "Blocking poisons the attacker.",
+  "rules": [
+    {
+      "event": "onBlock",
+      "effect": "apply_status",
+      "statusId": "poison",
+      "stacks": 1
+    }
+  ],
+  "stats": {
+    "defense": 10,
+    "resistPoison": 0.12
+  },
+  "block": {
+    "stability": 1.1,
+    "guardBreakPoise": 34,
+    "reduction": {
+      "physical": 0.56,
+      "fire": 0.3,
+      "frost": 0.3,
+      "poison": 0.62,
+      "lightning": 0.3,
+      "arcane": 0.3
+    }
+  }
+}

@@ -3,6 +3,7 @@ extends Area3D
 ## World item pickup — adds to grid inventory on interact (INV-2.1).
 
 const DioramaSkin := preload("res://scripts/art/props/diorama_interactable_skin.gd")
+const RarityRegistryScript := preload("res://scripts/loot/rarity_registry.gd")
 
 @export var item_id := "iron_scrap"
 @export var quantity := 1
@@ -10,6 +11,8 @@ const DioramaSkin := preload("res://scripts/art/props/diorama_interactable_skin.
 var _visual: Node3D
 var _label: Label3D
 var _player: Node3D
+var _beam: Node3D
+var _rarity := "common"
 
 
 func _ready() -> void:
@@ -44,11 +47,62 @@ func _start_bob() -> void:
 	tween.tween_property(_visual, "position:y", base_y - 0.08, 0.83).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
 
 
-func configure(id: String, qty: int = 1) -> void:
+func configure(id: String, qty: int = 1, rarity: String = "") -> void:
 	item_id = id
 	quantity = maxi(1, qty)
 	var def := ItemCatalog.get_definition(item_id)
 	_label.text = def.get("name", item_id)
+	var resolved := rarity if rarity != "" else str(def.get("rarity", "common"))
+	_rarity = RarityRegistryScript.normalize(resolved)
+	_apply_rarity_presentation()
+
+
+func _apply_rarity_presentation() -> void:
+	var color := RarityRegistryScript.display_color(_rarity)
+	var tier := maxi(0, RarityRegistryScript.tier_index(_rarity))
+	if _label:
+		_label.modulate = color
+		_label.font_size = 32 + tier * 4
+		_label.outline_size = 4 + tier * 2
+		_label.outline_modulate = color.darkened(0.7)
+		if RarityRegistryScript.wants_drop_toast(_rarity):
+			_label.visible = true
+	_build_beam(color)
+	if AudioDirector:
+		var sfx := RarityRegistryScript.drop_sfx_id(_rarity)
+		if AudioDirector.has_sfx(sfx):
+			AudioDirector.play_sfx(sfx, global_position)
+		else:
+			AudioDirector.play_sfx("ui_interact_near", global_position)
+	if RarityRegistryScript.wants_camera_nudge(_rarity) and VfxService:
+		VfxService.request_shake(0.12, 320)
+
+
+func _build_beam(color: Color) -> void:
+	if _beam and is_instance_valid(_beam):
+		_beam.queue_free()
+	var height := RarityRegistryScript.drop_beam_height(_rarity)
+	var beam := MeshInstance3D.new()
+	beam.name = "RarityBeam"
+	var cylinder := CylinderMesh.new()
+	cylinder.top_radius = 0.06
+	cylinder.bottom_radius = 0.16
+	cylinder.height = height
+	cylinder.radial_segments = 8
+	beam.mesh = cylinder
+	var material := StandardMaterial3D.new()
+	material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	material.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+	material.cull_mode = BaseMaterial3D.CULL_DISABLED
+	material.albedo_color = Color(color.r, color.g, color.b, 0.32)
+	material.emission_enabled = true
+	material.emission = color
+	material.emission_energy_multiplier = RarityRegistryScript.drop_beam_energy(_rarity)
+	beam.material_override = material
+	beam.position = Vector3(0.0, height * 0.5, 0.0)
+	add_child(beam)
+	_beam = beam
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -68,7 +122,7 @@ func _on_body_entered(body: Node3D) -> void:
 func _on_body_exited(body: Node3D) -> void:
 	if body == _player:
 		_player = null
-		_label.visible = false
+		_label.visible = RarityRegistryScript.wants_drop_toast(_rarity)
 		set_process_unhandled_input(false)
 
 

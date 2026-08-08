@@ -1,0 +1,24 @@
+{
+  "id": "bounty_penitents",
+  "title": "Bounty: Penitents",
+  "type": "kill",
+  "targetId": "umbral_penitent",
+  "requiredCount": 6,
+  "repeatable": true,
+  "cooldownRuns": 1,
+  "availableWhen": {
+    "minTier": 6
+  },
+  "bounty": "daily",
+  "description": "Standing bounty. Six penitents. Their ledger-pages are worn soft and the column that owes them is crossed through.",
+  "rewards": {
+    "gold": 200,
+    "bountyTokens": 3,
+    "items": [
+      {
+        "itemId": "sable_grain",
+        "quantity": 1
+      }
+    ]
+  }
+}

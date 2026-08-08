@@ -1,0 +1,19 @@
+{
+  "id": "thunder_stone",
+  "name": "Thunder Stone",
+  "itemType": "consumable",
+  "gridWidth": 1,
+  "gridHeight": 1,
+  "stackSize": 6,
+  "rarity": "rare",
+  "description": "Struck against the floor. The noise arrives before the decision to use it does.",
+  "consumableEffect": {
+    "kind": "throw",
+    "statusId": "stun",
+    "duration": 3,
+    "radius": 5.0,
+    "usableInHub": false
+  },
+  "value": 120,
+  "lootValue": 60
+}

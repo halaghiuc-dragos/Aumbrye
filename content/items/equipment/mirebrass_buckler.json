@@ -1,0 +1,37 @@
+{
+  "id": "mirebrass_buckler",
+  "name": "Mirebrass Buckler",
+  "itemType": "armor",
+  "equipmentSlot": "secondary",
+  "gridWidth": 2,
+  "gridHeight": 2,
+  "stackSize": 1,
+  "rarity": "magic",
+  "description": "Too small to hide behind. Large enough to turn one blow. Green to the touch. The swamp finished it for the smith. Scaling: Strength D.",
+  "value": 62,
+  "lootValue": 31,
+  "maxDurability": 90,
+  "baseId": "buckler",
+  "materialTier": "mirebrass",
+  "biome": "poison_swamp",
+  "scaling": {
+    "strength": "D"
+  },
+  "stats": {
+    "defense": 8,
+    "evasion": 5,
+    "resistPoison": 0.06
+  },
+  "block": {
+    "stability": 1.1,
+    "guardBreakPoise": 34,
+    "reduction": {
+      "physical": 0.56,
+      "fire": 0.3,
+      "frost": 0.3,
+      "poison": 0.62,
+      "lightning": 0.3,
+      "arcane": 0.3
+    }
+  }
+}

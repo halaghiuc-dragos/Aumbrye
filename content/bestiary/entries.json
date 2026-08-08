@@ -1,0 +1,548 @@
+{
+  "entries": [
+    {
+      "enemyId": "castle_archer",
+      "name": "Castle Archer",
+      "biomeId": "forgotten_castle",
+      "sighted": "Perched where the arrow-loops face inward. Nobody has explained why they face inward.",
+      "studied": "It will not close. Break the line of sight and it repositions rather than draws. It shrugs off nothing in particular.",
+      "mastered": "The fletchings are cut from a banner. Whatever the banner said, it is on the ground now, in pieces, aimed at you."
+    },
+    {
+      "enemyId": "castle_grunt",
+      "name": "Castle Grunt",
+      "biomeId": "forgotten_castle",
+      "sighted": "Garrison issue, worn to the shape of the man inside it. It still stands the post it was given.",
+      "studied": "Three swings and a pause it never shortens. The pause is where the muster drill told it to breathe. It shrugs off nothing in particular.",
+      "mastered": "Forty-one names went on the roll. The roll was never amended, only recited more quietly."
+    },
+    {
+      "enemyId": "castle_hound",
+      "name": "Castle Hound",
+      "biomeId": "forgotten_castle",
+      "sighted": "Still collared. The collar has a name plate and the plate has been filed blank.",
+      "studied": "It commits early and cannot correct. Step aside and it spends its whole run on the empty floor. It shrugs off nothing in particular.",
+      "mastered": "Kennel ledger, last entry: fed. No date. Whoever fed them last did not come back to write down when."
+    },
+    {
+      "enemyId": "castle_shield",
+      "name": "Castle Shield-Bearer",
+      "biomeId": "forgotten_castle",
+      "sighted": "It leads with the wall, not the weapon. The wall is the weapon.",
+      "studied": "Nothing gets through the front. Poise breaks before plate does; make it swing and take the side. It shrugs off nothing in particular.",
+      "mastered": "The gate was to be held until the light returned. This one is still holding the part of the gate it was assigned."
+    },
+    {
+      "enemyId": "cathedral_acolyte",
+      "name": "Cathedral Acolyte",
+      "biomeId": "dark_cathedral",
+      "sighted": "Vested and attentive, and attending to nothing.",
+      "studied": "It heals the others. It is always the first thing in the room to kill. It shrugs off nothing in particular.",
+      "mastered": "Ordained on the strength of a promise the Chapter had already broken by then."
+    },
+    {
+      "enemyId": "cathedral_shade",
+      "name": "Cathedral Shade",
+      "biomeId": "dark_cathedral",
+      "sighted": "It has the vestments and not the body.",
+      "studied": "It is only solid on the strike. That is the window and there is no other. It shrugs off nothing in particular.",
+      "mastered": "Six from the nave, Odile says, and will not say why the number matters."
+    },
+    {
+      "enemyId": "cathedral_warden",
+      "name": "Cathedral Warden",
+      "biomeId": "dark_cathedral",
+      "sighted": "It keeps the doors of a building that has no congregation.",
+      "studied": "It punishes the retreat, not the approach. Do not give it your back. It shrugs off nothing in particular.",
+      "mastered": "Wardens were laity. They were given the keys because the clergy had gone below."
+    },
+    {
+      "enemyId": "crystal_bat",
+      "name": "Crystal Bat",
+      "biomeId": "crystal_caverns",
+      "sighted": "It navigates by a light that is not there anymore.",
+      "studied": "It dives once, then hangs. Punish the hang, not the dive. Resists physical 15%.",
+      "mastered": "They roosted in the shaft while it was still open. They have not learned that it closed."
+    },
+    {
+      "enemyId": "crystal_crawler",
+      "name": "Crystal Crawler",
+      "biomeId": "crystal_caverns",
+      "sighted": "Low, patient, and always between you and the way out.",
+      "studied": "It has no ranged answer at all. Space is the whole fight. It shrugs off nothing in particular.",
+      "mastered": "The crawlers keep to the cut faces. Whatever was cut out of the rock, they are still walking the edge of the hole."
+    },
+    {
+      "enemyId": "crystal_golem",
+      "name": "Crystal Golem",
+      "biomeId": "crystal_caverns",
+      "sighted": "Assembled out of the seam, or grown out of it. The distinction stopped mattering.",
+      "studied": "The overhead is slow and the slam is slower. It has no answer once you are behind the arm. Resists frost 60%, physical 25%.",
+      "mastered": "The seam it came out of runs down to the shaft. Everything in these caverns is pointed the same way."
+    },
+    {
+      "enemyId": "crystal_guardian",
+      "name": "Crystal Guardian",
+      "biomeId": "crystal_caverns",
+      "sighted": "It stands at a door that is no longer in the wall.",
+      "studied": "It will not step off its ground. Bait the lunge, then take the ground it left. Resists arcane 40%, frost 35%, physical 20%.",
+      "mastered": "Posted by the Chapter to keep the curious out. It has kept out everything, including the Chapter."
+    },
+    {
+      "enemyId": "crystal_shade",
+      "name": "Crystal Shade",
+      "biomeId": "crystal_caverns",
+      "sighted": "It keeps the shape of a person and none of the weight.",
+      "studied": "It phases through the first hit of any chain. Land the second. Resists arcane 50%.",
+      "mastered": "The relighting took people. This is the outline that was left in the socket."
+    },
+    {
+      "enemyId": "crystal_slime",
+      "name": "Crystal Slime",
+      "biomeId": "crystal_caverns",
+      "sighted": "It has taken the colour of the wall it fed on.",
+      "studied": "Slow to start, slow to stop. Everything it does can be walked out of. Resists physical 10%.",
+      "mastered": "The caverns grew clear before the Chapter came. The colour in these came from somewhere."
+    },
+    {
+      "enemyId": "crystal_spitter",
+      "name": "Crystal Spitter",
+      "biomeId": "crystal_caverns",
+      "sighted": "It shears a piece off itself to throw at you.",
+      "studied": "It cannot spit and move. Force it to move. It shrugs off nothing in particular.",
+      "mastered": "Each shard it throws is smaller than the last. It is spending itself, and it does not appear to mind."
+    },
+    {
+      "enemyId": "crystal_wisp",
+      "name": "Crystal Wisp",
+      "biomeId": "crystal_caverns",
+      "sighted": "A light with nothing carrying it.",
+      "studied": "It drifts on a fixed circuit and will not leave it. Step off the circuit and it cannot follow. It shrugs off nothing in particular.",
+      "mastered": "The Chapter stored light. Some of the light did not stay stored."
+    },
+    {
+      "enemyId": "frost_archer",
+      "name": "Frost Archer",
+      "biomeId": "frozen_fortress",
+      "sighted": "It shoots from the wall and does not come down off the wall.",
+      "studied": "Cover is the whole answer. It will not reposition until you are out of the lane. It shrugs off nothing in particular.",
+      "mastered": "Arrows were rationed at three per day. The count on the quiver is far below three."
+    },
+    {
+      "enemyId": "frost_hound",
+      "name": "Frost Hound",
+      "biomeId": "frozen_fortress",
+      "sighted": "Thin. It has been thin for longer than a thing can be thin.",
+      "studied": "It circles left, always. The right flank is free. It shrugs off nothing in particular.",
+      "mastered": "They were fed last from the officers' portion. That was the officers' last decision."
+    },
+    {
+      "enemyId": "frost_knight",
+      "name": "Frost Knight",
+      "biomeId": "frozen_fortress",
+      "sighted": "Full harness, and the harness has not been off in a very long time.",
+      "studied": "It reads your commitment and answers it. Attack late, not first. It shrugs off nothing in particular.",
+      "mastered": "The fortress stood the winter it was told to stand. The order for the next winter never came."
+    },
+    {
+      "enemyId": "frost_raider",
+      "name": "Frost Raider",
+      "biomeId": "frozen_fortress",
+      "sighted": "Not garrison. Whatever it was, it arrived from outside and stayed.",
+      "studied": "It opens aggressive and cannot sustain. Weather the first exchange. It shrugs off nothing in particular.",
+      "mastered": "The fortress let them in during the second winter. There is no record of a vote."
+    },
+    {
+      "enemyId": "glacial_anchorite",
+      "name": "Hollow Anchorite",
+      "biomeId": "glacial_hollow",
+      "sighted": "Walled in on purpose, once, by its own request.",
+      "studied": "It cannot leave its cell. Everything it has is thrown. It shrugs off nothing in particular.",
+      "mastered": "The cell was sealed from the inside. The seal is intact."
+    },
+    {
+      "enemyId": "glacial_cairn_golem",
+      "name": "Cairn Golem",
+      "biomeId": "glacial_hollow",
+      "sighted": "Stacked, not built. Somebody stacked it.",
+      "studied": "It sheds a course of stone each time it staggers, and moves faster with each one gone. It shrugs off nothing in particular.",
+      "mastered": "A cairn is a marker. This one has been walking away from what it marks."
+    },
+    {
+      "enemyId": "glacial_hollowed",
+      "name": "Hollowed Bearer",
+      "biomeId": "glacial_hollow",
+      "sighted": "It is carrying something and will not be talked out of carrying it.",
+      "studied": "It defends the burden, not itself. Threaten the burden and it opens completely. It shrugs off nothing in particular.",
+      "mastered": "The bearers were sent up with the empty measures to be refilled. Nothing was ever sent down."
+    },
+    {
+      "enemyId": "glacial_keener",
+      "name": "Hollow Keener",
+      "biomeId": "glacial_hollow",
+      "sighted": "It makes a sound that is not for you.",
+      "studied": "The cry pulls others. Silence it first or fight the room it calls. It shrugs off nothing in particular.",
+      "mastered": "Mourning is the last practice the Hollow kept, and it kept it past the point of anyone to mourn."
+    },
+    {
+      "enemyId": "glacial_pilgrim",
+      "name": "Frozen Pilgrim",
+      "biomeId": "glacial_hollow",
+      "sighted": "It is still walking the road, and the road is under the ice.",
+      "studied": "It will not deviate. Everything it does happens along one line. It shrugs off nothing in particular.",
+      "mastered": "They set out for the light when the light was still a rumour worth walking to."
+    },
+    {
+      "enemyId": "iron_bellows_golem",
+      "name": "Bellows Golem",
+      "biomeId": "iron_vault",
+      "sighted": "It breathes to keep a fire alight that went out a long time ago.",
+      "studied": "The exhale is the tell. Close inside the bellows-stroke and it cannot bring the arm around. It shrugs off nothing in particular.",
+      "mastered": "The forge it fed was to reheat the seals. The seals were never reopened, so it went on feeding nothing."
+    },
+    {
+      "enemyId": "iron_foreman",
+      "name": "Vault Foreman",
+      "biomeId": "iron_vault",
+      "sighted": "It still carries the tally board. The tally is complete and the work is not.",
+      "studied": "It calls the others in. Kill the call before the count, or the room fills. It shrugs off nothing in particular.",
+      "mastered": "The foreman's job was to certify that the measure was sealed correctly. It certified. It is still certifying."
+    },
+    {
+      "enemyId": "iron_needle",
+      "name": "Needle Caster",
+      "biomeId": "iron_vault",
+      "sighted": "A caster built out of surplus. The surplus was people.",
+      "studied": "Long wind-up, straight line, no correction. Move once, at the end, and it wastes the whole charge. It shrugs off nothing in particular.",
+      "mastered": "The vault kept needles for suturing wounds and needles for sealing wax. These were reclassified."
+    },
+    {
+      "enemyId": "iron_ratchet",
+      "name": "Ratchet Servitor",
+      "biomeId": "iron_vault",
+      "sighted": "It moves in notches and cannot go back a notch.",
+      "studied": "Predictable to the tooth. Count the notches and its next position is already yours. It shrugs off nothing in particular.",
+      "mastered": "Built to advance a mechanism nobody has found. Somewhere below, something is one notch further along."
+    },
+    {
+      "enemyId": "iron_sentinel",
+      "name": "Vault Sentinel",
+      "biomeId": "iron_vault",
+      "sighted": "Vault-stock, stamped and issued, never once relieved.",
+      "studied": "It guards a line on the floor. Cross the line and it commits; stand on it and it will not. It shrugs off nothing in particular.",
+      "mastered": "Requisition: one sentinel, indefinite posting. Countersigned. The counter-signature is in the vault it is guarding."
+    },
+    {
+      "enemyId": "prism_cantor",
+      "name": "Depths Cantor",
+      "biomeId": "prism_depths",
+      "sighted": "It keeps time for a choir that is elsewhere.",
+      "studied": "The chant is a timer. Break it before the third beat or the room answers. It shrugs off nothing in particular.",
+      "mastered": "The Keeping had a liturgy because a liturgy is easier to repeat than a reason."
+    },
+    {
+      "enemyId": "prism_facet_golem",
+      "name": "Facet Golem",
+      "biomeId": "prism_depths",
+      "sighted": "Cut flat on every side, and none of the sides are its front.",
+      "studied": "It turns rather than steps. Circle faster than it turns and it never faces you at all. It shrugs off nothing in particular.",
+      "mastered": "Assembled out of the storage cells after the storage cells were emptied."
+    },
+    {
+      "enemyId": "prism_lantern",
+      "name": "Depths Lantern",
+      "biomeId": "prism_depths",
+      "sighted": "It carries a light and will not set it down.",
+      "studied": "It cannot attack while the lantern is raised. The raise is the whole opening. It shrugs off nothing in particular.",
+      "mastered": "Every lantern down here is full. That is what the Chapter promised, and it is the only promise it kept."
+    },
+    {
+      "enemyId": "prism_refractor",
+      "name": "Refractor",
+      "biomeId": "prism_depths",
+      "sighted": "It bends what it is hit with and gives some of it back.",
+      "studied": "Angle matters. Straight-on trades badly; from the flank it has nothing to bend. It shrugs off nothing in particular.",
+      "mastered": "Refraction was the Chapter's word for the process. The Chapter's word for the people was volunteers."
+    },
+    {
+      "enemyId": "prism_shardling",
+      "name": "Shardling",
+      "biomeId": "prism_depths",
+      "sighted": "Small, bright, and multiplying in a way that does not look like breeding.",
+      "studied": "Individually nothing. Never fight the third one; fight the room. It shrugs off nothing in particular.",
+      "mastered": "The Depths split the light to measure it. These are the offcuts of the measuring."
+    },
+    {
+      "enemyId": "swamp_bogling",
+      "name": "Swamp Bogling",
+      "biomeId": "poison_swamp",
+      "sighted": "It comes up out of the water without disturbing the water.",
+      "studied": "It only opens after it surfaces. Do not wait for it to surface. Resists poison 15%.",
+      "mastered": "The swamp took the low road out of the castle. Whatever came up the low road came up changed."
+    },
+    {
+      "enemyId": "swamp_brute",
+      "name": "Swamp Brute",
+      "biomeId": "poison_swamp",
+      "sighted": "It has grown into the load it was made to carry.",
+      "studied": "Huge poise, terrible recovery. Everything after its swing belongs to you. It shrugs off nothing in particular.",
+      "mastered": "It carried the sealed measures down. It never carried anything back up."
+    },
+    {
+      "enemyId": "swamp_hag",
+      "name": "Swamp Hag",
+      "biomeId": "poison_swamp",
+      "sighted": "She still keeps to a household routine that no longer has a household.",
+      "studied": "She hexes on a cycle, not on a read. Learn the cycle and the hex is free. Resists poison 70%, physical 15%.",
+      "mastered": "Nettle knew her name and will not say it, which is a kind of answer."
+    },
+    {
+      "enemyId": "swamp_leech",
+      "name": "Swamp Leech",
+      "biomeId": "poison_swamp",
+      "sighted": "It attaches and then does the only thing it knows.",
+      "studied": "Detach it early or pay for it late. It does not release on its own. Resists poison 30%.",
+      "mastered": "The physicians used them, once, with intent. Then the physicians left and the intent stayed."
+    },
+    {
+      "enemyId": "swamp_slasher",
+      "name": "Swamp Slasher",
+      "biomeId": "poison_swamp",
+      "sighted": "Fast, thin, and cutting on the way past rather than at you.",
+      "studied": "It never stops on your side. Turn with the pass and it has spent its momentum. It shrugs off nothing in particular.",
+      "mastered": "It was tall once, and armoured, and is neither now. The reach is what it kept."
+    },
+    {
+      "enemyId": "swamp_spitter",
+      "name": "Swamp Spitter",
+      "biomeId": "poison_swamp",
+      "sighted": "It works at range because it cannot survive at close.",
+      "studied": "One step of pressure ends it. It has no melee at all. It shrugs off nothing in particular.",
+      "mastered": "The venom is a filtration product. Something upstream is being filtered."
+    },
+    {
+      "enemyId": "swamp_swarm",
+      "name": "Swamp Swarm",
+      "biomeId": "poison_swamp",
+      "sighted": "Many, and each one negligible, and that is the design.",
+      "studied": "Wide sweeps only. Single-target work loses the trade every time. It shrugs off nothing in particular.",
+      "mastered": "They came up through the drains when the drains stopped being maintained."
+    },
+    {
+      "enemyId": "swamp_toad",
+      "name": "Swamp Toad",
+      "biomeId": "poison_swamp",
+      "sighted": "It has been sitting there long enough to be mistaken for ground.",
+      "studied": "The tongue outranges the look of it by half again. Respect the reach or learn it. Resists poison 40%, physical 10%.",
+      "mastered": "Nothing in the swamp is native. Everything in the swamp arrived."
+    },
+    {
+      "enemyId": "swamp_witch",
+      "name": "Swamp Witch",
+      "biomeId": "poison_swamp",
+      "sighted": "Robed, deliberate, and not surprised to see you.",
+      "studied": "The summon is the danger, not the caster. Close the distance before the second gesture. Resists poison 65%.",
+      "mastered": "The Chapter recruited from the fen because the fen already knew what the light cost."
+    },
+    {
+      "enemyId": "umbral_censer",
+      "name": "Chapel Censer",
+      "biomeId": "umbral_chapel",
+      "sighted": "It swings the censer on a chain long enough to be a weapon.",
+      "studied": "The chain has an arc and the arc has a centre. Stand in the centre. It shrugs off nothing in particular.",
+      "mastered": "The smoke was to carry the prayer up. The shaft goes down. Nobody corrected the rite."
+    },
+    {
+      "enemyId": "umbral_confessor",
+      "name": "The Confessor",
+      "biomeId": "umbral_chapel",
+      "sighted": "It is waiting to be told something.",
+      "studied": "It punishes silence with a channelled attack. Interrupt or leave the range. It shrugs off nothing in particular.",
+      "mastered": "It heard the whole account and was not permitted to write any of it down."
+    },
+    {
+      "enemyId": "umbral_cowl",
+      "name": "Cowled Thing",
+      "biomeId": "umbral_chapel",
+      "sighted": "Hooded, and the hood is not covering a face.",
+      "studied": "It fakes the first commitment every time. Never answer the first. It shrugs off nothing in particular.",
+      "mastered": "The Chapter's inner orders wore the cowl so that the outer orders would not have to recognise them afterwards."
+    },
+    {
+      "enemyId": "umbral_penitent",
+      "name": "Chapel Penitent",
+      "biomeId": "umbral_chapel",
+      "sighted": "Kneeling, and it does not stop kneeling to fight you.",
+      "studied": "It cannot cover the low line. Everything below the waist is unanswered. It shrugs off nothing in particular.",
+      "mastered": "The penance was set at a term of years. The term has run and the sentence has not."
+    },
+    {
+      "enemyId": "umbral_reliquary_golem",
+      "name": "Reliquary Golem",
+      "biomeId": "umbral_chapel",
+      "sighted": "It is built around a box and the box is what matters.",
+      "studied": "The reliquary is exposed on the turn. Hit the box, not the bearer. It shrugs off nothing in particular.",
+      "mastered": "What was in the reliquary was a measure of daylight, sealed. Was."
+    },
+    {
+      "enemyId": "venom_bloat_brute",
+      "name": "Bloat Brute",
+      "biomeId": "venom_mire",
+      "sighted": "Swollen past the point where the skin is doing anything.",
+      "studied": "It ruptures on death. Kill it somewhere you do not intend to stand. It shrugs off nothing in particular.",
+      "mastered": "The overflow had to go somewhere when the vaults were sealed. It went into things that were still alive."
+    },
+    {
+      "enemyId": "venom_censer",
+      "name": "Mire Censer",
+      "biomeId": "venom_mire",
+      "sighted": "It carries the smoke rather than makes it.",
+      "studied": "Standing in the cloud is the mistake. It has no other plan and does not need one. It shrugs off nothing in particular.",
+      "mastered": "Censers were consecrated equipment. Somebody took them out of the chapel and put them to work."
+    },
+    {
+      "enemyId": "venom_drifter",
+      "name": "Mire Drifter",
+      "biomeId": "venom_mire",
+      "sighted": "It goes where the water goes and arrives without deciding to.",
+      "studied": "It does not track. Break line of drift and it keeps going past you. It shrugs off nothing in particular.",
+      "mastered": "Nettle counts drifters the way other people count debts."
+    },
+    {
+      "enemyId": "venom_matron",
+      "name": "Mire Matron",
+      "biomeId": "venom_mire",
+      "sighted": "Larger than the rest and unhurried in a way that is worse.",
+      "studied": "It seeds the ground before it commits. Clear the ground or fight on its terms. It shrugs off nothing in particular.",
+      "mastered": "The mire produces these on a schedule. Somebody once knew the schedule and wrote it down."
+    },
+    {
+      "enemyId": "venom_thresher",
+      "name": "Reed Thresher",
+      "biomeId": "venom_mire",
+      "sighted": "It works the reeds flat in a wide arc and does not check what is in them.",
+      "studied": "The arc has an inside. Get inside it. It shrugs off nothing in particular.",
+      "mastered": "Built for harvest. There has been no harvest since the Keeping, and it has not stopped."
+    },
+    {
+      "enemyId": "boss_castle_knight",
+      "name": "Boss Castle Knight",
+      "biomeId": "forgotten_castle",
+      "sighted": "The one that was left to hold the hall.",
+      "studied": "It chains three and then over-extends on the fourth. The fourth is the whole fight. It shrugs off nothing in particular.",
+      "mastered": "It was given the hall and no instruction about when it might be relieved of it."
+    },
+    {
+      "enemyId": "boss_cathedral_hollow",
+      "name": "Boss Cathedral Hollow",
+      "biomeId": "dark_cathedral",
+      "sighted": "Vested for an office that has no holder.",
+      "studied": "It empties and refills. The empty phase is when it can be hurt at all. It shrugs off nothing in particular.",
+      "mastered": "The office was Keeper of the Store. The store is not there."
+    },
+    {
+      "enemyId": "boss_crystal_sovereign",
+      "name": "Boss Crystal Sovereign",
+      "biomeId": "crystal_caverns",
+      "sighted": "It grew a crown out of the same seam it grew out of.",
+      "studied": "It seeds the arena and then fights you inside its own garden. Deny the seeding. It shrugs off nothing in particular.",
+      "mastered": "The Chapter called this floor a reservoir. Something in the reservoir became a claimant."
+    },
+    {
+      "enemyId": "boss_frost_warlord",
+      "name": "Boss Frost Warlord",
+      "biomeId": "frozen_fortress",
+      "sighted": "It took the fortress from inside and then defended it.",
+      "studied": "It hits harder as the floor freezes over. The floor is a clock. It shrugs off nothing in particular.",
+      "mastered": "The last order the garrison received was to admit it. The order is in the same hand as the muster roll."
+    },
+    {
+      "enemyId": "boss_swamp_devourer",
+      "name": "Boss Swamp Devourer",
+      "biomeId": "poison_swamp",
+      "sighted": "It has taken in everything that came down the low road.",
+      "studied": "It telegraphs the swallow a full second early. Everything else is faster than it looks. It shrugs off nothing in particular.",
+      "mastered": "The overflow had to be put somewhere. This is where the Chapter put it."
+    },
+    {
+      "enemyId": "final_boss_forgotten_castle",
+      "name": "Forgotten Sovereign",
+      "biomeId": "forgotten_castle",
+      "sighted": "The Forgotten Sovereign, crowned for a succession that did not occur.",
+      "studied": "It fights in two halves and the second half discards the guard entirely. It shrugs off nothing in particular.",
+      "mastered": "The crown's inner band was never sized down. It was never worn by anyone it fit."
+    },
+    {
+      "enemyId": "glacial_warden",
+      "name": "Warden Of The Hollow",
+      "biomeId": "glacial_hollow",
+      "sighted": "The Warden of the Hollow, still making rounds.",
+      "studied": "It will not be baited off its circuit; the circuit narrows as it loses health. It shrugs off nothing in particular.",
+      "mastered": "It was set to watch the bearers come back up. It is still watching the stair."
+    },
+    {
+      "enemyId": "iron_conclave",
+      "name": "The Sealed Conclave",
+      "biomeId": "iron_vault",
+      "sighted": "The Sealed Conclave, in session, in perpetuity.",
+      "studied": "They act in sequence and the sequence never changes. Break the sequence by breaking the middle. It shrugs off nothing in particular.",
+      "mastered": "They voted to seal the vault with the measure inside and themselves inside with it."
+    },
+    {
+      "enemyId": "miniboss_castle_captain",
+      "name": "Miniboss Castle Captain",
+      "biomeId": "forgotten_castle",
+      "sighted": "The rank is still legible on the shoulder.",
+      "studied": "It calls in support at half health. Do not be in the open when it does. It shrugs off nothing in particular.",
+      "mastered": "The captain countersigned the notice at the sallyport. Their signature is below the door."
+    },
+    {
+      "enemyId": "miniboss_cathedral_bell",
+      "name": "Miniboss Cathedral Bell",
+      "biomeId": "dark_cathedral",
+      "sighted": "The bell is the thing. What is under it is incidental.",
+      "studied": "The toll staggers you on a fixed interval. Everything must be spent between tolls. It shrugs off nothing in particular.",
+      "mastered": "It was rung to call the Chapter up. Nothing came up."
+    },
+    {
+      "enemyId": "miniboss_crystal_guardian",
+      "name": "Miniboss Crystal Guardian",
+      "biomeId": "crystal_caverns",
+      "sighted": "It is larger than the door it was posted to.",
+      "studied": "Its guard is total from the front and absent behind. The fight is a footwork problem. It shrugs off nothing in particular.",
+      "mastered": "Posted to keep the seam closed. The seam is open and it is still posted."
+    },
+    {
+      "enemyId": "prism_choirmaster",
+      "name": "The Choirmaster",
+      "biomeId": "prism_depths",
+      "sighted": "The Choirmaster, still keeping the measure.",
+      "studied": "It sets the tempo of the fight and punishes anything off the beat. Fight on its beat. It shrugs off nothing in particular.",
+      "mastered": "It selected who would be relit and in what order. It kept the list. The list is the fight."
+    },
+    {
+      "enemyId": "swamp_hydra",
+      "name": "Swamp Hydra",
+      "biomeId": "poison_swamp",
+      "sighted": "More heads than the account allows for.",
+      "studied": "Heads act on separate timers. Fight the timers, not the heads. Resists poison 75%, physical 20%.",
+      "mastered": "It was one thing when it was sealed in. The sealing is the only date anyone recorded."
+    },
+    {
+      "enemyId": "umbral_hierarch",
+      "name": "The Hierarch",
+      "biomeId": "umbral_chapel",
+      "sighted": "The Hierarch. Every copy of the name was struck through, and the strokes are all in one hand.",
+      "studied": "It relights itself once. Everything before that is only the first half. It shrugs off nothing in particular.",
+      "mastered": "The light was never stored. It was spent. The Hierarch signed for it, and the account has been balancing ever since."
+    },
+    {
+      "enemyId": "venom_mireheart",
+      "name": "The Mireheart",
+      "biomeId": "venom_mire",
+      "sighted": "The Mireheart, and the mire drains toward it.",
+      "studied": "It draws the standing water in to heal. Fight it where the water has already gone. It shrugs off nothing in particular.",
+      "mastered": "Whatever was poured out of the vaults ran downhill for eleven years and arrived here."
+    }
+  ]
+}

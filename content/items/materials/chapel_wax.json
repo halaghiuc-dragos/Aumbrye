@@ -1,0 +1,12 @@
+{
+  "id": "chapel_wax",
+  "name": "Chapel Wax",
+  "itemType": "material",
+  "gridWidth": 1,
+  "gridHeight": 1,
+  "stackSize": 20,
+  "description": "Poured off the candle stubs at the end of a service that ran late.",
+  "value": 30,
+  "lootValue": 18,
+  "materialTier": "mirebrass"
+}

@@ -1,0 +1,35 @@
+{
+  "id": "unique_frostbitten_oath",
+  "name": "Frostbitten Oath",
+  "itemType": "weapon",
+  "equipmentSlot": "weapon",
+  "gridWidth": 2,
+  "gridHeight": 4,
+  "stackSize": 1,
+  "rarity": "epic",
+  "description": "Sworn with a bare hand on cold iron. The hand did not come away whole.",
+  "value": 520,
+  "lootValue": 260,
+  "maxDurability": 140,
+  "unique": true,
+  "baseId": "warhammer",
+  "biome": "frozen_fortress",
+  "scaling": {
+    "strength": "A",
+    "dexterity": "E"
+  },
+  "ruleText": "Critical hits freeze the target.",
+  "rules": [
+    {
+      "event": "onCrit",
+      "effect": "apply_status",
+      "statusId": "freeze",
+      "stacks": 1
+    }
+  ],
+  "stats": {
+    "frostDamage": 10,
+    "poiseDamage": 0.18
+  },
+  "weaponId": "greatsword"
+}

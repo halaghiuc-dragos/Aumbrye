@@ -1,0 +1,18 @@
+{
+  "id": "the_prayer_said",
+  "title": "Standing Order: The Hour Kept",
+  "type": "clear_without",
+  "maxSeconds": 780,
+  "requiresBoss": true,
+  "repeatable": true,
+  "cooldownRuns": 2,
+  "availableWhen": {
+    "flag": "prayer_restored"
+  },
+  "bounty": "weekly",
+  "description": "Odile says the rite is whole again and will not say who it is addressed to. Down, through, and out inside the hour she keeps.",
+  "rewards": {
+    "gold": 300,
+    "bountyTokens": 7
+  }
+}

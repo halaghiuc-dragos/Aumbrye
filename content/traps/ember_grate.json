@@ -1,0 +1,24 @@
+{
+  "id": "ember_grate",
+  "name": "Ember Grate",
+  "description": "Coals kept alive by nobody. They still know their work.",
+  "scene": "res://scenes/traps/ember_grate.tscn",
+  "trigger": "cycle",
+  "telegraph": 0.9,
+  "active": 1.5,
+  "cooldown": 3.2,
+  "triggerRadius": 3,
+  "damage": 10,
+  "poiseDamage": 2,
+  "damageType": "fire",
+  "hitInterval": 0.5,
+  "statusId": "burn",
+  "statusBuildUp": 30,
+  "enemyDamageMultiplier": 1,
+  "size": [
+    3,
+    1.2,
+    3
+  ],
+  "color": "#ff5522"
+}

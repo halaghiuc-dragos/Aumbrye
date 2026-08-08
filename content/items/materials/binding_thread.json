@@ -1,0 +1,12 @@
+{
+  "id": "binding_thread",
+  "name": "Binding Thread",
+  "itemType": "material",
+  "gridWidth": 1,
+  "gridHeight": 1,
+  "stackSize": 20,
+  "description": "Spun from something that was already spun once.",
+  "value": 140,
+  "lootValue": 84,
+  "materialTier": "reliquary"
+}

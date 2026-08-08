@@ -112,6 +112,20 @@ func _is_submenu_open() -> bool:
 
 
 func _on_new_game() -> void:
+	if not LocalSave.can_create_character():
+		MenuShellScript.show_confirmation(
+			self,
+			"No Room Left",
+			(
+				"All %d warden slots are taken. Retire one from Continue before starting another."
+				% LocalSave.character_slot_limit()
+			),
+			func() -> void: pass,
+			Callable(),
+			"Very well",
+			"Back"
+		)
+		return
 	if LocalSave.has_playable_character():
 		MenuShellScript.show_confirmation(
 			self,

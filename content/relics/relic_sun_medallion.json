@@ -1,9 +1,21 @@
 {
-    "description":  "Holy light mends wounds slowly.",
-    "name":  "Relic Sun Medallion",
-    "id":  "relic_sun_medallion",
-    "stats":  {
-                  "healthRegen":  1
-              },
-    "maxStacks":  1
+  "id": "relic_sun_medallion",
+  "name": "Relic Sun Medallion",
+  "description": "Warmth that outlived the sun it came from. A new floor refills a flask.",
+  "maxStacks": 1,
+  "stats": {
+    "healthRegen": 1
+  },
+  "tags": [
+    "vigil"
+  ],
+  "weight": 1,
+  "rules": [
+    {
+      "event": "onFloorEnter",
+      "effect": "refund_flask",
+      "amount": 1
+    }
+  ],
+  "offerable": true
 }

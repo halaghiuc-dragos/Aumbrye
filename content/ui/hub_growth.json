@@ -1,0 +1,115 @@
+{
+  "schemaVersion": 1,
+  "entries": [
+    {
+      "id": "banner_first_clear",
+      "name": "Warden Banner",
+      "anchor": "courtyard",
+      "prop": "banner",
+      "description": "A banner hung for the first hall you emptied.",
+      "condition": {
+        "dungeonsCleared": 1
+      }
+    },
+    {
+      "id": "banner_row",
+      "name": "Banner Row",
+      "anchor": "courtyard",
+      "prop": "banner",
+      "description": "One banner for each hall that answered you.",
+      "condition": {
+        "dungeonsCleared": 3
+      }
+    },
+    {
+      "id": "trophy_hall",
+      "name": "Trophy Hall",
+      "anchor": "great_hall",
+      "prop": "trophy",
+      "description": "What is left of the wardens, mounted where the light reaches it.",
+      "condition": {
+        "dungeonsCleared": 5
+      }
+    },
+    {
+      "id": "deep_road_marker",
+      "name": "Deep Road Marker",
+      "anchor": "courtyard",
+      "prop": "marker",
+      "description": "A stone cut with the depth you reached and barely returned from.",
+      "condition": {
+        "endlessBestFloor": 25
+      }
+    },
+    {
+      "id": "archive_shelves",
+      "name": "Archive Shelves",
+      "anchor": "great_hall",
+      "prop": "shelf",
+      "description": "The pages you filled had to go somewhere.",
+      "condition": {
+        "bestiaryStudied": 15
+      }
+    },
+    {
+      "id": "archive_complete",
+      "name": "The Full Archive",
+      "anchor": "great_hall",
+      "prop": "shelf",
+      "description": "Every quarry named, drawn and closed.",
+      "condition": {
+        "bestiaryMastered": 40
+      }
+    },
+    {
+      "id": "workshop_forge",
+      "name": "Working Forge",
+      "anchor": "workshop",
+      "prop": "forge",
+      "description": "The blacksmith stopped saving coal.",
+      "condition": {
+        "maxUnlockedTier": 3
+      }
+    },
+    {
+      "id": "workshop_annex",
+      "name": "Workshop Annex",
+      "anchor": "workshop",
+      "prop": "forge",
+      "description": "A second bench, and someone to stand at it.",
+      "condition": {
+        "maxUnlockedTier": 6
+      }
+    },
+    {
+      "id": "notice_board",
+      "name": "Notice Board",
+      "anchor": "courtyard",
+      "prop": "board",
+      "description": "People trust the tower enough to pin work to it.",
+      "condition": {
+        "bountyTokens": 5
+      }
+    },
+    {
+      "id": "descent_shrine",
+      "name": "Descent Shrine",
+      "anchor": "undercroft",
+      "prop": "shrine",
+      "description": "Tokens left by everyone who went down and chose to come back.",
+      "condition": {
+        "descentTokens": 10
+      }
+    },
+    {
+      "id": "record_stone",
+      "name": "Record Stone",
+      "anchor": "undercroft",
+      "prop": "marker",
+      "description": "Twenty runs cut into one slab, in the order you survived them.",
+      "condition": {
+        "runsRecorded": 20
+      }
+    }
+  ]
+}

@@ -415,16 +415,13 @@ func _test_flash_settles() -> void:
 	var saved_override := mesh.material_override
 	MaterialFlashScript.flash(mesh, {"strength": 1.0, "duration": 0.12})
 	await ctx.owner.get_tree().create_timer(0.35).timeout
-	var dup := mesh.material_override as ShaderMaterial
 	var amount: float = 0.0
-	if dup:
-		var param: Variant = dup.get_shader_parameter("flash_amount")
-		if param is float:
-			amount = param
+	var param: Variant = mesh.get_instance_shader_parameter("flash_amount")
+	if param is float:
+		amount = param
 	var ok := (
 		amount <= 0.001
 		and not mesh.has_meta("material_flash_tween")
-		and not mesh.has_meta("material_effect_owner")
 		and mesh.material_override == saved_override
 	)
 	fixture.queue_free()
@@ -432,7 +429,7 @@ func _test_flash_settles() -> void:
 		"flash.always_settles",
 		get_category(),
 		ok,
-		"flash tween restores material_override and clears metas",
+		"flash tween settles the instance shader parameter and never touches material_override",
 		start,
 		"FLS-01"
 	)

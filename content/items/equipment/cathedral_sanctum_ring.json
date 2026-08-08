@@ -1,17 +1,17 @@
 {
-    "id":  "cathedral_sanctum_ring",
-    "name":  "Cathedral Sanctum Ring",
-    "itemType":  "armor",
-    "gridWidth":  2,
-    "gridHeight":  2,
-    "stackSize":  1,
-    "rarity":  "rare",
-    "description":  "A sanctum seal bent into a ring — authority outlives the priest.",
-    "value":  20,
-    "stats":  {
-                  "defense":  3,
-                  "arcaneDamage":  6
-              },
-    "equipmentSlot":  "ring",
-    "theme":  "dark_cathedral"
+  "id": "cathedral_sanctum_ring",
+  "name": "Cathedral Sanctum Ring",
+  "itemType": "armor",
+  "gridWidth": 1,
+  "gridHeight": 1,
+  "stackSize": 1,
+  "rarity": "rare",
+  "description": "A sanctum seal bent into a ring — authority outlives the priest.",
+  "value": 20,
+  "stats": {
+    "defense": 3,
+    "arcaneDamage": 6
+  },
+  "equipmentSlot": "ring",
+  "theme": "dark_cathedral"
 }

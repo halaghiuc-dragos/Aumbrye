@@ -1,0 +1,34 @@
+{
+  "id": "unique_the_apostate",
+  "name": "The Apostate",
+  "itemType": "weapon",
+  "equipmentSlot": "weapon",
+  "gridWidth": 2,
+  "gridHeight": 4,
+  "stackSize": 1,
+  "rarity": "legendary",
+  "description": "Consecrated, then used against the people who consecrated it. Nobody reconsecrated it.",
+  "value": 880,
+  "lootValue": 440,
+  "maxDurability": 130,
+  "unique": true,
+  "baseId": "greatsword",
+  "biome": "dark_cathedral",
+  "scaling": {
+    "strength": "B",
+    "dexterity": "E"
+  },
+  "ruleText": "Backstabs heal you for 15% of the damage dealt.",
+  "rules": [
+    {
+      "event": "onBackstab",
+      "effect": "lifesteal",
+      "pct": 0.15
+    }
+  ],
+  "stats": {
+    "physicalDamage": 22,
+    "arcaneDamage": 8
+  },
+  "weaponId": "greatsword"
+}

@@ -11,7 +11,8 @@
     "kind": "applyStatus",
     "statusId": "elixir_might",
     "duration": 60,
-    "amount": 15
+    "amount": 15,
+    "stat": "damagePercent"
   },
   "value": 20,
   "stats": {}

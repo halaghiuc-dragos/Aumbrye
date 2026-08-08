@@ -1,0 +1,17 @@
+{
+  "id": "bounty_first_landing",
+  "title": "Bounty: Three Floors Down",
+  "type": "reach_depth",
+  "requiredCount": 3,
+  "repeatable": true,
+  "cooldownRuns": 1,
+  "availableWhen": {
+    "minTier": 2
+  },
+  "bounty": "daily",
+  "description": "Standing bounty. Three floors and back up. Vessit writes it down whether or not you come back up.",
+  "rewards": {
+    "gold": 100,
+    "bountyTokens": 2
+  }
+}

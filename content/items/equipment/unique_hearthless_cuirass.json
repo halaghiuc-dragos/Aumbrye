@@ -1,0 +1,39 @@
+{
+  "id": "unique_hearthless_cuirass",
+  "name": "Hearthless Cuirass",
+  "itemType": "armor",
+  "equipmentSlot": "chest",
+  "gridWidth": 2,
+  "gridHeight": 3,
+  "stackSize": 1,
+  "rarity": "legendary",
+  "description": "The fortress kept no fires for the last two winters. The plate learned to be enough.",
+  "value": 800,
+  "lootValue": 400,
+  "maxDurability": 120,
+  "unique": true,
+  "baseId": "cuirass",
+  "biome": "frozen_fortress",
+  "scaling": {
+    "strength": "C"
+  },
+  "ruleText": "Each hit taken raises armor by 4, up to 6 stacks. Resets on room clear.",
+  "rules": [
+    {
+      "event": "onHitTaken",
+      "effect": "add_stack",
+      "stackId": "hearthless",
+      "maxStacks": 6,
+      "stat": "armor",
+      "perStack": 4.0,
+      "resetOn": [
+        "onRoomClear"
+      ]
+    }
+  ],
+  "stats": {
+    "armor": 24,
+    "resistFrost": 0.18,
+    "defense": 14
+  }
+}

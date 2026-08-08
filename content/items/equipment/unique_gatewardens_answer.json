@@ -1,0 +1,34 @@
+{
+  "id": "unique_gatewardens_answer",
+  "name": "The Gatewarden's Answer",
+  "itemType": "weapon",
+  "equipmentSlot": "weapon",
+  "gridWidth": 2,
+  "gridHeight": 4,
+  "stackSize": 1,
+  "rarity": "epic",
+  "description": "Every petitioner got the same reply, and it was never spoken aloud.",
+  "value": 480,
+  "lootValue": 240,
+  "maxDurability": 125,
+  "unique": true,
+  "baseId": "halberd",
+  "biome": "forgotten_castle",
+  "scaling": {
+    "strength": "B",
+    "dexterity": "C"
+  },
+  "ruleText": "Parrying restores 30 stamina.",
+  "rules": [
+    {
+      "event": "onParry",
+      "effect": "restore_stamina",
+      "amount": 30.0
+    }
+  ],
+  "stats": {
+    "physicalDamage": 14,
+    "poiseDamage": 0.12
+  },
+  "weaponId": "spear"
+}

@@ -1,4 +1,4 @@
-import { BrowserRouter, Route, Routes } from "react-router-dom";
+import { Route, Routes } from "react-router-dom";
 import Layout from "./components/Layout";
 import NotFound from "./components/NotFound";
 import VersionGate from "./components/VersionGate";
@@ -11,7 +11,7 @@ import WikiIndexPage, { WikiArticlePage } from "./pages/Wiki";
 
 export default function App() {
   return (
-    <BrowserRouter>
+    <>
       <VersionGate />
       <Routes>
         <Route element={<Layout />}>
@@ -25,6 +25,6 @@ export default function App() {
           <Route path="*" element={<NotFound />} />
         </Route>
       </Routes>
-    </BrowserRouter>
+    </>
   );
 }

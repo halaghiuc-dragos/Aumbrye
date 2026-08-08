@@ -1,0 +1,32 @@
+{
+  "id": "corrin_arrival",
+  "startNode": "start",
+  "nodes": {
+    "start": {
+      "speaker": "Corrin",
+      "text": "Careful with the case. Careful — thank you. Nine lamps, all of them mine, none of them lit since the angle moved. I would like to try one up here where the walls are honest.",
+      "actions": [
+        {
+          "type": "set_relationship",
+          "npc": "corrin",
+          "delta": 2
+        },
+        {
+          "type": "advance_story_beat",
+          "beat": 3
+        },
+        {
+          "type": "set_flag",
+          "flag": "lamps_relit",
+          "value": true
+        },
+        {
+          "type": "give_item",
+          "itemId": "everburning_torch",
+          "quantity": 1
+        }
+      ],
+      "next": "end"
+    }
+  }
+}

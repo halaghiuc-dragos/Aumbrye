@@ -1,0 +1,28 @@
+{
+  "id": "spellglass_staff",
+  "name": "Spellglass Staff",
+  "itemType": "weapon",
+  "equipmentSlot": "weapon",
+  "gridWidth": 1,
+  "gridHeight": 4,
+  "stackSize": 1,
+  "rarity": "rare",
+  "description": "The wood remembers every word spoken through it. Grown, not forged. It rings on a note the ear dislikes. Scaling: Strength E, Arcane A.",
+  "value": 286,
+  "lootValue": 143,
+  "maxDurability": 90,
+  "baseId": "staff",
+  "materialTier": "spellglass",
+  "biome": "crystal_caverns",
+  "scaling": {
+    "strength": "E",
+    "arcane": "A"
+  },
+  "stats": {
+    "manaMax": 38,
+    "arcaneDamage": 10,
+    "resistArcane": 0.1,
+    "resistLightning": 0.05
+  },
+  "weaponId": "staff"
+}

@@ -1,0 +1,12 @@
+{
+  "id": "whetting_oil",
+  "name": "Whetting Oil",
+  "itemType": "material",
+  "gridWidth": 1,
+  "gridHeight": 1,
+  "stackSize": 20,
+  "description": "Pressed from swamp seed. It keeps rust off and keeps nothing else.",
+  "value": 18,
+  "lootValue": 11,
+  "materialTier": "graysteel"
+}

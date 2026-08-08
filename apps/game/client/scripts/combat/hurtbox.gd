@@ -4,6 +4,7 @@ class_name Hurtbox
 const DEBUG_SCRIPT := preload("res://scripts/combat/combat_collision_debug.gd")
 const MaterialFlashScript := preload("res://scripts/art/characters/material_flash.gd")
 const DamageResolutionScript := preload("res://scripts/combat/damage_resolution.gd")
+const HitFeedbackScript := preload("res://scripts/combat/hit_feedback.gd")
 const DEFENSE_PER_POINT := 0.02
 const DEFENSE_CAP := 0.9
 const HYPERARMOR_POISE_MULT := 0.25
@@ -148,7 +149,12 @@ func receive_hit(info: DamageInfo) -> void:
 		res.poise_outgoing = poise_hit
 
 	_apply_status_from_hit(info)
-	_emit_victim_feedback(final_amount, info.direction, info.damage_type, res.blocked, res.backstab)
+	var impact := _impact_class_for(res, info.execution)
+	_emit_victim_feedback(
+		final_amount, info.direction, info.damage_type, res.blocked, res.backstab, impact
+	)
+	_emit_attacker_feedback(info, final_amount, impact, res.blocked)
+	_dispatch_combat_events(info, res)
 	hit_resolved.emit(res)
 	damaged.emit(info)
 	if team == "player" and (final_amount > 0.0 or final_poise > 0.0):
@@ -255,12 +261,67 @@ func _emit_block_feedback(chip_damage: float) -> void:
 		feedback.call("on_hit_blocked", body, chip_damage)
 
 
+func _impact_class_for(res: RefCounted, execution: String) -> int:
+	if res.crit or res.backstab or execution != "":
+		return HitFeedbackScript.ImpactClass.CRITICAL
+	if res.blocked or res.absorbed_by_poise or res.outgoing < HitFeedbackScript.GLANCING_DAMAGE:
+		return HitFeedbackScript.ImpactClass.GLANCING
+	return HitFeedbackScript.ImpactClass.SOLID
+
+
+func _emit_attacker_feedback(
+	info: DamageInfo, damage: float, impact: int, blocked: bool
+) -> void:
+	if damage <= 0.0 and not blocked:
+		return
+	if info.source == null or not is_instance_valid(info.source):
+		return
+	var feedback := info.source.get_node_or_null("HitFeedback")
+	if feedback == null or not feedback.has_method("on_hit"):
+		return
+	feedback.call(
+		"on_hit", _cached_character_body, damage, info.direction, info.damage_type, impact
+	)
+
+
+func _dispatch_combat_events(info: DamageInfo, res: RefCounted) -> void:
+	if not CombatEvents:
+		return
+	var victim := _cached_character_body
+	var attacker := info.source
+	if attacker and is_instance_valid(attacker) and attacker.is_in_group("player") and res.outgoing > 0.0:
+		var ctx := {
+			"actor": attacker,
+			"target": victim,
+			"amount": res.outgoing,
+			"damageType": res.damage_type,
+		}
+		CombatEvents.dispatch(CombatEvents.ON_HIT, ctx)
+		if res.crit:
+			CombatEvents.dispatch(CombatEvents.ON_CRIT, ctx)
+		if res.backstab or info.execution == "backstab":
+			CombatEvents.dispatch(CombatEvents.ON_BACKSTAB, ctx)
+		if info.execution == "riposte":
+			CombatEvents.dispatch(CombatEvents.ON_RIPOSTE, ctx)
+	if victim and victim.is_in_group("player") and res.outgoing > 0.0:
+		CombatEvents.dispatch(
+			CombatEvents.ON_HIT_TAKEN,
+			{
+				"actor": victim,
+				"target": attacker,
+				"amount": res.outgoing,
+				"damageType": res.damage_type,
+			}
+		)
+
+
 func _emit_victim_feedback(
 	damage: float,
 	direction: Vector3 = Vector3.ZERO,
 	damage_type: String = "physical",
 	blocked: bool = false,
 	crit: bool = false,
+	impact: int = HitFeedbackScript.ImpactClass.SOLID,
 ) -> void:
 	if damage <= 0.0:
 		return
@@ -304,7 +365,7 @@ func _emit_victim_feedback(
 	)
 	var feedback := body.get_node_or_null("HitFeedback")
 	if feedback and feedback.has_method("on_hit_received"):
-		feedback.call("on_hit_received", damage, direction, damage_type)
+		feedback.call("on_hit_received", damage, direction, damage_type, impact)
 
 
 func _apply_resistances(amount: float, damage_type: String) -> float:
@@ -350,9 +411,23 @@ func _apply_status_from_hit(info: DamageInfo) -> void:
 	if info.status_id == "":
 		return
 	var status_ctrl := _resolve_status_controller()
-	if status_ctrl:
+	if status_ctrl == null:
+		return
+	var gain := _build_up_gain(info.status_id, maxi(1, info.status_stacks))
+	if info.periodic or gain <= 0.0 or not status_ctrl.has_method("add_build_up"):
 		status_ctrl.apply_status(info.status_id, info.status_stacks)
 		_notify_player_status_applied(info, _cached_character_body)
+		return
+	if bool(status_ctrl.call("add_build_up", info.status_id, gain)):
+		_notify_player_status_applied(info, _cached_character_body)
+
+
+func _build_up_gain(status_id: String, stacks: int) -> float:
+	var definition := StatusCatalog.get_definition(status_id)
+	var threshold := float(definition.get("buildUpThreshold", 0.0))
+	if threshold <= 0.0:
+		return 0.0
+	return float(definition.get("buildUpPerHit", threshold * 0.25)) * float(stacks)
 
 
 func _notify_player_status_applied(info: DamageInfo, victim_body: Node3D) -> void:

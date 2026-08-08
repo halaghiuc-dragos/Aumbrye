@@ -1,0 +1,26 @@
+{
+  "id": "spellglass_helm",
+  "name": "Spellglass Helm",
+  "itemType": "armor",
+  "equipmentSlot": "helmet",
+  "gridWidth": 2,
+  "gridHeight": 2,
+  "stackSize": 1,
+  "rarity": "rare",
+  "description": "The visor is dented inward. It was not removed in time. Grown, not forged. It rings on a note the ear dislikes. Scaling: Strength D.",
+  "value": 156,
+  "lootValue": 78,
+  "maxDurability": 100,
+  "baseId": "helm",
+  "materialTier": "spellglass",
+  "biome": "crystal_caverns",
+  "scaling": {
+    "strength": "D"
+  },
+  "stats": {
+    "armor": 10,
+    "poise": 6,
+    "resistArcane": 0.1,
+    "resistLightning": 0.05
+  }
+}

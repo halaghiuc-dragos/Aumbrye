@@ -1,1 +1,24 @@
-{ "id": "frost_trap", "scene": "res://scenes/traps/frost_trap.tscn" }
+{
+  "id": "frost_trap",
+  "name": "Rimed Pool",
+  "description": "Standing water that never finished freezing. Neither will you.",
+  "scene": "res://scenes/traps/frost_trap.tscn",
+  "trigger": "proximity",
+  "telegraph": 0.6,
+  "active": 2.8,
+  "cooldown": 2,
+  "triggerRadius": 3.4,
+  "damage": 5,
+  "poiseDamage": 2,
+  "damageType": "frost",
+  "hitInterval": 0.7,
+  "statusId": "freeze",
+  "statusBuildUp": 24,
+  "enemyDamageMultiplier": 0.75,
+  "size": [
+    4,
+    1.6,
+    4
+  ],
+  "color": "#59a8d8"
+}

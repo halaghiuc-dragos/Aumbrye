@@ -1,0 +1,25 @@
+{
+  "id": "graysteel_greaves",
+  "name": "Graysteel Greaves",
+  "itemType": "armor",
+  "equipmentSlot": "boots",
+  "gridWidth": 2,
+  "gridHeight": 2,
+  "stackSize": 1,
+  "rarity": "common",
+  "description": "Mud to the ankle, and none of it from this floor. Vault-stock, stamped and stacked for a war that was called off. Scaling: Strength D.",
+  "value": 35,
+  "lootValue": 18,
+  "maxDurability": 95,
+  "baseId": "greaves",
+  "materialTier": "graysteel",
+  "biome": "iron_vault",
+  "scaling": {
+    "strength": "D"
+  },
+  "stats": {
+    "armor": 3,
+    "evasion": 3,
+    "resistPhysical": 0.02
+  }
+}

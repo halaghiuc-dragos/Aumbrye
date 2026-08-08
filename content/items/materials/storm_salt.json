@@ -1,0 +1,12 @@
+{
+  "id": "storm_salt",
+  "name": "Storm Salt",
+  "itemType": "material",
+  "gridWidth": 1,
+  "gridHeight": 1,
+  "stackSize": 20,
+  "description": "Gathered where lightning met stone. It hums against the jar.",
+  "value": 55,
+  "lootValue": 33,
+  "materialTier": "hoarfrost"
+}

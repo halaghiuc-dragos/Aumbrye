@@ -33,6 +33,7 @@ var crit: bool = false
 var ignore_iframes: bool = false
 var ignore_guard: bool = false
 var periodic: bool = false
+var execution: String = ""
 
 
 static func create(

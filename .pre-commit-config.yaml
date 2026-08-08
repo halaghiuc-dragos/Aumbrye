@@ -17,11 +17,21 @@ repos:
         files: ^tools/
 
       - id: gdformat-check
-        name: gdformat check (health scripts)
+        name: gdformat check
         entry: gdformat --check
         language: python
         additional_dependencies: [gdtoolkit]
-        files: ^apps/game/client/scripts/(app/game_facade|app/run_scene_router|app/content_loader|ui/inventory_ui_layout|validation/validation_runner|validation/suites/save_suite|validation/suites/cross_stack_parity_suite|validation/suites/perf_gate_suite)\.gd$
+        files: ^apps/game/client/scripts/.*\.gd$
+        exclude: ^apps/game/client/scripts/.*/addons/.*\.gd$
+        pass_filenames: true
+
+      - id: gdlint-check
+        name: gdlint
+        entry: gdlint
+        language: python
+        additional_dependencies: [gdtoolkit]
+        files: ^apps/game/client/scripts/.*\.gd$
+        exclude: ^apps/game/client/scripts/.*/addons/.*\.gd$
         pass_filenames: true
 
       - id: eslint-web

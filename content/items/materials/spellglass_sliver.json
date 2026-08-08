@@ -1,0 +1,12 @@
+{
+  "id": "spellglass_sliver",
+  "name": "Spellglass Sliver",
+  "itemType": "material",
+  "gridWidth": 1,
+  "gridHeight": 1,
+  "stackSize": 20,
+  "description": "Sharp on every plane. There is no safe way to hold it.",
+  "value": 90,
+  "lootValue": 54,
+  "materialTier": "spellglass"
+}

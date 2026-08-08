@@ -626,7 +626,9 @@ func _hide_tooltip() -> void:
 		_tooltip_panel.visible = false
 
 
-func _show_tooltip(header: String, body: String, hint: String = "") -> void:
+func _show_tooltip(
+	header: String, body: String, hint: String = "", comparison: String = ""
+) -> void:
 	for child in _tooltip_content.get_children():
 		child.queue_free()
 	if header != "":
@@ -641,7 +643,15 @@ func _show_tooltip(header: String, body: String, hint: String = "") -> void:
 		body_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		GameUISkinScript.style_body_label(body_label)
 		_tooltip_content.add_child(body_label)
-	_tooltip_panel.visible = header != "" or body != ""
+	if comparison != "":
+		var compare_label := RichTextLabel.new()
+		compare_label.bbcode_enabled = true
+		compare_label.fit_content = true
+		compare_label.scroll_active = false
+		compare_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		compare_label.text = comparison
+		_tooltip_content.add_child(compare_label)
+	_tooltip_panel.visible = header != "" or body != "" or comparison != ""
 	if hint != "":
 		_set_hint_text(hint)
 
@@ -675,16 +685,11 @@ func _update_detail() -> void:
 		return
 	detail_slot = inv.slots[compare_index]
 	var delta := _compare_slot_to_equipped(compare_index)
-	var compare_lines: PackedStringArray = []
-	for stat in Equipment.STAT_KEYS:
-		if delta.has(stat) and not is_zero_approx(delta[stat]):
-			compare_lines.append(
-				tr("INV_VS_EQUIPPED") % Equipment.format_delta_line(stat, delta[stat])
-			)
 	_show_tooltip(
 		_build_tooltip_header(detail_slot),
 		_format_slot_tooltip(detail_slot, delta),
-		"\n".join(compare_lines)
+		"",
+		InventoryService.format_comparison_bbcode(detail_slot)
 	)
 	var def := _item_def(detail_slot.get("itemId", ""))
 	var item_type: String = def.get("itemType", "")
@@ -1103,23 +1108,7 @@ func _build_tooltip_header(slot: Dictionary) -> String:
 
 
 func _format_slot_tooltip(slot: Dictionary, compare_delta: Dictionary = {}) -> String:
-	var inv := _inventory()
-	var lines: PackedStringArray = []
-	lines.append(inv.get_slot_display_name(slot))
-	var def := _item_def(slot.get("itemId", ""))
-	if def.has("description"):
-		lines.append(def.get("description", ""))
-	var stats := Equipment.stats_for_instance(slot, Callable(AffixRoller, "get_affix_stat"))
-	for stat in Equipment.STAT_KEYS:
-		var line := Equipment.format_stat_line(stat, stats.get(stat, 0.0))
-		if line != "":
-			if compare_delta.has(stat) and not is_zero_approx(compare_delta[stat]):
-				line += " (%s)" % Equipment.format_delta_line(stat, compare_delta[stat])
-			lines.append(line)
-	for affix in slot.get("affixes", []):
-		if affix is Dictionary:
-			lines.append("  %s +%s" % [affix.get("affixId", ""), affix.get("value", 0)])
-	return "\n".join(lines)
+	return InventoryService.format_slot_tooltip(slot, compare_delta)
 
 
 func _refresh_quick_slot_row() -> void:

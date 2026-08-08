@@ -1,0 +1,84 @@
+{
+  "id": "nettle_reactions",
+  "startNode": "start",
+  "nodes": {
+    "start": {
+      "speaker": "Nettle",
+      "text": "You had it beaten and it still had one left. They always have one left. That is not bad luck, that is the design.",
+      "condition": {
+        "all": [
+          {
+            "lastRunOutcome": "died"
+          },
+          {
+            "lastRunBoss": true
+          }
+        ]
+      },
+      "fallback": "r2",
+      "next": "end"
+    },
+    "r2": {
+      "speaker": "Nettle",
+      "text": "Four floors of that water in you. Sit down. No, sit down.",
+      "condition": {
+        "all": [
+          {
+            "lastRunOutcome": "died"
+          },
+          {
+            "minLastRunFloor": 4
+          }
+        ]
+      },
+      "fallback": "r3",
+      "next": "end"
+    },
+    "r3": {
+      "speaker": "Nettle",
+      "text": "Out clean. Rare. Drink something that is not from down there.",
+      "condition": {
+        "all": [
+          {
+            "lastRunOutcome": "escaped"
+          },
+          {
+            "lastRunBoss": true
+          }
+        ]
+      },
+      "fallback": "r4",
+      "next": "end"
+    },
+    "r4": {
+      "speaker": "Nettle",
+      "text": "The mire. Everything the vaults let go ran downhill for eleven years and arrived at my door. I know exactly what you have been standing in.",
+      "condition": {
+        "lastRunBiome": "venom_mire"
+      },
+      "fallback": "r5",
+      "next": "end"
+    },
+    "r5": {
+      "speaker": "Nettle",
+      "text": "Ten. I have buried people who stopped at two, so I will not tell you to stop.",
+      "condition": {
+        "all": [
+          {
+            "lastRunOutcome": "died"
+          },
+          {
+            "minDeaths": 10
+          }
+        ]
+      },
+      "fallback": "quiet",
+      "next": "end"
+    },
+    "quiet": {
+      "speaker": "Nettle",
+      "text": "There is rot in you. There is rot in everyone who goes down. I only treat the part that is willing to be treated.",
+      "next": "end"
+    }
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "id": "the_gate_stands",
+  "title": "Standing Order: The Gate Holds",
+  "type": "kill",
+  "targetId": "castle_grunt",
+  "requiredCount": 10,
+  "repeatable": true,
+  "cooldownRuns": 1,
+  "availableWhen": {
+    "flag": "gate_reopened"
+  },
+  "bounty": "daily",
+  "description": "The sallyport is open again and Halbrek has begun posting orders against it. Ten off the muster that was never amended.",
+  "rewards": {
+    "gold": 150,
+    "bountyTokens": 3
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "id": "whetstone_ember",
+  "name": "Ember Whetstone",
+  "itemType": "consumable",
+  "gridWidth": 1,
+  "gridHeight": 1,
+  "stackSize": 5,
+  "rarity": "magic",
+  "description": "Draw it once along the edge. The heat stays in the steel longer than in the stone.",
+  "consumableEffect": {
+    "kind": "applyStatus",
+    "statusId": "elixir_ember_edge",
+    "duration": 120,
+    "stat": "fireDamage",
+    "amount": 12,
+    "usableInHub": false
+  },
+  "value": 100,
+  "lootValue": 50
+}

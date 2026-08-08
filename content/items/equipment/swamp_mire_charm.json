@@ -4,10 +4,13 @@
   "itemType": "accessory",
   "equipmentSlot": "amulet",
   "gridWidth": 1,
-  "gridHeight": 1,
+  "gridHeight": 2,
   "stackSize": 1,
   "rarity": "rare",
   "description": "A fetish charm that dulls venomous bites.",
   "value": 44,
-  "stats": { "defense": 4, "maxHealth": 14 }
+  "stats": {
+    "defense": 4,
+    "maxHealth": 14
+  }
 }

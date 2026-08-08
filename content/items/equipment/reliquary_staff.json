@@ -1,0 +1,28 @@
+{
+  "id": "reliquary_staff",
+  "name": "Reliquary Staff",
+  "itemType": "weapon",
+  "equipmentSlot": "weapon",
+  "gridWidth": 1,
+  "gridHeight": 4,
+  "stackSize": 1,
+  "rarity": "rare",
+  "description": "The wood remembers every word spoken through it. Melted down from offering plate. Nobody asked the congregation. Scaling: Strength E, Arcane A.",
+  "value": 211,
+  "lootValue": 106,
+  "maxDurability": 90,
+  "baseId": "staff",
+  "materialTier": "reliquary",
+  "biome": "dark_cathedral",
+  "scaling": {
+    "strength": "E",
+    "arcane": "A"
+  },
+  "stats": {
+    "manaMax": 31,
+    "arcaneDamage": 8,
+    "resistArcane": 0.08,
+    "resistFire": 0.04
+  },
+  "weaponId": "staff"
+}

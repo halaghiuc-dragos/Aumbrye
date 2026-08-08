@@ -1,0 +1,27 @@
+{
+  "id": "reliquary_longsword",
+  "name": "Reliquary Longsword",
+  "itemType": "weapon",
+  "equipmentSlot": "weapon",
+  "gridWidth": 2,
+  "gridHeight": 3,
+  "stackSize": 1,
+  "rarity": "rare",
+  "description": "Long enough to keep a stranger honest. Melted down from offering plate. Nobody asked the congregation. Scaling: Strength C, Dexterity C.",
+  "value": 182,
+  "lootValue": 91,
+  "maxDurability": 110,
+  "baseId": "longsword",
+  "materialTier": "reliquary",
+  "biome": "dark_cathedral",
+  "scaling": {
+    "strength": "C",
+    "dexterity": "C"
+  },
+  "stats": {
+    "physicalDamage": 13,
+    "resistArcane": 0.08,
+    "resistFire": 0.04
+  },
+  "weaponId": "sword_basic"
+}

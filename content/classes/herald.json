@@ -1,0 +1,60 @@
+{
+  "id": "herald",
+  "name": "Herald",
+  "description": "Carries what the deep places carry, and lets it spread.",
+  "startingWeaponItemId": "mirebrass_staff",
+  "statBonuses": {
+    "manaMax": 15,
+    "manaRegen": 0.08
+  },
+  "allowedWeapons": [
+    "mirebrass_staff",
+    "sage_staff",
+    "venom_dagger",
+    "swamp_toxin_dagger",
+    "mirebrass_spear"
+  ],
+  "allowedWeaponFamilies": [
+    "staff",
+    "dagger",
+    "spear"
+  ],
+  "perk": "contagion",
+  "talentBranchId": "tide",
+  "rules": [
+    {
+      "event": "onStatusApplied",
+      "effect": "spread_status",
+      "statusId": "poison",
+      "stacks": 1,
+      "radius": 4.5,
+      "ifTargetHasStatus": "poison",
+      "chance": 1,
+      "cooldown": 1.5
+    },
+    {
+      "event": "onStatusApplied",
+      "effect": "spread_status",
+      "statusId": "burn",
+      "stacks": 1,
+      "radius": 4.5,
+      "ifTargetHasStatus": "burn",
+      "chance": 1,
+      "cooldown": 1.5
+    },
+    {
+      "event": "onKill",
+      "effect": "restore_mana",
+      "amount": 10,
+      "chance": 1,
+      "cooldown": 0
+    }
+  ],
+  "iconPath": "class_icons:herald",
+  "role": "CLASS_ROLE_HERALD",
+  "perkName": "CLASS_PERK_CONTAGION",
+  "perkDescription": "CLASS_PERK_CONTAGION_DESC",
+  "roleText": "Support / Status",
+  "perkNameText": "Contagion",
+  "perkDescriptionText": "What one of them is carrying, the ones standing nearest are carrying too."
+}

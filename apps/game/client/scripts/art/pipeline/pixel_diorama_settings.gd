@@ -323,9 +323,38 @@ static func restamp_tracked() -> void:
 	_tracked = alive
 
 
+const BIOME_GRADE_FLOAT_FIELDS := {
+	"saturation": "saturation",
+	"contrast": "contrast",
+	"lift": "lift",
+	"vignette": "vignette_strength",
+	"vignetteSoftness": "vignette_softness",
+	"posterizeLevels": "posterize_levels",
+}
+
+
 static func set_biome_screen_grade(biome_id: String) -> void:
-	_biome_grade_override = BiomeRegistry.get_grade_profile(biome_id)
+	var override := BiomeRegistry.get_grade_profile(biome_id)
+	var raw: Variant = BiomeRegistry.get_biome(biome_id).get("grade", {})
+	if raw is Dictionary:
+		var grade: Dictionary = raw as Dictionary
+		for json_key in BIOME_GRADE_FLOAT_FIELDS:
+			if grade.has(json_key):
+				override[BIOME_GRADE_FLOAT_FIELDS[json_key]] = float(grade[json_key])
+	_biome_grade_override = override
 	_notify_viewport()
+
+
+static func _graded_float(key: String, fallback: float) -> float:
+	if _biome_grade_override.has(key):
+		return float(_biome_grade_override[key])
+	return fallback
+
+
+static func _graded_color(key: String, fallback: Color) -> Color:
+	if _biome_grade_override.has(key):
+		return _biome_grade_override[key] as Color
+	return fallback
 
 
 static func clear_biome_screen_grade() -> void:
@@ -599,30 +628,26 @@ static func make_screen_finish_material() -> ShaderMaterial:
 static func apply_to_screen_finish(mat: ShaderMaterial) -> void:
 	if mat == null:
 		return
-	var effective_shadow_tint := shadow_tint
-	var effective_shadow_amount := shadow_tint_amount
-	var effective_highlight_tint := highlight_tint
-	var effective_highlight_amount := highlight_tint_amount
-	if _biome_grade_override.has("shadow_tint"):
-		effective_shadow_tint = _biome_grade_override["shadow_tint"] as Color
-	if _biome_grade_override.has("shadow_tint_amount"):
-		effective_shadow_amount = float(_biome_grade_override["shadow_tint_amount"])
-	if _biome_grade_override.has("highlight_tint"):
-		effective_highlight_tint = _biome_grade_override["highlight_tint"] as Color
-	if _biome_grade_override.has("highlight_tint_amount"):
-		effective_highlight_amount = float(_biome_grade_override["highlight_tint_amount"])
-	mat.set_shader_parameter("contrast", screen_contrast)
-	mat.set_shader_parameter("saturation", screen_saturation)
-	mat.set_shader_parameter("lift", screen_lift)
-	mat.set_shader_parameter("shadow_tint", effective_shadow_tint)
-	mat.set_shader_parameter("shadow_tint_amount", effective_shadow_amount)
-	mat.set_shader_parameter("highlight_tint", effective_highlight_tint)
-	mat.set_shader_parameter("highlight_tint_amount", effective_highlight_amount)
-	mat.set_shader_parameter("vignette_strength", vignette_strength)
-	mat.set_shader_parameter("vignette_softness", vignette_softness)
+	mat.set_shader_parameter("contrast", _graded_float("contrast", screen_contrast))
+	mat.set_shader_parameter("saturation", _graded_float("saturation", screen_saturation))
+	mat.set_shader_parameter("lift", _graded_float("lift", screen_lift))
+	mat.set_shader_parameter("shadow_tint", _graded_color("shadow_tint", shadow_tint))
+	mat.set_shader_parameter(
+		"shadow_tint_amount", _graded_float("shadow_tint_amount", shadow_tint_amount)
+	)
+	mat.set_shader_parameter("highlight_tint", _graded_color("highlight_tint", highlight_tint))
+	mat.set_shader_parameter(
+		"highlight_tint_amount", _graded_float("highlight_tint_amount", highlight_tint_amount)
+	)
+	mat.set_shader_parameter(
+		"vignette_strength", _graded_float("vignette_strength", vignette_strength)
+	)
+	mat.set_shader_parameter(
+		"vignette_softness", _graded_float("vignette_softness", vignette_softness)
+	)
 	mat.set_shader_parameter("damage_pulse", 0.0)
 	mat.set_shader_parameter("pulse_tint", pulse_tint)
-	mat.set_shader_parameter("posterize_levels", posterize_levels)
+	mat.set_shader_parameter("posterize_levels", _graded_float("posterize_levels", posterize_levels))
 
 
 static func apply_to_scene(root: Node) -> void:

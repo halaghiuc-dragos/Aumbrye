@@ -1,0 +1,134 @@
+{
+  "schemaVersion": 1,
+  "biomeId": "prism_depths",
+  "lootTables": {
+    "treasure": [
+      {
+        "itemId": "caltrops",
+        "quantity": [
+          1,
+          3
+        ],
+        "weight": 10
+      },
+      {
+        "itemId": "firebomb",
+        "quantity": [
+          1,
+          3
+        ],
+        "weight": 10
+      },
+      {
+        "itemId": "seekers_lantern",
+        "quantity": [
+          1,
+          1
+        ],
+        "weight": 2
+      },
+      {
+        "itemId": "boss_sigil",
+        "quantity": [
+          1,
+          1
+        ],
+        "weight": 10
+      }
+    ],
+    "secret": [
+      {
+        "itemId": "unique_censer_of_small_mercies",
+        "quantity": [
+          1,
+          1
+        ],
+        "weight": 1
+      },
+      {
+        "itemId": "unique_foundry_gauntlets",
+        "quantity": [
+          1,
+          1
+        ],
+        "weight": 4
+      },
+      {
+        "itemId": "unique_lector_gauntlets",
+        "quantity": [
+          1,
+          1
+        ],
+        "weight": 2
+      },
+      {
+        "itemId": "unique_sallyport_greaves",
+        "quantity": [
+          1,
+          1
+        ],
+        "weight": 2
+      },
+      {
+        "itemId": "unique_the_singing_stone",
+        "quantity": [
+          1,
+          1
+        ],
+        "weight": 1
+      }
+    ],
+    "side": [
+      {
+        "itemId": "flame_relic_core",
+        "quantity": [
+          1,
+          3
+        ],
+        "weight": 10
+      }
+    ],
+    "armory": [
+      {
+        "itemId": "castle_helm",
+        "quantity": [
+          1,
+          1
+        ],
+        "weight": 10
+      },
+      {
+        "itemId": "cathedral_warden_helm",
+        "quantity": [
+          1,
+          1
+        ],
+        "weight": 4
+      },
+      {
+        "itemId": "frost_ice_ring",
+        "quantity": [
+          1,
+          1
+        ],
+        "weight": 4
+      },
+      {
+        "itemId": "knight_blade",
+        "quantity": [
+          1,
+          1
+        ],
+        "weight": 4
+      },
+      {
+        "itemId": "steel_gauntlets",
+        "quantity": [
+          1,
+          1
+        ],
+        "weight": 6
+      }
+    ]
+  }
+}

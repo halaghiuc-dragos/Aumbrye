@@ -77,26 +77,55 @@ func set_menu_open(open: bool) -> void:
 
 
 func floor_options() -> Array[Dictionary]:
-	return [
+	var options: Array[Dictionary] = []
+	if _can_ascend:
+		for pact in DescentPactService.offers_for_descent(
+			RunFlow.current_seed, _floor_index + 1
+		):
+			(
+				options
+				. append(
+					{
+						"id": DescentPactService.option_id_for_pact(str(pact.get("id", ""))),
+						"label":
+						(
+							"Descend to floor %d — %s (%s)"
+							% [
+								_floor_index + 1,
+								str(pact.get("label", "Pact")),
+								DescentPactService.describe(pact),
+							]
+						),
+						"enabled": true,
+						"reason": "",
+					}
+				)
+			)
+	options.append(
 		{
 			"id": "ascend",
 			"label": "Ascend to floor %d" % (_floor_index + 1),
 			"enabled": _can_ascend,
 			"reason": _ascend_reason(),
-		},
+		}
+	)
+	options.append(
 		{
 			"id": "descend",
 			"label": "Descend to floor %d" % (_floor_index - 1),
 			"enabled": _can_descend,
 			"reason": _descend_reason(),
-		},
+		}
+	)
+	options.append(
 		{
 			"id": "retreat",
 			"label": "Retreat to the hub",
 			"enabled": _can_retreat and RunFlow.can_retreat_to_hub(),
 			"reason": _retreat_reason(),
-		},
-	]
+		}
+	)
+	return options
 
 
 func use(direction: String) -> void:
@@ -106,7 +135,13 @@ func use(direction: String) -> void:
 	_play_cue("lever_pull")
 	VfxService.play_hit_spark(global_position + Vector3(0.0, 1.05, 0.0), Vector3.UP)
 	lever_used.emit(direction)
+	var pact_id := DescentPactService.pact_id_from_option(direction)
+	if pact_id != "":
+		RunFlow.set_pending_descent_pact(pact_id)
+		RunFlow.ascend_floor()
+		return
 	if direction == "ascend":
+		RunFlow.set_pending_descent_pact("")
 		RunFlow.ascend_floor()
 	elif direction == "descend":
 		RunFlow.descend_floor()

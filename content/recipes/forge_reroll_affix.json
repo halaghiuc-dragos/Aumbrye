@@ -1,0 +1,16 @@
+{
+  "id": "forge_reroll_affix",
+  "type": "reroll",
+  "itemId": "any",
+  "goldCost": 300,
+  "materials": [
+    {
+      "itemId": "reforging_stone",
+      "quantity": 1
+    },
+    {
+      "itemId": "sable_grain",
+      "quantity": 4
+    }
+  ]
+}

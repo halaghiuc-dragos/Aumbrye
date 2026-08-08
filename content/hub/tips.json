@@ -4,13 +4,19 @@
     {
       "id": "dodge_basics",
       "text": "Dodge with {dodge} to roll through attacks. Practice in the training arena.",
-      "actions": ["dodge"],
-      "showWhen": { "minLevel": 1 }
+      "actions": [
+        "dodge"
+      ],
+      "showWhen": {
+        "minLevel": 1
+      }
     },
     {
       "id": "block_basics",
       "text": "Block with {block}; a well-timed parry staggers enemies.",
-      "actions": ["block"]
+      "actions": [
+        "block"
+      ]
     },
     {
       "id": "ascend",
@@ -20,7 +26,24 @@
     {
       "id": "inventory",
       "text": "Open your inventory with {inventory} to equip better gear.",
-      "actions": ["inventory"]
+      "actions": [
+        "inventory"
+      ]
+    },
+    {
+      "id": "quest_board_npc",
+      "text": "Vessit keeps the board by the north wall. Standing bounties reset between descents.",
+      "actions": []
+    },
+    {
+      "id": "rescue_survivors",
+      "text": "Some of the people still down there can walk out with you. They do not wait forever.",
+      "actions": []
+    },
+    {
+      "id": "read_the_walls",
+      "text": "Lecterns and inscriptions hold the record of what happened here. Reading them is worth the detour.",
+      "actions": []
     }
   ]
 }

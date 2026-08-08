@@ -1,8 +1,14 @@
 extends Area3D
+class_name Projectile
 
-## Enemy ranged projectile — rollable via dodge i-frames (ENEMY-2.2).
+## Ranged projectile shared by enemies (ENEMY-2.2) and the player bow (REF-14): a real travelling
+## Hitbox with a team, not a melee hitbox stretched into a box for the duration of the "shot".
+## Rollable via dodge i-frames like any other hitbox. `team` picks which side it can hit — set on
+## the scene root for the enemy/player variants, or via `launch()`'s optional override.
 
 @onready var _hitbox: Hitbox = $Hitbox
+
+@export var team: String = "enemy"
 
 var _velocity := Vector3.ZERO
 var _lifetime := 4.0
@@ -11,6 +17,7 @@ var _owner_node: Node
 
 func _ready() -> void:
 	monitoring = true
+	_hitbox.team = team
 	_hitbox.disable()
 
 
@@ -22,13 +29,17 @@ func launch(
 	shooter: Node,
 	dmg_type: String = DamageInfo.TYPE_PHYSICAL,
 	apply_status: String = "",
-	status_stacks: int = 1
+	status_stacks: int = 1,
+	crit_chance: float = 0.0,
+	crit_multiplier: float = 1.5
 ) -> void:
 	_owner_node = shooter
 	_velocity = direction.normalized() * speed
 	_lifetime = 4.0
 	_hitbox.set_combat_owner(shooter)
-	_hitbox.set_attack_values(damage, poise, dmg_type, apply_status, status_stacks)
+	_hitbox.set_attack_values(
+		damage, poise, dmg_type, apply_status, status_stacks, crit_chance, crit_multiplier
+	)
 	_hitbox.enable()
 	look_at(global_position + direction)
 

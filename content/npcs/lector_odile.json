@@ -1,0 +1,73 @@
+{
+  "id": "lector_odile",
+  "displayName": "Sister Odile",
+  "interactType": "dialogue",
+  "dialogueId": "odile_greeting",
+  "requiresFlag": "rescued_odile",
+  "dialogueRules": [
+    {
+      "condition": {
+        "not": {
+          "relationship": "odile",
+          "atLeast": 1
+        }
+      },
+      "dialogueId": "odile_arrival"
+    },
+    {
+      "condition": {
+        "any": [
+          {
+            "all": [
+              {
+                "lastRunOutcome": "died"
+              },
+              {
+                "lastRunBoss": true
+              }
+            ]
+          },
+          {
+            "all": [
+              {
+                "lastRunOutcome": "died"
+              },
+              {
+                "minLastRunFloor": 4
+              }
+            ]
+          },
+          {
+            "all": [
+              {
+                "lastRunOutcome": "escaped"
+              },
+              {
+                "lastRunBoss": true
+              }
+            ]
+          },
+          {
+            "lastRunBiome": "dark_cathedral"
+          },
+          {
+            "all": [
+              {
+                "lastRunOutcome": "died"
+              },
+              {
+                "minDeaths": 10
+              }
+            ]
+          }
+        ]
+      },
+      "dialogueId": "odile_reactions"
+    }
+  ],
+  "position": {
+    "x": 18.4,
+    "y": 0,
+    "z": 3.6
+  }
+}

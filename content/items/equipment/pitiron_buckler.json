@@ -1,0 +1,36 @@
+{
+  "id": "pitiron_buckler",
+  "name": "Pit-Iron Buckler",
+  "itemType": "armor",
+  "equipmentSlot": "secondary",
+  "gridWidth": 2,
+  "gridHeight": 2,
+  "stackSize": 1,
+  "rarity": "common",
+  "description": "Too small to hide behind. Large enough to turn one blow. Dug out of the courtyard pit and never properly cleaned. Scaling: Strength D.",
+  "value": 26,
+  "lootValue": 13,
+  "maxDurability": 90,
+  "baseId": "buckler",
+  "materialTier": "pitiron",
+  "biome": "forgotten_castle",
+  "scaling": {
+    "strength": "D"
+  },
+  "stats": {
+    "defense": 5,
+    "evasion": 3
+  },
+  "block": {
+    "stability": 1.1,
+    "guardBreakPoise": 34,
+    "reduction": {
+      "physical": 0.56,
+      "fire": 0.3,
+      "frost": 0.3,
+      "poison": 0.3,
+      "lightning": 0.3,
+      "arcane": 0.3
+    }
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "id": "venom_pot",
+  "name": "Venom Pot",
+  "itemType": "consumable",
+  "gridWidth": 1,
+  "gridHeight": 1,
+  "stackSize": 8,
+  "rarity": "common",
+  "description": "Fen-brewed. The seal is wax and the wax is not reliable.",
+  "consumableEffect": {
+    "kind": "throw",
+    "statusId": "poison",
+    "duration": 12,
+    "radius": 4.5,
+    "usableInHub": false
+  },
+  "value": 50,
+  "lootValue": 25
+}

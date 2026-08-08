@@ -1,0 +1,27 @@
+{
+  "id": "reliquary_spear",
+  "name": "Reliquary Spear",
+  "itemType": "weapon",
+  "equipmentSlot": "weapon",
+  "gridWidth": 1,
+  "gridHeight": 4,
+  "stackSize": 1,
+  "rarity": "rare",
+  "description": "The oldest argument for keeping your distance. Melted down from offering plate. Nobody asked the congregation. Scaling: Strength D, Dexterity B.",
+  "value": 163,
+  "lootValue": 82,
+  "maxDurability": 105,
+  "baseId": "spear",
+  "materialTier": "reliquary",
+  "biome": "dark_cathedral",
+  "scaling": {
+    "strength": "D",
+    "dexterity": "B"
+  },
+  "stats": {
+    "physicalDamage": 10,
+    "resistArcane": 0.08,
+    "resistFire": 0.04
+  },
+  "weaponId": "spear"
+}

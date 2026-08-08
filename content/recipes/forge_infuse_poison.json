@@ -1,0 +1,16 @@
+{
+  "id": "forge_infuse_poison",
+  "type": "infuse",
+  "itemId": "any",
+  "goldCost": 400,
+  "materials": [
+    {
+      "itemId": "venom_catalyst",
+      "quantity": 2
+    },
+    {
+      "itemId": "bog_resin",
+      "quantity": 3
+    }
+  ]
+}

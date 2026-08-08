@@ -1,0 +1,18 @@
+{
+  "id": "eleven_years",
+  "title": "Eleven Years",
+  "type": "escort",
+  "chainId": "last_entry",
+  "prerequisites": [
+    "the_socket_above_the_altar"
+  ],
+  "targetNpcId": "widow_of_the_stair",
+  "requiredCount": 1,
+  "availableWhen": {
+    "minTier": 6
+  },
+  "description": "She waited on the sixth landing for eleven years and the garrison stopped using that stair. She has a name and no further use for it.",
+  "rewards": {
+    "gold": 260
+  }
+}

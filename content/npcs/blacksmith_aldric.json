@@ -3,5 +3,61 @@
   "displayName": "Aldric the Blacksmith",
   "interactType": "blacksmith",
   "dialogueId": "aldric_greeting",
-  "position": { "x": -14.9, "y": 0, "z": -3.4 }
+  "dialogueRules": [
+    {
+      "condition": {
+        "any": [
+          {
+            "all": [
+              {
+                "lastRunOutcome": "died"
+              },
+              {
+                "lastRunBoss": true
+              }
+            ]
+          },
+          {
+            "all": [
+              {
+                "lastRunOutcome": "died"
+              },
+              {
+                "minLastRunFloor": 4
+              }
+            ]
+          },
+          {
+            "all": [
+              {
+                "lastRunOutcome": "escaped"
+              },
+              {
+                "lastRunBoss": true
+              }
+            ]
+          },
+          {
+            "lastRunBiome": "frozen_fortress"
+          },
+          {
+            "all": [
+              {
+                "lastRunOutcome": "died"
+              },
+              {
+                "minDeaths": 10
+              }
+            ]
+          }
+        ]
+      },
+      "dialogueId": "aldric_reactions"
+    }
+  ],
+  "position": {
+    "x": -14.9,
+    "y": 0,
+    "z": -3.4
+  }
 }

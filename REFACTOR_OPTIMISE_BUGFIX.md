@@ -289,7 +289,7 @@ makes the seed-sharing feature unachievable.
      `sqrt` in `distance_to`.
   4. Resolve `castle_run` once in `_ready()` (same fix as PERF-01.3).
 
-### PERF-03 — Dungeon build and scene changes are fully synchronous; the perf gate *permits* a 1.5 s hitch
+### PERF-03 — RESOLVED 2026-08-07: Dungeon build and scene changes are fully synchronous; the perf gate *permits* a 1.5 s hitch
 
 - **Problem** — `DungeonBuilder` contains **zero `await`s**. `build_from_source()` instantiates every room scene,
   every enemy, every chest, every trap, every prop, every doorway bridge and the whole floor shell in a single
@@ -384,7 +384,7 @@ makes the seed-sharing feature unachievable.
   resolves via `ResourceLoader.exists()` — `audio_suite.gd` currently checks the filesystem through
   `globalize_path`, which will not work in an export (same class of bug as BUG-02).
 
-### PERF-06b — Dead audio assets: legacy `castle/` folder and 24 duplicate `.wav` sources
+### PERF-06b — RESOLVED 2026-08-07: Dead audio assets: legacy `castle/` folder and 24 duplicate `.wav` sources
 
 - **Problem** — `apps/game/client/assets/audio/castle/` holds `ambience_loop` and `boss_theme` in **both**
   `.ogg` and `.wav`, plus a `README.md`. Nothing references it: `BiomeRegistry.BIOME_CASTLE` resolves to
@@ -421,7 +421,7 @@ makes the seed-sharing feature unachievable.
   `ContentSchemaValidator` **once per unique path** rather than per call. Make a failed load `push_error` once
   and mark the catalogue permanently failed rather than retrying forever.
 
-### PERF-08 — Hot paths use string-based dynamic dispatch (`has_method` + `call`) every physics frame
+### PERF-08 — RESOLVED 2026-08-07 (per-frame hot paths only — see note): Hot paths use string-based dynamic dispatch (`has_method` + `call`) every physics frame
 
 - **Problem** — The codebase contains **282 `has_method()` calls and 290 `.call()` calls** outside the validation
   suites, and they cluster in exactly the wrong places: `locomotion.gd` has 11, `player_anim_director.gd` 11,
@@ -442,6 +442,21 @@ makes the seed-sharing feature unachievable.
   `var _has_lunge := _weapon != null and _weapon.has_method("get_attack_lunge_velocity")` in `_ready()` and test
   the bool per frame. Prefer signals or a small typed interface (`class_name MovementModifier`) over
   `has_method` probing.
+
+- **Resolution note (2026-08-07).** `locomotion.gd`, `weapon_controller.gd`, `hurtbox.gd` and
+  `player_combat_reactions.gd` were already converted to typed cached sibling references by the earlier
+  combat-cluster pass (PERF-01/02/16/17/18/22). This pass finished the remaining named files' genuine
+  per-frame hot paths: `combat_hud.gd`'s `_update_lock_reticle`, `_update_guard_indicators` and
+  `_update_attack_bar` (typed `_lock_on: LockOn`, `_guard: Guard`, `_weapon_controller: WeaponController`,
+  new `class_name OrbitCamera` added to `orbit_camera.gd` to support the same pattern elsewhere), and
+  `lock_on.gd`'s `_update_lock_camera`/`_get_player_eye_position`/`_set_camera_lock_on_active` (typed
+  `_camera_spring: OrbitCamera`), which also exposed and removed two permanently-dead `has_method` guards
+  (`on_lock_occluded`, `set_lock_target_height` — no implementation existed anywhere in the codebase).
+  `player_anim_director.gd`'s actual hot paths (`_process`, `update_locomotion`) contained no
+  `has_method`/`call` to begin with. The remaining `has_method`/`call` sites left in all three files are
+  signal handlers and heterogeneous-node duck typing (enemy/boss target scoring in `lock_on.gd`, minimap and
+  boss-binding in `combat_hud.gd`, one-shot animation-event handlers in `player_anim_director.gd`) —
+  legitimate optional-capability boundaries per REF-03's established judgement, not per-frame cost.
 
 ### PERF-09 — RESOLVED 2026-08-07: `VfxService._process` allocates a fresh array every frame and never sleeps
 
@@ -1554,7 +1569,7 @@ sources. See section 16 for what "covered" does and does not warrant.
 
 ### 🔵 P3 — Refactoring
 
-### REF-09 — `Stamina.consume()` and `Stamina.drain()` are byte-identical
+### REF-09 — RESOLVED 2026-08-07: `Stamina.consume()` and `Stamina.drain()` are byte-identical
 
 - **Problem** — Both functions have the same body: exhaustion check, sufficiency check, subtract, set regen
   delay, emit `stamina_changed`, flip `_exhausted`, emit `depleted`, return `true`. Two names for one
@@ -1569,7 +1584,7 @@ sources. See section 16 for what "covered" does and does not warrant.
   `drain` those continuous semantics — no `insufficient` emit (`BUG-32`), clamp at zero rather than refuse —
   and the two names earn their keep. Otherwise delete `drain` and update the one caller.
 
-### REF-10 — `EndlessDifficulty`, `CastleTierDifficulty` and `WavesDifficulty` are three unrelated scaling formulas
+### REF-10 — RESOLVED 2026-08-07: `EndlessDifficulty`, `CastleTierDifficulty` and `WavesDifficulty` are three unrelated scaling formulas
 
 - **Problem** — Three files implement "how much stronger are enemies here", with three different shapes:
   `CastleTierDifficulty` multiplies a catalog tier multiplier by a linear per-floor growth read from the
@@ -1588,7 +1603,7 @@ sources. See section 16 for what "covered" does and does not warrant.
   Move the constants into `content/` so they are tunable without a code change — which is a hard prerequisite
   for `IMP-I01`, since difficulty tuning that requires recompiling is difficulty tuning that will not happen.
 
-### REF-11 — Floor definitions are cached in two places with two different policies
+### REF-11 — RESOLVED 2026-08-07: Floor definitions are cached in two places with two different policies
 
 - **Problem** — `RunFlow.floor_definitions` (instance, LRU-trimmed by distance from the current floor) and
   `DungeonBuilder._floor_definition_cache` (static, unbounded) hold the same data. `_stash_current_floor_in_cache`
@@ -1604,7 +1619,7 @@ sources. See section 16 for what "covered" does and does not warrant.
   `store/get/clear` plus the eviction policy, delete `RunFlow.floor_definitions` entirely, and make the
   eviction distance-aware by passing the current floor into `store_floor_cache`.
 
-### REF-12 — `SkipFloorService` re-implements inventory counting instead of asking the inventory
+### REF-12 — RESOLVED 2026-08-07: `SkipFloorService` re-implements inventory counting instead of asking the inventory
 
 - **Problem** — `SkipFloorService._count_item()` iterates `inventory.slots` summing quantities — which is
   exactly what `InventoryService.count_item()` already does, and what
@@ -1619,7 +1634,7 @@ sources. See section 16 for what "covered" does and does not warrant.
   already handles partial stacks correctly, so `consume_boss_sigil` and `consume_dungeon_key` collapse to one
   line each.
 
-### REF-13 — Bosses are ordinary enemies with larger numbers, structurally
+### REF-13 — RESOLVED 2026-08-08: Bosses are ordinary enemies with larger numbers, structurally
 
 - **Problem** — Every file in `content/bosses/` carries the same ten keys as a regular enemy
   (`health`, `attack_damage`, `attack_range`, `attack_cooldown`, `windup`/`active`/`recovery` durations,
@@ -1637,7 +1652,7 @@ sources. See section 16 for what "covered" does and does not warrant.
   substring test with the data flag — `_is_boss_enemy()` currently also returns `true` for any future enemy
   whose id happens to contain "boss".
 
-### REF-14 — `WeaponController._process_bow_input()` is a second, divergent attack state machine
+### REF-14 — RESOLVED 2026-08-07: `WeaponController._process_bow_input()` is a second, divergent attack state machine
 
 - **Problem** — The bow branch returns early from `_physics_process()` before the two-hand and weapon-art
   handling, so bow users can never toggle stance or use a weapon art. It maintains its own `DRAWING` phase
@@ -1656,7 +1671,7 @@ sources. See section 16 for what "covered" does and does not warrant.
   into `_try_attack("heavy")` with a charge-up modifier — which also un-blocks two-handing and weapon arts for
   bows.
 
-### REF-15 — `coins` is a complete duplicate API for `gold`, and every change emits two signals
+### REF-15 — RESOLVED 2026-08-07: `coins` is a complete duplicate API for `gold`, and every change emits two signals
 
 - **Problem** — `CharacterService` exposes `gold`, `add_gold`, `spend_gold`, `can_afford` and `gold_changed`
   **and** `get_coins`, `add_coins`, `spend_coins`, `can_afford_coins` and `coins_changed`. The second set is a
@@ -1773,7 +1788,7 @@ sources. See section 16 for what "covered" does and does not warrant.
   `export_diorama_anim_libraries.gd -- --verify` pattern that fails on drift. Standardise on one naming
   convention (`arm_l` or `arml`, not both) and delete the losers.
 
-### REF-06 — `MaterialFlash`/`MaterialDissolve` duplicate materials per instance
+### REF-06 — RESOLVED 2026-08-07: `MaterialFlash`/`MaterialDissolve` duplicate materials per instance
 
 - **Problem** — `_apply_mesh_tint` in `CastleEnemyBase` duplicates the surface material on every tint change;
   `MaterialDissolve` and `MaterialFlash` operate per-instance across the whole diorama hierarchy. With
@@ -1819,7 +1834,7 @@ sources. See section 16 for what "covered" does and does not warrant.
 
 ## 7. 🔵 P3 — Files that are not needed
 
-### DEAD-01 — Unreferenced scripts
+### DEAD-01 — RESOLVED 2026-08-07: Unreferenced scripts
 
 - **Problem** — Eleven `.gd` files are referenced by nothing in the project (no `preload`, no `load`, no
   `class_name` use, no scene, no `project.godot` entry, no content JSON):
@@ -1838,7 +1853,7 @@ sources. See section 16 for what "covered" does and does not warrant.
   delete. Everything else goes. `mcp_validation.gd` is suspicious: `scenes/debug/mcp_validation.tscn` **is** the
   CI validation entry point, so confirm the scene's script reference before deleting the `.gd`.
 
-### DEAD-02 — 222 of 262 exported `.mesh` files are orphaned
+### DEAD-02 — RESOLVED 2026-08-07: 222 of 262 exported `.mesh` files are orphaned
 
 - **Problem** — Only 40 `.mesh` paths are referenced from `content/characters/*.json`; 222 files on disk are
   referenced by nothing. Many are duplicates under a second naming convention (`arm_l.mesh` alongside
@@ -1866,7 +1881,7 @@ sources. See section 16 for what "covered" does and does not warrant.
   before/after). Longer term, move it out of the game project into a developer-only overlay, or pin it as a
   git submodule so upstream fixes are trackable.
 
-### DEAD-04 — Stray files at the repository root and in the client
+### DEAD-04 — RESOLVED 2026-08-07: Stray files at the repository root and in the client
 
 - **Problem** — `debug-d7fbce.log`, `seed1.json`, `seed99999.json` sit at the repo root; nine `.godot_*.log`
   files sit in `apps/game/client/`. All are gitignored (so they are not in history) but they clutter the working
@@ -1879,7 +1894,7 @@ sources. See section 16 for what "covered" does and does not warrant.
   `apps/game/client/.godot_*.log` and `debug-*.log` to `.gitignore` if not already covered (they are — the point
   is to actually delete them).
 
-### DEAD-05 — Dead functions and placeholder branches in gameplay code
+### DEAD-05 — RESOLVED 2026-08-07: Dead functions and placeholder branches in gameplay code
 
 - **Problem** — `CastleEnemyBase._try_parry_check()` is an empty `pass` function with a comment saying the logic
   lives elsewhere; `get_lock_priority()` returns a constant `0.0` for every enemy (so the lock-on priority system
@@ -1916,7 +1931,7 @@ sources. See section 16 for what "covered" does and does not warrant.
   by `id`"); (c) *meaningless* — delete. Budget this as a real project: it is ~30% of the client's script
   volume. Prioritise the suites that gate the P0/P1 items above so the fixes land with genuine coverage.
 
-### QA-02 — The frame-budget gate silently skips in CI
+### QA-02 — RESOLVED 2026-08-07: The frame-budget gate silently skips in CI
 
 - **Problem** — `perf_gate_suite._test_frame_budget()` returns `skip(...)` when `user://perf_baseline.json` is
   absent. CI runs headless on a fresh runner, so that file never exists — **the frame-budget assertion has never
@@ -1930,7 +1945,7 @@ sources. See section 16 for what "covered" does and does not warrant.
   p95 frame ≤ 13.9 ms (72 fps headroom for a 60 fps target), per-frame build cost ≤ 8 ms, node count ≤ 4000 for
   a standard floor. Record the *current* numbers first so the tightening is staged, not aspirational.
 
-### QA-03 — `gdformat` pre-commit covers 8 files; CI covers all of `scripts/`
+### QA-03 — RESOLVED 2026-08-07: `gdformat` pre-commit covers 8 files; CI covers all of `scripts/`
 
 - **Problem** — `.pre-commit-config.yaml` runs `gdformat --check` against a hand-listed regex of 8 specific
   files, while `.github/workflows/ci.yml` runs `gdlint` + `gdformat --check` over **every** `.gd` under
@@ -1941,7 +1956,7 @@ sources. See section 16 for what "covered" does and does not warrant.
 - **Solution Hint** — Replace the file regex with `files: ^apps/game/client/scripts/.*\.gd$` and add the
   `gdlint` hook too. Keep `pass_filenames: true` so it only checks staged files (fast).
 
-### QA-04 — Godot validation reports success ambiguously
+### QA-04 — RESOLVED 2026-08-07: Godot validation reports success ambiguously
 
 - **Problem** — The CI summary step parses failures with
   `jq -r '.tests[] | select(.status == "fail" or .pass == false)'` — accepting **two different schemas** for the
@@ -1967,7 +1982,7 @@ sources. See section 16 for what "covered" does and does not warrant.
   boots the autoloads, asserts every catalogue is non-empty, builds one character rig, generates one dungeon
   floor, writes and re-reads a save, then quits with a status code. This single job would have caught both P0s.
 
-### QA-06 — CI has no dependency-vulnerability or license gate
+### QA-06 — RESOLVED 2026-08-07: CI has no dependency-vulnerability or license gate
 
 - **Problem** — CodeQL runs (`.github/workflows/codeql.yml`), and Dependabot is clearly active (the recent
   commit history is dominated by Dependabot merges), but there is no `dotnet list package --vulnerable`,
@@ -1986,7 +2001,7 @@ sources. See section 16 for what "covered" does and does not warrant.
 > Versions below were resolved live from npmjs.com and api.nuget.org on **2026-08-06**. Re-verify before
 > executing; treat every major bump as its own PR with the full test suite green.
 
-### DEP-01 — Backend targets .NET 8 while already consuming 10.0.x packages
+### DEP-01 — RESOLVED 2026-08-07: Backend targets .NET 8 while already consuming 10.0.x packages
 
 - **Problem** — All six C# projects declare `<TargetFramework>net8.0</TargetFramework>`, yet
   `Aumbrye.Infrastructure.csproj` already references `Microsoft.Extensions.Configuration.Binder` **10.0.10** —
@@ -2006,7 +2021,7 @@ sources. See section 16 for what "covered" does and does not warrant.
   errors. Add a `global.json` pinning the SDK. Update the two hardcoded `net8.0` paths in `ci.yml` to `net10.0`,
   bump `setup-dotnet` to `10.0.x`, and rebase the Dockerfile onto the .NET 10 runtime image.
 
-### DEP-02 — NuGet package versions
+### DEP-02 — RESOLVED 2026-08-07: NuGet package versions
 
 | Package | Current | Latest (2026-08-06) | Notes |
 |---|---|---|---|
@@ -2046,7 +2061,7 @@ sources. See section 16 for what "covered" does and does not warrant.
   `dotnet list package --outdated` after each step. For Swashbuckle, expect to regenerate the spec and the web
   client types in the same PR (`npm run generate:api`), since the `contract` CI job diffs both.
 
-### DEP-03 — npm package versions (`apps/web`)
+### DEP-03 — RESOLVED 2026-08-07: npm package versions (`apps/web`)
 
 | Package | Current | Latest (2026-08-06) | Notes |
 |---|---|---|---|
@@ -2089,7 +2104,7 @@ sources. See section 16 for what "covered" does and does not warrant.
   `packages/shared/Contracts/ApiVersions.cs` `ExpectedClientVersion` — bumping the web version requires the C#
   constant to move in the same commit.
 
-### DEP-04 — PARTIALLY RESOLVED 2026-08-06: Godot, GodotSteam and GitHub Actions
+### DEP-04 — RESOLVED 2026-08-07: Godot, GodotSteam and GitHub Actions
 
 - **Problem** — Several toolchain pins are stale or broken:
   - `.godot-version` = `4.7.0` against a stated 4.7.1 target (BUG-10).
@@ -2116,12 +2131,18 @@ sources. See section 16 for what "covered" does and does not warrant.
   the "delete" branch of the hint above); lychee action reference fixed to `lycheeverse/lychee-action@v2`;
   `.nvmrc` added with `24`. Not verified: whether `chickensoft-games/setup-godot@v1` still supports
   4.7.x — no live CI run was available to check this in the session that made the other fixes.
+- **Resolution note (2026-08-07)** — Verified `chickensoft-games/setup-godot@v1` against its published
+  documentation: the `version` input requires major.minor.patch (`4.7.1` satisfies that), and version
+  resolution is not gated by a hardcoded compatibility list — it accepts any `>= 4.0.0` version string,
+  so it is expected to resolve `4.7.1` without changes. No live CI run was available to confirm this
+  end-to-end, but no code or config change is indicated by this verification, so the item is closed with
+  that caveat on record.
 
 ---
 
 ## 10. 🟡 P2 — Backend and web
 
-### BE-01 — No central package/framework version management
+### BE-01 — RESOLVED 2026-08-07: No central package/framework version management
 
 - **Problem** — Covered mechanically in DEP-01/DEP-02, but the root cause is structural: six `.csproj` files
   each declare their own `TargetFramework`, their own `Nullable`/`ImplicitUsings`, and their own package
@@ -2132,7 +2153,7 @@ sources. See section 16 for what "covered" does and does not warrant.
 - **Solution Hint** — See DEP-01. Also apply `TreatWarningsAsErrors` uniformly — the API and Infrastructure
   projects currently do not have it, which is where most of the code lives.
 
-### BE-02 — Two migrations share the same timestamp prefix
+### BE-02 — RESOLVED 2026-08-07: Two migrations share the same timestamp prefix
 
 - **Problem** — `20260805120000_AddAccountSteamId.cs` and `20260805120000_InitialCreate.cs` carry the **same**
   `20260805120000` prefix. EF orders migrations lexicographically by id; two migrations with an identical
@@ -2147,7 +2168,7 @@ sources. See section 16 for what "covered" does and does not warrant.
   `MigrationTests` case (the test file already exists) that applies migrations from empty and asserts the final
   schema. The missing `.Designer.cs` should be regenerated either way, since EF uses it for model snapshots.
 
-### BE-03 — CI hardcodes `net8.0` build output paths in two places
+### BE-03 — RESOLVED 2026-08-07: CI hardcodes `net8.0` build output paths in two places
 
 - **Problem** — The OpenAPI verification steps in both the `backend` and `contract` jobs reference
   `src/Aumbrye.Api/bin/Release/net8.0/Aumbrye.Api.dll`. Any framework retarget silently breaks the drift check
@@ -2158,7 +2179,7 @@ sources. See section 16 for what "covered" does and does not warrant.
 - **Solution Hint** — Set a workflow-level `env: TFM: net10.0` and interpolate, or use
   `dotnet build -o ./publish` and reference `./publish/Aumbrye.Api.dll`.
 
-### WEB-01 — Prerendering depends on a 0.x plugin driving Puppeteer at build time
+### WEB-01 — RESOLVED 2026-08-07: Prerendering depends on a 0.x plugin driving Puppeteer at build time
 
 - **Problem** — `vite.config.ts` runs `@prerenderer/rollup-plugin` (v0.3.12 — pre-1.0) with a Puppeteer renderer
   and a fixed `renderAfterTime: 1000` heuristic across five routes. This makes every production build depend on
@@ -2172,7 +2193,7 @@ sources. See section 16 for what "covered" does and does not warrant.
   are already in place, evaluate React Router's framework mode (or `vite-plugin-ssr`/`vike`) for real SSG and
   drop the Puppeteer dependency from the build entirely.
 
-### WEB-02 — Web app is small enough that its risk is concentrated in the API contract
+### WEB-02 — RESOLVED 2026-08-07: Web app is small enough that its risk is concentrated in the API contract
 
 - **Problem** — `apps/web/src` is 27 files. The meaningful failure mode is not app complexity but the
   hand-maintained parity between three artefacts: the C# `ExpectedClientVersion` constant, `package.json`
@@ -2185,7 +2206,7 @@ sources. See section 16 for what "covered" does and does not warrant.
 - **Solution Hint** — Add a unit test in `Aumbrye.UnitTests` that reads `apps/web/package.json` and asserts
   `ApiVersions.ExpectedClientVersion` matches, so the check lives in the test suite rather than in YAML.
 
-### WEB-03 — Nested `<BrowserRouter>`, imported from two different packages
+### WEB-03 — RESOLVED 2026-08-07: Nested `<BrowserRouter>`, imported from two different packages
 
 - **Problem** — `main.tsx` wraps `<App/>` in a `<BrowserRouter>` imported from **`react-router`**, and
   `App.tsx` renders a second `<BrowserRouter>` imported from **`react-router-dom`**. Nesting two routers
@@ -2237,7 +2258,7 @@ sources. See section 16 for what "covered" does and does not warrant.
   valid action (see DEP-04). `DOC-CONVENTIONS.md` now mandates citing identifiers rather than line numbers,
   which removes the largest single source of the rot measured above.
 
-### DOC-02 — Docstrings assert behaviour the code does not implement
+### DOC-02 — RESOLVED 2026-08-07: Docstrings assert behaviour the code does not implement
 
 - **Problem** — At least two load-bearing docstrings are false:
   `voxel_mesh_builder.gd:4` claims "greedy-merged voxel ArrayMeshes" (no greedy meshing exists — PERF-14), and
@@ -2251,7 +2272,7 @@ sources. See section 16 for what "covered" does and does not warrant.
   `apps/game/client/scripts/app/content_loader.gd:3-5`
 - **Solution Hint** — `docs/DOC-CONVENTIONS.md` already exists — add the rule there and enforce it in review.
 
-### DOC-03 — `SaveMigrator.STEPS_DOC` is an unread documentation table that is already out of sync
+### DOC-03 — RESOLVED 2026-08-07: `SaveMigrator.STEPS_DOC` is an unread documentation table that is already out of sync
 
 - **Problem** — `save_migrator.gd` declares `STEPS_DOC`, a parallel array intended to document each
   migration step's added/removed keys and recovery behaviour. It holds **8** entries against `STEPS`' **9**,
@@ -2428,7 +2449,7 @@ The single most important measurement behind this section:
 
 ### A — Combat feel: Soulslike weight with snappy response
 
-### IMP-A01 — The dodge costs 700 ms of agency for 250 ms of invulnerability
+### IMP-A01 — RESOLVED 2026-08-08: The dodge costs 700 ms of agency for 250 ms of invulnerability
 
 - **Problem** — `DODGE_DURATION = 0.45` and `DODGE_RECOVERY = 0.25` mean a roll takes 0.70 s during which the
   player has no control at all: `Dodge._process_dash()` overwrites `velocity.x/z` outright for the whole
@@ -2448,7 +2469,7 @@ The single most important measurement behind this section:
   proportionally more i-frames and heavy rolls slower with fewer, so armour weight becomes a real build
   decision. Expose all six numbers in `content/` per `REF-10`'s tuning-data principle.
 
-### IMP-A02 — There is no attack cancel window, so the combat reads as committed rather than snappy
+### IMP-A02 — RESOLVED 2026-08-08: There is no attack cancel window, so the combat reads as committed rather than snappy
 
 - **Problem** — `WeaponController._can_dodge_cancel()` allows a roll only in the last 45 % of `RECOVERY`, and
   nothing at all can cancel `STARTUP` or `ACTIVE`. There is no block-cancel, no sprint-cancel, no
@@ -2466,7 +2487,7 @@ The single most important measurement behind this section:
   but fix `BUG-06` first, because the duplicated buffer block currently fires buffered attacks outside their
   window and masks how the timing actually feels.
 
-### IMP-A03 — Backstabs and ripostes exist as damage multipliers, not as actions
+### IMP-A03 — RESOLVED 2026-08-08: Backstabs and ripostes exist as damage multipliers, not as actions
 
 - **Problem** — A backstab is `BACKSTAB_DAMAGE_MULT = 1.6` applied inside `Hurtbox._apply_arc_multipliers()`;
   a riposte is `RIPOSTE_DAMAGE_MULT = 2.0` applied inside `_enable_hitbox_for_attack()` when
@@ -2488,7 +2509,7 @@ The single most important measurement behind this section:
   `info.ignore_guard = true`. `HitFeedback` already exists for hit-stop and camera shake — this is the single
   highest-leverage use of it. Depends on `BUG-20` (facing convention) being fixed first.
 
-### IMP-A04 — Blocking is a flat 55 % reduction with no stability, no chip identity and no shield variety
+### IMP-A04 — RESOLVED 2026-08-08: Blocking is a flat 55 % reduction with no stability, no chip identity and no shield variety
 
 - **Problem** — `Guard.BLOCK_DAMAGE_REDUCTION = 0.55` and `BLOCK_POISE_TRANSFER = 0.35` are constants; the
   per-shield `stability` and `reduction` that `set_combat_stat_modifiers()` was written to consume are never
@@ -2506,7 +2527,7 @@ The single most important measurement behind this section:
   light-parry-focused to greatshield, which gives the `secondary` slot a reason to exist and gives
   `IMP-F02`'s build variety an anchor.
 
-### IMP-A05 — Hit feedback is well built and mistuned; fix the timing before adding anything to it
+### IMP-A05 — RESOLVED 2026-08-08: Hit feedback is well built and mistuned; fix the timing before adding anything to it
 
 > **Corrected 2026-08-06.** An earlier draft of this item claimed there was no hit-stop, no camera kick and
 > no rumble. That was wrong: `HitFeedback` implements hit-stop, a weighted camera punch, screen shake,
@@ -2538,7 +2559,7 @@ The single most important measurement behind this section:
   Prefer freezing the animators over `Engine.time_scale` where possible (`BUG-41` explains why the global is
   dangerous), keeping the global freeze for the rare `CRITICAL` class only.
 
-### IMP-A06 — Weapon archetypes differ only in hitbox size and numbers
+### IMP-A06 — RESOLVED 2026-08-08: Weapon archetypes differ only in hitbox size and numbers
 
 - **Problem** — `WeaponController._apply_hitbox_profile()` switches on archetype to pick a box size and offset;
   `content/weapons/` holds 8 files. Beyond the box dimensions, a spear, an axe and a greatsword differ only in
@@ -2559,7 +2580,7 @@ The single most important measurement behind this section:
 
 ### B — Enemies and bosses
 
-### IMP-B01 — Every enemy in the game has exactly one attack
+### IMP-B01 — RESOLVED 2026-08-08: Every enemy in the game has exactly one attack
 
 - **Problem** — `CastleEnemyBase._select_attack_data()` reads `_data.get("attacks", [])`, and the state machine
   supports per-attack `windup_duration`, `windup_variance`, `active_duration`, `recovery_duration`,
@@ -2581,7 +2602,7 @@ The single most important measurement behind this section:
   before relying on variance for balance. Add a content-schema rule requiring `attacks` to be non-empty so new
   enemies cannot regress to the fallback.
 
-### IMP-B02 — No boss has phases; bosses are grunts with more HP
+### IMP-B02 — RESOLVED 2026-08-08: No boss has phases; bosses are grunts with more HP
 
 - **Problem** — Every file in `content/bosses/` carries the identical flat key set as a regular enemy. There is
   no phase threshold, no phase-transition beat, no arena mechanic, no add spawn, no enrage, no second move
@@ -2598,7 +2619,7 @@ The single most important measurement behind this section:
   learns the phase change, and one arena interaction (`final_boss_cannon.gd` already demonstrates the pattern
   for the castle finale). Five bosses with two phases each beats eleven bosses with none.
 
-### IMP-B03 — Enemies walk in a straight line and then stand still
+### IMP-B03 — RESOLVED 2026-08-08: Enemies walk in a straight line and then stand still
 
 - **Problem** — `_apply_chase_velocity()` sets `velocity = to_player.normalized() * move_speed` with no
   pathfinding, no obstacle avoidance and no navigation mesh anywhere in the project — an enemy separated from
@@ -2620,7 +2641,7 @@ The single most important measurement behind this section:
   visually surrounds rather than queues. This is the change that makes crowd fights read as Soulslike rather
   than as a conga line.
 
-### IMP-B04 — Dungeons 6–10 are palette swaps with no new enemies or bosses
+### IMP-B04 — RESOLVED 2026-08-08: Dungeons 6–10 are palette swaps with no new enemies or bosses
 
 - **Problem** — `glacial_hollow`'s `enemyPool` is `frost_raider`/`frost_archer`/`frost_knight`/`frost_hound` —
   identical to `frozen_fortress` — with the same `boss_frost_warlord`. `iron_vault`'s pool is identical to
@@ -2637,7 +2658,7 @@ The single most important measurement behind this section:
   closed down, a swarm that punishes wide swings. Pair this with `IMP-B01`: a new enemy with one attack is
   still not a new enemy. Fix the misplaced `miniboss_castle_captain` entry in `frozen_fortress` while there.
 
-### IMP-B05 — Enemy perception is a distance check plus one raycast; there is no awareness state
+### IMP-B05 — RESOLVED 2026-08-08: Enemy perception is a distance check plus one raycast; there is no awareness state
 
 - **Problem** — `_has_aggro()` tests `distance_to(player) <= aggro_range` and one line-of-sight ray, then
   latches `_aggro_locked = true`. There is no sound propagation (sprinting past an enemy is as quiet as
@@ -2656,7 +2677,7 @@ The single most important measurement behind this section:
 
 ### C — Dungeon mode: ten tiers, replayable
 
-### IMP-C01 — "Ten tiers" is a ten-dungeon unlock ladder; each dungeon has only three difficulty tiers
+### IMP-C01 — RESOLVED 2026-08-08: "Ten tiers" is a ten-dungeon unlock ladder; each dungeon has only three difficulty tiers
 
 - **Problem** — Two different things are both called "tier". `DungeonTierService.MAX_TIER = 10` counts how many
   **dungeons** are unlocked and labels the hub portal `"Aumbrye Dungeons — Tier N"`; `DungeonCatalog.order`
@@ -2677,7 +2698,7 @@ The single most important measurement behind this section:
   `max_difficulty_tier`, so the unlock ladder works unchanged once the data has ten rungs. Generating the ten
   entries from a curve in `content/` (per `REF-10`) is better than hand-authoring 100 objects.
 
-### IMP-C02 — Difficulty tiers change only two multipliers, so higher tiers are the same fight with bigger numbers
+### IMP-C02 — RESOLVED 2026-08-08: Difficulty tiers change only two multipliers, so higher tiers are the same fight with bigger numbers
 
 - **Problem** — `CastleTierDifficulty` exposes `hp_multiplier`, `damage_multiplier` and `loot_bonus`, all read
   straight from the tier JSON. `RunModifierService` defines exactly three named modifiers — `elite_packs`,
@@ -2696,7 +2717,7 @@ The single most important measurement behind this section:
   (`room_content_assigner.gd`), rest rooms (`room_rest_content.gd`), doors (`room_locked_door_content.gd`) —
   each of which needs one `if RunModifierService.has_modifier(...)`.
 
-### IMP-C03 — Tier selection is a dropdown, not a progression screen
+### IMP-C03 — RESOLVED 2026-08-08: Tier selection is a dropdown, not a progression screen
 
 - **Problem** — `CastleEntryMenu` presents two `OptionButton`s (dungeon, difficulty) and three buttons. There
   is no indication of which tiers have been cleared, what a tier's modifiers are, what the reward difference
@@ -2712,7 +2733,7 @@ The single most important measurement behind this section:
   difficulty cap per dungeon (`dungeon_tier_<id>`), so recording a per-tier best result is the same mechanism.
   `game_ui_skin.gd` already owns the pixel UI vocabulary this should be built from (`IMP-J03`).
 
-### IMP-C04 — Ten dungeon floors, six rooms each, with no run-shaping decisions
+### IMP-C04 — RESOLVED 2026-08-08: Ten dungeon floors, six rooms each, with no run-shaping decisions
 
 - **Problem** — `RunFloorConfig.MAX_FLOORS = 10` and nine of ten biomes generate 6–10 rooms per floor, so a
   full dungeon clear is roughly 60–100 rooms of which the critical path is about 40. Between floors the only
@@ -2733,7 +2754,7 @@ The single most important measurement behind this section:
 
 ### D — Endless mode
 
-### IMP-D01 — Endless mode is one biome forever
+### IMP-D01 — RESOLVED 2026-08-08: Endless mode is one biome forever
 
 - **Problem** — This is `BUG-33` stated as a design gap rather than a defect: `start_endless_run()` hardcodes
   `BiomeRegistry.BIOME_UMBRAL` and every floor after it inherits `current_biome_id`. Nine biomes, five enemy
@@ -2752,7 +2773,7 @@ The single most important measurement behind this section:
   card naming the region, a music change (`AudioDirector` already crossfades per biome profile) — because a
   visible milestone every 10–20 floors is most of what makes an endless mode feel like progress.
 
-### IMP-D02 — Endless difficulty rises in 14 % steps every ten floors instead of slowly per floor
+### IMP-D02 — RESOLVED 2026-08-08: Endless difficulty rises in 14 % steps every ten floors instead of slowly per floor
 
 - **Problem** — `EndlessDifficulty.floor_tier(floor_index)` is `int(floor_index / 10.0)`, and
   `hp_multiplier()` is `1.0 + tier * HP_GROWTH` with `HP_GROWTH = 0.14`. Difficulty is therefore a **step
@@ -2771,7 +2792,7 @@ The single most important measurement behind this section:
   `RunModifierService.endless_modifiers_for_floor()`: it adds one modifier per 50 floors from a list of
   exactly three, so from floor 150 onward every endless floor forever has the identical three modifiers.
 
-### IMP-D03 — Floor skips have no ceremony, no economy and one missing rung
+### IMP-D03 — RESOLVED 2026-08-08: Floor skips have no ceremony, no economy and one missing rung
 
 - **Problem** — Skips are consumables rolled by `GlobalDropService` on enemy death, spent in
   `UmbralEndlessMenu`, which lists them as raw ids (`"Use skip_10_floors → floor 11"`). There is no indication
@@ -2789,7 +2810,7 @@ The single most important measurement behind this section:
   a *stake*: starting at floor 501 with no accumulated relics is the trade the player is choosing, and the UI
   should say so.
 
-### IMP-D04 — Endless mode has no meta-progression, so there is nothing to come back for
+### IMP-D04 — RESOLVED 2026-08-08: Endless mode has no meta-progression, so there is nothing to come back for
 
 - **Problem** — The endless loop is: start, descend until death, lose run loot, repeat. `RunFlow` strips
   `runLoot`-tagged items at run end. `AchievementService` notifies on milestones, `LeaderboardSettings` exists,
@@ -2810,7 +2831,7 @@ The single most important measurement behind this section:
 
 ### E — Room generation, per floor, per mode
 
-### IMP-E01 — Six-to-ten room floors, with the generator's own capabilities switched off
+### IMP-E01 — RESOLVED 2026-08-08: Six-to-ten room floors, with the generator's own capabilities switched off
 
 - **Problem** — `RoomGraphConfig.from_biome()` reads `roomCount` from the biome. Nine of ten biomes declare
   `{"min": 6, "max": 10}`; only `forgotten_castle` declares `{"min": 18, "max": 22}`. Because the config's
@@ -2831,7 +2852,7 @@ The single most important measurement behind this section:
   a generator whose behaviour changes silently at a room-count threshold is a generator nobody can tune.
   Verify against `room_content_validator.gd`, which already checks the result.
 
-### IMP-E02 — Every room of a given kind has enemies in the same six places
+### IMP-E02 — RESOLVED 2026-08-08: Every room of a given kind has enemies in the same six places
 
 - **Problem** — `RoomTemplateCatalog.KIND_SPECS` is a hardcoded GDScript dictionary of eleven room kinds, each
   with a fixed anchor list: `"courtyard"` always offers exactly the same six enemy anchors, four cover anchors,
@@ -2851,7 +2872,7 @@ The single most important measurement behind this section:
   Then randomise *within* a variant: jitter anchors by ±0.5 m using the floor's seeded RNG so no two instances
   are pixel-identical.
 
-### IMP-E03 — Room content is one weighted roll with no pacing, no set-pieces and no guarantees
+### IMP-E03 — RESOLVED 2026-08-08: Room content is one weighted roll with no pacing, no set-pieces and no guarantees
 
 - **Problem** — `RoomContentConfig` is a flat weight table (`combat` 0.45, `empty` 0.14, `trap` 0.09,
   `hazard` 0.07, `reward` 0.06, `lore` 0.06, `rest` 0.05, `puzzle` 0.05, `npc_quest` 0.02, `merchant` 0.01)
@@ -2872,7 +2893,7 @@ The single most important measurement behind this section:
   once per floor (ambush floor, treasure floor, silent floor) that swaps the whole table — the cheapest way to
   make a generated floor feel authored.
 
-### IMP-E04 — Secret rooms, illusory walls and hidden levers exist but are barely reachable
+### IMP-E04 — RESOLVED 2026-08-08: Secret rooms, illusory walls and hidden levers exist but are barely reachable
 
 - **Problem** — `illusory_wall.gd`, `hidden_lever.gd`, `room_locked_vault_content.gd`,
   `room_puzzle_gate_content.gd` and the `SECRET` slot type are all implemented, and `_place_secret_attachments`
@@ -2891,7 +2912,7 @@ The single most important measurement behind this section:
   a wall texture variant, a distinct ambient sound cue, a draught VFX — so discovery is a skill rather than a
   matter of hitting every wall.
 
-### IMP-E05 — The minimap does not teach the floor
+### IMP-E05 — RESOLVED 2026-08-08: The minimap does not teach the floor
 
 - **Problem** — `minimap.gd` renders the room graph, but the generator produces information the player never
   sees: `on_critical_path`, `slot_type` (`START`, `SECRET`, `BOSS`), door masks including secret doors, dead
@@ -2907,7 +2928,7 @@ The single most important measurement behind this section:
 
 ### F — Items and inventory: Dark Souls × Diablo, in pixels
 
-### IMP-F01 — The inventory holds six pieces of equipment
+### IMP-F01 — RESOLVED 2026-08-08: The inventory holds six pieces of equipment
 
 - **Problem** — `GridInventory.DEFAULT_WIDTH = 6`, `DEFAULT_HEIGHT = 4` — 24 cells. Of the 90 authored items,
   **64 are 2×2**, 15 are 1×1, 5 are 1×2, 4 are 2×3, one is 2×4 and one is 1×4. A 6×4 grid fits exactly six
@@ -2926,7 +2947,7 @@ The single most important measurement behind this section:
   same size, which erases the spatial puzzle that justifies a grid at all. Fix `PERF-19` (O(cells × slots)
   placement) before enlarging the grid, and `BUG-16` / `BUG-17` before players start hitting a full bag.
 
-### IMP-F02 — Fourteen affixes across six rarity tiers, and one shield
+### IMP-F02 — RESOLVED 2026-08-08: Fourteen affixes across six rarity tiers, and one shield
 
 - **Problem** — `content/affixes/` holds 7 prefixes and 7 suffixes. `RarityRegistry.TIER_ORDER` defines six
   tiers (common → magic → rare → epic → legendary → aumbral), and `_roll_affix_count` draws up to the
@@ -2948,7 +2969,7 @@ The single most important measurement behind this section:
   players build around and what makes a drop memorable. Author six to eight shields at the same time
   (`IMP-A04`).
 
-### IMP-F03 — Item tooltips render raw affix ids and mislabel most stats
+### IMP-F03 — RESOLVED 2026-08-08: Item tooltips render raw affix ids and mislabel most stats
 
 - **Problem** — `InventoryService.format_slot_tooltip()` emits affix lines as
   `"  %s +%s" % [affix.get("affixId"), affix.get("value")]` — the player sees `"  prefix_sharp +4"`. Stat
@@ -2968,7 +2989,7 @@ The single most important measurement behind this section:
   `format_delta_line`. Then render comparison as Diablo does: the hovered item beside the equipped one, green
   and red deltas per line.
 
-### IMP-F04 — Rarity is a colour and a multiplier, never a feeling
+### IMP-F04 — RESOLVED 2026-08-08: Rarity is a colour and a multiplier, never a feeling
 
 - **Problem** — `RarityRegistry` defines six tiers with display colours and `sell_multiplier`. In play, a
   legendary drop produces the same pickup VFX, the same sound, the same world model and the same
@@ -2985,7 +3006,7 @@ The single most important measurement behind this section:
   nudge for aumbral. The colours are already centralised in one dictionary, so the whole escalation is driven
   by one existing lookup. `IMP-J02`'s pixel-consistency rules apply to the beam and the toast.
 
-### IMP-F05 — Upgrading is a flat 6 % per level with no branching and no risk
+### IMP-F05 — RESOLVED 2026-08-08: Upgrading is a flat 6 % per level with no branching and no risk
 
 - **Problem** — `Equipment.upgrade_multiplier()` is `1.0 + 0.06 * level`, capped by
   `RarityRegistry.max_upgrade_level()` at 5 (10 for aumbral). `content/recipes/` holds five recipes.
@@ -3007,7 +3028,7 @@ The single most important measurement behind this section:
 
 ### G — NPCs, story and quests
 
-### IMP-G01 — There are three NPCs and no story
+### IMP-G01 — RESOLVED 2026-08-08: There are three NPCs and no story
 
 - **Problem** — `content/npcs/` holds `blacksmith_aldric`, `merchant_elara` and `warden_mira`; all three are
   hub vendors or a greeter. `content/dialogue/` holds five trees of one to three nodes each. There is no
@@ -3027,7 +3048,7 @@ The single most important measurement behind this section:
   hook available. Thirty to fifty lore items placed in `room_lore_content` rooms, biome-specific, is the
   cheapest way to make ten dungeons feel like one world.
 
-### IMP-G02 — The dialogue system cannot express most of what quests need
+### IMP-G02 — RESOLVED 2026-08-08: The dialogue system cannot express most of what quests need
 
 - **Problem** — `DialogueRunner._execute_action()` handles exactly four actions (`set_flag`, `add_gold`,
   `start_quest`, `complete_quest`) and re-emits everything else for the caller to interpret. There is no
@@ -3045,7 +3066,7 @@ The single most important measurement behind this section:
   unknown verbs — that is what turns `BUG-29` (unknown keys silently hide content) from a runtime mystery
   into a build error. Fix `BUG-28` (unbounded recursion) before the trees get deep.
 
-### IMP-G03 — Four quests, none repeatable, none chained
+### IMP-G03 — RESOLVED 2026-08-08: Four quests, none repeatable, none chained
 
 - **Problem** — `content/quests/` holds `escape_castle`, `fetch_scrap`, `kill_grunts` and a one-entry
   `dungeon_quests.json`. `QuestService` supports three types (`kill`, `fetch`, `escape`); `register_fetch()`
@@ -3066,7 +3087,7 @@ The single most important measurement behind this section:
 
 ### H — Buffs, traps, hazards and the reasons to keep playing
 
-### IMP-H01 — Five statuses, all debuffs, none with a build-up meter
+### IMP-H01 — RESOLVED 2026-08-08: Five statuses, all debuffs, none with a build-up meter
 
 - **Problem** — `content/statuses/` holds `bleed`, `burn`, `freeze`, `poison`, `stun`. All five are things
   that happen *to* the player or enemy; none is a buff, none has a build-up meter (they apply on hit rather
@@ -3084,7 +3105,7 @@ The single most important measurement behind this section:
   and into `StatusController` as positive statuses, so buffs, debuffs, relic effects and consumables share one
   timing, stacking and display path — that unification is what makes `IMP-H03`'s variety affordable.
 
-### IMP-H02 — Traps are scenery: five traps, two per biome, no interaction with combat
+### IMP-H02 — RESOLVED 2026-08-08: Traps are scenery: five traps, two per biome, no interaction with combat
 
 - **Problem** — `content/traps/` holds five definitions (`spike_trap`, `falling_trap`, `frost_trap`,
   `poison_pool`, `shadow_trap`), and each biome's `trapPool` lists two of them — usually `spike_trap` or the
@@ -3103,7 +3124,7 @@ The single most important measurement behind this section:
   twelve traps with distinct verbs: swinging blades on a timer, collapsing floors, pressure plates that summon,
   arrow lines, gas that ignites. Author a per-biome pool of four to five so the two-trap monotony ends.
 
-### IMP-H03 — Relics and run buffs exist but do not shape a run
+### IMP-H03 — RESOLVED 2026-08-08: Relics and run buffs exist but do not shape a run
 
 - **Problem** — `content/relics/` holds eleven files, `RunBuffs` is an autoload with `add_relic()` and
   `get_stat_totals()`, and `InventoryService._on_item_added_success()` grants a relic when an item carries
@@ -3120,7 +3141,7 @@ The single most important measurement behind this section:
   the right place for the dispatcher. Thirty to forty relics with real rules, some with drawbacks, gives the
   run-to-run variance that ten tiers and endless floors are asking for.
 
-### IMP-H04 — Nothing in a run is worth telling someone about
+### IMP-H04 — RESOLVED 2026-08-08: Nothing in a run is worth telling someone about
 
 - **Problem** — Pulling `IMP-B01` through `IMP-H03` together: every enemy has one attack, no boss has phases,
   every room of a kind is identical, relics are stat bags, rarity is a colour, and endless is one biome. The
@@ -3138,7 +3159,7 @@ The single most important measurement behind this section:
 
 ### I — Difficulty: Soulslike, not punishing
 
-### IMP-I01 — Difficulty is expressed only as HP and damage multipliers
+### IMP-I01 — RESOLVED 2026-08-08: Difficulty is expressed only as HP and damage multipliers
 
 - **Problem** — Every difficulty lever in the game is a scalar: `CastleTierDifficulty.hp_multiplier` /
   `damage_multiplier`, `EndlessDifficulty` equivalents, `WavesDifficulty` equivalents, and per-floor growth
@@ -3158,7 +3179,7 @@ The single most important measurement behind this section:
   not in the health bar. `EndlessDifficulty.HP_SOFT_CAP = 25.0` is far past the point where fights stop being
   readable.
 
-### IMP-I02 — Death costs almost nothing, so the difficulty has no stakes
+### IMP-I02 — RESOLVED 2026-08-08: Death costs almost nothing, so the difficulty has no stakes
 
 - **Problem** — On death, run-tagged loot is stripped and `apply_death_durability_loss()` reduces equipment
   durability. There is no currency loss, no bloodstain to recover, no lost progress within the dungeon beyond
@@ -3176,7 +3197,7 @@ The single most important measurement behind this section:
   consumables, which is the other half of what makes Souls pacing work. `BUG-13` must be fixed first or the
   flask is decorative.
 
-### IMP-I03 — There is no difficulty feedback loop and no accessibility ramp
+### IMP-I03 — RESOLVED 2026-08-08: There is no difficulty feedback loop and no accessibility ramp
 
 - **Problem** — Difficulty is fixed per tier with no adaptation, no assist options and no telemetry.
   `settings_schema.gd` and `scripts/accessibility/` exist, but nothing exposes combat-affecting assists
@@ -3195,7 +3216,7 @@ The single most important measurement behind this section:
 
 ### J — Pixel-diorama presentation
 
-### IMP-J01 — Characters are dozens of separate mesh instances, which is both the perf cost and the art ceiling
+### IMP-J01 — RESOLVED 2026-08-08: Characters are dozens of separate mesh instances, which is both the perf cost and the art ceiling
 
 - **Problem** — `PERF-04` records the runtime cost of building characters from many `MeshInstance3D`s with
   per-instance materials. The art consequence is the more important one: because every part is a separate node
@@ -3213,7 +3234,7 @@ The single most important measurement behind this section:
   `PERF-14` (the mesher is advertised as greedy but emits two triangles per exposed face) is on the same path.
   Fix `BUG-02` first, because none of this is verifiable until meshes load in an exported build.
 
-### IMP-J02 — Nothing enforces the pixel grid, so the "pixel look" is a per-scene accident
+### IMP-J02 — RESOLVED 2026-08-08: Nothing enforces the pixel grid, so the "pixel look" is a per-scene accident
 
 - **Problem** — The low-res `SubViewport` mirror and camera snap establish a target resolution, but there is
   no project-wide rule that UI, VFX, decals, damage numbers, telegraph rings and world sprites all quantise to
@@ -3232,7 +3253,7 @@ The single most important measurement behind this section:
   `enemy_health_bar`'s per-hit `ImageTexture` with a shader reading a fill uniform, which fixes `PERF-05` and
   removes the second pixel-grid definition at once.
 
-### IMP-J03 — The UI is functional but does not read as a Soulslike or as pixel art
+### IMP-J03 — RESOLVED 2026-08-08: The UI is functional but does not read as a Soulslike or as pixel art
 
 - **Problem** — `game_ui_skin.gd` (661 lines) centralises the UI vocabulary, and the atlases
   (`item_icon_atlas`, `status_icon_atlas`, `hud_icon_atlas`, `input_glyph_atlas`, `ui_symbol_atlas`) are a
@@ -3252,7 +3273,7 @@ The single most important measurement behind this section:
   and item comparison as a side-by-side panel. Keep everything in `game_ui_skin.gd` so there is one place the
   look is defined — that discipline already exists and is worth protecting.
 
-### IMP-J04 — Two of ten biomes carry a colour-grade profile; the rest look the same lit differently
+### IMP-J04 — RESOLVED 2026-08-08: Two of ten biomes carry a colour-grade profile; the rest look the same lit differently
 
 - **Problem** — `BiomeRegistry.get_grade_profile()` reads an optional `grade` object from the biome JSON. Only
   `frozen_fortress` and `umbral_chapel` declare one. The other eight rely on `lighting` and `materials` alone,
@@ -3305,7 +3326,7 @@ covers the tooling that makes numbers at this scale reachable.
 
 ### A — Item base
 
-### EXT-A01 — Build the item base as bases × archetypes × affixes rather than as 350 hand-authored files
+### EXT-A01 — RESOLVED 2026-08-08: Build the item base as bases × archetypes × affixes rather than as 350 hand-authored files
 
 - **Problem/Opportunity** — All 90 items today are standalone JSON files with hardcoded stats, and 64 of them
   share the same 2×2 footprint. Authoring 350 more the same way is 350 more files to balance individually,
@@ -3326,7 +3347,7 @@ covers the tooling that makes numbers at this scale reachable.
   which is where the effort actually shows. Vary footprints while you are there — daggers 1×2, greatswords
   2×4, rings 1×1 — since `IMP-F01`'s grid only becomes an interesting decision when items differ in shape.
 
-### EXT-A02 — 40–60 uniques, each with one rule the player can build around
+### EXT-A02 — RESOLVED 2026-08-08: 40–60 uniques, each with one rule the player can build around
 
 - **Problem/Opportunity** — There is no unique item tier. `RarityRegistry` has six rarities, but a legendary
   differs from a rare only by affix count and value band, so no drop is ever *interesting* — only *bigger*.
@@ -3345,7 +3366,7 @@ covers the tooling that makes numbers at this scale reachable.
   *"Each consecutive parry raises damage 8 %, resets on hit"*. Four to six per biome, one guaranteed from each
   boss's first kill, the rest in the general pool — that gives every dungeon a reason to be re-run.
 
-### EXT-A03 — Give consumables a real role: flasks, throwables, buffs and utility
+### EXT-A03 — RESOLVED 2026-08-08: Give consumables a real role: flasks, throwables, buffs and utility
 
 - **Problem/Opportunity** — Nine consumables exist, and `ConsumableService.apply()` supports five effect
   kinds (`heal`, `restoreMana`, `restoreStamina`, `applyStatus`, `cure`) plus the portal-only `skipFloors`.
@@ -3365,7 +3386,7 @@ covers the tooling that makes numbers at this scale reachable.
   retention mechanic in the genre. `ConsumableService.can_use()` already gates by run/hub context, so the
   routing exists.
 
-### EXT-A04 — Materials, crafting and the reason to keep a second copy of a drop
+### EXT-A04 — RESOLVED 2026-08-08: Materials, crafting and the reason to keep a second copy of a drop
 
 - **Problem/Opportunity** — 17 materials exist and 5 recipes consume them. `BlacksmithService` supports
   upgrade, repair and unlock; `RecipeCatalog` supports per-level stat bonuses. But there is no salvage, no
@@ -3384,7 +3405,7 @@ covers the tooling that makes numbers at this scale reachable.
 
 ### B — NPC base
 
-### EXT-B01 — Grow the hub cast from three vendors to eight characters with arcs
+### EXT-B01 — RESOLVED 2026-08-08: Grow the hub cast from three vendors to eight characters with arcs
 
 - **Problem/Opportunity** — `blacksmith_aldric`, `merchant_elara` and `warden_mira` are the entire cast, and
   two of them are shops. `NpcBase` routes by a four-value `interactType` (`dialogue`, `blacksmith`,
@@ -3402,7 +3423,7 @@ covers the tooling that makes numbers at this scale reachable.
   states keyed to the `dungeon_tier_<id>` flags that already persist. Extend `interactType` to a registry
   rather than a `match` so adding the ninth NPC is data, not code.
 
-### EXT-B02 — Rescuable dungeon NPCs: the mechanic that makes exploration feed the hub
+### EXT-B02 — RESOLVED 2026-08-08: Rescuable dungeon NPCs: the mechanic that makes exploration feed the hub
 
 - **Problem/Opportunity** — `room_npc_quest_content.gd` exists as a room content type with weight 0.02, and
   it pulls a single generic tree (`dungeon_npc_stranded`). There is no consequence to finding one, and the
@@ -3420,7 +3441,7 @@ covers the tooling that makes numbers at this scale reachable.
   is lost if the player descends without finding them creates the kind of stakes players talk about. Raise
   `weight_npc_quest` above 0.02 once there is more than one tree to show.
 
-### EXT-B03 — Make NPCs react to what the player actually did
+### EXT-B03 — RESOLVED 2026-08-08: Make NPCs react to what the player actually did
 
 - **Problem/Opportunity** — Dialogue is currently static per NPC. `DialogueConditions` supports `minRuns`,
   `minDeaths`, `quest`, `flag`, `minLevel` and `gold`, so the reactivity machinery exists and is unused
@@ -3439,7 +3460,7 @@ covers the tooling that makes numbers at this scale reachable.
 
 ### C — Quest base
 
-### EXT-C01 — Expand from three quest types to eight, and index them properly
+### EXT-C01 — RESOLVED 2026-08-08: Expand from three quest types to eight, and index them properly
 
 - **Problem/Opportunity** — `QuestService` supports `kill`, `fetch` and `escape`. Quest state is a flat
   `inactive` / `active` / `completed` per id, so a quest can never be offered twice, and `register_fetch()`
@@ -3458,7 +3479,7 @@ covers the tooling that makes numbers at this scale reachable.
   `prerequisites: [questId]` for chains. Do `PERF-23` (index active quests by trigger type) in the same
   change — the current per-kill linear scan is only acceptable at four quests.
 
-### EXT-C02 — Daily and weekly bounties as the between-run ratchet
+### EXT-C02 — RESOLVED 2026-08-08: Daily and weekly bounties as the between-run ratchet
 
 - **Problem/Opportunity** — There is no reason to log in tomorrow. Progression is gold, talents and unlocked
   tiers, all of which advance only by playing longer. `AchievementService` and `LeaderboardSettings` exist,
@@ -3475,7 +3496,7 @@ covers the tooling that makes numbers at this scale reachable.
   seed is derived, not served, this works fully offline and needs no API change — which matters given
   `BUG-51`'s state of the backend contract.
 
-### EXT-C03 — Quest chains that change the hub and the dungeon
+### EXT-C03 — RESOLVED 2026-08-08: Quest chains that change the hub and the dungeon
 
 - **Problem/Opportunity** — No quest currently alters the world. `DialogueRunner._execute_action()` can set
   flags, grant gold and start/complete quests; it cannot give items, unlock recipes, spawn NPCs or open
@@ -3493,7 +3514,7 @@ covers the tooling that makes numbers at this scale reachable.
 
 ### D — Story base
 
-### EXT-D01 — Establish a premise, an antagonist and a reason to descend
+### EXT-D01 — RESOLVED 2026-08-08: Establish a premise, an antagonist and a reason to descend
 
 - **Problem/Opportunity** — There is no narrative frame at all: no premise, no antagonist, no stated goal
   beyond "the dungeon exists". The ten dungeons are unconnected biomes with an `order` field. `epilogue_card.gd`
@@ -3510,7 +3531,7 @@ covers the tooling that makes numbers at this scale reachable.
   further along". Give each boss a two-line intro card (`boss_intro_ui.gd` is already there) and each dungeon
   clear an epilogue beat (`epilogue_card.gd` likewise). One writer, one week, and the game acquires a spine.
 
-### EXT-D02 — 150–200 lore entries carried by item descriptions and placed readables
+### EXT-D02 — RESOLVED 2026-08-08: 150–200 lore entries carried by item descriptions and placed readables
 
 - **Problem/Opportunity** — `room_lore_content.gd` is a working room content type with weight 0.06 that
   serves a single generic tree (`dungeon_lore_default`). Item `description` fields exist in the schema and
@@ -3526,7 +3547,7 @@ covers the tooling that makes numbers at this scale reachable.
   who does not still finishes the game. Add a codex screen that collects found entries: collection is a
   retention mechanic on its own, and `achievements_ui.gd` is the pattern to copy.
 
-### EXT-D03 — A bestiary that rewards learning enemies
+### EXT-D03 — RESOLVED 2026-08-08: A bestiary that rewards learning enemies
 
 - **Problem/Opportunity** — `EnemyCatalog` holds full definitions including resistances, and `AchievementService`
   already receives per-kill notifications, but the player has no way to see any of it. In a Soulslike the
@@ -3544,7 +3565,7 @@ covers the tooling that makes numbers at this scale reachable.
 
 ### E — Class and character customization
 
-### EXT-E01 — Make the five classes mechanically distinct, then add two more
+### EXT-E01 — RESOLVED 2026-08-08: Make the five classes mechanically distinct, then add two more
 
 - **Problem/Opportunity** — Classes declare `perk`, `perkName` and `perkDescription`, all localised, and
   **no code reads any of them** (`BUG-52`). `allowedWeapons` is checked in one UI screen and bypassed by every
@@ -3564,7 +3585,7 @@ covers the tooling that makes numbers at this scale reachable.
   event dispatcher from `EXT-A02` exists. Each class should also carry a starting relic and a class-only
   talent branch (`EXT-E03`).
 
-### EXT-E02 — Deepen appearance customization and make it persist into the diorama
+### EXT-E02 — RESOLVED 2026-08-08: Deepen appearance customization and make it persist into the diorama
 
 - **Problem/Opportunity** — `CharacterAppearance` offers height (3), bulk (3), skin tone (3), hair (3), face
   (3), head covering (3) and trim (3), plus 5 aspects — a reasonable skeleton, but every axis has exactly
@@ -3582,7 +3603,7 @@ covers the tooling that makes numbers at this scale reachable.
   dye per boss first-kill, a title per achievement. Cosmetic progression is the cheapest possible content per
   hour of retention, and this game's art pipeline is unusually well suited to it.
 
-### EXT-E03 — Grow the talent tree from 18 nodes to a real build space, with class branches
+### EXT-E03 — RESOLVED 2026-08-08: Grow the talent tree from 18 nodes to a real build space, with class branches
 
 - **Problem/Opportunity** — `content/talents/tree.json` has three branches (`arms`, `guard`, `aptitude`) of
   six nodes each — 18 nodes total, shared by all five classes. `ProgressionService` supports spending and
@@ -3599,7 +3620,7 @@ covers the tooling that makes numbers at this scale reachable.
   rather than a number, routed through the same event dispatcher as uniques, relics and perks. That single
   dispatcher (`EXT-A02`) now serves four systems, which is what makes 90 nodes affordable.
 
-### EXT-E04 — Multiple characters, and a reason to make a second one
+### EXT-E04 — RESOLVED 2026-08-08: Multiple characters, and a reason to make a second one
 
 - **Problem/Opportunity** — `CharacterService` holds one character; `character_create_ui.gd` creates it once.
   A player who wants to try Scholar after 20 hours as a Knight must abandon their progress or not try. Every
@@ -3617,7 +3638,7 @@ covers the tooling that makes numbers at this scale reachable.
 
 ### F — Systems that turn content into retention
 
-### EXT-F01 — A run-summary and progression screen worth looking at
+### EXT-F01 — RESOLVED 2026-08-08: A run-summary and progression screen worth looking at
 
 - **Problem/Opportunity** — `results_screen.gd` exists and reports an outcome. There is no run history, no
   personal best, no comparison to previous attempts, no build summary and no share affordance. Players return
@@ -3632,7 +3653,7 @@ covers the tooling that makes numbers at this scale reachable.
   runs and show a trend. Pair with `IMP-I03`'s telemetry — the same data that tells the player they are
   improving tells you where the difficulty curve is wrong.
 
-### EXT-F02 — Weekly seeded challenge runs
+### EXT-F02 — RESOLVED 2026-08-08: Weekly seeded challenge runs
 
 - **Problem/Opportunity** — `DungeonSeedService` derives per-tier seeds, `RunModifierService` applies named
   modifiers, and `LeaderboardSettings` exists. Everything needed for a shared weekly challenge is present and
@@ -3649,7 +3670,7 @@ covers the tooling that makes numbers at this scale reachable.
   API is available. Requires `BUG-45` (unseeded crit and AI rolls) fixed, or two players on the same seed will
   not have the same run.
 
-### EXT-F03 — Boss rush, gauntlets and alternate rule sets
+### EXT-F03 — RESOLVED 2026-08-08: Boss rush, gauntlets and alternate rule sets
 
 - **Problem/Opportunity** — Three modes exist (castle, waves, endless) and share one dungeon builder. Once
   bosses have phases (`IMP-B02`) and modifiers have a real vocabulary (`IMP-C02`), new modes are recombinations
@@ -3664,7 +3685,7 @@ covers the tooling that makes numbers at this scale reachable.
   schedule these *after* section 13, because a new mode built on one-attack enemies is a new way to do the
   same thing.
 
-### EXT-F04 — Make the hub a place that visibly grows
+### EXT-F04 — RESOLVED 2026-08-08: Make the hub a place that visibly grows
 
 - **Problem/Opportunity** — `hub.gd` and `hub_diorama.gd` build a static hub. Nothing about it changes as the
   player progresses: no new buildings, no rescued NPCs appearing (`EXT-B02`), no trophies, no visual record
@@ -3677,7 +3698,7 @@ covers the tooling that makes numbers at this scale reachable.
   `hub_diorama.gd` is already data-driven dressing; this is mostly a matter of gating existing prop spawns on
   flags. Low engineering cost, disproportionate effect on the sense of progress.
 
-### EXT-F05 — Build the authoring tools before authoring the content
+### EXT-F05 — RESOLVED 2026-08-08: Build the authoring tools before authoring the content
 
 - **Problem/Opportunity** — The scale targets at the top of this section — 350+ items, 60+ affixes, 80
   enemies, 60+ quests, 1,000+ dialogue nodes, 300–500 room-layout variants (`IMP-E02`) — are not reachable by

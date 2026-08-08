@@ -1,0 +1,21 @@
+{
+  "id": "name_the_hierarch",
+  "title": "Name the Hierarch",
+  "type": "discover",
+  "chainId": "last_entry",
+  "prerequisites": [
+    "eleven_years"
+  ],
+  "biomeId": "umbral_chapel",
+  "requiredCount": 4,
+  "description": "The chapel keeps no hours and writes everything down anyway. Read four of its pages and the post at the bottom of them stops being anonymous.",
+  "rewards": {
+    "gold": 360,
+    "flags": [
+      {
+        "flag": "heard_the_hierarch",
+        "value": true
+      }
+    ]
+  }
+}

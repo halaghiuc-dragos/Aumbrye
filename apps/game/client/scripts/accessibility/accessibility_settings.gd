@@ -35,8 +35,23 @@ static var camera_fov: float = CAMERA_FOV_DEFAULT
 static var camera_stick_curve: float = CAMERA_STICK_CURVE_DEFAULT
 static var camera_stick_deadzone: float = CAMERA_STICK_DEADZONE_DEFAULT
 
+static var assist_damage_taken: float = ASSIST_DAMAGE_TAKEN_DEFAULT
+static var assist_iframe_generosity: float = ASSIST_IFRAME_DEFAULT
+static var assist_lock_on_range: float = ASSIST_LOCK_ON_DEFAULT
+static var assist_telegraph_emphasis: bool = false
+
 static var _settings_changed_listeners: Array[Callable] = []
 static var _save_timer: SceneTreeTimer
+const ASSIST_DAMAGE_TAKEN_MIN := 0.5
+const ASSIST_DAMAGE_TAKEN_MAX := 1.0
+const ASSIST_DAMAGE_TAKEN_DEFAULT := 1.0
+const ASSIST_IFRAME_MIN := 1.0
+const ASSIST_IFRAME_MAX := 1.5
+const ASSIST_IFRAME_DEFAULT := 1.0
+const ASSIST_LOCK_ON_MIN := 1.0
+const ASSIST_LOCK_ON_MAX := 1.6
+const ASSIST_LOCK_ON_DEFAULT := 1.0
+
 const SAVE_DEBOUNCE_SEC := 0.5
 static var _pending_commit := false
 
@@ -128,6 +143,22 @@ static func load_from_save() -> void:
 		CAMERA_STICK_DEADZONE_MIN,
 		CAMERA_STICK_DEADZONE_MAX
 	)
+	assist_damage_taken = clampf(
+		float(data.get("assistDamageTaken", ASSIST_DAMAGE_TAKEN_DEFAULT)),
+		ASSIST_DAMAGE_TAKEN_MIN,
+		ASSIST_DAMAGE_TAKEN_MAX
+	)
+	assist_iframe_generosity = clampf(
+		float(data.get("assistIframeGenerosity", ASSIST_IFRAME_DEFAULT)),
+		ASSIST_IFRAME_MIN,
+		ASSIST_IFRAME_MAX
+	)
+	assist_lock_on_range = clampf(
+		float(data.get("assistLockOnRange", ASSIST_LOCK_ON_DEFAULT)),
+		ASSIST_LOCK_ON_MIN,
+		ASSIST_LOCK_ON_MAX
+	)
+	assist_telegraph_emphasis = bool(data.get("assistTelegraphEmphasis", false))
 
 
 static func save() -> void:
@@ -145,10 +176,38 @@ static func save() -> void:
 		"cameraFov": camera_fov,
 		"cameraStickCurve": camera_stick_curve,
 		"cameraStickDeadzone": camera_stick_deadzone,
+		"assistDamageTaken": assist_damage_taken,
+		"assistIframeGenerosity": assist_iframe_generosity,
+		"assistLockOnRange": assist_lock_on_range,
+		"assistTelegraphEmphasis": assist_telegraph_emphasis,
 	}
 	LocalSave.set_meta_data(meta)
 	LocalSave.autosave()
 	changed_notify("all", null)
+
+
+## True when the player has turned any combat assist away from its default, so the results screen
+## can say so plainly rather than hide it.
+static func assists_active() -> bool:
+	return (
+		assist_damage_taken < ASSIST_DAMAGE_TAKEN_DEFAULT
+		or assist_iframe_generosity > ASSIST_IFRAME_DEFAULT
+		or assist_lock_on_range > ASSIST_LOCK_ON_DEFAULT
+		or assist_telegraph_emphasis
+	)
+
+
+static func active_assist_summary() -> Array[String]:
+	var lines: Array[String] = []
+	if assist_damage_taken < ASSIST_DAMAGE_TAKEN_DEFAULT:
+		lines.append("Damage taken x%.2f" % assist_damage_taken)
+	if assist_iframe_generosity > ASSIST_IFRAME_DEFAULT:
+		lines.append("Dodge window x%.2f" % assist_iframe_generosity)
+	if assist_lock_on_range > ASSIST_LOCK_ON_DEFAULT:
+		lines.append("Lock-on reach x%.2f" % assist_lock_on_range)
+	if assist_telegraph_emphasis:
+		lines.append("Telegraphs emphasised")
+	return lines
 
 
 static func camera_settings_defaults() -> Dictionary:

@@ -1,0 +1,25 @@
+{
+  "id": "graysteel_cuirass",
+  "name": "Graysteel Cuirass",
+  "itemType": "armor",
+  "equipmentSlot": "chest",
+  "gridWidth": 2,
+  "gridHeight": 3,
+  "stackSize": 1,
+  "rarity": "common",
+  "description": "Straps replaced more often than the plate they hold. Vault-stock, stamped and stacked for a war that was called off. Scaling: Strength C.",
+  "value": 70,
+  "lootValue": 35,
+  "maxDurability": 120,
+  "baseId": "cuirass",
+  "materialTier": "graysteel",
+  "biome": "iron_vault",
+  "scaling": {
+    "strength": "C"
+  },
+  "stats": {
+    "armor": 8,
+    "defense": 5,
+    "resistPhysical": 0.02
+  }
+}

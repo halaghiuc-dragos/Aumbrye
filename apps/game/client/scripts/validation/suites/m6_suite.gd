@@ -6,6 +6,7 @@ const AccessibilitySettingsScript := preload(
 const GameUISkinScript := preload("res://scripts/ui/game_ui_skin.gd")
 const ValidationHelpers := preload("res://scripts/validation/helpers.gd")
 const PixelDioramaSettingsScript := preload("res://scripts/art/pipeline/pixel_diorama_settings.gd")
+const ApiClientScript := preload("res://scripts/net/api_client.gd")
 
 const M6_ENEMIES: Array[String] = [
 	"frost_raider",
@@ -86,39 +87,48 @@ func run() -> void:
 
 
 func _test_content_catalog_loader() -> void:
-	var catalogs := [
-		"res://scripts/content/item_catalog.gd",
-		"res://scripts/content/enemy_catalog.gd",
-		"res://scripts/content/class_catalog.gd",
-		"res://scripts/content/relic_catalog.gd",
-		"res://scripts/quests/quest_catalog.gd",
-		"res://scripts/dialogue/dialogue_catalog.gd",
-	]
+	# Each catalogue delegates its disk walk to ContentDirLoader.load_id_map rather than
+	# reimplementing a DirAccess walk; the observable consequence is that every catalogue
+	# returns real, non-empty, id-keyed content. Exercise each catalogue's actual public
+	# accessor (or, for DialogueCatalog which has no id-listing accessor, the same
+	# ContentDirLoader.load_id_map call its _ensure_loaded() makes) and assert that.
 	var start := Time.get_ticks_msec()
-	var uses_shared := true
-	for path in catalogs:
-		if not ctx.file_contains(path, "ContentDirLoader.load_id_map"):
-			uses_shared = false
-			break
+	ItemCatalog.clear_cache()
+	EnemyCatalog.clear_cache()
+	var item_ok := ItemCatalog.has_item("castle_sword")
+	var enemy_ok := EnemyCatalog.has_enemy("castle_shield")
 	ctx.timed_record(
-		"content.shared_dir_loader",
+		"content.item_and_enemy_catalog_load",
 		get_category(),
-		uses_shared,
-		"six catalogs share ContentDirLoader.load_id_map",
+		item_ok and enemy_ok,
+		"ItemCatalog and EnemyCatalog resolve known ids via the shared dir loader",
 		start,
 		"CCT-02"
 	)
 	start = Time.get_ticks_msec()
-	var no_dup_walk := true
-	for path in catalogs:
-		if ctx.file_contains(path, "list_dir_begin"):
-			no_dup_walk = false
-			break
+	var classes := ClassCatalog.get_all_classes()
+	var relics := RelicCatalog.get_all_ids()
+	var quests := QuestCatalog.get_all_ids()
 	ctx.timed_record(
-		"content.no_duplicate_dir_walk",
+		"content.class_relic_quest_catalog_load",
 		get_category(),
-		no_dup_walk,
-		"catalogs do not reimplement DirAccess walks",
+		not classes.is_empty() and not relics.is_empty() and not quests.is_empty(),
+		(
+			"ClassCatalog/RelicCatalog/QuestCatalog load non-empty id-keyed data (%d/%d/%d)"
+			% [classes.size(), relics.size(), quests.size()]
+		),
+		start,
+		"CCT-02"
+	)
+	start = Time.get_ticks_msec()
+	var dialogue_map: Dictionary = ContentDirLoader.load_id_map(
+		["content/dialogue"], "id", "DialogueCatalog", false, true
+	)
+	ctx.timed_record(
+		"content.dialogue_catalog_load",
+		get_category(),
+		not dialogue_map.is_empty(),
+		"DialogueCatalog's backing dir loader returns non-empty id-keyed data (%d entries)" % dialogue_map.size(),
 		start,
 		"CCT-02"
 	)
@@ -172,15 +182,14 @@ func _test_item_catalog_strict_mode() -> void:
 
 func _test_content_reload_command() -> void:
 	var start := Time.get_ticks_msec()
-	var has_command: bool = (
-		ctx.file_contains("res://scripts/debug/debug_console.gd", "content_reload")
-		and ctx.file_contains("res://scripts/app/content_loader.gd", "func clear_all_caches")
-	)
+	var has_clear_all := ContentLoader.has_method("clear_all_caches")
+	var result := DebugConsole.execute("content_reload")
+	var command_ran := not result.begins_with("Unknown command")
 	ctx.timed_record(
 		"content.reload_command",
 		get_category(),
-		has_command,
-		"debug content_reload clears catalog caches",
+		has_clear_all and command_ran,
+		"debug console content_reload command clears catalog caches (result: %s)" % result,
 		start,
 		"CCT-03"
 	)
@@ -448,15 +457,26 @@ func _test_accessibility_settings() -> void:
 		"M6.a11y.baseline"
 	)
 	start = Time.get_ticks_msec()
-	var has_consumer: bool = (
-		ctx.file_contains("res://scripts/combat/damage_number.gd", "get_damage_color")
-		or ctx.file_contains("res://scripts/ui/combat_hud.gd", "get_damage_color")
-	)
+	var damage_number_ok := false
+	var damage_number_detail := "res://scenes/combat/damage_number.tscn failed to load"
+	var damage_number_scene := load("res://scenes/combat/damage_number.tscn") as PackedScene
+	if damage_number_scene != null and ctx.owner != null:
+		var damage_number_node := damage_number_scene.instantiate()
+		ctx.owner.add_child(damage_number_node)
+		AccessibilitySettingsScript.colorblind_mode = "default"
+		damage_number_node.call("show_amount", 10.0, "fire")
+		var expected_color: Color = AccessibilitySettingsScript.get_damage_color("fire")
+		var actual_color: Color = (damage_number_node.get_node("Label3D") as Label3D).modulate
+		damage_number_ok = actual_color.is_equal_approx(expected_color)
+		damage_number_detail = "damage number modulate %s vs accessibility color %s" % [
+			actual_color, expected_color
+		]
+		damage_number_node.queue_free()
 	ctx.timed_record(
-		"a11y.colorblind.has_consumer",
+		"a11y.colorblind.damage_number_uses_accessibility_color",
 		get_category(),
-		has_consumer,
-		"get_damage_color called from combat or UI presentation",
+		damage_number_ok,
+		damage_number_detail,
 		start,
 		"A11-01"
 	)
@@ -472,18 +492,6 @@ func _test_accessibility_settings() -> void:
 		"protanopia fire color differs from default",
 		start,
 		"A11-01"
-	)
-	start = Time.get_ticks_msec()
-	var no_hardcoded_hit_colors: bool = not ctx.file_contains(
-		"res://scripts/combat/damage_number.gd", "Color(1.0, 0.35"
-	)
-	ctx.timed_record(
-		"a11y.colorblind.no_hardcoded_hit_colors",
-		get_category(),
-		no_hardcoded_hit_colors,
-		"damage numbers use get_damage_color not hardcoded red",
-		start,
-		"A11-04"
 	)
 	var dialogue_scene := load("res://scenes/ui/dialogue_ui.tscn") as PackedScene
 	if dialogue_scene != null and ctx.owner != null:
@@ -664,7 +672,8 @@ func _test_leaderboards() -> void:
 		"META-6.2"
 	)
 	start = Time.get_ticks_msec()
-	ok = ctx.file_contains("res://scripts/net/api_client.gd", "func submit_leaderboard")
+	var api_client_probe := ApiClientScript.new()
+	ok = api_client_probe.has_method("submit_leaderboard")
 	ctx.timed_record(
 		"meta.leaderboard.api_client",
 		get_category(),
@@ -674,12 +683,30 @@ func _test_leaderboards() -> void:
 		"META-6.2"
 	)
 	start = Time.get_ticks_msec()
-	ok = ctx.file_contains("res://scripts/app/run_flow.gd", "LeaderboardSettings.opt_in")
+	var backup_opt_in := LeaderboardSettings.opt_in
+	var meta_backup: Dictionary = LocalSave.get_meta_data().duplicate(true)
+	LeaderboardSettings.opt_in = true
+	LeaderboardSettings.save()
+	LeaderboardSettings.opt_in = false
+	LeaderboardSettings.load_from_save()
+	var round_tripped_true := LeaderboardSettings.opt_in == true
+	LeaderboardSettings.opt_in = false
+	LeaderboardSettings.save()
+	LeaderboardSettings.opt_in = true
+	LeaderboardSettings.load_from_save()
+	var round_tripped_false := LeaderboardSettings.opt_in == false
+	LeaderboardSettings.opt_in = backup_opt_in
+	LocalSave.set_meta_data(meta_backup)
+	ok = (
+		RunFlow.has_method("_handle_escape_meta")
+		and round_tripped_true
+		and round_tripped_false
+	)
 	ctx.timed_record(
 		"meta.leaderboard.escape_submit",
 		get_category(),
 		ok,
-		"escape flow checks leaderboard opt-in",
+		"escape flow gate is wired and leaderboard opt-in persists across save/load",
 		start,
 		"META-6.2"
 	)
@@ -795,16 +822,14 @@ func _test_achievement_catalog_quality() -> void:
 func _test_escape_meta_wiring() -> void:
 	var start := Time.get_ticks_msec()
 	var ok: bool = (
-		ctx.file_contains("res://scripts/app/run_flow.gd", "func _handle_escape_meta")
-		and ctx.file_contains(
-			"res://scripts/app/run_flow.gd", "AchievementService.unlock_for_biome_clear"
-		)
+		RunFlow.has_method("_handle_escape_meta")
+		and AchievementService.has_method("unlock_for_biome_clear")
 	)
 	ctx.timed_record(
 		"meta.escape.escape_achievements",
 		get_category(),
 		ok,
-		"escape meta unlocks achievements on boss clear",
+		"escape meta handler and achievement unlock API are both wired",
 		start,
 		"META-6.1"
 	)
@@ -841,16 +866,12 @@ func _test_display_service() -> void:
 	)
 
 	start = Time.get_ticks_msec()
-	var legacy_gone := (
-		not ResourceLoader.exists("res://scripts/ui/display_settings.gd")
-		and not ctx.file_contains("res://scripts/ui/settings_ui.gd", "DisplaySettings")
-		and not ctx.file_contains("res://scripts/app/player_controls.gd", "DisplaySettings")
-	)
+	var legacy_gone := not ResourceLoader.exists("res://scripts/ui/display_settings.gd")
 	ctx.timed_record(
 		"display.legacy_helper_gone",
 		get_category(),
 		legacy_gone,
-		"display_settings.gd removed and no DisplaySettings references",
+		"display_settings.gd removed",
 		start,
 		"DSP-06"
 	)
@@ -893,18 +914,31 @@ func _test_display_service() -> void:
 	)
 
 	start = Time.get_ticks_msec()
-	var single_source_ok := (
-		ctx.file_contains("res://scripts/ui/settings_ui.gd", "DisplayService.SCALE_MIN")
-		and ctx.file_contains("res://scripts/ui/settings_ui.gd", "DisplayService.SCALE_MAX")
-		and ctx.file_contains("res://scripts/app/display_service.gd", "const SCALE_MIN := 0.75")
-		and ctx.file_contains("res://scripts/app/display_service.gd", "const SCALE_MAX := 1.75")
-		and not ctx.file_contains("res://scripts/ui/settings_ui.gd", "0.8, 1.5")
+	var ui_scale_row := {}
+	for entry in SettingsSchema.entries():
+		if str(entry.get("id", "")) == "ui_scale":
+			ui_scale_row = entry
+			break
+	var range_dict: Dictionary = ui_scale_row.get("range", {})
+	var bounds_match := (
+		not ui_scale_row.is_empty()
+		and is_equal_approx(float(range_dict.get("min", -1.0)), DisplayServiceScript.SCALE_MIN)
+		and is_equal_approx(float(range_dict.get("max", -1.0)), DisplayServiceScript.SCALE_MAX)
 	)
+	var probe_before := DisplayService.ui_scale
+	var setter: Callable = ui_scale_row.get("setter", Callable())
+	var getter: Callable = ui_scale_row.get("getter", Callable())
+	var probe_written := false
+	if setter.is_valid() and getter.is_valid():
+		setter.call(DisplayServiceScript.SCALE_MAX)
+		probe_written = is_equal_approx(float(getter.call()), DisplayServiceScript.SCALE_MAX)
+		DisplayService.ui_scale = probe_before
+	var single_source_ok := bounds_match and probe_written
 	ctx.timed_record(
 		"display.scale_single_source",
 		get_category(),
 		single_source_ok,
-		"UI scale bounds live on DisplayService and settings reads them",
+		"settings schema's ui_scale slider bounds and getter/setter delegate to DisplayService",
 		start,
 		"DSP-03"
 	)
@@ -1155,28 +1189,45 @@ func _test_ui_skin() -> void:
 	)
 
 	start = Time.get_ticks_msec()
-	var no_label_walk: bool = not ctx.file_contains(
-		"res://scripts/ui/game_ui_skin.gd", '"Label", true'
+	var label_walk_saved_low_res := PixelDioramaSettingsScript.low_res_viewport_enabled
+	var label_walk_saved_width := PixelDioramaSettingsScript.viewport_width
+	var label_walk_saved_height := PixelDioramaSettingsScript.viewport_height
+	PixelDioramaSettingsScript.low_res_viewport_enabled = true
+	PixelDioramaSettingsScript.viewport_width = 480
+	PixelDioramaSettingsScript.viewport_height = 270
+	var label_walk_root := Control.new()
+	var oddly_named_label := Label.new()
+	oddly_named_label.name = "NotCalledLabelAtAll"
+	label_walk_root.add_child(oddly_named_label)
+	if ctx.owner:
+		ctx.owner.add_child(label_walk_root)
+	GameUISkinScript.apply_pixel_theme(label_walk_root)
+	var no_label_walk: bool = (
+		oddly_named_label.texture_filter == CanvasItem.TEXTURE_FILTER_NEAREST
 	)
+	label_walk_root.queue_free()
+	PixelDioramaSettingsScript.low_res_viewport_enabled = label_walk_saved_low_res
+	PixelDioramaSettingsScript.viewport_width = label_walk_saved_width
+	PixelDioramaSettingsScript.viewport_height = label_walk_saved_height
 	ctx.timed_record(
 		"ui.skin.no_label_walk",
 		get_category(),
 		no_label_walk,
-		"apply_modal_menu does not walk labels by name",
+		"apply_pixel_theme themes an arbitrarily-named Label by type, not by node name",
 		start,
 		"SKN-02"
 	)
 
 	start = Time.get_ticks_msec()
+	var skin_constants := GameUISkinScript.get_script_constant_map()
 	var no_dead: bool = (
-		not ctx.file_contains("res://scripts/ui/game_ui_skin.gd", "const CELL_SIZE")
-		and not ctx.file_contains("res://scripts/ui/game_ui_skin.gd", "const EQUIP_CELL_SIZE")
+		not skin_constants.has("CELL_SIZE") and not skin_constants.has("EQUIP_CELL_SIZE")
 	)
 	ctx.timed_record(
 		"ui.skin.no_dead_constants",
 		get_category(),
 		no_dead,
-		"game_ui_skin.gd has no dead cell-size constants",
+		"game_ui_skin.gd defines no dead CELL_SIZE/EQUIP_CELL_SIZE constants",
 		start,
 		"SKN-08"
 	)

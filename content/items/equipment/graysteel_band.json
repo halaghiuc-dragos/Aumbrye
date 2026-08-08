@@ -1,0 +1,22 @@
+{
+  "id": "graysteel_band",
+  "name": "Graysteel Band",
+  "itemType": "accessory",
+  "equipmentSlot": "ring",
+  "gridWidth": 1,
+  "gridHeight": 1,
+  "stackSize": 1,
+  "rarity": "common",
+  "description": "Sized for a finger that is no longer attached to anyone. Vault-stock, stamped and stacked for a war that was called off.",
+  "value": 48,
+  "lootValue": 24,
+  "maxDurability": 60,
+  "baseId": "band",
+  "materialTier": "graysteel",
+  "biome": "iron_vault",
+  "scaling": {},
+  "stats": {
+    "maxHealth": 11,
+    "resistPhysical": 0.02
+  }
+}

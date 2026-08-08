@@ -1,0 +1,40 @@
+{
+  "id": "unique_snowblind",
+  "name": "Snowblind",
+  "itemType": "weapon",
+  "equipmentSlot": "weapon",
+  "gridWidth": 2,
+  "gridHeight": 4,
+  "stackSize": 1,
+  "rarity": "epic",
+  "description": "The archer shot at a shape in the white for an hour. There was no shape.",
+  "value": 530,
+  "lootValue": 265,
+  "maxDurability": 95,
+  "unique": true,
+  "baseId": "longbow",
+  "biome": "frozen_fortress",
+  "scaling": {
+    "strength": "D",
+    "dexterity": "A"
+  },
+  "ruleText": "Each critical hit raises damage 3%, up to 8 stacks. Resets when you are hit.",
+  "rules": [
+    {
+      "event": "onCrit",
+      "effect": "add_stack",
+      "stackId": "snowblind",
+      "maxStacks": 8,
+      "stat": "damagePercent",
+      "perStack": 3.0,
+      "resetOn": [
+        "onHitTaken"
+      ]
+    }
+  ],
+  "stats": {
+    "physicalDamage": 15,
+    "critChance": 0.05
+  },
+  "weaponId": "bow"
+}

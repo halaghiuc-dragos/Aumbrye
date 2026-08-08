@@ -1,0 +1,21 @@
+{
+  "id": "bounty_castle_muster",
+  "title": "Bounty: Muster",
+  "type": "kill",
+  "targetId": "castle_grunt",
+  "requiredCount": 10,
+  "repeatable": true,
+  "cooldownRuns": 1,
+  "description": "Standing bounty. Ten from the courtyard, any run. Vessit pays on the count, not on the story.",
+  "rewards": {
+    "gold": 90,
+    "bountyTokens": 2,
+    "items": [
+      {
+        "itemId": "iron_scrap",
+        "quantity": 2
+      }
+    ]
+  },
+  "bounty": "daily"
+}

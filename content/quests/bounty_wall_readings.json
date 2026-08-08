@@ -1,0 +1,20 @@
+{
+  "id": "bounty_wall_readings",
+  "title": "Bounty: Wall Readings",
+  "type": "discover",
+  "requiredCount": 3,
+  "repeatable": true,
+  "cooldownRuns": 1,
+  "description": "Standing bounty. Three inscriptions, any depth, copied out. Odile pays for these herself and does not tell Vessit the rate.",
+  "rewards": {
+    "gold": 90,
+    "bountyTokens": 2,
+    "items": [
+      {
+        "itemId": "chapel_wax",
+        "quantity": 1
+      }
+    ]
+  },
+  "bounty": "daily"
+}

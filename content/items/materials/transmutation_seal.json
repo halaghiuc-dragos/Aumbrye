@@ -1,0 +1,12 @@
+{
+  "id": "transmutation_seal",
+  "name": "Transmutation Seal",
+  "itemType": "material",
+  "gridWidth": 1,
+  "gridHeight": 1,
+  "stackSize": 20,
+  "description": "Pressed into wax, once, by a hand that then broke the die.",
+  "value": 160,
+  "lootValue": 96,
+  "materialTier": "reliquary"
+}

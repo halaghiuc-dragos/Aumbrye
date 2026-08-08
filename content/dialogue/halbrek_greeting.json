@@ -1,0 +1,117 @@
+{
+  "id": "halbrek_greeting",
+  "startNode": "start",
+  "nodes": {
+    "line_1": {
+      "speaker": "Serjeant Halbrek",
+      "text": "Because the alternative is deciding which eleven to leave out, and I am not owed that decision. Nobody offered me it.",
+      "actions": [
+        {
+          "type": "set_relationship",
+          "npc": "halbrek",
+          "delta": 1
+        }
+      ],
+      "next": "end"
+    },
+    "line_2": {
+      "speaker": "Serjeant Halbrek",
+      "text": "Nobody descends. I countersigned it. Then I descended, because somebody had to be the exception, and exceptions are what serjeants are for.",
+      "actions": [
+        {
+          "type": "set_relationship",
+          "npc": "halbrek",
+          "delta": 1
+        }
+      ],
+      "next": "end"
+    },
+    "line_3": {
+      "speaker": "Serjeant Halbrek",
+      "text": "Guard pattern. Short, ugly, meant for a doorway you cannot afford to lose. Aldric has the drawing now. He will complain about it and then make it well.",
+      "actions": [
+        {
+          "type": "set_relationship",
+          "npc": "halbrek",
+          "delta": 1
+        }
+      ],
+      "next": "end"
+    },
+    "gated": {
+      "speaker": "Serjeant Halbrek",
+      "text": "You have been down past the Vault. Then you have seen the crates. We loaded those. We were told they were grain.",
+      "actions": [
+        {
+          "type": "set_relationship",
+          "npc": "halbrek",
+          "delta": 1
+        }
+      ],
+      "next": "end"
+    },
+    "start": {
+      "speaker": "Serjeant Halbrek",
+      "text": "Serjeant Halbrek has taken a corner of the tower and made it look lived in, which is more than the tower has managed on its own.",
+      "choices": [
+        {
+          "text": "Why keep calling the roll?",
+          "next": "line_1"
+        },
+        {
+          "text": "The sallyport notice.",
+          "next": "line_2"
+        },
+        {
+          "text": "Teach me the spear.",
+          "next": "line_3"
+        },
+        {
+          "text": "I have been in the Vault.",
+          "next": "gated",
+          "condition": {
+            "dungeonCleared": "iron_vault"
+          }
+        },
+        {
+          "text": "Call the roll for me.",
+          "next": "halbrek_arc",
+          "condition": {
+            "all": [
+              {
+                "relationship": "halbrek",
+                "atLeast": 3
+              },
+              {
+                "not": {
+                  "flag": "halbrek_muster_open"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "text": "Later.",
+          "next": "end"
+        }
+      ]
+    },
+    "halbrek_arc": {
+      "speaker": "Halbrek",
+      "text": "Forty-one at muster. Thirty at supper. I called all forty-one for eleven years because stopping would have been a decision, and I was not given the authority to make it. You may consider the board open.",
+      "actions": [
+        {
+          "type": "set_flag",
+          "flag": "halbrek_muster_open",
+          "value": true
+        },
+        {
+          "type": "set_relationship",
+          "npc": "halbrek",
+          "delta": 1
+        }
+      ],
+      "next": "end"
+    }
+  }
+}

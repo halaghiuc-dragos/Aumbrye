@@ -1,0 +1,21 @@
+{
+  "id": "close_the_column",
+  "title": "Close the Column",
+  "type": "defeat_with",
+  "chainId": "ledger",
+  "prerequisites": [
+    "audit_the_vault"
+  ],
+  "targetId": "iron_conclave",
+  "weaponItemId": "graysteel_warhammer",
+  "description": "Kell asks that it be done with a hammer, and that the hammer be counted out and counted back. He is very particular about the second part.",
+  "rewards": {
+    "gold": 320,
+    "items": [
+      {
+        "itemId": "reforging_stone",
+        "quantity": 1
+      }
+    ]
+  }
+}

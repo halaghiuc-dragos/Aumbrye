@@ -1,0 +1,46 @@
+{
+  "id": "unique_glacier_watch",
+  "name": "Glacier Watch",
+  "itemType": "armor",
+  "equipmentSlot": "secondary",
+  "gridWidth": 2,
+  "gridHeight": 4,
+  "stackSize": 1,
+  "rarity": "epic",
+  "description": "Set into the drift as a windbreak. Two men sheltered behind it and only the shield was found.",
+  "value": 560,
+  "lootValue": 280,
+  "maxDurability": 150,
+  "unique": true,
+  "baseId": "towershield",
+  "biome": "frozen_fortress",
+  "scaling": {
+    "strength": "B"
+  },
+  "ruleText": "Blocking restores 6 health.",
+  "rules": [
+    {
+      "event": "onBlock",
+      "effect": "restore_health",
+      "amount": 6,
+      "cooldown": 1
+    }
+  ],
+  "stats": {
+    "defense": 22,
+    "resistFrost": 0.14,
+    "poise": 12
+  },
+  "block": {
+    "stability": 1.7,
+    "guardBreakPoise": 78,
+    "reduction": {
+      "physical": 0.9,
+      "fire": 0.4,
+      "frost": 0.86,
+      "poison": 0.46,
+      "lightning": 0.46,
+      "arcane": 0.46
+    }
+  }
+}

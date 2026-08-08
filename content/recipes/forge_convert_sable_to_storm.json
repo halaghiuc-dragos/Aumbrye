@@ -1,0 +1,12 @@
+{
+  "id": "forge_convert_sable_to_storm",
+  "type": "convert",
+  "itemId": "storm_salt",
+  "goldCost": 320,
+  "materials": [
+    {
+      "itemId": "sable_grain",
+      "quantity": 5
+    }
+  ]
+}

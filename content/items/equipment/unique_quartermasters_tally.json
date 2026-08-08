@@ -1,0 +1,37 @@
+{
+  "id": "unique_quartermasters_tally",
+  "name": "The Quartermaster's Tally",
+  "itemType": "weapon",
+  "equipmentSlot": "weapon",
+  "gridWidth": 2,
+  "gridHeight": 4,
+  "stackSize": 1,
+  "rarity": "epic",
+  "description": "He counted every hammer out and every hammer back. This one he counted twice, then stopped counting.",
+  "value": 510,
+  "lootValue": 255,
+  "maxDurability": 140,
+  "unique": true,
+  "baseId": "warhammer",
+  "biome": "iron_vault",
+  "scaling": {
+    "strength": "A",
+    "dexterity": "E"
+  },
+  "ruleText": "Hits have a 10% chance to stun.",
+  "rules": [
+    {
+      "event": "onHit",
+      "effect": "apply_status",
+      "statusId": "stun",
+      "stacks": 1,
+      "chance": 0.1,
+      "cooldown": 4.0
+    }
+  ],
+  "stats": {
+    "physicalDamage": 18,
+    "poiseDamage": 0.2
+  },
+  "weaponId": "greatsword"
+}

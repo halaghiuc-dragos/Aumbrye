@@ -1,0 +1,18 @@
+{
+  "id": "bounty_shade_office",
+  "title": "Bounty: Clerical Error",
+  "type": "kill",
+  "targetId": "cathedral_shade",
+  "requiredCount": 6,
+  "repeatable": true,
+  "cooldownRuns": 1,
+  "availableWhen": {
+    "minTier": 3
+  },
+  "bounty": "daily",
+  "description": "Standing bounty. Six from the nave. Odile will not say why the number matters and the board will not ask.",
+  "rewards": {
+    "gold": 140,
+    "bountyTokens": 3
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "id": "mirebrass_greaves",
+  "name": "Mirebrass Greaves",
+  "itemType": "armor",
+  "equipmentSlot": "boots",
+  "gridWidth": 2,
+  "gridHeight": 2,
+  "stackSize": 1,
+  "rarity": "magic",
+  "description": "Mud to the ankle, and none of it from this floor. Green to the touch. The swamp finished it for the smith. Scaling: Strength D.",
+  "value": 53,
+  "lootValue": 26,
+  "maxDurability": 95,
+  "baseId": "greaves",
+  "materialTier": "mirebrass",
+  "biome": "poison_swamp",
+  "scaling": {
+    "strength": "D"
+  },
+  "stats": {
+    "armor": 3,
+    "evasion": 3,
+    "resistPoison": 0.06
+  }
+}

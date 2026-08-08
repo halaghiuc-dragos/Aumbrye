@@ -1,0 +1,142 @@
+{
+  "id": "odile_greeting",
+  "startNode": "start",
+  "nodes": {
+    "line_1": {
+      "speaker": "Sister Odile",
+      "text": "The line that asked for morning. Every copy, same hand, very steady. You do not strike a line that steadily unless you have decided the answer is no.",
+      "actions": [
+        {
+          "type": "set_relationship",
+          "npc": "odile",
+          "delta": 1
+        }
+      ],
+      "next": "end"
+    },
+    "line_2": {
+      "speaker": "Sister Odile",
+      "text": "The Hierarch. I did not know the name then. I knew the handwriting, which turns out to be the more useful thing to have known.",
+      "actions": [
+        {
+          "type": "set_relationship",
+          "npc": "odile",
+          "delta": 1
+        }
+      ],
+      "next": "end"
+    },
+    "line_3": {
+      "speaker": "Sister Odile",
+      "text": "A socket. Cleaned. Sized. Whatever sat in it was taken away carefully, and careful is worse than stolen — careful means it was owed to somebody.",
+      "actions": [
+        {
+          "type": "set_relationship",
+          "npc": "odile",
+          "delta": 1
+        }
+      ],
+      "next": "end"
+    },
+    "gated": {
+      "speaker": "Sister Odile",
+      "text": "You have stood under the chapel roof. Then you have heard the quiet hour. It is not silence. It is a gap somebody works in.",
+      "actions": [
+        {
+          "type": "set_relationship",
+          "npc": "odile",
+          "delta": 1
+        }
+      ],
+      "next": "end"
+    },
+    "start": {
+      "speaker": "Sister Odile",
+      "text": "Sister Odile has taken a corner of the tower and made it look lived in, which is more than the tower has managed on its own.",
+      "choices": [
+        {
+          "text": "What was struck out?",
+          "next": "line_1"
+        },
+        {
+          "text": "Who amended it?",
+          "next": "line_2"
+        },
+        {
+          "text": "What is above the altar?",
+          "next": "line_3"
+        },
+        {
+          "text": "I have heard the quiet hour.",
+          "next": "gated",
+          "condition": {
+            "dungeonCleared": "umbral_chapel"
+          }
+        },
+        {
+          "text": "Read me what I have been killing.",
+          "next": "odile_service",
+          "condition": {
+            "flag": "bestiary_studied_count",
+            "atLeast": 5
+          }
+        },
+        {
+          "text": "You have seen the Hierarch's hand.",
+          "next": "odile_arc",
+          "condition": {
+            "all": [
+              {
+                "relationship": "odile",
+                "atLeast": 4
+              },
+              {
+                "not": {
+                  "flag": "heard_the_hierarch"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "text": "Later.",
+          "next": "end"
+        }
+      ]
+    },
+    "odile_service": {
+      "speaker": "Odile",
+      "text": "You have looked at enough of them to be worth reading to. They are not monsters in the sense the word is normally used. Each one is a post somebody was assigned and never relieved of. Learn the posting and the fight becomes a conversation.",
+      "actions": [
+        {
+          "type": "increment_flag",
+          "flag": "odile_reading_given",
+          "amount": 1
+        },
+        {
+          "type": "set_relationship",
+          "npc": "odile",
+          "delta": 1
+        }
+      ],
+      "next": "end"
+    },
+    "odile_arc": {
+      "speaker": "Odile",
+      "text": "The name was struck from every copy and the strokes are all in one hand, and the hand is his. A man does not erase himself out of shame. He does it to keep the account open.",
+      "actions": [
+        {
+          "type": "set_flag",
+          "flag": "heard_the_hierarch",
+          "value": true
+        },
+        {
+          "type": "set_relationship",
+          "npc": "odile",
+          "delta": 1
+        }
+      ],
+      "next": "end"
+    }
+  }
+}

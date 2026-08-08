@@ -1,0 +1,24 @@
+{
+  "id": "the_stone_saint",
+  "name": "The Stone Saint",
+  "description": "Heavier and slower. Being struck at least returns your footing.",
+  "maxStacks": 2,
+  "stats": {
+    "armor": 12,
+    "moveSpeedPercent": -4
+  },
+  "tags": [
+    "ward",
+    "poise"
+  ],
+  "weight": 0.8,
+  "rules": [
+    {
+      "event": "onHitTaken",
+      "effect": "restore_stamina",
+      "amount": 8,
+      "cooldown": 2
+    }
+  ],
+  "offerable": true
+}

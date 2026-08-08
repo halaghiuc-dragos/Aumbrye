@@ -1,0 +1,16 @@
+{
+  "id": "forge_transmute_rarity",
+  "type": "transmute",
+  "itemId": "any",
+  "goldCost": 900,
+  "materials": [
+    {
+      "itemId": "transmutation_seal",
+      "quantity": 1
+    },
+    {
+      "itemId": "storm_salt",
+      "quantity": 6
+    }
+  ]
+}

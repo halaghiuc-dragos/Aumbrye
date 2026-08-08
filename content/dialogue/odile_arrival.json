@@ -1,0 +1,27 @@
+{
+  "id": "odile_arrival",
+  "startNode": "start",
+  "nodes": {
+    "start": {
+      "speaker": "Sister Odile",
+      "text": "Ink under the nails. Thirty years of reading aloud and this is what is left of the qualification. — I have the struck line. All the copies were amended, but a lector remembers what she has said four thousand times.",
+      "actions": [
+        {
+          "type": "set_relationship",
+          "npc": "odile",
+          "delta": 2
+        },
+        {
+          "type": "advance_story_beat",
+          "beat": 4
+        },
+        {
+          "type": "set_flag",
+          "flag": "prayer_restored",
+          "value": true
+        }
+      ],
+      "next": "end"
+    }
+  }
+}

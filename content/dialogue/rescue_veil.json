@@ -1,0 +1,72 @@
+{
+  "id": "rescue_veil",
+  "startNode": "start",
+  "nodes": {
+    "start": {
+      "speaker": "The Widow",
+      "text": "You are on my landing. I have had this landing eleven years and I do not intend to argue about it, so state your business or go around. Are you going up? I can walk. I have been telling myself that for a while now.",
+      "condition": {
+        "all": [
+          {
+            "not": {
+              "flag": "rescued_veil"
+            }
+          },
+          {
+            "not": {
+              "flag": "lost_veil"
+            }
+          }
+        ]
+      },
+      "fallback": "already",
+      "choices": [
+        {
+          "text": "Walk behind me. Stay close.",
+          "next": "taken"
+        },
+        {
+          "text": "I am going down, not up.",
+          "next": "left"
+        }
+      ]
+    },
+    "taken": {
+      "speaker": "The Widow",
+      "text": "Then I will keep up, and if I do not keep up you will not stop. Say it. — Good. That is the arrangement everybody else lied about.",
+      "actions": [
+        {
+          "type": "set_flag",
+          "flag": "rescued_veil",
+          "value": true
+        },
+        {
+          "type": "record_rescue",
+          "npcId": "widow_of_the_stair"
+        },
+        {
+          "type": "play_sfx",
+          "sfxId": "ui"
+        }
+      ],
+      "next": "end"
+    },
+    "left": {
+      "speaker": "The Widow",
+      "text": "Down. Of course down. Go on, then — I will keep this landing warm, which is a joke, and it is the last one I have.",
+      "actions": [
+        {
+          "type": "set_flag",
+          "flag": "lost_veil",
+          "value": true
+        }
+      ],
+      "next": "end"
+    },
+    "already": {
+      "speaker": "An empty landing",
+      "text": "Somebody sat here long enough to wear the stone smooth. Whoever it was is not sitting here now.",
+      "next": "end"
+    }
+  }
+}

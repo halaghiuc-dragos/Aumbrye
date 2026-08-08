@@ -1,0 +1,33 @@
+{
+  "id": "unique_foundry_gauntlets",
+  "name": "Foundry Gauntlets",
+  "itemType": "armor",
+  "equipmentSlot": "gloves",
+  "gridWidth": 2,
+  "gridHeight": 2,
+  "stackSize": 1,
+  "rarity": "rare",
+  "description": "The palms are scorched through. The wearer kept working anyway.",
+  "value": 240,
+  "lootValue": 120,
+  "maxDurability": 95,
+  "unique": true,
+  "baseId": "gauntlets",
+  "biome": "iron_vault",
+  "scaling": {
+    "strength": "D"
+  },
+  "ruleText": "Critical hits restore 10 stamina.",
+  "rules": [
+    {
+      "event": "onCrit",
+      "effect": "restore_stamina",
+      "amount": 10.0
+    }
+  ],
+  "stats": {
+    "armor": 6,
+    "staminaMax": 12,
+    "critChance": 0.02
+  }
+}

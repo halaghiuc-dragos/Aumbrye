@@ -1,0 +1,21 @@
+{
+  "id": "the_procession",
+  "title": "The Procession",
+  "type": "kill",
+  "chainId": "overflow",
+  "prerequisites": [
+    "rot_and_remedy"
+  ],
+  "targetId": "venom_censer",
+  "requiredCount": 8,
+  "description": "They walked in single file with a censer each and nobody counted them out. Nettle would like eight of them counted back.",
+  "rewards": {
+    "gold": 260,
+    "items": [
+      {
+        "itemId": "venom_catalyst",
+        "quantity": 1
+      }
+    ]
+  }
+}

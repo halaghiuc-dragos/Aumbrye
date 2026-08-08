@@ -1,0 +1,20 @@
+{
+  "id": "whetstone_rime",
+  "name": "Rime Whetstone",
+  "itemType": "consumable",
+  "gridWidth": 1,
+  "gridHeight": 1,
+  "stackSize": 5,
+  "rarity": "magic",
+  "description": "Cold to hold. The edge frosts over between strokes.",
+  "consumableEffect": {
+    "kind": "applyStatus",
+    "statusId": "elixir_rime_edge",
+    "duration": 120,
+    "stat": "frostDamage",
+    "amount": 12,
+    "usableInHub": false
+  },
+  "value": 100,
+  "lootValue": 50
+}

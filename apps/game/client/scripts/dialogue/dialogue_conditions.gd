@@ -4,8 +4,35 @@ class_name DialogueConditions
 ## Evaluates dialogue/quest condition blocks against CharacterService state (DLG-4.1).
 
 const KNOWN_KEYS := [
-	"all", "any", "not", "flag", "minLevel", "maxLevel", "quest", "gold", "minRuns", "minDeaths"
+	"all",
+	"any",
+	"not",
+	"flag",
+	"minLevel",
+	"maxLevel",
+	"quest",
+	"gold",
+	"minRuns",
+	"minDeaths",
+	"hasItem",
+	"dungeonCleared",
+	"biome",
+	"minTier",
+	"relationship",
+	"storyBeat",
+	"questCompletions",
+	"lastRunOutcome",
+	"lastRunBiome",
+	"minLastRunFloor",
+	"lastRunBoss",
+	"bestiaryKills",
+	"bountyTokens",
 ]
+
+const LAST_RUN_FLAG := "last_run"
+
+const RELATIONSHIP_FLAG_PREFIX := "rel_"
+const STORY_BEAT_FLAG := "story_beat"
 
 
 static func evaluate(condition: Variant) -> bool:
@@ -33,6 +60,8 @@ static func evaluate(condition: Variant) -> bool:
 
 	if condition.has("flag"):
 		var flag_id: String = str(condition.get("flag", ""))
+		if condition.has("atLeast"):
+			return _flag_number(flag_id) >= int(condition.get("atLeast", 0))
 		var expected: Variant = condition.get("value", true)
 		return CharacterService.get_flag(flag_id) == expected
 
@@ -56,7 +85,88 @@ static func evaluate(condition: Variant) -> bool:
 	if condition.has("minDeaths"):
 		return int(CharacterService.get_flag("deaths", 0)) >= int(condition.get("minDeaths", 0))
 
+	if condition.has("hasItem"):
+		var item_id: String = str(condition.get("hasItem", ""))
+		if item_id == "" or InventoryService == null:
+			return false
+		return InventoryService.count_item(item_id) >= int(condition.get("count", 1))
+
+	if condition.has("dungeonCleared"):
+		var dungeon_id: String = str(condition.get("dungeonCleared", ""))
+		var clear_flag := DungeonCatalog.get_clear_flag(dungeon_id)
+		if clear_flag == "":
+			return false
+		return CharacterService.is_flag_truthy(clear_flag)
+
+	if condition.has("biome"):
+		if RunFlow == null:
+			return false
+		return str(RunFlow.current_biome_id) == str(condition.get("biome", ""))
+
+	if condition.has("minTier"):
+		if DungeonTierService == null:
+			return false
+		return DungeonTierService.get_max_unlocked_tier() >= int(condition.get("minTier", 1))
+
+	if condition.has("relationship"):
+		var npc_key: String = str(condition.get("relationship", ""))
+		if npc_key == "":
+			return false
+		return (
+			_flag_number("%s%s" % [RELATIONSHIP_FLAG_PREFIX, npc_key])
+			>= int(condition.get("atLeast", 1))
+		)
+
+	if condition.has("storyBeat"):
+		return _flag_number(STORY_BEAT_FLAG) >= int(condition.get("storyBeat", 0))
+
+	if condition.has("questCompletions"):
+		var completed_id: String = str(condition.get("questCompletions", ""))
+		if completed_id == "" or QuestService == null:
+			return false
+		return QuestService.get_completions(completed_id) >= int(condition.get("atLeast", 1))
+
+	if condition.has("lastRunOutcome"):
+		return str(_last_run().get("outcome", "")) == str(condition.get("lastRunOutcome", ""))
+
+	if condition.has("lastRunBiome"):
+		return str(_last_run().get("biome", "")) == str(condition.get("lastRunBiome", ""))
+
+	if condition.has("minLastRunFloor"):
+		return int(_last_run().get("floor", 0)) >= int(condition.get("minLastRunFloor", 1))
+
+	if condition.has("lastRunBoss"):
+		return bool(_last_run().get("boss", false)) == bool(condition.get("lastRunBoss", true))
+
+	if condition.has("bestiaryKills"):
+		var enemy_id: String = str(condition.get("bestiaryKills", ""))
+		if enemy_id == "":
+			return false
+		return BestiaryService.get_kills(enemy_id) >= int(condition.get("atLeast", 1))
+
+	if condition.has("bountyTokens"):
+		return (
+			int(CharacterService.get_flag("bounty_tokens", 0))
+			>= int(condition.get("bountyTokens", 0))
+		)
+
 	push_warning("DialogueConditions: unrecognized condition keys: %s" % str(condition.keys()))
 	assert(false, "DialogueConditions: unrecognized condition keys: %s" % str(condition.keys()))
 	# Release builds fail open: an unknown key must never silently hide content.
 	return true
+
+
+static func _last_run() -> Dictionary:
+	var raw: Variant = CharacterService.get_flag(LAST_RUN_FLAG, {})
+	return raw if raw is Dictionary else {}
+
+
+static func _flag_number(flag_id: String) -> int:
+	var raw: Variant = CharacterService.get_flag(flag_id, 0)
+	if raw is bool:
+		return 1 if raw else 0
+	if raw is int or raw is float:
+		return int(raw)
+	if raw is String and str(raw).is_valid_int():
+		return int(str(raw))
+	return 0

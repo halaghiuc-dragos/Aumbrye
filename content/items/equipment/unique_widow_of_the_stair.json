@@ -1,0 +1,34 @@
+{
+  "id": "unique_widow_of_the_stair",
+  "name": "Widow of the Stair",
+  "itemType": "weapon",
+  "equipmentSlot": "weapon",
+  "gridWidth": 1,
+  "gridHeight": 2,
+  "stackSize": 1,
+  "rarity": "epic",
+  "description": "She waited on the sixth landing for eleven years. The garrison stopped using that stair.",
+  "value": 420,
+  "lootValue": 210,
+  "maxDurability": 80,
+  "unique": true,
+  "baseId": "dagger",
+  "biome": "forgotten_castle",
+  "scaling": {
+    "strength": "E",
+    "dexterity": "B"
+  },
+  "ruleText": "Backstabs restore 15 stamina.",
+  "rules": [
+    {
+      "event": "onBackstab",
+      "effect": "restore_stamina",
+      "amount": 15.0
+    }
+  ],
+  "stats": {
+    "critChance": 0.06,
+    "physicalDamage": 9
+  },
+  "weaponId": "dagger"
+}

@@ -4,30 +4,124 @@
   "nodes": {
     "start": {
       "speaker": "Elara",
-      "text": "Potions, scrap, relics — I buy and sell. Stock refreshes each visit.",
+      "text": "Potions, scrap, relics. I buy and I sell and I do not ask where a thing has been. Stock turns over every time you come back up.",
       "choices": [
-        { "text": "Browse wares", "actions": [{ "type": "open_merchant" }] },
         {
-          "text": "The tower keeps killing me...",
+          "text": "Browse wares",
+          "actions": [
+            {
+              "type": "open_merchant"
+            }
+          ]
+        },
+        {
+          "text": "The tower keeps killing me.",
           "next": "many_deaths",
-          "condition": { "minDeaths": 3 }
+          "condition": {
+            "minDeaths": 3
+          }
         },
         {
-          "text": "I'm getting used to this.",
+          "text": "I am getting used to this.",
           "next": "veteran",
-          "condition": { "minRuns": 5 }
+          "condition": {
+            "minRuns": 5
+          }
         },
-        { "text": "Farewell", "next": "end" }
+        {
+          "text": "Somebody is keeping count of us.",
+          "next": "ledger",
+          "condition": {
+            "storyBeat": 2
+          }
+        },
+        {
+          "text": "You could give me a better price.",
+          "next": "price",
+          "condition": {
+            "relationship": "elara",
+            "atLeast": 2
+          }
+        },
+        {
+          "text": "Who did you buy this stall from?",
+          "next": "elara_arc",
+          "condition": {
+            "all": [
+              {
+                "relationship": "elara",
+                "atLeast": 5
+              },
+              {
+                "not": {
+                  "flag": "elara_ledger_settled"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "text": "Farewell",
+          "next": "end"
+        }
       ]
     },
     "many_deaths": {
       "speaker": "Elara",
-      "text": "Death is the tower's habit, not your failure. Rest in the hub, sharpen steel, try again.",
+      "text": "Death is the tower's habit, not your failure. You come back because something down there decided you were worth relighting. Try not to ask what it burns.",
+      "actions": [
+        {
+          "type": "set_relationship",
+          "npc": "elara",
+          "delta": 1
+        }
+      ],
       "next": "end"
     },
     "veteran": {
       "speaker": "Elara",
-      "text": "You've climbed enough times that the echoes know your step. Spend that knowledge wisely.",
+      "text": "You have climbed enough times that the echoes know your step. That is not the compliment it sounds like. Spend the knowledge before something spends you.",
+      "actions": [
+        {
+          "type": "set_relationship",
+          "npc": "elara",
+          "delta": 1
+        }
+      ],
+      "next": "end"
+    },
+    "ledger": {
+      "speaker": "Elara",
+      "text": "Of course somebody is. I have handled three of their receipts. Every one of them was written by a person who was very calm about the arithmetic.",
+      "actions": [
+        {
+          "type": "set_relationship",
+          "npc": "elara",
+          "delta": 1
+        }
+      ],
+      "next": "end"
+    },
+    "price": {
+      "speaker": "Elara",
+      "text": "I could. I will not. But I will tell you which of my stock came up out of the mire, and you will want to know that before you drink any of it.",
+      "next": "end"
+    },
+    "elara_arc": {
+      "speaker": "Elara",
+      "text": "Nobody. It was the Chapter's supply table. When the Chapter stopped coming up I kept the table and started charging, and the ledger has balanced every year since. That is not the same as being settled about it.",
+      "actions": [
+        {
+          "type": "set_flag",
+          "flag": "elara_ledger_settled",
+          "value": true
+        },
+        {
+          "type": "set_relationship",
+          "npc": "elara",
+          "delta": 1
+        }
+      ],
       "next": "end"
     }
   }

@@ -30,6 +30,12 @@ const KIND_CELLS := {
 	"entrance": Vector2i(1, 1),
 	"stairs": Vector2i(2, 1),
 	"unknown": Vector2i(3, 1),
+	"vault": Vector2i(3, 0),
+	"rest": Vector2i(1, 1),
+	"lore": Vector2i(3, 1),
+	"puzzle": Vector2i(3, 1),
+	"npc": Vector2i(2, 0),
+	"hazard": Vector2i(0, 0),
 }
 
 const LEGEND_ENTRIES := [
@@ -41,6 +47,12 @@ const LEGEND_ENTRIES := [
 	{"kind": "entrance", "label_key": "MAP_LEGEND_ENTRANCE"},
 	{"kind": "stairs", "label_key": "MAP_LEGEND_STAIRS"},
 ]
+
+const COLOR_CLEARED := Color(0.42, 0.52, 0.44, 0.95)
+const COLOR_LOCKED := Color(0.86, 0.44, 0.32, 1.0)
+const COLOR_REST := Color(0.44, 0.62, 0.78, 1.0)
+const CLEARED_TINT := Color(0.72, 0.82, 0.72, 1.0)
+const LOCK_MARK_HALF := 2.0
 
 var _rooms: Array = []
 var _edges: Array = []
@@ -60,6 +72,8 @@ var _pan := Vector2.ZERO
 var _middle_drag := false
 var _drag_last := Vector2.ZERO
 var _icon_atlas: Texture2D
+var _cleared: Dictionary = {}
+var _fog_of_war := false
 
 
 func configure(definition: Dictionary) -> void:
@@ -67,6 +81,7 @@ func configure(definition: Dictionary) -> void:
 	_edges = definition.get("edges", [])
 	_branch_previews = definition.get("branchPreviews", [])
 	_reveal.clear()
+	_cleared.clear()
 	_current_room_id = ""
 	_build_caches()
 	_recompute_bounds()
@@ -99,7 +114,28 @@ func bind_player(player: Node3D) -> void:
 
 
 func get_reveal_tier(room_id: String) -> int:
-	return int(_reveal.get(room_id, RevealTier.UNKNOWN))
+	var tier := int(_reveal.get(room_id, RevealTier.UNKNOWN))
+	if _fog_of_war and tier == RevealTier.SEEN:
+		return RevealTier.UNKNOWN
+	return tier
+
+
+func mark_cleared(room_id: String) -> void:
+	if room_id == "" or _cleared.has(room_id):
+		return
+	_cleared[room_id] = true
+	queue_redraw()
+
+
+func is_room_cleared(room_id: String) -> bool:
+	return _cleared.has(room_id)
+
+
+func set_fog_of_war(enabled: bool) -> void:
+	if _fog_of_war == enabled:
+		return
+	_fog_of_war = enabled
+	queue_redraw()
 
 
 func get_player_map_point() -> Vector2:
@@ -143,6 +179,7 @@ func export_state() -> Dictionary:
 			"branchPreviews": _branch_previews,
 		},
 		"reveal": _reveal.duplicate(),
+		"cleared": _cleared.duplicate(),
 		"current_room_id": _current_room_id,
 	}
 
@@ -150,6 +187,8 @@ func export_state() -> Dictionary:
 func import_state(state: Dictionary) -> void:
 	configure(state.get("definition", {}))
 	_reveal = state.get("reveal", {}).duplicate()
+	var cleared: Variant = state.get("cleared", {})
+	_cleared = (cleared as Dictionary).duplicate() if cleared is Dictionary else {}
 	_current_room_id = str(state.get("current_room_id", ""))
 	queue_redraw()
 
@@ -274,23 +313,40 @@ func _draw_rooms(map_rect: Rect2) -> void:
 		var center := _map_point(_room_center(room_id), map_rect)
 		var room_px := _room_pixel_size(room_def, map_rect)
 		var rect := Rect2(center - room_px * 0.5, room_px)
-		var fill := COLOR_CURRENT if room_id == _current_room_id else COLOR_VISITED
+		var fill := COLOR_VISITED
+		if _cleared.has(room_id):
+			fill = COLOR_CLEARED
+		if room_id == _current_room_id:
+			fill = COLOR_CURRENT
 		if tier == RevealTier.SEEN:
 			draw_rect(rect, COLOR_SEEN, false, 1.0)
 		else:
 			draw_rect(rect, fill)
 		if tier >= RevealTier.VISITED:
-			_draw_room_icon(room_def, center)
+			_draw_room_icon(room_def, center, _cleared.has(room_id))
+			if bool(room_def.get("locked", false)):
+				_draw_lock_mark(rect)
 
 
-func _draw_room_icon(room_def: Dictionary, center: Vector2) -> void:
+func _draw_room_icon(room_def: Dictionary, center: Vector2, cleared: bool = false) -> void:
 	if _icon_atlas == null:
 		return
 	var kind := str(room_def.get("kind", "unknown"))
 	var cell: Vector2i = icon_cell_for_kind(kind)
 	var region := Rect2(cell.x * ICON_CELL, cell.y * ICON_CELL, ICON_CELL, ICON_CELL)
 	var dest := Rect2(center - Vector2(ICON_CELL, ICON_CELL) * 0.5, Vector2(ICON_CELL, ICON_CELL))
-	draw_texture_rect_region(_icon_atlas, dest, region, Color.WHITE, false)
+	var tint := CLEARED_TINT if cleared else Color.WHITE
+	if kind == "rest":
+		tint = COLOR_REST
+	draw_texture_rect_region(_icon_atlas, dest, region, tint, false)
+
+
+func _draw_lock_mark(rect: Rect2) -> void:
+	var corner := Vector2(rect.position.x + rect.size.x - LOCK_MARK_HALF - 1.0, rect.position.y + LOCK_MARK_HALF + 1.0)
+	draw_rect(
+		Rect2(corner - Vector2(LOCK_MARK_HALF, LOCK_MARK_HALF), Vector2(LOCK_MARK_HALF, LOCK_MARK_HALF) * 2.0),
+		COLOR_LOCKED
+	)
 
 
 func _draw_player_marker(map_rect: Rect2) -> void:

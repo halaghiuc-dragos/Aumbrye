@@ -1,0 +1,25 @@
+{
+  "id": "pitiron_spear",
+  "name": "Pit-Iron Spear",
+  "itemType": "weapon",
+  "equipmentSlot": "weapon",
+  "gridWidth": 1,
+  "gridHeight": 4,
+  "stackSize": 1,
+  "rarity": "common",
+  "description": "The oldest argument for keeping your distance. Dug out of the courtyard pit and never properly cleaned. Scaling: Strength D, Dexterity B.",
+  "value": 34,
+  "lootValue": 17,
+  "maxDurability": 105,
+  "baseId": "spear",
+  "materialTier": "pitiron",
+  "biome": "forgotten_castle",
+  "scaling": {
+    "strength": "D",
+    "dexterity": "B"
+  },
+  "stats": {
+    "physicalDamage": 4
+  },
+  "weaponId": "spear"
+}

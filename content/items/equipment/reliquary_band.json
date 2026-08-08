@@ -1,0 +1,23 @@
+{
+  "id": "reliquary_band",
+  "name": "Reliquary Band",
+  "itemType": "accessory",
+  "equipmentSlot": "ring",
+  "gridWidth": 1,
+  "gridHeight": 1,
+  "stackSize": 1,
+  "rarity": "rare",
+  "description": "Sized for a finger that is no longer attached to anyone. Melted down from offering plate. Nobody asked the congregation.",
+  "value": 144,
+  "lootValue": 72,
+  "maxDurability": 60,
+  "baseId": "band",
+  "materialTier": "reliquary",
+  "biome": "dark_cathedral",
+  "scaling": {},
+  "stats": {
+    "maxHealth": 21,
+    "resistArcane": 0.08,
+    "resistFire": 0.04
+  }
+}

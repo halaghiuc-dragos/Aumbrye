@@ -1,0 +1,12 @@
+{
+  "id": "sable_grain",
+  "name": "Sable Grain",
+  "itemType": "material",
+  "gridWidth": 1,
+  "gridHeight": 1,
+  "stackSize": 20,
+  "description": "Coarse and black, and heavier than it looks by a noticeable margin.",
+  "value": 28,
+  "lootValue": 17,
+  "materialTier": "mirebrass"
+}

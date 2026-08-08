@@ -1,0 +1,17 @@
+{
+  "id": "the_sallyport",
+  "title": "Out and Back Before the Horn",
+  "type": "clear_without",
+  "chainId": "roll",
+  "prerequisites": [
+    "hold_the_gate"
+  ],
+  "dungeonId": "forgotten_castle",
+  "maxSeconds": 900,
+  "requiresBoss": true,
+  "description": "The sallyport greaves were made for men who had to be outside the wall and back before the horn finished. Fifteen minutes. The horn has not changed.",
+  "rewards": {
+    "gold": 240,
+    "recipeId": "unlock_guard_spear"
+  }
+}

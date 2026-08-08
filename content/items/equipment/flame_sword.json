@@ -1,17 +1,17 @@
 {
-    "id":  "flame_sword",
-    "name":  "Flame Sword",
-    "itemType":  "weapon",
-    "gridWidth":  2,
-    "gridHeight":  2,
-    "stackSize":  1,
-    "rarity":  "epic",
-    "description":  "Runes along the fuller smolder even when the blade rests.",
-    "value":  20,
-    "stats":  {
-                  "fireDamage":  8,
-                  "physicalDamage":  20
-              },
-    "equipmentSlot":  "weapon",
-    "weaponId": "castle_sword"
+  "id": "flame_sword",
+  "name": "Flame Sword",
+  "itemType": "weapon",
+  "gridWidth": 2,
+  "gridHeight": 3,
+  "stackSize": 1,
+  "rarity": "epic",
+  "description": "Runes along the fuller smolder even when the blade rests.",
+  "value": 20,
+  "stats": {
+    "fireDamage": 8,
+    "physicalDamage": 20
+  },
+  "equipmentSlot": "weapon",
+  "weaponId": "castle_sword"
 }

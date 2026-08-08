@@ -1,0 +1,16 @@
+{
+  "id": "stoneskin",
+  "name": "Stillness",
+  "description": "You are harder to move than you were.",
+  "damageType": "physical",
+  "tickDamage": 0,
+  "tickInterval": 1,
+  "maxStacks": 1,
+  "duration": 10,
+  "damageTakenMultiplier": 0.82,
+  "iconColor": "#b0a898",
+  "polarity": "buff",
+  "stats": {
+    "armor": 6
+  }
+}

@@ -1,0 +1,90 @@
+{
+  "schemaVersion": 1,
+  "modes": [
+    {
+      "id": "boss_rush",
+      "name": "Vigil of Wardens",
+      "baseMode": "castle",
+      "dungeonId": "forgotten_castle",
+      "floors": 5,
+      "description": "Five floors, a warden on each, and nothing between them worth stopping for.",
+      "flavour": "They stopped posting sentries. There was no longer anything to warn.",
+      "scoring": "time",
+      "permadeath": false,
+      "modifiers": [
+        "elite_vigil",
+        "boss_hoard",
+        "hostile_halls",
+        "no_merchant"
+      ],
+      "escalation": [],
+      "unlock": {
+        "dungeonsCleared": 1
+      }
+    },
+    {
+      "id": "gauntlet",
+      "name": "The Long Gauntlet",
+      "baseMode": "castle",
+      "dungeonId": "forgotten_castle",
+      "floors": 10,
+      "description": "Ten floors, no hearths, and the halls get worse the further down you go.",
+      "flavour": "A straight road. That is the whole of the cruelty.",
+      "scoring": "depth",
+      "permadeath": false,
+      "modifiers": [
+        "no_rest",
+        "hostile_halls"
+      ],
+      "escalation": [
+        {
+          "fromFloor": 3,
+          "modifiers": [
+            "armoured_foes"
+          ]
+        },
+        {
+          "fromFloor": 5,
+          "modifiers": [
+            "thick_traps",
+            "sealed_doors"
+          ]
+        },
+        {
+          "fromFloor": 7,
+          "modifiers": [
+            "frenzied_foes",
+            "fog_of_war"
+          ]
+        },
+        {
+          "fromFloor": 9,
+          "modifiers": [
+            "elite_vigil",
+            "relentless_foes"
+          ]
+        }
+      ],
+      "unlock": {
+        "dungeonsCleared": 2
+      }
+    },
+    {
+      "id": "ironman",
+      "name": "One Life",
+      "baseMode": "endless",
+      "floors": 0,
+      "description": "Descend as far as you can. There is no second attempt on this character.",
+      "flavour": "Whatever you were carrying, you are carrying it for the last time.",
+      "scoring": "depth",
+      "permadeath": true,
+      "modifiers": [
+        "starved_hearth"
+      ],
+      "escalation": [],
+      "unlock": {
+        "endlessBestFloor": 10
+      }
+    }
+  ]
+}

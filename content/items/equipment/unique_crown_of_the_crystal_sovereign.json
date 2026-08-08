@@ -1,0 +1,45 @@
+{
+  "id": "unique_crown_of_the_crystal_sovereign",
+  "name": "Crown of the Crystal Sovereign",
+  "itemType": "armor",
+  "equipmentSlot": "helmet",
+  "gridWidth": 2,
+  "gridHeight": 2,
+  "stackSize": 1,
+  "rarity": "aumbral",
+  "description": "Taken from a head that had grown into it. The removal was not clean and was not quick.",
+  "value": 1650,
+  "lootValue": 825,
+  "maxDurability": 100,
+  "unique": true,
+  "baseId": "helm",
+  "biome": "crystal_caverns",
+  "scaling": {
+    "strength": "D"
+  },
+  "ruleText": "Each kill raises damage 3%, up to 12 stacks. Clearing a room restores 40 mana.",
+  "rules": [
+    {
+      "event": "onKill",
+      "effect": "add_stack",
+      "stackId": "sovereign",
+      "maxStacks": 12,
+      "stat": "damagePercent",
+      "perStack": 3.0,
+      "resetOn": [
+        "onHitTaken"
+      ]
+    },
+    {
+      "event": "onRoomClear",
+      "effect": "restore_mana",
+      "amount": 40.0
+    }
+  ],
+  "stats": {
+    "armor": 20,
+    "manaMax": 40,
+    "lootQuality": 0.15,
+    "poise": 10
+  }
+}

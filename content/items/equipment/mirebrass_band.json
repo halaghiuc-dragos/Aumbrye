@@ -1,0 +1,22 @@
+{
+  "id": "mirebrass_band",
+  "name": "Mirebrass Band",
+  "itemType": "accessory",
+  "equipmentSlot": "ring",
+  "gridWidth": 1,
+  "gridHeight": 1,
+  "stackSize": 1,
+  "rarity": "magic",
+  "description": "Sized for a finger that is no longer attached to anyone. Green to the touch. The swamp finished it for the smith.",
+  "value": 72,
+  "lootValue": 36,
+  "maxDurability": 60,
+  "baseId": "band",
+  "materialTier": "mirebrass",
+  "biome": "poison_swamp",
+  "scaling": {},
+  "stats": {
+    "maxHealth": 14,
+    "resistPoison": 0.06
+  }
+}

@@ -1,0 +1,84 @@
+{
+  "id": "mira_reactions",
+  "startNode": "start",
+  "nodes": {
+    "start": {
+      "speaker": "Mira",
+      "text": "You put it down and then you went down with it. Both of those happened. Only one of them will be written anywhere.",
+      "condition": {
+        "all": [
+          {
+            "lastRunOutcome": "died"
+          },
+          {
+            "lastRunBoss": true
+          }
+        ]
+      },
+      "fallback": "r2",
+      "next": "end"
+    },
+    "r2": {
+      "speaker": "Mira",
+      "text": "Four floors and the fourth one had you. I have watched that number climb for years and it climbs the same way for everyone.",
+      "condition": {
+        "all": [
+          {
+            "lastRunOutcome": "died"
+          },
+          {
+            "minLastRunFloor": 4
+          }
+        ]
+      },
+      "fallback": "r3",
+      "next": "end"
+    },
+    "r3": {
+      "speaker": "Mira",
+      "text": "Down and back up entire. Do not make a habit of the feeling. Make a habit of the coming back up.",
+      "condition": {
+        "all": [
+          {
+            "lastRunOutcome": "escaped"
+          },
+          {
+            "lastRunBoss": true
+          }
+        ]
+      },
+      "fallback": "r4",
+      "next": "end"
+    },
+    "r4": {
+      "speaker": "Mira",
+      "text": "The Hollow. People walk toward a light there that has not been in front of them for eleven years. Do not join the walk.",
+      "condition": {
+        "lastRunBiome": "glacial_hollow"
+      },
+      "fallback": "r5",
+      "next": "end"
+    },
+    "r5": {
+      "speaker": "Mira",
+      "text": "I have stopped saying be careful. You are careful. It is not a careful problem.",
+      "condition": {
+        "all": [
+          {
+            "lastRunOutcome": "died"
+          },
+          {
+            "minDeaths": 10
+          }
+        ]
+      },
+      "fallback": "quiet",
+      "next": "end"
+    },
+    "quiet": {
+      "speaker": "Mira",
+      "text": "The way down is open. It is always open. That is not the kindness people take it for.",
+      "next": "end"
+    }
+  }
+}

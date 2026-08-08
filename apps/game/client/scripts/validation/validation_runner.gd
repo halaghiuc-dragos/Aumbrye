@@ -359,6 +359,7 @@ func _write_report() -> bool:
 	var report := {
 		"schemaVersion": SCHEMA_VERSION,
 		"generatedAt": Time.get_datetime_string_from_system(),
+		"total": _ctx.tests.size(),
 		"passed": _ctx.passed,
 		"failed": _ctx.failed,
 		"skipped": _ctx.skipped,
@@ -446,10 +447,7 @@ func _write_junit(path: String) -> bool:
 
 func _print_failures() -> void:
 	for test in _ctx.tests:
-		if (
-			test.get("status", "") == "fail"
-			or (test.get("pass", true) == false and test.get("status", "") != "skip")
-		):
+		if test.get("status", "") == "fail":
 			print(
 				(
 					"FAIL %s [%s] %s"

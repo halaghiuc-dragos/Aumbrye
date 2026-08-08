@@ -1,0 +1,63 @@
+{
+  "id": "quartermaster_vessit",
+  "displayName": "Quartermaster Vessit",
+  "interactType": "quest_board",
+  "dialogueId": "vessit_greeting",
+  "dialogueRules": [
+    {
+      "condition": {
+        "any": [
+          {
+            "all": [
+              {
+                "lastRunOutcome": "died"
+              },
+              {
+                "lastRunBoss": true
+              }
+            ]
+          },
+          {
+            "all": [
+              {
+                "lastRunOutcome": "died"
+              },
+              {
+                "minLastRunFloor": 4
+              }
+            ]
+          },
+          {
+            "all": [
+              {
+                "lastRunOutcome": "escaped"
+              },
+              {
+                "lastRunBoss": true
+              }
+            ]
+          },
+          {
+            "lastRunBiome": "poison_swamp"
+          },
+          {
+            "all": [
+              {
+                "lastRunOutcome": "died"
+              },
+              {
+                "minDeaths": 10
+              }
+            ]
+          }
+        ]
+      },
+      "dialogueId": "vessit_reactions"
+    }
+  ],
+  "position": {
+    "x": 14.6,
+    "y": 0,
+    "z": 11.2
+  }
+}

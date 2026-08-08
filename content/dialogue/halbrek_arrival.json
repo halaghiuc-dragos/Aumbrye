@@ -1,0 +1,31 @@
+{
+  "id": "halbrek_arrival",
+  "startNode": "start",
+  "nodes": {
+    "start": {
+      "speaker": "Serjeant Halbrek",
+      "text": "Up. I have not been up. Give me the morning — no. There is no morning, I remember, I do remember. Forty-one names. I will keep calling them here, if the ground will have me.",
+      "actions": [
+        {
+          "type": "set_relationship",
+          "npc": "halbrek",
+          "delta": 2
+        },
+        {
+          "type": "advance_story_beat",
+          "beat": 1
+        },
+        {
+          "type": "set_flag",
+          "flag": "gate_reopened",
+          "value": true
+        },
+        {
+          "type": "unlock_recipe",
+          "recipeId": "unlock_guard_spear"
+        }
+      ],
+      "next": "end"
+    }
+  }
+}

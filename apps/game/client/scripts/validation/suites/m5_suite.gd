@@ -558,7 +558,7 @@ func _test_dungeon_tier_progression() -> void:
 	var tier2_ok := (
 		DungeonTierService.get_max_unlocked_tier() == 2
 		and DungeonTierService.is_dungeon_unlocked("crystal_caverns")
-		and DungeonTierService.get_hub_portal_label() == "Aumbrye Dungeons — Tier 2"
+		and DungeonTierService.get_hub_portal_label() == "Aumbrye Dungeons — Depth 2"
 	)
 	ctx.timed_record(
 		"dungeon.biome.tier2_unlock",

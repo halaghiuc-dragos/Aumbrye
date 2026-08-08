@@ -1,0 +1,6 @@
+{
+  "id": "forge_salvage",
+  "type": "salvage",
+  "itemId": "any",
+  "goldCost": 0
+}

@@ -1,0 +1,19 @@
+{
+  "id": "elixir_focus",
+  "name": "Elixir of Focus",
+  "itemType": "consumable",
+  "gridWidth": 1,
+  "gridHeight": 2,
+  "stackSize": 5,
+  "rarity": "rare",
+  "description": "Narrows the world to the width of an arm's reach. Everything outside that stops mattering.",
+  "consumableEffect": {
+    "kind": "applyStatus",
+    "statusId": "elixir_focus",
+    "duration": 60,
+    "stat": "critChance",
+    "amount": 0.1
+  },
+  "value": 150,
+  "lootValue": 75
+}

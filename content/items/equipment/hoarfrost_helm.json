@@ -1,0 +1,25 @@
+{
+  "id": "hoarfrost_helm",
+  "name": "Hoarfrost Helm",
+  "itemType": "armor",
+  "equipmentSlot": "helmet",
+  "gridWidth": 2,
+  "gridHeight": 2,
+  "stackSize": 1,
+  "rarity": "magic",
+  "description": "The visor is dented inward. It was not removed in time. Quenched in meltwater that never fully melted. Scaling: Strength D.",
+  "value": 82,
+  "lootValue": 41,
+  "maxDurability": 100,
+  "baseId": "helm",
+  "materialTier": "hoarfrost",
+  "biome": "frozen_fortress",
+  "scaling": {
+    "strength": "D"
+  },
+  "stats": {
+    "armor": 6,
+    "poise": 4,
+    "resistFrost": 0.08
+  }
+}

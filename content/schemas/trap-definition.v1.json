@@ -1,0 +1,42 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://aumbrye.dev/schemas/trap-definition.v1.json",
+  "title": "TrapDefinition",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "scene"],
+  "properties": {
+    "id": { "type": "string", "minLength": 1 },
+    "name": { "type": "string" },
+    "description": { "type": "string" },
+    "scene": { "type": "string", "minLength": 1 },
+    "trigger": {
+      "type": "string",
+      "enum": ["proximity", "plate", "cycle", "lure"],
+      "description": "proximity arms for the player, plate for anything, cycle runs unattended, lure arms only for enemies."
+    },
+    "triggerRadius": { "type": "number", "minimum": 0 },
+    "telegraph": { "type": "number", "minimum": 0 },
+    "active": { "type": "number", "minimum": 0 },
+    "cooldown": { "type": "number", "minimum": 0 },
+    "oneShot": { "type": "boolean" },
+    "damage": { "type": "number", "minimum": 0 },
+    "poiseDamage": { "type": "number", "minimum": 0 },
+    "damageType": { "type": "string", "minLength": 1 },
+    "hitInterval": { "type": "number", "minimum": 0.05 },
+    "enemyDamageMultiplier": {
+      "type": "number",
+      "minimum": 0,
+      "description": "Scales trap damage against non-player factions so baiting rewards without trivialising."
+    },
+    "statusId": { "type": "string" },
+    "statusBuildUp": { "type": "number", "minimum": 0 },
+    "size": {
+      "type": "array",
+      "items": { "type": "number", "minimum": 0 },
+      "minItems": 3,
+      "maxItems": 3
+    },
+    "color": { "type": "string" }
+  }
+}

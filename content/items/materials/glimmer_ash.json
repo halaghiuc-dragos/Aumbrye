@@ -1,0 +1,12 @@
+{
+  "id": "glimmer_ash",
+  "name": "Glimmer Ash",
+  "itemType": "material",
+  "gridWidth": 1,
+  "gridHeight": 1,
+  "stackSize": 20,
+  "description": "It catches light that is not in the room.",
+  "value": 12,
+  "lootValue": 7,
+  "materialTier": "graysteel"
+}

@@ -1,0 +1,30 @@
+{
+  "id": "unique_ledger_of_debts",
+  "name": "Ledger of Debts",
+  "itemType": "accessory",
+  "equipmentSlot": "amulet",
+  "gridWidth": 1,
+  "gridHeight": 2,
+  "stackSize": 1,
+  "rarity": "epic",
+  "description": "A page folded into a locket. The sums are still owed to somebody.",
+  "value": 470,
+  "lootValue": 235,
+  "maxDurability": 60,
+  "unique": true,
+  "baseId": "pendant",
+  "biome": "iron_vault",
+  "scaling": {},
+  "ruleText": "Each kill yields 12 gold.",
+  "rules": [
+    {
+      "event": "onKill",
+      "effect": "bonus_gold",
+      "amount": 12.0
+    }
+  ],
+  "stats": {
+    "goldFind": 0.25,
+    "manaMax": 18
+  }
+}

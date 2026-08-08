@@ -1,0 +1,24 @@
+{
+  "id": "arrow_line",
+  "name": "Arrow Slit",
+  "description": "A corridor is only ever one shot wide.",
+  "scene": "res://scenes/traps/arrow_line.tscn",
+  "trigger": "proximity",
+  "telegraph": 0.8,
+  "active": 0.4,
+  "cooldown": 3,
+  "triggerRadius": 4.5,
+  "damage": 14,
+  "poiseDamage": 6,
+  "damageType": "physical",
+  "hitInterval": 0.4,
+  "statusId": "bleed",
+  "statusBuildUp": 18,
+  "enemyDamageMultiplier": 0.7,
+  "size": [
+    1.2,
+    1.4,
+    10
+  ],
+  "color": "#d8c79a"
+}

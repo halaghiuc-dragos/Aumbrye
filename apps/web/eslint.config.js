@@ -26,6 +26,17 @@ export default tseslint.config(
       ...reactHooks.configs.recommended.rules,
       ...jsxA11y.configs.recommended.rules,
       "@typescript-eslint/no-unused-vars": ["warn", { argsIgnorePattern: "^_" }],
+      "no-restricted-imports": [
+        "error",
+        {
+          paths: [
+            {
+              name: "react-router",
+              message: "Import router APIs from 'react-router-dom', not 'react-router', to avoid two router context instances.",
+            },
+          ],
+        },
+      ],
     },
   },
 );

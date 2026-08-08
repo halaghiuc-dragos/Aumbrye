@@ -1,0 +1,44 @@
+{
+  "id": "endless_depth",
+  "note": "The depth ratchet. Descent tokens are minted only for floors deeper than the character has ever reached, so a run is only worth what it adds to the record.",
+  "tokensPerNewFloor": 1,
+  "tokenBonusPerMilestone": 10,
+  "milestones": [
+    {
+      "floor": 25,
+      "label": "First Descent",
+      "flag": "endless_depth_25",
+      "reward": { "tokens": 10, "skipItemId": "skip_10_floors", "skipQuantity": 1 }
+    },
+    {
+      "floor": 50,
+      "label": "Below the Chapel",
+      "flag": "endless_depth_50",
+      "reward": { "tokens": 20, "skipItemId": "skip_10_floors", "skipQuantity": 2 }
+    },
+    {
+      "floor": 100,
+      "label": "The Long Dark",
+      "flag": "endless_depth_100",
+      "reward": { "tokens": 40, "skipItemId": "skip_50_floors", "skipQuantity": 1 }
+    },
+    {
+      "floor": 250,
+      "label": "Where the Stairs Stop Counting",
+      "flag": "endless_depth_250",
+      "reward": { "tokens": 90, "skipItemId": "skip_100_floors", "skipQuantity": 1 }
+    },
+    {
+      "floor": 500,
+      "label": "Aumbrye Beneath Aumbrye",
+      "flag": "endless_depth_500",
+      "reward": { "tokens": 200, "skipItemId": "skip_250_floors", "skipQuantity": 1 }
+    }
+  ],
+  "skipLadder": [
+    { "from": "skip_10_floors", "to": "skip_50_floors", "cost": 5 },
+    { "from": "skip_50_floors", "to": "skip_100_floors", "cost": 2 },
+    { "from": "skip_100_floors", "to": "skip_250_floors", "cost": 3 },
+    { "from": "skip_250_floors", "to": "skip_500_floors", "cost": 2 }
+  ]
+}

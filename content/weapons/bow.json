@@ -5,8 +5,26 @@
   "damage_type": "physical",
   "draw_time": 0.75,
   "buffer_window": 0.15,
+  "cancel_into": [
+    "dodge",
+    "guard"
+  ],
+  "cancel_after": 0.4,
   "scaling": {
     "critChance": 1.5
+  },
+  "hitbox": {
+    "shape": "box",
+    "size": [
+      0.6,
+      0.6,
+      1
+    ],
+    "offset": [
+      0,
+      0,
+      0.5
+    ]
   },
   "light_attacks": [
     {
@@ -26,6 +44,26 @@
     "active": 0.1,
     "recovery": 0.35
   },
+  "running_attack": {
+    "damage": 9,
+    "poise_damage": 6,
+    "stamina_cost": 9,
+    "startup": 0.1,
+    "active": 0.08,
+    "recovery": 0.22,
+    "lunge_distance": 0.7,
+    "cancel_after": 0.35
+  },
+  "rolling_attack": {
+    "damage": 8,
+    "poise_damage": 5,
+    "stamina_cost": 8,
+    "startup": 0.09,
+    "active": 0.08,
+    "recovery": 0.2,
+    "lunge_distance": 0.3,
+    "cancel_after": 0.35
+  },
   "art": {
     "id": "piercing_shot",
     "name": "Piercing Shot",
@@ -35,8 +73,8 @@
     "startup": 0.3,
     "active": 0.14,
     "recovery": 0.4,
-    "lunge_distance": 0.0,
+    "lunge_distance": 0,
     "hyperarmor": false,
-    "cooldown": 7.0
+    "cooldown": 7
   }
 }

@@ -1,0 +1,26 @@
+{
+  "id": "spellglass_gauntlets",
+  "name": "Spellglass Gauntlets",
+  "itemType": "armor",
+  "equipmentSlot": "gloves",
+  "gridWidth": 2,
+  "gridHeight": 2,
+  "stackSize": 1,
+  "rarity": "rare",
+  "description": "Worn thin at the knuckles, thick everywhere else. Grown, not forged. It rings on a note the ear dislikes. Scaling: Strength D.",
+  "value": 130,
+  "lootValue": 65,
+  "maxDurability": 95,
+  "baseId": "gauntlets",
+  "materialTier": "spellglass",
+  "biome": "crystal_caverns",
+  "scaling": {
+    "strength": "D"
+  },
+  "stats": {
+    "armor": 6,
+    "staminaMax": 13,
+    "resistArcane": 0.1,
+    "resistLightning": 0.05
+  }
+}

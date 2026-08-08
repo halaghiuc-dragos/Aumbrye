@@ -6,15 +6,37 @@
       "displayName": "of the Bear",
       "kind": "suffix",
       "stat": "maxHealth",
-      "itemTypes": ["armor", "weapon"],
-      "weight": 100,
+      "itemTypes": [
+        "armor",
+        "weapon"
+      ],
+      "weight": 90,
+      "template": "+{value} {stat}",
       "tiers": {
-        "common": { "min": 5, "max": 10 },
-        "magic": { "min": 11, "max": 18 },
-        "rare": { "min": 19, "max": 28 },
-        "epic": { "min": 29, "max": 40 },
-        "legendary": { "min": 41, "max": 55 },
-        "aumbral": { "min": 60, "max": 80 }
+        "common": {
+          "min": 5,
+          "max": 10
+        },
+        "magic": {
+          "min": 10,
+          "max": 20
+        },
+        "rare": {
+          "min": 17,
+          "max": 34
+        },
+        "epic": {
+          "min": 25,
+          "max": 50
+        },
+        "legendary": {
+          "min": 35,
+          "max": 70
+        },
+        "aumbral": {
+          "min": 48,
+          "max": 95
+        }
       }
     },
     {
@@ -22,31 +44,36 @@
       "displayName": "of Flames",
       "kind": "suffix",
       "stat": "fireDamage",
-      "itemTypes": ["weapon"],
-      "weight": 85,
-      "tiers": {
-        "common": { "min": 2, "max": 4 },
-        "magic": { "min": 5, "max": 8 },
-        "rare": { "min": 9, "max": 14 },
-        "epic": { "min": 15, "max": 20 },
-        "legendary": { "min": 21, "max": 28 },
-        "aumbral": { "min": 30, "max": 40 }
-      }
-    },
-    {
-      "id": "of_haste",
-      "displayName": "of Haste",
-      "kind": "suffix",
-      "stat": "moveSpeed",
-      "itemTypes": ["armor", "weapon"],
+      "itemTypes": [
+        "weapon"
+      ],
       "weight": 75,
+      "template": "+{value} {stat}",
       "tiers": {
-        "common": { "min": 0.01, "max": 0.02 },
-        "magic": { "min": 0.02, "max": 0.03 },
-        "rare": { "min": 0.03, "max": 0.05 },
-        "epic": { "min": 0.05, "max": 0.07 },
-        "legendary": { "min": 0.07, "max": 0.09 },
-        "aumbral": { "min": 0.1, "max": 0.12 }
+        "common": {
+          "min": 2,
+          "max": 4
+        },
+        "magic": {
+          "min": 4,
+          "max": 8
+        },
+        "rare": {
+          "min": 7,
+          "max": 14
+        },
+        "epic": {
+          "min": 10,
+          "max": 20
+        },
+        "legendary": {
+          "min": 14,
+          "max": 28
+        },
+        "aumbral": {
+          "min": 19,
+          "max": 38
+        }
       }
     },
     {
@@ -54,15 +81,36 @@
       "displayName": "of Frost",
       "kind": "suffix",
       "stat": "frostDamage",
-      "itemTypes": ["weapon"],
-      "weight": 65,
+      "itemTypes": [
+        "weapon"
+      ],
+      "weight": 75,
+      "template": "+{value} {stat}",
       "tiers": {
-        "common": { "min": 2, "max": 4 },
-        "magic": { "min": 5, "max": 8 },
-        "rare": { "min": 9, "max": 14 },
-        "epic": { "min": 15, "max": 20 },
-        "legendary": { "min": 21, "max": 28 },
-        "aumbral": { "min": 30, "max": 40 }
+        "common": {
+          "min": 2,
+          "max": 4
+        },
+        "magic": {
+          "min": 4,
+          "max": 8
+        },
+        "rare": {
+          "min": 7,
+          "max": 14
+        },
+        "epic": {
+          "min": 10,
+          "max": 20
+        },
+        "legendary": {
+          "min": 14,
+          "max": 28
+        },
+        "aumbral": {
+          "min": 19,
+          "max": 38
+        }
       }
     },
     {
@@ -70,15 +118,74 @@
       "displayName": "of Poison",
       "kind": "suffix",
       "stat": "poisonDamage",
-      "itemTypes": ["weapon"],
-      "weight": 60,
+      "itemTypes": [
+        "weapon"
+      ],
+      "weight": 75,
+      "template": "+{value} {stat}",
       "tiers": {
-        "common": { "min": 2, "max": 4 },
-        "magic": { "min": 5, "max": 8 },
-        "rare": { "min": 9, "max": 14 },
-        "epic": { "min": 15, "max": 20 },
-        "legendary": { "min": 21, "max": 28 },
-        "aumbral": { "min": 30, "max": 40 }
+        "common": {
+          "min": 2,
+          "max": 4
+        },
+        "magic": {
+          "min": 4,
+          "max": 8
+        },
+        "rare": {
+          "min": 7,
+          "max": 14
+        },
+        "epic": {
+          "min": 10,
+          "max": 20
+        },
+        "legendary": {
+          "min": 14,
+          "max": 28
+        },
+        "aumbral": {
+          "min": 19,
+          "max": 38
+        }
+      }
+    },
+    {
+      "id": "of_haste",
+      "displayName": "of Haste",
+      "kind": "suffix",
+      "stat": "moveSpeed",
+      "itemTypes": [
+        "armor",
+        "weapon"
+      ],
+      "weight": 70,
+      "template": "+{value} {stat}",
+      "tiers": {
+        "common": {
+          "min": 0.01,
+          "max": 0.02
+        },
+        "magic": {
+          "min": 0.02,
+          "max": 0.04
+        },
+        "rare": {
+          "min": 0.034,
+          "max": 0.068
+        },
+        "epic": {
+          "min": 0.05,
+          "max": 0.1
+        },
+        "legendary": {
+          "min": 0.07,
+          "max": 0.14
+        },
+        "aumbral": {
+          "min": 0.095,
+          "max": 0.19
+        }
       }
     },
     {
@@ -86,15 +193,37 @@
       "displayName": "of Vigor",
       "kind": "suffix",
       "stat": "staminaRegen",
-      "itemTypes": ["armor", "weapon"],
-      "weight": 55,
+      "itemTypes": [
+        "armor",
+        "weapon"
+      ],
+      "weight": 80,
+      "template": "+{value} {stat}",
       "tiers": {
-        "common": { "min": 1, "max": 2 },
-        "magic": { "min": 3, "max": 4 },
-        "rare": { "min": 5, "max": 7 },
-        "epic": { "min": 8, "max": 10 },
-        "legendary": { "min": 11, "max": 14 },
-        "aumbral": { "min": 16, "max": 20 }
+        "common": {
+          "min": 0.01,
+          "max": 0.02
+        },
+        "magic": {
+          "min": 0.02,
+          "max": 0.04
+        },
+        "rare": {
+          "min": 0.034,
+          "max": 0.068
+        },
+        "epic": {
+          "min": 0.05,
+          "max": 0.1
+        },
+        "legendary": {
+          "min": 0.07,
+          "max": 0.14
+        },
+        "aumbral": {
+          "min": 0.095,
+          "max": 0.19
+        }
       }
     },
     {
@@ -102,15 +231,750 @@
       "displayName": "of the Eagle",
       "kind": "suffix",
       "stat": "critChance",
-      "itemTypes": ["weapon"],
-      "weight": 50,
+      "itemTypes": [
+        "weapon"
+      ],
+      "weight": 60,
+      "template": "+{value} {stat}",
       "tiers": {
-        "common": { "min": 0.01, "max": 0.02 },
-        "magic": { "min": 0.02, "max": 0.03 },
-        "rare": { "min": 0.03, "max": 0.05 },
-        "epic": { "min": 0.05, "max": 0.07 },
-        "legendary": { "min": 0.07, "max": 0.09 },
-        "aumbral": { "min": 0.1, "max": 0.12 }
+        "common": {
+          "min": 0.01,
+          "max": 0.02
+        },
+        "magic": {
+          "min": 0.02,
+          "max": 0.04
+        },
+        "rare": {
+          "min": 0.034,
+          "max": 0.068
+        },
+        "epic": {
+          "min": 0.05,
+          "max": 0.1
+        },
+        "legendary": {
+          "min": 0.07,
+          "max": 0.14
+        },
+        "aumbral": {
+          "min": 0.095,
+          "max": 0.19
+        }
+      }
+    },
+    {
+      "id": "of_the_storm",
+      "displayName": "of the Storm",
+      "kind": "suffix",
+      "stat": "bonusDamage",
+      "itemTypes": [
+        "weapon"
+      ],
+      "weight": 55,
+      "template": "+{value} {stat}",
+      "tiers": {
+        "common": {
+          "min": 2,
+          "max": 4
+        },
+        "magic": {
+          "min": 4,
+          "max": 8
+        },
+        "rare": {
+          "min": 7,
+          "max": 14
+        },
+        "epic": {
+          "min": 10,
+          "max": 20
+        },
+        "legendary": {
+          "min": 14,
+          "max": 28
+        },
+        "aumbral": {
+          "min": 19,
+          "max": 38
+        }
+      }
+    },
+    {
+      "id": "of_ruin",
+      "displayName": "of Ruin",
+      "kind": "suffix",
+      "stat": "damagePercent",
+      "itemTypes": [
+        "weapon"
+      ],
+      "weight": 45,
+      "template": "+{value} {stat}",
+      "tiers": {
+        "common": {
+          "min": 2,
+          "max": 3
+        },
+        "magic": {
+          "min": 4,
+          "max": 6
+        },
+        "rare": {
+          "min": 7,
+          "max": 10
+        },
+        "epic": {
+          "min": 10,
+          "max": 15
+        },
+        "legendary": {
+          "min": 14,
+          "max": 21
+        },
+        "aumbral": {
+          "min": 19,
+          "max": 28
+        }
+      }
+    },
+    {
+      "id": "of_the_wolf",
+      "displayName": "of the Wolf",
+      "kind": "suffix",
+      "stat": "moveSpeedPercent",
+      "itemTypes": [
+        "armor"
+      ],
+      "weight": 50,
+      "template": "+{value} {stat}",
+      "tiers": {
+        "common": {
+          "min": 2,
+          "max": 3
+        },
+        "magic": {
+          "min": 4,
+          "max": 6
+        },
+        "rare": {
+          "min": 7,
+          "max": 10
+        },
+        "epic": {
+          "min": 10,
+          "max": 15
+        },
+        "legendary": {
+          "min": 14,
+          "max": 21
+        },
+        "aumbral": {
+          "min": 19,
+          "max": 28
+        }
+      }
+    },
+    {
+      "id": "of_the_ox",
+      "displayName": "of the Ox",
+      "kind": "suffix",
+      "stat": "staminaMax",
+      "itemTypes": [
+        "armor",
+        "weapon"
+      ],
+      "weight": 70,
+      "template": "+{value} {stat}",
+      "tiers": {
+        "common": {
+          "min": 3,
+          "max": 6
+        },
+        "magic": {
+          "min": 6,
+          "max": 12
+        },
+        "rare": {
+          "min": 10,
+          "max": 20
+        },
+        "epic": {
+          "min": 15,
+          "max": 30
+        },
+        "legendary": {
+          "min": 21,
+          "max": 42
+        },
+        "aumbral": {
+          "min": 28,
+          "max": 57
+        }
+      }
+    },
+    {
+      "id": "of_the_deep",
+      "displayName": "of the Deep",
+      "kind": "suffix",
+      "stat": "manaMax",
+      "itemTypes": [
+        "armor",
+        "accessory"
+      ],
+      "weight": 65,
+      "template": "+{value} {stat}",
+      "tiers": {
+        "common": {
+          "min": 5,
+          "max": 10
+        },
+        "magic": {
+          "min": 10,
+          "max": 20
+        },
+        "rare": {
+          "min": 17,
+          "max": 34
+        },
+        "epic": {
+          "min": 25,
+          "max": 50
+        },
+        "legendary": {
+          "min": 35,
+          "max": 70
+        },
+        "aumbral": {
+          "min": 48,
+          "max": 95
+        }
+      }
+    },
+    {
+      "id": "of_the_spring",
+      "displayName": "of the Spring",
+      "kind": "suffix",
+      "stat": "manaRegen",
+      "itemTypes": [
+        "accessory",
+        "armor"
+      ],
+      "weight": 50,
+      "template": "+{value} {stat}",
+      "tiers": {
+        "common": {
+          "min": 0.01,
+          "max": 0.02
+        },
+        "magic": {
+          "min": 0.02,
+          "max": 0.04
+        },
+        "rare": {
+          "min": 0.034,
+          "max": 0.068
+        },
+        "epic": {
+          "min": 0.05,
+          "max": 0.1
+        },
+        "legendary": {
+          "min": 0.07,
+          "max": 0.14
+        },
+        "aumbral": {
+          "min": 0.095,
+          "max": 0.19
+        }
+      }
+    },
+    {
+      "id": "of_endurance",
+      "displayName": "of Endurance",
+      "kind": "suffix",
+      "stat": "staminaCostReduction",
+      "itemTypes": [
+        "armor"
+      ],
+      "weight": 45,
+      "template": "+{value} {stat}",
+      "tiers": {
+        "common": {
+          "min": 0.01,
+          "max": 0.02
+        },
+        "magic": {
+          "min": 0.02,
+          "max": 0.04
+        },
+        "rare": {
+          "min": 0.034,
+          "max": 0.068
+        },
+        "epic": {
+          "min": 0.05,
+          "max": 0.1
+        },
+        "legendary": {
+          "min": 0.07,
+          "max": 0.14
+        },
+        "aumbral": {
+          "min": 0.095,
+          "max": 0.19
+        }
+      }
+    },
+    {
+      "id": "of_the_mountain",
+      "displayName": "of the Mountain",
+      "kind": "suffix",
+      "stat": "poise",
+      "itemTypes": [
+        "armor"
+      ],
+      "weight": 65,
+      "template": "+{value} {stat}",
+      "tiers": {
+        "common": {
+          "min": 1,
+          "max": 3
+        },
+        "magic": {
+          "min": 2,
+          "max": 6
+        },
+        "rare": {
+          "min": 3,
+          "max": 10
+        },
+        "epic": {
+          "min": 5,
+          "max": 15
+        },
+        "legendary": {
+          "min": 7,
+          "max": 21
+        },
+        "aumbral": {
+          "min": 10,
+          "max": 28
+        }
+      }
+    },
+    {
+      "id": "of_the_tower",
+      "displayName": "of the Tower",
+      "kind": "suffix",
+      "stat": "defense",
+      "itemTypes": [
+        "armor"
+      ],
+      "weight": 80,
+      "template": "+{value} {stat}",
+      "tiers": {
+        "common": {
+          "min": 2,
+          "max": 4
+        },
+        "magic": {
+          "min": 4,
+          "max": 8
+        },
+        "rare": {
+          "min": 7,
+          "max": 14
+        },
+        "epic": {
+          "min": 10,
+          "max": 20
+        },
+        "legendary": {
+          "min": 14,
+          "max": 28
+        },
+        "aumbral": {
+          "min": 19,
+          "max": 38
+        }
+      }
+    },
+    {
+      "id": "of_warding",
+      "displayName": "of Warding",
+      "kind": "suffix",
+      "stat": "resistArcane",
+      "itemTypes": [
+        "armor",
+        "accessory"
+      ],
+      "weight": 55,
+      "template": "+{value} {stat}",
+      "tiers": {
+        "common": {
+          "min": 0.02,
+          "max": 0.03
+        },
+        "magic": {
+          "min": 0.04,
+          "max": 0.06
+        },
+        "rare": {
+          "min": 0.068,
+          "max": 0.102
+        },
+        "epic": {
+          "min": 0.1,
+          "max": 0.15
+        },
+        "legendary": {
+          "min": 0.14,
+          "max": 0.21
+        },
+        "aumbral": {
+          "min": 0.19,
+          "max": 0.285
+        }
+      }
+    },
+    {
+      "id": "of_embers",
+      "displayName": "of Embers",
+      "kind": "suffix",
+      "stat": "resistFire",
+      "itemTypes": [
+        "armor",
+        "accessory"
+      ],
+      "weight": 55,
+      "template": "+{value} {stat}",
+      "tiers": {
+        "common": {
+          "min": 0.02,
+          "max": 0.03
+        },
+        "magic": {
+          "min": 0.04,
+          "max": 0.06
+        },
+        "rare": {
+          "min": 0.068,
+          "max": 0.102
+        },
+        "epic": {
+          "min": 0.1,
+          "max": 0.15
+        },
+        "legendary": {
+          "min": 0.14,
+          "max": 0.21
+        },
+        "aumbral": {
+          "min": 0.19,
+          "max": 0.285
+        }
+      }
+    },
+    {
+      "id": "of_the_thaw",
+      "displayName": "of the Thaw",
+      "kind": "suffix",
+      "stat": "resistFrost",
+      "itemTypes": [
+        "armor",
+        "accessory"
+      ],
+      "weight": 55,
+      "template": "+{value} {stat}",
+      "tiers": {
+        "common": {
+          "min": 0.02,
+          "max": 0.03
+        },
+        "magic": {
+          "min": 0.04,
+          "max": 0.06
+        },
+        "rare": {
+          "min": 0.068,
+          "max": 0.102
+        },
+        "epic": {
+          "min": 0.1,
+          "max": 0.15
+        },
+        "legendary": {
+          "min": 0.14,
+          "max": 0.21
+        },
+        "aumbral": {
+          "min": 0.19,
+          "max": 0.285
+        }
+      }
+    },
+    {
+      "id": "of_the_fen",
+      "displayName": "of the Fen",
+      "kind": "suffix",
+      "stat": "resistPoison",
+      "itemTypes": [
+        "armor",
+        "accessory"
+      ],
+      "weight": 55,
+      "template": "+{value} {stat}",
+      "tiers": {
+        "common": {
+          "min": 0.02,
+          "max": 0.03
+        },
+        "magic": {
+          "min": 0.04,
+          "max": 0.06
+        },
+        "rare": {
+          "min": 0.068,
+          "max": 0.102
+        },
+        "epic": {
+          "min": 0.1,
+          "max": 0.15
+        },
+        "legendary": {
+          "min": 0.14,
+          "max": 0.21
+        },
+        "aumbral": {
+          "min": 0.19,
+          "max": 0.285
+        }
+      }
+    },
+    {
+      "id": "of_the_stormwall",
+      "displayName": "of the Stormwall",
+      "kind": "suffix",
+      "stat": "resistLightning",
+      "itemTypes": [
+        "armor",
+        "accessory"
+      ],
+      "weight": 55,
+      "template": "+{value} {stat}",
+      "tiers": {
+        "common": {
+          "min": 0.02,
+          "max": 0.03
+        },
+        "magic": {
+          "min": 0.04,
+          "max": 0.06
+        },
+        "rare": {
+          "min": 0.068,
+          "max": 0.102
+        },
+        "epic": {
+          "min": 0.1,
+          "max": 0.15
+        },
+        "legendary": {
+          "min": 0.14,
+          "max": 0.21
+        },
+        "aumbral": {
+          "min": 0.19,
+          "max": 0.285
+        }
+      }
+    },
+    {
+      "id": "of_stone",
+      "displayName": "of Stone",
+      "kind": "suffix",
+      "stat": "resistPhysical",
+      "itemTypes": [
+        "armor"
+      ],
+      "weight": 50,
+      "template": "+{value} {stat}",
+      "tiers": {
+        "common": {
+          "min": 0.02,
+          "max": 0.03
+        },
+        "magic": {
+          "min": 0.04,
+          "max": 0.06
+        },
+        "rare": {
+          "min": 0.068,
+          "max": 0.102
+        },
+        "epic": {
+          "min": 0.1,
+          "max": 0.15
+        },
+        "legendary": {
+          "min": 0.14,
+          "max": 0.21
+        },
+        "aumbral": {
+          "min": 0.19,
+          "max": 0.285
+        }
+      }
+    },
+    {
+      "id": "of_avarice",
+      "displayName": "of Avarice",
+      "kind": "suffix",
+      "stat": "goldFind",
+      "itemTypes": [
+        "accessory",
+        "armor"
+      ],
+      "weight": 40,
+      "template": "+{value} {stat}",
+      "tiers": {
+        "common": {
+          "min": 0.02,
+          "max": 0.04
+        },
+        "magic": {
+          "min": 0.04,
+          "max": 0.08
+        },
+        "rare": {
+          "min": 0.068,
+          "max": 0.136
+        },
+        "epic": {
+          "min": 0.1,
+          "max": 0.2
+        },
+        "legendary": {
+          "min": 0.14,
+          "max": 0.28
+        },
+        "aumbral": {
+          "min": 0.19,
+          "max": 0.38
+        }
+      }
+    },
+    {
+      "id": "of_seeking",
+      "displayName": "of Seeking",
+      "kind": "suffix",
+      "stat": "lootQuality",
+      "itemTypes": [
+        "accessory"
+      ],
+      "weight": 30,
+      "template": "+{value} {stat}",
+      "tiers": {
+        "common": {
+          "min": 0.01,
+          "max": 0.02
+        },
+        "magic": {
+          "min": 0.02,
+          "max": 0.04
+        },
+        "rare": {
+          "min": 0.034,
+          "max": 0.068
+        },
+        "epic": {
+          "min": 0.05,
+          "max": 0.1
+        },
+        "legendary": {
+          "min": 0.07,
+          "max": 0.14
+        },
+        "aumbral": {
+          "min": 0.095,
+          "max": 0.19
+        }
+      }
+    },
+    {
+      "id": "of_the_scholar",
+      "displayName": "of the Scholar",
+      "kind": "suffix",
+      "stat": "xpGain",
+      "itemTypes": [
+        "accessory",
+        "armor"
+      ],
+      "weight": 35,
+      "template": "+{value} {stat}",
+      "tiers": {
+        "common": {
+          "min": 0.02,
+          "max": 0.03
+        },
+        "magic": {
+          "min": 0.04,
+          "max": 0.06
+        },
+        "rare": {
+          "min": 0.068,
+          "max": 0.102
+        },
+        "epic": {
+          "min": 0.1,
+          "max": 0.15
+        },
+        "legendary": {
+          "min": 0.14,
+          "max": 0.21
+        },
+        "aumbral": {
+          "min": 0.19,
+          "max": 0.285
+        }
+      }
+    },
+    {
+      "id": "of_recovery",
+      "displayName": "of Recovery",
+      "kind": "suffix",
+      "stat": "healthRegen",
+      "itemTypes": [
+        "armor",
+        "accessory"
+      ],
+      "weight": 55,
+      "template": "+{value} {stat}",
+      "tiers": {
+        "common": {
+          "min": 1,
+          "max": 2
+        },
+        "magic": {
+          "min": 2,
+          "max": 4
+        },
+        "rare": {
+          "min": 3,
+          "max": 7
+        },
+        "epic": {
+          "min": 5,
+          "max": 10
+        },
+        "legendary": {
+          "min": 7,
+          "max": 14
+        },
+        "aumbral": {
+          "min": 10,
+          "max": 19
+        }
       }
     }
   ]

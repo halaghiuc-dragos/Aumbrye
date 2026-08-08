@@ -1,0 +1,19 @@
+{
+  "id": "the_open_wound",
+  "name": "The Open Wound",
+  "description": "Strikes against the bleeding drink from them.",
+  "maxStacks": 1,
+  "tags": [
+    "blood"
+  ],
+  "weight": 0.9,
+  "rules": [
+    {
+      "event": "onHit",
+      "effect": "lifesteal",
+      "pct": 0.08,
+      "ifTargetHasStatus": "bleed"
+    }
+  ],
+  "offerable": true
+}

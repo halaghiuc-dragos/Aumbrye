@@ -1,0 +1,70 @@
+{
+  "id": "descent_pacts",
+  "note": "Offered at the stair lever. Two are drawn per descent from the run seed and the floor index, so the same seed always offers the same choice. The pact replaces the run's modifiers for the floor below.",
+  "offerCount": 2,
+  "pacts": [
+    {
+      "id": "quiet_halls",
+      "label": "Quiet Halls",
+      "description": "Fewer things awake below. The floor keeps its treasure.",
+      "modifiers": [],
+      "removeModifiers": ["elite_packs", "elite_vigil", "hostile_halls"],
+      "gain": "Thinner ranks.",
+      "cost": "No pact reward."
+    },
+    {
+      "id": "cursed_depths",
+      "label": "Cursed Depths",
+      "description": "Wardens walk the floor below, and they are worth opening.",
+      "modifiers": ["elite_vigil", "volatile_foes", "rich_veins"],
+      "removeModifiers": [],
+      "gain": "Richer vaults.",
+      "cost": "A warden on every floor."
+    },
+    {
+      "id": "starved_road",
+      "label": "The Starved Road",
+      "description": "No hearth will take below. What you carry, you carry.",
+      "modifiers": ["no_rest", "starved_hearth", "boss_hoard"],
+      "removeModifiers": [],
+      "gain": "The floor boss keeps a hoard.",
+      "cost": "No rest, and thin hearths."
+    },
+    {
+      "id": "barred_descent",
+      "label": "Barred Descent",
+      "description": "The doors below have been kept shut a long time.",
+      "modifiers": ["barred_ways", "rich_veins"],
+      "removeModifiers": [],
+      "gain": "More sealed vaults, more in them.",
+      "cost": "More locks between you and the stair."
+    },
+    {
+      "id": "unlit_way",
+      "label": "The Unlit Way",
+      "description": "You will not be given a map of what is below.",
+      "modifiers": ["fog_of_war", "boss_hoard"],
+      "removeModifiers": [],
+      "gain": "The boss keeps a hoard.",
+      "cost": "The floor stays dark on the map."
+    },
+    {
+      "id": "hunted",
+      "label": "Hunted",
+      "description": "Whatever is below has already started moving toward you.",
+      "modifiers": ["relentless_foes", "frenzied_foes", "rich_veins"],
+      "removeModifiers": ["no_rest"],
+      "gain": "Richer vaults, and the hearths stay lit.",
+      "cost": "They are faster and they do not stop."
+    },
+    {
+      "id": "iron_penance",
+      "label": "Iron Penance",
+      "description": "Everything below is armoured, and slow, and patient.",
+      "modifiers": ["armoured_foes", "thick_traps", "boss_hoard"],
+      "removeModifiers": ["frenzied_foes", "relentless_foes"],
+      "gain": "They are slower. The boss keeps a hoard.",
+      "cost": "Armour, and old malice underfoot."
+    }
+  ]
+}

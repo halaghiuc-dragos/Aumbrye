@@ -4,8 +4,26 @@
   "nodes": {
     "start": {
       "speaker": "Stranded scout",
-      "text": "Another echo? I lost my squad two rooms back. Take this scrap — and watch the captain's parry.",
-      "actions": [{ "type": "set_flag", "flag": "met_dungeon_npc", "value": true }],
+      "text": "Another echo. You have the look. Relit and sent down, and nobody told you what the lamp runs on.",
+      "actions": [
+        { "type": "set_flag", "flag": "met_dungeon_npc", "value": true },
+        { "type": "record_discovery", "discoveryId": "stranded_scout" }
+      ],
+      "choices": [
+        { "text": "What lamp?", "next": "lamp" },
+        { "text": "Where is your squad?", "next": "squad" },
+        { "text": "Keep your head down.", "next": "end" }
+      ]
+    },
+    "lamp": {
+      "speaker": "Stranded scout",
+      "text": "The store. The Chapter put the daylight somewhere and it has been paying out ever since. You are a withdrawal. So am I, and I am nearly spent.",
+      "actions": [{ "type": "advance_story_beat", "beat": 1 }],
+      "next": "end"
+    },
+    "squad": {
+      "speaker": "Stranded scout",
+      "text": "Two rooms back, and they are still there, and they are still standing. Take the scrap and watch the captain's parry — he was always better at it than he was at anything else.",
       "next": "end"
     }
   }

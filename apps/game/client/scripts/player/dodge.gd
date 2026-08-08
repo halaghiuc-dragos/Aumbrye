@@ -7,16 +7,51 @@ const JUMP_VELOCITY := 4.8
 const COYOTE_TIME := 0.12
 const JUMP_BUFFER_TIME := 0.15
 const DODGE_BURST_FRACTION := 0.35
-const DODGE_PEAK_SPEED := 11.0
-const DODGE_END_SPEED := 3.0
 const DODGE_SPEED := 9.0
 const DODGE_BACK_SPEED := 6.0
-const DODGE_DURATION := 0.45
-const DODGE_RECOVERY := 0.25
 const DODGE_STAMINA_COST := 32.0
 const JUMP_STAMINA_COST := 18.0
-const IFRAME_START := 0.05
-const IFRAME_END := 0.30
+
+const TUNING_PATH := "content/combat/dodge.json"
+const FALLBACK_TUNING := {
+	"weight_from_defense": {"light_below": 30.0, "heavy_at_or_above": 75.0},
+	"weight_classes":
+	{
+		"light":
+		{
+			"duration": 0.48,
+			"recovery": 0.16,
+			"iframe_start": 0.06,
+			"iframe_end": 0.42,
+			"peak_speed": 12.5,
+			"end_speed": 4.2,
+			"recovery_speed_mult": 0.82,
+			"stamina_cost_mult": 0.85,
+		},
+		"medium":
+		{
+			"duration": 0.55,
+			"recovery": 0.22,
+			"iframe_start": 0.10,
+			"iframe_end": 0.45,
+			"peak_speed": 11.0,
+			"end_speed": 3.6,
+			"recovery_speed_mult": 0.7,
+			"stamina_cost_mult": 1.0,
+		},
+		"heavy":
+		{
+			"duration": 0.62,
+			"recovery": 0.3,
+			"iframe_start": 0.14,
+			"iframe_end": 0.44,
+			"peak_speed": 9.2,
+			"end_speed": 3.0,
+			"recovery_speed_mult": 0.55,
+			"stamina_cost_mult": 1.25,
+		},
+	},
+}
 
 signal dodge_started
 signal dodge_ended
@@ -29,6 +64,7 @@ var iframes_active := false
 
 var _body: CharacterBody3D
 var _stamina: Stamina
+var _weapon: WeaponController
 var _coyote_timer := 0.0
 var _jump_buffer_timer := 0.0
 var _dodge_timer := 0.0
@@ -36,13 +72,29 @@ var _recovery_timer := 0.0
 var _dodge_direction := Vector3.ZERO
 var _is_backstep := false
 var _dodge_speed := DODGE_SPEED
-var _stamina_cost_mult := 1.0
+var _talent_stamina_mult := 1.0
 var _was_on_floor := false
+var _profiles: Dictionary = {}
+var _light_below := 30.0
+var _heavy_at_or_above := 75.0
+var _weight_class := ""
+var _weight_override := ""
+var _duration := 0.55
+var _recovery := 0.22
+var _iframe_start := 0.10
+var _iframe_end := 0.45
+var _peak_speed := 11.0
+var _end_speed := 3.6
+var _recovery_speed_mult := 0.7
+var _weight_stamina_mult := 1.0
 
 
 func _ready() -> void:
 	_body = get_parent() as CharacterBody3D
 	_stamina = _body.get_node_or_null("Stamina") as Stamina
+	_weapon = _body.get_node_or_null("WeaponController") as WeaponController
+	_load_tuning()
+	_apply_weight_class("medium")
 	dash_started.connect(func(): dodge_started.emit())
 	dash_ended.connect(func(): dodge_ended.emit())
 
@@ -54,22 +106,70 @@ func _physics_process(delta: float) -> void:
 		_recovery_timer -= delta
 
 
-func configure(_data: Dictionary = {}, weight_class: String = "medium") -> void:
-	match weight_class:
-		"light":
-			_stamina_cost_mult = 0.85
-		"heavy":
-			_stamina_cost_mult = 1.25
-		_:
-			_stamina_cost_mult = 1.0
+func configure(data: Dictionary = {}, weight_class: String = "medium") -> void:
+	if not data.is_empty():
+		_ingest_tuning(data)
+	_weight_override = weight_class
+	_apply_weight_class(weight_class)
 
 
 func set_stamina_cost_multiplier(mult: float) -> void:
-	_stamina_cost_mult = maxf(0.1, mult)
+	_talent_stamina_mult = maxf(0.1, mult)
+
+
+func get_weight_class() -> String:
+	return _weight_class
+
+
+func _load_tuning() -> void:
+	var data := ContentLoader.load_json(TUNING_PATH)
+	if data.is_empty():
+		data = FALLBACK_TUNING.duplicate(true)
+	_ingest_tuning(data)
+
+
+func _ingest_tuning(data: Dictionary) -> void:
+	var classes: Dictionary = data.get("weight_classes", {})
+	if not classes.is_empty():
+		_profiles = classes
+	var thresholds: Dictionary = data.get("weight_from_defense", {})
+	_light_below = float(thresholds.get("light_below", _light_below))
+	_heavy_at_or_above = float(thresholds.get("heavy_at_or_above", _heavy_at_or_above))
+
+
+func _apply_weight_class(weight_class: String) -> void:
+	var fallback: Dictionary = FALLBACK_TUNING["weight_classes"]
+	var profile: Dictionary = _profiles.get(weight_class, {})
+	if profile.is_empty():
+		profile = _profiles.get("medium", fallback.get(weight_class, fallback["medium"]))
+	_weight_class = weight_class
+	_duration = maxf(0.05, float(profile.get("duration", _duration)))
+	_recovery = maxf(0.0, float(profile.get("recovery", _recovery)))
+	_iframe_start = maxf(0.0, float(profile.get("iframe_start", _iframe_start)))
+	_iframe_end = maxf(_iframe_start, float(profile.get("iframe_end", _iframe_end)))
+	_peak_speed = float(profile.get("peak_speed", _peak_speed))
+	_end_speed = float(profile.get("end_speed", _end_speed))
+	_recovery_speed_mult = clampf(float(profile.get("recovery_speed_mult", _recovery_speed_mult)), 0.1, 1.0)
+	_weight_stamina_mult = maxf(0.1, float(profile.get("stamina_cost_mult", 1.0)))
+
+
+func _sync_weight_class() -> void:
+	if _weight_override != "":
+		return
+	var defense := 0.0
+	if _body:
+		defense = float(_body.get_meta("combat_defense", 0.0))
+	var resolved := "medium"
+	if defense < _light_below:
+		resolved = "light"
+	elif defense >= _heavy_at_or_above:
+		resolved = "heavy"
+	if resolved != _weight_class:
+		_apply_weight_class(resolved)
 
 
 func _scaled_dodge_cost() -> float:
-	return DODGE_STAMINA_COST * _stamina_cost_mult
+	return DODGE_STAMINA_COST * _weight_stamina_mult * _talent_stamina_mult
 
 
 func process_dash_physics(delta: float) -> void:
@@ -87,7 +187,7 @@ func process_dodge_physics(delta: float) -> void:
 func get_dash_progress() -> float:
 	if not is_dodging:
 		return 0.0
-	return clampf(1.0 - (_dodge_timer / DODGE_DURATION), 0.0, 1.0)
+	return clampf(1.0 - (_dodge_timer / _duration), 0.0, 1.0)
 
 
 func get_dash_direction() -> Vector3:
@@ -95,7 +195,14 @@ func get_dash_direction() -> Vector3:
 
 
 func locks_movement() -> bool:
-	return _recovery_timer > 0.0
+	return false
+
+
+func get_move_speed_multiplier() -> float:
+	if is_dodging or _recovery_timer <= 0.0 or _recovery <= 0.0:
+		return 1.0
+	var t := clampf(1.0 - (_recovery_timer / _recovery), 0.0, 1.0)
+	return lerpf(_recovery_speed_mult, 1.0, t)
 
 
 func grant_external_iframes(active: bool) -> void:
@@ -141,12 +248,15 @@ func _handle_jump_buffer() -> void:
 func _can_dash() -> bool:
 	if is_dodging or _recovery_timer > 0.0:
 		return false
+	if _weapon and not _weapon.allows_cancel_into("dodge"):
+		return false
 	if _stamina and not _stamina.has(_scaled_dodge_cost()):
 		return false
 	return true
 
 
 func _start_dash(skip_cost: bool = false) -> void:
+	_sync_weight_class()
 	if not skip_cost and _stamina and not _stamina.consume(_scaled_dodge_cost()):
 		return
 	if _stamina:
@@ -169,8 +279,10 @@ func _start_dash(skip_cost: bool = false) -> void:
 		_dodge_direction = _get_attack_backstep_direction()
 	_is_backstep = is_equal_approx(_dodge_speed, DODGE_BACK_SPEED)
 	is_dodging = true
-	_dodge_timer = DODGE_DURATION
+	_dodge_timer = _duration
 	dash_started.emit()
+	if _body and _body.is_in_group("player") and CombatEvents:
+		CombatEvents.dispatch(CombatEvents.ON_DODGE, {"actor": _body})
 
 
 func _get_attack_backstep_direction() -> Vector3:
@@ -201,20 +313,20 @@ func _get_facing_forward() -> Vector3:
 
 func _process_dash(delta: float) -> void:
 	_dodge_timer -= delta
-	var elapsed := DODGE_DURATION - _dodge_timer
-	var t := clampf(elapsed / DODGE_DURATION, 0.0, 1.0)
-	var speed := DODGE_PEAK_SPEED
+	var elapsed := _duration - _dodge_timer
+	var t := clampf(elapsed / _duration, 0.0, 1.0)
+	var speed := _peak_speed
 	if t >= DODGE_BURST_FRACTION:
 		var blend := (t - DODGE_BURST_FRACTION) / maxf(0.001, 1.0 - DODGE_BURST_FRACTION)
-		speed = lerpf(DODGE_PEAK_SPEED, DODGE_END_SPEED, blend)
+		speed = lerpf(_peak_speed, _end_speed, blend)
 	_body.velocity.x = _dodge_direction.x * speed
 	_body.velocity.z = _dodge_direction.z * speed
 	if not _body.is_on_floor():
 		_body.velocity += _body.get_gravity() * delta
 	elif _body.velocity.y > 0.0:
 		_body.velocity.y = 0.0
-	var iframe_end := IFRAME_END + ClassPerks.shadowstep_iframe_bonus(_body, _is_backstep)
-	var iframes := elapsed >= IFRAME_START and elapsed <= iframe_end
+	var iframe_end := _iframe_end + ClassPerks.shadowstep_iframe_bonus(_body, _is_backstep)
+	var iframes := elapsed >= _iframe_start and elapsed <= iframe_end
 	if iframes != iframes_active:
 		iframes_active = iframes
 		iframes_changed.emit(iframes_active)
@@ -227,7 +339,7 @@ func _end_dash() -> void:
 	is_dodging = false
 	iframes_active = false
 	iframes_changed.emit(false)
-	_recovery_timer = DODGE_RECOVERY
+	_recovery_timer = _recovery
 	_dodge_speed = DODGE_SPEED
 	if _stamina:
 		_stamina.set_regen_state(Stamina.RegenState.NORMAL)

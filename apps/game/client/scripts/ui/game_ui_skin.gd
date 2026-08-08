@@ -595,10 +595,139 @@ static func style_progress_bar(bar: ProgressBar, fill_color: Color, bg_color: Co
 			bar.step = bar.max_value / float(steps)
 
 
+## One authored pixel unit for UI. Every frame border, inset and gap in the pixel layouts is
+## a whole multiple of this, so the screens quantise to the same grid the world does.
+const PIXEL_UNIT := 2
+const FRAME_OUTER := Color(0.02, 0.02, 0.03, 0.98)
+const FRAME_INNER := Color(0.09, 0.08, 0.11, 0.98)
+const FRAME_BEVEL_LIGHT := Color(0.34, 0.29, 0.22)
+const FRAME_BEVEL_DARK := Color(0.02, 0.02, 0.03)
+const LADDER_LOCKED := Color(0.30, 0.29, 0.31)
+const LADDER_CLEARED := Color(0.62, 0.78, 0.58)
+const LADDER_CURRENT := Color(0.95, 0.82, 0.40)
+
+
+## Hard-edged frame with no corner rounding and no drop shadow: the pixel-art equivalent of
+## a nine-slice. `depth` multiplies the border weight in whole pixel units.
+static func make_pixel_frame_style(
+	fill: Color = FRAME_INNER, border: Color = FRAME_BEVEL_LIGHT, depth: int = 1
+) -> StyleBoxFlat:
+	var style := StyleBoxFlat.new()
+	style.bg_color = fill
+	style.border_color = border
+	style.set_border_width_all(PIXEL_UNIT * maxi(depth, 1))
+	style.set_corner_radius_all(0)
+	style.set_content_margin_all(PIXEL_UNIT * 3)
+	style.shadow_size = 0
+	style.anti_aliasing = false
+	return style
+
+
+## Two nested hard frames — an outer black keyline and an inner bevel — which is what makes a
+## panel read as authored pixel art rather than as a rounded control container. Returns the
+## outer PanelContainer; use `pixel_frame_content()` for the VBox to fill.
+static func make_pixel_frame(title: String = "") -> PanelContainer:
+	var outer := PanelContainer.new()
+	outer.add_theme_stylebox_override(
+		"panel", make_pixel_frame_style(FRAME_OUTER, FRAME_BEVEL_DARK, 1)
+	)
+	outer.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	var inner := PanelContainer.new()
+	inner.add_theme_stylebox_override(
+		"panel", make_pixel_frame_style(FRAME_INNER, FRAME_BEVEL_LIGHT, 1)
+	)
+	outer.add_child(inner)
+	var vbox := VBoxContainer.new()
+	vbox.add_theme_constant_override("separation", PIXEL_UNIT * 3)
+	inner.add_child(vbox)
+	if title != "":
+		var header := Label.new()
+		header.text = title.to_upper()
+		style_section_title(header)
+		vbox.add_child(header)
+		var rule := ColorRect.new()
+		rule.color = FRAME_BEVEL_LIGHT
+		rule.custom_minimum_size = Vector2(0, PIXEL_UNIT)
+		vbox.add_child(rule)
+	outer.set_meta("content_vbox", vbox)
+	return outer
+
+
+static func pixel_frame_content(frame: PanelContainer) -> VBoxContainer:
+	return frame.get_meta("content_vbox") as VBoxContainer
+
+
+## Thin quantised meter used for status build-up. Unlike the resource bars it has no label and
+## snaps its fill to whole pixel steps so a rising meter ticks rather than creeps.
+static func make_meter_bar(fill_color: Color, width_px: int = 96) -> ProgressBar:
+	var bar := ProgressBar.new()
+	bar.show_percentage = false
+	bar.min_value = 0.0
+	bar.max_value = 1.0
+	bar.value = 0.0
+	bar.custom_minimum_size = Vector2(width_px, PIXEL_UNIT * 3)
+	bar.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	var bg := make_pixel_frame_style(Color(0.05, 0.05, 0.07, 0.9), FRAME_BEVEL_DARK, 1)
+	bg.set_content_margin_all(PIXEL_UNIT * 0.5)
+	var fill := StyleBoxFlat.new()
+	fill.bg_color = fill_color
+	fill.set_corner_radius_all(0)
+	fill.anti_aliasing = false
+	bar.add_theme_stylebox_override("background", bg)
+	bar.add_theme_stylebox_override("fill", fill)
+	bar.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	bar.step = 1.0 / float(maxi(2, PIXEL_BAR_STEPS * 2))
+	return bar
+
+
+## Styles one rung of the difficulty ladder in place. The rung stays a Button so focus, toggle
+## and controller navigation keep working; only the look becomes an authored pixel plate whose
+## border colour carries the tier state.
+static func style_ladder_button(button: Button, state: StringName) -> void:
+	if button == null:
+		return
+	var border := LADDER_LOCKED
+	var fill := Color(0.05, 0.05, 0.07, 0.95)
+	var text_color := LADDER_LOCKED
+	match state:
+		&"cleared":
+			border = LADDER_CLEARED
+			text_color = LADDER_CLEARED
+		&"available":
+			border = FRAME_BEVEL_LIGHT
+			text_color = BODY_COLOR
+		_:
+			pass
+	var normal := make_pixel_frame_style(fill, border, 1)
+	var hover := make_pixel_frame_style(fill.lightened(0.10), LADDER_CURRENT, 1)
+	var pressed := make_pixel_frame_style(Color(0.11, 0.09, 0.05, 0.97), LADDER_CURRENT, 1)
+	var disabled := make_pixel_frame_style(Color(0.04, 0.04, 0.05, 0.9), LADDER_LOCKED, 1)
+	button.add_theme_stylebox_override("normal", normal)
+	button.add_theme_stylebox_override("hover", hover)
+	button.add_theme_stylebox_override("pressed", pressed)
+	button.add_theme_stylebox_override("hover_pressed", pressed)
+	button.add_theme_stylebox_override("focus", make_focus_style())
+	button.add_theme_stylebox_override("disabled", disabled)
+	button.add_theme_color_override("font_color", text_color)
+	button.add_theme_color_override("font_hover_color", LADDER_CURRENT)
+	button.add_theme_color_override("font_pressed_color", LADDER_CURRENT)
+	button.add_theme_color_override("font_disabled_color", LADDER_LOCKED)
+	button.alignment = HORIZONTAL_ALIGNMENT_LEFT
+	button.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+
+
 static func make_item_cell_style(rarity: String, filled: bool) -> StyleBoxFlat:
 	var style := StyleBoxFlat.new()
 	style.bg_color = RarityRegistryScript.slot_background_color(rarity)
 	style.border_color = RarityRegistryScript.display_color(rarity)
+	if is_pixel_ui():
+		style.set_border_width_all(PIXEL_UNIT)
+		style.set_corner_radius_all(0)
+		style.anti_aliasing = false
+		style.shadow_size = 0
+		if filled:
+			style.set_expand_margin_all(PIXEL_UNIT)
+		return style
 	style.set_border_width_all(2)
 	style.set_corner_radius_all(5)
 	style.shadow_color = RarityRegistryScript.display_color(rarity) * Color(1, 1, 1, 0.35)

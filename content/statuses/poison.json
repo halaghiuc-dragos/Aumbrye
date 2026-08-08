@@ -1,11 +1,20 @@
 {
   "id": "poison",
   "name": "Poison",
+  "description": "Slow to take, slower to leave. It sheds one hold at a time.",
   "damageType": "poison",
-  "tickDamage": 2.5,
-  "tickInterval": 1.2,
-  "maxStacks": 4,
-  "duration": 8.0,
-  "iconColor": "#44aa33",
-  "polarity": "debuff"
+  "tickDamage": 2,
+  "tickInterval": 1,
+  "maxStacks": 5,
+  "duration": 8,
+  "iconColor": "#66cc44",
+  "polarity": "debuff",
+  "buildUpThreshold": 120,
+  "buildUpPerHit": 15,
+  "buildUpDecay": 3,
+  "buildUpGrace": 2,
+  "buildUpResistGain": 12,
+  "buildUpResistCap": 60,
+  "buildUpStacks": 2,
+  "stackDecay": true
 }

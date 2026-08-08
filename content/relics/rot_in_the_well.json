@@ -1,0 +1,24 @@
+{
+  "id": "rot_in_the_well",
+  "name": "Rot In The Well",
+  "description": "Killing the poisoned poisons everything standing near them.",
+  "maxStacks": 1,
+  "stats": {
+    "poisonDamage": 3
+  },
+  "tags": [
+    "venom"
+  ],
+  "weight": 0.8,
+  "rules": [
+    {
+      "event": "onKill",
+      "effect": "spread_status",
+      "statusId": "poison",
+      "stacks": 2,
+      "radius": 6,
+      "ifTargetHasStatus": "poison"
+    }
+  ],
+  "offerable": true
+}

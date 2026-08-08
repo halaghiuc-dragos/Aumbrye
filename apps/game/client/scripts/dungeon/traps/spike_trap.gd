@@ -19,10 +19,14 @@ var _spikes_mesh: Node3D
 
 var _state := State.IDLE
 var _timer := 0.0
-var _player: Node3D
+var _def: Dictionary = {}
+var _status_cfg: Dictionary = {}
+var _cooldowns: Dictionary = {}
+var _arms_on_enemies := false
 
 
 func _ready() -> void:
+	_load_definition()
 	var biome := DioramaSkin.resolve_biome(self)
 	_spikes_mesh = DioramaSkin.build_spikes(self, biome)
 	_spikes_mesh.visible = false
@@ -30,26 +34,27 @@ func _ready() -> void:
 	_telegraph_mesh.visible = false
 	_hitbox.damage = damage
 	_hitbox.poise_damage = poise_damage
+	_hitbox.damage_type = str(_def.get("damageType", _hitbox.damage_type))
 	_hitbox.set_damage_active(false)
 	_sync_trigger_radius_from_hitbox()
-	_player = get_tree().get_first_node_in_group("player")
+	TrapTactics.register_hazard(self, trigger_radius)
 
 
 func _physics_process(delta: float) -> void:
-	if _player == null:
-		_player = get_tree().get_first_node_in_group("player")
 	match _state:
 		State.IDLE:
-			if _player and global_position.distance_to(_player.global_position) <= trigger_radius:
+			if TrapTactics.trigger_present(self, trigger_radius, true, _arms_on_enemies):
 				_state = State.TELEGRAPH
 				_timer = telegraph_time
 				_telegraph_mesh.visible = true
+				TrapTactics.set_armed(self, true)
 		State.TELEGRAPH:
 			_timer -= delta
 			if _timer <= 0.0:
 				_activate_spikes()
 		State.ACTIVE:
 			_timer -= delta
+			TrapTactics.strike(_hitbox, self, _status_cfg, _cooldowns)
 			if _timer <= 0.0:
 				_deactivate_spikes()
 		State.COOLDOWN:
@@ -58,9 +63,34 @@ func _physics_process(delta: float) -> void:
 				_state = State.IDLE
 
 
+func is_hazard_live() -> bool:
+	return _state == State.TELEGRAPH or _state == State.ACTIVE
+
+
+func hazard_radius() -> float:
+	return trigger_radius
+
+
+func _load_definition() -> void:
+	_def = TrapTactics.definition(TrapTactics.trap_id_for(self))
+	if _def.is_empty():
+		return
+	telegraph_time = float(_def.get("telegraph", telegraph_time))
+	active_time = float(_def.get("active", active_time))
+	cooldown_time = float(_def.get("cooldown", cooldown_time))
+	trigger_radius = float(_def.get("triggerRadius", trigger_radius))
+	_arms_on_enemies = str(_def.get("trigger", "proximity")) == "plate"
+	_status_cfg = {
+		"statusId": str(_def.get("statusId", "")),
+		"statusBuildUp": float(_def.get("statusBuildUp", 0.0)),
+		"hitInterval": float(_def.get("hitInterval", 0.5)),
+	}
+
+
 func _activate_spikes() -> void:
 	_state = State.ACTIVE
 	_timer = active_time
+	_cooldowns.clear()
 	_telegraph_mesh.visible = false
 	_spikes_mesh.visible = true
 	_hitbox.set_damage_active(true)
@@ -71,6 +101,7 @@ func _deactivate_spikes() -> void:
 	_timer = cooldown_time
 	_spikes_mesh.visible = false
 	_hitbox.set_damage_active(false)
+	TrapTactics.set_armed(self, false)
 
 
 func _sync_trigger_radius_from_hitbox() -> void:

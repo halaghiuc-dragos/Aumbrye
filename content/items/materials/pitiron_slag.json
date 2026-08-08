@@ -1,0 +1,12 @@
+{
+  "id": "pitiron_slag",
+  "name": "Pit-Iron Slag",
+  "itemType": "material",
+  "gridWidth": 1,
+  "gridHeight": 1,
+  "stackSize": 20,
+  "description": "Skimmed off the top and never thrown away.",
+  "value": 6,
+  "lootValue": 4,
+  "materialTier": "pitiron"
+}

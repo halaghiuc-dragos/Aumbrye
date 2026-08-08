@@ -1,4 +1,5 @@
 extends SpringArm3D
+class_name OrbitCamera
 
 const MOUSE_SENSITIVITY_BASE := 0.003
 const STICK_SENSITIVITY_BASE := 2.5

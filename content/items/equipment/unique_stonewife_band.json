@@ -1,0 +1,31 @@
+{
+  "id": "unique_stonewife_band",
+  "name": "Stonewife's Band",
+  "itemType": "accessory",
+  "equipmentSlot": "ring",
+  "gridWidth": 1,
+  "gridHeight": 1,
+  "stackSize": 1,
+  "rarity": "rare",
+  "description": "Given at a wedding held during the siege. Both parties kept their promise, briefly.",
+  "value": 260,
+  "lootValue": 130,
+  "maxDurability": 60,
+  "unique": true,
+  "baseId": "band",
+  "biome": "forgotten_castle",
+  "scaling": {},
+  "ruleText": "At low health, restores 60 health. Once every 90 seconds.",
+  "rules": [
+    {
+      "event": "onLowHealth",
+      "effect": "restore_health",
+      "amount": 60.0,
+      "cooldown": 90.0
+    }
+  ],
+  "stats": {
+    "maxHealth": 34,
+    "healthRegen": 2
+  }
+}

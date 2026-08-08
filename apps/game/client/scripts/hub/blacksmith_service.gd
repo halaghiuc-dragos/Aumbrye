@@ -66,7 +66,7 @@ static func upgrade_item(inv_index: int) -> Dictionary:
 	if level >= get_max_upgrade_level_for_slot(slot):
 		return {"ok": false, "error": "max level"}
 	var cost := get_upgrade_cost(item_id, level)
-	if not CharacterService.spend_coins(cost):
+	if not CharacterService.spend_gold(cost):
 		return {"ok": false, "error": "not enough coins"}
 	slot["upgradeLevel"] = level + 1
 	inv.changed.emit()
@@ -136,10 +136,10 @@ static func unlock_item(item_id: String) -> Dictionary:
 	var cost := int(recipe.get("goldCost", recipe.get("coinCost", 0)))
 	if not InventoryService.inventory.has_space_for(item_id):
 		return {"ok": false, "error": "inventory full"}
-	if not CharacterService.spend_coins(cost):
+	if not CharacterService.spend_gold(cost):
 		return {"ok": false, "error": "not enough coins"}
 	if not InventoryService.add_item(item_id, 1):
-		CharacterService.add_coins(cost, false)
+		CharacterService.add_gold(cost, false)
 		return {"ok": false, "error": "inventory full"}
 	LocalSave.add_owned_recipe(recipe_id)
 	if AchievementService:
@@ -195,7 +195,7 @@ static func can_respec_talents() -> bool:
 static func respec_talents() -> Dictionary:
 	if not can_respec_talents():
 		return {"ok": false, "error": "cannot respec"}
-	if not CharacterService.spend_coins(RESPEC_COST):
+	if not CharacterService.spend_gold(RESPEC_COST):
 		return {"ok": false, "error": "not enough coins"}
 	ProgressionService.respec_talents()
 	InventoryService.apply_equipment_to_player_node(
@@ -221,7 +221,7 @@ static func repair_item(inv_index: int) -> Dictionary:
 		cost = maxi(1, int((max_dur - current) / 2.0))
 	else:
 		cost = int(recipe.get("goldCost", recipe.get("coinCost", 10)))
-	if not CharacterService.spend_coins(cost):
+	if not CharacterService.spend_gold(cost):
 		return {"ok": false, "error": "not enough coins"}
 	slot["durability"] = max_dur
 	inv.changed.emit()

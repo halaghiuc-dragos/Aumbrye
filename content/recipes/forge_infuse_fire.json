@@ -1,0 +1,16 @@
+{
+  "id": "forge_infuse_fire",
+  "type": "infuse",
+  "itemId": "any",
+  "goldCost": 400,
+  "materials": [
+    {
+      "itemId": "ember_catalyst",
+      "quantity": 2
+    },
+    {
+      "itemId": "whetting_oil",
+      "quantity": 3
+    }
+  ]
+}

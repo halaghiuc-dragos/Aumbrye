@@ -1,0 +1,27 @@
+{
+  "id": "spellglass_longbow",
+  "name": "Spellglass Longbow",
+  "itemType": "weapon",
+  "equipmentSlot": "weapon",
+  "gridWidth": 2,
+  "gridHeight": 4,
+  "stackSize": 1,
+  "rarity": "rare",
+  "description": "A stave taller than the archer, and older. Grown, not forged. It rings on a note the ear dislikes. Scaling: Strength D, Dexterity A.",
+  "value": 299,
+  "lootValue": 150,
+  "maxDurability": 95,
+  "baseId": "longbow",
+  "materialTier": "spellglass",
+  "biome": "crystal_caverns",
+  "scaling": {
+    "strength": "D",
+    "dexterity": "A"
+  },
+  "stats": {
+    "physicalDamage": 22,
+    "resistArcane": 0.1,
+    "resistLightning": 0.05
+  },
+  "weaponId": "bow"
+}

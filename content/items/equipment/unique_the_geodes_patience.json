@@ -1,0 +1,44 @@
+{
+  "id": "unique_the_geodes_patience",
+  "name": "The Geode's Patience",
+  "itemType": "armor",
+  "equipmentSlot": "chest",
+  "gridWidth": 2,
+  "gridHeight": 3,
+  "stackSize": 1,
+  "rarity": "aumbral",
+  "description": "It took nine thousand years to close. It objects to being opened in an afternoon.",
+  "value": 1500,
+  "lootValue": 750,
+  "maxDurability": 120,
+  "unique": true,
+  "baseId": "cuirass",
+  "biome": "crystal_caverns",
+  "scaling": {
+    "strength": "C"
+  },
+  "ruleText": "Each hit taken raises armor by 6, up to 8 stacks. Clearing a room resets the stacks and restores 35 health.",
+  "rules": [
+    {
+      "event": "onHitTaken",
+      "effect": "add_stack",
+      "stackId": "geode",
+      "maxStacks": 8,
+      "stat": "armor",
+      "perStack": 6.0,
+      "resetOn": [
+        "onRoomClear"
+      ]
+    },
+    {
+      "event": "onRoomClear",
+      "effect": "restore_health",
+      "amount": 35.0
+    }
+  ],
+  "stats": {
+    "armor": 32,
+    "defense": 20,
+    "resistPhysical": 0.1
+  }
+}

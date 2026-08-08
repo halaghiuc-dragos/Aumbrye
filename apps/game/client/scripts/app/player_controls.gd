@@ -22,6 +22,8 @@ var _settings_ui: Control
 
 var _achievements_ui: Control
 
+var _bestiary_ui: Control
+
 var _talents_ui: Control
 
 var _loadout_ui: Control
@@ -106,6 +108,8 @@ func _build_global_uis() -> void:
 	_settings_ui = _make_scripted_ui("SettingsUI", "res://scripts/ui/settings_ui.gd")
 
 	_achievements_ui = _make_scripted_ui("AchievementsUI", "res://scripts/ui/achievements_ui.gd")
+
+	_bestiary_ui = _make_scripted_ui("BestiaryUI", "res://scripts/ui/bestiary_ui.gd")
 
 	_talents_ui = _make_scripted_ui("TalentsUI", "res://scripts/ui/talents_ui.gd")
 
@@ -271,6 +275,16 @@ func open_achievements() -> void:
 
 
 
+func open_bestiary() -> void:
+
+	if _bestiary_ui and _bestiary_ui.has_method("open"):
+
+		_bestiary_ui.call("open")
+
+
+
+
+
 func open_loadout() -> void:
 
 	if _loadout_ui and _loadout_ui.has_method("open"):
@@ -325,6 +339,22 @@ func is_achievements_open() -> bool:
 
 
 
+func is_bestiary_open() -> bool:
+
+	return (
+
+		_bestiary_ui != null
+
+		and _bestiary_ui.has_method("is_open")
+
+		and _bestiary_ui.call("is_open")
+
+	)
+
+
+
+
+
 func is_talents_open() -> bool:
 
 	return _talents_ui != null and _talents_ui.has_method("is_open") and _talents_ui.call("is_open")
@@ -359,6 +389,8 @@ func is_player_meta_ui_open() -> bool:
 
 		or is_achievements_open()
 
+		or is_bestiary_open()
+
 		or is_talents_open()
 
 		or is_loadout_open()
@@ -375,13 +407,33 @@ func _unhandled_input(event: InputEvent) -> void:
 
 	if event.is_action_pressed("pause"):
 
-		if is_inventory_open() or is_talents_open() or is_loadout_open() or is_achievements_open():
+		if (
+
+			is_inventory_open()
+
+			or is_talents_open()
+
+			or is_loadout_open()
+
+			or is_achievements_open()
+
+			or is_bestiary_open()
+
+		):
 
 			return
 
 		if is_settings_open() and _settings_ui.has_method("close_settings"):
 
 			_settings_ui.call("close_settings")
+
+			get_viewport().set_input_as_handled()
+
+			return
+
+		if is_bestiary_open() and _bestiary_ui.has_method("close"):
+
+			_bestiary_ui.call("close")
 
 			get_viewport().set_input_as_handled()
 

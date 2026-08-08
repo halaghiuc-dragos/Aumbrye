@@ -1,0 +1,55 @@
+{
+  "id": "hunter",
+  "name": "Hunter",
+  "description": "Keeps the distance a bow was made for, and makes every opening count.",
+  "startingWeaponItemId": "hunter_bow",
+  "statBonuses": {
+    "critChance": 0.03,
+    "moveSpeed": 0.03
+  },
+  "allowedWeapons": [
+    "hunter_bow",
+    "crystal_bow",
+    "mirebrass_shortbow",
+    "rogue_dagger",
+    "guard_spear"
+  ],
+  "allowedWeaponFamilies": [
+    "bow",
+    "dagger",
+    "spear"
+  ],
+  "perk": "killing_distance",
+  "talentBranchId": "mile",
+  "rules": [
+    {
+      "event": "onCrit",
+      "effect": "apply_status",
+      "statusId": "bleed",
+      "stacks": 2,
+      "chance": 1,
+      "cooldown": 0
+    },
+    {
+      "event": "onKill",
+      "effect": "restore_stamina",
+      "amount": 16,
+      "chance": 1,
+      "cooldown": 0
+    },
+    {
+      "event": "onRoomClear",
+      "effect": "bonus_gold",
+      "amount": 20,
+      "chance": 1,
+      "cooldown": 0
+    }
+  ],
+  "iconPath": "class_icons:hunter",
+  "role": "CLASS_ROLE_HUNTER",
+  "perkName": "CLASS_PERK_KILLING_DISTANCE",
+  "perkDescription": "CLASS_PERK_KILLING_DISTANCE_DESC",
+  "roleText": "Ranged / Precision",
+  "perkNameText": "Killing Distance",
+  "perkDescriptionText": "One clean shot pays for the next, and leaves the quarry bleeding for the walk."
+}

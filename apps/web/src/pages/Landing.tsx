@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 import { PageHelmet } from "../components/Layout";
+import PrerenderReady from "../components/PrerenderReady";
 
 export default function LandingPage() {
   return (
@@ -9,6 +10,7 @@ export default function LandingPage() {
         description="Handcrafted runs, soulslike combat, and five deadly biomes await in Aumbrye."
         path="/"
       />
+      <PrerenderReady />
       <div className="hero">
         <p className="eyebrow">Action Roguelite RPG</p>
         <h1>Aumbrye</h1>

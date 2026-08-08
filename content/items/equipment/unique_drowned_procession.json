@@ -1,0 +1,37 @@
+{
+  "id": "unique_drowned_procession",
+  "name": "Drowned Procession",
+  "itemType": "weapon",
+  "equipmentSlot": "weapon",
+  "gridWidth": 1,
+  "gridHeight": 4,
+  "stackSize": 1,
+  "rarity": "legendary",
+  "description": "They walked into the fen in single file, carrying one of these each. Nobody counted them out.",
+  "value": 780,
+  "lootValue": 390,
+  "maxDurability": 105,
+  "unique": true,
+  "baseId": "spear",
+  "biome": "poison_swamp",
+  "scaling": {
+    "strength": "D",
+    "dexterity": "B"
+  },
+  "ruleText": "Killing a poisoned enemy spreads poison to nearby enemies.",
+  "rules": [
+    {
+      "event": "onKill",
+      "effect": "spread_status",
+      "statusId": "poison",
+      "stacks": 1,
+      "radius": 5.0,
+      "ifTargetHasStatus": "poison"
+    }
+  ],
+  "stats": {
+    "poisonDamage": 12,
+    "physicalDamage": 12
+  },
+  "weaponId": "spear"
+}

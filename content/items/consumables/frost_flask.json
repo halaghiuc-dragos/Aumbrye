@@ -1,0 +1,19 @@
+{
+  "id": "frost_flask",
+  "name": "Frost Flask",
+  "itemType": "consumable",
+  "gridWidth": 1,
+  "gridHeight": 1,
+  "stackSize": 8,
+  "rarity": "magic",
+  "description": "Cold enough that the glass is the part you have to be careful with.",
+  "consumableEffect": {
+    "kind": "throw",
+    "statusId": "freeze",
+    "duration": 4,
+    "radius": 4.0,
+    "usableInHub": false
+  },
+  "value": 70,
+  "lootValue": 35
+}

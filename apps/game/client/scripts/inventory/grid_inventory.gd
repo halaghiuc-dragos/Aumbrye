@@ -4,8 +4,10 @@ class_name GridInventory
 const EquipmentHelper := preload("res://scripts/items/equipment.gd")
 const RarityRegistryScript := preload("res://scripts/loot/rarity_registry.gd")
 
-const DEFAULT_WIDTH := 6
-const DEFAULT_HEIGHT := 4
+const DEFAULT_WIDTH := 10
+const DEFAULT_HEIGHT := 6
+const MAX_WIDTH := 10
+const MAX_HEIGHT := 10
 
 const SORT_MODES: Array[String] = ["default", "name", "type", "rarity"]
 const FILTER_TYPES: Array[String] = [
@@ -112,9 +114,25 @@ func to_save_dict() -> Dictionary:
 	}
 
 
+func expand_to(width: int, height: int) -> bool:
+	var new_width := mini(MAX_WIDTH, maxi(grid_width, width))
+	var new_height := mini(MAX_HEIGHT, maxi(grid_height, height))
+	if new_width == grid_width and new_height == grid_height:
+		return false
+	grid_width = new_width
+	grid_height = new_height
+	_mark_occupancy_dirty()
+	changed.emit()
+	return true
+
+
+func capacity_cells() -> int:
+	return grid_width * grid_height
+
+
 func from_save_dict(data: Dictionary) -> void:
-	grid_width = int(data.get("gridWidth", DEFAULT_WIDTH))
-	grid_height = int(data.get("gridHeight", DEFAULT_HEIGHT))
+	grid_width = mini(MAX_WIDTH, maxi(grid_width, int(data.get("gridWidth", DEFAULT_WIDTH))))
+	grid_height = mini(MAX_HEIGHT, maxi(grid_height, int(data.get("gridHeight", DEFAULT_HEIGHT))))
 	slots.clear()
 	for entry in data.get("slots", []):
 		if entry is Dictionary:
@@ -525,6 +543,43 @@ func remove_items_by_id(item_id: String, quantity: int = 1) -> int:
 	if removed > 0:
 		changed.emit()
 	return removed
+
+
+## Single owner of "how much of this item do we have" — callers used to hand-roll this scan.
+func count_by_id(item_id: String) -> int:
+	var total := 0
+	for slot in slots:
+		if slot.get("itemId", "") == item_id:
+			total += int(slot.get("quantity", 1))
+	return total
+
+
+## Single owner of "which slots match" — callers used to hand-roll this scan for keyed lookups
+## (e.g. a specific dungeon key id) that `count_by_id`/`remove_items_by_id` can't express.
+func find_slots_where(predicate: Callable) -> Array[int]:
+	var found: Array[int] = []
+	for i in slots.size():
+		if predicate.call(slots[i]):
+			found.append(i)
+	return found
+
+
+## Removes one unit from the last slot matching `predicate`, deleting the slot once its quantity
+## reaches zero. Returns whether anything was removed.
+func remove_one_where(predicate: Callable) -> bool:
+	var indices := find_slots_where(predicate)
+	if indices.is_empty():
+		return false
+	var index: int = indices[-1]
+	var slot: Dictionary = slots[index]
+	var qty: int = int(slot.get("quantity", 1)) - 1
+	if qty <= 0:
+		slots.remove_at(index)
+		_mark_occupancy_dirty()
+	else:
+		slot["quantity"] = qty
+	changed.emit()
+	return true
 
 
 func _normalize_slot(slot: Dictionary) -> Dictionary:

@@ -24,6 +24,10 @@ const RunLifecycleScript := preload("res://scripts/app/run_lifecycle.gd")
 
 @onready var _rules_label: Label = $Panel/Margin/VBox/RulesLabel
 
+var _run_report_label: Label
+var _run_report_frame: PanelContainer
+var _seed_button: Button
+
 @onready var _hint_label: Label = $Panel/Margin/VBox/HintLabel
 
 var _continue_button: Button
@@ -124,6 +128,18 @@ func _ensure_ui_nodes() -> void:
 
 		vbox.add_child(_leaderboard_label)
 
+	if _seed_button == null:
+
+		_seed_button = GameUISkinScript.make_button("Copy seed")
+
+		_seed_button.name = "CopySeedButton"
+
+		_seed_button.visible = false
+
+		_seed_button.pressed.connect(_on_copy_seed_pressed)
+
+		vbox.add_child(_seed_button)
+
 	if _continue_button == null:
 
 		_continue_button = GameUISkinScript.make_button("Continue")
@@ -204,7 +220,192 @@ func _display_from_run_flow() -> void:
 
 		_rules_label.text = results.get("rules_summary", "")
 
+		_ensure_run_report_label()
+
+		_run_report_label.text = _build_run_report(results)
+
+		if _run_report_frame:
+			_run_report_frame.visible = _run_report_label.text != ""
+		_refresh_seed_button(results)
+
 	_hint_label.text = "Press Enter to return to Aumbrye Tower"
+
+
+func _ensure_run_report_label() -> void:
+	if _run_report_label != null and is_instance_valid(_run_report_label):
+		return
+	var vbox: VBoxContainer = $Panel/Margin/VBox
+	_run_report_label = Label.new()
+	_run_report_label.name = "RunReportLabel"
+	_run_report_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	GameUISkinScript.style_body_label(_run_report_label)
+	var report_frame := GameUISkinScript.make_pixel_frame("Run Report")
+	report_frame.name = "RunReportFrame"
+	GameUISkinScript.pixel_frame_content(report_frame).add_child(_run_report_label)
+	report_frame.visible = false
+	vbox.add_child(report_frame)
+	if _rules_label and _rules_label.get_parent() == vbox:
+		vbox.move_child(report_frame, _rules_label.get_index() + 1)
+	_run_report_frame = report_frame
+
+
+func _refresh_seed_button(results: Dictionary) -> void:
+	if _seed_button == null:
+		return
+	var run_seed := int(results.get("seed", 0))
+	_seed_button.visible = run_seed > 0
+	if run_seed > 0:
+		_seed_button.text = "Copy seed %d" % run_seed
+
+
+func _on_copy_seed_pressed() -> void:
+	var run_seed := int(RunFlow.last_run_results.get("seed", 0))
+	if run_seed <= 0:
+		return
+	DisplayServer.clipboard_set(str(run_seed))
+	if _seed_button:
+		_seed_button.text = "Seed %d copied" % run_seed
+
+
+func _format_duration(seconds: float) -> String:
+	var total := int(seconds)
+	return "%d:%02d" % [int(total / 60.0), total % 60]
+
+
+func _run_context_lines(results: Dictionary) -> Array[String]:
+	var lines: Array[String] = []
+	var challenge_name := str(results.get("challenge_name", ""))
+	var mode_name := str(results.get("mode_name", ""))
+	if challenge_name != "":
+		lines.append("Weekly challenge: %s." % challenge_name)
+	elif mode_name != "":
+		lines.append("Rule set: %s." % mode_name)
+	var dungeon_name := str(results.get("dungeon_name", ""))
+	if dungeon_name != "" and str(results.get("run_mode", "")) == "castle":
+		lines.append(
+			"%s, depth %d." % [dungeon_name, int(results.get("difficulty_tier", 1))]
+		)
+	return lines
+
+
+func _personal_best_lines(results: Dictionary) -> Array[String]:
+	var lines: Array[String] = []
+	var raw: Variant = results.get("history", {})
+	if not raw is Dictionary or (raw as Dictionary).is_empty():
+		return lines
+	var history: Dictionary = raw
+	var depth := int(results.get("floor_reached", 0))
+	var previous_depth := int(history.get("previousBestDepth", 0))
+	if bool(history.get("depthIsBest", false)) and previous_depth > 0:
+		lines.append("Deepest yet: floor %d, past your %d." % [depth, previous_depth])
+	elif previous_depth > 0 and depth > 0:
+		lines.append("Floor %d. Your best on this road is %d." % [depth, previous_depth])
+	var previous_time := float(history.get("previousBestTime", 0.0))
+	if bool(history.get("timeIsBest", false)):
+		if previous_time > 0.0:
+			lines.append(
+				(
+					"Fastest yet: %s, past your %s."
+					% [
+						_format_duration(float(results.get("time_seconds", 0.0))),
+						_format_duration(previous_time),
+					]
+				)
+			)
+		else:
+			lines.append("First clean run on this road — the time to beat is yours now.")
+	elif previous_time > 0.0:
+		lines.append("Your fastest here is still %s." % _format_duration(previous_time))
+	if bool(history.get("killsIsBest", false)) and int(history.get("previousBestKills", 0)) > 0:
+		lines.append("More slain than any run before it.")
+	var rate := float(history.get("successRate", -1.0))
+	if rate >= 0.0:
+		lines.append("You are walking out of %d in 10 lately." % int(round(rate * 10.0)))
+	return lines
+
+
+func _challenge_lines(results: Dictionary) -> Array[String]:
+	var lines: Array[String] = []
+	var raw: Variant = results.get("challenge", {})
+	if not raw is Dictionary or (raw as Dictionary).is_empty():
+		return lines
+	var record: Dictionary = raw
+	var best: Variant = record.get("best", {})
+	var best_dict: Dictionary = best if best is Dictionary else {}
+	if bool(record.get("improved", false)):
+		lines.append("A new best on this week's challenge.")
+	elif not best_dict.is_empty():
+		lines.append("This week's challenge still stands at your earlier attempt.")
+	return lines
+
+
+func _highlight_lines(results: Dictionary) -> Array[String]:
+	var lines: Array[String] = []
+	var raw: Variant = results.get("highlights", {})
+	if not raw is Dictionary or (raw as Dictionary).is_empty():
+		return lines
+	var highlights: Dictionary = raw
+	var relics: Variant = highlights.get("relics", [])
+	if relics is Array and not (relics as Array).is_empty():
+		var names: Array[String] = []
+		for relic in relics as Array:
+			if relic is Dictionary:
+				names.append(str((relic as Dictionary).get("name", "")))
+		if not names.is_empty():
+			lines.append("Carried: %s." % ", ".join(names))
+	var top_relic := str(highlights.get("topRelic", ""))
+	var top_procs := int(highlights.get("topRelicProcs", 0))
+	if top_relic != "" and top_procs > 0:
+		var top_name := top_relic
+		if relics is Array:
+			for relic in relics as Array:
+				if relic is Dictionary and str((relic as Dictionary).get("id", "")) == top_relic:
+					top_name = str((relic as Dictionary).get("name", top_relic))
+		lines.append("%s did the most work — %d times." % [top_name, top_procs])
+	var offers := int(highlights.get("offersTaken", 0))
+	if offers > 0:
+		lines.append("Offers taken: %d." % offers)
+	var traps := int(highlights.get("trapCatches", 0))
+	if traps > 0:
+		lines.append("Caught by the floor %d times." % traps)
+	return lines
+
+
+func _build_run_report(results: Dictionary) -> String:
+	var lines: Array[String] = []
+	lines.append_array(_run_context_lines(results))
+	lines.append_array(_personal_best_lines(results))
+	lines.append_array(_challenge_lines(results))
+	lines.append_array(_highlight_lines(results))
+	var staked := int(results.get("gold_staked", 0))
+	if staked > 0:
+		lines.append("%d gold waits where you fell. Reach it before you fall again." % staked)
+	if str(results.get("run_mode", "")) == "endless":
+		var best := int(results.get("endless_best_floor", 0))
+		var previous := int(results.get("endless_previous_best", 0))
+		var floor_reached := int(results.get("floor_reached", 0))
+		if best > previous:
+			lines.append("New deepest descent: floor %d (was %d)." % [best, previous])
+		elif previous > 0:
+			lines.append("Floor %d. Your deepest is still %d." % [floor_reached, previous])
+		var tokens := int(results.get("descent_tokens_awarded", 0))
+		if tokens > 0:
+			lines.append("Descent tokens earned: %d." % tokens)
+	var failure: Variant = results.get("failure_point", {})
+	if failure is Dictionary and not (failure as Dictionary).is_empty():
+		lines.append("You fell at %s." % str((failure as Dictionary).get("label", "")))
+		var parts: Array[String] = []
+		for row in ProgressionService.get_failure_hotspots(3):
+			if int(row.get("count", 0)) < 2:
+				continue
+			parts.append("%s (x%d)" % [str(row.get("label", "")), int(row.get("count", 0))])
+		if not parts.is_empty():
+			lines.append("This keeps happening: %s." % ", ".join(parts))
+	if bool(results.get("assists_active", false)):
+		var assists := AccessibilitySettings.active_assist_summary()
+		if not assists.is_empty():
+			lines.append("Assists in use: %s." % ", ".join(assists))
+	return "\n".join(lines)
 
 
 

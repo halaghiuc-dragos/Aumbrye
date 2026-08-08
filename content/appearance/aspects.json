@@ -4,32 +4,174 @@
     {
       "id": "castle_iron",
       "nameKey": "ASPECT_CASTLE_IRON",
+      "name": "Iron Oath",
       "paletteTheme": "castle",
-      "descKey": "ASPECT_CASTLE_IRON_DESC"
+      "descKey": "ASPECT_CASTLE_IRON_DESC",
+      "description": "Castle-forged plate and oathbound steel."
     },
     {
       "id": "crystal_frost",
       "nameKey": "ASPECT_CRYSTAL_FROST",
+      "name": "Cold Facet",
       "paletteTheme": "crystal",
-      "descKey": "ASPECT_CRYSTAL_FROST_DESC"
+      "descKey": "ASPECT_CRYSTAL_FROST_DESC",
+      "description": "Light caught in a stone that was never warm."
     },
     {
       "id": "umbral_void",
       "nameKey": "ASPECT_UMBRAL_VOID",
+      "name": "Umbral Void",
       "paletteTheme": "umbral",
-      "descKey": "ASPECT_UMBRAL_VOID_DESC"
+      "descKey": "ASPECT_UMBRAL_VOID_DESC",
+      "description": "What the chapel wore after the lamps went out."
     },
     {
       "id": "cathedral_gold",
       "nameKey": "ASPECT_CATHEDRAL_GOLD",
+      "name": "Cathedral Gold",
       "paletteTheme": "cathedral",
-      "descKey": "ASPECT_CATHEDRAL_GOLD_DESC"
+      "descKey": "ASPECT_CATHEDRAL_GOLD_DESC",
+      "description": "Gilt left on a thing nobody prays to now."
+    },
+    {
+      "id": "hub_ember",
+      "nameKey": "ASPECT_HUB_EMBER",
+      "name": "Ember Watch",
+      "paletteTheme": "hub",
+      "descKey": "ASPECT_HUB_EMBER_DESC",
+      "description": "The colour of the last fire anyone kept."
     },
     {
       "id": "swamp_warden",
       "nameKey": "ASPECT_SWAMP_WARDEN",
+      "name": "Swamp Warden",
       "paletteTheme": "swamp",
-      "descKey": "ASPECT_SWAMP_WARDEN_DESC"
+      "descKey": "ASPECT_SWAMP_WARDEN_DESC",
+      "description": "Bile-green and patient. Earned in the standing water.",
+      "unlockFlag": "theme_poison_swamp_cleared",
+      "unlockHint": "Clear the Poison Swamp."
+    },
+    {
+      "id": "frozen_steel",
+      "nameKey": "ASPECT_FROZEN_STEEL",
+      "name": "Frozen Steel",
+      "paletteTheme": "frozen",
+      "descKey": "ASPECT_FROZEN_STEEL_DESC",
+      "description": "Metal that keeps the cold long after the walk out.",
+      "unlockFlag": "theme_frozen_fortress_cleared",
+      "unlockHint": "Clear the Frozen Fortress."
+    },
+    {
+      "id": "vault_iron",
+      "nameKey": "ASPECT_VAULT_IRON",
+      "name": "Vault Iron",
+      "paletteTheme": "vault",
+      "descKey": "ASPECT_VAULT_IRON_DESC",
+      "description": "Dull, honest, and closed for a very long time.",
+      "unlockFlag": "theme_iron_vault_cleared",
+      "unlockHint": "Clear the Iron Vault."
+    },
+    {
+      "id": "prism_light",
+      "nameKey": "ASPECT_PRISM_LIGHT",
+      "name": "Prism Light",
+      "paletteTheme": "prism",
+      "descKey": "ASPECT_PRISM_LIGHT_DESC",
+      "description": "A colour that is several colours, depending on the hour.",
+      "unlockFlag": "theme_prism_depths_cleared",
+      "unlockHint": "Clear the Prism Depths."
+    },
+    {
+      "id": "mire_venom",
+      "nameKey": "ASPECT_MIRE_VENOM",
+      "name": "Mire Venom",
+      "paletteTheme": "mire",
+      "descKey": "ASPECT_MIRE_VENOM_DESC",
+      "description": "Worn by those who came back up out of the mire.",
+      "unlockFlag": "theme_venom_mire_cleared",
+      "unlockHint": "Clear the Venom Mire."
+    },
+    {
+      "id": "hollow_ice",
+      "nameKey": "ASPECT_HOLLOW_ICE",
+      "name": "Hollow Ice",
+      "paletteTheme": "hollow",
+      "descKey": "ASPECT_HOLLOW_ICE_DESC",
+      "description": "Pale to the point of absence. It suits the place.",
+      "unlockFlag": "theme_glacial_hollow_cleared",
+      "unlockHint": "Clear the Glacial Hollow."
+    }
+  ],
+  "titles": [
+    {
+      "id": "",
+      "nameKey": "TITLE_NONE",
+      "name": "No title",
+      "description": "Carry nothing but the name."
+    },
+    {
+      "id": "the_oathkept",
+      "nameKey": "TITLE_THE_OATHKEPT",
+      "name": "the Oathkept",
+      "description": "Given to those who finished what the castle started.",
+      "unlockFlag": "theme_forgotten_castle_cleared",
+      "unlockHint": "Clear the Forgotten Castle."
+    },
+    {
+      "id": "of_the_cold_facet",
+      "nameKey": "TITLE_OF_THE_COLD_FACET",
+      "name": "of the Cold Facet",
+      "description": "Spoken of anyone who walked out of the caverns.",
+      "unlockFlag": "theme_crystal_caverns_cleared",
+      "unlockHint": "Clear the Crystal Caverns."
+    },
+    {
+      "id": "the_unabsolved",
+      "nameKey": "TITLE_THE_UNABSOLVED",
+      "name": "the Unabsolved",
+      "description": "The cathedral does not forgive; it only stops objecting.",
+      "unlockFlag": "theme_dark_cathedral_cleared",
+      "unlockHint": "Clear the Dark Cathedral."
+    },
+    {
+      "id": "the_late_reader",
+      "nameKey": "TITLE_THE_LATE_READER",
+      "name": "the Late Reader",
+      "description": "For those who kept reading after the lamp went low.",
+      "unlockFlag": "heard_the_keeping",
+      "unlockHint": "Hear the whole of the Keeping."
+    },
+    {
+      "id": "the_studied",
+      "nameKey": "TITLE_THE_STUDIED",
+      "name": "the Studied",
+      "description": "Earned by knowing every thing that lives down there.",
+      "unlockFlag": "bestiary_complete",
+      "unlockHint": "Complete the bestiary."
+    },
+    {
+      "id": "the_gate_opener",
+      "nameKey": "TITLE_THE_GATE_OPENER",
+      "name": "the Gate-Opener",
+      "description": "It was shut for a reason. You opened it anyway.",
+      "unlockFlag": "gate_reopened",
+      "unlockHint": "Reopen the gate."
+    },
+    {
+      "id": "the_lamplighter",
+      "nameKey": "TITLE_THE_LAMPLIGHTER",
+      "name": "the Lamplighter",
+      "description": "Relit what nobody was left to relight.",
+      "unlockFlag": "lamps_relit",
+      "unlockHint": "Relight the lamps."
+    },
+    {
+      "id": "the_unfinished",
+      "nameKey": "TITLE_THE_UNFINISHED",
+      "name": "the Unfinished",
+      "description": "Told the story to its end, and stayed anyway.",
+      "unlockFlag": "story_completed",
+      "unlockHint": "See the story through."
     }
   ]
 }

@@ -1,0 +1,27 @@
+{
+  "id": "spellglass_longsword",
+  "name": "Spellglass Longsword",
+  "itemType": "weapon",
+  "equipmentSlot": "weapon",
+  "gridWidth": 2,
+  "gridHeight": 3,
+  "stackSize": 1,
+  "rarity": "rare",
+  "description": "Long enough to keep a stranger honest. Grown, not forged. It rings on a note the ear dislikes. Scaling: Strength C, Dexterity C.",
+  "value": 247,
+  "lootValue": 124,
+  "maxDurability": 110,
+  "baseId": "longsword",
+  "materialTier": "spellglass",
+  "biome": "crystal_caverns",
+  "scaling": {
+    "strength": "C",
+    "dexterity": "C"
+  },
+  "stats": {
+    "physicalDamage": 16,
+    "resistArcane": 0.1,
+    "resistLightning": 0.05
+  },
+  "weaponId": "sword_basic"
+}

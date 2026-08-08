@@ -1,0 +1,20 @@
+{
+  "id": "the_ember_tithe",
+  "name": "The Ember Tithe",
+  "description": "Burning enemies pay coin when they fall.",
+  "maxStacks": 1,
+  "tags": [
+    "flame",
+    "greed"
+  ],
+  "weight": 0.7,
+  "rules": [
+    {
+      "event": "onKill",
+      "effect": "bonus_gold",
+      "amount": 22,
+      "ifTargetHasStatus": "burn"
+    }
+  ],
+  "offerable": true
+}

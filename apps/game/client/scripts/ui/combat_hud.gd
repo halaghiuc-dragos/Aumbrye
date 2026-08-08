@@ -54,9 +54,9 @@ const ATTACK_RECOVERY_FILL := Color(0.45, 0.45, 0.48, 1.0)
 @onready var _respawn_overlay: Control = $RespawnOutcomeOverlay
 
 var _player: Node3D
-var _lock_on: Node
-var _guard: Node
-var _weapon_controller: Node
+var _lock_on: LockOn
+var _guard: Guard
+var _weapon_controller: WeaponController
 var _camera: Camera3D
 var _status_controller: StatusController
 var _objective_world_pos: Vector3 = Vector3.INF
@@ -67,6 +67,8 @@ var _boss_current_phase := 1
 var _lock_reticle_alpha := 0.0
 var _status_pips: Dictionary = {}
 var _status_refresh_timer := 0.0
+var _build_up_box: VBoxContainer
+var _build_up_rows: Dictionary = {}
 var _last_health := -1.0
 var _vignette_cooldown := 0.0
 var _attack_styles: Dictionary = {}
@@ -81,6 +83,7 @@ var _hint_actions_used: Dictionary = {
 var _hint_hidden_by_usage := false
 var _map_overlay: Control
 var _map_overlay_minimap: Control
+var _region_banner: Label
 var _guard_indicator_active := false
 var _slow_update_timer := 0.0
 
@@ -104,21 +107,23 @@ func _ready() -> void:
 	_apply_hud_safe_area()
 	if player_path:
 		_player = get_node(player_path) as Node3D
-		_guard = _player.get_node_or_null("Guard")
-		if _guard and _guard.has_signal("block_state_changed"):
+		_guard = _player.get_node_or_null("Guard") as Guard
+		if _guard:
 			_guard.block_state_changed.connect(_on_guard_block_state_changed)
-		if _guard and _guard.has_signal("guard_broken"):
 			_guard.guard_broken.connect(_on_guard_broken)
-		_weapon_controller = _player.get_node_or_null("WeaponController")
+		_weapon_controller = _player.get_node_or_null("WeaponController") as WeaponController
 		_status_controller = _player.get_node_or_null("StatusController") as StatusController
 		_bind_player_resources()
 		_bind_minimap_player()
 		if _status_controller:
 			_status_controller.statuses_changed.connect(_refresh_status_icons)
+			_ensure_build_up_box()
+			_status_controller.build_up_changed.connect(_refresh_build_up_meters)
 			_refresh_status_icons()
+			_refresh_build_up_meters()
 	if lock_on_path:
-		_lock_on = get_node_or_null(lock_on_path)
-		if _lock_on and _lock_on.has_signal("lock_changed"):
+		_lock_on = get_node_or_null(lock_on_path) as LockOn
+		if _lock_on:
 			_lock_on.lock_changed.connect(_on_lock_changed)
 	if ProgressionService:
 		ProgressionService.progression_changed.connect(_on_progression_changed)
@@ -182,6 +187,71 @@ func _make_attack_style(fill_color: Color) -> StyleBoxFlat:
 
 func _apply_bar_style(bar: ProgressBar, fill_color: Color, bg_color: Color) -> void:
 	GameUISkinScript.style_progress_bar(bar, fill_color, bg_color)
+
+
+const BUILD_UP_METER_WIDTH := 84
+
+
+func _ensure_build_up_box() -> void:
+	if _build_up_box != null or _status_row == null:
+		return
+	var parent := _status_row.get_parent() as Control
+	if parent == null:
+		return
+	_build_up_box = VBoxContainer.new()
+	_build_up_box.name = "BuildUpMeters"
+	_build_up_box.add_theme_constant_override("separation", GameUISkinScript.PIXEL_UNIT)
+	_build_up_box.visible = false
+	parent.add_child(_build_up_box)
+	parent.move_child(_build_up_box, _status_row.get_index() + 1)
+
+
+func _make_build_up_row(status_id: String) -> Control:
+	var def := StatusCatalog.get_definition(status_id)
+	var tint := Color.from_string(str(def.get("iconColor", "")), Color(0.63, 0.38, 0.25))
+	var row := HBoxContainer.new()
+	row.name = "BuildUp_%s" % status_id
+	row.add_theme_constant_override("separation", GameUISkinScript.PIXEL_UNIT * 2)
+	var icon := GameUISkinScript.make_symbol_rect(
+		StatusIconAtlasScript.get_icon(status_id), StatusIconAtlasScript.icon_size()
+	)
+	row.add_child(icon)
+	var bar := GameUISkinScript.make_meter_bar(tint, BUILD_UP_METER_WIDTH)
+	row.add_child(bar)
+	row.set_meta("bar", bar)
+	return row
+
+
+func _refresh_build_up_meters() -> void:
+	if _build_up_box == null or _status_controller == null:
+		return
+	var seen: Dictionary = {}
+	for meter in _status_controller.get_build_up_meters():
+		var status_id: String = str(meter.get("id", ""))
+		if status_id == "":
+			continue
+		var ratio := clampf(float(meter.get("ratio", 0.0)), 0.0, 1.0)
+		if ratio <= 0.0:
+			continue
+		seen[status_id] = true
+		var row: Control
+		if _build_up_rows.has(status_id):
+			row = _build_up_rows[status_id] as Control
+		else:
+			row = _make_build_up_row(status_id)
+			_build_up_box.add_child(row)
+			_build_up_rows[status_id] = row
+		var bar := row.get_meta("bar") as ProgressBar
+		if bar:
+			bar.value = ratio
+	for status_id in _build_up_rows.keys():
+		if seen.has(status_id):
+			continue
+		var stale: Control = _build_up_rows[status_id]
+		if is_instance_valid(stale):
+			stale.queue_free()
+		_build_up_rows.erase(status_id)
+	_build_up_box.visible = not _build_up_rows.is_empty()
 
 
 func _refresh_status_icons() -> void:
@@ -407,12 +477,12 @@ func _on_progression_changed() -> void:
 
 
 func _update_lock_reticle() -> void:
-	if not _lock_reticle or not _lock_on or not _lock_on.get("is_locked"):
+	if not _lock_reticle or not _lock_on or not _lock_on.is_locked:
 		if _lock_reticle:
 			_lock_reticle.visible = false
 			_lock_reticle_alpha = 0.0
 		return
-	var target := _lock_on.get("current_target") as Node3D
+	var target := _lock_on.current_target
 	if target == null or not is_instance_valid(target):
 		_lock_reticle.visible = false
 		_lock_reticle_alpha = 0.0
@@ -465,16 +535,10 @@ func _update_guard_indicators() -> void:
 		_block_bar.visible = false
 		_parry_label.visible = false
 		return
-	var parry_left := 0.0
-	var block_left := 0.0
-	if _guard.has_method("get_parry_time_remaining"):
-		parry_left = _guard.call("get_parry_time_remaining")
-	if _guard.has_method("get_block_time_remaining"):
-		block_left = _guard.call("get_block_time_remaining")
-	if _guard.has_method("get_parry_window_duration"):
-		_parry_bar.max_value = _guard.call("get_parry_window_duration")
-	if _guard.has_method("get_block_window_duration"):
-		_block_bar.max_value = _guard.call("get_block_window_duration")
+	var parry_left := _guard.get_parry_time_remaining()
+	var block_left := _guard.get_block_time_remaining()
+	_parry_bar.max_value = _guard.get_parry_window_duration()
+	_block_bar.max_value = _guard.get_block_window_duration()
 	if parry_left > 0.0:
 		_parry_bar.visible = true
 		_parry_bar.value = parry_left
@@ -550,13 +614,11 @@ func _flash_resource_bar(bar: ProgressBar, flash_color: Color) -> void:
 func _update_attack_bar() -> void:
 	if _weapon_controller == null:
 		return
-	if not bool(_weapon_controller.get("is_attacking")):
+	if not _weapon_controller.is_attacking:
 		_attack_bar.visible = false
 		_attack_phase_style = ""
 		return
-	var phase_info: Dictionary = {}
-	if _weapon_controller.has_method("get_attack_phase_progress"):
-		phase_info = _weapon_controller.call("get_attack_phase_progress")
+	var phase_info: Dictionary = _weapon_controller.get_attack_phase_progress()
 	var progress: float = float(phase_info.get("progress", 0.0))
 	var phase: String = str(phase_info.get("phase", "startup"))
 	_attack_bar.visible = true
@@ -590,6 +652,48 @@ func mark_room_visited(room_id: String) -> void:
 func set_current_room(room_id: String) -> void:
 	if _minimap and _minimap.has_method("set_current_room"):
 		_minimap.call("set_current_room", room_id)
+
+
+func mark_room_cleared(room_id: String) -> void:
+	if _minimap and _minimap.has_method("mark_cleared"):
+		_minimap.call("mark_cleared", room_id)
+
+
+func set_minimap_fog_of_war(enabled: bool) -> void:
+	if _minimap and _minimap.has_method("set_fog_of_war"):
+		_minimap.call("set_fog_of_war", enabled)
+
+
+func show_region_title(title: String, subtitle: String = "") -> void:
+	if title == "":
+		return
+	_ensure_region_banner()
+	_region_banner.text = title if subtitle == "" else "%s\n%s" % [title, subtitle]
+	_region_banner.visible = true
+	_region_banner.modulate.a = 0.0
+	var tween := create_tween()
+	tween.tween_property(_region_banner, "modulate:a", 1.0, 0.6)
+	tween.tween_interval(3.2)
+	tween.tween_property(_region_banner, "modulate:a", 0.0, 0.8)
+	tween.tween_callback(
+		func() -> void:
+			if _region_banner:
+				_region_banner.visible = false
+	)
+
+
+func _ensure_region_banner() -> void:
+	if _region_banner != null and is_instance_valid(_region_banner):
+		return
+	_region_banner = Label.new()
+	_region_banner.name = "RegionBanner"
+	_region_banner.set_anchors_preset(Control.PRESET_CENTER_TOP)
+	_region_banner.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_region_banner.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_region_banner.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_region_banner.visible = false
+	GameUISkinScript.style_body_label(_region_banner)
+	add_child(_region_banner)
 
 
 func _bind_minimap_player() -> void:

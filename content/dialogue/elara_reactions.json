@@ -1,0 +1,84 @@
+{
+  "id": "elara_reactions",
+  "startNode": "start",
+  "nodes": {
+    "start": {
+      "speaker": "Elara",
+      "text": "You had it and then you did not come back with it. I would call that a bad trade if I thought a trade had taken place.",
+      "condition": {
+        "all": [
+          {
+            "lastRunOutcome": "died"
+          },
+          {
+            "lastRunBoss": true
+          }
+        ]
+      },
+      "fallback": "r2",
+      "next": "end"
+    },
+    "r2": {
+      "speaker": "Elara",
+      "text": "Deep, and nothing to show. I will still buy what is in your pockets. I always buy what is in your pockets.",
+      "condition": {
+        "all": [
+          {
+            "lastRunOutcome": "died"
+          },
+          {
+            "minLastRunFloor": 4
+          }
+        ]
+      },
+      "fallback": "r3",
+      "next": "end"
+    },
+    "r3": {
+      "speaker": "Elara",
+      "text": "Cleared. Then you have things worth naming a price for, and I have a price ready for each of them.",
+      "condition": {
+        "all": [
+          {
+            "lastRunOutcome": "escaped"
+          },
+          {
+            "lastRunBoss": true
+          }
+        ]
+      },
+      "fallback": "r4",
+      "next": "end"
+    },
+    "r4": {
+      "speaker": "Elara",
+      "text": "The caverns. Everything that comes up from there is bright and worth less than it looks. I say that against my own interest.",
+      "condition": {
+        "lastRunBiome": "crystal_caverns"
+      },
+      "fallback": "r5",
+      "next": "end"
+    },
+    "r5": {
+      "speaker": "Elara",
+      "text": "Ten deaths. The stock is unchanged, which is the only steady thing either of us can point to.",
+      "condition": {
+        "all": [
+          {
+            "lastRunOutcome": "died"
+          },
+          {
+            "minDeaths": 10
+          }
+        ]
+      },
+      "fallback": "quiet",
+      "next": "end"
+    },
+    "quiet": {
+      "speaker": "Elara",
+      "text": "Stock turns over. Buyers do not. Look anyway.",
+      "next": "end"
+    }
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "id": "flask_ashen_measure",
+  "name": "Ashen Measure",
+  "itemType": "consumable",
+  "gridWidth": 1,
+  "gridHeight": 1,
+  "stackSize": 5,
+  "rarity": "magic",
+  "description": "Measured out by the spoonful, by someone who expected to need it later.",
+  "consumableEffect": {
+    "kind": "refillFlask",
+    "amount": 1,
+    "usableInHub": false
+  },
+  "value": 110,
+  "lootValue": 55
+}

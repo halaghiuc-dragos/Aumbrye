@@ -2,7 +2,7 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://aumbrye.dev/schemas/enemy-definition.v1.json",
   "title": "EnemyDefinition",
-  "description": "M1 training enemy and future enemy content (minimal v1).",
+  "description": "Enemy and boss content: base tuning, a non-empty move set, and optional fight phases.",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -19,13 +19,134 @@
     "recovery_duration",
     "attack_range",
     "attack_cooldown",
-    "stagger_duration"
+    "stagger_duration",
+    "attacks"
   ],
+  "definitions": {
+    "damageType": {
+      "type": "string",
+      "enum": ["physical", "fire", "frost", "poison", "lightning", "arcane"]
+    },
+    "telegraphShape": {
+      "type": "string",
+      "enum": ["circle", "cone", "line", "ring"]
+    },
+    "hazardSpawn": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["scene"],
+      "properties": {
+        "scene": { "type": "string", "minLength": 1 },
+        "count": { "type": "integer", "minimum": 1, "maximum": 12 },
+        "radius": { "type": "number", "exclusiveMinimum": 0 },
+        "minRadiusFraction": { "type": "number", "minimum": 0, "maximum": 1 },
+        "lifetime": { "type": "number", "exclusiveMinimum": 0 }
+      }
+    },
+    "addSpawn": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["enemyId"],
+      "properties": {
+        "enemyId": { "type": "string", "minLength": 1 },
+        "count": { "type": "integer", "minimum": 1, "maximum": 8 },
+        "radius": { "type": "number", "exclusiveMinimum": 0 }
+      }
+    },
+    "attack": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "windup_duration",
+        "active_duration",
+        "recovery_duration",
+        "attack_damage"
+      ],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "name": { "type": "string", "minLength": 1 },
+        "weight": { "type": "number", "exclusiveMinimum": 0 },
+        "min_range": { "type": "number", "minimum": 0 },
+        "max_range": { "type": "number", "exclusiveMinimum": 0 },
+        "windup_duration": { "type": "number", "minimum": 0 },
+        "windup_variance": { "type": "number", "minimum": 0 },
+        "active_duration": { "type": "number", "minimum": 0 },
+        "recovery_duration": { "type": "number", "minimum": 0 },
+        "attack_damage": { "type": "number", "minimum": 0 },
+        "attack_poise_damage": { "type": "number", "minimum": 0 },
+        "damage_type": { "$ref": "#/definitions/damageType" },
+        "status_on_hit": { "type": "string" },
+        "status_stacks_on_hit": { "type": "integer", "minimum": 1 },
+        "telegraph_radius": { "type": "number", "exclusiveMinimum": 0 },
+        "telegraph_shape": { "$ref": "#/definitions/telegraphShape" },
+        "projectile_speed": { "type": "number", "exclusiveMinimum": 0 },
+        "no_hitbox": { "type": "boolean" },
+        "spawn_hazard": { "$ref": "#/definitions/hazardSpawn" },
+        "combo_followups": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 3,
+          "items": { "$ref": "#/definitions/attack" }
+        }
+      }
+    },
+    "phase": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "hpBelow", "attacks"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "name": { "type": "string", "minLength": 1 },
+        "hpBelow": { "type": "number", "exclusiveMinimum": 0, "maximum": 1 },
+        "attacks": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/definitions/attack" }
+        },
+        "moveSpeedMult": { "type": "number", "exclusiveMinimum": 0 },
+        "attackCooldownMult": { "type": "number", "exclusiveMinimum": 0 },
+        "damageMult": { "type": "number", "exclusiveMinimum": 0 },
+        "poiseMult": { "type": "number", "exclusiveMinimum": 0 },
+        "cleanseWindows": { "type": "boolean" },
+        "onEnter": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "tellDuration": { "type": "number", "minimum": 0 },
+            "invulnerableFor": { "type": "number", "minimum": 0 },
+            "vfx": { "type": "string", "minLength": 1 },
+            "sfx": { "type": "string", "minLength": 1 },
+            "shake": { "type": "number", "minimum": 0 },
+            "telegraphRadius": { "type": "number", "exclusiveMinimum": 0 },
+            "telegraphShape": { "$ref": "#/definitions/telegraphShape" },
+            "telegraphTint": {
+              "type": "array",
+              "minItems": 3,
+              "maxItems": 3,
+              "items": { "type": "number", "minimum": 0, "maximum": 1 }
+            },
+            "spawnAdds": {
+              "type": "array",
+              "minItems": 1,
+              "items": { "$ref": "#/definitions/addSpawn" }
+            },
+            "hazards": {
+              "type": "array",
+              "minItems": 1,
+              "items": { "$ref": "#/definitions/hazardSpawn" }
+            }
+          }
+        }
+      }
+    }
+  },
   "properties": {
     "id": { "type": "string", "minLength": 1 },
     "name": { "type": "string", "minLength": 1 },
     "title": { "type": "string", "minLength": 1 },
     "loreText": { "type": "string" },
+    "description": { "type": "string" },
     "scene": { "type": "string", "minLength": 1 },
     "threat_cost": { "type": "integer", "minimum": 0 },
     "health": { "type": "number", "exclusiveMinimum": 0 },
@@ -34,34 +155,59 @@
     "attack_damage": { "type": "number", "minimum": 0 },
     "attack_poise_damage": { "type": "number", "minimum": 0 },
     "windup_duration": { "type": "number", "minimum": 0 },
+    "windup_variance": { "type": "number", "minimum": 0 },
     "active_duration": { "type": "number", "minimum": 0 },
     "recovery_duration": { "type": "number", "minimum": 0 },
     "attack_range": { "type": "number", "exclusiveMinimum": 0 },
     "attack_cooldown": { "type": "number", "minimum": 0 },
+    "attack_token_group": { "type": "string", "minLength": 1 },
     "stagger_duration": { "type": "number", "minimum": 0 },
     "aggro_range": { "type": "number", "exclusiveMinimum": 0 },
     "deaggro_range": { "type": "number", "exclusiveMinimum": 0 },
     "patrol_radius": { "type": "number", "minimum": 0 },
     "preferred_range": { "type": "number", "minimum": 0 },
     "retreat_range": { "type": "number", "minimum": 0 },
+    "retreat_threshold": { "type": "number", "minimum": 0, "maximum": 1 },
     "projectile_speed": { "type": "number", "exclusiveMinimum": 0 },
     "block_mitigation": { "type": "number", "minimum": 0, "maximum": 1 },
     "block_angle_deg": { "type": "number", "minimum": 0, "maximum": 180 },
+    "vision_cone_deg": { "type": "number", "minimum": 10, "maximum": 360 },
+    "hearing_range": { "type": "number", "minimum": 0 },
+    "awareness_rate": { "type": "number", "exclusiveMinimum": 0 },
+    "awareness_decay": { "type": "number", "minimum": 0 },
+    "alert_radius": { "type": "number", "minimum": 0 },
+    "circle_radius_mult": { "type": "number", "minimum": 1 },
+    "telegraph_radius": { "type": "number", "exclusiveMinimum": 0 },
+    "telegraph_shape": { "$ref": "#/definitions/telegraphShape" },
+    "weapon_kit": { "type": "string" },
+    "coinReward": { "type": "integer", "minimum": 0 },
+    "goldReward": { "type": "integer", "minimum": 0 },
     "phase2_threshold": { "type": "number", "minimum": 0, "maximum": 1 },
     "phaseCount": { "type": "integer", "minimum": 1, "default": 1 },
+    "isBoss": { "type": "boolean" },
     "enemy_type": {
       "type": "string",
       "enum": ["melee", "ranged", "shield", "boss"]
     },
-    "damage_type": {
-      "type": "string",
-      "enum": ["physical", "fire", "frost", "poison", "lightning", "arcane"]
-    },
+    "damage_type": { "$ref": "#/definitions/damageType" },
     "status_on_hit": { "type": "string" },
     "status_stacks_on_hit": { "type": "integer", "minimum": 1 },
     "resistances": {
       "type": "object",
       "additionalProperties": { "type": "number" }
+    },
+    "attacks": {
+      "type": "array",
+      "minItems": 1,
+      "description": "Move set. Never empty: an enemy with no attacks falls back to a single flat swing.",
+      "items": { "$ref": "#/definitions/attack" }
+    },
+    "phases": {
+      "type": "array",
+      "minItems": 2,
+      "items": { "$ref": "#/definitions/phase" }
     }
-  }
+  },
+  "if": { "properties": { "isBoss": { "const": true } }, "required": ["isBoss"] },
+  "then": { "required": ["phases"] }
 }

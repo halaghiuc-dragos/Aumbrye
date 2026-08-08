@@ -36,9 +36,35 @@ static func is_weapon_allowed(class_id: String, item_id: String) -> bool:
 	if def.is_empty():
 		return true
 	var allowed: Variant = def.get("allowedWeapons", [])
-	if allowed is Array and not allowed.is_empty():
-		return item_id in allowed
+	if allowed is Array and item_id in (allowed as Array):
+		return true
+	var families: Variant = def.get("allowedWeaponFamilies", [])
+	if families is Array and not (families as Array).is_empty():
+		var family := _weapon_family(item_id)
+		if family == "":
+			return true
+		return family in (families as Array)
+	if allowed is Array and not (allowed as Array).is_empty():
+		return false
 	return true
+
+
+static func get_rules(class_id: String) -> Array:
+	var rules: Variant = get_definition(class_id).get("rules", [])
+	return rules if rules is Array else []
+
+
+static func get_talent_branch_id(class_id: String) -> String:
+	return str(get_definition(class_id).get("talentBranchId", ""))
+
+
+static func _weapon_family(item_id: String) -> String:
+	var item_def := ItemCatalog.get_definition(item_id)
+	if item_def.is_empty():
+		return ""
+	if str(item_def.get("itemType", "")) != "weapon":
+		return ""
+	return str(item_def.get("weaponId", ""))
 
 
 static func get_stat_bonuses(class_id: String) -> Dictionary:

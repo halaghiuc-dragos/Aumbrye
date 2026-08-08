@@ -2,6 +2,7 @@ import { Link, useParams } from "react-router-dom";
 import { getWikiPage, wikiPages } from "../content/loader";
 import NotFound from "../components/NotFound";
 import { PageHelmet } from "../components/Layout";
+import PrerenderReady from "../components/PrerenderReady";
 
 export default function WikiIndexPage() {
   return (
@@ -11,6 +12,7 @@ export default function WikiIndexPage() {
         description="Gameplay guides and FAQ for Aumbrye."
         path="/wiki"
       />
+      <PrerenderReady />
       <h2>Wiki</h2>
       <ul className="content-list">
         {wikiPages.map((page) => (

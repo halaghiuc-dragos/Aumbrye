@@ -1,0 +1,18 @@
+{
+  "id": "bounty_the_long_count",
+  "title": "Bounty: The Long Count",
+  "type": "kill",
+  "targetId": "prism_refractor",
+  "requiredCount": 12,
+  "repeatable": true,
+  "cooldownRuns": 2,
+  "availableWhen": {
+    "minTier": 5
+  },
+  "bounty": "weekly",
+  "description": "Weekly bounty. Twelve. The Chapter counted the same way, and for a while it looked like arithmetic.",
+  "rewards": {
+    "gold": 320,
+    "bountyTokens": 7
+  }
+}

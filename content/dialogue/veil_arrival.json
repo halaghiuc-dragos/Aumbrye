@@ -1,0 +1,27 @@
+{
+  "id": "veil_arrival",
+  "startNode": "start",
+  "nodes": {
+    "start": {
+      "speaker": "The Widow",
+      "text": "Eleven years on the sixth landing. The garrison stopped using that stair rather than pass me, which I did not intend and did not correct. You may have the name. I have no further use for it.",
+      "actions": [
+        {
+          "type": "set_relationship",
+          "npc": "veil",
+          "delta": 2
+        },
+        {
+          "type": "advance_story_beat",
+          "beat": 5
+        },
+        {
+          "type": "set_flag",
+          "flag": "heard_the_hierarch",
+          "value": true
+        }
+      ],
+      "next": "end"
+    }
+  }
+}

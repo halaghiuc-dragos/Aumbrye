@@ -26,6 +26,8 @@ var _crit_rng := RandomNumberGenerator.new()
 var _shape_query := PhysicsShapeQueryParameters3D.new()
 var _castle_run: Node
 var _poll_alternate := false
+var _execution_target: Node = null
+var _execution_kind := ""
 
 
 func _ready() -> void:
@@ -75,6 +77,13 @@ func disable() -> void:
 	_last_overlap_count = 0
 	_hit_times.clear()
 	_los_clear_this_swing.clear()
+	_execution_target = null
+	_execution_kind = ""
+
+
+func set_execution(target: Node, kind: String) -> void:
+	_execution_target = target
+	_execution_kind = kind
 
 
 func reset_swing() -> void:
@@ -146,6 +155,8 @@ func _try_hit(area: Area3D) -> void:
 		return
 	if area.get("team") == team:
 		return
+	if _execution_target != null and _body_of(area) != _execution_target:
+		return
 	if _is_cross_boss_boundary(area):
 		return
 	var target_id := area.get_instance_id()
@@ -172,6 +183,9 @@ func _try_hit(area: Area3D) -> void:
 		final_damage, poise_damage, _owner_node, _damage_type, direction, _status_id, _status_stacks
 	)
 	info.crit = is_crit
+	if _execution_kind != "":
+		info.execution = _execution_kind
+		info.ignore_guard = true
 	area.call("receive_hit", info)
 	var mana_restore := ClassPerks.arcane_focus_mana_on_hit(_owner_node)
 	if mana_restore > 0.0:
@@ -182,9 +196,15 @@ func _try_hit(area: Area3D) -> void:
 	if area.get_parent() is Node3D:
 		hit_pos = (area.get_parent() as Node3D).global_position + Vector3(0.0, 1.0, 0.0)
 	VfxService.play_hit_spark(hit_pos, direction, _hit_normal_from_direction(direction))
-	var feedback := _owner_node.get_node_or_null("HitFeedback")
-	if feedback and feedback.has_method("on_hit"):
-		feedback.on_hit(area.get_parent(), damage_amount, direction, _damage_type)
+
+
+func _body_of(area: Area3D) -> Node:
+	var node: Node = area
+	while node:
+		if node is CharacterBody3D:
+			return node
+		node = node.get_parent()
+	return area.get_parent()
 
 
 func _find_combat_owner() -> Node:

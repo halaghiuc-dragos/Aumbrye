@@ -1,0 +1,16 @@
+{
+  "id": "forge_infuse_lightning",
+  "type": "infuse",
+  "itemId": "any",
+  "goldCost": 650,
+  "materials": [
+    {
+      "itemId": "storm_catalyst",
+      "quantity": 2
+    },
+    {
+      "itemId": "cracked_lodestone",
+      "quantity": 2
+    }
+  ]
+}

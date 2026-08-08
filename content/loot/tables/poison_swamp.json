@@ -1,0 +1,230 @@
+{
+  "schemaVersion": 1,
+  "biomeId": "poison_swamp",
+  "lootTables": {
+    "treasure": [
+      {
+        "itemId": "bloodstaunch",
+        "quantity": [
+          1,
+          3
+        ],
+        "weight": 10
+      },
+      {
+        "itemId": "everburning_torch",
+        "quantity": [
+          1,
+          1
+        ],
+        "weight": 4
+      },
+      {
+        "itemId": "mana_potion",
+        "quantity": [
+          1,
+          3
+        ],
+        "weight": 10
+      }
+    ],
+    "secret": [
+      {
+        "itemId": "cathedral_shadow_dagger",
+        "quantity": [
+          1,
+          1
+        ],
+        "weight": 1
+      },
+      {
+        "itemId": "frost_glacier_sword",
+        "quantity": [
+          1,
+          1
+        ],
+        "weight": 2
+      },
+      {
+        "itemId": "unique_cavernlight_helm",
+        "quantity": [
+          1,
+          1
+        ],
+        "weight": 2
+      },
+      {
+        "itemId": "unique_fen_widows_veil",
+        "quantity": [
+          1,
+          1
+        ],
+        "weight": 2
+      },
+      {
+        "itemId": "unique_lattice_ward",
+        "quantity": [
+          1,
+          1
+        ],
+        "weight": 1
+      },
+      {
+        "itemId": "unique_rot_and_remedy",
+        "quantity": [
+          1,
+          1
+        ],
+        "weight": 1
+      },
+      {
+        "itemId": "unique_the_quiet_hour",
+        "quantity": [
+          1,
+          1
+        ],
+        "weight": 1
+      }
+    ],
+    "side": [
+      {
+        "itemId": "mirebrass_dross",
+        "quantity": [
+          1,
+          3
+        ],
+        "weight": 10
+      },
+      {
+        "itemId": "dungeon_key",
+        "quantity": [
+          1,
+          3
+        ],
+        "weight": 10
+      },
+      {
+        "itemId": "wind_relic_charm",
+        "quantity": [
+          1,
+          3
+        ],
+        "weight": 10
+      }
+    ],
+    "armory": [
+      {
+        "itemId": "mirebrass_band",
+        "quantity": [
+          1,
+          1
+        ],
+        "weight": 6
+      },
+      {
+        "itemId": "mirebrass_buckler",
+        "quantity": [
+          1,
+          1
+        ],
+        "weight": 6
+      },
+      {
+        "itemId": "mirebrass_cuirass",
+        "quantity": [
+          1,
+          1
+        ],
+        "weight": 6
+      },
+      {
+        "itemId": "mirebrass_dagger",
+        "quantity": [
+          1,
+          1
+        ],
+        "weight": 6
+      },
+      {
+        "itemId": "mirebrass_greaves",
+        "quantity": [
+          1,
+          1
+        ],
+        "weight": 6
+      },
+      {
+        "itemId": "mirebrass_helm",
+        "quantity": [
+          1,
+          1
+        ],
+        "weight": 6
+      },
+      {
+        "itemId": "mirebrass_pendant",
+        "quantity": [
+          1,
+          1
+        ],
+        "weight": 6
+      },
+      {
+        "itemId": "mirebrass_rapier",
+        "quantity": [
+          1,
+          1
+        ],
+        "weight": 6
+      },
+      {
+        "itemId": "mirebrass_shortbow",
+        "quantity": [
+          1,
+          1
+        ],
+        "weight": 6
+      },
+      {
+        "itemId": "mirebrass_spear",
+        "quantity": [
+          1,
+          1
+        ],
+        "weight": 6
+      },
+      {
+        "itemId": "mirebrass_staff",
+        "quantity": [
+          1,
+          1
+        ],
+        "weight": 6
+      },
+      {
+        "itemId": "castle_gauntlets",
+        "quantity": [
+          1,
+          1
+        ],
+        "weight": 10
+      },
+      {
+        "itemId": "jade_amulet",
+        "quantity": [
+          1,
+          1
+        ],
+        "weight": 6
+      },
+      {
+        "itemId": "steel_boots",
+        "quantity": [
+          1,
+          1
+        ],
+        "weight": 6
+      }
+    ]
+  }
+}

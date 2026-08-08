@@ -1,0 +1,27 @@
+{
+  "id": "spellglass_dagger",
+  "name": "Spellglass Dagger",
+  "itemType": "weapon",
+  "equipmentSlot": "weapon",
+  "gridWidth": 1,
+  "gridHeight": 2,
+  "stackSize": 1,
+  "rarity": "rare",
+  "description": "Short enough to carry where blades are forbidden. Grown, not forged. It rings on a note the ear dislikes. Scaling: Strength E, Dexterity B.",
+  "value": 143,
+  "lootValue": 72,
+  "maxDurability": 80,
+  "baseId": "dagger",
+  "materialTier": "spellglass",
+  "biome": "crystal_caverns",
+  "scaling": {
+    "strength": "E",
+    "dexterity": "B"
+  },
+  "stats": {
+    "critChance": 0.096,
+    "resistArcane": 0.1,
+    "resistLightning": 0.05
+  },
+  "weaponId": "dagger"
+}

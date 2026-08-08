@@ -1,0 +1,18 @@
+{
+  "id": "a_share_of_ruin",
+  "name": "A Share Of Ruin",
+  "description": "Parries return stamina; you may hold the line longer than you should.",
+  "maxStacks": 1,
+  "tags": [
+    "poise"
+  ],
+  "weight": 0.9,
+  "rules": [
+    {
+      "event": "onParry",
+      "effect": "restore_stamina",
+      "amount": 22
+    }
+  ],
+  "offerable": true
+}

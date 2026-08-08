@@ -3,6 +3,7 @@ import { useSearchParams } from "react-router-dom";
 import { ApiError, getLeaderboards } from "../api/client";
 import biomes from "../content/biomes.json";
 import { PageHelmet } from "../components/Layout";
+import PrerenderReady from "../components/PrerenderReady";
 
 const TIERS = Array.from({ length: 10 }, (_, index) => index + 1);
 
@@ -30,6 +31,7 @@ export default function LeaderboardsPage() {
         description="Browse Aumbrye speedrun leaderboards by biome and tier."
         path={`/leaderboards?biomeId=${biomeId}&tier=${tier}`}
       />
+      {!leaderboardsQuery.isLoading && <PrerenderReady />}
       <h2>Leaderboards</h2>
       <div className="filters">
         <label>

@@ -1,0 +1,27 @@
+{
+  "id": "hoarfrost_greatsword",
+  "name": "Hoarfrost Greatsword",
+  "itemType": "weapon",
+  "equipmentSlot": "weapon",
+  "gridWidth": 2,
+  "gridHeight": 4,
+  "stackSize": 1,
+  "rarity": "magic",
+  "description": "Two hands, and a promise not to step back. Quenched in meltwater that never fully melted. Scaling: Strength B, Dexterity E.",
+  "value": 187,
+  "lootValue": 94,
+  "maxDurability": 130,
+  "baseId": "greatsword",
+  "materialTier": "hoarfrost",
+  "biome": "frozen_fortress",
+  "scaling": {
+    "strength": "B",
+    "dexterity": "E"
+  },
+  "stats": {
+    "physicalDamage": 17,
+    "poiseDamage": 0.21,
+    "resistFrost": 0.08
+  },
+  "weaponId": "greatsword"
+}

@@ -1,0 +1,23 @@
+{
+  "id": "graysteel_pendant",
+  "name": "Graysteel Pendant",
+  "itemType": "accessory",
+  "equipmentSlot": "amulet",
+  "gridWidth": 1,
+  "gridHeight": 2,
+  "stackSize": 1,
+  "rarity": "common",
+  "description": "The chain is newer than the stone by several centuries. Vault-stock, stamped and stacked for a war that was called off.",
+  "value": 54,
+  "lootValue": 27,
+  "maxDurability": 60,
+  "baseId": "pendant",
+  "materialTier": "graysteel",
+  "biome": "iron_vault",
+  "scaling": {},
+  "stats": {
+    "manaMax": 14,
+    "healthRegen": 1,
+    "resistPhysical": 0.02
+  }
+}

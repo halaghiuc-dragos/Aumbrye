@@ -1,0 +1,25 @@
+{
+  "id": "hoarfrost_gauntlets",
+  "name": "Hoarfrost Gauntlets",
+  "itemType": "armor",
+  "equipmentSlot": "gloves",
+  "gridWidth": 2,
+  "gridHeight": 2,
+  "stackSize": 1,
+  "rarity": "magic",
+  "description": "Worn thin at the knuckles, thick everywhere else. Quenched in meltwater that never fully melted. Scaling: Strength D.",
+  "value": 68,
+  "lootValue": 34,
+  "maxDurability": 95,
+  "baseId": "gauntlets",
+  "materialTier": "hoarfrost",
+  "biome": "frozen_fortress",
+  "scaling": {
+    "strength": "D"
+  },
+  "stats": {
+    "armor": 4,
+    "staminaMax": 8,
+    "resistFrost": 0.08
+  }
+}

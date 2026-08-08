@@ -6,6 +6,16 @@ class_name NpcBase
 signal dialogue_requested(npc_id: String, dialogue_id: String)
 signal shop_requested(npc_id: String, shop_type: String)
 
+## Interact types that open a hub service instead of only talking. Adding one is data plus a
+## routing entry in hub.gd, never a new branch here.
+const SERVICE_BY_INTERACT_TYPE := {
+	"blacksmith": "blacksmith",
+	"merchant": "merchant",
+	"quest_board": "quest_board",
+	"storage": "storage",
+	"bounty_board": "bounty_board",
+}
+
 @export var npc_id: String = ""
 
 var _data: Dictionary = {}
@@ -35,6 +45,23 @@ func get_data() -> Dictionary:
 	return _data
 
 
+func requires_flag() -> String:
+	return str(_data.get("requiresFlag", ""))
+
+
+func is_available() -> bool:
+	var gate := requires_flag()
+	if gate == "":
+		return true
+	return CharacterService != null and CharacterService.is_flag_truthy(gate)
+
+
+func set_available(available: bool) -> void:
+	visible = available
+	if _interactable != null:
+		_interactable.set_deferred("monitoring", available)
+
+
 func is_player_near() -> bool:
 	return _interactable != null and _interactable.is_player_near()
 
@@ -48,36 +75,33 @@ func _on_player_exited() -> void:
 	_greeted_this_visit = false
 
 
+func resolve_dialogue_id() -> String:
+	for rule in _data.get("dialogueRules", []):
+		if not rule is Dictionary:
+			continue
+		var candidate: String = str(rule.get("dialogueId", ""))
+		if candidate == "":
+			continue
+		if DialogueConditions.evaluate(rule.get("condition")):
+			return candidate
+	return str(_data.get("dialogueId", ""))
+
+
 func _on_interacted() -> void:
 	if _data.is_empty():
 		return
-	var interact_type: String = _data.get("interactType", "dialogue")
-	match interact_type:
-		"dialogue":
-			var dialogue_id: String = _data.get("dialogueId", "")
-			if dialogue_id != "":
-				dialogue_requested.emit(npc_id, dialogue_id)
-		"blacksmith", "merchant":
-			var greet_id: String = _data.get("dialogueId", "")
-			if greet_id != "" and not _greeted_this_visit:
-				_greeted_this_visit = true
-				dialogue_requested.emit(npc_id, greet_id)
-				return
-			_emit_shop_for_type(interact_type)
-		"quest_board":
-			shop_requested.emit(npc_id, "quest_board")
-		_:
-			var fallback_dialogue: String = _data.get("dialogueId", "")
-			if fallback_dialogue != "":
-				dialogue_requested.emit(npc_id, fallback_dialogue)
-
-
-func _emit_shop_for_type(interact_type: String) -> void:
-	match interact_type:
-		"blacksmith":
-			shop_requested.emit(npc_id, "blacksmith")
-		"merchant":
-			shop_requested.emit(npc_id, "merchant")
+	var interact_type: String = str(_data.get("interactType", "dialogue"))
+	var dialogue_id := resolve_dialogue_id()
+	var service: String = str(SERVICE_BY_INTERACT_TYPE.get(interact_type, ""))
+	if service == "":
+		if dialogue_id != "":
+			dialogue_requested.emit(npc_id, dialogue_id)
+		return
+	if dialogue_id != "" and not _greeted_this_visit:
+		_greeted_this_visit = true
+		dialogue_requested.emit(npc_id, dialogue_id)
+		return
+	shop_requested.emit(npc_id, service)
 
 
 func _update_label() -> void:

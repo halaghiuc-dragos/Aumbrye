@@ -1,0 +1,28 @@
+{
+  "id": "reliquary_greatsword",
+  "name": "Reliquary Greatsword",
+  "itemType": "weapon",
+  "equipmentSlot": "weapon",
+  "gridWidth": 2,
+  "gridHeight": 4,
+  "stackSize": 1,
+  "rarity": "rare",
+  "description": "Two hands, and a promise not to step back. Melted down from offering plate. Nobody asked the congregation. Scaling: Strength B, Dexterity E.",
+  "value": 264,
+  "lootValue": 132,
+  "maxDurability": 130,
+  "baseId": "greatsword",
+  "materialTier": "reliquary",
+  "biome": "dark_cathedral",
+  "scaling": {
+    "strength": "B",
+    "dexterity": "E"
+  },
+  "stats": {
+    "physicalDamage": 21,
+    "poiseDamage": 0.26,
+    "resistArcane": 0.08,
+    "resistFire": 0.04
+  },
+  "weaponId": "greatsword"
+}

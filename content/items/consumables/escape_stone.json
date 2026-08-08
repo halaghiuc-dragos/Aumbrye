@@ -1,0 +1,16 @@
+{
+  "id": "escape_stone",
+  "name": "Escape Stone",
+  "itemType": "consumable",
+  "gridWidth": 1,
+  "gridHeight": 2,
+  "stackSize": 2,
+  "rarity": "epic",
+  "description": "Ends the descent on your terms. Whatever you are carrying comes back with you.",
+  "consumableEffect": {
+    "kind": "escape",
+    "usableInHub": false
+  },
+  "value": 380,
+  "lootValue": 190
+}

@@ -7,6 +7,16 @@ signal line_changed(speaker: String, text: String, choices: Array)
 signal dialogue_ended
 signal action_triggered(action: Dictionary)
 
+const RELATIONSHIP_FLAG_PREFIX := "rel_"
+const STORY_BEAT_FLAG := "story_beat"
+
+const UI_ACTIONS := [
+	"open_blacksmith",
+	"open_merchant",
+	"open_quest_board",
+	"open_storage",
+]
+
 var _dialogue: Dictionary = {}
 var _current_node_id: String = ""
 var _active := false
@@ -134,13 +144,62 @@ func _execute_action(action: Dictionary) -> void:
 	match action_type:
 		"set_flag":
 			CharacterService.set_flag(str(action.get("flag", "")), action.get("value", true))
+		"increment_flag":
+			var counter_id: String = str(action.get("flag", ""))
+			var amount: int = int(action.get("amount", 1))
+			CharacterService.set_flag(counter_id, _flag_number(counter_id) + amount)
 		"add_gold":
 			CharacterService.add_gold(int(action.get("amount", 0)))
 		"start_quest":
 			QuestService.accept_quest(str(action.get("questId", "")))
 		"complete_quest":
 			QuestService.complete_quest(str(action.get("questId", "")))
-		"open_blacksmith", "open_merchant", "open_quest_board", "open_storage":
-			action_triggered.emit(action)
+		"give_item":
+			InventoryService.add_item(
+				str(action.get("itemId", "")), int(action.get("quantity", 1))
+			)
+		"take_item":
+			InventoryService.inventory.remove_items_by_id(
+				str(action.get("itemId", "")), int(action.get("quantity", 1))
+			)
+		"unlock_recipe":
+			LocalSave.add_recipe(str(action.get("recipeId", "")))
+		"set_relationship":
+			_apply_relationship(action)
+		"play_sfx":
+			AudioDirector.play_sfx(str(action.get("sfxId", "ui")))
+		"advance_story_beat":
+			var beat: int = int(action.get("beat", 0))
+			if beat > _flag_number(STORY_BEAT_FLAG):
+				CharacterService.set_flag(STORY_BEAT_FLAG, beat)
+		"record_discovery":
+			QuestService.register_discovery(str(action.get("discoveryId", "")))
+		"record_rescue":
+			QuestService.register_rescue(str(action.get("npcId", "")))
 		_:
+			if action_type not in UI_ACTIONS:
+				push_error("DialogueRunner: unrecognized action type '%s'" % action_type)
+				assert(false, "DialogueRunner: unrecognized action type '%s'" % action_type)
 			action_triggered.emit(action)
+
+
+func _apply_relationship(action: Dictionary) -> void:
+	var npc_key: String = str(action.get("npc", ""))
+	if npc_key == "":
+		return
+	var flag_id := "%s%s" % [RELATIONSHIP_FLAG_PREFIX, npc_key]
+	if action.has("value"):
+		CharacterService.set_flag(flag_id, int(action.get("value", 0)))
+		return
+	CharacterService.set_flag(flag_id, _flag_number(flag_id) + int(action.get("delta", 1)))
+
+
+func _flag_number(flag_id: String) -> int:
+	var raw: Variant = CharacterService.get_flag(flag_id, 0)
+	if raw is bool:
+		return 1 if raw else 0
+	if raw is int or raw is float:
+		return int(raw)
+	if raw is String and str(raw).is_valid_int():
+		return int(str(raw))
+	return 0

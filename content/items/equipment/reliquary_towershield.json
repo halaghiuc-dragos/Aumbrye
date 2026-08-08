@@ -1,0 +1,39 @@
+{
+  "id": "reliquary_towershield",
+  "name": "Reliquary Tower Shield",
+  "itemType": "armor",
+  "equipmentSlot": "secondary",
+  "gridWidth": 2,
+  "gridHeight": 4,
+  "stackSize": 1,
+  "rarity": "rare",
+  "description": "A wall you have to carry. Most people put it down. Melted down from offering plate. Nobody asked the congregation. Scaling: Strength B.",
+  "value": 278,
+  "lootValue": 139,
+  "maxDurability": 150,
+  "baseId": "towershield",
+  "materialTier": "reliquary",
+  "biome": "dark_cathedral",
+  "scaling": {
+    "strength": "B"
+  },
+  "stats": {
+    "defense": 36,
+    "poise": 16,
+    "blockReduction": 0.13,
+    "resistArcane": 0.08,
+    "resistFire": 0.04
+  },
+  "block": {
+    "stability": 1.7,
+    "guardBreakPoise": 78,
+    "reduction": {
+      "physical": 0.9,
+      "fire": 0.66,
+      "frost": 0.46,
+      "poison": 0.46,
+      "lightning": 0.46,
+      "arcane": 0.74
+    }
+  }
+}

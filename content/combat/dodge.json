@@ -1,0 +1,41 @@
+{
+  "id": "dodge",
+  "name": "Dodge Tuning",
+  "description": "Roll proportions per armour weight class. Lighter armour rolls faster and stays invulnerable for a larger fraction of the roll; heavier armour rolls slower, recovers slower and gives up i-frames.",
+  "weight_from_defense": {
+    "light_below": 30.0,
+    "heavy_at_or_above": 75.0
+  },
+  "weight_classes": {
+    "light": {
+      "duration": 0.48,
+      "recovery": 0.16,
+      "iframe_start": 0.06,
+      "iframe_end": 0.42,
+      "peak_speed": 12.5,
+      "end_speed": 4.2,
+      "recovery_speed_mult": 0.82,
+      "stamina_cost_mult": 0.85
+    },
+    "medium": {
+      "duration": 0.55,
+      "recovery": 0.22,
+      "iframe_start": 0.1,
+      "iframe_end": 0.45,
+      "peak_speed": 11.0,
+      "end_speed": 3.6,
+      "recovery_speed_mult": 0.7,
+      "stamina_cost_mult": 1.0
+    },
+    "heavy": {
+      "duration": 0.62,
+      "recovery": 0.3,
+      "iframe_start": 0.14,
+      "iframe_end": 0.44,
+      "peak_speed": 9.2,
+      "end_speed": 3.0,
+      "recovery_speed_mult": 0.55,
+      "stamina_cost_mult": 1.25
+    }
+  }
+}

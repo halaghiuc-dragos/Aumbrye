@@ -1,0 +1,33 @@
+{
+  "id": "unique_sallyport_greaves",
+  "name": "Sallyport Greaves",
+  "itemType": "armor",
+  "equipmentSlot": "boots",
+  "gridWidth": 2,
+  "gridHeight": 2,
+  "stackSize": 1,
+  "rarity": "epic",
+  "description": "Made for men who had to be outside the wall and back before the horn finished.",
+  "value": 390,
+  "lootValue": 195,
+  "maxDurability": 95,
+  "unique": true,
+  "baseId": "greaves",
+  "biome": "forgotten_castle",
+  "scaling": {
+    "strength": "D"
+  },
+  "ruleText": "Dodging restores 8 stamina.",
+  "rules": [
+    {
+      "event": "onDodge",
+      "effect": "restore_stamina",
+      "amount": 8.0
+    }
+  ],
+  "stats": {
+    "evasion": 8,
+    "moveSpeed": 0.04,
+    "armor": 5
+  }
+}

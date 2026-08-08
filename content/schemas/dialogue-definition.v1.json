@@ -5,6 +5,122 @@
   "type": "object",
   "additionalProperties": false,
   "required": ["id", "startNode", "nodes"],
+  "$defs": {
+    "condition": {
+      "type": "object",
+      "propertyNames": {
+        "enum": [
+          "all",
+          "any",
+          "not",
+          "flag",
+          "minLevel",
+          "maxLevel",
+          "quest",
+          "gold",
+          "minRuns",
+          "minDeaths",
+          "hasItem",
+          "dungeonCleared",
+          "biome",
+          "minTier",
+          "relationship",
+          "storyBeat",
+          "questCompletions",
+          "lastRunOutcome",
+          "lastRunBiome",
+          "minLastRunFloor",
+          "lastRunBoss",
+          "bestiaryKills",
+          "bountyTokens",
+          "value",
+          "state",
+          "count",
+          "atLeast"
+        ]
+      },
+      "properties": {
+        "all": { "type": "array", "items": { "$ref": "#/$defs/condition" } },
+        "any": { "type": "array", "items": { "$ref": "#/$defs/condition" } },
+        "not": { "$ref": "#/$defs/condition" },
+        "flag": { "type": "string", "minLength": 1 },
+        "minLevel": { "type": "integer", "minimum": 1 },
+        "maxLevel": { "type": "integer", "minimum": 1 },
+        "quest": { "type": "string", "minLength": 1 },
+        "gold": { "type": "integer", "minimum": 0 },
+        "minRuns": { "type": "integer", "minimum": 0 },
+        "minDeaths": { "type": "integer", "minimum": 0 },
+        "hasItem": { "type": "string", "minLength": 1 },
+        "dungeonCleared": { "type": "string", "minLength": 1 },
+        "biome": { "type": "string", "minLength": 1 },
+        "minTier": { "type": "integer", "minimum": 1 },
+        "relationship": { "type": "string", "minLength": 1 },
+        "storyBeat": { "type": "integer", "minimum": 0 },
+        "questCompletions": { "type": "string", "minLength": 1 },
+        "lastRunOutcome": { "type": "string", "minLength": 1 },
+        "lastRunBiome": { "type": "string", "minLength": 1 },
+        "minLastRunFloor": { "type": "integer", "minimum": 1 },
+        "lastRunBoss": { "type": "boolean" },
+        "bestiaryKills": { "type": "string", "minLength": 1 },
+        "bountyTokens": { "type": "integer", "minimum": 0 },
+        "state": { "type": "string", "minLength": 1 },
+        "count": { "type": "integer", "minimum": 1 },
+        "atLeast": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "action": {
+      "type": "object",
+      "required": ["type"],
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "enum": [
+            "set_flag",
+            "increment_flag",
+            "add_gold",
+            "start_quest",
+            "complete_quest",
+            "give_item",
+            "take_item",
+            "unlock_recipe",
+            "set_relationship",
+            "play_sfx",
+            "advance_story_beat",
+            "record_discovery",
+            "record_rescue",
+            "open_blacksmith",
+            "open_merchant",
+            "open_quest_board",
+            "open_storage"
+          ]
+        },
+        "flag": { "type": "string", "minLength": 1 },
+        "value": {},
+        "amount": { "type": "integer" },
+        "questId": { "type": "string", "minLength": 1 },
+        "itemId": { "type": "string", "minLength": 1 },
+        "quantity": { "type": "integer", "minimum": 1 },
+        "recipeId": { "type": "string", "minLength": 1 },
+        "npc": { "type": "string", "minLength": 1 },
+        "npcId": { "type": "string", "minLength": 1 },
+        "delta": { "type": "integer" },
+        "sfxId": { "type": "string", "minLength": 1 },
+        "beat": { "type": "integer", "minimum": 0 },
+        "discoveryId": { "type": "string", "minLength": 1 }
+      }
+    },
+    "choice": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["text"],
+      "properties": {
+        "text": { "type": "string", "minLength": 1 },
+        "next": { "type": "string" },
+        "condition": { "$ref": "#/$defs/condition" },
+        "actions": { "type": "array", "items": { "$ref": "#/$defs/action" } }
+      }
+    }
+  },
   "properties": {
     "id": { "type": "string", "minLength": 1 },
     "startNode": { "type": "string", "minLength": 1 },
@@ -12,22 +128,17 @@
       "type": "object",
       "additionalProperties": {
         "type": "object",
-        "additionalProperties": true,
+        "additionalProperties": false,
         "required": ["speaker", "text"],
         "properties": {
           "speaker": { "type": "string" },
           "text": { "type": "string" },
           "next": { "type": "string" },
+          "fallback": { "type": "string" },
           "auto": { "type": "boolean" },
-          "condition": { "type": "object" },
-          "actions": { "type": "array" },
-          "choices": {
-            "type": "array",
-            "items": {
-              "type": "object",
-              "additionalProperties": true
-            }
-          }
+          "condition": { "$ref": "#/$defs/condition" },
+          "actions": { "type": "array", "items": { "$ref": "#/$defs/action" } },
+          "choices": { "type": "array", "items": { "$ref": "#/$defs/choice" } }
         }
       }
     }

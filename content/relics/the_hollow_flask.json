@@ -1,0 +1,21 @@
+{
+  "id": "the_hollow_flask",
+  "name": "The Hollow Flask",
+  "description": "Four points of armour given up. Clearing a room fills what you emptied.",
+  "maxStacks": 1,
+  "stats": {
+    "armor": -4
+  },
+  "tags": [
+    "vigil"
+  ],
+  "weight": 0.7,
+  "rules": [
+    {
+      "event": "onRoomClear",
+      "effect": "refund_flask",
+      "amount": 1
+    }
+  ],
+  "offerable": true
+}

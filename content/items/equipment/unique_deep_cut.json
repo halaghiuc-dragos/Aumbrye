@@ -1,0 +1,36 @@
+{
+  "id": "unique_deep_cut",
+  "name": "Deep Cut",
+  "itemType": "weapon",
+  "equipmentSlot": "weapon",
+  "gridWidth": 2,
+  "gridHeight": 4,
+  "stackSize": 1,
+  "rarity": "legendary",
+  "description": "The shafts are knapped, not fletched. They go in straight and do not come out.",
+  "value": 750,
+  "lootValue": 375,
+  "maxDurability": 95,
+  "unique": true,
+  "baseId": "longbow",
+  "biome": "crystal_caverns",
+  "scaling": {
+    "strength": "D",
+    "dexterity": "A"
+  },
+  "ruleText": "Hits have a 20% chance to cause bleeding.",
+  "rules": [
+    {
+      "event": "onHit",
+      "effect": "apply_status",
+      "statusId": "bleed",
+      "stacks": 1,
+      "chance": 0.2
+    }
+  ],
+  "stats": {
+    "physicalDamage": 19,
+    "critChance": 0.05
+  },
+  "weaponId": "bow"
+}

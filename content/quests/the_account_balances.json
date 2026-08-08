@@ -1,0 +1,27 @@
+{
+  "id": "the_account_balances",
+  "title": "The Account Balances",
+  "type": "defeat_with",
+  "chainId": "last_entry",
+  "prerequisites": [
+    "name_the_hierarch"
+  ],
+  "targetId": "umbral_hierarch",
+  "weaponItemId": "unique_the_unsaid_prayer",
+  "description": "The last line was struck out of every copy in the library, in the same hand. Odile remembers it. Say it to him with the blade that carries it.",
+  "rewards": {
+    "gold": 800,
+    "items": [
+      {
+        "itemId": "aumbral_tear",
+        "quantity": 1
+      }
+    ],
+    "flags": [
+      {
+        "flag": "story_completed",
+        "value": true
+      }
+    ]
+  }
+}

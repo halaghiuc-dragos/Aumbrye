@@ -1,0 +1,17 @@
+{
+  "id": "the_account_closed",
+  "title": "Standing Order: The Last Entry",
+  "type": "reach_depth",
+  "requiredCount": 8,
+  "repeatable": true,
+  "cooldownRuns": 2,
+  "availableWhen": {
+    "flag": "story_completed"
+  },
+  "bounty": "weekly",
+  "description": "The account balanced and the building is still here. Somebody has to keep going down and confirming that it is still here.",
+  "rewards": {
+    "gold": 400,
+    "bountyTokens": 9
+  }
+}

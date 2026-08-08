@@ -1,0 +1,26 @@
+{
+  "id": "hoarfrost_longbow",
+  "name": "Hoarfrost Longbow",
+  "itemType": "weapon",
+  "equipmentSlot": "weapon",
+  "gridWidth": 2,
+  "gridHeight": 4,
+  "stackSize": 1,
+  "rarity": "magic",
+  "description": "A stave taller than the archer, and older. Quenched in meltwater that never fully melted. Scaling: Strength D, Dexterity A.",
+  "value": 156,
+  "lootValue": 78,
+  "maxDurability": 95,
+  "baseId": "longbow",
+  "materialTier": "hoarfrost",
+  "biome": "frozen_fortress",
+  "scaling": {
+    "strength": "D",
+    "dexterity": "A"
+  },
+  "stats": {
+    "physicalDamage": 15,
+    "resistFrost": 0.08
+  },
+  "weaponId": "bow"
+}

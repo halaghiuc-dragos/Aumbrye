@@ -38,6 +38,7 @@ LocalSave="*res://scripts/save/local_save.gd"
 CharacterService="*res://scripts/save/character_service.gd"
 ProgressionService="*res://scripts/progression/progression_service.gd"
 RunBuffs="*res://scripts/combat/run_buffs.gd"
+CombatEvents="*res://scripts/combat/combat_events.gd"
 InventoryService="*res://scripts/inventory/inventory_service.gd"
 StorageService="*res://scripts/hub/storage_service.gd"
 QuestService="*res://scripts/quests/quest_service.gd"
@@ -349,7 +350,6 @@ locale/translations=PackedStringArray("res://translations/strings.en.translation
 [physics]
 
 common/physics_interpolation=true
-common/physics_ticks_per_second=60
 
 [rendering]
 

@@ -1,0 +1,73 @@
+{
+  "id": "widow_of_the_stair",
+  "displayName": "The Widow of the Stair",
+  "interactType": "dialogue",
+  "dialogueId": "veil_greeting",
+  "requiresFlag": "rescued_veil",
+  "dialogueRules": [
+    {
+      "condition": {
+        "not": {
+          "relationship": "veil",
+          "atLeast": 1
+        }
+      },
+      "dialogueId": "veil_arrival"
+    },
+    {
+      "condition": {
+        "any": [
+          {
+            "all": [
+              {
+                "lastRunOutcome": "died"
+              },
+              {
+                "lastRunBoss": true
+              }
+            ]
+          },
+          {
+            "all": [
+              {
+                "lastRunOutcome": "died"
+              },
+              {
+                "minLastRunFloor": 4
+              }
+            ]
+          },
+          {
+            "all": [
+              {
+                "lastRunOutcome": "escaped"
+              },
+              {
+                "lastRunBoss": true
+              }
+            ]
+          },
+          {
+            "lastRunBiome": "umbral_chapel"
+          },
+          {
+            "all": [
+              {
+                "lastRunOutcome": "died"
+              },
+              {
+                "minDeaths": 10
+              }
+            ]
+          }
+        ]
+      },
+      "dialogueId": "veil_reactions"
+    }
+  ],
+  "position": {
+    "x": -9.6,
+    "y": 0,
+    "z": -13
+  }
+}

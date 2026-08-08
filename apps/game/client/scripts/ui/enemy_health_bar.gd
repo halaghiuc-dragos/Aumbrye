@@ -3,18 +3,22 @@ class_name EnemyHealthBar
 
 ## Billboard HP bar above enemies — nearest-filtered Sprite3D quads.
 
-const BAR_TEX_W := 32
-const BAR_TEX_H := 4
+const PixelStyle := preload("res://scripts/art/style/pixel_diorama_style.gd")
+
+const BAR_TEX_W := 28
+const BAR_TEX_H := 3
 const ATTACK_BAR_TEX_H := 3
-const BAR_WORLD_W := 1.1
-const BAR_WORLD_H := 0.12
-const ATTACK_BAR_WORLD_H := 0.08
-const ATTACK_BAR_OFFSET_Y := -0.16
+const FILL_TEX_W := BAR_TEX_W - 2
+const FILL_TEX_H := 1
+const BAR_WORLD_W := BAR_TEX_W * PixelStyle.WORLD_PIXEL
+const BAR_WORLD_H := BAR_TEX_H * PixelStyle.WORLD_PIXEL
+const ATTACK_BAR_OFFSET_PIXELS := -4
+const ATTACK_BAR_OFFSET_Y := ATTACK_BAR_OFFSET_PIXELS * PixelStyle.WORLD_PIXEL
+const FILL_WORLD_W := FILL_TEX_W * PixelStyle.WORLD_PIXEL
+const FILL_DEPTH_OFFSET := -0.02
 const DEFAULT_HEIGHT := 2.2
 const MAX_VISIBLE_DISTANCE := 25.0
 const DISTANCE_CHECK_INTERVAL := 0.5
-const FILL_WORLD_W := BAR_WORLD_W - 0.03
-const FILL_TEX_SIZE := 2
 
 var _bg_sprite: Sprite3D
 var _fill_sprite: Sprite3D
@@ -69,19 +73,15 @@ func _build_sprites() -> void:
 	_bg_sprite.name = "Background"
 	_bg_sprite.texture = _bg_texture
 	_bg_sprite.billboard = BaseMaterial3D.BILLBOARD_FIXED_Y
-	_bg_sprite.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
-	_bg_sprite.pixel_size = BAR_WORLD_W / float(BAR_TEX_W)
-	_bg_sprite.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	PixelStyle.configure_pixel_sprite(_bg_sprite)
 	add_child(_bg_sprite)
 
 	_fill_sprite = Sprite3D.new()
 	_fill_sprite.name = "Fill"
 	_fill_sprite.texture = _fill_texture
 	_fill_sprite.billboard = BaseMaterial3D.BILLBOARD_FIXED_Y
-	_fill_sprite.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
-	_fill_sprite.pixel_size = FILL_WORLD_W / float(FILL_TEX_SIZE)
-	_fill_sprite.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	_fill_sprite.position.z = -0.02
+	PixelStyle.configure_pixel_sprite(_fill_sprite)
+	_fill_sprite.position.z = FILL_DEPTH_OFFSET
 	add_child(_fill_sprite)
 	_build_attack_sprites()
 
@@ -94,9 +94,7 @@ func _build_attack_sprites() -> void:
 	_attack_bg_sprite.name = "AttackBackground"
 	_attack_bg_sprite.texture = _attack_bg_texture
 	_attack_bg_sprite.billboard = BaseMaterial3D.BILLBOARD_FIXED_Y
-	_attack_bg_sprite.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
-	_attack_bg_sprite.pixel_size = BAR_WORLD_W / float(BAR_TEX_W)
-	_attack_bg_sprite.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	PixelStyle.configure_pixel_sprite(_attack_bg_sprite)
 	_attack_bg_sprite.position.y = ATTACK_BAR_OFFSET_Y
 	_attack_bg_sprite.visible = false
 	add_child(_attack_bg_sprite)
@@ -105,11 +103,9 @@ func _build_attack_sprites() -> void:
 	_attack_fill_sprite.name = "AttackFill"
 	_attack_fill_sprite.texture = _attack_fill_texture
 	_attack_fill_sprite.billboard = BaseMaterial3D.BILLBOARD_FIXED_Y
-	_attack_fill_sprite.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
-	_attack_fill_sprite.pixel_size = FILL_WORLD_W / float(FILL_TEX_SIZE)
-	_attack_fill_sprite.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	PixelStyle.configure_pixel_sprite(_attack_fill_sprite)
 	_attack_fill_sprite.position.y = ATTACK_BAR_OFFSET_Y
-	_attack_fill_sprite.position.z = -0.02
+	_attack_fill_sprite.position.z = FILL_DEPTH_OFFSET
 	_attack_fill_sprite.visible = false
 	add_child(_attack_fill_sprite)
 
@@ -125,10 +121,7 @@ func begin_attack_telegraph(_duration: float) -> void:
 func set_attack_telegraph_progress(ratio: float) -> void:
 	if _attack_fill_sprite == null:
 		return
-	var fill_ratio := clampf(ratio, 0.0, 1.0)
-	var fill_w := FILL_WORLD_W * fill_ratio
-	_attack_fill_sprite.position.x = FILL_WORLD_W * 0.5 - fill_w * 0.5
-	_attack_fill_sprite.scale.x = maxf(fill_ratio, 0.001)
+	_apply_fill(_attack_fill_sprite, ratio)
 
 
 func hide_attack_telegraph() -> void:
@@ -136,6 +129,13 @@ func hide_attack_telegraph() -> void:
 		_attack_bg_sprite.visible = false
 	if _attack_fill_sprite:
 		_attack_fill_sprite.visible = false
+
+
+func _apply_fill(sprite: Sprite3D, ratio: float) -> void:
+	var fill_ratio := PixelStyle.snap_fill_ratio(ratio, FILL_TEX_W)
+	var fill_w := FILL_WORLD_W * fill_ratio
+	sprite.position.x = FILL_WORLD_W * 0.5 - fill_w * 0.5
+	sprite.scale.x = maxf(fill_ratio, 0.001)
 
 
 func _make_bar_texture(
@@ -156,7 +156,7 @@ func _make_bar_texture(
 
 
 func _make_solid_texture(color: Color) -> ImageTexture:
-	var img := Image.create(FILL_TEX_SIZE, FILL_TEX_SIZE, false, Image.FORMAT_RGBA8)
+	var img := Image.create(FILL_TEX_W, FILL_TEX_H, false, Image.FORMAT_RGBA8)
 	img.fill(color)
 	return ImageTexture.create_from_image(img)
 
@@ -165,9 +165,7 @@ func _on_health_changed(current: float, max_value: float) -> void:
 	if _fill_sprite == null:
 		return
 	var ratio: float = 0.0 if max_value <= 0.0 else clampf(current / max_value, 0.0, 1.0)
-	var fill_w := FILL_WORLD_W * ratio
-	_fill_sprite.position.x = FILL_WORLD_W * 0.5 - fill_w * 0.5
-	_fill_sprite.scale.x = maxf(ratio, 0.001)
+	_apply_fill(_fill_sprite, ratio)
 	_alive = ratio > 0.0
 	_apply_visibility()
 

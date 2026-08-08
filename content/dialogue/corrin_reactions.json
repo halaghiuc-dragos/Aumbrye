@@ -1,0 +1,84 @@
+{
+  "id": "corrin_reactions",
+  "startNode": "start",
+  "nodes": {
+    "start": {
+      "speaker": "Corrin",
+      "text": "It went out and you went out with it. Both can be relit. Only one of you is asking to be.",
+      "condition": {
+        "all": [
+          {
+            "lastRunOutcome": "died"
+          },
+          {
+            "lastRunBoss": true
+          }
+        ]
+      },
+      "fallback": "r2",
+      "next": "end"
+    },
+    "r2": {
+      "speaker": "Corrin",
+      "text": "Four floors on one wick. Whatever you were burning, it was not oil.",
+      "condition": {
+        "all": [
+          {
+            "lastRunOutcome": "died"
+          },
+          {
+            "minLastRunFloor": 4
+          }
+        ]
+      },
+      "fallback": "r3",
+      "next": "end"
+    },
+    "r3": {
+      "speaker": "Corrin",
+      "text": "You came back up with the light still on you. I can see it. It is not a figure of speech in this building.",
+      "condition": {
+        "all": [
+          {
+            "lastRunOutcome": "escaped"
+          },
+          {
+            "lastRunBoss": true
+          }
+        ]
+      },
+      "fallback": "r4",
+      "next": "end"
+    },
+    "r4": {
+      "speaker": "Corrin",
+      "text": "The Depths. That is where the store was, and where the store was not. I have carried lanterns down there that came back heavier and I have never once opened one.",
+      "condition": {
+        "lastRunBiome": "prism_depths"
+      },
+      "fallback": "r5",
+      "next": "end"
+    },
+    "r5": {
+      "speaker": "Corrin",
+      "text": "Ten. Every one of them relit. Somebody is paying for that and it is not you and it is not me.",
+      "condition": {
+        "all": [
+          {
+            "lastRunOutcome": "died"
+          },
+          {
+            "minDeaths": 10
+          }
+        ]
+      },
+      "fallback": "quiet",
+      "next": "end"
+    },
+    "quiet": {
+      "speaker": "Corrin",
+      "text": "Brackets are up. Wicks are trimmed. There is no oil, but the brackets are up.",
+      "next": "end"
+    }
+  }
+}

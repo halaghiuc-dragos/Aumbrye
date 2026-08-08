@@ -1,0 +1,12 @@
+{
+  "id": "ember_catalyst",
+  "name": "Ember Catalyst",
+  "itemType": "material",
+  "gridWidth": 1,
+  "gridHeight": 1,
+  "stackSize": 20,
+  "description": "Fire that has been persuaded to stay in one place.",
+  "value": 45,
+  "lootValue": 27,
+  "materialTier": "mirebrass"
+}

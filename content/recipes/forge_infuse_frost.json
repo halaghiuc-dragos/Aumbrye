@@ -1,0 +1,16 @@
+{
+  "id": "forge_infuse_frost",
+  "type": "infuse",
+  "itemId": "any",
+  "goldCost": 400,
+  "materials": [
+    {
+      "itemId": "rime_catalyst",
+      "quantity": 2
+    },
+    {
+      "itemId": "hardening_quench",
+      "quantity": 3
+    }
+  ]
+}

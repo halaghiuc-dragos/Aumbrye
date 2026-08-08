@@ -1,0 +1,22 @@
+{
+  "id": "the_last_ward",
+  "name": "The Last Ward",
+  "description": "A block held at the worst moment gives back a little life.",
+  "maxStacks": 1,
+  "stats": {
+    "armor": 5
+  },
+  "tags": [
+    "ward"
+  ],
+  "weight": 0.8,
+  "rules": [
+    {
+      "event": "onBlock",
+      "effect": "restore_health",
+      "amount": 5,
+      "cooldown": 4
+    }
+  ],
+  "offerable": true
+}

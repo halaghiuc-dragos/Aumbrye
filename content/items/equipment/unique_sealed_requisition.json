@@ -1,0 +1,51 @@
+{
+  "id": "unique_sealed_requisition",
+  "name": "Sealed Requisition",
+  "itemType": "armor",
+  "equipmentSlot": "secondary",
+  "gridWidth": 2,
+  "gridHeight": 4,
+  "stackSize": 1,
+  "rarity": "legendary",
+  "description": "Requested, approved, never issued. It waited in the vault for the war to come back.",
+  "value": 820,
+  "lootValue": 410,
+  "maxDurability": 150,
+  "unique": true,
+  "baseId": "towershield",
+  "biome": "iron_vault",
+  "scaling": {
+    "strength": "B"
+  },
+  "ruleText": "Each block raises defense by 3, up to 8 stacks. Resets on entering a floor.",
+  "rules": [
+    {
+      "event": "onBlock",
+      "effect": "add_stack",
+      "stackId": "requisition",
+      "maxStacks": 8,
+      "stat": "defense",
+      "perStack": 3,
+      "resetOn": [
+        "onFloorEnter"
+      ]
+    }
+  ],
+  "stats": {
+    "defense": 26,
+    "poise": 14,
+    "blockReduction": 0.08
+  },
+  "block": {
+    "stability": 1.7,
+    "guardBreakPoise": 78,
+    "reduction": {
+      "physical": 0.92,
+      "fire": 0.5,
+      "frost": 0.5,
+      "poison": 0.5,
+      "lightning": 0.5,
+      "arcane": 0.5
+    }
+  }
+}

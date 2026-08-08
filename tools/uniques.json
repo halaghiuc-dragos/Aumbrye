@@ -1,0 +1,748 @@
+{
+  "schemaVersion": 1,
+  "uniques": [
+    {
+      "id": "unique_widow_of_the_stair",
+      "name": "Widow of the Stair",
+      "archetype": "dagger",
+      "rarity": "epic",
+      "biome": "forgotten_castle",
+      "value": 420,
+      "description": "She waited on the sixth landing for eleven years. The garrison stopped using that stair.",
+      "ruleText": "Backstabs restore 15 stamina.",
+      "stats": { "critChance": 0.06, "physicalDamage": 9 },
+      "rules": [{ "event": "onBackstab", "effect": "restore_stamina", "amount": 15.0 }]
+    },
+    {
+      "id": "unique_gatewardens_answer",
+      "name": "The Gatewarden's Answer",
+      "archetype": "halberd",
+      "rarity": "epic",
+      "biome": "forgotten_castle",
+      "value": 480,
+      "description": "Every petitioner got the same reply, and it was never spoken aloud.",
+      "ruleText": "Parrying restores 30 stamina.",
+      "stats": { "physicalDamage": 14, "poiseDamage": 0.12 },
+      "rules": [{ "event": "onParry", "effect": "restore_stamina", "amount": 30.0 }]
+    },
+    {
+      "id": "unique_last_muster",
+      "name": "Last Muster",
+      "archetype": "longsword",
+      "rarity": "legendary",
+      "biome": "forgotten_castle",
+      "value": 760,
+      "description": "Forty-one names were called that morning. The blade belonged to the one who answered last.",
+      "ruleText": "Each kill raises damage 4%, up to 6 stacks. Resets when you are hit.",
+      "stats": { "physicalDamage": 16, "damagePercent": 6 },
+      "rules": [
+        {
+          "event": "onKill",
+          "effect": "add_stack",
+          "stackId": "muster",
+          "maxStacks": 6,
+          "stat": "damagePercent",
+          "perStack": 4.0,
+          "resetOn": ["onHitTaken"]
+        }
+      ]
+    },
+    {
+      "id": "unique_courtyard_vigil",
+      "name": "Courtyard Vigil",
+      "archetype": "kiteshield",
+      "rarity": "epic",
+      "biome": "forgotten_castle",
+      "value": 430,
+      "description": "Propped upright against the well, still angled toward the gate it was set to watch.",
+      "ruleText": "Blocking restores 12 stamina.",
+      "stats": { "defense": 16, "poise": 8 },
+      "rules": [{ "event": "onBlock", "effect": "restore_stamina", "amount": 12.0 }]
+    },
+    {
+      "id": "unique_heirless_crown",
+      "name": "The Heirless Crown",
+      "archetype": "helm",
+      "rarity": "legendary",
+      "biome": "forgotten_castle",
+      "value": 690,
+      "description": "Cast for a succession that did not occur. The inner band was never sized down.",
+      "ruleText": "Clearing a room yields 40 gold.",
+      "stats": { "armor": 9, "goldFind": 0.12, "poise": 6 },
+      "rules": [{ "event": "onRoomClear", "effect": "bonus_gold", "amount": 40.0 }]
+    },
+    {
+      "id": "unique_stonewife_band",
+      "name": "Stonewife's Band",
+      "archetype": "band",
+      "rarity": "rare",
+      "biome": "forgotten_castle",
+      "value": 260,
+      "description": "Given at a wedding held during the siege. Both parties kept their promise, briefly.",
+      "ruleText": "At low health, restores 60 health. Once every 90 seconds.",
+      "stats": { "maxHealth": 34, "healthRegen": 2 },
+      "rules": [
+        { "event": "onLowHealth", "effect": "restore_health", "amount": 60.0, "cooldown": 90.0 }
+      ]
+    },
+    {
+      "id": "unique_debtors_pendant",
+      "name": "Debtor's Pendant",
+      "archetype": "pendant",
+      "rarity": "rare",
+      "biome": "forgotten_castle",
+      "value": 280,
+      "description": "Pawned four times, redeemed three. The fourth ledger entry has no closing mark.",
+      "ruleText": "Each kill yields 5 gold.",
+      "stats": { "goldFind": 0.15, "manaMax": 14 },
+      "rules": [{ "event": "onKill", "effect": "bonus_gold", "amount": 5.0 }]
+    },
+    {
+      "id": "unique_sallyport_greaves",
+      "name": "Sallyport Greaves",
+      "archetype": "greaves",
+      "rarity": "epic",
+      "biome": "forgotten_castle",
+      "value": 390,
+      "description": "Made for men who had to be outside the wall and back before the horn finished.",
+      "ruleText": "Dodging restores 8 stamina.",
+      "stats": { "evasion": 8, "moveSpeed": 0.04, "armor": 5 },
+      "rules": [{ "event": "onDodge", "effect": "restore_stamina", "amount": 8.0 }]
+    },
+    {
+      "id": "unique_quartermasters_tally",
+      "name": "The Quartermaster's Tally",
+      "archetype": "warhammer",
+      "rarity": "epic",
+      "biome": "iron_vault",
+      "value": 510,
+      "description": "He counted every hammer out and every hammer back. This one he counted twice, then stopped counting.",
+      "ruleText": "Hits have a 10% chance to stun.",
+      "stats": { "physicalDamage": 18, "poiseDamage": 0.2 },
+      "rules": [
+        {
+          "event": "onHit",
+          "effect": "apply_status",
+          "statusId": "stun",
+          "stacks": 1,
+          "chance": 0.1,
+          "cooldown": 4.0
+        }
+      ]
+    },
+    {
+      "id": "unique_ledger_of_debts",
+      "name": "Ledger of Debts",
+      "archetype": "pendant",
+      "rarity": "epic",
+      "biome": "iron_vault",
+      "value": 470,
+      "description": "A page folded into a locket. The sums are still owed to somebody.",
+      "ruleText": "Each kill yields 12 gold.",
+      "stats": { "goldFind": 0.25, "manaMax": 18 },
+      "rules": [{ "event": "onKill", "effect": "bonus_gold", "amount": 12.0 }]
+    },
+    {
+      "id": "unique_sealed_requisition",
+      "name": "Sealed Requisition",
+      "archetype": "towershield",
+      "rarity": "legendary",
+      "biome": "iron_vault",
+      "value": 820,
+      "description": "Requested, approved, never issued. It waited in the vault for the war to come back.",
+      "ruleText": "Each block raises defense by 3, up to 8 stacks. Resets on entering a floor.",
+      "stats": { "defense": 26, "poise": 14, "blockReduction": 0.08 },
+      "rules": [
+        {
+          "event": "onBlock",
+          "effect": "add_stack",
+          "stackId": "requisition",
+          "maxStacks": 8,
+          "stat": "defense",
+          "perStack": 3.0,
+          "resetOn": ["onFloorEnter"]
+        }
+      ]
+    },
+    {
+      "id": "unique_foundry_gauntlets",
+      "name": "Foundry Gauntlets",
+      "archetype": "gauntlets",
+      "rarity": "rare",
+      "biome": "iron_vault",
+      "value": 240,
+      "description": "The palms are scorched through. The wearer kept working anyway.",
+      "ruleText": "Critical hits restore 10 stamina.",
+      "stats": { "armor": 6, "staminaMax": 12, "critChance": 0.02 },
+      "rules": [{ "event": "onCrit", "effect": "restore_stamina", "amount": 10.0 }]
+    },
+    {
+      "id": "unique_inventory_of_the_dead",
+      "name": "Inventory of the Dead",
+      "archetype": "cuirass",
+      "rarity": "epic",
+      "biome": "iron_vault",
+      "value": 540,
+      "description": "Plate reclaimed from the fallen, restamped, reissued. The old marks show through the new.",
+      "ruleText": "Taking a hit restores 8 mana.",
+      "stats": { "armor": 18, "defense": 12, "manaRegen": 0.05 },
+      "rules": [{ "event": "onHitTaken", "effect": "restore_mana", "amount": 8.0 }]
+    },
+    {
+      "id": "unique_ironmongers_promise",
+      "name": "The Ironmonger's Promise",
+      "archetype": "waraxe",
+      "rarity": "rare",
+      "biome": "iron_vault",
+      "value": 300,
+      "description": "He swore it would outlast the man who bought it. It has outlasted several.",
+      "ruleText": "Hits heal you for 4% of the damage dealt.",
+      "stats": { "physicalDamage": 11 },
+      "rules": [{ "event": "onHit", "effect": "lifesteal", "pct": 0.04 }]
+    },
+    {
+      "id": "unique_vaultkeeper_helm",
+      "name": "Vaultkeeper's Helm",
+      "archetype": "helm",
+      "rarity": "epic",
+      "biome": "iron_vault",
+      "value": 400,
+      "description": "The eye slits were narrowed with a file, by hand, from the inside.",
+      "ruleText": "Clearing a room restores 25 health.",
+      "stats": { "armor": 11, "poise": 7, "lootQuality": 0.06 },
+      "rules": [{ "event": "onRoomClear", "effect": "restore_health", "amount": 25.0 }]
+    },
+    {
+      "id": "unique_mire_tongue",
+      "name": "Mire-Tongue",
+      "archetype": "dagger",
+      "rarity": "epic",
+      "biome": "poison_swamp",
+      "value": 450,
+      "description": "The edge was never sharpened. It did not need to be.",
+      "ruleText": "Hits have a 35% chance to poison.",
+      "stats": { "poisonDamage": 8, "critChance": 0.04 },
+      "rules": [
+        {
+          "event": "onHit",
+          "effect": "apply_status",
+          "statusId": "poison",
+          "stacks": 1,
+          "chance": 0.35
+        }
+      ]
+    },
+    {
+      "id": "unique_drowned_procession",
+      "name": "Drowned Procession",
+      "archetype": "spear",
+      "rarity": "legendary",
+      "biome": "poison_swamp",
+      "value": 780,
+      "description": "They walked into the fen in single file, carrying one of these each. Nobody counted them out.",
+      "ruleText": "Killing a poisoned enemy spreads poison to nearby enemies.",
+      "stats": { "poisonDamage": 12, "physicalDamage": 12 },
+      "rules": [
+        {
+          "event": "onKill",
+          "effect": "spread_status",
+          "statusId": "poison",
+          "stacks": 1,
+          "radius": 5.0,
+          "ifTargetHasStatus": "poison"
+        }
+      ]
+    },
+    {
+      "id": "unique_bog_oath",
+      "name": "Bog-Oath",
+      "archetype": "buckler",
+      "rarity": "rare",
+      "biome": "poison_swamp",
+      "value": 270,
+      "description": "Bound with reed cord swollen tight. Cutting it would take longer than the fight.",
+      "ruleText": "Blocking poisons the attacker.",
+      "stats": { "defense": 10, "resistPoison": 0.12 },
+      "rules": [
+        { "event": "onBlock", "effect": "apply_status", "statusId": "poison", "stacks": 1 }
+      ]
+    },
+    {
+      "id": "unique_fen_widows_veil",
+      "name": "Fen Widow's Veil",
+      "archetype": "helm",
+      "rarity": "epic",
+      "biome": "poison_swamp",
+      "value": 410,
+      "description": "Mourning cloth, waxed against the damp. It kept the flies off for a long while.",
+      "ruleText": "Applying a status restores 6 health.",
+      "stats": { "armor": 8, "resistPoison": 0.15, "healthRegen": 2 },
+      "rules": [
+        { "event": "onStatusApplied", "effect": "restore_health", "amount": 6.0, "cooldown": 1.5 }
+      ]
+    },
+    {
+      "id": "unique_leechbound_band",
+      "name": "Leechbound Band",
+      "archetype": "band",
+      "rarity": "epic",
+      "biome": "poison_swamp",
+      "value": 460,
+      "description": "Worn until the finger beneath went grey, and then worn a while longer.",
+      "ruleText": "Hits on poisoned enemies heal you for 6% of the damage dealt.",
+      "stats": { "maxHealth": 26, "poisonDamage": 5 },
+      "rules": [
+        { "event": "onHit", "effect": "lifesteal", "pct": 0.06, "ifTargetHasStatus": "poison" }
+      ]
+    },
+    {
+      "id": "unique_stiltwalkers_greaves",
+      "name": "Stiltwalker's Greaves",
+      "archetype": "greaves",
+      "rarity": "rare",
+      "biome": "poison_swamp",
+      "value": 250,
+      "description": "The soles are worn flat on the outer edge only. He never once put his heel down.",
+      "ruleText": "Dodging restores 6 stamina.",
+      "stats": { "evasion": 7, "moveSpeed": 0.05, "resistPoison": 0.08 },
+      "rules": [{ "event": "onDodge", "effect": "restore_stamina", "amount": 6.0 }]
+    },
+    {
+      "id": "unique_rot_and_remedy",
+      "name": "Rot and Remedy",
+      "archetype": "staff",
+      "rarity": "legendary",
+      "biome": "poison_swamp",
+      "value": 740,
+      "description": "The physician carried both in the same jar and stopped labelling which was which.",
+      "ruleText": "At low health, clears all statuses from you.",
+      "stats": { "arcaneDamage": 10, "poisonDamage": 8, "manaMax": 30 },
+      "rules": [{ "event": "onLowHealth", "effect": "clear_status", "cooldown": 45.0 }]
+    },
+    {
+      "id": "unique_the_long_winter",
+      "name": "The Long Winter",
+      "archetype": "greatsword",
+      "rarity": "legendary",
+      "biome": "frozen_fortress",
+      "value": 860,
+      "description": "Drawn once at the start of a season that has not yet ended.",
+      "ruleText": "Hits have a 20% chance to freeze.",
+      "stats": { "frostDamage": 16, "physicalDamage": 14 },
+      "rules": [
+        {
+          "event": "onHit",
+          "effect": "apply_status",
+          "statusId": "freeze",
+          "stacks": 1,
+          "chance": 0.2,
+          "cooldown": 3.0
+        }
+      ]
+    },
+    {
+      "id": "unique_frostbitten_oath",
+      "name": "Frostbitten Oath",
+      "archetype": "warhammer",
+      "rarity": "epic",
+      "biome": "frozen_fortress",
+      "value": 520,
+      "description": "Sworn with a bare hand on cold iron. The hand did not come away whole.",
+      "ruleText": "Critical hits freeze the target.",
+      "stats": { "frostDamage": 10, "poiseDamage": 0.18 },
+      "rules": [
+        { "event": "onCrit", "effect": "apply_status", "statusId": "freeze", "stacks": 1 }
+      ]
+    },
+    {
+      "id": "unique_glacier_watch",
+      "name": "Glacier Watch",
+      "archetype": "towershield",
+      "rarity": "epic",
+      "biome": "frozen_fortress",
+      "value": 560,
+      "description": "Set into the drift as a windbreak. Two men sheltered behind it and only the shield was found.",
+      "ruleText": "Blocking restores 6 health.",
+      "stats": { "defense": 22, "resistFrost": 0.14, "poise": 12 },
+      "rules": [
+        { "event": "onBlock", "effect": "restore_health", "amount": 6.0, "cooldown": 1.0 }
+      ]
+    },
+    {
+      "id": "unique_rimeglass_pendant",
+      "name": "Rimeglass Pendant",
+      "archetype": "pendant",
+      "rarity": "epic",
+      "biome": "frozen_fortress",
+      "value": 480,
+      "description": "Ice that will not thaw, in a setting that was made to hold something else.",
+      "ruleText": "Killing a frozen enemy yields 20 gold.",
+      "stats": { "resistFrost": 0.16, "frostDamage": 6, "goldFind": 0.1 },
+      "rules": [
+        {
+          "event": "onKill",
+          "effect": "bonus_gold",
+          "amount": 20.0,
+          "ifTargetHasStatus": "freeze"
+        }
+      ]
+    },
+    {
+      "id": "unique_hearthless_cuirass",
+      "name": "Hearthless Cuirass",
+      "archetype": "cuirass",
+      "rarity": "legendary",
+      "biome": "frozen_fortress",
+      "value": 800,
+      "description": "The fortress kept no fires for the last two winters. The plate learned to be enough.",
+      "ruleText": "Each hit taken raises armor by 4, up to 6 stacks. Resets on room clear.",
+      "stats": { "armor": 24, "resistFrost": 0.18, "defense": 14 },
+      "rules": [
+        {
+          "event": "onHitTaken",
+          "effect": "add_stack",
+          "stackId": "hearthless",
+          "maxStacks": 6,
+          "stat": "armor",
+          "perStack": 4.0,
+          "resetOn": ["onRoomClear"]
+        }
+      ]
+    },
+    {
+      "id": "unique_snowblind",
+      "name": "Snowblind",
+      "archetype": "longbow",
+      "rarity": "epic",
+      "biome": "frozen_fortress",
+      "value": 530,
+      "description": "The archer shot at a shape in the white for an hour. There was no shape.",
+      "ruleText": "Each critical hit raises damage 3%, up to 8 stacks. Resets when you are hit.",
+      "stats": { "physicalDamage": 15, "critChance": 0.05 },
+      "rules": [
+        {
+          "event": "onCrit",
+          "effect": "add_stack",
+          "stackId": "snowblind",
+          "maxStacks": 8,
+          "stat": "damagePercent",
+          "perStack": 3.0,
+          "resetOn": ["onHitTaken"]
+        }
+      ]
+    },
+    {
+      "id": "unique_thawing_band",
+      "name": "Thawing Band",
+      "archetype": "band",
+      "rarity": "rare",
+      "biome": "frozen_fortress",
+      "value": 290,
+      "description": "Warm to the touch, always, for reasons the wearer preferred not to examine.",
+      "ruleText": "Entering a floor restores 40 health.",
+      "stats": { "maxHealth": 30, "resistFrost": 0.1 },
+      "rules": [{ "event": "onFloorEnter", "effect": "restore_health", "amount": 40.0 }]
+    },
+    {
+      "id": "unique_the_unsaid_prayer",
+      "name": "The Unsaid Prayer",
+      "archetype": "staff",
+      "rarity": "legendary",
+      "biome": "dark_cathedral",
+      "value": 810,
+      "description": "The last line was struck out of every copy in the library, in the same hand.",
+      "ruleText": "Each kill restores 15 mana.",
+      "stats": { "arcaneDamage": 16, "manaMax": 40, "manaRegen": 0.08 },
+      "rules": [{ "event": "onKill", "effect": "restore_mana", "amount": 15.0 }]
+    },
+    {
+      "id": "unique_reliquary_of_ash",
+      "name": "Reliquary of Ash",
+      "archetype": "rapier",
+      "rarity": "epic",
+      "biome": "dark_cathedral",
+      "value": 490,
+      "description": "The hilt is a reliquary. What it holds was already burned when it was placed inside.",
+      "ruleText": "Hits have a 25% chance to burn.",
+      "stats": { "fireDamage": 11, "critChance": 0.04 },
+      "rules": [
+        {
+          "event": "onHit",
+          "effect": "apply_status",
+          "statusId": "burn",
+          "stacks": 1,
+          "chance": 0.25
+        }
+      ]
+    },
+    {
+      "id": "unique_confessors_burden",
+      "name": "Confessor's Burden",
+      "archetype": "kiteshield",
+      "rarity": "epic",
+      "biome": "dark_cathedral",
+      "value": 500,
+      "description": "He heard everything and carried it on his arm. It grew no lighter.",
+      "ruleText": "Parrying restores 20 health.",
+      "stats": { "defense": 18, "resistArcane": 0.12, "poise": 9 },
+      "rules": [{ "event": "onParry", "effect": "restore_health", "amount": 20.0 }]
+    },
+    {
+      "id": "unique_censer_of_small_mercies",
+      "name": "Censer of Small Mercies",
+      "archetype": "pendant",
+      "rarity": "legendary",
+      "biome": "dark_cathedral",
+      "value": 830,
+      "description": "Swung down the aisle for the dying, never for the dead. The distinction mattered to someone.",
+      "ruleText": "At low health, refunds one flask charge. Once every three minutes.",
+      "stats": { "maxHealth": 40, "healthRegen": 3, "resistFire": 0.1 },
+      "rules": [
+        { "event": "onLowHealth", "effect": "refund_flask", "amount": 1.0, "cooldown": 180.0 }
+      ]
+    },
+    {
+      "id": "unique_choirless_helm",
+      "name": "Choirless Helm",
+      "archetype": "helm",
+      "rarity": "rare",
+      "biome": "dark_cathedral",
+      "value": 280,
+      "description": "Lined to muffle sound. The wearer had already heard the choir once.",
+      "ruleText": "Clearing a room restores 30 mana.",
+      "stats": { "armor": 7, "manaMax": 20, "resistArcane": 0.08 },
+      "rules": [{ "event": "onRoomClear", "effect": "restore_mana", "amount": 30.0 }]
+    },
+    {
+      "id": "unique_lector_gauntlets",
+      "name": "Lector's Gauntlets",
+      "archetype": "gauntlets",
+      "rarity": "epic",
+      "biome": "dark_cathedral",
+      "value": 420,
+      "description": "Ink under the nail beds, permanent. He read aloud for thirty years and was not thanked.",
+      "ruleText": "Critical hits restore 6 mana.",
+      "stats": { "armor": 7, "manaRegen": 0.06, "critChance": 0.03 },
+      "rules": [{ "event": "onCrit", "effect": "restore_mana", "amount": 6.0 }]
+    },
+    {
+      "id": "unique_the_apostate",
+      "name": "The Apostate",
+      "archetype": "greatsword",
+      "rarity": "legendary",
+      "biome": "dark_cathedral",
+      "value": 880,
+      "description": "Consecrated, then used against the people who consecrated it. Nobody reconsecrated it.",
+      "ruleText": "Backstabs heal you for 15% of the damage dealt.",
+      "stats": { "physicalDamage": 22, "arcaneDamage": 8 },
+      "rules": [{ "event": "onBackstab", "effect": "lifesteal", "pct": 0.15 }]
+    },
+    {
+      "id": "unique_prism_of_no_colour",
+      "name": "Prism of No Colour",
+      "archetype": "staff",
+      "rarity": "aumbral",
+      "biome": "crystal_caverns",
+      "value": 1400,
+      "description": "Light enters it. Something leaves. The two have never been shown to be the same light.",
+      "ruleText": "Each critical hit raises damage 5%, up to 10 stacks. Resets when you are hit.",
+      "stats": { "arcaneDamage": 24, "manaMax": 50, "critChance": 0.06 },
+      "rules": [
+        {
+          "event": "onCrit",
+          "effect": "add_stack",
+          "stackId": "prism",
+          "maxStacks": 10,
+          "stat": "damagePercent",
+          "perStack": 5.0,
+          "resetOn": ["onHitTaken"]
+        }
+      ]
+    },
+    {
+      "id": "unique_facet_and_fracture",
+      "name": "Facet and Fracture",
+      "archetype": "dagger",
+      "rarity": "legendary",
+      "biome": "crystal_caverns",
+      "value": 720,
+      "description": "It broke on the first strike and has broken on every strike since, without getting shorter.",
+      "ruleText": "Critical hits cause bleeding.",
+      "stats": { "critChance": 0.1, "physicalDamage": 13 },
+      "rules": [
+        { "event": "onCrit", "effect": "apply_status", "statusId": "bleed", "stacks": 1 }
+      ]
+    },
+    {
+      "id": "unique_the_singing_stone",
+      "name": "The Singing Stone",
+      "archetype": "band",
+      "rarity": "legendary",
+      "biome": "crystal_caverns",
+      "value": 700,
+      "description": "It is audible only in the last room of a floor, and only to whoever is wearing it.",
+      "ruleText": "Entering a floor restores 60 mana.",
+      "stats": { "manaMax": 45, "manaRegen": 0.1, "lootQuality": 0.1 },
+      "rules": [{ "event": "onFloorEnter", "effect": "restore_mana", "amount": 60.0 }]
+    },
+    {
+      "id": "unique_lattice_ward",
+      "name": "Lattice Ward",
+      "archetype": "kiteshield",
+      "rarity": "legendary",
+      "biome": "crystal_caverns",
+      "value": 790,
+      "description": "Grown across the doorway of a sealed gallery, then cut free and given a handle.",
+      "ruleText": "Each block raises block reduction 2%, up to 6 stacks. Resets when you are hit.",
+      "stats": { "defense": 20, "blockReduction": 0.1, "resistArcane": 0.14 },
+      "rules": [
+        {
+          "event": "onBlock",
+          "effect": "add_stack",
+          "stackId": "lattice",
+          "maxStacks": 6,
+          "stat": "blockReduction",
+          "perStack": 0.02,
+          "resetOn": ["onHitTaken"]
+        }
+      ]
+    },
+    {
+      "id": "unique_refraction_greaves",
+      "name": "Refraction Greaves",
+      "archetype": "greaves",
+      "rarity": "epic",
+      "biome": "crystal_caverns",
+      "value": 470,
+      "description": "You arrive slightly before the sound of arriving. It is not restful.",
+      "ruleText": "Each dodge raises evasion by 5, up to 5 stacks. Resets when you are hit.",
+      "stats": { "evasion": 10, "moveSpeed": 0.06 },
+      "rules": [
+        {
+          "event": "onDodge",
+          "effect": "add_stack",
+          "stackId": "refraction",
+          "maxStacks": 5,
+          "stat": "evasion",
+          "perStack": 5.0,
+          "resetOn": ["onHitTaken"]
+        }
+      ]
+    },
+    {
+      "id": "unique_deep_cut",
+      "name": "Deep Cut",
+      "archetype": "longbow",
+      "rarity": "legendary",
+      "biome": "crystal_caverns",
+      "value": 750,
+      "description": "The shafts are knapped, not fletched. They go in straight and do not come out.",
+      "ruleText": "Hits have a 20% chance to cause bleeding.",
+      "stats": { "physicalDamage": 19, "critChance": 0.05 },
+      "rules": [
+        {
+          "event": "onHit",
+          "effect": "apply_status",
+          "statusId": "bleed",
+          "stacks": 1,
+          "chance": 0.2
+        }
+      ]
+    },
+    {
+      "id": "unique_cavernlight_helm",
+      "name": "Cavernlight Helm",
+      "archetype": "helm",
+      "rarity": "epic",
+      "biome": "crystal_caverns",
+      "value": 440,
+      "description": "Set with a shard that lights nothing but shows the wearer where the walls are.",
+      "ruleText": "Entering a floor yields 60 gold.",
+      "stats": { "armor": 10, "goldFind": 0.18, "lootQuality": 0.08 },
+      "rules": [{ "event": "onFloorEnter", "effect": "bonus_gold", "amount": 60.0 }]
+    },
+    {
+      "id": "unique_the_geodes_patience",
+      "name": "The Geode's Patience",
+      "archetype": "cuirass",
+      "rarity": "aumbral",
+      "biome": "crystal_caverns",
+      "value": 1500,
+      "description": "It took nine thousand years to close. It objects to being opened in an afternoon.",
+      "ruleText": "Each hit taken raises armor by 6, up to 8 stacks. Clearing a room resets the stacks and restores 35 health.",
+      "stats": { "armor": 32, "defense": 20, "resistPhysical": 0.1 },
+      "rules": [
+        {
+          "event": "onHitTaken",
+          "effect": "add_stack",
+          "stackId": "geode",
+          "maxStacks": 8,
+          "stat": "armor",
+          "perStack": 6.0,
+          "resetOn": ["onRoomClear"]
+        },
+        { "event": "onRoomClear", "effect": "restore_health", "amount": 35.0 }
+      ]
+    },
+    {
+      "id": "unique_crown_of_the_crystal_sovereign",
+      "name": "Crown of the Crystal Sovereign",
+      "archetype": "helm",
+      "rarity": "aumbral",
+      "biome": "crystal_caverns",
+      "value": 1650,
+      "description": "Taken from a head that had grown into it. The removal was not clean and was not quick.",
+      "ruleText": "Each kill raises damage 3%, up to 12 stacks. Clearing a room restores 40 mana.",
+      "stats": { "armor": 20, "manaMax": 40, "lootQuality": 0.15, "poise": 10 },
+      "rules": [
+        {
+          "event": "onKill",
+          "effect": "add_stack",
+          "stackId": "sovereign",
+          "maxStacks": 12,
+          "stat": "damagePercent",
+          "perStack": 3.0,
+          "resetOn": ["onHitTaken"]
+        },
+        { "event": "onRoomClear", "effect": "restore_mana", "amount": 40.0 }
+      ]
+    },
+    {
+      "id": "unique_aumbral_verdict",
+      "name": "Aumbral Verdict",
+      "archetype": "greatsword",
+      "rarity": "aumbral",
+      "biome": "umbral_chapel",
+      "value": 1800,
+      "description": "The sentence was passed in a room with no windows and carried out immediately.",
+      "ruleText": "Killing a bleeding enemy spreads bleed to nearby enemies. Backstabs restore 25 stamina.",
+      "stats": { "physicalDamage": 30, "critChance": 0.06, "poiseDamage": 0.2 },
+      "rules": [
+        {
+          "event": "onKill",
+          "effect": "spread_status",
+          "statusId": "bleed",
+          "stacks": 1,
+          "radius": 5.0,
+          "ifTargetHasStatus": "bleed"
+        },
+        { "event": "onBackstab", "effect": "restore_stamina", "amount": 25.0 }
+      ]
+    },
+    {
+      "id": "unique_the_quiet_hour",
+      "name": "The Quiet Hour",
+      "archetype": "pendant",
+      "rarity": "aumbral",
+      "biome": "umbral_chapel",
+      "value": 1550,
+      "description": "Between the last bell and the first, nothing was permitted to happen. Something did.",
+      "ruleText": "At low health, clears all statuses from you and restores 80 health. Once every two minutes.",
+      "stats": { "maxHealth": 55, "healthRegen": 4, "resistArcane": 0.16 },
+      "rules": [
+        { "event": "onLowHealth", "effect": "clear_status", "cooldown": 120.0 },
+        { "event": "onLowHealth", "effect": "restore_health", "amount": 80.0, "cooldown": 120.0 }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,27 @@
+{
+  "id": "the_socket_above_the_altar",
+  "title": "The Socket Above the Altar",
+  "type": "fetch",
+  "chainId": "prayer",
+  "prerequisites": [
+    "struck_from_every_copy"
+  ],
+  "targetItemId": "sun_relic_medallion",
+  "requiredCount": 1,
+  "description": "Something sat above the altar and was taken away carefully. Careful is worse than stolen. Bring back whatever will fit the socket.",
+  "rewards": {
+    "gold": 320,
+    "items": [
+      {
+        "itemId": "reliquary_gilt",
+        "quantity": 1
+      }
+    ],
+    "flags": [
+      {
+        "flag": "prayer_restored",
+        "value": true
+      }
+    ]
+  }
+}

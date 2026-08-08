@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ApiError, getSave } from "../api/client";
 import { useAuth } from "../auth/AuthProvider";
 import { PageHelmet } from "../components/Layout";
+import PrerenderReady from "../components/PrerenderReady";
 
 function parseCharacter(stateJson: string | null | undefined): string {
   if (!stateJson) {
@@ -96,16 +97,17 @@ export default function AccountPage() {
         description="Sign in to view your Aumbrye character and cloud save summary."
         path="/account"
       />
+      {(!isSignedIn || !saveQuery.isLoading) && <PrerenderReady />}
       <h2>Account</h2>
+      {sessionExpired && (
+        <p className="error" role="status">
+          {sessionExpired}
+        </p>
+      )}
       {isSignedIn ? (
         <div className="card">
           <p>Signed in.</p>
           {saveQuery.isLoading && <p className="muted">Loading character…</p>}
-          {sessionExpired && (
-            <p className="error" role="status">
-              {sessionExpired}
-            </p>
-          )}
           {character && <p data-testid="character-line">{character}</p>}
           {saveQuery.error && !sessionExpired && (
             <p className="error" role="status">
@@ -157,7 +159,7 @@ export default function AccountPage() {
           </div>
         </form>
       )}
-      {message && (
+      {message && !sessionExpired && (
         <p className="muted" role="status">
           {message}
         </p>

@@ -3,13 +3,146 @@
   "biomeId": "iron_vault",
   "order": 6,
   "clearFlag": "theme_iron_vault_cleared",
-  "unlockRequirement": { "kind": "clear_dungeon", "dungeonId": "dark_cathedral" },
+  "unlockRequirement": {
+    "kind": "clear_dungeon",
+    "dungeonId": "dark_cathedral"
+  },
   "floorHpGrowth": 0.06,
   "floorDamageGrowth": 0.04,
   "bossDoorRequirement": "none",
   "difficultyTiers": [
-    { "tier": 1, "label": "Sealed", "hpMult": 1.0, "damageMult": 1.0, "lootBonus": 0.0, "modifiers": [] },
-    { "tier": 2, "label": "Fortified", "hpMult": 1.35, "damageMult": 1.18, "lootBonus": 0.15, "modifiers": ["elite_packs"] },
-    { "tier": 3, "label": "Impenetrable", "hpMult": 1.8, "damageMult": 1.4, "lootBonus": 0.35, "modifiers": ["elite_packs", "no_rest"] }
+    {
+      "tier": 1,
+      "label": "Sealed",
+      "description": "The dungeon as it lies. Nothing has been roused yet.",
+      "hpMult": 1,
+      "damageMult": 1,
+      "lootBonus": 0,
+      "modifiers": []
+    },
+    {
+      "tier": 2,
+      "label": "Fortified",
+      "description": "Something has begun to gather in the halls.",
+      "hpMult": 1.39,
+      "damageMult": 1.19,
+      "lootBonus": 0.12,
+      "modifiers": [
+        "elite_packs"
+      ]
+    },
+    {
+      "tier": 3,
+      "label": "Impenetrable",
+      "description": "The dead have put on armour, and they wear it well.",
+      "hpMult": 1.7,
+      "damageMult": 1.33,
+      "lootBonus": 0.24,
+      "modifiers": [
+        "elite_packs",
+        "armoured_foes"
+      ]
+    },
+    {
+      "tier": 4,
+      "label": "Rust-Locked",
+      "description": "They come faster now, and the vaults answer in kind.",
+      "hpMult": 1.98,
+      "damageMult": 1.46,
+      "lootBonus": 0.36,
+      "modifiers": [
+        "elite_packs",
+        "frenzied_foes",
+        "rich_veins"
+      ]
+    },
+    {
+      "tier": 5,
+      "label": "Hammer-Sworn",
+      "description": "No fire will hold here. Rest is a thing you remember.",
+      "hpMult": 2.25,
+      "damageMult": 1.57,
+      "lootBonus": 0.48,
+      "modifiers": [
+        "elite_packs",
+        "armoured_foes",
+        "no_rest"
+      ]
+    },
+    {
+      "tier": 6,
+      "label": "Furnace-Hot",
+      "description": "A single warden walks each floor, and the doors have learned to keep.",
+      "hpMult": 2.52,
+      "damageMult": 1.69,
+      "lootBonus": 0.6,
+      "modifiers": [
+        "elite_vigil",
+        "volatile_foes",
+        "barred_ways"
+      ]
+    },
+    {
+      "tier": 7,
+      "label": "Bolt-Riven",
+      "description": "The floors are laid with old malice, and the boss keeps a hoard.",
+      "hpMult": 2.77,
+      "damageMult": 1.8,
+      "lootBonus": 0.72,
+      "modifiers": [
+        "elite_vigil",
+        "frenzied_foes",
+        "thick_traps",
+        "boss_hoard"
+      ]
+    },
+    {
+      "tier": 8,
+      "label": "Grinding",
+      "description": "Armour and venom together. Even the hearths are starved.",
+      "hpMult": 3.02,
+      "damageMult": 1.9,
+      "lootBonus": 0.84,
+      "modifiers": [
+        "elite_vigil",
+        "armoured_foes",
+        "volatile_foes",
+        "no_rest",
+        "starved_hearth"
+      ]
+    },
+    {
+      "tier": 9,
+      "label": "Ironbound Deep",
+      "description": "They do not tire. The doors take two keys and give none back.",
+      "hpMult": 3.26,
+      "damageMult": 2,
+      "lootBonus": 0.96,
+      "modifiers": [
+        "elite_vigil",
+        "relentless_foes",
+        "sealed_doors",
+        "hostile_halls",
+        "boss_hoard"
+      ]
+    },
+    {
+      "tier": 10,
+      "label": "Unopened",
+      "description": "Everything at once, in the dark, with no map and no market.",
+      "hpMult": 3.5,
+      "damageMult": 2.1,
+      "lootBonus": 1.08,
+      "modifiers": [
+        "elite_vigil",
+        "relentless_foes",
+        "volatile_foes",
+        "frenzied_foes",
+        "fog_of_war",
+        "no_merchant",
+        "sealed_doors",
+        "boss_hoard"
+      ]
+    }
   ]
 }

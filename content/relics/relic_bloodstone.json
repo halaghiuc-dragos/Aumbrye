@@ -1,9 +1,21 @@
 {
-    "description":  "A crimson stone that feeds on spilled blood.",
-    "name":  "Relic Bloodstone",
-    "id":  "relic_bloodstone",
-    "stats":  {
-                  "lifesteal":  0.03
-              },
-    "maxStacks":  1
+  "id": "relic_bloodstone",
+  "name": "Relic Bloodstone",
+  "description": "A crimson stone that feeds on spilled blood. Critical hits drink deeper.",
+  "maxStacks": 1,
+  "stats": {
+    "lifesteal": 0.03
+  },
+  "tags": [
+    "blood"
+  ],
+  "weight": 1,
+  "rules": [
+    {
+      "event": "onCrit",
+      "effect": "lifesteal",
+      "pct": 0.25
+    }
+  ],
+  "offerable": true
 }

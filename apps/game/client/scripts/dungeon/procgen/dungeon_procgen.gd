@@ -69,11 +69,14 @@ static func generate(
 			"error": str(placements.get("error", "Placement failed")),
 		}
 	var content_rng := ProcgenRng.stream(run_seed, "content")
+	var content_config := RoomContentConfigScript.for_floor(
+		floor_index, RunFloorConfig.MAX_FLOORS, run_seed
+	)
 	var content_result := RoomContentAssignerScript.assign(
-		graph, assignment, content_rng, RoomContentConfigScript.default(), biome_id
+		graph, assignment, content_rng, content_config, biome_id
 	)
 	var content: Dictionary = content_result.get("content", {})
-	_annotate_minimap_key_rooms(rooms, content.get("roomContent", []))
+	_annotate_minimap_rooms(rooms, content.get("roomContent", []))
 	var landmarks := _build_landmark_hints(rooms, graph)
 	var run_id := _deterministic_run_id(run_seed, biome_id, floor_index)
 	var definition := {
@@ -105,6 +108,8 @@ static func generate(
 		"floorIndex": floor_index,
 		"isFinalFloor": false,
 		"maxHeightLevel": config.max_height_level,
+		"floorTheme": content_config.floor_theme_id,
+		"floorThemeLabel": content_config.floor_theme_label,
 		"roomContent": content.get("roomContent", []),
 		"locks": content.get("locks", []),
 		"puzzles": content.get("puzzles", []),
@@ -164,6 +169,8 @@ static func _generate_final_floor(
 		"floorIndex": floor_index,
 		"isFinalFloor": true,
 		"maxHeightLevel": 0,
+		"floorTheme": "plain",
+		"floorThemeLabel": "",
 		"roomContent": [],
 		"locks": [],
 		"puzzles": [],
@@ -341,16 +348,44 @@ static func _build_landmark_hints(rooms: Array, graph: RoomGraph) -> Array:
 	return landmarks
 
 
-static func _annotate_minimap_key_rooms(rooms: Array, room_content: Array) -> void:
+const MINIMAP_KIND_BY_CONTENT := {
+	RoomContentTypes.REST: "rest",
+	RoomContentTypes.REWARD: "treasure",
+	RoomContentTypes.MERCHANT: "shop",
+	RoomContentTypes.LORE: "lore",
+	RoomContentTypes.PUZZLE: "puzzle",
+	RoomContentTypes.TRAP: "hazard",
+	RoomContentTypes.HAZARD: "hazard",
+	RoomContentTypes.LOCKED_VAULT: "vault",
+	RoomContentTypes.NPC_QUEST: "npc",
+	RoomContentTypes.COMBAT: "combat",
+}
+
+const MINIMAP_RESERVED_KINDS := ["boss", "entrance", "stairs", "secret"]
+
+
+static func _annotate_minimap_rooms(rooms: Array, room_content: Array) -> void:
 	var key_rooms := {}
+	var content_kind := {}
+	var locked_rooms := {}
 	for entry in room_content:
 		if not entry is Dictionary:
 			continue
+		var room_id := str(entry.get("roomId", ""))
 		if str(entry.get("keyId", "")) != "":
-			key_rooms[str(entry.get("roomId", ""))] = true
+			key_rooms[room_id] = true
+			locked_rooms[room_id] = true
+		var content_type := str(entry.get("contentType", ""))
+		if MINIMAP_KIND_BY_CONTENT.has(content_type):
+			content_kind[room_id] = str(MINIMAP_KIND_BY_CONTENT[content_type])
 	for room in rooms:
 		if not room is Dictionary:
 			continue
 		var room_id := str(room.get("id", ""))
+		var current_kind := str(room.get("kind", ""))
+		if current_kind not in MINIMAP_RESERVED_KINDS and content_kind.has(room_id):
+			room["kind"] = content_kind[room_id]
 		if key_rooms.has(room_id):
 			room["kind"] = "key"
+		if locked_rooms.has(room_id):
+			room["locked"] = true

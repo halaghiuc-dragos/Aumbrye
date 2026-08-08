@@ -28,20 +28,73 @@ const BULK_LABELS := ["Lean", "Standard", "Heavy"]
 const SKIN_TONE_WARM := "warm"
 const SKIN_TONE_NEUTRAL := "neutral"
 const SKIN_TONE_COOL := "cool"
-const SKIN_TONES := [SKIN_TONE_WARM, SKIN_TONE_NEUTRAL, SKIN_TONE_COOL]
-const SKIN_TONE_LABELS := ["Warm", "Neutral", "Cool"]
+const SKIN_TONE_PALE := "pale"
+const SKIN_TONE_TAN := "tan"
+const SKIN_TONE_UMBER := "umber"
+const SKIN_TONE_ASHEN := "ashen"
+const SKIN_TONE_RUDDY := "ruddy"
+const SKIN_TONES := [
+	SKIN_TONE_PALE,
+	SKIN_TONE_WARM,
+	SKIN_TONE_NEUTRAL,
+	SKIN_TONE_COOL,
+	SKIN_TONE_TAN,
+	SKIN_TONE_UMBER,
+	SKIN_TONE_ASHEN,
+	SKIN_TONE_RUDDY,
+]
+const SKIN_TONE_LABELS := [
+	"Pale",
+	"Warm",
+	"Neutral",
+	"Cool",
+	"Tanned",
+	"Umber",
+	"Ashen",
+	"Ruddy",
+]
 
 const HAIR_NONE := "none"
 const HAIR_SHORT := "short"
 const HAIR_LONG := "long"
-const HAIR_STYLES := [HAIR_NONE, HAIR_SHORT, HAIR_LONG]
-const HAIR_LABELS := ["Bald", "Short crop", "Long"]
+const HAIR_SHAVEN := "shaven"
+const HAIR_BRAIDED := "braided"
+const HAIR_TIED := "tied"
+const HAIR_WILD := "wild"
+const HAIR_STYLES := [
+	HAIR_NONE,
+	HAIR_SHAVEN,
+	HAIR_SHORT,
+	HAIR_TIED,
+	HAIR_BRAIDED,
+	HAIR_LONG,
+	HAIR_WILD,
+]
+const HAIR_LABELS := [
+	"Bald",
+	"Shaven",
+	"Short crop",
+	"Tied back",
+	"Braided",
+	"Long",
+	"Unkept",
+]
 
 const FACE_OPEN := "open"
 const FACE_STERN := "stern"
 const FACE_KIND := "kind"
-const FACE_STYLES := [FACE_OPEN, FACE_STERN, FACE_KIND]
-const FACE_LABELS := ["Open", "Stern", "Kind"]
+const FACE_WEARY := "weary"
+const FACE_SCARRED := "scarred"
+const FACE_HOLLOW := "hollow"
+const FACE_STYLES := [
+	FACE_OPEN,
+	FACE_STERN,
+	FACE_KIND,
+	FACE_WEARY,
+	FACE_SCARRED,
+	FACE_HOLLOW,
+]
+const FACE_LABELS := ["Open", "Stern", "Kind", "Weary", "Scarred", "Hollow"]
 
 const HEAD_LABELS := ["Open face", "Visor helm", "Hooded"]
 
@@ -87,6 +140,7 @@ static func default_profile() -> Dictionary:
 		"face": FACE_OPEN,
 		"head": HEAD_VISOR,
 		"trim": 1,
+		"title": "",
 	}
 
 
@@ -110,6 +164,7 @@ static func profile_from_indices(
 		"face": FACE_STYLES[clampi(face_idx, 0, FACE_STYLES.size() - 1)],
 		"head": _head_from_index(head_idx),
 		"trim": clampi(trim_idx, 0, TRIM_LABELS.size() - 1),
+		"title": "",
 	}
 
 
@@ -212,6 +267,8 @@ static func sanitize(profile: Variant) -> Dictionary:
 	if head in [HEAD_OPEN, HEAD_VISOR, HEAD_HOOD]:
 		clean["head"] = head
 	clean["trim"] = clampi(int(input.get("trim", clean["trim"])), 0, TRIM_LABELS.size() - 1)
+	var title := str(input.get("title", ""))
+	clean["title"] = title if AppearanceCatalog.is_title_id(title) else ""
 	clean["profileVersion"] = PROFILE_VERSION
 	return clean
 
@@ -272,6 +329,16 @@ static func skin_tint_vector(skin_tone: String) -> Vector3:
 			return Vector3(1.06, 0.98, 0.92)
 		SKIN_TONE_COOL:
 			return Vector3(0.94, 0.98, 1.04)
+		SKIN_TONE_PALE:
+			return Vector3(1.09, 1.05, 1.02)
+		SKIN_TONE_TAN:
+			return Vector3(0.98, 0.88, 0.74)
+		SKIN_TONE_UMBER:
+			return Vector3(0.74, 0.62, 0.52)
+		SKIN_TONE_ASHEN:
+			return Vector3(0.86, 0.87, 0.88)
+		SKIN_TONE_RUDDY:
+			return Vector3(1.08, 0.9, 0.85)
 		_:
 			return Vector3.ONE
 
@@ -303,6 +370,7 @@ static func from_character_dict(character: Dictionary) -> Dictionary:
 			"face": appearance.get("face", FACE_OPEN),
 			"head": appearance.get("head", HEAD_VISOR),
 			"trim": appearance.get("trim", 1),
+			"title": appearance.get("title", ""),
 			"profileVersion": appearance.get("profileVersion", PROFILE_VERSION),
 		}
 	)

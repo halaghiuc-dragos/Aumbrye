@@ -1,0 +1,19 @@
+{
+  "id": "the_bleeding_edge",
+  "name": "The Bleeding Edge",
+  "description": "Backstabs open wounds that will not close.",
+  "maxStacks": 1,
+  "tags": [
+    "blood"
+  ],
+  "weight": 0.9,
+  "rules": [
+    {
+      "event": "onBackstab",
+      "effect": "apply_status",
+      "statusId": "bleed",
+      "stacks": 2
+    }
+  ],
+  "offerable": true
+}

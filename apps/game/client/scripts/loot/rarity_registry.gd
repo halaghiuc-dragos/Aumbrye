@@ -94,3 +94,23 @@ static func display_color(rarity: String) -> Color:
 
 static func slot_background_color(rarity: String) -> Color:
 	return display_color(rarity).darkened(0.72)
+
+
+static func drop_beam_height(rarity: String) -> float:
+	return 1.2 + float(maxi(0, tier_index(rarity))) * 0.85
+
+
+static func drop_beam_energy(rarity: String) -> float:
+	return 0.5 + float(maxi(0, tier_index(rarity))) * 0.55
+
+
+static func drop_sfx_id(rarity: String) -> String:
+	return "loot_drop_%s" % normalize(rarity)
+
+
+static func wants_drop_toast(rarity: String) -> bool:
+	return tier_index(rarity) >= tier_index("epic")
+
+
+static func wants_camera_nudge(rarity: String) -> bool:
+	return is_aumbral(rarity)

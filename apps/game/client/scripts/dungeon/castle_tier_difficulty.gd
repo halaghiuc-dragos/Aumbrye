@@ -3,6 +3,9 @@ class_name CastleTierDifficulty
 
 ## Castle-mode scaling from catalog difficulty tiers and per-floor growth (DCT-02, DCT-13).
 
+const HP_COMBINED_CAP := 4.0
+const DAMAGE_COMBINED_CAP := 2.6
+
 
 static func hp_multiplier(dungeon_id: String, difficulty_tier: int) -> float:
 	var data := DungeonCatalog.get_difficulty_tier_data(dungeon_id, difficulty_tier)
@@ -30,12 +33,31 @@ static func floor_damage_factor(dungeon_id: String, floor_index: int) -> float:
 
 
 static func combined_hp_multiplier(dungeon_id: String, difficulty_tier: int, floor_index: int) -> float:
-	return hp_multiplier(dungeon_id, difficulty_tier) * floor_hp_factor(dungeon_id, floor_index)
+	return minf(
+		HP_COMBINED_CAP,
+		hp_multiplier(dungeon_id, difficulty_tier) * floor_hp_factor(dungeon_id, floor_index)
+	)
 
 
 static func combined_damage_multiplier(
 	dungeon_id: String, difficulty_tier: int, floor_index: int
 ) -> float:
-	return damage_multiplier(dungeon_id, difficulty_tier) * floor_damage_factor(
-		dungeon_id, floor_index
+	return minf(
+		DAMAGE_COMBINED_CAP,
+		(
+			damage_multiplier(dungeon_id, difficulty_tier)
+			* floor_damage_factor(dungeon_id, floor_index)
+		)
 	)
+
+
+## How far along the dungeon ladder this run sits, on 0..1, for behaviour scaling.
+static func behaviour_progress(dungeon_id: String, difficulty_tier: int, floor_index: int) -> float:
+	var max_tier := maxi(1, DungeonCatalog.max_difficulty_tier(dungeon_id))
+	var tier_ratio := 0.0
+	if max_tier > 1:
+		tier_ratio = float(clampi(difficulty_tier, 1, max_tier) - 1) / float(max_tier - 1)
+	var floor_ratio := clampf(
+		float(maxi(1, floor_index) - 1) / float(maxi(1, RunFloorConfig.MAX_FLOORS - 1)), 0.0, 1.0
+	)
+	return clampf(tier_ratio * 0.8 + floor_ratio * 0.2, 0.0, 1.0)

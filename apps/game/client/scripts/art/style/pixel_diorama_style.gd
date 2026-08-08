@@ -52,6 +52,14 @@ const SHADER_PATH := "res://assets/shared/pixel_diorama_surface.gdshader"
 const EMISSIVE_SHADER_PATH := "res://assets/shared/pixel_diorama_emissive.gdshader"
 const PORTAL_SHADER_PATH := "res://assets/shared/portal_ellipse.gdshader"
 
+const VoxelGridScript := preload("res://scripts/art/characters/voxel_grid.gd")
+
+## Size of one Aumbrye art pixel in world units. Authored character voxels, billboards,
+## world-space labels, decals and telegraph quads all quantise to this single unit so the
+## whole diorama shares one pixel density rather than one per drawing surface.
+const WORLD_PIXEL: float = VoxelGridScript.EDGE
+const PIXELS_PER_UNIT: float = 1.0 / VoxelGridScript.EDGE
+
 static var _surface_material_cache: Dictionary = {}
 static var _prop_material_cache: Dictionary = {}
 static var _accent_material_cache: Dictionary = {}
@@ -561,6 +569,72 @@ static func make_material(color: Color, emission: Color = Color.BLACK) -> Materi
 	set_authored_param(mat, "pattern_strength", prop_pattern)
 	_prop_material_cache[key] = PixelDioramaSettings.track(mat)
 	return mat
+
+
+static func pixels_to_units(pixels: float) -> float:
+	return pixels * WORLD_PIXEL
+
+
+static func units_to_pixels(units: float) -> float:
+	return units * PIXELS_PER_UNIT
+
+
+static func snap_to_pixel_grid(value: float) -> float:
+	return roundf(value * PIXELS_PER_UNIT) * WORLD_PIXEL
+
+
+static func snap_vector_to_pixel_grid(value: Vector3) -> Vector3:
+	return Vector3(
+		snap_to_pixel_grid(value.x), snap_to_pixel_grid(value.y), snap_to_pixel_grid(value.z)
+	)
+
+
+## Quantises a 0..1 fill ratio to whole texture pixels so a scaled bar never lands on a
+## fraction of a pixel. Returns the ratio rounded to the nearest 1/texel_width.
+static func snap_fill_ratio(ratio: float, texel_width: int) -> float:
+	if texel_width <= 0:
+		return clampf(ratio, 0.0, 1.0)
+	var steps := roundf(clampf(ratio, 0.0, 1.0) * float(texel_width))
+	return steps / float(texel_width)
+
+
+## Single entry point for every world-space sprite: nearest filtering, no shadow, and a
+## texel density expressed in Aumbrye art pixels rather than an ad-hoc division.
+static func configure_pixel_sprite(sprite: SpriteBase3D, texel_scale: float = 1.0) -> void:
+	if sprite == null:
+		return
+	sprite.pixel_size = WORLD_PIXEL * maxf(texel_scale, 0.0001)
+	sprite.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+	sprite.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+
+
+## Same contract as configure_pixel_sprite, for world-space text. font_pixel_height is the
+## cap height in art pixels, which is what keeps labels at the same density as everything else.
+static func configure_pixel_label(
+	label: Label3D, font_pixel_height: int = 4, texel_scale: float = 1.0
+) -> void:
+	if label == null:
+		return
+	label.font_size = maxi(font_pixel_height, 1) * 16
+	label.pixel_size = WORLD_PIXEL * maxf(texel_scale, 0.0001) / 16.0
+	label.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+	label.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+
+
+## Rounds a world-space size to whole art pixels, never collapsing below one pixel.
+static func snap_size_to_pixel_grid(size: Vector3) -> Vector3:
+	return Vector3(
+		maxf(WORLD_PIXEL, snap_to_pixel_grid(size.x)),
+		maxf(WORLD_PIXEL, snap_to_pixel_grid(size.y)),
+		maxf(WORLD_PIXEL, snap_to_pixel_grid(size.z))
+	)
+
+
+static func snap_size2_to_pixel_grid(size: Vector2) -> Vector2:
+	return Vector2(
+		maxf(WORLD_PIXEL, snap_to_pixel_grid(size.x)),
+		maxf(WORLD_PIXEL, snap_to_pixel_grid(size.y))
+	)
 
 
 static func add_box(

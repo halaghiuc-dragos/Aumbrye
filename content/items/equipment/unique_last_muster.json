@@ -1,0 +1,40 @@
+{
+  "id": "unique_last_muster",
+  "name": "Last Muster",
+  "itemType": "weapon",
+  "equipmentSlot": "weapon",
+  "gridWidth": 2,
+  "gridHeight": 3,
+  "stackSize": 1,
+  "rarity": "legendary",
+  "description": "Forty-one names were called that morning. The blade belonged to the one who answered last.",
+  "value": 760,
+  "lootValue": 380,
+  "maxDurability": 110,
+  "unique": true,
+  "baseId": "longsword",
+  "biome": "forgotten_castle",
+  "scaling": {
+    "strength": "C",
+    "dexterity": "C"
+  },
+  "ruleText": "Each kill raises damage 4%, up to 6 stacks. Resets when you are hit.",
+  "rules": [
+    {
+      "event": "onKill",
+      "effect": "add_stack",
+      "stackId": "muster",
+      "maxStacks": 6,
+      "stat": "damagePercent",
+      "perStack": 4.0,
+      "resetOn": [
+        "onHitTaken"
+      ]
+    }
+  ],
+  "stats": {
+    "physicalDamage": 16,
+    "damagePercent": 6
+  },
+  "weaponId": "sword_basic"
+}

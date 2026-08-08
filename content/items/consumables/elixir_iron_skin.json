@@ -1,0 +1,19 @@
+{
+  "id": "elixir_iron_skin",
+  "name": "Elixir of Iron Skin",
+  "itemType": "consumable",
+  "gridWidth": 1,
+  "gridHeight": 2,
+  "stackSize": 5,
+  "rarity": "magic",
+  "description": "Thick and grey and difficult to swallow, which is said to be the point.",
+  "consumableEffect": {
+    "kind": "applyStatus",
+    "statusId": "elixir_iron_skin",
+    "duration": 90,
+    "stat": "armor",
+    "amount": 20
+  },
+  "value": 90,
+  "lootValue": 45
+}

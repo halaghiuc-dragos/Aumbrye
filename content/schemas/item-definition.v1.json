@@ -5,75 +5,369 @@
   "description": "M2+ item definition for inventory and world pickups.",
   "type": "object",
   "additionalProperties": false,
-  "required": ["id", "name", "itemType", "gridWidth", "gridHeight", "stackSize"],
+  "required": [
+    "id",
+    "name",
+    "itemType",
+    "gridWidth",
+    "gridHeight",
+    "stackSize"
+  ],
   "properties": {
-    "id": { "type": "string", "minLength": 1 },
-    "name": { "type": "string", "minLength": 1 },
+    "id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1
+    },
     "itemType": {
       "type": "string",
-      "enum": ["weapon", "armor", "accessory", "consumable", "material", "key", "relic"]
+      "enum": [
+        "weapon",
+        "armor",
+        "accessory",
+        "consumable",
+        "material",
+        "key",
+        "relic"
+      ]
     },
     "equipmentSlot": {
       "type": "string",
-      "enum": ["helmet", "chest", "gloves", "boots", "weapon", "secondary", "ring", "amulet", "relic"]
+      "enum": [
+        "helmet",
+        "chest",
+        "gloves",
+        "boots",
+        "weapon",
+        "secondary",
+        "ring",
+        "amulet",
+        "relic"
+      ]
     },
-    "gridWidth": { "type": "integer", "minimum": 1, "maximum": 4 },
-    "gridHeight": { "type": "integer", "minimum": 1, "maximum": 4 },
-    "stackSize": { "type": "integer", "minimum": 1 },
-    "weaponId": { "type": "string" },
-    "healAmount": { "type": "number", "exclusiveMinimum": 0 },
+    "gridWidth": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 4
+    },
+    "gridHeight": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 4
+    },
+    "stackSize": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "weaponId": {
+      "type": "string"
+    },
+    "healAmount": {
+      "type": "number",
+      "exclusiveMinimum": 0
+    },
     "consumableEffect": {
       "type": "object",
-      "required": ["kind"],
+      "required": [
+        "kind"
+      ],
       "additionalProperties": false,
       "properties": {
         "kind": {
           "type": "string",
-          "enum": ["heal", "restoreStamina", "restoreMana", "applyStatus", "skipFloors", "cure"]
+          "enum": [
+            "heal",
+            "restoreStamina",
+            "restoreMana",
+            "applyStatus",
+            "skipFloors",
+            "cure",
+            "refillFlask",
+            "throw",
+            "escape"
+          ]
         },
-        "amount": { "type": "number" },
-        "statusId": { "type": "string" },
-        "duration": { "type": "number" },
-        "floors": { "type": "integer" },
-        "usableInRun": { "type": "boolean", "default": true },
-        "usableInHub": { "type": "boolean", "default": true }
+        "amount": {
+          "type": "number"
+        },
+        "statusId": {
+          "type": "string"
+        },
+        "duration": {
+          "type": "number"
+        },
+        "floors": {
+          "type": "integer"
+        },
+        "usableInRun": {
+          "type": "boolean",
+          "default": true
+        },
+        "usableInHub": {
+          "type": "boolean",
+          "default": true
+        },
+        "stat": {
+          "type": "string"
+        },
+        "radius": {
+          "type": "number",
+          "minimum": 0
+        }
       }
     },
     "unlock": {
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "level": { "type": "integer", "minimum": 1 },
-        "flag": { "type": "string" }
+        "level": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "flag": {
+          "type": "string"
+        }
       }
     },
-    "description": { "type": "string" },
-    "value": { "type": ["number", "null"], "minimum": 0 },
-    "authored": { "type": "boolean" },
-    "lootValue": { "type": "number", "minimum": 0 },
+    "description": {
+      "type": "string"
+    },
+    "value": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "minimum": 0
+    },
+    "authored": {
+      "type": "boolean"
+    },
+    "lootValue": {
+      "type": "number",
+      "minimum": 0
+    },
     "rarity": {
       "type": "string",
-      "enum": ["common", "magic", "rare", "epic", "legendary", "aumbral"]
+      "enum": [
+        "common",
+        "magic",
+        "rare",
+        "epic",
+        "legendary",
+        "aumbral"
+      ]
     },
     "stats": {
       "type": "object",
-      "additionalProperties": { "type": "number" }
+      "additionalProperties": {
+        "type": "number"
+      }
     },
-    "maxDurability": { "type": "number", "minimum": 0 },
-    "runRelicId": { "type": "string" },
-    "runOnly": { "type": "boolean" },
+    "maxDurability": {
+      "type": "number",
+      "minimum": 0
+    },
+    "runRelicId": {
+      "type": "string"
+    },
+    "runOnly": {
+      "type": "boolean"
+    },
     "rollAffixes": {
       "type": "boolean",
       "description": "When true, non-equipment items roll affixes through add_loot."
     },
-    "theme": { "type": "string" },
-    "iconPath": { "type": "string", "description": "Optional res:// override texture; atlas cell is the default." },
+    "theme": {
+      "type": "string"
+    },
+    "iconPath": {
+      "type": "string",
+      "description": "Optional res:// override texture; atlas cell is the default."
+    },
     "visual": {
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "attach": { "type": "string" },
-        "mesh": { "type": "string" }
+        "attach": {
+          "type": "string"
+        },
+        "mesh": {
+          "type": "string"
+        },
+        "hide": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "baseId": {
+      "type": "string",
+      "description": "Archetype base this item was generated from (EXT-A01)."
+    },
+    "materialTier": {
+      "type": "string"
+    },
+    "biome": {
+      "type": "string"
+    },
+    "unique": {
+      "type": "boolean"
+    },
+    "ruleText": {
+      "type": "string",
+      "description": "One-sentence player-facing statement of a unique's rule."
+    },
+    "scaling": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string"
+      }
+    },
+    "block": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "stability": {
+          "type": "number"
+        },
+        "reduction": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "physical": {
+                  "type": "number"
+                },
+                "fire": {
+                  "type": "number"
+                },
+                "frost": {
+                  "type": "number"
+                },
+                "poison": {
+                  "type": "number"
+                },
+                "lightning": {
+                  "type": "number"
+                },
+                "arcane": {
+                  "type": "number"
+                }
+              }
+            }
+          ]
+        },
+        "guardBreakPoise": {
+          "type": "number"
+        }
+      }
+    },
+    "rules": {
+      "type": "array",
+      "description": "CombatEvents rule declarations registered while the item is equipped (EXT-A02).",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "event",
+          "effect"
+        ],
+        "properties": {
+          "event": {
+            "type": "string",
+            "enum": [
+              "onHit",
+              "onKill",
+              "onParry",
+              "onBlock",
+              "onDodge",
+              "onCrit",
+              "onBackstab",
+              "onRiposte",
+              "onHitTaken",
+              "onLowHealth",
+              "onRoomClear",
+              "onFloorEnter",
+              "onStatusApplied",
+              "onRunStart"
+            ]
+          },
+          "effect": {
+            "type": "string",
+            "enum": [
+              "restore_stamina",
+              "restore_health",
+              "restore_mana",
+              "lifesteal",
+              "apply_status",
+              "spread_status",
+              "add_stack",
+              "bonus_gold",
+              "refund_flask",
+              "clear_status"
+            ]
+          },
+          "amount": {
+            "type": "number"
+          },
+          "pct": {
+            "type": "number"
+          },
+          "chance": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "cooldown": {
+            "type": "number",
+            "minimum": 0
+          },
+          "statusId": {
+            "type": "string"
+          },
+          "stacks": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "radius": {
+            "type": "number",
+            "minimum": 0
+          },
+          "stackId": {
+            "type": "string"
+          },
+          "maxStacks": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "stat": {
+            "type": "string"
+          },
+          "perStack": {
+            "type": "number"
+          },
+          "resetOn": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "ifTargetHasStatus": {
+            "type": "string"
+          },
+          "ifDamageType": {
+            "type": "string"
+          }
+        }
       }
     }
   }

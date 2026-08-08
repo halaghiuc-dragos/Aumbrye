@@ -1,16 +1,16 @@
 {
-    "id":  "sage_staff",
-    "name":  "Sage Staff",
-    "itemType":  "weapon",
-    "gridWidth":  2,
-    "gridHeight":  2,
-    "stackSize":  1,
-    "rarity":  "rare",
-    "description":  "A focus for channelled force, as much blunt instrument as wand.",
-    "value":  20,
-    "stats":  {
-                  "arcaneDamage":  18
-              },
-    "equipmentSlot":  "weapon",
-    "weaponId": "staff"
+  "id": "sage_staff",
+  "name": "Sage Staff",
+  "itemType": "weapon",
+  "gridWidth": 1,
+  "gridHeight": 4,
+  "stackSize": 1,
+  "rarity": "rare",
+  "description": "A focus for channelled force, as much blunt instrument as wand.",
+  "value": 20,
+  "stats": {
+    "arcaneDamage": 18
+  },
+  "equipmentSlot": "weapon",
+  "weaponId": "staff"
 }

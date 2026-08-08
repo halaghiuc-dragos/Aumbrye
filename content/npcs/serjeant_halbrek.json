@@ -1,0 +1,73 @@
+{
+  "id": "serjeant_halbrek",
+  "displayName": "Serjeant Halbrek",
+  "interactType": "bounty_board",
+  "dialogueId": "halbrek_greeting",
+  "requiresFlag": "rescued_halbrek",
+  "dialogueRules": [
+    {
+      "condition": {
+        "not": {
+          "relationship": "halbrek",
+          "atLeast": 1
+        }
+      },
+      "dialogueId": "halbrek_arrival"
+    },
+    {
+      "condition": {
+        "any": [
+          {
+            "all": [
+              {
+                "lastRunOutcome": "died"
+              },
+              {
+                "lastRunBoss": true
+              }
+            ]
+          },
+          {
+            "all": [
+              {
+                "lastRunOutcome": "died"
+              },
+              {
+                "minLastRunFloor": 4
+              }
+            ]
+          },
+          {
+            "all": [
+              {
+                "lastRunOutcome": "escaped"
+              },
+              {
+                "lastRunBoss": true
+              }
+            ]
+          },
+          {
+            "lastRunBiome": "forgotten_castle"
+          },
+          {
+            "all": [
+              {
+                "lastRunOutcome": "died"
+              },
+              {
+                "minDeaths": 10
+              }
+            ]
+          }
+        ]
+      },
+      "dialogueId": "halbrek_reactions"
+    }
+  ],
+  "position": {
+    "x": 6.5,
+    "y": 0,
+    "z": -13.2
+  }
+}

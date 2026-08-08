@@ -1,0 +1,21 @@
+{
+  "id": "ash_in_the_lungs",
+  "name": "Ash In The Lungs",
+  "description": "Fire damage sets what it touches alight.",
+  "maxStacks": 1,
+  "tags": [
+    "flame"
+  ],
+  "weight": 0.9,
+  "rules": [
+    {
+      "event": "onHit",
+      "effect": "apply_status",
+      "statusId": "burn",
+      "stacks": 1,
+      "chance": 0.35,
+      "ifDamageType": "fire"
+    }
+  ],
+  "offerable": true
+}

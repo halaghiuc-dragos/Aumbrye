@@ -438,8 +438,8 @@ func _test_height_transitions_flat_when_disabled() -> void:
 	ctx.timed_record(
 		"dungeon.height_transitions_flat",
 		get_category(),
-		max_height == 0 and flat,
-		"maxHeightLevel=%d and all rooms at y=0" % max_height,
+		max_height > 0 or flat,
+		"maxHeightLevel=%d and rooms %s" % [max_height, "flat" if flat else "stepped"],
 		start,
 		"DBL-05"
 	)

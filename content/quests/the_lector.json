@@ -1,0 +1,21 @@
+{
+  "id": "the_lector",
+  "title": "The Lector",
+  "type": "escort",
+  "chainId": "prayer",
+  "targetNpcId": "lector_odile",
+  "requiredCount": 1,
+  "availableWhen": {
+    "minTier": 5
+  },
+  "description": "Thirty years of reading aloud and nobody thanked her once. She is still in the nave, and she is still carrying the line they struck out.",
+  "rewards": {
+    "gold": 200,
+    "items": [
+      {
+        "itemId": "chapel_wax",
+        "quantity": 2
+      }
+    ]
+  }
+}

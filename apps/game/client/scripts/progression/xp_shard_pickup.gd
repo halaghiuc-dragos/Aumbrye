@@ -5,6 +5,7 @@ extends Area3D
 const DioramaSkin := preload("res://scripts/art/props/diorama_interactable_skin.gd")
 
 var _xp_amount := 0
+var _gold_amount := 0
 var _visual: Node3D
 var _player: Node3D
 var _label: Label3D
@@ -42,10 +43,14 @@ func _start_bob() -> void:
 	tween.tween_property(_visual, "position:y", base_y - 0.1, 0.63).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
 
 
-func configure(world_pos: Vector3, xp_amount: int) -> void:
+func configure(world_pos: Vector3, xp_amount: int, gold_amount: int = 0) -> void:
 	global_position = world_pos
 	_xp_amount = maxi(0, xp_amount)
-	_label.text = "Echo shard (+%d XP)" % _xp_amount
+	_gold_amount = maxi(0, gold_amount)
+	if _gold_amount > 0:
+		_label.text = "Echo shard (+%d XP, %d gold)" % [_xp_amount, _gold_amount]
+	else:
+		_label.text = "Echo shard (+%d XP)" % _xp_amount
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -70,9 +75,12 @@ func _on_body_exited(body: Node3D) -> void:
 
 
 func _collect() -> void:
-	if _xp_amount <= 0:
+	if _xp_amount <= 0 and _gold_amount <= 0:
 		queue_free()
 		return
-	ProgressionService.grant_xp(_xp_amount, "xp_shard")
+	if _xp_amount > 0:
+		ProgressionService.grant_xp(_xp_amount, "xp_shard")
+	if _gold_amount > 0:
+		CharacterService.add_gold(_gold_amount, false)
 	RunFlow.clear_recoverable_xp_shard()
 	queue_free()

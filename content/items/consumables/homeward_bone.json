@@ -1,0 +1,16 @@
+{
+  "id": "homeward_bone",
+  "name": "Homeward Bone",
+  "itemType": "consumable",
+  "gridWidth": 1,
+  "gridHeight": 1,
+  "stackSize": 3,
+  "rarity": "rare",
+  "description": "A finger bone, filed smooth by the thumb of whoever carried it last.",
+  "consumableEffect": {
+    "kind": "escape",
+    "usableInHub": false
+  },
+  "value": 200,
+  "lootValue": 100
+}

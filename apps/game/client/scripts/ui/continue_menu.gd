@@ -74,6 +74,12 @@ func _reload_slots() -> void:
 	for entry in _slots:
 		var label := str(entry.get("label", "Unknown"))
 		_slot_list.add_item(label)
+	_slot_list.add_item(
+		"— %d of %d warden slots used —"
+		% [LocalSave.used_character_slots(), LocalSave.character_slot_limit()]
+	)
+	_slot_list.set_item_disabled(_slot_list.item_count - 1, true)
+	_slot_list.set_item_selectable(_slot_list.item_count - 1, false)
 
 
 func _selected_entry() -> Dictionary:

@@ -1,0 +1,84 @@
+{
+  "id": "odile_reactions",
+  "startNode": "start",
+  "nodes": {
+    "start": {
+      "speaker": "Odile",
+      "text": "You unmade an office and the office answered. That is the shape of every account in the book.",
+      "condition": {
+        "all": [
+          {
+            "lastRunOutcome": "died"
+          },
+          {
+            "lastRunBoss": true
+          }
+        ]
+      },
+      "fallback": "r2",
+      "next": "end"
+    },
+    "r2": {
+      "speaker": "Odile",
+      "text": "Four floors. The fourth is where the copies start disagreeing with each other. I would like to hear what you saw.",
+      "condition": {
+        "all": [
+          {
+            "lastRunOutcome": "died"
+          },
+          {
+            "minLastRunFloor": 4
+          }
+        ]
+      },
+      "fallback": "r3",
+      "next": "end"
+    },
+    "r3": {
+      "speaker": "Odile",
+      "text": "Through, and out, and the building still standing. Somebody will strike that from the record. Tell me first.",
+      "condition": {
+        "all": [
+          {
+            "lastRunOutcome": "escaped"
+          },
+          {
+            "lastRunBoss": true
+          }
+        ]
+      },
+      "fallback": "r4",
+      "next": "end"
+    },
+    "r4": {
+      "speaker": "Odile",
+      "text": "The cathedral. Four hundred orders of service printed for the Return of the Light and not one of them used. I have counted them. Twice.",
+      "condition": {
+        "lastRunBiome": "dark_cathedral"
+      },
+      "fallback": "r5",
+      "next": "end"
+    },
+    "r5": {
+      "speaker": "Odile",
+      "text": "Ten. Every relighting is an entry, and entries accumulate, and accumulation is what the Hierarch was counting on.",
+      "condition": {
+        "all": [
+          {
+            "lastRunOutcome": "died"
+          },
+          {
+            "minDeaths": 10
+          }
+        ]
+      },
+      "fallback": "quiet",
+      "next": "end"
+    },
+    "quiet": {
+      "speaker": "Odile",
+      "text": "I read what is left. There is a great deal left and almost none of it agrees.",
+      "next": "end"
+    }
+  }
+}

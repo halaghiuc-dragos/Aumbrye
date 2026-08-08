@@ -83,7 +83,22 @@ American spelling.
 
 ---
 
-## 4. Automated enforcement
+## 4. In-code docstrings
+
+The evidence rules in section 1 apply to `##` docstrings in `.gd` files exactly as they apply to
+`docs/`. A docstring is a claim about the function or class beneath it, verified by reading that code
+in this session — not a claim about what it is meant to do or will do once a planned change lands.
+
+- Describe what the code **does**, not what it is intended to do. If the intent and the implementation
+  diverge, either fix the code to match the docstring, fix the docstring to match the code, or — if the
+  gap is a deliberate future step — leave the docstring accurate to the current behaviour and record the
+  intent as an ADR (`docs/ADR/`) or a backlog item, never as prose in the docstring itself.
+- A docstring claiming a specific algorithm or technique (e.g. "greedy-merged", "cached", "validated")
+  must be true of the code directly beneath it, not aspirational. Reviewers should treat a mismatch
+  between a docstring and its implementation as a defect, filed under `DOC-nn` in the backlog, with the
+  same severity as a wrong comment.
+
+## 5. Automated enforcement
 
 `apps/game/client/scripts/validation/suites/docs_suite.gd` walks `docs/` and asserts every relative
 markdown link resolves, plus that `validation/manual-checklist.md` exists. That catches broken links —

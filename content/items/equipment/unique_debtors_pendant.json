@@ -1,0 +1,30 @@
+{
+  "id": "unique_debtors_pendant",
+  "name": "Debtor's Pendant",
+  "itemType": "accessory",
+  "equipmentSlot": "amulet",
+  "gridWidth": 1,
+  "gridHeight": 2,
+  "stackSize": 1,
+  "rarity": "rare",
+  "description": "Pawned four times, redeemed three. The fourth ledger entry has no closing mark.",
+  "value": 280,
+  "lootValue": 140,
+  "maxDurability": 60,
+  "unique": true,
+  "baseId": "pendant",
+  "biome": "forgotten_castle",
+  "scaling": {},
+  "ruleText": "Each kill yields 5 gold.",
+  "rules": [
+    {
+      "event": "onKill",
+      "effect": "bonus_gold",
+      "amount": 5.0
+    }
+  ],
+  "stats": {
+    "goldFind": 0.15,
+    "manaMax": 14
+  }
+}

@@ -142,6 +142,7 @@ static func _try_assign_once(
 				}
 			)
 		)
+	_enforce_pacing(room_content, critical_semantic, reserved_semantics, config, rng)
 	var locks: Array = []
 	if config.enable_locked_door and critical_semantic.size() >= 4:
 		locks = _place_locked_doors(
@@ -170,7 +171,7 @@ static func _try_assign_once(
 		"locks": locks,
 		"puzzles": puzzles,
 	}
-	var validation := RoomContentValidator.validate(graph, assignment, content)
+	var validation := RoomContentValidator.validate(graph, assignment, content, config)
 	if not validation.get("ok", false):
 		return validation
 	return {"ok": true, "content": content}
@@ -238,6 +239,173 @@ static func _pick_content_type(
 
 static func _rest_allowed() -> bool:
 	return not RunModifierService.has_modifier(RunModifierService.MODIFIER_NO_REST)
+
+
+## Hard guarantees applied after the weighted roll: a reward on every floor, somewhere to rest
+## before the boss door, and no long unbroken run of fights.
+static func _enforce_pacing(
+	room_content: Array,
+	critical_semantic: Array[String],
+	reserved_semantics: Array[String],
+	config: RoomContentConfig,
+	rng: RandomNumberGenerator
+) -> void:
+	var by_room := {}
+	for entry in room_content:
+		if entry is Dictionary:
+			by_room[str((entry as Dictionary).get("roomId", ""))] = entry
+	_break_combat_runs(room_content, critical_semantic, by_room, reserved_semantics, config)
+	_guarantee_type(
+		room_content,
+		by_room,
+		reserved_semantics,
+		RoomContentTypes.REWARD,
+		config.min_reward_rooms,
+		critical_semantic,
+		rng
+	)
+	if config.min_rest_rooms > 0 and _rest_allowed():
+		_guarantee_rest_before_boss(
+			room_content, by_room, critical_semantic, reserved_semantics, config
+		)
+
+
+static func _set_content_type(entry: Dictionary, content_type: String) -> void:
+	entry["contentType"] = content_type
+	entry["templateId"] = str(RoomContentTypes.TEMPLATE_BY_TYPE.get(content_type, ""))
+
+
+static func _is_mutable(entry: Dictionary, reserved_semantics: Array[String]) -> bool:
+	var room_id := str(entry.get("roomId", ""))
+	if room_id in reserved_semantics or room_id.begins_with("filler_"):
+		return false
+	var content_type := str(entry.get("contentType", ""))
+	if content_type in [
+		RoomContentTypes.BOSS,
+		RoomContentTypes.STAIRS,
+		RoomContentTypes.LOCKED_VAULT,
+		RoomContentTypes.NPC_QUEST,
+		RoomContentTypes.PUZZLE,
+	]:
+		return false
+	return str(entry.get("templateId", "")) != "" or content_type != ""
+
+
+static func _break_combat_runs(
+	room_content: Array,
+	critical_semantic: Array[String],
+	by_room: Dictionary,
+	reserved_semantics: Array[String],
+	config: RoomContentConfig
+) -> void:
+	if config.max_consecutive_combat <= 0:
+		return
+	var streak := 0
+	for room_id in critical_semantic:
+		var entry: Variant = by_room.get(room_id)
+		if not entry is Dictionary:
+			streak = 0
+			continue
+		if str((entry as Dictionary).get("contentType", "")) != RoomContentTypes.COMBAT:
+			streak = 0
+			continue
+		streak += 1
+		if streak <= config.max_consecutive_combat:
+			continue
+		if not _is_mutable(entry as Dictionary, reserved_semantics):
+			continue
+		var relief := RoomContentTypes.LORE
+		if _rest_allowed() and streak > config.max_consecutive_combat + 1:
+			relief = RoomContentTypes.REST
+		_set_content_type(entry as Dictionary, relief)
+		streak = 0
+
+
+static func _guarantee_type(
+	room_content: Array,
+	by_room: Dictionary,
+	reserved_semantics: Array[String],
+	content_type: String,
+	minimum: int,
+	critical_semantic: Array[String],
+	rng: RandomNumberGenerator
+) -> void:
+	if minimum <= 0:
+		return
+	var present := 0
+	for entry in room_content:
+		if entry is Dictionary and str((entry as Dictionary).get("contentType", "")) == content_type:
+			present += 1
+	if present >= minimum:
+		return
+	var candidates: Array[Dictionary] = []
+	for entry in room_content:
+		if not entry is Dictionary:
+			continue
+		var room_id := str((entry as Dictionary).get("roomId", ""))
+		if room_id in critical_semantic:
+			continue
+		if not _is_mutable(entry as Dictionary, reserved_semantics):
+			continue
+		if str((entry as Dictionary).get("contentType", "")) == content_type:
+			continue
+		candidates.append(entry as Dictionary)
+	candidates.sort_custom(
+		func(a: Dictionary, b: Dictionary) -> bool:
+			return str(a.get("roomId", "")) < str(b.get("roomId", ""))
+	)
+	while present < minimum and not candidates.is_empty():
+		var idx := rng.randi_range(0, candidates.size() - 1)
+		_set_content_type(candidates[idx], content_type)
+		candidates.remove_at(idx)
+		present += 1
+	if present < minimum:
+		for room_id in critical_semantic:
+			if present >= minimum:
+				break
+			var entry: Variant = by_room.get(room_id)
+			if not entry is Dictionary:
+				continue
+			if not _is_mutable(entry as Dictionary, reserved_semantics):
+				continue
+			if str((entry as Dictionary).get("contentType", "")) == content_type:
+				continue
+			_set_content_type(entry as Dictionary, content_type)
+			present += 1
+
+
+static func _guarantee_rest_before_boss(
+	room_content: Array,
+	by_room: Dictionary,
+	critical_semantic: Array[String],
+	reserved_semantics: Array[String],
+	config: RoomContentConfig
+) -> void:
+	if critical_semantic.size() < 3:
+		return
+	var window := maxi(1, config.rest_within_of_boss)
+	var start_index := maxi(0, critical_semantic.size() - 1 - window)
+	for i in range(critical_semantic.size() - 2, start_index - 1, -1):
+		var entry: Variant = by_room.get(critical_semantic[i])
+		if entry is Dictionary and str((entry as Dictionary).get("contentType", "")) == RoomContentTypes.REST:
+			return
+	for i in range(critical_semantic.size() - 2, start_index - 1, -1):
+		var entry: Variant = by_room.get(critical_semantic[i])
+		if not entry is Dictionary:
+			continue
+		if not _is_mutable(entry as Dictionary, reserved_semantics):
+			continue
+		_set_content_type(entry as Dictionary, RoomContentTypes.REST)
+		return
+	for entry in room_content:
+		if not entry is Dictionary:
+			continue
+		if str((entry as Dictionary).get("contentType", "")) == RoomContentTypes.REST:
+			return
+	for entry in room_content:
+		if entry is Dictionary and _is_mutable(entry as Dictionary, reserved_semantics):
+			_set_content_type(entry as Dictionary, RoomContentTypes.REST)
+			return
 
 
 static func _place_locked_doors(

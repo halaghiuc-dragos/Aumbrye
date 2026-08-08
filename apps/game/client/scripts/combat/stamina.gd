@@ -98,7 +98,29 @@ func consume(amount: float) -> bool:
 
 
 func drain(amount: float) -> bool:
-	return consume(amount)
+	if _exhausted:
+		return false
+	if current <= 0.0:
+		_exhausted = true
+		depleted.emit()
+		return false
+	current = maxf(0.0, current - amount)
+	_regen_timer = REGEN_DELAY
+	stamina_changed.emit(current, max_stamina)
+	if current <= 0.0:
+		_exhausted = true
+		depleted.emit()
+		return false
+	return true
+
+
+func restore(amount: float) -> void:
+	if amount <= 0.0:
+		return
+	current = minf(max_stamina, current + amount)
+	if current > 0.0:
+		_exhausted = false
+	stamina_changed.emit(current, max_stamina)
 
 
 func has(amount: float) -> bool:

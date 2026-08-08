@@ -1,0 +1,14 @@
+{
+  "id": "bounty_scrap_run",
+  "title": "Bounty: Salvage",
+  "type": "fetch",
+  "targetItemId": "iron_scrap",
+  "requiredCount": 5,
+  "repeatable": true,
+  "description": "Standing bounty. Five lengths of scrap, delivered without commentary.",
+  "rewards": {
+    "gold": 70,
+    "bountyTokens": 2
+  },
+  "bounty": "daily"
+}

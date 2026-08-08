@@ -1,0 +1,72 @@
+{
+  "id": "rescue_corrin",
+  "startNode": "start",
+  "nodes": {
+    "start": {
+      "speaker": "Corrin",
+      "text": "Do not touch the case. Nine lamps in there, all mine, none of them lit since the angle moved. I am the lampwright, for whatever that is still worth. Are you going up? I can walk. I have been telling myself that for a while now.",
+      "condition": {
+        "all": [
+          {
+            "not": {
+              "flag": "rescued_corrin"
+            }
+          },
+          {
+            "not": {
+              "flag": "lost_corrin"
+            }
+          }
+        ]
+      },
+      "fallback": "already",
+      "choices": [
+        {
+          "text": "Walk behind me. Stay close.",
+          "next": "taken"
+        },
+        {
+          "text": "I am going down, not up.",
+          "next": "left"
+        }
+      ]
+    },
+    "taken": {
+      "speaker": "Corrin",
+      "text": "Then I will keep up, and if I do not keep up you will not stop. Say it. — Good. That is the arrangement everybody else lied about.",
+      "actions": [
+        {
+          "type": "set_flag",
+          "flag": "rescued_corrin",
+          "value": true
+        },
+        {
+          "type": "record_rescue",
+          "npcId": "lampwright_corrin"
+        },
+        {
+          "type": "play_sfx",
+          "sfxId": "ui"
+        }
+      ],
+      "next": "end"
+    },
+    "left": {
+      "speaker": "Corrin",
+      "text": "Down. Of course down. Go on, then — I will keep this landing warm, which is a joke, and it is the last one I have.",
+      "actions": [
+        {
+          "type": "set_flag",
+          "flag": "lost_corrin",
+          "value": true
+        }
+      ],
+      "next": "end"
+    },
+    "already": {
+      "speaker": "An empty landing",
+      "text": "Somebody sat here long enough to wear the stone smooth. Whoever it was is not sitting here now.",
+      "next": "end"
+    }
+  }
+}

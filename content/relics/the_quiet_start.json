@@ -1,0 +1,18 @@
+{
+  "id": "the_quiet_start",
+  "name": "The Quiet Start",
+  "description": "The run begins with coin someone else no longer needs.",
+  "maxStacks": 1,
+  "tags": [
+    "greed"
+  ],
+  "weight": 0.6,
+  "rules": [
+    {
+      "event": "onRunStart",
+      "effect": "bonus_gold",
+      "amount": 120
+    }
+  ],
+  "offerable": true
+}

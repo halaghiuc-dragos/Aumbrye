@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "texture": "res://assets/ui/atlas/class_icons.png",
   "cellSize": 64,
-  "columns": 5,
+  "columns": 7,
   "rows": 1,
   "unknown": {
     "col": 0,
@@ -27,6 +27,14 @@
     },
     "sentinel": {
       "col": 4,
+      "row": 0
+    },
+    "hunter": {
+      "col": 5,
+      "row": 0
+    },
+    "herald": {
+      "col": 6,
       "row": 0
     }
   }

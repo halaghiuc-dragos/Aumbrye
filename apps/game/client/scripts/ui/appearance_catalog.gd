@@ -7,11 +7,128 @@ const ASPECTS_PATH := "content/appearance/aspects.json"
 const PixelStyle := preload("res://scripts/art/style/pixel_diorama_style.gd")
 
 static var _aspects: Array[Dictionary] = []
+static var _titles: Array[Dictionary] = []
 
 
 static func get_aspects() -> Array[Dictionary]:
 	_ensure_loaded()
 	return _aspects
+
+
+static func get_titles() -> Array[Dictionary]:
+	_ensure_loaded()
+	return _titles
+
+
+## An aspect or title with no unlockFlag is always offered; the rest are earned.
+static func is_unlocked(entry: Dictionary) -> bool:
+	var flag := str(entry.get("unlockFlag", ""))
+	if flag == "":
+		return true
+	var tree := Engine.get_main_loop() as SceneTree
+	if tree == null or tree.root == null:
+		return false
+	var svc := tree.root.get_node_or_null("CharacterService")
+	if svc == null or not svc.has_method("has_flag"):
+		return false
+	return bool(svc.call("has_flag", flag))
+
+
+static func unlocked_aspects() -> Array[Dictionary]:
+	var out: Array[Dictionary] = []
+	for entry in get_aspects():
+		if is_unlocked(entry):
+			out.append(entry)
+	return out
+
+
+static func unlocked_aspect_count() -> int:
+	return unlocked_aspects().size()
+
+
+static func unlocked_aspect_label(index: int) -> String:
+	var entries := unlocked_aspects()
+	if entries.is_empty():
+		return "?"
+	return _entry_label(entries[clampi(index, 0, entries.size() - 1)])
+
+
+static func unlocked_aspect_theme(index: int) -> int:
+	var entries := unlocked_aspects()
+	if entries.is_empty():
+		return int(PixelStyle._palette_theme_from_string("castle"))
+	var entry := entries[clampi(index, 0, entries.size() - 1)]
+	return int(PixelStyle._palette_theme_from_string(str(entry.get("paletteTheme", "castle"))))
+
+
+static func unlocked_aspect_index_for_theme(theme: int) -> int:
+	var entries := unlocked_aspects()
+	for i in entries.size():
+		var name_str := str(entries[i].get("paletteTheme", "castle"))
+		if int(PixelStyle._palette_theme_from_string(name_str)) == theme:
+			return i
+	return 0
+
+
+static func unlocked_titles() -> Array[Dictionary]:
+	var out: Array[Dictionary] = []
+	for entry in get_titles():
+		if is_unlocked(entry):
+			out.append(entry)
+	return out
+
+
+static func unlocked_title_labels() -> PackedStringArray:
+	var labels := PackedStringArray()
+	for entry in unlocked_titles():
+		labels.append(_entry_label(entry))
+	return labels
+
+
+static func unlocked_title_id(index: int) -> String:
+	var entries := unlocked_titles()
+	if entries.is_empty():
+		return ""
+	return str(entries[clampi(index, 0, entries.size() - 1)].get("id", ""))
+
+
+static func unlocked_title_index(title_id: String) -> int:
+	var entries := unlocked_titles()
+	for i in entries.size():
+		if str(entries[i].get("id", "")) == title_id:
+			return i
+	return 0
+
+
+## An empty catalog means content is not loaded yet, not that the title is bogus —
+## dropping it there would quietly strip an earned title on an early boot.
+static func is_title_id(title_id: String) -> bool:
+	if title_id == "":
+		return true
+	var entries := get_titles()
+	if entries.is_empty():
+		return true
+	for entry in entries:
+		if str(entry.get("id", "")) == title_id:
+			return true
+	return false
+
+
+static func title_label(title_id: String) -> String:
+	for entry in get_titles():
+		if str(entry.get("id", "")) == title_id:
+			return _entry_label(entry)
+	return ""
+
+
+static func _entry_label(entry: Dictionary) -> String:
+	var key := str(entry.get("nameKey", ""))
+	if key != "":
+		var translated := TranslationServer.translate(key)
+		if translated != key:
+			return translated
+	var fallback := str(entry.get("name", ""))
+	return fallback if fallback != "" else "?"
 
 
 static func aspect_count() -> int:
@@ -47,6 +164,7 @@ static func index_for_theme(theme: int) -> int:
 
 static func clear_cache() -> void:
 	_aspects.clear()
+	_titles.clear()
 
 
 static func _ensure_loaded() -> void:
@@ -59,3 +177,9 @@ static func _ensure_loaded() -> void:
 		for entry in raw:
 			if entry is Dictionary:
 				_aspects.append(entry)
+	var raw_titles: Variant = data.get("titles", [])
+	_titles.clear()
+	if raw_titles is Array:
+		for entry in raw_titles:
+			if entry is Dictionary:
+				_titles.append(entry)

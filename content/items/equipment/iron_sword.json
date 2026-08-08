@@ -1,16 +1,16 @@
 {
-    "id":  "iron_sword",
-    "name":  "Iron Sword",
-    "itemType":  "weapon",
-    "gridWidth":  2,
-    "gridHeight":  2,
-    "stackSize":  1,
-    "rarity":  "common",
-    "description":  "A serviceable blade for those who cannot afford castle steel.",
-    "value":  20,
-    "stats":  {
-                  "physicalDamage":  10
-              },
-    "equipmentSlot":  "weapon",
-    "weaponId": "sword_basic"
+  "id": "iron_sword",
+  "name": "Iron Sword",
+  "itemType": "weapon",
+  "gridWidth": 2,
+  "gridHeight": 3,
+  "stackSize": 1,
+  "rarity": "common",
+  "description": "A serviceable blade for those who cannot afford castle steel.",
+  "value": 20,
+  "stats": {
+    "physicalDamage": 10
+  },
+  "equipmentSlot": "weapon",
+  "weaponId": "sword_basic"
 }

@@ -1,0 +1,45 @@
+{
+  "id": "unique_confessors_burden",
+  "name": "Confessor's Burden",
+  "itemType": "armor",
+  "equipmentSlot": "secondary",
+  "gridWidth": 2,
+  "gridHeight": 3,
+  "stackSize": 1,
+  "rarity": "epic",
+  "description": "He heard everything and carried it on his arm. It grew no lighter.",
+  "value": 500,
+  "lootValue": 250,
+  "maxDurability": 115,
+  "unique": true,
+  "baseId": "kiteshield",
+  "biome": "dark_cathedral",
+  "scaling": {
+    "strength": "C"
+  },
+  "ruleText": "Parrying restores 20 health.",
+  "rules": [
+    {
+      "event": "onParry",
+      "effect": "restore_health",
+      "amount": 20
+    }
+  ],
+  "stats": {
+    "defense": 18,
+    "resistArcane": 0.12,
+    "poise": 9
+  },
+  "block": {
+    "stability": 1.35,
+    "guardBreakPoise": 52,
+    "reduction": {
+      "physical": 0.74,
+      "fire": 0.38,
+      "frost": 0.38,
+      "poison": 0.38,
+      "lightning": 0.38,
+      "arcane": 0.74
+    }
+  }
+}

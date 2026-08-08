@@ -1,0 +1,18 @@
+{
+  "id": "bounty_no_lamp_lit",
+  "title": "Bounty: Without a Light",
+  "type": "clear_without",
+  "maxSeconds": 900,
+  "requiresBoss": true,
+  "repeatable": true,
+  "cooldownRuns": 2,
+  "availableWhen": {
+    "minTier": 4
+  },
+  "bounty": "weekly",
+  "description": "Weekly bounty. Down to the thing at the bottom and out again, inside the quarter hour the lamps are dark for. Nobody has ever explained who put the lamps out.",
+  "rewards": {
+    "gold": 340,
+    "bountyTokens": 8
+  }
+}

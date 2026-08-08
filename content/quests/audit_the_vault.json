@@ -1,0 +1,15 @@
+{
+  "id": "audit_the_vault",
+  "title": "Audit",
+  "type": "reach_depth",
+  "chainId": "ledger",
+  "prerequisites": [
+    "sealed_requisition"
+  ],
+  "dungeonId": "iron_vault",
+  "requiredCount": 4,
+  "description": "The stock lists go down further than the aisles do. Get to the fourth floor and read what is stacked there.",
+  "rewards": {
+    "gold": 220
+  }
+}

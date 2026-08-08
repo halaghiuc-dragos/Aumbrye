@@ -1,0 +1,12 @@
+{
+  "id": "aumbral_tear",
+  "name": "Aumbral Tear",
+  "itemType": "material",
+  "gridWidth": 1,
+  "gridHeight": 1,
+  "stackSize": 20,
+  "description": "It does not evaporate and it does not freeze. It waits.",
+  "value": 120,
+  "lootValue": 72,
+  "materialTier": "reliquary"
+}

@@ -36,12 +36,24 @@ func _ready() -> void:
 	add_child(_builder)
 	_builder.boss_defeated.connect(_on_boss_defeated)
 	_builder.snapshot_dirty.connect(_persist_snapshot)
+	_builder.room_cleared.connect(_on_room_cleared)
 	var def := _resolve_dungeon_definition()
 	if def.is_empty():
 		push_error("CastleRun: missing procgen dungeon definition")
 		RunFlow.return_to_hub("Dungeon data missing — could not load generated layout.")
 		return
-	_builder.build_from_definition(self, _player, def)
+	# PERF-03: the build below is chunked and can span several frames. Freeze the player for that
+	# window — it has no floor, rooms, or nav mesh to stand on yet — rather than let its own
+	# _physics_process run with nothing built. Every step from here down already assumed a fully
+	# built floor when the build was synchronous; awaiting in the same order preserves that
+	# guarantee instead of racing it.
+	var player_process_mode := Node.PROCESS_MODE_INHERIT
+	if _player:
+		player_process_mode = _player.process_mode
+		_player.process_mode = Node.PROCESS_MODE_DISABLED
+	await _builder.build_from_definition(self, _player, def, true)
+	if _player:
+		_player.process_mode = player_process_mode
 	_apply_biome_presentation(def)
 	_wire_run_ui(def)
 	var snapshot := _take_run_snapshot_meta()
@@ -56,6 +68,7 @@ func _ready() -> void:
 	_spawn_recoverable_xp_shard()
 	_show_respawn_outcome_if_needed()
 	InventoryService.apply_equipment_to_player_node(_player)
+	_announce_floor_entry(def)
 	AudioDirector.play_dungeon_ambience()
 	set_physics_process(true)
 	RunFlow.clear_continue_restore()
@@ -175,6 +188,40 @@ func _update_branch_previews(room_id: String) -> void:
 	_hud.call("set_branch_previews", hints)
 
 
+func _on_room_cleared(room_id: String) -> void:
+	if _hud and _hud.has_method("mark_room_cleared"):
+		_hud.call("mark_room_cleared", room_id)
+
+
+func _announce_floor_entry(def: Dictionary) -> void:
+	if _hud and _hud.has_method("set_minimap_fog_of_war"):
+		(
+			_hud
+			. call(
+				"set_minimap_fog_of_war",
+				RunModifierService.has_modifier(RunModifierService.MODIFIER_FOG_OF_WAR)
+			)
+		)
+	if CombatEvents and _player:
+		CombatEvents.dispatch(CombatEvents.ON_FLOOR_ENTER, {"actor": _player})
+	if _hud == null or not _hud.has_method("show_region_title"):
+		return
+	var biome_id := BiomeRegistry.resolve_biome_id(def)
+	if RunFlow.get_run_mode() != "endless":
+		var theme_label := str(def.get("floorThemeLabel", ""))
+		if theme_label != "":
+			_hud.call("show_region_title", "Floor %d" % RunFlow.get_current_floor(), theme_label)
+		return
+	if not RunFlow.consume_pending_region_card():
+		return
+	var region_name := BiomeRegistry.get_display_name(biome_id)
+	if region_name == "":
+		return
+	_hud.call(
+		"show_region_title", region_name, "Floor %d" % RunFlow.get_current_floor()
+	)
+
+
 func _spawn_recoverable_xp_shard() -> void:
 	var shard: Dictionary = RunFlow.get_recoverable_xp_shard()
 	if shard.is_empty():
@@ -188,7 +235,8 @@ func _spawn_recoverable_xp_shard() -> void:
 	add_child(pickup)
 	pickup.configure(
 		Vector3(float(shard.get("x", 0.0)), float(shard.get("y", 0.0)), float(shard.get("z", 0.0))),
-		int(shard.get("xp", 0))
+		int(shard.get("xp", 0)),
+		int(shard.get("gold", 0))
 	)
 
 

@@ -4,31 +4,192 @@
   "nodes": {
     "start": {
       "speaker": "Mira",
-      "text": "The castle portal never sleeps. Quests on the board are optional — the path is always open.",
+      "text": "The portal never sleeps. The board is optional. The way down is always open, which is not the kindness people take it for.",
       "choices": [
-        { "text": "Check the quest board", "actions": [{ "type": "open_quest_board" }] },
         {
-          "text": "Tell me about the castle",
+          "text": "Check the quest board",
+          "actions": [
+            {
+              "type": "open_quest_board"
+            }
+          ]
+        },
+        {
+          "text": "Tell me about the tower",
           "next": "castle_lore",
-          "condition": { "not": { "flag": "heard_castle_lore" } }
+          "condition": {
+            "not": {
+              "flag": "heard_castle_lore"
+            }
+          }
         },
         {
-          "text": "I've heard this before",
+          "text": "I have heard this before",
           "next": "castle_repeat",
-          "condition": { "flag": "heard_castle_lore" }
+          "condition": {
+            "flag": "heard_castle_lore"
+          }
         },
-        { "text": "Goodbye", "next": "end" }
+        {
+          "text": "How many times have I come back now?",
+          "next": "returns",
+          "condition": {
+            "minDeaths": 5
+          }
+        },
+        {
+          "text": "What was the Aumbrage?",
+          "next": "aumbrage",
+          "condition": {
+            "all": [
+              {
+                "storyBeat": 1
+              },
+              {
+                "not": {
+                  "flag": "heard_the_aumbrage"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "text": "You have been warden a long time.",
+          "next": "warden",
+          "condition": {
+            "relationship": "mira",
+            "atLeast": 3
+          }
+        },
+        {
+          "text": "I have a sigil. I need to see further down.",
+          "next": "mira_service",
+          "condition": {
+            "hasItem": "boss_sigil",
+            "count": 1
+          }
+        },
+        {
+          "text": "Why are you still standing here?",
+          "next": "mira_arc",
+          "condition": {
+            "all": [
+              {
+                "relationship": "mira",
+                "atLeast": 5
+              },
+              {
+                "not": {
+                  "flag": "mira_reading_given",
+                  "atLeast": 1
+                }
+              }
+            ]
+          }
+        },
+        {
+          "text": "Goodbye",
+          "next": "end"
+        }
       ]
     },
     "castle_lore": {
       "speaker": "Mira",
-      "text": "Forgotten Castle tier one awaits north of here. Escape alive and keep your loot.",
-      "actions": [{ "type": "set_flag", "flag": "heard_castle_lore", "value": true }],
+      "text": "Aumbrye is one building. Ten depths of it, and one night at the bottom of all ten. Go down. Come back up. That is the whole of my advice and it has kept better people than me alive.",
+      "actions": [
+        {
+          "type": "set_flag",
+          "flag": "heard_castle_lore",
+          "value": true
+        },
+        {
+          "type": "set_relationship",
+          "npc": "mira",
+          "delta": 1
+        },
+        {
+          "type": "advance_story_beat",
+          "beat": 1
+        }
+      ],
       "next": "end"
     },
     "castle_repeat": {
       "speaker": "Mira",
-      "text": "Same castle, same rules. Don't die with pockets full.",
+      "text": "Same tower, same rules. Do not die with your pockets full.",
+      "next": "end"
+    },
+    "returns": {
+      "speaker": "Mira",
+      "text": "I do not count. Somebody does, and they are thorough, and one day they will present the total. Until then you are simply a person who keeps turning up.",
+      "actions": [
+        {
+          "type": "set_relationship",
+          "npc": "mira",
+          "delta": 1
+        }
+      ],
+      "next": "end"
+    },
+    "aumbrage": {
+      "speaker": "Mira",
+      "text": "The night the light went out. Not dimmed — withdrawn, the way a garrison withdraws. Everything below is what the Chapter did about it, arranged by how desperate they had become.",
+      "actions": [
+        {
+          "type": "set_flag",
+          "flag": "heard_the_aumbrage",
+          "value": true
+        },
+        {
+          "type": "set_relationship",
+          "npc": "mira",
+          "delta": 1
+        }
+      ],
+      "next": "end"
+    },
+    "warden": {
+      "speaker": "Mira",
+      "text": "Long enough to have stopped learning names. You are getting close to being an exception, and I would take it as a courtesy if you did not make me regret it.",
+      "next": "end"
+    },
+    "mira_service": {
+      "speaker": "Mira",
+      "text": "A sigil off something that used to hold a floor. I will trade you a lantern that finds what the floor is hiding. Even trade, and I am the one getting the better of it.",
+      "actions": [
+        {
+          "type": "take_item",
+          "itemId": "boss_sigil",
+          "quantity": 1
+        },
+        {
+          "type": "give_item",
+          "itemId": "seekers_lantern",
+          "quantity": 1
+        },
+        {
+          "type": "set_relationship",
+          "npc": "mira",
+          "delta": 1
+        }
+      ],
+      "next": "end"
+    },
+    "mira_arc": {
+      "speaker": "Mira",
+      "text": "Because somebody has to say the way down is open, and say it plainly, and not dress it up. Eleven wardens before me dressed it up. I have read all their books.",
+      "actions": [
+        {
+          "type": "increment_flag",
+          "flag": "mira_reading_given",
+          "amount": 1
+        },
+        {
+          "type": "set_relationship",
+          "npc": "mira",
+          "delta": 1
+        }
+      ],
       "next": "end"
     }
   }

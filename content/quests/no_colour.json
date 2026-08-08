@@ -1,0 +1,21 @@
+{
+  "id": "no_colour",
+  "title": "Prism of No Colour",
+  "type": "defeat_with",
+  "chainId": "lamps",
+  "prerequisites": [
+    "angle_of_the_light"
+  ],
+  "targetId": "prism_choirmaster",
+  "weaponItemId": "spellglass_longsword",
+  "description": "The choir was tuned to the angle, not to any key. Corrin asks that the choirmaster be answered in glass, since glass is what he was tuned against.",
+  "rewards": {
+    "gold": 340,
+    "items": [
+      {
+        "itemId": "spellglass_sliver",
+        "quantity": 2
+      }
+    ]
+  }
+}

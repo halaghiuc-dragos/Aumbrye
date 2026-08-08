@@ -87,7 +87,7 @@ func _unhandled_input(event: InputEvent) -> void:
 
 func _reload_nodes() -> void:
 	_nodes.clear()
-	var tree := ProgressionService.get_talent_tree()
+	var tree := ProgressionService.get_available_talent_tree()
 	for branch in tree.get("branches", []):
 		if not branch is Dictionary:
 			continue

@@ -1,17 +1,17 @@
 {
-    "id":  "cathedral_arcane_staff",
-    "name":  "Cathedral Arcane Staff",
-    "itemType":  "weapon",
-    "gridWidth":  2,
-    "gridHeight":  2,
-    "stackSize":  1,
-    "rarity":  "epic",
-    "description":  "Holy sigils spiral the shaft, amplifying arcane strikes.",
-    "value":  20,
-    "stats":  {
-                  "arcaneDamage":  24
-              },
-    "equipmentSlot":  "weapon",
-    "theme":  "dark_cathedral",
-    "weaponId": "staff"
+  "id": "cathedral_arcane_staff",
+  "name": "Cathedral Arcane Staff",
+  "itemType": "weapon",
+  "gridWidth": 1,
+  "gridHeight": 4,
+  "stackSize": 1,
+  "rarity": "epic",
+  "description": "Holy sigils spiral the shaft, amplifying arcane strikes.",
+  "value": 20,
+  "stats": {
+    "arcaneDamage": 24
+  },
+  "equipmentSlot": "weapon",
+  "theme": "dark_cathedral",
+  "weaponId": "staff"
 }

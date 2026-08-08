@@ -1,9 +1,49 @@
 extends Node
 
+enum ImpactClass { GLANCING, SOLID, CRITICAL }
+
 const DEFAULT_HITSTOP := 0.09
 const DEFAULT_CAMERA_PUNCH := 0.15
 const DEFAULT_INTENSITY := 1.0
 const HITSTOP_TIME_SCALE := 0.08
+const GLANCING_DAMAGE := 15.0
+const CRITICAL_DAMAGE := 40.0
+
+const IMPACT_PROFILES := {
+	ImpactClass.GLANCING:
+	{
+		"freeze": 0.04,
+		"punch": 0.07,
+		"shake": 0.0,
+		"shake_time": 0.0,
+		"rumble_weak": 0.18,
+		"rumble_strong": 0.22,
+		"rumble_time": 0.08,
+		"audio_layer": "",
+	},
+	ImpactClass.SOLID:
+	{
+		"freeze": 0.085,
+		"punch": 0.15,
+		"shake": 0.05,
+		"shake_time": 0.11,
+		"rumble_weak": 0.3,
+		"rumble_strong": 0.45,
+		"rumble_time": 0.12,
+		"audio_layer": "",
+	},
+	ImpactClass.CRITICAL:
+	{
+		"freeze": 0.17,
+		"punch": 0.28,
+		"shake": 0.16,
+		"shake_time": 0.2,
+		"rumble_weak": 0.55,
+		"rumble_strong": 0.9,
+		"rumble_time": 0.22,
+		"audio_layer": "hit_armor",
+	},
+}
 const DAMAGE_NUMBER := preload("res://scripts/combat/damage_number.gd")
 const MaterialFlashScript := preload("res://scripts/art/characters/material_flash.gd")
 const COLOR_PARRY := Color(1.0, 0.88, 0.2)
@@ -60,14 +100,17 @@ func _process(_delta: float) -> void:
 
 
 func on_hit(
-	target: Node, damage: float, direction: Vector3 = Vector3.ZERO, damage_type: String = "physical"
+	target: Node,
+	damage: float,
+	direction: Vector3 = Vector3.ZERO,
+	damage_type: String = "physical",
+	impact: int = ImpactClass.SOLID
 ) -> void:
 	hit_landed.emit(target, damage)
-	var weight := clampf(damage / 20.0, 0.85, 1.35)
-	_apply_hitstop(weight)
-	_apply_camera_punch(direction, weight)
-	_apply_vibration()
-	_play_hit_sfx(target, direction)
+	_apply_hitstop(impact)
+	_apply_camera_punch(direction, impact)
+	_apply_vibration(impact)
+	_play_hit_sfx(target, direction, impact)
 	if show_damage_numbers and target is Node3D:
 		_spawn_damage_number(target as Node3D, damage, Vector3.ZERO, damage_type)
 	_flash_diorama_body(target as Node3D)
@@ -76,8 +119,23 @@ func on_hit(
 func preview_hitstop_duration(damage: float) -> float:
 	if feedback_intensity <= 0.0 or AccessibilitySettings.reduce_hitstop:
 		return 0.0
-	var weight := clampf(damage / 20.0, 0.85, 1.35)
-	return DEFAULT_HITSTOP * feedback_intensity * weight
+	return _freeze_duration(impact_class_for_damage(damage))
+
+
+func impact_class_for_damage(damage: float) -> int:
+	if damage < GLANCING_DAMAGE:
+		return ImpactClass.GLANCING
+	if damage >= CRITICAL_DAMAGE:
+		return ImpactClass.CRITICAL
+	return ImpactClass.SOLID
+
+
+func _profile(impact: int) -> Dictionary:
+	return IMPACT_PROFILES.get(impact, IMPACT_PROFILES[ImpactClass.SOLID])
+
+
+func _freeze_duration(impact: int) -> float:
+	return float(_profile(impact).get("freeze", DEFAULT_HITSTOP)) * feedback_intensity
 
 
 func on_dodge_iframe() -> void:
@@ -88,12 +146,18 @@ func on_dodge_iframe() -> void:
 
 
 func on_hit_received(
-	damage: float, direction: Vector3 = Vector3.ZERO, damage_type: String = "physical"
+	damage: float,
+	direction: Vector3 = Vector3.ZERO,
+	damage_type: String = "physical",
+	impact: int = ImpactClass.SOLID
 ) -> void:
-	_apply_hitstop()
-	_apply_camera_punch(direction)
-	_apply_vibration()
+	_apply_hitstop(impact)
+	_apply_camera_punch(direction, impact)
+	_apply_vibration(impact)
 	_play_combat_sfx_at_body("hit")
+	var layer := String(_profile(impact).get("audio_layer", ""))
+	if layer != "":
+		_play_combat_sfx_at_body(layer)
 	_pulse_damage_vignette()
 	var body := get_parent() as Node3D
 	if show_damage_numbers and body:
@@ -101,7 +165,7 @@ func on_hit_received(
 
 
 func on_hit_blocked(blocker: Node3D, chip_damage: float) -> void:
-	_apply_hitstop(0.75)
+	_apply_hitstop(ImpactClass.GLANCING)
 	_play_combat_sfx_at_body("block", blocker)
 	if blocker:
 		_flash_diorama_body(blocker, 0.65, Color(0.45, 0.78, 1.0))
@@ -115,7 +179,7 @@ func on_hit_blocked(blocker: Node3D, chip_damage: float) -> void:
 
 
 func _on_parry_success(_attacker: Node) -> void:
-	_apply_hitstop(1.2)
+	_apply_hitstop(ImpactClass.CRITICAL)
 	_play_combat_sfx_at_body("parry")
 	if AchievementService:
 		AchievementService.notify("parry")
@@ -141,15 +205,18 @@ func _spawn_damage_number(
 		DAMAGE_NUMBER.spawn(at_node.global_position + offset, damage, root, damage_type)
 
 
-func _apply_hitstop(weight: float = 1.0) -> void:
+func _apply_hitstop(impact: int = ImpactClass.SOLID) -> void:
 	if feedback_intensity <= 0.0 or AccessibilitySettings.reduce_hitstop:
 		return
-	var duration := DEFAULT_HITSTOP * feedback_intensity * weight
+	var duration := _freeze_duration(impact)
+	if duration <= 0.0:
+		return
 	var duration_ms := int(duration * 1000.0)
 	# BUG-41: Engine.time_scale has exactly one owner (VfxService). Pushing/releasing by id
 	# means a second hit landing mid-freeze extends the existing request instead of caching
 	# the already-slowed scale as its own "restore to" value (BUG-39).
-	VfxService.push_time_scale(&"hitstop", HITSTOP_TIME_SCALE, duration_ms)
+	if impact == ImpactClass.CRITICAL:
+		VfxService.push_time_scale(&"hitstop", HITSTOP_TIME_SCALE, duration_ms)
 	var director := _director()
 	if director and director.has_method("set_speed_scale"):
 		var until_ms := Time.get_ticks_msec() + duration_ms
@@ -159,26 +226,35 @@ func _apply_hitstop(weight: float = 1.0) -> void:
 		director.call("set_speed_scale", 0.05)
 
 
-func _apply_camera_punch(direction: Vector3 = Vector3.ZERO, weight: float = 1.0) -> void:
+func _apply_camera_punch(direction: Vector3 = Vector3.ZERO, impact: int = ImpactClass.SOLID) -> void:
 	if AccessibilitySettings.reduce_camera_shake or feedback_intensity <= 0.0:
 		return
 	if _orbit_camera == null:
 		_resolve_orbit_camera()
-	if _orbit_camera and _orbit_camera.has_method("apply_punch"):
-		var strength := DEFAULT_CAMERA_PUNCH * feedback_intensity * weight
-		_orbit_camera.call("apply_punch", direction, strength)
-		if weight >= 1.1 and _orbit_camera.has_method("apply_shake"):
-			_orbit_camera.call("apply_shake", strength * 0.35, 0.11)
+	if _orbit_camera == null or not _orbit_camera.has_method("apply_punch"):
+		return
+	var profile := _profile(impact)
+	var strength := float(profile.get("punch", DEFAULT_CAMERA_PUNCH)) * feedback_intensity
+	_orbit_camera.call("apply_punch", direction, strength)
+	var shake := float(profile.get("shake", 0.0)) * feedback_intensity
+	if shake > 0.0 and _orbit_camera.has_method("apply_shake"):
+		_orbit_camera.call("apply_shake", shake, float(profile.get("shake_time", 0.11)))
 
 
-func _apply_vibration() -> void:
+func _apply_vibration(impact: int = ImpactClass.SOLID) -> void:
 	var intensity := AccessibilitySettings.vibration_intensity
 	if intensity <= 0.0:
 		return
 	var joypads := Input.get_connected_joypads()
 	if joypads.is_empty():
 		return
-	Input.start_joy_vibration(int(joypads[0]), 0.0, intensity * 0.45, 0.12)
+	var profile := _profile(impact)
+	Input.start_joy_vibration(
+		int(joypads[0]),
+		intensity * float(profile.get("rumble_weak", 0.0)),
+		intensity * float(profile.get("rumble_strong", 0.45)),
+		float(profile.get("rumble_time", 0.12))
+	)
 
 
 func _pulse_damage_vignette() -> void:
@@ -186,15 +262,17 @@ func _pulse_damage_vignette() -> void:
 		PixelDioramaViewport.call("pulse_damage_vignette", 0.72 * feedback_intensity)
 
 
-func _play_hit_sfx(target: Node, direction: Vector3) -> void:
+func _play_hit_sfx(target: Node, _direction: Vector3, impact: int = ImpactClass.SOLID) -> void:
 	var cue := "hit"
-	if target is Node3D:
-		var body := target as Node3D
-		if body.has_method("get_enemy_id"):
-			var enemy_id: String = body.call("get_enemy_id")
-			if enemy_id.contains("shield") or enemy_id.contains("knight"):
-				cue = "hit_armor"
-	_play_combat_sfx_at_body(cue, target if target is Node3D else null)
+	var body: Node3D = target as Node3D
+	if body and body.has_method("get_enemy_id"):
+		var enemy_id: String = body.call("get_enemy_id")
+		if enemy_id.contains("shield") or enemy_id.contains("knight"):
+			cue = "hit_armor"
+	_play_combat_sfx_at_body(cue, body)
+	var layer := String(_profile(impact).get("audio_layer", ""))
+	if layer != "" and layer != cue:
+		_play_combat_sfx_at_body(layer, body)
 
 
 func _play_combat_sfx_at_body(cue: String, body: Node3D = null) -> void:

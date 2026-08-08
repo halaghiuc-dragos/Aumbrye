@@ -190,7 +190,13 @@
           "minItems": 3,
           "maxItems": 3
         },
-        "highlightTintAmount": { "type": "number", "minimum": 0, "maximum": 1 }
+        "highlightTintAmount": { "type": "number", "minimum": 0, "maximum": 1 },
+        "saturation": { "type": "number", "minimum": 0, "maximum": 2 },
+        "contrast": { "type": "number", "minimum": 0.5, "maximum": 2 },
+        "lift": { "type": "number", "minimum": -0.2, "maximum": 0.2 },
+        "vignette": { "type": "number", "minimum": 0, "maximum": 1 },
+        "vignetteSoftness": { "type": "number", "minimum": 0.1, "maximum": 2 },
+        "posterizeLevels": { "type": "number", "minimum": 0, "maximum": 64 }
       }
     },
     "finalFloor": {

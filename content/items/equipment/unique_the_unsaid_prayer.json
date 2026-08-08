@@ -1,0 +1,35 @@
+{
+  "id": "unique_the_unsaid_prayer",
+  "name": "The Unsaid Prayer",
+  "itemType": "weapon",
+  "equipmentSlot": "weapon",
+  "gridWidth": 1,
+  "gridHeight": 4,
+  "stackSize": 1,
+  "rarity": "legendary",
+  "description": "The last line was struck out of every copy in the library, in the same hand.",
+  "value": 810,
+  "lootValue": 405,
+  "maxDurability": 90,
+  "unique": true,
+  "baseId": "staff",
+  "biome": "dark_cathedral",
+  "scaling": {
+    "strength": "E",
+    "arcane": "A"
+  },
+  "ruleText": "Each kill restores 15 mana.",
+  "rules": [
+    {
+      "event": "onKill",
+      "effect": "restore_mana",
+      "amount": 15.0
+    }
+  ],
+  "stats": {
+    "arcaneDamage": 16,
+    "manaMax": 40,
+    "manaRegen": 0.08
+  },
+  "weaponId": "staff"
+}

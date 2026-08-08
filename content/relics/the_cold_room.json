@@ -1,0 +1,24 @@
+{
+  "id": "the_cold_room",
+  "name": "The Cold Room",
+  "description": "Frost you inflict spreads to whatever stands near it.",
+  "maxStacks": 1,
+  "stats": {
+    "frostDamage": 3
+  },
+  "tags": [
+    "frost"
+  ],
+  "weight": 0.8,
+  "rules": [
+    {
+      "event": "onStatusApplied",
+      "effect": "spread_status",
+      "statusId": "freeze",
+      "stacks": 1,
+      "radius": 4,
+      "cooldown": 6
+    }
+  ],
+  "offerable": true
+}

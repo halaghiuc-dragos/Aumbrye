@@ -1,0 +1,73 @@
+{
+  "id": "lampwright_corrin",
+  "displayName": "Corrin the Lampwright",
+  "interactType": "dialogue",
+  "dialogueId": "corrin_greeting",
+  "requiresFlag": "rescued_corrin",
+  "dialogueRules": [
+    {
+      "condition": {
+        "not": {
+          "relationship": "corrin",
+          "atLeast": 1
+        }
+      },
+      "dialogueId": "corrin_arrival"
+    },
+    {
+      "condition": {
+        "any": [
+          {
+            "all": [
+              {
+                "lastRunOutcome": "died"
+              },
+              {
+                "lastRunBoss": true
+              }
+            ]
+          },
+          {
+            "all": [
+              {
+                "lastRunOutcome": "died"
+              },
+              {
+                "minLastRunFloor": 4
+              }
+            ]
+          },
+          {
+            "all": [
+              {
+                "lastRunOutcome": "escaped"
+              },
+              {
+                "lastRunBoss": true
+              }
+            ]
+          },
+          {
+            "lastRunBiome": "prism_depths"
+          },
+          {
+            "all": [
+              {
+                "lastRunOutcome": "died"
+              },
+              {
+                "minDeaths": 10
+              }
+            ]
+          }
+        ]
+      },
+      "dialogueId": "corrin_reactions"
+    }
+  ],
+  "position": {
+    "x": -18.2,
+    "y": 0,
+    "z": 7.8
+  }
+}

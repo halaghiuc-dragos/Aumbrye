@@ -1,0 +1,138 @@
+{
+  "id": "corrin_greeting",
+  "startNode": "start",
+  "nodes": {
+    "line_1": {
+      "speaker": "Corrin",
+      "text": "Because thin enough, one lamp lights a city. I proved it on paper. On paper it is still true and that is where I should have left it.",
+      "actions": [
+        {
+          "type": "set_relationship",
+          "npc": "corrin",
+          "delta": 1
+        }
+      ],
+      "next": "end"
+    },
+    "line_2": {
+      "speaker": "Corrin",
+      "text": "They were tuned to the angle of the light, not to any key. When the angle moved they went on singing. I could hear them from the workshop for a long time after that stopped making sense.",
+      "actions": [
+        {
+          "type": "set_relationship",
+          "npc": "corrin",
+          "delta": 1
+        }
+      ],
+      "next": "end"
+    },
+    "line_3": {
+      "speaker": "Corrin",
+      "text": "Something. Nobody has ever shown it is the same light that went in, and I have stopped volunteering to be the one who checks.",
+      "actions": [
+        {
+          "type": "set_relationship",
+          "npc": "corrin",
+          "delta": 1
+        }
+      ],
+      "next": "end"
+    },
+    "gated": {
+      "speaker": "Corrin",
+      "text": "You have been in the caverns. That is the first cut, the coarse one. Everything I did was the same crime with a finer edge.",
+      "actions": [
+        {
+          "type": "set_relationship",
+          "npc": "corrin",
+          "delta": 1
+        }
+      ],
+      "next": "end"
+    },
+    "start": {
+      "speaker": "Corrin",
+      "text": "Corrin the Lampwright has taken a corner of the tower and made it look lived in, which is more than the tower has managed on its own.",
+      "choices": [
+        {
+          "text": "Why did you cut it so thin?",
+          "next": "line_1"
+        },
+        {
+          "text": "What did the choir do?",
+          "next": "line_2"
+        },
+        {
+          "text": "What leaves the prism?",
+          "next": "line_3"
+        },
+        {
+          "text": "I have been in the caverns.",
+          "next": "gated",
+          "condition": {
+            "dungeonCleared": "crystal_caverns"
+          }
+        },
+        {
+          "text": "I have chapel wax.",
+          "next": "corrin_service",
+          "condition": {
+            "hasItem": "chapel_wax",
+            "count": 1
+          }
+        },
+        {
+          "text": "Why keep the brackets up at all?",
+          "next": "corrin_arc",
+          "condition": {
+            "relationship": "corrin",
+            "atLeast": 4
+          }
+        },
+        {
+          "text": "Later.",
+          "next": "end"
+        }
+      ]
+    },
+    "corrin_service": {
+      "speaker": "Corrin",
+      "text": "Wax off the chapel candles. It burns badly and it burns for a very long time, which is the only quality that matters below the fourth floor.",
+      "actions": [
+        {
+          "type": "take_item",
+          "itemId": "chapel_wax",
+          "quantity": 1
+        },
+        {
+          "type": "give_item",
+          "itemId": "everburning_torch",
+          "quantity": 1
+        },
+        {
+          "type": "increment_flag",
+          "flag": "corrin_lamp_lit",
+          "amount": 1
+        },
+        {
+          "type": "set_relationship",
+          "npc": "corrin",
+          "delta": 1
+        }
+      ],
+      "next": "end"
+    },
+    "corrin_arc": {
+      "speaker": "Corrin",
+      "text": "Because a bracket with nothing in it is still a bracket, and the day somebody comes up the stair with a full lamp there will be somewhere to put it. That is the whole of my reasoning and I am aware of how it sounds.",
+      "actions": [
+        {
+          "type": "set_relationship",
+          "npc": "corrin",
+          "delta": 1
+        }
+      ],
+      "next": "end"
+    }
+  }
+}

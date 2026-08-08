@@ -1,0 +1,23 @@
+{
+  "id": "spellglass_band",
+  "name": "Spellglass Band",
+  "itemType": "accessory",
+  "equipmentSlot": "ring",
+  "gridWidth": 1,
+  "gridHeight": 1,
+  "stackSize": 1,
+  "rarity": "rare",
+  "description": "Sized for a finger that is no longer attached to anyone. Grown, not forged. It rings on a note the ear dislikes.",
+  "value": 195,
+  "lootValue": 98,
+  "maxDurability": 60,
+  "baseId": "band",
+  "materialTier": "spellglass",
+  "biome": "crystal_caverns",
+  "scaling": {},
+  "stats": {
+    "maxHealth": 26,
+    "resistArcane": 0.1,
+    "resistLightning": 0.05
+  }
+}

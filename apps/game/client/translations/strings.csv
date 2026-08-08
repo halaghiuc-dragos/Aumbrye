@@ -30,21 +30,21 @@ MAP_LEGEND_STAIRS,Stairs,Scări
 UI_PAUSE,Paused,Pauză
 UI_RESUME,Resume,Continuă
 STORY_PREMISE,The Umbral Tower binds fallen wardens as echoes until the oath is fulfilled.,Turnul Umbral leagă gardienii căzuți ca ecouri până când jurământul este împlinit.
-talent.branch.arms,Arms,Arme
-talent.branch.guard,Guard,Apărare
-talent.branch.aptitude,Aptitude,Aptitudine
-talent.arms_1,Keen Edge,Tăiș ascuțit
-talent.arms_2,Sharpened Steel,Oțel ascuțit
-talent.arms_3,Efficient Strikes,Lovituri eficiente
-talent.arms_4,Deadly Precision,Precizie mortală
-talent.arms_5,Breaker,Distrugător
-talent.arms_6,Ruinous Blow,Lovitură ruină
-talent.guard_1,Hardy,Rezistent
-talent.guard_2,Iron Skin,Piele de fier
-talent.guard_3,Shield Mastery,Măiestrie scut
-talent.guard_4,Unshakable,De neclintit
-talent.guard_5,Defiant,Rebel
-talent.guard_6,Bulwark,Zid
+talent.branch.arms,Arms,Arms
+talent.branch.guard,Guard,Guard
+talent.branch.aptitude,Aptitude,Aptitude
+talent.arms_1,Keen Edge,Keen Edge
+talent.arms_2,Weight Behind It,Weight Behind It
+talent.arms_3,Economy of Motion,Economy of Motion
+talent.arms_4,The Gap in the Guard,The Gap in the Guard
+talent.arms_5,Break the Stance,Break the Stance
+talent.arms_6,Follow Through,Follow Through
+talent.guard_1,Old Scars,Old Scars
+talent.guard_2,Plated,Plated
+talent.guard_3,Set Feet,Set Feet
+talent.guard_4,Take It on the Shield,Take It on the Shield
+talent.guard_5,Slow to Fall,Slow to Fall
+talent.guard_6,Second Wind,Second Wind
 talent.apt_1,Second Wind,Al doilea suflu
 talent.apt_2,Swift Feet,Picioare iuți
 talent.apt_3,Treasure Sense,Simț al comorii
@@ -63,6 +63,7 @@ PAUSE_TITLE,Paused,Pauză
 PAUSE_RESUME,Resume,Continuă
 PAUSE_SETTINGS,Settings,Setări
 PAUSE_ACHIEVEMENTS,Achievements,Realizări
+PAUSE_BESTIARY,Bestiary,Bestiar
 PAUSE_ABANDON,Abandon run,Abandonează alergarea
 PAUSE_LEAVE_WAVES,Leave waves,Părăsește valurile
 PAUSE_RESTART_FLOOR,Restart floor,Repornește etajul
@@ -135,16 +136,16 @@ STAT_DAMAGE,Damage,Daune
 STAT_POISE_DMG,Poise Damage,Daune echilibru
 STAT_STAMINA_REGEN,Stamina Regen,Regenerare rezistență
 STAT_BLOCK,Block Reduction,Reducere blocare
-ASPECT_CASTLE_IRON,Iron Oath,Jurământ de Fier
-ASPECT_CASTLE_IRON_DESC,Castle-forged plate and oathbound steel.,Placă turnată și oțel legat de jurământ.
-ASPECT_CRYSTAL_FROST,Crystal Warden,Gardian de Cristal
-ASPECT_CRYSTAL_FROST_DESC,Frost-touched crystal and glacial light.,Cristal atins de ger și lumină glaciară.
-ASPECT_UMBRAL_VOID,Umbral Warden,Gardian Umbral
-ASPECT_UMBRAL_VOID_DESC,Void-wreathed armor from the deep tower.,Armură învăluită în vid din turnul adânc.
-ASPECT_CATHEDRAL_GOLD,Cathedral Warden,Gardian de Catedrală
-ASPECT_CATHEDRAL_GOLD_DESC,Gilded rites and sanctified plate.,Rituri aurite și placă sfințită.
-ASPECT_SWAMP_WARDEN,Swamp Warden,Gardian de Mlaștină
-ASPECT_SWAMP_WARDEN_DESC,Venom-stained leather and bog iron.,Piele pătată de venin și fier de mlaștină.
+ASPECT_CASTLE_IRON,Iron Oath,Iron Oath
+ASPECT_CASTLE_IRON_DESC,Castle-forged plate and oathbound steel.,Castle-forged plate and oathbound steel.
+ASPECT_CRYSTAL_FROST,Cold Facet,Cold Facet
+ASPECT_CRYSTAL_FROST_DESC,Light caught in a stone that was never warm.,Light caught in a stone that was never warm.
+ASPECT_UMBRAL_VOID,Umbral Void,Umbral Void
+ASPECT_UMBRAL_VOID_DESC,What the chapel wore after the lamps went out.,What the chapel wore after the lamps went out.
+ASPECT_CATHEDRAL_GOLD,Cathedral Gold,Cathedral Gold
+ASPECT_CATHEDRAL_GOLD_DESC,Gilt left on a thing nobody prays to now.,Gilt left on a thing nobody prays to now.
+ASPECT_SWAMP_WARDEN,Swamp Warden,Swamp Warden
+ASPECT_SWAMP_WARDEN_DESC,Bile-green and patient. Earned in the standing water.,Bile-green and patient. Earned in the standing water.
 CLASS_ROLE_BERSERKER,Frontline / Damage,Front / Daune
 CLASS_ROLE_KNIGHT,Frontline / Sustain,Front / Rezistență
 CLASS_ROLE_ROGUE,Skirmisher / Crit,Hărțuitor / Crit
@@ -168,6 +169,7 @@ PAUSE_LEAVE_WAVES,Leave waves,Părăsește valurile
 PAUSE_RESTART_FLOOR,Restart floor,Repornește etajul
 PAUSE_QUIT,Quit to menu,Ieși în meniu
 PAUSE_ACHIEVEMENTS,Achievements,Realizări
+PAUSE_BESTIARY,Bestiary,Bestiar
 PAUSE_HINT_RESUME,to resume,ca să continui
 PAUSE_INFO_SECTION,Run info,Info run
 PAUSE_INFO_MODE,Mode,Mod
@@ -203,3 +205,172 @@ PAUSE_CLOUD_ERROR,Cloud: sync error,Cloud: eroare sincronizare
 PAUSE_CLOUD_UPDATE,Cloud: update required,Cloud: actualizare necesară
 UI_CONFIRM,Confirm,Confirmă
 UI_CANCEL,Cancel,Anulează
+STAT_MAX_HEALTH,Health,Viață
+STAT_HEALTH_REGEN,Health Regen,Regenerare viață
+STAT_EVASION,Evasion,Evaziune
+STAT_DEFENSE,Defense,Apărare
+STAT_DAMAGE_PERCENT,Damage,Damage
+STAT_MOVE_SPEED_PCT,Move Speed,Viteză deplasare
+STAT_STAMINA_MAX,Stamina,Stamina
+STAT_BONUS_DAMAGE,Attack Damage,Damage atac
+STAT_CRIT_CHANCE,Critical Chance,Șansă critică
+STAT_POISE_DAMAGE,Poise Damage,Damage echilibru
+STAT_ARMOR,Armor,Armură
+STAT_BLOCK_REDUCTION,Block Reduction,Reducere la blocare
+STAT_POISE,Poise,Echilibru
+STAT_STAMINA_COST_RED,Stamina Cost Reduction,Reducere cost stamina
+STAT_DAMAGE_REDUCTION,Damage Reduction,Reducere damage
+STAT_MOVE_SPEED,Move Speed,Viteză deplasare
+STAT_MANA_MAX,Mana,Mana
+STAT_MANA_REGEN,Mana Regen,Regenerare mana
+STAT_RESIST_PHYSICAL,Physical Resistance,Rezistență fizică
+STAT_RESIST_FIRE,Fire Resistance,Rezistență la foc
+STAT_RESIST_FROST,Frost Resistance,Rezistență la ger
+STAT_RESIST_POISON,Poison Resistance,Rezistență la otravă
+STAT_RESIST_LIGHTNING,Lightning Resistance,Rezistență la fulger
+STAT_RESIST_ARCANE,Arcane Resistance,Rezistență arcană
+STAT_LOOT_QUALITY,Loot Quality,Calitate pradă
+STAT_XP_GAIN,Experience Gain,Câștig experiență
+STAT_GOLD_FIND,Gold Find,Găsire aur
+STAT_COOLDOWN_RED,Cooldown Reduction,Reducere cooldown
+STAT_PHYSICAL_DAMAGE,Physical Damage,Damage fizic
+STAT_FIRE_DAMAGE,Fire Damage,Damage de foc
+STAT_FROST_DAMAGE,Frost Damage,Damage de ger
+STAT_ARCANE_DAMAGE,Arcane Damage,Damage arcan
+STAT_POISON_DAMAGE,Poison Damage,Damage de otravă
+FORGE_PATH_STANDARD,Standard,Standard
+FORGE_PATH_HEAVY,Heavy,Greu
+FORGE_PATH_KEEN,Keen,Ascuțit
+FORGE_PATH_BLESSED,Blessed,Binecuvântat
+FORGE_INFUSION_FIRE,Fire,Foc
+FORGE_INFUSION_FROST,Frost,Ger
+FORGE_INFUSION_POISON,Poison,Otravă
+FORGE_INFUSION_ARCANE,Arcane,Arcan
+FORGE_INFUSION_LIGHTNING,Lightning,Fulger
+INV_DURABILITY,Durability %d/%d,Durabilitate %d/%d
+INV_DURABILITY_BROKEN,Broken — this item grants no stats,Rupt — obiectul nu oferă statistici
+INV_COMPARE_TITLE,Compared with %s,Comparat cu %s
+INV_ESCAPE_RETURNED,You returned to the tower. Your loot came with you.,Te-ai întors la turn. Prada a venit cu tine.
+CREATE_ROW_TITLE,Title,Titlu
+CLASS_ROLE_HUNTER,Ranged / Precision,La distanță / Precizie
+CLASS_ROLE_HERALD,Support / Status,Sprijin / Stări
+CLASS_PERK_KILLING_DISTANCE,Killing Distance,Distanța ucigașă
+CLASS_PERK_KILLING_DISTANCE_DESC,One clean shot pays for the next.,O lovitură curată o plătește pe următoarea.
+CLASS_PERK_CONTAGION,Contagion,Molimă
+CLASS_PERK_CONTAGION_DESC,"What one of them carries, the nearest carry too.","Ce poartă unul, poartă și cei de lângă el."
+talent.arms_7,Practised Hands,Practised Hands
+talent.arms_8,No Wasted Swing,No Wasted Swing
+talent.arms_9,The Killing Half-Second,The Killing Half-Second
+talent.arms_keystone,Executioner's Patience,Executioner's Patience
+talent.guard_7,Banded Iron,Banded Iron
+talent.guard_8,Weathered,Weathered
+talent.guard_9,Unmoved,Unmoved
+talent.guard_keystone,The Long Vigil,The Long Vigil
+talent.aptitude_1,Reader of Signs,Reader of Signs
+talent.aptitude_2,Careful Hands,Careful Hands
+talent.aptitude_3,Coin Sense,Coin Sense
+talent.aptitude_4,Long Breath,Long Breath
+talent.aptitude_5,Clear Head,Clear Head
+talent.aptitude_6,Light Step,Light Step
+talent.aptitude_7,Deep Pockets,Deep Pockets
+talent.aptitude_8,Study of the Dead,Study of the Dead
+talent.aptitude_9,Scavenger,Scavenger
+talent.aptitude_keystone,The Ledger Balances,The Ledger Balances
+talent.branch.oath,Oath,Oath
+talent.oath_1,Sworn Weight,Sworn Weight
+talent.oath_2,Answer in Kind,Answer in Kind
+talent.oath_3,Shield Discipline,Shield Discipline
+talent.oath_4,Unbroken Line,Unbroken Line
+talent.oath_5,Measured Advance,Measured Advance
+talent.oath_6,Held Ground,Held Ground
+talent.oath_7,Sword and Board,Sword and Board
+talent.oath_8,The Oath Remembered,The Oath Remembered
+talent.oath_9,Retribution,Retribution
+talent.oath_keystone,Answered in Kind,Answered in Kind
+talent.branch.ruin,Ruin,Ruin
+talent.ruin_1,Fed on Ruin,Fed on Ruin
+talent.ruin_2,Careless of the Body,Careless of the Body
+talent.ruin_3,Heavy Arms,Heavy Arms
+talent.ruin_4,Blood in the Mouth,Blood in the Mouth
+talent.ruin_5,Unstopping,Unstopping
+talent.ruin_6,Wider Arc,Wider Arc
+talent.ruin_7,No Guard At All,No Guard At All
+talent.ruin_8,Deeper Cuts,Deeper Cuts
+talent.ruin_9,Last Strength,Last Strength
+talent.ruin_keystone,Nothing Left to Spend,Nothing Left to Spend
+talent.branch.unlit,Unlit,Unlit
+talent.unlit_1,Quiet Approach,Quiet Approach
+talent.unlit_2,Between the Plates,Between the Plates
+talent.unlit_3,Short Blade Work,Short Blade Work
+talent.unlit_4,Read the Turn,Read the Turn
+talent.unlit_5,Cheap Footwork,Cheap Footwork
+talent.unlit_6,Opened Vein,Opened Vein
+talent.unlit_7,Practised Cruelty,Practised Cruelty
+talent.unlit_8,Nothing Wasted,Nothing Wasted
+talent.unlit_9,Faster Than Sorry,Faster Than Sorry
+talent.unlit_keystone,The Unlit Hour,The Unlit Hour
+talent.branch.vigil,Vigil,Vigil
+talent.vigil_1,Late Reading,Late Reading
+talent.vigil_2,Steady Draw,Steady Draw
+talent.vigil_3,Written Fire,Written Fire
+talent.vigil_4,Written Frost,Written Frost
+talent.vigil_5,Copied Hand,Copied Hand
+talent.vigil_6,Marginalia,Marginalia
+talent.vigil_7,The Longer Book,The Longer Book
+talent.vigil_8,Unhurried,Unhurried
+talent.vigil_9,Annotation,Annotation
+talent.vigil_keystone,What the Margins Said,What the Margins Said
+talent.branch.watch,Watch,Watch
+talent.watch_1,The Long Watch,The Long Watch
+talent.watch_2,Braced,Braced
+talent.watch_3,Spear Length,Spear Length
+talent.watch_4,Root and Stand,Root and Stand
+talent.watch_5,Watchful,Watchful
+talent.watch_6,Shield Weight,Shield Weight
+talent.watch_7,Never Yielding,Never Yielding
+talent.watch_8,Cold Patience,Cold Patience
+talent.watch_9,The Line Holds,The Line Holds
+talent.watch_keystone,Nothing Passes,Nothing Passes
+talent.branch.mile,Mile,Mile
+talent.mile_1,The Quiet Mile,The Quiet Mile
+talent.mile_2,Drawn Slow,Drawn Slow
+talent.mile_3,Steady Arm,Steady Arm
+talent.mile_4,Counted Arrows,Counted Arrows
+talent.mile_5,Wind Read,Wind Read
+talent.mile_6,Marked,Marked
+talent.mile_7,Long Sight,Long Sight
+talent.mile_8,Field Dressing,Field Dressing
+talent.mile_9,Trapline,Trapline
+talent.mile_keystone,One Shot Is Enough,One Shot Is Enough
+talent.branch.tide,Tide,Tide
+talent.tide_1,Carried Rot,Carried Rot
+talent.tide_2,Slow Fever,Slow Fever
+talent.tide_3,Open Vessel,Open Vessel
+talent.tide_4,Damp Hands,Damp Hands
+talent.tide_5,The Message,The Message
+talent.tide_6,Passed Along,Passed Along
+talent.tide_7,Deeper Water,Deeper Water
+talent.tide_8,Patient Contagion,Patient Contagion
+talent.tide_9,Everything Spreads,Everything Spreads
+talent.tide_keystone,It Was Always Going to Spread,It Was Always Going to Spread
+ASPECT_HUB_EMBER,Ember Watch,Ember Watch
+ASPECT_HUB_EMBER_DESC,The colour of the last fire anyone kept.,The colour of the last fire anyone kept.
+ASPECT_FROZEN_STEEL,Frozen Steel,Frozen Steel
+ASPECT_FROZEN_STEEL_DESC,Metal that keeps the cold long after the walk out.,Metal that keeps the cold long after the walk out.
+ASPECT_VAULT_IRON,Vault Iron,Vault Iron
+ASPECT_VAULT_IRON_DESC,"Dull, honest, and closed for a very long time.","Dull, honest, and closed for a very long time."
+ASPECT_PRISM_LIGHT,Prism Light,Prism Light
+ASPECT_PRISM_LIGHT_DESC,"A colour that is several colours, depending on the hour.","A colour that is several colours, depending on the hour."
+ASPECT_MIRE_VENOM,Mire Venom,Mire Venom
+ASPECT_MIRE_VENOM_DESC,Worn by those who came back up out of the mire.,Worn by those who came back up out of the mire.
+ASPECT_HOLLOW_ICE,Hollow Ice,Hollow Ice
+ASPECT_HOLLOW_ICE_DESC,Pale to the point of absence. It suits the place.,Pale to the point of absence. It suits the place.
+TITLE_NONE,No title,No title
+TITLE_THE_OATHKEPT,the Oathkept,the Oathkept
+TITLE_OF_THE_COLD_FACET,of the Cold Facet,of the Cold Facet
+TITLE_THE_UNABSOLVED,the Unabsolved,the Unabsolved
+TITLE_THE_LATE_READER,the Late Reader,the Late Reader
+TITLE_THE_STUDIED,the Studied,the Studied
+TITLE_THE_GATE_OPENER,the Gate-Opener,the Gate-Opener
+TITLE_THE_LAMPLIGHTER,the Lamplighter,the Lamplighter
+TITLE_THE_UNFINISHED,the Unfinished,the Unfinished

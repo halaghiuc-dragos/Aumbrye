@@ -1,0 +1,15 @@
+{
+  "id": "antidote",
+  "name": "Antidote",
+  "itemType": "consumable",
+  "gridWidth": 1,
+  "gridHeight": 1,
+  "stackSize": 8,
+  "rarity": "common",
+  "description": "Bitter, and worth it. Clears whatever is currently working on you.",
+  "consumableEffect": {
+    "kind": "cure"
+  },
+  "value": 35,
+  "lootValue": 18
+}

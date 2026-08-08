@@ -1,0 +1,28 @@
+{
+  "id": "spellglass_greatsword",
+  "name": "Spellglass Greatsword",
+  "itemType": "weapon",
+  "equipmentSlot": "weapon",
+  "gridWidth": 2,
+  "gridHeight": 4,
+  "stackSize": 1,
+  "rarity": "rare",
+  "description": "Two hands, and a promise not to step back. Grown, not forged. It rings on a note the ear dislikes. Scaling: Strength B, Dexterity E.",
+  "value": 358,
+  "lootValue": 179,
+  "maxDurability": 130,
+  "baseId": "greatsword",
+  "materialTier": "spellglass",
+  "biome": "crystal_caverns",
+  "scaling": {
+    "strength": "B",
+    "dexterity": "E"
+  },
+  "stats": {
+    "physicalDamage": 26,
+    "poiseDamage": 0.32,
+    "resistArcane": 0.1,
+    "resistLightning": 0.05
+  },
+  "weaponId": "greatsword"
+}

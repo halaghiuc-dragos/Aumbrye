@@ -43,8 +43,10 @@ const RigCatalog := preload("res://scripts/art/characters/character_rig_catalog.
 const VoxelGridScript := preload("res://scripts/art/characters/voxel_grid.gd")
 const VoxelMeshBuilderScript := preload("res://scripts/art/characters/voxel_mesh_builder.gd")
 const CharacterRigCatalogScript := preload("res://scripts/art/characters/character_rig_catalog.gd")
+const MeshMergerScript := preload("res://scripts/art/characters/character_mesh_merger.gd")
 
 const EQUIP_VISUAL_PREFIX := "EquipVisual_"
+const SKIN_TINT_PARAM := &"skin_tint"
 
 const ARENA_DUMMY_ACCENT := Color(1.0, 0.35, 0.1)
 const ARENA_DUMMY_GLOW := Color(0.6, 0.2, 0.05)
@@ -136,6 +138,7 @@ static func build_player_body(facing: Node3D, theme: int = -1) -> Node3D:
 	else:
 		_apply_player_appearance(visual, profile, _body_materials(theme, "player"))
 	_assert_feet_at_origin(visual)
+	MeshMergerScript.merge(visual)
 	return visual
 
 
@@ -154,6 +157,7 @@ static func build_preview_body(parent: Node3D, profile: Dictionary) -> Node3D:
 	if root == null:
 		_build_humanoid(visual, "player", _body_materials(theme, "player"))
 	_apply_player_appearance(visual, clean, _body_materials(theme, "player"))
+	MeshMergerScript.merge(visual)
 	return visual
 
 
@@ -225,16 +229,11 @@ static func _apply_bulk_joint_offsets(visual: Node3D, profile: Dictionary) -> vo
 		part.position.x += x_shift * side
 
 
-static func _apply_skin_tone(visual: Node3D, profile: Dictionary, mats: Dictionary) -> void:
+static func _apply_skin_tone(visual: Node3D, profile: Dictionary, _mats: Dictionary) -> void:
 	var tint := CharacterAppearance.skin_tint_vector(
 		str(profile.get("skinTone", CharacterAppearance.SKIN_TONE_NEUTRAL))
 	)
-	var head := find_part(visual, "Head")
-	if head == null:
-		return
-	var mesh_inst := head.get_node_or_null("Mesh") as MeshInstance3D
-	if mesh_inst and mesh_inst.material_override is ShaderMaterial:
-		(mesh_inst.material_override as ShaderMaterial).set_shader_parameter("skin_tint", tint)
+	_set_skin_tint(visual, tint)
 
 
 static func _apply_hair(visual: Node3D, profile: Dictionary, mats: Dictionary) -> void:
@@ -380,6 +379,7 @@ static func build_enemy_body(
 			var hound_root := build_from_manifest(visual, hound_archetype, theme)
 			if hound_root != null:
 				_assert_feet_at_origin(visual)
+				MeshMergerScript.merge(visual)
 				return visual
 		_build_quadruped(visual, mats)
 	else:
@@ -394,6 +394,7 @@ static func build_enemy_body(
 			)
 			_build_humanoid(visual, resolved if PROFILES.has(profile) else "melee", mats)
 	_assert_feet_at_origin(visual)
+	MeshMergerScript.merge(visual)
 	return visual
 
 
@@ -409,6 +410,7 @@ static func build_training_dummy(parent: Node3D) -> Node3D:
 		push_error("DioramaCharacterSkin: enemy_dummy manifest missing — using box fallback")
 		_build_humanoid(visual, "dummy", mats)
 	_assert_feet_at_origin(visual)
+	MeshMergerScript.merge(visual)
 	return visual
 
 
@@ -663,7 +665,9 @@ static func _disable_cast_shadows(node: Node) -> void:
 
 static func _set_meshes_visible(node: Node, visible: bool) -> void:
 	if node is GeometryInstance3D:
-		(node as GeometryInstance3D).visible = visible
+		var already_merged := visible and MeshMergerScript.is_merged_source(node as MeshInstance3D)
+		if not already_merged:
+			(node as GeometryInstance3D).visible = visible
 	for child in node.get_children():
 		_set_meshes_visible(child, visible)
 
@@ -866,7 +870,7 @@ static func build_from_manifest(visual: Node3D, archetype_id: String, theme: int
 			skin_tint = CharacterAppearance.skin_tint_vector(
 				str(appearance.get("skinTone", CharacterAppearance.SKIN_TONE_NEUTRAL))
 			)
-	var mat := _make_voxel_material(theme, skin_tint, false)
+	var mat := _make_voxel_material(theme)
 	var root := _add_pivot(visual, ROOT_NAME, Vector3.ZERO)
 	var built: Dictionary = {ROOT_NAME: root}
 	var remaining: Array = parts.keys()
@@ -912,6 +916,7 @@ static func build_from_manifest(visual: Node3D, archetype_id: String, theme: int
 			)
 			return null
 	_attach_manifest_extras(visual, manifest.get("extras", {}), grid, mat)
+	_set_skin_tint(visual, skin_tint)
 	return root
 
 
@@ -960,29 +965,30 @@ static func _archetype_id_for_profile(profile: String) -> String:
 			return "enemy_melee"
 
 
-## Materials that are never mutated after creation (hair, equipment) are cached and shared by
-## every character of a given theme instead of duplicated per mesh. The body material is
-## excluded via `cacheable = false` — `_apply_skin_tone` mutates it in place on a skin-tone
-## change, and a body built with the (common) neutral tint is otherwise indistinguishable from
-## a cacheable material, which would let that later mutation bleed into every other character
-## sharing the cached instance.
+## Body, hair and equipment now share one voxel material per theme. Skin tone is a per-mesh
+## instance shader parameter rather than a material uniform, so nothing about a character's
+## colour variation is stored on the material and the cached instance can be shared freely.
 static var _untinted_material_cache: Dictionary = {}
 
 
-static func _make_voxel_material(
-	theme: int, skin_tint: Vector3 = Vector3.ONE, cacheable: bool = true
-) -> ShaderMaterial:
-	if cacheable and skin_tint.is_equal_approx(Vector3.ONE) and _untinted_material_cache.has(theme):
+static func _make_voxel_material(theme: int) -> ShaderMaterial:
+	if _untinted_material_cache.has(theme):
 		return _untinted_material_cache[theme]
 	var mat := (
 		PixelStyle.make_surface_material(PixelStyle.SurfaceKind.PROP, theme, 0.38).duplicate()
 		as ShaderMaterial
 	)
 	mat.set_shader_parameter("use_vertex_color", true)
-	mat.set_shader_parameter("skin_tint", skin_tint)
-	if cacheable and skin_tint.is_equal_approx(Vector3.ONE):
-		_untinted_material_cache[theme] = mat
+	_untinted_material_cache[theme] = mat
 	return mat
+
+
+static func _set_skin_tint(node: Node, tint: Vector3) -> void:
+	var mesh := node as MeshInstance3D
+	if mesh != null:
+		mesh.set_instance_shader_parameter(SKIN_TINT_PARAM, tint)
+	for child in node.get_children():
+		_set_skin_tint(child, tint)
 
 
 static func clear_material_cache() -> void:
@@ -992,6 +998,7 @@ static func clear_material_cache() -> void:
 static func apply_equipment(visual: Node3D, equipped: Dictionary, theme: int) -> void:
 	if visual == null:
 		return
+	MeshMergerScript.unmerge(visual)
 	_clear_equipment_visuals(visual)
 	for slot_name in equipped:
 		var inst: Dictionary = equipped.get(slot_name, {})
@@ -1005,6 +1012,7 @@ static func apply_equipment(visual: Node3D, equipped: Dictionary, theme: int) ->
 		if vis.is_empty():
 			continue
 		_apply_equipment_visual(visual, vis, theme)
+	MeshMergerScript.merge(visual)
 
 
 static func _clear_equipment_visuals(visual: Node3D) -> void:

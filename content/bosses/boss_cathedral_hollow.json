@@ -1,23 +1,385 @@
 {
-    "id":  "boss_cathedral_hollow",
-    "name":  "Boss Cathedral Hollow",
-    "scene":  "res://scenes/enemies/boss_cathedral_hollow.tscn",
-    "threat_cost":  50,
-    "health":  650,
-    "poise":  325,
-    "move_speed":  3.8,
-    "attack_damage":  25,
-    "attack_poise_damage":  21,
-    "windup_duration":  0.5,
-    "active_duration":  0.15,
-    "recovery_duration":  0.7,
-    "attack_range":  3,
-    "attack_cooldown":  1,
-    "stagger_duration":  1.5,
-    "aggro_range":  20,
-    "deaggro_range":  30,
-    "patrol_radius":  0,
-    "enemy_type":  "boss",
-    "phaseCount": 2,
-    "phase2_threshold":  0.5
+  "id": "boss_cathedral_hollow",
+  "name": "Boss Cathedral Hollow",
+  "title": "The Hollow In The Nave",
+  "loreText": "What is left of a congregation that kept singing after the roof fell.",
+  "scene": "res://scenes/enemies/boss_cathedral_hollow.tscn",
+  "threat_cost": 50,
+  "isBoss": true,
+  "health": 650,
+  "poise": 325,
+  "move_speed": 3.8,
+  "attack_damage": 25,
+  "attack_poise_damage": 21,
+  "windup_duration": 0.5,
+  "active_duration": 0.15,
+  "recovery_duration": 0.7,
+  "attack_range": 3,
+  "attack_cooldown": 1,
+  "stagger_duration": 1.5,
+  "aggro_range": 20,
+  "deaggro_range": 30,
+  "patrol_radius": 0,
+  "vision_cone_deg": 220,
+  "awareness_rate": 9,
+  "alert_radius": 0,
+  "circle_radius_mult": 1.35,
+  "phaseCount": 3,
+  "enemy_type": "boss",
+  "attacks": [
+    {
+      "id": "probe",
+      "name": "Testing Thrust",
+      "weight": 3,
+      "windup_duration": 0.35,
+      "windup_variance": 0.08,
+      "active_duration": 0.15,
+      "recovery_duration": 0.6,
+      "attack_damage": 20,
+      "attack_poise_damage": 19,
+      "max_range": 3,
+      "telegraph_radius": 2.1,
+      "telegraph_shape": "circle"
+    },
+    {
+      "id": "cleave",
+      "name": "High Cleave",
+      "weight": 2,
+      "windup_duration": 0.85,
+      "windup_variance": 0.16,
+      "active_duration": 0.19,
+      "recovery_duration": 0.95,
+      "attack_damage": 38,
+      "attack_poise_damage": 34,
+      "max_range": 3.3,
+      "telegraph_radius": 3,
+      "telegraph_shape": "cone"
+    },
+    {
+      "id": "sweepback",
+      "name": "Turning Sweep",
+      "weight": 2,
+      "windup_duration": 0.63,
+      "windup_variance": 0.13,
+      "active_duration": 0.18,
+      "recovery_duration": 0.84,
+      "attack_damage": 29,
+      "attack_poise_damage": 27,
+      "max_range": 4.8,
+      "telegraph_radius": 3.75,
+      "telegraph_shape": "cone"
+    }
+  ],
+  "phases": [
+    {
+      "id": "plainsong",
+      "name": "Plainsong",
+      "hpBelow": 1,
+      "attacks": [
+        {
+          "id": "probe",
+          "name": "Testing Thrust",
+          "weight": 3,
+          "windup_duration": 0.35,
+          "windup_variance": 0.08,
+          "active_duration": 0.15,
+          "recovery_duration": 0.6,
+          "attack_damage": 20,
+          "attack_poise_damage": 19,
+          "max_range": 3,
+          "telegraph_radius": 2.1,
+          "telegraph_shape": "circle"
+        },
+        {
+          "id": "cleave",
+          "name": "High Cleave",
+          "weight": 2,
+          "windup_duration": 0.85,
+          "windup_variance": 0.16,
+          "active_duration": 0.19,
+          "recovery_duration": 0.95,
+          "attack_damage": 38,
+          "attack_poise_damage": 34,
+          "max_range": 3.3,
+          "telegraph_radius": 3,
+          "telegraph_shape": "cone"
+        },
+        {
+          "id": "sweepback",
+          "name": "Turning Sweep",
+          "weight": 2,
+          "windup_duration": 0.63,
+          "windup_variance": 0.13,
+          "active_duration": 0.18,
+          "recovery_duration": 0.84,
+          "attack_damage": 29,
+          "attack_poise_damage": 27,
+          "max_range": 4.8,
+          "telegraph_radius": 3.75,
+          "telegraph_shape": "cone"
+        }
+      ]
+    },
+    {
+      "id": "descant",
+      "name": "Descant",
+      "hpBelow": 0.55,
+      "attacks": [
+        {
+          "id": "probe",
+          "name": "Testing Thrust",
+          "weight": 3,
+          "windup_duration": 0.35,
+          "windup_variance": 0.08,
+          "active_duration": 0.15,
+          "recovery_duration": 0.6,
+          "attack_damage": 20,
+          "attack_poise_damage": 19,
+          "max_range": 3,
+          "telegraph_radius": 2.1,
+          "telegraph_shape": "circle"
+        },
+        {
+          "id": "cleave",
+          "name": "High Cleave",
+          "weight": 2,
+          "windup_duration": 0.85,
+          "windup_variance": 0.16,
+          "active_duration": 0.19,
+          "recovery_duration": 0.95,
+          "attack_damage": 38,
+          "attack_poise_damage": 34,
+          "max_range": 3.3,
+          "telegraph_radius": 3,
+          "telegraph_shape": "cone"
+        },
+        {
+          "id": "chain",
+          "name": "Measured Chain",
+          "weight": 2,
+          "windup_duration": 0.5,
+          "windup_variance": 0.1,
+          "active_duration": 0.15,
+          "recovery_duration": 0.7,
+          "attack_damage": 21,
+          "attack_poise_damage": 20,
+          "max_range": 3,
+          "telegraph_radius": 2.55,
+          "telegraph_shape": "circle",
+          "combo_followups": [
+            {
+              "id": "chain_two",
+              "name": "Chain Close",
+              "weight": 1,
+              "windup_duration": 0.25,
+              "windup_variance": 0.05,
+              "active_duration": 0.15,
+              "recovery_duration": 0.91,
+              "attack_damage": 24,
+              "attack_poise_damage": 23,
+              "max_range": 3,
+              "telegraph_radius": 2.7,
+              "telegraph_shape": "cone"
+            }
+          ]
+        },
+        {
+          "id": "feint",
+          "name": "Held Swing",
+          "weight": 2,
+          "windup_duration": 0.95,
+          "windup_variance": 0.45,
+          "active_duration": 0.18,
+          "recovery_duration": 0.98,
+          "attack_damage": 34,
+          "attack_poise_damage": 33,
+          "max_range": 3.75,
+          "telegraph_radius": 3.45,
+          "telegraph_shape": "cone"
+        },
+        {
+          "id": "quake",
+          "name": "Broken Ground",
+          "weight": 1.5,
+          "windup_duration": 1,
+          "windup_variance": 0.18,
+          "active_duration": 0.2,
+          "recovery_duration": 1.05,
+          "attack_damage": 28,
+          "attack_poise_damage": 39,
+          "max_range": 3.9,
+          "telegraph_radius": 4,
+          "telegraph_shape": "ring",
+          "spawn_hazard": {
+            "scene": "res://scenes/traps/shadow_trap.tscn",
+            "count": 4,
+            "radius": 7,
+            "lifetime": 9
+          }
+        }
+      ],
+      "moveSpeedMult": 1.08,
+      "attackCooldownMult": 0.85,
+      "damageMult": 1.14,
+      "poiseMult": 1.2,
+      "onEnter": {
+        "tellDuration": 1.3,
+        "invulnerableFor": 1.15,
+        "telegraphRadius": 6.5,
+        "telegraphShape": "ring",
+        "telegraphTint": [
+          0.55,
+          0.45,
+          0.8
+        ],
+        "sfx": "windup",
+        "shake": 0.4,
+        "spawnAdds": [
+          {
+            "enemyId": "cathedral_shade",
+            "count": 3,
+            "radius": 6.5
+          }
+        ]
+      }
+    },
+    {
+      "id": "silence",
+      "name": "Silence",
+      "hpBelow": 0.25,
+      "attacks": [
+        {
+          "id": "probe",
+          "name": "Testing Thrust",
+          "weight": 3,
+          "windup_duration": 0.35,
+          "windup_variance": 0.08,
+          "active_duration": 0.15,
+          "recovery_duration": 0.6,
+          "attack_damage": 20,
+          "attack_poise_damage": 19,
+          "max_range": 3,
+          "telegraph_radius": 2.1,
+          "telegraph_shape": "circle"
+        },
+        {
+          "id": "charge",
+          "name": "Closing Charge",
+          "weight": 2,
+          "windup_duration": 0.73,
+          "windup_variance": 0.2,
+          "active_duration": 0.2,
+          "recovery_duration": 0.88,
+          "attack_damage": 31,
+          "attack_poise_damage": 28,
+          "max_range": 7.8,
+          "telegraph_radius": 3.3,
+          "telegraph_shape": "line"
+        },
+        {
+          "id": "feint",
+          "name": "Held Swing",
+          "weight": 2,
+          "windup_duration": 0.95,
+          "windup_variance": 0.45,
+          "active_duration": 0.18,
+          "recovery_duration": 0.98,
+          "attack_damage": 34,
+          "attack_poise_damage": 33,
+          "max_range": 3.75,
+          "telegraph_radius": 3.45,
+          "telegraph_shape": "cone"
+        },
+        {
+          "id": "triple",
+          "name": "Three Falls",
+          "weight": 1.5,
+          "windup_duration": 0.45,
+          "windup_variance": 0.08,
+          "active_duration": 0.15,
+          "recovery_duration": 0.7,
+          "attack_damage": 20,
+          "attack_poise_damage": 19,
+          "max_range": 3,
+          "telegraph_radius": 2.55,
+          "telegraph_shape": "circle",
+          "combo_followups": [
+            {
+              "id": "triple_two",
+              "name": "Second Fall",
+              "weight": 1,
+              "windup_duration": 0.23,
+              "windup_variance": 0.04,
+              "active_duration": 0.15,
+              "recovery_duration": 0.7,
+              "attack_damage": 20,
+              "attack_poise_damage": 19,
+              "max_range": 3,
+              "telegraph_radius": 2.55,
+              "telegraph_shape": "circle"
+            },
+            {
+              "id": "triple_three",
+              "name": "Third Fall",
+              "weight": 1,
+              "windup_duration": 0.28,
+              "windup_variance": 0.06,
+              "active_duration": 0.15,
+              "recovery_duration": 0.98,
+              "attack_damage": 28,
+              "attack_poise_damage": 26,
+              "max_range": 3,
+              "telegraph_radius": 2.85,
+              "telegraph_shape": "cone"
+            }
+          ]
+        },
+        {
+          "id": "quake",
+          "name": "Broken Ground",
+          "weight": 1.5,
+          "windup_duration": 1,
+          "windup_variance": 0.18,
+          "active_duration": 0.2,
+          "recovery_duration": 1.05,
+          "attack_damage": 28,
+          "attack_poise_damage": 39,
+          "max_range": 3.9,
+          "telegraph_radius": 4,
+          "telegraph_shape": "ring",
+          "spawn_hazard": {
+            "scene": "res://scenes/traps/shadow_trap.tscn",
+            "count": 6,
+            "radius": 8,
+            "lifetime": 9
+          }
+        }
+      ],
+      "moveSpeedMult": 1.15,
+      "attackCooldownMult": 0.72,
+      "damageMult": 1.3,
+      "poiseMult": 1.35,
+      "onEnter": {
+        "tellDuration": 1.5,
+        "invulnerableFor": 1.35,
+        "telegraphRadius": 7.5,
+        "telegraphShape": "ring",
+        "telegraphTint": [
+          0.35,
+          0.3,
+          0.6
+        ],
+        "sfx": "windup",
+        "shake": 0.4,
+        "hazards": [
+          {
+            "scene": "res://scenes/traps/shadow_trap.tscn",
+            "count": 6,
+            "radius": 8,
+            "lifetime": 14
+          }
+        ]
+      }
+    }
+  ]
 }

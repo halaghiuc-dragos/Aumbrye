@@ -1,0 +1,23 @@
+{
+  "id": "the_first_step",
+  "name": "The First Step",
+  "description": "Each new floor begins with the strength the last one ended without.",
+  "maxStacks": 1,
+  "tags": [
+    "vigil"
+  ],
+  "weight": 0.8,
+  "rules": [
+    {
+      "event": "onFloorEnter",
+      "effect": "restore_health",
+      "amount": 25
+    },
+    {
+      "event": "onFloorEnter",
+      "effect": "restore_stamina",
+      "amount": 40
+    }
+  ],
+  "offerable": true
+}

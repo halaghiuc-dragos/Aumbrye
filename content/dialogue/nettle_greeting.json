@@ -1,0 +1,138 @@
+{
+  "id": "nettle_greeting",
+  "startNode": "start",
+  "nodes": {
+    "line_1": {
+      "speaker": "Nettle",
+      "text": "Everything the Vault could not hold. They wrote 'overflow' because the other word would have needed a number after it.",
+      "actions": [
+        {
+          "type": "set_relationship",
+          "npc": "nettle",
+          "delta": 1
+        }
+      ],
+      "next": "end"
+    },
+    "line_2": {
+      "speaker": "Nettle",
+      "text": "The fen is full. My husband was assigned to it. I asked which measure he became and I was told the Keeping does not itemise persons.",
+      "actions": [
+        {
+          "type": "set_relationship",
+          "npc": "nettle",
+          "delta": 1
+        }
+      ],
+      "next": "end"
+    },
+    "line_3": {
+      "speaker": "Nettle",
+      "text": "I can make most things. The physician down there carried rot and remedy in one jar and stopped labelling which was which. I label mine.",
+      "actions": [
+        {
+          "type": "set_relationship",
+          "npc": "nettle",
+          "delta": 1
+        }
+      ],
+      "next": "end"
+    },
+    "gated": {
+      "speaker": "Nettle",
+      "text": "You cleared the swamp above us. Same water, younger. It had not learned to lean yet.",
+      "actions": [
+        {
+          "type": "set_relationship",
+          "npc": "nettle",
+          "delta": 1
+        }
+      ],
+      "next": "end"
+    },
+    "start": {
+      "speaker": "Nettle",
+      "text": "Nettle has taken a corner of the tower and made it look lived in, which is more than the tower has managed on its own.",
+      "choices": [
+        {
+          "text": "What is in the mire?",
+          "next": "line_1"
+        },
+        {
+          "text": "Is the fen poisoned?",
+          "next": "line_2"
+        },
+        {
+          "text": "Can you make antidotes?",
+          "next": "line_3"
+        },
+        {
+          "text": "I have cleared the swamp.",
+          "next": "gated",
+          "condition": {
+            "dungeonCleared": "poison_swamp"
+          }
+        },
+        {
+          "text": "I have resin. Make me something against the rot.",
+          "next": "nettle_service",
+          "condition": {
+            "hasItem": "bog_resin",
+            "count": 2
+          }
+        },
+        {
+          "text": "You knew the hag's name.",
+          "next": "nettle_arc",
+          "condition": {
+            "relationship": "nettle",
+            "atLeast": 4
+          }
+        },
+        {
+          "text": "Later.",
+          "next": "end"
+        }
+      ]
+    },
+    "nettle_service": {
+      "speaker": "Nettle",
+      "text": "Two of resin and I can draw the venom out of it. It will not taste of anything you would recognise as medicine.",
+      "actions": [
+        {
+          "type": "take_item",
+          "itemId": "bog_resin",
+          "quantity": 2
+        },
+        {
+          "type": "give_item",
+          "itemId": "antidote",
+          "quantity": 2
+        },
+        {
+          "type": "set_flag",
+          "flag": "nettle_remedy_taught",
+          "value": true
+        },
+        {
+          "type": "set_relationship",
+          "npc": "nettle",
+          "delta": 1
+        }
+      ],
+      "next": "end"
+    },
+    "nettle_arc": {
+      "speaker": "Nettle",
+      "text": "I did. She was a fen-wife before I was one and she went down when the Chapter asked for volunteers who understood water. I will not say the name. Saying it is how you get answered.",
+      "actions": [
+        {
+          "type": "set_relationship",
+          "npc": "nettle",
+          "delta": 1
+        }
+      ],
+      "next": "end"
+    }
+  }
+}

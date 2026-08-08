@@ -1,0 +1,21 @@
+{
+  "id": "pitiron_band",
+  "name": "Pit-Iron Band",
+  "itemType": "accessory",
+  "equipmentSlot": "ring",
+  "gridWidth": 1,
+  "gridHeight": 1,
+  "stackSize": 1,
+  "rarity": "common",
+  "description": "Sized for a finger that is no longer attached to anyone. Dug out of the courtyard pit and never properly cleaned.",
+  "value": 30,
+  "lootValue": 15,
+  "maxDurability": 60,
+  "baseId": "band",
+  "materialTier": "pitiron",
+  "biome": "forgotten_castle",
+  "scaling": {},
+  "stats": {
+    "maxHealth": 8
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "id": "flask_dregs",
+  "name": "Flask Dregs",
+  "itemType": "consumable",
+  "gridWidth": 1,
+  "gridHeight": 1,
+  "stackSize": 5,
+  "rarity": "common",
+  "description": "What settles at the bottom of somebody else's flask. It still counts.",
+  "consumableEffect": {
+    "kind": "refillFlask",
+    "amount": 1,
+    "usableInHub": false
+  },
+  "value": 60,
+  "lootValue": 30
+}

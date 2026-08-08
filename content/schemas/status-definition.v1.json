@@ -8,13 +8,68 @@
   "properties": {
     "id": { "type": "string", "minLength": 1 },
     "name": { "type": "string", "minLength": 1 },
+    "description": { "type": "string" },
     "damageType": { "type": "string", "minLength": 1 },
     "tickDamage": { "type": "number", "minimum": 0 },
     "tickInterval": { "type": "number", "minimum": 0.1 },
+    "tickGrowth": {
+      "type": "number",
+      "minimum": 0,
+      "description": "Fraction added to tick damage per second the status has held."
+    },
+    "tickHeal": {
+      "type": "number",
+      "minimum": 0,
+      "description": "Health restored per tick; buff counterpart to tickDamage."
+    },
+    "procDamage": {
+      "type": "number",
+      "minimum": 0,
+      "description": "Burst dealt on the tick where a build-up meter fills."
+    },
     "maxStacks": { "type": "integer", "minimum": 1 },
     "duration": { "type": "number", "minimum": 0 },
+    "stackDecay": {
+      "type": "boolean",
+      "description": "Sheds one stack per duration instead of expiring outright."
+    },
+    "expireStatusId": {
+      "type": "string",
+      "description": "Status applied when this one runs out."
+    },
+    "expireStatusStacks": { "type": "integer", "minimum": 1 },
     "slowMultiplier": { "type": "number", "minimum": 0, "maximum": 1 },
+    "speedMultiplier": { "type": "number", "minimum": 1, "maximum": 3 },
+    "damageTakenMultiplier": { "type": "number", "minimum": 0, "maximum": 3 },
     "stunDuration": { "type": "number", "minimum": 0 },
+    "stunPulse": {
+      "type": "boolean",
+      "description": "Re-applies the stun window once per tick interval instead of once."
+    },
+    "buildUpThreshold": {
+      "type": "number",
+      "minimum": 0,
+      "description": "Meter value that must be reached before the status takes hold."
+    },
+    "buildUpPerHit": { "type": "number", "minimum": 0 },
+    "buildUpDecay": {
+      "type": "number",
+      "minimum": 0,
+      "description": "Meter drained per second once the grace window has passed."
+    },
+    "buildUpGrace": { "type": "number", "minimum": 0 },
+    "buildUpResistGain": {
+      "type": "number",
+      "minimum": 0,
+      "description": "Added to the threshold each time the meter fills."
+    },
+    "buildUpResistCap": { "type": "number", "minimum": 0 },
+    "buildUpStacks": { "type": "integer", "minimum": 1 },
+    "stats": {
+      "type": "object",
+      "additionalProperties": { "type": "number" },
+      "description": "Stat totals contributed while active; buff counterpart to relic stats."
+    },
     "iconColor": {
       "type": "string",
       "description": "Damage-number tint only; status icons use authored atlas pixels."

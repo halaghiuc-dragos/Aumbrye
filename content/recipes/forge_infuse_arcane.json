@@ -1,0 +1,16 @@
+{
+  "id": "forge_infuse_arcane",
+  "type": "infuse",
+  "itemId": "any",
+  "goldCost": 650,
+  "materials": [
+    {
+      "itemId": "arcane_catalyst",
+      "quantity": 2
+    },
+    {
+      "itemId": "chapel_wax",
+      "quantity": 3
+    }
+  ]
+}

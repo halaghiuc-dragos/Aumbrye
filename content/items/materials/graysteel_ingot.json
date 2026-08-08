@@ -1,0 +1,12 @@
+{
+  "id": "graysteel_ingot",
+  "name": "Graysteel Ingot",
+  "itemType": "material",
+  "gridWidth": 1,
+  "gridHeight": 1,
+  "stackSize": 20,
+  "description": "Stamped with a vault mark and a number nobody kept the ledger for.",
+  "value": 14,
+  "lootValue": 8,
+  "materialTier": "graysteel"
+}

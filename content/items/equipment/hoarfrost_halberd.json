@@ -1,0 +1,27 @@
+{
+  "id": "hoarfrost_halberd",
+  "name": "Hoarfrost Halberd",
+  "itemType": "weapon",
+  "equipmentSlot": "weapon",
+  "gridWidth": 2,
+  "gridHeight": 4,
+  "stackSize": 1,
+  "rarity": "magic",
+  "description": "Carried by gatekeepers who never once opened the gate. Quenched in meltwater that never fully melted. Scaling: Strength B, Dexterity C.",
+  "value": 163,
+  "lootValue": 82,
+  "maxDurability": 125,
+  "baseId": "halberd",
+  "materialTier": "hoarfrost",
+  "biome": "frozen_fortress",
+  "scaling": {
+    "strength": "B",
+    "dexterity": "C"
+  },
+  "stats": {
+    "physicalDamage": 15,
+    "poiseDamage": 0.168,
+    "resistFrost": 0.08
+  },
+  "weaponId": "spear"
+}

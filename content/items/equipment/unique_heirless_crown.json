@@ -1,0 +1,33 @@
+{
+  "id": "unique_heirless_crown",
+  "name": "The Heirless Crown",
+  "itemType": "armor",
+  "equipmentSlot": "helmet",
+  "gridWidth": 2,
+  "gridHeight": 2,
+  "stackSize": 1,
+  "rarity": "legendary",
+  "description": "Cast for a succession that did not occur. The inner band was never sized down.",
+  "value": 690,
+  "lootValue": 345,
+  "maxDurability": 100,
+  "unique": true,
+  "baseId": "helm",
+  "biome": "forgotten_castle",
+  "scaling": {
+    "strength": "D"
+  },
+  "ruleText": "Clearing a room yields 40 gold.",
+  "rules": [
+    {
+      "event": "onRoomClear",
+      "effect": "bonus_gold",
+      "amount": 40.0
+    }
+  ],
+  "stats": {
+    "armor": 9,
+    "goldFind": 0.12,
+    "poise": 6
+  }
+}

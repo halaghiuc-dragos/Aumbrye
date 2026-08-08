@@ -1,0 +1,16 @@
+{
+  "id": "forge_transfer_rule",
+  "type": "transfer",
+  "itemId": "any",
+  "goldCost": 2400,
+  "materials": [
+    {
+      "itemId": "binding_thread",
+      "quantity": 2
+    },
+    {
+      "itemId": "aumbral_tear",
+      "quantity": 3
+    }
+  ]
+}

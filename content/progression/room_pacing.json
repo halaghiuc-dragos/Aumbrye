@@ -1,0 +1,115 @@
+{
+  "id": "room_pacing",
+  "note": "Depth-aware pacing for off-path room content. Weights interpolate from shallow to deep across a floor's share of the run, then a floor theme rolls once per floor and multiplies the table.",
+  "shallow": {
+    "combat": 0.34,
+    "empty": 0.2,
+    "trap": 0.06,
+    "hazard": 0.04,
+    "reward": 0.08,
+    "lore": 0.12,
+    "rest": 0.07,
+    "puzzle": 0.06,
+    "npc_quest": 0.06,
+    "merchant": 0.01
+  },
+  "deep": {
+    "combat": 0.5,
+    "empty": 0.08,
+    "trap": 0.11,
+    "hazard": 0.1,
+    "reward": 0.06,
+    "lore": 0.06,
+    "rest": 0.04,
+    "puzzle": 0.05,
+    "npc_quest": 0.05,
+    "merchant": 0.01
+  },
+  "guarantees": {
+    "minRewardRooms": 1,
+    "minRestRooms": 1,
+    "restWithinOfBoss": 3,
+    "maxConsecutiveCombat": 2
+  },
+  "floorThemes": [
+    {
+      "id": "plain",
+      "label": "",
+      "weight": 5,
+      "multipliers": {}
+    },
+    {
+      "id": "ambush",
+      "label": "Something is waiting in these halls.",
+      "weight": 2,
+      "multipliers": {
+        "combat": 1.6,
+        "trap": 1.4,
+        "empty": 0.4,
+        "lore": 0.4,
+        "rest": 0.5
+      }
+    },
+    {
+      "id": "hoard",
+      "label": "The floor has not been picked clean.",
+      "weight": 2,
+      "multipliers": {
+        "reward": 3,
+        "combat": 0.8,
+        "merchant": 2,
+        "empty": 0.7
+      }
+    },
+    {
+      "id": "silent",
+      "label": "Nothing moves here, and that is worse.",
+      "weight": 2,
+      "multipliers": {
+        "combat": 0.55,
+        "empty": 2,
+        "lore": 2,
+        "hazard": 0.5
+      }
+    },
+    {
+      "id": "gauntlet",
+      "label": "A long grinding stretch, wall to wall.",
+      "weight": 1,
+      "multipliers": {
+        "combat": 2,
+        "hazard": 1.5,
+        "trap": 1.5,
+        "rest": 0.3,
+        "reward": 0.6
+      }
+    },
+    {
+      "id": "wake",
+      "label": "Old wards still hold parts of this floor shut.",
+      "weight": 1,
+      "multipliers": {
+        "puzzle": 2.5,
+        "lore": 1.5,
+        "combat": 0.8
+      }
+    }
+  ],
+  "modifierMultipliers": {
+    "hostile_halls": {
+      "combat": 1.5,
+      "empty": 0.4,
+      "lore": 0.5
+    },
+    "thick_traps": {
+      "trap": 2,
+      "hazard": 2
+    },
+    "no_merchant": {
+      "merchant": 0
+    },
+    "no_rest": {
+      "rest": 0
+    }
+  }
+}

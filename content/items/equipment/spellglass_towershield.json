@@ -1,0 +1,39 @@
+{
+  "id": "spellglass_towershield",
+  "name": "Spellglass Tower Shield",
+  "itemType": "armor",
+  "equipmentSlot": "secondary",
+  "gridWidth": 2,
+  "gridHeight": 4,
+  "stackSize": 1,
+  "rarity": "rare",
+  "description": "A wall you have to carry. Most people put it down. Grown, not forged. It rings on a note the ear dislikes. Scaling: Strength B.",
+  "value": 377,
+  "lootValue": 188,
+  "maxDurability": 150,
+  "baseId": "towershield",
+  "materialTier": "spellglass",
+  "biome": "crystal_caverns",
+  "scaling": {
+    "strength": "B"
+  },
+  "stats": {
+    "defense": 45,
+    "poise": 19,
+    "blockReduction": 0.16,
+    "resistArcane": 0.1,
+    "resistLightning": 0.05
+  },
+  "block": {
+    "stability": 1.7,
+    "guardBreakPoise": 78,
+    "reduction": {
+      "physical": 0.9,
+      "fire": 0.46,
+      "frost": 0.46,
+      "poison": 0.46,
+      "lightning": 0.68,
+      "arcane": 0.82
+    }
+  }
+}

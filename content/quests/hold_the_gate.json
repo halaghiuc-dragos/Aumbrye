@@ -1,0 +1,22 @@
+{
+  "id": "hold_the_gate",
+  "title": "Hold the Gate",
+  "type": "kill",
+  "chainId": "roll",
+  "prerequisites": [
+    "roll_call"
+  ],
+  "targetId": "castle_grunt",
+  "requiredCount": 12,
+  "dungeonId": "forgotten_castle",
+  "description": "Halbrek asks for twelve. He does not explain the number and he does not need to be asked twice for anything else.",
+  "rewards": {
+    "gold": 160,
+    "items": [
+      {
+        "itemId": "whetting_oil",
+        "quantity": 1
+      }
+    ]
+  }
+}

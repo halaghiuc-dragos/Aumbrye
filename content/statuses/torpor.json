@@ -1,0 +1,21 @@
+{
+  "id": "torpor",
+  "name": "Torpor",
+  "description": "The limbs answer late, then not at all, then late again.",
+  "damageType": "physical",
+  "tickDamage": 0,
+  "tickInterval": 1.4,
+  "maxStacks": 2,
+  "duration": 5.6,
+  "stunDuration": 0.35,
+  "stunPulse": true,
+  "iconColor": "#9a7fb8",
+  "polarity": "debuff",
+  "buildUpThreshold": 70,
+  "buildUpPerHit": 18,
+  "buildUpDecay": 6,
+  "buildUpGrace": 1,
+  "buildUpResistGain": 12,
+  "buildUpResistCap": 48,
+  "buildUpStacks": 1
+}

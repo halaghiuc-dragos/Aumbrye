@@ -5,8 +5,26 @@
   "damage_type": "physical",
   "buffer_window": 0.2,
   "lunge_distance": 0.35,
+  "cancel_into": [
+    "dodge",
+    "guard"
+  ],
+  "cancel_after": 0.5,
   "scaling": {
-    "physicalDamage": 1.0
+    "physicalDamage": 1
+  },
+  "hitbox": {
+    "shape": "box",
+    "size": [
+      1.2,
+      0.8,
+      1.4
+    ],
+    "offset": [
+      0,
+      -0.12,
+      0.55
+    ]
   },
   "light_attacks": [
     {
@@ -23,7 +41,8 @@
       "stamina_cost": 15,
       "startup": 0.18,
       "active": 0.14,
-      "recovery": 0.28
+      "recovery": 0.28,
+      "heavy_branch": 0
     },
     {
       "damage": 18,
@@ -42,6 +61,39 @@
     "active": 0.18,
     "recovery": 0.45
   },
+  "heavy_attacks": [
+    {
+      "damage": 34,
+      "poise_damage": 42,
+      "stamina_cost": 30,
+      "startup": 0.3,
+      "active": 0.18,
+      "recovery": 0.42,
+      "lunge_distance": 0.55,
+      "hyperarmor": true,
+      "cancel_after": 0.7
+    }
+  ],
+  "running_attack": {
+    "damage": 16,
+    "poise_damage": 16,
+    "stamina_cost": 16,
+    "startup": 0.14,
+    "active": 0.14,
+    "recovery": 0.32,
+    "lunge_distance": 1.1,
+    "cancel_after": 0.45
+  },
+  "rolling_attack": {
+    "damage": 13,
+    "poise_damage": 10,
+    "stamina_cost": 14,
+    "startup": 0.1,
+    "active": 0.12,
+    "recovery": 0.3,
+    "lunge_distance": 0.5,
+    "cancel_after": 0.4
+  },
   "art": {
     "id": "guard_break",
     "name": "Guard Break",
@@ -53,6 +105,6 @@
     "recovery": 0.42,
     "lunge_distance": 0.5,
     "hyperarmor": true,
-    "cooldown": 5.0
+    "cooldown": 5
   }
 }

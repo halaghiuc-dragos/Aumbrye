@@ -793,16 +793,22 @@ func _chunk_mesh(chunk_id: String) -> Mesh:
 	var built: Mesh
 	if mesh_kind == "quad":
 		var quad := QuadMesh.new()
-		quad.size = Vector2(float(sizes[0]), float(sizes[1]))
+		quad.size = PixelStyle.snap_size2_to_pixel_grid(
+			Vector2(float(sizes[0]), float(sizes[1]))
+		)
 		if bool(spec.get("billboard", false)):
 			quad.orientation = PlaneMesh.FACE_Z
 		built = quad
 	else:
 		var box := BoxMesh.new()
 		if sizes.size() >= 3:
-			box.size = Vector3(float(sizes[0]), float(sizes[1]), float(sizes[2]))
+			box.size = PixelStyle.snap_size_to_pixel_grid(
+				Vector3(float(sizes[0]), float(sizes[1]), float(sizes[2]))
+			)
 		else:
-			box.size = Vector3(float(sizes[0]), float(sizes[0]), float(sizes[0]))
+			box.size = PixelStyle.snap_size_to_pixel_grid(
+				Vector3(float(sizes[0]), float(sizes[0]), float(sizes[0]))
+			)
 		built = box
 	_chunk_meshes[chunk_id] = built
 	return built
@@ -864,7 +870,9 @@ func _spawn_decal(
 ) -> void:
 	var decal := _acquire_decal()
 	decal.texture_albedo = texture
-	decal.size = Vector3(size, maxf(0.08, size * 0.3), size)
+	decal.size = PixelStyle.snap_size_to_pixel_grid(
+		Vector3(size, maxf(0.08, size * 0.3), size)
+	)
 	var n := normal.normalized() if normal.length_squared() > 0.01 else Vector3.UP
 	decal.global_position = world_pos + n * 0.02
 	var tangent := direction
@@ -967,7 +975,9 @@ func _build_telegraph_glyph(
 		"line":
 			var line := MeshInstance3D.new()
 			var line_mesh := BoxMesh.new()
-			line_mesh.size = Vector3(radius * 0.22, 0.02, radius * 2.0)
+			line_mesh.size = PixelStyle.snap_size_to_pixel_grid(
+				Vector3(radius * 0.22, 0.02, radius * 2.0)
+			)
 			line.mesh = line_mesh
 			line.material_override = fill_mat
 			line.position = Vector3(0.0, 0.0, -radius)
@@ -979,7 +989,9 @@ func _build_telegraph_glyph(
 				var angle := lerpf(-PI * 0.35, PI * 0.35, float(i) / float(wedge_segments - 1))
 				var block := MeshInstance3D.new()
 				var wedge := BoxMesh.new()
-				wedge.size = Vector3(0.18, 0.02, radius * 0.9)
+				wedge.size = PixelStyle.snap_size_to_pixel_grid(
+					Vector3(0.18, 0.02, radius * 0.9)
+				)
 				block.mesh = wedge
 				block.material_override = rim_mat if i == 0 or i == wedge_segments - 1 else fill_mat
 				block.position = Vector3(
@@ -990,7 +1002,7 @@ func _build_telegraph_glyph(
 				glyph.add_child(block)
 		_:
 			var tick := BoxMesh.new()
-			tick.size = Vector3(0.22, 0.02, 0.22)
+			tick.size = PixelStyle.snap_size_to_pixel_grid(Vector3(0.22, 0.02, 0.22))
 			var segments := 16
 			for i in segments:
 				var angle := TAU * float(i) / float(segments)
@@ -1004,14 +1016,14 @@ func _build_telegraph_glyph(
 			var disc := CylinderMesh.new()
 			disc.top_radius = radius * 0.55
 			disc.bottom_radius = radius * 0.55
-			disc.height = 0.02
+			disc.height = PixelStyle.WORLD_PIXEL
 			fill.mesh = disc
 			fill.material_override = fill_mat
 			fill.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 			glyph.add_child(fill)
 	var center := MeshInstance3D.new()
 	var core := BoxMesh.new()
-	core.size = Vector3(0.28, 0.04, 0.28)
+	core.size = PixelStyle.snap_size_to_pixel_grid(Vector3(0.28, 0.04, 0.28))
 	center.mesh = core
 	center.material_override = rim_mat
 	center.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF

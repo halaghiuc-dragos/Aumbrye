@@ -1,1 +1,16 @@
-{ "id": "spike_trap", "scene": "res://scenes/traps/spike_trap.tscn" }
+{
+  "id": "spike_trap",
+  "name": "Spike Trap",
+  "description": "Old iron, still patient. It answers to weight it has felt before.",
+  "scene": "res://scenes/traps/spike_trap.tscn",
+  "trigger": "proximity",
+  "telegraph": 1.2,
+  "active": 0.6,
+  "cooldown": 2.5,
+  "triggerRadius": 3,
+  "damageType": "physical",
+  "hitInterval": 0.5,
+  "statusId": "bleed",
+  "statusBuildUp": 30,
+  "enemyDamageMultiplier": 0.8
+}

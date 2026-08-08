@@ -24,9 +24,7 @@ const DIORAMA_SKIN := preload("res://scripts/art/props/diorama_interactable_skin
 const FINAL_BOSS_SCENE := preload("res://scenes/enemies/final_boss_forgotten_castle.tscn")
 const ILLUSORY_WALL_SCENE := preload("res://scenes/dungeon/illusory_wall.tscn")
 const HIDDEN_LEVER_SCENE := preload("res://scenes/dungeon/hidden_lever.tscn")
-const EndlessDifficultyScript := preload("res://scripts/dungeon/endless_difficulty.gd")
-const CastleTierDifficultyScript := preload("res://scripts/dungeon/castle_tier_difficulty.gd")
-const WavesDifficultyScript := preload("res://scripts/dungeon/waves_difficulty.gd")
+const DifficultyProfileScript := preload("res://scripts/dungeon/difficulty_profile.gd")
 const FloorShellBuilderScript := preload("res://scripts/dungeon/floor_shell_builder.gd")
 const CharacterFloorSnapScript := preload("res://scripts/art/characters/character_floor_snap.gd")
 const RoomContentSpawnerScript := preload(
@@ -36,6 +34,17 @@ const RoomContentSpawnerScript := preload(
 signal build_complete
 signal boss_defeated
 signal snapshot_dirty
+## PERF-03: emitted between build steps when building chunked, so a loading-screen host can show
+## progress. `ratio` is in [0, 1]; the final emission with ratio 1.0 fires immediately before
+## `build_complete`.
+signal build_progress(ratio: float)
+signal room_cleared(room_id: String)
+
+## Rooms/enemies are instantiated in small batches even within a single "step" so a floor with
+## many rooms or a crowded encounter cannot itself blow the per-frame budget below.
+const CHUNK_ROOMS_PER_FRAME := 3
+const CHUNK_ENEMIES_PER_FRAME := 4
+const CHUNK_LOOT_PER_FRAME := 6
 
 var definition: Dictionary = {}
 var biome_id: String = BiomeRegistry.BIOME_CASTLE
@@ -49,31 +58,33 @@ var _floor_nav_map: RID = RID()
 var _placement_rng: RandomNumberGenerator
 var _boss: Node
 var _enemy_by_id: Dictionary = {}
+var _cleared_rooms: Dictionary = {}
 var _chest_by_id: Dictionary = {}
 var _boss_door: Node3D
 var _stair_levers: Dictionary = {}
 var _is_final_floor := false
 
-## In-run floor definition cache (paired with RunFlow.floor_definitions).
-## BUG-30: bounded to MAX_CACHED_FLOORS with insertion-order eviction — this is a *static* cache
-## with no per-run eviction of its own (only clear_floor_cache(), called at run start/end), so an
-## endless run used to hold every floor definition it had ever generated in memory for as long
-## as the run lasted.
+## Sole owner of the in-run floor definition cache (REF-11: previously duplicated in
+## RunFlow.floor_definitions with a separate, disagreeing eviction policy).
+## BUG-30: bounded to MAX_CACHED_FLOORS with distance-from-current eviction — this is a *static*
+## cache with no per-run eviction of its own (only clear_floor_cache(), called at run start/end),
+## so an endless run used to hold every floor definition it had ever generated in memory for as
+## long as the run lasted.
 const MAX_CACHED_FLOORS := 8
 
 static var _floor_definition_cache: Dictionary = {}
-static var _floor_cache_order: Array[String] = []
 
 
-static func store_floor_cache(floor_index: int, floor_definition: Dictionary) -> void:
+## `reference_floor` defaults to `floor_index` so callers that only ever store the floor they are
+## on (the common case) get correct farthest-first eviction without passing anything extra;
+## callers that know the player's actual current floor (RunFlow) should pass it explicitly.
+static func store_floor_cache(
+	floor_index: int, floor_definition: Dictionary, reference_floor: int = floor_index
+) -> void:
 	if floor_definition.is_empty():
 		return
-	var key := str(floor_index)
-	if not _floor_definition_cache.has(key):
-		_floor_cache_order.append(key)
-	_floor_definition_cache[key] = floor_definition.duplicate(true)
-	while _floor_cache_order.size() > MAX_CACHED_FLOORS:
-		_floor_definition_cache.erase(_floor_cache_order.pop_front())
+	_floor_definition_cache[str(floor_index)] = floor_definition.duplicate(true)
+	_trim_floor_cache(reference_floor)
 
 
 static func get_floor_cache(floor_index: int) -> Dictionary:
@@ -81,23 +92,55 @@ static func get_floor_cache(floor_index: int) -> Dictionary:
 	return cached.duplicate(true) if cached is Dictionary else {}
 
 
+static func erase_floor_cache(floor_index: int) -> void:
+	_floor_definition_cache.erase(str(floor_index))
+
+
 static func clear_floor_cache() -> void:
 	_floor_definition_cache.clear()
-	_floor_cache_order.clear()
 
 
+static func _trim_floor_cache(reference_floor: int) -> void:
+	if _floor_definition_cache.size() <= MAX_CACHED_FLOORS:
+		return
+	var keys: Array[int] = []
+	for key in _floor_definition_cache:
+		keys.append(int(key))
+	keys.sort_custom(
+		func(a: int, b: int) -> bool: return absi(a - reference_floor) > absi(b - reference_floor)
+	)
+	while _floor_definition_cache.size() > MAX_CACHED_FLOORS:
+		_floor_definition_cache.erase(str(keys.pop_front()))
+
+
+## `chunked=false` (the default) builds synchronously in one call, exactly as before — every
+## validation-suite fixture and any other caller that does not pass `chunked=true` sees no
+## behavioural change at all, since none of the `await`s below are ever reached.
+## `chunked=true` (used by the real gameplay path, see RunFlow._transition_floor /
+## CastleRun._ready) yields to the scheduler between build steps — and, within the two heaviest
+## steps, every few rooms/enemies — so a floor build never blocks a single frame for its full
+## duration. Callers must `await` this when passing `chunked=true`.
 func build(
-	parent: Node3D, player: CharacterBody3D, fixture_path: String = FIXTURE_RELATIVE
+	parent: Node3D,
+	player: CharacterBody3D,
+	fixture_path: String = FIXTURE_RELATIVE,
+	chunked: bool = false
 ) -> void:
-	build_from_source(parent, player, fixture_path, {})
+	await build_from_source(parent, player, fixture_path, {}, chunked)
 
 
-func build_from_definition(parent: Node3D, player: CharacterBody3D, def: Dictionary) -> void:
-	build_from_source(parent, player, "", def)
+func build_from_definition(
+	parent: Node3D, player: CharacterBody3D, def: Dictionary, chunked: bool = false
+) -> void:
+	await build_from_source(parent, player, "", def, chunked)
 
 
 func build_from_source(
-	parent: Node3D, player: CharacterBody3D, fixture_path: String, def: Dictionary
+	parent: Node3D,
+	player: CharacterBody3D,
+	fixture_path: String,
+	def: Dictionary,
+	chunked: bool = false
 ) -> void:
 	_player = player
 	if not def.is_empty():
@@ -127,30 +170,137 @@ func build_from_source(
 	_entities = Node3D.new()
 	_entities.name = "Entities"
 	_dungeon_root.add_child(_entities)
-	if not _build_rooms():
+	# 21 progress-reporting steps; kept as a flat list (rather than dividing by an exact count)
+	# so adding/removing a step later cannot desync the ratio math.
+	const TOTAL_STEPS := 21.0
+	var step := 0.0
+
+	if not await _build_rooms(chunked):
 		_abort_build(parent)
 		return
+	step += 1.0
+	build_progress.emit(step / TOTAL_STEPS)
+	if chunked:
+		await get_tree().process_frame
+
 	_setup_floor_nav_map()
+	step += 1.0
+	build_progress.emit(step / TOTAL_STEPS)
+	if chunked:
+		await get_tree().process_frame
+
 	_sync_blockout_doors_from_edges()
+	step += 1.0
+	build_progress.emit(step / TOTAL_STEPS)
+	if chunked:
+		await get_tree().process_frame
+
 	_wire_shortcut_edges()
+	step += 1.0
+	build_progress.emit(step / TOTAL_STEPS)
+	if chunked:
+		await get_tree().process_frame
+
 	_build_doorway_bridges()
+	step += 1.0
+	build_progress.emit(step / TOTAL_STEPS)
+	if chunked:
+		await get_tree().process_frame
+
 	_build_height_transitions()
+	step += 1.0
+	build_progress.emit(step / TOTAL_STEPS)
+	if chunked:
+		await get_tree().process_frame
+
 	_build_floor_shell()
+	step += 1.0
+	build_progress.emit(step / TOTAL_STEPS)
+	if chunked:
+		await get_tree().process_frame
+
 	_build_landmarks()
+	step += 1.0
+	build_progress.emit(step / TOTAL_STEPS)
+	if chunked:
+		await get_tree().process_frame
+
 	_place_cover()
+	step += 1.0
+	build_progress.emit(step / TOTAL_STEPS)
+	if chunked:
+		await get_tree().process_frame
+
 	_finalize_all_blockouts()
+	step += 1.0
+	build_progress.emit(step / TOTAL_STEPS)
+	if chunked:
+		await get_tree().process_frame
+
 	_place_secret_mechanisms()
+	step += 1.0
+	build_progress.emit(step / TOTAL_STEPS)
+	if chunked:
+		await get_tree().process_frame
+
 	_build_nav_links()
+	step += 1.0
+	build_progress.emit(step / TOTAL_STEPS)
+	if chunked:
+		await get_tree().process_frame
+
 	_spawn_player()
-	_place_enemies()
-	_place_loot()
+	step += 1.0
+	build_progress.emit(step / TOTAL_STEPS)
+	if chunked:
+		await get_tree().process_frame
+
+	await _place_enemies(chunked)
+	step += 1.0
+	build_progress.emit(step / TOTAL_STEPS)
+	if chunked:
+		await get_tree().process_frame
+
+	await _place_loot(chunked)
+	step += 1.0
+	build_progress.emit(step / TOTAL_STEPS)
+	if chunked:
+		await get_tree().process_frame
+
 	_place_traps()
+	step += 1.0
+	build_progress.emit(step / TOTAL_STEPS)
+	if chunked:
+		await get_tree().process_frame
+
 	_place_room_content()
+	step += 1.0
+	build_progress.emit(step / TOTAL_STEPS)
+	if chunked:
+		await get_tree().process_frame
+
 	_setup_boss()
+	step += 1.0
+	build_progress.emit(step / TOTAL_STEPS)
+	if chunked:
+		await get_tree().process_frame
+
 	if _is_final_floor:
 		_setup_exit_portal()
+	step += 1.0
+	build_progress.emit(step / TOTAL_STEPS)
+	if chunked:
+		await get_tree().process_frame
+
 	_setup_stair_levers()
+	step += 1.0
+	build_progress.emit(step / TOTAL_STEPS)
+	if chunked:
+		await get_tree().process_frame
+
 	_setup_boss_door(parent)
+	step += 1.0
+	build_progress.emit(1.0)
 	build_complete.emit()
 
 
@@ -182,7 +332,7 @@ func open_exit_portal() -> void:
 		portal.call("activate")
 
 
-func _build_rooms() -> bool:
+func _build_rooms(chunked: bool = false) -> bool:
 	var unknown: Array[String] = []
 	for room_def in definition.get("rooms", []):
 		var template_id: String = room_def.get("templateId", "")
@@ -194,7 +344,9 @@ func _build_rooms() -> bool:
 	var rooms_root := Node3D.new()
 	rooms_root.name = "Rooms"
 	_dungeon_root.add_child(rooms_root)
-	for room_def in definition.get("rooms", []):
+	var room_defs: Array = definition.get("rooms", [])
+	for i in range(room_defs.size()):
+		var room_def: Dictionary = room_defs[i]
 		var template_id: String = room_def.get("templateId", "")
 		var scene: PackedScene = _room_scenes[template_id]
 		var instance := scene.instantiate() as RoomTemplate
@@ -213,6 +365,8 @@ func _build_rooms() -> bool:
 		_rooms[room_def.get("id", "")] = instance
 		if RunFloorConfig.is_stairs_room({"templateId": str(room_def.get("templateId", ""))}):
 			STAIR_COLLISION.ensure_stair_collision(instance)
+		if chunked and (i + 1) % CHUNK_ROOMS_PER_FRAME == 0:
+			await get_tree().process_frame
 	return true
 
 
@@ -627,10 +781,12 @@ func _placement_offset(placement: Dictionary) -> Vector3:
 	return Vector3(float(pos.get("x", 0.0)), float(pos.get("y", 0.0)), float(pos.get("z", 0.0)))
 
 
-func _place_enemies() -> void:
+func _place_enemies(chunked: bool = false) -> void:
 	var placements: Array = definition.get("placements", {}).get("enemies", [])
 	for i in range(placements.size()):
 		_spawn_enemy(placements[i], i)
+		if chunked and (i + 1) % CHUNK_ENEMIES_PER_FRAME == 0:
+			await get_tree().process_frame
 
 
 func _spawn_enemy(placement: Dictionary, index: int) -> void:
@@ -652,6 +808,7 @@ func _spawn_enemy(placement: Dictionary, index: int) -> void:
 	if enemy is CharacterBody3D:
 		CharacterFloorSnapScript.snap_to_floor_below(enemy as CharacterBody3D)
 	enemy.set_meta("placement_id", placement_key)
+	enemy.set_meta("catalog_id", enemy_id)
 	if enemy.has_method("set_player"):
 		enemy.call("set_player", _player)
 	if placement.get("isElite", false):
@@ -663,7 +820,7 @@ func _spawn_enemy(placement: Dictionary, index: int) -> void:
 		enemy.enemy_died.connect(_on_tracked_enemy_died.bind(placement_key))
 
 
-func _place_loot() -> void:
+func _place_loot(chunked: bool = false) -> void:
 	var placements: Array = definition.get("placements", {}).get("loot", [])
 	for i in range(placements.size()):
 		var placement: Dictionary = placements[i]
@@ -687,6 +844,8 @@ func _place_loot() -> void:
 			chest.opened.connect(_on_chest_opened)
 		room.add_child(chest)
 		_chest_by_id[chest_key] = chest
+		if chunked and (i + 1) % CHUNK_LOOT_PER_FRAME == 0:
+			await get_tree().process_frame
 
 
 func _trap_scene_for_id(trap_id: String) -> PackedScene:
@@ -746,7 +905,8 @@ func _setup_boss() -> void:
 		CharacterFloorSnapScript.snap_to_floor_below(_boss as CharacterBody3D)
 	if _boss.has_method("set_player"):
 		_boss.call("set_player", _player)
-	_apply_floor_scaling(_boss)
+	_boss.set_meta("catalog_id", enemy_id)
+	_apply_floor_scaling(_boss, true)
 	if _boss.has_signal("boss_defeated"):
 		_boss.boss_defeated.connect(_on_boss_defeated)
 	_enemy_by_id["boss"] = _boss
@@ -1044,8 +1204,33 @@ func _loot_placement_id(placement: Dictionary, index: int) -> String:
 	return "%s:%d" % [placement.get("roomId", ""), index]
 
 
-func _on_tracked_enemy_died(_placement_id: String) -> void:
+func _on_tracked_enemy_died(placement_id: String) -> void:
 	snapshot_dirty.emit()
+	_dispatch_room_clear(placement_id)
+
+
+func _dispatch_room_clear(placement_id: String) -> void:
+	var separator := placement_id.rfind(":")
+	if separator <= 0:
+		return
+	var room_id := placement_id.substr(0, separator)
+	if room_id == "" or _cleared_rooms.has(room_id):
+		return
+	var prefix := "%s:" % room_id
+	for other_id in _enemy_by_id:
+		var other := str(other_id)
+		if other == placement_id or not other.begins_with(prefix):
+			continue
+		var enemy: Node = _enemy_by_id[other_id]
+		if enemy == null or not is_instance_valid(enemy):
+			continue
+		if enemy.has_method("is_dead") and bool(enemy.call("is_dead")):
+			continue
+		return
+	_cleared_rooms[room_id] = true
+	room_cleared.emit(room_id)
+	if CombatEvents and _player:
+		CombatEvents.dispatch(CombatEvents.ON_ROOM_CLEAR, {"actor": _player})
 
 
 func _on_chest_opened() -> void:
@@ -1069,6 +1254,7 @@ func unload_from_parent(parent: Node3D) -> void:
 			room.queue_free()
 	_rooms.clear()
 	_enemy_by_id.clear()
+	_cleared_rooms.clear()
 	_chest_by_id.clear()
 	_boss = null
 	_boss_door = null
@@ -1092,44 +1278,32 @@ func unload_from_parent(parent: Node3D) -> void:
 			rooms_root.queue_free()
 
 
-func _apply_floor_scaling(enemy: Node) -> void:
+func _apply_floor_scaling(enemy: Node, is_boss: bool = false) -> void:
 	var mode := RunFlow.get_run_mode()
-	if mode == "endless":
-		var floor_index := RunFlow.get_current_floor()
-		var hp_mult := EndlessDifficultyScript.hp_multiplier(floor_index)
-		var health := enemy.get_node_or_null("Health") as Health
-		if health:
-			health.configure(float(health.max_health) * hp_mult)
-		if enemy.has_method("set_damage_multiplier"):
-			enemy.call(
-				"set_damage_multiplier", EndlessDifficultyScript.damage_multiplier(floor_index)
-			)
+	var progress: int
+	match mode:
+		"endless", "castle":
+			progress = RunFlow.get_current_floor()
+		"waves":
+			progress = WavesRunService.current_wave
+		_:
+			return
+	var profile := DifficultyProfileScript.for_run(
+		mode, RunFlow.current_dungeon_id, RunFlow.get_difficulty_tier()
+	)
+	var is_elite: bool = enemy.get_meta("is_elite", false)
+	var hp_mult := profile.hp_multiplier(progress)
+	if is_elite and mode == "castle":
+		hp_mult *= 1.5
+	var health := enemy.get_node_or_null("Health") as Health
+	if health:
+		health.configure(float(health.max_health) * hp_mult)
+	if enemy.has_method("set_damage_multiplier"):
+		var dmg_mult := profile.damage_multiplier(progress)
+		if is_elite and mode == "castle":
+			dmg_mult *= 1.25
+		enemy.call("set_damage_multiplier", dmg_mult)
+	if is_boss:
 		return
-	if mode == "castle":
-		var dungeon_id := RunFlow.current_dungeon_id
-		var diff_tier := RunFlow.get_difficulty_tier()
-		var floor_index := RunFlow.get_current_floor()
-		var hp_mult := CastleTierDifficultyScript.combined_hp_multiplier(
-			dungeon_id, diff_tier, floor_index
-		)
-		if enemy.get_meta("is_elite", false):
-			hp_mult *= 1.5
-		var health := enemy.get_node_or_null("Health") as Health
-		if health:
-			health.configure(float(health.max_health) * hp_mult)
-		if enemy.has_method("set_damage_multiplier"):
-			var dmg_mult := CastleTierDifficultyScript.combined_damage_multiplier(
-				dungeon_id, diff_tier, floor_index
-			)
-			if enemy.get_meta("is_elite", false):
-				dmg_mult *= 1.25
-			enemy.call("set_damage_multiplier", dmg_mult)
-		return
-	if mode == "waves":
-		var wave := WavesRunService.current_wave
-		var hp_mult := WavesDifficultyScript.hp_multiplier(wave)
-		var health := enemy.get_node_or_null("Health") as Health
-		if health:
-			health.configure(float(health.max_health) * hp_mult)
-		if enemy.has_method("set_damage_multiplier"):
-			enemy.call("set_damage_multiplier", WavesDifficultyScript.damage_multiplier(wave))
+	if enemy.has_method("apply_phase_modifiers"):
+		enemy.call("apply_phase_modifiers", profile.behaviour_modifiers(progress))

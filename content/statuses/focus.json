@@ -1,0 +1,15 @@
+{
+  "id": "focus",
+  "name": "Clarity",
+  "description": "Everything is where you left it, for a while.",
+  "damageType": "physical",
+  "tickDamage": 0,
+  "tickInterval": 1,
+  "maxStacks": 2,
+  "duration": 12,
+  "iconColor": "#c8b8ff",
+  "polarity": "buff",
+  "stats": {
+    "damagePercent": 6
+  }
+}

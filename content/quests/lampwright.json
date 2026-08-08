@@ -1,0 +1,21 @@
+{
+  "id": "lampwright",
+  "title": "The Lampwright",
+  "type": "escort",
+  "chainId": "lamps",
+  "targetNpcId": "lampwright_corrin",
+  "requiredCount": 1,
+  "availableWhen": {
+    "minTier": 4
+  },
+  "description": "Nine lamps in a case, none of them lit since the angle moved, and one man who will not leave without them.",
+  "rewards": {
+    "gold": 180,
+    "items": [
+      {
+        "itemId": "everburning_torch",
+        "quantity": 1
+      }
+    ]
+  }
+}

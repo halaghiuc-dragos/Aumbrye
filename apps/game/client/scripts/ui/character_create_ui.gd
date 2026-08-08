@@ -25,6 +25,10 @@ var _stature_row: AppearanceRow
 var _build_row: AppearanceRow
 var _head_row: AppearanceRow
 var _trim_row: AppearanceRow
+var _skin_row: AppearanceRow
+var _hair_row: AppearanceRow
+var _face_row: AppearanceRow
+var _title_row: AppearanceRow
 var _preview_viewport: SubViewport
 var _preview_rig: WardenPreviewRig
 var _preview_caption: Label
@@ -240,6 +244,20 @@ func _build_detail_column(parent: HBoxContainer) -> VBoxContainer:
 		tr("CREATE_ROW_TRIM"), CharacterAppearanceScript.TRIM_LABELS
 	)
 	appearance_box.add_child(_trim_row)
+	_skin_row = _make_appearance_row(
+		_row_label("CREATE_ROW_SKIN", "Complexion"), CharacterAppearanceScript.SKIN_TONE_LABELS
+	)
+	appearance_box.add_child(_skin_row)
+	_hair_row = _make_appearance_row(
+		_row_label("CREATE_ROW_HAIR", "Hair"), CharacterAppearanceScript.HAIR_LABELS
+	)
+	appearance_box.add_child(_hair_row)
+	_face_row = _make_appearance_row(
+		_row_label("CREATE_ROW_FACE", "Countenance"), CharacterAppearanceScript.FACE_LABELS
+	)
+	appearance_box.add_child(_face_row)
+	_title_row = _make_appearance_row(_row_label("CREATE_ROW_TITLE", "Title"), [])
+	appearance_box.add_child(_title_row)
 	var stats_card := PanelContainer.new()
 	stats_card.name = "ClassStatsCard"
 	col.add_child(stats_card)
@@ -341,11 +359,20 @@ func _reload_classes() -> void:
 	_wire_focus_neighbors()
 
 
+func _row_label(key: String, fallback: String) -> String:
+	var translated := tr(key)
+	return fallback if translated == key else translated
+
+
 func _reload_aspect_options() -> void:
 	var labels := PackedStringArray()
-	for i in AppearanceCatalogScript.aspect_count():
-		labels.append(AppearanceCatalogScript.label_for_index(i))
+	for i in AppearanceCatalogScript.unlocked_aspect_count():
+		labels.append(AppearanceCatalogScript.unlocked_aspect_label(i))
 	_aspect_row.setup(tr("CREATE_ROW_ASPECT"), labels, 0)
+	if _title_row:
+		_title_row.setup(
+			_row_label("CREATE_ROW_TITLE", "Title"), AppearanceCatalogScript.unlocked_title_labels(), 0
+		)
 
 
 func _seed_from_defaults_and_last() -> void:
@@ -361,7 +388,9 @@ func _seed_from_defaults_and_last() -> void:
 
 func _apply_profile_to_controls(profile: Dictionary) -> void:
 	var clean := CharacterAppearanceScript.sanitize(profile)
-	_aspect_row.select(AppearanceCatalogScript.index_for_theme(int(clean.get("theme", 0))))
+	_aspect_row.select(
+		AppearanceCatalogScript.unlocked_aspect_index_for_theme(int(clean.get("theme", 0)))
+	)
 	_stature_row.select(
 		CharacterAppearanceScript.HEIGHT_VARIANTS.find(clean.get("heightVariant", "standard"))
 	)
@@ -376,6 +405,14 @@ func _apply_profile_to_controls(profile: Dictionary) -> void:
 		_:
 			_head_row.select(1)
 	_trim_row.select(int(clean.get("trim", 1)))
+	_skin_row.select(
+		maxi(0, CharacterAppearanceScript.SKIN_TONES.find(clean.get("skinTone", "neutral")))
+	)
+	_hair_row.select(maxi(0, CharacterAppearanceScript.HAIR_STYLES.find(clean.get("hair", "none"))))
+	_face_row.select(maxi(0, CharacterAppearanceScript.FACE_STYLES.find(clean.get("face", "open"))))
+	_title_row.select(
+		AppearanceCatalogScript.unlocked_title_index(str(clean.get("title", "")))
+	)
 
 
 func _select_class_index(index: int) -> void:
@@ -409,7 +446,13 @@ func _refresh_class_detail() -> void:
 	_populate_stats_grid(class_def)
 	var perk_name_key := str(class_def.get("perkName", ""))
 	var perk_desc_key := str(class_def.get("perkDescription", ""))
-	_perk_line.text = "%s: %s" % [tr(perk_name_key), tr(perk_desc_key)]
+	_perk_line.text = (
+		"%s: %s"
+		% [
+			_row_label(perk_name_key, str(class_def.get("perkNameText", ""))),
+			_row_label(perk_desc_key, str(class_def.get("perkDescriptionText", ""))),
+		]
+	)
 	var weapon_id := str(class_def.get("startingWeaponItemId", ""))
 	var weapon_def := ItemCatalog.get_definition(weapon_id)
 	var weapon_name := str(weapon_def.get("name", weapon_id))
@@ -417,7 +460,9 @@ func _refresh_class_detail() -> void:
 	_weapon_icon.texture = ItemIconAtlasScript.get_icon(
 		weapon_id, str(weapon_def.get("iconPath", ""))
 	)
-	var aspect_label := AppearanceCatalogScript.label_for_index(_aspect_row.get_selected_index())
+	var aspect_label := AppearanceCatalogScript.unlocked_aspect_label(
+		_aspect_row.get_selected_index()
+	)
 	_preview_caption.text = "%s — %s" % [str(class_def.get("name", "")), aspect_label]
 
 
@@ -503,13 +548,20 @@ func _format_delta(delta: float, stat_name: String) -> String:
 
 
 func _build_appearance_profile() -> Dictionary:
-	return CharacterAppearanceScript.profile_from_indices(
-		AppearanceCatalogScript.theme_for_index(_aspect_row.get_selected_index()),
+	var profile := CharacterAppearanceScript.profile_from_indices(
+		AppearanceCatalogScript.unlocked_aspect_theme(_aspect_row.get_selected_index()),
 		_stature_row.get_selected_index(),
 		_build_row.get_selected_index(),
 		_head_row.get_selected_index(),
-		_trim_row.get_selected_index()
+		_trim_row.get_selected_index(),
+		_skin_row.get_selected_index(),
+		_hair_row.get_selected_index(),
+		_face_row.get_selected_index()
 	)
+	profile["title"] = AppearanceCatalogScript.unlocked_title_id(
+		_title_row.get_selected_index()
+	)
+	return profile
 
 
 func _refresh_preview() -> void:

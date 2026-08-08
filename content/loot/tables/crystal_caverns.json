@@ -1,0 +1,262 @@
+{
+  "schemaVersion": 1,
+  "biomeId": "crystal_caverns",
+  "lootTables": {
+    "treasure": [
+      {
+        "itemId": "elixir_iron_skin",
+        "quantity": [
+          1,
+          3
+        ],
+        "weight": 6
+      },
+      {
+        "itemId": "flask_dregs",
+        "quantity": [
+          1,
+          3
+        ],
+        "weight": 10
+      },
+      {
+        "itemId": "whetstone_arcane",
+        "quantity": [
+          1,
+          3
+        ],
+        "weight": 4
+      }
+    ],
+    "secret": [
+      {
+        "itemId": "cathedral_arcane_staff",
+        "quantity": [
+          1,
+          1
+        ],
+        "weight": 2
+      },
+      {
+        "itemId": "mythic_crown",
+        "quantity": [
+          1,
+          1
+        ],
+        "weight": 1
+      },
+      {
+        "itemId": "unique_courtyard_vigil",
+        "quantity": [
+          1,
+          1
+        ],
+        "weight": 2
+      },
+      {
+        "itemId": "unique_glacier_watch",
+        "quantity": [
+          1,
+          1
+        ],
+        "weight": 2
+      },
+      {
+        "itemId": "unique_mire_tongue",
+        "quantity": [
+          1,
+          1
+        ],
+        "weight": 2
+      },
+      {
+        "itemId": "unique_stiltwalkers_greaves",
+        "quantity": [
+          1,
+          1
+        ],
+        "weight": 4
+      },
+      {
+        "itemId": "unique_widow_of_the_stair",
+        "quantity": [
+          1,
+          1
+        ],
+        "weight": 2
+      }
+    ],
+    "side": [
+      {
+        "itemId": "spellglass_sliver",
+        "quantity": [
+          1,
+          3
+        ],
+        "weight": 10
+      },
+      {
+        "itemId": "poison_relic_vial",
+        "quantity": [
+          1,
+          3
+        ],
+        "weight": 10
+      }
+    ],
+    "armory": [
+      {
+        "itemId": "spellglass_band",
+        "quantity": [
+          1,
+          1
+        ],
+        "weight": 4
+      },
+      {
+        "itemId": "spellglass_buckler",
+        "quantity": [
+          1,
+          1
+        ],
+        "weight": 4
+      },
+      {
+        "itemId": "spellglass_cuirass",
+        "quantity": [
+          1,
+          1
+        ],
+        "weight": 4
+      },
+      {
+        "itemId": "spellglass_dagger",
+        "quantity": [
+          1,
+          1
+        ],
+        "weight": 4
+      },
+      {
+        "itemId": "spellglass_gauntlets",
+        "quantity": [
+          1,
+          1
+        ],
+        "weight": 4
+      },
+      {
+        "itemId": "spellglass_greatsword",
+        "quantity": [
+          1,
+          1
+        ],
+        "weight": 4
+      },
+      {
+        "itemId": "spellglass_greaves",
+        "quantity": [
+          1,
+          1
+        ],
+        "weight": 4
+      },
+      {
+        "itemId": "spellglass_helm",
+        "quantity": [
+          1,
+          1
+        ],
+        "weight": 4
+      },
+      {
+        "itemId": "spellglass_kiteshield",
+        "quantity": [
+          1,
+          1
+        ],
+        "weight": 4
+      },
+      {
+        "itemId": "spellglass_longbow",
+        "quantity": [
+          1,
+          1
+        ],
+        "weight": 4
+      },
+      {
+        "itemId": "spellglass_longsword",
+        "quantity": [
+          1,
+          1
+        ],
+        "weight": 4
+      },
+      {
+        "itemId": "spellglass_pendant",
+        "quantity": [
+          1,
+          1
+        ],
+        "weight": 4
+      },
+      {
+        "itemId": "spellglass_rapier",
+        "quantity": [
+          1,
+          1
+        ],
+        "weight": 4
+      },
+      {
+        "itemId": "spellglass_staff",
+        "quantity": [
+          1,
+          1
+        ],
+        "weight": 4
+      },
+      {
+        "itemId": "spellglass_towershield",
+        "quantity": [
+          1,
+          1
+        ],
+        "weight": 4
+      },
+      {
+        "itemId": "castle_amulet",
+        "quantity": [
+          1,
+          1
+        ],
+        "weight": 6
+      },
+      {
+        "itemId": "crystal_prism_amulet",
+        "quantity": [
+          1,
+          1
+        ],
+        "weight": 4
+      },
+      {
+        "itemId": "frost_raider_boots",
+        "quantity": [
+          1,
+          1
+        ],
+        "weight": 4
+      },
+      {
+        "itemId": "swamp_bog_boots",
+        "quantity": [
+          1,
+          1
+        ],
+        "weight": 10
+      }
+    ]
+  }
+}

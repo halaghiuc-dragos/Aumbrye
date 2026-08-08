@@ -3,7 +3,10 @@
   "name": "Dark Cathedral",
   "templatePrefix": "cathedral",
   "assetFolder": "cathedral",
-  "roomCount": { "min": 6, "max": 10 },
+  "roomCount": {
+    "min": 18,
+    "max": 24
+  },
   "roomTemplateIds": [
     "cathedral_entrance",
     "cathedral_stairs",
@@ -23,13 +26,25 @@
     "accent": "cathedral"
   },
   "lighting": {
-    "ambientColor": [0.2, 0.15, 0.28],
+    "ambientColor": [
+      0.2,
+      0.15,
+      0.28
+    ],
     "ambientEnergy": 0.35,
     "fogEnabled": true,
-    "fogColor": [0.08, 0.05, 0.12],
+    "fogColor": [
+      0.08,
+      0.05,
+      0.12
+    ],
     "fogDensity": 0.02,
-    "torchColor": [0.75, 0.55, 0.95],
-    "torchEnergy": 2.0
+    "torchColor": [
+      0.75,
+      0.55,
+      0.95
+    ],
+    "torchEnergy": 2
   },
   "audioProfile": "content/audio_profiles/dark_cathedral.json",
   "propKit": {
@@ -41,14 +56,32 @@
     ]
   },
   "enemyPool": [
-    { "enemyId": "cathedral_acolyte", "weight": 3 },
-    { "enemyId": "cathedral_warden", "weight": 2 },
-    { "enemyId": "cathedral_shade", "weight": 2 },
-    { "enemyId": "miniboss_cathedral_bell", "weight": 1 }
+    {
+      "enemyId": "cathedral_acolyte",
+      "weight": 3
+    },
+    {
+      "enemyId": "cathedral_warden",
+      "weight": 2
+    },
+    {
+      "enemyId": "cathedral_shade",
+      "weight": 2
+    },
+    {
+      "enemyId": "miniboss_cathedral_bell",
+      "weight": 1
+    }
   ],
   "bossPool": [
-    { "enemyId": "boss_cathedral_hollow", "weight": 3 },
-    { "enemyId": "miniboss_cathedral_bell", "weight": 1 }
+    {
+      "enemyId": "boss_cathedral_hollow",
+      "weight": 3
+    },
+    {
+      "enemyId": "miniboss_cathedral_bell",
+      "weight": 1
+    }
   ],
   "budgets": {
     "baseEnemyThreat": 100,
@@ -58,23 +91,126 @@
   },
   "lootTables": {
     "treasure": [
-      { "itemId": "health_potion", "quantity": [2, 3], "weight": 3 },
-      { "itemId": "shadow_relic_veil", "quantity": [1, 1], "weight": 2 }
+      {
+        "itemId": "health_potion",
+        "quantity": [
+          2,
+          3
+        ],
+        "weight": 3
+      },
+      {
+        "itemId": "shadow_relic_veil",
+        "quantity": [
+          1,
+          1
+        ],
+        "weight": 2
+      }
     ],
     "secret": [
-      { "itemId": "shadow_relic_veil", "quantity": [1, 1], "weight": 2 },
-      { "itemId": "health_potion", "quantity": [3, 4], "weight": 3 }
+      {
+        "itemId": "shadow_relic_veil",
+        "quantity": [
+          1,
+          1
+        ],
+        "weight": 2
+      },
+      {
+        "itemId": "health_potion",
+        "quantity": [
+          3,
+          4
+        ],
+        "weight": 3
+      }
     ],
     "side": [
-      { "itemId": "cathedral_warden_helm", "quantity": [1, 1], "weight": 2 },
-      { "itemId": "sun_relic_medallion", "quantity": [1, 1], "weight": 2 }
+      {
+        "itemId": "cathedral_warden_helm",
+        "quantity": [
+          1,
+          1
+        ],
+        "weight": 2
+      },
+      {
+        "itemId": "sun_relic_medallion",
+        "quantity": [
+          1,
+          1
+        ],
+        "weight": 2
+      }
     ],
-    "armory": [{ "itemId": "cathedral_arcane_staff", "quantity": [1, 1], "weight": 1 }]
+    "armory": [
+      {
+        "itemId": "cathedral_arcane_staff",
+        "quantity": [
+          1,
+          1
+        ],
+        "weight": 1
+      }
+    ]
   },
   "trapPool": [
-    { "trapId": "shadow_trap", "weight": 3 },
-    { "trapId": "falling_trap", "weight": 1 }
+    {
+      "trapId": "shadow_trap",
+      "weight": 3
+    },
+    {
+      "trapId": "swinging_blade",
+      "weight": 2
+    },
+    {
+      "trapId": "ember_grate",
+      "weight": 2
+    },
+    {
+      "trapId": "bone_snare",
+      "weight": 2
+    },
+    {
+      "trapId": "falling_trap",
+      "weight": 1
+    }
   ],
   "requiresSecret": true,
-  "finalFloor": { "bossId": "boss_cathedral_hollow" }
+  "finalFloor": {
+    "bossId": "boss_cathedral_hollow"
+  },
+  "maxHeightLevel": 1,
+  "maxSecrets": 3,
+  "generator": {
+    "bossMinDistance": 4,
+    "minDeadEnds": 4,
+    "branchMaxDepth": 8,
+    "maxNeighborCount": 4,
+    "loopBudget": 4,
+    "maxGenerationAttempts": 256,
+    "maxWalkAttempts": 8192,
+    "allow2x2Blocks": true,
+    "fillBoundingBox": true
+  },
+  "grade": {
+    "shadowTint": [
+      0.08,
+      0.06,
+      0.14
+    ],
+    "shadowTintAmount": 0.34,
+    "highlightTint": [
+      0.94,
+      0.86,
+      0.72
+    ],
+    "highlightTintAmount": 0.1,
+    "saturation": 0.82,
+    "contrast": 1.22,
+    "lift": -0.03,
+    "vignette": 0.32
+  },
+  "lootTablePath": "content/loot/tables/dark_cathedral.json"
 }

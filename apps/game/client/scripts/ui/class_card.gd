@@ -31,7 +31,10 @@ func setup(class_def: Dictionary) -> void:
 	var role_label := get_node_or_null("RoleLabel") as Label
 	if role_label:
 		var role_key := str(class_def.get("role", ""))
-		role_label.text = tr(role_key) if role_key != "" else ""
+		var role_text := tr(role_key) if role_key != "" else ""
+		if role_text == role_key:
+			role_text = str(class_def.get("roleText", ""))
+		role_label.text = role_text
 	_configure_stat_pips(class_def.get("statBonuses", {}))
 
 

@@ -3,10 +3,10 @@ extends Node
 ## Autoload — gold, level, flags, quest progress (M4 character state).
 
 signal gold_changed(amount: int)
-signal coins_changed(amount: int)
 signal level_changed(level: int)
 signal flags_changed
 signal quests_changed
+signal quest_progress_changed
 signal appearance_changed(profile: Dictionary)
 
 const DEFAULT_GOLD := 100
@@ -27,7 +27,10 @@ var flags: Dictionary = {}
 var quest_states: Dictionary = {}
 var quest_progress: Dictionary = {}
 
+const PERK_RULE_PREFIX := "perk/"
+
 var _unregistered_flag_ids: Dictionary = {}
+var _registered_perk_source := ""
 
 var level: int:
 	get:
@@ -38,6 +41,7 @@ func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	if ProgressionService:
 		ProgressionService.progression_changed.connect(_on_progression_changed)
+	_sync_perk_rules()
 
 
 func get_level() -> int:
@@ -84,22 +88,6 @@ func unregistered_flag_ids() -> PackedStringArray:
 	return ids
 
 
-func get_coins() -> int:
-	return gold
-
-
-func add_coins(amount: int, apply_bonus: bool = true) -> void:
-	add_gold(amount, apply_bonus)
-
-
-func spend_coins(amount: int) -> bool:
-	return spend_gold(amount)
-
-
-func can_afford_coins(amount: int) -> bool:
-	return can_afford(amount)
-
-
 ## BUG-42: apply_bonus must be false for every refund/credit path (a failed purchase, a failed
 ## unlock, a save restore) — goldFind is meant to reward *earning* gold, not crediting it back.
 ## Applying it to refunds turned "fail a purchase with a full bag" into a repeatable money
@@ -117,7 +105,6 @@ func add_gold(amount: int, apply_bonus: bool = true) -> void:
 		return
 	gold += adjusted
 	gold_changed.emit(gold)
-	coins_changed.emit(gold)
 	LocalSave.request_autosave(LocalSave.SavePriority.DEFERRED)
 
 
@@ -126,7 +113,6 @@ func spend_gold(amount: int) -> bool:
 		return false
 	gold -= amount
 	gold_changed.emit(gold)
-	coins_changed.emit(gold)
 	LocalSave.request_autosave(LocalSave.SavePriority.IMMEDIATE)
 	return true
 
@@ -157,7 +143,7 @@ func get_quest_progress(quest_id: String) -> Dictionary:
 
 func set_quest_progress(quest_id: String, progress: Dictionary) -> void:
 	quest_progress[quest_id] = progress.duplicate(true)
-	quests_changed.emit()
+	quest_progress_changed.emit()
 	LocalSave.request_autosave(LocalSave.SavePriority.DEFERRED)
 
 
@@ -182,7 +168,35 @@ func get_class_id() -> String:
 
 func set_class_id(new_class_id: String) -> void:
 	class_id = new_class_id
+	_sync_perk_rules()
 	LocalSave.request_autosave(LocalSave.SavePriority.DEFERRED)
+
+
+## The chosen class contributes its perk to the same rule engine that serves unique
+## items, relics and talent keystones, so exactly one source id is live at a time.
+func _sync_perk_rules() -> void:
+	if not is_instance_valid(CombatEvents):
+		return
+	var wanted := ""
+	var rules: Array = []
+	if class_id != "":
+		rules = ClassCatalog.get_rules(class_id)
+		if not rules.is_empty():
+			wanted = PERK_RULE_PREFIX + class_id
+	if _registered_perk_source == wanted:
+		return
+	if _registered_perk_source != "":
+		CombatEvents.unregister(_registered_perk_source)
+	_registered_perk_source = ""
+	if wanted != "":
+		CombatEvents.register(wanted, rules)
+		_registered_perk_source = wanted
+	_refresh_class_talent_rules()
+
+
+func _refresh_class_talent_rules() -> void:
+	if is_instance_valid(ProgressionService):
+		ProgressionService.refresh_talent_rules()
 
 
 func to_save_dict() -> Dictionary:
@@ -219,8 +233,8 @@ func from_save_dict(data: Dictionary) -> void:
 	_unregistered_flag_ids.clear()
 	flags = CharacterFlags.coerce_all(data.get("flags", {}))
 	_load_quests_from_save(data.get("quests", {}))
+	_sync_perk_rules()
 	gold_changed.emit(gold)
-	coins_changed.emit(gold)
 	level_changed.emit(get_level())
 	flags_changed.emit()
 	quests_changed.emit()
@@ -235,8 +249,8 @@ func reset_to_defaults() -> void:
 	quest_states.clear()
 	quest_progress.clear()
 	_unregistered_flag_ids.clear()
+	_sync_perk_rules()
 	gold_changed.emit(gold)
-	coins_changed.emit(gold)
 	level_changed.emit(get_level())
 	flags_changed.emit()
 	quests_changed.emit()

@@ -8,8 +8,30 @@
   "properties": {
     "id": { "type": "string", "minLength": 1 },
     "displayName": { "type": "string", "minLength": 1 },
-    "interactType": { "type": "string", "minLength": 1 },
+    "interactType": {
+      "enum": [
+        "dialogue",
+        "blacksmith",
+        "merchant",
+        "quest_board",
+        "storage",
+        "bounty_board"
+      ]
+    },
     "dialogueId": { "type": "string" },
+    "requiresFlag": { "type": "string", "minLength": 1 },
+    "dialogueRules": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["dialogueId"],
+        "properties": {
+          "dialogueId": { "type": "string", "minLength": 1 },
+          "condition": { "type": "object" }
+        }
+      }
+    },
     "position": {
       "type": "object",
       "additionalProperties": false,

@@ -3,11 +3,52 @@
   "name": "Scholar",
   "description": "Arcane caster wielding staves and ranged focus.",
   "startingWeaponItemId": "sage_staff",
-  "statBonuses": { "staminaRegen": 0.05, "staminaMax": 10 },
-  "allowedWeapons": ["sage_staff", "cathedral_arcane_staff", "hunter_bow", "crystal_bow"],
+  "statBonuses": {
+    "staminaRegen": 0.05,
+    "staminaMax": 10
+  },
+  "allowedWeapons": [
+    "sage_staff",
+    "cathedral_arcane_staff",
+    "hunter_bow",
+    "crystal_bow"
+  ],
+  "allowedWeaponFamilies": [
+    "staff",
+    "bow",
+    "dagger"
+  ],
   "perk": "arcane_focus",
+  "talentBranchId": "vigil",
+  "rules": [
+    {
+      "event": "onCrit",
+      "effect": "restore_mana",
+      "amount": 14,
+      "chance": 1,
+      "cooldown": 0
+    },
+    {
+      "event": "onHit",
+      "effect": "restore_mana",
+      "amount": 4,
+      "chance": 0.2,
+      "cooldown": 0
+    },
+    {
+      "event": "onRoomClear",
+      "effect": "apply_status",
+      "statusId": "focus",
+      "stacks": 1,
+      "chance": 1,
+      "cooldown": 0
+    }
+  ],
   "iconPath": "class_icons:scholar",
   "role": "CLASS_ROLE_SCHOLAR",
   "perkName": "CLASS_PERK_ARCANE_FOCUS",
-  "perkDescription": "CLASS_PERK_ARCANE_FOCUS_DESC"
+  "perkDescription": "CLASS_PERK_ARCANE_FOCUS_DESC",
+  "roleText": "Caster / Arcane",
+  "perkNameText": "Arcane Focus",
+  "perkDescriptionText": "Study returns itself: telling blows restore the mana that paid for them."
 }

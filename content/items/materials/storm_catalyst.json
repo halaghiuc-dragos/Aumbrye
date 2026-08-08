@@ -1,0 +1,12 @@
+{
+  "id": "storm_catalyst",
+  "name": "Storm Catalyst",
+  "itemType": "material",
+  "gridWidth": 1,
+  "gridHeight": 1,
+  "stackSize": 20,
+  "description": "It stands the hair up on the arm holding it.",
+  "value": 70,
+  "lootValue": 42,
+  "materialTier": "hoarfrost"
+}

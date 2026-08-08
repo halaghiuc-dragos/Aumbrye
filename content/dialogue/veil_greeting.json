@@ -1,0 +1,148 @@
+{
+  "id": "veil_greeting",
+  "startNode": "start",
+  "nodes": {
+    "line_1": {
+      "speaker": "The Widow",
+      "text": "Hierarch. Not a name, a post — that is the trick of it. Kill the man and the post is still open and the handwriting simply gets a little less steady.",
+      "actions": [
+        {
+          "type": "set_relationship",
+          "npc": "veil",
+          "delta": 1
+        }
+      ],
+      "next": "end"
+    },
+    "line_2": {
+      "speaker": "The Widow",
+      "text": "Because he goes up that stair between the last bell and the first, and in eleven years he did not once vary. I wanted to be certain, and then I wanted to be certain again.",
+      "actions": [
+        {
+          "type": "set_relationship",
+          "npc": "veil",
+          "delta": 1
+        }
+      ],
+      "next": "end"
+    },
+    "line_3": {
+      "speaker": "The Widow",
+      "text": "Us. All of us, totalled. He has kept the line clear at the bottom of the page for a very long time, and he has never once written in it early.",
+      "actions": [
+        {
+          "type": "set_relationship",
+          "npc": "veil",
+          "delta": 1
+        }
+      ],
+      "next": "end"
+    },
+    "gated": {
+      "speaker": "The Widow",
+      "text": "You brought the lector up. Good. She has the struck line and I have the name and neither of us can do a thing with only one of them.",
+      "actions": [
+        {
+          "type": "set_relationship",
+          "npc": "veil",
+          "delta": 1
+        }
+      ],
+      "next": "end"
+    },
+    "start": {
+      "speaker": "The Widow",
+      "text": "The Widow of the Stair has taken a corner of the tower and made it look lived in, which is more than the tower has managed on its own.",
+      "choices": [
+        {
+          "text": "Give me the name.",
+          "next": "line_1"
+        },
+        {
+          "text": "Why did you wait?",
+          "next": "line_2"
+        },
+        {
+          "text": "What is the last entry?",
+          "next": "line_3"
+        },
+        {
+          "text": "Odile is here too.",
+          "next": "gated",
+          "condition": {
+            "flag": "rescued_odile"
+          }
+        },
+        {
+          "text": "I want to go home from down there.",
+          "next": "veil_service",
+          "condition": {
+            "hasItem": "shadow_essence",
+            "count": 1
+          }
+        },
+        {
+          "text": "Say their names.",
+          "next": "veil_arc",
+          "condition": {
+            "all": [
+              {
+                "relationship": "veil",
+                "atLeast": 4
+              },
+              {
+                "not": {
+                  "flag": "veil_names_given",
+                  "atLeast": 1
+                }
+              }
+            ]
+          }
+        },
+        {
+          "text": "Later.",
+          "next": "end"
+        }
+      ]
+    },
+    "veil_service": {
+      "speaker": "The Widow",
+      "text": "Give me the dark off it and I will give you a bone that knows the way up. I have made a great many of these and used none.",
+      "actions": [
+        {
+          "type": "take_item",
+          "itemId": "shadow_essence",
+          "quantity": 1
+        },
+        {
+          "type": "give_item",
+          "itemId": "homeward_bone",
+          "quantity": 1
+        },
+        {
+          "type": "set_relationship",
+          "npc": "veil",
+          "delta": 1
+        }
+      ],
+      "next": "end"
+    },
+    "veil_arc": {
+      "speaker": "The Widow",
+      "text": "I will say them when there is somebody left to be owed. Until then they are mine, and I keep them the way the vault kept the measure, and I am aware of the comparison.",
+      "actions": [
+        {
+          "type": "increment_flag",
+          "flag": "veil_names_given",
+          "amount": 1
+        },
+        {
+          "type": "set_relationship",
+          "npc": "veil",
+          "delta": 1
+        }
+      ],
+      "next": "end"
+    }
+  }
+}

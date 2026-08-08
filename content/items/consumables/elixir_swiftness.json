@@ -1,0 +1,19 @@
+{
+  "id": "elixir_swiftness",
+  "name": "Elixir of Swiftness",
+  "itemType": "consumable",
+  "gridWidth": 1,
+  "gridHeight": 2,
+  "stackSize": 5,
+  "rarity": "magic",
+  "description": "The taste does not last. Neither does the effect. Both are remembered fondly.",
+  "consumableEffect": {
+    "kind": "applyStatus",
+    "statusId": "elixir_swiftness",
+    "duration": 60,
+    "stat": "moveSpeed",
+    "amount": 0.15
+  },
+  "value": 95,
+  "lootValue": 48
+}

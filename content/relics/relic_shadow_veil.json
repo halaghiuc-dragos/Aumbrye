@@ -1,9 +1,22 @@
 {
-    "description":  "Shadows muffle your footsteps.",
-    "name":  "Relic Shadow Veil",
-    "id":  "relic_shadow_veil",
-    "stats":  {
-                  "moveSpeed":  0.05
-              },
-    "maxStacks":  1
+  "id": "relic_shadow_veil",
+  "name": "Relic Shadow Veil",
+  "description": "You are harder to follow. Each dodge returns a breath of stamina.",
+  "maxStacks": 1,
+  "stats": {
+    "moveSpeed": 0.05
+  },
+  "tags": [
+    "swift"
+  ],
+  "weight": 1,
+  "rules": [
+    {
+      "event": "onDodge",
+      "effect": "restore_stamina",
+      "amount": 9,
+      "cooldown": 0.6
+    }
+  ],
+  "offerable": true
 }

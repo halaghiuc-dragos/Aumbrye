@@ -14,13 +14,15 @@ uniform float emission_energy : hint_range(0.0, 8.0) = 1.6;
 uniform float grain_strength : hint_range(0.0, 1.0) = 0.35;
 uniform float pulse_speed : hint_range(0.0, 8.0) = 0.0;
 uniform float pulse_amount : hint_range(0.0, 1.0) = 0.18;
-uniform float flash_amount : hint_range(0.0, 1.0) = 0.0;
-uniform vec3 flash_color : source_color = vec3(1.0);
-uniform float flash_emission : hint_range(0.0, 4.0) = 0.0;
-uniform float dissolve_clip : hint_range(0.0, 1.0) = 1.0;
-uniform vec3 dissolve_origin = vec3(0.0);
-uniform vec3 dissolve_dir = vec3(0.0, 1.0, 0.0);
-uniform float dissolve_sweep : hint_range(0.0, 1.0) = 0.6;
+// instance uniform: per-MeshInstance3D via set_instance_shader_parameter(), so every character
+// and prop can share one ShaderMaterial resource instead of a duplicate per flash/dissolve event.
+instance uniform float flash_amount : hint_range(0.0, 1.0) = 0.0;
+instance uniform vec3 flash_color : source_color = vec3(1.0);
+instance uniform float flash_emission : hint_range(0.0, 4.0) = 0.0;
+instance uniform float dissolve_clip : hint_range(0.0, 1.0) = 1.0;
+instance uniform vec3 dissolve_origin = vec3(0.0);
+instance uniform vec3 dissolve_dir = vec3(0.0, 1.0, 0.0);
+instance uniform float dissolve_sweep : hint_range(0.0, 1.0) = 0.6;
 
 varying vec3 v_local_pos;
 varying vec3 v_local_normal;

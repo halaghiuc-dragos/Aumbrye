@@ -17,7 +17,7 @@ public class MigrationTests : IClassFixture<AumbryeWebApplicationFactory>
         using var scope = _factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<AumbryeDbContext>();
         var migrations = db.Database.GetMigrations().ToList();
-        Assert.Equal(3, migrations.Count);
-        Assert.Equal("20260805120002_AddAccountDisplayNameAndTokenFamily", migrations.Last());
+        Assert.Single(migrations);
+        Assert.Equal("20260807080010_InitialCreate", migrations.Last());
     }
 }

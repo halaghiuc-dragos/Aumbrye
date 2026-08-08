@@ -1,7 +1,7 @@
 # Save migrations
 
 Version history for `SaveMigrator` (`apps/game/client/scripts/save/save_migrator.gd`).
-`CURRENT_VERSION` is **10**. Each row matches one entry in `SaveMigrator.STEPS`.
+`CURRENT_VERSION` is **12**. Each row matches one entry in `SaveMigrator.STEPS`.
 
 | From | To | Summary | Keys added | Keys removed |
 |------|-----|---------|------------|--------------|
@@ -14,11 +14,24 @@ Version history for `SaveMigrator` (`apps/game/client/scripts/save/save_migrator
 | 7 | 8 | accessibility camera defaults | `meta.accessibility.cameraMouseSensitivity`, `.cameraStickSensitivity`, `.cameraInvertY`, `.cameraFov`, `.cameraStickCurve`, `.cameraStickDeadzone` | — |
 | 8 | 9 | display block; `ui_scale` moved out of accessibility | `meta.display.window_mode`, `.window_size`, `.monitor_index`, `.vsync_mode`, `.max_fps`, `.ui_scale`, `.hud_safe_area` | — |
 | 9 | 10 | quick slots keyed by instance id instead of slot index | `inventory.quickSlotInstances` (4 entries) | `inventory.quickSlots` |
+| 10 | 11 | `currencies.coins` collapsed into `currencies.gold` | `currencies.gold` | `currencies.coins` |
+| 11 | 12 | account scope block; talent ids revalidated against the grown tree | `account.storage`, `account.flags`, `account.endlessBestFloor`, `account.descentTokens` | — |
 
 Unless noted, a failed step quarantines the file and retains a pre-migration artefact at
 `user://backups/<characterId>.premigrate_v<n>_<timestamp>.json`. The v4→v5 step is the exception: a
 `playerDead` flag with a checkpoint restores the snapshot, and without one drops `activeRun` only,
 preserving every other section.
+
+## v12 guarantees
+
+`account` is a copy of the parts of a save that belong to the player rather than to one
+warden: the stash (`account.storage`) and the flags that record what the world itself has
+given up — dungeon clears (`theme_*_cleared`), lore read (`lore_*_read`), bestiary counters,
+and the dungeon unlock count. `LocalSave` adopts that block into `user://account.json` the
+first time it sees it and hands the shared copy back to every character afterwards, so a
+second warden inherits the stash and the unlocked world. The character document keeps its own
+copy of both, so the step is lossless and idempotent: a save that already carries `account`
+passes through with only its talent ids revalidated against the grown tree.
 
 ## v10 guarantees
 

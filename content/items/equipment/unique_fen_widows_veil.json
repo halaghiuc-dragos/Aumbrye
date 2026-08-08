@@ -1,0 +1,34 @@
+{
+  "id": "unique_fen_widows_veil",
+  "name": "Fen Widow's Veil",
+  "itemType": "armor",
+  "equipmentSlot": "helmet",
+  "gridWidth": 2,
+  "gridHeight": 2,
+  "stackSize": 1,
+  "rarity": "epic",
+  "description": "Mourning cloth, waxed against the damp. It kept the flies off for a long while.",
+  "value": 410,
+  "lootValue": 205,
+  "maxDurability": 100,
+  "unique": true,
+  "baseId": "helm",
+  "biome": "poison_swamp",
+  "scaling": {
+    "strength": "D"
+  },
+  "ruleText": "Applying a status restores 6 health.",
+  "rules": [
+    {
+      "event": "onStatusApplied",
+      "effect": "restore_health",
+      "amount": 6.0,
+      "cooldown": 1.5
+    }
+  ],
+  "stats": {
+    "armor": 8,
+    "resistPoison": 0.15,
+    "healthRegen": 2
+  }
+}

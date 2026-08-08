@@ -3,17 +3,284 @@
   "biomeId": "forgotten_castle",
   "lootTables": {
     "treasure": [
-      { "itemId": "health_potion", "quantity": [2, 3], "weight": 3 },
-      { "itemId": "bloodlust_charm", "quantity": [1, 1], "weight": 2 }
+      {
+        "itemId": "health_potion",
+        "quantity": [
+          2,
+          3
+        ],
+        "weight": 3
+      },
+      {
+        "itemId": "bloodlust_charm",
+        "quantity": [
+          1,
+          1
+        ],
+        "weight": 2
+      },
+      {
+        "itemId": "elixir_swiftness",
+        "quantity": [
+          1,
+          3
+        ],
+        "weight": 6
+      },
+      {
+        "itemId": "greater_health_potion",
+        "quantity": [
+          1,
+          3
+        ],
+        "weight": 6
+      },
+      {
+        "itemId": "whetstone_rime",
+        "quantity": [
+          1,
+          3
+        ],
+        "weight": 6
+      }
     ],
     "secret": [
-      { "itemId": "knight_relic", "quantity": [1, 1], "weight": 2 },
-      { "itemId": "health_potion", "quantity": [3, 4], "weight": 3 }
+      {
+        "itemId": "knight_relic",
+        "quantity": [
+          1,
+          1
+        ],
+        "weight": 2
+      },
+      {
+        "itemId": "health_potion",
+        "quantity": [
+          3,
+          4
+        ],
+        "weight": 3
+      },
+      {
+        "itemId": "ember_gauntlets",
+        "quantity": [
+          1,
+          1
+        ],
+        "weight": 2
+      },
+      {
+        "itemId": "unique_debtors_pendant",
+        "quantity": [
+          1,
+          1
+        ],
+        "weight": 4
+      },
+      {
+        "itemId": "unique_heirless_crown",
+        "quantity": [
+          1,
+          1
+        ],
+        "weight": 1
+      },
+      {
+        "itemId": "unique_quartermasters_tally",
+        "quantity": [
+          1,
+          1
+        ],
+        "weight": 2
+      },
+      {
+        "itemId": "unique_thawing_band",
+        "quantity": [
+          1,
+          1
+        ],
+        "weight": 4
+      },
+      {
+        "itemId": "void_amulet",
+        "quantity": [
+          1,
+          1
+        ],
+        "weight": 1
+      }
     ],
     "side": [
-      { "itemId": "iron_scrap", "quantity": [2, 3], "weight": 3 },
-      { "itemId": "bloodlust_charm", "quantity": [1, 1], "weight": 2 }
+      {
+        "itemId": "iron_scrap",
+        "quantity": [
+          2,
+          3
+        ],
+        "weight": 3
+      },
+      {
+        "itemId": "bloodlust_charm",
+        "quantity": [
+          1,
+          1
+        ],
+        "weight": 2
+      },
+      {
+        "itemId": "pitiron_slag",
+        "quantity": [
+          1,
+          3
+        ],
+        "weight": 10
+      },
+      {
+        "itemId": "shadow_relic_veil",
+        "quantity": [
+          1,
+          3
+        ],
+        "weight": 10
+      }
     ],
-    "armory": [{ "itemId": "castle_sword", "quantity": [1, 1], "weight": 1 }]
+    "armory": [
+      {
+        "itemId": "castle_sword",
+        "quantity": [
+          1,
+          1
+        ],
+        "weight": 1
+      },
+      {
+        "itemId": "pitiron_band",
+        "quantity": [
+          1,
+          1
+        ],
+        "weight": 10
+      },
+      {
+        "itemId": "pitiron_buckler",
+        "quantity": [
+          1,
+          1
+        ],
+        "weight": 10
+      },
+      {
+        "itemId": "pitiron_cuirass",
+        "quantity": [
+          1,
+          1
+        ],
+        "weight": 10
+      },
+      {
+        "itemId": "pitiron_dagger",
+        "quantity": [
+          1,
+          1
+        ],
+        "weight": 10
+      },
+      {
+        "itemId": "pitiron_gauntlets",
+        "quantity": [
+          1,
+          1
+        ],
+        "weight": 10
+      },
+      {
+        "itemId": "pitiron_greaves",
+        "quantity": [
+          1,
+          1
+        ],
+        "weight": 10
+      },
+      {
+        "itemId": "pitiron_helm",
+        "quantity": [
+          1,
+          1
+        ],
+        "weight": 10
+      },
+      {
+        "itemId": "pitiron_longsword",
+        "quantity": [
+          1,
+          1
+        ],
+        "weight": 10
+      },
+      {
+        "itemId": "pitiron_shortsword",
+        "quantity": [
+          1,
+          1
+        ],
+        "weight": 10
+      },
+      {
+        "itemId": "pitiron_spear",
+        "quantity": [
+          1,
+          1
+        ],
+        "weight": 10
+      },
+      {
+        "itemId": "pitiron_waraxe",
+        "quantity": [
+          1,
+          1
+        ],
+        "weight": 10
+      },
+      {
+        "itemId": "castle_boots",
+        "quantity": [
+          1,
+          1
+        ],
+        "weight": 10
+      },
+      {
+        "itemId": "cathedral_holy_charm",
+        "quantity": [
+          1,
+          1
+        ],
+        "weight": 4
+      },
+      {
+        "itemId": "training_greatsword",
+        "quantity": [
+          1,
+          1
+        ],
+        "weight": 10
+      },
+      {
+        "itemId": "rogue_dagger",
+        "quantity": [
+          1,
+          1
+        ],
+        "weight": 10
+      },
+      {
+        "itemId": "swamp_toxin_dagger",
+        "quantity": [
+          1,
+          1
+        ],
+        "weight": 6
+      }
+    ]
   }
 }

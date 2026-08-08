@@ -1,0 +1,27 @@
+{
+  "id": "graysteel_warhammer",
+  "name": "Graysteel Warhammer",
+  "itemType": "weapon",
+  "equipmentSlot": "weapon",
+  "gridWidth": 2,
+  "gridHeight": 4,
+  "stackSize": 1,
+  "rarity": "common",
+  "description": "Plate is a suggestion. This is the rebuttal. Vault-stock, stamped and stacked for a war that was called off. Scaling: Strength A, Dexterity E.",
+  "value": 83,
+  "lootValue": 42,
+  "maxDurability": 140,
+  "baseId": "warhammer",
+  "materialTier": "graysteel",
+  "biome": "iron_vault",
+  "scaling": {
+    "strength": "A",
+    "dexterity": "E"
+  },
+  "stats": {
+    "poiseDamage": 0.216,
+    "physicalDamage": 8,
+    "resistPhysical": 0.02
+  },
+  "weaponId": "greatsword"
+}

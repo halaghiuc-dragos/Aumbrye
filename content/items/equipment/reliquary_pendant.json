@@ -1,0 +1,24 @@
+{
+  "id": "reliquary_pendant",
+  "name": "Reliquary Pendant",
+  "itemType": "accessory",
+  "equipmentSlot": "amulet",
+  "gridWidth": 1,
+  "gridHeight": 2,
+  "stackSize": 1,
+  "rarity": "rare",
+  "description": "The chain is newer than the stone by several centuries. Melted down from offering plate. Nobody asked the congregation.",
+  "value": 163,
+  "lootValue": 82,
+  "maxDurability": 60,
+  "baseId": "pendant",
+  "materialTier": "reliquary",
+  "biome": "dark_cathedral",
+  "scaling": {},
+  "stats": {
+    "manaMax": 26,
+    "healthRegen": 3,
+    "resistArcane": 0.08,
+    "resistFire": 0.04
+  }
+}

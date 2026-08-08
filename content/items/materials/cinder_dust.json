@@ -1,0 +1,12 @@
+{
+  "id": "cinder_dust",
+  "name": "Cinder Dust",
+  "itemType": "material",
+  "gridWidth": 1,
+  "gridHeight": 1,
+  "stackSize": 20,
+  "description": "What a common thing becomes when the forge takes it back.",
+  "value": 4,
+  "lootValue": 2,
+  "materialTier": "pitiron"
+}

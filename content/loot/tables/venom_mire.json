@@ -1,0 +1,126 @@
+{
+  "schemaVersion": 1,
+  "biomeId": "venom_mire",
+  "lootTables": {
+    "treasure": [
+      {
+        "itemId": "elixir_focus",
+        "quantity": [
+          1,
+          3
+        ],
+        "weight": 4
+      },
+      {
+        "itemId": "flask_deep_draught",
+        "quantity": [
+          1,
+          1
+        ],
+        "weight": 4
+      },
+      {
+        "itemId": "venom_pot",
+        "quantity": [
+          1,
+          3
+        ],
+        "weight": 10
+      }
+    ],
+    "secret": [
+      {
+        "itemId": "frost_knight_plate",
+        "quantity": [
+          1,
+          1
+        ],
+        "weight": 2
+      },
+      {
+        "itemId": "mythic_blade",
+        "quantity": [
+          1,
+          1
+        ],
+        "weight": 1
+      },
+      {
+        "itemId": "unique_confessors_burden",
+        "quantity": [
+          1,
+          1
+        ],
+        "weight": 2
+      },
+      {
+        "itemId": "unique_gatewardens_answer",
+        "quantity": [
+          1,
+          1
+        ],
+        "weight": 2
+      },
+      {
+        "itemId": "unique_leechbound_band",
+        "quantity": [
+          1,
+          1
+        ],
+        "weight": 2
+      },
+      {
+        "itemId": "unique_snowblind",
+        "quantity": [
+          1,
+          1
+        ],
+        "weight": 2
+      },
+      {
+        "itemId": "unique_vaultkeeper_helm",
+        "quantity": [
+          1,
+          1
+        ],
+        "weight": 2
+      }
+    ],
+    "side": [
+      {
+        "itemId": "frost_relic_shard",
+        "quantity": [
+          1,
+          3
+        ],
+        "weight": 10
+      }
+    ],
+    "armory": [
+      {
+        "itemId": "castle_ring",
+        "quantity": [
+          1,
+          1
+        ],
+        "weight": 4
+      },
+      {
+        "itemId": "crystal_frost_ring",
+        "quantity": [
+          1,
+          1
+        ],
+        "weight": 6
+      },
+      {
+        "itemId": "steel_plate",
+        "quantity": [
+          1,
+          1
+        ],
+        "weight": 6
+      }
+    ]
+  }
+}

@@ -3,11 +3,53 @@
   "name": "Rogue",
   "description": "Fast striker favoring daggers and critical hits.",
   "startingWeaponItemId": "rogue_dagger",
-  "statBonuses": { "moveSpeed": 0.05, "critChance": 0.02 },
-  "allowedWeapons": ["rogue_dagger", "swamp_toxin_dagger", "venom_dagger", "cathedral_shadow_dagger", "hunter_bow"],
+  "statBonuses": {
+    "moveSpeed": 0.05,
+    "critChance": 0.02
+  },
+  "allowedWeapons": [
+    "rogue_dagger",
+    "swamp_toxin_dagger",
+    "venom_dagger",
+    "cathedral_shadow_dagger",
+    "hunter_bow"
+  ],
+  "allowedWeaponFamilies": [
+    "dagger",
+    "sword_basic",
+    "bow"
+  ],
   "perk": "shadowstep",
+  "talentBranchId": "unlit",
+  "rules": [
+    {
+      "event": "onBackstab",
+      "effect": "restore_stamina",
+      "amount": 28,
+      "chance": 1,
+      "cooldown": 0
+    },
+    {
+      "event": "onBackstab",
+      "effect": "apply_status",
+      "statusId": "bleed",
+      "stacks": 2,
+      "chance": 1,
+      "cooldown": 0
+    },
+    {
+      "event": "onDodge",
+      "effect": "restore_stamina",
+      "amount": 6,
+      "chance": 0.35,
+      "cooldown": 1
+    }
+  ],
   "iconPath": "class_icons:rogue",
   "role": "CLASS_ROLE_ROGUE",
   "perkName": "CLASS_PERK_SHADOWSTEP",
-  "perkDescription": "CLASS_PERK_SHADOWSTEP_DESC"
+  "perkDescription": "CLASS_PERK_SHADOWSTEP_DESC",
+  "roleText": "Striker / Speed",
+  "perkNameText": "Shadowstep",
+  "perkDescriptionText": "A strike from behind returns the stamina it spent, and opens the wound wider."
 }

@@ -1,0 +1,27 @@
+{
+  "id": "mirebrass_staff",
+  "name": "Mirebrass Staff",
+  "itemType": "weapon",
+  "equipmentSlot": "weapon",
+  "gridWidth": 1,
+  "gridHeight": 4,
+  "stackSize": 1,
+  "rarity": "magic",
+  "description": "The wood remembers every word spoken through it. Green to the touch. The swamp finished it for the smith. Scaling: Strength E, Arcane A.",
+  "value": 106,
+  "lootValue": 53,
+  "maxDurability": 90,
+  "baseId": "staff",
+  "materialTier": "mirebrass",
+  "biome": "poison_swamp",
+  "scaling": {
+    "strength": "E",
+    "arcane": "A"
+  },
+  "stats": {
+    "manaMax": 20,
+    "arcaneDamage": 5,
+    "resistPoison": 0.06
+  },
+  "weaponId": "staff"
+}

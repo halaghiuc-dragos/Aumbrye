@@ -1,0 +1,28 @@
+{
+  "id": "the_long_hold",
+  "name": "The Long Hold",
+  "description": "Blocks that land build armour; being struck takes all of it back.",
+  "maxStacks": 1,
+  "stats": {
+    "armor": 4
+  },
+  "tags": [
+    "ward",
+    "poise"
+  ],
+  "weight": 0.9,
+  "rules": [
+    {
+      "event": "onBlock",
+      "effect": "add_stack",
+      "stackId": "hold",
+      "maxStacks": 6,
+      "stat": "armor",
+      "perStack": 2,
+      "resetOn": [
+        "onHitTaken"
+      ]
+    }
+  ],
+  "offerable": true
+}

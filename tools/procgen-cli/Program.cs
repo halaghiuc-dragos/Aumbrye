@@ -63,32 +63,32 @@ static int RunMixSeedTable()
 
 static int RunRoomKitSpecs()
 {
-  var prefixes = new[]
-  {
+    var prefixes = new[]
+    {
     "castle", "crystal", "swamp", "frozen", "cathedral", "vault", "prism", "mire", "hollow", "umbral",
   };
-  var kinds = new[]
-  {
+    var kinds = new[]
+    {
     "entrance", "stairs", "courtyard", "hall", "treasure", "secret", "arena", "boss", "puzzle",
   };
-  var entries = new List<Dictionary<string, object>>();
-  foreach (var prefix in prefixes)
-  {
-    foreach (var kind in kinds)
+    var entries = new List<Dictionary<string, object>>();
+    foreach (var prefix in prefixes)
     {
-      var templateId = $"{prefix}_{kind}";
-      var spec = RoomTemplateCatalog.GetRequired(templateId);
-      entries.Add(new Dictionary<string, object>
-      {
-        ["templateId"] = templateId,
-        ["width"] = spec.Width,
-        ["depth"] = spec.Depth,
-        ["doors"] = (int)spec.DoorMask,
-      });
+        foreach (var kind in kinds)
+        {
+            var templateId = $"{prefix}_{kind}";
+            var spec = RoomTemplateCatalog.GetRequired(templateId);
+            entries.Add(new Dictionary<string, object>
+            {
+                ["templateId"] = templateId,
+                ["width"] = spec.Width,
+                ["depth"] = spec.Depth,
+                ["doors"] = (int)spec.DoorMask,
+            });
+        }
     }
-  }
-  Console.Out.WriteLine(JsonSerializer.Serialize(entries));
-  return 0;
+    Console.Out.WriteLine(JsonSerializer.Serialize(entries));
+    return 0;
 }
 
 static int UnknownCommand(string command)

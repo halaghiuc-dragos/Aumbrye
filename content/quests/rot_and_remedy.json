@@ -1,0 +1,21 @@
+{
+  "id": "rot_and_remedy",
+  "title": "Rot and Remedy",
+  "type": "fetch",
+  "chainId": "overflow",
+  "prerequisites": [
+    "the_last_measure"
+  ],
+  "targetItemId": "bog_resin",
+  "requiredCount": 4,
+  "description": "The physician carried both in the same jar and stopped labelling which was which. Nettle labels hers, and needs four measures of resin to do it.",
+  "rewards": {
+    "gold": 200,
+    "items": [
+      {
+        "itemId": "antidote",
+        "quantity": 3
+      }
+    ]
+  }
+}

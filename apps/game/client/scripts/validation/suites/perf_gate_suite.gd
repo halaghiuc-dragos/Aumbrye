@@ -3,12 +3,13 @@ extends "res://scripts/validation/validation_suite.gd"
 const DungeonProcgenScript := preload("res://scripts/dungeon/procgen/dungeon_procgen.gd")
 const VfxServiceScript := preload("res://scripts/art/vfx/vfx_service.gd")
 
-const BUDGET_DUNGEON_BUILD_MS := 1500
+const BUDGET_DUNGEON_BUILD_MS := 900
 const BUDGET_PROCGEN_MS := 250
 const BUDGET_SAVE_WRITE_MS := 50
 const BUDGET_CONTENT_LOAD_MS := 750
-const BUDGET_NODE_COUNT := 8000
-const BUDGET_STATIC_MEMORY_BYTES := 512 * 1024 * 1024
+const BUDGET_NODE_COUNT := 4000
+const BUDGET_STATIC_MEMORY_BYTES := 384 * 1024 * 1024
+const BUDGET_FRAME_P95_MS := 13.9
 
 
 func get_category() -> String:
@@ -19,6 +20,7 @@ func run() -> void:
 	await _test_vfx_burst_pool()
 	_test_frame_budget()
 	_test_dungeon_build_ms()
+	await _test_dungeon_build_is_chunked()
 	_test_procgen_generate_ms()
 	_test_save_write_ms()
 	_test_content_load_ms()
@@ -54,26 +56,29 @@ func _test_vfx_burst_pool() -> void:
 
 
 func _test_frame_budget() -> void:
-	var baseline_path := "user://perf_baseline.json"
+	var start := Time.get_ticks_msec()
+	var baseline_path := ContentLoader.content_path("content/fixtures/perf_baseline.json")
 	if not FileAccess.file_exists(baseline_path):
-		skip(
+		ctx.timed_record(
 			"perf.frame_budget",
-			"user://perf_baseline.json absent; record baseline in-editor first",
+			get_category(),
+			false,
+			"content/fixtures/perf_baseline.json is missing; frame budget cannot be checked",
+			start,
 			"VFX-13"
 		)
 		return
-	var start := Time.get_ticks_msec()
 	var text := FileAccess.get_file_as_string(baseline_path)
 	var data: Variant = JSON.parse_string(text)
 	var p95 := 0.0
 	if data is Dictionary:
 		p95 = float(data.get("p95_frame_ms", data.get("frame_time_p95_ms", 0.0)))
-	var ok := p95 > 0.0 and p95 <= 16.67
+	var ok := p95 > 0.0 and p95 <= BUDGET_FRAME_P95_MS
 	ctx.timed_record(
 		"perf.frame_budget",
 		get_category(),
 		ok,
-		"p95 frame time %.2f ms (budget 16.67)" % p95,
+		"p95 frame time %.2f ms (budget %.2f)" % [p95, BUDGET_FRAME_P95_MS],
 		start,
 		"VFX-13"
 	)
@@ -103,6 +108,47 @@ func _test_dungeon_build_ms() -> void:
 		"dungeon build %d ms (budget %d)" % [elapsed, BUDGET_DUNGEON_BUILD_MS],
 		start,
 		"VSU-05"
+	)
+
+
+## PERF-03: the real gameplay path builds with chunked=true so a floor never blocks a single
+## frame for the whole ~1.5s budget above. This asserts the chunking is actually happening —
+## build_progress must fire more than once and the build must span more than one engine frame —
+## rather than asserting a specific per-frame millisecond figure, which this suite has no reliable
+## way to measure without engine-level frame-timing hooks (see QA-02's baseline-first guidance).
+func _test_dungeon_build_is_chunked() -> void:
+	var start := Time.get_ticks_msec()
+	var gen := LocalProcgen.generate("forgotten_castle", TC.SEED_A)
+	var ok := false
+	var progress_emits := 0
+	var frames_elapsed := 0
+	if gen.get("ok", false):
+		var root := Node3D.new()
+		ctx.owner.add_child(root)
+		var player: CharacterBody3D = (
+			load("res://scenes/player/player.tscn").instantiate() as CharacterBody3D
+		)
+		root.add_child(player)
+		var builder := DungeonBuilder.new()
+		root.add_child(builder)
+		var frame_before := Engine.get_process_frames()
+		var on_progress := func(_ratio: float) -> void: progress_emits += 1
+		builder.build_progress.connect(on_progress)
+		await builder.build_from_definition(root, player, gen.get("definition", {}), true)
+		builder.build_progress.disconnect(on_progress)
+		frames_elapsed = Engine.get_process_frames() - frame_before
+		ok = progress_emits >= 15 and frames_elapsed >= 2
+		root.queue_free()
+	ctx.timed_record(
+		"perf.dungeon_build_chunked",
+		get_category(),
+		ok,
+		(
+			"chunked dungeon build spans multiple engine frames instead of blocking one (frames=%d, steps=%d)"
+			% [frames_elapsed, progress_emits]
+		),
+		start,
+		"PERF-03"
 	)
 
 

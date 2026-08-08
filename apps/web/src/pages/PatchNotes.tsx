@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 import { patchNotes } from "../content/loader";
 import { PageHelmet } from "../components/Layout";
+import PrerenderReady from "../components/PrerenderReady";
 
 export default function PatchNotesPage() {
   return (
@@ -10,6 +11,7 @@ export default function PatchNotesPage() {
         description="Release notes for Aumbrye game updates."
         path="/patch-notes"
       />
+      <PrerenderReady />
       <h2>Patch Notes</h2>
       {patchNotes.map((entry) => (
         <article key={entry.version} className="card">

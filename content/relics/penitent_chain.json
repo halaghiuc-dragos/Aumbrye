@@ -1,0 +1,23 @@
+{
+  "id": "penitent_chain",
+  "name": "Penitent Chain",
+  "description": "Twenty health surrendered. Every parry restores a flask charge.",
+  "maxStacks": 1,
+  "stats": {
+    "maxHealth": -20
+  },
+  "tags": [
+    "poise",
+    "vigil"
+  ],
+  "weight": 0.6,
+  "rules": [
+    {
+      "event": "onParry",
+      "effect": "refund_flask",
+      "amount": 1,
+      "cooldown": 20
+    }
+  ],
+  "offerable": true
+}

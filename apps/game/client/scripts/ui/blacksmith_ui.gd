@@ -35,7 +35,7 @@ func _ready() -> void:
 	unlock_button.pressed.connect(_on_unlock_pressed)
 	$Panel/Margin/VBox/Buttons.add_child(unlock_button)
 	$Panel/Margin/VBox/Buttons.move_child(unlock_button, 0)
-	CharacterService.coins_changed.connect(_on_coins_changed)
+	CharacterService.gold_changed.connect(_on_gold_changed)
 	InventoryService.inventory_changed.connect(_refresh)
 
 
@@ -67,7 +67,7 @@ func _unhandled_input(event: InputEvent) -> void:
 
 
 func _refresh() -> void:
-	_gold_label.text = "Coins: %d" % CharacterService.get_coins()
+	_gold_label.text = "Coins: %d" % CharacterService.gold
 	_item_list.clear()
 	_item_indices.clear()
 	var inv := InventoryService.inventory
@@ -165,5 +165,5 @@ func _on_unlock_pressed() -> void:
 	_refresh()
 
 
-func _on_coins_changed(_amount: int) -> void:
-	_gold_label.text = "Coins: %d" % CharacterService.get_coins()
+func _on_gold_changed(_amount: int) -> void:
+	_gold_label.text = "Coins: %d" % CharacterService.gold

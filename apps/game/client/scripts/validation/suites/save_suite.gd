@@ -457,6 +457,7 @@ func _test_save_migrator_suite() -> void:
 	var SaveMigratorScript := preload("res://scripts/save/save_migrator.gd")
 	_test_migrate_chain_v1_to_v5(SaveMigratorScript)
 	_test_migrate_step_table(SaveMigratorScript)
+	_test_migrate_steps_doc_matches_steps(SaveMigratorScript)
 	_test_migrate_too_new(SaveMigratorScript)
 	_test_migrate_failure_preserves_payload(SaveMigratorScript)
 	_test_migrate_normalizes_equipped_legacy_string(SaveMigratorScript)
@@ -568,6 +569,36 @@ func _test_migrate_step_table(SaveMigratorScript: Script) -> void:
 		"STEPS contiguous and ends at CURRENT_VERSION",
 		start,
 		"MIG.save.steps"
+	)
+
+
+func _test_migrate_steps_doc_matches_steps(SaveMigratorScript: Script) -> void:
+	var start := Time.get_ticks_msec()
+	var steps: Array = SaveMigratorScript.STEPS
+	var steps_doc: Array = SaveMigratorScript.STEPS_DOC
+	var ok: bool = steps.size() == steps_doc.size()
+	var mismatch := ""
+	if ok:
+		for i in steps.size():
+			var step: Dictionary = steps[i]
+			var doc: Dictionary = steps_doc[i]
+			if int(step["from"]) != int(doc.get("from", -1)) or int(step["to"]) != int(
+				doc.get("to", -1)
+			):
+				ok = false
+				mismatch = "index %d: STEPS %s->%s vs STEPS_DOC %s->%s" % [
+					i, step["from"], step["to"], doc.get("from", "?"), doc.get("to", "?")
+				]
+				break
+	elif not mismatch:
+		mismatch = "STEPS has %d entries, STEPS_DOC has %d" % [steps.size(), steps_doc.size()]
+	ctx.timed_record(
+		"save.migrate.steps_doc_matches_steps",
+		get_category(),
+		ok,
+		"STEPS_DOC from/to pairs match STEPS" if ok else "STEPS_DOC out of sync: %s" % mismatch,
+		start,
+		"DOC.save.steps_doc"
 	)
 
 
@@ -1231,7 +1262,7 @@ func _test_character_currency_autosave_deferred() -> void:
 	LocalSave._active_character_id = char_id
 	CharacterService.reset_to_defaults()
 	for _i in 30:
-		CharacterService.add_coins(1)
+		CharacterService.add_gold(1)
 	await Engine.get_main_loop().create_timer(LocalSave.AUTOSAVE_MIN_INTERVAL + 0.1).timeout
 	var deferred_mtime := FileAccess.get_modified_time(path) if FileAccess.file_exists(path) else 0
 	CharacterService.spend_gold(1)
@@ -1242,7 +1273,7 @@ func _test_character_currency_autosave_deferred() -> void:
 		"character.currency.autosave_is_deferred",
 		get_category(),
 		deferred_mtime > 0 and immediate_mtime > deferred_mtime,
-		"30 add_coins coalesce; spend_gold writes immediately",
+		"30 add_gold coalesce; spend_gold writes immediately",
 		start,
 		"CHS-04"
 	)

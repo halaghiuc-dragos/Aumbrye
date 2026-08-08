@@ -1,0 +1,117 @@
+{
+  "id": "ivo_greeting",
+  "startNode": "start",
+  "nodes": {
+    "line_1": {
+      "speaker": "Ivo Kell",
+      "text": "Received: one measure of daylight. Issued: nothing. It says that four hundred times in the same hand, and the hand gets no less steady.",
+      "actions": [
+        {
+          "type": "set_relationship",
+          "npc": "ivo",
+          "delta": 1
+        }
+      ],
+      "next": "end"
+    },
+    "line_2": {
+      "speaker": "Ivo Kell",
+      "text": "Into the lattice, into the ice, into the reliquaries. Into people, latterly. The Keeping worked. It is the returning that was never drafted.",
+      "actions": [
+        {
+          "type": "set_relationship",
+          "npc": "ivo",
+          "delta": 1
+        }
+      ],
+      "next": "end"
+    },
+    "line_3": {
+      "speaker": "Ivo Kell",
+      "text": "An entry that keeps being reopened. You are relit from the store each time. That is not a threat. It is a debit.",
+      "actions": [
+        {
+          "type": "set_relationship",
+          "npc": "ivo",
+          "delta": 1
+        }
+      ],
+      "next": "end"
+    },
+    "gated": {
+      "speaker": "Ivo Kell",
+      "text": "You have stood in the chapel. Then you have seen the last entry, or the place where it will go. He leaves the line clear. He is very tidy.",
+      "actions": [
+        {
+          "type": "set_relationship",
+          "npc": "ivo",
+          "delta": 1
+        }
+      ],
+      "next": "end"
+    },
+    "start": {
+      "speaker": "Ivo Kell",
+      "text": "Ivo Kell has taken a corner of the tower and made it look lived in, which is more than the tower has managed on its own.",
+      "choices": [
+        {
+          "text": "What does the page say?",
+          "next": "line_1"
+        },
+        {
+          "text": "Then where did the light go?",
+          "next": "line_2"
+        },
+        {
+          "text": "What am I, in the ledger?",
+          "next": "line_3"
+        },
+        {
+          "text": "I have been to the chapel.",
+          "next": "gated",
+          "condition": {
+            "dungeonCleared": "umbral_chapel"
+          }
+        },
+        {
+          "text": "Open the vault ledger to me.",
+          "next": "ivo_arc",
+          "condition": {
+            "all": [
+              {
+                "relationship": "ivo",
+                "atLeast": 3
+              },
+              {
+                "not": {
+                  "flag": "ivo_vault_open"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "text": "Later.",
+          "next": "end"
+        }
+      ]
+    },
+    "ivo_arc": {
+      "speaker": "Ivo",
+      "text": "It is not a favour. It is the job, and nobody has asked me to do the job in eleven years. Bring what you cannot carry and I will find it again when you want it, in ink, under your name.",
+      "actions": [
+        {
+          "type": "set_flag",
+          "flag": "ivo_vault_open",
+          "value": true
+        },
+        {
+          "type": "set_relationship",
+          "npc": "ivo",
+          "delta": 1
+        }
+      ],
+      "next": "end"
+    }
+  }
+}

@@ -101,6 +101,7 @@ static func _try_generate_once(config: RoomGraphConfig, rng: RandomNumberGenerat
 		next_index = _fill_bounding_box(graph, next_index)
 	_connect_fillers(graph)
 	_apply_door_connections(graph, rng, config)
+	_smooth_height_levels(graph, config)
 	_assign_special_rooms(graph, rng, config)
 	_place_secret_attachments(graph, rng, config)
 	_apply_secret_door_masks(graph)
@@ -340,6 +341,37 @@ static func _apply_door_connections(
 		for i in budget:
 			var pair: Array = loop_candidates[i]
 			_set_door_between(graph, pair[0], pair[1])
+
+
+static func _smooth_height_levels(graph: RoomGraph, config: RoomGraphConfig) -> void:
+	if config.max_height_level <= 0:
+		for cell in graph.slots:
+			var flat_slot: RoomGraphSlot = graph.slots[cell]
+			flat_slot.height_level = 0
+		return
+	for _pass in 8:
+		var changed := false
+		for cell in graph.occupied_cells():
+			var slot: RoomGraphSlot = graph.slots[cell]
+			if slot.slot_type == RoomGraphSlotScript.SlotType.SECRET:
+				continue
+			for dir in DIRECTIONS:
+				if not (slot.door_mask & _dir_to_door(dir)):
+					continue
+				var neighbor: RoomGraphSlot = graph.get_slot_at(cell + dir)
+				if neighbor == null or neighbor.slot_type == RoomGraphSlotScript.SlotType.SECRET:
+					continue
+				var gap := neighbor.height_level - slot.height_level
+				if gap > 1:
+					neighbor.height_level = mini(
+						config.max_height_level, slot.height_level + 1
+					)
+					changed = true
+				elif gap < -1:
+					neighbor.height_level = maxi(0, slot.height_level - 1)
+					changed = true
+		if not changed:
+			break
 
 
 static func _record_walk_edge(graph: RoomGraph, from_cell: Vector2i, to_cell: Vector2i) -> void:

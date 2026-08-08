@@ -1,0 +1,73 @@
+{
+  "id": "fenwife_nettle",
+  "displayName": "Nettle",
+  "interactType": "dialogue",
+  "dialogueId": "nettle_greeting",
+  "requiresFlag": "rescued_nettle",
+  "dialogueRules": [
+    {
+      "condition": {
+        "not": {
+          "relationship": "nettle",
+          "atLeast": 1
+        }
+      },
+      "dialogueId": "nettle_arrival"
+    },
+    {
+      "condition": {
+        "any": [
+          {
+            "all": [
+              {
+                "lastRunOutcome": "died"
+              },
+              {
+                "lastRunBoss": true
+              }
+            ]
+          },
+          {
+            "all": [
+              {
+                "lastRunOutcome": "died"
+              },
+              {
+                "minLastRunFloor": 4
+              }
+            ]
+          },
+          {
+            "all": [
+              {
+                "lastRunOutcome": "escaped"
+              },
+              {
+                "lastRunBoss": true
+              }
+            ]
+          },
+          {
+            "lastRunBiome": "venom_mire"
+          },
+          {
+            "all": [
+              {
+                "lastRunOutcome": "died"
+              },
+              {
+                "minDeaths": 10
+              }
+            ]
+          }
+        ]
+      },
+      "dialogueId": "nettle_reactions"
+    }
+  ],
+  "position": {
+    "x": -8.8,
+    "y": 0,
+    "z": 7.4
+  }
+}

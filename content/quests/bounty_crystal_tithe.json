@@ -1,0 +1,18 @@
+{
+  "id": "bounty_crystal_tithe",
+  "title": "Bounty: The Tithe in Glass",
+  "type": "kill",
+  "targetId": "crystal_shade",
+  "requiredCount": 6,
+  "repeatable": true,
+  "cooldownRuns": 1,
+  "availableWhen": {
+    "minTier": 2
+  },
+  "bounty": "daily",
+  "description": "Standing bounty. Six of the ones that keep the shape of a person and none of the weight. Bring nothing back; the counting is the work.",
+  "rewards": {
+    "gold": 110,
+    "bountyTokens": 2
+  }
+}

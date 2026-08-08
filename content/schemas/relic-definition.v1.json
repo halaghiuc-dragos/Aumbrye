@@ -11,9 +11,85 @@
     "description": { "type": "string" },
     "authored": { "type": "boolean" },
     "maxStacks": { "type": "integer", "minimum": 1 },
+    "offerable": {
+      "type": "boolean",
+      "description": "Eligible to appear in a relic offer at a decision point."
+    },
+    "weight": {
+      "type": "number",
+      "minimum": 0,
+      "description": "Base draw weight before tag synergy with relics already carried."
+    },
+    "tags": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "description": "Synergy groups; shared tags raise a relic's odds of being offered."
+    },
     "stats": {
       "type": "object",
       "additionalProperties": { "type": "number" }
+    },
+    "rules": {
+      "type": "array",
+      "description": "Event-hook rules registered with the shared combat rule dispatcher.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["event", "effect"],
+        "properties": {
+          "event": {
+            "type": "string",
+            "enum": [
+              "onHit",
+              "onKill",
+              "onParry",
+              "onBlock",
+              "onDodge",
+              "onCrit",
+              "onBackstab",
+              "onRiposte",
+              "onHitTaken",
+              "onLowHealth",
+              "onRoomClear",
+              "onFloorEnter",
+              "onStatusApplied",
+              "onRunStart"
+            ]
+          },
+          "effect": {
+            "type": "string",
+            "enum": [
+              "restore_stamina",
+              "restore_health",
+              "restore_mana",
+              "lifesteal",
+              "apply_status",
+              "spread_status",
+              "add_stack",
+              "bonus_gold",
+              "refund_flask",
+              "clear_status"
+            ]
+          },
+          "amount": { "type": "number" },
+          "pct": { "type": "number", "minimum": 0 },
+          "chance": { "type": "number", "minimum": 0, "maximum": 1 },
+          "cooldown": { "type": "number", "minimum": 0 },
+          "statusId": { "type": "string" },
+          "stacks": { "type": "integer", "minimum": 1 },
+          "radius": { "type": "number", "minimum": 0 },
+          "stackId": { "type": "string" },
+          "maxStacks": { "type": "integer", "minimum": 1 },
+          "stat": { "type": "string" },
+          "perStack": { "type": "number" },
+          "resetOn": {
+            "type": "array",
+            "items": { "type": "string", "minLength": 1 }
+          },
+          "ifTargetHasStatus": { "type": "string" },
+          "ifDamageType": { "type": "string" }
+        }
+      }
     }
   }
 }

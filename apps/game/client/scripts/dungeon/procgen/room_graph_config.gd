@@ -1,21 +1,23 @@
 class_name RoomGraphConfig
 extends RefCounted
 
-## Tunable parameters for grid-based room-graph generation.
+## Tunable parameters for grid-based room-graph generation. Every field is declared by the biome
+## under `generator`; the defaults below are what a biome gets when it declares nothing, and no
+## field changes behind the player's back at a room-count threshold.
 
 var grid_width: int = 9
 var grid_height: int = 9
-var min_rooms: int = 8
-var max_rooms: int = 14
-var max_generation_attempts: int = 100
-var max_walk_attempts: int = 4096
+var min_rooms: int = 18
+var max_rooms: int = 22
+var max_generation_attempts: int = 256
+var max_walk_attempts: int = 8192
 var boss_min_distance: int = 4
 var min_dead_ends: int = 2
 var max_secrets: int = 2
-var loop_budget: int = 2
-var branch_max_depth: int = 4
-var allow_2x2_blocks: bool = false
-var max_neighbor_count: int = 3
+var loop_budget: int = 4
+var branch_max_depth: int = 8
+var allow_2x2_blocks: bool = true
+var max_neighbor_count: int = 4
 var fill_bounding_box: bool = true
 var max_height_level: int = 0
 var debug_ascii: bool = false
@@ -28,20 +30,23 @@ static func from_biome(biome: Dictionary) -> RoomGraphConfig:
 	config.max_rooms = int(room_count.get("max", 22))
 	config.grid_width = maxi(13, int(ceil(sqrt(float(config.max_rooms))) + 6))
 	config.grid_height = config.grid_width
-	config.boss_min_distance = clampi(int(config.min_rooms / 4.0), 4, 6)
-	if config.min_rooms >= 12:
-		config.min_dead_ends = 4 if bool(biome.get("requiresSecret", false)) else 3
-	else:
-		config.min_dead_ends = 3 if bool(biome.get("requiresSecret", false)) else 2
+	var generator: Dictionary = biome.get("generator", {})
+	config.boss_min_distance = int(
+		generator.get("bossMinDistance", clampi(int(config.min_rooms / 4.0), 4, 6))
+	)
+	var default_dead_ends := 3 if bool(biome.get("requiresSecret", false)) else 2
+	config.min_dead_ends = int(generator.get("minDeadEnds", default_dead_ends))
 	config.min_dead_ends = mini(config.min_dead_ends, maxi(2, config.min_rooms - 2))
 	config.max_secrets = int(biome.get("maxSecrets", 2))
-	if config.min_rooms >= 16:
-		config.branch_max_depth = 8
-		config.max_neighbor_count = 4
-		config.loop_budget = 4
-		config.max_generation_attempts = 256
-		config.max_walk_attempts = 8192
-		config.allow_2x2_blocks = true
+	config.branch_max_depth = int(generator.get("branchMaxDepth", config.branch_max_depth))
+	config.max_neighbor_count = int(generator.get("maxNeighborCount", config.max_neighbor_count))
+	config.loop_budget = int(generator.get("loopBudget", config.loop_budget))
+	config.max_generation_attempts = int(
+		generator.get("maxGenerationAttempts", config.max_generation_attempts)
+	)
+	config.max_walk_attempts = int(generator.get("maxWalkAttempts", config.max_walk_attempts))
+	config.allow_2x2_blocks = bool(generator.get("allow2x2Blocks", config.allow_2x2_blocks))
+	config.fill_bounding_box = bool(generator.get("fillBoundingBox", config.fill_bounding_box))
 	config.max_height_level = int(biome.get("maxHeightLevel", 0))
 	return config
 

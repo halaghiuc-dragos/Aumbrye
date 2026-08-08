@@ -1,0 +1,36 @@
+{
+  "id": "unique_mire_tongue",
+  "name": "Mire-Tongue",
+  "itemType": "weapon",
+  "equipmentSlot": "weapon",
+  "gridWidth": 1,
+  "gridHeight": 2,
+  "stackSize": 1,
+  "rarity": "epic",
+  "description": "The edge was never sharpened. It did not need to be.",
+  "value": 450,
+  "lootValue": 225,
+  "maxDurability": 80,
+  "unique": true,
+  "baseId": "dagger",
+  "biome": "poison_swamp",
+  "scaling": {
+    "strength": "E",
+    "dexterity": "B"
+  },
+  "ruleText": "Hits have a 35% chance to poison.",
+  "rules": [
+    {
+      "event": "onHit",
+      "effect": "apply_status",
+      "statusId": "poison",
+      "stacks": 1,
+      "chance": 0.35
+    }
+  ],
+  "stats": {
+    "poisonDamage": 8,
+    "critChance": 0.04
+  },
+  "weaponId": "dagger"
+}

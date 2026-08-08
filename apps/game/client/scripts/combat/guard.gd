@@ -18,6 +18,8 @@ const BLOCK_DISPLAY_MAX := 9.99
 const PARRY_STAGGER_ENEMY := 1.2
 const RIPOSTE_WINDOW := 1.4
 const RIPOSTE_DAMAGE_MULT := 2.0
+const DEFAULT_ELEMENTAL_REDUCTION := 0.35
+const DEFAULT_GUARD_BREAK_POISE := 0.0
 
 enum GuardState { IDLE, GUARDING, GUARD_BROKEN }
 
@@ -31,15 +33,19 @@ var guard_broken_state := false
 var parry_window_active := false
 var is_guard_active := false
 var riposte_active := false
+var parried_target: Node = null
 
 var _body: CharacterBody3D
 var _stamina: Stamina
 var _poise: Poise
+var _weapon: WeaponController
 var _stagger_timer := 0.0
 var _state := GuardState.IDLE
 var _parry_timer := 0.0
 var _riposte_timer := 0.0
 var _block_reduction_bonus := 0.0
+var _block_reduction_by_type: Dictionary = {}
+var _guard_break_poise := DEFAULT_GUARD_BREAK_POISE
 var _block_stability := 1.0
 var _last_block_cost := 0.0
 var _parry_cooldown_timer := 0.0
@@ -49,6 +55,7 @@ func _ready() -> void:
 	_body = get_parent() as CharacterBody3D
 	_stamina = _body.get_node_or_null("Stamina") as Stamina
 	_poise = _body.get_node_or_null("Poise") as Poise
+	_weapon = _body.get_node_or_null("WeaponController") as WeaponController
 
 
 func _physics_process(delta: float) -> void:
@@ -65,6 +72,10 @@ func _physics_process(delta: float) -> void:
 		_riposte_timer -= delta
 		if _riposte_timer <= 0.0:
 			riposte_active = false
+			parried_target = null
+	if parried_target != null and not is_instance_valid(parried_target):
+		riposte_active = false
+		parried_target = null
 
 	match _state:
 		GuardState.IDLE:
@@ -75,6 +86,7 @@ func _physics_process(delta: float) -> void:
 				PlayerInput.just_pressed(&"block")
 				and not guard_broken_state
 				and _parry_cooldown_timer <= 0.0
+				and (_weapon == null or _weapon.allows_cancel_into("guard"))
 			):
 				_enter_guard()
 		GuardState.GUARDING:
@@ -124,9 +136,29 @@ func set_combat_stat_modifiers(
 	_block_stability = maxf(
 		0.1, float(block_data.get("stability", 1.0)) + ClassPerks.bulwark_stability_bonus(_body)
 	)
-	if block_data.has("reduction"):
-		# Equipment block reduction overrides the default when authored on shield.
-		_block_reduction_bonus += float(block_data.get("reduction", 0.0)) - BLOCK_DAMAGE_REDUCTION
+	_guard_break_poise = maxf(0.0, float(block_data.get("guardBreakPoise", DEFAULT_GUARD_BREAK_POISE)))
+	_block_reduction_by_type = _parse_block_reduction(block_data.get("reduction"))
+
+
+func _parse_block_reduction(value: Variant) -> Dictionary:
+	var table: Dictionary = {}
+	if value is Dictionary:
+		for damage_type in DamageInfo.ALL_TYPES:
+			if (value as Dictionary).has(damage_type):
+				table[damage_type] = clampf(float((value as Dictionary)[damage_type]), 0.0, 0.95)
+	elif value != null:
+		var flat := clampf(float(value), 0.0, 0.95)
+		for damage_type in DamageInfo.ALL_TYPES:
+			table[damage_type] = flat
+	return table
+
+
+func _reduction_for(damage_type: String) -> float:
+	if _block_reduction_by_type.has(damage_type):
+		return float(_block_reduction_by_type[damage_type])
+	if damage_type == DamageInfo.TYPE_PHYSICAL:
+		return BLOCK_DAMAGE_REDUCTION
+	return DEFAULT_ELEMENTAL_REDUCTION
 
 
 func modify_incoming_hit(info: DamageInfo, arc: DamageInfo.HitArc = DamageInfo.HitArc.FRONT) -> Dictionary:
@@ -134,13 +166,26 @@ func modify_incoming_hit(info: DamageInfo, arc: DamageInfo.HitArc = DamageInfo.H
 		return {"amount": info.amount, "poise": info.poise_damage}
 	if arc != DamageInfo.HitArc.FRONT:
 		return {"amount": info.amount, "poise": info.poise_damage}
+	if _guard_break_poise > 0.0 and info.poise_damage >= _guard_break_poise * _block_stability:
+		_trigger_guard_break()
+		return {"amount": info.amount, "poise": info.poise_damage, "blocked": false}
 	var stamina_cost := info.poise_damage * BLOCK_STAMINA_PER_POISE / _block_stability
 	_last_block_cost = stamina_cost
 	if _stamina == null or not _stamina.consume(stamina_cost):
 		_trigger_guard_break()
 		return {"amount": info.amount, "poise": info.poise_damage, "blocked": false}
-	var reduction := clampf(BLOCK_DAMAGE_REDUCTION + _block_reduction_bonus, 0.0, 0.95)
+	var reduction := clampf(_reduction_for(info.damage_type) + _block_reduction_bonus, 0.0, 0.95)
 	var poise_mult := BLOCK_POISE_TRANSFER / _block_stability
+	if _body and CombatEvents:
+		CombatEvents.dispatch(
+			CombatEvents.ON_BLOCK,
+			{
+				"actor": _body,
+				"target": info.source,
+				"amount": info.amount * (1.0 - reduction),
+				"damageType": info.damage_type,
+			}
+		)
 	return {
 		"amount": info.amount * (1.0 - reduction),
 		"poise": info.poise_damage * poise_mult,
@@ -156,8 +201,11 @@ func try_parry_attack(attacker: Node) -> bool:
 	_stagger_attacker(attacker)
 	parry_success.emit(attacker)
 	riposte_active = true
+	parried_target = attacker
 	_riposte_timer = RIPOSTE_WINDOW
 	riposte_ready.emit()
+	if _body and CombatEvents:
+		CombatEvents.dispatch(CombatEvents.ON_PARRY, {"actor": _body, "target": attacker})
 	if _body:
 		var anchor: Array = VfxService.resolve_combat_anchor(_body)
 		VfxService.play_parry(anchor[0], anchor[1])
@@ -186,7 +234,12 @@ func get_riposte_damage_multiplier() -> float:
 
 func consume_riposte() -> void:
 	riposte_active = false
+	parried_target = null
 	_riposte_timer = 0.0
+
+
+func is_riposte_target(node: Node) -> bool:
+	return riposte_active and node != null and node == parried_target
 
 
 func get_parry_stagger_duration() -> float:
@@ -201,6 +254,9 @@ func reset_after_revive() -> void:
 	guard_broken_state = false
 	_stagger_timer = 0.0
 	_state = GuardState.IDLE
+	riposte_active = false
+	parried_target = null
+	_riposte_timer = 0.0
 	_reset_guard_state()
 
 

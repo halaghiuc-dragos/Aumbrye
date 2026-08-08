@@ -1,9 +1,27 @@
 {
-    "description":  "Gusts hasten your attacks.",
-    "name":  "Relic Wind Charm",
-    "id":  "relic_wind_charm",
-    "stats":  {
-                  "attackSpeed":  0.04
-              },
-    "maxStacks":  1
+  "id": "relic_wind_charm",
+  "name": "Relic Wind Charm",
+  "description": "It moves when nothing else does. Dodges chain into force you keep until struck.",
+  "maxStacks": 1,
+  "stats": {
+    "attackSpeed": 0.04
+  },
+  "tags": [
+    "swift"
+  ],
+  "weight": 1,
+  "rules": [
+    {
+      "event": "onDodge",
+      "effect": "add_stack",
+      "stackId": "wind",
+      "maxStacks": 4,
+      "stat": "damagePercent",
+      "perStack": 2,
+      "resetOn": [
+        "onHitTaken"
+      ]
+    }
+  ],
+  "offerable": true
 }

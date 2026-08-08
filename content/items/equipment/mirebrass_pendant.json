@@ -1,0 +1,23 @@
+{
+  "id": "mirebrass_pendant",
+  "name": "Mirebrass Pendant",
+  "itemType": "accessory",
+  "equipmentSlot": "amulet",
+  "gridWidth": 1,
+  "gridHeight": 2,
+  "stackSize": 1,
+  "rarity": "magic",
+  "description": "The chain is newer than the stone by several centuries. Green to the touch. The swamp finished it for the smith.",
+  "value": 82,
+  "lootValue": 41,
+  "maxDurability": 60,
+  "baseId": "pendant",
+  "materialTier": "mirebrass",
+  "biome": "poison_swamp",
+  "scaling": {},
+  "stats": {
+    "manaMax": 17,
+    "healthRegen": 2,
+    "resistPoison": 0.06
+  }
+}

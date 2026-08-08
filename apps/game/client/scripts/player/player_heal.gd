@@ -67,6 +67,16 @@ func refill_charges() -> void:
 	charges_changed.emit(current_charges, max_charges)
 
 
+func grant_charge(count: int = 1) -> void:
+	if count <= 0:
+		return
+	var granted := mini(max_charges, current_charges + count)
+	if granted == current_charges:
+		return
+	current_charges = granted
+	charges_changed.emit(current_charges, max_charges)
+
+
 func locks_movement() -> bool:
 	return is_drinking
 

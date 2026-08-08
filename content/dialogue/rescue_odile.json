@@ -1,0 +1,72 @@
+{
+  "id": "rescue_odile",
+  "startNode": "start",
+  "nodes": {
+    "start": {
+      "speaker": "Sister Odile",
+      "text": "Softly. The nave repeats things. I am a lector, or I was, and I am carrying a line that was struck out of every copy in the library. Are you going up? I can walk. I have been telling myself that for a while now.",
+      "condition": {
+        "all": [
+          {
+            "not": {
+              "flag": "rescued_odile"
+            }
+          },
+          {
+            "not": {
+              "flag": "lost_odile"
+            }
+          }
+        ]
+      },
+      "fallback": "already",
+      "choices": [
+        {
+          "text": "Walk behind me. Stay close.",
+          "next": "taken"
+        },
+        {
+          "text": "I am going down, not up.",
+          "next": "left"
+        }
+      ]
+    },
+    "taken": {
+      "speaker": "Sister Odile",
+      "text": "Then I will keep up, and if I do not keep up you will not stop. Say it. — Good. That is the arrangement everybody else lied about.",
+      "actions": [
+        {
+          "type": "set_flag",
+          "flag": "rescued_odile",
+          "value": true
+        },
+        {
+          "type": "record_rescue",
+          "npcId": "lector_odile"
+        },
+        {
+          "type": "play_sfx",
+          "sfxId": "ui"
+        }
+      ],
+      "next": "end"
+    },
+    "left": {
+      "speaker": "Sister Odile",
+      "text": "Down. Of course down. Go on, then — I will keep this landing warm, which is a joke, and it is the last one I have.",
+      "actions": [
+        {
+          "type": "set_flag",
+          "flag": "lost_odile",
+          "value": true
+        }
+      ],
+      "next": "end"
+    },
+    "already": {
+      "speaker": "An empty landing",
+      "text": "Somebody sat here long enough to wear the stone smooth. Whoever it was is not sitting here now.",
+      "next": "end"
+    }
+  }
+}

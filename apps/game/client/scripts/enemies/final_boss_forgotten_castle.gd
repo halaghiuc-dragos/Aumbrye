@@ -44,7 +44,7 @@ func _ready() -> void:
 
 
 func is_immune() -> bool:
-	return _immune or (_phase == Phase.PUZZLE and _shield_active)
+	return super.is_immune() or _immune or (_phase == Phase.PUZZLE and _shield_active)
 
 
 func _on_hurt(_info: DamageInfo) -> void:

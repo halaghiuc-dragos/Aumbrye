@@ -53,7 +53,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const refreshTimer = useRef<number | null>(null);
   const refreshPromise = useRef<Promise<string | null> | null>(null);
 
-  const applyAuth = useCallback((auth: AuthResponse) => {
+  const applyAuth = useCallback(function applyAuth(auth: AuthResponse) {
     const tokens = auth.tokens;
     if (!tokens?.accessToken || !tokens.refreshToken || !tokens.accessTokenExpiresAt) {
       throw new Error("Authentication failed");

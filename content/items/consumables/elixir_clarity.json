@@ -1,0 +1,19 @@
+{
+  "id": "elixir_clarity",
+  "name": "Elixir of Clarity",
+  "itemType": "consumable",
+  "gridWidth": 1,
+  "gridHeight": 2,
+  "stackSize": 5,
+  "rarity": "rare",
+  "description": "Distilled in the cathedral cellars, for readers who worked past the last candle.",
+  "consumableEffect": {
+    "kind": "applyStatus",
+    "statusId": "elixir_clarity",
+    "duration": 90,
+    "stat": "manaMax",
+    "amount": 40
+  },
+  "value": 140,
+  "lootValue": 70
+}

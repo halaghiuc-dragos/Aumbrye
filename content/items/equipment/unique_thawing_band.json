@@ -1,0 +1,30 @@
+{
+  "id": "unique_thawing_band",
+  "name": "Thawing Band",
+  "itemType": "accessory",
+  "equipmentSlot": "ring",
+  "gridWidth": 1,
+  "gridHeight": 1,
+  "stackSize": 1,
+  "rarity": "rare",
+  "description": "Warm to the touch, always, for reasons the wearer preferred not to examine.",
+  "value": 290,
+  "lootValue": 145,
+  "maxDurability": 60,
+  "unique": true,
+  "baseId": "band",
+  "biome": "frozen_fortress",
+  "scaling": {},
+  "ruleText": "Entering a floor restores 40 health.",
+  "rules": [
+    {
+      "event": "onFloorEnter",
+      "effect": "restore_health",
+      "amount": 40.0
+    }
+  ],
+  "stats": {
+    "maxHealth": 30,
+    "resistFrost": 0.1
+  }
+}

@@ -33,6 +33,11 @@ static var ALL_BIOMES: Array[String] = []
 static var _cache: Dictionary = {}
 static var _room_scene_cache: Dictionary = {}
 static var _index_ready := false
+## PERF-03: paths handed to ResourceLoader.load_threaded_request() by prewarm_room_scenes(), so
+## get_room_scenes() knows to collect them with load_threaded_get() instead of a second, redundant
+## synchronous load() once the floor build actually needs them.
+static var _threaded_paths: Dictionary = {}
+static var _segment_cache: Dictionary = {}
 
 
 static func warm_index() -> void:
@@ -60,6 +65,28 @@ static func get_display_name(biome_id: String) -> String:
 	return str(biome.get("name", ""))
 
 
+## Kicks off a background load for every room template in `biome_id` without blocking. Call this
+## as early as possible in a floor transition (RunFlow._transition_floor) so the disk/import cost
+## overlaps with whatever else the transition is doing instead of landing entirely inside the
+## chunked DungeonBuilder call. Safe to call redundantly — already-cached or already-requested
+## biomes are a no-op.
+static func prewarm_room_scenes(biome_id: String) -> void:
+	if _room_scene_cache.has(biome_id):
+		return
+	var biome := get_biome(biome_id)
+	if biome.is_empty():
+		return
+	var prefix := str(biome.get("templatePrefix", ""))
+	var folder := str(biome.get("assetFolder", ""))
+	for kind in ROOM_KINDS:
+		var template_id := "%s_%s" % [prefix, kind]
+		var path := "res://scenes/rooms/%s/%s.tscn" % [folder, template_id]
+		if _threaded_paths.has(path) or not ResourceLoader.exists(path):
+			continue
+		if ResourceLoader.load_threaded_request(path) == OK:
+			_threaded_paths[path] = true
+
+
 static func get_room_scenes(biome_id: String) -> Dictionary:
 	if _room_scene_cache.has(biome_id):
 		return _room_scene_cache[biome_id]
@@ -72,10 +99,24 @@ static func get_room_scenes(biome_id: String) -> Dictionary:
 	for kind in ROOM_KINDS:
 		var template_id := "%s_%s" % [prefix, kind]
 		var path := "res://scenes/rooms/%s/%s.tscn" % [folder, template_id]
-		if ResourceLoader.exists(path):
-			scenes[template_id] = ResourceLoader.load(path)
+		if not ResourceLoader.exists(path):
+			continue
+		scenes[template_id] = _load_room_scene(path)
 	_room_scene_cache[biome_id] = scenes
 	return scenes
+
+
+static func _load_room_scene(path: String) -> Resource:
+	if _threaded_paths.has(path):
+		var status := ResourceLoader.load_threaded_get_status(path)
+		if status == ResourceLoader.THREAD_LOAD_IN_PROGRESS:
+			# Prewarm started but the floor build reached this template before the background
+			# load finished — block just long enough to get it rather than skip the room.
+			return ResourceLoader.load_threaded_get(path)
+		if status == ResourceLoader.THREAD_LOAD_LOADED:
+			return ResourceLoader.load_threaded_get(path)
+		_threaded_paths.erase(path)
+	return ResourceLoader.load(path)
 
 
 static func get_room_scene(biome_id: String, template_id: String) -> Variant:
@@ -192,15 +233,48 @@ const ENDLESS_SEGMENT_MAX_FLOORS := 20
 ## repeats. Pure function of (run_seed, floor_index), so it stays correct across
 ## save/load and across a floor skip that jumps straight to a distant floor.
 static func biome_for_floor(run_seed: int, floor_index: int) -> String:
+	return segment_for_floor(run_seed, floor_index).get("biomeId", BIOME_UMBRAL)
+
+
+## The whole segment a floor falls in: biome, first floor and last floor. Segment boundaries are
+## walked once per run seed and cached, so a jump to floor 501 costs the same walk as floor 2 and
+## a reloaded save agrees with the run it came from.
+static func segment_for_floor(run_seed: int, floor_index: int) -> Dictionary:
 	_ensure_biome_index()
 	if ALL_BIOMES.is_empty():
-		return BIOME_UMBRAL
+		return {"biomeId": BIOME_UMBRAL, "firstFloor": 1, "lastFloor": 1, "index": 0}
+	var target := maxi(1, floor_index)
+	var segments: Array = _segments_for_seed(run_seed)
+	while segments.is_empty() or int(segments[segments.size() - 1].get("lastFloor", 0)) < target:
+		_extend_segments(run_seed, segments, target)
+	for segment in segments:
+		if target <= int(segment.get("lastFloor", 0)):
+			return segment
+	return segments[segments.size() - 1]
+
+
+static func is_segment_start(run_seed: int, floor_index: int) -> bool:
+	var segment := segment_for_floor(run_seed, floor_index)
+	return int(segment.get("firstFloor", 1)) == maxi(1, floor_index)
+
+
+static func _segments_for_seed(run_seed: int) -> Array:
+	if not _segment_cache.has(run_seed):
+		_segment_cache[run_seed] = []
+	return _segment_cache[run_seed]
+
+
+static func _extend_segments(run_seed: int, segments: Array, target_floor: int) -> void:
 	var rng := RandomNumberGenerator.new()
 	var floor_cursor := 1
 	var previous_biome := ""
-	var chosen := ALL_BIOMES[0]
 	var segment_index := 0
-	while true:
+	if not segments.is_empty():
+		var last: Dictionary = segments[segments.size() - 1]
+		floor_cursor = int(last.get("lastFloor", 0)) + 1
+		previous_biome = str(last.get("biomeId", ""))
+		segment_index = int(last.get("index", 0)) + 1
+	while segments.is_empty() or int(segments[segments.size() - 1].get("lastFloor", 0)) < target_floor:
 		rng.seed = hash("%d:%d" % [run_seed, segment_index])
 		var segment_length := rng.randi_range(
 			ENDLESS_SEGMENT_MIN_FLOORS, ENDLESS_SEGMENT_MAX_FLOORS
@@ -208,9 +282,18 @@ static func biome_for_floor(run_seed: int, floor_index: int) -> String:
 		var candidates: Array[String] = ALL_BIOMES.duplicate()
 		if candidates.size() > 1 and previous_biome != "":
 			candidates.erase(previous_biome)
-		chosen = candidates[rng.randi_range(0, candidates.size() - 1)]
-		if floor_index < floor_cursor + segment_length:
-			return chosen
+		var chosen: String = candidates[rng.randi_range(0, candidates.size() - 1)]
+		(
+			segments
+			. append(
+				{
+					"biomeId": chosen,
+					"firstFloor": floor_cursor,
+					"lastFloor": floor_cursor + segment_length - 1,
+					"index": segment_index,
+				}
+			)
+		)
 		floor_cursor += segment_length
 		previous_biome = chosen
 		segment_index += 1
@@ -219,6 +302,7 @@ static func biome_for_floor(run_seed: int, floor_index: int) -> String:
 static func clear_caches() -> void:
 	_cache.clear()
 	_room_scene_cache.clear()
+	_segment_cache.clear()
 
 
 static func _ensure_biome_index() -> void:

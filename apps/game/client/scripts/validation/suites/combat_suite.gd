@@ -205,10 +205,15 @@ func _test_combat_pipeline() -> void:
 		if entry.get("id", "") == "bleed":
 			has_bleed = true
 			break
+	var bleed_build_up := 0.0
+	for meter in status_ctrl.get_build_up_meters():
+		if str(meter.get("id", "")) == "bleed":
+			bleed_build_up = float(meter.get("value", 0.0))
+			break
 	ctx.assert_true(
 		"combat.status_lands_on_enemy",
 		get_category(),
-		has_bleed,
+		has_bleed or bleed_build_up > 0.0,
 		"status from hitbox reaches defender StatusController",
 		start,
 		"M1.combat.status"
@@ -303,6 +308,7 @@ func _test_guard_and_dodge() -> void:
 	var player_stamina := player.get_node("Stamina") as Stamina
 	var player_dodge := player.get_node("Dodge")
 	player_stamina.configure(100.0)
+	player_dodge.call("configure", {}, "medium")
 	start = Time.get_ticks_msec()
 	var before_dodge := player_stamina.current
 	player_dodge.call("_start_dash")

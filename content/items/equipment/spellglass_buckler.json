@@ -1,0 +1,38 @@
+{
+  "id": "spellglass_buckler",
+  "name": "Spellglass Buckler",
+  "itemType": "armor",
+  "equipmentSlot": "secondary",
+  "gridWidth": 2,
+  "gridHeight": 2,
+  "stackSize": 1,
+  "rarity": "rare",
+  "description": "Too small to hide behind. Large enough to turn one blow. Grown, not forged. It rings on a note the ear dislikes. Scaling: Strength D.",
+  "value": 169,
+  "lootValue": 84,
+  "maxDurability": 90,
+  "baseId": "buckler",
+  "materialTier": "spellglass",
+  "biome": "crystal_caverns",
+  "scaling": {
+    "strength": "D"
+  },
+  "stats": {
+    "defense": 16,
+    "evasion": 10,
+    "resistArcane": 0.1,
+    "resistLightning": 0.05
+  },
+  "block": {
+    "stability": 1.1,
+    "guardBreakPoise": 34,
+    "reduction": {
+      "physical": 0.56,
+      "fire": 0.3,
+      "frost": 0.3,
+      "poison": 0.3,
+      "lightning": 0.58,
+      "arcane": 0.66
+    }
+  }
+}

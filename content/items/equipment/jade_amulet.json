@@ -1,16 +1,16 @@
 {
-    "id":  "jade_amulet",
-    "name":  "Jade Amulet",
-    "itemType":  "armor",
-    "gridWidth":  2,
-    "gridHeight":  2,
-    "stackSize":  1,
-    "rarity":  "magic",
-    "description":  "Pale jade cool against the skin — a charm from before the reset.",
-    "value":  20,
-    "stats":  {
-                  "maxHealth":  8,
-                  "defense":  3
-              },
-    "equipmentSlot":  "amulet"
+  "id": "jade_amulet",
+  "name": "Jade Amulet",
+  "itemType": "armor",
+  "gridWidth": 1,
+  "gridHeight": 2,
+  "stackSize": 1,
+  "rarity": "magic",
+  "description": "Pale jade cool against the skin — a charm from before the reset.",
+  "value": 20,
+  "stats": {
+    "maxHealth": 8,
+    "defense": 3
+  },
+  "equipmentSlot": "amulet"
 }

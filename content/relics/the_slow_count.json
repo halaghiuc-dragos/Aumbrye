@@ -1,0 +1,25 @@
+{
+  "id": "the_slow_count",
+  "name": "The Slow Count",
+  "description": "Every critical lands harder than the last until you are hit.",
+  "maxStacks": 1,
+  "tags": [
+    "ruin"
+  ],
+  "weight": 0.8,
+  "rules": [
+    {
+      "event": "onCrit",
+      "effect": "add_stack",
+      "stackId": "count",
+      "maxStacks": 5,
+      "stat": "damagePercent",
+      "perStack": 4,
+      "resetOn": [
+        "onHitTaken",
+        "onRoomClear"
+      ]
+    }
+  ],
+  "offerable": true
+}

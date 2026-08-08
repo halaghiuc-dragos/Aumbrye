@@ -1,11 +1,20 @@
 {
   "id": "bleed",
   "name": "Bleed",
+  "description": "Wounds that will not close. Pressure them until the body gives.",
   "damageType": "physical",
-  "tickDamage": 2,
-  "tickInterval": 0.8,
-  "maxStacks": 5,
-  "duration": 6.0,
-  "iconColor": "#cc2233",
-  "polarity": "debuff"
+  "tickDamage": 3,
+  "tickInterval": 1,
+  "maxStacks": 3,
+  "duration": 6,
+  "iconColor": "#cc2222",
+  "polarity": "debuff",
+  "buildUpThreshold": 100,
+  "buildUpPerHit": 22,
+  "buildUpDecay": 7,
+  "buildUpGrace": 1.2,
+  "buildUpResistGain": 14,
+  "buildUpResistCap": 56,
+  "buildUpStacks": 1,
+  "procDamage": 28
 }

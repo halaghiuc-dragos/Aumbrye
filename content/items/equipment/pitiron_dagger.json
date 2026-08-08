@@ -1,0 +1,25 @@
+{
+  "id": "pitiron_dagger",
+  "name": "Pit-Iron Dagger",
+  "itemType": "weapon",
+  "equipmentSlot": "weapon",
+  "gridWidth": 1,
+  "gridHeight": 2,
+  "stackSize": 1,
+  "rarity": "common",
+  "description": "Short enough to carry where blades are forbidden. Dug out of the courtyard pit and never properly cleaned. Scaling: Strength E, Dexterity B.",
+  "value": 22,
+  "lootValue": 11,
+  "maxDurability": 80,
+  "baseId": "dagger",
+  "materialTier": "pitiron",
+  "biome": "forgotten_castle",
+  "scaling": {
+    "strength": "E",
+    "dexterity": "B"
+  },
+  "stats": {
+    "critChance": 0.03
+  },
+  "weaponId": "dagger"
+}

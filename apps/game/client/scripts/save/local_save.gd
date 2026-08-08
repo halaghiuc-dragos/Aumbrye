@@ -5,6 +5,9 @@ extends Node
 const SAVE_PATH := "user://aumbrye_save.json"
 const STEAM_CLOUD_SAVE_NAME := "aumbrye_save.json"
 const ROSTER_PATH := "user://character_roster.json"
+const ACCOUNT_PATH := "user://account.json"
+const ACCOUNT_SCHEMA_VERSION := 1
+const MAX_CHARACTER_SLOTS := 5
 const CHARACTERS_DIR := "user://characters/"
 const BACKUP_DIR := "user://backups/"
 const BACKUP_COUNT := 5
@@ -27,6 +30,7 @@ var _boot_backup_index: int = -1
 var _boot_character_id: String = ""
 var _pending_new_game: Dictionary = {}
 var _roster: Dictionary = {"characters": [], "activeId": "", "localAccountId": ""}
+var _account: Dictionary = {}
 var _active_character_id: String = ""
 var _autosave_pending := false
 var _autosave_timer: Timer
@@ -47,6 +51,7 @@ func _ready() -> void:
 	_ensure_backup_dir()
 	_ensure_characters_dir()
 	_load_roster()
+	_load_account()
 	_migrate_legacy_save_if_needed()
 	_try_adopt_steam_cloud_save()
 	if _active_character_id != "" and FileAccess.file_exists(_character_path(_active_character_id)):
@@ -114,6 +119,145 @@ func get_appearance_profile() -> Dictionary:
 
 func has_playable_character() -> bool:
 	return not list_character_slots().is_empty()
+
+
+func character_slot_limit() -> int:
+	return MAX_CHARACTER_SLOTS
+
+
+func used_character_slots() -> int:
+	var used := 0
+	for entry in _roster.get("characters", []):
+		if entry is Dictionary and str(entry.get("classId", "")) != "":
+			used += 1
+	return used
+
+
+func can_create_character() -> bool:
+	return used_character_slots() < MAX_CHARACTER_SLOTS
+
+
+## The stash, the bestiary and everything the world itself learned live once per
+## account, which is the whole reason a second warden is worth starting.
+func get_account_data() -> Dictionary:
+	return _account.duplicate(true)
+
+
+func get_account_flags() -> Dictionary:
+	var flags: Variant = _account.get("flags", {})
+	return (flags as Dictionary).duplicate(true) if flags is Dictionary else {}
+
+
+func _default_account() -> Dictionary:
+	return {
+		"schemaVersion": ACCOUNT_SCHEMA_VERSION,
+		"storage": {},
+		"flags": {},
+		"endlessBestFloor": 0,
+		"descentTokens": 0,
+	}
+
+
+func _load_account() -> void:
+	if not FileAccess.file_exists(ACCOUNT_PATH):
+		_account = _default_account()
+		return
+	var parsed = JSON.parse_string(_read_raw_text(ACCOUNT_PATH))
+	if parsed is Dictionary:
+		_account = _default_account()
+		for key in parsed as Dictionary:
+			_account[str(key)] = (parsed as Dictionary)[key]
+		_account["schemaVersion"] = ACCOUNT_SCHEMA_VERSION
+	else:
+		_account = _default_account()
+
+
+func _save_account() -> void:
+	var file := FileAccess.open(ACCOUNT_PATH, FileAccess.WRITE)
+	if not file:
+		return
+	file.store_string(JSON.stringify(_account, "\t"))
+	file.close()
+
+
+## An account flag never regresses when a second character has seen less of the world
+## than the first: booleans latch true, counters keep the higher value, dictionaries merge.
+func _merge_account_flag(flag_id: String, value: Variant) -> void:
+	var flags: Dictionary = _account.get("flags", {})
+	if not flags.has(flag_id):
+		flags[flag_id] = value
+		_account["flags"] = flags
+		return
+	var current: Variant = flags[flag_id]
+	if current is bool or value is bool:
+		flags[flag_id] = bool(current) or bool(value)
+	elif current is Dictionary and value is Dictionary:
+		var merged: Dictionary = (current as Dictionary).duplicate(true)
+		for key in value as Dictionary:
+			var incoming: Variant = (value as Dictionary)[key]
+			if merged.has(key) and not (incoming is Dictionary):
+				merged[key] = maxf(float(merged[key]), float(incoming))
+			else:
+				merged[key] = incoming
+		flags[flag_id] = merged
+	elif (current is int or current is float) and (value is int or value is float):
+		flags[flag_id] = maxi(int(current), int(value))
+	else:
+		flags[flag_id] = value
+	_account["flags"] = flags
+
+
+func _harvest_account_scope(data: Dictionary) -> void:
+	var storage: Variant = data.get("storage", {})
+	if storage is Dictionary:
+		_account["storage"] = (storage as Dictionary).duplicate(true)
+	var flags: Variant = data.get("flags", {})
+	if flags is Dictionary:
+		for flag_id in flags as Dictionary:
+			if SaveMigrator.is_account_scope_flag(str(flag_id)):
+				_merge_account_flag(str(flag_id), (flags as Dictionary)[flag_id])
+	if is_instance_valid(ProgressionService):
+		_account["endlessBestFloor"] = maxi(
+			int(_account.get("endlessBestFloor", 0)), ProgressionService.endless_best_floor
+		)
+	_save_account()
+
+
+## Adopts whatever the document carries into the account layer the first time it is
+## seen, then hands the account copy back so every character shares one stash and one
+## record of what the world has already given up.
+func _apply_account_scope(working: Dictionary) -> void:
+	var adopted: Variant = working.get("account", {})
+	if adopted is Dictionary and not (adopted as Dictionary).is_empty():
+		var account_storage: Variant = (adopted as Dictionary).get("storage", {})
+		var own_storage: Variant = _account.get("storage", {})
+		if (
+			account_storage is Dictionary
+			and not (account_storage as Dictionary).is_empty()
+			and (not own_storage is Dictionary or (own_storage as Dictionary).is_empty())
+		):
+			_account["storage"] = (account_storage as Dictionary).duplicate(true)
+		var account_flags: Variant = (adopted as Dictionary).get("flags", {})
+		if account_flags is Dictionary:
+			for flag_id in account_flags as Dictionary:
+				_merge_account_flag(str(flag_id), (account_flags as Dictionary)[flag_id])
+	var own: Variant = _account.get("storage", {})
+	if own is Dictionary and (own as Dictionary).is_empty():
+		var doc_storage: Variant = working.get("storage", {})
+		if doc_storage is Dictionary:
+			_account["storage"] = (doc_storage as Dictionary).duplicate(true)
+	var shared: Variant = _account.get("storage", {})
+	if shared is Dictionary and not (shared as Dictionary).is_empty():
+		working["storage"] = (shared as Dictionary).duplicate(true)
+	var flags: Variant = working.get("flags", {})
+	if flags is Dictionary:
+		var merged: Dictionary = (flags as Dictionary)
+		var account_scope := get_account_flags()
+		for flag_id in account_scope:
+			if not merged.has(flag_id):
+				merged[flag_id] = account_scope[flag_id]
+		working["flags"] = merged
+	_save_account()
 
 
 func list_character_slots() -> Array[Dictionary]:
@@ -228,6 +372,12 @@ func _apply_new_game_boot() -> bool:
 	var data: Dictionary = _pending_new_game.duplicate()
 	_pending_new_game.clear()
 	_boot_mode = BootMode.NONE
+	if not can_create_character():
+		push_warning(
+			"LocalSave: character slots full (%d of %d)"
+			% [used_character_slots(), MAX_CHARACTER_SLOTS]
+		)
+		return false
 	var character_id := _generate_character_id()
 	_active_character_id = character_id
 	_reset_to_defaults()
@@ -655,6 +805,7 @@ func _character() -> Dictionary:
 
 func _apply_save_data(data: Dictionary) -> void:
 	var working := data.duplicate(true)
+	_apply_account_scope(working)
 	_reconcile_item_instances(working)
 	GridInventory.seed_instance_ordinal(int(working.get("itemInstanceOrdinal", 0)))
 	_cached_state = working
@@ -771,6 +922,8 @@ func _build_save_payload() -> Dictionary:
 		data["meta"] = _cached_state["meta"]
 	if _cloud_updated_at != "":
 		data["cloudUpdatedAt"] = _cloud_updated_at
+	_harvest_account_scope(data)
+	data["account"] = _account.duplicate(true)
 	return data
 
 

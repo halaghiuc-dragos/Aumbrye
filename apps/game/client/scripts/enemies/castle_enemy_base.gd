@@ -3,11 +3,12 @@ class_name CastleEnemyBase
 
 ## Shared patrol/chase/deaggro AI for castle enemies (ENEMY-2.1 base).
 
-enum State { PATROL, CHASE, INVESTIGATE, RETREAT, WINDUP, ATTACK, RECOVERY, STAGGER, DEAD }
+enum State { PATROL, CHASE, INVESTIGATE, RETREAT, CIRCLE, WINDUP, ATTACK, RECOVERY, STAGGER, DEAD }
 
 signal enemy_died
 signal attack_telegraph_started
 signal attack_active
+signal boss_phase_entered(index: int, phase: Dictionary)
 
 const DATA_PATH := ""
 
@@ -56,6 +57,8 @@ var _windup_duration := 0.0
 var _last_hit_direction := Vector3.ZERO
 var _catalog_id_override := ""
 var _damage_multiplier := 1.0
+var _base_damage_multiplier := 1.0
+var _phase_damage_multiplier := 1.0
 var _sync_hitbox_from_anim := false
 const DEAGGRO_LOS_TIMEOUT := 3.0
 
@@ -67,6 +70,37 @@ var _patrol_radius := 4.0
 var _attack_cooldown_data := 1.5
 var _retreat_threshold := 0.0
 var _stagger_duration_data := 1.0
+var _preferred_range := 10.0
+var _retreat_range := 6.0
+
+var _attacks: Array = []
+var _base_attacks: Array = []
+var _max_attack_range := 2.2
+var _engage_range := 2.2
+var _is_boss := false
+var _phase_controller: Node
+var _phase_lock_timer := 0.0
+var _phase_invuln_timer := 0.0
+
+const AWARENESS_INVESTIGATE := 0.45
+const ALLY_ALERT_AWARENESS := 0.7
+var _awareness := 0.0
+var _alert_broadcast := false
+var _vision_cone_cos := -0.34
+var _hearing_range := 7.0
+var _awareness_rate := 2.4
+var _awareness_decay := 0.7
+var _alert_radius := 12.0
+var _perception_frame := -1
+
+var _circle_direction := 1.0
+var _circle_radius_mult := 1.4
+var _nav_agent: NavigationAgent3D
+var _nav_probe_timer := 0.0
+var _nav_repath_timer := 0.0
+const NAV_PROBE_INTERVAL := 1.5
+const NAV_REPATH_INTERVAL := 0.3
+const NAV_MAX_STEP_DISTANCE_SQ := 36.0
 
 var _castle_run: Node
 var _los_cache_frame := -1
@@ -74,6 +108,7 @@ var _los_cache_result := false
 var _dist_to_player_sq_cache_frame := -1
 var _dist_to_player_sq_cache := INF
 
+const ADD_SPAWN_HEIGHT := 0.15
 const AI_LOD_NEAR_RANGE_SQ := 400.0
 const AI_LOD_MID_RANGE_SQ := 1600.0
 const AI_LOD_MID_STRIDE := 4
@@ -82,7 +117,44 @@ var _ai_tick_phase := 0
 
 
 func set_damage_multiplier(mult: float) -> void:
-	_damage_multiplier = maxf(0.1, mult)
+	_base_damage_multiplier = maxf(0.1, mult)
+	_damage_multiplier = maxf(0.1, _base_damage_multiplier * _phase_damage_multiplier)
+
+
+func get_player() -> Node3D:
+	return _player
+
+
+func get_enemy_rng() -> RandomNumberGenerator:
+	return _enemy_rng
+
+
+func get_health_ratio() -> float:
+	if _health == null or _health.max_health <= 0.0:
+		return 1.0
+	return clampf(_health.current / _health.max_health, 0.0, 1.0)
+
+
+func get_health_node() -> Health:
+	return _health
+
+
+## Applied by the phase controller on every phase entry; every value is a multiplier
+## over the boss's own base tuning so phases never drift from the source data.
+func apply_phase_modifiers(mods: Dictionary) -> void:
+	_move_speed = maxf(
+		0.01, float(_data.get("move_speed", 3.5)) * float(mods.get("moveSpeedMult", 1.0))
+	)
+	_attack_cooldown_data = maxf(
+		0.0, float(_data.get("attack_cooldown", 1.5)) * float(mods.get("attackCooldownMult", 1.0))
+	)
+	_phase_damage_multiplier = maxf(0.1, float(mods.get("damageMult", 1.0)))
+	_damage_multiplier = maxf(0.1, _base_damage_multiplier * _phase_damage_multiplier)
+	if _poise and mods.has("poiseMult"):
+		_poise.configure(
+			float(_data.get("poise", 40.0)) * maxf(0.1, float(mods["poiseMult"])),
+			_stagger_duration_data
+		)
 
 
 func get_lock_threat() -> float:
@@ -93,8 +165,19 @@ func get_lock_threat() -> float:
 	return 0.0
 
 
+## Feeds LockOn._get_lockable_targets(): bosses outrank elites outrank trash, and an enemy mid-swing
+## outranks an idle one, so auto-lock prefers the threat actually worth watching.
 func get_lock_priority() -> float:
-	return 0.0
+	var priority := 0.0
+	if _is_boss_enemy():
+		priority += 3.0
+	else:
+		priority += clampf(float(_data.get("threat_cost", 20)) / 100.0, 0.0, 1.5)
+	if _state in [State.WINDUP, State.ATTACK]:
+		priority += 0.75
+	elif _aggro_locked:
+		priority += 0.25
+	return priority
 
 
 func get_lock_orbit_radius() -> float:
@@ -115,6 +198,8 @@ func _get_collision_radius() -> float:
 
 
 func _is_boss_enemy() -> bool:
+	if not _data.is_empty():
+		return _is_boss
 	var enemy_id := get_enemy_id()
 	return enemy_id.contains("boss") or enemy_id.contains("miniboss")
 
@@ -151,9 +236,11 @@ func _ready() -> void:
 	_unpack_tuning()
 	_castle_run = get_tree().get_first_node_in_group("castle_run")
 	_ai_tick_phase = int(get_instance_id() % AI_LOD_FAR_STRIDE)
+	_circle_direction = 1.0 if _enemy_rng.randf() < 0.5 else -1.0
 	_setup_diorama_visual()
 	if _health:
 		_attach_health_bar()
+	_setup_phase_controller()
 	_pick_patrol_target()
 
 
@@ -166,6 +253,170 @@ func _unpack_tuning() -> void:
 	_attack_cooldown_data = float(_data.get("attack_cooldown", 1.5))
 	_retreat_threshold = float(_data.get("retreat_threshold", 0.0))
 	_stagger_duration_data = float(_data.get("stagger_duration", 1.0))
+	_preferred_range = float(_data.get("preferred_range", 10.0))
+	_retreat_range = float(_data.get("retreat_range", 6.0))
+	_is_boss = bool(_data.get("isBoss", false))
+	_base_attacks = _data.get("attacks", []) as Array
+	set_active_attacks(_base_attacks)
+	var cone_deg := clampf(float(_data.get("vision_cone_deg", 140.0)), 10.0, 360.0)
+	_vision_cone_cos = cos(deg_to_rad(cone_deg * 0.5))
+	_hearing_range = float(_data.get("hearing_range", _aggro_range * 0.7))
+	_awareness_rate = maxf(0.05, float(_data.get("awareness_rate", 2.4)))
+	_awareness_decay = maxf(0.0, float(_data.get("awareness_decay", 0.7)))
+	_alert_radius = maxf(0.0, float(_data.get("alert_radius", 12.0)))
+	_circle_radius_mult = maxf(1.0, float(_data.get("circle_radius_mult", 1.4)))
+
+
+## Swaps the pool `_select_attack_data()` draws from. Boss phases call this to
+## hand the fight a new move set without touching the shared enemy tuning.
+func set_active_attacks(list: Array) -> void:
+	_attacks = list
+	_max_attack_range = 0.0
+	_engage_range = INF
+	for entry in _attacks:
+		if not (entry is Dictionary):
+			continue
+		var reach := float((entry as Dictionary).get("max_range", _attack_range))
+		_max_attack_range = maxf(_max_attack_range, reach)
+		_engage_range = minf(_engage_range, reach)
+	if _max_attack_range <= 0.0 or is_inf(_engage_range):
+		_max_attack_range = _attack_range
+		_engage_range = _attack_range
+
+
+func get_active_attacks() -> Array:
+	return _attacks
+
+
+func get_base_attacks() -> Array:
+	return _base_attacks
+
+
+func _setup_phase_controller() -> void:
+	if _phase_controller != null:
+		return
+	var phases: Array = _data.get("phases", []) as Array
+	if phases.is_empty():
+		return
+	var controller_script := load("res://scripts/bosses/boss_phase_controller.gd") as GDScript
+	if controller_script == null:
+		return
+	_phase_controller = controller_script.new() as Node
+	_phase_controller.name = "PhaseController"
+	add_child(_phase_controller)
+	_phase_controller.call("setup", self, phases)
+
+
+func get_phase_controller() -> Node:
+	return _phase_controller
+
+
+## Places `count` instances of `enemyId` in a ring around this enemy. Positions are set
+## before the child enters the tree so each add records the right patrol origin.
+func spawn_adds(spec: Dictionary) -> Array[Node]:
+	var spawned: Array[Node] = []
+	var enemy_id := String(spec.get("enemyId", ""))
+	if enemy_id.is_empty() or not EnemyCatalog.has_enemy(enemy_id):
+		return spawned
+	var scene: PackedScene = EnemyCatalog.get_scene(enemy_id)
+	var parent := get_parent()
+	if scene == null or parent == null:
+		return spawned
+	var count := maxi(1, int(spec.get("count", 1)))
+	var radius := maxf(1.0, float(spec.get("radius", 5.0)))
+	for i in count:
+		var add := scene.instantiate() as Node3D
+		if add == null:
+			continue
+		var angle := TAU * (float(i) / float(count)) + _enemy_rng.randf_range(-0.35, 0.35)
+		var offset := Vector3(cos(angle) * radius, ADD_SPAWN_HEIGHT, sin(angle) * radius)
+		add.position = _local_spawn_point(parent, global_position + offset)
+		if add.has_method("set_catalog_id"):
+			add.call("set_catalog_id", enemy_id)
+		if _player and add.has_method("set_player"):
+			add.call("set_player", _player)
+		parent.add_child(add)
+		spawned.append(add)
+	return spawned
+
+
+func spawn_hazard_ring(spec: Dictionary) -> Array[Node]:
+	var spawned: Array[Node] = []
+	var scene_path := String(spec.get("scene", ""))
+	if scene_path.is_empty() or not ResourceLoader.exists(scene_path):
+		return spawned
+	var scene: PackedScene = load(scene_path)
+	var parent := get_parent()
+	if scene == null or parent == null:
+		return spawned
+	var count := maxi(1, int(spec.get("count", 1)))
+	var radius := maxf(1.0, float(spec.get("radius", 6.0)))
+	var min_reach := clampf(float(spec.get("minRadiusFraction", 0.55)), 0.0, 1.0)
+	var lifetime := maxf(0.0, float(spec.get("lifetime", 0.0)))
+	for i in count:
+		var hazard := scene.instantiate() as Node3D
+		if hazard == null:
+			continue
+		var angle := TAU * (float(i) / float(count)) + _enemy_rng.randf_range(-0.4, 0.4)
+		var reach := radius * _enemy_rng.randf_range(min_reach, 1.0)
+		var target := global_position + Vector3(cos(angle) * reach, 0.05, sin(angle) * reach)
+		hazard.position = _local_spawn_point(parent, target)
+		parent.add_child(hazard)
+		if lifetime > 0.0:
+			get_tree().create_timer(lifetime).timeout.connect(hazard.queue_free)
+		spawned.append(hazard)
+	return spawned
+
+
+func _local_spawn_point(parent: Node, world_point: Vector3) -> Vector3:
+	if parent is Node3D:
+		return (parent as Node3D).to_local(world_point)
+	return world_point
+
+
+func restart_phases() -> void:
+	_phase_lock_timer = 0.0
+	_phase_invuln_timer = 0.0
+	_phase_damage_multiplier = 1.0
+	_damage_multiplier = _base_damage_multiplier
+	_unpack_tuning()
+	if _phase_controller and _phase_controller.has_method("reset_phases"):
+		_phase_controller.call("reset_phases")
+
+
+func get_phase_index() -> int:
+	if _phase_controller and _phase_controller.has_method("get_phase_index"):
+		return int(_phase_controller.call("get_phase_index"))
+	return 0
+
+
+## Called by the phase controller when a threshold is crossed; the boss holds its
+## ground for the length of the tell so the swap is readable rather than instant.
+func begin_phase_transition(lock_duration: float, invulnerable_for: float) -> void:
+	_phase_lock_timer = maxf(0.0, lock_duration)
+	_phase_invuln_timer = maxf(0.0, invulnerable_for)
+	if _state in [State.WINDUP, State.ATTACK]:
+		_end_attack()
+	if _hitbox:
+		_hitbox.disable()
+		_hitbox.reset_swing()
+	hide_attack_windup_bar()
+	_combo_step = 0
+	_release_attack_token()
+	_state = State.CHASE
+	_cooldown = maxf(_cooldown, _phase_lock_timer)
+
+
+func is_phase_transitioning() -> bool:
+	return _phase_lock_timer > 0.0
+
+
+func is_immune() -> bool:
+	return _phase_invuln_timer > 0.0
+
+
+func notify_phase_entered(index: int, phase: Dictionary) -> void:
+	boss_phase_entered.emit(index, phase)
 
 
 func set_player(player: Node3D) -> void:
@@ -225,8 +476,11 @@ func _setup_diorama_visual() -> void:
 
 
 func _on_anim_hitbox_open() -> void:
-	if _state == State.ATTACK and _hitbox:
-		_hitbox.enable()
+	if _state != State.ATTACK or _hitbox == null:
+		return
+	if bool(_current_attack_data.get("no_hitbox", false)):
+		return
+	_hitbox.enable()
 
 
 func _on_anim_hitbox_close() -> void:
@@ -354,6 +608,10 @@ func respawn_at_rest() -> void:
 	_stagger_timer = 0.0
 	_cooldown = 0.0
 	_aggro_locked = false
+	_awareness = 0.0
+	_alert_broadcast = false
+	_combo_step = 0
+	restart_phases()
 	_unregister_combat_engagement()
 	global_position = _spawn_origin
 	velocity = Vector3.ZERO
@@ -420,6 +678,8 @@ func _finalize_death(silent: bool) -> void:
 		RunFlow.register_kill(get_enemy_id())
 		_award_kill_coins()
 		_try_roll_global_drop()
+		if CombatEvents:
+			CombatEvents.dispatch(CombatEvents.ON_KILL, {"actor": _player, "target": self})
 		enemy_died.emit()
 	if _hitbox:
 		_hitbox.disable()
@@ -457,7 +717,7 @@ func _play_death_visual() -> void:
 func _award_kill_coins() -> void:
 	var reward := int(_data.get("coinReward", _data.get("goldReward", 5)))
 	if reward > 0 and CharacterService:
-		CharacterService.add_coins(reward)
+		CharacterService.add_gold(reward)
 
 
 func _try_roll_global_drop() -> void:
@@ -504,6 +764,10 @@ func _physics_process(delta: float) -> void:
 	var staggered := false
 	if _cooldown > 0.0:
 		_cooldown -= delta
+	if _phase_lock_timer > 0.0:
+		_phase_lock_timer -= delta
+	if _phase_invuln_timer > 0.0:
+		_phase_invuln_timer -= delta
 	if not is_dead() and _stagger_timer > 0.0:
 		_stagger_timer -= delta
 		staggered = true
@@ -548,6 +812,11 @@ func _update_diorama_animation(_delta: float) -> void:
 
 
 func _update_ai(delta: float) -> void:
+	_update_perception(delta)
+	if _phase_lock_timer > 0.0 and _state not in [State.WINDUP, State.ATTACK, State.RECOVERY]:
+		velocity.x = 0.0
+		velocity.z = 0.0
+		return
 	match _state:
 		State.PATROL:
 			_process_patrol(delta)
@@ -557,6 +826,8 @@ func _update_ai(delta: float) -> void:
 			_process_investigate(delta)
 		State.RETREAT:
 			_process_retreat(delta)
+		State.CIRCLE:
+			_process_circle(delta)
 		State.WINDUP:
 			_apply_chase_velocity(delta, 0.9)
 			_state_timer -= delta
@@ -585,6 +856,10 @@ func _process_patrol(delta: float) -> void:
 	if _has_aggro():
 		_state = State.CHASE
 		return
+	if _awareness >= AWARENESS_INVESTIGATE:
+		_state = State.INVESTIGATE
+		_state_timer = 3.5
+		return
 	if _patrol_wait > 0.0:
 		_patrol_wait -= delta
 		velocity = Vector3.ZERO
@@ -595,8 +870,13 @@ func _process_patrol(delta: float) -> void:
 		_patrol_wait = _enemy_rng.randf_range(1.0, 2.5)
 		_pick_patrol_target()
 		return
-	velocity = to_target.normalized() * _move_speed
-	_face_direction(to_target, delta)
+	var dir := _direction_toward(_patrol_target, delta, false)
+	if dir.length_squared() < 0.01:
+		_patrol_wait = _enemy_rng.randf_range(0.5, 1.2)
+		_pick_patrol_target()
+		return
+	velocity = dir * _move_speed
+	_face_direction(dir, delta)
 
 
 func _process_chase(delta: float) -> void:
@@ -612,7 +892,53 @@ func _process_chase(delta: float) -> void:
 	if _can_attack():
 		_start_windup()
 		return
+	if _cooldown > 0.0 and _distance_to_player_sq() <= _circle_entry_range_sq():
+		_enter_circle()
+		return
 	_apply_chase_velocity(delta)
+
+
+func _circle_entry_range_sq() -> float:
+	var reach: float = _engage_range * 1.35
+	return reach * reach
+
+
+func _enter_circle() -> void:
+	_state = State.CIRCLE
+	_state_timer = _enemy_rng.randf_range(0.7, 1.6)
+	if _enemy_rng.randf() < 0.2:
+		_circle_direction = -_circle_direction
+
+
+## Enemies held back by cooldown or the attack-token budget orbit at spacing instead
+## of standing on the player, so a group surrounds rather than queues.
+func _process_circle(delta: float) -> void:
+	if not _has_aggro() or _player == null:
+		_state = State.INVESTIGATE
+		_state_timer = 2.5
+		return
+	_last_known_player_pos = _player.global_position
+	_state_timer -= delta
+	if _can_attack():
+		_start_windup()
+		return
+	var to_player := _player.global_position - global_position
+	to_player.y = 0.0
+	var dist := to_player.length()
+	if dist < 0.05:
+		velocity = Vector3.ZERO
+		return
+	var dir := to_player / dist
+	var desired: float = _engage_range * _circle_radius_mult
+	var radial := clampf((dist - desired) / maxf(0.5, desired), -1.0, 1.0)
+	var tangent := Vector3(-dir.z, 0.0, dir.x) * _circle_direction
+	var move := tangent + dir * radial
+	if move.length_squared() < 0.01:
+		velocity = Vector3.ZERO
+	else:
+		velocity = move.normalized() * _move_speed * 0.8
+	if _state_timer <= 0.0:
+		_state = State.CHASE
 
 
 func _process_investigate(delta: float) -> void:
@@ -623,10 +949,12 @@ func _process_investigate(delta: float) -> void:
 	var to_last := _last_known_player_pos - global_position
 	to_last.y = 0.0
 	if to_last.length() > 0.75:
-		velocity = to_last.normalized() * _move_speed * 0.75
-		_face_direction(to_last, delta)
+		var dir := _direction_toward(_last_known_player_pos, delta, false)
+		velocity = dir * _move_speed * 0.75
+		_face_direction(dir, delta)
 	else:
 		velocity = Vector3.ZERO
+		_awareness = maxf(0.0, _awareness - _awareness_decay * delta)
 	if _state_timer <= 0.0:
 		_state = State.PATROL
 		_pick_patrol_target()
@@ -655,57 +983,207 @@ func _should_retreat() -> bool:
 	return _health.current / _health.max_health <= threshold
 
 
-func _apply_chase_velocity(_delta: float, speed_mult: float = 1.0) -> void:
+func _apply_chase_velocity(delta: float, speed_mult: float = 1.0) -> void:
 	if _player == null:
 		velocity = Vector3.ZERO
 		return
 	var to_player := _player.global_position - global_position
 	to_player.y = 0.0
 	var dist := to_player.length()
-	var stop_range: float = _attack_range * 0.85
+	var stop_range: float = _engage_range * 0.85
 	if dist > stop_range:
-		velocity = to_player.normalized() * _move_speed * speed_mult
+		var dir := _direction_toward(_player.global_position, delta, true)
+		velocity = dir * _move_speed * speed_mult
 	else:
 		velocity = Vector3.ZERO
 
 
+## Uses a navigation path when the world has one baked, and otherwise steers directly
+## with a seeded sidestep whenever the target is behind cover, so an enemy separated
+## by a pillar slides around it instead of pressing into it.
+func _direction_toward(target: Vector3, delta: float, sidestep_when_blocked: bool) -> Vector3:
+	if _nav_agent == null:
+		_nav_probe_timer -= delta
+		if _nav_probe_timer <= 0.0:
+			_nav_probe_timer = NAV_PROBE_INTERVAL
+			_ensure_nav_agent()
+	if _nav_agent != null:
+		_nav_repath_timer -= delta
+		if (
+			_nav_repath_timer <= 0.0
+			or _nav_agent.target_position.distance_squared_to(target) > 1.0
+		):
+			_nav_repath_timer = NAV_REPATH_INTERVAL
+			_nav_agent.target_position = target
+		if not _nav_agent.is_navigation_finished():
+			var step := _nav_agent.get_next_path_position() - global_position
+			step.y = 0.0
+			var step_len_sq := step.length_squared()
+			if step_len_sq > 0.0025 and step_len_sq < NAV_MAX_STEP_DISTANCE_SQ:
+				return step.normalized()
+	var to_target := target - global_position
+	to_target.y = 0.0
+	if to_target.length_squared() < 0.0025:
+		return Vector3.ZERO
+	var dir := to_target.normalized()
+	if sidestep_when_blocked and not _has_line_of_sight_to_player():
+		dir = (dir + Vector3(-dir.z, 0.0, dir.x) * _circle_direction * 0.7).normalized()
+	return dir
+
+
+func _ensure_nav_agent() -> void:
+	if _nav_agent != null or not is_inside_tree():
+		return
+	var world := get_world_3d()
+	if world == null:
+		return
+	var map: RID = world.navigation_map
+	if not map.is_valid() or NavigationServer3D.map_get_regions(map).is_empty():
+		return
+	_nav_agent = NavigationAgent3D.new()
+	_nav_agent.name = "NavAgent"
+	_nav_agent.path_desired_distance = 0.6
+	_nav_agent.target_desired_distance = 0.6
+	_nav_agent.path_max_distance = 4.0
+	_nav_agent.avoidance_enabled = false
+	add_child(_nav_agent)
+
+
+## Pure query. All latching and decay happens once per AI tick in `_update_perception`,
+## so the states below can ask this as often as they like for free.
 func _has_aggro() -> bool:
+	return _player != null and _aggro_locked
+
+
+func get_awareness() -> float:
+	return _awareness
+
+
+func is_unaware() -> bool:
+	return not _aggro_locked and _awareness < AWARENESS_INVESTIGATE
+
+
+func _update_perception(delta: float) -> void:
 	if _player == null:
-		return false
+		return
+	var frame := Engine.get_physics_frames()
+	if frame == _perception_frame:
+		return
+	_perception_frame = frame
+	var dist_sq := _distance_to_player_sq()
 	if _aggro_locked:
-		if _distance_to_player_sq() > _deaggro_range * _deaggro_range:
+		_awareness = 1.0
+		if dist_sq > _deaggro_range * _deaggro_range:
 			_drop_aggro()
-			return false
+			return
 		if _has_line_of_sight_to_player():
 			_deaggro_los_timer = 0.0
 		else:
-			_deaggro_los_timer += get_physics_process_delta_time()
+			_deaggro_los_timer += delta
 			if _deaggro_los_timer >= DEAGGRO_LOS_TIMEOUT:
 				_drop_aggro()
-				return false
-		return true
-	if _distance_to_player_sq() > _aggro_range * _aggro_range:
+		return
+	var gain := 0.0
+	if dist_sq <= _aggro_range * _aggro_range and _has_line_of_sight_to_player():
+		var dist := sqrt(dist_sq)
+		var closeness := 1.0 - clampf(dist / maxf(0.01, _aggro_range), 0.0, 1.0)
+		gain = _awareness_rate * (0.3 + 0.7 * closeness)
+		if not _player_inside_vision_cone():
+			gain *= 0.25
+	if _hearing_range > 0.0 and dist_sq <= _hearing_range * _hearing_range:
+		var noise := _player_noise_level()
+		if noise > 0.0:
+			var hear_close := 1.0 - clampf(sqrt(dist_sq) / maxf(0.01, _hearing_range), 0.0, 1.0)
+			gain = maxf(gain, _awareness_rate * noise * (0.3 + 0.7 * hear_close))
+	if gain > 0.0:
+		_awareness = clampf(_awareness + gain * delta, 0.0, 1.0)
+		if _awareness >= AWARENESS_INVESTIGATE:
+			_last_known_player_pos = _player.global_position
+		if _awareness >= 1.0:
+			_latch_aggro()
+	else:
+		_awareness = maxf(0.0, _awareness - _awareness_decay * delta)
+
+
+func _player_inside_vision_cone() -> bool:
+	if _player == null:
 		return false
-	if _has_line_of_sight_to_player():
-		_register_combat_engagement()
-		_aggro_locked = true
-		_deaggro_los_timer = 0.0
+	var to_player := _player.global_position - global_position
+	to_player.y = 0.0
+	if to_player.length_squared() < 0.01:
 		return true
-	return false
+	var facing := -global_transform.basis.z
+	facing.y = 0.0
+	if facing.length_squared() < 0.01:
+		return true
+	return facing.normalized().dot(to_player.normalized()) >= _vision_cone_cos
+
+
+## Sprinting is loud, walking is quiet, standing still is silent. Read off the
+## player's own velocity so nothing has to be pushed in from the locomotion side.
+func _player_noise_level() -> float:
+	if _player == null:
+		return 0.0
+	if _player.has_method("get_noise_level"):
+		return clampf(float(_player.call("get_noise_level")), 0.0, 1.0)
+	if not (_player is CharacterBody3D):
+		return 0.0
+	var flat := (_player as CharacterBody3D).velocity
+	flat.y = 0.0
+	return clampf((flat.length() - 2.0) / 4.5, 0.0, 1.0)
+
+
+func _latch_aggro() -> void:
+	if _aggro_locked:
+		return
+	_awareness = 1.0
+	_aggro_locked = true
+	_deaggro_los_timer = 0.0
+	if _player:
+		_last_known_player_pos = _player.global_position
+	_register_combat_engagement()
+	_broadcast_alert()
+
+
+## Fired once per aggro latch, never per frame: one group walk when a room wakes up.
+func _broadcast_alert() -> void:
+	if _alert_broadcast or _alert_radius <= 0.0:
+		return
+	_alert_broadcast = true
+	var radius_sq := _alert_radius * _alert_radius
+	for node in get_tree().get_nodes_in_group("enemy"):
+		if node == self or not (node is CastleEnemyBase):
+			continue
+		var ally := node as CastleEnemyBase
+		if ally.global_position.distance_squared_to(global_position) > radius_sq:
+			continue
+		ally.notice_ally_alert(_last_known_player_pos)
+
+
+func notice_ally_alert(source_position: Vector3) -> void:
+	if is_dead() or _aggro_locked or _player == null:
+		return
+	_awareness = maxf(_awareness, ALLY_ALERT_AWARENESS)
+	_last_known_player_pos = source_position
+	if _state == State.PATROL:
+		_state = State.INVESTIGATE
+		_state_timer = 4.0
 
 
 func _drop_aggro() -> void:
 	_aggro_locked = false
 	_deaggro_los_timer = 0.0
+	_awareness = AWARENESS_INVESTIGATE
+	_alert_broadcast = false
 	_unregister_combat_engagement()
 
 
 func _can_attack() -> bool:
-	if _cooldown > 0.0 or _player == null:
+	if _cooldown > 0.0 or _player == null or _phase_lock_timer > 0.0:
 		return false
 	if _is_cross_boss_boundary_with_player():
 		return false
-	if _distance_to_player_sq() > _attack_range * _attack_range:
+	if _distance_to_player_sq() > _max_attack_range * _max_attack_range:
 		return false
 	return _has_line_of_sight_to_player()
 
@@ -778,8 +1256,10 @@ func _start_windup() -> void:
 		return
 	_attack_token_group = str(_data.get("attack_token_group", "room_default"))
 	if AttackTokenService and not AttackTokenService.request_token(_attack_token_group):
-		# Refused: back off instead of re-requesting a token every physics frame.
+		# Refused: orbit instead of re-requesting a token every physics frame.
 		_cooldown = _enemy_rng.randf_range(0.25, 0.6)
+		if _has_aggro():
+			_enter_circle()
 		return
 	_attack_token_held = true
 	_select_attack_data()
@@ -844,8 +1324,11 @@ func _start_attack() -> void:
 				)
 			)
 		)
-		if not _sync_hitbox_from_anim:
+		if not _sync_hitbox_from_anim and not bool(_current_attack_data.get("no_hitbox", false)):
 			_hitbox.enable()
+	var hazard_spec: Dictionary = _current_attack_data.get("spawn_hazard", {}) as Dictionary
+	if not hazard_spec.is_empty():
+		spawn_hazard_ring(hazard_spec)
 	attack_active.emit()
 
 
@@ -858,7 +1341,7 @@ func _end_attack() -> void:
 	elif _mesh:
 		_mesh.scale = Vector3.ONE
 	var combo: Array = _current_attack_data.get("combo_followups", [])
-	if combo.size() > 0 and _combo_step < combo.size() and _has_aggro():
+	if combo.size() > 0 and _combo_step < combo.size() and _has_aggro() and _phase_lock_timer <= 0.0:
 		_combo_step += 1
 		_enter_windup(combo[_combo_step - 1])
 		return
@@ -870,16 +1353,49 @@ func _end_attack() -> void:
 	)
 
 
+## Picks from the active move set, keeping only the entries whose `min_range`/`max_range`
+## band contains the current spacing, then rolling on `weight`.
 func _select_attack_data() -> void:
-	var attacks: Array = _data.get("attacks", [])
-	if attacks.is_empty():
+	if _attacks.is_empty():
 		_current_attack_data = _data
 		_combo_step = 0
 		return
 	if _combo_step > 0:
 		return
-	_current_attack_data = attacks[_enemy_rng.randi() % attacks.size()]
 	_combo_step = 0
+	var dist := sqrt(_distance_to_player_sq()) if _player != null else 0.0
+	var candidates: Array[Dictionary] = []
+	var weights: Array[float] = []
+	var total := 0.0
+	for entry in _attacks:
+		if not (entry is Dictionary):
+			continue
+		var atk: Dictionary = entry
+		if dist < float(atk.get("min_range", 0.0)):
+			continue
+		if dist > float(atk.get("max_range", _attack_range)):
+			continue
+		var weight := maxf(0.01, float(atk.get("weight", 1.0)))
+		candidates.append(atk)
+		weights.append(weight)
+		total += weight
+	if candidates.is_empty():
+		_current_attack_data = _first_attack_entry()
+		return
+	var roll := _enemy_rng.randf() * total
+	for i in candidates.size():
+		roll -= weights[i]
+		if roll <= 0.0:
+			_current_attack_data = candidates[i]
+			return
+	_current_attack_data = candidates[candidates.size() - 1]
+
+
+func _first_attack_entry() -> Dictionary:
+	for entry in _attacks:
+		if entry is Dictionary:
+			return entry as Dictionary
+	return _data
 
 
 func _release_attack_token() -> void:
@@ -900,11 +1416,6 @@ func _unregister_combat_engagement() -> void:
 		return
 	_combat_registered = false
 	AudioDirector.unregister_combat_engagement()
-
-
-func _try_parry_check() -> void:
-	# Parry resolution lives in Hurtbox.receive_hit during active hit frames.
-	pass
 
 
 func _face_direction(dir: Vector3, delta: float) -> void:

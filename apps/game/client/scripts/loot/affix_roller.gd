@@ -73,6 +73,57 @@ static func roll_identical(item_id: String, roll_seed: int) -> Dictionary:
 	return roll_instance(item_id, roll_seed)
 
 
+static func get_affix_def(affix_id: String) -> Dictionary:
+	_ensure_loaded()
+	for affix in _prefixes:
+		if affix.get("id", "") == affix_id:
+			return affix
+	for affix in _suffixes:
+		if affix.get("id", "") == affix_id:
+			return affix
+	return {}
+
+
+static func affix_display_name(affix_id: String) -> String:
+	var def := get_affix_def(affix_id)
+	if def.is_empty():
+		return affix_id
+	return str(def.get("displayName", affix_id))
+
+
+static func format_affix_line(affix: Dictionary) -> String:
+	var affix_id := str(affix.get("affixId", ""))
+	if affix_id == "":
+		return ""
+	var def := get_affix_def(affix_id)
+	var value := float(affix.get("value", 0.0))
+	if def.is_empty():
+		return "%s %s" % [affix_id, str(value)]
+	var stat := str(def.get("stat", ""))
+	var template := str(def.get("template", "+{value} {stat}"))
+	var body := template.replace("{value}", Equipment.format_stat_value(stat, value, false)).replace(
+		"{stat}", Equipment.stat_display_name(stat)
+	)
+	return "%s — %s" % [str(def.get("displayName", affix_id)), body]
+
+
+static func reroll_affixes(existing: Array, rarity: String, roll_seed: int) -> Array:
+	_ensure_loaded()
+	var rng := RandomNumberGenerator.new()
+	rng.seed = roll_seed if roll_seed >= 0 else 0
+	var rerolled: Array = []
+	for entry in existing:
+		if not entry is Dictionary:
+			continue
+		var affix_id := str((entry as Dictionary).get("affixId", ""))
+		var def := get_affix_def(affix_id)
+		if def.is_empty():
+			rerolled.append((entry as Dictionary).duplicate(true))
+			continue
+		rerolled.append({"affixId": affix_id, "value": _roll_tier_value(def, rarity, rng)})
+	return rerolled
+
+
 static func _ensure_loaded() -> void:
 	if _loaded:
 		return

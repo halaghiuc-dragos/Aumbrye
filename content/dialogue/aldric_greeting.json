@@ -4,18 +4,133 @@
   "nodes": {
     "start": {
       "speaker": "Aldric",
-      "text": "Need your blade sharpened? I can upgrade or repair weapons for gold.",
+      "text": "Steel needs seeing to? I upgrade, I repair. Gold only. I stopped taking promises the year the promises stopped arriving.",
       "choices": [
-        { "text": "Open the forge", "actions": [{ "type": "open_blacksmith" }] },
-        { "text": "Any tips for the castle?", "next": "tips" },
-        { "text": "Farewell", "next": "end" }
+        {
+          "text": "Open the forge",
+          "actions": [
+            {
+              "type": "open_blacksmith"
+            }
+          ]
+        },
+        {
+          "text": "You keep a fire. I thought that was forbidden.",
+          "next": "fire"
+        },
+        {
+          "text": "You were at the muster, then.",
+          "next": "muster",
+          "condition": {
+            "flag": "rescued_halbrek"
+          }
+        },
+        {
+          "text": "The fortress held two winters without a hearth.",
+          "next": "cold",
+          "condition": {
+            "dungeonCleared": "frozen_fortress"
+          }
+        },
+        {
+          "text": "What do you make of the Ledger?",
+          "next": "ledger",
+          "condition": {
+            "storyBeat": 2
+          }
+        },
+        {
+          "text": "You have been at this anvil a long time.",
+          "next": "aldric_arc",
+          "condition": {
+            "all": [
+              {
+                "relationship": "aldric",
+                "atLeast": 5
+              },
+              {
+                "not": {
+                  "flag": "aldric_apprenticed"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "text": "Nothing today.",
+          "next": "end"
+        }
       ]
     },
-    "tips": {
+    "fire": {
       "speaker": "Aldric",
-      "text": "Tier-one runs are safest. Bring scrap back and I'll make your sword sing.",
-      "next": "end",
-      "condition": { "minLevel": 1 }
+      "text": "The order was no fires. Cold keeps what warmth spends — that was the reasoning, and it was good reasoning, and I have read what came of it. I keep a fire.",
+      "actions": [
+        {
+          "type": "set_relationship",
+          "npc": "aldric",
+          "delta": 1
+        },
+        {
+          "type": "set_flag",
+          "flag": "heard_the_keeping",
+          "value": true
+        }
+      ],
+      "next": "end"
+    },
+    "muster": {
+      "speaker": "Aldric",
+      "text": "I made eleven of the blades he calls names for. He has been calling them a long time. I would rather he stopped, and I would not say so where he can hear it.",
+      "actions": [
+        {
+          "type": "set_relationship",
+          "npc": "aldric",
+          "delta": 1
+        }
+      ],
+      "next": "end"
+    },
+    "cold": {
+      "speaker": "Aldric",
+      "text": "Two winters to prove a point about thrift. The plate learned to be enough. The men in it did not get the chance to learn anything.",
+      "actions": [
+        {
+          "type": "set_relationship",
+          "npc": "aldric",
+          "delta": 1
+        }
+      ],
+      "next": "end"
+    },
+    "ledger": {
+      "speaker": "Aldric",
+      "text": "A ledger is only a list of things somebody meant to settle. I have one myself. It is shorter than the Chapter's and I intend to close it.",
+      "actions": [
+        {
+          "type": "set_relationship",
+          "npc": "aldric",
+          "delta": 1
+        }
+      ],
+      "next": "end"
+    },
+    "aldric_arc": {
+      "speaker": "Aldric",
+      "text": "Long enough to have taught someone. He went down with the second party and I made his kit myself. Every strap on it was mine. If you want the apprenticeship, it is yours, and I will not pretend it is an honour.",
+      "actions": [
+        {
+          "type": "set_flag",
+          "flag": "aldric_apprenticed",
+          "value": true
+        },
+        {
+          "type": "set_relationship",
+          "npc": "aldric",
+          "delta": 1
+        }
+      ],
+      "next": "end"
     }
   }
 }

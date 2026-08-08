@@ -1,0 +1,33 @@
+{
+  "id": "unique_inventory_of_the_dead",
+  "name": "Inventory of the Dead",
+  "itemType": "armor",
+  "equipmentSlot": "chest",
+  "gridWidth": 2,
+  "gridHeight": 3,
+  "stackSize": 1,
+  "rarity": "epic",
+  "description": "Plate reclaimed from the fallen, restamped, reissued. The old marks show through the new.",
+  "value": 540,
+  "lootValue": 270,
+  "maxDurability": 120,
+  "unique": true,
+  "baseId": "cuirass",
+  "biome": "iron_vault",
+  "scaling": {
+    "strength": "C"
+  },
+  "ruleText": "Taking a hit restores 8 mana.",
+  "rules": [
+    {
+      "event": "onHitTaken",
+      "effect": "restore_mana",
+      "amount": 8.0
+    }
+  ],
+  "stats": {
+    "armor": 18,
+    "defense": 12,
+    "manaRegen": 0.05
+  }
+}

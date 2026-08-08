@@ -1,0 +1,25 @@
+{
+  "id": "bounty_vault_needles",
+  "title": "Bounty: Needlework",
+  "type": "kill",
+  "targetId": "iron_needle",
+  "requiredCount": 8,
+  "dungeonId": "iron_vault",
+  "repeatable": true,
+  "cooldownRuns": 1,
+  "availableWhen": {
+    "minTier": 2
+  },
+  "bounty": "daily",
+  "description": "Standing bounty. The vault's needles keep re-threading the aisles. Eight of them, in the vault, in one descent.",
+  "rewards": {
+    "gold": 110,
+    "bountyTokens": 3,
+    "items": [
+      {
+        "itemId": "graysteel_ingot",
+        "quantity": 1
+      }
+    ]
+  }
+}

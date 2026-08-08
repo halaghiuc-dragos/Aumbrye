@@ -5,6 +5,7 @@ extends Node3D
 const HubDioramaScript := preload("res://scripts/hub/hub_diorama.gd")
 const CharacterCreateUIScript := preload("res://scripts/ui/character_create_ui.gd")
 const PixelStyle := preload("res://scripts/art/style/pixel_diorama_style.gd")
+const HubNpcScene := preload("res://scenes/hub/hub_npc.tscn")
 
 const INTERACT_HANDLERS := {
 	"castle_portal": "_open_castle_menu",
@@ -43,6 +44,7 @@ var _prompt_writes := 0
 
 func _ready() -> void:
 	PixelDioramaBootstrap.prime()
+	_spawn_catalog_npcs()
 	HubDioramaScript.apply(self)
 	_appearance_mirror_ui = CharacterCreateUIScript.new()
 	_appearance_mirror_ui.name = "AppearanceMirrorUI"
@@ -50,6 +52,7 @@ func _ready() -> void:
 	_appearance_mirror_ui.appearance_saved.connect(_on_appearance_mirror_saved)
 	call_deferred("_apply_pixel_diorama_to_scene")
 	_register_interactables()
+	_apply_npc_availability()
 	_assert_interact_handlers()
 
 	_castle_menu.dungeon_run_requested.connect(_on_dungeon_run)
@@ -109,8 +112,33 @@ func _boot_save_and_services() -> void:
 	show_hub_message("Welcome back, %s." % LocalSave.get_character_name())
 
 
+func _spawn_catalog_npcs() -> void:
+	var existing: Dictionary = {}
+	for child in get_children():
+		if not child.is_in_group("hub_npc"):
+			continue
+		if child.has_method("get_npc_id"):
+			existing[str(child.call("get_npc_id"))] = true
+		elif "npc_id" in child:
+			existing[str(child.get("npc_id"))] = true
+	for npc_id in NpcCatalog.get_all_ids():
+		if existing.has(npc_id):
+			continue
+		var npc := HubNpcScene.instantiate()
+		npc.name = "Npc_%s" % npc_id
+		npc.set("npc_id", npc_id)
+		add_child(npc)
+
+
+func _apply_npc_availability() -> void:
+	for npc in get_tree().get_nodes_in_group("hub_npc"):
+		if npc.has_method("is_available") and npc.has_method("set_available"):
+			npc.call("set_available", npc.call("is_available"))
+
+
 func _on_save_loaded() -> void:
 	HubTutorialService.load_from_save()
+	_apply_npc_availability()
 	_refresh_tip_surface()
 
 
@@ -454,5 +482,7 @@ func _on_npc_shop(_npc_id: String, shop_type: String) -> void:
 			open_blacksmith()
 		"merchant":
 			open_merchant()
-		"quest_board":
+		"quest_board", "bounty_board":
 			open_quest_board()
+		"storage":
+			open_storage()

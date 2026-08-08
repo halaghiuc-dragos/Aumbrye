@@ -2,12 +2,48 @@
   "id": "knight",
   "name": "Knight",
   "description": "Balanced frontline fighter with sturdy armor.",
-  "startingWeaponItemId": "castle_sword",
-  "statBonuses": { "maxHealth": 20, "armor": 5 },
-  "allowedWeapons": ["castle_sword", "training_greatsword", "guard_spear", "iron_sword", "knight_blade"],
+  "startingWeaponItemId": "knight_blade",
+  "statBonuses": {
+    "maxHealth": 20,
+    "armor": 5
+  },
+  "allowedWeapons": [
+    "castle_sword",
+    "training_greatsword",
+    "guard_spear",
+    "iron_sword",
+    "knight_blade",
+    "castle_buckler"
+  ],
+  "allowedWeaponFamilies": [
+    "castle_sword",
+    "sword_basic",
+    "spear",
+    "axe"
+  ],
   "perk": "steadfast",
+  "talentBranchId": "oath",
+  "rules": [
+    {
+      "event": "onBlock",
+      "effect": "restore_stamina",
+      "amount": 9,
+      "chance": 1,
+      "cooldown": 0.6
+    },
+    {
+      "event": "onRiposte",
+      "effect": "restore_health",
+      "amount": 6,
+      "chance": 1,
+      "cooldown": 2
+    }
+  ],
   "iconPath": "class_icons:knight",
   "role": "CLASS_ROLE_KNIGHT",
   "perkName": "CLASS_PERK_STEADFAST",
-  "perkDescription": "CLASS_PERK_STEADFAST_DESC"
+  "perkDescription": "CLASS_PERK_STEADFAST_DESC",
+  "roleText": "Defender / Poise",
+  "perkNameText": "Steadfast",
+  "perkDescriptionText": "Poise recovers faster behind a raised guard, and a blow turned aside gives back the breath it cost."
 }

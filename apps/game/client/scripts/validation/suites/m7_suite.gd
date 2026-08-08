@@ -138,15 +138,19 @@ func _test_waves_mode() -> void:
 		"UMBRAL-7.2"
 	)
 	start = Time.get_ticks_msec()
-	ok = (
-		ctx.file_contains("res://scripts/save/local_save.gd", "wavesActiveRun")
-		and ctx.file_contains("res://scripts/save/local_save.gd", '"wavesActiveRun"')
-	)
+	var waves_backup: Dictionary = LocalSave.get_waves_active_run()
+	LocalSave.set_waves_active_run({"probe": "qa01"}, false)
+	var round_tripped := LocalSave.get_waves_active_run().get("probe", "") == "qa01"
+	LocalSave.clear_waves_active_run()
+	var cleared := LocalSave.get_waves_active_run().is_empty()
+	if not waves_backup.is_empty():
+		LocalSave.set_waves_active_run(waves_backup, false)
+	ok = round_tripped and cleared
 	ctx.timed_record(
 		"run.waves.save_persist",
 		get_category(),
 		ok,
-		"waves active run persisted in save payload",
+		"waves active run round-trips through LocalSave and clears on demand",
 		start,
 		"UMBRAL-7.2"
 	)
@@ -792,14 +796,19 @@ func _test_run_modes() -> void:
 
 func _test_endless_portal_blocked() -> void:
 	var start := Time.get_ticks_msec()
-	var ok: bool = ctx.file_contains(
-		"res://scripts/app/run_flow.gd", "endless runs have no exit portal"
-	)
+	var run_mode_backup := RunFlow.run_mode
+	var run_active_backup := RunFlow._run_active
+	RunFlow.run_mode = RM.MODE_ENDLESS
+	RunFlow._run_active = true
+	RunFlow.complete_run_via_portal()
+	var ok: bool = RunFlow._run_active == true
+	RunFlow.run_mode = run_mode_backup
+	RunFlow._run_active = run_active_backup
 	ctx.timed_record(
 		"run.endless.no_mid_portal",
 		get_category(),
 		ok,
-		"endless runs block mid-run exit portal",
+		"complete_run_via_portal is a no-op while run_mode is endless",
 		start,
 		"ENDLESS-7.x"
 	)
@@ -817,14 +826,36 @@ func _test_endless_continue_api() -> void:
 		"ENDLESS-7.x"
 	)
 	start = Time.get_ticks_msec()
-	ok = ctx.file_contains(
-		"res://scripts/ui/umbral_endless_menu.gd", 'str(saved.get("runMode", "")) == "endless"'
-	)
+	var endless_menu_scene := load("res://scenes/ui/umbral_endless_menu.tscn") as PackedScene
+	ok = false
+	if endless_menu_scene != null and ctx.owner != null:
+		var active_run_backup: Dictionary = LocalSave.get_active_run().duplicate(true)
+		var endless_menu := endless_menu_scene.instantiate()
+		ctx.owner.add_child(endless_menu)
+		await ctx.await_frame()
+		var continuable_snapshot := {"player": {"health": 100.0}}
+		LocalSave.set_active_run(
+			{"runMode": "castle", "currentFloor": 3, "snapshot": continuable_snapshot}, false
+		)
+		endless_menu.call("open_menu")
+		var castle_disabled: bool = (
+			endless_menu.get_node("MainPanel/Margin/VBox/ContinueButton") as Button
+		).disabled
+		LocalSave.set_active_run(
+			{"runMode": "endless", "currentFloor": 5, "snapshot": continuable_snapshot}, false
+		)
+		endless_menu.call("open_menu")
+		var endless_disabled: bool = (
+			endless_menu.get_node("MainPanel/Margin/VBox/ContinueButton") as Button
+		).disabled
+		ok = castle_disabled and not endless_disabled
+		endless_menu.queue_free()
+		LocalSave.set_active_run(active_run_backup, false)
 	ctx.timed_record(
 		"run.endless.continue_save_check",
 		get_category(),
 		ok,
-		"endless menu filters continuable endless saves",
+		"endless menu's continue button enables only for a saved endless run",
 		start,
 		"ENDLESS-7.x"
 	)
@@ -889,10 +920,13 @@ func _test_waves_extended() -> void:
 		"WAVES-7.x"
 	)
 	start = Time.get_ticks_msec()
-	ok = (
-		ctx.file_contains("res://scripts/dungeon/waves_run_service.gd", "all_chests_opened")
-		and ctx.file_contains("res://scripts/dungeon/waves_run_service.gd", "lobby_ready")
-	)
+	WavesRunService.begin_new_run()
+	WavesRunService.mark_ready()
+	var blocked_before_chests := not WavesRunService.lobby_ready
+	for i in WavesRunService.get_chest_count():
+		WavesRunService.open_chest(i)
+	WavesRunService.mark_ready()
+	ok = blocked_before_chests and WavesRunService.all_chests_opened() and WavesRunService.lobby_ready
 	ctx.timed_record(
 		"run.waves.lobby_ready_gate",
 		get_category(),
@@ -1178,7 +1212,9 @@ func _test_boss_phase_constants() -> void:
 	var boss := FinalBossScript.new()
 	var ok: bool = (
 		boss.has_method("is_immune")
-		and ctx.file_contains("res://scripts/enemies/final_boss_forgotten_castle.gd", "enum Phase")
+		and FinalBossScript.Phase.has("COMBAT")
+		and FinalBossScript.Phase.has("SPIKES")
+		and FinalBossScript.Phase.has("PUZZLE")
 	)
 	ctx.timed_record(
 		"combat.boss.phase_api",
@@ -1202,12 +1238,14 @@ func _test_boss_phase_constants() -> void:
 
 func _test_endless_retreat_api() -> void:
 	var start := Time.get_ticks_msec()
+	var retreat_lever_probe := StairLeverScript.new()
 	var ok: bool = (
 		RunFlow.has_method("retreat_to_hub")
 		and RunFlow.has_method("can_retreat_to_hub")
-		and ctx.file_contains("res://scripts/dungeon/stair_lever.gd", "func use(")
-		and ctx.file_contains("res://scripts/dungeon/stair_lever.gd", "func floor_options(")
+		and retreat_lever_probe.has_method("use")
+		and retreat_lever_probe.has_method("floor_options")
 	)
+	retreat_lever_probe.queue_free()
 	ctx.timed_record(
 		"run.endless.retreat_api",
 		get_category(),
@@ -1238,13 +1276,16 @@ func _test_waves_equip_ui() -> void:
 
 func _test_boss_cannon_flow() -> void:
 	var start := Time.get_ticks_msec()
+	var cannon_boss_probe := FinalBossScript.new()
+	var cannon_probe := (preload("res://scripts/dungeon/final_boss_cannon.gd") as Script).new()
 	var ok: bool = (
 		ResourceLoader.exists("res://scenes/bosses/final_boss_cannon.tscn")
-		and ctx.file_contains(
-			"res://scripts/enemies/final_boss_forgotten_castle.gd", "register_cannon_hit"
-		)
-		and ctx.file_contains("res://scripts/dungeon/final_boss_cannon.gd", "deposit_crystal")
+		and cannon_boss_probe.has_method("register_cannon_hit")
+		and cannon_probe.has_method("deposit_crystal")
 	)
+	cannon_boss_probe.queue_free()
+	if cannon_probe is Node:
+		cannon_probe.queue_free()
 	ctx.timed_record(
 		"combat.boss.cannon_flow",
 		get_category(),

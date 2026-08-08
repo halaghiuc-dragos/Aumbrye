@@ -1,0 +1,27 @@
+{
+  "id": "mirebrass_rapier",
+  "name": "Mirebrass Rapier",
+  "itemType": "weapon",
+  "equipmentSlot": "weapon",
+  "gridWidth": 1,
+  "gridHeight": 3,
+  "stackSize": 1,
+  "rarity": "magic",
+  "description": "A duelling blade, in a place that stopped keeping duels. Green to the touch. The swamp finished it for the smith. Scaling: Strength D, Dexterity B.",
+  "value": 72,
+  "lootValue": 36,
+  "maxDurability": 90,
+  "baseId": "rapier",
+  "materialTier": "mirebrass",
+  "biome": "poison_swamp",
+  "scaling": {
+    "strength": "D",
+    "dexterity": "B"
+  },
+  "stats": {
+    "critChance": 0.034,
+    "physicalDamage": 3,
+    "resistPoison": 0.06
+  },
+  "weaponId": "sword_basic"
+}

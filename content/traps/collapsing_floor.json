@@ -1,0 +1,25 @@
+{
+  "id": "collapsing_floor",
+  "name": "Collapsing Floor",
+  "description": "It gives once, for whoever stands on it first.",
+  "scene": "res://scenes/traps/collapsing_floor.tscn",
+  "trigger": "plate",
+  "telegraph": 0.9,
+  "active": 0.5,
+  "cooldown": 0,
+  "triggerRadius": 3,
+  "damage": 34,
+  "poiseDamage": 30,
+  "damageType": "physical",
+  "hitInterval": 0.5,
+  "statusId": "torpor",
+  "statusBuildUp": 30,
+  "enemyDamageMultiplier": 0.85,
+  "oneShot": true,
+  "size": [
+    4,
+    0.5,
+    4
+  ],
+  "color": "#6b5f52"
+}
