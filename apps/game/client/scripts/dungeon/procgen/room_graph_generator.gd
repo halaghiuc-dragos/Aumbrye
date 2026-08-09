@@ -563,7 +563,7 @@ static func _unreserved_slot_ids(graph: RoomGraph, reserved: Dictionary) -> Arra
 
 
 static func _pick_shop_id(
-	graph: RoomGraph, distances: Dictionary, reserved: Dictionary, config: RoomGraphConfig
+	graph: RoomGraph, distances: Dictionary, reserved: Dictionary, _config: RoomGraphConfig
 ) -> String:
 	var boss_distance := int(distances.get(graph.boss_id, 0))
 	var candidates: Array[String] = []

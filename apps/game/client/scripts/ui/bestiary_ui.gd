@@ -158,9 +158,9 @@ func _row_text(row: Dictionary) -> String:
 
 
 func _display_name(row: Dictionary) -> String:
-	var name := str(row.get("name", ""))
-	if name != "":
-		return name
+	var entry_name := str(row.get("name", ""))
+	if entry_name != "":
+		return entry_name
 	return "Unknown quarry"
 
 

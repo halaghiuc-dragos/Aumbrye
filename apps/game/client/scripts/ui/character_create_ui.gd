@@ -105,10 +105,8 @@ func _build_ui() -> void:
 	columns.add_theme_constant_override("separation", 16)
 	outer_vbox.add_child(columns)
 	_class_column = _build_class_column(columns)
-	var preview_column := _build_preview_column(columns)
-	columns.add_child(preview_column)
-	var detail_column := _build_detail_column(columns)
-	columns.add_child(detail_column)
+	_build_preview_column(columns)
+	_build_detail_column(columns)
 	_wire_focus_neighbors()
 
 
@@ -674,14 +672,13 @@ func _on_back_pressed() -> void:
 
 
 func _register_menu_stack() -> void:
-	if MenuStack.is_registered(self):
-		return
-	MenuStack.register(self, _on_back_pressed)
+	if MenuStack:
+		MenuStack.push(self)
 
 
 func _unregister_menu_stack() -> void:
-	if MenuStack.is_registered(self):
-		MenuStack.unregister(self)
+	if MenuStack:
+		MenuStack.pop(self)
 
 
 func _focus_initial() -> void:

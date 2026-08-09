@@ -158,8 +158,12 @@ static func _merge_batch(
 	for source in sources:
 		var local := _relative_transform(source, pivot)
 		var mesh: Mesh = source.mesh
+		var array_mesh := mesh as ArrayMesh
 		for surface in mesh.get_surface_count():
-			if mesh.surface_get_primitive_type(surface) != Mesh.PRIMITIVE_TRIANGLES:
+			if (
+				array_mesh != null
+				and array_mesh.surface_get_primitive_type(surface) != Mesh.PRIMITIVE_TRIANGLES
+			):
 				return
 			var material := _surface_material(source, surface)
 			var key := "0" if material == null else str(material.get_instance_id())

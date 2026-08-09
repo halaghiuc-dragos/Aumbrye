@@ -30,11 +30,11 @@ static func build_tent(
 		if not raw is Dictionary:
 			continue
 		var part: Dictionary = raw
-		var mat := _resolve_structure_material(mats, str(part.get("mat", "wall")))
+		var mat := PixelDioramaStyle._resolve_structure_material(mats, str(part.get("mat", "wall")))
 		PixelDioramaStyle.add_box(
 			visuals,
-			_vec3_from_array(part.get("size"), Vector3.ONE),
-			_vec3_from_array(part.get("pos")),
+			PixelDioramaStyle._vec3_from_array(part.get("size"), Vector3.ONE),
+			PixelDioramaStyle._vec3_from_array(part.get("pos")),
 			mat,
 			str(part.get("name", ""))
 		)
@@ -47,13 +47,13 @@ static func build_tent(
 		Vector3(half_w - 0.22, column_h * 0.5, half_d - 0.22),
 	]
 	for i in corner_positions.size():
-		add_portal_column(
+		PixelDioramaStyle.add_portal_column(
 			visuals, corner_positions[i], pole_mat, roof_mat, column_h, 0.48, "Corner%d" % i
 		)
 
 	var entrance_z := lip_z - 0.08
 	var col_x := entrance_width * 0.5 + 0.22
-	add_portal_column(
+	PixelDioramaStyle.add_portal_column(
 		visuals,
 		Vector3(-col_x, wall_height * 0.5, entrance_z),
 		pole_mat,
@@ -62,7 +62,7 @@ static func build_tent(
 		0.42,
 		"EntryL"
 	)
-	add_portal_column(
+	PixelDioramaStyle.add_portal_column(
 		visuals,
 		Vector3(col_x, wall_height * 0.5, entrance_z),
 		pole_mat,

@@ -3,7 +3,7 @@ class_name CharacterRigCatalog
 
 ## Loads character rig manifests from content/characters/.
 
-const CONTENT_DIR := "res://../../content/characters/"
+const CONTENT_RELATIVE := "content/characters"
 const MANIFEST_SUFFIX := ".json"
 
 const BIOME_ARCHETYPE_IDS := {
@@ -29,7 +29,7 @@ static func clear_cache() -> void:
 
 static func list_archetype_ids() -> PackedStringArray:
 	var ids: PackedStringArray = []
-	var dir := DirAccess.open(CONTENT_DIR)
+	var dir := DirAccess.open(ContentLoader.content_path(CONTENT_RELATIVE))
 	if dir == null:
 		return ids
 	dir.list_dir_begin()
@@ -50,7 +50,7 @@ static func has_manifest(archetype_id: String) -> bool:
 static func get_manifest(archetype_id: String) -> Dictionary:
 	if _cache.has(archetype_id):
 		return _cache[archetype_id]
-	var path := CONTENT_DIR + archetype_id + MANIFEST_SUFFIX
+	var path := ContentLoader.content_path(CONTENT_RELATIVE).path_join(archetype_id + MANIFEST_SUFFIX)
 	if not FileAccess.file_exists(path):
 		_cache[archetype_id] = {}
 		return {}

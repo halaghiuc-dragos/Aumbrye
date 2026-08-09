@@ -57,50 +57,6 @@ HUD_BRANCH_AHEAD,Branch ahead — %s,Ramură în față — %s
 HUD_BRANCH_REWARD,%d reward path(s),%d cale(i) recompensă
 HUD_BRANCH_DANGER,%d danger path(s),%d cale(i) pericol
 HUD_BOSS_FALLBACK,Boss,Șef
-UI_CONFIRM,Confirm,Confirmă
-UI_CANCEL,Cancel,Anulează
-PAUSE_TITLE,Paused,Pauză
-PAUSE_RESUME,Resume,Continuă
-PAUSE_SETTINGS,Settings,Setări
-PAUSE_ACHIEVEMENTS,Achievements,Realizări
-PAUSE_BESTIARY,Bestiary,Bestiar
-PAUSE_ABANDON,Abandon run,Abandonează alergarea
-PAUSE_LEAVE_WAVES,Leave waves,Părăsește valurile
-PAUSE_RESTART_FLOOR,Restart floor,Repornește etajul
-PAUSE_QUIT,Quit to menu,Ieși în meniu
-PAUSE_HINT_RESUME,to resume,ca să continui
-PAUSE_INFO_SECTION,Run info,Info alergare
-PAUSE_INFO_MODE,Mode,Mod
-PAUSE_INFO_FLOOR,Floor,Etaj
-PAUSE_INFO_TIME,Time,Timp
-PAUSE_INFO_SEED,Seed,Sămânță
-PAUSE_INFO_OBJECTIVE,Objective,Obiectiv
-PAUSE_MODE_HUB,Hub,Turn
-PAUSE_MODE_CASTLE,Castle Run,Alergare castel
-PAUSE_MODE_WAVES,Umbral Waves,Valuri umbrale
-PAUSE_MODE_ENDLESS,Umbral Endless,Infinit umbral
-PAUSE_FLOOR_FMT,Floor %d of %d,Etaj %d din %d
-PAUSE_WAVE_FMT,Wave %d,Val %d
-PAUSE_OBJECTIVE_HUB,Explore the tower,Explorează turnul
-PAUSE_OBJECTIVE_WAVES,Survive wave %d,Supraviețuiește valului %d
-PAUSE_OBJECTIVE_STAIRS,Reach the stairs,Ajungi la scări
-PAUSE_OBJECTIVE_BOSS,Defeat the boss,Învinge șeful
-PAUSE_OBJECTIVE_EXPLORE,Explore the floor,Explorează etajul
-PAUSE_CONFIRM_ABANDON_TITLE,Abandon Run,Abandonează alergarea
-PAUSE_CONFIRM_ABANDON_BODY,Abandon floor %d? %d items and %d gold from this run are lost.,Abandonezi etajul %d? %d obiecte și %d aur din această alergare se pierd.
-PAUSE_CONFIRM_ABANDON_OK,Abandon,Abandonează
-PAUSE_CONFIRM_ABANDON_CANCEL,Keep Playing,Continuă să joci
-PAUSE_CONFIRM_QUIT_TITLE,Quit to Menu,Ieși în meniu
-PAUSE_CONFIRM_QUIT_BODY,Save progress and return to the main menu? You can continue this run later from the hub.,Salvezi progresul și revii la meniul principal? Poți continua alergarea mai târziu din turn.
-PAUSE_CONFIRM_QUIT_OK,Quit to Menu,Ieși în meniu
-PAUSE_CONFIRM_QUIT_CANCEL,Keep Playing,Continuă să joci
-PAUSE_CONFIRM_LEAVE_TITLE,Leave Waves,Părăsește valurile
-PAUSE_CONFIRM_LEAVE_BODY,Leave the waves run and return to the hub? Rewards from this session may be lost.,Părăsești valurile și revii în turn? Recompensele din sesiune se pot pierde.
-PAUSE_CONFIRM_LEAVE_OK,Leave,Părăsește
-PAUSE_CONFIRM_LEAVE_CANCEL,Keep Playing,Continuă să joci
-PAUSE_CLOUD_SYNCING,Cloud: syncing...,Cloud: sincronizare...
-PAUSE_CLOUD_ERROR,Cloud: sync error,Cloud: eroare sincronizare
-PAUSE_CLOUD_UPDATE,Cloud: update required,Cloud: actualizare necesară
 CREATE_TITLE,Create Your Warden,Creează-ți Gardianul
 CREATE_CLASS_HEADER,Choose Your Class,Alege Clasa
 CREATE_NAME_PLACEHOLDER,Warden name (required),Nume gardian (obligatoriu)

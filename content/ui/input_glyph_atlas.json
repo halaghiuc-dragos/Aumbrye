@@ -1,0 +1,529 @@
+{
+  "schemaVersion": 1,
+  "texture": "res://assets/ui/input_glyphs.png",
+  "cellSize": 16,
+  "columns": 8,
+  "rows": 17,
+  "unknown": {
+    "col": 1,
+    "row": 16
+  },
+  "cells": {
+    "keyboard/1": {
+      "col": 0,
+      "row": 0
+    },
+    "keyboard/2": {
+      "col": 1,
+      "row": 0
+    },
+    "keyboard/3": {
+      "col": 2,
+      "row": 0
+    },
+    "keyboard/4": {
+      "col": 3,
+      "row": 0
+    },
+    "keyboard/A": {
+      "col": 4,
+      "row": 0
+    },
+    "keyboard/C": {
+      "col": 5,
+      "row": 0
+    },
+    "keyboard/CTRL": {
+      "col": 6,
+      "row": 0
+    },
+    "keyboard/D": {
+      "col": 7,
+      "row": 0
+    },
+    "keyboard/DOWN": {
+      "col": 0,
+      "row": 1
+    },
+    "keyboard/E": {
+      "col": 1,
+      "row": 1
+    },
+    "keyboard/ENTER": {
+      "col": 2,
+      "row": 1
+    },
+    "keyboard/ESCAPE": {
+      "col": 3,
+      "row": 1
+    },
+    "keyboard/F": {
+      "col": 4,
+      "row": 1
+    },
+    "keyboard/F1": {
+      "col": 5,
+      "row": 1
+    },
+    "keyboard/F11": {
+      "col": 6,
+      "row": 1
+    },
+    "keyboard/F2": {
+      "col": 7,
+      "row": 1
+    },
+    "keyboard/H": {
+      "col": 0,
+      "row": 2
+    },
+    "keyboard/HOME": {
+      "col": 1,
+      "row": 2
+    },
+    "keyboard/K": {
+      "col": 2,
+      "row": 2
+    },
+    "keyboard/LEFT": {
+      "col": 3,
+      "row": 2
+    },
+    "keyboard/M": {
+      "col": 4,
+      "row": 2
+    },
+    "keyboard/P": {
+      "col": 5,
+      "row": 2
+    },
+    "keyboard/Q": {
+      "col": 6,
+      "row": 2
+    },
+    "keyboard/R": {
+      "col": 7,
+      "row": 2
+    },
+    "keyboard/RIGHT": {
+      "col": 0,
+      "row": 3
+    },
+    "keyboard/S": {
+      "col": 1,
+      "row": 3
+    },
+    "keyboard/SPACE": {
+      "col": 2,
+      "row": 3
+    },
+    "keyboard/T": {
+      "col": 3,
+      "row": 3
+    },
+    "keyboard/TAB": {
+      "col": 4,
+      "row": 3
+    },
+    "keyboard/UP": {
+      "col": 5,
+      "row": 3
+    },
+    "keyboard/V": {
+      "col": 6,
+      "row": 3
+    },
+    "keyboard/W": {
+      "col": 7,
+      "row": 3
+    },
+    "keyboard/SHIFT": {
+      "col": 0,
+      "row": 4
+    },
+    "keyboard/ALT": {
+      "col": 1,
+      "row": 4
+    },
+    "keyboard/B": {
+      "col": 2,
+      "row": 4
+    },
+    "keyboard/G": {
+      "col": 3,
+      "row": 4
+    },
+    "keyboard/I": {
+      "col": 4,
+      "row": 4
+    },
+    "keyboard/J": {
+      "col": 5,
+      "row": 4
+    },
+    "keyboard/L": {
+      "col": 6,
+      "row": 4
+    },
+    "keyboard/N": {
+      "col": 7,
+      "row": 4
+    },
+    "keyboard/O": {
+      "col": 0,
+      "row": 5
+    },
+    "keyboard/U": {
+      "col": 1,
+      "row": 5
+    },
+    "keyboard/X": {
+      "col": 2,
+      "row": 5
+    },
+    "keyboard/Y": {
+      "col": 3,
+      "row": 5
+    },
+    "keyboard/Z": {
+      "col": 4,
+      "row": 5
+    },
+    "keyboard/5": {
+      "col": 5,
+      "row": 5
+    },
+    "keyboard/6": {
+      "col": 6,
+      "row": 5
+    },
+    "keyboard/7": {
+      "col": 7,
+      "row": 5
+    },
+    "keyboard/8": {
+      "col": 0,
+      "row": 6
+    },
+    "keyboard/9": {
+      "col": 1,
+      "row": 6
+    },
+    "keyboard/0": {
+      "col": 2,
+      "row": 6
+    },
+    "keyboard/DELETE": {
+      "col": 3,
+      "row": 6
+    },
+    "keyboard/BACKSPACE": {
+      "col": 4,
+      "row": 6
+    },
+    "keyboard/END": {
+      "col": 5,
+      "row": 6
+    },
+    "keyboard/PAGEUP": {
+      "col": 6,
+      "row": 6
+    },
+    "keyboard/PAGEDOWN": {
+      "col": 7,
+      "row": 6
+    },
+    "keyboard/INSERT": {
+      "col": 0,
+      "row": 7
+    },
+    "keyboard/F3": {
+      "col": 1,
+      "row": 7
+    },
+    "keyboard/F4": {
+      "col": 2,
+      "row": 7
+    },
+    "keyboard/F5": {
+      "col": 3,
+      "row": 7
+    },
+    "keyboard/F6": {
+      "col": 4,
+      "row": 7
+    },
+    "keyboard/F7": {
+      "col": 5,
+      "row": 7
+    },
+    "keyboard/F8": {
+      "col": 6,
+      "row": 7
+    },
+    "keyboard/F9": {
+      "col": 7,
+      "row": 7
+    },
+    "keyboard/F10": {
+      "col": 0,
+      "row": 8
+    },
+    "keyboard/F12": {
+      "col": 1,
+      "row": 8
+    },
+    "xbox/0": {
+      "col": 2,
+      "row": 8
+    },
+    "xbox/1": {
+      "col": 3,
+      "row": 8
+    },
+    "xbox/2": {
+      "col": 4,
+      "row": 8
+    },
+    "xbox/3": {
+      "col": 5,
+      "row": 8
+    },
+    "xbox/4": {
+      "col": 6,
+      "row": 8
+    },
+    "xbox/5": {
+      "col": 7,
+      "row": 8
+    },
+    "xbox/6": {
+      "col": 0,
+      "row": 9
+    },
+    "xbox/7": {
+      "col": 1,
+      "row": 9
+    },
+    "xbox/8": {
+      "col": 2,
+      "row": 9
+    },
+    "xbox/9": {
+      "col": 3,
+      "row": 9
+    },
+    "xbox/10": {
+      "col": 4,
+      "row": 9
+    },
+    "xbox/11": {
+      "col": 5,
+      "row": 9
+    },
+    "xbox/12": {
+      "col": 6,
+      "row": 9
+    },
+    "xbox/13": {
+      "col": 7,
+      "row": 9
+    },
+    "xbox/14": {
+      "col": 0,
+      "row": 10
+    },
+    "playstation/0": {
+      "col": 1,
+      "row": 10
+    },
+    "playstation/1": {
+      "col": 2,
+      "row": 10
+    },
+    "playstation/2": {
+      "col": 3,
+      "row": 10
+    },
+    "playstation/3": {
+      "col": 4,
+      "row": 10
+    },
+    "playstation/4": {
+      "col": 5,
+      "row": 10
+    },
+    "playstation/5": {
+      "col": 6,
+      "row": 10
+    },
+    "playstation/6": {
+      "col": 7,
+      "row": 10
+    },
+    "playstation/7": {
+      "col": 0,
+      "row": 11
+    },
+    "playstation/8": {
+      "col": 1,
+      "row": 11
+    },
+    "playstation/9": {
+      "col": 2,
+      "row": 11
+    },
+    "playstation/10": {
+      "col": 3,
+      "row": 11
+    },
+    "playstation/11": {
+      "col": 4,
+      "row": 11
+    },
+    "playstation/12": {
+      "col": 5,
+      "row": 11
+    },
+    "playstation/13": {
+      "col": 6,
+      "row": 11
+    },
+    "playstation/14": {
+      "col": 7,
+      "row": 11
+    },
+    "generic/0": {
+      "col": 0,
+      "row": 12
+    },
+    "generic/1": {
+      "col": 1,
+      "row": 12
+    },
+    "generic/2": {
+      "col": 2,
+      "row": 12
+    },
+    "generic/3": {
+      "col": 3,
+      "row": 12
+    },
+    "generic/4": {
+      "col": 4,
+      "row": 12
+    },
+    "generic/5": {
+      "col": 5,
+      "row": 12
+    },
+    "generic/6": {
+      "col": 6,
+      "row": 12
+    },
+    "generic/7": {
+      "col": 7,
+      "row": 12
+    },
+    "generic/8": {
+      "col": 0,
+      "row": 13
+    },
+    "generic/9": {
+      "col": 1,
+      "row": 13
+    },
+    "generic/10": {
+      "col": 2,
+      "row": 13
+    },
+    "generic/11": {
+      "col": 3,
+      "row": 13
+    },
+    "generic/12": {
+      "col": 4,
+      "row": 13
+    },
+    "generic/13": {
+      "col": 5,
+      "row": 13
+    },
+    "generic/14": {
+      "col": 6,
+      "row": 13
+    },
+    "xbox/axis_0": {
+      "col": 7,
+      "row": 13
+    },
+    "xbox/axis_1": {
+      "col": 0,
+      "row": 14
+    },
+    "xbox/axis_2": {
+      "col": 1,
+      "row": 14
+    },
+    "xbox/axis_3": {
+      "col": 2,
+      "row": 14
+    },
+    "xbox/axis_4": {
+      "col": 3,
+      "row": 14
+    },
+    "xbox/axis_5": {
+      "col": 4,
+      "row": 14
+    },
+    "playstation/axis_0": {
+      "col": 5,
+      "row": 14
+    },
+    "playstation/axis_1": {
+      "col": 6,
+      "row": 14
+    },
+    "playstation/axis_2": {
+      "col": 7,
+      "row": 14
+    },
+    "playstation/axis_3": {
+      "col": 0,
+      "row": 15
+    },
+    "playstation/axis_4": {
+      "col": 1,
+      "row": 15
+    },
+    "playstation/axis_5": {
+      "col": 2,
+      "row": 15
+    },
+    "generic/axis_0": {
+      "col": 3,
+      "row": 15
+    },
+    "generic/axis_1": {
+      "col": 4,
+      "row": 15
+    },
+    "generic/axis_2": {
+      "col": 5,
+      "row": 15
+    },
+    "generic/axis_3": {
+      "col": 6,
+      "row": 15
+    },
+    "generic/axis_4": {
+      "col": 7,
+      "row": 15
+    },
+    "generic/axis_5": {
+      "col": 0,
+      "row": 16
+    }
+  }
+}

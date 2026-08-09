@@ -308,6 +308,8 @@ static func _run_step(step: Dictionary, data: Dictionary) -> Dictionary:
 			return _migrate_v9_to_v10(data)
 		"_migrate_v10_to_v11":
 			return _migrate_v10_to_v11(data)
+		"_migrate_v11_to_v12":
+			return _migrate_v11_to_v12(data)
 		_:
 			return data
 

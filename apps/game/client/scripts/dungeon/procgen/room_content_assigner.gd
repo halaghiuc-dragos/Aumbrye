@@ -292,7 +292,7 @@ static func _is_mutable(entry: Dictionary, reserved_semantics: Array[String]) ->
 
 
 static func _break_combat_runs(
-	room_content: Array,
+	_room_content: Array,
 	critical_semantic: Array[String],
 	by_room: Dictionary,
 	reserved_semantics: Array[String],

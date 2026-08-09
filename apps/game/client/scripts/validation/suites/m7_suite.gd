@@ -140,7 +140,7 @@ func _test_waves_mode() -> void:
 	start = Time.get_ticks_msec()
 	var waves_backup: Dictionary = LocalSave.get_waves_active_run()
 	LocalSave.set_waves_active_run({"probe": "qa01"}, false)
-	var round_tripped := LocalSave.get_waves_active_run().get("probe", "") == "qa01"
+	var round_tripped: bool = LocalSave.get_waves_active_run().get("probe", "") == "qa01"
 	LocalSave.clear_waves_active_run()
 	var cleared := LocalSave.get_waves_active_run().is_empty()
 	if not waves_backup.is_empty():
@@ -1277,7 +1277,7 @@ func _test_waves_equip_ui() -> void:
 func _test_boss_cannon_flow() -> void:
 	var start := Time.get_ticks_msec()
 	var cannon_boss_probe := FinalBossScript.new()
-	var cannon_probe := (preload("res://scripts/dungeon/final_boss_cannon.gd") as Script).new()
+	var cannon_probe: Object = (preload("res://scripts/dungeon/final_boss_cannon.gd") as Script).new()
 	var ok: bool = (
 		ResourceLoader.exists("res://scenes/bosses/final_boss_cannon.tscn")
 		and cannon_boss_probe.has_method("register_cannon_hit")

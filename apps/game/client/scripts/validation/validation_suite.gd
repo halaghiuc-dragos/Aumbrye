@@ -6,12 +6,12 @@ class_name ValidationSuite
 const Fixtures := preload("res://scripts/validation/fixtures.gd")
 const TC := Fixtures
 
-var ctx
+var ctx: TestContext
 var _save_backup: Dictionary = {}
 var manage_save_file: bool = true
 
 
-func _init(context) -> void:
+func _init(context: TestContext) -> void:
 	ctx = context
 
 

@@ -1,7 +1,7 @@
 extends HBoxContainer
 class_name AppearanceRow
 
-const GameUISkin := preload("res://scripts/ui/game_ui_skin.gd")
+const GameUISkinScript := preload("res://scripts/ui/game_ui_skin.gd")
 
 ## Focusable appearance row — cycles values with ui_left / ui_right (no popup).
 
@@ -23,12 +23,12 @@ func setup(row_label: String, options: PackedStringArray, initial_index: int = 0
 	var label := Label.new()
 	label.text = row_label
 	label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	GameUISkin.style_body_label(label)
+	GameUISkinScript.style_body_label(label)
 	add_child(label)
 	_value_label = Label.new()
 	_value_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_value_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	GameUISkin.style_stat_value(_value_label)
+	GameUISkinScript.style_stat_value(_value_label)
 	add_child(_value_label)
 	select(initial_index)
 

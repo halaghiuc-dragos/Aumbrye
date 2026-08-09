@@ -228,7 +228,7 @@ func _refresh_run_info() -> void:
 			_floor_value.text = "—"
 	if _time_value:
 		var elapsed := int(RunFlow.get_run_elapsed_seconds()) if RunFlow.is_run_active() else 0
-		var minutes := elapsed / 60
+		var minutes := floori(elapsed / 60.0)
 		var seconds := elapsed % 60
 		_time_value.text = "%02d:%02d" % [minutes, seconds]
 	if _seed_value:

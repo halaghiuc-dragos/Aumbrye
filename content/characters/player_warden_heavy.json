@@ -79,5 +79,52 @@
       "LegL",
       "LegR"
     ]
+  },
+  "extras": {
+    "Visor": {
+      "mesh": "res://assets/characters/player_warden/visor.voxels.json",
+      "parent": "Head",
+      "offset": [
+        0,
+        5,
+        4
+      ]
+    },
+    "Hood": {
+      "mesh": "res://assets/characters/player_warden/hood.voxels.json",
+      "parent": "Head",
+      "offset": [
+        0,
+        3,
+        -1
+      ]
+    },
+    "BeltTrim": {
+      "mesh": "res://assets/characters/player_warden/belttrim.voxels.json",
+      "parent": "Torso",
+      "offset": [
+        0,
+        3,
+        0
+      ]
+    },
+    "Pauldron": {
+      "mesh": "res://assets/characters/player_warden/pauldron.voxels.json",
+      "parent": "ArmL",
+      "offset": [
+        0,
+        1,
+        -2
+      ]
+    },
+    "PauldronR": {
+      "mesh": "res://assets/characters/player_warden/pauldronr.voxels.json",
+      "parent": "ArmR",
+      "offset": [
+        0,
+        1,
+        -2
+      ]
+    }
   }
 }

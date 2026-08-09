@@ -383,12 +383,13 @@ func _disable_pipeline() -> void:
 func _bind_source_camera(scene_root: Node) -> void:
 	_source_camera = null
 	_spring_arm = null
+	var player: Node = null
 	var group_cam := scene_root.get_tree().get_first_node_in_group("pixel_render_source") as Camera3D
 	if group_cam:
 		_source_camera = group_cam
 		_spring_arm = group_cam.get_parent() as SpringArm3D
 	else:
-		var player := scene_root.get_tree().get_first_node_in_group("player")
+		player = scene_root.get_tree().get_first_node_in_group("player")
 		if player == null and scene_root.has_node("Player"):
 			player = scene_root.get_node("Player")
 		if player:
@@ -398,7 +399,7 @@ func _bind_source_camera(scene_root: Node) -> void:
 			if _source_camera:
 				_spring_arm = player.get_node_or_null("CameraPivot/SpringArm3D") as SpringArm3D
 	if _source_camera == null:
-		if not _bind_warned:
+		if player != null and not _bind_warned:
 			_bind_warned = true
 			push_warning("PixelDioramaViewport: no source camera in %s" % scene_root.name)
 		return

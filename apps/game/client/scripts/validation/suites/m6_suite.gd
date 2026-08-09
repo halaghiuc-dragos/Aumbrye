@@ -182,7 +182,9 @@ func _test_item_catalog_strict_mode() -> void:
 
 func _test_content_reload_command() -> void:
 	var start := Time.get_ticks_msec()
-	var has_clear_all := ContentLoader.has_method("clear_all_caches")
+	var has_clear_all := ctx.script_has_method(
+		"res://scripts/app/content_loader.gd", "clear_all_caches"
+	)
 	var result := DebugConsole.execute("content_reload")
 	var command_ran := not result.begins_with("Unknown command")
 	ctx.timed_record(
@@ -1219,9 +1221,10 @@ func _test_ui_skin() -> void:
 	)
 
 	start = Time.get_ticks_msec()
-	var skin_constants := GameUISkinScript.get_script_constant_map()
+	var skin_path := "res://scripts/ui/game_ui_skin.gd"
 	var no_dead: bool = (
-		not skin_constants.has("CELL_SIZE") and not skin_constants.has("EQUIP_CELL_SIZE")
+		not ctx.script_has_constant(skin_path, "CELL_SIZE")
+		and not ctx.script_has_constant(skin_path, "EQUIP_CELL_SIZE")
 	)
 	ctx.timed_record(
 		"ui.skin.no_dead_constants",

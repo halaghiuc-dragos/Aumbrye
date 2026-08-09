@@ -1986,7 +1986,7 @@ static func expected_exported_clip_count(rest_pose: Dictionary) -> int:
 	return count + 2
 
 
-static func compile_authored_library(rest_pose: Dictionary, events_path: String, profile: String) -> AnimationLibrary:
+static func compile_authored_library(rest_pose: Dictionary, events_path: String, _profile: String) -> AnimationLibrary:
 	var library := AnimationLibrary.new()
 	for clip_name in CLIPS:
 		var anim := _compile(CLIPS[clip_name], rest_pose, events_path, 1.0)

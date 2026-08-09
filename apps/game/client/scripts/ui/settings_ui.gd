@@ -138,8 +138,8 @@ func _build_schema_page(page: String) -> void:
 	var rows: Array[SettingsRow] = []
 	for entry in SettingsSchemaScript.entries_for_page(page):
 		var row := SettingsRowScene.instantiate() as SettingsRow
-		row.configure(entry)
 		_page_host.add_child(row)
+		row.configure(entry)
 		rows.append(row)
 		if page == "audio":
 			_add_audio_test_button(row, str(entry.get("id", "")))
