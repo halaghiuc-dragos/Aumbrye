@@ -347,7 +347,7 @@ func _test_light_pass_ceiling_all_modes() -> void:
 		ctx.file_contains(shell_path, '_add_slab(shell, "CeilingSlab"')
 		and ctx.file_contains(registry_path, "uses_indoor_lighting")
 		and ctx.file_contains(registry_path, "sun.visible = false")
-		and ctx.file_contains("res://scripts/dungeon/dungeon_builder.gd", "_build_floor_shell")
+		and ctx.script_has_method("res://scripts/dungeon/dungeon_builder.gd", "_build_floor_shell")
 		and ctx.file_contains("res://scripts/dungeon/waves_run.gd", "WavesOutdoorsDiorama")
 	)
 	ctx.timed_record(
@@ -938,7 +938,7 @@ func _test_waves_extended() -> void:
 	start = Time.get_ticks_msec()
 	ok = (
 		ctx.file_contains("res://scripts/dungeon/waves_run.gd", "CombatHUD")
-		and ctx.file_contains("res://scripts/dungeon/waves_run.gd", "_restore_waves_snapshot")
+		and ctx.script_has_method("res://scripts/dungeon/waves_run.gd", "_restore_waves_snapshot")
 	)
 	ctx.timed_record(
 		"run.waves.combat_hud_restore",
@@ -1261,7 +1261,7 @@ func _test_waves_equip_ui() -> void:
 	var ok: bool = (
 		FileAccess.file_exists("res://scripts/ui/inventory_ui.gd")
 		and ctx.file_contains("res://scripts/ui/inventory_ui.gd", "WavesRunService.waves_inventory")
-		and ctx.file_contains("res://scripts/ui/inventory_ui.gd", "_waves_mode")
+		and ctx.script_has_property("res://scripts/ui/inventory_ui.gd", "_waves_mode")
 		and WavesRunService.has_method("apply_equipment_to_player")
 	)
 	ctx.timed_record(

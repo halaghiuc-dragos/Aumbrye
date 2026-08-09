@@ -189,7 +189,7 @@ func _on_character_created(
 	class_id: String, character_name: String, appearance: Dictionary
 ) -> void:
 	LocalSave.queue_boot_new_game(class_id, character_name, appearance)
-	get_tree().change_scene_to_file(LOADING_SCENE)
+	SceneTransition.goto(get_tree(), LOADING_SCENE)
 
 
 func _on_character_create_cancelled() -> void:
@@ -200,7 +200,7 @@ func _on_continue_slot_selected(character_id: String) -> void:
 	if character_id == "":
 		return
 	LocalSave.queue_boot_continue_character(character_id)
-	get_tree().change_scene_to_file(LOADING_SCENE)
+	SceneTransition.goto(get_tree(), LOADING_SCENE)
 
 
 func _on_continue_cancelled() -> void:

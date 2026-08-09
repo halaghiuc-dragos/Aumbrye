@@ -56,8 +56,8 @@ func _run_boot() -> void:
 	if not ok:
 		_status_label.text = "Could not load save — returning to menu."
 		await get_tree().create_timer(1.2).timeout
-		get_tree().change_scene_to_file("res://scenes/ui/main_menu.tscn")
+		SceneTransition.goto(get_tree(), "res://scenes/ui/main_menu.tscn")
 		return
 	_status_label.text = "Opening the hub..."
 	await get_tree().process_frame
-	get_tree().change_scene_to_file(HUB_SCENE)
+	SceneTransition.goto(get_tree(), HUB_SCENE, "Opening the hub...")

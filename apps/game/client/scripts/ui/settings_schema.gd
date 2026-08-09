@@ -32,11 +32,14 @@ static func entries() -> Array[Dictionary]:
 		_volume_row("ui_volume", "ui"),
 		# Accessibility
 		_toggle_row(
-			"reduce_camera_shake",
+			"reduced_motion",
 			"accessibility",
-			func() -> bool: return AccessibilitySettings.reduce_camera_shake,
-			Callable(SettingsSchema, "_set_reduce_camera_shake")
+			func() -> bool: return AccessibilitySettings.reduced_motion,
+			Callable(SettingsSchema, "_set_reduced_motion")
 		),
+		_motion_slider_row("camera_shake_intensity", "_set_camera_shake_intensity"),
+		_motion_slider_row("hitstop_intensity", "_set_hitstop_intensity"),
+		_motion_slider_row("screen_pulse_intensity", "_set_screen_pulse_intensity"),
 		_toggle_row(
 			"show_control_hints",
 			"accessibility",
@@ -139,6 +142,12 @@ static func entries() -> Array[Dictionary]:
 			func() -> void: AccessibilitySettings.request_commit()
 		),
 		_toggle_row(
+			"replay_recording",
+			"advanced",
+			func() -> bool: return RunReplay.recording_opt_in(),
+			Callable(SettingsSchema, "_set_replay_recording")
+		),
+		_toggle_row(
 			"assist_telegraph_emphasis",
 			"accessibility",
 			func() -> bool: return AccessibilitySettings.assist_telegraph_emphasis,
@@ -172,9 +181,57 @@ static func _set_assist_telegraph_emphasis(v: bool) -> void:
 	AccessibilitySettings.request_commit()
 
 
-static func _set_reduce_camera_shake(v: bool) -> void:
-	AccessibilitySettings.reduce_camera_shake = v
-	AccessibilitySettings.apply_live("reduce_camera_shake", v)
+static func _motion_slider_row(id: String, setter_name: String) -> Dictionary:
+	return _slider_row(
+		id,
+		"accessibility",
+		AccessibilitySettings.MOTION_INTENSITY_MIN,
+		AccessibilitySettings.MOTION_INTENSITY_MAX,
+		0.05,
+		"percent",
+		Callable(SettingsSchema, "_get_%s" % id),
+		Callable(SettingsSchema, setter_name),
+		Callable(AccessibilitySettings, "request_commit")
+	)
+
+
+static func _get_camera_shake_intensity() -> float:
+	return AccessibilitySettings.camera_shake_intensity
+
+
+static func _get_hitstop_intensity() -> float:
+	return AccessibilitySettings.hitstop_intensity
+
+
+static func _get_screen_pulse_intensity() -> float:
+	return AccessibilitySettings.screen_pulse_intensity
+
+
+static func _set_camera_shake_intensity(v: float) -> void:
+	AccessibilitySettings.set_camera_shake_intensity(v)
+	AccessibilitySettings.apply_live("camera_shake_intensity", v)
+
+
+static func _set_hitstop_intensity(v: float) -> void:
+	AccessibilitySettings.set_hitstop_intensity(v)
+	AccessibilitySettings.apply_live("hitstop_intensity", v)
+
+
+static func _set_screen_pulse_intensity(v: float) -> void:
+	AccessibilitySettings.set_screen_pulse_intensity(v)
+	AccessibilitySettings.apply_live("screen_pulse_intensity", v)
+
+
+static func _set_replay_recording(v: bool) -> void:
+	RunReplay.set_recording_opt_in(v)
+	if not v:
+		RunReplay.discard()
+	LocalSave.autosave()
+
+
+static func _set_reduced_motion(v: bool) -> void:
+	AccessibilitySettings.set_reduced_motion(v)
+	AccessibilitySettings.apply_live("reduced_motion", v)
 	AccessibilitySettings.request_commit()
 
 

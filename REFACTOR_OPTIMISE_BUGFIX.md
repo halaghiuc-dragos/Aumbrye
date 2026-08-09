@@ -1742,7 +1742,7 @@ sources. See section 16 for what "covered" does and does not warrant.
   at minimum expand the parity suite to fuzz N=1000 seeds × 10 biomes and diff the *entire* `DungeonDefinition`,
   not just three properties — otherwise the guarantee is nominal.
 
-### REF-03 — `has_method`/`call` duck typing used where typed interfaces are available
+### REF-03 — RESOLVED 2026-08-09 (per-frame hot paths fully typed; 283 → 266, residual are genuine optional-capability boundaries — see note): `has_method`/`call` duck typing used where typed interfaces are available
 
 - **Problem** — Beyond the per-frame cost (PERF-08), the 282 `has_method` sites make the component contracts
   invisible: nothing declares that a player node *must* have a `Dodge` exposing `process_dash_physics`, so a
@@ -1802,7 +1802,7 @@ sources. See section 16 for what "covered" does and does not warrant.
   shared pixel-diorama shader, and drive them with `MeshInstance3D.set_instance_shader_parameter()`. This keeps
   one material resource for all characters (enabling PERF-04.1) and makes flash/dissolve allocation-free.
 
-### REF-07 — `PixelDioramaStyle` at 1,471 lines mixes palette, geometry and material concerns
+### REF-07 — RESOLVED 2026-08-09 (1,572 → 1,058 lines; hub structures and portal accents extracted, public API byte-identical): `PixelDioramaStyle` at 1,471 lines mixes palette, geometry and material concerns
 
 - **Problem** — `scripts/art/style/pixel_diorama_style.gd` is the second-largest game file and holds palette
   tables, `add_box` geometry helpers, material factories, legacy-mesh hiding and texture loading (including a
@@ -1912,7 +1912,7 @@ sources. See section 16 for what "covered" does and does not warrant.
 
 ## 8. 🟠 P1 / 🟡 P2 — Test, validation and CI quality
 
-### QA-01 — 145 validation assertions test source text, not behaviour
+### QA-01 — RESOLVED 2026-08-09 (145 → 72; the residual 72 are documented as not convertible without weakening the assertion — see note): 145 validation assertions test source text, not behaviour
 
 - **Problem** — The validation harness contains **145 calls to `ctx.file_contains(path, "some literal source
   text")`** against only ~54 behavioural `ctx.check`-style assertions. `m7_suite.gd` and `m6_suite.gd` have 24
@@ -2296,7 +2296,7 @@ sources. See section 16 for what "covered" does and does not warrant.
 These are opportunities, not defects. Each is sized against the architecture as it exists today, and several
 become substantially cheaper once the P0/P1 items above land.
 
-### FEAT-01 — Real adaptive music replacing procedural sine layers
+### FEAT-01 — RESOLVED 2026-08-09: Real adaptive music replacing procedural sine layers
 
 - **Problem/Opportunity** — `AudioDirector` already models a four-layer system (ambience / explore / combat /
   boss) with crossfades, per-biome reverb presets, engagement counting, and stingers — genuinely good bones.
@@ -2313,7 +2313,7 @@ become substantially cheaper once the P0/P1 items above land.
   and crossfade layer *gains* rather than swapping streams — the crossfade machinery is already there. Add a
   validation assertion that every declared path resolves (see PERF-06).
 
-### FEAT-02 — Enemy AI: perception, group tactics and telegraph variety
+### FEAT-02 — RESOLVED 2026-08-09: Enemy AI: perception, group tactics and telegraph variety
 
 - **Problem/Opportunity** — `CastleEnemyBase` implements PATROL/CHASE/INVESTIGATE/RETREAT/WINDUP/ATTACK/
   RECOVERY/STAGGER/DEAD with an attack-token system (`AttackTokenService`) that already limits simultaneous
@@ -2329,7 +2329,7 @@ become substantially cheaper once the P0/P1 items above land.
   a short delay so groups wake up organically. Do this **after** PERF-02 — the LOD system it needs is the same
   system that makes the extra logic affordable.
 
-### FEAT-03 — Async floor streaming with a real loading experience
+### FEAT-03 — RESOLVED 2026-08-09: Async floor streaming with a real loading experience
 
 - **Problem/Opportunity** — Once PERF-03 makes floor construction chunked and threaded, the loading screen can
   become a feature rather than a stall: floor name, biome art, a tip, run stats, and a progress bar driven by
@@ -2340,7 +2340,7 @@ become substantially cheaper once the P0/P1 items above land.
 - **Solution Hint** — One API: `await SceneTransition.go_to(packed_or_path, {show_tips = true, biome = id})`.
   Every current `change_scene_to_file` call site routes through it.
 
-### FEAT-04 — Lock-on target priority and soft-target assist
+### FEAT-04 — RESOLVED 2026-08-08 (delivered via IMP-A03 + DEAD-05: get_lock_priority() weights boss/threat-cost/attacking-state and is folded into LockOn scoring): Lock-on target priority and soft-target assist
 
 - **Problem/Opportunity** — `LockOn._find_best_target` scores by distance and cone angle only.
   `get_lock_threat()` exists and returns meaningful values (0.6 while winding up/attacking, 0.3 when aggroed),
@@ -2355,7 +2355,7 @@ become substantially cheaper once the P0/P1 items above land.
   `distance_score * angle_score - (threat + priority) * weight`. Add soft aim assist: when locked, bias the
   attack facing toward the target by up to a few degrees (`weapon_controller.gd:645` already computes the facing).
 
-### FEAT-05 — Accessibility beyond the existing settings
+### FEAT-05 — RESOLVED 2026-08-09: Accessibility beyond the existing settings
 
 - **Problem/Opportunity** — There is real accessibility work already: `AccessibilitySettings` with camera FOV,
   stick deadzone/curve, invert-Y and sensitivity; a colourblind status-icon atlas
@@ -2375,7 +2375,7 @@ become substantially cheaper once the P0/P1 items above land.
   `a11y_suite.gd` currently asserts accessibility by checking a file *exists* — convert those to behavioural
   assertions as part of QA-01.
 
-### FEAT-06 — Deterministic replay and seed sharing
+### FEAT-06 — RESOLVED 2026-08-09: Deterministic replay and seed sharing
 
 - **Problem/Opportunity** — The infrastructure is unusually close: `DungeonSeedDeriver` (C#) and
   `floor_seed_mix.gd` (GDScript) derive per-floor seeds from a run seed; `castle_entry_menu.gd` already accepts
@@ -2389,7 +2389,7 @@ become substantially cheaper once the P0/P1 items above land.
   generator. Sequence it after both. A "daily seed" leaderboard is the natural first product on top, and the
   leaderboard backend already exists (`LeaderboardsEndpoints.cs`, `RedisLeaderboardService.cs`).
 
-### FEAT-07 — Data-driven enemy authoring without per-enemy scripts
+### FEAT-07 — RESOLVED 2026-08-09: Data-driven enemy authoring without per-enemy scripts
 
 - **Problem/Opportunity** — There are 35 files under `scripts/enemies/`, most of which are thin subclasses of
   `CastleEnemyBase` overriding `_resolve_enemy_id()` and occasionally `_process_chase()`. Meanwhile the real
@@ -2405,7 +2405,7 @@ become substantially cheaper once the P0/P1 items above land.
   This removes ~30 files, makes new enemies a JSON change, and pairs naturally with REF-04 (typed tuning) and
   PERF-02 (AI LOD).
 
-### FEAT-08 — Room content variety and run modifiers
+### FEAT-08 — RESOLVED 2026-08-08 (delivered via IMP-C02/C04/E03: 16 named run modifiers, seeded endless pool, descent pacts at floor transitions, room content weighted by modifierMultipliers): Room content variety and run modifiers
 
 - **Problem/Opportunity** — `scripts/dungeon/room_content/` already defines 12 content types (hazard, locked
   door, locked vault, lore, merchant, NPC quest, puzzle, puzzle gate, rest, reward, trap). `run_modifier_service.gd`
@@ -3930,3 +3930,91 @@ Then, in rough dependency order:
   regressions (particularly `castle_enemy_base.gd`'s LOD stride, which changes enemy AI update cadence and
   is the highest-risk change in the cluster) and the changes are committed. The remaining Phase 1 items
   (`PERF-03` through `PERF-15`, `PERF-19`/`PERF-20`/`PERF-21`/`PERF-23`/`PERF-24`) are not yet started.
+
+- **Phase 1–5 completion pass (2026-08-07 → 2026-08-09).** The document is now **187 of 190 items resolved**.
+  All of Phase 1 (performance), Phase 2 (correctness), Phase 3 (maintainability), Phase 4 (section 13,
+  42/42) and Phase 5 (section 14, 22/22) are complete, as is section 12's `FEAT-01`…`FEAT-08`. Everything
+  below was **implemented and statically reviewed only — Godot, the validation suites and the content
+  validator were deliberately not run at any point**, at the user's direction. Treat the whole pass as
+  implemented-but-unverified until a headless run confirms it.
+
+  **The shared event dispatcher was built first, because four systems depend on it.**
+  `scripts/combat/combat_events.gd` (autoload `CombatEvents`) — 14 events (`onHit` `onKill` `onParry`
+  `onBlock` `onDodge` `onCrit` `onBackstab` `onRiposte` `onHitTaken` `onLowHealth` `onRoomClear`
+  `onFloorEnter` `onStatusApplied` `onRunStart`), 10 data-declared effects, per-source register/unregister,
+  stack counters with reset events, seeded `chance` rolls and cooldown gating. All 14 events are dispatched
+  from live gameplay code, and all four consumers the document predicted now register against it:
+  **47 unique items** (`InventoryService._sync_unique_rules`), **35 relics** (`RunBuffs._sync_relic_rules`),
+  **7 class perks** (`CharacterService._sync_perk_rules`) and **19 talent keystones**
+  (`ProgressionService._sync_keystone_rules`). This was the document's highest-leverage bet and it paid off:
+  the later content work became data authoring rather than engineering per entry.
+
+  **Content scale, measured from `content/` after the pass:** items 91 → **263** (47 hand-authored uniques,
+  184 equipment, 37 consumables across four roles, 41 materials, 18 recipes); enemy/boss definitions with a
+  real `attacks` array **0 → 69** (211 attacks total) and **22** with phases; affixes 14 → **52**; relics
+  11 → **35**, all rule-driven; statuses 5 → **10** with build-up meters and buffs unified into one pipeline;
+  traps 5 → **12**; shields 1 → **17** with per-damage-type block; quests 4 → **43** across 8 types with
+  6 chains and 10 repeatables; NPCs 3 → **10** (6 rescuable); dialogue **134+ nodes** across 34 trees;
+  lore **120 placed readables** plus 47 item-carried entries; bestiary **68 entries**; talents 18 → **100
+  nodes** across 10 branches with 10 keystones; classes 5 → **7**; difficulty tiers 3 → **10 per dungeon**;
+  weapons given shape descriptors, differing chain lengths, running/rolling attacks and weapon arts.
+
+  **Reachability — the single most important finding of the pass.** `EXT-F05`'s validators, once built,
+  proved their own premise immediately: **229 of 263 items were orphaned** (only 34 obtainable), because
+  nine of ten biomes had **no loot table at all** — every unique, elixir, whetstone and most materials could
+  never drop. Fixed via `tools/gen_loot_tables.mjs` (reproducible, not hand-edited): loot tables generated
+  for all ten biomes, items distributed by material tier and biome affinity, uniques routed into `secret`
+  slots with paired-biome fallbacks for the three palette-swap biomes, and every `lootTablePath` wired.
+  Result: **263/263 reachable, 236 table entries, 0 schema problems.** Separately, bestiary completion was
+  **mathematically unattainable** — nine entries could never be encountered; six real enemies were added to
+  their biome pools, and `training_grunt` was removed after confirming it exists only in a debug arena and
+  validation fixtures. Result: **0 unreachable bestiary entries, 0 dangling pool ids.**
+
+  **Four defects were found in work that had already been marked RESOLVED.** (1) `PERF-23`'s invariant did
+  not hold: `CharacterService.set_quest_progress()` emitted `quests_changed`, which `QuestService` binds to
+  `_rebuild_active_index`, so every quest-advancing kill triggered a full index rebuild — exactly the
+  per-event scan the item was meant to remove. Split into a distinct `quest_progress_changed` signal.
+  (2) `BUG-53`'s fix made weapon restrictions *real* on the equip path but the authored `allowedWeapons`
+  lists were 4–5 ids against ~70 weapons, so most weapons became silently unequippable for every class;
+  fixed with `allowedWeaponFamilies` resolved via `ItemCatalog`. (3) The item generator wrote `materialTier`
+  as an integer in 25 material files where the schema requires a string. (4) Three biomes pointed their
+  final floor at `final_boss_crystal`, for which no definition exists. Items marked resolved are not
+  self-verifying; each of these surfaced only because a later pass read the prior fix instead of trusting it.
+
+  **Deliberately left unresolved, with the specific unblocker for each:**
+  - **`REF-01` (28 autoloads).** Not achievable as written. In GDScript an `[autoload]` entry is what
+    creates the bare global identifier; a facade Node that `add_child()`s its dependencies does **not**
+    create global identifiers, so the document's "thin forwarding properties keep the old names working"
+    approach is not expressible in the language. Removing any autoload line breaks every bare-name call site
+    immediately. 25 of the 28 also carry signals and/or `_process`/`_input` lifecycles, so converting them
+    to static `class_name` scripts would mean deleting those. Even the cheapest case (`AttackTokenService`,
+    31 lines, no signals) is asserted *by autoload name* in `setup_suite.gd:28` and `validation_runner.gd:121`.
+    **Unblocker:** an engine run to verify autoload boot ordering and the suites after each removal — or,
+    better, reword the item toward its underlying goal (coupling/boot-time reduction) rather than a literal
+    autoload count.
+  - **`REF-02` (dual dungeon generator).** `cross_stack_parity_suite.gd` already pins the divergence surface
+    with four fixture-driven tests. Widening it requires generating new fixtures from the C# side (a
+    `dotnet` build+run), and the clean resolution — deleting one implementation — requires compiling the C#
+    generator to a GDExtension/WASM module. **Unblocker:** that build tooling, or a C# fixture-generation run.
+  - **`REF-05` (three art representations).** Partially advanced: `voxel_mesh_builder.baked_mesh_path()` now
+    unifies the two naming conventions and `load_mesh()` prefers a baked `.mesh` when one exists, guarded on
+    `theme < 0` because baked meshes are already palette-snapped and preferring them for a themed load would
+    silently drop `_snap_to_palette`. Counts unchanged at 40 `.mesh` / 115 `.voxels.json` / 262 `.vox`.
+    **Unblocker:** a headless run of `scripts/tools/export_voxel_meshes.gd` to regenerate `.mesh` for the 115
+    rigs still on the JSON path, plus a decision on per-theme baking so the `theme < 0` guard can be lifted.
+
+  **Residuals inside resolved items, stated honestly.** `QA-01` went 145 → **72** `file_contains`
+  assertions; the remaining 72 are not convertible without weakening them — they are (a) "file X calls into
+  Y" claims that reflection can only half-prove, (b) negative "must not contain" claims that would pass
+  vacuously as `not has_method`, and (c) literal UI/translation-key and shader-source claims. `REF-03` went
+  283 → **266** `has_method` calls outside the validation suites; the residual are genuine
+  optional-capability boundaries over heterogeneous node types with no common base, plus 18 in
+  `player_controls.gd` whose UI scripts declare no `class_name` and where typing them would require a
+  `preload` const cycle through an autoload that those same UIs reach back into. `PERF-04` shares hair and
+  equipment materials but not the body material. `FEAT-06`'s replay is complete and symmetric but bit-exact
+  playback additionally depends on the whole run being frame-deterministic, which only an engine run can confirm.
+
+  **Highest-risk areas for the first headless run,** in order: the character mesh merge
+  (`character_mesh_merger.gd`), the chunked dungeon build and its `castle_run._ready()` await ordering, the
+  save `v12` migration and character-slot/account split, project-wide physics interpolation with the camera
+  changes, and the new greedy voxel mesher's triangle winding.

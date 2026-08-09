@@ -154,6 +154,34 @@ func file_contains(path: String, needle: String) -> bool:
 	return ValidationHelpers.file_contains(path, needle)
 
 
+func script_has_method(path: String, method_name: String) -> bool:
+	return ValidationHelpers.script_has_method(path, method_name)
+
+
+func script_has_constant(path: String, constant_name: String) -> bool:
+	return ValidationHelpers.script_has_constant(path, constant_name)
+
+
+func script_constant(path: String, constant_name: String, fallback: Variant = null) -> Variant:
+	return ValidationHelpers.script_constant(path, constant_name, fallback)
+
+
+func script_has_signal(path: String, signal_name: String) -> bool:
+	return ValidationHelpers.script_has_signal(path, signal_name)
+
+
+func script_has_property(path: String, property_name: String) -> bool:
+	return ValidationHelpers.script_has_property(path, property_name)
+
+
+func node_has_method(path: String, method_name: String) -> bool:
+	return ValidationHelpers.node_has_method(path, method_name)
+
+
+func resource_depends_on(path: String, dependency_path: String) -> bool:
+	return ValidationHelpers.resource_depends_on(path, dependency_path)
+
+
 func backup_save_file() -> Dictionary:
 	return ValidationHelpers.backup_save_file()
 

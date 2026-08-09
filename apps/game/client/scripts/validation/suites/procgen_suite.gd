@@ -281,10 +281,7 @@ func _test_offline_run_flow() -> void:
 	var start := Time.get_ticks_msec()
 	# NET-5.1: optional online path exists but must stay disabled by default (M3 offline lock).
 	var offline_default: bool = (
-		ctx.file_contains("res://scripts/app/run_flow.gd", "const USE_ONLINE_PROCgen := false")
-		or ctx.file_contains(
-			"res://scripts/app/run_flow.gd", "const USE_ONLINE_PROCgen: bool = false"
-		)
+		ctx.script_constant("res://scripts/app/run_flow.gd", "USE_ONLINE_PROCgen", true) == false
 	)
 	ctx.timed_record(
 		"procgen.offline_no_api_in_run_flow",

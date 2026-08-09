@@ -1,6 +1,6 @@
 [gd_scene load_steps=10 format=3 uid="uid://frost_raider_scene"]
 
-[ext_resource type="Script" path="res://scripts/enemies/frost_raider.gd" id="1_script"]
+[ext_resource type="Script" path="res://scripts/enemies/castle_enemy_base.gd" id="1_script"]
 [ext_resource type="Script" path="res://scripts/combat/health.gd" id="2_health"]
 [ext_resource type="Script" path="res://scripts/combat/poise.gd" id="3_poise"]
 [ext_resource type="Script" path="res://scripts/combat/hitbox.gd" id="4_hitbox"]
@@ -25,6 +25,7 @@ size = Vector3(1.0, 1.8, 1.0)
 
 [node name="FrostRaider" type="CharacterBody3D" groups=["enemy", "lockable"]]
 script = ExtResource("1_script")
+enemy_id = "frost_raider"
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="."]
 shape = SubResource("CapsuleShape3D_body")

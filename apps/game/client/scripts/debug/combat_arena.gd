@@ -1,6 +1,7 @@
 extends Node3D
 
 const ArenaDioramaScript := preload("res://scripts/debug/arena_diorama.gd")
+const TrainingGruntScript := preload("res://scripts/enemies/training_grunt.gd")
 
 const DUMMY_SPAWNS := [
 	Vector3(7.0, 0.0, -4.5),
@@ -83,15 +84,16 @@ func reset_training_player() -> void:
 	player.global_position = PLAYER_SPAWN
 	player.velocity = Vector3.ZERO
 	orient_player_to_hub_return()
-	var reactions := player.get_node_or_null("CombatReactions")
-	if reactions and reactions.has_method("reset_combat_state"):
-		reactions.call("reset_combat_state")
+	var reactions := player.get_node_or_null("CombatReactions") as PlayerCombatReactions
+	if reactions != null:
+		reactions.reset_combat_state()
 
 
 func reset_training_dummies() -> void:
 	for enemy in get_tree().get_nodes_in_group("training_dummy"):
-		if enemy.has_method("reset_enemy"):
-			enemy.call("reset_enemy")
+		var grunt := enemy as TrainingGruntScript
+		if grunt != null:
+			grunt.reset_enemy()
 		if enemy is CharacterBody3D:
 			(enemy as CharacterBody3D).velocity = Vector3.ZERO
 
@@ -107,8 +109,9 @@ func _on_dummy_died(enemy: Node) -> void:
 	if AchievementService:
 		AchievementService.notify("arena_won")
 	await get_tree().create_timer(0.8).timeout
-	if enemy.has_method("reset_enemy"):
-		enemy.call("reset_enemy")
+	var grunt := enemy as TrainingGruntScript
+	if grunt != null:
+		grunt.reset_enemy()
 
 
 func _orient_player_deferred() -> void:

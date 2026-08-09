@@ -43,9 +43,7 @@ func _test_portal_completes_run() -> void:
 func _test_run_outcome_flow() -> void:
 	var start := Time.get_ticks_msec()
 	var has_death := RunFlow.has_method("on_player_died")
-	var has_escape_rules: bool = ctx.file_contains(
-		"res://scripts/app/run_flow.gd", "_escape_rules_summary"
-	)
+	var has_escape_rules: bool = ctx.script_has_method("res://scripts/app/run_flow.gd", "_escape_rules_summary")
 	ctx.timed_record(
 		"flow.death_escape_api",
 		get_category(),
@@ -56,7 +54,7 @@ func _test_run_outcome_flow() -> void:
 	)
 
 	start = Time.get_ticks_msec()
-	var results_has_xp: bool = ctx.file_contains("res://scripts/ui/results_screen.gd", "xp_gained")
+	var results_has_xp: bool = ctx.script_has_property("res://scripts/ui/results_screen.gd", "xp_gained")
 	ctx.timed_record(
 		"flow.results_outcome_ui",
 		get_category(),
@@ -128,9 +126,7 @@ func _test_run_flow_offline_procgen() -> void:
 	var has_loot_claim_api: bool = ctx.file_contains(
 		"res://scripts/app/run_flow.gd", "lootClaimedInstanceIds"
 	)
-	var has_cloud_finalize: bool = ctx.file_contains(
-		"res://scripts/app/run_flow.gd", "_cloud_finalize_run"
-	)
+	var has_cloud_finalize: bool = ctx.script_has_method("res://scripts/app/run_flow.gd", "_cloud_finalize_run")
 	ctx.timed_record(
 		"flow.complete_run_loot_ids",
 		get_category(),

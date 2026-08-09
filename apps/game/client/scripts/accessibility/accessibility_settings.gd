@@ -21,8 +21,20 @@ const CAMERA_STICK_DEADZONE_MIN := 0.05
 const CAMERA_STICK_DEADZONE_MAX := 0.35
 const CAMERA_STICK_DEADZONE_DEFAULT := 0.15
 
+const MOTION_INTENSITY_MIN := 0.0
+const MOTION_INTENSITY_MAX := 1.0
+const MOTION_INTENSITY_DEFAULT := 1.0
+const MOTION_OFF_EPSILON := 0.001
+
+## Kept as booleans so existing gates keep short-circuiting; they mirror the scalar
+## below hitting zero and are rewritten by every scalar setter.
 static var reduce_camera_shake: bool = false
 static var reduce_hitstop: bool = false
+
+static var camera_shake_intensity: float = MOTION_INTENSITY_DEFAULT
+static var hitstop_intensity: float = MOTION_INTENSITY_DEFAULT
+static var screen_pulse_intensity: float = MOTION_INTENSITY_DEFAULT
+static var reduced_motion: bool = false
 static var show_control_hints: bool = true
 static var colorblind_mode: String = "default"
 static var subtitle_scale: float = 1.0
@@ -54,6 +66,55 @@ const ASSIST_LOCK_ON_DEFAULT := 1.0
 
 const SAVE_DEBOUNCE_SEC := 0.5
 static var _pending_commit := false
+
+
+static func set_camera_shake_intensity(value: float) -> void:
+	camera_shake_intensity = clampf(value, MOTION_INTENSITY_MIN, MOTION_INTENSITY_MAX)
+	reduce_camera_shake = camera_shake_intensity <= MOTION_OFF_EPSILON
+	_refresh_reduced_motion()
+
+
+static func set_hitstop_intensity(value: float) -> void:
+	hitstop_intensity = clampf(value, MOTION_INTENSITY_MIN, MOTION_INTENSITY_MAX)
+	reduce_hitstop = hitstop_intensity <= MOTION_OFF_EPSILON
+	_refresh_reduced_motion()
+
+
+static func set_screen_pulse_intensity(value: float) -> void:
+	screen_pulse_intensity = clampf(value, MOTION_INTENSITY_MIN, MOTION_INTENSITY_MAX)
+	_refresh_reduced_motion()
+
+
+## Master switch: drives all three motion scalars at once and is itself re-derived
+## whenever one of them is moved on its own.
+static func set_reduced_motion(value: bool) -> void:
+	reduced_motion = value
+	var target := MOTION_INTENSITY_MIN if value else MOTION_INTENSITY_DEFAULT
+	camera_shake_intensity = target
+	hitstop_intensity = target
+	screen_pulse_intensity = target
+	reduce_camera_shake = value
+	reduce_hitstop = value
+
+
+static func _refresh_reduced_motion() -> void:
+	reduced_motion = (
+		camera_shake_intensity <= MOTION_OFF_EPSILON
+		and hitstop_intensity <= MOTION_OFF_EPSILON
+		and screen_pulse_intensity <= MOTION_OFF_EPSILON
+	)
+
+
+static func camera_shake_scale() -> float:
+	return 0.0 if reduce_camera_shake else camera_shake_intensity
+
+
+static func hitstop_scale() -> float:
+	return 0.0 if reduce_hitstop else hitstop_intensity
+
+
+static func screen_pulse_scale() -> float:
+	return 0.0 if reduced_motion else screen_pulse_intensity
 
 
 static func connect_settings_changed(callback: Callable) -> void:
@@ -112,8 +173,7 @@ static func _on_commit_timeout() -> void:
 
 static func load_from_save() -> void:
 	var data: Dictionary = LocalSave.get_meta_data().get(SAVE_KEY, {})
-	reduce_camera_shake = bool(data.get("reduce_camera_shake", false))
-	reduce_hitstop = bool(data.get("reduce_hitstop", false))
+	_load_motion_keys(data)
 	show_control_hints = bool(data.get("show_control_hints", true))
 	colorblind_mode = str(data.get("colorblind_mode", "default"))
 	subtitle_scale = float(data.get("subtitle_scale", 1.0))
@@ -161,11 +221,47 @@ static func load_from_save() -> void:
 	assist_telegraph_emphasis = bool(data.get("assistTelegraphEmphasis", false))
 
 
+## Saves written before the motion scalars existed only carried the two booleans; a stored
+## `true` maps onto a zero intensity so an old profile keeps the motion it asked for.
+static func _load_motion_keys(data: Dictionary) -> void:
+	var legacy_shake := bool(data.get("reduce_camera_shake", false))
+	var legacy_hitstop := bool(data.get("reduce_hitstop", false))
+	var shake_fallback := MOTION_INTENSITY_MIN if legacy_shake else MOTION_INTENSITY_DEFAULT
+	var hitstop_fallback := MOTION_INTENSITY_MIN if legacy_hitstop else MOTION_INTENSITY_DEFAULT
+	var pulse_fallback := (
+		MOTION_INTENSITY_MIN
+		if (legacy_shake and legacy_hitstop)
+		else MOTION_INTENSITY_DEFAULT
+	)
+	camera_shake_intensity = clampf(
+		float(data.get("cameraShakeIntensity", shake_fallback)),
+		MOTION_INTENSITY_MIN,
+		MOTION_INTENSITY_MAX
+	)
+	hitstop_intensity = clampf(
+		float(data.get("hitstopIntensity", hitstop_fallback)),
+		MOTION_INTENSITY_MIN,
+		MOTION_INTENSITY_MAX
+	)
+	screen_pulse_intensity = clampf(
+		float(data.get("screenPulseIntensity", pulse_fallback)),
+		MOTION_INTENSITY_MIN,
+		MOTION_INTENSITY_MAX
+	)
+	reduce_camera_shake = camera_shake_intensity <= MOTION_OFF_EPSILON
+	reduce_hitstop = hitstop_intensity <= MOTION_OFF_EPSILON
+	_refresh_reduced_motion()
+
+
 static func save() -> void:
 	var meta := LocalSave.get_meta_data()
 	meta[SAVE_KEY] = {
 		"reduce_camera_shake": reduce_camera_shake,
 		"reduce_hitstop": reduce_hitstop,
+		"cameraShakeIntensity": camera_shake_intensity,
+		"hitstopIntensity": hitstop_intensity,
+		"screenPulseIntensity": screen_pulse_intensity,
+		"reducedMotion": reduced_motion,
 		"show_control_hints": show_control_hints,
 		"colorblind_mode": colorblind_mode,
 		"subtitle_scale": subtitle_scale,

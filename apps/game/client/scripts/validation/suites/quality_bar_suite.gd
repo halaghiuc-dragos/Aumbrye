@@ -115,9 +115,7 @@ func _test_character_authoring() -> void:
 	)
 
 	start = Time.get_ticks_msec()
-	var uses_manifest: bool = ctx.file_contains(
-		"res://scripts/art/characters/diorama_character_skin.gd", "build_from_manifest"
-	)
+	var uses_manifest: bool = ctx.script_has_method("res://scripts/art/characters/diorama_character_skin.gd", "build_from_manifest")
 	ctx.timed_record(
 		"quality.character.manifest_loader",
 		get_category(),
@@ -140,7 +138,7 @@ func _test_character_authoring() -> void:
 
 	start = Time.get_ticks_msec()
 	var palette_ok: bool = (
-		ctx.file_contains("res://scripts/art/characters/voxel_mesh_builder.gd", "_snap_to_palette")
+		ctx.script_has_method("res://scripts/art/characters/voxel_mesh_builder.gd", "_snap_to_palette")
 		and ctx.file_contains(
 			"res://scripts/art/characters/diorama_character_skin.gd", "use_vertex_color"
 		)
@@ -156,12 +154,8 @@ func _test_character_authoring() -> void:
 
 	start = Time.get_ticks_msec()
 	var equip_ok: bool = (
-		ctx.file_contains(
-			"res://scripts/art/characters/diorama_character_skin.gd", "func apply_equipment"
-		)
-		and ctx.file_contains(
-			"res://scripts/inventory/inventory_service.gd", "_apply_equipment_visuals"
-		)
+		ctx.script_has_method("res://scripts/art/characters/diorama_character_skin.gd", "apply_equipment")
+		and ctx.script_has_method("res://scripts/inventory/inventory_service.gd", "_apply_equipment_visuals")
 	)
 	ctx.timed_record(
 		"quality.character.equipment_visuals",
@@ -191,9 +185,9 @@ func _test_character_authoring() -> void:
 
 	start = Time.get_ticks_msec()
 	var weapon_ok: bool = (
-		ctx.file_contains("res://scripts/art/props/diorama_weapon_kit.gd", "_build_unknown")
-		and ctx.file_contains("res://scripts/art/props/diorama_weapon_kit.gd", "_build_axe")
-		and ctx.file_contains("res://scripts/art/props/diorama_weapon_kit.gd", "_build_staff")
+		ctx.script_has_method("res://scripts/art/props/diorama_weapon_kit.gd", "_build_unknown")
+		and ctx.script_has_method("res://scripts/art/props/diorama_weapon_kit.gd", "_build_axe")
+		and ctx.script_has_method("res://scripts/art/props/diorama_weapon_kit.gd", "_build_staff")
 	)
 	ctx.timed_record(
 		"quality.character.weapon_kit_expanded",
@@ -207,10 +201,8 @@ func _test_character_authoring() -> void:
 	start = Time.get_ticks_msec()
 	var custom_ok: bool = (
 		ctx.file_contains("res://scripts/save/character_appearance.gd", "skinTone")
-		and ctx.file_contains("res://scripts/save/character_appearance.gd", "hair")
-		and ctx.file_contains(
-			"res://scripts/art/characters/diorama_character_skin.gd", "_apply_class_armor"
-		)
+		and ctx.script_has_property("res://scripts/save/character_appearance.gd", "hair")
+		and ctx.script_has_method("res://scripts/art/characters/diorama_character_skin.gd", "_apply_class_armor")
 	)
 	ctx.timed_record(
 		"quality.character.customization_axes",
@@ -254,9 +246,7 @@ func _test_character_authoring() -> void:
 	start = Time.get_ticks_msec()
 	var rig_validation: bool = (
 		ResourceLoader.exists("res://scripts/validation/suites/voxel_grid_suite.gd")
-		and ctx.file_contains(
-			"res://scripts/validation/suites/diorama_anim_suite.gd", "_test_rig_contracts"
-		)
+		and ctx.script_has_method("res://scripts/validation/suites/diorama_anim_suite.gd", "_test_rig_contracts")
 	)
 	ctx.timed_record(
 		"quality.character.rig_validation",
@@ -290,9 +280,7 @@ func _test_combat_honesty_signals() -> void:
 	)
 
 	start = Time.get_ticks_msec()
-	var lunge_ok: bool = ctx.file_contains(
-		"res://scripts/combat/weapon_controller.gd", "_lunge_distance"
-	)
+	var lunge_ok: bool = ctx.script_has_property("res://scripts/combat/weapon_controller.gd", "_lunge_distance")
 	ctx.timed_record(
 		"quality.combat.lunge_implemented",
 		get_category(),

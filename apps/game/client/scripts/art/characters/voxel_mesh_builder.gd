@@ -6,7 +6,17 @@ class_name VoxelMeshBuilder
 static var _cache: Dictionary = {}
 
 
-static func load_mesh(path: String, theme: int = -1) -> ArrayMesh:
+static func baked_mesh_path(path: String) -> String:
+	if not path.ends_with(".voxels.json"):
+		return path
+	return path.substr(0, path.length() - ".voxels.json".length()) + ".mesh"
+
+
+static func load_mesh(source_path: String, theme: int = -1) -> ArrayMesh:
+	var path := source_path
+	var baked := baked_mesh_path(path)
+	if theme < 0 and baked != path and ResourceLoader.exists(baked):
+		path = baked
 	var cache_key := "%s:%d" % [path, theme]
 	if _cache.has(cache_key):
 		return _cache[cache_key]

@@ -24,6 +24,10 @@ const AnimControllerScript := preload("res://scripts/art/characters/diorama_anim
 
 @export var player_path: NodePath
 
+## Content id of the definition this scene instances. Set per scene so a variant needs no
+## script of its own; a subclass with real behaviour may still override _resolve_enemy_id().
+@export var enemy_id: String = ""
+
 @onready var _mesh: MeshInstance3D = $MeshInstance3D
 @onready var _body_collision: CollisionShape3D = $CollisionShape3D
 
@@ -95,6 +99,11 @@ var _perception_frame := -1
 
 var _circle_direction := 1.0
 var _circle_radius_mult := 1.4
+var _room_id := 0
+var _room_registered := false
+var _role: int = EnemyBlackboard.Role.ENGAGER
+const FLANKER_RADIUS_MULT := 1.15
+const WAITER_RADIUS_MULT := 1.7
 var _nav_agent: NavigationAgent3D
 var _nav_probe_timer := 0.0
 var _nav_repath_timer := 0.0
@@ -242,6 +251,30 @@ func _ready() -> void:
 		_attach_health_bar()
 	_setup_phase_controller()
 	_pick_patrol_target()
+	_join_room_board()
+
+
+func _join_room_board() -> void:
+	if _is_boss or _room_registered:
+		return
+	_room_id = EnemyBlackboard.room_key(self)
+	EnemyBlackboard.register(_room_id, self)
+	_room_registered = true
+
+
+func _exit_tree() -> void:
+	if not _room_registered:
+		return
+	EnemyBlackboard.unregister(_room_id, self)
+	_room_registered = false
+
+
+func set_ai_role(role: int) -> void:
+	_role = role
+
+
+func get_ai_role() -> int:
+	return _role
 
 
 func _unpack_tuning() -> void:
@@ -331,10 +364,11 @@ func spawn_adds(spec: Dictionary) -> Array[Node]:
 		var angle := TAU * (float(i) / float(count)) + _enemy_rng.randf_range(-0.35, 0.35)
 		var offset := Vector3(cos(angle) * radius, ADD_SPAWN_HEIGHT, sin(angle) * radius)
 		add.position = _local_spawn_point(parent, global_position + offset)
-		if add.has_method("set_catalog_id"):
-			add.call("set_catalog_id", enemy_id)
-		if _player and add.has_method("set_player"):
-			add.call("set_player", _player)
+		var add_enemy := add as CastleEnemyBase
+		if add_enemy != null:
+			add_enemy.set_catalog_id(enemy_id)
+			if _player:
+				add_enemy.set_player(_player)
 		parent.add_child(add)
 		spawned.append(add)
 	return spawned
@@ -443,7 +477,7 @@ func get_enemy_id() -> String:
 
 
 func _resolve_enemy_id() -> String:
-	return ""
+	return enemy_id
 
 
 func get_data_path() -> String:
@@ -612,6 +646,7 @@ func respawn_at_rest() -> void:
 	_alert_broadcast = false
 	_combo_step = 0
 	restart_phases()
+	_leave_room_engagement()
 	_unregister_combat_engagement()
 	global_position = _spawn_origin
 	velocity = Vector3.ZERO
@@ -671,6 +706,7 @@ func _finalize_death(silent: bool) -> void:
 	_stagger_timer = 0.0
 	_cooldown = 0.0
 	_aggro_locked = false
+	_leave_room_engagement()
 	_unregister_combat_engagement()
 	if _health:
 		_health.force_dead()
@@ -744,6 +780,7 @@ func apply_stagger(duration: float) -> void:
 		return
 	_state = State.STAGGER
 	_stagger_timer = duration
+	_yield_room_turn()
 	if _hitbox:
 		_hitbox.disable()
 	hide_attack_windup_bar()
@@ -892,15 +929,24 @@ func _process_chase(delta: float) -> void:
 	if _can_attack():
 		_start_windup()
 		return
-	if _cooldown > 0.0 and _distance_to_player_sq() <= _circle_entry_range_sq():
+	var holding_back := _cooldown > 0.0 or _role != EnemyBlackboard.Role.ENGAGER
+	if holding_back and _distance_to_player_sq() <= _circle_entry_range_sq():
 		_enter_circle()
 		return
 	_apply_chase_velocity(delta)
 
 
 func _circle_entry_range_sq() -> float:
-	var reach: float = _engage_range * 1.35
+	var reach: float = _engage_range * 1.35 * _role_spacing_mult()
 	return reach * reach
+
+
+func _role_spacing_mult() -> float:
+	if _role == EnemyBlackboard.Role.FLANKER:
+		return FLANKER_RADIUS_MULT
+	if _role == EnemyBlackboard.Role.WAITER:
+		return WAITER_RADIUS_MULT
+	return 1.0
 
 
 func _enter_circle() -> void:
@@ -929,7 +975,7 @@ func _process_circle(delta: float) -> void:
 		velocity = Vector3.ZERO
 		return
 	var dir := to_player / dist
-	var desired: float = _engage_range * _circle_radius_mult
+	var desired: float = _engage_range * _circle_radius_mult * _role_spacing_mult()
 	var radial := clampf((dist - desired) / maxf(0.5, desired), -1.0, 1.0)
 	var tangent := Vector3(-dir.z, 0.0, dir.x) * _circle_direction
 	var move := tangent + dir * radial
@@ -1142,22 +1188,34 @@ func _latch_aggro() -> void:
 	if _player:
 		_last_known_player_pos = _player.global_position
 	_register_combat_engagement()
+	if _room_registered:
+		EnemyBlackboard.report_player_position(_room_id, _last_known_player_pos)
+		EnemyBlackboard.report_engaged(_room_id, self, true)
 	_broadcast_alert()
 
 
-## Fired once per aggro latch, never per frame: one group walk when a room wakes up.
+## Fired once per aggro latch, never per frame: one walk over the room roster when it
+## wakes up, instead of every enemy alive on the floor.
 func _broadcast_alert() -> void:
 	if _alert_broadcast or _alert_radius <= 0.0:
 		return
 	_alert_broadcast = true
 	var radius_sq := _alert_radius * _alert_radius
-	for node in get_tree().get_nodes_in_group("enemy"):
+	for node in _alert_candidates():
 		if node == self or not (node is CastleEnemyBase):
 			continue
 		var ally := node as CastleEnemyBase
 		if ally.global_position.distance_squared_to(global_position) > radius_sq:
 			continue
 		ally.notice_ally_alert(_last_known_player_pos)
+
+
+func _alert_candidates() -> Array:
+	if _room_registered:
+		var roster := EnemyBlackboard.members(_room_id)
+		if not roster.is_empty():
+			return roster
+	return get_tree().get_nodes_in_group("enemy")
 
 
 func notice_ally_alert(source_position: Vector3) -> void:
@@ -1175,11 +1233,21 @@ func _drop_aggro() -> void:
 	_deaggro_los_timer = 0.0
 	_awareness = AWARENESS_INVESTIGATE
 	_alert_broadcast = false
+	_leave_room_engagement()
 	_unregister_combat_engagement()
+
+
+func _leave_room_engagement() -> void:
+	if not _room_registered:
+		return
+	EnemyBlackboard.report_engaged(_room_id, self, false)
+	_role = EnemyBlackboard.Role.ENGAGER
 
 
 func _can_attack() -> bool:
 	if _cooldown > 0.0 or _player == null or _phase_lock_timer > 0.0:
+		return false
+	if _role != EnemyBlackboard.Role.ENGAGER:
 		return false
 	if _is_cross_boss_boundary_with_player():
 		return false
@@ -1347,6 +1415,7 @@ func _end_attack() -> void:
 		return
 	_combo_step = 0
 	_release_attack_token()
+	_yield_room_turn()
 	_state = State.RECOVERY
 	_state_timer = float(
 		_current_attack_data.get("recovery_duration", _data.get("recovery_duration", 0.9))
@@ -1396,6 +1465,11 @@ func _first_attack_entry() -> Dictionary:
 		if entry is Dictionary:
 			return entry as Dictionary
 	return _data
+
+
+func _yield_room_turn() -> void:
+	if _room_registered:
+		EnemyBlackboard.yield_engager(_room_id, self)
 
 
 func _release_attack_token() -> void:

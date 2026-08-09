@@ -165,9 +165,7 @@ func _test_affix_roller() -> void:
 	)
 
 	start = Time.get_ticks_msec()
-	var uses_tiers: bool = ctx.file_contains(
-		"res://scripts/loot/affix_roller.gd", "_roll_tier_value"
-	)
+	var uses_tiers: bool = ctx.script_has_method("res://scripts/loot/affix_roller.gd", "_roll_tier_value")
 	ctx.timed_record(
 		"inventory.affix_respects_tiers",
 		get_category(),

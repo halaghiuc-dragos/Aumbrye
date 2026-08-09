@@ -181,9 +181,7 @@ func _test_content_schema_validator() -> void:
 		and ctx.file_contains(
 			"res://scripts/app/content_loader.gd", "ContentSchemaValidator.validate_loaded"
 		)
-		and ctx.file_contains(
-			"res://scripts/app/content_schema_validator.gd", "validate_roll_instance"
-		)
+		and ctx.script_has_method("res://scripts/app/content_schema_validator.gd", "validate_roll_instance")
 	)
 	ctx.timed_record(
 		"progression.content_schema_validator",

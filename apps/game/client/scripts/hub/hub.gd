@@ -103,7 +103,7 @@ func _boot_save_and_services() -> void:
 	if not synced and LocalSave.has_save():
 		reloaded = LocalSave.load_into_services()
 	if CharacterService.class_id == "":
-		get_tree().change_scene_to_file("res://scenes/ui/main_menu.tscn")
+		SceneTransition.goto(get_tree(), "res://scenes/ui/main_menu.tscn")
 		return
 	if not reloaded:
 		_on_save_loaded()
@@ -117,8 +117,9 @@ func _spawn_catalog_npcs() -> void:
 	for child in get_children():
 		if not child.is_in_group("hub_npc"):
 			continue
-		if child.has_method("get_npc_id"):
-			existing[str(child.call("get_npc_id"))] = true
+		var npc_node := child as NpcBase
+		if npc_node != null:
+			existing[npc_node.get_npc_id()] = true
 		elif "npc_id" in child:
 			existing[str(child.get("npc_id"))] = true
 	for npc_id in NpcCatalog.get_all_ids():
@@ -131,9 +132,10 @@ func _spawn_catalog_npcs() -> void:
 
 
 func _apply_npc_availability() -> void:
-	for npc in get_tree().get_nodes_in_group("hub_npc"):
-		if npc.has_method("is_available") and npc.has_method("set_available"):
-			npc.call("set_available", npc.call("is_available"))
+	for node in get_tree().get_nodes_in_group("hub_npc"):
+		var npc := node as NpcBase
+		if npc != null:
+			npc.set_available(npc.is_available())
 
 
 func _on_save_loaded() -> void:
@@ -342,8 +344,9 @@ func _dispatch_interact(interact_id: String) -> void:
 
 
 func _trigger_npc_interact(npc_id: String) -> void:
-	for npc in get_tree().get_nodes_in_group("hub_npc"):
-		if npc.has_method("get_npc_id") and str(npc.get_npc_id()) == npc_id:
+	for node in get_tree().get_nodes_in_group("hub_npc"):
+		var npc := node as NpcBase
+		if npc != null and npc.get_npc_id() == npc_id:
 			npc.trigger_interact()
 			return
 

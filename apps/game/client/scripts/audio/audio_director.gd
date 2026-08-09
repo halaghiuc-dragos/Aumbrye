@@ -64,6 +64,29 @@ const COMBAT_SFX_KEYS: Array[String] = [
 	"hit", "hit_armor", "block", "parry", "swing", "death", "footstep", "windup",
 ]
 
+const LAYER_AMBIENCE := "ambience"
+const LAYER_EXPLORE := "explore"
+const LAYER_COMBAT := "combat"
+const LAYER_BOSS := "boss"
+const LAYER_KEYS: Array[String] = [LAYER_AMBIENCE, LAYER_EXPLORE, LAYER_COMBAT, LAYER_BOSS]
+
+const LAYER_SILENCE_DB := -60.0
+const LAYER_MAX_DB := 6.0
+
+## Piecewise-linear gain per layer against the 0..1 combat intensity axis.
+const LAYER_GAIN_CURVE := {
+	LAYER_AMBIENCE: [[0.0, 1.0], [0.55, 0.8], [1.0, 0.5]],
+	LAYER_EXPLORE: [[0.0, 1.0], [0.35, 0.55], [0.7, 0.0], [1.0, 0.0]],
+	LAYER_COMBAT: [[0.0, 0.0], [0.2, 0.5], [0.6, 1.0], [0.85, 0.9], [1.0, 0.45]],
+	LAYER_BOSS: [[0.0, 0.0], [0.78, 0.0], [1.0, 1.0]],
+}
+
+const INTENSITY_PER_ENGAGEMENT := 0.26
+const INTENSITY_COMBAT_CAP := 0.72
+const INTENSITY_LOW_VITALITY_BONUS := 0.18
+const LOW_VITALITY_THRESHOLD := 0.35
+const INTENSITY_EPSILON := 0.005
+
 var _ambience: AudioStreamPlayer
 var _music: AudioStreamPlayer
 var _explore: AudioStreamPlayer
@@ -93,6 +116,10 @@ var _sfx_last_played_ms: Dictionary = {}
 var _sfx_active_counts: Dictionary = {}
 var _rng := RandomNumberGenerator.new()
 var _generator_active := true
+var _layer_base_db: Dictionary = {}
+var _intensity := 0.0
+var _boss_active := false
+var _player_vitality := 1.0
 
 
 func _ready() -> void:
@@ -171,16 +198,130 @@ func set_biome(biome_id: String) -> void:
 		_try_load_file_stream(_ambience, ambience_path)
 	if boss_path != "":
 		_try_load_file_stream(_music, boss_path)
+	_load_layer_streams()
 	var reverb_preset: String = str(_profile.get("reverbPreset", BIOME_REVERB_PRESETS.get(biome_id, "indoor_castle")))
 	_apply_reverb_preset(reverb_preset)
+
+
+func _load_layer_streams() -> void:
+	_layer_base_db.clear()
+	var layers: Dictionary = _profile.get("layers", {})
+	for layer in LAYER_KEYS:
+		var player := _player_for_layer(layer)
+		if player == null:
+			continue
+		var entry: Dictionary = layers.get(layer, {})
+		_layer_base_db[layer] = float(entry.get("volume_db", 0.0))
+		var path := str(entry.get("path", ""))
+		if path != "":
+			_try_load_file_stream(player, path)
+
+
+func _player_for_layer(layer: String) -> AudioStreamPlayer:
+	if layer == LAYER_AMBIENCE:
+		return _ambience
+	if layer == LAYER_EXPLORE:
+		return _explore
+	if layer == LAYER_COMBAT:
+		return _combat_layer
+	if layer == LAYER_BOSS:
+		return _music
+	return null
+
+
+func _sample_curve(points: Array, x: float) -> float:
+	if points.is_empty():
+		return 0.0
+	var first: Array = points[0]
+	if x <= float(first[0]):
+		return float(first[1])
+	for i in range(1, points.size()):
+		var prev: Array = points[i - 1]
+		var next: Array = points[i]
+		var x0 := float(prev[0])
+		var x1 := float(next[0])
+		if x > x1:
+			continue
+		if x1 - x0 <= 0.0001:
+			return float(next[1])
+		var t := (x - x0) / (x1 - x0)
+		return lerpf(float(prev[1]), float(next[1]), t)
+	var last: Array = points[points.size() - 1]
+	return float(last[1])
+
+
+func _is_layered_mode() -> bool:
+	return _current_mode == "dungeon" or _current_mode == "boss"
+
+
+func _recompute_intensity(duration: float) -> void:
+	var target := 0.0
+	if _boss_active:
+		target = 1.0
+	elif _combat_engagements > 0:
+		target = minf(float(_combat_engagements) * INTENSITY_PER_ENGAGEMENT, INTENSITY_COMBAT_CAP)
+		if _player_vitality <= LOW_VITALITY_THRESHOLD:
+			target = minf(INTENSITY_COMBAT_CAP, target + INTENSITY_LOW_VITALITY_BONUS)
+	if absf(target - _intensity) < INTENSITY_EPSILON:
+		return
+	_intensity = target
+	_apply_layer_mix(duration)
+
+
+func _apply_layer_mix(duration: float) -> void:
+	if not _is_layered_mode():
+		return
+	for layer in LAYER_KEYS:
+		var player := _player_for_layer(layer)
+		if player == null:
+			continue
+		_tween_layer(player, layer, _sample_curve(LAYER_GAIN_CURVE[layer], _intensity), duration)
+
+
+func _tween_layer(
+	player: AudioStreamPlayer, layer: String, gain: float, duration: float
+) -> void:
+	if player.stream == null:
+		return
+	var audible := gain > 0.001
+	var target_db := LAYER_SILENCE_DB
+	if audible:
+		var base_db := float(_layer_base_db.get(layer, 0.0))
+		target_db = clampf(base_db + linear_to_db(gain), LAYER_SILENCE_DB, LAYER_MAX_DB)
+	_kill_tween(player)
+	if not player.playing:
+		player.volume_db = LAYER_SILENCE_DB
+		player.stream_paused = false
+		player.play()
+	var tween := create_tween()
+	_active_tweens[player] = tween
+	tween.tween_property(player, "volume_db", target_db, maxf(0.05, duration))
+
+
+func get_combat_intensity() -> float:
+	return _intensity
+
+
+## Real-signal input for the vertical mix: a wounded player lifts the combat bed a step
+## without needing a per-frame poll of the player's health.
+func notify_player_vitality(ratio: float) -> void:
+	var clamped := clampf(ratio, 0.0, 1.0)
+	if absf(clamped - _player_vitality) < 0.01:
+		return
+	var was_low := _player_vitality <= LOW_VITALITY_THRESHOLD
+	_player_vitality = clamped
+	if was_low != (clamped <= LOW_VITALITY_THRESHOLD):
+		_recompute_intensity(_crossfade * 1.5)
 
 
 func play_dungeon_ambience() -> void:
 	_current_mode = "dungeon"
 	_combat_engagements = 0
+	_boss_active = false
+	_player_vitality = 1.0
+	_intensity = 0.0
 	_restore_generator_streams()
-	_crossfade_to(_ambience, _music)
-	_crossfade_to(_explore, _combat_layer)
+	_apply_layer_mix(_crossfade)
 
 
 func play_menu_music() -> void:
@@ -194,7 +335,10 @@ func play_menu_music() -> void:
 	_music.set_meta(&"freq", _music_freq)
 	_explore.set_meta(&"freq", _explore_freq)
 	_combat_layer.set_meta(&"freq", _combat_freq)
-	_restore_generator_streams()
+	_boss_active = false
+	_intensity = 0.0
+	_layer_base_db.clear()
+	_restore_generator_streams(true)
 	_apply_reverb_preset("cathedral")
 	_fade_out_player(_combat_layer, _crossfade)
 	_fade_out_player(_ambience, _crossfade)
@@ -213,7 +357,10 @@ func play_hub_ambience() -> void:
 	_music.set_meta(&"freq", _music_freq)
 	_explore.set_meta(&"freq", _explore_freq)
 	_combat_layer.set_meta(&"freq", _combat_freq)
-	_restore_generator_streams()
+	_boss_active = false
+	_intensity = 0.0
+	_layer_base_db.clear()
+	_restore_generator_streams(true)
 	_apply_reverb_preset("umbral")
 	_fade_out_player(_combat_layer, _crossfade)
 	_fade_out_player(_explore, _crossfade)
@@ -225,30 +372,40 @@ func play_hub_ambience() -> void:
 func play_boss_music() -> void:
 	_current_mode = "boss"
 	_combat_engagements = 0
-	_fade_out_player(_combat_layer, _crossfade)
-	_crossfade_to(_music, _ambience)
-	_fade_out_player(_explore, _crossfade)
+	_boss_active = true
+	_intensity = 1.0
+	_apply_layer_mix(_crossfade)
+
+
+func end_boss_music() -> void:
+	if not _boss_active:
+		return
+	_boss_active = false
+	_current_mode = "dungeon"
+	_intensity = -1.0
+	_recompute_intensity(_crossfade * 1.5)
 
 
 func register_combat_engagement() -> void:
 	if _current_mode != "dungeon":
 		return
 	_combat_engagements += 1
-	if _combat_engagements == 1:
-		_crossfade_to(_combat_layer, _explore)
+	_recompute_intensity(_crossfade)
 
 
 func unregister_combat_engagement() -> void:
 	if _current_mode != "dungeon":
 		return
 	_combat_engagements = maxi(0, _combat_engagements - 1)
-	if _combat_engagements == 0:
-		_crossfade_to(_explore, _combat_layer)
+	_recompute_intensity(_crossfade * 1.5)
 
 
 func stop_all(fade: float = 0.3) -> void:
 	_current_mode = "none"
 	_combat_engagements = 0
+	_boss_active = false
+	_intensity = 0.0
+	_player_vitality = 1.0
 	_fade_out_player(_ambience, fade)
 	_fade_out_player(_music, fade)
 	_fade_out_player(_explore, fade)
@@ -535,11 +692,6 @@ func _load_audio_stream(path: String) -> AudioStream:
 	return null
 
 
-func _crossfade_to(fade_in: AudioStreamPlayer, fade_out: AudioStreamPlayer) -> void:
-	_fade_out_player(fade_out, _crossfade)
-	call_deferred("_fade_in_player", fade_in)
-
-
 func _fade_in_player(player: AudioStreamPlayer) -> void:
 	if player.stream == null:
 		return
@@ -745,11 +897,9 @@ func set_pause_mix(enabled: bool) -> void:
 		_saved_bus_mutes.clear()
 
 
-func _restore_generator_streams() -> void:
-	for player in [_explore, _combat_layer]:
-		_assign_generator_stream(player)
-	for player in [_ambience, _music]:
-		if player.stream == null or player.stream is AudioStreamGenerator:
+func _restore_generator_streams(force: bool = false) -> void:
+	for player in [_ambience, _music, _explore, _combat_layer]:
+		if force or player.stream == null or player.stream is AudioStreamGenerator:
 			_assign_generator_stream(player)
 
 

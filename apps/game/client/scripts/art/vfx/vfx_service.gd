@@ -305,7 +305,7 @@ func play_telegraph(
 func request_hitstop(duration_ms: int, strength: float = 0.05) -> void:
 	if not PixelDioramaSettings.hitstop_enabled:
 		return
-	if AccessibilitySettings.reduce_hitstop:
+	if AccessibilitySettings.hitstop_scale() <= 0.0:
 		return
 	push_time_scale(&"vfx_hitstop", strength, duration_ms)
 
@@ -362,10 +362,10 @@ func _update_time_scale() -> void:
 
 func request_shake(amount: float, duration_ms: int) -> void:
 	var scale := PixelDioramaSettings.screen_shake_scale
-	if scale <= 0.0 or AccessibilitySettings.reduce_camera_shake:
+	if scale <= 0.0 or AccessibilitySettings.camera_shake_scale() <= 0.0:
 		return
 	set_process(true)
-	_shake_amount = maxf(_shake_amount, amount * scale)
+	_shake_amount = maxf(_shake_amount, amount * scale * AccessibilitySettings.camera_shake_scale())
 
 
 func consume_shake() -> Vector3:

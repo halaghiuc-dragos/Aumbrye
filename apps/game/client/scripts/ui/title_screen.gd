@@ -120,7 +120,7 @@ func _process(_delta: float) -> void:
 
 
 func _go_to_main_menu() -> void:
-	get_tree().change_scene_to_file(MAIN_MENU_SCENE)
+	SceneTransition.goto(get_tree(), MAIN_MENU_SCENE)
 
 
 func _input(event: InputEvent) -> void:

@@ -669,8 +669,9 @@ static func _position_npcs_from_content(hub: Node3D) -> void:
 		if not npc.is_in_group("hub_npc"):
 			continue
 		var npc_id := ""
-		if npc.has_method("get_npc_id"):
-			npc_id = str(npc.call("get_npc_id"))
+		var npc_node := npc as NpcBase
+		if npc_node != null:
+			npc_id = npc_node.get_npc_id()
 		elif "npc_id" in npc:
 			npc_id = str(npc.get("npc_id"))
 		if npc_id == "":

@@ -117,9 +117,9 @@ func on_hit(
 
 
 func preview_hitstop_duration(damage: float) -> float:
-	if feedback_intensity <= 0.0 or AccessibilitySettings.reduce_hitstop:
+	if feedback_intensity <= 0.0 or AccessibilitySettings.hitstop_scale() <= 0.0:
 		return 0.0
-	return _freeze_duration(impact_class_for_damage(damage))
+	return _freeze_duration(impact_class_for_damage(damage)) * AccessibilitySettings.hitstop_scale()
 
 
 func impact_class_for_damage(damage: float) -> int:
@@ -206,9 +206,9 @@ func _spawn_damage_number(
 
 
 func _apply_hitstop(impact: int = ImpactClass.SOLID) -> void:
-	if feedback_intensity <= 0.0 or AccessibilitySettings.reduce_hitstop:
+	if feedback_intensity <= 0.0 or AccessibilitySettings.hitstop_scale() <= 0.0:
 		return
-	var duration := _freeze_duration(impact)
+	var duration := _freeze_duration(impact) * AccessibilitySettings.hitstop_scale()
 	if duration <= 0.0:
 		return
 	var duration_ms := int(duration * 1000.0)
@@ -227,7 +227,7 @@ func _apply_hitstop(impact: int = ImpactClass.SOLID) -> void:
 
 
 func _apply_camera_punch(direction: Vector3 = Vector3.ZERO, impact: int = ImpactClass.SOLID) -> void:
-	if AccessibilitySettings.reduce_camera_shake or feedback_intensity <= 0.0:
+	if AccessibilitySettings.camera_shake_scale() <= 0.0 or feedback_intensity <= 0.0:
 		return
 	if _orbit_camera == null:
 		_resolve_orbit_camera()

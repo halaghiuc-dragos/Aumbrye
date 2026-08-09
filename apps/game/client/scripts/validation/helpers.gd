@@ -21,6 +21,88 @@ static func file_contains(path: String, needle: String) -> bool:
 	return needle in FileAccess.get_file_as_string(path)
 
 
+static func load_script(path: String) -> Script:
+	if not ResourceLoader.exists(path):
+		return null
+	return load(path) as Script
+
+
+static func script_has_method(path: String, method_name: String) -> bool:
+	var script := load_script(path)
+	if script == null:
+		return false
+	for entry in script.get_script_method_list():
+		if str(entry.get("name", "")) == method_name:
+			return true
+	var base := script.get_base_script()
+	while base != null:
+		for entry in base.get_script_method_list():
+			if str(entry.get("name", "")) == method_name:
+				return true
+		base = base.get_base_script()
+	return false
+
+
+static func script_has_constant(path: String, constant_name: String) -> bool:
+	var script := load_script(path)
+	if script == null:
+		return false
+	return script.get_script_constant_map().has(constant_name)
+
+
+static func script_constant(path: String, constant_name: String, fallback: Variant = null) -> Variant:
+	var script := load_script(path)
+	if script == null:
+		return fallback
+	return script.get_script_constant_map().get(constant_name, fallback)
+
+
+static func script_has_signal(path: String, signal_name: String) -> bool:
+	var script := load_script(path)
+	if script == null:
+		return false
+	for entry in script.get_script_signal_list():
+		if str(entry.get("name", "")) == signal_name:
+			return true
+	return false
+
+
+static func script_has_property(path: String, property_name: String) -> bool:
+	var script := load_script(path)
+	if script == null:
+		return false
+	for entry in script.get_script_property_list():
+		if str(entry.get("name", "")) == property_name:
+			return true
+	return false
+
+
+static func node_has_method(path: String, method_name: String) -> bool:
+	var script := load_script(path)
+	if script == null:
+		return false
+	if script_has_method(path, method_name):
+		return true
+	var instance: Variant = null
+	if script.can_instantiate():
+		instance = script.new()
+	if instance == null:
+		return false
+	var found: bool = (instance as Object).has_method(method_name)
+	if instance is Node:
+		(instance as Node).queue_free()
+	return found
+
+
+static func resource_depends_on(path: String, dependency_path: String) -> bool:
+	if not ResourceLoader.exists(path):
+		return false
+	for dep in ResourceLoader.get_dependencies(path):
+		if dependency_path in str(dep):
+			return true
+	return false
+
+
 static func backup_save_file() -> Dictionary:
 	var backup := {"exists": false, "text": ""}
 	if FileAccess.file_exists(SAVE_PATH):

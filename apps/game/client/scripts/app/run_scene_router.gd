@@ -11,4 +11,14 @@ const RESULTS_SCENE := "res://scenes/ui/results_screen.tscn"
 
 
 static func goto_scene(tree: SceneTree, path: String) -> void:
-	tree.call_deferred("change_scene_to_file", path)
+	SceneTransition.goto(tree, path, _status_for(path))
+
+
+static func _status_for(path: String) -> String:
+	if path == HUB_SCENE:
+		return "Returning to the hub..."
+	if path == CASTLE_RUN_SCENE or path == WAVES_RUN_SCENE:
+		return "Descending..."
+	if path == RESULTS_SCENE:
+		return "Tallying the run..."
+	return "Loading..."

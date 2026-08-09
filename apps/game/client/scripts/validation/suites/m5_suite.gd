@@ -760,11 +760,9 @@ func _test_save_integer_normalization() -> void:
 
 func _test_online_procgen_optional_path() -> void:
 	var start := Time.get_ticks_msec()
-	var has_online: bool = ctx.file_contains(
-		"res://scripts/app/run_flow.gd", "func _try_online_generate"
-	)
-	var offline_default: bool = ctx.file_contains(
-		"res://scripts/app/run_flow.gd", "const USE_ONLINE_PROCgen := false"
+	var has_online: bool = ctx.script_has_method("res://scripts/app/run_flow.gd", "_try_online_generate")
+	var offline_default: bool = (
+		ctx.script_constant("res://scripts/app/run_flow.gd", "USE_ONLINE_PROCgen", true) == false
 	)
 	ctx.timed_record(
 		"net.procgen.online_path_optional",
@@ -840,12 +838,12 @@ func _test_combat_hud() -> void:
 
 	start = Time.get_ticks_msec()
 	var instanced_everywhere: bool = (
-		ctx.file_contains("res://scenes/dungeon/castle_run.tscn", "combat_hud.tscn")
-		and ctx.file_contains("res://scenes/hub/hub.tscn", "combat_hud.tscn")
-		and ctx.file_contains(
+		ctx.resource_depends_on("res://scenes/dungeon/castle_run.tscn", "combat_hud.tscn")
+		and ctx.resource_depends_on("res://scenes/hub/hub.tscn", "combat_hud.tscn")
+		and ctx.resource_depends_on(
 			"res://scenes/dungeon/forgotten_castle_slice.tscn", "combat_hud.tscn"
 		)
-		and ctx.file_contains("res://scenes/debug/combat_arena.tscn", "combat_hud.tscn")
+		and ctx.resource_depends_on("res://scenes/debug/combat_arena.tscn", "combat_hud.tscn")
 		and ctx.file_contains("res://scripts/dungeon/waves_run.gd", "combat_hud.tscn")
 	)
 	ctx.timed_record(

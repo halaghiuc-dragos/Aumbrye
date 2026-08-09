@@ -237,7 +237,7 @@ func _test_npc_dialogue_routing() -> void:
 		and elara_def.get("dialogueId", "") == "elara_greeting"
 	)
 	var routes_through_dialogue: bool = (
-		ctx.file_contains("res://scripts/npc/npc_base.gd", "_greeted_this_visit")
+		ctx.script_has_property("res://scripts/npc/npc_base.gd", "_greeted_this_visit")
 		and ctx.file_contains(
 			"res://scripts/npc/npc_base.gd", "dialogue_requested.emit(npc_id, greet_id)"
 		)

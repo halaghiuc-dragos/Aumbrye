@@ -11,9 +11,8 @@ func run() -> void:
 	_test_settings_class()
 	_test_damage_colors()
 	_test_ui_settings()
-	_test_colorblind_consumer()
 	_test_colorblind_protanopia()
-	_test_no_hardcoded_hit_colors()
+	await _test_damage_number_uses_accessibility_color()
 	await _test_subtitle_applies_on_line()
 
 
@@ -63,22 +62,6 @@ func _test_ui_settings() -> void:
 	)
 
 
-func _test_colorblind_consumer() -> void:
-	var start := Time.get_ticks_msec()
-	var has_consumer: bool = (
-		ctx.file_contains("res://scripts/combat/damage_number.gd", "get_damage_color")
-		or ctx.file_contains("res://scripts/ui/combat_hud.gd", "get_damage_color")
-	)
-	ctx.timed_record(
-		"a11y.colorblind.has_consumer",
-		get_category(),
-		has_consumer,
-		"get_damage_color called from combat or UI presentation",
-		start,
-		"A11-01"
-	)
-
-
 func _test_colorblind_protanopia() -> void:
 	var start := Time.get_ticks_msec()
 	AccessibilitySettingsScript.colorblind_mode = "default"
@@ -95,16 +78,41 @@ func _test_colorblind_protanopia() -> void:
 	)
 
 
-func _test_no_hardcoded_hit_colors() -> void:
+func _damage_number_color(damage_type: String) -> Color:
+	var scene := load("res://scenes/combat/damage_number.tscn") as PackedScene
+	if scene == null:
+		return Color.TRANSPARENT
+	var node := scene.instantiate()
+	ctx.owner.add_child(node)
+	await ctx.await_frame()
+	var label := node.get_node_or_null("Label3D") as Label3D
+	if label == null:
+		node.queue_free()
+		return Color.TRANSPARENT
+	node.call("show_amount", 12.0, damage_type)
+	var tint := label.modulate
+	node.queue_free()
+	return Color(tint.r, tint.g, tint.b)
+
+
+func _test_damage_number_uses_accessibility_color() -> void:
 	var start := Time.get_ticks_msec()
-	var ok: bool = not ctx.file_contains(
-		"res://scripts/combat/damage_number.gd", "Color(1.0, 0.35"
+	var previous_mode: String = AccessibilitySettingsScript.colorblind_mode
+	AccessibilitySettingsScript.colorblind_mode = "none"
+	var expected: Color = AccessibilitySettingsScript.get_damage_color("fire")
+	var default_tint: Color = await _damage_number_color("fire")
+	var matches_default := default_tint.is_equal_approx(
+		Color(expected.r, expected.g, expected.b)
 	)
+	AccessibilitySettingsScript.colorblind_mode = "protanopia"
+	var protanopia_tint: Color = await _damage_number_color("fire")
+	AccessibilitySettingsScript.colorblind_mode = previous_mode
+	var responds := not protanopia_tint.is_equal_approx(default_tint)
 	ctx.timed_record(
-		"a11y.colorblind.no_hardcoded_hit_colors",
+		"a11y.colorblind.damage_number_tint",
 		get_category(),
-		ok,
-		"damage numbers use get_damage_color not hardcoded red",
+		matches_default and responds,
+		"damage number tint comes from accessibility palette and follows colorblind mode",
 		start,
 		"A11-04"
 	)

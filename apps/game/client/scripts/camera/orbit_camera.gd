@@ -384,29 +384,30 @@ func apply_state(state: Dictionary) -> void:
 
 
 func apply_shake(strength: float, duration: float) -> void:
-	if AccessibilitySettings.reduce_camera_shake:
+	if AccessibilitySettings.camera_shake_scale() <= 0.0:
 		return
-	_shake_strength = maxf(_shake_strength, strength)
+	_shake_strength = maxf(_shake_strength, strength * AccessibilitySettings.camera_shake_scale())
 	_shake_timer = maxf(_shake_timer, duration)
 
 
 func apply_punch(direction: Vector3, strength: float) -> void:
-	if AccessibilitySettings.reduce_camera_shake:
+	if AccessibilitySettings.camera_shake_scale() <= 0.0:
 		return
+	var punch := strength * AccessibilitySettings.camera_shake_scale()
 	var dir := direction
 	if dir.length_squared() < 0.01 and _camera:
 		dir = -_camera.global_transform.basis.z
 	if dir.length_squared() > 0.01:
-		_punch_offset = dir.normalized() * strength
+		_punch_offset = dir.normalized() * punch
 	_punch_timer = maxf(_punch_timer, 0.11)
-	if strength >= 0.14:
-		_fov_kick = maxf(_fov_kick, 1.5 * strength)
+	if punch >= 0.14:
+		_fov_kick = maxf(_fov_kick, 1.5 * punch)
 
 
 func apply_landing_dip(strength: float) -> void:
-	if AccessibilitySettings.reduce_camera_shake:
+	if AccessibilitySettings.camera_shake_scale() <= 0.0:
 		return
-	_landing_dip = maxf(_landing_dip, strength)
+	_landing_dip = maxf(_landing_dip, strength * AccessibilitySettings.camera_shake_scale())
 
 
 func enter_death_framing() -> void:

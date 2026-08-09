@@ -861,6 +861,10 @@ func _transition_floor(ascending: bool) -> void:
 func _decorate_run_results() -> void:
 	if _run_highlights.is_empty():
 		_run_highlights = RunBuffs.get_run_highlights()
+	if RunReplay.is_recording():
+		RunReplay.stop_recording()
+		RunReplay.save_to_meta()
+	last_run_results["replay_available"] = RunReplay.entry_count() > 0
 	last_run_results["seed"] = current_seed
 	last_run_results["dungeon_id"] = current_dungeon_id
 	last_run_results["dungeon_name"] = DungeonCatalog.get_display_name(current_dungeon_id)
@@ -1506,8 +1510,31 @@ func _store_recoverable_xp_shard_from_active_run(xp_amount: int, gold_amount: in
 	)
 
 
+## Replays the stored input stream against the seed it was captured on. Recording is
+## suppressed for the duration so a playback cannot overwrite its own source.
+func start_replay_run() -> bool:
+	var replay := RunReplay.load_from_meta()
+	if replay.is_empty():
+		return false
+	var replay_seed := RunReplay.replay_seed(replay)
+	if replay_seed <= 0:
+		return false
+	if not RunReplay.start_playback(replay):
+		return false
+	start_castle_run_with_seed(replay_seed)
+	return true
+
+
+func stop_replay_run() -> void:
+	RunReplay.stop_playback()
+
+
 func _register_run_started() -> void:
 	CharacterService.set_flag("runs_started", int(CharacterService.get_flag("runs_started", 0)) + 1)
+	if RunReplay.is_playing():
+		RunReplay.rebase_playback()
+	else:
+		RunReplay.start_recording(current_seed, current_floor)
 
 
 func _clear_in_run_meta() -> void:

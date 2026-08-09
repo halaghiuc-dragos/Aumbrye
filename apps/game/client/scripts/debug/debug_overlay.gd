@@ -235,12 +235,14 @@ func _toggle_hitbox_debug(enabled: bool) -> void:
 	var hit_count := 0
 	var hurt_count := 0
 	for node in get_tree().get_nodes_in_group("combat_hitbox"):
-		if node.has_method("set_debug_draw"):
-			node.call("set_debug_draw", enabled)
+		var hitbox := node as Hitbox
+		if hitbox != null:
+			hitbox.set_debug_draw(enabled)
 			hit_count += 1
 	for node in get_tree().get_nodes_in_group("combat_hurtbox"):
-		if node.has_method("set_debug_draw"):
-			node.call("set_debug_draw", enabled)
+		var hurtbox := node as Hurtbox
+		if hurtbox != null:
+			hurtbox.set_debug_draw(enabled)
 			hurt_count += 1
 	if enabled and hit_count + hurt_count == 0:
 		push_warning("DebugOverlay: no combat hit/hurt boxes found in scene tree")
@@ -257,9 +259,9 @@ func _count_visible_debug_meshes() -> int:
 
 
 func reset_duel() -> void:
-	var arena := get_tree().current_scene
-	if arena and arena.has_method("reset_training_session"):
-		arena.call("reset_training_session")
+	var arena := get_tree().current_scene as CombatArenaScript
+	if arena != null:
+		arena.reset_training_session()
 		return
 	if _player:
 		var health := _player.get_node_or_null("Health") as Health
@@ -277,26 +279,29 @@ func reset_duel() -> void:
 			else Vector3(-0.02, 0.0, 9.5)
 		)
 		_player.velocity = Vector3.ZERO
-		if arena and arena.has_method("orient_player_to_hub_return"):
-			arena.call("orient_player_to_hub_return")
+		if arena != null:
+			arena.orient_player_to_hub_return()
 	var dummies := get_tree().get_nodes_in_group("training_dummy")
 	if not dummies.is_empty():
 		for enemy in dummies:
-			if enemy.has_method("reset_enemy"):
-				enemy.call("reset_enemy")
+			var grunt := enemy as TrainingGruntScript
+			if grunt != null:
+				grunt.reset_enemy()
 			enemy.velocity = Vector3.ZERO
 	elif _enemy:
-		if _enemy.has_method("reset_enemy"):
-			_enemy.call("reset_enemy")
+		var enemy_grunt := _enemy as TrainingGruntScript
+		if enemy_grunt != null:
+			enemy_grunt.reset_enemy()
 		_enemy.global_position = Vector3(6, 0, 0)
 		_enemy.velocity = Vector3.ZERO
 	if _player:
-		var reactions := _player.get_node_or_null("CombatReactions")
-		if reactions and reactions.has_method("reset_combat_state"):
-			reactions.call("reset_combat_state")
+		var reactions := _player.get_node_or_null("CombatReactions") as PlayerCombatReactions
+		if reactions != null:
+			reactions.reset_combat_state()
 
 
 const CombatArenaScript := preload("res://scripts/debug/combat_arena.gd")
+const TrainingGruntScript := preload("res://scripts/enemies/training_grunt.gd")
 
 
 func _has_combat_arena_constants() -> bool:

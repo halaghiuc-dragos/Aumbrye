@@ -1303,7 +1303,7 @@ func _test_exit_portal_requires_confirm() -> void:
 	portal.call("activate")
 	var source_ok: bool = (
 		ctx.file_contains("res://scripts/dungeon/exit_portal.gd", "RunOutcomeConfirmScript.ask")
-		and ctx.file_contains("res://scripts/dungeon/exit_portal.gd", "_unhandled_input")
+		and ctx.script_has_method("res://scripts/dungeon/exit_portal.gd", "_unhandled_input")
 	)
 	portal.queue_free()
 	ctx.timed_record(

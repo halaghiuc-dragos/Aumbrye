@@ -51,7 +51,15 @@ func _ready() -> void:
 	if _player:
 		player_process_mode = _player.process_mode
 		_player.process_mode = Node.PROCESS_MODE_DISABLED
+	SceneTransition.claim(get_tree(), "Building the floor...")
+	var report_build := func(ratio: float) -> void:
+		SceneTransition.report_progress(get_tree(), ratio)
+	if not _builder.build_progress.is_connected(report_build):
+		_builder.build_progress.connect(report_build)
 	await _builder.build_from_definition(self, _player, def, true)
+	if _builder.build_progress.is_connected(report_build):
+		_builder.build_progress.disconnect(report_build)
+	SceneTransition.finish(get_tree())
 	if _player:
 		_player.process_mode = player_process_mode
 	_apply_biome_presentation(def)
@@ -340,6 +348,8 @@ func _wire_player_health_autosave() -> void:
 
 
 func _on_player_health_changed(_current: float, _max_value: float) -> void:
+	if AudioDirector:
+		AudioDirector.notify_player_vitality(_current / maxf(_max_value, 0.001))
 	_persist_snapshot()
 
 

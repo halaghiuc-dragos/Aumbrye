@@ -44,7 +44,7 @@ func _test_abandon_present_in_run() -> void:
 	var ok := (
 		ctx.file_contains("res://scripts/ui/pause_menu.gd", "PAUSE_ABANDON")
 		and ctx.file_contains("res://scripts/ui/pause_menu.gd", "RunFlow.is_run_active()")
-		and ctx.file_contains("res://scripts/ui/pause_menu.gd", "_rebuild_actions")
+		and ctx.script_has_method("res://scripts/ui/pause_menu.gd", "_rebuild_actions")
 	)
 	ctx.timed_record(
 		"pause.abandon_present_in_run",
