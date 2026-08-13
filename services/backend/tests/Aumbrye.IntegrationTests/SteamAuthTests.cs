@@ -17,13 +17,20 @@ namespace Aumbrye.IntegrationTests;
 public sealed class FakeSteamAuthService : ISteamAuthService
 {
     public bool IsConfigured { get; set; } = true;
+
+    /// <summary>Null by default, matching an unpinned deployment that accepts any app id.</summary>
+    public uint? ConfiguredAppId { get; set; }
+
     public SteamTicketValidation NextValidation { get; set; } =
         new(true, SteamId: 76561198000000001UL);
+
+    /// <summary>App id the service was actually called with, for pinning assertions.</summary>
+    public uint? LastAppId { get; private set; }
 
     public Task<SteamTicketValidation> ValidateAsync(string ticketHex, uint appId, CancellationToken ct = default)
     {
         _ = ticketHex;
-        _ = appId;
+        LastAppId = appId;
         return Task.FromResult(NextValidation);
     }
 }
@@ -57,7 +64,56 @@ public class SteamAuthTests : IClassFixture<SteamAuthWebApplicationFactory>
         _client.DefaultRequestHeaders.Add(ApiVersions.ClientVersionHeader, ApiVersions.ExpectedClientVersion);
         _client.DefaultRequestHeaders.Add(ApiVersions.ContentVersionHeader, ApiVersions.ExpectedContentVersion);
         _factory.FakeSteam.IsConfigured = true;
+        _factory.FakeSteam.ConfiguredAppId = null;
         _factory.FakeSteam.NextValidation = new SteamTicketValidation(true, 76561198000000001UL);
+    }
+
+    [Fact]
+    public async Task SteamAuth_AppIdMismatchAgainstPinnedConfiguration_ReturnsBadRequest()
+    {
+        _factory.FakeSteam.ConfiguredAppId = 3_000_000U;
+
+        var response = await _client.PostAsJsonAsync(
+            "/api/v1/auth/steam",
+            new SteamAuthRequest("deadbeef", 480U));
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task SteamAuth_AlwaysValidatesAgainstTheConfiguredAppId()
+    {
+        _factory.FakeSteam.ConfiguredAppId = 3_000_000U;
+        _factory.FakeSteam.NextValidation = new SteamTicketValidation(true, 76561198000000009UL);
+
+        var response = await _client.PostAsJsonAsync(
+            "/api/v1/auth/steam",
+            new SteamAuthRequest("deadbeef", 3_000_000U));
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(3_000_000U, _factory.FakeSteam.LastAppId);
+    }
+
+    [Fact]
+    public async Task SteamAuth_DistinctSteamIds_GetDistinctDisplayNames()
+    {
+        // SteamID64s share the 7656119 prefix, so a name built from the leading digits collided
+        // on the second Steam account ever created and surfaced as an unhandled 500.
+        _factory.FakeSteam.NextValidation = new SteamTicketValidation(true, 76561198000000011UL);
+        var first = await _client.PostAsJsonAsync(
+            "/api/v1/auth/steam", new SteamAuthRequest("aa11", 480U));
+        Assert.Equal(HttpStatusCode.OK, first.StatusCode);
+
+        _factory.FakeSteam.NextValidation = new SteamTicketValidation(true, 76561198000000012UL);
+        var second = await _client.PostAsJsonAsync(
+            "/api/v1/auth/steam", new SteamAuthRequest("bb22", 480U));
+        Assert.Equal(HttpStatusCode.OK, second.StatusCode);
+
+        using var scope = _factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AumbryeDbContext>();
+        var a = await db.Accounts.FirstAsync(x => x.SteamId == 76561198000000011UL);
+        var b = await db.Accounts.FirstAsync(x => x.SteamId == 76561198000000012UL);
+        Assert.NotEqual(a.DisplayName, b.DisplayName);
     }
 
     [Fact]

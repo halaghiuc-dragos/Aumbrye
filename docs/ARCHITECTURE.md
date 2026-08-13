@@ -25,15 +25,14 @@ Aumbrye/
 ├── tools/voxel-import/   # Voxel art import tooling
 ├── art-source/           # 262 authored .vox character sources
 ├── scripts/              # validate-content, balance, openapi-drift, audio generators
-├── docker-compose.yml    # postgres + redis + api
-└── .github/workflows/    # ci.yml, release.yml, codeql.yml
+└── docker-compose.yml    # postgres + redis + api
 ```
 
 Main scene: `apps/game/client/scenes/ui/title_screen.tscn` (`project.godot` → `run/main_scene`).
 
-The API **does** have a container image: `services/backend/Dockerfile` exists, `docker-compose.yml`
-defines an `api` service (`container_name: aumbrye-api`), CI builds it in the `api-image` job, and
-`release.yml` pushes it to `ghcr.io`.
+The API **does** have a container image: `services/backend/Dockerfile` exists and `docker-compose.yml`
+defines an `api` service (`container_name: aumbrye-api`). Building and publishing it is a manual step —
+there is no automated pipeline.
 
 ---
 
@@ -300,23 +299,27 @@ time (`WEB-01`).
 
 ---
 
-## 10. Build and CI
+## 10. Build and validation
 
-`.github/workflows/ci.yml` jobs: `backend`, `api-image`, `web`, `contract`, `e2e`, `python-lint`,
-`voxel-import`, `gdlint`, `godot`, `openapi-drift`, `docs-link-check`.
+There is no hosted CI. Validation runs locally through `scripts/validate.mjs`, which drives four
+layers — `dotnet`, `content`, `python`, `godot` — and writes `reports/validation-summary.json`:
 
-The `godot` job runs, in order: animation-library drift verification, a 500-seed procgen health sweep, the
-balance export, and the full headless validation suite
-(`godot --headless --script res://scripts/validation/validation_main.gd`).
+```bash
+node scripts/validate.mjs                      # everything
+node scripts/validate.mjs --layer content      # one layer
+```
 
-Two gaps worth knowing before trusting CI:
+The `godot` layer runs the headless validation suites
+(`godot --headless --script res://scripts/validation/validation_main.gd`). `pre-commit` hooks cover
+content JSON validation, Ruff, gdformat and ESLint on staged files.
 
-- No job runs an **exported** build, so `BUG-01` and `BUG-02` — both of which only manifest outside the
-  editor — cannot be caught (`QA-05`).
-- The frame-budget gate skips when `user://perf_baseline.json` is absent, which is always true on a fresh
-  runner (`QA-02`).
+Gaps worth knowing before trusting a green run:
 
-`release.yml` builds the API image, the web bundle, and a Windows Godot export.
+- Nothing exercises an **exported** build, so defects that only manifest outside the editor cannot be
+  caught this way.
+- The frame-budget gate skips when `user://perf_baseline.json` is absent, so it is inert on a machine
+  that has never recorded a baseline.
+- Releases (API image, web bundle, Windows Godot export) are built by hand.
 
 ---
 

@@ -30,6 +30,26 @@ type PostBody<P extends keyof paths, M extends keyof paths[P]> = paths[P][M] ext
   ? B
   : never;
 
+/**
+ * Aborts when either input aborts. Uses `AbortSignal.any` where available and falls back to
+ * forwarding the caller's abort into our own controller otherwise.
+ */
+function combineSignals(timeoutSignal: AbortSignal, callerSignal?: AbortSignal | null): AbortSignal {
+  if (!callerSignal) return timeoutSignal;
+  if (typeof AbortSignal.any === "function") {
+    return AbortSignal.any([timeoutSignal, callerSignal]);
+  }
+  const controller = new AbortController();
+  const forward = (reason: unknown) => controller.abort(reason);
+  if (timeoutSignal.aborted || callerSignal.aborted) {
+    forward((timeoutSignal.aborted ? timeoutSignal : callerSignal).reason);
+  } else {
+    timeoutSignal.addEventListener("abort", () => forward(timeoutSignal.reason), { once: true });
+    callerSignal.addEventListener("abort", () => forward(callerSignal.reason), { once: true });
+  }
+  return controller.signal;
+}
+
 async function request<T>(
   path: string,
   init: RequestInit = {},
@@ -38,10 +58,14 @@ async function request<T>(
 ): Promise<T> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
+  // The caller's signal must be COMBINED with the timeout, not chosen over it. react-query always
+  // passes a signal, so `init.signal ?? controller.signal` meant every query ran with no timeout
+  // at all — a hung backend left them pending until the browser gave up.
+  const signal = combineSignals(controller.signal, init.signal);
   try {
     const res = await fetch(`${API_URL}${path}`, {
       ...init,
-      signal: init.signal ?? controller.signal,
+      signal,
       headers: {
         "Content-Type": "application/json",
         "X-Client-Version": clientVersion,
@@ -69,10 +93,22 @@ export type AuthResponse = components["schemas"]["AuthResponse"];
 export type SaveResponse = components["schemas"]["SaveResponse"];
 export type LeaderboardPageResponse = components["schemas"]["LeaderboardPageResponse"];
 
+/**
+ * Opts this client into cookie transport for the refresh token.
+ *
+ * The server responds with an httpOnly, Secure, SameSite=Strict cookie and omits the refresh token
+ * from the JSON body, so no page script — including an injected one — can read it. `credentials:
+ * "include"` is required for the browser to store and resend that cookie cross-origin; the backend
+ * CORS policy already sets AllowCredentials.
+ */
+const AUTH_TRANSPORT_HEADERS = { "X-Auth-Transport": "cookie" } as const;
+
 export async function register(email: string, password: string): Promise<AuthResponse> {
   const body: PostBody<"/api/v1/auth/register", "post"> = { email, password };
   return request<AuthResponse>("/api/v1/auth/register", {
     method: "POST",
+    headers: AUTH_TRANSPORT_HEADERS,
+    credentials: "include",
     body: JSON.stringify(body),
   });
 }
@@ -81,24 +117,28 @@ export async function login(email: string, password: string): Promise<AuthRespon
   const body: PostBody<"/api/v1/auth/login", "post"> = { email, password };
   return request<AuthResponse>("/api/v1/auth/login", {
     method: "POST",
+    headers: AUTH_TRANSPORT_HEADERS,
+    credentials: "include",
     body: JSON.stringify(body),
   });
 }
 
-export async function refresh(refreshToken: string): Promise<AuthResponse> {
-  const body: PostBody<"/api/v1/auth/refresh", "post"> = { refreshToken };
+/** Sends an empty body — the server reads the refresh token from the httpOnly cookie. */
+export async function refresh(): Promise<AuthResponse> {
   return request<AuthResponse>("/api/v1/auth/refresh", {
     method: "POST",
-    body: JSON.stringify(body),
+    headers: AUTH_TRANSPORT_HEADERS,
+    credentials: "include",
+    body: JSON.stringify({}),
   });
 }
 
-export async function logout(accessToken: string, refreshToken: string): Promise<void> {
-  const body: PostBody<"/api/v1/auth/logout", "post"> = { refreshToken };
+export async function logout(accessToken: string): Promise<void> {
   await request<void>("/api/v1/auth/logout", {
     method: "POST",
-    headers: { Authorization: `Bearer ${accessToken}` },
-    body: JSON.stringify(body),
+    headers: { Authorization: `Bearer ${accessToken}`, ...AUTH_TRANSPORT_HEADERS },
+    credentials: "include",
+    body: JSON.stringify({}),
   });
 }
 

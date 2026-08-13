@@ -16,7 +16,7 @@ Run the full local suite:
 node scripts/validate.mjs
 ```
 
-Or run the four layers individually (same commands CI exercises):
+Or run the four layers individually:
 
 ```bash
 dotnet test services/backend/Aumbrye.sln --configuration Release
@@ -53,7 +53,7 @@ All documentation changes must follow [docs/DOC-CONVENTIONS.md](docs/DOC-CONVENT
 - **Status tags** — use `IMPLEMENTED`, `PARTIAL`, `PLACEHOLDER`, `STUB`, `BROKEN`, or `ABSENT` in status tables
 - **No filler** — delete empty sections rather than writing placeholder prose
 
-Relative Markdown links in `README.md` and `docs/` are checked in CI; broken links fail the build.
+Keep relative Markdown links in `README.md` and `docs/` correct — there is no automated link check, so a broken link stays broken until someone notices.
 
 ## License
 

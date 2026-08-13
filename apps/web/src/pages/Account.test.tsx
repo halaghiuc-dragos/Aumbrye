@@ -27,6 +27,14 @@ function renderAccount() {
   );
 }
 
+/**
+ * The auth form has a mode toggle and a submit button whose label follows the selected mode, so
+ * "Log in" / "Register" each match two controls: the toggle first, the submit last.
+ */
+function lastOf(elements: HTMLElement[]): HTMLElement {
+  return elements[elements.length - 1];
+}
+
 const authTokens = {
   accessToken: "access-token",
   refreshToken: "refresh-token",
@@ -52,7 +60,7 @@ describe("AccountPage", () => {
 
     await user.type(screen.getByLabelText("Email"), "hero@aumbrye.test");
     await user.type(screen.getByLabelText("Password"), "password123");
-    await user.click(screen.getByRole("button", { name: "Log in" }));
+    await user.click(lastOf(screen.getAllByRole("button", { name: "Log in" })));
 
     await waitFor(() => {
       expect(screen.getByTestId("character-line")).toHaveTextContent("Ari — Level 7");
@@ -77,10 +85,12 @@ describe("AccountPage", () => {
 
     await user.type(screen.getByLabelText("Email"), "hero@aumbrye.test");
     await user.type(screen.getByLabelText("Password"), "password123");
-    await user.click(screen.getByRole("button", { name: "Log in" }));
+    await user.click(lastOf(screen.getAllByRole("button", { name: "Log in" })));
 
     await waitFor(() => {
-      expect(screen.getByRole("status")).toHaveTextContent("Session expired, please sign in again");
+      expect(screen.getByTestId("account-status")).toHaveTextContent(
+        "Session expired, please sign in again",
+      );
     });
   });
 
@@ -102,7 +112,9 @@ describe("AccountPage", () => {
 
     await user.type(screen.getByLabelText("Email"), "new@aumbrye.test");
     await user.type(screen.getByLabelText("Password"), "password123");
-    await user.click(screen.getByRole("button", { name: "Register" }));
+    // Switch the form to register mode, then submit it.
+    await user.click(screen.getAllByRole("button", { name: "Register" })[0]);
+    await user.click(lastOf(screen.getAllByRole("button", { name: "Register" })));
 
     await waitFor(() => {
       expect(screen.getByText("Registered and signed in.")).toBeInTheDocument();
@@ -129,7 +141,7 @@ describe("AccountPage", () => {
 
     await user.type(screen.getByLabelText("Email"), "hero@aumbrye.test");
     await user.type(screen.getByLabelText("Password"), "password123");
-    await user.click(screen.getByRole("button", { name: "Log in" }));
+    await user.click(lastOf(screen.getAllByRole("button", { name: "Log in" })));
 
     await waitFor(() => {
       expect(screen.getByRole("button", { name: "Sign out" })).toBeInTheDocument();
@@ -139,7 +151,7 @@ describe("AccountPage", () => {
 
     await waitFor(() => {
       expect(sessionStorage.getItem("aumbrye_refresh")).toBeNull();
-      expect(screen.getByRole("button", { name: "Log in" })).toBeInTheDocument();
+      expect(screen.getAllByRole("button", { name: "Log in" }).length).toBeGreaterThan(0);
     });
   });
 });

@@ -1,5 +1,6 @@
 using Aumbrye.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 namespace Aumbrye.Infrastructure.Persistence;
 
@@ -11,6 +12,16 @@ public class AumbryeDbContext : DbContext
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
     public DbSet<Run> Runs => Set<Run>();
     public DbSet<SaveBlob> SaveBlobs => Set<SaveBlob>();
+    public DbSet<SaveBlobQuarantine> SaveBlobQuarantines => Set<SaveBlobQuarantine>();
+
+    /// <summary>
+    /// SteamID64 values are unsigned, but Postgres has no unsigned 64-bit type and Npgsql refuses
+    /// to map <c>ulong</c> to <c>bigint</c> on its own. An unchecked bit-cast round-trips every
+    /// possible SteamID64 exactly, including the (currently unreachable) range above long.MaxValue.
+    /// </summary>
+    private static readonly ValueConverter<ulong?, long?> SteamIdConverter = new(
+        v => v.HasValue ? unchecked((long)v.Value) : null,
+        v => v.HasValue ? unchecked((ulong)v.Value) : null);
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -23,7 +34,7 @@ public class AumbryeDbContext : DbContext
             e.Property(x => x.Email).HasMaxLength(256);
             e.Property(x => x.DisplayName).HasMaxLength(32);
             e.Property(x => x.PasswordHash).HasMaxLength(512);
-            e.Property(x => x.SteamId).HasColumnType("bigint");
+            e.Property(x => x.SteamId).HasConversion(SteamIdConverter).HasColumnType("bigint");
             e.HasOne(x => x.SaveBlob).WithOne(x => x.Account).HasForeignKey<SaveBlob>(x => x.AccountId);
         });
 
@@ -31,6 +42,9 @@ public class AumbryeDbContext : DbContext
         {
             e.HasKey(x => x.Id);
             e.HasIndex(x => x.TokenHash);
+            // Keeps the hourly set-based cleanup DELETE cheap as the table grows.
+            e.HasIndex(x => x.ExpiresAt);
+            e.HasIndex(x => x.RevokedAt);
             e.Property(x => x.TokenHash).HasMaxLength(128);
             e.Property(x => x.ReplacedByTokenHash).HasMaxLength(128);
         });
@@ -46,6 +60,12 @@ public class AumbryeDbContext : DbContext
         modelBuilder.Entity<SaveBlob>(e =>
         {
             e.HasKey(x => x.AccountId);
+        });
+
+        modelBuilder.Entity<SaveBlobQuarantine>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.HasIndex(x => new { x.AccountId, x.CapturedAt });
         });
     }
 }

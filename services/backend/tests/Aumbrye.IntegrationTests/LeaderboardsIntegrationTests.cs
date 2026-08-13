@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
+using Aumbrye.IntegrationTests.TestDoubles;
 using Aumbrye.Shared.Contracts.Auth;
 using Aumbrye.Shared.Contracts.Leaderboards;
 using Aumbrye.Shared.Contracts.Runs;
@@ -10,9 +11,11 @@ namespace Aumbrye.IntegrationTests;
 public class LeaderboardsIntegrationTests : IClassFixture<AumbryeWebApplicationFactory>
 {
     private readonly HttpClient _client;
+    private readonly AumbryeWebApplicationFactory _factory;
 
     public LeaderboardsIntegrationTests(AumbryeWebApplicationFactory factory)
     {
+        _factory = factory;
         _client = factory.CreateClient();
         _client.DefaultRequestHeaders.Add(Aumbrye.Shared.Contracts.ApiVersions.ClientVersionHeader,
             Aumbrye.Shared.Contracts.ApiVersions.ExpectedClientVersion);
@@ -154,6 +157,11 @@ public class LeaderboardsIntegrationTests : IClassFixture<AumbryeWebApplicationF
             new CreateRunRequest("forgotten_castle", Seed: seed, Tier: 1));
         var run = await create.Content.ReadFromJsonAsync<CreateRunResponse>();
         Assert.NotNull(run);
+
+        // Give the run enough wall-clock history for the reported time to be plausible.
+        await RunClockHelper.BackdateAsync(
+            _factory.Services, run.RunId, TimeSpan.FromSeconds(elapsed + 60));
+
         var complete = await _client.PostAsJsonAsync($"/api/v1/runs/{run.RunId}/complete",
             new CompleteRunRequest("escaped", elapsed, true, []));
         Assert.Equal(HttpStatusCode.OK, complete.StatusCode);

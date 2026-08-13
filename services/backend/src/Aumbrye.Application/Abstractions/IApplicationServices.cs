@@ -46,15 +46,33 @@ public sealed record SteamTicketValidation(
 public interface ISteamAuthService
 {
     bool IsConfigured { get; }
+
+    /// <summary>
+    /// App id this deployment accepts tickets for, or null when unpinned. Callers must never
+    /// forward a client-supplied app id to Steam: a ticket minted for any other app the caller
+    /// owns would validate successfully and mint an account here.
+    /// </summary>
+    uint? ConfiguredAppId { get; }
+
     Task<SteamTicketValidation> ValidateAsync(string ticketHex, uint appId, CancellationToken ct = default);
 }
 
 public interface IRunService
 {
     Task<CreateRunResult> CreateRunAsync(Guid accountId, string biomeId, int? seed, int tier, CancellationToken ct = default);
-    Task<string?> GetDungeonDefinitionAsync(Guid accountId, Guid runId, int floor = 1, CancellationToken ct = default);
+    Task<DungeonDefinitionResult> GetDungeonDefinitionAsync(Guid accountId, Guid runId, int floor = 1, CancellationToken ct = default);
     Task<CompleteRunResult> CompleteRunAsync(Guid accountId, Guid runId, CompleteRunInput input, CancellationToken ct = default);
 }
+
+/// <summary>
+/// Outcome of a floor-definition request. An out-of-range floor is a client error (400), not a
+/// missing resource, so it is reported separately from <see cref="NotFound"/>.
+/// </summary>
+public sealed record DungeonDefinitionResult(
+    bool Success,
+    string? Json = null,
+    string? Error = null,
+    bool NotFound = false);
 
 public sealed record CreateRunResult(
     bool Success,
@@ -88,7 +106,12 @@ public sealed record RunProgressionResult(
     string EconomyNote,
     string? CharacterStateJson = null);
 
-public sealed record SaveGetResult(bool Success, JsonObject? State = null, DateTimeOffset? UpdatedAt = null, string? Error = null);
+public sealed record SaveGetResult(
+    bool Success,
+    JsonObject? State = null,
+    DateTimeOffset? UpdatedAt = null,
+    string? Error = null,
+    int? ErrorStatus = null);
 
 public sealed record SavePutResult(
     bool Success,

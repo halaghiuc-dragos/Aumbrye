@@ -8,6 +8,8 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(__dirname, "../..");
 const contentRoot = join(repoRoot, "content");
 const schemasRoot = join(contentRoot, "schemas");
+// Superseded schemas live here; only explicitly-versioned legacy fixtures may reference them.
+const retiredSchemasRoot = join(schemasRoot, "retired");
 const strictContent = process.argv.includes("--strict-content");
 const PLACEHOLDER_DESC = /^M6 content item\.?$/i;
 
@@ -109,13 +111,13 @@ function collectJsonFiles(dir) {
 function resolveSchemaForFile(filePath) {
   const name = relative(contentRoot, filePath).replace(/\\/g, "/");
   if (name.startsWith("fixtures/dungeon_definition") || name === "fixtures/forgotten_castle_slice.json") {
-    if (name === "fixtures/dungeon_definition_v2_gdscript.json") {
-      return join(schemasRoot, "dungeon-definition.v2.json");
+    if (name === "fixtures/dungeon_definition_v1_minimal.json") {
+      return join(retiredSchemasRoot, "dungeon-definition.v1.json");
     }
-    return join(schemasRoot, "dungeon-definition.v1.json");
+    return join(schemasRoot, "dungeon-definition.v2.json");
   }
   if (name === "fixtures/inventory_sample.v1.json") {
-    return join(schemasRoot, "inventory.v1.json");
+    return join(retiredSchemasRoot, "inventory.v1.json");
   }
   if (name === "fixtures/inventory_sample.v2.json") {
     return join(schemasRoot, "inventory.v2.json");
@@ -160,7 +162,7 @@ function resolveSchemaForFile(filePath) {
     return join(schemasRoot, "talent-tree.v1.json");
   }
   if (name === "fixtures/character_state_sample.v1.json") {
-    return join(schemasRoot, "character-state.v1.json");
+    return join(retiredSchemasRoot, "character-state.v1.json");
   }
   if (name === "fixtures/character_state_sample.v2.json") {
     return join(schemasRoot, "character-state.v2.json");
@@ -260,7 +262,7 @@ function loadSchema(schemaPath) {
     ajv.addSchema(schema);
     schemaCache.set(schemaPath, schema.$id ?? schemaPath);
     if (schemaPath.endsWith("character-state.v1.json")) {
-      loadSchema(join(schemasRoot, "inventory.v1.json"));
+      loadSchema(join(retiredSchemasRoot, "inventory.v1.json"));
     }
     if (schemaPath.endsWith("character-state.v2.json")) {
       loadSchema(join(schemasRoot, "inventory.v2.json"));
@@ -317,19 +319,6 @@ for (const filePath of files) {
   }
 }
 
-const catalogFailures = validateItemCatalogConsistency();
-failures += catalogFailures;
-
-const contentRuleFailures = validateContentRules();
-failures += contentRuleFailures;
-
-failures += validateNarrativeContent();
-
-if (failures > 0) {
-  process.exit(1);
-}
-
-console.log(`Validated ${files.length} file(s).`);
 
 function validateItemCatalogConsistency() {
   const catalogPath = join(contentRoot, "items", "catalog.json");
@@ -1035,3 +1024,167 @@ function validateNarrativeContent() {
   }
   return errors;
 }
+
+
+function validateSchemaManifest() {
+  const manifestPath = join(schemasRoot, "MANIFEST.json");
+  if (!existsSync(manifestPath)) {
+    console.error("FAIL: content/schemas/MANIFEST.json is missing");
+    return 1;
+  }
+
+  let manifest;
+  try {
+    manifest = JSON.parse(readFileSync(manifestPath, "utf8"));
+  } catch (err) {
+    console.error(`FAIL: content/schemas/MANIFEST.json is not valid JSON — ${err.message}`);
+    return 1;
+  }
+
+  const entries = Object.entries(manifest.schemas ?? {});
+  if (entries.length === 0) {
+    console.error("FAIL: content/schemas/MANIFEST.json declares no schemas");
+    return 1;
+  }
+
+  let errors = 0;
+  const retiredDir = join(schemasRoot, "retired");
+
+  for (const [name, entry] of entries) {
+    const current = String(entry.current ?? "");
+    if (!current) {
+      console.error(`FAIL: MANIFEST entry '${name}' has no current version`);
+      errors++;
+      continue;
+    }
+
+    const currentFile = join(schemasRoot, `${name}.${current}.json`);
+    if (!existsSync(currentFile)) {
+      console.error(`FAIL: MANIFEST pins ${name} to ${current} but ${name}.${current}.json is missing`);
+      errors++;
+    }
+
+    for (const retired of entry.retired ?? []) {
+      const live = join(schemasRoot, `${name}.${retired}.json`);
+      const quarantined = join(retiredDir, `${name}.${retired}.json`);
+      if (existsSync(live)) {
+        console.error(
+          `FAIL: ${name}.${retired}.json is retired but still in content/schemas/ — move it to content/schemas/retired/`
+        );
+        errors++;
+      } else if (!existsSync(quarantined)) {
+        console.error(`FAIL: retired schema ${name}.${retired}.json is referenced but not found in content/schemas/retired/`);
+        errors++;
+      }
+    }
+  }
+
+  const declared = new Set();
+  for (const [name, entry] of entries) {
+    declared.add(`${name}.${String(entry.current)}.json`);
+  }
+  for (const file of readdirSync(schemasRoot)) {
+    if (!file.endsWith(".json") || file === "MANIFEST.json") continue;
+    const match = /^(.*)\.(v\d+)\.json$/.exec(file);
+    if (!match) continue;
+    const [, name, version] = match;
+    const entry = manifest.schemas?.[name];
+    if (entry && String(entry.current) !== version && !declared.has(file)) {
+      console.error(
+        `FAIL: ${file} is present but MANIFEST pins ${name} to ${entry.current}; declare it under "retired" and move it`
+      );
+      errors++;
+    }
+  }
+
+  if (errors === 0) {
+    console.log(`OK: schema manifest (${entries.length} schemas pinned)`);
+  }
+  return errors;
+}
+
+function validateAudioPlaceholders() {
+  const bankPath = join(contentRoot, "audio", "sfx.json");
+  if (!existsSync(bankPath)) {
+    console.log("OK: audio bank (no content/audio/sfx.json to check)");
+    return 0;
+  }
+
+  let bank;
+  try {
+    bank = JSON.parse(readFileSync(bankPath, "utf8"));
+  } catch (err) {
+    console.error(`FAIL: content/audio/sfx.json is not valid JSON — ${err.message}`);
+    return 1;
+  }
+
+  const assetsRoot = join(repoRoot, "apps", "game", "client");
+  const seenFiles = new Map();
+  let errors = 0;
+  let placeholders = 0;
+
+  for (const [key, entry] of Object.entries(bank.sfx ?? bank.entries ?? bank)) {
+    if (!entry || typeof entry !== "object") continue;
+
+    if (entry.placeholder === true) {
+      placeholders++;
+      console.warn(`PLACEHOLDER: sfx '${key}' is flagged as temporary foley`);
+      continue;
+    }
+
+    const variants = Array.isArray(entry.variants)
+      ? entry.variants
+      : entry.path
+        ? [entry.path]
+        : [];
+    for (const variant of variants) {
+      const rel = String(typeof variant === "string" ? variant : (variant?.path ?? ""));
+      if (!rel) continue;
+      const abs = join(assetsRoot, rel.replace(/^res:\/\//, ""));
+      if (!existsSync(abs)) {
+        console.error(`FAIL: sfx '${key}' references missing file ${rel}`);
+        errors++;
+        continue;
+      }
+      const owner = seenFiles.get(rel);
+      if (owner && owner !== key) {
+        console.error(
+          `FAIL: sfx '${key}' reuses ${rel}, already used by '${owner}' — mark one "placeholder": true or author distinct foley`
+        );
+        errors++;
+      } else {
+        seenFiles.set(rel, key);
+      }
+    }
+  }
+
+  if (placeholders > 0) {
+    console.warn(`${placeholders} placeholder sfx entr${placeholders === 1 ? "y" : "ies"} still need real foley`);
+    if (strictContent) {
+      console.error("FAIL: placeholder sfx entries are not allowed under --strict-content");
+      errors += placeholders;
+    }
+  }
+
+  if (errors === 0) {
+    console.log("OK: audio bank references distinct existing files");
+  }
+  return errors;
+}
+
+
+const catalogFailures = validateItemCatalogConsistency();
+failures += catalogFailures;
+
+const contentRuleFailures = validateContentRules();
+failures += contentRuleFailures;
+
+failures += validateNarrativeContent();
+failures += validateSchemaManifest();
+failures += validateAudioPlaceholders();
+
+if (failures > 0) {
+  process.exit(1);
+}
+
+console.log(`Validated ${files.length} file(s).`);

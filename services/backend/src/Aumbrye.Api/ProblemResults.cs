@@ -17,6 +17,13 @@ public static class ProblemResults
     public static IResult Conflict(string detail) =>
         Results.Problem(detail: detail, statusCode: StatusCodes.Status409Conflict);
 
+    public static IResult PayloadTooLarge(string detail) =>
+        Results.Problem(detail: detail, statusCode: StatusCodes.Status413PayloadTooLarge);
+
+    /// <summary>Well-formed request the server understood but refuses to act on (e.g. a corrupt save).</summary>
+    public static IResult UnprocessableEntity(string detail) =>
+        Results.Problem(detail: detail, statusCode: StatusCodes.Status422UnprocessableEntity);
+
     public static IResult ServiceUnavailable(string detail) =>
         Results.Problem(detail: detail, statusCode: StatusCodes.Status503ServiceUnavailable);
 

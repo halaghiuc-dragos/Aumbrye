@@ -64,6 +64,35 @@ var _boss_door: Node3D
 var _stair_levers: Dictionary = {}
 var _is_final_floor := false
 
+## Monotonic build id. A chunked build suspends across ~23 `await`s; if the player dies or exits to
+## hub in between, the scene swap frees this builder's nodes and the resumed coroutine would run
+## against freed instances — the classic intermittent "previously freed instance" crash. Every
+## build captures this value on entry and bails the moment it no longer matches.
+var _build_generation := 0
+
+
+func _exit_tree() -> void:
+	cancel()
+
+
+## Invalidates any build currently suspended mid-await. Safe to call at any time.
+func cancel() -> void:
+	_build_generation += 1
+
+
+## Yields between build steps and reports whether the build is still allowed to continue.
+##
+## Returns false when the build was cancelled, the builder left the tree, or the tree itself is
+## gone — every caller must treat that as "stop immediately and touch nothing".
+func _yield_step(chunked: bool, my_gen: int) -> bool:
+	if chunked:
+		var tree := get_tree()
+		if tree == null:
+			return false
+		await tree.process_frame
+	return my_gen == _build_generation and is_inside_tree()
+
+
 ## Sole owner of the in-run floor definition cache (REF-11: previously duplicated in
 ## RunFlow.floor_definitions with a separate, disagreeing eviction policy).
 ## BUG-30: bounded to MAX_CACHED_FLOORS with distance-from-current eviction — this is a *static*
@@ -74,17 +103,39 @@ const MAX_CACHED_FLOORS := 8
 
 static var _floor_definition_cache: Dictionary = {}
 
+## Identity of the run the cached floors belong to.
+##
+## The cache is static, so a run abandoned by a crash used to leave its definitions sitting there
+## until clear_floor_cache() happened to be called — and two runs that share floor indices (seeded
+## and challenge runs in particular) would then read each other's floors. Stamping the owning run
+## makes a stale hit impossible rather than merely unlikely.
+static var _cache_run_key := ""
 
-## `reference_floor` defaults to `floor_index` so callers that only ever store the floor they are
-## on (the common case) get correct farthest-first eviction without passing anything extra;
-## callers that know the player's actual current floor (RunFlow) should pass it explicitly.
-static func store_floor_cache(
-	floor_index: int, floor_definition: Dictionary, reference_floor: int = floor_index
-) -> void:
+## Floor the player is actually on, for farthest-first eviction. -1 means "not set for this run",
+## in which case eviction measures distance from whichever floor is being stored — the right
+## default for callers that only ever cache the floor they are on.
+static var _cache_reference_floor := -1
+
+
+## Binds the cache to a run, discarding anything left over from a previous one.
+## `run_key` should identify the run uniquely, e.g. "%s:%d:%s" % [run_mode, seed, run_id].
+static func begin_run_cache(run_key: String) -> void:
+	if run_key != _cache_run_key:
+		_floor_definition_cache.clear()
+	_cache_run_key = run_key
+	_cache_reference_floor = -1
+
+
+## Tells the cache which floor to measure eviction distance from.
+static func set_reference_floor(floor_index: int) -> void:
+	_cache_reference_floor = floor_index
+
+
+static func store_floor_cache(floor_index: int, floor_definition: Dictionary) -> void:
 	if floor_definition.is_empty():
 		return
 	_floor_definition_cache[str(floor_index)] = floor_definition.duplicate(true)
-	_trim_floor_cache(reference_floor)
+	_trim_floor_cache(_cache_reference_floor if _cache_reference_floor > 0 else floor_index)
 
 
 static func get_floor_cache(floor_index: int) -> Dictionary:
@@ -98,6 +149,8 @@ static func erase_floor_cache(floor_index: int) -> void:
 
 static func clear_floor_cache() -> void:
 	_floor_definition_cache.clear()
+	_cache_run_key = ""
+	_cache_reference_floor = -1
 
 
 static func _trim_floor_cache(reference_floor: int) -> void:
@@ -142,6 +195,10 @@ func build_from_source(
 	def: Dictionary,
 	chunked: bool = false
 ) -> void:
+	# Supersede any build already in flight, and remember our own id so every resumption below can
+	# tell whether it is still the current one.
+	cancel()
+	var my_gen := _build_generation
 	_player = player
 	if not def.is_empty():
 		definition = def
@@ -175,128 +232,128 @@ func build_from_source(
 	const TOTAL_STEPS := 21.0
 	var step := 0.0
 
-	if not await _build_rooms(chunked):
+	if not await _build_rooms(chunked, my_gen):
 		_abort_build(parent)
 		return
 	step += 1.0
 	build_progress.emit(step / TOTAL_STEPS)
-	if chunked:
-		await get_tree().process_frame
+	if not await _yield_step(chunked, my_gen):
+		return
 
 	_setup_floor_nav_map()
 	step += 1.0
 	build_progress.emit(step / TOTAL_STEPS)
-	if chunked:
-		await get_tree().process_frame
+	if not await _yield_step(chunked, my_gen):
+		return
 
 	_sync_blockout_doors_from_edges()
 	step += 1.0
 	build_progress.emit(step / TOTAL_STEPS)
-	if chunked:
-		await get_tree().process_frame
+	if not await _yield_step(chunked, my_gen):
+		return
 
 	_wire_shortcut_edges()
 	step += 1.0
 	build_progress.emit(step / TOTAL_STEPS)
-	if chunked:
-		await get_tree().process_frame
+	if not await _yield_step(chunked, my_gen):
+		return
 
 	_build_doorway_bridges()
 	step += 1.0
 	build_progress.emit(step / TOTAL_STEPS)
-	if chunked:
-		await get_tree().process_frame
+	if not await _yield_step(chunked, my_gen):
+		return
 
 	_build_height_transitions()
 	step += 1.0
 	build_progress.emit(step / TOTAL_STEPS)
-	if chunked:
-		await get_tree().process_frame
+	if not await _yield_step(chunked, my_gen):
+		return
 
 	_build_floor_shell()
 	step += 1.0
 	build_progress.emit(step / TOTAL_STEPS)
-	if chunked:
-		await get_tree().process_frame
+	if not await _yield_step(chunked, my_gen):
+		return
 
 	_build_landmarks()
 	step += 1.0
 	build_progress.emit(step / TOTAL_STEPS)
-	if chunked:
-		await get_tree().process_frame
+	if not await _yield_step(chunked, my_gen):
+		return
 
 	_place_cover()
 	step += 1.0
 	build_progress.emit(step / TOTAL_STEPS)
-	if chunked:
-		await get_tree().process_frame
+	if not await _yield_step(chunked, my_gen):
+		return
 
 	_finalize_all_blockouts()
 	step += 1.0
 	build_progress.emit(step / TOTAL_STEPS)
-	if chunked:
-		await get_tree().process_frame
+	if not await _yield_step(chunked, my_gen):
+		return
 
 	_place_secret_mechanisms()
 	step += 1.0
 	build_progress.emit(step / TOTAL_STEPS)
-	if chunked:
-		await get_tree().process_frame
+	if not await _yield_step(chunked, my_gen):
+		return
 
 	_build_nav_links()
 	step += 1.0
 	build_progress.emit(step / TOTAL_STEPS)
-	if chunked:
-		await get_tree().process_frame
+	if not await _yield_step(chunked, my_gen):
+		return
 
 	_spawn_player()
 	step += 1.0
 	build_progress.emit(step / TOTAL_STEPS)
-	if chunked:
-		await get_tree().process_frame
+	if not await _yield_step(chunked, my_gen):
+		return
 
-	await _place_enemies(chunked)
+	await _place_enemies(chunked, my_gen)
 	step += 1.0
 	build_progress.emit(step / TOTAL_STEPS)
-	if chunked:
-		await get_tree().process_frame
+	if not await _yield_step(chunked, my_gen):
+		return
 
-	await _place_loot(chunked)
+	await _place_loot(chunked, my_gen)
 	step += 1.0
 	build_progress.emit(step / TOTAL_STEPS)
-	if chunked:
-		await get_tree().process_frame
+	if not await _yield_step(chunked, my_gen):
+		return
 
 	_place_traps()
 	step += 1.0
 	build_progress.emit(step / TOTAL_STEPS)
-	if chunked:
-		await get_tree().process_frame
+	if not await _yield_step(chunked, my_gen):
+		return
 
 	_place_room_content()
 	step += 1.0
 	build_progress.emit(step / TOTAL_STEPS)
-	if chunked:
-		await get_tree().process_frame
+	if not await _yield_step(chunked, my_gen):
+		return
 
 	_setup_boss()
 	step += 1.0
 	build_progress.emit(step / TOTAL_STEPS)
-	if chunked:
-		await get_tree().process_frame
+	if not await _yield_step(chunked, my_gen):
+		return
 
 	if _is_final_floor:
 		_setup_exit_portal()
 	step += 1.0
 	build_progress.emit(step / TOTAL_STEPS)
-	if chunked:
-		await get_tree().process_frame
+	if not await _yield_step(chunked, my_gen):
+		return
 
 	_setup_stair_levers()
 	step += 1.0
 	build_progress.emit(step / TOTAL_STEPS)
-	if chunked:
-		await get_tree().process_frame
+	if not await _yield_step(chunked, my_gen):
+		return
 
 	_setup_boss_door(parent)
 	step += 1.0
@@ -332,7 +389,7 @@ func open_exit_portal() -> void:
 		portal.call("activate")
 
 
-func _build_rooms(chunked: bool = false) -> bool:
+func _build_rooms(chunked: bool, my_gen: int) -> bool:
 	var unknown: Array[String] = []
 	for room_def in definition.get("rooms", []):
 		var template_id: String = room_def.get("templateId", "")
@@ -366,7 +423,8 @@ func _build_rooms(chunked: bool = false) -> bool:
 		if RunFloorConfig.is_stairs_room({"templateId": str(room_def.get("templateId", ""))}):
 			STAIR_COLLISION.ensure_stair_collision(instance)
 		if chunked and (i + 1) % CHUNK_ROOMS_PER_FRAME == 0:
-			await get_tree().process_frame
+			if not await _yield_step(chunked, my_gen):
+				return false
 	return true
 
 
@@ -781,12 +839,13 @@ func _placement_offset(placement: Dictionary) -> Vector3:
 	return Vector3(float(pos.get("x", 0.0)), float(pos.get("y", 0.0)), float(pos.get("z", 0.0)))
 
 
-func _place_enemies(chunked: bool = false) -> void:
+func _place_enemies(chunked: bool, my_gen: int) -> void:
 	var placements: Array = definition.get("placements", {}).get("enemies", [])
 	for i in range(placements.size()):
 		_spawn_enemy(placements[i], i)
 		if chunked and (i + 1) % CHUNK_ENEMIES_PER_FRAME == 0:
-			await get_tree().process_frame
+			if not await _yield_step(chunked, my_gen):
+				return
 
 
 func _spawn_enemy(placement: Dictionary, index: int) -> void:
@@ -820,7 +879,7 @@ func _spawn_enemy(placement: Dictionary, index: int) -> void:
 		enemy.enemy_died.connect(_on_tracked_enemy_died.bind(placement_key))
 
 
-func _place_loot(chunked: bool = false) -> void:
+func _place_loot(chunked: bool, my_gen: int) -> void:
 	var placements: Array = definition.get("placements", {}).get("loot", [])
 	for i in range(placements.size()):
 		var placement: Dictionary = placements[i]
@@ -845,7 +904,8 @@ func _place_loot(chunked: bool = false) -> void:
 		room.add_child(chest)
 		_chest_by_id[chest_key] = chest
 		if chunked and (i + 1) % CHUNK_LOOT_PER_FRAME == 0:
-			await get_tree().process_frame
+			if not await _yield_step(chunked, my_gen):
+				return
 
 
 func _trap_scene_for_id(trap_id: String) -> PackedScene:

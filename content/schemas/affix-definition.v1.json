@@ -72,6 +72,14 @@
       "type": "integer",
       "minimum": 1
     },
+    "valueStyle": {
+      "type": "string",
+      "enum": [
+        "fraction",
+        "integer"
+      ],
+      "description": "How the tier range is sampled. 'fraction' interpolates continuously across [min,max] (multipliers, percentages); 'integer' draws a whole number inclusively. Omitting it falls back to a magnitude heuristic that cannot tell a genuinely fractional range like 1.2-2.4 apart from an integer one, so new affixes should always declare it."
+    },
     "template": {
       "type": "string",
       "description": "Tooltip line pattern; {value} and {stat} are substituted at render time."

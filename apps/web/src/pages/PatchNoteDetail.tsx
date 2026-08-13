@@ -16,7 +16,7 @@ export default function PatchNoteDetailPage() {
       <PageHelmet
         title={`v${entry.version} — ${entry.title}`}
         description={entry.highlights.join(" ")}
-        path={`/patch-notes/${entry.version}`}
+        path={`/patch-notes/${entry.slug}`}
       />
       <p>
         <Link className="muted" to="/patch-notes">

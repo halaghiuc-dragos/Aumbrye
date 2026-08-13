@@ -672,7 +672,26 @@ func autosave(priority: SavePriority = SavePriority.IMMEDIATE) -> void:
 	_autosave_pending = false
 	if _autosave_timer != null and not _autosave_timer.is_stopped():
 		_autosave_timer.stop()
-	_write_save(_build_save_payload(), true, priority)
+	if _write_save(_build_save_payload(), true, priority):
+		return
+
+	# A full disk or an antivirus lock used to fail here in total silence — save_failed only ever
+	# fired for load problems, so a player could keep going for hours believing they were saved.
+	# Retry once shortly after, in case the lock was transient, then tell the player.
+	_retry_failed_autosave(priority)
+
+
+func _retry_failed_autosave(priority: SavePriority) -> void:
+	var tree := get_tree()
+	if tree == null:
+		save_failed.emit("write_failed")
+		return
+	await tree.create_timer(1.0).timeout
+	if _write_save(_build_save_payload(), true, priority):
+		return
+	if CrashLogger:
+		CrashLogger.log_error("local_save.autosave_failed", {"path": _active_save_path()})
+	save_failed.emit("write_failed")
 
 
 func delete_save() -> void:
@@ -1147,9 +1166,23 @@ func _write_save(
 		# the cost for a save the caller is treating as urgent (e.g. before quitting).
 		var verified = JSON.parse_string(_read_raw_text(temp_path))
 		if not verified is Dictionary:
+			if CrashLogger:
+				CrashLogger.log_error(
+					"local_save.readback_unparseable", {"path": temp_path}
+				)
 			DirAccess.remove_absolute(temp_path)
 			return false
-		if not SaveValidator.validate(verified).is_empty():
+		# Log WHICH invariant the round-tripped save broke. Deleting the temp file silently made
+		# corruption sources undiagnosable.
+		var problems := SaveValidator.validate(verified)
+		if not problems.is_empty():
+			if CrashLogger:
+				CrashLogger.log_error(
+					"local_save.readback_validate_failed",
+					{"path": temp_path, "problems": ", ".join(problems)}
+				)
+			else:
+				push_error("LocalSave: read-back validation failed — %s" % ", ".join(problems))
 			DirAccess.remove_absolute(temp_path)
 			return false
 	else:
@@ -1157,10 +1190,18 @@ func _write_save(
 		# reading the file back — the write handle is already flushed and closed above, so the
 		# on-disk bytes match `normalized`; this is the expensive re-read/re-parse round trip
 		# a background autosave does not need to pay for.
-		if not SaveValidator.validate(normalized).is_empty():
+		var deferred_problems := SaveValidator.validate(normalized)
+		if not deferred_problems.is_empty():
 			DirAccess.remove_absolute(temp_path)
 			if CrashLogger:
-				CrashLogger.log_error("local_save.deferred_validate_failed", {"path": temp_path})
+				CrashLogger.log_error(
+					"local_save.deferred_validate_failed",
+					{"path": temp_path, "problems": ", ".join(deferred_problems)}
+				)
+			else:
+				push_error(
+					"LocalSave: deferred validation failed — %s" % ", ".join(deferred_problems)
+				)
 			return false
 	if DirAccess.rename_absolute(temp_path, target_path) != OK:
 		DirAccess.remove_absolute(temp_path)
@@ -1169,6 +1210,26 @@ func _write_save(
 		return false
 	_mirror_to_steam_cloud(normalized)
 	return true
+
+
+## Current time as an ISO-8601 UTC instant.
+##
+## Save timestamps are compared against `cloudUpdatedAt`, which the backend writes in UTC. Stamping
+## local time here meant any player east of UTC produced strings that sorted ahead of newer cloud
+## saves, so adoption silently kept the older copy.
+func _utc_now_iso() -> String:
+	return Time.get_datetime_string_from_system(true) + "Z"
+
+
+## Parses a save timestamp to a unix time, or 0 when it cannot be trusted.
+##
+## Legacy saves carry local-time strings with no offset suffix; those are indistinguishable from
+## UTC once written, so a parse that succeeds is taken at face value and a parse that fails is
+## reported as unknown for the caller to handle conservatively.
+func _save_stamp_unix(stamp: String) -> int:
+	if stamp.strip_edges().is_empty():
+		return 0
+	return int(Time.get_unix_time_from_datetime_string(stamp))
 
 
 func _try_adopt_steam_cloud_save() -> void:
@@ -1184,8 +1245,21 @@ func _try_adopt_steam_cloud_save() -> void:
 		return
 	var cloud_updated := str(parsed.get("cloudUpdatedAt", parsed.get("savedAt", "")))
 	var local_updated := str(_cached_state.get("cloudUpdatedAt", _cached_state.get("savedAt", "")))
-	if local_updated != "" and cloud_updated != "" and cloud_updated <= local_updated:
-		return
+	if local_updated != "":
+		# Compare parsed instants, never raw strings: a lexicographic compare across two different
+		# clocks is what discarded hours of progress on a fresh install with Steam Cloud enabled.
+		var cloud_unix := _save_stamp_unix(cloud_updated)
+		var local_unix := _save_stamp_unix(local_updated)
+		if cloud_unix == 0 or local_unix == 0:
+			# An untrusted stamp on either side: keep the local save, which is the copy the player
+			# is definitely holding.
+			push_warning(
+				"LocalSave: unparseable save timestamp (cloud='%s', local='%s'); keeping local."
+				% [cloud_updated, local_updated]
+			)
+			return
+		if cloud_unix <= local_unix:
+			return
 	_apply_save_data(parsed)
 	_cloud_updated_at = cloud_updated
 	_cached_state["cloudUpdatedAt"] = cloud_updated
@@ -1475,7 +1549,7 @@ func _add_roster_entry(
 				"name": character_name,
 				"classId": class_id,
 				"level": level,
-				"savedAt": saved_at if saved_at != "" else Time.get_datetime_string_from_system(),
+				"savedAt": saved_at if saved_at != "" else _utc_now_iso(),
 			}
 		)
 	)
@@ -1493,7 +1567,7 @@ func _update_roster_entry_metadata(data: Dictionary) -> void:
 		entry["name"] = str(character.get("name", entry.get("name", "Warden")))
 		entry["classId"] = str(character.get("classId", entry.get("classId", "")))
 		entry["level"] = int(character.get("level", entry.get("level", 1)))
-		entry["savedAt"] = Time.get_datetime_string_from_system()
+		entry["savedAt"] = _utc_now_iso()
 		characters[i] = entry
 		break
 	_roster["characters"] = characters

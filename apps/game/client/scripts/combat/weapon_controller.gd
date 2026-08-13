@@ -93,6 +93,10 @@ var _class_stats: Dictionary = {}
 var _talent_stats: Dictionary = {}
 var _equipment_stats: Dictionary = {}
 var _post_dodge_attack_buffer := 0.0
+## Lifetime of a buffered attack pressed during an active swing. Independent of the post-dodge
+## window so pressing attack during recovery chains the combo, which is the whole point of an
+## input buffer in a soulslike.
+var _attack_buffer_timer := 0.0
 var _art_cooldown_timer := 0.0
 var _lunge_distance := 0.0
 var _lunge_duration := 0.0
@@ -108,6 +112,15 @@ var _body_reports_sprint := false
 
 func _ready() -> void:
 	_body = get_parent() as CharacterBody3D
+	if _body == null:
+		# Tool scenes, validation harnesses and accidental reparenting all land here. Failing loud
+		# but soft beats dereferencing null on the very next line.
+		push_error(
+			"WeaponController must be a direct child of a CharacterBody3D (parent=%s)"
+			% [get_parent()]
+		)
+		set_physics_process(false)
+		return
 	_stamina = _body.get_node_or_null("Stamina") as Stamina
 	_combat_reactions = _body.get_node_or_null("CombatReactions") as PlayerCombatReactions
 	_guard = _body.get_node_or_null("Guard") as Guard
@@ -152,6 +165,10 @@ func _physics_process(delta: float) -> void:
 		_post_dodge_attack_buffer -= delta
 		if _post_dodge_attack_buffer <= 0.0:
 			_buffered_attack = ""
+	if _attack_buffer_timer > 0.0:
+		_attack_buffer_timer -= delta
+		if _attack_buffer_timer <= 0.0 and _post_dodge_attack_buffer <= 0.0:
+			_buffered_attack = ""
 	if _art_cooldown_timer > 0.0:
 		_art_cooldown_timer -= delta
 	if _dodge and _dodge.is_dodging and not is_attacking and _buffered_attack == "":
@@ -178,9 +195,14 @@ func _physics_process(delta: float) -> void:
 		_try_attack("light")
 	elif PlayerInput.just_pressed(&"heavy_attack"):
 		_try_attack("heavy")
-	if _buffered_attack != "" and not is_attacking and _post_dodge_attack_buffer > 0.0:
-		_try_attack(_buffered_attack)
+	# Consume the buffer whenever a swing has ended, not only after a dodge. The post-dodge window
+	# is one way to fill the buffer; pressing attack during recovery is the other, and it used to
+	# be silently discarded because this was the only consumption site.
+	if _buffered_attack != "" and not is_attacking:
+		var buffered_kind := _buffered_attack
 		_buffered_attack = ""
+		_attack_buffer_timer = 0.0
+		_try_attack(buffered_kind)
 
 
 func load_weapon_from_path(relative: String) -> void:
@@ -427,6 +449,9 @@ func _try_attack(kind: String) -> void:
 		var buffer_window: float = _weapon_data.get("buffer_window", 0.2)
 		if _phase_timer <= buffer_window or current_phase == AttackPhase.RECOVERY:
 			_buffered_attack = kind
+			# A little longer than the window itself so an input landing right at the edge of
+			# recovery still survives until the swing actually ends.
+			_attack_buffer_timer = buffer_window + 0.1
 		return
 	if _try_start_execution():
 		return
@@ -784,6 +809,12 @@ func _process_bow_input(delta: float) -> void:
 		current_phase = AttackPhase.DRAWING
 		is_attacking = true
 		_draw_charge = minf(1.0, _draw_charge + delta / float(_weapon_data.get("draw_time", 0.8)))
+		# The draw is the start of the attack as far as listeners are concerned. Setting
+		# is_attacking without announcing it left every started/ended pairing (HUD stamina lock,
+		# anim director, audio ducking) unbalanced for bows.
+		attack_started.emit("bow_draw")
+		if _stamina:
+			_stamina.set_regen_state(Stamina.RegenState.SUPPRESSED)
 		return
 	if PlayerInput.just_pressed(&"light_attack"):
 		_try_attack("light")
@@ -812,6 +843,9 @@ func _fire_bow_shot() -> void:
 	_hitbox_opened_this_swing = true
 	_snap_soft_lock_facing()
 	_spawn_arrow(scaled, charge)
+	# Close the draw's pair before opening the shot's, so listeners that count started/ended
+	# events stay balanced across the whole draw-and-release cycle.
+	attack_ended.emit()
 	attack_started.emit(_attack_name)
 
 
@@ -864,10 +898,16 @@ func _spawn_arrow(attack: Dictionary, charge: float) -> void:
 
 
 func _reset_bow() -> void:
+	var was_drawing := is_attacking
 	_draw_charge = 0.0
 	is_attacking = false
 	current_phase = AttackPhase.IDLE
 	is_bow_aiming = false
+	if was_drawing:
+		# Close the pair opened by the draw, and undo its regen suppression symmetrically.
+		if _stamina:
+			_stamina.set_regen_state(Stamina.RegenState.NORMAL)
+		attack_ended.emit()
 
 
 func _toggle_two_hand() -> void:

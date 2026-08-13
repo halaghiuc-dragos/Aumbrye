@@ -14,9 +14,9 @@ export default function PatchNotesPage() {
       <PrerenderReady />
       <h2>Patch Notes</h2>
       {patchNotes.map((entry) => (
-        <article key={entry.version} className="card">
+        <article key={entry.slug} className="card">
           <h3>
-            <Link to={`/patch-notes/${entry.version}`}>
+            <Link to={`/patch-notes/${entry.slug}`}>
               v{entry.version} — {entry.title}
             </Link>
           </h3>

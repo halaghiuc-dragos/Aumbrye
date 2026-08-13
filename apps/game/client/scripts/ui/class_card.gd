@@ -50,6 +50,7 @@ func _build_ui() -> void:
 	add_child(row)
 	var portrait := TextureRect.new()
 	portrait.name = "Portrait"
+	portrait.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	portrait.custom_minimum_size = Vector2(64, 64)
 	portrait.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	portrait.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
@@ -72,6 +73,7 @@ func _build_ui() -> void:
 	text_col.add_child(_stat_pips)
 	_selected_mark = TextureRect.new()
 	_selected_mark.name = "SelectedMark"
+	_selected_mark.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	_selected_mark.custom_minimum_size = Vector2(12, 12)
 	_selected_mark.visible = false
 	row.add_child(_selected_mark)

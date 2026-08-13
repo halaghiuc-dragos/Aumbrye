@@ -97,6 +97,15 @@
     },
     "checksum": {
       "type": "string"
+    },
+    "generatorCapabilities": {
+      "type": "array",
+      "description": "Sections the generator that produced this definition actually populated. The C# backend/CLI generator emits [\"layout\", \"placements\"] only; the GDScript gameplay generator emits all five. Consumers must branch on this rather than treating an empty roomContent/locks/puzzles as authoritative. See docs/ADR/0002-procgen-authority-split.md.",
+      "items": {
+        "type": "string",
+        "enum": ["layout", "placements", "roomContent", "locks", "puzzles"]
+      },
+      "uniqueItems": true
     }
   },
   "$defs": {

@@ -8,9 +8,29 @@ namespace Aumbrye.Application.Services;
 
 public static class CharacterStateDefaults
 {
+    /// <summary>
+    /// Version stamped on every server-issued character state. Read from
+    /// <c>content/fixtures/schema_versions.json</c>, the same file the client's
+    /// <c>SaveMigrator.CURRENT_VERSION</c> is pinned against, so the backend cannot quietly hand
+    /// out saves the client would treat as ancient and try to migrate.
+    /// </summary>
+    public static int SchemaVersion => SchemaVersionValue.Value;
+
+    private static readonly Lazy<int> SchemaVersionValue = new(LoadSchemaVersion);
+
+    private static int LoadSchemaVersion()
+    {
+        var path = Path.Combine(ContentPaths.Root, "fixtures", "schema_versions.json");
+        using var document = JsonDocument.Parse(File.ReadAllText(path));
+        return document.RootElement
+            .GetProperty("characterState")
+            .GetProperty("current")
+            .GetInt32();
+    }
+
     public static JsonObject Create(Guid accountId) => new()
     {
-        ["schemaVersion"] = 1,
+        ["schemaVersion"] = SchemaVersion,
         ["accountId"] = accountId.ToString(),
         ["character"] = new JsonObject
         {

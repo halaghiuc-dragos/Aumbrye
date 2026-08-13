@@ -144,14 +144,23 @@ func receive_hit(info: DamageInfo) -> void:
 			var stamina := owner_body.get_node_or_null("Stamina") as Stamina
 			if stamina and stamina.is_exhausted():
 				poise_hit *= EXHAUSTED_POISE_MULT
-		if not hyperarmor:
-			_poise.take_poise_damage(poise_hit)
+		# Hyperarmor reduces poise damage rather than negating it — the soulslike convention, and
+		# what the HYPERARMOR_POISE_MULT scaling above already implies. Previously the reduced hit
+		# was reported in res.poise_outgoing but never actually applied, so telemetry and the HUD
+		# showed poise damage that nothing had taken.
+		_poise.take_poise_damage(poise_hit)
 		res.poise_outgoing = poise_hit
 
 	_apply_status_from_hit(info)
 	var impact := _impact_class_for(res, info.execution)
 	_emit_victim_feedback(
-		final_amount, info.direction, info.damage_type, res.blocked, res.backstab, impact
+		final_amount,
+		info.direction,
+		info.damage_type,
+		res.blocked,
+		res.backstab,
+		impact,
+		info.periodic
 	)
 	_emit_attacker_feedback(info, final_amount, impact, res.blocked)
 	_dispatch_combat_events(info, res)
@@ -322,11 +331,18 @@ func _emit_victim_feedback(
 	blocked: bool = false,
 	crit: bool = false,
 	impact: int = HitFeedbackScript.ImpactClass.SOLID,
+	periodic: bool = false,
 ) -> void:
 	if damage <= 0.0:
 		return
 	var body := _cached_character_body
 	if body == null:
+		return
+	# Status ticks route through receive_hit, so a 10-tick poison stack used to spawn 20 decals
+	# plus 10 full-strength flashes and 10 camera shakes. Ticks keep a subdued flash for
+	# readability and skip the heavy per-hit VFX entirely.
+	if periodic:
+		_emit_periodic_feedback(body, damage_type)
 		return
 	var visual: Node3D = null
 	if body.has_method("get_diorama_visual"):
@@ -366,6 +382,29 @@ func _emit_victim_feedback(
 	var feedback := body.get_node_or_null("HitFeedback")
 	if feedback and feedback.has_method("on_hit_received"):
 		feedback.call("on_hit_received", damage, direction, damage_type, impact)
+
+
+## Lightweight victim feedback for a damage-over-time tick: a dim material flash only, no decals
+## and no camera shake.
+func _emit_periodic_feedback(body: Node3D, damage_type: String) -> void:
+	var visual: Node3D = null
+	if body.has_method("get_diorama_visual"):
+		visual = body.call("get_diorama_visual") as Node3D
+	if visual == null:
+		visual = body.get_node_or_null("Facing/DioramaVisual") as Node3D
+	if visual == null:
+		return
+	MaterialFlashScript.flash(
+		visual,
+		{
+			"strength": 0.3,
+			"duration": 0.12,
+			"tint": MaterialFlashScript.FLASH_TINTS.get(damage_type, Color.WHITE),
+			"blocked": false,
+			"crit": false,
+			"epicenter": body.global_position + Vector3(0.0, 1.0, 0.0),
+		}
+	)
 
 
 func _apply_resistances(amount: float, damage_type: String) -> float:

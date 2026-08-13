@@ -431,6 +431,18 @@ static func apply_pixel_theme(root: Control) -> void:
 		var bar := child as ProgressBar
 		if bar:
 			bar.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	# TextureRect carries the actual sprite art — icons, portraits, HUD symbols. Leaving it on the
+	# default filter is what makes pixel icons read as soft next to crisp text and panels.
+	var texture_rect_type := &"TextureRect"
+	for child in root.find_children("*", texture_rect_type):
+		var rect := child as TextureRect
+		if rect:
+			rect.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	var nine_patch_type := &"NinePatchRect"
+	for child in root.find_children("*", nine_patch_type):
+		var patch := child as NinePatchRect
+		if patch:
+			patch.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 
 
 static func restyle_tree(root: Control) -> void:

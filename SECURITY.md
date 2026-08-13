@@ -21,6 +21,6 @@ You should receive an acknowledgment within seven days. We will work with you on
 
 ## Scope
 
-In scope: the Godot client, ASP.NET Core API, React web app, Docker Compose services, and CI workflows in this repository.
+In scope: the Godot client, ASP.NET Core API, React web app, and Docker Compose services in this repository.
 
 Out of scope: third-party dependencies (report upstream), hosted infrastructure not defined in this repo, and social-engineering attacks.

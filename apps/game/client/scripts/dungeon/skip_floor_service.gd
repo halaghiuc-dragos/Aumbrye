@@ -37,6 +37,17 @@ static func get_available_skips(inventory: GridInventory) -> Array[Dictionary]:
 	return found
 
 
+## Whether the skip could be spent right now, without spending it. Lets a caller confirm the item
+## is usable and read its destination floor before committing to a run that might fail to generate.
+static func has_skip(inventory: GridInventory, item_id: String) -> bool:
+	if not SKIP_ITEMS.has(item_id):
+		return false
+	if not ItemCatalog.has_item(item_id):
+		push_warning("SkipFloorService: unknown skip item '%s'" % item_id)
+		return false
+	return inventory.count_by_id(item_id) > 0
+
+
 static func consume_skip(inventory: GridInventory, item_id: String) -> bool:
 	if not SKIP_ITEMS.has(item_id):
 		return false

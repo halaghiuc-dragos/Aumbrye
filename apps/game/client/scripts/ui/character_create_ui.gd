@@ -275,6 +275,7 @@ func _build_detail_column(parent: HBoxContainer) -> VBoxContainer:
 	col.add_child(weapon_row)
 	_weapon_icon = TextureRect.new()
 	_weapon_icon.name = "WeaponIcon"
+	_weapon_icon.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	_weapon_icon.custom_minimum_size = Vector2(24, 24)
 	_weapon_icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	_weapon_icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED

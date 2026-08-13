@@ -1,3 +1,4 @@
+using System.Net;
 using System.Threading.RateLimiting;
 using Aumbrye.Api.Auth;
 using Aumbrye.Api.Middleware;
@@ -86,7 +87,8 @@ builder.Services.AddCors(options =>
         .WithOrigins(allowedOrigins)
         .WithMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
         .WithHeaders("Authorization", "Content-Type",
-            ApiVersions.ClientVersionHeader, ApiVersions.ContentVersionHeader)
+            ApiVersions.ClientVersionHeader, ApiVersions.ContentVersionHeader,
+            Aumbrye.Shared.Contracts.Auth.AuthTransport.HeaderName)
         .WithExposedHeaders(ApiVersions.ClientVersionHeader)
         .AllowCredentials()
         .SetPreflightMaxAge(TimeSpan.FromHours(1))));
@@ -138,6 +140,19 @@ builder.Services.AddRateLimiter(options =>
         limiter.QueueLimit = 0;
     });
 
+    // Registration answers "does this email already exist?" by design, which is acceptable for a
+    // game but makes the endpoint a usable enumeration oracle. A tighter per-IP budget keeps that
+    // to a trickle without hurting real sign-ups.
+    options.AddPolicy("register", httpContext =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            httpContext.Connection.RemoteIpAddress?.ToString() ?? "anon",
+            _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 5,
+                Window = TimeSpan.FromMinutes(1),
+                QueueLimit = 0,
+            }));
+
     options.AddPolicy("runs", httpContext =>
     {
         var accountId = httpContext.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
@@ -177,10 +192,48 @@ builder.Services.AddRateLimiter(options =>
 
 var app = builder.Build();
 
-app.UseForwardedHeaders(new ForwardedHeadersOptions
+// Forwarded headers are only trusted when the deployment explicitly names its reverse
+// proxy. With an empty KnownProxies/KnownNetworks set ASP.NET Core would accept
+// X-Forwarded-For from anyone, letting a client mint unlimited rate-limit partitions by
+// rotating a fake header. When nothing is configured (local dev) we skip the middleware
+// entirely so RemoteIpAddress always reflects the real socket peer.
+var knownProxies = builder.Configuration.GetSection("ForwardedHeaders:KnownProxies").Get<string[]>() ?? [];
+var knownNetworks = builder.Configuration.GetSection("ForwardedHeaders:KnownNetworks").Get<string[]>() ?? [];
+if (knownProxies.Length > 0 || knownNetworks.Length > 0)
 {
-    ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto,
-});
+    var forwardedOptions = new ForwardedHeadersOptions
+    {
+        ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto,
+        ForwardLimit = builder.Configuration.GetValue<int?>("ForwardedHeaders:ForwardLimit") ?? 1,
+    };
+    forwardedOptions.KnownProxies.Clear();
+    forwardedOptions.KnownIPNetworks.Clear();
+
+    foreach (var proxy in knownProxies)
+    {
+        if (IPAddress.TryParse(proxy, out var address))
+            forwardedOptions.KnownProxies.Add(address);
+        else
+            app.Logger.LogWarning("Ignoring unparseable ForwardedHeaders:KnownProxies entry '{Proxy}'.", proxy);
+    }
+
+    foreach (var network in knownNetworks)
+    {
+        var parts = network.Split('/', 2);
+        if (parts.Length == 2
+            && IPAddress.TryParse(parts[0], out var prefix)
+            && int.TryParse(parts[1], out var prefixLength))
+        {
+            forwardedOptions.KnownIPNetworks.Add(new System.Net.IPNetwork(prefix, prefixLength));
+        }
+        else
+        {
+            app.Logger.LogWarning("Ignoring unparseable ForwardedHeaders:KnownNetworks entry '{Network}'.", network);
+        }
+    }
+
+    app.UseForwardedHeaders(forwardedOptions);
+}
 
 if (!app.Environment.IsDevelopment())
 {
@@ -208,9 +261,14 @@ else
 
 app.UseMiddleware<VersionHeaderMiddleware>();
 app.UseCors("web");
-app.UseRateLimiter();
+// Authentication MUST run before the rate limiter: the "runs" and "saves" policies
+// partition on ClaimTypes.NameIdentifier, which is only populated once the JWT has been
+// validated. Endpoint-scoped RequireRateLimiting policies execute inside the rate-limiter
+// middleware, so this ordering keeps per-account partitioning real instead of collapsing
+// every authenticated caller into the per-IP fallback.
 app.UseAuthentication();
 app.UseAuthorization();
+app.UseRateLimiter();
 
 app.MapGet("/api/v1/health", () => Results.Ok(new HealthResponse("ok")))
     .WithTags("Health")

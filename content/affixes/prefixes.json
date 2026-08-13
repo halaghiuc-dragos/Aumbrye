@@ -10,6 +10,7 @@
         "weapon"
       ],
       "weight": 100,
+      "valueStyle": "integer",
       "template": "+{value} {stat}",
       "tiers": {
         "common": {
@@ -47,6 +48,7 @@
         "weapon"
       ],
       "weight": 90,
+      "valueStyle": "integer",
       "template": "+{value} {stat}",
       "tiers": {
         "common": {
@@ -84,6 +86,7 @@
         "weapon"
       ],
       "weight": 80,
+      "valueStyle": "fraction",
       "template": "+{value} {stat}",
       "tiers": {
         "common": {
@@ -121,6 +124,7 @@
         "weapon"
       ],
       "weight": 40,
+      "valueStyle": "fraction",
       "template": "+{value} {stat}",
       "tiers": {
         "common": {
@@ -158,6 +162,7 @@
         "weapon"
       ],
       "weight": 70,
+      "valueStyle": "integer",
       "template": "+{value} {stat}",
       "tiers": {
         "common": {
@@ -195,6 +200,7 @@
         "weapon"
       ],
       "weight": 70,
+      "valueStyle": "integer",
       "template": "+{value} {stat}",
       "tiers": {
         "common": {
@@ -232,6 +238,7 @@
         "weapon"
       ],
       "weight": 70,
+      "valueStyle": "integer",
       "template": "+{value} {stat}",
       "tiers": {
         "common": {
@@ -269,6 +276,7 @@
         "weapon"
       ],
       "weight": 70,
+      "valueStyle": "integer",
       "template": "+{value} {stat}",
       "tiers": {
         "common": {
@@ -306,6 +314,7 @@
         "weapon"
       ],
       "weight": 60,
+      "valueStyle": "fraction",
       "template": "+{value} {stat}",
       "tiers": {
         "common": {
@@ -343,6 +352,7 @@
         "weapon"
       ],
       "weight": 50,
+      "valueStyle": "integer",
       "template": "+{value} {stat}",
       "tiers": {
         "common": {
@@ -381,6 +391,7 @@
         "accessory"
       ],
       "weight": 45,
+      "valueStyle": "fraction",
       "template": "+{value} {stat}",
       "tiers": {
         "common": {
@@ -418,6 +429,7 @@
         "weapon"
       ],
       "weight": 55,
+      "valueStyle": "integer",
       "template": "+{value} {stat}",
       "tiers": {
         "common": {
@@ -456,6 +468,7 @@
         "armor"
       ],
       "weight": 90,
+      "valueStyle": "integer",
       "template": "+{value} {stat}",
       "tiers": {
         "common": {
@@ -493,6 +506,7 @@
         "armor"
       ],
       "weight": 85,
+      "valueStyle": "integer",
       "template": "+{value} {stat}",
       "tiers": {
         "common": {
@@ -531,6 +545,7 @@
         "armor"
       ],
       "weight": 80,
+      "valueStyle": "fraction",
       "template": "+{value} {stat}",
       "tiers": {
         "common": {
@@ -568,6 +583,7 @@
         "armor"
       ],
       "weight": 40,
+      "valueStyle": "fraction",
       "template": "+{value} {stat}",
       "tiers": {
         "common": {
@@ -605,6 +621,7 @@
         "armor"
       ],
       "weight": 70,
+      "valueStyle": "integer",
       "template": "+{value} {stat}",
       "tiers": {
         "common": {
@@ -642,6 +659,7 @@
         "armor"
       ],
       "weight": 35,
+      "valueStyle": "fraction",
       "template": "+{value} {stat}",
       "tiers": {
         "common": {
@@ -679,6 +697,7 @@
         "armor"
       ],
       "weight": 85,
+      "valueStyle": "integer",
       "template": "+{value} {stat}",
       "tiers": {
         "common": {
@@ -716,6 +735,7 @@
         "armor"
       ],
       "weight": 70,
+      "valueStyle": "integer",
       "template": "+{value} {stat}",
       "tiers": {
         "common": {
@@ -754,6 +774,7 @@
         "accessory"
       ],
       "weight": 45,
+      "valueStyle": "fraction",
       "template": "+{value} {stat}",
       "tiers": {
         "common": {
@@ -792,6 +813,7 @@
         "accessory"
       ],
       "weight": 40,
+      "valueStyle": "fraction",
       "template": "+{value} {stat}",
       "tiers": {
         "common": {
@@ -829,6 +851,7 @@
         "accessory"
       ],
       "weight": 30,
+      "valueStyle": "fraction",
       "template": "+{value} {stat}",
       "tiers": {
         "common": {
@@ -867,6 +890,7 @@
         "accessory"
       ],
       "weight": 60,
+      "valueStyle": "integer",
       "template": "+{value} {stat}",
       "tiers": {
         "common": {
@@ -905,6 +929,7 @@
         "accessory"
       ],
       "weight": 65,
+      "valueStyle": "integer",
       "template": "+{value} {stat}",
       "tiers": {
         "common": {
@@ -943,6 +968,7 @@
         "accessory"
       ],
       "weight": 70,
+      "valueStyle": "integer",
       "template": "+{value} {stat}",
       "tiers": {
         "common": {

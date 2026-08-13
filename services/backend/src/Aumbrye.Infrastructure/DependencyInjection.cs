@@ -58,8 +58,14 @@ public static class DependencyInjection
         services.AddSingleton<ITokenService, JwtTokenService>();
         services.AddScoped<IAuthService, AuthService>();
         services.AddScoped<IAccountService, AccountService>();
-        services.AddHttpClient<SteamAuthService>();
-        services.AddSingleton<ISteamAuthService>(sp => sp.GetRequiredService<SteamAuthService>());
+
+        // The service itself is cheap and stateless (config + logger), so it stays a singleton —
+        // but it must resolve its HttpClient per call. Capturing a typed client forever pins one
+        // HttpMessageHandler for the process lifetime, defeating the factory's handler recycling
+        // and blinding it to DNS changes for partner.steam-api.com.
+        services.AddHttpClient(SteamAuthService.HttpClientName, client =>
+            client.Timeout = TimeSpan.FromSeconds(10));
+        services.AddSingleton<ISteamAuthService, SteamAuthService>();
         services.AddSingleton<IDungeonGenerator, ProceduralDungeonGenerator>();
         services.AddScoped<IRunService, RunService>();
         services.AddScoped<ISaveService, SaveService>();

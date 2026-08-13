@@ -27,7 +27,43 @@ public sealed record DungeonDefinition(
     IReadOnlyList<RoomContentEntry>? RoomContent = null,
     IReadOnlyList<DungeonLock>? Locks = null,
     IReadOnlyList<DungeonPuzzle>? Puzzles = null,
-    string? Checksum = null);
+    string? Checksum = null,
+    IReadOnlyList<string>? GeneratorCapabilities = null);
+
+/// <summary>
+/// Which parts of a dungeon definition its generator actually filled in.
+/// </summary>
+/// <remarks>
+/// Two generators produce definitions: the GDScript one (gameplay-authoritative, fills everything)
+/// and this C# one (backend/CLI, layout and placements only). Without a declared capability set a
+/// consumer cannot tell an intentionally empty <c>roomContent</c> from a floor that genuinely has
+/// none, and a server-issued definition silently describes a different dungeon than the client
+/// plays. See docs/ADR/0002-procgen-authority-split.md.
+/// </remarks>
+public static class GeneratorCapability
+{
+    /// <summary>Room graph, room transforms and edges.</summary>
+    public const string Layout = "layout";
+
+    /// <summary>Enemy, loot, trap, secret and boss placements.</summary>
+    public const string Placements = "placements";
+
+    /// <summary>Per-room content assignment (shrines, puzzles rooms, ambushes, …).</summary>
+    public const string RoomContent = "roomContent";
+
+    /// <summary>Lock/key gating across the room graph.</summary>
+    public const string Locks = "locks";
+
+    /// <summary>Puzzle instances bound to rooms.</summary>
+    public const string Puzzles = "puzzles";
+
+    /// <summary>What the C# generator emits today.</summary>
+    public static readonly IReadOnlyList<string> CSharpBackend = [Layout, Placements];
+
+    /// <summary>What the GDScript generator emits — the full gameplay surface.</summary>
+    public static readonly IReadOnlyList<string> GdScriptClient =
+        [Layout, Placements, RoomContent, Locks, Puzzles];
+}
 
 public sealed record DungeonRoom(
     string Id,

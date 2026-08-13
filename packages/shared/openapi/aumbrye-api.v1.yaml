@@ -401,6 +401,12 @@ paths:
             application/json:
               schema:
                 type: string
+        '400':
+          description: Bad Request
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
         '401':
           description: Unauthorized
           content:
@@ -470,6 +476,12 @@ paths:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/ProblemDetails'
+        '422':
+          description: Unprocessable Content
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
     put:
       tags:
         - Saves
@@ -505,6 +517,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/PutSaveResponse'
+        '413':
+          description: Content Too Large
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
   /api/v1/telemetry/crash:
     post:
       tags:

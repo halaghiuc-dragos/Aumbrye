@@ -117,8 +117,13 @@ static func require_session() -> bool:
 
 
 static func create_run(biome_id: String, run_seed: Variant = null, tier: int = 1) -> Dictionary:
+	# Creating a run is not idempotent — a retried POST that actually succeeded server-side would
+	# leave an orphan Active run behind, so this one never replays.
 	return await _authed_json(
-		RUNS_CREATE, HTTPClient.METHOD_POST, _run_create_payload(biome_id, run_seed, tier)
+		RUNS_CREATE,
+		HTTPClient.METHOD_POST,
+		_run_create_payload(biome_id, run_seed, tier),
+		false
 	)
 
 
@@ -132,15 +137,22 @@ static func complete_run(
 	outcome: String,
 	elapsed: float,
 	boss_defeated: bool,
-	loot_claimed_ids: Array = []
+	loot_claimed_ids: Array = [],
+	floor: int = 1
 ) -> Dictionary:
 	var payload := {
 		"outcome": outcome,
 		"elapsedSeconds": elapsed,
 		"bossDefeated": boss_defeated,
 		"lootClaimedInstanceIds": loot_claimed_ids,
+		# The server validates loot claims against the floors this run generated and needs to know
+		# which floor the run ended on. Omitting it made every multi-floor completion validate as
+		# floor 1 and reject legitimate claims from floors 2+.
+		"floor": maxi(1, floor),
 	}
-	return await _authed_json(RUNS_COMPLETE % run_id, HTTPClient.METHOD_POST, payload)
+	# Safe to replay: the server claims the run with a guarded status flip and replays the cached
+	# result for a repeat call, so a retry after a timeout cannot double-grant progression.
+	return await _authed_json(RUNS_COMPLETE % run_id, HTTPClient.METHOD_POST, payload, true)
 
 
 static func get_save() -> Dictionary:
@@ -187,14 +199,15 @@ static func submit_leaderboard(run_id: String, opt_in: bool) -> Dictionary:
 	return await _authed_json(LEADERBOARDS_SUBMIT, HTTPClient.METHOD_POST, payload)
 
 
+## GET /leaderboards is public server-side, so viewing boards deliberately does NOT require a
+## session — signed-out players can still browse them from the menus.
 static func fetch_leaderboard(biome_id: String, tier: int, limit: int = 10) -> Dictionary:
-	if not await require_session():
-		return {"ok": false, "error": "not signed in"}
 	var url := (
 		_build_url(LEADERBOARDS)
-		+ "?biomeId=%s&tier=%d&limit=%d" % [biome_id, tier, limit]
+		# Encoded so a biome id containing '&' or a space cannot corrupt the query string.
+		+ "?biomeId=%s&tier=%d&limit=%d" % [biome_id.uri_encode(), tier, limit]
 	)
-	var result := await _request_json(url, HTTPClient.METHOD_GET, {}, true)
+	var result := await _request_json(url, HTTPClient.METHOD_GET, {}, false)
 	if result.get("ok", false):
 		return {"ok": true, "body": result.get("body", {})}
 	return result
@@ -207,15 +220,17 @@ static func _run_create_payload(biome_id: String, run_seed: Variant, tier: int) 
 	return payload
 
 
-static func _authed_json(path: String, method: int, payload: Dictionary) -> Dictionary:
+static func _authed_json(
+	path: String, method: int, payload: Dictionary, allow_retry: bool = true
+) -> Dictionary:
 	if not await require_session():
 		return {"ok": false, "error": "not signed in"}
 	ApiConfig.set_cloud_state(ApiConfig.CloudState.SYNCING, ApiConfig.session_email)
 	var url := _build_url(path) if path.begins_with("/") else path
-	var result := await _request_json(url, method, payload, true)
+	var result := await _request_json(url, method, payload, true, allow_retry)
 	if not result.get("ok", false) and result.get("code", 0) == 401:
 		if await refresh_session():
-			result = await _request_json(url, method, payload, true)
+			result = await _request_json(url, method, payload, true, allow_retry)
 	if result.get("ok", false):
 		ApiConfig.set_cloud_state(ApiConfig.CloudState.SYNCED, ApiConfig.session_email)
 	elif ApiConfig.cloud_state != ApiConfig.CloudState.VERSION_MISMATCH:
@@ -229,10 +244,24 @@ static func _build_url(path: String) -> String:
 	return ApiConfig.get_base_url() + path
 
 
-static func _request_json(url: String, method: int, payload: Dictionary, auth: bool) -> Dictionary:
+## Whether a method is safe to replay after a timeout or 5xx.
+##
+## A POST that times out may well have been applied server-side already, so blind retries can
+## double-create runs or double-complete them. GET/PUT/DELETE are idempotent by contract, so they
+## always retry; POST only retries when the caller opts in (because the endpoint honours an
+## idempotency key, or because the operation is genuinely repeatable).
+static func _is_idempotent(method: int) -> bool:
+	return method != HTTPClient.METHOD_POST
+
+
+static func _request_json(
+	url: String, method: int, payload: Dictionary, auth: bool, allow_retry: bool = true
+) -> Dictionary:
 	if not ApiConfig.cloud_calls_enabled() and url.begins_with(ApiConfig.get_base_url()):
 		return {"ok": false, "error": "cloud disabled", "code": 0}
-	for attempt in MAX_ATTEMPTS:
+	var retryable := allow_retry and _is_idempotent(method)
+	var attempts := MAX_ATTEMPTS if retryable else 1
+	for attempt in attempts:
 		var result := await _request_once(url, method, payload, auth)
 		var code: int = int(result.get("code", 0))
 		if result.get("ok", false):
@@ -241,7 +270,7 @@ static func _request_json(url: String, method: int, payload: Dictionary, auth: b
 			ApiConfig.mark_version_mismatch(str(result.get("error", "Client update required")))
 			return result
 		if code == 429 or code >= 500 or code == 0:
-			if attempt < MAX_ATTEMPTS - 1:
+			if attempt < attempts - 1:
 				await _sleep(_backoff_delay(attempt, float(result.get("retry_after", 0.0))))
 				continue
 		return result

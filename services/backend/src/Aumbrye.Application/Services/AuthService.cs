@@ -1,4 +1,5 @@
-using System.Text.Json;
+using System.Net.Mail;
+using System.Security.Cryptography;
 using System.Text.Json.Nodes;
 using Aumbrye.Application.Abstractions;
 using Aumbrye.Domain.Entities;
@@ -8,6 +9,16 @@ namespace Aumbrye.Application.Services;
 
 public class AuthService : IAuthService
 {
+    /// <summary>How many times a colliding generated display name is regenerated before giving up.</summary>
+    private const int DisplayNameAttempts = 5;
+
+    /// <summary>
+    /// Verified against on a missing account so login costs the same wall time whether or not the
+    /// address exists. Computed once at the hasher's real work factor; a hardcoded literal would
+    /// drift the moment the work factor changes.
+    /// </summary>
+    private static string? _dummyPasswordHash;
+
     private readonly DbContext _db;
     private readonly IPasswordHasher _passwordHasher;
     private readonly ITokenService _tokenService;
@@ -28,7 +39,7 @@ public class AuthService : IAuthService
     public async Task<AuthResult> RegisterAsync(string email, string password, CancellationToken ct = default)
     {
         email = email.Trim().ToLowerInvariant();
-        if (string.IsNullOrWhiteSpace(email) || !email.Contains('@') || email.Length > 256)
+        if (!IsValidEmail(email))
             return new AuthResult(false, Error: "Valid email required.");
         if (password.Length < 8 || password.Length > 128)
             return new AuthResult(false, Error: "Password must be 8–128 characters.");
@@ -43,7 +54,7 @@ public class AuthService : IAuthService
         {
             Id = accountId,
             Email = email,
-            DisplayName = "Wanderer-" + accountId.ToString("N")[..6],
+            DisplayName = GenerateWandererName(),
             PasswordHash = _passwordHasher.Hash(password),
             CreatedAt = DateTimeOffset.UtcNow,
             SaveBlob = new SaveBlob
@@ -53,7 +64,10 @@ public class AuthService : IAuthService
             },
         };
         _db.Set<Account>().Add(account);
-        await _db.SaveChangesAsync(ct);
+
+        if (!await SaveWithDisplayNameRetryAsync(account, GenerateWandererName, ct))
+            return new AuthResult(false, Error: "Could not allocate a display name. Try again.", ErrorStatus: 503);
+
         return await IssueTokensAsync(account, familyId: null, ct);
     }
 
@@ -61,8 +75,18 @@ public class AuthService : IAuthService
     {
         email = email.Trim().ToLowerInvariant();
         var account = await _db.Set<Account>().FirstOrDefaultAsync(a => a.Email == email, ct);
-        if (account == null || string.IsNullOrEmpty(account.Email) || !_passwordHasher.Verify(password, account.PasswordHash))
+
+        if (account == null || string.IsNullOrEmpty(account.Email))
+        {
+            // Burn an equivalent hash so a missing (or Steam-only) account is not distinguishable
+            // from a wrong password by response time.
+            _passwordHasher.Verify(password, DummyPasswordHash());
             return new AuthResult(false, Error: "Invalid credentials.");
+        }
+
+        if (!_passwordHasher.Verify(password, account.PasswordHash))
+            return new AuthResult(false, Error: "Invalid credentials.");
+
         return await IssueTokensAsync(account, familyId: null, ct);
     }
 
@@ -131,7 +155,10 @@ public class AuthService : IAuthService
         if (string.IsNullOrWhiteSpace(ticketHex) || ticketHex.Length % 2 != 0)
             return new AuthResult(false, Error: "Malformed ticket.", ErrorStatus: 400);
 
-        var validation = await _steamAuth.ValidateAsync(ticketHex, appId, ct);
+        if (!TryPinAppId(appId, out var pinnedAppId))
+            return new AuthResult(false, Error: "Invalid app.", ErrorStatus: 400);
+
+        var validation = await _steamAuth.ValidateAsync(ticketHex, pinnedAppId, ct);
         if (!validation.Success || validation.SteamId == null)
             return new AuthResult(false, Error: validation.Error ?? "Steam rejected the ticket.", ErrorStatus: 401);
         if (validation.VacBanned || validation.PublisherBanned)
@@ -149,7 +176,7 @@ public class AuthService : IAuthService
             {
                 Id = accountId,
                 Email = null,
-                DisplayName = $"Steam-{steamId}"[..Math.Min(15, $"Steam-{steamId}".Length)],
+                DisplayName = GenerateSteamName(steamId),
                 PasswordHash = string.Empty,
                 SteamId = steamId,
                 SteamLinkedAt = DateTimeOffset.UtcNow,
@@ -161,7 +188,9 @@ public class AuthService : IAuthService
                 },
             };
             _db.Set<Account>().Add(account);
-            await _db.SaveChangesAsync(ct);
+
+            if (!await SaveWithDisplayNameRetryAsync(account, () => GenerateSteamName(steamId), ct))
+                return new AuthResult(false, Error: "Could not allocate a display name. Try again.", ErrorStatus: 503);
         }
 
         return await IssueTokensAsync(account, familyId: null, ct);
@@ -175,7 +204,10 @@ public class AuthService : IAuthService
         if (string.IsNullOrWhiteSpace(ticketHex) || ticketHex.Length % 2 != 0)
             return new AuthResult(false, Error: "Malformed ticket.", ErrorStatus: 400);
 
-        var validation = await _steamAuth.ValidateAsync(ticketHex, appId, ct);
+        if (!TryPinAppId(appId, out var pinnedAppId))
+            return new AuthResult(false, Error: "Invalid app.", ErrorStatus: 400);
+
+        var validation = await _steamAuth.ValidateAsync(ticketHex, pinnedAppId, ct);
         if (!validation.Success || validation.SteamId == null)
             return new AuthResult(false, Error: validation.Error ?? "Steam rejected the ticket.", ErrorStatus: 401);
         if (validation.VacBanned || validation.PublisherBanned)
@@ -196,6 +228,81 @@ public class AuthService : IAuthService
         await _db.SaveChangesAsync(ct);
         return new AuthResult(true, account.Id, account.Email);
     }
+
+    /// <summary>
+    /// Resolves the app id a ticket is validated against. When the deployment pins
+    /// <c>Steam:AppId</c>, a client-supplied mismatch is rejected outright and the pinned value is
+    /// always what reaches Steam — otherwise a ticket minted for any other app the caller owns
+    /// would authenticate here.
+    /// </summary>
+    private bool TryPinAppId(uint requestedAppId, out uint pinnedAppId)
+    {
+        var configured = _steamAuth.ConfiguredAppId;
+        if (configured == null)
+        {
+            pinnedAppId = requestedAppId;
+            return true;
+        }
+
+        pinnedAppId = configured.Value;
+        return requestedAppId == 0 || requestedAppId == configured.Value;
+    }
+
+    private static bool IsValidEmail(string email)
+    {
+        if (string.IsNullOrWhiteSpace(email) || email.Length > 256)
+            return false;
+        // MailAddress accepts display-name forms like "Name <a@b.c>"; requiring Address to equal
+        // the input rejects those and keeps the stored value canonical.
+        return MailAddress.TryCreate(email, out var parsed)
+               && string.Equals(parsed.Address, email, StringComparison.Ordinal)
+               && parsed.Host.Contains('.');
+    }
+
+    /// <summary>8 hex chars is 4.3 billion values — collisions stay rare well past launch scale.</summary>
+    private static string GenerateWandererName() =>
+        "Wanderer-" + Convert.ToHexString(RandomNumberGenerator.GetBytes(4)).ToLowerInvariant();
+
+    /// <summary>
+    /// The LAST 9 digits of a SteamID64. The leading digits are the near-constant 7656119 prefix,
+    /// so truncating from the front produced the same name for essentially every Steam account.
+    /// </summary>
+    private static string GenerateSteamName(ulong steamId) => $"Steam-{steamId % 1_000_000_000}";
+
+    private string DummyPasswordHash() =>
+        _dummyPasswordHash ??= _passwordHasher.Hash("aumbrye-login-timing-equalizer");
+
+    /// <summary>
+    /// Persists an account, regenerating its display name when the unique index rejects it.
+    /// Generated names collide by birthday paradox long before they exhaust the namespace, so a
+    /// pre-check alone is not enough — two concurrent registrations can pass it and still clash.
+    /// </summary>
+    private async Task<bool> SaveWithDisplayNameRetryAsync(
+        Account account,
+        Func<string> regenerate,
+        CancellationToken ct)
+    {
+        for (var attempt = 0; attempt < DisplayNameAttempts; attempt++)
+        {
+            try
+            {
+                await _db.SaveChangesAsync(ct);
+                return true;
+            }
+            catch (DbUpdateException) when (attempt < DisplayNameAttempts - 1)
+            {
+                // Widen the namespace on each retry so a genuinely saturated prefix still resolves.
+                account.DisplayName = Truncate(
+                    $"{regenerate()}-{Convert.ToHexString(RandomNumberGenerator.GetBytes(2)).ToLowerInvariant()}",
+                    32);
+            }
+        }
+
+        return false;
+    }
+
+    private static string Truncate(string value, int maxLength) =>
+        value.Length <= maxLength ? value : value[..maxLength];
 
     private async Task RevokeFamilyAsync(Guid familyId, CancellationToken ct)
     {
@@ -237,8 +344,13 @@ public class AuthService : IAuthService
 public class AccountService : IAccountService
 {
     private readonly DbContext _db;
+    private readonly ILeaderboardStore _leaderboards;
 
-    public AccountService(DbContext db) => _db = db;
+    public AccountService(DbContext db, ILeaderboardStore leaderboards)
+    {
+        _db = db;
+        _leaderboards = leaderboards;
+    }
 
     public async Task<DisplayNameResult> UpdateDisplayNameAsync(
         Guid accountId,
@@ -273,6 +385,10 @@ public class AccountService : IAccountService
         if (account == null)
             return false;
 
+        // Leaderboards live outside the relational cascade, so deleting the row alone would leave
+        // the player's display name and account id publicly listed forever.
+        await _leaderboards.RemoveAccountAsync(accountId, ct);
+
         _db.Set<Account>().Remove(account);
         await _db.SaveChangesAsync(ct);
         return true;
@@ -298,7 +414,19 @@ public class AccountService : IAccountService
             ["status"] = r.Status.ToString(),
             ["createdAt"] = r.CreatedAt.ToString("O"),
             ["completedAt"] = r.CompletedAt?.ToString("O"),
+            ["elapsedSeconds"] = r.ElapsedSeconds,
         }).ToArray<JsonNode?>();
+
+        var leaderboardEntries = (await _leaderboards.GetEntriesForAccountAsync(accountId, ct))
+            .Select(e => (JsonNode?)new JsonObject
+            {
+                ["biomeId"] = e.BiomeId,
+                ["tier"] = e.Tier,
+                ["elapsedSeconds"] = e.ElapsedSeconds,
+                ["submittedAt"] = e.SubmittedAt.ToString("O"),
+                ["displayName"] = e.DisplayName,
+            })
+            .ToArray();
 
         return new JsonObject
         {
@@ -310,6 +438,7 @@ public class AccountService : IAccountService
                 ? null
                 : JsonNode.Parse(account.SaveBlob.JsonData),
             ["runs"] = new JsonArray(runs),
+            ["leaderboardEntries"] = new JsonArray(leaderboardEntries),
             ["refreshTokenCount"] = account.RefreshTokens.Count,
         };
     }

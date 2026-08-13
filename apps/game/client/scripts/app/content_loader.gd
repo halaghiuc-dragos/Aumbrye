@@ -64,6 +64,28 @@ static func load_json(relative: String) -> Dictionary:
 	return result.duplicate(true)
 
 
+## Loads a batch of content files into the cache up front, so the first in-gameplay touch is a
+## dictionary lookup rather than a disk read and JSON parse.
+##
+## Call this while a loading screen is up. Returns how many paths were newly parsed (already-cached
+## paths cost nothing), which makes it easy to assert in tests that a prewarm actually did work.
+static func prime(paths: Array) -> int:
+	var loaded := 0
+	for path in paths:
+		var relative := str(path)
+		if relative.is_empty() or _json_cache.has(relative):
+			continue
+		load_json(relative)
+		loaded += 1
+	return loaded
+
+
+## Whether a path has already been parsed this session. Used by prewarm diagnostics to spot content
+## that is still being loaded during gameplay instead of during the loading screen.
+static func is_cached(relative: String) -> bool:
+	return _json_cache.has(relative)
+
+
 static func clear_all_caches() -> void:
 	_json_cache.clear()
 	ItemCatalog.clear_cache()

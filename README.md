@@ -8,7 +8,7 @@ Single-player action roguelite RPG with Soulslike combat. Early Access target: W
 |------|---------|
 | Godot | 4.7 (standard build; see `apps/game/client/project.godot` `config/features`) |
 | .NET SDK | 8.x |
-| Node.js | 24 (matches CI) |
+| Node.js | 24 |
 | Docker | Compose v2 |
 
 ## Run the game
@@ -73,7 +73,7 @@ Run individual layers:
 node scripts/validate.mjs --layer content --layer python
 ```
 
-CI-equivalent commands (run individually when iterating):
+Individual commands (run these when iterating on one layer):
 
 ```bash
 dotnet test services/backend/Aumbrye.sln --configuration Release
@@ -111,4 +111,4 @@ node scripts/balance/balance-cli.mjs --summary
 - Remote: `https://github.com/halaghiuc-dragos/Aumbrye`
 - Default branch: `main`
 - Pull requests required; see [CONTRIBUTING.md](CONTRIBUTING.md)
-- CI runs backend tests, web build, content validation, GDScript lint, docs link check, and Godot headless validation
+- Validation is local: run `node scripts/validate.mjs` before opening a pull request (see [CONTRIBUTING.md](CONTRIBUTING.md))

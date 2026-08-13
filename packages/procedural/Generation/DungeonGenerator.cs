@@ -20,8 +20,17 @@ public sealed class GenerationOptions
 
 /// <summary>
 /// Main procedural entry — layout through canonical JSON.
-/// GDScript DungeonProcgen is authoritative for gameplay; this path exists for backend/CLI parity.
 /// </summary>
+/// <remarks>
+/// <para><b>Authority split.</b> GDScript <c>DungeonProcgen</c> is authoritative for gameplay; this
+/// path exists for backend/CLI parity and is deliberately frozen to layout + placements. It emits
+/// empty <c>roomContent</c>, <c>locks</c> and <c>puzzles</c>, which the GDScript generator fills.
+/// </para>
+/// <para>That split is now declared in the definition itself via
+/// <c>generatorCapabilities</c>, so a client consuming a server-issued definition knows to run its
+/// own content pass rather than assuming the floor has no content. See
+/// docs/ADR/0002-procgen-authority-split.md for the contract and the path to closing the gap.</para>
+/// </remarks>
 public static class DungeonGenerator
 {
     public static GenerationResult Generate(
@@ -121,7 +130,8 @@ public static class DungeonGenerator
             IsFinalFloor: isFinalFloor,
             RoomContent: Array.Empty<RoomContentEntry>(),
             Locks: Array.Empty<DungeonLock>(),
-            Puzzles: Array.Empty<DungeonPuzzle>());
+            Puzzles: Array.Empty<DungeonPuzzle>(),
+            GeneratorCapabilities: GeneratorCapability.CSharpBackend);
 
         var (json, checksum) = CanonicalJsonSerializer.Serialize(definition);
         return new GenerationResult(definition with { Checksum = checksum }, json);

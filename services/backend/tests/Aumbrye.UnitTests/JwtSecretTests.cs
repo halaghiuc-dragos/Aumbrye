@@ -32,16 +32,35 @@ public class JwtSecretTests
 public class LeaderboardMemberTests
 {
     [Fact]
-    public void RoundTripsAccountTimestampAndName()
+    public void RoundTripsAccountId()
+    {
+        var accountId = Guid.Parse("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee");
+
+        var member = LeaderboardMemberFormat.Format(accountId);
+
+        Assert.True(LeaderboardMemberFormat.TryParse(member, out var parsedId));
+        Assert.Equal(accountId, parsedId);
+    }
+
+    [Fact]
+    public void ParsesLegacyMembersWrittenBeforeTheOneEntryPerAccountRule()
     {
         var accountId = Guid.Parse("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee");
         var submittedAt = DateTimeOffset.Parse("2026-08-05T12:00:00Z");
-        var displayName = "Wanderer-abc123";
+        var legacy = $"{accountId:N}|{submittedAt.ToUnixTimeSeconds()}|Wanderer-abc123";
 
-        var member = LeaderboardMemberFormat.Format(accountId, submittedAt, displayName);
-        Assert.True(LeaderboardMemberFormat.TryParse(member, out var parsedId, out var parsedAt, out var parsedName));
+        Assert.True(LeaderboardMemberFormat.TryParse(legacy, out var parsedId));
         Assert.Equal(accountId, parsedId);
-        Assert.Equal(submittedAt.ToUnixTimeSeconds(), parsedAt.ToUnixTimeSeconds());
-        Assert.Equal(displayName, parsedName);
+        Assert.Equal("Wanderer-abc123", LeaderboardMemberFormat.LegacyDisplayName(legacy));
+        Assert.Equal(submittedAt.ToUnixTimeSeconds(), LeaderboardMemberFormat.LegacySubmittedAt(legacy)!.Value.ToUnixTimeSeconds());
+    }
+
+    [Fact]
+    public void CurrentMembersCarryNoEmbeddedMetadata()
+    {
+        var member = LeaderboardMemberFormat.Format(Guid.NewGuid());
+
+        Assert.Null(LeaderboardMemberFormat.LegacyDisplayName(member));
+        Assert.Null(LeaderboardMemberFormat.LegacySubmittedAt(member));
     }
 }

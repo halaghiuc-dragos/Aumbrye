@@ -41,22 +41,22 @@ const SFX_PROFILES := {
 	"swing": {"path": "res://assets/audio/sfx/swing_01.ogg", "bus": &"SFX"},
 	"death": {"path": "res://assets/audio/sfx/death_01.ogg", "bus": &"SFX"},
 	"footstep": {"path": "res://assets/audio/sfx/step_stone_01.ogg", "bus": &"SFX"},
-	"footstep_stone": {"freq": 80.0, "duration": 0.05, "bus": &"SFX"},
-	"footstep_wood": {"freq": 120.0, "duration": 0.05, "bus": &"SFX"},
-	"footstep_water": {"freq": 200.0, "duration": 0.09, "bus": &"SFX"},
-	"footstep_snow": {"freq": 60.0, "duration": 0.07, "bus": &"SFX"},
+	"footstep_stone": {"freq": 80.0, "duration": 0.05, "bus": &"SFX", "placeholder": true},
+	"footstep_wood": {"freq": 120.0, "duration": 0.05, "bus": &"SFX", "placeholder": true},
+	"footstep_water": {"freq": 200.0, "duration": 0.09, "bus": &"SFX", "placeholder": true},
+	"footstep_snow": {"freq": 60.0, "duration": 0.07, "bus": &"SFX", "placeholder": true},
 	"windup": {"path": "res://assets/audio/sfx/windup_01.ogg", "bus": &"SFX"},
 	"heal_raise": {"path": "res://assets/audio/sfx/heal_raise.ogg", "bus": &"SFX"},
 	"heal_gulp": {"path": "res://assets/audio/sfx/heal_gulp.ogg", "bus": &"SFX"},
 	"heal_commit": {"path": "res://assets/audio/sfx/heal_commit.ogg", "bus": &"SFX"},
-	"lever_pull": {"path": "res://assets/audio/sfx/ui_click_01.ogg", "bus": &"SFX"},
-	"lever_unlock": {"path": "res://assets/audio/sfx/heal_commit.ogg", "bus": &"SFX"},
+	"lever_pull": {"path": "res://assets/audio/sfx/ui_click_01.ogg", "bus": &"SFX", "placeholder": true},
+	"lever_unlock": {"path": "res://assets/audio/sfx/heal_commit.ogg", "bus": &"SFX", "placeholder": true},
 	"ui": {"path": "res://assets/audio/sfx/ui_click_01.ogg", "bus": &"UI"},
-	"door_open": {"path": "res://assets/audio/sfx/swing_01.ogg", "bus": &"SFX"},
-	"door_seal": {"path": "res://assets/audio/sfx/block_01.ogg", "bus": &"SFX"},
-	"door_release": {"path": "res://assets/audio/sfx/heal_raise.ogg", "bus": &"SFX"},
-	"portal_open": {"path": "res://assets/audio/sfx/heal_commit.ogg", "bus": &"SFX"},
-	"portal_enter": {"path": "res://assets/audio/sfx/ui_click_01.ogg", "bus": &"UI"},
+	"door_open": {"path": "res://assets/audio/sfx/swing_01.ogg", "bus": &"SFX", "placeholder": true},
+	"door_seal": {"path": "res://assets/audio/sfx/block_01.ogg", "bus": &"SFX", "placeholder": true},
+	"door_release": {"path": "res://assets/audio/sfx/heal_raise.ogg", "bus": &"SFX", "placeholder": true},
+	"portal_open": {"path": "res://assets/audio/sfx/heal_commit.ogg", "bus": &"SFX", "placeholder": true},
+	"portal_enter": {"path": "res://assets/audio/sfx/ui_click_01.ogg", "bus": &"UI", "placeholder": true},
 	"boss_reveal": {"path": "res://assets/audio/shared/sting_boss.ogg", "bus": &"Music"},
 }
 
@@ -151,6 +151,28 @@ func _ready() -> void:
 		add_child(player3d)
 		_sfx_3d_pool.append(player3d)
 	_recompute_generator_active()
+	_report_placeholder_sfx()
+
+
+## One consolidated debug-build note about SFX keys that are still borrowing another sound's file
+## (a door that whooshes like a sword) or have no file at all and fall through to a synthesized
+## tone. Without an explicit marker these placeholders are invisible and ship by default.
+func _report_placeholder_sfx() -> void:
+	if not OS.is_debug_build():
+		return
+	var pending: Array[String] = []
+	for key in SFX_PROFILES:
+		var profile: Dictionary = SFX_PROFILES[key]
+		# A real variant authored in the SFX bank supersedes the placeholder entry.
+		if bool(profile.get("placeholder", false)) and not _sfx_bank.has(key):
+			pending.append(str(key))
+	if pending.is_empty():
+		return
+	pending.sort()
+	print_rich(
+		"[color=yellow]AudioDirector: %d placeholder SFX still need real foley — %s[/color]"
+		% [pending.size(), ", ".join(pending)]
+	)
 
 
 func _recompute_generator_active() -> void:
@@ -183,10 +205,14 @@ func set_biome(biome_id: String) -> void:
 			"bossFreq": 196.0,
 			"crossfadeSeconds": DEFAULT_CROSSFADE,
 		}
+	# Order matters: _explore_freq and _combat_freq fall back to _ambience_freq and _music_freq, so
+	# both sources must already reflect the NEW profile. Reading _music_freq before updating it
+	# meant any profile without an explicit combatFreq inherited the PREVIOUS biome's boss
+	# frequency — audible as a wrong-pitch combat layer after every biome change in endless mode.
 	_ambience_freq = float(_profile.get("ambienceFreq", 110.0))
+	_music_freq = float(_profile.get("bossFreq", 196.0))
 	_explore_freq = float(_profile.get("exploreFreq", _ambience_freq))
 	_combat_freq = float(_profile.get("combatFreq", _music_freq))
-	_music_freq = float(_profile.get("bossFreq", 196.0))
 	_crossfade = float(_profile.get("crossfadeSeconds", DEFAULT_CROSSFADE))
 	_ambience.set_meta(&"freq", _ambience_freq)
 	_explore.set_meta(&"freq", _explore_freq)

@@ -24,10 +24,16 @@ func _ready() -> void:
 	_accept_button.pressed.connect(_on_accept_pressed)
 	_close_button.pressed.connect(close)
 	_available_list.item_selected.connect(_on_available_selected)
-	QuestService.quest_updated.connect(func(_id: String, _s: String) -> void: _refresh())
+	# Bound method rather than a lambda: QuestService is an autoload and outlives this menu, and a
+	# lambda connection is not auto-disconnected when the capturing node is freed.
+	QuestService.quest_updated.connect(_on_quest_updated)
 	if CharacterService:
 		CharacterService.quests_changed.connect(_refresh)
 		CharacterService.quest_progress_changed.connect(_refresh)
+
+
+func _on_quest_updated(_quest_id: String, _status: String) -> void:
+	_refresh()
 
 
 func is_open() -> bool:

@@ -21,12 +21,17 @@ const CharacterFloorSnapScript := preload("res://scripts/art/characters/characte
 const CharacterSkin := preload("res://scripts/art/characters/diorama_character_skin.gd")
 const CharacterRigCatalogScript := preload("res://scripts/art/characters/character_rig_catalog.gd")
 const AnimControllerScript := preload("res://scripts/art/characters/diorama_anim_controller.gd")
+const CombatLayersScript := preload("res://scripts/combat/combat_layers.gd")
 
 @export var player_path: NodePath
 
 ## Content id of the definition this scene instances. Set per scene so a variant needs no
 ## script of its own; a subclass with real behaviour may still override _resolve_enemy_id().
 @export var enemy_id: String = ""
+
+## Physics layers that block this enemy's sight line. Defaults to the project-wide occluder set;
+## override per scene only for enemies that are meant to see through something others cannot.
+@export_flags_3d_physics var los_mask: int = CombatLayersScript.WORLD_OCCLUDERS
 
 @onready var _mesh: MeshInstance3D = $MeshInstance3D
 @onready var _body_collision: CollisionShape3D = $CollisionShape3D
@@ -238,9 +243,10 @@ func _ready() -> void:
 		_poise.configure(_data.get("poise", 40.0), float(_data.get("stagger_duration", 1.0)))
 		_poise.poise_broken.connect(_on_poise_broken)
 	if _hurtbox:
+		# Only `damaged` drives the hit reaction. Hurtbox.receive_hit emits both `damaged` and
+		# `hit_resolved` for the same hit, so listening to both played the flinch twice per hit
+		# and clobbered _last_hit_direction with a zero vector, breaking directional death sweeps.
 		_hurtbox.damaged.connect(_on_hurt)
-		if _hurtbox.has_signal("hit_resolved"):
-			_hurtbox.hit_resolved.connect(_on_hit_resolved)
 		_apply_hurtbox_data()
 	_unpack_tuning()
 	_castle_run = get_tree().get_first_node_in_group("castle_run")
@@ -263,6 +269,8 @@ func _join_room_board() -> void:
 
 
 func _exit_tree() -> void:
+	# Freeing mid-swing is the third way a token used to leak, alongside stagger and death.
+	_release_attack_token()
 	if not _room_registered:
 		return
 	EnemyBlackboard.unregister(_room_id, self)
@@ -462,12 +470,18 @@ func set_catalog_id(id: String) -> void:
 	if not _data.is_empty() or id.is_empty():
 		return
 	_data = EnemyCatalog.get_definition(id)
-	if _health and not _data.is_empty():
+	if _data.is_empty():
+		return
+	# Unpack first so health and poise configure from the same tuning fields every other spawn
+	# path uses. Configuring poise with only its first argument here made boss adds fall back to
+	# the default stagger duration instead of the catalog's.
+	_unpack_tuning()
+	if _health:
 		_health.configure(_data.get("health", 80.0))
-	if _poise and not _data.is_empty():
-		_poise.configure(_data.get("poise", 40.0))
-	if not _data.is_empty():
-		_unpack_tuning()
+	if _poise:
+		_poise.configure(
+			float(_data.get("poise", 40.0)), float(_data.get("stagger_duration", 1.0))
+		)
 
 
 func get_enemy_id() -> String:
@@ -661,6 +675,10 @@ func respawn_at_rest() -> void:
 	if _hurtbox:
 		_hurtbox.monitorable = true
 		_hurtbox.monitoring = true
+	if _body_collision:
+		# _finalize_death disabled this; without restoring it a bonfire-respawned enemy is a ghost
+		# the player and its own navigation walk straight through.
+		_body_collision.disabled = false
 	if _hp_bar:
 		_hp_bar.visible = true
 	if _animator and _animator.is_bound():
@@ -708,6 +726,8 @@ func _finalize_death(silent: bool) -> void:
 	_aggro_locked = false
 	_leave_room_engagement()
 	_unregister_combat_engagement()
+	# Dying mid-swing must hand the attack token back too.
+	_release_attack_token()
 	if _health:
 		_health.force_dead()
 	if not silent:
@@ -778,6 +798,12 @@ func _force_dead_silent() -> void:
 func apply_stagger(duration: float) -> void:
 	if is_dead() or (_health and _health.is_dead()):
 		return
+	# A stagger jumps straight to STATE.STAGGER without routing through _end_attack, so an enemy
+	# interrupted mid-windup used to keep its attack token forever. Tokens gate how many enemies
+	# may swing at once, so leaked ones drain the pool until nothing can attack at all.
+	if _state in [State.WINDUP, State.ATTACK]:
+		_combo_step = 0
+		_release_attack_token()
 	_state = State.STAGGER
 	_stagger_timer = duration
 	_yield_room_turn()
@@ -1215,7 +1241,18 @@ func _alert_candidates() -> Array:
 		var roster := EnemyBlackboard.members(_room_id)
 		if not roster.is_empty():
 			return roster
-	return get_tree().get_nodes_in_group("enemy")
+
+	# Allies in adjacent rooms still count, and the board can answer that without touching every
+	# enemy on the floor.
+	var neighbours := EnemyBlackboard.nearby(global_position, _alert_radius)
+	if not neighbours.is_empty():
+		return neighbours
+
+	# Whole-floor group scan: correct but O(N) inside a single frame. Kept only as a debug-build
+	# safety net for enemies that never registered with the board.
+	if OS.is_debug_build():
+		return get_tree().get_nodes_in_group("enemy")
+	return []
 
 
 func notice_ally_alert(source_position: Vector3) -> void:
@@ -1270,7 +1307,7 @@ func _has_line_of_sight_to_player() -> bool:
 	var from := global_position + Vector3(0, 1.2, 0)
 	var to := _player.global_position + Vector3(0, 1.0, 0)
 	var params := PhysicsRayQueryParameters3D.create(from, to)
-	params.collision_mask = 1
+	params.collision_mask = los_mask
 	params.collide_with_areas = false
 	params.collide_with_bodies = true
 	params.exclude = [get_rid()]
@@ -1527,12 +1564,6 @@ func _on_poise_broken() -> void:
 	if is_dead() or (_health and _health.is_dead()):
 		return
 	apply_stagger(_stagger_duration_data)
-
-
-func _on_hit_resolved(res: DamageResolution) -> void:
-	if res.outgoing <= 0.0:
-		return
-	_on_hurt(DamageInfo.new())
 
 
 func _on_hurt(info: DamageInfo) -> void:

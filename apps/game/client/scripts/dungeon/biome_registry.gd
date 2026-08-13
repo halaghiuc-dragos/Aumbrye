@@ -70,6 +70,45 @@ static func get_display_name(biome_id: String) -> String:
 ## overlaps with whatever else the transition is doing instead of landing entirely inside the
 ## chunked DungeonBuilder call. Safe to call redundantly — already-cached or already-requested
 ## biomes are a no-op.
+## Parses the JSON a floor of `biome_id` will need — enemy, boss, trap and loot-table definitions —
+## into ContentLoader's cache while a loading screen is up.
+##
+## Room *scenes* are prewarmed by prewarm_room_scenes(); this is the content half. Without it, each
+## enemy's definition is read and parsed from disk on the main thread at its own `_ready`, which is
+## exactly when a floor transition can least afford it. Returns how many files were newly parsed.
+static func prewarm_content(biome_id: String) -> int:
+	var biome := get_biome(biome_id)
+	if biome.is_empty():
+		return 0
+
+	var paths: Array[String] = []
+	for entry in biome.get("enemyPool", []):
+		if entry is Dictionary:
+			var enemy_id := str((entry as Dictionary).get("enemyId", ""))
+			if enemy_id != "":
+				paths.append("content/enemies/%s.json" % enemy_id)
+	for entry in biome.get("bossPool", []):
+		if entry is Dictionary:
+			var boss_id := str((entry as Dictionary).get("enemyId", ""))
+			if boss_id != "":
+				paths.append("content/bosses/%s.json" % boss_id)
+	for entry in biome.get("trapPool", []):
+		if entry is Dictionary:
+			var trap_id := str((entry as Dictionary).get("trapId", ""))
+			if trap_id != "":
+				paths.append("content/traps/%s.json" % trap_id)
+
+	var loot_table_path := str(biome.get("lootTablePath", ""))
+	if loot_table_path != "":
+		paths.append(loot_table_path)
+
+	var audio_profile := get_audio_profile_path(biome_id)
+	if audio_profile != "":
+		paths.append(audio_profile)
+
+	return ContentLoader.prime(paths)
+
+
 static func prewarm_room_scenes(biome_id: String) -> void:
 	if _room_scene_cache.has(biome_id):
 		return

@@ -47,9 +47,18 @@ var _free_nodes: Array[Node] = []
 var _time_scale_requests: Dictionary = {}
 var _shake_amount := 0.0
 var _shake_decay_rate := 9.0
+## Wall-clock deadline for the active shake; 0 means "decay only, no hard cut-off".
+var _shake_until_ms := 0
 
 
 func _ready() -> void:
+	# Must keep ticking while the tree is paused. This service owns Engine.time_scale, and its
+	# expiry bookkeeping runs in _process: if the pause menu opened during a hitstop, _process
+	# stopped, the request never expired, and Engine.time_scale stayed at ~0.05 — so the pause menu
+	# itself (PROCESS_MODE_ALWAYS, and therefore still running) animated in extreme slow motion
+	# until unpause. The sweep and time-scale logic use wall-clock Time.get_ticks_msec(), so
+	# running during pause is safe.
+	process_mode = Node.PROCESS_MODE_ALWAYS
 	_load_effects()
 	_root = Node3D.new()
 	_root.name = "VfxRoot"
@@ -71,7 +80,11 @@ func _process(delta: float) -> void:
 		return
 	_sweep_pools()
 	_update_time_scale()
-	_shake_amount = lerpf(_shake_amount, 0.0, delta * _shake_decay_rate)
+	if _shake_until_ms > 0 and Time.get_ticks_msec() >= _shake_until_ms:
+		_shake_amount = 0.0
+		_shake_until_ms = 0
+	else:
+		_shake_amount = lerpf(_shake_amount, 0.0, delta * _shake_decay_rate)
 	for node in _free_nodes:
 		if is_instance_valid(node):
 			node.queue_free()
@@ -90,7 +103,14 @@ static func get_particle_material_cache_entries() -> Array:
 	return _particle_material_cache.values()
 
 
+## Memoized: this is called once per enemy death, and it used to re-read and re-parse the whole
+## effects JSON from disk on the main thread every time — a disk hit per kill in wave mode.
+static var _death_burst_lifetime := -1.0
+
+
 static func get_death_burst_lifetime() -> float:
+	if _death_burst_lifetime >= 0.0:
+		return _death_burst_lifetime
 	var data: Dictionary = ContentLoader.load_json(EFFECTS_PATH)
 	var effect: Dictionary = data.get("effects", {}).get("death", {})
 	var layers: Array = effect.get("layers", [])
@@ -98,6 +118,7 @@ static func get_death_burst_lifetime() -> float:
 	for layer in layers:
 		if layer is Dictionary and layer.get("kind", "") == "burst":
 			max_lifetime = maxf(max_lifetime, float(layer.get("lifetime", 0.0)))
+	_death_burst_lifetime = max_lifetime
 	return max_lifetime
 
 
@@ -360,12 +381,20 @@ func _update_time_scale() -> void:
 	_apply_time_scale()
 
 
+## `duration_ms` is a hard cut-off for the shake. The exponential decay below usually fades it out
+## well before then; the deadline exists so a long shake cannot outlive its caller's intent, and so
+## the parameter callers have been tuning against actually does something (it was accepted and
+## silently ignored).
 func request_shake(amount: float, duration_ms: int) -> void:
 	var scale := PixelDioramaSettings.screen_shake_scale
 	if scale <= 0.0 or AccessibilitySettings.camera_shake_scale() <= 0.0:
 		return
 	set_process(true)
 	_shake_amount = maxf(_shake_amount, amount * scale * AccessibilitySettings.camera_shake_scale())
+	if duration_ms > 0:
+		_shake_until_ms = maxi(_shake_until_ms, Time.get_ticks_msec() + duration_ms)
+	else:
+		_shake_until_ms = 0
 
 
 func consume_shake() -> Vector3:

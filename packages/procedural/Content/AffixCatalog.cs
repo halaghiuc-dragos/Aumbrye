@@ -50,7 +50,25 @@ public sealed record AffixDefinition(
     string Stat,
     IReadOnlyList<string> ItemTypes,
     int Weight,
-    IReadOnlyDictionary<string, AffixTier> Tiers);
+    IReadOnlyDictionary<string, AffixTier> Tiers,
+    AffixValueStyle ValueStyle = AffixValueStyle.Inferred);
+
+/// <summary>
+/// How an affix's tier range is sampled. Authored per affix in content rather than inferred from
+/// the numbers, because a genuinely fractional range like 1.2–2.4 is indistinguishable from an
+/// integer one by magnitude alone.
+/// </summary>
+public enum AffixValueStyle
+{
+    /// <summary>Fall back to the legacy magnitude heuristic. Frozen — see AffixRoller.</summary>
+    Inferred = 0,
+
+    /// <summary>Continuous value interpolated across the range (multipliers, percentages).</summary>
+    Fraction = 1,
+
+    /// <summary>Whole-number value drawn inclusively across the range (flat stat points).</summary>
+    Whole = 2,
+}
 
 public sealed record AffixTier(double Min, double Max);
 
@@ -73,6 +91,7 @@ internal sealed class AffixDefinitionJson
     public string Stat { get; set; } = "";
     public List<string> ItemTypes { get; set; } = [];
     public int Weight { get; set; } = 1;
+    public string? ValueStyle { get; set; }
     public Dictionary<string, AffixTierJson> Tiers { get; set; } = new();
 
     public AffixDefinition ToModel() => new(
@@ -85,7 +104,15 @@ internal sealed class AffixDefinitionJson
         Tiers.ToDictionary(
             kv => kv.Key,
             kv => new AffixTier(kv.Value.Min, kv.Value.Max),
-            StringComparer.Ordinal));
+            StringComparer.Ordinal),
+        ParseValueStyle(ValueStyle));
+
+    private static AffixValueStyle ParseValueStyle(string? raw) => raw?.ToLowerInvariant() switch
+    {
+        "fraction" => AffixValueStyle.Fraction,
+        "integer" => AffixValueStyle.Whole,
+        _ => AffixValueStyle.Inferred,
+    };
 }
 
 internal sealed class AffixTierJson

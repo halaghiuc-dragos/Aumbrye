@@ -73,7 +73,10 @@ func _ready() -> void:
 	_build_equipment_panel()
 	_bind_inventory_context()
 	InventoryService.inventory_changed.connect(_on_main_inventory_changed)
-	get_tree().scene_changed.connect(func() -> void: call_deferred("_bind_inventory_context"))
+	# Bound method, NOT a lambda. The SceneTree outlives this node, and Godot only auto-disconnects
+	# callables bound to an object — a lambda's connection survives the free, so the next scene
+	# change would invoke it against a freed instance and keep erroring for the rest of the session.
+	get_tree().scene_changed.connect(_on_scene_changed)
 	if WavesRunService:
 		WavesRunService.inventory_changed.connect(_on_waves_inventory_changed)
 	var symbol_bus := get_node_or_null("/root/UISymbolBus")
@@ -87,6 +90,10 @@ func _inventory() -> GridInventory:
 	if _waves_mode:
 		return WavesRunService.waves_inventory
 	return InventoryService.inventory
+
+
+func _on_scene_changed() -> void:
+	call_deferred("_bind_inventory_context")
 
 
 func _bind_inventory_context() -> void:
@@ -285,6 +292,7 @@ func _build_ui_shell() -> void:
 	_equip_wrap.add_child(_equip_host)
 	_drag_ghost = _make_item_cell(CELL_SIZE, "common", 0)
 	_drag_ghost.visible = false
+	set_process(false)
 	_drag_ghost.z_index = 100
 	_drag_ghost.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(_drag_ghost)
@@ -340,8 +348,10 @@ func _unhandled_input(event: InputEvent) -> void:
 		get_viewport().set_input_as_handled()
 
 
+## Only runs while a drag is in flight; set_process is toggled by _begin_drag / _clear_drag.
 func _process(_delta: float) -> void:
 	if not _inventory_open or not _drag_ghost.visible:
+		set_process(false)
 		return
 	var half := Vector2(CELL_SIZE, CELL_SIZE) * 0.5
 	_drag_ghost.global_position = get_global_mouse_position() - half
@@ -950,6 +960,7 @@ func _show_drag_ghost_from_slot(slot: Dictionary) -> void:
 	var upgrade := BlacksmithServiceScript.get_slot_upgrade_level(slot)
 	_set_cell_content(_drag_ghost, rarity, upgrade, slot)
 	_drag_ghost.visible = true
+	set_process(true)
 
 
 func _clear_drag() -> void:
@@ -957,6 +968,7 @@ func _clear_drag() -> void:
 	_drag_equip_slot = ""
 	_mouse_dragging = false
 	_drag_ghost.visible = false
+	set_process(false)
 
 
 func _apply_equipment() -> void:

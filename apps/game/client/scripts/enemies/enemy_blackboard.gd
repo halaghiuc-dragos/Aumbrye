@@ -52,6 +52,68 @@ static func members(room_id: int) -> Array:
 	return record["members"]
 
 
+## Registered members within `radius` of `origin`, across every room.
+##
+## Walks only the per-room rosters rather than the whole `enemy` scene group, and skips a room
+## outright once its cached centre is further away than the radius plus the room's own extent —
+## so a crowded endless floor costs a few room checks instead of an O(N) scan inside one frame.
+##
+## Note this sees only members that registered with the board. Bosses deliberately do not (see
+## CastleEnemyBase._join_room_board), so this is the right query for ally-alert propagation but NOT
+## for player-facing target selection, which must still be able to find a boss.
+static func nearby(origin: Vector3, radius: float) -> Array:
+	var found: Array = []
+	if radius <= 0.0:
+		return found
+	var radius_sq := radius * radius
+
+	for room_id in _rooms.keys():
+		var record: Dictionary = _rooms[room_id]
+		_prune(record)
+		var members_list: Array = record["members"]
+		if members_list.is_empty():
+			continue
+
+		var bounds := _room_bounds(record, members_list)
+		var reach := radius + float(bounds["extent"])
+		if (bounds["center"] as Vector3).distance_squared_to(origin) > reach * reach:
+			continue
+
+		for member in members_list:
+			if not is_instance_valid(member) or not (member is Node3D):
+				continue
+			if (member as Node3D).global_position.distance_squared_to(origin) <= radius_sq:
+				found.append(member)
+
+	return found
+
+
+## Cached centre/extent for a room's roster, refreshed when the membership changes so the common
+## case is a single Vector3 comparison instead of re-measuring every member.
+static func _room_bounds(record: Dictionary, members_list: Array) -> Dictionary:
+	var cached: Variant = record.get("bounds")
+	if cached is Dictionary and int((cached as Dictionary).get("count", -1)) == members_list.size():
+		return cached
+
+	var center := Vector3.ZERO
+	var counted := 0
+	for member in members_list:
+		if is_instance_valid(member) and member is Node3D:
+			center += (member as Node3D).global_position
+			counted += 1
+	if counted > 0:
+		center /= float(counted)
+
+	var extent := 0.0
+	for member in members_list:
+		if is_instance_valid(member) and member is Node3D:
+			extent = maxf(extent, center.distance_to((member as Node3D).global_position))
+
+	var bounds := {"center": center, "extent": extent, "count": members_list.size()}
+	record["bounds"] = bounds
+	return bounds
+
+
 static func report_engaged(room_id: int, member: Node, engaged: bool) -> void:
 	var record := _record(room_id)
 	_prune(record)

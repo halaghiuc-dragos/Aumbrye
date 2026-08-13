@@ -44,14 +44,21 @@ public sealed class RefreshTokenCleanupService : BackgroundService
         using var scope = _services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<AumbryeDbContext>();
         var cutoff = DateTimeOffset.UtcNow - Retention;
-        var expired = await db.RefreshTokens
-            .Where(t => t.ExpiresAt < cutoff)
-            .ToListAsync(ct);
-        if (expired.Count == 0)
-            return;
 
-        db.RefreshTokens.RemoveRange(expired);
-        await db.SaveChangesAsync(ct);
-        _logger.LogInformation("Deleted {Count} expired refresh tokens.", expired.Count);
+        // A single set-based DELETE. Materializing every expired row to call RemoveRange put
+        // hundreds of thousands of entities on the heap per pass once token rotation had been
+        // running for a while — token rotation writes a new row on every refresh.
+        var deleted = await db.RefreshTokens
+            .Where(t => t.ExpiresAt < cutoff)
+            .ExecuteDeleteAsync(ct);
+
+        // Revoked-but-unexpired rows are dead weight too: rotation revokes the old token on every
+        // refresh, and without this they linger for the full 30-day expiry window.
+        deleted += await db.RefreshTokens
+            .Where(t => t.RevokedAt != null && t.RevokedAt < cutoff)
+            .ExecuteDeleteAsync(ct);
+
+        if (deleted > 0)
+            _logger.LogInformation("Deleted {Count} expired or revoked refresh tokens.", deleted);
     }
 }

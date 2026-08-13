@@ -1,0 +1,41 @@
+{
+  "$comment": "Which schema version each consumer is pinned to. content/schemas ships more than one version of several schemas; without this map a validator cannot tell a current schema from a retired one, and can bless content the engine no longer loads. Retired schemas move to content/schemas/retired/ and are kept solely so SaveMigrator can reason about old saves.",
+  "schemas": {
+    "dungeon-definition": {
+      "current": "v2",
+      "retired": ["v1"],
+      "consumers": [
+        "backend:Aumbrye.Procedural.Serialization.CanonicalJsonSerializer",
+        "client:scripts/dungeon/dungeon_builder.gd",
+        "client:scripts/dungeon/procgen/dungeon_procgen.gd"
+      ],
+      "notes": "v2 adds roomContent/locks/puzzles and generatorCapabilities. v1 predates the room-content pass and no longer matches serializer output. See docs/ADR/0002-procgen-authority-split.md."
+    },
+    "character-state": {
+      "current": "v2",
+      "retired": ["v1"],
+      "consumers": [
+        "backend:Aumbrye.Application.Services.CharacterStateDefaults",
+        "client:scripts/save/save_migrator.gd",
+        "client:scripts/save/save_validator.gd"
+      ],
+      "notes": "The runtime schemaVersion integer is NOT this file's v1/v2 label — it is pinned in content/fixtures/schema_versions.json and asserted by ClientVersionParityTests."
+    },
+    "inventory": {
+      "current": "v2",
+      "retired": ["v1"],
+      "consumers": [
+        "client:scripts/inventory/grid_inventory.gd",
+        "backend:Aumbrye.Application.Services.SaveStateValidator"
+      ]
+    },
+    "biome-definition": {
+      "current": "v2",
+      "retired": ["v1"],
+      "consumers": [
+        "backend:Aumbrye.Procedural.Biome.BiomeCatalog",
+        "client:scripts/dungeon/biome_registry.gd"
+      ]
+    }
+  }
+}

@@ -22,19 +22,21 @@ describe("AuthProvider", () => {
   });
 
   it("refreshes 60 seconds before expiry using fake timers", async () => {
+    let refreshCalls = 0;
     server.use(
-      http.post("/api/v1/auth/refresh", () =>
-        HttpResponse.json({
+      http.post("/api/v1/auth/refresh", () => {
+        refreshCalls += 1;
+        return HttpResponse.json({
           tokens: {
             accessToken: "next-access",
             refreshToken: "next-refresh",
             accessTokenExpiresAt: new Date(Date.now() + 120_000).toISOString(),
           },
-        }),
-      ),
+        });
+      }),
     );
 
-    sessionStorage.setItem("aumbrye_refresh", "stored-refresh");
+    localStorage.setItem("aumbrye_session", "1");
     vi.useFakeTimers({ shouldAdvanceTime: true });
 
     render(
@@ -53,13 +55,16 @@ describe("AuthProvider", () => {
 
     await vi.advanceTimersByTimeAsync(61_000);
 
+    // The refresh token is never visible to the page under cookie transport, so assert on the
+    // observable outcome: the pre-expiry timer fired and the session is still signed in.
     await waitFor(() => {
-      expect(sessionStorage.getItem("aumbrye_refresh")).toBe("next-refresh");
+      expect(refreshCalls).toBeGreaterThanOrEqual(2);
+      expect(screen.getByTestId("signed-in")).toHaveTextContent("true");
     });
   });
 
   it("signs out when refresh fails", async () => {
-    sessionStorage.setItem("aumbrye_refresh", "stored-refresh");
+    localStorage.setItem("aumbrye_session", "1");
 
     server.use(
       http.post("/api/v1/auth/refresh", () =>
@@ -79,7 +84,7 @@ describe("AuthProvider", () => {
 
     await waitFor(() => {
       expect(screen.getByTestId("signed-in")).toHaveTextContent("false");
-      expect(sessionStorage.getItem("aumbrye_refresh")).toBeNull();
+      expect(localStorage.getItem("aumbrye_session")).toBeNull();
     });
   });
 });

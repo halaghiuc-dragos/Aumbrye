@@ -9,8 +9,11 @@ import {
   type ReactNode,
 } from "react";
 import { ApiError, logout as apiLogout, login, refresh, register, type AuthResponse } from "../api/client";
+import { clearVersionReloadGuard } from "../components/VersionGate";
 
-const REFRESH_KEY = "aumbrye_refresh";
+/** Marker only — never a credential. See markSessionPresent(). */
+const SESSION_MARKER_KEY = "aumbrye_session";
+const LEGACY_REFRESH_KEY = "aumbrye_refresh";
 const LEGACY_TOKEN_KEY = "aumbrye_token";
 
 type AuthContextValue = {
@@ -26,16 +29,29 @@ type AuthContextValue = {
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
-function storeRefreshToken(token: string | null) {
-  if (token) {
-    sessionStorage.setItem(REFRESH_KEY, token);
+/**
+ * The refresh token now lives in an httpOnly cookie the page cannot read, so all we keep locally
+ * is a non-sensitive marker saying "a session cookie should exist". It exists purely so a cold
+ * boot knows whether attempting a silent refresh is worthwhile; losing it costs a redundant 401,
+ * never a session.
+ */
+function markSessionPresent(present: boolean) {
+  if (present) {
+    localStorage.setItem(SESSION_MARKER_KEY, "1");
   } else {
-    sessionStorage.removeItem(REFRESH_KEY);
+    localStorage.removeItem(SESSION_MARKER_KEY);
   }
 }
 
+function hasSessionMarker(): boolean {
+  return localStorage.getItem(SESSION_MARKER_KEY) === "1";
+}
+
 function clearTokens() {
-  sessionStorage.removeItem(REFRESH_KEY);
+  markSessionPresent(false);
+  // Remove credentials written by earlier builds, which kept the refresh token where any XSS
+  // payload could read it.
+  sessionStorage.removeItem(LEGACY_REFRESH_KEY);
   localStorage.removeItem(LEGACY_TOKEN_KEY);
 }
 
@@ -55,21 +71,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const applyAuth = useCallback(function applyAuth(auth: AuthResponse) {
     const tokens = auth.tokens;
-    if (!tokens?.accessToken || !tokens.refreshToken || !tokens.accessTokenExpiresAt) {
+    // refreshToken is deliberately absent under cookie transport — the server keeps it in an
+    // httpOnly cookie — so its absence must not be treated as a failed authentication.
+    if (!tokens?.accessToken || !tokens.accessTokenExpiresAt) {
       throw new Error("Authentication failed");
     }
 
+    // A successful exchange with the API proves this bundle is current, so the version-mismatch
+    // auto-reload guard can be released for the next incident.
+    clearVersionReloadGuard();
     setAccessToken(tokens.accessToken);
-    storeRefreshToken(tokens.refreshToken);
+    markSessionPresent(true);
 
     if (refreshTimer.current !== null) {
       window.clearTimeout(refreshTimer.current);
     }
     refreshTimer.current = scheduleRefresh(tokens.accessTokenExpiresAt, async () => {
-      const stored = sessionStorage.getItem(REFRESH_KEY);
-      if (!stored) return;
       try {
-        const next = await refresh(stored);
+        const next = await refresh();
         applyAuth(next);
       } catch (err) {
         if (err instanceof ApiError && err.status === 401) {
@@ -86,13 +105,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     const promise = (async () => {
-      const stored = sessionStorage.getItem(REFRESH_KEY);
-      if (!stored) {
-        setAccessToken("");
-        return null;
-      }
       try {
-        const next = await refresh(stored);
+        const next = await refresh();
         applyAuth(next);
         return next.tokens?.accessToken ?? null;
       } catch {
@@ -110,7 +124,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signOut = useCallback(async () => {
     const currentAccess = accessToken;
-    const currentRefresh = sessionStorage.getItem(REFRESH_KEY);
 
     if (refreshTimer.current !== null) {
       window.clearTimeout(refreshTimer.current);
@@ -120,9 +133,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setAccessToken("");
     clearTokens();
 
-    if (currentAccess && currentRefresh) {
+    if (currentAccess) {
       try {
-        await apiLogout(currentAccess, currentRefresh);
+        // Clears the httpOnly cookie server-side; the browser cannot do it from here.
+        await apiLogout(currentAccess);
       } catch {
         // Local session is cleared even when logout is unavailable.
       }
@@ -173,8 +187,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     localStorage.removeItem(LEGACY_TOKEN_KEY);
-    const stored = sessionStorage.getItem(REFRESH_KEY);
-    if (!stored) return;
+    sessionStorage.removeItem(LEGACY_REFRESH_KEY);
+    if (!hasSessionMarker()) return;
     void refreshSession();
     return () => {
       if (refreshTimer.current !== null) {

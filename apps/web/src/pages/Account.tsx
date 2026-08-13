@@ -27,6 +27,12 @@ export default function AccountPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [message, setMessage] = useState("");
+  /**
+   * An explicit mode, rather than a submit button and a type="button" Register beside it.
+   * With the old markup, pressing Enter always logged in even when the user meant to register,
+   * because only the login path was the form's submit action.
+   */
+  const [mode, setMode] = useState<"login" | "register">("login");
 
   const saveQuery = useQuery({
     queryKey: ["save"],
@@ -72,7 +78,7 @@ export default function AccountPage() {
     },
   });
 
-  async function handleSubmit(e: FormEvent, mode: "login" | "register") {
+  async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setMessage("");
     authMutation.mutate({ mode });
@@ -99,11 +105,19 @@ export default function AccountPage() {
       />
       {(!isSignedIn || !saveQuery.isLoading) && <PrerenderReady />}
       <h2>Account</h2>
-      {sessionExpired && (
-        <p className="error" role="status">
-          {sessionExpired}
-        </p>
-      )}
+      {/*
+        A single, always-mounted live region. Two separate role="status" paragraphs that replaced
+        each other dropped announcements whenever `message` and `sessionExpired` changed together,
+        because screen readers only announce updates to a region that was already present.
+      */}
+      <p
+        className={sessionExpired ? "error" : "muted"}
+        role="status"
+        aria-live="polite"
+        data-testid="account-status"
+      >
+        {sessionExpired || message}
+      </p>
       {isSignedIn ? (
         <div className="card">
           <p>Signed in.</p>
@@ -124,7 +138,25 @@ export default function AccountPage() {
           </div>
         </div>
       ) : (
-        <form className="card form" onSubmit={(e) => void handleSubmit(e, "login")}>
+        <form className="card form" onSubmit={(e) => void handleSubmit(e)}>
+          <div className="form-modes" role="group" aria-label="Account action">
+            <button
+              type="button"
+              aria-pressed={mode === "login"}
+              onClick={() => setMode("login")}
+              disabled={authMutation.isPending}
+            >
+              Log in
+            </button>
+            <button
+              type="button"
+              aria-pressed={mode === "register"}
+              onClick={() => setMode("register")}
+              disabled={authMutation.isPending}
+            >
+              Register
+            </button>
+          </div>
           <label>
             Email
             <input
@@ -142,27 +174,19 @@ export default function AccountPage() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
-              autoComplete="current-password"
+              minLength={8}
+              maxLength={128}
+              // Tells a password manager to offer a generated password when registering instead of
+              // autofilling the existing one.
+              autoComplete={mode === "register" ? "new-password" : "current-password"}
             />
           </label>
           <div className="form-actions">
             <button type="submit" disabled={authMutation.isPending}>
-              Log in
-            </button>
-            <button
-              type="button"
-              disabled={authMutation.isPending}
-              onClick={(e) => void handleSubmit(e, "register")}
-            >
-              Register
+              {mode === "login" ? "Log in" : "Register"}
             </button>
           </div>
         </form>
-      )}
-      {message && !sessionExpired && (
-        <p className="muted" role="status">
-          {message}
-        </p>
       )}
       <p className="muted">OAuth (Google/Discord) deferred to post-EA — see known issues.</p>
     </section>

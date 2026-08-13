@@ -41,6 +41,9 @@ public class RunCompletionTests : IClassFixture<AumbryeWebApplicationFactory>
             await cache.SetAsync(run.RunId, 1, string.Empty, TimeSpan.Zero);
         }
 
+        await TestDoubles.RunClockHelper.BackdateAsync(
+            _factory.Services, run.RunId, TimeSpan.FromMinutes(2));
+
         var complete = await _client.PostAsJsonAsync($"/api/v1/runs/{run.RunId}/complete",
             new CompleteRunRequest("escaped", 60, true, [lootId!]));
         Assert.Equal(HttpStatusCode.OK, complete.StatusCode);

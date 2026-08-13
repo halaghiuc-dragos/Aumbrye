@@ -122,14 +122,21 @@ public static class AffixRoller
         return picked;
     }
 
-    private static AffixDefinition WeightedPick(IReadOnlyList<AffixDefinition> pool, SeededRandom rng)
+    private static AffixDefinition WeightedPick(List<AffixDefinition> pool, SeededRandom rng)
     {
-        var total = pool.Sum(a => a.Weight);
+        // Negative weights are treated as zero, and a pool that sums to zero returns its first
+        // entry rather than calling NextInt(0), which throws and would kill the whole request.
+        var total = 0;
+        foreach (var affix in pool)
+            total += Math.Max(0, affix.Weight);
+        if (total <= 0)
+            return pool[0];
+
         var roll = rng.NextInt(total);
         var cumulative = 0;
         foreach (var affix in pool)
         {
-            cumulative += affix.Weight;
+            cumulative += Math.Max(0, affix.Weight);
             if (roll < cumulative)
                 return affix;
         }
@@ -144,14 +151,29 @@ public static class AffixRoller
         if (tier.Max <= tier.Min)
             return tier.Min;
 
-        var isFraction = tier.Max <= 1.0 && tier.Min >= 0 && tier.Max < 10;
-        if (isFraction)
-        {
-            var span = tier.Max - tier.Min;
-            return tier.Min + span * (rng.NextInt(10_000) / 10_000.0);
-        }
+        return ResolveValueStyle(affix, tier) == AffixValueStyle.Fraction
+            ? tier.Min + (tier.Max - tier.Min) * (rng.NextInt(10_000) / 10_000.0)
+            : rng.NextInt((int)Math.Floor(tier.Min), (int)Math.Ceiling(tier.Max) + 1);
+    }
 
-        return rng.NextInt((int)Math.Floor(tier.Min), (int)Math.Ceiling(tier.Max) + 1);
+    /// <summary>
+    /// Resolves how a tier range is sampled. Content authors declare <c>valueStyle</c> explicitly;
+    /// the magnitude heuristic below only covers affixes that predate the field.
+    /// </summary>
+    /// <remarks>
+    /// The fallback is deliberately bug-compatible with the original inference and must not be
+    /// "improved" in isolation: it decides which RNG draw an affix consumes, so changing it
+    /// reshuffles every downstream roll and breaks the LOOT-4.1 determinism contract shared with
+    /// the GDScript roller. Declare <c>valueStyle</c> on the affix instead.
+    /// </remarks>
+    private static AffixValueStyle ResolveValueStyle(AffixDefinition affix, AffixTier tier)
+    {
+        if (affix.ValueStyle != AffixValueStyle.Inferred)
+            return affix.ValueStyle;
+
+        return tier is { Max: <= 1.0, Min: >= 0 }
+            ? AffixValueStyle.Fraction
+            : AffixValueStyle.Whole;
     }
 
     public static JsonElement ToJsonElement(RolledItemInstance instance)

@@ -1,4 +1,3 @@
-using System.Net.Http.Json;
 using System.Text.Json;
 using Aumbrye.Application.Abstractions;
 using Microsoft.Extensions.Configuration;
@@ -8,30 +7,59 @@ namespace Aumbrye.Infrastructure.Security;
 
 public sealed class SteamAuthService : ISteamAuthService
 {
-    private readonly HttpClient _http;
+    /// <summary>Named <see cref="HttpClient"/> registration used for Steam partner API calls.</summary>
+    public const string HttpClientName = "steam";
+
+    private const string AuthenticateUserTicketUrl =
+        "https://partner.steam-api.com/ISteamUserAuth/AuthenticateUserTicket/v1/";
+
+    private readonly IHttpClientFactory _httpFactory;
     private readonly string? _webApiKey;
     private readonly ILogger<SteamAuthService> _logger;
 
-    public SteamAuthService(HttpClient http, IConfiguration configuration, ILogger<SteamAuthService> logger)
+    public SteamAuthService(
+        IHttpClientFactory httpFactory,
+        IConfiguration configuration,
+        ILogger<SteamAuthService> logger)
     {
-        _http = http;
+        _httpFactory = httpFactory;
         _logger = logger;
         _webApiKey = configuration["Steam:WebApiKey"];
+        ConfiguredAppId = configuration.GetValue<uint?>("Steam:AppId");
+        RequireOwnSteamId = configuration.GetValue<bool?>("Steam:RejectFamilySharing") ?? true;
     }
 
     public bool IsConfigured => !string.IsNullOrWhiteSpace(_webApiKey);
+
+    /// <summary>
+    /// The app id this deployment issues accounts for. Tickets are only ever validated against
+    /// this value — a client-supplied app id is never forwarded to Steam, because a ticket minted
+    /// for any other app the attacker owns would otherwise validate successfully.
+    /// </summary>
+    public uint? ConfiguredAppId { get; }
+
+    /// <summary>When true, a family-shared session (ownersteamid != steamid) is rejected.</summary>
+    public bool RequireOwnSteamId { get; }
 
     public async Task<SteamTicketValidation> ValidateAsync(string ticketHex, uint appId, CancellationToken ct = default)
     {
         if (!IsConfigured)
             return new SteamTicketValidation(false, Error: "Steam authentication is not configured.");
 
-        var url =
-            $"https://partner.steam-api.com/ISteamUserAuth/AuthenticateUserTicket/v1/?key={Uri.EscapeDataString(_webApiKey!)}&appid={appId}&ticket={Uri.EscapeDataString(ticketHex)}&identity=aumbrye";
+        // The key travels in a POST body rather than the query string so it never lands in proxy
+        // access logs or OpenTelemetry's recorded request URLs.
+        using var content = new FormUrlEncodedContent(new Dictionary<string, string>
+        {
+            ["key"] = _webApiKey!,
+            ["appid"] = appId.ToString(),
+            ["ticket"] = ticketHex,
+            ["identity"] = "aumbrye",
+        });
 
         try
         {
-            using var response = await _http.GetAsync(url, ct);
+            var http = _httpFactory.CreateClient(HttpClientName);
+            using var response = await http.PostAsync(AuthenticateUserTicketUrl, content, ct);
             if (!response.IsSuccessStatusCode)
             {
                 _logger.LogWarning("Steam API returned {StatusCode}", response.StatusCode);
@@ -57,6 +85,15 @@ public sealed class SteamAuthService : ISteamAuthService
 
             if (!ulong.TryParse(steamIdNode.GetString(), out var steamId))
                 return new SteamTicketValidation(false, Error: "Steam rejected the ticket.");
+
+            if (RequireOwnSteamId
+                && parameters.TryGetProperty("ownersteamid", out var ownerNode)
+                && ulong.TryParse(ownerNode.GetString(), out var ownerSteamId)
+                && ownerSteamId != steamId)
+            {
+                _logger.LogInformation("Rejecting family-shared Steam session for {SteamId}.", steamId);
+                return new SteamTicketValidation(false, Error: "Family-shared copies cannot create accounts.");
+            }
 
             return new SteamTicketValidation(true, steamId, vacBanned, publisherBanned);
         }

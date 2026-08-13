@@ -1,0 +1,9 @@
+{
+  "$comment": "Single source of truth for schema versions that both the backend and the Godot client stamp onto data. Backend code reads this file; ClientVersionParityTests asserts the GDScript constants still agree, so the two cannot drift silently.",
+  "characterState": {
+    "current": 12,
+    "gdscriptConstant": "SaveMigrator.CURRENT_VERSION",
+    "gdscriptFile": "apps/game/client/scripts/save/save_migrator.gd",
+    "note": "Saves the backend creates must carry the same version the client's migrator considers current, or every server-issued default state looks like an ancient save that needs migrating."
+  }
+}

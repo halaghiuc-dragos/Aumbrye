@@ -43,8 +43,17 @@ const SkipFloorSvc := preload("res://scripts/dungeon/skip_floor_service.gd")
 const XP_SHARD_FLAG := "recoverable_xp_shard"
 const DEATH_GOLD_STAKE_RATIO := 0.4
 
+## Preloaded rather than referenced by class_name: RunFlow is an autoload, so it is compiled before
+## the project-wide global-class table is fully built and a bare `CloudOutbox` fails to resolve.
+const CloudOutboxScript := preload("res://scripts/net/cloud_outbox.gd")
+
 var _pending_endless_seed := 0
 var _pending_descent_pact := ""
+## Floor-skip item reserved for the run being started, spent only once a floor generates.
+var _pending_skip_item := ""
+## Progress counters as they stood when the current floor began, so restarting a floor can undo
+## that attempt instead of banking its kills and loot claims.
+var _floor_entry_marker := {}
 var _pending_region_card := false
 var _active_descent_pact := ""
 var _base_run_modifiers: Array[String] = []
@@ -111,10 +120,13 @@ func next_endless_preview_seed() -> int:
 
 func start_endless_run(start_floor: int = 1, skip_item_id: String = "") -> void:
 	if skip_item_id != "":
-		if not SkipFloorSvc.consume_skip(InventoryService.inventory, skip_item_id):
+		# Read the destination floor without spending the item yet. Skips are rare milestone
+		# rewards; consuming one up front meant a failed floor generation destroyed it for nothing.
+		if not SkipFloorSvc.has_skip(InventoryService.inventory, skip_item_id):
 			last_hub_message = "You do not have that skip item."
 			return
 		start_floor = SkipFloorSvc.start_floor_for_item(skip_item_id)
+		_pending_skip_item = skip_item_id
 	var endless_seed := _pending_endless_seed
 	if endless_seed <= 0:
 		endless_seed = randi_range(1, 2_147_483_646)
@@ -274,6 +286,8 @@ func _start_mode_run(mode: String, biome_id: String, run_seed: Variant, start_fl
 	_clear_floor_cache()
 	# PERF-03: overlap the first floor's room-template loads with dungeon generation below.
 	BiomeRegistry.prewarm_room_scenes(biome_id)
+	# …and parse the biome's enemy/trap/loot JSON now rather than at each node's _ready.
+	BiomeRegistry.prewarm_content(biome_id)
 
 	var gen := await _generate_dungeon(biome_id, run_seed, current_floor)
 	if not gen.get("ok", false):
@@ -284,6 +298,8 @@ func _start_mode_run(mode: String, biome_id: String, run_seed: Variant, start_fl
 			CrashLogger.log_error("run_flow.procgen_failed", {"message": fail_msg})
 		else:
 			push_error("RunFlow: %s" % fail_msg)
+		# No floor was reached, so the skip item is not spent.
+		_pending_skip_item = ""
 		return_to_hub(fail_msg)
 		return
 
@@ -301,10 +317,22 @@ func _start_mode_run(mode: String, biome_id: String, run_seed: Variant, start_fl
 
 	if current_dungeon_definition.is_empty():
 		last_hub_message = "Failed to load dungeon definition."
+		_pending_skip_item = ""
 		return_to_hub(last_hub_message)
 		return
 
+	_consume_pending_skip()
 	_enter_run()
+
+
+## Spends a reserved floor-skip item now that a floor has actually been generated.
+func _consume_pending_skip() -> void:
+	if _pending_skip_item == "":
+		return
+	var item_id := _pending_skip_item
+	_pending_skip_item = ""
+	if not SkipFloorSvc.consume_skip(InventoryService.inventory, item_id):
+		push_warning("RunFlow: reserved skip item '%s' vanished before it could be spent." % item_id)
 
 
 func _resolved_run_seed(run_seed: Variant) -> int:
@@ -378,6 +406,7 @@ func _restore_castle_run(saved: Dictionary) -> void:
 	_clear_floor_cache()
 	# PERF-03: overlap the resumed floor's room-template loads with any regeneration below.
 	BiomeRegistry.prewarm_room_scenes(current_biome_id)
+	BiomeRegistry.prewarm_content(current_biome_id)
 	var def: Variant = saved.get("dungeonDefinition", {})
 	current_dungeon_definition = def if def is Dictionary else {}
 	if current_dungeon_definition.is_empty():
@@ -440,7 +469,18 @@ func _restore_castle_run(saved: Dictionary) -> void:
 	_enter_run()
 
 
+## Snapshots per-floor progress so restart_current_floor can roll a failed attempt back.
+func _mark_floor_entry() -> void:
+	_floor_entry_marker = {
+		"floor": current_floor,
+		"kills": _kill_count,
+		"loot": _loot_collected.size(),
+		"claims": _loot_claimed_instance_ids.size(),
+	}
+
+
 func _enter_run() -> void:
+	_mark_floor_entry()
 	var root := get_tree().root
 	var definition_copy := current_dungeon_definition.duplicate(true)
 	root.set_meta("dungeon_definition", definition_copy)
@@ -574,9 +614,11 @@ func complete_run_via_portal() -> void:
 	_decorate_run_results()
 	run_ended.emit(last_run_results)
 	_cloud_finalize_run(run_id, "escaped", elapsed, boss, loot_instance_ids)
-	get_tree().root.set_meta("run_results", last_run_results)
 	_clear_in_run_meta()
 	_handle_escape_meta(elapsed, boss)
+	# Published after _clear_in_run_meta, which wipes the other in-run meta keys. It currently
+	# skips "run_results" specifically, but writing afterwards keeps this correct without relying
+	# on that exemption. There used to be a duplicate write before the clear as well.
 	get_tree().root.set_meta("run_results", last_run_results)
 	if run_mode == RM.MODE_CASTLE:
 		_mark_dungeon_cleared(cleared_dungeon)
@@ -811,6 +853,7 @@ func _transition_floor(ascending: bool) -> void:
 	# in the transition so their disk cost overlaps with dungeon generation and the scene swap,
 	# instead of landing entirely inside DungeonBuilder's (now chunked) build call.
 	BiomeRegistry.prewarm_room_scenes(current_biome_id)
+	BiomeRegistry.prewarm_content(current_biome_id)
 	if _active_alternate_mode != "":
 		RunModifierService.set_modifiers(
 			RunModeCatalog.modifiers_for_floor(_active_alternate_mode, current_floor)
@@ -837,6 +880,7 @@ func _transition_floor(ascending: bool) -> void:
 		return
 	current_dungeon_definition = definition
 	_set_current_floor_cache(current_dungeon_definition)
+	_mark_floor_entry()
 
 	var root := get_tree().root
 	root.set_meta("dungeon_definition", current_dungeon_definition.duplicate(true))
@@ -1006,10 +1050,27 @@ func _clear_floor_cache() -> void:
 	DungeonBuilder.clear_floor_cache()
 
 
+## Identity of the run the floor cache currently belongs to.
+##
+## The cache is static and survives a crash-abandoned run, so entries must be scoped to the run
+## that produced them — otherwise two runs sharing floor indices (seeded and weekly-challenge runs
+## especially) read each other's floors.
+func _run_cache_key() -> String:
+	return "%s:%d:%s" % [run_mode, current_seed, current_run_id]
+
+
+## Binds the shared floor cache to this run, wiping anything left from a different one. Called
+## before every store so the binding cannot drift out of date.
+func _bind_run_cache() -> void:
+	DungeonBuilder.begin_run_cache(_run_cache_key())
+	DungeonBuilder.set_reference_floor(current_floor)
+
+
 func _stash_current_floor_in_cache() -> void:
 	if current_dungeon_definition.is_empty():
 		return
-	DungeonBuilder.store_floor_cache(current_floor, current_dungeon_definition, current_floor)
+	_bind_run_cache()
+	DungeonBuilder.store_floor_cache(current_floor, current_dungeon_definition)
 
 
 func _get_cached_floor_definition(floor_index: int) -> Dictionary:
@@ -1019,7 +1080,8 @@ func _get_cached_floor_definition(floor_index: int) -> Dictionary:
 func _set_current_floor_cache(definition: Dictionary) -> void:
 	if definition.is_empty():
 		return
-	DungeonBuilder.store_floor_cache(current_floor, definition, current_floor)
+	_bind_run_cache()
+	DungeonBuilder.store_floor_cache(current_floor, definition)
 
 
 func register_loot(item_id: String, instance_id: String = "") -> void:
@@ -1069,12 +1131,26 @@ func get_run_mode_label() -> String:
 			return run_mode
 
 
+## Interpolates a translated string only when its placeholders survived translation.
+##
+## A locale whose entry drops or malforms "%d" would otherwise raise at the `%` operator, crashing
+## the pause menu for that language only — a failure English-only testing never sees.
+func _tr_fmt(key: String, args: Array) -> String:
+	var text := tr(key)
+	if not text.contains("%"):
+		return text
+	if text.count("%s") + text.count("%d") != args.size():
+		push_warning("RunFlow: translation '%s' has mismatched placeholders for %d args." % [key, args.size()])
+		return text
+	return text % args
+
+
 func get_current_objective() -> String:
 	if not _run_active:
 		return tr("PAUSE_OBJECTIVE_HUB")
 	match run_mode:
 		RM.MODE_WAVES:
-			return tr("PAUSE_OBJECTIVE_WAVES") % WavesRunService.current_wave
+			return _tr_fmt("PAUSE_OBJECTIVE_WAVES", [WavesRunService.current_wave])
 		RM.MODE_CASTLE, RM.MODE_ENDLESS:
 			if _boss_defeated and _cleared_floors.has(current_floor):
 				return tr("PAUSE_OBJECTIVE_STAIRS")
@@ -1097,6 +1173,36 @@ func can_restart_current_floor() -> bool:
 	return _run_active and run_mode == RM.MODE_CASTLE and not _cleared_floors.has(current_floor)
 
 
+## Undoes the progress banked during a failed attempt at the current floor.
+##
+## Without this, restarting repeatedly farmed kill-count XP and kept loot ids claimed against chest
+## instances the regenerated floor no longer contains — which then surfaced as duplicate-claim
+## rejections or phantom loot at completion.
+func _rollback_to_floor_entry() -> void:
+	if _floor_entry_marker.is_empty():
+		return
+	if int(_floor_entry_marker.get("floor", -1)) != current_floor:
+		return
+
+	_kill_count = mini(_kill_count, int(_floor_entry_marker.get("kills", _kill_count)))
+
+	# History is trimmed from the front at a cap, so the recorded sizes are upper bounds rather
+	# than exact indices — clamp instead of trusting them outright.
+	var loot_keep := mini(_loot_collected.size(), int(_floor_entry_marker.get("loot", 0)))
+	var dropped_items := _loot_collected.slice(loot_keep)
+	_loot_collected = _loot_collected.slice(0, loot_keep)
+
+	var claims_keep := mini(
+		_loot_claimed_instance_ids.size(), int(_floor_entry_marker.get("claims", 0))
+	)
+	_loot_claimed_instance_ids = _loot_claimed_instance_ids.slice(0, claims_keep)
+
+	# Keep the bag in step with the rolled-back ledger.
+	if InventoryService and InventoryService.inventory:
+		for item_id in dropped_items:
+			InventoryService.inventory.remove_items_by_id(str(item_id), 1)
+
+
 func restart_current_floor() -> void:
 	if not can_restart_current_floor():
 		return
@@ -1110,6 +1216,7 @@ func restart_current_floor() -> void:
 		return
 	current_dungeon_definition = definition
 	_set_current_floor_cache(definition)
+	_rollback_to_floor_entry()
 	var root := get_tree().root
 	root.set_meta("dungeon_definition", definition.duplicate(true))
 	root.set_meta("run_snapshot", {"restartFloor": true, "currentFloor": current_floor})
@@ -1207,19 +1314,36 @@ func _reset_run_stats() -> void:
 func _cloud_finalize_run(
 	run_id: String, outcome: String, elapsed: float, boss_defeated: bool, loot_instance_ids: Array
 ) -> void:
-	_cloud_finalize_run_async(run_id, outcome, elapsed, boss_defeated, loot_instance_ids)
+	# Queue before firing. This stays fire-and-forget so the results screen never waits on the
+	# network, but the outbox guarantees eventual delivery even if the player quits right here or
+	# the request never lands.
+	var finished_floor := current_floor
+	CloudOutboxScript.enqueue(
+		run_id, outcome, elapsed, boss_defeated, loot_instance_ids, finished_floor
+	)
+	LocalSave.autosave()
+	_cloud_finalize_run_async(
+		run_id, outcome, elapsed, boss_defeated, loot_instance_ids, finished_floor
+	)
 
 
 func _cloud_finalize_run_async(
-	run_id: String, outcome: String, elapsed: float, boss_defeated: bool, loot_instance_ids: Array
+	run_id: String,
+	outcome: String,
+	elapsed: float,
+	boss_defeated: bool,
+	loot_instance_ids: Array,
+	finished_floor: int
 ) -> void:
 	if not ApiConfig.cloud_calls_enabled():
 		return
 	if run_id != "":
 		var result := await ApiClient.complete_run(
-			run_id, outcome, elapsed, boss_defeated, loot_instance_ids
+			run_id, outcome, elapsed, boss_defeated, loot_instance_ids, finished_floor
 		)
-		if not result.get("ok", false):
+		if result.get("ok", false):
+			CloudOutboxScript.resolve(run_id)
+		else:
 			if CrashLogger:
 				CrashLogger.log_warning(
 					"run_flow.complete_run", {"error": str(result.get("error", "unknown"))}
@@ -1259,7 +1383,11 @@ func _submit_leaderboard_async(biome_id: String, tier: int, elapsed: float) -> v
 	last_run_results["leaderboard_submit_ok"] = lb.get("ok", false)
 	if not lb.get("ok", false):
 		last_run_results["leaderboard_submit_error"] = str(lb.get("error", "unknown"))
-	if AchievementService:
+	# Only credit the achievement for a submission the server actually accepted — an offline
+	# player or a failed POST used to unlock it just for trying.
+	var submitted: bool = lb.get("ok", false) and lb.get("body", {}).get("submitted", false)
+	last_run_results["leaderboard_submitted"] = submitted
+	if AchievementService and submitted:
 		AchievementService.unlock("leaderboard_submit")
 
 

@@ -27,6 +27,11 @@ public static class EnemyPlacer
         int playerLevel,
         SeededRandom rng)
     {
+        // A biome with no usable pool would otherwise reach rng.NextInt(0), which throws and takes
+        // the whole generation attempt with it.
+        if (biome.EnemyPool.Count == 0 || biome.EnemyPool.Sum(e => Math.Max(0, e.Weight)) <= 0)
+            return ([], 0.0);
+
         var budget = biome.Budgets.BaseEnemyThreat
                      + biome.Budgets.ThreatPerTier * (tier - 1)
                      + playerLevel * 5;
@@ -40,14 +45,22 @@ public static class EnemyPlacer
         foreach (var room in combatRooms)
         {
             var maxPerRoom = rng.NextInt(1, 3);
+
+            // Draw the room's full candidate list up front, before the budget can influence how
+            // many draws happen. Consuming RNG only for enemies that fit made the entire stream
+            // downstream of the first over-budget room a function of tier and player level, so
+            // bumping either reshuffled every later room instead of just truncating it.
+            var picks = new EnemyPoolEntry[maxPerRoom];
             for (var i = 0; i < maxPerRoom; i++)
+                picks[i] = PickWeighted(biome.EnemyPool, rng);
+
+            for (var i = 0; i < picks.Length; i++)
             {
-                var entry = PickWeighted(biome.EnemyPool, rng);
-                if (threatUsed + entry.ThreatCost > budget)
+                if (threatUsed + picks[i].ThreatCost > budget)
                     break;
                 var offset = SpawnOffsets[(placements.Count + i) % SpawnOffsets.Length];
-                placements.Add(new EnemyPlacement(room.SemanticId, entry.EnemyId, offset));
-                threatUsed += entry.ThreatCost;
+                placements.Add(new EnemyPlacement(room.SemanticId, picks[i].EnemyId, offset));
+                threatUsed += picks[i].ThreatCost;
             }
         }
 
@@ -56,12 +69,17 @@ public static class EnemyPlacer
 
     private static EnemyPoolEntry PickWeighted(IReadOnlyList<EnemyPoolEntry> pool, SeededRandom rng)
     {
-        var total = pool.Sum(e => e.Weight);
+        var total = 0;
+        foreach (var entry in pool)
+            total += Math.Max(0, entry.Weight);
+        if (total <= 0)
+            return pool[0];
+
         var roll = rng.NextInt(total);
         var acc = 0;
         foreach (var entry in pool)
         {
-            acc += entry.Weight;
+            acc += Math.Max(0, entry.Weight);
             if (roll < acc)
                 return entry;
         }

@@ -67,11 +67,25 @@ public class AuthIntegrationTests : IClassFixture<AumbryeWebApplicationFactory>
     public async Task MismatchedClientVersion_Returns426()
     {
         var client = _client;
-        var req = new HttpRequestMessage(HttpMethod.Get, "/api/v1/health");
+        var req = new HttpRequestMessage(HttpMethod.Get, "/api/v1/leaderboards");
         req.Headers.Add(ApiVersions.ClientVersionHeader, "0.0.1");
         req.Headers.Add(ApiVersions.ContentVersionHeader, ApiVersions.ExpectedContentVersion);
         var response = await client.SendAsync(req);
         Assert.Equal((HttpStatusCode)426, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task MismatchedClientVersion_DoesNotGateHealthProbes()
+    {
+        // Orchestration probes are long-lived and may still carry the previous release's headers
+        // right after a deploy. Gating them would flap the rollout for a non-health reason.
+        var req = new HttpRequestMessage(HttpMethod.Get, "/api/v1/health");
+        req.Headers.Add(ApiVersions.ClientVersionHeader, "0.0.1");
+        req.Headers.Add(ApiVersions.ContentVersionHeader, "0.0.1");
+
+        var response = await _client.SendAsync(req);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
     }
 
     private static void AddVersionHeaders(HttpClient client)
@@ -118,13 +132,25 @@ public class RunsIntegrationTests : IClassFixture<AumbryeWebApplicationFactory>
         var dungeonJson = await dungeon.Content.ReadAsStringAsync();
         Assert.Equal(run.DefinitionJson, dungeonJson);
 
+        await TestDoubles.RunClockHelper.BackdateAsync(
+            _factory.Services, run.RunId, TimeSpan.FromMinutes(3));
+
         var complete = await _client.PostAsJsonAsync($"/api/v1/runs/{run.RunId}/complete",
             new CompleteRunRequest("escaped", 120, true, []));
         Assert.Equal(HttpStatusCode.OK, complete.StatusCode);
 
+        // Completion is idempotent: a client that retries after a timeout gets the original
+        // result back rather than a second progression grant or a spurious error.
         var doubleComplete = await _client.PostAsJsonAsync($"/api/v1/runs/{run.RunId}/complete",
             new CompleteRunRequest("escaped", 120, true, []));
-        Assert.Equal(HttpStatusCode.BadRequest, doubleComplete.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, doubleComplete.StatusCode);
+
+        var first = await complete.Content.ReadFromJsonAsync<CompleteRunResponse>();
+        var replayed = await doubleComplete.Content.ReadFromJsonAsync<CompleteRunResponse>();
+        Assert.NotNull(first?.Progression);
+        Assert.NotNull(replayed?.Progression);
+        Assert.Equal(first.Progression.TotalXp, replayed.Progression.TotalXp);
+        Assert.Equal(first.Progression.XpGained, replayed.Progression.XpGained);
     }
 
     [Fact]

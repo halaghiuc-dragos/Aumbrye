@@ -14,13 +14,14 @@ public static class CanonicalJsonSerializer
 
     public static (string Json, string Checksum) Serialize(DungeonDefinition definition)
     {
-        var withoutChecksum = definition with { Checksum = null };
-        var canonical = BuildCanonicalObject(withoutChecksum);
-        var json = JsonSerializer.Serialize(canonical, IndentedOptions);
-        var checksum = ComputeChecksum(json);
-        var withChecksum = definition with { Checksum = checksum };
-        var finalJson = JsonSerializer.Serialize(BuildCanonicalObject(withChecksum), IndentedOptions);
-        return (finalJson, checksum);
+        // The canonical graph is built once and reused. The root is a SortedDictionary, so adding
+        // "checksum" after hashing still emits it in the same ordinal position the two-pass build
+        // produced — byte-identical output, without a second walk of a multi-KB object graph on
+        // the run-creation and floor-transition hot path.
+        var root = BuildCanonicalObject(definition with { Checksum = null });
+        var checksum = ComputeChecksum(JsonSerializer.Serialize(root, IndentedOptions));
+        root["checksum"] = checksum;
+        return (JsonSerializer.Serialize(root, IndentedOptions), checksum);
     }
 
     public static string ComputeChecksum(string canonicalJsonWithoutChecksum)
@@ -64,6 +65,9 @@ public static class CanonicalJsonSerializer
             ["roomContent"] = def.RoomContent?.Select(RoomContentDict).ToList() ?? [],
             ["locks"] = def.Locks?.Select(LockDict).ToList() ?? [],
             ["puzzles"] = def.Puzzles?.Select(PuzzleDict).ToList() ?? [],
+            // Declares which sections this generator actually populated, so an empty roomContent
+            // reads as "not my job" rather than "this floor has none".
+            ["generatorCapabilities"] = def.GeneratorCapabilities?.ToList() ?? [],
         };
         if (def.Checksum != null)
             root["checksum"] = def.Checksum;

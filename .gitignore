@@ -216,3 +216,8 @@ __pycache__/
 # =============================================================================
 # Uncomment when asset pipeline is defined:
 # assets/**/*.import
+
+# =============================================================================
+# Generated repository inventories (regenerate on demand with `git ls-files`)
+# =============================================================================
+project_structure.txt

@@ -17,25 +17,33 @@ public static class AuthEndpoints
     {
         var group = app.MapGroup("/api/v1/auth").WithTags("Auth");
 
-        group.MapPost("/register", async (RegisterRequest req, IAuthService auth, CancellationToken ct) =>
+        group.MapPost("/register", async (
+            RegisterRequest req,
+            HttpContext http,
+            IAuthService auth,
+            CancellationToken ct) =>
         {
             var result = await auth.RegisterAsync(req.Email, req.Password, ct);
             if (!result.Success)
                 return ProblemResults.BadRequest(result.Error!);
-            return Results.Ok(ToResponse(result));
+            return Results.Ok(ToResponse(result, http));
         })
         .WithName("Register")
-        .RequireRateLimiting("auth")
+        .RequireRateLimiting("register")
         .Produces<AuthResponse>(StatusCodes.Status200OK)
         .ProducesProblem(StatusCodes.Status400BadRequest)
         .Produces(StatusCodes.Status429TooManyRequests);
 
-        group.MapPost("/login", async (LoginRequest req, IAuthService auth, CancellationToken ct) =>
+        group.MapPost("/login", async (
+            LoginRequest req,
+            HttpContext http,
+            IAuthService auth,
+            CancellationToken ct) =>
         {
             var result = await auth.LoginAsync(req.Email, req.Password, ct);
             if (!result.Success)
                 return ProblemResults.Unauthorized(result.Error!);
-            return Results.Ok(ToResponse(result));
+            return Results.Ok(ToResponse(result, http));
         })
         .WithName("Login")
         .RequireRateLimiting("auth")
@@ -43,12 +51,26 @@ public static class AuthEndpoints
         .ProducesProblem(StatusCodes.Status401Unauthorized)
         .Produces(StatusCodes.Status429TooManyRequests);
 
-        group.MapPost("/refresh", async (RefreshRequest req, IAuthService auth, CancellationToken ct) =>
+        group.MapPost("/refresh", async (
+            RefreshRequest req,
+            HttpContext http,
+            IAuthService auth,
+            CancellationToken ct) =>
         {
-            var result = await auth.RefreshAsync(req.RefreshToken, ct);
+            // Cookie clients send no body token; fall back to the httpOnly cookie.
+            var token = string.IsNullOrEmpty(req.RefreshToken)
+                ? http.Request.Cookies[AuthTransport.CookieName]
+                : req.RefreshToken;
+            if (string.IsNullOrEmpty(token))
+                return ProblemResults.Unauthorized("Invalid refresh token.");
+
+            var result = await auth.RefreshAsync(token, ct);
             if (!result.Success)
+            {
+                ClearRefreshCookie(http);
                 return ProblemResults.Unauthorized(result.Error!);
-            return Results.Ok(ToResponse(result));
+            }
+            return Results.Ok(ToResponse(result, http));
         })
         .WithName("Refresh")
         .RequireRateLimiting("auth")
@@ -58,6 +80,7 @@ public static class AuthEndpoints
 
         group.MapPost("/logout", async (
             LogoutRequest req,
+            HttpContext http,
             ClaimsPrincipal user,
             IAuthService auth,
             CancellationToken ct) =>
@@ -65,7 +88,12 @@ public static class AuthEndpoints
             var accountId = user.AccountId();
             if (accountId == null)
                 return Results.Unauthorized();
-            await auth.LogoutAsync(accountId.Value, req.RefreshToken, ct);
+            var token = string.IsNullOrEmpty(req.RefreshToken)
+                ? http.Request.Cookies[AuthTransport.CookieName]
+                : req.RefreshToken;
+            if (!string.IsNullOrEmpty(token))
+                await auth.LogoutAsync(accountId.Value, token, ct);
+            ClearRefreshCookie(http);
             return Results.NoContent();
         })
         .WithName("Logout")
@@ -74,7 +102,11 @@ public static class AuthEndpoints
         .Produces(StatusCodes.Status204NoContent)
         .ProducesProblem(StatusCodes.Status401Unauthorized);
 
-        group.MapPost("/steam", async (SteamAuthRequest req, IAuthService auth, CancellationToken ct) =>
+        group.MapPost("/steam", async (
+            SteamAuthRequest req,
+            HttpContext http,
+            IAuthService auth,
+            CancellationToken ct) =>
         {
             var result = await auth.AuthenticateSteamAsync(req.TicketHex, req.AppId, ct);
             if (!result.Success)
@@ -86,7 +118,7 @@ public static class AuthEndpoints
                     _ => ProblemResults.Unauthorized(result.Error!),
                 };
             }
-            return Results.Ok(ToResponse(result));
+            return Results.Ok(ToResponse(result, http));
         })
         .WithName("SteamAuth")
         .RequireRateLimiting("auth")
@@ -99,10 +131,51 @@ public static class AuthEndpoints
         return group;
     }
 
-    private static AuthResponse ToResponse(AuthResult result) =>
-        new(
-            new AuthTokensResponse(result.AccessToken!, result.RefreshToken!, result.AccessTokenExpiresAt!.Value),
+    /// <summary>
+    /// Builds the auth payload, honouring the client's chosen refresh-token transport.
+    /// </summary>
+    /// <remarks>
+    /// With cookie transport the refresh token is written to an httpOnly, Secure, SameSite=Strict
+    /// cookie and omitted from the JSON body, so an XSS payload cannot read it — the previous
+    /// sessionStorage approach handed any injected script a 30-day account takeover.
+    /// </remarks>
+    private static AuthResponse ToResponse(AuthResult result, HttpContext http)
+    {
+        var refreshToken = result.RefreshToken;
+        if (UsesCookieTransport(http))
+        {
+            SetRefreshCookie(http, refreshToken!);
+            refreshToken = null;
+        }
+
+        return new AuthResponse(
+            new AuthTokensResponse(result.AccessToken!, refreshToken, result.AccessTokenExpiresAt!.Value),
             new AuthUserResponse(result.AccountId!.Value, result.Email ?? string.Empty));
+    }
+
+    private static bool UsesCookieTransport(HttpContext http) =>
+        string.Equals(
+            http.Request.Headers[AuthTransport.HeaderName].FirstOrDefault(),
+            AuthTransport.Cookie,
+            StringComparison.OrdinalIgnoreCase);
+
+    private static void SetRefreshCookie(HttpContext http, string refreshToken) =>
+        http.Response.Cookies.Append(
+            AuthTransport.CookieName,
+            refreshToken,
+            new CookieOptions
+            {
+                HttpOnly = true,
+                // Allow plain HTTP only for local development, where there is no TLS to ride on.
+                Secure = !http.Request.Host.Host.Equals("localhost", StringComparison.OrdinalIgnoreCase),
+                SameSite = SameSiteMode.Strict,
+                Path = AuthTransport.CookiePath,
+                MaxAge = TimeSpan.FromDays(30),
+            });
+
+    private static void ClearRefreshCookie(HttpContext http) =>
+        http.Response.Cookies.Delete(
+            AuthTransport.CookieName, new CookieOptions { Path = AuthTransport.CookiePath });
 }
 
 public static class RunsEndpoints
@@ -147,13 +220,16 @@ public static class RunsEndpoints
             var accountId = user.AccountId();
             if (accountId == null)
                 return Results.Unauthorized();
-            var json = await runs.GetDungeonDefinitionAsync(accountId.Value, id, floor ?? 1, ct);
-            if (json == null)
+            var result = await runs.GetDungeonDefinitionAsync(accountId.Value, id, floor ?? 1, ct);
+            if (result.NotFound)
                 return Results.NotFound();
-            return Results.Content(json, "application/json");
+            if (!result.Success)
+                return ProblemResults.BadRequest(result.Error!);
+            return Results.Content(result.Json!, "application/json");
         })
         .WithName("GetRunDungeon")
         .Produces<string>(StatusCodes.Status200OK, "application/json")
+        .ProducesProblem(StatusCodes.Status400BadRequest)
         .ProducesProblem(StatusCodes.Status401Unauthorized)
         .Produces(StatusCodes.Status404NotFound);
 
@@ -224,14 +300,19 @@ public static class SavesEndpoints
                 return Results.Unauthorized();
             var result = await saves.GetCurrentAsync(accountId.Value, ct);
             if (!result.Success)
-                return ProblemResults.BadRequest(result.Error!);
+            {
+                return result.ErrorStatus == StatusCodes.Status422UnprocessableEntity
+                    ? ProblemResults.UnprocessableEntity(result.Error!)
+                    : ProblemResults.BadRequest(result.Error!);
+            }
             var json = result.State!.ToJsonString();
             return Results.Ok(new SaveResponse(json, result.UpdatedAt!.Value));
         })
         .WithName("GetCurrentSave")
         .Produces<SaveResponse>(StatusCodes.Status200OK)
         .ProducesProblem(StatusCodes.Status400BadRequest)
-        .ProducesProblem(StatusCodes.Status401Unauthorized);
+        .ProducesProblem(StatusCodes.Status401Unauthorized)
+        .ProducesProblem(StatusCodes.Status422UnprocessableEntity);
 
         group.MapPut("/current", async (
             PutSaveRequest req,
@@ -242,6 +323,14 @@ public static class SavesEndpoints
             var accountId = user.AccountId();
             if (accountId == null)
                 return Results.Unauthorized();
+
+            // Reject oversized bodies before parsing them — a 100 MB blob is both a storage and a
+            // JSON-parse denial-of-service, and no legitimate save comes close to the cap.
+            if (SaveService.ByteLength(req.StateJson) > SaveStateValidator.MaxStateJsonBytes)
+            {
+                return ProblemResults.PayloadTooLarge(
+                    $"Save exceeds the {SaveStateValidator.MaxStateJsonBytes / 1024} KB limit.");
+            }
 
             JsonObject? state;
             try
@@ -274,7 +363,8 @@ public static class SavesEndpoints
         .Produces<PutSaveResponse>(StatusCodes.Status200OK)
         .ProducesProblem(StatusCodes.Status400BadRequest)
         .ProducesProblem(StatusCodes.Status401Unauthorized)
-        .Produces<PutSaveResponse>(StatusCodes.Status409Conflict);
+        .Produces<PutSaveResponse>(StatusCodes.Status409Conflict)
+        .ProducesProblem(StatusCodes.Status413PayloadTooLarge);
 
         return group;
     }

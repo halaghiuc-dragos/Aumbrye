@@ -132,6 +132,8 @@ func _ready() -> void:
 		RunFlow.run_warning.connect(_on_run_warning)
 	if InventoryService and not InventoryService.inventory_rejected.is_connected(_on_inventory_rejected):
 		InventoryService.inventory_rejected.connect(_on_inventory_rejected)
+	if LocalSave and not LocalSave.save_failed.is_connected(_on_save_failed):
+		LocalSave.save_failed.connect(_on_save_failed)
 	GameUISkinScript.make_backdrop(_respawn_overlay)
 	var panel := _respawn_overlay.get_node("Panel") as PanelContainer
 	if panel:
@@ -291,7 +293,17 @@ func _refresh_status_icons() -> void:
 			_status_pips.erase(status_id)
 
 
+## Health, stamina and status *values* arrive by signal; this handles only genuinely continuous
+## elements (reticle tracking, cooldown sweeps, telegraph progress). A hidden HUD ticks nothing.
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_VISIBILITY_CHANGED:
+		set_process(is_visible_in_tree())
+
+
 func _process(delta: float) -> void:
+	if not is_visible_in_tree():
+		set_process(false)
+		return
 	_vignette_cooldown = maxf(0.0, _vignette_cooldown - delta)
 	_update_lock_reticle()
 	if _guard_indicator_active:
@@ -358,23 +370,28 @@ func unbind_boss() -> void:
 
 
 func _unbind_boss() -> void:
-	if _boss_health and _boss_health.health_changed.is_connected(_on_boss_health_changed):
-		_boss_health.health_changed.disconnect(_on_boss_health_changed)
-	if _boss_node and is_instance_valid(_boss_node):
-		if (
-			_boss_node.has_signal("phase_changed")
-			and _boss_node.phase_changed.is_connected(_on_boss_phase_changed)
-		):
-			_boss_node.phase_changed.disconnect(_on_boss_phase_changed)
-		if (
-			_boss_node.has_signal("boss_defeated")
-			and _boss_node.boss_defeated.is_connected(unbind_boss)
-		):
-			_boss_node.boss_defeated.disconnect(unbind_boss)
-		if _boss_node.has_signal("enemy_died") and _boss_node.enemy_died.is_connected(unbind_boss):
-			_boss_node.enemy_died.disconnect(unbind_boss)
+	# A dying boss emits BOTH boss_defeated and enemy_died, and both are wired here — so this runs
+	# twice in one frame. Claim the state first and bail on re-entry, otherwise the unbind side
+	# effects (panel fade, audio sting) fire twice.
+	if _boss_node == null and _boss_health == null:
+		return
+	var boss := _boss_node
+	var boss_health := _boss_health
 	_boss_node = null
 	_boss_health = null
+
+	if boss_health and boss_health.health_changed.is_connected(_on_boss_health_changed):
+		boss_health.health_changed.disconnect(_on_boss_health_changed)
+	if boss and is_instance_valid(boss):
+		if (
+			boss.has_signal("phase_changed")
+			and boss.phase_changed.is_connected(_on_boss_phase_changed)
+		):
+			boss.phase_changed.disconnect(_on_boss_phase_changed)
+		if boss.has_signal("boss_defeated") and boss.boss_defeated.is_connected(unbind_boss):
+			boss.boss_defeated.disconnect(unbind_boss)
+		if boss.has_signal("enemy_died") and boss.enemy_died.is_connected(unbind_boss):
+			boss.enemy_died.disconnect(unbind_boss)
 	if _boss_panel:
 		_boss_panel.visible = false
 
@@ -844,6 +861,18 @@ func _on_run_warning(message: String) -> void:
 func _on_inventory_rejected(reason: String) -> void:
 	if reason == "full":
 		show_run_warning("Inventory full")
+
+
+## A failed save is silent otherwise — the player keeps going for hours believing progress is
+## kept. Non-blocking, but it has to be visible.
+func _on_save_failed(reason: String) -> void:
+	match reason:
+		"write_failed":
+			show_run_warning("Saving failed — check disk space")
+		"save_from_newer_build":
+			show_run_warning("Save was made by a newer build and cannot be loaded")
+		_:
+			show_run_warning("Saving failed (%s)" % reason)
 
 
 func _rebuild_controls_hint() -> void:
