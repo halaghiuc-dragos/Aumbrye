@@ -86,6 +86,20 @@ func get_character_name() -> String:
 	return str(_character().get("name", "Wanderer"))
 
 
+## Name plus the earned title the player picked in character creation, e.g. "Isolde the Oathkept".
+##
+## The Title row wrote its choice into the appearance profile and the profile was saved and
+## reloaded faithfully, but nothing in the game ever read it back — the title could be chosen and
+## then never appeared anywhere. This is the accessor screens use when they name the warden.
+func get_character_display_name() -> String:
+	var base := get_character_name()
+	var title_id := str(get_appearance_profile().get("title", ""))
+	if title_id == "":
+		return base
+	var label := AppearanceCatalog.title_label(title_id)
+	return "%s %s" % [base, label] if label != "" else base
+
+
 func set_character_profile(character_name: String, class_id: String = "") -> void:
 	var character := _character()
 	if character.is_empty():

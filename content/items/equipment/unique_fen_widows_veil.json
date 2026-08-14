@@ -27,8 +27,8 @@
     }
   ],
   "stats": {
-    "armor": 8,
-    "resistPoison": 0.15,
-    "healthRegen": 2
+    "armor": 10,
+    "resistPoison": 0.19,
+    "healthRegen": 3
   }
 }

@@ -290,42 +290,99 @@ static func _text_for_action(action: String, family: DeviceFamily) -> String:
 			return _keyboard_text(action)
 
 
-static func _joy_button_label(button_index: int, family: DeviceFamily) -> String:
-	match family:
-		DeviceFamily.XBOX:
-			match button_index:
-				0:
-					return "A"
-				1:
-					return "B"
-				3:
-					return "Y"
-				5:
-					return "RB"
-				6:
-					return "Menu"
-				8:
-					return "LS"
-				_:
-					return "Btn %d" % button_index
-		DeviceFamily.PLAYSTATION:
-			match button_index:
-				0:
-					return "Cross"
-				1:
-					return "Circle"
-				3:
-					return "Triangle"
-				5:
-					return "R1"
-				6:
-					return "Options"
-				10:
-					return "L3"
-				_:
-					return "Btn %d" % button_index
+## Short, player-facing name for any bound input.
+##
+## InputEvent.as_text() is written for the editor: a key prints as "C (Physical)" and a pad button
+## as "Joypad Button 0 (Bottom Action...)". Neither fits on a binding button, and both leak engine
+## vocabulary into the settings screen.
+static func format_event_label(event: InputEvent) -> String:
+	if event is InputEventKey:
+		var key := event as InputEventKey
+		var code := key.keycode if key.keycode != KEY_NONE else key.physical_keycode
+		var text := OS.get_keycode_string(code)
+		return text if text != "" else "?"
+	if event is InputEventMouseButton:
+		match (event as InputEventMouseButton).button_index:
+			MOUSE_BUTTON_LEFT:
+				return "LMB"
+			MOUSE_BUTTON_RIGHT:
+				return "RMB"
+			MOUSE_BUTTON_MIDDLE:
+				return "MMB"
+			MOUSE_BUTTON_WHEEL_UP:
+				return "Wheel Up"
+			MOUSE_BUTTON_WHEEL_DOWN:
+				return "Wheel Down"
+			_:
+				return "Mouse %d" % (event as InputEventMouseButton).button_index
+	if event is InputEventJoypadButton:
+		return _joy_button_label((event as InputEventJoypadButton).button_index, current_family())
+	if event is InputEventJoypadMotion:
+		var motion := event as InputEventJoypadMotion
+		return _joy_axis_label(motion.axis, motion.axis_value)
+	return event.as_text()
+
+
+static func _joy_axis_label(axis: int, axis_value: float) -> String:
+	var direction := "+" if axis_value >= 0.0 else "-"
+	match axis:
+		JOY_AXIS_LEFT_X, JOY_AXIS_LEFT_Y:
+			return "LS %s" % direction
+		JOY_AXIS_RIGHT_X, JOY_AXIS_RIGHT_Y:
+			return "RS %s" % direction
+		JOY_AXIS_TRIGGER_LEFT:
+			return "LT"
+		JOY_AXIS_TRIGGER_RIGHT:
+			return "RT"
 		_:
-			return "Btn %d" % button_index
+			return "Axis %d%s" % [axis, direction]
+
+
+## Keyed off Godot's JoyButton enum rather than bare integers. The literals this replaced did not
+## line up with it — index 5 is GUIDE, not the right shoulder, and index 8 is the right stick, not
+## the left — so several bindings printed the wrong button name.
+const XBOX_BUTTON_NAMES: Dictionary = {
+	JOY_BUTTON_A: "A",
+	JOY_BUTTON_B: "B",
+	JOY_BUTTON_X: "X",
+	JOY_BUTTON_Y: "Y",
+	JOY_BUTTON_BACK: "View",
+	JOY_BUTTON_GUIDE: "Guide",
+	JOY_BUTTON_START: "Menu",
+	JOY_BUTTON_LEFT_STICK: "LS",
+	JOY_BUTTON_RIGHT_STICK: "RS",
+	JOY_BUTTON_LEFT_SHOULDER: "LB",
+	JOY_BUTTON_RIGHT_SHOULDER: "RB",
+	JOY_BUTTON_DPAD_UP: "D-Up",
+	JOY_BUTTON_DPAD_DOWN: "D-Down",
+	JOY_BUTTON_DPAD_LEFT: "D-Left",
+	JOY_BUTTON_DPAD_RIGHT: "D-Right",
+}
+
+const PLAYSTATION_BUTTON_NAMES: Dictionary = {
+	JOY_BUTTON_A: "Cross",
+	JOY_BUTTON_B: "Circle",
+	JOY_BUTTON_X: "Square",
+	JOY_BUTTON_Y: "Triangle",
+	JOY_BUTTON_BACK: "Share",
+	JOY_BUTTON_GUIDE: "PS",
+	JOY_BUTTON_START: "Options",
+	JOY_BUTTON_LEFT_STICK: "L3",
+	JOY_BUTTON_RIGHT_STICK: "R3",
+	JOY_BUTTON_LEFT_SHOULDER: "L1",
+	JOY_BUTTON_RIGHT_SHOULDER: "R1",
+	JOY_BUTTON_DPAD_UP: "D-Up",
+	JOY_BUTTON_DPAD_DOWN: "D-Down",
+	JOY_BUTTON_DPAD_LEFT: "D-Left",
+	JOY_BUTTON_DPAD_RIGHT: "D-Right",
+}
+
+
+static func _joy_button_label(button_index: int, family: DeviceFamily) -> String:
+	var names: Dictionary = XBOX_BUTTON_NAMES
+	if family == DeviceFamily.PLAYSTATION:
+		names = PLAYSTATION_BUTTON_NAMES
+	return str(names.get(button_index, "Btn %d" % button_index))
 
 
 static func _keyboard_text(action: String) -> String:

@@ -22,12 +22,14 @@ public class XpCurveTests
     }
 
     [Fact]
-    public void RunXp_IncludesTierBonus()
+    public void RunXp_ScalesWithKillsAndBonuses()
     {
         var curve = ProgressionCatalog.XpCurve;
-        var tier1 = curve.BaseXpPerRun;
-        var tier2 = curve.BaseXpPerRun + curve.TierXpBonus;
-        Assert.True(tier2 > tier1);
+        Assert.True(curve.BaseXpPerKill > 0);
+        Assert.Equal(4 * curve.BaseXpPerKill, curve.RunXp(4, false, false));
+        Assert.Equal(
+            4 * curve.BaseXpPerKill + curve.BossBonusXp + curve.EscapeBonusXp,
+            curve.RunXp(4, true, true));
     }
 
     [Theory]

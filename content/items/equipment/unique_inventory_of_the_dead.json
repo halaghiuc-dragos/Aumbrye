@@ -26,8 +26,8 @@
     }
   ],
   "stats": {
-    "armor": 18,
-    "defense": 12,
-    "manaRegen": 0.05
+    "armor": 23,
+    "defense": 15,
+    "manaRegen": 0.063
   }
 }

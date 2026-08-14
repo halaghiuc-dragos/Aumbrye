@@ -11,8 +11,10 @@ const BACKDROP_COLOR := Color(0.01, 0.01, 0.04, 0.78)
 
 const PANEL_HALF_W := 580.0
 const PANEL_HALF_H := 360.0
-const SETTINGS_HALF_W := 340.0
-const SETTINGS_HALF_H := 300.0
+## Wide enough that the six-tab row fits on one line at the largest interface scale, so the panel
+## never has to overflow its own frame to show its tabs.
+const SETTINGS_HALF_W := 460.0
+const SETTINGS_HALF_H := 320.0
 const MENU_HALF_W := 260.0
 const MENU_HALF_H := 150.0
 
@@ -47,7 +49,9 @@ const PANEL_BORDER_WIDTH := 2
 const FOCUS_RING_COLOR := Color(0.95, 0.82, 0.40)
 
 const INVENTORY_PANEL_HALF_W := 720.0
-const INVENTORY_PANEL_HALF_H := 480.0
+## A floor, not a fixed height: a PanelContainer grows to fit its contents, so asking for 960px
+## around ~660px of grid and slots left a quarter of the screen as empty framed void.
+const INVENTORY_PANEL_HALF_H := 350.0
 const INVENTORY_CELL_SIZE := 64
 const INVENTORY_EQUIP_CELL_SIZE := 82
 
@@ -76,12 +80,32 @@ const PixelDioramaSettingsScript := preload("res://scripts/art/pipeline/pixel_di
 const PIXEL_BAR_STEPS := 8
 
 
+const BACKDROP_SHADER_PATH := "res://assets/shared/ui_vignette.gdshader"
+
+static var _backdrop_material: ShaderMaterial
+
+
+## One shared material for every backdrop in the game. The vignette has no per-screen state, so
+## there is nothing to gain from a copy per menu and a fair amount of texture memory to lose.
+static func _backdrop_vignette_material() -> ShaderMaterial:
+	if _backdrop_material != null:
+		return _backdrop_material
+	var shader := load(BACKDROP_SHADER_PATH) as Shader
+	if shader == null:
+		return null
+	_backdrop_material = ShaderMaterial.new()
+	_backdrop_material.shader = shader
+	return _backdrop_material
+
+
 static func make_backdrop(parent: Control, name: String = "Backdrop") -> ColorRect:
 	var backdrop := ColorRect.new()
 	backdrop.name = name
 	backdrop.set_anchors_preset(Control.PRESET_FULL_RECT)
 	backdrop.color = BACKDROP_COLOR
 	backdrop.mouse_filter = Control.MOUSE_FILTER_STOP
+	# Flat fill alone gave every menu a dead field to float on; the vignette puts a room behind it.
+	backdrop.material = _backdrop_vignette_material()
 	parent.add_child(backdrop)
 	backdrop.show_behind_parent = true
 	return backdrop
@@ -149,6 +173,25 @@ static func make_list_style(state: StringName) -> StyleBoxFlat:
 	return style
 
 
+## Frame for one entry in a vertical list (settings rows, binding rows). Deliberately lighter than
+## make_panel_style(): a full panel frame per row, with its 18px margins and drop shadow, turns a
+## settings page into a stack of competing boxes and cuts how many rows fit on screen roughly in
+## half.
+static func make_row_style(selected: bool = false, vertical_padding: int = 7) -> StyleBoxFlat:
+	var style := StyleBoxFlat.new()
+	style.bg_color = FRAME_BG.lightened(0.06 if selected else 0.03)
+	style.border_color = ACCENT_BAR if selected else FRAME_BORDER.darkened(0.25)
+	style.set_border_width_all(1)
+	style.set_corner_radius_all(_panel_corner_radius())
+	# Vertical padding is deliberately tighter than horizontal: these rows stack nine deep in
+	# character creation, where every pixel of row height comes out of the panel's budget.
+	style.set_content_margin_all(vertical_padding)
+	style.content_margin_left = 14
+	style.content_margin_right = 14
+	style.shadow_size = 0
+	return style
+
+
 static func make_focus_style() -> StyleBoxFlat:
 	var style := StyleBoxFlat.new()
 	style.bg_color = Color(0.0, 0.0, 0.0, 0.0)
@@ -211,6 +254,23 @@ static func clamped_panel_half_size(half_w: float, half_h: float, parent: Contro
 	return Vector2(minf(half_w, viewport_size.x * 0.48), minf(half_h, viewport_size.y * 0.48))
 
 
+## Anchors a panel on the viewport centre at the given half-extents.
+##
+## The grow directions matter as much as the offsets: a PanelContainer is never laid out smaller
+## than its contents, and the default grow direction is END, so a panel whose contents overflow the
+## requested size expands to the right and downwards only — which is what pushed the settings panel
+## off the right edge of the screen once its tab row grew wider than the panel. Growing both ways
+## keeps the panel centred no matter how large its contents turn out to be.
+static func center_panel_in_parent(panel: Control, half_w: float, half_h: float) -> void:
+	panel.set_anchors_preset(Control.PRESET_CENTER)
+	panel.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	panel.grow_vertical = Control.GROW_DIRECTION_BOTH
+	panel.offset_left = -half_w
+	panel.offset_top = -half_h
+	panel.offset_right = half_w
+	panel.offset_bottom = half_h
+
+
 static func make_center_panel(
 	parent: Control,
 	half_w: float = PANEL_HALF_W,
@@ -222,11 +282,7 @@ static func make_center_panel(
 	half_h = clamped.y
 	var panel := PanelContainer.new()
 	panel.name = panel_name
-	panel.set_anchors_preset(Control.PRESET_CENTER)
-	panel.offset_left = -half_w
-	panel.offset_top = -half_h
-	panel.offset_right = half_w
-	panel.offset_bottom = half_h
+	center_panel_in_parent(panel, half_w, half_h)
 	style_panel(panel)
 	parent.add_child(panel)
 	return panel
@@ -257,6 +313,7 @@ static func make_section_frame(title: String) -> PanelContainer:
 	accent_r.color = ACCENT_BAR
 	header_row.add_child(accent_r)
 	frame.set_meta("content_vbox", vbox)
+	frame.set_meta("header_label", header)
 	return frame
 
 
@@ -264,15 +321,30 @@ static func section_content(frame: PanelContainer) -> VBoxContainer:
 	return frame.get_meta("content_vbox") as VBoxContainer
 
 
+## The frame's own heading, for panels whose title changes at runtime. Without this a caller has
+## no way to retitle a section and ends up adding a second title label inside the frame, which is
+## how the inventory came to print "STASH" and "Stash" one above the other.
+static func section_header(frame: PanelContainer) -> Label:
+	if frame == null or not frame.has_meta("header_label"):
+		return null
+	return frame.get_meta("header_label") as Label
+
+
+## Applies a variation's font and alignment, and nothing else.
+##
+## This used to also switch on `clip_text` and word wrapping for body text. Both make a Label
+## report a minimum width of zero — a clipped label can always be cut, and a wrapping label can
+## always fold — so any label styled this way collapsed the moment it shared a row with an
+## expanding sibling. That is one bug with several faces: appearance-row and stat-grid labels
+## disappeared outright, and the pause menu's run-info keys folded to a single character per line
+## ("M / o / d / e" down the panel).
+##
+## Wrapping is now opt-in, set by the caller on labels that own a full row and genuinely hold
+## prose — descriptions, confirmations, subtitles.
 static func _apply_label_variation(label: Label, variation: StringName) -> void:
 	label.theme_type_variation = variation
-	if variation == VAR_BODY_TEXT or variation == VAR_DANGER_TEXT:
-		label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		label.clip_text = true
 	if variation == VAR_HINT_TEXT or variation == VAR_MENU_TITLE or variation == VAR_SECTION_TITLE:
 		label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	if variation == VAR_HINT_TEXT:
-		label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 
 
 static func style_section_title(label: Label, text: String = "") -> void:
@@ -307,6 +379,7 @@ static func make_symbol_caption_row(glyph: String, caption: String) -> HBoxConta
 	var cap := Label.new()
 	cap.text = caption
 	style_hint_label(cap)
+	cap.autowrap_mode = TextServer.AUTOWRAP_OFF
 	row.add_child(cap)
 	return row
 

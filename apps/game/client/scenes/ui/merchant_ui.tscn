@@ -19,22 +19,23 @@ anchor_left = 0.5
 anchor_top = 0.5
 anchor_right = 0.5
 anchor_bottom = 0.5
-offset_left = -280.0
-offset_top = -200.0
-offset_right = 280.0
-offset_bottom = 200.0
+offset_left = -520.0
+offset_top = -290.0
+offset_right = 520.0
+offset_bottom = 290.0
 grow_horizontal = 2
 grow_vertical = 2
 
 [node name="Margin" type="MarginContainer" parent="Panel"]
 layout_mode = 2
-theme_override_constants/margin_left = 12
-theme_override_constants/margin_top = 12
-theme_override_constants/margin_right = 12
-theme_override_constants/margin_bottom = 12
+theme_override_constants/margin_left = 16
+theme_override_constants/margin_top = 16
+theme_override_constants/margin_right = 16
+theme_override_constants/margin_bottom = 16
 
 [node name="VBox" type="VBoxContainer" parent="Panel/Margin"]
 layout_mode = 2
+theme_override_constants/separation = 8
 
 [node name="Title" type="Label" parent="Panel/Margin/VBox"]
 theme_type_variation = "MenuTitle"
@@ -46,31 +47,78 @@ horizontal_alignment = 1
 theme_type_variation = "StatValue"
 layout_mode = 2
 text = "Gold: 0"
+horizontal_alignment = 2
 
-[node name="BuyList" type="ItemList" parent="Panel/Margin/VBox"]
-custom_minimum_size = Vector2(0, 100)
+[node name="Columns" type="HBoxContainer" parent="Panel/Margin/VBox"]
 layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/separation = 16
 
-[node name="SellList" type="ItemList" parent="Panel/Margin/VBox"]
-custom_minimum_size = Vector2(0, 100)
+[node name="BuyColumn" type="VBoxContainer" parent="Panel/Margin/VBox/Columns"]
 layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 4
+
+[node name="BuyHeader" type="Label" parent="Panel/Margin/VBox/Columns/BuyColumn"]
+theme_type_variation = "SectionTitle"
+layout_mode = 2
+text = "Merchant Stock"
+horizontal_alignment = 0
+
+[node name="BuyList" type="ItemList" parent="Panel/Margin/VBox/Columns/BuyColumn"]
+custom_minimum_size = Vector2(0, 300)
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="SellColumn" type="VBoxContainer" parent="Panel/Margin/VBox/Columns"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 4
+
+[node name="SellHeader" type="Label" parent="Panel/Margin/VBox/Columns/SellColumn"]
+theme_type_variation = "SectionTitle"
+layout_mode = 2
+text = "Your Inventory"
+horizontal_alignment = 0
+
+[node name="SellList" type="ItemList" parent="Panel/Margin/VBox/Columns/SellColumn"]
+custom_minimum_size = Vector2(0, 300)
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="QtyRow" type="HBoxContainer" parent="Panel/Margin/VBox"]
+layout_mode = 2
+alignment = 2
+theme_override_constants/separation = 8
+
+[node name="QtyLabel" type="Label" parent="Panel/Margin/VBox/QtyRow"]
+theme_type_variation = "BodyText"
+layout_mode = 2
+text = "Sell quantity"
 
 [node name="DetailLabel" type="Label" parent="Panel/Margin/VBox"]
 theme_type_variation = "BodyText"
 layout_mode = 2
 text = "Buy or sell items"
+horizontal_alignment = 1
+autowrap_mode = 3
 
 [node name="Buttons" type="HBoxContainer" parent="Panel/Margin/VBox"]
 layout_mode = 2
+alignment = 1
+theme_override_constants/separation = 12
 
 [node name="BuyButton" type="Button" parent="Panel/Margin/VBox/Buttons"]
+custom_minimum_size = Vector2(150, 36)
 layout_mode = 2
 text = "Buy"
 
 [node name="SellButton" type="Button" parent="Panel/Margin/VBox/Buttons"]
+custom_minimum_size = Vector2(150, 36)
 layout_mode = 2
 text = "Sell"
 
 [node name="CloseButton" type="Button" parent="Panel/Margin/VBox/Buttons"]
+custom_minimum_size = Vector2(150, 36)
 layout_mode = 2
 text = "Close"

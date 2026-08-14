@@ -86,7 +86,7 @@ func _rebuild_buttons(options: Array) -> void:
 		btn.disabled = not enabled
 		vbox.add_child(btn)
 		_action_buttons.append(btn)
-	vbox.add_child(MenuShellScript.make_menu_button("Close", close_menu))
+	vbox.add_child(MenuShellScript.make_menu_button(tr("UI_CLOSE"), close_menu))
 	_wire_focus_ring()
 	_focus_first_enabled()
 

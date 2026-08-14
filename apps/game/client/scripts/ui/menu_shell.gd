@@ -59,6 +59,8 @@ static func add_hint(parent: VBoxContainer, text: String) -> Label:
 	hint.text = text
 	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	GameUISkinScript.style_hint_label(hint)
+	# Safe here specifically because the hint owns a full panel row rather than sharing an HBox.
+	hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	parent.add_child(hint)
 	return hint
 

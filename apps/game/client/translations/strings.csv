@@ -330,3 +330,236 @@ TITLE_THE_STUDIED,the Studied,the Studied
 TITLE_THE_GATE_OPENER,the Gate-Opener,the Gate-Opener
 TITLE_THE_LAMPLIGHTER,the Lamplighter,the Lamplighter
 TITLE_THE_UNFINISHED,the Unfinished,the Unfinished
+SETTINGS_TITLE,Settings,Setari
+SETTINGS_BACK,Back,Inapoi
+SETTINGS_RESET_PAGE,Reset This Page,Reseteaza pagina
+SETTINGS_HINT_BACK,Back    Q / E switch tabs,Inapoi    Q / E schimba filele
+SETTINGS_AUDIO_TEST,Test,Test
+SETTINGS_VALUE_ON,On,Pornit
+SETTINGS_VALUE_OFF,Off,Oprit
+SETTINGS_PAGE_GAMEPLAY,Gameplay,Joc
+SETTINGS_PAGE_DISPLAY,Display,Afisare
+SETTINGS_PAGE_AUDIO,Audio,Sunet
+SETTINGS_PAGE_CONTROLS,Controls,Comenzi
+SETTINGS_PAGE_ACCESSIBILITY,Accessibility,Accesibilitate
+SETTINGS_PAGE_ADVANCED,Advanced,Avansat
+SETTINGS_LANGUAGE_NAME,Language,Limba
+SETTINGS_LANGUAGE_DESC,Language used for all menus and subtitles.,Limba folosita in meniuri si subtitrari.
+SETTINGS_LANGUAGE_EN,English,Engleza
+SETTINGS_LANGUAGE_RO,Romanian,Romana
+SETTINGS_LEADERBOARD_OPT_IN_NAME,Submit to Leaderboards,Trimite la clasamente
+SETTINGS_LEADERBOARD_OPT_IN_DESC,Upload your completed run times so they appear on the online boards.,Incarca timpii curselor terminate ca sa apara in clasamentele online.
+SETTINGS_WINDOW_MODE_NAME,Window Mode,Mod fereastra
+SETTINGS_WINDOW_MODE_DESC,How the game fills your screen.,Cum umple jocul ecranul.
+SETTINGS_WINDOW_MODE_WINDOWED,Windowed,Fereastra
+SETTINGS_WINDOW_MODE_BORDERLESS,Borderless,Fara margini
+SETTINGS_WINDOW_MODE_FULLSCREEN,Fullscreen,Ecran complet
+SETTINGS_MONITOR_NAME,Monitor,Monitor
+SETTINGS_MONITOR_DESC,Which display the game window opens on.,Pe ce ecran se deschide fereastra jocului.
+SETTINGS_VSYNC_NAME,V-Sync,V-Sync
+SETTINGS_VSYNC_DESC,"Syncs frames to your monitor to remove tearing, at the cost of some input latency.","Sincronizeaza cadrele cu monitorul ca sa elimine ruperea imaginii, cu putina latenta in plus."
+SETTINGS_VSYNC_DISABLED,Off,Oprit
+SETTINGS_VSYNC_ENABLED,On,Pornit
+SETTINGS_VSYNC_ADAPTIVE,Adaptive,Adaptiv
+SETTINGS_MAX_FPS_NAME,Frame Rate Limit,Limita cadre
+SETTINGS_MAX_FPS_DESC,Caps how many frames are drawn each second.,Limiteaza cate cadre sunt desenate pe secunda.
+SETTINGS_MAX_FPS_UNCAPPED,Uncapped,Nelimitat
+SETTINGS_MAX_FPS_30,30 FPS,30 FPS
+SETTINGS_MAX_FPS_60,60 FPS,60 FPS
+SETTINGS_MAX_FPS_120,120 FPS,120 FPS
+SETTINGS_MAX_FPS_144,144 FPS,144 FPS
+SETTINGS_MAX_FPS_240,240 FPS,240 FPS
+SETTINGS_UI_SCALE_NAME,Interface Scale,Scara interfata
+SETTINGS_UI_SCALE_DESC,Enlarges menu text and panels for easier reading.,Mareste textul si panourile din meniuri pentru citire mai usoara.
+SETTINGS_PIXEL_SECTION,Pixel Rendering,Randare pixel
+SETTINGS_PIXEL_ADVANCED,Advanced Pixel Options,Optiuni pixel avansate
+SETTINGS_PIXEL_HIDE,Hide Pixel Options,Ascunde optiunile pixel
+SETTINGS_PIXEL_RESTORE,Restore Recommended Look,Revino la aspectul recomandat
+SETTINGS_RENDER_RESOLUTION,Render Resolution,Rezolutie de randare
+SETTINGS_LOW_RES_VIEWPORT,Low-Resolution Pixel Viewport,Viewport pixel la rezolutie mica
+SETTINGS_PIXEL_SCALE_NAME,Pixel Size,Dimensiune pixel
+SETTINGS_COLOR_LEVELS_NAME,Colour Levels,Niveluri de culoare
+SETTINGS_PATTERN_STRENGTH_NAME,Dither Strength,Intensitate dither
+SETTINGS_MASTER_VOLUME_NAME,Master Volume,Volum general
+SETTINGS_MASTER_VOLUME_DESC,Overall loudness of everything the game plays.,Volumul general al tuturor sunetelor jocului.
+SETTINGS_MUSIC_VOLUME_NAME,Music,Muzica
+SETTINGS_MUSIC_VOLUME_DESC,Soundtrack and boss themes.,Coloana sonora si temele de boss.
+SETTINGS_SFX_VOLUME_NAME,Sound Effects,Efecte sonore
+SETTINGS_SFX_VOLUME_DESC,"Weapon hits, footsteps, and world sounds.","Lovituri, pasi si sunetele lumii."
+SETTINGS_AMBIENCE_VOLUME_NAME,Ambience,Ambianta
+SETTINGS_AMBIENCE_VOLUME_DESC,"Wind, dripping water, and other background layers.","Vant, apa si alte straturi de fundal."
+SETTINGS_UI_VOLUME_NAME,Interface,Interfata
+SETTINGS_UI_VOLUME_DESC,"Menu clicks, confirmations, and notifications.","Clicuri de meniu, confirmari si notificari."
+SETTINGS_REDUCED_MOTION_NAME,Reduced Motion,Miscare redusa
+SETTINGS_REDUCED_MOTION_DESC,"Softens camera shake, hitstop, and screen flashes across the whole game.","Reduce zguduirea camerei, hitstop-ul si flash-urile de ecran in tot jocul."
+SETTINGS_CAMERA_SHAKE_INTENSITY_NAME,Camera Shake,Zguduire camera
+SETTINGS_CAMERA_SHAKE_INTENSITY_DESC,How hard the camera kicks on impacts and explosions.,Cat de tare tresare camera la impact si explozii.
+SETTINGS_HITSTOP_INTENSITY_NAME,Hitstop,Hitstop
+SETTINGS_HITSTOP_INTENSITY_DESC,Length of the brief freeze when a blow lands.,Durata inghetarii scurte cand o lovitura nimereste.
+SETTINGS_SCREEN_PULSE_INTENSITY_NAME,Screen Pulse,Puls ecran
+SETTINGS_SCREEN_PULSE_INTENSITY_DESC,Strength of the full-screen flash on damage and heals.,Intensitatea flash-ului pe tot ecranul la daune si vindecari.
+SETTINGS_SHOW_CONTROL_HINTS_NAME,Control Hints,Indicii comenzi
+SETTINGS_SHOW_CONTROL_HINTS_DESC,Show button prompts next to interactable objects.,Arata butoanele sugerate langa obiectele cu care poti interactiona.
+SETTINGS_SUBTITLE_SCALE_NAME,Subtitle Size,Marime subtitrari
+SETTINGS_SUBTITLE_SCALE_DESC,Size of dialogue and narration text.,Marimea textului de dialog si naratiune.
+SETTINGS_VIBRATION_INTENSITY_NAME,Controller Vibration,Vibratie controller
+SETTINGS_VIBRATION_INTENSITY_DESC,Rumble strength on gamepads. Set to zero to disable.,Intensitatea vibratiei pe gamepad. Zero pentru dezactivare.
+SETTINGS_COLORBLIND_MODE_NAME,Colourblind Mode,Mod daltonism
+SETTINGS_COLORBLIND_MODE_DESC,"Shifts damage, rarity, and status colours to a more distinguishable palette.","Schimba culorile de daune, raritate si status intr-o paleta mai distincta."
+SETTINGS_COLORBLIND_DEFAULT,Default,Implicit
+SETTINGS_COLORBLIND_PROTANOPIA,Protanopia,Protanopie
+SETTINGS_COLORBLIND_DEUTERANOPIA,Deuteranopia,Deuteranopie
+SETTINGS_COLORBLIND_TRITANOPIA,Tritanopia,Tritanopie
+SETTINGS_CAMERA_MOUSE_SENSITIVITY_NAME,Mouse Sensitivity,Sensibilitate mouse
+SETTINGS_CAMERA_MOUSE_SENSITIVITY_DESC,How far the camera turns per unit of mouse movement.,Cat se roteste camera la fiecare miscare de mouse.
+SETTINGS_CAMERA_STICK_SENSITIVITY_NAME,Stick Sensitivity,Sensibilitate stick
+SETTINGS_CAMERA_STICK_SENSITIVITY_DESC,How fast the camera turns with the right stick.,Cat de repede se roteste camera cu stick-ul drept.
+SETTINGS_CAMERA_FOV_NAME,Field of View,Camp vizual
+SETTINGS_CAMERA_FOV_DESC,How much of the world fits on screen. Higher shows more but looks further away.,"Cat din lume incape pe ecran. Mai mare arata mai mult, dar pare mai departe."
+SETTINGS_CAMERA_INVERT_Y_NAME,Invert Vertical Look,Inverseaza privirea verticala
+SETTINGS_CAMERA_INVERT_Y_DESC,Pushing up looks down instead.,Impingerea in sus face privirea sa coboare.
+SETTINGS_ASSIST_DAMAGE_TAKEN_NAME,Damage Taken,Daune primite
+SETTINGS_ASSIST_DAMAGE_TAKEN_DESC,Multiplies all damage you receive. Below 1.00x makes runs more forgiving.,Multiplica toate daunele primite. Sub 1.00x face cursele mai iertatoare.
+SETTINGS_ASSIST_IFRAME_GENEROSITY_NAME,Dodge Window,Fereastra de eschiva
+SETTINGS_ASSIST_IFRAME_GENEROSITY_DESC,Multiplies how long a dodge keeps you invulnerable.,Multiplica durata invulnerabilitatii din eschiva.
+SETTINGS_ASSIST_LOCK_ON_RANGE_NAME,Lock-On Range,Raza de fixare
+SETTINGS_ASSIST_LOCK_ON_RANGE_DESC,Multiplies the distance at which enemies can be locked on to.,Multiplica distanta de la care poti fixa inamicii.
+SETTINGS_ASSIST_TELEGRAPH_EMPHASIS_NAME,Emphasise Attack Tells,Accentueaza semnalele de atac
+SETTINGS_ASSIST_TELEGRAPH_EMPHASIS_DESC,Brightens and outlines enemy wind-ups so incoming attacks read sooner.,Lumineaza si contureaza pregatirea atacurilor inamice ca sa le observi mai devreme.
+SETTINGS_BINDING_DESC,Select a slot to rebind this action.,Alege un slot ca sa reasociezi aceasta actiune.
+SETTINGS_BINDING_RESET,Reset,Reseteaza
+SETTINGS_BINDING_RESET_ALL,Reset All Bindings,Reseteaza toate comenzile
+SETTINGS_BINDING_UNBOUND,Unbound,Neasociat
+SETTINGS_BINDING_PROMPT,Rebind Control,Reasociaza comanda
+SETTINGS_BINDING_WAIT,"Press any input for %s, or cancel to keep the current one.","Apasa orice tasta pentru %s, sau anuleaza ca sa o pastrezi pe cea curenta."
+SETTINGS_BINDING_CONFLICT,That input is already used by %s. Swap it with %s?,Acea comanda e deja folosita de %s. O schimbi cu %s?
+SETTINGS_BINDING_SWAP,Swap,Schimba
+SETTINGS_BINDING_CANCEL,Cancel,Anuleaza
+SETTINGS_CRASH_REPORTS,Send anonymous crash reports,Trimite rapoarte anonime de eroare
+SETTINGS_REPLAY_RECORDING_NAME,Record Run Replays,Inregistreaza reluari
+SETTINGS_REPLAY_RECORDING_DESC,Keeps an input recording of each run so it can be played back later.,"Pastreaza o inregistrare a comenzilor din fiecare cursa, pentru reluare."
+SETTINGS_NO_BACKUPS,No save backups yet.,Inca nu exista copii de rezerva.
+SETTINGS_RESTORE_BACKUP,Restore backup %d  -  %s,Restaureaza copia %d  -  %s
+SETTINGS_RESTORE_TITLE,Restore Backup,Restaureaza copia
+SETTINGS_RESTORE_BODY,Replace your current save with backup %d? This cannot be undone.,Inlocuiesti salvarea curenta cu copia %d? Actiunea nu poate fi anulata.
+SETTINGS_RESTORE_CONFIRM,Restore,Restaureaza
+INV_USE_FAILED,That item cannot be used right now.,Obiectul nu poate fi folosit acum.
+CREATE_NAME_HEADER,Your Warden,Gardianul tau
+CREATE_APPEARANCE_HEADER,Appearance,Infatisare
+CREATE_APPEARANCE_HINT,Select a row and press Left / Right to cycle,Alege un rand si apasa Stanga / Dreapta ca sa schimbi
+CREATE_CLASS_DETAIL_HEADER,Class Details,Detalii clasa
+CREATE_STAT_COL_STAT,Stat,Statistica
+CREATE_STAT_COL_BASE,Base,Baza
+CREATE_STAT_COL_CLASS,Class,Clasa
+SETTINGS_BINDING_COL_KEYBOARD,Keyboard,Tastatura
+SETTINGS_BINDING_COL_GAMEPAD,Gamepad,Gamepad
+MERCHANT_GOLD,Gold: %d,Aur: %d
+MERCHANT_BUY_ROW,%s   %dg  x%d,%s   %dg  x%d
+MERCHANT_SELL_ROW,%s   %dg,%s   %dg
+MERCHANT_SELL_ROW_STACK,%s x%d   %dg,%s x%d   %dg
+MERCHANT_STOCK_EMPTY,The merchant has nothing left to sell.,Negustorul nu mai are nimic de vandut.
+MERCHANT_INVENTORY_EMPTY,You are carrying nothing to sell.,Nu ai nimic de vandut.
+MERCHANT_BUY_HINT,%s costs %d gold.,%s costa %d aur.
+MERCHANT_CANNOT_AFFORD,%s costs %d more gold than you carry.,%s costa cu %d aur mai mult decat ai.
+MERCHANT_SELL_HINT,%s sells for %d gold each.,%s se vinde cu %d aur bucata.
+MERCHANT_SELECT_BUY,Select an item to buy.,Alege un obiect de cumparat.
+MERCHANT_SELECT_SELL,Select an item to sell.,Alege un obiect de vandut.
+MERCHANT_PURCHASED,Purchased %s.,Ai cumparat %s.
+MERCHANT_SOLD,Sold for %d gold.,Vandut cu %d aur.
+MERCHANT_BUY_FAILED,That purchase failed.,Cumpararea a esuat.
+MERCHANT_SELL_FAILED,That sale failed.,Vanzarea a esuat.
+SMITH_COINS,Coins: %d,Monede: %d
+SMITH_UPGRADE,Upgrade,Imbunatateste
+SMITH_REPAIR,Repair,Repara
+SMITH_CLOSE,Close,Inchide
+SMITH_RESPEC,Respec Talents (%d),Reseteaza talentele (%d)
+SMITH_UNLOCK_WEAPONS,Unlock Weapons,Deblocheaza arme
+SMITH_FORGE_SECTION,Forge,Forja
+SMITH_SALVAGE,Salvage,Dezmembreaza
+SMITH_REROLL,Reroll Affixes,Rearunca afixele
+SMITH_TRANSMUTE,Transmute,Transmuta
+SMITH_INFUSE,Infuse,Infuzeaza
+SMITH_INFUSION_ELEMENT,Element,Element
+SMITH_ITEM_ROW,%s  +%d/%d  -  durability %d/%d,%s  +%d/%d  -  durabilitate %d/%d
+SMITH_NO_ITEMS,No equippable items to upgrade or repair.,Niciun obiect echipabil de imbunatatit sau reparat.
+SMITH_UPGRADE_DETAIL,%s  -  upgrade cost %d coins  (+%d/%d),%s  -  cost imbunatatire %d monede  (+%d/%d)
+SMITH_UPGRADE_FAILED,That upgrade failed.,Imbunatatirea a esuat.
+SMITH_REPAIR_FAILED,That repair failed.,Reparatia a esuat.
+SMITH_RESPEC_DONE,Talents reset.,Talente resetate.
+SMITH_RESPEC_FAILED,The respec failed.,Resetarea a esuat.
+SMITH_NO_UNLOCKS,No weapon unlocks available.,Nicio arma de deblocat.
+SMITH_UNLOCKED,Unlocked %s.,Ai deblocat %s.
+SMITH_UNLOCK_FAILED,That unlock failed.,Deblocarea a esuat.
+SMITH_SALVAGED,Salvaged.,Dezmembrat.
+SMITH_SALVAGED_FOR,Salvaged for %s.,Dezmembrat pentru %s.
+SMITH_SALVAGE_FAILED,That salvage failed.,Dezmembrarea a esuat.
+SMITH_REROLLED,Affixes rerolled.,Afixe rearuncate.
+SMITH_REROLL_FAILED,That reroll failed.,Rearuncarea a esuat.
+SMITH_TRANSMUTED,Rarity transmuted to %s.,Raritate transmutata in %s.
+SMITH_TRANSMUTE_FAILED,That transmute failed.,Transmutarea a esuat.
+SMITH_INFUSED,Infused with %s.,Infuzat cu %s.
+SMITH_INFUSE_FAILED,That infusion failed.,Infuzarea a esuat.
+STORAGE_SELECT_INVENTORY,Select an item in your inventory.,Alege un obiect din inventar.
+STORAGE_SELECT_STORAGE,Select an item in storage.,Alege un obiect din depozit.
+STORAGE_MOVED_TO_STORAGE,Moved to storage.,Mutat in depozit.
+STORAGE_MOVED_TO_INVENTORY,Moved to inventory.,Mutat in inventar.
+STORAGE_MOVE_FAILED,That move failed.,Mutarea a esuat.
+STORAGE_INVENTORY_EMPTY,Your inventory is empty.,Inventarul e gol.
+STORAGE_STORAGE_EMPTY,Storage is empty.,Depozitul e gol.
+LOADOUT_EQUIPPED_ROW,%s  (equipped),%s  (echipat)
+MENU_SUBTITLE,Echo of the Fallen Warden,Ecoul Gardianului Cazut
+MENU_NEW_GAME,New Game,Joc nou
+MENU_CONTINUE,Continue,Continua
+MENU_SETTINGS,Settings,Setari
+MENU_QUIT,Quit Game,Iesi din joc
+MENU_HINT_QUIT,Esc: quit,Esc: iesire
+SETTINGS_FULLSCREEN_TITLE,Keep Fullscreen?,Pastrezi ecranul complet?
+SETTINGS_FULLSCREEN_BODY,Keep this display mode? It reverts automatically in %d seconds.,Pastrezi acest mod de afisare? Revine automat in %d secunde.
+SETTINGS_FULLSCREEN_KEEP,Keep,Pastreaza
+SETTINGS_FULLSCREEN_REVERT,Revert,Revino
+TITLE_PROLOGUE,The Umbral Tower remembers every oath sworn at its threshold. You are the echo of a warden who failed - bound to climb whenever the tower resets. Each death returns you to Aumbrye Tower; each escape proves you endured.,Turnul Umbral tine minte fiecare juramant rostit in pragul lui. Esti ecoul unui gardian care a dat gres - legat sa urci ori de cate ori turnul se reface. Fiecare moarte te intoarce la Turnul Aumbrye; fiecare scapare dovedeste ca ai rezistat.
+TITLE_PRESS_ANY_KEY,Press any key to enter the tower,Apasa orice tasta ca sa intri in turn
+TITLE_BUILD_TAG,Early Access - Pixel Diorama build,Acces timpuriu - versiune Pixel Diorama
+CONTINUE_BACK,Back,Inapoi
+CONTINUE_PLAY,Play Warden,Joaca gardianul
+CONTINUE_DELETE,Delete Warden,Sterge gardianul
+CONTINUE_NO_WARDENS,No wardens yet - create one with New Game.,Niciun gardian inca - creeaza unul din Joc nou.
+LOADING_ENTERING,Entering Aumbrye Tower,Intri in Turnul Aumbrye
+LOADING_PREPARING,Preparing your warden...,Se pregateste gardianul...
+LOADING_SYNCING,Syncing echo...,Se sincronizeaza ecoul...
+LOADING_SAVE_FAILED,Could not load save - returning to menu.,Salvarea nu a putut fi incarcata - revenire la meniu.
+LOADING_OPENING_HUB,Opening the hub...,Se deschide hub-ul...
+RESULTS_RETRY_SYNC,Retry cloud sync,Reincearca sincronizarea
+RESULTS_COPY_SEED,Copy seed,Copiaza seed-ul
+RESULTS_TIME_EMPTY,Time: --,Timp: --
+RESULTS_KILLS_EMPTY,Kills: --,Ucideri: --
+RESULTS_LOOT_EMPTY,Loot: --,Prada: --
+RESULTS_WAVES_CLEARED,%s - Waves Cleared,%s - Valuri terminate
+RESULTS_WAVES_FAILED,%s - Waves Failed,%s - Valuri pierdute
+RESULTS_OATH_FULFILLED,%s - Oath Fulfilled,%s - Juramant implinit
+RESULTS_RUN_COMPLETE,%s - Run Complete,%s - Cursa terminata
+ENTRY_NEED_WEAPON,Equip a weapon before entering the dungeon.,Echipeaza o arma inainte sa intri in temnita.
+ENTRY_TIER_LOCKED,Tier %d is locked.,Nivelul %d este blocat.
+ENTRY_SEED_INVALID,Invalid - enter digits only,Invalid - doar cifre
+ACHIEVEMENTS_UNAVAILABLE,Achievement service unavailable.,Serviciul de realizari nu este disponibil.
+BESTIARY_EMPTY,The codex is empty.,Codexul este gol.
+UI_CLOSE,Close,Inchide
+DIALOGUE_HINT_CONTINUE,Enter to continue - Esc to close,Enter pentru continuare - Esc pentru inchidere
+DIALOGUE_HINT_CHOOSE,D-pad + Enter to choose - Esc to close,D-pad + Enter pentru alegere - Esc pentru inchidere
+QUEST_SELECT_TO_ACCEPT,Select a quest to accept.,Alege o misiune de acceptat.
+QUEST_ACCEPTED,Quest accepted: %s,Misiune acceptata: %s
+QUEST_ACCEPT_FAILED,That quest could not be accepted.,Misiunea nu a putut fi acceptata.
+CREATE_COMPARE_HEADER,All Classes,Toate clasele
+CREATE_COMPARE_COL_CLASS,Class,Clasa
+CREATE_COMPARE_COL_ROLE,Role,Rol
+CREATE_COMPARE_COL_BONUSES,Stat Bonuses,Bonusuri
+CREATE_STAT_MANA,Mana,Mana
+CREATE_STAT_MANA_REGEN,Mana Regen,Regen mana
+CREATE_COMPARE_COL_STAT,Stat,Statistica
+CREATE_COMPARE_COL_YOU,Your Pick,Alegerea ta
+CREATE_COMPARE_LEGEND,Ratings run %d-%d; %d is the standard warden. The named column shows what your pick actually reaches.,Valorile sunt intre %d si %d; %d este standardul. Coloana cu nume arata ce atinge alegerea ta.
+TALENTS_TITLE,Talents,Talente
+TALENTS_POINTS,Points: %d,Puncte: %d
+TALENTS_HINT,Enter: unlock | Esc: close,Enter: deblocheaza | Esc: inchide
+TALENTS_CAN_UNLOCK,Can unlock,Se poate debloca
+TALENTS_LOCKED,Locked,Blocat

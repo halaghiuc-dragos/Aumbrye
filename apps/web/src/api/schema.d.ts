@@ -316,6 +316,8 @@ export interface components {
             lootClaimedInstanceIds?: string[] | null;
             /** Format: int32 */
             floor?: number;
+            /** Format: int32 */
+            kills?: number;
         };
         CompleteRunResponse: {
             /** Format: uuid */

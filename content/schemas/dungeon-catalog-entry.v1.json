@@ -2,18 +2,72 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://aumbrye.dev/schemas/dungeon-catalog-entry.v1.json",
   "title": "DungeonCatalogEntry",
+  "description": "One selectable dungeon. The display name is not stored here — DungeonCatalog.get_display_name() reads it from the referenced biome, so the two can never disagree.",
   "type": "object",
   "additionalProperties": false,
-  "required": ["id", "name", "biomeId"],
+  "required": ["id", "biomeId"],
   "properties": {
     "id": { "type": "string", "minLength": 1 },
-    "name": { "type": "string", "minLength": 1 },
     "biomeId": { "type": "string", "minLength": 1 },
+    "order": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Sort position in the dungeon select list."
+    },
     "clearFlag": { "type": "string" },
     "bossDoorRequirement": {
       "type": "string",
       "enum": ["none", "sigil", "all_keys"],
       "default": "none"
+    },
+    "unlockRequirement": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind"],
+      "properties": {
+        "kind": { "type": "string", "enum": ["none", "clear_dungeon"] },
+        "dungeonId": {
+          "type": ["string", "null"],
+          "description": "Dungeon that must be cleared first. Null when kind is 'none'."
+        }
+      }
+    },
+    "floorHpGrowth": {
+      "type": "number",
+      "minimum": 0,
+      "default": 0.06,
+      "description": "Per-floor enemy health multiplier growth."
+    },
+    "floorDamageGrowth": {
+      "type": "number",
+      "minimum": 0,
+      "default": 0.04,
+      "description": "Per-floor enemy damage multiplier growth."
+    },
+    "difficultyTiers": {
+      "type": "array",
+      "description": "Ascending difficulty tiers offered for this dungeon.",
+      "items": { "$ref": "#/$defs/difficultyTier" }
+    }
+  },
+  "$defs": {
+    "difficultyTier": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["tier", "label"],
+      "properties": {
+        "tier": { "type": "integer", "minimum": 1, "maximum": 10 },
+        "label": { "type": "string", "minLength": 1 },
+        "description": { "type": "string" },
+        "hpMult": { "type": "number", "minimum": 0 },
+        "damageMult": { "type": "number", "minimum": 0 },
+        "lootBonus": { "type": "number", "minimum": 0 },
+        "modifiers": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        }
+      }
     }
   }
 }

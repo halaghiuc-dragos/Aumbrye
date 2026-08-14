@@ -158,6 +158,9 @@ public class RunService : IRunService
         if (input.ElapsedSeconds > (now - run.CreatedAt).TotalSeconds + 30)
             return new CompleteRunResult(false, runId, Error: "Implausible elapsed time.");
 
+        if (input.Kills < 0 || input.Kills > MaxKillsPerRun)
+            return new CompleteRunResult(false, runId, Error: "Implausible kill count.");
+
         if (input.LootClaimedInstanceIds.Count > MaxLootClaims)
             return new CompleteRunResult(false, runId, Error: "Too many loot claims.");
 
@@ -246,7 +249,6 @@ public class RunService : IRunService
             var progression = ProgressionApplier.ApplyRunOutcome(
                 state,
                 input.Outcome,
-                run.Tier,
                 input.LootClaimedInstanceIds,
                 lootMap.ToDictionary(
                     kv => kv.Key,
@@ -306,6 +308,12 @@ public class RunService : IRunService
     /// multi-floor runs accumulate claims across floors, so it is generous rather than tight.
     /// </summary>
     private const int MaxLootClaims = 256;
+
+    /// <summary>
+    /// Ceiling on self-reported kills. Runs are client-authoritative today, so this bounds how far
+    /// a fabricated report can inflate XP rather than trusting the number outright.
+    /// </summary>
+    private const int MaxKillsPerRun = 5_000;
 
     /// <summary>
     /// Rejects floor indices that are out of range for the run. Without this a single caller can

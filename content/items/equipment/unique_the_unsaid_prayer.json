@@ -27,9 +27,9 @@
     }
   ],
   "stats": {
-    "arcaneDamage": 16,
-    "manaMax": 40,
-    "manaRegen": 0.08
+    "arcaneDamage": 23,
+    "manaMax": 59,
+    "manaRegen": 0.117
   },
   "weaponId": "staff"
 }

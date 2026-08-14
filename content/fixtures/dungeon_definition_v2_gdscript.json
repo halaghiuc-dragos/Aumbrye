@@ -2,74 +2,64 @@
 	"biomeId": "forgotten_castle",
 	"branchPreviews": [
 		{
-			"fromRoomId": "arena",
-			"hint": "danger",
-			"toRoomId": "combat_3"
-		},
-		{
-			"fromRoomId": "arena",
-			"hint": "danger",
-			"toRoomId": "stairs"
-		},
-		{
 			"fromRoomId": "combat_10",
 			"hint": "reward",
 			"toRoomId": "combat_11"
 		},
 		{
-			"fromRoomId": "combat_3",
+			"fromRoomId": "combat_10",
 			"hint": "danger",
-			"toRoomId": "arena"
+			"toRoomId": "combat_7"
 		},
 		{
-			"fromRoomId": "combat_3",
-			"hint": "danger",
-			"toRoomId": "combat_4"
-		},
-		{
-			"fromRoomId": "combat_3",
-			"hint": "danger",
-			"toRoomId": "courtyard"
-		},
-		{
-			"fromRoomId": "combat_4",
-			"hint": "danger",
-			"toRoomId": "combat_3"
-		},
-		{
-			"fromRoomId": "combat_4",
-			"hint": "danger",
-			"toRoomId": "combat_5"
-		},
-		{
-			"fromRoomId": "combat_4",
-			"hint": "danger",
-			"toRoomId": "hall"
-		},
-		{
-			"fromRoomId": "combat_5",
-			"hint": "danger",
-			"toRoomId": "combat_4"
-		},
-		{
-			"fromRoomId": "combat_5",
+			"fromRoomId": "combat_11",
 			"hint": "reward",
-			"toRoomId": "combat_6"
+			"toRoomId": "combat_10"
 		},
 		{
-			"fromRoomId": "combat_6",
-			"hint": "danger",
-			"toRoomId": "combat_5"
+			"fromRoomId": "combat_11",
+			"hint": "reward",
+			"toRoomId": "combat_8"
 		},
 		{
-			"fromRoomId": "combat_6",
+			"fromRoomId": "combat_11",
 			"hint": "reward",
 			"toRoomId": "treasure"
 		},
 		{
-			"fromRoomId": "combat_7",
+			"fromRoomId": "combat_4",
 			"hint": "danger",
-			"toRoomId": "arena"
+			"toRoomId": "combat_7"
+		},
+		{
+			"fromRoomId": "combat_5",
+			"hint": "danger",
+			"toRoomId": "combat_6"
+		},
+		{
+			"fromRoomId": "combat_5",
+			"hint": "reward",
+			"toRoomId": "combat_8"
+		},
+		{
+			"fromRoomId": "combat_6",
+			"hint": "danger",
+			"toRoomId": "combat_9"
+		},
+		{
+			"fromRoomId": "combat_6",
+			"hint": "danger",
+			"toRoomId": "stairs"
+		},
+		{
+			"fromRoomId": "combat_7",
+			"hint": "reward",
+			"toRoomId": "combat_10"
+		},
+		{
+			"fromRoomId": "combat_7",
+			"hint": "reward",
+			"toRoomId": "combat_8"
 		},
 		{
 			"fromRoomId": "combat_8",
@@ -79,47 +69,37 @@
 		{
 			"fromRoomId": "combat_8",
 			"hint": "danger",
-			"toRoomId": "combat_3"
+			"toRoomId": "combat_7"
+		},
+		{
+			"fromRoomId": "combat_8",
+			"hint": "danger",
+			"toRoomId": "combat_9"
 		},
 		{
 			"fromRoomId": "combat_9",
 			"hint": "danger",
-			"toRoomId": "combat_4"
+			"toRoomId": "combat_6"
 		},
 		{
-			"fromRoomId": "courtyard",
-			"hint": "danger",
-			"toRoomId": "combat_3"
-		},
-		{
-			"fromRoomId": "courtyard",
-			"hint": "danger",
-			"toRoomId": "hall"
-		},
-		{
-			"fromRoomId": "hall",
-			"hint": "danger",
-			"toRoomId": "combat_4"
-		},
-		{
-			"fromRoomId": "hall",
-			"hint": "danger",
-			"toRoomId": "courtyard"
+			"fromRoomId": "combat_9",
+			"hint": "reward",
+			"toRoomId": "combat_8"
 		},
 		{
 			"fromRoomId": "stairs",
 			"hint": "danger",
-			"toRoomId": "arena"
+			"toRoomId": "combat_6"
 		},
 		{
 			"fromRoomId": "treasure",
 			"hint": "reward",
-			"toRoomId": "combat_6"
+			"toRoomId": "combat_11"
 		}
 	],
 	"budgets": {
 		"enemyThreat": 205.0,
-		"lootValue": 125.0
+		"lootValue": 525.0
 	},
 	"edges": [
 		{
@@ -128,14 +108,9 @@
 			"to": "combat_3"
 		},
 		{
-			"from": "arena",
-			"kind": "door",
-			"to": "combat_7"
-		},
-		{
 			"from": "boss",
 			"kind": "door",
-			"to": "combat_15"
+			"to": "courtyard"
 		},
 		{
 			"from": "combat_10",
@@ -143,69 +118,54 @@
 			"to": "combat_11"
 		},
 		{
-			"from": "combat_10",
-			"kind": "door",
-			"to": "obstacle"
-		},
-		{
 			"from": "combat_11",
-			"kind": "secret",
-			"to": "secret_2"
-		},
-		{
-			"from": "combat_12",
 			"kind": "door",
-			"to": "combat_13"
-		},
-		{
-			"from": "combat_13",
-			"kind": "door",
-			"to": "combat_14"
-		},
-		{
-			"from": "combat_13",
-			"kind": "secret",
-			"to": "secret_1"
-		},
-		{
-			"from": "combat_14",
-			"kind": "door",
-			"to": "combat_15"
-		},
-		{
-			"from": "combat_16",
-			"kind": "door",
-			"to": "entrance"
+			"to": "treasure"
 		},
 		{
 			"from": "combat_3",
-			"kind": "shortcut",
+			"kind": "door",
 			"to": "combat_4"
 		},
 		{
-			"from": "combat_3",
-			"kind": "shortcut",
-			"to": "combat_8"
-		},
-		{
 			"from": "combat_4",
-			"kind": "door",
+			"kind": "shortcut",
 			"to": "combat_5"
 		},
 		{
 			"from": "combat_4",
+			"kind": "door",
+			"to": "combat_7"
+		},
+		{
+			"from": "combat_4",
+			"kind": "secret",
+			"to": "secret_2"
+		},
+		{
+			"from": "combat_5",
 			"kind": "shortcut",
-			"to": "combat_9"
+			"to": "combat_6"
 		},
 		{
 			"from": "combat_5",
 			"kind": "door",
-			"to": "combat_6"
+			"to": "combat_8"
 		},
 		{
 			"from": "combat_6",
 			"kind": "door",
-			"to": "treasure"
+			"to": "combat_9"
+		},
+		{
+			"from": "combat_6",
+			"kind": "secret",
+			"to": "secret_1"
+		},
+		{
+			"from": "combat_6",
+			"kind": "corridor",
+			"to": "stairs"
 		},
 		{
 			"from": "combat_7",
@@ -228,45 +188,32 @@
 			"to": "combat_9"
 		},
 		{
-			"from": "combat_9",
-			"kind": "door",
-			"to": "combat_12"
-		},
-		{
-			"from": "courtyard",
-			"kind": "door",
-			"to": "combat_3"
-		},
-		{
 			"from": "courtyard",
 			"kind": "door",
 			"to": "hall"
 		},
 		{
+			"from": "entrance",
+			"kind": "door",
+			"to": "combat_5"
+		},
+		{
 			"from": "hall",
 			"kind": "door",
-			"to": "combat_4"
-		},
-		{
-			"from": "obstacle",
-			"kind": "door",
-			"to": "combat_16"
-		},
-		{
-			"from": "stairs",
-			"kind": "corridor",
 			"to": "arena"
 		}
 	],
 	"floorIndex": 1,
+	"floorTheme": "plain",
+	"floorThemeLabel": "",
 	"isFinalFloor": false,
 	"landmarks": [
 		{
 			"kind": "boss_spire",
 			"position": {
-				"x": -66.0,
+				"x": -22.0,
 				"y": 18.0,
-				"z": 72.0
+				"z": -60.0
 			},
 			"scale": {
 				"x": 2.0,
@@ -277,9 +224,9 @@
 		{
 			"kind": "boss_silhouette",
 			"position": {
-				"x": -66.0,
+				"x": -22.0,
 				"y": 8.0,
-				"z": 66.0
+				"z": -66.0
 			},
 			"scale": {
 				"x": 6.0,
@@ -289,7 +236,7 @@
 		}
 	],
 	"locks": [],
-	"maxHeightLevel": 0,
+	"maxHeightLevel": 1,
 	"placements": {
 		"boss": {
 			"enemyId": "boss_castle_knight",
@@ -299,9 +246,9 @@
 			{
 				"kind": "pillar",
 				"offset": {
-					"x": -3.0,
+					"x": 5.26999998092651,
 					"y": 0.0,
-					"z": -2.0
+					"z": 4.21999979019165
 				},
 				"roomId": "courtyard",
 				"size": {
@@ -313,9 +260,9 @@
 			{
 				"kind": "chokepoint",
 				"offset": {
-					"x": 3.0,
+					"x": -4.92999982833862,
 					"y": 0.0,
-					"z": 2.0
+					"z": -3.74000000953674
 				},
 				"roomId": "courtyard",
 				"size": {
@@ -327,9 +274,9 @@
 			{
 				"kind": "pillar",
 				"offset": {
-					"x": -2.0,
+					"x": 1.73000001907349,
 					"y": 0.0,
-					"z": -2.0
+					"z": -2.3199999332428
 				},
 				"roomId": "hall",
 				"size": {
@@ -341,9 +288,9 @@
 			{
 				"kind": "chokepoint",
 				"offset": {
-					"x": 2.0,
+					"x": -2.19000005722046,
 					"y": 0.0,
-					"z": 2.0
+					"z": 2.30999994277954
 				},
 				"roomId": "hall",
 				"size": {
@@ -355,9 +302,9 @@
 			{
 				"kind": "pillar",
 				"offset": {
-					"x": -3.0,
+					"x": -2.80999994277954,
 					"y": 0.0,
-					"z": -2.0
+					"z": 1.63999998569489
 				},
 				"roomId": "arena",
 				"size": {
@@ -369,9 +316,9 @@
 			{
 				"kind": "chokepoint",
 				"offset": {
-					"x": 3.0,
+					"x": 3.0699999332428,
 					"y": 0.0,
-					"z": 2.0
+					"z": -2.04999995231628
 				},
 				"roomId": "arena",
 				"size": {
@@ -383,7 +330,7 @@
 			{
 				"kind": "pillar",
 				"offset": {
-					"x": -3.0,
+					"x": -2.0,
 					"y": 0.0,
 					"z": -2.0
 				},
@@ -397,7 +344,7 @@
 			{
 				"kind": "chokepoint",
 				"offset": {
-					"x": 3.0,
+					"x": 2.0,
 					"y": 0.0,
 					"z": 2.0
 				},
@@ -413,7 +360,7 @@
 				"offset": {
 					"x": 0.0,
 					"y": 0.0,
-					"z": -3.0
+					"z": -4.0
 				},
 				"roomId": "combat_3",
 				"size": {
@@ -425,9 +372,9 @@
 			{
 				"kind": "pillar",
 				"offset": {
-					"x": -3.0,
+					"x": 2.9300000667572,
 					"y": 0.0,
-					"z": -2.0
+					"z": -2.25999999046326
 				},
 				"roomId": "combat_4",
 				"size": {
@@ -439,9 +386,9 @@
 			{
 				"kind": "chokepoint",
 				"offset": {
-					"x": 3.0,
+					"x": -2.73000001907349,
 					"y": 0.0,
-					"z": 2.0
+					"z": 2.27999997138977
 				},
 				"roomId": "combat_4",
 				"size": {
@@ -453,9 +400,9 @@
 			{
 				"kind": "pillar",
 				"offset": {
-					"x": -2.0,
+					"x": -2.80999994277954,
 					"y": 0.0,
-					"z": -1.0
+					"z": 1.63999998569489
 				},
 				"roomId": "combat_5",
 				"size": {
@@ -467,9 +414,9 @@
 			{
 				"kind": "chokepoint",
 				"offset": {
-					"x": 2.0,
+					"x": 3.0699999332428,
 					"y": 0.0,
-					"z": 1.0
+					"z": -2.04999995231628
 				},
 				"roomId": "combat_5",
 				"size": {
@@ -481,9 +428,9 @@
 			{
 				"kind": "pillar",
 				"offset": {
-					"x": -3.0,
+					"x": 2.02999997138977,
 					"y": 0.0,
-					"z": -2.0
+					"z": -3.39000010490417
 				},
 				"roomId": "combat_6",
 				"size": {
@@ -495,9 +442,9 @@
 			{
 				"kind": "chokepoint",
 				"offset": {
-					"x": 3.0,
+					"x": -1.8400000333786,
 					"y": 0.0,
-					"z": 2.0
+					"z": 3.10999989509583
 				},
 				"roomId": "combat_6",
 				"size": {
@@ -509,9 +456,9 @@
 			{
 				"kind": "pillar",
 				"offset": {
-					"x": -3.0,
+					"x": 2.72000002861023,
 					"y": 0.0,
-					"z": -2.0
+					"z": -1.97000002861023
 				},
 				"roomId": "combat_7",
 				"size": {
@@ -523,9 +470,9 @@
 			{
 				"kind": "chokepoint",
 				"offset": {
-					"x": 3.0,
+					"x": -3.25,
 					"y": 0.0,
-					"z": 2.0
+					"z": 1.64999997615814
 				},
 				"roomId": "combat_7",
 				"size": {
@@ -537,9 +484,9 @@
 			{
 				"kind": "pillar",
 				"offset": {
-					"x": -2.0,
+					"x": -2.80999994277954,
 					"y": 0.0,
-					"z": -2.0
+					"z": 1.63999998569489
 				},
 				"roomId": "combat_8",
 				"size": {
@@ -551,9 +498,9 @@
 			{
 				"kind": "chokepoint",
 				"offset": {
-					"x": 2.0,
+					"x": 3.0699999332428,
 					"y": 0.0,
-					"z": 2.0
+					"z": -2.04999995231628
 				},
 				"roomId": "combat_8",
 				"size": {
@@ -565,11 +512,53 @@
 			{
 				"kind": "pillar",
 				"offset": {
-					"x": 0.0,
+					"x": 0.109999999403954,
 					"y": 0.0,
-					"z": -4.0
+					"z": 3.27999997138977
 				},
 				"roomId": "combat_8",
+				"size": {
+					"x": 1.2,
+					"y": 2.4,
+					"z": 1.2
+				}
+			},
+			{
+				"kind": "pillar",
+				"offset": {
+					"x": 1.73000001907349,
+					"y": 0.0,
+					"z": -2.3199999332428
+				},
+				"roomId": "combat_9",
+				"size": {
+					"x": 1.2,
+					"y": 2.4,
+					"z": 1.2
+				}
+			},
+			{
+				"kind": "chokepoint",
+				"offset": {
+					"x": -2.19000005722046,
+					"y": 0.0,
+					"z": 2.30999994277954
+				},
+				"roomId": "combat_9",
+				"size": {
+					"x": 1.2,
+					"y": 3.6,
+					"z": 1.2
+				}
+			},
+			{
+				"kind": "pillar",
+				"offset": {
+					"x": 0.25,
+					"y": 0.0,
+					"z": -3.6800000667572
+				},
+				"roomId": "combat_9",
 				"size": {
 					"x": 1.2,
 					"y": 2.4,
@@ -580,48 +569,6 @@
 				"kind": "pillar",
 				"offset": {
 					"x": -3.0,
-					"y": 0.0,
-					"z": -2.0
-				},
-				"roomId": "combat_9",
-				"size": {
-					"x": 1.2,
-					"y": 2.4,
-					"z": 1.2
-				}
-			},
-			{
-				"kind": "chokepoint",
-				"offset": {
-					"x": 3.0,
-					"y": 0.0,
-					"z": 2.0
-				},
-				"roomId": "combat_9",
-				"size": {
-					"x": 1.2,
-					"y": 3.6,
-					"z": 1.2
-				}
-			},
-			{
-				"kind": "pillar",
-				"offset": {
-					"x": 0.0,
-					"y": 0.0,
-					"z": -3.0
-				},
-				"roomId": "combat_9",
-				"size": {
-					"x": 1.2,
-					"y": 2.4,
-					"z": 1.2
-				}
-			},
-			{
-				"kind": "pillar",
-				"offset": {
-					"x": -2.0,
 					"y": 0.0,
 					"z": -2.0
 				},
@@ -635,7 +582,7 @@
 			{
 				"kind": "chokepoint",
 				"offset": {
-					"x": 2.0,
+					"x": 3.0,
 					"y": 0.0,
 					"z": 2.0
 				},
@@ -663,9 +610,9 @@
 			{
 				"kind": "pillar",
 				"offset": {
-					"x": -3.0,
+					"x": -2.36999988555908,
 					"y": 0.0,
-					"z": -2.0
+					"z": 1.64999997615814
 				},
 				"roomId": "combat_11",
 				"size": {
@@ -677,9 +624,9 @@
 			{
 				"kind": "chokepoint",
 				"offset": {
-					"x": 3.0,
+					"x": 1.8400000333786,
 					"y": 0.0,
-					"z": 2.0
+					"z": -1.80999994277954
 				},
 				"roomId": "combat_11",
 				"size": {
@@ -691,193 +638,11 @@
 			{
 				"kind": "pillar",
 				"offset": {
-					"x": 0.0,
+					"x": -0.0199999995529652,
 					"y": 0.0,
-					"z": -4.0
+					"z": 3.67000007629395
 				},
 				"roomId": "combat_11",
-				"size": {
-					"x": 1.2,
-					"y": 2.4,
-					"z": 1.2
-				}
-			},
-			{
-				"kind": "pillar",
-				"offset": {
-					"x": -3.0,
-					"y": 0.0,
-					"z": -2.0
-				},
-				"roomId": "combat_12",
-				"size": {
-					"x": 1.2,
-					"y": 2.4,
-					"z": 1.2
-				}
-			},
-			{
-				"kind": "chokepoint",
-				"offset": {
-					"x": 3.0,
-					"y": 0.0,
-					"z": 2.0
-				},
-				"roomId": "combat_12",
-				"size": {
-					"x": 1.2,
-					"y": 3.6,
-					"z": 1.2
-				}
-			},
-			{
-				"kind": "pillar",
-				"offset": {
-					"x": 0.0,
-					"y": 0.0,
-					"z": -3.0
-				},
-				"roomId": "combat_12",
-				"size": {
-					"x": 1.2,
-					"y": 2.4,
-					"z": 1.2
-				}
-			},
-			{
-				"kind": "pillar",
-				"offset": {
-					"x": -3.0,
-					"y": 0.0,
-					"z": -2.0
-				},
-				"roomId": "combat_13",
-				"size": {
-					"x": 1.2,
-					"y": 2.4,
-					"z": 1.2
-				}
-			},
-			{
-				"kind": "chokepoint",
-				"offset": {
-					"x": 3.0,
-					"y": 0.0,
-					"z": 2.0
-				},
-				"roomId": "combat_13",
-				"size": {
-					"x": 1.2,
-					"y": 3.6,
-					"z": 1.2
-				}
-			},
-			{
-				"kind": "pillar",
-				"offset": {
-					"x": -3.0,
-					"y": 0.0,
-					"z": -2.0
-				},
-				"roomId": "combat_14",
-				"size": {
-					"x": 1.2,
-					"y": 2.4,
-					"z": 1.2
-				}
-			},
-			{
-				"kind": "chokepoint",
-				"offset": {
-					"x": 3.0,
-					"y": 0.0,
-					"z": 2.0
-				},
-				"roomId": "combat_14",
-				"size": {
-					"x": 1.2,
-					"y": 3.6,
-					"z": 1.2
-				}
-			},
-			{
-				"kind": "pillar",
-				"offset": {
-					"x": -3.0,
-					"y": 0.0,
-					"z": -2.0
-				},
-				"roomId": "combat_15",
-				"size": {
-					"x": 1.2,
-					"y": 2.4,
-					"z": 1.2
-				}
-			},
-			{
-				"kind": "chokepoint",
-				"offset": {
-					"x": 3.0,
-					"y": 0.0,
-					"z": 2.0
-				},
-				"roomId": "combat_15",
-				"size": {
-					"x": 1.2,
-					"y": 3.6,
-					"z": 1.2
-				}
-			},
-			{
-				"kind": "pillar",
-				"offset": {
-					"x": 0.0,
-					"y": 0.0,
-					"z": -4.0
-				},
-				"roomId": "combat_15",
-				"size": {
-					"x": 1.2,
-					"y": 2.4,
-					"z": 1.2
-				}
-			},
-			{
-				"kind": "pillar",
-				"offset": {
-					"x": -3.0,
-					"y": 0.0,
-					"z": -2.0
-				},
-				"roomId": "combat_16",
-				"size": {
-					"x": 1.2,
-					"y": 2.4,
-					"z": 1.2
-				}
-			},
-			{
-				"kind": "chokepoint",
-				"offset": {
-					"x": 3.0,
-					"y": 0.0,
-					"z": 2.0
-				},
-				"roomId": "combat_16",
-				"size": {
-					"x": 1.2,
-					"y": 3.6,
-					"z": 1.2
-				}
-			},
-			{
-				"kind": "pillar",
-				"offset": {
-					"x": 0.0,
-					"y": 0.0,
-					"z": -4.0
-				},
-				"roomId": "combat_16",
 				"size": {
 					"x": 1.2,
 					"y": 2.4,
@@ -888,92 +653,101 @@
 		"enemies": [
 			{
 				"enemyId": "castle_archer",
+				"isElite": false,
 				"offset": {
-					"x": 4.0,
+					"x": 0.0,
 					"y": 0.0,
-					"z": 2.0
+					"z": 0.0
 				},
 				"roomId": "combat_3",
 				"sampleNavmesh": true
 			},
 			{
 				"enemyId": "castle_grunt",
-				"offset": {
-					"x": -4.0,
-					"y": 0.0,
-					"z": -2.0
-				},
-				"roomId": "combat_3",
-				"sampleNavmesh": true
-			},
-			{
-				"enemyId": "castle_archer",
-				"offset": {
-					"x": 0.0,
-					"y": 0.0,
-					"z": 0.0
-				},
-				"roomId": "combat_3",
-				"sampleNavmesh": true
-			},
-			{
-				"enemyId": "castle_archer",
-				"offset": {
-					"x": 4.0,
-					"y": 0.0,
-					"z": 2.0
-				},
-				"roomId": "combat_4",
-				"sampleNavmesh": true
-			},
-			{
-				"enemyId": "castle_grunt",
-				"offset": {
-					"x": -4.0,
-					"y": 0.0,
-					"z": -2.0
-				},
-				"roomId": "combat_4",
-				"sampleNavmesh": true
-			},
-			{
-				"enemyId": "castle_archer",
-				"offset": {
-					"x": 0.0,
-					"y": 0.0,
-					"z": 0.0
-				},
-				"roomId": "combat_4",
-				"sampleNavmesh": true
-			},
-			{
-				"enemyId": "castle_hound",
-				"offset": {
-					"x": 0.0,
-					"y": 0.0,
-					"z": 0.0
-				},
-				"roomId": "combat_5",
-				"sampleNavmesh": true
-			},
-			{
-				"enemyId": "castle_hound",
+				"isElite": false,
 				"offset": {
 					"x": 2.0,
 					"y": 0.0,
-					"z": 2.0
+					"z": 4.0
+				},
+				"roomId": "combat_3",
+				"sampleNavmesh": true
+			},
+			{
+				"enemyId": "castle_archer",
+				"isElite": false,
+				"offset": {
+					"x": -3.82999992370605,
+					"y": 0.0,
+					"z": 2.23000001907349
+				},
+				"roomId": "combat_4",
+				"sampleNavmesh": true
+			},
+			{
+				"enemyId": "castle_archer",
+				"isElite": false,
+				"offset": {
+					"x": 3.8199999332428,
+					"y": 0.0,
+					"z": -2.25999999046326
 				},
 				"roomId": "combat_5",
 				"sampleNavmesh": true
 			},
 			{
-				"enemyId": "castle_archer",
+				"enemyId": "castle_grunt",
+				"isElite": false,
 				"offset": {
-					"x": -2.0,
+					"x": -3.05999994277954,
 					"y": 0.0,
-					"z": -2.0
+					"z": 5.15000009536743
 				},
-				"roomId": "combat_5",
+				"roomId": "combat_6",
+				"sampleNavmesh": true
+			},
+			{
+				"enemyId": "castle_archer",
+				"isElite": false,
+				"offset": {
+					"x": -4.92000007629395,
+					"y": 0.0,
+					"z": 3.30999994277954
+				},
+				"roomId": "combat_7",
+				"sampleNavmesh": true
+			},
+			{
+				"enemyId": "castle_hound",
+				"isElite": false,
+				"offset": {
+					"x": 5.26000022888184,
+					"y": 0.0,
+					"z": -4.17999982833862
+				},
+				"roomId": "combat_7",
+				"sampleNavmesh": true
+			},
+			{
+				"enemyId": "castle_hound",
+				"isElite": false,
+				"offset": {
+					"x": 3.8199999332428,
+					"y": 0.0,
+					"z": -2.25999999046326
+				},
+				"roomId": "combat_8",
+				"sampleNavmesh": true
+			},
+			{
+				"enemyId": "castle_archer",
+				"isElite": false,
+				"offset": {
+					"x": 0.129999995231628,
+					"y": 0.0,
+					"z": 0.349999994039536
+				},
+				"roomId": "combat_9",
 				"sampleNavmesh": true
 			}
 		],
@@ -984,14 +758,14 @@
 				"chestId": "treasure_main",
 				"items": [
 					{
-						"itemId": "health_potion",
-						"quantity": 3
+						"itemId": "whetstone_rime",
+						"quantity": 1
 					}
 				],
 				"offset": {
-					"x": 5.0,
+					"x": 0.0,
 					"y": 0.0,
-					"z": 4.0
+					"z": -5.0
 				},
 				"roomId": "treasure"
 			},
@@ -999,8 +773,23 @@
 				"chestId": "secret_vault_1",
 				"items": [
 					{
-						"itemId": "knight_relic",
+						"itemId": "unique_heirless_crown",
 						"quantity": 1
+					}
+				],
+				"offset": {
+					"x": 0.0,
+					"y": 0.0,
+					"z": 0.0
+				},
+				"roomId": "secret_2"
+			},
+			{
+				"chestId": "secret_vault_2",
+				"items": [
+					{
+						"itemId": "greater_health_potion",
+						"quantity": 2
 					}
 				],
 				"offset": {
@@ -1011,64 +800,49 @@
 				"roomId": "secret_1"
 			},
 			{
-				"chestId": "secret_vault_2",
+				"chestId": "arena_side",
 				"items": [
 					{
-						"itemId": "health_potion",
-						"quantity": 4
-					}
-				],
-				"offset": {
-					"x": 8.0,
-					"y": 0.0,
-					"z": 7.0
-				},
-				"roomId": "secret_2"
-			},
-			{
-				"chestId": "courtyard_side",
-				"items": [
-					{
-						"itemId": "castle_sword",
+						"itemId": "elixir_swiftness",
 						"quantity": 1
 					}
 				],
 				"offset": {
 					"x": 5.0,
 					"y": 0.0,
-					"z": 4.0
+					"z": -4.0
 				},
-				"roomId": "courtyard"
+				"roomId": "arena"
 			},
 			{
-				"chestId": "combat_15_armory",
+				"chestId": "combat_9_armory",
 				"items": [
 					{
-						"itemId": "castle_sword",
+						"itemId": "pitiron_cuirass",
 						"quantity": 1
 					}
 				],
 				"offset": {
-					"x": -6.0,
+					"x": 2.0,
 					"y": 0.0,
-					"z": 5.0
+					"z": 4.0
 				},
-				"roomId": "combat_15"
+				"roomId": "combat_9"
 			}
 		],
 		"puzzles": [],
 		"secrets": [
 			{
 				"mechanism": "illusory_wall",
-				"parentRoomId": "combat_13",
-				"roomId": "secret_1",
+				"parentRoomId": "combat_4",
+				"roomId": "secret_2",
 				"wallDirection": "west"
 			},
 			{
-				"mechanism": "illusory_wall",
-				"parentRoomId": "combat_11",
-				"roomId": "secret_2",
-				"wallDirection": "east"
+				"mechanism": "hidden_lever",
+				"parentRoomId": "combat_6",
+				"roomId": "secret_1",
+				"wallDirection": "west"
 			}
 		],
 		"traps": [
@@ -1080,17 +854,17 @@
 				},
 				"roomId": "stairs",
 				"sampleNavmesh": true,
-				"trapId": "spike_trap"
+				"trapId": "swinging_blade"
 			},
 			{
 				"offset": {
 					"x": 0.0,
 					"y": 0.0,
-					"z": 4.0
+					"z": -4.0
 				},
-				"roomId": "hall",
+				"roomId": "combat_11",
 				"sampleNavmesh": true,
-				"trapId": "spike_trap"
+				"trapId": "swinging_blade"
 			}
 		]
 	},
@@ -1098,168 +872,139 @@
 	"puzzles": [],
 	"roomContent": [
 		{
-			"contentType": "stairs",
-			"layoutId": "room_6",
-			"roomId": "stairs",
+			"contentType": "boss",
+			"layoutId": "room_12",
+			"roomId": "boss",
 			"templateId": ""
 		},
 		{
-			"contentType": "hazard",
-			"layoutId": "room_16",
+			"contentType": "combat",
+			"layoutId": "room_11",
 			"roomId": "courtyard",
-			"templateId": "hazard_poison_zone"
+			"templateId": ""
 		},
 		{
 			"contentType": "combat",
-			"layoutId": "room_17",
+			"layoutId": "room_10",
 			"roomId": "hall",
 			"templateId": ""
 		},
 		{
-			"contentType": "combat",
-			"layoutId": "room_5",
+			"contentType": "rest",
+			"layoutId": "room_9",
 			"roomId": "arena",
+			"templateId": "rest_bonfire"
+		},
+		{
+			"contentType": "reward",
+			"items": [
+				{
+					"instanceId": "secret_2_0",
+					"itemId": "shadow_relic_veil",
+					"quantity": 2
+				}
+			],
+			"layoutId": "secret_17",
+			"roomId": "secret_2",
+			"templateId": "reward_cache"
+		},
+		{
+			"contentType": "empty",
+			"layoutId": "room_0",
+			"roomId": "entrance",
 			"templateId": ""
 		},
 		{
-			"contentType": "trap",
-			"layoutId": "room_15",
-			"roomId": "combat_3",
-			"templateId": "trap_spike_pack"
+			"contentType": "lore",
+			"layoutId": "secret_16",
+			"roomId": "secret_1",
+			"templateId": "lore_readable"
 		},
 		{
 			"contentType": "combat",
-			"layoutId": "room_18",
+			"layoutId": "room_8",
+			"roomId": "combat_3",
+			"templateId": ""
+		},
+		{
+			"contentType": "combat",
+			"layoutId": "room_7",
 			"roomId": "combat_4",
 			"templateId": ""
 		},
 		{
-			"contentType": "combat",
-			"layoutId": "room_19",
+			"contentType": "empty",
+			"layoutId": "room_1",
 			"roomId": "combat_5",
+			"templateId": ""
+		},
+		{
+			"contentType": "combat",
+			"layoutId": "room_14",
+			"roomId": "combat_6",
+			"templateId": ""
+		},
+		{
+			"contentType": "stairs",
+			"layoutId": "room_15",
+			"roomId": "stairs",
+			"templateId": ""
+		},
+		{
+			"contentType": "combat",
+			"layoutId": "room_6",
+			"roomId": "combat_7",
 			"templateId": ""
 		},
 		{
 			"contentType": "reward",
 			"items": [
 				{
-					"instanceId": "combat_6_0",
-					"itemId": "iron_scrap",
+					"instanceId": "combat_8_0",
+					"itemId": "shadow_relic_veil",
 					"quantity": 2
 				}
 			],
-			"layoutId": "room_20",
-			"roomId": "combat_6",
+			"layoutId": "room_2",
+			"roomId": "combat_8",
 			"templateId": "reward_cache"
+		},
+		{
+			"contentType": "combat",
+			"layoutId": "room_13",
+			"roomId": "combat_9",
+			"templateId": ""
+		},
+		{
+			"contentType": "reward",
+			"items": [
+				{
+					"instanceId": "combat_10_0",
+					"itemId": "shadow_relic_veil",
+					"quantity": 2
+				}
+			],
+			"layoutId": "room_5",
+			"roomId": "combat_10",
+			"templateId": "reward_cache"
+		},
+		{
+			"contentType": "lore",
+			"layoutId": "room_3",
+			"roomId": "combat_11",
+			"templateId": "lore_readable"
 		},
 		{
 			"contentType": "reward",
 			"items": [
 				{
 					"instanceId": "treasure_0",
-					"itemId": "iron_scrap",
-					"quantity": 2
-				}
-			],
-			"layoutId": "room_21",
-			"roomId": "treasure",
-			"templateId": ""
-		},
-		{
-			"contentType": "rest",
-			"layoutId": "room_4",
-			"roomId": "combat_7",
-			"templateId": "rest_bonfire"
-		},
-		{
-			"contentType": "combat",
-			"layoutId": "room_8",
-			"roomId": "combat_8",
-			"templateId": ""
-		},
-		{
-			"contentType": "combat",
-			"layoutId": "room_9",
-			"roomId": "combat_9",
-			"templateId": ""
-		},
-		{
-			"contentType": "lore",
-			"layoutId": "secret_22",
-			"roomId": "secret_1",
-			"templateId": "lore_readable"
-		},
-		{
-			"contentType": "boss",
-			"layoutId": "room_14",
-			"roomId": "boss",
-			"templateId": ""
-		},
-		{
-			"contentType": "combat",
-			"layoutId": "room_3",
-			"roomId": "combat_10",
-			"templateId": ""
-		},
-		{
-			"contentType": "reward",
-			"items": [
-				{
-					"instanceId": "combat_11_0",
-					"itemId": "bloodlust_charm",
+					"itemId": "shadow_relic_veil",
 					"quantity": 1
 				}
 			],
-			"layoutId": "room_7",
-			"roomId": "combat_11",
-			"templateId": "reward_cache"
-		},
-		{
-			"contentType": "combat",
-			"layoutId": "room_10",
-			"roomId": "combat_12",
-			"templateId": ""
-		},
-		{
-			"contentType": "combat",
-			"layoutId": "room_11",
-			"roomId": "combat_13",
-			"templateId": ""
-		},
-		{
-			"contentType": "combat",
-			"layoutId": "room_12",
-			"roomId": "combat_14",
-			"templateId": ""
-		},
-		{
-			"contentType": "combat",
-			"layoutId": "room_13",
-			"roomId": "combat_15",
-			"templateId": ""
-		},
-		{
-			"contentType": "combat",
-			"layoutId": "room_2",
-			"roomId": "obstacle",
-			"templateId": ""
-		},
-		{
-			"contentType": "combat",
-			"layoutId": "secret_23",
-			"roomId": "secret_2",
-			"templateId": ""
-		},
-		{
-			"contentType": "combat",
-			"layoutId": "room_1",
-			"roomId": "combat_16",
-			"templateId": ""
-		},
-		{
-			"contentType": "empty",
-			"layoutId": "room_0",
-			"roomId": "entrance",
+			"layoutId": "room_4",
+			"roomId": "treasure",
 			"templateId": ""
 		}
 	],
@@ -1267,7 +1012,7 @@
 		{
 			"heightLevel": 0,
 			"id": "arena",
-			"kind": "combat",
+			"kind": "rest",
 			"size": {
 				"x": 16.0,
 				"z": 12.0
@@ -1275,10 +1020,10 @@
 			"tags": [],
 			"templateId": "castle_entrance",
 			"transform": {
-				"x": -76.0,
+				"x": 4.0,
 				"y": 0.0,
 				"yaw": 0.0,
-				"z": 0.0
+				"z": -26.0
 			},
 			"type": "combat"
 		},
@@ -1295,35 +1040,17 @@
 			],
 			"templateId": "castle_boss",
 			"transform": {
-				"x": -66.0,
+				"x": -22.0,
 				"y": 0.0,
 				"yaw": 90.0,
-				"z": 72.0
+				"z": -60.0
 			},
 			"type": "boss"
 		},
 		{
 			"heightLevel": 0,
 			"id": "combat_10",
-			"kind": "combat",
-			"size": {
-				"x": 8.0,
-				"z": 16.0
-			},
-			"tags": [],
-			"templateId": "castle_stairs",
-			"transform": {
-				"x": -48.0,
-				"y": 0.0,
-				"yaw": 0.0,
-				"z": 0.0
-			},
-			"type": "combat"
-		},
-		{
-			"heightLevel": 0,
-			"id": "combat_11",
-			"kind": "combat",
+			"kind": "treasure",
 			"size": {
 				"x": 16.0,
 				"z": 16.0
@@ -1331,97 +1058,25 @@
 			"tags": [],
 			"templateId": "castle_puzzle",
 			"transform": {
-				"x": -48.0,
+				"x": 48.0,
 				"y": 0.0,
 				"yaw": 0.0,
-				"z": 16.0
+				"z": -12.0
 			},
 			"type": "combat"
 		},
 		{
 			"heightLevel": 0,
-			"id": "combat_12",
-			"kind": "combat",
+			"id": "combat_11",
+			"kind": "lore",
 			"size": {
-				"x": 16.0,
-				"z": 12.0
-			},
-			"tags": [],
-			"templateId": "castle_entrance",
-			"transform": {
-				"x": -44.0,
-				"y": 0.0,
-				"yaw": 0.0,
-				"z": 30.0
-			},
-			"type": "combat"
-		},
-		{
-			"heightLevel": 0,
-			"id": "combat_13",
-			"kind": "combat",
-			"size": {
-				"x": 16.0,
-				"z": 12.0
-			},
-			"tags": [],
-			"templateId": "castle_entrance",
-			"transform": {
-				"x": -44.0,
-				"y": 0.0,
-				"yaw": 0.0,
-				"z": 42.0
-			},
-			"type": "combat"
-		},
-		{
-			"heightLevel": 0,
-			"id": "combat_14",
-			"kind": "combat",
-			"size": {
-				"x": 16.0,
+				"x": 8.0,
 				"z": 16.0
 			},
 			"tags": [],
-			"templateId": "castle_hall",
+			"templateId": "castle_stairs",
 			"transform": {
-				"x": -44.0,
-				"y": 0.0,
-				"yaw": 0.0,
-				"z": 56.0
-			},
-			"type": "combat"
-		},
-		{
-			"heightLevel": 0,
-			"id": "combat_15",
-			"kind": "combat",
-			"size": {
-				"x": 16.0,
-				"z": 16.0
-			},
-			"tags": [],
-			"templateId": "castle_hall",
-			"transform": {
-				"x": -44.0,
-				"y": 0.0,
-				"yaw": 0.0,
-				"z": 72.0
-			},
-			"type": "combat"
-		},
-		{
-			"heightLevel": 0,
-			"id": "combat_16",
-			"kind": "combat",
-			"size": {
-				"x": 16.0,
-				"z": 16.0
-			},
-			"tags": [],
-			"templateId": "castle_hall",
-			"transform": {
-				"x": -16.0,
+				"x": 44.0,
 				"y": 0.0,
 				"yaw": 0.0,
 				"z": 0.0
@@ -1433,16 +1088,16 @@
 			"id": "combat_3",
 			"kind": "combat",
 			"size": {
-				"x": 16.0,
-				"z": 12.0
+				"x": 8.0,
+				"z": 16.0
 			},
 			"tags": [],
-			"templateId": "castle_entrance",
+			"templateId": "castle_stairs",
 			"transform": {
-				"x": -72.0,
+				"x": 16.0,
 				"y": 0.0,
 				"yaw": 0.0,
-				"z": 16.0
+				"z": -26.0
 			},
 			"type": "combat"
 		},
@@ -1457,10 +1112,10 @@
 			"tags": [],
 			"templateId": "castle_entrance",
 			"transform": {
-				"x": -76.0,
+				"x": 16.0,
 				"y": 0.0,
 				"yaw": 0.0,
-				"z": 30.0
+				"z": -12.0
 			},
 			"type": "combat"
 		},
@@ -1469,16 +1124,16 @@
 			"id": "combat_5",
 			"kind": "combat",
 			"size": {
-				"x": 8.0,
+				"x": 16.0,
 				"z": 12.0
 			},
 			"tags": [],
-			"templateId": "castle_corridor",
+			"templateId": "castle_entrance",
 			"transform": {
-				"x": -76.0,
+				"x": 16.0,
 				"y": 0.0,
 				"yaw": 0.0,
-				"z": 42.0
+				"z": 0.0
 			},
 			"type": "combat"
 		},
@@ -1491,12 +1146,12 @@
 				"z": 16.0
 			},
 			"tags": [],
-			"templateId": "castle_puzzle",
+			"templateId": "castle_hall",
 			"transform": {
-				"x": -76.0,
+				"x": 16.0,
 				"y": 0.0,
 				"yaw": 0.0,
-				"z": 56.0
+				"z": 14.0
 			},
 			"type": "combat"
 		},
@@ -1506,12 +1161,30 @@
 			"kind": "combat",
 			"size": {
 				"x": 16.0,
+				"z": 16.0
+			},
+			"tags": [],
+			"templateId": "castle_hall",
+			"transform": {
+				"x": 32.0,
+				"y": 0.0,
+				"yaw": 0.0,
+				"z": -12.0
+			},
+			"type": "combat"
+		},
+		{
+			"heightLevel": 0,
+			"id": "combat_8",
+			"kind": "treasure",
+			"size": {
+				"x": 16.0,
 				"z": 12.0
 			},
 			"tags": [],
 			"templateId": "castle_entrance",
 			"transform": {
-				"x": -60.0,
+				"x": 32.0,
 				"y": 0.0,
 				"yaw": 0.0,
 				"z": 0.0
@@ -1520,7 +1193,7 @@
 		},
 		{
 			"heightLevel": 0,
-			"id": "combat_8",
+			"id": "combat_9",
 			"kind": "combat",
 			"size": {
 				"x": 8.0,
@@ -1529,28 +1202,10 @@
 			"tags": [],
 			"templateId": "castle_stairs",
 			"transform": {
-				"x": -60.0,
+				"x": 32.0,
 				"y": 0.0,
 				"yaw": 0.0,
-				"z": 16.0
-			},
-			"type": "combat"
-		},
-		{
-			"heightLevel": 0,
-			"id": "combat_9",
-			"kind": "combat",
-			"size": {
-				"x": 16.0,
-				"z": 12.0
-			},
-			"tags": [],
-			"templateId": "castle_entrance",
-			"transform": {
-				"x": -60.0,
-				"y": 0.0,
-				"yaw": 0.0,
-				"z": 30.0
+				"z": 14.0
 			},
 			"type": "combat"
 		},
@@ -1559,16 +1214,16 @@
 			"id": "courtyard",
 			"kind": "combat",
 			"size": {
-				"x": 16.0,
-				"z": 12.0
+				"x": 24.0,
+				"z": 24.0
 			},
 			"tags": [],
-			"templateId": "castle_entrance",
+			"templateId": "castle_arena",
 			"transform": {
-				"x": -88.0,
+				"x": 4.0,
 				"y": 0.0,
 				"yaw": 0.0,
-				"z": 16.0
+				"z": -60.0
 			},
 			"type": "combat"
 		},
@@ -1603,37 +1258,17 @@
 			"tags": [],
 			"templateId": "castle_stairs",
 			"transform": {
-				"x": -88.0,
+				"x": 4.0,
 				"y": 0.0,
 				"yaw": 0.0,
-				"z": 30.0
+				"z": -40.0
 			},
 			"type": "combat"
 		},
 		{
 			"heightLevel": 0,
-			"id": "obstacle",
-			"kind": "unknown",
-			"size": {
-				"x": 20.0,
-				"z": 20.0
-			},
-			"tags": [
-				"traversal"
-			],
-			"templateId": "castle_courtyard",
-			"transform": {
-				"x": -34.0,
-				"y": 0.0,
-				"yaw": 0.0,
-				"z": 0.0
-			},
-			"type": "obstacle"
-		},
-		{
-			"heightLevel": 0,
 			"id": "secret_1",
-			"kind": "unknown",
+			"kind": "lore",
 			"size": {
 				"x": 8.0,
 				"z": 8.0
@@ -1643,30 +1278,30 @@
 			],
 			"templateId": "castle_secret",
 			"transform": {
-				"x": -56.0,
+				"x": 4.0,
 				"y": 0.0,
 				"yaw": 0.0,
-				"z": 42.0
+				"z": 14.0
 			},
 			"type": "secret"
 		},
 		{
 			"heightLevel": 0,
 			"id": "secret_2",
-			"kind": "unknown",
+			"kind": "treasure",
 			"size": {
-				"x": 0.0,
-				"z": 0.0
+				"x": 8.0,
+				"z": 8.0
 			},
 			"tags": [
 				"secret_room"
 			],
-			"templateId": "",
+			"templateId": "castle_secret",
 			"transform": {
-				"x": -40.0,
+				"x": 4.0,
 				"y": 0.0,
 				"yaw": 0.0,
-				"z": 16.0
+				"z": -12.0
 			},
 			"type": "secret"
 		},
@@ -1681,10 +1316,10 @@
 			"tags": [],
 			"templateId": "castle_stairs",
 			"transform": {
-				"x": -88.0,
+				"x": 16.0,
 				"y": 0.0,
 				"yaw": 0.0,
-				"z": 0.0
+				"z": 30.0
 			},
 			"type": "corridor"
 		},
@@ -1693,16 +1328,16 @@
 			"id": "treasure",
 			"kind": "treasure",
 			"size": {
-				"x": 16.0,
-				"z": 12.0
+				"x": 8.0,
+				"z": 16.0
 			},
 			"tags": [],
-			"templateId": "castle_entrance",
+			"templateId": "castle_stairs",
 			"transform": {
-				"x": -76.0,
+				"x": 52.0,
 				"y": 0.0,
 				"yaw": 0.0,
-				"z": 70.0
+				"z": 0.0
 			},
 			"type": "treasure"
 		}

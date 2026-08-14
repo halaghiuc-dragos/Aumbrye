@@ -464,7 +464,7 @@ func apply_equipment_to_player_node(player: Node) -> void:
 			+ CombatStatModifiersScript.max_stamina_bonus(equip_stats, talent_stats)
 		)
 		stamina.configure(
-			max_stamina, CombatStatModifiersScript.stamina_regen_multiplier(talent_stats)
+			max_stamina, CombatStatModifiersScript.stamina_regen_multiplier(equip_stats, talent_stats)
 		)
 	var poise := player.get_node_or_null("Poise") as Poise
 	if poise:
@@ -480,7 +480,7 @@ func apply_equipment_to_player_node(player: Node) -> void:
 		var max_mana := (
 			Mana.MAX_MANA + CombatStatModifiersScript.max_mana_bonus(equip_stats, talent_stats)
 		)
-		mana.configure(max_mana, CombatStatModifiersScript.mana_regen_multiplier(talent_stats))
+		mana.configure(max_mana, CombatStatModifiersScript.mana_regen_multiplier(equip_stats, talent_stats))
 	var weapon := player.get_node_or_null("WeaponController")
 	if weapon and weapon.has_method("load_weapon_from_path"):
 		weapon.load_weapon_from_path(inventory.get_equipped_weapon_data_path())
@@ -498,7 +498,7 @@ func apply_equipment_to_player_node(player: Node) -> void:
 	var dodge := player.get_node_or_null("Dodge")
 	if dodge and dodge.has_method("set_stamina_cost_multiplier"):
 		dodge.set_stamina_cost_multiplier(
-			CombatStatModifiersScript.stamina_cost_multiplier(talent_stats)
+			CombatStatModifiersScript.stamina_cost_multiplier(equip_stats, talent_stats)
 		)
 	var guard := player.get_node_or_null("Guard")
 	if guard and guard.has_method("set_combat_stat_modifiers"):
@@ -508,11 +508,12 @@ func apply_equipment_to_player_node(player: Node) -> void:
 			var shield_def := get_item_def(str(shield_inst.get("itemId", "")))
 			block_data = shield_def.get("block", {})
 		guard.set_combat_stat_modifiers(equip_stats, talent_stats, block_data)
-	var defense_points := (
-		float(equip_stats.get("defense", 0.0)) + float(talent_stats.get("armor", 0.0))
-	)
+	var defense_points := CombatStatModifiersScript.defense_points(equip_stats, talent_stats)
 	player.set_meta("combat_defense", defense_points)
-	player.set_meta("combat_damage_reduction", float(talent_stats.get("damageReduction", 0.0)))
+	player.set_meta(
+		"combat_damage_reduction",
+		CombatStatModifiersScript.damage_reduction(equip_stats, talent_stats)
+	)
 	(
 		player
 		. set_meta(

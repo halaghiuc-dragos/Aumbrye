@@ -1,0 +1,238 @@
+{
+  "id": "miniboss_frost_castellan",
+  "name": "Miniboss Frost Castellan",
+  "title": "Castellan Of A Gate That Never Thawed",
+  "loreText": "It keeps the keys to rooms the cold has already taken.",
+  "scene": "res://scenes/enemies/frost_knight.tscn",
+  "threat_cost": 50,
+  "isBoss": true,
+  "health": 330,
+  "poise": 170,
+  "move_speed": 3.6,
+  "attack_damage": 21,
+  "attack_poise_damage": 18,
+  "windup_duration": 0.55,
+  "active_duration": 0.15,
+  "recovery_duration": 0.75,
+  "attack_range": 3,
+  "attack_cooldown": 1.05,
+  "stagger_duration": 1.5,
+  "aggro_range": 20,
+  "deaggro_range": 30,
+  "patrol_radius": 0,
+  "vision_cone_deg": 180,
+  "awareness_rate": 6,
+  "alert_radius": 14,
+  "circle_radius_mult": 1.22,
+  "phaseCount": 2,
+  "enemy_type": "boss",
+  "status_on_hit": "freeze",
+  "status_stacks_on_hit": 2,
+  "attacks": [
+    {
+      "id": "probe",
+      "name": "Frostbitten Thrust",
+      "weight": 3,
+      "windup_duration": 0.38,
+      "windup_variance": 0.08,
+      "active_duration": 0.15,
+      "recovery_duration": 0.62,
+      "attack_damage": 17,
+      "attack_poise_damage": 15,
+      "max_range": 3,
+      "telegraph_radius": 2.1,
+      "telegraph_shape": "circle"
+    },
+    {
+      "id": "cleave",
+      "name": "Glacier Cleave",
+      "weight": 2,
+      "windup_duration": 0.88,
+      "windup_variance": 0.16,
+      "active_duration": 0.19,
+      "recovery_duration": 0.96,
+      "attack_damage": 31,
+      "attack_poise_damage": 28,
+      "max_range": 3.3,
+      "telegraph_radius": 3,
+      "telegraph_shape": "cone"
+    },
+    {
+      "id": "chain",
+      "name": "Warden's Measure",
+      "weight": 2,
+      "windup_duration": 0.52,
+      "windup_variance": 0.1,
+      "active_duration": 0.15,
+      "recovery_duration": 0.72,
+      "attack_damage": 18,
+      "attack_poise_damage": 17,
+      "max_range": 3,
+      "telegraph_radius": 2.55,
+      "telegraph_shape": "circle",
+      "combo_followups": [
+        {
+          "id": "chain_two",
+          "name": "Gate Shut",
+          "weight": 1,
+          "windup_duration": 0.26,
+          "windup_variance": 0.05,
+          "active_duration": 0.15,
+          "recovery_duration": 0.92,
+          "attack_damage": 20,
+          "attack_poise_damage": 19,
+          "max_range": 3,
+          "telegraph_radius": 2.7,
+          "telegraph_shape": "cone"
+        }
+      ]
+    }
+  ],
+  "phases": [
+    {
+      "id": "keeping_the_gate",
+      "name": "Keeping The Gate",
+      "hpBelow": 1,
+      "attacks": [
+        {
+          "id": "probe",
+          "name": "Frostbitten Thrust",
+          "weight": 3,
+          "windup_duration": 0.38,
+          "windup_variance": 0.08,
+          "active_duration": 0.15,
+          "recovery_duration": 0.62,
+          "attack_damage": 17,
+          "attack_poise_damage": 15,
+          "max_range": 3,
+          "telegraph_radius": 2.1,
+          "telegraph_shape": "circle"
+        },
+        {
+          "id": "cleave",
+          "name": "Glacier Cleave",
+          "weight": 2,
+          "windup_duration": 0.88,
+          "windup_variance": 0.16,
+          "active_duration": 0.19,
+          "recovery_duration": 0.96,
+          "attack_damage": 31,
+          "attack_poise_damage": 28,
+          "max_range": 3.3,
+          "telegraph_radius": 3,
+          "telegraph_shape": "cone"
+        },
+        {
+          "id": "chain",
+          "name": "Warden's Measure",
+          "weight": 2,
+          "windup_duration": 0.52,
+          "windup_variance": 0.1,
+          "active_duration": 0.15,
+          "recovery_duration": 0.72,
+          "attack_damage": 18,
+          "attack_poise_damage": 17,
+          "max_range": 3,
+          "telegraph_radius": 2.55,
+          "telegraph_shape": "circle",
+          "combo_followups": [
+            {
+              "id": "chain_two",
+              "name": "Gate Shut",
+              "weight": 1,
+              "windup_duration": 0.26,
+              "windup_variance": 0.05,
+              "active_duration": 0.15,
+              "recovery_duration": 0.92,
+              "attack_damage": 20,
+              "attack_poise_damage": 19,
+              "max_range": 3,
+              "telegraph_radius": 2.7,
+              "telegraph_shape": "cone"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "long_winter",
+      "name": "Long Winter",
+      "hpBelow": 0.5,
+      "attacks": [
+        {
+          "id": "probe",
+          "name": "Frostbitten Thrust",
+          "weight": 3,
+          "windup_duration": 0.38,
+          "windup_variance": 0.08,
+          "active_duration": 0.15,
+          "recovery_duration": 0.62,
+          "attack_damage": 17,
+          "attack_poise_damage": 15,
+          "max_range": 3,
+          "telegraph_radius": 2.1,
+          "telegraph_shape": "circle"
+        },
+        {
+          "id": "cleave",
+          "name": "Glacier Cleave",
+          "weight": 2,
+          "windup_duration": 0.88,
+          "windup_variance": 0.16,
+          "active_duration": 0.19,
+          "recovery_duration": 0.96,
+          "attack_damage": 31,
+          "attack_poise_damage": 28,
+          "max_range": 3.3,
+          "telegraph_radius": 3,
+          "telegraph_shape": "cone"
+        },
+        {
+          "id": "charge",
+          "name": "Avalanche Step",
+          "weight": 2,
+          "windup_duration": 0.75,
+          "windup_variance": 0.2,
+          "active_duration": 0.2,
+          "recovery_duration": 0.9,
+          "attack_damage": 26,
+          "attack_poise_damage": 24,
+          "max_range": 7.8,
+          "telegraph_radius": 3.3,
+          "telegraph_shape": "line"
+        },
+        {
+          "id": "feint",
+          "name": "Held Frost",
+          "weight": 2,
+          "windup_duration": 0.97,
+          "windup_variance": 0.45,
+          "active_duration": 0.18,
+          "recovery_duration": 1,
+          "attack_damage": 28,
+          "attack_poise_damage": 27,
+          "max_range": 3.75,
+          "telegraph_radius": 3.45,
+          "telegraph_shape": "cone"
+        }
+      ],
+      "moveSpeedMult": 1.1,
+      "attackCooldownMult": 0.82,
+      "damageMult": 1.18,
+      "poiseMult": 1.2,
+      "onEnter": {
+        "tellDuration": 1,
+        "invulnerableFor": 0.85,
+        "telegraphRadius": 5,
+        "telegraphShape": "ring",
+        "telegraphTint": [
+          0.66,
+          0.86,
+          1.0
+        ],
+        "sfx": "windup",
+        "shake": 0.4
+      }
+    }
+  ]
+}

@@ -25,8 +25,8 @@
     }
   ],
   "stats": {
-    "resistFrost": 0.16,
-    "frostDamage": 6,
-    "goldFind": 0.1
+    "resistFrost": 0.202,
+    "frostDamage": 8,
+    "goldFind": 0.127
   }
 }

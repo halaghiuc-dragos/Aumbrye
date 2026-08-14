@@ -9,6 +9,9 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "tools" / "voxel-import"))
+sys.path.insert(0, str(ROOT / "tools"))
+
+from voxel_sculpt import sculpt_for_part  # noqa: E402
 
 from archetypes import (  # noqa: E402
     ArchetypeSpec,
@@ -34,19 +37,41 @@ HEIGHT_VARIANT_MANIFESTS = {
     },
 }
 
-SKIP_MESH_ARCHETYPE_SUFFIXES = ("_lean", "_heavy")
+# Lean and heavy builds have their own part dimensions, so they cannot reuse the standard rig's
+# meshes the way the height variants do. They used to be pre-baked to binary .mesh files and
+# skipped here entirely — which meant the voxel sculptor never saw them, and six of the nine body
+# shapes a player can pick were still solid boxes after every other rig had been shaped. They are
+# generated from source like everything else now.
+SKIP_MESH_ARCHETYPE_SUFFIXES: tuple[str, ...] = ()
 
 
 def _part_file_name(part_name: str) -> str:
     return part_name.lower()
 
 
-def _voxels_from_size(size_voxels: tuple[int, int, int], color: tuple[float, float, float]) -> dict:
-    sx, sy, sz = size_voxels
-    cells = [[x, y, z] for x in range(sx) for y in range(sy) for z in range(sz)]
+def _voxels_from_size(
+    size_voxels: tuple[int, int, int],
+    color: tuple[float, float, float],
+    part_name: str = "",
+) -> dict:
+    """Sculpt a part instead of filling its bounding box.
+
+    This used to emit every cell in the box, so each of the eight parts of every rig was a solid
+    rectangular prism and the whole cast read as stacked crates. The format always allowed an
+    arbitrary `cells` list and the runtime mesher is a greedy mesher that handles sparse occupancy
+    happily — nothing but this function needed to change.
+    """
+    sculpt = sculpt_for_part(part_name, size_voxels)
+    cells = sculpt.normalised_cells()
+    if not cells:
+        # A profile should never erase a part outright, but shipping an empty mesh would be worse
+        # than shipping the old box.
+        sx, sy, sz = size_voxels
+        cells = [[x, y, z] for x in range(sx) for y in range(sy) for z in range(sz)]
+    span = [max(c[i] for c in cells) + 1 for i in range(3)]
     return {
         "edge": VOXEL_EDGE,
-        "size": [sx, sy, sz],
+        "size": span,
         "color": [round(c, 4) for c in color],
         "cells": cells,
     }
@@ -64,8 +89,6 @@ def _should_generate_meshes(spec: ArchetypeSpec) -> bool:
     for suffix in SKIP_MESH_ARCHETYPE_SUFFIXES:
         if archetype_id.endswith(suffix):
             return False
-    if archetype_id.startswith("player_warden_") and archetype_id != "player_warden":
-        return False
     return True
 
 
@@ -78,7 +101,7 @@ def _write_voxels(
     if size == (0, 0, 0):
         return
     fname = _part_file_name(name) + ".voxels.json"
-    payload = _voxels_from_size(size, color)
+    payload = _voxels_from_size(size, color, name)
     (out_dir / fname).write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
 
 
@@ -176,10 +199,6 @@ def generate_all() -> None:
 
     for spec in all_archetypes():
         if spec.id in HEIGHT_VARIANT_MANIFESTS:
-            continue
-        if spec.id.endswith(SKIP_MESH_ARCHETYPE_SUFFIXES):
-            continue
-        if spec.id.startswith("player_warden_") and spec.id != "player_warden":
             continue
         mesh_archetype = spec.id if spec.id in generated_mesh_ids else "player_warden"
         _write_manifest(spec, mesh_archetype)

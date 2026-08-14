@@ -764,7 +764,8 @@ func _build_nav_links() -> void:
 		var link := NavigationLink3D.new()
 		link.bidirectional = true
 		link.travel_cost = 1.0
-		link.navigation_map = _floor_nav_map
+		# Method, not property — see castle_blockout.set_navigation_map.
+		link.set_navigation_map(_floor_nav_map)
 		link.start_position = _nav_links_root.to_local(
 			from_socket.global_position + from_socket.get_world_facing() * -0.5
 		)

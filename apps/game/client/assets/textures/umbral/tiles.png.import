@@ -2,12 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://720ha5oc0eah"
-valid=false
+uid="uid://d30y5pw5a2ns7"
+path="res://.godot/imported/tiles.png-ddba97e355bbb0fd61599eeaa09b42c4.ctex"
+metadata={
+"vram_texture": false
+}
 
 [deps]
 
 source_file="res://assets/textures/umbral/tiles.png"
+dest_files=["res://.godot/imported/tiles.png-ddba97e355bbb0fd61599eeaa09b42c4.ctex"]
 
 [params]
 

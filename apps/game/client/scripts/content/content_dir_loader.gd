@@ -4,17 +4,31 @@ class_name ContentDirLoader
 ## Shared directory walk for JSON content catalogs keyed by an `id` field.
 
 
+## `skip_files` names files in the walked directories that belong to a different catalog.
+##
+## Two catalogs can legitimately share a content directory — content/quests holds both the hub
+## quest definitions and the dungeon NPC bindings that DungeonQuestCatalog owns. Without this the
+## walk picks up the other catalog's file, finds no id, and warns on every boot about a file that
+## is not malformed and not its concern, which trains the reader to ignore a warning that would
+## otherwise be worth acting on.
 static func load_id_map(
 	relative_dirs: Array[String],
 	id_key: String = "id",
 	catalog_label: String = "ContentDirLoader",
 	stamp_content_path: bool = false,
-	warn_missing_id: bool = true
+	warn_missing_id: bool = true,
+	skip_files: PackedStringArray = PackedStringArray()
 ) -> Dictionary:
 	var out: Dictionary = {}
 	for relative_dir in relative_dirs:
 		_load_directory(
-			relative_dir, id_key, catalog_label, stamp_content_path, warn_missing_id, out
+			relative_dir,
+			id_key,
+			catalog_label,
+			stamp_content_path,
+			warn_missing_id,
+			out,
+			skip_files
 		)
 	return out
 
@@ -25,7 +39,8 @@ static func _load_directory(
 	catalog_label: String,
 	stamp_content_path: bool,
 	warn_missing_id: bool,
-	out: Dictionary
+	out: Dictionary,
+	skip_files: PackedStringArray = PackedStringArray()
 ) -> void:
 	var abs_dir := ContentLoader.content_path(relative_dir)
 	var dir := DirAccess.open(abs_dir)
@@ -35,7 +50,7 @@ static func _load_directory(
 	dir.list_dir_begin()
 	var file_name := dir.get_next()
 	while file_name != "":
-		if not dir.current_is_dir() and file_name.ends_with(".json"):
+		if not dir.current_is_dir() and file_name.ends_with(".json") and file_name not in skip_files:
 			var relative := "%s/%s" % [relative_dir, file_name]
 			var data: Dictionary = ContentLoader.load_json(relative)
 			var entry_id: String = str(data.get(id_key, ""))

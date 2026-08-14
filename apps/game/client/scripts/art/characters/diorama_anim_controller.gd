@@ -59,6 +59,14 @@ var _compiled_attacks: Dictionary = {}
 var _attack_cache_order: Array = []
 var _missing_clips: Dictionary = {}
 var _hitbox_signals_warned := false
+
+## Whether this rig's owner is expected to act on hitbox frames.
+##
+## Attack clips emit open/close frames whether or not the owner can hurt anything, so a purely
+## passive actor — the training dummies, which have no hitbox and never swing — tripped the
+## "no listeners" warning once each on every arena load. Owners that cannot attack set this false
+## so the warning keeps meaning "something that should be wired is not".
+var expects_hitbox_listeners := true
 var _mirrors: Array[DioramaAnimController] = []
 
 
@@ -551,6 +559,12 @@ func _play_local(clip: StringName, blend: float) -> void:
 	_player.play(clip, blend)
 
 
+## A mirror follows the rig that drives it, but is not required to have the same clip library.
+##
+## The first-person viewmodel is arms only, so it has no locomotion clips at all — mirroring the
+## body's "idle" through the normal path made it report a missing clip on every bind, for a clip it
+## is not supposed to own. A mirror silently keeps its current pose for anything it lacks; a clip
+## genuinely missing from the rig that drives it is still reported by that rig.
 func mirror_apply(
 	priority: int, locomotion: StringName, clip: StringName, blend: float, scale: float
 ) -> void:
@@ -558,6 +572,8 @@ func mirror_apply(
 	_desired_locomotion = locomotion
 	if _player:
 		_player.speed_scale = scale
+	if not has_clip(clip):
+		return
 	_play_local(clip, blend)
 
 
@@ -632,6 +648,8 @@ func _check_hitbox_signal_listeners() -> void:
 	if _hitbox_signals_warned:
 		return
 	_hitbox_signals_warned = true
+	if not expects_hitbox_listeners:
+		return
 	if _events_path.is_empty():
 		return
 	if hitbox_open_frame.get_connections().is_empty() and hitbox_close_frame.get_connections().is_empty():

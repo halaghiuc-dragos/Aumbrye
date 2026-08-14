@@ -19,10 +19,22 @@ public static class ItemRarities
     public const string Rare = "rare";
     public const string Epic = "epic";
     public const string Legendary = "legendary";
-    public const string Mythic = "mythic";
+
+    /// <summary>Top rarity. Content and the client's RarityRegistry both call this "aumbral".</summary>
+    public const string Aumbral = "aumbral";
+
+    /// <summary>
+    /// Former name of <see cref="Aumbral"/>. Still present in saves written before the rename, so
+    /// it must be normalized on read — never rolled.
+    /// </summary>
+    public const string LegacyMythic = "mythic";
 
     public static readonly string[] All =
     [
-        Common, Magic, Rare, Epic, Legendary, Mythic,
+        Common, Magic, Rare, Epic, Legendary, Aumbral,
     ];
+
+    /// <summary>Maps a stored rarity onto its canonical name, mirroring RarityRegistry.normalize().</summary>
+    public static string Normalize(string rarity) =>
+        string.Equals(rarity, LegacyMythic, StringComparison.OrdinalIgnoreCase) ? Aumbral : rarity;
 }

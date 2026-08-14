@@ -702,7 +702,7 @@ func _test_single_nav_map() -> void:
 			var nav_root: Node = built["root"].get_node_or_null("DungeonRoot/NavLinks")
 			if nav_root:
 				for child in nav_root.get_children():
-					if child is NavigationLink3D and child.navigation_map != map:
+					if child is NavigationLink3D and child.get_navigation_map() != map:
 						ok = false
 						message = "nav link map mismatch"
 						break

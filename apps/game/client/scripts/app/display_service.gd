@@ -50,6 +50,7 @@ var fullscreen_confirm_sec: float = FULLSCREEN_CONFIRM_SEC
 var _fullscreen_revert_mode: String = WINDOW_MODE_WINDOWED
 var _pending_fullscreen_confirm := false
 var _fullscreen_timer: SceneTreeTimer
+var _fullscreen_token := 0
 var _scaled_theme: Theme
 
 
@@ -122,6 +123,19 @@ func confirm_fullscreen() -> void:
 	_pending_fullscreen_confirm = false
 	_cancel_fullscreen_timer()
 	save()
+
+
+## Goes straight back to the mode in use before fullscreen was chosen, without waiting out the
+## countdown. This is what the settings prompt calls when the player says the mode is unusable.
+func revert_fullscreen() -> void:
+	if not _pending_fullscreen_confirm:
+		return
+	_pending_fullscreen_confirm = false
+	_cancel_fullscreen_timer()
+	window_mode = _fullscreen_revert_mode if _fullscreen_revert_mode != "" else WINDOW_MODE_WINDOWED
+	apply_all()
+	save()
+	display_changed.emit(&"window_mode", window_mode)
 
 
 func set_monitor_index(index: int) -> void:
@@ -353,15 +367,24 @@ func _start_fullscreen_timer() -> void:
 	_cancel_fullscreen_timer()
 	if get_tree() == null:
 		return
+	_fullscreen_token += 1
 	_fullscreen_timer = get_tree().create_timer(fullscreen_confirm_sec)
-	_fullscreen_timer.timeout.connect(_on_fullscreen_confirm_timeout, CONNECT_ONE_SHOT)
+	_fullscreen_timer.timeout.connect(
+		_on_fullscreen_confirm_timeout.bind(_fullscreen_token), CONNECT_ONE_SHOT
+	)
 
 
+## Dropping the SceneTreeTimer reference does not stop it — the timeout still fires. Each countdown
+## therefore carries a token, and a stale one is ignored; otherwise a player who switched to
+## fullscreen, back, and to fullscreen again could have the first countdown revert the second.
 func _cancel_fullscreen_timer() -> void:
+	_fullscreen_token += 1
 	_fullscreen_timer = null
 
 
-func _on_fullscreen_confirm_timeout() -> void:
+func _on_fullscreen_confirm_timeout(token: int) -> void:
+	if token != _fullscreen_token:
+		return
 	if not _pending_fullscreen_confirm:
 		return
 	_pending_fullscreen_confirm = false

@@ -30,8 +30,8 @@
     }
   ],
   "stats": {
-    "frostDamage": 16,
-    "physicalDamage": 14
+    "frostDamage": 23,
+    "physicalDamage": 21
   },
   "weaponId": "greatsword"
 }

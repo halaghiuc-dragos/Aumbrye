@@ -2,7 +2,7 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://aumbrye.dev/schemas/biome-definition.v2.json",
   "title": "BiomeDefinitionV2",
-  "description": "Full biome kit — procgen, materials, lighting, audio, props, loot, traps.",
+  "description": "Full biome kit \u00e2\u20ac\u201d procgen, materials, lighting, audio, props, loot, traps.",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -22,35 +22,87 @@
     "trapPool",
     "finalFloor"
   ],
-  "anyOf": [{ "required": ["lootTables"] }, { "required": ["lootTablePath"] }],
+  "anyOf": [
+    {
+      "required": [
+        "lootTables"
+      ]
+    },
+    {
+      "required": [
+        "lootTablePath"
+      ]
+    }
+  ],
   "properties": {
-    "id": { "type": "string", "minLength": 1 },
-    "name": { "type": "string", "minLength": 1 },
-    "templatePrefix": { "type": "string", "minLength": 1 },
-    "assetFolder": { "type": "string", "minLength": 1 },
+    "id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1
+    },
+    "templatePrefix": {
+      "type": "string",
+      "minLength": 1
+    },
+    "assetFolder": {
+      "type": "string",
+      "minLength": 1
+    },
     "roomCount": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["min", "max"],
+      "required": [
+        "min",
+        "max"
+      ],
       "properties": {
-        "min": { "type": "integer", "minimum": 1 },
-        "max": { "type": "integer", "minimum": 1 }
+        "min": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "max": {
+          "type": "integer",
+          "minimum": 1
+        }
       }
     },
     "roomTemplateIds": {
       "type": "array",
-      "items": { "type": "string", "minLength": 1 },
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
       "minItems": 1
     },
     "materials": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["floor", "wall", "ceiling", "accent"],
+      "required": [
+        "floor",
+        "wall",
+        "ceiling",
+        "accent"
+      ],
       "properties": {
-        "floor": { "type": "string", "pattern": "^[a-z_]+$" },
-        "wall": { "type": "string", "pattern": "^[a-z_]+$" },
-        "ceiling": { "type": "string", "pattern": "^[a-z_]+$" },
-        "accent": { "type": "string", "pattern": "^[a-z_]+$" }
+        "floor": {
+          "type": "string",
+          "pattern": "^[a-z_]+$"
+        },
+        "wall": {
+          "type": "string",
+          "pattern": "^[a-z_]+$"
+        },
+        "ceiling": {
+          "type": "string",
+          "pattern": "^[a-z_]+$"
+        },
+        "accent": {
+          "type": "string",
+          "pattern": "^[a-z_]+$"
+        }
       }
     },
     "lighting": {
@@ -68,39 +120,72 @@
       "properties": {
         "ambientColor": {
           "type": "array",
-          "items": { "type": "number" },
+          "items": {
+            "type": "number"
+          },
           "minItems": 3,
           "maxItems": 3
         },
-        "ambientEnergy": { "type": "number", "minimum": 0 },
-        "fogEnabled": { "type": "boolean" },
+        "ambientEnergy": {
+          "type": "number",
+          "minimum": 0
+        },
+        "fogEnabled": {
+          "type": "boolean"
+        },
         "fogColor": {
           "type": "array",
-          "items": { "type": "number" },
+          "items": {
+            "type": "number"
+          },
           "minItems": 3,
           "maxItems": 3
         },
-        "fogDensity": { "type": "number", "minimum": 0 },
+        "fogDensity": {
+          "type": "number",
+          "minimum": 0
+        },
         "torchColor": {
           "type": "array",
-          "items": { "type": "number" },
+          "items": {
+            "type": "number"
+          },
           "minItems": 3,
           "maxItems": 3
         },
-        "torchEnergy": { "type": "number", "minimum": 0 }
+        "torchEnergy": {
+          "type": "number",
+          "minimum": 0
+        }
       }
     },
-    "audioProfile": { "type": "string", "minLength": 1 },
+    "audioProfile": {
+      "type": "string",
+      "minLength": 1
+    },
     "propKit": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["pillar", "sconce", "rubble"],
+      "required": [
+        "pillar",
+        "sconce",
+        "rubble"
+      ],
       "properties": {
-        "pillar": { "type": "string", "minLength": 1 },
-        "sconce": { "type": "string", "minLength": 1 },
+        "pillar": {
+          "type": "string",
+          "minLength": 1
+        },
+        "sconce": {
+          "type": "string",
+          "minLength": 1
+        },
         "rubble": {
           "type": "array",
-          "items": { "type": "string", "minLength": 1 },
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
           "minItems": 1
         }
       }
@@ -110,10 +195,19 @@
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["enemyId", "weight"],
+        "required": [
+          "enemyId",
+          "weight"
+        ],
         "properties": {
-          "enemyId": { "type": "string", "minLength": 1 },
-          "weight": { "type": "integer", "minimum": 1 }
+          "enemyId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "weight": {
+            "type": "integer",
+            "minimum": 1
+          }
         }
       }
     },
@@ -122,10 +216,18 @@
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["enemyId"],
+        "required": [
+          "enemyId"
+        ],
         "properties": {
-          "enemyId": { "type": "string", "minLength": 1 },
-          "weight": { "type": "integer", "minimum": 1 }
+          "enemyId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "weight": {
+            "type": "integer",
+            "minimum": 1
+          }
         }
       },
       "minItems": 2
@@ -133,12 +235,29 @@
     "budgets": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["baseEnemyThreat", "baseLootValue", "threatPerTier", "lootPerTier"],
+      "required": [
+        "baseEnemyThreat",
+        "baseLootValue",
+        "threatPerTier",
+        "lootPerTier"
+      ],
       "properties": {
-        "baseEnemyThreat": { "type": "integer", "minimum": 0 },
-        "baseLootValue": { "type": "integer", "minimum": 0 },
-        "threatPerTier": { "type": "integer", "minimum": 0 },
-        "lootPerTier": { "type": "integer", "minimum": 0 }
+        "baseEnemyThreat": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "baseLootValue": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "threatPerTier": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "lootPerTier": {
+          "type": "integer",
+          "minimum": 0
+        }
       }
     },
     "lootTablePath": {
@@ -149,12 +268,25 @@
     "lootTables": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["treasure", "secret", "side", "armory"],
+      "required": [
+        "treasure",
+        "secret",
+        "side",
+        "armory"
+      ],
       "properties": {
-        "treasure": { "$ref": "#/definitions/lootEntries" },
-        "secret": { "$ref": "#/definitions/lootEntries" },
-        "side": { "$ref": "#/definitions/lootEntries" },
-        "armory": { "$ref": "#/definitions/lootEntries" }
+        "treasure": {
+          "$ref": "#/definitions/lootEntries"
+        },
+        "secret": {
+          "$ref": "#/definitions/lootEntries"
+        },
+        "side": {
+          "$ref": "#/definitions/lootEntries"
+        },
+        "armory": {
+          "$ref": "#/definitions/lootEntries"
+        }
       }
     },
     "trapPool": {
@@ -162,52 +294,156 @@
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["trapId", "weight"],
+        "required": [
+          "trapId",
+          "weight"
+        ],
         "properties": {
-          "trapId": { "type": "string", "minLength": 1 },
-          "weight": { "type": "integer", "minimum": 1 }
+          "trapId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "weight": {
+            "type": "integer",
+            "minimum": 1
+          }
         }
       },
       "minItems": 1
     },
-    "requiresSecret": { "type": "boolean" },
-    "maxSecrets": { "type": "integer", "minimum": 0, "maximum": 4 },
-    "maxHeightLevel": { "type": "integer", "minimum": 0, "maximum": 2 },
+    "requiresSecret": {
+      "type": "boolean"
+    },
+    "maxSecrets": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 4
+    },
+    "maxHeightLevel": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 2
+    },
     "grade": {
       "type": "object",
       "additionalProperties": false,
       "properties": {
         "shadowTint": {
           "type": "array",
-          "items": { "type": "number" },
+          "items": {
+            "type": "number"
+          },
           "minItems": 3,
           "maxItems": 3
         },
-        "shadowTintAmount": { "type": "number", "minimum": 0, "maximum": 1 },
+        "shadowTintAmount": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
         "highlightTint": {
           "type": "array",
-          "items": { "type": "number" },
+          "items": {
+            "type": "number"
+          },
           "minItems": 3,
           "maxItems": 3
         },
-        "highlightTintAmount": { "type": "number", "minimum": 0, "maximum": 1 },
-        "saturation": { "type": "number", "minimum": 0, "maximum": 2 },
-        "contrast": { "type": "number", "minimum": 0.5, "maximum": 2 },
-        "lift": { "type": "number", "minimum": -0.2, "maximum": 0.2 },
-        "vignette": { "type": "number", "minimum": 0, "maximum": 1 },
-        "vignetteSoftness": { "type": "number", "minimum": 0.1, "maximum": 2 },
-        "posterizeLevels": { "type": "number", "minimum": 0, "maximum": 64 }
+        "highlightTintAmount": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "saturation": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 2
+        },
+        "contrast": {
+          "type": "number",
+          "minimum": 0.5,
+          "maximum": 2
+        },
+        "lift": {
+          "type": "number",
+          "minimum": -0.2,
+          "maximum": 0.2
+        },
+        "vignette": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "vignetteSoftness": {
+          "type": "number",
+          "minimum": 0.1,
+          "maximum": 2
+        },
+        "posterizeLevels": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 64
+        }
       }
     },
     "finalFloor": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["bossId"],
+      "required": [
+        "bossId"
+      ],
       "properties": {
-        "bossId": { "type": "string", "minLength": 1 },
+        "bossId": {
+          "type": "string",
+          "minLength": 1
+        },
         "lobbyChests": {
           "type": "array",
-          "items": { "type": "object" }
+          "items": {
+            "type": "object"
+          }
+        }
+      }
+    },
+    "generator": {
+      "type": "object",
+      "description": "Layout-generator tuning for this biome, consumed by the GDScript room-graph generator.",
+      "additionalProperties": false,
+      "properties": {
+        "bossMinDistance": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "minDeadEnds": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "branchMaxDepth": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "maxNeighborCount": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 4
+        },
+        "loopBudget": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "maxGenerationAttempts": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "maxWalkAttempts": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "allow2x2Blocks": {
+          "type": "boolean"
+        },
+        "fillBoundingBox": {
+          "type": "boolean"
         }
       }
     }
@@ -218,17 +454,33 @@
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["itemId", "quantity", "weight"],
+        "required": [
+          "itemId",
+          "quantity",
+          "weight"
+        ],
         "properties": {
-          "itemId": { "type": "string", "minLength": 1 },
+          "itemId": {
+            "type": "string",
+            "minLength": 1
+          },
           "quantity": {
             "type": "array",
-            "items": { "type": "integer", "minimum": 1 },
+            "items": {
+              "type": "integer",
+              "minimum": 1
+            },
             "minItems": 2,
             "maxItems": 2
           },
-          "weight": { "type": "integer", "minimum": 1 },
-          "minTier": { "type": "integer", "minimum": 1 }
+          "weight": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "minTier": {
+            "type": "integer",
+            "minimum": 1
+          }
         }
       },
       "minItems": 1

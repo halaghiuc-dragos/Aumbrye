@@ -6,16 +6,16 @@
         {
           "kind": "burst",
           "backend": "cpu",
-          "amount": 28,
-          "lifetime": 0.34,
-          "explosiveness": 0.9,
-          "spread": 34.0,
-          "velocity": [2.4, 4.8],
+          "amount": 16,
+          "lifetime": 0.3,
+          "explosiveness": 0.95,
+          "spread": 30.0,
+          "velocity": [2.6, 5.2],
           "gravity": [0.0, -5.0, 0.0],
-          "scale": [0.12, 0.22],
+          "scale": [0.1, 0.19],
           "chunk": "shard_small",
           "color": "#ffeb8c",
-          "emission": 2.2,
+          "emission": 2.4,
           "align_to": "forward"
         },
         { "kind": "sfx", "key": "swing" }
@@ -26,18 +26,33 @@
         {
           "kind": "burst",
           "backend": "cpu",
-          "amount": 28,
-          "lifetime": 0.34,
-          "explosiveness": 0.9,
-          "spread": 34.0,
-          "velocity": [2.4, 4.8],
-          "gravity": [0.0, -5.0, 0.0],
-          "scale": [0.12, 0.22],
+          "amount": 22,
+          "lifetime": 0.26,
+          "explosiveness": 0.95,
+          "spread": 44.0,
+          "velocity": [2.6, 5.4],
+          "gravity": [0.0, -8.0, 0.0],
+          "scale": [0.08, 0.15],
           "chunk": "shard_small",
-          "color": "#8cd1ff",
-          "emission": 0.8,
+          "color": "#a8dcff",
+          "emission": 2.6,
           "align_to": "forward"
         },
+        {
+          "kind": "burst",
+          "backend": "cpu",
+          "amount": 10,
+          "lifetime": 0.5,
+          "explosiveness": 0.55,
+          "spread": 80.0,
+          "velocity": [0.6, 1.8],
+          "gravity": [0.0, -2.2, 0.0],
+          "scale": [0.05, 0.09],
+          "chunk": "dust_flake",
+          "color": "#6f9dc4",
+          "emission": 1.1
+        },
+        { "kind": "impact", "hitstop_ms": 55, "shake": 0.12, "shake_ms": 110 },
         { "kind": "sfx", "key": "block" }
       ]
     },
@@ -45,19 +60,52 @@
       "layers": [
         {
           "kind": "burst",
-          "backend": "cpu",
-          "amount": 28,
-          "lifetime": 0.34,
-          "explosiveness": 0.9,
-          "spread": 34.0,
-          "velocity": [2.4, 4.8],
-          "gravity": [0.0, -5.0, 0.0],
-          "scale": [0.12, 0.22],
+          "backend": "gpu",
+          "amount": 26,
+          "lifetime": 0.16,
+          "explosiveness": 1.0,
+          "spread": 180.0,
+          "velocity": [7.0, 12.0],
+          "gravity": [0.0, 0.0, 0.0],
+          "scale": [0.09, 0.16],
           "chunk": "shard_small",
-          "color": "#ffe033",
-          "emission": 0.85,
+          "color": "#fffdf0",
+          "emission": 5.6,
+          "flatness": 0.05,
+          "randomness": 0.15
+        },
+        {
+          "kind": "burst",
+          "backend": "gpu",
+          "amount": 20,
+          "lifetime": 0.52,
+          "explosiveness": 0.85,
+          "spread": 52.0,
+          "velocity": [4.0, 8.5],
+          "gravity": [0.0, -11.0, 0.0],
+          "scale": [0.07, 0.13],
+          "chunk": "shard_small",
+          "color": "#ffd24a",
+          "emission": 3.4,
           "align_to": "forward"
         },
+        {
+          "kind": "burst",
+          "backend": "cpu",
+          "amount": 14,
+          "lifetime": 1.05,
+          "explosiveness": 0.4,
+          "spread": 95.0,
+          "velocity": [0.5, 1.6],
+          "gravity": [0.0, 0.9, 0.0],
+          "scale": [0.05, 0.09],
+          "chunk": "dust_flake",
+          "color": "#ffb347",
+          "emission": 2.0,
+          "randomness": 0.6
+        },
+        { "kind": "decal", "decal": "dust_ring", "size": 1.5, "lifetime": 0.5, "fade": 0.42 },
+        { "kind": "impact", "hitstop_ms": 120, "shake": 0.3, "shake_ms": 200 },
         { "kind": "sfx", "key": "parry" }
       ]
     },
@@ -66,20 +114,86 @@
         {
           "kind": "burst",
           "backend": "gpu",
-          "amount": 24,
+          "amount": 22,
           "lifetime": 0.28,
-          "explosiveness": 0.9,
-          "spread": 42.0,
-          "velocity": [2.2, 4.8],
+          "explosiveness": 0.95,
+          "spread": 70.0,
+          "velocity": [3.4, 6.6],
           "gravity": [0.0, -9.0, 0.0],
-          "scale": [0.05, 0.11],
+          "scale": [0.07, 0.13],
           "chunk": "shard_small",
           "color": "#ffc759",
-          "emission": 1.0,
-          "align_to": "direction"
+          "emission": 3.0,
+          "align_to": "forward"
         },
-        { "kind": "decal", "decal": "impact_small", "size": 0.28, "lifetime": 2.4, "fade": 0.5 },
-        { "kind": "impact", "hitstop_ms": 45, "shake": 0.35, "shake_ms": 120, "vignette": 0.6 },
+        {
+          "kind": "burst",
+          "backend": "cpu",
+          "amount": 8,
+          "lifetime": 0.42,
+          "explosiveness": 0.6,
+          "spread": 110.0,
+          "velocity": [0.5, 1.5],
+          "gravity": [0.0, -1.6, 0.0],
+          "scale": [0.05, 0.08],
+          "chunk": "dust_flake",
+          "color": "#c99a4e",
+          "emission": 1.2
+        },
+        { "kind": "decal", "decal": "impact_small", "size": 0.4, "lifetime": 2.0, "fade": 1.0 },
+        { "kind": "impact", "hitstop_ms": 70, "shake": 0.14, "shake_ms": 120 },
+        { "kind": "sfx", "key": "hit" }
+      ]
+    },
+    "crit_spark": {
+      "layers": [
+        {
+          "kind": "burst",
+          "backend": "gpu",
+          "amount": 30,
+          "lifetime": 0.24,
+          "explosiveness": 1.0,
+          "spread": 180.0,
+          "velocity": [6.5, 11.5],
+          "gravity": [0.0, -4.0, 0.0],
+          "scale": [0.1, 0.19],
+          "chunk": "shard_small",
+          "color": "#fff1c4",
+          "emission": 5.0,
+          "flatness": 0.1
+        },
+        {
+          "kind": "burst",
+          "backend": "gpu",
+          "amount": 22,
+          "lifetime": 0.46,
+          "explosiveness": 0.9,
+          "spread": 64.0,
+          "velocity": [5.0, 9.5],
+          "gravity": [0.0, -13.0, 0.0],
+          "scale": [0.09, 0.16],
+          "chunk": "shard_small",
+          "color": "#ff7a3d",
+          "emission": 3.8,
+          "align_to": "forward"
+        },
+        {
+          "kind": "burst",
+          "backend": "cpu",
+          "amount": 12,
+          "lifetime": 0.8,
+          "explosiveness": 0.5,
+          "spread": 120.0,
+          "velocity": [0.8, 2.2],
+          "gravity": [0.0, 0.6, 0.0],
+          "scale": [0.06, 0.1],
+          "chunk": "dust_flake",
+          "color": "#ffd08a",
+          "emission": 2.4,
+          "randomness": 0.7
+        },
+        { "kind": "decal", "decal": "impact_small", "size": 0.62, "lifetime": 2.2, "fade": 1.0 },
+        { "kind": "impact", "hitstop_ms": 145, "shake": 0.38, "shake_ms": 240, "vignette": 0.18 },
         { "kind": "sfx", "key": "hit" }
       ]
     },
@@ -88,34 +202,49 @@
         {
           "kind": "burst",
           "backend": "gpu",
-          "amount": 36,
-          "lifetime": 0.65,
-          "explosiveness": 0.95,
-          "spread": 58.0,
-          "velocity": [1.6, 4.2],
-          "gravity": [0.0, -10.0, 0.0],
-          "scale": [0.08, 0.18],
+          "amount": 34,
+          "lifetime": 0.9,
+          "explosiveness": 0.9,
+          "spread": 150.0,
+          "velocity": [2.8, 6.4],
+          "gravity": [0.0, -12.0, 0.0],
+          "scale": [0.16, 0.3],
           "chunk": "gib",
           "color": "#d95947",
-          "emission": 0.45,
-          "align_to": "up"
+          "emission": 1.4
         },
         {
           "kind": "burst",
           "backend": "gpu",
+          "amount": 18,
+          "lifetime": 1.5,
+          "explosiveness": 0.3,
+          "spread": 60.0,
+          "velocity": [0.7, 2.0],
+          "gravity": [0.0, 1.4, 0.0],
+          "scale": [0.06, 0.11],
+          "chunk": "dust_flake",
+          "color": "#ffcf8a",
+          "emission": 3.2,
+          "randomness": 0.75
+        },
+        {
+          "kind": "burst",
+          "backend": "cpu",
           "amount": 14,
-          "lifetime": 0.9,
-          "explosiveness": 0.6,
-          "spread": 72.0,
-          "velocity": [0.4, 1.4],
-          "gravity": [0.0, -2.5, 0.0],
-          "scale": [0.14, 0.26],
+          "lifetime": 0.7,
+          "explosiveness": 0.75,
+          "spread": 120.0,
+          "velocity": [1.0, 2.6],
+          "gravity": [0.0, -3.0, 0.0],
+          "scale": [0.1, 0.2],
           "chunk": "dust_flake",
           "color": "#96594a",
-          "emission": 0.2,
-          "align_to": "up"
+          "emission": 0.5
         },
-        { "kind": "decal", "decal": "blood_small", "size": 0.42, "lifetime": 3.2, "fade": 0.6 },
+        { "kind": "decal", "decal": "blood_small", "size": 0.9, "lifetime": 12.0, "fade": 3.0 },
+        { "kind": "decal", "decal": "dust_ring", "size": 1.3, "lifetime": 0.8, "fade": 0.6 },
+        { "kind": "impact", "hitstop_ms": 90, "shake": 0.2, "shake_ms": 180 },
         { "kind": "sfx", "key": "death" }
       ]
     },
@@ -203,15 +332,50 @@
         { "kind": "sfx", "key": "footstep_snow" }
       ]
     },
+    "dodge": {
+      "layers": [
+        {
+          "kind": "burst",
+          "backend": "cpu",
+          "amount": 14,
+          "lifetime": 0.38,
+          "explosiveness": 0.9,
+          "spread": 34.0,
+          "velocity": [1.8, 3.6],
+          "gravity": [0.0, -7.0, 0.0],
+          "scale": [0.07, 0.13],
+          "chunk": "dust_flake",
+          "color": "#9d8f74",
+          "emission": 0.12,
+          "align_to": "forward",
+          "flatness": 0.85
+        },
+        {
+          "kind": "burst",
+          "backend": "cpu",
+          "amount": 8,
+          "lifetime": 0.62,
+          "explosiveness": 0.4,
+          "spread": 70.0,
+          "velocity": [0.3, 1.0],
+          "gravity": [0.0, -1.4, 0.0],
+          "scale": [0.05, 0.1],
+          "chunk": "dust_flake",
+          "color": "#7d7a86",
+          "emission": 0.1,
+          "flatness": 0.9
+        }
+      ]
+    },
     "weapon_trail": {
       "layers": [
         {
           "kind": "ribbon",
           "lifetime": 0.24,
           "color": "#fff2b8",
-          "emission": 2.4,
+          "emission": 3.4,
           "radius": 1.05,
-          "arc_degrees": 150.0
+          "arc_degrees": 165.0
         }
       ]
     },
@@ -221,32 +385,32 @@
           "kind": "burst",
           "backend": "gpu",
           "amount": 24,
-          "lifetime": 0.28,
-          "explosiveness": 0.9,
-          "spread": 42.0,
-          "velocity": [2.2, 4.8],
-          "gravity": [0.0, -9.0, 0.0],
-          "scale": [0.05, 0.11],
+          "lifetime": 0.7,
+          "explosiveness": 0.8,
+          "spread": 150.0,
+          "velocity": [1.8, 4.2],
+          "gravity": [0.0, 0.8, 0.0],
+          "scale": [0.07, 0.13],
           "chunk": "shard_small",
           "color": "#ffc759",
-          "emission": 1.0,
-          "align_to": "up"
+          "emission": 3.8
         },
         {
           "kind": "burst",
           "backend": "gpu",
           "amount": 18,
-          "lifetime": 0.45,
-          "explosiveness": 0.9,
-          "spread": 35.0,
-          "velocity": [1.5, 4.0],
-          "gravity": [0.0, -8.0, 0.0],
-          "scale": [0.06, 0.14],
-          "chunk": "shard_small",
+          "lifetime": 1.1,
+          "explosiveness": 0.3,
+          "spread": 55.0,
+          "velocity": [0.6, 1.8],
+          "gravity": [0.0, 1.6, 0.0],
+          "scale": [0.05, 0.1],
+          "chunk": "dust_flake",
           "color": "#b88cf2",
-          "emission": 0.85,
-          "align_to": "up"
-        }
+          "emission": 3.0,
+          "randomness": 0.8
+        },
+        { "kind": "decal", "decal": "dust_ring", "size": 1.4, "lifetime": 0.9, "fade": 0.7 }
       ]
     },
     "portal_activate": {
@@ -254,33 +418,34 @@
         {
           "kind": "burst",
           "backend": "gpu",
-          "amount": 24,
-          "lifetime": 0.28,
-          "explosiveness": 0.9,
-          "spread": 42.0,
-          "velocity": [2.2, 4.8],
-          "gravity": [0.0, -9.0, 0.0],
-          "scale": [0.05, 0.11],
+          "amount": 26,
+          "lifetime": 0.85,
+          "explosiveness": 0.55,
+          "spread": 180.0,
+          "velocity": [1.4, 3.4],
+          "gravity": [0.0, 1.1, 0.0],
+          "scale": [0.08, 0.15],
           "chunk": "shard_small",
           "color": "#ffc759",
-          "emission": 1.0,
-          "align_to": "up"
+          "emission": 3.6
         },
         {
           "kind": "burst",
           "backend": "gpu",
-          "amount": 24,
-          "lifetime": 0.55,
-          "explosiveness": 0.9,
-          "spread": 35.0,
-          "velocity": [1.5, 4.0],
-          "gravity": [0.0, -8.0, 0.0],
-          "scale": [0.06, 0.14],
-          "chunk": "shard_small",
+          "amount": 22,
+          "lifetime": 1.25,
+          "explosiveness": 0.25,
+          "spread": 45.0,
+          "velocity": [0.9, 2.4],
+          "gravity": [0.0, 1.9, 0.0],
+          "scale": [0.06, 0.12],
+          "chunk": "dust_flake",
           "color": "#59d1f2",
-          "emission": 0.85,
-          "align_to": "up"
-        }
+          "emission": 3.0,
+          "randomness": 0.8
+        },
+        { "kind": "decal", "decal": "dust_ring", "size": 2.0, "lifetime": 1.1, "fade": 0.8 },
+        { "kind": "sfx", "key": "portal_open" }
       ]
     },
     "portal_enter": {
@@ -288,66 +453,49 @@
         {
           "kind": "burst",
           "backend": "gpu",
-          "amount": 24,
-          "lifetime": 0.28,
-          "explosiveness": 0.9,
-          "spread": 42.0,
-          "velocity": [2.2, 4.8],
-          "gravity": [0.0, -9.0, 0.0],
-          "scale": [0.05, 0.11],
+          "amount": 28,
+          "lifetime": 0.6,
+          "explosiveness": 1.0,
+          "spread": 180.0,
+          "velocity": [5.5, 10.0],
+          "gravity": [0.0, 0.0, 0.0],
+          "scale": [0.07, 0.14],
           "chunk": "shard_small",
           "color": "#e6f5ff",
-          "emission": 1.0,
-          "align_to": "up"
+          "emission": 4.4
         },
         {
           "kind": "burst",
           "backend": "gpu",
-          "amount": 24,
-          "lifetime": 0.55,
-          "explosiveness": 0.9,
-          "spread": 35.0,
-          "velocity": [1.5, 4.0],
-          "gravity": [0.0, -8.0, 0.0],
-          "scale": [0.06, 0.14],
-          "chunk": "shard_small",
+          "amount": 20,
+          "lifetime": 1.1,
+          "explosiveness": 0.35,
+          "spread": 70.0,
+          "velocity": [0.8, 2.2],
+          "gravity": [0.0, 2.4, 0.0],
+          "scale": [0.05, 0.1],
+          "chunk": "dust_flake",
           "color": "#8cc7ff",
-          "emission": 0.85,
-          "align_to": "up"
-        }
+          "emission": 2.8,
+          "randomness": 0.7
+        },
+        { "kind": "impact", "shake": 0.16, "shake_ms": 200 },
+        { "kind": "sfx", "key": "portal_enter" }
       ]
     },
     "telegraph_circle": {
       "layers": [
-        {
-          "kind": "glyph",
-          "shape": "circle",
-          "radius": 1.6,
-          "duration": 0.6,
-          "tint": "#f25747"
-        }
+        { "kind": "glyph", "shape": "circle", "radius": 1.6, "duration": 0.6, "tint": "#f25747" }
       ]
     },
     "telegraph_cone": {
       "layers": [
-        {
-          "kind": "glyph",
-          "shape": "cone",
-          "radius": 1.6,
-          "duration": 0.6,
-          "tint": "#f25747"
-        }
+        { "kind": "glyph", "shape": "cone", "radius": 1.6, "duration": 0.6, "tint": "#f25747" }
       ]
     },
     "telegraph_line": {
       "layers": [
-        {
-          "kind": "glyph",
-          "shape": "line",
-          "radius": 1.6,
-          "duration": 0.6,
-          "tint": "#f25747"
-        }
+        { "kind": "glyph", "shape": "line", "radius": 1.6, "duration": 0.6, "tint": "#f25747" }
       ]
     },
     "blood_decal": {
@@ -381,19 +529,23 @@
     }
   },
   "chunks": {
-    "shard_small": { "mesh": "box", "size": [0.14, 0.14, 0.14] },
-    "gib": { "mesh": "box", "size": [0.22, 0.18, 0.22] },
-    "dust_flake": { "mesh": "quad", "size": [0.18, 0.18], "billboard": true }
+    "shard_small": {
+      "mesh": "box",
+      "size": [0.14, 0.14, 0.14]
+    },
+    "gib": {
+      "mesh": "box",
+      "size": [0.22, 0.18, 0.22]
+    },
+    "dust_flake": {
+      "mesh": "quad",
+      "size": [0.18, 0.18],
+      "billboard": true
+    }
   },
   "decals": {
-    "blood_small": [
-      "res://assets/textures/vfx/blood_small.png",
-      "res://assets/textures/vfx/blood_large.png"
-    ],
-    "impact_small": [
-      "res://assets/textures/vfx/impact_small.png",
-      "res://assets/textures/vfx/impact_scorch.png"
-    ],
+    "blood_small": ["res://assets/textures/vfx/blood_small.png", "res://assets/textures/vfx/blood_large.png"],
+    "impact_small": ["res://assets/textures/vfx/impact_small.png", "res://assets/textures/vfx/impact_scorch.png"],
     "dust_ring": "res://assets/textures/vfx/dust_ring.png"
   }
 }

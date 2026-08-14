@@ -129,9 +129,8 @@ func _reset_guard_state() -> void:
 func set_combat_stat_modifiers(
 	equipment_stats: Dictionary, talent_stats: Dictionary, block_data: Dictionary = {}
 ) -> void:
-	_block_reduction_bonus = (
-		CombatStatModifiersScript.block_reduction_bonus(talent_stats)
-		+ float(equipment_stats.get("blockReduction", 0.0))
+	_block_reduction_bonus = CombatStatModifiersScript.block_reduction_bonus(
+		equipment_stats, talent_stats
 	)
 	_block_stability = maxf(
 		0.1, float(block_data.get("stability", 1.0)) + ClassPerks.bulwark_stability_bonus(_body)

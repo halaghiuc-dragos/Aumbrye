@@ -88,6 +88,10 @@ const LOW_VITALITY_THRESHOLD := 0.35
 const INTENSITY_EPSILON := 0.005
 
 var _ambience: AudioStreamPlayer
+## The two pieces that are not tied to a biome: the title/menu theme and the hub's.
+const MENU_THEME_PATH := "res://assets/audio/shared/title_theme.ogg"
+const HUB_THEME_PATH := "res://assets/audio/shared/hub_theme.ogg"
+
 var _music: AudioStreamPlayer
 var _explore: AudioStreamPlayer
 var _combat_layer: AudioStreamPlayer
@@ -353,6 +357,8 @@ func play_dungeon_ambience() -> void:
 func play_menu_music() -> void:
 	_current_mode = "menu"
 	_combat_engagements = 0
+	# Frequencies stay set so the tone generator can still stand in if the theme fails to load —
+	# but the title and menus now have an actual piece of music rather than a held sine chord.
 	_ambience_freq = 98.0
 	_music_freq = 392.0
 	_explore_freq = 523.0
@@ -365,11 +371,14 @@ func play_menu_music() -> void:
 	_intensity = 0.0
 	_layer_base_db.clear()
 	_restore_generator_streams(true)
+	_try_load_file_stream(_music, MENU_THEME_PATH)
 	_apply_reverb_preset("cathedral")
 	_fade_out_player(_combat_layer, _crossfade)
 	_fade_out_player(_ambience, _crossfade)
+	# The theme carries its own harmony, so the second generator layer that used to pad it out
+	# would only fight it.
+	_fade_out_player(_explore, _crossfade)
 	_fade_in_player(_music)
-	_fade_in_player(_explore)
 
 
 func play_hub_ambience() -> void:
@@ -387,10 +396,10 @@ func play_hub_ambience() -> void:
 	_intensity = 0.0
 	_layer_base_db.clear()
 	_restore_generator_streams(true)
+	_try_load_file_stream(_music, HUB_THEME_PATH)
 	_apply_reverb_preset("umbral")
 	_fade_out_player(_combat_layer, _crossfade)
 	_fade_out_player(_explore, _crossfade)
-	_fade_out_player(_music, _crossfade)
 	_fade_in_player(_ambience)
 	_fade_in_player(_music)
 
@@ -462,6 +471,64 @@ func play_sfx(kind: String, world_pos: Variant = null, surface: String = "stone"
 
 func play_ui_sfx() -> void:
 	play_sfx("ui")
+
+
+## Short audible cue routed through a specific bus, for the Test buttons on the Audio settings
+## page.
+##
+## Every one of those buttons used to play the UI click, which lives on the UI bus — so testing
+## Music or Ambience played a sound governed by a different slider than the one being dragged, and
+## dragging Music to zero left its Test button as loud as ever. Routing the preview through the bus
+## under test is the whole point of the control.
+func preview_bus(bus: StringName) -> void:
+	var idx := AudioServer.get_bus_index(bus)
+	if idx < 0:
+		play_ui_sfx()
+		return
+	var preview := AudioStreamPlayer.new()
+	preview.name = "BusPreview"
+	preview.bus = bus
+	preview.stream = _preview_tone_for_bus(bus)
+	add_child(preview)
+	preview.finished.connect(preview.queue_free)
+	preview.play()
+
+
+## Distinct pitch per bus so the player can hear which channel answered.
+func _preview_tone_for_bus(bus: StringName) -> AudioStream:
+	var freq := 440.0
+	match bus:
+		&"Music":
+			freq = _music_freq * 2.0
+		&"Ambience":
+			freq = _ambience_freq * 2.0
+		&"SFX":
+			freq = 330.0
+		_:
+			freq = 523.25
+	return _make_tone_stream(freq, 0.22)
+
+
+## Short 16-bit sine burst with a soft attack and decay, so a preview reads as a tone rather than
+## as two clicks where the waveform starts and stops.
+func _make_tone_stream(freq: float, seconds: float) -> AudioStreamWAV:
+	var rate := int(MIX_RATE)
+	var frames := maxi(1, int(rate * seconds))
+	var attack := maxf(1.0, float(frames) * 0.05)
+	var release := maxf(1.0, float(frames) * 0.45)
+	var data := PackedByteArray()
+	data.resize(frames * 2)
+	for i in frames:
+		var envelope := minf(float(i) / attack, minf(1.0, float(frames - i) / release))
+		var sample := sin(TAU * freq * (float(i) / float(rate))) * envelope * 0.35
+		var value := int(clampf(sample, -1.0, 1.0) * 32767.0)
+		data.encode_s16(i * 2, value)
+	var stream := AudioStreamWAV.new()
+	stream.format = AudioStreamWAV.FORMAT_16_BITS
+	stream.mix_rate = rate
+	stream.stereo = false
+	stream.data = data
+	return stream
 
 
 func play_cue(cue_name: StringName, world_pos: Variant = null) -> void:

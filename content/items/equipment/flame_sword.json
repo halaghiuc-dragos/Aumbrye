@@ -9,8 +9,8 @@
   "description": "Runes along the fuller smolder even when the blade rests.",
   "value": 20,
   "stats": {
-    "fireDamage": 8,
-    "physicalDamage": 20
+    "fireDamage": 10,
+    "physicalDamage": 25
   },
   "equipmentSlot": "weapon",
   "weaponId": "castle_sword"

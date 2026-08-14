@@ -79,9 +79,9 @@ func _on_line_changed(speaker: String, text: String, choices: Array) -> void:
 	_apply_subtitle_scale()
 	_rebuild_choices(choices)
 	if choices.is_empty():
-		_hint_label.text = "Enter to continue — Esc to close"
+		_hint_label.text = tr("DIALOGUE_HINT_CONTINUE")
 	else:
-		_hint_label.text = "D-pad + Enter to choose — Esc to close"
+		_hint_label.text = tr("DIALOGUE_HINT_CHOOSE")
 
 
 func refresh_accessibility() -> void:

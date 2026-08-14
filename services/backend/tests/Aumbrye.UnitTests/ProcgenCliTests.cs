@@ -76,20 +76,52 @@ public class ProcgenCliTests
     private static string ProcgenCliBinaryFileName =>
         RuntimeInformation.IsOSPlatform(OSPlatform.Windows) ? "procgen-cli.exe" : "procgen-cli";
 
+    /// <summary>
+    /// Locates the CLI without hardcoding a target framework.
+    /// </summary>
+    /// <remarks>
+    /// The copy next to the test assembly is preferred because the build guarantees it matches the
+    /// library under test. Pinning "net8.0" here meant that after the move to net10.0 the test
+    /// silently picked up stale build output from the previous framework.
+    /// </remarks>
     private static string? FindProcgenCliBinary()
     {
-        var repoRoot = FindRepoRoot();
-        var cliDir = Path.Combine(repoRoot, "tools", "procgen-cli");
         var name = ProcgenCliBinaryFileName;
 
-        string[] candidates =
-        [
-            Path.Combine(cliDir, "publish", name),
-            Path.Combine(cliDir, "bin", "Release", "net8.0", name),
-            Path.Combine(cliDir, "bin", "Debug", "net8.0", name),
-        ];
+        var alongsideTests = Path.Combine(AppContext.BaseDirectory, name);
+        if (File.Exists(alongsideTests))
+            return alongsideTests;
 
-        return candidates.FirstOrDefault(File.Exists);
+        var cliDir = Path.Combine(FindRepoRoot(), "tools", "procgen-cli");
+        var published = Path.Combine(cliDir, "publish", name);
+        if (File.Exists(published))
+            return published;
+
+        var binDir = Path.Combine(cliDir, "bin");
+        if (!Directory.Exists(binDir))
+            return null;
+
+        return Directory.EnumerateFiles(binDir, name, SearchOption.AllDirectories)
+            .OrderByDescending(File.GetLastWriteTimeUtc)
+            .FirstOrDefault();
+    }
+
+    /// <summary>
+    /// Points a spawned apphost at the runtime hosting this test run, so a side-by-side or
+    /// user-local .NET install resolves the same way it does for the test host itself.
+    /// </summary>
+    private static void ForwardDotnetRoot(ProcessStartInfo startInfo)
+    {
+        if (!string.IsNullOrEmpty(Environment.GetEnvironmentVariable("DOTNET_ROOT")))
+            return;
+
+        var host = Environment.ProcessPath;
+        if (string.IsNullOrEmpty(host))
+            return;
+
+        var hostDir = Path.GetDirectoryName(host);
+        if (!string.IsNullOrEmpty(hostDir) && Directory.Exists(Path.Combine(hostDir, "shared")))
+            startInfo.Environment["DOTNET_ROOT"] = hostDir;
     }
 
     private static (int ExitCode, string Stdout, string Stderr) RunCli(string csproj, string args)
@@ -106,6 +138,7 @@ public class ProcgenCliTests
                 RedirectStandardError = true,
                 UseShellExecute = false,
             };
+            ForwardDotnetRoot(startInfo);
         }
         else
         {

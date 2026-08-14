@@ -23,16 +23,30 @@ var _biome_id := BiomeRegistry.BIOME_CASTLE
 
 
 func _ready() -> void:
-	_barrier = get_node("Barrier") as StaticBody3D
-	_barrier_shape = _barrier.get_node("BarrierShape") as CollisionShape3D
-	_barrier_mesh = _barrier.get_node_or_null("MeshInstance3D") as MeshInstance3D
-	_interact_area = get_node("InteractArea") as Area3D
-	_label = get_node("Label3D") as Label3D
+	_resolve_nodes()
 	_label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	_interact_area.body_entered.connect(_on_body_entered)
 	_interact_area.body_exited.connect(_on_body_exited)
 	_apply_barrier_visual()
 	_update_label()
+
+
+## Idempotent, and called from `configure()` as well as `_ready()`.
+##
+## DungeonBuilder configures the door on the instantiated scene before it adds it to the tree, so
+## `_ready()` has not run yet and every one of these references was still null — `configure()`
+## then threw on the barrier's `disabled` and the label's `visible` on every dungeon build. The
+## children exist as soon as the scene is instantiated, so they can be resolved on demand.
+func _resolve_nodes() -> void:
+	if _barrier != null:
+		return
+	_barrier = get_node_or_null("Barrier") as StaticBody3D
+	if _barrier == null:
+		return
+	_barrier_shape = _barrier.get_node_or_null("BarrierShape") as CollisionShape3D
+	_barrier_mesh = _barrier.get_node_or_null("MeshInstance3D") as MeshInstance3D
+	_interact_area = get_node_or_null("InteractArea") as Area3D
+	_label = get_node_or_null("Label3D") as Label3D
 
 
 func configure(
@@ -45,6 +59,7 @@ func configure(
 	_requirement = requirement
 	_floor = floor
 	_locks = locks
+	_resolve_nodes()
 	set_meta("biome_id", biome_id)
 	DioramaSkin.build_boss_door_frame(self, biome_id)
 	if _barrier_mesh:
@@ -157,6 +172,8 @@ func _on_body_exited(body: Node3D) -> void:
 
 
 func _apply_barrier_visual() -> void:
+	if _barrier_shape == null:
+		return
 	var solid := _state in [State.LOCKED, State.CLOSED, State.SEALED]
 	_barrier_shape.disabled = not solid
 	if _barrier_mesh:
@@ -164,6 +181,8 @@ func _apply_barrier_visual() -> void:
 
 
 func _update_label() -> void:
+	if _label == null:
+		return
 	if not _near_player:
 		_label.visible = false
 		return

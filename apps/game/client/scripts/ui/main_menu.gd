@@ -23,6 +23,7 @@ func _ready() -> void:
 	AudioDirector.play_menu_music()
 	_build_ui()
 	_connect_global_settings()
+	LocaleSettings.connect_changed(_on_locale_changed)
 	_character_create = CHARACTER_CREATE_SCENE.instantiate() as Control
 	_character_create.name = "CharacterCreateUI"
 	add_child(_character_create)
@@ -38,12 +39,21 @@ func _ready() -> void:
 
 func _build_ui() -> void:
 	set_anchors_preset(Control.PRESET_FULL_RECT)
-	var backdrop := ColorRect.new()
-	backdrop.color = Color(0.02, 0.02, 0.06, 1.0)
-	backdrop.set_anchors_preset(Control.PRESET_FULL_RECT)
-	add_child(backdrop)
+	# Named and reused: _build_ui() runs again on a language change, and an unnamed backdrop would
+	# stack a fresh opaque rect over the menu every time.
+	var backdrop := get_node_or_null("Backdrop") as ColorRect
+	if backdrop == null:
+		backdrop = GameUISkinScript.make_backdrop(self)
+		# The title screen is the one backdrop that is not laid over a live world, so it stays
+		# fully opaque; everything else about it — the vignette, the edge tint — is shared with
+		# every other menu rather than being a second, slightly different dark rectangle.
+		backdrop.color = Color(0.02, 0.02, 0.06, 1.0)
+		move_child(backdrop, 0)
+	# The half-size is a floor, not a fixed size — a PanelContainer still grows to fit whatever it
+	# holds. Asking for 540px of height around ~330px of buttons left a third of the first screen
+	# in the game as empty framed void under the last button.
 	_menu_panel = GameUISkinScript.make_center_panel(
-		self, GameUISkinScript.MENU_HALF_W + 60.0, GameUISkinScript.MENU_HALF_H + 120.0
+		self, GameUISkinScript.MENU_HALF_W + 60.0, GameUISkinScript.MENU_HALF_H - 40.0
 	)
 	_menu_panel.name = "MenuPanel"
 	var margin := MarginContainer.new()
@@ -61,22 +71,35 @@ func _build_ui() -> void:
 	GameUISkinScript.style_menu_title(title)
 	vbox.add_child(title)
 	var subtitle := Label.new()
-	subtitle.text = "Echo of the Fallen Warden"
+	subtitle.text = tr("MENU_SUBTITLE")
 	subtitle.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	GameUISkinScript.style_body_label(subtitle)
 	vbox.add_child(subtitle)
-	vbox.add_child(_menu_button("New Game", _on_new_game))
-	var continue_btn := _menu_button("Continue", _on_continue)
+	vbox.add_child(_menu_button(tr("MENU_NEW_GAME"), _on_new_game))
+	var continue_btn := _menu_button(tr("MENU_CONTINUE"), _on_continue)
 	continue_btn.name = "ContinueButton"
 	vbox.add_child(continue_btn)
-	vbox.add_child(_menu_button("Settings", _on_settings))
-	vbox.add_child(_menu_button("Quit Game", _on_quit_pressed))
+	vbox.add_child(_menu_button(tr("MENU_SETTINGS"), _on_settings))
+	vbox.add_child(_menu_button(tr("MENU_QUIT"), _on_quit_pressed))
 	var hint := Label.new()
-	hint.text = "Esc: quit"
+	hint.text = tr("MENU_HINT_QUIT")
 	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	GameUISkinScript.style_hint_label(hint)
 	vbox.add_child(hint)
 	_refresh_continue_button()
+
+
+func _exit_tree() -> void:
+	LocaleSettings.disconnect_changed(_on_locale_changed)
+
+
+## The front end is built once from translated literals, so a language chosen in Settings would
+## otherwise leave this menu in the old language until the game restarted.
+func _on_locale_changed() -> void:
+	if _menu_panel and is_instance_valid(_menu_panel):
+		_menu_panel.queue_free()
+	_menu_panel = null
+	_build_ui()
 
 
 func _menu_button(text: String, on_pressed: Callable) -> Button:

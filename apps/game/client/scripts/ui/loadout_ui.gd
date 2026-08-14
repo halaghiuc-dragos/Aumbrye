@@ -3,6 +3,7 @@ extends Control
 ## Hub weapon loadout — swap between unlocked archetypes (WPN-5.5).
 
 const GameUISkinScript := preload("res://scripts/ui/game_ui_skin.gd")
+const ItemListPresenterScript := preload("res://scripts/ui/item_list_presenter.gd")
 
 signal closed
 
@@ -24,6 +25,7 @@ func _ready() -> void:
 	visible = false
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	GameUISkinScript.apply_modal_menu(self, "Panel", "Dimmer")
+	ItemListPresenterScript.configure(_list)
 	_equip_btn.pressed.connect(_on_equip_pressed)
 	_close_btn.pressed.connect(close)
 	_list.item_selected.connect(_on_item_selected)
@@ -63,10 +65,13 @@ func _refresh_list() -> void:
 			continue
 		var def: Dictionary = ItemCatalog.get_definition(item_id)
 		var label: String = str(def.get("name", item_id))
-		if InventoryService.inventory.get_equipped_weapon_id() == item_id:
-			label = "[Equipped] %s" % label
-		_list.add_item(label)
-		_list.set_item_metadata(_list.item_count - 1, item_id)
+		var equipped := InventoryService.inventory.get_equipped_weapon_id() == item_id
+		if equipped:
+			label = tr("LOADOUT_EQUIPPED_ROW") % label
+		var index := ItemListPresenterScript.add_row(_list, item_id, def, label)
+		if equipped:
+			_list.set_item_custom_fg_color(index, GameUISkinScript.TITLE_COLOR)
+		_list.set_item_metadata(index, item_id)
 
 
 func _is_weapon_unlocked(item_id: String) -> bool:

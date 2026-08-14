@@ -10,6 +10,18 @@ const SCORE_ANGLE_WEIGHT := 0.75
 const SCORE_THREAT_WEIGHT := 0.5
 const SCORE_PRIORITY_WEIGHT := 0.5
 const SWITCH_COOLDOWN_STICK := 0.15
+
+## Effective ranges, after the accessibility "Lock-On Range" multiplier.
+##
+## The constants below are the authored baseline; the setting scaled neither of them before, so
+## the slider moved without effect. Acquire and break are scaled together so the lock does not
+## become easier to gain than to keep.
+static func acquire_range() -> float:
+	return LOCK_ACQUIRE_RANGE * AccessibilitySettings.lock_on_range_scale()
+
+
+static func break_range() -> float:
+	return LOCK_BREAK_RANGE * AccessibilitySettings.lock_on_range_scale()
 const SWITCH_COOLDOWN_WHEEL := 0.05
 const ORBIT_RADIUS := 1.75
 const SWITCH_THRESHOLD := 0.55
@@ -185,7 +197,7 @@ func _update_lock(delta: float) -> void:
 	if not _player:
 		return
 	var planar := _planar_distance_to(current_target)
-	if planar > LOCK_BREAK_RANGE:
+	if planar > break_range():
 		_break_grace_timer -= delta
 		if _break_grace_timer <= 0.0:
 			_break_lock()
@@ -341,7 +353,7 @@ func _find_best_target(require_los: bool = true, ignore_cone: bool = false) -> N
 		var offset := enemy.global_position - _player.global_position
 		offset.y = 0.0
 		var distance := offset.length()
-		if distance > LOCK_ACQUIRE_RANGE or distance < 0.01:
+		if distance > acquire_range() or distance < 0.01:
 			continue
 		if _vertical_delta_to(enemy) > LOCK_VERTICAL_LIMIT:
 			continue
@@ -360,7 +372,7 @@ func _find_best_target(require_los: bool = true, ignore_cone: bool = false) -> N
 		if enemy.has_method("get_lock_priority"):
 			priority = float(enemy.call("get_lock_priority"))
 		var score := (
-			SCORE_DISTANCE_WEIGHT * (distance / LOCK_ACQUIRE_RANGE)
+			SCORE_DISTANCE_WEIGHT * (distance / acquire_range())
 			+ SCORE_ANGLE_WEIGHT * (angle / LOCK_PICK_CONE_DEG)
 			- SCORE_THREAT_WEIGHT * threat
 			- SCORE_PRIORITY_WEIGHT * priority

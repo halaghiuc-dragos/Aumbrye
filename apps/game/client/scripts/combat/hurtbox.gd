@@ -126,6 +126,12 @@ func receive_hit(info: DamageInfo) -> void:
 	if _poise and _poise.is_broken():
 		final_amount *= POISE_BROKEN_DAMAGE_MULT
 
+	# Applied last, after every combat modifier, so the accessibility multiplier scales what the
+	# player actually loses rather than an intermediate figure. Enemies are untouched: this is an
+	# assist for the person holding the controller, not a global difficulty dial.
+	if team == "player":
+		final_amount = AccessibilitySettings.scale_incoming_player_damage(final_amount)
+
 	res.outgoing = final_amount
 	res.poise_outgoing = final_poise
 
@@ -289,7 +295,13 @@ func _emit_attacker_feedback(
 	if feedback == null or not feedback.has_method("on_hit"):
 		return
 	feedback.call(
-		"on_hit", _cached_character_body, damage, info.direction, info.damage_type, impact
+		"on_hit",
+		_cached_character_body,
+		damage,
+		info.direction,
+		info.damage_type,
+		impact,
+		bool(info.crit)
 	)
 
 
@@ -440,7 +452,10 @@ func _resolve_status_controller() -> StatusController:
 	ctrl = StatusController.new()
 	ctrl.name = "StatusController"
 	ctrl.team = team
-	body.add_child(ctrl)
+	# Deferred: this resolver runs from _ready, while the parent is still adding its own children,
+	# and a direct add_child() there fails outright — every enemy spawned without the status
+	# controller it needs for burns, bleeds and other applied effects.
+	body.add_child.call_deferred(ctrl)
 	ctrl.set_health(_health)
 	_status_controller = ctrl
 	return ctrl

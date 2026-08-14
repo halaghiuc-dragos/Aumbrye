@@ -34,12 +34,12 @@ func _build_ui() -> void:
 	vbox.add_theme_constant_override("separation", 12)
 	margin.add_child(vbox)
 	var title := Label.new()
-	title.text = "Entering Aumbrye Tower"
+	title.text = tr("LOADING_ENTERING")
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	GameUISkinScript.style_menu_title(title)
 	vbox.add_child(title)
 	_status_label = Label.new()
-	_status_label.text = "Preparing your warden..."
+	_status_label.text = tr("LOADING_PREPARING")
 	_status_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	GameUISkinScript.style_body_label(_status_label)
 	vbox.add_child(_status_label)
@@ -50,14 +50,14 @@ func _run_boot() -> void:
 		return
 	_started = true
 	var timer := get_tree().create_timer(MIN_DISPLAY_SEC)
-	_status_label.text = "Syncing echo..."
+	_status_label.text = tr("LOADING_SYNCING")
 	await timer.timeout
 	var ok := LocalSave.execute_boot()
 	if not ok:
-		_status_label.text = "Could not load save — returning to menu."
+		_status_label.text = tr("LOADING_SAVE_FAILED")
 		await get_tree().create_timer(1.2).timeout
 		SceneTransition.goto(get_tree(), "res://scenes/ui/main_menu.tscn")
 		return
-	_status_label.text = "Opening the hub..."
+	_status_label.text = tr("LOADING_OPENING_HUB")
 	await get_tree().process_frame
-	SceneTransition.goto(get_tree(), HUB_SCENE, "Opening the hub...")
+	SceneTransition.goto(get_tree(), HUB_SCENE, tr("LOADING_OPENING_HUB"))

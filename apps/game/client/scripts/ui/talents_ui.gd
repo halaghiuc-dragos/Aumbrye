@@ -5,6 +5,12 @@ extends Control
 const GameUISkinScript := preload("res://scripts/ui/game_ui_skin.gd")
 const MenuShellScript := preload("res://scripts/ui/menu_shell.gd")
 
+## The one stat whose meaning changes with where it came from: gear rolls `physicalDamage` as flat
+## points and Equipment formats it that way, but a talent grants it as a multiplier, so the shared
+## formatter renders a 3% node as "+0 Physical Damage". The other damage keys in the tree
+## (arcane, fire, frost, poison, bonus) really are flat there, so only this one is special.
+const MULTIPLIER_DAMAGE_STAT := "physicalDamage"
+
 signal closed
 
 var _node_list: ItemList
@@ -25,7 +31,7 @@ func _ready() -> void:
 
 
 func _build_ui() -> void:
-	var shell: Dictionary = MenuShellScript.build_modal(self, "Talents", 340.0, 260.0)
+	var shell: Dictionary = MenuShellScript.build_modal(self, tr("TALENTS_TITLE"), 340.0, 230.0)
 	var vbox: VBoxContainer = shell["content_vbox"]
 	_points_label = Label.new()
 	_points_label.name = "PointsLabel"
@@ -38,7 +44,7 @@ func _build_ui() -> void:
 	_detail_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	GameUISkinScript.style_body_label(_detail_label)
 	vbox.add_child(_detail_label)
-	MenuShellScript.add_hint(vbox, "Enter: unlock | Esc: close")
+	MenuShellScript.add_hint(vbox, tr("TALENTS_HINT"))
 
 
 func is_open() -> bool:
@@ -112,7 +118,7 @@ func _refresh() -> void:
 			)
 		)
 	if _points_label:
-		_points_label.text = "Points: %d" % ProgressionService.get_available_talent_points()
+		_points_label.text = tr("TALENTS_POINTS") % ProgressionService.get_available_talent_points()
 	_cursor = clampi(_cursor, 0, maxi(0, _nodes.size() - 1))
 	if _nodes.size() > 0:
 		_node_list.select(_cursor)
@@ -130,26 +136,18 @@ func _update_detail() -> void:
 			continue
 		var stat: String = str(effect.get("stat", ""))
 		var value: float = float(effect.get("valuePerRank", 0.0))
-		if (
-			stat
-			in [
-				"physicalDamage",
-				"critChance",
-				"poiseDamage",
-				"blockReduction",
-				"damageReduction",
-				"staminaRegen",
-				"staminaCostReduction",
-				"moveSpeed",
-				"lootQuality",
-				"xpGain",
-				"goldFind",
-				"cooldownReduction"
-			]
-		):
-			effect_lines.append("%s +%.0f%%" % [stat, value * 100.0])
+		# Equipment already knows every stat's display name and whether it reads as a flat number,
+		# a percentage or a fraction, and it carries the sign itself. The local copy of that
+		# knowledge printed the raw key ("physicalDamage +3%"), fell back to a bare float for
+		# anything missing from its hardcoded list, and would have produced "+-3%" for a talent
+		# with a downside.
+		var line := ""
+		if stat == MULTIPLIER_DAMAGE_STAT:
+			line = "%+.0f%% %s" % [value * 100.0, Equipment.stat_display_name(stat)]
 		else:
-			effect_lines.append("%s +%s" % [stat, value])
+			line = Equipment.format_stat_line(stat, value)
+		if line != "":
+			effect_lines.append(line)
 	var can := ProgressionService.can_unlock_talent(node.get("id", ""))
 	var display_name: String = _talent_display_name(node)
 	_detail_label.text = (
@@ -157,7 +155,7 @@ func _update_detail() -> void:
 		% [
 			display_name,
 			", ".join(effect_lines),
-			"Can unlock" if can else "Locked",
+			tr("TALENTS_CAN_UNLOCK") if can else tr("TALENTS_LOCKED"),
 		]
 	)
 

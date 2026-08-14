@@ -88,7 +88,8 @@ public sealed record CompleteRunInput(
     double ElapsedSeconds,
     bool BossDefeated,
     IReadOnlyList<string> LootClaimedInstanceIds,
-    int Floor = 1);
+    int Floor = 1,
+    int Kills = 0);
 
 public sealed record CompleteRunResult(
     bool Success,

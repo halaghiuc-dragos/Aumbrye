@@ -223,6 +223,23 @@ func play_block(world_pos: Vector3, forward: Vector3 = Vector3.FORWARD) -> void:
 	play("block", world_pos, forward)
 
 
+## Kick-off dust for a roll or backstep.
+##
+## `travel` is the direction the player is going; the burst is aimed against it so the dust is
+## left behind rather than pushed ahead, which is what makes the roll read as having launched off
+## the ground instead of gliding.
+##
+## No hitstop and no shake layer, deliberately. A dodge is the one action that must never cost the
+## player a frame of control, and shaking the camera during an evade fights the thing the evade
+## exists to do — see the readability rule in `hit_feedback.gd`.
+func play_dodge(world_pos: Vector3, travel: Vector3 = Vector3.FORWARD) -> void:
+	var back := -travel
+	back.y = 0.0
+	if back.length_squared() < 0.0001:
+		back = Vector3.BACK
+	play("dodge", world_pos, back.normalized())
+
+
 func play_parry(world_pos: Vector3, forward: Vector3 = Vector3.FORWARD) -> void:
 	play("parry", world_pos, forward)
 
@@ -235,6 +252,17 @@ func play_hit_spark(
 	world_pos: Vector3, direction: Vector3 = Vector3.UP, normal: Vector3 = Vector3.UP
 ) -> void:
 	play("hit_spark", world_pos, direction, Color(0, 0, 0, 0), normal)
+
+
+## The louder cousin of play_hit_spark, for a hit that actually rolled a critical.
+##
+## A crit is a designed mechanic with a stat behind it — every class carries a critChance rating —
+## but it produced exactly the same spark as any other hit, so the roll landing was invisible
+## unless the damage happened to cross the impact-class threshold on its own.
+func play_crit_spark(
+	world_pos: Vector3, direction: Vector3 = Vector3.UP, normal: Vector3 = Vector3.UP
+) -> void:
+	play("crit_spark", world_pos, direction, Color(0, 0, 0, 0), normal)
 
 
 func play_blood_decal(
@@ -313,13 +341,23 @@ func play_telegraph(
 	var effect_id := "telegraph_%s" % shape
 	if not _effects.has(effect_id):
 		effect_id = "telegraph_circle"
+	# Single point where the "Emphasise Attack Tells" assist is honoured. Duration is left alone on
+	# purpose — the setting should make a wind-up easier to see, not give the player more time than
+	# the attack actually allows.
+	var emphasised_tint := AccessibilitySettings.emphasise_telegraph_tint(tint)
+	var emphasised_radius := radius * AccessibilitySettings.telegraph_radius_scale()
 	play(
 		effect_id,
 		world_pos,
 		forward,
-		tint,
+		emphasised_tint,
 		Vector3.UP,
-		{"radius": radius, "duration": duration, "shape": shape, "forward": forward}
+		{
+			"radius": emphasised_radius,
+			"duration": duration,
+			"shape": shape,
+			"forward": forward,
+		}
 	)
 
 

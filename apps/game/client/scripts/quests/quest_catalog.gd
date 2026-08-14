@@ -5,6 +5,11 @@ class_name QuestCatalog
 
 const QUEST_DIR := "content/quests"
 
+## Owned by DungeonQuestCatalog, which reads it as a single collection of floor-NPC bindings
+## rather than as one quest per file. It shares this directory, so the walk below has to pass over
+## it instead of reporting it as a quest with no id.
+const FOREIGN_FILES: PackedStringArray = ["dungeon_quests.json"]
+
 static var _definitions: Dictionary = {}
 static var _load_attempted := false
 
@@ -31,4 +36,6 @@ static func _ensure_loaded() -> void:
 	if _load_attempted:
 		return
 	_load_attempted = true
-	_definitions = ContentDirLoader.load_id_map([QUEST_DIR], "id", "QuestCatalog", false, true)
+	_definitions = ContentDirLoader.load_id_map(
+		[QUEST_DIR], "id", "QuestCatalog", false, true, FOREIGN_FILES
+	)

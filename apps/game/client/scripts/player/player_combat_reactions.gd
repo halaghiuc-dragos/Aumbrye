@@ -42,6 +42,7 @@ var _heal: PlayerHeal
 var _orbit_camera: Node
 var _stagger_timer := 0.0
 var _last_poise_damage := STAGGER_POISE_LOW
+var _distress_active := false
 var _last_hit_direction := Vector3.ZERO
 var _wakeup_iframes_active := false
 var _death_sequence_running := false
@@ -199,7 +200,28 @@ func _cancel_stagger() -> void:
 func _on_health_changed(current: float, max_value: float) -> void:
 	if not CombatEvents or max_value <= 0.0:
 		return
-	CombatEvents.notify_health_ratio(current / max_value, _body)
+	var ratio := current / max_value
+	CombatEvents.notify_health_ratio(ratio, _body)
+	_update_distress(ratio)
+
+
+## Mirrors the latch in `CombatEvents.notify_health_ratio` so the vignette and the `onLowHealth`
+## affix trigger agree on where the threshold is, including its hysteresis band — without that
+## deadband, a damage-over-time tick sitting exactly on 30% would strobe the whole screen.
+##
+## Only the player gets this: it is a first-person read on your own condition, not a property of
+## every actor that happens to be hurt.
+func _update_distress(ratio: float) -> void:
+	if _body == null or not _body.is_in_group("player"):
+		return
+	if ratio <= CombatEvents.LOW_HEALTH_RATIO:
+		_distress_active = true
+	elif ratio > CombatEvents.LOW_HEALTH_RATIO + 0.05:
+		_distress_active = false
+	else:
+		return
+	if PixelDioramaViewport and PixelDioramaViewport.has_method("set_distress"):
+		PixelDioramaViewport.call("set_distress", _distress_active)
 
 
 func _on_poise_damaged(amount: float, _remaining: float) -> void:

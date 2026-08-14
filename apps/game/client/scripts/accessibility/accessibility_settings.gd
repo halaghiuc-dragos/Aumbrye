@@ -105,6 +105,43 @@ static func _refresh_reduced_motion() -> void:
 	)
 
 
+## Combat assists. Each of these had a slider on the Accessibility page, was saved and reloaded,
+## and was read by nothing at all — four settings the player could move that changed no part of
+## the game. The helpers below are the single place each one is honoured.
+
+
+## Scales a hit about to land on the player. Below 1.00x softens runs; never touches enemies.
+static func scale_incoming_player_damage(amount: float) -> float:
+	if amount <= 0.0 or is_equal_approx(assist_damage_taken, ASSIST_DAMAGE_TAKEN_DEFAULT):
+		return amount
+	return amount * assist_damage_taken
+
+
+## Multiplier on how far the player can acquire and hold a lock-on target.
+static func lock_on_range_scale() -> float:
+	return maxf(0.01, assist_lock_on_range)
+
+
+## How much larger an attack telegraph is drawn when emphasis is on.
+const TELEGRAPH_EMPHASIS_RADIUS_SCALE := 1.12
+
+
+## Pushes an attack telegraph's colour towards a brighter, fully opaque version of itself.
+##
+## Deliberately keeps the hue: the telegraph's colour already carries which attack is coming, and
+## recolouring every wind-up to one warning colour would trade one readability problem for another.
+static func emphasise_telegraph_tint(tint: Color) -> Color:
+	if not assist_telegraph_emphasis:
+		return tint
+	var boosted := tint.lightened(0.28)
+	boosted.a = maxf(tint.a, 0.92)
+	return boosted
+
+
+static func telegraph_radius_scale() -> float:
+	return TELEGRAPH_EMPHASIS_RADIUS_SCALE if assist_telegraph_emphasis else 1.0
+
+
 static func camera_shake_scale() -> float:
 	return 0.0 if reduce_camera_shake else camera_shake_intensity
 

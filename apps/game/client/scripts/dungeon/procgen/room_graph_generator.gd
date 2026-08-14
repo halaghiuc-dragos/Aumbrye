@@ -16,6 +16,11 @@ const DIR_WEST := Vector2i(-1, 0)
 const DIRECTIONS: Array[Vector2i] = [DIR_NORTH, DIR_EAST, DIR_SOUTH, DIR_WEST]
 const HEIGHT_RUN_LENGTH := 4
 
+## Fraction of the generation attempts that must produce a looping layout before the requirement
+## is dropped. Generation failing outright is far worse than one seed in a few hundred laying out
+## as a tree.
+const LOOP_STRICT_ATTEMPT_FRACTION := 0.75
+
 const DIR_TO_DOOR := {
 	Vector2i(0, -1): RoomGraphSlotScript.DOOR_NORTH,
 	Vector2i(1, 0): RoomGraphSlotScript.DOOR_EAST,
@@ -43,9 +48,16 @@ static func generate_reported(config: RoomGraphConfig, run_seed: int) -> Generat
 	var report := GenerationReport.new()
 	var rng := RandomNumberGenerator.new()
 	rng.seed = run_seed
+	# Circularity is a preference, not a precondition. Enforcing it as a hard validation rule for
+	# every attempt made whole seeds ungeneratable — a biome with height levels and a high dead-end
+	# floor can produce a layout where no two adjacent rooms are both far apart on the route and
+	# within one height level of each other. Insisting on a loop for most of the attempt budget
+	# gets the circular layout nearly always, and standing down for the rest guarantees the run
+	# still gets a dungeon.
+	var strict_attempts := int(config.max_generation_attempts * LOOP_STRICT_ATTEMPT_FRACTION)
 	for attempt in config.max_generation_attempts:
 		report.attempts = attempt + 1
-		var graph := _try_generate_once(config, rng)
+		var graph := _try_generate_once(config, rng, attempt < strict_attempts)
 		if graph != null:
 			report.ok = true
 			report.used_fallback = false
@@ -79,7 +91,9 @@ static func generate(config: RoomGraphConfig, run_seed: int) -> Dictionary:
 	}
 
 
-static func _try_generate_once(config: RoomGraphConfig, rng: RandomNumberGenerator) -> RoomGraph:
+static func _try_generate_once(
+	config: RoomGraphConfig, rng: RandomNumberGenerator, require_loops: bool = true
+) -> RoomGraph:
 	var graph := RoomGraphScript.new()
 	graph.config = config
 	var target_rooms := rng.randi_range(config.min_rooms, config.max_rooms)
@@ -105,7 +119,7 @@ static func _try_generate_once(config: RoomGraphConfig, rng: RandomNumberGenerat
 	_assign_special_rooms(graph, rng, config)
 	_place_secret_attachments(graph, rng, config)
 	_apply_secret_door_masks(graph)
-	if not _validate_graph(graph, config).get("ok", false):
+	if not _validate_graph(graph, config, require_loops).get("ok", false):
 		return null
 	return graph
 
@@ -315,32 +329,108 @@ static func _apply_door_connections(
 		slot.door_mask = 0
 	for edge in graph.walk_edges:
 		_set_door_between(graph, edge["a"], edge["b"])
-	var loop_candidates: Array = []
-	var seen_loops := {}
-	for cell in graph.slots:
-		var slot: RoomGraphSlot = graph.slots[cell]
-		if slot.slot_type == RoomGraphSlotScript.SlotType.SECRET:
+	graph.loop_edges.clear()
+	if rng == null or config == null or config.loop_budget <= 0:
+		return
+	_open_shortcut_loops(graph, rng, config, config.loop_min_detour)
+	if graph.loop_edges.size() < config.loop_budget:
+		_open_shortcut_loops(graph, rng, config, config.loop_fallback_detour)
+
+
+## Opens the doors that fold the level back on itself.
+##
+## The walk leaves a spanning tree, so every pair of adjacent rooms without a door between them is
+## a possible loop. Picking from those at random — which is what this did — almost always produced
+## a door across a 2x2 block: technically a cycle, worth nothing to walk, and indistinguishable
+## from a wider corridor.
+##
+## A shortcut is only interesting in proportion to how much walking it removes, so candidates are
+## scored by their *detour*: the distance between their two sides along the route the player
+## currently has. Distances are recomputed after each opening, which is what stops the budget being
+## spent on three parallel doors that all bypass the same corridor — once the first is open the
+## other two score near zero and drop out on their own.
+static func _open_shortcut_loops(
+	graph: RoomGraph, rng: RandomNumberGenerator, config: RoomGraphConfig, min_detour: int
+) -> void:
+	while graph.loop_edges.size() < config.loop_budget:
+		var distances := _door_bfs_cell_distances(graph)
+		var best: Array = []
+		var best_detour := min_detour - 1
+		var seen := {}
+		for cell in graph.occupied_cells():
+			var slot: RoomGraphSlot = graph.slots[cell]
+			if slot.slot_type == RoomGraphSlotScript.SlotType.SECRET:
+				continue
+			for dir in DIRECTIONS:
+				var neighbor_cell: Vector2i = cell + dir
+				if not graph.slots.has(neighbor_cell):
+					continue
+				var neighbor: RoomGraphSlot = graph.slots[neighbor_cell]
+				if neighbor.slot_type == RoomGraphSlotScript.SlotType.SECRET:
+					continue
+				if slot.door_mask & _dir_to_door(dir):
+					continue
+				# Never spend a dead end on a shortcut. Cul-de-sacs are where the treasure, the
+				# stairs and the shop are placed, and biomes declare a minimum number of them —
+				# scoring purely by detour drove the search straight at them, because the rooms
+				# furthest apart on the route are usually the ends of two different branches.
+				# Opening those doors quietly dissolved the dead-end budget and made whole seeds
+				# fail to generate.
+				if slot.connection_count() <= 1 or neighbor.connection_count() <= 1:
+					continue
+				var key := _edge_key(cell, neighbor_cell)
+				if seen.has(key):
+					continue
+				seen[key] = true
+				if not distances.has(cell) or not distances.has(neighbor_cell):
+					continue
+				# A door between rooms on different height levels would be a drop, not a shortcut,
+				# and the height validator rejects gaps wider than one level outright.
+				if absi(slot.height_level - neighbor.height_level) > 1:
+					continue
+				var detour: int = absi(int(distances[cell]) - int(distances[neighbor_cell]))
+				if detour < best_detour:
+					continue
+				if detour > best_detour:
+					best_detour = detour
+					best.clear()
+				best.append([cell, neighbor_cell])
+		if best.is_empty():
+			return
+		# Every candidate left is tied on detour, so the seed picks between equally good shortcuts
+		# rather than between a good one and a bad one.
+		var pair: Array = best[rng.randi_range(0, best.size() - 1)]
+		_set_door_between(graph, pair[0], pair[1])
+		graph.loop_edges.append(
+			{"key": _edge_key(pair[0], pair[1]), "a": pair[0], "b": pair[1], "detour": best_detour}
+		)
+
+
+## Room-to-room distances from the start over the doors that are currently open, keyed by cell.
+static func _door_bfs_cell_distances(graph: RoomGraph) -> Dictionary:
+	var distances := {}
+	var start := graph.get_slot(graph.start_id)
+	if start == null:
+		return distances
+	distances[start.grid_pos] = 0
+	var queue: Array[Vector2i] = [start.grid_pos]
+	while not queue.is_empty():
+		var cell: Vector2i = queue.pop_front()
+		var slot: RoomGraphSlot = graph.get_slot_at(cell)
+		if slot == null:
 			continue
 		for dir in DIRECTIONS:
+			if not (slot.door_mask & _dir_to_door(dir)):
+				continue
 			var neighbor_cell: Vector2i = cell + dir
-			if not graph.slots.has(neighbor_cell):
+			var neighbor: RoomGraphSlot = graph.get_slot_at(neighbor_cell)
+			if neighbor == null or neighbor.slot_type == RoomGraphSlotScript.SlotType.SECRET:
 				continue
-			var neighbor: RoomGraphSlot = graph.slots[neighbor_cell]
-			if neighbor.slot_type == RoomGraphSlotScript.SlotType.SECRET:
+			if distances.has(neighbor_cell):
 				continue
-			if _has_walk_edge(graph, cell, neighbor_cell):
-				continue
-			var key := _edge_key(cell, neighbor_cell)
-			if seen_loops.has(key):
-				continue
-			seen_loops[key] = true
-			loop_candidates.append([cell, neighbor_cell])
-	if rng != null and config != null and loop_candidates.size() > 0:
-		_shuffle_pairs(loop_candidates, rng)
-		var budget := mini(config.loop_budget, loop_candidates.size())
-		for i in budget:
-			var pair: Array = loop_candidates[i]
-			_set_door_between(graph, pair[0], pair[1])
+			distances[neighbor_cell] = int(distances[cell]) + 1
+			queue.append(neighbor_cell)
+	return distances
 
 
 static func _smooth_height_levels(graph: RoomGraph, config: RoomGraphConfig) -> void:
@@ -382,14 +472,6 @@ static func _record_walk_edge(graph: RoomGraph, from_cell: Vector2i, to_cell: Ve
 	graph.walk_edges.append({"key": key, "a": from_cell, "b": to_cell})
 
 
-static func _has_walk_edge(graph: RoomGraph, a: Vector2i, b: Vector2i) -> bool:
-	var key := _edge_key(a, b)
-	for edge in graph.walk_edges:
-		if edge.get("key", "") == key:
-			return true
-	return false
-
-
 static func _edge_key(a: Vector2i, b: Vector2i) -> String:
 	if a.x < b.x or (a.x == b.x and a.y < b.y):
 		return "%d,%d|%d,%d" % [a.x, a.y, b.x, b.y]
@@ -405,14 +487,6 @@ static func _set_door_between(graph: RoomGraph, cell_a: Vector2i, cell_b: Vector
 	if DIR_TO_DOOR.has(reverse):
 		var slot_b: RoomGraphSlot = graph.slots[cell_b]
 		slot_b.door_mask |= DIR_TO_DOOR[reverse]
-
-
-static func _shuffle_pairs(pairs: Array, rng: RandomNumberGenerator) -> void:
-	for i in range(pairs.size() - 1, 0, -1):
-		var j := rng.randi_range(0, i)
-		var tmp = pairs[i]
-		pairs[i] = pairs[j]
-		pairs[j] = tmp
 
 
 static func _assign_special_rooms(
@@ -668,7 +742,9 @@ static func _fill_bounding_box(graph: RoomGraph, next_index: int) -> int:
 	return next_index
 
 
-static func _validate_graph(graph: RoomGraph, config: RoomGraphConfig) -> Dictionary:
+static func _validate_graph(
+	graph: RoomGraph, config: RoomGraphConfig, require_loops: bool = true
+) -> Dictionary:
 	var main_count := graph.main_slot_count()
 	if main_count < config.min_rooms:
 		_last_validate_reason = "Room count %d below minimum %d" % [main_count, config.min_rooms]
@@ -705,6 +781,13 @@ static func _validate_graph(graph: RoomGraph, config: RoomGraphConfig) -> Dictio
 			dead_ends += 1
 	if dead_ends < config.min_dead_ends:
 		_last_validate_reason = "Not enough dead ends (%d < %d)" % [dead_ends, config.min_dead_ends]
+		return {"ok": false, "reason": _last_validate_reason}
+	# A layout that folds back on itself is a design requirement, not a bonus, so a tree gets
+	# rerolled the same way an under-sized or disconnected one does.
+	if require_loops and config.loop_budget > 0 and graph.loop_edges.size() < config.min_loops:
+		_last_validate_reason = (
+			"Not enough shortcut loops (%d < %d)" % [graph.loop_edges.size(), config.min_loops]
+		)
 		return {"ok": false, "reason": _last_validate_reason}
 	for cell in graph.slots:
 		var slot: RoomGraphSlot = graph.slots[cell]

@@ -19,6 +19,22 @@ var _option: OptionButton
 
 func _ready() -> void:
 	focus_mode = Control.FOCUS_ALL
+	add_theme_stylebox_override("panel", GameUISkinScript.make_row_style())
+	focus_entered.connect(_on_focus_changed.bind(true))
+	focus_exited.connect(_on_focus_changed.bind(false))
+
+
+func _on_focus_changed(focused: bool) -> void:
+	add_theme_stylebox_override("panel", GameUISkinScript.make_row_style(focused))
+
+
+## Clicking anywhere on the row focuses it, so pointer and keyboard agree on which setting is
+## being edited. The widget itself keeps its own click handling.
+func _gui_input(event: InputEvent) -> void:
+	if event is InputEventMouseButton:
+		var click := event as InputEventMouseButton
+		if click.pressed and click.button_index == MOUSE_BUTTON_LEFT:
+			grab_focus()
 
 
 func configure(entry: Dictionary) -> void:
@@ -59,8 +75,13 @@ func _build_toggle() -> void:
 	var getter: Callable = _entry.get("getter", Callable())
 	if getter.is_valid():
 		_toggle.button_pressed = bool(getter.call())
+	_toggle.text = _toggle_text(_toggle.button_pressed)
 	_toggle.toggled.connect(_on_toggle_changed)
 	_widget_host.add_child(_toggle)
+
+
+func _toggle_text(on: bool) -> String:
+	return tr("SETTINGS_VALUE_ON") if on else tr("SETTINGS_VALUE_OFF")
 
 
 func _build_option() -> void:
@@ -108,24 +129,21 @@ func _on_option_selected(idx: int) -> void:
 	_refresh_value()
 
 
+## Only sliders get a value column. A dropdown and a checkbox already state their own value, so
+## repeating it in a third column just read as the same word printed twice per row.
 func _refresh_value() -> void:
 	var format_id := str(_entry.get("format", ""))
-	var value: Variant = null
 	match str(_entry.get("kind", "")):
 		"slider":
+			_value_label.visible = true
 			if _slider:
-				value = _slider.value
+				_value_label.text = SettingsSchemaScript.format_value(format_id, _slider.value)
 		"toggle":
+			_value_label.visible = false
 			if _toggle:
-				value = tr("SETTINGS_VALUE_ON") if _toggle.button_pressed else tr("SETTINGS_VALUE_OFF")
-				_value_label.text = str(value)
-				return
-		"option":
-			if _option:
-				value = _option.get_item_text(_option.selected)
-				_value_label.text = str(value)
-				return
-	_value_label.text = SettingsSchemaScript.format_value(format_id, value)
+				_toggle.text = _toggle_text(_toggle.button_pressed)
+		_:
+			_value_label.visible = false
 
 
 func reset_to_default() -> void:
@@ -148,6 +166,37 @@ func reset_to_default() -> void:
 					getter_default = options.find(default_value)
 				_option.selected = maxi(0, getter_default)
 				_on_option_selected(_option.selected)
+
+
+## Re-reads the setting's current value into the widget without invoking the setter.
+##
+## Some settings move others: "Reduced Motion" drives the three motion scalars, and each motion
+## scalar re-derives "Reduced Motion". Without this the sliders kept showing their old positions
+## while the values underneath had changed, so the page disagreed with the game.
+##
+## Signals are blocked while the value is written, otherwise the assignment fires value_changed and
+## the setter runs again — with the coupled settings above, that recurses.
+func refresh_from_source() -> void:
+	var getter: Callable = _entry.get("getter", Callable())
+	if not getter.is_valid():
+		return
+	match str(_entry.get("kind", "")):
+		"slider":
+			if _slider:
+				_slider.set_block_signals(true)
+				_slider.value = float(getter.call())
+				_slider.set_block_signals(false)
+		"toggle":
+			if _toggle:
+				_toggle.set_block_signals(true)
+				_toggle.button_pressed = bool(getter.call())
+				_toggle.set_block_signals(false)
+		"option":
+			if _option:
+				_option.set_block_signals(true)
+				_option.selected = int(getter.call())
+				_option.set_block_signals(false)
+	_refresh_value()
 
 
 func get_widget() -> Control:

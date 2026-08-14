@@ -148,7 +148,7 @@ public static class SaveStateValidator
                 return $"itemInstances['{instanceId}'] cannot be re-rolled.";
             }
 
-            var claimedRarity = instance["rarity"]?.GetValue<string>();
+            var claimedRarity = ItemRarities.Normalize(instance["rarity"]?.GetValue<string>() ?? "");
             if (!string.Equals(claimedRarity, expected.Rarity, StringComparison.Ordinal))
                 return $"itemInstances['{instanceId}'] claims rarity '{claimedRarity}' but rolls '{expected.Rarity}'.";
 

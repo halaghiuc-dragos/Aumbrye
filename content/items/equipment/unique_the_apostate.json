@@ -27,8 +27,8 @@
     }
   ],
   "stats": {
-    "physicalDamage": 22,
-    "arcaneDamage": 8
+    "physicalDamage": 32,
+    "arcaneDamage": 12
   },
   "weaponId": "greatsword"
 }

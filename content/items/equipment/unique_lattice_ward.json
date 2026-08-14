@@ -32,9 +32,9 @@
     }
   ],
   "stats": {
-    "defense": 20,
-    "blockReduction": 0.1,
-    "resistArcane": 0.14
+    "defense": 29,
+    "blockReduction": 0.147,
+    "resistArcane": 0.205
   },
   "block": {
     "stability": 1.35,

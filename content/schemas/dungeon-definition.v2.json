@@ -51,11 +51,15 @@
     "rooms": {
       "type": "array",
       "minItems": 1,
-      "items": { "$ref": "#/$defs/room" }
+      "items": {
+        "$ref": "#/$defs/room"
+      }
     },
     "edges": {
       "type": "array",
-      "items": { "$ref": "#/$defs/edge" }
+      "items": {
+        "$ref": "#/$defs/edge"
+      }
     },
     "placements": {
       "$ref": "#/$defs/placements"
@@ -77,23 +81,33 @@
     },
     "roomContent": {
       "type": "array",
-      "items": { "$ref": "#/$defs/roomContentEntry" }
+      "items": {
+        "$ref": "#/$defs/roomContentEntry"
+      }
     },
     "locks": {
       "type": "array",
-      "items": { "$ref": "#/$defs/dungeonLock" }
+      "items": {
+        "$ref": "#/$defs/dungeonLock"
+      }
     },
     "puzzles": {
       "type": "array",
-      "items": { "$ref": "#/$defs/dungeonPuzzle" }
+      "items": {
+        "$ref": "#/$defs/dungeonPuzzle"
+      }
     },
     "branchPreviews": {
       "type": "array",
-      "items": { "$ref": "#/$defs/branchPreview" }
+      "items": {
+        "$ref": "#/$defs/branchPreview"
+      }
     },
     "landmarks": {
       "type": "array",
-      "items": { "$ref": "#/$defs/landmark" }
+      "items": {
+        "$ref": "#/$defs/landmark"
+      }
     },
     "checksum": {
       "type": "string"
@@ -103,38 +117,90 @@
       "description": "Sections the generator that produced this definition actually populated. The C# backend/CLI generator emits [\"layout\", \"placements\"] only; the GDScript gameplay generator emits all five. Consumers must branch on this rather than treating an empty roomContent/locks/puzzles as authoritative. See docs/ADR/0002-procgen-authority-split.md.",
       "items": {
         "type": "string",
-        "enum": ["layout", "placements", "roomContent", "locks", "puzzles"]
+        "enum": [
+          "layout",
+          "placements",
+          "roomContent",
+          "locks",
+          "puzzles"
+        ]
       },
       "uniqueItems": true
+    },
+    "floorTheme": {
+      "type": "string",
+      "description": "Floor theme id chosen for this floor."
+    },
+    "floorThemeLabel": {
+      "type": "string",
+      "description": "Player-facing floor theme name, shown on the floor banner by CastleRun."
     }
   },
   "$defs": {
     "roomContentEntry": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["roomId", "contentType"],
+      "required": [
+        "roomId",
+        "contentType"
+      ],
       "properties": {
-        "roomId": { "type": "string", "minLength": 1 },
-        "contentType": { "type": "string", "minLength": 1 },
-        "params": { "type": "object" },
-        "layoutId": { "type": "string" },
-        "templateId": { "type": "string" },
-        "keyId": { "type": "string" },
-        "keyLabel": { "type": "string" },
-        "lockId": { "type": "string" },
-        "questKeyId": { "type": "string" },
-        "dialogueId": { "type": "string" },
-        "flagId": { "type": "string" },
+        "roomId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "contentType": {
+          "type": "string",
+          "minLength": 1
+        },
+        "params": {
+          "type": "object"
+        },
+        "layoutId": {
+          "type": "string"
+        },
+        "templateId": {
+          "type": "string"
+        },
+        "keyId": {
+          "type": "string"
+        },
+        "keyLabel": {
+          "type": "string"
+        },
+        "lockId": {
+          "type": "string"
+        },
+        "questKeyId": {
+          "type": "string"
+        },
+        "dialogueId": {
+          "type": "string"
+        },
+        "flagId": {
+          "type": "string"
+        },
         "items": {
           "type": "array",
           "items": {
             "type": "object",
             "additionalProperties": false,
-            "required": ["itemId", "quantity"],
+            "required": [
+              "itemId",
+              "quantity"
+            ],
             "properties": {
-              "itemId": { "type": "string", "minLength": 1 },
-              "quantity": { "type": "integer", "minimum": 1 },
-              "instanceId": { "type": "string" }
+              "itemId": {
+                "type": "string",
+                "minLength": 1
+              },
+              "quantity": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "instanceId": {
+                "type": "string"
+              }
             }
           }
         }
@@ -143,84 +209,200 @@
     "dungeonLock": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["from", "to", "lockId", "keyRoomId"],
+      "required": [
+        "from",
+        "to",
+        "lockId",
+        "keyRoomId"
+      ],
       "properties": {
-        "from": { "type": "string", "minLength": 1 },
-        "to": { "type": "string", "minLength": 1 },
-        "lockId": { "type": "string", "minLength": 1 },
-        "keyId": { "type": "string", "minLength": 1 },
-        "keyLabel": { "type": "string" },
-        "keyLayoutId": { "type": "string", "minLength": 1 },
-        "keyRoomId": { "type": "string", "minLength": 1 }
+        "from": {
+          "type": "string",
+          "minLength": 1
+        },
+        "to": {
+          "type": "string",
+          "minLength": 1
+        },
+        "lockId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "keyId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "keyLabel": {
+          "type": "string"
+        },
+        "keyLayoutId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "keyRoomId": {
+          "type": "string",
+          "minLength": 1
+        }
       }
     },
     "dungeonPuzzle": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["roomId", "puzzleId", "kind", "flagId", "gateRoomId", "leverCount", "solutionOrder"],
+      "required": [
+        "roomId",
+        "puzzleId",
+        "kind",
+        "flagId",
+        "gateRoomId",
+        "leverCount",
+        "solutionOrder"
+      ],
       "properties": {
-        "roomId": { "type": "string", "minLength": 1 },
-        "puzzleId": { "type": "string", "minLength": 1 },
-        "kind": { "type": "string", "minLength": 1 },
-        "flagId": { "type": "string", "minLength": 1 },
-        "gateRoomId": { "type": "string", "minLength": 1 },
-        "gateLayoutId": { "type": "string" },
-        "leverCount": { "type": "integer", "minimum": 1, "maximum": 3 },
+        "roomId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "puzzleId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "kind": {
+          "type": "string",
+          "minLength": 1
+        },
+        "flagId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "gateRoomId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "gateLayoutId": {
+          "type": "string"
+        },
+        "leverCount": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 3
+        },
         "solutionOrder": {
           "type": "array",
           "minItems": 1,
-          "items": { "type": "integer", "minimum": 0 }
+          "items": {
+            "type": "integer",
+            "minimum": 0
+          }
         }
       }
     },
     "branchPreview": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["fromRoomId", "toRoomId", "hint"],
+      "required": [
+        "fromRoomId",
+        "toRoomId",
+        "hint"
+      ],
       "properties": {
-        "fromRoomId": { "type": "string", "minLength": 1 },
-        "toRoomId": { "type": "string", "minLength": 1 },
-        "hint": { "type": "string", "minLength": 1 }
+        "fromRoomId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "toRoomId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "hint": {
+          "type": "string",
+          "minLength": 1
+        }
       }
     },
     "landmark": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["kind", "position", "scale"],
+      "required": [
+        "kind",
+        "position",
+        "scale"
+      ],
       "properties": {
-        "kind": { "type": "string", "minLength": 1 },
-        "position": { "$ref": "#/$defs/vec3" },
-        "scale": { "$ref": "#/$defs/vec3" }
+        "kind": {
+          "type": "string",
+          "minLength": 1
+        },
+        "position": {
+          "$ref": "#/$defs/vec3"
+        },
+        "scale": {
+          "$ref": "#/$defs/vec3"
+        }
       }
     },
     "vec3": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["x", "y", "z"],
+      "required": [
+        "x",
+        "y",
+        "z"
+      ],
       "properties": {
-        "x": { "type": "number" },
-        "y": { "type": "number" },
-        "z": { "type": "number" }
+        "x": {
+          "type": "number"
+        },
+        "y": {
+          "type": "number"
+        },
+        "z": {
+          "type": "number"
+        }
       }
     },
     "transform": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["x", "y", "z", "yaw"],
+      "required": [
+        "x",
+        "y",
+        "z",
+        "yaw"
+      ],
       "properties": {
-        "x": { "type": "number" },
-        "y": { "type": "number" },
-        "z": { "type": "number" },
-        "yaw": { "type": "number" }
+        "x": {
+          "type": "number"
+        },
+        "y": {
+          "type": "number"
+        },
+        "z": {
+          "type": "number"
+        },
+        "yaw": {
+          "type": "number"
+        }
       }
     },
     "room": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["id", "templateId", "type", "transform", "tags"],
+      "required": [
+        "id",
+        "templateId",
+        "type",
+        "transform",
+        "tags"
+      ],
       "properties": {
-        "id": { "type": "string", "minLength": 1 },
-        "templateId": { "type": "string", "minLength": 1 },
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "templateId": {
+          "type": "string",
+          "minLength": 1
+        },
         "type": {
           "type": "string",
           "enum": [
@@ -237,10 +419,14 @@
             "arena"
           ]
         },
-        "transform": { "$ref": "#/$defs/transform" },
+        "transform": {
+          "$ref": "#/$defs/transform"
+        },
         "tags": {
           "type": "array",
-          "items": { "type": "string" }
+          "items": {
+            "type": "string"
+          }
         },
         "heightLevel": {
           "type": "integer",
@@ -251,49 +437,117 @@
           "type": "object",
           "additionalProperties": false,
           "properties": {
-            "x": { "type": "number" },
-            "z": { "type": "number" }
+            "x": {
+              "type": "number"
+            },
+            "z": {
+              "type": "number"
+            }
           }
         },
         "kind": {
           "type": "string",
-          "enum": ["combat", "treasure", "shop", "key", "boss", "entrance", "stairs", "unknown"]
+          "description": "Minimap room role. Mirrors DungeonProcgen.MINIMAP_KIND_BY_CONTENT and MINIMAP_RESERVED_KINDS.",
+          "enum": [
+            "boss",
+            "entrance",
+            "stairs",
+            "secret",
+            "combat",
+            "treasure",
+            "shop",
+            "lore",
+            "puzzle",
+            "hazard",
+            "vault",
+            "npc",
+            "rest",
+            "key",
+            "unknown"
+          ]
         }
       }
     },
     "edge": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["from", "to", "kind"],
+      "required": [
+        "from",
+        "to",
+        "kind"
+      ],
       "properties": {
-        "from": { "type": "string", "minLength": 1 },
-        "to": { "type": "string", "minLength": 1 },
+        "from": {
+          "type": "string",
+          "minLength": 1
+        },
+        "to": {
+          "type": "string",
+          "minLength": 1
+        },
         "kind": {
           "type": "string",
-          "enum": ["corridor", "door", "secret", "shortcut"]
+          "enum": [
+            "corridor",
+            "door",
+            "secret",
+            "shortcut"
+          ]
         }
       }
     },
     "placementCover": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["roomId", "kind", "offset", "size"],
+      "required": [
+        "roomId",
+        "kind",
+        "offset",
+        "size"
+      ],
       "properties": {
-        "roomId": { "type": "string", "minLength": 1 },
-        "kind": { "type": "string", "minLength": 1 },
-        "offset": { "$ref": "#/$defs/vec3" },
-        "size": { "$ref": "#/$defs/vec3" }
+        "roomId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "kind": {
+          "type": "string",
+          "minLength": 1
+        },
+        "offset": {
+          "$ref": "#/$defs/vec3"
+        },
+        "size": {
+          "$ref": "#/$defs/vec3"
+        }
       }
     },
     "placementSecret": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["roomId", "parentRoomId", "mechanism", "wallDirection"],
+      "required": [
+        "roomId",
+        "parentRoomId",
+        "mechanism",
+        "wallDirection"
+      ],
       "properties": {
-        "roomId": { "type": "string", "minLength": 1 },
-        "parentRoomId": { "type": "string", "minLength": 1 },
-        "mechanism": { "type": "string", "minLength": 1 },
-        "wallDirection": { "type": "string", "minLength": 1 }
+        "roomId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "parentRoomId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "mechanism": {
+          "type": "string",
+          "minLength": 1
+        },
+        "wallDirection": {
+          "type": "string",
+          "minLength": 1
+        }
       }
     },
     "placements": {
@@ -310,30 +564,76 @@
         "entrance"
       ],
       "properties": {
-        "enemies": { "type": "array", "items": { "type": "object" } },
-        "loot": { "type": "array", "items": { "type": "object" } },
-        "puzzles": { "type": "array", "items": { "$ref": "#/$defs/dungeonPuzzle" } },
-        "traps": { "type": "array", "items": { "type": "object" } },
+        "enemies": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        },
+        "loot": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        },
+        "puzzles": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/dungeonPuzzle"
+          }
+        },
+        "traps": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        },
         "secrets": {
           "type": "array",
-          "items": { "$ref": "#/$defs/placementSecret" }
+          "items": {
+            "$ref": "#/$defs/placementSecret"
+          }
         },
         "cover": {
           "type": "array",
-          "items": { "$ref": "#/$defs/placementCover" }
+          "items": {
+            "$ref": "#/$defs/placementCover"
+          }
         },
-        "boss": { "type": ["object", "null"] },
-        "exit": { "type": ["string", "null"] },
-        "entrance": { "type": "string", "minLength": 1 }
+        "boss": {
+          "type": [
+            "object",
+            "null"
+          ]
+        },
+        "exit": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "entrance": {
+          "type": "string",
+          "minLength": 1
+        }
       }
     },
     "budgets": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["enemyThreat", "lootValue"],
+      "required": [
+        "enemyThreat",
+        "lootValue"
+      ],
       "properties": {
-        "enemyThreat": { "type": "number", "minimum": 0 },
-        "lootValue": { "type": "number", "minimum": 0 }
+        "enemyThreat": {
+          "type": "number",
+          "minimum": 0
+        },
+        "lootValue": {
+          "type": "number",
+          "minimum": 0
+        }
       }
     }
   }

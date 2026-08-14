@@ -66,7 +66,7 @@ public class ContentCatalogTests
             .ToHashSet(StringComparer.Ordinal);
 
         var result = DungeonGenerator.Generate("forgotten_castle", 55_555, 1, 1, Guid.NewGuid());
-        Assert.Equal("boss_castle_knight", result.Definition.Placements.Boss!.EnemyId);
+        Assert.Contains(result.Definition.Placements.Boss!.EnemyId, biome.BossPool.Select(b => b.EnemyId));
         foreach (var enemy in result.Definition.Placements.Enemies)
             Assert.Contains(enemy.EnemyId, allowed);
     }

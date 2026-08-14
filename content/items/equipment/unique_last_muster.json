@@ -33,8 +33,8 @@
     }
   ],
   "stats": {
-    "physicalDamage": 16,
-    "damagePercent": 6
+    "physicalDamage": 23,
+    "damagePercent": 9
   },
   "weaponId": "sword_basic"
 }

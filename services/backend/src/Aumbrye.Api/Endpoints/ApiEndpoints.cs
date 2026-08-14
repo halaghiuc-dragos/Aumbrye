@@ -251,7 +251,8 @@ public static class RunsEndpoints
                     req.ElapsedSeconds,
                     req.BossDefeated,
                     req.LootClaimedInstanceIds ?? [],
-                    req.Floor),
+                    req.Floor,
+                    req.Kills),
                 ct);
             if (!result.Success)
                 return ProblemResults.BadRequest(result.Error!);

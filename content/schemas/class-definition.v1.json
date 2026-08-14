@@ -32,6 +32,15 @@
         "type": "number"
       }
     },
+    "statRatings": {
+      "type": "object",
+      "description": "Twelve stats on the shared 4..16 rating scale, totalling 120. Authoritative: ClassCatalog derives statBonuses from these at load time.",
+      "additionalProperties": {
+        "type": "integer",
+        "minimum": 4,
+        "maximum": 16
+      }
+    },
     "allowedWeapons": {
       "type": "array",
       "items": {

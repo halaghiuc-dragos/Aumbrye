@@ -15,6 +15,7 @@ const LOAD_SHARE := 0.5
 enum Phase { LOADING, BUILDING, DONE }
 
 var _path := ""
+var _pending_status := ""
 var _phase := Phase.LOADING
 var _claimed := false
 var _grace_frames := UNCLAIMED_GRACE_FRAMES
@@ -38,7 +39,12 @@ static func goto(tree: SceneTree, path: String, status_text: String = "") -> voi
 		existing.queue_free()
 	var transition := SceneTransition.new()
 	transition._path = path
-	tree.root.add_child(transition)
+	# Deferred: this is the entry point for every scene change, including ones requested from a
+	# scene's own _ready — a dungeon that finds no run definition and bounces back to the hub, for
+	# instance. The root is still setting up children at that moment, so a direct add_child() fails
+	# outright, and because the transition node carries the load request, the scene change it was
+	# asked to perform never happened at all.
+	tree.root.add_child.call_deferred(transition)
 	if status_text != "":
 		transition.set_status(status_text)
 
@@ -86,6 +92,9 @@ func _ready() -> void:
 	layer = OVERLAY_LAYER
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	_build_overlay()
+	if _pending_status != "":
+		set_status(_pending_status)
+		_pending_status = ""
 	var err := ResourceLoader.load_threaded_request(_path, "PackedScene")
 	if err != OK:
 		get_tree().change_scene_to_file(_path)
@@ -135,9 +144,13 @@ func _swap_to_loaded() -> void:
 	get_tree().change_scene_to_packed(packed)
 
 
+## Callable before the overlay exists, since the node is now added deferred and callers set the
+## status straight after requesting the transition.
 func set_status(text: String) -> void:
 	if _status:
 		_status.text = text
+	else:
+		_pending_status = text
 
 
 func set_progress(ratio: float) -> void:

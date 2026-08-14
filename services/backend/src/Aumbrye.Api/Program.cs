@@ -121,6 +121,14 @@ if (!string.IsNullOrWhiteSpace(otelEndpoint))
             .AddOtlpExporter());
 }
 
+// Rate limits are relaxed under the in-memory/Testing configuration: the integration suite drives
+// dozens of registrations and logins from one address, which is exactly what these limits exist to
+// stop in production.
+var authRateLimit = builder.Configuration.GetValue<int?>("RateLimits:AuthPerMinute")
+                    ?? (useInMemory ? 10_000 : 30);
+var registerRateLimit = builder.Configuration.GetValue<int?>("RateLimits:RegisterPerMinute")
+                        ?? (useInMemory ? 10_000 : 5);
+
 builder.Services.AddRateLimiter(options =>
 {
     options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
@@ -135,7 +143,7 @@ builder.Services.AddRateLimiter(options =>
 
     options.AddFixedWindowLimiter("auth", limiter =>
     {
-        limiter.PermitLimit = 30;
+        limiter.PermitLimit = authRateLimit;
         limiter.Window = TimeSpan.FromMinutes(1);
         limiter.QueueLimit = 0;
     });
@@ -148,7 +156,7 @@ builder.Services.AddRateLimiter(options =>
             httpContext.Connection.RemoteIpAddress?.ToString() ?? "anon",
             _ => new FixedWindowRateLimiterOptions
             {
-                PermitLimit = 5,
+                PermitLimit = registerRateLimit,
                 Window = TimeSpan.FromMinutes(1),
                 QueueLimit = 0,
             }));

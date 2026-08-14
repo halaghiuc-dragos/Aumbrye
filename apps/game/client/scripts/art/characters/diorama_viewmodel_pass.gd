@@ -18,7 +18,11 @@ func setup_pass(gameplay_camera: Camera3D, view_root: Node3D) -> void:
 	_canvas = CanvasLayer.new()
 	_canvas.name = "ViewmodelCanvas"
 	_canvas.layer = 5
-	_gameplay_camera.get_viewport().add_child(_canvas)
+	# Deferred: the viewport is mid-setup when the player rig builds its viewmodel, so a direct
+	# add_child() here fails and the first-person arms never get a canvas to render into. The
+	# container and subviewport below attach to _canvas while it is still detached, which is fine —
+	# they enter the tree with it.
+	_gameplay_camera.get_viewport().add_child.call_deferred(_canvas)
 	_container = SubViewportContainer.new()
 	_container.name = "ViewmodelContainer"
 	_container.set_anchors_preset(Control.PRESET_FULL_RECT)

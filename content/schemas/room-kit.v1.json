@@ -1,0 +1,52 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://aumbrye.dev/schemas/room-kit.v1.json",
+  "title": "RoomKit",
+  "description": "Per-biome room template variants and their placement anchors. Consumed by RoomLayoutCatalog to pick a variant and position enemies, chests, traps and cover inside it.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["biomeId", "variants"],
+  "properties": {
+    "biomeId": { "type": "string", "minLength": 1 },
+    "note": { "type": "string" },
+    "variants": {
+      "type": "object",
+      "description": "Variants keyed by room kind (entrance, stairs, corridor, courtyard, hall, treasure, secret, arena, boss, puzzle, shop).",
+      "additionalProperties": {
+        "type": "array",
+        "minItems": 1,
+        "items": { "$ref": "#/$defs/variant" }
+      }
+    }
+  },
+  "$defs": {
+    "variant": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "anchors": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "enemy": { "$ref": "#/$defs/anchorList" },
+            "chest": { "$ref": "#/$defs/anchorList" },
+            "trap": { "$ref": "#/$defs/anchorList" },
+            "cover": { "$ref": "#/$defs/anchorList" }
+          }
+        }
+      }
+    },
+    "anchorList": {
+      "type": "array",
+      "items": {
+        "type": "array",
+        "description": "Room-local [x, y, z] offset.",
+        "minItems": 3,
+        "maxItems": 3,
+        "items": { "type": "number" }
+      }
+    }
+  }
+}

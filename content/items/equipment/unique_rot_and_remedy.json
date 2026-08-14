@@ -27,9 +27,9 @@
     }
   ],
   "stats": {
-    "arcaneDamage": 10,
-    "poisonDamage": 8,
-    "manaMax": 30
+    "arcaneDamage": 15,
+    "poisonDamage": 12,
+    "manaMax": 44
   },
   "weaponId": "staff"
 }

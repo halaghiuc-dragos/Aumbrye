@@ -176,6 +176,9 @@ func _build_viewmodel() -> void:
 
 	add_child(_viewmodel_anim)
 
+	# A visual mirror of the body rig: it draws the first-person arms and owns no hitbox, so the
+	# attack clips' frame signals are the driving controller's business, not its own.
+	_viewmodel_anim.expects_hitbox_listeners = false
 	_viewmodel_anim.set_profile("player")
 
 	_viewmodel_anim.set_theme(_viewmodel_theme)

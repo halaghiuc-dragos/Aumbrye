@@ -4,8 +4,18 @@
   "description": "Keeps the distance a bow was made for, and makes every opening count.",
   "startingWeaponItemId": "hunter_bow",
   "statBonuses": {
-    "critChance": 0.03,
-    "moveSpeed": 0.03
+    "maxHealth": 20.0,
+    "armor": 3.0,
+    "poise": 12.0,
+    "blockReduction": 0.02,
+    "physicalDamage": 0.16,
+    "poiseDamage": 0.08,
+    "critChance": 0.11,
+    "moveSpeed": 0.15,
+    "staminaMax": 40.0,
+    "staminaRegen": 0.27,
+    "manaMax": 25.0,
+    "manaRegen": 0.15
   },
   "allowedWeapons": [
     "hunter_bow",
@@ -51,5 +61,19 @@
   "perkDescription": "CLASS_PERK_KILLING_DISTANCE_DESC",
   "roleText": "Ranged / Precision",
   "perkNameText": "Killing Distance",
-  "perkDescriptionText": "One clean shot pays for the next, and leaves the quarry bleeding for the walk."
+  "perkDescriptionText": "One clean shot pays for the next, and leaves the quarry bleeding for the walk.",
+  "statRatings": {
+    "maxHealth": 8,
+    "armor": 7,
+    "poise": 7,
+    "blockReduction": 6,
+    "physicalDamage": 12,
+    "poiseDamage": 8,
+    "critChance": 15,
+    "moveSpeed": 14,
+    "staminaMax": 12,
+    "staminaRegen": 13,
+    "manaMax": 9,
+    "manaRegen": 9
+  }
 }

@@ -401,7 +401,10 @@ func set_navigation_map(map: RID) -> void:
 		_nav_region.set_navigation_map(map)
 	for link in _nav_links:
 		if is_instance_valid(link):
-			link.navigation_map = map
+			# NavigationLink3D exposes this as a method, not a property: the assignment form fails at
+			# runtime, so every door link was silently left off the floor's navigation map and enemies
+			# had no path through a doorway.
+			link.set_navigation_map(map)
 
 
 func sample_random_nav_point(rng: RandomNumberGenerator) -> Vector3:

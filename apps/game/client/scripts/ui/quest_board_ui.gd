@@ -97,11 +97,11 @@ func _on_available_selected(index: int) -> void:
 func _on_accept_pressed() -> void:
 	var selected: PackedInt32Array = _available_list.get_selected_items()
 	if selected.is_empty():
-		_detail_label.text = "Select a quest to accept"
+		_detail_label.text = tr("QUEST_SELECT_TO_ACCEPT")
 		return
 	var quest_id: String = _available_ids[selected[0]]
 	if QuestService.accept_quest(quest_id):
-		_detail_label.text = "Quest accepted: %s" % quest_id
+		_detail_label.text = tr("QUEST_ACCEPTED") % QuestCatalog.get_definition(quest_id).get("title", quest_id)
 	else:
-		_detail_label.text = "Could not accept quest"
+		_detail_label.text = tr("QUEST_ACCEPT_FAILED")
 	_refresh()

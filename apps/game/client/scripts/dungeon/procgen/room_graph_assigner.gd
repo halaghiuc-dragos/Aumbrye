@@ -19,11 +19,18 @@ static func assign(biome: Dictionary, graph: RoomGraph, rng: RandomNumberGenerat
 	var rooms: Array[Dictionary] = []
 	var combat_index := 0
 	var filler_index := 0
+	var dropped_layout_ids: Array[String] = []
 	for layout_id in _sorted_layout_ids(graph):
 		var slot := graph.get_slot(layout_id)
 		var resolved := _resolve_room(
 			graph, slot, prefix, combat_preferred, biome_templates, combat_index, filler_index, rng
 		)
+		if str(resolved.get("template_id", "")).is_empty():
+			# Only kind-filtered lookups can come back empty, and of those only secrets are
+			# optional. Emitting the room anyway produced a zero-extent ghost that no room scene
+			# could satisfy, so the secret silently failed to build.
+			dropped_layout_ids.append(layout_id)
+			continue
 		if resolved["type"] == "combat":
 			combat_index += 1
 		if resolved["type"] == "filler":
@@ -44,10 +51,42 @@ static func assign(biome: Dictionary, graph: RoomGraph, rng: RandomNumberGenerat
 		"rooms": rooms,
 		"entrance_layout_id": graph.start_id,
 		"boss_layout_id": graph.boss_id,
-		"secret_layout_ids": graph.secret_ids.duplicate(),
+		"secret_layout_ids": _without(graph.secret_ids, dropped_layout_ids),
 		"treasure_layout_id": graph.treasure_id,
 		"stairs_layout_id": graph.stairs_id,
 	}
+
+
+## Resolves a template for a slot whose kind is mandatory, falling back to any template that fits
+## the door pattern. A floor without its entrance or stairs is unplayable, so a wrong-kind room is
+## strictly better than none.
+static func _pick_required_template(
+	preferred_template_id: String,
+	required_doors: int,
+	biome_templates: Array,
+	rng: RandomNumberGenerator,
+	required_kind: String
+) -> String:
+	var picked := RoomTemplateCatalog.pick_template_for_doors(
+		preferred_template_id, required_doors, biome_templates, rng, required_kind
+	)
+	if not picked.is_empty():
+		return picked
+	push_warning(
+		"RoomGraphAssigner: no '%s' template fits door mask %d; using an unfiltered fallback."
+		% [required_kind, required_doors]
+	)
+	return RoomTemplateCatalog.pick_template_for_doors(
+		preferred_template_id, required_doors, biome_templates, rng
+	)
+
+
+static func _without(source: Array, excluded: Array) -> Array:
+	var kept: Array = []
+	for value in source:
+		if not excluded.has(value):
+			kept.append(value)
+	return kept
 
 
 static func _sorted_layout_ids(graph: RoomGraph) -> Array[String]:
@@ -84,7 +123,7 @@ static func _resolve_room(
 			return {
 				"semantic_id": "entrance",
 				"template_id":
-				RoomTemplateCatalog.pick_template_for_doors(
+				_pick_required_template(
 					"%s_entrance" % prefix, start_doors, biome_templates, rng, "entrance"
 				),
 				"type": "hub",
@@ -113,7 +152,7 @@ static func _resolve_room(
 			return {
 				"semantic_id": "stairs",
 				"template_id":
-				RoomTemplateCatalog.pick_template_for_doors(
+				_pick_required_template(
 					"%s_stairs" % prefix, stairs_doors, biome_templates, rng, "stairs"
 				),
 				"type": "corridor",

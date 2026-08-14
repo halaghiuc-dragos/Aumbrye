@@ -138,7 +138,8 @@ static func complete_run(
 	elapsed: float,
 	boss_defeated: bool,
 	loot_claimed_ids: Array = [],
-	floor: int = 1
+	floor: int = 1,
+	kills: int = 0
 ) -> Dictionary:
 	var payload := {
 		"outcome": outcome,
@@ -149,6 +150,9 @@ static func complete_run(
 		# which floor the run ended on. Omitting it made every multi-floor completion validate as
 		# floor 1 and reject legitimate claims from floors 2+.
 		"floor": maxi(1, floor),
+		# The server's XP economy is kills-driven, matching ProgressionService; without this a
+		# cloud-completed run awarded nothing.
+		"kills": maxi(0, kills),
 	}
 	# Safe to replay: the server claims the run with a guarded status flip and replays the cached
 	# result for a repeat call, so a retry after a timeout cannot double-grant progression.

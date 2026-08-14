@@ -27,9 +27,9 @@
     }
   ],
   "stats": {
-    "defense": 22,
-    "resistFrost": 0.14,
-    "poise": 12
+    "defense": 28,
+    "resistFrost": 0.177,
+    "poise": 15
   },
   "block": {
     "stability": 1.7,

@@ -39,6 +39,9 @@ func _ready() -> void:
 	_animator = AnimControllerScript.new()
 	_animator.name = "AnimController"
 	add_child(_animator)
+	# A training dummy is struck but never strikes: it has no hitbox, so its attack clips' frame
+	# signals have nothing to drive and their absence is not a wiring fault.
+	_animator.expects_hitbox_listeners = false
 	_animator.set_profile("melee")
 	_animator.set_weapon("sword")
 	_animator.bind(_mesh)

@@ -32,8 +32,8 @@
     }
   ],
   "stats": {
-    "armor": 24,
-    "resistFrost": 0.18,
-    "defense": 14
+    "armor": 35,
+    "resistFrost": 0.264,
+    "defense": 21
   }
 }

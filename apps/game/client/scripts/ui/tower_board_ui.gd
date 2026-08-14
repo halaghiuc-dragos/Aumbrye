@@ -63,7 +63,7 @@ func _build_ui_if_needed() -> void:
 	_sections.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_sections.add_theme_constant_override("separation", GameUISkinScript.SECTION_SEPARATION)
 	scroll.add_child(_sections)
-	var close_btn := MenuShellScript.make_menu_button("Close", close)
+	var close_btn := MenuShellScript.make_menu_button(tr("UI_CLOSE"), close)
 	content_vbox.add_child(close_btn)
 	MenuShellScript.add_hint(content_vbox, "Esc to close")
 

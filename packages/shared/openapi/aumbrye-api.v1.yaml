@@ -615,6 +615,9 @@ components:
         floor:
           type: integer
           format: int32
+        kills:
+          type: integer
+          format: int32
       additionalProperties: false
     CompleteRunResponse:
       type: object

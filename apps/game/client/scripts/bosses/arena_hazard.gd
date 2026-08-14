@@ -20,7 +20,9 @@ var _timer := 0.0
 
 
 func _ready() -> void:
-	_telegraph.material_override = DioramaSkin.make_telegraph_material(Color(1, 0.5, 0, 0.5))
+	_telegraph.material_override = DioramaSkin.make_telegraph_material(
+		AccessibilitySettings.emphasise_telegraph_tint(Color(1, 0.5, 0, 0.5))
+	)
 	_active_zone.material_override = DioramaSkin.make_telegraph_material(Color(1, 0.2, 0, 0.9))
 	_active_zone.visible = false
 	_damage_area.monitoring = false

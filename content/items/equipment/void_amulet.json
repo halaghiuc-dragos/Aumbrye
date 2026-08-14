@@ -9,8 +9,8 @@
   "description": "Dark glass that seems to swallow the torchlight around your throat.",
   "value": 20,
   "stats": {
-    "maxHealth": 20,
-    "arcaneDamage": 12
+    "maxHealth": 29,
+    "arcaneDamage": 18
   },
   "equipmentSlot": "amulet"
 }

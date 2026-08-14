@@ -4,8 +4,18 @@
   "description": "Arcane caster wielding staves and ranged focus.",
   "startingWeaponItemId": "sage_staff",
   "statBonuses": {
-    "staminaRegen": 0.05,
-    "staminaMax": 10
+    "maxHealth": 15.0,
+    "armor": 1.0,
+    "poise": 12.0,
+    "blockReduction": 0.03,
+    "physicalDamage": 0.06,
+    "poiseDamage": 0.04,
+    "critChance": 0.07,
+    "moveSpeed": 0.105,
+    "staminaMax": 45.0,
+    "staminaRegen": 0.3,
+    "manaMax": 60.0,
+    "manaRegen": 0.36
   },
   "allowedWeapons": [
     "sage_staff",
@@ -50,5 +60,19 @@
   "perkDescription": "CLASS_PERK_ARCANE_FOCUS_DESC",
   "roleText": "Caster / Arcane",
   "perkNameText": "Arcane Focus",
-  "perkDescriptionText": "Study returns itself: telling blows restore the mana that paid for them."
+  "perkDescriptionText": "Study returns itself: telling blows restore the mana that paid for them.",
+  "statRatings": {
+    "maxHealth": 7,
+    "armor": 5,
+    "poise": 7,
+    "blockReduction": 7,
+    "physicalDamage": 7,
+    "poiseDamage": 6,
+    "critChance": 11,
+    "moveSpeed": 11,
+    "staminaMax": 13,
+    "staminaRegen": 14,
+    "manaMax": 16,
+    "manaRegen": 16
+  }
 }

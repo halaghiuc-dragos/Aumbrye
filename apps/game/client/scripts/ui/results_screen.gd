@@ -108,7 +108,7 @@ func _ensure_ui_nodes() -> void:
 
 	if _cloud_retry_button == null:
 
-		_cloud_retry_button = GameUISkinScript.make_button("Retry cloud sync")
+		_cloud_retry_button = GameUISkinScript.make_button(tr("RESULTS_RETRY_SYNC"))
 
 		_cloud_retry_button.name = "CloudRetryButton"
 
@@ -130,7 +130,7 @@ func _ensure_ui_nodes() -> void:
 
 	if _seed_button == null:
 
-		_seed_button = GameUISkinScript.make_button("Copy seed")
+		_seed_button = GameUISkinScript.make_button(tr("RESULTS_COPY_SEED"))
 
 		_seed_button.name = "CopySeedButton"
 
@@ -164,17 +164,17 @@ func _display_from_run_flow() -> void:
 
 	var outcome: String = results.get("outcome", RunLifecycleScript.OUTCOME_ESCAPED)
 
-	var hero_name := LocalSave.get_character_name()
+	var hero_name := LocalSave.get_character_display_name()
 
 	_title_label.text = _title_for_outcome(outcome, hero_name)
 
 	if results.is_empty():
 
-		_time_label.text = "Time: --"
+		_time_label.text = tr("RESULTS_TIME_EMPTY")
 
-		_kills_label.text = "Kills: --"
+		_kills_label.text = tr("RESULTS_KILLS_EMPTY")
 
-		_loot_label.text = "Loot: --"
+		_loot_label.text = tr("RESULTS_LOOT_EMPTY")
 
 		_xp_label.text = "XP: --"
 
@@ -537,23 +537,23 @@ func _title_for_outcome(outcome: String, hero_name: String) -> String:
 
 		RunLifecycleScript.OUTCOME_WAVES_COMPLETE:
 
-			return "%s — Waves Cleared" % hero_name
+			return tr("RESULTS_WAVES_CLEARED") % hero_name
 
 		RunLifecycleScript.OUTCOME_WAVES_FAILED:
 
-			return "%s — Waves Failed" % hero_name
+			return tr("RESULTS_WAVES_FAILED") % hero_name
 
 		RunLifecycleScript.OUTCOME_ESCAPED:
 
 			if CharacterService.has_flag("story_completed"):
 
-				return "%s — Oath Fulfilled" % hero_name
+				return tr("RESULTS_OATH_FULFILLED") % hero_name
 
-			return "%s — Run Complete" % hero_name
+			return tr("RESULTS_RUN_COMPLETE") % hero_name
 
 		_:
 
-			return "%s — Run Complete" % hero_name
+			return tr("RESULTS_RUN_COMPLETE") % hero_name
 
 
 

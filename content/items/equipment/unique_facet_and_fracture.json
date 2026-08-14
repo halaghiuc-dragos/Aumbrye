@@ -28,8 +28,8 @@
     }
   ],
   "stats": {
-    "critChance": 0.1,
-    "physicalDamage": 13
+    "critChance": 0.147,
+    "physicalDamage": 19
   },
   "weaponId": "dagger"
 }

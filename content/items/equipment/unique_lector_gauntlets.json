@@ -26,8 +26,8 @@
     }
   ],
   "stats": {
-    "armor": 7,
-    "manaRegen": 0.06,
-    "critChance": 0.03
+    "armor": 9,
+    "manaRegen": 0.076,
+    "critChance": 0.038
   }
 }

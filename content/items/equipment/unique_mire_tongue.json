@@ -29,8 +29,8 @@
     }
   ],
   "stats": {
-    "poisonDamage": 8,
-    "critChance": 0.04
+    "poisonDamage": 10,
+    "critChance": 0.051
   },
   "weaponId": "dagger"
 }

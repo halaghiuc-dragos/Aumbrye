@@ -124,7 +124,11 @@
                   "items": { "type": "number" },
                   "minItems": 3,
                   "maxItems": 3
-                }
+                },
+                "volumetric_density": { "type": "number", "minimum": 0, "maximum": 1 },
+                "emission": { "type": "number", "minimum": 0, "maximum": 8 },
+                "range": { "type": "number", "minimum": 1, "maximum": 512 },
+                "ambient_inject": { "type": "number", "minimum": 0, "maximum": 4 }
               }
             }
           }

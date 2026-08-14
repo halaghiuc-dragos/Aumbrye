@@ -281,6 +281,13 @@ func _start_dash(skip_cost: bool = false) -> void:
 	is_dodging = true
 	_dodge_timer = _duration
 	dash_started.emit()
+	# Dodge was the one core action with no VFX entry at all — it moved the character and nothing
+	# else acknowledged it. The dust is spawned at the feet, not the chest, so it reads as ground
+	# contact; the roll leaves from where it pushed off.
+	if _body and VfxService:
+		VfxService.play_dodge(
+			_body.global_position + Vector3(0.0, 0.05, 0.0), _dodge_direction
+		)
 	if _body and _body.is_in_group("player") and CombatEvents:
 		CombatEvents.dispatch(CombatEvents.ON_DODGE, {"actor": _body})
 
@@ -326,6 +333,7 @@ func _process_dash(delta: float) -> void:
 	elif _body.velocity.y > 0.0:
 		_body.velocity.y = 0.0
 	var iframe_end := _iframe_end + ClassPerks.shadowstep_iframe_bonus(_body, _is_backstep)
+	iframe_end = _apply_dodge_window_assist(iframe_end)
 	var iframes := elapsed >= _iframe_start and elapsed <= iframe_end
 	if iframes != iframes_active:
 		iframes_active = iframes
@@ -333,6 +341,18 @@ func _process_dash(delta: float) -> void:
 	_body.move_and_slide()
 	if _dodge_timer <= 0.0:
 		_end_dash()
+
+
+## Stretches the invulnerable part of the roll by the accessibility "Dodge Window" multiplier.
+##
+## The setting existed, saved and loaded, and was shown in the Accessibility page, but nothing in
+## the game ever read it — moving the slider changed nothing. Scaling the window's length from its
+## start keeps the wind-up honest: the roll still has to be timed, it just forgives a later press.
+func _apply_dodge_window_assist(iframe_end: float) -> float:
+	var generosity := AccessibilitySettings.assist_iframe_generosity
+	if is_equal_approx(generosity, 1.0):
+		return iframe_end
+	return _iframe_start + (iframe_end - _iframe_start) * generosity
 
 
 func _end_dash() -> void:

@@ -9,7 +9,7 @@
   "description": "Holy sigils spiral the shaft, amplifying arcane strikes.",
   "value": 20,
   "stats": {
-    "arcaneDamage": 24
+    "arcaneDamage": 30
   },
   "equipmentSlot": "weapon",
   "theme": "dark_cathedral",

@@ -32,9 +32,9 @@
     }
   ],
   "stats": {
-    "defense": 26,
-    "poise": 14,
-    "blockReduction": 0.08
+    "defense": 38,
+    "poise": 21,
+    "blockReduction": 0.117
   },
   "block": {
     "stability": 1.7,

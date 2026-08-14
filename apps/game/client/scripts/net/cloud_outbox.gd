@@ -44,7 +44,8 @@ static func enqueue(
 	elapsed: float,
 	boss_defeated: bool,
 	loot_instance_ids: Array,
-	floor: int
+	floor: int,
+	kills: int = 0
 ) -> void:
 	if run_id == "":
 		return
@@ -60,6 +61,7 @@ static func enqueue(
 			"bossDefeated": boss_defeated,
 			"lootIds": loot_instance_ids.duplicate(),
 			"floor": maxi(1, floor),
+			"kills": maxi(0, kills),
 			"attempts": 0,
 		}
 	)
@@ -107,7 +109,8 @@ static func replay() -> void:
 			float(record.get("elapsed", 0.0)),
 			bool(record.get("bossDefeated", false)),
 			record.get("lootIds", []),
-			int(record.get("floor", 1))
+			int(record.get("floor", 1)),
+			int(record.get("kills", 0))
 		)
 		if result.get("ok", false):
 			continue

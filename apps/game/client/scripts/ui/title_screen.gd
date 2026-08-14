@@ -58,7 +58,7 @@ func _build_ui() -> void:
 	vbox.add_child(title)
 
 	var subtitle := Label.new()
-	subtitle.text = "Echo of the Fallen Warden"
+	subtitle.text = tr("MENU_SUBTITLE")
 	subtitle.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	GameUISkinScript.style_body_label(subtitle)
 	vbox.add_child(subtitle)
@@ -70,22 +70,18 @@ func _build_ui() -> void:
 
 	var body := Label.new()
 	body.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	body.text = (
-		"The Umbral Tower remembers every oath sworn at its threshold. "
-		+ "You are the echo of a warden who failed — bound to climb whenever the tower resets. "
-		+ "Each death returns you to Aumbrye Tower; each escape proves you endured."
-	)
+	body.text = tr("TITLE_PROLOGUE")
 	GameUISkinScript.style_body_label(body)
 	vbox.add_child(body)
 
 	_hint_label = Label.new()
-	_hint_label.text = "Press any key to enter the tower"
+	_hint_label.text = tr("TITLE_PRESS_ANY_KEY")
 	_hint_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	GameUISkinScript.style_hint_label(_hint_label)
 	vbox.add_child(_hint_label)
 
 	var version := Label.new()
-	version.text = "Early Access — Pixel Diorama build"
+	version.text = tr("TITLE_BUILD_TAG")
 	version.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	GameUISkinScript.style_hint_label(version)
 	vbox.add_child(version)

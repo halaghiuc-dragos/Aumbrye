@@ -23,13 +23,30 @@ public static class ProgressionCatalog
     }
 }
 
+/// <summary>
+/// Run XP economy and level table, mirroring the client's ProgressionService so a cloud-completed
+/// run awards exactly what the local run did.
+/// </summary>
 public sealed record XpCurve(
-    int BaseXpPerRun,
-    int TierXpBonus,
+    int BaseXpPerKill,
+    int BossBonusXp,
+    int EscapeBonusXp,
     double DeathXpFraction,
     double AbandonedXpFraction,
+    int TalentPointsPerLevel,
     IReadOnlyList<LevelEntry> Levels)
 {
+    /// <summary>Full XP for a run before the outcome fraction is applied.</summary>
+    public int RunXp(int kills, bool bossDefeated, bool escaped)
+    {
+        var total = Math.Max(0, kills) * BaseXpPerKill;
+        if (bossDefeated)
+            total += BossBonusXp;
+        if (escaped)
+            total += EscapeBonusXp;
+        return total;
+    }
+
     public int MaxLevel => Levels.Count > 0 ? Levels[^1].Level : 1;
 
     public int LevelForXp(int xp)
@@ -59,17 +76,21 @@ public sealed record LevelEntry(int Level, int XpRequired);
 
 internal sealed class XpCurveJson
 {
-    public int BaseXpPerRun { get; set; }
-    public int TierXpBonus { get; set; }
+    public int BaseXpPerKill { get; set; }
+    public int BossBonusXp { get; set; }
+    public int EscapeBonusXp { get; set; }
     public double DeathXpFraction { get; set; }
     public double AbandonedXpFraction { get; set; }
+    public int TalentPointsPerLevel { get; set; } = 1;
     public List<LevelEntryJson> Levels { get; set; } = [];
 
     public XpCurve ToModel() => new(
-        BaseXpPerRun,
-        TierXpBonus,
+        BaseXpPerKill,
+        BossBonusXp,
+        EscapeBonusXp,
         DeathXpFraction,
         AbandonedXpFraction,
+        TalentPointsPerLevel,
         Levels.Select(l => new LevelEntry(l.Level, l.XpRequired)).ToList());
 }
 

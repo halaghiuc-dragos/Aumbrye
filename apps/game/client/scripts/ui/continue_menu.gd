@@ -35,9 +35,9 @@ func _build_ui() -> void:
 	_detail_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	GameUISkinScript.style_body_label(_detail_label)
 	vbox.add_child(_detail_label)
-	var back := MenuShellScript.make_menu_button("Back", _on_back_pressed)
-	_play_button = MenuShellScript.make_menu_button("Play Warden", _on_play_pressed)
-	_delete_button = MenuShellScript.make_menu_button("Delete Warden", _on_delete_pressed)
+	var back := MenuShellScript.make_menu_button(tr("CONTINUE_BACK"), _on_back_pressed)
+	_play_button = MenuShellScript.make_menu_button(tr("CONTINUE_PLAY"), _on_play_pressed)
+	_delete_button = MenuShellScript.make_menu_button(tr("CONTINUE_DELETE"), _on_delete_pressed)
 	MenuShellScript.add_button_row(vbox, [back, _play_button])
 	MenuShellScript.add_button_row(vbox, [_delete_button])
 
@@ -69,7 +69,7 @@ func _reload_slots() -> void:
 	_play_button.disabled = not has_slots
 	_delete_button.disabled = not has_slots
 	if not has_slots:
-		_slot_list.add_item("No wardens yet — create one with New Game.")
+		_slot_list.add_item(tr("CONTINUE_NO_WARDENS"))
 		return
 	for entry in _slots:
 		var label := str(entry.get("label", "Unknown"))

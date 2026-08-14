@@ -30,8 +30,8 @@
     }
   ],
   "stats": {
-    "poisonDamage": 12,
-    "physicalDamage": 12
+    "poisonDamage": 18,
+    "physicalDamage": 18
   },
   "weaponId": "spear"
 }

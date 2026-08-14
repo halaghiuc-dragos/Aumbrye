@@ -77,6 +77,10 @@
     {
       "enemyId": "boss_frost_warlord",
       "weight": 3
+    },
+    {
+      "enemyId": "miniboss_frost_castellan",
+      "weight": 2
     }
   ],
   "budgets": {

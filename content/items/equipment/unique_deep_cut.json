@@ -29,8 +29,8 @@
     }
   ],
   "stats": {
-    "physicalDamage": 19,
-    "critChance": 0.05
+    "physicalDamage": 28,
+    "critChance": 0.073
   },
   "weaponId": "bow"
 }

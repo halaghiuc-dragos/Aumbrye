@@ -109,12 +109,13 @@ public static class ProgressionApplier
     public static RunProgressionResult ApplyRunOutcome(
         JsonObject state,
         string outcome,
-        int tier,
         IReadOnlyList<string> lootClaimedInstanceIds,
-        IReadOnlyDictionary<string, LootInstanceIds.LootEntry> lootMap)
+        IReadOnlyDictionary<string, LootInstanceIds.LootEntry> lootMap,
+        int kills = 0,
+        bool bossDefeated = false)
     {
         var curve = ProgressionCatalog.XpCurve;
-        var runXp = curve.BaseXpPerRun + Math.Max(0, tier - 1) * curve.TierXpBonus;
+        var runXp = curve.RunXp(kills, bossDefeated, outcome == "escaped");
         var xpFraction = outcome switch
         {
             "escaped" => 1.0,

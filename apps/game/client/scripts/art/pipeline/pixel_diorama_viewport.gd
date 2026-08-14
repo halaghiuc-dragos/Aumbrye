@@ -47,6 +47,8 @@ var _render_camera: Camera3D
 var _source_camera: Camera3D
 var _spring_arm: SpringArm3D
 var _finish_material: ShaderMaterial
+var _distress := 0.0
+var _distress_tween: Tween
 var _attached_scene: Node
 var _root_3d_was_disabled: Variant = null
 var _bind_warned := false
@@ -146,6 +148,11 @@ func _build_nodes() -> void:
 	_render_camera = Camera3D.new()
 	_render_camera.name = "PixelRenderCamera"
 	_render_camera.current = false
+	# Copied from the gameplay camera every frame in _process, which is the only way it can track a
+	# camera that itself moves at render cadence. With project-wide physics interpolation on, that
+	# made Godot warn on every write, and interpolating this camera would smear the low-resolution
+	# render off the gameplay camera it is meant to reproduce exactly.
+	_render_camera.physics_interpolation_mode = Node.PHYSICS_INTERPOLATION_MODE_OFF
 	_viewport.add_child(_render_camera)
 	_finish_material = PixelDioramaSettings.make_screen_finish_material()
 
@@ -215,6 +222,10 @@ func bootstrap_scene(scene_root: Node) -> void:
 
 
 func attach_to_scene(scene_root: Node) -> void:
+	# A new scene means a new player state. Without this, dying at 10% health and reloading into the
+	# hub carried the low-health vignette across with it, because the fresh reactions node never
+	# crosses the threshold downward and so never sends the release.
+	clear_distress()
 	if not PixelDioramaSettings.low_res_viewport_enabled:
 		detach()
 		return
@@ -322,14 +333,23 @@ func _apply_screen_finish() -> void:
 	if _finish_material == null:
 		_finish_material = PixelDioramaSettings.make_screen_finish_material()
 	PixelDioramaSettings.apply_to_screen_finish(_finish_material)
+	# Re-assert after the grade: applying a grade rebuilds every uniform from settings and would
+	# otherwise silently clear a distress state the player is currently in.
+	_finish_material.set_shader_parameter("distress", _distress)
 	_container.material = _finish_material
 
 
 func pulse_screen(kind: ScreenPulse, scale: float = 1.0) -> void:
 	if _finish_material == null or not PixelDioramaSettings.screen_finish_enabled:
 		return
+	# The Accessibility page's "Screen Pulse" slider is applied here and nowhere else. It was
+	# previously stored and displayed but never consulted, so full-screen damage and heal flashes
+	# fired at full strength no matter where the player set it — and at zero it should not fire.
+	var accessibility_scale := AccessibilitySettings.screen_pulse_scale()
+	if accessibility_scale <= 0.0:
+		return
 	var tuning: Dictionary = PULSE_TUNING[kind]
-	var peak := float(tuning.peak) * scale
+	var peak := float(tuning.peak) * scale * accessibility_scale
 	var decay := float(tuning.decay)
 	var param: String = tuning.param
 	_finish_material.set_shader_parameter("pulse_tint", tuning.tint)
@@ -343,6 +363,50 @@ func pulse_screen(kind: ScreenPulse, scale: float = 1.0) -> void:
 		0.0,
 		decay
 	)
+
+
+## Holds (or releases) the sustained low-health vignette.
+##
+## `CombatEvents.notify_health_ratio` has latched a low-health state since it was written, and
+## dispatched `onLowHealth` for gear affixes to hook, but nothing ever showed the player anything —
+## the only signal you were about to die was the health bar itself. This is the visual half.
+##
+## Ramping rather than snapping matters both ways: appearing instantly reads as a glitch, and
+## clearing instantly on a heal robs the recovery of its moment. The release is quicker than the
+## onset because relief should feel immediate where dread should creep.
+func set_distress(active: bool, strength: float = 0.85) -> void:
+	# Respects the Accessibility "Screen Pulse" slider. A player who set it to zero has asked for no
+	# full-screen effects, and the health bar still carries the information.
+	var scale := AccessibilitySettings.screen_pulse_scale()
+	var target := (clampf(strength, 0.0, 1.0) * scale) if active else 0.0
+	if is_equal_approx(target, _distress):
+		return
+	if _distress_tween and _distress_tween.is_valid():
+		_distress_tween.kill()
+	if _finish_material == null or not PixelDioramaSettings.screen_finish_enabled:
+		_distress = target
+		return
+	var duration := 0.9 if active else 0.35
+	_distress_tween = create_tween()
+	_distress_tween.tween_method(
+		func(v: float) -> void:
+			_distress = v
+			if _finish_material:
+				_finish_material.set_shader_parameter("distress", v),
+		_distress,
+		target,
+		duration
+	)
+
+
+## Drops the distress state immediately, without the release ramp. For scene changes, where there
+## is no continuity to preserve and a fade would just bleed one screen into the next.
+func clear_distress() -> void:
+	if _distress_tween and _distress_tween.is_valid():
+		_distress_tween.kill()
+	_distress = 0.0
+	if _finish_material:
+		_finish_material.set_shader_parameter("distress", 0.0)
 
 
 func pulse_damage_vignette(strength: float = 0.7) -> void:

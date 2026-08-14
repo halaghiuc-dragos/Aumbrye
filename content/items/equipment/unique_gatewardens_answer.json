@@ -27,8 +27,8 @@
     }
   ],
   "stats": {
-    "physicalDamage": 14,
-    "poiseDamage": 0.12
+    "physicalDamage": 18,
+    "poiseDamage": 0.152
   },
   "weaponId": "spear"
 }

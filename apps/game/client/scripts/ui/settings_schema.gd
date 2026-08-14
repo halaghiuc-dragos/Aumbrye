@@ -44,7 +44,8 @@ static func entries() -> Array[Dictionary]:
 			"show_control_hints",
 			"accessibility",
 			func() -> bool: return AccessibilitySettings.show_control_hints,
-			Callable(SettingsSchema, "_set_show_control_hints")
+			Callable(SettingsSchema, "_set_show_control_hints"),
+			true
 		),
 		_slider_row(
 			"subtitle_scale",
@@ -55,7 +56,8 @@ static func entries() -> Array[Dictionary]:
 			"multiplier",
 			func() -> float: return AccessibilitySettings.subtitle_scale,
 			Callable(SettingsSchema, "_set_subtitle_scale"),
-			func() -> void: AccessibilitySettings.request_commit()
+			func() -> void: AccessibilitySettings.request_commit(),
+			1.0
 		),
 		_slider_row(
 			"vibration_intensity",
@@ -66,7 +68,8 @@ static func entries() -> Array[Dictionary]:
 			"percent",
 			func() -> float: return AccessibilitySettings.vibration_intensity,
 			Callable(SettingsSchema, "_set_vibration_intensity"),
-			func() -> void: AccessibilitySettings.request_commit()
+			func() -> void: AccessibilitySettings.request_commit(),
+			1.0
 		),
 		_colorblind_row(),
 		_slider_row(
@@ -78,7 +81,8 @@ static func entries() -> Array[Dictionary]:
 			"multiplier",
 			func() -> float: return AccessibilitySettings.camera_mouse_sensitivity,
 			Callable(SettingsSchema, "_set_camera_mouse_sensitivity"),
-			func() -> void: AccessibilitySettings.request_commit()
+			func() -> void: AccessibilitySettings.request_commit(),
+			AccessibilitySettings.CAMERA_MOUSE_DEFAULT
 		),
 		_slider_row(
 			"camera_stick_sensitivity",
@@ -89,7 +93,8 @@ static func entries() -> Array[Dictionary]:
 			"multiplier",
 			func() -> float: return AccessibilitySettings.camera_stick_sensitivity,
 			Callable(SettingsSchema, "_set_camera_stick_sensitivity"),
-			func() -> void: AccessibilitySettings.request_commit()
+			func() -> void: AccessibilitySettings.request_commit(),
+			AccessibilitySettings.CAMERA_STICK_DEFAULT
 		),
 		_slider_row(
 			"camera_fov",
@@ -100,7 +105,8 @@ static func entries() -> Array[Dictionary]:
 			"decimal1",
 			func() -> float: return AccessibilitySettings.camera_fov,
 			Callable(SettingsSchema, "_set_camera_fov"),
-			func() -> void: AccessibilitySettings.request_commit()
+			func() -> void: AccessibilitySettings.request_commit(),
+			AccessibilitySettings.CAMERA_FOV_DEFAULT
 		),
 		_toggle_row(
 			"camera_invert_y",
@@ -117,7 +123,8 @@ static func entries() -> Array[Dictionary]:
 			"multiplier",
 			func() -> float: return AccessibilitySettings.assist_damage_taken,
 			Callable(SettingsSchema, "_set_assist_damage_taken"),
-			func() -> void: AccessibilitySettings.request_commit()
+			func() -> void: AccessibilitySettings.request_commit(),
+			AccessibilitySettings.ASSIST_DAMAGE_TAKEN_DEFAULT
 		),
 		_slider_row(
 			"assist_iframe_generosity",
@@ -128,7 +135,8 @@ static func entries() -> Array[Dictionary]:
 			"multiplier",
 			func() -> float: return AccessibilitySettings.assist_iframe_generosity,
 			Callable(SettingsSchema, "_set_assist_iframe_generosity"),
-			func() -> void: AccessibilitySettings.request_commit()
+			func() -> void: AccessibilitySettings.request_commit(),
+			AccessibilitySettings.ASSIST_IFRAME_DEFAULT
 		),
 		_slider_row(
 			"assist_lock_on_range",
@@ -139,7 +147,8 @@ static func entries() -> Array[Dictionary]:
 			"multiplier",
 			func() -> float: return AccessibilitySettings.assist_lock_on_range,
 			Callable(SettingsSchema, "_set_assist_lock_on_range"),
-			func() -> void: AccessibilitySettings.request_commit()
+			func() -> void: AccessibilitySettings.request_commit(),
+			AccessibilitySettings.ASSIST_LOCK_ON_DEFAULT
 		),
 		_toggle_row(
 			"replay_recording",
@@ -191,7 +200,8 @@ static func _motion_slider_row(id: String, setter_name: String) -> Dictionary:
 		"percent",
 		Callable(SettingsSchema, "_get_%s" % id),
 		Callable(SettingsSchema, setter_name),
-		Callable(AccessibilitySettings, "request_commit")
+		Callable(AccessibilitySettings, "request_commit"),
+		AccessibilitySettings.MOTION_INTENSITY_DEFAULT
 	)
 
 
@@ -600,6 +610,11 @@ static func _set_colorblind_index(idx: int) -> void:
 	AccessibilitySettings.request_commit()
 
 
+## `default_value` is the authored default, and it is a required argument on purpose.
+##
+## This used to read `getter.call()` — the setting's *current* value. The schema is rebuilt every
+## time a page is shown, so the "default" was always whatever the player had already chosen, and
+## "Reset This Page" quietly did nothing for any of the twelve sliders that go through here.
 static func _slider_row(
 	id: String,
 	page: String,
@@ -609,7 +624,8 @@ static func _slider_row(
 	format_id: String,
 	getter: Callable,
 	setter: Callable,
-	commit: Callable
+	commit: Callable,
+	default_value: float
 ) -> Dictionary:
 	return {
 		"id": id,
@@ -618,7 +634,7 @@ static func _slider_row(
 		"name_key": "SETTINGS_%s_NAME" % id.to_upper(),
 		"desc_key": "SETTINGS_%s_DESC" % id.to_upper(),
 		"format": format_id,
-		"default": getter.call() if getter.is_valid() else min_v,
+		"default": clampf(default_value, min_v, max_v),
 		"range": {"min": min_v, "max": max_v, "step": step},
 		"getter": getter,
 		"setter": setter,
@@ -626,7 +642,11 @@ static func _slider_row(
 	}
 
 
-static func _toggle_row(id: String, page: String, getter: Callable, setter: Callable) -> Dictionary:
+## Likewise explicit: a hardcoded `false` made "Reset This Page" turn Control Hints off, when its
+## authored default is on.
+static func _toggle_row(
+	id: String, page: String, getter: Callable, setter: Callable, default_value: bool = false
+) -> Dictionary:
 	return {
 		"id": id,
 		"page": page,
@@ -634,7 +654,7 @@ static func _toggle_row(id: String, page: String, getter: Callable, setter: Call
 		"name_key": "SETTINGS_%s_NAME" % id.to_upper(),
 		"desc_key": "SETTINGS_%s_DESC" % id.to_upper(),
 		"format": "enum",
-		"default": false,
+		"default": default_value,
 		"getter": getter,
 		"setter": setter,
 	}

@@ -193,11 +193,9 @@ func _build_ui_shell() -> void:
 	var grid_frame := GameUISkinScript.make_section_frame(tr("INV_TITLE_STASH"))
 	root_hbox.add_child(grid_frame)
 	var grid_vbox := GameUISkinScript.section_content(grid_frame)
-	_title_label = Label.new()
-	_title_label.name = "Title"
-	_title_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	GameUISkinScript.style_section_title(_title_label, tr("INV_TITLE_STASH"))
-	grid_vbox.add_child(_title_label)
+	# The section frame already draws this title. A second label inside it printed the same word
+	# twice, once upper-cased by the frame and once not.
+	_title_label = GameUISkinScript.section_header(grid_frame)
 	_filter_label = Label.new()
 	_filter_label.name = "FilterLabel"
 	GameUISkinScript.style_hint_label(_filter_label)
@@ -212,6 +210,9 @@ func _build_ui_shell() -> void:
 	_grid.name = "GridContainer"
 	_grid.add_theme_constant_override("h_separation", GRID_GAP)
 	_grid.add_theme_constant_override("v_separation", GRID_GAP)
+	# The column is as wide as the keybind hint row under it, which is wider than ten cells, so a
+	# left-aligned grid sat against one edge with a column of dead space beside it.
+	_grid.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	grid_vbox.add_child(_grid)
 	_tooltip_panel = PanelContainer.new()
 	_tooltip_panel.name = "TooltipPanel"
@@ -625,10 +626,10 @@ func _update_filter_label() -> void:
 		tr("INV_FILTER_ROW")
 		% [tr("INV_SORT"), sort_mode, tr("INV_TYPE"), type_f, tr("INV_RARITY"), rarity_f]
 	)
-	_title_label.text = (
-		tr("INV_TITLE_WAVES_STASH") if _waves_mode else tr("INV_TITLE_STASH")
-	)
-	GameUISkinScript.style_section_title(_title_label)
+	if _title_label:
+		_title_label.text = (
+			tr("INV_TITLE_WAVES_STASH") if _waves_mode else tr("INV_TITLE_STASH")
+		).to_upper()
 
 
 func _hide_tooltip() -> void:

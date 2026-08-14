@@ -58,7 +58,7 @@ func _build_ui_if_needed() -> void:
 	_list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_list.custom_minimum_size = Vector2(0, 320)
 	content_vbox.add_child(_list)
-	var close_btn := MenuShellScript.make_menu_button("Close", close)
+	var close_btn := MenuShellScript.make_menu_button(tr("UI_CLOSE"), close)
 	content_vbox.add_child(close_btn)
 	MenuShellScript.add_hint(content_vbox, "Esc to close")
 
@@ -68,7 +68,7 @@ func _refresh() -> void:
 		return
 	_list.clear()
 	if not AchievementService:
-		_list.add_item("Achievement service unavailable.")
+		_list.add_item(tr("ACHIEVEMENTS_UNAVAILABLE"))
 		return
 	var entries: Array = []
 	for def in AchievementService.get_all_definitions():

@@ -330,7 +330,7 @@ func _refresh_continue_state() -> void:
 			"Clear the tenth floor to open the next rung of this dungeon's ladder."
 		)
 	if weapon_id == "":
-		_status_label.text = "Equip a weapon before entering the dungeon."
+		_status_label.text = tr("ENTRY_NEED_WEAPON")
 	else:
 		_status_label.text = "%s | Weapon: %s" % [_status_label.text, weapon_name]
 
@@ -354,7 +354,7 @@ func _refresh_seed_hint() -> void:
 		return
 	var order := DungeonCatalog.get_order_for_dungeon(_selected_dungeon)
 	if not DungeonSeedService.can_access_tier(order):
-		_seed_hint_label.text = "Tier %d is locked." % order
+		_seed_hint_label.text = tr("ENTRY_TIER_LOCKED") % order
 		return
 	var trimmed := _seed_input.text.strip_edges()
 	if trimmed.is_valid_int() and int(trimmed) >= 1:
@@ -367,7 +367,7 @@ func _refresh_seed_hint() -> void:
 
 func _on_new_pressed() -> void:
 	if InventoryService.inventory.get_equipped_weapon_id() == "":
-		_status_label.text = "Equip a weapon before entering the dungeon."
+		_status_label.text = tr("ENTRY_NEED_WEAPON")
 		return
 	close_menu()
 	dungeon_run_requested.emit(_selected_dungeon, _selected_difficulty)
@@ -395,7 +395,7 @@ func _on_seed_start_pressed() -> void:
 func _try_start_seed(text: String) -> void:
 	var parsed: Variant = DungeonSeedService.parse_run_seed(text)
 	if parsed == null:
-		_seed_input.placeholder_text = "Invalid — enter digits only"
+		_seed_input.placeholder_text = tr("ENTRY_SEED_INVALID")
 		_seed_input.grab_focus()
 		return
 	var run_seed_value := int(parsed)

@@ -42,12 +42,18 @@ static var _atmosphere_profile_id: String = ""
 static var _atmosphere_follow: WeakRef
 
 
+## Lighting *and* atmosphere. Only the dungeon path called `attach_atmosphere`, so the hub and the
+## arena — the two spaces a player spends the most idle time in — had no drifting motes and no fog
+## volume at all, while every dungeon room did. The profiles already described the motes; nothing
+## was reading them.
 static func apply_hub(root: Node3D) -> void:
 	apply_profile(root, "hub")
+	attach_atmosphere(root, "hub")
 
 
 static func apply_arena(root: Node3D) -> void:
 	apply_profile(root, "arena")
+	attach_atmosphere(root, "arena")
 
 
 static func apply_waves_outdoors(root: Node3D) -> void:
@@ -408,7 +414,13 @@ static func _rebuild_atmosphere(holder: Node3D, profile_id: String, follow: Node
 		)
 	var fog: Dictionary = profile.get("fog", {})
 	var fog_volume: Dictionary = atmosphere.get("fog_volume", {})
-	if bool(fog.get("enabled", false)) and bool(fog_volume.get("enabled", true)):
+	# Opt-in, and it defaults to *off*. A FogVolume only renders when the Environment has
+	# volumetric fog switched on, and nothing ever switched it on — so the old default-true built a
+	# FogVolume into every dungeon that drew nothing at all. Declaring it now genuinely turns the
+	# feature on, which is what puts visible shafts in a torch-lit room, so it has to be a
+	# deliberate per-profile choice rather than something a missing key opts you into.
+	if bool(fog.get("enabled", false)) and bool(fog_volume.get("enabled", false)):
+		_enable_volumetric_fog(holder, fog, fog_volume)
 		var size_arr: Array = fog_volume.get("size", [48.0, 8.0, 48.0])
 		var fog_node := FogVolume.new()
 		fog_node.name = "BiomeFogVolume"
@@ -421,6 +433,30 @@ static func _rebuild_atmosphere(holder: Node3D, profile_id: String, follow: Node
 		fog_mat.albedo = _parse_color(fog.get("color", "#1f1a2e"))
 		fog_node.material = fog_mat
 		holder.add_child(fog_node)
+
+
+## Switches volumetric fog on for the scene that owns `holder`, so declared FogVolumes actually
+## render. Kept deliberately cheap: a coarse froxel depth and a short range are all a diorama needs
+## for light shafts, and they keep the cost off the frame budget in a room full of torches.
+static func _enable_volumetric_fog(
+	holder: Node3D, fog: Dictionary, fog_volume: Dictionary
+) -> void:
+	var scene_root := holder.get_parent()
+	if scene_root == null:
+		return
+	var env_node := scene_root.get_node_or_null("WorldEnvironment") as WorldEnvironment
+	if env_node == null or env_node.environment == null:
+		return
+	var env := env_node.environment
+	env.volumetric_fog_enabled = true
+	env.volumetric_fog_density = float(fog_volume.get("volumetric_density", 0.012))
+	env.volumetric_fog_albedo = _parse_color(fog.get("color", "#6b7699"))
+	env.volumetric_fog_emission_energy = float(fog_volume.get("emission", 0.0))
+	env.volumetric_fog_gi_inject = 0.0
+	env.volumetric_fog_anisotropy = 0.35
+	env.volumetric_fog_length = float(fog_volume.get("range", 42.0))
+	env.volumetric_fog_detail_spread = 2.0
+	env.volumetric_fog_ambient_inject = float(fog_volume.get("ambient_inject", 0.35))
 
 
 static func _add_ambient_particles(

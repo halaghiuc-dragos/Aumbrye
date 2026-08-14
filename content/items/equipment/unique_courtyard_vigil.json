@@ -26,8 +26,8 @@
     }
   ],
   "stats": {
-    "defense": 16,
-    "poise": 8
+    "defense": 20,
+    "poise": 10
   },
   "block": {
     "stability": 1.35,

@@ -104,7 +104,8 @@ func on_hit(
 	damage: float,
 	direction: Vector3 = Vector3.ZERO,
 	damage_type: String = "physical",
-	impact: int = ImpactClass.SOLID
+	impact: int = ImpactClass.SOLID,
+	crit: bool = false
 ) -> void:
 	hit_landed.emit(target, damage)
 	_apply_hitstop(impact)
@@ -113,7 +114,7 @@ func on_hit(
 	_play_hit_sfx(target, direction, impact)
 	if show_damage_numbers and target is Node3D:
 		_spawn_damage_number(target as Node3D, damage, Vector3.ZERO, damage_type)
-	_flash_diorama_body(target as Node3D)
+	_flash_diorama_body(target as Node3D, 1.0, Color.WHITE, crit)
 
 
 func preview_hitstop_duration(damage: float) -> float:
@@ -285,7 +286,9 @@ func _play_combat_sfx_at_body(cue: String, body: Node3D = null) -> void:
 	AudioDirector.play_combat_sfx(cue, pos)
 
 
-func _flash_diorama_body(body: Node3D, strength: float = 1.0, tint: Color = Color.WHITE) -> void:
+func _flash_diorama_body(
+	body: Node3D, strength: float = 1.0, tint: Color = Color.WHITE, crit: bool = false
+) -> void:
 	if body == null:
 		return
 	var visual: Node3D = null
@@ -299,4 +302,7 @@ func _flash_diorama_body(body: Node3D, strength: float = 1.0, tint: Color = Colo
 		return
 	MaterialFlashScript.flash(visual, {"strength": strength, "tint": tint})
 	var anchor: Array = VfxService.resolve_combat_anchor(body)
-	VfxService.play_hit_spark(anchor[0], anchor[1])
+	if crit:
+		VfxService.play_crit_spark(anchor[0], anchor[1])
+	else:
+		VfxService.play_hit_spark(anchor[0], anchor[1])

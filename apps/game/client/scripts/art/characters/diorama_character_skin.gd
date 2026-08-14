@@ -137,7 +137,7 @@ static func build_player_body(facing: Node3D, theme: int = -1) -> Node3D:
 		_apply_player_appearance(visual, profile, _body_materials(theme, "player"))
 	else:
 		_apply_player_appearance(visual, profile, _body_materials(theme, "player"))
-	_assert_feet_at_origin(visual)
+	_ground_rig(visual)
 	MeshMergerScript.merge(visual)
 	return visual
 
@@ -157,6 +157,8 @@ static func build_preview_body(parent: Node3D, profile: Dictionary) -> Node3D:
 	if root == null:
 		_build_humanoid(visual, "player", _body_materials(theme, "player"))
 	_apply_player_appearance(visual, clean, _body_materials(theme, "player"))
+	# Must follow _apply_player_appearance, which resets the root pivot's position.
+	_ground_rig(visual)
 	MeshMergerScript.merge(visual)
 	return visual
 
@@ -378,7 +380,7 @@ static func build_enemy_body(
 		if CharacterRigCatalogScript.has_manifest(hound_archetype):
 			var hound_root := build_from_manifest(visual, hound_archetype, theme)
 			if hound_root != null:
-				_assert_feet_at_origin(visual)
+				_ground_rig(visual)
 				MeshMergerScript.merge(visual)
 				return visual
 		_build_quadruped(visual, mats)
@@ -393,7 +395,7 @@ static func build_enemy_body(
 				"DioramaCharacterSkin: %s manifest missing — using box fallback" % archetype
 			)
 			_build_humanoid(visual, resolved if PROFILES.has(profile) else "melee", mats)
-	_assert_feet_at_origin(visual)
+	_ground_rig(visual)
 	MeshMergerScript.merge(visual)
 	return visual
 
@@ -409,18 +411,86 @@ static func build_training_dummy(parent: Node3D) -> Node3D:
 	if root == null:
 		push_error("DioramaCharacterSkin: enemy_dummy manifest missing — using box fallback")
 		_build_humanoid(visual, "dummy", mats)
-	_assert_feet_at_origin(visual)
+	_ground_rig(visual)
 	MeshMergerScript.merge(visual)
 	return visual
 
 
-static func _assert_feet_at_origin(visual: Node3D) -> void:
+## Largest correction treated as an authoring slip rather than a broken rig. A whole diorama
+## character is about 1.4 units tall, so anything past this is not a misplaced limb.
+const MAX_GROUNDING_CORRECTION := 0.8
+
+
+## Drops the assembled rig so its lowest mesh voxel sits on y = 0.
+##
+## Every rig in the game was built floating: a limb's joint marks where it attaches, and the parts
+## that hang from a joint need a negative meshOffset to grow downwards from it. The arms carry one;
+## the legs never did, so they grew upwards out of the hip and left the whole body hovering a third
+## to half its own height above the floor — players, every enemy, the training dummies and the
+## character-creation preview alike. This used to be reported as an error on every single spawn and
+## otherwise left alone.
+##
+## Correcting here rather than in the 24 rig manifests keeps one rule in one place and means a rig
+## added later cannot reintroduce the bug.
+## Parts whose joint marks their top, so the mesh must grow downwards from it.
+##
+## A rig's `joint` is the attachment point. Arms hang from the shoulder and every manifest gives
+## them a negative meshOffset to say so; legs hang from the hip and not one of the nineteen rigs
+## ever did. Their meshes therefore grew *upwards* out of the hip, occupying exactly the same space
+## as the torso — which is why an assembled warden read as a knot of overlapping boxes with no
+## legs beneath it.
+##
+## Derived from the built mesh rather than written into the manifests because six of the player's
+## body-shape variants ship as binary .mesh resources whose extents are not readable from the
+## content files at all. A manifest that states its own meshOffset is still honoured.
+const HANGING_PARTS: PackedStringArray = ["LegL", "LegR", "LegBL", "LegBR"]
+
+
+## Drop needed to put a mesh's top edge on the joint it hangs from.
+static func _hang_offset(mesh: ArrayMesh) -> float:
+	if mesh == null:
+		return 0.0
+	var aabb := mesh.get_aabb()
+	if aabb.size.y <= 0.0:
+		return 0.0
+	return -(aabb.position.y + aabb.size.y)
+
+
+## Shift that centres a mesh sideways and front-to-back on the joint it is attached to.
+##
+## Voxel meshes are built from cell coordinates starting at zero, so a mesh grows out of its origin
+## corner in +x/+y/+z. The joints, however, are authored as body-axis positions — hips at x = -3
+## and +3, shoulders at -8 and +8 — which only line up if the mesh straddles that point. Without
+## this the whole body sat to one side of its own centre line: the torso occupied x 0.00..0.48
+## instead of -0.24..0.24, the left arm ended 0.16 short of the torso and floated beside it, and
+## the legs straddled the centre rather than meeting at it.
+##
+## Height is deliberately untouched — y is positional, not centred. A torso stacks up from the
+## hips, a head from the neck, and limbs hang from their joints via _hang_offset above.
+static func _centre_offset(mesh: ArrayMesh) -> Vector3:
+	if mesh == null:
+		return Vector3.ZERO
+	var aabb := mesh.get_aabb()
+	return Vector3(
+		-(aabb.position.x + aabb.size.x * 0.5), 0.0, -(aabb.position.z + aabb.size.z * 0.5)
+	)
+
+
+static func _ground_rig(visual: Node3D) -> void:
+	if visual == null:
+		return
 	var min_y := rig_mesh_min_y(visual)
-	if min_y > 0.02:
+	if absf(min_y) <= 0.001:
+		return
+	if absf(min_y) > MAX_GROUNDING_CORRECTION:
 		push_error(
-			"DioramaCharacterSkin: rig feet not at origin (min y %.3f on %s)"
-			% [min_y, visual.get_parent().name if visual.get_parent() else "visual"]
+			"DioramaCharacterSkin: rig %s sits %.3f from the floor, too far to be a limb offset"
+			% [visual.get_parent().name if visual.get_parent() else "visual", min_y]
 		)
+		return
+	var root := visual.get_node_or_null(NodePath(ROOT_NAME)) as Node3D
+	var target := root if root != null else visual
+	target.position.y -= min_y
 
 
 static func rig_mesh_min_y(visual: Node3D) -> float:
@@ -837,12 +907,73 @@ static func _collect_rest_pose_recursive(node: Node3D, visual: Node3D, pose: Dic
 		_collect_rest_pose_recursive(part, visual, pose)
 
 
+## Size and darkness of the blob every character stands on.
+const CONTACT_SHADOW_SIZE := Vector3(1.35, 1.5, 1.35)
+const CONTACT_SHADOW_ALPHA := 0.88
+const CONTACT_SHADOW_NAME := "ContactShadow"
+
+
 static func _make_visual(parent: Node3D) -> Node3D:
 	var visual := Node3D.new()
 	visual.name = VISUAL_NAME
 	visual.set_meta(&"owned_materials", true)
 	parent.add_child(visual)
+	_attach_contact_shadow(visual)
 	return visual
+
+
+## A projected blob under the feet, so a character reads as standing in the room rather than
+## pasted on top of it.
+##
+## Screen-space occlusion cannot do this job here. It only darkens the ambient term, and interiors
+## now run a deliberately low ambient so that torches can actually pool — and the pixel pipeline
+## renders at a low internal resolution where a sub-metre occlusion radius is close to sub-pixel
+## anyway. Measured, it produced no darkening at the feet whatsoever. A decal is independent of
+## both, costs one draw, and is something the art direction can actually control.
+static func _attach_contact_shadow(visual: Node3D) -> void:
+	if visual.has_node(CONTACT_SHADOW_NAME):
+		return
+	var decal := Decal.new()
+	decal.name = CONTACT_SHADOW_NAME
+	decal.size = CONTACT_SHADOW_SIZE
+	# Projects straight down from just above the feet onto whatever the character is standing on,
+	# so it follows stairs and ledges without any per-frame work.
+	decal.position = Vector3(0.0, 0.45, 0.0)
+	decal.texture_albedo = _contact_shadow_texture()
+	decal.modulate = Color(0.0, 0.0, 0.0, CONTACT_SHADOW_ALPHA)
+	decal.albedo_mix = 1.0
+	# Barely any vertical fade: the blob should be at full strength where it meets the floor,
+	# and the first pass at 0.4/1.2 faded most of it away before it landed.
+	decal.upper_fade = 0.15
+	decal.lower_fade = 0.25
+	# Cheap at distance: a blob a room away is a couple of pixels and not worth projecting.
+	decal.distance_fade_enabled = true
+	decal.distance_fade_begin = 22.0
+	decal.distance_fade_length = 8.0
+	visual.add_child(decal)
+
+
+static var _contact_shadow_tex: Texture2D
+
+
+## Radial falloff, generated rather than shipped as a PNG — it is two lines of gradient and would
+## otherwise be one more asset to keep in step with the palette.
+static func _contact_shadow_texture() -> Texture2D:
+	if _contact_shadow_tex != null:
+		return _contact_shadow_tex
+	var gradient := Gradient.new()
+	gradient.set_color(0, Color(1, 1, 1, 1))
+	gradient.set_color(1, Color(1, 1, 1, 0))
+	gradient.add_point(0.55, Color(1, 1, 1, 0.65))
+	var tex := GradientTexture2D.new()
+	tex.gradient = gradient
+	tex.fill = GradientTexture2D.FILL_RADIAL
+	tex.fill_from = Vector2(0.5, 0.5)
+	tex.fill_to = Vector2(1.0, 0.5)
+	tex.width = 64
+	tex.height = 64
+	_contact_shadow_tex = tex
+	return tex
 
 
 static func _remove_visual(parent: Node3D) -> void:
@@ -900,11 +1031,17 @@ static func build_from_manifest(visual: Node3D, archetype_id: String, theme: int
 			mesh_inst.mesh = mesh
 			mesh_inst.material_override = mat
 			var mesh_offset_arr: Array = part_def.get("meshOffset", [0, 0, 0])
-			mesh_inst.position = Vector3(
+			var mesh_offset := Vector3(
 				float(mesh_offset_arr[0]) * grid,
 				float(mesh_offset_arr[1]) * grid,
 				float(mesh_offset_arr[2]) * grid
 			)
+			if not part_def.has("meshOffset") and part_name in HANGING_PARTS:
+				mesh_offset.y = _hang_offset(mesh)
+			var centred := _centre_offset(mesh)
+			mesh_offset.x += centred.x
+			mesh_offset.z += centred.z
+			mesh_inst.position = mesh_offset
 			pivot.add_child(mesh_inst)
 			if part_def.has("mount"):
 				_add_pivot(pivot, str(part_def.get("mount")), mesh_inst.position)
@@ -949,6 +1086,10 @@ static func _attach_manifest_extras(
 		var mesh_inst := MeshInstance3D.new()
 		mesh_inst.name = "Mesh"
 		mesh_inst.mesh = mesh
+		# Extras are voxel meshes with the same corner origin as the parts they hang off, so they
+		# need the same centring — otherwise a visor sits on one half of a face that has itself
+		# just been recentred, and the two drift apart.
+		mesh_inst.position = _centre_offset(mesh)
 		mesh_inst.material_override = mat
 		holder.add_child(mesh_inst)
 

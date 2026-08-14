@@ -34,7 +34,7 @@ public class DungeonSeedDeriverTests
     [Fact]
     public void GenerationSeed_IsStableAcrossProcesses()
     {
-        const int expected = 61_764_214;
+        const int expected = 525_050_899;
         Assert.Equal(expected, DungeonSeedDeriver.GenerationSeed(12345, 2, 3));
     }
 

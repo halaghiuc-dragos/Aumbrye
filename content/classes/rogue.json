@@ -4,8 +4,18 @@
   "description": "Fast striker favoring daggers and critical hits.",
   "startingWeaponItemId": "rogue_dagger",
   "statBonuses": {
-    "moveSpeed": 0.05,
-    "critChance": 0.02
+    "maxHealth": 10.0,
+    "armor": 1.0,
+    "poise": 4.0,
+    "blockReduction": 0.0,
+    "physicalDamage": 0.18,
+    "poiseDamage": 0.06,
+    "critChance": 0.12,
+    "moveSpeed": 0.18,
+    "staminaMax": 50.0,
+    "staminaRegen": 0.33,
+    "manaMax": 25.0,
+    "manaRegen": 0.18
   },
   "allowedWeapons": [
     "rogue_dagger",
@@ -51,5 +61,19 @@
   "perkDescription": "CLASS_PERK_SHADOWSTEP_DESC",
   "roleText": "Striker / Speed",
   "perkNameText": "Shadowstep",
-  "perkDescriptionText": "A strike from behind returns the stamina it spent, and opens the wound wider."
+  "perkDescriptionText": "A strike from behind returns the stamina it spent, and opens the wound wider.",
+  "statRatings": {
+    "maxHealth": 6,
+    "armor": 5,
+    "poise": 5,
+    "blockReduction": 4,
+    "physicalDamage": 13,
+    "poiseDamage": 7,
+    "critChance": 16,
+    "moveSpeed": 16,
+    "staminaMax": 14,
+    "staminaRegen": 15,
+    "manaMax": 9,
+    "manaRegen": 10
+  }
 }

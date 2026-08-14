@@ -542,7 +542,14 @@ static func _configure_occlusion(environment: Environment) -> void:
 	environment.ssao_detail = 0.0
 	environment.ssao_horizon = 0.16
 	environment.ssao_sharpness = 1.0
-	environment.ssao_light_affect = 0.1
+	# Occlusion has to bite into direct light, not only ambient.
+	#
+	# Godot's SSAO darkens the ambient term by default, which was fine when interiors ran an ambient
+	# energy of 0.78 — but that flat fill was exactly what stopped torches casting any pool at all,
+	# so it is now down around 0.2 and there is almost nothing left for AO to darken. A character
+	# stood on a lit floor with no shading at the feet and read as pasted on top of it rather than
+	# standing in the room. Letting AO take a third of the direct light back restores the contact.
+	environment.ssao_light_affect = 0.35
 	environment.ssao_ao_channel_affect = 0.0
 
 
@@ -570,7 +577,13 @@ static func configure_directional_shadow(
 			light.directional_shadow_max_distance = 24.0
 			light.shadow_bias = 0.01
 			light.shadow_normal_bias = 0.2
-	light.shadow_opacity = 1.0
+	# Not fully opaque. At 1.0 a shadow is a hole punched to black regardless of the ambient and
+	# fill lights the profile sets up, which under a strong sun turns every cast shadow into a flat
+	# silhouette and loses the shape of whatever is standing in it. Letting a little of the fill
+	# through keeps shadows coloured by the scene — and now that the colour quantizer preserves hue
+	# rather than collapsing dark tints to a primary, that tint actually survives to the screen.
+	# The indoor omni path has used 0.85 for the same reason.
+	light.shadow_opacity = 0.86
 
 
 static func texture_filter_mode() -> BaseMaterial3D.TextureFilter:

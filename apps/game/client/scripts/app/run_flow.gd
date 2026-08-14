@@ -1319,11 +1319,11 @@ func _cloud_finalize_run(
 	# the request never lands.
 	var finished_floor := current_floor
 	CloudOutboxScript.enqueue(
-		run_id, outcome, elapsed, boss_defeated, loot_instance_ids, finished_floor
+		run_id, outcome, elapsed, boss_defeated, loot_instance_ids, finished_floor, _kill_count
 	)
 	LocalSave.autosave()
 	_cloud_finalize_run_async(
-		run_id, outcome, elapsed, boss_defeated, loot_instance_ids, finished_floor
+		run_id, outcome, elapsed, boss_defeated, loot_instance_ids, finished_floor, _kill_count
 	)
 
 
@@ -1333,13 +1333,14 @@ func _cloud_finalize_run_async(
 	elapsed: float,
 	boss_defeated: bool,
 	loot_instance_ids: Array,
-	finished_floor: int
+	finished_floor: int,
+	kills: int
 ) -> void:
 	if not ApiConfig.cloud_calls_enabled():
 		return
 	if run_id != "":
 		var result := await ApiClient.complete_run(
-			run_id, outcome, elapsed, boss_defeated, loot_instance_ids, finished_floor
+			run_id, outcome, elapsed, boss_defeated, loot_instance_ids, finished_floor, kills
 		)
 		if result.get("ok", false):
 			CloudOutboxScript.resolve(run_id)

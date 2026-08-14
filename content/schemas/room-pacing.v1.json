@@ -1,0 +1,49 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://aumbrye.dev/schemas/room-pacing.v1.json",
+  "title": "RoomPacing",
+  "description": "Depth-aware weighting for off-path room content, the pacing guarantees that override it, and the floor themes that skew it.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "shallow", "deep"],
+  "properties": {
+    "id": { "type": "string", "minLength": 1 },
+    "note": { "type": "string" },
+    "shallow": { "$ref": "#/$defs/contentWeights" },
+    "deep": { "$ref": "#/$defs/contentWeights" },
+    "guarantees": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "minRewardRooms": { "type": "integer", "minimum": 0 },
+        "minRestRooms": { "type": "integer", "minimum": 0 },
+        "restWithinOfBoss": { "type": "integer", "minimum": 0 },
+        "maxConsecutiveCombat": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "floorThemes": { "type": "array", "items": { "$ref": "#/$defs/floorTheme" } },
+    "modifierMultipliers": {
+      "type": "object",
+      "description": "Run-modifier id to the content weights it scales.",
+      "additionalProperties": { "$ref": "#/$defs/contentWeights" }
+    }
+  },
+  "$defs": {
+    "contentWeights": {
+      "type": "object",
+      "description": "Relative weight per room content type. Zero removes the type entirely.",
+      "additionalProperties": { "type": "number", "minimum": 0 }
+    },
+    "floorTheme": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "weight"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "label": { "type": "string" },
+        "weight": { "type": "number", "minimum": 0 },
+        "multipliers": { "$ref": "#/$defs/contentWeights" }
+      }
+    }
+  }
+}

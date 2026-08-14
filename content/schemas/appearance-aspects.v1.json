@@ -1,0 +1,99 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://aumbrye.dev/schemas/appearance-aspects.v1.json",
+  "title": "AppearanceAspects",
+  "description": "Cosmetic aspects and titles offered during character creation, with their unlock conditions.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "aspects"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "aspects": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/aspect"
+      }
+    },
+    "titles": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/title"
+      }
+    }
+  },
+  "$defs": {
+    "aspect": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "name"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "nameKey": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "descKey": {
+          "type": "string"
+        },
+        "paletteTheme": {
+          "type": "string"
+        },
+        "unlockFlag": {
+          "type": "string"
+        },
+        "unlockHint": {
+          "type": "string"
+        }
+      }
+    },
+    "title": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "name"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Title id. The empty string is the 'no title' sentinel offered in character creation."
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "nameKey": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "unlockFlag": {
+          "type": "string"
+        },
+        "unlockHint": {
+          "type": "string"
+        }
+      }
+    }
+  }
+}

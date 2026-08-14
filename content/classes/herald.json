@@ -4,8 +4,18 @@
   "description": "Carries what the deep places carry, and lets it spread.",
   "startingWeaponItemId": "mirebrass_staff",
   "statBonuses": {
-    "manaMax": 15,
-    "manaRegen": 0.08
+    "maxHealth": 40.0,
+    "armor": 7.0,
+    "poise": 24.0,
+    "blockReduction": 0.09,
+    "physicalDamage": 0.06,
+    "poiseDamage": 0.1,
+    "critChance": 0.02,
+    "moveSpeed": 0.06,
+    "staminaMax": 20.0,
+    "staminaRegen": 0.15,
+    "manaMax": 50.0,
+    "manaRegen": 0.27
   },
   "allowedWeapons": [
     "mirebrass_staff",
@@ -56,5 +66,19 @@
   "perkDescription": "CLASS_PERK_CONTAGION_DESC",
   "roleText": "Support / Status",
   "perkNameText": "Contagion",
-  "perkDescriptionText": "What one of them is carrying, the ones standing nearest are carrying too."
+  "perkDescriptionText": "What one of them is carrying, the ones standing nearest are carrying too.",
+  "statRatings": {
+    "maxHealth": 12,
+    "armor": 11,
+    "poise": 10,
+    "blockReduction": 13,
+    "physicalDamage": 7,
+    "poiseDamage": 9,
+    "critChance": 6,
+    "moveSpeed": 8,
+    "staminaMax": 8,
+    "staminaRegen": 9,
+    "manaMax": 14,
+    "manaRegen": 13
+  }
 }

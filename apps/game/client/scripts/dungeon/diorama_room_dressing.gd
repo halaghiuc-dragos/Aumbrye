@@ -15,6 +15,9 @@ const ROOM_SUFFIXES := [
 	"puzzle",
 ]
 
+## How much of a prop's shortest side is taken off each corner.
+const PROP_BEVEL_RATIO := 0.16
+
 static var _shadow_omni_budget: int = 0
 static var _max_shadow_omnis: int = 2
 static var _torch_flicker: Dictionary = {}
@@ -493,6 +496,7 @@ static func _spawn_wall_torch(
 		VisualLighting.WALL_TORCH_RANGE,
 		parent
 	)
+	_add_torch_embers(parent, pos + Vector3(0.0, 0.16, 0.0), _biome_light_color(biome_id))
 
 
 static func _spawn_ceiling_torch(
@@ -509,6 +513,67 @@ static func _spawn_ceiling_torch(
 		VisualLighting.TORCH_OMNI_RANGE,
 		parent
 	)
+	_add_torch_embers(parent, pos + Vector3(0.0, -0.1, 0.0), _biome_light_color(biome_id))
+
+
+## Rising embers over a torch.
+##
+## A torch was a lit box: the flicker on the light was the only thing saying it was on fire. A
+## handful of embers costs one emitter per torch and is what makes a corridor of them read as a
+## living space rather than a corridor of lamps.
+##
+## Deliberately small. A dungeon floor can hold a couple of dozen torches, so the count per
+## emitter is what keeps the total sane — and the whole thing sits behind the particle-quality
+## setting, which zeroes it on the lowest tier.
+const TORCH_EMBER_COUNT := 7
+
+
+static func _add_torch_embers(parent: Node3D, pos: Vector3, tint: Color) -> void:
+	if PixelDioramaSettings.particle_quality <= 0:
+		return
+	var embers := GPUParticles3D.new()
+	embers.name = "TorchEmbers"
+	embers.position = pos
+	embers.amount = maxi(2, int(TORCH_EMBER_COUNT * PixelDioramaSettings.particle_amount_scale()))
+	embers.lifetime = 2.4
+	embers.randomness = 0.7
+	embers.visibility_aabb = AABB(Vector3(-0.8, -0.4, -0.8), Vector3(1.6, 3.2, 1.6))
+	var chunk := BoxMesh.new()
+	chunk.size = Vector3(0.05, 0.05, 0.05)
+	embers.draw_pass_1 = chunk
+	var mat := ParticleProcessMaterial.new()
+	mat.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_SPHERE
+	mat.emission_sphere_radius = 0.11
+	mat.direction = Vector3(0.0, 1.0, 0.0)
+	mat.spread = 22.0
+	mat.initial_velocity_min = 0.35
+	mat.initial_velocity_max = 0.85
+	# Slight upward gravity: embers ride the heat rather than falling back.
+	mat.gravity = Vector3(0.0, 0.28, 0.0)
+	mat.damping_min = 0.2
+	mat.damping_max = 0.6
+	mat.scale_min = 0.5
+	mat.scale_max = 1.1
+	# Fade from the flame's own colour out to nothing as they cool.
+	var ramp := Gradient.new()
+	ramp.set_color(0, Color(tint.r, tint.g, tint.b, 0.95))
+	ramp.set_color(1, Color(tint.r * 0.6, tint.g * 0.25, tint.b * 0.1, 0.0))
+	var ramp_tex := GradientTexture1D.new()
+	ramp_tex.gradient = ramp
+	mat.color_ramp = ramp_tex
+	embers.process_material = mat
+	# A plain unshaded material that takes its colour from the particle, not the diorama surface
+	# shader: that shader reads a world-space pattern and has no notion of per-particle colour, so
+	# the ramp above would never reach the screen through it.
+	var ember_mat := StandardMaterial3D.new()
+	ember_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	ember_mat.vertex_color_use_as_albedo = true
+	ember_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	ember_mat.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+	ember_mat.disable_receive_shadows = true
+	ember_mat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+	chunk.material = ember_mat
+	parent.add_child(embers)
 
 
 static func _add_obstacle_block(
@@ -581,9 +646,11 @@ static func _add_box(
 ) -> MeshInstance3D:
 	var mesh_instance := MeshInstance3D.new()
 	mesh_instance.name = node_name
-	var box := BoxMesh.new()
-	box.size = size
-	mesh_instance.mesh = box
+	# Chamfered, not a raw box. Every torch, brazier, pillar, banner and chest in the dungeon comes
+	# through here, and as plain BoxMeshes they read as shipping crates standing next to characters
+	# that are now properly sculpted. The cut is proportional so a small prop is not swallowed by it.
+	var bevel: float = minf(size.x, minf(size.y, size.z)) * PROP_BEVEL_RATIO
+	mesh_instance.mesh = PixelDioramaStyle.bevel_box_mesh(size, bevel)
 	mesh_instance.position = pos
 	if mat:
 		mesh_instance.material_override = mat

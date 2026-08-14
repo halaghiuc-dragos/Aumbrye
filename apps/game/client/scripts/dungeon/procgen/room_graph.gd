@@ -18,6 +18,12 @@ var treasure_id: String = ""
 var stairs_id: String = ""
 var shop_id: String = ""
 var walk_edges: Array = []  # [{a: Vector2i, b: Vector2i}, ...] spanning-tree edges
+
+## Doors opened on top of the spanning tree to fold the level back on itself, each carrying the
+## `detour` it removes — the number of rooms the player would otherwise have walked to get from one
+## side to the other. Kept so the layout's circularity can be inspected and asserted rather than
+## only being implied by the door masks.
+var loop_edges: Array = []  # [{a: Vector2i, b: Vector2i, key: String, detour: int}, ...]
 var config: RoomGraphConfig
 
 

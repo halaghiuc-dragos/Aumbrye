@@ -28,8 +28,8 @@
     }
   ],
   "stats": {
-    "frostDamage": 10,
-    "poiseDamage": 0.18
+    "frostDamage": 13,
+    "poiseDamage": 0.228
   },
   "weaponId": "greatsword"
 }

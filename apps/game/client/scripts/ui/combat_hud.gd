@@ -17,12 +17,19 @@ const LOW_HP_RATIO := 0.25
 const VIGNETTE_COOLDOWN := 0.8
 const HINT_AUTO_HIDE_SECONDS := 60.0
 const STATUS_REFRESH_INTERVAL := 0.1
-const HEALTH_FILL := Color(0.82, 0.14, 0.12, 1.0)
-const HEALTH_BG := Color(0.12, 0.05, 0.05, 0.92)
-const STAMINA_FILL := Color(0.22, 0.78, 0.28, 1.0)
-const STAMINA_BG := Color(0.05, 0.12, 0.06, 0.92)
-const MANA_FILL := Color(0.22, 0.42, 0.92, 1.0)
-const MANA_BG := Color(0.04, 0.06, 0.14, 0.92)
+# The three resource bars are on screen for the whole game, so they set its colour more than any
+# other element. They used to be pure red, pure green and pure blue — the sRGB primaries — against
+# a UI built entirely from parchment, tarnished gold and deep indigo, and read as programmer art
+# bolted onto someone else's game. These are the same three readings pulled into that palette:
+# arterial red rather than fire-engine red, a moss green that belongs next to gold, and an arcane
+# violet-blue instead of a hyperlink blue. Each stays clearly distinct at a glance, which is the
+# one thing a resource bar has to do.
+const HEALTH_FILL := Color(0.71, 0.17, 0.19, 1.0)
+const HEALTH_BG := Color(0.14, 0.05, 0.06, 0.92)
+const STAMINA_FILL := Color(0.52, 0.68, 0.34, 1.0)
+const STAMINA_BG := Color(0.08, 0.11, 0.06, 0.92)
+const MANA_FILL := Color(0.44, 0.42, 0.85, 1.0)
+const MANA_BG := Color(0.06, 0.06, 0.14, 0.92)
 const ATTACK_STARTUP_FILL := Color(0.95, 0.55, 0.18, 1.0)
 const ATTACK_ACTIVE_FILL := Color(0.85, 0.18, 0.12, 1.0)
 const ATTACK_RECOVERY_FILL := Color(0.45, 0.45, 0.48, 1.0)

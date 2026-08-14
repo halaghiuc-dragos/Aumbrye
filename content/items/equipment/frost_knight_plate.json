@@ -9,8 +9,8 @@
   "description": "Plate armor frozen to a knight who never thawed.",
   "value": 20,
   "stats": {
-    "maxHealth": 25,
-    "defense": 14
+    "maxHealth": 32,
+    "defense": 18
   },
   "equipmentSlot": "chest",
   "theme": "frozen_fortress"

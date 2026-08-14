@@ -36,7 +36,8 @@ public class HealthEndpointTests : IClassFixture<AumbryeWebApplicationFactory>
     public async Task Health_RespondsUnderProductionEnvironment()
     {
         Environment.SetEnvironmentVariable("ASPNETCORE_ENVIRONMENT", "Production");
-        Environment.SetEnvironmentVariable("Jwt__Secret", "integration-test-jwt-secret-32chars!!");
+        // Jwt:Secret must be base64 that decodes to at least 32 bytes.
+        Environment.SetEnvironmentVariable("Jwt__Secret", "YXVtYnJ5ZS1pbnRlZ3JhdGlvbi10ZXN0LXNpZ25pbmcta2V5LTMyYg==");
         Environment.SetEnvironmentVariable("UseInMemoryStores", "true");
 
         try

@@ -14,7 +14,22 @@ var max_walk_attempts: int = 8192
 var boss_min_distance: int = 4
 var min_dead_ends: int = 2
 var max_secrets: int = 2
-var loop_budget: int = 4
+var loop_budget: int = 3
+
+## How much backtracking a door has to save before it counts as a shortcut rather than a hole in a
+## wall. A candidate's detour is the number of rooms between its two sides on the current route, so
+## a detour of 3 is a plain 2x2 block — the smallest cycle a grid can hold and worth nothing to a
+## player. 5 means opening the door saves at least four rooms of walking, which is the point at
+## which a loop reads as a shortcut back into somewhere you have already been.
+var loop_min_detour: int = 5
+
+## Relaxed threshold used only when the strict one cannot fill the budget, so a cramped layout
+## still gets some circulation instead of none.
+var loop_fallback_detour: int = 3
+
+## Layouts with no loop at all are rerolled while looping is enabled. One real shortcut is the
+## difference between a branching tree and a level that folds back on itself.
+var min_loops: int = 1
 var branch_max_depth: int = 8
 var allow_2x2_blocks: bool = true
 var max_neighbor_count: int = 4
@@ -41,6 +56,15 @@ static func from_biome(biome: Dictionary) -> RoomGraphConfig:
 	config.branch_max_depth = int(generator.get("branchMaxDepth", config.branch_max_depth))
 	config.max_neighbor_count = int(generator.get("maxNeighborCount", config.max_neighbor_count))
 	config.loop_budget = int(generator.get("loopBudget", config.loop_budget))
+	config.loop_min_detour = maxi(3, int(generator.get("loopMinDetour", config.loop_min_detour)))
+	config.loop_fallback_detour = clampi(
+		int(generator.get("loopFallbackDetour", config.loop_fallback_detour)),
+		3,
+		config.loop_min_detour
+	)
+	config.min_loops = clampi(
+		int(generator.get("minLoops", config.min_loops)), 0, maxi(0, config.loop_budget)
+	)
 	config.max_generation_attempts = int(
 		generator.get("maxGenerationAttempts", config.max_generation_attempts)
 	)

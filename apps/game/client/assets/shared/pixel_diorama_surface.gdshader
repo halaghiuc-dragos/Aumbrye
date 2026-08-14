@@ -90,13 +90,25 @@ vec3 shade_prop(vec2 uv, vec2 cell, float grain, float detail) {
 	return col;
 }
 
-vec3 shade_accent(vec2 cell, float detail) {
-	// Repeating 6-step sparkle, kept from the retired legacy accent shader.
-	float sparkle = mod(cell.x * 7.0 + cell.y * 11.0, 6.0);
+// Gilded trim: horizontal bands with scattered inlay studs.
+//
+// This used to be `mod(cell.x * 7.0 + cell.y * 11.0, 6.0)`, a weighted sum of the two cell axes.
+// That expression is constant along diagonal lines, so it painted regular diagonal stripes across
+// every accent surface — and since the accent slot carries the biome's *emissive* colour, a door
+// panel came out as bright orange diagonals on brown. It read as hazard tape, not as ornament.
+//
+// Bands run with the geometry instead, and the studs sit on a row-offset grid so they never line
+// up into a diagonal again.
+vec3 shade_accent(vec2 uv, float detail) {
 	vec3 col = color_base.rgb;
-	col = mix(col, color_base.rgb * 1.14, step(1.5, sparkle) * step(sparkle, 2.5) * detail);
-	col = mix(col, color_accent.rgb, step(4.0, sparkle) * pattern_strength * detail);
-	col = mix(col, color_shadow.rgb, step(sparkle, 0.5) * 0.4 * detail);
+	// A recessed band every other row, the way a metal frieze is chased.
+	float band = fract(uv.y * 0.5);
+	col = mix(col, color_shadow.rgb, step(0.76, band) * pattern_strength * 0.55 * detail);
+	col = mix(col, color_base.rgb * 1.12, step(0.06, band) * step(band, 0.16) * detail);
+	// Inlay studs, offset half a cell on alternate rows so the eye reads a pattern, not a lattice.
+	vec2 stud_cell = floor(vec2(uv.x + mod(floor(uv.y), 2.0) * 0.5, uv.y));
+	float stud = step(0.82, cell_hash(stud_cell + vec2(5.0, 2.0)));
+	col = mix(col, color_accent.rgb, stud * pattern_strength * 0.6 * detail);
 	return col;
 }
 
@@ -127,7 +139,7 @@ void fragment() {
 	} else if (surface_kind == 2) {
 		col = shade_prop(uv, cell, grain, detail);
 	} else {
-		col = shade_accent(cell, detail);
+		col = shade_accent(uv, detail);
 	}
 
 	float stitch = step(0.9, cell_hash(cell + vec2(3.0, 7.0)));

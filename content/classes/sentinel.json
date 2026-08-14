@@ -4,8 +4,18 @@
   "description": "Defensive spearman with high poise and block skill.",
   "startingWeaponItemId": "guard_spear",
   "statBonuses": {
-    "poise": 15,
-    "blockReduction": 0.03
+    "maxHealth": 50.0,
+    "armor": 11.0,
+    "poise": 48.0,
+    "blockReduction": 0.12,
+    "physicalDamage": 0.08,
+    "poiseDamage": 0.16,
+    "critChance": 0.01,
+    "moveSpeed": 0.0,
+    "staminaMax": 40.0,
+    "staminaRegen": 0.12,
+    "manaMax": 5.0,
+    "manaRegen": 0.03
   },
   "allowedWeapons": [
     "guard_spear",
@@ -51,5 +61,19 @@
   "perkDescription": "CLASS_PERK_BULWARK_DESC",
   "roleText": "Defender / Poise",
   "perkNameText": "Bulwark",
-  "perkDescriptionText": "What the shield stops is turned back into the body that held it."
+  "perkDescriptionText": "What the shield stops is turned back into the body that held it.",
+  "statRatings": {
+    "maxHealth": 14,
+    "armor": 15,
+    "poise": 16,
+    "blockReduction": 16,
+    "physicalDamage": 8,
+    "poiseDamage": 12,
+    "critChance": 5,
+    "moveSpeed": 4,
+    "staminaMax": 12,
+    "staminaRegen": 8,
+    "manaMax": 5,
+    "manaRegen": 5
+  }
 }

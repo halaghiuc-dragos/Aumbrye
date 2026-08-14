@@ -2,12 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://brk2uobr0d5mw"
-valid=false
+uid="uid://djvbbofik7051"
+path="res://.godot/imported/tiles.png-ed13d76f5bd7f98e5560185d4cf3f1d7.ctex"
+metadata={
+"vram_texture": false
+}
 
 [deps]
 
 source_file="res://assets/textures/hollow/tiles.png"
+dest_files=["res://.godot/imported/tiles.png-ed13d76f5bd7f98e5560185d4cf3f1d7.ctex"]
 
 [params]
 

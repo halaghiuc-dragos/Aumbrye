@@ -71,15 +71,15 @@ public class AffixRollerTests
     }
 
     [Fact]
-    public void EpicLegendaryMythic_AffixCountRanges_MatchRarityRules()
+    public void EpicLegendaryAumbral_AffixCountRanges_MatchRarityRules()
     {
         var rules = AffixCatalog.RarityRules.AffixCounts;
         Assert.Equal(2, rules[ItemRarities.Epic].Min);
         Assert.Equal(3, rules[ItemRarities.Epic].Max);
         Assert.Equal(3, rules[ItemRarities.Legendary].Min);
         Assert.Equal(4, rules[ItemRarities.Legendary].Max);
-        Assert.Equal(4, rules[ItemRarities.Mythic].Min);
-        Assert.Equal(5, rules[ItemRarities.Mythic].Max);
+        Assert.Equal(4, rules[ItemRarities.Aumbral].Min);
+        Assert.Equal(5, rules[ItemRarities.Aumbral].Max);
     }
 
     [Fact]

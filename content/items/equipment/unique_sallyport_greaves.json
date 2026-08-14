@@ -26,8 +26,8 @@
     }
   ],
   "stats": {
-    "evasion": 8,
-    "moveSpeed": 0.04,
-    "armor": 5
+    "evasion": 10,
+    "moveSpeed": 0.051,
+    "armor": 6
   }
 }

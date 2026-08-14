@@ -4,8 +4,18 @@
   "description": "Balanced frontline fighter with sturdy armor.",
   "startingWeaponItemId": "knight_blade",
   "statBonuses": {
-    "maxHealth": 20,
-    "armor": 5
+    "maxHealth": 45.0,
+    "armor": 9.0,
+    "poise": 32.0,
+    "blockReduction": 0.08,
+    "physicalDamage": 0.12,
+    "poiseDamage": 0.12,
+    "critChance": 0.04,
+    "moveSpeed": 0.06,
+    "staminaMax": 35.0,
+    "staminaRegen": 0.15,
+    "manaMax": 15.0,
+    "manaRegen": 0.09
   },
   "allowedWeapons": [
     "castle_sword",
@@ -45,5 +55,19 @@
   "perkDescription": "CLASS_PERK_STEADFAST_DESC",
   "roleText": "Defender / Poise",
   "perkNameText": "Steadfast",
-  "perkDescriptionText": "Poise recovers faster behind a raised guard, and a blow turned aside gives back the breath it cost."
+  "perkDescriptionText": "Poise recovers faster behind a raised guard, and a blow turned aside gives back the breath it cost.",
+  "statRatings": {
+    "maxHealth": 13,
+    "armor": 13,
+    "poise": 12,
+    "blockReduction": 12,
+    "physicalDamage": 10,
+    "poiseDamage": 10,
+    "critChance": 8,
+    "moveSpeed": 8,
+    "staminaMax": 11,
+    "staminaRegen": 9,
+    "manaMax": 7,
+    "manaRegen": 7
+  }
 }

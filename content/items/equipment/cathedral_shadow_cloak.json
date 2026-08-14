@@ -9,8 +9,8 @@
   "description": "Cathedral black wool that drinks torchlight at the edges.",
   "value": 20,
   "stats": {
-    "evasion": 0.05,
-    "defense": 10
+    "evasion": 0.063,
+    "defense": 13
   },
   "equipmentSlot": "chest",
   "theme": "dark_cathedral"

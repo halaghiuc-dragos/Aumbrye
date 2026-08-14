@@ -30,8 +30,8 @@
     }
   ],
   "stats": {
-    "physicalDamage": 18,
-    "poiseDamage": 0.2
+    "physicalDamage": 23,
+    "poiseDamage": 0.253
   },
   "weaponId": "greatsword"
 }

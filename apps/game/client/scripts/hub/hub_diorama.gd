@@ -359,11 +359,44 @@ static func _add_perimeter_accents(parent: Node3D, mats: Dictionary, parapet_h: 
 		)
 
 
+## Volume and falloff for a portal's hum. Quiet enough to be atmosphere rather than a sound
+## effect, and audible from about the distance at which the portal frame fills the screen.
+const PORTAL_HUM_DB := -15.0
+const PORTAL_HUM_RANGE := 17.0
+const PORTAL_HUM_NAME := "PortalHum"
+
+
 static func _dress_portal(portal: Node3D, mats: Dictionary, theme: String) -> void:
 	if portal == null:
 		return
 	var def := PortalCatalog.resolve(theme)
 	PixelDioramaStyle.build_portal(portal, def, 1.0, mats)
+	_attach_portal_hum(portal, theme)
+
+
+## Every realm has its own portal hum, tuned to the fundamental its audio manifest declares — but
+## nothing in the game ever played one, so all six hub portals stood in silence. Each is a looping
+## positional source on the portal itself, which also means walking between them cross-fades by
+## itself as the player moves.
+static func _attach_portal_hum(portal: Node3D, theme: String) -> void:
+	if portal.has_node(PORTAL_HUM_NAME):
+		return
+	var path := "res://assets/audio/sfx/portal_hum_%s.ogg" % theme
+	if not ResourceLoader.exists(path):
+		return
+	var stream := load(path) as AudioStream
+	if stream == null:
+		return
+	var player := AudioStreamPlayer3D.new()
+	player.name = PORTAL_HUM_NAME
+	player.stream = stream
+	player.bus = &"SFX"
+	player.volume_db = PORTAL_HUM_DB
+	player.max_distance = PORTAL_HUM_RANGE
+	player.unit_size = 4.0
+	player.attenuation_model = AudioStreamPlayer3D.ATTENUATION_INVERSE_SQUARE_DISTANCE
+	player.autoplay = true
+	portal.add_child(player)
 
 
 static func _dress_blacksmith(building: Node3D, mats: Dictionary) -> void:

@@ -1,385 +1,768 @@
 {
-  "version": 1,
-  "profiles": {
-    "hub": {
-      "display_name": "Aumbrye Hub",
-      "ambient": { "color": "#9e8f85", "energy": 0.12 },
-      "fog": { "enabled": true, "color": "#d1a880", "density": 0.0032, "aerial": 0.22, "sky_affect": 0.0 },
-      "sun": {
-        "color": "#ffe0a8",
-        "energy": 1.7,
-        "rotation_deg": [-28.6, 97.4, 0.0],
-        "shadows": true
-      },
-      "fill": {
-        "color": "#809ee6",
-        "energy": 0.18,
-        "rotation_deg": [-14.3, -120.3, 0.0],
-        "shadows": false
-      },
-      "sky": {
-        "zenith": "#4a6bad",
-        "horizon": "#edb875",
-        "ground": "#3d3130",
-        "bands": 8.0,
-        "horizon_falloff": 2.4,
-        "sun_size": 0.045,
-        "sun_glow": 0.4,
-        "cloud_amount": 0.5,
-        "cloud_color": "#fae0c2"
-      },
-      "atmosphere": {
-        "motes": { "tint": "#b8a37a", "alpha": 0.28, "amount": 24, "radius": 11.0, "fall_speed": 0.15 },
-        "fog_volume": { "enabled": false }
-      },
-      "torch": {
-        "color": "#ffb45a",
-        "energy": 0.92,
-        "range": 13.5,
-        "flicker": 0.12,
-        "flicker_hz": 7.5,
-        "max_shadow_omnis": 2
-      }
+ "version": 1,
+ "profiles": {
+  "hub": {
+   "display_name": "Aumbrye Hub",
+   "ambient": {
+    "color": "#9e8f85",
+    "energy": 0.12
+   },
+   "fog": {
+    "enabled": true,
+    "color": "#d1a880",
+    "density": 0.0048,
+    "aerial": 0.5,
+    "sky_affect": 0.0
+   },
+   "sun": {
+    "color": "#ffe0a8",
+    "energy": 1.7,
+    "rotation_deg": [
+     -28.6,
+     97.4,
+     0.0
+    ],
+    "shadows": true
+   },
+   "fill": {
+    "color": "#809ee6",
+    "energy": 0.18,
+    "rotation_deg": [
+     -14.3,
+     -120.3,
+     0.0
+    ],
+    "shadows": false
+   },
+   "sky": {
+    "zenith": "#4a6bad",
+    "horizon": "#edb875",
+    "ground": "#3d3130",
+    "bands": 8.0,
+    "horizon_falloff": 2.4,
+    "sun_size": 0.045,
+    "sun_glow": 0.4,
+    "cloud_amount": 0.5,
+    "cloud_color": "#fae0c2"
+   },
+   "atmosphere": {
+    "motes": {
+     "tint": "#b8a37a",
+     "alpha": 0.28,
+     "amount": 24,
+     "radius": 11.0,
+     "fall_speed": 0.15
     },
-    "arena": {
-      "display_name": "Combat Arena",
-      "ambient": { "color": "#8f8fb3", "energy": 0.44 },
-      "fog": { "enabled": true, "color": "#6b7699", "density": 0.0026, "aerial": 0.25, "sky_affect": 0.0 },
-      "sun": {
-        "color": "#faebd1",
-        "energy": 1.8,
-        "rotation_deg": [-52.7, 37.2, 0.0],
-        "shadows": true
-      },
-      "fill": {
-        "color": "#9eb3f5",
-        "energy": 0.3,
-        "rotation_deg": [-11.5, -77.3, 0.0],
-        "shadows": false
-      },
-      "sky": {
-        "zenith": "#29386b",
-        "horizon": "#8f8fb8",
-        "ground": "#242433",
-        "bands": 7.0,
-        "horizon_falloff": 2.4,
-        "sun_size": 0.045,
-        "sun_glow": 0.4,
-        "cloud_amount": 0.25,
-        "cloud_color": "#c7c7e0"
-      },
-      "torch": {
-        "color": "#ffb45a",
-        "energy": 0.92,
-        "range": 13.5,
-        "flicker": 0.1,
-        "flicker_hz": 8.0,
-        "max_shadow_omnis": 2
-      }
-    },
-    "waves_outdoors": {
-      "display_name": "Waves Outdoors",
-      "ambient": { "color": "#adc2b3", "energy": 0.5 },
-      "fog": { "enabled": true, "color": "#bdd6eb", "density": 0.0018, "aerial": 0.32, "sky_affect": 0.0 },
-      "sun": {
-        "color": "#fff0c2",
-        "energy": 1.85,
-        "rotation_deg": [-50.4, 17.2, 0.0],
-        "shadows": true
-      },
-      "fill": {
-        "color": "#80adf2",
-        "energy": 0.28,
-        "rotation_deg": [-10.3, -103.1, 0.0],
-        "shadows": false
-      },
-      "sky": {
-        "zenith": "#4d85db",
-        "horizon": "#d1e6f5",
-        "ground": "#334733",
-        "bands": 9.0,
-        "horizon_falloff": 2.4,
-        "sun_size": 0.045,
-        "sun_glow": 0.4,
-        "cloud_amount": 0.65,
-        "cloud_color": "#fffffa"
-      },
-      "torch": {
-        "color": "#ffb45a",
-        "energy": 0.92,
-        "range": 13.5,
-        "flicker": 0.12,
-        "flicker_hz": 7.5,
-        "max_shadow_omnis": 2
-      }
-    },
-    "waves_arena": {
-      "display_name": "Waves Arena",
-      "ambient": { "color": "#5c4d7a", "energy": 0.44 },
-      "fog": { "enabled": false, "color": "#1f1a2e", "density": 0.01, "sky_affect": 0.0 },
-      "sun": {
-        "color": "#f2ebff",
-        "energy": 1.35,
-        "rotation_deg": [-42.0, 28.0, 0.0],
-        "shadows": true
-      },
-      "key_light": {
-        "color": "#b8a8e6",
-        "energy": 0.48,
-        "rotation_deg": [-58.0, 22.0, 0.0],
-        "shadows": true
-      },
-      "torch": {
-        "color": "#b8a8e6",
-        "energy": 0.55,
-        "range": 12.0,
-        "flicker": 0.14,
-        "flicker_hz": 6.5,
-        "max_shadow_omnis": 2
-      }
-    },
-    "castle_interior": {
-      "display_name": "Forgotten Castle",
-      "ambient": { "color": "#948070", "energy": 0.78 },
-      "fog": { "enabled": false, "color": "#332e38", "density": 0.008, "sky_affect": 0.0 },
-      "sun": { "color": "#ffb866", "energy": 0.0, "shadows": false },
-      "key_light": {
-        "color": "#ffb866",
-        "energy": 0.62,
-        "rotation_deg": [-48.0, 38.0, 0.0],
-        "shadows": true
-      },
-      "atmosphere": {
-        "motes": { "tint": "#b8a37a", "alpha": 0.28, "amount": 24, "radius": 11.0, "fall_speed": 0.15 },
-        "fog_volume": { "enabled": false }
-      },
-      "torch": {
-        "color": "#ffb866",
-        "energy": 0.92,
-        "range": 13.5,
-        "flicker": 0.12,
-        "flicker_hz": 7.5,
-        "max_shadow_omnis": 2
-      }
-    },
-    "crystal_caverns": {
-      "ambient": { "color": "#5980bf", "energy": 0.55 },
-      "fog": { "enabled": true, "color": "#1f3359", "density": 0.02, "sky_affect": 0.0 },
-      "sun": { "energy": 0.0, "shadows": false },
-      "key_light": {
-        "color": "#a6d1f2",
-        "energy": 0.58,
-        "rotation_deg": [-50.0, 30.0, 0.0],
-        "shadows": true
-      },
-      "atmosphere": {
-        "motes": { "tint": "#9ec7f2", "alpha": 0.4, "amount": 36, "radius": 10.0, "fall_speed": 0.25 },
-        "fog_volume": { "enabled": true, "size": [48, 8, 48] }
-      },
-      "torch": {
-        "color": "#a6d1f2",
-        "energy": 0.88,
-        "range": 12.5,
-        "flicker": 0.1,
-        "flicker_hz": 6.0,
-        "max_shadow_omnis": 2
-      }
-    },
-    "poison_swamp": {
-      "ambient": { "color": "#405933", "energy": 0.4 },
-      "fog": { "enabled": true, "color": "#1a260d", "density": 0.035, "sky_affect": 0.0 },
-      "sun": { "energy": 0.0, "shadows": false },
-      "key_light": {
-        "color": "#8cbf59",
-        "energy": 0.52,
-        "rotation_deg": [-54.0, 36.0, 0.0],
-        "shadows": true
-      },
-      "atmosphere": {
-        "motes": { "tint": "#8c9e6b", "alpha": 0.35, "amount": 48, "radius": 12.0, "fall_speed": 0.4 },
-        "fog_volume": { "enabled": true, "size": [48, 8, 48] }
-      },
-      "torch": {
-        "color": "#8cbf59",
-        "energy": 0.85,
-        "range": 12.0,
-        "flicker": 0.16,
-        "flicker_hz": 5.0,
-        "max_shadow_omnis": 2
-      }
-    },
-    "frozen_fortress": {
-      "ambient": { "color": "#8099bf", "energy": 0.6 },
-      "fog": { "enabled": true, "color": "#b3cce6", "density": 0.025, "sky_affect": 0.0 },
-      "sun": { "energy": 0.0, "shadows": false },
-      "key_light": {
-        "color": "#d9ebff",
-        "energy": 0.56,
-        "rotation_deg": [-46.0, 32.0, 0.0],
-        "shadows": true
-      },
-      "atmosphere": {
-        "motes": { "tint": "#d1e6fa", "alpha": 0.45, "amount": 64, "radius": 14.0, "fall_speed": 0.55 },
-        "fog_volume": { "enabled": true, "size": [48, 8, 48] }
-      },
-      "torch": {
-        "color": "#d9ebff",
-        "energy": 0.9,
-        "range": 13.0,
-        "flicker": 0.08,
-        "flicker_hz": 4.5,
-        "max_shadow_omnis": 2
-      }
-    },
-    "dark_cathedral": {
-      "ambient": { "color": "#332647", "energy": 0.35 },
-      "fog": { "enabled": true, "color": "#140d1f", "density": 0.02, "sky_affect": 0.0 },
-      "sun": { "energy": 0.0, "shadows": false },
-      "key_light": {
-        "color": "#bf8cf2",
-        "energy": 0.54,
-        "rotation_deg": [-56.0, 28.0, 0.0],
-        "shadows": true
-      },
-      "atmosphere": {
-        "motes": { "tint": "#73599e", "alpha": 0.3, "amount": 28, "radius": 9.0, "fall_speed": 0.18 },
-        "fog_volume": { "enabled": true, "size": [48, 8, 48] }
-      },
-      "torch": {
-        "color": "#bf8cf2",
-        "energy": 0.82,
-        "range": 12.0,
-        "flicker": 0.18,
-        "flicker_hz": 5.5,
-        "max_shadow_omnis": 2
-      }
-    },
-    "iron_vault": {
-      "ambient": { "color": "#665952", "energy": 0.45 },
-      "fog": { "enabled": true, "color": "#1f1a14", "density": 0.018, "sky_affect": 0.0 },
-      "sun": { "energy": 0.0, "shadows": false },
-      "key_light": {
-        "color": "#f2a659",
-        "energy": 0.6,
-        "rotation_deg": [-50.0, 34.0, 0.0],
-        "shadows": true
-      },
-      "atmosphere": {
-        "motes": { "tint": "#b8a37a", "alpha": 0.28, "amount": 24, "radius": 11.0, "fall_speed": 0.15 },
-        "fog_volume": { "enabled": true, "size": [48, 8, 48] }
-      },
-      "torch": {
-        "color": "#f2a659",
-        "energy": 0.9,
-        "range": 13.0,
-        "flicker": 0.11,
-        "flicker_hz": 7.0,
-        "max_shadow_omnis": 2
-      }
-    },
-    "prism_depths": {
-      "ambient": { "color": "#6b94d1", "energy": 0.58 },
-      "fog": { "enabled": true, "color": "#26406b", "density": 0.022, "sky_affect": 0.0 },
-      "sun": { "energy": 0.0, "shadows": false },
-      "key_light": {
-        "color": "#bfd9ff",
-        "energy": 0.57,
-        "rotation_deg": [-48.0, 30.0, 0.0],
-        "shadows": true
-      },
-      "atmosphere": {
-        "motes": { "tint": "#9ec7f2", "alpha": 0.4, "amount": 36, "radius": 10.0, "fall_speed": 0.25 },
-        "fog_volume": { "enabled": true, "size": [48, 8, 48] }
-      },
-      "torch": {
-        "color": "#bfd9ff",
-        "energy": 0.88,
-        "range": 12.5,
-        "flicker": 0.1,
-        "flicker_hz": 6.2,
-        "max_shadow_omnis": 2
-      }
-    },
-    "venom_mire": {
-      "ambient": { "color": "#476b38", "energy": 0.42 },
-      "fog": { "enabled": true, "color": "#142e0f", "density": 0.038, "sky_affect": 0.0 },
-      "sun": { "energy": 0.0, "shadows": false },
-      "key_light": {
-        "color": "#73a640",
-        "energy": 0.5,
-        "rotation_deg": [-52.0, 34.0, 0.0],
-        "shadows": true
-      },
-      "atmosphere": {
-        "motes": { "tint": "#8c9e6b", "alpha": 0.35, "amount": 48, "radius": 12.0, "fall_speed": 0.4 },
-        "fog_volume": { "enabled": true, "size": [48, 8, 48] }
-      },
-      "torch": {
-        "color": "#73a640",
-        "energy": 0.84,
-        "range": 12.0,
-        "flicker": 0.15,
-        "flicker_hz": 5.2,
-        "max_shadow_omnis": 2
-      }
-    },
-    "glacial_hollow": {
-      "ambient": { "color": "#94add1", "energy": 0.62 },
-      "fog": { "enabled": true, "color": "#bfd9f2", "density": 0.028, "sky_affect": 0.0 },
-      "sun": { "energy": 0.0, "shadows": false },
-      "key_light": {
-        "color": "#d9ebff",
-        "energy": 0.55,
-        "rotation_deg": [-44.0, 30.0, 0.0],
-        "shadows": true
-      },
-      "atmosphere": {
-        "motes": { "tint": "#d1e6fa", "alpha": 0.45, "amount": 64, "radius": 14.0, "fall_speed": 0.55 },
-        "fog_volume": { "enabled": true, "size": [48, 8, 48] }
-      },
-      "torch": {
-        "color": "#d9ebff",
-        "energy": 0.9,
-        "range": 13.0,
-        "flicker": 0.08,
-        "flicker_hz": 4.5,
-        "max_shadow_omnis": 2
-      }
-    },
-    "umbral_chapel": {
-      "ambient": { "color": "#2e1f42", "energy": 0.34 },
-      "fog": { "enabled": true, "color": "#0f0a1a", "density": 0.024, "sky_affect": 0.0 },
-      "sun": { "energy": 0.0, "shadows": false },
-      "key_light": {
-        "color": "#8a6ad0",
-        "energy": 0.55,
-        "rotation_deg": [-52.0, 34.0, 0.0],
-        "shadows": true
-      },
-      "atmosphere": {
-        "motes": { "tint": "#73599e", "alpha": 0.3, "amount": 28, "radius": 9.0, "fall_speed": 0.18 },
-        "fog_volume": { "enabled": true, "size": [48, 8, 48] }
-      },
-      "torch": {
-        "color": "#a878ff",
-        "energy": 0.8,
-        "range": 12.0,
-        "flicker": 0.18,
-        "flicker_hz": 5.5,
-        "max_shadow_omnis": 2
-      }
+    "fog_volume": {
+     "enabled": false
     }
+   },
+   "torch": {
+    "color": "#ffb45a",
+    "energy": 0.92,
+    "range": 13.5,
+    "flicker": 0.12,
+    "flicker_hz": 7.5,
+    "max_shadow_omnis": 2
+   }
   },
-  "biome_profile_map": {
-    "forgotten_castle": "castle_interior",
-    "crystal_caverns": "crystal_caverns",
-    "poison_swamp": "poison_swamp",
-    "frozen_fortress": "frozen_fortress",
-    "dark_cathedral": "dark_cathedral",
-    "iron_vault": "iron_vault",
-    "prism_depths": "prism_depths",
-    "venom_mire": "venom_mire",
-    "glacial_hollow": "glacial_hollow",
-    "umbral_chapel": "umbral_chapel"
+  "arena": {
+   "display_name": "Combat Arena",
+   "ambient": {
+    "color": "#8f8fb3",
+    "energy": 0.44
+   },
+   "fog": {
+    "enabled": true,
+    "color": "#6b7699",
+    "density": 0.0026,
+    "aerial": 0.25,
+    "sky_affect": 0.0
+   },
+   "sun": {
+    "color": "#faebd1",
+    "energy": 1.8,
+    "rotation_deg": [
+     -52.7,
+     37.2,
+     0.0
+    ],
+    "shadows": true
+   },
+   "fill": {
+    "color": "#9eb3f5",
+    "energy": 0.3,
+    "rotation_deg": [
+     -11.5,
+     -77.3,
+     0.0
+    ],
+    "shadows": false
+   },
+   "sky": {
+    "zenith": "#29386b",
+    "horizon": "#8f8fb8",
+    "ground": "#242433",
+    "bands": 7.0,
+    "horizon_falloff": 2.4,
+    "sun_size": 0.045,
+    "sun_glow": 0.4,
+    "cloud_amount": 0.25,
+    "cloud_color": "#c7c7e0"
+   },
+   "torch": {
+    "color": "#ffb45a",
+    "energy": 0.92,
+    "range": 13.5,
+    "flicker": 0.1,
+    "flicker_hz": 8.0,
+    "max_shadow_omnis": 2
+   },
+   "atmosphere": {
+    "motes": {
+     "tint": "#c2b28f",
+     "alpha": 0.22,
+     "amount": 20,
+     "radius": 13.0,
+     "fall_speed": 0.12
+    },
+    "fog_volume": {
+     "enabled": false
+    }
+   }
+  },
+  "waves_outdoors": {
+   "display_name": "Waves Outdoors",
+   "ambient": {
+    "color": "#adc2b3",
+    "energy": 0.5
+   },
+   "fog": {
+    "enabled": true,
+    "color": "#bdd6eb",
+    "density": 0.0018,
+    "aerial": 0.32,
+    "sky_affect": 0.0
+   },
+   "sun": {
+    "color": "#fff0c2",
+    "energy": 1.85,
+    "rotation_deg": [
+     -50.4,
+     17.2,
+     0.0
+    ],
+    "shadows": true
+   },
+   "fill": {
+    "color": "#80adf2",
+    "energy": 0.28,
+    "rotation_deg": [
+     -10.3,
+     -103.1,
+     0.0
+    ],
+    "shadows": false
+   },
+   "sky": {
+    "zenith": "#4d85db",
+    "horizon": "#d1e6f5",
+    "ground": "#334733",
+    "bands": 9.0,
+    "horizon_falloff": 2.4,
+    "sun_size": 0.045,
+    "sun_glow": 0.4,
+    "cloud_amount": 0.65,
+    "cloud_color": "#fffffa"
+   },
+   "torch": {
+    "color": "#ffb45a",
+    "energy": 0.92,
+    "range": 13.5,
+    "flicker": 0.12,
+    "flicker_hz": 7.5,
+    "max_shadow_omnis": 2
+   }
+  },
+  "waves_arena": {
+   "display_name": "Waves Arena",
+   "ambient": {
+    "color": "#5c4d7a",
+    "energy": 0.203
+   },
+   "fog": {
+    "enabled": false,
+    "color": "#1f1a2e",
+    "density": 0.01,
+    "sky_affect": 0.0
+   },
+   "sun": {
+    "color": "#f2ebff",
+    "energy": 1.35,
+    "rotation_deg": [
+     -42.0,
+     28.0,
+     0.0
+    ],
+    "shadows": true
+   },
+   "key_light": {
+    "color": "#b8a8e6",
+    "energy": 0.216,
+    "rotation_deg": [
+     -58.0,
+     22.0,
+     0.0
+    ],
+    "shadows": true
+   },
+   "torch": {
+    "color": "#b8a8e6",
+    "energy": 1.43,
+    "range": 12.0,
+    "flicker": 0.14,
+    "flicker_hz": 6.5,
+    "max_shadow_omnis": 3
+   }
+  },
+  "castle_interior": {
+   "display_name": "Forgotten Castle",
+   "ambient": {
+    "color": "#948070",
+    "energy": 0.28
+   },
+   "fog": {
+    "enabled": true,
+    "color": "#332e38",
+    "density": 0.008,
+    "sky_affect": 0.0
+   },
+   "sun": {
+    "color": "#ffb866",
+    "energy": 0.0,
+    "shadows": false
+   },
+   "key_light": {
+    "color": "#ffb866",
+    "energy": 0.279,
+    "rotation_deg": [
+     -48.0,
+     38.0,
+     0.0
+    ],
+    "shadows": true
+   },
+   "atmosphere": {
+    "motes": {
+     "tint": "#b8a37a",
+     "alpha": 0.28,
+     "amount": 24,
+     "radius": 11.0,
+     "fall_speed": 0.15
+    },
+    "fog_volume": {
+     "enabled": true,
+     "size": [
+      56.0,
+      10.0,
+      56.0
+     ],
+     "volumetric_density": 0.014,
+     "range": 38.0,
+     "ambient_inject": 0.4
+    }
+   },
+   "torch": {
+    "color": "#ffb866",
+    "energy": 2.392,
+    "range": 13.5,
+    "flicker": 0.12,
+    "flicker_hz": 7.5,
+    "max_shadow_omnis": 3
+   }
+  },
+  "crystal_caverns": {
+   "ambient": {
+    "color": "#5980bf",
+    "energy": 0.228
+   },
+   "fog": {
+    "enabled": true,
+    "color": "#1f3359",
+    "density": 0.02,
+    "sky_affect": 0.0
+   },
+   "sun": {
+    "energy": 0.0,
+    "shadows": false
+   },
+   "key_light": {
+    "color": "#a6d1f2",
+    "energy": 0.261,
+    "rotation_deg": [
+     -50.0,
+     30.0,
+     0.0
+    ],
+    "shadows": true
+   },
+   "atmosphere": {
+    "motes": {
+     "tint": "#9ec7f2",
+     "alpha": 0.4,
+     "amount": 36,
+     "radius": 10.0,
+     "fall_speed": 0.25
+    },
+    "fog_volume": {
+     "enabled": false,
+     "size": [
+      48,
+      8,
+      48
+     ]
+    }
+   },
+   "torch": {
+    "color": "#a6d1f2",
+    "energy": 2.288,
+    "range": 12.5,
+    "flicker": 0.1,
+    "flicker_hz": 6.0,
+    "max_shadow_omnis": 3
+   }
+  },
+  "poison_swamp": {
+   "ambient": {
+    "color": "#405933",
+    "energy": 0.194
+   },
+   "fog": {
+    "enabled": true,
+    "color": "#1a260d",
+    "density": 0.035,
+    "sky_affect": 0.0
+   },
+   "sun": {
+    "energy": 0.0,
+    "shadows": false
+   },
+   "key_light": {
+    "color": "#8cbf59",
+    "energy": 0.234,
+    "rotation_deg": [
+     -54.0,
+     36.0,
+     0.0
+    ],
+    "shadows": true
+   },
+   "atmosphere": {
+    "motes": {
+     "tint": "#8c9e6b",
+     "alpha": 0.35,
+     "amount": 48,
+     "radius": 12.0,
+     "fall_speed": 0.4
+    },
+    "fog_volume": {
+     "enabled": false,
+     "size": [
+      48,
+      8,
+      48
+     ]
+    }
+   },
+   "torch": {
+    "color": "#8cbf59",
+    "energy": 2.21,
+    "range": 12.0,
+    "flicker": 0.16,
+    "flicker_hz": 5.0,
+    "max_shadow_omnis": 3
+   }
+  },
+  "frozen_fortress": {
+   "ambient": {
+    "color": "#8099bf",
+    "energy": 0.239
+   },
+   "fog": {
+    "enabled": true,
+    "color": "#b3cce6",
+    "density": 0.025,
+    "sky_affect": 0.0
+   },
+   "sun": {
+    "energy": 0.0,
+    "shadows": false
+   },
+   "key_light": {
+    "color": "#d9ebff",
+    "energy": 0.252,
+    "rotation_deg": [
+     -46.0,
+     32.0,
+     0.0
+    ],
+    "shadows": true
+   },
+   "atmosphere": {
+    "motes": {
+     "tint": "#d1e6fa",
+     "alpha": 0.45,
+     "amount": 64,
+     "radius": 14.0,
+     "fall_speed": 0.55
+    },
+    "fog_volume": {
+     "enabled": false,
+     "size": [
+      48,
+      8,
+      48
+     ]
+    }
+   },
+   "torch": {
+    "color": "#d9ebff",
+    "energy": 2.34,
+    "range": 13.0,
+    "flicker": 0.08,
+    "flicker_hz": 4.5,
+    "max_shadow_omnis": 3
+   }
+  },
+  "dark_cathedral": {
+   "ambient": {
+    "color": "#332647",
+    "energy": 0.182
+   },
+   "fog": {
+    "enabled": true,
+    "color": "#140d1f",
+    "density": 0.02,
+    "sky_affect": 0.0
+   },
+   "sun": {
+    "energy": 0.0,
+    "shadows": false
+   },
+   "key_light": {
+    "color": "#bf8cf2",
+    "energy": 0.243,
+    "rotation_deg": [
+     -56.0,
+     28.0,
+     0.0
+    ],
+    "shadows": true
+   },
+   "atmosphere": {
+    "motes": {
+     "tint": "#73599e",
+     "alpha": 0.3,
+     "amount": 28,
+     "radius": 9.0,
+     "fall_speed": 0.18
+    },
+    "fog_volume": {
+     "enabled": true,
+     "size": [
+      56.0,
+      10.0,
+      56.0
+     ],
+     "volumetric_density": 0.02,
+     "range": 38.0,
+     "ambient_inject": 0.4
+    }
+   },
+   "torch": {
+    "color": "#bf8cf2",
+    "energy": 2.132,
+    "range": 12.0,
+    "flicker": 0.18,
+    "flicker_hz": 5.5,
+    "max_shadow_omnis": 3
+   }
+  },
+  "iron_vault": {
+   "ambient": {
+    "color": "#665952",
+    "energy": 0.205
+   },
+   "fog": {
+    "enabled": true,
+    "color": "#1f1a14",
+    "density": 0.018,
+    "sky_affect": 0.0
+   },
+   "sun": {
+    "energy": 0.0,
+    "shadows": false
+   },
+   "key_light": {
+    "color": "#f2a659",
+    "energy": 0.27,
+    "rotation_deg": [
+     -50.0,
+     34.0,
+     0.0
+    ],
+    "shadows": true
+   },
+   "atmosphere": {
+    "motes": {
+     "tint": "#b8a37a",
+     "alpha": 0.28,
+     "amount": 24,
+     "radius": 11.0,
+     "fall_speed": 0.15
+    },
+    "fog_volume": {
+     "enabled": true,
+     "size": [
+      56.0,
+      10.0,
+      56.0
+     ],
+     "volumetric_density": 0.016,
+     "range": 38.0,
+     "ambient_inject": 0.4
+    }
+   },
+   "torch": {
+    "color": "#f2a659",
+    "energy": 2.34,
+    "range": 13.0,
+    "flicker": 0.11,
+    "flicker_hz": 7.0,
+    "max_shadow_omnis": 3
+   }
+  },
+  "prism_depths": {
+   "ambient": {
+    "color": "#6b94d1",
+    "energy": 0.235
+   },
+   "fog": {
+    "enabled": true,
+    "color": "#26406b",
+    "density": 0.022,
+    "sky_affect": 0.0
+   },
+   "sun": {
+    "energy": 0.0,
+    "shadows": false
+   },
+   "key_light": {
+    "color": "#bfd9ff",
+    "energy": 0.257,
+    "rotation_deg": [
+     -48.0,
+     30.0,
+     0.0
+    ],
+    "shadows": true
+   },
+   "atmosphere": {
+    "motes": {
+     "tint": "#9ec7f2",
+     "alpha": 0.4,
+     "amount": 36,
+     "radius": 10.0,
+     "fall_speed": 0.25
+    },
+    "fog_volume": {
+     "enabled": false,
+     "size": [
+      48,
+      8,
+      48
+     ]
+    }
+   },
+   "torch": {
+    "color": "#bfd9ff",
+    "energy": 2.288,
+    "range": 12.5,
+    "flicker": 0.1,
+    "flicker_hz": 6.2,
+    "max_shadow_omnis": 3
+   }
+  },
+  "venom_mire": {
+   "ambient": {
+    "color": "#476b38",
+    "energy": 0.198
+   },
+   "fog": {
+    "enabled": true,
+    "color": "#142e0f",
+    "density": 0.038,
+    "sky_affect": 0.0
+   },
+   "sun": {
+    "energy": 0.0,
+    "shadows": false
+   },
+   "key_light": {
+    "color": "#73a640",
+    "energy": 0.225,
+    "rotation_deg": [
+     -52.0,
+     34.0,
+     0.0
+    ],
+    "shadows": true
+   },
+   "atmosphere": {
+    "motes": {
+     "tint": "#8c9e6b",
+     "alpha": 0.35,
+     "amount": 48,
+     "radius": 12.0,
+     "fall_speed": 0.4
+    },
+    "fog_volume": {
+     "enabled": false,
+     "size": [
+      48,
+      8,
+      48
+     ]
+    }
+   },
+   "torch": {
+    "color": "#73a640",
+    "energy": 2.184,
+    "range": 12.0,
+    "flicker": 0.15,
+    "flicker_hz": 5.2,
+    "max_shadow_omnis": 3
+   }
+  },
+  "glacial_hollow": {
+   "ambient": {
+    "color": "#94add1",
+    "energy": 0.244
+   },
+   "fog": {
+    "enabled": true,
+    "color": "#bfd9f2",
+    "density": 0.028,
+    "sky_affect": 0.0
+   },
+   "sun": {
+    "energy": 0.0,
+    "shadows": false
+   },
+   "key_light": {
+    "color": "#d9ebff",
+    "energy": 0.248,
+    "rotation_deg": [
+     -44.0,
+     30.0,
+     0.0
+    ],
+    "shadows": true
+   },
+   "atmosphere": {
+    "motes": {
+     "tint": "#d1e6fa",
+     "alpha": 0.45,
+     "amount": 64,
+     "radius": 14.0,
+     "fall_speed": 0.55
+    },
+    "fog_volume": {
+     "enabled": true,
+     "size": [
+      56.0,
+      10.0,
+      56.0
+     ],
+     "volumetric_density": 0.011,
+     "range": 38.0,
+     "ambient_inject": 0.4
+    }
+   },
+   "torch": {
+    "color": "#d9ebff",
+    "energy": 2.34,
+    "range": 13.0,
+    "flicker": 0.08,
+    "flicker_hz": 4.5,
+    "max_shadow_omnis": 3
+   }
+  },
+  "umbral_chapel": {
+   "ambient": {
+    "color": "#2e1f42",
+    "energy": 0.18
+   },
+   "fog": {
+    "enabled": true,
+    "color": "#0f0a1a",
+    "density": 0.024,
+    "sky_affect": 0.0
+   },
+   "sun": {
+    "energy": 0.0,
+    "shadows": false
+   },
+   "key_light": {
+    "color": "#8a6ad0",
+    "energy": 0.248,
+    "rotation_deg": [
+     -52.0,
+     34.0,
+     0.0
+    ],
+    "shadows": true
+   },
+   "atmosphere": {
+    "motes": {
+     "tint": "#73599e",
+     "alpha": 0.3,
+     "amount": 28,
+     "radius": 9.0,
+     "fall_speed": 0.18
+    },
+    "fog_volume": {
+     "enabled": true,
+     "size": [
+      56.0,
+      10.0,
+      56.0
+     ],
+     "volumetric_density": 0.022,
+     "range": 38.0,
+     "ambient_inject": 0.4
+    }
+   },
+   "torch": {
+    "color": "#a878ff",
+    "energy": 2.08,
+    "range": 12.0,
+    "flicker": 0.18,
+    "flicker_hz": 5.5,
+    "max_shadow_omnis": 3
+   }
   }
+ },
+ "biome_profile_map": {
+  "forgotten_castle": "castle_interior",
+  "crystal_caverns": "crystal_caverns",
+  "poison_swamp": "poison_swamp",
+  "frozen_fortress": "frozen_fortress",
+  "dark_cathedral": "dark_cathedral",
+  "iron_vault": "iron_vault",
+  "prism_depths": "prism_depths",
+  "venom_mire": "venom_mire",
+  "glacial_hollow": "glacial_hollow",
+  "umbral_chapel": "umbral_chapel"
+ }
 }

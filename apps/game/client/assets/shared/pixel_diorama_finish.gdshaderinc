@@ -4,8 +4,39 @@ float cell_hash(vec2 cell) {
 	return fract(sin(dot(cell, vec2(12.9898, 78.233))) * 43758.5453);
 }
 
+// Posterizes brightness into hard bands while leaving hue and saturation alone.
+//
+// Quantizing each channel on its own destroys the colour: the channels round to different bands,
+// so the ratios between them change and the hue swings to whichever primary survived. The castle
+// stone (#383347, a barely-violet grey) came out of the old per-channel version as #2a2a55 — the
+// blue channel doubled — and in the darker shading bands the green channel rounded to zero
+// outright, which is why every floor and wall in the game was streaked with pure magenta.
+//
+// Scaling the whole colour by the ratio between its quantized and original value keeps the
+// channels in proportion, so a band boundary changes how bright a surface is and never what
+// colour it is.
+// Bands are spaced perceptually, not linearly.
+//
+// Posterizing the linear value with even steps sounds right and is badly wrong: with six levels the
+// lowest band covers linear 0 to 0.083, and linear 0.083 is about sRGB 0.31 — very nearly a third
+// of everything the eye can see, all snapped to absolute zero. Castle walls came out 80% pure
+// #000000 with only the brick highlights surviving, which read as noise on a void rather than as
+// masonry. The old per-channel version had the same fault; it just showed up as hue destruction
+// (a grey collapsing to #1d001d) instead of as a black hole.
+//
+// Encoding to roughly gamma space before quantizing spreads the bands the way the eye spaces them,
+// so the darks get as many steps as the brights and shadowed surfaces keep their material.
+const float QUANTIZE_GAMMA = 2.2;
+
 vec3 quantize_color(vec3 color, float levels) {
-	return floor(color * levels + 0.5) / levels;
+	float value = max(max(color.r, color.g), color.b);
+	if (value <= 0.0001) {
+		return color;
+	}
+	float encoded = pow(value, 1.0 / QUANTIZE_GAMMA);
+	float quantized = floor(encoded * levels + 0.5) / levels;
+	float linear_value = pow(quantized, QUANTIZE_GAMMA);
+	return color * (linear_value / value);
 }
 
 float voxel_edge_mask(vec2 uv) {

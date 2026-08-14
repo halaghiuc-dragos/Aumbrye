@@ -13,9 +13,14 @@ const retiredSchemasRoot = join(schemasRoot, "retired");
 const strictContent = process.argv.includes("--strict-content");
 const PLACEHOLDER_DESC = /^M6 content item\.?$/i;
 
+// Files under a schema-checked prefix that intentionally have no schema: generated measurements,
+// tooling metadata, and fixtures a test writes transiently.
 const UNSCHEMA_ALLOWLIST = new Set([
   "content/fixtures/mix_seed_parity.json",
   "content/fixtures/room_kit_specs.json",
+  "content/fixtures/perf_baseline.json",
+  "content/fixtures/schema_versions.json",
+  "content/fixtures/_m6_strict_orphan_item.json",
 ]);
 
 const SCHEMA_PREFIXES = [
@@ -53,6 +58,12 @@ const SCHEMA_PREFIXES = [
   "bestiary/",
   "challenges/",
   "modes/",
+  "traps/",
+  "vfx/",
+  "art/",
+  "rooms/",
+  "appearance/",
+  "text/",
 ];
 
 const ALLOWED_ITEM_STAT_KEYS = new Set([
@@ -157,6 +168,45 @@ function resolveSchemaForFile(filePath) {
   }
   if (name === "progression/xp_curve.json") {
     return join(schemasRoot, "xp-curve.v1.json");
+  }
+  if (name === "progression/descent_pacts.json") {
+    return join(schemasRoot, "descent-pacts.v1.json");
+  }
+  if (name === "progression/endless_depth.json") {
+    return join(schemasRoot, "endless-depth.v1.json");
+  }
+  if (name === "progression/room_pacing.json") {
+    return join(schemasRoot, "room-pacing.v1.json");
+  }
+  if (name.startsWith("rooms/")) {
+    return join(schemasRoot, "room-kit.v1.json");
+  }
+  if (name.startsWith("text/")) {
+    return join(schemasRoot, "name-list.v1.json");
+  }
+  if (name === "appearance/aspects.json") {
+    return join(schemasRoot, "appearance-aspects.v1.json");
+  }
+  if (name.startsWith("traps/")) {
+    return join(schemasRoot, "trap-definition.v1.json");
+  }
+  if (name === "vfx/effects.json") {
+    return join(schemasRoot, "vfx-effect.v1.json");
+  }
+  if (name === "ui/input_glyph_atlas.json") {
+    return join(schemasRoot, "input-glyph-atlas.v1.json");
+  }
+  if (name === "art/palettes.json") {
+    return join(schemasRoot, "palette.v1.json");
+  }
+  if (name === "art/lighting.json") {
+    return join(schemasRoot, "lighting-profile.v1.json");
+  }
+  if (name === "art/portals.json") {
+    return join(schemasRoot, "portal.v1.json");
+  }
+  if (name.startsWith("art/structures/")) {
+    return join(schemasRoot, "structure.v1.json");
   }
   if (name === "talents/tree.json") {
     return join(schemasRoot, "talent-tree.v1.json");

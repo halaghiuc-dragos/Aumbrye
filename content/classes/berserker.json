@@ -4,8 +4,18 @@
   "description": "Heavy hitter who trades defense for raw damage.",
   "startingWeaponItemId": "training_greatsword",
   "statBonuses": {
-    "physicalDamage": 0.05,
-    "poiseDamage": 0.05
+    "maxHealth": 45.0,
+    "armor": 3.0,
+    "poise": 32.0,
+    "blockReduction": 0.02,
+    "physicalDamage": 0.24,
+    "poiseDamage": 0.22,
+    "critChance": 0.06,
+    "moveSpeed": 0.105,
+    "staminaMax": 35.0,
+    "staminaRegen": 0.15,
+    "manaMax": 0.0,
+    "manaRegen": 0.06
   },
   "allowedWeapons": [
     "training_greatsword",
@@ -54,5 +64,19 @@
   "perkDescription": "CLASS_PERK_BLOODRAGE_DESC",
   "roleText": "Bruiser / Damage",
   "perkNameText": "Bloodrage",
-  "perkDescriptionText": "Damage taken feeds a rage that sharpens every swing until the room is quiet."
+  "perkDescriptionText": "Damage taken feeds a rage that sharpens every swing until the room is quiet.",
+  "statRatings": {
+    "maxHealth": 13,
+    "armor": 7,
+    "poise": 12,
+    "blockReduction": 6,
+    "physicalDamage": 16,
+    "poiseDamage": 15,
+    "critChance": 10,
+    "moveSpeed": 11,
+    "staminaMax": 11,
+    "staminaRegen": 9,
+    "manaMax": 4,
+    "manaRegen": 6
+  }
 }

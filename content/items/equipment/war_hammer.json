@@ -9,7 +9,7 @@
   "description": "Crushing weight behind every swing—poise breaks before bone.",
   "value": 20,
   "stats": {
-    "physicalDamage": 26
+    "physicalDamage": 33
   },
   "equipmentSlot": "weapon",
   "weaponId": "axe"

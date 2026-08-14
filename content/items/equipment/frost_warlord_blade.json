@@ -9,8 +9,8 @@
   "description": "Forged in glacial depths, it drinks warmth from every wound.",
   "value": 20,
   "stats": {
-    "frostDamage": 12,
-    "physicalDamage": 28
+    "frostDamage": 18,
+    "physicalDamage": 41
   },
   "equipmentSlot": "weapon",
   "theme": "frozen_fortress",

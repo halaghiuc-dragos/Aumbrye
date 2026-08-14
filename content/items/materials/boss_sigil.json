@@ -1,0 +1,11 @@
+{
+  "id": "boss_sigil",
+  "name": "Boss Sigil",
+  "itemType": "material",
+  "gridWidth": 1,
+  "gridHeight": 1,
+  "stackSize": 5,
+  "description": "A sealed mark. The doors that want one will not argue once you hold it.",
+  "value": 0,
+  "lootValue": 0
+}

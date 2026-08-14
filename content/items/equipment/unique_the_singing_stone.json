@@ -24,8 +24,8 @@
     }
   ],
   "stats": {
-    "manaMax": 45,
-    "manaRegen": 0.1,
-    "lootQuality": 0.1
+    "manaMax": 66,
+    "manaRegen": 0.147,
+    "lootQuality": 0.147
   }
 }

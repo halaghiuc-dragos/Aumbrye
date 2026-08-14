@@ -92,7 +92,7 @@ func _build_ui_if_needed() -> void:
 	GameUISkinScript.style_body_label(_detail_label)
 	GameUISkinScript.pixel_frame_content(detail_frame).add_child(_detail_label)
 
-	var close_btn := MenuShellScript.make_menu_button("Close", close)
+	var close_btn := MenuShellScript.make_menu_button(tr("UI_CLOSE"), close)
 	content_vbox.add_child(close_btn)
 	MenuShellScript.add_hint(content_vbox, "Esc to close")
 
@@ -104,7 +104,7 @@ func _refresh() -> void:
 	_ids.clear()
 	var total := BestiaryService.entry_count()
 	if total <= 0:
-		_list.add_item("The codex is empty.")
+		_list.add_item(tr("BESTIARY_EMPTY"))
 		_set_detail("")
 		if _summary_label:
 			_summary_label.text = ""

@@ -29,8 +29,8 @@
     }
   ],
   "stats": {
-    "fireDamage": 11,
-    "critChance": 0.04
+    "fireDamage": 14,
+    "critChance": 0.051
   },
   "weaponId": "sword_basic"
 }

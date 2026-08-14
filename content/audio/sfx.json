@@ -183,10 +183,9 @@
       }
     },
     "ui_interact_near": {
-      "placeholder": true,
       "bus": "UI",
       "variants": [
-        "res://assets/audio/sfx/ui_click_01.ogg"
+        "res://assets/audio/sfx/ui_interact_near.ogg"
       ],
       "volume_db": -6.0,
       "pitch_jitter": 0.04,
@@ -226,10 +225,9 @@
       }
     },
     "portal_hum_castle": {
-      "placeholder": true,
       "bus": "SFX",
       "variants": [
-        "res://assets/audio/sfx/fountain_loop.ogg"
+        "res://assets/audio/sfx/portal_hum_castle.ogg"
       ],
       "volume_db": -14.0,
       "pitch_jitter": 0.02,
@@ -241,10 +239,9 @@
       }
     },
     "portal_hum_crystal": {
-      "placeholder": true,
       "bus": "SFX",
       "variants": [
-        "res://assets/audio/sfx/fountain_loop.ogg"
+        "res://assets/audio/sfx/portal_hum_crystal.ogg"
       ],
       "volume_db": -14.0,
       "pitch_jitter": 0.02,
@@ -256,10 +253,9 @@
       }
     },
     "portal_hum_swamp": {
-      "placeholder": true,
       "bus": "SFX",
       "variants": [
-        "res://assets/audio/sfx/fountain_loop.ogg"
+        "res://assets/audio/sfx/portal_hum_swamp.ogg"
       ],
       "volume_db": -14.0,
       "pitch_jitter": 0.02,
@@ -271,10 +267,9 @@
       }
     },
     "portal_hum_frozen": {
-      "placeholder": true,
       "bus": "SFX",
       "variants": [
-        "res://assets/audio/sfx/fountain_loop.ogg"
+        "res://assets/audio/sfx/portal_hum_frozen.ogg"
       ],
       "volume_db": -14.0,
       "pitch_jitter": 0.02,
@@ -286,10 +281,9 @@
       }
     },
     "portal_hum_cathedral": {
-      "placeholder": true,
       "bus": "SFX",
       "variants": [
-        "res://assets/audio/sfx/fountain_loop.ogg"
+        "res://assets/audio/sfx/portal_hum_cathedral.ogg"
       ],
       "volume_db": -14.0,
       "pitch_jitter": 0.02,
@@ -301,10 +295,9 @@
       }
     },
     "portal_hum_vault": {
-      "placeholder": true,
       "bus": "SFX",
       "variants": [
-        "res://assets/audio/sfx/fountain_loop.ogg"
+        "res://assets/audio/sfx/portal_hum_vault.ogg"
       ],
       "volume_db": -14.0,
       "pitch_jitter": 0.02,
@@ -316,10 +309,9 @@
       }
     },
     "portal_hum_prism": {
-      "placeholder": true,
       "bus": "SFX",
       "variants": [
-        "res://assets/audio/sfx/fountain_loop.ogg"
+        "res://assets/audio/sfx/portal_hum_prism.ogg"
       ],
       "volume_db": -14.0,
       "pitch_jitter": 0.02,
@@ -331,10 +323,9 @@
       }
     },
     "portal_hum_mire": {
-      "placeholder": true,
       "bus": "SFX",
       "variants": [
-        "res://assets/audio/sfx/fountain_loop.ogg"
+        "res://assets/audio/sfx/portal_hum_mire.ogg"
       ],
       "volume_db": -14.0,
       "pitch_jitter": 0.02,
@@ -346,10 +337,9 @@
       }
     },
     "portal_hum_hollow": {
-      "placeholder": true,
       "bus": "SFX",
       "variants": [
-        "res://assets/audio/sfx/fountain_loop.ogg"
+        "res://assets/audio/sfx/portal_hum_hollow.ogg"
       ],
       "volume_db": -14.0,
       "pitch_jitter": 0.02,
@@ -361,10 +351,9 @@
       }
     },
     "portal_hum_umbral": {
-      "placeholder": true,
       "bus": "SFX",
       "variants": [
-        "res://assets/audio/sfx/fountain_loop.ogg"
+        "res://assets/audio/sfx/portal_hum_umbral.ogg"
       ],
       "volume_db": -14.0,
       "pitch_jitter": 0.02,
@@ -376,10 +365,9 @@
       }
     },
     "portal_hum_training": {
-      "placeholder": true,
       "bus": "SFX",
       "variants": [
-        "res://assets/audio/sfx/fountain_loop.ogg"
+        "res://assets/audio/sfx/portal_hum_training.ogg"
       ],
       "volume_db": -14.0,
       "pitch_jitter": 0.02,
@@ -391,10 +379,9 @@
       }
     },
     "portal_hum_skies": {
-      "placeholder": true,
       "bus": "SFX",
       "variants": [
-        "res://assets/audio/sfx/fountain_loop.ogg"
+        "res://assets/audio/sfx/portal_hum_skies.ogg"
       ],
       "volume_db": -14.0,
       "pitch_jitter": 0.02,

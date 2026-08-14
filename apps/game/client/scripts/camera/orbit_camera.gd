@@ -16,6 +16,11 @@ const FIRST_PERSON_FOV := 82.0
 const FIRST_PERSON_NEAR := 0.02
 const THIRD_PERSON_NEAR := 0.05
 const CAMERA_MODE_BLEND_TIME := 0.22
+## Degrees of extra field of view at full sprint, and how fast the lens opens and closes. Opening
+## is slower than closing: a run takes a moment to build, but the moment you stop, it is over.
+const SPRINT_FOV_GAIN := 6.0
+const SPRINT_FOV_ATTACK := 2.6
+const SPRINT_FOV_RELEASE := 7.0
 const SHOULDER_OFFSET_X := 0.45
 const SHOULDER_OFFSET_BLEND := 8.0
 const ARM_PULL_IN_RATE := 24.0
@@ -55,6 +60,7 @@ var _punch_timer := 0.0
 var _landing_dip := 0.0
 var _death_framing := false
 var _fov_kick := 0.0
+var _sprint_fov := 0.0
 var _snap_base_transform := Transform3D.IDENTITY
 
 ## Mouse-look deltas arrive from `_unhandled_input` at render-event cadence, but the SpringArm3D's
@@ -76,6 +82,14 @@ func _ready() -> void:
 	if facing_path:
 		_facing = get_node_or_null(facing_path) as Node3D
 	_camera = get_node_or_null("Camera3D") as Camera3D
+	if _camera:
+		# The arm is physics-driven and stays interpolated; the camera hanging off it is not.
+		# Shoulder offset, optics, shake and the gameplay pixel snap are all deliberately applied
+		# in _process, at render cadence — with project-wide physics interpolation on, every one of
+		# those writes made Godot warn that an interpolated Camera3D was moved outside a physics
+		# tick, and the snap in particular cannot work if the engine interpolates it back off the
+		# pixel grid afterwards. Opting this one node out is what lets both behave correctly.
+		_camera.physics_interpolation_mode = Node.PHYSICS_INTERPOLATION_MODE_OFF
 	if LocalSave.is_first_person_camera():
 		_apply_first_person(true)
 	else:
@@ -463,6 +477,11 @@ func _apply_camera_optics() -> void:
 	if _camera == null:
 		return
 	var fov := lerpf(_third_person_fov(), _first_person_fov(), _fp_blend) - _fov_kick
+	# Sprinting widens the lens slightly. The player's speed is already capped by the locomotion
+	# system, so the only way running can *feel* faster than walking is optically: a wider field
+	# pushes the edges of the frame outward and the ground past the camera quicker. Impact punch
+	# uses the opposite sign on the same value, which keeps the two readable as different things.
+	fov += _sprint_fov * SPRINT_FOV_GAIN
 	_camera.fov = fov
 	var near := lerpf(THIRD_PERSON_NEAR, FIRST_PERSON_NEAR, _fp_blend)
 	_camera.near = near
@@ -483,6 +502,22 @@ func _update_camera_effects(delta: float) -> void:
 		_punch_offset = _punch_offset.lerp(Vector3.ZERO, clampf(delta * 12.0, 0.0, 1.0))
 	_landing_dip = lerpf(_landing_dip, 0.0, clampf(delta * 8.0, 0.0, 1.0))
 	_fov_kick = lerpf(_fov_kick, 0.0, clampf(delta * 10.0, 0.0, 1.0))
+	_update_sprint_fov(delta)
+
+
+## Eased toward the locomotion's own sprint blend rather than snapped to it, so the lens opens as
+## the warden builds up rather than the instant the key goes down.
+func _update_sprint_fov(delta: float) -> void:
+	var target := 0.0
+	var body := _get_player_body()
+	if body != null:
+		var loco := body as Node
+		if loco.has_method("get_sprint_blend"):
+			target = clampf(float(loco.call("get_sprint_blend")), 0.0, 1.0)
+	# Not while aiming down the first-person view, where a shifting field of view reads as drift.
+	target *= 1.0 - _fp_blend
+	var rate := SPRINT_FOV_ATTACK if target > _sprint_fov else SPRINT_FOV_RELEASE
+	_sprint_fov = lerpf(_sprint_fov, target, clampf(delta * rate, 0.0, 1.0))
 
 
 func _apply_camera_effects_transform() -> void:

@@ -133,7 +133,8 @@ func _ready() -> void:
 	if _guard:
 		_guard.block_state_changed.connect(_on_guard_state_changed)
 	_body_reports_sprint = _body != null and _body.has_method("get_sprint_blend")
-	_connect_anim_hitbox_signals()
+	# Deferred: the AnimDirector is added by the body's _ready, which runs after this one.
+	call_deferred("_connect_anim_hitbox_signals")
 	if hitbox_path:
 		_hitbox = get_node_or_null(hitbox_path) as Area3D
 		if _hitbox:
@@ -406,14 +407,27 @@ func get_attack_lunge_velocity() -> Vector3:
 	return forward.normalized() * speed
 
 
-func _connect_anim_hitbox_signals() -> void:
+## Wires the animation's hitbox frames to this controller, and reports whether it succeeded.
+##
+## Idempotent, because it is now attempted both deferred from _ready and again at the start of a
+## swing. The player's AnimDirector is created by the body's own _ready, and Godot runs a child's
+## _ready before its parent's — so this controller, a child, always looked for a node that did not
+## exist yet and connected nothing. Combined with _sync_hitbox_from_anim below suppressing the
+## timer fallback, that left the player's hitbox never opening on any swing.
+func _connect_anim_hitbox_signals() -> bool:
 	var director := _body.get_node_or_null("AnimDirector") if _body else null
 	if director == null:
-		return
+		return false
+	var connected := false
 	if director.has_signal("hitbox_open_frame"):
-		director.hitbox_open_frame.connect(enable_hitbox_from_anim)
+		if not director.hitbox_open_frame.is_connected(enable_hitbox_from_anim):
+			director.hitbox_open_frame.connect(enable_hitbox_from_anim)
+		connected = true
 	if director.has_signal("hitbox_close_frame"):
-		director.hitbox_close_frame.connect(disable_hitbox_from_anim)
+		if not director.hitbox_close_frame.is_connected(disable_hitbox_from_anim):
+			director.hitbox_close_frame.connect(disable_hitbox_from_anim)
+		connected = true
+	return connected
 
 
 func enable_hitbox_from_anim() -> void:
@@ -694,10 +708,14 @@ func _start_attack(attack: Dictionary) -> void:
 	_lunge_elapsed = 0.0
 	if _hitbox and _hitbox.has_method("reset_swing"):
 		_hitbox.call("reset_swing")
+	# Handing the swing to the animation is only safe once the frame signals are actually connected.
+	# Deciding this on the director's existence alone is what turned a missed connection into a
+	# swing with no hitbox at all, rather than one that fell back to the phase timers.
 	var director := _body.get_node_or_null("AnimDirector") if _body else null
-	_sync_hitbox_from_anim = (
+	var director_bound := (
 		director != null and director.has_method("is_bound") and bool(director.call("is_bound"))
 	)
+	_sync_hitbox_from_anim = director_bound and _connect_anim_hitbox_signals()
 	attack_started.emit(_attack_name)
 
 
@@ -738,7 +756,7 @@ func _enable_hitbox_for_attack() -> void:
 	var poise: float = (
 		float(_current_attack.get("poise_damage", 10.0))
 		* _damage_multiplier
-		* CombatStatModifiersScript.poise_damage_multiplier(_talent_stats)
+		* CombatStatModifiersScript.poise_damage_multiplier(_equipment_stats, _talent_stats)
 	)
 	if _two_hand:
 		poise *= TWO_HAND_POISE_MULT
@@ -747,7 +765,7 @@ func _enable_hitbox_for_attack() -> void:
 	)
 	var status_id: String = _current_attack.get("status", _weapon_data.get("status_on_hit", ""))
 	var status_stacks: int = int(_current_attack.get("status_stacks", 1))
-	var crit := CombatStatModifiersScript.crit_chance(_talent_stats)
+	var crit := CombatStatModifiersScript.crit_chance(_equipment_stats, _talent_stats)
 	var crit_mult := CombatStatModifiersScript.crit_multiplier(_talent_stats)
 	_hitbox.call("set_attack_values", dmg, poise, dmg_type, status_id, status_stacks, crit, crit_mult)
 	if _hitbox.has_method("set_execution"):
@@ -869,12 +887,12 @@ func _spawn_arrow(attack: Dictionary, charge: float) -> void:
 	var poise: float = (
 		float(attack.get("poise_damage", 15.0))
 		* _damage_multiplier
-		* CombatStatModifiersScript.poise_damage_multiplier(_talent_stats)
+		* CombatStatModifiersScript.poise_damage_multiplier(_equipment_stats, _talent_stats)
 	)
 	var dmg_type: String = attack.get("damage_type", _weapon_data.get("damage_type", "physical"))
 	var status_id: String = attack.get("status", _weapon_data.get("status_on_hit", ""))
 	var status_stacks: int = int(attack.get("status_stacks", 1))
-	var crit := CombatStatModifiersScript.crit_chance(_talent_stats)
+	var crit := CombatStatModifiersScript.crit_chance(_equipment_stats, _talent_stats)
 	var crit_mult := CombatStatModifiersScript.crit_multiplier(_talent_stats)
 	var speed := ARROW_BASE_SPEED * lerpf(0.75, 1.25, charge)
 	if arrow.has_method("launch"):
@@ -938,7 +956,7 @@ func _on_dodge_ended() -> void:
 
 
 func _scaled_stamina_cost(base_cost: float) -> float:
-	return base_cost * CombatStatModifiersScript.stamina_cost_multiplier(_talent_stats)
+	return base_cost * CombatStatModifiersScript.stamina_cost_multiplier(_equipment_stats, _talent_stats)
 
 
 func _snap_soft_lock_facing() -> void:

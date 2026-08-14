@@ -11,6 +11,10 @@ const SettingsSchemaScript := preload("res://scripts/ui/settings_schema.gd")
 const SettingsRowScene := preload("res://scenes/ui/settings_row.tscn")
 const BindingCaptureModalScript := preload("res://scripts/ui/binding_capture_modal.gd")
 const PrivacySettingsScript := preload("res://scripts/platform/privacy_settings.gd")
+const LocaleSettingsScript := preload("res://scripts/ui/locale_settings.gd")
+
+const BINDING_SLOT_WIDTH := 148.0
+const BINDING_RESET_WIDTH := 78.0
 
 var _backdrop: ColorRect
 var _open := false
@@ -31,6 +35,75 @@ func _ready() -> void:
 	visible = false
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	GameUISkinScript.ensure_full_rect(self)
+	# DisplayService switches to fullscreen provisionally and reverts unless something confirms.
+	# Nothing ever did, so choosing Fullscreen applied and then silently undid itself a few seconds
+	# later — the option could not be used at all.
+	if DisplayService and not DisplayService.fullscreen_confirm_needed.is_connected(
+		_on_fullscreen_confirm_needed
+	):
+		DisplayService.fullscreen_confirm_needed.connect(_on_fullscreen_confirm_needed)
+	LocaleSettingsScript.connect_changed(_on_locale_changed)
+	AccessibilitySettings.connect_settings_changed(_on_external_settings_changed)
+
+
+func _exit_tree() -> void:
+	LocaleSettingsScript.disconnect_changed(_on_locale_changed)
+	AccessibilitySettings.disconnect_settings_changed(_on_external_settings_changed)
+
+
+## Pulls every visible row back in line with the values behind it.
+##
+## Settings on this page are not independent — the Reduced Motion toggle rewrites the three motion
+## sliders, and each of those re-derives the toggle. Only the row the player touched used to
+## update, so the rest of the page kept displaying values the game was no longer using.
+func _on_external_settings_changed() -> void:
+	if not _open:
+		return
+	var page := SettingsSchemaScript.PAGES[_active_page_idx]
+	if not _rows_by_page.has(page):
+		return
+	for row in _rows_by_page[page]:
+		if row is SettingsRow and is_instance_valid(row):
+			(row as SettingsRow).refresh_from_source()
+
+
+## Rebuilds the whole shell, not just the active page: the title, the tab labels and the footer are
+## all assigned already-translated text, so they keep the previous language until reconstructed.
+func _on_locale_changed() -> void:
+	if not _open:
+		_discard_ui()
+		return
+	var page := _active_page_idx
+	_discard_ui()
+	_build_ui_if_needed()
+	_recenter_panel()
+	_select_page(page)
+
+
+func _discard_ui() -> void:
+	for child in get_children():
+		child.queue_free()
+	_page_host = null
+	_content_vbox = null
+	_tab_bar = null
+	_tab_buttons.clear()
+	_rows_by_page.clear()
+
+
+func _on_fullscreen_confirm_needed() -> void:
+	MenuShellScript.show_confirmation(
+		self,
+		tr("SETTINGS_FULLSCREEN_TITLE"),
+		tr("SETTINGS_FULLSCREEN_BODY") % int(DisplayService.fullscreen_confirm_sec),
+		func() -> void:
+			DisplayService.confirm_fullscreen()
+			_rebuild_active_page(),
+		func() -> void:
+			DisplayService.revert_fullscreen()
+			_rebuild_active_page(),
+		tr("SETTINGS_FULLSCREEN_KEEP"),
+		tr("SETTINGS_FULLSCREEN_REVERT")
+	)
 
 
 func _build_ui_if_needed() -> void:
@@ -42,8 +115,8 @@ func _build_ui_if_needed() -> void:
 	var shell: Dictionary = MenuShellScript.build_modal(
 		self,
 		tr("SETTINGS_TITLE"),
-		GameUISkinScript.SETTINGS_HALF_W + 120.0,
-		GameUISkinScript.SETTINGS_HALF_H + 80.0,
+		GameUISkinScript.SETTINGS_HALF_W,
+		GameUISkinScript.SETTINGS_HALF_H,
 		false
 	)
 	_backdrop = shell["backdrop"]
@@ -55,10 +128,13 @@ func _build_ui_if_needed() -> void:
 	_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_scroll.follow_focus = true
+	# Rows must fit the panel width rather than scroll sideways out of it.
+	_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	_content_vbox.add_child(_scroll)
 	_page_host = VBoxContainer.new()
 	_page_host.name = "PageHost"
 	_page_host.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_page_host.add_theme_constant_override("separation", 6)
 	_scroll.add_child(_page_host)
 	_build_footer()
 	_rebuild_active_page()
@@ -158,18 +234,23 @@ func _add_audio_test_button(row: SettingsRow, setting_id: String) -> void:
 			host.add_child(test)
 
 
+## Each Test button previews through its own bus, so the sound it makes is governed by the slider
+## sitting next to it.
 func _play_audio_test(setting_id: String) -> void:
 	if AudioDirector == null:
 		return
 	match setting_id:
-		"master_volume", "music_volume":
-			AudioDirector.play_ui_sfx()
+		"music_volume":
+			AudioDirector.preview_bus(&"Music")
 		"sfx_volume":
-			AudioDirector.play_sfx("hit_light")
+			AudioDirector.preview_bus(&"SFX")
 		"ambience_volume":
-			AudioDirector.play_ui_sfx()
+			AudioDirector.preview_bus(&"Ambience")
+		"ui_volume":
+			AudioDirector.preview_bus(&"UI")
 		_:
-			AudioDirector.play_ui_sfx()
+			# Master has no bus of its own to demonstrate; the SFX bus feeds through it.
+			AudioDirector.preview_bus(&"SFX")
 
 
 func _build_pixel_disclosure() -> void:
@@ -234,6 +315,7 @@ func _pixel_preset_row() -> HBoxContainer:
 	label.text = tr("SETTINGS_RENDER_RESOLUTION")
 	label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	GameUISkinScript.style_body_label(label)
+	label.autowrap_mode = TextServer.AUTOWRAP_OFF
 	row.add_child(label)
 	var opts := OptionButton.new()
 	for i in PixelDioramaSettings.RESOLUTION_PRESETS.size():
@@ -268,8 +350,10 @@ func _pixel_slider(
 ) -> VBoxContainer:
 	var box := VBoxContainer.new()
 	var label := Label.new()
-	label.text = "%s %s" % [tr("SETTINGS_%s_NAME" % label_key.to_upper()), str(initial)]
+	# Same format as the drag handler below; str() printed "8" where dragging printed "8.00".
+	label.text = "%s %.2f" % [tr("SETTINGS_%s_NAME" % label_key.to_upper()), initial]
 	GameUISkinScript.style_body_label(label)
+	label.autowrap_mode = TextServer.AUTOWRAP_OFF
 	box.add_child(label)
 	var slider := HSlider.new()
 	slider.min_value = min_v
@@ -296,33 +380,34 @@ func _pixel_slider(
 
 
 func _build_controls_page() -> void:
+	# One instruction for the page, and a column header, instead of repeating the same sentence and
+	# leaving two unlabelled buttons per row. Twenty copies of "Select a slot to rebind this
+	# action." also pushed the slot buttons clean off the right edge of the panel.
+	_page_host.add_child(_binding_page_hint())
+	_page_host.add_child(_binding_header_row())
 	for action in InputRebindService.get_rebindable_actions():
 		var row := PanelContainer.new()
 		row.focus_mode = Control.FOCUS_ALL
+		row.add_theme_stylebox_override("panel", GameUISkinScript.make_row_style())
 		var hbox := HBoxContainer.new()
 		hbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		hbox.add_theme_constant_override("separation", 8)
 		row.add_child(hbox)
-		var text := VBoxContainer.new()
-		text.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		var name_lbl := Label.new()
 		name_lbl.text = InputRebindService.get_action_label(action)
 		name_lbl.theme_type_variation = GameUISkinScript.VAR_SECTION_TITLE
-		text.add_child(name_lbl)
-		var desc_lbl := Label.new()
-		desc_lbl.text = tr("SETTINGS_BINDING_DESC")
-		desc_lbl.theme_type_variation = GameUISkinScript.VAR_BODY_TEXT
-		desc_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		text.add_child(desc_lbl)
-		hbox.add_child(text)
-		var kb_btn := GameUISkinScript.make_button(_binding_label(action, true))
+		name_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+		name_lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		name_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		hbox.add_child(name_lbl)
+		var kb_btn := _binding_button(_binding_label(action, true))
 		kb_btn.pressed.connect(func() -> void: _start_binding_capture(action, "keyboard"))
-		GameUISkinScript.wire_button_sfx(kb_btn)
 		hbox.add_child(kb_btn)
-		var pad_btn := GameUISkinScript.make_button(_binding_label(action, false))
+		var pad_btn := _binding_button(_binding_label(action, false))
 		pad_btn.pressed.connect(func() -> void: _start_binding_capture(action, "gamepad"))
-		GameUISkinScript.wire_button_sfx(pad_btn)
 		hbox.add_child(pad_btn)
 		var reset_btn := GameUISkinScript.make_button(tr("SETTINGS_BINDING_RESET"))
+		reset_btn.custom_minimum_size = Vector2(BINDING_RESET_WIDTH, 0)
 		reset_btn.pressed.connect(
 			func() -> void:
 				InputRebindService.reset_action(action)
@@ -341,11 +426,50 @@ func _build_controls_page() -> void:
 	_page_host.add_child(reset_all)
 
 
+func _binding_page_hint() -> Label:
+	var hint := Label.new()
+	hint.text = tr("SETTINGS_BINDING_DESC")
+	hint.theme_type_variation = GameUISkinScript.VAR_HINT_TEXT
+	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	return hint
+
+
+func _binding_header_row() -> HBoxContainer:
+	var header := HBoxContainer.new()
+	header.add_theme_constant_override("separation", 8)
+	var spacer := Control.new()
+	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	header.add_child(spacer)
+	for entry in [
+		["SETTINGS_BINDING_COL_KEYBOARD", BINDING_SLOT_WIDTH],
+		["SETTINGS_BINDING_COL_GAMEPAD", BINDING_SLOT_WIDTH],
+		["", BINDING_RESET_WIDTH],
+	]:
+		var label := Label.new()
+		label.text = tr(str(entry[0])) if str(entry[0]) != "" else ""
+		label.theme_type_variation = GameUISkinScript.VAR_HINT_TEXT
+		label.custom_minimum_size = Vector2(float(entry[1]), 0)
+		label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		header.add_child(label)
+	return header
+
+
+## Fixed-width and clipped: a binding can print as anything from "E" to a long joypad axis name,
+## and letting the button size to its own text is what shunted the whole row past the panel edge.
+func _binding_button(text: String) -> Button:
+	var button := GameUISkinScript.make_button(text)
+	button.custom_minimum_size = Vector2(BINDING_SLOT_WIDTH, 0)
+	button.clip_text = true
+	GameUISkinScript.wire_button_sfx(button)
+	return button
+
+
 func _binding_label(action: StringName, keyboard: bool) -> String:
 	for event in InputRebindService.get_action_events(action):
 		var is_kb := event is InputEventKey or event is InputEventMouseButton
 		if keyboard == is_kb:
-			return event.as_text()
+			return InputGlyphService.format_event_label(event)
 	return tr("SETTINGS_BINDING_UNBOUND")
 
 
@@ -359,6 +483,9 @@ func _start_binding_capture(action: StringName, device_family: String) -> void:
 
 
 func _build_advanced_page() -> void:
+	# The schema declares rows on this page (replay recording), but this branch replaced the schema
+	# build entirely instead of adding to it, so those settings were unreachable in game.
+	_build_schema_page("advanced")
 	var privacy := CheckBox.new()
 	privacy.text = tr("SETTINGS_CRASH_REPORTS")
 	privacy.button_pressed = PrivacySettingsScript.send_crash_reports
@@ -463,13 +590,9 @@ func _recenter_panel() -> void:
 	if panel == null:
 		return
 	var clamped := GameUISkinScript.clamped_panel_half_size(
-		GameUISkinScript.SETTINGS_HALF_W + 120.0, GameUISkinScript.SETTINGS_HALF_H + 80.0, self
+		GameUISkinScript.SETTINGS_HALF_W, GameUISkinScript.SETTINGS_HALF_H, self
 	)
-	panel.set_anchors_preset(Control.PRESET_CENTER)
-	panel.offset_left = -clamped.x
-	panel.offset_top = -clamped.y
-	panel.offset_right = clamped.x
-	panel.offset_bottom = clamped.y
+	GameUISkinScript.center_panel_in_parent(panel, clamped.x, clamped.y)
 
 
 func close_settings() -> void:
