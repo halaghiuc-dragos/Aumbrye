@@ -415,6 +415,23 @@ func play_heal(duration: float = 1.35) -> void:
 			_player.speed_scale = clampf(clip_length / duration, 0.4, 2.5)
 
 
+## Drops the drink animation and hands the rig back to locomotion.
+##
+## Needed because the drink is now interruptible: without this the character keeps miming a
+## flask it no longer has until the clip runs out, which reads as the heal still landing.
+## A stagger arriving in the same frame outranks this and repossesses the rig immediately.
+func cancel_heal() -> void:
+	for mirror in _live_mirrors():
+		if mirror.has_method("cancel_heal"):
+			mirror.call("cancel_heal")
+	if not is_bound() or _dead:
+		return
+	if _priority > Priority.ATTACK:
+		return
+	_priority = Priority.LOCOMOTION
+	_resume_locomotion()
+
+
 func play_death() -> void:
 	if _dead:
 		return

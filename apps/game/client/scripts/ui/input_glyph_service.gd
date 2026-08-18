@@ -115,6 +115,8 @@ static func get_action_display_name(action: String) -> String:
 			return "Cycle quick slot"
 		"quick_slot_use":
 			return "Use quick slot"
+		"inventory_split":
+			return "Split stack"
 		"ui_left", "ui_right", "ui_up", "ui_down":
 			return action.replace("ui_", "").capitalize()
 		"ui_accept":

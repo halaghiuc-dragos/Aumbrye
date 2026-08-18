@@ -16,7 +16,10 @@ var _regen_multiplier := 1.0
 
 
 func _ready() -> void:
+	# See Stamina._ready: regen is a physics-tick system; set_process(false) disabled a callback
+	# this class never implemented.
 	set_process(false)
+	set_physics_process(true)
 	mana_changed.emit(current, max_mana)
 
 

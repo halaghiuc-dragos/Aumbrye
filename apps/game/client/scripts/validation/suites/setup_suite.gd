@@ -181,25 +181,29 @@ func _test_input_map() -> void:
 	)
 
 	start = Time.get_ticks_msec()
+	# Every one of these ships as .ogg; the list asked for .wav, so this assertion could not pass
+	# and reported all seven missing on every run. Both extensions are accepted now — AudioDirector
+	# itself resolves either (see its `.wav`/`.ogg` candidate fallback) — so the test verifies the
+	# cue exists rather than which container it happens to be in.
 	var combat_sfx := [
-		"res://assets/audio/sfx/hit.wav",
-		"res://assets/audio/sfx/hit_armor.wav",
-		"res://assets/audio/sfx/block.wav",
-		"res://assets/audio/sfx/parry.wav",
-		"res://assets/audio/sfx/heal_raise.wav",
-		"res://assets/audio/sfx/heal_gulp.wav",
-		"res://assets/audio/sfx/heal_commit.wav",
+		"res://assets/audio/sfx/hit",
+		"res://assets/audio/sfx/hit_armor",
+		"res://assets/audio/sfx/block",
+		"res://assets/audio/sfx/parry",
+		"res://assets/audio/sfx/heal_raise",
+		"res://assets/audio/sfx/heal_gulp",
+		"res://assets/audio/sfx/heal_commit",
 	]
 	var missing_combat_sfx: PackedStringArray = []
 	for path in combat_sfx:
-		if not ResourceLoader.exists(path):
+		if not ResourceLoader.exists(path + ".ogg") and not ResourceLoader.exists(path + ".wav"):
 			missing_combat_sfx.append(path.get_file())
 	ctx.timed_record(
 		"setup.combat_sfx_assets",
 		get_category(),
 		missing_combat_sfx.is_empty(),
 		(
-			"combat SFX wav assets present"
+			"combat SFX assets present"
 			if missing_combat_sfx.is_empty()
 			else "missing: %s" % ", ".join(missing_combat_sfx)
 		),

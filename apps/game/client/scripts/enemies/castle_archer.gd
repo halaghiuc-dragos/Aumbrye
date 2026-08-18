@@ -39,6 +39,16 @@ func _start_windup() -> void:
 	super._start_windup()
 
 
+## Keeps the shot aimed for exactly as long as the body may still turn, then freezes with it.
+##
+## The trajectory used to be resolved once at wind-up start while the archer went on rotating
+## for the whole telegraph, so the arrow left along a heading the archer was no longer facing.
+func _on_windup_tick(committed: bool) -> void:
+	if committed:
+		return
+	_lock_shot_trajectory()
+
+
 func _show_attack_telegraph(duration: float) -> void:
 	var radius := float(
 		_current_attack_data.get("telegraph_radius", _data.get("telegraph_radius", 1.6))

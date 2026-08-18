@@ -9,6 +9,16 @@ const JUMP_BUFFER_TIME := 0.15
 const DODGE_BURST_FRACTION := 0.35
 const DODGE_SPEED := 9.0
 const DODGE_BACK_SPEED := 6.0
+
+## A neutral backstep is a spacing tool, not a commitment: shorter travel and a shorter roll so
+## it can be threaded between attacks. These scale the weight-class profile rather than
+## replacing it, so heavy armour still backsteps worse than light does.
+##
+## Previously `_dodge_speed` (and therefore DODGE_BACK_SPEED above) was computed and then never
+## read by `_process_dash`, which used the weight-class peak/end speeds for everything — so a
+## backstep travelled exactly as far as a full committed roll and the option did not exist.
+const BACKSTEP_SPEED_MULT := DODGE_BACK_SPEED / DODGE_SPEED
+const BACKSTEP_DURATION_MULT := 0.8
 const DODGE_STAMINA_COST := 32.0
 const JUMP_STAMINA_COST := 18.0
 
@@ -87,6 +97,10 @@ var _peak_speed := 11.0
 var _end_speed := 3.6
 var _recovery_speed_mult := 0.7
 var _weight_stamina_mult := 1.0
+## Length of the roll currently in flight. Equals `_duration` for a directional roll and is
+## shortened for a backstep, so `get_dash_progress` and the i-frame window stay in sync with the
+## motion actually being played.
+var _active_duration := 0.55
 
 
 func _ready() -> void:
@@ -187,7 +201,7 @@ func process_dodge_physics(delta: float) -> void:
 func get_dash_progress() -> float:
 	if not is_dodging:
 		return 0.0
-	return clampf(1.0 - (_dodge_timer / _duration), 0.0, 1.0)
+	return clampf(1.0 - (_dodge_timer / maxf(0.001, _active_duration)), 0.0, 1.0)
 
 
 func get_dash_direction() -> Vector3:
@@ -238,6 +252,11 @@ func _handle_jump_buffer() -> void:
 	if _jump_buffer_timer <= 0.0 or not _body:
 		return
 	if _coyote_timer > 0.0 and not is_dodging:
+		# Jump used to ignore the attack commitment window that _can_dash respects twelve lines
+		# below, so tapping jump cancelled any swing at any phase for 18 stamina — bypassing
+		# cancel_into/cancel_after and the entire reason heavy attacks feel heavy.
+		if _weapon and not _weapon.allows_cancel_into("dodge"):
+			return
 		if _stamina and not _stamina.consume(JUMP_STAMINA_COST):
 			return
 		_body.velocity.y = JUMP_VELOCITY
@@ -279,7 +298,8 @@ func _start_dash(skip_cost: bool = false) -> void:
 		_dodge_direction = _get_attack_backstep_direction()
 	_is_backstep = is_equal_approx(_dodge_speed, DODGE_BACK_SPEED)
 	is_dodging = true
-	_dodge_timer = _duration
+	_active_duration = _duration * (BACKSTEP_DURATION_MULT if _is_backstep else 1.0)
+	_dodge_timer = _active_duration
 	dash_started.emit()
 	# Dodge was the one core action with no VFX entry at all — it moved the character and nothing
 	# else acknowledged it. The dust is spawned at the feet, not the chest, so it reads as ground
@@ -320,12 +340,14 @@ func _get_facing_forward() -> Vector3:
 
 func _process_dash(delta: float) -> void:
 	_dodge_timer -= delta
-	var elapsed := _duration - _dodge_timer
-	var t := clampf(elapsed / _duration, 0.0, 1.0)
-	var speed := _peak_speed
+	var duration := maxf(0.001, _active_duration)
+	var elapsed := duration - _dodge_timer
+	var t := clampf(elapsed / duration, 0.0, 1.0)
+	var travel_mult := BACKSTEP_SPEED_MULT if _is_backstep else 1.0
+	var speed := _peak_speed * travel_mult
 	if t >= DODGE_BURST_FRACTION:
 		var blend := (t - DODGE_BURST_FRACTION) / maxf(0.001, 1.0 - DODGE_BURST_FRACTION)
-		speed = lerpf(_peak_speed, _end_speed, blend)
+		speed = lerpf(_peak_speed, _end_speed, blend) * travel_mult
 	_body.velocity.x = _dodge_direction.x * speed
 	_body.velocity.z = _dodge_direction.z * speed
 	if not _body.is_on_floor():

@@ -101,13 +101,19 @@ func _physics_process(delta: float) -> void:
 
 
 func _enter_guard() -> void:
+	# The parry attempt is what costs stamina, and it used to be charged unconditionally — a
+	# press with too little stamina paid nothing, raised no guard, and gave no feedback at all,
+	# so the player could not tell the input from a dropped one. Now the guard still comes up
+	# (blocking without the parry read), and a failed parry attempt says so.
+	var parry_afforded := _stamina == null or _stamina.has(PARRY_STAMINA_COST)
 	_state = GuardState.GUARDING
-	_parry_timer = PARRY_WINDOW
+	_parry_timer = PARRY_WINDOW if parry_afforded else 0.0
 	_parry_cooldown_timer = PARRY_COOLDOWN
 	is_guard_active = true
 	if _stamina:
 		_stamina.set_regen_state(Stamina.RegenState.BLOCKING)
-		_stamina.consume(PARRY_STAMINA_COST)
+		if parry_afforded:
+			_stamina.consume(PARRY_STAMINA_COST)
 	block_state_changed.emit(true)
 
 
@@ -163,6 +169,8 @@ func _reduction_for(damage_type: String) -> float:
 func modify_incoming_hit(info: DamageInfo, arc: DamageInfo.HitArc = DamageInfo.HitArc.FRONT) -> Dictionary:
 	if _stagger_timer > 0.0 or not is_guard_active:
 		return {"amount": info.amount, "poise": info.poise_damage}
+	# DamageInfo.classify_arc's FRONT bucket is ±60°, which is exactly BLOCK_ARC_DEGREES (120°)
+	# wide — so this single gate already enforces the authored shield cone.
 	if arc != DamageInfo.HitArc.FRONT:
 		return {"amount": info.amount, "poise": info.poise_damage}
 	if _guard_break_poise > 0.0 and info.poise_damage >= _guard_break_poise * _block_stability:
@@ -192,8 +200,17 @@ func modify_incoming_hit(info: DamageInfo, arc: DamageInfo.HitArc = DamageInfo.H
 	}
 
 
-func try_parry_attack(attacker: Node) -> bool:
+func try_parry_attack(
+	attacker: Node, arc: DamageInfo.HitArc = DamageInfo.HitArc.FRONT
+) -> bool:
 	if _state != GuardState.GUARDING or not parry_window_active:
+		return false
+	# A parry is a frontal read. The caller computes the arc and used to discard it here, so
+	# holding block and mashing turned an attacker standing behind you into a free riposte.
+	# The positional check backs it up for sources whose arc could not be classified.
+	if arc != DamageInfo.HitArc.FRONT:
+		return false
+	if not _is_within_block_arc(attacker):
 		return false
 	if _stamina and _stamina.is_exhausted():
 		return false
@@ -292,6 +309,27 @@ func _is_frontal_hit(direction: Vector3) -> bool:
 		return true
 	var facing := _get_block_facing()
 	var angle := rad_to_deg(facing.angle_to(-direction.normalized()))
+	return angle <= BLOCK_ARC_DEGREES * 0.5
+
+
+## Whether `attacker` sits inside the shield's authored cone. Positional rather than
+## direction-based so it is correct for hits whose travel vector says little about where the
+## attacker is standing (sweeps, arcs, area attacks).
+func _is_within_block_arc(attacker: Node) -> bool:
+	if _body == null:
+		return true
+	var source := attacker as Node3D
+	if source == null or not is_instance_valid(source):
+		return true
+	var to_attacker := source.global_position - _body.global_position
+	to_attacker.y = 0.0
+	if to_attacker.length_squared() < 0.01:
+		return true
+	var facing := _get_block_facing()
+	facing.y = 0.0
+	if facing.length_squared() < 0.01:
+		return true
+	var angle := rad_to_deg(facing.normalized().angle_to(to_attacker.normalized()))
 	return angle <= BLOCK_ARC_DEGREES * 0.5
 
 

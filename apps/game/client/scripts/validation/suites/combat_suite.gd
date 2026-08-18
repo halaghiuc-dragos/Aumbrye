@@ -13,6 +13,7 @@ func run() -> void:
 	await _test_guard_and_dodge()
 	await _test_weapon_attacks()
 	await _test_hit_feedback_and_tokens()
+	await _test_enemy_attack_commitment()
 	await _test_enemy_death_guards()
 	_test_waves_run()
 
@@ -245,9 +246,16 @@ func _test_guard_and_dodge() -> void:
 	fixture.defender_health().configure(60.0)
 	guard.is_guard_active = true
 
+	# The arc gate reads the attacker's *position*, not the hit direction, so these cases have to
+	# place a real attacker. Passing the defender as its own source made the offset zero, which
+	# DamageInfo.classify_arc treats as FRONT unconditionally — so the "rear hit" case below was
+	# not testing a rear hit at all, and asserted a number the code could not produce.
+	# Forward is +Z (see CombatFacing), so an attacker at +Z is in front of the defender.
+	var attacker := fixture.attacker_body()
+	fixture.place(Vector3(0.0, 0.0, 1.2), Vector3(0.0, 0.0, 0.0))
 	var start := Time.get_ticks_msec()
 	var info := DamageInfo.create(
-		30.0, 10.0, fixture.defender_body(), DamageInfo.TYPE_PHYSICAL, Vector3(0.0, 0.0, -1.0)
+		30.0, 10.0, attacker, DamageInfo.TYPE_PHYSICAL, Vector3(0.0, 0.0, -1.0)
 	)
 	fixture.direct_hit(info)
 	var chip := fixture.hp_lost()
@@ -263,20 +271,38 @@ func _test_guard_and_dodge() -> void:
 		"M1.combat.guard"
 	)
 
+	# Attacker moved behind the defender: the guard must not apply, and the hit takes the
+	# backstab arc multiplier it has earned.
+	fixture.place(Vector3(0.0, 0.0, -1.2), Vector3(0.0, 0.0, 0.0))
 	fixture.defender_health().configure(60.0)
 	guard.is_guard_active = true
 	start = Time.get_ticks_msec()
 	info = DamageInfo.create(
-		30.0, 10.0, fixture.defender_body(), DamageInfo.TYPE_PHYSICAL, Vector3(0.0, 0.0, 1.0)
+		30.0, 10.0, attacker, DamageInfo.TYPE_PHYSICAL, Vector3(0.0, 0.0, 1.0)
 	)
 	fixture.direct_hit(info)
 	ctx.assert_near(
 		"guard.block_requires_frontal",
 		get_category(),
 		fixture.hp_lost(),
-		30.0,
+		30.0 * DamageInfo.BACKSTAB_DAMAGE_MULT,
 		0.001,
 		"rear hit bypasses guard reduction",
+		start,
+		"M1.combat.guard"
+	)
+
+	# A parry from behind used to succeed, because the arc was computed and then never consulted.
+	fixture.defender_health().configure(60.0)
+	guard.is_guard_active = true
+	guard.parry_window_active = true
+	start = Time.get_ticks_msec()
+	var rear_parry: bool = guard.try_parry_attack(attacker, DamageInfo.HitArc.BACK)
+	ctx.timed_record(
+		"guard.parry_requires_frontal",
+		get_category(),
+		not rear_parry,
+		"parry is refused for a non-frontal attacker",
 		start,
 		"M1.combat.guard"
 	)
@@ -620,6 +646,63 @@ func _test_hit_feedback_and_tokens() -> void:
 			start,
 			"M1.combat.tokens"
 		)
+
+
+## The single most important invariant in the game: a committed swing cannot follow a dodge.
+##
+## Enemies used to re-aim at ENEMY_TURN_SPEED through the entire wind-up and the whole active
+## window, while also walking at the player, which made rolling — the defining verb of the
+## genre — do nothing. A regression here is invisible in every other test and fatal to the feel,
+## so it is asserted directly on the state machine rather than inferred from an outcome.
+func _test_enemy_attack_commitment() -> void:
+	var scene: PackedScene = EnemyCatalog.get_scene("castle_grunt")
+	var start := Time.get_ticks_msec()
+	if scene == null:
+		ctx.timed_record(
+			"enemy.attack_commitment",
+			get_category(),
+			false,
+			"could not load castle_grunt scene",
+			start,
+			"M2.combat.commitment"
+		)
+		return
+	var enemy: CharacterBody3D = scene.instantiate() as CharacterBody3D
+	ctx.owner.add_child(enemy)
+	await ctx.await_physics(2)
+
+	# Active frames: no re-aim, and no pursuit unless the attack authors a lunge.
+	enemy.set("_state", CastleEnemyBase.State.ATTACK)
+	enemy.set("_current_attack_data", {})
+	var attack_tracking: float = enemy.call("_tracking_speed_multiplier")
+	enemy.call("_apply_attack_lunge")
+	# Horizontal only: velocity.y carries whatever gravity accumulated over the frames above.
+	var attack_velocity := Vector2(enemy.velocity.x, enemy.velocity.z)
+
+	# Wind-up: re-aim is allowed early and locked once past the commit fraction.
+	enemy.set("_state", CastleEnemyBase.State.WINDUP)
+	enemy.set("_windup_duration", 1.0)
+	enemy.set("_state_timer", 1.0)
+	var early_tracking: float = enemy.call("_tracking_speed_multiplier")
+	enemy.set("_state_timer", 0.05)
+	var committed_tracking: float = enemy.call("_tracking_speed_multiplier")
+
+	var ok: bool = (
+		is_zero_approx(attack_tracking)
+		and attack_velocity.length_squared() < 0.0001
+		and early_tracking > 0.0
+		and is_zero_approx(committed_tracking)
+	)
+	ctx.timed_record(
+		"enemy.attack_commitment",
+		get_category(),
+		ok,
+		"swing heading locks at the commit point and does not pursue during active frames",
+		start,
+		"M2.combat.commitment"
+	)
+	enemy.queue_free()
+	await ctx.await_frame()
 
 
 func _test_enemy_death_guards() -> void:

@@ -93,8 +93,11 @@ func receive_hit(info: DamageInfo) -> void:
 		arc = DamageInfo.classify_arc(owner_body, info.source.global_position)
 
 	var guard := _cached_guard if not info.ignore_guard else null
+	# The arc is computed above and was then ignored here, so a parry landed on an attacker
+	# standing behind you. A parry is a frontal read; it has to be gated on the same arc the
+	# block is.
 	if guard and guard.has_method("try_parry_attack") and info.source:
-		if guard.call("try_parry_attack", info.source):
+		if guard.call("try_parry_attack", info.source, arc):
 			res.parried = true
 			res.outgoing = 0.0
 			res.poise_outgoing = 0.0
@@ -122,6 +125,7 @@ func receive_hit(info: DamageInfo) -> void:
 	final_poise *= region_poise_mult
 	final_amount = _apply_defense(final_amount)
 	final_amount = _apply_resistances(final_amount, info.damage_type)
+	final_amount = _apply_status_damage_taken(final_amount)
 
 	if _poise and _poise.is_broken():
 		final_amount *= POISE_BROKEN_DAMAGE_MULT
@@ -417,6 +421,21 @@ func _emit_periodic_feedback(body: Node3D, damage_type: String) -> void:
 			"epicenter": body.global_position + Vector3(0.0, 1.0, 0.0),
 		}
 	)
+
+
+## Applies the multiplier that damage-amplifying and damage-reducing statuses accumulate.
+##
+## `StatusController` computed this from every active status's `damageTakenMultiplier` and
+## exposed it through `get_damage_taken_multiplier()`, and no damage path ever asked for it — so
+## the field did nothing wherever it was authored. Applied after resistances so a status reads
+## as a modifier on what actually gets through, not on the raw swing.
+func _apply_status_damage_taken(amount: float) -> float:
+	if amount <= 0.0:
+		return amount
+	var ctrl := _resolve_status_controller()
+	if ctrl == null or not ctrl.has_method("get_damage_taken_multiplier"):
+		return amount
+	return amount * maxf(0.0, float(ctrl.call("get_damage_taken_multiplier")))
 
 
 func _apply_resistances(amount: float, damage_type: String) -> float:

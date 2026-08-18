@@ -27,6 +27,27 @@ const ContentSchemaValidator := preload("res://scripts/app/content_schema_valida
 ## corrupt the cached copy.
 static var _json_cache: Dictionary = {}
 
+## Relative paths that resolved to nothing this session.
+##
+## A missing `content/` directory in an exported build previously produced one `push_warning`
+## per file — invisible to a player — and the game booted with no weapons, no enemies and no
+## loot, looking broken rather than misconfigured. Callers that can surface a real error (boot,
+## the validation harness, a diagnostics screen) ask this instead of guessing from empty
+## dictionaries, which are also a legitimate result for an intentionally absent optional file.
+static var _missing_paths: Dictionary = {}
+
+
+## Whether any content file failed to resolve, i.e. the content root is wrong or unpackaged.
+static func has_missing_content() -> bool:
+	return not _missing_paths.is_empty()
+
+
+## Relative paths that failed to resolve, for an error surface to report.
+static func missing_content_paths() -> Array:
+	var paths: Array = _missing_paths.keys()
+	paths.sort()
+	return paths
+
 
 static func content_root() -> String:
 	var configured := str(ProjectSettings.get_setting("aumbrye/content_root", ""))
@@ -54,6 +75,7 @@ static func load_json(relative: String) -> Dictionary:
 			push_error(msg)
 		else:
 			push_warning(msg)
+		_missing_paths[relative] = true
 		_json_cache[relative] = {}
 		return {}
 	var parsed = JSON.parse_string(file.get_as_text())

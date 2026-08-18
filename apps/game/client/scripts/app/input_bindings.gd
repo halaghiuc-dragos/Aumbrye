@@ -26,6 +26,7 @@ const REBINDABLE: Array[StringName] = [
 	&"quick_slot_4",
 	&"quick_slot_cycle",
 	&"quick_slot_use",
+	&"inventory_split",
 ]
 
 const KEYBOARD_ONLY: Array[StringName] = [
@@ -36,6 +37,9 @@ const KEYBOARD_ONLY: Array[StringName] = [
 	&"quick_slot_2",
 	&"quick_slot_3",
 	&"quick_slot_4",
+	# Every gamepad button 0–14 is already spoken for, so the stack split is a keyboard action
+	# until a chord or a radial frees one up.
+	&"inventory_split",
 ]
 
 static var _defaults: Dictionary = {}

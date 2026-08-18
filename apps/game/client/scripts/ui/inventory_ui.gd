@@ -26,7 +26,6 @@ var _detail_label: Label
 var _tooltip_panel: PanelContainer
 var _tooltip_scroll: ScrollContainer
 var _tooltip_content: VBoxContainer
-var _compare_label: Label
 var _hint_row: HBoxContainer
 var _filter_label: Label
 var _search_edit: LineEdit
@@ -259,12 +258,9 @@ func _build_ui_shell() -> void:
 	_quick_slot_row = HBoxContainer.new()
 	_quick_slot_row.add_theme_constant_override("separation", 10)
 	footer.add_child(_quick_slot_row)
-	_compare_label = Label.new()
-	_compare_label.name = "CompareLabel"
-	_compare_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	GameUISkinScript.style_stat_delta(_compare_label, true)
-	_compare_label.visible = false
-	footer.add_child(_compare_label)
+	# The stat-delta comparison the footer label was built for is rendered inside the tooltip
+	# instead (see `_refresh_detail`'s `format_comparison_bbcode` call), so the label was created,
+	# styled and added to the tree without ever being given text or made visible.
 	_detail_label = Label.new()
 	_detail_label.visible = false
 	_hint_row = HBoxContainer.new()
@@ -341,7 +337,10 @@ func _unhandled_input(event: InputEvent) -> void:
 		_cycle_rarity_filter()
 		get_viewport().set_input_as_handled()
 		return
-	elif event.is_action_pressed("ui_page_down"):
+	elif event.is_action_pressed("inventory_split"):
+		# Was bound to "ui_page_down", which this project never defines — Godot logs an error and
+		# returns false for an unknown action, so splitting a stack was unreachable and the
+		# implemented `_split_selected_stack` could not be triggered by any input.
 		_split_selected_stack()
 		get_viewport().set_input_as_handled()
 		return

@@ -111,12 +111,20 @@ func _refresh() -> void:
 		var node := _nodes[i]
 		var rank := ProgressionService.get_talent_rank(node.get("id", ""))
 		var max_rank: int = int(node.get("maxRank", 1))
-		_node_list.add_item(
-			(
-				"[%s] %s (%d/%d)"
-				% [_branch_display_name(node), _talent_display_name(node), rank, max_rank]
-			)
+		# Keystones are the capstone of their branch — ten of them, one per tree, each a rule change
+		# rather than another percentage. The data has flagged them since the tree was authored and
+		# nothing ever read the flag, so the node that redefines how your build plays looked exactly
+		# like a +2% node in a flat alphabetical list.
+		var is_keystone := bool(node.get("keystone", false))
+		var label := (
+			"[%s] %s (%d/%d)"
+			% [_branch_display_name(node), _talent_display_name(node), rank, max_rank]
 		)
+		if is_keystone:
+			label = "◆ " + label
+		var index := _node_list.add_item(label)
+		if is_keystone:
+			_node_list.set_item_custom_fg_color(index, GameUISkinScript.FOCUS_RING_COLOR)
 	if _points_label:
 		_points_label.text = tr("TALENTS_POINTS") % ProgressionService.get_available_talent_points()
 	_cursor = clampi(_cursor, 0, maxi(0, _nodes.size() - 1))
@@ -150,6 +158,8 @@ func _update_detail() -> void:
 			effect_lines.append(line)
 	var can := ProgressionService.can_unlock_talent(node.get("id", ""))
 	var display_name: String = _talent_display_name(node)
+	if bool(node.get("keystone", false)):
+		display_name = "◆ %s" % display_name
 	_detail_label.text = (
 		"%s\n%s\n%s"
 		% [

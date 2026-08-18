@@ -36,7 +36,12 @@ func _physics_process(delta: float) -> void:
 	if _active.is_empty():
 		return
 	var expired: Array[String] = []
-	for status_id in _active:
+	# Iterate a snapshot of the keys: `_apply_tick` below routes damage through the Hurtbox,
+	# which can reach `apply_status` (an on-hit status, a death handler, a keystone rule) and
+	# insert into `_active` while this loop is walking it.
+	for status_id in _active.keys():
+		if not _active.has(status_id):
+			continue
 		var entry: Dictionary = _active[status_id]
 		var def := StatusCatalog.get_definition(status_id)
 		entry["remaining"] = float(entry.get("remaining", 0.0)) - delta
@@ -207,7 +212,9 @@ func _required_build_up(status_id: String, def: Dictionary) -> float:
 func _tick_meters(delta: float) -> void:
 	var drained: Array[String] = []
 	var changed := false
-	for status_id in _meters:
+	for status_id in _meters.keys():
+		if not _meters.has(status_id):
+			continue
 		var meter: Dictionary = _meters[status_id]
 		var grace := float(meter.get("grace", 0.0))
 		if grace > 0.0:

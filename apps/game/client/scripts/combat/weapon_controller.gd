@@ -178,6 +178,11 @@ func _physics_process(delta: float) -> void:
 		elif PlayerInput.just_pressed(&"heavy_attack"):
 			_buffered_attack = "heavy"
 	if _is_action_blocked():
+		# Record the press instead of discarding it. Releasing block and pressing attack in the
+		# same frame produced nothing at all, because this early return sits in front of both
+		# the press handlers and the buffer-consume branch below — the player reads that as the
+		# controls not responding, which is the fastest way to lose someone in the first hour.
+		_buffer_blocked_attack_input()
 		if is_attacking and current_phase != AttackPhase.DRAWING:
 			_cancel_attack()
 		return
@@ -204,6 +209,23 @@ func _physics_process(delta: float) -> void:
 		_buffered_attack = ""
 		_attack_buffer_timer = 0.0
 		_try_attack(buffered_kind)
+
+
+## Captures an attack press made while some other action owns the character (guarding, mid-roll,
+## staggered). The buffer is short-lived and shared with the post-dodge window, so it chains into
+## the next legal frame rather than queueing a swing the player has forgotten about.
+func _buffer_blocked_attack_input() -> void:
+	if _buffered_attack != "":
+		return
+	var kind := ""
+	if PlayerInput.just_pressed(&"light_attack"):
+		kind = "light"
+	elif PlayerInput.just_pressed(&"heavy_attack"):
+		kind = "heavy"
+	if kind == "":
+		return
+	_buffered_attack = kind
+	_attack_buffer_timer = float(_weapon_data.get("buffer_window", 0.2)) + 0.1
 
 
 func load_weapon_from_path(relative: String) -> void:
@@ -454,8 +476,25 @@ func disable_hitbox_from_anim() -> void:
 	_hyperarmor_active = false
 
 
+## Loads whatever is actually equipped, rather than always booting on the basic sword.
+##
+## The hardcoded default meant every spawn ran basic-sword damage, reach and hitbox shape until
+## `InventoryService.apply_equipment_to_player_node` landed — which happens a frame or more
+## later, from a different script, on several independent paths. A player who spawned into an
+## occupied room swung a sword they had not equipped. The constant stays as the fallback for
+## harnesses and tool scenes with no inventory in the tree.
 func _load_weapon_data() -> void:
-	load_weapon_from_path(WEAPON_DATA_RELATIVE)
+	var path := WEAPON_DATA_RELATIVE
+	if (
+		InventoryService
+		and is_instance_valid(InventoryService)
+		and InventoryService.inventory
+		and InventoryService.inventory.has_method("get_equipped_weapon_data_path")
+	):
+		var equipped := str(InventoryService.inventory.get_equipped_weapon_data_path())
+		if equipped != "":
+			path = equipped
+	load_weapon_from_path(path)
 
 
 func _try_attack(kind: String) -> void:

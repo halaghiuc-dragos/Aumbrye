@@ -25,7 +25,6 @@ var _crit_multiplier := 1.5
 var _crit_rng := RandomNumberGenerator.new()
 var _shape_query := PhysicsShapeQueryParameters3D.new()
 var _castle_run: Node
-var _poll_alternate := false
 var _execution_target: Node = null
 var _execution_kind := ""
 
@@ -65,7 +64,6 @@ func set_debug_draw(enabled: bool) -> void:
 func enable() -> void:
 	_active = true
 	monitoring = true
-	_poll_alternate = false
 	set_physics_process(true)
 	_scan_overlaps()
 
@@ -113,13 +111,15 @@ func set_combat_owner(node: Node) -> void:
 	_combat_owner = node
 
 
+## Scans every physics frame the hitbox is open.
+##
+## This used to skip alternate frames. A light attack's active window is 0.12 s — seven physics
+## frames — so the shape query ran three times, and each target additionally has to clear the
+## line-of-sight gate on one of those frames. Hits at the edge of a swing were genuinely lost,
+## and a dropped hit in a soulslike reads as the game cheating. Saving one intersect_shape
+## across a window that never exceeds ~0.2 s is not worth that.
 func _physics_process(_delta: float) -> void:
 	if not _active:
-		return
-	_poll_alternate = not _poll_alternate
-	if not _poll_alternate:
-		return
-	if get_overlapping_areas().is_empty():
 		return
 	_scan_overlaps()
 

@@ -25,7 +25,11 @@ var _insufficient_cooldown := 0.0
 
 
 func _ready() -> void:
+	# Regen runs on the physics tick, alongside every system that consumes stamina. This used to
+	# call set_process(false), which disables _process — a callback this class does not
+	# implement — so the intent was unreadable and regen survived by accident.
 	set_process(false)
+	set_physics_process(true)
 	stamina_changed.emit(current, max_stamina)
 
 

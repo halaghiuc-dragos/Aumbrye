@@ -11,6 +11,7 @@ func run() -> void:
 	_test_xp_grant()
 	_test_death_xp_fraction()
 	_test_run_buffs()
+	_test_relic_offer_reachability()
 	_test_talent_unlock()
 	_test_m4_content_schemas()
 	_test_xp_curve_runtime_keys()
@@ -154,13 +155,66 @@ func _test_xp_curve_runtime_keys() -> void:
 	)
 
 
+## Guards the relic offer against going dark again.
+##
+## `roll_offer`/`take_offer` were implemented and called from nowhere, which left 24 of the 35
+## authored relics unreachable — the only way one could enter a run was picking up an item
+## carrying a `runRelicId`, and only 11 relics have such an item. That is invisible to every
+## other test: the relics load, validate and behave correctly, and simply never appear.
+func _test_relic_offer_reachability() -> void:
+	var start := Time.get_ticks_msec()
+	var had := RunBuffs.to_save_array()
+	RunBuffs.clear_all()
+	var offer: Array[String] = RunBuffs.roll_offer("test:offer:1", 3)
+	var repeat: Array[String] = RunBuffs.roll_offer("test:offer:1", 3)
+	var other: Array[String] = RunBuffs.roll_offer("test:offer:2", 3)
+	var took := not offer.is_empty() and RunBuffs.take_offer(offer[0])
+	var holds := took and RunBuffs.has_relic(offer[0])
+	RunBuffs.clear_all()
+	RunBuffs.from_save_array(had)
+
+	var ui_wired := FileAccess.file_exists("res://scripts/ui/relic_offer_ui.gd")
+	var run_text := FileAccess.get_file_as_string("res://scripts/dungeon/castle_run.gd")
+	var offered_on_boss := "_offer_boss_relic" in run_text
+	var ok: bool = (
+		offer.size() == 3
+		and offer == repeat  # same key + seed always yields the same three
+		and other != offer  # a different decision point yields a different set
+		and holds
+		and ui_wired
+		and offered_on_boss
+	)
+	ctx.timed_record(
+		"progression.relic_offer_reachable",
+		get_category(),
+		ok,
+		"relic offers roll deterministically, apply, and are presented on boss defeat",
+		start,
+		"PROG-4.3.offer"
+	)
+
+
+func _curve_xp_required(curve: Dictionary, target_level: int) -> int:
+	for entry in curve.get("levels", []):
+		if entry is Dictionary and int((entry as Dictionary).get("level", 0)) == target_level:
+			return int((entry as Dictionary).get("xpRequired", 0))
+	return 0
+
+
 func _test_talent_points_from_curve() -> void:
 	var start := Time.get_ticks_msec()
 	var curve: Dictionary = ContentLoader.load_json("content/progression/xp_curve.json")
 	var per_level: int = int(curve.get("talentPointsPerLevel", 1))
-	ProgressionService.from_save_dict({"level": 5, "xp": 500, "talents": {}})
+	# `from_save_dict` recomputes the level from XP and ignores the saved `level` field, so the
+	# XP has to be the curve's own level-5 threshold. Hardcoding 500 put the service at level 4
+	# and compared 3 against an expected 4 — the assertion has been failing rather than
+	# verifying anything. Reading the threshold out of the curve also keeps this test correct
+	# if the curve is ever retuned.
+	var target_level := 5
+	var xp_for_target := _curve_xp_required(curve, target_level)
+	ProgressionService.from_save_dict({"level": target_level, "xp": xp_for_target, "talents": {}})
 	var points_at_5 := ProgressionService.get_available_talent_points()
-	var expected := (5 - 1) * per_level
+	var expected := (target_level - 1) * per_level
 	ProgressionService.from_save_dict({"level": 1, "xp": 0, "talents": {}})
 	ctx.timed_record(
 		"progression.talent_points_from_curve",

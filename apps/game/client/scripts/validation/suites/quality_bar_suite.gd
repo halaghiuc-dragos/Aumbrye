@@ -7,6 +7,13 @@ const PixelDioramaSettings := preload("res://scripts/art/pipeline/pixel_diorama_
 const KNOWN_CI_GODOT_VERSION := "4.7.0"
 
 
+## True when a combat cue ships in either container. AudioDirector resolves .ogg and .wav
+## interchangeably, so asserting one specific extension tests the packaging, not the content.
+func _sfx_asset_exists(cue_name: String) -> bool:
+	var base := "res://assets/audio/sfx/%s" % cue_name
+	return ResourceLoader.exists(base + ".ogg") or ResourceLoader.exists(base + ".wav")
+
+
 func get_category() -> String:
 	return "quality"
 
@@ -326,10 +333,10 @@ func _test_loot_ui_signals() -> void:
 
 func _test_audio_combat_sfx() -> void:
 	var start := Time.get_ticks_msec()
+	# Authored as .ogg; the .wav paths asserted here never existed, so this reported the combat
+	# SFX bank missing on every run.
 	var assets_ok := (
-		ResourceLoader.exists("res://assets/audio/sfx/hit.wav")
-		and ResourceLoader.exists("res://assets/audio/sfx/block.wav")
-		and ResourceLoader.exists("res://assets/audio/sfx/parry.wav")
+		_sfx_asset_exists("hit") and _sfx_asset_exists("block") and _sfx_asset_exists("parry")
 	)
 	ctx.timed_record(
 		"quality.audio.combat_sfx_assets",
@@ -342,7 +349,9 @@ func _test_audio_combat_sfx() -> void:
 
 	start = Time.get_ticks_msec()
 	var bank_text := FileAccess.get_file_as_string("content/audio/sfx.json")
-	var bank_wired := "res://assets/audio/sfx/hit.wav" in bank_text
+	# The bank references file-backed streams like `assets/audio/sfx/hit_flesh_01.ogg`; the exact
+	# literal asserted before appears nowhere in it.
+	var bank_wired := "assets/audio/sfx/hit" in bank_text
 	ctx.timed_record(
 		"quality.audio.combat_sfx_bank",
 		get_category(),

@@ -7,6 +7,7 @@ const BOSS_ROOM_ID := "boss"
 const BOSS_GATE_DEPTH_THRESHOLD := 4.0
 const BossIntroScript := preload("res://scripts/ui/boss_intro_ui.gd")
 const EpilogueCardScript := preload("res://scripts/ui/epilogue_card.gd")
+const RelicOfferUIScript := preload("res://scripts/ui/relic_offer_ui.gd")
 const StairMenuScript := preload("res://scripts/ui/stair_menu.gd")
 const CharacterFloorSnapScript := preload("res://scripts/art/characters/character_floor_snap.gd")
 const XpShardPickupScript := preload("res://scripts/progression/xp_shard_pickup.gd")
@@ -23,6 +24,7 @@ var _boss_defeated := false
 var _hud: Control
 var _boss_intro: Control
 var _epilogue_card: Control
+var _relic_offer: Control
 var _stair_menu: Control
 var _boss_intro_shown := false
 var _dungeon_def: Dictionary = {}
@@ -146,6 +148,9 @@ func _wire_run_ui(def: Dictionary) -> void:
 	add_child(_boss_intro)
 	_epilogue_card = EpilogueCardScript.new()
 	add_child(_epilogue_card)
+	_relic_offer = RelicOfferUIScript.new()
+	_relic_offer.name = "RelicOfferUI"
+	add_child(_relic_offer)
 	_stair_menu = StairMenuScript.new()
 	add_child(_stair_menu)
 	_notify_room(player_room_id)
@@ -575,6 +580,20 @@ func _persist_snapshot() -> void:
 	LocalSave.set_active_run(active)
 
 
+## Presents the relic choice a boss kill has earned.
+##
+## Keyed to dungeon and floor so the run seed fixes which three appear — dying and coming back
+## re-presents the same offer rather than rerolling it. Silent when the roll comes back empty
+## (nothing left this run can take), so the kill is never blocked on a dead modal.
+func _offer_boss_relic() -> void:
+	if _relic_offer == null or not is_instance_valid(_relic_offer):
+		return
+	if not _relic_offer.has_method("open_offer"):
+		return
+	var offer_key := "boss:%s:%d" % [RunFlow.current_dungeon_id, RunFlow.get_current_floor()]
+	_relic_offer.call("open_offer", offer_key)
+
+
 func _on_boss_defeated() -> void:
 	_boss_defeated = true
 	if _hud and _hud.has_method("unbind_boss"):
@@ -582,6 +601,10 @@ func _on_boss_defeated() -> void:
 	RunFlow.register_boss_defeated()
 	if _boss_door:
 		_boss_door.call("release_door")
+	# The counterpart to the boss_reveal sting. Every biome profile has declared a floor_clear
+	# stinger since they were authored, and sting_clear.ogg has been on disk unreferenced — nothing
+	# ever called it, so killing a boss dropped straight back to ambience with no punctuation.
+	AudioDirector.play_stinger("floor_clear")
 	AudioDirector.play_dungeon_ambience()
 	_persist_snapshot()
 	if RunFlow.is_final_floor() and RunFlow.get_run_mode() == "castle":
@@ -597,6 +620,9 @@ func _on_boss_defeated() -> void:
 					)
 				)
 			)
+	# Last, and after the epilogue has closed. The offer pauses the tree, and opening it before
+	# an awaited card would stack two modals and leave the pause owned by whichever popped last.
+	_offer_boss_relic()
 
 
 func _on_player_died() -> void:

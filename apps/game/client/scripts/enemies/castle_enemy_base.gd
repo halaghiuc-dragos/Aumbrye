@@ -13,6 +13,23 @@ signal boss_phase_entered(index: int, phase: Dictionary)
 const DATA_PATH := ""
 
 const ENEMY_TURN_SPEED := 22.0
+
+## Attack commitment. An enemy may re-aim freely while it is deciding, but once a swing is
+## committed the player's spacing decision has to stick — otherwise the roll, the single verb
+## the whole genre is built on, does nothing.
+##
+## `tracking_fraction` is how far into the wind-up re-aiming is still allowed (0.55 = the first
+## 55%, i.e. the readable half of the telegraph). Past that the enemy is locked to the heading it
+## chose. During the active frames it does not turn at all, and it does not walk: the swing arc
+## does the work. Both are overridable per attack (`tracking_fraction`) and per enemy, so a
+## homing-by-design boss move stays expressible in data.
+const WINDUP_TRACKING_FRACTION := 0.55
+const WINDUP_TRACKING_SPEED_MULT := 0.45
+const ATTACK_TRACKING_SPEED_MULT := 0.0
+const RECOVERY_TRACKING_SPEED_MULT := 0.25
+const WINDUP_APPROACH_SPEED_MULT := 0.45
+const RECOVERY_APPROACH_SPEED_MULT := 0.3
+const PATROL_SPEED_MULT := 0.45
 const HP_BAR_SCRIPT := preload("res://scripts/ui/enemy_health_bar.gd")
 const MaterialDissolveScript := preload("res://scripts/art/characters/material_dissolve.gd")
 const MaterialFlashScript := preload("res://scripts/art/characters/material_flash.gd")
@@ -846,8 +863,9 @@ func _physics_process(delta: float) -> void:
 		if _should_run_ai_tick(stride):
 			var ai_delta := delta * stride
 			_update_ai(ai_delta)
-			if _should_track_player():
-				_track_player_facing(ai_delta)
+			var track_mult := _tracking_speed_multiplier()
+			if track_mult > 0.0 and _should_track_player():
+				_track_player_facing(ai_delta, track_mult)
 	else:
 		velocity.x = 0.0
 		velocity.z = 0.0
@@ -892,7 +910,11 @@ func _update_ai(delta: float) -> void:
 		State.CIRCLE:
 			_process_circle(delta)
 		State.WINDUP:
-			_apply_chase_velocity(delta, 0.9)
+			# Closing slows to a stop as the swing commits, so the distance the player reads at
+			# the start of the telegraph is the distance the swing actually lands at.
+			var commit := _windup_commit_ratio()
+			_apply_chase_velocity(delta, WINDUP_APPROACH_SPEED_MULT * (1.0 - commit))
+			_on_windup_tick(commit >= 1.0)
 			_state_timer -= delta
 			if _windup_duration > 0.0:
 				var elapsed := _windup_duration - _state_timer
@@ -903,12 +925,15 @@ func _update_ai(delta: float) -> void:
 			if _state_timer <= 0.0:
 				_start_attack()
 		State.ATTACK:
-			_apply_chase_velocity(delta, 0.7)
+			# No pursuit during the active frames. An attack that walks after the player during
+			# its own hitbox window cannot be dodged by spacing, only by i-frames — and it beats
+			# those too by re-overlapping the moment they end. Authored lunges still move.
+			_apply_attack_lunge()
 			_state_timer -= delta
 			if _state_timer <= 0.0:
 				_end_attack()
 		State.RECOVERY:
-			_apply_chase_velocity(delta, 0.85)
+			_apply_chase_velocity(delta, RECOVERY_APPROACH_SPEED_MULT)
 			_state_timer -= delta
 			if _state_timer <= 0.0:
 				_state = State.CHASE if _has_aggro() else State.PATROL
@@ -938,7 +963,9 @@ func _process_patrol(delta: float) -> void:
 		_patrol_wait = _enemy_rng.randf_range(0.5, 1.2)
 		_pick_patrol_target()
 		return
-	velocity = dir * _move_speed
+	# Patrolling at full chase speed made "hasn't noticed you" and "hunting you" look identical,
+	# which wastes the vision-cone/hearing/awareness system feeding this state.
+	velocity = dir * _move_speed * PATROL_SPEED_MULT
 	_face_direction(dir, delta)
 
 
@@ -1529,23 +1556,93 @@ func _unregister_combat_engagement() -> void:
 	AudioDirector.unregister_combat_engagement()
 
 
-func _face_direction(dir: Vector3, delta: float) -> void:
-	if dir.length_squared() < 0.01:
+func _face_direction(dir: Vector3, delta: float, speed_mult: float = 1.0) -> void:
+	if dir.length_squared() < 0.01 or speed_mult <= 0.0:
 		return
 	var angle := atan2(dir.x, dir.z)
-	rotation.y = lerp_angle(rotation.y, angle, ENEMY_TURN_SPEED * delta)
+	rotation.y = lerp_angle(rotation.y, angle, minf(1.0, ENEMY_TURN_SPEED * speed_mult * delta))
 
 
 func _should_track_player() -> bool:
 	return _player != null and (_aggro_locked or _state != State.PATROL)
 
 
-func _track_player_facing(delta: float) -> void:
+## How fast this enemy may re-aim at the player right now, as a multiple of ENEMY_TURN_SPEED.
+## Zero means the heading is locked: the swing is committed and cannot follow a dodge.
+func _tracking_speed_multiplier() -> float:
+	match _state:
+		State.WINDUP:
+			if _windup_commit_ratio() >= 1.0:
+				return 0.0
+			return WINDUP_TRACKING_SPEED_MULT
+		State.ATTACK:
+			return ATTACK_TRACKING_SPEED_MULT
+		State.RECOVERY:
+			return RECOVERY_TRACKING_SPEED_MULT
+	return 1.0
+
+
+## 0 while the wind-up is still readable and re-aimable, ramping to 1 at the commit point.
+## The commit point is `tracking_fraction` of the way through the wind-up, overridable per
+## attack and per enemy so a deliberately relentless boss move can still be authored.
+func _windup_commit_ratio() -> float:
+	if _windup_duration <= 0.0:
+		return 1.0
+	var fraction := clampf(
+		float(
+			_current_attack_data.get(
+				"tracking_fraction", _data.get("tracking_fraction", WINDUP_TRACKING_FRACTION)
+			)
+		),
+		0.0,
+		1.0
+	)
+	if fraction <= 0.0:
+		return 1.0
+	var elapsed := clampf(
+		(_windup_duration - _state_timer) / _windup_duration, 0.0, 1.0
+	)
+	return clampf(elapsed / fraction, 0.0, 1.0)
+
+
+## Per-frame hook for the wind-up, with whether the swing has passed its commit point.
+##
+## Exists so subclasses that resolve a trajectory up front (the archer's locked shot, any aimed
+## projectile) can keep re-aiming exactly as long as the body is still allowed to turn, and
+## freeze on the same frame it does. Without a shared commit point the fired direction and the
+## visible heading disagree, which reads as the projectile curving.
+func _on_windup_tick(_committed: bool) -> void:
+	pass
+
+
+## Drives the authored forward step of an attack during its active frames. Enemies stand still
+## by default; `lunge_distance` on an attack entry buys a committed dash along the heading the
+## swing was locked to, which is dodgeable precisely because it cannot be re-aimed.
+func _apply_attack_lunge() -> void:
+	velocity.x = 0.0
+	velocity.z = 0.0
+	var distance := float(_current_attack_data.get("lunge_distance", 0.0))
+	if distance <= 0.0:
+		return
+	var forward := -global_transform.basis.z
+	forward.y = 0.0
+	if forward.length_squared() < 0.01:
+		return
+	var duration := maxf(
+		0.01,
+		float(_current_attack_data.get("active_duration", _data.get("active_duration", 0.15)))
+	)
+	var step := forward.normalized() * (distance / duration)
+	velocity.x = step.x
+	velocity.z = step.z
+
+
+func _track_player_facing(delta: float, speed_mult: float = 1.0) -> void:
 	if _player == null:
 		return
 	var to_player := _player.global_position - global_position
 	to_player.y = 0.0
-	_face_direction(to_player, delta)
+	_face_direction(to_player, delta, speed_mult)
 
 
 func _pick_patrol_target() -> void:
@@ -1570,6 +1667,11 @@ func _on_hurt(info: DamageInfo) -> void:
 	if info.direction.length_squared() > 0.01:
 		_last_hit_direction = info.direction
 	if is_dead():
+		return
+	# A flinch during a committed swing is a lie: the hitbox stays open and the state machine
+	# keeps running, but the player reads the animation as a stagger and steps in. Only poise
+	# breaks (which route through apply_stagger) may interrupt a swing.
+	if _state in [State.WINDUP, State.ATTACK]:
 		return
 	if _animator and _animator.is_bound():
 		_animator.play_flinch()

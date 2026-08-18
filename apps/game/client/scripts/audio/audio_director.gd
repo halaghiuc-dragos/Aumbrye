@@ -535,9 +535,26 @@ func play_cue(cue_name: StringName, world_pos: Variant = null) -> void:
 	play_sfx(String(cue_name), world_pos)
 
 
+## Plays a one-shot stinger and ducks the music under it.
+##
+## Stingers are declared per biome in `content/audio_profiles/<biome>.json` under `stingers`, as
+## direct paths to composed cues. That block was never read: this forwarded straight to play_sfx,
+## which looks the id up in the SFX *bank* — where "boss_reveal" has never existed. So the most
+## dramatic moment in a run played the synthesized fallback beep and pushed a missing-cue warning,
+## while sting_boss.ogg sat unreferenced on disk. The duck below fired correctly either way, which
+## is what kept it from being obvious.
+##
+## Falls through to the SFX bank when a profile does not declare the id, so stingers can still be
+## authored as ordinary cues.
 func play_stinger(stinger_id: String) -> void:
 	var before_db := _music.volume_db if _music else 0.0
-	play_sfx(stinger_id)
+	var stingers: Dictionary = _profile.get("stingers", {})
+	var path := str(stingers.get(stinger_id, ""))
+	var stream: AudioStream = _load_audio_stream(path) if path != "" else null
+	if stream != null:
+		_play_stream_2d(stream, &"SFX", 0.0, 1.0)
+	else:
+		play_sfx(stinger_id)
 	if _music and _music.playing:
 		_kill_tween(_music)
 		_music.volume_db = before_db - 8.0

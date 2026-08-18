@@ -10,9 +10,19 @@ const HEAL_AMOUNT := 0.45
 const DRINK_DURATION := 1.35
 const HEAL_STAMINA_COST := 0.0
 
+## A hit at or above this lands hard enough to break the drink. Anything smaller — a poison
+## tick, a glancing blow, chip through a block — is ridden out, so hostile-environment damage
+## does not make the flask unusable.
+const INTERRUPT_DAMAGE_THRESHOLD := 4.0
+
+## Fraction of the drink after which the heal is banked even if the drink is then broken.
+## Used only when the rig's animation carries no `heal_commit_frame` method track.
+const HEAL_COMMIT_FRACTION := 0.62
+
 signal charges_changed(current: int, max_value: int)
 signal heal_started
 signal heal_ended
+signal heal_interrupted
 
 var max_charges := DEFAULT_MAX_CHARGES
 var current_charges := DEFAULT_MAX_CHARGES
@@ -33,7 +43,81 @@ func _ready() -> void:
 	_stamina = _body.get_node_or_null("Stamina") as Stamina
 	_reactions = _body.get_node_or_null("CombatReactions")
 	_connect_heal_anim_signals()
+	_connect_interrupt_sources()
 	charges_changed.emit(current_charges, max_charges)
+
+
+## The drink is supposed to be the gamble that defines the genre: 1.35 s of helplessness
+## against a heal you might not get. Nothing was wired to interrupt it, so it was 45% max HP
+## for free and the whole risk/reward of the estus loop was inert.
+##
+## Deferred because the Hurtbox and CombatReactions siblings are added by the player scene and
+## may not have run their own _ready when this one does.
+func _connect_interrupt_sources() -> void:
+	call_deferred("_bind_interrupt_signals")
+
+
+func _bind_interrupt_signals() -> void:
+	if _body == null or not is_instance_valid(_body):
+		return
+	var hurtbox := _body.get_node_or_null("Hurtbox")
+	if hurtbox and hurtbox.has_signal("hurt_received"):
+		if not hurtbox.hurt_received.is_connected(_on_hurt_received):
+			hurtbox.hurt_received.connect(_on_hurt_received)
+	if _reactions == null:
+		_reactions = _body.get_node_or_null("CombatReactions")
+	if _reactions and _reactions.has_signal("stagger_started"):
+		if not _reactions.stagger_started.is_connected(_on_stagger_started):
+			_reactions.stagger_started.connect(_on_stagger_started)
+	if _health and not _health.died.is_connected(_on_owner_died):
+		_health.died.connect(_on_owner_died)
+
+
+## Chip damage through a heal is survivable; a real hit is not. Below the threshold the drink
+## rides it out, which keeps damage-over-time ticks and glancing blows from making the flask
+## unusable in a poison room.
+func _on_hurt_received(amount: float, _poise_damage: float, _direction: Vector3) -> void:
+	if not is_drinking:
+		return
+	if amount < INTERRUPT_DAMAGE_THRESHOLD:
+		return
+	_interrupt_drink()
+
+
+func _on_stagger_started() -> void:
+	if is_drinking:
+		_interrupt_drink()
+
+
+func _on_owner_died() -> void:
+	if is_drinking:
+		_interrupt_drink()
+
+
+## Ends the drink where it stands. The charge is spent either way — that is the cost of the
+## gamble, and refunding it would remove the decision again — but the heal still lands if the
+## commit point had already passed, so a hit landing on the last few frames is not a total loss.
+##
+## The commit point comes from the rig's `heal_commit_frame` when the clip authors one, and
+## falls back to HEAL_COMMIT_FRACTION of the drink otherwise. Without that fallback the whole
+## risk model would depend on whether a given character rig happened to carry a method track,
+## and a rig missing one would make every interrupted heal a total loss.
+func _interrupt_drink() -> void:
+	if not is_drinking:
+		return
+	is_drinking = false
+	var elapsed := DRINK_DURATION - _drink_timer
+	if not _heal_committed and elapsed >= DRINK_DURATION * HEAL_COMMIT_FRACTION:
+		_heal_committed = true
+		_apply_heal_amount()
+	_drink_timer = 0.0
+	current_charges = maxi(0, current_charges - 1)
+	charges_changed.emit(current_charges, max_charges)
+	var director := _body.get_node_or_null("AnimDirector") if _body else null
+	if director and director.has_method("cancel_heal"):
+		director.call("cancel_heal")
+	heal_interrupted.emit()
+	heal_ended.emit()
 
 
 func _connect_heal_anim_signals() -> void:

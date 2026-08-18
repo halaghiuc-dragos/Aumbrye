@@ -186,6 +186,9 @@ func respec_talents() -> void:
 	talent_points_spent = 0
 	_sync_keystone_rules()
 	progression_changed.emit()
+	# Every sibling mutator autosaves; this one did not, so a respec was lost on a crash or a
+	# quit that never reached another save point.
+	LocalSave.autosave()
 
 
 ## Called when the owning class changes, since a class branch and its keystone are

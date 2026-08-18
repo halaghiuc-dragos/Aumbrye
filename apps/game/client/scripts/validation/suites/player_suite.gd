@@ -6,6 +6,13 @@ const CharacterSkin := preload("res://scripts/art/characters/diorama_character_s
 const CastleBlockoutScript := preload("res://scripts/dungeon/castle/castle_blockout.gd")
 
 
+## True when a combat cue ships in either container. AudioDirector resolves .ogg and .wav
+## interchangeably, so asserting one specific extension tests the packaging, not the content.
+func _sfx_asset_exists(cue_name: String) -> bool:
+	var base := "res://assets/audio/sfx/%s" % cue_name
+	return ResourceLoader.exists(base + ".ogg") or ResourceLoader.exists(base + ".wav")
+
+
 func get_category() -> String:
 	return "player"
 
@@ -300,10 +307,12 @@ func _test_player_heal_quality() -> void:
 	)
 
 	start = Time.get_ticks_msec()
+	# These ship as .ogg. Demanding .wav made the assertion unsatisfiable, so it reported the
+	# authored heal cues missing on every run.
 	var heal_sfx_ok := (
-		ResourceLoader.exists("res://assets/audio/sfx/heal_raise.wav")
-		and ResourceLoader.exists("res://assets/audio/sfx/heal_gulp.wav")
-		and ResourceLoader.exists("res://assets/audio/sfx/heal_commit.wav")
+		_sfx_asset_exists("heal_raise")
+		and _sfx_asset_exists("heal_gulp")
+		and _sfx_asset_exists("heal_commit")
 	)
 	ctx.timed_record(
 		"player.heal_authored_sfx",

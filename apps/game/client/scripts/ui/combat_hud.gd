@@ -5,6 +5,8 @@ const StatusPipScene := preload("res://scenes/ui/status_pip.tscn")
 const InputGlyphServiceScript := preload("res://scripts/ui/input_glyph_service.gd")
 const HudIconAtlasScript := preload("res://scripts/ui/hud_icon_atlas.gd")
 const MinimapScript := preload("res://scripts/ui/minimap.gd")
+const HealChargeMeterScript := preload("res://scripts/ui/heal_charge_meter.gd")
+const GuardIndicatorScript := preload("res://scripts/ui/guard_indicator.gd")
 const MenuShellScript := preload("res://scripts/ui/menu_shell.gd")
 const GameUISkinScript := preload("res://scripts/ui/game_ui_skin.gd")
 
@@ -33,6 +35,7 @@ const MANA_BG := Color(0.06, 0.06, 0.14, 0.92)
 const ATTACK_STARTUP_FILL := Color(0.95, 0.55, 0.18, 1.0)
 const ATTACK_ACTIVE_FILL := Color(0.85, 0.18, 0.12, 1.0)
 const ATTACK_RECOVERY_FILL := Color(0.45, 0.45, 0.48, 1.0)
+const LOCK_RETICLE_OCCLUDED := Color(1.0, 0.62, 0.55, 1.0)
 
 @export var player_path: NodePath
 @export var lock_on_path: NodePath
@@ -75,6 +78,9 @@ var _lock_reticle_alpha := 0.0
 var _status_pips: Dictionary = {}
 var _status_refresh_timer := 0.0
 var _build_up_box: VBoxContainer
+var _heal_charge_row: HBoxContainer
+var _lock_target_occluded := false
+var _riposte_prompt_timer := 0.0
 var _build_up_rows: Dictionary = {}
 var _last_health := -1.0
 var _vignette_cooldown := 0.0
@@ -118,9 +124,12 @@ func _ready() -> void:
 		if _guard:
 			_guard.block_state_changed.connect(_on_guard_block_state_changed)
 			_guard.guard_broken.connect(_on_guard_broken)
+			if not _guard.riposte_ready.is_connected(_on_riposte_ready):
+				_guard.riposte_ready.connect(_on_riposte_ready)
 		_weapon_controller = _player.get_node_or_null("WeaponController") as WeaponController
 		_status_controller = _player.get_node_or_null("StatusController") as StatusController
 		_bind_player_resources()
+		_bind_heal_charges()
 		_bind_minimap_player()
 		if _status_controller:
 			_status_controller.statuses_changed.connect(_refresh_status_icons)
@@ -132,6 +141,8 @@ func _ready() -> void:
 		_lock_on = get_node_or_null(lock_on_path) as LockOn
 		if _lock_on:
 			_lock_on.lock_changed.connect(_on_lock_changed)
+			if not _lock_on.lock_occluded.is_connected(_on_lock_occluded):
+				_lock_on.lock_occluded.connect(_on_lock_occluded)
 	if ProgressionService:
 		ProgressionService.progression_changed.connect(_on_progression_changed)
 		_on_progression_changed()
@@ -313,7 +324,11 @@ func _process(delta: float) -> void:
 		return
 	_vignette_cooldown = maxf(0.0, _vignette_cooldown - delta)
 	_update_lock_reticle()
-	if _guard_indicator_active:
+	if _riposte_prompt_timer > 0.0:
+		_riposte_prompt_timer = maxf(0.0, _riposte_prompt_timer - delta)
+	# The riposte prompt has to keep updating after the block ends, because the parry that opened
+	# it is exactly what drops the guard.
+	if _guard_indicator_active or _riposte_prompt_timer > 0.0:
 		_update_guard_indicators()
 	_update_attack_bar()
 	_update_status_timers(delta)
@@ -492,6 +507,22 @@ func _bind_player_resources() -> void:
 		_on_mana_changed(mana.current, Mana.MAX_MANA)
 
 
+## Builds and binds the flask counter. See HealChargeMeter for why it did not exist before.
+func _bind_heal_charges() -> void:
+	if _heal_charge_row == null and _status_row != null:
+		_heal_charge_row = HealChargeMeterScript.bind(
+			_player, _status_row, _on_heal_charges_changed, _on_heal_interrupted
+		)
+
+
+func _on_heal_charges_changed(current: int, max_value: int) -> void:
+	HealChargeMeterScript.refresh(_heal_charge_row, current, max_value)
+
+
+func _on_heal_interrupted() -> void:
+	HealChargeMeterScript.flash_interrupt(_heal_charge_row)
+
+
 func _on_progression_changed() -> void:
 	if not ProgressionService:
 		return
@@ -527,6 +558,13 @@ func _update_lock_reticle() -> void:
 	_lock_reticle_alpha = lerpf(_lock_reticle_alpha, target_alpha, 0.22)
 	_lock_reticle.visible = _lock_reticle_alpha > 0.05
 	_lock_reticle.modulate.a = _lock_reticle_alpha
+	# LockOn tracks occlusion and emits `lock_occluded`, and nothing displayed it — the reticle
+	# looked identical whether the target was in the open or behind a wall, right up until the
+	# lock silently dropped at the end of the grace window.
+	var occluded_tint := LOCK_RETICLE_OCCLUDED if _lock_target_occluded else Color.WHITE
+	_lock_reticle.modulate.r = occluded_tint.r
+	_lock_reticle.modulate.g = occluded_tint.g
+	_lock_reticle.modulate.b = occluded_tint.b
 	if not on_screen or camera.is_position_behind(aim_point):
 		var center := viewport_size * 0.5
 		var dir := (screen_pos - center).normalized()
@@ -534,6 +572,23 @@ func _update_lock_reticle() -> void:
 	screen_pos.x = floor(screen_pos.x)
 	screen_pos.y = floor(screen_pos.y)
 	_lock_reticle.position = screen_pos - _lock_reticle.size * 0.5
+
+
+func _on_lock_occluded(occluded: bool) -> void:
+	_lock_target_occluded = occluded
+
+
+## Announces the riposte window opened by a successful parry.
+##
+## `Guard.riposte_ready` was emitted and never listened to, so the 1.4 s window in which a heavy
+## press becomes a critical riposte was invisible — the player had to already know the mechanic
+## existed and guess at its length.
+func _on_riposte_ready() -> void:
+	if _parry_label == null:
+		return
+	_parry_label.text = tr("HUD_RIPOSTE_READY")
+	_parry_label.visible = true
+	_riposte_prompt_timer = Guard.RIPOSTE_WINDOW
 
 
 func _on_guard_block_state_changed(blocking: bool) -> void:
@@ -554,28 +609,9 @@ func _on_guard_broken() -> void:
 
 
 func _update_guard_indicators() -> void:
-	if not _guard:
-		_parry_bar.visible = false
-		_block_bar.visible = false
-		_parry_label.visible = false
-		return
-	var parry_left := _guard.get_parry_time_remaining()
-	var block_left := _guard.get_block_time_remaining()
-	_parry_bar.max_value = _guard.get_parry_window_duration()
-	_block_bar.max_value = _guard.get_block_window_duration()
-	if parry_left > 0.0:
-		_parry_bar.visible = true
-		_parry_bar.value = parry_left
-		_parry_label.visible = true
-		_parry_label.text = tr("HUD_PARRY")
-	else:
-		_parry_bar.visible = false
-		_parry_label.visible = false
-	if block_left > 0.0:
-		_block_bar.visible = true
-		_block_bar.value = block_left
-	else:
-		_block_bar.visible = false
+	_riposte_prompt_timer = GuardIndicatorScript.update(
+		_guard, _parry_bar, _block_bar, _parry_label, _riposte_prompt_timer
+	)
 
 
 func _get_camera() -> Camera3D:

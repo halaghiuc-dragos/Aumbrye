@@ -119,6 +119,10 @@ func hp_lost() -> float:
 	return _hp_before - _defender_health.current
 
 
+func attacker_body() -> CharacterBody3D:
+	return _attacker
+
+
 func defender_body() -> CharacterBody3D:
 	return _defender
 

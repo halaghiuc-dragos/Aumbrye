@@ -1,31 +1,171 @@
 {
   "schemaVersion": 1,
   "baseXpPerKill": 25,
-  "bossBonusXp": 150,
-  "escapeBonusXp": 50,
+  "bossBonusXp": 400,
+  "escapeBonusXp": 200,
   "deathXpFraction": 0.5,
   "abandonedXpFraction": 0,
   "talentPointsPerLevel": 1,
   "levels": [
-    { "level": 1, "xpRequired": 0 },
-    { "level": 2, "xpRequired": 100 },
-    { "level": 3, "xpRequired": 250 },
-    { "level": 4, "xpRequired": 450 },
-    { "level": 5, "xpRequired": 700 },
-    { "level": 6, "xpRequired": 1000 },
-    { "level": 7, "xpRequired": 1350 },
-    { "level": 8, "xpRequired": 1750 },
-    { "level": 9, "xpRequired": 2200 },
-    { "level": 10, "xpRequired": 2700 },
-    { "level": 11, "xpRequired": 3250 },
-    { "level": 12, "xpRequired": 3850 },
-    { "level": 13, "xpRequired": 4500 },
-    { "level": 14, "xpRequired": 5200 },
-    { "level": 15, "xpRequired": 5950 },
-    { "level": 16, "xpRequired": 6750 },
-    { "level": 17, "xpRequired": 7600 },
-    { "level": 18, "xpRequired": 8500 },
-    { "level": 19, "xpRequired": 9450 },
-    { "level": 20, "xpRequired": 10450 }
+    {
+      "level": 1,
+      "xpRequired": 0
+    },
+    {
+      "level": 2,
+      "xpRequired": 100
+    },
+    {
+      "level": 3,
+      "xpRequired": 250
+    },
+    {
+      "level": 4,
+      "xpRequired": 450
+    },
+    {
+      "level": 5,
+      "xpRequired": 700
+    },
+    {
+      "level": 6,
+      "xpRequired": 1000
+    },
+    {
+      "level": 7,
+      "xpRequired": 1350
+    },
+    {
+      "level": 8,
+      "xpRequired": 1750
+    },
+    {
+      "level": 9,
+      "xpRequired": 2200
+    },
+    {
+      "level": 10,
+      "xpRequired": 2700
+    },
+    {
+      "level": 11,
+      "xpRequired": 3250
+    },
+    {
+      "level": 12,
+      "xpRequired": 3850
+    },
+    {
+      "level": 13,
+      "xpRequired": 4500
+    },
+    {
+      "level": 14,
+      "xpRequired": 5200
+    },
+    {
+      "level": 15,
+      "xpRequired": 5950
+    },
+    {
+      "level": 16,
+      "xpRequired": 6750
+    },
+    {
+      "level": 17,
+      "xpRequired": 7600
+    },
+    {
+      "level": 18,
+      "xpRequired": 8500
+    },
+    {
+      "level": 19,
+      "xpRequired": 9450
+    },
+    {
+      "level": 20,
+      "xpRequired": 10450
+    },
+    {
+      "level": 21,
+      "xpRequired": 11500
+    },
+    {
+      "level": 22,
+      "xpRequired": 12600
+    },
+    {
+      "level": 23,
+      "xpRequired": 13750
+    },
+    {
+      "level": 24,
+      "xpRequired": 14950
+    },
+    {
+      "level": 25,
+      "xpRequired": 16200
+    },
+    {
+      "level": 26,
+      "xpRequired": 17500
+    },
+    {
+      "level": 27,
+      "xpRequired": 18850
+    },
+    {
+      "level": 28,
+      "xpRequired": 20250
+    },
+    {
+      "level": 29,
+      "xpRequired": 21700
+    },
+    {
+      "level": 30,
+      "xpRequired": 23200
+    },
+    {
+      "level": 31,
+      "xpRequired": 24750
+    },
+    {
+      "level": 32,
+      "xpRequired": 26350
+    },
+    {
+      "level": 33,
+      "xpRequired": 28000
+    },
+    {
+      "level": 34,
+      "xpRequired": 29700
+    },
+    {
+      "level": 35,
+      "xpRequired": 31450
+    },
+    {
+      "level": 36,
+      "xpRequired": 33250
+    },
+    {
+      "level": 37,
+      "xpRequired": 35100
+    },
+    {
+      "level": 38,
+      "xpRequired": 37000
+    },
+    {
+      "level": 39,
+      "xpRequired": 38950
+    },
+    {
+      "level": 40,
+      "xpRequired": 40950
+    }
   ]
 }

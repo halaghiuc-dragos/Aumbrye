@@ -23,6 +23,10 @@ static func damage_multiplier(equipment_stats: Dictionary, talent_stats: Diction
 
 
 ## Class stat bonuses listed in a weapon's `scaling` block (stat -> coefficient).
+##
+## Note this reads the weapon *archetype* (`content/weapons/<weaponId>.json`), whose scaling is
+## numeric and keyed by the twelve rating stats. The letter grades on equipment items
+## (`{"strength": "C"}`) are a separate, descriptive field that never reaches combat.
 static func weapon_scaling_multiplier(weapon_scaling: Dictionary, class_stats: Dictionary) -> float:
 	if weapon_scaling.is_empty():
 		return 1.0

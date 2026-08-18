@@ -9,7 +9,8 @@ const MAX_POISE := 50.0
 const REGEN_RATE := 20.0
 const REGEN_DELAY := 2.0
 const REGEN_REFILL_TIME := 1.0
-const POISE_BROKEN_DAMAGE_MULT := 1.35
+# The broken-poise damage multiplier lives on Hurtbox, which is the only place that applies it.
+# A dead duplicate here meant two sources of truth for a balance number.
 
 var max_poise: float = MAX_POISE
 var current: float = MAX_POISE
@@ -20,7 +21,10 @@ var break_duration := 1.2
 
 
 func _ready() -> void:
+	# See Stamina._ready: regen is a physics-tick system; set_process(false) disabled a callback
+	# this class never implemented.
 	set_process(false)
+	set_physics_process(true)
 	poise_changed.emit(current, max_poise)
 
 

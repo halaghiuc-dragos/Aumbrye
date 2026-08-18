@@ -52,6 +52,7 @@ talent.apt_4,Quick Study,Învățare rapidă
 talent.apt_5,Midas Touch,Atingerea lui Midas
 talent.apt_6,Flow State,Stare de flux
 HUD_PARRY,PARRY,PARARE
+HUD_RIPOSTE_READY,RIPOSTE,RIPOSTĂ
 HUD_LEVEL,Lv %d,Nv %d
 HUD_BRANCH_AHEAD,Branch ahead — %s,Ramură în față — %s
 HUD_BRANCH_REWARD,%d reward path(s),%d cale(i) recompensă
@@ -563,3 +564,8 @@ TALENTS_POINTS,Points: %d,Puncte: %d
 TALENTS_HINT,Enter: unlock | Esc: close,Enter: deblocheaza | Esc: inchide
 TALENTS_CAN_UNLOCK,Can unlock,Se poate debloca
 TALENTS_LOCKED,Locked,Blocat
+
+RELIC_OFFER_TITLE,A Relic Offered,O relicvă oferită
+RELIC_OFFER_SUBTITLE,Take one. The others return to the dark.,Ia una. Celelalte se întorc în întuneric.
+RELIC_OFFER_HINT,This choice is bound to the seed — it will not change.,Alegerea e legată de sămânță — nu se va schimba.
+RELIC_OFFER_TAKE,Take,Ia

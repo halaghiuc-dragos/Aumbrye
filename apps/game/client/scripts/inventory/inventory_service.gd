@@ -18,6 +18,10 @@ signal inventory_rejected(reason: String)
 var inventory: GridInventory = GridInventory.new()
 var quick_slot_instances: Array[String] = ["", "", "", ""]
 var _registered_rule_sources: Array = []
+## Guards the status-driven stat refresh against re-entering itself: reconfiguring Health,
+## Poise and Mana emits change signals of their own, and a status expiring inside that cascade
+## would otherwise recurse.
+var _applying_status_refresh := false
 
 
 func _ready() -> void:
@@ -276,12 +280,49 @@ func get_equipment_stats() -> Dictionary:
 	var talent_stats := ProgressionService.get_talent_stat_totals() if ProgressionService else {}
 	var run_stats := RunBuffs.get_stat_totals() if RunBuffs else {}
 	var buff_stats := get_consumable_buff_stats()
+	var status_stats := get_status_buff_stats()
 	return _merge_stat_dicts(
 		_merge_stat_dicts(
-			_merge_stat_dicts(_merge_stat_dicts(equip_stats, class_stats), talent_stats), run_stats
+			_merge_stat_dicts(
+				_merge_stat_dicts(_merge_stat_dicts(equip_stats, class_stats), talent_stats),
+				run_stats
+			),
+			buff_stats
 		),
-		buff_stats
+		status_stats
 	)
+
+
+## Everything that behaves like gear for combat purposes: equipment affixes, the class's own
+## bonuses, run relics, consumable buffs, and active buff statuses.
+##
+## Deliberately excludes talents, because `CombatStatModifiers` takes the talent dictionary as a
+## separate argument and *adds* both — folding talents in here would count every talent stat
+## twice.
+##
+## This exists because `apply_equipment_to_player_node` passed the equipment-and-class aggregate
+## to all but two of its consumers, so relic stats, consumable-buff stats and status-buff stats
+## reached nothing except max health and elemental resistances. Stamina, poise, mana, weapon
+## damage, move speed, dodge cost, block reduction, armour and flat damage reduction all ignored
+## them — which is most of what a relic or a potion is *for*.
+func get_combat_aggregate_stats() -> Dictionary:
+	var stats := _merge_stat_dicts(get_equipment_only_stats(), get_class_stats())
+	if RunBuffs:
+		stats = _merge_stat_dicts(stats, RunBuffs.get_stat_totals())
+	stats = _merge_stat_dicts(stats, get_consumable_buff_stats())
+	return _merge_stat_dicts(stats, get_status_buff_stats())
+
+
+## Stat contribution of active buff statuses on the player (stoneskin, focus, resolve,
+## swiftness). `StatusController` aggregated these and exposed them, and nothing ever asked.
+func get_status_buff_stats() -> Dictionary:
+	var player := get_tree().get_first_node_in_group("player")
+	if player == null:
+		return {}
+	var controller := player.get_node_or_null("StatusController")
+	if controller == null or not controller.has_method("get_stat_totals"):
+		return {}
+	return controller.call("get_stat_totals")
 
 
 func get_consumable_buff_stats() -> Dictionary:
@@ -444,10 +485,37 @@ func get_class_stats() -> Dictionary:
 	return {}
 
 
+## Reapplies the player's stat block whenever a buff status is gained or lost.
+##
+## Buff statuses contribute to the same aggregate as gear, so they have to trigger the same
+## recalculation gear does — otherwise a buff only takes effect on the next unrelated inventory
+## change, and never wears off at all.
+func _bind_status_stat_refresh(player: Node) -> void:
+	var controller := player.get_node_or_null("StatusController")
+	if controller == null or not controller.has_signal("statuses_changed"):
+		return
+	if not controller.statuses_changed.is_connected(_on_player_statuses_changed):
+		controller.statuses_changed.connect(_on_player_statuses_changed)
+
+
+func _on_player_statuses_changed() -> void:
+	if _applying_status_refresh:
+		return
+	var player := get_tree().get_first_node_in_group("player")
+	if player == null or not is_instance_valid(player):
+		return
+	# Re-entrancy guard: configuring Health/Poise/Mana below emits their own change signals, and
+	# a status expiring during that cascade would otherwise recurse back into here.
+	_applying_status_refresh = true
+	apply_equipment_to_player_node(player)
+	_applying_status_refresh = false
+
+
 func apply_equipment_to_player_node(player: Node) -> void:
 	if player == null:
 		return
-	var equip_stats := _merge_stat_dicts(get_equipment_only_stats(), get_class_stats())
+	_bind_status_stat_refresh(player)
+	var equip_stats := get_combat_aggregate_stats()
 	var talent_stats := get_talent_stats()
 	var merged_stats := get_equipment_stats()
 	var health := player.get_node_or_null("Health") as Health
