@@ -289,17 +289,6 @@ func _count_nav_links_on_root(root: Node3D) -> int:
 	return count
 
 
-func _count_nav_links(room: RoomTemplate) -> int:
-	var blockout := room.get_blockout()
-	if blockout == null:
-		return 0
-	var count := 0
-	for child in blockout.get_children():
-		if child is NavigationLink3D:
-			count += 1
-	return count
-
-
 func _test_shortcut_edges_wired() -> void:
 	var start := Time.get_ticks_msec()
 	var def := _find_definition_with_shortcut_edges()

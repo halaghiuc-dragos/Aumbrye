@@ -13,6 +13,10 @@ func get_category() -> String:
 
 
 func run() -> void:
+	# ALL_BIOMES is populated lazily by the biome index, so a suite that reads it must warm the
+	# index itself. Without this the suite only passed when some earlier suite happened to warm
+	# it first, and running it alone (--suite=...) reported ten false failures.
+	BiomeRegistry.warm_index()
 	_test_anchors_inside_room()
 	_test_loot_from_biome_data()
 	_test_loot_scales_with_tier()

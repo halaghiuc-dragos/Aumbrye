@@ -26,7 +26,7 @@ Aumbrye is a single-player action roguelite with online persistence. We need cle
 ## References
 
 - [ARCHITECTURE.md](../ARCHITECTURE.md) — sections 4 (dungeon assembly) and 9 (backend / web)
-- [REFACTOR_OPTIMISE_BUGFIX.md](../../REFACTOR_OPTIMISE_BUGFIX.md) — `REF-02` tracks collapsing the two
+- [remaining_points.md](../remaining_points.md) — `R-02` tracks collapsing the two
   procgen implementations
 - Code anchors: `apps/game/client/scripts/app/run_flow.gd` (`USE_ONLINE_PROCgen`),
   `packages/procedural/Generation/DungeonGenerator.cs`,

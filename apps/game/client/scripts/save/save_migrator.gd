@@ -890,10 +890,6 @@ static func _migrate_world_flags_in_snapshot(snapshot: Variant) -> void:
 	snap["worldFlags"] = migrated
 
 
-static func _is_namespaced_flag(flag_id: String) -> bool:
-	return WorldFlags.is_valid_id(flag_id)
-
-
 static func _normalize_merchants(copy: Dictionary) -> void:
 	if not copy.has("merchants") or not copy["merchants"] is Dictionary:
 		copy["merchants"] = {}

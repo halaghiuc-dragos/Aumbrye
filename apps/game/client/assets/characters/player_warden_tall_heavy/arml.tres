@@ -1,0 +1,14 @@
+[gd_resource type="ArrayMesh" format=4]
+
+[resource]
+_surfaces = [{
+"aabb": AABB(-0.12, -0.56, -0.12, 0.19999999, 0.56, 0.19999999),
+"attribute_data": PackedByteArray("ODNH/zgzR/84M0f/ODNH/zgzR/84M0f/ODNH/zgzR/84M0f/ODNH/zgzR/84M0f/ODNH/zgzR/84M0f/ODNH/zgzR/84M0f/ODNH/zgzR/84M0f/ODNH/zgzR/84M0f/"),
+"format": 34359742479,
+"index_count": 36,
+"index_data": PackedByteArray("AAABAAIAAAACAAMABAAFAAYABAAGAAcACAAJAAoACAAKAAsADAANAA4ADAAOAA8AEAARABIAEAASABMAFAAVABYAFAAWABcA"),
+"primitive": 3,
+"uv_scale": Vector4(0, 0, 0, 0),
+"vertex_count": 24,
+"vertex_data": PackedByteArray("j8L1vSlcD7+PwvW9j8L1vSlcD78K16M9j8L1vQAAAAAK16M9j8L1vQAAAACPwvW9CtcjPSlcD7+PwvW9CtcjPQAAAACPwvW9CtcjPQAAAAAK16M9CtcjPSlcD78K16M9j8L1vSlcD7+PwvW9CtejPSlcD7+PwvW9CtejPSlcD78K16M9j8L1vSlcD78K16M9j8L1vQrXI72PwvW9j8L1vQrXI70K16M9CtejPQrXI70K16M9CtejPQrXI72PwvW9j8L1vSlcD7+PwvW9j8L1vQAAAACPwvW9CtejPQAAAACPwvW9CtejPSlcD7+PwvW9j8L1vSlcD78K1yM9CtejPSlcD78K1yM9CtejPQAAAAAK1yM9j8L1vQAAAAAK1yM9AAD/f/9//78AAP9//3//vwAA/3//f/+/AAD/f/9//7////9//3//v////3//f/+/////f/9//7////9//3//v/9/AAAAAP+//38AAAAA/7//fwAAAAD/v/9/AAAAAP+//3///wAA/7//f///AAD/v/9///8AAP+//3///wAA/7///////38AgP//////fwCA//////9/AID//////38AgP9//3//fwCA/3//f/9/AID/f/9//38AgP9//3//fwCA")
+}]

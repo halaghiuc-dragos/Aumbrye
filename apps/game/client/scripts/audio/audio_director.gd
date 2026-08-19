@@ -937,10 +937,6 @@ func _apply_reverb_to_bus(bus_name: StringName, preset: Dictionary, wet_scale: f
 	reverb.spread = float(preset.get("spread", 0.3))
 
 
-func _fill_generator(player: AudioStreamPlayer, freq: float, phase: float) -> float:
-	return _fill_generator_for_mode(player, freq, phase, _current_mode)
-
-
 func _fill_generator_for_mode(
 	player: AudioStreamPlayer,
 	freq: float,

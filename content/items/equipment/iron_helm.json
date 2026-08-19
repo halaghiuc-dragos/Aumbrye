@@ -14,7 +14,7 @@
     "equipmentSlot":  "helmet",
     "visual": {
         "attach": "Head",
-        "mesh": "res://assets/characters/equipment/iron_helm.mesh",
+        "mesh": "res://assets/characters/equipment/iron_helm.tres",
         "hide": ["Head"]
     }
 }

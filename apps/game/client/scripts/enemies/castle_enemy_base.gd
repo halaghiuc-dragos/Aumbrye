@@ -808,10 +808,6 @@ func _try_roll_global_drop() -> void:
 		InventoryService.add_loot(drop_id)
 
 
-func _force_dead_silent() -> void:
-	_finalize_death(true)
-
-
 func apply_stagger(duration: float) -> void:
 	if is_dead() or (_health and _health.is_dead()):
 		return

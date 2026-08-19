@@ -406,8 +406,8 @@ func _test_ui_atlases() -> void:
 	var missing_icons: PackedStringArray = []
 	for category in ["equipment", "consumables", "materials"]:
 		for item_id in catalog.get(category, []):
-			var cells: Variant = item_manifest.get("cells", {})
-			if not cells is Dictionary or not (cells as Dictionary).has(item_id):
+			var item_cells: Variant = item_manifest.get("cells", {})
+			if not item_cells is Dictionary or not (item_cells as Dictionary).has(item_id):
 				missing_icons.append(item_id)
 	ctx.timed_record(
 		"content.item_atlas_coverage",
@@ -423,6 +423,7 @@ func _test_ui_atlases() -> void:
 	)
 
 	start = Time.get_ticks_msec()
+	var status_ok := true
 	for status_id in ["burn", "poison", "freeze", "stun", "bleed"]:
 		if not StatusIconAtlas.has_icon(status_id):
 			status_ok = false

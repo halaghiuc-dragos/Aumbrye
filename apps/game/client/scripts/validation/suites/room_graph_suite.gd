@@ -600,9 +600,9 @@ func _test_map_uniform_scale() -> void:
 		}
 	)
 	var map_rect := Rect2(0.0, 0.0, 120.0, 120.0)
-	var origin := minimap.map_point_for_test(Vector2.ZERO, map_rect)
-	var along_x := minimap.map_point_for_test(Vector2(1.0, 0.0), map_rect)
-	var along_z := minimap.map_point_for_test(Vector2(0.0, 1.0), map_rect)
+	var origin: Vector2 = minimap.map_point_for_test(Vector2.ZERO, map_rect)
+	var along_x: Vector2 = minimap.map_point_for_test(Vector2(1.0, 0.0), map_rect)
+	var along_z: Vector2 = minimap.map_point_for_test(Vector2(0.0, 1.0), map_rect)
 	var dx := (along_x - origin).length()
 	var dz := (along_z - origin).length()
 	var ok := is_equal_approx(dx, dz)
@@ -624,7 +624,9 @@ func _test_map_integral_coords() -> void:
 	var ok := true
 	for room in _chain_definition()["rooms"]:
 		var t: Dictionary = room.get("transform", {})
-		var p := minimap.map_point_for_test(Vector2(float(t.get("x", 0.0)), float(t.get("z", 0.0))), map_rect)
+		var p: Vector2 = minimap.map_point_for_test(
+			Vector2(float(t.get("x", 0.0)), float(t.get("z", 0.0))), map_rect
+		)
 		if not is_equal_approx(p.x, floor(p.x)) or not is_equal_approx(p.y, floor(p.y)):
 			ok = false
 			break
@@ -667,7 +669,7 @@ func _test_map_bounds_no_origin_bias() -> void:
 func _test_map_has_graph_false_when_unconfigured() -> void:
 	var start := Time.get_ticks_msec()
 	var minimap := _spawn_minimap()
-	var ok := not minimap.has_graph()
+	var ok: bool = not minimap.has_graph()
 	ctx.timed_record(
 		"map.has_graph_false_when_unconfigured",
 		get_category(),
@@ -681,7 +683,7 @@ func _test_map_has_graph_false_when_unconfigured() -> void:
 func _test_map_icon_cells_present() -> void:
 	var start := Time.get_ticks_msec()
 	var tex := load("res://assets/ui/minimap_icons.png") as Texture2D
-	var ok := tex != null and tex.get_size() == Vector2i(32, 16)
+	var ok := tex != null and tex.get_size() == Vector2(32, 16)
 	ctx.timed_record(
 		"map.icon_cells_present",
 		get_category(),

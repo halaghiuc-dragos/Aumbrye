@@ -9,7 +9,7 @@ static var _cache: Dictionary = {}
 static func baked_mesh_path(path: String) -> String:
 	if not path.ends_with(".voxels.json"):
 		return path
-	return path.substr(0, path.length() - ".voxels.json".length()) + ".mesh"
+	return path.substr(0, path.length() - ".voxels.json".length()) + ".tres"
 
 
 static func load_mesh(source_path: String, theme: int = -1) -> ArrayMesh:

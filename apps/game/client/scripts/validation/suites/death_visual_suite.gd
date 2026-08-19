@@ -28,6 +28,7 @@ func run() -> void:
 	_test_viewmodel_included()
 	await _test_dummy_dissolves()
 	await _test_settings_skip_dissolving()
+	await _test_respawn_restores()
 
 
 func _shader_text(path: String) -> String:

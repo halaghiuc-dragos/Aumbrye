@@ -109,7 +109,7 @@ def convert_all(check_only: bool = False) -> int:
                 changed += 1
             node_name = PART_NODE_NAMES.get(part.name, part.name)
             entry = {
-                "mesh": f"res://assets/characters/{spec.id}/{file_name}.mesh",
+                "mesh": f"res://assets/characters/{spec.id}/{file_name}.tres",
                 "joint": list(part.joint),
             }
             if part.parent not in ("", "Root"):

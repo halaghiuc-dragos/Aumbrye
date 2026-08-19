@@ -1,0 +1,489 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-08-19T06:25:53Z",
+  "generatedBy": "tools/generate_project_structure.py",
+  "gitHead": "0bc7c0e",
+  "stacks": {
+    "gameClient": {
+      "path": "apps/game/client",
+      "engine": "Godot 4.7",
+      "language": "GDScript",
+      "scripts": 379,
+      "scriptLines": 100903,
+      "scenes": 268,
+      "shaders": 6,
+      "bakedMeshes": 40,
+      "voxelSources": 181,
+      "project": {
+        "name": "Aumbrye",
+        "version": "0.4.0",
+        "mainScene": "res://scenes/ui/title_screen.tscn",
+        "featureTags": [],
+        "autoloads": {
+          "RunFlow": "res://scripts/app/run_flow.gd",
+          "ApiConfig": "res://scripts/net/api_config.gd",
+          "LocalSave": "res://scripts/save/local_save.gd",
+          "CharacterService": "res://scripts/save/character_service.gd",
+          "ProgressionService": "res://scripts/progression/progression_service.gd",
+          "RunBuffs": "res://scripts/combat/run_buffs.gd",
+          "CombatEvents": "res://scripts/combat/combat_events.gd",
+          "InventoryService": "res://scripts/inventory/inventory_service.gd",
+          "StorageService": "res://scripts/hub/storage_service.gd",
+          "QuestService": "res://scripts/quests/quest_service.gd",
+          "AudioDirector": "res://scripts/audio/audio_director.gd",
+          "AchievementService": "res://scripts/meta/achievement_service.gd",
+          "SteamService": "res://scripts/platform/steam_service.gd",
+          "CrashLogger": "res://scripts/platform/crash_logger.gd",
+          "WavesRunService": "res://scripts/dungeon/waves_run_service.gd",
+          "DungeonTierService": "res://scripts/dungeon/dungeon_tier_service.gd",
+          "VfxService": "res://scripts/art/vfx/vfx_service.gd",
+          "DisplayService": "res://scripts/app/display_service.gd",
+          "PlayerControls": "res://scripts/app/player_controls.gd",
+          "MenuStack": "res://scripts/ui/menu_stack.gd",
+          "WorldState": "res://scripts/app/world_state.gd",
+          "PixelDioramaViewport": "res://scripts/art/pipeline/pixel_diorama_viewport.gd",
+          "AttackTokenService": "res://scripts/combat/attack_token_service.gd",
+          "GameFacade": "res://scripts/app/game_facade.gd",
+          "InputRebindService": "res://scripts/app/input_rebind_service.gd",
+          "DebugConsole": "res://scripts/debug/debug_console.gd",
+          "InputGlyphWatcher": "res://scripts/ui/input_glyph_watcher.gd",
+          "UISymbolBus": "res://scripts/ui/ui_symbol_bus.gd"
+        },
+        "autoloadCount": 28,
+        "translations": [
+          "res://translations/strings.en.translation",
+          "res://translations/strings.ro.translation"
+        ]
+      },
+      "validation": {
+        "count": 58,
+        "lines": 27272,
+        "entryPoints": {
+          "headless": "godot --headless --path apps/game/client --script res://scripts/validation/validation_main.gd",
+          "inEditor": "res://scenes/debug/mcp_validation.tscn"
+        },
+        "names": [
+          "a11y_suite",
+          "achievements_suite",
+          "affix_suite",
+          "arena_suite",
+          "audio_suite",
+          "biome_kit_suite",
+          "camera_suite",
+          "combat_suite",
+          "content_drift_suite",
+          "content_suite",
+          "cross_stack_parity_suite",
+          "death_visual_suite",
+          "debug_suite",
+          "diorama_anim_suite",
+          "docs_suite",
+          "dungeon_suite",
+          "enemy_suite",
+          "error_paths_suite",
+          "export_suite",
+          "floor_shell_suite",
+          "flow_suite",
+          "harness_suite",
+          "hub_m4_suite",
+          "hub_suite",
+          "inventory_suite",
+          "lock_on_orbit_radius_stub",
+          "lock_on_suite",
+          "m5_suite",
+          "m6_suite",
+          "m7_suite",
+          "net_suite",
+          "pause_menu_suite",
+          "perf_gate_suite",
+          "pixel_camera_snap_suite",
+          "pixel_pipeline_suite",
+          "pixel_settings_suite",
+          "pixel_style_suite",
+          "placements_suite",
+          "platform_suite",
+          "player_suite",
+          "portal_shader_suite",
+          "procgen_seed_health_suite",
+          "procgen_suite",
+          "progression_suite",
+          "quality_bar_suite",
+          "room_content_suite",
+          "room_graph_suite",
+          "room_kit_suite",
+          "save_suite",
+          "setup_suite",
+          "status_icon_atlas_suite",
+          "trap_suite",
+          "ui_suite",
+          "ui_symbol_suite",
+          "vfx_service_suite",
+          "visual_lighting_suite",
+          "voxel_grid_suite",
+          "world_state_suite"
+        ]
+      }
+    },
+    "backend": {
+      "path": "services/backend",
+      "language": "C#",
+      "sourceFiles": 70,
+      "sourceLines": 7293,
+      "projects": [
+        "Aumbrye.Api",
+        "Aumbrye.Application",
+        "Aumbrye.Domain",
+        "Aumbrye.Infrastructure",
+        "Aumbrye.IntegrationTests",
+        "Aumbrye.UnitTests"
+      ]
+    },
+    "sharedPackages": {
+      "path": "packages",
+      "sourceFiles": 34,
+      "sourceLines": 2975,
+      "projects": [
+        "Aumbrye.Procedural",
+        "Aumbrye.Shared"
+      ]
+    },
+    "web": {
+      "path": "apps/web",
+      "language": "TypeScript",
+      "sourceFiles": 32,
+      "sourceLines": 3399
+    },
+    "tooling": {
+      "path": "tools",
+      "python": 27,
+      "node": 18
+    }
+  },
+  "content": {
+    "jsonFiles": 699,
+    "byCategory": {
+      "achievements": 2,
+      "affixes": 3,
+      "appearance": 1,
+      "art": 4,
+      "audio": 1,
+      "audio_profiles": 10,
+      "bestiary": 1,
+      "biomes": 10,
+      "bosses": 16,
+      "challenges": 1,
+      "characters": 25,
+      "classes": 7,
+      "combat": 1,
+      "dialogue": 34,
+      "dungeons": 10,
+      "enemies": 54,
+      "fixtures": 14,
+      "hub": 1,
+      "items": 265,
+      "loot": 11,
+      "merchant": 2,
+      "modes": 1,
+      "npcs": 10,
+      "progression": 4,
+      "quests": 44,
+      "recipes": 18,
+      "relics": 35,
+      "rooms": 10,
+      "schemas": 63,
+      "statuses": 10,
+      "talents": 1,
+      "text": 2,
+      "traps": 12,
+      "ui": 6,
+      "vfx": 1,
+      "waves": 1,
+      "weapons": 8
+    },
+    "schemas": [
+      "MANIFEST.json",
+      "achievement-catalog.v1.json",
+      "achievement-hooks.v1.json",
+      "affix-definition.v1.json",
+      "affix-pack.v1.json",
+      "affix-rarity-rules.v1.json",
+      "appearance-aspects.v1.json",
+      "audio-profile.v1.json",
+      "balance-export.v1.json",
+      "bestiary-catalog.v1.json",
+      "biome-definition.v2.json",
+      "challenge-rotation.v1.json",
+      "character-rig.v1.json",
+      "character-state.v2.json",
+      "class-definition.v1.json",
+      "descent-pacts.v1.json",
+      "dialogue-definition.v1.json",
+      "dodge-tuning.v1.json",
+      "dungeon-catalog-entry.v1.json",
+      "dungeon-definition.v2.json",
+      "dungeon-quest.v1.json",
+      "endless-depth.v1.json",
+      "enemy-definition.v1.json",
+      "global-drops.v1.json",
+      "hub-growth.v1.json",
+      "hub-tips.v1.json",
+      "hud-atlas.v1.json",
+      "input-bindings.v1.json",
+      "input-glyph-atlas.v1.json",
+      "inventory.v2.json",
+      "item-catalog.v1.json",
+      "item-definition.v1.json",
+      "item-icon-atlas.v1.json",
+      "item-instance-roll.v1.json",
+      "lighting-profile.v1.json",
+      "loot-table.v1.json",
+      "merchant-pack.v1.json",
+      "name-list.v1.json",
+      "npc-definition.v1.json",
+      "palette.v1.json",
+      "portal.v1.json",
+      "procgen-seed-health.v1.json",
+      "quest-definition.v1.json",
+      "recipe-definition.v1.json",
+      "relic-definition.v1.json",
+      "room-kit.v1.json",
+      "room-pacing.v1.json",
+      "run-mode-catalog.v1.json",
+      "sfx-bank.v1.json",
+      "status-definition.v1.json",
+      "status-icon-atlas.v1.json",
+      "structure.v1.json",
+      "talent-tree.v1.json",
+      "trap-definition.v1.json",
+      "ui-symbol-atlas.v1.json",
+      "vfx-effect.v1.json",
+      "waves-definition.v1.json",
+      "weapon-definition.v1.json",
+      "xp-curve.v1.json"
+    ]
+  },
+  "artSource": {
+    "path": "art-source",
+    "voxFiles": 262
+  },
+  "docs": [
+    "docs/ADR/0001-client-server-authority.md",
+    "docs/ADR/0002-procgen-authority-split.md",
+    "docs/ARCHITECTURE.md",
+    "docs/DOC-CONVENTIONS.md",
+    "docs/ROADMAP-account-recovery.md",
+    "docs/ROADMAP-online-runs.md",
+    "docs/SAVE_MIGRATIONS.md",
+    "docs/remaining_points.md",
+    "docs/validation/manual-checklist.md"
+  ],
+  "directoryTree": {
+    ".github": {
+      "files": 3
+    },
+    "apps": {
+      "files": 1710,
+      "children": {
+        "game": {
+          "files": 1657
+        },
+        "web": {
+          "files": 53
+        }
+      }
+    },
+    "art-source": {
+      "files": 262,
+      "children": {
+        "characters": {
+          "files": 262
+        }
+      }
+    },
+    "assets": {
+      "files": 2,
+      "children": {
+        "audio": {
+          "files": 1
+        },
+        "models": {
+          "files": 1
+        }
+      }
+    },
+    "content": {
+      "files": 702,
+      "children": {
+        "achievements": {
+          "files": 2
+        },
+        "affixes": {
+          "files": 3
+        },
+        "appearance": {
+          "files": 1
+        },
+        "art": {
+          "files": 4
+        },
+        "audio": {
+          "files": 1
+        },
+        "audio_profiles": {
+          "files": 10
+        },
+        "bestiary": {
+          "files": 1
+        },
+        "biomes": {
+          "files": 11
+        },
+        "bosses": {
+          "files": 16
+        },
+        "challenges": {
+          "files": 1
+        },
+        "characters": {
+          "files": 25
+        },
+        "classes": {
+          "files": 7
+        },
+        "combat": {
+          "files": 1
+        },
+        "dialogue": {
+          "files": 34
+        },
+        "dungeons": {
+          "files": 10
+        },
+        "enemies": {
+          "files": 55
+        },
+        "fixtures": {
+          "files": 14
+        },
+        "hub": {
+          "files": 1
+        },
+        "items": {
+          "files": 266
+        },
+        "loot": {
+          "files": 11
+        },
+        "merchant": {
+          "files": 2
+        },
+        "modes": {
+          "files": 1
+        },
+        "npcs": {
+          "files": 10
+        },
+        "progression": {
+          "files": 4
+        },
+        "quests": {
+          "files": 44
+        },
+        "recipes": {
+          "files": 18
+        },
+        "relics": {
+          "files": 35
+        },
+        "rooms": {
+          "files": 10
+        },
+        "schemas": {
+          "files": 63
+        },
+        "statuses": {
+          "files": 10
+        },
+        "talents": {
+          "files": 1
+        },
+        "text": {
+          "files": 2
+        },
+        "traps": {
+          "files": 12
+        },
+        "ui": {
+          "files": 6
+        },
+        "vfx": {
+          "files": 1
+        },
+        "waves": {
+          "files": 1
+        },
+        "weapons": {
+          "files": 8
+        }
+      }
+    },
+    "docs": {
+      "files": 9,
+      "children": {
+        "ADR": {
+          "files": 2
+        },
+        "validation": {
+          "files": 1
+        }
+      }
+    },
+    "packages": {
+      "files": 37,
+      "children": {
+        "procedural": {
+          "files": 28
+        },
+        "shared": {
+          "files": 9
+        }
+      }
+    },
+    "scripts": {
+      "files": 17,
+      "children": {
+        "balance": {
+          "files": 3
+        },
+        "openapi-drift": {
+          "files": 1
+        },
+        "tools": {
+          "files": 4
+        },
+        "validate-content": {
+          "files": 3
+        }
+      }
+    },
+    "services": {
+      "files": 85,
+      "children": {
+        "backend": {
+          "files": 85
+        }
+      }
+    },
+    "tools": {
+      "files": 41,
+      "children": {
+        "procgen-cli": {
+          "files": 4
+        },
+        "voxel-import": {
+          "files": 8
+        }
+      }
+    }
+  }
+}

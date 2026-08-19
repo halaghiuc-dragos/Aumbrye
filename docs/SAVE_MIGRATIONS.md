@@ -76,5 +76,4 @@ with `STEPS`, or delete it — a documentation table nothing checks will keep dr
 ## Related
 
 - [`ARCHITECTURE.md`](ARCHITECTURE.md) — content and save pipeline in context
-- [`../REFACTOR_OPTIMISE_BUGFIX.md`](../REFACTOR_OPTIMISE_BUGFIX.md) — `BUG-03` (unflushed verify read),
-  `PERF-15` (autosave cost)
+- [`remaining_points.md`](remaining_points.md) — open items across the stacks

@@ -262,14 +262,6 @@ func _refresh_comparison_selection() -> void:
 		_resolved_cells[i].text = _format_resolved(stat_name, rating)
 
 
-func _class_role_text(class_def: Dictionary) -> String:
-	var key := str(class_def.get("role", ""))
-	var text := tr(key) if key != "" else ""
-	if text == key:
-		text = str(class_def.get("roleText", ""))
-	return text
-
-
 func _build_class_column(parent: HBoxContainer) -> VBoxContainer:
 	var col := VBoxContainer.new()
 	col.name = "ClassColumn"

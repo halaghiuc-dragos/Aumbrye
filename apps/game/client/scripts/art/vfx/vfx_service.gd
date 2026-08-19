@@ -122,16 +122,6 @@ static func get_death_burst_lifetime() -> float:
 	return max_lifetime
 
 
-func _max_burst_lifetime_for_effect(effect_id: String) -> float:
-	var effect: Dictionary = _effects.get(effect_id, {})
-	var layers: Array = effect.get("layers", [])
-	var max_lifetime := 0.0
-	for layer in layers:
-		if layer is Dictionary and layer.get("kind", "") == "burst":
-			max_lifetime = maxf(max_lifetime, float(layer.get("lifetime", 0.0)))
-	return max_lifetime
-
-
 func _load_effects() -> void:
 	var data: Dictionary = ContentLoader.load_json(EFFECTS_PATH)
 	_effects = data.get("effects", {})

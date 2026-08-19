@@ -532,28 +532,6 @@ func _build_doorway_bridges() -> void:
 			)
 
 
-func _add_doorway_bridge(
-	parent: Node3D, center: Vector3, size: Vector3, material: Material
-) -> void:
-	var body := StaticBody3D.new()
-	body.collision_layer = 1
-	body.collision_mask = 0
-	body.position = center + Vector3(0.0, size.y * 0.5, 0.0)
-	parent.add_child(body)
-	var mesh_instance := MeshInstance3D.new()
-	var box := BoxMesh.new()
-	box.size = size
-	mesh_instance.mesh = box
-	if material:
-		mesh_instance.material_override = material
-	body.add_child(mesh_instance)
-	var collision := CollisionShape3D.new()
-	var shape := BoxShape3D.new()
-	shape.size = size
-	collision.shape = shape
-	body.add_child(collision)
-
-
 func _build_height_transitions() -> void:
 	const STEP_HEIGHT := 0.5
 	var max_height_level := int(definition.get("maxHeightLevel", 0))

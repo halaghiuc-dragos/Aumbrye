@@ -49,7 +49,7 @@ All documentation changes must follow [docs/DOC-CONVENTIONS.md](docs/DOC-CONVENT
 
 - **Code is the only source of truth** — verify against the file before you write; never document intent as implemented
 - **Cite identifiers, not line numbers** — `Hurtbox.receive_hit()` survives edits, `hurtbox.gd:34` does not
-- **Descriptive docs live in `docs/`; defects and plans live in [REFACTOR_OPTIMISE_BUGFIX.md](REFACTOR_OPTIMISE_BUGFIX.md)** — fixed items are deleted from the backlog, not marked finished
+- **Descriptive docs live in `docs/`; open defects and plans live in [docs/remaining_points.md](docs/remaining_points.md)** — fixed items are deleted from it, not marked finished
 - **Status tags** — use `IMPLEMENTED`, `PARTIAL`, `PLACEHOLDER`, `STUB`, `BROKEN`, or `ABSENT` in status tables
 - **No filler** — delete empty sections rather than writing placeholder prose
 

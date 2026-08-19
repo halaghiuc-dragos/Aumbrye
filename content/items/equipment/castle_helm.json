@@ -12,7 +12,7 @@
   "stats": { "defense": 4, "maxHealth": 5 },
   "visual": {
     "attach": "Head",
-    "mesh": "res://assets/characters/equipment/castle_helm.mesh",
+    "mesh": "res://assets/characters/equipment/castle_helm.tres",
     "hide": ["Head"]
   }
 }

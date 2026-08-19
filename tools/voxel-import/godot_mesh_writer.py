@@ -1,4 +1,13 @@
-"""Write Godot 4 text ArrayMesh resources (.mesh / .tres)."""
+"""Write text ArrayMesh resources for the Godot client.
+
+WARNING: the ``_surfaces`` payload below is the Godot 3 shape — a positional ``arrays`` list.
+Godot 4 wants packed ``vertex_data`` / ``index_data`` byte buffers instead and silently loads
+these as an empty mesh. This whole module is legacy: the live character pipeline is
+``tools/generate_character_voxels.py``, which emits ``.voxels.json`` that the runtime greedy-meshes
+in ``scripts/art/characters/voxel_mesh_builder.gd``. The committed ``.tres`` files under
+``assets/characters/`` were baked through Godot itself, not by this writer. Rewrite the serializer
+against the Godot 4 surface format before using it again.
+"""
 
 from __future__ import annotations
 
@@ -69,4 +78,4 @@ def write_mesh(path: Path, mesh: MeshData) -> None:
 
 
 def mesh_resource_path(archetype_id: str, part_name: str) -> str:
-    return f"res://assets/characters/{archetype_id}/{part_name}.mesh"
+    return f"res://assets/characters/{archetype_id}/{part_name}.tres"

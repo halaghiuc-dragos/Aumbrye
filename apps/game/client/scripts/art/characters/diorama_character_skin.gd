@@ -211,26 +211,6 @@ static func _apply_player_appearance(visual: Node3D, profile: Dictionary, mats: 
 	_apply_class_armor(visual, profile, mats)
 
 
-static func _apply_bulk_joint_offsets(visual: Node3D, profile: Dictionary) -> void:
-	var bulk := str(profile.get("bulkVariant", CharacterAppearance.BULK_VARIANT_STANDARD))
-	var x_shift := 0.0
-	match bulk:
-		CharacterAppearance.BULK_VARIANT_LEAN:
-			x_shift = -VoxelGridScript.EDGE
-		CharacterAppearance.BULK_VARIANT_HEAVY:
-			x_shift = VoxelGridScript.EDGE
-		_:
-			pass
-	if is_zero_approx(x_shift):
-		return
-	for part_name in ["LegL", "LegR", "ArmL", "ArmR"]:
-		var part := find_part(visual, part_name)
-		if part == null:
-			continue
-		var side := -1.0 if part_name.ends_with("L") else 1.0
-		part.position.x += x_shift * side
-
-
 static func _apply_skin_tone(visual: Node3D, profile: Dictionary, _mats: Dictionary) -> void:
 	var tint := CharacterAppearance.skin_tint_vector(
 		str(profile.get("skinTone", CharacterAppearance.SKIN_TONE_NEUTRAL))
@@ -441,7 +421,7 @@ const MAX_GROUNDING_CORRECTION := 0.8
 ## legs beneath it.
 ##
 ## Derived from the built mesh rather than written into the manifests because six of the player's
-## body-shape variants ship as binary .mesh resources whose extents are not readable from the
+## body-shape variants ship as baked .tres resources whose extents are not readable from the
 ## content files at all. A manifest that states its own meshOffset is still honoured.
 const HANGING_PARTS: PackedStringArray = ["LegL", "LegR", "LegBL", "LegBR"]
 

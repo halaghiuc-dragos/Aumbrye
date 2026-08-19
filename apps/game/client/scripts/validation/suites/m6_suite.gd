@@ -61,6 +61,10 @@ func get_category() -> String:
 
 
 func run() -> void:
+	# ALL_BIOMES is populated lazily by the biome index, so a suite that reads it must warm the
+	# index itself. Without this the suite only passed when some earlier suite happened to warm
+	# it first, and running it alone (--suite=...) reported ten false failures.
+	BiomeRegistry.warm_index()
 	_test_ten_biomes_registered()
 	_test_m6_biome_rooms()
 	_test_m6_materials_and_lighting()
@@ -83,6 +87,8 @@ func run() -> void:
 	_test_item_catalog_strict_mode()
 	_test_content_reload_command()
 	_test_ui_skin()
+	await _test_accessibility_settings()
+	_test_settings_schema_wiring()
 	await _test_display_service()
 
 
@@ -837,6 +843,76 @@ func _test_escape_meta_wiring() -> void:
 	)
 
 
+## Every settings row is driven through one generic widget handler, which calls `setter.call(value)`
+## with a single float/bool/int. Nothing checks that the callable on the other end actually accepts
+## that — a mismatch only surfaces as a runtime error when a player touches the control.
+##
+## The volume rows shipped broken exactly this way: their setters are built with
+## `Callable(...).bind(bus_key, id)`, and bound arguments land *after* the call arguments, so a
+## setter declared `(bus_key, id, v)` received the slider's float as `bus_key` and threw
+## "Cannot convert argument 1 from float to String" on every drag.
+func _test_settings_schema_wiring() -> void:
+	var start := Time.get_ticks_msec()
+	var expected_arg := {"slider": TYPE_FLOAT, "toggle": TYPE_BOOL, "option": TYPE_INT}
+	var problems: PackedStringArray = []
+	for entry in SettingsSchema.entries():
+		var id := str(entry.get("id", "?"))
+		var kind := str(entry.get("kind", ""))
+		var want: int = expected_arg.get(kind, TYPE_NIL)
+		var getter: Callable = entry.get("getter", Callable())
+		var setter: Callable = entry.get("setter", Callable())
+		if not getter.is_valid():
+			problems.append("%s: no getter" % id)
+		elif getter.get_argument_count() != 0:
+			problems.append("%s: getter wants %d arg(s)" % [id, getter.get_argument_count()])
+		if not setter.is_valid():
+			problems.append("%s: no setter" % id)
+			continue
+		if setter.get_argument_count() != 1:
+			problems.append(
+				"%s: setter wants %d unbound arg(s), the row passes 1"
+				% [id, setter.get_argument_count()]
+			)
+		var first := _first_param_type(setter)
+		if first != TYPE_NIL and want != TYPE_NIL and first != want:
+			problems.append(
+				"%s: setter takes %s first, the row passes %s"
+				% [id, type_string(first), type_string(want)]
+			)
+		if entry.has("commit"):
+			var commit: Callable = entry.get("commit", Callable())
+			if commit.is_valid() and commit.get_argument_count() != 0:
+				problems.append("%s: commit wants %d arg(s)" % [id, commit.get_argument_count()])
+	ctx.timed_record(
+		"settings.schema_wiring",
+		get_category(),
+		problems.is_empty(),
+		(
+			"every settings row's getter/setter/commit matches what SettingsRow calls"
+			if problems.is_empty()
+			else ", ".join(problems)
+		),
+		start,
+		"SET-01"
+	)
+
+
+## Declared type of the first argument a Callable still expects, or TYPE_NIL when it cannot be
+## read (lambdas carry no method entry, and those are already type-checked where they are written).
+func _first_param_type(c: Callable) -> int:
+	var obj := c.get_object()
+	if obj == null or c.get_method() == "":
+		return TYPE_NIL
+	var scr: Object = obj if obj is Script else obj.get_script()
+	if scr == null:
+		return TYPE_NIL
+	for method in scr.get_script_method_list():
+		if method["name"] == c.get_method():
+			var args: Array = method["args"]
+			return TYPE_NIL if args.is_empty() else int(args[0]["type"])
+	return TYPE_NIL
+
+
 func _test_display_service() -> void:
 	const DisplayServiceScript := preload("res://scripts/app/display_service.gd")
 	var start := Time.get_ticks_msec()
@@ -1026,10 +1102,10 @@ func _test_display_service() -> void:
 	start = Time.get_ticks_msec()
 	var fullscreen_service := DisplayServiceScript.new()
 	fullscreen_service.window_mode = DisplayServiceScript.WINDOW_MODE_WINDOWED
-	fullscreen_service._fullscreen_saved_mode = DisplayServiceScript.WINDOW_MODE_WINDOWED
-	fullscreen_service._fullscreen_confirm_active = true
+	fullscreen_service._fullscreen_revert_mode = DisplayServiceScript.WINDOW_MODE_WINDOWED
+	fullscreen_service._pending_fullscreen_confirm = true
 	fullscreen_service.window_mode = DisplayServiceScript.WINDOW_MODE_FULLSCREEN
-	fullscreen_service._on_fullscreen_confirm_timeout()
+	fullscreen_service._on_fullscreen_confirm_timeout(fullscreen_service._fullscreen_token)
 	var revert_ok := fullscreen_service.window_mode == DisplayServiceScript.WINDOW_MODE_WINDOWED
 	ctx.timed_record(
 		"display.fullscreen_revert",

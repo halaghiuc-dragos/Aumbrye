@@ -2,8 +2,8 @@
 
 > **Source of truth: the code on disk.** Every claim below was verified against the repository on
 > 2026-08-06. Where a system is genuinely missing, it is tagged **ABSENT** with where it was looked for.
-> Known defects are catalogued separately in [`../REFACTOR_OPTIMISE_BUGFIX.md`](../REFACTOR_OPTIMISE_BUGFIX.md)
-> and referenced here by ID (e.g. `BUG-01`).
+> Open defects and accepted debt are catalogued separately in [`remaining_points.md`](remaining_points.md)
+> and referenced here by ID (e.g. `R-02`).
 
 **Stack:** Godot 4.7 client (`.godot-version` pins `4.7.0`); ASP.NET Core 8 API; C# procgen
 (`packages/procedural`); React 19 + Vite SPA (`apps/web`); JSON `content/` with schemas under
@@ -74,7 +74,7 @@ there is no automated pipeline.
 Non-autoload statics carry a large share of state: catalogs under `scripts/content/`, plus
 `BiomeRegistry`, `DungeonCatalog`, `ContentLoader`, `EnemyPool`, `VoxelMeshBuilder`.
 
-> The size of this list is itself a finding — see `REF-01`.
+> The size of this list is itself a finding — see `R-01` in [`remaining_points.md`](remaining_points.md).
 
 ---
 
@@ -142,11 +142,12 @@ sequenceDiagram
 - **Server / parity path:** `packages/procedural` (C#), exercised by `tools/procgen-cli` and
   `cross_stack_parity_suite.gd`.
 
-The duplication between the GDScript and C# generators is tracked as `REF-02`.
+The duplication between the GDScript and C# generators is tracked as `R-02`, and the contract that
+holds them together is [`ADR/0002-procgen-authority-split.md`](ADR/0002-procgen-authority-split.md).
 
 Room geometry is `MeshInstance3D` boxes plus `StaticBody3D` from `castle_blockout.gd` — not CSG.
-`DungeonBuilder.build_from_source()` is fully synchronous (zero `await`), which is the main cause of
-floor-transition stalls (`PERF-03`).
+`DungeonBuilder.build_from_source()` is chunked across frames (33 `await` points) so a floor
+transition yields rather than stalling.
 
 Builder hooks worth knowing:
 
@@ -185,9 +186,11 @@ Collision layers (`project.godot` → `[layer_names]`):
 | 7 | `projectile` |
 | 8 | `camera_blocker` |
 
-Hit detection currently polls: `Hitbox` connects `area_entered` **and** runs a shape query every physics
-frame while active, with a per-candidate raycast and a group lookup (`PERF-01`). Enemy AI raycasts for
-line-of-sight two to three times per physics frame with no distance LOD (`PERF-02`).
+Hit detection is both event-driven and polled: `Hitbox` connects `area_entered` **and** runs a shape
+query while active, but only while active — `set_physics_process()` is toggled with the hitbox, and
+the file documents why the redundant query is kept (a dropped hit reads as the game cheating). Enemy
+line-of-sight raycasts are LOD-strided by distance (`AI_LOD_NEAR_RANGE_SQ`, `AI_LOD_MID_STRIDE`,
+`AI_LOD_FAR_STRIDE`) rather than run every physics frame.
 
 ---
 
@@ -198,7 +201,7 @@ Characters are **not** runtime box primitives only — there are three parallel 
 | Representation | Count | Location | Used at runtime |
 |---|---|---|---|
 | `.vox` authored source | 262 | `art-source/characters/` | No (source) |
-| `.mesh` exported ArrayMesh | 262 | `apps/game/client/assets/characters/` | Yes — 40 referenced; **222 orphaned** |
+| `.tres` baked ArrayMesh | 40 | `apps/game/client/assets/characters/` | Yes — all 40 referenced |
 | `.voxels.json` runtime JSON | 115 | `apps/game/client/assets/characters/` | Yes — 133 manifest references |
 
 Rig manifests under `content/characters/*.json` map part names (`LegL`, `Torso`, `Head`, `ArmL`, …) to a
@@ -206,9 +209,9 @@ mesh path and a joint offset. `DioramaCharacterSkin` walks the manifest and buil
 loading meshes through `VoxelMeshBuilder.load_mesh()`. Profiles for bodies without a manifest fall back to
 `PROFILES` box primitives in `scripts/art/characters/diorama_character_skin.gd`.
 
-Two defects sit in this pipeline: `VoxelMeshBuilder` reads through `ProjectSettings.globalize_path()`,
-which cannot read from an exported `.pck` (`BUG-02`), and its "greedy-merged" docstring is false — it
-emits two unindexed triangles per exposed voxel face (`PERF-14`). Consolidation is tracked as `REF-05`.
+`VoxelMeshBuilder` reads `res://` paths directly (so exported `.pck` builds work) and implements a
+real binary-plane greedy mesher. It still prefers a baked `.tres` sibling when one exists, so the
+same geometry lives in `.vox`, `.tres` and `.voxels.json` form — consolidation is tracked as `R-03`.
 
 **Rendering:** `PixelDioramaViewport` mirrors the gameplay camera into a low-res `SubViewport`
 (`render_target_update_mode = UPDATE_ALWAYS`) and sets `root.disable_3d = true`. The scene graph is never
@@ -227,25 +230,24 @@ Authored OGG stems are the live path. All ten biomes have all four stems under
 whose `stream is AudioStreamGenerator`, and loaded stems replace the generator, so synthesis does not run
 in normal play. `audio_suite.gd` asserts this behaviourally (`audio.no_process_synthesis_with_stems`).
 
-`apps/game/client/assets/audio/castle/` is a **legacy unreferenced folder** (`BIOME_CASTLE` resolves to
-`forgotten_castle`), and 24 `.wav` files sit alongside their `.ogg` counterparts — both are dead weight
-(`DEAD-06`).
+The legacy `assets/audio/castle/` folder and the duplicate `.wav` sources next to their `.ogg`
+counterparts are gone; the tree ships `.ogg` only. Eleven SFX are still synthesised placeholders —
+see `remaining_points.md` §3.
 
 ---
 
 ## 8. Content pipeline
 
 - Source: `content/**/*.json` validated against `content/schemas/*.v1.json`.
-- Client load: `ContentLoader.content_root()` resolves `globalize_path("res://")/../../..`, i.e. the
-  **repo root** — outside `res://`. This works in the editor and breaks in an exported build (`BUG-01`).
-  `aumbrye/content_root` in `project.godot` is `""`.
+- Client load: `ContentLoader.content_root()` honours `aumbrye/content_root` when set, resolves to the
+  repo root under the editor, and falls back to the executable directory in exported builds.
 - Directory catalogs (`ItemCatalog`, `EnemyCatalog`, `ClassCatalog`, `RelicCatalog`, `QuestCatalog`,
   `DialogueCatalog`) share `ContentDirLoader.load_id_map()`.
 - `content/items/catalog.json` is the tooling index. Set `aumbrye/strict_item_catalog=true` to intersect
   disk ids against it; default is `false`.
 - Run relics live under `content/relics/` via `RelicCatalog`, not in `items/catalog.json`.
 - Dev reload: `DebugConsole` → `content_reload` calls `ContentLoader.clear_all_caches()`.
-- `ContentLoader.load_json()` has **no cache** and re-parses on every call (`PERF-07`).
+- `ContentLoader.load_json()` caches parsed documents and hands back a deep copy per call.
 
 Save format: `SaveMigrator.CURRENT_VERSION` is **10**. See [`SAVE_MIGRATIONS.md`](SAVE_MIGRATIONS.md).
 
@@ -280,7 +282,7 @@ flowchart LR
 
 A Steam auth ticket exchange endpoint **does** exist (`/api/v1/auth/steam`, backed by
 `Infrastructure/Security/SteamAuthService.cs`). What is missing is the client half: GodotSteam binaries
-are absent, so `SteamService` runs in stub mode and cannot produce a ticket (`DEP-04`).
+are absent, so `SteamService` runs in stub mode and cannot produce a ticket (`R-10`).
 
 CORS **is** configured — `Program.cs:87-89` reads `Cors:AllowedOrigins` and `Program.cs:215` calls
 `app.UseCors("web")`; `CorsTests.cs` covers it.
@@ -288,11 +290,7 @@ CORS **is** configured — `Program.cs:87-89` reads `Cors:AllowedOrigins` and `P
 **Web** (`apps/web/src/`, 27 files): React 19 SPA using React Router 7 with real URL routes
 (`App.tsx` declares `/`, `/account`, `/patch-notes`, `/wiki`, `/leaderboards`). API access via
 `src/api/client.ts` + `VITE_API_URL`. `vite.config.ts` prerenders five routes with Puppeteer at build
-time (`WEB-01`).
-
-> **Defect:** `main.tsx` wraps `<App/>` in a `<BrowserRouter>` imported from `react-router` while
-> `App.tsx` renders a second `<BrowserRouter>` from `react-router-dom` — nested routers, from two package
-> specifiers (`WEB-03`).
+time.
 
 **Multiplayer / co-op / dedicated game server:** **ABSENT** — no networking code for it under
 `apps/game/client/scripts/`.
@@ -325,7 +323,8 @@ Gaps worth knowing before trusting a green run:
 
 ## 11. Related
 
-- [`../REFACTOR_OPTIMISE_BUGFIX.md`](../REFACTOR_OPTIMISE_BUGFIX.md) — the live defect and improvement backlog
+- [`remaining_points.md`](remaining_points.md) — open defects, accepted debt and deferred design decisions
+- [`../project_structure.json`](../project_structure.json) — measured repository inventory
 - [`ADR/0001-client-server-authority.md`](ADR/0001-client-server-authority.md) — authority boundaries
 - [`SAVE_MIGRATIONS.md`](SAVE_MIGRATIONS.md) — save schema history
 - [`DOC-CONVENTIONS.md`](DOC-CONVENTIONS.md) — how to write docs in this repo

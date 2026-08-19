@@ -110,7 +110,7 @@ func _test_character_authoring() -> void:
 	var repo: String = ctx.repo_root()
 	var manifest_ok := (
 		FileAccess.file_exists(repo.path_join("content/characters/player_warden.json"))
-		and ResourceLoader.exists("res://assets/characters/player_warden/torso.mesh")
+		and ResourceLoader.exists("res://assets/characters/player_warden/torso.tres")
 	)
 	ctx.timed_record(
 		"quality.character.voxel_manifest",

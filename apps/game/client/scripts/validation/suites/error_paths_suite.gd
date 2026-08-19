@@ -31,7 +31,7 @@ func _write_save_text(text: String) -> void:
 func _test_corrupt_json_recovers() -> void:
 	var start := Time.get_ticks_msec()
 	_write_save_text("not json at all")
-	var ok := not LocalSave.load_save() and FileAccess.file_exists(TC.SAVE_PATH)
+	var ok: bool = not LocalSave.load_into_services() and FileAccess.file_exists(TC.SAVE_PATH)
 	ctx.timed_record(
 		"error.save.corrupt_json_recovers",
 		get_category(),
@@ -45,7 +45,7 @@ func _test_corrupt_json_recovers() -> void:
 func _test_truncated_json_recovers() -> void:
 	var start := Time.get_ticks_msec()
 	_write_save_text('{"schemaVersion": 5, "characters": [')
-	var ok := not LocalSave.load_save()
+	var ok: bool = not LocalSave.load_into_services()
 	ctx.timed_record(
 		"error.save.truncated_json_recovers",
 		get_category(),

@@ -90,7 +90,7 @@ static func _character_mesh_paths() -> PackedStringArray:
 				part_dir.list_dir_begin()
 				var entry := part_dir.get_next()
 				while entry != "":
-					if entry.ends_with(".mesh"):
+					if entry.ends_with(".tres"):
 						paths.append("res://assets/characters/%s/%s" % [archetype, entry])
 					entry = part_dir.get_next()
 				part_dir.list_dir_end()
@@ -101,7 +101,7 @@ static func _character_mesh_paths() -> PackedStringArray:
 		equip_dir.list_dir_begin()
 		var equip_entry := equip_dir.get_next()
 		while equip_entry != "":
-			if equip_entry.ends_with(".mesh"):
+			if equip_entry.ends_with(".tres"):
 				paths.append("res://assets/characters/equipment/%s" % equip_entry)
 			equip_entry = equip_dir.get_next()
 		equip_dir.list_dir_end()

@@ -51,7 +51,7 @@ def generate_archetype(spec: ArchetypeSpec, write_vox_files: bool = True) -> Non
         if write_vox_files:
             vox_path = ART_SOURCE / spec.id / f"{part_file}.vox"
             write_vox(vox_path, model)
-        mesh_path = CLIENT_ASSETS / spec.id / f"{part_file}.mesh"
+        mesh_path = CLIENT_ASSETS / spec.id / f"{part_file}.tres"
         write_mesh(mesh_path, mesh)
 
         if part.skip_manifest:
@@ -76,7 +76,7 @@ def generate_archetype(spec: ArchetypeSpec, write_vox_files: bool = True) -> Non
         if write_vox_files:
             vox_path = ART_SOURCE / spec.id / f"{extra_file}.vox"
             write_vox(vox_path, model)
-        mesh_path = CLIENT_ASSETS / spec.id / f"{extra_file}.mesh"
+        mesh_path = CLIENT_ASSETS / spec.id / f"{extra_file}.tres"
         write_mesh(mesh_path, mesh)
         extras_manifest[extra.name] = {
             "mesh": mesh_resource_path(spec.id, extra_file),
@@ -117,7 +117,7 @@ def generate_equipment(spec: ArchetypeSpec, write_vox_files: bool = True) -> Non
         if write_vox_files:
             vox_path = ART_SOURCE / "equipment" / f"{item_id}.vox"
             write_vox(vox_path, model)
-        mesh_path = CLIENT_ASSETS / "equipment" / f"{item_id}.mesh"
+        mesh_path = CLIENT_ASSETS / "equipment" / f"{item_id}.tres"
         write_mesh(mesh_path, mesh)
 
 
@@ -143,7 +143,7 @@ def convert_vox_tree(source_root: Path, output_root: Path) -> None:
         mesh = mesh_model(model)
         validate_mesh_on_grid(mesh)
         rel = vox_path.relative_to(source_root)
-        out_path = output_root / rel.with_suffix(".mesh")
+        out_path = output_root / rel.with_suffix(".tres")
         write_mesh(out_path, mesh)
 
 

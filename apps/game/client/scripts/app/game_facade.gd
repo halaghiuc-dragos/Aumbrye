@@ -67,7 +67,7 @@ func _verify_content_loaded() -> void:
 	var msg := (
 		(
 			"Aumbrye: content catalogue failed to load (content_root=%s). The game cannot run "
-			+ "without content/ — see BUG-01 in REFACTOR_OPTIMISE_BUGFIX.md."
+			+ "without content/ — check that content_root resolves inside res:// in exported builds."
 		)
 		% details["content_root"]
 	)

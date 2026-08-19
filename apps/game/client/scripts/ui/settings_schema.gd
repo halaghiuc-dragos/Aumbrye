@@ -205,6 +205,8 @@ static func _motion_slider_row(id: String, setter_name: String) -> Dictionary:
 	)
 
 
+## Resolved by name from _motion_slider_row() via Callable(SettingsSchema, "_get_%s" % id).
+## A static reference search will not find a call site for these three; they are not dead.
 static func _get_camera_shake_intensity() -> float:
 	return AccessibilitySettings.camera_shake_intensity
 
@@ -561,7 +563,10 @@ static func _get_volume(bus_key: String) -> float:
 			return 1.0
 
 
-static func _set_volume(bus_key: String, id: String, v: float) -> void:
+## Bound arguments land *after* the call arguments, so `bus_key`/`id` come last. With them first
+## the slider's float was matched against `bus_key: String` and every volume change threw
+## "Cannot convert argument 1 from float to String" instead of moving the bus.
+static func _set_volume(v: float, bus_key: String, id: String) -> void:
 	match bus_key:
 		"master":
 			AudioSettings.master_volume = v

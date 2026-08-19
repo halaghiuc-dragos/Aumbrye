@@ -3,6 +3,9 @@ extends RefCounted
 
 ## Structural invariants for generated DungeonDefinition dictionaries (LPG-02).
 
+## Matches `schemaVersion` in content/schemas/dungeon-definition.v2.json.
+const SCHEMA_VERSION := 2
+
 const REQUIRED_KEYS: Array[String] = [
 	"runId",
 	"seed",
@@ -20,7 +23,11 @@ static func validate(definition: Dictionary) -> Dictionary:
 	var errors: Array[String] = []
 	var warnings: Array[String] = []
 
-	if definition.get("schemaVersion", 0) != 1:
+	# DungeonProcgen stamps 2 and content/schemas/dungeon-definition.v2.json pins `"const": 2`.
+	# This check was left on 1 when the v1 schemas were retired, so every generated floor failed
+	# validation here — LocalProcgen.generate() burned all three seed salts and returned
+	# {"ok": false, "reason": "schema_version"} for every biome.
+	if int(definition.get("schemaVersion", 0)) != SCHEMA_VERSION:
 		errors.append("schema_version")
 
 	for key in REQUIRED_KEYS:

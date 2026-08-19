@@ -12,7 +12,7 @@
   "stats": { "defense": 10, "maxHealth": 15 },
   "visual": {
     "attach": "Torso",
-    "mesh": "res://assets/characters/equipment/castle_plate.mesh",
+    "mesh": "res://assets/characters/equipment/castle_plate.tres",
     "hide": ["Torso"]
   }
 }

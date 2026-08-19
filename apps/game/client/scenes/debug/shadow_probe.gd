@@ -65,14 +65,6 @@ func _project_material() -> Material:
 	return mat
 
 
-func _code_material(code: String) -> Material:
-	var shader := Shader.new()
-	shader.code = code
-	var mat := ShaderMaterial.new()
-	mat.shader = shader
-	return mat
-
-
 func _standard_material() -> Material:
 	var mat := StandardMaterial3D.new()
 	mat.albedo_color = Color(0.62, 0.56, 0.5)
