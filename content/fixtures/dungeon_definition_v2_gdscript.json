@@ -113,11 +113,6 @@
 			"to": "combat_6"
 		},
 		{
-			"from": "combat_3",
-			"kind": "secret",
-			"to": "secret_18"
-		},
-		{
 			"from": "combat_4",
 			"kind": "door",
 			"to": "combat_5"
@@ -191,9 +186,9 @@
 		{
 			"kind": "boss_spire",
 			"position": {
-				"x": -78.0,
+				"x": -64.0,
 				"y": 18.0,
-				"z": 14.0
+				"z": 20.0
 			},
 			"scale": {
 				"x": 2.0,
@@ -204,9 +199,9 @@
 		{
 			"kind": "boss_silhouette",
 			"position": {
-				"x": -78.0,
+				"x": -64.0,
 				"y": 8.0,
-				"z": 8.0
+				"z": 14.0
 			},
 			"scale": {
 				"x": 6.0,
@@ -226,39 +221,11 @@
 			{
 				"kind": "pillar",
 				"offset": {
-					"x": 2.9300000667572,
-					"y": 0.0,
-					"z": -2.25999999046326
-				},
-				"roomId": "courtyard",
-				"size": {
-					"x": 1.2,
-					"y": 2.4,
-					"z": 1.2
-				}
-			},
-			{
-				"kind": "chokepoint",
-				"offset": {
-					"x": -2.73000001907349,
-					"y": 0.0,
-					"z": 2.27999997138977
-				},
-				"roomId": "courtyard",
-				"size": {
-					"x": 1.2,
-					"y": 3.6,
-					"z": 1.2
-				}
-			},
-			{
-				"kind": "pillar",
-				"offset": {
 					"x": 1.73000001907349,
 					"y": 0.0,
 					"z": -2.3199999332428
 				},
-				"roomId": "hall",
+				"roomId": "courtyard",
 				"size": {
 					"x": 1.2,
 					"y": 2.4,
@@ -272,6 +239,34 @@
 					"y": 0.0,
 					"z": 2.30999994277954
 				},
+				"roomId": "courtyard",
+				"size": {
+					"x": 1.2,
+					"y": 3.6,
+					"z": 1.2
+				}
+			},
+			{
+				"kind": "pillar",
+				"offset": {
+					"x": -2.08999991416931,
+					"y": 0.0,
+					"z": 3.17000007629395
+				},
+				"roomId": "hall",
+				"size": {
+					"x": 1.2,
+					"y": 2.4,
+					"z": 1.2
+				}
+			},
+			{
+				"kind": "chokepoint",
+				"offset": {
+					"x": 2.33999991416931,
+					"y": 0.0,
+					"z": -2.73000001907349
+				},
 				"roomId": "hall",
 				"size": {
 					"x": 1.2,
@@ -282,9 +277,9 @@
 			{
 				"kind": "pillar",
 				"offset": {
-					"x": -2.80999994277954,
+					"x": -2.36999988555908,
 					"y": 0.0,
-					"z": 1.63999998569489
+					"z": 1.64999997615814
 				},
 				"roomId": "arena",
 				"size": {
@@ -296,9 +291,9 @@
 			{
 				"kind": "chokepoint",
 				"offset": {
-					"x": 3.0699999332428,
+					"x": 1.8400000333786,
 					"y": 0.0,
-					"z": -2.04999995231628
+					"z": -1.80999994277954
 				},
 				"roomId": "arena",
 				"size": {
@@ -380,9 +375,9 @@
 			{
 				"kind": "pillar",
 				"offset": {
-					"x": -2.80999994277954,
+					"x": -3.0,
 					"y": 0.0,
-					"z": 1.63999998569489
+					"z": -2.0
 				},
 				"roomId": "combat_5",
 				"size": {
@@ -394,9 +389,9 @@
 			{
 				"kind": "chokepoint",
 				"offset": {
-					"x": 3.0699999332428,
+					"x": 3.0,
 					"y": 0.0,
-					"z": -2.04999995231628
+					"z": 2.0
 				},
 				"roomId": "combat_5",
 				"size": {
@@ -436,9 +431,9 @@
 			{
 				"kind": "pillar",
 				"offset": {
-					"x": 2.72000002861023,
+					"x": 2.65000009536743,
 					"y": 0.0,
-					"z": -1.97000002861023
+					"z": 1.6599999666214
 				},
 				"roomId": "combat_7",
 				"size": {
@@ -450,98 +445,14 @@
 			{
 				"kind": "chokepoint",
 				"offset": {
-					"x": -3.25,
+					"x": -3.28999996185303,
 					"y": 0.0,
-					"z": 1.64999997615814
+					"z": -2.28999996185303
 				},
 				"roomId": "combat_7",
 				"size": {
 					"x": 1.2,
 					"y": 3.6,
-					"z": 1.2
-				}
-			},
-			{
-				"kind": "pillar",
-				"offset": {
-					"x": -2.80999994277954,
-					"y": 0.0,
-					"z": 1.63999998569489
-				},
-				"roomId": "combat_8",
-				"size": {
-					"x": 1.2,
-					"y": 2.4,
-					"z": 1.2
-				}
-			},
-			{
-				"kind": "chokepoint",
-				"offset": {
-					"x": 3.0699999332428,
-					"y": 0.0,
-					"z": -2.04999995231628
-				},
-				"roomId": "combat_8",
-				"size": {
-					"x": 1.2,
-					"y": 3.6,
-					"z": 1.2
-				}
-			},
-			{
-				"kind": "pillar",
-				"offset": {
-					"x": 0.109999999403954,
-					"y": 0.0,
-					"z": 3.27999997138977
-				},
-				"roomId": "combat_8",
-				"size": {
-					"x": 1.2,
-					"y": 2.4,
-					"z": 1.2
-				}
-			},
-			{
-				"kind": "pillar",
-				"offset": {
-					"x": 1.73000001907349,
-					"y": 0.0,
-					"z": -2.3199999332428
-				},
-				"roomId": "combat_9",
-				"size": {
-					"x": 1.2,
-					"y": 2.4,
-					"z": 1.2
-				}
-			},
-			{
-				"kind": "chokepoint",
-				"offset": {
-					"x": -2.19000005722046,
-					"y": 0.0,
-					"z": 2.30999994277954
-				},
-				"roomId": "combat_9",
-				"size": {
-					"x": 1.2,
-					"y": 3.6,
-					"z": 1.2
-				}
-			},
-			{
-				"kind": "pillar",
-				"offset": {
-					"x": 0.25,
-					"y": 0.0,
-					"z": -3.6800000667572
-				},
-				"roomId": "combat_9",
-				"size": {
-					"x": 1.2,
-					"y": 2.4,
 					"z": 1.2
 				}
 			},
@@ -552,7 +463,7 @@
 					"y": 0.0,
 					"z": 1.64999997615814
 				},
-				"roomId": "combat_10",
+				"roomId": "combat_8",
 				"size": {
 					"x": 1.2,
 					"y": 2.4,
@@ -566,7 +477,7 @@
 					"y": 0.0,
 					"z": -1.80999994277954
 				},
-				"roomId": "combat_10",
+				"roomId": "combat_8",
 				"size": {
 					"x": 1.2,
 					"y": 3.6,
@@ -579,6 +490,90 @@
 					"x": -0.0199999995529652,
 					"y": 0.0,
 					"z": 3.67000007629395
+				},
+				"roomId": "combat_8",
+				"size": {
+					"x": 1.2,
+					"y": 2.4,
+					"z": 1.2
+				}
+			},
+			{
+				"kind": "pillar",
+				"offset": {
+					"x": 2.9300000667572,
+					"y": 0.0,
+					"z": -2.25999999046326
+				},
+				"roomId": "combat_9",
+				"size": {
+					"x": 1.2,
+					"y": 2.4,
+					"z": 1.2
+				}
+			},
+			{
+				"kind": "chokepoint",
+				"offset": {
+					"x": -2.73000001907349,
+					"y": 0.0,
+					"z": 2.27999997138977
+				},
+				"roomId": "combat_9",
+				"size": {
+					"x": 1.2,
+					"y": 3.6,
+					"z": 1.2
+				}
+			},
+			{
+				"kind": "pillar",
+				"offset": {
+					"x": 0.189999997615814,
+					"y": 0.0,
+					"z": -3.24000000953674
+				},
+				"roomId": "combat_9",
+				"size": {
+					"x": 1.2,
+					"y": 2.4,
+					"z": 1.2
+				}
+			},
+			{
+				"kind": "pillar",
+				"offset": {
+					"x": -3.0,
+					"y": 0.0,
+					"z": -2.0
+				},
+				"roomId": "combat_10",
+				"size": {
+					"x": 1.2,
+					"y": 2.4,
+					"z": 1.2
+				}
+			},
+			{
+				"kind": "chokepoint",
+				"offset": {
+					"x": 3.0,
+					"y": 0.0,
+					"z": 2.0
+				},
+				"roomId": "combat_10",
+				"size": {
+					"x": 1.2,
+					"y": 3.6,
+					"z": 1.2
+				}
+			},
+			{
+				"kind": "pillar",
+				"offset": {
+					"x": 0.0,
+					"y": 0.0,
+					"z": -4.0
 				},
 				"roomId": "combat_10",
 				"size": {
@@ -632,7 +627,7 @@
 			{
 				"kind": "pillar",
 				"offset": {
-					"x": -2.0,
+					"x": -3.0,
 					"y": 0.0,
 					"z": -2.0
 				},
@@ -646,7 +641,7 @@
 			{
 				"kind": "chokepoint",
 				"offset": {
-					"x": 2.0,
+					"x": 3.0,
 					"y": 0.0,
 					"z": 2.0
 				},
@@ -662,7 +657,7 @@
 				"offset": {
 					"x": 0.0,
 					"y": 0.0,
-					"z": -4.0
+					"z": -3.0
 				},
 				"roomId": "combat_12",
 				"size": {
@@ -721,9 +716,9 @@
 				"enemyId": "castle_grunt",
 				"isElite": false,
 				"offset": {
-					"x": 3.8199999332428,
+					"x": 5.0,
 					"y": 0.0,
-					"z": -2.25999999046326
+					"z": 3.0
 				},
 				"roomId": "combat_5",
 				"sampleNavmesh": true
@@ -754,9 +749,9 @@
 				"enemyId": "castle_hound",
 				"isElite": false,
 				"offset": {
-					"x": -4.92000007629395,
+					"x": -3.64000010490417,
 					"y": 0.0,
-					"z": 3.30999994277954
+					"z": -1.75
 				},
 				"roomId": "combat_7",
 				"sampleNavmesh": true
@@ -765,9 +760,9 @@
 				"enemyId": "castle_archer",
 				"isElite": false,
 				"offset": {
-					"x": 5.26000022888184,
+					"x": 4.01000022888184,
 					"y": 0.0,
-					"z": -4.17999982833862
+					"z": 1.76999998092651
 				},
 				"roomId": "combat_7",
 				"sampleNavmesh": true
@@ -785,9 +780,9 @@
 					}
 				],
 				"offset": {
-					"x": 6.0,
+					"x": 0.0,
 					"y": 0.0,
-					"z": 5.0
+					"z": -5.0
 				},
 				"roomId": "treasure"
 			},
@@ -815,9 +810,9 @@
 					}
 				],
 				"offset": {
-					"x": 5.0,
+					"x": 0.0,
 					"y": 0.0,
-					"z": -4.0
+					"z": -5.0
 				},
 				"roomId": "combat_8"
 			},
@@ -861,7 +856,7 @@
 				"offset": {
 					"x": 0.0,
 					"y": 0.0,
-					"z": 4.0
+					"z": 3.0
 				},
 				"roomId": "combat_12",
 				"sampleNavmesh": true,
@@ -1001,16 +996,16 @@
 			"id": "arena",
 			"kind": "combat",
 			"size": {
-				"x": 16.0,
-				"z": 12.0
+				"x": 8.0,
+				"z": 16.0
 			},
 			"tags": [],
-			"templateId": "castle_entrance",
+			"templateId": "castle_stairs",
 			"transform": {
 				"x": -44.0,
 				"y": 0.0,
 				"yaw": 0.0,
-				"z": 0.0
+				"z": 4.0
 			},
 			"type": "combat"
 		},
@@ -1019,18 +1014,18 @@
 			"id": "boss",
 			"kind": "boss",
 			"size": {
-				"x": 28.0,
-				"z": 28.0
+				"x": 8.0,
+				"z": 8.0
 			},
 			"tags": [
 				"exit_portal"
 			],
-			"templateId": "castle_boss",
+			"templateId": "castle_secret",
 			"transform": {
-				"x": -78.0,
+				"x": -64.0,
 				"y": 0.0,
-				"yaw": 90.0,
-				"z": 14.0
+				"yaw": 0.0,
+				"z": 20.0
 			},
 			"type": "boss"
 		},
@@ -1039,16 +1034,16 @@
 			"id": "combat_10",
 			"kind": "combat",
 			"size": {
-				"x": 8.0,
+				"x": 16.0,
 				"z": 16.0
 			},
 			"tags": [],
-			"templateId": "castle_stairs",
+			"templateId": "castle_puzzle",
 			"transform": {
-				"x": 12.0,
+				"x": 16.0,
 				"y": 0.0,
 				"yaw": 0.0,
-				"z": -42.0
+				"z": -40.0
 			},
 			"type": "combat"
 		},
@@ -1063,10 +1058,10 @@
 			"tags": [],
 			"templateId": "castle_entrance",
 			"transform": {
-				"x": 20.0,
+				"x": 32.0,
 				"y": 0.0,
 				"yaw": 0.0,
-				"z": -56.0
+				"z": -52.0
 			},
 			"type": "combat"
 		},
@@ -1075,16 +1070,16 @@
 			"id": "combat_12",
 			"kind": "lore",
 			"size": {
-				"x": 8.0,
-				"z": 16.0
+				"x": 16.0,
+				"z": 12.0
 			},
 			"tags": [],
-			"templateId": "castle_stairs",
+			"templateId": "castle_entrance",
 			"transform": {
-				"x": 20.0,
+				"x": 32.0,
 				"y": 0.0,
 				"yaw": 0.0,
-				"z": -42.0
+				"z": -40.0
 			},
 			"type": "combat"
 		},
@@ -1099,10 +1094,10 @@
 			"tags": [],
 			"templateId": "castle_entrance",
 			"transform": {
-				"x": -28.0,
+				"x": -32.0,
 				"y": 0.0,
 				"yaw": 0.0,
-				"z": 0.0
+				"z": 4.0
 			},
 			"type": "combat"
 		},
@@ -1117,10 +1112,10 @@
 			"tags": [],
 			"templateId": "castle_entrance",
 			"transform": {
-				"x": -16.0,
+				"x": -12.0,
 				"y": 0.0,
 				"yaw": 0.0,
-				"z": -28.0
+				"z": -26.0
 			},
 			"type": "combat"
 		},
@@ -1130,15 +1125,15 @@
 			"kind": "combat",
 			"size": {
 				"x": 16.0,
-				"z": 12.0
+				"z": 16.0
 			},
 			"tags": [],
-			"templateId": "castle_entrance",
+			"templateId": "castle_hall",
 			"transform": {
-				"x": -12.0,
+				"x": -16.0,
 				"y": 0.0,
 				"yaw": 0.0,
-				"z": -14.0
+				"z": -12.0
 			},
 			"type": "combat"
 		},
@@ -1153,34 +1148,16 @@
 			"tags": [],
 			"templateId": "castle_hall",
 			"transform": {
-				"x": -12.0,
+				"x": -16.0,
 				"y": 0.0,
 				"yaw": 0.0,
-				"z": 0.0
+				"z": 4.0
 			},
 			"type": "combat"
 		},
 		{
 			"heightLevel": 0,
 			"id": "combat_7",
-			"kind": "combat",
-			"size": {
-				"x": 16.0,
-				"z": 16.0
-			},
-			"tags": [],
-			"templateId": "castle_hall",
-			"transform": {
-				"x": 0.0,
-				"y": 0.0,
-				"yaw": 0.0,
-				"z": -42.0
-			},
-			"type": "combat"
-		},
-		{
-			"heightLevel": 0,
-			"id": "combat_8",
 			"kind": "combat",
 			"size": {
 				"x": 16.0,
@@ -1192,13 +1169,13 @@
 				"x": 0.0,
 				"y": 0.0,
 				"yaw": 0.0,
-				"z": -28.0
+				"z": -40.0
 			},
 			"type": "combat"
 		},
 		{
 			"heightLevel": 0,
-			"id": "combat_9",
+			"id": "combat_8",
 			"kind": "combat",
 			"size": {
 				"x": 8.0,
@@ -1210,13 +1187,13 @@
 				"x": 0.0,
 				"y": 0.0,
 				"yaw": 0.0,
-				"z": -14.0
+				"z": -26.0
 			},
 			"type": "combat"
 		},
 		{
 			"heightLevel": 0,
-			"id": "courtyard",
+			"id": "combat_9",
 			"kind": "combat",
 			"size": {
 				"x": 16.0,
@@ -1225,10 +1202,28 @@
 			"tags": [],
 			"templateId": "castle_entrance",
 			"transform": {
-				"x": -60.0,
+				"x": 0.0,
 				"y": 0.0,
 				"yaw": 0.0,
-				"z": 0.0
+				"z": -12.0
+			},
+			"type": "combat"
+		},
+		{
+			"heightLevel": 0,
+			"id": "courtyard",
+			"kind": "combat",
+			"size": {
+				"x": 8.0,
+				"z": 16.0
+			},
+			"tags": [],
+			"templateId": "castle_stairs",
+			"transform": {
+				"x": -52.0,
+				"y": 0.0,
+				"yaw": 0.0,
+				"z": 4.0
 			},
 			"type": "combat"
 		},
@@ -1257,16 +1252,16 @@
 			"id": "hall",
 			"kind": "rest",
 			"size": {
-				"x": 8.0,
+				"x": 16.0,
 				"z": 16.0
 			},
 			"tags": [],
-			"templateId": "castle_stairs",
+			"templateId": "castle_hall",
 			"transform": {
-				"x": -60.0,
+				"x": -52.0,
 				"y": 0.0,
 				"yaw": 0.0,
-				"z": 14.0
+				"z": 20.0
 			},
 			"type": "combat"
 		},
@@ -1286,7 +1281,7 @@
 				"x": -12.0,
 				"y": 0.0,
 				"yaw": 0.0,
-				"z": -42.0
+				"z": -40.0
 			},
 			"type": "secret"
 		},
@@ -1304,7 +1299,7 @@
 				"x": 0.0,
 				"y": 3.0,
 				"yaw": 0.0,
-				"z": -58.0
+				"z": -54.0
 			},
 			"type": "corridor"
 		},
@@ -1313,16 +1308,16 @@
 			"id": "treasure",
 			"kind": "treasure",
 			"size": {
-				"x": 16.0,
+				"x": 8.0,
 				"z": 16.0
 			},
 			"tags": [],
-			"templateId": "castle_puzzle",
+			"templateId": "castle_stairs",
 			"transform": {
-				"x": 4.0,
+				"x": 20.0,
 				"y": 0.0,
 				"yaw": 0.0,
-				"z": -56.0
+				"z": -52.0
 			},
 			"type": "treasure"
 		}

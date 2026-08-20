@@ -150,7 +150,7 @@ func use(direction: String) -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	if not event.is_action_pressed("interact") or not _near_player or not _unlocked or _menu_open:
+	if not PlayerInput.interact_just_pressed(event) or not _near_player or not _unlocked or _menu_open:
 		return
 	var menu := get_tree().get_first_node_in_group("stair_menu")
 	if menu and menu.has_method("open_for_lever"):

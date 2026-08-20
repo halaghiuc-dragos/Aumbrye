@@ -14,7 +14,7 @@ func _ready() -> void:
 
 
 func show_achievement(display_name: String) -> void:
-	_label.text = "Achievement: %s" % display_name
+	_label.text = tr("ACHIEVEMENT_TOAST").format({"name": display_name})
 	visible = true
 	var tween := create_tween()
 	tween.tween_property(self, "modulate:a", 1.0, 0.3)

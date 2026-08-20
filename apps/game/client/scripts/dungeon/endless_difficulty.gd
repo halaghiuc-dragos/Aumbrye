@@ -19,10 +19,6 @@ const MOVE_SPEED_FLOOR_MULT := 1.16
 
 
 ## Reporting helper only — the curves below are continuous per floor and never read this.
-static func floor_tier(floor_index: int) -> int:
-	return int(maxi(0, floor_index) / 10.0)
-
-
 static func hp_multiplier(floor_index: int) -> float:
 	var floor_clamped := maxi(1, floor_index)
 	if floor_clamped <= HP_KNEE_FLOOR:

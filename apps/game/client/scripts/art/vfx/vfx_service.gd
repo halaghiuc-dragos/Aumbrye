@@ -18,6 +18,9 @@ const PixelStyle := preload("res://scripts/art/style/pixel_diorama_style.gd")
 
 static var _particle_material_cache: Dictionary = {}
 
+## C-93: throttles the unknown-telegraph-shape warning to one line per shape.
+static var _warned_telegraph_shapes: Dictionary = {}
+
 var _root: Node3D
 var _foot_alt := false
 var _effects: Dictionary = {}
@@ -230,6 +233,12 @@ func play_dodge(world_pos: Vector3, travel: Vector3 = Vector3.FORWARD) -> void:
 	play("dodge", world_pos, back.normalized())
 
 
+## C-20: the flask drink used to borrow `hit_spark`. Rises rather than sprays, and carries no
+## shake or hitstop layer for the same reason `play_dodge` does not.
+func play_heal(world_pos: Vector3) -> void:
+	play("heal", world_pos, Vector3.UP)
+
+
 func play_parry(world_pos: Vector3, forward: Vector3 = Vector3.FORWARD) -> void:
 	play("parry", world_pos, forward)
 
@@ -328,8 +337,16 @@ func play_telegraph(
 	shape: String = "circle",
 	forward: Vector3 = Vector3.FORWARD
 ) -> void:
+	# C-93: an unknown shape used to fall back to `telegraph_circle` in silence — and the fallback
+	# was pointless anyway, because the layer values are identical and `shape` is overridden a
+	# moment later, so the substitution changed nothing while hiding the authoring mistake.
 	var effect_id := "telegraph_%s" % shape
 	if not _effects.has(effect_id):
+		if not _warned_telegraph_shapes.has(shape):
+			_warned_telegraph_shapes[shape] = true
+			push_warning(
+				"VfxService: no 'telegraph_%s' effect declared; drawing it anyway" % shape
+			)
 		effect_id = "telegraph_circle"
 	# Single point where the "Emphasise Attack Tells" assist is honoured. Duration is left alone on
 	# purpose — the setting should make a wind-up easier to see, not give the player more time than
@@ -1057,6 +1074,24 @@ func _build_telegraph_glyph(
 				block.rotation.y = angle
 				block.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 				glyph.add_child(block)
+		"ring":
+			# C-93: `ring` is authored on 71 telegraphs (44 attacks, 27 boss onEnter) and had no
+			# case here, so it fell to the circle branch and the safe centre was covered by the
+			# fill disc — the one shape that says "step in, not out" did not exist. A ring is the
+			# rim only, with a heavier rim than the circle so the two read differently at a glance,
+			# and no centre core (that core is what marks the dangerous middle).
+			var ring_tick := BoxMesh.new()
+			ring_tick.size = PixelStyle.snap_size_to_pixel_grid(Vector3(0.3, 0.03, 0.3))
+			var ring_segments := 20
+			for i in ring_segments:
+				var angle := TAU * float(i) / float(ring_segments)
+				var block := MeshInstance3D.new()
+				block.mesh = ring_tick
+				block.material_override = rim_mat
+				block.position = Vector3(cos(angle), 0.0, sin(angle)) * radius
+				block.rotation.y = -angle
+				block.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+				glyph.add_child(block)
 		_:
 			var tick := BoxMesh.new()
 			tick.size = PixelStyle.snap_size_to_pixel_grid(Vector3(0.22, 0.02, 0.22))
@@ -1078,19 +1113,25 @@ func _build_telegraph_glyph(
 			fill.material_override = fill_mat
 			fill.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 			glyph.add_child(fill)
-	var center := MeshInstance3D.new()
-	var core := BoxMesh.new()
-	core.size = PixelStyle.snap_size_to_pixel_grid(Vector3(0.28, 0.04, 0.28))
-	center.mesh = core
-	center.material_override = rim_mat
-	center.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	glyph.add_child(center)
+	var center: MeshInstance3D = null
+	if shape != "ring":
+		center = MeshInstance3D.new()
+		var core := BoxMesh.new()
+		core.size = PixelStyle.snap_size_to_pixel_grid(Vector3(0.28, 0.04, 0.28))
+		center.mesh = core
+		center.material_override = rim_mat
+		center.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		glyph.add_child(center)
 	var tween := create_tween()
 	tween.set_parallel(true)
-	tween.tween_property(glyph, "scale", Vector3(0.35, 1.0, 0.35), duration)
+	# C-93: a circle collapses inward — the danger is closing on the centre. A ring expands, because
+	# the danger is the rim arriving and the centre is where the player wants to be.
+	var end_scale := Vector3(1.25, 1.0, 1.25) if shape == "ring" else Vector3(0.35, 1.0, 0.35)
+	tween.tween_property(glyph, "scale", end_scale, duration)
 	tween.set_trans(Tween.TRANS_QUAD)
-	tween.tween_property(center, "scale", Vector3(1.6, 1.0, 1.6), duration * 0.5)
-	tween.chain().tween_property(center, "scale", Vector3(0.6, 1.0, 0.6), duration * 0.5)
+	if center != null:
+		tween.tween_property(center, "scale", Vector3(1.6, 1.0, 1.6), duration * 0.5)
+		tween.chain().tween_property(center, "scale", Vector3(0.6, 1.0, 0.6), duration * 0.5)
 	_schedule_free(glyph, duration + 0.1)
 
 
@@ -1108,9 +1149,10 @@ func _resolve_forward(body: Node3D) -> Vector3:
 	if body.has_method("get_facing_direction"):
 		return body.call("get_facing_direction")
 	var facing := body.get_node_or_null("Facing") as Node3D
+	# C-41: same forked convention — VFX aimed away from where the actor was facing.
 	if facing:
-		return -facing.global_transform.basis.z
-	return -body.global_transform.basis.z
+		return CombatFacing.forward_of(facing)
+	return CombatFacing.forward_of(body)
 
 
 func _orient_particles(particles: CPUParticles3D, forward: Vector3) -> void:

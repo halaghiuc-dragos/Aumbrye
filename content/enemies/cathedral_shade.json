@@ -23,6 +23,7 @@
   "alert_radius": 15,
   "circle_radius_mult": 1.6,
   "enemy_type": "melee",
+  "weapon_kit": "dagger",
   "attacks": [
     {
       "id": "snap",

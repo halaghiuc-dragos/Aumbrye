@@ -107,6 +107,13 @@ func _ready() -> void:
 	PixelDioramaBootstrap.prime()
 
 
+## C-84: the single owner of the replay pump. `RunReplay.pump()` already early-returns when neither
+## recording nor playing, so this costs nothing outside a replay, and the input accessors no longer
+## each carry a call they only needed one of per frame.
+func _physics_process(_delta: float) -> void:
+	PlayerInput.pump_frame()
+
+
 func start_new_castle_run() -> void:
 	start_new_run(DungeonCatalog.DEFAULT_DUNGEON_ID)
 
@@ -341,8 +348,22 @@ func _resolved_run_seed(run_seed: Variant) -> int:
 	return 0
 
 
+## C-110: the layout comes from the C# generator when the server is reachable and from the GDScript
+## generator when it is not, and the two are **not** verified to agree — `cross_stack_parity_suite`
+## asserted seed mixing, room-kit specs and the biome catalog, never a generated layout, and
+## ADR-0002 lists "diff the canonical JSON across a seed matrix" as still-open work. `SeededRandom.cs`
+## is SplitMix64 with a frozen contract; the GDScript side uses Godot's built-in RNG seeded through
+## a SplitMix64 *mixer*, which is not the same thing as the same stream.
+##
+## The consequence is that seeded reproducibility was connectivity-dependent: two players entering
+## the same seed got different dungeons if one of them was offline. Where reproducibility is the
+## whole point of the run — an explicitly entered seed, or the weekly challenge that is meant to be
+## "the same run for everyone who plays it" — the local generator is now used unconditionally, so
+## every participant walks the same floor regardless of connectivity. Ordinary runs still prefer the
+## server. Fix (3), full generator parity, remains ADR-0002's.
 func _generate_dungeon(biome_id: String, run_seed: Variant, floor_index: int = 1) -> Dictionary:
-	if USE_ONLINE_PROCgen and ApiConfig.cloud_calls_enabled():
+	var reproducibility_required := run_seed != null or not _active_challenge.is_empty()
+	if not reproducibility_required and USE_ONLINE_PROCgen and ApiConfig.cloud_calls_enabled():
 		var online := await _try_online_generate(biome_id, run_seed, floor_index)
 		if online.get("ok", false):
 			return online
@@ -544,9 +565,67 @@ func return_to_hub(message: String = "") -> void:
 	_run_active = false
 	last_hub_message = message
 	_clear_run_meta()
-	LocalSave.autosave()
+	LocalSave.autosave_checkpoint()
 	_goto_scene(HUB_SCENE)
 	returned_to_hub.emit(message)
+
+
+## Leaves the floor keeping everything collected, at the cost of the run's XP and the run itself.
+##
+## C-230: the "escape" consumable (escape_stone / homeward_bone) used to call the generic
+## `return_to_hub()`, which destroys nothing, grants nothing and — critically — never calls
+## `clear_active_run()`. Loot was banked for free and the same run could then be resumed from the
+## portal, turning every descent into a zero-risk extraction trip. This is the deliberate version:
+## the haul is kept, the floor's XP is forfeited into a recoverable shard, and the run ends.
+func escape_with_loot() -> bool:
+	if not _run_active:
+		return false
+	var player := get_tree().get_first_node_in_group("player")
+	var elapsed := 0.0
+	if _run_start_time > 0.0:
+		elapsed = (Time.get_ticks_msec() / 1000.0) - _run_start_time
+	var full_xp := ProgressionService.calculate_run_xp(_kill_count, _boss_defeated, false)
+	if player is Node3D and full_xp > 0:
+		store_recoverable_xp_shard(
+			(player as Node3D).global_position, current_floor, current_dungeon_id, full_xp, 0
+		)
+	_run_highlights = RunBuffs.get_run_highlights()
+	RunBuffs.clear_all()
+	_register_endless_depth_reached()
+	last_run_results = (
+		RunLifecycle
+		. build_results(
+			RunLifecycle.OUTCOME_RETREATED,
+			elapsed,
+			_kill_count,
+			_loot_collected,
+			{"gained": 0, "levels_gained": 0},
+			full_xp,
+			_escape_rules_summary(),
+			{
+				"run_mode": run_mode,
+				"floor_reached": current_floor,
+				"boss_defeated": _boss_defeated,
+				"loot_kept": true,
+				"loot_lost": [],
+				"xp_deferred": full_xp,
+			}
+		)
+	)
+	var run_id := current_run_id
+	var loot_instance_ids := _loot_claimed_instance_ids.duplicate()
+	LocalSave.clear_active_run()
+	LocalSave.autosave_checkpoint()
+	QuestService.register_run_outcome(RunLifecycle.OUTCOME_RETREATED, {"run_mode": run_mode})
+	MerchantService.restock_all()
+	_decorate_run_results()
+	run_ended.emit(last_run_results)
+	_cloud_finalize_run(run_id, "retreated", elapsed, _boss_defeated, loot_instance_ids)
+	get_tree().root.set_meta("run_results", last_run_results)
+	_run_active = false
+	_clear_in_run_meta()
+	_goto_scene(RESULTS_SCENE)
+	return true
 
 
 func abandon_active_run() -> void:
@@ -608,7 +687,7 @@ func complete_run_via_portal() -> void:
 	var boss := _boss_defeated
 	var cleared_dungeon := current_dungeon_id
 	LocalSave.clear_active_run()
-	LocalSave.autosave()
+	LocalSave.autosave_checkpoint()
 	QuestService.register_run_outcome(RunLifecycle.OUTCOME_ESCAPED, {"run_mode": run_mode})
 	MerchantService.restock_all()
 	_decorate_run_results()
@@ -685,7 +764,7 @@ func on_player_died() -> void:
 	var loot_instance_ids := _loot_claimed_instance_ids.duplicate()
 	var boss := _boss_defeated
 	LocalSave.clear_active_run()
-	LocalSave.autosave()
+	LocalSave.autosave_checkpoint()
 	QuestService.register_run_outcome(RunLifecycle.OUTCOME_DIED, {"run_mode": run_mode})
 	MerchantService.restock_all()
 	_decorate_run_results()
@@ -796,7 +875,7 @@ func retreat_to_hub() -> void:
 	_run_active = false
 	last_hub_message = "Retreated to %s. Continue from the portal." % TOWER_DISPLAY_NAME
 	_clear_in_run_meta()
-	LocalSave.autosave()
+	LocalSave.autosave_checkpoint()
 	_goto_scene(HUB_SCENE)
 	returned_to_hub.emit(last_hub_message)
 
@@ -896,7 +975,7 @@ func _transition_floor(ascending: bool) -> void:
 	)
 	root.set_meta("run_snapshot", _build_floor_transition_snapshot(ascending))
 	_persist_active_run()
-	LocalSave.autosave()
+	LocalSave.autosave_checkpoint()
 	_goto_scene(CASTLE_RUN_SCENE)
 
 
@@ -1420,6 +1499,11 @@ func _respawn_rules_summary() -> String:
 	)
 
 
+## C-132: room content needs to tell the player why a door refused them.
+func emit_run_warning(message: String) -> void:
+	_emit_run_warning(message)
+
+
 func _emit_run_warning(message: String) -> void:
 	last_hub_message = message
 	run_warning.emit(message)
@@ -1596,7 +1680,7 @@ func _bonfire_death_respawn(checkpoint: Dictionary) -> void:
 	active["snapshot"] = checkpoint.duplicate(true)
 	active.erase("playerDead")
 	LocalSave.set_active_run(active)
-	LocalSave.autosave()
+	LocalSave.autosave_checkpoint()
 	_is_continue = true
 	_pending_snapshot = checkpoint.duplicate(true)
 	get_tree().root.set_meta("run_snapshot", checkpoint.duplicate(true))
@@ -1763,7 +1847,7 @@ func complete_waves_run(rewards: Array[String]) -> void:
 		)
 	)
 	LocalSave.clear_waves_active_run()
-	LocalSave.autosave()
+	LocalSave.autosave_checkpoint()
 	QuestService.register_run_outcome(RunLifecycle.OUTCOME_WAVES_COMPLETE, {"run_mode": run_mode})
 	MerchantService.restock_all()
 	_decorate_run_results()
@@ -1799,7 +1883,7 @@ func on_waves_failed() -> void:
 		)
 	)
 	LocalSave.clear_waves_active_run()
-	LocalSave.autosave()
+	LocalSave.autosave_checkpoint()
 	QuestService.register_run_outcome(RunLifecycle.OUTCOME_WAVES_FAILED, {"run_mode": run_mode})
 	MerchantService.restock_all()
 	_decorate_run_results()

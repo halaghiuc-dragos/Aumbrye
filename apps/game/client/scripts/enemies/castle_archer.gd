@@ -59,21 +59,22 @@ func _show_attack_telegraph(duration: float) -> void:
 	var tint := Color(0.95, 0.34, 0.28)
 	if _data.has("telegraph_tint"):
 		tint = Color(_data["telegraph_tint"])
-	var forward := -global_transform.basis.z
+	# C-70: see `castle_enemy_base._show_attack_telegraph`.
+	var forward := CombatFacing.forward_of(self)
 	VfxService.play_telegraph(global_position, radius, duration, tint, shape, forward)
 
 
 func _lock_shot_trajectory() -> void:
 	_locked_shot_speed = _data.get("projectile_speed", 12.0)
 	if _player == null:
-		_locked_shot_direction = -global_transform.basis.z
+		_locked_shot_direction = CombatFacing.forward_of(self)
 		return
 	var spawn_pos := global_position + Vector3(0, 1.2, 0)
 	var target_pos := _player.global_position + Vector3(0, 1.0, 0)
 	var to_target := target_pos - spawn_pos
 	to_target.y = 0.0
 	if to_target.length_squared() < 0.01:
-		_locked_shot_direction = -global_transform.basis.z
+		_locked_shot_direction = CombatFacing.forward_of(self)
 	else:
 		_locked_shot_direction = to_target.normalized()
 

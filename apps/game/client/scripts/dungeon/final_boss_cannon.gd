@@ -69,7 +69,7 @@ func get_loaded_count() -> int:
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	if not event.is_action_pressed("interact") or not _near_player or _fired:
+	if not PlayerInput.interact_just_pressed(event) or not _near_player or _fired:
 		return
 	if _loaded < _required:
 		return

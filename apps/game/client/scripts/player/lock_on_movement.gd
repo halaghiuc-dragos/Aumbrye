@@ -127,10 +127,21 @@ static func get_locked_dodge_direction(
 		offset = Vector3(0.0, 0.0, 1.0)
 	var radial := offset.normalized()
 	var tangent := Vector3.UP.cross(radial).normalized()
+	# C-10: the y axis was never read. `radial` points from the target to the player, so any pure
+	# forward or backward input rolled *directly away from the enemy* — locked on, the complete set
+	# of available dodges was strafe left, strafe right and retreat, and holding forward and
+	# pressing dodge rolled you backwards. On keyboard W and S both give x = 0, so they landed in
+	# the radial branch every time. `get_move_direction` twenty lines above already composes both
+	# axes correctly, which is why walking toward a locked target worked and dodging toward it did
+	# not, in the same file. Mirrored here; `radial` survives only as the both-axes-idle fallback.
 	var stick_x := _apply_axis_deadzone(input_dir.x)
-	if absf(stick_x) < 0.001:
+	var stick_y := _apply_axis_deadzone(input_dir.y)
+	if absf(stick_x) < 0.001 and absf(stick_y) < 0.001:
 		return radial
-	return tangent * signf(stick_x)
+	var direction := tangent * stick_x + (-radial) * stick_y
+	if direction.length_squared() < 0.0001:
+		return radial
+	return direction.normalized()
 
 
 static func apply_orbit_radius_correction(

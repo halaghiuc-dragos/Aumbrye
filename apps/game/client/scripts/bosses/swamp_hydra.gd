@@ -4,12 +4,9 @@ extends CastleEnemyBase
 ## poison phase opens. Phases and move sets live in `content/bosses/swamp_hydra.json`.
 
 signal boss_defeated
-signal phase_changed(phase: int)
-
 const CLEANSE_SCENE := preload("res://scenes/bosses/swamp_cleanse_zone.tscn")
 const CLEANSE_INTERVAL := 8.0
 
-var _arena_bounds := Rect2(-12, -12, 24, 24)
 var _arena_center := Vector3.ZERO
 var _cleanse_zones: Array[Node3D] = []
 var _cleanse_cooldown := 0.0
@@ -33,8 +30,8 @@ func _ready() -> void:
 	_arena_center = global_position
 	_apply_mesh_tint(Color(0.25, 0.4, 0.15, 1.0))
 	scale = Vector3(1.35, 1.1, 1.35)
-	boss_phase_entered.connect(_on_boss_phase_entered)
-	AudioDirector.play_boss_music()
+	if not boss_phase_entered.is_connected(_on_boss_phase_entered):
+		boss_phase_entered.connect(_on_boss_phase_entered)
 
 
 func _physics_process(delta: float) -> void:
@@ -51,8 +48,9 @@ func _physics_process(delta: float) -> void:
 
 
 ## The poison phase is only survivable because it keeps opening a clean patch of ground.
-func _on_boss_phase_entered(index: int, phase: Dictionary) -> void:
-	phase_changed.emit(index + 1)
+func _on_boss_phase_entered(_index: int, phase: Dictionary) -> void:
+	# C-80: the `phase_changed` relay lives on `CastleEnemyBase` now; this handler keeps only the
+	# behaviour that is actually the hydra's.
 	var wants_cleanse := bool(phase.get("cleanseWindows", false))
 	if wants_cleanse and not _cleanse_active:
 		_cleanse_cooldown = 2.0
@@ -102,11 +100,5 @@ func apply_state(state: Dictionary) -> void:
 
 
 func _clamp_to_arena() -> void:
-	var offset := global_position - _arena_center
-	offset.x = clampf(
-		offset.x, _arena_bounds.position.x, _arena_bounds.position.x + _arena_bounds.size.x
-	)
-	offset.z = clampf(
-		offset.z, _arena_bounds.position.y, _arena_bounds.position.y + _arena_bounds.size.y
-	)
-	global_position = _arena_center + offset
+	# C-81: bounds come from the boss definition now — see `CastleEnemyBase.clamp_to_arena`.
+	clamp_to_arena(_arena_center)

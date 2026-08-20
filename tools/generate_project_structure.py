@@ -89,14 +89,21 @@ def _godot_project() -> dict:
 
 
 def _validation_suites() -> dict:
+    """Headless verification entry points.
+
+    The in-engine suite tree (``scripts/validation/``, 58 suites) was removed — it had grown larger
+    than the code it covered and had never run to completion. What replaced it is the smoke test,
+    which boots every autoload and subsystem an exported build needs and returns an exit code, plus
+    the seed-health sweep. Both run in CI.
+    """
     suites = sorted((CLIENT / "scripts" / "validation" / "suites").glob("*.gd"))
     return {
         "count": len(suites),
         "lines": sum(p.read_text(errors="replace").count("\n") for p in suites),
         "entryPoints": {
-            "headless": "godot --headless --path apps/game/client --script "
-                        "res://scripts/validation/validation_main.gd",
-            "inEditor": "res://scenes/debug/mcp_validation.tscn",
+            "smokeTest": "godot --path apps/game/client --headless -- --smoke-test",
+            "seedHealth": "godot --path apps/game/client --headless --script "
+                          "res://scripts/tools/procgen_seed_health.gd",
         },
         "names": [p.stem for p in suites],
     }

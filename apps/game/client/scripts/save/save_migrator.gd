@@ -232,13 +232,24 @@ static func classify(data: Dictionary) -> int:
 	return RESULT_MIGRATABLE
 
 
+## C-234: this required an exact contiguous chain (`version == step["from"]`) while `migrate` uses
+## a range test (`version < from` skip, `version >= to` skip). `STEPS` is contiguous 1→12 today so
+## the two agree, but the moment a step is added out of order or a version is skipped, `migrate`
+## would do the work while `describe` — which is what a user and the crash log see — reported that
+## nothing would happen. The two now share one rule; `plan` is the description of what `migrate`
+## will do, so it has to select the same steps.
 static func plan(from_version: int) -> Array[Dictionary]:
 	var steps: Array[Dictionary] = []
 	var version := from_version
 	for step in STEPS:
-		if version == int(step["from"]):
-			steps.append(step.duplicate())
-			version = int(step["to"])
+		var from_v: int = int(step["from"])
+		var to_v: int = int(step["to"])
+		if version < from_v:
+			continue
+		if version >= to_v:
+			continue
+		steps.append(step.duplicate())
+		version = to_v
 	return steps
 
 

@@ -11,12 +11,66 @@ const RADIUS_META := "hazard_radius"
 static var _definitions: Dictionary = {}
 
 
+## C-88: the content file a trap loads — its damage, status and telegraph — was chosen by
+## snake-casing the *scene node's name*. Rename `SpikeTrap` in the editor and the trap silently
+## falls back to `{}` and runs on its `@export` defaults, with no warning anywhere. Same failure
+## mode as C-17, and worse for being silent.
+##
+## An explicit `trap_id` on the node wins; the name derivation is kept as a fallback so existing
+## scenes keep working, and it now says when it is guessing.
 static func trap_id_for(node: Node) -> String:
+	var explicit := str(node.get("trap_id")) if node.get("trap_id") != null else ""
+	if explicit != "":
+		return explicit
 	var raw := String(node.name)
 	var at := raw.find("@")
 	if at > 0:
 		raw = raw.substr(0, at)
-	return raw.to_snake_case()
+	# C-131: `content/traps/*.json` already declares `"scene": "res://scenes/traps/<id>.tscn"` for
+	# every trap, so the scene the node was instanced from identifies it exactly. That map is built
+	# from content and consulted before falling back to the name heuristic, which is the last resort
+	# rather than the only route.
+	var from_scene := _id_for_scene_path(node.scene_file_path)
+	if from_scene != "":
+		return from_scene
+	var derived := raw.to_snake_case()
+	if not _warned_derived.has(derived):
+		_warned_derived[derived] = true
+		push_warning(
+			(
+				"TrapTactics: '%s' has no `trap_id`; deriving '%s' from the node name. Renaming the"
+				+ " node will silently change which content file it loads."
+			)
+			% [node.name, derived]
+		)
+	return derived
+
+
+static var _warned_derived: Dictionary = {}
+
+## C-131: scene path -> trap id, built once from `content/traps/`.
+static var _scene_to_id: Dictionary = {}
+static var _scene_map_built := false
+
+
+static func _id_for_scene_path(scene_path: String) -> String:
+	if scene_path == "":
+		return ""
+	if not _scene_map_built:
+		_scene_map_built = true
+		var dir := DirAccess.open(ContentLoader.content_path("content/traps"))
+		if dir:
+			dir.list_dir_begin()
+			var entry := dir.get_next()
+			while entry != "":
+				if entry.ends_with(".json"):
+					var data: Dictionary = ContentLoader.load_json("content/traps/%s" % entry)
+					var scene := str(data.get("scene", ""))
+					if scene != "":
+						_scene_to_id[scene] = str(data.get("id", entry.get_basename()))
+				entry = dir.get_next()
+			dir.list_dir_end()
+	return str(_scene_to_id.get(scene_path, ""))
 
 
 static func definition(trap_id: String) -> Dictionary:
@@ -25,6 +79,10 @@ static func definition(trap_id: String) -> Dictionary:
 	if _definitions.has(trap_id):
 		return _definitions[trap_id]
 	var data: Dictionary = ContentLoader.load_json("content/traps/%s.json" % trap_id)
+	# C-88: the empty-definition fallback was silent, so a trap running on `@export` defaults was
+	# indistinguishable from one running on authored values.
+	if data.is_empty():
+		push_warning("TrapTactics: no content/traps/%s.json — trap runs on scene defaults" % trap_id)
 	_definitions[trap_id] = data
 	return data
 

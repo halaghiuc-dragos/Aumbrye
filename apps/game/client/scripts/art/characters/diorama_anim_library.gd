@@ -1947,13 +1947,21 @@ static func clip_meta(clip: StringName) -> Dictionary:
 	}
 
 
+## C-171: this returned `&"jog"` for 2.4–5.0 m/s and **no `jog` clip exists** in `CLIPS`. The
+## controller wrapper caught it (`if clip == &"jog" and not has_clip(&"jog"): clip = &"walk"`), so
+## the fallback was graceful — but the whole path was dead anyway: nothing outside that wrapper
+## calls this. `PlayerAnimDirector` picks run vs walk from the sprint flag and `CastleEnemyBase`
+## compares speed against `_move_speed * 0.85` directly.
+##
+## The tier is dropped rather than the function: a speed-tiered selector is worth having, and
+## naming a clip that does not exist is what made it a trap. If a `jog` clip is ever authored, add
+## it to `CLIPS` and reinstate the band here — the callers above are the ones that would need to
+## start using this.
 static func select_locomotion_clip(speed: float) -> StringName:
 	if speed < 0.15:
 		return &"idle"
 	if speed < 2.4:
 		return &"walk"
-	if speed < 5.0:
-		return &"jog"
 	return &"run"
 
 
@@ -2033,7 +2041,22 @@ static func build_library(
 static func _supplement_authored_library(
 	library: AnimationLibrary, rest_pose: Dictionary, events_path: String
 ) -> void:
+	# C-172: this list is the staleness guard — clips a stale `.res` export might lack, recompiled
+	# from `CLIPS` at load. It named 17 and omitted `stagger_f/b/l/r` and `dash_f/b/l/r`, although
+	# all eight are in `CLIPS` and `compile_authored_library()` exports everything in it. Latent
+	# rather than live, and it becomes live the moment a directional clip changes without re-running
+	# the exporter — at which point `_stagger_clip_for()` silently falls back to the generic
+	# `stagger` and `play_dash()` to `dash_f`, which is exactly the degradation C-58 and C-59
+	# describe from a different cause.
 	var supplemental: Array[StringName] = [
+		&"stagger_f",
+		&"stagger_b",
+		&"stagger_l",
+		&"stagger_r",
+		&"dash_f",
+		&"dash_b",
+		&"dash_l",
+		&"dash_r",
 		&"walk_b",
 		&"walk_l",
 		&"walk_r",

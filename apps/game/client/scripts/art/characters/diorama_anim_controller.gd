@@ -58,6 +58,7 @@ var _dead := false
 var _compiled_attacks: Dictionary = {}
 var _attack_cache_order: Array = []
 var _missing_clips: Dictionary = {}
+var _clamped_clips: Dictionary = {}
 var _hitbox_signals_warned := false
 
 ## Whether this rig's owner is expected to act on hitbox frames.
@@ -251,8 +252,8 @@ func has_clip(clip: StringName) -> bool:
 
 func select_locomotion_clip(speed: float) -> StringName:
 	var clip := AnimLibrary.select_locomotion_clip(speed)
-	if clip == &"jog" and not has_clip(&"jog"):
-		clip = &"walk"
+	# C-171: the `jog` special case is gone with the tier that produced it; the generic
+	# missing-clip fallback below covers anything else the library lacks.
 	if clip != &"idle" and not has_clip(clip) and has_clip(&"walk"):
 		clip = &"walk"
 	return clip
@@ -353,7 +354,9 @@ func _flinch_clip_for(world_dir: Vector3) -> StringName:
 	var facing := body.get_node_or_null("Facing") as Node3D
 	if facing == null:
 		return &"flinch_f" if has_clip(&"flinch_f") else &"flinch"
-	var forward := -facing.global_transform.basis.z
+	# C-41: forward is +basis.z for a Facing node (`CombatFacing.forward_of`); this had forked to
+	# -basis.z, so flinch/stagger direction clips were mirrored front-to-back.
+	var forward := CombatFacing.forward_of(facing)
 	var right := facing.global_transform.basis.x
 	var flat := Vector3(world_dir.x, 0.0, world_dir.z).normalized()
 	var fwd_dot := forward.dot(flat)
@@ -381,6 +384,12 @@ func play_stagger(duration: float = 0.0, direction: Vector3 = Vector3.ZERO) -> v
 	_begin_action(clip, Priority.STAGGER, scale)
 
 
+## C-58: the single live implementation. Exposed publicly so `PlayerCombatReactions` can delegate
+## rather than keep a second, divergent copy.
+func stagger_clip_for_direction(world_dir: Vector3) -> StringName:
+	return _stagger_clip_for(world_dir)
+
+
 func _stagger_clip_for(world_dir: Vector3) -> StringName:
 	if world_dir.length_squared() < 0.01:
 		return &"stagger"
@@ -390,7 +399,9 @@ func _stagger_clip_for(world_dir: Vector3) -> StringName:
 	var facing := body.get_node_or_null("Facing") as Node3D
 	if facing == null:
 		return &"stagger"
-	var forward := -facing.global_transform.basis.z
+	# C-41: forward is +basis.z for a Facing node (`CombatFacing.forward_of`); this had forked to
+	# -basis.z, so flinch/stagger direction clips were mirrored front-to-back.
+	var forward := CombatFacing.forward_of(facing)
 	var right := facing.global_transform.basis.x
 	var flat := Vector3(world_dir.x, 0.0, world_dir.z).normalized()
 	var fwd_dot := forward.dot(flat)
@@ -437,6 +448,10 @@ func play_death() -> void:
 		return
 	_dead = true
 	_blocking = false
+	# C-164: `revive()` already forwards to every mirror; death did not, so the viewmodel kept
+	# resuming locomotion over a dead player.
+	for mirror in _live_mirrors():
+		mirror.mirror_set_dead(true)
 	_start_action(&"death", Priority.DEATH)
 
 
@@ -582,6 +597,11 @@ func _play_local(clip: StringName, blend: float) -> void:
 ## body's "idle" through the normal path made it report a missing clip on every bind, for a clip it
 ## is not supposed to own. A mirror silently keeps its current pose for anything it lacks; a clip
 ## genuinely missing from the rig that drives it is still reported by that rig.
+## C-164: the mirror received the death *clip* and its priority but never the `_dead` state, so on
+## the first-person viewmodel `_on_animation_finished` saw `_dead == false`, fell through its early
+## return and called `_resume_locomotion()` — the arms went back to idling over a dead player. The
+## driving controller's own `_dead` guard is what stops that, and it was the one field that did not
+## propagate.
 func mirror_apply(
 	priority: int, locomotion: StringName, clip: StringName, blend: float, scale: float
 ) -> void:
@@ -592,6 +612,11 @@ func mirror_apply(
 	if not has_clip(clip):
 		return
 	_play_local(clip, blend)
+
+
+## C-164: death and revival are states, not clips, and have to cross to the mirror as states.
+func mirror_set_dead(dead: bool) -> void:
+	_dead = dead
 
 
 func _live_mirrors() -> Array[DioramaAnimController]:
@@ -654,9 +679,20 @@ func _report_missing(clip: StringName, context: String) -> void:
 	)
 
 
+## Throttled per clip, matching `_report_missing_clip` directly above. This fired from
+## `_locomotion_speed_scale`, which runs every physics frame — a training grunt whose stride metadata
+## puts it permanently out of range produced a warning *per frame*. The validation run logged 3,198
+## of these before dying; the flood is not the underlying tuning problem, but it buries every other
+## diagnostic and makes the log unreadable.
 func _report_clamp(clip: StringName, raw_scale: float) -> void:
+	if _clamped_clips.has(clip):
+		return
+	_clamped_clips[clip] = true
 	push_warning(
-		"DioramaAnimController[%s]: locomotion '%s' speed_scale %.2f clamped to [%.1f, %.1f]"
+		(
+			"DioramaAnimController[%s]: locomotion '%s' speed_scale %.2f clamped to [%.1f, %.1f]"
+			+ " (further clamps for this clip suppressed)"
+		)
 		% [_profile, clip, raw_scale, SPEED_SCALE_MIN, SPEED_SCALE_MAX]
 	)
 

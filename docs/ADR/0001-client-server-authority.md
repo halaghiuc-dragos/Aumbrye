@@ -30,7 +30,10 @@ Aumbrye is a single-player action roguelite with online persistence. We need cle
   procgen implementations
 - Code anchors: `apps/game/client/scripts/app/run_flow.gd` (`USE_ONLINE_PROCgen`),
   `packages/procedural/Generation/DungeonGenerator.cs`,
-  `apps/game/client/scripts/validation/suites/cross_stack_parity_suite.gd`
+  ~~`apps/game/client/scripts/validation/suites/cross_stack_parity_suite.gd`~~ — the
+  in-engine suite tree was removed (see `CORE_GAMEPLAY_REVIEW.md` §119); **no automated
+  check compares the two generators today**, which makes step 2 of the roadmap below
+  the only remaining path to parity
 
 > Verified 2026-08-06: `USE_ONLINE_PROCgen := false` (`run_flow.gd:29`), both generators present, and
 > `cross_stack_parity_suite.gd` asserts seed-mix, kind-spec and biome-catalog parity only — not full

@@ -114,7 +114,12 @@ func on_hit(
 	_play_hit_sfx(target, direction, impact)
 	if show_damage_numbers and target is Node3D:
 		_spawn_damage_number(target as Node3D, damage, Vector3.ZERO, damage_type)
-	_flash_diorama_body(target as Node3D, 1.0, Color.WHITE, crit)
+	# C-51: this used to also run `_flash_diorama_body(target, 1.0, Color.WHITE, crit)` on the same
+	# visual the victim's `Hurtbox._emit_victim_feedback` had just flashed — a flat white,
+	# full-strength flash overwriting a careful one that is damage-proportional (strength 0.35→1.0,
+	# duration 0.14→0.30) and tinted by damage type. A fire hit and a physical hit looked
+	# identical on the target. Same resolution as C-06: the victim side owns victim feedback. This
+	# function keeps hitstop, camera punch, rumble, audio and the damage number.
 
 
 func preview_hitstop_duration(damage: float) -> float:

@@ -5,6 +5,7 @@ extends Node3D
 signal opened
 
 const DioramaSkin := preload("res://scripts/art/props/diorama_interactable_skin.gd")
+const InputGlyphServiceScript := preload("res://scripts/ui/input_glyph_service.gd")
 
 var _mesh: Node3D
 @onready var _interact_area: Area3D = $InteractArea
@@ -43,7 +44,7 @@ func apply_opened_state(was_opened: bool) -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	if _opened or _player == null:
 		return
-	if event.is_action_pressed("interact"):
+	if PlayerInput.interact_just_pressed(event):
 		_open()
 
 
@@ -52,7 +53,7 @@ func _on_body_entered(body: Node3D) -> void:
 		_player = body
 		if not _opened:
 			_label.visible = true
-			_label.text = "Press E"
+			_label.text = InputGlyphServiceScript.get_action_prompt(&"interact")
 			set_process_unhandled_input(true)
 
 
@@ -63,11 +64,19 @@ func _on_body_exited(body: Node3D) -> void:
 		set_process_unhandled_input(false)
 
 
+## C-160: `_opened` was claimed *before* the grant loop and the chest is never re-openable — both
+## `apply_opened_state` and the `_unhandled_input` guard key off it, and the state persists into the
+## run snapshot. A failed `add_loot()`, which is exactly what a full grid produces, silently dropped
+## the item: the reward was destroyed and the chest was spent.
+##
+## Items that cannot be granted stay in the chest, and the chest stays shut. The player is told why,
+## through the same `inventory_rejected` channel the HUD already listens on (C-221's
+## "Inventory full" banner), so a refused chest reads as a refusal rather than as nothing happening.
 func _open() -> void:
 	if _opened:
 		return
-	_opened = true
-	_label.visible = false
+	var remaining: Array = []
+	var granted_any := false
 	for entry in _items:
 		var item_id: String = entry.get("itemId", "")
 		var qty: int = entry.get("quantity", 1)
@@ -77,7 +86,18 @@ func _open() -> void:
 		if entry.has("rollSeed"):
 			opts["rollSeed"] = int(entry.get("rollSeed", -1))
 		if InventoryService.add_loot(item_id, opts):
+			granted_any = true
 			RunFlow.register_loot(item_id, str(entry.get("instanceId", "")))
+		else:
+			remaining.append(entry)
+	_items = remaining
+	if not remaining.is_empty():
+		# Partially emptied chests stay open-able for the rest they still hold.
+		if InventoryService and InventoryService.has_signal("inventory_rejected"):
+			InventoryService.inventory_rejected.emit("full")
+		return
+	_opened = true
+	_label.visible = false
 	opened.emit()
 	if _mesh:
 		var tween := create_tween()

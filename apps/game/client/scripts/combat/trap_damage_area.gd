@@ -9,6 +9,9 @@ class_name TrapDamageArea
 @export var team := "trap"
 @export var hit_interval := 0.5
 
+## Only worth walking the dictionary once it has grown past a handful of live overlaps.
+const PRUNE_THRESHOLD := 16
+
 var _cooldowns: Dictionary = {}
 var _collision_shape: CollisionShape3D
 
@@ -50,8 +53,14 @@ func _on_area_entered(area: Area3D) -> void:
 	_try_hit(area)
 
 
+## C-128/C-129: when a trap resolves its own damage through `TrapTactics.strike()` — which is the
+## path that reads `enemyDamageMultiplier` and the authored `damage` — this area is still needed for
+## its overlap queries but must not deal damage of its own, or every hit lands twice.
+@export var deals_damage := true
+
+
 func _try_hit(area: Area3D) -> void:
-	if not monitoring:
+	if not monitoring or not deals_damage:
 		return
 	if not area.has_method("receive_hit"):
 		return
@@ -62,6 +71,18 @@ func _try_hit(area: Area3D) -> void:
 	if _cooldowns.has(id) and now - _cooldowns[id] < hit_interval:
 		return
 	_cooldowns[id] = now
+	_prune_cooldowns(now)
 	var direction := (area.global_position - global_position).normalized()
 	var info := DamageInfo.create(damage, poise_damage, self, damage_type, direction)
 	area.call("receive_hit", info)
+
+
+## C-57: `_cooldowns` accumulated one entry per instance id that ever touched the trap and lived as
+## long as the trap did — a floor's worth of dead ids on a spike pack the player walks over
+## repeatedly. Entries older than the interval can never suppress anything, so they are dropped.
+func _prune_cooldowns(now: float) -> void:
+	if _cooldowns.size() <= PRUNE_THRESHOLD:
+		return
+	for id in _cooldowns.keys():
+		if now - float(_cooldowns[id]) >= hit_interval:
+			_cooldowns.erase(id)

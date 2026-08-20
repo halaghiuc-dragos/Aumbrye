@@ -101,11 +101,29 @@ in this session — not a claim about what it is meant to do or will do once a p
 
 ## 5. Automated enforcement
 
-`apps/game/client/scripts/validation/suites/docs_suite.gd` walks `docs/` and asserts every relative
-markdown link resolves, plus that `validation/manual-checklist.md` exists. That catches broken links —
-it cannot catch a confidently-worded false statement, which is what actually went wrong before. Rule 2
-is the only real defence.
+**`DOC-01` is implemented.** `scripts/check-doc-paths.mjs` extracts every repo path cited in
+`docs/**/*.md` **and in source comments** and fails when one does not exist. It runs in CI as part of
+the `content` job.
 
-Worth adding (tracked as `DOC-01`): a CI step that extracts every `apps/game/client/scripts/**.gd` path
-cited in `docs/**/*.md` and fails when one does not exist. That check, run against the deleted trees,
-found 17 citations pointing at files that had never existed or had been removed.
+It was proposed here and left unbuilt for a long time, and two real defects had exactly this shape
+in the meantime — both shipped:
+
+- **C-261** — `game_facade.gd` pointed at `godot-export` / `smoke-test` jobs in `.github/workflows/`
+  that had never existed.
+- **C-265** — `content_loader.gd` named `.github/workflows/release.yml` as the pipeline that copies
+  `content/` next to the exported binary. It did not exist, and because `content/` lives outside
+  `res://` an export without that copy ships with no catalogues at all. A wrong comment is not
+  cosmetic when the thing it describes is load-bearing.
+
+On its first run the check found further citations pointing at files that had been removed or had
+never existed, in `generate_expansion_biomes.py` (an audio path that never existed, so generated
+biome profiles silently fell back to synthesized music), `room_graph_generator.gd`,
+`GAME_FEEL_REVIEW.md` and this file.
+
+What it still cannot catch is a confidently-worded false statement about a file that *does* exist —
+Rule 2 remains the only defence there. A citation kept deliberately as history is exempted by
+striking it ~~through~~.
+
+The suite that used to do the narrower markdown-link half of this
+(~~`apps/game/client/scripts/validation/suites/docs_suite.gd`~~) was removed with the rest of the
+in-engine harness; see `CORE_GAMEPLAY_REVIEW.md` §119.

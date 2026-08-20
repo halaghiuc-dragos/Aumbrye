@@ -7,8 +7,15 @@ const DEBUG_SCALE := Vector3(1.05, 1.05, 1.05)
 
 
 static func set_debug_draw(area: Area3D, enabled: bool, color: Color) -> void:
+	# C-46: the mesh was built regardless of `enabled`, and both `Hitbox._ready` and
+	# `Hurtbox._ready` call this with `enabled = false`. So every combatant spawn allocated a
+	# MeshInstance3D, a fresh Mesh and a fresh unshaded StandardMaterial3D per hitbox *and* per
+	# hurtbox purely to set `visible = false` — per-spawn allocation and material churn on every
+	# room load, for something no player ever sees. Built lazily on first enable instead.
 	var mesh_node := area.get_node_or_null("DebugDraw") as MeshInstance3D
 	if mesh_node == null:
+		if not enabled:
+			return
 		mesh_node = _create_debug_mesh(area, color)
 		if mesh_node == null:
 			push_warning("CombatCollisionDebug: no collision shape on %s" % area.get_path())

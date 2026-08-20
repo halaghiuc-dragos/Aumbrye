@@ -12,11 +12,24 @@ static func baked_mesh_path(path: String) -> String:
 	return path.substr(0, path.length() - ".voxels.json".length()) + ".tres"
 
 
+## C-170: the baked `.tres` was loaded **only when no theme was supplied** (`theme < 0`), and the
+## three call sites that matter all supply one — body parts, hair and equipment visuals. So all 40
+## baked meshes were dead weight: produced by `scripts/tools/export_voxel_meshes.gd`, shipped in the
+## export, and never loaded, while the greedy mesher rebuilt the same geometry at runtime.
+##
+## The guard was not wrong: colour is written into *vertex colours* (`_emit_triangle` calls
+## `st.set_color`), and a baked mesh carries the unsnapped colour, so reusing it verbatim for a
+## themed rig would have been the wrong colour. But the geometry does not depend on the theme —
+## only the colour does, and every voxel in a part shares one flat colour. So the baked mesh is
+## loaded whatever the theme, and the colour array is rewritten to the snapped value, which is
+## exactly what the themed build would have produced at a fraction of the cost.
 static func load_mesh(source_path: String, theme: int = -1) -> ArrayMesh:
 	var path := source_path
 	var baked := baked_mesh_path(path)
-	if theme < 0 and baked != path and ResourceLoader.exists(baked):
+	var recolour_from_baked := false
+	if baked != path and ResourceLoader.exists(baked):
 		path = baked
+		recolour_from_baked = theme >= 0
 	var cache_key := "%s:%d" % [path, theme]
 	if _cache.has(cache_key):
 		return _cache[cache_key]
@@ -30,13 +43,49 @@ static func load_mesh(source_path: String, theme: int = -1) -> ArrayMesh:
 	else:
 		var loaded := load(path)
 		if loaded is ArrayMesh:
-			_cache[cache_key] = loaded
-			return loaded
+			var mesh_out := loaded as ArrayMesh
+			if recolour_from_baked:
+				mesh_out = _recolour_mesh(mesh_out, _theme_colour_for(source_path, theme))
+			_cache[cache_key] = mesh_out
+			return mesh_out
 	if data.is_empty():
 		return null
 	var mesh := _build_from_voxels(data, theme)
 	_cache[cache_key] = mesh
 	return mesh
+
+
+## C-170: the part's authored base colour, snapped to the theme palette — the same value
+## `_build_from_voxels` would have computed.
+static func _theme_colour_for(source_path: String, theme: int) -> Color:
+	var text := FileAccess.get_file_as_string(source_path)
+	if text.is_empty():
+		return Color.WHITE
+	var parsed = JSON.parse_string(text)
+	if not parsed is Dictionary:
+		return Color.WHITE
+	var color_arr: Array = (parsed as Dictionary).get("color", [0.5, 0.5, 0.5])
+	if color_arr.size() < 3:
+		return Color.WHITE
+	var base := Color(float(color_arr[0]), float(color_arr[1]), float(color_arr[2]))
+	return _snap_to_palette(base, theme) if theme >= 0 else base
+
+
+## Rewrites the whole vertex-colour array to one flat value. Every voxel in a part shares a colour
+## by construction (see `_build_from_voxels`), so this is the complete colour information.
+static func _recolour_mesh(mesh: ArrayMesh, color: Color) -> ArrayMesh:
+	if mesh.get_surface_count() == 0:
+		return mesh
+	var out := ArrayMesh.new()
+	for surface in mesh.get_surface_count():
+		var arrays := mesh.surface_get_arrays(surface)
+		var vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+		var colors := PackedColorArray()
+		colors.resize(vertices.size())
+		colors.fill(color)
+		arrays[Mesh.ARRAY_COLOR] = colors
+		out.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+	return out
 
 
 static func clear_cache() -> void:

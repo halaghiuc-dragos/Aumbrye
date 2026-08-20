@@ -34,6 +34,15 @@ repos:
         exclude: ^apps/game/client/scripts/.*/addons/.*\.gd$
         pass_filenames: true
 
+      # DOC-01 (C-265): a repo path cited in a doc or a source comment must exist. Two shipped
+      # defects were exactly this shape, one of them a contentless export.
+      - id: doc-paths
+        name: check cited repo paths exist
+        entry: node scripts/check-doc-paths.mjs
+        language: system
+        pass_filenames: false
+        files: \.(md|gd|py|mjs)$
+
       - id: eslint-web
         name: eslint apps/web
         entry: bash -c 'cd apps/web && npm run lint'

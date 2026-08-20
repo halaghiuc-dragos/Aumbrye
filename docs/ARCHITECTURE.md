@@ -230,9 +230,9 @@ Authored OGG stems are the live path. All ten biomes have all four stems under
 whose `stream is AudioStreamGenerator`, and loaded stems replace the generator, so synthesis does not run
 in normal play. `audio_suite.gd` asserts this behaviourally (`audio.no_process_synthesis_with_stems`).
 
-The legacy `assets/audio/castle/` folder and the duplicate `.wav` sources next to their `.ogg`
-counterparts are gone; the tree ships `.ogg` only. Eleven SFX are still synthesised placeholders —
-see `remaining_points.md` §3.
+The legacy repo-root `assets/` scaffold (C-38) and the duplicate `.wav` sources next to their `.ogg`
+counterparts are gone; the tree ships `.ogg` only, and all audio lives under
+`apps/game/client/assets/audio/`. Eight SFX are still synthesised placeholders — see C-250.
 
 ---
 
@@ -307,8 +307,10 @@ node scripts/validate.mjs                      # everything
 node scripts/validate.mjs --layer content      # one layer
 ```
 
-The `godot` layer runs the headless validation suites
-(`godot --headless --script res://scripts/validation/validation_main.gd`). `pre-commit` hooks cover
+The `godot` layer runs the headless smoke test (`godot --headless -- --smoke-test`), which boots
+every autoload and subsystem an exported build needs and returns an exit code. The in-engine
+validation suites were removed: 28,631 lines against a ~100k-line client, never once running to
+completion, and a larger maintenance surface than the code they covered. `pre-commit` hooks cover
 content JSON validation, Ruff, gdformat and ESLint on staged files.
 
 Gaps worth knowing before trusting a green run:

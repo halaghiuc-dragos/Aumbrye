@@ -9,6 +9,9 @@ var _container: SubViewportContainer
 var _subvp: SubViewport
 var _vm_camera: Camera3D
 
+## C-167: last applied SubViewport size, so the render target is only reallocated when it changes.
+var _last_viewport_size := Vector2i.ZERO
+
 
 func setup_pass(gameplay_camera: Camera3D, view_root: Node3D) -> void:
 	_gameplay_camera = gameplay_camera
@@ -39,7 +42,11 @@ func setup_pass(gameplay_camera: Camera3D, view_root: Node3D) -> void:
 	_vm_camera = Camera3D.new()
 	_vm_camera.name = "ViewmodelCamera"
 	_vm_camera.near = 0.01
-	_vm_camera.fov = 60.0
+	# C-166: this was a hardcoded 60. The gameplay camera's field of view is a player setting
+	# (`CAMERA_FOV_MIN/MAX/DEFAULT` = 60/100/**70**), so at the default the arms were already 10
+	# degrees narrower than the world behind them, and a player who widened their FOV to 100 pushed
+	# the mismatch to 40 — the arms read as attached to a different camera, because they were.
+	_vm_camera.fov = AccessibilitySettings.camera_fov
 	_vm_camera.current = true
 	_subvp.add_child(_vm_camera)
 	_subvp.add_child(_view_root)
@@ -59,11 +66,31 @@ func _process(_delta: float) -> void:
 		_vm_camera.global_transform = Transform3D(
 			_gameplay_camera.global_transform.basis, Vector3.ZERO
 		)
+	# C-167: this reassigned the SubViewport size every frame whether or not anything changed —
+	# writing `size` on a SubViewport reallocates its render target, so the viewmodel pass was
+	# rebuilding a texture per frame for a value that changes only on a window resize or a
+	# resolution-preset change.
+	#
+	# C-166: the FOV setting can change at runtime from the accessibility page, so it is tracked
+	# the same way.
 	if _subvp:
-		_subvp.size = _viewport_size()
+		var target_size := _viewport_size()
+		if target_size != _last_viewport_size:
+			_last_viewport_size = target_size
+			_subvp.size = target_size
+	if _vm_camera and not is_equal_approx(_vm_camera.fov, AccessibilitySettings.camera_fov):
+		_vm_camera.fov = AccessibilitySettings.camera_fov
 
 
+## C-165: this returned the **window** rect, so the first-person arms rendered at native resolution
+## over a world rendered at 480x270 and upscaled — the one part of the screen that was not
+## pixel-art, in a pipeline whose own comments explain why the internal size must be an integer
+## divisor of the window ("so the nearest-neighbour upscale stays square-pixel... avoid upscale on
+## fractional pixel boundaries and shimmer"). The arms now render at the same internal resolution as
+## everything else.
 func _viewport_size() -> Vector2i:
+	if PixelDioramaSettings and PixelDioramaSettings.low_res_viewport_enabled:
+		return PixelDioramaSettings.viewport_internal_size()
 	if _gameplay_camera == null:
 		return Vector2i(1920, 1080)
 	var vp := _gameplay_camera.get_viewport()

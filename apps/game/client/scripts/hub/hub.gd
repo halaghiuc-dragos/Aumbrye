@@ -55,6 +55,13 @@ func _ready() -> void:
 	_apply_npc_availability()
 	_assert_interact_handlers()
 
+	# C-91: `_refresh_tip_surface()` was only ever reached from `_handle_tip_input`'s two branches
+	# and `_on_save_loaded`, so a tip whose `showWhen` precondition became true through play —
+	# unlocking the blacksmith, finishing a first run, picking up an item — did not appear until the
+	# player happened to press a key that refreshed the surface. The preconditions are evaluated
+	# against live state, so the surface follows the signals that change it.
+	_connect_tip_refresh_sources()
+
 	_castle_menu.dungeon_run_requested.connect(_on_dungeon_run)
 	_castle_menu.continue_requested.connect(_on_castle_continue)
 	_castle_menu.seed_run_requested.connect(_on_castle_seed_run)
@@ -174,7 +181,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 	if _any_ui_open():
 		return
-	if not event.is_action_pressed("interact"):
+	if not PlayerInput.interact_just_pressed(event):
 		return
 	var interact_id := _nearest_interact_id()
 	if interact_id.is_empty():
@@ -188,7 +195,7 @@ func _handle_tip_input(event: InputEvent) -> bool:
 		HubTutorialService.skip_all()
 		_refresh_tip_surface()
 		return true
-	if event.is_action_pressed("ui_accept") or event.is_action_pressed("interact"):
+	if event.is_action_pressed("ui_accept") or PlayerInput.interact_just_pressed(event):
 		HubTutorialService.advance_tip()
 		_refresh_tip_surface()
 		return true
@@ -402,6 +409,30 @@ func _show_return_message() -> void:
 		RunFlow.last_hub_message = ""
 	else:
 		_message_label.text = "Welcome to Aumbrye Tower — explore the landmarks"
+
+
+## C-91: every source whose change can flip a tip's `showWhen`. Bound methods rather than lambdas —
+## Godot only auto-disconnects callables bound to an object, and these outlive the hub scene.
+func _connect_tip_refresh_sources() -> void:
+	if InventoryService:
+		InventoryService.inventory_changed.connect(_on_tip_source_changed)
+	if StorageService:
+		StorageService.storage_changed.connect(_on_tip_source_changed)
+	if CharacterService:
+		CharacterService.flags_changed.connect(_on_tip_source_changed)
+		CharacterService.quests_changed.connect(_on_tip_source_changed)
+		CharacterService.gold_changed.connect(_on_tip_source_changed_int)
+		CharacterService.level_changed.connect(_on_tip_source_changed_int)
+	if DungeonTierService:
+		DungeonTierService.tier_unlocked.connect(_on_tip_source_changed_int)
+
+
+func _on_tip_source_changed() -> void:
+	_refresh_tip_surface()
+
+
+func _on_tip_source_changed_int(_value: int) -> void:
+	_refresh_tip_surface()
 
 
 func _refresh_tip_surface() -> void:

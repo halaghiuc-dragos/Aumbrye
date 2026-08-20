@@ -38,6 +38,10 @@ static var _index_ready := false
 ## synchronous load() once the floor build actually needs them.
 static var _threaded_paths: Dictionary = {}
 static var _segment_cache: Dictionary = {}
+## C-179: one material instance per (biome, slot), so rooms of a biome share it and Godot can batch.
+static var _material_cache: Dictionary = {}
+## C-193: templatePrefix -> biome id, built once instead of rescanned per room.
+static var _prefix_index: Dictionary = {}
 
 
 static func warm_index() -> void:
@@ -178,13 +182,20 @@ static func get_accent_material(biome_id: String) -> Material:
 	return _load_material(biome_id, "accent")
 
 
+## C-193: this scanned every biome and called `get_biome()` — a full `duplicate(true)` of the biome
+## JSON — to read one string, and `castle_room_scene._resolve_biome_id()` calls it once per room. A
+## twelve-room floor therefore deep-copied the largest content dictionaries in the game ~120 times
+## inside the chunked build. The prefix map is built once and reused.
 static func biome_from_template_id(template_id: String) -> String:
 	_ensure_biome_index()
 	var prefix := template_id.get_slice("_", 0)
-	for biome_id in ALL_BIOMES:
-		var biome := get_biome(biome_id)
-		if str(biome.get("templatePrefix", "")) == prefix:
-			return biome_id
+	if _prefix_index.is_empty():
+		for biome_id in ALL_BIOMES:
+			var prefix_value := str(get_biome(biome_id).get("templatePrefix", ""))
+			if prefix_value != "":
+				_prefix_index[prefix_value] = biome_id
+	if _prefix_index.has(prefix):
+		return str(_prefix_index[prefix])
 	return BIOME_CASTLE if prefix == "castle" else ""
 
 
@@ -314,7 +325,9 @@ static func _extend_segments(run_seed: int, segments: Array, target_floor: int) 
 		previous_biome = str(last.get("biomeId", ""))
 		segment_index = int(last.get("index", 0)) + 1
 	while segments.is_empty() or int(segments[segments.size() - 1].get("lastFloor", 0)) < target_floor:
-		rng.seed = hash("%d:%d" % [run_seed, segment_index])
+		# C-192: this documented itself as a stable schedule while seeding from `String.hash()`,
+		# which is the one thing that makes it not stable across engine versions.
+		rng.seed = FloorSeedMix.mix(run_seed, segment_index + 2)
 		var segment_length := rng.randi_range(
 			ENDLESS_SEGMENT_MIN_FLOORS, ENDLESS_SEGMENT_MAX_FLOORS
 		)
@@ -342,6 +355,8 @@ static func clear_caches() -> void:
 	_cache.clear()
 	_room_scene_cache.clear()
 	_segment_cache.clear()
+	_material_cache.clear()
+	_prefix_index.clear()
 
 
 static func _ensure_biome_index() -> void:
@@ -382,9 +397,27 @@ static func _load_material(biome_id: String, slot: String) -> Material:
 			return null
 	if base == null:
 		return null
+	# C-179: this used to `.duplicate()` on every call, handing out a fresh byte-identical
+	# ShaderMaterial each time and defeating PixelDioramaStyle's cache entirely — Godot batches by
+	# material *instance*, so a floor emitted dozens of separate draw batches for materially uniform
+	# geometry, and every copy appended a WeakRef to PixelDioramaSettings._tracked.
+	# `diorama_room_dressing` alone requests the accent material six times per room.
+	#
+	# Verified before changing: no dungeon consumer mutates the material it receives. The one file
+	# that does mutate style materials, `waves_outdoors_diorama.gd`, calls
+	# `PixelDioramaStyle.make_surface_material(...).duplicate()` itself and never comes through here.
+	var cache_key := "%s/%s" % [biome_id, slot]
+	if _material_cache.has(cache_key):
+		var cached: Material = _material_cache[cache_key]
+		if is_instance_valid(cached):
+			return cached
+	var resolved: Material = base
 	if base is ShaderMaterial:
-		return PixelDioramaSettings.track((base as ShaderMaterial).duplicate() as ShaderMaterial)
-	return base.duplicate()
+		resolved = PixelDioramaSettings.track((base as ShaderMaterial).duplicate() as ShaderMaterial)
+	else:
+		resolved = base.duplicate()
+	_material_cache[cache_key] = resolved
+	return resolved
 
 
 static func _color_from_array(raw: Variant) -> Color:

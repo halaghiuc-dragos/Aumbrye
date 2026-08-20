@@ -11,7 +11,8 @@ static func assign(
 	assignment: Dictionary,
 	rng: RandomNumberGenerator,
 	config: RoomContentConfig = null,
-	biome_id: String = ""
+	biome_id: String = "",
+	tier: int = 1
 ) -> Dictionary:
 	config = config if config != null else RoomContentConfig.default()
 	var layout_semantic := _layout_to_semantic(assignment)
@@ -34,7 +35,8 @@ static func assign(
 			distances,
 			rng,
 			config,
-			biome_id
+			biome_id,
+			tier
 		)
 		if result.get("ok", false):
 			return result
@@ -47,7 +49,9 @@ static func assign(
 		critical_layout,
 		distances,
 		rng,
-		biome_id
+		biome_id,
+		config,
+		tier
 	)
 
 
@@ -61,7 +65,8 @@ static func _try_assign_once(
 	distances: Dictionary,
 	rng: RandomNumberGenerator,
 	config: RoomContentConfig,
-	biome_id: String
+	biome_id: String,
+	tier: int = 1
 ) -> Dictionary:
 	var pre_boss_layout := ""
 	var boss_idx := critical_layout.find(graph.boss_id)
@@ -164,7 +169,8 @@ static func _try_assign_once(
 		critical_set,
 		rng,
 		biome_id,
-		reserved_semantics
+		reserved_semantics,
+		tier
 	)
 	var content := {
 		"roomContent": room_content,
@@ -197,7 +203,13 @@ static func _pick_content_type(
 			return RoomContentTypes.COMBAT
 		return RoomContentTypes.EMPTY
 	if on_critical:
-		if distance > 0 and distance % 4 == 0 and distance < 6:
+		# C-146: this read `distance > 0 and distance % 4 == 0 and distance < 6`, which only
+		# `distance == 4` can satisfy — the modulo says "every fourth room on the critical path"
+		# and the `< 6` clamp cut it to exactly one. On a twelve-room path, rooms at distance 8 and
+		# 12 never got the rest roll and fell through to the `distance > 2` branch at 88% combat.
+		# `_guarantee_rest_before_boss()` still places one near the boss, so a floor was never
+		# restless — but the mid-run pacing beat this rule exists for did not happen.
+		if distance > 0 and distance % 4 == 0:
 			if _rest_allowed() and rng.randf() < 0.65:
 				return RoomContentTypes.REST
 			return RoomContentTypes.EMPTY
@@ -476,6 +488,31 @@ static func _place_locked_doors(
 		if used_key_rooms.has(key_room_layout):
 			continue
 		used_key_rooms[key_room_layout] = true
+		# C-132: `keysRequired` was set to 2 under the sealed-doors modifier while exactly one key
+		# was ever placed — the lock record carried a single `keyRoomId` string — so every locked
+		# door on such a floor was permanently unopenable. The extra key rooms are drawn here, and
+		# `keysRequired` is set from how many were *actually* found, so the door can never ask for
+		# more than exists.
+		var key_layouts: Array[String] = [key_room_layout]
+		var wanted_keys := (
+			2
+			if RunModifierService.has_modifier(RunModifierService.MODIFIER_SEALED_DOORS)
+			else 1
+		)
+		while key_layouts.size() < wanted_keys:
+			var extra_layout := _find_key_room_layout(
+				graph,
+				layout_semantic,
+				critical_layout,
+				pick,
+				distances,
+				reserved_semantics,
+				rng
+			)
+			if extra_layout == "" or used_key_rooms.has(extra_layout):
+				break
+			used_key_rooms[extra_layout] = true
+			key_layouts.append(extra_layout)
 		var lock_id := "lock_%s_%s" % [pick["from"], pick["to"]]
 		var key_id := "key_%s_%s" % [pick["from"], pick["to"]]
 		(
@@ -488,10 +525,11 @@ static func _place_locked_doors(
 					"keyId": key_id,
 					"keyRoomId": layout_semantic.get(key_room_layout, ""),
 					"keyLayoutId": key_room_layout,
+					"keyRoomIds": _semantics_for_layouts(layout_semantic, key_layouts),
+					"keyLayoutIds": key_layouts,
 					"keyLabel": "Key (%s)" % pick["from"].capitalize(),
-					"keysRequired": 2 if RunModifierService.has_modifier(
-						RunModifierService.MODIFIER_SEALED_DOORS
-					) else 1,
+					# C-132: never more than the floor actually placed.
+					"keysRequired": key_layouts.size(),
 				}
 			)
 		)
@@ -574,11 +612,38 @@ static func _reachable_without_edge(
 	return reachable
 
 
+## C-144: undoes `_apply_key_to_content` so a dropped lock does not leave orphan key vaults holding
+## keys for a door that no longer exists.
+static func _revert_key_rooms(room_content: Array, lock: Dictionary) -> void:
+	var key_rooms: Array = lock.get("keyRoomIds", [lock.get("keyRoomId", "")])
+	for entry in room_content:
+		if str(entry.get("roomId", "")) not in key_rooms:
+			continue
+		if str(entry.get("contentType", "")) != RoomContentTypes.LOCKED_VAULT:
+			continue
+		entry["contentType"] = RoomContentTypes.REWARD
+		entry["templateId"] = RoomContentTypes.TEMPLATE_BY_TYPE[RoomContentTypes.REWARD]
+		entry.erase("keyId")
+		entry.erase("lockId")
+		entry.erase("keyLabel")
+
+
+static func _semantics_for_layouts(
+	layout_semantic: Dictionary, layouts: Array[String]
+) -> Array[String]:
+	var out: Array[String] = []
+	for layout in layouts:
+		out.append(str(layout_semantic.get(layout, "")))
+	return out
+
+
 static func _apply_key_to_content(
 	room_content: Array, lock: Dictionary, reserved_semantics: Array[String]
 ) -> void:
+	# C-132: converts *every* key room the lock owns, not only the first.
+	var key_rooms: Array = lock.get("keyRoomIds", [lock.get("keyRoomId", "")])
 	for entry in room_content:
-		if entry.get("roomId", "") != lock.get("keyRoomId", ""):
+		if str(entry.get("roomId", "")) not in key_rooms:
 			continue
 		var room_id := str(entry.get("roomId", ""))
 		if room_id in reserved_semantics:
@@ -595,7 +660,7 @@ static func _apply_key_to_content(
 		entry["keyId"] = lock.get("keyId", "")
 		entry["lockId"] = lock.get("lockId", "")
 		entry["keyLabel"] = lock.get("keyLabel", "Dungeon Key")
-		return
+	return
 
 
 static func _finalize_content_entries(
@@ -605,7 +670,8 @@ static func _finalize_content_entries(
 	critical_set: Dictionary,
 	rng: RandomNumberGenerator,
 	biome_id: String,
-	reserved_semantics: Array[String]
+	reserved_semantics: Array[String],
+	tier: int = 1
 ) -> Array:
 	var puzzles: Array = []
 	for entry in room_content:
@@ -614,7 +680,7 @@ static func _finalize_content_entries(
 		var content_type := str(entry.get("contentType", ""))
 		var room_id := str(entry.get("roomId", ""))
 		if content_type == RoomContentTypes.REWARD or content_type == RoomContentTypes.LOCKED_VAULT:
-			entry["items"] = _roll_chest_items(biome_id, rng, room_id, content_type)
+			entry["items"] = _roll_chest_items(biome_id, rng, room_id, content_type, tier)
 		if content_type == RoomContentTypes.NPC_QUEST:
 			var quest := _pick_dungeon_quest(biome_id, rng)
 			entry["questKeyId"] = str(quest.get("questKeyId", ""))
@@ -630,14 +696,23 @@ static func _finalize_content_entries(
 	return puzzles
 
 
+## C-145: `roll_chest` was called with a hardcoded tier of 1, so every reward cache and locked vault
+## on every floor rolled tier-1 loot forever — while `procgen_placements._place_loot()` passes the
+## real tier to the treasure chest. The two systems disagreed, so the main treasure room scaled with
+## dungeon tier and every other chest on the floor did not. Combined with C-143's four-item cap the
+## reward economy was flattened twice over: capped in count and frozen in tier.
 static func _roll_chest_items(
-	biome_id: String, rng: RandomNumberGenerator, room_id: String, content_type: String
+	biome_id: String,
+	rng: RandomNumberGenerator,
+	room_id: String,
+	content_type: String,
+	tier: int = 1
 ) -> Array:
 	var biome := BiomeRegistry.get_biome(biome_id)
 	if biome.is_empty():
 		return []
 	var role := "secret" if content_type == RoomContentTypes.LOCKED_VAULT else "side"
-	var table: Array = ProcgenLootRoller.roll_chest(biome, role, 1, rng)
+	var table: Array = ProcgenLootRoller.roll_chest(biome, role, maxi(1, tier), rng)
 	var items: Array = []
 	for i in table.size():
 		var row: Dictionary = table[i]
@@ -856,10 +931,20 @@ static func build_branch_previews(
 	return previews
 
 
+## C-147: `EMPTY` and `PUZZLE` were classified as `"reward"` alongside genuine rewards, and
+## `combat_hud.set_branch_previews()` turns these into "N rewards / N dangers ahead" — a real
+## route-choice affordance that was therefore lying. Empty rooms are common: `weight_empty` is a
+## first-class weight and `_break_combat_runs` creates more, so a branch of nothing advertised
+## itself as treasure.
+##
+## Three buckets now. The HUD counts `reward` and `danger` and ignores anything else, so `neutral`
+## rooms stop inflating either number rather than inflating the wrong one.
 static func _preview_hint_for_content(content_type: String) -> String:
 	match content_type:
-		RoomContentTypes.REWARD, RoomContentTypes.LORE, RoomContentTypes.REST, RoomContentTypes.MERCHANT, RoomContentTypes.LOCKED_VAULT, RoomContentTypes.NPC_QUEST, RoomContentTypes.EMPTY, RoomContentTypes.PUZZLE:
+		RoomContentTypes.REWARD, RoomContentTypes.LORE, RoomContentTypes.REST, RoomContentTypes.MERCHANT, RoomContentTypes.LOCKED_VAULT, RoomContentTypes.NPC_QUEST:
 			return "reward"
+		RoomContentTypes.EMPTY, RoomContentTypes.PUZZLE:
+			return "neutral"
 		_:
 			return "danger"
 
@@ -879,7 +964,9 @@ static func _fallback_assignment(
 	critical_layout: Array[String],
 	distances: Dictionary,
 	rng: RandomNumberGenerator,
-	biome_id: String
+	biome_id: String,
+	config: RoomContentConfig,
+	tier: int
 ) -> Dictionary:
 	var room_content: Array = []
 	for room in assignment.get("rooms", []):
@@ -892,7 +979,8 @@ static func _fallback_assignment(
 		}
 		room_content.append(entry)
 	var locks: Array = []
-	var config := RoomContentConfig.default()
+	# C-144: the caller's config is threaded in now, so the fallback validates against the same
+	# rules the retry loop used rather than a fresh default.
 	var reserved_semantics := _reserved_semantics(graph, assignment, layout_semantic)
 	if critical_semantic.size() >= 4:
 		locks = _place_locked_doors(
@@ -917,10 +1005,34 @@ static func _fallback_assignment(
 		critical_set,
 		rng,
 		biome_id,
-		reserved_semantics
+		reserved_semantics,
+		tier
 	)
+	# C-144: this path returned `ok: true` without ever calling `RoomContentValidator.validate()` —
+	# the file's docstring promises "lock-and-key placement with solvability validation", and the one
+	# path that exists *because* validation kept failing was the path with none. A fallback floor
+	# could therefore ship a lock whose key sits behind that same lock.
+	#
+	# It still cannot fail the whole generation (that is what the fallback is for), but it validates,
+	# and when it cannot produce a solvable floor it drops the locks rather than shipping an
+	# unopenable one — a floor with fewer locked doors is playable; a floor with an unreachable key
+	# is not.
+	var content := {"roomContent": room_content, "locks": locks, "puzzles": puzzles}
+	var warnings: Array[String] = []
+	var check := RoomContentValidator.validate(graph, assignment, content, config)
+	if not bool(check.get("ok", false)):
+		var reason := str(check.get("reason", "unknown"))
+		push_warning(
+			"RoomContentAssigner: fallback floor failed validation (%s) — dropping locks" % reason
+		)
+		warnings.append("fallback_locks_dropped: %s" % reason)
+		for lock in locks:
+			_revert_key_rooms(room_content, lock)
+		locks = []
+		content = {"roomContent": room_content, "locks": locks, "puzzles": puzzles}
 	return {
 		"ok": true,
-		"content": {"roomContent": room_content, "locks": locks, "puzzles": puzzles},
+		"content": content,
 		"used_fallback": true,
+		"warnings": warnings,
 	}

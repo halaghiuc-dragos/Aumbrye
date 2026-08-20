@@ -86,6 +86,9 @@ var _damage_multiplier := 1.0
 var _draw_charge := 0.0
 var _hyperarmor_active := false
 var _two_hand := false
+
+## C-245: the equipped weapon's infusion element, empty when uninfused.
+var _infusion := ""
 var _combo_idle_timer := 0.0
 var _base_damage_multiplier := 1.0
 var _weapon_scaling_multiplier := 1.0
@@ -236,9 +239,25 @@ func load_weapon_from_path(relative: String) -> void:
 	_weapon_scaling_multiplier = CombatStatModifiersScript.weapon_scaling_multiplier(
 		_weapon_data.get("scaling", {}), _class_stats
 	)
+	# C-42: `_two_hand` was never reset on a weapon swap, and `_refresh_damage_multiplier` applies
+	# TWO_HAND_DAMAGE_MULT (1.25) on the flag alone — as `_enable_hitbox_for_attack` does with
+	# TWO_HAND_POISE_MULT (1.35) and `_spawn_arrow` does through `_damage_multiplier`. So
+	# two-handing any sword and swapping to a bow or dagger carried a permanent 25% damage / 35%
+	# poise bonus that those archetypes are explicitly excluded from — and it could not be turned
+	# off, because `_toggle_two_hand` early-returns for exactly those two archetypes.
+	if _two_hand and not _archetype_can_two_hand():
+		_two_hand = false
 	_refresh_damage_multiplier()
 	_apply_hitbox_profile()
 	weapon_changed.emit(get_archetype())
+
+
+## C-174: the visual weapon kit resolves per *item* through `DioramaWeaponKit.ARCHETYPE_ALIASES`
+## (25 entries mapping `flame_sword` -> sword, `venom_dagger` -> dagger, and so on) — and every
+## caller passed the archetype instead of the item id, so that table could never match and every
+## sword in the game rendered as the same generic kit.
+func get_weapon_id() -> String:
+	return String(_weapon_data.get("id", ""))
 
 
 func get_archetype() -> String:
@@ -319,8 +338,11 @@ func get_attack_phase_progress() -> Dictionary:
 			phase_name = "recovery"
 			duration = float(phases.get("recovery", 0.3))
 		AttackPhase.DRAWING:
-			phase_name = "startup"
-			duration = float(_weapon_data.get("draw_time", 0.8))
+			# C-53: this computed progress from `_phase_timer` against `draw_time`, but a bow draw
+			# is tracked by `_draw_charge` — `_process_bow_input` never writes `_phase_timer`
+			# during a draw, so it held whatever the previous swing left behind and the readout
+			# was stale for exactly the window where a charge bar matters.
+			return {"phase": "draw", "progress": clampf(_draw_charge, 0.0, 1.0)}
 	if duration <= 0.0:
 		return {"phase": phase_name, "progress": 1.0}
 	var progress := 1.0 - clampf(_phase_timer / duration, 0.0, 1.0)
@@ -330,6 +352,15 @@ func get_attack_phase_progress() -> Dictionary:
 func set_damage_multiplier(multiplier: float) -> void:
 	_base_damage_multiplier = maxf(0.1, multiplier)
 	_refresh_damage_multiplier()
+
+
+## C-245: an infusion "converts" a fraction of the weapon's damage to an element — and the converted
+## type never reached combat. `Hurtbox._apply_resistances` and every elemental resistance stat in
+## the game keyed off `DamageInfo.damage_type`, which came from the weapon's own `damage_type` and
+## nothing else, so a fire-infused sword still dealt physical damage to a fire-immune enemy. The
+## infusion was a number on a stat sheet with no bearing on the fight.
+func set_infusion(element: String) -> void:
+	_infusion = element if element in DamageInfo.ALL_TYPES else ""
 
 
 func set_combat_stat_modifiers(
@@ -666,7 +697,7 @@ func _resolve_backstab_target() -> Node3D:
 	var origin := _body.global_position
 	var best: Node3D = null
 	var best_dist := EXECUTION_RANGE * EXECUTION_RANGE
-	for node in get_tree().get_nodes_in_group("enemy"):
+	for node in CombatGroups.hostiles(get_tree()):
 		var enemy := node as Node3D
 		if enemy == null or not is_instance_valid(enemy):
 			continue
@@ -714,7 +745,18 @@ func _snap_to_execution_position(victim: Node3D, kind: String) -> void:
 		if kind == "backstab":
 			target_pos = victim.global_position - forward * EXECUTION_OFFSET
 		target_pos.y = _body.global_position.y
-		_body.global_position = target_pos
+		# C-50: this teleported the player to `target_pos` with no test that the point was free.
+		# Backstab an enemy standing with its back to a wall and the player was written into the
+		# geometry; do it near a ledge or an arena boundary and the player was placed outside it.
+		# The bosses clamp themselves to the arena every physics frame; the player had no
+		# equivalent guard on this path. Sweeping with `move_and_collide` accepts as much of the
+		# move as is actually free and stops at the first blocker.
+		if _body is CharacterBody3D:
+			var motion := target_pos - _body.global_position
+			if motion.length_squared() > 0.000001:
+				(_body as CharacterBody3D).move_and_collide(motion)
+		else:
+			_body.global_position = target_pos
 		_body.velocity = Vector3.ZERO
 		_body.reset_physics_interpolation()
 	_face_target(victim)
@@ -755,7 +797,17 @@ func _start_attack(attack: Dictionary) -> void:
 		director != null and director.has_method("is_bound") and bool(director.call("is_bound"))
 	)
 	_sync_hitbox_from_anim = director_bound and _connect_anim_hitbox_signals()
+	_play_swing_feedback()
 	attack_started.emit(_attack_name)
+
+
+## C-07: swing telegraph — plays with the wind-up, independent of how the hitbox is driven.
+func _play_swing_feedback() -> void:
+	if _body == null:
+		return
+	var anchor: Array = VfxService.resolve_combat_anchor(_body)
+	VfxService.play_attack_swing(anchor[0], anchor[1])
+	AudioDirector.play_sfx("swing", anchor[0])
 
 
 func _process_attack_phase(delta: float) -> void:
@@ -764,17 +816,22 @@ func _process_attack_phase(delta: float) -> void:
 	_phase_timer -= delta
 	if _phase_timer > 0.0:
 		return
+	# C-09: each transition used to assign the next duration fresh, discarding the negative
+	# remainder of the one that just ended. Across startup -> active -> recovery that is up to three
+	# frames (~50 ms at 60 fps) added to every swing, so the authored 0.52 s light attack actually
+	# ran closer to 0.57 s. Carrying `_phase_timer` (which is <= 0 here) keeps the swing honest.
+	var overshoot := _phase_timer
 	match current_phase:
 		AttackPhase.STARTUP:
 			current_phase = AttackPhase.ACTIVE
-			_phase_timer = _current_attack.get("active", 0.15)
+			_phase_timer = float(_current_attack.get("active", 0.15)) + overshoot
 			_snap_soft_lock_facing()
 			if not _sync_hitbox_from_anim and not _hitbox_opened_this_swing:
 				_enable_hitbox_for_attack()
 				_hitbox_opened_this_swing = true
 		AttackPhase.ACTIVE:
 			current_phase = AttackPhase.RECOVERY
-			_phase_timer = _current_attack.get("recovery", 0.3)
+			_phase_timer = float(_current_attack.get("recovery", 0.3)) + overshoot
 			_disable_hitbox()
 			_hyperarmor_active = false
 		AttackPhase.RECOVERY:
@@ -799,21 +856,26 @@ func _enable_hitbox_for_attack() -> void:
 	)
 	if _two_hand:
 		poise *= TWO_HAND_POISE_MULT
+	# C-245: the infusion wins over the weapon's own type — that is what infusing it means.
 	var dmg_type: String = _current_attack.get(
 		"damage_type", _weapon_data.get("damage_type", "physical")
 	)
+	if _infusion != "":
+		dmg_type = _infusion
 	var status_id: String = _current_attack.get("status", _weapon_data.get("status_on_hit", ""))
 	var status_stacks: int = int(_current_attack.get("status_stacks", 1))
 	var crit := CombatStatModifiersScript.crit_chance(_equipment_stats, _talent_stats)
-	var crit_mult := CombatStatModifiersScript.crit_multiplier(_talent_stats)
+	var crit_mult := CombatStatModifiersScript.crit_multiplier(_equipment_stats, _talent_stats)
 	_hitbox.call("set_attack_values", dmg, poise, dmg_type, status_id, status_stacks, crit, crit_mult)
 	if _hitbox.has_method("set_execution"):
 		_hitbox.call("set_execution", _execution_target, _execution_kind)
 	_hitbox.call("enable")
-	if _body:
-		var anchor: Array = VfxService.resolve_combat_anchor(_body)
-		VfxService.play_attack_swing(anchor[0], anchor[1])
-		AudioDirector.play_sfx("swing", anchor[0])
+	# C-07: the swing VFX/SFX used to live here, at the transition into ACTIVE — so the whoosh
+	# played at the moment of contact instead of during the wind-up, trailing the animation by the
+	# whole startup window (0.15 s light, 0.35 s heavy) and losing all telegraph value. Worse, when
+	# `_sync_hitbox_from_anim` is true this function is driven by an animation frame signal rather
+	# than the phase timer, so the audio timing changed depending on whether the AnimDirector bound.
+	# It is emitted from `_start_attack` now, which is where the swing actually starts.
 
 
 func _disable_hitbox() -> void:
@@ -879,7 +941,10 @@ func _process_bow_input(delta: float) -> void:
 
 func _fire_bow_shot() -> void:
 	var heavy: Dictionary = _weapon_data.get("heavy_attack", {})
-	var cost: float = heavy.get("stamina_cost", 18.0)
+	# C-48: this was the one consumption site in the file that did not route through
+	# `_scaled_stamina_cost`, so `stamina_cost_multiplier` affixes and talents were silently inert
+	# for bow builds. Same family as C-08 — a helper most call sites use, and one that did not.
+	var cost: float = _scaled_stamina_cost(float(heavy.get("stamina_cost", 18.0)))
 	if _stamina and not _stamina.has(cost):
 		_reset_bow()
 		return
@@ -932,7 +997,7 @@ func _spawn_arrow(attack: Dictionary, charge: float) -> void:
 	var status_id: String = attack.get("status", _weapon_data.get("status_on_hit", ""))
 	var status_stacks: int = int(attack.get("status_stacks", 1))
 	var crit := CombatStatModifiersScript.crit_chance(_equipment_stats, _talent_stats)
-	var crit_mult := CombatStatModifiersScript.crit_multiplier(_talent_stats)
+	var crit_mult := CombatStatModifiersScript.crit_multiplier(_equipment_stats, _talent_stats)
 	var speed := ARROW_BASE_SPEED * lerpf(0.75, 1.25, charge)
 	if arrow.has_method("launch"):
 		arrow.call(
@@ -948,10 +1013,7 @@ func _spawn_arrow(attack: Dictionary, charge: float) -> void:
 			crit,
 			crit_mult
 		)
-	if _body:
-		var anchor: Array = VfxService.resolve_combat_anchor(_body)
-		VfxService.play_attack_swing(anchor[0], anchor[1])
-		AudioDirector.play_sfx("swing", anchor[0])
+	_play_swing_feedback()
 
 
 func _reset_bow() -> void:
@@ -967,8 +1029,13 @@ func _reset_bow() -> void:
 		attack_ended.emit()
 
 
+## C-42: single source of truth for which archetypes may two-hand.
+func _archetype_can_two_hand() -> bool:
+	return get_archetype() not in ["bow", "dagger"]
+
+
 func _toggle_two_hand() -> void:
-	if get_archetype() in ["bow", "dagger"]:
+	if not _archetype_can_two_hand():
 		return
 	_two_hand = not _two_hand
 	_refresh_damage_multiplier()
@@ -1048,7 +1115,7 @@ func _find_soft_lock_target() -> Node3D:
 	var cone_deg := SOFT_LOCK_CONE_DEG
 	if _body.velocity.length_squared() > 1.0:
 		cone_deg = maxf(70.0, SOFT_LOCK_CONE_DEG - 12.0)
-	for node in get_tree().get_nodes_in_group("lockable"):
+	for node in CombatGroups.lockables(get_tree()):
 		if not node is Node3D or not is_instance_valid(node):
 			continue
 		if node.has_method("is_dead") and node.call("is_dead"):

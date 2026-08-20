@@ -42,7 +42,9 @@ func configure(
 		current = max_value
 		_broken = false
 		_break_timer = 0.0
-	_regen_timer = 0.0
+	# C-49: see `Stamina.configure` — the 2.0 s poise delay was reset by any inventory change.
+	if not preserve_ratio:
+		_regen_timer = 0.0
 	break_duration = maxf(0.1, stagger_duration)
 	poise_changed.emit(current, max_poise)
 

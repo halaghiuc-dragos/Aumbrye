@@ -132,6 +132,17 @@ const UPGRADE_PATHS: Dictionary = {
 	},
 }
 
+## C-245: every `rate` used to be above 1.0, so every infusion was a strict upgrade — more damage
+## *and* a resistance stat, for a gold-and-materials cost, with no trade anywhere. That made the
+## decision "infuse everything, always", and arcane/lightning (1.06x) strictly dominated
+## fire/frost/poison (1.0525x). The mechanic being modelled works by *splitting* damage: you give up
+## raw output for elemental coverage.
+##
+## Rates are now below 1.0, so converting costs raw damage — 35% converted at 0.88 is a ~4.2% output
+## loss, 30% at 0.90 a ~3.0% loss. What you buy with it is real now that C-245's second half is
+## fixed and the converted type actually reaches `Hurtbox._apply_resistances`: against an enemy that
+## resists physical and not fire, a fire infusion is a large gain; against one that resists fire it
+## is a loss. That is the decision the system was built for.
 const INFUSIONS: Dictionary = {
 	"fire":
 	{
@@ -139,7 +150,7 @@ const INFUSIONS: Dictionary = {
 		"label": "Fire",
 		"resist": "resistFire",
 		"convert": 0.35,
-		"rate": 1.15,
+		"rate": 0.88,
 	},
 	"frost":
 	{
@@ -147,7 +158,7 @@ const INFUSIONS: Dictionary = {
 		"label": "Frost",
 		"resist": "resistFrost",
 		"convert": 0.35,
-		"rate": 1.15,
+		"rate": 0.88,
 	},
 	"poison":
 	{
@@ -155,7 +166,7 @@ const INFUSIONS: Dictionary = {
 		"label": "Poison",
 		"resist": "resistPoison",
 		"convert": 0.35,
-		"rate": 1.15,
+		"rate": 0.88,
 	},
 	"arcane":
 	{
@@ -163,7 +174,7 @@ const INFUSIONS: Dictionary = {
 		"label": "Arcane",
 		"resist": "resistArcane",
 		"convert": 0.3,
-		"rate": 1.2,
+		"rate": 0.90,
 	},
 	"lightning":
 	{
@@ -171,7 +182,7 @@ const INFUSIONS: Dictionary = {
 		"label": "Lightning",
 		"resist": "resistLightning",
 		"convert": 0.3,
-		"rate": 1.2,
+		"rate": 0.90,
 	},
 }
 

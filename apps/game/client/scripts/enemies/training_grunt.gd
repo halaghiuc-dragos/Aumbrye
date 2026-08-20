@@ -63,7 +63,7 @@ func _ready() -> void:
 		_hp_bar = HP_BAR_SCRIPT.new() as EnemyHealthBar
 		_hp_bar.name = "HealthBar"
 		add_child(_hp_bar)
-		_hp_bar.setup(_health)
+		_hp_bar.setup(_health, EnemyHealthBar.DEFAULT_HEIGHT, _poise)
 	if _poise:
 		_poise.configure(_data.get("poise", 40.0))
 		_poise.poise_broken.connect(_on_poise_broken)
@@ -186,7 +186,8 @@ func _start_windup() -> void:
 			float(_data.get("recovery_duration", 0.9))
 		)
 	begin_attack_windup_bar(windup)
-	var forward := -global_transform.basis.z
+	# C-41: telegraph aimed behind the dummy.
+	var forward := CombatFacing.forward_of(self)
 	VfxService.play_telegraph(
 		global_position,
 		float(_data.get("telegraph_radius", 1.6)),

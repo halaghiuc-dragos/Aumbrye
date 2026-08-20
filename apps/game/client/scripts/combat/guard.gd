@@ -19,7 +19,17 @@ const PARRY_STAGGER_ENEMY := 1.2
 const RIPOSTE_WINDOW := 1.4
 const RIPOSTE_DAMAGE_MULT := 2.0
 const DEFAULT_ELEMENTAL_REDUCTION := 0.35
-const DEFAULT_GUARD_BREAK_POISE := 0.0
+## C-56: this was `0.0`, and `modify_incoming_hit`'s guard-break branch is
+## `if _guard_break_poise > 0.0 and ...` — so it could never fire without a shield. 17 shields in
+## `content/items/equipment/` author `guardBreakPoise` (34 buckler / 52 kite / 78 tower) and
+## nothing else does, which meant a player with **no shield** was immune to poise-based guard break
+## and could only be broken by running out of stamina. Equipping a shield *added* the only mechanic
+## that could shatter your guard, which is backwards, and it left the "unblockable" telegraph with
+## nothing to key off for most builds.
+##
+## 26 sits below the weakest shield and above the median enemy attack (21), so a bare guard holds
+## against ordinary swings and breaks to the heavy ones — 115 of the 311 authored enemy attacks.
+const DEFAULT_GUARD_BREAK_POISE := 26.0
 
 enum GuardState { IDLE, GUARDING, GUARD_BROKEN }
 
@@ -65,7 +75,13 @@ func _physics_process(delta: float) -> void:
 		_stagger_timer -= delta
 		if _stagger_timer <= 0.0:
 			guard_broken_state = false
-		_reset_guard_state()
+			_reset_guard_state()
+		else:
+			# C-05: hold GUARD_BROKEN for the duration instead of resetting to IDLE every frame.
+			_state = GuardState.GUARD_BROKEN
+			is_blocking = false
+			parry_window_active = false
+			is_guard_active = false
 		return
 
 	if _riposte_timer > 0.0:
@@ -82,10 +98,13 @@ func _physics_process(delta: float) -> void:
 			is_blocking = false
 			parry_window_active = false
 			is_guard_active = false
+			# C-03: this also required `_parry_cooldown_timer <= 0.0`, so releasing block locked the
+			# player out of *blocking* for 0.4 s with no UI indication — an invisible punish for
+			# using a defensive option. The cooldown is a parry-read cooldown; it now suppresses
+			# only the parry window (see `_enter_guard`), and the guard itself always rises.
 			if (
 				PlayerInput.just_pressed(&"block")
 				and not guard_broken_state
-				and _parry_cooldown_timer <= 0.0
 				and (_weapon == null or _weapon.allows_cancel_into("guard"))
 			):
 				_enter_guard()
@@ -97,7 +116,15 @@ func _physics_process(delta: float) -> void:
 			if not PlayerInput.pressed(&"block"):
 				_end_guard()
 		GuardState.GUARD_BROKEN:
-			_reset_guard_state()
+			# C-05: `_trigger_guard_break` used to set this state and then call
+			# `_reset_guard_state()` on the very next line, which put it straight back to IDLE —
+			# so this branch was unreachable and the enum carried a state the machine could never
+			# be in. The break now holds the state for as long as the stagger lasts.
+			is_blocking = false
+			parry_window_active = false
+			is_guard_active = false
+			if not guard_broken_state:
+				_state = GuardState.IDLE
 
 
 func _enter_guard() -> void:
@@ -105,15 +132,21 @@ func _enter_guard() -> void:
 	# press with too little stamina paid nothing, raised no guard, and gave no feedback at all,
 	# so the player could not tell the input from a dropped one. Now the guard still comes up
 	# (blocking without the parry read), and a failed parry attempt says so.
-	var parry_afforded := _stamina == null or _stamina.has(PARRY_STAMINA_COST)
+	# C-04: the parry cost used to be charged on every guard raise, so blocking — a different
+	# decision from parrying — was billed 10 stamina each time, and a failed parry cost exactly as
+	# much as a successful one, making the parry strictly better than the block at low stamina.
+	# The cost is now taken in `try_parry_attack`, when the window actually catches something.
+	#
+	# C-03: the cooldown suppresses the parry window rather than the guard.
+	var parry_ready := (
+		(_stamina == null or _stamina.has(PARRY_STAMINA_COST)) and _parry_cooldown_timer <= 0.0
+	)
 	_state = GuardState.GUARDING
-	_parry_timer = PARRY_WINDOW if parry_afforded else 0.0
+	_parry_timer = PARRY_WINDOW if parry_ready else 0.0
 	_parry_cooldown_timer = PARRY_COOLDOWN
 	is_guard_active = true
 	if _stamina:
 		_stamina.set_regen_state(Stamina.RegenState.BLOCKING)
-		if parry_afforded:
-			_stamina.consume(PARRY_STAMINA_COST)
 	block_state_changed.emit(true)
 
 
@@ -213,6 +246,9 @@ func try_parry_attack(
 	if not _is_within_block_arc(attacker):
 		return false
 	if _stamina and _stamina.is_exhausted():
+		return false
+	# C-04: the parry is what costs stamina, and this is where it lands.
+	if _stamina and not _stamina.consume(PARRY_STAMINA_COST):
 		return false
 	_stagger_attacker(attacker)
 	parry_success.emit(attacker)
@@ -336,9 +372,23 @@ func _is_within_block_arc(attacker: Node) -> bool:
 func _trigger_guard_break() -> void:
 	guard_broken_state = true
 	_state = GuardState.GUARD_BROKEN
-	_reset_guard_state()
-	_stagger_timer = GUARD_BREAK_STAGGER
+	_parry_timer = 0.0
+	is_blocking = false
+	parry_window_active = false
+	is_guard_active = false
+	# C-05: the stagger was 0.8 s while the poise break it also triggers runs 1.2 s and carries a
+	# 1.35x damage multiplier — so a guard break left the player takeable-for-extra-damage for
+	# 0.4 s after they had recovered. The stagger now covers the poise break it causes.
+	_stagger_timer = maxf(GUARD_BREAK_STAGGER, _poise_break_duration())
 	if _poise:
 		_poise.take_poise_damage(_poise.max_poise)
 	guard_broken.emit()
 	block_state_changed.emit(false)
+
+
+## The poise break `_trigger_guard_break` inflicts lasts `Poise.break_duration`; if that node is
+## missing the authored guard-break stagger stands on its own.
+func _poise_break_duration() -> float:
+	if _poise and "break_duration" in _poise:
+		return maxf(0.0, float(_poise.break_duration))
+	return 0.0

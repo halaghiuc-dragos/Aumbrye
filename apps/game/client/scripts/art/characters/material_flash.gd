@@ -20,14 +20,33 @@ const MIN_LOCAL_STRENGTH := 0.35
 
 const META_ACTIVE_TWEEN := &"material_flash_tween"
 
+## C-162: this listed `holy`, which is not a damage type in `DamageInfo.ALL_TYPES`, and omitted
+## `lightning`, which is — so lightning hits flashed white like physical ones (the `Color.WHITE`
+## default), and a colour was maintained for a type nothing can ever deal. The table now matches
+## `ALL_TYPES` exactly.
 const FLASH_TINTS: Dictionary = {
 	"physical": Color.WHITE,
 	"fire": Color(1.0, 0.72, 0.42),
 	"frost": Color(0.72, 0.90, 1.0),
 	"poison": Color(0.78, 1.0, 0.62),
+	"lightning": Color(1.0, 0.94, 0.55),
 	"arcane": Color(0.86, 0.72, 1.0),
-	"holy": Color(1.0, 0.96, 0.76),
 }
+
+## C-102: `AccessibilitySettings.get_damage_color()` handles protanopia, deuteranopia and
+## tritanopia and had exactly one non-test caller — the floating damage number. The *world-space*
+## damage-type signal, this table, had no colourblind path at all, so a colourblind player got a
+## corrected number over a hit whose actual colour cue was unchanged. `emphasise_telegraph_tint`
+## deliberately preserves hue (correctly, and documented), which left the flash as the only
+## remaining channel, and it was the one not covered.
+##
+## The accessibility palette is used at full strength when a mode is active; the authored tints,
+## which are lighter and tuned for a flash rather than for text, stand when it is not.
+static func tint_for_damage_type(damage_type: String) -> Color:
+	if AccessibilitySettings and AccessibilitySettings.colorblind_mode != "default":
+		return AccessibilitySettings.get_damage_color(damage_type)
+	return FLASH_TINTS.get(damage_type, Color.WHITE)
+
 
 static var _shader_uniform_cache: Dictionary = {}
 

@@ -336,15 +336,25 @@ def _palette_colours(theme_index: int) -> tuple[RGB, RGB]:
     return theme_colours(theme_index)
 
 
+# C-37: these values used to be underscored (`ArmL` -> `arm_l`) while `cli.py` derived file names
+# with a bare `part_name.lower()` (`ArmL` -> `arml`) and never consulted this map. The two
+# spellings coexisted in `art-source/characters/`: 98 pairs across the 26 archetypes, every pair
+# byte-identical, 37% of the voxel source tree. The generated client assets use the `cli.py`
+# spelling, so the underscored half was the dead half — and an artist who opened `arm_l.vox`,
+# edited it and re-ran the importer saw no change in game and no error.
+#
+# Standardised on the spelling the shipped assets already use, so nothing has to be regenerated.
+# The map is kept because `PART_NODE_NAMES` is derived from its key set, and because a single
+# place to look up a part's file name is what was missing.
 PART_FILE_NAMES: dict[str, str] = {
-    "LegL": "leg_l",
-    "LegR": "leg_r",
-    "LegBL": "leg_bl",
-    "LegBR": "leg_br",
+    "LegL": "legl",
+    "LegR": "legr",
+    "LegBL": "legbl",
+    "LegBR": "legbr",
     "Torso": "torso",
     "Head": "head",
-    "ArmL": "arm_l",
-    "ArmR": "arm_r",
+    "ArmL": "arml",
+    "ArmR": "armr",
     "Tail": "tail",
 }
 

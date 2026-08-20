@@ -10,6 +10,18 @@ var _index: Dictionary = {}  # slot_id -> Vector2i
 ## currently occupied by a non-filler, non-secret slot. A count of 4 means all four cells of
 ## that anchor's block are "solid", which is exactly what `_creates_2x2_block` used to
 ## re-derive with a 16-lookup scan per placement candidate.
+##
+## C-207: this optimisation is maintained on every `add_slot`/`remove_slot` for a check that is
+## currently never run — all ten biomes author `allow2x2Blocks: true`, so neither `_can_place_room`
+## nor `_validate_graph` ever asks. It is kept rather than removed because the knob is real and
+## authoring `false` on one biome would need it immediately; the cost is two dictionary updates per
+## placement, which is cheap next to the 16-lookup scan it replaces. Recorded so the next reader
+## does not conclude the counts are load-bearing today.
+##
+## `maxNeighborCount` has the same shape: all ten biomes author `4`, the maximum possible on a
+## 4-neighbour grid, so the knob permits every candidate with three or fewer neighbours — which is
+## nearly all of them. It reads like a branching limiter and constrains nothing. Both are live knobs
+## with no-op defaults, which is a content decision rather than a code defect.
 var _block_counts: Dictionary = {}
 var start_id: String = ""
 var boss_id: String = ""

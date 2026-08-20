@@ -1,14 +1,18 @@
 {
-  "schemaVersion": 1,
-  "blocked": [
+  "schemaVersion": 2,
+  "_comment": "C-248: split into two lists with different matching rules. `reserved` guards against impersonation and is matched inside the name (Admin_Steve is the attack, not admin). `blocked` is the substring blocklist proper and is empty until someone with authority over the product decides what belongs on it. Entries under `shortReserved` are matched as whole tokens instead of substrings, because a 3-letter substring rule rejects Godwin, Devlin and Testa.",
+  "reserved": [
     "admin",
     "moderator",
-    "null",
     "undefined",
-    "god",
-    "dev",
-    "test",
     "player",
     "warden"
-  ]
+  ],
+  "shortReserved": [
+    "null",
+    "god",
+    "dev",
+    "test"
+  ],
+  "blocked": []
 }

@@ -376,11 +376,21 @@ func _grant_rewards(def: Dictionary) -> void:
 		return
 	if rewards.has("gold"):
 		CharacterService.add_gold(int(rewards.get("gold", 0)))
+	# C-241: `add_item` returns a bool that used to be discarded, so a full inventory silently ate
+	# the reward while the quest still flipped to COMPLETED — permanently, for non-repeatables.
+	# `merchant_service.buy_item` already shows the right shape: check space, then surface the
+	# rejection through the signal the HUD and hub both listen to.
 	for item_entry in rewards.get("items", []):
-		if item_entry is Dictionary:
-			InventoryService.add_item(
-				str(item_entry.get("itemId", "")), int(item_entry.get("quantity", 1))
-			)
+		if not item_entry is Dictionary:
+			continue
+		var reward_id := str(item_entry.get("itemId", ""))
+		if reward_id == "":
+			continue
+		var reward_qty := maxi(1, int(item_entry.get("quantity", 1)))
+		for _i in reward_qty:
+			if not InventoryService.add_item(reward_id, 1):
+				InventoryService.notify_reward_lost(reward_id)
+				break
 	for flag_entry in rewards.get("flags", []):
 		if flag_entry is Dictionary:
 			CharacterService.set_flag(

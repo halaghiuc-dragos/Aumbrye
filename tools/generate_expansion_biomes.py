@@ -285,8 +285,13 @@ def write_audio_profile(biome: dict, *, force: bool, dry_run: bool) -> None:
         "exploreFreq": 100,
         "combatFreq": 120,
         "bossFreq": 180,
-        "ambiencePath": "res://assets/audio/castle/ambience_loop.wav",
-        "bossPath": "res://assets/audio/castle/boss_theme.wav",
+        # C-265/DOC-01: these named `res://assets/audio/castle/*.wav`, which never existed — the
+        # repo-root `assets/` scaffold was empty and is now deleted (C-38), and the real audio ships
+        # as `.ogg` under the client. A generated profile pointing at a missing stem silently falls
+        # back to the synthesized generator, so the biome would have had no authored music and no
+        # diagnostic. Pointed at the shared stems that do exist.
+        "ambiencePath": "res://assets/audio/umbral_chapel/ambience_loop.ogg",
+        "bossPath": "res://assets/audio/umbral_chapel/boss_theme.ogg",
         "crossfadeSeconds": 0.8,
     }
     path = CONTENT / "audio_profiles" / f"{biome['id']}.json"

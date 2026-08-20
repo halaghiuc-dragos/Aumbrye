@@ -62,12 +62,12 @@ func refresh_lobby() -> void:
 func show_combat(wave: int) -> void:
 	_ready_button.visible = false
 	_reward_box.visible = false
-	_label.text = "Wave %d — clear all enemies." % wave
+	_label.text = tr("WAVES_WAVE_ACTIVE").format({"wave": wave})
 
 
 func show_prep(wave: int, countdown: float) -> void:
 	_ready_button.visible = false
-	_label.text = "Milestone wave %d cleared! Walls rebuild — prep %.0fs." % [wave, countdown]
+	_label.text = tr("WAVES_MILESTONE_CLEARED").format({"wave": wave, "seconds": "%.0f" % countdown})
 
 
 func show_reward_pick() -> void:
@@ -76,12 +76,20 @@ func show_reward_pick() -> void:
 	_selected_rewards.clear()
 	for child in _reward_box.get_children():
 		child.queue_free()
-	_label.text = "Victory! Choose up to 3 items to keep:"
-	for slot in WavesRunService.waves_inventory.slots:
+	_label.text = tr("WAVES_VICTORY_PICK")
+	var inventory := WavesRunService.waves_inventory
+	for slot in inventory.slots:
 		var item_id: String = str(slot.get("itemId", ""))
 		if item_id == "":
 			continue
-		var btn := GameUISkinScript.make_button("Take %s" % item_id)
+		# C-247: this read `"Take %s" % item_id`, so the final screen of the mode offered
+		# "Take unique_widow_of_the_stair". `get_slot_display_name` resolves the catalog name and
+		# prefixes the rarity, exactly as the inventory and loadout lists already do.
+		var display_name: String = inventory.get_slot_display_name(slot)
+		var quantity: int = int(slot.get("quantity", 1))
+		if quantity > 1:
+			display_name = "%s x%d" % [display_name, quantity]
+		var btn := GameUISkinScript.make_button(tr("WAVES_TAKE_REWARD").format({"item": display_name}))
 		btn.toggle_mode = true
 		btn.pressed.connect(_on_pick_reward.bind(item_id, btn))
 		_reward_box.add_child(btn)
@@ -127,7 +135,7 @@ func _refresh_confirm_state() -> void:
 	var needs_pick := item_count > 0 and _selected_rewards.is_empty()
 	_confirm_button.disabled = needs_pick
 	if _confirm_hint:
-		_confirm_hint.text = "Pick at least one reward" if needs_pick else ""
+		_confirm_hint.text = tr("WAVES_PICK_AT_LEAST_ONE") if needs_pick else ""
 
 
 func _on_confirm_rewards() -> void:

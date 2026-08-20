@@ -81,9 +81,11 @@ var _dodge_timer := 0.0
 var _recovery_timer := 0.0
 var _dodge_direction := Vector3.ZERO
 var _is_backstep := false
+## C-67: set while an execution or wake-up window owns the invulnerability, so the roll ending does
+## not retract someone else's grant.
+var _external_iframes := false
 var _dodge_speed := DODGE_SPEED
 var _talent_stamina_mult := 1.0
-var _was_on_floor := false
 var _profiles: Dictionary = {}
 var _light_below := 30.0
 var _heavy_at_or_above := 75.0
@@ -196,6 +198,14 @@ func process_dodge_physics(delta: float) -> void:
 		return
 	if PlayerInput.just_pressed(&"dodge") and _can_dash():
 		_start_dash()
+		# C-63: `_start_dash()` sets `is_dodging` but performs no motion — `_process_dash`, which
+		# owns the roll's `move_and_slide()`, only ran from the *next* frame. Locomotion sees
+		# `is_dodging` and returns before its own `move_and_slide()`, so the first frame of every
+		# roll applied no movement and no gravity: 16.7 ms of dead air at 60 Hz, on the input the
+		# whole genre is timed around, in exactly the frame the player expects to have left the
+		# ground. Falling through means the roll moves on the frame it starts.
+		if is_dodging:
+			_process_dash(delta)
 
 
 func get_dash_progress() -> float:
@@ -220,14 +230,20 @@ func get_move_speed_multiplier() -> float:
 
 
 func grant_external_iframes(active: bool) -> void:
+	_external_iframes = active
 	if iframes_active == active:
 		return
 	iframes_active = active
 	iframes_changed.emit(iframes_active)
 
 
+## C-67: this skipped the attack-commitment check `_can_dash()` performs, so the stagger rollout
+## could cancel a swing a normal dodge could not. It keeps its own stamina handling — the caller
+## supplies the cost — but it has to respect the same cancel window.
 func try_rollout_dash(stamina_cost: float) -> bool:
 	if is_dodging or _recovery_timer > 0.0:
+		return false
+	if _weapon and not _weapon.allows_cancel_into("dodge"):
 		return false
 	if _stamina and not _stamina.consume(stamina_cost):
 		return false
@@ -236,11 +252,14 @@ func try_rollout_dash(stamina_cost: float) -> bool:
 
 
 func _update_timers(delta: float) -> void:
+	# C-01: the decrement used to be gated on `_was_on_floor`, which is assigned the *current* floor
+	# state at the end of this function — so the branch was reachable only on the single frame after
+	# leaving the ground. The timer ticked once, froze, and `_handle_jump_buffer` kept seeing
+	# `_coyote_timer > 0.0` for the whole descent: one free mid-air jump on every fall.
 	if _body and _body.is_on_floor():
 		_coyote_timer = COYOTE_TIME
-	elif _was_on_floor:
+	elif _coyote_timer > 0.0:
 		_coyote_timer = maxf(0.0, _coyote_timer - delta)
-	_was_on_floor = _body.is_on_floor() if _body else false
 
 	if PlayerInput.just_pressed(&"jump"):
 		_jump_buffer_timer = JUMP_BUFFER_TIME
@@ -284,7 +303,11 @@ func _start_dash(skip_cost: bool = false) -> void:
 	var lock_on := _body.get_node_or_null("LockOn")
 	if LockOnMovement.is_active(lock_on):
 		_dodge_direction = LockOnMovement.get_locked_dodge_direction(_body, lock_on, input_dir)
-		if input_dir.length_squared() > 0.01 and absf(input_dir.x) >= 0.01:
+		# C-02: this also required `absf(input_dir.x) >= 0.01`, so locked on and holding pure
+		# forward or pure backward — the two most common inputs in a boss fight — classified as a
+		# backstep and took the 0.667 speed and 0.8 duration multipliers. Classify on the whole
+		# vector; the locked-on direction helper already resolves which way the roll goes.
+		if input_dir.length_squared() > 0.01:
 			_dodge_speed = DODGE_SPEED
 		else:
 			_dodge_speed = DODGE_BACK_SPEED
@@ -354,9 +377,16 @@ func _process_dash(delta: float) -> void:
 		_body.velocity += _body.get_gravity() * delta
 	elif _body.velocity.y > 0.0:
 		_body.velocity.y = 0.0
+	# C-02: the i-frame window is authored as absolute times against the *unshortened* roll, so a
+	# backstep (0.8 duration) used to end at 0.384 s while the window ran to 0.42 s — the roll
+	# finished before its own invulnerability did, silently costing 8% of the defensive window.
+	# Scaling the window by the same factor as the duration keeps it a fixed fraction of the roll.
+	var window_scale := _active_duration / maxf(0.001, _duration)
 	var iframe_end := _iframe_end + ClassPerks.shadowstep_iframe_bonus(_body, _is_backstep)
 	iframe_end = _apply_dodge_window_assist(iframe_end)
-	var iframes := elapsed >= _iframe_start and elapsed <= iframe_end
+	var iframes := (
+		elapsed >= _iframe_start * window_scale and elapsed <= iframe_end * window_scale
+	)
 	if iframes != iframes_active:
 		iframes_active = iframes
 		iframes_changed.emit(iframes_active)
@@ -379,8 +409,13 @@ func _apply_dodge_window_assist(iframe_end: float) -> float:
 
 func _end_dash() -> void:
 	is_dodging = false
-	iframes_active = false
-	iframes_changed.emit(false)
+	# C-67: this cleared `iframes_active` unconditionally, which would clobber
+	# `grant_external_iframes(true)` if an execution or stagger-wakeup window ever overlapped the
+	# end of a roll. `_is_action_blocked()` currently prevents the overlap, so it is a correctness
+	# landmine rather than a live bug — but the roll should only ever retract its own grant.
+	if not _external_iframes:
+		iframes_active = false
+		iframes_changed.emit(false)
 	_recovery_timer = _recovery
 	_dodge_speed = DODGE_SPEED
 	if _stamina:

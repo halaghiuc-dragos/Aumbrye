@@ -7,7 +7,13 @@ import json
 import sys
 from pathlib import Path
 
-from archetypes import ArchetypeSpec, all_archetypes, equipment_archetypes, theme_colours
+from archetypes import (
+    PART_FILE_NAMES,
+    ArchetypeSpec,
+    all_archetypes,
+    equipment_archetypes,
+    theme_colours,
+)
 from godot_mesh_writer import mesh_resource_path, write_mesh
 from mesh_builder import EDGE, mesh_model, validate_mesh_on_grid
 from palette import snap_colour
@@ -20,7 +26,8 @@ CONTENT_CHARS = REPO_ROOT / "content" / "characters"
 
 
 def _part_file_name(part_name: str) -> str:
-    return part_name.lower()
+    # C-37: this used to bypass PART_FILE_NAMES entirely, which is how the two conventions drifted.
+    return PART_FILE_NAMES.get(part_name, part_name.lower())
 
 
 def _build_part_model(spec_part, body_colour, accent_colour) -> object:

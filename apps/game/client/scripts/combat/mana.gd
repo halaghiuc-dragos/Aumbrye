@@ -23,11 +23,21 @@ func _ready() -> void:
 	mana_changed.emit(current, max_mana)
 
 
-func configure(max_value: float, regen_multiplier: float = 1.0) -> void:
+## C-49: `Mana` was the one resource that never received the BUG-13 `preserve_ratio` parameter that
+## `Health`, `Poise` and `Stamina` all carry, so the hardening against the equipment path — which
+## fires on every inventory change — skipped it, and moving an item zeroed the 0.7 s mana delay.
+func configure(
+	max_value: float, regen_multiplier: float = 1.0, preserve_ratio: bool = false
+) -> void:
+	var old_max := max_mana
 	max_mana = maxf(1.0, max_value)
-	current = minf(current, max_mana)
+	if preserve_ratio and old_max > 0.0:
+		current = clampf((current / old_max) * max_mana, 0.0, max_mana)
+	else:
+		current = minf(current, max_mana)
 	_regen_multiplier = maxf(0.1, regen_multiplier)
-	_regen_timer = 0.0
+	if not preserve_ratio:
+		_regen_timer = 0.0
 	mana_changed.emit(current, max_mana)
 
 
@@ -47,9 +57,13 @@ func restore(amount: float) -> void:
 	mana_changed.emit(current, max_mana)
 
 
-func consume(amount: float) -> bool:
+## C-57: `consume` and `drain` were byte-identical apart from the `insufficient` emit — two methods
+## where one with a flag does. (`Stamina`'s pair was also flagged, but those two genuinely differ:
+## `drain` clamps to zero and spends what is there, `consume` is all-or-nothing. Left alone.)
+func consume(amount: float, notify_insufficient: bool = true) -> bool:
 	if current < amount:
-		insufficient.emit()
+		if notify_insufficient:
+			insufficient.emit()
 		return false
 	current -= amount
 	_regen_timer = REGEN_DELAY
@@ -60,14 +74,7 @@ func consume(amount: float) -> bool:
 
 
 func drain(amount: float) -> bool:
-	if current < amount:
-		return false
-	current -= amount
-	_regen_timer = REGEN_DELAY
-	mana_changed.emit(current, max_mana)
-	if current <= 0.0:
-		depleted.emit()
-	return true
+	return consume(amount, false)
 
 
 func has(amount: float) -> bool:

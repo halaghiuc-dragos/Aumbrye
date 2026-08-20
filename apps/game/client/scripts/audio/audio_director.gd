@@ -57,6 +57,73 @@ const SFX_PROFILES := {
 	"door_release": {"path": "res://assets/audio/sfx/heal_raise.ogg", "bus": &"SFX", "placeholder": true},
 	"portal_open": {"path": "res://assets/audio/sfx/heal_commit.ogg", "bus": &"SFX", "placeholder": true},
 	"portal_enter": {"path": "res://assets/audio/sfx/ui_click_01.ogg", "bus": &"UI", "placeholder": true},
+	# C-161: `RarityRegistry.drop_sfx_id()` produces six ids — `loot_drop_common` through
+	# `loot_drop_aumbral` — and **none of them existed**, so in a looter every loot drop played the
+	# missing-sfx fallback tone, and the *same* tone for a common and an aumbral. `RarityRegistry`
+	# carefully defines per-rarity beam height, beam energy, display colour, an epic toast threshold
+	# and an aumbral camera nudge, and `world_item_pickup` uses all of them; the one channel that
+	# says "this one matters" by itself was the one that beeped.
+	#
+	# All six borrow existing files and are pitch-shifted apart, so the ladder is audible without
+	# authored foley — and all six are marked `placeholder` so the report counts them honestly.
+	"loot_drop_common": {
+		"path": "res://assets/audio/sfx/ui_click_01.ogg",
+		"bus": &"SFX",
+		"pitch": 0.85,
+		"placeholder": true,
+	},
+	"loot_drop_magic": {
+		"path": "res://assets/audio/sfx/ui_click_01.ogg",
+		"bus": &"SFX",
+		"pitch": 1.0,
+		"placeholder": true,
+	},
+	"loot_drop_rare": {
+		"path": "res://assets/audio/sfx/ui_interact_near.ogg",
+		"bus": &"SFX",
+		"pitch": 1.05,
+		"placeholder": true,
+	},
+	"loot_drop_epic": {
+		"path": "res://assets/audio/sfx/heal_raise.ogg",
+		"bus": &"SFX",
+		"pitch": 1.1,
+		"placeholder": true,
+	},
+	"loot_drop_legendary": {
+		"path": "res://assets/audio/sfx/heal_commit.ogg",
+		"bus": &"SFX",
+		"pitch": 1.0,
+		"placeholder": true,
+	},
+	"loot_drop_aumbral": {
+		"path": "res://assets/audio/shared/sting_clear.ogg",
+		"bus": &"SFX",
+		"pitch": 1.0,
+		"placeholder": true,
+	},
+	# C-122: three ids were requested by live gameplay code and defined nowhere, so each played a
+	# generic synthesized tone through the missing-sfx fallback. `dodge_perfect` is the audio reward
+	# for a perfectly timed dodge — the most skilful action in the genre, and the thing the whole
+	# i-frame model exists to make possible — and it beeped. `exhausted` and `resource_denied` are
+	# the two "you cannot act" cues, the other moment audio has to be unambiguous. All three borrow
+	# a near-fit file and are marked as placeholders so they are counted honestly.
+	"dodge_perfect": {
+		"path": "res://assets/audio/sfx/parry_01.ogg", "bus": &"SFX", "placeholder": true
+	},
+	"exhausted": {
+		"path": "res://assets/audio/sfx/heal_raise.ogg", "bus": &"SFX", "placeholder": true
+	},
+	"resource_denied": {
+		"path": "res://assets/audio/sfx/block_02.ogg", "bus": &"UI", "placeholder": true
+	},
+	# C-65: guard break was the only major defensive event with no sound at all — the harshest
+	# defensive failure in the game was communicated by a 0.16 s material flash. Marked as a
+	# placeholder because it borrows the armour-hit file rather than being authored foley, so it
+	# shows up in the `_report_placeholder_sfx` banner alongside the other seven.
+	"guard_break": {
+		"path": "res://assets/audio/sfx/hit_armor.ogg", "bus": &"SFX", "placeholder": true
+	},
 	"boss_reveal": {"path": "res://assets/audio/shared/sting_boss.ogg", "bus": &"Music"},
 }
 
@@ -168,7 +235,7 @@ func _report_placeholder_sfx() -> void:
 	for key in SFX_PROFILES:
 		var profile: Dictionary = SFX_PROFILES[key]
 		# A real variant authored in the SFX bank supersedes the placeholder entry.
-		if bool(profile.get("placeholder", false)) and not _sfx_bank.has(key):
+		if bool(profile.get("placeholder", false)) and not _bank_covers(str(key)):
 			pending.append(str(key))
 	if pending.is_empty():
 		return
@@ -177,6 +244,32 @@ func _report_placeholder_sfx() -> void:
 		"[color=yellow]AudioDirector: %d placeholder SFX still need real foley — %s[/color]"
 		% [pending.size(), ", ".join(pending)]
 	)
+
+
+## C-251: the report used to ask `_sfx_bank.has(key)` directly, which cannot see through the one
+## indirection the bank actually uses. `footstep_stone` and its siblings are never requested as
+## bank keys — `play_sfx(kind, world_pos, surface)` asks for `footstep` and resolves the surface
+## from `surface_variants`. So three authored surfaces were reported as "still need real foley",
+## and a developer scanning the banner would dismiss the whole list as stale. Snow genuinely has
+## no variant authored and stays on the list, which is the point of the report.
+static func _profile_bank_key(key: String) -> Array:
+	if key.begins_with("footstep_"):
+		return ["footstep", key.substr("footstep_".length())]
+	return [key, ""]
+
+
+func _bank_covers(key: String) -> bool:
+	var resolved: Array = _profile_bank_key(key)
+	var bank_key: String = str(resolved[0])
+	var surface: String = str(resolved[1])
+	if not _sfx_bank.has(bank_key):
+		return false
+	if surface == "":
+		return true
+	var entry: Dictionary = _sfx_bank[bank_key]
+	var surface_variants: Dictionary = entry.get("surface_variants", {})
+	var paths: Array = surface_variants.get(surface, [])
+	return not paths.is_empty()
 
 
 func _recompute_generator_active() -> void:
@@ -412,12 +505,40 @@ func play_boss_music() -> void:
 	_apply_layer_mix(_crossfade)
 
 
+## C-79: a boss crossing 55% health, roaring, spawning adds and ringing the arena with hazards used
+## to happen over completely unchanged music — `play_boss_music()` was called once per fight and
+## nothing ever touched it again. `onEnter` supported vfx, sfx, shake, tell duration, invulnerability,
+## telegraph shape/radius/tint, adds and hazards, and had no `music` key at all.
+##
+## Two ways to mark the beat, so it lands whether or not real stems are authored: a phase that names
+## a `music` path crossfades the boss layer to it, and every phase — authored path or not — fires the
+## `boss_reveal` sting and lifts the synth fallback's pitch a fifth, so the transition is audible
+## even on placeholder audio.
+func set_boss_phase(phase_index: int, music_path: String = "") -> void:
+	if not _boss_active:
+		return
+	if music_path != "":
+		_try_load_file_stream(_music, music_path)
+		_fade_in_player(_music)
+	elif _music.stream is AudioStreamGenerator:
+		_music_freq = float(_profile.get("bossFreq", 196.0)) * pow(1.5, float(maxi(0, phase_index)))
+		_music.set_meta(&"freq", _music_freq)
+	if phase_index > 0:
+		play_sfx("boss_reveal")
+
+
 func end_boss_music() -> void:
 	if not _boss_active:
 		return
 	_boss_active = false
 	_current_mode = "dungeon"
 	_intensity = -1.0
+	# C-79: restore the biome's authored boss stem and pitch, in case a phase swapped either.
+	_music_freq = float(_profile.get("bossFreq", 196.0))
+	_music.set_meta(&"freq", _music_freq)
+	var boss_path: String = _profile.get("bossPath", "")
+	if boss_path != "":
+		_try_load_file_stream(_music, boss_path)
 	_recompute_intensity(_crossfade * 1.5)
 
 
@@ -672,11 +793,17 @@ func _play_stream(stream: AudioStream, world_pos: Variant, entry: Dictionary, ki
 		bus = StringName(str(entry["bus"]))
 	elif SFX_PROFILES.has(kind):
 		bus = SFX_PROFILES[kind].get("bus", &"SFX")
-	var volume_db := float(entry.get("volume_db", 0.0))
-	var pitch_jitter := float(entry.get("pitch_jitter", 0.0))
-	var pitch_scale := 1.0
+	# C-161: the bank entry wins where it defines a key, and the profile fills the rest — these
+	# come from two sources (`content/audio/sfx.json` and `SFX_PROFILES`) and only the bank half was
+	# ever consulted here.
+	var profile: Dictionary = SFX_PROFILES.get(kind, {})
+	var volume_db := float(entry.get("volume_db", profile.get("volume_db", 0.0)))
+	var pitch_jitter := float(entry.get("pitch_jitter", profile.get("pitch_jitter", 0.0)))
+	# A fixed `pitch`, distinct from the random `pitch_jitter` — it is what lets six loot-drop
+	# rarities share three files and still read as a ladder.
+	var pitch_scale := float(entry.get("pitch", profile.get("pitch", 1.0)))
 	if pitch_jitter > 0.0:
-		pitch_scale = 1.0 + _rng.randf_range(-pitch_jitter, pitch_jitter)
+		pitch_scale *= 1.0 + _rng.randf_range(-pitch_jitter, pitch_jitter)
 	if world_pos is Vector3:
 		var player3d := _acquire_sfx_3d_player()
 		if player3d == null:

@@ -57,7 +57,7 @@ func is_active() -> bool:
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	if _state != State.ACTIVE or not _near_player or not event.is_action_pressed("interact"):
+	if _state != State.ACTIVE or not _near_player or not PlayerInput.interact_just_pressed(event):
 		return
 	get_viewport().set_input_as_handled()
 	if _confirm_pending:

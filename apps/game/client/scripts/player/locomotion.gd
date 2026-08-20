@@ -136,7 +136,11 @@ func _physics_process(delta: float) -> void:
 		velocity.x = lunge.x
 		velocity.z = lunge.z
 		move_and_slide()
-		_update_floor_state()
+		# C-25: `_update_floor_state()` both computes the fall height *and* consumes the
+		# transition by resetting `_was_on_floor`. Discarding its return here meant touching down
+		# in this state cost no fall damage, no landing dip and no landing footstep — press dodge
+		# as you land and a lethal fall was free.
+		_consume_landing()
 		_update_character_animation(delta, 0.0)
 		return
 
@@ -149,14 +153,16 @@ func _physics_process(delta: float) -> void:
 		velocity.x = horizontal.x
 		velocity.z = horizontal.z
 		move_and_slide()
-		_update_floor_state()
+		# C-25: see above.
+		_consume_landing()
 		_update_character_animation(delta, 0.0)
 		return
 
 	if _dodge:
 		_dodge.process_dash_physics(delta)
 		if _dodge.is_dodging:
-			_update_floor_state()
+			# C-25: see above.
+			_consume_landing()
 			_update_character_animation(delta, 0.0)
 			return
 
@@ -277,6 +283,13 @@ func _physics_process(delta: float) -> void:
 	_update_character_animation(delta, fall_height)
 
 
+## C-25: the three early-return branches share this so a landing is never silently swallowed.
+func _consume_landing() -> void:
+	var fall_height := _update_floor_state()
+	if fall_height > 0.0:
+		_on_landed(fall_height)
+
+
 func _update_floor_state() -> float:
 	var on_floor_now := is_on_floor()
 	var fall_height := 0.0
@@ -292,7 +305,11 @@ func _update_floor_state() -> float:
 
 func _on_landed(fall_height: float) -> void:
 	if fall_height < LAND_SOFT_HEIGHT:
+		# C-67: this fired a footstep for every sub-1.2 m landing on top of the locomotion
+		# footstep timer, so stepping off a kerb double-played the sound. Resetting the timer
+		# makes the landing step *be* the next step rather than an extra one.
 		play_footstep_effects()
+		_footstep_timer = VfxService.FOOTSTEP_INTERVAL_WALK
 		return
 	if fall_height >= LAND_HARD_HEIGHT:
 		_landing_lock_timer = LAND_HARD_LOCK

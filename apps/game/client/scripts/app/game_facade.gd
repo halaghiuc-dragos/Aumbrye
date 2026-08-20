@@ -81,7 +81,14 @@ func _verify_content_loaded() -> void:
 ## QA-05: boots every subsystem an exported build needs and quits with a status code, so CI can
 ## catch the class of failure that only exists outside the editor (BUG-01, BUG-02) instead of
 ## uploading a release that has never actually run. Invoked with `--smoke-test` on the command
-## line; see the `godot-export` / `smoke-test` jobs in .github/workflows/.
+## line:
+##
+##     godot --path apps/game/client --headless -- --smoke-test
+##
+## C-261: this used to point at `godot-export` / `smoke-test` jobs in `.github/workflows/` that did
+## not exist and never had — the smoke test was written for a pipeline that was never committed.
+## C-40 has since restored one: the `godot` job in `.github/workflows/ci.yml` runs `--import` and
+## then this, on every pull request and push to `main`.
 func _run_smoke_test() -> void:
 	print("SMOKE-TEST: booting")
 	var failures: Array[String] = []

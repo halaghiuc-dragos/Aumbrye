@@ -1,16 +1,16 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-08-19T06:25:53Z",
+  "generatedAt": "2026-08-20T14:57:25Z",
   "generatedBy": "tools/generate_project_structure.py",
-  "gitHead": "0bc7c0e",
+  "gitHead": "6eaae71",
   "stacks": {
     "gameClient": {
       "path": "apps/game/client",
       "engine": "Godot 4.7",
       "language": "GDScript",
-      "scripts": 379,
-      "scriptLines": 100903,
-      "scenes": 268,
+      "scripts": 313,
+      "scriptLines": 75247,
+      "scenes": 267,
       "shaders": 6,
       "bakedMeshes": 40,
       "voxelSources": 181,
@@ -56,72 +56,13 @@
         ]
       },
       "validation": {
-        "count": 58,
-        "lines": 27272,
+        "count": 0,
+        "lines": 0,
         "entryPoints": {
-          "headless": "godot --headless --path apps/game/client --script res://scripts/validation/validation_main.gd",
-          "inEditor": "res://scenes/debug/mcp_validation.tscn"
+          "smokeTest": "godot --path apps/game/client --headless -- --smoke-test",
+          "seedHealth": "godot --path apps/game/client --headless --script res://scripts/tools/procgen_seed_health.gd"
         },
-        "names": [
-          "a11y_suite",
-          "achievements_suite",
-          "affix_suite",
-          "arena_suite",
-          "audio_suite",
-          "biome_kit_suite",
-          "camera_suite",
-          "combat_suite",
-          "content_drift_suite",
-          "content_suite",
-          "cross_stack_parity_suite",
-          "death_visual_suite",
-          "debug_suite",
-          "diorama_anim_suite",
-          "docs_suite",
-          "dungeon_suite",
-          "enemy_suite",
-          "error_paths_suite",
-          "export_suite",
-          "floor_shell_suite",
-          "flow_suite",
-          "harness_suite",
-          "hub_m4_suite",
-          "hub_suite",
-          "inventory_suite",
-          "lock_on_orbit_radius_stub",
-          "lock_on_suite",
-          "m5_suite",
-          "m6_suite",
-          "m7_suite",
-          "net_suite",
-          "pause_menu_suite",
-          "perf_gate_suite",
-          "pixel_camera_snap_suite",
-          "pixel_pipeline_suite",
-          "pixel_settings_suite",
-          "pixel_style_suite",
-          "placements_suite",
-          "platform_suite",
-          "player_suite",
-          "portal_shader_suite",
-          "procgen_seed_health_suite",
-          "procgen_suite",
-          "progression_suite",
-          "quality_bar_suite",
-          "room_content_suite",
-          "room_graph_suite",
-          "room_kit_suite",
-          "save_suite",
-          "setup_suite",
-          "status_icon_atlas_suite",
-          "trap_suite",
-          "ui_suite",
-          "ui_symbol_suite",
-          "vfx_service_suite",
-          "visual_lighting_suite",
-          "voxel_grid_suite",
-          "world_state_suite"
-        ]
+        "names": []
       }
     },
     "backend": {
@@ -155,7 +96,7 @@
     },
     "tooling": {
       "path": "tools",
-      "python": 27,
+      "python": 28,
       "node": 18
     }
   },
@@ -264,13 +205,15 @@
   },
   "artSource": {
     "path": "art-source",
-    "voxFiles": 262
+    "voxFiles": 162
   },
   "docs": [
     "docs/ADR/0001-client-server-authority.md",
     "docs/ADR/0002-procgen-authority-split.md",
     "docs/ARCHITECTURE.md",
+    "docs/CORE_GAMEPLAY_REVIEW.md",
     "docs/DOC-CONVENTIONS.md",
+    "docs/GAME_FEEL_REVIEW.md",
     "docs/ROADMAP-account-recovery.md",
     "docs/ROADMAP-online-runs.md",
     "docs/SAVE_MIGRATIONS.md",
@@ -279,13 +222,18 @@
   ],
   "directoryTree": {
     ".github": {
-      "files": 3
+      "files": 5,
+      "children": {
+        "workflows": {
+          "files": 2
+        }
+      }
     },
     "apps": {
-      "files": 1710,
+      "files": 1577,
       "children": {
         "game": {
-          "files": 1657
+          "files": 1524
         },
         "web": {
           "files": 53
@@ -293,21 +241,10 @@
       }
     },
     "art-source": {
-      "files": 262,
+      "files": 162,
       "children": {
         "characters": {
-          "files": 262
-        }
-      }
-    },
-    "assets": {
-      "files": 2,
-      "children": {
-        "audio": {
-          "files": 1
-        },
-        "models": {
-          "files": 1
+          "files": 162
         }
       }
     },
@@ -428,7 +365,7 @@
       }
     },
     "docs": {
-      "files": 9,
+      "files": 11,
       "children": {
         "ADR": {
           "files": 2
@@ -448,6 +385,9 @@
           "files": 9
         }
       }
+    },
+    "reports": {
+      "files": 3
     },
     "scripts": {
       "files": 17,
@@ -475,13 +415,13 @@
       }
     },
     "tools": {
-      "files": 41,
+      "files": 42,
       "children": {
         "procgen-cli": {
           "files": 4
         },
         "voxel-import": {
-          "files": 8
+          "files": 9
         }
       }
     }

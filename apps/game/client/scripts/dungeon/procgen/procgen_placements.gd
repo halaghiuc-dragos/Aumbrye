@@ -216,6 +216,8 @@ static func _place_loot(
 				)
 			)
 	var combat_rooms: Array = _sorted_combat_rooms(assignment)
+	# C-158: remembered so the armory draw can exclude it.
+	var side_room_id := ""
 	if combat_rooms.size() > 0:
 		var side_room: Dictionary = combat_rooms[
 			loot_rng.randi_range(0, combat_rooms.size() - 1)
@@ -231,6 +233,7 @@ static func _place_loot(
 			side_role = "treasure"
 		if RunModifierService.has_modifier(RunModifierService.MODIFIER_RICH_VEINS):
 			side_role = "armory" if _has_loot_role(biome, "armory") else "treasure"
+		side_room_id = str(side_room.get("semantic_id", ""))
 		var side_anchors: Array = _room_anchors(biome_id, run_seed, side_room, "chest")
 		loot.append(
 			_loot_placement(
@@ -241,8 +244,21 @@ static func _place_loot(
 			)
 		)
 	if combat_rooms.size() > 0:
-		var armory_room: Dictionary = combat_rooms[
-			loot_rng.randi_range(0, combat_rooms.size() - 1)
+		# C-158: this drew a second time from the same list with no exclusion of the first pick, so
+		# on a floor with few combat rooms the side chest and the armory chest regularly landed in
+		# the same room — and when they did, the side chest took `anchors[0]` while the armory chest
+		# took `anchors[1]` *or fell back to `anchors[0]`*, stacking two chests on one point. The
+		# already-used room is removed from the pool when there is another to pick.
+		var armory_pool: Array = combat_rooms
+		if combat_rooms.size() > 1 and side_room_id != "":
+			armory_pool = []
+			for room in combat_rooms:
+				if str(room.get("semantic_id", "")) != side_room_id:
+					armory_pool.append(room)
+			if armory_pool.is_empty():
+				armory_pool = combat_rooms
+		var armory_room: Dictionary = armory_pool[
+			loot_rng.randi_range(0, armory_pool.size() - 1)
 		]
 		var armory_anchors: Array = _room_anchors(biome_id, run_seed, armory_room, "chest")
 		var armory_offset: Vector3 = (
@@ -256,9 +272,16 @@ static func _place_loot(
 				ProcgenLootRoller.roll_chest(biome, "armory", tier, loot_rng)
 			)
 		)
-	var corridor: Dictionary = _first_room_of_type(rooms, "corridor")
+	# C-159: `RoomContentAssigner` builds `no_trap_semantics` from the reserved rooms **plus every
+	# neighbour of the start room**, so the content pass will not put a trap next to the spawn. This
+	# pass had no such rule and fell back to `"hub"`, which is the entrance room itself — two
+	# trap-placing systems disagreeing about whether the spawn is safe, with only one of them
+	# written with the question in mind. In practice the stairs room types as `"corridor"` and is
+	# found first, so the entrance fallback was rare rather than never; it is now impossible.
+	var spawn_safe_ids := _spawn_safe_room_ids(graph)
+	var corridor: Dictionary = _first_room_of_type(rooms, "corridor", spawn_safe_ids)
 	if corridor.is_empty():
-		corridor = _first_room_of_type(rooms, "hub")
+		corridor = _first_room_of_type(rooms, "hub", spawn_safe_ids)
 	if corridor.is_empty() and graph != null and graph.stairs_id != "":
 		for room in rooms:
 			if room.get("layout_id", "") == graph.stairs_id:
@@ -447,11 +470,29 @@ static func _vec_dict(offset: Vector3) -> Dictionary:
 	return {"x": offset.x, "y": offset.y, "z": offset.z}
 
 
-static func _first_room_of_type(rooms: Array, room_type: String) -> Dictionary:
+## C-159: `excluded` carries the spawn room and its neighbours, matching the rule the content pass
+## already applies.
+static func _first_room_of_type(
+	rooms: Array, room_type: String, excluded: Dictionary = {}
+) -> Dictionary:
 	for room in rooms:
-		if room.get("type", "") == room_type:
-			return room
+		if room.get("type", "") != room_type:
+			continue
+		if excluded.has(str(room.get("layout_id", ""))):
+			continue
+		return room
 	return {}
+
+
+## C-159: the start room plus every room adjacent to it — the set the content pass refuses to trap.
+static func _spawn_safe_room_ids(graph: RoomGraph) -> Dictionary:
+	var unsafe := {}
+	if graph == null or graph.start_id == "":
+		return unsafe
+	unsafe[graph.start_id] = true
+	for neighbor in RoomGraphPaths.build_adjacency(graph).get(graph.start_id, []):
+		unsafe[str(neighbor)] = true
+	return unsafe
 
 
 static func _is_reserved_boss_enemy(enemy_id: String, biome: Dictionary) -> bool:

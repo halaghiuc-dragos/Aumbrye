@@ -46,7 +46,7 @@ func _on_body_exited(body: Node3D) -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	if _revealed or not _near_player:
 		return
-	if event.is_action_pressed("interact"):
+	if PlayerInput.interact_just_pressed(event):
 		_reveal()
 		get_viewport().set_input_as_handled()
 

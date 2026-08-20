@@ -54,9 +54,9 @@ func _refresh_continue_state() -> void:
 	_continue_button.disabled = not can_continue
 	if can_continue:
 		var wave := int(LocalSave.get_waves_active_run().get("currentWave", 0))
-		_status_label.text = "Continue waves run (wave %d)." % wave
+		_status_label.text = tr("WAVES_MENU_CONTINUE").format({"wave": wave})
 	else:
-		_status_label.text = "Open 6 chests, survive 50 waves."
+		_status_label.text = tr("WAVES_MENU_INTRO")
 
 
 func _on_new_pressed() -> void:

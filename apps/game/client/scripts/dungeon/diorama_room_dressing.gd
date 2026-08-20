@@ -65,6 +65,48 @@ static func apply_to_room(room: RoomTemplate, biome_id: String, room_seed: int =
 			_spawn_puzzle(dressing, accent_mat, biome_id)
 		_:
 			_spawn_generic_corners(dressing, half_w, half_d, accent_mat, biome_id, prop_rng)
+	# C-195: `prop_rng` was created, seeded from the room seed, and passed to exactly **one** of the
+	# ten branches — so nine of ten room kinds placed identical props at identical positions on
+	# every seed, forever. A dungeon whose layout is procedural and whose rooms are pixel-identical
+	# between runs reads as a rebuilt corridor rather than a new place.
+	#
+	# Rather than rewrite nine spawn functions, the variation is applied to what they produced:
+	# a small seeded yaw and ground offset per free-standing prop. Wall-anchored and lighting props
+	# are exempt by name — a sconce that drifts off its wall is worse than a sconce that repeats.
+	_apply_seeded_prop_variation(dressing, prop_rng)
+
+
+## C-195: props that must not move — anything mounted to a surface, and anything that carries a
+## light, since both read as broken the moment they drift.
+const VARIATION_EXEMPT_TOKENS := [
+	"Torch", "Sconce", "Light", "Wall", "Pillar", "Column", "Door", "Stair", "Altar", "Banner"
+]
+
+const VARIATION_YAW_DEGREES := 9.0
+const VARIATION_OFFSET := 0.16
+
+
+static func _apply_seeded_prop_variation(
+	dressing: Node3D, prop_rng: RandomNumberGenerator
+) -> void:
+	if dressing == null or prop_rng == null:
+		return
+	for child in dressing.get_children():
+		var prop := child as Node3D
+		if prop == null:
+			continue
+		var exempt := false
+		for token in VARIATION_EXEMPT_TOKENS:
+			if prop.name.contains(token):
+				exempt = true
+				break
+		if exempt:
+			continue
+		prop.rotation.y += deg_to_rad(
+			prop_rng.randf_range(-VARIATION_YAW_DEGREES, VARIATION_YAW_DEGREES)
+		)
+		prop.position.x += prop_rng.randf_range(-VARIATION_OFFSET, VARIATION_OFFSET)
+		prop.position.z += prop_rng.randf_range(-VARIATION_OFFSET, VARIATION_OFFSET)
 
 
 static func apply_to_waves_arena(
@@ -477,9 +519,14 @@ static func _spawn_brazier(
 static func _spawn_wall_sconce(
 	parent: Node3D, pos: Vector3, accent_mat: Material, biome_id: String
 ) -> void:
-	_add_box(parent, pos, Vector3(0.25, 0.5, 0.35), accent_mat, "Sconce")
+	# C-197: this drew a 0.25 x 0.5 x 0.35 box and then `_spawn_wall_torch` drew a 0.22 x 0.42 x 0.28
+	# box at the **same position** — fully enclosed by the first, never visible, and carrying its own
+	# bevelled mesh, material override and draw call. Where a torch is spawned it *is* the sconce;
+	# the bracket box is only needed when there is no torch to stand in for it.
 	if biome_id != "":
 		_spawn_wall_torch(parent, pos, accent_mat, biome_id)
+		return
+	_add_box(parent, pos, Vector3(0.25, 0.5, 0.35), accent_mat, "Sconce")
 
 
 static func _spawn_wall_torch(
@@ -528,19 +575,24 @@ static func _spawn_ceiling_torch(
 const TORCH_EMBER_COUNT := 7
 
 
-static func _add_torch_embers(parent: Node3D, pos: Vector3, tint: Color) -> void:
-	if PixelDioramaSettings.particle_quality <= 0:
-		return
-	var embers := GPUParticles3D.new()
-	embers.name = "TorchEmbers"
-	embers.position = pos
-	embers.amount = maxi(2, int(TORCH_EMBER_COUNT * PixelDioramaSettings.particle_amount_scale()))
-	embers.lifetime = 2.4
-	embers.randomness = 0.7
-	embers.visibility_aabb = AABB(Vector3(-0.8, -0.4, -0.8), Vector3(1.6, 3.2, 1.6))
+## C-196: this built a BoxMesh, ParticleProcessMaterial, Gradient, GradientTexture1D and
+## StandardMaterial3D per torch. A floor carries 36-44 torches (C-176), so ~200 resources were
+## allocated where ten would do — and because every emitter got its own StandardMaterial3D, none of
+## them batched. Everything except the tint is identical, and within a floor the tint is identical
+## too, so the whole set is cached by tint.
+static var _ember_cache: Dictionary = {}
+
+
+static func clear_ember_cache() -> void:
+	_ember_cache.clear()
+
+
+static func _ember_assets(tint: Color) -> Dictionary:
+	var key := tint.to_html(false)
+	if _ember_cache.has(key):
+		return _ember_cache[key]
 	var chunk := BoxMesh.new()
 	chunk.size = Vector3(0.05, 0.05, 0.05)
-	embers.draw_pass_1 = chunk
 	var mat := ParticleProcessMaterial.new()
 	mat.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_SPHERE
 	mat.emission_sphere_radius = 0.11
@@ -561,7 +613,6 @@ static func _add_torch_embers(parent: Node3D, pos: Vector3, tint: Color) -> void
 	var ramp_tex := GradientTexture1D.new()
 	ramp_tex.gradient = ramp
 	mat.color_ramp = ramp_tex
-	embers.process_material = mat
 	# A plain unshaded material that takes its colour from the particle, not the diorama surface
 	# shader: that shader reads a world-space pattern and has no notion of per-particle colour, so
 	# the ramp above would never reach the screen through it.
@@ -573,6 +624,24 @@ static func _add_torch_embers(parent: Node3D, pos: Vector3, tint: Color) -> void
 	ember_mat.disable_receive_shadows = true
 	ember_mat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
 	chunk.material = ember_mat
+	var assets := {"mesh": chunk, "process": mat}
+	_ember_cache[key] = assets
+	return assets
+
+
+static func _add_torch_embers(parent: Node3D, pos: Vector3, tint: Color) -> void:
+	if PixelDioramaSettings.particle_quality <= 0:
+		return
+	var assets := _ember_assets(tint)
+	var embers := GPUParticles3D.new()
+	embers.name = "TorchEmbers"
+	embers.position = pos
+	embers.amount = maxi(2, int(TORCH_EMBER_COUNT * PixelDioramaSettings.particle_amount_scale()))
+	embers.lifetime = 2.4
+	embers.randomness = 0.7
+	embers.visibility_aabb = AABB(Vector3(-0.8, -0.4, -0.8), Vector3(1.6, 3.2, 1.6))
+	embers.draw_pass_1 = assets["mesh"]
+	embers.process_material = assets["process"]
 	parent.add_child(embers)
 
 
@@ -684,10 +753,23 @@ static func _material_light_color(mat: Material, biome_id: String = "") -> Color
 	return Color(0.9, 0.75, 0.5)
 
 
-static func _begin_room_torch_pass(biome_id: String) -> void:
+## C-176: `_begin_room_torch_pass` reset `_shadow_omni_budget` to 0, so `max_shadow_omnis` — a
+## single small number (default 2) authored once per biome — was spent *per room*. A 28-room floor
+## therefore produced up to 56 shadow-casting omni lights rather than 2, which is the opposite of
+## what a budget named for the whole lighting profile means and is the most expensive thing a
+## pixel-diorama floor can do.
+##
+## The counter is reset once per floor by `begin_floor_lighting_pass()`; the per-room call now only
+## refreshes the flicker config, which genuinely is per-biome.
+static func begin_floor_lighting_pass(biome_id: String) -> void:
 	_torch_flicker = VisualLighting.get_torch_config_for_biome(biome_id)
 	_max_shadow_omnis = int(_torch_flicker.get("max_shadow_omnis", 2))
 	_shadow_omni_budget = 0
+
+
+static func _begin_room_torch_pass(biome_id: String) -> void:
+	_torch_flicker = VisualLighting.get_torch_config_for_biome(biome_id)
+	_max_shadow_omnis = int(_torch_flicker.get("max_shadow_omnis", 2))
 
 
 static func _take_shadow_slot() -> bool:

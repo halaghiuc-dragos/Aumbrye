@@ -68,8 +68,9 @@ static func apply(def: Dictionary, player: Node) -> bool:
 		"escape":
 			if RunFlow == null or not RunFlow.is_run_active():
 				return false
-			RunFlow.return_to_hub(TranslationServer.translate("INV_ESCAPE_RETURNED"))
-			return true
+			# C-230: must be the deliberate exit, not the generic hub transition — the latter
+			# banked the run's loot for free and left the run resumable from the portal.
+			return bool(RunFlow.escape_with_loot())
 		"cure":
 			var status_ctrl := player.get_node_or_null("StatusController") as StatusController
 			if status_ctrl == null:

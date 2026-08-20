@@ -22,7 +22,6 @@ enum FocusArea { GRID, EQUIPMENT }
 
 var _backdrop: ColorRect
 var _grid: GridContainer
-var _detail_label: Label
 var _tooltip_panel: PanelContainer
 var _tooltip_scroll: ScrollContainer
 var _tooltip_content: VBoxContainer
@@ -243,6 +242,9 @@ func _build_ui_shell() -> void:
 	_btn_unequip = MenuShellScript.make_menu_button(tr("INV_BTN_UNEQUIP"), _on_action_unequip_pressed)
 	_btn_use = MenuShellScript.make_menu_button(tr("INV_BTN_USE"), _on_action_use_pressed)
 	_btn_drop = MenuShellScript.make_menu_button(tr("INV_BTN_DROP"), _on_action_drop_pressed)
+	# C-244: in the hub `drop_slot_at_index` routes to MerchantService.sell_item — the button is
+	# labelled "Drop" in both contexts, so a player discarding a duplicate expects it to hit the
+	# floor and be recoverable. Relabelled per context in _update_action_buttons().
 	_action_row.add_child(_btn_equip)
 	_action_row.add_child(_btn_unequip)
 	_action_row.add_child(_btn_use)
@@ -258,11 +260,10 @@ func _build_ui_shell() -> void:
 	_quick_slot_row = HBoxContainer.new()
 	_quick_slot_row.add_theme_constant_override("separation", 10)
 	footer.add_child(_quick_slot_row)
-	# The stat-delta comparison the footer label was built for is rendered inside the tooltip
-	# instead (see `_refresh_detail`'s `format_comparison_bbcode` call), so the label was created,
-	# styled and added to the tree without ever being given text or made visible.
-	_detail_label = Label.new()
-	_detail_label.visible = false
+	# C-223: the stat-delta comparison the footer label was built for is rendered inside the
+	# tooltip instead (see `_refresh_detail`'s `format_comparison_bbcode` call). An earlier fix
+	# removed the `add_child` and the styling but left the `Label.new()`, so every InventoryUI
+	# leaked one unparented, never-freed orphan node. The construction is gone with it.
 	_hint_row = HBoxContainer.new()
 	_hint_row.name = "HintRow"
 	_hint_row.alignment = BoxContainer.ALIGNMENT_CENTER
@@ -349,6 +350,13 @@ func _unhandled_input(event: InputEvent) -> void:
 
 
 ## Only runs while a drag is in flight; set_process is toggled by _begin_drag / _clear_drag.
+## C-98: the drag-ghost tick is already gated on drag state, which is stricter than visibility —
+## this closes the case where a drag is abandoned by the panel being hidden.
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_VISIBILITY_CHANGED and not is_visible_in_tree():
+		set_process(false)
+
+
 func _process(_delta: float) -> void:
 	if not _inventory_open or not _drag_ghost.visible:
 		set_process(false)
@@ -814,7 +822,13 @@ func _try_equip_dragged_to_slot(slot_name: String) -> bool:
 	return false
 
 
+## C-222: Use and Split hardcoded InventoryService while `_inventory()` may be the Waves grid, so a
+## press here consumed slot N of the *main* inventory. Drop and the quick-slot binds were already
+## guarded; these two were missed.
 func _use_selected_consumable() -> void:
+	if _waves_mode:
+		_set_hint_text(tr("INV_USE_FAILED"))
+		return
 	var result := InventoryService.try_use_slot_index(_selected_index)
 	if not bool(result.get("ok", false)):
 		var reason := str(result.get("reason", ""))
@@ -827,7 +841,7 @@ func _use_selected_consumable() -> void:
 func _split_selected_stack() -> void:
 	if _selected_index < 0:
 		return
-	if InventoryService.split_stack_at_index(_selected_index):
+	if _inventory().split_stack(_selected_index):
 		_refresh_all()
 
 
@@ -1163,9 +1177,12 @@ func _update_action_buttons() -> void:
 			)
 	var can_drop := _selected_index >= 0 and _focus_area == FocusArea.GRID
 	_btn_equip.visible = can_equip
-	_btn_use.visible = can_use
+	_btn_use.visible = can_use and not _waves_mode
 	_btn_unequip.visible = can_unequip
 	_btn_drop.visible = can_drop and not _waves_mode
+	if _btn_drop.visible:
+		var in_run := RunFlow != null and RunFlow.is_run_active()
+		_btn_drop.text = tr("INV_BTN_DROP") if in_run else tr("INV_BTN_SELL")
 	for i in _btn_bind.size():
 		_btn_bind[i].visible = bind_index >= 0 and not _waves_mode
 

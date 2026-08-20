@@ -68,14 +68,34 @@ static func generate(
 			"ok": false,
 			"error": str(placements.get("error", "Placement failed")),
 		}
+	# C-215: reject an over-cap floor before the expensive passes rather than after them.
+	if graph.secret_ids.size() > config.max_secrets:
+		return {
+			"ok": false,
+			"error":
+			(
+				"Secret cap exceeded (%d > %d)"
+				% [graph.secret_ids.size(), config.max_secrets]
+			),
+		}
 	var content_rng := ProcgenRng.stream(run_seed, "content")
 	var content_config := RoomContentConfigScript.for_floor(
 		floor_index, RunFloorConfig.MAX_FLOORS, run_seed
 	)
+	# C-145: the real dungeon tier, so reward caches and locked vaults scale like the treasure room.
 	var content_result := RoomContentAssignerScript.assign(
-		graph, assignment, content_rng, content_config, biome_id
+		graph, assignment, content_rng, content_config, biome_id, tier
 	)
 	var content: Dictionary = content_result.get("content", {})
+	# C-144: `used_fallback` was returned and read only by the seed-health tool and the deleted
+	# suites — `RunFlow.current_generation_warnings`, which exists precisely to record degraded
+	# generation, never learned about it, so neither the player nor telemetry could tell a fallback
+	# floor from a clean one. It rides the warnings channel now, alongside any validation failure the
+	# fallback reported.
+	var content_warnings: Array = []
+	if bool(content_result.get("used_fallback", false)):
+		content_warnings.append("content_assignment_fallback")
+	content_warnings.append_array(content_result.get("warnings", []))
 	_annotate_minimap_rooms(rooms, content.get("roomContent", []))
 	var landmarks := _build_landmark_hints(rooms, graph)
 	var run_id := _deterministic_run_id(run_seed, biome_id, floor_index)
@@ -119,6 +139,10 @@ static func generate(
 		),
 		"landmarks": landmarks,
 	}
+	# C-215: the secret cap is validated *after* the full definition is assembled — rooms, edges,
+	# placements, content assignment, branch previews and landmarks — so exceeding it throws away
+	# every one of those passes. The graph knows its secret count immediately after assignment, so
+	# the check is made there too; this one stays as the belt-and-braces final assertion.
 	var secret_count := RunFloorConfig.count_secrets(definition)
 	if secret_count > config.max_secrets:
 		return {
@@ -130,7 +154,85 @@ static func generate(
 		"definition": definition,
 		"generation_seed": run_seed,
 		"run_id": run_id,
+		# C-144: degraded generation reaches the run.
+		"warnings": content_warnings,
 	}
+
+
+## C-214: the guard encounter in the final floor's arena. `finalFloor.arenaEnemies` overrides it
+## wholesale where a biome wants a hand-authored fight; otherwise the biome's own weighted pool is
+## drawn against a threat budget, excluding anything reserved as a boss so the final boss cannot
+## appear twice on its own floor.
+const FINAL_ARENA_THREAT_BASE := 90.0
+const FINAL_ARENA_THREAT_PER_TIER := 26.0
+const FINAL_ARENA_ANCHORS: Array[Vector3] = [
+	Vector3(6.0, 0.0, 4.0),
+	Vector3(-6.0, 0.0, -5.0),
+	Vector3(0.0, 0.0, 0.0),
+	Vector3(7.0, 0.0, -4.0),
+	Vector3(-5.0, 0.0, 6.0),
+	Vector3(4.0, 0.0, -3.0),
+]
+
+
+static func _final_floor_arena_enemies(
+	biome: Dictionary, final_floor: Dictionary, run_seed: int, tier: int, floor_index: int
+) -> Array:
+	var authored: Variant = final_floor.get("arenaEnemies", null)
+	if authored is Array:
+		return (authored as Array).duplicate(true)
+	var pool: Array = biome.get("enemyPool", [])
+	if pool.is_empty():
+		return []
+	var boss_ids := {}
+	for entry in biome.get("bossPool", []):
+		if entry is Dictionary:
+			boss_ids[str((entry as Dictionary).get("enemyId", ""))] = true
+	boss_ids[str(final_floor.get("bossId", ""))] = true
+	var rng := RandomNumberGenerator.new()
+	rng.seed = FloorSeedMix.mix(run_seed, floor_index * 613 + tier * 29)
+	var budget := FINAL_ARENA_THREAT_BASE + FINAL_ARENA_THREAT_PER_TIER * float(maxi(0, tier - 1))
+	var placements: Array = []
+	var spent := 0.0
+	for i in FINAL_ARENA_ANCHORS.size():
+		var entry := _pick_weighted_enemy(pool, rng)
+		if entry.is_empty():
+			break
+		var enemy_id := str(entry.get("enemyId", ""))
+		if enemy_id == "" or boss_ids.has(enemy_id):
+			continue
+		var cost := float(EnemyCatalog.get_definition(enemy_id).get("threat_cost", 20))
+		if spent + cost > budget:
+			break
+		var offset: Vector3 = FINAL_ARENA_ANCHORS[i]
+		placements.append(
+			{
+				"roomId": "arena",
+				"enemyId": enemy_id,
+				"offset": {"x": offset.x, "y": offset.y, "z": offset.z},
+				"sampleNavmesh": true,
+				"isElite": false,
+			}
+		)
+		spent += cost
+	return placements
+
+
+static func _pick_weighted_enemy(pool: Array, rng: RandomNumberGenerator) -> Dictionary:
+	var total := 0.0
+	for entry in pool:
+		if entry is Dictionary:
+			total += maxf(0.0, float((entry as Dictionary).get("weight", 1)))
+	if total <= 0.0:
+		return {}
+	var roll := rng.randf() * total
+	for entry in pool:
+		if not entry is Dictionary:
+			continue
+		roll -= maxf(0.0, float((entry as Dictionary).get("weight", 1)))
+		if roll <= 0.0:
+			return entry as Dictionary
+	return {}
 
 
 static func _generate_final_floor(
@@ -156,7 +258,12 @@ static func _generate_final_floor(
 		"edges": layout.get("edges", []),
 		"placements":
 		{
-			"enemies": [],
+			# C-214: the final floor of a castle run bypassed the whole generator and hand-built
+			# three rooms in a line — entrance, arena, boss — with `"enemies": []`. So the last
+			# floor before the final boss, the one that should be the run's tightest stretch, was a
+			# walk through an empty arena to two chests. The arena room exists and is 24x24; it was
+			# just never populated.
+			"enemies": _final_floor_arena_enemies(biome, final_floor, run_seed, tier, floor_index),
 			"loot": lobby_chests,
 			"puzzles": [],
 			"traps": [],
@@ -265,7 +372,14 @@ static func deterministic_run_id(run_seed: int, biome_id: String, floor_index: i
 
 
 static func _deterministic_run_id(run_seed: int, biome_id: String, floor_index: int) -> String:
-	var mixed := run_seed ^ (biome_id.hash() & 0x7FFFFFFF) ^ (floor_index * 7919)
+	# C-215: a fifth `String.hash()` determinism site (see C-192). The run id is persisted into saves
+	# and telemetry, so a value that is only build-stable means a saved run's identity changes
+	# meaning across an engine upgrade.
+	var mixed := (
+		run_seed
+		^ FloorSeedMix.stable_string_hash(biome_id)
+		^ (floor_index * 7919)
+	)
 	mixed = maxi(1, mixed)
 	return "%08x-0000-4000-8000-%012x" % [mixed & 0xFFFFFFFF, mixed & 0xFFFFFFFFFFFF]
 

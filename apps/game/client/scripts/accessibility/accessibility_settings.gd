@@ -396,6 +396,10 @@ static func _default_damage_color(damage_type: String) -> Color:
 			return Color(0.4, 0.7, 1.0)
 		"poison":
 			return Color(0.4, 0.9, 0.3)
+		# C-162: `lightning` is in `DamageInfo.ALL_TYPES` and was missing from every palette here,
+		# so lightning damage numbers fell through to the physical red.
+		"lightning":
+			return Color(1.0, 0.9, 0.35)
 		"arcane":
 			return Color(0.7, 0.4, 1.0)
 		_:
@@ -411,6 +415,8 @@ static func _cb_damage_color(damage_type: String, tritanopia: bool = false) -> C
 				return Color(0.0, 0.7, 0.9)
 			"poison":
 				return Color(0.9, 0.9, 0.2)
+			"lightning":
+				return Color(0.55, 0.85, 1.0)
 			"arcane":
 				return Color(0.8, 0.3, 0.8)
 			_:
@@ -422,6 +428,8 @@ static func _cb_damage_color(damage_type: String, tritanopia: bool = false) -> C
 			return Color(0.0, 0.6, 0.9)
 		"poison":
 			return Color(0.9, 0.9, 0.1)
+		"lightning":
+			return Color(0.4, 0.8, 1.0)
 		"arcane":
 			return Color(0.7, 0.3, 0.9)
 		_:

@@ -1,8 +1,12 @@
 extends Area3D
 class_name Hitbox
 
+## C-47: emitted after a hit resolves, so a travelling hitbox can count what it has struck.
+signal hit_landed(target: Node)
+
 const DEBUG_SCRIPT := preload("res://scripts/combat/combat_collision_debug.gd")
-const WORLD_COLLISION_MASK := 1
+## C-52: named rather than a bare literal — see `combat_layers.gd`.
+const WORLD_COLLISION_MASK := CombatLayers.WORLD_OCCLUDERS
 
 @export var damage_amount := 10.0
 @export var poise_damage := 15.0
@@ -187,15 +191,17 @@ func _try_hit(area: Area3D) -> void:
 		info.execution = _execution_kind
 		info.ignore_guard = true
 	area.call("receive_hit", info)
+	hit_landed.emit(area)
 	var mana_restore := ClassPerks.arcane_focus_mana_on_hit(_owner_node)
 	if mana_restore > 0.0:
 		var mana := _owner_node.get_node_or_null("Mana") as Mana
 		if mana:
 			mana.restore(mana_restore)
-	var hit_pos := area.global_position
-	if area.get_parent() is Node3D:
-		hit_pos = (area.get_parent() as Node3D).global_position + Vector3(0.0, 1.0, 0.0)
-	VfxService.play_hit_spark(hit_pos, direction, _hit_normal_from_direction(direction))
+	# C-06: this fired a second `play_hit_spark` from the attacker side, unconditionally and
+	# *before* `receive_hit` resolved — so every landed hit spawned two sparks, and a hit that was
+	# blocked or parried still emitted a flesh-hit spark on top of the block VFX. The player could
+	# not tell a blocked hit from a landed one by looking at it. `HitFeedback` owns impact VFX from
+	# the victim side, where the resolution and the crit flag are both known.
 
 
 func _body_of(area: Area3D) -> Node:
@@ -261,12 +267,3 @@ func _has_clear_line_to(target: Area3D) -> bool:
 		excludes.append((target_parent as CollisionObject3D).get_rid())
 	params.exclude = excludes
 	return space.intersect_ray(params).is_empty()
-
-
-func _hit_normal_from_direction(direction: Vector3) -> Vector3:
-	if direction.length_squared() < 0.01:
-		return Vector3.UP
-	var flat := Vector3(direction.x, 0.0, direction.z)
-	if flat.length_squared() > 0.04:
-		return (-flat).normalized()
-	return Vector3.UP

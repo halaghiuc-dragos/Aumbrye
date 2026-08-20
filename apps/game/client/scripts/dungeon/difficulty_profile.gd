@@ -45,10 +45,6 @@ func pressure(_progress: int) -> float:
 
 ## Reserved for future data-driven difficulty modifiers (e.g. "enrage", "double spawns"); none of
 ## the three curves currently attach any, so every profile returns an empty list today.
-func modifiers(_progress: int) -> Array[String]:
-	return []
-
-
 ## Multipliers over an enemy's own tuning, shaped for `apply_phase_modifiers()`. Damage is left
 ## out on purpose: it is already carried by `damage_multiplier()` and would double up here.
 func behaviour_modifiers(progress: int) -> Dictionary:

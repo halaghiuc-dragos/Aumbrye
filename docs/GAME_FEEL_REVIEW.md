@@ -6,7 +6,7 @@ is measured against the tree as it stands.
 
 **Method** — `res://scenes/debug/capture_world_screens.tscn` and `capture_ui_screens.tscn` produced
 29 screenshots (hub, castle run, dungeon slice, combat arena, and 25 menus). Combat feel comes from
-`scripts/player/dodge.gd`, `content/tuning/dodge.json`, `scripts/combat/weapon_controller.gd` and
+`scripts/player/dodge.gd`, `content/combat/dodge.json`, `scripts/combat/weapon_controller.gd` and
 `scripts/combat/hit_feedback.gd`. Content counts come from `content/`.
 
 ---
@@ -129,7 +129,7 @@ Credit where it is due. These numbers are correct:
 
 That roll ratio is the single most important number in a soulslike, and it matches a Dark Souls
 medium roll almost exactly. It is also **per armour weight class**, driven from
-`content/tuning/dodge.json` — light rolls further and stays invulnerable longer, heavy gives up
+`content/combat/dodge.json` — light rolls further and stays invulnerable longer, heavy gives up
 i-frames. That is a proper, load-bearing system.
 
 So the combat is not the problem.

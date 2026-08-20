@@ -26,6 +26,7 @@
   "alert_radius": 16,
   "circle_radius_mult": 1.8,
   "enemy_type": "ranged",
+  "weapon_kit": "staff",
   "damage_type": "arcane",
   "attacks": [
     {

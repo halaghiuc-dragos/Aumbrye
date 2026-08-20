@@ -11,6 +11,15 @@ const MAX_CHARACTER_SLOTS := 5
 const CHARACTERS_DIR := "user://characters/"
 const BACKUP_DIR := "user://backups/"
 const BACKUP_COUNT := 5
+
+## C-232: backup depth used to be measured in *writes*, and 56 call sites reach `autosave()`
+## immediately — including display mode, key rebinding, locale, audio, accessibility and privacy
+## settings. Opening the options screen and changing a handful of them cycled the whole five-deep
+## history without a second of play, leaving five backups all stamped within the same minute.
+## Rotation is now gated on the age of the newest backup, so the history spans real time.
+## `autosave_checkpoint()` bypasses the gate for run-boundary saves, which are the states a player
+## actually wants to return to.
+const BACKUP_MIN_INTERVAL_SEC := 300
 const SAVE_SCHEMA_VERSION := SaveMigrator.CURRENT_VERSION
 const AUTOSAVE_MIN_INTERVAL := 2.0
 
@@ -18,6 +27,11 @@ signal save_loaded
 signal save_failed(reason: String)
 signal cloud_sync_completed(server_won: bool)
 signal backup_restored(index: int)
+
+## C-233: a save could not be read and every backup failed with it. Carries the reason and the path
+## the unreadable file was quarantined to, so the player can be told where their data went before
+## anything is discarded.
+signal save_recovery_required(reason: String, quarantine_path: String)
 
 enum SavePriority { IMMEDIATE, DEFERRED }
 
@@ -33,6 +47,14 @@ var _roster: Dictionary = {"characters": [], "activeId": "", "localAccountId": "
 var _account: Dictionary = {}
 var _active_character_id: String = ""
 var _autosave_pending := false
+var _force_backup_rotation := false
+
+## C-233: set when a load failed past every recovery route and the player has not yet chosen what to
+## do. Read by the title screen; nothing is reset while it stands.
+var recovery_required := false
+var recovery_reason := ""
+var recovery_quarantine_path := ""
+var _last_quarantine_path := ""
 var _autosave_timer: Timer
 var _character_id_counter := 0
 
@@ -551,6 +573,16 @@ func restore_backup(index: int, character_id: String = "") -> bool:
 	if index < 0 or index >= BACKUP_COUNT:
 		return false
 	var path := _rotating_backup_path(index, character_id)
+	if not _adopt_document_file(path, character_id):
+		return false
+	backup_restored.emit(index)
+	return true
+
+
+## C-233: extracted from `restore_backup` so the premigrate artefacts can be recovered through the
+## identical migrate/validate path. Returns false without side effects if the file is missing,
+## unparseable, fails migration or fails validation.
+func _adopt_document_file(path: String, character_id: String) -> bool:
 	if not FileAccess.file_exists(path):
 		return false
 	var parsed = JSON.parse_string(_read_raw_text(path))
@@ -570,7 +602,6 @@ func restore_backup(index: int, character_id: String = "") -> bool:
 		_rotate_backups(target_path, character_id)
 	_apply_save_data(data)
 	_write_save(_build_save_payload(), false)
-	backup_restored.emit(index)
 	return true
 
 
@@ -682,6 +713,22 @@ func _flush_deferred_autosave() -> void:
 	autosave(SavePriority.DEFERRED)
 
 
+## Forces a backup generation regardless of how recently the last one was taken. For run-boundary
+## saves — floor transition, bonfire rest, death, escape, retreat — where the pre-transition state
+## is worth keeping even if the player just changed a setting.
+func autosave_checkpoint() -> void:
+	_force_backup_rotation = true
+	autosave()
+
+
+func _backup_slot_is_stale(character_id: String) -> bool:
+	var newest := _rotating_backup_path(0, character_id)
+	if not FileAccess.file_exists(newest):
+		return true
+	var age := Time.get_unix_time_from_system() - float(FileAccess.get_modified_time(newest))
+	return age >= float(BACKUP_MIN_INTERVAL_SEC)
+
+
 func autosave(priority: SavePriority = SavePriority.IMMEDIATE) -> void:
 	_autosave_pending = false
 	if _autosave_timer != null and not _autosave_timer.is_stopped():
@@ -787,10 +834,13 @@ func sync_from_cloud() -> Dictionary:
 	var parsed = JSON.parse_string(server_json)
 	if not parsed is Dictionary:
 		return {"ok": false, "error": "invalid server json"}
+	var adopted := _adopt_foreign_document(parsed, "cloud_sync")
+	if adopted.is_empty():
+		return {"ok": false, "error": "server state rejected"}
 	var conflict_backup := ""
 	if _cloud_updated_at != "" and server_updated != "" and _cloud_updated_at != server_updated:
 		conflict_backup = _backup_local_save()
-	_apply_save_data(parsed)
+	_apply_save_data(adopted)
 	_cloud_updated_at = server_updated
 	_cached_state["cloudUpdatedAt"] = server_updated
 	_write_save(_build_save_payload())
@@ -815,7 +865,10 @@ func push_to_cloud() -> Dictionary:
 		if not server_state.is_empty():
 			var parsed = JSON.parse_string(server_state)
 			if parsed is Dictionary:
-				_apply_save_data(parsed)
+				var adopted := _adopt_foreign_document(parsed, "cloud_conflict")
+				if adopted.is_empty():
+					return {"ok": false, "conflict": true, "conflictBackup": conflict_backup}
+				_apply_save_data(adopted)
 				_cloud_updated_at = str(result.get("updatedAt", ""))
 				_cached_state["cloudUpdatedAt"] = _cloud_updated_at
 				_write_save(_build_save_payload())
@@ -1079,6 +1132,7 @@ func _recover_from_corruption(path: String, character_id: String, reason: String
 	if FileAccess.file_exists(path):
 		var stamp := Time.get_datetime_string_from_system().replace(":", "-")
 		var corrupt_path := "%s.corrupt_%s.json" % [path.get_basename(), stamp]
+		_last_quarantine_path = corrupt_path
 		DirAccess.copy_absolute(path, corrupt_path)
 		DirAccess.remove_absolute(path)
 		if CrashLogger:
@@ -1087,14 +1141,77 @@ func _recover_from_corruption(path: String, character_id: String, reason: String
 			)
 		else:
 			push_error("LocalSave: corrupt save (%s) — quarantined to %s" % [reason, corrupt_path])
-	save_failed.emit(reason)
+	# C-233: this emitted the raw reason, which `combat_hud._on_save_failed` renders through its
+	# default arm as "Saving failed (corrupt_schema: ...)" — wrong verb for a *load* failure, and
+	# no mention of the quarantine copy. Load failures now carry their own reason so the message
+	# can name the file that was kept.
+	save_failed.emit("load_failed")
 	for backup in list_backups(character_id):
 		var index: int = int(backup.get("index", 0))
 		if restore_backup(index, character_id):
 			return true
+	# C-233: a bug in any migration step fails identically on the live save and on all five rotating
+	# backups, because they are documents of the same vintage. The premigrate artefacts are the only
+	# copies a later build could still read, so they are tried after the backups rather than not at
+	# all.
+	if _restore_from_premigrate(character_id):
+		return true
 	if character_id == "":
-		print_verbose("LocalSave: %s — starting fresh" % reason)
-		_reset_to_defaults()
+		# C-233 (fix 1): this used to call `_reset_to_defaults()` immediately — a silent, automatic
+		# wipe of the player's progress, announced only through a message that said "Saving failed".
+		# The data is not gone (it is quarantined next to the save), but nothing told the player
+		# that, and nothing gave them the choice.
+		#
+		# Nothing is reset here now. The failure is published with the quarantine path, and
+		# `recovery_required` holds until someone resolves it — the title screen offers the choice
+		# and calls `resolve_recovery_start_fresh()` or `resolve_recovery_dismiss()`. If no UI is
+		# listening the game still boots on defaults (`_state` was never populated), so this cannot
+		# soft-lock a build that has not wired the screen; it just stops the wipe being silent.
+		print_verbose("LocalSave: %s — awaiting player recovery decision" % reason)
+		recovery_required = true
+		recovery_reason = reason
+		recovery_quarantine_path = _last_quarantine_path
+		save_recovery_required.emit(reason, _last_quarantine_path)
+	return false
+
+
+## C-233: the player's answer to the recovery prompt — discard the unreadable save and begin again.
+func resolve_recovery_start_fresh() -> void:
+	if not recovery_required:
+		return
+	recovery_required = false
+	_reset_to_defaults()
+	_write_save(_build_save_payload(), false)
+	save_loaded.emit()
+
+
+## C-233: the player's answer to the recovery prompt — leave the quarantined file alone and carry on
+## with an empty profile, so a later build with a fixed migrator can still read it.
+func resolve_recovery_dismiss() -> void:
+	recovery_required = false
+
+
+## Newest premigrate snapshot first. These are pre-migration documents, so they are only useful
+## when the live save and every rotating backup died in the migrator itself.
+func _restore_from_premigrate(character_id: String) -> bool:
+	var prefix := character_id if character_id != "" else "legacy"
+	var matches: Array[String] = []
+	var dir := DirAccess.open(BACKUP_DIR)
+	if dir == null:
+		return false
+	dir.list_dir_begin()
+	var entry := dir.get_next()
+	while entry != "":
+		if entry.begins_with("%s.premigrate_v" % prefix):
+			matches.append(entry)
+		entry = dir.get_next()
+	dir.list_dir_end()
+	matches.sort()
+	matches.reverse()
+	for name in matches:
+		if _adopt_document_file("%s%s" % [BACKUP_DIR, name], character_id):
+			print_verbose("LocalSave: recovered from premigrate artefact %s" % name)
+			return true
 	return false
 
 
@@ -1149,6 +1266,47 @@ func _active_save_path(character_id: String = "") -> String:
 	return SAVE_PATH
 
 
+
+## C-238: shared adoption gate for documents of unknown provenance.
+##
+## `_load_document` ran classify -> premigrate snapshot -> migrate -> validate before applying a
+## disk save. `sync_from_cloud` and `push_to_cloud`'s conflict branch applied the server document
+## straight to services with none of it, then wrote it back stamped with the *current*
+## schemaVersion — permanently disqualifying the migrator from ever repairing it.
+func _adopt_foreign_document(parsed: Dictionary, source: String) -> Dictionary:
+	match SaveMigrator.classify(parsed):
+		SaveMigrator.RESULT_TOO_NEW:
+			save_failed.emit("save_from_newer_build")
+			return {}
+		SaveMigrator.RESULT_UNKNOWN:
+			if CrashLogger:
+				CrashLogger.log_error("local_save.foreign_unknown_version", {"source": source})
+			return {}
+		SaveMigrator.RESULT_MIGRATABLE:
+			_snapshot_before_migration(
+				_active_save_path(), int(parsed.get("schemaVersion", 0)), _active_character_id
+			)
+	var data: Dictionary = SaveMigrator.migrate(parsed)
+	if data.get("migrationFailed", false):
+		if str(data.get("migrationKind", "")) == "too_new":
+			save_failed.emit("save_from_newer_build")
+		elif CrashLogger:
+			CrashLogger.log_error(
+				"local_save.foreign_migration_failed",
+				{"source": source, "reason": str(data.get("migrationReason", ""))}
+			)
+		return {}
+	var problems := SaveValidator.validate(data)
+	if not problems.is_empty():
+		if CrashLogger:
+			CrashLogger.log_error(
+				"local_save.foreign_validate_failed",
+				{"source": source, "problems": ", ".join(problems)}
+			)
+		return {}
+	return data
+
+
 func _write_save(
 	data: Dictionary, rotate_backups: bool = true, priority: SavePriority = SavePriority.IMMEDIATE
 ) -> bool:
@@ -1161,8 +1319,6 @@ func _write_save(
 		_save_roster()
 	var target_path := _active_save_path()
 	var temp_path := "%s.tmp" % target_path
-	if rotate_backups and FileAccess.file_exists(target_path):
-		_rotate_backups(target_path, _active_character_id)
 	var file := FileAccess.open(temp_path, FileAccess.WRITE)
 	if not file:
 		if CrashLogger:
@@ -1217,6 +1373,14 @@ func _write_save(
 					"LocalSave: deferred validation failed — %s" % ", ".join(deferred_problems)
 				)
 			return false
+	# C-231: rotation happens here — after the temp file exists and has validated, immediately
+	# before the commit. It used to run *before* the write, so a failed write (full disk, AV lock)
+	# still consumed a backup generation and duplicated the current save into slot 0. Three failures
+	# collapsed the whole five-slot history, precisely when a player would want to roll back.
+	if rotate_backups and FileAccess.file_exists(target_path):
+		if _force_backup_rotation or _backup_slot_is_stale(_active_character_id):
+			_rotate_backups(target_path, _active_character_id)
+	_force_backup_rotation = false
 	if DirAccess.rename_absolute(temp_path, target_path) != OK:
 		DirAccess.remove_absolute(temp_path)
 		if CrashLogger:

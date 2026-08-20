@@ -4,7 +4,20 @@ extends RefCounted
 ## Graph path utilities for critical-path and branch analysis.
 
 
+## C-209: every helper here rebuilt the adjacency map from scratch — `branch_depth_for_slot` did it
+## three times per call, and `room_content_assigner` calls it once per candidate room while placing
+## a key. On a 30-room floor that was ~100 full rebuilds and ~100 BFS passes to place one key.
+## Memoised against the graph instance; `RoomGraph` is rebuilt per generation attempt, so a stale
+## entry cannot outlive its graph.
+static var _adj_cache_graph: RoomGraph = null
+static var _adj_cache: Dictionary = {}
+static var _dist_cache_graph: RoomGraph = null
+static var _dist_cache: Dictionary = {}
+
+
 static func build_adjacency(graph: RoomGraph) -> Dictionary:
+	if graph == _adj_cache_graph and not _adj_cache.is_empty():
+		return _adj_cache
 	var adj := {}
 	for cell in graph.occupied_cells():
 		var slot: RoomGraphSlot = graph.slots[cell]
@@ -22,6 +35,8 @@ static func build_adjacency(graph: RoomGraph) -> Dictionary:
 			if neighbor == null or neighbor.slot_type == RoomGraphSlot.SlotType.SECRET:
 				continue
 			adj[slot.slot_id].append(neighbor.slot_id)
+	_adj_cache_graph = graph
+	_adj_cache = adj
 	return adj
 
 
@@ -40,6 +55,8 @@ static func connected_component(graph: RoomGraph, start_id: String) -> Dictionar
 
 
 static func bfs_distances(graph: RoomGraph, start_id: String) -> Dictionary:
+	if graph == _dist_cache_graph and _dist_cache.has(start_id):
+		return _dist_cache[start_id]
 	var adj := build_adjacency(graph)
 	var distances := {start_id: 0}
 	var queue: Array[String] = [start_id]
@@ -50,6 +67,10 @@ static func bfs_distances(graph: RoomGraph, start_id: String) -> Dictionary:
 				continue
 			distances[next_id] = int(distances[current]) + 1
 			queue.append(next_id)
+	if graph != _dist_cache_graph:
+		_dist_cache_graph = graph
+		_dist_cache = {}
+	_dist_cache[start_id] = distances
 	return distances
 
 
@@ -116,12 +137,38 @@ static func branch_depth_for_slot(graph: RoomGraph, slot_id: String) -> int:
 		path_set[pid] = true
 	if path_set.has(slot_id):
 		return 0
-	var distances := bfs_distances(graph, graph.start_id)
-	var min_path_dist := 9999
+	# C-208: this took the *minimum* distance over every critical-path node. The path always
+	# contains the start room, whose distance is 0, so `min_path_dist` was always 0 and the whole
+	# function collapsed to plain distance-from-start. Both consumers — locked-door key placement
+	# and puzzle-lever placement — rank candidates on this value, so keys and levers went to the
+	# room furthest from the entrance rather than the one deepest off the critical path.
+	#
+	# The intended quantity is the distance to the *nearest* path node.
+	#
+	# C-155: the first fix computed that as `min |dist(slot) - dist(path_node)|` over the path,
+	# which is the same depth-difference approximation C-149 found wrong in the shortcut scorer: it
+	# equals the real walking distance only when one node is an ancestor of the other, and a slot
+	# hanging off an early branch could score as though it were adjacent to a late path room. A
+	# multi-source BFS seeded from every critical-path node measures the actual number of rooms
+	# between the slot and the path, which is what "branch depth" means and what both consumers —
+	# key placement and puzzle-lever placement — rank on.
+	var adj := build_adjacency(graph)
+	var queue: Array[String] = []
+	var depth := {}
 	for pid in path:
-		min_path_dist = mini(min_path_dist, int(distances.get(pid, 9999)))
-	var slot_dist := int(distances.get(slot_id, 0))
-	return maxi(0, slot_dist - min_path_dist)
+		depth[pid] = 0
+		queue.append(pid)
+	while not queue.is_empty():
+		var current: String = queue.pop_front()
+		for neighbor in adj.get(current, []):
+			var next_id := str(neighbor)
+			if depth.has(next_id):
+				continue
+			depth[next_id] = int(depth[current]) + 1
+			if next_id == slot_id:
+				return int(depth[next_id])
+			queue.append(next_id)
+	return maxi(0, int(depth.get(slot_id, 0)))
 
 
 static func slots_on_critical_path(graph: RoomGraph) -> Array[String]:

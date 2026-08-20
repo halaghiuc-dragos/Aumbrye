@@ -9,6 +9,31 @@ const UPGRADEABLE_TYPES: Array[String] = ["weapon", "armor", "accessory"]
 const RarityRegistryScript := preload("res://scripts/loot/rarity_registry.gd")
 
 
+## C-237: durability is lost only by *equipped* gear (`InventoryService.apply_death_durability_loss`
+## walks `inventory.equipped`), while every service entry point below indexed `inventory.slots` —
+## and `equip_from_index` removes an item from `slots` when it is equipped. The set of damaged items
+## and the set the blacksmith could act on were therefore disjoint: after five deaths the repair
+## list contained none of the player's damaged gear.
+##
+## `resolve_target()` accepts either an int grid index or an equipment slot name ("weapon",
+## "chest", …) and returns the live slot dictionary in both cases, so repairs and upgrades mutate
+## the real instance either way.
+static func resolve_target(target: Variant) -> Dictionary:
+	var inv := InventoryService.inventory
+	if target is String:
+		var slot_name := str(target)
+		var equipped: Dictionary = inv.equipped.get(slot_name, {})
+		return equipped
+	var index := int(target)
+	if index < 0 or index >= inv.slots.size():
+		return {}
+	return inv.slots[index]
+
+
+static func is_equipment_slot(target: Variant) -> bool:
+	return target is String
+
+
 static func get_slot_upgrade_level(slot: Dictionary) -> int:
 	return int(slot.get("upgradeLevel", 0))
 
@@ -40,11 +65,10 @@ static func get_upgrade_cost(item_id: String, current_level: int) -> int:
 	return 25 + current_level * 15
 
 
-static func can_upgrade(inv_index: int) -> bool:
-	var inv := InventoryService.inventory
-	if inv_index < 0 or inv_index >= inv.slots.size():
+static func can_upgrade(target: Variant) -> bool:
+	var slot := resolve_target(target)
+	if slot.is_empty():
 		return false
-	var slot: Dictionary = inv.slots[inv_index]
 	var item_id: String = slot.get("itemId", "")
 	var def := ItemCatalog.get_definition(item_id)
 	var item_type: String = def.get("itemType", "")
@@ -56,11 +80,11 @@ static func can_upgrade(inv_index: int) -> bool:
 	return CharacterService.can_afford(get_upgrade_cost(item_id, level))
 
 
-static func upgrade_item(inv_index: int) -> Dictionary:
+static func upgrade_item(target: Variant) -> Dictionary:
 	var inv := InventoryService.inventory
-	if inv_index < 0 or inv_index >= inv.slots.size():
+	var slot := resolve_target(target)
+	if slot.is_empty():
 		return {"ok": false, "error": "invalid slot"}
-	var slot: Dictionary = inv.slots[inv_index]
 	var item_id: String = slot.get("itemId", "")
 	var level := get_slot_upgrade_level(slot)
 	if level >= get_max_upgrade_level_for_slot(slot):
@@ -161,11 +185,10 @@ static func unlock_recipe(recipe_id: String) -> Dictionary:
 	return unlock_item(str(recipe.get("itemId", "")))
 
 
-static func can_repair(inv_index: int) -> bool:
-	var inv := InventoryService.inventory
-	if inv_index < 0 or inv_index >= inv.slots.size():
+static func can_repair(target: Variant) -> bool:
+	var slot := resolve_target(target)
+	if slot.is_empty():
 		return false
-	var slot: Dictionary = inv.slots[inv_index]
 	var item_id: String = slot.get("itemId", "")
 	var def := ItemCatalog.get_definition(item_id)
 	if def.get("itemType", "") not in UPGRADEABLE_TYPES:
@@ -205,11 +228,11 @@ static func respec_talents() -> Dictionary:
 	return {"ok": true}
 
 
-static func repair_item(inv_index: int) -> Dictionary:
+static func repair_item(target: Variant) -> Dictionary:
 	var inv := InventoryService.inventory
-	if inv_index < 0 or inv_index >= inv.slots.size():
+	var slot := resolve_target(target)
+	if slot.is_empty():
 		return {"ok": false, "error": "invalid slot"}
-	var slot: Dictionary = inv.slots[inv_index]
 	var item_id: String = slot.get("itemId", "")
 	var max_dur := get_max_durability(item_id)
 	var current := get_slot_durability(slot)

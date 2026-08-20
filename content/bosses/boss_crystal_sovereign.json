@@ -20,6 +20,7 @@
   "aggro_range": 20,
   "deaggro_range": 30,
   "patrol_radius": 0,
+  "arenaHalfExtent": 12.0,
   "vision_cone_deg": 220,
   "awareness_rate": 9,
   "alert_radius": 0,

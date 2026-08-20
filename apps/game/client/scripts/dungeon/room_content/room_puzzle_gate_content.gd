@@ -55,6 +55,12 @@ func _refresh_state() -> void:
 		_unlock()
 
 
+## C-141: `_unlocked` was written by `_unlock()` and read nowhere, so the gate — whose whole job is
+## to be open or shut — could not answer "am I open?" to anything else.
+func is_unlocked() -> bool:
+	return _unlocked
+
+
 func _unlock() -> void:
 	_unlocked = true
 	if _barrier:

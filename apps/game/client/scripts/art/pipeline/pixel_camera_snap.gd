@@ -22,10 +22,18 @@ static func rotation_step_radians(fov_degrees: float) -> float:
 	return deg_to_rad(clampf(fov_degrees, 10.0, 170.0)) / height
 
 
-static func snap_basis(basis: Basis, enabled: bool = true) -> Basis:
+## C-173: this derived its rotation step from the **global** `PixelDioramaSettings.snap_fov_hint`
+## rather than the FOV its caller was working with. `snap_transform` sets that hint one line before
+## calling in, so the two agreed by assignment order rather than by construction — and a second
+## caller with a different FOV would silently have used the first one's. The FOV is a parameter now,
+## defaulting to the hint so existing callers are unaffected.
+##
+## `euler.z` is deliberately left unquantised: roll should not step.
+static func snap_basis(basis: Basis, enabled: bool = true, fov_degrees: float = -1.0) -> Basis:
 	if not enabled:
 		return basis
-	var step := rotation_step_radians(PixelDioramaSettings.snap_fov_hint)
+	var fov := fov_degrees if fov_degrees > 0.0 else PixelDioramaSettings.snap_fov_hint
+	var step := rotation_step_radians(fov)
 	var euler := basis.get_euler()
 	return Basis.from_euler(Vector3(snappedf(euler.x, step), snappedf(euler.y, step), euler.z))
 
@@ -42,5 +50,6 @@ static func snap_transform(
 	if step <= 0.0:
 		return source
 	return Transform3D(
-		snap_basis(source.basis, enabled), snap_origin(source.origin, step, enabled)
+		snap_basis(source.basis, enabled, fov_degrees),
+		snap_origin(source.origin, step, enabled)
 	)

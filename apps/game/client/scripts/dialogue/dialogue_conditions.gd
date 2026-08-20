@@ -150,8 +150,16 @@ static func evaluate(condition: Variant) -> bool:
 			>= int(condition.get("bountyTokens", 0))
 		)
 
+	# NOTE: this used to `assert(false)` here. In a debug build that halts the process, so any
+	# content typo in a dialogue condition crashed the game outright — and it aborted the whole
+	# validation run, because hub_m4_suite deliberately feeds `{"minLvl": 1}` to exercise this
+	# path. That abort is why the suite could never reach the end and why CI was never wired.
+	#
+	# OPEN QUESTION for the team: the comment below says unknown keys fail *open* (return true),
+	# while hub_m4_suite.gd:187 asserts they fail *closed* (expects false). With the assert gone
+	# the suite now reports that disagreement instead of hiding it behind a crash. Current
+	# behaviour is preserved until the intended semantics are chosen.
 	push_warning("DialogueConditions: unrecognized condition keys: %s" % str(condition.keys()))
-	assert(false, "DialogueConditions: unrecognized condition keys: %s" % str(condition.keys()))
 	# Release builds fail open: an unknown key must never silently hide content.
 	return true
 

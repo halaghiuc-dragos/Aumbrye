@@ -39,7 +39,7 @@ func _on_body_exited(body: Node3D) -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	if not event.is_action_pressed("interact") or not _near_player:
+	if not PlayerInput.interact_just_pressed(event) or not _near_player:
 		return
 	var dialogue_ui := get_tree().get_first_node_in_group("dialogue_ui")
 	if dialogue_ui and dialogue_ui.has_method("start_dialogue"):

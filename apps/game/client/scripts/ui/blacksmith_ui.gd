@@ -5,6 +5,7 @@ extends Control
 const RarityRegistryScript := preload("res://scripts/loot/rarity_registry.gd")
 const GameUISkinScript := preload("res://scripts/ui/game_ui_skin.gd")
 const ForgeServiceScript := preload("res://scripts/items/forge_service.gd")
+const EquipmentScript := preload("res://scripts/items/equipment.gd")
 const ItemListPresenterScript := preload("res://scripts/ui/item_list_presenter.gd")
 
 signal closed
@@ -16,13 +17,23 @@ signal closed
 @onready var _repair_button: Button = $Panel/Margin/VBox/Buttons/RepairButton
 @onready var _close_button: Button = $Panel/Margin/VBox/Buttons/CloseButton
 
-var _item_indices: Array[int] = []
+var _item_indices: Array = []  # grid index (int) or equipment slot name (String) — see C-237
 var _forge_row: HBoxContainer
 var _salvage_button: Button
 var _reroll_button: Button
 var _transmute_button: Button
 var _infuse_button: Button
 var _infuse_element := ""
+
+## C-239: the three operations that had no UI.
+var _path_picker: OptionButton
+var _path_button: Button
+var _mark_source_button: Button
+var _transfer_button: Button
+var _conversion_picker: OptionButton
+var _convert_button: Button
+var _conversion_recipes: Array[Dictionary] = []
+var _rule_source_index := -1
 
 
 func _ready() -> void:
@@ -106,6 +117,14 @@ func _build_forge_row() -> void:
 		_infuse_button.pressed.connect(_on_infuse_pressed)
 		_forge_row.add_child(_infuse_button)
 
+	# C-239: `set_upgrade_path`, `transfer_rule` and `convert_materials` were all fully implemented,
+	# content-backed and had **zero callers** — four upgrade paths with translation keys and real
+	# stat riders, five authored recipe files, and roughly a third of `forge_service.gd`, with no
+	# button anywhere. This is the button.
+	_build_upgrade_path_controls()
+	_build_transfer_controls()
+	_build_conversion_controls()
+
 	for child in _forge_row.get_children():
 		var control := child as Control
 		if control:
@@ -116,6 +135,113 @@ func _build_forge_row() -> void:
 		var button := child as Control
 		if button:
 			button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+
+
+## C-239: the upgrade-path picker. `slot["upgradePath"]` drives `upgrade_multiplier` and
+## `_apply_upgrade_path_riders` in the live stat pipeline, so every item in the game was permanently
+## "standard" and three of the four identities — heavy (poise), keen (crit/evasion), blessed
+## (health/regen) — could never be selected.
+func _build_upgrade_path_controls() -> void:
+	var paths := ForgeServiceScript.upgrade_paths()
+	if paths.is_empty():
+		return
+	var label := Label.new()
+	label.text = tr("SMITH_UPGRADE_PATH")
+	GameUISkinScript.style_hint_label(label)
+	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_forge_row.add_child(label)
+
+	_path_picker = OptionButton.new()
+	_path_picker.name = "UpgradePathPicker"
+	for path in paths:
+		_path_picker.add_item(EquipmentScript.upgrade_path_label(path))
+	_path_picker.item_selected.connect(_on_upgrade_path_selected)
+	_forge_row.add_child(_path_picker)
+
+	_path_button = GameUISkinScript.make_button(tr("SMITH_SET_PATH"))
+	_path_button.pressed.connect(_on_set_path_pressed)
+	_forge_row.add_child(_path_button)
+
+
+## C-239: rule transfer consumes a source item to stamp its rule onto a target of the same type.
+## Two selections are needed, so the source is latched by a button and the list selection supplies
+## the target.
+func _build_transfer_controls() -> void:
+	_mark_source_button = GameUISkinScript.make_button(tr("SMITH_MARK_RULE_SOURCE"))
+	_mark_source_button.pressed.connect(_on_mark_source_pressed)
+	_forge_row.add_child(_mark_source_button)
+
+	_transfer_button = GameUISkinScript.make_button(tr("SMITH_TRANSFER_RULE"))
+	_transfer_button.pressed.connect(_on_transfer_pressed)
+	_forge_row.add_child(_transfer_button)
+
+
+## C-239: the five-tier material ladder — cinder, glimmer, sable, storm, tear — with all four
+## conversion recipes authored on both sides and no screen offering them.
+func _build_conversion_controls() -> void:
+	var recipes := ForgeServiceScript.conversion_recipes()
+	if recipes.is_empty():
+		return
+	_conversion_recipes = recipes
+	_conversion_picker = OptionButton.new()
+	_conversion_picker.name = "ConversionPicker"
+	for recipe in recipes:
+		_conversion_picker.add_item(str(recipe.get("name", recipe.get("id", "?"))))
+	_forge_row.add_child(_conversion_picker)
+
+	_convert_button = GameUISkinScript.make_button(tr("SMITH_CONVERT"))
+	_convert_button.pressed.connect(_on_convert_pressed)
+	_forge_row.add_child(_convert_button)
+
+
+func _on_upgrade_path_selected(_index: int) -> void:
+	_refresh_forge_buttons()
+
+
+func _selected_upgrade_path() -> String:
+	var paths := ForgeServiceScript.upgrade_paths()
+	if _path_picker == null or paths.is_empty():
+		return ""
+	return str(paths[clampi(_path_picker.selected, 0, paths.size() - 1)])
+
+
+func _on_set_path_pressed() -> void:
+	var inv_index := _selected_inv_index()
+	if inv_index == null:
+		return
+	_report_forge(
+		ForgeServiceScript.set_upgrade_path(inv_index, _selected_upgrade_path()),
+		tr("SMITH_SET_PATH")
+	)
+
+
+func _on_mark_source_pressed() -> void:
+	var inv_index := _selected_inv_index()
+	if inv_index == null or inv_index is String:
+		return
+	_rule_source_index = int(inv_index)
+	_refresh_forge_buttons()
+
+
+func _on_transfer_pressed() -> void:
+	var inv_index := _selected_inv_index()
+	if inv_index == null or inv_index is String or _rule_source_index < 0:
+		return
+	_report_forge(
+		ForgeServiceScript.transfer_rule(_rule_source_index, int(inv_index)),
+		tr("SMITH_TRANSFER_RULE")
+	)
+	_rule_source_index = -1
+
+
+func _on_convert_pressed() -> void:
+	if _conversion_picker == null or _conversion_recipes.is_empty():
+		return
+	var index := clampi(_conversion_picker.selected, 0, _conversion_recipes.size() - 1)
+	var recipe: Dictionary = _conversion_recipes[index]
+	_report_forge(
+		ForgeServiceScript.convert_materials(str(recipe.get("id", ""))), tr("SMITH_CONVERT")
+	)
 
 
 func is_open() -> bool:
@@ -173,6 +299,33 @@ func _refresh() -> void:
 		if dur <= 0:
 			_item_list.set_item_custom_fg_color(index, GameUISkinScript.DANGER_COLOR)
 		_item_indices.append(i)
+	# C-237: equipped gear is the only gear that ever takes durability damage, and equipping removes
+	# an item from `slots` — so the list above could never show a damaged piece. Equipment slots are
+	# appended as string targets; BlacksmithService.resolve_target() accepts either form.
+	for slot_name in Equipment.SLOT_ORDER:
+		var eq: Dictionary = inv.equipped.get(slot_name, {})
+		if eq.is_empty():
+			continue
+		var eq_id: String = str(eq.get("itemId", ""))
+		var eq_def := ItemCatalog.get_definition(eq_id)
+		if eq_def.get("itemType", "") not in BlacksmithService.UPGRADEABLE_TYPES:
+			continue
+		var eq_level := BlacksmithService.get_slot_upgrade_level(eq)
+		var eq_max_level := BlacksmithService.get_max_upgrade_level_for_slot(eq)
+		var eq_dur := BlacksmithService.get_slot_durability(eq)
+		var eq_max_dur := BlacksmithService.get_max_durability(eq_id)
+		var eq_index := ItemListPresenterScript.add_row(
+			_item_list,
+			eq_id,
+			eq_def,
+			tr("SMITH_ITEM_ROW_EQUIPPED") % [
+				eq_def.get("name", eq_id), eq_level, eq_max_level, eq_dur, eq_max_dur
+			],
+			inv.get_slot_rarity(eq)
+		)
+		if eq_dur <= 0:
+			_item_list.set_item_custom_fg_color(eq_index, GameUISkinScript.DANGER_COLOR)
+		_item_indices.append(slot_name)
 	if _item_indices.is_empty():
 		ItemListPresenterScript.add_plain_row(_item_list, tr("SMITH_NO_ITEMS"), false)
 		_detail_label.text = ""
@@ -187,7 +340,7 @@ func _refresh() -> void:
 func _on_item_selected(index: int) -> void:
 	if index < 0 or index >= _item_indices.size():
 		return
-	var inv_index: int = _item_indices[index]
+	var inv_index: Variant = _item_indices[index]
 	var slot: Dictionary = InventoryService.inventory.slots[inv_index]
 	var item_id: String = slot.get("itemId", "")
 	var level := BlacksmithService.get_slot_upgrade_level(slot)
@@ -253,7 +406,9 @@ func _on_unlock_pressed() -> void:
 
 
 ## Index of the item currently selected in the list, or -1 when nothing is selected.
-func _selected_inv_index() -> int:
+## Returns a grid index (int) or an equipment slot name (String); -1 when nothing is selected.
+## BlacksmithService and ForgeService both resolve either form via `resolve_target()` (C-237).
+func _selected_inv_index() -> Variant:
 	var selected := _item_list.get_selected_items()
 	if selected.is_empty():
 		return -1
@@ -277,6 +432,26 @@ func _refresh_forge_buttons() -> void:
 			not has_item
 			or _infuse_element == ""
 			or not ForgeServiceScript.can_infuse(inv_index, _infuse_element)
+		)
+	# C-239: the three newly-reachable operations.
+	if _path_button:
+		_path_button.disabled = (
+			not has_item
+			or not ForgeServiceScript.can_set_upgrade_path(inv_index, _selected_upgrade_path())
+		)
+	if _mark_source_button:
+		_mark_source_button.disabled = not has_item or inv_index is String
+	if _transfer_button:
+		_transfer_button.disabled = (
+			not has_item
+			or inv_index is String
+			or _rule_source_index < 0
+			or not ForgeServiceScript.can_transfer_rule(_rule_source_index, int(inv_index))
+		)
+	if _convert_button and not _conversion_recipes.is_empty():
+		var index := clampi(_conversion_picker.selected, 0, _conversion_recipes.size() - 1)
+		_convert_button.disabled = not ForgeServiceScript.can_afford_recipe(
+			_conversion_recipes[index]
 		)
 
 

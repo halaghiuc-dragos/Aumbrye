@@ -144,6 +144,14 @@ func _build_nodes() -> void:
 	_viewport.handle_input_locally = false
 	_viewport.gui_disable_input = true
 	_viewport.render_target_update_mode = SubViewport.UPDATE_WHEN_VISIBLE
+	# C-94: verified — no anti-aliasing mode is set anywhere in the project, so B-02 (FXAA inside
+	# the low-res viewport) does not reproduce; these three took Godot's disabled defaults. Stated
+	# explicitly so a later project-wide AA setting cannot silently start smearing the pixel render,
+	# which is the failure the original finding was reaching for. Nearest filtering
+	# (`default_texture_filter=0`) is already correct project-wide.
+	_viewport.screen_space_aa = Viewport.SCREEN_SPACE_AA_DISABLED
+	_viewport.msaa_3d = Viewport.MSAA_DISABLED
+	_viewport.use_taa = false
 	_container.add_child(_viewport)
 	_render_camera = Camera3D.new()
 	_render_camera.name = "PixelRenderCamera"

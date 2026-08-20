@@ -8,7 +8,6 @@ const MaterialFlashScript := preload("res://scripts/art/characters/material_flas
 const DEFAULT_MAX_CHARGES := 3
 const HEAL_AMOUNT := 0.45
 const DRINK_DURATION := 1.35
-const HEAL_STAMINA_COST := 0.0
 
 ## A hit at or above this lands hard enough to break the drink. Anything smaller — a poison
 ## tick, a glancing blow, chip through a block — is ridden out, so hostile-environment damage
@@ -120,6 +119,8 @@ func _interrupt_drink() -> void:
 	heal_ended.emit()
 
 
+## C-21: `_bind_anim_signals()` was a byte-identical copy of this function, one called from
+## `_ready()` and one from `_try_drink()`. Both call sites now share this one.
 func _connect_heal_anim_signals() -> void:
 	var director := _body.get_node_or_null("AnimDirector")
 	if director == null:
@@ -172,36 +173,19 @@ func _try_drink() -> void:
 		return
 	if _health and _health.is_dead():
 		return
-	if _stamina and HEAL_STAMINA_COST > 0.0 and not _stamina.has(HEAL_STAMINA_COST):
-		return
-	if _stamina and HEAL_STAMINA_COST > 0.0:
-		_stamina.consume(HEAL_STAMINA_COST)
+	# C-21: `HEAL_STAMINA_COST` is 0.0, so the four stamina branches that used to stand here were
+	# unreachable. Drinking is deliberately free of stamina cost — it is gated by charges and by
+	# the drink animation's commitment window, not by the bar.
 	is_drinking = true
 	_heal_committed = false
 	_drink_timer = DRINK_DURATION
 	heal_started.emit()
-	_bind_anim_signals()
+	_connect_heal_anim_signals()
 	if AudioDirector:
 		AudioDirector.play_combat_sfx("heal_raise", _body.global_position + Vector3(0.0, 1.2, 0.0))
 	_anim_director = _body.get_node_or_null("AnimDirector")
 	if _anim_director and _anim_director.has_method("play_heal"):
 		_anim_director.call("play_heal", DRINK_DURATION)
-
-
-func _bind_anim_signals() -> void:
-	var director := _body.get_node_or_null("AnimDirector")
-	if director == null:
-		return
-	if (
-		director.has_signal("heal_gulp_frame")
-		and not director.heal_gulp_frame.is_connected(_on_heal_gulp)
-	):
-		director.heal_gulp_frame.connect(_on_heal_gulp)
-	if (
-		director.has_signal("heal_commit_frame")
-		and not director.heal_commit_frame.is_connected(_on_heal_commit)
-	):
-		director.heal_commit_frame.connect(_on_heal_commit)
 
 
 func _on_heal_gulp() -> void:
@@ -221,7 +205,10 @@ func _on_heal_commit() -> void:
 	var visual := _body.get_node_or_null("Facing/DioramaVisual") as Node3D
 	if visual:
 		MaterialFlashScript.flash(visual, 0.85)
-	VfxService.play_hit_spark(_body.global_position + Vector3(0.0, 1.1, 0.0), Vector3.UP)
+	# C-20: this played `play_hit_spark`, so the tensest voluntary act in the game looked exactly
+	# like being hit. `heal` is its own effect in `content/vfx/effects.json` — rising motes, no
+	# shard debris, no shake and no hitstop, since drinking must not cost a frame of control.
+	VfxService.play_heal(_body.global_position + Vector3(0.0, 1.1, 0.0))
 
 
 func _apply_heal_amount() -> void:

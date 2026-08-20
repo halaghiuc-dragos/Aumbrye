@@ -20,9 +20,8 @@ static func validate(name: String, existing_names: PackedStringArray = []) -> Di
 	if not _matches_charset(trimmed):
 		return {"ok": false, "reason_key": "CREATE_NAME_ERR_CHARS"}
 	var lowered := trimmed.to_lower()
-	for blocked in _blocked_words():
-		if lowered == blocked:
-			return {"ok": false, "reason_key": "CREATE_NAME_ERR_BLOCKED"}
+	if _is_blocked(trimmed):
+		return {"ok": false, "reason_key": "CREATE_NAME_ERR_BLOCKED"}
 	for existing in existing_names:
 		if lowered == str(existing).strip_edges().to_lower():
 			return {"ok": false, "reason_key": "CREATE_NAME_ERR_TAKEN"}
@@ -51,20 +50,110 @@ static func random_valid_name(existing_names: PackedStringArray = []) -> String:
 	return str(first_list[0])
 
 
+## C-249: `character_create_ui` validates on every text change, so this compiled the pattern and
+## rebuilt the lower-cased blocklist once per keystroke — eighteen times for an eighteen-character
+## name. Both are constant for the session.
+static var _charset_regex: RegEx = null
+static var _blocked_cache: PackedStringArray = PackedStringArray()
+static var _blocked_loaded := false
+
+
 static func _matches_charset(trimmed: String) -> bool:
 	if trimmed.length() == 1:
 		return trimmed[0].is_valid_identifier() or trimmed.is_valid_int()
-	var regex := RegEx.new()
-	regex.compile(_ALLOWED_PATTERN)
-	return regex.search(trimmed) != null
+	if _charset_regex == null:
+		_charset_regex = RegEx.new()
+		_charset_regex.compile(_ALLOWED_PATTERN)
+	return _charset_regex.search(trimmed) != null
 
 
-static func _blocked_words() -> PackedStringArray:
+## C-248: matching was `lowered == blocked` — equality, not containment — so `admin` was rejected
+## while `admin1`, `xadmin` and `The admin` all passed. Impersonation is the whole point of the
+## list, and `Admin_Steve` is the attack; the bare reserved word is what nobody would pick.
+##
+## Three rules, because one rule is wrong for both ends of the list:
+##   - `reserved` (5+ characters): matched anywhere in the normalised name.
+##   - `shortReserved` (`god`, `dev`, `test`, `null`): matched as a whole token only, because a
+##     substring rule on three letters rejects Godwin, Devlin and Testa.
+##   - `blocked`: substring, and currently empty — populating it is a product decision.
+##
+## Normalisation folds the cheap evasions: case, separators, and leetspeak digit substitutions.
+## This remains a client-side courtesy. Names reach other players through the leaderboard
+## (`results_screen`, `ApiClient`), so the authoritative check belongs on the server.
+const _LEET_FOLD := {
+	"0": "o", "1": "i", "3": "e", "4": "a", "5": "s", "7": "t", "@": "a", "$": "s", "!": "i"
+}
+
+static var _lists_cache: Dictionary = {}
+static var _lists_loaded := false
+
+
+static func _name_lists() -> Dictionary:
+	if _lists_loaded:
+		return _lists_cache
+	_lists_loaded = true
 	var data: Dictionary = ContentLoader.load_json(BLOCKED_PATH)
-	var blocked: Variant = data.get("blocked", [])
-	if blocked is Array:
-		var out: PackedStringArray = []
-		for word in blocked:
-			out.append(str(word).to_lower())
-		return out
-	return PackedStringArray()
+	var reserved := _string_list(data.get("reserved", []))
+	# schemaVersion 1 documents carried everything under `blocked`, all of them reserved words.
+	if reserved.is_empty() and not data.has("reserved"):
+		reserved = _string_list(data.get("blocked", []))
+		_lists_cache = {
+			"reserved": reserved, "shortReserved": PackedStringArray(), "blocked": PackedStringArray()
+		}
+		return _lists_cache
+	_lists_cache = {
+		"reserved": reserved,
+		"shortReserved": _string_list(data.get("shortReserved", [])),
+		"blocked": _string_list(data.get("blocked", [])),
+	}
+	return _lists_cache
+
+
+static func _string_list(value: Variant) -> PackedStringArray:
+	var out: PackedStringArray = []
+	if value is Array:
+		for word in value:
+			var lowered := str(word).to_lower().strip_edges()
+			if lowered != "":
+				out.append(lowered)
+	return out
+
+
+static func normalise(name: String) -> String:
+	var out := ""
+	for character in name.to_lower():
+		var folded: String = _LEET_FOLD.get(character, character)
+		if (folded >= "a" and folded <= "z") or (folded >= "0" and folded <= "9"):
+			out += folded
+	return out
+
+
+static func _tokens(name: String) -> PackedStringArray:
+	var out: PackedStringArray = []
+	for raw in name.to_lower().replace("'", " ").replace("-", " ").split(" ", false):
+		var token := ""
+		for character in raw:
+			var folded: String = _LEET_FOLD.get(character, character)
+			if (folded >= "a" and folded <= "z") or (folded >= "0" and folded <= "9"):
+				token += folded
+		if token != "":
+			out.append(token)
+	return out
+
+
+static func _is_blocked(trimmed: String) -> bool:
+	var lists := _name_lists()
+	var normalised := normalise(trimmed)
+	if normalised == "":
+		return false
+	for word in lists.get("reserved", PackedStringArray()):
+		if normalised.contains(word):
+			return true
+	for word in lists.get("blocked", PackedStringArray()):
+		if normalised.contains(word):
+			return true
+	var tokens := _tokens(trimmed)
+	for word in lists.get("shortReserved", PackedStringArray()):
+		if tokens.has(word) or normalised == word:
+			return true
+	return false

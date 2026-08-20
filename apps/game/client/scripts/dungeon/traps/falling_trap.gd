@@ -6,6 +6,7 @@ const DioramaSkin := preload("res://scripts/art/props/diorama_interactable_skin.
 
 enum State { IDLE, TELEGRAPH, FALLING, RESET }
 
+@export var trap_id: String = "falling_trap"
 @export var damage := 25.0
 @export var poise_damage := 20.0
 @export var telegraph_time := 1.5
@@ -20,7 +21,7 @@ var _state := State.IDLE
 var _timer := 0.0
 var _rest_y := 0.0
 var _def: Dictionary = {}
-var _status_cfg: Dictionary = {}
+var _strike_cfg: Dictionary = {}
 var _cooldowns: Dictionary = {}
 var _arms_on_enemies := false
 
@@ -59,7 +60,7 @@ func _physics_process(delta: float) -> void:
 				_hitbox.set_damage_active(true)
 		State.FALLING:
 			_block.position.y -= fall_speed * delta
-			TrapTactics.strike(_hitbox, self, _status_cfg, _cooldowns)
+			TrapTactics.strike(_hitbox, self, _strike_cfg, _cooldowns)
 			if _block.position.y <= 0.2:
 				_block.position.y = 0.2
 				_hitbox.set_damage_active(false)
@@ -82,17 +83,42 @@ func hazard_radius() -> float:
 
 
 func _load_definition() -> void:
-	_def = TrapTactics.definition(TrapTactics.trap_id_for(self))
+	# C-88: explicit id, defaulted to what the node name used to derive, so renaming the scene
+	# node can no longer silently change which content file the trap loads.
+	# C-140: the spawner's rolled id, then the scene-path map, then the node name.
+	if trap_id == "":
+		trap_id = str(get_meta("trap_id", ""))
+	if trap_id == "":
+		trap_id = TrapTactics.trap_id_for(self)
+	_def = TrapTactics.definition(trap_id)
 	if _def.is_empty():
 		return
 	telegraph_time = float(_def.get("telegraph", telegraph_time))
 	trigger_radius = float(_def.get("triggerRadius", trigger_radius))
 	_arms_on_enemies = str(_def.get("trigger", "proximity")) == "plate"
-	_status_cfg = {
-		"statusId": str(_def.get("statusId", "")),
-		"statusBuildUp": float(_def.get("statusBuildUp", 0.0)),
-		"hitInterval": float(_def.get("hitInterval", 0.5)),
-	}
+	# C-128/C-129/C-130: this built a three-key dict and handed it to `TrapTactics.strike()`, which
+	# reads `damage`, `poiseDamage`, `damageType` and `enemyDamageMultiplier` — none of which were
+	# in it. So `strike()` resolved 0.0 damage and never entered its damage block: it walked every
+	# overlap, stamped cooldowns and counted trap catches while dealing nothing, and all real damage
+	# came from the parallel `TrapDamageArea`, which has no `enemyDamageMultiplier` support and read
+	# its value from the `@export` rather than from content. Every one of the 12 trap definitions
+	# authors `enemyDamageMultiplier` (0.7–1.25); these two authored 0.8 and applied 1.0.
+	#
+	# `hazard_trap` is the reference implementation and passes `_def` whole. These now do the same,
+	# with the scene exports as defaults for keys the content does not author, and the
+	# `TrapDamageArea` damage path is switched off so damage resolves once, through one route.
+	_strike_cfg = _def.duplicate(true)
+	if not _strike_cfg.has("damage"):
+		_strike_cfg["damage"] = damage
+	if not _strike_cfg.has("poiseDamage"):
+		_strike_cfg["poiseDamage"] = poise_damage
+	if not _strike_cfg.has("damageType"):
+		_strike_cfg["damageType"] = _hitbox.damage_type
+	# C-130: `hitInterval` used to pace only the inert path; the area that actually ticks never got
+	# it. Both agree at 0.5 today, so this was latent — any trap authored with another cadence would
+	# have ticked at 0.5 regardless.
+	_hitbox.hit_interval = float(_strike_cfg.get("hitInterval", _hitbox.hit_interval))
+	_hitbox.deals_damage = false
 
 
 func _sync_trigger_radius_from_hitbox() -> void:

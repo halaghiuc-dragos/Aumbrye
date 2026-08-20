@@ -94,14 +94,20 @@ func _on_body_exited(body: Node3D) -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	if _unlocked or not _near_player:
 		return
-	if not event.is_action_pressed("interact"):
+	if not PlayerInput.interact_just_pressed(event):
 		return
-	var keys_needed := _keys_required
-	while keys_needed > 0 and InventoryService.has_dungeon_key(_key_id):
+	# C-132: this loop consumed greedily and checked afterwards, so a player walking up with one key
+	# to a two-key door had the key **destroyed** and the door stayed sealed forever — with whatever
+	# was behind it lost for the rest of the run. Count first, consume only on success.
+	if InventoryService.count_dungeon_keys(_key_id) < _keys_required:
+		if RunFlow:
+			RunFlow.emit_run_warning(
+				tr("LOCK_NEEDS_KEYS").format({"count": _keys_required})
+			)
+		get_viewport().set_input_as_handled()
+		return
+	for _i in _keys_required:
 		InventoryService.consume_dungeon_key(_key_id)
-		keys_needed -= 1
-	if keys_needed > 0:
-		return
 	WorldState.set_flag(_lock_flag_id, true)
 	_unlock()
 	get_viewport().set_input_as_handled()
@@ -142,3 +148,12 @@ func _update_label() -> void:
 			_label.text = "E — Unlock door"
 	else:
 		_label.text = "Locked — find key"
+
+
+## C-134: `WorldState` is an autoload, so its signal outlives every floor. Godot does clean up the
+## connection when this node is freed, so this was never a leak in practice — but floor teardown
+## then depends entirely on node freeing being complete and ordered, and C-86 showed how fragile
+## that assumption was. One explicit disconnect makes it independent of teardown order.
+func _exit_tree() -> void:
+	if _lock_flag_id != "" and WorldState.namespace_changed.is_connected(_on_namespace_changed):
+		WorldState.namespace_changed.disconnect(_on_namespace_changed)

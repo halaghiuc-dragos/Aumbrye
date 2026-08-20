@@ -28,6 +28,9 @@ var _relic_offer: Control
 var _stair_menu: Control
 var _boss_intro_shown := false
 var _dungeon_def: Dictionary = {}
+const SNAPSHOT_DEBOUNCE_SEC := 2.0
+var _snapshot_dirty := false
+var _snapshot_timer := 0.0
 
 
 func _ready() -> void:
@@ -70,6 +73,11 @@ func _ready() -> void:
 	_restore_saved_snapshot(snapshot)
 	_apply_floor_transition_spawn(snapshot)
 	player_room_id = _find_room_id_at(_player.global_position)
+	# C-182: this used to run at the end of _wire_run_ui(), before player_room_id was resolved, so
+	# _notify_room("") returned immediately and the HUD was never told which room the run starts in
+	# — no minimap reveal, no "you are here", no objective marker, and no boss bar when a save is
+	# resumed inside the boss room. _physics_process only fires on a *change*, so nothing recovered.
+	_notify_room(player_room_id)
 	call_deferred("_ensure_safe_player_spawn")
 	_wire_player_death()
 	_wire_player_health_autosave()
@@ -119,6 +127,12 @@ func _notification(what: int) -> void:
 func _physics_process(_delta: float) -> void:
 	if _player == null:
 		return
+	if _snapshot_dirty:
+		_snapshot_timer += _delta
+		if _snapshot_timer >= SNAPSHOT_DEBOUNCE_SEC:
+			_snapshot_timer = 0.0
+			_snapshot_dirty = false
+			_persist_snapshot()
 	var room_id := _find_room_id_at(_player.global_position)
 	if room_id != "" and room_id != player_room_id:
 		player_room_id = room_id
@@ -153,7 +167,6 @@ func _wire_run_ui(def: Dictionary) -> void:
 	add_child(_relic_offer)
 	_stair_menu = StairMenuScript.new()
 	add_child(_stair_menu)
-	_notify_room(player_room_id)
 
 
 func _show_respawn_outcome_if_needed() -> void:
@@ -352,10 +365,15 @@ func _wire_player_health_autosave() -> void:
 		health.health_changed.connect(_on_player_health_changed)
 
 
+## C-183: this used to call `_persist_snapshot()` directly, which walks every enemy, every loot node
+## and all world flags and allocates a fresh nested dictionary — once per damage event. In a boss
+## fight with chip damage or a DoT that is several full world serialisations per second, on the main
+## thread, in exactly the frames that need to feel sharp. Marked dirty here and flushed at most once
+## per SNAPSHOT_DEBOUNCE_SEC from _physics_process instead.
 func _on_player_health_changed(_current: float, _max_value: float) -> void:
 	if AudioDirector:
 		AudioDirector.notify_player_vitality(_current / maxf(_max_value, 0.001))
-	_persist_snapshot()
+	_snapshot_dirty = true
 
 
 func _wire_weapon_from_inventory() -> void:
@@ -396,7 +414,11 @@ func _apply_floor_transition_spawn(snapshot: Dictionary = {}) -> void:
 
 func _place_at_stair_from_snapshot(snapshot: Dictionary) -> void:
 	var ascending := bool(snapshot.get("ascending", true))
-	var stair_id := RunFloorConfig.find_stairs_room_id(_resolve_dungeon_definition())
+	# C-184: this called `_resolve_dungeon_definition()`, which ends in `def.duplicate(true)` — a
+	# full deep copy of the room graph, placements, content assignments and branch previews — to
+	# read one field. It ran here and again in `_teleport_to_safe_spawn`, both during a floor
+	# transition, which is the most expensive moment available. `_dungeon_def` already holds it.
+	var stair_id := RunFloorConfig.find_stairs_room_id(_dungeon_def)
 	var spawn_info := _builder.get_stair_spawn_global(stair_id, ascending)
 	if spawn_info.is_empty():
 		return
@@ -488,9 +510,8 @@ func _teleport_to_safe_spawn(snapshot: Dictionary) -> void:
 			CharacterFloorSnapScript.snap_to_floor_below(_player)
 			player_room_id = room_id
 			return
-	var entrance_id := str(
-		_resolve_dungeon_definition().get("placements", {}).get("entrance", "entrance")
-	)
+	# C-184: see `_place_at_stair_from_snapshot` — the cached definition, not another deep copy.
+	var entrance_id := str(_dungeon_def.get("placements", {}).get("entrance", "entrance"))
 	var entrance := _builder.get_room(entrance_id)
 	if entrance != null:
 		_player.global_position = entrance.get_player_spawn_global()
@@ -563,7 +584,7 @@ func persist_bonfire_checkpoint() -> void:
 	active["lastCheckpoint"] = snapshot.duplicate(true)
 	active["snapshot"] = snapshot.duplicate(true)
 	LocalSave.set_active_run(active)
-	LocalSave.autosave()
+	LocalSave.autosave_checkpoint()
 
 
 func _persist_snapshot() -> void:

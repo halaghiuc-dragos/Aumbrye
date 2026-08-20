@@ -109,7 +109,7 @@ func configure(world_pos: Vector3, xp_amount: int, gold_amount: int = 0) -> void
 func _unhandled_input(event: InputEvent) -> void:
 	if _player == null:
 		return
-	if event.is_action_pressed("interact"):
+	if PlayerInput.interact_just_pressed(event):
 		_collect()
 
 

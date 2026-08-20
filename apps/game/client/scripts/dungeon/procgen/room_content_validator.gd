@@ -29,29 +29,57 @@ static func validate_definition(definition: Dictionary) -> Dictionary:
 			continue
 		keys_by_room[str(entry.get("roomId", ""))] = key_id
 	var locks_by_to := {}
+	var required_by_to := {}
 	for lock in locks:
 		if not lock is Dictionary:
 			continue
-		locks_by_to[str(lock.get("to", ""))] = str(lock.get("keyId", ""))
-	var queue: Array[String] = [start_id]
-	var visited := {start_id: true}
+		var to_room := str(lock.get("to", ""))
+		locks_by_to[to_room] = str(lock.get("keyId", ""))
+		# C-153: `keysRequired` was never read here, so a two-key door read as passable with one.
+		required_by_to[to_room] = maxi(1, int(lock.get("keysRequired", 1)))
+	# C-153: keys are counted, not merely present — a lock consumes what it needs, so two locks
+	# sharing a key id cannot both open on the strength of one pickup.
+	#
+	# The single-pass BFS this replaces also had a subtler hole: it skipped a locked neighbour when
+	# it did not yet hold the key and never revisited it, so a key found *later* in the walk could
+	# not open a door the traversal had already passed. Repeating the sweep until it stops finding
+	# new keys makes reachability a fixpoint rather than an artefact of visit order.
 	var keys := {}
-	while not queue.is_empty():
-		var current: String = queue.pop_front()
-		if keys_by_room.has(current):
-			keys[keys_by_room[current]] = true
-		if current == boss_id:
-			return {"ok": true}
-		for neighbor in adjacency.get(current, []):
-			var next_id := str(neighbor)
-			if visited.has(next_id):
-				continue
-			if locks_by_to.has(next_id):
-				var required_key: String = locks_by_to[next_id]
-				if required_key != "" and not keys.has(required_key):
+	var visited := {}
+	while true:
+		var found_new_key := false
+		var queue: Array[String] = [start_id]
+		visited = {start_id: true}
+		var spent := {}
+		while not queue.is_empty():
+			var current: String = queue.pop_front()
+			if keys_by_room.has(current):
+				var key_id: String = str(keys_by_room[current])
+				if not keys.has(current):
+					keys[current] = key_id
+					found_new_key = true
+			if current == boss_id:
+				return {"ok": true}
+			for neighbor in adjacency.get(current, []):
+				var next_id := str(neighbor)
+				if visited.has(next_id):
 					continue
-			visited[next_id] = true
-			queue.append(next_id)
+				if locks_by_to.has(next_id):
+					var required_key: String = str(locks_by_to[next_id])
+					if required_key != "":
+						var needed: int = int(required_by_to.get(next_id, 1))
+						var held := 0
+						for room_id in keys:
+							if str(keys[room_id]) == required_key:
+								held += 1
+						held -= int(spent.get(required_key, 0))
+						if held < needed:
+							continue
+						spent[required_key] = int(spent.get(required_key, 0)) + needed
+				visited[next_id] = true
+				queue.append(next_id)
+		if not found_new_key:
+			break
 	return {"ok": false, "reason": "Boss unreachable with earned keys"}
 
 
@@ -90,7 +118,43 @@ static func validate(
 	var path_semantic: Array[String] = []
 	for layout_id in path:
 		path_semantic.append(layout_to_semantic.get(layout_id, ""))
+	# C-137: every `puzzle_lever_gate` room-content entry must have a companion `puzzles` record, or
+	# the lever it spawns can never be solved and the gate it drives never opens.
+	var puzzle_rooms := {}
+	for puzzle in content.get("puzzles", []):
+		if puzzle is Dictionary:
+			puzzle_rooms[str((puzzle as Dictionary).get("roomId", ""))] = true
+	for entry in content.get("roomContent", []):
+		if not entry is Dictionary:
+			continue
+		if str((entry as Dictionary).get("templateId", "")) != "puzzle_lever_gate":
+			continue
+		var puzzle_room := str((entry as Dictionary).get("roomId", ""))
+		if not puzzle_rooms.has(puzzle_room):
+			return {
+				"ok": false,
+				"reason": "Puzzle content in room %s has no matching puzzles record" % puzzle_room
+			}
 	for lock in content.get("locks", []):
+		# C-132: the validator checked that the key room was reachable and off the critical path,
+		# and never that enough keys existed for what the door demands. That is exactly the
+		# content-integrity check that would have caught the sealed-doors run-blocker before it
+		# shipped, so it is asserted first.
+		var keys_required := maxi(1, int(lock.get("keysRequired", 1)))
+		var key_rooms: Array = lock.get("keyRoomIds", [lock.get("keyRoomId", "")])
+		var placed_keys := 0
+		for room_id in key_rooms:
+			if str(room_id) != "":
+				placed_keys += 1
+		if placed_keys < keys_required:
+			return {
+				"ok": false,
+				"reason":
+				(
+					"Lock %s requires %d keys but the floor places %d"
+					% [str(lock.get("lockId", "?")), keys_required, placed_keys]
+				)
+			}
 		var key_room: String = lock.get("keyRoomId", "")
 		var to_room: String = lock.get("to", "")
 		var key_layout: String = lock.get("keyLayoutId", "")
@@ -101,18 +165,21 @@ static func validate(
 				break
 		if key_room == "" or to_room == "":
 			return {"ok": false, "reason": "Lock missing key or target room"}
-		if key_layout != "":
-			if key_layout in path:
+		# C-132: applied to every key layout the lock owns, not only the first.
+		var key_layouts: Array = lock.get("keyLayoutIds", [key_layout])
+		for candidate in key_layouts:
+			var layout := str(candidate)
+			if layout == "":
+				continue
+			if layout in path:
 				return {"ok": false, "reason": "Key room on critical path"}
-			if key_layout == graph.start_id or key_layout == graph.stairs_id or key_layout == graph.boss_id:
+			if layout == graph.start_id or layout == graph.stairs_id or layout == graph.boss_id:
 				return {"ok": false, "reason": "Key room uses reserved layout"}
-		if key_layout != "" and to_layout != "":
-			if not RoomGraphPaths.is_on_branch_to(graph, key_layout, to_layout):
+			if to_layout != "" and not RoomGraphPaths.is_on_branch_to(graph, layout, to_layout):
 				return {"ok": false, "reason": "Key room not on branch to locked door"}
-	var keys_on_path := {}
-	for entry in content.get("roomContent", []):
-		if entry.get("keyId", "") != "":
-			keys_on_path[entry.get("roomId", "")] = entry.get("keyId", "")
+	# C-154: a `keys_on_path` dictionary used to be built here and read by nothing. The data it
+	# held is what a correct `_simulate_path()` needs, and that is where it is now gathered — as
+	# counts, along the walk, rather than as a set built up front.
 	if not _simulate_path(path_semantic, content, start_semantic, boss_semantic):
 		return {"ok": false, "reason": "Boss unreachable on critical path with earned keys"}
 	var collectible_check := _validate_collectibles(content, path_semantic)
@@ -175,28 +242,46 @@ static func _simulate_path(
 		or path_semantic[path_semantic.size() - 1] != boss_semantic
 	):
 		return false
+	# C-152: this pre-seeded `available_keys` with **every key on the floor** before stepping
+	# anywhere, so the check below — the one thing this function exists to do — could never fail.
+	# A lock whose key sat behind that same lock validated cleanly. That is the root cause of C-132:
+	# the generator emitted an unsolvable floor and the solvability check said yes.
+	#
+	# C-153: and both simulations treated keys as set membership, so `keysRequired` — the count the
+	# generator emits and the door enforces — was never modelled at all: a two-key door read as
+	# passable with one.
+	#
+	# C-154: `validate()` built a `keys_on_path` dictionary that nothing read; counting keys as they
+	# are actually picked up along the walk is what that structure was for, and it lives here now.
 	var locks_by_to := {}
+	var required_by_to := {}
 	for lock in content.get("locks", []):
-		locks_by_to[lock.get("to", "")] = lock.get("keyId", "")
-	var available_keys := {}
-	for lock in content.get("locks", []):
-		var key_id: String = str(lock.get("keyId", ""))
-		if key_id != "":
-			available_keys[key_id] = true
+		var to_room := str(lock.get("to", ""))
+		locks_by_to[to_room] = str(lock.get("keyId", ""))
+		required_by_to[to_room] = maxi(1, int(lock.get("keysRequired", 1)))
+	var held_keys := {}
 	var idx := 0
 	while idx < path_semantic.size():
 		var room_id: String = path_semantic[idx]
 		for entry in content.get("roomContent", []):
-			if entry.get("roomId", "") == room_id and entry.get("keyId", "") != "":
-				available_keys[entry.get("keyId", "")] = true
+			if entry.get("roomId", "") != room_id:
+				continue
+			var found_key := str(entry.get("keyId", ""))
+			if found_key != "":
+				held_keys[found_key] = int(held_keys.get(found_key, 0)) + 1
 		idx += 1
 		if idx >= path_semantic.size():
 			break
 		var next_room: String = path_semantic[idx]
 		if locks_by_to.has(next_room):
 			var required_key: String = locks_by_to[next_room]
-			if required_key != "" and not available_keys.has(required_key):
+			if required_key == "":
+				continue
+			var needed: int = int(required_by_to.get(next_room, 1))
+			if int(held_keys.get(required_key, 0)) < needed:
 				return false
+			# The door consumes them, so a second lock cannot reuse the same key.
+			held_keys[required_key] = int(held_keys[required_key]) - needed
 	return true
 
 

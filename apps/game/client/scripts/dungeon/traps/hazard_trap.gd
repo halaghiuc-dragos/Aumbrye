@@ -23,6 +23,12 @@ var _one_shot := false
 
 
 func _ready() -> void:
+	# C-140: `room_trap_content` already writes `trap_id` as node meta — the id it rolled from the
+	# biome's weighted `trapPool` — and nothing read it. Preferring it here means the spawner's own
+	# decision identifies the trap, ahead of the scene-path map (C-131) and well ahead of the node
+	# name. All three agree today; this makes the most authoritative source win.
+	if trap_id == "":
+		trap_id = str(get_meta("trap_id", ""))
 	if trap_id == "":
 		trap_id = TrapTactics.trap_id_for(self)
 	_def = TrapTactics.definition(trap_id)

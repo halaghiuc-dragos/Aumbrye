@@ -105,6 +105,67 @@ func _build_tower_silhouette(parent: Control) -> void:
 
 
 func _enable_continue() -> void:
+	# C-233: a save that could not be read past every recovery route no longer resets the player
+	# silently — `LocalSave` holds `recovery_required` and waits. This is the screen that asks. It
+	# blocks the title's "press any key" until the player answers, because continuing past it would
+	# put them in a hub built on an empty profile without ever being told why.
+	if LocalSave and LocalSave.recovery_required:
+		_show_recovery_prompt()
+		return
+	_ready_to_continue = true
+
+
+func _show_recovery_prompt() -> void:
+	var panel := GameUISkinScript.make_center_panel(self, 420.0, 260.0, "SaveRecoveryPrompt")
+	var vbox := VBoxContainer.new()
+	vbox.add_theme_constant_override("separation", 10)
+	panel.add_child(vbox)
+
+	var title := Label.new()
+	title.text = tr("RECOVERY_TITLE")
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	GameUISkinScript.style_menu_title(title)
+	vbox.add_child(title)
+
+	var body := Label.new()
+	body.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	body.text = tr("RECOVERY_BODY").format({"reason": LocalSave.recovery_reason})
+	GameUISkinScript.style_body_label(body)
+	vbox.add_child(body)
+
+	# Naming the file is the whole point: the data is quarantined, not destroyed, and a later build
+	# with a fixed migrator may still be able to read it.
+	if LocalSave.recovery_quarantine_path != "":
+		var path_label := Label.new()
+		path_label.autowrap_mode = TextServer.AUTOWRAP_ARBITRARY
+		path_label.text = tr("RECOVERY_KEPT_AT").format(
+			{"path": LocalSave.recovery_quarantine_path}
+		)
+		GameUISkinScript.style_hint_label(path_label)
+		vbox.add_child(path_label)
+
+	var keep_button := GameUISkinScript.make_button(tr("RECOVERY_KEEP"))
+	keep_button.pressed.connect(_on_recovery_keep_pressed.bind(panel))
+	vbox.add_child(keep_button)
+
+	var fresh_button := GameUISkinScript.make_button(tr("RECOVERY_START_FRESH"))
+	fresh_button.pressed.connect(_on_recovery_fresh_pressed.bind(panel))
+	vbox.add_child(fresh_button)
+
+	keep_button.grab_focus()
+
+
+## Leaves the quarantined file untouched and continues on an empty profile.
+func _on_recovery_keep_pressed(panel: Control) -> void:
+	LocalSave.resolve_recovery_dismiss()
+	panel.queue_free()
+	_ready_to_continue = true
+
+
+## Discards the unreadable save and writes a fresh one.
+func _on_recovery_fresh_pressed(panel: Control) -> void:
+	LocalSave.resolve_recovery_start_fresh()
+	panel.queue_free()
 	_ready_to_continue = true
 
 

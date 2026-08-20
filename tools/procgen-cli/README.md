@@ -16,4 +16,4 @@ Output is canonical dungeon JSON on stdout.
 dotnet publish tools/procgen-cli -c Release -o tools/procgen-cli/publish
 ```
 
-Godot resolves `tools/procgen-cli/publish/procgen-cli.exe` first, then `bin/Debug`, then `dotnet run`.
+Godot resolves `~~tools/procgen-cli/publish/procgen-cli.exe~~ (build output, produced by `dotnet publish`)` first, then `bin/Debug`, then `dotnet run`.

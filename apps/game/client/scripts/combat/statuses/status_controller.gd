@@ -257,14 +257,20 @@ func _burst(def: Dictionary) -> void:
 func _deal_damage(amount: float, dmg_type: String) -> void:
 	if amount <= 0.0 or _health == null or _health.is_dead():
 		return
-	var resolved := DamageInfo.apply_resistance(amount, dmg_type, _get_resistances())
+	# C-26: this pre-applied resistance and then handed the result to
+	# `receive_periodic_damage`, which builds a `DamageInfo` and calls `receive_hit` — where
+	# `_apply_resistances` runs again. Every poison, burn and bleed tick was reduced twice, so a
+	# 50% frost-resistant enemy took 25% frost tick damage, and the error compounded with the
+	# `tickGrowth` ramp. The hurtbox owns resistance, as it does for every other damage path; the
+	# raw amount goes to it. The direct-Health fallback has no hurtbox to resolve it, so it still
+	# applies resistance here.
 	var body := get_parent()
 	if body:
 		var hurtbox := body.get_node_or_null("Hurtbox") as Hurtbox
 		if hurtbox:
-			hurtbox.receive_periodic_damage(resolved, dmg_type)
+			hurtbox.receive_periodic_damage(amount, dmg_type)
 			return
-	_health.take_damage(resolved)
+	_health.take_damage(DamageInfo.apply_resistance(amount, dmg_type, _get_resistances()))
 
 
 func _get_resistances() -> Dictionary:
@@ -276,6 +282,19 @@ func _get_resistances() -> Dictionary:
 	return {}
 
 
+## C-30: there was no public single-status removal, so `swamp_cleanse_zone` reached for
+## `clear_all()` and deleted the player's entire build to strip one poison. Returns whether
+## anything was actually removed.
+func remove_status(status_id: String) -> bool:
+	if not _active.has(status_id):
+		return false
+	_remove_status(status_id)
+	_meters.erase(status_id)
+	_recalc_modifiers()
+	statuses_changed.emit()
+	return true
+
+
 func _remove_status(status_id: String) -> void:
 	_active.erase(status_id)
 
@@ -284,6 +303,7 @@ func _recalc_modifiers() -> void:
 	var prev_slow := _slow_multiplier
 	var prev_stun := _stunned
 	var prev_taken := _damage_taken_multiplier
+	var prev_stats: Dictionary = _stat_totals.duplicate()
 	var slow := 1.0
 	var haste := 1.0
 	_stunned = false
@@ -308,9 +328,25 @@ func _recalc_modifiers() -> void:
 		for stat in stats:
 			_stat_totals[stat] = float(_stat_totals.get(stat, 0.0)) + float(stats[stat]) * stacks
 	_slow_multiplier = slow * haste
+	# C-27: `_stat_totals` is rebuilt above but was not part of this comparison. `apply_status`
+	# emits unconditionally, so *gaining* a buff was fine — but expiry runs through
+	# `_physics_process` -> `_recalc_modifiers()`, so a buff whose only effect is `stats` fell off
+	# without telling anyone, and anything caching `get_stat_totals()` kept the bonus forever.
 	if (
 		not is_equal_approx(prev_slow, _slow_multiplier)
 		or prev_stun != _stunned
 		or not is_equal_approx(prev_taken, _damage_taken_multiplier)
+		or not _stat_totals_equal(prev_stats, _stat_totals)
 	):
 		statuses_changed.emit()
+
+
+static func _stat_totals_equal(a: Dictionary, b: Dictionary) -> bool:
+	if a.size() != b.size():
+		return false
+	for key in a:
+		if not b.has(key):
+			return false
+		if not is_equal_approx(float(a[key]), float(b[key])):
+			return false
+	return true

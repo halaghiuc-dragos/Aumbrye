@@ -1,6 +1,16 @@
 extends SceneTree
 
 ## Procgen seed health sweep — retry-aware fallback-rate report for room graph generation.
+##
+## C-256: **Phase 1 only.** This covers the room graph — cell walk, door masks, dead ends, secret
+## attachment, loop budget — and stops there. Everything Phase 2 owns is outside its reach: template
+## assignment, socket alignment, world positions, doorway spans, and the room-content pass. A run
+## reporting `fallbackRate 0.000000` therefore means "the graph generator is healthy", not "procgen
+## is healthy", and the same tree booted normally can still lose a room to a Phase 2 fault on the
+## very first seed. Both statements are true about different halves of the generator.
+##
+## The header and the JSON report both say so now, because the previous output gave no hint of it
+## and read as a whole-generator clean bill of health.
 ## From repo root:
 ##   godot --path apps/game/client --headless --script res://scripts/tools/procgen_seed_health.gd -- --from 1 --count 100
 ## From apps/game/client:
@@ -135,6 +145,13 @@ static func build_sweep_report(
 	var report := {
 		"ok": true,
 		"schemaVersion": 1,
+		# C-256: a consumer reading this JSON has to be able to tell what it does *not* cover.
+		"coverage": "phase1_room_graph",
+		"coverageNote":
+		(
+			"Room graph only. Template assignment, socket alignment, world positions, doorway"
+			+ " spans and room content are not exercised by this sweep."
+		),
 		"seedFrom": seed_from,
 		"seedCount": seed_count,
 		"biomes": {},
@@ -204,6 +221,8 @@ static func reason_bucket(reason: String) -> String:
 
 
 static func print_summary_table(report: Dictionary) -> void:
+	# C-256: name the scope in the output, not only in the source.
+	print("Phase 1 (room graph) only — template assignment and geometry are not covered.")
 	print("Biome                 Seeds  1st-try  Fallback  Rooms min/mean/max")
 	for biome_id in report.get("biomes", {}).keys():
 		var stats: Dictionary = report["biomes"][biome_id]

@@ -3,9 +3,6 @@ extends CastleEnemyBase
 ## Crystal caverns miniboss shell. Its two phases and move sets are authored in
 ## `content/enemies/crystal_guardian.json`.
 
-signal phase_changed(phase: int)
-
-
 func _resolve_enemy_id() -> String:
 	return "crystal_guardian"
 
@@ -18,8 +15,4 @@ func _ready() -> void:
 	super._ready()
 	_apply_mesh_tint(Color(0.4, 0.65, 0.9, 1.0))
 	scale = Vector3(1.2, 1.2, 1.2)
-	boss_phase_entered.connect(_on_boss_phase_entered)
 
-
-func _on_boss_phase_entered(index: int, _phase: Dictionary) -> void:
-	phase_changed.emit(index + 1)

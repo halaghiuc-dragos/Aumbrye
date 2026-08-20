@@ -83,9 +83,9 @@ func _refresh_continue_state() -> void:
 		record = "%s Descent tokens: %d." % [record, tokens]
 	if can_continue:
 		var saved_floor := int(saved.get("currentFloor", 1))
-		_status_label.text = "Continue endless run (floor %d). %s" % [saved_floor, record]
+		_status_label.text = tr("ENDLESS_CONTINUE").format({"floor": saved_floor, "record": record})
 	else:
-		_status_label.text = "The stair does not end. %s" % record
+		_status_label.text = tr("ENDLESS_INTRO").format({"record": record})
 
 
 func _show_main_panel() -> void:
@@ -142,9 +142,9 @@ func _build_skip_buttons() -> void:
 	_stake_label = Label.new()
 	_stake_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	if skips.is_empty():
-		_stake_label.text = "Nothing here will carry you deeper. Begin at floor 1."
+		_stake_label.text = tr("ENDLESS_NO_SKIP")
 	else:
-		_stake_label.text = "Choose a stair. Nothing you have earned this run comes with you."
+		_stake_label.text = tr("ENDLESS_CHOOSE_STAIR")
 	GameUISkinScript.style_body_label(_stake_label)
 	_skip_box.add_child(_stake_label)
 	_skip_start_button.disabled = true
@@ -158,7 +158,7 @@ func _on_skip_selected(item_id: String, pressed_btn: Button) -> void:
 	if _stake_label:
 		_stake_label.text = SkipFloorSvc.describe_stake(item_id, _preview_seed)
 	_skip_start_button.disabled = false
-	_skip_start_button.text = "Descend to floor %d" % SkipFloorSvc.start_floor_for_item(item_id)
+	_skip_start_button.text = tr("ENDLESS_DESCEND_TO").format({"floor": SkipFloorSvc.start_floor_for_item(item_id)})
 
 
 func _on_convert_pressed(from_id: String, to_id: String) -> void:

@@ -10,6 +10,7 @@ const ICON_CELL := 8
 const PLAYER_ARROW_HALF := 3.5
 const ZOOM_MIN := 0.5
 const ZOOM_MAX := 4.0
+const STICK_PAN_SPEED := 700.0
 const FALLBACK_ROOM_PX := 9.0
 
 const COLOR_VISITED := Color(0.55, 0.52, 0.48, 0.95)
@@ -21,36 +22,50 @@ const COLOR_PLAYER := Color(0.95, 0.92, 0.82, 1.0)
 
 const ICON_ATLAS_PATH := "res://assets/ui/minimap_icons.png"
 
+## C-217: the atlas was a 4x2 grid of eight solid colour swatches, and fourteen kinds were mapped
+## onto it — so hazard read as combat, npc as shop, vault as key, and lore, puzzle and unexplored
+## all shared one glyph. Only `rest` escaped, via a special-cased tint. The atlas is now 8x2 and
+## every kind that the procgen can emit has its own cell, including `secret`, which
+## `MINIMAP_RESERVED_KINDS` protects but nothing ever set — it used to fall through to `unknown`.
 const KIND_CELLS := {
 	"combat": Vector2i(0, 0),
 	"treasure": Vector2i(1, 0),
 	"shop": Vector2i(2, 0),
 	"key": Vector2i(3, 0),
+	"hazard": Vector2i(4, 0),
+	"npc": Vector2i(5, 0),
+	"vault": Vector2i(6, 0),
+	"lore": Vector2i(7, 0),
 	"boss": Vector2i(0, 1),
 	"entrance": Vector2i(1, 1),
 	"stairs": Vector2i(2, 1),
 	"unknown": Vector2i(3, 1),
-	"vault": Vector2i(3, 0),
-	"rest": Vector2i(1, 1),
-	"lore": Vector2i(3, 1),
-	"puzzle": Vector2i(3, 1),
-	"npc": Vector2i(2, 0),
-	"hazard": Vector2i(0, 0),
+	"rest": Vector2i(4, 1),
+	"puzzle": Vector2i(5, 1),
+	"secret": Vector2i(6, 1),
 }
 
+## C-217: seven of fourteen kinds had a legend row, so the five ambiguous ones were undocumented
+## as well as indistinguishable.
 const LEGEND_ENTRIES := [
 	{"kind": "combat", "label_key": "MAP_LEGEND_COMBAT"},
 	{"kind": "treasure", "label_key": "MAP_LEGEND_TREASURE"},
 	{"kind": "shop", "label_key": "MAP_LEGEND_SHOP"},
 	{"kind": "key", "label_key": "MAP_LEGEND_KEY"},
+	{"kind": "hazard", "label_key": "MAP_LEGEND_HAZARD"},
+	{"kind": "npc", "label_key": "MAP_LEGEND_NPC"},
+	{"kind": "vault", "label_key": "MAP_LEGEND_VAULT"},
+	{"kind": "lore", "label_key": "MAP_LEGEND_LORE"},
 	{"kind": "boss", "label_key": "MAP_LEGEND_BOSS"},
 	{"kind": "entrance", "label_key": "MAP_LEGEND_ENTRANCE"},
 	{"kind": "stairs", "label_key": "MAP_LEGEND_STAIRS"},
+	{"kind": "rest", "label_key": "MAP_LEGEND_REST"},
+	{"kind": "puzzle", "label_key": "MAP_LEGEND_PUZZLE"},
+	{"kind": "secret", "label_key": "MAP_LEGEND_SECRET"},
 ]
 
 const COLOR_CLEARED := Color(0.42, 0.52, 0.44, 0.95)
 const COLOR_LOCKED := Color(0.86, 0.44, 0.32, 1.0)
-const COLOR_REST := Color(0.44, 0.62, 0.78, 1.0)
 const CLEARED_TINT := Color(0.72, 0.82, 0.72, 1.0)
 const LOCK_MARK_HALF := 2.0
 
@@ -220,7 +235,22 @@ func _ready() -> void:
 	_icon_atlas = load(ICON_ATLAS_PATH) as Texture2D
 
 
+## C-98: `combat_hud` stops processing when hidden and was the only UI that did. A hidden minimap
+## was still running its redraw throttle and stick-pan poll every frame behind the pause menu.
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_VISIBILITY_CHANGED:
+		set_process(is_visible_in_tree())
+
+
 func _process(delta: float) -> void:
+	if not is_visible_in_tree():
+		set_process(false)
+		return
+	# C-218: pan and zoom were mouse-only, so on a controller the overlay was a fixed image. The
+	# stick is an analog axis, not a discrete press, so it is polled rather than routed through
+	# `_unhandled_input` — and only while `_overlay_mode` is set, which nothing else does.
+	if _overlay_mode:
+		_apply_stick_pan(delta)
 	if _player == null or not is_instance_valid(_player):
 		return
 	_redraw_timer += delta
@@ -235,6 +265,15 @@ func _process(delta: float) -> void:
 
 func _unhandled_input(event: InputEvent) -> void:
 	if not _overlay_mode:
+		return
+	# C-218: discrete controller zoom on the shoulder buttons, alongside the wheel.
+	if event.is_action_pressed("ui_page_next"):
+		_apply_zoom(1.1)
+		get_viewport().set_input_as_handled()
+		return
+	if event.is_action_pressed("ui_page_prev"):
+		_apply_zoom(1.0 / 1.1)
+		get_viewport().set_input_as_handled()
 		return
 	if event is InputEventMouseButton:
 		var mb := event as InputEventMouseButton
@@ -256,6 +295,19 @@ func _unhandled_input(event: InputEvent) -> void:
 		_drag_last = motion.position
 		queue_redraw()
 		get_viewport().set_input_as_handled()
+
+
+func _apply_zoom(factor: float) -> void:
+	_zoom = clampf(_zoom * factor, ZOOM_MIN, ZOOM_MAX)
+	queue_redraw()
+
+
+func _apply_stick_pan(delta: float) -> void:
+	var stick := Input.get_vector("look_left", "look_right", "look_up", "look_down")
+	if stick.length_squared() < 0.04:
+		return
+	_pan -= stick * STICK_PAN_SPEED * delta
+	queue_redraw()
 
 
 func _draw() -> void:
@@ -335,9 +387,8 @@ func _draw_room_icon(room_def: Dictionary, center: Vector2, cleared: bool = fals
 	var cell: Vector2i = icon_cell_for_kind(kind)
 	var region := Rect2(cell.x * ICON_CELL, cell.y * ICON_CELL, ICON_CELL, ICON_CELL)
 	var dest := Rect2(center - Vector2(ICON_CELL, ICON_CELL) * 0.5, Vector2(ICON_CELL, ICON_CELL))
+	# C-217: `rest` no longer needs a special-cased tint — it has its own atlas cell.
 	var tint := CLEARED_TINT if cleared else Color.WHITE
-	if kind == "rest":
-		tint = COLOR_REST
 	draw_texture_rect_region(_icon_atlas, dest, region, tint, false)
 
 
@@ -370,17 +421,25 @@ func _draw_legend() -> void:
 		return
 	var font := ThemeDB.fallback_font
 	var font_size := ThemeDB.fallback_font_size
+	# C-217: the legend was a single row of seven entries. Fourteen will not fit on one line at any
+	# reasonable window width, so it wraps upward from the bottom edge.
+	var row_height := float(ICON_CELL) + 6.0
 	var y := size.y - 24.0
 	var x := 12.0
 	for entry in LEGEND_ENTRIES:
 		var kind: String = entry.get("kind", "unknown")
 		var cell: Vector2i = icon_cell_for_kind(kind)
 		var region := Rect2(cell.x * ICON_CELL, cell.y * ICON_CELL, ICON_CELL, ICON_CELL)
+		var label := tr(str(entry.get("label_key", "")))
+		var label_width := font.get_string_size(label, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x
+		var entry_width := ICON_CELL + 4.0 + label_width + 14.0
+		if x > 12.0 and x + entry_width > size.x - 12.0:
+			x = 12.0
+			y -= row_height
 		var icon_rect := Rect2(x, y, ICON_CELL, ICON_CELL)
 		draw_texture_rect_region(_icon_atlas, icon_rect, region, Color.WHITE, false)
-		var label := tr(str(entry.get("label_key", "")))
 		draw_string(font, Vector2(x + ICON_CELL + 4.0, y + ICON_CELL - 1.0), label, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size)
-		x += ICON_CELL + 4.0 + font.get_string_size(label, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x + 14.0
+		x += entry_width
 
 
 func _build_caches() -> void:

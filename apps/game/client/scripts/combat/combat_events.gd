@@ -38,6 +38,17 @@ const ALL_EVENTS: Array[StringName] = [
 	ON_RUN_START,
 ]
 
+## C-55: the events whose dispatch context carries a damage `amount`. Effects that scale off damage
+## — `lifesteal` — are meaningless on any other event unless the rule supplies a flat `amount`.
+const AMOUNT_EVENTS: Array[StringName] = [
+	ON_HIT,
+	ON_CRIT,
+	ON_BACKSTAB,
+	ON_RIPOSTE,
+	ON_BLOCK,
+	ON_HIT_TAKEN,
+]
+
 const EFFECTS: Array[String] = [
 	"restore_stamina",
 	"restore_health",
@@ -58,6 +69,7 @@ var _sources: Dictionary = {}
 var _stacks: Dictionary = {}
 var _cooldowns: Dictionary = {}
 var _rng := RandomNumberGenerator.new()
+var _rng_seeded := false
 var _low_health_latched := false
 
 
@@ -65,7 +77,23 @@ func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	for event in ALL_EVENTS:
 		_rules_by_event[event] = [] as Array[Dictionary]
-	_rng.seed = FloorSeedMix.mix(RunFlow.current_seed, hash("combat_events"))
+	# C-43: this seeded here, at application boot. `CombatEvents` is an autoload, and
+	# `RunFlow.current_seed` is `var current_seed: int = 0` until a run actually starts — so the
+	# seed was a fixed constant derived from `mix(0, ...)`, identical on every launch, and
+	# `_try_rule`'s chance gate walked the *same* random sequence every run. Two players with the
+	# same build saw the same procs at the same points. (`Hitbox` does the same thing for
+	# `_crit_rng` and is fine, because its `_ready` runs when a combatant spawns, after the seed
+	# is set — the bug was specific to the autoload.) Seeded lazily on first dispatch instead, and
+	# re-armed by `clear_all()`, which every run boundary calls.
+	_rng_seeded = false
+
+
+## C-43: the run seed is not known at autoload time, so the stream is armed on first use.
+func _ensure_rng_seeded() -> void:
+	if _rng_seeded:
+		return
+	_rng_seeded = true
+	_rng.seed = FloorSeedMix.mix(RunFlow.current_seed if RunFlow else 0, hash("combat_events"))
 
 
 func register(source_id: String, rules: Array) -> void:
@@ -77,12 +105,36 @@ func register(source_id: String, rules: Array) -> void:
 		if not entry is Dictionary:
 			continue
 		var rule: Dictionary = (entry as Dictionary).duplicate(true)
+		# C-54: a misspelled event or effect used to be skipped in total silence — no warning, no
+		# counter — and the item still registered if any *other* rule in it validated, so a
+		# partly-broken item looked healthy. There are no live typos in the shipped content today,
+		# which makes this a latent trap rather than a present bug; it becomes a real one the
+		# moment a rule-authoring pass starts, which is the argument for fixing it first.
 		var event := StringName(str(rule.get("event", "")))
 		if not _rules_by_event.has(event):
+			push_warning(
+				"CombatEvents: '%s' declares unknown event '%s' — rule dropped" % [source_id, event]
+			)
 			continue
 		var effect := str(rule.get("effect", ""))
 		if not EFFECTS.has(effect):
+			push_warning(
+				"CombatEvents: '%s' declares unknown effect '%s' — rule dropped"
+				% [source_id, effect]
+			)
 			continue
+		# C-55: `lifesteal` reads `ctx["amount"]`, which only the damage-carrying events provide.
+		# Authored on `onKill` — the most common event in the content — it silently healed zero.
+		if effect == "lifesteal" and not AMOUNT_EVENTS.has(event):
+			if not rule.has("amount"):
+				push_warning(
+					(
+						"CombatEvents: '%s' pairs lifesteal with '%s', which carries no damage"
+						+ " amount, and sets no flat `amount` fallback — rule dropped"
+					)
+					% [source_id, event]
+				)
+				continue
 		rule["sourceId"] = source_id
 		rule["event"] = event
 		accepted.append(rule)
@@ -120,9 +172,12 @@ func clear_all() -> void:
 	_stacks.clear()
 	_cooldowns.clear()
 	_low_health_latched = false
+	# C-43: a cleared dispatcher re-seeds against whatever run comes next.
+	_rng_seeded = false
 
 
 func dispatch(event: StringName, ctx: Dictionary = {}) -> void:
+	_ensure_rng_seeded()
 	var bucket: Array = _rules_by_event.get(event, [])
 	if bucket.is_empty():
 		_reset_stacks_for(event)
@@ -164,7 +219,16 @@ func notify_health_ratio(ratio: float, actor: Node) -> void:
 
 func _try_rule(rule: Dictionary, ctx: Dictionary) -> void:
 	var cooldown := float(rule.get("cooldown", 0.0))
-	var key := "%s/%s" % [str(rule.get("sourceId", "")), str(rule.get("effect", ""))]
+	# C-44: the event was not in this key, so an item with `onParry -> restore_stamina` and
+	# `onHit -> restore_stamina` shared one cooldown and triggering either locked out both. The
+	# `stackId` is included too, since two rules can share source, event and effect while being
+	# separately stacked.
+	var key := "%s/%s/%s/%s" % [
+		str(rule.get("sourceId", "")),
+		str(rule.get("event", "")),
+		str(rule.get("effect", "")),
+		str(rule.get("stackId", "")),
+	]
 	if cooldown > 0.0:
 		var now := Time.get_ticks_msec() / 1000.0
 		if now < float(_cooldowns.get(key, 0.0)):
@@ -220,7 +284,13 @@ func _apply_effect(rule: Dictionary, ctx: Dictionary) -> void:
 		"lifesteal":
 			var self_health := _node_child(ctx.get("actor"), "Health") as Health
 			if self_health:
-				self_health.heal(float(ctx.get("amount", 0.0)) * float(rule.get("pct", 0.0)))
+				# C-55: events that carry no damage `amount` may declare a flat `amount` on the
+				# rule instead; `register()` rejects the pairing when neither is present.
+				var base := float(ctx.get("amount", 0.0))
+				if base <= 0.0:
+					base = float(rule.get("amount", 0.0))
+				var pct := float(rule.get("pct", 0.0))
+				self_health.heal(base * (pct if pct > 0.0 else 1.0))
 		"apply_status":
 			_apply_status_to(ctx.get("target"), rule)
 		"spread_status":
@@ -259,7 +329,7 @@ func _spread_status(ctx: Dictionary, rule: Dictionary) -> void:
 	var radius := float(rule.get("radius", 4.0))
 	var radius_sq := radius * radius
 	var origin := origin_node.global_position
-	for node in get_tree().get_nodes_in_group("enemy"):
+	for node in CombatGroups.hostiles(get_tree()):
 		var enemy := node as Node3D
 		if enemy == null or enemy == origin_node or not is_instance_valid(enemy):
 			continue

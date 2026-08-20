@@ -127,8 +127,16 @@ func stagger_duration_for_poise(poise_damage: float) -> float:
 	return lerpf(STAGGER_DURATION_MIN, STAGGER_DURATION_MAX, clampf(t, 0.0, 1.0))
 
 
+## C-58: `_stagger_clip_for` existed twice, with the same name and signature — this copy used the
+## project convention and was called by nothing but a test, while the copy in
+## `DioramaAnimController` (the one `play_stagger` actually reaches) used the inverted one. So
+## being hit from the front played `stagger_b`. The duplicate is deleted; this wrapper delegates to
+## the single live implementation, which C-41 corrected.
 func get_stagger_clip_for_direction(world_direction: Vector3) -> StringName:
-	return _stagger_clip_for(world_direction)
+	var controller := _body.get_node_or_null("AnimDirector")
+	if controller and controller.has_method("stagger_clip_for_direction"):
+		return StringName(controller.call("stagger_clip_for_direction", world_direction))
+	return &"stagger_f"
 
 
 func apply_stagger_from_poise(poise_damage: float, direction: Vector3 = Vector3.ZERO) -> void:
@@ -149,6 +157,12 @@ func reset_combat_state() -> void:
 		_stamina.reset_stamina()
 	if _poise and _poise.has_method("reset_poise"):
 		_poise.reset_poise()
+	# C-119: `Mana` was the one resource never reset on revive — `reset_mana()` existed and was
+	# dead — so a player who died with an empty pool respawned with it still empty and refilled
+	# only through regen, while health, stamina and poise all came back full.
+	var mana := _body.get_node_or_null("Mana") as Mana
+	if mana and mana.has_method("reset_mana"):
+		mana.reset_mana()
 	if _guard and _guard.has_method("reset_after_revive"):
 		_guard.reset_after_revive()
 	if _status and _status.has_method("clear_all"):
@@ -169,8 +183,11 @@ func reset_combat_state() -> void:
 		director.call("revive")
 
 
+## C-13: this used to call `_break_player_lock()`, so every stagger dropped the lock. In the
+## genre's reference implementations being staggered does not break lock-on, and combined with C-10
+## it was brutal: you get hit, lose lock, re-lock, and the only dodge that would have saved you
+## rolls the wrong way. Death still breaks the lock (see `_run_death_sequence`).
 func _apply_stagger(duration: float, direction: Vector3 = Vector3.ZERO) -> void:
-	_break_player_lock()
 	is_staggered = true
 	_stagger_timer = duration
 	stagger_duration = duration
@@ -291,8 +308,11 @@ func _run_death_sequence() -> void:
 	# length instead of being stretched by the 0.35x scale this same sequence just requested.
 	await get_tree().create_timer(DEATH_SLOW_DURATION, true, false, true).timeout
 	VfxService.release_time_scale(&"death")
+	# C-11: this passed `_body` to a method that takes no parameters. `Object.call()` with the wrong
+	# arity raises an error and does nothing, so `_death_framing` was never set and the death camera
+	# — the one shot guaranteed to be seen by every player who dies — never engaged.
 	if _orbit_camera and _orbit_camera.has_method("enter_death_framing"):
-		_orbit_camera.call("enter_death_framing", _body)
+		_orbit_camera.call("enter_death_framing")
 	await (
 		get_tree()
 		. create_timer(DEATH_DESATURATE_TIME - DEATH_SLOW_DURATION, true, false, true)
@@ -338,8 +358,20 @@ func _flash_guard_break_feedback() -> void:
 	var visual := _get_diorama_visual()
 	if visual:
 		MaterialFlashScript.flash(visual, {"strength": 0.9, "duration": 0.16})
-	if _orbit_camera and _orbit_camera.has_method("apply_camera_dip"):
-		_orbit_camera.call("apply_camera_dip", 0.35, 0.35)
+	# C-12: `apply_camera_dip` does not exist on OrbitCamera — the method is `apply_landing_dip`,
+	# and the `has_method` guard turned the typo into silence, so the harshest defensive failure in
+	# the game produced a material flash and nothing else. Shake carries the impact; the dip gives
+	# it weight.
+	if _orbit_camera and _orbit_camera.has_method("apply_landing_dip"):
+		_orbit_camera.call("apply_landing_dip", 0.35)
+	if _orbit_camera and _orbit_camera.has_method("apply_shake"):
+		_orbit_camera.call("apply_shake", 0.35, 0.35)
+	# C-65: `_flash_parry_feedback` plays a sound and `_flash_stagger_feedback` is a flash only, so
+	# this was the one major defensive event communicated by nothing audible.
+	if AudioDirector:
+		AudioDirector.play_combat_sfx(
+			"guard_break", _body.global_position + Vector3(0.0, 1.2, 0.0)
+		)
 
 
 func _flash_stagger_feedback() -> void:
@@ -386,22 +418,6 @@ func _sync_guard_broken_mirror() -> void:
 		is_guard_broken = false
 		return
 	is_guard_broken = _guard.guard_broken_state
-
-
-func _stagger_clip_for(world_dir: Vector3) -> StringName:
-	if world_dir.length_squared() < 0.01:
-		return &"stagger_f"
-	var facing := _body.get_node_or_null("Facing") as Node3D
-	if facing == null:
-		return &"stagger_f"
-	var forward := CombatFacing.forward_of(facing)
-	var right := facing.global_transform.basis.x
-	var flat := Vector3(world_dir.x, 0.0, world_dir.z).normalized()
-	var fwd_dot := forward.dot(flat)
-	var right_dot := right.dot(flat)
-	if absf(fwd_dot) >= absf(right_dot):
-		return &"stagger_f" if fwd_dot >= 0.0 else &"stagger_b"
-	return &"stagger_r" if right_dot >= 0.0 else &"stagger_l"
 
 
 func _get_diorama_visual() -> Node3D:

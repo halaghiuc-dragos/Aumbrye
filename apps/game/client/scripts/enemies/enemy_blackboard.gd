@@ -9,6 +9,9 @@ class_name EnemyBlackboard
 enum Role { ENGAGER, FLANKER, WAITER }
 
 const MAX_ENGAGERS := 2
+
+## C-29: how many physics frames a cached room centre may be reused for.
+const BOUNDS_MAX_STALE_FRAMES := 6
 const MAX_FLANKERS := 2
 
 static var _rooms: Dictionary = {}
@@ -91,8 +94,18 @@ static func nearby(origin: Vector3, radius: float) -> Array:
 ## Cached centre/extent for a room's roster, refreshed when the membership changes so the common
 ## case is a single Vector3 comparison instead of re-measuring every member.
 static func _room_bounds(record: Dictionary, members_list: Array) -> Dictionary:
+	# C-29: the cache was keyed on member *count* alone — the comment said "refreshed when the
+	# membership changes", but enemies move every frame while the count stays constant, so
+	# `nearby()` culled whole rooms against a stale centre and ally-alert propagation could miss
+	# enemies that had walked toward the player. Count still invalidates immediately; a frame
+	# stamp bounds how stale the centre can get.
+	var frame := Engine.get_physics_frames()
 	var cached: Variant = record.get("bounds")
-	if cached is Dictionary and int((cached as Dictionary).get("count", -1)) == members_list.size():
+	if (
+		cached is Dictionary
+		and int((cached as Dictionary).get("count", -1)) == members_list.size()
+		and frame - int((cached as Dictionary).get("frame", -BOUNDS_MAX_STALE_FRAMES)) < BOUNDS_MAX_STALE_FRAMES
+	):
 		return cached
 
 	var center := Vector3.ZERO
@@ -109,7 +122,9 @@ static func _room_bounds(record: Dictionary, members_list: Array) -> Dictionary:
 		if is_instance_valid(member) and member is Node3D:
 			extent = maxf(extent, center.distance_to((member as Node3D).global_position))
 
-	var bounds := {"center": center, "extent": extent, "count": members_list.size()}
+	var bounds := {
+		"center": center, "extent": extent, "count": members_list.size(), "frame": frame
+	}
 	record["bounds"] = bounds
 	return bounds
 
@@ -145,11 +160,15 @@ static func yield_engager(room_id: int, member: Node) -> void:
 	_assign_roles(record)
 
 
+## C-28: both defaults used to be `Role.ENGAGER`, but `_assign_roles` only writes entries for
+## members in the `engaged` list — so every enemy that had *not* engaged reported the pressing role
+## instead of the waiting one, which is exactly backwards from this file's own stated purpose ("the
+## board decides who is *allowed* to ask for a token"). An unknown member waits.
 static func role_for(room_id: int, member: Node) -> int:
 	if not _rooms.has(room_id):
-		return Role.ENGAGER
+		return Role.WAITER
 	var roles: Dictionary = (_rooms[room_id] as Dictionary)["roles"]
-	return int(roles.get(member.get_instance_id(), Role.ENGAGER))
+	return int(roles.get(member.get_instance_id(), Role.WAITER))
 
 
 static func report_player_position(room_id: int, position: Vector3) -> void:

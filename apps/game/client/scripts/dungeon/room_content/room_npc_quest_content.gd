@@ -42,7 +42,7 @@ func _on_body_exited(body: Node3D, area: Area3D) -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	if not event.is_action_pressed("interact"):
+	if not PlayerInput.interact_just_pressed(event):
 		return
 	if _interact_area == null or not _interact_area.get_meta("near_player", false):
 		return

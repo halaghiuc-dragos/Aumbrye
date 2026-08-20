@@ -78,7 +78,11 @@ static func salvage_preview(slot: Dictionary) -> Dictionary:
 	return yields
 
 
-static func salvage(inv_index: int) -> Dictionary:
+## Destructive: removes the item, so it stays grid-only. Equipped gear must be unequipped first
+## (C-240) — mutating forge operations accept an equipment slot name, this one deliberately does not.
+static func salvage(inv_index: Variant) -> Dictionary:
+	if BlacksmithServiceScript.is_equipment_slot(inv_index):
+		return {"ok": false, "error": "unequip first"}
 	var inv := InventoryService.inventory
 	if inv_index < 0 or inv_index >= inv.slots.size():
 		return {"ok": false, "error": "invalid slot"}
@@ -104,7 +108,7 @@ static func salvage(inv_index: int) -> Dictionary:
 	return {"ok": true, "materials": granted, "lost": lost}
 
 
-static func can_reroll(inv_index: int) -> bool:
+static func can_reroll(inv_index: Variant) -> bool:
 	var slot := _slot_at(inv_index)
 	if slot.is_empty():
 		return false
@@ -114,14 +118,16 @@ static func can_reroll(inv_index: int) -> bool:
 	return can_afford_recipe(get_recipe(RECIPE_REROLL))
 
 
-static func reroll_affixes(inv_index: int) -> Dictionary:
+static func reroll_affixes(inv_index: Variant) -> Dictionary:
 	if not can_reroll(inv_index):
 		return {"ok": false, "error": "cannot reroll"}
 	var recipe := get_recipe(RECIPE_REROLL)
 	if not _spend(recipe):
 		return {"ok": false, "error": "not enough materials"}
 	var inv := InventoryService.inventory
-	var slot: Dictionary = inv.slots[inv_index]
+	var slot: Dictionary = _slot_at(inv_index)
+	if slot.is_empty():
+		return {"ok": false, "error": "invalid slot"}
 	var attempt := int(slot.get("rerollCount", 0)) + 1
 	slot["rerollCount"] = attempt
 	var rarity := RarityRegistryScript.normalize(str(slot.get("rarity", "common")))
@@ -134,7 +140,7 @@ static func reroll_affixes(inv_index: int) -> Dictionary:
 	return {"ok": true, "affixes": slot["affixes"]}
 
 
-static func can_transmute(inv_index: int) -> bool:
+static func can_transmute(inv_index: Variant) -> bool:
 	var slot := _slot_at(inv_index)
 	if slot.is_empty():
 		return false
@@ -144,14 +150,16 @@ static func can_transmute(inv_index: int) -> bool:
 	return can_afford_recipe(get_recipe(RECIPE_TRANSMUTE))
 
 
-static func transmute_rarity(inv_index: int) -> Dictionary:
+static func transmute_rarity(inv_index: Variant) -> Dictionary:
 	if not can_transmute(inv_index):
 		return {"ok": false, "error": "cannot transmute"}
 	var recipe := get_recipe(RECIPE_TRANSMUTE)
 	if not _spend(recipe):
 		return {"ok": false, "error": "not enough materials"}
 	var inv := InventoryService.inventory
-	var slot: Dictionary = inv.slots[inv_index]
+	var slot: Dictionary = _slot_at(inv_index)
+	if slot.is_empty():
+		return {"ok": false, "error": "invalid slot"}
 	var rarity := RarityRegistryScript.normalize(str(slot.get("rarity", "common")))
 	var next_index := RarityRegistryScript.tier_index(rarity) + 1
 	var next_rarity: String = RarityRegistryScript.TIER_ORDER[next_index]
@@ -167,7 +175,7 @@ static func transmute_rarity(inv_index: int) -> Dictionary:
 	return {"ok": true, "rarity": next_rarity}
 
 
-static func can_infuse(inv_index: int, element: String) -> bool:
+static func can_infuse(inv_index: Variant, element: String) -> bool:
 	if not EquipmentScript.INFUSIONS.has(element):
 		return false
 	var slot := _slot_at(inv_index)
@@ -181,14 +189,16 @@ static func can_infuse(inv_index: int, element: String) -> bool:
 	return can_afford_recipe(get_recipe(str(INFUSION_RECIPES.get(element, ""))))
 
 
-static func infuse(inv_index: int, element: String) -> Dictionary:
+static func infuse(inv_index: Variant, element: String) -> Dictionary:
 	if not can_infuse(inv_index, element):
 		return {"ok": false, "error": "cannot infuse"}
 	var recipe := get_recipe(str(INFUSION_RECIPES.get(element, "")))
 	if not _spend(recipe):
 		return {"ok": false, "error": "not enough materials"}
 	var inv := InventoryService.inventory
-	var slot: Dictionary = inv.slots[inv_index]
+	var slot: Dictionary = _slot_at(inv_index)
+	if slot.is_empty():
+		return {"ok": false, "error": "invalid slot"}
 	slot["infusion"] = element
 	inv.changed.emit()
 	if LocalSave:
@@ -196,7 +206,7 @@ static func infuse(inv_index: int, element: String) -> Dictionary:
 	return {"ok": true, "infusion": element}
 
 
-static func can_set_upgrade_path(inv_index: int, path: String) -> bool:
+static func can_set_upgrade_path(inv_index: Variant, path: String) -> bool:
 	if not EquipmentScript.UPGRADE_PATHS.has(path):
 		return false
 	var slot := _slot_at(inv_index)
@@ -207,11 +217,13 @@ static func can_set_upgrade_path(inv_index: int, path: String) -> bool:
 	return BlacksmithServiceScript.get_slot_upgrade_level(slot) <= 0
 
 
-static func set_upgrade_path(inv_index: int, path: String) -> Dictionary:
+static func set_upgrade_path(inv_index: Variant, path: String) -> Dictionary:
 	if not can_set_upgrade_path(inv_index, path):
 		return {"ok": false, "error": "cannot set path"}
 	var inv := InventoryService.inventory
-	var slot: Dictionary = inv.slots[inv_index]
+	var slot: Dictionary = _slot_at(inv_index)
+	if slot.is_empty():
+		return {"ok": false, "error": "invalid slot"}
 	slot["upgradePath"] = path
 	inv.changed.emit()
 	if LocalSave:
@@ -237,6 +249,8 @@ static func can_transfer_rule(source_index: int, target_index: int) -> bool:
 
 
 static func transfer_rule(source_index: int, target_index: int) -> Dictionary:
+	if BlacksmithServiceScript.is_equipment_slot(source_index) or BlacksmithServiceScript.is_equipment_slot(target_index):
+		return {"ok": false, "error": "unequip first"}
 	if not can_transfer_rule(source_index, target_index):
 		return {"ok": false, "error": "cannot transfer"}
 	var recipe := get_recipe(RECIPE_TRANSFER)
@@ -285,11 +299,10 @@ static func convert_materials(recipe_id: String) -> Dictionary:
 	return {"ok": true, "itemId": output_id}
 
 
-static func _slot_at(inv_index: int) -> Dictionary:
-	var inv := InventoryService.inventory
-	if inv_index < 0 or inv_index >= inv.slots.size():
-		return {}
-	return inv.slots[inv_index]
+## C-240: accepts a grid index or an equipment slot name, so the forge can act on worn gear —
+## which, per C-237, is the only gear that ever takes durability damage.
+static func _slot_at(target: Variant) -> Dictionary:
+	return BlacksmithServiceScript.resolve_target(target)
 
 
 static func _spend(recipe: Dictionary) -> bool:

@@ -12,6 +12,23 @@ var _solved := false
 
 func configure(entry: Dictionary, definition: Dictionary) -> void:
 	var puzzle := _puzzle_for_room(entry, definition)
+	# C-137: a `puzzle_lever_gate` entry and its `puzzles` record are emitted by two separate passes
+	# (`spawn_all` from `roomContent`, `spawn_puzzle_gates` from `puzzles`), and nothing validated
+	# that they agree. With no matching record `_solution_order` was empty and `leverCount` defaulted
+	# to 1, so the very first pull hit `_pull_order.size() > _solution_order.size()` (1 > 0), reset,
+	# and did so forever — an unsolvable puzzle whose linked gate barrier stayed shut for the rest of
+	# the run. Same failure mode as C-132 in a second system. Rather than spawn a lever that cannot
+	# work, the content declines to build and says why; `room_content_validator` now also rejects the
+	# floor outright, which is the real fix.
+	if puzzle.is_empty():
+		push_error(
+			(
+				"RoomPuzzleContent: room '%s' has a puzzle_lever_gate entry with no matching"
+				+ " `puzzles` record — skipping rather than spawning an unsolvable lever."
+			)
+			% str(entry.get("roomId", "?"))
+		)
+		return
 	_flag_id = str(puzzle.get("flagId", ""))
 	_solution_order = puzzle.get("solutionOrder", [])
 	var lever_count := int(puzzle.get("leverCount", 1))
@@ -61,7 +78,7 @@ func _on_body_exited(body: Node3D, area: Area3D) -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	if _solved or not event.is_action_pressed("interact"):
+	if _solved or not PlayerInput.interact_just_pressed(event):
 		return
 	for i in _lever_areas.size():
 		var area := _lever_areas[i]

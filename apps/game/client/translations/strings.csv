@@ -7,6 +7,8 @@ INV_BTN_EQUIP,Equip,Echipează
 INV_BTN_UNEQUIP,Unequip,Dezechipează
 INV_BTN_USE,Use,Folosește
 INV_BTN_DROP,Drop,Aruncă
+INV_BTN_SELL,Sell,Vinde
+PROMPT_PRESS,Press %s,Apasă %s
 INV_BTN_BIND,Bind %d,Asociază %d
 INV_FILTER_ROW,%s: %s   %s: %s   %s: %s,%s: %s   %s: %s   %s: %s
 INV_SORT,Sort,Sortare
@@ -482,6 +484,7 @@ SMITH_TRANSMUTE,Transmute,Transmuta
 SMITH_INFUSE,Infuse,Infuzeaza
 SMITH_INFUSION_ELEMENT,Element,Element
 SMITH_ITEM_ROW,%s  +%d/%d  -  durability %d/%d,%s  +%d/%d  -  durabilitate %d/%d
+SMITH_ITEM_ROW_EQUIPPED,[E] %s  +%d/%d  -  durability %d/%d,[E] %s  +%d/%d  -  durabilitate %d/%d
 SMITH_NO_ITEMS,No equippable items to upgrade or repair.,Niciun obiect echipabil de imbunatatit sau reparat.
 SMITH_UPGRADE_DETAIL,%s  -  upgrade cost %d coins  (+%d/%d),%s  -  cost imbunatatire %d monede  (+%d/%d)
 SMITH_UPGRADE_FAILED,That upgrade failed.,Imbunatatirea a esuat.
@@ -569,3 +572,93 @@ RELIC_OFFER_TITLE,A Relic Offered,O relicvă oferită
 RELIC_OFFER_SUBTITLE,Take one. The others return to the dark.,Ia una. Celelalte se întorc în întuneric.
 RELIC_OFFER_HINT,This choice is bound to the seed — it will not change.,Alegerea e legată de sămânță — nu se va schimba.
 RELIC_OFFER_TAKE,Take,Ia
+WAVES_TAKE_REWARD,Take {item},Ia {item}
+RESPAWN_XP_GAINED,XP gained: {xp},XP câștigat: {xp}
+RESPAWN_XP_DEFERRED,XP deferred to shard: {xp},XP amânat în ciob: {xp}
+RESPAWN_LOOT_STRIPPED,Loot stripped: {items},Pradă pierdută: {items}
+RESPAWN_LOOT_KEPT,No loot stripped since bonfire.,Nicio pradă pierdută de la focul de tabără.
+WARN_INVENTORY_FULL,Inventory full,Inventar plin
+WARN_SAVE_WRITE_FAILED,Saving failed — check disk space,Salvarea a eșuat — verifică spațiul pe disc
+WARN_SAVE_FROM_NEWER_BUILD,Save was made by a newer build and cannot be loaded,Salvarea provine dintr-o versiune mai nouă și nu poate fi încărcată
+WARN_SAVE_FAILED_REASON,Saving failed ({reason}),Salvarea a eșuat ({reason})
+MAP_LEGEND_HAZARD,Hazard,Pericol
+MAP_LEGEND_NPC,Quest Giver,Ofertant de misiuni
+MAP_LEGEND_VAULT,Vault,Seif
+MAP_LEGEND_LORE,Lore,Poveste
+MAP_LEGEND_REST,Bonfire,Foc de tabără
+MAP_LEGEND_PUZZLE,Puzzle,Enigmă
+MAP_LEGEND_SECRET,Secret,Secret
+RESULTS_LOOT_NONE,(none),(niciuna)
+RESULTS_CONTINUE,Continue,Continuă
+RESULTS_XP_PENDING,XP: --,XP: --
+RESULTS_TIME,Time: {time},Timp: {time}
+RESULTS_KILLS,Kills: {kills},Ucideri: {kills}
+RESULTS_LOOT_KEPT,Loot kept: {items},Pradă păstrată: {items}
+RESULTS_LOOT_LOST,Loot lost: {items},Pradă pierdută: {items}
+RESULTS_XP_HALVED,XP gained: {xp} (50% of {full}),XP câștigat: {xp} (50% din {full})
+RESULTS_XP_GAINED_RUN,XP gained: {xp},XP câștigat: {xp}
+RESULTS_LEVEL_UP, — Level up!, — Nivel nou!
+RESULTS_RETURN_HINT,Press Enter to return to Aumbrye Tower,Apasă Enter pentru a reveni la Turnul Aumbrye
+RESULTS_COPY_SEED_N,Copy seed {seed},Copiază sămânța {seed}
+RESULTS_SEED_COPIED_N,Seed {seed} copied,Sămânța {seed} copiată
+RESULTS_WEEKLY_CHALLENGE,Weekly challenge: {name}.,Provocarea săptămânii: {name}.
+RESULTS_RULE_SET,Rule set: {name}.,Set de reguli: {name}.
+RESULTS_DEPTH_BEST,"Deepest yet: floor {floor}, past your {previous}.","Cel mai adânc: etajul {floor}, peste {previous}."
+RESULTS_DEPTH_SHORT,Floor {floor}. Your best on this road is {previous}.,Etajul {floor}. Recordul tău pe drumul ăsta e {previous}.
+RESULTS_TIME_BEST,"Fastest yet: {time}, past your {previous}.","Cel mai rapid: {time}, peste {previous}."
+RESULTS_TIME_FIRST_CLEAR,First clean run on this road — the time to beat is yours now.,Prima trecere curată pe drumul ăsta — timpul de bătut e acum al tău.
+RESULTS_TIME_NOT_BEST,Your fastest here is still {previous}.,Cel mai bun timp al tău aici rămâne {previous}.
+RESULTS_KILLS_BEST,More slain than any run before it.,Mai mulți răpuși decât în orice trecere de dinainte.
+RESULTS_SURVIVAL_RATE,You are walking out of {count} in 10 lately.,În ultima vreme ieși viu din {count} din 10.
+RESULTS_WEEKLY_BEST,A new best on this week's challenge.,Un nou record la provocarea săptămânii.
+RESULTS_WEEKLY_NOT_BEST,This week's challenge still stands at your earlier attempt.,Provocarea săptămânii rămâne la încercarea ta anterioară.
+RESULTS_RELICS_CARRIED,Carried: {relics}.,Purtate: {relics}.
+RESULTS_TOP_RELIC,{relic} did the most work — {count} times.,{relic} a muncit cel mai mult — de {count} ori.
+RESULTS_OFFERS_TAKEN,Offers taken: {count}.,Oferte acceptate: {count}.
+RESULTS_TRAPS_HIT,Caught by the floor {count} times.,Prins de podea de {count} ori.
+RESULTS_GOLD_STAKED,{gold} gold waits where you fell. Reach it before you fall again.,{gold} aur te așteaptă acolo unde ai căzut. Ajunge la el înainte să cazi din nou.
+RESULTS_DESCENT_BEST,New deepest descent: floor {floor} (was {previous}).,Cea mai adâncă coborâre: etajul {floor} (era {previous}).
+RESULTS_DESCENT_NOT_BEST,Floor {floor}. Your deepest is still {previous}.,Etajul {floor}. Cea mai adâncă rămâne {previous}.
+RESULTS_DESCENT_TOKENS,Descent tokens earned: {count}.,Jetoane de coborâre câștigate: {count}.
+RESULTS_RECURRING_FAILURE,This keeps happening: {causes}.,Asta se tot întâmplă: {causes}.
+RESULTS_ASSISTS,Assists in use: {assists}.,Asistențe active: {assists}.
+RESULTS_LEADERBOARD_SIGN_IN,Sign in to see leaderboards.,Autentifică-te pentru clasamente.
+RESULTS_LEADERBOARD_UNAVAILABLE,Leaderboards unavailable.,Clasamentele nu sunt disponibile.
+RESULTS_LEADERBOARD_EMPTY,Top 10 for {biome} (tier {tier}): no entries yet.,Top 10 pentru {biome} (nivel {tier}): încă fără intrări.
+RESULTS_LEADERBOARD_TITLE,Top 10 for {biome} (tier {tier}):,Top 10 pentru {biome} (nivel {tier}):
+RESULTS_CLOUD_FAILED,Cloud sync failed.,Sincronizarea în cloud a eșuat.
+RESULTS_CLOUD_UPDATE_REQUIRED,Update required to use cloud features.,E nevoie de actualizare pentru funcțiile cloud.
+RESULTS_REPORT_TITLE,Run Report,Raportul trecerii
+EPILOGUE_TITLE,The Oath Fulfilled,Jurământul împlinit
+EPILOGUE_HINT,Enter to continue,Enter pentru a continua
+WAVES_WAVE_ACTIVE,Wave {wave} — clear all enemies.,Valul {wave} — curăță toți dușmanii.
+WAVES_MILESTONE_CLEARED,Milestone wave {wave} cleared! Walls rebuild — prep {seconds}s.,Valul de referință {wave} a fost curățat! Zidurile se refac — pregătire {seconds}s.
+WAVES_VICTORY_PICK,Victory! Choose up to 3 items to keep:,Victorie! Alege până la 3 obiecte de păstrat:
+WAVES_PICK_AT_LEAST_ONE,Pick at least one reward,Alege cel puțin o recompensă
+ENDLESS_CONTINUE,Continue endless run (floor {floor}). {record},Continuă trecerea fără sfârșit (etajul {floor}). {record}
+ENDLESS_INTRO,The stair does not end. {record},Scara nu se termină. {record}
+ENDLESS_NO_SKIP,Nothing here will carry you deeper. Begin at floor 1.,Nimic de aici nu te duce mai adânc. Începe la etajul 1.
+ENDLESS_CHOOSE_STAIR,Choose a stair. Nothing you have earned this run comes with you.,Alege o scară. Nimic din ce ai câștigat în trecerea asta nu vine cu tine.
+ENDLESS_DESCEND_TO,Descend to floor {floor},Coboară la etajul {floor}
+WAVES_MENU_CONTINUE,Continue waves run (wave {wave}).,Continuă trecerea prin valuri (valul {wave}).
+WAVES_MENU_INTRO,"Open 6 chests, survive 50 waves.","Deschide 6 cufere, supraviețuiește 50 de valuri."
+QUEST_TRACKER_LINE,{title} — {detail},{title} — {detail}
+ACHIEVEMENT_TOAST,Achievement: {name},Realizare: {name}
+RESULTS_BEST_HIT,Biggest hit: {amount}.,Cea mai mare lovitură: {amount}.
+RESULTS_HIT_BACKSTAB,backstab,pe la spate
+RESULTS_HIT_CRIT,critical,critică
+HUD_XP_GRANTED,+{xp} XP,+{xp} XP
+HUD_DEPTH_RECORD,New deepest descent: floor {floor}.,Cea mai adâncă coborâre: etajul {floor}.
+HUD_DEPTH_RECORD_TOKENS,New deepest descent: floor {floor} — {tokens} descent tokens.,Cea mai adâncă coborâre: etajul {floor} — {tokens} jetoane.
+HUD_MILESTONE,Milestone reached: {name}.,Reper atins: {name}.
+LOCK_NEEDS_KEYS,This lock needs {count} keys.,Lacătul are nevoie de {count} chei.
+SMITH_UPGRADE_PATH,Upgrade path,Cale de îmbunătățire
+SMITH_SET_PATH,Set Path,Alege calea
+SMITH_MARK_RULE_SOURCE,Mark Rule Source,Marchează sursa
+SMITH_TRANSFER_RULE,Transfer Rule,Transferă regula
+SMITH_CONVERT,Convert,Conversie
+RECOVERY_TITLE,Save Could Not Be Read,Salvarea nu a putut fi citită
+RECOVERY_BODY,Your save and every backup failed to load ({reason}). Nothing has been deleted.,Salvarea ta și toate copiile de rezervă au eșuat la încărcare ({reason}). Nimic nu a fost șters.
+RECOVERY_KEPT_AT,A copy was kept at {path},O copie a fost păstrată la {path}
+RECOVERY_KEEP,Keep the file and continue,Păstrează fișierul și continuă
+RECOVERY_START_FRESH,Discard it and start fresh,Renunță și începe din nou

@@ -23,6 +23,7 @@
   "awareness_rate": 1.6,
   "alert_radius": 13,
   "enemy_type": "melee",
+  "weapon_kit": "spear",
   "attacks": [
     {
       "id": "jab",

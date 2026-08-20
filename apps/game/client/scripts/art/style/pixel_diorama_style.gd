@@ -78,6 +78,10 @@ static func clear_material_caches() -> void:
 	_prop_material_cache.clear()
 	_accent_material_cache.clear()
 	_emissive_material_cache.clear()
+	# C-177: this line lived after a `return` inside `_deg_to_rad_array`, 119 lines away — a
+	# copy-paste that landed in the wrong function. GDScript does not warn on unreachable code, so
+	# the portal cache was never cleared, and two suites were written around the gap.
+	_portal_material_cache.clear()
 
 
 static func set_authored_param(mat: ShaderMaterial, param: String, value: Variant) -> void:
@@ -192,7 +196,6 @@ static func _vec3_from_array(raw: Variant, fallback := Vector3.ZERO) -> Vector3:
 static func _deg_to_rad_array(raw: Variant) -> Vector3:
 	var deg := _vec3_from_array(raw)
 	return Vector3(deg_to_rad(deg.x), deg_to_rad(deg.y), deg_to_rad(deg.z))
-	_portal_material_cache.clear()
 
 
 const PALETTES: Array = [
@@ -455,13 +458,6 @@ static func make_ceiling_material(theme: PaletteTheme) -> Material:
 	return PixelDioramaSettings.track(mat)
 
 
-static func make_character_material(theme: PaletteTheme) -> Material:
-	var mat := make_surface_material(SurfaceKind.WALL, theme, 0.0).duplicate() as ShaderMaterial
-	set_authored_param(mat, "pattern_strength", 0.0)
-	set_authored_param(mat, "use_vertex_color", true)
-	return mat
-
-
 static func make_prop_material(theme: PaletteTheme, use_metal: bool = false) -> Material:
 	var key := "%d_%s" % [theme, use_metal]
 	if _prop_material_cache.has(key):
@@ -670,11 +666,17 @@ static func bevel_box_mesh(size: Vector3, bevel: float) -> Mesh:
 		var plain := BoxMesh.new()
 		plain.size = size
 		return plain
-	var key := "%.2f_%.2f_%.2f" % [snapped.x, snapped.y, snapped.z]
+	# C-180: the doc comment says "cached by (size, bevel)" and `bevel` was absent from the key, so
+	# two props of identical snapped size but different chamfer depth would silently share the
+	# first-built mesh. Latent today — the sole caller derives the bevel purely from the size, so
+	# equal sizes always meant equal bevels — and live the moment a second caller passes its own.
+	# The bevel is snapped too, for the same batching reason the sizes are.
+	var b: float = minf(bevel, shortest * 0.3)
+	var snapped_bevel := snappedf(b, MESH_SNAP)
+	var key := "%.2f_%.2f_%.2f_%.2f" % [snapped.x, snapped.y, snapped.z, snapped_bevel]
 	if _bevel_mesh_cache.has(key):
 		return _bevel_mesh_cache[key]
 	var half := snapped * 0.5
-	var b: float = minf(bevel, shortest * 0.3)
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
 	# Vertical edges only: six faces plus four corner facets, twenty triangles against a box's
@@ -1135,6 +1137,14 @@ static func add_cylinder(
 	mesh_inst.position = position
 	if material:
 		mesh_inst.material_override = material
+	# C-181: `add_box` honoured `debug_flat_materials` and this did not, so toggling the debug view
+	# produced a half-flattened scene — boxes grey, cylinders still fully shaded. A debug view that
+	# only partly applies is worse than none, because it invites the wrong conclusion about which
+	# surface is misbehaving.
+	if PixelDioramaSettings._debug_flat_cached:
+		var std := StandardMaterial3D.new()
+		std.albedo_color = Color(0.62, 0.56, 0.5)
+		mesh_inst.material_override = std
 	parent.add_child(mesh_inst)
 	return mesh_inst
 

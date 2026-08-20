@@ -490,6 +490,13 @@ func get_equipped_weapon_id() -> String:
 	return inst.get("itemId", "")
 
 
+## C-245: the infusion stamped on the equipped weapon, so combat can use the element the player
+## paid gold and materials for.
+func get_equipped_weapon_infusion() -> String:
+	var inst: Dictionary = equipped.get("weapon", {})
+	return str(inst.get("infusion", ""))
+
+
 func get_equipped_instance(slot_name: String) -> Dictionary:
 	return equipped.get(slot_name, {}).duplicate()
 

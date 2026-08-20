@@ -6,8 +6,6 @@ extends CastleEnemyBase
 ## Phase 3: collect crystals → cannon → break shield (immune until fired)
 
 signal boss_defeated
-signal phase_changed(phase: int)
-
 const SPIKE_SCENE := preload("res://scenes/traps/spike_trap.tscn")
 const CRYSTAL_SCENE := preload("res://scenes/bosses/final_boss_crystal.tscn")
 const CANNON_SCENE := preload("res://scenes/bosses/final_boss_cannon.tscn")
@@ -40,7 +38,6 @@ func _ready() -> void:
 	super._ready()
 	if _health:
 		_health.health_changed.connect(_on_health_changed)
-	AudioDirector.play_boss_music()
 
 
 func is_immune() -> bool:

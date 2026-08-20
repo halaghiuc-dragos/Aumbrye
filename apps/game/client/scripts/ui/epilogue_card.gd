@@ -36,7 +36,7 @@ func _build_ui() -> void:
 	var vbox := VBoxContainer.new()
 	margin.add_child(vbox)
 	var title := Label.new()
-	title.text = "The Oath Fulfilled"
+	title.text = tr("EPILOGUE_TITLE")
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	GameUISkinScript.style_menu_title(title)
 	vbox.add_child(title)
@@ -44,7 +44,7 @@ func _build_ui() -> void:
 	_body_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	vbox.add_child(_body_label)
 	var hint := Label.new()
-	hint.text = "Enter to continue"
+	hint.text = tr("EPILOGUE_HINT")
 	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	GameUISkinScript.style_hint_label(hint)
 	vbox.add_child(hint)

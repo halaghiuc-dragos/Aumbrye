@@ -6,9 +6,18 @@ class_name CastleEnemyBase
 enum State { PATROL, CHASE, INVESTIGATE, RETREAT, CIRCLE, WINDUP, ATTACK, RECOVERY, STAGGER, DEAD }
 
 signal enemy_died
-signal attack_telegraph_started
+## C-125: this and `attack_active` were emitted at exactly the right moments and had **zero
+## connections** anywhere — the producer for the colour-coded telegraph that §4 and §20.3 both asked
+## for, with no consumer ever built. `attack_class` is what the consumer needs: `blockable`,
+## `unblockable` or `parryable`.
+signal attack_telegraph_started(attack_class: String)
 signal attack_active
 signal boss_phase_entered(index: int, phase: Dictionary)
+
+## C-80: eight boss shells each declared this signal and connected `boss_phase_entered` to a handler
+## that re-emitted it with `index + 1` — the same four lines, copied eight times, for an adaptor
+## `combat_hud` is the only consumer of. Declared once, here.
+signal phase_changed(phase: int)
 
 const DATA_PATH := ""
 
@@ -38,6 +47,7 @@ const CharacterFloorSnapScript := preload("res://scripts/art/characters/characte
 const CharacterSkin := preload("res://scripts/art/characters/diorama_character_skin.gd")
 const CharacterRigCatalogScript := preload("res://scripts/art/characters/character_rig_catalog.gd")
 const AnimControllerScript := preload("res://scripts/art/characters/diorama_anim_controller.gd")
+const ShieldHurtboxScript := preload("res://scripts/combat/shield_hurtbox.gd")
 const CombatLayersScript := preload("res://scripts/combat/combat_layers.gd")
 
 @export var player_path: NodePath
@@ -273,8 +283,39 @@ func _ready() -> void:
 	if _health:
 		_attach_health_bar()
 	_setup_phase_controller()
+	# C-80: the relay, once.
+	if not boss_phase_entered.is_connected(_relay_phase_changed):
+		boss_phase_entered.connect(_relay_phase_changed)
+	# C-100: only four of the sixteen boss encounters called `play_boss_music()` from their own
+	# `_ready()`; the other twelve fought in silence over ordinary dungeon music. Every enemy that
+	# declares `isBoss` gets it.
+	if _is_boss_enemy() and AudioDirector:
+		AudioDirector.play_boss_music()
 	_pick_patrol_target()
 	_join_room_board()
+
+
+## C-81: three bosses each carried `var _arena_bounds := Rect2(-12, -12, 24, 24)` — the same literal,
+## copied, with nothing in `content/bosses/*.json` to say so, while every other boss parameter is
+## authored. A boss placed in a room smaller than its literal clamps *outside* the walls. Read from
+## the definition as `arenaHalfExtent` (a single number: these arenas are square), defaulting to the
+## literal the three shells already shared so behaviour is unchanged where nothing is authored.
+func get_arena_half_extent() -> float:
+	return maxf(1.0, float(_data.get("arenaHalfExtent", 12.0)))
+
+
+## Shared clamp — was duplicated verbatim in `castle_knight`, `crystal_sovereign` and `swamp_hydra`.
+func clamp_to_arena(center: Vector3) -> void:
+	var half := get_arena_half_extent()
+	var offset := global_position - center
+	offset.x = clampf(offset.x, -half, half)
+	offset.z = clampf(offset.z, -half, half)
+	global_position = center + offset
+
+
+## C-80: relays the base's phase index as a 1-based phase number, which is what `combat_hud` reads.
+func _relay_phase_changed(index: int, _phase: Dictionary) -> void:
+	phase_changed.emit(index + 1)
 
 
 func _join_room_board() -> void:
@@ -540,8 +581,18 @@ func _setup_diorama_visual() -> void:
 	_animator.hitbox_close_frame.connect(_on_anim_hitbox_close)
 
 
+## C-74: this returned outright when the state was not yet ATTACK, so an animation whose
+## `hitbox_open_frame` lands a frame or two before `_start_attack()` transitions — which
+## `windup_variance` randomisation makes possible — opened no hitbox at all and the swing passed
+## through the player. The player's equivalent, `WeaponController.enable_hitbox_from_anim`, handles
+## the same race by *promoting* the phase. Two implementations of one handoff, one tolerant and one
+## not; this is now the tolerant one.
 func _on_anim_hitbox_open() -> void:
-	if _state != State.ATTACK or _hitbox == null:
+	if _hitbox == null:
+		return
+	if _state == State.WINDUP:
+		_start_attack()
+	if _state != State.ATTACK:
 		return
 	if bool(_current_attack_data.get("no_hitbox", false)):
 		return
@@ -609,13 +660,14 @@ func _attach_health_bar() -> void:
 	_hp_bar = HP_BAR_SCRIPT.new() as EnemyHealthBar
 	_hp_bar.name = "HealthBar"
 	add_child(_hp_bar)
-	_hp_bar.setup(_health, get_hp_bar_height())
+	# C-96: the poise readout, where the enemy has one.
+	_hp_bar.setup(_health, get_hp_bar_height(), _poise)
 
 
-func begin_attack_windup_bar(duration: float) -> void:
+func begin_attack_windup_bar(duration: float, attack_class: String = "blockable") -> void:
 	_windup_duration = maxf(0.05, duration)
 	if _hp_bar:
-		_hp_bar.begin_attack_telegraph(_windup_duration)
+		_hp_bar.begin_attack_telegraph(_windup_duration, attack_class)
 
 
 func hide_attack_windup_bar() -> void:
@@ -634,20 +686,41 @@ func _show_attack_telegraph(duration: float) -> void:
 	var tint := Color(0.95, 0.34, 0.28)
 	if _data.has("telegraph_tint"):
 		tint = Color(_data["telegraph_tint"])
-	var forward := -global_transform.basis.z
+	# C-70: the telegraph forward was inverted, so every directional shape (cone, arc, line) drew
+	# on the opposite side from the swing. Circles hid it, which is why it survived — and it is
+	# exactly what blocks adding directional telegraphs at all.
+	var forward := CombatFacing.forward_of(self)
 	VfxService.play_telegraph(global_position, radius, duration, tint, shape, forward)
 
 
+## C-73: `_hurtbox.set("block_mitigation", ...)` on a base `Hurtbox` is a silent no-op in GDScript
+## — the property does not exist there. Three enemies author block data (`castle_shield` 0.75,
+## `iron_sentinel` 0.85, `glacial_hollowed` 0.82) and only `castle_shield.tscn` carries the
+## `ShieldHurtbox` script, so two of the three blocked nothing and nobody was told. Combined with
+## C-41 (the one scene that did have it blocked from behind), the shield mechanic worked on zero
+## enemies.
+##
+## Rather than patching two scene files and leaving the trap armed for the next enemy, the script
+## is installed from the data: authoring `block_mitigation` is what makes something a shield.
 func _apply_hurtbox_data() -> void:
 	if _hurtbox == null:
 		return
+	if not _data.has("block_mitigation") and not _data.has("block_angle_deg"):
+		return
+	if _hurtbox.get_script() != ShieldHurtboxScript:
+		_hurtbox.set_script(ShieldHurtboxScript)
 	if _data.has("block_mitigation"):
-		_hurtbox.set("block_mitigation", _data.get("block_mitigation"))
+		_hurtbox.set("block_mitigation", float(_data.get("block_mitigation")))
 	if _data.has("block_angle_deg"):
-		_hurtbox.set("block_angle_deg", _data.get("block_angle_deg"))
+		_hurtbox.set("block_angle_deg", float(_data.get("block_angle_deg")))
 
 
+## C-68: this only ever touched `_mesh`, the legacy capsule that `_setup_diorama_visual` hides on
+## the very next line — so every authored per-enemy colour was invisible. The diorama rig is what
+## the player sees, and it is tinted first.
 func _apply_mesh_tint(color: Color) -> void:
+	if _diorama_visual and is_instance_valid(_diorama_visual):
+		CharacterSkin.apply_body_tint(_diorama_visual, color)
 	if _mesh == null:
 		return
 	var mat: Material = _mesh.get_surface_override_material(0)
@@ -745,6 +818,13 @@ func _finalize_death(silent: bool) -> void:
 	_unregister_combat_engagement()
 	# Dying mid-swing must hand the attack token back too.
 	_release_attack_token()
+	# C-78: hazards and opt-in adds spawned by phase transitions are cleared here.
+	if _phase_controller and _phase_controller.has_method("clear_death_spawns"):
+		_phase_controller.call("clear_death_spawns")
+	# C-99: `end_boss_music()` existed with zero callers, so boss music started and never stopped —
+	# it played over the victory lap, the loot, and the walk to the stairs.
+	if _is_boss_enemy() and AudioDirector:
+		AudioDirector.end_boss_music()
 	if _health:
 		_health.force_dead()
 	if not silent:
@@ -787,8 +867,24 @@ func _play_death_visual() -> void:
 	MaterialDissolveScript.play_death_visual(visual, opts)
 
 
+## C-72: this fell through to a literal 5, because neither `coinReward` nor `goldReward` appears in
+## any file under `content/enemies/` or `content/bosses/` — so killing the Crystal Sovereign paid
+## exactly what killing a swamp leech paid, and the economy had no per-enemy dimension at all in a
+## game with a blacksmith, a merchant, recipes and a storage service.
+##
+## `threat_cost` *is* authored (69 files, 12–110, already used for lock-on priority) and is the
+## natural scale: it is the designer's own statement of how dangerous the thing is. An explicit
+## `coinReward` still wins where one is authored, so the derived value is a floor to build on
+## rather than a ceiling. `goldReward` is accepted as the legacy spelling.
+const COIN_REWARD_PER_THREAT := 0.35
+const COIN_REWARD_MIN := 3
+
+
 func _award_kill_coins() -> void:
-	var reward := int(_data.get("coinReward", _data.get("goldReward", 5)))
+	var reward := int(_data.get("coinReward", _data.get("goldReward", -1)))
+	if reward < 0:
+		var threat := float(_data.get("threat_cost", 20))
+		reward = maxi(COIN_REWARD_MIN, int(round(threat * COIN_REWARD_PER_THREAT)))
 	if reward > 0 and CharacterService:
 		CharacterService.add_gold(reward)
 
@@ -801,8 +897,11 @@ func _try_roll_global_drop() -> void:
 	var floor_index := RunFlow.get_current_floor()
 	var tier := RunFlow.get_difficulty_tier() if RunFlow.get_run_mode() == "castle" else 1
 	var dungeon_id := RunFlow.current_dungeon_id if RunFlow.get_run_mode() == "castle" else ""
+	# C-104: a monotonic per-run ordinal instead of the instance id, so the sequence of drops on a
+	# seed is a property of the run rather than of allocation order.
+	var drop_ordinal := RunFlow.next_loot_drop_ordinal() if RunFlow else 0
 	var drop_id := GlobalDropServiceScript.roll_enemy_drop(
-		get_instance_id(), floor_index, tier, dungeon_id
+		drop_ordinal, floor_index, tier, dungeon_id
 	)
 	if drop_id != "":
 		InventoryService.add_loot(drop_id)
@@ -862,6 +961,16 @@ func _physics_process(delta: float) -> void:
 			var track_mult := _tracking_speed_multiplier()
 			if track_mult > 0.0 and _should_track_player():
 				_track_player_facing(ai_delta, track_mult)
+		elif stride > 1:
+			# C-76: `move_and_slide()` runs every frame with whatever `velocity` the last AI tick
+			# left, but `_update_ai` only runs on strided ticks. An enemy at mid range (stride 4)
+			# that reached `stop_range` kept its approach velocity for up to 3 more frames, and at
+			# far range (stride 16) for up to 15 — so distant enemies overshot their stopping
+			# point. Damping toward zero between ticks bounds the overshoot without pretending to
+			# have run the AI.
+			var damping := clampf(LOD_VELOCITY_DAMPING * delta, 0.0, 1.0)
+			velocity.x = lerpf(velocity.x, 0.0, damping)
+			velocity.z = lerpf(velocity.z, 0.0, damping)
 	else:
 		velocity.x = 0.0
 		velocity.z = 0.0
@@ -1140,7 +1249,18 @@ func _ensure_nav_agent() -> void:
 	_nav_agent.path_desired_distance = 0.6
 	_nav_agent.target_desired_distance = 0.6
 	_nav_agent.path_max_distance = 4.0
-	_nav_agent.avoidance_enabled = false
+	# C-75: avoidance was disabled, so although `EnemyBlackboard` roles and `AttackTokenService`
+	# decide who may press and `_process_circle` orbits the non-engagers at role-scaled radii — a
+	# genuinely good crowd model — nothing kept two enemies out of the same volume, and a group
+	# converging on the player interpenetrated and read as one blob. RVO on the existing agent is
+	# the difference between a pack and a clump.
+	_nav_agent.avoidance_enabled = true
+	_nav_agent.radius = 0.55
+	_nav_agent.neighbor_distance = 4.0
+	_nav_agent.max_neighbors = 6
+	# Avoidance must not fight the commitment model: a committed swing has to keep its heading, and
+	# `_apply_chase_velocity` already slows the approach by the commit ratio.
+	_nav_agent.avoidance_priority = 0.5
 	add_child(_nav_agent)
 
 
@@ -1207,7 +1327,13 @@ func _player_inside_vision_cone() -> bool:
 	to_player.y = 0.0
 	if to_player.length_squared() < 0.01:
 		return true
-	var facing := -global_transform.basis.z
+	# C-69: `_face_direction()` sets `rotation.y = atan2(dir.x, dir.z)`, which makes **+basis.z**
+	# the heading toward the target — so the vision cone was mounted on the enemy's back. The
+	# effect was graded rather than binary (`_update_perception` applies `gain *= 0.25` outside the
+	# cone rather than gating detection), which is why it survived: enemies noticed you four times
+	# faster from behind than from the front, so stealth approach was punished and frontal approach
+	# rewarded. `vision_cone_deg` is authored on 46 enemies.
+	var facing := CombatFacing.forward_of(self)
 	facing.y = 0.0
 	if facing.length_squared() < 0.01:
 		return true
@@ -1361,6 +1487,10 @@ func _is_cross_boss_boundary_with_player() -> bool:
 	return false
 
 
+## C-76: how fast a strided enemy's velocity bleeds off between AI ticks.
+const LOD_VELOCITY_DAMPING := 6.0
+
+
 func _ai_lod_stride() -> int:
 	if is_visible_in_tree():
 		var dist_sq := _distance_to_player_sq()
@@ -1418,9 +1548,25 @@ func _enter_windup(attack_data: Dictionary) -> void:
 	elif _mesh:
 		_mesh.scale = Vector3(1.08, 1.08, 1.08)
 	_show_attack_telegraph(_state_timer)
-	begin_attack_windup_bar(_state_timer)
+	begin_attack_windup_bar(_state_timer, _current_attack_class())
 	AudioDirector.play_sfx("windup", global_position + Vector3(0.0, 1.0, 0.0))
-	attack_telegraph_started.emit()
+	attack_telegraph_started.emit(_current_attack_class())
+
+
+## C-125: authored `attackClass` wins; otherwise it is derived from data the content already
+## carries. An attack whose poise damage exceeds the shieldless guard-break threshold (C-56) *is*
+## unblockable for a player without a shield, so saying so is a statement of fact rather than new
+## balance. Everything else is blockable.
+func _current_attack_class() -> String:
+	var authored := str(_current_attack_data.get("attackClass", ""))
+	if authored != "":
+		return authored
+	var poise := float(
+		_current_attack_data.get("attack_poise_damage", _data.get("attack_poise_damage", 12.0))
+	)
+	if poise >= Guard.DEFAULT_GUARD_BREAK_POISE:
+		return "unblockable"
+	return "blockable"
 
 
 func _start_attack() -> void:
@@ -1620,7 +1766,10 @@ func _apply_attack_lunge() -> void:
 	var distance := float(_current_attack_data.get("lunge_distance", 0.0))
 	if distance <= 0.0:
 		return
-	var forward := -global_transform.basis.z
+	# C-71: the lunge would have charged directly away from the target. `lunge_distance` is
+	# authored on zero enemies today, so this was never live — it would have become live the first
+	# time anyone used it.
+	var forward := CombatFacing.forward_of(self)
 	forward.y = 0.0
 	if forward.length_squared() < 0.01:
 		return

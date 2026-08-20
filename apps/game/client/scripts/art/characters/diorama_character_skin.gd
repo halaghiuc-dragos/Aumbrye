@@ -653,6 +653,41 @@ static func attach_weapon(visual: Node3D, weapon_id: String, theme: int) -> void
 		target_mount.add_child(weapon)
 
 
+## C-68: the per-enemy `_apply_mesh_tint` colours in fourteen enemy scripts were written onto the
+## legacy `_mesh`, which `_setup_diorama_visual` immediately hides — so the colour a player actually
+## sees came from `theme_for_enemy_id`, which matches on the id *prefix*. All eight `crystal_*`
+## enemies shared one palette and all six `swamp_*` another, leaving the bestiary differentiated by
+## `scale` alone. This routes the authored tint into the visible rig instead of deleting it.
+##
+## Materials are duplicated per rig before mutation: the theme materials are shared for batching,
+## and writing a per-enemy colour into a shared material would tint every enemy of that biome.
+static func apply_body_tint(visual: Node3D, tint: Color) -> void:
+	if visual == null:
+		return
+	for mesh_inst in _collect_mesh_instances(visual):
+		var mat := mesh_inst.material_override
+		if mat is ShaderMaterial:
+			var shader_mat := (mat as ShaderMaterial).duplicate() as ShaderMaterial
+			var base: Variant = shader_mat.get_shader_parameter("color_base")
+			var blended := tint if not (base is Color) else (base as Color).lerp(tint, 0.65)
+			shader_mat.set_shader_parameter("color_base", blended)
+			shader_mat.set_shader_parameter("color_shadow", blended.darkened(0.28))
+			mesh_inst.material_override = shader_mat
+		elif mat is StandardMaterial3D:
+			var standard := (mat as StandardMaterial3D).duplicate() as StandardMaterial3D
+			standard.albedo_color = standard.albedo_color.lerp(tint, 0.65)
+			mesh_inst.material_override = standard
+
+
+static func _collect_mesh_instances(node: Node) -> Array[MeshInstance3D]:
+	var out: Array[MeshInstance3D] = []
+	if node is MeshInstance3D:
+		out.append(node as MeshInstance3D)
+	for child in node.get_children():
+		out.append_array(_collect_mesh_instances(child))
+	return out
+
+
 static func find_part(visual: Node3D, part_name: String) -> Node3D:
 	if visual == null:
 		return null

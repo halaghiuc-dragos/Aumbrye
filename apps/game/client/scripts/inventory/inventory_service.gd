@@ -52,7 +52,12 @@ func _sync_unique_rules() -> void:
 		var rules: Variant = def.get("rules", [])
 		if not rules is Array or (rules as Array).is_empty():
 			continue
-		wanted[_rule_source_id(item_id)] = rules
+		# C-103: this keyed on `itemId`, so equipping two rules-bearing items with the same id —
+		# two rings of the same unique, which the grid permits — collapsed to one `CombatEvents`
+		# source and the rule fired once. Same defect class as C-32 (relic stacking). The grid
+		# already mints and tracks a per-copy `instanceId`; keying on it makes two copies two
+		# sources, which is what `maxStacks` being authored per rule implies.
+		wanted[_rule_source_id(item_id, str(instance.get("instanceId", "")))] = rules
 	for source_id in _registered_rule_sources:
 		if not wanted.has(source_id):
 			CombatEvents.unregister(str(source_id))
@@ -62,8 +67,10 @@ func _sync_unique_rules() -> void:
 	_registered_rule_sources = wanted.keys()
 
 
-func _rule_source_id(item_id: String) -> String:
-	return "item/%s" % item_id
+func _rule_source_id(item_id: String, instance_id: String = "") -> String:
+	if instance_id == "":
+		return "item/%s" % item_id
+	return "item/%s#%s" % [item_id, instance_id]
 
 
 func _on_run_buffs_changed() -> void:
@@ -159,6 +166,13 @@ func _on_item_added_success(item_id: String, instance_data: Dictionary) -> void:
 	_notify_item_obtained(item_id, instance_data)
 
 
+## Public counterpart to `_emit_inventory_rejected` for callers that grant items outside `add_loot`
+## (quest rewards, waves early-exit payouts). Both used to drop the item silently — C-241, C-190.
+func notify_reward_lost(item_id: String) -> void:
+	push_warning("InventoryService: reward '%s' could not be granted — inventory full" % item_id)
+	_emit_inventory_rejected("full")
+
+
 func _emit_inventory_rejected(reason: String) -> void:
 	inventory_rejected.emit(reason)
 
@@ -202,6 +216,16 @@ func consume_boss_sigil() -> bool:
 	return inventory.remove_one_where(
 		func(slot: Dictionary) -> bool: return slot.get("itemId", "") == "boss_sigil"
 	)
+
+
+## C-132: the sealed-doors modifier asks for two keys and the generator only ever places one, so a
+## door could demand more than the player can possibly hold. Counting has to be possible *before*
+## consuming anything.
+func count_dungeon_keys(key_id: String) -> int:
+	return inventory.find_slots_where(
+		func(slot: Dictionary) -> bool:
+			return slot.get("itemId", "") == "dungeon_key" and str(slot.get("keyId", "")) == key_id
+	).size()
 
 
 func consume_dungeon_key(key_id: String) -> bool:
@@ -469,13 +493,21 @@ func format_comparison_bbcode(slot: Dictionary) -> String:
 	return "\n".join(lines)
 
 
-func remove_run_loot(item_ids: Array) -> void:
-	var id_set: Dictionary = {}
-	for raw_id in item_ids:
-		id_set[str(raw_id)] = true
-	for item_id in item_ids:
-		inventory.remove_items_by_id(str(item_id), 999)
-	inventory.strip_equipped_run_loot(id_set)
+## C-243: removes only the instances this run actually granted.
+##
+## This used to call `remove_items_by_id(item_id, 999)`, which deletes every stack sharing the id —
+## including stock the player brought into the run or bought from the hub merchant. `add_loot`
+## already tags each in-run pickup with `runLoot`, and `strip_equipped_run_loot` already honours
+## that flag; the grid half simply never did.
+func remove_run_loot(_item_ids: Array = []) -> void:
+	var doomed: Array[int] = inventory.find_slots_where(
+		func(slot: Dictionary) -> bool: return bool(slot.get("runLoot", false))
+	)
+	doomed.sort()
+	doomed.reverse()
+	for index in doomed:
+		inventory.remove_at(index)
+	inventory.strip_equipped_run_loot()
 	_apply_equipment_to_player()
 
 
@@ -531,8 +563,12 @@ func apply_equipment_to_player_node(player: Node) -> void:
 			Stamina.MAX_STAMINA
 			+ CombatStatModifiersScript.max_stamina_bonus(equip_stats, talent_stats)
 		)
+		# C-49: preserve_ratio=true for the same reason as Health and Poise — the equipment path
+		# fires on every inventory change and must not reset the regen delay or clear exhaustion.
 		stamina.configure(
-			max_stamina, CombatStatModifiersScript.stamina_regen_multiplier(equip_stats, talent_stats)
+			max_stamina,
+			CombatStatModifiersScript.stamina_regen_multiplier(equip_stats, talent_stats),
+			true
 		)
 	var poise := player.get_node_or_null("Poise") as Poise
 	if poise:
@@ -548,10 +584,18 @@ func apply_equipment_to_player_node(player: Node) -> void:
 		var max_mana := (
 			Mana.MAX_MANA + CombatStatModifiersScript.max_mana_bonus(equip_stats, talent_stats)
 		)
-		mana.configure(max_mana, CombatStatModifiersScript.mana_regen_multiplier(equip_stats, talent_stats))
+		# C-49: same reason.
+		mana.configure(
+			max_mana,
+			CombatStatModifiersScript.mana_regen_multiplier(equip_stats, talent_stats),
+			true
+		)
 	var weapon := player.get_node_or_null("WeaponController")
 	if weapon and weapon.has_method("load_weapon_from_path"):
 		weapon.load_weapon_from_path(inventory.get_equipped_weapon_data_path())
+		# C-245: the equipped weapon's infusion, so the converted damage type reaches the hitbox.
+		if weapon.has_method("set_infusion"):
+			weapon.call("set_infusion", str(inventory.get_equipped_weapon_infusion()))
 		if weapon.has_method("set_combat_stat_modifiers"):
 			weapon.set_combat_stat_modifiers(equip_stats, talent_stats, get_class_stats())
 		elif weapon.has_method("set_damage_multiplier"):

@@ -7,13 +7,22 @@ const ItemListPresenterScript := preload("res://scripts/ui/item_list_presenter.g
 
 signal closed
 
-const WEAPON_ITEMS: Array[String] = [
+## C-246: this was a hardcoded list of five, against `content/items/` defining **70** items with
+## `itemType: "weapon"` — five tiers of a material ladder, the biome weapons and 19 uniques. So the
+## Loadout screen showed 7% of the game's weapons, and finding a unique could not change what the
+## screen offered. The list is derived from the catalogue now.
+##
+## The three starters stay named, because `_is_weapon_unlocked` grants them unconditionally and that
+## is a statement about the starting kit rather than about the catalogue.
+const STARTER_WEAPONS: Array[String] = [
 	"castle_sword",
 	"training_greatsword",
 	"rogue_dagger",
-	"guard_spear",
-	"hunter_bow",
 ]
+
+
+static func _weapon_items() -> Array[String]:
+	return ItemCatalog.get_items_by_type("weapon")
 
 @onready var _list: ItemList = $Panel/Margin/VBox/WeaponList
 @onready var _info: Label = $Panel/Margin/VBox/InfoLabel
@@ -60,7 +69,7 @@ func _unhandled_input(event: InputEvent) -> void:
 
 func _refresh_list() -> void:
 	_list.clear()
-	for item_id in WEAPON_ITEMS:
+	for item_id in _weapon_items():
 		if not _is_weapon_unlocked(item_id):
 			continue
 		var def: Dictionary = ItemCatalog.get_definition(item_id)
@@ -78,13 +87,26 @@ func _is_weapon_unlocked(item_id: String) -> bool:
 	var class_id := CharacterService.get_class_id() if CharacterService else ""
 	if class_id != "" and not ClassCatalog.is_weapon_allowed(class_id, item_id):
 		return false
-	match item_id:
-		"castle_sword", "training_greatsword", "rogue_dagger":
-			return true
-		"guard_spear", "hunter_bow":
-			return BlacksmithService.is_unlocked(item_id)
-		_:
-			return ItemCatalog.has_item(item_id)
+	if item_id in STARTER_WEAPONS:
+		return true
+	# C-246: a weapon the player is actually carrying is available whether or not the blacksmith
+	# has ever unlocked it — finding a unique in a run is the point of finding it. Otherwise the
+	# blacksmith gate stands.
+	if InventoryService and _holds_item(InventoryService.inventory, item_id):
+		return true
+	if StorageService and _holds_item(StorageService.storage, item_id):
+		return true
+	return BlacksmithService.is_unlocked(item_id)
+
+
+static func _holds_item(grid: GridInventory, item_id: String) -> bool:
+	if grid == null:
+		return false
+	return (
+		not grid
+		. find_slots_where(func(slot: Dictionary) -> bool: return slot.get("itemId", "") == item_id)
+		. is_empty()
+	)
 
 
 func _on_item_selected(index: int) -> void:

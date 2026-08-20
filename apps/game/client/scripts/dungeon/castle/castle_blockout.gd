@@ -497,7 +497,13 @@ func add_door_nav_link(local_start: Vector3, local_end: Vector3) -> NavigationLi
 	link.travel_cost = 1.0
 	link.enabled = true
 	if _navigation_map != RID():
-		link.navigation_map = _navigation_map
+		# C-185: this used the assignment form that the comment in `set_navigation_map()` ninety
+		# lines above explicitly condemns — "NavigationLink3D exposes this as a method, not a
+		# property: the assignment form fails at runtime, so every door link was silently left off
+		# the floor's navigation map and enemies had no path through a doorway." The bug was fixed
+		# there and left standing here. This function has no callers today, so it was latent; the
+		# next person to call it would have reintroduced the exact defect the comment records.
+		link.set_navigation_map(_navigation_map)
 	add_child(link)
 	if Engine.is_editor_hint():
 		link.owner = get_tree().edited_scene_root

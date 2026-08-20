@@ -8,7 +8,6 @@ signal cancelled
 
 const GameUISkinScript := preload("res://scripts/ui/game_ui_skin.gd")
 const MenuShellScript := preload("res://scripts/ui/menu_shell.gd")
-const InputMapServiceScript := preload("res://scripts/input/input_map_service.gd")
 
 const MOTION_DEADZONE := 0.5
 
@@ -74,7 +73,7 @@ func _on_cancel() -> void:
 
 
 func _on_swap() -> void:
-	var result := InputMapServiceScript.swap_binding(_action, _conflict_action, _pending_event)
+	var result := InputRebindService.swap_binding(_action, _conflict_action, _pending_event)
 	if bool(result.get("ok", false)):
 		captured.emit(_action, _pending_event)
 	close()
@@ -101,7 +100,7 @@ func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventJoypadMotion:
 		if absf(event.axis_value) < MOTION_DEADZONE:
 			return
-	var conflict := InputMapServiceScript.find_conflict(_action, event)
+	var conflict := InputRebindService.find_conflict(_action, event)
 	if conflict != &"":
 		_pending_event = event
 		_conflict_action = conflict
@@ -109,7 +108,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		_build_prompt()
 		get_viewport().set_input_as_handled()
 		return
-	var result := InputMapServiceScript.set_binding(_action, _device_family, event)
+	var result := InputRebindService.rebind(_action, event)
 	if bool(result.get("ok", false)):
 		captured.emit(_action, event)
 		close()

@@ -197,11 +197,11 @@ static func _keyboard_cell_key(action: String) -> String:
 		"ui_accept":
 			return "keyboard/ENTER"
 		"ui_cancel":
-			return "keyboard/ESC"
+			return "keyboard/ESCAPE"
 		"inventory":
 			return "keyboard/TAB"
 		"pause":
-			return "keyboard/ESC"
+			return "keyboard/ESCAPE"
 		"lock_on":
 			return "keyboard/TAB"
 		"sprint":
@@ -463,3 +463,13 @@ static func _generic_text(action: String) -> String:
 			return "Btn 1"
 		_:
 			return "Btn"
+
+
+## C-227 / C-229: world-space prompts hardcoded "Press E", so controller players and anyone who
+## rebound `interact` were told to press a key that does nothing. Resolves the live binding for the
+## active device family, falling back to the action's display name.
+static func get_action_prompt(action: StringName, template_key: String = "PROMPT_PRESS") -> String:
+	var label := get_action_display_name(action)
+	if label == "":
+		label = String(action)
+	return TranslationServer.translate(template_key) % label

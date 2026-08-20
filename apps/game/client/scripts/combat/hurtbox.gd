@@ -175,19 +175,27 @@ func receive_hit(info: DamageInfo) -> void:
 	_emit_attacker_feedback(info, final_amount, impact, res.blocked)
 	_dispatch_combat_events(info, res)
 	hit_resolved.emit(res)
+	# C-124: the run's damage breakdown. Only hits the *player* landed count — `team` here is the
+	# victim's, so an enemy hurtbox resolving a hit is the player's work.
+	if team != "player" and RunBuffs and res.outgoing > 0.0:
+		RunBuffs.note_player_hit(res)
 	damaged.emit(info)
 	if team == "player" and (final_amount > 0.0 or final_poise > 0.0):
 		hurt_received.emit(final_amount, final_poise, info.direction)
 
 
+## C-57: this refused to apply a status while guarding, but the hit path
+## (`_apply_status_from_hit`) has no such rule — so blocking a fire attack still burned you, while
+## an identical status arriving through this path did not. Two rules for one question. The hit path
+## is authoritative: a block reduces damage, it does not negate the status the hit carries, which
+## is also what makes elemental resistance worth building. I-frames are different — they are true
+## invulnerability and `receive_hit` already returns before any status is applied — so that check
+## stays, and the two paths now agree.
 func try_apply_status(status_id: String, stacks: int = 1, duration: float = -1.0) -> bool:
 	if status_id == "":
 		return false
 	var dodge := _cached_dodge
 	if dodge and dodge.get("iframes_active"):
-		return false
-	var guard := _cached_guard
-	if guard and guard.get("is_guard_active"):
 		return false
 	var ctrl := _resolve_status_controller()
 	if ctrl == null:
@@ -372,7 +380,7 @@ func _emit_victim_feedback(
 		var proportion := clampf(damage / maxf(1.0, max_hp * 0.25), 0.15, 1.0)
 		var strength := lerpf(0.35, 1.0, proportion)
 		var duration := lerpf(0.14, 0.30, proportion)
-		var tint: Color = MaterialFlashScript.FLASH_TINTS.get(damage_type, Color.WHITE)
+		var tint: Color = MaterialFlashScript.tint_for_damage_type(damage_type)
 		var anchor: Array = VfxService.resolve_combat_anchor(body)
 		var params := {
 			"strength": strength,
@@ -415,7 +423,7 @@ func _emit_periodic_feedback(body: Node3D, damage_type: String) -> void:
 		{
 			"strength": 0.3,
 			"duration": 0.12,
-			"tint": MaterialFlashScript.FLASH_TINTS.get(damage_type, Color.WHITE),
+			"tint": MaterialFlashScript.tint_for_damage_type(damage_type),
 			"blocked": false,
 			"crit": false,
 			"epicenter": body.global_position + Vector3(0.0, 1.0, 0.0),

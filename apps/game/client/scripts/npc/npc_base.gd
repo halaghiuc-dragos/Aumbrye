@@ -35,6 +35,63 @@ func _ready() -> void:
 	_interactable.interacted.connect(_on_interacted)
 	_interactable.player_exited.connect(_on_player_exited)
 	_update_label()
+	# C-92: the skin is built by the hub after this node enters the tree.
+	call_deferred("_resolve_visual")
+
+
+## C-92: ten authored NPCs and 34 dialogue files sat behind figures that never shifted weight,
+## never turned to look at the player and never reacted to anything — `npc_base` had no
+## `_physics_process` and no animation calls at all, so an NPC was a static skin with an interaction
+## volume, and the hub read as a menu with geometry.
+##
+## Two cheap signals of life, both on the box skin the hub actually builds (`build_npc` — these are
+## not full rigs, so the `DioramaAnimController` idle clips do not apply here): the figure turns to
+## watch the player approach, and it breathes. Throttled to the same 0.1 s cadence the minimap uses,
+## and idle work stops entirely when no player is near.
+const LOOK_RADIUS := 6.0
+const LOOK_TURN_SPEED := 3.0
+const IDLE_BOB_HEIGHT := 0.025
+const IDLE_BOB_SPEED := 1.6
+
+var _visual: Node3D
+var _visual_base_y := 0.0
+var _idle_phase := 0.0
+var _player: Node3D
+
+
+func _resolve_visual() -> void:
+	for child in get_children():
+		if child is Node3D and child.name.begins_with("Diorama"):
+			_visual = child as Node3D
+			break
+	if _visual == null:
+		for child in get_children():
+			if child is Node3D and not (child is Area3D):
+				_visual = child as Node3D
+				break
+	if _visual:
+		_visual_base_y = _visual.position.y
+
+
+func _physics_process(delta: float) -> void:
+	if _visual == null or not is_instance_valid(_visual):
+		return
+	if _player == null or not is_instance_valid(_player):
+		_player = get_tree().get_first_node_in_group("player") as Node3D
+		if _player == null:
+			return
+	var to_player := _player.global_position - global_position
+	to_player.y = 0.0
+	if to_player.length_squared() > LOOK_RADIUS * LOOK_RADIUS:
+		return
+	# Breathing: a quarter-pixel rise and fall, so it reads as alive without reading as floating.
+	_idle_phase = fmod(_idle_phase + delta * IDLE_BOB_SPEED, TAU)
+	_visual.position.y = _visual_base_y + sin(_idle_phase) * IDLE_BOB_HEIGHT
+	if to_player.length_squared() < 0.04:
+		return
+	# The project's forward is +Z (see `CombatFacing`), which is what `atan2(x, z)` produces.
+	var target_yaw := atan2(to_player.x, to_player.z)
+	rotation.y = lerp_angle(rotation.y, target_yaw, clampf(LOOK_TURN_SPEED * delta, 0.0, 1.0))
 
 
 func get_npc_id() -> String:

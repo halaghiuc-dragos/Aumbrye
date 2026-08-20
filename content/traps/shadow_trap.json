@@ -8,9 +8,10 @@
   "active": 0.7,
   "cooldown": 3,
   "triggerRadius": 3.2,
-  "damageType": "dark",
+  "damageType": "arcane",
   "hitInterval": 0.5,
   "statusId": "torpor",
   "statusBuildUp": 32,
-  "enemyDamageMultiplier": 1
+  "enemyDamageMultiplier": 1,
+  "_comment": "C-163: authored `dark`, which is not in DamageInfo.ALL_TYPES and coerced silently to physical — the trap's authored identity was lost with no warning. `arcane` is the closest real type and is what the shadow theme was reaching for."
 }

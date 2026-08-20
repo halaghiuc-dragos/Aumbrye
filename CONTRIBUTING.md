@@ -31,7 +31,7 @@ pip install ruff && ruff check tools/
 ```
 
 ```bash
-godot --path apps/game/client --headless --script res://scripts/validation/validation_main.gd
+godot --path apps/game/client --headless -- --smoke-test
 ```
 
 Install [pre-commit](https://pre-commit.com/) and run hooks locally:

@@ -283,8 +283,20 @@ static func has_door(template_id: String, door_mask: int) -> bool:
 	return (get_spec(template_id)["doors"] & door_mask) != 0
 
 
+## C-264 (root cause behind C-212): this was a plain bitmask-subset test, which is right for
+## multi-door templates but wrong for single-door ones. `room_graph_geometry` rotates a single-door
+## room to face its incoming door — that is exactly what `yaw_rad_for_incoming_door` /
+## `yaw_rad_for_entrance` exist to do, and both key off `primary_door_mask`, which is non-zero only
+## for a single-bit mask. So `boss` (DOOR_NORTH) was rejected for every dead end whose one door
+## faced south, east or west: three quarters of them, even though the builder would have rotated it
+## to fit. Preferring dead-end boss slots (the C-212 fix) only helped the one direction in four that
+## happened to already be north. Single-door templates now match any single-door requirement, which
+## is the capability the geometry pass actually has.
 static func supports_doors(template_id: String, required_doors: int) -> bool:
-	return (get_spec(template_id)["doors"] & required_doors) == required_doors
+	var doors := int(get_spec(template_id)["doors"])
+	if (doors & required_doors) == required_doors:
+		return true
+	return primary_door_mask(doors) != 0 and primary_door_mask(required_doors) != 0
 
 
 static func doors_for_step(dx: int, dz: int) -> Array:
@@ -391,7 +403,7 @@ static func pick_template_for_doors(
 	required_kind: String = ""
 ) -> String:
 	var candidates: Array[String] = []
-	if supports_doors(preferred_template_id, required_doors):
+	if preferred_template_id != "" and supports_doors(preferred_template_id, required_doors):
 		candidates.append(preferred_template_id)
 	for template_id in biome_templates:
 		var tid := str(template_id)

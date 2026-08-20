@@ -58,7 +58,24 @@ func _build_arena() -> void:
 	_build_walls(true)
 
 
+## C-186: every transition *into* fighting called `_build_walls(false)`, so the arena boundary
+## existed only in the lobby and the between-wave prep window — exactly the two states where nothing
+## is chasing the player. Enemies spawn inside +/-28 and `waves_outdoors_diorama` dresses terrain
+## only to `ARENA_HALF + 4`, so past roughly 38 units the player was running across undressed ground
+## with no collision and no enemies. In a wave-survival mode that makes kiting outward strictly
+## better than fighting, which is the mode's core failure state.
+##
+## The walls are the arena and now stand for the whole run. `_build_walls` is kept and made
+## idempotent so the existing call sites stay honest, but nothing asks for them to come down.
+func _ensure_walls() -> void:
+	if not _walls.is_empty():
+		return
+	_build_walls(true)
+
+
 func _build_walls(enabled: bool) -> void:
+	if enabled and not _walls.is_empty():
+		return
 	for wall in _walls:
 		if is_instance_valid(wall):
 			wall.queue_free()
@@ -156,7 +173,8 @@ func start_waves_from_lobby() -> void:
 		return
 	WavesRunService.start_waves()
 	_lobby_active = false
-	_build_walls(false)
+	# C-186: the boundary stays up through combat.
+	_ensure_walls()
 	_clear_chests()
 	_start_wave()
 	if _wave_ui and _wave_ui.has_method("show_combat"):
@@ -165,7 +183,8 @@ func start_waves_from_lobby() -> void:
 
 func _start_combat_from_continue() -> void:
 	_lobby_active = false
-	_build_walls(not WavesRunService.prep_active)
+	# C-186: up regardless of prep state.
+	_ensure_walls()
 	if WavesRunService.prep_active:
 		_prep_countdown = 5.0
 		if _wave_ui and _wave_ui.has_method("show_prep"):
@@ -196,10 +215,11 @@ func _spawn_enemy(enemy_id: String) -> void:
 	):
 		enemy.call("set_catalog_id", enemy_id)
 	var rng := RandomNumberGenerator.new()
-	rng.seed = (
-		WavesRunService.to_save_dict().get("seed", 1)
-		+ WavesRunService.current_wave * 17
-		+ _active_enemies.size()
+	# C-188: the seed accessor, not a whole save dictionary per spawn.
+	# C-192: mixed through `FloorSeedMix` rather than added, so the stream is the project's own
+	# deterministic mixer like every other seeded system.
+	rng.seed = FloorSeedMix.mix(
+		WavesRunService.get_seed(), WavesRunService.current_wave * 17 + _active_enemies.size()
 	)
 	enemy.position = Vector3(rng.randf_range(-28, 28), 0.0, rng.randf_range(-28, 28))
 	add_child(enemy)
@@ -228,12 +248,13 @@ func _on_enemy_died(enemy: Node) -> void:
 
 
 func _on_wave_cleared() -> void:
-	if WavesRunService.is_final_milestone() and WavesRunService.current_wave >= 50:
+	# C-191: the content-driven final wave, not a literal 50.
+	if WavesRunService.is_final_milestone():
 		_show_reward_pick()
 		return
 	if WavesRunService.is_milestone(WavesRunService.current_wave):
 		WavesRunService.enter_prep()
-		_build_walls(true)
+		_ensure_walls()
 		_prep_countdown = 5.0
 		if _wave_ui and _wave_ui.has_method("show_prep"):
 			_wave_ui.call("show_prep", WavesRunService.current_wave, _prep_countdown)
@@ -246,13 +267,20 @@ func _on_wave_cleared() -> void:
 
 
 func _process(delta: float) -> void:
+	# C-187: this node is `PROCESS_MODE_ALWAYS` so the ambient bird animation keeps moving behind
+	# the pause menu — which is deliberate and looks right. The prep countdown is not ambience: it
+	# is the window the player is given to spend rewards and reposition, and it was draining while
+	# the game was paused, so pausing during prep cost real preparation time and could start a wave
+	# with the menu still open.
+	var paused := get_tree().paused
 	_bird_time += delta
 	_animate_birds()
-	if _prep_countdown > 0.0:
+	if _prep_countdown > 0.0 and not paused:
 		_prep_countdown -= delta
 		if _prep_countdown <= 0.0:
 			WavesRunService.leave_prep()
-			_build_walls(false)
+			# C-186: leaving prep starts a wave; that is precisely when the arena must be closed.
+			_ensure_walls()
 			WavesRunService.advance_wave()
 			_start_wave()
 			if _wave_ui and _wave_ui.has_method("show_combat"):

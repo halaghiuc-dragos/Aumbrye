@@ -26,6 +26,7 @@
   "alert_radius": 14,
   "circle_radius_mult": 1.15,
   "enemy_type": "shield",
+  "weapon_kit": "shield",
   "damage_type": "frost",
   "status_on_hit": "freeze",
   "attacks": [

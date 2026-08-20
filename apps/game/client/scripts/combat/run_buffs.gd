@@ -15,6 +15,13 @@ var _active: Array[Dictionary] = []
 var _registered_sources: Array = []
 var _procs: Dictionary = {}
 var _trap_catches := 0
+
+## C-124: `Hurtbox.hit_resolved` carries `DamageResolution` — incoming/outgoing damage, poise on both
+## sides, crit, backstab, blocked, parried, dodged, absorbed_by_poise, damage type, region and a
+## per-stage `stages` array — and is emitted on five paths with **no connection anywhere**. The
+## damage-breakdown the results screen wanted did not need building; it needed a listener. This is
+## it: the run's single biggest landed hit, with the flags that explain it.
+var _best_hit: Dictionary = {}
 var _offers_taken := 0
 var _hooked := false
 
@@ -127,6 +134,21 @@ func take_offer(relic_id: String) -> bool:
 	return true
 
 
+## C-124: called by `Hurtbox` when the player resolves a hit against something.
+func note_player_hit(resolution: Variant) -> void:
+	if resolution == null:
+		return
+	var amount := float(resolution.get("outgoing"))
+	if amount <= float(_best_hit.get("amount", 0.0)):
+		return
+	_best_hit = {
+		"amount": amount,
+		"crit": bool(resolution.get("crit")),
+		"backstab": bool(resolution.get("backstab")),
+		"damageType": str(resolution.get("damage_type")),
+	}
+
+
 func note_trap_catch(count: int = 1) -> void:
 	if count > 0:
 		_trap_catches += count
@@ -163,6 +185,7 @@ func get_run_highlights() -> Dictionary:
 		"topRelicProcs": top_procs,
 		"offersTaken": _offers_taken,
 		"trapCatches": _trap_catches,
+		"bestHit": _best_hit,
 	}
 
 
@@ -172,6 +195,7 @@ func clear_all() -> void:
 	_procs.clear()
 	_trap_catches = 0
 	_offers_taken = 0
+	_best_hit = {}
 	_unregister_all()
 	if had_entries:
 		buffs_changed.emit()
@@ -234,8 +258,15 @@ func _stacks_of(relic_id: String) -> int:
 	return 0
 
 
-func _rule_source_id(relic_id: String) -> String:
-	return "%s%s" % [RULE_SOURCE_PREFIX, relic_id]
+## C-32: one source id per *stack*. `add_relic` increments `stacks` and then calls
+## `_sync_relic_rules`, which used to see the single source already registered and do nothing — so
+## stacks scaled `stats` only and a 2-stack relic's rule still fired once, despite `maxStacks`
+## being authored per relic. A distinct id per stack makes the rule fire once per stack and gives
+## each stack its own cooldown, which is the natural reading of stacking a triggered effect.
+func _rule_source_id(relic_id: String, stack_index: int = 0) -> String:
+	if stack_index <= 0:
+		return "%s%s" % [RULE_SOURCE_PREFIX, relic_id]
+	return "%s%s#%d" % [RULE_SOURCE_PREFIX, relic_id, stack_index]
 
 
 func _sync_relic_rules() -> void:
@@ -250,7 +281,9 @@ func _sync_relic_rules() -> void:
 		var rules: Variant = def.get("rules", [])
 		if not rules is Array or (rules as Array).is_empty():
 			continue
-		wanted[_rule_source_id(relic_id)] = rules
+		var stacks: int = maxi(1, int(entry.get("stacks", 1)))
+		for stack_index in stacks:
+			wanted[_rule_source_id(relic_id, stack_index)] = rules
 	for source_id in _registered_sources:
 		if not wanted.has(source_id):
 			CombatEvents.unregister(str(source_id))
@@ -279,5 +312,10 @@ func _ensure_event_hookup() -> void:
 func _on_rule_triggered(source_id: String, _effect: String) -> void:
 	if not source_id.begins_with(RULE_SOURCE_PREFIX):
 		return
+	# C-32: stacked relics register one source per stack (`relic/<id>#<n>`), so the stack suffix is
+	# stripped before attribution — the results screen counts procs per relic, not per stack.
 	var relic_id := source_id.substr(RULE_SOURCE_PREFIX.length())
+	var hash_at := relic_id.find("#")
+	if hash_at > 0:
+		relic_id = relic_id.substr(0, hash_at)
 	_procs[relic_id] = int(_procs.get(relic_id, 0)) + 1

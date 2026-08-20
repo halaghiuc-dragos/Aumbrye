@@ -124,12 +124,40 @@ static func death_opts_for_profile(profile: String, archetype_id: String = "") -
 static func death_opts_for_enemy(
 	profile: String, is_boss: bool, data: Dictionary, archetype_id: String = ""
 ) -> Dictionary:
+	# C-169: three of the six authored death profiles were unreachable. `PROFILE_RIG_KIND` maps only
+	# the seven anim profiles, and nothing ever selected `blob` or `flyer` — so the slime that should
+	# spread outward and the bat that should fall used the humanoid limb-stagger sweep, and the two
+	# profiles authored for them (0.45s out / 0.0 stagger, 0.50s down / 0.0 stagger) sat unused.
+	#
+	# An explicit `deathRigKind` in the enemy definition wins; otherwise the shape is inferred from
+	# the same id conventions `profile_for_enemy_data` already relies on. Bosses and constructs keep
+	# priority, since those are statements about the fight rather than the silhouette.
 	var rig_kind: String = str(PROFILE_RIG_KIND.get(profile, "humanoid"))
-	if is_boss:
+	var authored := str(data.get("deathRigKind", ""))
+	if authored != "" and DEATH_DEFAULTS.has(authored):
+		rig_kind = authored
+	elif is_boss:
 		rig_kind = "boss_humanoid"
 	elif profile == "brute" and str(data.get("enemy_type", "")) == "construct":
 		rig_kind = "construct"
+	else:
+		var inferred := _inferred_rig_kind(str(data.get("id", "")))
+		if inferred != "":
+			rig_kind = inferred
+	if is_boss and authored == "":
+		rig_kind = "boss_humanoid"
 	return _death_opts_for_rig_kind(rig_kind, archetype_id)
+
+
+## C-169: silhouette from the id, using the same naming conventions the rig catalogue already reads.
+static func _inferred_rig_kind(enemy_id: String) -> String:
+	for token in ["slime", "bloat", "swarm", "leech", "toad", "bogling"]:
+		if enemy_id.contains(token):
+			return "blob"
+	for token in ["bat", "wisp", "drifter", "lantern"]:
+		if enemy_id.contains(token):
+			return "flyer"
+	return ""
 
 
 static func _death_opts_for_rig_kind(rig_kind: String, archetype_id: String) -> Dictionary:

@@ -31,7 +31,7 @@ func _refresh() -> void:
 		line.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		var title: String = str(quest.get("title", quest_id))
 		var detail: String = _format_progress(quest, progress)
-		line.text = "%s — %s" % [title, detail]
+		line.text = tr("QUEST_TRACKER_LINE").format({"title": title, "detail": detail})
 		line.add_theme_font_size_override("font_size", GameUISkinScript.FONT_SIZE_SMALL)
 		GameUISkinScript.style_body_label(line)
 		_quest_list.add_child(line)

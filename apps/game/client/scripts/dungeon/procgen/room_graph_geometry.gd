@@ -6,7 +6,18 @@ extends RefCounted
 const HEIGHT_STEP := 3.0
 
 
-static func build_rooms(graph: RoomGraph, assignment: Dictionary) -> Array:
+## C-211: `build_rooms` and `validate_door_topology` carried the same 65-line BFS statement for
+## statement — the same `doors_for_step`, the same `yaw_rad_for_incoming_door`, the same four-branch
+## half-extent accumulation — differing only in what they did on a door mismatch (`push_error` and
+## carry on, versus `return {ok: false}`) and in whether they assembled a room list afterwards. Any
+## fix to the positioning rule had to be made twice, and the two had **already diverged**.
+##
+## One traversal, with `strict` deciding the failure action. Returns the position and yaw maps the
+## builder needs and the validation result the validator needs, so neither has to re-derive the
+## other's work.
+static func _walk_layout(
+	graph: RoomGraph, assignment: Dictionary, strict: bool
+) -> Dictionary:
 	var rooms_by_layout := {}
 	for room in assignment.get("rooms", []):
 		rooms_by_layout[room["layout_id"]] = room
@@ -14,6 +25,8 @@ static func build_rooms(graph: RoomGraph, assignment: Dictionary) -> Array:
 	var yaws := {}
 	var visited := {}
 	var entrance_id: String = assignment.get("entrance_layout_id", graph.start_id)
+	if not rooms_by_layout.has(entrance_id):
+		return {"ok": false, "reason": "Missing entrance room '%s'" % entrance_id}
 	positions[entrance_id] = Vector2.ZERO
 	yaws[entrance_id] = RoomTemplateCatalog.yaw_rad_for_entrance(
 		rooms_by_layout[entrance_id]["template_id"], graph.get_slot(entrance_id).door_mask
@@ -51,12 +64,13 @@ static func build_rooms(graph: RoomGraph, assignment: Dictionary) -> Array:
 			if not _doors_aligned(
 				current_room, neighbor_room, door_pair, parent_yaw, child_yaw, dx, dz
 			):
-				push_error(
-					(
-						"Door mismatch %s→%s on step (%d,%d)"
-						% [current_room["template_id"], neighbor_room["template_id"], dx, dz]
-					)
+				var reason := (
+					"Door mismatch %s→%s on step (%d,%d)"
+					% [current_room["template_id"], neighbor_room["template_id"], dx, dz]
 				)
+				if strict:
+					return {"ok": false, "reason": reason}
+				push_error(reason)
 			var next_pos := current_pos
 			if dz == -1:
 				next_pos.y -= (
@@ -82,6 +96,25 @@ static func build_rooms(graph: RoomGraph, assignment: Dictionary) -> Array:
 			yaws[neighbor_id] = child_yaw
 			visited[neighbor_id] = true
 			queue.append(neighbor_id)
+	return {
+		"ok": true,
+		"rooms_by_layout": rooms_by_layout,
+		"positions": positions,
+		"yaws": yaws,
+		"visited": visited,
+	}
+
+
+static func build_rooms(graph: RoomGraph, assignment: Dictionary) -> Array:
+	# C-211: one traversal, shared with `validate_door_topology`.
+	var walk := _walk_layout(graph, assignment, false)
+	if not bool(walk.get("ok", false)):
+		push_error("RoomGraphGeometry: %s" % str(walk.get("reason", "layout walk failed")))
+		return []
+	var rooms_by_layout: Dictionary = walk["rooms_by_layout"]
+	var positions: Dictionary = walk["positions"]
+	var yaws: Dictionary = walk["yaws"]
+	var visited: Dictionary = walk["visited"]
 	_place_secret_rooms(graph, assignment, rooms_by_layout, positions, yaws, visited)
 	var built: Array = []
 	for room in assignment.get("rooms", []):
@@ -157,7 +190,7 @@ static func build_edges(graph: RoomGraph, assignment: Dictionary) -> Array:
 			elif not _is_spanning_edge(graph, cell, cell + dir):
 				kind = "shortcut"
 			edges.append({"from": from_id, "to": to_id, "kind": kind})
-	for secret_id in graph.secret_ids:
+	for secret_id in _placed_secret_ids(graph, assignment):
 		var secret_slot := graph.get_slot(secret_id)
 		if secret_slot == null or secret_slot.secret_parent_id == "":
 			continue
@@ -176,83 +209,10 @@ static func build_edges(graph: RoomGraph, assignment: Dictionary) -> Array:
 
 
 static func validate_door_topology(graph: RoomGraph, assignment: Dictionary) -> Dictionary:
-	var rooms_by_layout := {}
-	for room in assignment.get("rooms", []):
-		rooms_by_layout[room["layout_id"]] = room
-	var positions := {}
-	var yaws := {}
-	var visited := {}
-	var entrance_id: String = assignment.get("entrance_layout_id", graph.start_id)
-	positions[entrance_id] = Vector2.ZERO
-	yaws[entrance_id] = RoomTemplateCatalog.yaw_rad_for_entrance(
-		rooms_by_layout[entrance_id]["template_id"], graph.get_slot(entrance_id).door_mask
-	)
-	visited[entrance_id] = true
-	var queue: Array[String] = [entrance_id]
-	while not queue.is_empty():
-		var current_id: String = queue.pop_front()
-		var current_slot := graph.get_slot(current_id)
-		var current_room: Dictionary = rooms_by_layout[current_id]
-		var current_pos: Vector2 = positions[current_id]
-		var parent_yaw: float = yaws[current_id]
-		var parent_spec := RoomTemplateCatalog.get_spec(current_room["template_id"])
-		for dir in _directions():
-			var neighbor_cell: Vector2i = current_slot.grid_pos + dir
-			var neighbor_slot: RoomGraphSlot = graph.slots.get(neighbor_cell) as RoomGraphSlot
-			if neighbor_slot == null:
-				continue
-			if neighbor_slot.slot_type == RoomGraphSlot.SlotType.SECRET:
-				continue
-			if not (current_slot.door_mask & _dir_to_door(dir)):
-				continue
-			var neighbor_id := neighbor_slot.slot_id
-			if visited.has(neighbor_id):
-				continue
-			var neighbor_room: Dictionary = rooms_by_layout[neighbor_id]
-			var child_spec := RoomTemplateCatalog.get_spec(neighbor_room["template_id"])
-			var dx := neighbor_slot.grid_pos.x - current_slot.grid_pos.x
-			var dz := neighbor_slot.grid_pos.y - current_slot.grid_pos.y
-			var door_pair := RoomTemplateCatalog.doors_for_step(dx, dz)
-			var incoming_door: int = int(door_pair[1])
-			var child_yaw := RoomTemplateCatalog.yaw_rad_for_incoming_door(
-				neighbor_room["template_id"], incoming_door
-			)
-			if not _doors_aligned(
-				current_room, neighbor_room, door_pair, parent_yaw, child_yaw, dx, dz
-			):
-				return {
-					"ok": false,
-					"reason":
-					(
-						"Door mismatch %s→%s on step (%d,%d)"
-						% [current_room["template_id"], neighbor_room["template_id"], dx, dz]
-					),
-				}
-			var next_pos := current_pos
-			if dz == -1:
-				next_pos.y -= (
-					RoomTemplateCatalog.half_extent_z(parent_spec, parent_yaw)
-					+ RoomTemplateCatalog.half_extent_z(child_spec, child_yaw)
-				)
-			elif dz == 1:
-				next_pos.y += (
-					RoomTemplateCatalog.half_extent_z(parent_spec, parent_yaw)
-					+ RoomTemplateCatalog.half_extent_z(child_spec, child_yaw)
-				)
-			elif dx == 1:
-				next_pos.x += (
-					RoomTemplateCatalog.half_extent_x(parent_spec, parent_yaw)
-					+ RoomTemplateCatalog.half_extent_x(child_spec, child_yaw)
-				)
-			elif dx == -1:
-				next_pos.x -= (
-					RoomTemplateCatalog.half_extent_x(parent_spec, parent_yaw)
-					+ RoomTemplateCatalog.half_extent_x(child_spec, child_yaw)
-				)
-			positions[neighbor_id] = next_pos
-			yaws[neighbor_id] = child_yaw
-			visited[neighbor_id] = true
-			queue.append(neighbor_id)
+	# C-211: the strict half of the same walk. It used to be a verbatim copy.
+	var walk := _walk_layout(graph, assignment, true)
+	if not bool(walk.get("ok", false)):
+		return {"ok": false, "reason": str(walk.get("reason", "layout walk failed"))}
 	return {"ok": true}
 
 
@@ -270,15 +230,32 @@ static func _edge_key(a: Vector2i, b: Vector2i) -> String:
 	return "%d,%d|%d,%d" % [b.x, b.y, a.x, a.y]
 
 
+## C-254: `room_graph_assigner.assign()` drops secrets whose template cannot be resolved and returns
+## the surviving ids as `secret_layout_ids` — a list that had no consumer. Both loops below used to
+## iterate `graph.secret_ids` (the unfiltered source), so a dropped secret faulted on
+## `rooms_by_layout[secret_id]` and then lost its world position entirely.
+static func _placed_secret_ids(graph: RoomGraph, assignment: Dictionary) -> Array:
+	var raw: Variant = assignment.get("secret_layout_ids", null)
+	var ids: Array = raw if raw is Array else graph.secret_ids
+	var rooms_by_layout := {}
+	for room in assignment.get("rooms", []):
+		rooms_by_layout[str(room.get("layout_id", ""))] = true
+	var out: Array = []
+	for secret_id in ids:
+		if rooms_by_layout.has(str(secret_id)):
+			out.append(secret_id)
+	return out
+
+
 static func _place_secret_rooms(
 	graph: RoomGraph,
-	_assignment: Dictionary,
+	assignment: Dictionary,
 	rooms_by_layout: Dictionary,
 	positions: Dictionary,
 	yaws: Dictionary,
 	visited: Dictionary
 ) -> void:
-	for secret_id in graph.secret_ids:
+	for secret_id in _placed_secret_ids(graph, assignment):
 		var secret_slot := graph.get_slot(secret_id)
 		if secret_slot == null or secret_slot.secret_parent_id == "":
 			continue
@@ -383,4 +360,11 @@ static func _minimap_kind_for_semantic(semantic_id: String, room_type: String) -
 		_:
 			if room_type == "combat":
 				return "combat"
+			# C-217: `MINIMAP_RESERVED_KINDS` protects "secret" from being overwritten by content
+			# annotation, but nothing ever produced it — secret slots carry semantic "secret" or
+			# "secret_N", neither of which matched a branch, so every secret room fell through to
+			# "unknown" and shared a glyph with lore and puzzle rooms. Keyed off the room type,
+			# which is "secret" for both forms.
+			if room_type == "secret":
+				return "secret"
 			return "unknown"

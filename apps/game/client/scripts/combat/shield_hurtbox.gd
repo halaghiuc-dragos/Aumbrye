@@ -14,6 +14,10 @@ func _ready() -> void:
 
 
 func receive_hit(info: DamageInfo) -> void:
+	# C-73: resolved lazily as well as in `_ready`, because `castle_enemy_base` may install this
+	# script on an existing plain `Hurtbox` at spawn — after that node's `_ready` has already run.
+	if _owner_body == null or not is_instance_valid(_owner_body):
+		_owner_body = _find_owner_body()
 	if _owner_body and _is_frontal_block(info):
 		var mitigated := DamageInfo.create(
 			info.amount * (1.0 - block_mitigation),
@@ -39,7 +43,13 @@ func _find_owner_body() -> Node3D:
 func _is_frontal_block(info: DamageInfo) -> bool:
 	if info.direction.length_squared() < 0.01:
 		return false
-	var facing := -_owner_body.global_transform.basis.z
+	# C-41: this negated the basis z. `CastleEnemyBase._face_direction()` sets `rotation.y` so that
+	# **+basis.z** points at the target, so negating it aimed the 100-degree block cone directly
+	# backwards — `castle_shield`, whose entire mechanic is a 75% frontal mitigation, mitigated hits
+	# landed behind it and took full damage to the face. "Flank the shield guy" was punished, and
+	# punished invisibly, since the mitigation is a damage multiply with no distinct feedback.
+	# `CombatFacing.forward_of` is the helper the project already wrote for this.
+	var facing := CombatFacing.forward_of(_owner_body)
 	facing.y = 0.0
 	facing = facing.normalized()
 	var hit_dir := info.direction

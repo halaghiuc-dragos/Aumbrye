@@ -73,6 +73,13 @@ var _build_generation := 0
 
 func _exit_tree() -> void:
 	cancel()
+	# C-86: `unload_from_parent()` frees the floor's navigation map correctly — and had no gameplay
+	# caller anywhere in the repository. `CastleRun` creates the builder and never unloads it; floor
+	# transitions replace the scene, so the builder is freed and only `cancel()` ran. Every floor
+	# build therefore created a NavigationServer3D map, set it **active**, and never freed it — so a
+	# ten-floor castle run leaked ten and an Umbral Endless run leaked one per floor without bound,
+	# each still being stepped every frame alongside the live one.
+	unload_from_parent(get_parent() as Node3D)
 
 
 ## Invalidates any build currently suspended mid-await. Safe to call at any time.
@@ -390,6 +397,9 @@ func open_exit_portal() -> void:
 
 
 func _build_rooms(chunked: bool, my_gen: int) -> bool:
+	# C-176: the shadow-casting omni budget is a floor budget, and was being reset per room — so a
+	# 28-room floor spent `max_shadow_omnis` (default 2) twenty-eight times over.
+	DioramaRoomDressing.begin_floor_lighting_pass(biome_id)
 	var unknown: Array[String] = []
 	for room_def in definition.get("rooms", []):
 		var template_id: String = room_def.get("templateId", "")
@@ -415,6 +425,15 @@ func _build_rooms(chunked: bool, my_gen: int) -> bool:
 		instance.room_id = room_def.get("id", "")
 		instance.template_id = template_id
 		instance.room_type = str(room_def.get("type", instance.room_type))
+		# C-151: the authored tags, onto the node and into groups.
+		var room_tags := PackedStringArray()
+		for tag in room_def.get("tags", []):
+			var tag_name := str(tag)
+			if tag_name == "":
+				continue
+			room_tags.append(tag_name)
+			instance.add_to_group("room_tag_%s" % tag_name)
+		instance.room_tags = room_tags
 		var blockout := instance.get_blockout()
 		if blockout:
 			blockout.skip_floor = false
@@ -429,6 +448,11 @@ func _build_rooms(chunked: bool, my_gen: int) -> bool:
 
 
 func _setup_floor_nav_map() -> void:
+	# C-86: `build_from_source()` can run more than once on the same builder, and each call used to
+	# assign a fresh RID over the old one without freeing it.
+	if _floor_nav_map != RID():
+		NavigationServer3D.free_rid(_floor_nav_map)
+		_floor_nav_map = RID()
 	_floor_nav_map = NavigationServer3D.map_create()
 	NavigationServer3D.map_set_active(_floor_nav_map, true)
 	NavigationServer3D.map_set_cell_size(_floor_nav_map, 0.25)
@@ -496,6 +520,25 @@ func _open_blockout_door_toward(from_room: RoomTemplate, to_room: RoomTemplate) 
 			blockout.door_west = true
 
 
+## Inverse of `_open_blockout_door_toward`, for a shortcut whose two rooms did not end up flush.
+func _close_blockout_door_toward(from_room: RoomTemplate, to_room: RoomTemplate) -> void:
+	var blockout := from_room.get_blockout()
+	if blockout == null:
+		return
+	var socket := from_room.socket_toward(to_room)
+	if socket == null:
+		return
+	match socket.direction:
+		CastleRoomConstants.Direction.NORTH:
+			blockout.door_north = false
+		CastleRoomConstants.Direction.EAST:
+			blockout.door_east = false
+		CastleRoomConstants.Direction.SOUTH:
+			blockout.door_south = false
+		CastleRoomConstants.Direction.WEST:
+			blockout.door_west = false
+
+
 func _build_doorway_bridges() -> void:
 	var bridges := Node3D.new()
 	bridges.name = "DoorwayBridges"
@@ -524,12 +567,27 @@ func _build_doorway_bridges() -> void:
 		offset.y = 0.0
 		var span := offset.length()
 		if span >= 0.5:
-			push_error(
-				(
-					"DungeonBuilder: doorway span %.2f on %s->%s indicates a footprint mismatch"
-					% [span, edge.get("from", ""), edge.get("to", "")]
+			# C-210: measured at 2.6% of shortcut edges, worst case an 8-unit hole (§112.1). This
+			# used to push_error and build the floor anyway, leaving a carved doorway opening into
+			# a gap. A shortcut that silently does not open is a lost shortcut; a door into a void
+			# is a bug report — so close it. Spanning-tree edges are load-bearing for connectivity
+			# and are left alone, and still reported.
+			if kind == "shortcut":
+				_close_blockout_door_toward(from_room, to_room)
+				_close_blockout_door_toward(to_room, from_room)
+				push_warning(
+					(
+						"DungeonBuilder: shortcut %s->%s closed — doorway span %.2f (footprint mismatch)"
+						% [edge.get("from", ""), edge.get("to", ""), span]
+					)
 				)
-			)
+			else:
+				push_error(
+					(
+						"DungeonBuilder: doorway span %.2f on %s->%s indicates a footprint mismatch"
+						% [span, edge.get("from", ""), edge.get("to", "")]
+					)
+				)
 
 
 func _build_height_transitions() -> void:
@@ -1130,7 +1188,12 @@ func _boss_approach_socket(room: RoomTemplate) -> DoorwaySocket:
 		return sockets[0]
 	var best: DoorwaySocket = null
 	var best_dot := -2.0
-	var approach := -room.global_transform.basis.z
+	# C-116: this negated the basis z, so a room with more than one candidate socket picked the one
+	# on the **opposite** wall — the boss door bridged across the room instead of out of it. The
+	# project's forward for a placed node is +basis.z (`CombatFacing`), the same convention the
+	# C-41 sweep applied everywhere else; this site is a *room*, not a camera, and was missed by
+	# that sweep because it reads `room.` rather than a facing or camera node.
+	var approach := CombatFacing.forward_of(room)
 	for socket in sockets:
 		var dot := socket.get_world_facing().dot(approach)
 		if dot > best_dot:

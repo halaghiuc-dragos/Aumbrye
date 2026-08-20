@@ -56,7 +56,13 @@ static func generate(
 			continue
 		var definition: Dictionary = gd_result.get("definition", {})
 		var validation: Dictionary = DungeonDefinitionValidatorScript.validate(definition)
-		for warning in validation.get("warnings", []):
+		# C-144: the content assigner's fallback and any validation failure it reported travel with
+		# the definition's own warnings, so a degraded floor is visible to `RunFlow` rather than
+		# only to the offline seed-health tool.
+		var all_warnings: Array = []
+		all_warnings.append_array(gd_result.get("warnings", []))
+		all_warnings.append_array(validation.get("warnings", []))
+		for warning in all_warnings:
 			push_warning(
 				"[LocalProcgen] seed %d warning: %s" % [base_seed, str(warning)]
 			)
@@ -70,7 +76,7 @@ static func generate(
 				"floor_index": floor_index,
 				"run_id": str(gd_result.get("run_id", definition.get("runId", ""))),
 				"generator": "gdscript",
-				"warnings": validation.get("warnings", []),
+				"warnings": all_warnings,
 				"attempts": attempt + 1,
 			}
 		var errors: Array = validation.get("errors", [])

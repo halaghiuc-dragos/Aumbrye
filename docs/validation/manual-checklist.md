@@ -1,13 +1,22 @@
 # Manual validation checklist
 
-Headless suites cannot cover these items.
+Items no automated check covers.
 
-> **Coverage is partial, and the automated check is inert.** Validation suites pass a checklist
-> reference as the sixth positional argument to `ctx.timed_record()`; 229 distinct references are in use
-> and only 52 have a heading below. `docs_suite._collect_checklist_refs_from_suites()` searches suite
-> source for the literal token `checklist_ref`, which appears nowhere, so it always returns an empty list
-> and the heading assertion always passes vacuously. Fix the collector to read the sixth argument, then
-> either add the missing headings or stop emitting references that have none.
+> **The suites this was written against no longer exist.** The in-engine harness — 58 suites, 28,631
+> lines — was removed; see `CORE_GAMEPLAY_REVIEW.md` §119. The note that used to stand here described
+> a vacuous heading assertion inside `docs_suite.gd`, which went with it.
+>
+> What replaced it, and what this checklist now complements:
+>
+> - **CI** (`.github/workflows/ci.yml`) — content validation, DOC-01 path check, `dotnet test`,
+>   `ruff` + voxel-import tests, the Godot smoke test, and the web lint/test/build.
+> - **Release** (`.github/workflows/release.yml`) — exports, stages `content/` beside the binary, and
+>   smoke-tests **the exported build**, which is the only way to exercise the export content path.
+> - **`scripts/tools/procgen_seed_health.gd`** — Phase 1 room-graph sweep (and it says so; see C-256).
+>
+> Everything below is still manual because none of those can reach it. The list is not exhaustive:
+> the whole of `CORE_GAMEPLAY_REVIEW.md` was implemented without a controller in hand, so anything
+> touching feel — dodge, guard, telegraphs, poise readouts, the forge screen — wants a play session.
 
 ## M3.seed.spot_check
 

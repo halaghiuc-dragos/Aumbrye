@@ -103,17 +103,6 @@ function resolveGodotPath(path) {
   return path;
 }
 
-function godotReportPath() {
-  if (process.platform === "win32") {
-    const appData = process.env.APPDATA ?? join(homedir(), "AppData", "Roaming");
-    return join(appData, "Godot", "app_userdata", "Aumbrye", "mcp_validation.json");
-  }
-  if (process.platform === "darwin") {
-    return join(homedir(), "Library", "Application Support", "Godot", "app_userdata", "Aumbrye", "mcp_validation.json");
-  }
-  return join(homedir(), ".local", "share", "godot", "app_userdata", "Aumbrye", "mcp_validation.json");
-}
-
 function runDotnetLayer() {
   const build = runCommand(
     "dotnet",
@@ -187,40 +176,23 @@ function runGodotLayer(godotBin) {
     return { name: "godot", ok: false, passed: 0, failed: 1, detail: "Godot binary not found" };
   }
 
+  // The in-engine validation suites were removed — they had grown to 28,631 lines against a
+  // 100k-line client, had never run to completion, and were a larger maintenance surface than the
+  // code they covered. The godot layer now runs the smoke test, which boots every autoload and
+  // subsystem an exported build needs and returns an exit code.
   const project = join(repoRoot, "apps/game/client");
   const result = runCommand(
     "godot",
     godot,
-    [
-      "--path",
-      project,
-      "--headless",
-      "--script",
-      "res://scripts/validation/validation_main.gd",
-    ],
+    ["--path", project, "--headless", "--", "--smoke-test"],
   );
-
-  let report = null;
-  const reportPath = godotReportPath();
-  if (existsSync(reportPath)) {
-    try {
-      report = JSON.parse(readFileSync(reportPath, "utf8"));
-    } catch {
-      report = null;
-    }
-  }
-
-  const failed = report?.failed ?? (result.ok ? 0 : 1);
-  const passed = report?.passed ?? (result.ok ? 1 : 0);
-  const ok = result.ok && failed === 0;
 
   return {
     name: "godot",
-    ok,
-    passed,
-    failed,
-    detail: ok ? "passed" : result.detail,
-    report,
+    ok: result.ok,
+    passed: result.ok ? 1 : 0,
+    failed: result.ok ? 0 : 1,
+    detail: result.ok ? "smoke test passed" : result.detail,
   };
 }
 

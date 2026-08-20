@@ -48,7 +48,7 @@ debt is real regardless.
 **Direction** — make C# authoritative and have the client consume a generated deterministic layout
 artefact instead of reimplementing the algorithm.
 **Where** — `packages/procedural/**`, `apps/game/client/scripts/dungeon/procgen/**`,
-`apps/game/client/scripts/validation/suites/cross_stack_parity_suite.gd`
+~~`apps/game/client/scripts/validation/suites/cross_stack_parity_suite.gd`~~ (removed — §119)
 
 ### R-03 — Three parallel representations of the same character art
 *(was `REF-05`; partially reshaped since it was written)*
@@ -75,8 +75,8 @@ migrations and seeded procgen verifiable, and it has repeatedly been the thing t
 defects. Recorded so the earlier recommendation is not silently lost, and flagged as **not
 actionable as written**.
 
-The genuinely unused part is the diagnostic scratch scripts — `scripts/tools/_diag_keys.gd` and
-`scripts/tools/_diag_settings.gd` — which no workflow references.
+The genuinely unused part is the diagnostic scratch scripts — `~~scripts/tools/_diag_keys.gd~~ (never committed)` and
+`~~scripts/tools/_diag_settings.gd~~ (never committed)` — which no workflow references.
 
 ---
 
@@ -174,7 +174,7 @@ A full `validation_main.gd` run crashes with SIGSEGV inside `SettingsSchema._mon
 after a long sequence of preceding suites, and the C++ backtrace shows a repeating frame pattern
 consistent with stack exhaustion rather than a display-server fault. Needs isolating before the
 harness can be trusted as a single-command gate.
-**Where** — `apps/game/client/scripts/validation/validation_runner.gd`,
+**Where** — ~~`apps/game/client/scripts/validation/validation_runner.gd`~~ (removed — §119),
 `apps/game/client/scripts/app/display_service.gd`
 
 ### M-04 — Local procgen emits secret edges whose rooms are not in the definition

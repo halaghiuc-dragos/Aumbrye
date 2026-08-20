@@ -57,7 +57,7 @@
           "nameKey": "talent.arms_4",
           "name": "The Gap in the Guard",
           "maxRank": 1,
-          "costPerRank": 1,
+          "costPerRank": 2,
           "requires": [
             "arms_3"
           ],
@@ -73,7 +73,7 @@
           "nameKey": "talent.arms_5",
           "name": "Break the Stance",
           "maxRank": 1,
-          "costPerRank": 1,
+          "costPerRank": 2,
           "requires": [
             "arms_4"
           ],
@@ -89,7 +89,7 @@
           "nameKey": "talent.arms_6",
           "name": "Follow Through",
           "maxRank": 1,
-          "costPerRank": 1,
+          "costPerRank": 2,
           "requires": [
             "arms_5"
           ],
@@ -105,7 +105,7 @@
           "nameKey": "talent.arms_7",
           "name": "Practised Hands",
           "maxRank": 1,
-          "costPerRank": 1,
+          "costPerRank": 3,
           "requires": [
             "arms_6"
           ],
@@ -121,7 +121,7 @@
           "nameKey": "talent.arms_8",
           "name": "No Wasted Swing",
           "maxRank": 1,
-          "costPerRank": 1,
+          "costPerRank": 3,
           "requires": [
             "arms_7"
           ],
@@ -141,7 +141,7 @@
           "nameKey": "talent.arms_9",
           "name": "The Killing Half-Second",
           "maxRank": 1,
-          "costPerRank": 1,
+          "costPerRank": 3,
           "requires": [
             "arms_8"
           ],
@@ -157,7 +157,7 @@
           "nameKey": "talent.arms_keystone",
           "name": "Executioner's Patience",
           "maxRank": 1,
-          "costPerRank": 3,
+          "costPerRank": 5,
           "requires": [
             "arms_9"
           ],
@@ -237,7 +237,7 @@
           "nameKey": "talent.guard_4",
           "name": "Take It on the Shield",
           "maxRank": 1,
-          "costPerRank": 1,
+          "costPerRank": 2,
           "requires": [
             "guard_3"
           ],
@@ -253,7 +253,7 @@
           "nameKey": "talent.guard_5",
           "name": "Slow to Fall",
           "maxRank": 1,
-          "costPerRank": 1,
+          "costPerRank": 2,
           "requires": [
             "guard_4"
           ],
@@ -269,7 +269,7 @@
           "nameKey": "talent.guard_6",
           "name": "Second Wind",
           "maxRank": 1,
-          "costPerRank": 1,
+          "costPerRank": 2,
           "requires": [
             "guard_5"
           ],
@@ -285,7 +285,7 @@
           "nameKey": "talent.guard_7",
           "name": "Banded Iron",
           "maxRank": 1,
-          "costPerRank": 1,
+          "costPerRank": 3,
           "requires": [
             "guard_6"
           ],
@@ -301,7 +301,7 @@
           "nameKey": "talent.guard_8",
           "name": "Weathered",
           "maxRank": 1,
-          "costPerRank": 1,
+          "costPerRank": 3,
           "requires": [
             "guard_7"
           ],
@@ -321,7 +321,7 @@
           "nameKey": "talent.guard_9",
           "name": "Unmoved",
           "maxRank": 1,
-          "costPerRank": 1,
+          "costPerRank": 3,
           "requires": [
             "guard_8"
           ],
@@ -337,7 +337,7 @@
           "nameKey": "talent.guard_keystone",
           "name": "The Long Vigil",
           "maxRank": 1,
-          "costPerRank": 3,
+          "costPerRank": 5,
           "requires": [
             "guard_9"
           ],
@@ -425,7 +425,7 @@
           "nameKey": "talent.aptitude_4",
           "name": "Long Breath",
           "maxRank": 1,
-          "costPerRank": 1,
+          "costPerRank": 2,
           "requires": [
             "aptitude_3"
           ],
@@ -441,7 +441,7 @@
           "nameKey": "talent.aptitude_5",
           "name": "Clear Head",
           "maxRank": 1,
-          "costPerRank": 1,
+          "costPerRank": 2,
           "requires": [
             "aptitude_4"
           ],
@@ -457,7 +457,7 @@
           "nameKey": "talent.aptitude_6",
           "name": "Light Step",
           "maxRank": 1,
-          "costPerRank": 1,
+          "costPerRank": 2,
           "requires": [
             "aptitude_5"
           ],
@@ -473,7 +473,7 @@
           "nameKey": "talent.aptitude_7",
           "name": "Deep Pockets",
           "maxRank": 1,
-          "costPerRank": 1,
+          "costPerRank": 3,
           "requires": [
             "aptitude_6"
           ],
@@ -489,7 +489,7 @@
           "nameKey": "talent.aptitude_8",
           "name": "Study of the Dead",
           "maxRank": 1,
-          "costPerRank": 1,
+          "costPerRank": 3,
           "requires": [
             "aptitude_7"
           ],
@@ -505,7 +505,7 @@
           "nameKey": "talent.aptitude_9",
           "name": "Scavenger",
           "maxRank": 1,
-          "costPerRank": 1,
+          "costPerRank": 3,
           "requires": [
             "aptitude_8"
           ],
@@ -521,7 +521,7 @@
           "nameKey": "talent.aptitude_keystone",
           "name": "The Ledger Balances",
           "maxRank": 1,
-          "costPerRank": 3,
+          "costPerRank": 5,
           "requires": [
             "aptitude_9"
           ],
@@ -608,7 +608,7 @@
           "nameKey": "talent.oath_4",
           "name": "Unbroken Line",
           "maxRank": 1,
-          "costPerRank": 1,
+          "costPerRank": 2,
           "requires": [
             "oath_3"
           ],
@@ -624,7 +624,7 @@
           "nameKey": "talent.oath_5",
           "name": "Measured Advance",
           "maxRank": 1,
-          "costPerRank": 1,
+          "costPerRank": 2,
           "requires": [
             "oath_4"
           ],
@@ -640,7 +640,7 @@
           "nameKey": "talent.oath_6",
           "name": "Held Ground",
           "maxRank": 1,
-          "costPerRank": 1,
+          "costPerRank": 2,
           "requires": [
             "oath_5"
           ],
@@ -656,7 +656,7 @@
           "nameKey": "talent.oath_7",
           "name": "Sword and Board",
           "maxRank": 1,
-          "costPerRank": 1,
+          "costPerRank": 3,
           "requires": [
             "oath_6"
           ],
@@ -676,7 +676,7 @@
           "nameKey": "talent.oath_8",
           "name": "The Oath Remembered",
           "maxRank": 1,
-          "costPerRank": 1,
+          "costPerRank": 3,
           "requires": [
             "oath_7"
           ],
@@ -692,7 +692,7 @@
           "nameKey": "talent.oath_9",
           "name": "Retribution",
           "maxRank": 1,
-          "costPerRank": 1,
+          "costPerRank": 3,
           "requires": [
             "oath_8"
           ],
@@ -708,7 +708,7 @@
           "nameKey": "talent.oath_keystone",
           "name": "Answered in Kind",
           "maxRank": 1,
-          "costPerRank": 3,
+          "costPerRank": 5,
           "requires": [
             "oath_9"
           ],
@@ -800,7 +800,7 @@
           "nameKey": "talent.ruin_4",
           "name": "Blood in the Mouth",
           "maxRank": 1,
-          "costPerRank": 1,
+          "costPerRank": 2,
           "requires": [
             "ruin_3"
           ],
@@ -816,7 +816,7 @@
           "nameKey": "talent.ruin_5",
           "name": "Unstopping",
           "maxRank": 1,
-          "costPerRank": 1,
+          "costPerRank": 2,
           "requires": [
             "ruin_4"
           ],
@@ -832,7 +832,7 @@
           "nameKey": "talent.ruin_6",
           "name": "Wider Arc",
           "maxRank": 1,
-          "costPerRank": 1,
+          "costPerRank": 2,
           "requires": [
             "ruin_5"
           ],
@@ -848,7 +848,7 @@
           "nameKey": "talent.ruin_7",
           "name": "No Guard At All",
           "maxRank": 1,
-          "costPerRank": 1,
+          "costPerRank": 3,
           "requires": [
             "ruin_6"
           ],
@@ -864,7 +864,7 @@
           "nameKey": "talent.ruin_8",
           "name": "Deeper Cuts",
           "maxRank": 1,
-          "costPerRank": 1,
+          "costPerRank": 3,
           "requires": [
             "ruin_7"
           ],
@@ -880,7 +880,7 @@
           "nameKey": "talent.ruin_9",
           "name": "Last Strength",
           "maxRank": 1,
-          "costPerRank": 1,
+          "costPerRank": 3,
           "requires": [
             "ruin_8"
           ],
@@ -896,7 +896,7 @@
           "nameKey": "talent.ruin_keystone",
           "name": "Nothing Left to Spend",
           "maxRank": 1,
-          "costPerRank": 3,
+          "costPerRank": 5,
           "requires": [
             "ruin_9"
           ],
@@ -984,7 +984,7 @@
           "nameKey": "talent.unlit_4",
           "name": "Read the Turn",
           "maxRank": 1,
-          "costPerRank": 1,
+          "costPerRank": 2,
           "requires": [
             "unlit_3"
           ],
@@ -1000,7 +1000,7 @@
           "nameKey": "talent.unlit_5",
           "name": "Cheap Footwork",
           "maxRank": 1,
-          "costPerRank": 1,
+          "costPerRank": 2,
           "requires": [
             "unlit_4"
           ],
@@ -1016,7 +1016,7 @@
           "nameKey": "talent.unlit_6",
           "name": "Opened Vein",
           "maxRank": 1,
-          "costPerRank": 1,
+          "costPerRank": 2,
           "requires": [
             "unlit_5"
           ],
@@ -1032,7 +1032,7 @@
           "nameKey": "talent.unlit_7",
           "name": "Practised Cruelty",
           "maxRank": 1,
-          "costPerRank": 1,
+          "costPerRank": 3,
           "requires": [
             "unlit_6"
           ],
@@ -1048,7 +1048,7 @@
           "nameKey": "talent.unlit_8",
           "name": "Nothing Wasted",
           "maxRank": 1,
-          "costPerRank": 1,
+          "costPerRank": 3,
           "requires": [
             "unlit_7"
           ],
@@ -1064,7 +1064,7 @@
           "nameKey": "talent.unlit_9",
           "name": "Faster Than Sorry",
           "maxRank": 1,
-          "costPerRank": 1,
+          "costPerRank": 3,
           "requires": [
             "unlit_8"
           ],
@@ -1080,7 +1080,7 @@
           "nameKey": "talent.unlit_keystone",
           "name": "The Unlit Hour",
           "maxRank": 1,
-          "costPerRank": 3,
+          "costPerRank": 5,
           "requires": [
             "unlit_9"
           ],
@@ -1169,7 +1169,7 @@
           "nameKey": "talent.vigil_4",
           "name": "Written Frost",
           "maxRank": 1,
-          "costPerRank": 1,
+          "costPerRank": 2,
           "requires": [
             "vigil_3"
           ],
@@ -1185,7 +1185,7 @@
           "nameKey": "talent.vigil_5",
           "name": "Copied Hand",
           "maxRank": 1,
-          "costPerRank": 1,
+          "costPerRank": 2,
           "requires": [
             "vigil_4"
           ],
@@ -1201,7 +1201,7 @@
           "nameKey": "talent.vigil_6",
           "name": "Marginalia",
           "maxRank": 1,
-          "costPerRank": 1,
+          "costPerRank": 2,
           "requires": [
             "vigil_5"
           ],
@@ -1217,7 +1217,7 @@
           "nameKey": "talent.vigil_7",
           "name": "The Longer Book",
           "maxRank": 1,
-          "costPerRank": 1,
+          "costPerRank": 3,
           "requires": [
             "vigil_6"
           ],
@@ -1233,7 +1233,7 @@
           "nameKey": "talent.vigil_8",
           "name": "Unhurried",
           "maxRank": 1,
-          "costPerRank": 1,
+          "costPerRank": 3,
           "requires": [
             "vigil_7"
           ],
@@ -1249,7 +1249,7 @@
           "nameKey": "talent.vigil_9",
           "name": "Annotation",
           "maxRank": 1,
-          "costPerRank": 1,
+          "costPerRank": 3,
           "requires": [
             "vigil_8"
           ],
@@ -1265,7 +1265,7 @@
           "nameKey": "talent.vigil_keystone",
           "name": "What the Margins Said",
           "maxRank": 1,
-          "costPerRank": 3,
+          "costPerRank": 5,
           "requires": [
             "vigil_9"
           ],
@@ -1354,7 +1354,7 @@
           "nameKey": "talent.watch_4",
           "name": "Root and Stand",
           "maxRank": 1,
-          "costPerRank": 1,
+          "costPerRank": 2,
           "requires": [
             "watch_3"
           ],
@@ -1370,7 +1370,7 @@
           "nameKey": "talent.watch_5",
           "name": "Watchful",
           "maxRank": 1,
-          "costPerRank": 1,
+          "costPerRank": 2,
           "requires": [
             "watch_4"
           ],
@@ -1386,7 +1386,7 @@
           "nameKey": "talent.watch_6",
           "name": "Shield Weight",
           "maxRank": 1,
-          "costPerRank": 1,
+          "costPerRank": 2,
           "requires": [
             "watch_5"
           ],
@@ -1402,7 +1402,7 @@
           "nameKey": "talent.watch_7",
           "name": "Never Yielding",
           "maxRank": 1,
-          "costPerRank": 1,
+          "costPerRank": 3,
           "requires": [
             "watch_6"
           ],
@@ -1418,7 +1418,7 @@
           "nameKey": "talent.watch_8",
           "name": "Cold Patience",
           "maxRank": 1,
-          "costPerRank": 1,
+          "costPerRank": 3,
           "requires": [
             "watch_7"
           ],
@@ -1438,7 +1438,7 @@
           "nameKey": "talent.watch_9",
           "name": "The Line Holds",
           "maxRank": 1,
-          "costPerRank": 1,
+          "costPerRank": 3,
           "requires": [
             "watch_8"
           ],
@@ -1454,7 +1454,7 @@
           "nameKey": "talent.watch_keystone",
           "name": "Nothing Passes",
           "maxRank": 1,
-          "costPerRank": 3,
+          "costPerRank": 5,
           "requires": [
             "watch_9"
           ],
@@ -1542,7 +1542,7 @@
           "nameKey": "talent.mile_4",
           "name": "Counted Arrows",
           "maxRank": 1,
-          "costPerRank": 1,
+          "costPerRank": 2,
           "requires": [
             "mile_3"
           ],
@@ -1558,7 +1558,7 @@
           "nameKey": "talent.mile_5",
           "name": "Wind Read",
           "maxRank": 1,
-          "costPerRank": 1,
+          "costPerRank": 2,
           "requires": [
             "mile_4"
           ],
@@ -1574,7 +1574,7 @@
           "nameKey": "talent.mile_6",
           "name": "Marked",
           "maxRank": 1,
-          "costPerRank": 1,
+          "costPerRank": 2,
           "requires": [
             "mile_5"
           ],
@@ -1590,7 +1590,7 @@
           "nameKey": "talent.mile_7",
           "name": "Long Sight",
           "maxRank": 1,
-          "costPerRank": 1,
+          "costPerRank": 3,
           "requires": [
             "mile_6"
           ],
@@ -1606,7 +1606,7 @@
           "nameKey": "talent.mile_8",
           "name": "Field Dressing",
           "maxRank": 1,
-          "costPerRank": 1,
+          "costPerRank": 3,
           "requires": [
             "mile_7"
           ],
@@ -1622,7 +1622,7 @@
           "nameKey": "talent.mile_9",
           "name": "Trapline",
           "maxRank": 1,
-          "costPerRank": 1,
+          "costPerRank": 3,
           "requires": [
             "mile_8"
           ],
@@ -1638,7 +1638,7 @@
           "nameKey": "talent.mile_keystone",
           "name": "One Shot Is Enough",
           "maxRank": 1,
-          "costPerRank": 3,
+          "costPerRank": 5,
           "requires": [
             "mile_9"
           ],
@@ -1727,7 +1727,7 @@
           "nameKey": "talent.tide_4",
           "name": "Damp Hands",
           "maxRank": 1,
-          "costPerRank": 1,
+          "costPerRank": 2,
           "requires": [
             "tide_3"
           ],
@@ -1743,7 +1743,7 @@
           "nameKey": "talent.tide_5",
           "name": "The Message",
           "maxRank": 1,
-          "costPerRank": 1,
+          "costPerRank": 2,
           "requires": [
             "tide_4"
           ],
@@ -1759,7 +1759,7 @@
           "nameKey": "talent.tide_6",
           "name": "Passed Along",
           "maxRank": 1,
-          "costPerRank": 1,
+          "costPerRank": 2,
           "requires": [
             "tide_5"
           ],
@@ -1775,7 +1775,7 @@
           "nameKey": "talent.tide_7",
           "name": "Deeper Water",
           "maxRank": 1,
-          "costPerRank": 1,
+          "costPerRank": 3,
           "requires": [
             "tide_6"
           ],
@@ -1791,7 +1791,7 @@
           "nameKey": "talent.tide_8",
           "name": "Patient Contagion",
           "maxRank": 1,
-          "costPerRank": 1,
+          "costPerRank": 3,
           "requires": [
             "tide_7"
           ],
@@ -1807,7 +1807,7 @@
           "nameKey": "talent.tide_9",
           "name": "Everything Spreads",
           "maxRank": 1,
-          "costPerRank": 1,
+          "costPerRank": 3,
           "requires": [
             "tide_8"
           ],
@@ -1823,7 +1823,7 @@
           "nameKey": "talent.tide_keystone",
           "name": "It Was Always Going to Spread",
           "maxRank": 1,
-          "costPerRank": 3,
+          "costPerRank": 5,
           "requires": [
             "tide_9"
           ],

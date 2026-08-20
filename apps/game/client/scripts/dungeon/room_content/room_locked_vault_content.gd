@@ -8,6 +8,12 @@ var _lock_id := ""
 var _lock_flag_id := ""
 var _key_label := "Dungeon Key"
 var _collected := false
+
+## C-139: interaction used to be gated on `_label.visible` — presentation state standing in for
+## interaction state — so anything that hid the label made the key uncollectable and its lock
+## permanently unopenable. Every sibling in this directory keeps an explicit proximity flag; this
+## one now does too.
+var _near_player := false
 var _interact_area: Area3D
 var _label: Label3D
 var _chest: Node3D
@@ -69,20 +75,29 @@ func _style_key_chest() -> void:
 
 
 func _on_body_entered(body: Node3D) -> void:
-	if body.is_in_group("player") and not _collected:
-		_label.visible = true
-		_label.text = "E — Take %s" % _key_label
+	if not body.is_in_group("player"):
+		return
+	_near_player = true
+	if _collected:
+		return
+	_label.visible = true
+	# C-227's family: the prompt follows the live binding and the active device rather than
+	# hardcoding "E".
+	_label.text = "%s — %s" % [
+		InputGlyphService.get_action_prompt(&"interact"), _key_label
+	]
 
 
 func _on_body_exited(body: Node3D) -> void:
 	if body.is_in_group("player"):
+		_near_player = false
 		_label.visible = false
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	if _collected or not event.is_action_pressed("interact"):
+	if _collected or not _near_player:
 		return
-	if _label == null or not _label.visible:
+	if not PlayerInput.interact_just_pressed(event):
 		return
 	if not InventoryService.add_dungeon_key(_key_id, _lock_id, _key_label):
 		return
@@ -91,3 +106,12 @@ func _unhandled_input(event: InputEvent) -> void:
 		_chest.visible = false
 	_label.visible = false
 	get_viewport().set_input_as_handled()
+
+
+## C-134: `WorldState` is an autoload, so its signal outlives every floor. Godot does clean up the
+## connection when this node is freed, so this was never a leak in practice — but floor teardown
+## then depends entirely on node freeing being complete and ordered, and C-86 showed how fragile
+## that assumption was. One explicit disconnect makes it independent of teardown order.
+func _exit_tree() -> void:
+	if _lock_flag_id != "" and WorldState.namespace_changed.is_connected(_on_namespace_changed):
+		WorldState.namespace_changed.disconnect(_on_namespace_changed)

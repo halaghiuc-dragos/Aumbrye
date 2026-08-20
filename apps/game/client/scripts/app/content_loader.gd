@@ -10,8 +10,16 @@ extends Node
 ##  2. In the editor / `--script` headless runs (`OS.has_feature("editor")` is true), the repo
 ##     root three levels above `res://` — this is where the source tree keeps `content/` and is
 ##     never true for an exported build.
-##  3. In an exported build, the directory containing the executable — the release pipeline
-##     (`.github/workflows/release.yml`) copies `content/` next to the binary at export time.
+##  3. In an exported build, the directory containing the executable — which requires the release
+##     pipeline to copy `content/` next to the binary at export time.
+##
+##     C-265: this named `.github/workflows/release.yml` for a long time while no such workflow
+##     existed — the same class of dangling reference as C-261, found by grepping workflow paths
+##     during the C-40 verification pass. It was not cosmetic: `content/` lives at the repo root,
+##     *outside* `res://`, so `export_filter="all_resources"` does not pack it and an export
+##     without the copy ships with no catalogues at all. The workflow now exists, performs the
+##     copy, and then runs the **exported** binary's `--smoke-test` — which is the only way to
+##     exercise this branch, since a source run resolves content against the repo root instead.
 ## `res://` globalises to the *install* directory in an exported build, not the source tree, so
 ## resolving relative to it (as this used to do unconditionally) silently found nothing outside
 ## the editor. See BUG-01.

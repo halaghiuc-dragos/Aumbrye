@@ -139,7 +139,7 @@ func reset_door() -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	if not event.is_action_pressed("interact") or not _near_player:
+	if not PlayerInput.interact_just_pressed(event) or not _near_player:
 		return
 	if _state == State.SEALED:
 		get_viewport().set_input_as_handled()

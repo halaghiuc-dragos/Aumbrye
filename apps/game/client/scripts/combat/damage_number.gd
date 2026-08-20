@@ -1,6 +1,11 @@
 extends Node3D
 class_name DamageNumberSpawner
 
+## C-33: both static factories called `load()` on every spawn — once per hit. ResourceLoader
+## caches, so this was a lookup rather than a disk read, but a `preload` const removes it entirely
+## and fails at parse time rather than silently returning null if the scene ever moves.
+const SCENE := preload("res://scenes/combat/damage_number.tscn")
+
 const LIFETIME := 0.65
 const RISE_SPEED := 1.2
 
@@ -14,10 +19,7 @@ func _ready() -> void:
 static func spawn(
 	world_position: Vector3, amount: float, parent: Node, damage_type: String = "physical"
 ) -> void:
-	var scene := load("res://scenes/combat/damage_number.tscn") as PackedScene
-	if scene == null:
-		return
-	var node := scene.instantiate()
+	var node := SCENE.instantiate()
 	parent.add_child(node)
 	node.global_position = world_position + Vector3(0.0, 1.8, 0.0)
 	if node.has_method("show_amount"):
@@ -27,10 +29,7 @@ static func spawn(
 static func spawn_text(
 	world_position: Vector3, text: String, parent: Node, color: Color = Color.WHITE
 ) -> void:
-	var scene := load("res://scenes/combat/damage_number.tscn") as PackedScene
-	if scene == null:
-		return
-	var node := scene.instantiate()
+	var node := SCENE.instantiate()
 	parent.add_child(node)
 	node.global_position = world_position + Vector3(0.0, 2.0, 0.0)
 	if node.has_method("show_text"):

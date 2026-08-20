@@ -15,10 +15,28 @@ class_name CombatStatModifiers
 ## is a class, which means it as a fractional multiplier.
 
 
+## C-117: `CombatEvents.get_stat_bonus()` and `get_stack_count()` had **zero callers** anywhere in
+## the tree, while 16 content files author `add_stack` rules with `perStack` values on
+## `damagePercent` (7), `armor` (3), `physicalDamage`, `defense`, `blockReduction` and `evasion`,
+## and `maxStacks` between 4 and 12. The stacks accumulated correctly, capped correctly and reset
+## correctly — and the bonus was never applied to anything, so every "consecutive hits raise your
+## damage" item in the game did nothing.
+##
+## Folded in here because this is where equipment and talent stats already merge, so a stack bonus
+## takes the same path `damage_multiplier()` and friends do, and every consumer picks it up at once.
+static func stack_bonus(stat: String) -> float:
+	if not CombatEvents:
+		return 0.0
+	return CombatEvents.get_stat_bonus(stat)
+
+
 static func damage_multiplier(equipment_stats: Dictionary, talent_stats: Dictionary) -> float:
 	var mult := 1.0 + float(equipment_stats.get("damagePercent", 0.0)) / 100.0
 	mult += float(equipment_stats.get("physicalDamage", 0.0))
 	mult += float(talent_stats.get("physicalDamage", 0.0))
+	# C-117: `damagePercent` is the most-authored stack stat (7 of 16) and is a percentage.
+	mult += stack_bonus("damagePercent") / 100.0
+	mult += stack_bonus("physicalDamage")
 	return maxf(0.1, mult)
 
 
@@ -60,8 +78,17 @@ static func crit_chance(equipment_stats: Dictionary, talent_stats: Dictionary) -
 	return clampf(chance, 0.0, 1.0)
 
 
-static func crit_multiplier(talent_stats: Dictionary) -> float:
-	return 1.5 + float(talent_stats.get("critDamage", 0.0))
+## C-08: this read talents alone while every other helper in this file deliberately reads both —
+## the last instance of exactly the bug the file's docstring says it was written to eliminate. No
+## `critDamage` affix exists in `content/affixes/` today, so nothing was being lost yet; the moment
+## one is added (and crit damage is an obvious affix for a looter) it would have silently done
+## nothing.
+static func crit_multiplier(equipment_stats: Dictionary, talent_stats: Dictionary) -> float:
+	return (
+		1.5
+		+ float(equipment_stats.get("critDamage", 0.0))
+		+ float(talent_stats.get("critDamage", 0.0))
+	)
 
 
 static func max_mana_bonus(equipment_stats: Dictionary, talent_stats: Dictionary) -> float:
@@ -78,6 +105,7 @@ static func block_reduction_bonus(equipment_stats: Dictionary, talent_stats: Dic
 	return (
 		float(equipment_stats.get("blockReduction", 0.0))
 		+ float(talent_stats.get("blockReduction", 0.0))
+		+ stack_bonus("blockReduction")
 	)
 
 
@@ -114,6 +142,8 @@ static func defense_points(equipment_stats: Dictionary, talent_stats: Dictionary
 		float(equipment_stats.get("defense", 0.0))
 		+ float(equipment_stats.get("armor", 0.0))
 		+ float(talent_stats.get("armor", 0.0))
+		+ stack_bonus("defense")
+		+ stack_bonus("armor")
 	)
 
 

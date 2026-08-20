@@ -21,7 +21,7 @@ const DUNGEON_FIXTURE_PATH := "content/fixtures/dungeon_definition_v2_gdscript.j
 ## dungeon slices and the run scenes are the environments a player spends the game inside.
 const SCENES: Array[String] = [
 	"res://scenes/hub/hub.tscn",
-	"res://scenes/debug/combat_arena.tscn",
+	"res://scenes/combat/combat_arena.tscn",
 	"res://scenes/dungeon/forgotten_castle_slice.tscn",
 	"res://scenes/dungeon/castle_run.tscn",
 ]

@@ -39,15 +39,29 @@ func _on_body_exited(body: Node3D) -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	if not event.is_action_pressed("interact") or not _near_player:
+	if not PlayerInput.interact_just_pressed(event) or not _near_player:
 		return
 	_open_merchant()
 	get_viewport().set_input_as_handled()
 
 
+const MERCHANT_UI_GROUP := &"dungeon_merchant_ui"
+
+
+## C-202: the instance used to be parented to `get_tree().root` and guarded by `_merchant_ui`, a
+## member of this content node — which is freed with the run scene on every floor transition. The
+## guard died, the Control did not, so each floor added another live merchant UI to the root.
+## Looked up by group instead, the way room_lore_content finds the shared dialogue UI.
 func _open_merchant() -> void:
-	if _merchant_ui == null:
-		_merchant_ui = MERCHANT_SCENE.instantiate() as Control
-		get_tree().root.add_child(_merchant_ui)
+	var existing := get_tree().get_first_node_in_group(MERCHANT_UI_GROUP) as Control
+	if existing == null or not is_instance_valid(existing):
+		existing = MERCHANT_SCENE.instantiate() as Control
+		existing.add_to_group(MERCHANT_UI_GROUP)
+		# Parent to the run scene, not the root, so it dies with the floor that created it.
+		var host: Node = get_tree().current_scene
+		if host == null:
+			host = get_tree().root
+		host.add_child(existing)
+	_merchant_ui = existing
 	if _merchant_ui.has_method("open_for_merchant"):
 		_merchant_ui.call("open_for_merchant", "dungeon_merchant")

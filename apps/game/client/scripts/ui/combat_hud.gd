@@ -9,6 +9,7 @@ const HealChargeMeterScript := preload("res://scripts/ui/heal_charge_meter.gd")
 const GuardIndicatorScript := preload("res://scripts/ui/guard_indicator.gd")
 const MenuShellScript := preload("res://scripts/ui/menu_shell.gd")
 const GameUISkinScript := preload("res://scripts/ui/game_ui_skin.gd")
+const QuickSlotBarScript := preload("res://scripts/ui/quick_slot_bar.gd")
 
 const BAR_WIDTH := 280.0
 const HEALTH_BAR_HEIGHT := 22.0
@@ -32,6 +33,22 @@ const STAMINA_FILL := Color(0.52, 0.68, 0.34, 1.0)
 const STAMINA_BG := Color(0.08, 0.11, 0.06, 0.92)
 const MANA_FILL := Color(0.44, 0.42, 0.85, 1.0)
 const MANA_BG := Color(0.06, 0.06, 0.14, 0.92)
+
+## C-96: poise is a fully implemented system with real stakes — breaking an enemy's poise staggers
+## it and applies POISE_BROKEN_DAMAGE_MULT (1.35x); having yours broken staggers you for up to
+## 1.25 s — and the HUD bound Health, Stamina and Mana and nothing else. A stagger-focused build,
+## which is the whole reason `poise_damage`, `TWO_HAND_POISE_MULT` and the heavy archetype exist,
+## was played blind. Slimmer than the resource bars because it is a threat meter, not a budget.
+const POISE_BAR_HEIGHT := 10.0
+const POISE_FILL := Color(0.82, 0.74, 0.45, 1.0)
+const POISE_BG := Color(0.14, 0.12, 0.07, 0.92)
+const POISE_BROKEN_FILL := Color(0.9, 0.35, 0.25, 1.0)
+
+## C-126: the invulnerable tint for the stamina bar during a roll's i-frames.
+const IFRAME_FILL := Color(0.86, 0.95, 1.0, 1.0)
+
+## C-127: below this, an XP grant is trickle rather than an event worth interrupting for.
+const XP_BANNER_MIN := 25
 const ATTACK_STARTUP_FILL := Color(0.95, 0.55, 0.18, 1.0)
 const ATTACK_ACTIVE_FILL := Color(0.85, 0.18, 0.12, 1.0)
 const ATTACK_RECOVERY_FILL := Color(0.45, 0.45, 0.48, 1.0)
@@ -42,6 +59,11 @@ const LOCK_RETICLE_OCCLUDED := Color(1.0, 0.62, 0.55, 1.0)
 
 @onready var _health_bar: ProgressBar = $ResourcePanel/VBox/HealthBar
 @onready var _stamina_bar: ProgressBar = $ResourcePanel/VBox/StaminaBar
+
+## C-96: built at runtime rather than added to the scene, so the bar exists only where a Poise node
+## does — enemies and the training dummy share this HUD in the arena scene.
+var _poise_bar: ProgressBar
+var _poise_broken_shown := false
 @onready var _mana_bar: ProgressBar = $ResourcePanel/VBox/ManaBar
 @onready var _attack_bar: ProgressBar = $ResourcePanel/VBox/AttackBar
 @onready var _xp_bar: ProgressBar = $ResourcePanel/VBox/XpBar
@@ -79,6 +101,7 @@ var _status_pips: Dictionary = {}
 var _status_refresh_timer := 0.0
 var _build_up_box: VBoxContainer
 var _heal_charge_row: HBoxContainer
+var _quick_slot_bar: Control
 var _lock_target_occluded := false
 var _riposte_prompt_timer := 0.0
 var _build_up_rows: Dictionary = {}
@@ -130,6 +153,7 @@ func _ready() -> void:
 		_status_controller = _player.get_node_or_null("StatusController") as StatusController
 		_bind_player_resources()
 		_bind_heal_charges()
+		_bind_quick_slots()
 		_bind_minimap_player()
 		if _status_controller:
 			_status_controller.statuses_changed.connect(_refresh_status_icons)
@@ -145,6 +169,19 @@ func _ready() -> void:
 				_lock_on.lock_occluded.connect(_on_lock_occluded)
 	if ProgressionService:
 		ProgressionService.progression_changed.connect(_on_progression_changed)
+		# C-127: `xp_granted`, `endless_depth_record` and `endless_milestone_reached` were all
+		# emitted and none was connected, so gaining XP, setting a new endless depth record and
+		# hitting a milestone produced no UI event at all — and `endless_depth_record` carries
+		# `tokens_awarded`, a reward the player was never told about. The XP bar only moved because
+		# `progression_changed` happened to be connected separately.
+		if not ProgressionService.xp_granted.is_connected(_on_xp_granted):
+			ProgressionService.xp_granted.connect(_on_xp_granted)
+		if not ProgressionService.endless_depth_record.is_connected(_on_endless_depth_record):
+			ProgressionService.endless_depth_record.connect(_on_endless_depth_record)
+		if not ProgressionService.endless_milestone_reached.is_connected(
+			_on_endless_milestone_reached
+		):
+			ProgressionService.endless_milestone_reached.connect(_on_endless_milestone_reached)
 		_on_progression_changed()
 	if RunFlow and not RunFlow.run_warning.is_connected(_on_run_warning):
 		RunFlow.run_warning.connect(_on_run_warning)
@@ -177,6 +214,9 @@ func _style_resource_bars() -> void:
 	_apply_bar_style(_stamina_bar, STAMINA_FILL, STAMINA_BG)
 	_mana_bar.custom_minimum_size = Vector2(BAR_WIDTH, MANA_BAR_HEIGHT)
 	_apply_bar_style(_mana_bar, MANA_FILL, MANA_BG)
+	if _poise_bar:
+		_poise_bar.custom_minimum_size = Vector2(BAR_WIDTH, POISE_BAR_HEIGHT)
+		_apply_bar_style(_poise_bar, POISE_FILL, POISE_BG)
 	_attack_bar.custom_minimum_size = Vector2(BAR_WIDTH, ATTACK_BAR_HEIGHT)
 	_apply_bar_style(_attack_bar, ATTACK_STARTUP_FILL, STAMINA_BG)
 	_boss_health_bar.custom_minimum_size = Vector2(420, 18)
@@ -493,18 +533,126 @@ func _bind_player_resources() -> void:
 	var health := _player.get_node_or_null("Health") as Health
 	var stamina := _player.get_node_or_null("Stamina") as Stamina
 	var mana := _player.get_node_or_null("Mana") as Mana
+	var poise := _player.get_node_or_null("Poise") as Poise
+	if poise:
+		_ensure_poise_bar()
+		poise.poise_changed.connect(_on_poise_changed)
+		poise.poise_broken.connect(_on_poise_broken)
+		_on_poise_changed(poise.current, poise.max_poise)
+	# C-121: these three used to pass the class constant rather than the node's real maximum, so a
+	# character with 160 max HP from equipment bound a bar with `max_value = 100` and `value = 160`.
+	# `ProgressBar` clamps, so it read as full — true, but by accident — and it self-corrected on the
+	# first signal. It becomes a real bug the moment a numeric readout sits beside the bar.
+	# C-126: `Dodge.iframes_changed` fires three times per roll — open, close, roll end — and had no
+	# listener at all, so for a game whose defensive model *is* the i-frame window, and which ships
+	# an accessibility slider that widens it, the invulnerable state was completely invisible.
+	var dodge := _player.get_node_or_null("Dodge")
+	if dodge and dodge.has_signal("iframes_changed"):
+		dodge.iframes_changed.connect(_on_iframes_changed)
 	if health:
 		health.health_changed.connect(_on_health_changed)
-		_on_health_changed(health.current, Health.MAX_HEALTH)
+		_on_health_changed(health.current, health.max_health)
 	if stamina:
 		stamina.stamina_changed.connect(_on_stamina_changed)
 		stamina.insufficient.connect(_on_stamina_insufficient)
 		stamina.depleted.connect(_on_stamina_depleted)
-		_on_stamina_changed(stamina.current, Stamina.MAX_STAMINA)
+		if stamina.has_signal("recovered"):
+			stamina.recovered.connect(_on_stamina_recovered)
+		_on_stamina_changed(stamina.current, stamina.max_stamina)
 	if mana:
 		mana.mana_changed.connect(_on_mana_changed)
 		mana.insufficient.connect(_on_mana_insufficient)
-		_on_mana_changed(mana.current, Mana.MAX_MANA)
+		_on_mana_changed(mana.current, mana.max_mana)
+
+
+## C-96 / C-97: the poise meter, built from the same pattern the status build-up meters use rather
+## than a new widget. Inserted under the mana bar so the three resources read top to bottom and the
+## threat meter sits beneath them.
+func _ensure_poise_bar() -> void:
+	if _poise_bar != null and is_instance_valid(_poise_bar):
+		return
+	if _mana_bar == null:
+		return
+	var host := _mana_bar.get_parent() as Control
+	if host == null:
+		return
+	_poise_bar = ProgressBar.new()
+	_poise_bar.name = "PoiseBar"
+	_poise_bar.show_percentage = false
+	_poise_bar.custom_minimum_size = Vector2(BAR_WIDTH, POISE_BAR_HEIGHT)
+	_apply_bar_style(_poise_bar, POISE_FILL, POISE_BG)
+	host.add_child(_poise_bar)
+	host.move_child(_poise_bar, _mana_bar.get_index() + 1)
+
+
+## C-126: the stamina bar is where the roll's cost already reads, so it is where its reward reads
+## too — a bright rim for exactly as long as the player is untouchable.
+## C-127: XP is a steady trickle, so it is shown as a banner only when it arrives in a lump the
+## player did something to earn — a boss, a room clear — rather than on every kill.
+func _on_xp_granted(amount: int, reason: String) -> void:
+	if amount < XP_BANNER_MIN or reason == "kill":
+		return
+	show_run_warning(tr("HUD_XP_GRANTED").format({"xp": amount}))
+
+
+func _on_endless_depth_record(_previous_best: int, new_best: int, tokens_awarded: int) -> void:
+	if tokens_awarded > 0:
+		show_run_warning(
+			tr("HUD_DEPTH_RECORD_TOKENS").format({"floor": new_best, "tokens": tokens_awarded})
+		)
+	else:
+		show_run_warning(tr("HUD_DEPTH_RECORD").format({"floor": new_best}))
+
+
+func _on_endless_milestone_reached(milestone: Dictionary) -> void:
+	var label := str(milestone.get("name", milestone.get("id", "")))
+	if label == "":
+		return
+	show_run_warning(tr("HUD_MILESTONE").format({"name": label}))
+
+
+func _on_iframes_changed(active: bool) -> void:
+	if _stamina_bar == null or not is_instance_valid(_stamina_bar):
+		return
+	if active:
+		_apply_bar_style(_stamina_bar, IFRAME_FILL, STAMINA_BG)
+	else:
+		_apply_bar_style(_stamina_bar, STAMINA_FILL, STAMINA_BG)
+
+
+func _on_poise_changed(current: float, max_value: float) -> void:
+	if _poise_bar == null or not is_instance_valid(_poise_bar):
+		return
+	_poise_bar.max_value = maxf(1.0, max_value)
+	_poise_bar.value = current
+	# Recovering past the break restores the normal fill; the break tint is set in _on_poise_broken.
+	if current > 0.0 and _poise_broken_shown:
+		_poise_broken_shown = false
+		_apply_bar_style(_poise_bar, POISE_FILL, POISE_BG)
+
+
+func _on_poise_broken() -> void:
+	if _poise_bar == null or not is_instance_valid(_poise_bar):
+		return
+	_poise_broken_shown = true
+	_apply_bar_style(_poise_bar, POISE_BROKEN_FILL, POISE_BG)
+	_flash_resource_bar(_poise_bar, POISE_BROKEN_FILL)
+
+
+## C-235: puts the four consumable quick slots on screen. The input for them is gated on every meta
+## UI being closed, and the only previous rendering lived *inside* the inventory panel — so the bar
+## was visible exactly when it could not be used. Sits beside the flask counter.
+func _bind_quick_slots() -> void:
+	if _quick_slot_bar != null and is_instance_valid(_quick_slot_bar):
+		return
+	if _status_row == null:
+		return
+	var host := _status_row.get_parent() as Control
+	if host == null:
+		return
+	_quick_slot_bar = QuickSlotBarScript.new()
+	host.add_child(_quick_slot_bar)
+	host.move_child(_quick_slot_bar, _status_row.get_index() + 1)
 
 
 ## Builds and binds the flask counter. See HealChargeMeter for why it did not exist before.
@@ -656,6 +804,12 @@ func _on_stamina_insufficient() -> void:
 func _on_stamina_depleted() -> void:
 	_stamina_bar.modulate = Color(0.55, 0.22, 0.18)
 	AudioDirector.play_sfx("exhausted")
+
+
+## C-219: clears the exhausted tint when Stamina actually recovers, rather than leaving it until an
+## unrelated `insufficient` flash happens to tween modulate back to white.
+func _on_stamina_recovered() -> void:
+	_stamina_bar.modulate = Color.WHITE
 
 
 func _on_mana_insufficient() -> void:
@@ -814,10 +968,14 @@ func set_branch_previews(hints: Array) -> void:
 	for hint in hints:
 		if not hint is Dictionary:
 			continue
-		if str(hint.get("hint", "")) == "reward":
-			reward_count += 1
-		else:
-			danger_count += 1
+		# C-147: `neutral` (empty and puzzle rooms) counts as neither, so the banner stops calling
+		# an empty room a reward — and stops calling it a danger instead, which would be the other
+		# way to be wrong.
+		match str(hint.get("hint", "")):
+			"reward":
+				reward_count += 1
+			"danger":
+				danger_count += 1
 	var parts: PackedStringArray = []
 	if reward_count > 0:
 		parts.append(tr("HUD_BRANCH_REWARD") % reward_count)
@@ -847,16 +1005,17 @@ func _update_objective_marker() -> void:
 	var screen_pos := camera.unproject_position(_objective_world_pos)
 	var viewport_size := get_viewport_rect().size
 	var center := viewport_size * 0.5
-	if (
-		camera.is_position_behind(_objective_world_pos)
-		or not Rect2(Vector2.ZERO, viewport_size).has_point(screen_pos)
-	):
-		screen_pos = (
-			center
-			+ (screen_pos - center).normalized()
-			* minf(viewport_size.x, viewport_size.y)
-			* 0.42
-		)
+	var behind := camera.is_position_behind(_objective_world_pos)
+	if behind or not Rect2(Vector2.ZERO, viewport_size).has_point(screen_pos):
+		# C-220: `unproject_position` mirrors points behind the camera through the centre, so the
+		# off-screen direction has to be negated in that case. The behind branch used to reuse the
+		# mirrored vector unchanged, pointing the arrow away from the objective.
+		var dir := (screen_pos - center).normalized()
+		if behind:
+			dir = -dir
+		if dir == Vector2.ZERO:
+			dir = Vector2.UP
+		screen_pos = center + dir * minf(viewport_size.x, viewport_size.y) * 0.42
 	_objective_marker.visible = true
 	_objective_marker.position = (screen_pos - _objective_marker.size * 0.5).floor()
 	_objective_marker.rotation = (screen_pos - center).angle() + PI * 0.5
@@ -880,15 +1039,18 @@ func show_respawn_outcome(results: Dictionary) -> void:
 	var xp_gained: int = int(results.get("xp_gained", 0))
 	var xp_deferred: int = int(results.get("xp_deferred", 0))
 	var loot_lost: Array = results.get("loot_lost", [])
+	# C-221: these three handlers hardcoded English in a file that otherwise routes everything
+	# through `tr()`. The death screen and the save-failure warning are among the strings that
+	# matter most in a player's own language.
 	var lines: PackedStringArray = [
-		"XP gained: %d" % xp_gained,
+		tr("RESPAWN_XP_GAINED").format({"xp": xp_gained}),
 	]
 	if xp_deferred > 0:
-		lines.append("XP deferred to shard: %d" % xp_deferred)
+		lines.append(tr("RESPAWN_XP_DEFERRED").format({"xp": xp_deferred}))
 	if loot_lost.size() > 0:
-		lines.append("Loot stripped: %s" % ", ".join(loot_lost))
+		lines.append(tr("RESPAWN_LOOT_STRIPPED").format({"items": ", ".join(loot_lost)}))
 	else:
-		lines.append("No loot stripped since bonfire.")
+		lines.append(tr("RESPAWN_LOOT_KEPT"))
 	var body: Label = _respawn_overlay.get_node("Panel/Margin/VBox/Body")
 	body.text = "\n".join(lines)
 	_respawn_overlay.visible = true
@@ -903,7 +1065,7 @@ func _on_run_warning(message: String) -> void:
 
 func _on_inventory_rejected(reason: String) -> void:
 	if reason == "full":
-		show_run_warning("Inventory full")
+		show_run_warning(tr("WARN_INVENTORY_FULL"))
 
 
 ## A failed save is silent otherwise — the player keeps going for hours believing progress is
@@ -911,11 +1073,11 @@ func _on_inventory_rejected(reason: String) -> void:
 func _on_save_failed(reason: String) -> void:
 	match reason:
 		"write_failed":
-			show_run_warning("Saving failed — check disk space")
+			show_run_warning(tr("WARN_SAVE_WRITE_FAILED"))
 		"save_from_newer_build":
-			show_run_warning("Save was made by a newer build and cannot be loaded")
+			show_run_warning(tr("WARN_SAVE_FROM_NEWER_BUILD"))
 		_:
-			show_run_warning("Saving failed (%s)" % reason)
+			show_run_warning(tr("WARN_SAVE_FAILED_REASON").format({"reason": reason}))
 
 
 func _rebuild_controls_hint() -> void:
@@ -974,11 +1136,17 @@ func _apply_hud_safe_area() -> void:
 	offset_bottom = -margin_px.y
 
 
+## C-136: this polled the `Input` singleton directly, bypassing `PlayerInput` (C-87's set), so the
+## tutorial hint never registered usage during a replay — a replayed run would keep showing the
+## control hints forever because, as far as this function could see, the player never pressed
+## anything. The early return is correctly guarded already; only the bypass was the defect.
 func _track_controls_hint_usage() -> void:
 	if _controls_hint == null or not AccessibilitySettings.show_control_hints:
 		return
+	if _hint_hidden_by_usage:
+		return
 	for action in _hint_actions_used.keys():
-		if Input.is_action_just_pressed(action):
+		if PlayerInput.just_pressed(action):
 			_hint_actions_used[action] = true
 
 

@@ -12,6 +12,9 @@ const ALL_TYPES: Array[String] = [
 	TYPE_PHYSICAL, TYPE_FIRE, TYPE_FROST, TYPE_POISON, TYPE_LIGHTNING, TYPE_ARCANE
 ]
 
+## C-163: throttles the unknown-damage-type warning to one line per distinct value.
+static var _warned_damage_types: Dictionary = {}
+
 enum HitArc { FRONT, SIDE, BACK }
 
 const BACK_ARC_HALF_DEGREES := 55.0
@@ -49,7 +52,20 @@ static func create(
 	info.amount = dmg_amount
 	info.poise_damage = poise_dmg
 	info.source = dmg_source
-	info.damage_type = dmg_type if dmg_type in ALL_TYPES else TYPE_PHYSICAL
+	# C-163: coercing an unknown type to physical is the right defensive behaviour, but it was
+	# silent — `content/traps/shadow_trap.json` authored `"dark"` and lost its identity with no
+	# diagnostic anywhere. Throttled per unknown value so a per-frame hazard cannot flood the log.
+	if dmg_type not in ALL_TYPES:
+		if not _warned_damage_types.has(dmg_type):
+			_warned_damage_types[dmg_type] = true
+			push_warning(
+				(
+					"DamageInfo: unknown damageType '%s' coerced to physical. Valid types: %s"
+				)
+				% [dmg_type, ", ".join(ALL_TYPES)]
+			)
+		dmg_type = TYPE_PHYSICAL
+	info.damage_type = dmg_type
 	info.direction = hit_direction
 	info.status_id = apply_status
 	info.status_stacks = maxi(1, status_stack_count)

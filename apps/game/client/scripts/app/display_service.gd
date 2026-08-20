@@ -229,9 +229,15 @@ func window_size_fits_any_monitor(size: Vector2i) -> bool:
 	return false
 
 
+## Headless has no screens: `screen_get_usable_rect()` crashes the engine there rather than
+## returning an empty rect, which aborted the whole validation run inside m6_suite
+## (settings_schema.entries() -> _monitor_row() -> _monitor_option_labels()).
 func get_monitor_labels() -> PackedStringArray:
 	var labels := PackedStringArray()
-	for i in DisplayServer.get_screen_count():
+	var count := DisplayServer.get_screen_count()
+	if count <= 0 or DisplayServer.get_name() == "headless":
+		return labels
+	for i in count:
 		var rect := DisplayServer.screen_get_usable_rect(i)
 		labels.append("Monitor %d (%dx%d)" % [i + 1, rect.size.x, rect.size.y])
 	return labels
