@@ -37,6 +37,16 @@ var level: int:
 		return get_level()
 
 
+
+## Emits `appearance_changed`.
+##
+## `CharacterAppearance.apply_to_service` used to reach in and emit the signal itself. That works,
+## but it means this class declares a signal it never sends — which is both a warning and a real
+## readability problem: nothing in this file tells you when the signal fires.
+func notify_appearance_changed(profile: Dictionary) -> void:
+	appearance_changed.emit(profile)
+
+
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	if ProgressionService:

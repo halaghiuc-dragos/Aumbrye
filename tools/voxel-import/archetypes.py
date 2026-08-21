@@ -55,7 +55,12 @@ def _biped_parts(
         PartSpec("LegL", leg, (-hip_x, ly, 0)),
         PartSpec("LegR", leg, (hip_x, ly, 0)),
         PartSpec("Torso", torso, (0, ly, 0), accent_band=head_accent),
-        PartSpec("Head", head, (0, ty, 0), parent="Torso", accent_band=head_accent),
+        # Two voxels below the top of the torso, not level with it: the torso notches its top
+        # layer for a neck, and a head sitting exactly on the joint leaves that notch empty and the
+        # neck reading as a separate column between two blocks. Done with the joint rather than a
+        # `meshOffset` because hair and the Visor / Hood extras all hang off the Head *pivot* — a
+        # mesh-only offset slides the skull out from under everything attached to it.
+        PartSpec("Head", head, (0, ty - 2, 0), parent="Torso", accent_band=head_accent),
         PartSpec(
             "ArmL",
             arm,
@@ -158,16 +163,26 @@ def player_archetype(height_key: str, bulk_key: str) -> ArchetypeSpec:
     archetype_id = f"player_warden{suffix}"
     extras: tuple[ExtraSpec, ...] = (
         ExtraSpec("Visor", (4, 2, 3), (0, 5, 4), "Head"),
-        ExtraSpec("Hood", (8, 4, 7), (0, 3, -1), "Head", accent=False),
+        # Size is ignored for the hood — `generate_character_voxels._write_hood` grows it from the
+        # head — and the offset drops it so the cowl closes below the jaw. It used to be an
+        # 8x4x7 box parked behind the head, which covered neither the crown nor the sides.
+        ExtraSpec("Hood", (0, 0, 0), (0, -3, 0), "Head", accent=False),
         ExtraSpec("BeltTrim", (13, 3, 7), (0, 3, 0), "Torso", accent=True),
-        ExtraSpec("Pauldron", (4, 3, 6), (0, 1, -2), "ArmL", accent=True),
-        ExtraSpec("PauldronR", (4, 3, 6), (0, 1, -2), "ArmR", accent=True),
+        # Seated on the shoulder, not hovering above and behind it: at (0, 1, -2) the pauldrons
+        # cleared the top of the arm entirely and read as two separate blocks floating beside the
+        # neck.
+        ExtraSpec("Pauldron", (5, 3, 6), (0, -1, 0), "ArmL", accent=True),
+        ExtraSpec("PauldronR", (5, 3, 6), (0, -1, 0), "ArmR", accent=True),
     )
     return ArchetypeSpec(
         id=archetype_id,
         profile="biped",
         theme_index=10,
-        parts=_biped_parts(leg, torso, head, arm, 3, 8, shoulder_y),
+        # hip_x = 4, not 3. At 3 the two six-voxel legs span -6..0 and 0..6 and meet exactly on
+        # the centre line, so the greedy mesher sees one continuous volume and the warden stands
+        # on a single slab instead of on two feet. Four leaves a two-voxel gap that survives the
+        # downsample to the pixel viewport.
+        parts=_biped_parts(leg, torso, head, arm, 4, 8, shoulder_y),
         extras=extras,
         animation_library=PROFILE_ANIM_LIBRARY["player"],
     )

@@ -114,8 +114,8 @@ func _on_to_inv() -> void:
 
 ## A stack count is only worth showing when there is actually a stack.
 func _row_text(definition: Dictionary, item_id: String, quantity: int) -> String:
-	var name := str(definition.get("name", item_id))
-	return "%s x%d" % [name, quantity] if quantity > 1 else name
+	var display_name := str(definition.get("name", item_id))
+	return "%s x%d" % [display_name, quantity] if quantity > 1 else display_name
 
 
 ## Empty-state rows, so a player looking at two blank boxes can tell the screen is working.

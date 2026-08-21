@@ -103,25 +103,27 @@ function resolveGodotPath(path) {
   return path;
 }
 
+// Builds only. This project has no test suites — see the standing rule in CLAUDE.md — so the layer
+// asserts that the C# actually compiles and stops there.
 function runDotnetLayer() {
   const build = runCommand(
     "dotnet",
     "dotnet",
-    ["build", "tools/procgen-cli/ProcgenCli.csproj", "-c", "Debug"],
+    ["build", "services/backend/Aumbrye.sln", "-c", "Debug"],
   );
   if (!build.ok) return { ...build, name: "dotnet", passed: 0, failed: 1 };
 
-  const test = runCommand(
+  const cli = runCommand(
     "dotnet",
     "dotnet",
-    ["test", "services/backend/Aumbrye.sln", "--no-restore"],
+    ["build", "tools/procgen-cli/ProcgenCli.csproj", "-c", "Debug"],
   );
   return {
     name: "dotnet",
-    ok: test.ok,
-    passed: test.ok ? 1 : 0,
-    failed: test.ok ? 0 : 1,
-    detail: test.detail,
+    ok: cli.ok,
+    passed: cli.ok ? 1 : 0,
+    failed: cli.ok ? 0 : 1,
+    detail: cli.detail,
   };
 }
 

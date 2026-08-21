@@ -16,7 +16,11 @@ signal interacted
 var _near_player := false
 var _highlight_node: Node3D
 var _highlight_tween: Tween
-var _base_emission: float = 1.0
+## `pixel_diorama_emissive.gdshader` declares `emission_energy` with a default of 1.6.
+const EMISSION_PARAM := &"emission_energy"
+const FALLBACK_EMISSION := 1.6
+
+var _base_emission: float = FALLBACK_EMISSION
 
 
 func _ready() -> void:
@@ -102,7 +106,7 @@ func _start_highlight() -> void:
 	mat = mat.duplicate()
 	mesh.material_override = mat
 	if mat is ShaderMaterial:
-		_base_emission = float(mat.get_shader_parameter("emission_energy"))
+		_base_emission = _shader_emission_energy(mat as ShaderMaterial)
 	elif mat is StandardMaterial3D:
 		_base_emission = mat.emission_energy_multiplier
 	_highlight_tween = create_tween()
@@ -115,6 +119,22 @@ func _start_highlight() -> void:
 	)
 
 
+## `get_shader_parameter` returns null for a uniform that has never been assigned from code, even
+## when the shader declares it with a default — and `float(null)` is a hard error, not 0.0. It threw
+## on the first frame a player stepped into any hub interact zone, before the pulse tween was
+## created, so no hub prop has ever actually highlighted.
+##
+## The declared default is what the material is really rendering with, so that is what the pulse has
+## to start and end on. Guessing 1.0 instead would have dimmed every prop on approach.
+static func _shader_emission_energy(mat: ShaderMaterial) -> float:
+	var value: Variant = mat.get_shader_parameter(EMISSION_PARAM)
+	if value == null and mat.shader != null:
+		value = RenderingServer.shader_get_parameter_default(mat.shader.get_rid(), EMISSION_PARAM)
+	if value == null:
+		return FALLBACK_EMISSION
+	return float(value)
+
+
 func _apply_highlight_energy(value: float) -> void:
 	if _highlight_node == null:
 		return
@@ -125,7 +145,7 @@ func _apply_highlight_energy(value: float) -> void:
 	if mat == null:
 		return
 	if mat is ShaderMaterial:
-		mat.set_shader_parameter("emission_energy", value)
+		mat.set_shader_parameter(EMISSION_PARAM, value)
 	elif mat is StandardMaterial3D:
 		mat.emission_energy_multiplier = value
 

@@ -36,7 +36,7 @@ func execute(line: String) -> String:
 	var command_name: String = parts[0]
 	if not _commands.has(command_name):
 		return "Unknown command: %s (try help)" % command_name
-	var args: Array = parts.slice(1) if parts.size() > 1 else []
+	var args: Array = Array(parts.slice(1)) if parts.size() > 1 else []
 	return str(_commands[command_name].handler.call(args))
 
 

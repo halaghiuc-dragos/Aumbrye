@@ -42,6 +42,10 @@ func _ready() -> void:
 		_on_fullscreen_confirm_needed
 	):
 		DisplayService.fullscreen_confirm_needed.connect(_on_fullscreen_confirm_needed)
+	# Display rows are not independent either: picking a resolution drops the window out of
+	# fullscreen, so the Window Mode row above it would otherwise keep claiming "Fullscreen".
+	if DisplayService and not DisplayService.display_changed.is_connected(_on_display_changed):
+		DisplayService.display_changed.connect(_on_display_changed)
 	LocaleSettingsScript.connect_changed(_on_locale_changed)
 	AccessibilitySettings.connect_settings_changed(_on_external_settings_changed)
 
@@ -49,6 +53,12 @@ func _ready() -> void:
 func _exit_tree() -> void:
 	LocaleSettingsScript.disconnect_changed(_on_locale_changed)
 	AccessibilitySettings.disconnect_settings_changed(_on_external_settings_changed)
+	if DisplayService and DisplayService.display_changed.is_connected(_on_display_changed):
+		DisplayService.display_changed.disconnect(_on_display_changed)
+
+
+func _on_display_changed(_field: StringName, _value: Variant) -> void:
+	_on_external_settings_changed()
 
 
 ## Pulls every visible row back in line with the values behind it.

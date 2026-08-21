@@ -105,7 +105,7 @@ func on_hit(
 	direction: Vector3 = Vector3.ZERO,
 	damage_type: String = "physical",
 	impact: int = ImpactClass.SOLID,
-	crit: bool = false
+	_crit: bool = false
 ) -> void:
 	hit_landed.emit(target, damage)
 	_apply_hitstop(impact)

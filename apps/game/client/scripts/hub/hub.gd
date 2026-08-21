@@ -108,8 +108,18 @@ func _boot_save_and_services() -> void:
 	var synced: bool = bool(result.get("ok", false))
 	var reloaded := false
 	if not synced and LocalSave.has_save():
-		reloaded = LocalSave.load_into_services()
+		reloaded = LocalSave.reload_active_into_services()
 	if CharacterService.class_id == "":
+		# Reaching the hub without a class means the save the services were populated from is not
+		# the one the player just chose. Say so: this used to return the player to the main menu
+		# with no message at all, which is indistinguishable from the Begin button doing nothing.
+		push_error(
+			(
+				"Hub: no class on the active character (id '%s') — returning to the main menu. "
+				+ "The save was loaded but carries no classId."
+			)
+			% LocalSave.get_active_character_id()
+		)
 		SceneTransition.goto(get_tree(), "res://scenes/ui/main_menu.tscn")
 		return
 	if not reloaded:
@@ -238,7 +248,7 @@ func _apply_player_viewmodel_theme() -> void:
 		return
 	var theme := PixelStyle.PaletteTheme.HUB
 	if CharacterService:
-		theme = CharacterService.appearance_theme
+		theme = CharacterService.appearance_theme as PixelStyle.PaletteTheme
 	var director := player.get_node_or_null("AnimDirector")
 	if director and director.has_method("set_viewmodel_theme"):
 		director.call("set_viewmodel_theme", theme)

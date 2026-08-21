@@ -14106,3 +14106,1102 @@ decimal places; DOC-01 passing; 314 `tr()` keys with none missing; content sweep
 voxel-import tests 5/5; both workflows valid YAML.
 
 The standing caveat has not changed and should not be buried: **none of this has been played.**
+
+---
+
+## §127 — What a visual pass found that 262 findings did not
+
+The document was closed at §126 on the strength of a boot check, a seed sweep and a script sweep.
+It was then opened in the editor and *looked at*. Everything below was live in the build at that
+point, and none of it appears anywhere in §1–§126.
+
+This is the finding that matters most: **every check the review built was a check that reads the
+code, and none of them renders a frame.** A rig can assemble into a pile of disconnected boxes and
+pass a smoke test, a content sweep, a `tr()` sweep and a 10,000-seed procgen sweep, because not one
+of them asks what the screen shows.
+
+### §127.1 — C-266: baked meshes shipped in a different coordinate convention
+
+`VoxelMeshBuilder.load_mesh` preferred a baked `.tres` over the `.voxels.json` it was built from.
+C-170 introduced that on the reasoning that "the geometry does not depend on the theme — only the
+colour does". The geometry does not depend on the theme. It does depend on the convention:
+
+| | y extent | x extent |
+|---|---|---|
+| `_build_from_voxels` from `torso.voxels.json` | `0.00 .. 0.64` | `0.00 .. 0.48` |
+| `player_warden/torso.tres` | `-0.64 .. 0.00` | `-0.24 .. 0.24` |
+
+Every baked mesh under `assets/characters/` was exported *after* `build_from_manifest` had already
+centred it and hung it from its joint. `build_from_manifest` then applies both again, so a baked
+part lands a full part-height below where it belongs. For arms and legs the two conventions cancel;
+for a torso or a head they do not.
+
+Measured on the standard warden before the fix — `scenes/debug/dump_rig_layout.tscn`:
+
+```
+Torso      y  -0.16 ..  0.48     <- inside the legs, and below the feet
+LegR       y   0.00 ..  0.48
+ArmR       y   0.52 ..  1.04     <- floating in the gap the torso left
+Head       y   1.12 ..  1.44
+TOTAL      height 1.60  (feet at y -0.16)
+```
+
+`WardenPreviewRig.DEFAULT_SUBJECT_HEIGHT` is 1.44 — written from the intended layout, which the rig
+had never actually produced.
+
+Six of the nine body shapes a player can choose ship *every* part baked, which is the whole of the
+user-reported "changing build or other settings breaks the character preview": switching Build from
+Standard to Lean re-rigged the warden from meshes that all hang.
+
+**Fixed.** The source wins whenever it exists; a mesh built from authored cells is correct by
+construction. `assets/characters/equipment/` is untouched — its `.tres` files are named directly by
+`content/items/`, so they never went through the swap. The 37 now-unreachable body-part bakes were
+deleted.
+
+### §127.2 — C-267: an empty `cells` array means "fill the bounding box"
+
+`hair_short.voxels.json` and `hair_long.voxels.json` shipped with `"cells": []`. The mesher reads
+that as a request for a solid block, so both rendered as 7×2×7 slabs — and `_apply_hair` was the one
+attachment point that never applied `_centre_offset`, so the slab grew out of the head's corner and
+projected sideways. That is the bill on the front of every warden in every screenshot of this game.
+
+Four of the seven hair styles (`shaven`, `braided`, `tied`, `wild`) had no file at all and silently
+did nothing.
+
+**Fixed.** All six styles are generated, authored in head-local layers so they need no offset at the
+call site; the hair holder centres its mesh like every other part; and an empty `cells` array now
+pushes a warning instead of quietly producing a block. Two equipment helms have the same empty-cells
+shape and are named as `.tres` in content, so they never reach this path — the warning will say so
+if that ever changes.
+
+### §127.3 — C-268: stature was faked by moving joints
+
+`player_warden_tall` and `player_warden_compact` reused the standard meshes and shifted every joint
+by ±2 voxels. A head's joint *is* the top of the torso, so moving it without lengthening the torso
+opened a two-voxel gap at the tall warden's neck and sank the compact warden's head into its chest.
+`player_archetype` had been returning correct per-stature dimensions the whole time; the generator
+overrode them.
+
+**Fixed** by deleting the override. Nine variants, nine sets of meshes, every joint derived from the
+mesh it attaches to.
+
+### §127.4 — C-269: the preview framed itself to a shadow
+
+`WardenPreviewRig._stage_bounds` unioned every `VisualInstance3D` under the stage. The rig attaches a
+`ContactShadow` **Decal**, which is a `VisualInstance3D` and is a 1.36 m projection box. So the
+camera framed the shadow: every stature came out at the same camera distance and the warden filled
+63% of a portrait asking for 82%.
+
+**Fixed** — `MeshInstance3D` only, and visible ones only, so a hood the player has not selected and
+the source meshes the merger hides cannot decide the crop. Measured after: 85%, and the camera
+distance now varies with stature (3.11 compact / 3.27 standard / 3.51 tall).
+
+### §127.5 — C-270: the preview opened on the warden's back
+
+Rigs assemble facing −Z. In play that is right, because the third-person camera follows from behind
+and `CombatFacing` turns the visual; the preview turns nothing, so character creation opened on the
+back of the warden.
+
+**This section was wrong, and §130.3 corrects it.** The measurement counted accent-coloured pixels
+across the chest at four yaws and read 736 / 1168 / **3472** / 1192, which looked decisive. It was
+counting the belt trim and the boot tops — both accent-coloured, both visible from behind — and not
+the two-voxel chest placard it was meant to find. `FRONT_YAW := PI` turned the preview to face the
+warden's *back*, and stayed that way until the face plate gave the measurement an unmistakable
+subject. The correct value is `0.0`; see §130.3.
+
+### §127.6 — C-271: the preview did not use the pixel pipeline
+
+Every other view of a character renders through a 480×270 buffer and is upscaled with nearest
+filtering. The creation preview rendered at native desktop resolution, where the surface shader's
+stitch and dither patterns are far finer than a pixel of the intended look — which is why the armour
+read as translucent mesh. The figure a player approved was not the figure the game drew.
+
+**Fixed**: `stretch_shrink` derived from the player's own resolution preset, nearest filtering on the
+container. It collapses to 1 on the native-HD preset, which is the right answer for a preset that
+has deliberately turned the pixel look off.
+
+The remaining flatness was lighting, not alpha — the shader writes no `ALPHA` at all. A 1.1 key
+against a 0.9-energy ambient lit every face to within a few percent of every other, so the dither
+was the only thing varying across the model. Now 1.6 against 0.32.
+
+### §127.7 — Characters were seven boxes
+
+The user's report was "the legs are two large rectangles". They were: a leg was one 6×12×6 volume
+with a single flat colour, chamfered at the corners. So was every other part.
+
+Two limits were structural, not artistic:
+
+- **One colour per part.** The format carried a single `color`, and the greedy mesher's merge step
+  was documented as never needing to compare per-cell material. So a belt could be *sunk* but never
+  *leather-coloured*.
+- **No profile.** Every part was symmetric front-to-back, so in side view the whole cast was a slab.
+
+Both are lifted. The mask entry now packs `sign * (material_index + 1)`, so faces merge only when
+they point the same way *and* carry the same material; a part may carry `paletteSlots` — indices
+into `PixelDioramaStyle.PaletteSlot`, resolved per theme. Slots rather than RGB deliberately: two
+authored colours can snap to the same nearest slot in some theme and silently collapse a part back
+to one flat colour, which is the exact thing this exists to prevent. Files without either field load
+byte-identically.
+
+The sculptor gained `offset_band` — the single most valuable operation in it — and every part is now
+segmented: boot / ankle / shin / knee cop / thigh, gauntlet / wrist / forearm / elbow / upper arm,
+pelvis / belt / waist / chest / collar, neck / jaw / face / brow / crown, with a lit visor slit and a
+chest placard painted on whichever column is actually frontmost.
+
+`hip_x` went from 3 to 4. At 3, two six-voxel legs span −6..0 and 0..6 and meet exactly on the centre
+line, so the greedy mesher sees one volume and the warden stands on a single slab instead of on two
+feet.
+
+### §127.8 — The eighteen placeholder sounds, and the toolkit under them
+
+`AudioDirector` reported 18 placeholder SFX on every debug boot. All six loot rarities played the
+same UI click at different pitches — in a game whose entire reward loop is rarity.
+
+All 18 are authored, plus three variants for each of four footstep surfaces (the bank shipped two
+stone, one wood, one water and no snow; one variant is worse than none, because the ear picks a
+byte-identical footstep out within a few paces). **Zero placeholders remain.**
+
+The toolkit needed three things first, and these matter more than the individual effects:
+
+- **`modal()`** — a sum of inharmonic decaying sinusoids, which is how a struck solid actually
+  sounds. Stone, iron, wood and glass are mode-ratio tables. No amount of filtering a sawtooth gets
+  there, and every impact in the bank is now built on this.
+- **`reverb()` rewritten.** It was one block of white noise under a single exponential: a plausible
+  tail and nothing else, with no pre-delay (so the wet signal smeared the transient that tells you
+  what was struck), no early reflections, and one decay rate for the whole spectrum. Now pre-delay,
+  ten irregularly-spaced early taps, and a three-band tail whose highs die fastest.
+- **`transient()` and `granular_scrape()`** — contact clicks and discrete micro-contacts. A
+  continuous noise band reads as wind however it is enveloped; real scraping is grains.
+
+`write_ogg` gained a `soundfile` fallback, so a render no longer requires ffmpeg on the machine, and
+the default quality went 5 → 7: most of this bank is broadband noise, which is exactly the content
+Vorbis spends the most bits on.
+
+### §127.9 — Console noise, and two real bugs inside it
+
+A castle run printed 10 errors and 18 warnings. After this pass: 6 warnings, all of one known kind.
+
+| | was | now | what it was |
+|---|---|---|---|
+| `agent_height/agent_radius is ceiled` | 12 | 0 | 1.8 and 0.45 against a 0.25 grid; the baker rounded both, so the file described an agent the mesh was never built for |
+| `multiple stairs rooms on floor` | 8 | 0 | **real bug** — see below |
+| `doorway span … footprint mismatch` (error) | 2 | 0 | **real bug** — see below |
+| `locomotion 'walk' speed_scale clamped` | 18 | 0 | the walk clip was tuned for 4.5 m/s while characters walk at 0.9–3 |
+| `_focus_grid_cursor: Method not found` | every inventory open | 0 | the method has never existed |
+| `blacksmith_ui.gd` parse errors | build-breaking | 0 | Variant inference on `_selected_inv_index()` |
+
+**Multiple stairs rooms.** `is_stairs_room` tested `templateId.ends_with("_stairs")`. A template is
+chosen to fit a room's *door mask* — templates are interchangeable shapes, not roles — so
+`castle_stairs` is drawn for ordinary rooms constantly: in the committed eighteen-room fixture, five
+rooms are built from it and exactly one has `kind == "stairs"`. All five got a stair lever. Now keyed
+on the generator's own `kind`, carried onto `RoomTemplate.room_kind`. Stair *collision* still keys on
+the template, because that one is genuinely about geometry.
+
+**Doorway span.** Two faults in one `elif` chain. The corridor test ran before the shortcut test, so
+a non-tree edge touching a corridor room was labelled `corridor` — and `_build_doorway_bridges` only
+closes *shortcuts* whose sockets fail to meet, so those edges fell through to `push_error` and the
+floor was built anyway, with a carved doorway opening into a four-unit hole. And the test asked
+`graph.walk_edges`, the Phase 1 grid walk's spanning tree, while rooms are positioned by
+`_walk_layout`'s breadth-first walk from the entrance — two different trees that need not agree, so
+an edge could be called spanning, and trusted to line up, when the room at its far end was placed
+through some other edge entirely. Now classified against the traversal that actually placed the
+rooms, with non-tree taking precedence.
+
+**Still open:** six shortcut edges per floor are closed because their door sockets do not meet
+laterally. That is C-210's underlying footprint mismatch, now reported honestly instead of erroring,
+but the floors are losing optional connections and the templates need consistent door offsets along
+each wall. Not attempted here.
+
+### §127.10 — The document stays
+
+The instruction was to delete this file if everything in it is completely implemented. Everything
+*in* it is. This section is why that was the wrong test: §1–§126 closed 262 findings without once
+looking at the screen, and the first look found a character model in pieces, a build-breaking parse
+error, eighteen unauthored sounds and two procgen bugs.
+
+The caveat from §126.3 is now half-retired — the work has been *looked at*, systematically, at every
+appearance combination. It still has not been **played**.
+
+---
+
+## §128 — The bug that made the game unplayable, and 81 warnings nobody could see
+
+Three reports, all from actually running the game. Two of them were things no check in this document
+could have caught, because both are about state that only exists *after* a scene change.
+
+### §128.1 — C-272: Begin sent the player back to the main menu
+
+The blocking one. Character creation completed, the character was written to disk correctly, and the
+player was returned to the main menu.
+
+`Hub._boot_save_and_services` reloads the save on entry, for the cloud-sync case. It called
+`LocalSave.load_into_services()` — which reads `SAVE_PATH`, the **legacy single-save file** kept only
+for migration. Each character has had its own document under `characters/` since the roster landed.
+So the hub re-read a stale `aumbrye_save.json` belonging to nobody, `CharacterService.class_id` came
+back empty, the hub's own guard fired, and the player was bounced.
+
+Measured, driving the real UI through `scenes/debug/probe_creation_flow.tscn`:
+
+```
+completed emitted: class=berserker name=ProbeFlow2876
+execute_boot -> true
+after boot: CharacterService.class_id = 'berserker'
+--- simulating Hub._boot_save_and_services
+  load_into_services -> true
+  CharacterService.class_id after reload = ''
+  ^^ HUB BOUNCES TO MAIN MENU HERE
+```
+
+The correct rule already existed twice — `LocalSave._ready()` and `execute_boot()`'s CONTINUE_MAIN
+branch both prefer the active character's document — and the hub was the one caller that did not use
+it. It is now `reload_active_into_services()`, one function that states the rule once. After the fix
+the same probe reports `LANDED: hub.tscn (class_id='berserker')`.
+
+**This bug also destroyed data.** After bouncing, the services held an empty class, and the next
+autosave wrote that back over the character's own document. Both characters in the test save carry
+`"classId": ""` in their document *and* in the roster — they were created correctly and then
+overwritten by the failure. Existing characters made before this fix cannot be recovered by it;
+their class is genuinely gone from disk.
+
+The hub's bounce also had no diagnostic at all, which is why this presented as "Begin does nothing".
+It now pushes an error naming the character id and what was wrong with it.
+
+### §128.2 — C-273: the project's one warning setting had never worked
+
+`project.godot` carried exactly one GDScript warning configuration:
+
+```ini
+[gdscript]
+
+warnings/untyped_declaration=1
+```
+
+That resolves to `gdscript/warnings/untyped_declaration`. The setting the engine reads is
+`debug/gdscript/warnings/untyped_declaration`. The key did not exist, so it did nothing, for as long
+as it had been there — and the warning it was trying to enable was in fact still at its default of
+**off**.
+
+Underneath it, at the editor's default levels, the project was carrying **81 warnings**. They are
+invisible from the command line — a standalone debug run prints none of them — which is why every
+verification pass in §1–§126 reported a clean build.
+
+Enumerating them needed a tool, because there is no CLI that dumps the analyzer: `--check-only
+--script` cannot resolve autoloads or `class_name` globals, and `--import` does not recompile what it
+has already cached. `scenes/debug/lint_scripts.tscn` loads every script from a running scene, where
+both work, and any warning configured as an error surfaces as a load failure naming file and line.
+
+| class | count | notable |
+|---|---|---|
+| unused parameter | 13 | |
+| shadowed variable / base class member / own function | 20 | seven locals named `name`, shadowing `Node.name` |
+| incompatible ternary | 6 | `TranslationServer.translate` returns `StringName`; the fallback was a `String` |
+| int used where an enum was expected | 6 | persisted input bindings restored into `Key` / `MouseButton` / `JoyAxis` |
+| declared below in the parent block | 5 | |
+| same name as a built-in function | 9 | `seed`, `floor`, `char`, `convert`, `snapped` |
+| unused local / class variable / signal | 8 | |
+| narrowing conversion | 4 | **real defect** — see below |
+| integer division | 3 | |
+| shadows a global class name | 4 | |
+| static function called on an instance | 1 | |
+
+Two were real defects rather than naming:
+
+- **`minimap.gd`** sized every room with `maxi(4.0, world_w * s)`. `maxi` narrows both arguments to
+  int, so a room 12.8 px wide was clamped against 4 as **12** and the `.floor()` that was supposed to
+  do the rounding had nothing left to do. Now `maxf`.
+- **`inventory_ui.gd`** deferred a call to `_focus_grid_cursor`, a method that has never existed, on
+  every single inventory open. The grid cursor was left unhighlighted until the player moved it.
+
+All 81 are fixed, and the warning set is now configured at **error** level under the correct key, so
+the class cannot come back silently. Three places that genuinely intend what they do — a stack split,
+a row index, a sheet layout — say so with `@warning_ignore` at the line, which is a claim in the
+source rather than a line in a settings file.
+
+Two bulk renames went wrong and were caught by the smoke test rather than by the linter, which is
+worth recording: `seed` → `seed_value` also renamed `RandomNumberGenerator.seed`, and `basis` →
+`socket_basis` renamed `Transform3D.basis`. A linter that only checks compilation cannot see either.
+
+### §128.3 — Console noise, continued
+
+With §127.9's fixes and these, a castle run now prints **6 warnings and no errors**, all of one kind:
+the shortcut edges C-210 closes because their door sockets do not meet. That is still the largest
+open procgen issue and is not fixed here.
+
+### §128.4 — Preview polish
+
+Second pass over the warden, driven by looking at renders rather than at code:
+
+- The **head** was capped by a full-width two-layer steel band — the brightest thing on the model,
+  reading as a hat brim. It is now one inset layer with the lit visor slit *inside* it, so the helm
+  has one feature instead of two competing ones. As two separate bands a voxel apart they read,
+  unmistakably, as eyebrows above a mouth.
+- The **head is seated two voxels into the torso's collar notch**, done by lowering its joint rather
+  than by a mesh offset — hair and the Visor / Hood extras all hang off the Head *pivot*, and a
+  mesh-only offset slides the skull out from under everything attached to it. That was tried first
+  and produced a warden wearing its own hair as a floating slab.
+- **Pauldrons** sat at `(0, 1, -2)` from the shoulder, clear of the arm entirely, reading as two
+  blocks beside the neck. Now `(0, -1, 0)`.
+- The **chest placard** ran the full height of the chest band and read as a slab taped to the front.
+  Now narrower and confined to the upper chest.
+- The **pelvis** was the widest part of the body. Drawn in.
+- `shoulder_x` was tried at 7 to close the gap between arm and torso, and reverted: at 7 the upper
+  body fuses into one mass, and the dark line at 8 is the arm's own shaded side, which is what
+  separates them. Recorded because the change looks obviously right on paper and is wrong on screen.
+
+---
+
+## §129 — Walking every phase, and the bug that means the game has never run
+
+A harness that boots each phase and mode of the game in its own process and reports what it prints:
+`scenes/debug/phase_walk.tscn`, driven by `walk.sh`. Sixteen phases — title, main menu, character
+creation, the three run menus, results, loading, hub, combat arena, castle / endless / waves /
+challenge runs, floor advance, boss fight, run completion, return to hub.
+
+The Godot MCP can *run* scenes but has no tool that reads console output — `debug_log` only writes —
+so it cannot capture warnings. It was used to confirm project state (autoloads, audio buses, input
+map); the capture is stdout from a separate process per phase.
+
+Two lessons about the harness itself, both worth keeping:
+
+- It filled the five-slot character roster by its fifth phase, after which every phase reported
+  "character slots full" instead of its own problems — the harness measuring itself. The driver now
+  moves the user data directory aside and gives each phase a clean save.
+- Calling `RunFlow.start_new_castle_run()` from the walker's `_ready` put the whole generation chain
+  inside that node's setup and failed with "parent node is busy setting up children". In the real
+  game none of that is reached from a `_ready`.
+
+### §129.1 — C-274: no run has ever started through the live path
+
+**Measured: 0 of 8 castle runs reached the run scene. All eight returned to the hub.**
+
+Three separate defects, stacked.
+
+**The failure was silent.** `RunFlow._start_mode_run` routed a generation failure to `CrashLogger`
+*instead of* the console:
+
+```gdscript
+if CrashLogger:
+    CrashLogger.log_error("run_flow.procgen_failed", {"message": fail_msg})
+else:
+    push_error("RunFlow: %s" % fail_msg)
+```
+
+So the player presses Enter Castle, is returned to the hub, and nothing anywhere says why. Now both.
+Making it audible is what exposed everything below.
+
+**`entrance_present` failed on every floor of every biome.** The validator required a room with
+`type == "entrance"` and read `placements.entrance` as `{"roomId": …}`. Neither has ever been true
+of what the generator emits — the entrance room is typed `hub`, and the placement is a bare room-id
+string. Every consumer in the game reads it as a string:
+
+```gdscript
+var entrance_id := str(_dungeon_def.get("placements", {}).get("entrance", "entrance"))
+var exit_room_id: String = definition.get("placements", {}).get("exit", "boss")
+```
+
+Only `placements.boss` is a dictionary, because it carries an enemy id. The same mistake silently
+disabled `exit_reachable` — the check that a floor can be finished — because
+`exit_placement is Dictionary` was always false.
+
+This is the second time this validator has been out of step with its producer; the `schema_version`
+check has a comment saying it was left on 1 when the v1 schemas were retired, with the same
+consequence.
+
+**`_room_aabb` passed degrees to a parameter named `yaw_rad`.** `transform.yaw` is written by
+`build_rooms` as `rad_to_deg(yaw_rad)`; `RoomTemplateCatalog.half_extent_x(spec, yaw_rad)` wants
+radians. A room rotated a quarter turn was measured at `cos(90 radians)`. It now prefers the `size`
+the generator already wrote — computed from the same spec and the same yaw it used to *place* the
+room, so the validator and the layout cannot disagree about how big a room is.
+
+It all went unseen because **everything that exercised a built floor bypassed the validator**:
+`export_procgen_fixture` calls `DungeonProcgen.generate` directly, and the world-capture tool
+injects a committed fixture through a root meta. `procgen_seed_health` covers Phase 1 — the room
+graph — and stops there. Nothing measured Phase 2 at all.
+
+### §129.2 — C-275: the layout puts rooms on top of each other
+
+With the two validator defects fixed, the failure moves to the real one. New tool,
+`scenes/debug/definition_health.tscn`, 30 seeds per biome:
+
+| biome | pass | biome | pass |
+|---|---|---|---|
+| forgotten_castle | 13.3% | iron_vault | **0%** |
+| crystal_caverns | 10.0% | prism_depths | 10.0% |
+| poison_swamp | 3.3% | venom_mire | **0%** |
+| frozen_fortress | 6.7% | glacial_hollow | **0%** |
+| dark_cathedral | 3.3% | umbral_chapel | 3.3% |
+
+**15 of 300 floors pass — 5%.** 283 of the 285 failures are `no_room_overlap`, and three biomes
+never pass at all, so retrying seeds cannot rescue them. `LocalProcgen` tries three salts, which at
+5% gives about a 14% chance of a run starting — consistent with 0 of 8.
+
+The overlaps are real and large, not epsilon. Measured on the fixture, using the generator's own
+sizes:
+
+| pair | overlap | templates |
+|---|---|---|
+| combat_11 / combat_7 | 16.0 × 6.0 | courtyard (20×20) / courtyard (20×20) |
+| combat_6 / combat_9 | 4.0 × 16.0 | hall (16×16) / stairs (8×16) |
+| combat_10 / combat_11 | 4.0 × 2.0 | entrance (16×12) / courtyard (20×20) |
+| combat_7 / combat_8 | 4.0 × 4.0 | courtyard (20×20) / stairs (8×16) |
+
+Half of one courtyard is inside another.
+
+The cause is structural. `RoomGraphGeometry._walk_layout` positions each room from its *parent* by
+summing half-extents, so a parent and child always touch — but nothing relates two rooms reached
+along different branches. Footprints run from 8×8 (secret) to 28×28 (boss), a 3.5× spread, so cells
+that are far apart on the grid routinely coincide in world space. It is the same root cause as the
+shortcut edges that miss by 8 to 20 units (§128.3).
+
+**Not fixed here, deliberately.** The committed fixture at `git HEAD` — generated before any change
+in this session — contains an 8×4 overlap, so this predates all of it. The fix is the
+constraint-solving positioning rewrite already tracked as C-157, and the obvious quick patches are
+all wrong: retrying more seeds cannot help three biomes that never pass; a uniform grid pitch
+removes overlap but leaves gaps, and `_build_doorway_bridges` only *validates* spans — there is no
+geometry that spans one, so every door would open into a void; giving every template one footprint
+is an art decision, not a bug fix.
+
+**The game cannot currently start a run.** That is the headline, and it is now loud instead of
+silent.
+
+### §129.3 — What the walk found besides that
+
+| finding | status |
+|---|---|
+| Boot failure reported as "Could not load save" for every cause | fixed — `last_boot_failure` carries a reason; a full roster now says so |
+| `combat_arena.tscn` path wrong in the harness | fixed (harness) |
+| `challenge_run` hangs with no active challenge | fixed — the walk listens on `run_warning` and reports the refusal |
+| 4 leaked ObjectDB instances at exit — all `title_theme.ogg` | **not fixed.** `AudioDirector._exit_tree` now stops every player and drops its stream, which is correct hygiene and verified to run, and the warning persists: the remaining references are the engine's own resource cache. Cosmetic, at process exit only. |
+| `NO GRAB`, shader-cache write failures | environmental — X11 focus and the harness's wiped user directory, not the game |
+
+The shortcut-closure warnings from §128.3 are now one `print_verbose` summary per floor instead of
+six warnings, because closing them is correct under this layout and reporting expected behaviour as
+a defect on every floor is how real defects get ignored.
+
+A castle-run world capture now prints **no warnings and no errors at all**.
+
+---
+
+## §130 — Characters that can be told apart
+
+The report was that character traits are indistinguishable and the cast looks like slop. It was
+right, and for reasons that were structural rather than a matter of taste.
+
+### §130.1 — C-276: skin tone repainted the whole cast, including the enemies
+
+`_apply_skin_tone` pushed the chosen tone onto **every mesh in the rig** as a near-white multiplier
+between 0.74 and 1.09. Choosing a complexion moved the entire suit of armour by a few percent, which
+is why none of the eight tones could be told from any other.
+
+Worse, `build_from_manifest` read `CharacterService.appearance_profile` and applied the **player's**
+tone to whatever it was building — and every enemy, training dummy and hub NPC is built through that
+function. The player's complexion quietly recoloured the whole cast, and changing it changed all of
+them together. That is most of "the NPCs look like slop too".
+
+Skin now lives on a face plate, which is its own mesh instance and carries its own tint. Body meshes
+carry none.
+
+### §130.2 — C-277: hair had no colour, and four of six faces drew nothing
+
+**Hair colour did not exist as an axis.** Every warden's hair resolved to one palette slot, so the
+seven hair *styles* could only vary silhouette and two characters in the same biome were identical
+from the neck up. There are now eight colours — literal RGB, deliberately not palette slots, because
+hair colour is a decision about the character and not a property of the room they are standing in.
+The hair volume is authored white and the choice arrives as the instance tint the surface shader
+multiplies `COLOR` by.
+
+**Faces were two implementations for six styles.** `stern` and `kind` drew a couple of accent boxes
+positioned against `PROFILES["player"]` — a hardcoded box spec that is not the size of the voxel head
+actually being built — and `weary`, `scarred` and `hollow` did nothing at all. Four of six choices
+were inert and the two that worked put their marks in the wrong place.
+
+Faces are now authored plates, one per style, six voxels by four, sat on the head's front. Two
+materials: white for the skin field and near-black for the features, so multiplying by any skin
+colour leaves eyes, brow and mouth dark. A first pass used a wider, taller plate with three marks per
+face and every style rendered as a flat coloured slab — at this size the eye is looking for a
+*pattern*, and three dark cells in thirty do not make one.
+
+### §130.3 — C-278: instance tints set before the node entered the tree
+
+The tints did nothing at first. `set_instance_shader_parameter` writes through to the rendering
+server's instance, and a `MeshInstance3D` that has not yet entered the tree has no instance to write
+to — the value is dropped silently. Both the hair and the face plate were setting theirs before
+`add_child`. The old whole-body path never hit this because it ran after the rig was fully built.
+
+The face plate also did not render at all, and chasing that is what corrected §127.5. It was placed
+on the head's `+z` face, the anatomical front the sculptor authors toward — and it was invisible,
+while placing it on `-z` made it appear. That looked like proof the model faces `-z`, and it was the
+opposite: `FRONT_YAW := PI` was turning the preview to show the warden's back, so the front-facing
+plate was pointed away from the camera.
+
+Settled by measurement with the plate as the subject, counting skin-coloured pixels in the head band:
+
+| yaw | 0° | 90° | 180° | 270° |
+|---|---|---|---|---|
+| skin pixels | **1808** | 224 | 0 | 208 |
+
+Front is `+z` at yaw `0`, which is what the authored data says too — the chest placard and the visor
+slit are both on the volume's max-z face. `FRONT_YAW` is `0.0`. §127.5 is corrected in place.
+
+The lesson worth keeping: the earlier measurement was of the right kind and still wrong, because the
+thing it counted (accent pixels anywhere on the chest) was not the thing it was reasoning about (a
+two-voxel placard). A measurement needs a subject that cannot be confused with anything else.
+
+### §130.4 — Result
+
+Eight wardens differing only in hair style, hair colour, complexion and face now read as eight
+different people rather than eight copies. Verified: smoke test clean, 321 scripts with no warnings,
+a castle-run world capture with no warnings or errors.
+
+**Not done:** enemies and hub NPCs get the *correction* — they are no longer tinted by the player —
+but no identity axis of their own. A castle grunt and a swamp grunt still differ only by biome
+palette. Giving them per-archetype variation is the obvious next step and is not attempted here.
+
+---
+
+## §131 — What a class wears with nothing equipped
+
+### §131.1 — C-279: five of seven classes had a box, two had nothing
+
+`_apply_class_armor` added a single `add_box` per class for knight, rogue, scholar, berserker and
+sentinel. **Herald and hunter had no clothing at all.** Every box was positioned against
+`PROFILES["player"]` — the same hardcoded box spec that is not the size of the voxel torso being
+built, and the same mistake the face system made — and every one was coloured from the biome
+palette, so all five classes came out the same colour as each other in any given dungeon.
+
+The default warden is what a player looks at for the whole of character creation and for as long as
+it takes to find a first item. It was one warden, seven times.
+
+There are now seven authored garment volumes with their own literal palettes:
+
+| class | garment | primary / trim |
+|---|---|---|
+| knight | surcoat over plate, centre stripe, steel yoke | blue / white |
+| sentinel | overlapping faulds and a gorget | gunmetal / amber |
+| berserker | fur mantle with a ragged hem, one strap | rust / hide |
+| rogue | close wrap, wide belt, baldric | near-black / moss |
+| hunter | jerkin, quiver strap, short back cape | forest green / tan |
+| scholar | full-length robe with a stole down the front | violet / gold |
+| herald | tabard party per pale, mirrored back to front | white / crimson |
+
+Colours are literal rather than palette slots, and deliberately strong. A class has to read at a
+glance and from behind, and the palette slots are all muted stone and metal by design — correct for
+a room, useless for telling a scholar from a sentinel.
+
+### §131.2 — Grown from the body, not boxed around it
+
+The first pass authored each garment as a rectangular shell sized to the torso's bounding box. Every
+class came out a sandwich board: the torso pinches at the waist and flares at the ribs, so a
+constant-width shell stood one voxel proud at the chest and three at the belt, hung past the
+shoulders, and hid the body it was meant to be worn by.
+
+Garments are now built by **dilating the torso's own occupancy** — the layer of cells one voxel
+outside its surface, tagged front / back / side. That follows every taper for free and fits all nine
+stature-and-build combinations without a separate volume per body shape. A hem is extruded downward
+from the lowest clothed ring, because a robe does not stop where the body does.
+
+Two further passes on the art itself:
+
+- **Folds.** A cloth panel is a large flat area of one colour, and at this scale the surface
+  shader's stitch pattern was the only thing varying across it — it read as graph paper. Every third
+  column is now a darkened tone of the primary, which reads as a fold and gives the panel a
+  direction.
+- **Rogue was the other green one.** Beside the hunter's forest green it was the same silhouette in
+  a second shade of the same colour. It is near-black now; a rogue reading as "the dark one" is
+  worth more than a rogue reading as "the other green one".
+
+### §131.3 — C-280: the preview showed the previous character's class
+
+`_apply_class_armor` read `CharacterService.get_class_id()`. During character creation the player
+has not committed a class yet, so the service still holds the *previous* character's — the screen
+whose entire job is choosing a class was previewing the wrong clothing for all of it. The profile
+now carries `classId` and wins over the service.
+
+### §131.4 — Title removed
+
+The Title row is gone from character creation, as asked. Titles themselves are untouched: they are
+earned elsewhere, `CharacterAppearance.sanitize` still preserves whatever is on the profile, and
+`_build_appearance_profile` simply no longer overwrites it. The `CREATE_ROW_TITLE` string is now
+unreferenced and left in place rather than deleted, since the title machinery it belongs to is still
+live.
+
+Verified: smoke test clean, 320 scripts with no warnings, a castle-run world capture with no
+warnings and no errors, and the creation screen showing nine appearance rows with Hair colour
+present and Title absent.
+
+---
+
+## §132 — The title screen was the one menu with a dead field behind it
+
+Every menu in the game gets its backdrop from `GameUISkin.make_backdrop`, which carries
+`ui_vignette.gdshader` — the quantized vignette, the warm pool of light in the middle, and the slow
+drifting motes.
+
+The title screen built its own instead: a plain `ColorRect` with no material, under a *second* flat
+`ColorRect` at 35% black. No shader, so no vignette and no motes — and the extra dark rect would
+have dimmed them even if there had been any. The first thing anyone sees was the only screen in the
+game sitting on a flat fill.
+
+It now uses the shared backdrop, at the same opaque `Color(0.02, 0.02, 0.06)` the main menu sets, so
+moving from the title to the menu does not shift the field behind the panel. The tower silhouette
+still hangs off it, and the hand-rolled dark rect is gone. Named and reused, matching `main_menu`,
+because `_build_ui` runs again on a language change and an unnamed backdrop would stack a fresh
+opaque rect over the screen every time.
+
+Measured on a 260x360 corner strip of each capture: both now read a mean of RGB (3.4, 3.4, 11.8) —
+the same field — and both carry motes. The mote counts differ between the two shots (100 and 48)
+only because the motes drift with `TIME` and the screens were captured moments apart.
+
+---
+
+## §133 — Character creation, second pass
+
+### §133.1 — C-281: the preview ignored the class picker
+
+`_select_class_index` refreshed the comparison table and the detail text but never rebuilt the
+warden. Default clothing is per class, so the figure kept the previous class's outfit until some
+unrelated appearance row was touched — on the one screen whose entire job is choosing a class.
+
+It calls `_refresh_preview()` now, which re-dresses the rig and updates the detail text on the way
+past.
+
+**The reported "options reset to default when you change class" is the same bug, seen from the
+other side.** Driving the real UI — set every row off its default, switch class, read the rows back —
+shows them preserved:
+
+```
+before class switch: [2, 2, 2, 2, 2, 2, 2, 2, 2]
+after  class switch: [2, 2, 2, 2, 2, 2, 2, 2, 2]
+RESULT: rows preserved
+```
+
+Nothing was resetting. The preview was stale, so the figure did not reflect the choices the player
+had made; touching any row rebuilt it and the warden visibly changed, which reads as "it reset and I
+had to set them again". Fixing the refresh removes the symptom because it removes the staleness.
+
+### §133.2 — C-282: the hood, and hair through head coverings
+
+The hood was an 8x4x7 box declared in the archetype table and parked behind the head at an offset.
+It covered neither the crown nor the sides, and whatever hair the player had chosen came straight
+through it.
+
+It is now grown from the head's own occupancy — the same dilation the class garments use on the
+torso — as a cowl: one layer out over the crown, back and sides, open at the face, with a lighter
+lip around the opening and a hem carried three voxels below the jaw so it has a neck rather than
+stopping in a straight line.
+
+Hair is suppressed under **any** head covering, not just the hood. The 3 x 7 head-style-by-hair-style
+sheet showed the visor helm wearing a tuft of hair on top of it in all six styles that have any —
+the same fault, and one the report had not mentioned. Head covering wins over hair, for both
+coverings.
+
+### §133.3 — C-283: the stat abbreviations are gone from the class cards
+
+`DM`, `PS`, `MP`, `BL`, `PO` and the rest asked a player to learn a two-letter code for every stat
+before they could read a card. The same numbers are already on the All Classes table directly below
+the picker, spelled out in full and side by side, which is where a comparison belongs. Cards are now
+icon, name and role.
+
+### §133.4 — Auditing every combination
+
+Rendering every combination is not possible: stature x build x head x trim x hair x hair colour x
+skin x face x class is over a million wardens. But the things that actually go wrong are structural,
+and `scenes/debug/combination_audit.tscn` asserts them on the built rig without rendering anything —
+every required part present, hair never visible under a covering, a face plate exactly when the head
+is open, a garment for every class, and a body that is one connected height standing on the floor.
+
+**4353 combinations, 0 failures.** The geometry sweep covers stature x build x head x hair x trim x
+class exhaustively; a second pass covers face x skin x hair colour at one geometry.
+
+A clean run from a check that cannot fail is worth nothing, so the check was verified against a
+deliberately wrong height bound: it reports **3030 failures**, naming each combination and its
+measured height. The thresholds were restored afterwards.
+
+The contact sheets remain the visual half — body shapes, head and trim, head against hair, identity,
+classes, yaw — and reading the head-against-hair sheet is what found the visor tuft that the audit
+was then extended to catch.
+
+---
+
+## §134 — CI, Dependabot and every test file removed
+
+Standing decision by the project owner, recorded in `CLAUDE.md`: this repository has no GitHub
+Actions, no Dependabot, and no test files of any kind, and none of the three are to be added back.
+
+**This reverses C-40 and C-265 from earlier in this document.** Those sections argued for a CI
+pipeline and a release workflow and are now historical: the workflows they added are deleted. The
+argument they made about the *defect* still stands — `content/` lives outside `res://`, so an export
+that does not copy it ships with no catalogues — but the remedy is now a manual export step, and
+`content_loader.gd` says so in place of naming a workflow.
+
+Removed:
+
+| | |
+|---|---|
+| `.github/workflows/` | `ci.yml`, `release.yml` — both added earlier in this session |
+| `.github/dependabot.yml` | |
+| `services/backend/tests/` | 38 files, two projects, and their entries in `Aumbrye.sln` |
+| `apps/web` | 6 `*.test.tsx`, 2 e2e specs, `src/test/`, `vitest.config.ts`, `playwright.config.ts` |
+| `tools/voxel-import/` | `run_tests.py`, `test_convert.py` |
+
+`.github/` keeps `CODEOWNERS` and `PULL_REQUEST_TEMPLATE.md`, which are neither CI nor Dependabot.
+
+Consistency work, so nothing is left pointing at something that no longer exists:
+
+- `scripts/validate.mjs` — the `dotnet` layer ran `dotnet test` against the solution. It builds the
+  solution and the procgen CLI now and stops there.
+- `apps/web/package.json` — `test`, `test:watch` and `test:e2e` scripts gone, along with seven
+  test-only devDependencies and `msw`, which had no use outside the setup file. The lockfile was
+  regenerated; it carries no reference to any of them.
+- `README.md`, `CONTRIBUTING.md` — the `dotnet test` step removed from both.
+- `docs/validation/manual-checklist.md`, `docs/DOC-CONVENTIONS.md` — both claimed DOC-01 and the
+  smoke test ran in CI. They name the local runner instead.
+- `game_facade.gd` — its `--smoke-test` docstring claimed the `godot` CI job ran it on every push.
+- `project_structure.json`, `eslint.config.js` — regenerated / de-referenced.
+
+`docs/ARCHITECTURE.md` needed no change: it already said "There is no hosted CI", which was stale
+while the workflows existed and is true again.
+
+Verified: `--import` clean, smoke test OK, 322 scripts with no warnings, DOC-01 passing, and a
+repository-wide sweep finding no file matching `test_*`, `*_test.*`, `*.test.*`, `*.spec.*`,
+`run_tests*`, `dependabot*`, `tests/`, `__tests__/` or `workflows/`.
+
+**Not verified here:** `dotnet` and the web `node_modules` are not installed on this machine, so the
+backend build and the web lint/typecheck could not be run. The solution edit is structurally sound —
+six projects, no orphaned GUID rows — but it has not been compiled.
+
+---
+
+## §135 — The linter was reporting clean because its own setting did nothing
+
+Two warnings appeared on the editor's first script reload — an unused `profile` parameter and an
+unused `head_back` local, both left in `diorama_character_skin.gd` by the face-plate work. Fixing
+them is trivial. **The interesting part is that `lint_scripts` had just reported 322 scripts, 0
+failures on that exact file**, and so had `--import` and the smoke test.
+
+Two independent faults, and the second is the same mistake this document already diagnosed once.
+
+**The linter never recompiled anything that was already loaded.** It called `ResourceLoader.load()`,
+which returns whatever is in the resource cache — and every `class_name` global and every autoload is
+loaded before the tool runs. So the files most worth checking were the exact ones never analysed. It
+now builds a fresh `GDScript` from the file's text and reloads it, which compiles in isolation.
+(`CACHE_MODE_IGNORE` is not the fix: a second uncached instance of a script that is also a
+`class_name` global segfaults the engine.)
+
+**The escalation to warnings-as-errors had been silently disabled.** §128.2 found the project's one
+warning setting written as `[gdscript] warnings/untyped_declaration`, a path the engine does not
+read, and escalated the whole set instead. When that block was rewritten into `project.godot` it was
+written as:
+
+```ini
+[debug]
+debug/gdscript/warnings/unused_parameter=2
+```
+
+Keys inside a section are relative to it, so that resolves to
+`debug/debug/gdscript/warnings/unused_parameter` — nothing. Read back at runtime the setting was
+still `1`. **This is C-273 committed a second time, in the fix for C-273.** The correct form under
+`[debug]` is `gdscript/warnings/unused_parameter=2`, and the section now carries a comment saying so.
+
+Verified by planting the unused parameter back and re-running: the linter reports
+`322 scripts, 1 failed` and names `diorama_character_skin.gd`. With the parameter fixed it reports 0
+— which now means something, where the previous run of the same number did not.
+
+The lesson is the one §130.3 already paid for: a measurement needs to be shown failing before a
+passing result from it counts for anything. The 81 warnings fixed in §128.2 were found under a
+working escalation and remain fixed; it was the *restore* afterwards that broke the setting.
+
+### §135.1 — Mouse scroll dismissed the title screen
+
+`_input` advanced on `event is InputEventMouseButton and event.pressed`. A scroll notch is an
+`InputEventMouseButton` with `pressed` set, so any scroll — including the inertial tail of one begun
+before the screen appeared — skipped the title. Wheel buttons are now excluded; a deliberate click,
+key or pad button still advances.
+
+Checked for the same pattern elsewhere: `inventory_ui.gd` already tests for `MOUSE_BUTTON_LEFT`
+specifically, and `lock_on.gd` reads the wheel **deliberately**, to cycle targets while locked on.
+That is correct behaviour and was left alone.
+
+Verified by feeding all four wheel buttons to the title screen and confirming it stays up.
+
+---
+
+## §136 — The camera did not follow the player, and flickered
+
+Two reports, three causes. All three were long-standing; they only surfaced now because a run had
+never started before §129 and the hub is where the player first moves.
+
+### §136.1 — C-284: the camera was pinned in world space
+
+`_apply_gameplay_pixel_snap` kept the pre-snap transform so it could restore it before re-reading —
+the right idea, C-23's fix for a snap that fed on its own output. But it kept the **world**
+transform:
+
+```gdscript
+if _snap_applied:
+    _camera.global_transform = _snap_base_transform   # last frame's ABSOLUTE transform
+_snap_base_transform = _camera.global_transform        # read straight back
+```
+
+From the second frame onward that restores a world position captured earlier and immediately reads
+it back as the new base, so it never advances. The camera froze where it stood the first time the
+snap ran and the player walked out of frame — exactly the report.
+
+### §136.2 — C-285: the shoulder offset was written to a transform the spring arm owns
+
+`_apply_shoulder_offset` did `_camera.position.x = _shoulder_x`. `SpringArm3D` owns its child's
+position and rewrites it every physics tick, so the offset was applied in `_process` and wiped in
+`_physics_process`. At any framerate where the two interleave the camera flicks between offset and
+centred, several times a second.
+
+It rides on `h_offset` now — a lens shift the spring arm never touches, and where the shake and
+punch offsets already live.
+
+### §136.3 — C-286: the gameplay pixel snap is off by default
+
+The snap quantises the *camera node's* transform onto the pixel grid to stop surface patterns
+crawling. Its output lands in the camera's local transform, and nothing rewrites that local in full
+each frame — the shoulder offset sets `x`, the spring arm sets `z`, and `y` and the basis keep
+whatever the snap left. Three formulations were tried and measured; each fights a different writer,
+because they interleave differently depending on whether a physics tick landed between two process
+frames.
+
+Measured on a walking player, as the worst deviation from the camera's mean offset to it:
+
+| | worst deviation |
+|---|---|
+| restore the pre-snap **world** transform (as shipped) | camera pinned; player leaves frame |
+| restore the pre-snap **local** transform | 4.03 m — the full arm length, every frame |
+| undo only the snap's own **delta** | 0.41 m |
+| restore at the top of `_process` | 2.58 m |
+| **snap disabled** | **0.29 m**, and that residual was C-285 |
+
+So it is off by default. The rendered image is still pixel-stable:
+`PixelDioramaViewport._mirrored_transform()` snaps a *mirror* of this camera — it writes to a
+different node than it reads, so it has no feedback path, and it is the one that governs how the
+game actually looks. The setting is kept rather than the code deleted; a correct implementation
+would write to a node nothing else touches.
+
+**After all three:** deviation `(0.0, 0.000001, 0.0)` on x, y and z, reproducible across three runs.
+`scenes/debug/camera_follow_audit.tscn` is the measurement, and it reports per-axis because that is
+what separated C-285 from the rest — the residual was entirely on x, which is the shoulder axis.
+
+### §136.4 — Scroll zoom
+
+Already bound: `zoom_in` is wheel-up and `zoom_out` is wheel-down in the input map, and
+`_unhandled_input` moves `_target_zoom` by a step. It looked broken because a camera pinned in world
+space cannot visibly dolly.
+
+The range was 2.5–7.0 m in half-metre steps, which lets the player pull far enough back that the
+warden becomes a detail in the room. Narrowed to 3.2–5.2 in 0.25 steps around the 4.0 default — a
+nudge for framing rather than a strategy-game zoom.
+
+## §137 — Title screen, menu chrome, and window resolution
+
+### §137.1 — C-287: `UISymbolBus` has no `emit_invalidated`
+
+Toggling anything in Settings › Display › Advanced Pixel Options aborted mid-save:
+
+```
+Invalid call. Nonexistent function 'emit_invalidated' in base 'Node (ui_symbol_bus.gd)'.
+  pixel_diorama_settings.gd:285 @ _emit_symbol_preset_invalidated()
+  pixel_diorama_settings.gd:276 @ save_and_apply()
+```
+
+The bus declares `invalidate(reason: StringName)`; `emit_invalidated` never existed. Three other
+call sites had the same typo and were latent for the same reason — a dynamic call on an autoload is
+not resolved until it runs:
+
+| caller | reason emitted | when it fires |
+|---|---|---|
+| `pixel_diorama_settings.gd:285` | `preset` | any pixel setting saved |
+| `input_glyph_watcher.gd:49` | `device` | keyboard ⇄ pad swap |
+| `input_rebind_service.gd` ×3 | `rebind` | any key rebound |
+
+All four now call `invalidate`. Verified by calling `PixelDioramaSettings.save_and_apply()` from a
+throwaway scene and watching it return without an error — the atlas reload behind `preset` runs.
+
+Nothing caught this: it is a runtime call, so `--import`, the linter and the smoke test are all
+blind to it. The reachable check is exercising the screen.
+
+### §137.2 — The title screen carries the wordmark and nothing else
+
+Removed: the centre panel, the `◆ ◆ ◆` ornament, the subtitle, the rule, the prologue paragraph,
+the "press any key" line, the build tag, and the stepped tower silhouette. The backdrop is
+untouched — the same `GameUISkinScript.make_backdrop()` star field the menus use.
+
+The mark is Press Start 2P, which is drawn on an 8×8 grid and is only crisp at multiples of 8. The
+theme's 22px menu-title size is not one, so the old title's glyph edges landed between pixels.
+`_wordmark_font_size()` picks the largest multiple of 8 that still clears a margin at the current
+window width (24–160), and every other dimension is a whole `unit = size / 8`: one unit of tracking
+via `FontVariation.spacing_glyph`, a one-unit keyline, a two-unit shadow offset.
+
+Two things were built the obvious way first and looked wrong:
+
+- **Glow as offset copies** — four copies at ±2 units read as double vision, a second misregistered
+  AUMBRYE floating above the first. It is now two hollow copies, fill alpha 0, with a thick
+  `outline_size` in aumbral violet, so the halo follows the letterform.
+- **Keyline as `outline_size`** — FreeType's stroker rounds corners at the stroke radius, and one
+  unit is 20px at wordmark scale, so the square glyph corners came out visibly bevelled. Both the
+  keyline and the drop shadow are drawn instead as a 3×3 block of copies offset by one unit, which
+  dilates the shape on its own grid.
+
+The halo, not a hint line, is what breathes: it holds at 35% until `_ready_to_continue`, then
+pulses. That is the only signal left that the screen is waiting for input.
+
+### §137.3 — Main menu
+
+`MENU_HINT_QUIT` ("Esc: quit") is gone from the button column, and the key is removed from
+`translations/strings.csv` along with `TITLE_PROLOGUE`, `TITLE_PRESS_ANY_KEY` and
+`TITLE_BUILD_TAG`, which nothing references any more.
+
+### §137.4 — Window resolution is now a setting
+
+`DisplayService` already persisted `window_size`, clamped it to the usable rect, and held
+`RESOLUTION_PRESETS` — it was simply never exposed. Added `available_resolutions()`,
+`resolution_labels()`, `resolution_index()` and `set_resolution_index()`, and a `_resolution_row()`
+in the Display schema directly under Monitor, because the sizes offered are the ones that fit the
+monitors attached (presets too large for every screen are dropped rather than silently clamped).
+`resolution_index()` falls back to the nearest preset by area, so a window sized by dragging its
+corner still shows the closest option.
+
+This is the size of the game **window**. The internal pixel-art render resolution is untouched and
+stays where it was, under Display › Advanced Pixel Options.
+
+`set_window_size()` forces windowed mode, which would have left the Window Mode row above it still
+reading "Fullscreen" — `settings_ui` now refreshes the visible page on `DisplayService.display_changed`
+the same way it already did on the accessibility signal.
+
+## §138 — The title screen and the menu are one screen
+
+The two used to be separate scenes. `title_screen.tscn` drew its own backdrop and its own wordmark,
+then swapped itself for `main_menu.tscn`, which drew a backdrop again and a small `Aumbrye` label
+inside the panel — so the game's name jumped between two sizes and two positions across a scene
+change, and the star field behind it was rebuilt from scratch on the way.
+
+`title_screen.tscn`, `title_screen.gd` and its `.uid` are deleted. `run/main_scene` is now
+`main_menu.tscn`, and the intro is a state that screen passes through:
+
+| | intro | resting |
+|---|---|---|
+| wordmark | centred, halo breathing | docked above the panel |
+| subtitle | under the wordmark | under the wordmark, unmoved |
+| prompt | "Press any key to continue" | gone |
+| panel | hidden, alpha 0 | visible, focus on the first enabled button |
+
+A keypress runs both at once: the wordmark's `offset_top`/`offset_bottom` ease to the docked
+position over 0.7s, and the panel fades up over 0.5s starting 0.25s in, so the menu arrives under a
+mark that is already most of the way to its resting place.
+
+Only the first arrival of a process plays it — `_intro_shown` is a static, so quitting to the menu
+from the hub or from a finished run lands straight on the menu with the wordmark already docked.
+`AccessibilitySettings.reduced_motion` takes the instant path instead of the tween.
+
+C-233's save-recovery question moved across with it. It now holds `_intro_ready` false until
+answered, so the intro will not accept a key while the prompt is up.
+
+### §138.1 — The wordmark is one node in two places
+
+`scripts/ui/title_wordmark.gd` (`class_name TitleWordmark`) owns the mark, the subtitle and the
+halo. Both states are that one node moving rather than two drawings of the same logo that have to
+be kept in step. Everything in it is a whole `unit = font_size / 8`, because Press Start 2P is
+drawn on an 8x8 grid — see §137.2 for why the halo is hollow outlines and the keyline is a 3x3
+block of offset copies rather than an `outline_size`.
+
+**Controls anchored wide must be moved by their offsets, not by `position`.** The first build set
+`position` on the wordmark and on every layer inside it, and the whole mark came out left-aligned
+and running off the edge of the screen. `Control.position`'s setter derives offsets from the
+control's *current* size, and at build time these nodes are not in the tree yet — their size is
+their own text width, not the parent's. `place_at()` and `_layer()` set the four offsets directly.
+
+### §138.2 — `--import` is not a parse check
+
+The wordmark's first draft had three parse errors (`Cannot infer the type of "block_h"` — the
+wordmark was typed `VBoxContainer`, which has no `block_height()`). `godot --headless --import`
+reported nothing: it reimports changed *assets*, and scripts already imported are not recompiled.
+`scenes/debug/lint_scripts.tscn` caught all three, because it builds a fresh `GDScript` and calls
+`reload(true)`. Same lesson as C-273 — the linter is the parse check; `--import` is not.
+
+### §138.3 — Layout
+
+The panel sits `0.14 x window height` below centre and the wordmark docks off the panel's measured
+top edge, so the pair moves together and stays balanced. A fixed 72px drop left the whole
+composition riding high with a third of the screen empty underneath. The drop is re-derived rather
+than accumulated, so a resize cannot walk the panel off the bottom.
+
+Under the project's `canvas_items` stretch the root viewport is a fixed 1920x1080 and the window
+scales around it, so this layout is the same at every resolution the new Resolution setting offers.
+`_on_viewport_resized` is kept anyway — the layout is derived, not hard-coded, and nothing should
+depend on that stretch mode staying as it is.
+
+`capture_ui_screens.tscn` records both states: `main_menu.png` is the intro (first instance of the
+process) and `main_menu_resting.png` instantiates it again and skips ahead.
+
+## §139 — C-288: hub prop highlights have never worked
+
+```
+Invalid call. Nonexistent 'float' constructor.
+  hub_interactable.gd:105 @ _start_highlight()
+  hub_interactable.gd:76 @ _on_body_entered()
+```
+
+`_start_highlight` read the material's current emission with
+`float(mat.get_shader_parameter("emission_energy"))`. `get_shader_parameter` returns **null** for a
+uniform that has never been assigned from code — even when the shader declares it with a default,
+which `pixel_diorama_emissive.gdshader` does (`= 1.6`). `float(null)` is a hard error in GDScript,
+not 0.0, so the call threw on the first frame a player stepped into any hub interact zone, before
+the pulse tween was created. No hub prop has ever highlighted on approach.
+
+`_shader_emission_energy()` now falls back to `RenderingServer.shader_get_parameter_default()` —
+the value the material is actually rendering with — and to 1.6 if there is no shader at all.
+Guessing 1.0 instead would have dimmed every prop the moment it was walked up to.
+
+Verified against the exact failing state: a fresh `ShaderMaterial` carrying that shader with nothing
+assigned. `get_shader_parameter` → `<null>`, the helper → `1.6`.
+
+## §140 — The wordmark goes through the game's own pixel pipeline
+
+The mark was crisp but one thing on it was not pixel art: FreeType's outline stroker draws a *soft*
+edge, so the halo faded off in smooth gradients while every other edge in the game is a hard block.
+
+It is now built inside a **SubViewport at 1/4 scale and upscaled with nearest filtering**, exactly
+as `PixelDioramaViewport` renders the 3D scene at 480x270. The halo lands on the pixel grid and
+steps like everything else, and the glyphs are quantised to that grid rather than to screen pixels.
+Because Press Start 2P is a pixel font on an 8x8 grid, a 40px mark magnified 4x is the same
+letterform as a 160px one — the internal size is a multiple of 8 and the upscale is an integer, so
+nothing is resampled.
+
+The purple drop shadow is unchanged; it is what the mark is recognised by.
+
+### §140.1 — The letters are two-tone now
+
+Flat fill plus a keyline reads as big text. The letters are drawn twice: a shaded copy where the
+glyph belongs, and the lit face lifted one unit up and left, leaving a single font-pixel of shade
+along the bottom and right edges. That inner bevel is how a pixel artist gives a letterform depth.
+
+The shade is `GameUISkin.ACCENT_BAR` — the old gold used for every panel rule and divider in the
+game — so it is the interface's own accent rather than a second yellow invented for the logo.
+
+The keyline is drawn around **both** copies. Dilating only the lower one left the lit face's
+top-left edge with no keyline at all.
+
+### §140.2 — Two things the low-res pass exposed
+
+- **The halo was too big.** At seven units the rings of adjacent letters merged into one slab, which
+  the low-res pass then quantised into a solid block behind the word. Soft falloff had hidden that;
+  hard pixels did not. Cut to three units and one.
+- **The halo was being clipped.** It is drawn outside the letterform, and the SubViewport clips at
+  its own edge, so a block only as tall as the glyphs cut the glow off square. The mark now carries
+  three units of air above and below.
+
+### §140.3 — Hazard: `capture_ui_screens` writes to the real save
+
+The run for this section left a new warden ("Dara Stormward") in the roster and a
+`lastCreationProfile` block in the active character's file — the harness captures
+`character_create.tscn` and calls `open_creation` on it. An older "Capture Warden" entry from a
+previous session is the same thing. Restored from a backup taken before the run; the save directory
+now diffs byte-identical apart from logs and the captures themselves.
+
+Godot has no per-run override for `user://`, so the harness cannot simply be pointed elsewhere.
+Until that is dealt with, **back up
+`~/.local/share/godot/app_userdata/Aumbrye/` before running `capture_ui_screens.tscn`.**

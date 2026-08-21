@@ -206,7 +206,7 @@ func _selected_upgrade_path() -> String:
 
 
 func _on_set_path_pressed() -> void:
-	var inv_index := _selected_inv_index()
+	var inv_index: Variant = _selected_inv_index()
 	if inv_index == null:
 		return
 	_report_forge(
@@ -216,16 +216,16 @@ func _on_set_path_pressed() -> void:
 
 
 func _on_mark_source_pressed() -> void:
-	var inv_index := _selected_inv_index()
-	if inv_index == null or inv_index is String:
+	var inv_index: Variant = _selected_inv_index()
+	if not _is_grid_index(inv_index):
 		return
 	_rule_source_index = int(inv_index)
 	_refresh_forge_buttons()
 
 
 func _on_transfer_pressed() -> void:
-	var inv_index := _selected_inv_index()
-	if inv_index == null or inv_index is String or _rule_source_index < 0:
+	var inv_index: Variant = _selected_inv_index()
+	if not _is_grid_index(inv_index) or _rule_source_index < 0:
 		return
 	_report_forge(
 		ForgeServiceScript.transfer_rule(_rule_source_index, int(inv_index)),
@@ -341,7 +341,9 @@ func _on_item_selected(index: int) -> void:
 	if index < 0 or index >= _item_indices.size():
 		return
 	var inv_index: Variant = _item_indices[index]
-	var slot: Dictionary = InventoryService.inventory.slots[inv_index]
+	var slot: Dictionary = BlacksmithService.resolve_target(inv_index)
+	if slot.is_empty():
+		return
 	var item_id: String = slot.get("itemId", "")
 	var level := BlacksmithService.get_slot_upgrade_level(slot)
 	var max_level := BlacksmithService.get_max_upgrade_level_for_slot(slot)
@@ -407,20 +409,32 @@ func _on_unlock_pressed() -> void:
 
 ## Index of the item currently selected in the list, or -1 when nothing is selected.
 ## Returns a grid index (int) or an equipment slot name (String); -1 when nothing is selected.
+## Returns the selected row's inventory key — a grid index (`int`) or an equipment slot
+## name (`String`) — or `null` when nothing usable is selected.
+##
 ## BlacksmithService and ForgeService both resolve either form via `resolve_target()` (C-237).
+## The sentinel is `null` rather than `-1` because callers cannot write `key < 0` against a
+## `String` key: GDScript has no ordering between `String` and `int` and raises at runtime.
+## Test with `== null` for "any item", or `_is_grid_index()` for "a backpack item".
 func _selected_inv_index() -> Variant:
 	var selected := _item_list.get_selected_items()
 	if selected.is_empty():
-		return -1
+		return null
 	var row: int = selected[0]
 	if row < 0 or row >= _item_indices.size():
-		return -1
+		return null
 	return _item_indices[row]
 
 
+## True only for a backpack grid index. Equipment slots (`String`) and empty selections
+## (`null`) both return false — the forge rule operations require an unequipped item.
+static func _is_grid_index(key: Variant) -> bool:
+	return key is int and int(key) >= 0
+
+
 func _refresh_forge_buttons() -> void:
-	var inv_index := _selected_inv_index()
-	var has_item := inv_index >= 0
+	var inv_index: Variant = _selected_inv_index()
+	var has_item: bool = inv_index != null
 	if _salvage_button:
 		_salvage_button.disabled = not has_item
 	if _reroll_button:
@@ -462,10 +476,12 @@ func _report_forge(result: Dictionary, failure_text: String) -> void:
 
 
 func _on_salvage_pressed() -> void:
-	var inv_index := _selected_inv_index()
-	if inv_index < 0:
+	var inv_index: Variant = _selected_inv_index()
+	if inv_index == null:
 		return
-	var slot: Dictionary = InventoryService.inventory.slots[inv_index]
+	var slot: Dictionary = BlacksmithService.resolve_target(inv_index)
+	if slot.is_empty():
+		return
 	var preview := ForgeServiceScript.salvage_preview(slot)
 	var result := ForgeServiceScript.salvage(inv_index)
 	if result.get("ok", false):
@@ -481,8 +497,8 @@ func _on_salvage_pressed() -> void:
 
 
 func _on_reroll_pressed() -> void:
-	var inv_index := _selected_inv_index()
-	if inv_index < 0:
+	var inv_index: Variant = _selected_inv_index()
+	if inv_index == null:
 		return
 	var result := ForgeServiceScript.reroll_affixes(inv_index)
 	if result.get("ok", false):
@@ -493,8 +509,8 @@ func _on_reroll_pressed() -> void:
 
 
 func _on_transmute_pressed() -> void:
-	var inv_index := _selected_inv_index()
-	if inv_index < 0:
+	var inv_index: Variant = _selected_inv_index()
+	if inv_index == null:
 		return
 	var result := ForgeServiceScript.transmute_rarity(inv_index)
 	if result.get("ok", false):
@@ -507,8 +523,8 @@ func _on_transmute_pressed() -> void:
 
 
 func _on_infuse_pressed() -> void:
-	var inv_index := _selected_inv_index()
-	if inv_index < 0 or _infuse_element == "":
+	var inv_index: Variant = _selected_inv_index()
+	if inv_index == null or _infuse_element == "":
 		return
 	var result := ForgeServiceScript.infuse(inv_index, _infuse_element)
 	if result.get("ok", false):

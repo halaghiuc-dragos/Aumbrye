@@ -31,7 +31,7 @@
       "mesh": "res://assets/characters/enemy_ranged/head.voxels.json",
       "joint": [
         0,
-        14,
+        12,
         0
       ],
       "parent": "Torso"

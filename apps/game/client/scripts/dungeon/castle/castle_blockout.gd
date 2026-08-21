@@ -4,6 +4,15 @@ class_name CastleBlockout
 
 ## Procedural castle blockout geometry with doorway cutouts.
 
+## Navigation bake grid. `DungeonBuilder._setup_floor_nav_map` sets the same cell size on the
+## floor's navigation map, so the two must agree or agents path against a different grid than the
+## one their mesh was baked on.
+const NAV_CELL_SIZE := 0.25
+## The warden is 1.44 m tall and about 0.4 m across the pauldrons; these are the clearances an
+## agent needs, before snapping to the bake grid above.
+const NAV_AGENT_HEIGHT := 1.8
+const NAV_AGENT_RADIUS := 0.45
+
 const CEILING_THICKNESS := 0.4
 const RoomTemplateCatalogScript := preload("res://scripts/dungeon/procgen/room_template_catalog.gd")
 
@@ -365,11 +374,22 @@ func _build_navigation_mesh() -> void:
 		_nav_region.owner = get_tree().edited_scene_root
 
 	var nav_mesh := NavigationMesh.new()
-	nav_mesh.agent_height = 1.8
-	nav_mesh.agent_radius = 0.45
+	# Agent dimensions snapped up to the voxel grid the baker rasterizes on.
+	#
+	# The baker ceils `agent_height` to whole `cell_height` units and `agent_radius` to whole
+	# `cell_size` units, and warns each time it has to. Authored as 1.8 and 0.45 against a 0.25
+	# grid, both were rounded — to 2.0 and 0.5 — so the numbers in this file described an agent
+	# the navigation mesh was never built for, and every bake printed two warnings. A floor bakes
+	# a region per room, so a single castle run filled the console with them.
+	#
+	# Writing the snapped values changes nothing about the result and makes the file honest. The
+	# arithmetic is spelled out rather than hard-coded so that changing the cell size cannot
+	# quietly reintroduce the mismatch.
+	nav_mesh.cell_size = NAV_CELL_SIZE
+	nav_mesh.cell_height = NAV_CELL_SIZE
+	nav_mesh.agent_height = ceilf(NAV_AGENT_HEIGHT / NAV_CELL_SIZE) * NAV_CELL_SIZE
+	nav_mesh.agent_radius = ceilf(NAV_AGENT_RADIUS / NAV_CELL_SIZE) * NAV_CELL_SIZE
 	nav_mesh.agent_max_climb = 0.5
-	nav_mesh.cell_size = 0.25
-	nav_mesh.cell_height = 0.25
 	nav_mesh.geometry_parsed_geometry_type = NavigationMesh.PARSED_GEOMETRY_STATIC_COLLIDERS
 	nav_mesh.geometry_source_geometry_mode = NavigationMesh.SOURCE_GEOMETRY_ROOT_NODE_CHILDREN
 	nav_mesh.filter_low_hanging_obstacles = true

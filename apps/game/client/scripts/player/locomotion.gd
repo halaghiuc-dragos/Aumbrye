@@ -148,10 +148,10 @@ func _physics_process(delta: float) -> void:
 		if not is_on_floor():
 			velocity += get_gravity() * delta
 		velocity.y = maxf(velocity.y, -TERMINAL_FALL_SPEED)
-		var horizontal := Vector3(velocity.x, 0.0, velocity.z)
-		horizontal = horizontal.move_toward(Vector3.ZERO, DECELERATION * delta)
-		velocity.x = horizontal.x
-		velocity.z = horizontal.z
+		var locked_horizontal := Vector3(velocity.x, 0.0, velocity.z)
+		locked_horizontal = locked_horizontal.move_toward(Vector3.ZERO, DECELERATION * delta)
+		velocity.x = locked_horizontal.x
+		velocity.z = locked_horizontal.z
 		move_and_slide()
 		# C-25: see above.
 		_consume_landing()

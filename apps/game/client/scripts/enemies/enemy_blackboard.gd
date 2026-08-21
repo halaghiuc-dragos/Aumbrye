@@ -26,9 +26,9 @@ static func room_key(node: Node) -> int:
 
 static func register(room_id: int, member: Node) -> void:
 	var record := _record(room_id)
-	var members: Array = record["members"]
-	if not members.has(member):
-		members.append(member)
+	var member_ids: Array = record["member_ids"]
+	if not member_ids.has(member):
+		member_ids.append(member)
 
 
 static func unregister(room_id: int, member: Node) -> void:

@@ -87,8 +87,10 @@ func _verify_content_loaded() -> void:
 ##
 ## C-261: this used to point at `godot-export` / `smoke-test` jobs in `.github/workflows/` that did
 ## not exist and never had — the smoke test was written for a pipeline that was never committed.
-## C-40 has since restored one: the `godot` job in `.github/workflows/ci.yml` runs `--import` and
-## then this, on every pull request and push to `main`.
+##
+## There is no pipeline, by decision: this project has no CI and will not have one (see CLAUDE.md).
+## Nothing runs the smoke test automatically. Run it by hand, or through `scripts/validate.mjs`,
+## which drives it as the `godot` layer.
 func _run_smoke_test() -> void:
 	print("SMOKE-TEST: booting")
 	var failures: Array[String] = []

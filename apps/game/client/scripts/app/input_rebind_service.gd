@@ -38,7 +38,7 @@ func rebind(action: StringName, event: InputEvent) -> Dictionary:
 		bindings_changed.emit(action)
 		var bus := get_node_or_null("/root/UISymbolBus")
 		if bus:
-			bus.emit_invalidated(&"rebind")
+			bus.invalidate(&"rebind")
 	return result
 
 
@@ -66,7 +66,7 @@ func conflicts() -> Dictionary:
 func _invalidate_glyphs() -> void:
 	var bus := get_node_or_null("/root/UISymbolBus")
 	if bus:
-		bus.emit_invalidated(&"rebind")
+		bus.invalidate(&"rebind")
 
 
 func reset_action(action: StringName) -> void:
@@ -74,7 +74,7 @@ func reset_action(action: StringName) -> void:
 	bindings_changed.emit(action)
 	var bus := get_node_or_null("/root/UISymbolBus")
 	if bus:
-		bus.emit_invalidated(&"rebind")
+		bus.invalidate(&"rebind")
 
 
 func reset_all() -> void:
@@ -82,4 +82,4 @@ func reset_all() -> void:
 	bindings_changed.emit(StringName())
 	var bus := get_node_or_null("/root/UISymbolBus")
 	if bus:
-		bus.emit_invalidated(&"rebind")
+		bus.invalidate(&"rebind")

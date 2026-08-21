@@ -342,6 +342,8 @@ func split_stack(index: int) -> bool:
 	var qty: int = int(slot.get("quantity", 1))
 	if qty < 2:
 		return false
+	# Splitting a stack: the odd item stays in the original slot, which is what the caller wants.
+	@warning_ignore("integer_division")
 	var half := qty / 2
 	slot["quantity"] = qty - half
 	var new_slot: Dictionary = slot.duplicate(true)

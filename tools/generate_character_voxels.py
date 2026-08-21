@@ -11,7 +11,20 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "tools" / "voxel-import"))
 sys.path.insert(0, str(ROOT / "tools"))
 
-from voxel_sculpt import sculpt_for_part  # noqa: E402
+from voxel_sculpt import (  # noqa: E402
+    MATERIALS,
+    sculpt_face,
+    sculpt_for_part,
+    sculpt_hair,
+)
+from voxel_sculpt import (  # noqa: E402
+    FACE_MASKS,
+    GARMENT_PALETTES,
+    HOOD_DROP,
+    SKIRT_DROP,
+    sculpt_garment,
+    sculpt_hood,
+)
 
 from archetypes import (  # noqa: E402
     ArchetypeSpec,
@@ -25,17 +38,14 @@ VOXEL_EDGE = 0.04
 CLIENT_ASSETS = ROOT / "apps" / "game" / "client" / "assets" / "characters"
 CONTENT_CHARS = ROOT / "content" / "characters"
 
-# Height variants reuse standard meshes; only joint offsets differ.
-HEIGHT_VARIANT_MANIFESTS = {
-    "player_warden_compact": {
-        "base_meshes": "player_warden",
-        "joint_delta": -2,
-    },
-    "player_warden_tall": {
-        "base_meshes": "player_warden",
-        "joint_delta": 2,
-    },
-}
+# Tall and compact used to reuse the standard meshes and shift every joint by +/-2 voxels, on the
+# reasoning that stature is only a matter of where the parts sit. It is not: the head's joint is
+# the top of the torso, so moving the joint without lengthening the torso mesh opened a two-voxel
+# gap at the tall warden's neck and sank the compact warden's head two voxels into its chest.
+# `player_archetype` already returns correct per-stature dimensions — `_player_height_scale`
+# lengthens the legs and the torso — and `_biped_parts` derives every joint from those sizes, so
+# generating the two variants like all the others is both correct and less code.
+HEIGHT_VARIANT_MANIFESTS: dict[str, dict] = {}
 
 # Lean and heavy builds have their own part dimensions, so they cannot reuse the standard rig's
 # meshes the way the height variants do. They used to be pre-baked to binary .mesh files and
@@ -72,7 +82,12 @@ def _voxels_from_size(
     return {
         "edge": VOXEL_EDGE,
         "size": span,
+        # `color` stays as the single-colour fallback for any reader that predates materials.
         "color": [round(c, 4) for c in color],
+        # Palette *slots*, not RGB: the runtime resolves these per theme, so a warden's steel stays
+        # distinct from its plate in all eleven themes. Snapping literal colours cannot promise
+        # that — two authored values can land on the same nearest slot and collapse the shading.
+        "paletteSlots": list(MATERIALS),
         "cells": cells,
     }
 
@@ -107,6 +122,112 @@ def _write_voxels(
 
 def _write_part_voxels(out_dir: Path, part: PartSpec, color: tuple[float, float, float]) -> None:
     _write_voxels(out_dir, part.name, part.size, color)
+
+
+#: Hair styles with geometry. `none` has no mesh by definition and `CharacterAppearance` never
+#: asks for one. Only `short` and `long` existed before, and both shipped with an empty `cells`
+#: array — so four of the seven options a player can pick did nothing at all, and the two that
+#: did anything drew a solid slab.
+HAIR_STYLES: tuple[str, ...] = ("shaven", "short", "tied", "long", "braided", "wild")
+
+
+def _write_hair(out_dir: Path, head_size: tuple[int, int, int]) -> None:
+    """Hair volumes, sized to the head so they need no offset at the call site."""
+    for style in HAIR_STYLES:
+        sculpt = sculpt_hair(style, *head_size)
+        cells = sculpt.normalised_cells(shift_y=False)
+        if not cells:
+            continue
+        span = [max(c[i] for c in cells) + 1 for i in range(3)]
+        # White, not a palette slot. The runtime multiplies the whole hair mesh by the player's
+        # chosen colour, so anything other than white would tint that choice toward a biome slot —
+        # which is precisely the behaviour that left every warden with the same dark hair.
+        payload = {
+            "edge": VOXEL_EDGE,
+            "size": span,
+            "color": [1.0, 1.0, 1.0],
+            "palette": [[1.0, 1.0, 1.0]],
+            "cells": cells,
+        }
+        (out_dir / f"hair_{style}.voxels.json").write_text(
+            json.dumps(payload, indent=2) + "\n", encoding="utf-8"
+        )
+
+
+#: Literal colours for a face plate, not palette slots. Index 0 is white so that the runtime's
+#: per-instance skin tint *becomes* the skin colour; index 1 is near-black so features survive being
+#: multiplied by any tone. Loaded with `theme = -1` so nothing snaps them to the biome palette.
+FACE_PALETTE = [[1.0, 1.0, 1.0], [0.18, 0.15, 0.16]]
+
+
+def _write_faces(out_dir: Path) -> None:
+    for style in FACE_MASKS:
+        sculpt = sculpt_face(style)
+        cells = sculpt.normalised_cells()
+        if not cells:
+            continue
+        span = [max(c[i] for c in cells) + 1 for i in range(3)]
+        payload = {
+            "edge": VOXEL_EDGE,
+            "size": span,
+            "color": FACE_PALETTE[0],
+            "palette": FACE_PALETTE,
+            "cells": cells,
+        }
+        (out_dir / f"face_{style}.voxels.json").write_text(
+            json.dumps(payload, indent=2) + "\n", encoding="utf-8"
+        )
+
+
+def _write_garments(out_dir: Path, torso_size: tuple[int, int, int]) -> None:
+    """Default clothing, one volume per class, with its own literal palette.
+
+    `skirtDrop` travels with the asset so the runtime knows how far below the torso's base the
+    volume begins — a robe and a set of faulds hang below the body they belong to, and the alignment
+    cannot be recovered from the mesh alone.
+    """
+    torso_vox = sculpt_for_part("Torso", torso_size)
+    for class_id, palette in GARMENT_PALETTES.items():
+        sculpt = sculpt_garment(class_id, torso_vox)
+        cells = sculpt.normalised_cells(shift_y=False)
+        if not cells:
+            continue
+        span = [max(c[i] for c in cells) + 1 for i in range(3)]
+        payload = {
+            "edge": VOXEL_EDGE,
+            "size": span,
+            "color": palette[0],
+            "palette": palette,
+            "skirtDrop": SKIRT_DROP,
+            "cells": cells,
+        }
+        (out_dir / f"garment_{class_id}.voxels.json").write_text(
+            json.dumps(payload, indent=2) + "\n", encoding="utf-8"
+        )
+
+
+def _write_hood(out_dir: Path, head_size: tuple[int, int, int], color: tuple[float, float, float]) -> None:
+    """A cowl grown from the head, replacing the box the archetype table used to declare.
+
+    Normalised, so the volume starts at y = 0; the manifest gives the Hood extra an offset of
+    `-HOOD_DROP` to put its hem below the jaw.
+    """
+    head_vox = sculpt_for_part("Head", head_size)
+    sculpt = sculpt_hood(head_vox, HOOD_DROP)
+    cells = sculpt.normalised_cells()
+    if not cells:
+        return
+    span = [max(c[i] for c in cells) + 1 for i in range(3)]
+    payload = {
+        "edge": VOXEL_EDGE,
+        "size": span,
+        "color": [round(c, 4) for c in color],
+        "paletteSlots": list(MATERIALS),
+        "cells": cells,
+    }
+    (out_dir / "hood.voxels.json").write_text(
+        json.dumps(payload, indent=2) + "\n", encoding="utf-8"
+    )
 
 
 def _extra_color(spec: ArchetypeSpec, extra: ExtraSpec) -> tuple[float, float, float]:
@@ -195,6 +316,16 @@ def generate_all() -> None:
             _write_part_voxels(out_dir, part, color)
         for extra in spec.extras:
             _write_voxels(out_dir, extra.name, extra.size, _extra_color(spec, extra))
+        if spec.id == "player_warden":
+            head = next((p.size for p in spec.parts if p.name == "Head"), None)
+            if head is not None:
+                _write_hair(out_dir, head)
+            _write_faces(out_dir)
+            torso = next((p.size for p in spec.parts if p.name == "Torso"), None)
+            if torso is not None:
+                _write_garments(out_dir, torso)
+            if head is not None:
+                _write_hood(out_dir, head, _part_color(spec, spec.parts[0]))
         generated_mesh_ids.add(spec.id)
 
     for spec in all_archetypes():

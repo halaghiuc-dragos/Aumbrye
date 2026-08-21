@@ -136,13 +136,23 @@
       "surface_variants": {
         "stone": [
           "res://assets/audio/sfx/step_stone_01.ogg",
-          "res://assets/audio/sfx/step_stone_02.ogg"
+          "res://assets/audio/sfx/step_stone_02.ogg",
+          "res://assets/audio/sfx/step_stone_03.ogg"
         ],
         "wood": [
-          "res://assets/audio/sfx/step_wood_01.ogg"
+          "res://assets/audio/sfx/step_wood_01.ogg",
+          "res://assets/audio/sfx/step_wood_02.ogg",
+          "res://assets/audio/sfx/step_wood_03.ogg"
         ],
         "water": [
-          "res://assets/audio/sfx/step_water_01.ogg"
+          "res://assets/audio/sfx/step_water_01.ogg",
+          "res://assets/audio/sfx/step_water_02.ogg",
+          "res://assets/audio/sfx/step_water_03.ogg"
+        ],
+        "snow": [
+          "res://assets/audio/sfx/step_snow_01.ogg",
+          "res://assets/audio/sfx/step_snow_02.ogg",
+          "res://assets/audio/sfx/step_snow_03.ogg"
         ]
       },
       "volume_db": -8.0,

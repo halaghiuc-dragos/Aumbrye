@@ -36,7 +36,28 @@ const DEFAULT_LOW_RES_VIEWPORT := true
 const DEFAULT_VIEWPORT_WIDTH := 480
 const DEFAULT_VIEWPORT_HEIGHT := 270
 const DEFAULT_CAMERA_SNAP := true
-const DEFAULT_GAMEPLAY_CAMERA_SNAP := true
+## Off by default: the gameplay camera snap destabilises the camera it is applied to.
+##
+## It quantises the *camera node's* transform to the pixel grid to stop surface patterns crawling.
+## The trouble is that its output lands in the camera's local transform, and nothing rewrites that
+## local in full each frame — `_apply_shoulder_offset` sets `position.x`, the spring arm sets z, and
+## y and the basis keep whatever the snap left. Every attempt to undo the previous frame's
+## correction fights one of the other writers, because they interleave differently depending on
+## whether a physics tick landed between two process frames.
+##
+## Measured on a walking player, as the worst deviation from the camera's mean offset to it:
+## snap on 2.58 m, snap off 0.29 m. On screen that is the camera jumping the length of its own
+## spring arm several times a second.
+##
+## The rendered image is still pixel-stable: `PixelDioramaViewport._mirrored_transform()` snaps a
+## *mirror* of this camera, writing to a different node than it reads, so it has no feedback path.
+## That is the one that matters for how the game looks. This one is a second, redundant snap on the
+## live camera, and turning it off costs a small amount of surface-pattern crawl and buys a camera
+## that holds still.
+##
+## The setting is kept rather than the code deleted: the crawl it was meant to fix is real, and a
+## correct implementation would write to a node nothing else touches.
+const DEFAULT_GAMEPLAY_CAMERA_SNAP := false
 const DEFAULT_SCREEN_FINISH := true
 const DEFAULT_CONTRAST := 1.08
 const DEFAULT_SATURATION := 1.06
@@ -261,7 +282,7 @@ static func _emit_symbol_preset_invalidated() -> void:
 		return
 	var bus := tree.root.get_node_or_null("/root/UISymbolBus")
 	if bus:
-		bus.emit_invalidated(&"preset")
+		bus.invalidate(&"preset")
 
 
 static func apply_live() -> void:

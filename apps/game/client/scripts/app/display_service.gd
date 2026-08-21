@@ -215,10 +215,18 @@ func sanitize_persisted_settings() -> void:
 	if not window_size_fits_any_monitor(window_size):
 		window_size = _largest_fitting_16_9()
 		window_mode = WINDOW_MODE_WINDOWED
-		push_warning(
-			"DisplayService: persisted window size does not fit any monitor; using %dx%d windowed"
-			% [window_size.x, window_size.y]
-		)
+		# A headless run reports zero screens, so nothing can ever fit and this fires every time —
+		# on the smoke test, on every CI run, on every offline tool. The fallback is still applied,
+		# because the settings do need a sane value; there is just nothing for a player to act on
+		# when there is no display at all.
+		if screen_count > 0:
+			push_warning(
+				(
+					"DisplayService: persisted window size does not fit any monitor; "
+					+ "using %dx%d windowed"
+				)
+				% [window_size.x, window_size.y]
+			)
 
 
 func window_size_fits_any_monitor(size: Vector2i) -> bool:
@@ -248,6 +256,55 @@ func current_resolution_preset() -> int:
 		if RESOLUTION_PRESETS[i] == window_size:
 			return i
 	return -1
+
+
+## The window sizes offered in Settings > Display. Presets larger than every attached monitor are
+## dropped, because `_apply_window_size()` clamps them anyway and an option that silently becomes a
+## different size reads as a broken control. Headless has no screens to measure, so it gets the
+## full list rather than an empty one.
+func available_resolutions() -> Array[Vector2i]:
+	var out: Array[Vector2i] = []
+	if DisplayServer.get_screen_count() <= 0 or DisplayServer.get_name() == "headless":
+		out.assign(RESOLUTION_PRESETS)
+		return out
+	for preset in RESOLUTION_PRESETS:
+		if window_size_fits_any_monitor(preset):
+			out.append(preset)
+	if out.is_empty():
+		out.append(_largest_fitting_16_9())
+	return out
+
+
+func resolution_labels() -> PackedStringArray:
+	var labels := PackedStringArray()
+	for size in available_resolutions():
+		labels.append("%d x %d" % [size.x, size.y])
+	return labels
+
+
+## Falls back to the closest offered size by area, so a window sized by dragging its corner still
+## shows the option nearest to what the player is actually looking at.
+func resolution_index() -> int:
+	var options := available_resolutions()
+	for i in options.size():
+		if options[i] == window_size:
+			return i
+	var best := 0
+	var best_delta := -1
+	var area := window_size.x * window_size.y
+	for i in options.size():
+		var delta: int = absi(options[i].x * options[i].y - area)
+		if best_delta < 0 or delta < best_delta:
+			best_delta = delta
+			best = i
+	return best
+
+
+func set_resolution_index(idx: int) -> void:
+	var options := available_resolutions()
+	if idx < 0 or idx >= options.size():
+		return
+	set_window_size(options[idx])
 
 
 func defaults() -> Dictionary:

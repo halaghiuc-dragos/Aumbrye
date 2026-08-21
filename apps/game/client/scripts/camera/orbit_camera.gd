@@ -7,9 +7,12 @@ const THIRD_PERSON_MIN_PITCH := deg_to_rad(-45.0)
 const THIRD_PERSON_MAX_PITCH := deg_to_rad(60.0)
 const FIRST_PERSON_MIN_PITCH := deg_to_rad(-80.0)
 const FIRST_PERSON_MAX_PITCH := deg_to_rad(80.0)
-const MIN_ZOOM := 2.5
-const MAX_ZOOM := 7.0
-const ZOOM_STEP := 0.5
+## Scroll-wheel dolly range, around the 4.0 m default. Deliberately shallow: this is a nudge for
+## framing, not a strategy-game zoom. Was 2.5..7.0 in half-metre steps, which let the player pull
+## far enough back that the warden became a detail in the room.
+const MIN_ZOOM := 3.2
+const MAX_ZOOM := 5.2
+const ZOOM_STEP := 0.25
 const ZOOM_SPEED := 8.0
 const FIRST_PERSON_LENGTH := 0.0
 const FIRST_PERSON_FOV := 82.0
@@ -30,7 +33,7 @@ const ARM_PUSH_OUT_RATE := 6.0
 @export var facing_path: NodePath = NodePath("../../Facing")
 
 const CharacterSkin := preload("res://scripts/art/characters/diorama_character_skin.gd")
-const PixelCameraSnap := preload("res://scripts/art/pipeline/pixel_camera_snap.gd")
+const PixelCameraSnapScript := preload("res://scripts/art/pipeline/pixel_camera_snap.gd")
 
 var _pitch := 0.0
 var _target_zoom := 4.0
@@ -63,9 +66,16 @@ var _death_framing := false
 const DEATH_FRAMING_DOLLY := 0.12
 var _fov_kick := 0.0
 var _sprint_fov := 0.0
-var _snap_base_transform := Transform3D.IDENTITY
+## The camera's local transform as the spring arm and the camera effects left it, before the pixel
+## snap adjusted it. Restored at the top of `_process`; see the comment there.
+##
+## Holding the pre-snap **world** transform instead — which is what this did — pinned the camera in
+## world space: restoring undid the spring arm's motion and reading it straight back as the next
+## base meant it never advanced again. The camera froze where it stood when the snap first applied
+## and the player walked out of frame.
+var _snap_base_local := Transform3D.IDENTITY
 
-## C-23: whether `_snap_base_transform` holds a transform this function wrote, and so whether it
+## C-23: whether `_snap_base_local` holds a transform this function wrote, and so whether it
 ## must be restored before the next read.
 var _snap_applied := false
 
@@ -155,6 +165,20 @@ func _physics_process(delta: float) -> void:
 
 
 func _process(delta: float) -> void:
+	# Undo last frame's pixel snap first, before anything else touches the camera.
+	#
+	# The snap writes a global transform, which lands in the camera's *local* transform. Nothing
+	# rewrites that local in full: `_apply_shoulder_offset` sets `position.x` absolutely and the
+	# spring arm sets z, but y and the basis keep whatever the snap left, so the correction
+	# compounded frame after frame — the ratchet C-23 describes.
+	#
+	# Restoring here rather than inside `_apply_gameplay_pixel_snap` is the whole fix. Undoing it
+	# down there means undoing it *after* the shoulder offset and the effects have already written
+	# to the same transform, and the two interleave: measured, the camera alternated between the
+	# snapped pose and a raw (0, 1.6, 4.0) every second or third frame, which is the flicker.
+	if _snap_applied:
+		_camera.transform = _snap_base_local
+		_snap_applied = false
 	_update_camera_effects(delta)
 	_apply_shoulder_offset(delta)
 	_apply_camera_optics()
@@ -502,7 +526,15 @@ func _apply_shoulder_offset(delta: float) -> void:
 		return
 	var target := 0.0 if _fp_blend > 0.99 else SHOULDER_OFFSET_X
 	_shoulder_x = lerpf(_shoulder_x, target, clampf(SHOULDER_OFFSET_BLEND * delta, 0.0, 1.0))
-	_camera.position.x = _shoulder_x
+	# Held as a value only. `_apply_camera_effects_transform` folds it into `h_offset`, which is a
+	# lens shift the spring arm never touches.
+	#
+	# This used to write `_camera.position.x` directly. The spring arm owns its child's position and
+	# rewrites it every physics tick, so the offset was applied in `_process` and wiped in
+	# `_physics_process`: at any framerate where the two interleave the camera flicked between
+	# offset and centred several times a second. Measured on a walking player, the camera's offset
+	# to it varied by 0.288 m on x — the whole shoulder offset — while y and z held to a millionth
+	# of a metre.
 
 
 func _apply_camera_optics() -> void:
@@ -559,6 +591,8 @@ func _apply_camera_effects_transform() -> void:
 	if _camera == null:
 		return
 	var offset := _shake_offset + _punch_offset + VfxService.consume_shake()
+	# The shoulder offset rides here rather than on the camera's position; see `_apply_shoulder_offset`.
+	offset.x += _shoulder_x
 	offset.y += _landing_dip
 	# C-22: `offset.z` was computed under `_death_framing` and then dropped on the floor — only x
 	# and y reach `h_offset`/`v_offset`, so the death-framing dolly did nothing. Camera3D has no
@@ -577,7 +611,7 @@ func _apply_gameplay_pixel_snap() -> void:
 		# C-23: if the setting is turned off mid-run, the last snap must be undone rather than
 		# left baked into the camera forever.
 		if _snap_applied:
-			_camera.global_transform = _snap_base_transform
+			_camera.transform = _snap_base_local
 			_snap_applied = false
 		return
 	# C-22: `SNAP_DISABLE_WHILE_LOCKED` is a `const ... := false`, so the guard that used to stand
@@ -596,14 +630,15 @@ func _apply_gameplay_pixel_snap() -> void:
 	#
 	# The fix is to keep the unsnapped transform as the source of truth: restore it before reading,
 	# so each frame snaps the spring arm's clean output rather than last frame's snapped output.
-	if _snap_applied:
-		_camera.global_transform = _snap_base_transform
-	_snap_base_transform = _camera.global_transform
+	# No undo here — `_process` already restored the clean local before the frame's other writers ran.
+	_snap_base_local = _camera.transform
 	PixelDioramaSettings.snap_fov_hint = _camera.fov
-	var snapped := PixelCameraSnap.snap_transform(
-		_snap_base_transform, _camera.fov, maxf(0.5, _smoothed_arm_length), true
+	# Read the world transform *after* the correction is undone, so the source is the spring arm's
+	# clean output at this frame's position rather than a value carrying an earlier snap.
+	var snapped_value := PixelCameraSnapScript.snap_transform(
+		_camera.global_transform, _camera.fov, maxf(0.5, _smoothed_arm_length), true
 	)
-	_camera.global_transform = snapped
+	_camera.global_transform = snapped_value
 	_snap_applied = true
 
 

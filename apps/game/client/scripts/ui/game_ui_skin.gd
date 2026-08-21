@@ -435,7 +435,7 @@ static func apply_modal_menu(
 			wire_button_sfx(button)
 
 
-static func build_paperdoll_backdrop(parent: Control, cell_size: int, gap: int) -> TextureRect:
+static func build_paperdoll_backdrop(parent: Control, _cell_size: int, _gap: int) -> TextureRect:
 	var rect := TextureRect.new()
 	rect.name = "PaperdollBackdrop"
 	rect.mouse_filter = Control.MOUSE_FILTER_IGNORE

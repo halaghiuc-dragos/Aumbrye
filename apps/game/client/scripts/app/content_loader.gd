@@ -14,17 +14,20 @@ extends Node
 ##     pipeline to copy `content/` next to the binary at export time.
 ##
 ##     C-265: this named `.github/workflows/release.yml` for a long time while no such workflow
-##     existed — the same class of dangling reference as C-261, found by grepping workflow paths
-##     during the C-40 verification pass. It was not cosmetic: `content/` lives at the repo root,
-##     *outside* `res://`, so `export_filter="all_resources"` does not pack it and an export
-##     without the copy ships with no catalogues at all. The workflow now exists, performs the
-##     copy, and then runs the **exported** binary's `--smoke-test` — which is the only way to
-##     exercise this branch, since a source run resolves content against the repo root instead.
+##     existed — the same class of dangling reference as C-261. It was not cosmetic: `content/`
+##     lives at the repo root, *outside* `res://`, so `export_filter="all_resources"` does not pack
+##     it and an export without the copy ships with no catalogues at all.
+##
+##     **This copy is a manual export step.** The project has no CI and will not have one (see
+##     CLAUDE.md), so nothing performs it automatically and nothing verifies it: a source run
+##     resolves content against the repo root and never exercises this branch. Whoever cuts a
+##     release copies `content/` next to the binary and then runs the *exported* executable with
+##     `--smoke-test`, which is the only check that this path works.
 ## `res://` globalises to the *install* directory in an exported build, not the source tree, so
 ## resolving relative to it (as this used to do unconditionally) silently found nothing outside
 ## the editor. See BUG-01.
 
-const ContentSchemaValidator := preload("res://scripts/app/content_schema_validator.gd")
+const ContentSchemaValidatorScript := preload("res://scripts/app/content_schema_validator.gd")
 
 ## Parsed-and-validated JSON keyed by relative path. `load_json` is called from many catalogue
 ## `_ensure_loaded()` paths and from ad-hoc one-off readers alike; caching here means the schema
@@ -89,7 +92,7 @@ static func load_json(relative: String) -> Dictionary:
 	var parsed = JSON.parse_string(file.get_as_text())
 	var result: Dictionary = parsed if parsed is Dictionary else {}
 	if OS.is_debug_build() and not result.is_empty():
-		ContentSchemaValidator.validate_loaded(relative, result)
+		ContentSchemaValidatorScript.validate_loaded(relative, result)
 	_json_cache[relative] = result
 	return result.duplicate(true)
 

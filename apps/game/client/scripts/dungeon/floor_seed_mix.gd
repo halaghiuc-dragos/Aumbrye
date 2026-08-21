@@ -17,10 +17,10 @@ static func stable_string_hash(text: String) -> int:
 	return hash_value & 0x7FFFFFFF
 
 
-static func mix(seed: int, floor_index: int) -> int:
+static func mix(seed_value: int, floor_index: int) -> int:
 	if floor_index <= 1:
-		return maxi(1, int(seed))
-	var x := _xor_u64(_mul_u64(_const(0, seed), _const(0, 0x9E3779B1)), _mul_u64(_const(0, floor_index), _const(0xBF58476D, 0x1CE4E5B9)))
+		return maxi(1, int(seed_value))
+	var x := _xor_u64(_mul_u64(_const(0, seed_value), _const(0, 0x9E3779B1)), _mul_u64(_const(0, floor_index), _const(0xBF58476D, 0x1CE4E5B9)))
 	x = _mul_u64(_xor_u64(x, _shr_u64(x, 30)), _const(0xBF58476D, 0x1CE4E5B9))
 	x = _mul_u64(_xor_u64(x, _shr_u64(x, 27)), _const(0x94D049BB, 0x133111EB))
 	x = _xor_u64(x, _shr_u64(x, 31))
@@ -50,11 +50,12 @@ static func _shr_u64(parts: PackedInt64Array, shift: int) -> PackedInt64Array:
 		return PackedInt64Array([lo, hi])
 	if shift < 32:
 		var carry_mask := (1 << shift) - 1
-		var new_lo := (lo >> shift) | ((hi & carry_mask) << (32 - shift))
-		var new_hi := hi >> shift
-		return PackedInt64Array([new_lo & 0xFFFFFFFF, new_hi & 0xFFFFFFFF])
-	var new_lo := hi >> (shift - 32)
-	return PackedInt64Array([new_lo & 0xFFFFFFFF, 0])
+		var shifted_lo := (lo >> shift) | ((hi & carry_mask) << (32 - shift))
+		var shifted_hi := hi >> shift
+		return PackedInt64Array([shifted_lo & 0xFFFFFFFF, shifted_hi & 0xFFFFFFFF])
+	# A shift of 32 or more moves the high word into the low one and clears the high.
+	var wrapped_lo := hi >> (shift - 32)
+	return PackedInt64Array([wrapped_lo & 0xFFFFFFFF, 0])
 
 
 static func _mul_u64(a: PackedInt64Array, b: PackedInt64Array) -> PackedInt64Array:

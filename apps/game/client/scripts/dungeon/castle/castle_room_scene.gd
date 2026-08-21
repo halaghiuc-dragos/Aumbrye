@@ -127,7 +127,7 @@ func _ensure_stair_ramp(props: Node3D, biome_id: String) -> void:
 	props.add_child(ramp)
 
 
-func _ensure_boss_authored(props: Node3D, biome_id: String) -> void:
+func _ensure_boss_authored(_props: Node3D, biome_id: String) -> void:
 	var authored := get_node_or_null("Authored")
 	if authored == null:
 		authored = Node3D.new()

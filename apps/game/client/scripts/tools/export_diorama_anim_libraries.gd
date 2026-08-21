@@ -92,17 +92,17 @@ static func _parse_args() -> Dictionary:
 	if user_args.is_empty():
 		user_args = PackedStringArray()
 		var cmdline := OS.get_cmdline_args()
-		var index := 0
-		while index < cmdline.size():
-			var arg := String(cmdline[index])
+		var scan := 0
+		while scan < cmdline.size():
+			var arg := String(cmdline[scan])
 			if arg == "--verify" or arg == "--digests":
 				user_args.append(arg)
 			elif arg == "--profile" or arg == "--out":
 				user_args.append(arg)
-				if index + 1 < cmdline.size():
-					index += 1
-					user_args.append(String(cmdline[index]))
-			index += 1
+				if scan + 1 < cmdline.size():
+					scan += 1
+					user_args.append(String(cmdline[scan]))
+			scan += 1
 	var result := {
 		"verify": false,
 		"digests_only": false,

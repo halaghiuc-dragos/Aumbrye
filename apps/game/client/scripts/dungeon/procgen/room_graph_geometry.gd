@@ -24,6 +24,10 @@ static func _walk_layout(
 	var positions := {}
 	var yaws := {}
 	var visited := {}
+	# The edges this traversal placed rooms along. Only these are guaranteed to line up: a room's
+	# position is derived from its parent's, so any *other* edge between two rooms is whatever
+	# distance the layout happened to leave between them.
+	var placement_edges := {}
 	var entrance_id: String = assignment.get("entrance_layout_id", graph.start_id)
 	if not rooms_by_layout.has(entrance_id):
 		return {"ok": false, "reason": "Missing entrance room '%s'" % entrance_id}
@@ -95,6 +99,7 @@ static func _walk_layout(
 			positions[neighbor_id] = next_pos
 			yaws[neighbor_id] = child_yaw
 			visited[neighbor_id] = true
+			placement_edges[_edge_key(current_slot.grid_pos, neighbor_slot.grid_pos)] = true
 			queue.append(neighbor_id)
 	return {
 		"ok": true,
@@ -102,6 +107,7 @@ static func _walk_layout(
 		"positions": positions,
 		"yaws": yaws,
 		"visited": visited,
+		"placement_edges": placement_edges,
 	}
 
 
@@ -154,7 +160,23 @@ static func build_rooms(graph: RoomGraph, assignment: Dictionary) -> Array:
 	return built
 
 
+## Edge kinds for the definition.
+##
+## An edge is a `shortcut` whenever it is not one of the edges `_walk_layout` placed rooms along,
+## and that test now takes precedence over the corridor test. Two things were wrong before:
+##
+##   * the corridor check ran first, so a non-tree edge touching a corridor room was labelled
+##     `corridor`. `DungeonBuilder._build_doorway_bridges` only closes *shortcuts* when their two
+##     door sockets fail to meet, so those edges fell through to `push_error` and the floor was
+##     built anyway — with a carved doorway opening into a four-unit hole.
+##   * the test asked `graph.walk_edges`, the spanning tree from the Phase 1 grid walk. Rooms are
+##     positioned by a *different* traversal, `_walk_layout`'s breadth-first walk from the
+##     entrance, and the two trees do not have to agree. An edge could therefore be called
+##     spanning — and so trusted to line up — when the room at its far end had been placed
+##     through some other edge entirely.
 static func build_edges(graph: RoomGraph, assignment: Dictionary) -> Array:
+	var walk := _walk_layout(graph, assignment, false)
+	var placement_edges: Dictionary = walk.get("placement_edges", {})
 	var semantic_by_layout := {}
 	for room in assignment.get("rooms", []):
 		semantic_by_layout[room["layout_id"]] = room["semantic_id"]
@@ -182,13 +204,13 @@ static func build_edges(graph: RoomGraph, assignment: Dictionary) -> Array:
 				continue
 			seen[key] = true
 			var kind := "door"
-			if (
+			if not placement_edges.has(_edge_key(cell, cell + dir)):
+				kind = "shortcut"
+			elif (
 				type_by_layout.get(slot.slot_id, "") == "corridor"
 				or type_by_layout.get(neighbor.slot_id, "") == "corridor"
 			):
 				kind = "corridor"
-			elif not _is_spanning_edge(graph, cell, cell + dir):
-				kind = "shortcut"
 			edges.append({"from": from_id, "to": to_id, "kind": kind})
 	for secret_id in _placed_secret_ids(graph, assignment):
 		var secret_slot := graph.get_slot(secret_id)
@@ -216,6 +238,10 @@ static func validate_door_topology(graph: RoomGraph, assignment: Dictionary) -> 
 	return {"ok": true}
 
 
+## Whether an edge is in the Phase 1 grid walk's spanning tree.
+##
+## Not what `build_edges` wants — see its comment — because rooms are positioned by a different
+## traversal. Kept because it is the honest answer to a question the graph layer does ask.
 static func _is_spanning_edge(graph: RoomGraph, cell_a: Vector2i, cell_b: Vector2i) -> bool:
 	var key := _edge_key(cell_a, cell_b)
 	for edge in graph.walk_edges:

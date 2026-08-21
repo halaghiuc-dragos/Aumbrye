@@ -263,9 +263,9 @@ func _setup_animations() -> void:
 		_anim.play("locked_idle")
 
 
-func _play_anim(name: String) -> void:
-	if _anim and _anim.has_animation(name):
-		_anim.play(name)
+func _play_anim(action_name: String) -> void:
+	if _anim and _anim.has_animation(action_name):
+		_anim.play(action_name)
 
 
 func _play_cue(kind: String) -> void:

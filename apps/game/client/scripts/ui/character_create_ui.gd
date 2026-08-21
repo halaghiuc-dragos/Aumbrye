@@ -38,8 +38,8 @@ var _head_row: AppearanceRow
 var _trim_row: AppearanceRow
 var _skin_row: AppearanceRow
 var _hair_row: AppearanceRow
+var _hair_color_row: AppearanceRow
 var _face_row: AppearanceRow
-var _title_row: AppearanceRow
 var _preview_viewport: SubViewport
 var _preview_rig: WardenPreviewRig
 var _preview_caption: Label
@@ -315,9 +315,21 @@ func _build_preview_column(parent: HBoxContainer) -> VBoxContainer:
 	viewport_container.name = "PreviewViewport"
 	viewport_container.custom_minimum_size = Vector2(270, 360)
 	viewport_container.stretch = true
+	# The preview is the one place a player studies their warden closely, and it was the one place
+	# rendering it at native desktop resolution: every other view of a character goes through the
+	# pixel viewport at 480x270 and is upscaled with nearest filtering. At full resolution the
+	# surface shader's stitch and dither patterns are finer than a pixel of the intended look, so
+	# armour read as a translucent mesh and the figure a player approved in creation was not the
+	# figure the game then drew.
+	#
+	# `stretch_shrink` renders the SubViewport at 1/N and scales it back up, which is the same
+	# trick the main pipeline uses. N comes from the player's own resolution preset rather than a
+	# constant, so the portrait keeps matching the game when they change it.
+	viewport_container.stretch_shrink = _preview_pixel_shrink()
+	viewport_container.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	aspect.add_child(viewport_container)
 	_preview_viewport = SubViewport.new()
-	_preview_viewport.size = Vector2i(280, 360)
+	# Size is driven by the container because `stretch` is on; setting it here did nothing.
 	_preview_viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS
 	_preview_viewport.own_world_3d = true
 	viewport_container.add_child(_preview_viewport)
@@ -332,8 +344,9 @@ func _build_preview_column(parent: HBoxContainer) -> VBoxContainer:
 	env.background_mode = Environment.BG_COLOR
 	env.background_color = GameUISkinScript.FRAME_BG.darkened(0.35)
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
-	env.ambient_light_color = Color(0.42, 0.44, 0.55)
-	env.ambient_light_energy = 0.9
+	# Low enough that the key light still decides which faces are lit. See WardenPreviewRig.
+	env.ambient_light_color = Color(0.34, 0.36, 0.48)
+	env.ambient_light_energy = 0.32
 	world_env.environment = env
 	stage.add_child(world_env)
 	# Camera and lights belong to the rig; adding a second set here left two cameras fighting over
@@ -426,12 +439,15 @@ func _build_detail_column(parent: HBoxContainer) -> VBoxContainer:
 		_row_label("CREATE_ROW_HAIR", "Hair"), CharacterAppearanceScript.HAIR_LABELS
 	)
 	appearance_box.add_child(_hair_row)
+	_hair_color_row = _make_appearance_row(
+		_row_label("CREATE_ROW_HAIR_COLOR", "Hair colour"),
+		CharacterAppearanceScript.HAIR_COLOR_LABELS
+	)
+	appearance_box.add_child(_hair_color_row)
 	_face_row = _make_appearance_row(
 		_row_label("CREATE_ROW_FACE", "Countenance"), CharacterAppearanceScript.FACE_LABELS
 	)
 	appearance_box.add_child(_face_row)
-	_title_row = _make_appearance_row(_row_label("CREATE_ROW_TITLE", "Title"), [])
-	appearance_box.add_child(_title_row)
 	# The class stats, perk and starting weapon all describe the selected class, so they live in one
 	# titled card rather than as three loose strips floating under the appearance rows.
 	var stats_card := PanelContainer.new()
@@ -580,10 +596,6 @@ func _reload_aspect_options() -> void:
 	for i in AppearanceCatalogScript.unlocked_aspect_count():
 		labels.append(AppearanceCatalogScript.unlocked_aspect_label(i))
 	_aspect_row.setup(tr("CREATE_ROW_ASPECT"), labels, 0)
-	if _title_row:
-		_title_row.setup(
-			_row_label("CREATE_ROW_TITLE", "Title"), AppearanceCatalogScript.unlocked_title_labels(), 0
-		)
 
 
 func _seed_from_defaults_and_last() -> void:
@@ -620,10 +632,10 @@ func _apply_profile_to_controls(profile: Dictionary) -> void:
 		maxi(0, CharacterAppearanceScript.SKIN_TONES.find(clean.get("skinTone", "neutral")))
 	)
 	_hair_row.select(maxi(0, CharacterAppearanceScript.HAIR_STYLES.find(clean.get("hair", "none"))))
-	_face_row.select(maxi(0, CharacterAppearanceScript.FACE_STYLES.find(clean.get("face", "open"))))
-	_title_row.select(
-		AppearanceCatalogScript.unlocked_title_index(str(clean.get("title", "")))
+	_hair_color_row.select(
+		maxi(0, CharacterAppearanceScript.HAIR_COLORS.find(clean.get("hairColor", "brown")))
 	)
+	_face_row.select(maxi(0, CharacterAppearanceScript.FACE_STYLES.find(clean.get("face", "open"))))
 
 
 func _select_class_index(index: int) -> void:
@@ -636,7 +648,10 @@ func _select_class_index(index: int) -> void:
 		_class_cards[i].set_selected_mark(i == index)
 	_initial_focus_card = _class_cards[index]
 	_refresh_comparison_selection()
-	_refresh_class_detail()
+	# Rebuild the warden, not just the text. Default clothing is per class, so picking a different
+	# card has to re-dress the preview — otherwise the figure keeps the previous class's outfit
+	# until some unrelated appearance row is touched, which reads as the picker being ignored.
+	_refresh_preview()
 
 
 func _on_class_card_pressed(card: ClassCard) -> void:
@@ -734,12 +749,30 @@ func _build_appearance_profile() -> Dictionary:
 		_trim_row.get_selected_index(),
 		_skin_row.get_selected_index(),
 		_hair_row.get_selected_index(),
-		_face_row.get_selected_index()
+		_face_row.get_selected_index(),
+		_hair_color_row.get_selected_index()
 	)
-	profile["title"] = AppearanceCatalogScript.unlocked_title_id(
-		_title_row.get_selected_index()
-	)
+	if _selected_class_index >= 0 and _selected_class_index < _classes.size():
+		profile["classId"] = str(_classes[_selected_class_index].get("id", ""))
+	# Title is not part of character creation. It stays on the profile — earned titles are awarded
+	# elsewhere and `CharacterAppearance.sanitize` preserves whatever is already there — but it is
+	# not something the player picks alongside their hair.
 	return profile
+
+
+## How many screen pixels one preview pixel should cover, so the portrait has the same pixel
+## density as the world. Derived from the window height against the internal buffer height the
+## player's resolution preset asks for — at the 1080p window and the default 480x270 preset that
+## is 4, and at the native-HD preset it collapses to 1, which is the correct answer for a preset
+## that has deliberately turned the pixel look off.
+func _preview_pixel_shrink() -> int:
+	var internal := PixelDioramaSettings.viewport_internal_size()
+	if internal.y <= 0:
+		return 1
+	var window_height := float(get_viewport_rect().size.y)
+	if window_height <= 0.0:
+		return 1
+	return clampi(int(round(window_height / float(internal.y))), 1, 8)
 
 
 func _refresh_preview() -> void:
@@ -795,8 +828,8 @@ func _on_randomize_pressed() -> void:
 	_trim_row.select(randi() % CharacterAppearanceScript.TRIM_LABELS.size())
 	_skin_row.select(randi() % maxi(CharacterAppearanceScript.SKIN_TONE_LABELS.size(), 1))
 	_hair_row.select(randi() % maxi(CharacterAppearanceScript.HAIR_LABELS.size(), 1))
+	_hair_color_row.select(randi() % maxi(CharacterAppearanceScript.HAIR_COLOR_LABELS.size(), 1))
 	_face_row.select(randi() % maxi(CharacterAppearanceScript.FACE_LABELS.size(), 1))
-	_title_row.select(randi() % maxi(_title_row.get_option_count(), 1))
 	_name_input.text = NameValidatorScript.random_valid_name(_existing_names_for_validation())
 	_refresh_preview()
 	_update_name_validation()

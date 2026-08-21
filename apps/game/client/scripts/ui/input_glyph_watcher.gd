@@ -46,4 +46,4 @@ func _set_family(family: int) -> void:
 	device_family_changed.emit()
 	var bus := get_node_or_null("/root/UISymbolBus")
 	if bus:
-		bus.emit_invalidated(&"device")
+		bus.invalidate(&"device")

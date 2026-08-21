@@ -527,7 +527,9 @@ func _room_pixel_size(room_def: Dictionary, map_rect: Rect2) -> Vector2:
 	if world_w <= 0.0 or world_z <= 0.0:
 		return Vector2(FALLBACK_ROOM_PX, FALLBACK_ROOM_PX)
 	var s := _uniform_scale(map_rect) * _zoom
-	return Vector2(maxi(4.0, world_w * s), maxi(4.0, world_z * s)).floor()
+	# maxf, not maxi: maxi narrows both arguments to int, so a room 12.8 px wide was clamped
+	# against 4 as 12 and the trailing floor() had nothing left to do.
+	return Vector2(maxf(4.0, world_w * s), maxf(4.0, world_z * s)).floor()
 
 
 func _should_draw_edge(from_id: String, to_id: String) -> bool:

@@ -241,8 +241,8 @@ func _get_collision_radius() -> float:
 func _is_boss_enemy() -> bool:
 	if not _data.is_empty():
 		return _is_boss
-	var enemy_id := get_enemy_id()
-	return enemy_id.contains("boss") or enemy_id.contains("miniboss")
+	var catalog_id := get_enemy_id()
+	return catalog_id.contains("boss") or catalog_id.contains("miniboss")
 
 
 func _ready() -> void:
@@ -252,11 +252,11 @@ func _ready() -> void:
 	_enemy_rng.seed = (
 		FloorSeedMix.mix(RunFlow.current_seed, RunFlow.current_floor) ^ hash(str(get_path()))
 	)
-	var enemy_id := get_enemy_id()
-	if enemy_id.is_empty():
+	var catalog_id := get_enemy_id()
+	if catalog_id.is_empty():
 		_data = ContentLoader.load_json(get_data_path())
 	else:
-		_data = EnemyCatalog.get_definition(enemy_id)
+		_data = EnemyCatalog.get_definition(catalog_id)
 	_health = get_node_or_null("Health") as Health
 	_poise = get_node_or_null("Poise") as Poise
 	_hitbox = get_node_or_null("AttackPivot/Hitbox") as Hitbox
@@ -414,10 +414,10 @@ func get_phase_controller() -> Node:
 ## before the child enters the tree so each add records the right patrol origin.
 func spawn_adds(spec: Dictionary) -> Array[Node]:
 	var spawned: Array[Node] = []
-	var enemy_id := String(spec.get("enemyId", ""))
-	if enemy_id.is_empty() or not EnemyCatalog.has_enemy(enemy_id):
+	var catalog_id := String(spec.get("enemyId", ""))
+	if catalog_id.is_empty() or not EnemyCatalog.has_enemy(catalog_id):
 		return spawned
-	var scene: PackedScene = EnemyCatalog.get_scene(enemy_id)
+	var scene: PackedScene = EnemyCatalog.get_scene(catalog_id)
 	var parent := get_parent()
 	if scene == null or parent == null:
 		return spawned
@@ -432,7 +432,7 @@ func spawn_adds(spec: Dictionary) -> Array[Node]:
 		add.position = _local_spawn_point(parent, global_position + offset)
 		var add_enemy := add as CastleEnemyBase
 		if add_enemy != null:
-			add_enemy.set_catalog_id(enemy_id)
+			add_enemy.set_catalog_id(catalog_id)
 			if _player:
 				add_enemy.set_player(_player)
 		parent.add_child(add)
@@ -553,19 +553,19 @@ func _resolve_enemy_id() -> String:
 
 
 func get_data_path() -> String:
-	var enemy_id := get_enemy_id()
-	if enemy_id.is_empty():
+	var catalog_id := get_enemy_id()
+	if catalog_id.is_empty():
 		return DATA_PATH
-	return EnemyCatalog.get_content_path(enemy_id)
+	return EnemyCatalog.get_content_path(catalog_id)
 
 
 func _setup_diorama_visual() -> void:
-	var enemy_id := get_enemy_id()
-	if enemy_id.is_empty():
-		enemy_id = str(_data.get("id", ""))
+	var catalog_id := get_enemy_id()
+	if catalog_id.is_empty():
+		catalog_id = str(_data.get("id", ""))
 	_anim_profile = CharacterSkin.profile_for_enemy_data(_data)
-	var theme := CharacterSkin.theme_for_enemy_id(enemy_id)
-	_diorama_visual = CharacterSkin.build_enemy_body(self, _anim_profile, theme, enemy_id, _data)
+	var theme := CharacterSkin.theme_for_enemy_id(catalog_id)
+	_diorama_visual = CharacterSkin.build_enemy_body(self, _anim_profile, theme, catalog_id, _data)
 	if _mesh:
 		_mesh.visible = false
 	CharacterFloorSnapScript.snap_character(self, _diorama_visual)

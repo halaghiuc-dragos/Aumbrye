@@ -1,0 +1,6 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scripts/tools/camera_follow_audit.gd" id="1_a"]
+
+[node name="CameraFollowAudit" type="Node"]
+script = ExtResource("1_a")

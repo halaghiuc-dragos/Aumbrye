@@ -52,12 +52,12 @@ func _resolve_nodes() -> void:
 func configure(
 	biome_id: String,
 	requirement: String = "none",
-	floor: int = 1,
+	floor_index: int = 1,
 	locks: Array = []
 ) -> void:
 	_biome_id = biome_id
 	_requirement = requirement
-	_floor = floor
+	_floor = floor_index
 	_locks = locks
 	_resolve_nodes()
 	set_meta("biome_id", biome_id)

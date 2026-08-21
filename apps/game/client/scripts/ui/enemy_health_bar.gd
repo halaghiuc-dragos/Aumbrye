@@ -157,10 +157,10 @@ func _on_poise_changed(current: float, max_value: float) -> void:
 		return
 	var ratio := clampf(current / max_value, 0.0, 1.0)
 	# Only worth showing once the player has started breaking it.
-	var show := ratio < 0.999 and _alive
-	_poise_bg_sprite.visible = show
-	_poise_fill_sprite.visible = show
-	if show:
+	var should_show := ratio < 0.999 and _alive
+	_poise_bg_sprite.visible = should_show
+	_poise_fill_sprite.visible = should_show
+	if should_show:
 		_apply_fill(_poise_fill_sprite, ratio)
 
 

@@ -49,10 +49,17 @@ func pop(modal: Control) -> void:
 	_stack.remove_at(idx)
 	for i in range(_focus_records.size() - 1, -1, -1):
 		if _focus_records[i].get("modal") == modal:
-			var prev := _focus_records[i].get("focus") as Control
+			# Validity first, cast second. `as Control` on a freed object raises "Trying to cast a
+			# freed object" by itself, so testing `is_instance_valid` on the *result* is too late:
+			# the error has already been reported. The control that had focus when the modal opened
+			# is routinely gone by the time it closes — character creation frees its own buttons
+			# when the confirmation dialog commits — so this fired on a completely ordinary path.
+			var previous: Variant = _focus_records[i].get("focus")
 			_focus_records.remove_at(i)
-			if is_instance_valid(prev) and prev.is_inside_tree():
-				prev.grab_focus()
+			if is_instance_valid(previous):
+				var prev := previous as Control
+				if prev != null and prev.is_inside_tree():
+					prev.grab_focus()
 			break
 	if _stack.is_empty() and _active_confirm == null:
 		Input.mouse_mode = _saved_mouse_mode
@@ -164,7 +171,7 @@ func _dismiss_confirm(confirmed: bool, run_callbacks: bool) -> void:
 			spec.on_confirm.call()
 		elif not confirmed and spec.on_cancel.is_valid():
 			spec.on_cancel.call()
-	if is_instance_valid(_focus_before_confirm):
+	if is_instance_valid(_focus_before_confirm) and _focus_before_confirm.is_inside_tree():
 		_focus_before_confirm.grab_focus()
 	_focus_before_confirm = null
 	if _stack.is_empty():

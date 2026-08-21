@@ -75,6 +75,7 @@ CREATE_ROW_HEAD,Head,Cap
 CREATE_ROW_TRIM,Trim,Ornament
 CREATE_ROW_SKIN,Skin,Piele
 CREATE_ROW_HAIR,Hair,Păr
+CREATE_ROW_HAIR_COLOR,Hair colour,Culoarea parului
 CREATE_ROW_FACE,Face,Față
 CREATE_RANDOMIZE,Randomize,Aleator
 CREATE_RANDOM_NAME,Suggest Name,Sugerează Nume
@@ -359,6 +360,8 @@ SETTINGS_WINDOW_MODE_BORDERLESS,Borderless,Fara margini
 SETTINGS_WINDOW_MODE_FULLSCREEN,Fullscreen,Ecran complet
 SETTINGS_MONITOR_NAME,Monitor,Monitor
 SETTINGS_MONITOR_DESC,Which display the game window opens on.,Pe ce ecran se deschide fereastra jocului.
+SETTINGS_RESOLUTION_NAME,Resolution,Rezolutie
+SETTINGS_RESOLUTION_DESC,Size of the game window.,Dimensiunea ferestrei jocului.
 SETTINGS_VSYNC_NAME,V-Sync,V-Sync
 SETTINGS_VSYNC_DESC,"Syncs frames to your monitor to remove tearing, at the cost of some input latency.","Sincronizeaza cadrele cu monitorul ca sa elimine ruperea imaginii, cu putina latenta in plus."
 SETTINGS_VSYNC_DISABLED,Off,Oprit
@@ -512,18 +515,15 @@ STORAGE_INVENTORY_EMPTY,Your inventory is empty.,Inventarul e gol.
 STORAGE_STORAGE_EMPTY,Storage is empty.,Depozitul e gol.
 LOADOUT_EQUIPPED_ROW,%s  (equipped),%s  (echipat)
 MENU_SUBTITLE,Echo of the Fallen Warden,Ecoul Gardianului Cazut
+TITLE_PRESS_ANY_KEY,Press any key to continue,Apasa orice tasta pentru a continua
 MENU_NEW_GAME,New Game,Joc nou
 MENU_CONTINUE,Continue,Continua
 MENU_SETTINGS,Settings,Setari
 MENU_QUIT,Quit Game,Iesi din joc
-MENU_HINT_QUIT,Esc: quit,Esc: iesire
 SETTINGS_FULLSCREEN_TITLE,Keep Fullscreen?,Pastrezi ecranul complet?
 SETTINGS_FULLSCREEN_BODY,Keep this display mode? It reverts automatically in %d seconds.,Pastrezi acest mod de afisare? Revine automat in %d secunde.
 SETTINGS_FULLSCREEN_KEEP,Keep,Pastreaza
 SETTINGS_FULLSCREEN_REVERT,Revert,Revino
-TITLE_PROLOGUE,The Umbral Tower remembers every oath sworn at its threshold. You are the echo of a warden who failed - bound to climb whenever the tower resets. Each death returns you to Aumbrye Tower; each escape proves you endured.,Turnul Umbral tine minte fiecare juramant rostit in pragul lui. Esti ecoul unui gardian care a dat gres - legat sa urci ori de cate ori turnul se reface. Fiecare moarte te intoarce la Turnul Aumbrye; fiecare scapare dovedeste ca ai rezistat.
-TITLE_PRESS_ANY_KEY,Press any key to enter the tower,Apasa orice tasta ca sa intri in turn
-TITLE_BUILD_TAG,Early Access - Pixel Diorama build,Acces timpuriu - versiune Pixel Diorama
 CONTINUE_BACK,Back,Inapoi
 CONTINUE_PLAY,Play Warden,Joaca gardianul
 CONTINUE_DELETE,Delete Warden,Sterge gardianul
@@ -532,6 +532,8 @@ LOADING_ENTERING,Entering Aumbrye Tower,Intri in Turnul Aumbrye
 LOADING_PREPARING,Preparing your warden...,Se pregateste gardianul...
 LOADING_SYNCING,Syncing echo...,Se sincronizeaza ecoul...
 LOADING_SAVE_FAILED,Could not load save - returning to menu.,Salvarea nu a putut fi incarcata - revenire la meniu.
+LOADING_SLOTS_FULL,All character slots are full - delete one to start a new warden.,Toate sloturile de personaje sunt pline - sterge unul pentru a incepe un warden nou.
+LOADING_CHARACTER_MISSING,That character's save could not be found - returning to menu.,Salvarea acelui personaj nu a fost gasita - revenire la meniu.
 LOADING_OPENING_HUB,Opening the hub...,Se deschide hub-ul...
 RESULTS_RETRY_SYNC,Retry cloud sync,Reincearca sincronizarea
 RESULTS_COPY_SEED,Copy seed,Copiaza seed-ul

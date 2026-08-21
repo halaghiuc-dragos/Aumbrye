@@ -1,0 +1,6 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scripts/tools/capture_warden_variants.gd" id="1_capture"]
+
+[node name="CaptureWardenVariants" type="Node"]
+script = ExtResource("1_capture")

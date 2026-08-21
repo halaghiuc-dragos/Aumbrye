@@ -17,14 +17,15 @@ func get_socket_name() -> String:
 
 func get_world_facing() -> Vector3:
 	var room := get_parent().get_parent() as Node3D
-	var basis := global_transform.basis if room == null else room.global_transform.basis
+	# Named `room_basis` rather than `basis`, which would shadow Node3D.basis.
+	var room_basis := global_transform.basis if room == null else room.global_transform.basis
 	match direction:
 		CastleRoomConstants.Direction.NORTH:
-			return -basis.z
+			return -room_basis.z
 		CastleRoomConstants.Direction.SOUTH:
-			return basis.z
+			return room_basis.z
 		CastleRoomConstants.Direction.EAST:
-			return basis.x
+			return room_basis.x
 		CastleRoomConstants.Direction.WEST:
-			return -basis.x
-	return -basis.z
+			return -room_basis.x
+	return -room_basis.z

@@ -76,10 +76,6 @@ node scripts/validate.mjs --layer content --layer python
 Individual commands (run these when iterating on one layer):
 
 ```bash
-dotnet test services/backend/Aumbrye.sln --configuration Release
-```
-
-```bash
 npm run validate:strict
 ```
 

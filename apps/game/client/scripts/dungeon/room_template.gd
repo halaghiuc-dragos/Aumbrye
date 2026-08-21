@@ -6,6 +6,12 @@ class_name RoomTemplate
 @export var template_id: String = ""
 @export var room_id: String = ""
 @export var room_type: String = "combat"
+## The role the floor generator assigned this room — `combat`, `stairs`, `boss`, `treasure`,
+## `shop`, `rest`, `lore`. Distinct from `template_id`, which only says which *scene* was picked
+## to fit the room's door mask: templates are interchangeable shapes, so an ordinary combat room
+## can legitimately be built from `castle_stairs` geometry. Anything that cares about a room's
+## role must read this and not the template id.
+@export var room_kind: String = ""
 
 ## C-151: the generator tags rooms `["merchant"]`, `["traversal"]`, `["spawn"]`, `["final_arena"]`,
 ## `["final_boss"]` and so on, `room_graph_geometry` copies them into every room record, and nothing

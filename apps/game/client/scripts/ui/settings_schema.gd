@@ -21,6 +21,7 @@ static func entries() -> Array[Dictionary]:
 		# Display
 		_window_mode_row(),
 		_monitor_row(),
+		_resolution_row(),
 		_vsync_row(),
 		_max_fps_row(),
 		_ui_scale_row(),
@@ -433,6 +434,36 @@ static func _monitor_row() -> Dictionary:
 
 static func _monitor_option_labels() -> Array:
 	return Array(DisplayService.get_monitor_labels())
+
+
+## Window resolution. Sits under Monitor because the sizes on offer are the ones that fit the
+## monitors attached — this is the size of the game window, not the internal pixel-art render
+## resolution, which stays where it is under Display > Advanced pixel settings.
+static func _resolution_row() -> Dictionary:
+	return {
+		"id": "window_size",
+		"page": "display",
+		"kind": "option",
+		"name_key": "SETTINGS_RESOLUTION_NAME",
+		"desc_key": "SETTINGS_RESOLUTION_DESC",
+		"format": "enum",
+		"default": 0,
+		"options": _resolution_option_labels(),
+		"getter": Callable(SettingsSchema, "_get_resolution_index"),
+		"setter": Callable(SettingsSchema, "_set_resolution_index"),
+	}
+
+
+static func _resolution_option_labels() -> Array:
+	return Array(DisplayService.resolution_labels())
+
+
+static func _get_resolution_index() -> int:
+	return DisplayService.resolution_index()
+
+
+static func _set_resolution_index(idx: int) -> void:
+	DisplayService.set_resolution_index(idx)
 
 
 static func _vsync_row() -> Dictionary:

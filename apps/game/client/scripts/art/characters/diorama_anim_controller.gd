@@ -34,8 +34,38 @@ const ACTION_BLEND := 0.06
 const LIBRARY_NAME := &""
 const RUNTIME_LIBRARY_NAME := &"runtime"
 const ATTACK_CACHE_LIMIT := 24
-const SPEED_SCALE_MIN := 0.5
+## Floor on locomotion playback rate. 0.35, not 0.5: enemies enter the walk clip at 0.35 m/s and
+## routinely approach at 0.6, which against a 2.0 m/s clip asks for 0.30 — so a 0.5 floor cycled
+## their legs at nearly twice the ground they covered. A 0.35 floor still keeps a near-stationary
+## character from crawling, while letting a slow approach actually look slow.
+const SPEED_SCALE_MIN := 0.35
 const SPEED_SCALE_MAX := 2.2
+## How far past a clamp bound a raw scale must land before it is reported. See
+## `_locomotion_speed_scale`.
+const CLAMP_REPORT_MARGIN := 0.35
+
+## Consecutive out-of-range requests before a clip is reported as miscalibrated.
+##
+## Reporting the first one described a passing moment, not a fault: an enemy decelerating through
+## the 0.35 m/s walk threshold spends a few frames asking for a scale below the floor, which is the
+## floor doing its job. A clip whose `stride_m` genuinely does not describe the speeds it is used
+## at is out of range *continuously* — half a second of it is the signal this report wants, and it
+## is what the melee and boss rigs were producing before the stride table was retuned.
+const CLAMP_REPORT_FRAMES := 30
+
+## Per-rig stride multiplier applied to a clip's authored `stride_m`.
+##
+## Stride length is a property of the body, not of the clip, but `AnimLibrary.clip_meta` is keyed
+## by clip name alone and so returns one figure for every rig that shares the table. A hound covers
+## far less ground per cycle than a warden of the same clip, so driving both from the biped's
+## 1.6 m left the hound's playback rate pinned to the floor whenever it approached slowly — it was
+## the last locomotion clamp still being reported.
+##
+## Values are relative to the biped the clips were authored for; anything absent is 1.0.
+const STRIDE_SCALE_BY_PROFILE := {
+	"hound": 0.55,
+	"brute": 1.25,
+}
 
 var _visual: Node3D
 var _player: AnimationPlayer
@@ -59,6 +89,9 @@ var _compiled_attacks: Dictionary = {}
 var _attack_cache_order: Array = []
 var _missing_clips: Dictionary = {}
 var _clamped_clips: Dictionary = {}
+## Consecutive requests per clip whose raw scale landed outside the report margin. See
+## `_report_clamp`.
+var _clamp_streak: Dictionary = {}
 var _hitbox_signals_warned := false
 
 ## Whether this rig's owner is expected to act on hitbox frames.
@@ -275,7 +308,9 @@ func request_locomotion(state: StringName, params: Dictionary = {}) -> void:
 
 func _locomotion_speed_scale(state: StringName, params: Dictionary) -> float:
 	var meta := AnimLibrary.clip_meta(state)
-	var stride_m := float(meta.get("stride_m", 0.0))
+	var stride_m := (
+		float(meta.get("stride_m", 0.0)) * float(STRIDE_SCALE_BY_PROFILE.get(_profile, 1.0))
+	)
 	if stride_m <= 0.0:
 		return 1.0
 	var travel := float(params.get("speed", 0.0))
@@ -283,8 +318,22 @@ func _locomotion_speed_scale(state: StringName, params: Dictionary) -> float:
 	if travel <= 0.0 or length <= 0.0:
 		return 1.0
 	var raw := travel * length / stride_m
-	if raw < SPEED_SCALE_MIN or raw > SPEED_SCALE_MAX:
-		_report_clamp(state, raw)
+	# Only a *large* miss is worth reporting. Clamping at the edge of the band is the clamp doing
+	# its job — a character creeping at 0.4 m/s should not have its legs crawl — and warning about
+	# it drowned the console in messages that described correct behaviour. A raw scale beyond this
+	# margin means the clip's `stride_m` does not describe the speeds it is being used at, which is
+	# a real authoring fault and is what this report exists to catch.
+	var far_out := (
+		raw < SPEED_SCALE_MIN * (1.0 - CLAMP_REPORT_MARGIN)
+		or raw > SPEED_SCALE_MAX * (1.0 + CLAMP_REPORT_MARGIN)
+	)
+	if far_out:
+		var streak := int(_clamp_streak.get(state, 0)) + 1
+		_clamp_streak[state] = streak
+		if streak >= CLAMP_REPORT_FRAMES:
+			_report_clamp(state, raw)
+	else:
+		_clamp_streak[state] = 0
 	return clampf(raw, SPEED_SCALE_MIN, SPEED_SCALE_MAX)
 
 

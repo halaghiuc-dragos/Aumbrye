@@ -107,12 +107,12 @@ func _capture_pass(suffix: String) -> void:
 			await get_tree().process_frame
 		await _clear_intruders(known, instance)
 		var image := get_viewport().get_texture().get_image()
-		var name := scene_path.get_file().get_basename()
-		var out_path := "%s/world_%s%s.png" % [OUTPUT_DIR, name, suffix]
+		var shot_name := scene_path.get_file().get_basename()
+		var out_path := "%s/world_%s%s.png" % [OUTPUT_DIR, shot_name, suffix]
 		if image.save_png(out_path) == OK:
-			print("captured world_%s%s -> %s" % [name, suffix, ProjectSettings.globalize_path(out_path)])
+			print("captured world_%s%s -> %s" % [shot_name, suffix, ProjectSettings.globalize_path(out_path)])
 		else:
-			push_warning("capture_world_screens: could not save %s" % name)
+			push_warning("capture_world_screens: could not save %s" % shot_name)
 		instance.queue_free()
 		await get_tree().process_frame
 		await _clear_intruders(known, null)

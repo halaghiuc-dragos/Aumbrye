@@ -158,7 +158,7 @@ static func coerce_all(raw: Variant) -> Dictionary:
 	return result
 
 
-static func is_truthy(flag_id: String, value: Variant) -> bool:
+static func is_truthy(_flag_id: String, value: Variant) -> bool:
 	if value is bool:
 		return value
 	if value is int or value is float:

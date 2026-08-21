@@ -16,11 +16,7 @@ Run the full local suite:
 node scripts/validate.mjs
 ```
 
-Or run the four layers individually:
-
-```bash
-dotnet test services/backend/Aumbrye.sln --configuration Release
-```
+Or run the layers individually:
 
 ```bash
 npm run validate:strict

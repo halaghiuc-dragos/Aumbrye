@@ -138,7 +138,7 @@ static func complete_run(
 	elapsed: float,
 	boss_defeated: bool,
 	loot_claimed_ids: Array = [],
-	floor: int = 1,
+	floor_index: int = 1,
 	kills: int = 0
 ) -> Dictionary:
 	var payload := {
@@ -147,9 +147,9 @@ static func complete_run(
 		"bossDefeated": boss_defeated,
 		"lootClaimedInstanceIds": loot_claimed_ids,
 		# The server validates loot claims against the floors this run generated and needs to know
-		# which floor the run ended on. Omitting it made every multi-floor completion validate as
-		# floor 1 and reject legitimate claims from floors 2+.
-		"floor": maxi(1, floor),
+		# which floor_index the run ended on. Omitting it made every multi-floor_index completion validate as
+		# floor_index 1 and reject legitimate claims from floors 2+.
+		"floor": maxi(1, floor_index),
 		# The server's XP economy is kills-driven, matching ProgressionService; without this a
 		# cloud-completed run awarded nothing.
 		"kills": maxi(0, kills),
@@ -317,7 +317,7 @@ static func _request_once(url: String, method: int, payload: Dictionary, auth: b
 	return _parse_response(response, method)
 
 
-static func _parse_response(response: Array, method: int) -> Dictionary:
+static func _parse_response(response: Array, _method: int) -> Dictionary:
 	var code: int = int(response[1])
 	var response_headers: PackedStringArray = response[2]
 	var body_text: String = response[3].get_string_from_utf8()

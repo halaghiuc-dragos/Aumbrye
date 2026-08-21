@@ -356,8 +356,8 @@ func _stack_key(rule: Dictionary) -> String:
 	return "%s/%s" % [str(rule.get("sourceId", "")), str(rule.get("stackId", "default"))]
 
 
-func _node_child(owner: Variant, child_name: String) -> Node:
-	var node := owner as Node
+func _node_child(source_owner: Variant, child_name: String) -> Node:
+	var node := source_owner as Node
 	if node == null or not is_instance_valid(node):
 		return null
 	return node.get_node_or_null(child_name)

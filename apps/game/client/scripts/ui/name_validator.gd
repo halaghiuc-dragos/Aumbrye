@@ -53,9 +53,9 @@ static func random_valid_name(existing_names: PackedStringArray = []) -> String:
 ## C-249: `character_create_ui` validates on every text change, so this compiled the pattern and
 ## rebuilt the lower-cased blocklist once per keystroke — eighteen times for an eighteen-character
 ## name. Both are constant for the session.
+## The blocklist cache C-249 added is `_lists_cache` / `_lists_loaded` below; the pair that used
+## to live here was left behind by C-248's rewrite from one list to three and cached nothing.
 static var _charset_regex: RegEx = null
-static var _blocked_cache: PackedStringArray = PackedStringArray()
-static var _blocked_loaded := false
 
 
 static func _matches_charset(trimmed: String) -> bool:

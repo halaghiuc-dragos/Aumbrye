@@ -34,7 +34,7 @@ static func _collision_shape_bottom_local(body: Node3D, shape_node: CollisionSha
 	return body_local.y
 
 
-static func _shape_bottom_offset_y(shape: Shape3D, body: Node3D, shape_node: CollisionShape3D) -> float:
+static func _shape_bottom_offset_y(shape: Shape3D, body: Node3D, _shape_node: CollisionShape3D) -> float:
 	if shape is CapsuleShape3D:
 		return -(shape as CapsuleShape3D).height * 0.5
 	if shape is BoxShape3D:
@@ -115,8 +115,8 @@ static func snap_to_floor_below(body: CharacterBody3D, fallback_y: float = NAN) 
 static func align_diorama_visual(body: Node3D, visual: Node3D) -> void:
 	if visual == null:
 		return
-	var feet_world_y := body.to_global(Vector3(0.0, collision_bottom_local(body), 0.0)).y
-	visual.global_position = Vector3(visual.global_position.x, feet_world_y, visual.global_position.z)
+	var feet_y := body.to_global(Vector3(0.0, collision_bottom_local(body), 0.0)).y
+	visual.global_position = Vector3(visual.global_position.x, feet_y, visual.global_position.z)
 
 
 static func snap_character(body: CharacterBody3D, visual: Node3D, fallback_y: float = NAN) -> void:

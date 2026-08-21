@@ -32,7 +32,6 @@ var _http_pool: Array[HTTPRequest] = []
 var _http_busy: Dictionary = {}
 var _http_busy_since_msec: Dictionary = {}
 var _active_http: Array[HTTPRequest] = []
-var _watchdog_accum: float = 0.0
 
 var _test_is_debug_build: Variant = null
 ## Memoized per-install secret; read once per process from INSTALL_KEY_PATH.

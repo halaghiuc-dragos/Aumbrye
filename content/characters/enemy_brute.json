@@ -31,7 +31,7 @@
       "mesh": "res://assets/characters/enemy_brute/head.voxels.json",
       "joint": [
         0,
-        21,
+        19,
         0
       ],
       "parent": "Torso"

@@ -173,28 +173,28 @@ func _prune_old_reports() -> void:
 		return
 	var entries: Array[Dictionary] = []
 	dir.list_dir_begin()
-	var name := dir.get_next()
-	while name != "":
-		if not dir.current_is_dir() and (name.begins_with("crash_") or name.begins_with("session_")):
-			var full_path := LOG_DIR.path_join(name)
-			if name.ends_with(".json"):
+	var entry_name := dir.get_next()
+	while entry_name != "":
+		if not dir.current_is_dir() and (entry_name.begins_with("crash_") or entry_name.begins_with("session_")):
+			var full_path := LOG_DIR.path_join(entry_name)
+			if entry_name.ends_with(".json"):
 				var file := FileAccess.open(full_path, FileAccess.READ)
 				if file:
 					var parsed: Variant = JSON.parse_string(file.get_as_text())
 					file.close()
 					if parsed is Dictionary and not parsed.has("schemaVersion"):
 						DirAccess.remove_absolute(full_path)
-						name = dir.get_next()
+						entry_name = dir.get_next()
 						continue
 			entries.append(
 				{
 					"path": full_path,
-					"name": name,
+					"name": entry_name,
 					"mtime": FileAccess.get_modified_time(full_path),
 					"size": FileAccess.get_file_as_bytes(full_path).size(),
 				}
 			)
-		name = dir.get_next()
+		entry_name = dir.get_next()
 	dir.list_dir_end()
 	entries.sort_custom(func(a: Dictionary, b: Dictionary) -> bool: return a["mtime"] < b["mtime"])
 	var total_bytes := 0
@@ -216,12 +216,12 @@ func _upload_pending_reports() -> void:
 	if dir == null:
 		return
 	dir.list_dir_begin()
-	var name := dir.get_next()
-	while name != "":
-		if not dir.current_is_dir() and name.begins_with("crash_") and name.ends_with(".json"):
-			var path := LOG_DIR.path_join(name)
+	var entry_name := dir.get_next()
+	while entry_name != "":
+		if not dir.current_is_dir() and entry_name.begins_with("crash_") and entry_name.ends_with(".json"):
+			var path := LOG_DIR.path_join(entry_name)
 			await _upload_report_file(path)
-		name = dir.get_next()
+		entry_name = dir.get_next()
 	dir.list_dir_end()
 
 

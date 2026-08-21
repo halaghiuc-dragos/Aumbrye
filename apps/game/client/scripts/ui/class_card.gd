@@ -1,20 +1,21 @@
 extends Button
 class_name ClassCard
 
-## Focusable class selection card with portrait, role, and stat pips.
+## Focusable class selection card: portrait, name and role.
+##
+## The two-letter stat strip — `DM`, `PS`, `MP` and the rest — is gone. It asked the player to learn
+## an abbreviation for every stat before they could read a card, and the same numbers are already on
+## the All Classes comparison table below the picker, spelled out in full and side by side, which is
+## where a comparison belongs.
 
 const GameUISkinScript := preload("res://scripts/ui/game_ui_skin.gd")
 const ClassIconAtlasScript := preload("res://scripts/ui/class_icon_atlas.gd")
 
 ## Two strengths and one weakness is what fits a card at this width without clipping.
-const PIP_GAINS := 2
-const PIP_LOSSES := 1
 ## One pip per rating point away from standard, so the strip tops out where the rating scale does.
-const PIP_COUNT := ClassCatalog.RATING_MAX - ClassCatalog.RATING_STANDARD
 
 var class_id: String = ""
 var _selected_mark: TextureRect
-var _stat_pips: HBoxContainer
 var _portrait: TextureRect
 var _name_label: Label
 var _role_label: Label
@@ -47,7 +48,6 @@ func setup(class_def: Dictionary) -> void:
 		if role_text == role_key:
 			role_text = str(class_def.get("roleText", ""))
 		_role_label.text = role_text
-	_configure_stat_pips(class_def.get("statRatings", {}))
 
 
 func set_selected_mark(visible_mark: bool) -> void:
@@ -92,91 +92,9 @@ func _build_ui() -> void:
 	GameUISkinScript.style_hint_label(_role_label)
 	_role_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	text_col.add_child(_role_label)
-	_stat_pips = HBoxContainer.new()
-	_stat_pips.name = "StatPips"
-	_stat_pips.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
-	_stat_pips.add_theme_constant_override("separation", 6)
-	text_col.add_child(_stat_pips)
 	_selected_mark = TextureRect.new()
 	_selected_mark.name = "SelectedMark"
 	_selected_mark.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	_selected_mark.custom_minimum_size = Vector2(12, 12)
 	_selected_mark.visible = false
 	row.add_child(_selected_mark)
-
-
-func _configure_stat_pips(ratings: Variant) -> void:
-	if _stat_pips == null:
-		return
-	for child in _stat_pips.get_children():
-		child.queue_free()
-	if not ratings is Dictionary:
-		return
-	# Only the class's defining stats. Every class now carries a value for all twelve, and drawing
-	# a pip strip for each one overflowed the card several times over — a card has room to say what
-	# a class is best and worst at, not to reproduce the comparison table.
-	for entry in ClassCatalog.notable_stats(ratings as Dictionary, PIP_GAINS, PIP_LOSSES):
-		var positive := int(entry.get("rating", ClassCatalog.RATING_STANDARD)) > ClassCatalog.RATING_STANDARD
-		var pip_row := HBoxContainer.new()
-		pip_row.add_theme_constant_override("separation", 3)
-		var label := Label.new()
-		label.text = _abbreviate_stat(str(entry.get("stat", "")))
-		GameUISkinScript.style_hint_label(label)
-		# The hint style word-wraps, which turns a two-letter abbreviation squeezed into this row
-		# into one character per line.
-		label.autowrap_mode = TextServer.AUTOWRAP_OFF
-		label.custom_minimum_size = Vector2(20, 0)
-		label.add_theme_color_override(
-			"font_color",
-			GameUISkinScript.STAT_DELTA_POSITIVE if positive else GameUISkinScript.STAT_DELTA_NEGATIVE
-		)
-		pip_row.add_child(label)
-		var pips := HBoxContainer.new()
-		pips.add_theme_constant_override("separation", 1)
-		# One pip per rating point away from standard, so a pip means the same amount of power on
-		# every stat and the strip reads as the same number the comparison table shows.
-		var filled := clampi(int(entry.get("points", 1)), 1, PIP_COUNT)
-		for i in PIP_COUNT:
-			var pip := ColorRect.new()
-			pip.custom_minimum_size = Vector2(6, 6)
-			if i < filled:
-				pip.color = (
-					GameUISkinScript.STAT_DELTA_POSITIVE
-					if positive
-					else GameUISkinScript.STAT_DELTA_NEGATIVE
-				)
-			else:
-				pip.color = Color(0.25, 0.25, 0.3)
-			pips.add_child(pip)
-		pip_row.add_child(pips)
-		_stat_pips.add_child(pip_row)
-
-
-func _abbreviate_stat(stat_name: String) -> String:
-	match stat_name:
-		"maxHealth":
-			return "HP"
-		"armor":
-			return "AR"
-		"moveSpeed":
-			return "SP"
-		"critChance":
-			return "CR"
-		"physicalDamage":
-			return "DM"
-		"poiseDamage":
-			return "PS"
-		"staminaRegen":
-			return "RG"
-		"staminaMax":
-			return "ST"
-		"poise":
-			return "PO"
-		"blockReduction":
-			return "BL"
-		"manaMax":
-			return "MP"
-		"manaRegen":
-			return "MR"
-		_:
-			return stat_name.substr(0, 2).to_upper()

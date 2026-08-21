@@ -384,7 +384,12 @@ func show_inventory() -> void:
 	_clear_drag()
 	_rebuild_visible_indices()
 	_refresh_all()
-	call_deferred("_focus_grid_cursor")
+	# `_focus_grid_cursor` has never existed, so this raised "Method not found" on every open and
+	# the grid cursor was left unhighlighted until the player moved it. Deferred because the cell
+	# rects are not final until the container has laid out, and the highlight follows the rects.
+	# Passing the Callable rather than a name string means a rename is a parse error, not a
+	# runtime message nobody reads.
+	_highlight_cursor.call_deferred()
 
 
 func hide_inventory() -> void:
@@ -1076,7 +1081,6 @@ func _rebuild_footer_hints() -> void:
 
 func _on_symbols_invalidated(reason: StringName) -> void:
 	if reason in [&"device", &"rebind", &"preset"]:
-		var inv := _inventory()
 		var compare_index := -1
 		if _hover_grid_index >= 0:
 			compare_index = _index_at_grid_cell(_hover_grid_index)

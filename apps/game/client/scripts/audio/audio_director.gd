@@ -41,22 +41,22 @@ const SFX_PROFILES := {
 	"swing": {"path": "res://assets/audio/sfx/swing_01.ogg", "bus": &"SFX"},
 	"death": {"path": "res://assets/audio/sfx/death_01.ogg", "bus": &"SFX"},
 	"footstep": {"path": "res://assets/audio/sfx/step_stone_01.ogg", "bus": &"SFX"},
-	"footstep_stone": {"freq": 80.0, "duration": 0.05, "bus": &"SFX", "placeholder": true},
-	"footstep_wood": {"freq": 120.0, "duration": 0.05, "bus": &"SFX", "placeholder": true},
-	"footstep_water": {"freq": 200.0, "duration": 0.09, "bus": &"SFX", "placeholder": true},
-	"footstep_snow": {"freq": 60.0, "duration": 0.07, "bus": &"SFX", "placeholder": true},
+	"footstep_stone": {"path": "res://assets/audio/sfx/step_stone_01.ogg", "bus": &"SFX"},
+	"footstep_wood": {"path": "res://assets/audio/sfx/step_wood_01.ogg", "bus": &"SFX"},
+	"footstep_water": {"path": "res://assets/audio/sfx/step_water_01.ogg", "bus": &"SFX"},
+	"footstep_snow": {"path": "res://assets/audio/sfx/step_snow_01.ogg", "bus": &"SFX"},
 	"windup": {"path": "res://assets/audio/sfx/windup_01.ogg", "bus": &"SFX"},
 	"heal_raise": {"path": "res://assets/audio/sfx/heal_raise.ogg", "bus": &"SFX"},
 	"heal_gulp": {"path": "res://assets/audio/sfx/heal_gulp.ogg", "bus": &"SFX"},
 	"heal_commit": {"path": "res://assets/audio/sfx/heal_commit.ogg", "bus": &"SFX"},
-	"lever_pull": {"path": "res://assets/audio/sfx/ui_click_01.ogg", "bus": &"SFX", "placeholder": true},
-	"lever_unlock": {"path": "res://assets/audio/sfx/heal_commit.ogg", "bus": &"SFX", "placeholder": true},
+	"lever_pull": {"path": "res://assets/audio/sfx/lever_pull.ogg", "bus": &"SFX"},
+	"lever_unlock": {"path": "res://assets/audio/sfx/lever_unlock.ogg", "bus": &"SFX"},
 	"ui": {"path": "res://assets/audio/sfx/ui_click_01.ogg", "bus": &"UI"},
-	"door_open": {"path": "res://assets/audio/sfx/swing_01.ogg", "bus": &"SFX", "placeholder": true},
-	"door_seal": {"path": "res://assets/audio/sfx/block_01.ogg", "bus": &"SFX", "placeholder": true},
-	"door_release": {"path": "res://assets/audio/sfx/heal_raise.ogg", "bus": &"SFX", "placeholder": true},
-	"portal_open": {"path": "res://assets/audio/sfx/heal_commit.ogg", "bus": &"SFX", "placeholder": true},
-	"portal_enter": {"path": "res://assets/audio/sfx/ui_click_01.ogg", "bus": &"UI", "placeholder": true},
+	"door_open": {"path": "res://assets/audio/sfx/door_open.ogg", "bus": &"SFX"},
+	"door_seal": {"path": "res://assets/audio/sfx/door_seal.ogg", "bus": &"SFX"},
+	"door_release": {"path": "res://assets/audio/sfx/door_release.ogg", "bus": &"SFX"},
+	"portal_open": {"path": "res://assets/audio/sfx/portal_open.ogg", "bus": &"SFX"},
+	"portal_enter": {"path": "res://assets/audio/sfx/portal_enter.ogg", "bus": &"UI"},
 	# C-161: `RarityRegistry.drop_sfx_id()` produces six ids — `loot_drop_common` through
 	# `loot_drop_aumbral` — and **none of them existed**, so in a looter every loot drop played the
 	# missing-sfx fallback tone, and the *same* tone for a common and an aumbral. `RarityRegistry`
@@ -64,66 +64,30 @@ const SFX_PROFILES := {
 	# and an aumbral camera nudge, and `world_item_pickup` uses all of them; the one channel that
 	# says "this one matters" by itself was the one that beeped.
 	#
-	# All six borrow existing files and are pitch-shifted apart, so the ladder is audible without
-	# authored foley — and all six are marked `placeholder` so the report counts them honestly.
-	"loot_drop_common": {
-		"path": "res://assets/audio/sfx/ui_click_01.ogg",
-		"bus": &"SFX",
-		"pitch": 0.85,
-		"placeholder": true,
-	},
-	"loot_drop_magic": {
-		"path": "res://assets/audio/sfx/ui_click_01.ogg",
-		"bus": &"SFX",
-		"pitch": 1.0,
-		"placeholder": true,
-	},
-	"loot_drop_rare": {
-		"path": "res://assets/audio/sfx/ui_interact_near.ogg",
-		"bus": &"SFX",
-		"pitch": 1.05,
-		"placeholder": true,
-	},
-	"loot_drop_epic": {
-		"path": "res://assets/audio/sfx/heal_raise.ogg",
-		"bus": &"SFX",
-		"pitch": 1.1,
-		"placeholder": true,
-	},
-	"loot_drop_legendary": {
-		"path": "res://assets/audio/sfx/heal_commit.ogg",
-		"bus": &"SFX",
-		"pitch": 1.0,
-		"placeholder": true,
-	},
-	"loot_drop_aumbral": {
-		"path": "res://assets/audio/shared/sting_clear.ogg",
-		"bus": &"SFX",
-		"pitch": 1.0,
-		"placeholder": true,
-	},
+	# All six are now authored (`tools/generate_foley.py`). Each is the same landing impact — the
+	# event does not change with rarity — under a chime that gains a note per tier, so the ladder
+	# reads as one scale rather than six unrelated noises. Aumbral is deliberately the odd one:
+	# its chime is built on a tritone instead of a fifth and carries a sub-octave drop, so the top
+	# of the scale sounds wrong rather than merely louder.
+	"loot_drop_common": {"path": "res://assets/audio/sfx/loot_drop_common.ogg", "bus": &"SFX"},
+	"loot_drop_magic": {"path": "res://assets/audio/sfx/loot_drop_magic.ogg", "bus": &"SFX"},
+	"loot_drop_rare": {"path": "res://assets/audio/sfx/loot_drop_rare.ogg", "bus": &"SFX"},
+	"loot_drop_epic": {"path": "res://assets/audio/sfx/loot_drop_epic.ogg", "bus": &"SFX"},
+	"loot_drop_legendary": {"path": "res://assets/audio/sfx/loot_drop_legendary.ogg", "bus": &"SFX"},
+	"loot_drop_aumbral": {"path": "res://assets/audio/sfx/loot_drop_aumbral.ogg", "bus": &"SFX"},
 	# C-122: three ids were requested by live gameplay code and defined nowhere, so each played a
 	# generic synthesized tone through the missing-sfx fallback. `dodge_perfect` is the audio reward
 	# for a perfectly timed dodge — the most skilful action in the genre, and the thing the whole
 	# i-frame model exists to make possible — and it beeped. `exhausted` and `resource_denied` are
 	# the two "you cannot act" cues, the other moment audio has to be unambiguous. All three borrow
-	# a near-fit file and are marked as placeholders so they are counted honestly.
-	"dodge_perfect": {
-		"path": "res://assets/audio/sfx/parry_01.ogg", "bus": &"SFX", "placeholder": true
-	},
-	"exhausted": {
-		"path": "res://assets/audio/sfx/heal_raise.ogg", "bus": &"SFX", "placeholder": true
-	},
-	"resource_denied": {
-		"path": "res://assets/audio/sfx/block_02.ogg", "bus": &"UI", "placeholder": true
-	},
+	# All three are now authored (`tools/generate_foley.py`).
+	"dodge_perfect": {"path": "res://assets/audio/sfx/dodge_perfect.ogg", "bus": &"SFX"},
+	"exhausted": {"path": "res://assets/audio/sfx/exhausted.ogg", "bus": &"SFX"},
+	"resource_denied": {"path": "res://assets/audio/sfx/resource_denied.ogg", "bus": &"UI"},
 	# C-65: guard break was the only major defensive event with no sound at all — the harshest
-	# defensive failure in the game was communicated by a 0.16 s material flash. Marked as a
-	# placeholder because it borrows the armour-hit file rather than being authored foley, so it
-	# shows up in the `_report_placeholder_sfx` banner alongside the other seven.
-	"guard_break": {
-		"path": "res://assets/audio/sfx/hit_armor.ogg", "bus": &"SFX", "placeholder": true
-	},
+	# defensive failure in the game was communicated by a 0.16 s material flash. Now authored
+	# (`tools/generate_foley.py`): bright metal failing over the weight of it dropping.
+	"guard_break": {"path": "res://assets/audio/sfx/guard_break.ogg", "bus": &"SFX"},
 	"boss_reveal": {"path": "res://assets/audio/shared/sting_boss.ogg", "bus": &"Music"},
 }
 
@@ -193,6 +157,29 @@ var _boss_active := false
 var _player_vitality := 1.0
 
 
+## Stops every player and drops its stream before the tree goes away.
+##
+## Without this the engine reported four leaked ObjectDB instances and two resources still in use
+## on every exit — an `AudioStreamOggVorbis`, its `OggPacketSequence`, and the two playback objects
+## the audio server holds while a stream is *playing*. They were all `title_theme.ogg`: the menu
+## music is still running when the tree tears down, so the server had not released its playback and
+## the resource never reached a zero refcount.
+##
+## This is not a memory problem in a running game — everything is freed on process exit either way
+## — but it is noise on every single shutdown, and noise on shutdown is how a real leak later goes
+## unnoticed.
+func _exit_tree() -> void:
+	var players: Array[Node] = [_music, _explore, _combat_layer, _ambience]
+	players.append_array(_sfx_pool)
+	players.append_array(_sfx_3d_pool)
+	for node in players:
+		if not is_instance_valid(node):
+			continue
+		if node.has_method("stop"):
+			node.call("stop")
+		node.set("stream", null)
+
+
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	set_process(true)
@@ -250,8 +237,10 @@ func _report_placeholder_sfx() -> void:
 ## indirection the bank actually uses. `footstep_stone` and its siblings are never requested as
 ## bank keys — `play_sfx(kind, world_pos, surface)` asks for `footstep` and resolves the surface
 ## from `surface_variants`. So three authored surfaces were reported as "still need real foley",
-## and a developer scanning the banner would dismiss the whole list as stale. Snow genuinely has
-## no variant authored and stays on the list, which is the point of the report.
+## and a developer scanning the banner would dismiss the whole list as stale.
+##
+## All four surfaces now carry three authored variants (`tools/generate_foley.py`); the profiles
+## below are the single-file fallback used only when the bank itself fails to load.
 static func _profile_bank_key(key: String) -> Array:
 	if key.begins_with("footstep_"):
 		return ["footstep", key.substr("footstep_".length())]

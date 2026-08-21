@@ -4,40 +4,40 @@
   "profile": "biped",
   "parts": {
     "LegL": {
-      "mesh": "res://assets/characters/player_warden/legl.voxels.json",
+      "mesh": "res://assets/characters/player_warden_tall/legl.voxels.json",
       "joint": [
-        -3,
-        14,
+        -4,
+        13,
         0
       ]
     },
     "LegR": {
-      "mesh": "res://assets/characters/player_warden/legr.voxels.json",
+      "mesh": "res://assets/characters/player_warden_tall/legr.voxels.json",
       "joint": [
-        3,
-        14,
+        4,
+        13,
         0
       ]
     },
     "Torso": {
-      "mesh": "res://assets/characters/player_warden/torso.voxels.json",
+      "mesh": "res://assets/characters/player_warden_tall/torso.voxels.json",
       "joint": [
         0,
-        14,
+        13,
         0
       ]
     },
     "Head": {
-      "mesh": "res://assets/characters/player_warden/head.voxels.json",
+      "mesh": "res://assets/characters/player_warden_tall/head.voxels.json",
       "joint": [
         0,
-        18,
+        16,
         0
       ],
       "parent": "Torso"
     },
     "ArmL": {
-      "mesh": "res://assets/characters/player_warden/arml.voxels.json",
+      "mesh": "res://assets/characters/player_warden_tall/arml.voxels.json",
       "joint": [
         -8,
         16,
@@ -47,12 +47,12 @@
       "mount": "ShieldMount",
       "meshOffset": [
         0,
-        -13,
+        -14,
         0
       ]
     },
     "ArmR": {
-      "mesh": "res://assets/characters/player_warden/armr.voxels.json",
+      "mesh": "res://assets/characters/player_warden_tall/armr.voxels.json",
       "joint": [
         8,
         16,
@@ -62,7 +62,7 @@
       "mount": "WeaponMount",
       "meshOffset": [
         0,
-        -13,
+        -14,
         0
       ]
     }
@@ -70,7 +70,7 @@
   "animationLibrary": "res://assets/animations/diorama/player_locomotion.res",
   "extras": {
     "Visor": {
-      "mesh": "res://assets/characters/player_warden/visor.voxels.json",
+      "mesh": "res://assets/characters/player_warden_tall/visor.voxels.json",
       "parent": "Head",
       "offset": [
         0,
@@ -79,16 +79,16 @@
       ]
     },
     "Hood": {
-      "mesh": "res://assets/characters/player_warden/hood.voxels.json",
+      "mesh": "res://assets/characters/player_warden_tall/hood.voxels.json",
       "parent": "Head",
       "offset": [
         0,
-        3,
-        -1
+        -3,
+        0
       ]
     },
     "BeltTrim": {
-      "mesh": "res://assets/characters/player_warden/belttrim.voxels.json",
+      "mesh": "res://assets/characters/player_warden_tall/belttrim.voxels.json",
       "parent": "Torso",
       "offset": [
         0,
@@ -97,21 +97,21 @@
       ]
     },
     "Pauldron": {
-      "mesh": "res://assets/characters/player_warden/pauldron.voxels.json",
+      "mesh": "res://assets/characters/player_warden_tall/pauldron.voxels.json",
       "parent": "ArmL",
       "offset": [
         0,
-        1,
-        -2
+        -1,
+        0
       ]
     },
     "PauldronR": {
-      "mesh": "res://assets/characters/player_warden/pauldronr.voxels.json",
+      "mesh": "res://assets/characters/player_warden_tall/pauldronr.voxels.json",
       "parent": "ArmR",
       "offset": [
         0,
-        1,
-        -2
+        -1,
+        0
       ]
     }
   },

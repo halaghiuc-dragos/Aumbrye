@@ -261,7 +261,9 @@ static func stat_display_name(stat: String) -> String:
 	var key: String = str(entry.get("key", ""))
 	if key == "":
 		return fallback
-	var translated := TranslationServer.translate(key)
+	# `translate` returns a StringName; the fallback is a String, and a ternary whose arms are
+	# different types is a warning and a Variant at the call site.
+	var translated := String(TranslationServer.translate(key))
 	return fallback if translated == key else translated
 
 
@@ -299,7 +301,9 @@ static func upgrade_path_label(path: String) -> String:
 	var key: String = str(entry.get("key", ""))
 	if key == "":
 		return fallback
-	var translated := TranslationServer.translate(key)
+	# `translate` returns a StringName; the fallback is a String, and a ternary whose arms are
+	# different types is a warning and a Variant at the call site.
+	var translated := String(TranslationServer.translate(key))
 	return fallback if translated == key else translated
 
 
@@ -309,7 +313,9 @@ static func infusion_label(infusion: String) -> String:
 		return ""
 	var fallback: String = str(entry.get("label", infusion.capitalize()))
 	var key: String = str(entry.get("key", ""))
-	var translated := TranslationServer.translate(key)
+	# `translate` returns a StringName; the fallback is a String, and a ternary whose arms are
+	# different types is a warning and a Variant at the call site.
+	var translated := String(TranslationServer.translate(key))
 	return fallback if translated == key else translated
 
 
@@ -388,14 +394,14 @@ static func _apply_infusion(totals: Dictionary, infusion: String) -> void:
 	var entry: Dictionary = INFUSIONS.get(infusion, {})
 	if entry.is_empty():
 		return
-	var convert := float(entry.get("convert", 0.0))
+	var convert_fraction := float(entry.get("convert", 0.0))
 	var rate := float(entry.get("rate", 1.0))
 	var damage := float(totals.get("bonusDamage", 0.0))
 	if damage > 0.0:
-		totals["bonusDamage"] = damage * (1.0 - convert) + damage * convert * rate
+		totals["bonusDamage"] = damage * (1.0 - convert_fraction) + damage * convert_fraction * rate
 	var resist_stat := str(entry.get("resist", ""))
 	if resist_stat in STAT_KEYS:
-		totals[resist_stat] = totals.get(resist_stat, 0.0) + convert * 0.25
+		totals[resist_stat] = totals.get(resist_stat, 0.0) + convert_fraction * 0.25
 
 
 static func _add_instance_stats(

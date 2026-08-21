@@ -28,7 +28,8 @@ Aumbrye/
 └── docker-compose.yml    # postgres + redis + api
 ```
 
-Main scene: `apps/game/client/scenes/ui/title_screen.tscn` (`project.godot` → `run/main_scene`).
+Main scene: `apps/game/client/scenes/ui/main_menu.tscn` (`project.godot` → `run/main_scene`). It
+plays the title intro on the first visit of a process and is the plain menu on every later one.
 
 The API **does** have a container image: `services/backend/Dockerfile` exists and `docker-compose.yml`
 defines an `api` service (`container_name: aumbrye-api`). Building and publishing it is a manual step —
@@ -82,8 +83,8 @@ Non-autoload statics carry a large share of state: catalogs under `scripts/conte
 
 ```mermaid
 flowchart LR
-  Title[title_screen.tscn] --> Menu[main_menu / character_create]
-  Menu --> Loading[loading_screen.tscn]
+  Menu[main_menu.tscn: title intro then menu] --> Create[character_create]
+  Create --> Loading[loading_screen.tscn]
   Loading --> Hub[hub.tscn]
   Hub -->|castle / endless| Castle[castle_run.tscn]
   Hub -->|waves| Waves[waves_run.tscn]

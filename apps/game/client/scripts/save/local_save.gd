@@ -63,10 +63,36 @@ func has_save() -> bool:
 	return FileAccess.file_exists(SAVE_PATH)
 
 
+## Loads the legacy single-save document at `SAVE_PATH`.
+##
+## This is *not* the right entry point once a roster exists — each character has its own document
+## under `characters/`, and `SAVE_PATH` is only the pre-roster file kept for migration. Use
+## `reload_active_into_services()` unless you specifically mean the legacy path.
 func load_into_services() -> bool:
 	if not FileAccess.file_exists(SAVE_PATH):
 		return false
 	return _load_document(SAVE_PATH)
+
+
+## Reloads whichever document is authoritative for the active character.
+##
+## The same rule `_ready()` and `execute_boot()`'s CONTINUE_MAIN branch already apply: the active
+## character's own document when there is one, and only otherwise the legacy save.
+##
+## `Hub._boot_save_and_services` used to call `load_into_services()` directly, which meant that
+## after character creation the hub re-read a stale `aumbrye_save.json` belonging to nobody — so
+## `CharacterService.class_id` came back empty, the hub's own guard fired, and the player was sent
+## straight back to the main menu holding a character that had in fact been created and written to
+## disk correctly. That is the "Begin sends me to the menu" bug.
+## The roster id of the character currently loaded, or "" before one is chosen.
+func get_active_character_id() -> String:
+	return _active_character_id
+
+
+func reload_active_into_services() -> bool:
+	if _active_character_id != "" and FileAccess.file_exists(_character_path(_active_character_id)):
+		return load_character(_active_character_id)
+	return load_into_services()
 
 
 func _ready() -> void:
@@ -381,7 +407,16 @@ func queue_boot_continue_backup(index: int) -> void:
 	_boot_backup_index = index
 
 
+## Why the last `execute_boot()` returned false, as a translation key. Empty when it succeeded.
+##
+## The call used to return a bare bool, so `LoadingScreen` showed "Could not load save" for every
+## cause — including a full character roster, which is not a load failure at all and which the
+## player can actually do something about.
+var last_boot_failure := ""
+
+
 func execute_boot() -> bool:
+	last_boot_failure = ""
 	match _boot_mode:
 		BootMode.NEW_GAME:
 			return _apply_new_game_boot()
@@ -389,7 +424,10 @@ func execute_boot() -> bool:
 			var character_id := _boot_character_id
 			_boot_character_id = ""
 			_boot_mode = BootMode.NONE
-			return load_character(character_id)
+			if load_character(character_id):
+				return true
+			last_boot_failure = "LOADING_CHARACTER_MISSING"
+			return false
 		BootMode.CONTINUE_MAIN:
 			_boot_mode = BootMode.NONE
 			if _active_character_id != "":
@@ -401,7 +439,10 @@ func execute_boot() -> bool:
 			_boot_backup_index = -1
 			return restore_backup(index)
 		_:
-			return load_into_services() if has_save() else false
+			if has_save() and load_into_services():
+				return true
+			last_boot_failure = "LOADING_SAVE_FAILED"
+			return false
 
 
 func _apply_new_game_boot() -> bool:
@@ -413,6 +454,7 @@ func _apply_new_game_boot() -> bool:
 			"LocalSave: character slots full (%d of %d)"
 			% [used_character_slots(), MAX_CHARACTER_SLOTS]
 		)
+		last_boot_failure = "LOADING_SLOTS_FULL"
 		return false
 	var character_id := _generate_character_id()
 	_active_character_id = character_id
@@ -1208,9 +1250,9 @@ func _restore_from_premigrate(character_id: String) -> bool:
 	dir.list_dir_end()
 	matches.sort()
 	matches.reverse()
-	for name in matches:
-		if _adopt_document_file("%s%s" % [BACKUP_DIR, name], character_id):
-			print_verbose("LocalSave: recovered from premigrate artefact %s" % name)
+	for roster_name in matches:
+		if _adopt_document_file("%s%s" % [BACKUP_DIR, roster_name], character_id):
+			print_verbose("LocalSave: recovered from premigrate artefact %s" % roster_name)
 			return true
 	return false
 

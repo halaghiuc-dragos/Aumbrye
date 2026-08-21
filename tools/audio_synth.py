@@ -271,21 +271,166 @@ def snare(seconds: float, rng: np.random.Generator) -> np.ndarray:
 # --- space -------------------------------------------------------------------------------------
 
 
-def reverb(sig: np.ndarray, seconds: float, mix: float, rng: np.random.Generator) -> np.ndarray:
-    """Convolution with an exponentially decaying noise tail — a cheap, convincing stone room.
+def reverb(
+    sig: np.ndarray,
+    seconds: float,
+    mix: float,
+    rng: np.random.Generator,
+    *,
+    predelay_ms: float = 12.0,
+    damping_hz: float = 3600.0,
+    room: float = 1.0,
+) -> np.ndarray:
+    """Convolution with a modelled room impulse: pre-delay, early reflections, diffuse tail.
 
-    FFT convolution, not direct: a minute of audio against a one-second tail is 2.6M x 48k
-    multiply-adds the direct way, which turns a whole soundtrack render into an overnight job.
+    The previous impulse was one block of white noise under a single exponential, lowpassed once.
+    That is a plausible *tail* and nothing else, and it is why every sound in the bank shared the
+    same slightly synthetic wash: no pre-delay, so the wet signal started on top of the dry one and
+    smeared the transient that tells you what was struck; no early reflections, so there was no
+    sense of a surface anywhere; and one decay rate for the whole spectrum, where a real room
+    absorbs treble several times faster than bass.
+
+    The three parts:
+
+    * **Pre-delay** — silence before any reflection. Keeps the attack dry and readable, and is most
+      of what makes a room sound large rather than merely reverberant.
+    * **Early reflections** — a handful of discrete taps in the first ~80 ms, at irregular spacing
+      so they do not ring at one pitch, alternating polarity to stay diffuse.
+    * **Diffuse tail** — noise decaying in three bands at different rates: lows slowest, highs
+      fastest, which is the frequency-dependent absorption real surfaces have.
+
+    `room` scales the reflection pattern, so the same call gives a stone corridor at 1.0 and a
+    small wooden room at 0.4.
     """
-    length = n_samples(seconds)
-    ir = rng.uniform(-1.0, 1.0, length).astype(np.float32)
-    ir *= np.exp(-np.linspace(0.0, 6.0, length, dtype=np.float32))
-    ir = lowpass(ir, 4200.0, poles=1)
+    length = max(1, n_samples(seconds))
+    ir = np.zeros(length, dtype=np.float32)
     ir[0] = 1.0
-    wet = fftconvolve(sig, ir)[: sig.shape[0]]
+    predelay = n_samples(predelay_ms / 1000.0)
+
+    # Early reflections. Irregular spacing on purpose: evenly spaced taps comb-filter into a
+    # metallic ring at the tap rate, which is the classic cheap-reverb artefact.
+    offsets = np.array([1.0, 1.7, 2.3, 3.1, 4.4, 5.3, 6.9, 8.2, 11.3, 13.7], dtype=np.float32)
+    for i, offset in enumerate(offsets):
+        tap = predelay + n_samples(offset * 0.006 * room)
+        if tap >= length:
+            break
+        ir[tap] += float(0.62 * math.exp(-0.28 * i) * (1.0 if i % 2 == 0 else -0.85))
+
+    # Diffuse tail, three bands with their own decay rate.
+    tail_n = length - predelay
+    if tail_n > 8:
+        span = np.linspace(0.0, 1.0, tail_n, dtype=np.float32)
+        base = rng.uniform(-1.0, 1.0, tail_n).astype(np.float32)
+        bands = (
+            (lowpass(base, 500.0, poles=2), 3.6, 0.55),
+            (bandpass(base, 500.0, 2500.0), 5.4, 0.75),
+            (highpass(base, 2500.0, poles=2), 9.0, 0.40),
+        )
+        tail = np.zeros(tail_n, dtype=np.float32)
+        for band, decay, gain in bands:
+            tail += band * np.exp(-decay * span) * gain
+        # Density ramp: a real tail thickens over the first few tens of milliseconds rather than
+        # arriving at full density with the first reflection.
+        tail *= np.clip(span * 24.0, 0.0, 1.0)
+        ir[predelay:] += lowpass(tail, damping_hz, poles=1) * 0.5
+
+    wet = fftconvolve(sig, ir, axes=0)[: sig.shape[0]]
     peak = float(np.max(np.abs(wet))) or 1.0
     wet = wet / peak * (float(np.max(np.abs(sig))) or 1.0)
     return ((1.0 - mix) * sig + mix * wet).astype(np.float32)
+
+
+# --- modal synthesis ---------------------------------------------------------------------------
+
+
+def modal(
+    freqs: list[float],
+    seconds: float,
+    *,
+    decays: list[float] | None = None,
+    gains: list[float] | None = None,
+    detune: float = 0.0,
+    rng: np.random.Generator | None = None,
+) -> np.ndarray:
+    """Sum of exponentially decaying sinusoids — how a struck solid actually sounds.
+
+    A bell, a lever, a stone slab and a coin all ring at a set of frequencies that are *not*
+    harmonically related, each dying at its own rate, with the high modes going first. That
+    inharmonic spectrum and that staggered decay are the whole difference between "a metal object
+    was struck" and "a synthesiser played a note", and no amount of filtering a sawtooth gets
+    there. Every impact in the bank is built on this.
+
+    `decays` are per-mode decay constants in nepers/second; higher dies faster. Omitted, each mode
+    decays proportionally to its frequency, which is the behaviour of most real materials.
+    """
+    n = n_samples(seconds)
+    t = np.arange(n, dtype=np.float32) / SAMPLE_RATE
+    out = np.zeros(n, dtype=np.float32)
+    if not freqs:
+        return out
+    base = freqs[0] if freqs[0] > 0.0 else 1.0
+    for i, freq in enumerate(freqs):
+        if freq <= 0.0 or freq >= SAMPLE_RATE * 0.5:
+            continue
+        gain = gains[i] if gains is not None and i < len(gains) else 1.0 / (1.0 + i)
+        decay = (
+            decays[i]
+            if decays is not None and i < len(decays)
+            else 2.0 + 5.0 * (freq / base)
+        )
+        phase = 0.0
+        if detune > 0.0 and rng is not None:
+            freq *= 1.0 + rng.uniform(-detune, detune)
+            phase = float(rng.uniform(0.0, 2.0 * math.pi))
+        out += (gain * np.exp(-decay * t) * np.sin(2.0 * math.pi * freq * t + phase)).astype(
+            np.float32
+        )
+    return out
+
+
+def transient(seconds: float, rng: np.random.Generator, *, cutoff: float = 9000.0) -> np.ndarray:
+    """The initial click of a contact — a very short filtered noise burst.
+
+    Layered under a modal body it is what tells the ear something *hit* something, rather than a
+    tone simply beginning. It is the cheapest single thing that makes synthesised foley read as
+    foley, and none of the existing effects had one.
+    """
+    n = max(2, n_samples(seconds))
+    burst = rng.uniform(-1.0, 1.0, n).astype(np.float32)
+    burst *= np.exp(-np.linspace(0.0, 14.0, n, dtype=np.float32))
+    return lowpass(burst, cutoff, poles=1)
+
+
+def granular_scrape(
+    seconds: float,
+    rng: np.random.Generator,
+    *,
+    grain_hz: float = 220.0,
+    low: float = 300.0,
+    high: float = 4000.0,
+    jitter: float = 0.6,
+) -> np.ndarray:
+    """Irregular grains of filtered noise — stone dragging, snow compacting, a bolt sliding.
+
+    A continuous noise band reads as wind or static however it is enveloped. Real scraping is a
+    rapid series of discrete micro-contacts, and reproducing that literally, with jittered spacing
+    and amplitude, is what gives the sound a texture and a material.
+    """
+    n = n_samples(seconds)
+    out = np.zeros(n, dtype=np.float32)
+    spacing = max(1, int(SAMPLE_RATE / max(1.0, grain_hz)))
+    grain_len = min(n, spacing * 3)
+    if grain_len < 4:
+        return out
+    window = np.hanning(grain_len).astype(np.float32)
+    pos = 0
+    while pos < n:
+        grain = rng.uniform(-1.0, 1.0, grain_len).astype(np.float32) * window
+        amp = float(rng.uniform(1.0 - jitter, 1.0))
+        end = min(n, pos + grain_len)
+        out[pos:end] += grain[: end - pos] * amp
+        pos += max(1, int(spacing * rng.uniform(1.0 - jitter * 0.5, 1.0 + jitter * 0.5)))
+    return bandpass(out, low, high)
 
 
 def stereo(left: np.ndarray, right: np.ndarray) -> np.ndarray:
@@ -363,15 +508,27 @@ def soft_clip(sig: np.ndarray) -> np.ndarray:
 # --- output ------------------------------------------------------------------------------------
 
 
-def _ffmpeg() -> str:
+def _ffmpeg() -> str | None:
     exe = shutil.which("ffmpeg") or "C:/ffmpeg/ffmpeg/bin/ffmpeg.exe"
-    if not pathlib.Path(exe).exists() and shutil.which("ffmpeg") is None:
-        raise RuntimeError("ffmpeg not found; needed to encode Ogg Vorbis")
+    if shutil.which("ffmpeg") is None and not pathlib.Path(exe).exists():
+        return None
     return exe
 
 
-def write_ogg(path: str | pathlib.Path, sig: np.ndarray, quality: int = 5) -> pathlib.Path:
-    """Write float audio as Ogg Vorbis. Mono in, mono out; (n, 2) in, stereo out."""
+def write_ogg(path: str | pathlib.Path, sig: np.ndarray, quality: int = 7) -> pathlib.Path:
+    """Write float audio as Ogg Vorbis. Mono in, mono out; (n, 2) in, stereo out.
+
+    Prefers ffmpeg, because `-q:a` maps directly onto the quality argument and its encoder is the
+    better of the two. Falls back to libsndfile through `soundfile`, which also writes Vorbis and
+    needs no system binary — without that fallback the whole audio pipeline was unrunnable on any
+    machine that happened not to have ffmpeg installed, which is not a useful property for a
+    generator that is the only source of the game's sound.
+
+    The default quality is 7, not 5. Much of this bank is broadband noise — stone, snow, cloth,
+    metal scrape — and that is exactly the content Vorbis spends the most bits on; at q5 the
+    high-frequency detail that separates a snow footstep from a generic crunch was being smeared
+    into a warble. The bank is a few megabytes either way.
+    """
     path = pathlib.Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
     data = np.asarray(sig, dtype=np.float32)
@@ -379,6 +536,12 @@ def write_ogg(path: str | pathlib.Path, sig: np.ndarray, quality: int = 5) -> pa
         channels = 1
     else:
         channels = data.shape[1]
+    exe = _ffmpeg()
+    if exe is None:
+        import soundfile as sf  # imported lazily: only the fallback path needs it
+
+        sf.write(str(path), np.clip(data, -1.0, 1.0), SAMPLE_RATE, format="OGG", subtype="VORBIS")
+        return path
     pcm = np.clip(data, -1.0, 1.0)
     pcm = (pcm * 32767.0).astype("<i2")
     with tempfile.TemporaryDirectory() as tmp:
@@ -390,7 +553,7 @@ def write_ogg(path: str | pathlib.Path, sig: np.ndarray, quality: int = 5) -> pa
             w.writeframes(pcm.tobytes())
         subprocess.run(
             [
-                _ffmpeg(), "-y", "-loglevel", "error",
+                exe, "-y", "-loglevel", "error",
                 "-i", str(wav_path),
                 "-c:a", "libvorbis", "-q:a", str(quality),
                 str(path),

@@ -31,7 +31,7 @@
       "mesh": "res://assets/characters/enemy_shield/head.voxels.json",
       "joint": [
         0,
-        17,
+        15,
         0
       ],
       "parent": "Torso"

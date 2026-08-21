@@ -31,7 +31,7 @@
       "mesh": "res://assets/characters/enemy_biome_frost/head.voxels.json",
       "joint": [
         0,
-        16,
+        14,
         0
       ],
       "parent": "Torso"

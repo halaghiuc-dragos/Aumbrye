@@ -8,11 +8,11 @@ Items no automated check covers.
 >
 > What replaced it, and what this checklist now complements:
 >
-> - **CI** (`.github/workflows/ci.yml`) — content validation, DOC-01 path check, `dotnet test`,
->   `ruff` + voxel-import tests, the Godot smoke test, and the web lint/test/build.
-> - **Release** (`.github/workflows/release.yml`) — exports, stages `content/` beside the binary, and
->   smoke-tests **the exported build**, which is the only way to exercise the export content path.
+> - **`scripts/validate.mjs`** — the local runner: dotnet build, content validation, `ruff`, and the
+>   Godot headless smoke test. Run by hand; this project has no hosted CI and will not have one.
+> - **`scripts/check-doc-paths.mjs`** — DOC-01, every cited repo path.
 > - **`scripts/tools/procgen_seed_health.gd`** — Phase 1 room-graph sweep (and it says so; see C-256).
+> - **`scenes/debug/combination_audit.tscn`** — every character-option combination, structurally.
 >
 > Everything below is still manual because none of those can reach it. The list is not exhaustive:
 > the whole of `CORE_GAMEPLAY_REVIEW.md` was implemented without a controller in hand, so anything

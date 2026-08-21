@@ -14,6 +14,18 @@ const CharacterSkinScript := preload("res://scripts/art/characters/diorama_chara
 ## One press of a rotate button or of Q / E.
 const ROTATE_STEP := deg_to_rad(30.0)
 
+## Stage yaw that puts the warden's front toward the camera.
+##
+## A rig is assembled facing -Z: the chest placard, the visor slit and the boot toes are all on the
+## side away from a camera standing at +Z. In play that is right — the third-person camera follows
+## the player from behind and `CombatFacing` turns the whole visual to aim it — but the preview
+## never turns anything, so character creation opened on the back of the warden and a player had to
+## press the rotate button twice to see the face they had just chosen.
+##
+## Measured rather than derived: rendering the four cardinal yaws and counting accent-coloured
+## pixels across the chest gives 736 / 1168 / 3472 / 1192 at 0 / 90 / 180 / 270 degrees.
+const FRONT_YAW := 0.0
+
 ## Fallback frame used until a built body reports its own bounds. Matches an assembled standard
 ## warden: 1.44 tall from feet to crown, 0.80 across the pauldrons.
 const DEFAULT_SUBJECT_HEIGHT := 1.44
@@ -29,7 +41,7 @@ const SUBJECT_SCREEN_FRACTION := 0.82
 
 var _stage: Node3D
 var _camera: Camera3D
-var _yaw := 0.0
+var _yaw := FRONT_YAW
 var _profile: Dictionary = {}
 
 
@@ -41,15 +53,19 @@ func _ready() -> void:
 	_camera.name = "PreviewCamera"
 	_camera.current = true
 	add_child(_camera)
+	# A hard key with a low fill. The previous ratio (1.1 key against a 0.9-energy ambient) lit
+	# every face of the warden to within a few percent of every other, so the surface shader's
+	# dither was the only thing varying across the model and the armour read as translucent mesh.
+	# Shading has to separate the faces before any amount of geometry detail can be seen.
 	var key_light := DirectionalLight3D.new()
 	key_light.name = "KeyLight"
-	key_light.rotation = Vector3(deg_to_rad(-45.0), deg_to_rad(35.0), 0.0)
-	key_light.light_energy = 1.1
+	key_light.rotation = Vector3(deg_to_rad(-38.0), deg_to_rad(32.0), 0.0)
+	key_light.light_energy = 1.6
 	add_child(key_light)
 	var fill_light := DirectionalLight3D.new()
 	fill_light.name = "FillLight"
-	fill_light.rotation = Vector3(deg_to_rad(-20.0), deg_to_rad(-120.0), 0.0)
-	fill_light.light_energy = 0.35
+	fill_light.rotation = Vector3(deg_to_rad(-14.0), deg_to_rad(-128.0), 0.0)
+	fill_light.light_energy = 0.28
 	add_child(fill_light)
 	_frame_subject(
 		Vector3(DEFAULT_SUBJECT_WIDTH, DEFAULT_SUBJECT_HEIGHT, DEFAULT_SUBJECT_DEPTH),
@@ -95,14 +111,22 @@ func _turn_extent(bounds: AABB) -> Vector3:
 	return Vector3(radius * 2.0, bounds.size.y, radius * 2.0)
 
 
-## Union of every mesh AABB under the stage, in stage space. Framing from the real bounds is what
-## keeps head and feet inside the portrait regardless of the stature and bulk the player picked.
+## Union of every visible mesh AABB under the stage, in stage space. Framing from the real bounds
+## is what keeps head and feet inside the portrait regardless of the stature and bulk picked.
 func _stage_bounds() -> AABB:
 	var bounds := AABB()
 	var found := false
-	for node in _stage.find_children("*", "VisualInstance3D", true, false):
-		var visual := node as VisualInstance3D
-		if visual == null:
+	# MeshInstance3D, not VisualInstance3D. The rig's `ContactShadow` is a Decal — a 1.36 m
+	# projection box centred on the warden — and it is a VisualInstance3D too, so measuring the
+	# broader type framed the camera to the shadow rather than to the body: every stature and
+	# build came out at the same camera distance, filling 63% of a portrait that asks for 82%.
+	#
+	# Invisible meshes are skipped for the same reason. A hood the player has not selected, and
+	# the source meshes the mesh merger hides once it has batched them, are both still in the
+	# tree; neither is on screen, so neither should decide the crop.
+	for node in _stage.find_children("*", "MeshInstance3D", true, false):
+		var visual := node as MeshInstance3D
+		if visual == null or not visual.is_visible_in_tree() or visual.mesh == null:
 			continue
 		var world_aabb := visual.global_transform * visual.get_aabb()
 		if found:
@@ -177,6 +201,6 @@ func rotate_right() -> void:
 
 
 func reset_yaw() -> void:
-	_yaw = 0.0
+	_yaw = FRONT_YAW
 	if _stage:
-		_stage.rotation.y = 0.0
+		_stage.rotation.y = FRONT_YAW

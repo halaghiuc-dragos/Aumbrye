@@ -384,7 +384,7 @@ static func _sweep_biome(biome_id: String, seed_from: int, seed_count: int) -> D
 	return {"ok": true, "stats": stats}
 
 
-static func _graph_metrics(graph: RoomGraph, config: RoomGraphConfig) -> Dictionary:
+static func _graph_metrics(graph: RoomGraph, _config: RoomGraphConfig) -> Dictionary:
 	var distances := RoomGraphPathsScript.bfs_distances(graph, graph.start_id)
 	var boss_distance := int(distances.get(graph.boss_id, 0))
 	var dead_ends := 0

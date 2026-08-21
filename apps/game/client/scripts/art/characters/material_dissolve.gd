@@ -174,7 +174,7 @@ static func _death_opts_for_rig_kind(rig_kind: String, archetype_id: String) -> 
 	return defaults
 
 
-static func _merge_opts(node: Node3D, opts: Dictionary) -> Dictionary:
+static func _merge_opts(_node: Node3D, opts: Dictionary) -> Dictionary:
 	var merged: Dictionary = {}
 	if opts.has("rig_kind"):
 		merged = _death_opts_for_rig_kind(str(opts["rig_kind"]), "")

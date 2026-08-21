@@ -13,21 +13,21 @@ var _rows: int = 1
 var _unknown: Vector2i = Vector2i.ZERO
 
 
-static func load_manifest(manifest_path: String, texture_override: String = "") -> UISymbolAtlas:
+static func load_manifest(atlas_manifest_path: String, texture_override: String = "") -> UISymbolAtlas:
 	var atlas := UISymbolAtlas.new()
-	atlas._load(manifest_path, texture_override)
+	atlas._load(atlas_manifest_path, texture_override)
 	return atlas
 
 
-func _load(manifest_path: String, texture_override: String = "") -> void:
-	_manifest_path = manifest_path
-	_manifest = ContentLoader.load_json(manifest_path)
+func _load(atlas_manifest_path: String, texture_override: String = "") -> void:
+	_manifest_path = atlas_manifest_path
+	_manifest = ContentLoader.load_json(atlas_manifest_path)
 	_cell_size = int(_manifest.get("cellSize", 16))
 	_columns = int(_manifest.get("columns", 1))
 	_rows = int(_manifest.get("rows", 1))
 	var texture_path: String = texture_override if texture_override != "" else str(_manifest.get("texture", ""))
 	if texture_path.is_empty():
-		push_warning("UISymbolAtlas: manifest '%s' has no texture path" % manifest_path)
+		push_warning("UISymbolAtlas: manifest '%s' has no texture path" % atlas_manifest_path)
 		return
 	if ResourceLoader.exists(texture_path):
 		_source = load(texture_path) as Texture2D

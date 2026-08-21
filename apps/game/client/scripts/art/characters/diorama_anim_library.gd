@@ -66,7 +66,18 @@ const CLIPS := {
 	&"walk":
 	{
 		"length": 0.8,
-		"stride_m": 3.6,
+		# 1.6 m per 0.8 s cycle = 2.0 m/s at speed_scale 1.0.
+		#
+		# This was 3.6 m — 4.5 m/s, which is a sprint, not a walk. `_locomotion_speed_scale`
+		# divides real travel by this, so every character that walked came out well under 1.0 and
+		# was clamped up to the 0.5 floor: a ranged enemy approaching at 0.9 m/s asked for 0.20 and
+		# got 0.5, cycling its legs two and a half times faster than the ground it covered. That is
+		# foot-skating, and it was reported on every spawn as a clamp warning.
+		#
+		# 2.0 m/s is the geometric centre of the band `walk` is actually used over: enemies switch
+		# to `run` at 0.85 x move_speed and their move speeds run 2.2 to 5.5, so walk covers roughly
+		# 0.9 to 4.7 m/s, and sqrt(0.9 x 4.7) is 2.06.
+		"stride_m": 1.6,
 		"loop": true,
 		"tracks":
 		{
@@ -106,7 +117,10 @@ const CLIPS := {
 	&"run":
 	{
 		"length": 0.56,
-		"stride_m": 3.92,
+		# 2.35 m per 0.56 s cycle = 4.2 m/s at speed_scale 1.0, sitting in the upper half of the
+		# 1.9-5.5 m/s band enemies and a sprinting player use this clip over. Was 3.92 m — 7.0 m/s,
+		# which nothing in the game ever reaches, so `run` skated exactly as `walk` did.
+		"stride_m": 2.35,
 		"loop": true,
 		"tracks":
 		{

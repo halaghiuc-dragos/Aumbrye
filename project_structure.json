@@ -74,9 +74,7 @@
         "Aumbrye.Api",
         "Aumbrye.Application",
         "Aumbrye.Domain",
-        "Aumbrye.Infrastructure",
-        "Aumbrye.IntegrationTests",
-        "Aumbrye.UnitTests"
+        "Aumbrye.Infrastructure"
       ]
     },
     "sharedPackages": {

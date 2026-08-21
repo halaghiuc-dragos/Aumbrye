@@ -22,6 +22,8 @@ const PART_ROOT := ROOT_NAME
 const PART_HEAD := "Head"
 const PART_VISOR := "Visor"
 const PART_HOOD := "Hood"
+const FACE_PLATE_NAME := "FacePlate"
+const CLASS_GARMENT_NAME := "ClassGarment"
 const PART_TORSO := "Torso"
 const PART_ARM_L := "ArmL"
 const PART_ARM_R := "ArmR"
@@ -206,16 +208,22 @@ static func _apply_player_appearance(visual: Node3D, profile: Dictionary, mats: 
 	var pauldron_r := _require_part(visual, PART_PAULDRON_R)
 	if pauldron_r:
 		pauldron_r.visible = trim >= 2
-	_apply_hair(visual, profile, mats)
+	# Hair only with an open head. A cowl that wraps the skull has nothing for hair to come through,
+	# and a visor helm is no different — every hair style was sitting as a tuft on top of the helmet.
+	# Head covering wins over hair, for both coverings.
+	if head_style == CharacterAppearance.HEAD_OPEN:
+		_apply_hair(visual, profile, mats)
 	_apply_face(visual, profile, mats)
 	_apply_class_armor(visual, profile, mats)
 
 
-static func _apply_skin_tone(visual: Node3D, profile: Dictionary, _mats: Dictionary) -> void:
-	var tint := CharacterAppearance.skin_tint_vector(
-		str(profile.get("skinTone", CharacterAppearance.SKIN_TONE_NEUTRAL))
-	)
-	_set_skin_tint(visual, tint)
+## Skin tone is carried by the face plate, which is the only part of a warden that is skin.
+##
+## This used to push a near-white multiplier (0.74..1.09) onto *every mesh in the rig*, so choosing
+## a tone moved the whole suit of armour by a few percent and none of the eight tones could be told
+## from any other. The body keeps the biome palette; `_apply_face` tints the plate.
+static func _apply_skin_tone(visual: Node3D, _profile: Dictionary, _mats: Dictionary) -> void:
+	_set_skin_tint(visual, Vector3.ONE)
 
 
 static func _apply_hair(visual: Node3D, profile: Dictionary, mats: Dictionary) -> void:
@@ -229,7 +237,8 @@ static func _apply_hair(visual: Node3D, profile: Dictionary, mats: Dictionary) -
 	var mesh_path := "res://assets/characters/player_warden/hair_%s.voxels.json" % hair
 	if not ResourceLoader.exists(mesh_path):
 		return
-	var mesh: ArrayMesh = VoxelMeshBuilderScript.load_mesh(mesh_path, int(mats.get("theme", 0)))
+	# theme -1: no palette snapping. The volume is white and the colour is the instance tint.
+	var mesh: ArrayMesh = VoxelMeshBuilderScript.load_mesh(mesh_path, -1)
 	if mesh == null:
 		return
 	var holder := Node3D.new()
@@ -238,109 +247,159 @@ static func _apply_hair(visual: Node3D, profile: Dictionary, mats: Dictionary) -
 	mesh_inst.name = "Mesh"
 	mesh_inst.mesh = mesh
 	mesh_inst.material_override = _make_voxel_material(int(mats.get("theme", 0)))
-	holder.position = Vector3(0.0, VoxelGridScript.EDGE * 3.0, 0.0)
+	# Hair volumes are authored in head-local layers — the crown is the volume's top layer — so the
+	# holder sits on the head's own pivot. It used to carry a fixed `EDGE * 3`, which put a
+	# two-layer crop across the middle of the face.
+	#
+	# Pivot-relative, like every other thing that hangs off a part — the Visor and Hood extras do
+	# the same. The head is seated into the collar by lowering its *joint*, so the pivot is already
+	# in the right place and nothing here has to compensate.
+	#
+	# The centring offset is the same one `_attach_manifest_extras` applies, and its absence here
+	# is why hair grew out of the head's corner and stuck out to one side.
+	mesh_inst.position = _centre_offset(mesh)
+	# The hair volume is authored white, and the chosen colour arrives as the instance tint the
+	# surface shader multiplies COLOR by. Hair is the one thing on the model that must *not* track
+	# the biome palette: it is a decision about the character, and snapping it to a theme slot is
+	# what made every warden in a biome identical from the neck up.
+	var hair_color := CharacterAppearance.hair_color_rgb(
+		str(profile.get("hairColor", CharacterAppearance.HAIR_COLOR_BROWN))
+	)
 	holder.add_child(mesh_inst)
 	head.add_child(holder)
+	# After the instance is in the tree, not before. `set_instance_shader_parameter` writes through
+	# to the rendering server's instance, and a MeshInstance3D that has not entered the tree has no
+	# instance to write to — the value is silently dropped. Set early, hair rendered as its authored
+	# white and every colour choice did nothing.
+	mesh_inst.set_instance_shader_parameter(
+		SKIN_TINT_PARAM, Vector3(hair_color.r, hair_color.g, hair_color.b)
+	)
 
 
-static func _apply_face(visual: Node3D, profile: Dictionary, mats: Dictionary) -> void:
-	var face := str(profile.get("face", CharacterAppearance.FACE_OPEN))
-	if face == CharacterAppearance.FACE_OPEN:
-		return
-	var head := find_part(visual, "Head")
+## Attaches the face plate for the chosen style and tints it with the chosen skin tone.
+##
+## The plate is a separate `MeshInstance3D` on purpose: the body's colours come from the biome
+## palette, and skin must not. Its volume is authored white for the skin field and near-black for
+## the features, so multiplying the whole plate by the skin colour makes the field skin-coloured and
+## leaves eyes, brow and mouth dark whatever tone is picked.
+##
+## What this replaces: two of the six styles drew a couple of accent boxes positioned against
+## `PROFILES["player"]` — a hardcoded box spec that is not the size of the voxel head actually being
+## built — and `weary`, `scarred` and `hollow` drew nothing at all. Four of six face choices did
+## literally nothing, and the two that did put their marks in the wrong place.
+static func _apply_face(visual: Node3D, profile: Dictionary, _mats: Dictionary) -> void:
+	var head := find_part(visual, PART_HEAD)
 	if head == null:
 		return
-	var existing := head.get_node_or_null("FaceAccent")
+	var existing := head.get_node_or_null(FACE_PLATE_NAME)
 	if existing:
+		head.remove_child(existing)
 		existing.queue_free()
-	var existing_r := head.get_node_or_null("FaceAccentR")
-	if existing_r:
-		existing_r.queue_free()
-	var spec: Dictionary = PROFILES["player"]
-	var head_size: Vector3 = spec["head"]
-	var accent: Material = mats["accent"] as Material
-	match face:
-		CharacterAppearance.FACE_STERN:
-			PixelStyle.add_box(
-				head,
-				Vector3(head_size.x * 0.55, head_size.y * 0.12, head_size.z * 0.08),
-				Vector3(0.0, head_size.y * 0.42, head_size.z * 0.46),
-				accent,
-				"FaceAccent"
-			)
-		CharacterAppearance.FACE_KIND:
-			PixelStyle.add_box(
-				head,
-				Vector3(head_size.x * 0.18, head_size.y * 0.08, head_size.z * 0.06),
-				Vector3(-head_size.x * 0.22, head_size.y * 0.2, head_size.z * 0.44),
-				accent,
-				"FaceAccent"
-			)
-			PixelStyle.add_box(
-				head,
-				Vector3(head_size.x * 0.18, head_size.y * 0.08, head_size.z * 0.06),
-				Vector3(head_size.x * 0.22, head_size.y * 0.2, head_size.z * 0.44),
-				accent,
-				"FaceAccentR"
-			)
-
-
-static func _apply_class_armor(visual: Node3D, _profile: Dictionary, mats: Dictionary) -> void:
-	var svc := _character_service()
-	var class_id := ""
-	if svc and svc.has_method("get_class_id"):
-		class_id = str(svc.call("get_class_id"))
-	if class_id == "":
+	# A visor or a hood covers the face; drawing a plate under either just fights the helm.
+	var head_style := str(profile.get("head", CharacterAppearance.HEAD_VISOR))
+	if head_style != CharacterAppearance.HEAD_OPEN:
 		return
-	var torso := find_part(visual, "Torso")
+	var face := str(profile.get("face", CharacterAppearance.FACE_OPEN))
+	var mesh_path := "res://assets/characters/player_warden/face_%s.voxels.json" % face
+	if not ResourceLoader.exists(mesh_path):
+		return
+	# theme -1: the plate's white/near-black pair must survive un-snapped.
+	var mesh: ArrayMesh = VoxelMeshBuilderScript.load_mesh(mesh_path, -1)
+	if mesh == null:
+		return
+	var holder := _add_pivot(head, FACE_PLATE_NAME, Vector3.ZERO)
+	var mesh_inst := MeshInstance3D.new()
+	mesh_inst.name = "Mesh"
+	mesh_inst.mesh = mesh
+	mesh_inst.material_override = _make_voxel_material(0)
+	# Sat on the head's own front face, one voxel up from its base, so the plate covers the face and
+	# leaves the crown and the jaw edge as helm. Derived from the head mesh rather than from
+	# constants: the head is a different size for every stature and build.
+	var head_mesh := head.get_node_or_null("Mesh") as MeshInstance3D
+	var head_front := 0.16
+	var head_base := 0.0
+	if head_mesh != null and head_mesh.mesh != null:
+		var bounds := head_mesh.mesh.get_aabb()
+		head_front = head_mesh.position.z + bounds.position.z + bounds.size.z
+		head_base = head_mesh.position.y + bounds.position.y
+	var plate := mesh.get_aabb()
+	mesh_inst.position = Vector3(
+		-(plate.position.x + plate.size.x * 0.5),
+		head_base + VoxelGridScript.EDGE * 2.0 - plate.position.y,
+		head_front - plate.position.z - VoxelGridScript.EDGE * 0.25
+	)
+	var skin := CharacterAppearance.skin_color_rgb(
+		str(profile.get("skinTone", CharacterAppearance.SKIN_TONE_NEUTRAL))
+	)
+	holder.add_child(mesh_inst)
+	# In the tree first — see `_apply_hair`.
+	mesh_inst.set_instance_shader_parameter(SKIN_TINT_PARAM, Vector3(skin.r, skin.g, skin.b))
+
+
+## The default clothing a class wears with nothing equipped.
+##
+## An authored volume per class that wraps the torso, with its own literal palette. What it replaces:
+## a single `add_box` for five of the seven classes — herald and hunter had none — each positioned
+## against `PROFILES["player"]`, a hardcoded box spec that is not the size of the voxel torso being
+## built, and each coloured from the biome palette, so every class in a given dungeon came out the
+## same colour as every other.
+##
+## Placed from the torso mesh's own bounds so it fits whatever stature and build the player picked,
+## and dropped by the asset's `skirtDrop` because a robe and a set of faulds hang below the body.
+static func _apply_class_armor(visual: Node3D, profile: Dictionary, _mats: Dictionary) -> void:
+	var torso := find_part(visual, PART_TORSO)
 	if torso == null:
 		return
-	var existing := torso.get_node_or_null("ClassArmor")
+	var existing := torso.get_node_or_null(CLASS_GARMENT_NAME)
 	if existing:
+		torso.remove_child(existing)
 		existing.queue_free()
-	var spec: Dictionary = PROFILES["player"]
-	var torso_size: Vector3 = spec["torso"]
-	match class_id:
-		"knight":
-			PixelStyle.add_box(
-				torso,
-				Vector3(torso_size.x * 1.02, torso_size.y * 0.72, torso_size.z * 0.18),
-				Vector3(0.0, torso_size.y * 0.18, torso_size.z * 0.42),
-				mats["accent"],
-				"ClassArmor"
-			)
-		"rogue":
-			PixelStyle.add_box(
-				torso,
-				Vector3(torso_size.x * 0.92, torso_size.y * 0.9, torso_size.z * 0.12),
-				Vector3(0.0, torso_size.y * 0.42, -torso_size.z * 0.48),
-				mats["body"],
-				"ClassArmor"
-			)
-		"scholar":
-			PixelStyle.add_box(
-				torso,
-				Vector3(torso_size.x * 1.1, torso_size.y * 0.14, torso_size.z * 1.02),
-				Vector3(0.0, -torso_size.y * 0.08, 0.0),
-				mats["accent"],
-				"ClassArmor"
-			)
-		"berserker":
-			PixelStyle.add_box(
-				torso,
-				Vector3(torso_size.x * 1.12, torso_size.y * 0.2, torso_size.z * 0.88),
-				Vector3(0.0, torso_size.y * 0.62, 0.0),
-				mats["accent"],
-				"ClassArmor"
-			)
-		"sentinel":
-			PixelStyle.add_box(
-				torso,
-				Vector3(torso_size.x * 0.14, torso_size.y * 0.55, torso_size.z * 0.72),
-				Vector3(-torso_size.x * 0.52, torso_size.y * 0.2, 0.0),
-				mats["accent"],
-				"ClassArmor"
-			)
+	# The profile wins over the service. During character creation the player has not committed a
+	# class yet, so `CharacterService` still holds the *previous* character's — the preview showed
+	# the wrong clothing for the whole of the screen whose entire job is choosing a class.
+	var class_id := str(profile.get("classId", ""))
+	if class_id == "":
+		var svc := _character_service()
+		if svc and svc.has_method("get_class_id"):
+			class_id = str(svc.call("get_class_id"))
+	if class_id == "":
+		return
+	var mesh_path := "res://assets/characters/player_warden/garment_%s.voxels.json" % class_id
+	if not ResourceLoader.exists(mesh_path):
+		return
+	# theme -1: the class palette is the point and must not be snapped to the biome's.
+	var mesh: ArrayMesh = VoxelMeshBuilderScript.load_mesh(mesh_path, -1)
+	if mesh == null:
+		return
+	var torso_mesh := torso.get_node_or_null("Mesh") as MeshInstance3D
+	if torso_mesh == null or torso_mesh.mesh == null:
+		return
+	var torso_bounds := torso_mesh.mesh.get_aabb()
+	var torso_base := torso_mesh.position.y + torso_bounds.position.y
+	var garment := mesh.get_aabb()
+	var holder := _add_pivot(torso, CLASS_GARMENT_NAME, Vector3.ZERO)
+	var mesh_inst := MeshInstance3D.new()
+	mesh_inst.name = "Mesh"
+	mesh_inst.mesh = mesh
+	mesh_inst.material_override = _make_voxel_material(0)
+	mesh_inst.position = Vector3(
+		-(garment.position.x + garment.size.x * 0.5),
+		torso_base - VoxelGridScript.EDGE * float(_garment_skirt_drop(mesh_path)),
+		-(garment.position.z + garment.size.z * 0.5)
+	)
+	holder.add_child(mesh_inst)
+
+
+## How far below the torso's base a garment volume begins, in voxels. Written into the asset by the
+## generator; a robe's hem is part of the garment and cannot be recovered from the mesh alone.
+static func _garment_skirt_drop(mesh_path: String) -> int:
+	var text := FileAccess.get_file_as_string(mesh_path)
+	if text.is_empty():
+		return 0
+	var parsed: Variant = JSON.parse_string(text)
+	if not parsed is Dictionary:
+		return 0
+	return int((parsed as Dictionary).get("skirtDrop", 0))
 
 
 static func build_enemy_body(
@@ -465,7 +524,7 @@ static func _ground_rig(visual: Node3D) -> void:
 	if absf(min_y) > MAX_GROUNDING_CORRECTION:
 		push_error(
 			"DioramaCharacterSkin: rig %s sits %.3f from the floor, too far to be a limb offset"
-			% [visual.get_parent().name if visual.get_parent() else "visual", min_y]
+			% [String(visual.get_parent().name) if visual.get_parent() else "visual", min_y]
 		)
 		return
 	var root := visual.get_node_or_null(NodePath(ROOT_NAME)) as Node3D
@@ -562,7 +621,6 @@ static func _build_reference_humanoid(visual: Node3D, profile: String) -> Node3D
 	var spec: Dictionary = PROFILES.get(profile, PROFILES["melee"])
 	var leg: Vector3 = spec["leg"]
 	var torso: Vector3 = spec["torso"]
-	var head: Vector3 = spec["head"]
 	var arm: Vector3 = spec["arm"]
 	var hip_x: float = spec["hip_x"]
 	var shoulder_x: float = spec["shoulder_x"]
@@ -1006,16 +1064,13 @@ static func build_from_manifest(visual: Node3D, archetype_id: String, theme: int
 	var parts: Dictionary = manifest.get("parts", {})
 	if parts.is_empty():
 		return null
-	var skin_tint := CharacterAppearance.skin_tint_vector(
-		CharacterAppearance.SKIN_TONE_NEUTRAL
-	)
-	var svc := _character_service()
-	if svc:
-		var appearance: Dictionary = svc.get("appearance_profile") as Dictionary
-		if not appearance.is_empty():
-			skin_tint = CharacterAppearance.skin_tint_vector(
-				str(appearance.get("skinTone", CharacterAppearance.SKIN_TONE_NEUTRAL))
-			)
+	# No skin tint on body parts, and in particular not the *player's*.
+	#
+	# This used to read `CharacterService.appearance_profile` and multiply every mesh of whatever it
+	# was building by the player's skin tone — including every enemy, every training dummy and every
+	# hub NPC, since they all come through here. So the player's tone quietly recoloured the entire
+	# cast, and changing it changed all of them together. Skin now lives on the face plate, which is
+	# its own instance and carries its own tint.
 	var mat := _make_voxel_material(theme)
 	var root := _add_pivot(visual, ROOT_NAME, Vector3.ZERO)
 	var built: Dictionary = {ROOT_NAME: root}
@@ -1068,7 +1123,6 @@ static func build_from_manifest(visual: Node3D, archetype_id: String, theme: int
 			)
 			return null
 	_attach_manifest_extras(visual, manifest.get("extras", {}), grid, mat)
-	_set_skin_tint(visual, skin_tint)
 	return root
 
 

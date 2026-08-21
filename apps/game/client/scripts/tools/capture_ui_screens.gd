@@ -13,8 +13,7 @@ const OUTPUT_DIR := "user://ui_captures"
 
 ## Scenes that stand up on their own, in the order a player meets them.
 const SCENES: Array[String] = [
-	"res://scenes/ui/title_screen.tscn",
-	"res://scenes/ui/main_menu.tscn",
+	"res://scenes/ui/main_menu.tscn",  # also the boot intro; see main_menu.gd
 	"res://scenes/ui/character_create.tscn",
 	"res://scenes/ui/castle_entry_menu.tscn",
 	"res://scenes/ui/umbral_endless_menu.tscn",
@@ -48,6 +47,7 @@ const SETTLE_FRAMES := 12
 func _ready() -> void:
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(OUTPUT_DIR))
 	await _capture_all()
+	await _capture_menu_after_intro()
 	await _capture_script_screens()
 	await _capture_settings_pages()
 	get_tree().quit(0)
@@ -89,6 +89,28 @@ func _capture_all() -> void:
 		await _capture_instance(packed.instantiate(), scene_path.get_file().get_basename())
 
 
+## The main menu boots into its title intro on the first instance of a process, so the entry in
+## SCENES above records that state. This records the other one — the wordmark docked above the
+## panel — by instantiating it again and skipping the intro.
+func _capture_menu_after_intro() -> void:
+	var packed := load("res://scenes/ui/main_menu.tscn") as PackedScene
+	if packed == null:
+		return
+	var instance := packed.instantiate() as Control
+	add_child(instance)
+	for _f in SETTLE_FRAMES:
+		await get_tree().process_frame
+	if instance.has_method("_finish_intro"):
+		instance.call("_finish_intro")
+	for _f in SETTLE_FRAMES:
+		await get_tree().process_frame
+	var image := get_viewport().get_texture().get_image()
+	if image.save_png("%s/main_menu_resting.png" % OUTPUT_DIR) == OK:
+		print("captured main_menu_resting")
+	instance.queue_free()
+	await get_tree().process_frame
+
+
 ## Settings is six pages behind one script, and only the first is visible as instantiated.
 func _capture_settings_pages() -> void:
 	var script := load("res://scripts/ui/settings_ui.gd") as Script
@@ -109,16 +131,16 @@ func _capture_settings_pages() -> void:
 		for _f in SETTLE_FRAMES:
 			await get_tree().process_frame
 		var image := get_viewport().get_texture().get_image()
-		var name := "settings_%s" % str(schema.PAGES[i])
-		if image.save_png("%s/%s.png" % [OUTPUT_DIR, name]) == OK:
-			print("captured %s" % name)
+		var screen_name := "settings_%s" % str(schema.PAGES[i])
+		if image.save_png("%s/%s.png" % [OUTPUT_DIR, screen_name]) == OK:
+			print("captured %s" % screen_name)
 	host.queue_free()
 	await get_tree().process_frame
 
 
 func _capture_script_screens() -> void:
-	for name in SCRIPT_SCREENS:
-		var script_path: String = SCRIPT_SCREENS[name]
+	for screen_name in SCRIPT_SCREENS:
+		var script_path: String = SCRIPT_SCREENS[screen_name]
 		if not ResourceLoader.exists(script_path):
 			push_warning("capture_ui_screens: missing %s" % script_path)
 			continue
@@ -128,13 +150,13 @@ func _capture_script_screens() -> void:
 			continue
 		var instance := Control.new()
 		instance.set_script(script)
-		await _capture_instance(instance, str(name))
+		await _capture_instance(instance, str(screen_name))
 
 
 ## Screens are parented to a full-rect Control and anchored full-rect themselves, matching how
 ## PlayerControls hosts them in game. Hanging them off a bare Node instead leaves them zero-sized,
 ## so anything that centres itself lands in the top-left corner.
-func _capture_instance(instance: Node, name: String) -> void:
+func _capture_instance(instance: Node, screen_name: String) -> void:
 	var host := Control.new()
 	host.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(host)
@@ -152,12 +174,12 @@ func _capture_instance(instance: Node, name: String) -> void:
 		await get_tree().process_frame
 
 	var image := get_viewport().get_texture().get_image()
-	var out_path := "%s/%s.png" % [OUTPUT_DIR, name]
+	var out_path := "%s/%s.png" % [OUTPUT_DIR, screen_name]
 	var error := image.save_png(out_path)
 	if error == OK:
-		print("captured %s -> %s" % [name, ProjectSettings.globalize_path(out_path)])
+		print("captured %s -> %s" % [screen_name, ProjectSettings.globalize_path(out_path)])
 	else:
-		push_warning("capture_ui_screens: could not save %s (error %d)" % [name, error])
+		push_warning("capture_ui_screens: could not save %s (error %d)" % [screen_name, error])
 
 	host.queue_free()
 	await get_tree().process_frame

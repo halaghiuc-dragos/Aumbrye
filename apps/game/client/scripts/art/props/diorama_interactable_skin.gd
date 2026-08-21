@@ -132,7 +132,6 @@ static func build_loot_pickup(parent: Node3D, biome_id: String) -> Node3D:
 	var theme := PixelStyle.theme_from_biome(biome_id)
 	var wall := PixelStyle.make_wall_material(theme)
 	var accent := PixelStyle.make_accent_material(theme)
-	var glow := PixelStyle.make_emissive_material(theme, 1.4)
 	_add_box(root, Vector3(0.45, 0.45, 0.45), wall, Vector3(0.0, 0.35, 0.0))
 	_add_box(root, Vector3(0.52, 0.1, 0.52), accent, Vector3(0.0, 0.62, 0.0))
 	_add_orb(root, PixelStyle.get_palette_color(theme, PixelStyle.PaletteSlot.EMISSIVE), Vector3(0.0, 0.85, 0.0), 0.16)

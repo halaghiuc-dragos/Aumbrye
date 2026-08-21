@@ -96,6 +96,35 @@ const FACE_STYLES := [
 ]
 const FACE_LABELS := ["Open", "Stern", "Kind", "Weary", "Scarred", "Hollow"]
 
+## Hair colour, as an axis of its own.
+##
+## There was none: every warden's hair resolved to one palette slot, so the only thing the seven
+## hair *styles* could vary was silhouette, and two characters in the same biome were identical from
+## the neck up. These are literal RGB, deliberately not palette slots — hair colour is a choice the
+## player makes about their character, not a property of the room they are standing in, and snapping
+## it to the biome palette is exactly what made every warden look the same.
+const HAIR_COLOR_BLACK := "black"
+const HAIR_COLOR_ASH := "ash"
+const HAIR_COLOR_BROWN := "brown"
+const HAIR_COLOR_AUBURN := "auburn"
+const HAIR_COLOR_COPPER := "copper"
+const HAIR_COLOR_BLOND := "blond"
+const HAIR_COLOR_SILVER := "silver"
+const HAIR_COLOR_TEAL := "teal"
+const HAIR_COLORS := [
+	HAIR_COLOR_BLACK,
+	HAIR_COLOR_ASH,
+	HAIR_COLOR_BROWN,
+	HAIR_COLOR_AUBURN,
+	HAIR_COLOR_COPPER,
+	HAIR_COLOR_BLOND,
+	HAIR_COLOR_SILVER,
+	HAIR_COLOR_TEAL,
+]
+const HAIR_COLOR_LABELS := [
+	"Black", "Ash", "Brown", "Auburn", "Copper", "Blond", "Silver", "Teal"
+]
+
 const HEAD_LABELS := ["Open face", "Visor helm", "Hooded"]
 
 const TRIM_LABELS := ["Plain", "Trimmed", "Pauldrons"]
@@ -137,6 +166,7 @@ static func default_profile() -> Dictionary:
 		"bulkVariant": BULK_VARIANT_STANDARD,
 		"skinTone": SKIN_TONE_NEUTRAL,
 		"hair": HAIR_NONE,
+		"hairColor": HAIR_COLOR_BROWN,
 		"face": FACE_OPEN,
 		"head": HEAD_VISOR,
 		"trim": 1,
@@ -152,7 +182,8 @@ static func profile_from_indices(
 	trim_idx: int,
 	skin_idx: int = 1,
 	hair_idx: int = 0,
-	face_idx: int = 0
+	face_idx: int = 0,
+	hair_color_idx: int = 2
 ) -> Dictionary:
 	return {
 		"profileVersion": PROFILE_VERSION,
@@ -161,6 +192,7 @@ static func profile_from_indices(
 		"bulkVariant": BULK_VARIANTS[clampi(bulk_idx, 0, BULK_VARIANTS.size() - 1)],
 		"skinTone": SKIN_TONES[clampi(skin_idx, 0, SKIN_TONES.size() - 1)],
 		"hair": HAIR_STYLES[clampi(hair_idx, 0, HAIR_STYLES.size() - 1)],
+		"hairColor": HAIR_COLORS[clampi(hair_color_idx, 0, HAIR_COLORS.size() - 1)],
 		"face": FACE_STYLES[clampi(face_idx, 0, FACE_STYLES.size() - 1)],
 		"head": _head_from_index(head_idx),
 		"trim": clampi(trim_idx, 0, TRIM_LABELS.size() - 1),
@@ -260,6 +292,9 @@ static func sanitize(profile: Variant) -> Dictionary:
 	var hair := str(input.get("hair", clean["hair"]))
 	if hair in HAIR_STYLES:
 		clean["hair"] = hair
+	var hair_color := str(input.get("hairColor", clean["hairColor"]))
+	if hair_color in HAIR_COLORS:
+		clean["hairColor"] = hair_color
 	var face := str(input.get("face", clean["face"]))
 	if face in FACE_STYLES:
 		clean["face"] = face
@@ -269,6 +304,12 @@ static func sanitize(profile: Variant) -> Dictionary:
 	clean["trim"] = clampi(int(input.get("trim", clean["trim"])), 0, TRIM_LABELS.size() - 1)
 	var title := str(input.get("title", ""))
 	clean["title"] = title if AppearanceCatalog.is_title_id(title) else ""
+	# Carried through rather than validated: it is not an appearance choice, it is the class whose
+	# default clothing the rig should wear, and character creation supplies it before the class is
+	# committed anywhere else.
+	var class_id := str(input.get("classId", ""))
+	if class_id != "":
+		clean["classId"] = class_id
 	clean["profileVersion"] = PROFILE_VERSION
 	return clean
 
@@ -323,6 +364,52 @@ static func describe(profile: Dictionary) -> String:
 	]
 
 
+## Literal hair colour. Multiplied into the hair mesh's own instance tint, so it is the only thing
+## on the model that does not track the biome palette.
+static func hair_color_rgb(hair_color: String) -> Color:
+	match hair_color:
+		HAIR_COLOR_BLACK:
+			return Color(0.11, 0.10, 0.13)
+		HAIR_COLOR_ASH:
+			return Color(0.42, 0.40, 0.40)
+		HAIR_COLOR_AUBURN:
+			return Color(0.44, 0.18, 0.12)
+		HAIR_COLOR_COPPER:
+			return Color(0.72, 0.33, 0.12)
+		HAIR_COLOR_BLOND:
+			return Color(0.85, 0.72, 0.42)
+		HAIR_COLOR_SILVER:
+			return Color(0.82, 0.84, 0.88)
+		HAIR_COLOR_TEAL:
+			return Color(0.20, 0.52, 0.52)
+		_:
+			return Color(0.32, 0.21, 0.13)
+
+
+## Literal skin colour for the face plate, rather than the near-white multiplier `skin_tint_vector`
+## returns. That multiplier was applied to the *whole body* and ranged 0.74..1.09, so a tone change
+## moved every surface on the warden by a few percent and none of the eight tones was tellable from
+## any other.
+static func skin_color_rgb(skin_tone: String) -> Color:
+	match skin_tone:
+		SKIN_TONE_PALE:
+			return Color(0.94, 0.82, 0.75)
+		SKIN_TONE_WARM:
+			return Color(0.86, 0.66, 0.51)
+		SKIN_TONE_COOL:
+			return Color(0.78, 0.66, 0.62)
+		SKIN_TONE_TAN:
+			return Color(0.71, 0.52, 0.36)
+		SKIN_TONE_UMBER:
+			return Color(0.44, 0.30, 0.21)
+		SKIN_TONE_ASHEN:
+			return Color(0.62, 0.62, 0.63)
+		SKIN_TONE_RUDDY:
+			return Color(0.83, 0.56, 0.47)
+		_:
+			return Color(0.80, 0.62, 0.48)
+
+
 static func skin_tint_vector(skin_tone: String) -> Vector3:
 	match skin_tone:
 		SKIN_TONE_WARM:
@@ -350,7 +437,7 @@ static func apply_to_service(profile: Dictionary) -> void:
 	var clean := sanitize(profile)
 	svc.appearance_theme = int(clean["theme"])
 	svc.appearance_profile = clean
-	svc.appearance_changed.emit(clean)
+	svc.notify_appearance_changed(clean)
 
 
 static func from_character_dict(character: Dictionary) -> Dictionary:

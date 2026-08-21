@@ -334,11 +334,11 @@ func _load_leaderboard_panel() -> void:
 	var rank := 1
 	for entry in entries:
 		if entry is Dictionary:
-			var name := str(entry.get("displayName", "Unknown"))
+			var display_name := str(entry.get("displayName", "Unknown"))
 			var elapsed := float(entry.get("elapsedSeconds", 0.0))
 			var mins := int(elapsed / 60.0)
 			var secs := int(elapsed) % 60
-			lines.append("%d. %s — %d:%02d" % [rank, name, mins, secs])
+			lines.append("%d. %s — %d:%02d" % [rank, display_name, mins, secs])
 			rank += 1
 	_leaderboard_label.text = "\n".join(lines)
 

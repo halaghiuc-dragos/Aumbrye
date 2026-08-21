@@ -8,6 +8,7 @@ const RunModeConfigScript := preload("res://scripts/app/run_mode_config.gd")
 const CombatStatModifiersScript := preload("res://scripts/combat/combat_stat_modifiers.gd")
 const CharacterSkinScript := preload("res://scripts/art/characters/diorama_character_skin.gd")
 const PixelStyleScript := preload("res://scripts/art/style/pixel_diorama_style.gd")
+const PlayerControlsScript := preload("res://scripts/app/player_controls.gd")
 const ConsumableServiceScript := preload("res://scripts/inventory/consumable_service.gd")
 const WorldItemPickupScript := preload("res://scripts/inventory/world_item_pickup.gd")
 
@@ -602,7 +603,7 @@ func apply_equipment_to_player_node(player: Node) -> void:
 			weapon.set_damage_multiplier(
 				CombatStatModifiersScript.damage_multiplier(equip_stats, talent_stats)
 			)
-	var locomotion: Node = PlayerControls.resolve_locomotion(player) if PlayerControls else null
+	var locomotion: Node = PlayerControlsScript.resolve_locomotion(player)
 	if locomotion and locomotion.has_method("set_speed_multiplier"):
 		locomotion.set_speed_multiplier(
 			CombatStatModifiersScript.move_speed_multiplier(equip_stats, talent_stats)
@@ -658,7 +659,7 @@ func _apply_equipment_visuals(player: Node) -> void:
 		return
 	var theme := PixelStyleScript.PaletteTheme.HUB
 	if CharacterService:
-		theme = CharacterService.appearance_theme
+		theme = CharacterService.appearance_theme as PixelStyleScript.PaletteTheme
 	CharacterSkinScript.apply_equipment(visual, inventory.equipped, theme)
 
 

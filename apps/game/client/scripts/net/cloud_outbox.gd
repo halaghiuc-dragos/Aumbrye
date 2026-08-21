@@ -44,7 +44,7 @@ static func enqueue(
 	elapsed: float,
 	boss_defeated: bool,
 	loot_instance_ids: Array,
-	floor: int,
+	floor_index: int,
 	kills: int = 0
 ) -> void:
 	if run_id == "":
@@ -60,7 +60,7 @@ static func enqueue(
 			"elapsed": elapsed,
 			"bossDefeated": boss_defeated,
 			"lootIds": loot_instance_ids.duplicate(),
-			"floor": maxi(1, floor),
+			"floor": maxi(1, floor_index),
 			"kills": maxi(0, kills),
 			"attempts": 0,
 		}

@@ -1,0 +1,6 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scripts/tools/definition_health.gd" id="1_dh"]
+
+[node name="DefinitionHealth" type="Node"]
+script = ExtResource("1_dh")

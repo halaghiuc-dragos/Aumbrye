@@ -274,19 +274,19 @@ static func _deserialize_event(data: Dictionary) -> InputEvent:
 	match str(data.get("type", "")):
 		"key":
 			var key := InputEventKey.new()
-			key.physical_keycode = int(data.get("code", 0))
+			key.physical_keycode = int(data.get("code", 0)) as Key
 			return key
 		"mouse":
 			var mouse := InputEventMouseButton.new()
-			mouse.button_index = int(data.get("code", 0))
+			mouse.button_index = int(data.get("code", 0)) as MouseButton
 			return mouse
 		"joy_button":
 			var button := InputEventJoypadButton.new()
-			button.button_index = int(data.get("code", 0))
+			button.button_index = int(data.get("code", 0)) as JoyButton
 			return button
 		"joy_axis":
 			var motion := InputEventJoypadMotion.new()
-			motion.axis = int(data.get("code", 0))
+			motion.axis = int(data.get("code", 0)) as JoyAxis
 			motion.axis_value = float(data.get("value", 0.0))
 			return motion
 		_:

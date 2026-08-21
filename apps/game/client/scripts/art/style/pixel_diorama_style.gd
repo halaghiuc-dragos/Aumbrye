@@ -652,14 +652,14 @@ static var _bevel_mesh_cache: Dictionary = {}
 
 
 static func bevel_box_mesh(size: Vector3, bevel: float) -> Mesh:
-	# Sizes are snapped before they become a cache key. Props arrive at hundreds of very slightly
+	# Sizes are snapped_value before they become a cache key. Props arrive at hundreds of very slightly
 	# different dimensions, and a distinct ArrayMesh per size defeats the batching a shared
 	# primitive gets for free — measured, the unsnapped version cost 37% of the frame rate
 	# (104 FPS -> 66) for a chamfer only a few pixels wide on screen.
-	var snapped := Vector3(
+	var snapped_value := Vector3(
 		snappedf(size.x, MESH_SNAP), snappedf(size.y, MESH_SNAP), snappedf(size.z, MESH_SNAP)
 	)
-	var shortest: float = minf(snapped.x, minf(snapped.y, snapped.z))
+	var shortest: float = minf(snapped_value.x, minf(snapped_value.y, snapped_value.z))
 	# Below this a prop is a handful of pixels and the chamfer is invisible, so it is not worth a
 	# second mesh in the scene at all.
 	if shortest < MIN_BEVEL_SIZE or bevel <= 0.001:
@@ -667,16 +667,16 @@ static func bevel_box_mesh(size: Vector3, bevel: float) -> Mesh:
 		plain.size = size
 		return plain
 	# C-180: the doc comment says "cached by (size, bevel)" and `bevel` was absent from the key, so
-	# two props of identical snapped size but different chamfer depth would silently share the
+	# two props of identical snapped_value size but different chamfer depth would silently share the
 	# first-built mesh. Latent today — the sole caller derives the bevel purely from the size, so
 	# equal sizes always meant equal bevels — and live the moment a second caller passes its own.
-	# The bevel is snapped too, for the same batching reason the sizes are.
+	# The bevel is snapped_value too, for the same batching reason the sizes are.
 	var b: float = minf(bevel, shortest * 0.3)
 	var snapped_bevel := snappedf(b, MESH_SNAP)
-	var key := "%.2f_%.2f_%.2f_%.2f" % [snapped.x, snapped.y, snapped.z, snapped_bevel]
+	var key := "%.2f_%.2f_%.2f_%.2f" % [snapped_value.x, snapped_value.y, snapped_value.z, snapped_bevel]
 	if _bevel_mesh_cache.has(key):
 		return _bevel_mesh_cache[key]
-	var half := snapped * 0.5
+	var half := snapped_value * 0.5
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
 	# Vertical edges only: six faces plus four corner facets, twenty triangles against a box's

@@ -3,12 +3,12 @@ extends RefCounted
 
 ## Hand-held weapon meshes for character mounts.
 ##
-## Box assemblies aligned to VoxelGrid.EDGE (0.04 m) so silhouettes stay readable
+## Box assemblies aligned to VoxelGridScript.EDGE (0.04 m) so silhouettes stay readable
 ## at the chunky 480x270 preset. Each weapon hangs downward from its grip, matching
 ## the hand mount at the bottom of the arm pivot.
 
 const PixelStyle := preload("res://scripts/art/style/pixel_diorama_style.gd")
-const VoxelGrid := preload("res://scripts/art/characters/voxel_grid.gd")
+const VoxelGridScript := preload("res://scripts/art/characters/voxel_grid.gd")
 
 const BLADE_STEEL := Color(0.74, 0.78, 0.84)
 const BLADE_DARK := Color(0.34, 0.36, 0.42)
@@ -156,7 +156,7 @@ static func _build_axe(theme: int) -> Node3D:
 	var steel := PixelStyle.make_material(BLADE_STEEL)
 	var grip := PixelStyle.make_material(GRIP_LEATHER)
 	var accent := PixelStyle.make_accent_material(theme)
-	var edge := VoxelGrid.EDGE
+	var edge := VoxelGridScript.EDGE
 	PixelStyle.add_box(
 		root,
 		Vector3(edge * 3.0, edge * 4.0, edge * 2.0),
@@ -185,7 +185,7 @@ static func _build_staff(theme: int) -> Node3D:
 	var root := _root("staff")
 	var shaft := PixelStyle.make_material(GRIP_LEATHER.lightened(0.18))
 	var accent := PixelStyle.make_accent_material(theme)
-	var edge := VoxelGrid.EDGE
+	var edge := VoxelGridScript.EDGE
 	PixelStyle.add_box(
 		root,
 		Vector3(edge * 2.0, edge * 18.0, edge * 2.0),
@@ -212,7 +212,7 @@ static func _build_staff(theme: int) -> Node3D:
 
 static func _build_unknown(theme: int) -> Node3D:
 	var root := _root("unknown")
-	var edge := VoxelGrid.EDGE
+	var edge := VoxelGridScript.EDGE
 	var steel := PixelStyle.make_material(BLADE_STEEL.darkened(0.2))
 	var accent := PixelStyle.make_accent_material(theme)
 	PixelStyle.add_box(

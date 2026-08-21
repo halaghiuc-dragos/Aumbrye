@@ -425,6 +425,7 @@ func _build_rooms(chunked: bool, my_gen: int) -> bool:
 		instance.room_id = room_def.get("id", "")
 		instance.template_id = template_id
 		instance.room_type = str(room_def.get("type", instance.room_type))
+		instance.room_kind = str(room_def.get("kind", ""))
 		# C-151: the authored tags, onto the node and into groups.
 		var room_tags := PackedStringArray()
 		for tag in room_def.get("tags", []):
@@ -439,7 +440,9 @@ func _build_rooms(chunked: bool, my_gen: int) -> bool:
 			blockout.skip_floor = false
 		rooms_root.add_child(instance)
 		_rooms[room_def.get("id", "")] = instance
-		if RunFloorConfig.is_stairs_room({"templateId": str(room_def.get("templateId", ""))}):
+		# Template, not kind: this is about geometry. Any room built from the stairs scene has steps
+		# in it and needs stair collision, whatever role the generator gave the room.
+		if str(room_def.get("templateId", "")).ends_with("_stairs"):
 			STAIR_COLLISION.ensure_stair_collision(instance)
 		if chunked and (i + 1) % CHUNK_ROOMS_PER_FRAME == 0:
 			if not await _yield_step(chunked, my_gen):
@@ -540,6 +543,7 @@ func _close_blockout_door_toward(from_room: RoomTemplate, to_room: RoomTemplate)
 
 
 func _build_doorway_bridges() -> void:
+	var closed_shortcuts: PackedStringArray = []
 	var bridges := Node3D.new()
 	bridges.name = "DoorwayBridges"
 	_dungeon_root.add_child(bridges)
@@ -567,27 +571,44 @@ func _build_doorway_bridges() -> void:
 		offset.y = 0.0
 		var span := offset.length()
 		if span >= 0.5:
-			# C-210: measured at 2.6% of shortcut edges, worst case an 8-unit hole (§112.1). This
-			# used to push_error and build the floor anyway, leaving a carved doorway opening into
-			# a gap. A shortcut that silently does not open is a lost shortcut; a door into a void
-			# is a bug report — so close it. Spanning-tree edges are load-bearing for connectivity
-			# and are left alone, and still reported.
+			# C-210: a doorway carved between two rooms whose sockets do not meet opens into a
+			# hole. Close it rather than build it.
+			#
+			# For a `shortcut` this is expected, not a fault. Rooms are positioned by a
+			# breadth-first walk out from the entrance, so only the edges that walk *used* are
+			# guaranteed to touch; a shortcut joins two grid-adjacent cells reached along different
+			# branches, and once room sizes vary their world positions have no reason to line up.
+			# Measured on the committed fixture: every `door`, `corridor` and `secret` edge touches
+			# exactly, and every `shortcut` misses — by 8.0, 17.2 and 19.8 units, which are not
+			# footprint mismatches but rooms that are simply nowhere near each other.
+			#
+			# Closing them is correct under this layout. Opening them needs the constraint-solving
+			# positioning rewrite tracked as C-157, and until that lands a per-edge warning reports
+			# expected behaviour as a defect on every floor. One summary line at the end instead.
 			if kind == "shortcut":
 				_close_blockout_door_toward(from_room, to_room)
 				_close_blockout_door_toward(to_room, from_room)
-				push_warning(
-					(
-						"DungeonBuilder: shortcut %s->%s closed — doorway span %.2f (footprint mismatch)"
-						% [edge.get("from", ""), edge.get("to", ""), span]
-					)
+				closed_shortcuts.append(
+					"%s->%s (%.1f)" % [edge.get("from", ""), edge.get("to", ""), span]
 				)
 			else:
+				# A tree edge that does not meet *is* a fault: those are load-bearing for
+				# connectivity and cannot simply be closed.
 				push_error(
 					(
 						"DungeonBuilder: doorway span %.2f on %s->%s indicates a footprint mismatch"
 						% [span, edge.get("from", ""), edge.get("to", "")]
 					)
 				)
+
+	if not closed_shortcuts.is_empty():
+		print_verbose(
+			(
+				"DungeonBuilder: %d optional shortcut(s) closed because their rooms do not touch "
+				+ "— expected under the current tree-walk layout (C-157): %s"
+			)
+			% [closed_shortcuts.size(), ", ".join(closed_shortcuts)]
+		)
 
 
 func _build_height_transitions() -> void:
@@ -1055,7 +1076,7 @@ func _setup_stair_levers() -> void:
 		var room := get_room(room_id)
 		if room == null:
 			continue
-		if not RunFloorConfig.is_stairs_room({"templateId": str(room.template_id)}):
+		if not RunFloorConfig.is_stairs_room({"kind": room.room_kind}):
 			continue
 		stairs_count += 1
 		if stairs_count > 1:
@@ -1134,7 +1155,7 @@ func get_dungeon_root() -> Node3D:
 	return _dungeon_root
 
 
-func get_stair_spawn_global(stair_room_id: String, ascending: bool) -> Dictionary:
+func get_stair_spawn_global(stair_room_id: String, _ascending: bool) -> Dictionary:
 	var room := get_room(stair_room_id)
 	if room == null:
 		return {}

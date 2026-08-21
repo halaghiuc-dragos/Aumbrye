@@ -392,22 +392,22 @@ static func _migrate_v4_to_v5(data: Dictionary) -> Dictionary:
 
 
 static func _normalize_character(copy: Dictionary) -> void:
-	var character: Variant = copy.get("character", {})
-	if not character is Dictionary:
-		character = {}
-	var char: Dictionary = character
-	if not char.has("name") or str(char.get("name", "")).strip_edges() == "":
-		char["name"] = "Wanderer"
-	char["classId"] = str(char.get("classId", ""))
-	char["level"] = maxi(1, int(char.get("level", 1)))
-	char["xp"] = maxi(0, int(char.get("xp", 0)))
-	var appearance: Variant = char.get("appearance", {})
-	char["appearance"] = CharacterAppearance.sanitize(
-		appearance if appearance is Dictionary else {"theme": char.get("appearanceTheme", 0)}
+	var raw: Variant = copy.get("character", {})
+	if not raw is Dictionary:
+		raw = {}
+	var character: Dictionary = raw
+	if not character.has("name") or str(character.get("name", "")).strip_edges() == "":
+		character["name"] = "Wanderer"
+	character["classId"] = str(character.get("classId", ""))
+	character["level"] = maxi(1, int(character.get("level", 1)))
+	character["xp"] = maxi(0, int(character.get("xp", 0)))
+	var appearance: Variant = character.get("appearance", {})
+	character["appearance"] = CharacterAppearance.sanitize(
+		appearance if appearance is Dictionary else {"theme": character.get("appearanceTheme", 0)}
 	)
-	char["appearanceTheme"] = int(char["appearance"].get("theme", 0))
-	char.erase("lastHubMessage")
-	copy["character"] = char
+	character["appearanceTheme"] = int(character["appearance"].get("theme", 0))
+	character.erase("lastHubMessage")
+	copy["character"] = character
 
 
 static func _normalize_currencies(copy: Dictionary) -> void:
@@ -600,19 +600,20 @@ static func _normalize_quests(copy: Dictionary) -> void:
 		return
 	var legacy: Dictionary = quests
 	if legacy.has("states") or legacy.has("progress"):
-		var states: Dictionary = {}
-		var progress: Dictionary = {}
+		# Already split into states/progress: re-key and re-type in place.
+		var split_states: Dictionary = {}
+		var split_progress: Dictionary = {}
 		var states_raw: Variant = legacy.get("states", {})
 		if states_raw is Dictionary:
 			for quest_id in states_raw:
-				states[str(quest_id)] = str(states_raw[quest_id])
+				split_states[str(quest_id)] = str(states_raw[quest_id])
 		var progress_raw: Variant = legacy.get("progress", {})
 		if progress_raw is Dictionary:
 			for quest_id in progress_raw:
 				var entry: Variant = progress_raw[quest_id]
 				if entry is Dictionary:
-					progress[str(quest_id)] = entry.duplicate(true)
-		copy["quests"] = {"states": states, "progress": progress}
+					split_progress[str(quest_id)] = entry.duplicate(true)
+		copy["quests"] = {"states": split_states, "progress": split_progress}
 		return
 	var states := {}
 	var progress := {}

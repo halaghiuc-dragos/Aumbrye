@@ -301,10 +301,13 @@ func _start_mode_run(mode: String, biome_id: String, run_seed: Variant, start_fl
 		var reason := str(gen.get("reason", gen.get("error", "unknown")))
 		var fail_seed := maxi(1, int(gen.get("input_seed", _resolved_run_seed(run_seed))))
 		var fail_msg := "Floor generation failed — seed %d, reason %s" % [fail_seed, reason]
+		# Both, not either. Routing this only to the crash log made a failed floor completely
+		# silent in the console: the player is returned to the hub having pressed Enter Castle and
+		# nothing anywhere says why, and a walk of every game phase cannot tell a run that failed
+		# to generate from one that was never started.
 		if CrashLogger:
 			CrashLogger.log_error("run_flow.procgen_failed", {"message": fail_msg})
-		else:
-			push_error("RunFlow: %s" % fail_msg)
+		push_error("RunFlow: %s" % fail_msg)
 		# No floor was reached, so the skip item is not spent.
 		_pending_skip_item = ""
 		return_to_hub(fail_msg)
@@ -1457,7 +1460,9 @@ func _handle_escape_meta(elapsed: float, boss_defeated: bool) -> void:
 		_submit_leaderboard_async(current_biome_id, current_dungeon_tier, elapsed)
 
 
-func _submit_leaderboard_async(biome_id: String, tier: int, elapsed: float) -> void:
+## The run identity is already on `current_run_id`, which is what the endpoint takes; the three
+## call-site arguments are kept because the caller reads better for passing them.
+func _submit_leaderboard_async(_biome_id: String, _tier: int, _elapsed: float) -> void:
 	var lb := await ApiClient.submit_leaderboard(current_run_id, true)
 	last_run_results["leaderboard_submit_attempted"] = true
 	last_run_results["leaderboard_submit_ok"] = lb.get("ok", false)

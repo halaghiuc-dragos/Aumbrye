@@ -102,8 +102,8 @@ in this session — not a claim about what it is meant to do or will do once a p
 ## 5. Automated enforcement
 
 **`DOC-01` is implemented.** `scripts/check-doc-paths.mjs` extracts every repo path cited in
-`docs/**/*.md` **and in source comments** and fails when one does not exist. It runs in CI as part of
-the `content` job.
+`docs/**/*.md` **and in source comments** and fails when one does not exist. Run it by hand, or let
+the pre-commit hook run it; this project has no hosted CI and will not have one.
 
 It was proposed here and left unbuilt for a long time, and two real defects had exactly this shape
 in the meantime — both shipped:

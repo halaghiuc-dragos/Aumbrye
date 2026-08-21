@@ -7,7 +7,7 @@ const PREFIXES_PATH := "content/affixes/prefixes.json"
 const SUFFIXES_PATH := "content/affixes/suffixes.json"
 const RARITY_PATH := "content/affixes/rarity_rules.json"
 const RarityRegistryScript := preload("res://scripts/loot/rarity_registry.gd")
-const ContentSchemaValidator := preload("res://scripts/app/content_schema_validator.gd")
+const ContentSchemaValidatorScript := preload("res://scripts/app/content_schema_validator.gd")
 
 static var _prefixes: Array = []
 static var _suffixes: Array = []
@@ -54,7 +54,7 @@ static func roll_instance(
 		"rollSeed": effective_seed,
 	}
 	if OS.is_debug_build():
-		ContentSchemaValidator.validate_roll_instance(instance, item_id)
+		ContentSchemaValidatorScript.validate_roll_instance(instance, item_id)
 	return instance
 
 

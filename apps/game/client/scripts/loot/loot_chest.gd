@@ -76,7 +76,6 @@ func _open() -> void:
 	if _opened:
 		return
 	var remaining: Array = []
-	var granted_any := false
 	for entry in _items:
 		var item_id: String = entry.get("itemId", "")
 		var qty: int = entry.get("quantity", 1)
@@ -86,7 +85,6 @@ func _open() -> void:
 		if entry.has("rollSeed"):
 			opts["rollSeed"] = int(entry.get("rollSeed", -1))
 		if InventoryService.add_loot(item_id, opts):
-			granted_any = true
 			RunFlow.register_loot(item_id, str(entry.get("instanceId", "")))
 		else:
 			remaining.append(entry)
