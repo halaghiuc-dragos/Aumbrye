@@ -1,0 +1,23 @@
+{
+  "id": "brother_cass",
+  "displayName": "Brother Cass",
+  "interactType": "dialogue",
+  "dialogueId": "cass_greeting",
+  "position": {
+    "x": 3.0,
+    "y": 0,
+    "z": -8.5
+  },
+  "appearance": {
+    "classId": "herald",
+    "skinTone": "warm",
+    "hair": "shaven",
+    "hairColor": "brown",
+    "face": "kind",
+    "head": "hood",
+    "heightVariant": "standard",
+    "bulkVariant": "standard",
+    "theme": 0,
+    "trim": 1
+  }
+}

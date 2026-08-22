@@ -200,13 +200,24 @@ func _update_arm_length(delta: float) -> void:
 	# camera never reads. Moving the arm is the only way a spring-arm camera dollies.
 	if _death_framing:
 		ideal += DEATH_FRAMING_DOLLY
-	spring_length = ideal
-	var hit_length := ideal
-	if collision_mask != 0:
-		hit_length = minf(ideal, get_hit_length())
-	var target := hit_length
-	var rate := ARM_PULL_IN_RATE if target < _smoothed_arm_length else ARM_PUSH_OUT_RATE
-	_smoothed_arm_length = lerpf(_smoothed_arm_length, target, clampf(rate * delta, 0.0, 1.0))
+	# Smoothed toward the *desired* length. Collision is `SpringArm3D`'s own job — it already pulls
+	# its child in when the cast hits something, and `spring_length` is the maximum it may extend to.
+	#
+	# What this replaces fed the node's output back into its input:
+	#
+	#     spring_length = ideal
+	#     hit_length = minf(ideal, get_hit_length())   # measured against the PREVIOUS spring_length
+	#     spring_length = smoothed_toward(hit_length)
+	#
+	# `get_hit_length()` reports the last completed physics query, which ran with the previous
+	# `spring_length`. With nothing to hit it simply returns that previous length, so once the arm
+	# shortened, the shortened value became the ceiling for every frame after — a one-way ratchet.
+	# Measured: zooming in moved the arm 4.00 -> 3.25, and zooming back out moved `_target_zoom` to
+	# 4.75 while the arm stayed at 3.25. Leaving first person was the same failure at its limit —
+	# the arm had been driven to 0.00 and could never climb back, so third person came back with the
+	# camera inside the warden's head.
+	var rate := ARM_PULL_IN_RATE if ideal < _smoothed_arm_length else ARM_PUSH_OUT_RATE
+	_smoothed_arm_length = lerpf(_smoothed_arm_length, ideal, clampf(rate * delta, 0.0, 1.0))
 	spring_length = _smoothed_arm_length
 
 

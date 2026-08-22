@@ -1,0 +1,130 @@
+{
+  "id": "player_warden_slight",
+  "grid": 0.04,
+  "profile": "biped",
+  "parts": {
+    "LegL": {
+      "mesh": "res://assets/characters/player_warden_slight/legl.voxels.json",
+      "joint": [
+        -3,
+        12,
+        0
+      ]
+    },
+    "LegR": {
+      "mesh": "res://assets/characters/player_warden_slight/legr.voxels.json",
+      "joint": [
+        3,
+        12,
+        0
+      ]
+    },
+    "Torso": {
+      "mesh": "res://assets/characters/player_warden_slight/torso.voxels.json",
+      "joint": [
+        0,
+        12,
+        0
+      ]
+    },
+    "Head": {
+      "mesh": "res://assets/characters/player_warden_slight/head.voxels.json",
+      "joint": [
+        0,
+        9,
+        0
+      ],
+      "parent": "Torso"
+    },
+    "ArmL": {
+      "mesh": "res://assets/characters/player_warden_slight/arml.voxels.json",
+      "joint": [
+        -6,
+        8,
+        0
+      ],
+      "parent": "Torso",
+      "mount": "ShieldMount",
+      "meshOffset": [
+        0,
+        -11,
+        0
+      ]
+    },
+    "ArmR": {
+      "mesh": "res://assets/characters/player_warden_slight/armr.voxels.json",
+      "joint": [
+        6,
+        8,
+        0
+      ],
+      "parent": "Torso",
+      "mount": "WeaponMount",
+      "meshOffset": [
+        0,
+        -11,
+        0
+      ]
+    }
+  },
+  "animationLibrary": "res://assets/animations/diorama/player_locomotion.res",
+  "extras": {
+    "Visor": {
+      "mesh": "res://assets/characters/player_warden_slight/visor.voxels.json",
+      "parent": "Head",
+      "offset": [
+        0,
+        5,
+        4
+      ]
+    },
+    "Hood": {
+      "mesh": "res://assets/characters/player_warden_slight/hood.voxels.json",
+      "parent": "Head",
+      "offset": [
+        0,
+        -3,
+        0
+      ]
+    },
+    "BeltTrim": {
+      "mesh": "res://assets/characters/player_warden_slight/belttrim.voxels.json",
+      "parent": "Torso",
+      "offset": [
+        0,
+        3,
+        0
+      ]
+    },
+    "Pauldron": {
+      "mesh": "res://assets/characters/player_warden_slight/pauldron.voxels.json",
+      "parent": "ArmL",
+      "offset": [
+        0,
+        -1,
+        0
+      ]
+    },
+    "PauldronR": {
+      "mesh": "res://assets/characters/player_warden_slight/pauldronr.voxels.json",
+      "parent": "ArmR",
+      "offset": [
+        0,
+        -1,
+        0
+      ]
+    }
+  },
+  "slots": {
+    "head": "Head",
+    "chest": "Torso",
+    "hands": [
+      "ArmL",
+      "ArmR"
+    ],
+    "feet": [
+      "LegL",
+      "LegR"
+    ]
+  }
+}

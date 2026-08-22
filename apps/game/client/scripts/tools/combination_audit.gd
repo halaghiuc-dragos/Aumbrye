@@ -43,8 +43,8 @@ func _ready() -> void:
 
 ## Everything that changes the rig's shape.
 func _sweep_geometry() -> void:
-	for height in CharacterAppearance.HEIGHT_VARIANTS:
-		for bulk in CharacterAppearance.BULK_VARIANTS:
+	for height in CharacterAppearance.FRAME_VARIANTS:
+		for bulk in CharacterAppearance.FRAME_VARIANTS:
 			for head_style in [
 				CharacterAppearance.HEAD_OPEN,
 				CharacterAppearance.HEAD_VISOR,
@@ -55,8 +55,7 @@ func _sweep_geometry() -> void:
 						for class_id in CLASS_IDS:
 							_check({
 								"theme": 0,
-								"heightVariant": height,
-								"bulkVariant": bulk,
+								"frame": height,
 								"head": head_style,
 								"hair": hair,
 								"trim": trim,
@@ -90,7 +89,7 @@ func _check(profile: Dictionary) -> void:
 	add_child(host)
 	var visual := DioramaCharacterSkin.build_preview_body(host, profile)
 	var label := "%s/%s head=%s hair=%s trim=%s class=%s face=%s" % [
-		str(profile.get("heightVariant", "standard")), str(profile.get("bulkVariant", "standard")),
+		str(profile.get("frame", "standard")), str(profile.get("frame", "standard")),
 		str(profile.get("head", "")), str(profile.get("hair", "")), str(profile.get("trim", 0)),
 		str(profile.get("classId", "")), str(profile.get("face", "")),
 	]

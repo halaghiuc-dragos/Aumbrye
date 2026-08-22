@@ -53,6 +53,7 @@ func _ready() -> void:
 	_camera.name = "PreviewCamera"
 	_camera.current = true
 	add_child(_camera)
+	_build_outline_pass()
 	# A hard key with a low fill. The previous ratio (1.1 key against a 0.9-energy ambient) lit
 	# every face of the warden to within a few percent of every other, so the surface shader's
 	# dither was the only thing varying across the model and the armour read as translucent mesh.
@@ -148,6 +149,30 @@ func _stage_bounds() -> AABB:
 ## fill 82% of the height has its shoulders cut off at the sides. The subject's own depth is added
 ## on top, because the distance that frames a flat plane at the model's centre still puts whatever
 ## faces the camera much closer than that.
+## The same screen-space contour the world gets, so the warden in the creation preview is drawn the
+## way the warden in the game is drawn.
+##
+## No render-layer juggling is needed here: the preview SubViewport sets `own_world_3d = true`, so
+## this quad is in a world nothing else looks at. In the gameplay pipeline the world is shared and
+## the pass has to be masked onto a layer of its own — see `PixelDioramaViewport`.
+func _build_outline_pass() -> void:
+	var material := PixelDioramaSettings.make_outline_material()
+	if material.shader == null:
+		return
+	var quad := QuadMesh.new()
+	quad.size = Vector2.ONE
+	var pass_quad := MeshInstance3D.new()
+	pass_quad.name = "PreviewOutlinePass"
+	pass_quad.mesh = quad
+	pass_quad.material_override = material
+	pass_quad.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	# The vertex shader rewrites POSITION into clip space, so the quad's real bounds say nothing
+	# about where it lands on screen and it would otherwise be frustum-culled away.
+	pass_quad.extra_cull_margin = 16384.0
+	material.render_priority = 100
+	_camera.add_child(pass_quad)
+
+
 func _frame_subject(size: Vector3, center_y: float) -> void:
 	if _camera == null:
 		return

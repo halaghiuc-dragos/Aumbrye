@@ -52,6 +52,9 @@ func toggle() -> void:
 
 
 func open_menu() -> void:
+	# Raised on open, so the panel the player just asked for is the one on top: these are all
+	# siblings on one CanvasLayer and draw in child order, which is otherwise fixed at build time.
+	move_to_front()
 	if _open:
 		return
 	_rebuild_actions()

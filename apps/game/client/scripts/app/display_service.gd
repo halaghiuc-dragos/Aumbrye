@@ -368,7 +368,22 @@ func _apply_monitor() -> void:
 	DisplayServer.window_set_current_screen(monitor_index)
 
 
+## Escape hatch for the diagnostic scenes.
+##
+## `capture_ui_screens`, `capture_world_screens` and the rest boot the real autoloads, so they
+## honour whatever window mode the player's save asks for. A profile set to Borderless meant every
+## capture run took over the whole screen — the tools are meant to be run while working, not to
+## seize the desktop. Set `AUMBRYE_FORCE_WINDOWED=1` and the mode is pinned to windowed for that
+## process only; nothing is written back, so the player's setting is untouched.
+static func force_windowed() -> bool:
+	return OS.get_environment("AUMBRYE_FORCE_WINDOWED") != ""
+
+
 func _apply_window_mode() -> void:
+	if force_windowed():
+		DisplayServer.window_set_flag(DisplayServer.WINDOW_FLAG_BORDERLESS, false)
+		DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_WINDOWED)
+		return
 	match window_mode:
 		WINDOW_MODE_BORDERLESS:
 			DisplayServer.window_set_flag(DisplayServer.WINDOW_FLAG_BORDERLESS, true)
@@ -382,7 +397,7 @@ func _apply_window_mode() -> void:
 
 
 func _apply_window_size() -> void:
-	if window_mode != WINDOW_MODE_WINDOWED:
+	if window_mode != WINDOW_MODE_WINDOWED and not force_windowed():
 		return
 	var clamped := _clamp_to_usable_rect(window_size)
 	window_size = clamped

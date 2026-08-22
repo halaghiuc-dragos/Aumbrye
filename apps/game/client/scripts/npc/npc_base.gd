@@ -106,11 +106,38 @@ func requires_flag() -> String:
 	return str(_data.get("requiresFlag", ""))
 
 
+## The inverse gate: an NPC is hidden while this flag is truthy.
+##
+## `requiresFlag` can only bring someone into the world. Losing one needs the opposite, and a
+## character who leaves and can be brought back needs both directions to run off a single flag —
+## the rite that returns them just sets it false again.
+func absent_flag() -> String:
+	return str(_data.get("absentFlag", ""))
+
+
+## Lowest unlocked difficulty tier at which this character is in the hub at all.
+##
+## Read straight off `DungeonTierService` rather than mirrored into a flag, because that is the same
+## source the `minTier` dialogue condition already uses — one number, so an NPC's arrival and the
+## quest they arrive with cannot drift apart.
+func requires_tier() -> int:
+	return int(_data.get("requiresTier", 0))
+
+
 func is_available() -> bool:
+	if CharacterService == null:
+		return requires_flag() == ""
+	var absent := absent_flag()
+	if absent != "" and CharacterService.is_flag_truthy(absent):
+		return false
+	var tier := requires_tier()
+	if tier > 0:
+		if DungeonTierService == null or DungeonTierService.get_max_unlocked_tier() < tier:
+			return false
 	var gate := requires_flag()
 	if gate == "":
 		return true
-	return CharacterService != null and CharacterService.is_flag_truthy(gate)
+	return CharacterService.is_flag_truthy(gate)
 
 
 func set_available(available: bool) -> void:

@@ -1,0 +1,32 @@
+{
+  "id": "sorrel_gravebound",
+  "displayName": "Sorrel",
+  "interactType": "dialogue",
+  "dialogueId": "sorrel_greeting",
+  "absentFlag": "sorrel_fallen",
+  "dialogueRules": [
+    {
+      "condition": {
+        "flag": "sorrel_returned"
+      },
+      "dialogueId": "sorrel_returned"
+    }
+  ],
+  "position": {
+    "x": 4.5,
+    "y": 0,
+    "z": 12.5
+  },
+  "appearance": {
+    "classId": "rogue",
+    "skinTone": "ashen",
+    "hair": "tied",
+    "hairColor": "ash",
+    "face": "stern",
+    "head": "open",
+    "heightVariant": "compact",
+    "bulkVariant": "lean",
+    "theme": 0,
+    "trim": 0
+  }
+}

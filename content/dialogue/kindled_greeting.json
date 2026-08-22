@@ -1,0 +1,85 @@
+{
+  "id": "kindled_greeting",
+  "startNode": "start",
+  "nodes": {
+    "start": {
+      "speaker": "The Kindled Child",
+      "text": "It is sitting on the flagstones with its back to the gates, which nobody does, and it is warm to stand near, which nothing here is.",
+      "choices": [
+        {
+          "text": "Are you lost?",
+          "next": "lost"
+        },
+        {
+          "text": "What is down there?",
+          "next": "down"
+        },
+        {
+          "text": "Ask me for something.",
+          "next": "quest",
+          "condition": {
+            "all": [
+              {
+                "minTier": 4
+              },
+              {
+                "not": {
+                  "flag": "kindling_asked"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "text": "Leave it alone.",
+          "next": "end"
+        }
+      ]
+    },
+    "lost": {
+      "speaker": "The Kindled Child",
+      "text": "No. Everyone else is. You keep coming back up through me and none of you notice the step.",
+      "actions": [
+        {
+          "type": "set_relationship",
+          "npc": "kindled",
+          "delta": 1
+        }
+      ],
+      "next": "end"
+    },
+    "down": {
+      "speaker": "The Kindled Child",
+      "text": "Something that is very tired of being generous.",
+      "actions": [
+        {
+          "type": "set_relationship",
+          "npc": "kindled",
+          "delta": 1
+        }
+      ],
+      "next": "end"
+    },
+    "quest": {
+      "speaker": "The Kindled Child",
+      "text": "Go down. Take nothing. Not one box, not one coin, all the way to the stair.\n\nI want to know if you can. I think you cannot, and I would like to be wrong about somebody.",
+      "actions": [
+        {
+          "type": "start_quest",
+          "questId": "child_the_kindling"
+        },
+        {
+          "type": "set_flag",
+          "flag": "kindling_asked",
+          "value": true
+        },
+        {
+          "type": "set_relationship",
+          "npc": "kindled",
+          "delta": 2
+        }
+      ],
+      "next": "end"
+    }
+  }
+}

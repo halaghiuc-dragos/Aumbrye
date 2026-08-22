@@ -1,0 +1,24 @@
+{
+  "id": "old_vane",
+  "displayName": "Old Vane",
+  "interactType": "dialogue",
+  "dialogueId": "vane_greeting",
+  "position": {
+    "x": 20.5,
+    "y": 0,
+    "z": 13.0
+  },
+  "appearance": {
+    "classId": "sentinel",
+    "skinTone": "umber",
+    "hair": "long",
+    "hairColor": "silver",
+    "face": "scarred",
+    "head": "open",
+    "heightVariant": "standard",
+    "bulkVariant": "heavy",
+    "theme": 0,
+    "trim": 2
+  },
+  "requiresTier": 2
+}

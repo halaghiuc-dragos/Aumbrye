@@ -1,0 +1,18 @@
+{
+  "id": "sorrel_the_unmarked",
+  "title": "The Unmarked",
+  "type": "discover",
+  "chainId": "sorrel",
+  "description": "Sorrel marks the fallen so the tower cannot pretend they were never there. Three of her marks are still down in the dark. Find them.",
+  "requiredCount": 3,
+  "minDifficultyTier": 2,
+  "rewards": {
+    "gold": 260,
+    "flags": [
+      {
+        "flag": "sorrel_marks_found",
+        "value": true
+      }
+    ]
+  }
+}

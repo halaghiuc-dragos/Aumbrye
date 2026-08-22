@@ -15205,3 +15205,1038 @@ now diffs byte-identical apart from logs and the captures themselves.
 Godot has no per-run override for `user://`, so the harness cannot simply be pointed elsewhere.
 Until that is dealt with, **back up
 `~/.local/share/godot/app_userdata/Aumbrye/` before running `capture_ui_screens.tscn`.**
+
+## §141 — Batch: render resolution, three bugs, and a hub art pass
+
+### §141.1 — Render resolution is fixed at Full HD
+
+`DEFAULT_VIEWPORT_WIDTH/HEIGHT` are 1920x1080, the preset list is one entry, and the Render
+Resolution row is gone from Display > Advanced Pixel Options. The stored `viewport_width` is no
+longer read back: a profile written while the chunky presets existed still says `480`, and honouring
+that would strand those players on a resolution the settings page no longer offers a way out of.
+
+What the player can still tune — pixel scale, colour levels, pattern strength — is unchanged. Those
+stylise the image; they do not choose what it is rendered at.
+
+### §141.2 — C-289: a mirror rig warned for a clip the body owns
+
+```
+DioramaAnimController[player]: clip 'run_r' missing (play)
+  diorama_anim_controller.gd:306 @ request_locomotion()   <- the mirror
+  diorama_anim_controller.gd:298 @ request_locomotion()   <- the body, fanning out
+```
+
+`player_anim_director._locomotion_clip_for` picks a strafe clip only after asking `has_clip`, so the
+choice is always valid **for the body**. `request_locomotion` then fans the same clip out to every
+mirror rig, and the viewmodel library has no strafe variants. It warned once per rig and the
+viewmodel played nothing at all while strafing. `_locomotion_fallback` trims the directional suffix
+and drops to the base gait, which is what a rig without strafes should do.
+
+### §141.3 — C-290: the enemy HP bar was an empty black box from half the angles
+
+The red fill was pushed toward the camera with `position.z = -0.02`. `BILLBOARD_FIXED_Y` turns the
+*quad* to face the camera and leaves the node's own axes alone, so local -Z is a fixed world
+direction — which side of the bar it points at depends on where the enemy is standing. From half the
+angles in the arena the fill sorted behind its own backing.
+
+Sprite3D quads are transparent and do not write depth, so two coplanar layers composite purely by
+`render_priority`. That is the same from every angle, and unlike `no_depth_test` it keeps the bar
+correctly hidden behind walls. Applied to all three stacked pairs — health, telegraph and poise.
+
+### §141.4 — The raised gold tiles are gone
+
+Both the hub plaza and the training arena ran a strip of `accent`-material tiles down the middle at
+y=0.08 with 0.14 height, against 0.06/0.12 for the floor — 3cm proud of everything around them, and
+in the hub each one carried its own collider. They read as a yellow kerb through the middle of the
+room. Removed, along with the gold `PlinthStep` under each tent and the gold `TentPadTrim`. The tent
+door pads are now flush with the floor: a threshold is a change of colour, not a step.
+
+### §141.5 — Hub NPCs have bodies
+
+They were three boxes — a torso, a head cube and a slab for feet — in a game whose player is a
+sculpted voxel warden. Each of the ten now carries an `appearance` block in `content/npcs/*.json`
+and is built with `DioramaCharacterSkin.build_preview_body`, the same path the character-create
+preview uses.
+
+`CharacterAppearance.sanitize` drops an unrecognised value and substitutes the default in silence.
+Five of the ten were wrong on the first pass — `"calm"` for a face, `"raven"` for a hair colour —
+and looked completely fine. `_warn_unknown_appearance` now reports the substitution, and
+`npc-definition.v1.json` gained an `appearance` schema with the real enums (it is
+`additionalProperties: false`, so the block would have failed validation outright).
+
+**`ajv` is not installed on this machine, so `validate.mjs --layer content` cannot run.** The enum
+and `additionalProperties` checks were done by hand against the schema instead — 10 files, 0
+problems — and the hub loads all ten without a substitution warning.
+
+### §141.6 — Hub layout and dressing
+
+- **Tents, not houses.** `build_tent` gave every stall full-height fabric on three sides plus two
+  front lips, so they read as little buildings and you could not see the forge or the anvil inside
+  one. They are market stalls now: closed at the back, open at the front, skirt-high down the sides
+  with a rail above. The blacksmith's forge, anvil, workbench and tool rack were always in there.
+- **Symmetric layout.** The six gates sat at x = 12, 6, 0, -6, -12, -18 — evenly spaced but centred
+  on x = -3. They are now symmetric about x = 0 at ±3.5, ±10.5, ±17.5. Services are paired on the
+  flanks (blacksmith/storage west, merchant/quest board east). **`Mirror` was at exactly the same
+  position as `Merchant`** — two structures in one spot, which is the likeliest source of the NPC
+  seen clipping through a wall. NPC positions in content were moved to match their stalls.
+- **Dressing.** A brazier either side of every gate (flickering, warm, shadows off), banner poles
+  down the central axis, and crate/barrel/sack clusters at the stalls.
+- **Dusk lighting.** The hub profile ran a `#ffe0a8` sun at energy **1.7** over a 0.12 ambient,
+  which blew the whole plaza to one flat orange and left the palette no room to show. Now a 0.85 key
+  over a cool `#5d6b93` ambient at 0.34, violet fog at more than double the density, and a deep
+  `#1d2450` zenith over a hot horizon band — so the braziers, the forge and the portals are what
+  read as light.
+
+**Not verified visually:** the gate row itself. The capture harnesses render through the hub's own
+gameplay camera, which spawns facing south, and a probe camera added alongside it does not take
+over. The layout numbers are symmetric by construction but nobody has looked at them.
+
+## §142 — C-291: a click in a dialogue also swung the sword
+
+Opening a conversation and clicking a reply attacked. Not a UI bug — an input-gate one.
+
+`PlayerControls.is_player_meta_ui_open()` deliberately does not count a conversation as meta UI,
+because the camera should stay live through one. So `PlayerInput.blocked()` stayed false and
+`WeaponController` kept polling `light_attack` every physics frame. **A Button consuming the GUI
+event does nothing to stop a poll** — the click picked the reply *and* swung.
+
+This is exactly the partial gate C-85 built `block_groups` for, and nothing had ever used it. The
+dialogue now suppresses `COMBAT` and `INTERACT` for as long as a line is on screen. `INTERACT` goes
+with it because that is the key that advances the line, and while it is doing that it must not also
+re-fire the interactable the player is standing in front of. `_exit_tree` releases the block too: a
+dialogue torn down mid-line by a scene change would otherwise leave the player unable to attack for
+the rest of the run.
+
+Mouse parity came with it — clicking the box advances a line that has no replies (a line that *has*
+replies ignores stray clicks, so the margin cannot pick one for you), and hovering a reply moves the
+keyboard selection to it.
+
+**Verified by probe, both ways.** Driving the real `DialogueUI` and reading the same gate the weapon
+controller reads: blocked=false before, true while open, false after close. With the
+`block_groups` call commented out the middle assertion reports FAIL — the check can fail, so its
+passing means something.
+
+## §143 — The mirror is gone
+
+Removed from `hub.tscn` and `_dress_mirror` with it. **This was the only way into the appearance
+editor.** `Hub.open_appearance_mirror()` and the `appearance_mirror` interact type still exist and
+still work; nothing in the world calls them any more. Hanging that on an NPC is a one-line change if
+it is wanted back.
+
+## §144 — Ambient life in the hub
+
+`HubFauna` spawns ten birds on three staggered flight rings over the plaza and five strays — three
+cats, two dogs — each keeping to a home patch near a stall rather than roaming the whole square.
+Built from the same `add_box` primitives as the rest of the hub dressing, so they sit in the same
+pixel-diorama language instead of looking imported.
+
+They are visual only: no collision body, no hurtbox, not in `lockable`. The player walks through
+them.
+
+Bird position is recomputed from elapsed time rather than integrated, so a frame spike cannot drift
+one off its ring and nothing accumulates over a long session in the hub. The strays walk to a point,
+wait between 1.6 and 5.5 seconds, and pick another — an animal that never stops moving reads as a
+patrol, not as a stray.
+
+## §145 — Six wanderers
+
+Dialogue and quests only, no services. Present in the plaza from the start, none of them attackable.
+
+| | gate | quest |
+|---|---|---|
+| The Tallow Knight | tier 1 | The Long Watch — reach depth 4 |
+| Brother Cass | tier 1 | The Quiet Hour — 12 kills |
+| Sorrel | tier 2 | The Unmarked — find 3 marks |
+| Hesper | tier 2 | True North — read 3 survey stones |
+| Old Vane | tier 3 | The Last Muster — 20 kills |
+| The Kindled Child | tier 4 | The Kindling — clear a floor taking nothing |
+
+**Sorrel can be lost and brought back.** At tier 3, with her quest already given, a reply lets her
+go down one last time; that sets `sorrel_fallen` and she is not in the plaza afterwards. Brother
+Cass, at relationship 2 or better, offers a rite that clears the flag and sets `sorrel_returned`,
+which routes her to a different greeting through the `dialogueRules` the catalogue already had.
+
+`requiresFlag` could only ever bring someone *into* the world. `NpcBase.absent_flag()` is the
+inverse — hidden while the flag is truthy — so a character who leaves and comes back runs both
+directions off one flag.
+
+Nothing new was needed in the dialogue engine: `minTier`, `relationship`, `flag`, `not`, `all`,
+`set_flag`, `set_relationship` and `start_quest` were all already supported and unused at this
+scale.
+
+**`ajv` is still not installed**, so `validate.mjs --layer content` cannot run. The equivalent
+checks were done by hand over everything added: schema keys, enum values, required fields, every
+`next` target resolving to a real node or `end`, every `dialogueId` resolving to a real dialogue,
+and every `start_quest` naming a real quest file. 0 problems.
+
+A runtime census of the built hub: 16 NPCs, 0 attackable (none in `lockable`, none carrying a
+`Hurtbox` or `Health`), 0 still on the box blockout, 10 birds, 5 strays, no mirror.
+
+## §146 — The world gets a contour
+
+`edge_strength` was always a *texture-space* cell border — the seam between two pattern cells on one
+surface. Nothing in the game had a silhouette, so a character standing against a wall of similar
+value dissolved into it and the whole render read flat however carefully the palettes were tuned.
+
+`assets/shared/pixel_outline.gdshader` is a screen-space pass: depth discontinuities give the outer
+silhouette, normal discontinuities give the interior creases where two faces meet. Interior creases
+are drawn at 45% of silhouette strength, because at parity every box corner in the scene gets a hard
+line and the world turns into a wireframe. Contours fade out between 26m and 46m — a one-pixel line
+on something 40m away is noise that crawls as the camera moves.
+
+It runs as a clip-space quad inside the pixel SubViewport, because it needs the depth and normal
+buffers of the pass it is drawn in. The screen finish is a `canvas_item` shader over the container
+and has no depth to read, so this could not live there.
+
+Two things that had to be got right:
+
+- **Sky.** Tested at *both* ends of the depth buffer rather than against one of them, because which
+  end means "far" depends on whether the renderer is using a reversed depth range, and a contour
+  pass should not quietly invert when that changes.
+- **Who sees the quad.** The SubViewport shares the main `World3D`, so the quad is in the same world
+  the gameplay camera is looking at — and a Camera3D's default cull mask is all twenty layers, the
+  contour layer among them. With the pipeline on this made no visible difference, because the
+  gameplay camera's output is covered by the SubViewportContainer. **With Low-Res Viewport turned
+  off in Advanced Pixel Options it would have been a dark sheet over the game**, drawn by a camera
+  whose depth buffer it was never derived from. The bit is cleared from the source camera in
+  `_bind_source_camera`.
+
+The character-create preview gets the same pass. No layer juggling there — that SubViewport sets
+`own_world_3d = true`, so the quad is in a world nothing else looks at.
+
+## §147 — The wordmark is drawn, not typed
+
+Press Start 2P is a body typeface and does not hold up as a logo: its M is a different weight from
+its U, its R carries a diagonal leg nothing else in the word echoes, and its Y hangs below the
+baseline. At 160px those read as seven letters borrowed from somewhere rather than one piece of
+lettering.
+
+Every glyph is now authored on the same 8x9 grid in `title_wordmark.gd`, with the same two-cell
+stem, the same flat terminals and the same cap height. Letter spacing is a constant — consistent
+weight and spacing are properties of the grid, not something tuned by eye afterwards. The one style
+rule that varies is deliberate and uniform: **where a letter would carry a curve it gets a chamfer**
+(A's apex, U's base, Y's shoulder); letters with no curve stay square (B, R, E).
+
+Drawn through `_draw()` at native resolution rather than through the pixel SubViewport. Every cell
+is already an exact rectangle on an integer grid, so a downscale-and-magnify pass could only soften
+what is crisp by construction. Cell size is whole pixels only — a fractional cell is what makes a
+pixel logo shimmer.
+
+Each cell is filled, then filled again one step in with the lighter tone, so every pixel carries its
+own soft edge and the grid stays visible at any size. The face carries a gradient from lit at the
+top left to shaded at the bottom right, so the light on the mark agrees with the key light
+everything else in the game is lit by. The keyline is violet and the drop shadow a deeper violet
+two cells down and across — two depths of one colour, so the keyline reads as a keyline and the
+shadow as something the mark is casting rather than the two merging into a band.
+
+**The first pass fused into a purple slab.** The contour is a cell wide on each side and the letter
+gap was two, so adjacent keylines met in the middle; a glow ring three cells out then filled every
+remaining gap and the whole bounding box went solid. The gap is four now and the glow ring is gone —
+the keyline itself breathes during the intro instead.
+
+The subtitle keeps the mark's keyline colour so the pair reads as one lockup, and stays type rather
+than a hand-authored grid: at a fifth of the mark's size its cells would be finer than the mark's
+own pixels, which would invert the hierarchy.
+
+## §148 — Arrivals
+
+`NpcBase.requires_tier()` reads `DungeonTierService.get_max_unlocked_tier()` directly rather than
+mirroring it into a flag, because that is the same source the `minTier` dialogue condition uses —
+one number, so an NPC's arrival and the quest they arrive with cannot drift apart. Hesper lands at
+tier 1, Old Vane at 2, the Kindled Child at 3: each a tier before they have something to ask for, so
+they are a face you have seen before they are a quest giver. The hub also listens for
+`tier_unlocked`, because a tier can unlock while the player is standing in the plaza reading the
+results of the run that unlocked it.
+
+Verified live: at max tier 1, Hesper is present and the other two are not.
+
+## §149 — Diagnostics no longer seize the screen
+
+The capture scenes boot the real autoloads, so they honour whatever window mode the save asks for. A
+profile set to Borderless meant every capture run took over the whole desktop. `AUMBRYE_FORCE_WINDOWED=1`
+pins the mode to windowed for that process only and writes nothing back:
+
+```bash
+AUMBRYE_FORCE_WINDOWED=1 godot --path apps/game/client --windowed --resolution 1280x720 res://scenes/debug/capture_ui_screens.tscn
+```
+
+## §150 — The corner rule, and two broken letters behind it
+
+U looked "cropped" at the bottom and B, R and E did not. The cause was that the corner cut had been
+applied by eye — to the letters that *felt* round, and skipped on the ones that felt square — so the
+baseline read ragged.
+
+The rule is now stated and applied uniformly:
+
+- **Wherever the outline turns a corner, the outermost cell of that turn is cut.** A's apex, U's
+  base, Y's shoulder, R's bowl, E's two left corners.
+- **Wherever a stroke simply ends in the air it stays square.** A's legs, M's four stems, R's leg,
+  the free right ends of E's bars.
+
+A turn is a turn whether the letter feels curved or not.
+
+**B takes the cut where it curves, and nowhere else** — the outer corner of each bowl, with the spine
+left square. Three passes to get there, and each failure was informative:
+
+| | result |
+|---|---|
+| all four corners cut | reads as an **8** — both bowls close and equal |
+| all four squared | reads as B, but B is then the only letter with no cut at all |
+| spine corners cut | the cut lands on the one edge of the letter with no curve in it |
+| **bowl corners cut** | the cut marks the curve, which is what the rule says |
+
+So B is not an exception to the corner rule after all — the first three attempts were misreadings of
+where B actually turns. A cut marks a curve; B curves on the right.
+
+Fixing it exposed a real fault underneath. **B's top bar ran cols 0-5 while its bowl ran cols 6-7 —
+cells that touch only at a diagonal.** That B's bar and bowl were never joined; R's leg had the same
+break. A flood fill over each glyph finds 12 detached cells in the old B and 10 in the old R. Both
+are orthogonally connected now, and the check runs over all seven: 0 problems.
+
+## §151 — Gold on violet
+
+The interface was gold on brown — one colour and its own shadow. Everything sat in the same warm
+register, so nothing separated a frame from what it framed. Violet is the complement, so a gold
+heading now reads *against* its panel rather than out of it, and the same pair runs from the title
+screen through every menu, dialogue box, settings page and portal frame.
+
+The split is by role, not by taste:
+
+| | |
+|---|---|
+| **violet** holds the structure | frames, rules, dividers, row borders, the wordmark keyline |
+| **gold** carries meaning | headings, values, the focus ring, whatever the eye should land on |
+
+Anything semantic keeps its own colour — damage is still red, a stat gain still green. Those are
+information, not decoration, and theming them would cost the player a read.
+
+Because every panel, button and modal already routes through `GameUISkin`, the whole front end and
+every in-world panel moved together off three constants.
+
+**Portals kept their identity.** Eight of the fourteen had no `frame_material` and fell through to
+plain wall stone, so most gates were undressed masonry while six were themed. All fourteen now carry
+a gold frame — the gate architecture is the tower's, and it is the same everywhere. What each portal
+*contains* still carries its realm's colour, which is the part a player actually reads a destination
+from, and that is untouched.
+
+## §152 — Save recovery held open
+
+`capture_ui_screens` writes to the live save (§141.5). Each run also rotates the character's backup
+ring by one, and `warden_73769328_0` — one of the copies still holding the pre-overwrite `nacips`
+character — was rotated out during this session's captures. Restored from the session backup, and a
+labelled copy of all five now sits in `~/aumbrye-nacips-recovery/` because the scratchpad is under
+`/tmp` and a reboot has already destroyed one backup this session.
+
+**Do not run the capture scenes against the real user directory again until that is resolved.** Each
+run costs one slot of the recovery window.
+
+## §153 — C-292: the last panel opened was not the one on top
+
+`settings_ui.open_settings()` calls `move_to_front()` on itself. Every meta panel is a sibling on
+one `CanvasLayer` and siblings draw in child order, so opening Settings once **permanently** moved
+it past every panel built after it in `_build_global_uis` — Achievements, Bestiary, Talents, Pause.
+For the rest of the session the Bestiary opened behind Settings.
+
+The rule is now applied wherever a panel opens rather than in one place that happened to have it:
+`PlayerControls._raise()` for the panels it opens, and `move_to_front()` in the open method of
+Inventory, Talents, Pause, Bestiary and Achievements. Draw order follows what the player did.
+
+## §154 — C-293: no bird or stray ever moved
+
+`is_processing()` was **false** on every one of them. `set_script()` does not turn the process
+callback on for a node that is already inside the tree — Godot decides that when the script is
+attached, and `HubFauna` attaches after `add_child`. Ten birds and five strays stood perfectly
+still. `setup()` now calls `set_process(true)`, and the probe asserts on `is_processing()` rather
+than on the script being present, because the script was always present.
+
+Measured after: **12 of 15 moving** over 120 frames. The other three are strays inside their pause
+window, which runs 1.6–5.5s — that is the behaviour, not a failure.
+
+## §155 — The strays answer
+
+Cats and dogs carry a `HubInteractable` zone, exactly the one every shopkeeper uses, so petting a
+cat routes through the same path as talking to a blacksmith. The zone is a child of the animal, so
+it wanders with it, and it is 1.4m rather than the NPC capsule's 0.6m — an animal that moves while
+you walk up to it is much harder to stand on top of than a shopkeeper who never does.
+
+Their interact ids are `stray:<dialogue>` rather than `npc:<id>`: they are not in the NPC catalogue,
+having no schedule, no availability gate and nothing to sell. `Hub._dispatch_interact` routes that
+prefix straight to a conversation.
+
+Five of them — Cinder, Tallow and Ash the cats, Rook and Bramble the dogs — each with a look, a
+noise and a Pet option that loops back so you can keep going.
+
+**The meow and the bark are tracked placeholders.** `numpy` is not installed on this machine so no
+foley could be synthesised; `stray_meow` and `stray_bark` are real entries in the SFX bank with
+`placeholder: true`, which means they play a synthesised fallback tone (cat at 620Hz, dog at 210Hz
+and shorter) and appear in `_report_placeholder_sfx`'s boot summary until real audio replaces them.
+Dropping in two .ogg files is the whole of the remaining work.
+
+`fallbackTone` is `additionalProperties: false` with only `freq` and `duration`, so the `decay` key
+the first draft carried would have failed validation outright.
+
+## §156 — Portals
+
+Circular, and the swirl has borders on its pixels. The portal was the one surface in the game with
+visible pixels and no lines between them — the contour pass only draws where geometry turns, and a
+portal is one flat quad, so its interior read as a field of loose coloured squares. Cell borders are
+the same idea applied inside the surface, and the same treatment the wordmark gives its own pixels.
+
+The border grid is computed in the swirl's own space, so the lines turn with the portal rather than
+sitting still on the screen. A dark rim inside the opening's edge makes it read as a hole rather
+than a disc. All fourteen ellipses were `[0.72, 1.0]` and are now `[1.0, 1.0]`.
+
+**Not visually confirmed.** The capture probes drive the gameplay camera, which spawns facing away
+from the gate row and does not take a yaw from the player, so nothing framed a portal. The shader
+compiles and the content validates; how it actually looks is unverified.
+
+## §157 — Two things not fixed
+
+- **The blue containers.** The storage tent's lamp was a cold `#b8d1f2` at a time when the hub was
+  lit by a 1.7-energy orange sun, where it read as deliberate contrast. Against the dusk ambient it
+  now sits in it just made the crates and barrels beneath it look like blue plastic; it is warm now.
+  Whether that was *the* blue the report meant is unconfirmed — other props may read cool against
+  the new ambient.
+- **Sorrel.** Could not reproduce. Every link tests clean in isolation: `data_empty=false`,
+  `available=true`, `visible=true`, `dialogue_id=sorrel_greeting`, interact area monitoring, the
+  proximity check returns `npc:sorrel_gravebound`, `dialogue_requested` fires, the JSON loads, and a
+  full open/close cycle releases the input gate (`interact=false combat=false`). The same probe
+  passes for `warden_mira` and `blacksmith_aldric`. Whatever breaks it is not in that chain.
+
+## §158 — The capture harnesses write to the save, and that has now cost data twice
+
+`capture_ui_screens` creates a warden (§141.5). **Instantiating `hub.tscn` does too** — the hub
+creates a character when none is selected, which a probe written for this section did, adding a
+stray "Maren Keeneye" and rotating one of the five `nacips` recovery copies out of the ring.
+
+Restored from the session backup; 5 of 5 intact again. But the rule has to be stated plainly:
+
+> **Any diagnostic that instantiates `hub.tscn` or `character_create.tscn` writes to the live save.**
+> Back up `~/.local/share/godot/app_userdata/Aumbrye/` first, and verify the backup exists before
+> running any restore over it — a `comm`-based restore against a missing backup directory reads every
+> live file as unknown and deletes it.
+
+## §159 — Customisation: what got twenty-five and what did not
+
+| axis | before | after | cost of one more |
+|---|---|---|---|
+| complexion | 8 | **25** | a colour |
+| hair colour | 8 | **25** | a colour |
+| hair style | 7 | **25** | a row in `HAIR_RECIPES` |
+| countenance | 6 | **25** | a 6x4 mask |
+| aspect (palette) | 11 | **25** | eight colours |
+| stature | 3 | **5** | a whole rig |
+| build | 3 | **5** | a whole rig |
+| names | 25 x 15 = 375 | 67 x 40 = **2680** | a word |
+
+Stature and build stop at five deliberately. Every other axis is a colour or a texture and costs one
+file; those two are *rigs* — each combination is its own set of body meshes and its own joint
+layout, and 25x25 would be 625 of them for differences nobody could pick out of a line-up.
+
+Three structural changes made the rest safe to grow:
+
+- **One ordered table per axis.** Ids, labels and colours were three separate literals kept in step
+  by hand, and the UI selects by *index* into the labels and reads back by index into the ids. Fine
+  at eight, a bug waiting at twenty-five. `SKIN_TONE_TABLE` and friends are now the single source
+  and the arrays derive from them.
+- **Hair is a recipe table, not a branch per style.** Six styles were six `if` arms. Twenty-five
+  would be twenty-five, and that is the shape that lets two styles drift apart by accident.
+  `HAIR_RECIPES` describes cap depth, back sheet, side falls, tail, crest and fringe; every style is
+  built by the same code.
+- **The generator's list is the runtime's list.** `HAIR_STYLES` in the exporter is
+  `tuple(HAIR_RECIPES)`, so a style cannot be offered in the creation screen with no mesh behind it.
+
+Checked after generating: 50 meshes, **0 with empty `cells`** (the runtime reads an empty cell list
+as "fill the bounding box", which is how two hair styles once shipped as solid slabs), and 25 of 25
+distinct silhouettes. `topknot` came out byte-identical to `short` on the first pass — its crest
+wrote only cells the skullcap had already filled, because there is no room *above* the crown.
+
+## §160 — C-294: Build changed the warden and the player could not see it
+
+"Stature is a bit unclear — it changes things, but does the preview match what I picked?" is a
+question with a numeric answer, so `scenes/debug/stature_audit.tscn` builds all 25 combinations and
+measures the body. Height must rise with stature and width with build, monotonically and by a
+visible amount.
+
+It did not. **Width was 0.84m for gaunt, lean, standard *and* heavy** — four of five builds
+identical — with only massive differing, by 4cm. Three separate causes, each masking the next:
+
+1. **The belt set the silhouette.** `BeltTrim` was a literal `(13, 3, 7)`, measured once against the
+   standard torso and then applied to every build. It is the widest thing on the warden, so it fixed
+   the width for all five. Derived from the torso now, as are the pauldrons from the arm.
+2. **The arm stopped shrinking three builds early.** `_adjust_size(..., min_size=4)` clamped gaunt,
+   lean and standard to the same 4-voxel arm, and the arm span — not the torso — is what sets the
+   silhouette at the narrow end. Floor lowered to 2.
+3. **The shoulder was a hardcoded 8**, tuned by eye against the standard torso. At gaunt the torso
+   half-width is 5 and the arm sat centred on 8, leaving **two voxels of empty air between body and
+   arm** — the contact sheet shows arms floating beside the warden like dropped sticks. Now
+   `round(torso_w / 2 + arm_w / 2)`, which still produces 8 at standard and keeps every build flush.
+
+Both scales were then made linear, because five steps are only a slider if every step is the same
+size. The first pass had height deltas summing to -5, -2, 0, +3, +6.
+
+**Measured after: 0 monotonic-step failures across 25 combinations.**
+
+| | slight | compact | standard | tall | towering |
+|---|---|---|---|---|---|
+| height | 1.12 | 1.24 | 1.36 | 1.48 | 1.60 |
+
+| | gaunt | lean | standard | heavy | massive |
+|---|---|---|---|---|---|
+| width | 0.60 | 0.72 | 0.84 | 0.96 | 1.08 |
+
+Exactly 12cm per step on both axes. The contact sheet's `stature.png` confirms the arms are attached
+at every build — note that it cannot show *height*, because the preview rig frames every subject to
+the same screen fraction. That is what the AABB audit is for.
+
+## §161 — Analysis: shadows across the game
+
+Measured across all 14 lighting profiles. There **is** a coherent scheme, and it is by area type:
+
+| | sun | sun shadows | shadow-casting omnis |
+|---|---|---|---|
+| outdoors — hub, arena, waves_outdoors | 0.85–1.85 | yes | budget 2 |
+| interiors — all 10 biomes + waves_arena | **energy 0.0** | n/a | budget 3 |
+
+Interiors have no `fill` block at all, so no second directional sneaks in. Every interior shadow
+comes from a torch omni, and `diorama_room_dressing` enforces the budget across the whole floor.
+
+Two things are genuinely inconsistent:
+
+- **The hub is now lit half as hard as the arena.** §136's dusk retune took the hub sun from 1.7 to
+  0.85 and lifted ambient to 0.34, against arena's 1.8 / 0.44. Walking hub → training arena roughly
+  doubles shadow contrast in one door. Both look right alone; they do not look like the same
+  afternoon. Whichever way that is resolved it is a content edit to `lighting.json`, not code.
+- **`max_shadow_omnis` is declared for every profile and read by exactly one caller** —
+  `diorama_room_dressing`, the dungeon room torch pass. The hub and arena declare a budget of 2 that
+  nothing enforces, because neither builds its lights through that path. It is harmless *today*
+  only because every hub omni happens to leave `shadow_enabled` at its default of false; the first
+  hub light that switches shadows on will silently escape a cap the profile says exists.
+
+Not addressed here: both are judgement calls about how the game should look rather than defects with
+a right answer, and the second is a trap rather than a live fault.
+
+## §162 — Analysis: should the room generator be replaced?
+
+**Measured first.** `scenes/debug/definition_health.tscn`, 100 floors per biome:
+
+```
+TOTAL 37/1000 (3.7%) pass
+error mix: no_room_overlap=961, generate_failed=2
+```
+
+`iron_vault` passes 0 of 100. This is the largest single defect in the project.
+
+### What actually goes wrong
+
+The generator is two phases. **Phase 1 already is an Isaac-style generator**: a grid walk over
+`Vector2i` cells producing a room graph with per-cell door masks. That half is not the problem.
+
+Phase 2 then *discards the grid*. `room_graph_geometry._walk_layout` places the entrance at the
+origin and walks breadth-first, positioning each child relative to its parent by the two rooms'
+half-extents at the shared door. Room templates have different footprints, so a room's world
+position is the accumulated sum of half-extents along its path from the entrance. **Two rooms that
+are neighbours on the grid but were reached down different branches accumulate different sums, and
+land wherever those sums put them.** The code says so itself: "only these are guaranteed to line up".
+
+Isaac does not have this failure mode for one reason: **every Isaac room is the same size.** Position
+is `grid_pos * cell_pitch`. Two distinct cells are always at least a pitch apart, so overlap is
+impossible by construction — not checked for, not repaired, *impossible*.
+
+### What replacing it would actually buy
+
+Nothing that is broken. The graph half is already grid-based and already produces exactly what an
+off-the-shelf Isaac generator produces. Of the 5,456 lines under `scripts/dungeon/procgen/`, the
+graph generator is a small fraction; the rest is room templates, content assignment, loot rolling,
+placements, boss and final-floor handling, minimap annotation, landmark hints and biome integration
+— all of which a dropped-in library would have to be re-fitted to. **Replacing the generator would
+discard the working half to fix a fault that lives entirely in the positioning rule.**
+
+### The change that fixes it
+
+Adopt the *property* that makes Isaac robust, not the library:
+
+```
+world_pos = grid_pos * CELL_PITCH      # CELL_PITCH >= largest template footprint
+```
+
+Overlap becomes structurally impossible and `no_room_overlap` cannot fail. The cost is gaps: rooms
+smaller than the pitch no longer touch, so doors need real corridors between them.
+
+**That is the actual work, and it is bounded.** `DungeonBuilder._build_doorway_bridges` does not
+build bridges despite its name — it measures the span between two door sockets and, if they miss,
+*closes the doorway*. It would have to become a corridor builder: geometry of variable length
+between two sockets on a known axis.
+
+There is a second prize. Because every non-tree edge currently misses, every shortcut is closed:
+
+> "Measured on the committed fixture: every `door`, `corridor` and `secret` edge touches exactly,
+> and every `shortcut` misses — by 8.0, 17.2 and 19.8 units."
+
+So the graph the player walks today is a **tree**. Loops — the thing that makes an Isaac floor read
+as a place rather than a corridor — are generated in Phase 1 and then thrown away in the builder. A
+grid pitch plus a real corridor builder restores them.
+
+### Recommendation
+
+Do not replace. Change the positioning rule to grid pitch and write the corridor builder. That is
+the work tracked as C-157, and this analysis narrows it: it is not a "constraint-solving rewrite",
+it is one line of positioning plus one builder that currently only validates.
+
+## §163 — C-295: the figure was not a figure
+
+"Disproportioned on a majority of build and stature combinations" is measurable, so
+`stature_audit.tscn` now checks *ratios* as well as sizes. §160 made height and width move
+monotonically and left the proportions alone, and monotonic size is not the same as the figure
+staying a figure — every check passed while this was true:
+
+| | head as % of height | torso / leg |
+|---|---|---|
+| slight | **26.7%** | 1.20 |
+| towering | **19.0%** | 1.43 |
+
+A bobblehead at one end of the slider and a pinhead at the other, with short wardens leggy and tall
+ones long-torsoed. Three faults:
+
+- **The head never scaled.** It was a fixed `(8, 8, 8)` at every stature while leg and torso each
+  took their own independent delta.
+- **Torso grew twice as fast as leg.** The height deltas were separate numbers per part rather than
+  a split of one total.
+- **Everything hung off the head was a literal.** The visor was `(4, 2, 3)` at `(0, 5, 4)`, tuned
+  against the 8-voxel head.
+
+A figure is a set of ratios, so the ratios are what is held fixed now. `PLAYER_TOTAL_HEIGHT` gives
+each stature a total, and `LEG_RATIO`/`HEAD_RATIO` split it 3:4:2 — which is exactly the shipped
+standard warden (12 / 16 / 8), so nothing about that one changes and the other four now match it.
+Arm length is `13/36` of the total, from the same figure. Visor, hood offset and pauldrons are
+fractions of the head and arm they sit on.
+
+**Build deliberately does not touch the head.** Total height is leg + torso + head, so a head that
+grew with build would make the Build slider change the character's *height* and the two axes would
+stop being independent.
+
+### The hood was broken on 24 of 25 statures
+
+The hood is grown from the head so it closes under the jaw, and `_write_hood` ran only for the base
+archetype. Every other stature fell back to whatever its `ExtraSpec` literal produced:
+
+```
+player_warden              hood=[10, 12, 10]   grown
+player_warden_tall         hood=[8, 4, 7]      a flat slab parked behind the skull
+player_warden_slight_gaunt hood=absent         nothing at all
+```
+
+It is generated per archetype now — 25 of 25, each sized to its own head.
+
+### Shared meshes scale to the head they land on
+
+Hair and the face plate are authored once in `player_warden/` and shared by all 25 statures;
+generating them per archetype would be 625 hair meshes for a silhouette the head already decides.
+With the head now 7, 8 or 9 voxels, `_head_scale()` scales them by `head_side / 8`, or a `slight`
+warden wears a crop two voxels too wide.
+
+### Measured after
+
+```
+head/height spread 0.021  (was 0.077)      limit 0.04
+torso/leg    spread 0.064  (was 0.23)      limit 0.12
+height  1.12  1.24  1.36  1.48  1.60       exactly 12cm per step
+width   0.56  0.68  0.80  0.92  1.04       exactly 12cm per step
+RESULT 0 failures across 25 combinations
+```
+
+Two measurement faults were fixed in the audit itself along the way, and both had been quietly
+lying:
+
+- It counted **hidden** meshes. The rig builds every head style and hides the unchosen ones, so it
+  was measuring the hood on a warden wearing a visor — which made the standard stature read 4cm
+  taller than its neighbours and the steps look uneven when the geometry was fine.
+- Seating depth was derived from the head (`head_side // 4`), which quantised to 1 voxel on the two
+  small statures and 2 on the three large ones. The *visible* height then gained 3, 2, 3, 3 voxels
+  across the slider — one 8cm step among 12cm ones, from geometry that was evenly spaced. Seating
+  depth is a property of the collar, so it is a constant.
+
+## §164 — "The arms look like they are in front of the torso"
+
+Measured before changing anything, and the report is **not** what the geometry says. At standard
+build, each part's own mesh in world space:
+
+```
+Torso   x -0.24 .. 0.24    z -0.18 .. 0.18
+ArmL    x -0.40 ..-0.24    z -0.10 .. 0.10
+```
+
+The arm is beside the torso in x and *inside* it in z — its front face sits 8cm behind the torso's.
+Nothing is in front of anything.
+
+What is true is that `ArmL`'s inner edge and the torso's outer edge were at **exactly the same x**.
+Flush is not attached: two boxes that abut with zero overlap give the contour pass (§146) a clean
+normal discontinuity to draw, so a hard black line ran down the join and the arms read as two slabs
+bolted onto the sides rather than as limbs hanging by the body. `shoulder_x` is pulled in by one
+voxel now, which removes the seam and costs nothing — the width progression is still one step per
+build.
+
+The first measurement of this was wrong and worth recording: the probe walked each part's *subtree*,
+and `ArmL` and `Head` are children of `Torso` in the rig, so it measured the whole upper body and
+called it the torso — reporting a torso 0.80m wide with the arms apparently buried inside it. Parts
+own exactly one `Mesh` child; that is what has to be measured.
+
+### The bug that analysis actually found
+
+**The hips were wider than the chest at every build.** `leg` was a fixed 6 voxels wide with `hip_x`
+hardcoded to 4, so the pair spanned 14 voxels against a 12-voxel torso at standard — and against a
+*10*-voxel torso at gaunt, where the warden came out frankly pear-shaped. Both are derived from the
+torso now, with the legs' outer edges inside the torso's and a gap left on the centre line:
+
+| build | torso_w | leg span | hips ≤ chest |
+|---|---|---|---|
+| gaunt | 10 | 10 | yes |
+| standard | 12 | 11 | yes |
+| massive | 14 | 14 | yes |
+
+The stature audit still passes: 12cm steps on both axes, head/height spread 0.021, torso/leg spread
+0.064, 0 failures across 25 combinations.
+
+### The identity sheet was one body twenty-five times
+
+`_capture_identity` pinned stature and build to standard, so twenty-five wardens differed from the
+neck up and were identical underneath — which is the opposite of what a sheet named "identity" is
+for. It steps all five axes now, and stature and build step at different rates so the sheet is not
+just the diagonal of the 5x5.
+
+## §165 — C-296: two axes become one, and the missing hands
+
+Reviewing the 5x5 contact sheet turned up two faults and one design problem.
+
+### The hands were genuinely missing
+
+`sculpt_limb` gives every limb an extremity band — a boot on a leg, a gauntlet on an arm — but
+painted the arm's band `M_STEEL`, the same colour as the vambrace above it. Legs read correctly only
+because their band is leather and a different colour. **An arm was a featureless bar with no hand on
+the end of it.** Both are leather now, and the arm's band is pushed forward half as far as a toe, so
+it reads as a closed fist rather than a boot on the wrong limb.
+
+Compounding it: `shoulder_x = round(tw/2 + aw/2) - 1` *looked* like one voxel of overlap and was not
+— on an odd sum it rounds to even, so the narrow builds protruded 1.5 voxels past a torso that is
+deeper than the arm, and from the front the body hid the arm entirely. The overlap is written as
+`ceil(tw/2) + ceil(aw/2) - 1` now, which is exactly one voxel at every frame.
+
+### The proportions were a toddler's
+
+`LEG:TORSO:HEAD` was 3:4:2 of nine — **legs 33% of height, torso 44%**. A stylised adult figure sits
+nearer 40/39/21, and that gap is what "the proportions are completely broken" was pointing at: every
+frame came out short-legged and long-bodied, worst on the small ones. Legs are 40% of total now and
+the head 21%, with the torso taking the remainder.
+
+### Twenty-five bodies became five
+
+Stature and build were two independent five-step sliders: twenty-five rigs to build and animate for
+a choice the player experiences as "what shape is my warden", of which twenty-one were interpolations
+nobody would pick deliberately. One **Frame** axis with five entries covers the four corners of that
+grid plus the middle:
+
+| frame | height | width | legs | head |
+|---|---|---|---|---|
+| Slight | 1.12 m | 0.60 m | 40% | 20% |
+| Lean | 1.48 m | 0.60 m | 41% | 21% |
+| Standard | 1.36 m | 0.72 m | 39% | 22% |
+| Stout | 1.16 m | 0.92 m | 39% | 23% |
+| Towering | 1.60 m | 0.92 m | 40% | 21% |
+
+Characters created before the change still carry `heightVariant` and `bulkVariant`;
+`frame_from_legacy` maps the pair rather than dropping it, so a player who built a short broad
+warden gets Stout and not the default. 42 stale archetypes — manifests and mesh directories from the
+old grid — were deleted, leaving five.
+
+### The audit now checks what "disproportioned" means
+
+`scenes/debug/frame_audit.tscn` (was `stature_audit`) asserts three things, each of which has been
+false at some point: no two frames the same size, arms clearing the torso by at least 6cm, and the
+leg and head fractions holding across all five. Monotonic size alone passed the whole time the head
+was a fixed 8 voxels.
+
+```
+AUDIT slight     1.12 m tall   0.60 m wide   legs 40%  head 20%  arm clear 0.10 m
+AUDIT lean       1.48 m tall   0.60 m wide   legs 41%  head 21%  arm clear 0.10 m
+AUDIT standard   1.36 m tall   0.72 m wide   legs 39%  head 22%  arm clear 0.12 m
+AUDIT stout      1.16 m tall   0.92 m wide   legs 39%  head 23%  arm clear 0.18 m
+AUDIT towering   1.60 m tall   0.92 m wide   legs 40%  head 21%  arm clear 0.18 m
+AUDIT spread: legs 0.023  head 0.026  (max 0.05 each)
+AUDIT RESULT 0 failures across 5 frames
+```
+
+## §166 — The head sat one voxel too deep
+
+Reported on the Frame previews: Slight and Stout had the head buried in the torso.
+
+`_biped_parts` seats the head at `torso_h - head_seat`, and the player passed `head_seat = 2`. The
+torso's collar notch (`sculpt_torso`) is **one layer deep** — `v.notch(neck, sy - 1, ...)` cuts only
+the top layer — and the head's own neck band (`_band(sy, 0.00, 0.06)`) is likewise one layer on
+every head size the frames produce. So a seat of 2 pushed the skull a full layer past the socket
+into solid chest, and because the head is narrower than the torso on all five frames, the shoulders
+closed over what was left.
+
+It read worst on Slight and Stout because the bite is a constant two voxels against the two
+smallest skulls (7 voxels each) — 29% of the head, against 22% on Towering.
+
+Two changes, both in `player_archetype`:
+
+- `head_seat=1`, matching the notch exactly, so the head's neck layer fills the collar and nothing
+  below it is consumed.
+- `head_side = max(7, round(total * HEAD_RATIO))`. Below seven voxels the sculptor's five bands
+  (neck / jaw / face / brow / crown) round into one another and the head loses its features
+  entirely; Slight was landing on 6.
+
+`frame_audit.tscn`: 0 failures across 5 frames, head fraction spread 0.028 (max 0.05).
+
+## §167 — Seven voxels is not a head
+
+§166 seated the head one voxel higher and the report came back unchanged for Slight: still inside
+the torso. The audit disagreed — head clearance measured 86-89% on every frame, and the head mesh
+was the right size and correctly seated the whole time.
+
+The audit was measuring the head. The thing that was wrong was the *face*.
+
+`_apply_face` seats the plate two voxels above the head's base and scales it off the head. On an
+eight-voxel skull that leaves a jaw row under the mouth and the collar visible below it. On seven
+it does not: the plate runs to the collar and the chin is gone, so the face ends exactly at the
+shoulder line and the head reads as sunk into the chest. `head_side = max(7, round(total * 0.21))`
+rounded to seven on exactly two frames — Slight (30 tall) and Stout (31) — and those are exactly the
+two that were reported.
+
+Confirmed by rebuilding at eight and comparing the same crop: the chin and the collar step come
+back on both.
+
+The floor is eight now. **This is not free**: a floor means the short frames carry a proportionally
+larger head — 27% of height on Slight against 21% on Towering. That is the stylised convention
+rather than an accident, but it does break "one figure, resized", and it broke the audit's
+head-fraction-spread rule, which is real information and not noise.
+
+So the rule changed rather than the tolerance being nudged:
+
+- Head fraction is a **band** (18-28%) instead of a constant spread.
+- A taller frame may never have a smaller skull, checked against measured height rather than the
+  declared variant order.
+- **`MIN_HEAD_SIZE = 0.32 m`** — eight voxels — which is the check that actually fails on the broken
+  build. Demonstrated: with the floor back at seven, `frame_audit` reports
+
+  ```
+  AUDIT FAIL slight: head is 0.28 m, under the 0.32 m the face plate needs
+  AUDIT FAIL stout:  head is 0.28 m, under the 0.32 m the face plate needs
+  ```
+
+  Neither the fraction band nor head clearance catches that build. Worth being plain about: the new
+  band is a **weaker** test of drift than the spread rule it replaces, and it would not have caught
+  the original fixed-8-voxel-head bug on its own. `MIN_HEAD_SIZE` and the monotonicity check are
+  what carry it now.
+
+A `head clear %` column was added while chasing this — the fraction of the head standing above the
+collar and both pauldrons. It did not find this bug, but it is the metric that would find a head
+genuinely swallowed by its shoulders, which is what the phrase describes and what nothing measured.
+
+Also in `player_archetype`: `shoulder_y` is `min(ty - 2, round(ty * 0.86))` rather than a bare
+fraction. At 0.88 the rounding landed on 91% of the torso for Slight and 92% for Stout against
+86-88% elsewhere, so those two had the shoulder joint almost at the collar.
+
+## §168 — Class column and the Sentinel card
+
+Two things reported on character creation.
+
+**The class list scrolled by a few pixels.** Seven cards at 78px plus separation came out just over
+the column, so the scroll bar was there and moved almost nothing — worse than no bar, because it
+suggests roster below the fold. Cards are 72px with a 52px portrait; the stack loses 42px and clears
+with room. The column's horizontal scroll is disabled too: nothing in a card wants it, and the
+vertical bar's width could push the cards wide enough to ask for one.
+
+**Sentinel's detail card was a line shorter than every other class.** "Perk — Bulwark: High poise
+and block mastery." is the shortest perk string in the roster (44 characters against Hunter's 62), so
+it wraps to fewer lines, the card sizes to its contents, and the starting-weapon row jumped up.
+
+Padded with blank lines to the tallest perk in the roster rather than special-cased to Sentinel: the
+wording is content, and the wrap point moves the moment anyone edits a string, adds a class, or
+changes the font. `_pad_perk_text` measures each class's perk in the real label and pads the
+selected one to the tallest. Line count is meaningless before the label has a width, so the first
+call is a no-op and a `resized` handler redoes it once layout has run — guarded, since padding
+changes the height and would otherwise re-enter itself.
+
+### §168a — The resize hook fired mid-build
+
+`_perk_line.resized.connect(...)` sat next to the label's construction, and `add_child` emits
+`resized` **synchronously** — so the handler ran while `_weapon_line`, `_weapon_icon` and
+`_preview_caption` were still nil, and `_refresh_class_detail` assigned `text` on nothing:
+
+```
+_refresh_class_detail: Invalid assignment of property 'text' on a base object of type 'Nil'
+  character_create_ui.gd:692 @ _on_perk_line_resized()
+  character_create_ui.gd:471 @ _build_detail_column()
+```
+
+Connected at the end of `_build_ui` instead, once every widget the refresh touches exists, and the
+handler checks for them anyway — the card is refreshed from a dozen paths and none of them should
+depend on build order.
+
+## §169 — Class clothing was cut for one torso and worn by five
+
+`sculpt_garment` grows the volume out of the torso it is handed: every panel, hem, sash and yoke is
+placed from that torso's own width, depth and height, and the result is `torso + 2` in x and z so it
+wraps the body. The generator ran it **once**, against the standard warden's 12-wide chest, wrote it
+to `player_warden/`, and the runtime loaded that same file for every frame and never scaled it.
+
+Authored `[14, 20, 11]` for every frame. What each frame actually needs:
+
+| frame | torso | garment it wore | garment it needs |
+|---|---|---|---|
+| slight | 10 x 10 x 7 | 14 x 20 x 11 | 12 x 16 x 9 |
+| lean | 10 x 15 x 7 | 14 x 20 x 11 | 12 x 21 x 9 |
+| standard | 12 x 14 x 9 | 14 x 20 x 11 | 14 x 20 x 11 |
+| stout | 14 x 11 x 9 | 14 x 20 x 11 | 16 x 17 x 11 |
+| towering | 14 x 16 x 9 | 14 x 20 x 11 | 16 x 22 x 11 |
+
+Stout is the clearest case: the surcoat was 14 wide over a chest that is also 14, so it had *zero*
+margin and sat inside the body rather than over it. Slight wore a garment four voxels wider than its
+own torso and twice as tall as it needed.
+
+Fixed in the generator, which now writes garments for every `player_warden*` archetype from that
+archetype's own torso, and in `_apply_class_armor`, which resolves the path through
+`_garment_path(profile, class_id)` — the frame's own cut, falling back to the base warden's with a
+warning rather than silently.
+
+`frame_audit` grew a garment pass: all five frames x all seven classes, measuring the garment's
+width over the torso it is on. Every cell reads `+0.08` — the two voxels `sculpt_garment` builds.
+The floor is `0.04`, deliberately **not** zero: Stout's shared-cut garment measured exactly `0.00`,
+and a floor of zero would have called it passing.
+
+## §170 — Twenty-five aspects, and the lookup that would have made fourteen of them lies
+
+The aspect list was eleven. `PaletteTheme` already carried twenty-five and `content/art/palettes.json`
+already had twenty-five palettes with real colour data — only the aspect entries were missing. Added
+fourteen, one per unused palette, all freely available (the six earned ones stay tied to their biome
+clear flags).
+
+The part that mattered was one function down. `PixelStyle._palette_theme_from_string` was a
+hand-written `match` over **eleven** names ending in `_: return PaletteTheme.CASTLE`. Every one of
+the fourteen new aspects would have resolved to castle: the option appears in the picker, is
+selectable, has a name and a description, and repaints the warden in exactly the colours of a
+different option. Fourteen of twenty-five choices doing nothing, silently — the same shape as the
+face styles that drew nothing and the hood that was a slab on 24 of 25 statures.
+
+It derives the enum member from the name now, so the table and the enum cannot drift, and it warns
+on an unknown name instead of substituting.
+
+Also translated: the eleven existing aspects had `ro` identical to `en`. Growing the list to
+twenty-five would have left a Romanian player looking at a half-English picker, so all fifty strings
+are translated.
+
+`capture_warden_variants` gained an `aspects` sheet — twenty-five wardens side by side, which is the
+only way to see that a palette choice is doing anything.
+
+### §170a — Two hint lines removed from character creation
+
+`CREATE_APPEARANCE_HINT` ("Select a row and press Left / Right to cycle") and
+`CREATE_COMPARE_LEGEND` ("Ratings run 4-16; 10 is the standard warden...") are gone from the screen,
+from `strings.csv`, and `_column_hint` with them — it had no other caller.
+
+Both were explaining a control that explains itself: the appearance rows already draw `<` and `>`
+chevrons, and the matrix already shows the named column beside the numbers.
+
+### §170b — Column headers centred
+
+"Your Warden", "Appearance" and "Class Details" are centred over their columns, matching "Choose
+Your Class", which the class column has always centred in its own build path. `_column_header` takes
+a `centered` flag rather than being changed outright: "All Classes" spans the full width of the
+modal, and centred there it reads as a title for the screen instead of a label for the table under
+it.
+
+### §170c — Name field height
+
+The name `LineEdit` had no minimum size and sat at whatever the theme's font and padding produced,
+several pixels shorter than the Suggest Name button directly beneath it. Both take
+`NAME_ROW_HEIGHT` now — one constant, so they cannot drift apart again. They are one control as far
+as the player is concerned: type a name, or ask for one.
+
+## §171 — The spring arm was a one-way ratchet
+
+Reported as two faults: the scroll wheel does not zoom the third-person camera, and leaving first
+person does not put the camera back. They are one bug.
+
+`_update_arm_length` fed the spring arm's output back into its input:
+
+```gdscript
+spring_length = ideal
+var hit_length := ideal
+if collision_mask != 0:
+    hit_length = minf(ideal, get_hit_length())   # measured against the PREVIOUS spring_length
+spring_length = smoothed_toward(hit_length)
+```
+
+`SpringArm3D.get_hit_length()` reports the last **completed** physics query, which ran with the
+previous `spring_length`. With nothing in the way it simply returns that previous length — so once
+the arm shortened, the shortened value became the ceiling for every frame after it. The arm could
+pull in and never push back out.
+
+Measured on the real node, before the fix:
+
+```
+ZOOM start              target=4.00  arm=4.00
+ZOOM after 3x zoom_in   target=3.25  arm=3.25
+ZOOM after 6x zoom_out  target=4.75  arm=3.25   <- target moved, arm did not
+ZOOM back to third      target=4.25  arm=0.00   <- camera left inside the warden's head
+```
+
+`_target_zoom` was correct the whole time. Anything that checked the zoom *value* would have passed.
+
+The clamp is gone: `spring_length` is smoothed toward the desired length and collision is left to
+`SpringArm3D`, which is what the node is for — it already pulls its child in when the cast hits
+something, and `spring_length` is the maximum it may extend to. Applying the collision result a
+second time by hand was the whole defect.
+
+`scenes/debug/camera_zoom_audit.tscn` drives the real camera with real input events and asserts the
+**arm** follows the target in both directions and after leaving first person — not the target alone,
+which is what made the bug invisible:
+
+```
+ZOOM after 6x zoom_out  target=4.75  arm=4.75
+ZOOM back to third      target=4.25  arm=4.25
+ZOOM RESULT 0 failures
+```
+
+Two notes on running it: it settles for ninety physics frames, because pushing the arm out from zero
+is a 6-per-second lerp and takes most of a second — forty frames reported a converging arm as a
+stuck one. And it instantiates `player.tscn`, which **creates a character if none is selected**, so
+snapshot `characters/`, `backups/` and `character_roster.json` before running it and restore after.
+
+## §172 — Shops opened with no cursor
+
+The merchant and the quest board — and the blacksmith, storage, the boards and the entry menus —
+came up with the mouse still captured.
+
+Every one of them is reached by talking to an NPC. `DialogueUI.close()` calls
+`PlayerControls.capture_mouse_if_allowed()` on the way out, which is correct in itself: a dialogue
+closed while the pause menu is up must not strand that menu without a cursor. But
+`capture_mouse_if_allowed` decides through `is_player_meta_ui_open()`, and that only knows the seven
+screens PlayerControls builds itself — inventory, settings, achievements, bestiary, talents, loadout,
+pause. The hub owns seven more, none of them listed. The shop was opened by the same dialogue close
+that then took the mouse straight back.
+
+`gameplay_input_blocked()` now also asks the scene, through a `has_open_ui()` method the hub answers
+from the list it already keeps for its interaction prompts. Asking rather than enumerating matters:
+a second copy of that list in PlayerControls would drift the first time a panel is added, which is
+exactly how the first copy came to be wrong.
+
+The mirror-image bug is closed too. Twelve panels ended their `close()` with a bare
+`Input.mouse_mode = Input.MOUSE_MODE_CAPTURED`, which would grab the mouse away from any panel still
+open behind them; all twelve go through `capture_mouse_if_allowed` now.
+
+### §172a — Two diagnostics, and a warning about both
+
+`scenes/debug/camera_zoom_audit.tscn` and `scenes/debug/capture_hub_tents.tscn` both **write the
+save**. The zoom audit instantiates `player.tscn`, which creates a character when none is selected;
+the tent capture boots `hub.tscn`, which bounces a classless save to the main menu, so it sets a
+character profile first exactly as `capture_world_screens` does. Snapshot `characters/`, `backups/`
+and `character_roster.json` before either, and restore after.
+
+This is not specific to the new pair — `capture_ui_screens` and `capture_world_screens` have always
+done it. `capture_world_screens._ensure_character` calls
+`LocalSave.set_character_profile("Capture Warden", ...)` followed by `autosave()`, which writes over
+whichever character is currently selected and rotates one entry out of that character's backups.
+Every capture run in this session has been bracketed by a snapshot and a restore for that reason.

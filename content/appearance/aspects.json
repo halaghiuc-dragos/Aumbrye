@@ -100,6 +100,118 @@
       "description": "Pale to the point of absence. It suits the place.",
       "unlockFlag": "theme_glacial_hollow_cleared",
       "unlockHint": "Clear the Glacial Hollow."
+    },
+    {
+      "id": "ember_vigil",
+      "nameKey": "ASPECT_EMBER_VIGIL",
+      "name": "Ember Vigil",
+      "paletteTheme": "ember",
+      "descKey": "ASPECT_EMBER_VIGIL_DESC",
+      "description": "Banked low, kept all night, never quite out."
+    },
+    {
+      "id": "verdant_creep",
+      "nameKey": "ASPECT_VERDANT_CREEP",
+      "name": "Verdant Creep",
+      "paletteTheme": "verdant",
+      "descKey": "ASPECT_VERDANT_CREEP_DESC",
+      "description": "Green takes a ruin back slowly, then all at once."
+    },
+    {
+      "id": "tidewater_grey",
+      "nameKey": "ASPECT_TIDEWATER_GREY",
+      "name": "Tidewater",
+      "paletteTheme": "tidewater",
+      "descKey": "ASPECT_TIDEWATER_GREY_DESC",
+      "description": "The colour of a coast that keeps what it takes."
+    },
+    {
+      "id": "orchid_wake",
+      "nameKey": "ASPECT_ORCHID_WAKE",
+      "name": "Orchid Wake",
+      "paletteTheme": "orchid",
+      "descKey": "ASPECT_ORCHID_WAKE_DESC",
+      "description": "Flowers left too long on a stone with no name."
+    },
+    {
+      "id": "rust_pilgrim",
+      "nameKey": "ASPECT_RUST_PILGRIM",
+      "name": "Rust Pilgrim",
+      "paletteTheme": "rust",
+      "descKey": "ASPECT_RUST_PILGRIM_DESC",
+      "description": "Armour that has walked further than it has fought."
+    },
+    {
+      "id": "bronze_relict",
+      "nameKey": "ASPECT_BRONZE_RELICT",
+      "name": "Bronze Relict",
+      "paletteTheme": "bronze",
+      "descKey": "ASPECT_BRONZE_RELICT_DESC",
+      "description": "Older than the castle. It was buried with someone."
+    },
+    {
+      "id": "jade_censer",
+      "nameKey": "ASPECT_JADE_CENSER",
+      "name": "Jade Censer",
+      "paletteTheme": "jade",
+      "descKey": "ASPECT_JADE_CENSER_DESC",
+      "description": "Smoke-stained green from a rite nobody finished."
+    },
+    {
+      "id": "indigo_compact",
+      "nameKey": "ASPECT_INDIGO_COMPACT",
+      "name": "Indigo Compact",
+      "paletteTheme": "indigo",
+      "descKey": "ASPECT_INDIGO_COMPACT_DESC",
+      "description": "Worn by those who agreed never to say what for."
+    },
+    {
+      "id": "plum_mourning",
+      "nameKey": "ASPECT_PLUM_MOURNING",
+      "name": "Plum Mourning",
+      "paletteTheme": "plum",
+      "descKey": "ASPECT_PLUM_MOURNING_DESC",
+      "description": "Mourning dress, for a house that no longer counts."
+    },
+    {
+      "id": "cinder_march",
+      "nameKey": "ASPECT_CINDER_MARCH",
+      "name": "Cinder March",
+      "paletteTheme": "cinder",
+      "descKey": "ASPECT_CINDER_MARCH_DESC",
+      "description": "Everything downwind of a fire looks like this."
+    },
+    {
+      "id": "moss_quiet",
+      "nameKey": "ASPECT_MOSS_QUIET",
+      "name": "Moss Quiet",
+      "paletteTheme": "moss",
+      "descKey": "ASPECT_MOSS_QUIET_DESC",
+      "description": "What grows on a warden who stood still long enough."
+    },
+    {
+      "id": "azure_lantern",
+      "nameKey": "ASPECT_AZURE_LANTERN",
+      "name": "Azure Lantern",
+      "paletteTheme": "azure",
+      "descKey": "ASPECT_AZURE_LANTERN_DESC",
+      "description": "The one light that does not gutter in the deep."
+    },
+    {
+      "id": "amethyst_ward",
+      "nameKey": "ASPECT_AMETHYST_WARD",
+      "name": "Amethyst Ward",
+      "paletteTheme": "amethyst",
+      "descKey": "ASPECT_AMETHYST_WARD_DESC",
+      "description": "Cut against dreaming. It did not work."
+    },
+    {
+      "id": "saffron_herald",
+      "nameKey": "ASPECT_SAFFRON_HERALD",
+      "name": "Saffron Herald",
+      "paletteTheme": "saffron",
+      "descKey": "ASPECT_SAFFRON_HERALD_DESC",
+      "description": "Loud enough to be seen coming. That is the point."
     }
   ],
   "titles": [

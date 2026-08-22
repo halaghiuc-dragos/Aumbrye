@@ -1,0 +1,12 @@
+{
+  "id": "vane_the_last_muster",
+  "title": "The Last Muster",
+  "type": "kill",
+  "chainId": "vane",
+  "description": "Vane mustered eleven wardens and buried nine. Kill twenty of what buried them and he will tell you the other two names.",
+  "requiredCount": 20,
+  "minDifficultyTier": 3,
+  "rewards": {
+    "gold": 420
+  }
+}

@@ -49,7 +49,29 @@ func allows_player_ui() -> bool:
 
 
 func gameplay_input_blocked() -> bool:
-	return is_player_meta_ui_open() or get_tree().paused
+	return is_player_meta_ui_open() or scene_ui_open() or get_tree().paused
+
+
+## Whether the current scene has one of its *own* panels open.
+##
+## `is_player_meta_ui_open` only knows about the seven screens PlayerControls builds itself —
+## inventory, settings, achievements, bestiary, talents, loadout, pause. The hub owns another
+## seven: the merchant, the quest board, the blacksmith, storage, the appearance mirror, and the
+## castle and endless menus. None of them was in the list, so `capture_mouse_if_allowed` did not
+## consider them open.
+##
+## That is how the shops ended up with no cursor. Every one of them is reached by talking to an NPC
+## first, and `DialogueUI.close()` calls `capture_mouse_if_allowed` on the way out — correctly, so a
+## closing dialogue does not strand the pause menu. The shop had just been opened by that same close,
+## the check did not know the shop existed, and the mouse was taken back immediately.
+##
+## Asked of the scene rather than enumerated here: the hub already maintains this list for its own
+## interaction prompts, and a second copy would drift the first time a panel is added.
+func scene_ui_open() -> bool:
+	var scene := get_tree().current_scene
+	if scene == null or not scene.has_method("has_open_ui"):
+		return false
+	return bool(scene.call("has_open_ui"))
 
 
 func capture_mouse_if_allowed() -> void:
@@ -75,6 +97,20 @@ func _build_global_uis() -> void:
 		_loadout_ui.name = "LoadoutUI"
 		_loadout_ui.set_anchors_preset(Control.PRESET_FULL_RECT)
 		add_child(_loadout_ui)
+
+
+## Whichever panel was opened last is the one the player is looking at, so it goes on top.
+##
+## These are all siblings on one CanvasLayer, and sibling draw order is child order — fixed at
+## build time. That was fine until `settings_ui.open_settings()` started calling `move_to_front()`
+## on itself: opening Settings once permanently reorders it above every panel built after it, and
+## the Bestiary (built two slots earlier) then opens *behind* Settings for the rest of the session.
+##
+## Raising on open makes the order follow what the player did rather than the order the panels
+## happened to be constructed in.
+func _raise(ui: Control) -> void:
+	if ui != null and is_instance_valid(ui):
+		ui.move_to_front()
 
 
 func _make_scripted_ui(node_name: String, script_path: String) -> Control:
@@ -141,21 +177,25 @@ func get_loadout_ui() -> Control:
 
 
 func open_settings() -> void:
+	_raise(_settings_ui)
 	if _settings_ui and _settings_ui.has_method("open_settings"):
 		_settings_ui.call("open_settings")
 
 
 func open_achievements() -> void:
+	_raise(_achievements_ui)
 	if _achievements_ui and _achievements_ui.has_method("open"):
 		_achievements_ui.call("open")
 
 
 func open_bestiary() -> void:
+	_raise(_bestiary_ui)
 	if _bestiary_ui and _bestiary_ui.has_method("open"):
 		_bestiary_ui.call("open")
 
 
 func open_loadout() -> void:
+	_raise(_loadout_ui)
 	if _loadout_ui and _loadout_ui.has_method("open"):
 		_loadout_ui.call("open")
 

@@ -502,6 +502,12 @@ def sculpt_limb(sx: int, sy: int, sz: int, boot: bool = False) -> Vox:
         # A toe, forward only. Flaring both ways gave a symmetric plinth that read as a plant pot
         # and left the figure with no facing at all below the waist.
         v.extend_forward(ext0, ext1, max(1, sz // 4))
+    else:
+        # A fist. The extremity band existed on arms too but was painted the same steel as the rest
+        # of the limb, so an arm was a featureless bar with no hand on the end of it — legs read
+        # correctly only because their band is leather and a different colour. Pushed forward half
+        # as far as a toe, so it reads as a closed hand rather than a boot on the wrong limb.
+        v.extend_forward(ext0, ext1, max(1, sz // 6))
     if sz >= 5:
         # A leg in profile: the calf sits behind the ankle, the knee leads. Width alone cannot
         # express this — on a six-voxel leg the parity rule leaves only 4 and 6 to choose from.
@@ -515,7 +521,9 @@ def sculpt_limb(sx: int, sy: int, sz: int, boot: bool = False) -> Vox:
     v.paint_all(M_PLATE)
     v.paint_layers(ankle0, ankle1, M_SHADOW)
     v.paint_layers(joint0, joint1, M_STEEL)
-    v.paint_layers(ext0, ext1, M_STEEL if not boot else M_LEATHER)
+    # Leather either way: a boot on the leg, a glove on the arm. Steel here made the hand vanish
+    # into the vambrace above it.
+    v.paint_layers(ext0, ext1, M_LEATHER)
     return v
 
 
@@ -581,16 +589,60 @@ def sculpt_for_part(part_name: str, size: tuple[int, int, int]) -> Vox:
 # out sideways. That is the bill on the front of every warden in the game.
 
 
+#: Every style as parameters rather than a branch.
+#:
+#: Six styles used to be six `if` arms, which is fine for six and unmaintainable for twenty-five —
+#: and it is the shape that lets two styles drift apart in ways nobody intended. A table means a new
+#: style is a row, every style is built by the same code, and "consistent with the others" is
+#: structural rather than a thing to remember.
+#:
+#: * ``cap``    — skullcap depth in voxels, from the crown down. Every style has one.
+#: * ``back``   — (length, inset) of a sheet down the back of the head. 0 disables it.
+#: * ``sides``  — (length, inset) of a fall beside each jaw. 0 disables it.
+#: * ``tail``   — (length, width) of a narrow tail off the back of the crown.
+#: * ``crest``  — "none" | "spikes" | "mohawk" | "topknot", worked on the crown.
+#: * ``fringe`` — rows of hair hanging over the brow at the front.
+HAIR_RECIPES: dict[str, dict] = {
+    "shaven":     dict(cap=1),
+    "short":      dict(cap=2),
+    "crop":       dict(cap=2, fringe=1),
+    "bowl":       dict(cap=2, fringe=1, sides=(2, 1), back=(2, 1)),
+    "tied":       dict(cap=2, tail=(3, 2)),
+    "topknot":    dict(cap=2, crest="topknot", tail=(3, 2)),
+    "ponytail":   dict(cap=2, tail=(6, 2)),
+    "braided":    dict(cap=2, sides=(5, 1)),
+    "twin_falls": dict(cap=2, sides=(7, 1)),
+    "long":       dict(cap=2, back=(6, 1)),
+    "flowing":    dict(cap=2, back=(8, 1), sides=(4, 1)),
+    "mane":       dict(cap=3, back=(7, 0), sides=(5, 0)),
+    "wild":       dict(cap=3, crest="spikes"),
+    "windswept":  dict(cap=2, crest="spikes", back=(3, 1)),
+    "mohawk":     dict(cap=1, crest="mohawk"),
+    "crest":      dict(cap=1, crest="mohawk", back=(4, 2)),
+    "tonsure":    dict(cap=1, sides=(2, 0)),
+    "widow":      dict(cap=2, fringe=2),
+    "shag":       dict(cap=2, fringe=1, sides=(3, 1), crest="spikes"),
+    "bob":        dict(cap=2, sides=(3, 0), back=(3, 0), fringe=1),
+    "cropped_tail": dict(cap=1, tail=(4, 1)),
+    "warrior":    dict(cap=2, crest="mohawk", tail=(5, 2)),
+    "loose":      dict(cap=2, back=(4, 1), fringe=1),
+    "shorn_sides": dict(cap=2, crest="mohawk", fringe=1),
+    "veiled":     dict(cap=2, back=(9, 0), sides=(6, 0)),
+}
+
+
 def sculpt_hair(style: str, sx: int, sy: int, sz: int) -> Vox:
     """A hair volume sized to the head, filled only where the style has hair."""
+    recipe = HAIR_RECIPES.get(style, HAIR_RECIPES["short"])
     v = Vox(sx, sy, sz, solid=False)
     crown = sy - 1
-    cap_depth = {"shaven": 1, "short": 2, "tied": 2, "braided": 2, "long": 2, "wild": 3}
-    depth = cap_depth.get(style, 2)
+    depth = int(recipe.get("cap", 2))
+    back = 0  # -z is behind the warden; the face is at +z.
+    front = sz - 1
 
-    # The skullcap: every style has one, inset by a voxel so it reads as hair sitting *on* the
-    # head rather than as a wider hat brim.
-    for y in range(crown - depth + 1, crown + 1):
+    # The skullcap: every style has one, inset by a voxel at the crown so it reads as hair sitting
+    # *on* the head rather than as a wider hat brim.
+    for y in range(max(0, crown - depth + 1), crown + 1):
         inset = 0 if y < crown else 1
         for x in range(inset, sx - inset):
             for z in range(inset, sz - inset):
@@ -598,27 +650,56 @@ def sculpt_hair(style: str, sx: int, sy: int, sz: int) -> Vox:
                     continue
                 v.cells.add((x, y, z))
 
-    back = 0  # -z is behind the warden; the face is at +z.
-    if style == "tied":
-        # A short tail clear of the collar.
-        for y in range(crown - 4, crown - 1):
-            for x in range(sx // 2 - 1, sx // 2 + 1):
+    sheet = recipe.get("back", (0, 1))
+    if sheet[0]:
+        length, inset = sheet
+        for y in range(max(0, crown - length), crown):
+            for x in range(inset, sx - inset):
                 v.cells.add((x, y, back))
-    elif style == "long":
-        for y in range(max(0, crown - 6), crown):
-            for x in range(1, sx - 1):
-                v.cells.add((x, y, back))
-                v.cells.add((x, y, back + 1))
-    elif style == "braided":
-        # Two falls beside the jaw rather than one sheet down the back.
-        for y in range(max(0, crown - 5), crown):
+                if inset == 0:
+                    v.cells.add((x, y, back + 1))
+
+    falls = recipe.get("sides", (0, 1))
+    if falls[0]:
+        length, inset = falls
+        for y in range(max(0, crown - length), crown):
             for z in (back, back + 1):
-                v.cells.add((1, y, z))
-                v.cells.add((sx - 2, y, z))
-    elif style == "wild":
+                v.cells.add((inset, y, z))
+                v.cells.add((sx - 1 - inset, y, z))
+
+    tail = recipe.get("tail", (0, 0))
+    if tail[0]:
+        length, width = tail
+        half = max(1, width) // 2
+        for y in range(max(0, crown - length), crown - 1):
+            for x in range(sx // 2 - half, sx // 2 - half + max(1, width)):
+                v.cells.add((min(max(x, 0), sx - 1), y, back))
+
+    crest = str(recipe.get("crest", "none"))
+    if crest == "spikes":
         for x in range(0, sx, 2):
             for z in range(0, sz, 2):
                 v.cells.add((x, crown, z))
+    elif crest == "mohawk":
+        for z in range(sz):
+            for x in (sx // 2 - 1, sx // 2):
+                v.cells.add((max(0, min(x, sx - 1)), crown, z))
+    elif crest == "topknot":
+        # There is no room *above* the crown — the volume is exactly as tall as the head — so a
+        # knot has to be built out of the ring the skullcap's crown inset leaves free. Gathered at
+        # the back, which is also what stops this coming out byte-identical to `short`: the first
+        # version wrote only cells the cap had already filled, and the two meshes were the same.
+        for x in (sx // 2 - 1, sx // 2):
+            v.cells.add((max(0, min(x, sx - 1)), crown, back))
+        for z in (back, back + 1):
+            v.cells.add((sx // 2, crown, max(0, min(z, sz - 1))))
+
+    for row in range(int(recipe.get("fringe", 0))):
+        y = crown - depth - row
+        if y < 0:
+            continue
+        for x in range(1, sx - 1):
+            v.cells.add((x, y, front))
 
     v.paint_all(M_HAIR)
     return v
@@ -649,12 +730,31 @@ FACE_MARK = 1
 #: per face and every style rendered as a flat coloured slab: at this size the eye is looking for a
 #: *pattern*, and three dark cells in thirty do not make one.
 FACE_MASKS: dict[str, tuple[str, ...]] = {
-    "open":    ("......", ".#..#.", "......", "..##.."),
-    "stern":   ("##..##", ".#..#.", "......", "..##.."),
-    "kind":    (".#..#.", "##..##", "......", "#.##.#"),
-    "weary":   ("......", ".#..#.", ".#..#.", "..##.."),
-    "scarred": ("....##", ".#..#.", "...#..", "..##.."),
-    "hollow":  ("......", "##..##", "#....#", "..##.."),
+    "open":      ("......", ".#..#.", "......", "..##.."),
+    "stern":     ("##..##", ".#..#.", "......", "..##.."),
+    "kind":      (".#..#.", "##..##", "......", "#.##.#"),
+    "weary":     ("......", ".#..#.", ".#..#.", "..##.."),
+    "scarred":   ("....##", ".#..#.", "...#..", "..##.."),
+    "hollow":    ("......", "##..##", "#....#", "..##.."),
+    "grim":      ("##..##", "##..##", "......", ".####."),
+    "watchful":  (".#..#.", "#.##.#", "......", "..##.."),
+    "hardened":  ("#....#", "##..##", "#....#", ".####."),
+    "gaunt":     ("......", "#....#", "#....#", "..##.."),
+    "wry":       ("......", ".#..#.", "......", "#..##."),
+    "grave":     ("##..##", ".#..#.", "......", ".####."),
+    "young":     ("......", ".#..#.", "......", "...#.."),
+    "seamed":    ("#....#", ".#..#.", "#....#", "..##.."),
+    "burned":    ("###...", ".#..#.", "##....", "..##.."),
+    "veteran":   ("##...#", ".#..#.", "....#.", ".####."),
+    "sleepless": ("......", ".#..#.", "##..##", "..##.."),
+    "resolute":  (".####.", ".#..#.", "......", ".####."),
+    "wolfish":   ("#....#", ".#..#.", "......", "#.##.#"),
+    "sunken":    (".#..#.", "##..##", ".#..#.", "..##.."),
+    "brand":     ("..##..", ".#..#.", "......", "..##.."),
+    "split":     ("...##.", ".#..#.", "...#..", "..##.."),
+    "patient":   ("......", ".#..#.", "......", ".####."),
+    "cold":      ("##..##", "#....#", "......", "..##.."),
+    "ruined":    ("##.###", "##..#.", "#...#.", ".###.."),
 }
 
 

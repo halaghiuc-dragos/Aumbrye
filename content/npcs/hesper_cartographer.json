@@ -1,0 +1,24 @@
+{
+  "id": "hesper_cartographer",
+  "displayName": "Hesper",
+  "interactType": "dialogue",
+  "dialogueId": "hesper_greeting",
+  "position": {
+    "x": 13.5,
+    "y": 0,
+    "z": -12.0
+  },
+  "appearance": {
+    "classId": "scholar",
+    "skinTone": "tan",
+    "hair": "braided",
+    "hairColor": "copper",
+    "face": "open",
+    "head": "open",
+    "heightVariant": "standard",
+    "bulkVariant": "lean",
+    "theme": 0,
+    "trim": 1
+  },
+  "requiresTier": 1
+}

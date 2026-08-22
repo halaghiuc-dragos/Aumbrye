@@ -52,6 +52,9 @@ func is_open() -> bool:
 
 
 func open_talents() -> void:
+	# Raised on open, so the panel the player just asked for is the one on top: these are all
+	# siblings on one CanvasLayer and draw in child order, which is otherwise fixed at build time.
+	move_to_front()
 	_open = true
 	visible = true
 	_reload_nodes()
@@ -63,7 +66,9 @@ func close_talents() -> void:
 	_open = false
 	visible = false
 	closed.emit()
-	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+	# Through PlayerControls: closing this panel must not grab the mouse back if another one is
+	# still open behind it.
+	PlayerControls.capture_mouse_if_allowed()
 
 
 func _unhandled_input(event: InputEvent) -> void:

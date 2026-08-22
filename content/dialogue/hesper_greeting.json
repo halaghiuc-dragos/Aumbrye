@@ -1,0 +1,85 @@
+{
+  "id": "hesper_greeting",
+  "startNode": "start",
+  "nodes": {
+    "start": {
+      "speaker": "Hesper",
+      "text": "Hesper has three maps of the same floor spread out and weighted down, and no two of them agree.",
+      "choices": [
+        {
+          "text": "Which one is right?",
+          "next": "right"
+        },
+        {
+          "text": "Why do they disagree?",
+          "next": "disagree"
+        },
+        {
+          "text": "I will settle it.",
+          "next": "quest",
+          "condition": {
+            "all": [
+              {
+                "minTier": 2
+              },
+              {
+                "not": {
+                  "flag": "hesper_north_given"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "text": "Carry on.",
+          "next": "end"
+        }
+      ]
+    },
+    "right": {
+      "speaker": "Hesper",
+      "text": "All of them were, on the day I walked them. That is the problem, and it is not a problem with the maps.",
+      "actions": [
+        {
+          "type": "set_relationship",
+          "npc": "hesper",
+          "delta": 1
+        }
+      ],
+      "next": "end"
+    },
+    "disagree": {
+      "speaker": "Hesper",
+      "text": "Because it moves. Not while you watch. It has the manners to wait.",
+      "actions": [
+        {
+          "type": "set_relationship",
+          "npc": "hesper",
+          "delta": 1
+        }
+      ],
+      "next": "end"
+    },
+    "quest": {
+      "speaker": "Hesper",
+      "text": "Three survey stones, still standing last I knew. Read what is cut into them and bring me the words, not your memory of the words.",
+      "actions": [
+        {
+          "type": "start_quest",
+          "questId": "hesper_true_north"
+        },
+        {
+          "type": "set_flag",
+          "flag": "hesper_north_given",
+          "value": true
+        },
+        {
+          "type": "set_relationship",
+          "npc": "hesper",
+          "delta": 2
+        }
+      ],
+      "next": "end"
+    }
+  }
+}

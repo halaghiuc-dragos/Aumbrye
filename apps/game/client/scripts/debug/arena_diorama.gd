@@ -71,18 +71,9 @@ static func _dress_floor(arena: Node3D, mats: Dictionary) -> void:
 				mat
 			)
 
-	var center: int = cols >> 1
-	for row in rows:
-		var z := origin_z + row * TILE_SIZE
-		if z < -4.0 or z > 8.0:
-			continue
-		PixelDioramaStyle.add_box(
-			tiles,
-			Vector3(TILE_SIZE * 0.72, 0.14, TILE_SIZE * 0.72),
-			Vector3(origin_x + center * TILE_SIZE, 0.08, z),
-			mats.accent,
-			"LaneTile%d" % row
-		)
+	# The gold "lane" that used to run down the middle of the arena is gone. Its tiles sat 3cm proud
+	# of the floor, so the training area read as having a raised yellow kerb through it — the same
+	# strip the hub plaza had. Nothing on the arena floor stands above floor level now.
 
 
 static func _dress_walls(arena: Node3D, mats: Dictionary) -> void:

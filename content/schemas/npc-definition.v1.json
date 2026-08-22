@@ -4,10 +4,20 @@
   "title": "NpcDefinition",
   "type": "object",
   "additionalProperties": false,
-  "required": ["id", "displayName", "interactType"],
+  "required": [
+    "id",
+    "displayName",
+    "interactType"
+  ],
   "properties": {
-    "id": { "type": "string", "minLength": 1 },
-    "displayName": { "type": "string", "minLength": 1 },
+    "id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "displayName": {
+      "type": "string",
+      "minLength": 1
+    },
     "interactType": {
       "enum": [
         "dialogue",
@@ -18,17 +28,29 @@
         "bounty_board"
       ]
     },
-    "dialogueId": { "type": "string" },
-    "requiresFlag": { "type": "string", "minLength": 1 },
+    "dialogueId": {
+      "type": "string"
+    },
+    "requiresFlag": {
+      "type": "string",
+      "minLength": 1
+    },
     "dialogueRules": {
       "type": "array",
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["dialogueId"],
+        "required": [
+          "dialogueId"
+        ],
         "properties": {
-          "dialogueId": { "type": "string", "minLength": 1 },
-          "condition": { "type": "object" }
+          "dialogueId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "condition": {
+            "type": "object"
+          }
         }
       }
     },
@@ -36,10 +58,125 @@
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "x": { "type": "number" },
-        "y": { "type": "number" },
-        "z": { "type": "number" }
+        "x": {
+          "type": "number"
+        },
+        "y": {
+          "type": "number"
+        },
+        "z": {
+          "type": "number"
+        }
       }
+    },
+    "appearance": {
+      "type": "object",
+      "description": "How the hub renders this NPC: rig variant, colouring and class garment.",
+      "additionalProperties": false,
+      "properties": {
+        "classId": {
+          "type": "string",
+          "enum": [
+            "berserker",
+            "herald",
+            "hunter",
+            "knight",
+            "rogue",
+            "scholar",
+            "sentinel"
+          ]
+        },
+        "theme": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "trim": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "heightVariant": {
+          "type": "string",
+          "enum": [
+            "compact",
+            "standard",
+            "tall"
+          ]
+        },
+        "bulkVariant": {
+          "type": "string",
+          "enum": [
+            "lean",
+            "standard",
+            "heavy"
+          ]
+        },
+        "skinTone": {
+          "type": "string",
+          "enum": [
+            "ashen",
+            "cool",
+            "neutral",
+            "pale",
+            "ruddy",
+            "tan",
+            "umber",
+            "warm"
+          ]
+        },
+        "hair": {
+          "type": "string",
+          "enum": [
+            "braided",
+            "long",
+            "none",
+            "shaven",
+            "short",
+            "tied",
+            "wild"
+          ]
+        },
+        "hairColor": {
+          "type": "string",
+          "enum": [
+            "ash",
+            "auburn",
+            "black",
+            "blond",
+            "brown",
+            "copper",
+            "silver",
+            "teal"
+          ]
+        },
+        "face": {
+          "type": "string",
+          "enum": [
+            "hollow",
+            "kind",
+            "open",
+            "scarred",
+            "stern",
+            "weary"
+          ]
+        },
+        "head": {
+          "type": "string",
+          "enum": [
+            "open",
+            "visor",
+            "hood"
+          ]
+        }
+      }
+    },
+    "absentFlag": {
+      "type": "string",
+      "description": "NPC is hidden while this flag is truthy. The inverse of requiresFlag; a character who can be lost and recovered runs both directions off one flag."
+    },
+    "requiresTier": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Lowest unlocked difficulty tier at which this NPC is present in the hub. 0 (default) means always."
     }
   }
 }

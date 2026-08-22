@@ -6,16 +6,16 @@
     "LegL": {
       "mesh": "res://assets/characters/player_warden/legl.voxels.json",
       "joint": [
-        -4,
-        12,
+        -3,
+        14,
         0
       ]
     },
     "LegR": {
       "mesh": "res://assets/characters/player_warden/legr.voxels.json",
       "joint": [
-        4,
-        12,
+        3,
+        14,
         0
       ]
     },
@@ -23,7 +23,7 @@
       "mesh": "res://assets/characters/player_warden/torso.voxels.json",
       "joint": [
         0,
-        12,
+        14,
         0
       ]
     },
@@ -31,7 +31,7 @@
       "mesh": "res://assets/characters/player_warden/head.voxels.json",
       "joint": [
         0,
-        14,
+        13,
         0
       ],
       "parent": "Torso"
@@ -39,8 +39,8 @@
     "ArmL": {
       "mesh": "res://assets/characters/player_warden/arml.voxels.json",
       "joint": [
-        -8,
-        14,
+        -7,
+        12,
         0
       ],
       "parent": "Torso",
@@ -54,8 +54,8 @@
     "ArmR": {
       "mesh": "res://assets/characters/player_warden/armr.voxels.json",
       "joint": [
-        8,
-        14,
+        7,
+        12,
         0
       ],
       "parent": "Torso",

@@ -1,0 +1,85 @@
+{
+  "id": "tallow_greeting",
+  "startNode": "start",
+  "nodes": {
+    "start": {
+      "speaker": "The Tallow Knight",
+      "text": "The wax has run down his pauldron and set there, ridge on ridge, the way a candle records the hours nobody watched it burn.",
+      "choices": [
+        {
+          "text": "What are you waiting for?",
+          "next": "wait"
+        },
+        {
+          "text": "How long have you stood here?",
+          "next": "long"
+        },
+        {
+          "text": "Give me the watch.",
+          "next": "quest",
+          "condition": {
+            "all": [
+              {
+                "minTier": 1
+              },
+              {
+                "not": {
+                  "flag": "tallow_watch_given"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "text": "Stand easy.",
+          "next": "end"
+        }
+      ]
+    },
+    "wait": {
+      "speaker": "The Tallow Knight",
+      "text": "Relief. It is a small thing to want. I have wanted it in this spot through two collapses and one very quiet winter.",
+      "actions": [
+        {
+          "type": "set_relationship",
+          "npc": "tallow",
+          "delta": 1
+        }
+      ],
+      "next": "end"
+    },
+    "long": {
+      "speaker": "The Tallow Knight",
+      "text": "Long enough that the answer stopped being a number and started being a shape. You are standing in it.",
+      "actions": [
+        {
+          "type": "set_relationship",
+          "npc": "tallow",
+          "delta": 1
+        }
+      ],
+      "next": "end"
+    },
+    "quest": {
+      "speaker": "The Tallow Knight",
+      "text": "Four floors. Down and up, and back to me with the down still on you. Then I will have watched something happen, and the watch will have been worth standing.",
+      "actions": [
+        {
+          "type": "start_quest",
+          "questId": "tallow_the_long_watch"
+        },
+        {
+          "type": "set_flag",
+          "flag": "tallow_watch_given",
+          "value": true
+        },
+        {
+          "type": "set_relationship",
+          "npc": "tallow",
+          "delta": 2
+        }
+      ],
+      "next": "end"
+    }
+  }
+}

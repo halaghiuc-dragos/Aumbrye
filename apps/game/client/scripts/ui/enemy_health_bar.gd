@@ -22,7 +22,17 @@ const POISE_BAR_OFFSET_PIXELS := 4
 const ATTACK_BAR_OFFSET_Y := ATTACK_BAR_OFFSET_PIXELS * PixelStyle.WORLD_PIXEL
 const POISE_BAR_OFFSET_Y := POISE_BAR_OFFSET_PIXELS * PixelStyle.WORLD_PIXEL
 const FILL_WORLD_W := FILL_TEX_W * PixelStyle.WORLD_PIXEL
-const FILL_DEPTH_OFFSET := -0.02
+## Draw order for the stacked quads. The fill used to be pushed toward the camera with
+## `position.z = -0.02`, but `BILLBOARD_FIXED_Y` turns the *quad* to face the camera and leaves the
+## node's own axes alone — local -Z is a fixed world direction, so which side of the bar it points
+## at depends on where the enemy happens to be standing. From half the angles in the arena the red
+## fill sorted behind its own black backing and the bar read as an empty box.
+##
+## Sprite3D quads are transparent and do not write depth, so two coplanar layers composite purely by
+## render priority. That is the same from every angle, and unlike `no_depth_test` it keeps the bar
+## correctly hidden behind walls.
+const BAR_PRIORITY_BG := 0
+const BAR_PRIORITY_FILL := 1
 const DEFAULT_HEIGHT := 2.2
 const MAX_VISIBLE_DISTANCE := 25.0
 const DISTANCE_CHECK_INTERVAL := 0.5
@@ -91,6 +101,7 @@ func _build_sprites() -> void:
 	_bg_sprite.texture = _bg_texture
 	_bg_sprite.billboard = BaseMaterial3D.BILLBOARD_FIXED_Y
 	PixelStyle.configure_pixel_sprite(_bg_sprite)
+	_bg_sprite.render_priority = BAR_PRIORITY_BG
 	add_child(_bg_sprite)
 
 	_fill_sprite = Sprite3D.new()
@@ -98,7 +109,7 @@ func _build_sprites() -> void:
 	_fill_sprite.texture = _fill_texture
 	_fill_sprite.billboard = BaseMaterial3D.BILLBOARD_FIXED_Y
 	PixelStyle.configure_pixel_sprite(_fill_sprite)
-	_fill_sprite.position.z = FILL_DEPTH_OFFSET
+	_fill_sprite.render_priority = BAR_PRIORITY_FILL
 	add_child(_fill_sprite)
 	_build_attack_sprites()
 	_build_poise_sprites()
@@ -113,6 +124,7 @@ func _build_attack_sprites() -> void:
 	_attack_bg_sprite.texture = _attack_bg_texture
 	_attack_bg_sprite.billboard = BaseMaterial3D.BILLBOARD_FIXED_Y
 	PixelStyle.configure_pixel_sprite(_attack_bg_sprite)
+	_attack_bg_sprite.render_priority = BAR_PRIORITY_BG
 	_attack_bg_sprite.position.y = ATTACK_BAR_OFFSET_Y
 	_attack_bg_sprite.visible = false
 	add_child(_attack_bg_sprite)
@@ -122,8 +134,8 @@ func _build_attack_sprites() -> void:
 	_attack_fill_sprite.texture = _attack_fill_texture
 	_attack_fill_sprite.billboard = BaseMaterial3D.BILLBOARD_FIXED_Y
 	PixelStyle.configure_pixel_sprite(_attack_fill_sprite)
+	_attack_fill_sprite.render_priority = BAR_PRIORITY_FILL
 	_attack_fill_sprite.position.y = ATTACK_BAR_OFFSET_Y
-	_attack_fill_sprite.position.z = FILL_DEPTH_OFFSET
 	_attack_fill_sprite.visible = false
 	add_child(_attack_fill_sprite)
 
@@ -137,6 +149,7 @@ func _build_poise_sprites() -> void:
 	_poise_bg_sprite.texture = _poise_bg_texture
 	_poise_bg_sprite.billboard = BaseMaterial3D.BILLBOARD_FIXED_Y
 	PixelStyle.configure_pixel_sprite(_poise_bg_sprite)
+	_poise_bg_sprite.render_priority = BAR_PRIORITY_BG
 	_poise_bg_sprite.position.y = POISE_BAR_OFFSET_Y
 	_poise_bg_sprite.visible = false
 	add_child(_poise_bg_sprite)
@@ -146,8 +159,8 @@ func _build_poise_sprites() -> void:
 	_poise_fill_sprite.texture = _poise_fill_texture
 	_poise_fill_sprite.billboard = BaseMaterial3D.BILLBOARD_FIXED_Y
 	PixelStyle.configure_pixel_sprite(_poise_fill_sprite)
+	_poise_fill_sprite.render_priority = BAR_PRIORITY_FILL
 	_poise_fill_sprite.position.y = POISE_BAR_OFFSET_Y
-	_poise_fill_sprite.position.z = FILL_DEPTH_OFFSET
 	_poise_fill_sprite.visible = false
 	add_child(_poise_fill_sprite)
 

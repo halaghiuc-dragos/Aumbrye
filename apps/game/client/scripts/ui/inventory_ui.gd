@@ -373,6 +373,9 @@ func toggle() -> void:
 
 
 func show_inventory() -> void:
+	# Raised on open, so the panel the player just asked for is the one on top: these are all
+	# siblings on one CanvasLayer and draw in child order, which is otherwise fixed at build time.
+	move_to_front()
 	_bind_inventory_context()
 	_inventory_open = true
 	visible = true

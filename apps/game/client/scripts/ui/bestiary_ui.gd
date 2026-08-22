@@ -25,6 +25,9 @@ func is_open() -> bool:
 
 
 func open() -> void:
+	# Raised on open, so the panel the player just asked for is the one on top: these are all
+	# siblings on one CanvasLayer and draw in child order, which is otherwise fixed at build time.
+	move_to_front()
 	_build_ui_if_needed()
 	_refresh()
 	_open = true
@@ -41,7 +44,9 @@ func close() -> void:
 	_open = false
 	visible = false
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
-	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+	# Through PlayerControls: closing this panel must not grab the mouse back if another one is
+	# still open behind it.
+	PlayerControls.capture_mouse_if_allowed()
 	closed.emit()
 
 

@@ -1,0 +1,85 @@
+{
+  "id": "vane_greeting",
+  "startNode": "start",
+  "nodes": {
+    "start": {
+      "speaker": "Old Vane",
+      "text": "Vane does not get up. Vane has not got up for anybody in some years and does not intend to start with you.",
+      "choices": [
+        {
+          "text": "You were a warden.",
+          "next": "warden"
+        },
+        {
+          "text": "Eleven went down.",
+          "next": "eleven"
+        },
+        {
+          "text": "Give me the muster.",
+          "next": "quest",
+          "condition": {
+            "all": [
+              {
+                "minTier": 3
+              },
+              {
+                "not": {
+                  "flag": "vane_muster_given"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "text": "Sit, then.",
+          "next": "end"
+        }
+      ]
+    },
+    "warden": {
+      "speaker": "Old Vane",
+      "text": "I was the one who signed the others out. That is a different job and it pays worse.",
+      "actions": [
+        {
+          "type": "set_relationship",
+          "npc": "vane",
+          "delta": 1
+        }
+      ],
+      "next": "end"
+    },
+    "eleven": {
+      "speaker": "Old Vane",
+      "text": "Nine came back up in pieces small enough to carry. I can give you nine names without stopping to think. That is not a boast.",
+      "actions": [
+        {
+          "type": "set_relationship",
+          "npc": "vane",
+          "delta": 1
+        }
+      ],
+      "next": "end"
+    },
+    "quest": {
+      "speaker": "Old Vane",
+      "text": "Twenty of them. Not for me, and not for the nine \u2014 for the two I still cannot say out loud. Do that and I will manage it.",
+      "actions": [
+        {
+          "type": "start_quest",
+          "questId": "vane_the_last_muster"
+        },
+        {
+          "type": "set_flag",
+          "flag": "vane_muster_given",
+          "value": true
+        },
+        {
+          "type": "set_relationship",
+          "npc": "vane",
+          "delta": 2
+        }
+      ],
+      "next": "end"
+    }
+  }
+}

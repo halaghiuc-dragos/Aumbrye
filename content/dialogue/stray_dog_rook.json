@@ -1,0 +1,51 @@
+{
+  "id": "stray_dog_rook",
+  "startNode": "start",
+  "nodes": {
+    "start": {
+      "speaker": "Rook",
+      "text": "A brown dog with one ear that has never worked properly, doing a slow circuit of the eastern stalls.",
+      "choices": [
+        {
+          "text": "Say hello.",
+          "next": "noise"
+        },
+        {
+          "text": "Pet Rook.",
+          "next": "pet"
+        },
+        {
+          "text": "Leave it be.",
+          "next": "end"
+        }
+      ]
+    },
+    "noise": {
+      "speaker": "Rook",
+      "text": "Woof!",
+      "actions": [
+        {
+          "type": "play_sfx",
+          "sfxId": "stray_bark"
+        }
+      ],
+      "next": "start"
+    },
+    "pet": {
+      "speaker": "Rook",
+      "text": "The whole back half goes. It leans its entire weight into your shin and sighs the sigh of a creature whose day has peaked.",
+      "actions": [
+        {
+          "type": "play_sfx",
+          "sfxId": "stray_bark"
+        },
+        {
+          "type": "set_relationship",
+          "npc": "strays",
+          "delta": 1
+        }
+      ],
+      "next": "start"
+    }
+  }
+}

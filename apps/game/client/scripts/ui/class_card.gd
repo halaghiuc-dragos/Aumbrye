@@ -26,7 +26,10 @@ func _ready() -> void:
 	toggle_mode = true
 	focus_mode = Control.FOCUS_ALL
 	# Seven of these have to fit the class column without the last one falling under the fold.
-	custom_minimum_size = Vector2(0, 78)
+	# 78 was a few pixels over: the column got a scroll bar that scrolled almost nothing, which is
+	# worse than no bar at all because it looks like there is more roster below. Six pixels off each
+	# card is 42 off the stack, and the portrait comes down with it so the card keeps its padding.
+	custom_minimum_size = Vector2(0, 72)
 	_build_ui()
 
 
@@ -74,7 +77,7 @@ func _build_ui() -> void:
 	_portrait = TextureRect.new()
 	_portrait.name = "Portrait"
 	_portrait.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-	_portrait.custom_minimum_size = Vector2(58, 58)
+	_portrait.custom_minimum_size = Vector2(52, 52)
 	_portrait.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	_portrait.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	row.add_child(_portrait)

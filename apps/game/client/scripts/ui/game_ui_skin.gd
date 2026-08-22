@@ -7,7 +7,7 @@ const THEME_PATH := "res://assets/ui/aumbrye_ui.tres"
 const FONT_PATH := "res://assets/ui/fonts/aumbrye_pixel.ttf"
 const PAPERDOLL_TEXTURE_PATH := "res://assets/ui/paperdoll_silhouette.png"
 
-const BACKDROP_COLOR := Color(0.01, 0.01, 0.04, 0.78)
+const BACKDROP_COLOR := Color(0.02, 0.015, 0.05, 0.78)
 
 const PANEL_HALF_W := 580.0
 const PANEL_HALF_H := 360.0
@@ -31,22 +31,37 @@ const FONT_SIZE_MICRO := 10
 const HEADER_FONT_SIZE := FONT_SIZE_HEADER
 const TITLE_FONT_SIZE := FONT_SIZE_TITLE
 const HINT_FONT_SIZE := FONT_SIZE_SMALL
-const TITLE_COLOR := Color(0.92, 0.86, 0.72)
-const BODY_COLOR := Color(0.82, 0.78, 0.72)
-const HINT_COLOR := Color(0.68, 0.68, 0.74)
+## Gold on violet, the wordmark's own two colours.
+##
+## The interface used to be gold on brown, which is one colour and its own shadow — everything sat
+## in the same warm register and nothing separated a frame from what it framed. Violet is the
+## complement, so a gold heading now reads *against* its panel rather than out of it, and the same
+## pair runs from the title screen through every menu, dialogue box and portal frame.
+##
+## The split is by role, not by taste: **violet holds the structure** — frames, rules, dividers —
+## and **gold carries meaning** — headings, values, whatever the eye is meant to land on. Anything
+## semantic keeps its own colour; damage is still red and a stat gain is still green, because those
+## are information and not decoration.
+const VIOLET := Color(0.45, 0.30, 0.72)
+const VIOLET_DEEP := Color(0.16, 0.09, 0.30)
+const GOLD := Color(0.96, 0.82, 0.42)
+
+const TITLE_COLOR := Color(0.96, 0.86, 0.58)
+const BODY_COLOR := Color(0.86, 0.82, 0.78)
+const HINT_COLOR := Color(0.68, 0.64, 0.80)
 const DANGER_COLOR := Color(0.95, 0.45, 0.35)
 const STAT_DELTA_POSITIVE := Color(0.65, 0.9, 0.65)
 const STAT_DELTA_NEGATIVE := Color(0.95, 0.45, 0.45)
-const ACCENT_BAR := Color(0.72, 0.58, 0.32, 0.9)
-const FRAME_BG := Color(0.06, 0.06, 0.09, 0.97)
-const FRAME_BORDER := Color(0.42, 0.36, 0.28)
+const ACCENT_BAR := Color(0.80, 0.64, 0.32, 0.9)
+const FRAME_BG := Color(0.07, 0.055, 0.11, 0.97)
+const FRAME_BORDER := VIOLET
 
 const PANEL_CORNER_RADIUS_HD := 8
 const PANEL_CORNER_RADIUS_PIXEL := 0
 const PANEL_SHADOW_SIZE_HD := 8
 const PANEL_SHADOW_SIZE_PIXEL := 0
 const PANEL_BORDER_WIDTH := 2
-const FOCUS_RING_COLOR := Color(0.95, 0.82, 0.40)
+const FOCUS_RING_COLOR := GOLD
 
 const INVENTORY_PANEL_HALF_W := 720.0
 ## A floor, not a fixed height: a PanelContainer grows to fit its contents, so asking for 960px

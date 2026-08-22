@@ -14,6 +14,8 @@ const ItemIconAtlasScript := preload("res://scripts/ui/item_icon_atlas.gd")
 
 ## Enough for the twelve stat rows plus the header; scrolls beyond that.
 const COMPARISON_TABLE_HEIGHT := 232.0
+## Shared by the name field and the Suggest Name button below it.
+const NAME_ROW_HEIGHT := 32
 const STAT_NAME_COLUMN_WIDTH := 140.0
 const RESOLVED_COLUMN_WIDTH := 84.0
 const CLASS_COLUMN_WIDTH := 72.0
@@ -32,8 +34,7 @@ var _class_cards_box: VBoxContainer
 var _name_input: LineEdit
 var _name_error: Label
 var _aspect_row: AppearanceRow
-var _stature_row: AppearanceRow
-var _build_row: AppearanceRow
+var _frame_row: AppearanceRow
 var _head_row: AppearanceRow
 var _trim_row: AppearanceRow
 var _skin_row: AppearanceRow
@@ -49,6 +50,8 @@ var _comparison_headers: Array[Label] = []
 var _resolved_cells: Array[Label] = []
 var _resolved_header: Label
 var _perk_line: Label
+## Guards `_on_perk_line_resized`: padding the label changes its height, which re-emits `resized`.
+var _padding_perk := false
 var _weapon_line: Label
 var _weapon_icon: TextureRect
 var _class_empty_label: Label
@@ -124,6 +127,10 @@ func _build_ui() -> void:
 	_build_detail_column(columns)
 	_build_comparison_table(outer_vbox)
 	_wire_focus_neighbors()
+	# Last, once every widget the refresh touches exists. The perk label is padded to the tallest
+	# perk in the roster, and line count means nothing until layout has given the label a width —
+	# this is what redoes the padding once it has one.
+	_perk_line.resized.connect(_on_perk_line_resized)
 
 
 ## Every class's full stat profile at once, so the pick is a comparison rather than a guess.
@@ -132,10 +139,6 @@ func _build_ui() -> void:
 ## tradeoff required selecting each of the seven in turn and remembering what the others said.
 func _build_comparison_table(parent: VBoxContainer) -> void:
 	parent.add_child(_column_header(tr("CREATE_COMPARE_HEADER")))
-	# The table shows ratings, not raw stat values, so it has to say what a rating means once.
-	parent.add_child(_column_hint(tr("CREATE_COMPARE_LEGEND") % [
-		ClassCatalog.RATING_MIN, ClassCatalog.RATING_MAX, ClassCatalog.RATING_STANDARD
-	]))
 	# Scrolled and height-capped: the table grows with the class roster, and letting it size freely
 	# pushed the modal taller than the screen — the panel grows from its centre, so the overflow
 	# clipped the title off the top and the last class off the bottom at the same time.
@@ -276,6 +279,9 @@ func _build_class_column(parent: HBoxContainer) -> VBoxContainer:
 	var scroll := ScrollContainer.new()
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	scroll.custom_minimum_size = Vector2(0, 280)
+	# Nothing in a class card wants horizontal scrolling, and leaving the mode on meant the
+	# vertical bar's width could push the cards wide enough to ask for a horizontal one too.
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	col.add_child(scroll)
 	_class_cards_box = VBoxContainer.new()
 	_class_cards_box.name = "ClassCards"
@@ -387,12 +393,16 @@ func _build_detail_column(parent: HBoxContainer) -> VBoxContainer:
 	_name_column.name = "NameColumn"
 	_name_column.add_theme_constant_override("separation", 6)
 	col.add_child(_name_column)
-	_name_column.add_child(_column_header(tr("CREATE_NAME_HEADER")))
+	_name_column.add_child(_column_header(tr("CREATE_NAME_HEADER"), true))
 	_name_input = LineEdit.new()
 	_name_input.name = "NameInput"
 	_name_input.placeholder_text = tr("CREATE_NAME_PLACEHOLDER")
 	_name_input.max_length = NameValidatorScript.MAX_LENGTH
 	_name_input.text_changed.connect(_on_name_changed)
+	# The field and the button under it are one control in the player's head — you type a name or you
+	# ask for one — so they are the same height. The LineEdit had no minimum and sat at whatever the
+	# theme's font and padding produced, which was several pixels shorter than the button.
+	_name_input.custom_minimum_size = Vector2(0, NAME_ROW_HEIGHT)
 	_name_column.add_child(_name_input)
 	_name_error = Label.new()
 	_name_error.name = "NameError"
@@ -403,26 +413,19 @@ func _build_detail_column(parent: HBoxContainer) -> VBoxContainer:
 	_random_name_button = MenuShellScript.make_menu_button(
 		tr("CREATE_RANDOM_NAME"), _on_random_name_pressed
 	)
-	_random_name_button.custom_minimum_size = Vector2(0, 32)
+	_random_name_button.custom_minimum_size = Vector2(0, NAME_ROW_HEIGHT)
 	_name_column.add_child(_random_name_button)
 	var appearance_box := VBoxContainer.new()
 	appearance_box.name = "AppearanceRows"
 	appearance_box.add_theme_constant_override("separation", 4)
 	col.add_child(appearance_box)
-	appearance_box.add_child(_column_header(tr("CREATE_APPEARANCE_HEADER")))
-	appearance_box.add_child(
-		_column_hint(tr("CREATE_APPEARANCE_HINT"))
-	)
+	appearance_box.add_child(_column_header(tr("CREATE_APPEARANCE_HEADER"), true))
 	_aspect_row = _make_appearance_row(tr("CREATE_ROW_ASPECT"), [])
 	appearance_box.add_child(_aspect_row)
-	_stature_row = _make_appearance_row(
-		tr("CREATE_ROW_STATURE"), CharacterAppearanceScript.HEIGHT_LABELS
+	_frame_row = _make_appearance_row(
+		tr("CREATE_ROW_FRAME"), CharacterAppearanceScript.FRAME_LABELS
 	)
-	appearance_box.add_child(_stature_row)
-	_build_row = _make_appearance_row(
-		tr("CREATE_ROW_BUILD"), CharacterAppearanceScript.BULK_LABELS
-	)
-	appearance_box.add_child(_build_row)
+	appearance_box.add_child(_frame_row)
 	_head_row = _make_appearance_row(
 		tr("CREATE_ROW_HEAD"), CharacterAppearanceScript.HEAD_LABELS
 	)
@@ -456,7 +459,7 @@ func _build_detail_column(parent: HBoxContainer) -> VBoxContainer:
 	var stats_box := VBoxContainer.new()
 	stats_box.add_theme_constant_override("separation", 8)
 	stats_card.add_child(stats_box)
-	stats_box.add_child(_column_header(tr("CREATE_CLASS_DETAIL_HEADER")))
+	stats_box.add_child(_column_header(tr("CREATE_CLASS_DETAIL_HEADER"), true))
 	# The twelve-stat list that used to live here is now the All Classes matrix below, which shows
 	# the same numbers for the selected class alongside every other class and a Base column. Two
 	# copies of it cost more vertical space than the modal has, and the matrix is the more useful
@@ -505,27 +508,25 @@ func _build_detail_column(parent: HBoxContainer) -> VBoxContainer:
 
 ## Section heading with an accent rule under it, so the three columns read as labelled groups
 ## instead of one continuous run of controls.
-func _column_header(text: String) -> VBoxContainer:
+## `centered` for the headers that sit over a column, matching "Choose Your Class" — the class
+## column builds its own header and has always centred it. The full-width comparison table keeps a
+## left-aligned header: centred over the whole modal it reads as a title for the screen rather than
+## a label for the table under it.
+func _column_header(text: String, centered: bool = false) -> VBoxContainer:
 	var box := VBoxContainer.new()
 	box.add_theme_constant_override("separation", 3)
 	var label := Label.new()
 	label.text = text
 	GameUISkinScript.style_section_title(label)
-	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	label.horizontal_alignment = (
+		HORIZONTAL_ALIGNMENT_CENTER if centered else HORIZONTAL_ALIGNMENT_LEFT
+	)
 	box.add_child(label)
 	var rule := ColorRect.new()
 	rule.color = GameUISkinScript.ACCENT_BAR
 	rule.custom_minimum_size = Vector2(0, 2)
 	box.add_child(rule)
 	return box
-
-
-func _column_hint(text: String) -> Label:
-	var label := Label.new()
-	label.text = text
-	GameUISkinScript.style_hint_label(label)
-	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
-	return label
 
 
 func _make_appearance_row(label_text: String, options: PackedStringArray) -> AppearanceRow:
@@ -553,12 +554,10 @@ func _wire_focus_neighbors() -> void:
 	_random_name_button.focus_neighbor_left = _name_input.get_path()
 	_random_name_button.focus_neighbor_right = _aspect_row.get_path()
 	_aspect_row.focus_neighbor_left = _random_name_button.get_path()
-	_aspect_row.focus_neighbor_bottom = _stature_row.get_path()
-	_stature_row.focus_neighbor_top = _aspect_row.get_path()
-	_stature_row.focus_neighbor_bottom = _build_row.get_path()
-	_build_row.focus_neighbor_top = _stature_row.get_path()
-	_build_row.focus_neighbor_bottom = _head_row.get_path()
-	_head_row.focus_neighbor_top = _build_row.get_path()
+	_aspect_row.focus_neighbor_bottom = _frame_row.get_path()
+	_frame_row.focus_neighbor_top = _aspect_row.get_path()
+	_frame_row.focus_neighbor_bottom = _head_row.get_path()
+	_head_row.focus_neighbor_top = _frame_row.get_path()
 	_head_row.focus_neighbor_bottom = _trim_row.get_path()
 	_trim_row.focus_neighbor_top = _head_row.get_path()
 	_trim_row.focus_neighbor_bottom = _back_button.get_path()
@@ -614,11 +613,8 @@ func _apply_profile_to_controls(profile: Dictionary) -> void:
 	_aspect_row.select(
 		AppearanceCatalogScript.unlocked_aspect_index_for_theme(int(clean.get("theme", 0)))
 	)
-	_stature_row.select(
-		CharacterAppearanceScript.HEIGHT_VARIANTS.find(clean.get("heightVariant", "standard"))
-	)
-	_build_row.select(
-		CharacterAppearanceScript.BULK_VARIANTS.find(clean.get("bulkVariant", "standard"))
+	_frame_row.select(
+		CharacterAppearanceScript.FRAME_VARIANTS.find(clean.get("frame", "standard"))
 	)
 	match clean.get("head", CharacterAppearanceScript.HEAD_VISOR):
 		CharacterAppearanceScript.HEAD_OPEN:
@@ -669,15 +665,7 @@ func _refresh_class_detail() -> void:
 		_preview_caption.text = ""
 		return
 	var class_def := _classes[_selected_class_index]
-	var perk_name_key := str(class_def.get("perkName", ""))
-	var perk_desc_key := str(class_def.get("perkDescription", ""))
-	_perk_line.text = (
-		tr("CREATE_PERK")
-		% [
-			_row_label(perk_name_key, str(class_def.get("perkNameText", ""))),
-			_row_label(perk_desc_key, str(class_def.get("perkDescriptionText", ""))),
-		]
-	)
+	_perk_line.text = _pad_perk_text(_perk_text(class_def))
 	var weapon_id := str(class_def.get("startingWeaponItemId", ""))
 	var weapon_def := ItemCatalog.get_definition(weapon_id)
 	var weapon_name := str(weapon_def.get("name", weapon_id))
@@ -692,6 +680,64 @@ func _refresh_class_detail() -> void:
 
 
 
+
+
+
+func _on_perk_line_resized() -> void:
+	if _padding_perk:
+		return
+	# `add_child` emits `resized` synchronously, so connecting this at the point the label is built
+	# fired it while the rest of the card — the weapon row, the caption — was still nil, and the
+	# refresh assigned `text` on nothing. Connected after the whole screen exists now, and still
+	# guarded: the card is refreshed by a dozen paths and none of them should depend on build order.
+	if _weapon_line == null or _weapon_icon == null or _preview_caption == null:
+		return
+	_padding_perk = true
+	_refresh_class_detail()
+	_padding_perk = false
+
+
+func _perk_text(class_def: Dictionary) -> String:
+	return (
+		tr("CREATE_PERK")
+		% [
+			_row_label(str(class_def.get("perkName", "")), str(class_def.get("perkNameText", ""))),
+			_row_label(
+				str(class_def.get("perkDescription", "")),
+				str(class_def.get("perkDescriptionText", "")),
+			),
+		]
+	)
+
+
+## Blank lines under the perk so the card is the same height whichever class is highlighted.
+##
+## The perk paragraph wraps to however many lines its wording needs, and the card is sized by its
+## contents — so Sentinel, whose perk is a line shorter than the rest, made the whole detail block
+## jump up by a line and drag the starting-weapon row with it. Padding to the tallest perk in the
+## roster holds the weapon row still. Measured rather than hardcoded to Sentinel: the wording is
+## content, and a wrap point moves the moment anyone edits a string or changes the font.
+func _pad_perk_text(text: String) -> String:
+	# Line count is meaningless before the label has a width to wrap against — leave it unpadded
+	# and let the `resized` pass below redo it once layout has run.
+	if _perk_line.size.x <= 1.0:
+		return text
+	# The loop below writes to the label repeatedly to measure it, and each write can queue a
+	# resize. Held down so none of them re-enter this through `_on_perk_line_resized`.
+	var was_padding := _padding_perk
+	_padding_perk = true
+	var restore := _perk_line.text
+	var tallest := 0
+	for class_def: Dictionary in _classes:
+		_perk_line.text = _perk_text(class_def)
+		tallest = maxi(tallest, _perk_line.get_line_count())
+	_perk_line.text = text
+	var own := _perk_line.get_line_count()
+	_perk_line.text = restore
+	_padding_perk = was_padding
+	if own >= tallest:
+		return text
+	return text + "\n".repeat(tallest - own)
 
 
 ## The figure a rating actually produces in play — "145", "18%", "112%".
@@ -743,8 +789,7 @@ func _format_stat_name(stat_name: String) -> String:
 func _build_appearance_profile() -> Dictionary:
 	var profile := CharacterAppearanceScript.profile_from_indices(
 		AppearanceCatalogScript.unlocked_aspect_theme(_aspect_row.get_selected_index()),
-		_stature_row.get_selected_index(),
-		_build_row.get_selected_index(),
+		_frame_row.get_selected_index(),
 		_head_row.get_selected_index(),
 		_trim_row.get_selected_index(),
 		_skin_row.get_selected_index(),
@@ -822,8 +867,7 @@ func _on_random_name_pressed() -> void:
 ## catalogue, so this cannot hand the player something they have not earned.
 func _on_randomize_pressed() -> void:
 	_aspect_row.select(randi() % maxi(AppearanceCatalogScript.unlocked_aspect_count(), 1))
-	_stature_row.select(randi() % CharacterAppearanceScript.HEIGHT_LABELS.size())
-	_build_row.select(randi() % CharacterAppearanceScript.BULK_LABELS.size())
+	_frame_row.select(randi() % CharacterAppearanceScript.FRAME_LABELS.size())
 	_head_row.select(randi() % CharacterAppearanceScript.HEAD_LABELS.size())
 	_trim_row.select(randi() % CharacterAppearanceScript.TRIM_LABELS.size())
 	_skin_row.select(randi() % maxi(CharacterAppearanceScript.SKIN_TONE_LABELS.size(), 1))

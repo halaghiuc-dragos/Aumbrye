@@ -41,6 +41,17 @@ const PULSE_TUNING := {
 const SNAP_FOCUS_DISTANCE_FALLBACK := 5.0
 
 var _layer: CanvasLayer
+## Visual layer the contour quad lives on.
+##
+## The SubViewport shares the main World3D (`own_world_3d = false`), so anything parented under the
+## render camera is in the same world the gameplay camera is looking at. Giving the quad a layer of
+## its own and adding only that bit to the render camera's cull mask is what keeps a full-screen
+## black quad from being drawn over the actual game.
+const OUTLINE_LAYER_BIT := 19
+const OUTLINE_LAYER_MASK := 1 << OUTLINE_LAYER_BIT
+
+var _outline_quad: MeshInstance3D
+var _outline_material: ShaderMaterial
 var _container: SubViewportContainer
 var _viewport: SubViewport
 var _render_camera: Camera3D
@@ -162,7 +173,32 @@ func _build_nodes() -> void:
 	# render off the gameplay camera it is meant to reproduce exactly.
 	_render_camera.physics_interpolation_mode = Node.PHYSICS_INTERPOLATION_MODE_OFF
 	_viewport.add_child(_render_camera)
+	_build_outline_pass()
 	_finish_material = PixelDioramaSettings.make_screen_finish_material()
+
+
+## A clip-space quad parented to the render camera. It reads the depth and normal buffers of the
+## pass it is drawn in, so it has to live inside the SubViewport rather than being a canvas shader
+## over the top of it — the screen finish is a `canvas_item` shader and has no depth to read.
+func _build_outline_pass() -> void:
+	_outline_material = PixelDioramaSettings.make_outline_material()
+	if _outline_material.shader == null:
+		return
+	var quad := QuadMesh.new()
+	quad.size = Vector2.ONE
+	_outline_quad = MeshInstance3D.new()
+	_outline_quad.name = "PixelOutlinePass"
+	_outline_quad.mesh = quad
+	_outline_quad.material_override = _outline_material
+	_outline_quad.layers = OUTLINE_LAYER_MASK
+	_outline_quad.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	# The vertex shader rewrites POSITION into clip space, so the quad's real bounds say nothing
+	# about where it lands on screen. Without a cull margin the engine frustum-culls it away the
+	# moment the camera turns.
+	_outline_quad.extra_cull_margin = 16384.0
+	# Drawn after the world, so the contour sits over the geometry it was derived from.
+	_outline_material.render_priority = 100
+	_render_camera.add_child(_outline_quad)
 
 
 func _process(_delta: float) -> void:
@@ -183,7 +219,8 @@ func _process(_delta: float) -> void:
 	_render_camera.near = _source_camera.near
 	_render_camera.far = _source_camera.far
 	_render_camera.keep_aspect = _source_camera.keep_aspect
-	_render_camera.cull_mask = _source_camera.cull_mask
+	# Everything the gameplay camera sees, plus the contour layer that only this camera may see.
+	_render_camera.cull_mask = _source_camera.cull_mask | OUTLINE_LAYER_MASK
 	_render_camera.global_transform = _mirrored_transform()
 	_last_source_xform = xform
 	_last_source_fov = fov
@@ -208,6 +245,8 @@ func _mirrored_transform() -> Transform3D:
 
 
 func apply_settings() -> void:
+	if _outline_material != null:
+		PixelDioramaSettings.apply_outline_params(_outline_material)
 	_apply_internal_size()
 	if PixelDioramaSettings.is_native_hd_preset():
 		_enforce_native_viewport_size()
@@ -475,6 +514,12 @@ func _bind_source_camera(scene_root: Node) -> void:
 			_bind_warned = true
 			push_warning("PixelDioramaViewport: no source camera in %s" % scene_root.name)
 		return
+	# A Camera3D's default cull mask is all twenty layers, the contour layer among them. With the
+	# pipeline on it made no visible difference — the gameplay camera's output is covered by the
+	# SubViewportContainer — but with Low-Res Viewport turned off in Advanced Pixel Options the
+	# gameplay camera draws straight to the window, and a full-screen contour quad drawn by a camera
+	# whose depth buffer it was never derived from is just a dark sheet over the game.
+	_source_camera.cull_mask &= ~OUTLINE_LAYER_MASK
 	if PixelDioramaSettings.low_res_viewport_enabled:
 		_enable_pipeline()
 

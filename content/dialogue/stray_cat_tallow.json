@@ -1,0 +1,51 @@
+{
+  "id": "stray_cat_tallow",
+  "startNode": "start",
+  "nodes": {
+    "start": {
+      "speaker": "Tallow",
+      "text": "A fat cream-coloured cat, folded into a loaf beside the quartermaster's crates.",
+      "choices": [
+        {
+          "text": "Say hello.",
+          "next": "noise"
+        },
+        {
+          "text": "Pet Tallow.",
+          "next": "pet"
+        },
+        {
+          "text": "Leave it be.",
+          "next": "end"
+        }
+      ]
+    },
+    "noise": {
+      "speaker": "Tallow",
+      "text": "Mrow.",
+      "actions": [
+        {
+          "type": "play_sfx",
+          "sfxId": "stray_meow"
+        }
+      ],
+      "next": "start"
+    },
+    "pet": {
+      "speaker": "Tallow",
+      "text": "It rolls over with the boneless confidence of an animal that has never once been refused, and purrs like a badly seated hinge.",
+      "actions": [
+        {
+          "type": "play_sfx",
+          "sfxId": "stray_meow"
+        },
+        {
+          "type": "set_relationship",
+          "npc": "strays",
+          "delta": 1
+        }
+      ],
+      "next": "start"
+    }
+  }
+}

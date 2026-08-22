@@ -33,8 +33,19 @@ const DEFAULT_GLOW_ENABLED := true
 const DEFAULT_NEAREST_TEXTURE_FILTER := true
 const DEFAULT_ANTI_ALIASING_OFF := false
 const DEFAULT_LOW_RES_VIEWPORT := true
-const DEFAULT_VIEWPORT_WIDTH := 480
-const DEFAULT_VIEWPORT_HEIGHT := 270
+
+## Screen-space contour pass. See `assets/shared/pixel_outline.gdshader` — `edge_strength` above is
+## a texture-space cell border, not a silhouette, so until this existed nothing in the game had an
+## outline and forms dissolved into backgrounds of similar value.
+const OUTLINE_SHADER_PATH := "res://assets/shared/pixel_outline.gdshader"
+const DEFAULT_OUTLINE_ENABLED := true
+const DEFAULT_OUTLINE_STRENGTH := 0.85
+## Whole rendered pixels, so the contour lands on the pixel grid instead of smearing across it.
+const DEFAULT_OUTLINE_THICKNESS := 1.0
+const DEFAULT_OUTLINE_COLOR := Color(0.03, 0.025, 0.05)
+const DEFAULT_OUTLINE_INTERIOR := 0.45
+const DEFAULT_VIEWPORT_WIDTH := 1920
+const DEFAULT_VIEWPORT_HEIGHT := 1080
 const DEFAULT_CAMERA_SNAP := true
 ## Off by default: the gameplay camera snap destabilises the camera it is applied to.
 ##
@@ -80,30 +91,21 @@ const QUALITY_LABELS: Array[String] = ["Low", "Medium", "High"]
 
 ## Internal render resolutions offered in Settings. All are 16:9 so the
 ## nearest-neighbour upscale stays square-pixel at common window sizes.
+## The render resolution is fixed at Full HD and is no longer a setting — the chunky 320x180 and
+## 480x270 options are gone along with the row that offered them. Everything the player can still
+## reach (pixel scale, colour levels, pattern strength) sits under Display > Advanced Pixel Options
+## and tunes how the image is stylised, not what it is rendered at.
+##
+## Kept as a one-entry list rather than dissolved into loose constants because `_preset_for_size`
+## and `is_native_hd_preset` are the pipeline's way of asking "is this a native-resolution pass",
+## and the viewport uses that answer in three places.
 const RESOLUTION_PRESETS: Array = [
-	{"label": "320 x 180 (chunky)", "width": 320, "height": 180},
-	{"label": "480 x 270 (chunky, default)", "width": 480, "height": 270, "default": true},
-	{"label": "640 x 360 (fine)", "width": 640, "height": 360},
-	{"label": "960 x 540 (soft)", "width": 960, "height": 540},
-	{
-		"label": "1280 x 720 (HD)",
-		"width": 1280,
-		"height": 720,
-		"native": true,
-		"tuning": {
-			"pixel_scale": 3.0,
-			"color_levels": 12.0,
-			"shade_bands": 6.0,
-			"edge_strength": 0.14,
-			"pattern_strength": 0.28,
-			"shade_dither": 0.35,
-		},
-	},
 	{
 		"label": "1920 x 1080 (Full HD)",
-		"width": 1920,
-		"height": 1080,
+		"width": DEFAULT_VIEWPORT_WIDTH,
+		"height": DEFAULT_VIEWPORT_HEIGHT,
 		"native": true,
+		"default": true,
 		"tuning": {
 			"pixel_scale": 2.0,
 			"color_levels": 16.0,
@@ -130,6 +132,11 @@ static var ambient_occlusion_enabled: bool = DEFAULT_AMBIENT_OCCLUSION
 static var nearest_texture_filter: bool = DEFAULT_NEAREST_TEXTURE_FILTER
 static var anti_aliasing_off: bool = DEFAULT_ANTI_ALIASING_OFF
 static var low_res_viewport_enabled: bool = DEFAULT_LOW_RES_VIEWPORT
+static var outline_enabled: bool = DEFAULT_OUTLINE_ENABLED
+static var outline_strength: float = DEFAULT_OUTLINE_STRENGTH
+static var outline_thickness: float = DEFAULT_OUTLINE_THICKNESS
+static var outline_color: Color = DEFAULT_OUTLINE_COLOR
+static var outline_interior: float = DEFAULT_OUTLINE_INTERIOR
 static var viewport_width: int = DEFAULT_VIEWPORT_WIDTH
 static var viewport_height: int = DEFAULT_VIEWPORT_HEIGHT
 static var camera_snap_enabled: bool = DEFAULT_CAMERA_SNAP
@@ -193,8 +200,16 @@ static func load_from_save() -> void:
 	)
 	anti_aliasing_off = bool(data.get("anti_aliasing_off", DEFAULT_ANTI_ALIASING_OFF))
 	low_res_viewport_enabled = bool(data.get("low_res_viewport_enabled", DEFAULT_LOW_RES_VIEWPORT))
-	viewport_width = int(data.get("viewport_width", DEFAULT_VIEWPORT_WIDTH))
-	viewport_height = int(data.get("viewport_height", DEFAULT_VIEWPORT_HEIGHT))
+	outline_enabled = bool(data.get("outline_enabled", DEFAULT_OUTLINE_ENABLED))
+	outline_strength = float(data.get("outline_strength", DEFAULT_OUTLINE_STRENGTH))
+	outline_thickness = float(data.get("outline_thickness", DEFAULT_OUTLINE_THICKNESS))
+	outline_color = _color_from_save(data.get("outline_color", null), DEFAULT_OUTLINE_COLOR)
+	outline_interior = float(data.get("outline_interior", DEFAULT_OUTLINE_INTERIOR))
+	# Not read back from the save. Any profile written while the chunky presets existed still has
+	# `viewport_width: 480` in it, and honouring that would leave those players on a resolution the
+	# settings page no longer offers a way out of.
+	viewport_width = DEFAULT_VIEWPORT_WIDTH
+	viewport_height = DEFAULT_VIEWPORT_HEIGHT
 	camera_snap_enabled = bool(data.get("camera_snap_enabled", DEFAULT_CAMERA_SNAP))
 	gameplay_camera_snap_enabled = bool(
 		data.get("gameplayCameraSnap", data.get("gameplay_camera_snap", DEFAULT_GAMEPLAY_CAMERA_SNAP))
@@ -244,6 +259,11 @@ static func save() -> void:
 		"nearest_texture_filter": nearest_texture_filter,
 		"anti_aliasing_off": anti_aliasing_off,
 		"low_res_viewport_enabled": low_res_viewport_enabled,
+		"outline_enabled": outline_enabled,
+		"outline_strength": outline_strength,
+		"outline_thickness": outline_thickness,
+		"outline_color": _color_to_save(outline_color),
+		"outline_interior": outline_interior,
 		"viewport_width": viewport_width,
 		"viewport_height": viewport_height,
 		"camera_snap_enabled": camera_snap_enabled,
@@ -404,6 +424,11 @@ static func apply_beauty_defaults() -> void:
 	nearest_texture_filter = DEFAULT_NEAREST_TEXTURE_FILTER
 	anti_aliasing_off = DEFAULT_ANTI_ALIASING_OFF
 	low_res_viewport_enabled = DEFAULT_LOW_RES_VIEWPORT
+	outline_enabled = DEFAULT_OUTLINE_ENABLED
+	outline_strength = DEFAULT_OUTLINE_STRENGTH
+	outline_thickness = DEFAULT_OUTLINE_THICKNESS
+	outline_color = DEFAULT_OUTLINE_COLOR
+	outline_interior = DEFAULT_OUTLINE_INTERIOR
 	var preset := _default_preset()
 	viewport_width = int(preset.get("width", DEFAULT_VIEWPORT_WIDTH))
 	viewport_height = int(preset.get("height", DEFAULT_VIEWPORT_HEIGHT))
@@ -468,7 +493,7 @@ static func _default_preset() -> Dictionary:
 	for entry in RESOLUTION_PRESETS:
 		if bool(entry.get("default", false)):
 			return entry
-	return RESOLUTION_PRESETS[1]
+	return RESOLUTION_PRESETS[0]
 
 
 static func _preset_for_size(width: int, height: int) -> Dictionary:
@@ -650,6 +675,25 @@ static func apply_to_standard_material(mat: StandardMaterial3D) -> void:
 	if mat == null:
 		return
 	mat.texture_filter = texture_filter_mode()
+
+
+static func make_outline_material() -> ShaderMaterial:
+	var mat := ShaderMaterial.new()
+	if not ResourceLoader.exists(OUTLINE_SHADER_PATH):
+		push_warning("PixelDioramaSettings: outline shader missing at %s" % OUTLINE_SHADER_PATH)
+		return mat
+	mat.shader = load(OUTLINE_SHADER_PATH)
+	apply_outline_params(mat)
+	return mat
+
+
+static func apply_outline_params(mat: ShaderMaterial) -> void:
+	if mat == null:
+		return
+	mat.set_shader_parameter("outline_color", outline_color)
+	mat.set_shader_parameter("outline_strength", outline_strength if outline_enabled else 0.0)
+	mat.set_shader_parameter("thickness", maxf(1.0, roundf(outline_thickness)))
+	mat.set_shader_parameter("interior_scale", outline_interior)
 
 
 static func make_screen_finish_material() -> ShaderMaterial:

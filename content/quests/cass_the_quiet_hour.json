@@ -1,0 +1,12 @@
+{
+  "id": "cass_the_quiet_hour",
+  "title": "The Quiet Hour",
+  "type": "kill",
+  "chainId": "cass",
+  "description": "Cass keeps the lamps lit and counts what walks past them. Put down twelve of the things that walk past them.",
+  "requiredCount": 12,
+  "minDifficultyTier": 1,
+  "rewards": {
+    "gold": 210
+  }
+}

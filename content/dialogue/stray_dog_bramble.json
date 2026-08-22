@@ -1,0 +1,51 @@
+{
+  "id": "stray_dog_bramble",
+  "startNode": "start",
+  "nodes": {
+    "start": {
+      "speaker": "Bramble",
+      "text": "A dark scruffy dog lying where the gate braziers throw the most heat, watching the portals the way the wardens do.",
+      "choices": [
+        {
+          "text": "Say hello.",
+          "next": "noise"
+        },
+        {
+          "text": "Pet Bramble.",
+          "next": "pet"
+        },
+        {
+          "text": "Leave it be.",
+          "next": "end"
+        }
+      ]
+    },
+    "noise": {
+      "speaker": "Bramble",
+      "text": "Wuff.",
+      "actions": [
+        {
+          "type": "play_sfx",
+          "sfxId": "stray_bark"
+        }
+      ],
+      "next": "start"
+    },
+    "pet": {
+      "speaker": "Bramble",
+      "text": "It thumps its tail twice, accepts the ear scratch as its due, and goes straight back to watching the gates.",
+      "actions": [
+        {
+          "type": "play_sfx",
+          "sfxId": "stray_bark"
+        },
+        {
+          "type": "set_relationship",
+          "npc": "strays",
+          "delta": 1
+        }
+      ],
+      "next": "start"
+    }
+  }
+}

@@ -10,8 +10,20 @@
     "roof_peak": 1.2
   },
   "parts": [
-    { "name": "Plinth", "size": [5.55, 0.22, 4.75], "pos": [0, 0.11, 0], "mat": "floor_alt" },
-    { "name": "PlinthStep", "size": [5.38, 0.16, 4.58], "pos": [0, 0.28, 0], "mat": "accent" }
+    {
+      "name": "Plinth",
+      "size": [
+        5.55,
+        0.22,
+        4.75
+      ],
+      "pos": [
+        0,
+        0.11,
+        0
+      ],
+      "mat": "floor_alt"
+    }
   ],
   "collision": []
 }

@@ -15,6 +15,7 @@ extends Node
 ##     res://scenes/debug/capture_warden_variants.tscn
 
 const WardenPreviewRigScript := preload("res://scripts/ui/warden_preview_rig.gd")
+const AppearanceCatalogScript := preload("res://scripts/ui/appearance_catalog.gd")
 const OUTPUT_DIR := "user://warden_captures"
 
 ## Matches the SubViewport the real preview column uses, scaled up so the contact sheet is
@@ -43,6 +44,9 @@ func _ready() -> void:
 	await _capture_head_hair()
 	await _capture_classes()
 	await _capture_identity()
+	await _capture_frames()
+	await _capture_aspects()
+	await _capture_class_fit()
 	await _capture_yaw()
 	await _report_facing()
 	get_tree().quit(0)
@@ -99,8 +103,7 @@ func _report_facing() -> void:
 func _base_profile() -> Dictionary:
 	return {
 		"theme": 0,
-		"heightVariant": CharacterAppearance.HEIGHT_VARIANT_STANDARD,
-		"bulkVariant": CharacterAppearance.BULK_VARIANT_STANDARD,
+		"frame": CharacterAppearance.FRAME_STANDARD,
 		"head": CharacterAppearance.HEAD_VISOR,
 		"trim": 2,
 		"skinTone": CharacterAppearance.SKIN_TONE_NEUTRAL,
@@ -109,19 +112,16 @@ func _base_profile() -> Dictionary:
 	}
 
 
-## Every stature x build combination — the axis that was broken. Rows are stature, columns build,
-## so a variant that assembles differently from its neighbours is obvious at a glance.
+## Every frame, so a variant that assembles differently from its neighbours is obvious at a glance.
 func _capture_body_shapes() -> void:
 	var cells: Array[Image] = []
 	var labels: PackedStringArray = []
-	for height in CharacterAppearance.HEIGHT_VARIANTS:
-		for bulk in CharacterAppearance.BULK_VARIANTS:
-			var profile := _base_profile()
-			profile["heightVariant"] = height
-			profile["bulkVariant"] = bulk
-			cells.append(await _render(profile))
-			labels.append("%s/%s" % [height, bulk])
-	_write_sheet("body_shapes", cells, 3)
+	for frame: String in CharacterAppearance.FRAME_VARIANTS:
+		var profile := _base_profile()
+		profile["frame"] = frame
+		cells.append(await _render(profile))
+		labels.append(frame)
+	_write_sheet("body_shapes", cells, 5)
 	print("body shapes: %s" % ", ".join(labels))
 
 
@@ -182,15 +182,75 @@ func _capture_identity() -> void:
 	var colors := CharacterAppearance.HAIR_COLORS
 	var skins := CharacterAppearance.SKIN_TONES
 	var faces := CharacterAppearance.FACE_STYLES
-	for i in 8:
+	# One cell per hair style, with every other identity axis stepping alongside it — stature and
+	# build included. They were pinned to standard/standard here, so twenty-five wardens differed
+	# from the neck up and were the same body underneath, which is not what the sheet is for.
+	var frames: Array = CharacterAppearance.FRAME_VARIANTS
+	for i in hair.size():
 		var profile := _base_profile()
 		profile["head"] = CharacterAppearance.HEAD_OPEN
-		profile["hair"] = hair[(i + 1) % hair.size()]
+		profile["hair"] = hair[i]
 		profile["hairColor"] = colors[i % colors.size()]
 		profile["skinTone"] = skins[i % skins.size()]
 		profile["face"] = faces[i % faces.size()]
+		# Stepping at different rates so the sheet does not walk the two body axes together and
+		# show only the diagonal of the 5x5.
+		profile["frame"] = frames[i % frames.size()]
 		cells.append(await _render(profile))
-	_write_sheet("identity", cells, 4)
+	_write_sheet("identity", cells, 5)
+
+
+## Every frame, side by side. If two cells look alike the option is not earning its slot.
+func _capture_frames() -> void:
+	var cells: Array[Image] = []
+	for frame: String in CharacterAppearance.FRAME_VARIANTS:
+		var profile := _base_profile()
+		profile["head"] = CharacterAppearance.HEAD_OPEN
+		profile["frame"] = frame
+		cells.append(await _render(profile))
+	_write_sheet("frames", cells, 5)
+
+
+## Every class's clothing on every frame — seven columns, five rows.
+##
+## Class garments are grown from a torso volume and are never scaled at runtime, so a cut authored
+## for one chest is simply the wrong garment on another. For a long time all five frames wore the
+## standard warden's cut: on Stout it was exactly as wide as the torso and sat inside the chest, and
+## on Slight it was four voxels wider than the body under it. `frame_audit` measures the margin;
+## this is what it looks like.
+func _capture_class_fit() -> void:
+	var cells: Array[Image] = []
+	for frame: String in CharacterAppearance.FRAME_VARIANTS:
+		for class_id in CLASS_IDS:
+			var profile := _base_profile()
+			profile["head"] = CharacterAppearance.HEAD_OPEN
+			profile["frame"] = frame
+			profile["classId"] = class_id
+			cells.append(await _render(profile))
+	_write_sheet("class_fit", cells, CLASS_IDS.size())
+	print("class fit: %d frames x %d classes" % [
+		CharacterAppearance.FRAME_VARIANTS.size(), CLASS_IDS.size()
+	])
+
+
+## Every aspect the player can pick, in order.
+##
+## An aspect is a palette and nothing else, so the only way to know one is doing anything is to look
+## at twenty-five wardens side by side. Worth checking after any change to the palette table: the
+## string-to-enum lookup used to be a hand-written list of eleven names against an enum of
+## twenty-five, and the fourteen it did not list resolved to castle — selectable options that
+## repainted the warden in the colours of a different one.
+func _capture_aspects() -> void:
+	var cells: Array[Image] = []
+	var names: PackedStringArray = []
+	for i in AppearanceCatalogScript.aspect_count():
+		var profile := _base_profile()
+		profile["head"] = CharacterAppearance.HEAD_OPEN
+		profile["theme"] = AppearanceCatalogScript.theme_for_index(i)
+		cells.append(await _render(profile))
+		names.append(str(AppearanceCatalogScript.aspect_at(i).get("name", "?")))
+	_write_sheet("aspects", cells, 5)
+	print("aspects: %d - %s" % [cells.size(), ", ".join(names)])
 
 
 ## The preview can be turned, and the framing is meant to hold at any yaw.

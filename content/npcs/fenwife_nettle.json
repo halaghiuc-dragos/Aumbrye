@@ -66,8 +66,20 @@
     }
   ],
   "position": {
-    "x": -8.8,
+    "x": 10.5,
     "y": 0,
-    "z": 7.4
+    "z": 2.0
+  },
+  "appearance": {
+    "classId": "hunter",
+    "skinTone": "ashen",
+    "hair": "wild",
+    "hairColor": "teal",
+    "face": "weary",
+    "head": "hood",
+    "heightVariant": "compact",
+    "bulkVariant": "lean",
+    "theme": 0,
+    "trim": 1
   }
 }

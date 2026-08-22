@@ -1,0 +1,24 @@
+{
+  "id": "kindled_child",
+  "displayName": "The Kindled Child",
+  "interactType": "dialogue",
+  "dialogueId": "kindled_greeting",
+  "position": {
+    "x": -20.5,
+    "y": 0,
+    "z": 13.0
+  },
+  "appearance": {
+    "classId": "herald",
+    "skinTone": "pale",
+    "hair": "short",
+    "hairColor": "blond",
+    "face": "open",
+    "head": "open",
+    "heightVariant": "compact",
+    "bulkVariant": "lean",
+    "theme": 0,
+    "trim": 0
+  },
+  "requiresTier": 3
+}

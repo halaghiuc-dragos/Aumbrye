@@ -56,8 +56,20 @@
     }
   ],
   "position": {
-    "x": 12,
+    "x": -6.0,
     "y": 0,
-    "z": 11.2
+    "z": -12.5
+  },
+  "appearance": {
+    "classId": "knight",
+    "skinTone": "cool",
+    "hair": "tied",
+    "hairColor": "black",
+    "face": "stern",
+    "head": "visor",
+    "heightVariant": "tall",
+    "bulkVariant": "standard",
+    "theme": 0,
+    "trim": 3
   }
 }

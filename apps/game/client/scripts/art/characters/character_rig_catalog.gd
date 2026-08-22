@@ -63,28 +63,30 @@ static func get_manifest(archetype_id: String) -> Dictionary:
 
 
 static func archetype_for_player(profile: Dictionary) -> String:
-	var height := str(
-		profile.get(
-			"heightVariant",
-			CharacterAppearance.height_variant_from_legacy(float(profile.get("height", 1.0)))
+	# `sanitize` already migrates the legacy pair, but this is also reached with raw saved profiles
+	# that have never been through it.
+	var frame := str(profile.get("frame", ""))
+	if not (frame in CharacterAppearance.FRAME_VARIANTS):
+		frame = CharacterAppearance.frame_from_legacy(
+			str(
+				profile.get(
+					"heightVariant",
+					CharacterAppearance.height_variant_from_legacy(
+						float(profile.get("height", 1.0))
+					)
+				)
+			),
+			str(
+				profile.get(
+					"bulkVariant",
+					CharacterAppearance.bulk_variant_from_legacy(float(profile.get("bulk", 1.0)))
+				)
+			)
 		)
-	)
-	var bulk := str(
-		profile.get(
-			"bulkVariant",
-			CharacterAppearance.bulk_variant_from_legacy(float(profile.get("bulk", 1.0)))
-		)
-	)
-	var archetype := "player_warden"
-	if height != CharacterAppearance.HEIGHT_VARIANT_STANDARD:
-		archetype += "_%s" % height
-	if bulk != CharacterAppearance.BULK_VARIANT_STANDARD:
-		archetype += "_%s" % bulk
-	if has_manifest(archetype):
-		return archetype
-	if has_manifest("player_warden_%s" % height):
-		return "player_warden_%s" % height
-	return "player_warden"
+	if frame == CharacterAppearance.FRAME_STANDARD:
+		return "player_warden"
+	var archetype := "player_warden_%s" % frame
+	return archetype if has_manifest(archetype) else "player_warden"
 
 
 static func archetype_for_enemy(enemy_id: String, data: Dictionary) -> String:

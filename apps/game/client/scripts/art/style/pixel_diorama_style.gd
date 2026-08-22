@@ -27,6 +27,23 @@ enum PaletteTheme {
 	HOLLOW,
 	UMBRAL,
 	HUB,
+	# Player aspects. Appended, never inserted: the enum is persisted as an integer in every save,
+	# so reordering it would repaint every character already created. None of these is mapped to a
+	# biome — they exist only as a choice in the creation screen.
+	EMBER,
+	VERDANT,
+	TIDEWATER,
+	ORCHID,
+	RUST,
+	BRONZE,
+	JADE,
+	INDIGO,
+	PLUM,
+	CINDER,
+	MOSS,
+	AZURE,
+	AMETHYST,
+	SAFFRON,
 }
 
 enum SurfaceKind { FLOOR, WALL, PROP, ACCENT }
@@ -46,6 +63,20 @@ const THEME_IDS: Array[String] = [
 	"hollow",
 	"umbral",
 	"hub",
+	"ember",
+	"verdant",
+	"tidewater",
+	"orchid",
+	"rust",
+	"bronze",
+	"jade",
+	"indigo",
+	"plum",
+	"cinder",
+	"moss",
+	"azure",
+	"amethyst",
+	"saffron",
 ]
 
 const SHADER_PATH := "res://assets/shared/pixel_diorama_surface.gdshader"
@@ -319,6 +350,160 @@ const PALETTES: Array = [
 		Color(0.36, 0.24, 0.16),
 		Color(0.58, 0.28, 0.22),
 		Color(0.9, 0.42, 0.12),
+	],
+	# ember
+	[
+		Color(0.38, 0.32, 0.31),
+		Color(0.24, 0.20, 0.19),
+		Color(0.22, 0.18, 0.17),
+		Color(0.14, 0.11, 0.11),
+		Color(0.55, 0.47, 0.27),
+		Color(0.40, 0.33, 0.17),
+		Color(0.48, 0.44, 0.44),
+		Color(0.22, 0.86, 1.00),
+	],
+	# verdant
+	[
+		Color(0.32, 0.38, 0.31),
+		Color(0.20, 0.24, 0.19),
+		Color(0.18, 0.22, 0.17),
+		Color(0.11, 0.14, 0.11),
+		Color(0.27, 0.55, 0.36),
+		Color(0.17, 0.40, 0.25),
+		Color(0.44, 0.48, 0.44),
+		Color(0.84, 0.22, 1.00),
+	],
+	# tidewater
+	[
+		Color(0.31, 0.37, 0.38),
+		Color(0.19, 0.24, 0.24),
+		Color(0.17, 0.22, 0.22),
+		Color(0.11, 0.14, 0.14),
+		Color(0.27, 0.36, 0.55),
+		Color(0.17, 0.25, 0.40),
+		Color(0.44, 0.47, 0.48),
+		Color(1.00, 0.31, 0.22),
+	],
+	# orchid
+	[
+		Color(0.36, 0.31, 0.38),
+		Color(0.23, 0.19, 0.24),
+		Color(0.21, 0.17, 0.22),
+		Color(0.13, 0.11, 0.14),
+		Color(0.55, 0.27, 0.45),
+		Color(0.40, 0.17, 0.32),
+		Color(0.47, 0.44, 0.48),
+		Color(0.38, 1.00, 0.22),
+	],
+	# rust
+	[
+		Color(0.38, 0.33, 0.31),
+		Color(0.24, 0.21, 0.19),
+		Color(0.22, 0.19, 0.17),
+		Color(0.14, 0.12, 0.11),
+		Color(0.55, 0.52, 0.27),
+		Color(0.40, 0.38, 0.17),
+		Color(0.48, 0.45, 0.44),
+		Color(0.22, 0.72, 1.00),
+	],
+	# bronze
+	[
+		Color(0.38, 0.35, 0.31),
+		Color(0.24, 0.22, 0.19),
+		Color(0.22, 0.20, 0.17),
+		Color(0.14, 0.13, 0.11),
+		Color(0.51, 0.55, 0.27),
+		Color(0.37, 0.40, 0.17),
+		Color(0.48, 0.46, 0.44),
+		Color(0.22, 0.53, 1.00),
+	],
+	# jade
+	[
+		Color(0.31, 0.38, 0.35),
+		Color(0.19, 0.24, 0.22),
+		Color(0.17, 0.22, 0.20),
+		Color(0.11, 0.14, 0.12),
+		Color(0.27, 0.53, 0.55),
+		Color(0.17, 0.38, 0.40),
+		Color(0.44, 0.48, 0.46),
+		Color(1.00, 0.22, 0.60),
+	],
+	# indigo
+	[
+		Color(0.31, 0.31, 0.38),
+		Color(0.19, 0.19, 0.24),
+		Color(0.17, 0.17, 0.22),
+		Color(0.11, 0.11, 0.14),
+		Color(0.41, 0.27, 0.55),
+		Color(0.29, 0.17, 0.40),
+		Color(0.44, 0.44, 0.48),
+		Color(1.00, 0.97, 0.22),
+	],
+	# plum
+	[
+		Color(0.38, 0.31, 0.36),
+		Color(0.24, 0.19, 0.23),
+		Color(0.22, 0.17, 0.21),
+		Color(0.14, 0.11, 0.13),
+		Color(0.55, 0.27, 0.34),
+		Color(0.40, 0.17, 0.22),
+		Color(0.48, 0.44, 0.47),
+		Color(0.22, 1.00, 0.39),
+	],
+	# cinder
+	[
+		Color(0.38, 0.31, 0.31),
+		Color(0.24, 0.19, 0.19),
+		Color(0.22, 0.17, 0.17),
+		Color(0.14, 0.11, 0.11),
+		Color(0.55, 0.44, 0.27),
+		Color(0.40, 0.31, 0.17),
+		Color(0.48, 0.44, 0.44),
+		Color(0.22, 0.95, 1.00),
+	],
+	# moss
+	[
+		Color(0.34, 0.38, 0.31),
+		Color(0.21, 0.24, 0.19),
+		Color(0.19, 0.22, 0.17),
+		Color(0.12, 0.14, 0.11),
+		Color(0.27, 0.55, 0.30),
+		Color(0.17, 0.40, 0.19),
+		Color(0.45, 0.48, 0.44),
+		Color(0.65, 0.22, 1.00),
+	],
+	# azure
+	[
+		Color(0.31, 0.35, 0.38),
+		Color(0.19, 0.22, 0.24),
+		Color(0.17, 0.20, 0.22),
+		Color(0.11, 0.12, 0.14),
+		Color(0.27, 0.27, 0.55),
+		Color(0.17, 0.17, 0.40),
+		Color(0.44, 0.46, 0.48),
+		Color(1.00, 0.60, 0.22),
+	],
+	# amethyst
+	[
+		Color(0.34, 0.31, 0.38),
+		Color(0.21, 0.19, 0.24),
+		Color(0.19, 0.17, 0.22),
+		Color(0.12, 0.11, 0.14),
+		Color(0.55, 0.27, 0.55),
+		Color(0.40, 0.17, 0.40),
+		Color(0.45, 0.44, 0.48),
+		Color(0.65, 1.00, 0.22),
+	],
+	# saffron
+	[
+		Color(0.38, 0.36, 0.31),
+		Color(0.24, 0.23, 0.19),
+		Color(0.22, 0.21, 0.17),
+		Color(0.14, 0.13, 0.11),
+		Color(0.46, 0.55, 0.27),
+		Color(0.33, 0.40, 0.17),
+		Color(0.48, 0.47, 0.44),
+		Color(0.22, 0.39, 1.00),
 	],
 ]
 
@@ -970,30 +1155,20 @@ static func _portal_frame_material(mats: Dictionary, def: Dictionary) -> Materia
 	return mats.get("accent", make_accent_material(PaletteTheme.CASTLE))
 
 
+## Content names a palette as a lowercase string; the enum is the authority on which exist.
+##
+## This was a hand-written `match` over eleven names with `_: return CASTLE` at the bottom, while
+## the enum carried twenty-five. Every one of the fourteen aspect palettes would have resolved to
+## castle silently — the option would appear in the picker, be selectable, and repaint the warden in
+## exactly the colours of the option above it. Derived from the enum so the two cannot drift, and it
+## warns rather than substituting quietly.
 static func _palette_theme_from_string(name: String) -> PaletteTheme:
-	match name:
-		"crystal":
-			return PaletteTheme.CRYSTAL
-		"swamp":
-			return PaletteTheme.SWAMP
-		"frozen":
-			return PaletteTheme.FROZEN
-		"cathedral":
-			return PaletteTheme.CATHEDRAL
-		"vault":
-			return PaletteTheme.VAULT
-		"prism":
-			return PaletteTheme.PRISM
-		"mire":
-			return PaletteTheme.MIRE
-		"hollow":
-			return PaletteTheme.HOLLOW
-		"umbral":
-			return PaletteTheme.UMBRAL
-		"hub":
-			return PaletteTheme.HUB
-		_:
-			return PaletteTheme.CASTLE
+	var key := name.strip_edges().to_upper()
+	if PaletteTheme.has(key):
+		return PaletteTheme[key] as PaletteTheme
+	if key != "":
+		push_warning("PixelStyle: unknown palette theme '%s', falling back to castle" % name)
+	return PaletteTheme.CASTLE
 
 
 static func color_from_hex(hex: String) -> Color:

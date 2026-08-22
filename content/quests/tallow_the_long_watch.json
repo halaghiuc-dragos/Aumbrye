@@ -1,0 +1,12 @@
+{
+  "id": "tallow_the_long_watch",
+  "title": "The Long Watch",
+  "type": "reach_depth",
+  "chainId": "tallow",
+  "description": "The Tallow Knight has stood the same watch for longer than the watch has existed. Go down four floors and come back up, so he has something new to stand watch over.",
+  "requiredCount": 4,
+  "minDifficultyTier": 1,
+  "rewards": {
+    "gold": 180
+  }
+}

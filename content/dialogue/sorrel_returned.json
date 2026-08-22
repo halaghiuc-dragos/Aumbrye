@@ -1,0 +1,48 @@
+{
+  "id": "sorrel_returned",
+  "startNode": "start",
+  "nodes": {
+    "start": {
+      "speaker": "Sorrel",
+      "text": "She is filthy, and the chalk is down to a stub, and she is looking at you as if you have done something faintly rude.\n\n\"He said a rite. He did not say whose.\"",
+      "choices": [
+        {
+          "text": "You are welcome.",
+          "next": "welcome"
+        },
+        {
+          "text": "Was the last name yours?",
+          "next": "name"
+        },
+        {
+          "text": "Nothing.",
+          "next": "end"
+        }
+      ]
+    },
+    "welcome": {
+      "speaker": "Sorrel",
+      "text": "I did not say thank you. I said he did not tell me whose.\n\n...The list is one shorter. Take that as whatever you like.",
+      "actions": [
+        {
+          "type": "set_relationship",
+          "npc": "sorrel",
+          "delta": 2
+        }
+      ],
+      "next": "end"
+    },
+    "name": {
+      "speaker": "Sorrel",
+      "text": "It was. It is not any more, and I have not decided yet whether that is a kindness.",
+      "actions": [
+        {
+          "type": "set_relationship",
+          "npc": "sorrel",
+          "delta": 2
+        }
+      ],
+      "next": "end"
+    }
+  }
+}

@@ -66,8 +66,20 @@
     }
   ],
   "position": {
-    "x": -18.2,
+    "x": -10.5,
     "y": 0,
-    "z": 7.8
+    "z": 2.0
+  },
+  "appearance": {
+    "classId": "herald",
+    "skinTone": "neutral",
+    "hair": "short",
+    "hairColor": "copper",
+    "face": "open",
+    "head": "open",
+    "heightVariant": "compact",
+    "bulkVariant": "standard",
+    "theme": 0,
+    "trim": 2
   }
 }

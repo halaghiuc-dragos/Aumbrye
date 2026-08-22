@@ -13,17 +13,47 @@ const HEAD_OPEN := "open"
 const HEAD_VISOR := "visor"
 const HEAD_HOOD := "hood"
 
-const HEIGHT_VARIANT_COMPACT := "compact"
-const HEIGHT_VARIANT_STANDARD := "standard"
-const HEIGHT_VARIANT_TALL := "tall"
-const HEIGHT_VARIANTS := [HEIGHT_VARIANT_COMPACT, HEIGHT_VARIANT_STANDARD, HEIGHT_VARIANT_TALL]
-const HEIGHT_LABELS := ["Compact", "Standard", "Tall"]
+## One axis, five bodies.
+##
+## Stature and build were two independent five-step sliders — twenty-five rigs to build and animate
+## for a choice the player experiences as "what shape is my warden", and twenty-one of the
+## twenty-five were interpolations nobody would pick deliberately. Five named frames cover the four
+## corners of that grid plus the middle, and each is a silhouette you can tell from the other four
+## across a room. The ids match `PLAYER_FRAMES` in `tools/voxel-import/archetypes.py`, which is what
+## actually builds them.
+const FRAME_SLIGHT := "slight"
+const FRAME_LEAN := "lean"
+const FRAME_STANDARD := "standard"
+const FRAME_STOUT := "stout"
+const FRAME_TOWERING := "towering"
+const FRAME_VARIANTS := [
+	FRAME_SLIGHT,
+	FRAME_LEAN,
+	FRAME_STANDARD,
+	FRAME_STOUT,
+	FRAME_TOWERING,
+]
+const FRAME_LABELS := ["Slight", "Lean", "Standard", "Stout", "Towering"]
 
-const BULK_VARIANT_LEAN := "lean"
-const BULK_VARIANT_STANDARD := "standard"
-const BULK_VARIANT_HEAVY := "heavy"
-const BULK_VARIANTS := [BULK_VARIANT_LEAN, BULK_VARIANT_STANDARD, BULK_VARIANT_HEAVY]
-const BULK_LABELS := ["Lean", "Standard", "Heavy"]
+
+## Characters created before the two sliders became one still carry `heightVariant` and
+## `bulkVariant`. Mapped rather than dropped: a player who built a short broad warden gets the short
+## broad frame, not the default.
+static func frame_from_legacy(height_variant: String, bulk_variant: String) -> String:
+	var tall := height_variant in ["tall", "towering"]
+	var short := height_variant in ["slight", "compact"]
+	var broad := bulk_variant in ["heavy", "massive"]
+	var narrow := bulk_variant in ["gaunt", "lean"]
+	if tall:
+		return FRAME_TOWERING if broad else FRAME_LEAN
+	if short:
+		return FRAME_STOUT if broad else FRAME_SLIGHT
+	if broad:
+		return FRAME_STOUT
+	if narrow:
+		return FRAME_LEAN
+	return FRAME_STANDARD
+
 
 const SKIN_TONE_WARM := "warm"
 const SKIN_TONE_NEUTRAL := "neutral"
@@ -33,26 +63,150 @@ const SKIN_TONE_TAN := "tan"
 const SKIN_TONE_UMBER := "umber"
 const SKIN_TONE_ASHEN := "ashen"
 const SKIN_TONE_RUDDY := "ruddy"
-const SKIN_TONES := [
-	SKIN_TONE_PALE,
-	SKIN_TONE_WARM,
-	SKIN_TONE_NEUTRAL,
-	SKIN_TONE_COOL,
-	SKIN_TONE_TAN,
-	SKIN_TONE_UMBER,
-	SKIN_TONE_ASHEN,
-	SKIN_TONE_RUDDY,
+## Every appearance axis is one ordered table: id, label, and (where it has one) colour.
+##
+## These used to be three separate literals per axis — an id array, a label array and a `match`
+## returning a colour — kept in alignment by hand. That is fine at eight entries and a bug waiting
+## at twenty-five, because the UI selects by *index* into the label array and reads back by index
+## into the id array. One table means an id and its label cannot drift apart.
+##
+## The hair and face id lists are the sculptor's own (`tools/voxel_sculpt.py`), so the game cannot
+## offer a style with no mesh behind it.
+const SKIN_TONE_TABLE: Array = [
+	["pale", "Pale", Color(0.94, 0.82, 0.75)],
+	["porcelain", "Porcelain", Color(0.96, 0.88, 0.83)],
+	["rose", "Rose", Color(0.93, 0.78, 0.73)],
+	["warm", "Warm", Color(0.86, 0.66, 0.51)],
+	["neutral", "Neutral", Color(0.80, 0.62, 0.48)],
+	["cool", "Cool", Color(0.78, 0.66, 0.62)],
+	["sand", "Sand", Color(0.84, 0.70, 0.53)],
+	["honey", "Honey", Color(0.82, 0.63, 0.42)],
+	["tan", "Tanned", Color(0.71, 0.52, 0.36)],
+	["olive", "Olive", Color(0.68, 0.58, 0.42)],
+	["bronze", "Bronze", Color(0.66, 0.46, 0.30)],
+	["amber", "Amber", Color(0.74, 0.52, 0.30)],
+	["clay", "Clay", Color(0.62, 0.42, 0.32)],
+	["chestnut", "Chestnut", Color(0.55, 0.37, 0.26)],
+	["umber", "Umber", Color(0.44, 0.30, 0.21)],
+	["walnut", "Walnut", Color(0.38, 0.26, 0.19)],
+	["ebony", "Ebony", Color(0.28, 0.19, 0.15)],
+	["deep", "Deep", Color(0.22, 0.15, 0.12)],
+	["ruddy", "Ruddy", Color(0.83, 0.56, 0.47)],
+	["sunburnt", "Sunburnt", Color(0.80, 0.50, 0.40)],
+	["ashen", "Ashen", Color(0.62, 0.62, 0.63)],
+	["slate", "Slate", Color(0.52, 0.54, 0.58)],
+	["wan", "Wan", Color(0.72, 0.72, 0.68)],
+	["frostbit", "Frostbit", Color(0.70, 0.75, 0.80)],
+	["grave", "Grave", Color(0.46, 0.46, 0.52)],
 ]
-const SKIN_TONE_LABELS := [
-	"Pale",
-	"Warm",
-	"Neutral",
-	"Cool",
-	"Tanned",
-	"Umber",
-	"Ashen",
-	"Ruddy",
+
+const HAIR_COLOR_TABLE: Array = [
+	["black", "Black", Color(0.11, 0.10, 0.13)],
+	["raven", "Raven", Color(0.14, 0.13, 0.18)],
+	["soot", "Soot", Color(0.20, 0.19, 0.20)],
+	["ash", "Ash", Color(0.42, 0.40, 0.40)],
+	["slate", "Slate", Color(0.36, 0.38, 0.42)],
+	["brown", "Brown", Color(0.32, 0.21, 0.13)],
+	["chestnut", "Chestnut", Color(0.42, 0.26, 0.15)],
+	["auburn", "Auburn", Color(0.44, 0.18, 0.12)],
+	["copper", "Copper", Color(0.72, 0.33, 0.12)],
+	["ginger", "Ginger", Color(0.80, 0.44, 0.18)],
+	["rust", "Rust", Color(0.58, 0.28, 0.14)],
+	["blond", "Blond", Color(0.85, 0.72, 0.42)],
+	["flaxen", "Flaxen", Color(0.90, 0.82, 0.58)],
+	["wheat", "Wheat", Color(0.78, 0.68, 0.44)],
+	["honey", "Honey", Color(0.72, 0.56, 0.28)],
+	["silver", "Silver", Color(0.82, 0.84, 0.88)],
+	["white", "White", Color(0.94, 0.94, 0.92)],
+	["pewter", "Pewter", Color(0.58, 0.60, 0.64)],
+	["teal", "Teal", Color(0.20, 0.52, 0.52)],
+	["verdigris", "Verdigris", Color(0.28, 0.56, 0.46)],
+	["moss", "Moss", Color(0.34, 0.44, 0.24)],
+	["violet", "Violet", Color(0.45, 0.30, 0.62)],
+	["plum", "Plum", Color(0.38, 0.20, 0.36)],
+	["ember", "Ember", Color(0.72, 0.24, 0.16)],
+	["gilt", "Gilt", Color(0.86, 0.68, 0.28)],
 ]
+
+const HAIR_STYLE_TABLE: Array = [
+	["shaven", "Shaven"],
+	["short", "Short crop"],
+	["crop", "Cropped"],
+	["bowl", "Bowl cut"],
+	["tied", "Tied back"],
+	["topknot", "Topknot"],
+	["ponytail", "Ponytail"],
+	["braided", "Braided"],
+	["twin_falls", "Twin falls"],
+	["long", "Long"],
+	["flowing", "Flowing"],
+	["mane", "Mane"],
+	["wild", "Unkept"],
+	["windswept", "Windswept"],
+	["mohawk", "Mohawk"],
+	["crest", "Crested"],
+	["tonsure", "Tonsure"],
+	["widow", "Widow's peak"],
+	["shag", "Shag"],
+	["bob", "Bob"],
+	["cropped_tail", "Cropped tail"],
+	["warrior", "Warrior's knot"],
+	["loose", "Loose"],
+	["shorn_sides", "Shorn sides"],
+	["veiled", "Veiled"],
+]
+
+const FACE_STYLE_TABLE: Array = [
+	["open", "Open"],
+	["stern", "Stern"],
+	["kind", "Kind"],
+	["weary", "Weary"],
+	["scarred", "Scarred"],
+	["hollow", "Hollow"],
+	["grim", "Grim"],
+	["watchful", "Watchful"],
+	["hardened", "Hardened"],
+	["gaunt", "Gaunt"],
+	["wry", "Wry"],
+	["grave", "Grave"],
+	["young", "Young"],
+	["seamed", "Seamed"],
+	["burned", "Burned"],
+	["veteran", "Veteran"],
+	["sleepless", "Sleepless"],
+	["resolute", "Resolute"],
+	["wolfish", "Wolfish"],
+	["sunken", "Sunken"],
+	["brand", "Branded"],
+	["split", "Split"],
+	["patient", "Patient"],
+	["cold", "Cold"],
+	["ruined", "Ruined"],
+]
+
+
+static func _ids(table: Array) -> Array:
+	var out: Array = []
+	for row: Array in table:
+		out.append(str(row[0]))
+	return out
+
+
+static func _labels(table: Array) -> Array:
+	var out: Array = []
+	for row: Array in table:
+		out.append(str(row[1]))
+	return out
+
+
+static func _color_for(table: Array, id: String, fallback: Color) -> Color:
+	for row: Array in table:
+		if str(row[0]) == id:
+			return row[2] as Color
+	return fallback
+
+static var SKIN_TONES: Array = _ids(SKIN_TONE_TABLE)
+static var SKIN_TONE_LABELS: Array = _labels(SKIN_TONE_TABLE)
 
 const HAIR_NONE := "none"
 const HAIR_SHORT := "short"
@@ -61,24 +215,8 @@ const HAIR_SHAVEN := "shaven"
 const HAIR_BRAIDED := "braided"
 const HAIR_TIED := "tied"
 const HAIR_WILD := "wild"
-const HAIR_STYLES := [
-	HAIR_NONE,
-	HAIR_SHAVEN,
-	HAIR_SHORT,
-	HAIR_TIED,
-	HAIR_BRAIDED,
-	HAIR_LONG,
-	HAIR_WILD,
-]
-const HAIR_LABELS := [
-	"Bald",
-	"Shaven",
-	"Short crop",
-	"Tied back",
-	"Braided",
-	"Long",
-	"Unkept",
-]
+static var HAIR_STYLES: Array = _ids(HAIR_STYLE_TABLE)
+static var HAIR_LABELS: Array = _labels(HAIR_STYLE_TABLE)
 
 const FACE_OPEN := "open"
 const FACE_STERN := "stern"
@@ -86,15 +224,8 @@ const FACE_KIND := "kind"
 const FACE_WEARY := "weary"
 const FACE_SCARRED := "scarred"
 const FACE_HOLLOW := "hollow"
-const FACE_STYLES := [
-	FACE_OPEN,
-	FACE_STERN,
-	FACE_KIND,
-	FACE_WEARY,
-	FACE_SCARRED,
-	FACE_HOLLOW,
-]
-const FACE_LABELS := ["Open", "Stern", "Kind", "Weary", "Scarred", "Hollow"]
+static var FACE_STYLES: Array = _ids(FACE_STYLE_TABLE)
+static var FACE_LABELS: Array = _labels(FACE_STYLE_TABLE)
 
 ## Hair colour, as an axis of its own.
 ##
@@ -111,19 +242,8 @@ const HAIR_COLOR_COPPER := "copper"
 const HAIR_COLOR_BLOND := "blond"
 const HAIR_COLOR_SILVER := "silver"
 const HAIR_COLOR_TEAL := "teal"
-const HAIR_COLORS := [
-	HAIR_COLOR_BLACK,
-	HAIR_COLOR_ASH,
-	HAIR_COLOR_BROWN,
-	HAIR_COLOR_AUBURN,
-	HAIR_COLOR_COPPER,
-	HAIR_COLOR_BLOND,
-	HAIR_COLOR_SILVER,
-	HAIR_COLOR_TEAL,
-]
-const HAIR_COLOR_LABELS := [
-	"Black", "Ash", "Brown", "Auburn", "Copper", "Blond", "Silver", "Teal"
-]
+static var HAIR_COLORS: Array = _ids(HAIR_COLOR_TABLE)
+static var HAIR_COLOR_LABELS: Array = _labels(HAIR_COLOR_TABLE)
 
 const HEAD_LABELS := ["Open face", "Visor helm", "Hooded"]
 
@@ -162,8 +282,7 @@ static func default_profile() -> Dictionary:
 	return {
 		"profileVersion": PROFILE_VERSION,
 		"theme": PixelStyle.PaletteTheme.CASTLE,
-		"heightVariant": HEIGHT_VARIANT_STANDARD,
-		"bulkVariant": BULK_VARIANT_STANDARD,
+		"frame": FRAME_STANDARD,
 		"skinTone": SKIN_TONE_NEUTRAL,
 		"hair": HAIR_NONE,
 		"hairColor": HAIR_COLOR_BROWN,
@@ -176,8 +295,7 @@ static func default_profile() -> Dictionary:
 
 static func profile_from_indices(
 	theme: int,
-	height_idx: int,
-	bulk_idx: int,
+	frame_idx: int,
 	head_idx: int,
 	trim_idx: int,
 	skin_idx: int = 1,
@@ -188,8 +306,7 @@ static func profile_from_indices(
 	return {
 		"profileVersion": PROFILE_VERSION,
 		"theme": theme,
-		"heightVariant": HEIGHT_VARIANTS[clampi(height_idx, 0, HEIGHT_VARIANTS.size() - 1)],
-		"bulkVariant": BULK_VARIANTS[clampi(bulk_idx, 0, BULK_VARIANTS.size() - 1)],
+		"frame": FRAME_VARIANTS[clampi(frame_idx, 0, FRAME_VARIANTS.size() - 1)],
 		"skinTone": SKIN_TONES[clampi(skin_idx, 0, SKIN_TONES.size() - 1)],
 		"hair": HAIR_STYLES[clampi(hair_idx, 0, HAIR_STYLES.size() - 1)],
 		"hairColor": HAIR_COLORS[clampi(hair_color_idx, 0, HAIR_COLORS.size() - 1)],
@@ -210,22 +327,25 @@ static func _head_from_index(index: int) -> String:
 			return HEAD_HOOD
 
 
+## The two legacy axes, as the strings the *old* save format used. They are not choices any more —
+## nothing offers them and no constant names them — but a profile written before the change still
+## carries them, and `frame_from_legacy` reads them to decide which frame that character becomes.
 static func height_variant_from_legacy(height: float) -> String:
 	var clamped := clampf(height, HEIGHT_MIN, HEIGHT_MAX)
 	if clamped <= 0.94:
-		return HEIGHT_VARIANT_COMPACT
+		return "compact"
 	if clamped >= 1.06:
-		return HEIGHT_VARIANT_TALL
-	return HEIGHT_VARIANT_STANDARD
+		return "tall"
+	return "standard"
 
 
 static func bulk_variant_from_legacy(bulk: float) -> String:
 	var clamped := clampf(bulk, BULK_MIN, BULK_MAX)
 	if clamped <= 0.94:
-		return BULK_VARIANT_LEAN
+		return "lean"
 	if clamped >= 1.06:
-		return BULK_VARIANT_HEAVY
-	return BULK_VARIANT_STANDARD
+		return "heavy"
+	return "standard"
 
 
 static func _character_service() -> Node:
@@ -276,16 +396,18 @@ static func sanitize(profile: Variant) -> Dictionary:
 				% [theme, THEME_MIN, max_theme]
 			)
 		clean["theme"] = clampi(theme, THEME_MIN, max_theme)
-	var height_variant := str(input.get("heightVariant", ""))
-	if height_variant in HEIGHT_VARIANTS:
-		clean["heightVariant"] = height_variant
-	elif input.has("height"):
-		clean["heightVariant"] = height_variant_from_legacy(float(input.get("height", 1.0)))
-	var bulk_variant := str(input.get("bulkVariant", ""))
-	if bulk_variant in BULK_VARIANTS:
-		clean["bulkVariant"] = bulk_variant
-	elif input.has("bulk"):
-		clean["bulkVariant"] = bulk_variant_from_legacy(float(input.get("bulk", 1.0)))
+	var frame := str(input.get("frame", ""))
+	if frame in FRAME_VARIANTS:
+		clean["frame"] = frame
+	elif input.has("heightVariant") or input.has("bulkVariant"):
+		clean["frame"] = frame_from_legacy(
+			str(input.get("heightVariant", "standard")), str(input.get("bulkVariant", "standard"))
+		)
+	elif input.has("height") or input.has("bulk"):
+		clean["frame"] = frame_from_legacy(
+			height_variant_from_legacy(float(input.get("height", 1.0))),
+			bulk_variant_from_legacy(float(input.get("bulk", 1.0)))
+		)
 	var skin := str(input.get("skinTone", clean["skinTone"]))
 	if skin in SKIN_TONES:
 		clean["skinTone"] = skin
@@ -323,11 +445,7 @@ static func is_valid(profile: Variant) -> bool:
 	var theme := int(input.get("theme", -1))
 	if theme < THEME_MIN or theme > theme_max():
 		return false
-	var height_variant := str(input.get("heightVariant", ""))
-	if height_variant not in HEIGHT_VARIANTS:
-		return false
-	var bulk_variant := str(input.get("bulkVariant", ""))
-	if bulk_variant not in BULK_VARIANTS:
+	if str(input.get("frame", "")) not in FRAME_VARIANTS:
 		return false
 	if str(input.get("skinTone", "")) not in SKIN_TONES:
 		return false
@@ -346,8 +464,7 @@ static func is_valid(profile: Variant) -> bool:
 
 static func describe(profile: Dictionary) -> String:
 	var clean := sanitize(profile)
-	var height_idx := HEIGHT_VARIANTS.find(clean["heightVariant"])
-	var bulk_idx := BULK_VARIANTS.find(clean["bulkVariant"])
+	var frame_idx: int = maxi(0, FRAME_VARIANTS.find(clean["frame"]))
 	var head_label := HEAD_LABELS[1]
 	match clean["head"]:
 		HEAD_OPEN:
@@ -355,9 +472,8 @@ static func describe(profile: Dictionary) -> String:
 		HEAD_HOOD:
 			head_label = HEAD_LABELS[2]
 	var trim_idx := int(clean["trim"])
-	return "%s / %s / %s / %s / %s" % [
-		HEIGHT_LABELS[height_idx] if height_idx >= 0 else "Standard",
-		BULK_LABELS[bulk_idx] if bulk_idx >= 0 else "Standard",
+	return "%s / %s / %s / %s" % [
+		FRAME_LABELS[frame_idx],
 		head_label,
 		TRIM_LABELS[trim_idx] if trim_idx >= 0 and trim_idx < TRIM_LABELS.size() else "Plain",
 		theme_label(int(clean["theme"])),
@@ -367,23 +483,7 @@ static func describe(profile: Dictionary) -> String:
 ## Literal hair colour. Multiplied into the hair mesh's own instance tint, so it is the only thing
 ## on the model that does not track the biome palette.
 static func hair_color_rgb(hair_color: String) -> Color:
-	match hair_color:
-		HAIR_COLOR_BLACK:
-			return Color(0.11, 0.10, 0.13)
-		HAIR_COLOR_ASH:
-			return Color(0.42, 0.40, 0.40)
-		HAIR_COLOR_AUBURN:
-			return Color(0.44, 0.18, 0.12)
-		HAIR_COLOR_COPPER:
-			return Color(0.72, 0.33, 0.12)
-		HAIR_COLOR_BLOND:
-			return Color(0.85, 0.72, 0.42)
-		HAIR_COLOR_SILVER:
-			return Color(0.82, 0.84, 0.88)
-		HAIR_COLOR_TEAL:
-			return Color(0.20, 0.52, 0.52)
-		_:
-			return Color(0.32, 0.21, 0.13)
+	return _color_for(HAIR_COLOR_TABLE, hair_color, Color(0.32, 0.21, 0.13))
 
 
 ## Literal skin colour for the face plate, rather than the near-white multiplier `skin_tint_vector`
@@ -391,23 +491,7 @@ static func hair_color_rgb(hair_color: String) -> Color:
 ## moved every surface on the warden by a few percent and none of the eight tones was tellable from
 ## any other.
 static func skin_color_rgb(skin_tone: String) -> Color:
-	match skin_tone:
-		SKIN_TONE_PALE:
-			return Color(0.94, 0.82, 0.75)
-		SKIN_TONE_WARM:
-			return Color(0.86, 0.66, 0.51)
-		SKIN_TONE_COOL:
-			return Color(0.78, 0.66, 0.62)
-		SKIN_TONE_TAN:
-			return Color(0.71, 0.52, 0.36)
-		SKIN_TONE_UMBER:
-			return Color(0.44, 0.30, 0.21)
-		SKIN_TONE_ASHEN:
-			return Color(0.62, 0.62, 0.63)
-		SKIN_TONE_RUDDY:
-			return Color(0.83, 0.56, 0.47)
-		_:
-			return Color(0.80, 0.62, 0.48)
+	return _color_for(SKIN_TONE_TABLE, skin_tone, Color(0.80, 0.62, 0.48))
 
 
 static func skin_tint_vector(skin_tone: String) -> Vector3:

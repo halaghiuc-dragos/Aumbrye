@@ -1,0 +1,18 @@
+{
+  "id": "child_the_kindling",
+  "title": "The Kindling",
+  "type": "clear_without",
+  "chainId": "kindled",
+  "description": "The child asks you to go down and take nothing. Clear a floor without opening a single chest.",
+  "requiredCount": 1,
+  "minDifficultyTier": 4,
+  "rewards": {
+    "gold": 500,
+    "flags": [
+      {
+        "flag": "kindling_kept",
+        "value": true
+      }
+    ]
+  }
+}

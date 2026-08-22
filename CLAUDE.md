@@ -26,6 +26,8 @@ these by hand:
 | cited paths exist | `node scripts/check-doc-paths.mjs` |
 | floor generation | `res://scenes/debug/definition_health.tscn` |
 | character options | `res://scenes/debug/combination_audit.tscn` |
+| frame matches the pick | `res://scenes/debug/frame_audit.tscn` |
+| camera zooms and un-zooms | `res://scenes/debug/camera_zoom_audit.tscn` |
 | the camera follows | `res://scenes/debug/camera_follow_audit.tscn` |
 | how it looks | the `res://scenes/debug/capture_*.tscn` contact sheets |
 

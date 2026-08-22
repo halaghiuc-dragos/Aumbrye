@@ -290,8 +290,6 @@ func _populate_pixel_section(parent: VBoxContainer) -> void:
 	title.text = tr("SETTINGS_PIXEL_SECTION")
 	title.theme_type_variation = GameUISkinScript.VAR_SECTION_TITLE
 	parent.add_child(title)
-	var preset_row := _pixel_preset_row()
-	parent.add_child(preset_row)
 	parent.add_child(
 		_pixel_toggle(
 			tr("SETTINGS_LOW_RES_VIEWPORT"),
@@ -317,29 +315,6 @@ func _populate_pixel_section(parent: VBoxContainer) -> void:
 	)
 	GameUISkinScript.wire_button_sfx(restore)
 	parent.add_child(restore)
-
-
-func _pixel_preset_row() -> HBoxContainer:
-	var row := HBoxContainer.new()
-	var label := Label.new()
-	label.text = tr("SETTINGS_RENDER_RESOLUTION")
-	label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	GameUISkinScript.style_body_label(label)
-	label.autowrap_mode = TextServer.AUTOWRAP_OFF
-	row.add_child(label)
-	var opts := OptionButton.new()
-	for i in PixelDioramaSettings.RESOLUTION_PRESETS.size():
-		var preset: Dictionary = PixelDioramaSettings.RESOLUTION_PRESETS[i]
-		opts.add_item(str(preset.get("label", "?")), i)
-	var current := PixelDioramaSettings.current_resolution_preset()
-	opts.selected = current if current >= 0 else opts.item_count - 1
-	opts.item_selected.connect(
-		func(idx: int) -> void:
-			PixelDioramaSettings.set_resolution_preset(idx)
-			PixelDioramaSettings.save_and_apply()
-	)
-	row.add_child(opts)
-	return row
 
 
 func _pixel_toggle(text: String, initial: bool, on_changed: Callable) -> CheckBox:

@@ -1,0 +1,51 @@
+{
+  "id": "stray_cat_cinder",
+  "startNode": "start",
+  "nodes": {
+    "start": {
+      "speaker": "Cinder",
+      "text": "A soot-grey cat is sitting on the warm flagstone nearest the forge, which is the best flagstone, and it knows.",
+      "choices": [
+        {
+          "text": "Say hello.",
+          "next": "noise"
+        },
+        {
+          "text": "Pet Cinder.",
+          "next": "pet"
+        },
+        {
+          "text": "Leave it be.",
+          "next": "end"
+        }
+      ]
+    },
+    "noise": {
+      "speaker": "Cinder",
+      "text": "Mrrp.",
+      "actions": [
+        {
+          "type": "play_sfx",
+          "sfxId": "stray_meow"
+        }
+      ],
+      "next": "start"
+    },
+    "pet": {
+      "speaker": "Cinder",
+      "text": "It permits the hand. Two strokes, and then a paw comes up \u2014 not claws, just a reminder that permission is a thing that can be withdrawn.",
+      "actions": [
+        {
+          "type": "play_sfx",
+          "sfxId": "stray_meow"
+        },
+        {
+          "type": "set_relationship",
+          "npc": "strays",
+          "delta": 1
+        }
+      ],
+      "next": "start"
+    }
+  }
+}

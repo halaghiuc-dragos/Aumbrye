@@ -66,8 +66,20 @@
     }
   ],
   "position": {
-    "x": 6.5,
+    "x": 6.0,
     "y": 0,
-    "z": -13.2
+    "z": -12.5
+  },
+  "appearance": {
+    "classId": "knight",
+    "skinTone": "umber",
+    "hair": "shaven",
+    "hairColor": "black",
+    "face": "scarred",
+    "head": "visor",
+    "heightVariant": "tall",
+    "bulkVariant": "heavy",
+    "theme": 0,
+    "trim": 3
   }
 }

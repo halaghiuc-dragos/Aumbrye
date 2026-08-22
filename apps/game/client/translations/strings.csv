@@ -69,8 +69,7 @@ CREATE_NAME_ERR_CHARS,Use letters numbers spaces hyphens or apostrophes only.,Fo
 CREATE_NAME_ERR_TAKEN,That name is already taken.,Acest nume este deja folosit.
 CREATE_NAME_ERR_BLOCKED,That name is not allowed.,Acest nume nu este permis.
 CREATE_ROW_ASPECT,Aspect,Aspect
-CREATE_ROW_STATURE,Stature,Statură
-CREATE_ROW_BUILD,Build,Constituție
+CREATE_ROW_FRAME,Frame,Constitutie
 CREATE_ROW_HEAD,Head,Cap
 CREATE_ROW_TRIM,Trim,Ornament
 CREATE_ROW_SKIN,Skin,Piele
@@ -96,16 +95,16 @@ STAT_DAMAGE,Damage,Daune
 STAT_POISE_DMG,Poise Damage,Daune echilibru
 STAT_STAMINA_REGEN,Stamina Regen,Regenerare rezistență
 STAT_BLOCK,Block Reduction,Reducere blocare
-ASPECT_CASTLE_IRON,Iron Oath,Iron Oath
-ASPECT_CASTLE_IRON_DESC,Castle-forged plate and oathbound steel.,Castle-forged plate and oathbound steel.
-ASPECT_CRYSTAL_FROST,Cold Facet,Cold Facet
-ASPECT_CRYSTAL_FROST_DESC,Light caught in a stone that was never warm.,Light caught in a stone that was never warm.
-ASPECT_UMBRAL_VOID,Umbral Void,Umbral Void
-ASPECT_UMBRAL_VOID_DESC,What the chapel wore after the lamps went out.,What the chapel wore after the lamps went out.
-ASPECT_CATHEDRAL_GOLD,Cathedral Gold,Cathedral Gold
-ASPECT_CATHEDRAL_GOLD_DESC,Gilt left on a thing nobody prays to now.,Gilt left on a thing nobody prays to now.
-ASPECT_SWAMP_WARDEN,Swamp Warden,Swamp Warden
-ASPECT_SWAMP_WARDEN_DESC,Bile-green and patient. Earned in the standing water.,Bile-green and patient. Earned in the standing water.
+ASPECT_CASTLE_IRON,Iron Oath,Jurământ de Fier
+ASPECT_CASTLE_IRON_DESC,Castle-forged plate and oathbound steel.,Platoșă făurită în castel și oțel legat prin jurământ.
+ASPECT_CRYSTAL_FROST,Cold Facet,Fațetă Rece
+ASPECT_CRYSTAL_FROST_DESC,Light caught in a stone that was never warm.,Lumină prinsă într-o piatră care n-a fost niciodată caldă.
+ASPECT_UMBRAL_VOID,Umbral Void,Vidul Umbrei
+ASPECT_UMBRAL_VOID_DESC,What the chapel wore after the lamps went out.,Ce a purtat capela după ce s-au stins lămpile.
+ASPECT_CATHEDRAL_GOLD,Cathedral Gold,Aurul Catedralei
+ASPECT_CATHEDRAL_GOLD_DESC,Gilt left on a thing nobody prays to now.,Poleială rămasă pe ceva la care nu se mai roagă nimeni.
+ASPECT_SWAMP_WARDEN,Swamp Warden,Străjerul Mlaștinii
+ASPECT_SWAMP_WARDEN_DESC,Bile-green and patient. Earned in the standing water.,Verde-fiere și răbdător. Câștigat în apa stătută.
 CLASS_ROLE_BERSERKER,Frontline / Damage,Front / Daune
 CLASS_ROLE_KNIGHT,Frontline / Sustain,Front / Rezistență
 CLASS_ROLE_ROGUE,Skirmisher / Crit,Hărțuitor / Crit
@@ -313,18 +312,18 @@ talent.tide_7,Deeper Water,Deeper Water
 talent.tide_8,Patient Contagion,Patient Contagion
 talent.tide_9,Everything Spreads,Everything Spreads
 talent.tide_keystone,It Was Always Going to Spread,It Was Always Going to Spread
-ASPECT_HUB_EMBER,Ember Watch,Ember Watch
-ASPECT_HUB_EMBER_DESC,The colour of the last fire anyone kept.,The colour of the last fire anyone kept.
-ASPECT_FROZEN_STEEL,Frozen Steel,Frozen Steel
-ASPECT_FROZEN_STEEL_DESC,Metal that keeps the cold long after the walk out.,Metal that keeps the cold long after the walk out.
-ASPECT_VAULT_IRON,Vault Iron,Vault Iron
-ASPECT_VAULT_IRON_DESC,"Dull, honest, and closed for a very long time.","Dull, honest, and closed for a very long time."
-ASPECT_PRISM_LIGHT,Prism Light,Prism Light
-ASPECT_PRISM_LIGHT_DESC,"A colour that is several colours, depending on the hour.","A colour that is several colours, depending on the hour."
-ASPECT_MIRE_VENOM,Mire Venom,Mire Venom
-ASPECT_MIRE_VENOM_DESC,Worn by those who came back up out of the mire.,Worn by those who came back up out of the mire.
-ASPECT_HOLLOW_ICE,Hollow Ice,Hollow Ice
-ASPECT_HOLLOW_ICE_DESC,Pale to the point of absence. It suits the place.,Pale to the point of absence. It suits the place.
+ASPECT_HUB_EMBER,Ember Watch,Straja Jarului
+ASPECT_HUB_EMBER_DESC,The colour of the last fire anyone kept.,Culoarea ultimului foc pe care l-a mai ținut cineva.
+ASPECT_FROZEN_STEEL,Frozen Steel,Oțel Înghețat
+ASPECT_FROZEN_STEEL_DESC,Metal that keeps the cold long after the walk out.,Metal care ține frigul mult după ce ai ieșit.
+ASPECT_VAULT_IRON,Vault Iron,Fierul Criptei
+ASPECT_VAULT_IRON_DESC,"Dull, honest, and closed for a very long time.","Mat, cinstit și închis de foarte multă vreme."
+ASPECT_PRISM_LIGHT,Prism Light,Lumina Prismei
+ASPECT_PRISM_LIGHT_DESC,"A colour that is several colours, depending on the hour.","O culoare care e mai multe culori, după oră."
+ASPECT_MIRE_VENOM,Mire Venom,Veninul Smârcului
+ASPECT_MIRE_VENOM_DESC,Worn by those who came back up out of the mire.,Purtat de cei care au ieșit înapoi din smârc.
+ASPECT_HOLLOW_ICE,Hollow Ice,Gheață Goală
+ASPECT_HOLLOW_ICE_DESC,Pale to the point of absence. It suits the place.,Palid până la absență. I se potrivește locului.
 TITLE_NONE,No title,No title
 TITLE_THE_OATHKEPT,the Oathkept,the Oathkept
 TITLE_OF_THE_COLD_FACET,of the Cold Facet,of the Cold Facet
@@ -452,7 +451,6 @@ SETTINGS_RESTORE_CONFIRM,Restore,Restaureaza
 INV_USE_FAILED,That item cannot be used right now.,Obiectul nu poate fi folosit acum.
 CREATE_NAME_HEADER,Your Warden,Gardianul tau
 CREATE_APPEARANCE_HEADER,Appearance,Infatisare
-CREATE_APPEARANCE_HINT,Select a row and press Left / Right to cycle,Alege un rand si apasa Stanga / Dreapta ca sa schimbi
 CREATE_CLASS_DETAIL_HEADER,Class Details,Detalii clasa
 CREATE_STAT_COL_STAT,Stat,Statistica
 CREATE_STAT_COL_BASE,Base,Baza
@@ -563,13 +561,11 @@ CREATE_STAT_MANA,Mana,Mana
 CREATE_STAT_MANA_REGEN,Mana Regen,Regen mana
 CREATE_COMPARE_COL_STAT,Stat,Statistica
 CREATE_COMPARE_COL_YOU,Your Pick,Alegerea ta
-CREATE_COMPARE_LEGEND,Ratings run %d-%d; %d is the standard warden. The named column shows what your pick actually reaches.,Valorile sunt intre %d si %d; %d este standardul. Coloana cu nume arata ce atinge alegerea ta.
 TALENTS_TITLE,Talents,Talente
 TALENTS_POINTS,Points: %d,Puncte: %d
 TALENTS_HINT,Enter: unlock | Esc: close,Enter: deblocheaza | Esc: inchide
 TALENTS_CAN_UNLOCK,Can unlock,Se poate debloca
 TALENTS_LOCKED,Locked,Blocat
-
 RELIC_OFFER_TITLE,A Relic Offered,O relicvă oferită
 RELIC_OFFER_SUBTITLE,Take one. The others return to the dark.,Ia una. Celelalte se întorc în întuneric.
 RELIC_OFFER_HINT,This choice is bound to the seed — it will not change.,Alegerea e legată de sămânță — nu se va schimba.
@@ -664,3 +660,31 @@ RECOVERY_BODY,Your save and every backup failed to load ({reason}). Nothing has 
 RECOVERY_KEPT_AT,A copy was kept at {path},O copie a fost păstrată la {path}
 RECOVERY_KEEP,Keep the file and continue,Păstrează fișierul și continuă
 RECOVERY_START_FRESH,Discard it and start fresh,Renunță și începe din nou
+ASPECT_EMBER_VIGIL,Ember Vigil,Veghea Jarului
+ASPECT_EMBER_VIGIL_DESC,"Banked low, kept all night, never quite out.","Pus la păstrare, ținut toată noaptea, niciodată stins de tot."
+ASPECT_VERDANT_CREEP,Verdant Creep,Năpădirea Verde
+ASPECT_VERDANT_CREEP_DESC,"Green takes a ruin back slowly, then all at once.","Verdele ia ruina înapoi încet, apoi dintr-odată."
+ASPECT_TIDEWATER_GREY,Tidewater,Apa Mareei
+ASPECT_TIDEWATER_GREY_DESC,The colour of a coast that keeps what it takes.,Culoarea unui țărm care păstrează ce ia.
+ASPECT_ORCHID_WAKE,Orchid Wake,Priveghi de Orhidee
+ASPECT_ORCHID_WAKE_DESC,Flowers left too long on a stone with no name.,Flori lăsate prea mult pe o piatră fără nume.
+ASPECT_RUST_PILGRIM,Rust Pilgrim,Pelerinul Ruginii
+ASPECT_RUST_PILGRIM_DESC,Armour that has walked further than it has fought.,Armură care a mers mai mult decât s-a luptat.
+ASPECT_BRONZE_RELICT,Bronze Relict,Rămășiță de Bronz
+ASPECT_BRONZE_RELICT_DESC,Older than the castle. It was buried with someone.,Mai veche decât castelul. A fost îngropată cu cineva.
+ASPECT_JADE_CENSER,Jade Censer,Cădelnița de Jad
+ASPECT_JADE_CENSER_DESC,Smoke-stained green from a rite nobody finished.,Verde afumat de la un ritual pe care nu l-a terminat nimeni.
+ASPECT_INDIGO_COMPACT,Indigo Compact,Pactul Indigo
+ASPECT_INDIGO_COMPACT_DESC,Worn by those who agreed never to say what for.,Purtat de cei care s-au înțeles să nu spună niciodată pentru ce.
+ASPECT_PLUM_MOURNING,Plum Mourning,Doliu Prună
+ASPECT_PLUM_MOURNING_DESC,"Mourning dress, for a house that no longer counts.","Straie de doliu, pentru o casă care nu mai contează."
+ASPECT_CINDER_MARCH,Cinder March,Marșul Cenușii
+ASPECT_CINDER_MARCH_DESC,Everything downwind of a fire looks like this.,Tot ce e sub vântul unui foc arată așa.
+ASPECT_MOSS_QUIET,Moss Quiet,Liniște de Mușchi
+ASPECT_MOSS_QUIET_DESC,What grows on a warden who stood still long enough.,Ce crește pe un străjer care a stat destul de mult nemișcat.
+ASPECT_AZURE_LANTERN,Azure Lantern,Felinarul Azuriu
+ASPECT_AZURE_LANTERN_DESC,The one light that does not gutter in the deep.,Singura lumină care nu pâlpâie în adânc.
+ASPECT_AMETHYST_WARD,Amethyst Ward,Pavăza de Ametist
+ASPECT_AMETHYST_WARD_DESC,Cut against dreaming. It did not work.,Tăiată împotriva visării. N-a funcționat.
+ASPECT_SAFFRON_HERALD,Saffron Herald,Vestitorul de Șofran
+ASPECT_SAFFRON_HERALD_DESC,Loud enough to be seen coming. That is the point.,Destul de strident cât să fii văzut venind. Asta e ideea.

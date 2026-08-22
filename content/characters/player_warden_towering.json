@@ -1,0 +1,130 @@
+{
+  "id": "player_warden_towering",
+  "grid": 0.04,
+  "profile": "biped",
+  "parts": {
+    "LegL": {
+      "mesh": "res://assets/characters/player_warden_towering/legl.voxels.json",
+      "joint": [
+        -4,
+        17,
+        0
+      ]
+    },
+    "LegR": {
+      "mesh": "res://assets/characters/player_warden_towering/legr.voxels.json",
+      "joint": [
+        4,
+        17,
+        0
+      ]
+    },
+    "Torso": {
+      "mesh": "res://assets/characters/player_warden_towering/torso.voxels.json",
+      "joint": [
+        0,
+        17,
+        0
+      ]
+    },
+    "Head": {
+      "mesh": "res://assets/characters/player_warden_towering/head.voxels.json",
+      "joint": [
+        0,
+        15,
+        0
+      ],
+      "parent": "Torso"
+    },
+    "ArmL": {
+      "mesh": "res://assets/characters/player_warden_towering/arml.voxels.json",
+      "joint": [
+        -9,
+        14,
+        0
+      ],
+      "parent": "Torso",
+      "mount": "ShieldMount",
+      "meshOffset": [
+        0,
+        -15,
+        0
+      ]
+    },
+    "ArmR": {
+      "mesh": "res://assets/characters/player_warden_towering/armr.voxels.json",
+      "joint": [
+        9,
+        14,
+        0
+      ],
+      "parent": "Torso",
+      "mount": "WeaponMount",
+      "meshOffset": [
+        0,
+        -15,
+        0
+      ]
+    }
+  },
+  "animationLibrary": "res://assets/animations/diorama/player_locomotion.res",
+  "extras": {
+    "Visor": {
+      "mesh": "res://assets/characters/player_warden_towering/visor.voxels.json",
+      "parent": "Head",
+      "offset": [
+        0,
+        6,
+        4
+      ]
+    },
+    "Hood": {
+      "mesh": "res://assets/characters/player_warden_towering/hood.voxels.json",
+      "parent": "Head",
+      "offset": [
+        0,
+        -3,
+        0
+      ]
+    },
+    "BeltTrim": {
+      "mesh": "res://assets/characters/player_warden_towering/belttrim.voxels.json",
+      "parent": "Torso",
+      "offset": [
+        0,
+        3,
+        0
+      ]
+    },
+    "Pauldron": {
+      "mesh": "res://assets/characters/player_warden_towering/pauldron.voxels.json",
+      "parent": "ArmL",
+      "offset": [
+        0,
+        -1,
+        0
+      ]
+    },
+    "PauldronR": {
+      "mesh": "res://assets/characters/player_warden_towering/pauldronr.voxels.json",
+      "parent": "ArmR",
+      "offset": [
+        0,
+        -1,
+        0
+      ]
+    }
+  },
+  "slots": {
+    "head": "Head",
+    "chest": "Torso",
+    "hands": [
+      "ArmL",
+      "ArmR"
+    ],
+    "feet": [
+      "LegL",
+      "LegR"
+    ]
+  }
+}

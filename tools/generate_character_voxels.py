@@ -20,6 +20,7 @@ from voxel_sculpt import (  # noqa: E402
 from voxel_sculpt import (  # noqa: E402
     FACE_MASKS,
     GARMENT_PALETTES,
+    HAIR_RECIPES,
     HOOD_DROP,
     SKIRT_DROP,
     sculpt_garment,
@@ -42,9 +43,8 @@ CONTENT_CHARS = ROOT / "content" / "characters"
 # reasoning that stature is only a matter of where the parts sit. It is not: the head's joint is
 # the top of the torso, so moving the joint without lengthening the torso mesh opened a two-voxel
 # gap at the tall warden's neck and sank the compact warden's head two voxels into its chest.
-# `player_archetype` already returns correct per-stature dimensions — `_player_height_scale`
-# lengthens the legs and the torso — and `_biped_parts` derives every joint from those sizes, so
-# generating the two variants like all the others is both correct and less code.
+# `player_archetype` returns correct per-frame dimensions and `_biped_parts` derives every joint
+# from those sizes, so generating the variants like all the others is both correct and less code.
 HEIGHT_VARIANT_MANIFESTS: dict[str, dict] = {}
 
 # Lean and heavy builds have their own part dimensions, so they cannot reuse the standard rig's
@@ -128,7 +128,10 @@ def _write_part_voxels(out_dir: Path, part: PartSpec, color: tuple[float, float,
 #: asks for one. Only `short` and `long` existed before, and both shipped with an empty `cells`
 #: array — so four of the seven options a player can pick did nothing at all, and the two that
 #: did anything drew a solid slab.
-HAIR_STYLES: tuple[str, ...] = ("shaven", "short", "tied", "long", "braided", "wild")
+#: Driven off the sculptor's own table, so a style added there is emitted here without a second
+#: list to keep in step. The two lists disagreeing is exactly how a style ends up selectable in the
+#: creation screen with no mesh behind it.
+HAIR_STYLES: tuple[str, ...] = tuple(HAIR_RECIPES)
 
 
 def _write_hair(out_dir: Path, head_size: tuple[int, int, int]) -> None:
@@ -316,16 +319,29 @@ def generate_all() -> None:
             _write_part_voxels(out_dir, part, color)
         for extra in spec.extras:
             _write_voxels(out_dir, extra.name, extra.size, _extra_color(spec, extra))
+        head = next((p.size for p in spec.parts if p.name == "Head"), None)
         if spec.id == "player_warden":
-            head = next((p.size for p in spec.parts if p.name == "Head"), None)
+            # Hair and faces are authored once and shared by every frame — the runtime loads them
+            # from `player_warden/` whatever archetype it is building, and scales them to the head
+            # it finds.
             if head is not None:
                 _write_hair(out_dir, head)
             _write_faces(out_dir)
-            torso = next((p.size for p in spec.parts if p.name == "Torso"), None)
-            if torso is not None:
-                _write_garments(out_dir, torso)
-            if head is not None:
-                _write_hood(out_dir, head, _part_color(spec, spec.parts[0]))
+        # Garments are *not* shared, for the same reason the hood is not. `sculpt_garment` grows the
+        # clothing out of the torso volume it is given — every panel, hem, sash and yoke is placed
+        # from that torso's own width, depth and height — and the runtime never scaled the result.
+        # Authored once from the standard 12-wide torso, the surcoat was too narrow to close around
+        # Stout's 14-wide chest and hung off the sides of Slight's 10-wide one. One per frame.
+        torso = next((p.size for p in spec.parts if p.name == "Torso"), None)
+        if spec.id.startswith("player_warden") and torso is not None:
+            _write_garments(out_dir, torso)
+        # The hood is *not* shared: it is grown from the head to close under the jaw, so it has to
+        # be grown from each stature's own head. Writing it only for the base archetype left the
+        # other twenty-four with whatever the ExtraSpec literal produced — a flat 8x4x7 slab parked
+        # behind the skull on some, and nothing at all on the ones whose literal was (0, 0, 0).
+        # The Hooded option was broken on 24 of 25 statures.
+        if spec.id.startswith("player_warden") and head is not None:
+            _write_hood(out_dir, head, _part_color(spec, spec.parts[0]))
         generated_mesh_ids.add(spec.id)
 
     for spec in all_archetypes():

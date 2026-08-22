@@ -158,7 +158,15 @@ func _apply_npc_availability() -> void:
 func _on_save_loaded() -> void:
 	HubTutorialService.load_from_save()
 	_apply_npc_availability()
+	# Arrivals are keyed off the tier ladder, and a tier can unlock while the player is standing in
+	# the plaza reading the results of the run that unlocked it.
+	if DungeonTierService and not DungeonTierService.tier_unlocked.is_connected(_on_tier_unlocked):
+		DungeonTierService.tier_unlocked.connect(_on_tier_unlocked)
 	_refresh_tip_surface()
+
+
+func _on_tier_unlocked(_tier: int) -> void:
+	_apply_npc_availability()
 
 
 func _auto_equip_starting_weapon() -> void:
@@ -268,6 +276,13 @@ func _ui_is_open(ui: Control) -> bool:
 	return ui != null and ui.has_method("is_open") and ui.call("is_open")
 
 
+## Public, because `PlayerControls.gameplay_input_blocked` asks the scene whether a panel of its own
+## is up before it grabs the mouse back. Keeping the list here rather than copying it into
+## PlayerControls means the hub's own prompt suppression and the mouse decision cannot disagree.
+func has_open_ui() -> bool:
+	return _any_ui_open()
+
+
 func _any_ui_open() -> bool:
 	return (
 		_ui_is_open(_castle_menu)
@@ -347,6 +362,11 @@ func get_prompt_write_count() -> int:
 func _dispatch_interact(interact_id: String) -> void:
 	if interact_id.begins_with("npc:"):
 		_trigger_npc_interact(interact_id.substr(4))
+		return
+	# The strays. They carry a dialogue id directly rather than an NPC id, because they are not in
+	# the NPC catalogue — they have no schedule, no availability gate and nothing to sell.
+	if interact_id.begins_with("stray:"):
+		_on_npc_dialogue("", interact_id.substr(6))
 		return
 	if not INTERACT_HANDLERS.has(interact_id):
 		push_warning("Hub: no handler for interact_id '%s'" % interact_id)

@@ -1,0 +1,12 @@
+{
+  "id": "hesper_true_north",
+  "title": "True North",
+  "type": "discover",
+  "chainId": "hesper",
+  "description": "Hesper's maps disagree with the tower about which way is down. Read three of her survey stones and settle it.",
+  "requiredCount": 3,
+  "minDifficultyTier": 2,
+  "rewards": {
+    "gold": 280
+  }
+}

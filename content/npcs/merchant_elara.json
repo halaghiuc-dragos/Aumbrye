@@ -56,8 +56,20 @@
     }
   ],
   "position": {
-    "x": -12,
+    "x": 16.66,
     "y": 0,
-    "z": 11.2
+    "z": -1.85
+  },
+  "appearance": {
+    "classId": "rogue",
+    "skinTone": "warm",
+    "hair": "braided",
+    "hairColor": "auburn",
+    "face": "open",
+    "head": "open",
+    "heightVariant": "standard",
+    "bulkVariant": "standard",
+    "theme": 0,
+    "trim": 1
   }
 }

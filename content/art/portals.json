@@ -9,14 +9,26 @@
         "color_inner": "#8cc7ff",
         "color_outer": "#29479e",
         "color_accent": "#e6f5ff",
-        "ellipse": [0.72, 1.0],
+        "ellipse": [
+          1.0,
+          1.0
+        ],
         "spin_speed": 2.2,
         "spiral_tightness": 5.5,
         "depth": 0.35
       },
-      "glow": { "color": "#d9b873", "energy": 1.0, "range": 4.0 },
-      "accents": ["torch_pair"],
-      "sfx": { "ambient": "portal_hum_castle", "enter": "portal_enter" }
+      "glow": {
+        "color": "#d9b873",
+        "energy": 1.0,
+        "range": 4.0
+      },
+      "accents": [
+        "torch_pair"
+      ],
+      "sfx": {
+        "ambient": "portal_hum_castle",
+        "enter": "portal_enter"
+      }
     },
     "crystal_caverns": {
       "display_name": "Crystal Caverns",
@@ -25,13 +37,24 @@
         "color_inner": "#8cd9ff",
         "color_outer": "#2a4a72",
         "color_accent": "#d4f5ff",
-        "ellipse": [0.74, 1.02],
+        "ellipse": [
+          1.0,
+          1.0
+        ],
         "spin_speed": 2.0,
         "spiral_tightness": 5.8,
         "depth": 0.35
       },
-      "glow": { "color": "#8cd9ff", "energy": 1.0, "range": 4.0 },
-      "sfx": { "ambient": "portal_hum_crystal", "enter": "portal_enter" }
+      "glow": {
+        "color": "#8cd9ff",
+        "energy": 1.0,
+        "range": 4.0
+      },
+      "sfx": {
+        "ambient": "portal_hum_crystal",
+        "enter": "portal_enter"
+      },
+      "frame_material": "accent"
     },
     "poison_swamp": {
       "display_name": "Poison Swamp",
@@ -40,13 +63,24 @@
         "color_inner": "#b2e659",
         "color_outer": "#2e4a18",
         "color_accent": "#d8ff8a",
-        "ellipse": [0.7, 0.98],
+        "ellipse": [
+          1.0,
+          1.0
+        ],
         "spin_speed": 1.6,
         "spiral_tightness": 5.2,
         "depth": 0.35
       },
-      "glow": { "color": "#8fcc59", "energy": 0.95, "range": 3.8 },
-      "sfx": { "ambient": "portal_hum_swamp", "enter": "portal_enter" }
+      "glow": {
+        "color": "#8fcc59",
+        "energy": 0.95,
+        "range": 3.8
+      },
+      "sfx": {
+        "ambient": "portal_hum_swamp",
+        "enter": "portal_enter"
+      },
+      "frame_material": "accent"
     },
     "frozen_fortress": {
       "display_name": "Frozen Fortress",
@@ -55,13 +89,24 @@
         "color_inner": "#bfe6ff",
         "color_outer": "#4a6a85",
         "color_accent": "#e8f8ff",
-        "ellipse": [0.72, 1.0],
+        "ellipse": [
+          1.0,
+          1.0
+        ],
         "spin_speed": 1.4,
         "spiral_tightness": 5.0,
         "depth": 0.35
       },
-      "glow": { "color": "#bfe6ff", "energy": 1.0, "range": 4.0 },
-      "sfx": { "ambient": "portal_hum_frozen", "enter": "portal_enter" }
+      "glow": {
+        "color": "#bfe6ff",
+        "energy": 1.0,
+        "range": 4.0
+      },
+      "sfx": {
+        "ambient": "portal_hum_frozen",
+        "enter": "portal_enter"
+      },
+      "frame_material": "accent"
     },
     "dark_cathedral": {
       "display_name": "Dark Cathedral",
@@ -70,13 +115,24 @@
         "color_inner": "#fff5c7",
         "color_outer": "#d1b847",
         "color_accent": "#ffffeb",
-        "ellipse": [0.7, 0.96],
+        "ellipse": [
+          1.0,
+          1.0
+        ],
         "spin_speed": 0.9,
         "spiral_tightness": 4.8,
         "depth": 0.35
       },
-      "glow": { "color": "#fff0ad", "energy": 0.9, "range": 4.0 },
-      "sfx": { "ambient": "portal_hum_cathedral", "enter": "portal_enter" }
+      "glow": {
+        "color": "#fff0ad",
+        "energy": 0.9,
+        "range": 4.0
+      },
+      "sfx": {
+        "ambient": "portal_hum_cathedral",
+        "enter": "portal_enter"
+      },
+      "frame_material": "accent"
     },
     "iron_vault": {
       "display_name": "Iron Vault",
@@ -85,13 +141,24 @@
         "color_inner": "#ff8c33",
         "color_outer": "#5a3a1a",
         "color_accent": "#ffc285",
-        "ellipse": [0.71, 0.99],
+        "ellipse": [
+          1.0,
+          1.0
+        ],
         "spin_speed": 1.8,
         "spiral_tightness": 5.4,
         "depth": 0.35
       },
-      "glow": { "color": "#ff8c33", "energy": 1.0, "range": 3.8 },
-      "sfx": { "ambient": "portal_hum_vault", "enter": "portal_enter" }
+      "glow": {
+        "color": "#ff8c33",
+        "energy": 1.0,
+        "range": 3.8
+      },
+      "sfx": {
+        "ambient": "portal_hum_vault",
+        "enter": "portal_enter"
+      },
+      "frame_material": "accent"
     },
     "prism_depths": {
       "display_name": "Prism Depths",
@@ -100,13 +167,24 @@
         "color_inner": "#a673ff",
         "color_outer": "#3a2860",
         "color_accent": "#d4b8ff",
-        "ellipse": [0.73, 1.01],
+        "ellipse": [
+          1.0,
+          1.0
+        ],
         "spin_speed": 2.3,
         "spiral_tightness": 6.0,
         "depth": 0.35
       },
-      "glow": { "color": "#a673ff", "energy": 1.05, "range": 4.0 },
-      "sfx": { "ambient": "portal_hum_prism", "enter": "portal_enter" }
+      "glow": {
+        "color": "#a673ff",
+        "energy": 1.05,
+        "range": 4.0
+      },
+      "sfx": {
+        "ambient": "portal_hum_prism",
+        "enter": "portal_enter"
+      },
+      "frame_material": "accent"
     },
     "venom_mire": {
       "display_name": "Venom Mire",
@@ -115,13 +193,24 @@
         "color_inner": "#bff259",
         "color_outer": "#2e5018",
         "color_accent": "#e0ff8a",
-        "ellipse": [0.7, 0.97],
+        "ellipse": [
+          1.0,
+          1.0
+        ],
         "spin_speed": 1.5,
         "spiral_tightness": 5.1,
         "depth": 0.35
       },
-      "glow": { "color": "#8fcc59", "energy": 0.95, "range": 3.8 },
-      "sfx": { "ambient": "portal_hum_mire", "enter": "portal_enter" }
+      "glow": {
+        "color": "#8fcc59",
+        "energy": 0.95,
+        "range": 3.8
+      },
+      "sfx": {
+        "ambient": "portal_hum_mire",
+        "enter": "portal_enter"
+      },
+      "frame_material": "accent"
     },
     "glacial_hollow": {
       "display_name": "Glacial Hollow",
@@ -130,13 +219,24 @@
         "color_inner": "#b3e0ff",
         "color_outer": "#4a6880",
         "color_accent": "#e0f5ff",
-        "ellipse": [0.72, 1.0],
+        "ellipse": [
+          1.0,
+          1.0
+        ],
         "spin_speed": 1.3,
         "spiral_tightness": 4.9,
         "depth": 0.35
       },
-      "glow": { "color": "#b3e0ff", "energy": 1.0, "range": 4.0 },
-      "sfx": { "ambient": "portal_hum_hollow", "enter": "portal_enter" }
+      "glow": {
+        "color": "#b3e0ff",
+        "energy": 1.0,
+        "range": 4.0
+      },
+      "sfx": {
+        "ambient": "portal_hum_hollow",
+        "enter": "portal_enter"
+      },
+      "frame_material": "accent"
     },
     "umbral_chapel": {
       "display_name": "Umbral Chapel",
@@ -146,14 +246,26 @@
         "color_inner": "#9f61eb",
         "color_outer": "#381a61",
         "color_accent": "#d98cff",
-        "ellipse": [0.68, 0.95],
+        "ellipse": [
+          1.0,
+          1.0
+        ],
         "spin_speed": 1.8,
         "spiral_tightness": 5.6,
         "depth": 0.35
       },
-      "glow": { "color": "#9f61eb", "energy": 1.0, "range": 4.0 },
-      "accents": ["rune_ring"],
-      "sfx": { "ambient": "portal_hum_umbral", "enter": "portal_enter" }
+      "glow": {
+        "color": "#9f61eb",
+        "energy": 1.0,
+        "range": 4.0
+      },
+      "accents": [
+        "rune_ring"
+      ],
+      "sfx": {
+        "ambient": "portal_hum_umbral",
+        "enter": "portal_enter"
+      }
     },
     "arena_training": {
       "display_name": "Training Arena",
@@ -163,14 +275,26 @@
         "color_inner": "#ff9e2e",
         "color_outer": "#943805",
         "color_accent": "#ffd16b",
-        "ellipse": [0.7, 0.98],
+        "ellipse": [
+          1.0,
+          1.0
+        ],
         "spin_speed": 1.2,
         "spiral_tightness": 5.0,
         "depth": 0.35
       },
-      "glow": { "color": "#ff942e", "energy": 1.0, "range": 4.0 },
-      "accents": ["training_torches"],
-      "sfx": { "ambient": "portal_hum_training", "enter": "portal_enter" }
+      "glow": {
+        "color": "#ff942e",
+        "energy": 1.0,
+        "range": 4.0
+      },
+      "accents": [
+        "training_torches"
+      ],
+      "sfx": {
+        "ambient": "portal_hum_training",
+        "enter": "portal_enter"
+      }
     },
     "skies_ascent": {
       "display_name": "Skies Ascent",
@@ -180,14 +304,26 @@
         "color_inner": "#fa6b1e",
         "color_outer": "#6b140f",
         "color_accent": "#ffb838",
-        "ellipse": [0.74, 1.02],
+        "ellipse": [
+          1.0,
+          1.0
+        ],
         "spin_speed": 2.1,
         "spiral_tightness": 5.7,
         "depth": 0.35
       },
-      "glow": { "color": "#ff6b23", "energy": 1.0, "range": 4.0 },
-      "accents": ["dragon_horns"],
-      "sfx": { "ambient": "portal_hum_skies", "enter": "portal_enter" }
+      "glow": {
+        "color": "#ff6b23",
+        "energy": 1.0,
+        "range": 4.0
+      },
+      "accents": [
+        "dragon_horns"
+      ],
+      "sfx": {
+        "ambient": "portal_hum_skies",
+        "enter": "portal_enter"
+      }
     },
     "cathedral_ascent": {
       "display_name": "Cathedral Ascent",
@@ -197,14 +333,26 @@
         "color_inner": "#fff5c7",
         "color_outer": "#d1b847",
         "color_accent": "#ffffeb",
-        "ellipse": [0.7, 0.96],
+        "ellipse": [
+          1.0,
+          1.0
+        ],
         "spin_speed": 0.9,
         "spiral_tightness": 4.8,
         "depth": 0.35
       },
-      "glow": { "color": "#fff0ad", "energy": 0.9, "range": 4.0 },
-      "accents": ["cathedral_trim"],
-      "sfx": { "ambient": "portal_hum_cathedral", "enter": "portal_enter" }
+      "glow": {
+        "color": "#fff0ad",
+        "energy": 0.9,
+        "range": 4.0
+      },
+      "accents": [
+        "cathedral_trim"
+      ],
+      "sfx": {
+        "ambient": "portal_hum_cathedral",
+        "enter": "portal_enter"
+      }
     },
     "hub_return": {
       "display_name": "Hub Return",
@@ -214,14 +362,26 @@
         "color_inner": "#ff9e2e",
         "color_outer": "#943805",
         "color_accent": "#ffd16b",
-        "ellipse": [0.7, 0.98],
+        "ellipse": [
+          1.0,
+          1.0
+        ],
         "spin_speed": 1.2,
         "spiral_tightness": 5.0,
         "depth": 0.35
       },
-      "glow": { "color": "#ff942e", "energy": 0.9, "range": 4.0 },
-      "accents": ["training_torches"],
-      "sfx": { "ambient": "portal_hum_training", "enter": "portal_enter" }
+      "glow": {
+        "color": "#ff942e",
+        "energy": 0.9,
+        "range": 4.0
+      },
+      "accents": [
+        "training_torches"
+      ],
+      "sfx": {
+        "ambient": "portal_hum_training",
+        "enter": "portal_enter"
+      }
     }
   },
   "aliases": {

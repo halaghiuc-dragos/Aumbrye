@@ -121,6 +121,160 @@
       "prop_wood": "#5c3d29",
       "prop_metal": "#944738",
       "emissive": "#e66b1f"
+    },
+    "ember": {
+      "display_name": "Ember Reach",
+      "floor_base": "#61524f",
+      "floor_shadow": "#3d3330",
+      "wall_base": "#382d2b",
+      "wall_shadow": "#241c1b",
+      "accent": "#8c7845",
+      "prop_wood": "#66552b",
+      "prop_metal": "#7a716f",
+      "emissive": "#38dbff"
+    },
+    "verdant": {
+      "display_name": "Verdant Wake",
+      "floor_base": "#52614f",
+      "floor_shadow": "#333d30",
+      "wall_base": "#2e382b",
+      "wall_shadow": "#1d241b",
+      "accent": "#458c5d",
+      "prop_wood": "#2b663f",
+      "prop_metal": "#717a6f",
+      "emissive": "#d738ff"
+    },
+    "tidewater": {
+      "display_name": "Tidewater",
+      "floor_base": "#4f5f61",
+      "floor_shadow": "#303c3d",
+      "wall_base": "#2b3738",
+      "wall_shadow": "#1b2324",
+      "accent": "#455d8c",
+      "prop_wood": "#2b3f66",
+      "prop_metal": "#6f797a",
+      "emissive": "#ff5038"
+    },
+    "orchid": {
+      "display_name": "Orchid Deep",
+      "floor_base": "#5d4f61",
+      "floor_shadow": "#3b303d",
+      "wall_base": "#362b38",
+      "wall_shadow": "#221b24",
+      "accent": "#8c4574",
+      "prop_wood": "#662b52",
+      "prop_metal": "#786f7a",
+      "emissive": "#60ff38"
+    },
+    "rust": {
+      "display_name": "Rustfall",
+      "floor_base": "#61554f",
+      "floor_shadow": "#3d3530",
+      "wall_base": "#38302b",
+      "wall_shadow": "#241e1b",
+      "accent": "#8c8545",
+      "prop_wood": "#66602b",
+      "prop_metal": "#7a736f",
+      "emissive": "#38b7ff"
+    },
+    "bronze": {
+      "display_name": "Bronze Hollow",
+      "floor_base": "#615a4f",
+      "floor_shadow": "#3d3830",
+      "wall_base": "#38332b",
+      "wall_shadow": "#24201b",
+      "accent": "#828c45",
+      "prop_wood": "#5e662b",
+      "prop_metal": "#7a766f",
+      "emissive": "#3888ff"
+    },
+    "jade": {
+      "display_name": "Jade Silence",
+      "floor_base": "#4f6158",
+      "floor_shadow": "#303d37",
+      "wall_base": "#2b3832",
+      "wall_shadow": "#1b241f",
+      "accent": "#45888c",
+      "prop_wood": "#2b6266",
+      "prop_metal": "#6f7a75",
+      "emissive": "#ff3898"
+    },
+    "indigo": {
+      "display_name": "Indigo March",
+      "floor_base": "#4f5061",
+      "floor_shadow": "#30313d",
+      "wall_base": "#2b2c38",
+      "wall_shadow": "#1b1b24",
+      "accent": "#68458c",
+      "prop_wood": "#492b66",
+      "prop_metal": "#6f6f7a",
+      "emissive": "#fff738"
+    },
+    "plum": {
+      "display_name": "Plumshade",
+      "floor_base": "#614f5d",
+      "floor_shadow": "#3d303a",
+      "wall_base": "#382b35",
+      "wall_shadow": "#241b22",
+      "accent": "#8c4556",
+      "prop_wood": "#662b39",
+      "prop_metal": "#7a6f78",
+      "emissive": "#38ff64"
+    },
+    "cinder": {
+      "display_name": "Cinderwatch",
+      "floor_base": "#61504f",
+      "floor_shadow": "#3d3130",
+      "wall_base": "#382c2b",
+      "wall_shadow": "#241b1b",
+      "accent": "#8c7045",
+      "prop_wood": "#664e2b",
+      "prop_metal": "#7a6f6f",
+      "emissive": "#38f3ff"
+    },
+    "moss": {
+      "display_name": "Mosswater",
+      "floor_base": "#57614f",
+      "floor_shadow": "#363d30",
+      "wall_base": "#31382b",
+      "wall_shadow": "#1f241b",
+      "accent": "#458c4c",
+      "prop_wood": "#2b6631",
+      "prop_metal": "#747a6f",
+      "emissive": "#a738ff"
+    },
+    "azure": {
+      "display_name": "Azure Vigil",
+      "floor_base": "#4f5861",
+      "floor_shadow": "#30373d",
+      "wall_base": "#2b3238",
+      "wall_shadow": "#1b1f24",
+      "accent": "#46458c",
+      "prop_wood": "#2c2b66",
+      "prop_metal": "#6f757a",
+      "emissive": "#ff9838"
+    },
+    "amethyst": {
+      "display_name": "Amethyst Vault",
+      "floor_base": "#574f61",
+      "floor_shadow": "#36303d",
+      "wall_base": "#312b38",
+      "wall_shadow": "#1f1b24",
+      "accent": "#8b458c",
+      "prop_wood": "#652b66",
+      "prop_metal": "#746f7a",
+      "emissive": "#a7ff38"
+    },
+    "saffron": {
+      "display_name": "Saffron Wake",
+      "floor_base": "#615d4f",
+      "floor_shadow": "#3d3a30",
+      "wall_base": "#38352b",
+      "wall_shadow": "#24221b",
+      "accent": "#758c45",
+      "prop_wood": "#53662b",
+      "prop_metal": "#7a786f",
+      "emissive": "#3864ff"
     }
   },
   "biome_theme_map": {

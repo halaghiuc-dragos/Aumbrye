@@ -66,8 +66,20 @@
     }
   ],
   "position": {
-    "x": -9.6,
+    "x": -11.0,
     "y": 0,
-    "z": -13
+    "z": 13.5
+  },
+  "appearance": {
+    "classId": "scholar",
+    "skinTone": "ashen",
+    "hair": "long",
+    "hairColor": "silver",
+    "face": "hollow",
+    "head": "hood",
+    "heightVariant": "tall",
+    "bulkVariant": "lean",
+    "theme": 0,
+    "trim": 0
   }
 }

@@ -1,0 +1,141 @@
+{
+  "id": "cass_greeting",
+  "startNode": "start",
+  "nodes": {
+    "start": {
+      "speaker": "Brother Cass",
+      "text": "Cass is trimming a wick that does not need trimming, which is what he does instead of looking at the gates.",
+      "choices": [
+        {
+          "text": "You keep the lamps.",
+          "next": "lamps"
+        },
+        {
+          "text": "You count what walks past them.",
+          "next": "count"
+        },
+        {
+          "text": "Give me the hour.",
+          "next": "quest",
+          "condition": {
+            "all": [
+              {
+                "minTier": 1
+              },
+              {
+                "not": {
+                  "flag": "cass_hour_given"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "text": "Sorrel is gone.",
+          "next": "rite_offer",
+          "condition": {
+            "all": [
+              {
+                "flag": "sorrel_fallen"
+              },
+              {
+                "relationship": "cass",
+                "atLeast": 2
+              }
+            ]
+          }
+        },
+        {
+          "text": "Keep them lit.",
+          "next": "end"
+        }
+      ]
+    },
+    "lamps": {
+      "speaker": "Brother Cass",
+      "text": "Somebody has to. Not for the light. So that when a thing comes up the stair it has to come up through something that was already here.",
+      "actions": [
+        {
+          "type": "set_relationship",
+          "npc": "cass",
+          "delta": 1
+        }
+      ],
+      "next": "end"
+    },
+    "count": {
+      "speaker": "Brother Cass",
+      "text": "Eleven this week. I write them in the margin of a book about bees. The book does not mind and neither do I.",
+      "actions": [
+        {
+          "type": "set_relationship",
+          "npc": "cass",
+          "delta": 1
+        }
+      ],
+      "next": "end"
+    },
+    "quest": {
+      "speaker": "Brother Cass",
+      "text": "Twelve of them, then, and quietly. The hour between the last lamp and the first is mine, and I would like it back.",
+      "actions": [
+        {
+          "type": "start_quest",
+          "questId": "cass_the_quiet_hour"
+        },
+        {
+          "type": "set_flag",
+          "flag": "cass_hour_given",
+          "value": true
+        },
+        {
+          "type": "set_relationship",
+          "npc": "cass",
+          "delta": 2
+        }
+      ],
+      "next": "end"
+    },
+    "rite_offer": {
+      "speaker": "Brother Cass",
+      "text": "I know. I lit hers anyway.\n\nThere is a rite. It is not a good one and it is not mine to give twice. Say the word and I will say the rest of it.",
+      "choices": [
+        {
+          "text": "Say it.",
+          "next": "rite_done"
+        },
+        {
+          "text": "Let her rest.",
+          "next": "rite_declined"
+        }
+      ]
+    },
+    "rite_done": {
+      "speaker": "Brother Cass",
+      "text": "Then she is owed a walk back up, and the tower is owed nothing at all.\n\nGo and stand where the gates are. She will be there before you are.",
+      "actions": [
+        {
+          "type": "set_flag",
+          "flag": "sorrel_fallen",
+          "value": false
+        },
+        {
+          "type": "set_flag",
+          "flag": "sorrel_returned",
+          "value": true
+        },
+        {
+          "type": "set_relationship",
+          "npc": "cass",
+          "delta": 2
+        }
+      ],
+      "next": "end"
+    },
+    "rite_declined": {
+      "speaker": "Brother Cass",
+      "text": "That is also an answer. I will keep the wick trimmed in case you change it.",
+      "next": "end"
+    }
+  }
+}

@@ -226,6 +226,27 @@ static func _apply_skin_tone(visual: Node3D, _profile: Dictionary, _mats: Dictio
 	_set_skin_tint(visual, Vector3.ONE)
 
 
+## The head this rig was built with, as a multiple of the head the shared meshes were authored
+## against.
+##
+## Hair and the face plate are authored **once**, in `player_warden/`, and shared by all
+## twenty-five statures — generating them per archetype would be 625 hair meshes for a silhouette
+## the head already determines. The head itself is now proportional (7, 8 or 9 voxels), so anything
+## shared has to be scaled to the head it lands on or a `slight` warden wears a crop two voxels too
+## wide and a `towering` one wears one two voxels too narrow.
+const AUTHORED_HEAD_VOXELS := 8.0
+
+
+static func _head_scale(head: Node3D) -> float:
+	var head_mesh := head.get_node_or_null("Mesh") as MeshInstance3D
+	if head_mesh == null or head_mesh.mesh == null:
+		return 1.0
+	var side := head_mesh.mesh.get_aabb().size.x / VoxelGridScript.EDGE
+	if side <= 0.0:
+		return 1.0
+	return side / AUTHORED_HEAD_VOXELS
+
+
 static func _apply_hair(visual: Node3D, profile: Dictionary, mats: Dictionary) -> void:
 	var hair := str(profile.get("hair", CharacterAppearance.HAIR_NONE))
 	var head := find_part(visual, "Head")
@@ -258,6 +279,7 @@ static func _apply_hair(visual: Node3D, profile: Dictionary, mats: Dictionary) -
 	# The centring offset is the same one `_attach_manifest_extras` applies, and its absence here
 	# is why hair grew out of the head's corner and stuck out to one side.
 	mesh_inst.position = _centre_offset(mesh)
+	holder.scale = Vector3.ONE * _head_scale(head)
 	# The hair volume is authored white, and the chosen colour arrives as the instance tint the
 	# surface shader multiplies COLOR by. Hair is the one thing on the model that must *not* track
 	# the biome palette: it is a decision about the character, and snapping it to a theme slot is
@@ -331,6 +353,9 @@ static func _apply_face(visual: Node3D, profile: Dictionary, _mats: Dictionary) 
 	var skin := CharacterAppearance.skin_color_rgb(
 		str(profile.get("skinTone", CharacterAppearance.SKIN_TONE_NEUTRAL))
 	)
+	# The plate's *placement* is measured off this head already; its *size* is not, because the
+	# mesh is one of the shared six-by-four masks.
+	mesh_inst.scale = Vector3.ONE * _head_scale(head)
 	holder.add_child(mesh_inst)
 	# In the tree first — see `_apply_hair`.
 	mesh_inst.set_instance_shader_parameter(SKIN_TINT_PARAM, Vector3(skin.r, skin.g, skin.b))
@@ -364,8 +389,8 @@ static func _apply_class_armor(visual: Node3D, profile: Dictionary, _mats: Dicti
 			class_id = str(svc.call("get_class_id"))
 	if class_id == "":
 		return
-	var mesh_path := "res://assets/characters/player_warden/garment_%s.voxels.json" % class_id
-	if not ResourceLoader.exists(mesh_path):
+	var mesh_path := _garment_path(profile, class_id)
+	if mesh_path == "":
 		return
 	# theme -1: the class palette is the point and must not be snapped to the biome's.
 	var mesh: ArrayMesh = VoxelMeshBuilderScript.load_mesh(mesh_path, -1)
@@ -388,6 +413,24 @@ static func _apply_class_armor(visual: Node3D, profile: Dictionary, _mats: Dicti
 		-(garment.position.z + garment.size.z * 0.5)
 	)
 	holder.add_child(mesh_inst)
+
+
+## The garment authored for *this* frame's torso, falling back to the base warden's.
+##
+## Unlike hair and the face plate, clothing is not shared across frames and is not scaled at
+## runtime: `sculpt_garment` grows every panel, hem and sash out of the torso volume it is handed,
+## so a surcoat cut for the standard 12-wide chest does not close around Stout's 14 and hangs off
+## the sides of Slight's 10. The generator writes one per frame; this picks the right one.
+static func _garment_path(profile: Dictionary, class_id: String) -> String:
+	var archetype := CharacterRigCatalogScript.archetype_for_player(profile)
+	var path := "res://assets/characters/%s/garment_%s.voxels.json" % [archetype, class_id]
+	if ResourceLoader.exists(path):
+		return path
+	# A frame whose meshes have not been generated still gets dressed, just in the base cut.
+	push_warning("DioramaCharacterSkin: no %s garment for %s, using the base warden's"
+		% [class_id, archetype])
+	var fallback := "res://assets/characters/player_warden/garment_%s.voxels.json" % class_id
+	return fallback if ResourceLoader.exists(fallback) else ""
 
 
 ## How far below the torso's base a garment volume begins, in voxels. Written into the asset by the

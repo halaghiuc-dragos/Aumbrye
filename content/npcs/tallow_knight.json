@@ -1,0 +1,23 @@
+{
+  "id": "tallow_knight",
+  "displayName": "The Tallow Knight",
+  "interactType": "dialogue",
+  "dialogueId": "tallow_greeting",
+  "position": {
+    "x": -13.0,
+    "y": 0,
+    "z": -13.0
+  },
+  "appearance": {
+    "classId": "knight",
+    "skinTone": "pale",
+    "hair": "shaven",
+    "hairColor": "silver",
+    "face": "weary",
+    "head": "visor",
+    "heightVariant": "tall",
+    "bulkVariant": "heavy",
+    "theme": 0,
+    "trim": 3
+  }
+}

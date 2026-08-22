@@ -3,45 +3,170 @@ class_name TitleWordmark
 
 ## The AUMBRYE wordmark and its subtitle, as one block.
 ##
-## Both the boot intro and the resting front end show this — the intro centres it, then slides it up
-## to sit above the menu panel. It is one node so that the two states are the same object moving,
-## rather than two drawings of the same logo that have to be kept in step.
+## The mark is **drawn**, not typed. It used to be Press Start 2P at a large size, and a typeface
+## built for body text does not hold up as a logo: its M is a different weight from its U, its R
+## carries a diagonal leg nothing else in the word echoes, and its Y hangs below the baseline. Set
+## side by side at 160px those read as seven letters borrowed from somewhere rather than one piece
+## of lettering.
 ##
-## **It is drawn small and magnified, the same way the game draws its world.** The whole mark is
-## built inside a SubViewport at 1/SHRINK scale and upscaled with nearest filtering, exactly as
-## `PixelDioramaViewport` renders the 3D scene at 480x270. Rendering it at final size instead left
-## one thing on the screen that was not pixel art: FreeType's outline stroker draws a *soft* edge,
-## so the halo faded off in smooth gradients while every other edge in the game is a hard block.
-## Through the low-res pass that halo lands on the pixel grid and steps like everything else, and
-## the glyph edges are quantised to the same grid rather than to screen pixels.
+## Every glyph here is authored on the same 8x9 grid with the same 2px stem, the same flat
+## terminals and the same cap height, and the gap between them is a constant. Consistent spacing and
+## consistent weight are properties of the grid, not something to be tuned by eye afterwards.
 ##
-## Press Start 2P is drawn on an 8x8 grid, so the *internal* size is a multiple of 8 and the upscale
-## is an integer — a 40px mark magnified 4x is the same letterform as a 160px one, with every other
-## dimension a whole `unit = font_size / 8`: one unit of tracking, a one-unit keyline, a one-unit
-## bevel, a two-unit shadow offset.
+## Drawn at native resolution through `_draw()` rather than rendered through the pixel SubViewport
+## the rest of the game uses: every cell here is already an exact rectangle on an integer grid, so
+## passing it through a downscale-and-magnify pass could only soften what is by construction crisp.
 
 const GameUISkinScript := preload("res://scripts/ui/game_ui_skin.gd")
 
-const WORDMARK_TEXT := "AUMBRYE"
+const GLYPH_W := 8
+const GLYPH_H := 9
+## Blank columns between glyphs. One number, so letter spacing cannot drift.
+##
+## Four, not two: the contour is a cell wide on each side, so at a two-cell gap the keylines of
+## adjacent letters met in the middle and the whole word fused into one purple slab.
+const GLYPH_GAP := 4
 
-## Magnification. Every internal pixel becomes a SHRINK x SHRINK block on screen.
-const SHRINK := 4
-const MIN_SIZE := 8
-const MAX_SIZE := 40
+## The wordmark, one string per row, `#` for an inked cell.
+##
+## House rules, applied to all seven: vertical stems are two cells, horizontal bars are one row, the
+## cap height fills the box, and where a letter needs a diagonal it is stepped in whole cells (see
+## R's leg) rather than drawn as a slope — a slope at this size is a staircase that has not admitted
+## it.
+##
+## **The corner rule.** Wherever the outline turns a corner, the outermost cell of that turn is cut:
+## A's apex, U's base, Y's shoulder, R's bowl, E's two left corners. Wherever a stroke simply ends in
+## the air it stays square: A's legs, M's four stems, R's leg, the free right ends of E's bars.
+##
+## **B takes the cut where it curves, and nowhere else.** Its spine is a straight vertical edge and
+## stays square; the two bowls are the round part, so the outer corner of each is cut. That is the
+## corner rule as written — a cut marks a curve — and it took three passes to land on it. All four
+## corners cut turned B into an 8, because both bowls then read as closed and equal. All four squared
+## fixed the reading but left B the only letter with no cut anywhere. Cutting the spine put it on the
+## one edge of the letter that has no curve in it at all.
+##
+## That distinction is the whole of it. U looked "cropped" at the bottom and B, R and E did not,
+## because the cut was applied by eye to the letters that felt round and skipped on the ones that
+## felt square — so the baseline read ragged. A turn is a turn whether the letter feels curved or
+## not, and now every one of them is treated the same.
+##
+## Fixing it exposed a real fault underneath: B's top bar ran cols 0-5 while its bowl ran cols 6-7,
+## which touch only at a diagonal. The bar and the bowl of that B were never actually joined, and
+## R's leg had the same break. Both are orthogonally connected now.
+const GLYPHS := {
+	"A": [
+		".######.",
+		"##....##",
+		"##....##",
+		"##....##",
+		"########",
+		"##....##",
+		"##....##",
+		"##....##",
+		"##....##",
+	],
+	"U": [
+		"##....##",
+		"##....##",
+		"##....##",
+		"##....##",
+		"##....##",
+		"##....##",
+		"##....##",
+		"##....##",
+		".######.",
+	],
+	"M": [
+		"##....##",
+		"###..###",
+		"########",
+		"##.##.##",
+		"##.##.##",
+		"##....##",
+		"##....##",
+		"##....##",
+		"##....##",
+	],
+	"B": [
+		"#######.",
+		"##....##",
+		"##....##",
+		"##....##",
+		"#######.",
+		"##....##",
+		"##....##",
+		"##....##",
+		"#######.",
+	],
+	"R": [
+		".######.",
+		"##....##",
+		"##....##",
+		"##....##",
+		"#######.",
+		"##..##..",
+		"##..##..",
+		"##...##.",
+		"##....##",
+	],
+	"Y": [
+		"##....##",
+		"##....##",
+		"##....##",
+		".######.",
+		"...##...",
+		"...##...",
+		"...##...",
+		"...##...",
+		"...##...",
+	],
+	"E": [
+		".#######",
+		"##......",
+		"##......",
+		"##......",
+		"######..",
+		"##......",
+		"##......",
+		"##......",
+		".#######",
+	],
+}
 
-## The lit face of the letters and the shaded edge under it. `ACCENT_BAR` is the old gold used for
-## every panel rule and divider in the game, so the shade is the interface's own accent rather than
-## a second yellow invented for the logo.
-const FACE := Color(0.96, 0.88, 0.62)
-const SHADE := Color(0.72, 0.58, 0.32)
-const OUTLINE := Color(0.05, 0.04, 0.09)
-const SHADOW := Color(0.20, 0.12, 0.34, 1.0)
+const WORD := "AUMBRYE"
+
+## How far the contour reaches, in cells.
+const CONTOUR_CELLS := 1
+## Drop shadow offset, in cells. Whole cells, so the shadow sits on the same grid as the mark, and
+## two of them rather than one so it clears the keyline instead of hiding behind it.
+const SHADOW_OFFSET := Vector2i(2, 2)
+
+const MIN_CELL := 8
+const MAX_CELL := 24
+
+## The lit face and the shaded end of the gradient across it.
+const FACE := Color(0.97, 0.89, 0.64)
+const FACE_SHADE := Color(0.72, 0.56, 0.34)
+## Contour and drop shadow. Two depths of the same violet so the contour reads as a keyline and the
+## shadow as something the mark is casting, rather than the two merging into one thick band.
+const CONTOUR := Color(0.45, 0.30, 0.72)
+const DROP := Color(0.16, 0.09, 0.30)
 const GLOW := Color(0.55, 0.42, 0.85)
 
-var _glow: Control
-var _stage: VBoxContainer
+## Each drawn cell is filled, then filled again one step in with the lighter tone, so every pixel of
+## the mark carries its own soft edge and the grid stays visible at any size.
+const CELL_EDGE_RATIO := 0.12
+const CELL_EDGE_DARKEN := 0.28
+
+var _mark: Control
+var _subtitle_host: Control
+var _cell := 16
+var _glow_alpha := 0.0
 var _glow_pulsing := false
 var _block_height := 0.0
+var _mask: Dictionary = {}
+var _contour_cells: Dictionary = {}
+var _grid_size := Vector2i.ZERO
 
 
 func build() -> void:
@@ -50,95 +175,172 @@ func build() -> void:
 	set_anchors_preset(Control.PRESET_TOP_WIDE)
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 
-	var host := SubViewportContainer.new()
-	host.name = "PixelHost"
-	host.set_anchors_preset(Control.PRESET_FULL_RECT)
-	host.stretch = true
-	host.stretch_shrink = SHRINK
-	host.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-	# The container would otherwise hand mouse events down into the viewport, and the mark sits over
-	# the whole width of the screen.
-	host.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	add_child(host)
+	_compose_mask()
+	_cell = _pick_cell_size()
 
-	var view := SubViewport.new()
-	view.name = "PixelViewport"
-	view.transparent_bg = true
-	view.disable_3d = true
-	view.msaa_2d = Viewport.MSAA_DISABLED
-	view.canvas_item_default_texture_filter = Viewport.DEFAULT_CANVAS_ITEM_TEXTURE_FILTER_NEAREST
-	# The halo breathes during the intro, so the viewport cannot be drawn once and cached.
-	view.render_target_update_mode = SubViewport.UPDATE_ALWAYS
-	host.add_child(view)
+	_mark = Control.new()
+	_mark.name = "Mark"
+	_mark.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_mark.set_anchors_preset(Control.PRESET_TOP_WIDE)
+	_mark.draw.connect(_draw_mark)
+	add_child(_mark)
 
-	_stage = VBoxContainer.new()
-	_stage.name = "Stage"
-	_stage.set_anchors_preset(Control.PRESET_FULL_RECT)
-	_stage.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	view.add_child(_stage)
+	var mark_h := float(
+		(_grid_size.y + CONTOUR_CELLS * 2 + SHADOW_OFFSET.y) * _cell
+	)
+	_mark.offset_top = 0.0
+	_mark.offset_bottom = mark_h
 
-	var font_size := _font_size()
-	var unit := maxi(1, roundi(font_size / 8.0))
-	var font := _font(unit)
-	_stage.add_theme_constant_override("separation", unit * 2)
-	_build_mark(font, font_size, unit)
-	_stage.add_child(_subtitle(font_size))
-
-	# Internal height, magnified: what the block occupies on screen.
-	_block_height = _stage.get_combined_minimum_size().y * SHRINK
-	custom_minimum_size = Vector2(0, _block_height)
+	_build_subtitle(mark_h)
+	_block_height = mark_h + _subtitle_host.size.y + float(_cell)
 
 
-func _build_mark(font: Font, font_size: int, unit: int) -> void:
-	var mark := Control.new()
-	mark.name = "Mark"
-	mark.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	# The glyph box plus three units of air above and below. The layers are vertically centred, so
-	# the padding is symmetric: it holds the bevel (one unit up), the shadow (two down) and the
-	# halo, which is drawn outside the letterform and is clipped by the SubViewport's edge if the
-	# block is only as tall as the glyphs — the first pass cut the halo off square and it read as a
-	# dirty rectangle behind the word rather than as a glow.
-	var line_height := font.get_height(font_size) if font else float(font_size)
-	mark.custom_minimum_size = Vector2(0, line_height + unit * 6)
-	_stage.add_child(mark)
-
-	# The halo is two hollow copies — no fill, just a thick outline. Offset copies were the first
-	# attempt and read as double vision: a second, misregistered AUMBRYE floating above the first.
-	# An outline follows the letterform, so the glow sits around the letters the way a light source
-	# would rather than beside them; the low-res pass is what makes its falloff step.
-	_glow = Control.new()
-	_glow.name = "Glow"
-	_glow.set_anchors_preset(Control.PRESET_FULL_RECT)
-	_glow.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	mark.add_child(_glow)
-	# Kept tight. At seven units the rings of adjacent letters merged into one slab, which the
-	# low-res pass then quantised into a solid block — soft falloff hid that, hard pixels do not.
-	_glow.add_child(_halo(font, font_size, unit * 3, 0.10))
-	_glow.add_child(_halo(font, font_size, unit, 0.18))
-
-	# A hard drop shadow two grid steps down and across, dilated like the keyline is — what shows
-	# past the letters is then a clean two-unit band rather than whatever fragments of an undilated
-	# silhouette happened to escape the keyline.
-	_add_block(mark, font, font_size, SHADOW, Vector2(unit * 2, unit * 2), unit)
-	# The dark keyline. An `outline_size` would be the obvious way, but FreeType's stroker rounds
-	# corners at the stroke radius — the square corners of the glyphs came out visibly bevelled.
-	# Copies offset by exactly one unit dilate the letterform on its own grid, which is what a pixel
-	# artist would draw.
-	# Twice, because the letters below are two copies a unit apart and the keyline has to wrap their
-	# union — dilating only the lower one left the lit face's top-left edge with no keyline at all.
-	_add_block(mark, font, font_size, OUTLINE, Vector2.ZERO, unit)
-	_add_block(mark, font, font_size, OUTLINE, Vector2(-unit, -unit), unit)
-
-	# The letters, in two tones: the shaded copy sits where the glyph belongs and the lit face is
-	# lifted one unit up and left, so a single font-pixel of shade is left along the bottom and
-	# right edges. That inner bevel is how a pixel artist gives a letterform depth — flat fill and a
-	# keyline alone read as big text rather than as a drawn logo.
-	mark.add_child(_layer(font, font_size, SHADE, Vector2.ZERO))
-	mark.add_child(_layer(font, font_size, FACE, Vector2(-unit, -unit)))
+## Cell positions of every inked square, plus the contour and glow rings derived from it.
+func _compose_mask() -> void:
+	_mask.clear()
+	var x := 0
+	for i in WORD.length():
+		var rows: Array = GLYPHS[WORD[i]]
+		for row in GLYPH_H:
+			var line: String = rows[row]
+			for col in GLYPH_W:
+				if line[col] == "#":
+					_mask[Vector2i(x + col, row)] = true
+		x += GLYPH_W + GLYPH_GAP
+	_grid_size = Vector2i(WORD.length() * GLYPH_W + (WORD.length() - 1) * GLYPH_GAP, GLYPH_H)
+	_contour_cells = _ring(_mask, CONTOUR_CELLS)
 
 
-## Vertical placement. Anchored top-wide, so the block spans the window and only its top and bottom
-## edges move; `position` would collapse it to its own width — see `_layer()`.
+## Every cell within `reach` of an inked one that is not itself inked — a dilation minus the source.
+func _ring(source: Dictionary, reach: int) -> Dictionary:
+	var out: Dictionary = {}
+	for cell: Vector2i in source:
+		for dx in range(-reach, reach + 1):
+			for dy in range(-reach, reach + 1):
+				var probe := cell + Vector2i(dx, dy)
+				if not source.has(probe):
+					out[probe] = true
+	return out
+
+
+## The largest cell that keeps the mark inside a margin at this window width, and leaves the menu
+## panel room underneath. Whole pixels only — a fractional cell is what makes a pixel logo shimmer.
+func _pick_cell_size() -> int:
+	var viewport := get_viewport_rect().size
+	var cols := _grid_size.x + CONTOUR_CELLS * 2 + SHADOW_OFFSET.x
+	var rows := _grid_size.y + CONTOUR_CELLS * 2 + SHADOW_OFFSET.y
+	var by_width := maxf(320.0, viewport.x) * 0.74 / float(cols)
+	var by_height := maxf(240.0, viewport.y) * 0.30 / float(rows)
+	return clampi(int(floor(minf(by_width, by_height))), MIN_CELL, MAX_CELL)
+
+
+func _draw_mark() -> void:
+	var origin := Vector2(
+		(_mark.size.x - float((_grid_size.x + SHADOW_OFFSET.x) * _cell)) * 0.5,
+		float(CONTOUR_CELLS * _cell)
+	)
+
+	# Outward from the letters: the shadow the mark casts, then its keyline, then the face.
+	# Painter's order, so each layer covers the one behind it where they overlap.
+	for cell: Vector2i in _contour_cells:
+		_draw_cell(origin, cell + SHADOW_OFFSET, DROP)
+	for cell: Vector2i in _mask:
+		_draw_cell(origin, cell + SHADOW_OFFSET, DROP)
+	# The keyline is what breathes during the intro — there is no separate halo to pulse, and a
+	# ring wide enough to read as a glow at this cell size just filled the gaps between letters.
+	var keyline := CONTOUR.lerp(GLOW, _glow_alpha)
+	for cell: Vector2i in _contour_cells:
+		_draw_cell(origin, cell, keyline)
+	for cell: Vector2i in _mask:
+		_draw_cell(origin, cell, _face_tone(cell))
+
+
+## The gradient across the face: lit at the top left, falling away to the bottom right, so the light
+## on the mark agrees with the key light everything else in the game is lit by.
+func _face_tone(cell: Vector2i) -> Color:
+	var across := float(cell.x) / maxf(1.0, float(_grid_size.x - 1))
+	var down := float(cell.y) / maxf(1.0, float(_grid_size.y - 1))
+	return FACE.lerp(FACE_SHADE, clampf(across * 0.35 + down * 0.65, 0.0, 1.0))
+
+
+## One cell of the mark: the whole square in a darker tone, then a step inside it in the tone
+## itself. That inner step is what gives every pixel its own soft border.
+func _draw_cell(origin: Vector2, cell: Vector2i, color: Color) -> void:
+	var rect := Rect2(
+		origin + Vector2(float(cell.x * _cell), float(cell.y * _cell)),
+		Vector2(float(_cell), float(_cell))
+	)
+	var edge := maxf(1.0, floorf(float(_cell) * CELL_EDGE_RATIO))
+	_mark.draw_rect(rect, Color(color.darkened(CELL_EDGE_DARKEN), color.a))
+	_mark.draw_rect(rect.grow(-edge), color)
+
+
+## The subtitle keeps the mark's keyline colour, so the pair reads as one lockup. It stays type
+## rather than being drawn cell by cell — at a fifth of the mark's size a hand-authored grid would
+## be finer than the mark's own pixels, which would invert the hierarchy.
+func _build_subtitle(top: float) -> void:
+	var sub_size := maxi(16, int(round(float(_cell) * 1.25 / 8.0)) * 8)
+	var font := _font(maxi(1, roundi(float(sub_size) / 4.0)))
+	var text := tr("MENU_SUBTITLE")
+	var keyline := maxi(1, roundi(float(sub_size) / 8.0))
+
+	_subtitle_host = Control.new()
+	_subtitle_host.name = "Subtitle"
+	_subtitle_host.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_subtitle_host.set_anchors_preset(Control.PRESET_TOP_WIDE)
+	var height := (font.get_height(sub_size) if font else float(sub_size)) + float(keyline * 2)
+	_subtitle_host.offset_top = top + float(_cell)
+	_subtitle_host.offset_bottom = _subtitle_host.offset_top + height
+	add_child(_subtitle_host)
+
+	for dx in [-keyline, 0, keyline]:
+		for dy in [-keyline, 0, keyline]:
+			if dx == 0 and dy == 0:
+				continue
+			_subtitle_host.add_child(
+				_text_layer(text, font, sub_size, CONTOUR, Vector2(dx, dy))
+			)
+	_subtitle_host.add_child(
+		_text_layer(text, font, sub_size, GameUISkinScript.BODY_COLOR, Vector2.ZERO)
+	)
+
+
+func _text_layer(
+	text: String, font: Font, font_size: int, color: Color, offset: Vector2
+) -> Label:
+	var label := Label.new()
+	label.text = text
+	label.set_anchors_preset(Control.PRESET_FULL_RECT)
+	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	# Shifted by moving all four offsets, not by setting `position`: the position setter derives
+	# offsets from the control's *current* size, and at build time these are not in the tree yet, so
+	# their size is their text width rather than the parent's.
+	label.offset_left = offset.x
+	label.offset_right = offset.x
+	label.offset_top = offset.y
+	label.offset_bottom = offset.y
+	if font:
+		label.add_theme_font_override("font", font)
+	label.add_theme_font_size_override("font_size", font_size)
+	label.add_theme_color_override("font_color", color)
+	return label
+
+
+func _font(tracking: int) -> Font:
+	if not ResourceLoader.exists(GameUISkinScript.FONT_PATH):
+		return null
+	var base := load(GameUISkinScript.FONT_PATH) as Font
+	if base == null:
+		return null
+	var variation := FontVariation.new()
+	variation.base_font = base
+	variation.spacing_glyph = tracking
+	return variation
+
+
+## Vertical placement. Anchored top-wide, so the block spans the window and only its edges move.
 func place_at(y: float) -> void:
 	offset_left = 0.0
 	offset_right = 0.0
@@ -154,101 +356,14 @@ func block_height() -> float:
 ## only signal there is that it is waiting — there is no separate blinking hint.
 func set_glow_pulsing(on: bool) -> void:
 	_glow_pulsing = on
-	if not on and _glow != null and is_instance_valid(_glow):
-		_glow.modulate = Color(1.0, 1.0, 1.0, 0.35)
+	if not on:
+		_glow_alpha = 0.0
+		if _mark and is_instance_valid(_mark):
+			_mark.queue_redraw()
 
 
 func _process(_delta: float) -> void:
-	if _glow == null or not is_instance_valid(_glow) or not _glow_pulsing:
+	if not _glow_pulsing or _mark == null or not is_instance_valid(_mark):
 		return
-	var pulse := 0.55 + 0.45 * sin(Time.get_ticks_msec() * 0.0022)
-	_glow.modulate = Color(1.0, 1.0, 1.0, pulse)
-
-
-## The largest multiple of 8 that, once magnified, clears a margin on both sides and still leaves
-## the menu panel room underneath. Press Start 2P is monospaced at one em per glyph, so the width is
-## simply glyphs x (size + tracking), and tracking is one unit — hence the 1.125.
-func _font_size() -> int:
-	var viewport := get_viewport_rect().size
-	var by_width := maxf(320.0, viewport.x) * 0.72 / (float(WORDMARK_TEXT.length()) * 1.125)
-	var by_height := maxf(240.0, viewport.y) / 6.0
-	var limit := int(minf(by_width, by_height) / float(SHRINK))
-	var best := MIN_SIZE
-	var candidate := MIN_SIZE
-	while candidate <= MAX_SIZE:
-		if candidate <= limit:
-			best = candidate
-		candidate += 8
-	return best
-
-
-func _font(tracking: int) -> Font:
-	if not ResourceLoader.exists(GameUISkinScript.FONT_PATH):
-		return null
-	var base := load(GameUISkinScript.FONT_PATH) as Font
-	if base == null:
-		return null
-	var variation := FontVariation.new()
-	variation.base_font = base
-	# One grid step of tracking. Press Start 2P sets its glyphs edge to edge; without this the
-	# letters of a large wordmark read as a single block.
-	variation.spacing_glyph = tracking
-	return variation
-
-
-func _subtitle(font_size: int) -> Label:
-	var label := Label.new()
-	label.name = "Subtitle"
-	label.text = tr("MENU_SUBTITLE")
-	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	GameUISkinScript.style_body_label(label)
-	# A quarter of the mark, rounded onto the same 8px grid, so the pair reads as one piece of
-	# lettering rather than the logo with a caption typed under it.
-	var sub_size := maxi(MIN_SIZE, int(round(font_size / 4.0 / 8.0)) * 8)
-	label.add_theme_font_size_override("font_size", sub_size)
-	var font := _font(maxi(1, roundi(sub_size / 4.0)))
-	if font:
-		label.add_theme_font_override("font", font)
-	label.add_theme_color_override("font_color", GameUISkinScript.BODY_COLOR)
-	return label
-
-
-## The wordmark as a solid silhouette grown by one grid unit in every direction — the keyline and
-## the drop shadow are both this shape, at different offsets.
-func _add_block(
-	parent: Control, font: Font, font_size: int, color: Color, origin: Vector2, unit: int
-) -> void:
-	for dx in [-unit, 0, unit]:
-		for dy in [-unit, 0, unit]:
-			parent.add_child(_layer(font, font_size, color, origin + Vector2(dx, dy)))
-
-
-## A copy of the wordmark with no fill, drawn only as an outline — one ring of the halo.
-func _halo(font: Font, font_size: int, thickness: int, alpha: float) -> Label:
-	var label := _layer(font, font_size, Color(FACE, 0.0), Vector2.ZERO)
-	label.add_theme_constant_override("outline_size", thickness)
-	label.add_theme_color_override("font_outline_color", Color(GLOW, alpha))
-	return label
-
-
-func _layer(font: Font, font_size: int, color: Color, offset: Vector2) -> Label:
-	var label := Label.new()
-	label.text = WORDMARK_TEXT
-	label.set_anchors_preset(Control.PRESET_FULL_RECT)
-	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	# Shifted by moving all four offsets, not by setting `position`. The position setter derives
-	# offsets from the control's *current* size, and at build time these labels are not in the tree
-	# yet, so their size is their text width rather than the parent's — every copy ended up
-	# left-aligned in a box the width of the word instead of centred across the screen.
-	label.offset_left = offset.x
-	label.offset_right = offset.x
-	label.offset_top = offset.y
-	label.offset_bottom = offset.y
-	if font:
-		label.add_theme_font_override("font", font)
-	label.add_theme_font_size_override("font_size", font_size)
-	label.add_theme_color_override("font_color", color)
-	return label
+	_glow_alpha = 0.28 + 0.28 * sin(Time.get_ticks_msec() * 0.0022)
+	_mark.queue_redraw()

@@ -56,8 +56,20 @@
     }
   ],
   "position": {
-    "x": -14.9,
+    "x": -16.66,
     "y": 0,
-    "z": -3.4
+    "z": -1.85
+  },
+  "appearance": {
+    "classId": "berserker",
+    "skinTone": "ruddy",
+    "hair": "wild",
+    "hairColor": "ash",
+    "face": "scarred",
+    "head": "open",
+    "heightVariant": "standard",
+    "bulkVariant": "heavy",
+    "theme": 0,
+    "trim": 2
   }
 }

@@ -1,0 +1,51 @@
+{
+  "id": "stray_cat_ash",
+  "startNode": "start",
+  "nodes": {
+    "start": {
+      "speaker": "Ash",
+      "text": "A thin grey cat that watches you from exactly one pace further than you would like.",
+      "choices": [
+        {
+          "text": "Say hello.",
+          "next": "noise"
+        },
+        {
+          "text": "Pet Ash.",
+          "next": "pet"
+        },
+        {
+          "text": "Leave it be.",
+          "next": "end"
+        }
+      ]
+    },
+    "noise": {
+      "speaker": "Ash",
+      "text": "...mrrt.",
+      "actions": [
+        {
+          "type": "play_sfx",
+          "sfxId": "stray_meow"
+        }
+      ],
+      "next": "start"
+    },
+    "pet": {
+      "speaker": "Ash",
+      "text": "It endures one stroke, decides that was the agreed amount, and relocates two paces off to resume watching.",
+      "actions": [
+        {
+          "type": "play_sfx",
+          "sfxId": "stray_meow"
+        },
+        {
+          "type": "set_relationship",
+          "npc": "strays",
+          "delta": 1
+        }
+      ],
+      "next": "start"
+    }
+  }
+}

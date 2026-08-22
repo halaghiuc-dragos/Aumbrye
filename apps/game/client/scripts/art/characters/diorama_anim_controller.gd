@@ -301,9 +301,27 @@ func request_locomotion(state: StringName, params: Dictionary = {}) -> void:
 	_desired_locomotion = state
 	if _priority > Priority.LOCOMOTION:
 		return
-	_player.speed_scale = _locomotion_speed_scale(state, params)
-	if _player.current_animation != String(state):
-		_play(state, LOCOMOTION_BLEND)
+	var clip := _locomotion_fallback(state)
+	_player.speed_scale = _locomotion_speed_scale(clip, params)
+	if _player.current_animation != String(clip):
+		_play(clip, LOCOMOTION_BLEND)
+
+
+## The directional clip is chosen from the *body's* library by `player_anim_director`, then handed
+## to every mirror rig as well. The viewmodel library has no strafe variants, so `run_r` resolved on
+## the body and then warned "clip 'run_r' missing" once the mirror was asked for it — and the
+## viewmodel played nothing at all while strafing. Degrading to the base gait is what a rig without
+## strafes should do.
+func _locomotion_fallback(state: StringName) -> StringName:
+	if has_clip(state):
+		return state
+	var clip_name := String(state)
+	var cut := clip_name.rfind("_")
+	if cut > 0:
+		var base := StringName(clip_name.substr(0, cut))
+		if has_clip(base):
+			return base
+	return state
 
 
 func _locomotion_speed_scale(state: StringName, params: Dictionary) -> float:

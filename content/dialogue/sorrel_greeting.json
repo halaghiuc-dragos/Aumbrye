@@ -1,0 +1,121 @@
+{
+  "id": "sorrel_greeting",
+  "startNode": "start",
+  "nodes": {
+    "start": {
+      "speaker": "Sorrel",
+      "text": "Sorrel has chalk to the elbow and a list she will not let anyone else read.",
+      "choices": [
+        {
+          "text": "What are you marking?",
+          "next": "marking"
+        },
+        {
+          "text": "Who is on the list?",
+          "next": "list"
+        },
+        {
+          "text": "I will find your marks.",
+          "next": "quest",
+          "condition": {
+            "all": [
+              {
+                "minTier": 2
+              },
+              {
+                "not": {
+                  "flag": "sorrel_marks_given"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "text": "You are going down again.",
+          "next": "last_descent",
+          "condition": {
+            "all": [
+              {
+                "minTier": 3
+              },
+              {
+                "flag": "sorrel_marks_given"
+              },
+              {
+                "not": {
+                  "flag": "sorrel_fallen"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "text": "Later.",
+          "next": "end"
+        }
+      ]
+    },
+    "marking": {
+      "speaker": "Sorrel",
+      "text": "The ones it ate. A name and a floor, on the wall where it happened. The tower is very good at forgetting and I am very stubborn.",
+      "actions": [
+        {
+          "type": "set_relationship",
+          "npc": "sorrel",
+          "delta": 1
+        }
+      ],
+      "next": "end"
+    },
+    "list": {
+      "speaker": "Sorrel",
+      "text": "Everyone who went down while I was up here. It is not a short list and I did not write the top of it.",
+      "actions": [
+        {
+          "type": "set_relationship",
+          "npc": "sorrel",
+          "delta": 1
+        }
+      ],
+      "next": "end"
+    },
+    "quest": {
+      "speaker": "Sorrel",
+      "text": "Three of them are still down there under whatever has grown over them. Read them. Say them out loud where they are. That is the whole of it.",
+      "actions": [
+        {
+          "type": "start_quest",
+          "questId": "sorrel_the_unmarked"
+        },
+        {
+          "type": "set_flag",
+          "flag": "sorrel_marks_given",
+          "value": true
+        },
+        {
+          "type": "set_relationship",
+          "npc": "sorrel",
+          "delta": 2
+        }
+      ],
+      "next": "end"
+    },
+    "last_descent": {
+      "speaker": "Sorrel",
+      "text": "One more. The bottom of the list, and I have been putting it off since before you had a name here.\n\nDo not follow me down. If the chalk is gone from the wall when you next pass it, that will be me, and it will have been my own idea.",
+      "actions": [
+        {
+          "type": "set_flag",
+          "flag": "sorrel_fallen",
+          "value": true
+        },
+        {
+          "type": "set_relationship",
+          "npc": "sorrel",
+          "delta": 2
+        }
+      ],
+      "next": "end"
+    }
+  }
+}

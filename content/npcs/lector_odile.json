@@ -66,8 +66,20 @@
     }
   ],
   "position": {
-    "x": 18.4,
+    "x": -8.0,
     "y": 0,
-    "z": 3.6
+    "z": 11.6
+  },
+  "appearance": {
+    "classId": "scholar",
+    "skinTone": "pale",
+    "hair": "long",
+    "hairColor": "silver",
+    "face": "kind",
+    "head": "hood",
+    "heightVariant": "standard",
+    "bulkVariant": "lean",
+    "theme": 0,
+    "trim": 1
   }
 }

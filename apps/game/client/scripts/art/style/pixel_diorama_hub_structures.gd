@@ -1,6 +1,10 @@
 extends RefCounted
 class_name PixelDioramaHubStructures
 
+## How far up the side of a tent the fabric reaches. Above this the side is open, so the anvil, the
+## forge and the shopkeeper standing at them are all visible from the plaza.
+const SIDE_SKIRT_RATIO := 0.42
+
 
 static func build_tent(
 	parent: Node3D, mats: Dictionary, params: Dictionary, facing_yaw: float, def: Dictionary
@@ -158,6 +162,10 @@ static func build_tent(
 		"AwningTrim"
 	)
 
+	# A market stall, not a house: closed at the back, open at the front, and only skirt-high down
+	# the sides. Full-height fabric on three sides plus front lips is what made these read as little
+	# buildings — you could not see the forge or the anvil inside one, and an NPC standing at his own
+	# workbench was hidden behind a wall he visually clipped through.
 	PixelDioramaStyle.add_box(
 		visuals,
 		Vector3(width, wall_height, wall_thickness),
@@ -165,37 +173,40 @@ static func build_tent(
 		fabric_mat,
 		"WallBack"
 	)
+	var skirt_h := wall_height * SIDE_SKIRT_RATIO
 	PixelDioramaStyle.add_box(
 		visuals,
-		Vector3(wall_thickness, wall_height, depth),
-		Vector3(-half_w, wall_height * 0.5, 0.0),
+		Vector3(wall_thickness, skirt_h, depth),
+		Vector3(-half_w, skirt_h * 0.5, 0.0),
 		fabric_mat,
-		"WallLeft"
+		"SkirtLeft"
 	)
 	PixelDioramaStyle.add_box(
 		visuals,
-		Vector3(wall_thickness, wall_height, depth),
-		Vector3(half_w, wall_height * 0.5, 0.0),
+		Vector3(wall_thickness, skirt_h, depth),
+		Vector3(half_w, skirt_h * 0.5, 0.0),
 		fabric_mat,
-		"WallRight"
+		"SkirtRight"
 	)
-
-	if lip_width > 0.15:
-		var lip_left_x := -half_w + lip_width * 0.5
-		var lip_right_x := half_w - lip_width * 0.5
+	# The rail the side fabric hangs from, so the open gap above the skirt reads as deliberate.
+	for side in [-1.0, 1.0]:
 		PixelDioramaStyle.add_box(
 			visuals,
-			Vector3(lip_width, wall_height, wall_thickness),
-			Vector3(lip_left_x, wall_height * 0.5, lip_z),
-			fabric_mat,
-			"WallFrontLipL"
+			Vector3(0.1, 0.1, depth),
+			Vector3(half_w * side, wall_height - 0.12, 0.0),
+			pole_mat,
+			"SideRail%s" % ("R" if side > 0.0 else "L")
 		)
+
+	# A short valance across the front instead of the two full-height lips.
+	if lip_width > 0.15:
+		var valance_h := wall_height * 0.18
 		PixelDioramaStyle.add_box(
 			visuals,
-			Vector3(lip_width, wall_height, wall_thickness),
-			Vector3(lip_right_x, wall_height * 0.5, lip_z),
+			Vector3(width - entrance_width * 0.2, valance_h, wall_thickness * 0.7),
+			Vector3(0.0, wall_height - valance_h * 0.5, lip_z),
 			fabric_mat,
-			"WallFrontLipR"
+			"FrontValance"
 		)
 
 	var flap_h := wall_height * 0.55
@@ -221,13 +232,6 @@ static func build_tent(
 		Vector3(0.0, 0.06, 0.0),
 		floor_alt,
 		"TentPad"
-	)
-	PixelDioramaStyle.add_box(
-		visuals,
-		Vector3(width + 0.35, 0.08, depth + 0.35),
-		Vector3(0.0, 0.14, 0.0),
-		roof_mat,
-		"TentPadTrim"
 	)
 
 	var collision_root := parent.get_node_or_null("TentCollision") as StaticBody3D
