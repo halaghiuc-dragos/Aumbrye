@@ -161,6 +161,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -18.0, 0.0, -2.0)
 
 [node name="Building" type="MeshInstance3D" parent="Blacksmith"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2, 0)
+metadata/legacy_blockout = true
 mesh = SubResource("BoxMesh_building")
 
 [node name="InteractArea" type="Area3D" parent="Blacksmith"]
@@ -185,6 +186,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 18.0, 0.0, -2.0)
 
 [node name="Building" type="MeshInstance3D" parent="Merchant"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2, 0)
+metadata/legacy_blockout = true
 mesh = SubResource("BoxMesh_building")
 
 [node name="InteractArea" type="Area3D" parent="Merchant"]
@@ -209,6 +211,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -18.0, 0.0, 8.0)
 
 [node name="Building" type="MeshInstance3D" parent="Storage"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2, 0)
+metadata/legacy_blockout = true
 mesh = SubResource("BoxMesh_building")
 
 [node name="InteractArea" type="Area3D" parent="Storage"]
@@ -233,6 +236,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 18.0, 0.0, 8.0)
 
 [node name="Board" type="MeshInstance3D" parent="QuestBoard"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2, 0)
+metadata/legacy_blockout = true
 mesh = SubResource("BoxMesh_building")
 scale = Vector3(0.8, 0.8, 0.3)
 

@@ -13,21 +13,284 @@
     "leaderboard_submit"
   ],
   "hooks": [
-    { "event": "enemy_killed", "achievementId": "first_blood", "threshold": 1, "counterKey": "kills" },
-    { "event": "item_obtained", "achievementId": "epic_loot", "contextKey": "rarity", "contextValue": "epic" },
-    { "event": "item_obtained", "achievementId": "legendary_loot", "contextKey": "rarity", "contextValue": "legendary" },
-    { "event": "item_obtained", "achievementId": "aumbral_loot", "contextKey": "rarity", "contextValue": "aumbral" },
-    { "event": "equipment_full", "achievementId": "full_equip" },
-    { "event": "talent_points_spent", "achievementId": "talent_spender", "threshold": 10, "counterKey": "talent_points", "incrementKey": "cost" },
-    { "event": "merchant_buy", "achievementId": "merchant_friend", "threshold": 10, "counterKey": "merchant_buys" },
-    { "event": "blacksmith_craft", "achievementId": "blacksmith_patron", "threshold": 5, "counterKey": "blacksmith_crafts" },
-    { "event": "quest_completed", "achievementId": "quest_complete", "threshold": 5, "counterKey": "quests_completed" },
-    { "event": "parry", "achievementId": "parry_master", "threshold": 50, "counterKey": "parries" },
-    { "event": "dodge", "achievementId": "dodge_artist", "threshold": 100, "counterKey": "dodges" },
-    { "event": "status_applied", "achievementId": "status_applier", "threshold": 25, "counterKey": "statuses_applied" },
-    { "event": "status_applied", "achievementId": "freeze_master", "threshold": 20, "counterKey": "freeze_applied", "contextKey": "status_id", "contextValue": "freeze" },
-    { "event": "status_applied", "achievementId": "poison_master", "threshold": 20, "counterKey": "poison_applied", "contextKey": "status_id", "contextValue": "poison" },
-    { "event": "boss_defeated_no_damage", "achievementId": "no_damage_boss" },
-    { "event": "arena_won", "achievementId": "arena_victor" }
+    {
+      "event": "enemy_killed",
+      "achievementId": "first_blood",
+      "threshold": 1,
+      "counterKey": "kills"
+    },
+    {
+      "event": "item_obtained",
+      "achievementId": "epic_loot",
+      "contextKey": "rarity",
+      "contextValue": "epic"
+    },
+    {
+      "event": "item_obtained",
+      "achievementId": "legendary_loot",
+      "contextKey": "rarity",
+      "contextValue": "legendary"
+    },
+    {
+      "event": "item_obtained",
+      "achievementId": "aumbral_loot",
+      "contextKey": "rarity",
+      "contextValue": "aumbral"
+    },
+    {
+      "event": "equipment_full",
+      "achievementId": "full_equip"
+    },
+    {
+      "event": "talent_points_spent",
+      "achievementId": "talent_spender",
+      "threshold": 10,
+      "counterKey": "talent_points",
+      "incrementKey": "cost"
+    },
+    {
+      "event": "merchant_buy",
+      "achievementId": "merchant_friend",
+      "threshold": 10,
+      "counterKey": "merchant_buys"
+    },
+    {
+      "event": "blacksmith_craft",
+      "achievementId": "blacksmith_patron",
+      "threshold": 5,
+      "counterKey": "blacksmith_crafts"
+    },
+    {
+      "event": "quest_completed",
+      "achievementId": "quest_complete",
+      "threshold": 5,
+      "counterKey": "quests_completed"
+    },
+    {
+      "event": "parry",
+      "achievementId": "parry_master",
+      "threshold": 50,
+      "counterKey": "parries"
+    },
+    {
+      "event": "dodge",
+      "achievementId": "dodge_artist",
+      "threshold": 100,
+      "counterKey": "dodges"
+    },
+    {
+      "event": "status_applied",
+      "achievementId": "status_applier",
+      "threshold": 25,
+      "counterKey": "statuses_applied"
+    },
+    {
+      "event": "status_applied",
+      "achievementId": "freeze_master",
+      "threshold": 20,
+      "counterKey": "freeze_applied",
+      "contextKey": "status_id",
+      "contextValue": "freeze"
+    },
+    {
+      "event": "status_applied",
+      "achievementId": "poison_master",
+      "threshold": 20,
+      "counterKey": "poison_applied",
+      "contextKey": "status_id",
+      "contextValue": "poison"
+    },
+    {
+      "event": "boss_defeated_no_damage",
+      "achievementId": "no_damage_boss"
+    },
+    {
+      "event": "arena_won",
+      "achievementId": "arena_victor"
+    },
+    {
+      "event": "enemy_killed",
+      "achievementId": "cull_the_weak",
+      "threshold": 25,
+      "counterKey": "kills_25"
+    },
+    {
+      "event": "enemy_killed",
+      "achievementId": "hundred_fold",
+      "threshold": 100,
+      "counterKey": "kills_100"
+    },
+    {
+      "event": "enemy_killed",
+      "achievementId": "gravemaker",
+      "threshold": 500,
+      "counterKey": "kills_500"
+    },
+    {
+      "event": "enemy_killed",
+      "achievementId": "the_long_tally",
+      "threshold": 2500,
+      "counterKey": "kills_2500"
+    },
+    {
+      "event": "parry",
+      "achievementId": "clean_hands",
+      "threshold": 25,
+      "counterKey": "parry_25"
+    },
+    {
+      "event": "parry",
+      "achievementId": "blade_reader",
+      "threshold": 200,
+      "counterKey": "parry_200"
+    },
+    {
+      "event": "parry",
+      "achievementId": "unhittable",
+      "threshold": 1000,
+      "counterKey": "parry_1000"
+    },
+    {
+      "event": "dodge",
+      "achievementId": "light_on_your_feet",
+      "threshold": 50,
+      "counterKey": "dodge_50"
+    },
+    {
+      "event": "dodge",
+      "achievementId": "smoke_and_shadow",
+      "threshold": 400,
+      "counterKey": "dodge_400"
+    },
+    {
+      "event": "dodge",
+      "achievementId": "never_there",
+      "threshold": 2000,
+      "counterKey": "dodge_2000"
+    },
+    {
+      "event": "boss_defeated_no_damage",
+      "achievementId": "flawless_five",
+      "threshold": 5,
+      "counterKey": "flawless_boss_5"
+    },
+    {
+      "event": "status_applied",
+      "achievementId": "kindling",
+      "contextKey": "status_id",
+      "contextValue": "burn",
+      "threshold": 100,
+      "counterKey": "burn_100"
+    },
+    {
+      "event": "status_applied",
+      "achievementId": "red_ledger",
+      "contextKey": "status_id",
+      "contextValue": "bleed",
+      "threshold": 100,
+      "counterKey": "bleed_100"
+    },
+    {
+      "event": "status_applied",
+      "achievementId": "dead_weight",
+      "contextKey": "status_id",
+      "contextValue": "stun",
+      "threshold": 100,
+      "counterKey": "stun_100"
+    },
+    {
+      "event": "status_applied",
+      "achievementId": "everything_hurts",
+      "threshold": 500,
+      "counterKey": "status_500"
+    },
+    {
+      "event": "item_obtained",
+      "achievementId": "magpie",
+      "threshold": 100,
+      "counterKey": "items_100"
+    },
+    {
+      "event": "item_obtained",
+      "achievementId": "hoarder",
+      "threshold": 500,
+      "counterKey": "items_500"
+    },
+    {
+      "event": "item_obtained",
+      "achievementId": "uncommon_taste",
+      "contextKey": "rarity",
+      "contextValue": "magic"
+    },
+    {
+      "event": "item_obtained",
+      "achievementId": "rare_air",
+      "contextKey": "rarity",
+      "contextValue": "rare"
+    },
+    {
+      "event": "merchant_buy",
+      "achievementId": "open_a_tab",
+      "threshold": 25,
+      "counterKey": "buys_25"
+    },
+    {
+      "event": "merchant_buy",
+      "achievementId": "best_customer",
+      "threshold": 100,
+      "counterKey": "buys_100"
+    },
+    {
+      "event": "blacksmith_craft",
+      "achievementId": "apprentice_smith",
+      "threshold": 25,
+      "counterKey": "craft_25"
+    },
+    {
+      "event": "blacksmith_craft",
+      "achievementId": "master_of_the_anvil",
+      "threshold": 100,
+      "counterKey": "craft_100"
+    },
+    {
+      "event": "quest_completed",
+      "achievementId": "errand_runner",
+      "threshold": 10,
+      "counterKey": "quests_10"
+    },
+    {
+      "event": "quest_completed",
+      "achievementId": "the_board_is_clear",
+      "threshold": 50,
+      "counterKey": "quests_50"
+    },
+    {
+      "event": "talent_points_spent",
+      "achievementId": "deep_student",
+      "threshold": 25,
+      "counterKey": "talents_25"
+    },
+    {
+      "event": "stair_lever_used",
+      "achievementId": "stairwalker",
+      "threshold": 25,
+      "counterKey": "stairs_25"
+    },
+    {
+      "event": "stair_lever_used",
+      "achievementId": "no_way_but_down",
+      "threshold": 100,
+      "counterKey": "stairs_100"
+    },
+    {
+      "event": "bestiary_completed",
+      "achievementId": "loremaster"
+    },
+    {
+      "event": "arena_won",
+      "achievementId": "champion_of_the_sand",
+      "threshold": 25,
+      "counterKey": "arena_25"
+    }
   ]
 }

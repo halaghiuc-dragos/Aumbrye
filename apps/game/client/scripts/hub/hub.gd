@@ -62,6 +62,11 @@ func _ready() -> void:
 	# against live state, so the surface follows the signals that change it.
 	_connect_tip_refresh_sources()
 
+	# The prompt is blanked while a dialogue is up and had nothing to restore it afterwards, so
+	# walking away from a finished conversation left the player standing in the zone with no "(E)"
+	# on screen and no reason to think they could talk again.
+	_dialogue_ui.closed.connect(_update_prompt)
+
 	_castle_menu.dungeon_run_requested.connect(_on_dungeon_run)
 	_castle_menu.continue_requested.connect(_on_castle_continue)
 	_castle_menu.seed_run_requested.connect(_on_castle_seed_run)
@@ -334,10 +339,38 @@ func _on_interact_exit(interact_id: String) -> void:
 	_update_prompt()
 
 
+## Despite the name this used to return the *last zone entered*, not the nearest one, which is only
+## the same thing when zones do not overlap. They do: Rook's patch sits inside the merchant's zone,
+## Cinder's inside Aldric's, Tallow's inside the quartermaster's. Walk up to the dog from the plaza
+## and you enter the merchant's zone second, so the prompt read "Merchant (E)" while you were
+## standing on top of the dog, and E opened the shop instead of the dialogue.
+##
+## Distance is measured on the ground plane and against the zone's collision shape rather than the
+## Area3D origin, because a shop's area sits at the building origin with the shape pushed out in
+## front of it, and a stray's sphere sits above the animal's feet. Comparing origins would hand the
+## contest back to the building.
 func _nearest_interact_id() -> String:
 	if _nearby.is_empty():
 		return ""
-	return _nearby[_nearby.size() - 1]
+	var player := get_node_or_null("Player") as Node3D
+	if player == null:
+		return _nearby[_nearby.size() - 1]
+	var origin := player.global_position
+	var best_id := ""
+	var best_dist := INF
+	for interact_id in _nearby:
+		var area: HubInteractable = _interactable_by_id.get(interact_id)
+		if area == null or not area.is_player_near():
+			continue
+		var to_zone := area.get_focus_position() - origin
+		to_zone.y = 0.0
+		var dist := to_zone.length_squared()
+		if dist < best_dist:
+			best_dist = dist
+			best_id = interact_id
+	if best_id.is_empty():
+		return _nearby[_nearby.size() - 1]
+	return best_id
 
 
 func _update_prompt() -> void:

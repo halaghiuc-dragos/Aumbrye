@@ -14,7 +14,13 @@ missing rather than any particular sound:
 * a **room** — pre-delay, early reflections and a frequency-dependent tail, sized to the space the
   sound happens in.
 
-Usage:  python tools/generate_foley.py [--check]
+Usage:  python tools/generate_foley.py [--check] [--only name,name]
+
+`--only` exists because a full run rewrites every file whether or not its audio changed. The
+encoder is chosen at runtime — ffmpeg when it is on PATH, libsndfile through `soundfile` when it
+is not — and the two do not produce identical bytes for identical samples, so running this on a
+machine without ffmpeg re-encodes the entire committed bank as a side effect of adding one sound.
+Render the effect you actually changed.
 """
 
 from __future__ import annotations
@@ -416,6 +422,63 @@ FOOTSTEP_VARIANTS = 3
 
 # --- driver ------------------------------------------------------------------------------------
 
+# --- the plaza strays ------------------------------------------------------------------------
+#
+# `content/dialogue/stray_*.json` has asked for these on every "say hello" and every "pet" since
+# the animals went in, and neither existed, so petting a cat played the generic missing-sfx beep.
+# Both are voiced sounds rather than struck objects, so they are built the way `exhausted` is: a
+# glottal source through moving formants, which is what separates an animal from a synth tone.
+
+
+def stray_meow(rng: np.random.Generator) -> np.ndarray:
+    """A cat's meow: one voiced note opening from a nasal /m/ into the vowel and closing again."""
+    seconds = 0.62
+    n = A.n_samples(seconds)
+    span = np.linspace(0.0, 1.0, n, dtype=np.float32)
+    # Rises into the vowel and falls away over a longer tail. The fall is what stops it reading as
+    # a held note.
+    pitch = 620.0 + 180.0 * np.sin(math.pi * np.clip(span * 1.6, 0.0, 1.0)) - 210.0 * span ** 2
+    vibrato = 1.0 + 0.018 * np.sin(2.0 * math.pi * 5.5 * span * seconds).astype(np.float32)
+    voiced = pitch.astype(np.float32) * vibrato
+    source = A.saw(voiced, seconds) * 0.6 + A.sine(voiced, seconds) * 0.4
+    # The mouth opening and closing is the whole sound: closed is nasal and dark, open is two
+    # formants well apart.
+    openness = np.clip(np.sin(math.pi * span ** 0.8), 0.0, 1.0).astype(np.float32)
+    nasal = A.lowpass(source, 900.0, poles=2)
+    vowel = A.bandpass(source, 520.0, 1000.0) * 0.9 + A.bandpass(source, 1500.0, 2700.0) * 0.55
+    voice = nasal * (1.0 - openness) + vowel * openness
+    voice *= np.clip(np.sin(math.pi * span ** 0.7) * 1.2, 0.0, 1.0)
+    return A.normalize(
+        A.reverb(A.fade(voice, 0.02), 0.5, 0.16, rng, predelay_ms=6.0, room=0.5), 0.6
+    )
+
+
+def stray_bark(rng: np.random.Generator) -> np.ndarray:
+    """A single bark: the snap of the mouth, then the chest behind it dropping away."""
+    seconds = 0.42
+    n = A.n_samples(seconds)
+    span = np.linspace(0.0, 1.0, n, dtype=np.float32)
+    pitch = (240.0 - 90.0 * span ** 0.5).astype(np.float32)
+    source = A.saw(pitch, seconds) * 0.7 + A.noise(seconds, rng) * 0.3
+    body = A.bandpass(source, 300.0, 2400.0)
+    body *= np.exp(-np.linspace(0.0, 13.0, n, dtype=np.float32))
+    track = (body * 0.9).astype(np.float32)
+    # Without the transient a bark is just a short low note; the consonant is most of the identity.
+    A.place(track, A.transient(0.05, rng, cutoff=6000.0), 0.0, 0.55)
+    return A.normalize(
+        A.reverb(A.fade(track, 0.005), 0.55, 0.2, rng, predelay_ms=6.0, room=0.6), 0.72
+    )
+
+
+## Rendered after everything else on purpose. `main` draws every effect from one shared generator,
+## so inserting a job anywhere but the end shifts the noise of every job after it and silently
+## rewrites assets that were fine.
+TAIL_GENERATORS = {
+    "stray_meow": stray_meow,
+    "stray_bark": stray_bark,
+}
+
+
 GENERATORS = {
     "door_open": door_open,
     "door_seal": door_seal,
@@ -439,7 +502,16 @@ for _tier in LOOT_TIERS:
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--check", action="store_true", help="render nothing; list what would be made")
+    ap.add_argument(
+        "--only",
+        default="",
+        help=(
+            "comma-separated effect names; every effect is still computed so the shared generator "
+            "advances identically, but only these are written"
+        ),
+    )
     args = ap.parse_args()
+    wanted = {name for name in args.only.split(",") if name}
     SFX_DIR.mkdir(parents=True, exist_ok=True)
     rng = np.random.default_rng(0x50FA)
     jobs: list[tuple[str, object]] = [(name, GENERATORS[name]) for name in sorted(GENERATORS)]
@@ -448,17 +520,22 @@ def main() -> int:
             jobs.append(
                 (f"step_{surface}_{variant:02d}", lambda r, f=fn, v=variant: f(r, v))
             )
+    jobs.extend((name, TAIL_GENERATORS[name]) for name in sorted(TAIL_GENERATORS))
     print(f"{'effect':<22} {'seconds':>8} {'bytes':>9}")
     for name, fn in jobs:
         if args.check:
             print(f"{name:<22} {'-':>8} {'-':>9}")
             continue
+        # Always drawn, even when it will not be written: every effect shares one generator, so
+        # skipping a draw would change the noise of everything after it.
         sig = fn(rng)
+        if wanted and name not in wanted:
+            continue
         path = SFX_DIR / f"{name}.ogg"
         A.write_ogg(path, sig, quality=7)
         print(f"{name:<22} {sig.shape[0] / A.SAMPLE_RATE:>8.2f} {path.stat().st_size:>9}")
     print(f"\n{len(jobs)} effects in {SFX_DIR}")
-    _update_footstep_bank(args.check)
+    _update_footstep_bank(args.check or bool(wanted))
     return 0
 
 

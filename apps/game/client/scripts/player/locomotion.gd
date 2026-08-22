@@ -455,7 +455,8 @@ func _update_character_animation(_delta: float, fall_height: float) -> void:
 	var local_dir := Vector2.ZERO
 	var horizontal := Vector2(velocity.x, velocity.z)
 	if horizontal.length_squared() > 0.04:
-		local_dir = LockOnMovement.world_velocity_to_local_facing(self, velocity)
+		# The node the mesh is actually turned by, not the body it hangs under.
+		local_dir = LockOnMovement.world_velocity_to_local_facing(_facing, velocity)
 	_anim_director.update_locomotion(
 		is_on_floor(),
 		velocity,

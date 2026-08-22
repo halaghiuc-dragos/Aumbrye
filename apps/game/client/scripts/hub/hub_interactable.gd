@@ -51,6 +51,17 @@ func get_interact_id() -> String:
 	return interact_id
 
 
+## Where the zone actually sits, for `Hub._nearest_interact_id`. The Area3D itself is parked at its
+## owner's origin — a shop's at the building centre, with the shape pushed out to the counter — so
+## the shape is the honest answer to "how close is the player to this thing".
+func get_focus_position() -> Vector3:
+	for child in get_children():
+		var shape := child as CollisionShape3D
+		if shape != null:
+			return shape.global_position
+	return global_position
+
+
 func trigger_interact() -> void:
 	interacted.emit()
 

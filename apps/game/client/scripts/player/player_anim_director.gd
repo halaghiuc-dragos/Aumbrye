@@ -354,6 +354,11 @@ func _update_head_look(_delta: float) -> void:
 	if head == null:
 		return
 	var aim := LockOn.get_target_aim_point(lock_on.current_target)
+	# A rig being dissolved is scaled toward nothing, and inverting a singular basis logs
+	# `Condition "det == 0" is true` from `basis.cpp` — with no script frames attached, because the
+	# failure is inside the engine's own maths. Nothing to look at with a head of zero size anyway.
+	if absf(head.global_transform.basis.determinant()) < 0.00001:
+		return
 	var local := head.global_transform.affine_inverse() * aim
 	var yaw := atan2(local.x, -local.z)
 	var pitch := atan2(local.y, Vector2(local.x, local.z).length())

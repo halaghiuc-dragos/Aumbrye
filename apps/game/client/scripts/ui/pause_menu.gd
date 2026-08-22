@@ -8,14 +8,12 @@ signal cancel_requested
 const GameUISkinScript := preload("res://scripts/ui/game_ui_skin.gd")
 const MenuShellScript := preload("res://scripts/ui/menu_shell.gd")
 const ConfirmSpecScript := preload("res://scripts/ui/confirm_spec.gd")
-const InputGlyphServiceScript := preload("res://scripts/ui/input_glyph_service.gd")
 const RunModeConfigScript := preload("res://scripts/app/run_mode_config.gd")
 
 var _open := false
 var _ui_built := false
 var _content_vbox: VBoxContainer
 var _actions_vbox: VBoxContainer
-var _hint_row: HBoxContainer
 var _initial_focus: Button
 var _mode_value: Label
 var _floor_value: Label
@@ -59,7 +57,6 @@ func open_menu() -> void:
 		return
 	_rebuild_actions()
 	_refresh_run_info()
-	_refresh_hint()
 	_open = true
 	visible = true
 	mouse_filter = Control.MOUSE_FILTER_STOP
@@ -127,9 +124,6 @@ func _build_shell() -> void:
 	_actions_vbox.name = "Actions"
 	_actions_vbox.add_theme_constant_override("separation", MenuShellScript.DEFAULT_SEPARATION)
 	_content_vbox.add_child(_actions_vbox)
-	_hint_row = GameUISkinScript.make_symbol_caption_row("", "")
-	_hint_row.name = "HintRow"
-	_content_vbox.add_child(_hint_row)
 
 
 func _add_info_row(grid: GridContainer, key_name: String, key_text: String) -> Label:
@@ -230,10 +224,17 @@ func _refresh_run_info() -> void:
 		else:
 			_floor_value.text = "—"
 	if _time_value:
-		var elapsed := int(RunFlow.get_run_elapsed_seconds()) if RunFlow.is_run_active() else 0
-		var minutes := floori(elapsed / 60.0)
-		var seconds := elapsed % 60
-		_time_value.text = "%02d:%02d" % [minutes, seconds]
+		# The warden's total time, not the run's. `get_run_elapsed_seconds()` is a run timer, so
+		# outside a run this row was a permanent 00:00 — which is most of the time a player spends
+		# in the pause screen, since the hub is where you stop to think.
+		var played := LocalSave.get_playtime_seconds()
+		if RunFlow.is_run_active():
+			_time_value.text = "%s  (run %s)" % [
+				LocalSave.format_playtime(played),
+				LocalSave.format_playtime(RunFlow.get_run_elapsed_seconds()),
+			]
+		else:
+			_time_value.text = LocalSave.format_playtime(played)
 	if _seed_value:
 		if RunFlow.is_run_active() and RunFlow.current_seed > 0:
 			_seed_value.text = str(RunFlow.current_seed)
@@ -241,21 +242,6 @@ func _refresh_run_info() -> void:
 			_seed_value.text = "—"
 	if _objective_value:
 		_objective_value.text = RunFlow.get_current_objective()
-
-
-func _refresh_hint() -> void:
-	if _hint_row == null:
-		return
-	for child in _hint_row.get_children():
-		child.queue_free()
-	var glyph_label := Label.new()
-	glyph_label.text = InputGlyphServiceScript.get_action_glyph("pause")
-	GameUISkinScript.style_section_title(glyph_label)
-	_hint_row.add_child(glyph_label)
-	var cap := Label.new()
-	cap.text = tr("PAUSE_HINT_RESUME")
-	GameUISkinScript.style_hint_label(cap)
-	_hint_row.add_child(cap)
 
 
 func _on_resume() -> void:

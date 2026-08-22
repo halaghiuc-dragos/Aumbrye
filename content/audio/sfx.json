@@ -404,12 +404,13 @@
     },
     "stray_meow": {
       "bus": "SFX",
-      "variants": [],
+      "variants": [
+        "res://assets/audio/sfx/stray_meow.ogg"
+      ],
       "volume_db": -6.0,
       "pitch_jitter": 0.14,
       "max_concurrent": 2,
       "cooldown_ms": 140,
-      "placeholder": true,
       "fallback_tone": {
         "freq": 620.0,
         "duration": 0.28
@@ -417,12 +418,13 @@
     },
     "stray_bark": {
       "bus": "SFX",
-      "variants": [],
+      "variants": [
+        "res://assets/audio/sfx/stray_bark.ogg"
+      ],
       "volume_db": -4.0,
       "pitch_jitter": 0.1,
       "max_concurrent": 2,
       "cooldown_ms": 180,
-      "placeholder": true,
       "fallback_tone": {
         "freq": 210.0,
         "duration": 0.16

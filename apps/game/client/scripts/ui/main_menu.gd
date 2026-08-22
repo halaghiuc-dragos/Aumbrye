@@ -487,6 +487,10 @@ func _on_character_created(
 
 func _on_character_create_cancelled() -> void:
 	_show_main_panel(true)
+	# Backing out of creation must leave Continue exactly as it was found. It is also the moment the
+	# button's state is most worth re-checking: this is the path a player takes when they change
+	# their mind and want the warden they already have.
+	_refresh_continue_button()
 
 
 func _on_continue_slot_selected(character_id: String) -> void:

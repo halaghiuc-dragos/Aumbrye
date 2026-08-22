@@ -23,9 +23,12 @@ const BIRD_RINGS := [
 ## Where the strays live. Each keeps to a home patch rather than roaming the whole plaza, which is
 ## what makes them read as belonging to the stall they are next to.
 const STRAYS := [
-	{"kind": "cat", "home": Vector3(-15.6, 0.0, 1.2), "range": 2.6, "tint": 0,
+	# Cinder and Tallow used to sit at -15.6 and 16.2, which the enlarged stalls now stand on. Both
+	# moved out to the flagstone just in front of their stall rather than further into the plaza:
+	# Cinder's line is about the warm stone nearest the forge, and it should stay true.
+	{"kind": "cat", "home": Vector3(-13.4, 0.0, 1.2), "range": 2.6, "tint": 0,
 		"name": "Cinder", "dialogue": "stray_cat_cinder"},
-	{"kind": "cat", "home": Vector3(16.2, 0.0, 9.4), "range": 2.2, "tint": 1,
+	{"kind": "cat", "home": Vector3(13.6, 0.0, 9.4), "range": 2.2, "tint": 1,
 		"name": "Tallow", "dialogue": "stray_cat_tallow"},
 	{"kind": "cat", "home": Vector3(-4.0, 0.0, 12.0), "range": 3.0, "tint": 2,
 		"name": "Ash", "dialogue": "stray_cat_ash"},
@@ -157,6 +160,8 @@ static func _add_stray_interact(animal: Node3D, spec: Dictionary, kind: String) 
 	area.set("prompt_text", "%s (E)" % str(spec["name"]))
 	area.set("enter_sound", &"" )
 	animal.add_child(area)
+	area.connect("player_entered", Callable(animal, "set_player_near").bind(true))
+	area.connect("player_exited", Callable(animal, "set_player_near").bind(false))
 	var shape := CollisionShape3D.new()
 	var sphere := SphereShape3D.new()
 	sphere.radius = STRAY_INTERACT_RADIUS

@@ -1,31 +1,397 @@
 {
   "schemaVersion": 1,
   "achievements": [
-    { "id": "first_blood", "name": "First Blood", "description": "Defeat your first enemy.", "category": "combat", "hidden": false },
-    { "id": "castle_clear", "name": "Castle Conqueror", "description": "Clear Forgotten Castle.", "category": "biome", "hidden": false },
-    { "id": "crystal_clear", "name": "Crystal Sovereign", "description": "Clear Crystal Caverns.", "category": "biome", "hidden": false },
-    { "id": "swamp_clear", "name": "Swamp Survivor", "description": "Clear Poison Swamp.", "category": "biome", "hidden": false },
-    { "id": "frozen_clear", "name": "Frostbreaker", "description": "Clear Frozen Fortress.", "category": "biome", "hidden": false },
-    { "id": "cathedral_clear", "name": "Hollow Light", "description": "Clear Dark Cathedral.", "category": "biome", "hidden": false },
-    { "id": "boss_slayer", "name": "Boss Slayer", "description": "Defeat any biome boss.", "category": "combat", "hidden": false },
-    { "id": "all_biomes", "name": "World Walker", "description": "Clear all five EA biomes.", "category": "biome", "hidden": false },
-    { "id": "no_damage_boss", "name": "Untouchable", "description": "Defeat a boss without taking damage.", "category": "combat", "hidden": true },
-    { "id": "speed_clear", "name": "Swift Escape", "description": "Complete a run in under 15 minutes.", "category": "speed", "hidden": false },
-    { "id": "epic_loot", "name": "Epic Find", "description": "Obtain an epic rarity item.", "category": "loot", "hidden": false },
-    { "id": "legendary_loot", "name": "Legendary Hoard", "description": "Obtain a legendary rarity item.", "category": "loot", "hidden": false },
-    { "id": "aumbral_loot", "name": "Aumbral Claim", "description": "Obtain an aumbral rarity item.", "category": "loot", "hidden": true },
-    { "id": "full_equip", "name": "Fully Armed", "description": "Equip items in every slot.", "category": "progression", "hidden": false },
-    { "id": "talent_spender", "name": "Talented", "description": "Spend 10 talent points.", "category": "progression", "hidden": false },
-    { "id": "merchant_friend", "name": "Regular Customer", "description": "Buy 10 items from the merchant.", "category": "hub", "hidden": false },
-    { "id": "blacksmith_patron", "name": "Forgemaster Friend", "description": "Craft 5 items at the blacksmith.", "category": "hub", "hidden": false },
-    { "id": "quest_complete", "name": "Questing Soul", "description": "Complete 5 quests.", "category": "hub", "hidden": false },
-    { "id": "arena_victor", "name": "Arena Victor", "description": "Win an arena duel.", "category": "combat", "hidden": false },
-    { "id": "parry_master", "name": "Parry Master", "description": "Parry 50 attacks.", "category": "combat", "hidden": false },
-    { "id": "dodge_artist", "name": "Dodge Artist", "description": "Dodge 100 attacks.", "category": "combat", "hidden": false },
-    { "id": "status_applier", "name": "Affliction Artist", "description": "Apply 25 status effects.", "category": "combat", "hidden": false },
-    { "id": "freeze_master", "name": "Deep Freeze", "description": "Freeze 20 enemies.", "category": "combat", "hidden": false },
-    { "id": "poison_master", "name": "Toxic Touch", "description": "Poison 20 enemies.", "category": "combat", "hidden": false },
-    { "id": "leaderboard_submit", "name": "On the Board", "description": "Submit a clear time to the leaderboard.", "category": "meta", "hidden": false },
-    { "id": "ten_floor_clear", "name": "Depth Delver", "description": "Clear all 10 floors of a dungeon run.", "category": "biome", "hidden": false }
+    {
+      "id": "first_blood",
+      "name": "First Blood",
+      "description": "Defeat your first enemy.",
+      "category": "combat",
+      "hidden": false
+    },
+    {
+      "id": "castle_clear",
+      "name": "Castle Conqueror",
+      "description": "Clear Forgotten Castle.",
+      "category": "biome",
+      "hidden": false
+    },
+    {
+      "id": "crystal_clear",
+      "name": "Crystal Sovereign",
+      "description": "Clear Crystal Caverns.",
+      "category": "biome",
+      "hidden": false
+    },
+    {
+      "id": "swamp_clear",
+      "name": "Swamp Survivor",
+      "description": "Clear Poison Swamp.",
+      "category": "biome",
+      "hidden": false
+    },
+    {
+      "id": "frozen_clear",
+      "name": "Frostbreaker",
+      "description": "Clear Frozen Fortress.",
+      "category": "biome",
+      "hidden": false
+    },
+    {
+      "id": "cathedral_clear",
+      "name": "Hollow Light",
+      "description": "Clear Dark Cathedral.",
+      "category": "biome",
+      "hidden": false
+    },
+    {
+      "id": "boss_slayer",
+      "name": "Boss Slayer",
+      "description": "Defeat any biome boss.",
+      "category": "combat",
+      "hidden": false
+    },
+    {
+      "id": "all_biomes",
+      "name": "World Walker",
+      "description": "Clear all five EA biomes.",
+      "category": "biome",
+      "hidden": false
+    },
+    {
+      "id": "no_damage_boss",
+      "name": "Untouchable",
+      "description": "Defeat a boss without taking damage.",
+      "category": "combat",
+      "hidden": true
+    },
+    {
+      "id": "speed_clear",
+      "name": "Swift Escape",
+      "description": "Complete a run in under 15 minutes.",
+      "category": "speed",
+      "hidden": false
+    },
+    {
+      "id": "epic_loot",
+      "name": "Epic Find",
+      "description": "Obtain an epic rarity item.",
+      "category": "loot",
+      "hidden": false
+    },
+    {
+      "id": "legendary_loot",
+      "name": "Legendary Hoard",
+      "description": "Obtain a legendary rarity item.",
+      "category": "loot",
+      "hidden": false
+    },
+    {
+      "id": "aumbral_loot",
+      "name": "Aumbral Claim",
+      "description": "Obtain an aumbral rarity item.",
+      "category": "loot",
+      "hidden": true
+    },
+    {
+      "id": "full_equip",
+      "name": "Fully Armed",
+      "description": "Equip items in every slot.",
+      "category": "progression",
+      "hidden": false
+    },
+    {
+      "id": "talent_spender",
+      "name": "Talented",
+      "description": "Spend 10 talent points.",
+      "category": "progression",
+      "hidden": false
+    },
+    {
+      "id": "merchant_friend",
+      "name": "Regular Customer",
+      "description": "Buy 10 items from the merchant.",
+      "category": "hub",
+      "hidden": false
+    },
+    {
+      "id": "blacksmith_patron",
+      "name": "Forgemaster Friend",
+      "description": "Craft 5 items at the blacksmith.",
+      "category": "hub",
+      "hidden": false
+    },
+    {
+      "id": "quest_complete",
+      "name": "Questing Soul",
+      "description": "Complete 5 quests.",
+      "category": "hub",
+      "hidden": false
+    },
+    {
+      "id": "arena_victor",
+      "name": "Arena Victor",
+      "description": "Win an arena duel.",
+      "category": "combat",
+      "hidden": false
+    },
+    {
+      "id": "parry_master",
+      "name": "Parry Master",
+      "description": "Parry 50 attacks.",
+      "category": "combat",
+      "hidden": false
+    },
+    {
+      "id": "dodge_artist",
+      "name": "Dodge Artist",
+      "description": "Dodge 100 attacks.",
+      "category": "combat",
+      "hidden": false
+    },
+    {
+      "id": "status_applier",
+      "name": "Affliction Artist",
+      "description": "Apply 25 status effects.",
+      "category": "combat",
+      "hidden": false
+    },
+    {
+      "id": "freeze_master",
+      "name": "Deep Freeze",
+      "description": "Freeze 20 enemies.",
+      "category": "combat",
+      "hidden": false
+    },
+    {
+      "id": "poison_master",
+      "name": "Toxic Touch",
+      "description": "Poison 20 enemies.",
+      "category": "combat",
+      "hidden": false
+    },
+    {
+      "id": "leaderboard_submit",
+      "name": "On the Board",
+      "description": "Submit a clear time to the leaderboard.",
+      "category": "meta",
+      "hidden": false
+    },
+    {
+      "id": "ten_floor_clear",
+      "name": "Depth Delver",
+      "description": "Clear all 10 floors of a dungeon run.",
+      "category": "biome",
+      "hidden": false
+    },
+    {
+      "id": "cull_the_weak",
+      "name": "Cull the Weak",
+      "description": "Defeat 25 enemies.",
+      "category": "combat",
+      "hidden": false
+    },
+    {
+      "id": "hundred_fold",
+      "name": "Hundredfold",
+      "description": "Defeat 100 enemies.",
+      "category": "combat",
+      "hidden": false
+    },
+    {
+      "id": "gravemaker",
+      "name": "Gravemaker",
+      "description": "Defeat 500 enemies.",
+      "category": "combat",
+      "hidden": false
+    },
+    {
+      "id": "the_long_tally",
+      "name": "The Long Tally",
+      "description": "Defeat 2500 enemies.",
+      "category": "combat",
+      "hidden": false
+    },
+    {
+      "id": "clean_hands",
+      "name": "Clean Hands",
+      "description": "Parry 25 attacks.",
+      "category": "combat",
+      "hidden": false
+    },
+    {
+      "id": "blade_reader",
+      "name": "Blade Reader",
+      "description": "Parry 200 attacks.",
+      "category": "combat",
+      "hidden": false
+    },
+    {
+      "id": "unhittable",
+      "name": "Unhittable",
+      "description": "Parry 1000 attacks.",
+      "category": "combat",
+      "hidden": false
+    },
+    {
+      "id": "light_on_your_feet",
+      "name": "Light on Your Feet",
+      "description": "Dodge 50 times.",
+      "category": "combat",
+      "hidden": false
+    },
+    {
+      "id": "smoke_and_shadow",
+      "name": "Smoke and Shadow",
+      "description": "Dodge 400 times.",
+      "category": "combat",
+      "hidden": false
+    },
+    {
+      "id": "never_there",
+      "name": "Never There",
+      "description": "Dodge 2000 times.",
+      "category": "combat",
+      "hidden": false
+    },
+    {
+      "id": "flawless_five",
+      "name": "Flawless Five",
+      "description": "Defeat five bosses without taking damage.",
+      "category": "combat",
+      "hidden": false
+    },
+    {
+      "id": "kindling",
+      "name": "Kindling",
+      "description": "Set 100 enemies alight.",
+      "category": "combat",
+      "hidden": false
+    },
+    {
+      "id": "red_ledger",
+      "name": "Red Ledger",
+      "description": "Cause 100 enemies to bleed.",
+      "category": "combat",
+      "hidden": false
+    },
+    {
+      "id": "dead_weight",
+      "name": "Dead Weight",
+      "description": "Stun 100 enemies.",
+      "category": "combat",
+      "hidden": false
+    },
+    {
+      "id": "everything_hurts",
+      "name": "Everything Hurts",
+      "description": "Apply 500 afflictions of any kind.",
+      "category": "combat",
+      "hidden": false
+    },
+    {
+      "id": "magpie",
+      "name": "Magpie",
+      "description": "Collect 100 items.",
+      "category": "loot",
+      "hidden": false
+    },
+    {
+      "id": "hoarder",
+      "name": "Hoarder",
+      "description": "Collect 500 items.",
+      "category": "loot",
+      "hidden": false
+    },
+    {
+      "id": "uncommon_taste",
+      "name": "Uncommon Taste",
+      "description": "Find a magic item.",
+      "category": "loot",
+      "hidden": false
+    },
+    {
+      "id": "rare_air",
+      "name": "Rare Air",
+      "description": "Find a rare item.",
+      "category": "loot",
+      "hidden": false
+    },
+    {
+      "id": "open_a_tab",
+      "name": "Open a Tab",
+      "description": "Buy 25 things from the merchant.",
+      "category": "hub",
+      "hidden": false
+    },
+    {
+      "id": "best_customer",
+      "name": "Best Customer",
+      "description": "Buy 100 things from the merchant.",
+      "category": "hub",
+      "hidden": false
+    },
+    {
+      "id": "apprentice_smith",
+      "name": "Apprentice Smith",
+      "description": "Craft 25 times at the forge.",
+      "category": "hub",
+      "hidden": false
+    },
+    {
+      "id": "master_of_the_anvil",
+      "name": "Master of the Anvil",
+      "description": "Craft 100 times at the forge.",
+      "category": "hub",
+      "hidden": false
+    },
+    {
+      "id": "errand_runner",
+      "name": "Errand Runner",
+      "description": "Complete 10 quests.",
+      "category": "hub",
+      "hidden": false
+    },
+    {
+      "id": "the_board_is_clear",
+      "name": "The Board Is Clear",
+      "description": "Complete 50 quests.",
+      "category": "hub",
+      "hidden": false
+    },
+    {
+      "id": "deep_student",
+      "name": "Deep Student",
+      "description": "Spend 25 talent points.",
+      "category": "progression",
+      "hidden": false
+    },
+    {
+      "id": "stairwalker",
+      "name": "Stairwalker",
+      "description": "Take the stairs 25 times.",
+      "category": "progression",
+      "hidden": false
+    },
+    {
+      "id": "no_way_but_down",
+      "name": "No Way But Down",
+      "description": "Take the stairs 100 times.",
+      "category": "progression",
+      "hidden": false
+    },
+    {
+      "id": "loremaster",
+      "name": "Loremaster",
+      "description": "Complete the bestiary.",
+      "category": "meta",
+      "hidden": false
+    },
+    {
+      "id": "champion_of_the_sand",
+      "name": "Champion of the Sand",
+      "description": "Win 25 arena bouts.",
+      "category": "combat",
+      "hidden": false
+    }
   ]
 }

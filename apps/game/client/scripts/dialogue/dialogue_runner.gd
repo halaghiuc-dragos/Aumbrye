@@ -69,7 +69,9 @@ func advance() -> void:
 
 func end_dialogue() -> void:
 	_active = false
-	_dialogue.clear()
+	# Dropped rather than cleared in place. `clear()` empties whatever dictionary this is pointing
+	# at, which is only safe while nothing else shares it — and for a long time something did.
+	_dialogue = {}
 	_current_node_id = ""
 	dialogue_ended.emit()
 

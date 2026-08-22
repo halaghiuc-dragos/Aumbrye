@@ -23,6 +23,7 @@ var _body_base_y := 0.0
 var _target := Vector3.ZERO
 var _wait := 0.0
 var _walk_phase := 0.0
+var _player_near := false
 var _rng := RandomNumberGenerator.new()
 
 
@@ -45,9 +46,21 @@ func setup(home: Vector3, wander_range: float, speed: float, tail: Node3D, body:
 	set_process(true)
 
 
+## Hold still while the player is inside the interact zone. The zone is only 1.4m wide and the
+## animal crosses it in under two seconds, so walking up to a cat that keeps walking was a chase:
+## by the time the prompt was read and E was pressed, the cat had wandered back out of range. The
+## tail keeps going, so a waiting animal still reads as alive rather than as a frozen prop.
+func set_player_near(value: bool) -> void:
+	_player_near = value
+
+
 func _process(delta: float) -> void:
 	if _tail and is_instance_valid(_tail):
 		_tail.rotation.x = sin(Time.get_ticks_msec() * 0.001 * TAIL_SPEED) * TAIL_ANGLE
+
+	if _player_near:
+		_settle_body()
+		return
 
 	if _wait > 0.0:
 		_wait -= delta
@@ -77,7 +90,36 @@ func _settle_body() -> void:
 		_body.position.y = _body_base_y
 
 
+## How many patches to try before giving up and heading home.
+const TARGET_TRIES := 6
+## Ray height for the tent check: above the floor slab, below the top of the fabric.
+const CLEARANCE_Y := 0.5
+
+
 func _pick_target() -> void:
-	var angle := _rng.randf_range(0.0, TAU)
-	var dist := _rng.randf_range(0.4, _range)
-	_target = _home + Vector3(cos(angle) * dist, 0.0, sin(angle) * dist)
+	for i in TARGET_TRIES:
+		var angle := _rng.randf_range(0.0, TAU)
+		var dist := _rng.randf_range(0.4, _range)
+		var candidate := _home + Vector3(cos(angle) * dist, 0.0, sin(angle) * dist)
+		if _path_is_clear(candidate):
+			_target = candidate
+			return
+	# Nothing clear — head home. Deliberately unchecked, so an animal that somehow ends up the wrong
+	# side of a wall can always walk itself out instead of idling there forever.
+	_target = _home
+
+
+## Strays have no collision body, so nothing stops one walking through the side of a stall. Their
+## patches sit right against the tents and the tents are large, so this came up constantly: a cat
+## would pick a spot inside the forge and stroll straight through the fabric to reach it.
+##
+## A ray rather than a point test, because the front of every tent is open — walking in through the
+## door is fine, and only crossing a wall is not.
+func _path_is_clear(candidate: Vector3) -> bool:
+	var world := get_world_3d()
+	if world == null:
+		return true
+	var lift := Vector3(0.0, CLEARANCE_Y, 0.0)
+	var query := PhysicsRayQueryParameters3D.create(position + lift, candidate + lift)
+	query.collide_with_areas = false
+	return world.direct_space_state.intersect_ray(query).is_empty()

@@ -53,10 +53,23 @@ const LOOK_TURN_SPEED := 3.0
 const IDLE_BOB_HEIGHT := 0.025
 const IDLE_BOB_SPEED := 1.6
 
+## How far past the figure's own silhouette the interact zone reaches. The zone is a capsule fitted
+## to the model rather than the fixed r=0.6, h=1.8 capsule the scene ships with: every authored
+## figure measures 0.60-0.96m across and 1.16-1.64m tall, so that capsule was up to twice the width
+## of the person inside it and stood 0.45m over their head. Talking to someone you were nowhere
+## near, and a prompt that appeared before you reached them, both came out of that gap.
+const INTERACT_REACH := 0.45
+## Never smaller than this, whatever the model measures — a child or a seated figure still needs a
+## zone a walking player can hit.
+const INTERACT_MIN_RADIUS := 0.55
+const INTERACT_MIN_HEIGHT := 1.3
+
 var _visual: Node3D
 var _visual_base_y := 0.0
 var _idle_phase := 0.0
 var _player: Node3D
+var _zone_shape: CollisionShape3D
+var _zone_base_y := 0.0
 
 
 func _resolve_visual() -> void:
@@ -71,6 +84,79 @@ func _resolve_visual() -> void:
 				break
 	if _visual:
 		_visual_base_y = _visual.position.y
+	_fit_interact_to_model()
+
+
+## Sizes the interact capsule to the figure the player can actually see.
+##
+## Measured off the built skin rather than authored, because the skin is procedural: hoods, helms
+## and pauldrons are per-character, and a fixed capsule cannot be right for a child and a knight at
+## the same time.
+func _fit_interact_to_model() -> void:
+	if _interactable == null or _visual == null or not is_instance_valid(_visual):
+		return
+	if _zone_shape == null:
+		_zone_shape = _interactable.get_node_or_null("CollisionShape3D") as CollisionShape3D
+	if _zone_shape == null:
+		return
+	var bounds := _model_bounds()
+	if bounds.size.y <= 0.01:
+		# Nothing measurable yet — an NPC gated out of this visit is hidden, and a hidden skin has
+		# no bounds. Leave the authored capsule; `set_available` re-fits when they turn up.
+		return
+	var capsule := _zone_shape.shape as CapsuleShape3D
+	if capsule == null:
+		capsule = CapsuleShape3D.new()
+		_zone_shape.shape = capsule
+	else:
+		# Shared between every NPC instance as it comes out of the scene file, so resizing it in
+		# place would resize all of them to whoever was measured last.
+		capsule = capsule.duplicate() as CapsuleShape3D
+		_zone_shape.shape = capsule
+	var half_width := maxf(bounds.size.x, bounds.size.z) * 0.5
+	capsule.radius = maxf(half_width + INTERACT_REACH, INTERACT_MIN_RADIUS)
+	capsule.height = maxf(bounds.size.y + INTERACT_REACH, INTERACT_MIN_HEIGHT)
+	# Centred on the figure, so the zone sits where the person is instead of over their head.
+	_zone_base_y = bounds.get_center().y
+	_zone_shape.position = Vector3(bounds.get_center().x, _zone_base_y, bounds.get_center().z)
+
+
+## The skin's extent in this NPC's own space.
+##
+## Visibility is judged only as far up as this node: an NPC hidden by an availability gate must
+## still measure, and the parts a character does not wear (visor, hood) must not.
+func _model_bounds() -> AABB:
+	var box := AABB()
+	var found := false
+	var into_npc_space := global_transform.affine_inverse()
+	var stack: Array[Node] = [_visual]
+	while not stack.is_empty():
+		var node: Node = stack.pop_back()
+		for child in node.get_children():
+			stack.append(child)
+		var mesh := node as MeshInstance3D
+		if mesh == null or not _visible_up_to_self(mesh):
+			continue
+		var local := mesh.get_aabb()
+		var xf := into_npc_space * mesh.global_transform
+		for i in 8:
+			var point: Vector3 = xf * local.get_endpoint(i)
+			if not found:
+				box = AABB(point, Vector3.ZERO)
+				found = true
+			else:
+				box = box.expand(point)
+	return box
+
+
+func _visible_up_to_self(node: Node3D) -> bool:
+	var walker: Node = node
+	while walker != null and walker != self:
+		var as_3d := walker as Node3D
+		if as_3d != null and not as_3d.visible:
+			return false
+		walker = walker.get_parent()
+	return true
 
 
 func _physics_process(delta: float) -> void:
@@ -86,7 +172,11 @@ func _physics_process(delta: float) -> void:
 		return
 	# Breathing: a quarter-pixel rise and fall, so it reads as alive without reading as floating.
 	_idle_phase = fmod(_idle_phase + delta * IDLE_BOB_SPEED, TAU)
-	_visual.position.y = _visual_base_y + sin(_idle_phase) * IDLE_BOB_HEIGHT
+	var bob := sin(_idle_phase) * IDLE_BOB_HEIGHT
+	_visual.position.y = _visual_base_y + bob
+	# The zone rides the breath with the figure rather than hanging fixed in the air behind it.
+	if _zone_shape != null and is_instance_valid(_zone_shape):
+		_zone_shape.position.y = _zone_base_y + bob
 	if to_player.length_squared() < 0.04:
 		return
 	# The project's forward is +Z (see `CombatFacing`), which is what `atan2(x, z)` produces.
@@ -141,9 +231,13 @@ func is_available() -> bool:
 
 
 func set_available(available: bool) -> void:
+	var was_visible := visible
 	visible = available
 	if _interactable != null:
 		_interactable.set_deferred("monitoring", available)
+	if available and not was_visible:
+		# Arrivals are skinned while hidden, so this is the first moment they can be measured.
+		call_deferred("_fit_interact_to_model")
 
 
 func is_player_near() -> bool:

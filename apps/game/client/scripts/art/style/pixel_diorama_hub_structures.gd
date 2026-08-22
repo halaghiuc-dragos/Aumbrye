@@ -5,6 +5,13 @@ class_name PixelDioramaHubStructures
 ## forge and the shopkeeper standing at them are all visible from the plaza.
 const SIDE_SKIRT_RATIO := 0.42
 
+## How far out from the wall a guy rope reaches before it meets its stake. Short enough that the
+## stakes stay on the stall's own patch of ground and out of the walking lane in front of it.
+const GUY_REACH := 0.95
+## Roughly how far apart the roof battens sit. The real spacing is solved per panel so the ribs
+## divide the panel evenly instead of leaving a wide gap at one edge.
+const BATTEN_SPACING := 0.95
+
 
 static func build_tent(
 	parent: Node3D, mats: Dictionary, params: Dictionary, facing_yaw: float, def: Dictionary
@@ -12,7 +19,6 @@ static func build_tent(
 	var width := float(params.get("width", 5.0))
 	var depth := float(params.get("depth", 4.2))
 	var wall_height := float(params.get("wall_height", 2.2))
-	var entrance_width := float(params.get("entrance_width", 1.8))
 	var roof_peak := float(params.get("roof_peak", 1.2))
 
 	var visuals := Node3D.new()
@@ -26,8 +32,6 @@ static func build_tent(
 	var half_w := width * 0.5
 	var half_d := depth * 0.5
 	var wall_thickness := 0.22
-	var lip_width := (width - entrance_width) * 0.5
-	var lip_z := half_d - wall_thickness * 0.5
 	var floor_alt: Material = mats.get("floor_alt", mats.get("floor", pole_mat))
 
 	for raw in def.get("parts", []):
@@ -55,54 +59,10 @@ static func build_tent(
 			visuals, corner_positions[i], pole_mat, roof_mat, column_h, 0.48, "Corner%d" % i
 		)
 
-	var entrance_z := lip_z - 0.08
-	var col_x := entrance_width * 0.5 + 0.22
-	PixelDioramaStyle.add_portal_column(
-		visuals,
-		Vector3(-col_x, wall_height * 0.5, entrance_z),
-		pole_mat,
-		roof_mat,
-		wall_height,
-		0.42,
-		"EntryL"
-	)
-	PixelDioramaStyle.add_portal_column(
-		visuals,
-		Vector3(col_x, wall_height * 0.5, entrance_z),
-		pole_mat,
-		roof_mat,
-		wall_height,
-		0.42,
-		"EntryR"
-	)
-	PixelDioramaStyle.add_box(
-		visuals,
-		Vector3(entrance_width + 1.1, 0.42, 0.55),
-		Vector3(0.0, wall_height + 0.21, entrance_z - 0.12),
-		pole_mat,
-		"EntryLintel"
-	)
-	PixelDioramaStyle.add_box(
-		visuals,
-		Vector3(0.28, 0.28, 0.28),
-		Vector3(0.0, wall_height + 0.52, entrance_z - 0.1),
-		roof_mat,
-		"EntryKeystone"
-	)
-	PixelDioramaStyle.add_box(
-		visuals,
-		Vector3(0.3, wall_height * 0.85, 0.28),
-		Vector3(-col_x + 0.35, wall_height * 0.42, entrance_z + 0.12),
-		pole_mat,
-		"EntryButtressL"
-	)
-	PixelDioramaStyle.add_box(
-		visuals,
-		Vector3(0.3, wall_height * 0.85, 0.28),
-		Vector3(col_x - 0.35, wall_height * 0.42, entrance_z + 0.12),
-		pole_mat,
-		"EntryButtressR"
-	)
+	# No doorway. The front is simply the side of the stall that is open — the two entry posts, the
+	# lintel across them, its keystone and the buttresses read as a built door frame, which is a
+	# thing a market stall does not have. The roof still lands on the four corner columns, so
+	# nothing here was holding it up.
 
 	var ridge_y := wall_height + roof_peak
 	PixelDioramaStyle.add_box(
@@ -198,34 +158,6 @@ static func build_tent(
 			"SideRail%s" % ("R" if side > 0.0 else "L")
 		)
 
-	# A short valance across the front instead of the two full-height lips.
-	if lip_width > 0.15:
-		var valance_h := wall_height * 0.18
-		PixelDioramaStyle.add_box(
-			visuals,
-			Vector3(width - entrance_width * 0.2, valance_h, wall_thickness * 0.7),
-			Vector3(0.0, wall_height - valance_h * 0.5, lip_z),
-			fabric_mat,
-			"FrontValance"
-		)
-
-	var flap_h := wall_height * 0.55
-	var flap_z := half_d - wall_thickness * 0.35
-	PixelDioramaStyle.add_box(
-		visuals,
-		Vector3(0.12, flap_h, 0.08),
-		Vector3(-entrance_width * 0.25, flap_h * 0.5, flap_z),
-		fabric_mat,
-		"FlapL"
-	)
-	PixelDioramaStyle.add_box(
-		visuals,
-		Vector3(0.12, flap_h, 0.08),
-		Vector3(entrance_width * 0.25, flap_h * 0.5, flap_z),
-		fabric_mat,
-		"FlapR"
-	)
-
 	PixelDioramaStyle.add_box(
 		visuals,
 		Vector3(width + 0.55, 0.12, depth + 0.55),
@@ -233,6 +165,8 @@ static func build_tent(
 		floor_alt,
 		"TentPad"
 	)
+
+	_add_tent_craft(visuals, pole_mat, roof_mat, width, depth, wall_height, roof_peak)
 
 	var collision_root := parent.get_node_or_null("TentCollision") as StaticBody3D
 	if collision_root == null:
@@ -264,19 +198,8 @@ static func build_tent(
 		Vector3(half_w, wall_height * 0.5, 0.0),
 		"ColRight"
 	)
-	if lip_width > 0.15:
-		PixelDioramaStyle.add_collision_box(
-			collision_root,
-			Vector3(lip_width, wall_height, wall_thickness),
-			Vector3(-half_w + lip_width * 0.5, wall_height * 0.5, lip_z),
-			"ColFrontLipL"
-		)
-		PixelDioramaStyle.add_collision_box(
-			collision_root,
-			Vector3(lip_width, wall_height, wall_thickness),
-			Vector3(half_w - lip_width * 0.5, wall_height * 0.5, lip_z),
-			"ColFrontLipR"
-		)
+	# Nothing across the front at all: the two front lips used to carry collision with no fabric
+	# drawn on them, so the clean opening had invisible walls in its corners.
 
 	return visuals
 
@@ -397,3 +320,124 @@ static func _make_fountain_particle_material(
 	PixelDioramaStyle.set_authored_param(mat, "color_core", color)
 	PixelDioramaStyle.set_authored_param(mat, "color_edge", color.darkened(0.18))
 	return PixelDioramaSettings.track(mat)
+
+
+## What turns four fabric planes into something somebody put up.
+##
+## A tent is canvas held down against the wind, and none of that was on it: no ropes, no stakes,
+## nothing under the roof to stretch it over. The silhouette was right and every surface was a
+## floating slab.
+static func _add_tent_craft(
+	visuals: Node3D,
+	pole_mat: Material,
+	roof_mat: Material,
+	width: float,
+	depth: float,
+	wall_height: float,
+	roof_peak: float
+) -> void:
+	var half_w := width * 0.5
+	var half_d := depth * 0.5
+
+	# Guy ropes down each side, biased toward the back so they never cross the doorway.
+	for side in [-1.0, 1.0]:
+		for i in 2:
+			var z := -half_d * 0.62 + float(i) * half_d * 0.78
+			_add_guy_rope(
+				visuals,
+				pole_mat,
+				Vector3(side * half_w, wall_height - 0.1, z),
+				Vector3(side * (half_w + GUY_REACH), 0.0, z),
+				"Guy%s%d" % ["R" if side > 0.0 else "L", i]
+			)
+	# And two off the back corners, which is where the pull actually is.
+	for side in [-1.0, 1.0]:
+		_add_guy_rope(
+			visuals,
+			pole_mat,
+			Vector3(side * half_w * 0.62, wall_height - 0.1, -half_d),
+			Vector3(side * half_w * 0.62, 0.0, -half_d - GUY_REACH),
+			"GuyBack%s" % ("R" if side > 0.0 else "L")
+		)
+
+	# Battens under the canvas. Parented to the roof panels, so they take the slope for free.
+	var front_span := width + 0.25
+	for panel_name in ["RoofPanelFront", "RoofPanelBack"]:
+		var panel := visuals.get_node_or_null(panel_name) as Node3D
+		if panel == null:
+			continue
+		var slope_len: float = sqrt(half_d * half_d + roof_peak * roof_peak) + 0.15
+		_add_battens(panel, pole_mat, front_span, slope_len, true)
+	var side_span := depth + 0.25
+	for panel_name in ["RoofPanelLeft", "RoofPanelRight"]:
+		var panel := visuals.get_node_or_null(panel_name) as Node3D
+		if panel == null:
+			continue
+		var slope_len: float = sqrt(half_w * half_w + roof_peak * roof_peak) + 0.15
+		_add_battens(panel, pole_mat, side_span, slope_len, false)
+
+	# A hem along the side and back eaves. The front already has its awning trim.
+	for side in [-1.0, 1.0]:
+		PixelDioramaStyle.add_box(
+			visuals,
+			Vector3(0.16, 0.14, depth + 0.25),
+			Vector3(side * (half_w + 0.1), wall_height - 0.02, 0.0),
+			roof_mat,
+			"EaveHem%s" % ("R" if side > 0.0 else "L")
+		)
+	PixelDioramaStyle.add_box(
+		visuals,
+		Vector3(width + 0.25, 0.14, 0.16),
+		Vector3(0.0, wall_height - 0.02, -(half_d + 0.1)),
+		roof_mat,
+		"EaveHemBack"
+	)
+
+
+## One rope, plus the peg it is pulling against.
+##
+## Built as a Y-long box turned onto the line between the two points, because a rope is the one
+## thing here that is not axis-aligned and every other primitive in this file is.
+static func _add_guy_rope(
+	visuals: Node3D, mat: Material, from: Vector3, to: Vector3, node_name: String
+) -> void:
+	var delta := to - from
+	var length := delta.length()
+	if length < 0.05:
+		return
+	var rope := PixelDioramaStyle.add_box(
+		visuals, Vector3(0.07, length, 0.07), (from + to) * 0.5, mat, node_name
+	)
+	# Rotating +Y onto `delta`: about Z for a sideways pull, about X for a backwards one.
+	if absf(delta.x) > absf(delta.z):
+		rope.rotation.z = atan2(-delta.x, delta.y)
+	else:
+		rope.rotation.x = atan2(delta.z, delta.y)
+	var peg := PixelDioramaStyle.add_box(
+		visuals, Vector3(0.1, 0.42, 0.1), to + Vector3(0.0, 0.14, 0.0), mat, node_name + "Peg"
+	)
+	# Driven in leaning away from the pull, the way a peg is hammered.
+	if absf(delta.x) > absf(delta.z):
+		peg.rotation.z = signf(delta.x) * 0.32
+	else:
+		peg.rotation.x = -signf(delta.z) * 0.32
+
+
+## Ribs across one roof panel, in the panel's own space so they inherit its slope.
+##
+## `along_x` picks which way the panel runs: the front and back panels are wide in X and sloped
+## along Z, the side panels the other way round.
+static func _add_battens(
+	panel: Node3D, mat: Material, span: float, slope_len: float, along_x: bool
+) -> void:
+	var count := maxi(2, int(round(span / BATTEN_SPACING)) - 1)
+	for i in count:
+		var t := float(i + 1) / float(count + 1)
+		var offset := -span * 0.5 + span * t
+		var size := (
+			Vector3(0.09, 0.07, slope_len) if along_x else Vector3(slope_len, 0.07, 0.09)
+		)
+		var pos := (
+			Vector3(offset, -0.07, 0.0) if along_x else Vector3(0.0, -0.07, offset)
+		)
+		PixelDioramaStyle.add_box(panel, size, pos, mat, "Batten%d" % i)

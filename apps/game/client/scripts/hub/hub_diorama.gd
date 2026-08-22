@@ -13,11 +13,22 @@ const FLOOR_DEPTH := 40.0
 
 const ForgeFlickerScript := preload("res://scripts/hub/forge_light_flicker.gd")
 
+## The one place the stall dimensions live. `_spawn_tent_door_pads` lays the threshold slabs from
+## this table and each `_dress_*` builds its tent from it, so a resized stall cannot end up with its
+## doorstep still cut for the old footprint.
+##
+## `entrance` no longer frames anything — the stalls have no door frame, and the whole front is
+## open. It survives as the width of the threshold slab and the span the planters flank, which is
+## the walk-in the player actually reads.
 const SERVICE_TENTS := {
-	"Blacksmith": {"width": 5.4, "depth": 5.0, "entrance": 2.2},
-	"Merchant": {"width": 5.2, "depth": 4.8, "entrance": 2.4},
-	"Storage": {"width": 5.6, "depth": 5.2, "entrance": 2.3},
-	"QuestBoard": {"width": 4.2, "depth": 3.6, "entrance": 2.0},
+	"Blacksmith":
+	{"width": 7.7, "depth": 7.0, "wall_height": 3.2, "entrance": 3.2, "roof_peak": 1.7},
+	"Merchant":
+	{"width": 7.5, "depth": 6.8, "wall_height": 3.3, "entrance": 3.4, "roof_peak": 1.45},
+	"Storage":
+	{"width": 7.9, "depth": 7.2, "wall_height": 3.5, "entrance": 3.3, "roof_peak": 1.35},
+	"QuestBoard":
+	{"width": 6.0, "depth": 5.1, "wall_height": 2.9, "entrance": 2.9, "roof_peak": 1.15},
 }
 
 const NORTH_WALL_Z := -17.0
@@ -30,6 +41,30 @@ const FOUNTAIN_POS := Vector3(0.0, 0.0, -7.0)
 const GATE_ROW_Z := -17.0
 const GATE_SPACING := 7.0
 const GATE_COUNT := 6
+
+## The hub palette is stone, timber and rust — there is no green anywhere in it, so the planting
+## brings its own. Kept desaturated on purpose: a saturated leaf green next to `#9e8566` flagstone
+## reads as a prop from a different game.
+const LEAF_DARK := Color(0.24, 0.33, 0.22)
+const LEAF_LIGHT := Color(0.33, 0.44, 0.26)
+## One bloom colour per trough, cycled. Three is enough to look planted rather than tiled.
+const BLOOM_COLORS := [
+	Color(0.76, 0.33, 0.34),
+	Color(0.85, 0.63, 0.27),
+	Color(0.60, 0.40, 0.66),
+]
+## Where the light cord hangs.
+##
+## The orbit camera is a `SpringArm3D` and pulls in only for things on its collision mask; the cord
+## has no collision, so at full zoom and full upward pitch the camera went straight through it. That
+## worst case puts the lens at 5.28m (pivot 1.60 + 5.2m arm at 45 degrees), measured, so the cord
+## clears it and the lowest lantern still hangs above it. The poles were grown to match — the cord
+## is tied to them, and bunting floating above its own poles would be worse than the clipping.
+const BUNTING_Y := 6.2
+## Lowest point of any lantern, for the clearance check: cord minus the longest drop, the cap and
+## half the glass.
+const CAMERA_MAX_Y := 5.28
+const BANNER_POLE_TOP := 6.45
 
 
 static func apply(hub: Node3D) -> void:
@@ -152,6 +187,12 @@ static func _dress_plaza(hub: Node3D, mats: Dictionary) -> void:
 	_spawn_gate_braziers(dressing, mats)
 	_spawn_banner_avenue(dressing, mats)
 	_spawn_market_clutter(dressing, mats)
+	_spawn_planting(dressing, mats)
+	_spawn_fountain_benches(dressing, mats)
+	_spawn_bunting(dressing, mats)
+	_spawn_market_carts(dressing, mats)
+	_spawn_woodpiles(dressing, mats)
+	_spawn_stall_planters(hub, dressing, mats)
 
 
 ## A brazier either side of every gate. These are the hub's light sources as much as its decoration
@@ -215,27 +256,57 @@ static func _spawn_banner_avenue(parent: Node3D, mats: Dictionary) -> void:
 			root.position = Vector3(side * 5.5, 0.0, z)
 			parent.add_child(root)
 			PixelDioramaStyle.add_box(
-				root, Vector3(0.5, 0.2, 0.5), Vector3(0.0, 0.1, 0.0), mats.wall, "Base"
+				root, Vector3(0.62, 0.24, 0.62), Vector3(0.0, 0.12, 0.0), mats.wall, "Base"
 			)
+			# A stone collar over the foot, the way a mast is wedged rather than simply standing in
+			# a socket.
 			PixelDioramaStyle.add_box(
-				root, Vector3(0.18, 3.6, 0.18), Vector3(0.0, 1.9, 0.0), mats.wood, "Pole"
+				root, Vector3(0.42, 0.2, 0.42), Vector3(0.0, 0.32, 0.0), mats.wall, "Collar"
 			)
+			var pole_h := BANNER_POLE_TOP - 0.24
+			PixelDioramaStyle.add_box(
+				root,
+				Vector3(0.2, pole_h, 0.2),
+				Vector3(0.0, 0.24 + pole_h * 0.5, 0.0),
+				mats.wood,
+				"Pole"
+			)
+			# The banner stays at eye level where it can be read. Only the light cord went up.
 			PixelDioramaStyle.add_box(
 				root, Vector3(0.9, 0.16, 0.16), Vector3(0.0, 3.5, 0.0), mats.wood, "Crossbar"
 			)
 			PixelDioramaStyle.add_box(
 				root, Vector3(0.8, 1.7, 0.06), Vector3(0.0, 2.6, 0.0), mats.accent, "Cloth"
 			)
+			# Iron bands up the shaft: a pole this tall is a spliced mast, not one grown timber.
+			for band in 2:
+				PixelDioramaStyle.add_box(
+					root,
+					Vector3(0.26, 0.1, 0.26),
+					Vector3(0.0, 4.3 + band * 1.0, 0.0),
+					mats.wall,
+					"Band%d" % band
+				)
+			# The cleat the light cord is actually tied off to.
 			PixelDioramaStyle.add_box(
-				root, Vector3(0.24, 0.24, 0.24), Vector3(0.0, 3.78, 0.0), mats.training, "Finial"
+				root, Vector3(0.5, 0.14, 0.14), Vector3(0.0, BUNTING_Y, 0.0), mats.wood, "Cleat"
+			)
+			PixelDioramaStyle.add_box(
+				root,
+				Vector3(0.24, 0.24, 0.24),
+				Vector3(0.0, BANNER_POLE_TOP + 0.12, 0.0),
+				mats.training,
+				"Finial"
 			)
 
 
 ## Crates, barrels and sacks around the stalls, so the shops look stocked rather than staged.
 static func _spawn_market_clutter(parent: Node3D, mats: Dictionary) -> void:
 	var spots := [
-		{"pos": Vector3(-14.4, 0.0, 1.6), "seed": 0},
-		{"pos": Vector3(14.4, 0.0, 1.6), "seed": 1},
+		# Pulled in off the doorway: the planted pots either side of a stall door stand where these
+		# two used to, and a barrel through a flowerpot is worse than either.
+		{"pos": Vector3(-12.6, 0.0, 1.6), "seed": 0},
+		{"pos": Vector3(12.6, 0.0, 1.6), "seed": 1},
 		{"pos": Vector3(-14.6, 0.0, 11.4), "seed": 2},
 		{"pos": Vector3(14.6, 0.0, 11.4), "seed": 3},
 		{"pos": Vector3(-20.5, 0.0, 3.0), "seed": 4},
@@ -260,6 +331,343 @@ static func _spawn_market_clutter(parent: Node3D, mats: Dictionary) -> void:
 		PixelDioramaStyle.add_box(
 			root, Vector3(0.72, 0.42, 0.6), Vector3(0.3, 0.21, -0.85), mats.floor_alt, "Sack"
 		)
+
+
+## Trees in stone troughs, out at the edges where the plaza was emptiest. They are the only thing
+## in the hub taller than a stall that is not a wall or a portal, which is what stops the middle
+## distance reading as flat.
+##
+## Boxes rather than a cone or a sphere: a smooth canopy sitting next to banded pixel geometry reads
+## as an imported asset, and every other silhouette here is built from slabs.
+static func _spawn_planting(parent: Node3D, mats: Dictionary) -> void:
+	var spots := [
+		{"pos": Vector3(-22.0, 0.0, -10.5), "scale": 1.0},
+		{"pos": Vector3(22.0, 0.0, -10.5), "scale": 1.15},
+		{"pos": Vector3(-22.2, 0.0, 16.0), "scale": 1.2},
+		{"pos": Vector3(22.2, 0.0, 16.0), "scale": 1.0},
+		{"pos": Vector3(-10.8, 0.0, 15.6), "scale": 0.85},
+		{"pos": Vector3(10.8, 0.0, 15.6), "scale": 0.95},
+	]
+	for i in spots.size():
+		var spot: Dictionary = spots[i]
+		_spawn_planter_tree(parent, mats, spot["pos"], float(spot["scale"]), "PlanterTree%d" % i)
+
+	# Flower troughs along the south wall, which the player faces on every walk back from the gates.
+	for i in 4:
+		var x := -16.5 + i * 11.0
+		_spawn_flower_trough(
+			parent,
+			mats,
+			Vector3(x, 0.0, 16.4),
+			BLOOM_COLORS[i % BLOOM_COLORS.size()],
+			"SouthTrough%d" % i
+		)
+
+
+static func _spawn_planter_tree(
+	parent: Node3D, mats: Dictionary, base: Vector3, height_scale: float, node_name: String
+) -> void:
+	var root := Node3D.new()
+	root.name = node_name
+	root.position = base
+	parent.add_child(root)
+	var leaf_dark := PixelDioramaStyle.make_material(LEAF_DARK)
+	var leaf_light := PixelDioramaStyle.make_material(LEAF_LIGHT)
+	PixelDioramaStyle.add_box(
+		root, Vector3(1.9, 0.44, 1.9), Vector3(0.0, 0.22, 0.0), mats.wall, "Trough"
+	)
+	PixelDioramaStyle.add_box(
+		root, Vector3(1.55, 0.14, 1.55), Vector3(0.0, 0.48, 0.0), mats.floor_alt, "Soil"
+	)
+	var trunk_h := 1.5 * height_scale
+	PixelDioramaStyle.add_box(
+		root,
+		Vector3(0.34, trunk_h, 0.34),
+		Vector3(0.0, 0.5 + trunk_h * 0.5, 0.0),
+		mats.wood,
+		"Trunk"
+	)
+	var canopy := 0.5 + trunk_h
+	PixelDioramaStyle.add_box(
+		root, Vector3(2.5, 0.72, 2.5), Vector3(0.0, canopy + 0.36, 0.0), leaf_dark, "CanopyLow"
+	)
+	PixelDioramaStyle.add_box(
+		root, Vector3(1.95, 0.64, 1.95), Vector3(0.2, canopy + 0.94, -0.14), leaf_light, "CanopyMid"
+	)
+	PixelDioramaStyle.add_box(
+		root, Vector3(1.25, 0.52, 1.25), Vector3(-0.16, canopy + 1.44, 0.18), leaf_dark, "CanopyTop"
+	)
+
+
+static func _spawn_flower_trough(
+	parent: Node3D, mats: Dictionary, base: Vector3, bloom: Color, node_name: String
+) -> void:
+	var root := Node3D.new()
+	root.name = node_name
+	root.position = base
+	parent.add_child(root)
+	var leaf := PixelDioramaStyle.make_material(LEAF_LIGHT)
+	var bloom_mat := PixelDioramaStyle.make_material(bloom)
+	PixelDioramaStyle.add_box(
+		root, Vector3(2.3, 0.46, 0.78), Vector3(0.0, 0.23, 0.0), mats.wood, "Trough"
+	)
+	PixelDioramaStyle.add_box(
+		root, Vector3(2.05, 0.12, 0.6), Vector3(0.0, 0.5, 0.0), mats.floor_alt, "Soil"
+	)
+	for i in 5:
+		var x := -0.82 + i * 0.41
+		# Staggered heights, so the row is a planting rather than a fence.
+		var h := 0.34 + float((i * 7) % 3) * 0.12
+		PixelDioramaStyle.add_box(
+			root, Vector3(0.3, h, 0.3), Vector3(x, 0.56 + h * 0.5, 0.0), leaf, "Leaf%d" % i
+		)
+		PixelDioramaStyle.add_box(
+			root,
+			Vector3(0.17, 0.17, 0.17),
+			Vector3(x, 0.62 + h, 0.02),
+			bloom_mat,
+			"Bloom%d" % i
+		)
+
+
+## Benches ringing the fountain, facing it. The fountain was the one thing in the plaza worth
+## standing still for and there was nowhere to do it.
+static func _spawn_fountain_benches(parent: Node3D, mats: Dictionary) -> void:
+	# Ring radius clears the pool rim (2.55) with room to walk between the two.
+	var radius := 3.9
+	for i in 4:
+		var angle := TAU * float(i) / 4.0
+		var offset := Vector3(sin(angle), 0.0, cos(angle)) * radius
+		_spawn_bench(
+			parent,
+			mats,
+			FOUNTAIN_POS + offset,
+			# Backs to the plaza, seats toward the water.
+			angle + PI,
+			"FountainBench%d" % i
+		)
+
+
+static func _spawn_bench(
+	parent: Node3D, mats: Dictionary, base: Vector3, yaw: float, node_name: String
+) -> void:
+	var root := Node3D.new()
+	root.name = node_name
+	root.position = base
+	root.rotation.y = yaw
+	parent.add_child(root)
+	PixelDioramaStyle.add_box(
+		root, Vector3(2.0, 0.16, 0.6), Vector3(0.0, 0.46, 0.0), mats.wood, "Seat"
+	)
+	for side in [-1.0, 1.0]:
+		PixelDioramaStyle.add_box(
+			root,
+			Vector3(0.18, 0.46, 0.54),
+			Vector3(side * 0.78, 0.23, 0.0),
+			mats.wall,
+			"Leg%s" % ("R" if side > 0.0 else "L")
+		)
+	PixelDioramaStyle.add_box(
+		root, Vector3(2.0, 0.46, 0.12), Vector3(0.0, 0.79, -0.24), mats.wood, "Back"
+	)
+
+
+## Lantern cords strung across the avenue, level with the banner crossbars. Strung across rather
+## than along: the poles already carry cloth between chest and head height, and a cord running pole
+## to pole down the same side would hang through it.
+static func _spawn_bunting(parent: Node3D, mats: Dictionary) -> void:
+	for i in 4:
+		var z := -2.0 + i * 4.5
+		_spawn_lantern_cord(parent, mats, Vector3(-5.5, 0.0, z), Vector3(5.5, 0.0, z), "Bunting%d" % i)
+
+
+static func _spawn_lantern_cord(
+	parent: Node3D, mats: Dictionary, from: Vector3, to: Vector3, node_name: String
+) -> void:
+	var root := Node3D.new()
+	root.name = node_name
+	root.position = (from + to) * 0.5
+	root.rotation.y = atan2(to.x - from.x, to.z - from.z)
+	parent.add_child(root)
+	var span := from.distance_to(to)
+	PixelDioramaStyle.add_box(
+		root, Vector3(0.07, 0.07, span), Vector3(0.0, BUNTING_Y, 0.0), mats.wood, "Cord"
+	)
+	# Emissive glass, but no OmniLight each: the plaza already carries twelve brazier lights, and
+	# twenty more point lights for decoration is a cost the look does not need.
+	var glass := PixelDioramaStyle.make_custom_emissive(Color(1.0, 0.72, 0.34), 1.25)
+	var count := 5
+	for i in count:
+		var t := float(i + 1) / float(count + 1)
+		var z := -span * 0.5 + span * t
+		# Alternate the drop so the row reads as slung, not as a shelf. Kept short: the whole point
+		# of the height is that the camera passes under the lowest lantern, not through it.
+		var drop := 0.2 + float(i % 2) * 0.1
+		PixelDioramaStyle.add_box(
+			root,
+			Vector3(0.05, drop, 0.05),
+			Vector3(0.0, BUNTING_Y - drop * 0.5, z),
+			mats.wood,
+			"Hanger%d" % i
+		)
+		PixelDioramaStyle.add_box(
+			root,
+			Vector3(0.3, 0.09, 0.3),
+			Vector3(0.0, BUNTING_Y - drop - 0.04, z),
+			mats.accent,
+			"Cap%d" % i
+		)
+		PixelDioramaStyle.add_box(
+			root,
+			Vector3(0.26, 0.3, 0.26),
+			Vector3(0.0, BUNTING_Y - drop - 0.24, z),
+			glass,
+			"Glass%d" % i
+		)
+
+
+## A handcart parked outside each of the two busiest stalls, tipped onto its handles the way a
+## cart is left when it is not being pulled.
+static func _spawn_market_carts(parent: Node3D, mats: Dictionary) -> void:
+	# Pulled further in each time the stalls grew: the storage tent's eaves now reach past x=-12.
+	_spawn_cart(parent, mats, Vector3(-9.2, 0.0, 4.8), -0.5, "CartWest")
+	_spawn_cart(parent, mats, Vector3(9.2, 0.0, 4.8), 0.5, "CartEast")
+
+
+static func _spawn_cart(
+	parent: Node3D, mats: Dictionary, base: Vector3, yaw: float, node_name: String
+) -> void:
+	var root := Node3D.new()
+	root.name = node_name
+	root.position = base
+	root.rotation.y = yaw
+	parent.add_child(root)
+	PixelDioramaStyle.add_box(
+		root, Vector3(2.3, 0.24, 1.25), Vector3(0.0, 0.78, 0.0), mats.wood, "Bed"
+	)
+	for side in [-1.0, 1.0]:
+		PixelDioramaStyle.add_box(
+			root,
+			Vector3(2.3, 0.42, 0.12),
+			Vector3(0.0, 1.05, side * 0.57),
+			mats.wood,
+			"Rail%s" % ("R" if side > 0.0 else "L")
+		)
+	PixelDioramaStyle.add_box(
+		root, Vector3(0.12, 0.42, 1.25), Vector3(-1.09, 1.05, 0.0), mats.wood, "Headboard"
+	)
+	for side in [-1.0, 1.0]:
+		var wheel := PixelDioramaStyle.add_cylinder(
+			root,
+			0.44,
+			0.44,
+			0.16,
+			Vector3(0.35, 0.44, side * 0.68),
+			mats.accent,
+			"Wheel%s" % ("R" if side > 0.0 else "L")
+		)
+		# `add_cylinder` builds them standing on end; a wheel is the same cylinder laid over.
+		wheel.rotation.x = PI * 0.5
+	PixelDioramaStyle.add_box(
+		root, Vector3(0.14, 0.14, 1.15), Vector3(0.35, 0.66, 0.0), mats.wall, "Axle"
+	)
+	# The handles run down to the ground at the front, which is what parks it.
+	for side in [-1.0, 1.0]:
+		var handle := PixelDioramaStyle.add_box(
+			root,
+			Vector3(1.5, 0.12, 0.12),
+			Vector3(-1.72, 0.42, side * 0.48),
+			mats.wood,
+			"Handle%s" % ("R" if side > 0.0 else "L")
+		)
+		handle.rotation.z = 0.48
+	# Something in the bed, so it reads as in use rather than abandoned.
+	PixelDioramaStyle.add_box(
+		root, Vector3(0.62, 0.62, 0.62), Vector3(-0.35, 1.21, 0.0), mats.floor_alt, "Sack"
+	)
+	PixelDioramaStyle.add_box(
+		root, Vector3(0.5, 0.5, 0.5), Vector3(0.45, 1.15, 0.22), mats.accent, "Crate"
+	)
+
+
+## Split logs stacked against the stalls that would actually burn them.
+static func _spawn_woodpiles(parent: Node3D, mats: Dictionary) -> void:
+	_spawn_woodpile(parent, mats, Vector3(-12.6, 0.0, -5.4), 0.35, "WoodpileForge")
+	_spawn_woodpile(parent, mats, Vector3(-11.0, 0.0, 8.5), -0.3, "WoodpileStore")
+
+
+static func _spawn_woodpile(
+	parent: Node3D, mats: Dictionary, base: Vector3, yaw: float, node_name: String
+) -> void:
+	var root := Node3D.new()
+	root.name = node_name
+	root.position = base
+	root.rotation.y = yaw
+	parent.add_child(root)
+	var bark := PixelDioramaStyle.make_material(Color(0.36, 0.26, 0.18))
+	var rows := 3
+	for row in rows:
+		# Each row one log shorter, so the stack has a slumped profile instead of a brick wall.
+		var count := 4 - row
+		for i in count:
+			var log_mesh := PixelDioramaStyle.add_cylinder(
+				root,
+				0.13,
+				0.13,
+				1.5,
+				Vector3(0.0, 0.15 + row * 0.27, -0.36 + i * 0.27 + row * 0.13),
+				bark if (i + row) % 2 == 0 else mats.wood,
+				"Log%d_%d" % [row, i]
+			)
+			log_mesh.rotation.z = PI * 0.5
+
+
+## Two planted pots flanking every stall door, placed from the same table the doorstep slabs are
+## cut from so they cannot drift off the threshold when a stall is resized.
+static func _spawn_stall_planters(hub: Node3D, parent: Node3D, mats: Dictionary) -> void:
+	for service_name in SERVICE_TENTS.keys():
+		var cfg: Dictionary = SERVICE_TENTS[service_name]
+		var origin: Vector3 = _service_world_position(hub, service_name)
+		var yaw: float = _service_yaw(hub, service_name)
+		var door_dir := Vector3(0.0, 0.0, 1.0).rotated(Vector3.UP, yaw)
+		var across_dir := Vector3(1.0, 0.0, 0.0).rotated(Vector3.UP, yaw)
+		var out: float = float(cfg["depth"]) * 0.5 + 0.5
+		# Clear of the doorstep slab, which is `entrance + 0.4` wide.
+		var across: float = float(cfg["entrance"]) * 0.5 + 0.75
+		for side in [-1.0, 1.0]:
+			_spawn_pot(
+				parent,
+				mats,
+				origin + door_dir * out + across_dir * (side * across),
+				BLOOM_COLORS[int(absf(side) + across) % BLOOM_COLORS.size()],
+				"%sPot%s" % [service_name, "R" if side > 0.0 else "L"]
+			)
+
+
+static func _spawn_pot(
+	parent: Node3D, mats: Dictionary, base: Vector3, bloom: Color, node_name: String
+) -> void:
+	var root := Node3D.new()
+	root.name = node_name
+	root.position = base
+	parent.add_child(root)
+	var leaf := PixelDioramaStyle.make_material(LEAF_DARK)
+	var bloom_mat := PixelDioramaStyle.make_material(bloom)
+	PixelDioramaStyle.add_box(
+		root, Vector3(0.62, 0.5, 0.62), Vector3(0.0, 0.25, 0.0), mats.accent, "Pot"
+	)
+	PixelDioramaStyle.add_box(
+		root, Vector3(0.5, 0.1, 0.5), Vector3(0.0, 0.53, 0.0), mats.floor_alt, "Soil"
+	)
+	PixelDioramaStyle.add_box(
+		root, Vector3(0.54, 0.46, 0.54), Vector3(0.0, 0.79, 0.0), leaf, "Shrub"
+	)
+	PixelDioramaStyle.add_box(
+		root, Vector3(0.34, 0.3, 0.34), Vector3(0.04, 1.12, -0.03), leaf, "ShrubTop"
+	)
+	PixelDioramaStyle.add_box(
+		root, Vector3(0.16, 0.16, 0.16), Vector3(-0.1, 1.2, 0.12), bloom_mat, "Bloom"
+	)
 
 
 static func _dress_walls(hub: Node3D, mats: Dictionary) -> void:
@@ -506,8 +914,14 @@ static func _dress_blacksmith(building: Node3D, mats: Dictionary) -> void:
 	tent_mats.wall = dark_wall
 
 	var yaw := _service_yaw(hub, "Blacksmith")
+	var cfg: Dictionary = SERVICE_TENTS["Blacksmith"]
+	var width: float = cfg["width"]
+	var depth: float = cfg["depth"]
+	var wall_height: float = cfg["wall_height"]
+	var entrance_width: float = cfg["entrance"]
+	var roof_peak: float = cfg["roof_peak"]
 	var visuals := PixelDioramaStyle.add_hub_tent(
-		building, tent_mats, 5.4, 5.0, 2.5, 2.2, 1.35, yaw
+		building, tent_mats, width, depth, wall_height, entrance_width, roof_peak, yaw
 	)
 	var dressing := Node3D.new()
 	dressing.name = "Dressing"
@@ -543,8 +957,8 @@ static func _dress_blacksmith(building: Node3D, mats: Dictionary) -> void:
 	dressing.add_child(flicker)
 	flicker.setup(forge_light, forge)
 
-	_add_ridge_sign(visuals, "Blacksmith", 3.85, mats.accent)
-	_position_door_interact(building, 5.0, 2.2, yaw)
+	_add_ridge_sign(visuals, "Blacksmith", wall_height + roof_peak, mats.accent)
+	_position_door_interact(building, depth, entrance_width, yaw)
 
 
 static func _dress_merchant(building: Node3D, mats: Dictionary) -> void:
@@ -553,9 +967,16 @@ static func _dress_merchant(building: Node3D, mats: Dictionary) -> void:
 	var hub := building.get_parent() as Node3D
 	PixelDioramaStyle.hide_legacy_meshes(building)
 	var yaw := _service_yaw(hub, "Merchant")
-	var depth := 4.8
+	var cfg: Dictionary = SERVICE_TENTS["Merchant"]
+	var width: float = cfg["width"]
+	var depth: float = cfg["depth"]
+	var wall_height: float = cfg["wall_height"]
+	var entrance_width: float = cfg["entrance"]
+	var roof_peak: float = cfg["roof_peak"]
 	var half_d := depth * 0.5
-	var visuals := PixelDioramaStyle.add_hub_tent(building, mats, 5.2, depth, 2.6, 2.4, 1.1, yaw)
+	var visuals := PixelDioramaStyle.add_hub_tent(
+		building, mats, width, depth, wall_height, entrance_width, roof_peak, yaw
+	)
 	var dressing := Node3D.new()
 	dressing.name = "Dressing"
 	visuals.add_child(dressing)
@@ -593,8 +1014,8 @@ static func _dress_merchant(building: Node3D, mats: Dictionary) -> void:
 	lantern.position = Vector3(0.0, 2.0, half_d - 0.5)
 	dressing.add_child(lantern)
 
-	_add_ridge_sign(visuals, "Merchant", 3.5, mats.accent)
-	_position_door_interact(building, depth, 2.4, yaw)
+	_add_ridge_sign(visuals, "Merchant", wall_height + roof_peak, mats.accent)
+	_position_door_interact(building, depth, entrance_width, yaw)
 
 
 static func _dress_storage(building: Node3D, mats: Dictionary) -> void:
@@ -603,8 +1024,15 @@ static func _dress_storage(building: Node3D, mats: Dictionary) -> void:
 	var hub := building.get_parent() as Node3D
 	PixelDioramaStyle.hide_legacy_meshes(building)
 	var yaw := _service_yaw(hub, "Storage")
-	var depth := 5.2
-	var visuals := PixelDioramaStyle.add_hub_tent(building, mats, 5.6, depth, 2.8, 2.3, 1.0, yaw)
+	var cfg: Dictionary = SERVICE_TENTS["Storage"]
+	var width: float = cfg["width"]
+	var depth: float = cfg["depth"]
+	var wall_height: float = cfg["wall_height"]
+	var entrance_width: float = cfg["entrance"]
+	var roof_peak: float = cfg["roof_peak"]
+	var visuals := PixelDioramaStyle.add_hub_tent(
+		building, mats, width, depth, wall_height, entrance_width, roof_peak, yaw
+	)
 	var dressing := Node3D.new()
 	dressing.name = "Dressing"
 	visuals.add_child(dressing)
@@ -638,8 +1066,10 @@ static func _dress_storage(building: Node3D, mats: Dictionary) -> void:
 	lamp.position = Vector3(0.0, 2.2, -0.6)
 	dressing.add_child(lamp)
 
-	_add_ridge_sign(visuals, "Storage", 3.8, mats.accent)
-	_position_door_interact(building, depth, 2.3, yaw, Vector3(2.3 + 1.0, 3.0, 3.0))
+	_add_ridge_sign(visuals, "Storage", wall_height + roof_peak, mats.accent)
+	_position_door_interact(
+		building, depth, entrance_width, yaw, Vector3(entrance_width + 1.0, 3.0, 3.0)
+	)
 
 
 static func _dress_quest_board(board: Node3D, mats: Dictionary) -> void:
@@ -648,9 +1078,16 @@ static func _dress_quest_board(board: Node3D, mats: Dictionary) -> void:
 	var hub := board.get_parent() as Node3D
 	PixelDioramaStyle.hide_legacy_meshes(board)
 	var yaw := _service_yaw(hub, "QuestBoard")
-	var depth := 3.6
+	var cfg: Dictionary = SERVICE_TENTS["QuestBoard"]
+	var width: float = cfg["width"]
+	var depth: float = cfg["depth"]
+	var wall_height: float = cfg["wall_height"]
+	var entrance_width: float = cfg["entrance"]
+	var roof_peak: float = cfg["roof_peak"]
 	var half_d := depth * 0.5
-	var visuals := PixelDioramaStyle.add_hub_tent(board, mats, 4.2, depth, 2.2, 2.0, 0.85, yaw)
+	var visuals := PixelDioramaStyle.add_hub_tent(
+		board, mats, width, depth, wall_height, entrance_width, roof_peak, yaw
+	)
 	var dressing := Node3D.new()
 	dressing.name = "Dressing"
 	visuals.add_child(dressing)
@@ -678,8 +1115,8 @@ static func _dress_quest_board(board: Node3D, mats: Dictionary) -> void:
 	paper_light.position = Vector3(0.0, 1.8, half_d - 0.4)
 	dressing.add_child(paper_light)
 
-	_add_ridge_sign(visuals, "Quests", 3.05, mats.accent)
-	_position_door_interact(board, depth, 2.0, yaw)
+	_add_ridge_sign(visuals, "Quests", wall_height + roof_peak, mats.accent)
+	_position_door_interact(board, depth, entrance_width, yaw)
 
 
 static func _add_ridge_sign(

@@ -19,6 +19,14 @@ const SWEEP_PARAM := &"dissolve_sweep"
 static func default_dissolve_duration() -> float:
 	return VfxServiceScript.get_death_burst_lifetime()
 const META_ACTIVE_TWEEN := &"material_dissolve_tween"
+## Handles for the sink and squash tweens `_apply_sink_and_scale` starts on the visual itself.
+##
+## These used to be started and forgotten. `_restore_death_state` puts position and scale back in
+## one assignment, but a tween that is still running simply drives them away again on its next
+## step — so anything that revives before the death animation has finished gets reset and then
+## dragged straight back underground. That is why a killed training dummy respawned as nothing but
+## a health bar: the body was alive, reset, and eight metres under the floor.
+const META_DEATH_TWEENS := &"material_dissolve_death_tweens"
 const META_DEATH_STATE := &"death_visual_state"
 const SINK_DELAY := 0.45
 const SINK_DEPTH := 1.2
@@ -189,6 +197,11 @@ static func _merge_opts(_node: Node3D, opts: Dictionary) -> Dictionary:
 
 
 static func _record_death_state(visual: Node3D) -> void:
+	# A second death before the first finished would otherwise record the half-sunk pose as the one
+	# to restore to.
+	_kill_death_tweens(visual)
+	if visual.has_meta(META_DEATH_STATE):
+		_restore_death_state(visual)
 	visual.set_meta(
 		META_DEATH_STATE,
 		{
@@ -199,12 +212,34 @@ static func _record_death_state(visual: Node3D) -> void:
 
 
 static func _restore_death_state(visual: Node3D) -> void:
+	# Before the assignment, not after: a live tween outlives it otherwise.
+	_kill_death_tweens(visual)
 	if not visual.has_meta(META_DEATH_STATE):
 		return
 	var state: Dictionary = visual.get_meta(META_DEATH_STATE)
 	visual.position = state.get("position", visual.position)
 	visual.scale = state.get("scale", visual.scale)
 	visual.remove_meta(META_DEATH_STATE)
+
+
+static func _track_death_tween(visual: Node3D, tween: Tween) -> void:
+	var tweens: Array = []
+	if visual.has_meta(META_DEATH_TWEENS):
+		tweens = visual.get_meta(META_DEATH_TWEENS)
+	tweens.append(tween)
+	visual.set_meta(META_DEATH_TWEENS, tweens)
+
+
+static func _kill_death_tweens(visual: Node3D) -> void:
+	if visual == null or not is_instance_valid(visual):
+		return
+	if not visual.has_meta(META_DEATH_TWEENS):
+		return
+	for entry in visual.get_meta(META_DEATH_TWEENS):
+		var tween := entry as Tween
+		if tween != null and tween.is_valid():
+			tween.kill()
+	visual.remove_meta(META_DEATH_TWEENS)
 
 
 static func _apply_sink_and_scale(visual: Node3D, opts: Dictionary) -> void:
@@ -214,14 +249,17 @@ static func _apply_sink_and_scale(visual: Node3D, opts: Dictionary) -> void:
 	var rig_kind := str(opts.get("rig_kind", "humanoid"))
 	if rig_kind == "blob":
 		var squash := tree.create_tween()
+		_track_death_tween(visual, squash)
 		squash.tween_property(visual, "scale", Vector3(visual.scale.x, visual.scale.y * 0.6, visual.scale.z), 0.15)
 	if bool(opts.get("has_animator", false)):
 		var sink := tree.create_tween()
+		_track_death_tween(visual, sink)
 		sink.tween_interval(SINK_DELAY)
 		sink.tween_property(visual, "position:y", visual.position.y - SINK_DEPTH, SINK_DURATION)
 		return
 	var death_scale := Vector3(0.2, 0.05, 0.2)
 	var tween := tree.create_tween()
+	_track_death_tween(visual, tween)
 	tween.tween_property(visual, "scale", death_scale, 0.35)
 	tween.parallel().tween_property(visual, "position:y", -0.8, 0.35)
 
@@ -246,9 +284,14 @@ static func _has_dissolve_shader(mesh: MeshInstance3D) -> bool:
 
 
 static func _object_sweep_dir(node: Node3D, world_dir: Vector3, sweep_mode: String) -> Vector3:
-	if world_dir.length_squared() > 0.01:
+	# Only when the basis can actually be inverted. The death visual scales the node it is playing
+	# on down toward nothing, so a second death starting on an already-shrunk node hands `inverse()`
+	# a singular basis and Godot logs `Condition "det == 0" is true` from `basis.cpp`. The sweep is
+	# a direction hint; falling back to the mode's default is a better answer than an error.
+	if world_dir.length_squared() > 0.01 and absf(node.global_transform.basis.determinant()) > 0.00001:
 		var local := node.global_transform.basis.inverse() * world_dir.normalized()
-		return local.normalized()
+		if local.length_squared() > 0.000001:
+			return local.normalized()
 	match sweep_mode:
 		"down":
 			return Vector3.DOWN

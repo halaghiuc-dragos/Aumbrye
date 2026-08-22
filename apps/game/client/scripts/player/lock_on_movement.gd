@@ -38,13 +38,22 @@ static func get_target(lock_on: Node) -> Node3D:
 	return (lock_on as LockOn).current_target
 
 
+## The distance the player orbits a locked target at: the target's own preference, or the default.
+##
+## There used to be a third branch here that asked `lock_on` for a `get_orbit_radius()` — and
+## `LockOn.get_orbit_radius()` is defined as `return LockOnMovement.get_orbit_radius(self, ...)`,
+## so the two called each other until the stack ran out. It fired for every target that does not
+## define `get_lock_orbit_radius`, which is every enemy except `castle_enemy_base`: locking onto
+## one was an immediate "Stack overflow (stack size: 1024)".
+##
+## `lock_on` is always a `LockOn` — `get_target` casts to it — so that branch could never have
+## reached anything but the wrapper that delegates back here. Resolution is one-directional now:
+## `LockOn` asks this, this never asks `LockOn`.
 static func get_orbit_radius(lock_on: Node, target: Node3D = null) -> float:
 	if target == null:
 		target = get_target(lock_on)
 	if target and target.has_method("get_lock_orbit_radius"):
 		return float(target.call("get_lock_orbit_radius"))
-	if lock_on and lock_on.has_method("get_orbit_radius"):
-		return float(lock_on.call("get_orbit_radius"))
 	return DEFAULT_ORBIT_RADIUS
 
 
@@ -62,9 +71,11 @@ static func break_lock_on_sprint(lock_on: Node, sprint_requested: bool) -> bool:
 
 static func get_locked_speed_scale(input_dir: Vector2) -> float:
 	var x := absf(_apply_axis_deadzone(input_dir.x))
-	var y_raw := _apply_axis_deadzone(input_dir.y)
-	var approach := maxf(y_raw, 0.0)
-	var retreat := maxf(-y_raw, 0.0)
+	# Forward is y = -1; see `get_move_direction`. Reading it the other way round meant walking
+	# toward a target used the *retreat* speed and backing off used the approach speed.
+	var forward := -_apply_axis_deadzone(input_dir.y)
+	var approach := maxf(forward, 0.0)
+	var retreat := maxf(-forward, 0.0)
 	var total := x + approach + retreat
 	if total < 0.001:
 		return LOCKED_SPEED_ORBIT
@@ -84,8 +95,12 @@ static func get_move_direction(
 		return camera_relative_fn.call(input_dir)
 
 	var stick_x := _apply_axis_deadzone(input_dir.x)
-	var stick_y := _apply_axis_deadzone(input_dir.y)
-	if absf(stick_x) < 0.001 and absf(stick_y) < 0.001:
+	# `Input.get_vector("move_left", "move_right", "move_forward", "move_back")` puts *forward* at
+	# y = -1, which is what `_get_camera_relative_direction` relies on. Everything locked on read the
+	# raw y as though forward were positive, so W walked away from the target and S walked into it —
+	# the controls reversed the moment you locked on, and only then.
+	var forward := -_apply_axis_deadzone(input_dir.y)
+	if absf(stick_x) < 0.001 and absf(forward) < 0.001:
 		return Vector3.ZERO
 
 	var offset := player.global_position - target.global_position
@@ -96,7 +111,7 @@ static func get_move_direction(
 	var tangent := Vector3.UP.cross(radial).normalized()
 	var radial_forward := -radial
 
-	var direction := tangent * stick_x + radial_forward * stick_y
+	var direction := tangent * stick_x + radial_forward * forward
 	if direction.length_squared() < 0.0001:
 		return Vector3.ZERO
 	return direction.normalized()
@@ -135,10 +150,13 @@ static func get_locked_dodge_direction(
 	# axes correctly, which is why walking toward a locked target worked and dodging toward it did
 	# not, in the same file. Mirrored here; `radial` survives only as the both-axes-idle fallback.
 	var stick_x := _apply_axis_deadzone(input_dir.x)
-	var stick_y := _apply_axis_deadzone(input_dir.y)
-	if absf(stick_x) < 0.001 and absf(stick_y) < 0.001:
+	# Mirrors `get_move_direction`, including its sign convention — which is the point: C-10 fixed
+	# this to match that function and so inherited the same inverted y, rolling you away from a
+	# target when you held forward.
+	var forward := -_apply_axis_deadzone(input_dir.y)
+	if absf(stick_x) < 0.001 and absf(forward) < 0.001:
 		return radial
-	var direction := tangent * stick_x + (-radial) * stick_y
+	var direction := tangent * stick_x + (-radial) * forward
 	if direction.length_squared() < 0.0001:
 		return radial
 	return direction.normalized()
@@ -186,9 +204,30 @@ static func world_direction_to_local_facing_y(body: Node3D, world_direction: Vec
 	return world_yaw - body_yaw
 
 
-static func world_velocity_to_local_facing(body: Node3D, velocity: Vector3) -> Vector2:
-	var local_yaw := world_direction_to_local_facing_y(body, velocity)
-	return Vector2(sin(local_yaw), cos(local_yaw))
+## Which way the character is travelling *as the character sees it*: +y is straight ahead, +x is to
+## its right. This is what picks the walk / strafe / backpedal clip.
+##
+## Measured against the `Facing` node, not the body. It used to take the body, whose rotation never
+## changes — the mesh is turned by `Facing` underneath it — so this returned the world direction of
+## travel rather than a relative one. Walking due east with the character correctly facing east came
+## out as (1, 0), which `_locomotion_clip_for` reads as "moving right" and answers with `walk_r`:
+## the character strafed sideways along its own forward direction. It looked correct only while
+## facing world north, which is why it came and went as the player turned.
+##
+## Global basis rather than `rotation.y`, so a body that does rotate cannot reintroduce the same
+## class of error.
+static func world_velocity_to_local_facing(facing: Node3D, velocity: Vector3) -> Vector2:
+	var flat := Vector3(velocity.x, 0.0, velocity.z)
+	if flat.length_squared() < 0.0001 or facing == null:
+		return Vector2.ZERO
+	flat = flat.normalized()
+	var forward := CombatFacing.forward_of(facing)
+	forward.y = 0.0
+	if forward.length_squared() < 0.0001:
+		return Vector2.ZERO
+	forward = forward.normalized()
+	var right := Vector3.UP.cross(forward).normalized()
+	return Vector2(flat.dot(right), flat.dot(forward))
 
 
 static func update_facing_toward_target(

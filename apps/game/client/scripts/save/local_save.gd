@@ -46,6 +46,19 @@ var _pending_new_game: Dictionary = {}
 var _roster: Dictionary = {"characters": [], "activeId": "", "localAccountId": ""}
 var _account: Dictionary = {}
 var _active_character_id: String = ""
+## Whether `_active_character_id` points at a character whose document is actually loaded into the
+## services, as opposed to merely being the roster's `activeId`.
+##
+## These came apart at the main menu, and that is what cost a save. `_load_roster()` sets
+## `_active_character_id` from `activeId` at boot, so from the title screen the pointer already says
+## "Bexley is active" while `CharacterService` holds nothing at all. Any autosave from there — a
+## settings toggle, or the live appearance preview in character creation, which calls
+## `set_appearance_profile()` on every slider — then built a payload out of that empty service and
+## wrote it over Bexley's file. See `_build_save_payload`, which stamped `classId` from the empty
+## service, and `list_character_slots`, which hides an entry whose `classId` is blank: the character
+## file survived intact, the roster entry went blank, and Continue greyed out. It read as the save
+## having been deleted by pressing New Game.
+var _character_loaded := false
 var _autosave_pending := false
 var _force_backup_rotation := false
 
@@ -177,6 +190,40 @@ func set_appearance_profile(profile: Dictionary) -> bool:
 
 func get_appearance_profile() -> Dictionary:
 	return CharacterAppearance.from_character_dict(_character())
+
+
+## Seconds this warden has been played for, across every session.
+##
+## Counted here rather than per run: the pause screen's clock read 00:00 anywhere outside a run,
+## because `RunFlow.get_run_elapsed_seconds()` is a *run* timer and the hub is not a run. This is
+## the number a player means by "how long have I played this character".
+func get_playtime_seconds() -> float:
+	return float(_character().get("playtimeSeconds", 0.0))
+
+
+## `H:MM:SS` once past an hour, `MM:SS` before it.
+func format_playtime(seconds: float) -> String:
+	var total := maxi(0, int(seconds))
+	@warning_ignore("integer_division")
+	var hours := total / 3600
+	@warning_ignore("integer_division")
+	var minutes := (total % 3600) / 60
+	var secs := total % 60
+	if hours > 0:
+		return "%d:%02d:%02d" % [hours, minutes, secs]
+	return "%02d:%02d" % [minutes, secs]
+
+
+## Only while a character is actually loaded — the same gate that stops a menu-time autosave
+## writing over a save. Time spent on the title screen belongs to nobody.
+func _process(delta: float) -> void:
+	if not _character_loaded or _cached_state.is_empty():
+		return
+	var character: Dictionary = _character()
+	if character.is_empty():
+		return
+	character["playtimeSeconds"] = float(character.get("playtimeSeconds", 0.0)) + delta
+	_cached_state["character"] = character
 
 
 func has_playable_character() -> bool:
@@ -335,14 +382,18 @@ func list_character_slots() -> Array[Dictionary]:
 			. append(
 				{
 					"characterId": str(entry.get("id", "")),
+					"playtime": format_playtime(float(entry.get("playtimeSeconds", 0.0))),
 					"label":
-					(
-						"%s — %s (Lv%d)"
-						% [
-							entry.get("name", "Warden"),
-							class_id,
-							int(entry.get("level", 1)),
-						]
+					_slot_label(
+						(
+							"%s — %s (Lv%d)"
+							% [
+								entry.get("name", "Warden"),
+								class_id,
+								int(entry.get("level", 1)),
+							]
+						),
+						format_playtime(float(entry.get("playtimeSeconds", 0.0)))
 					),
 					"detail":
 					(
@@ -356,6 +407,22 @@ func list_character_slots() -> Array[Dictionary]:
 			)
 		)
 	return slots
+
+
+## Width the Continue list's rows are padded to, in characters.
+##
+## The list is an `ItemList`, which takes one plain string per row and cannot align a column on its
+## own. `aumbrye_pixel.ttf` is monospace — every glyph measures the same width — so padding with
+## spaces puts the time on an exact right margin rather than an approximate one.
+const SLOT_LABEL_WIDTH := 46
+
+
+## One Continue row: the warden on the left, their time flush right in the same slot.
+func _slot_label(left: String, right: String) -> String:
+	var gap := SLOT_LABEL_WIDTH - left.length() - right.length()
+	if gap < 2:
+		gap = 2
+	return left + " ".repeat(gap) + right
 
 
 func list_warden_names() -> PackedStringArray:
@@ -458,6 +525,7 @@ func _apply_new_game_boot() -> bool:
 		return false
 	var character_id := _generate_character_id()
 	_active_character_id = character_id
+	_character_loaded = true
 	_reset_to_defaults()
 	var class_id: String = str(data.get("classId", ""))
 	var character_name: String = str(data.get("name", "Warden"))
@@ -643,6 +711,7 @@ func _adopt_document_file(path: String, character_id: String) -> bool:
 	if FileAccess.file_exists(target_path):
 		_rotate_backups(target_path, character_id)
 	_apply_save_data(data)
+	_character_loaded = true
 	_write_save(_build_save_payload(), false)
 	return true
 
@@ -775,6 +844,8 @@ func autosave(priority: SavePriority = SavePriority.IMMEDIATE) -> void:
 	_autosave_pending = false
 	if _autosave_timer != null and not _autosave_timer.is_stopped():
 		_autosave_timer.stop()
+	if not _can_write_active_document():
+		return
 	if _write_save(_build_save_payload(), true, priority):
 		return
 
@@ -782,6 +853,16 @@ func autosave(priority: SavePriority = SavePriority.IMMEDIATE) -> void:
 	# fired for load problems, so a player could keep going for hours believing they were saved.
 	# Retry once shortly after, in case the lock was transient, then tell the player.
 	_retry_failed_autosave(priority)
+
+
+## Refuses to write when the roster names an active character but nothing has been loaded for them.
+##
+## Not a failure — there is simply nothing worth persisting yet, and the only thing such a write can
+## do is replace a real save with the defaults of an empty session. Deliberately silent: the main
+## menu reaches `autosave()` through dozens of settings call sites, and warning on each would be
+## noise about the normal case.
+func _can_write_active_document() -> bool:
+	return _active_character_id == "" or _character_loaded
 
 
 func _retry_failed_autosave(priority: SavePriority) -> void:
@@ -807,6 +888,7 @@ func delete_save() -> void:
 	_cached_state.clear()
 	_cloud_updated_at = ""
 	_active_character_id = ""
+	_character_loaded = false
 	_roster = {
 		"characters": [], "activeId": "", "localAccountId": str(_roster.get("localAccountId", ""))
 	}
@@ -832,6 +914,7 @@ func delete_character(character_id: String) -> bool:
 	if str(_roster.get("activeId", "")) == character_id:
 		_roster["activeId"] = ""
 		_active_character_id = ""
+		_character_loaded = false
 		_cached_state.clear()
 	_save_roster()
 	return true
@@ -994,7 +1077,12 @@ func _build_save_payload() -> Dictionary:
 		character["level"] = ProgressionService.level
 		character["xp"] = ProgressionService.xp
 	if is_instance_valid(CharacterService):
-		character["classId"] = CharacterService.class_id
+		# Only when the service actually holds a class. An empty service means no character is
+		# loaded, and blanking the stored `classId` is what orphans a save: `list_character_slots`
+		# skips entries without one, so the warden vanishes from Continue while their file is fine.
+		# `set_character_profile` has always guarded this; the payload builder did not.
+		if CharacterService.class_id != "":
+			character["classId"] = CharacterService.class_id
 		character["appearanceTheme"] = CharacterService.appearance_theme
 		character["appearance"] = CharacterService.appearance_profile.duplicate(true)
 	character.erase("lastHubMessage")
@@ -1064,6 +1152,7 @@ func _default_character() -> Dictionary:
 		"appearanceTheme": 0,
 		"appearance": CharacterAppearance.default_profile(),
 		"firstPersonCamera": false,
+		"playtimeSeconds": 0.0,
 	}
 
 
@@ -1128,6 +1217,7 @@ func _load_document(path: String, character_id: String = "") -> bool:
 		_roster["activeId"] = character_id
 		_save_roster()
 	_apply_save_data(data)
+	_character_loaded = true
 	save_loaded.emit()
 	return true
 
@@ -1644,6 +1734,7 @@ func _load_roster() -> void:
 	if not FileAccess.file_exists(ROSTER_PATH):
 		_roster = {"characters": [], "activeId": "", "localAccountId": ""}
 		_active_character_id = ""
+		_character_loaded = false
 		return
 	var parsed = JSON.parse_string(_read_raw_text(ROSTER_PATH))
 	if parsed is Dictionary:
@@ -1654,6 +1745,99 @@ func _load_roster() -> void:
 	else:
 		_roster = {"characters": [], "activeId": "", "localAccountId": ""}
 		_active_character_id = ""
+	_character_loaded = false
+	_heal_roster_class_ids()
+
+
+## Puts back a `classId` that this bug blanked, reading it from the character's own document or,
+## failing that, from its newest rotating backup.
+##
+## Needed because the damage already shipped: a roster entry whose `classId` went blank is skipped
+## by `list_character_slots`, so the warden is gone from Continue and the player is told they have
+## no save at all. The files were never deleted, and the backups still carry the class — so this is
+## recoverable without the player doing anything, and it runs on every boot.
+func _heal_roster_class_ids() -> void:
+	var characters: Array = _roster.get("characters", [])
+	var healed := 0
+	for i in characters.size():
+		var entry: Dictionary = characters[i] as Dictionary
+		var character_id := str(entry.get("id", ""))
+		if character_id == "":
+			continue
+		var path := _character_path(character_id)
+		var in_roster := str(entry.get("classId", ""))
+		var in_document := _class_id_in_document(path)
+		if in_roster != "" and in_document != "":
+			continue
+		# Either side can be the blank one, and they are repaired independently. Healing only the
+		# roster puts the warden back in Continue but then bounces the player to the main menu on
+		# load, because the hub refuses a character with no class; healing only the document leaves
+		# them invisible. The class itself comes from whichever copy still has it.
+		var recovered := in_roster if in_roster != "" else in_document
+		if recovered == "":
+			recovered = _recover_class_id(character_id)
+		if recovered == "":
+			continue
+		if in_document == "":
+			_restore_class_id_in_document(path, recovered)
+		if in_roster == "":
+			entry["classId"] = recovered
+			characters[i] = entry
+		healed += 1
+	if healed <= 0:
+		return
+	_roster["characters"] = characters
+	_save_roster()
+
+	push_warning(
+		"LocalSave: restored a blanked classId for %d character%s"
+		% [healed, "" if healed == 1 else "s"]
+	)
+
+
+## The class this character was, from the newest rotating backup still holding one. Reached only
+## when neither the roster nor the live document has it any more.
+func _recover_class_id(character_id: String) -> String:
+	for i in BACKUP_COUNT:
+		var from_backup := _class_id_in_document(_rotating_backup_path(i, character_id))
+		if from_backup != "":
+			return from_backup
+	return ""
+
+
+## Writes a recovered class back into a character document, touching nothing else in it.
+func _restore_class_id_in_document(path: String, class_id: String) -> void:
+	if class_id == "" or not FileAccess.file_exists(path):
+		return
+	var parsed = JSON.parse_string(_read_raw_text(path))
+	if not parsed is Dictionary:
+		return
+	var data: Dictionary = parsed
+	var character: Variant = data.get("character", {})
+	if not character is Dictionary:
+		return
+	var character_dict: Dictionary = character
+	if str(character_dict.get("classId", "")) != "":
+		return
+	character_dict["classId"] = class_id
+	data["character"] = character_dict
+	var file := FileAccess.open(path, FileAccess.WRITE)
+	if not file:
+		return
+	file.store_string(JSON.stringify(data, "\t"))
+	file.close()
+
+
+func _class_id_in_document(path: String) -> String:
+	if not FileAccess.file_exists(path):
+		return ""
+	var parsed = JSON.parse_string(_read_raw_text(path))
+	if not parsed is Dictionary:
+		return ""
+	var character: Variant = (parsed as Dictionary).get("character", {})
+	if not character is Dictionary:
+		return ""
+	return str((character as Dictionary).get("classId", ""))
 
 
 func _save_roster() -> void:
@@ -1785,8 +1969,17 @@ func _update_roster_entry_metadata(data: Dictionary) -> void:
 		if str(entry.get("id", "")) != _active_character_id:
 			continue
 		entry["name"] = str(character.get("name", entry.get("name", "Warden")))
-		entry["classId"] = str(character.get("classId", entry.get("classId", "")))
+		# An empty incoming value never overwrites a known one — a blank `classId` here is what
+		# hides a warden from Continue.
+		var incoming_class := str(character.get("classId", ""))
+		if incoming_class != "":
+			entry["classId"] = incoming_class
+		elif not entry.has("classId"):
+			entry["classId"] = ""
 		entry["level"] = int(character.get("level", entry.get("level", 1)))
+		entry["playtimeSeconds"] = float(
+			character.get("playtimeSeconds", entry.get("playtimeSeconds", 0.0))
+		)
 		entry["savedAt"] = _utc_now_iso()
 		characters[i] = entry
 		break

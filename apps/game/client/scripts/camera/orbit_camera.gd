@@ -73,11 +73,7 @@ var _sprint_fov := 0.0
 ## world space: restoring undid the spring arm's motion and reading it straight back as the next
 ## base meant it never advanced again. The camera froze where it stood when the snap first applied
 ## and the player walked out of frame.
-var _snap_base_local := Transform3D.IDENTITY
 
-## C-23: whether `_snap_base_local` holds a transform this function wrote, and so whether it
-## must be restored before the next read.
-var _snap_applied := false
 
 ## Mouse-look deltas arrive from `_unhandled_input` at render-event cadence, but the SpringArm3D's
 ## own transform must only ever be written from `_physics_process` — with 3D physics interpolation
@@ -165,25 +161,10 @@ func _physics_process(delta: float) -> void:
 
 
 func _process(delta: float) -> void:
-	# Undo last frame's pixel snap first, before anything else touches the camera.
-	#
-	# The snap writes a global transform, which lands in the camera's *local* transform. Nothing
-	# rewrites that local in full: `_apply_shoulder_offset` sets `position.x` absolutely and the
-	# spring arm sets z, but y and the basis keep whatever the snap left, so the correction
-	# compounded frame after frame — the ratchet C-23 describes.
-	#
-	# Restoring here rather than inside `_apply_gameplay_pixel_snap` is the whole fix. Undoing it
-	# down there means undoing it *after* the shoulder offset and the effects have already written
-	# to the same transform, and the two interleave: measured, the camera alternated between the
-	# snapped pose and a raw (0, 1.6, 4.0) every second or third frame, which is the flicker.
-	if _snap_applied:
-		_camera.transform = _snap_base_local
-		_snap_applied = false
 	_update_camera_effects(delta)
 	_apply_shoulder_offset(delta)
 	_apply_camera_optics()
 	_apply_camera_effects_transform()
-	_apply_gameplay_pixel_snap()
 
 
 func _update_mode_blend(delta: float) -> void:
@@ -615,44 +596,20 @@ func _apply_camera_effects_transform() -> void:
 	_camera.v_offset = offset.y
 
 
-func _apply_gameplay_pixel_snap() -> void:
-	if _camera == null:
-		return
-	if not PixelDioramaSettings.gameplay_camera_snap_enabled:
-		# C-23: if the setting is turned off mid-run, the last snap must be undone rather than
-		# left baked into the camera forever.
-		if _snap_applied:
-			_camera.transform = _snap_base_local
-			_snap_applied = false
-		return
-	# C-22: `SNAP_DISABLE_WHILE_LOCKED` is a `const ... := false`, so the guard that used to stand
-	# here could never fire. Removed rather than left as decoration.
-	#
-	# C-23: this read `_camera.global_transform`, snapped it, and wrote the result back onto the
-	# same node — so the next frame's read already contained the previous frame's snap delta and got
-	# snapped again. Re-snapping is idempotent only while the grid is unchanged, and the grid is
-	# derived from FOV and arm length, both of which move continuously (sprint FOV, punch kick, arm
-	# smoothing). Under motion the offset therefore accumulates instead of settling: a ratchet.
-	#
-	# `PixelDioramaViewport._mirrored_transform()` gets this right and says why in its own comment —
-	# it reads the source and writes the snapped result to a *different* node, so there is no
-	# feedback path. Worse, that mirror reads the very node this function was corrupting, so the two
-	# snap systems were compounding.
-	#
-	# The fix is to keep the unsnapped transform as the source of truth: restore it before reading,
-	# so each frame snaps the spring arm's clean output rather than last frame's snapped output.
-	# No undo here — `_process` already restored the clean local before the frame's other writers ran.
-	_snap_base_local = _camera.transform
-	PixelDioramaSettings.snap_fov_hint = _camera.fov
-	# Read the world transform *after* the correction is undone, so the source is the spring arm's
-	# clean output at this frame's position rather than a value carrying an earlier snap.
-	var snapped_value := PixelCameraSnapScript.snap_transform(
-		_camera.global_transform, _camera.fov, maxf(0.5, _smoothed_arm_length), true
-	)
-	_camera.global_transform = snapped_value
-	_snap_applied = true
-
-
+## No pixel snap here, deliberately.
+##
+## `PixelDioramaViewport._mirrored_transform()` already snaps, and says why it must be the only
+## place that does: "Snapping happens on the render camera only. Snapping the gameplay CameraPivot
+## decouples yaw from player movement and breaks SpringArm follow." It reads this camera as a clean
+## source and writes the snapped result to its own render camera, so there is no feedback path.
+##
+## This node used to snap as well, writing the result back into the camera the SpringArm owns. That
+## is the same mistake `_apply_shoulder_offset` documents twenty lines above — the arm rewrites its
+## child's transform every physics tick — and it needed a cached "clean" local to undo itself with,
+## which then went stale: measured across a 4.6 -> 3.2 zoom, the camera's local z sat frozen at
+## 4.000 while the arm travelled to 3.213, and its world z alternated between 4.000 and a drifting
+## value on every other frame. That alternation is the flicker after a zoom. It also corrupted the
+## source the render camera reads, so the two snap systems were compounding.
 func _capture_mouse_if_allowed() -> void:
 	if PlayerInput.blocked():
 		return

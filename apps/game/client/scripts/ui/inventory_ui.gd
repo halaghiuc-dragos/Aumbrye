@@ -12,6 +12,20 @@ const RunModeConfigScript := preload("res://scripts/app/run_mode_config.gd")
 const ItemIconAtlasScript := preload("res://scripts/ui/item_icon_atlas.gd")
 const ConsumableServiceScript := preload("res://scripts/inventory/consumable_service.gd")
 
+## Arrow-key navigation, as (action, step) pairs.
+const _NAV_DIRECTIONS := [
+	[&"ui_left", Vector2i(-1, 0)],
+	[&"ui_right", Vector2i(1, 0)],
+	[&"ui_up", Vector2i(0, -1)],
+	[&"ui_down", Vector2i(0, 1)],
+]
+
+## Per-cell bookkeeping for `_highlight_cursor`, so it repaints from a known base instead of
+## compounding a tint onto whatever the previous pass left behind.
+const CELL_BASE_MODULATE := &"inv_base_modulate"
+const CELL_HAS_ITEM := &"inv_has_item"
+const CELL_HIGHLIGHT_TINT := Color(1.2, 1.2, 1.05)
+
 const CELL_SIZE := InventoryUILayoutScript.CELL_SIZE
 const EQUIP_CELL_SIZE := InventoryUILayoutScript.EQUIP_CELL_SIZE
 const GRID_GAP := InventoryUILayoutScript.GRID_GAP
@@ -60,7 +74,8 @@ var _btn_equip: Button
 var _btn_unequip: Button
 var _btn_use: Button
 var _btn_drop: Button
-var _btn_bind: Array[Button] = []
+## Which grid slot the 1-4 keys would bind, or -1. Was the visibility flag for the Bind buttons.
+var _bind_target_index := -1
 
 
 func _ready() -> void:
@@ -249,14 +264,12 @@ func _build_ui_shell() -> void:
 	_action_row.add_child(_btn_unequip)
 	_action_row.add_child(_btn_use)
 	_action_row.add_child(_btn_drop)
-	for i in 4:
-		var bind_btn := MenuShellScript.make_menu_button(
-			tr("INV_BTN_BIND") % (i + 1), _on_bind_quick_slot_pressed.bind(i)
-		)
-		_btn_bind.append(bind_btn)
-		_action_row.add_child(bind_btn)
+	# No Bind 1-4 buttons. Pressing 1, 2, 3 or 4 on a selected item does the same thing, and four
+	# more buttons here were most of the row's width — the row is the thing that was resizing the
+	# window, and the reason the remaining controls were cramped enough to be hard to read.
 	_btn_equip.focus_neighbor_top = _grid.get_path()
 	footer.add_child(_action_row)
+	_reserve_action_row_width()
 	_quick_slot_row = HBoxContainer.new()
 	_quick_slot_row.add_theme_constant_override("separation", 10)
 	footer.add_child(_quick_slot_row)
@@ -296,21 +309,47 @@ func _build_ui_shell() -> void:
 	add_child(_drag_ghost)
 
 
+## Closing is handled here rather than in `_unhandled_input`, which never saw either key.
+##
+## `inventory` is bound to Tab, and Tab is also `ui_focus_next`; Escape is `ui_cancel`. Both are
+## consumed by the focused control — a button, or the search field — during GUI input, which runs
+## first. Opening worked because nothing inside the inventory had focus yet, so that press reached
+## `_unhandled_input`; closing never did.
+func _input(event: InputEvent) -> void:
+	if not _inventory_open:
+		return
+	if event.is_action_pressed("inventory"):
+		hide_inventory()
+		get_viewport().set_input_as_handled()
+		return
+	if event.is_action_pressed("ui_cancel"):
+		# A drag in progress is cancelled first; a second press then closes.
+		if _drag_index >= 0 or _drag_equip_slot != "":
+			_clear_drag()
+			_refresh_all()
+		else:
+			hide_inventory()
+		get_viewport().set_input_as_handled()
+		return
+	# Arrow keys are `ui_left`/`ui_right`/`ui_up`/`ui_down`, which Godot's focus system claims for
+	# moving between controls, and the digits are swallowed by the search field whenever it holds
+	# focus. Both are handled here for the same reason Tab and Escape are: GUI input runs first, so
+	# `_unhandled_input` never saw them and neither grid navigation nor quick-binding worked.
+	for direction in _NAV_DIRECTIONS:
+		if event.is_action_pressed(direction[0]):
+			_navigate(direction[1])
+			get_viewport().set_input_as_handled()
+			return
+	if _try_quick_slot_bind_input(event):
+		get_viewport().set_input_as_handled()
+
+
 func _unhandled_input(event: InputEvent) -> void:
 	if event.is_action_pressed("inventory"):
 		toggle()
 		get_viewport().set_input_as_handled()
 		return
 	if not _inventory_open:
-		return
-	if event.is_action_pressed("ui_cancel"):
-		if _drag_index >= 0 or _drag_equip_slot != "":
-			_clear_drag()
-			_refresh_all()
-			get_viewport().set_input_as_handled()
-			return
-		hide_inventory()
-		get_viewport().set_input_as_handled()
 		return
 	if event.is_action_pressed("ui_accept"):
 		_confirm_action()
@@ -564,6 +603,8 @@ func _refresh_grid() -> void:
 	for cell in _cells:
 		_set_cell_content(cell, "common", 0)
 		cell.self_modulate = Color.WHITE
+		cell.set_meta(CELL_BASE_MODULATE, Color.WHITE)
+		cell.set_meta(CELL_HAS_ITEM, false)
 	var occupied: Dictionary = {}
 	var visible_set: Dictionary = {}
 	for idx in _visible_indices:
@@ -588,6 +629,7 @@ func _refresh_grid() -> void:
 				if idx < 0 or idx >= _cells.size():
 					continue
 				occupied[idx] = true
+				_cells[idx].set_meta(CELL_HAS_ITEM, true)
 				var is_origin := dx == 0 and dy == 0
 				_set_cell_content(
 					_cells[idx], rarity, upgrade if is_origin else 0, slot if is_origin else {}
@@ -598,6 +640,7 @@ func _refresh_grid() -> void:
 					_cells[idx].self_modulate = Color(1.1, 1.0, 0.55)
 				elif _is_equipped_instance(slot):
 					_cells[idx].self_modulate = Color(0.75, 0.85, 1.0)
+				_cells[idx].set_meta(CELL_BASE_MODULATE, _cells[idx].self_modulate)
 	_highlight_cursor()
 
 
@@ -622,14 +665,26 @@ func _refresh_equipment() -> void:
 			cell.self_modulate = Color(1.1, 1.0, 0.55)
 
 
+## Repaints every cell from its base colour, rather than tinting whatever is already there.
+##
+## This used to *multiply* `self_modulate` in place and never put it back. `_refresh_grid` resets
+## the cells first, so a full refresh looked right — but the hover handlers call straight in here,
+## so each mouse-over multiplied the tint again and mousing away never restored it. Cells grew
+## steadily more yellow and stayed lit with the cursor nowhere near them.
+##
+## The tint is also earned now: an empty cell has nothing to point at, so it is left alone whether
+## the mouse or the arrow keys are on it.
 func _highlight_cursor() -> void:
 	var inv := _inventory()
 	var idx := _cursor.y * inv.grid_width + _cursor.x
 	for i in _cells.size():
-		var highlight := _focus_area == FocusArea.GRID and i == idx
-		var hovered := _focus_area == FocusArea.GRID and _hover_grid_index == i
-		if highlight or hovered:
-			_cells[i].self_modulate = _cells[i].self_modulate * Color(1.2, 1.2, 1.05)
+		var cell := _cells[i]
+		var base: Color = cell.get_meta(CELL_BASE_MODULATE, Color.WHITE)
+		var on_cell := _focus_area == FocusArea.GRID and (i == idx or _hover_grid_index == i)
+		if on_cell and bool(cell.get_meta(CELL_HAS_ITEM, false)):
+			cell.self_modulate = base * CELL_HIGHLIGHT_TINT
+		else:
+			cell.self_modulate = base
 	_selected_index = inv.find_slot_at(_cursor.x, _cursor.y)
 
 
@@ -1158,6 +1213,38 @@ func _refresh_quick_slot_row() -> void:
 		_quick_slot_row.add_child(label)
 
 
+## Reserves the action row's widest layout, once, at build time.
+##
+## `_update_action_buttons` shows and hides these buttons by context — an equipped item offers only
+## Unequip, a grid selection offers Equip, Use, Drop and four Binds. An HBoxContainer's minimum
+## width is the sum of its *visible* children, and every container above it honours that, so the
+## whole inventory resized as the cursor crossed into the character panel: measured, the row went
+## 448 px to 1360 px and carried the window from 1440 to 1830. That is the flicker.
+##
+## Reserving the full width means the row is always as wide as its busiest state, so hiding a button
+## leaves a gap rather than shrinking the window. Summed from the buttons rather than hardcoded, so
+## it stays correct if the set or the font changes.
+func _reserve_action_row_width() -> void:
+	if _action_row == null:
+		return
+	var separation := float(_action_row.get_theme_constant("separation"))
+	# The two layouts are mutually exclusive: an equipment slot offers Unequip, a grid selection
+	# offers everything else. Reserving the sum of *all* the buttons would reserve a row that never
+	# actually appears — measured, that pushed the window to 2286 px, wider than a 1920 screen.
+	var grid_side := 0.0
+	var grid_count := 0
+	for child in _action_row.get_children():
+		var ctl := child as Control
+		if ctl == null or ctl == _btn_unequip:
+			continue
+		grid_side += ctl.get_combined_minimum_size().x
+		grid_count += 1
+	if grid_count > 1:
+		grid_side += separation * float(grid_count - 1)
+	var equip_side := _btn_unequip.get_combined_minimum_size().x if _btn_unequip != null else 0.0
+	_action_row.custom_minimum_size.x = maxf(grid_side, equip_side)
+
+
 func _update_action_buttons() -> void:
 	if _btn_equip == null:
 		return
@@ -1190,8 +1277,8 @@ func _update_action_buttons() -> void:
 	if _btn_drop.visible:
 		var in_run := RunFlow != null and RunFlow.is_run_active()
 		_btn_drop.text = tr("INV_BTN_DROP") if in_run else tr("INV_BTN_SELL")
-	for i in _btn_bind.size():
-		_btn_bind[i].visible = bind_index >= 0 and not _waves_mode
+	# `bind_index` still drives whether the number keys do anything; see `_try_quick_slot_bind_input`.
+	_bind_target_index = bind_index
 
 
 func _on_action_equip_pressed() -> void:

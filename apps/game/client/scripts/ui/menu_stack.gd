@@ -109,8 +109,14 @@ func confirm(spec: ConfirmSpec) -> void:
 	_active_spec = spec
 	_active_confirm = _build_confirm_overlay(spec)
 	_confirm_layer.add_child(_active_confirm)
+	# Only now are the buttons in the tree; see `_wire_confirm_focus`.
+	_wire_confirm_focus(spec)
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	stack_changed.emit(depth())
+
+
+var _confirm_cancel_button: Button
+var _confirm_accept_button: Button
 
 
 func _build_confirm_overlay(spec: ConfirmSpec) -> Control:
@@ -139,13 +145,31 @@ func _build_confirm_overlay(spec: ConfirmSpec) -> Control:
 	if spec.destructive:
 		confirm_btn.add_theme_color_override("font_color", GameUISkinScript.DANGER_COLOR)
 	MenuShellScript.add_button_row(vbox, [cancel, confirm_btn])
-	cancel.focus_neighbor_right = confirm_btn.get_path()
-	confirm_btn.focus_neighbor_left = cancel.get_path()
+	_confirm_cancel_button = cancel
+	_confirm_accept_button = confirm_btn
+	return overlay
+
+
+## Focus wiring, deliberately separate from building the overlay.
+##
+## `get_path()` and `grab_focus()` both require the node to be inside the tree, and this all used to
+## run inside `_build_confirm_overlay`, which returns the overlay *before* the caller adds it. Godot
+## logged three errors per dialog and returned empty NodePaths, so the two buttons had no focus
+## neighbours and neither ever took focus: every confirmation prompt in the game opened with nothing
+## selected and no way to move between the options on a keyboard or a pad.
+func _wire_confirm_focus(spec: ConfirmSpec) -> void:
+	var cancel := _confirm_cancel_button
+	var confirm_btn := _confirm_accept_button
+	if cancel == null or confirm_btn == null:
+		return
+	if not cancel.is_inside_tree() or not confirm_btn.is_inside_tree():
+		return
+	cancel.focus_neighbor_right = cancel.get_path_to(confirm_btn)
+	confirm_btn.focus_neighbor_left = confirm_btn.get_path_to(cancel)
 	if spec.destructive:
 		cancel.grab_focus()
 	else:
 		confirm_btn.grab_focus()
-	return overlay
 
 
 func _format_message(spec: ConfirmSpec) -> String:
@@ -165,6 +189,8 @@ func _dismiss_confirm(confirmed: bool, run_callbacks: bool) -> void:
 	var spec := _active_spec
 	_active_confirm = null
 	_active_spec = null
+	_confirm_cancel_button = null
+	_confirm_accept_button = null
 	overlay.queue_free()
 	if run_callbacks and spec != null:
 		if confirmed and spec.on_confirm.is_valid():
