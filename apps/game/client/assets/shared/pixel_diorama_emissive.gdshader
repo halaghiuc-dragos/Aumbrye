@@ -24,12 +24,29 @@ instance uniform vec3 dissolve_origin = vec3(0.0);
 instance uniform vec3 dissolve_dir = vec3(0.0, 1.0, 0.0);
 instance uniform float dissolve_sweep : hint_range(0.0, 1.0) = 0.6;
 
+// Same wind field the surface shader reads; see `[shader_globals]` in project.godot. A glowing
+// thing that grows out of the ground — a flower head, a lantern on a cord — has to lean with the
+// stem it sits on, and before this the stems swayed while the blooms hung in the air above them.
+global uniform vec3 wind_vector;
+global uniform float wind_time;
+
+uniform float wind_sway : hint_range(0.0, 1.0) = 0.0;
+uniform float wind_anchor_y = 0.0;
+
 varying vec3 v_local_pos;
 varying vec3 v_local_normal;
 
 void vertex() {
 	v_local_pos = VERTEX;
 	v_local_normal = NORMAL;
+	if (wind_sway > 0.0001) {
+		vec3 world_pos = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
+		float h = abs(world_pos.y - wind_anchor_y);
+		float phase = wind_time + world_pos.x * 0.35 + world_pos.z * 0.27;
+		float wave = sin(phase) * 0.6 + sin(phase * 2.3 + 1.7) * 0.4;
+		vec3 push = wind_vector * wind_sway * h * (0.6 + 0.4 * wave);
+		VERTEX += (inverse(MODEL_MATRIX) * vec4(push, 0.0)).xyz;
+	}
 }
 
 void fragment() {

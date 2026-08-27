@@ -1,7 +1,6 @@
 extends RefCounted
 class_name EndlessDifficulty
 
-## Bounded scaling for Umbral Endless floors (DCT-04, DCT-08).
 
 const HP_SOFT_CAP := 4.5
 const HP_GROWTH_PER_FLOOR := 0.014
@@ -18,7 +17,6 @@ const COOLDOWN_FLOOR_MULT := 0.75
 const MOVE_SPEED_FLOOR_MULT := 1.16
 
 
-## Reporting helper only — the curves below are continuous per floor and never read this.
 static func hp_multiplier(floor_index: int) -> float:
 	var floor_clamped := maxi(1, floor_index)
 	if floor_clamped <= HP_KNEE_FLOOR:
@@ -43,7 +41,5 @@ static func rare_drop_bonus(floor_index: int) -> float:
 	return minf(floors * per_floor, RunFloorConfig.DROP_RATE_BONUS_CAP)
 
 
-## Depth pressure expressed as behaviour rather than numbers: they recover faster between
-## blows and close ground quicker, on the same slow per-floor ramp as the curves above.
 static func behaviour_progress(floor_index: int) -> float:
 	return clampf(float(maxi(1, floor_index) - 1) / BEHAVIOUR_FULL_FLOOR, 0.0, 1.0)

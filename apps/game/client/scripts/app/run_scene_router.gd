@@ -1,7 +1,6 @@
 class_name RunSceneRouter
 extends RefCounted
 
-## Scene paths and deferred scene changes extracted from RunFlow.
 
 const HUB_SCENE := "res://scenes/hub/hub.tscn"
 const CASTLE_RUN_SCENE := "res://scenes/dungeon/castle_run.tscn"

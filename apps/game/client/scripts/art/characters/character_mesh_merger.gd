@@ -1,22 +1,11 @@
 extends RefCounted
 class_name CharacterMeshMerger
 
-## Collapses a built character rig down to one mesh per animation-driven pivot.
-##
-## Everything the animation clips do not move — visors, hoods, pauldrons, hair, class armour,
-## equipment props — is static relative to the pivot it hangs from, so it can be baked into a
-## single ArrayMesh whose surfaces are grouped by material. Only the pivots the clips actually
-## drive stay separate, which is what keeps the rig animatable.
-##
-## The collapse is reversible: source meshes are hidden rather than freed, so appearance and
-## equipment changes rebuild from the authored tree by calling unmerge() first.
 
 const MERGED_NAME := "Merged"
 const MERGED_FLAG := &"merged_into_parent"
 const SKIN_TINT_PARAM := &"skin_tint"
 
-## Names the animation library drives, plus the two prop mounts whose children are swapped at
-## runtime. Merging stops at each of these so their transforms stay independent.
 const BARRIER_NAMES := {
 	"Root": true,
 	"Torso": true,
@@ -33,8 +22,6 @@ const BARRIER_NAMES := {
 }
 
 
-## Prop mounts stop the merge like any other barrier, but their own children are never baked:
-## weapons and shields are whole scenes swapped in and out at runtime.
 const MERGE_EXCLUDED := {
 	"WeaponMount": true,
 	"ShieldMount": true,
@@ -124,9 +111,6 @@ static func _surface_material(mesh: MeshInstance3D, surface: int) -> Material:
 	return mesh.mesh.surface_get_material(surface)
 
 
-## Skin tone is a per-instance value, and one merged mesh can only carry one. Parts that
-## disagree — a tinted head and untinted hair on the same pivot — stay in separate batches so
-## the tone never bleeds from one part onto another.
 static func _merge_pivot(pivot: Node3D) -> void:
 	var sources: Array[MeshInstance3D] = []
 	_gather_sources(pivot, sources)

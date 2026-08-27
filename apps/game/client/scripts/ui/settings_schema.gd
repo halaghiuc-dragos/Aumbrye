@@ -1,7 +1,6 @@
 extends RefCounted
 class_name SettingsSchema
 
-## Declarative settings rows for the tabbed settings UI (SET-01, SET-13, SET-14).
 
 const PAGES: PackedStringArray = [
 	"gameplay",
@@ -15,23 +14,19 @@ const PAGES: PackedStringArray = [
 
 static func entries() -> Array[Dictionary]:
 	return [
-		# Gameplay
 		_language_row(),
 		_leaderboard_row(),
-		# Display
 		_window_mode_row(),
 		_monitor_row(),
 		_resolution_row(),
 		_vsync_row(),
 		_max_fps_row(),
 		_ui_scale_row(),
-		# Audio
 		_volume_row("master_volume", "master"),
 		_volume_row("music_volume", "music"),
 		_volume_row("sfx_volume", "sfx"),
 		_volume_row("ambience_volume", "ambience"),
 		_volume_row("ui_volume", "ui"),
-		# Accessibility
 		_toggle_row(
 			"reduced_motion",
 			"accessibility",
@@ -166,10 +161,6 @@ static func entries() -> Array[Dictionary]:
 	]
 
 
-## See the note above _window_mode_row(): these setters used to be inline multi-line lambdas
-## whose last statement carried the array/call's own separator comma. Godot's actual compiler
-## errors on that ambiguity even where gdlint's independent grammar (gdtoolkit, not the engine)
-## accepts it — named functions are unambiguous under both.
 static func _set_assist_damage_taken(v: float) -> void:
 	AccessibilitySettings.assist_damage_taken = v
 	AccessibilitySettings.apply_live("assist_damage_taken", v)
@@ -204,20 +195,6 @@ static func _motion_slider_row(id: String, setter_name: String) -> Dictionary:
 		Callable(AccessibilitySettings, "request_commit"),
 		AccessibilitySettings.MOTION_INTENSITY_DEFAULT
 	)
-
-
-## Resolved by name from _motion_slider_row() via Callable(SettingsSchema, "_get_%s" % id).
-## A static reference search will not find a call site for these three; they are not dead.
-static func _get_camera_shake_intensity() -> float:
-	return AccessibilitySettings.camera_shake_intensity
-
-
-static func _get_hitstop_intensity() -> float:
-	return AccessibilitySettings.hitstop_intensity
-
-
-static func _get_screen_pulse_intensity() -> float:
-	return AccessibilitySettings.screen_pulse_intensity
 
 
 static func _set_camera_shake_intensity(v: float) -> void:
@@ -364,18 +341,6 @@ static func _set_leaderboard_opt_in(v: bool) -> void:
 	LeaderboardSettings.save()
 
 
-## Pre-existing syntax bug (unrelated to any Phase 0/0.5 item): several rows below embedded a
-## multi-line `match` statement inside an anonymous lambda used directly as a dict value, with
-## the lambda's last statement carrying the dict's own entry-separator comma
-## (`... return 0,`). Godot's real match-statement grammar accepts a comma-separated pattern
-## list before a `:` (`1, 2, 3:`), so the parser reads that trailing comma as the start of
-## *another* match pattern rather than as the enclosing dict's separator, and fails with
-## "Expected expression for match pattern". That failed this whole file to parse, which
-## cascaded into every script that references SettingsSchema (settings_row.gd, settings_ui.gd)
-## and, transitively, dozens of unrelated "cannot infer type" errors project-wide wherever
-## Godot's project-wide script/class resolution pass got interrupted by it. Named static
-## functions (already the working pattern used by format_value() above) sidestep the
-## ambiguity entirely instead of relying on comma placement inside an inline lambda body.
 static func _window_mode_row() -> Dictionary:
 	return {
 		"id": "window_mode",
@@ -436,9 +401,6 @@ static func _monitor_option_labels() -> Array:
 	return Array(DisplayService.get_monitor_labels())
 
 
-## Window resolution. Sits under Monitor because the sizes on offer are the ones that fit the
-## monitors attached — this is the size of the game window, not the internal pixel-art render
-## resolution, which stays where it is under Display > Advanced pixel settings.
 static func _resolution_row() -> Dictionary:
 	return {
 		"id": "window_size",
@@ -594,9 +556,6 @@ static func _get_volume(bus_key: String) -> float:
 			return 1.0
 
 
-## Bound arguments land *after* the call arguments, so `bus_key`/`id` come last. With them first
-## the slider's float was matched against `bus_key: String` and every volume change threw
-## "Cannot convert argument 1 from float to String" instead of moving the bus.
 static func _set_volume(v: float, bus_key: String, id: String) -> void:
 	match bus_key:
 		"master":
@@ -646,11 +605,6 @@ static func _set_colorblind_index(idx: int) -> void:
 	AccessibilitySettings.request_commit()
 
 
-## `default_value` is the authored default, and it is a required argument on purpose.
-##
-## This used to read `getter.call()` — the setting's *current* value. The schema is rebuilt every
-## time a page is shown, so the "default" was always whatever the player had already chosen, and
-## "Reset This Page" quietly did nothing for any of the twelve sliders that go through here.
 static func _slider_row(
 	id: String,
 	page: String,
@@ -678,8 +632,6 @@ static func _slider_row(
 	}
 
 
-## Likewise explicit: a hardcoded `false` made "Reset This Page" turn Control Hints off, when its
-## authored default is on.
 static func _toggle_row(
 	id: String, page: String, getter: Callable, setter: Callable, default_value: bool = false
 ) -> Dictionary:

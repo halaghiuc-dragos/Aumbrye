@@ -1,13 +1,5 @@
 extends Node
 
-## Prints the world-space extents of every mesh in a built character rig.
-##
-## The rig is assembled at runtime from a manifest plus voxel meshes, and several of those meshes
-## ship as binary resources whose extents cannot be read from the content files. Building the rig
-## in-engine and measuring it is the only way to see where the parts actually land.
-##
-## Usage:
-##   godot --headless --path apps/game/client res://scenes/debug/dump_rig_layout.tscn
 
 const CharacterSkinScript := preload("res://scripts/art/characters/diorama_character_skin.gd")
 const CharacterRigCatalogScript := preload("res://scripts/art/characters/character_rig_catalog.gd")

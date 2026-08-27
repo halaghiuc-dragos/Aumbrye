@@ -1,7 +1,6 @@
 extends RefCounted
 class_name RunFloorConfig
 
-## Multi-floor dungeon run constants and seed mixing (FLOOR-7.x).
 
 const MAX_FLOORS := 10
 const ENDLESS_MAX_FLOORS := 999999
@@ -41,22 +40,6 @@ static func count_secrets(definition: Dictionary) -> int:
 	return count
 
 
-static func max_secrets_for_biome(biome_id: String) -> int:
-	var biome: Dictionary = BiomeRegistry.get_biome(biome_id)
-	return int(biome.get("maxSecrets", 2))
-
-
-## True when this room is *the* stairs room of its floor.
-##
-## `kind` is the floor generator's own answer and is authoritative when the caller has it. The
-## template-id suffix is only a fallback, and on its own it is wrong: a template is chosen to fit a
-## room's door mask, so `castle_stairs` is drawn for ordinary rooms all the time — in the committed
-## eighteen-room fixture five rooms are built from it and exactly one has `kind == "stairs"`. Keying
-## off the id gave every one of those five a stair lever and made `DungeonBuilder` push an error
-## about duplicate stairs on most floors.
-##
-## Callers that want "does this room have stair *geometry*" — stair collision, for one — want the
-## template and should ask for it directly rather than through this.
 static func is_stairs_room(room: Dictionary) -> bool:
 	var kind := str(room.get("kind", ""))
 	if kind != "":

@@ -1,6 +1,5 @@
 extends Node3D
 
-## Aumbrye Outskirts (Umbral Waves) — open meadow, lobby chests, wave combat.
 
 const ENEMY_SCENES := {
 	"castle_grunt": preload("res://scenes/enemies/castle_grunt.tscn"),
@@ -20,9 +19,18 @@ var _chest_nodes: Array[Node3D] = []
 var _active_enemies: Array[Node] = []
 var _wave_ui: Control
 var _lobby_active := true
-var _prep_countdown := 0.0
+var _torch_holder: Node3D
+var _torchlight: Node3D
 const WavesOutdoorsDioramaScript := preload("res://scripts/dungeon/waves_outdoors_diorama.gd")
 const CharacterFloorSnapScript := preload("res://scripts/art/characters/character_floor_snap.gd")
+const WavesTorchHolderScript := preload("res://scripts/dungeon/waves_torch_holder.gd")
+const WavesTorchlightScript := preload("res://scripts/dungeon/waves_torchlight.gd")
+const RainFieldScript := preload("res://scripts/art/world/rain_field.gd")
+
+const WAVES_FLOOR_HALF := 105.0
+
+const CHEST_RING_RADIUS := 7.5
+const LOBBY_SPAWN := Vector3(0.0, 0.0, 4.6)
 
 var _bird_time := 0.0
 
@@ -32,6 +40,8 @@ func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	_player = get_node_or_null(player_path) as CharacterBody3D
 	_build_arena()
+	_build_torchlight()
+	_attach_weather()
 	_build_ui()
 	_build_combat_hud()
 	if WavesRunService.lobby_ready and WavesRunService.current_wave > 0:
@@ -46,6 +56,21 @@ func _ready() -> void:
 	call_deferred("_apply_pixel_diorama_scene")
 
 
+func _attach_weather() -> void:
+	WeatherService.set_outdoors(true)
+	if _player == null or get_node_or_null("RainField") != null:
+		return
+	var rain := Node3D.new()
+	rain.set_script(RainFieldScript)
+	add_child(rain)
+	rain.call("set_floor_extent", WAVES_FLOOR_HALF, WAVES_FLOOR_HALF)
+	rain.call("setup", _player)
+
+
+func _exit_tree() -> void:
+	WeatherService.set_outdoors(false)
+
+
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_WM_CLOSE_REQUEST:
 		_persist_waves_save()
@@ -58,15 +83,6 @@ func _build_arena() -> void:
 	_build_walls(true)
 
 
-## C-186: every transition *into* fighting called `_build_walls(false)`, so the arena boundary
-## existed only in the lobby and the between-wave prep window — exactly the two states where nothing
-## is chasing the player. Enemies spawn inside +/-28 and `waves_outdoors_diorama` dresses terrain
-## only to `ARENA_HALF + 4`, so past roughly 38 units the player was running across undressed ground
-## with no collision and no enemies. In a wave-survival mode that makes kiting outward strictly
-## better than fighting, which is the mode's core failure state.
-##
-## The walls are the arena and now stand for the whole run. `_build_walls` is kept and made
-## idempotent so the existing call sites stay honest, but nothing asks for them to come down.
 func _ensure_walls() -> void:
 	if not _walls.is_empty():
 		return
@@ -106,6 +122,43 @@ func _build_walls(enabled: bool) -> void:
 		_walls.append(wall)
 
 
+func _build_torchlight() -> void:
+	if _torchlight != null and is_instance_valid(_torchlight):
+		return
+	var node := Node3D.new()
+	node.set_script(WavesTorchlightScript)
+	add_child(node)
+	node.call("setup", self)
+	_torchlight = node
+
+
+func _ensure_torch_holder() -> void:
+	if _torch_holder != null and is_instance_valid(_torch_holder):
+		return
+	var holder := Node3D.new()
+	holder.set_script(WavesTorchHolderScript)
+	add_child(holder)
+	holder.position = Vector3.ZERO
+	_torch_holder = holder
+
+
+func light_cresset() -> void:
+	if not WavesRunService.place_torch():
+		return
+	if _torch_holder and is_instance_valid(_torch_holder):
+		_torch_holder.call("set_lit", true)
+	if _torchlight and is_instance_valid(_torchlight):
+		_torchlight.call("set_lit", true)
+	AudioDirector.play_sfx("ui_interact_near", Vector3.ZERO)
+	start_waves_from_lobby()
+	_persist_waves_save()
+
+
+func _douse_cresset() -> void:
+	if _torch_holder and is_instance_valid(_torch_holder):
+		_torch_holder.call("set_lit", false)
+
+
 func _build_ui() -> void:
 	_wave_ui = Control.new()
 	_wave_ui.name = "WavesUI"
@@ -119,9 +172,13 @@ func _build_ui() -> void:
 func _show_lobby() -> void:
 	_lobby_active = true
 	_build_walls(true)
+	_ensure_torch_holder()
 	_spawn_chests()
+	_douse_cresset()
+	if _torchlight and is_instance_valid(_torchlight) and WavesRunService.chest_set > 0:
+		_torchlight.call("set_lit", true, true)
 	if _player:
-		_player.global_position = Vector3(0, 0, 0)
+		_player.global_position = LOBBY_SPAWN
 	if _wave_ui and _wave_ui.has_method("show_lobby"):
 		_wave_ui.call("show_lobby")
 
@@ -137,7 +194,9 @@ func _spawn_chests() -> void:
 		chest.name = "WavesChest_%d" % i
 		chest.set_script(chest_script)
 		var angle := float(i) / float(WavesRunService.get_chest_count()) * TAU
-		chest.position = Vector3(cos(angle) * 14.0, 0.0, sin(angle) * 14.0)
+		chest.position = Vector3(
+			cos(angle) * CHEST_RING_RADIUS, 0.0, sin(angle) * CHEST_RING_RADIUS
+		)
 		add_child(chest)
 		chest.call("configure", i)
 		if WavesRunService.chests_opened.get(str(i), false):
@@ -160,20 +219,16 @@ func open_waves_chest(index: int) -> void:
 	_persist_waves_save()
 
 
-func try_ready() -> void:
-	if not WavesRunService.all_chests_opened():
-		return
-	WavesRunService.mark_ready()
-	if _wave_ui and _wave_ui.has_method("refresh_lobby"):
-		_wave_ui.call("refresh_lobby")
-
-
 func start_waves_from_lobby() -> void:
 	if not WavesRunService.lobby_ready:
 		return
-	WavesRunService.start_waves()
+	var resuming := WavesRunService.prep_active
+	if resuming:
+		WavesRunService.leave_prep()
+		WavesRunService.advance_wave()
+	else:
+		WavesRunService.start_waves()
 	_lobby_active = false
-	# C-186: the boundary stays up through combat.
 	_ensure_walls()
 	_clear_chests()
 	_start_wave()
@@ -182,17 +237,19 @@ func start_waves_from_lobby() -> void:
 
 
 func _start_combat_from_continue() -> void:
-	_lobby_active = false
-	# C-186: up regardless of prep state.
 	_ensure_walls()
 	if WavesRunService.prep_active:
-		_prep_countdown = 5.0
-		if _wave_ui and _wave_ui.has_method("show_prep"):
-			_wave_ui.call("show_prep", WavesRunService.current_wave, _prep_countdown)
-	else:
-		_start_wave()
-		if _wave_ui and _wave_ui.has_method("show_combat"):
-			_wave_ui.call("show_combat", WavesRunService.current_wave)
+		_show_lobby()
+		return
+	_lobby_active = false
+	_ensure_torch_holder()
+	if _torch_holder and is_instance_valid(_torch_holder):
+		_torch_holder.call("set_lit", true)
+	if _torchlight and is_instance_valid(_torchlight):
+		_torchlight.call("set_lit", true, true)
+	_start_wave()
+	if _wave_ui and _wave_ui.has_method("show_combat"):
+		_wave_ui.call("show_combat", WavesRunService.current_wave)
 
 
 func _start_wave() -> void:
@@ -200,6 +257,8 @@ func _start_wave() -> void:
 	var wave := WavesRunService.current_wave
 	for enemy_id in WavesRunService.get_enemies_for_wave(wave):
 		_spawn_enemy(enemy_id)
+	if _wave_ui and _wave_ui.has_method("set_enemies_remaining"):
+		_wave_ui.call("set_enemies_remaining", _active_enemies.size())
 	_persist_waves_save()
 
 
@@ -215,9 +274,6 @@ func _spawn_enemy(enemy_id: String) -> void:
 	):
 		enemy.call("set_catalog_id", enemy_id)
 	var rng := RandomNumberGenerator.new()
-	# C-188: the seed accessor, not a whole save dictionary per spawn.
-	# C-192: mixed through `FloorSeedMix` rather than added, so the stream is the project's own
-	# deterministic mixer like every other seeded system.
 	rng.seed = FloorSeedMix.mix(
 		WavesRunService.get_seed(), WavesRunService.current_wave * 17 + _active_enemies.size()
 	)
@@ -243,21 +299,19 @@ func _on_enemy_died(enemy: Node) -> void:
 		func(e: Node) -> bool:
 			return is_instance_valid(e) and not (e.has_method("is_dead") and e.call("is_dead"))
 	)
+	if _wave_ui and _wave_ui.has_method("set_enemies_remaining"):
+		_wave_ui.call("set_enemies_remaining", _active_enemies.size())
 	if _active_enemies.is_empty():
 		_on_wave_cleared()
 
 
 func _on_wave_cleared() -> void:
-	# C-191: the content-driven final wave, not a literal 50.
 	if WavesRunService.is_final_milestone():
+		_douse_cresset()
 		_show_reward_pick()
 		return
 	if WavesRunService.is_milestone(WavesRunService.current_wave):
-		WavesRunService.enter_prep()
-		_ensure_walls()
-		_prep_countdown = 5.0
-		if _wave_ui and _wave_ui.has_method("show_prep"):
-			_wave_ui.call("show_prep", WavesRunService.current_wave, _prep_countdown)
+		_enter_intermission()
 	else:
 		WavesRunService.advance_wave()
 		_start_wave()
@@ -266,25 +320,17 @@ func _on_wave_cleared() -> void:
 	_persist_waves_save()
 
 
+func _enter_intermission() -> void:
+	WavesRunService.enter_prep()
+	WavesRunService.begin_chest_set()
+	_ensure_walls()
+	_clear_enemies()
+	_show_lobby()
+
+
 func _process(delta: float) -> void:
-	# C-187: this node is `PROCESS_MODE_ALWAYS` so the ambient bird animation keeps moving behind
-	# the pause menu — which is deliberate and looks right. The prep countdown is not ambience: it
-	# is the window the player is given to spend rewards and reposition, and it was draining while
-	# the game was paused, so pausing during prep cost real preparation time and could start a wave
-	# with the menu still open.
-	var paused := get_tree().paused
 	_bird_time += delta
 	_animate_birds()
-	if _prep_countdown > 0.0 and not paused:
-		_prep_countdown -= delta
-		if _prep_countdown <= 0.0:
-			WavesRunService.leave_prep()
-			# C-186: leaving prep starts a wave; that is precisely when the arena must be closed.
-			_ensure_walls()
-			WavesRunService.advance_wave()
-			_start_wave()
-			if _wave_ui and _wave_ui.has_method("show_combat"):
-				_wave_ui.call("show_combat", WavesRunService.current_wave)
 
 
 func _show_reward_pick() -> void:

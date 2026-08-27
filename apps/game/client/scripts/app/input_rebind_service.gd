@@ -1,6 +1,5 @@
 extends Node
 
-## Autoload facade for input rebinding — delegates to InputBindings (CFG-02).
 
 signal bindings_changed(action: StringName)
 
@@ -42,10 +41,6 @@ func rebind(action: StringName, event: InputEvent) -> Dictionary:
 	return result
 
 
-## C-83: the settings UI committed rebinds through `InputMapService`, a thin facade that emits no
-## `bindings_changed` and never invalidates the glyph cache — so rebinding dodge from Space to Shift
-## left every prompt in the game showing Space until something unrelated invalidated the cache. The
-## conflict-resolution half of that facade lives here now, so every write path signals.
 func swap_binding(action: StringName, conflict: StringName, event: InputEvent) -> Dictionary:
 	var result := InputBindings.swap_binding(action, conflict, event)
 	if bool(result.get("ok", false)):

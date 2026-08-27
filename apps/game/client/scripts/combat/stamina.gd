@@ -3,8 +3,6 @@ class_name Stamina
 
 signal stamina_changed(current: float, max_value: float)
 signal depleted
-## C-219: the HUD tints the bar on `depleted` and had no way to learn the state had ended, so it
-## stayed "exhausted" through a full regen and only cleared by accident on the next failed action.
 signal recovered
 signal insufficient
 
@@ -28,9 +26,6 @@ var _insufficient_cooldown := 0.0
 
 
 func _ready() -> void:
-	# Regen runs on the physics tick, alongside every system that consumes stamina. This used to
-	# call set_process(false), which disables _process — a callback this class does not
-	# implement — so the intent was unreadable and regen survived by accident.
 	set_process(false)
 	set_physics_process(true)
 	stamina_changed.emit(current, max_stamina)
@@ -53,11 +48,6 @@ func configure(
 		current = (current / old_max) * max_stamina
 	else:
 		current = minf(current, max_stamina)
-	# C-49: `configure` runs on every inventory change (add/remove/move/split/sort) via
-	# `InventoryService._apply_equipment_to_player`, and it used to zero the regen delay
-	# unconditionally — so shuffling an item was a free reset of the 0.7 s stamina delay, which is
-	# the pacing mechanism for the whole fight. Only the spawn path (`preserve_ratio == false`)
-	# resets it now.
 	if not preserve_ratio:
 		_exhausted = false
 		_regen_timer = 0.0
@@ -131,10 +121,6 @@ func drain(amount: float) -> bool:
 func restore(amount: float) -> void:
 	if amount <= 0.0:
 		return
-	# C-45: this cleared exhaustion at any positive value, while `_physics_process` deliberately
-	# requires `current >= EXHAUSTION_RECOVERY` — the threshold is what makes running out of
-	# stamina a real punishment. Any `restore_stamina` rule, even amount 1, returned the player
-	# from exhausted to fully functional and dropped the 0.75x speed penalty with it.
 	current = minf(max_stamina, current + amount)
 	if current >= EXHAUSTION_RECOVERY:
 		_exhausted = false

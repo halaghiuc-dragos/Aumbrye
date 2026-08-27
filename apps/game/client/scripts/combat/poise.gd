@@ -9,8 +9,6 @@ const MAX_POISE := 50.0
 const REGEN_RATE := 20.0
 const REGEN_DELAY := 2.0
 const REGEN_REFILL_TIME := 1.0
-# The broken-poise damage multiplier lives on Hurtbox, which is the only place that applies it.
-# A dead duplicate here meant two sources of truth for a balance number.
 
 var max_poise: float = MAX_POISE
 var current: float = MAX_POISE
@@ -21,16 +19,11 @@ var break_duration := 1.2
 
 
 func _ready() -> void:
-	# See Stamina._ready: regen is a physics-tick system; set_process(false) disabled a callback
-	# this class never implemented.
 	set_process(false)
 	set_physics_process(true)
 	poise_changed.emit(current, max_poise)
 
 
-## BUG-13: preserve_ratio=true scales the current build-up proportionally instead of refilling
-## it — required for callers that reconfigure max poise mid-run (the equipment path) so a stat
-## change cannot also erase in-progress stagger build-up. Spawn-time callers keep the default.
 func configure(
 	max_value: float, stagger_duration: float = 1.2, preserve_ratio: bool = false
 ) -> void:
@@ -42,7 +35,6 @@ func configure(
 		current = max_value
 		_broken = false
 		_break_timer = 0.0
-	# C-49: see `Stamina.configure` — the 2.0 s poise delay was reset by any inventory change.
 	if not preserve_ratio:
 		_regen_timer = 0.0
 	break_duration = maxf(0.1, stagger_duration)

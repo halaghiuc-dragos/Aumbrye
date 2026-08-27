@@ -1,6 +1,5 @@
 extends Node3D
 
-## Reference player rig for authoring AnimationPlayer clips in-editor.
 
 const CharacterSkin := preload("res://scripts/art/characters/diorama_character_skin.gd")
 const AnimLibrary := preload("res://scripts/art/characters/diorama_anim_library.gd")

@@ -1,10 +1,6 @@
 class_name RoomContentConfig
 extends RefCounted
 
-## Weights for post-layout room content assignment. The table is authored in
-## content/progression/room_pacing.json: it moves from the shallow set to the deep set with floor
-## depth, a floor theme rolls once per floor and multiplies it, and the run's modifiers multiply it
-## again. The guarantees below are enforced after the roll, not by it.
 
 const PACING_PATH := "content/progression/room_pacing.json"
 const FloorSeedMixScript := preload("res://scripts/dungeon/floor_seed_mix.gd")

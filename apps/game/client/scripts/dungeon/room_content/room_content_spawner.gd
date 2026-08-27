@@ -1,7 +1,6 @@
 class_name RoomContentSpawner
 extends RefCounted
 
-## Instantiates procedural room-content nodes into built room templates.
 
 const CONTENT_SCRIPTS := {
 	"trap_spike_pack": preload("res://scripts/dungeon/room_content/room_trap_content.gd"),
@@ -53,9 +52,6 @@ static func spawn_locks(builder: DungeonBuilder, definition: Dictionary) -> void
 		var node := Node3D.new()
 		node.name = "LockedDoor_%s" % lock.get("lockId", "gate")
 		node.set_script(LOCK_SCRIPT)
-		# C-203: `spawn_all` stamps this and these two did not, so locked doors and puzzle gates
-		# fell through `DioramaInteractableSkin.resolve_biome` to the castle default — castle-skinned
-		# doors standing beside correctly-skinned chests in every non-castle biome.
 		node.set_meta("biome_id", builder.biome_id)
 		from_room.add_child(node)
 		if node.has_method("configure"):
@@ -74,7 +70,6 @@ static func spawn_puzzle_gates(builder: DungeonBuilder, definition: Dictionary) 
 		var node := Node3D.new()
 		node.name = "PuzzleGate_%s" % puzzle.get("puzzleId", "gate")
 		node.set_script(GATE_SCRIPT)
-		# C-203: see `spawn_locks` — same omission, same visual symptom.
 		node.set_meta("biome_id", builder.biome_id)
 		from_room.add_child(node)
 		if node.has_method("configure"):

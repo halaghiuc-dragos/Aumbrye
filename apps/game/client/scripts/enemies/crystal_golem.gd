@@ -1,7 +1,5 @@
 extends CastleEnemyBase
 
-## Crystal golem — high poise, frost-resistant (THEME-5.2).
-
 
 func _resolve_enemy_id() -> String:
 	return "crystal_golem"

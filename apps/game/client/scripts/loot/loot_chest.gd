@@ -1,6 +1,5 @@
 extends Node3D
 
-## Static loot chest with fixed contents (LOOT-2.1).
 
 signal opened
 
@@ -36,8 +35,10 @@ func is_opened() -> bool:
 
 func apply_opened_state(was_opened: bool) -> void:
 	_opened = was_opened
-	if _opened and _mesh:
-		_mesh.scale = Vector3(0.8, 0.5, 0.8)
+	if _opened:
+		var lid := DioramaSkin.find_chest_lid(_mesh)
+		if lid:
+			lid.rotation.x = DioramaSkin.LID_OPEN_ANGLE
 	_label.visible = false
 
 
@@ -64,14 +65,6 @@ func _on_body_exited(body: Node3D) -> void:
 		set_process_unhandled_input(false)
 
 
-## C-160: `_opened` was claimed *before* the grant loop and the chest is never re-openable — both
-## `apply_opened_state` and the `_unhandled_input` guard key off it, and the state persists into the
-## run snapshot. A failed `add_loot()`, which is exactly what a full grid produces, silently dropped
-## the item: the reward was destroyed and the chest was spent.
-##
-## Items that cannot be granted stay in the chest, and the chest stays shut. The player is told why,
-## through the same `inventory_rejected` channel the HUD already listens on (C-221's
-## "Inventory full" banner), so a refused chest reads as a refusal rather than as nothing happening.
 func _open() -> void:
 	if _opened:
 		return
@@ -90,13 +83,15 @@ func _open() -> void:
 			remaining.append(entry)
 	_items = remaining
 	if not remaining.is_empty():
-		# Partially emptied chests stay open-able for the rest they still hold.
 		if InventoryService and InventoryService.has_signal("inventory_rejected"):
 			InventoryService.inventory_rejected.emit("full")
 		return
 	_opened = true
 	_label.visible = false
 	opened.emit()
-	if _mesh:
+	var lid := DioramaSkin.find_chest_lid(_mesh)
+	if lid:
 		var tween := create_tween()
-		tween.tween_property(_mesh, "scale", Vector3(0.8, 0.5, 0.8), 0.2)
+		tween.set_trans(Tween.TRANS_BACK)
+		tween.set_ease(Tween.EASE_OUT)
+		tween.tween_property(lid, "rotation:x", DioramaSkin.LID_OPEN_ANGLE, 0.42)

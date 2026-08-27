@@ -26,18 +26,9 @@ var grid_height: int = DEFAULT_HEIGHT
 var slots: Array[Dictionary] = []
 var equipped: Dictionary = {}
 
-## Occupancy bitmap: one entry per grid cell holding the `slots` index occupying it (-1 if
-## empty). `_occupancy_dirty` is set by any mutation whose effect on the bitmap is cheaper to
-## re-derive lazily than to track precisely (removals shift every later slot's index). Pure
-## appends update the bitmap incrementally instead, since appending never invalidates an
-## existing index.
 var _occupancy: PackedInt32Array = []
 var _occupancy_dirty := true
 
-## BUG-18: single non-colliding source of instance ids, shared by every site that used to mint
-## its own — _normalize_slot (was `item_id_(x+y)`, which two stacks at (0,2) and (2,0) both
-## produce) and split_stack (was a millisecond timestamp, which two splits in the same
-## millisecond both produce). AffixRoller uses the same helper for naturally rolled drops.
 static var _next_instance_ordinal := 1
 
 
@@ -46,8 +37,6 @@ static func mint_instance_id(item_id: String) -> String:
 	return "%s#%d" % [item_id, _next_instance_ordinal]
 
 
-## Restores the high-water mark from a save so newly minted ids cannot collide with ids already
-## on disk from a prior session.
 static func seed_instance_ordinal(high_water: int) -> void:
 	_next_instance_ordinal = maxi(_next_instance_ordinal, high_water)
 
@@ -112,22 +101,6 @@ func to_save_dict() -> Dictionary:
 		"slots": slots.duplicate(true),
 		"equipped": _serialize_equipped(),
 	}
-
-
-func expand_to(width: int, height: int) -> bool:
-	var new_width := mini(MAX_WIDTH, maxi(grid_width, width))
-	var new_height := mini(MAX_HEIGHT, maxi(grid_height, height))
-	if new_width == grid_width and new_height == grid_height:
-		return false
-	grid_width = new_width
-	grid_height = new_height
-	_mark_occupancy_dirty()
-	changed.emit()
-	return true
-
-
-func capacity_cells() -> int:
-	return grid_width * grid_height
 
 
 func from_save_dict(data: Dictionary) -> void:
@@ -201,26 +174,10 @@ func has_space_for(item_id: String) -> bool:
 	return _find_first_fit(item_id).x >= 0
 
 
-func remove_quantity_at(index: int, quantity: int) -> Dictionary:
-	if index < 0 or index >= slots.size() or quantity <= 0:
-		return {}
-	var slot: Dictionary = slots[index]
-	var slot_qty := maxi(1, int(slot.get("quantity", 1)))
-	if quantity >= slot_qty:
-		return remove_at(index)
-	slot["quantity"] = slot_qty - quantity
-	changed.emit()
-	return slot.duplicate(true)
-
-
 func add_item(item_id: String, quantity: int = 1, instance_data: Dictionary = {}) -> bool:
 	var def := get_item_def(item_id)
 	if def.is_empty():
 		return false
-	# BUG-16: snapshot before mutating. The stacking pre-pass and the grid-placement pass both
-	# mutate `slots` directly; a stack that only partially fits used to leave that partial
-	# mutation in place while still returning false and skipping `changed` — the player was told
-	# the pickup failed while the items were, in fact, already in the grid.
 	var snapshot: Array[Dictionary] = []
 	for existing_slot in slots:
 		snapshot.append(existing_slot.duplicate(true))
@@ -342,7 +299,6 @@ func split_stack(index: int) -> bool:
 	var qty: int = int(slot.get("quantity", 1))
 	if qty < 2:
 		return false
-	# Splitting a stack: the odd item stays in the original slot, which is what the caller wants.
 	@warning_ignore("integer_division")
 	var half := qty / 2
 	slot["quantity"] = qty - half
@@ -406,11 +362,6 @@ func filter_slots(type_filter: String, rarity_filter: String) -> Array[Dictionar
 	return filtered
 
 
-## BUG-17: free the incoming item's cells *before* the outgoing item looks for space. A
-## same-size-or-smaller swap is space-neutral overall, but the old order called
-## _return_equipped_to_grid() (which runs _find_first_fit()) while the incoming item was still
-## occupying its own cells — so a full grid refused a swap that should always have succeeded,
-## because the outgoing item was never given the room the incoming item was about to vacate.
 func equip_from_index(index: int, slot_name: String = "") -> bool:
 	if index < 0 or index >= slots.size():
 		return false
@@ -492,8 +443,6 @@ func get_equipped_weapon_id() -> String:
 	return inst.get("itemId", "")
 
 
-## C-245: the infusion stamped on the equipped weapon, so combat can use the element the player
-## paid gold and materials for.
 func get_equipped_weapon_infusion() -> String:
 	var inst: Dictionary = equipped.get("weapon", {})
 	return str(inst.get("infusion", ""))
@@ -554,7 +503,6 @@ func remove_items_by_id(item_id: String, quantity: int = 1) -> int:
 	return removed
 
 
-## Single owner of "how much of this item do we have" — callers used to hand-roll this scan.
 func count_by_id(item_id: String) -> int:
 	var total := 0
 	for slot in slots:
@@ -563,8 +511,6 @@ func count_by_id(item_id: String) -> int:
 	return total
 
 
-## Single owner of "which slots match" — callers used to hand-roll this scan for keyed lookups
-## (e.g. a specific dungeon key id) that `count_by_id`/`remove_items_by_id` can't express.
 func find_slots_where(predicate: Callable) -> Array[int]:
 	var found: Array[int] = []
 	for i in slots.size():
@@ -573,8 +519,19 @@ func find_slots_where(predicate: Callable) -> Array[int]:
 	return found
 
 
-## Removes one unit from the last slot matching `predicate`, deleting the slot once its quantity
-## reaches zero. Returns whether anything was removed.
+func remove_all_where(predicate: Callable) -> int:
+	var removed := 0
+	for i in range(slots.size() - 1, -1, -1):
+		if not predicate.call(slots[i]):
+			continue
+		slots.remove_at(i)
+		removed += 1
+	if removed > 0:
+		_mark_occupancy_dirty()
+		changed.emit()
+	return removed
+
+
 func remove_one_where(predicate: Callable) -> bool:
 	var indices := find_slots_where(predicate)
 	if indices.is_empty():
@@ -601,8 +558,6 @@ func _normalize_slot(slot: Dictionary) -> Dictionary:
 	if slot.has("rollSeed"):
 		slot["rollSeed"] = int(slot.get("rollSeed", 0))
 	if not slot.has("instanceId"):
-		# BUG-18: was `item_id_(x+y)`, which collides for any two same-named stacks whose grid
-		# coordinates sum to the same value (e.g. (0,2) and (2,0)) — a monotonic mint cannot.
 		var item_id: String = slot.get("itemId", "")
 		slot["instanceId"] = mint_instance_id(item_id)
 	return slot
@@ -657,10 +612,6 @@ func _find_first_fit(item_id: String) -> Vector2i:
 	return Vector2i(-1, -1)
 
 
-## BUG-16 (repack variant): a sort must never delete items. `_find_first_fit` is a greedy
-## placement and a different sort order can fragment the grid enough that not everything fits
-## even though the total occupied area is unchanged — the old code silently dropped whatever
-## didn't fit. Abort and restore the pre-sort layout instead.
 func _repack_slots() -> void:
 	var original: Array[Dictionary] = []
 	for slot in slots:

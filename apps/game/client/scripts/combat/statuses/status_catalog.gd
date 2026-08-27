@@ -9,14 +9,6 @@ static func get_definition(status_id: String) -> Dictionary:
 	return _definitions.get(status_id, {})
 
 
-static func all_ids() -> Array[String]:
-	_ensure_loaded()
-	var ids: Array[String] = []
-	for key in _definitions:
-		ids.append(key)
-	return ids
-
-
 static func _ensure_loaded() -> void:
 	if not _definitions.is_empty():
 		return

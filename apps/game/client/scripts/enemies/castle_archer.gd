@@ -1,6 +1,5 @@
 extends CastleEnemyBase
 
-## Ranged castle archer — charge telegraph, fixed shot on release (ENEMY-2.2).
 
 const PROJECTILE_SCENE := preload("res://scenes/combat/enemy_projectile.tscn")
 
@@ -39,29 +38,14 @@ func _start_windup() -> void:
 	super._start_windup()
 
 
-## Keeps the shot aimed for exactly as long as the body may still turn, then freezes with it.
-##
-## The trajectory used to be resolved once at wind-up start while the archer went on rotating
-## for the whole telegraph, so the arrow left along a heading the archer was no longer facing.
 func _on_windup_tick(committed: bool) -> void:
 	if committed:
 		return
 	_lock_shot_trajectory()
 
 
-func _show_attack_telegraph(duration: float) -> void:
-	var radius := float(
-		_current_attack_data.get("telegraph_radius", _data.get("telegraph_radius", 1.6))
-	) * 1.4
-	var shape := String(
-		_current_attack_data.get("telegraph_shape", _data.get("telegraph_shape", "circle"))
-	)
-	var tint := Color(0.95, 0.34, 0.28)
-	if _data.has("telegraph_tint"):
-		tint = Color(_data["telegraph_tint"])
-	# C-70: see `castle_enemy_base._show_attack_telegraph`.
-	var forward := CombatFacing.forward_of(self)
-	VfxService.play_telegraph(global_position, radius, duration, tint, shape, forward)
+func _telegraph_radius_scale() -> float:
+	return 1.4
 
 
 func _lock_shot_trajectory() -> void:

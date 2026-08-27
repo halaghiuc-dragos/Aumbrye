@@ -1,15 +1,5 @@
 extends Control
 
-## Choice-of-three relic offer, presented after a boss falls.
-##
-## `RunBuffs.roll_offer()` and `take_offer()` — the seeded, synergy-weighted pick that is the
-## core roguelite decision — were fully implemented and invoked from nowhere. The only way a
-## relic could enter a run was picking up one of the eleven items that carry a `runRelicId`,
-## which left 24 of the 35 authored relics (all the rule-bearing, build-defining ones)
-## unreachable in normal play.
-##
-## The offer is keyed to the floor and dungeon, so a given run seed always presents the same
-## three choices at the same boss — rerolling by dying and returning is not a strategy.
 
 signal offer_closed(relic_id: String)
 
@@ -34,8 +24,6 @@ func is_open() -> bool:
 	return _open
 
 
-## Rolls and shows an offer. Returns false when there is nothing to present — no relics left
-## that this run can still take — so callers can carry on without a dead modal.
 func open_offer(offer_key: String) -> bool:
 	if _open or RunBuffs == null:
 		return false
@@ -49,10 +37,6 @@ func open_offer(offer_key: String) -> bool:
 	MenuStack.push(self, true)
 	_build_ui()
 	return true
-
-
-func get_offer_ids() -> Array[String]:
-	return _offer_ids.duplicate()
 
 
 func _build_ui() -> void:
@@ -106,8 +90,6 @@ func _make_card(relic_id: String) -> Control:
 	return card
 
 
-## Prefers the authored description, and falls back to the stat block so a relic without prose
-## still tells the player what it does rather than showing an empty card.
 func _describe(def: Dictionary) -> String:
 	var text := str(def.get("description", ""))
 	if text != "":
@@ -156,9 +138,6 @@ func _wire_focus_ring() -> void:
 		btn.focus_neighbor_right = next.get_path()
 
 
-## Deliberately no cancel path: the offer is a decision, and letting the player dismiss it
-## turns "which relic" into "do I want to be bothered". `ui_cancel` is swallowed so the pause
-## menu cannot open behind it either.
 func _unhandled_input(event: InputEvent) -> void:
 	if not _open:
 		return

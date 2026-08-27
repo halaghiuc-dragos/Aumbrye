@@ -1,11 +1,7 @@
 extends CanvasLayer
 
 
-## Global player UI and loadout sync — inventory, settings, talents, loadout in every mode.
-
 signal quick_slot_used(index: int, item_id: String)
-## C-235: the hotbar had no on-screen presence — cycling moved an invisible cursor between four
-## invisible slots. The HUD needs both the selection and a change notification to draw it.
 signal quick_slot_selection_changed(index: int)
 
 const RM := preload("res://scripts/app/run_mode_config.gd")
@@ -49,24 +45,19 @@ func allows_player_ui() -> bool:
 
 
 func gameplay_input_blocked() -> bool:
-	return is_player_meta_ui_open() or scene_ui_open() or get_tree().paused
+	return (
+		is_player_meta_ui_open()
+		or scene_ui_open()
+		or modal_stack_open()
+		or get_tree().paused
+	)
 
 
-## Whether the current scene has one of its *own* panels open.
-##
-## `is_player_meta_ui_open` only knows about the seven screens PlayerControls builds itself —
-## inventory, settings, achievements, bestiary, talents, loadout, pause. The hub owns another
-## seven: the merchant, the quest board, the blacksmith, storage, the appearance mirror, and the
-## castle and endless menus. None of them was in the list, so `capture_mouse_if_allowed` did not
-## consider them open.
-##
-## That is how the shops ended up with no cursor. Every one of them is reached by talking to an NPC
-## first, and `DialogueUI.close()` calls `capture_mouse_if_allowed` on the way out — correctly, so a
-## closing dialogue does not strand the pause menu. The shop had just been opened by that same close,
-## the check did not know the shop existed, and the mouse was taken back immediately.
-##
-## Asked of the scene rather than enumerated here: the hub already maintains this list for its own
-## interaction prompts, and a second copy would drift the first time a panel is added.
+func modal_stack_open() -> bool:
+	var stack := get_tree().root.get_node_or_null("/root/MenuStack")
+	return stack != null and int(stack.call("depth")) > 0
+
+
 func scene_ui_open() -> bool:
 	var scene := get_tree().current_scene
 	if scene == null or not scene.has_method("has_open_ui"):
@@ -80,7 +71,11 @@ func capture_mouse_if_allowed() -> void:
 	Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
 
 
-func release_mouse() -> void:
+func _process(_delta: float) -> void:
+	if Input.get_mouse_mode() != Input.MOUSE_MODE_CAPTURED:
+		return
+	if not gameplay_input_blocked():
+		return
 	Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
 
 
@@ -99,15 +94,6 @@ func _build_global_uis() -> void:
 		add_child(_loadout_ui)
 
 
-## Whichever panel was opened last is the one the player is looking at, so it goes on top.
-##
-## These are all siblings on one CanvasLayer, and sibling draw order is child order — fixed at
-## build time. That was fine until `settings_ui.open_settings()` started calling `move_to_front()`
-## on itself: opening Settings once permanently reorders it above every panel built after it, and
-## the Bestiary (built two slots earlier) then opens *behind* Settings for the rest of the session.
-##
-## Raising on open makes the order follow what the player did rather than the order the panels
-## happened to be constructed in.
 func _raise(ui: Control) -> void:
 	if ui != null and is_instance_valid(ui):
 		ui.move_to_front()
@@ -160,20 +146,8 @@ func uses_main_inventory() -> bool:
 	return not RM.is_waves(RunFlow.get_run_mode())
 
 
-func get_inventory_ui() -> Control:
-	return _inventory_ui
-
-
 func get_settings_ui() -> Control:
 	return _settings_ui
-
-
-func get_talents_ui() -> Control:
-	return _talents_ui
-
-
-func get_loadout_ui() -> Control:
-	return _loadout_ui
 
 
 func open_settings() -> void:
@@ -268,11 +242,6 @@ func _unhandled_input(event: InputEvent) -> void:
 			_settings_ui.call("close_settings")
 			get_viewport().set_input_as_handled()
 			return
-		# C-236: two branches here closed the bestiary and achievements screens — unreachable, because
-		# the guard at the top of this block already returns when either is open. Both close themselves
-		# on `ui_cancel` (achievements_ui.gd:99, bestiary_ui.gd:211), which is why that guard
-		# deliberately does not consume the event. Settings is genuinely handled above: it is absent
-		# from the guard.
 		if _pause_menu and _pause_menu.has_method("toggle"):
 			_pause_menu.call("toggle")
 		get_viewport().set_input_as_handled()

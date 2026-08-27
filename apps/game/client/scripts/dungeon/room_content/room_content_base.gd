@@ -1,8 +1,6 @@
 extends Node3D
 class_name RoomContentBase
 
-## Base for seed-agnostic room content nodes (read/write WorldState only).
-
 
 func configure(_entry: Dictionary, _definition: Dictionary) -> void:
 	pass
@@ -13,11 +11,6 @@ func _content_root() -> Node3D:
 	return props as Node3D if props else get_parent() as Node3D
 
 
-## C-133: falling back from a missing `PropAnchor_1` to `PropAnchor_0` silently stacked content on
-## whatever else was already using anchor 0 — a poison pool on top of a chest, with the only signal
-## a warning in a build where nobody reads warnings. The fallback still happens (a mispositioned
-## hazard beats no hazard), but it says which room and which index, once per room template rather
-## than once per spawn, so the message is actionable instead of noise.
 static var _warned_anchors: Dictionary = {}
 
 

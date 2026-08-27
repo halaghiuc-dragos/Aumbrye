@@ -1,6 +1,5 @@
 extends Control
 
-## Brief loading gate before hub spawn — runs LocalSave boot then changes scene.
 
 const GameUISkinScript := preload("res://scripts/ui/game_ui_skin.gd")
 const HUB_SCENE := "res://scenes/hub/hub.tscn"
@@ -54,8 +53,6 @@ func _run_boot() -> void:
 	await timer.timeout
 	var ok := LocalSave.execute_boot()
 	if not ok:
-		# The specific reason when there is one — a full roster is not a load failure and the
-		# player can act on it, which "Could not load save" gives them no way to know.
 		var reason := LocalSave.last_boot_failure
 		_status_label.text = tr(reason if reason != "" else "LOADING_SAVE_FAILED")
 		await get_tree().create_timer(1.2).timeout

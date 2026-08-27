@@ -1,6 +1,5 @@
 extends Node3D
 
-## FLOOR-7.2 — stair lever interactable for ascending/descending floors.
 
 const DioramaSkin := preload("res://scripts/art/props/diorama_interactable_skin.gd")
 
@@ -183,10 +182,7 @@ func _update_label() -> void:
 		_label.text = "Sealed — defeat the floor boss"
 		_label.visible = true
 		return
-	_label.text = "%s Stairs — floor %d" % [
-		InputGlyphService.format_interact_label(),
-		_floor_index,
-	]
+	_label.text = InputGlyphService.format_interact_name("Stairs — floor %d" % _floor_index)
 	_label.visible = true
 
 

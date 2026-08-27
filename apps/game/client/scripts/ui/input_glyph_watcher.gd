@@ -1,6 +1,5 @@
 extends Node
 
-## Emits when the active input device family changes (HUD-08).
 
 signal device_family_changed
 

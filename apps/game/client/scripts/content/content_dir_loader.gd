@@ -1,16 +1,7 @@
 extends RefCounted
 class_name ContentDirLoader
 
-## Shared directory walk for JSON content catalogs keyed by an `id` field.
 
-
-## `skip_files` names files in the walked directories that belong to a different catalog.
-##
-## Two catalogs can legitimately share a content directory — content/quests holds both the hub
-## quest definitions and the dungeon NPC bindings that DungeonQuestCatalog owns. Without this the
-## walk picks up the other catalog's file, finds no id, and warns on every boot about a file that
-## is not malformed and not its concern, which trains the reader to ignore a warning that would
-## otherwise be worth acting on.
 static func load_id_map(
 	relative_dirs: Array[String],
 	id_key: String = "id",

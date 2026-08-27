@@ -1,42 +1,18 @@
 class_name WardenPreviewRig
 extends Node3D
 
-## Live 3D warden preview for character creation.
-##
-## The camera and lights are children of the rig, not of the rotating stage. They used to live on
-## the stage, which broke them two ways: DioramaCharacterSkin.build_preview_body() frees every
-## child of the node it builds into, so the first apply_profile() deleted the camera and both
-## lights outright; and while they survived, turning the stage turned the camera with the model, so
-## the preview could never actually be rotated.
 
 const CharacterSkinScript := preload("res://scripts/art/characters/diorama_character_skin.gd")
 
-## One press of a rotate button or of Q / E.
 const ROTATE_STEP := deg_to_rad(30.0)
 
-## Stage yaw that puts the warden's front toward the camera.
-##
-## A rig is assembled facing -Z: the chest placard, the visor slit and the boot toes are all on the
-## side away from a camera standing at +Z. In play that is right — the third-person camera follows
-## the player from behind and `CombatFacing` turns the whole visual to aim it — but the preview
-## never turns anything, so character creation opened on the back of the warden and a player had to
-## press the rotate button twice to see the face they had just chosen.
-##
-## Measured rather than derived: rendering the four cardinal yaws and counting accent-coloured
-## pixels across the chest gives 736 / 1168 / 3472 / 1192 at 0 / 90 / 180 / 270 degrees.
 const FRONT_YAW := 0.0
 
-## Fallback frame used until a built body reports its own bounds. Matches an assembled standard
-## warden: 1.44 tall from feet to crown, 0.80 across the pauldrons.
 const DEFAULT_SUBJECT_HEIGHT := 1.44
 const DEFAULT_SUBJECT_WIDTH := 0.80
 const DEFAULT_SUBJECT_DEPTH := 0.42
 const CAMERA_PITCH := deg_to_rad(-6.0)
-## A portrait lens. The engine default of 75 degrees is a wide angle: at the distance needed to
-## frame a one-metre diorama figure it bows the silhouette outward and exaggerates whichever limb
-## is nearest the lens.
 const CAMERA_FOV := 34.0
-## Fraction of the visible frame the warden should occupy — the rest is headroom and floor.
 const SUBJECT_SCREEN_FRACTION := 0.82
 
 var _stage: Node3D
@@ -54,10 +30,6 @@ func _ready() -> void:
 	_camera.current = true
 	add_child(_camera)
 	_build_outline_pass()
-	# A hard key with a low fill. The previous ratio (1.1 key against a 0.9-energy ambient) lit
-	# every face of the warden to within a few percent of every other, so the surface shader's
-	# dither was the only thing varying across the model and the armour read as translucent mesh.
-	# Shading has to separate the faces before any amount of geometry detail can be seen.
 	var key_light := DirectionalLight3D.new()
 	key_light.name = "KeyLight"
 	key_light.rotation = Vector3(deg_to_rad(-38.0), deg_to_rad(32.0), 0.0)
@@ -81,10 +53,6 @@ func apply_profile(profile: Dictionary) -> void:
 	_reframe_when_built()
 
 
-## The body is assembled from a manifest and then mesh-merged, so the parts are not all in the tree
-## with final transforms during the build call itself — measuring there reports roughly the torso
-## alone and frames the camera far too close. Measuring after the tree has settled sees the whole
-## warden.
 func _reframe_when_built() -> void:
 	var tree := get_tree()
 	if tree == null:
@@ -97,12 +65,6 @@ func _reframe_when_built() -> void:
 	_frame_subject(_turn_extent(bounds), bounds.get_center().y)
 
 
-## Converts the body's bounds into the box it sweeps as the stage turns.
-##
-## The raw AABB is not centred on the turn axis — a shouldered weapon or an outstretched arm pushes
-## it to one side — so framing the AABB directly leaves the warden sitting off-centre and clipped
-## against one edge, and the crop changes every time the player rotates the preview. Taking the
-## furthest point from the axis on both horizontal axes gives a frame that holds at any yaw.
 func _turn_extent(bounds: AABB) -> Vector3:
 	var far_end := bounds.position + bounds.size
 	var radius := maxf(
@@ -112,19 +74,9 @@ func _turn_extent(bounds: AABB) -> Vector3:
 	return Vector3(radius * 2.0, bounds.size.y, radius * 2.0)
 
 
-## Union of every visible mesh AABB under the stage, in stage space. Framing from the real bounds
-## is what keeps head and feet inside the portrait regardless of the stature and bulk picked.
 func _stage_bounds() -> AABB:
 	var bounds := AABB()
 	var found := false
-	# MeshInstance3D, not VisualInstance3D. The rig's `ContactShadow` is a Decal — a 1.36 m
-	# projection box centred on the warden — and it is a VisualInstance3D too, so measuring the
-	# broader type framed the camera to the shadow rather than to the body: every stature and
-	# build came out at the same camera distance, filling 63% of a portrait that asks for 82%.
-	#
-	# Invisible meshes are skipped for the same reason. A hood the player has not selected, and
-	# the source meshes the mesh merger hides once it has batched them, are both still in the
-	# tree; neither is on screen, so neither should decide the crop.
 	for node in _stage.find_children("*", "MeshInstance3D", true, false):
 		var visual := node as MeshInstance3D
 		if visual == null or not visual.is_visible_in_tree() or visual.mesh == null:
@@ -143,18 +95,6 @@ func _stage_bounds() -> AABB:
 	return bounds
 
 
-## Pulls the camera back far enough that the warden fits the frame on both axes.
-##
-## Height alone is not enough: the preview sits in a tall, narrow portrait, so a figure framed to
-## fill 82% of the height has its shoulders cut off at the sides. The subject's own depth is added
-## on top, because the distance that frames a flat plane at the model's centre still puts whatever
-## faces the camera much closer than that.
-## The same screen-space contour the world gets, so the warden in the creation preview is drawn the
-## way the warden in the game is drawn.
-##
-## No render-layer juggling is needed here: the preview SubViewport sets `own_world_3d = true`, so
-## this quad is in a world nothing else looks at. In the gameplay pipeline the world is shared and
-## the pass has to be masked onto a layer of its own — see `PixelDioramaViewport`.
 func _build_outline_pass() -> void:
 	var material := PixelDioramaSettings.make_outline_material()
 	if material.shader == null:
@@ -166,8 +106,6 @@ func _build_outline_pass() -> void:
 	pass_quad.mesh = quad
 	pass_quad.material_override = material
 	pass_quad.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	# The vertex shader rewrites POSITION into clip space, so the quad's real bounds say nothing
-	# about where it lands on screen and it would otherwise be frustum-culled away.
 	pass_quad.extra_cull_margin = 16384.0
 	material.render_priority = 100
 	_camera.add_child(pass_quad)
@@ -191,8 +129,6 @@ func _frame_subject(size: Vector3, center_y: float) -> void:
 	_camera.far = distance * 8.0
 
 
-## Godot keeps the vertical FOV and widens the horizontal one with the aspect ratio, so the
-## horizontal fit depends on how wide the preview panel actually ended up.
 func _viewport_aspect() -> float:
 	var viewport := get_viewport()
 	if viewport == null:
@@ -201,10 +137,6 @@ func _viewport_aspect() -> float:
 	if rect.x <= 0.0 or rect.y <= 0.0:
 		return 0.75
 	return rect.x / rect.y
-
-
-func get_applied_profile() -> Dictionary:
-	return _profile.duplicate(true)
 
 
 func get_stage() -> Node3D:

@@ -1,6 +1,5 @@
 extends Control
 
-## Merchant buy/sell UI (HUB-4.3).
 
 const GameUISkinScript := preload("res://scripts/ui/game_ui_skin.gd")
 const ItemListPresenterScript := preload("res://scripts/ui/item_list_presenter.gd")
@@ -36,8 +35,6 @@ func _ready() -> void:
 	_sell_list.item_selected.connect(_on_sell_selected)
 	CharacterService.gold_changed.connect(_on_gold_changed)
 	InventoryService.inventory_changed.connect(_refresh)
-	# Lives in its own labelled row rather than as a bare spinner dropped into the main column,
-	# where nothing said what the number applied to.
 	_sell_qty_spin = SpinBox.new()
 	_sell_qty_spin.name = "SellQtySpin"
 	_sell_qty_spin.min_value = 1
@@ -67,8 +64,6 @@ func open_for_merchant(merchant_id: String = "hub_merchant") -> void:
 func close() -> void:
 	visible = false
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
-	# Through PlayerControls: closing this panel must not grab the mouse back if another one is
-	# still open behind it.
 	PlayerControls.capture_mouse_if_allowed()
 	closed.emit()
 
@@ -109,8 +104,6 @@ func _refresh_buy_list() -> void:
 			tr("MERCHANT_BUY_ROW")
 			% [def.get("name", item_id), price, int(entry.get("remaining", 0))]
 		)
-		# Dimmed rather than hidden, so the player can still see what is on offer and read the
-		# price they are saving towards.
 		if price > CharacterService.gold:
 			_buy_list.set_item_custom_fg_color(index, GameUISkinScript.HINT_COLOR.darkened(0.35))
 		_buy_item_ids.append(item_id)
@@ -142,8 +135,6 @@ func _refresh_sell_list() -> void:
 		_sell_indices.append(i)
 
 
-## Shows what the purchase actually costs and whether it is affordable, instead of the previous
-## placeholder line that just said "Select Buy or Sell".
 func _on_buy_selected(index: int) -> void:
 	if index < 0 or index >= _buy_item_ids.size():
 		return
@@ -189,7 +180,6 @@ func _on_buy_pressed() -> void:
 	var def := ItemCatalog.get_definition(item_id)
 	var result := MerchantService.buy_item(item_id, _merchant_id)
 	if result.get("ok", false):
-		# Reports the item's display name; this used to print the raw catalog id at the player.
 		_detail_label.text = tr("MERCHANT_PURCHASED") % def.get("name", item_id)
 	else:
 		_detail_label.text = str(result.get("error", tr("MERCHANT_BUY_FAILED")))

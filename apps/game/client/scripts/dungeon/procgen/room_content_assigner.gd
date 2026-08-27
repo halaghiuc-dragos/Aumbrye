@@ -1,7 +1,6 @@
 class_name RoomContentAssigner
 extends RefCounted
 
-## Post-layout content tagging + lock-and-key placement with solvability validation.
 
 const DungeonQuestCatalogScript := preload("res://scripts/quests/dungeon_quest_catalog.gd")
 
@@ -203,12 +202,6 @@ static func _pick_content_type(
 			return RoomContentTypes.COMBAT
 		return RoomContentTypes.EMPTY
 	if on_critical:
-		# C-146: this read `distance > 0 and distance % 4 == 0 and distance < 6`, which only
-		# `distance == 4` can satisfy — the modulo says "every fourth room on the critical path"
-		# and the `< 6` clamp cut it to exactly one. On a twelve-room path, rooms at distance 8 and
-		# 12 never got the rest roll and fell through to the `distance > 2` branch at 88% combat.
-		# `_guarantee_rest_before_boss()` still places one near the boss, so a floor was never
-		# restless — but the mid-run pacing beat this rule exists for did not happen.
 		if distance > 0 and distance % 4 == 0:
 			if _rest_allowed() and rng.randf() < 0.65:
 				return RoomContentTypes.REST
@@ -253,8 +246,6 @@ static func _rest_allowed() -> bool:
 	return not RunModifierService.has_modifier(RunModifierService.MODIFIER_NO_REST)
 
 
-## Hard guarantees applied after the weighted roll: a reward on every floor, somewhere to rest
-## before the boss door, and no long unbroken run of fights.
 static func _enforce_pacing(
 	room_content: Array,
 	critical_semantic: Array[String],
@@ -488,11 +479,6 @@ static func _place_locked_doors(
 		if used_key_rooms.has(key_room_layout):
 			continue
 		used_key_rooms[key_room_layout] = true
-		# C-132: `keysRequired` was set to 2 under the sealed-doors modifier while exactly one key
-		# was ever placed — the lock record carried a single `keyRoomId` string — so every locked
-		# door on such a floor was permanently unopenable. The extra key rooms are drawn here, and
-		# `keysRequired` is set from how many were *actually* found, so the door can never ask for
-		# more than exists.
 		var key_layouts: Array[String] = [key_room_layout]
 		var wanted_keys := (
 			2
@@ -528,7 +514,6 @@ static func _place_locked_doors(
 					"keyRoomIds": _semantics_for_layouts(layout_semantic, key_layouts),
 					"keyLayoutIds": key_layouts,
 					"keyLabel": "Key (%s)" % pick["from"].capitalize(),
-					# C-132: never more than the floor actually placed.
 					"keysRequired": key_layouts.size(),
 				}
 			)
@@ -612,8 +597,6 @@ static func _reachable_without_edge(
 	return reachable
 
 
-## C-144: undoes `_apply_key_to_content` so a dropped lock does not leave orphan key vaults holding
-## keys for a door that no longer exists.
 static func _revert_key_rooms(room_content: Array, lock: Dictionary) -> void:
 	var key_rooms: Array = lock.get("keyRoomIds", [lock.get("keyRoomId", "")])
 	for entry in room_content:
@@ -640,7 +623,6 @@ static func _semantics_for_layouts(
 static func _apply_key_to_content(
 	room_content: Array, lock: Dictionary, reserved_semantics: Array[String]
 ) -> void:
-	# C-132: converts *every* key room the lock owns, not only the first.
 	var key_rooms: Array = lock.get("keyRoomIds", [lock.get("keyRoomId", "")])
 	for entry in room_content:
 		if str(entry.get("roomId", "")) not in key_rooms:
@@ -696,11 +678,6 @@ static func _finalize_content_entries(
 	return puzzles
 
 
-## C-145: `roll_chest` was called with a hardcoded tier of 1, so every reward cache and locked vault
-## on every floor rolled tier-1 loot forever — while `procgen_placements._place_loot()` passes the
-## real tier to the treasure chest. The two systems disagreed, so the main treasure room scaled with
-## dungeon tier and every other chest on the floor did not. Combined with C-143's four-item cap the
-## reward economy was flattened twice over: capped in count and frozen in tier.
 static func _roll_chest_items(
 	biome_id: String,
 	rng: RandomNumberGenerator,
@@ -931,14 +908,6 @@ static func build_branch_previews(
 	return previews
 
 
-## C-147: `EMPTY` and `PUZZLE` were classified as `"reward"` alongside genuine rewards, and
-## `combat_hud.set_branch_previews()` turns these into "N rewards / N dangers ahead" — a real
-## route-choice affordance that was therefore lying. Empty rooms are common: `weight_empty` is a
-## first-class weight and `_break_combat_runs` creates more, so a branch of nothing advertised
-## itself as treasure.
-##
-## Three buckets now. The HUD counts `reward` and `danger` and ignores anything else, so `neutral`
-## rooms stop inflating either number rather than inflating the wrong one.
 static func _preview_hint_for_content(content_type: String) -> String:
 	match content_type:
 		RoomContentTypes.REWARD, RoomContentTypes.LORE, RoomContentTypes.REST, RoomContentTypes.MERCHANT, RoomContentTypes.LOCKED_VAULT, RoomContentTypes.NPC_QUEST:
@@ -979,8 +948,6 @@ static func _fallback_assignment(
 		}
 		room_content.append(entry)
 	var locks: Array = []
-	# C-144: the caller's config is threaded in now, so the fallback validates against the same
-	# rules the retry loop used rather than a fresh default.
 	var reserved_semantics := _reserved_semantics(graph, assignment, layout_semantic)
 	if critical_semantic.size() >= 4:
 		locks = _place_locked_doors(
@@ -1008,15 +975,6 @@ static func _fallback_assignment(
 		reserved_semantics,
 		tier
 	)
-	# C-144: this path returned `ok: true` without ever calling `RoomContentValidator.validate()` —
-	# the file's docstring promises "lock-and-key placement with solvability validation", and the one
-	# path that exists *because* validation kept failing was the path with none. A fallback floor
-	# could therefore ship a lock whose key sits behind that same lock.
-	#
-	# It still cannot fail the whole generation (that is what the fallback is for), but it validates,
-	# and when it cannot produce a solvable floor it drops the locks rather than shipping an
-	# unopenable one — a floor with fewer locked doors is playable; a floor with an unreachable key
-	# is not.
 	var content := {"roomContent": room_content, "locks": locks, "puzzles": puzzles}
 	var warnings: Array[String] = []
 	var check := RoomContentValidator.validate(graph, assignment, content, config)

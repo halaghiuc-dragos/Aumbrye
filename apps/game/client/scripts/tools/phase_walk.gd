@@ -1,31 +1,10 @@
 extends Node
 
-## Walks one phase of the game and lets its warnings and errors reach the console.
-##
-## Each phase runs as its own process invocation (`-- --phase=<name>`) rather than as one long
-## sequence, for two reasons: a crash in one phase would otherwise lose every phase after it, and
-## attributing a warning to the phase that caused it is trivial when only one phase has run. The
-## driver (`walk.sh`) also moves the user data directory aside, so a walk cannot touch a real save
-## and cannot fill the five-slot roster with its own throwaway characters.
-##
-## Two kinds of phase:
-##
-##   * **scene phases** instantiate a scene here and let it run — the UI screens, the hub, the
-##     combat arena;
-##   * **run phases** call into `RunFlow` and let *it* change scene, then watch for the result.
-##     Building `castle_run.tscn` by hand alongside `start_new_run` does not work: the call is
-##     asynchronous and hands the generated definition to the scene it opens, so a hand-built one
-##     reports "missing procgen dungeon definition" every time.
-##
-## Usage:
-##   godot --path apps/game/client --resolution 1280x720 \
-##     res://scenes/debug/phase_walk.tscn -- --phase=hub
 
 const HUB_SCENE := "res://scenes/hub/hub.tscn"
 const ARENA_SCENE := "res://scenes/combat/combat_arena.tscn"
 const WALK_CHARACTER := "PhaseWalk"
 
-## Long enough for a scene to build and settle.
 const SCENE_FRAMES := 90
 
 const UI_SCENES := {
@@ -44,14 +23,7 @@ var _phase := ""
 func _ready() -> void:
 	_phase = _phase_arg()
 	print("PHASE-BEGIN %s" % _phase)
-	# A frame first. Everything below runs synchronously, and in the real game none of it is
-	# reached from a `_ready`: calling `RunFlow.start_new_castle_run()` from here put the whole
-	# generation chain inside this node's own setup, and the scene loads it performs then failed
-	# with "parent node is busy setting up children".
 	await get_tree().process_frame
-	# A run that refuses to start says so on this signal and returns; without listening the phase
-	# just sits there until the watcher times out, which reads as a hang rather than as a
-	# precondition the walk did not meet.
 	if RunFlow and not RunFlow.run_warning.is_connected(_on_run_warning):
 		RunFlow.run_warning.connect(_on_run_warning)
 	_ensure_playable_character()
@@ -115,8 +87,6 @@ func _phase_arg() -> String:
 	return "hub"
 
 
-## Most phases assume a loaded character; without one the hub bounces to the menu and a run cannot
-## start, so every phase would report the same cascade instead of its own problems.
 func _ensure_playable_character() -> void:
 	if CharacterService.class_id != "":
 		return
@@ -143,11 +113,6 @@ func _walk_scene(path: String, frames: int) -> void:
 	await get_tree().process_frame
 
 
-## Installs a root-level watcher that waits for RunFlow to open a scene, lets it settle, optionally
-## runs one follow-up step, and ends the phase.
-##
-## Root-level because `RunSceneRouter.goto_scene` replaces the current scene — which is this node —
-## and a coroutine awaiting inside a freed node never resumes.
 func _watch(after: Callable = Callable()) -> void:
 	var watcher := Node.new()
 	watcher.name = "PhaseWatcher"
@@ -155,6 +120,4 @@ func _watch(after: Callable = Callable()) -> void:
 	watcher.set_script(load("res://scripts/tools/phase_watcher.gd"))
 	watcher.set("phase_name", _phase)
 	watcher.set("follow_up", after)
-	# Deferred: `_ready` is still setting up this node's children, and the root refuses an
-	# `add_child` while that is in progress.
 	get_tree().root.add_child.call_deferred(watcher)

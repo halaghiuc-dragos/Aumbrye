@@ -1,30 +1,11 @@
 extends Node
 
-## Renders the character-creation warden preview across every appearance option and writes a PNG
-## contact sheet per axis, so a change to the rig can be checked against all nine body shapes
-## instead of whichever one happened to be selected.
-##
-## This exists because the six lean/heavy/tall variants were broken for as long as the baked-mesh
-## path was live and nothing looked at them: the default Standard/Standard warden was the only
-## combination anyone ever saw.
-##
-## Must run windowed — a headless run has no rendering device and produces blank images.
-##
-## Usage:
-##   godot --path apps/game/client --resolution 1280x720 \
-##     res://scenes/debug/capture_warden_variants.tscn
 
 const WardenPreviewRigScript := preload("res://scripts/ui/warden_preview_rig.gd")
 const AppearanceCatalogScript := preload("res://scripts/ui/appearance_catalog.gd")
 const OUTPUT_DIR := "user://warden_captures"
 
-## Matches the SubViewport the real preview column uses, scaled up so the contact sheet is
-## readable. The aspect must stay 3:4 or the rig frames the subject differently than it does
-## in game and the capture stops being evidence about the real screen.
 const CELL := Vector2i(390, 520)
-## The preview renders at 1/N and is scaled back up with nearest filtering, exactly as
-## `character_create_ui` does it, so the sheet shows the pixel density a player actually sees
-## rather than a full-resolution render nothing in the game produces.
 const PIXEL_SHRINK := 4
 
 const CLASS_IDS: PackedStringArray = [
@@ -69,7 +50,6 @@ func _build_stage() -> void:
 	env.background_mode = Environment.BG_COLOR
 	env.background_color = Color(0.08, 0.08, 0.11)
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
-	# Low enough that the key light still decides which faces are lit. See WardenPreviewRig.
 	env.ambient_light_color = Color(0.34, 0.36, 0.48)
 	env.ambient_light_energy = 0.32
 	world_env.environment = env
@@ -78,8 +58,6 @@ func _build_stage() -> void:
 	stage.add_child(_rig)
 
 
-## Which way the built warden actually faces, measured rather than assumed: the chest placard is
-## painted on the frontmost column of the torso, so the sign of its z tells us where the front is.
 func _report_facing() -> void:
 	_rig.reset_yaw()
 	_rig.apply_profile(_base_profile())
@@ -112,7 +90,6 @@ func _base_profile() -> Dictionary:
 	}
 
 
-## Every frame, so a variant that assembles differently from its neighbours is obvious at a glance.
 func _capture_body_shapes() -> void:
 	var cells: Array[Image] = []
 	var labels: PackedStringArray = []
@@ -140,9 +117,6 @@ func _capture_head_and_trim() -> void:
 	_write_sheet("head_and_trim", cells, 3)
 
 
-## Every head style against every hair style — 3 x 7. The interaction the hood has to survive: a
-## cowl that wraps the skull must leave nothing for hair to come through, and an open head must not
-## lose its face plate to whichever crop is selected.
 func _capture_head_hair() -> void:
 	var cells: Array[Image] = []
 	for head_style in [
@@ -159,8 +133,6 @@ func _capture_head_hair() -> void:
 	_write_sheet("head_hair", cells, 7)
 
 
-## The default clothing of every class, with nothing equipped. This is what a player sees before
-## they pick up a single item, and for a long time it was the same warden seven times.
 func _capture_classes() -> void:
 	var cells: Array[Image] = []
 	for class_id in CLASS_IDS:
@@ -172,19 +144,12 @@ func _capture_classes() -> void:
 	print("classes: %s" % ", ".join(CLASS_IDS))
 
 
-## Eight wardens that differ only in the axes meant to give them an identity — hair style, hair
-## colour, complexion and face. If this sheet reads as eight of the same character, those axes are
-## not doing anything, which is exactly what it looked like before the face plate and hair colour
-## existed.
 func _capture_identity() -> void:
 	var cells: Array[Image] = []
 	var hair := CharacterAppearance.HAIR_STYLES
 	var colors := CharacterAppearance.HAIR_COLORS
 	var skins := CharacterAppearance.SKIN_TONES
 	var faces := CharacterAppearance.FACE_STYLES
-	# One cell per hair style, with every other identity axis stepping alongside it — stature and
-	# build included. They were pinned to standard/standard here, so twenty-five wardens differed
-	# from the neck up and were the same body underneath, which is not what the sheet is for.
 	var frames: Array = CharacterAppearance.FRAME_VARIANTS
 	for i in hair.size():
 		var profile := _base_profile()
@@ -193,14 +158,11 @@ func _capture_identity() -> void:
 		profile["hairColor"] = colors[i % colors.size()]
 		profile["skinTone"] = skins[i % skins.size()]
 		profile["face"] = faces[i % faces.size()]
-		# Stepping at different rates so the sheet does not walk the two body axes together and
-		# show only the diagonal of the 5x5.
 		profile["frame"] = frames[i % frames.size()]
 		cells.append(await _render(profile))
 	_write_sheet("identity", cells, 5)
 
 
-## Every frame, side by side. If two cells look alike the option is not earning its slot.
 func _capture_frames() -> void:
 	var cells: Array[Image] = []
 	for frame: String in CharacterAppearance.FRAME_VARIANTS:
@@ -211,13 +173,6 @@ func _capture_frames() -> void:
 	_write_sheet("frames", cells, 5)
 
 
-## Every class's clothing on every frame — seven columns, five rows.
-##
-## Class garments are grown from a torso volume and are never scaled at runtime, so a cut authored
-## for one chest is simply the wrong garment on another. For a long time all five frames wore the
-## standard warden's cut: on Stout it was exactly as wide as the torso and sat inside the chest, and
-## on Slight it was four voxels wider than the body under it. `frame_audit` measures the margin;
-## this is what it looks like.
 func _capture_class_fit() -> void:
 	var cells: Array[Image] = []
 	for frame: String in CharacterAppearance.FRAME_VARIANTS:
@@ -233,13 +188,6 @@ func _capture_class_fit() -> void:
 	])
 
 
-## Every aspect the player can pick, in order.
-##
-## An aspect is a palette and nothing else, so the only way to know one is doing anything is to look
-## at twenty-five wardens side by side. Worth checking after any change to the palette table: the
-## string-to-enum lookup used to be a hand-written list of eleven names against an enum of
-## twenty-five, and the fourteen it did not list resolved to castle — selectable options that
-## repainted the warden in the colours of a different one.
 func _capture_aspects() -> void:
 	var cells: Array[Image] = []
 	var names: PackedStringArray = []
@@ -253,13 +201,11 @@ func _capture_aspects() -> void:
 	print("aspects: %d - %s" % [cells.size(), ", ".join(names)])
 
 
-## The preview can be turned, and the framing is meant to hold at any yaw.
 func _capture_yaw() -> void:
 	var cells: Array[Image] = []
 	_rig.reset_yaw()
 	for step in 4:
 		var yaw_profile := _base_profile()
-		# Open-faced, so the face plate is present and can act as an unambiguous front marker.
 		yaw_profile["head"] = CharacterAppearance.HEAD_OPEN
 		yaw_profile["skinTone"] = CharacterAppearance.SKIN_TONE_UMBER
 		cells.append(await _render(yaw_profile, false))
@@ -276,14 +222,10 @@ func _render(profile: Dictionary, reset_yaw: bool = true) -> Image:
 		await get_tree().process_frame
 	_report_framing()
 	var image := _viewport.get_texture().get_image()
-	# Nearest, so the sheet shows hard pixel edges instead of the bilinear smear that would make
-	# every judgement about the art a judgement about the resampler.
 	image.resize(CELL.x, CELL.y, Image.INTERPOLATE_NEAREST)
 	return image
 
 
-## Prints what fraction of the frame the warden actually occupies, so the framing constants can be
-## checked against the render instead of re-derived on paper.
 func _report_framing() -> void:
 	var camera := _rig.get_node_or_null("PreviewCamera") as Camera3D
 	if camera == null:

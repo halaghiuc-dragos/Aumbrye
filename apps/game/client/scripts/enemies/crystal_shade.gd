@@ -1,7 +1,5 @@
 extends "res://scripts/enemies/castle_archer.gd"
 
-## Arcane crystal shade — ranged arcane damage (THEME-5.2).
-
 
 func _resolve_enemy_id() -> String:
 	return "crystal_shade"

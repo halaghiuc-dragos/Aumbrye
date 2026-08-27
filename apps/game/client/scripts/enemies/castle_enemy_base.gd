@@ -1,37 +1,22 @@
 extends CharacterBody3D
 class_name CastleEnemyBase
 
-## Shared patrol/chase/deaggro AI for castle enemies (ENEMY-2.1 base).
 
 enum State { PATROL, CHASE, INVESTIGATE, RETREAT, CIRCLE, WINDUP, ATTACK, RECOVERY, STAGGER, DEAD }
 
 signal enemy_died
-## C-125: this and `attack_active` were emitted at exactly the right moments and had **zero
-## connections** anywhere — the producer for the colour-coded telegraph that §4 and §20.3 both asked
-## for, with no consumer ever built. `attack_class` is what the consumer needs: `blockable`,
-## `unblockable` or `parryable`.
 signal attack_telegraph_started(attack_class: String)
 signal attack_active
 signal boss_phase_entered(index: int, phase: Dictionary)
 
-## C-80: eight boss shells each declared this signal and connected `boss_phase_entered` to a handler
-## that re-emitted it with `index + 1` — the same four lines, copied eight times, for an adaptor
-## `combat_hud` is the only consumer of. Declared once, here.
 signal phase_changed(phase: int)
 
 const DATA_PATH := ""
 
 const ENEMY_TURN_SPEED := 22.0
 
-## Attack commitment. An enemy may re-aim freely while it is deciding, but once a swing is
-## committed the player's spacing decision has to stick — otherwise the roll, the single verb
-## the whole genre is built on, does nothing.
-##
-## `tracking_fraction` is how far into the wind-up re-aiming is still allowed (0.55 = the first
-## 55%, i.e. the readable half of the telegraph). Past that the enemy is locked to the heading it
-## chose. During the active frames it does not turn at all, and it does not walk: the swing arc
-## does the work. Both are overridable per attack (`tracking_fraction`) and per enemy, so a
-## homing-by-design boss move stays expressible in data.
+## How far into a wind-up the enemy may still turn to track the player. Past this it is locked to
+## the heading it committed to, which is what makes a wind-up dodgeable rather than homing.
 const WINDUP_TRACKING_FRACTION := 0.55
 const WINDUP_TRACKING_SPEED_MULT := 0.45
 const ATTACK_TRACKING_SPEED_MULT := 0.0
@@ -44,6 +29,8 @@ const MaterialDissolveScript := preload("res://scripts/art/characters/material_d
 const MaterialFlashScript := preload("res://scripts/art/characters/material_flash.gd")
 const GlobalDropServiceScript := preload("res://scripts/loot/global_drop_service.gd")
 const CharacterFloorSnapScript := preload("res://scripts/art/characters/character_floor_snap.gd")
+const PixelStyleScript := preload("res://scripts/art/style/pixel_diorama_style.gd")
+const LightEmbersScript := preload("res://scripts/art/vfx/light_embers.gd")
 const CharacterSkin := preload("res://scripts/art/characters/diorama_character_skin.gd")
 const CharacterRigCatalogScript := preload("res://scripts/art/characters/character_rig_catalog.gd")
 const AnimControllerScript := preload("res://scripts/art/characters/diorama_anim_controller.gd")
@@ -52,12 +39,8 @@ const CombatLayersScript := preload("res://scripts/combat/combat_layers.gd")
 
 @export var player_path: NodePath
 
-## Content id of the definition this scene instances. Set per scene so a variant needs no
-## script of its own; a subclass with real behaviour may still override _resolve_enemy_id().
 @export var enemy_id: String = ""
 
-## Physics layers that block this enemy's sight line. Defaults to the project-wide occluder set;
-## override per scene only for enemies that are meant to see through something others cannot.
 @export_flags_3d_physics var los_mask: int = CombatLayersScript.WORLD_OCCLUDERS
 
 @onready var _mesh: MeshInstance3D = $MeshInstance3D
@@ -89,6 +72,7 @@ var _current_attack_data: Dictionary = {}
 var _combo_step := 0
 var _combat_registered := false
 var _deaggro_los_timer := 0.0
+var _weapon_charge: Node3D
 var _windup_duration := 0.0
 var _last_hit_direction := Vector3.ZERO
 var _catalog_id_override := ""
@@ -162,26 +146,12 @@ func set_damage_multiplier(mult: float) -> void:
 	_damage_multiplier = maxf(0.1, _base_damage_multiplier * _phase_damage_multiplier)
 
 
-func get_player() -> Node3D:
-	return _player
-
-
-func get_enemy_rng() -> RandomNumberGenerator:
-	return _enemy_rng
-
-
 func get_health_ratio() -> float:
 	if _health == null or _health.max_health <= 0.0:
 		return 1.0
 	return clampf(_health.current / _health.max_health, 0.0, 1.0)
 
 
-func get_health_node() -> Health:
-	return _health
-
-
-## Applied by the phase controller on every phase entry; every value is a multiplier
-## over the boss's own base tuning so phases never drift from the source data.
 func apply_phase_modifiers(mods: Dictionary) -> void:
 	_move_speed = maxf(
 		0.01, float(_data.get("move_speed", 3.5)) * float(mods.get("moveSpeedMult", 1.0))
@@ -206,8 +176,6 @@ func get_lock_threat() -> float:
 	return 0.0
 
 
-## Feeds LockOn._get_lockable_targets(): bosses outrank elites outrank trash, and an enemy mid-swing
-## outranks an idle one, so auto-lock prefers the threat actually worth watching.
 func get_lock_priority() -> float:
 	var priority := 0.0
 	if _is_boss_enemy():
@@ -270,9 +238,6 @@ func _ready() -> void:
 		_poise.configure(_data.get("poise", 40.0), float(_data.get("stagger_duration", 1.0)))
 		_poise.poise_broken.connect(_on_poise_broken)
 	if _hurtbox:
-		# Only `damaged` drives the hit reaction. Hurtbox.receive_hit emits both `damaged` and
-		# `hit_resolved` for the same hit, so listening to both played the flinch twice per hit
-		# and clobbered _last_hit_direction with a zero vector, breaking directional death sweeps.
 		_hurtbox.damaged.connect(_on_hurt)
 		_apply_hurtbox_data()
 	_unpack_tuning()
@@ -283,28 +248,18 @@ func _ready() -> void:
 	if _health:
 		_attach_health_bar()
 	_setup_phase_controller()
-	# C-80: the relay, once.
 	if not boss_phase_entered.is_connected(_relay_phase_changed):
 		boss_phase_entered.connect(_relay_phase_changed)
-	# C-100: only four of the sixteen boss encounters called `play_boss_music()` from their own
-	# `_ready()`; the other twelve fought in silence over ordinary dungeon music. Every enemy that
-	# declares `isBoss` gets it.
 	if _is_boss_enemy() and AudioDirector:
 		AudioDirector.play_boss_music()
 	_pick_patrol_target()
 	_join_room_board()
 
 
-## C-81: three bosses each carried `var _arena_bounds := Rect2(-12, -12, 24, 24)` — the same literal,
-## copied, with nothing in `content/bosses/*.json` to say so, while every other boss parameter is
-## authored. A boss placed in a room smaller than its literal clamps *outside* the walls. Read from
-## the definition as `arenaHalfExtent` (a single number: these arenas are square), defaulting to the
-## literal the three shells already shared so behaviour is unchanged where nothing is authored.
 func get_arena_half_extent() -> float:
 	return maxf(1.0, float(_data.get("arenaHalfExtent", 12.0)))
 
 
-## Shared clamp — was duplicated verbatim in `castle_knight`, `crystal_sovereign` and `swamp_hydra`.
 func clamp_to_arena(center: Vector3) -> void:
 	var half := get_arena_half_extent()
 	var offset := global_position - center
@@ -313,7 +268,6 @@ func clamp_to_arena(center: Vector3) -> void:
 	global_position = center + offset
 
 
-## C-80: relays the base's phase index as a 1-based phase number, which is what `combat_hud` reads.
 func _relay_phase_changed(index: int, _phase: Dictionary) -> void:
 	phase_changed.emit(index + 1)
 
@@ -327,7 +281,6 @@ func _join_room_board() -> void:
 
 
 func _exit_tree() -> void:
-	# Freeing mid-swing is the third way a token used to leak, alongside stagger and death.
 	_release_attack_token()
 	if not _room_registered:
 		return
@@ -337,10 +290,6 @@ func _exit_tree() -> void:
 
 func set_ai_role(role: int) -> void:
 	_role = role
-
-
-func get_ai_role() -> int:
-	return _role
 
 
 func _unpack_tuning() -> void:
@@ -366,8 +315,6 @@ func _unpack_tuning() -> void:
 	_circle_radius_mult = maxf(1.0, float(_data.get("circle_radius_mult", 1.4)))
 
 
-## Swaps the pool `_select_attack_data()` draws from. Boss phases call this to
-## hand the fight a new move set without touching the shared enemy tuning.
 func set_active_attacks(list: Array) -> void:
 	_attacks = list
 	_max_attack_range = 0.0
@@ -381,10 +328,6 @@ func set_active_attacks(list: Array) -> void:
 	if _max_attack_range <= 0.0 or is_inf(_engage_range):
 		_max_attack_range = _attack_range
 		_engage_range = _attack_range
-
-
-func get_active_attacks() -> Array:
-	return _attacks
 
 
 func get_base_attacks() -> Array:
@@ -406,12 +349,6 @@ func _setup_phase_controller() -> void:
 	_phase_controller.call("setup", self, phases)
 
 
-func get_phase_controller() -> Node:
-	return _phase_controller
-
-
-## Places `count` instances of `enemyId` in a ring around this enemy. Positions are set
-## before the child enters the tree so each add records the right patrol origin.
 func spawn_adds(spec: Dictionary) -> Array[Node]:
 	var spawned: Array[Node] = []
 	var catalog_id := String(spec.get("enemyId", ""))
@@ -490,8 +427,6 @@ func get_phase_index() -> int:
 	return 0
 
 
-## Called by the phase controller when a threshold is crossed; the boss holds its
-## ground for the length of the tell so the swap is readable rather than instant.
 func begin_phase_transition(lock_duration: float, invulnerable_for: float) -> void:
 	_phase_lock_timer = maxf(0.0, lock_duration)
 	_phase_invuln_timer = maxf(0.0, invulnerable_for)
@@ -505,10 +440,6 @@ func begin_phase_transition(lock_duration: float, invulnerable_for: float) -> vo
 	_release_attack_token()
 	_state = State.CHASE
 	_cooldown = maxf(_cooldown, _phase_lock_timer)
-
-
-func is_phase_transitioning() -> bool:
-	return _phase_lock_timer > 0.0
 
 
 func is_immune() -> bool:
@@ -530,9 +461,6 @@ func set_catalog_id(id: String) -> void:
 	_data = EnemyCatalog.get_definition(id)
 	if _data.is_empty():
 		return
-	# Unpack first so health and poise configure from the same tuning fields every other spawn
-	# path uses. Configuring poise with only its first argument here made boss adds fall back to
-	# the default stagger duration instead of the catalog's.
 	_unpack_tuning()
 	if _health:
 		_health.configure(_data.get("health", 80.0))
@@ -581,12 +509,9 @@ func _setup_diorama_visual() -> void:
 	_animator.hitbox_close_frame.connect(_on_anim_hitbox_close)
 
 
-## C-74: this returned outright when the state was not yet ATTACK, so an animation whose
-## `hitbox_open_frame` lands a frame or two before `_start_attack()` transitions — which
-## `windup_variance` randomisation makes possible — opened no hitbox at all and the swing passed
-## through the player. The player's equivalent, `WeaponController.enable_hitbox_from_anim`, handles
-## the same race by *promoting* the phase. Two implementations of one handoff, one tolerant and one
-## not; this is now the tolerant one.
+## Tolerant by design: `windup_variance` can land the animation's open frame a tick or two before
+## `_start_attack()` transitions, and returning early there drops the swing entirely. Promote the
+## phase instead. `WeaponController.enable_hitbox_from_anim` handles the same race the same way.
 func _on_anim_hitbox_open() -> void:
 	if _hitbox == null:
 		return
@@ -660,7 +585,6 @@ func _attach_health_bar() -> void:
 	_hp_bar = HP_BAR_SCRIPT.new() as EnemyHealthBar
 	_hp_bar.name = "HealthBar"
 	add_child(_hp_bar)
-	# C-96: the poise readout, where the enemy has one.
 	_hp_bar.setup(_health, get_hp_bar_height(), _poise)
 
 
@@ -672,36 +596,78 @@ func begin_attack_windup_bar(duration: float, attack_class: String = "blockable"
 
 func hide_attack_windup_bar() -> void:
 	_windup_duration = 0.0
+	_end_weapon_charge()
 	if _hp_bar:
 		_hp_bar.hide_attack_telegraph()
+
+
+func _current_damage_type() -> String:
+	return String(
+		_current_attack_data.get("damage_type", _data.get("damage_type", DamageInfo.TYPE_PHYSICAL))
+	)
+
+
+func _telegraph_radius_scale() -> float:
+	return 1.0
 
 
 func _show_attack_telegraph(duration: float) -> void:
 	var radius := float(
 		_current_attack_data.get("telegraph_radius", _data.get("telegraph_radius", 1.6))
-	)
+	) * _telegraph_radius_scale()
 	var shape := String(
 		_current_attack_data.get("telegraph_shape", _data.get("telegraph_shape", "circle"))
 	)
-	var tint := Color(0.95, 0.34, 0.28)
+	var tint := VfxService.telegraph_class_tint(_current_attack_class())
 	if _data.has("telegraph_tint"):
 		tint = Color(_data["telegraph_tint"])
-	# C-70: the telegraph forward was inverted, so every directional shape (cone, arc, line) drew
-	# on the opposite side from the swing. Circles hid it, which is why it survived — and it is
-	# exactly what blocks adding directional telegraphs at all.
 	var forward := CombatFacing.forward_of(self)
-	VfxService.play_telegraph(global_position, radius, duration, tint, shape, forward)
+	VfxService.play_telegraph(global_position, radius, duration, tint, shape, forward, self)
+	_begin_weapon_charge(tint, duration)
 
 
-## C-73: `_hurtbox.set("block_mitigation", ...)` on a base `Hurtbox` is a silent no-op in GDScript
-## — the property does not exist there. Three enemies author block data (`castle_shield` 0.75,
-## `iron_sentinel` 0.85, `glacial_hollowed` 0.82) and only `castle_shield.tscn` carries the
-## `ShieldHurtbox` script, so two of the three blocked nothing and nobody was told. Combined with
-## C-41 (the one scene that did have it blocked from behind), the shield mechanic worked on zero
-## enemies.
-##
-## Rather than patching two scene files and leaving the trap armed for the next enemy, the script
-## is installed from the data: authoring `block_mitigation` is what makes something a shield.
+func _begin_weapon_charge(class_tint: Color, duration: float) -> void:
+	_end_weapon_charge()
+	if _diorama_visual == null:
+		return
+	var mount := CharacterSkin.find_part(_diorama_visual, CharacterSkin.WEAPON_MOUNT)
+	if mount == null:
+		mount = CharacterSkin.find_part(_diorama_visual, "Torso")
+	if mount == null:
+		return
+	var charge := Node3D.new()
+	charge.name = "AttackCharge"
+	mount.add_child(charge)
+	_weapon_charge = charge
+	var core := MeshInstance3D.new()
+	var box := BoxMesh.new()
+	box.size = Vector3(0.26, 0.26, 0.26)
+	core.mesh = box
+	core.material_override = PixelStyleScript.make_glow_material(
+		Color(class_tint.r, class_tint.g, class_tint.b, 0.9),
+		Color(class_tint.r, class_tint.g, class_tint.b, 0.6),
+		2.4
+	)
+	core.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	charge.add_child(core)
+	charge.scale = Vector3(0.05, 0.05, 0.05)
+	var tween := create_tween()
+	tween.set_trans(Tween.TRANS_QUAD)
+	tween.tween_property(charge, "scale", Vector3.ONE, maxf(duration, 0.05))
+	var embers := LightEmbersScript.attach(
+		charge, Vector3.ZERO, MaterialFlashScript.tint_for_damage_type(_current_damage_type()),
+		1.2, 0.9
+	)
+	if embers:
+		embers.name = "ChargeEmbers"
+
+
+func _end_weapon_charge() -> void:
+	if _weapon_charge != null and is_instance_valid(_weapon_charge):
+		_weapon_charge.queue_free()
+	_weapon_charge = null
+
+
 func _apply_hurtbox_data() -> void:
 	if _hurtbox == null:
 		return
@@ -715,9 +681,6 @@ func _apply_hurtbox_data() -> void:
 		_hurtbox.set("block_angle_deg", float(_data.get("block_angle_deg")))
 
 
-## C-68: this only ever touched `_mesh`, the legacy capsule that `_setup_diorama_visual` hides on
-## the very next line — so every authored per-enemy colour was invisible. The diorama rig is what
-## the player sees, and it is tinted first.
 func _apply_mesh_tint(color: Color) -> void:
 	if _diorama_visual and is_instance_valid(_diorama_visual):
 		CharacterSkin.apply_body_tint(_diorama_visual, color)
@@ -766,8 +729,6 @@ func respawn_at_rest() -> void:
 		_hurtbox.monitorable = true
 		_hurtbox.monitoring = true
 	if _body_collision:
-		# _finalize_death disabled this; without restoring it a bonfire-respawned enemy is a ghost
-		# the player and its own navigation walk straight through.
 		_body_collision.disabled = false
 	if _hp_bar:
 		_hp_bar.visible = true
@@ -816,13 +777,9 @@ func _finalize_death(silent: bool) -> void:
 	_aggro_locked = false
 	_leave_room_engagement()
 	_unregister_combat_engagement()
-	# Dying mid-swing must hand the attack token back too.
 	_release_attack_token()
-	# C-78: hazards and opt-in adds spawned by phase transitions are cleared here.
 	if _phase_controller and _phase_controller.has_method("clear_death_spawns"):
 		_phase_controller.call("clear_death_spawns")
-	# C-99: `end_boss_music()` existed with zero callers, so boss music started and never stopped —
-	# it played over the victory lap, the loot, and the walk to the stairs.
 	if _is_boss_enemy() and AudioDirector:
 		AudioDirector.end_boss_music()
 	if _health:
@@ -867,15 +824,6 @@ func _play_death_visual() -> void:
 	MaterialDissolveScript.play_death_visual(visual, opts)
 
 
-## C-72: this fell through to a literal 5, because neither `coinReward` nor `goldReward` appears in
-## any file under `content/enemies/` or `content/bosses/` — so killing the Crystal Sovereign paid
-## exactly what killing a swamp leech paid, and the economy had no per-enemy dimension at all in a
-## game with a blacksmith, a merchant, recipes and a storage service.
-##
-## `threat_cost` *is* authored (69 files, 12–110, already used for lock-on priority) and is the
-## natural scale: it is the designer's own statement of how dangerous the thing is. An explicit
-## `coinReward` still wins where one is authored, so the derived value is a floor to build on
-## rather than a ceiling. `goldReward` is accepted as the legacy spelling.
 const COIN_REWARD_PER_THREAT := 0.35
 const COIN_REWARD_MIN := 3
 
@@ -897,8 +845,6 @@ func _try_roll_global_drop() -> void:
 	var floor_index := RunFlow.get_current_floor()
 	var tier := RunFlow.get_difficulty_tier() if RunFlow.get_run_mode() == "castle" else 1
 	var dungeon_id := RunFlow.current_dungeon_id if RunFlow.get_run_mode() == "castle" else ""
-	# C-104: a monotonic per-run ordinal instead of the instance id, so the sequence of drops on a
-	# seed is a property of the run rather than of allocation order.
 	var drop_ordinal := RunFlow.next_loot_drop_ordinal() if RunFlow else 0
 	var drop_id := GlobalDropServiceScript.roll_enemy_drop(
 		drop_ordinal, floor_index, tier, dungeon_id
@@ -910,9 +856,6 @@ func _try_roll_global_drop() -> void:
 func apply_stagger(duration: float) -> void:
 	if is_dead() or (_health and _health.is_dead()):
 		return
-	# A stagger jumps straight to STATE.STAGGER without routing through _end_attack, so an enemy
-	# interrupted mid-windup used to keep its attack token forever. Tokens gate how many enemies
-	# may swing at once, so leaked ones drain the pool until nothing can attack at all.
 	if _state in [State.WINDUP, State.ATTACK]:
 		_combo_step = 0
 		_release_attack_token()
@@ -962,12 +905,6 @@ func _physics_process(delta: float) -> void:
 			if track_mult > 0.0 and _should_track_player():
 				_track_player_facing(ai_delta, track_mult)
 		elif stride > 1:
-			# C-76: `move_and_slide()` runs every frame with whatever `velocity` the last AI tick
-			# left, but `_update_ai` only runs on strided ticks. An enemy at mid range (stride 4)
-			# that reached `stop_range` kept its approach velocity for up to 3 more frames, and at
-			# far range (stride 16) for up to 15 — so distant enemies overshot their stopping
-			# point. Damping toward zero between ticks bounds the overshoot without pretending to
-			# have run the AI.
 			var damping := clampf(LOD_VELOCITY_DAMPING * delta, 0.0, 1.0)
 			velocity.x = lerpf(velocity.x, 0.0, damping)
 			velocity.z = lerpf(velocity.z, 0.0, damping)
@@ -980,9 +917,6 @@ func _physics_process(delta: float) -> void:
 	_update_diorama_animation(delta)
 
 
-## Only locomotion is pushed per frame. Attacks, staggers and death are one-shot
-## clips owned by the controller's priority stack, so they are started from the
-## state transitions instead of being re-asserted every tick.
 func _update_diorama_animation(_delta: float) -> void:
 	if _animator == null or not _animator.is_bound() or is_dead():
 		return
@@ -1015,8 +949,6 @@ func _update_ai(delta: float) -> void:
 		State.CIRCLE:
 			_process_circle(delta)
 		State.WINDUP:
-			# Closing slows to a stop as the swing commits, so the distance the player reads at
-			# the start of the telegraph is the distance the swing actually lands at.
 			var commit := _windup_commit_ratio()
 			_apply_chase_velocity(delta, WINDUP_APPROACH_SPEED_MULT * (1.0 - commit))
 			_on_windup_tick(commit >= 1.0)
@@ -1030,9 +962,6 @@ func _update_ai(delta: float) -> void:
 			if _state_timer <= 0.0:
 				_start_attack()
 		State.ATTACK:
-			# No pursuit during the active frames. An attack that walks after the player during
-			# its own hitbox window cannot be dodged by spacing, only by i-frames — and it beats
-			# those too by re-overlapping the moment they end. Authored lunges still move.
 			_apply_attack_lunge()
 			_state_timer -= delta
 			if _state_timer <= 0.0:
@@ -1068,8 +997,6 @@ func _process_patrol(delta: float) -> void:
 		_patrol_wait = _enemy_rng.randf_range(0.5, 1.2)
 		_pick_patrol_target()
 		return
-	# Patrolling at full chase speed made "hasn't noticed you" and "hunting you" look identical,
-	# which wastes the vision-cone/hearing/awareness system feeding this state.
 	velocity = dir * _move_speed * PATROL_SPEED_MULT
 	_face_direction(dir, delta)
 
@@ -1114,8 +1041,6 @@ func _enter_circle() -> void:
 		_circle_direction = -_circle_direction
 
 
-## Enemies held back by cooldown or the attack-token budget orbit at spacing instead
-## of standing on the player, so a group surrounds rather than queues.
 func _process_circle(delta: float) -> void:
 	if not _has_aggro() or _player == null:
 		_state = State.INVESTIGATE
@@ -1202,9 +1127,6 @@ func _apply_chase_velocity(delta: float, speed_mult: float = 1.0) -> void:
 		velocity = Vector3.ZERO
 
 
-## Uses a navigation path when the world has one baked, and otherwise steers directly
-## with a seeded sidestep whenever the target is behind cover, so an enemy separated
-## by a pillar slides around it instead of pressing into it.
 func _direction_toward(target: Vector3, delta: float, sidestep_when_blocked: bool) -> Vector3:
 	if _nav_agent == null:
 		_nav_probe_timer -= delta
@@ -1249,33 +1171,16 @@ func _ensure_nav_agent() -> void:
 	_nav_agent.path_desired_distance = 0.6
 	_nav_agent.target_desired_distance = 0.6
 	_nav_agent.path_max_distance = 4.0
-	# C-75: avoidance was disabled, so although `EnemyBlackboard` roles and `AttackTokenService`
-	# decide who may press and `_process_circle` orbits the non-engagers at role-scaled radii — a
-	# genuinely good crowd model — nothing kept two enemies out of the same volume, and a group
-	# converging on the player interpenetrated and read as one blob. RVO on the existing agent is
-	# the difference between a pack and a clump.
 	_nav_agent.avoidance_enabled = true
 	_nav_agent.radius = 0.55
 	_nav_agent.neighbor_distance = 4.0
 	_nav_agent.max_neighbors = 6
-	# Avoidance must not fight the commitment model: a committed swing has to keep its heading, and
-	# `_apply_chase_velocity` already slows the approach by the commit ratio.
 	_nav_agent.avoidance_priority = 0.5
 	add_child(_nav_agent)
 
 
-## Pure query. All latching and decay happens once per AI tick in `_update_perception`,
-## so the states below can ask this as often as they like for free.
 func _has_aggro() -> bool:
 	return _player != null and _aggro_locked
-
-
-func get_awareness() -> float:
-	return _awareness
-
-
-func is_unaware() -> bool:
-	return not _aggro_locked and _awareness < AWARENESS_INVESTIGATE
 
 
 func _update_perception(delta: float) -> void:
@@ -1327,12 +1232,6 @@ func _player_inside_vision_cone() -> bool:
 	to_player.y = 0.0
 	if to_player.length_squared() < 0.01:
 		return true
-	# C-69: `_face_direction()` sets `rotation.y = atan2(dir.x, dir.z)`, which makes **+basis.z**
-	# the heading toward the target — so the vision cone was mounted on the enemy's back. The
-	# effect was graded rather than binary (`_update_perception` applies `gain *= 0.25` outside the
-	# cone rather than gating detection), which is why it survived: enemies noticed you four times
-	# faster from behind than from the front, so stealth approach was punished and frontal approach
-	# rewarded. `vision_cone_deg` is authored on 46 enemies.
 	var facing := CombatFacing.forward_of(self)
 	facing.y = 0.0
 	if facing.length_squared() < 0.01:
@@ -1340,8 +1239,6 @@ func _player_inside_vision_cone() -> bool:
 	return facing.normalized().dot(to_player.normalized()) >= _vision_cone_cos
 
 
-## Sprinting is loud, walking is quiet, standing still is silent. Read off the
-## player's own velocity so nothing has to be pushed in from the locomotion side.
 func _player_noise_level() -> float:
 	if _player == null:
 		return 0.0
@@ -1369,8 +1266,6 @@ func _latch_aggro() -> void:
 	_broadcast_alert()
 
 
-## Fired once per aggro latch, never per frame: one walk over the room roster when it
-## wakes up, instead of every enemy alive on the floor.
 func _broadcast_alert() -> void:
 	if _alert_broadcast or _alert_radius <= 0.0:
 		return
@@ -1391,14 +1286,10 @@ func _alert_candidates() -> Array:
 		if not roster.is_empty():
 			return roster
 
-	# Allies in adjacent rooms still count, and the board can answer that without touching every
-	# enemy on the floor.
 	var neighbours := EnemyBlackboard.nearby(global_position, _alert_radius)
 	if not neighbours.is_empty():
 		return neighbours
 
-	# Whole-floor group scan: correct but O(N) inside a single frame. Kept only as a debug-build
-	# safety net for enemies that never registered with the board.
 	if OS.is_debug_build():
 		return get_tree().get_nodes_in_group("enemy")
 	return []
@@ -1487,7 +1378,6 @@ func _is_cross_boss_boundary_with_player() -> bool:
 	return false
 
 
-## C-76: how fast a strided enemy's velocity bleeds off between AI ticks.
 const LOD_VELOCITY_DAMPING := 6.0
 
 
@@ -1514,7 +1404,6 @@ func _start_windup() -> void:
 		return
 	_attack_token_group = str(_data.get("attack_token_group", "room_default"))
 	if AttackTokenService and not AttackTokenService.request_token(_attack_token_group):
-		# Refused: orbit instead of re-requesting a token every physics frame.
 		_cooldown = _enemy_rng.randf_range(0.25, 0.6)
 		if _has_aggro():
 			_enter_circle()
@@ -1553,10 +1442,6 @@ func _enter_windup(attack_data: Dictionary) -> void:
 	attack_telegraph_started.emit(_current_attack_class())
 
 
-## C-125: authored `attackClass` wins; otherwise it is derived from data the content already
-## carries. An attack whose poise damage exceeds the shieldless guard-break threshold (C-56) *is*
-## unblockable for a player without a shield, so saying so is a statement of fact rather than new
-## balance. Everything else is blockable.
 func _current_attack_class() -> String:
 	var authored := str(_current_attack_data.get("attackClass", ""))
 	if authored != "":
@@ -1578,6 +1463,7 @@ func _start_attack() -> void:
 		_current_attack_data.get("active_duration", _data.get("active_duration", 0.15))
 	)
 	hide_attack_windup_bar()
+	_end_weapon_charge()
 	if _hitbox:
 		_hitbox.set_attack_values(
 			float(_current_attack_data.get("attack_damage", _data.get("attack_damage", 14.0)))
@@ -1628,8 +1514,6 @@ func _end_attack() -> void:
 	)
 
 
-## Picks from the active move set, keeping only the entries whose `min_range`/`max_range`
-## band contains the current spacing, then rolling on `weight`.
 func _select_attack_data() -> void:
 	if _attacks.is_empty():
 		_current_attack_data = _data
@@ -1709,8 +1593,6 @@ func _should_track_player() -> bool:
 	return _player != null and (_aggro_locked or _state != State.PATROL)
 
 
-## How fast this enemy may re-aim at the player right now, as a multiple of ENEMY_TURN_SPEED.
-## Zero means the heading is locked: the swing is committed and cannot follow a dodge.
 func _tracking_speed_multiplier() -> float:
 	match _state:
 		State.WINDUP:
@@ -1724,9 +1606,6 @@ func _tracking_speed_multiplier() -> float:
 	return 1.0
 
 
-## 0 while the wind-up is still readable and re-aimable, ramping to 1 at the commit point.
-## The commit point is `tracking_fraction` of the way through the wind-up, overridable per
-## attack and per enemy so a deliberately relentless boss move can still be authored.
 func _windup_commit_ratio() -> float:
 	if _windup_duration <= 0.0:
 		return 1.0
@@ -1747,28 +1626,16 @@ func _windup_commit_ratio() -> float:
 	return clampf(elapsed / fraction, 0.0, 1.0)
 
 
-## Per-frame hook for the wind-up, with whether the swing has passed its commit point.
-##
-## Exists so subclasses that resolve a trajectory up front (the archer's locked shot, any aimed
-## projectile) can keep re-aiming exactly as long as the body is still allowed to turn, and
-## freeze on the same frame it does. Without a shared commit point the fired direction and the
-## visible heading disagree, which reads as the projectile curving.
 func _on_windup_tick(_committed: bool) -> void:
 	pass
 
 
-## Drives the authored forward step of an attack during its active frames. Enemies stand still
-## by default; `lunge_distance` on an attack entry buys a committed dash along the heading the
-## swing was locked to, which is dodgeable precisely because it cannot be re-aimed.
 func _apply_attack_lunge() -> void:
 	velocity.x = 0.0
 	velocity.z = 0.0
 	var distance := float(_current_attack_data.get("lunge_distance", 0.0))
 	if distance <= 0.0:
 		return
-	# C-71: the lunge would have charged directly away from the target. `lunge_distance` is
-	# authored on zero enemies today, so this was never live — it would have become live the first
-	# time anyone used it.
 	var forward := CombatFacing.forward_of(self)
 	forward.y = 0.0
 	if forward.length_squared() < 0.01:
@@ -1813,9 +1680,6 @@ func _on_hurt(info: DamageInfo) -> void:
 		_last_hit_direction = info.direction
 	if is_dead():
 		return
-	# A flinch during a committed swing is a lie: the hitbox stays open and the state machine
-	# keeps running, but the player reads the animation as a stagger and steps in. Only poise
-	# breaks (which route through apply_stagger) may interrupt a swing.
 	if _state in [State.WINDUP, State.ATTACK]:
 		return
 	if _animator and _animator.is_bound():

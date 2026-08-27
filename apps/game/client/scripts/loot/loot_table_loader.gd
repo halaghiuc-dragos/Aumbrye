@@ -1,7 +1,6 @@
 class_name LootTableLoader
 extends RefCounted
 
-## Loads per-biome loot tables from content/loot/tables/<biome_id>.json (LOO-03).
 
 const TABLES_DIR := "content/loot/tables"
 

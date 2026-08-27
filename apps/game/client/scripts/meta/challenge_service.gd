@@ -1,7 +1,6 @@
 class_name ChallengeService
 extends RefCounted
 
-## Weekly seeded challenge — one shared seed and rule set per ISO week, derived from content data.
 
 const CATALOG_PATH := "content/challenges/weekly.json"
 const META_KEY := "weekly_challenge"
@@ -47,7 +46,6 @@ static func current_week_index() -> int:
 	return week_index_for(int(Time.get_unix_time_from_system()))
 
 
-## Every client derives the same run seed from the week alone — no clock skew, no server call.
 static func week_seed(week_index: int) -> int:
 	var value := (seed_salt() + (week_index + 1) * SEED_STEP) & SEED_MASK
 	value = (value ^ (value >> 13)) & SEED_MASK
@@ -103,7 +101,6 @@ static func score_for(challenge: Dictionary, results: Dictionary) -> int:
 			return int(results.get("time_seconds", 0.0))
 
 
-## Lower is better for a timed challenge; higher is better for depth and kills.
 static func lower_is_better(challenge: Dictionary) -> bool:
 	return scoring_of(challenge) == "time"
 
@@ -116,7 +113,6 @@ static func get_local_best(week_index: int) -> Dictionary:
 	return record if record is Dictionary else {}
 
 
-## Records a finished challenge run and reports whether it beat the stored local best.
 static func record_result(challenge: Dictionary, results: Dictionary) -> Dictionary:
 	if challenge.is_empty():
 		return {}
@@ -183,7 +179,6 @@ static func format_remaining(seconds: int) -> String:
 	return "%dh %dm left" % [hours, minutes]
 
 
-## Keeps only the weeks still worth showing, so the meta blob cannot grow without bound.
 static func _trim(table: Dictionary, current_index: int) -> void:
 	var cutoff := current_index - 8
 	for key in table.keys():

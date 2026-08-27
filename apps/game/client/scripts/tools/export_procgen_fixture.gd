@@ -1,17 +1,5 @@
 extends Node
 
-## Regenerates content/fixtures/dungeon_definition_v2_gdscript.json from the GDScript generator.
-##
-## This fixture is the reference sample of the v2 dungeon-definition shape, used by content
-## validation and cross-stack parity checks. It used to be written as a side effect of running the
-## procgen validation suite, which meant a test mutated tracked content: running the suite dirtied
-## the working tree, and refreshing the fixture required running tests.
-##
-## Runs as a scene rather than via --script because the generator reaches autoload singletons,
-## which are not registered during the bare --script compile pass.
-##
-## Usage:
-##   godot --headless --path apps/game/client res://scenes/debug/export_procgen_fixture.tscn
 
 const DungeonProcgenScript := preload("res://scripts/dungeon/procgen/dungeon_procgen.gd")
 

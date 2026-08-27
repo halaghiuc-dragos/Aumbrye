@@ -1,13 +1,5 @@
 extends Node
 
-## Walks the player and reports whether the camera follows it rigidly.
-##
-## Pass `-- --no-snap` to force the gameplay pixel snap off for a comparison run.
-##
-## Two symptoms to separate: a camera that does not track the player at all, and one that tracks but
-## jitters. Sampling the camera's world position against the player's each frame catches both — the
-## first as a gap that grows without bound, the second as a per-frame step much larger than the
-## pixel-snap grid.
 
 const HUB_SCENE := "res://scenes/hub/hub.tscn"
 
@@ -30,13 +22,6 @@ func _ready() -> void:
 			PixelDioramaSettings.gameplay_camera_snap_enabled = false
 	print("snap enabled: %s" % str(PixelDioramaSettings.gameplay_camera_snap_enabled))
 
-	# Measured as the camera-to-player *offset*, not the camera's absolute step.
-	#
-	# Absolute steps are meaningless here: this probe advances the player from `_process` while the
-	# spring arm follows in `_physics_process`, so the camera legitimately catches up in bursts and
-	# the step size reports the probe's frame pacing rather than the camera's stability. A rigid
-	# follow keeps the offset constant whatever the pacing, and a camera that fights its own spring
-	# arm does not.
 	var offsets: Array[Vector3] = []
 	var moved := 0.0
 	for step in 150:
@@ -63,8 +48,6 @@ func _ready() -> void:
 	print("player moved %.2f m over %d sampled frames" % [moved, offsets.size()])
 	print("camera offset from player: mean %s" % str(mean))
 	print("worst deviation from that offset: %.4f m" % worst)
-	# The pixel snap quantises the camera onto a ~0.03 m grid, so a rigid follow wobbles by about
-	# one grid step and no more.
 	var rigid := worst < 0.08
 	print("RESULT: follow is %s" % ("rigid" if rigid else "UNSTABLE"))
 	get_tree().quit(0 if rigid else 1)

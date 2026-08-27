@@ -1,14 +1,9 @@
 extends Control
 
-## Talent tree UI — spend points on level up (PROG-4.2 client).
 
 const GameUISkinScript := preload("res://scripts/ui/game_ui_skin.gd")
 const MenuShellScript := preload("res://scripts/ui/menu_shell.gd")
 
-## The one stat whose meaning changes with where it came from: gear rolls `physicalDamage` as flat
-## points and Equipment formats it that way, but a talent grants it as a multiplier, so the shared
-## formatter renders a 3% node as "+0 Physical Damage". The other damage keys in the tree
-## (arcane, fire, frost, poison, bonus) really are flat there, so only this one is special.
 const MULTIPLIER_DAMAGE_STAT := "physicalDamage"
 
 signal closed
@@ -52,8 +47,6 @@ func is_open() -> bool:
 
 
 func open_talents() -> void:
-	# Raised on open, so the panel the player just asked for is the one on top: these are all
-	# siblings on one CanvasLayer and draw in child order, which is otherwise fixed at build time.
 	move_to_front()
 	_open = true
 	visible = true
@@ -66,8 +59,6 @@ func close_talents() -> void:
 	_open = false
 	visible = false
 	closed.emit()
-	# Through PlayerControls: closing this panel must not grab the mouse back if another one is
-	# still open behind it.
 	PlayerControls.capture_mouse_if_allowed()
 
 
@@ -116,10 +107,6 @@ func _refresh() -> void:
 		var node := _nodes[i]
 		var rank := ProgressionService.get_talent_rank(node.get("id", ""))
 		var max_rank: int = int(node.get("maxRank", 1))
-		# Keystones are the capstone of their branch — ten of them, one per tree, each a rule change
-		# rather than another percentage. The data has flagged them since the tree was authored and
-		# nothing ever read the flag, so the node that redefines how your build plays looked exactly
-		# like a +2% node in a flat alphabetical list.
 		var is_keystone := bool(node.get("keystone", false))
 		var label := (
 			"[%s] %s (%d/%d)"
@@ -149,11 +136,6 @@ func _update_detail() -> void:
 			continue
 		var stat: String = str(effect.get("stat", ""))
 		var value: float = float(effect.get("valuePerRank", 0.0))
-		# Equipment already knows every stat's display name and whether it reads as a flat number,
-		# a percentage or a fraction, and it carries the sign itself. The local copy of that
-		# knowledge printed the raw key ("physicalDamage +3%"), fell back to a bare float for
-		# anything missing from its hardcoded list, and would have produced "+-3%" for a talent
-		# with a downside.
 		var line := ""
 		if stat == MULTIPLIER_DAMAGE_STAT:
 			line = "%+.0f%% %s" % [value * 100.0, Equipment.stat_display_name(stat)]

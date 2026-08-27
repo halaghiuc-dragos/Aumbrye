@@ -15,6 +15,9 @@ render_mode unshaded, cull_disabled, depth_draw_never, depth_test_disabled, fog_
 
 uniform sampler2D depth_tex : hint_depth_texture, filter_nearest;
 uniform sampler2D normal_tex : hint_normal_roughness_texture, filter_nearest;
+// What is already drawn underneath, so the contour can take some of its colour rather than always
+// being a hole punched to black.
+uniform sampler2D screen_tex : hint_screen_texture, filter_nearest;
 
 uniform vec4 outline_color : source_color = vec4(0.03, 0.025, 0.05, 1.0);
 uniform float outline_strength : hint_range(0.0, 1.0) = 0.85;
@@ -36,6 +39,22 @@ uniform float interior_scale : hint_range(0.0, 1.0) = 0.45;
 // that crawls as the camera moves; the palette carries distance instead.
 uniform float fade_start : hint_range(1.0, 200.0) = 26.0;
 uniform float fade_end : hint_range(1.0, 300.0) = 46.0;
+
+// The contour is not one colour.
+//
+// A single flat near-black line around every form is what an inked cel looks like, and it is the
+// one thing in this render that ignored the atmosphere everything else obeys: a wall thirty metres
+// back sat behind fog, aerial perspective and a graded palette, and then had a pure #080608 line
+// drawn on top of it. That line is the nearest thing on screen and it flattens the depth the rest
+// of the pipeline works to build.
+//
+// Two fixes, both cheap. The contour tints toward the distance colour as it recedes, so far
+// silhouettes are drawn in the haze rather than through it. And where a surface is bright the
+// contour lightens toward its own colour instead of punching to black, which is what stops a
+// torch-lit edge being outlined in soot.
+uniform vec4 outline_far_color : source_color = vec4(0.31, 0.29, 0.42, 1.0);
+uniform float outline_depth_tint : hint_range(0.0, 1.0) = 0.8;
+uniform float outline_light_relief : hint_range(0.0, 1.0) = 0.45;
 
 void vertex() {
 	// Clip-space cover, so the quad fills the screen whatever the camera is doing and cannot be
@@ -94,6 +113,13 @@ void fragment() {
 	edge *= step(0.0000001, raw) * step(raw, 0.9999999);
 	edge *= 1.0 - smoothstep(fade_start, fade_end, centre_depth);
 
-	ALBEDO = outline_color.rgb;
+	// Recede the contour into the distance colour, then let a bright surface bleach it.
+	float distance_mix = smoothstep(2.0, fade_end, centre_depth) * outline_depth_tint;
+	vec3 line = mix(outline_color.rgb, outline_far_color.rgb, distance_mix);
+	vec3 behind = texture(screen_tex, uv).rgb;
+	float brightness = dot(behind, vec3(0.2126, 0.7152, 0.0722));
+	line = mix(line, mix(line, behind, 0.65), smoothstep(0.35, 0.9, brightness) * outline_light_relief);
+
+	ALBEDO = line;
 	ALPHA = edge * outline_strength;
 }

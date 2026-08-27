@@ -1,8 +1,6 @@
 extends Node
 class_name Guard
 
-## Hold-to-block guard with a parry window at the start of each guard.
-## Bindings: keyboard Q, gamepad LT (DEC-G10 — do not rebind without user request).
 
 const CombatStatModifiersScript := preload("res://scripts/combat/combat_stat_modifiers.gd")
 
@@ -19,16 +17,8 @@ const PARRY_STAGGER_ENEMY := 1.2
 const RIPOSTE_WINDOW := 1.4
 const RIPOSTE_DAMAGE_MULT := 2.0
 const DEFAULT_ELEMENTAL_REDUCTION := 0.35
-## C-56: this was `0.0`, and `modify_incoming_hit`'s guard-break branch is
-## `if _guard_break_poise > 0.0 and ...` — so it could never fire without a shield. 17 shields in
-## `content/items/equipment/` author `guardBreakPoise` (34 buckler / 52 kite / 78 tower) and
-## nothing else does, which meant a player with **no shield** was immune to poise-based guard break
-## and could only be broken by running out of stamina. Equipping a shield *added* the only mechanic
-## that could shatter your guard, which is backwards, and it left the "unblockable" telegraph with
-## nothing to key off for most builds.
-##
-## 26 sits below the weakest shield and above the median enemy attack (21), so a bare guard holds
-## against ordinary swings and breaks to the heavy ones — 115 of the 311 authored enemy attacks.
+## Poise damage at or above this breaks a shieldless guard, so `castle_enemy_base` derives an
+## attack's `unblockable` class from it. Changing this re-colours telegraphs across the bestiary.
 const DEFAULT_GUARD_BREAK_POISE := 26.0
 
 enum GuardState { IDLE, GUARDING, GUARD_BROKEN }
@@ -77,7 +67,6 @@ func _physics_process(delta: float) -> void:
 			guard_broken_state = false
 			_reset_guard_state()
 		else:
-			# C-05: hold GUARD_BROKEN for the duration instead of resetting to IDLE every frame.
 			_state = GuardState.GUARD_BROKEN
 			is_blocking = false
 			parry_window_active = false
@@ -98,10 +87,6 @@ func _physics_process(delta: float) -> void:
 			is_blocking = false
 			parry_window_active = false
 			is_guard_active = false
-			# C-03: this also required `_parry_cooldown_timer <= 0.0`, so releasing block locked the
-			# player out of *blocking* for 0.4 s with no UI indication — an invisible punish for
-			# using a defensive option. The cooldown is a parry-read cooldown; it now suppresses
-			# only the parry window (see `_enter_guard`), and the guard itself always rises.
 			if (
 				PlayerInput.just_pressed(&"block")
 				and not guard_broken_state
@@ -116,10 +101,6 @@ func _physics_process(delta: float) -> void:
 			if not PlayerInput.pressed(&"block"):
 				_end_guard()
 		GuardState.GUARD_BROKEN:
-			# C-05: `_trigger_guard_break` used to set this state and then call
-			# `_reset_guard_state()` on the very next line, which put it straight back to IDLE —
-			# so this branch was unreachable and the enum carried a state the machine could never
-			# be in. The break now holds the state for as long as the stagger lasts.
 			is_blocking = false
 			parry_window_active = false
 			is_guard_active = false
@@ -128,16 +109,6 @@ func _physics_process(delta: float) -> void:
 
 
 func _enter_guard() -> void:
-	# The parry attempt is what costs stamina, and it used to be charged unconditionally — a
-	# press with too little stamina paid nothing, raised no guard, and gave no feedback at all,
-	# so the player could not tell the input from a dropped one. Now the guard still comes up
-	# (blocking without the parry read), and a failed parry attempt says so.
-	# C-04: the parry cost used to be charged on every guard raise, so blocking — a different
-	# decision from parrying — was billed 10 stamina each time, and a failed parry cost exactly as
-	# much as a successful one, making the parry strictly better than the block at low stamina.
-	# The cost is now taken in `try_parry_attack`, when the window actually catches something.
-	#
-	# C-03: the cooldown suppresses the parry window rather than the guard.
 	var parry_ready := (
 		(_stamina == null or _stamina.has(PARRY_STAMINA_COST)) and _parry_cooldown_timer <= 0.0
 	)
@@ -202,8 +173,6 @@ func _reduction_for(damage_type: String) -> float:
 func modify_incoming_hit(info: DamageInfo, arc: DamageInfo.HitArc = DamageInfo.HitArc.FRONT) -> Dictionary:
 	if _stagger_timer > 0.0 or not is_guard_active:
 		return {"amount": info.amount, "poise": info.poise_damage}
-	# DamageInfo.classify_arc's FRONT bucket is ±60°, which is exactly BLOCK_ARC_DEGREES (120°)
-	# wide — so this single gate already enforces the authored shield cone.
 	if arc != DamageInfo.HitArc.FRONT:
 		return {"amount": info.amount, "poise": info.poise_damage}
 	if _guard_break_poise > 0.0 and info.poise_damage >= _guard_break_poise * _block_stability:
@@ -238,16 +207,12 @@ func try_parry_attack(
 ) -> bool:
 	if _state != GuardState.GUARDING or not parry_window_active:
 		return false
-	# A parry is a frontal read. The caller computes the arc and used to discard it here, so
-	# holding block and mashing turned an attacker standing behind you into a free riposte.
-	# The positional check backs it up for sources whose arc could not be classified.
 	if arc != DamageInfo.HitArc.FRONT:
 		return false
 	if not _is_within_block_arc(attacker):
 		return false
 	if _stamina and _stamina.is_exhausted():
 		return false
-	# C-04: the parry is what costs stamina, and this is where it lands.
 	if _stamina and not _stamina.consume(PARRY_STAMINA_COST):
 		return false
 	_stagger_attacker(attacker)
@@ -280,22 +245,10 @@ func _stagger_attacker(attacker: Node) -> void:
 		attacker.call("disable")
 
 
-func get_riposte_damage_multiplier() -> float:
-	return RIPOSTE_DAMAGE_MULT if riposte_active else 1.0
-
-
 func consume_riposte() -> void:
 	riposte_active = false
 	parried_target = null
 	_riposte_timer = 0.0
-
-
-func is_riposte_target(node: Node) -> bool:
-	return riposte_active and node != null and node == parried_target
-
-
-func get_parry_stagger_duration() -> float:
-	return PARRY_STAGGER_ENEMY
 
 
 func locks_movement() -> bool:
@@ -333,24 +286,14 @@ func get_block_time_remaining() -> float:
 		return 9.99
 	return clampf(_stamina.current / _last_block_cost, 0.0, 9.99)
 
-
-func _get_block_facing() -> Vector3:
-	if _body.has_method("get_facing_direction"):
-		return _body.call("get_facing_direction")
-	return CombatFacing.forward_of(_body)
-
-
 func _is_frontal_hit(direction: Vector3) -> bool:
 	if direction.length_squared() < 0.01:
 		return true
-	var facing := _get_block_facing()
+	var facing := CombatFacing.aim_forward_of(_body)
 	var angle := rad_to_deg(facing.angle_to(-direction.normalized()))
 	return angle <= BLOCK_ARC_DEGREES * 0.5
 
 
-## Whether `attacker` sits inside the shield's authored cone. Positional rather than
-## direction-based so it is correct for hits whose travel vector says little about where the
-## attacker is standing (sweeps, arcs, area attacks).
 func _is_within_block_arc(attacker: Node) -> bool:
 	if _body == null:
 		return true
@@ -361,7 +304,7 @@ func _is_within_block_arc(attacker: Node) -> bool:
 	to_attacker.y = 0.0
 	if to_attacker.length_squared() < 0.01:
 		return true
-	var facing := _get_block_facing()
+	var facing := CombatFacing.aim_forward_of(_body)
 	facing.y = 0.0
 	if facing.length_squared() < 0.01:
 		return true
@@ -376,9 +319,6 @@ func _trigger_guard_break() -> void:
 	is_blocking = false
 	parry_window_active = false
 	is_guard_active = false
-	# C-05: the stagger was 0.8 s while the poise break it also triggers runs 1.2 s and carries a
-	# 1.35x damage multiplier — so a guard break left the player takeable-for-extra-damage for
-	# 0.4 s after they had recovered. The stagger now covers the poise break it causes.
 	_stagger_timer = maxf(GUARD_BREAK_STAGGER, _poise_break_duration())
 	if _poise:
 		_poise.take_poise_damage(_poise.max_poise)
@@ -386,8 +326,6 @@ func _trigger_guard_break() -> void:
 	block_state_changed.emit(false)
 
 
-## The poise break `_trigger_guard_break` inflicts lasts `Poise.break_duration`; if that node is
-## missing the authored guard-break stagger stands on its own.
 func _poise_break_duration() -> float:
 	if _poise and "break_duration" in _poise:
 		return maxf(0.0, float(_poise.break_duration))

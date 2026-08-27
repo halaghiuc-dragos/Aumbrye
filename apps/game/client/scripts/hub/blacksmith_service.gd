@@ -1,7 +1,6 @@
 extends RefCounted
 class_name BlacksmithService
 
-## Upgrade and repair logic for hub blacksmith (HUB-4.2).
 
 const DEFAULT_MAX_DURABILITY := 100
 const DEATH_DURABILITY_LOSS := 15
@@ -9,15 +8,6 @@ const UPGRADEABLE_TYPES: Array[String] = ["weapon", "armor", "accessory"]
 const RarityRegistryScript := preload("res://scripts/loot/rarity_registry.gd")
 
 
-## C-237: durability is lost only by *equipped* gear (`InventoryService.apply_death_durability_loss`
-## walks `inventory.equipped`), while every service entry point below indexed `inventory.slots` —
-## and `equip_from_index` removes an item from `slots` when it is equipped. The set of damaged items
-## and the set the blacksmith could act on were therefore disjoint: after five deaths the repair
-## list contained none of the player's damaged gear.
-##
-## `resolve_target()` accepts either an int grid index or an equipment slot name ("weapon",
-## "chest", …) and returns the live slot dictionary in both cases, so repairs and upgrades mutate
-## the real instance either way.
 static func resolve_target(target: Variant) -> Dictionary:
 	var inv := InventoryService.inventory
 	if target is String:
@@ -147,11 +137,6 @@ static func can_unlock(item_id: String) -> bool:
 	return CharacterService.can_afford(cost)
 
 
-## BUG-43: validate space before spending, and only record the recipe as owned after the item
-## has actually been granted. The old order spent gold, granted the permanent recipe unlock, and
-## only then checked inventory space — so a full bag on a failed unlock refunded the gold (with
-## the BUG-42 goldFind bonus stacked on top) but kept the recipe, leaving is_unlocked() true for
-## an item the player never received and can no longer buy through this path.
 static func unlock_item(item_id: String) -> Dictionary:
 	if not can_unlock(item_id):
 		return {"ok": false, "error": "cannot unlock"}
@@ -169,13 +154,6 @@ static func unlock_item(item_id: String) -> Dictionary:
 	if AchievementService:
 		AchievementService.notify("blacksmith_craft")
 	return {"ok": true, "recipeId": recipe_id}
-
-
-static func can_unlock_recipe(recipe_id: String) -> bool:
-	var recipe := RecipeCatalog.get_unlock_recipe(recipe_id)
-	if recipe.is_empty():
-		return false
-	return can_unlock(str(recipe.get("itemId", "")))
 
 
 static func unlock_recipe(recipe_id: String) -> Dictionary:

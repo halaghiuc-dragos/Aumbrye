@@ -1,8 +1,6 @@
 class_name RoomContentValidator
 extends RefCounted
 
-## Simulates traversal from start to boss with earned keys/flags.
-
 
 static func validate_definition(definition: Dictionary) -> Dictionary:
 	var locks: Array = definition.get("locks", [])
@@ -35,15 +33,7 @@ static func validate_definition(definition: Dictionary) -> Dictionary:
 			continue
 		var to_room := str(lock.get("to", ""))
 		locks_by_to[to_room] = str(lock.get("keyId", ""))
-		# C-153: `keysRequired` was never read here, so a two-key door read as passable with one.
 		required_by_to[to_room] = maxi(1, int(lock.get("keysRequired", 1)))
-	# C-153: keys are counted, not merely present — a lock consumes what it needs, so two locks
-	# sharing a key id cannot both open on the strength of one pickup.
-	#
-	# The single-pass BFS this replaces also had a subtler hole: it skipped a locked neighbour when
-	# it did not yet hold the key and never revisited it, so a key found *later* in the walk could
-	# not open a door the traversal had already passed. Repeating the sweep until it stops finding
-	# new keys makes reachability a fixpoint rather than an artefact of visit order.
 	var keys := {}
 	var visited := {}
 	while true:
@@ -118,8 +108,6 @@ static func validate(
 	var path_semantic: Array[String] = []
 	for layout_id in path:
 		path_semantic.append(layout_to_semantic.get(layout_id, ""))
-	# C-137: every `puzzle_lever_gate` room-content entry must have a companion `puzzles` record, or
-	# the lever it spawns can never be solved and the gate it drives never opens.
 	var puzzle_rooms := {}
 	for puzzle in content.get("puzzles", []):
 		if puzzle is Dictionary:
@@ -136,10 +124,6 @@ static func validate(
 				"reason": "Puzzle content in room %s has no matching puzzles record" % puzzle_room
 			}
 	for lock in content.get("locks", []):
-		# C-132: the validator checked that the key room was reachable and off the critical path,
-		# and never that enough keys existed for what the door demands. That is exactly the
-		# content-integrity check that would have caught the sealed-doors run-blocker before it
-		# shipped, so it is asserted first.
 		var keys_required := maxi(1, int(lock.get("keysRequired", 1)))
 		var key_rooms: Array = lock.get("keyRoomIds", [lock.get("keyRoomId", "")])
 		var placed_keys := 0
@@ -165,7 +149,6 @@ static func validate(
 				break
 		if key_room == "" or to_room == "":
 			return {"ok": false, "reason": "Lock missing key or target room"}
-		# C-132: applied to every key layout the lock owns, not only the first.
 		var key_layouts: Array = lock.get("keyLayoutIds", [key_layout])
 		for candidate in key_layouts:
 			var layout := str(candidate)
@@ -177,9 +160,6 @@ static func validate(
 				return {"ok": false, "reason": "Key room uses reserved layout"}
 			if to_layout != "" and not RoomGraphPaths.is_on_branch_to(graph, layout, to_layout):
 				return {"ok": false, "reason": "Key room not on branch to locked door"}
-	# C-154: a `keys_on_path` dictionary used to be built here and read by nothing. The data it
-	# held is what a correct `_simulate_path()` needs, and that is where it is now gathered — as
-	# counts, along the walk, rather than as a set built up front.
 	if not _simulate_path(path_semantic, content, start_semantic, boss_semantic):
 		return {"ok": false, "reason": "Boss unreachable on critical path with earned keys"}
 	var collectible_check := _validate_collectibles(content, path_semantic)
@@ -192,7 +172,6 @@ static func validate(
 	return {"ok": true}
 
 
-## Pacing guarantees, checked after assignment has already tried to satisfy them.
 static func validate_pacing(
 	content: Dictionary, path_semantic: Array[String], config: RoomContentConfig
 ) -> Dictionary:
@@ -242,17 +221,6 @@ static func _simulate_path(
 		or path_semantic[path_semantic.size() - 1] != boss_semantic
 	):
 		return false
-	# C-152: this pre-seeded `available_keys` with **every key on the floor** before stepping
-	# anywhere, so the check below — the one thing this function exists to do — could never fail.
-	# A lock whose key sat behind that same lock validated cleanly. That is the root cause of C-132:
-	# the generator emitted an unsolvable floor and the solvability check said yes.
-	#
-	# C-153: and both simulations treated keys as set membership, so `keysRequired` — the count the
-	# generator emits and the door enforces — was never modelled at all: a two-key door read as
-	# passable with one.
-	#
-	# C-154: `validate()` built a `keys_on_path` dictionary that nothing read; counting keys as they
-	# are actually picked up along the walk is what that structure was for, and it lives here now.
 	var locks_by_to := {}
 	var required_by_to := {}
 	for lock in content.get("locks", []):
@@ -280,7 +248,6 @@ static func _simulate_path(
 			var needed: int = int(required_by_to.get(next_room, 1))
 			if int(held_keys.get(required_key, 0)) < needed:
 				return false
-			# The door consumes them, so a second lock cannot reuse the same key.
 			held_keys[required_key] = int(held_keys[required_key]) - needed
 	return true
 

@@ -1,7 +1,6 @@
 extends RefCounted
 class_name AffixRoller
 
-## Local affix roller — rarity weights, item-type pools, and tiered values.
 
 const PREFIXES_PATH := "content/affixes/prefixes.json"
 const SUFFIXES_PATH := "content/affixes/suffixes.json"
@@ -22,11 +21,6 @@ static func roll_instance(
 	var def := ItemCatalog.get_definition(item_id)
 	if def.is_empty():
 		return {}
-	# BUG-15: capture the effective seed *before* consuming any randomness.
-	# RandomNumberGenerator.seed reads the generator's current internal state, not the value it
-	# was seeded with — storing it after rolling (as this used to) recorded a value that does not
-	# reproduce the roll, so roll_identical(item_id, stored_seed) silently produced a different
-	# item than the one the player was shown.
 	var effective_seed := roll_seed if roll_seed >= 0 else (randi() & 0x7fffffff)
 	var rng := RandomNumberGenerator.new()
 	rng.seed = effective_seed
@@ -43,9 +37,6 @@ static func roll_instance(
 	var pool: Array = _build_affix_pool(item_type)
 	var affixes: Array = _pick_weighted_affixes(pool, affix_count, rarity, rng)
 	var instance := {
-		# BUG-14/BUG-18: instanceId is opaque and minted from a monotonic counter, never derived
-		# from the seed — two drops that happen to share a seed (or a save that re-mints on
-		# load) cannot collide.
 		"instanceId": GridInventory.mint_instance_id(item_id),
 		"itemId": item_id,
 		"quantity": 1,
@@ -82,13 +73,6 @@ static func get_affix_def(affix_id: String) -> Dictionary:
 		if affix.get("id", "") == affix_id:
 			return affix
 	return {}
-
-
-static func affix_display_name(affix_id: String) -> String:
-	var def := get_affix_def(affix_id)
-	if def.is_empty():
-		return affix_id
-	return str(def.get("displayName", affix_id))
 
 
 static func format_affix_line(affix: Dictionary) -> String:

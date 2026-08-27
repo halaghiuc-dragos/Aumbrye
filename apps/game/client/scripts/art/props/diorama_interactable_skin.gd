@@ -1,7 +1,6 @@
 extends RefCounted
 class_name DioramaInteractableSkin
 
-## Chunky pixel-diorama meshes for world interactables (chests, levers, portals, traps, pickups).
 
 const VISUAL_NAME := "DioramaVisual"
 
@@ -37,15 +36,54 @@ static func build_chest(
 	var theme := PixelStyle.theme_from_biome(biome_id)
 	var wall := PixelStyle.make_wall_material(theme)
 	var accent := PixelStyle.make_accent_material(theme)
-	_add_box(root, Vector3(1.2, 0.5, 0.9), wall, Vector3(0.0, 0.25, 0.0))
-	_add_box(root, Vector3(1.1, 0.22, 0.82), accent, Vector3(0.0, 0.61, 0.0))
-	_add_box(root, Vector3(0.18, 0.14, 0.08), accent, Vector3(0.0, 0.48, 0.46))
-	_add_box(root, Vector3(1.24, 0.08, 0.94), wall, Vector3(0.0, 0.08, 0.0))
+	var timber := PixelStyle.make_prop_material(theme, false)
+	var iron := PixelStyle.make_metal_material(Color(0.22, 0.21, 0.25), 0.34)
 	var glow := glow_color
 	if glow == Color(0, 0, 0, 0):
 		glow = PixelStyle.get_palette_color(theme, PixelStyle.PaletteSlot.EMISSIVE)
-	_add_orb(root, glow, Vector3(0.0, 0.92, 0.0), 0.14)
+
+	for sx in [-1.0, 1.0]:
+		for sz in [-1.0, 1.0]:
+			_add_box(root, Vector3(0.16, 0.12, 0.16), iron, Vector3(sx * 0.48, 0.06, sz * 0.33))
+	_add_box(root, Vector3(1.18, 0.46, 0.86), timber, Vector3(0.0, 0.35, 0.0))
+	_add_box(root, Vector3(1.22, 0.08, 0.9), iron, Vector3(0.0, 0.22, 0.0))
+	for sx in [-1.0, 1.0]:
+		_add_box(root, Vector3(0.09, 0.5, 0.9), iron, Vector3(sx * 0.42, 0.35, 0.0))
+	_add_box(root, Vector3(1.2, 0.06, 0.9), iron, Vector3(0.0, 0.6, 0.0))
+	_add_box(root, Vector3(0.3, 0.26, 0.07), iron, Vector3(0.0, 0.46, 0.45))
+	_add_box(root, Vector3(0.07, 0.09, 0.1), wall, Vector3(0.0, 0.44, 0.47))
+	for sx in [-1.0, 1.0]:
+		_add_box(root, Vector3(0.2, 0.12, 0.14), iron, Vector3(sx * 0.28, 0.6, -0.44))
+
+	var lid := Node3D.new()
+	lid.name = LID_NAME
+	lid.position = Vector3(0.0, 0.6, -0.44)
+	root.add_child(lid)
+	_add_box(lid, Vector3(1.2, 0.16, 0.88), timber, Vector3(0.0, 0.08, 0.44))
+	_add_box(lid, Vector3(1.04, 0.14, 0.72), timber, Vector3(0.0, 0.21, 0.44))
+	_add_box(lid, Vector3(0.78, 0.1, 0.5), accent, Vector3(0.0, 0.31, 0.44))
+	for sx in [-1.0, 1.0]:
+		_add_box(lid, Vector3(0.09, 0.34, 0.92), iron, Vector3(sx * 0.42, 0.14, 0.44))
+	_add_box(lid, Vector3(0.16, 0.22, 0.09), accent, Vector3(0.0, 0.04, 0.9))
+
+	_add_box(
+		root,
+		Vector3(1.08, 0.03, 0.78),
+		PixelStyle.make_material(glow, glow),
+		Vector3(0.0, 0.57, 0.0)
+	)
+	_add_orb(root, glow, Vector3(0.0, 1.06, 0.0), 0.09)
 	return root
+
+
+const LID_NAME := "Lid"
+const LID_OPEN_ANGLE := -1.95
+
+
+static func find_chest_lid(visual: Node3D) -> Node3D:
+	if visual == null:
+		return null
+	return visual.get_node_or_null(LID_NAME) as Node3D
 
 
 static func build_waves_chest(parent: Node3D, rarity_index: int) -> Node3D:
@@ -196,27 +234,6 @@ static func build_falling_block(parent: Node3D, biome_id: String) -> Node3D:
 	var accent := PixelStyle.make_accent_material(theme)
 	_add_box(root, Vector3(1.9, 1.45, 1.9), wall, Vector3.ZERO)
 	_add_box(root, Vector3(1.95, 0.12, 1.95), accent, Vector3(0.0, 0.68, 0.0))
-	return root
-
-
-static func build_poison_pool(parent: Node3D, biome_id: String) -> Node3D:
-	_remove_visual(parent)
-	var root := _make_root(parent)
-	var theme := PixelStyle.theme_from_biome(biome_id)
-	var wall := PixelStyle.make_wall_material(theme)
-	var rim := PixelStyle.make_prop_material(theme)
-	var pool := PixelStyle.make_glow_material(
-		Color(0.25, 0.65, 0.18), Color(0.14, 0.38, 0.11), 0.9, 1.4
-	)
-	_add_box(root, Vector3(4.1, 0.12, 4.1), rim, Vector3(0.0, 0.02, 0.0))
-	_add_box(root, Vector3(3.6, 0.06, 3.6), pool, Vector3(0.0, 0.08, 0.0))
-	for corner in [
-		Vector3(-1.85, 0.08, -1.85),
-		Vector3(1.85, 0.08, -1.85),
-		Vector3(-1.85, 0.08, 1.85),
-		Vector3(1.85, 0.08, 1.85)
-	]:
-		_add_box(root, Vector3(0.25, 0.16, 0.25), wall, corner)
 	return root
 
 

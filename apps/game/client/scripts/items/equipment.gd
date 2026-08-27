@@ -1,7 +1,6 @@
 extends RefCounted
 class_name Equipment
 
-## Equipment slot helpers and stat aggregation (LOOT-4.2).
 
 const SLOT_ORDER: Array[String] = [
 	"helmet",
@@ -132,17 +131,6 @@ const UPGRADE_PATHS: Dictionary = {
 	},
 }
 
-## C-245: every `rate` used to be above 1.0, so every infusion was a strict upgrade — more damage
-## *and* a resistance stat, for a gold-and-materials cost, with no trade anywhere. That made the
-## decision "infuse everything, always", and arcane/lightning (1.06x) strictly dominated
-## fire/frost/poison (1.0525x). The mechanic being modelled works by *splitting* damage: you give up
-## raw output for elemental coverage.
-##
-## Rates are now below 1.0, so converting costs raw damage — 35% converted at 0.88 is a ~4.2% output
-## loss, 30% at 0.90 a ~3.0% loss. What you buy with it is real now that C-245's second half is
-## fixed and the converted type actually reaches `Hurtbox._apply_resistances`: against an enemy that
-## resists physical and not fire, a fire infusion is a large gain; against one that resists fire it
-## is a loss. That is the decision the system was built for.
 const INFUSIONS: Dictionary = {
 	"fire":
 	{
@@ -239,30 +227,12 @@ static func stats_for_instance(
 		fake[slot] = instance
 	return aggregate_stats(fake, affix_resolver)
 
-
-static func compare_stats(
-	current: Dictionary, candidate: Dictionary, affix_resolver: Callable = Callable()
-) -> Dictionary:
-	var base := aggregate_stats(current, affix_resolver)
-	var slot := slot_for_item_def(ItemCatalog.get_definition(candidate.get("itemId", "")))
-	var modified := current.duplicate(true)
-	if slot != "":
-		modified[slot] = candidate
-	var with_item := aggregate_stats(modified, affix_resolver)
-	var delta: Dictionary = {}
-	for stat in STAT_KEYS:
-		delta[stat] = with_item.get(stat, 0.0) - base.get(stat, 0.0)
-	return delta
-
-
 static func stat_display_name(stat: String) -> String:
 	var entry: Dictionary = STAT_DISPLAY.get(stat, {})
 	var fallback: String = str(entry.get("label", stat.capitalize()))
 	var key: String = str(entry.get("key", ""))
 	if key == "":
 		return fallback
-	# `translate` returns a StringName; the fallback is a String, and a ternary whose arms are
-	# different types is a warning and a Variant at the call site.
 	var translated := String(TranslationServer.translate(key))
 	return fallback if translated == key else translated
 
@@ -288,21 +258,12 @@ static func format_stat_line(stat: String, value: float) -> String:
 		return ""
 	return "%s %s" % [format_stat_value(stat, value), stat_display_name(stat)]
 
-
-static func format_delta_line(stat: String, delta: float) -> String:
-	if is_zero_approx(delta):
-		return ""
-	return "%s %s" % [format_stat_value(stat, delta), stat_display_name(stat)]
-
-
 static func upgrade_path_label(path: String) -> String:
 	var entry: Dictionary = UPGRADE_PATHS.get(normalize_upgrade_path(path), {})
 	var fallback: String = str(entry.get("label", "Standard"))
 	var key: String = str(entry.get("key", ""))
 	if key == "":
 		return fallback
-	# `translate` returns a StringName; the fallback is a String, and a ternary whose arms are
-	# different types is a warning and a Variant at the call site.
 	var translated := String(TranslationServer.translate(key))
 	return fallback if translated == key else translated
 
@@ -313,8 +274,6 @@ static func infusion_label(infusion: String) -> String:
 		return ""
 	var fallback: String = str(entry.get("label", infusion.capitalize()))
 	var key: String = str(entry.get("key", ""))
-	# `translate` returns a StringName; the fallback is a String, and a ternary whose arms are
-	# different types is a warning and a Variant at the call site.
 	var translated := String(TranslationServer.translate(key))
 	return fallback if translated == key else translated
 

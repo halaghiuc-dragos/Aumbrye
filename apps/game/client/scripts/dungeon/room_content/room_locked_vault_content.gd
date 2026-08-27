@@ -9,10 +9,6 @@ var _lock_flag_id := ""
 var _key_label := "Dungeon Key"
 var _collected := false
 
-## C-139: interaction used to be gated on `_label.visible` — presentation state standing in for
-## interaction state — so anything that hid the label made the key uncollectable and its lock
-## permanently unopenable. Every sibling in this directory keeps an explicit proximity flag; this
-## one now does too.
 var _near_player := false
 var _interact_area: Area3D
 var _label: Label3D
@@ -81,8 +77,6 @@ func _on_body_entered(body: Node3D) -> void:
 	if _collected:
 		return
 	_label.visible = true
-	# C-227's family: the prompt follows the live binding and the active device rather than
-	# hardcoding "E".
 	_label.text = "%s — %s" % [
 		InputGlyphService.get_action_prompt(&"interact"), _key_label
 	]
@@ -108,10 +102,6 @@ func _unhandled_input(event: InputEvent) -> void:
 	get_viewport().set_input_as_handled()
 
 
-## C-134: `WorldState` is an autoload, so its signal outlives every floor. Godot does clean up the
-## connection when this node is freed, so this was never a leak in practice — but floor teardown
-## then depends entirely on node freeing being complete and ordered, and C-86 showed how fragile
-## that assumption was. One explicit disconnect makes it independent of teardown order.
 func _exit_tree() -> void:
 	if _lock_flag_id != "" and WorldState.namespace_changed.is_connected(_on_namespace_changed):
 		WorldState.namespace_changed.disconnect(_on_namespace_changed)

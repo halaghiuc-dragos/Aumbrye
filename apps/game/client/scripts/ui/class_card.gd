@@ -1,18 +1,10 @@
 extends Button
 class_name ClassCard
 
-## Focusable class selection card: portrait, name and role.
-##
-## The two-letter stat strip — `DM`, `PS`, `MP` and the rest — is gone. It asked the player to learn
-## an abbreviation for every stat before they could read a card, and the same numbers are already on
-## the All Classes comparison table below the picker, spelled out in full and side by side, which is
-## where a comparison belongs.
 
 const GameUISkinScript := preload("res://scripts/ui/game_ui_skin.gd")
 const ClassIconAtlasScript := preload("res://scripts/ui/class_icon_atlas.gd")
 
-## Two strengths and one weakness is what fits a card at this width without clipping.
-## One pip per rating point away from standard, so the strip tops out where the rating scale does.
 
 var class_id: String = ""
 var _selected_mark: TextureRect
@@ -25,17 +17,10 @@ var _built := false
 func _ready() -> void:
 	toggle_mode = true
 	focus_mode = Control.FOCUS_ALL
-	# Seven of these have to fit the class column without the last one falling under the fold.
-	# 78 was a few pixels over: the column got a scroll bar that scrolled almost nothing, which is
-	# worse than no bar at all because it looks like there is more roster below. Six pixels off each
-	# card is 42 off the stack, and the portrait comes down with it so the card keeps its padding.
 	custom_minimum_size = Vector2(0, 72)
 	_build_ui()
 
 
-## Holds direct references to the widgets rather than looking them up by name. The nodes live
-## inside the card's layout row, so the previous single-segment paths never resolved and every card
-## rendered without its portrait, name or role.
 func setup(class_def: Dictionary) -> void:
 	_build_ui()
 	class_id = str(class_def.get("id", ""))
@@ -62,9 +47,6 @@ func _build_ui() -> void:
 	if _built:
 		return
 	_built = true
-	# A Button is not a container, so a child anchored to the full rect sits flush against the
-	# card's border and the class name reads as if it were printed on the frame. The margin gives
-	# the row the same inset the button's own text would have had.
 	var inset := MarginContainer.new()
 	inset.set_anchors_preset(Control.PRESET_FULL_RECT)
 	inset.mouse_filter = Control.MOUSE_FILTER_IGNORE

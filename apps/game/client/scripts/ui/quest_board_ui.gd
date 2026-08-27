@@ -1,6 +1,5 @@
 extends Control
 
-## Optional quest board — accept quests without blocking portals (QUEST-4.1).
 
 const GameUISkinScript := preload("res://scripts/ui/game_ui_skin.gd")
 
@@ -24,8 +23,6 @@ func _ready() -> void:
 	_accept_button.pressed.connect(_on_accept_pressed)
 	_close_button.pressed.connect(close)
 	_available_list.item_selected.connect(_on_available_selected)
-	# Bound method rather than a lambda: QuestService is an autoload and outlives this menu, and a
-	# lambda connection is not auto-disconnected when the capturing node is freed.
 	QuestService.quest_updated.connect(_on_quest_updated)
 	if CharacterService:
 		CharacterService.quests_changed.connect(_refresh)
@@ -51,8 +48,6 @@ func open() -> void:
 func close() -> void:
 	visible = false
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
-	# Through PlayerControls: closing this panel must not grab the mouse back if another one is
-	# still open behind it.
 	PlayerControls.capture_mouse_if_allowed()
 	closed.emit()
 

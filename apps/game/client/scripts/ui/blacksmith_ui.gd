@@ -1,6 +1,5 @@
 extends Control
 
-## Blacksmith upgrade/repair UI (HUB-4.2).
 
 const RarityRegistryScript := preload("res://scripts/loot/rarity_registry.gd")
 const GameUISkinScript := preload("res://scripts/ui/game_ui_skin.gd")
@@ -17,7 +16,7 @@ signal closed
 @onready var _repair_button: Button = $Panel/Margin/VBox/Buttons/RepairButton
 @onready var _close_button: Button = $Panel/Margin/VBox/Buttons/CloseButton
 
-var _item_indices: Array = []  # grid index (int) or equipment slot name (String) — see C-237
+var _item_indices: Array = []
 var _forge_row: HBoxContainer
 var _salvage_button: Button
 var _reroll_button: Button
@@ -25,7 +24,6 @@ var _transmute_button: Button
 var _infuse_button: Button
 var _infuse_element := ""
 
-## C-239: the three operations that had no UI.
 var _path_picker: OptionButton
 var _path_button: Button
 var _mark_source_button: Button
@@ -58,14 +56,12 @@ func _ready() -> void:
 	unlock_button.pressed.connect(_on_unlock_pressed)
 	$Panel/Margin/VBox/Buttons.add_child(unlock_button)
 	$Panel/Margin/VBox/Buttons.move_child(unlock_button, 0)
-	# Close belongs at the end of the row, not in the middle of the smithing actions.
 	$Panel/Margin/VBox/Buttons.move_child(_close_button, -1)
 	_build_forge_row()
 	CharacterService.gold_changed.connect(_on_gold_changed)
 	InventoryService.inventory_changed.connect(_refresh)
 
 
-## Forge work sits on its own row so the plain upgrade/repair actions stay the obvious default.
 func _build_forge_row() -> void:
 	var vbox := $Panel/Margin/VBox as VBoxContainer
 	var heading := Label.new()
@@ -94,8 +90,6 @@ func _build_forge_row() -> void:
 	_forge_row.add_child(_transmute_button)
 
 	if _infuse_element != "":
-		# The picker used to sit unlabelled between Transmute and Infuse, reading as a stray
-		# dropdown that said "Fire" with nothing to say what it applied to.
 		var infuse_label := Label.new()
 		infuse_label.text = tr("SMITH_INFUSION_ELEMENT")
 		GameUISkinScript.style_hint_label(infuse_label)
@@ -117,10 +111,6 @@ func _build_forge_row() -> void:
 		_infuse_button.pressed.connect(_on_infuse_pressed)
 		_forge_row.add_child(_infuse_button)
 
-	# C-239: `set_upgrade_path`, `transfer_rule` and `convert_materials` were all fully implemented,
-	# content-backed and had **zero callers** — four upgrade paths with translation keys and real
-	# stat riders, five authored recipe files, and roughly a third of `forge_service.gd`, with no
-	# button anywhere. This is the button.
 	_build_upgrade_path_controls()
 	_build_transfer_controls()
 	_build_conversion_controls()
@@ -137,10 +127,6 @@ func _build_forge_row() -> void:
 			button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 
 
-## C-239: the upgrade-path picker. `slot["upgradePath"]` drives `upgrade_multiplier` and
-## `_apply_upgrade_path_riders` in the live stat pipeline, so every item in the game was permanently
-## "standard" and three of the four identities — heavy (poise), keen (crit/evasion), blessed
-## (health/regen) — could never be selected.
 func _build_upgrade_path_controls() -> void:
 	var paths := ForgeServiceScript.upgrade_paths()
 	if paths.is_empty():
@@ -163,9 +149,6 @@ func _build_upgrade_path_controls() -> void:
 	_forge_row.add_child(_path_button)
 
 
-## C-239: rule transfer consumes a source item to stamp its rule onto a target of the same type.
-## Two selections are needed, so the source is latched by a button and the list selection supplies
-## the target.
 func _build_transfer_controls() -> void:
 	_mark_source_button = GameUISkinScript.make_button(tr("SMITH_MARK_RULE_SOURCE"))
 	_mark_source_button.pressed.connect(_on_mark_source_pressed)
@@ -176,8 +159,6 @@ func _build_transfer_controls() -> void:
 	_forge_row.add_child(_transfer_button)
 
 
-## C-239: the five-tier material ladder — cinder, glimmer, sable, storm, tear — with all four
-## conversion recipes authored on both sides and no screen offering them.
 func _build_conversion_controls() -> void:
 	var recipes := ForgeServiceScript.conversion_recipes()
 	if recipes.is_empty():
@@ -259,8 +240,6 @@ func open() -> void:
 func close() -> void:
 	visible = false
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
-	# Through PlayerControls: closing this panel must not grab the mouse back if another one is
-	# still open behind it.
 	PlayerControls.capture_mouse_if_allowed()
 	closed.emit()
 
@@ -289,8 +268,6 @@ func _refresh() -> void:
 		var dur := BlacksmithService.get_slot_durability(slot)
 		var max_dur := BlacksmithService.get_max_durability(item_id)
 		var rarity := inv.get_slot_rarity(slot)
-		# The rarity name used to be spelled out at the front of every row. The colour now carries
-		# it, which leaves the row to say the things that differ per item: upgrade and durability.
 		var index := ItemListPresenterScript.add_row(
 			_item_list,
 			item_id,
@@ -301,9 +278,6 @@ func _refresh() -> void:
 		if dur <= 0:
 			_item_list.set_item_custom_fg_color(index, GameUISkinScript.DANGER_COLOR)
 		_item_indices.append(i)
-	# C-237: equipped gear is the only gear that ever takes durability damage, and equipping removes
-	# an item from `slots` — so the list above could never show a damaged piece. Equipment slots are
-	# appended as string targets; BlacksmithService.resolve_target() accepts either form.
 	for slot_name in Equipment.SLOT_ORDER:
 		var eq: Dictionary = inv.equipped.get(slot_name, {})
 		if eq.is_empty():
@@ -409,15 +383,6 @@ func _on_unlock_pressed() -> void:
 	_refresh()
 
 
-## Index of the item currently selected in the list, or -1 when nothing is selected.
-## Returns a grid index (int) or an equipment slot name (String); -1 when nothing is selected.
-## Returns the selected row's inventory key — a grid index (`int`) or an equipment slot
-## name (`String`) — or `null` when nothing usable is selected.
-##
-## BlacksmithService and ForgeService both resolve either form via `resolve_target()` (C-237).
-## The sentinel is `null` rather than `-1` because callers cannot write `key < 0` against a
-## `String` key: GDScript has no ordering between `String` and `int` and raises at runtime.
-## Test with `== null` for "any item", or `_is_grid_index()` for "a backpack item".
 func _selected_inv_index() -> Variant:
 	var selected := _item_list.get_selected_items()
 	if selected.is_empty():
@@ -428,8 +393,6 @@ func _selected_inv_index() -> Variant:
 	return _item_indices[row]
 
 
-## True only for a backpack grid index. Equipment slots (`String`) and empty selections
-## (`null`) both return false — the forge rule operations require an unequipped item.
 static func _is_grid_index(key: Variant) -> bool:
 	return key is int and int(key) >= 0
 
@@ -449,7 +412,6 @@ func _refresh_forge_buttons() -> void:
 			or _infuse_element == ""
 			or not ForgeServiceScript.can_infuse(inv_index, _infuse_element)
 		)
-	# C-239: the three newly-reachable operations.
 	if _path_button:
 		_path_button.disabled = (
 			not has_item

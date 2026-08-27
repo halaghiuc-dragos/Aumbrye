@@ -1,7 +1,6 @@
 extends RefCounted
 class_name ForgeService
 
-## Branching upgrade paths, infusion, affix manipulation and salvage.
 
 const EquipmentScript := preload("res://scripts/items/equipment.gd")
 const RarityRegistryScript := preload("res://scripts/loot/rarity_registry.gd")
@@ -78,8 +77,6 @@ static func salvage_preview(slot: Dictionary) -> Dictionary:
 	return yields
 
 
-## Destructive: removes the item, so it stays grid-only. Equipped gear must be unequipped first
-## (C-240) — mutating forge operations accept an equipment slot name, this one deliberately does not.
 static func salvage(inv_index: Variant) -> Dictionary:
 	if BlacksmithServiceScript.is_equipment_slot(inv_index):
 		return {"ok": false, "error": "unequip first"}
@@ -299,8 +296,6 @@ static func convert_materials(recipe_id: String) -> Dictionary:
 	return {"ok": true, "itemId": output_id}
 
 
-## C-240: accepts a grid index or an equipment slot name, so the forge can act on worn gear —
-## which, per C-237, is the only gear that ever takes durability damage.
 static func _slot_at(target: Variant) -> Dictionary:
 	return BlacksmithServiceScript.resolve_target(target)
 

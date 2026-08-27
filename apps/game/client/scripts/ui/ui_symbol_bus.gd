@@ -1,6 +1,5 @@
 extends Node
 
-## Shared invalidation bus for UI symbol atlases (SIG-06).
 
 signal symbols_invalidated(reason: StringName)
 

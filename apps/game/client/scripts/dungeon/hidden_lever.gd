@@ -1,6 +1,5 @@
 extends Node3D
 
-## Hidden lever that opens a secret room and persists via WorldState.
 
 var _secret_room_id: String = ""
 var _builder: DungeonBuilder = null

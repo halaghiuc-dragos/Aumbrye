@@ -6,4 +6,3 @@ func _resolve_enemy_id() -> String:
 
 func _ready() -> void:
 	super._ready()
-

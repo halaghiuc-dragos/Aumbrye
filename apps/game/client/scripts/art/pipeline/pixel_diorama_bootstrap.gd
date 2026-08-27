@@ -1,8 +1,6 @@
 extends RefCounted
 class_name PixelDioramaBootstrap
 
-## Thin static helper: load pixel settings at boot and attach the viewport pipeline.
-
 
 static func prime() -> void:
 	PixelDioramaSettings.load_from_save()

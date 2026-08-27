@@ -1,16 +1,5 @@
 extends Control
 
-## Front-end hub — New Game, Continue, Settings, Quit — and, on the first visit of a session, the
-## title screen it grows out of.
-##
-## These used to be two scenes. The title screen drew its own backdrop, its own wordmark and a
-## "press any key" line, then swapped itself for this one, so the logo jumped between two sizes and
-## two positions across a scene change. They are one screen now: the intro shows the wordmark
-## centred with the prompt under it, and the keypress slides the same node up to its resting place
-## above the menu while the panel fades in beneath it.
-##
-## Only the first arrival of a process plays the intro — `_intro_shown` is static, so coming back
-## here from the hub or from a finished run lands straight on the menu.
 
 const GameUISkinScript := preload("res://scripts/ui/game_ui_skin.gd")
 const MenuShellScript := preload("res://scripts/ui/menu_shell.gd")
@@ -19,21 +8,13 @@ const CHARACTER_CREATE_SCENE := preload("res://scenes/ui/character_create.tscn")
 const ContinueMenuScript := preload("res://scripts/ui/continue_menu.gd")
 const LOADING_SCENE := "res://scenes/ui/loading_screen.tscn"
 
-## How far the menu panel sits below centre, as a fraction of window height, making room for the
-## wordmark above it. Fractional rather than fixed so the pair stays balanced on the page: the
-## wordmark docks off the panel's top edge, so moving the panel moves both, and a fixed 72px left
-## the whole composition riding high with a third of the screen empty underneath.
 const PANEL_DROP_FRACTION := 0.14
-## Gap between the bottom of the wordmark block and the top of the panel.
 const WORDMARK_GAP := 36.0
 
 const INTRO_RISE_SEC := 0.7
 const INTRO_FADE_SEC := 0.5
-## Gap between the wordmark and the "press any key" line while the intro holds.
 const PROMPT_GAP := 56.0
 
-## Whether this process has already played the boot intro. Static so that returning to the menu
-## from the hub, or after a run, goes straight to the menu.
 static var _intro_shown := false
 
 var _character_create: Control
@@ -70,14 +51,8 @@ func _ready() -> void:
 	_continue_menu.slot_selected.connect(_on_continue_slot_selected)
 	_continue_menu.cancelled.connect(_on_continue_cancelled)
 	_continue_menu.slot_deleted.connect(_on_continue_slot_deleted)
-	# Sizes are only known once the containers have sorted, and the wordmark is placed relative to
-	# the panel's actual top edge rather than a guessed fraction of the screen.
 	await get_tree().process_frame
 	_layout_front_end()
-	# The wordmark's size is chosen for the viewport it is drawn in. Under the project's
-	# `canvas_items` stretch that viewport is a fixed 1920x1080 and the window scales around it, so
-	# in practice this never fires — but the layout is derived, not hard-coded, and this keeps it
-	# that way if the stretch mode ever changes.
 	get_viewport().size_changed.connect(_on_viewport_resized)
 	if _intro_active:
 		_begin_intro()
@@ -95,25 +70,15 @@ func _on_viewport_resized() -> void:
 
 func _build_ui() -> void:
 	set_anchors_preset(Control.PRESET_FULL_RECT)
-	# Named and reused: _build_ui() runs again on a language change, and an unnamed backdrop would
-	# stack a fresh opaque rect over the menu every time.
 	var backdrop := get_node_or_null("Backdrop") as ColorRect
 	if backdrop == null:
 		backdrop = GameUISkinScript.make_backdrop(self)
-		# The title screen is the one backdrop that is not laid over a live world, so it stays
-		# fully opaque; everything else about it — the vignette, the edge tint — is shared with
-		# every other menu rather than being a second, slightly different dark rectangle.
 		backdrop.color = Color(0.02, 0.02, 0.06, 1.0)
 		move_child(backdrop, 0)
-	# The half-size is a floor, not a fixed size — a PanelContainer still grows to fit whatever it
-	# holds. Asking for 540px of height around ~330px of buttons left a third of the first screen
-	# in the game as empty framed void under the last button.
 	_menu_panel = GameUISkinScript.make_center_panel(
 		self, GameUISkinScript.MENU_HALF_W + 60.0, GameUISkinScript.MENU_HALF_H - 40.0
 	)
 	_menu_panel.name = "MenuPanel"
-	# Pushed below centre so the wordmark has somewhere to land. `make_center_panel` anchors to the
-	# centre with symmetric offsets, so moving both edges keeps the panel the same size.
 	_panel_base_offsets = Vector2(_menu_panel.offset_top, _menu_panel.offset_bottom)
 	_apply_panel_drop()
 	var margin := MarginContainer.new()
@@ -135,8 +100,6 @@ func _build_ui() -> void:
 	_build_wordmark()
 
 
-## The drop is a fraction of window height, so it is re-derived rather than accumulated — adding to
-## the current offsets on every resize would walk the panel off the bottom of the screen.
 func _apply_panel_drop() -> void:
 	if _menu_panel == null or not is_instance_valid(_menu_panel):
 		return
@@ -145,8 +108,6 @@ func _apply_panel_drop() -> void:
 	_menu_panel.offset_bottom = _panel_base_offsets.y + drop
 
 
-## The wordmark and, during the intro only, the prompt under it. Both are rebuilt on a language
-## change alongside the panel, because the subtitle and the prompt are translated.
 func _build_wordmark() -> void:
 	_wordmark = TitleWordmark.new()
 	_wordmark.name = "Wordmark"
@@ -173,14 +134,10 @@ func _exit_tree() -> void:
 	LocaleSettings.disconnect_changed(_on_locale_changed)
 
 
-## The front end is built once from translated literals, so a language chosen in Settings would
-## otherwise leave this menu in the old language until the game restarted.
 func _on_locale_changed() -> void:
 	if _menu_panel and is_instance_valid(_menu_panel):
 		_menu_panel.queue_free()
 	_menu_panel = null
-	# The wordmark's subtitle and the intro prompt are translated too, so they are rebuilt with the
-	# panel rather than left behind in the previous language.
 	for node in [_wordmark, _prompt]:
 		if node != null and is_instance_valid(node):
 			node.queue_free()
@@ -199,9 +156,6 @@ func _on_locale_changed() -> void:
 		_wordmark.set_glow_pulsing(_intro_active and _intro_ready)
 
 
-## Places the wordmark: centred while the intro holds, otherwise docked above the panel. Both are
-## measured rather than guessed — the panel's height depends on its buttons, and the wordmark's on
-## the font size it picked for this window.
 func _layout_front_end() -> void:
 	if _wordmark == null or not is_instance_valid(_wordmark):
 		return
@@ -214,8 +168,6 @@ func _layout_front_end() -> void:
 
 
 func _intro_wordmark_y(block_h: float) -> float:
-	# Sits a little above true centre: the prompt hangs below the block, and the pair reads as
-	# centred only when the mark itself is lifted off the midline.
 	return maxf(24.0, (get_viewport_rect().size.y - block_h - PROMPT_GAP) * 0.5)
 
 
@@ -226,10 +178,6 @@ func _docked_wordmark_y(block_h: float) -> float:
 	return maxf(16.0, panel_top - block_h - WORDMARK_GAP)
 
 
-## The intro state: panel hidden, wordmark centred, prompt fading in once the screen will actually
-## take a key. C-233's save-recovery question is asked here and holds the prompt back until it is
-## answered — continuing past it would put the player in a hub built on an empty profile without
-## ever telling them why.
 func _begin_intro() -> void:
 	_menu_panel.visible = false
 	_menu_panel.modulate.a = 0.0
@@ -268,7 +216,6 @@ func _finish_intro() -> void:
 		return
 	var tween := create_tween()
 	tween.set_parallel(true)
-	# Both edges, in step — the block is anchored top-wide, so its height is the gap between them.
 	for edge: String in ["offset_top", "offset_bottom"]:
 		var target: float = dock_y if edge == "offset_top" else dock_y + block_h
 		tween.tween_property(_wordmark, edge, target, INTRO_RISE_SEC).set_trans(
@@ -286,7 +233,6 @@ func _on_intro_finished() -> void:
 	_prompt = null
 	if _menu_panel != null and is_instance_valid(_menu_panel):
 		_menu_panel.modulate.a = 1.0
-	_focus_first_menu_button()
 
 
 func _focus_first_menu_button() -> void:
@@ -317,8 +263,6 @@ func _show_recovery_prompt() -> void:
 	GameUISkinScript.style_body_label(body)
 	vbox.add_child(body)
 
-	# Naming the file is the whole point: the data is quarantined, not destroyed, and a later build
-	# with a fixed migrator may still be able to read it.
 	if LocalSave.recovery_quarantine_path != "":
 		var path_label := Label.new()
 		path_label.autowrap_mode = TextServer.AUTOWRAP_ARBITRARY
@@ -349,9 +293,6 @@ func _on_recovery_resolved(panel: Control, start_fresh: bool) -> void:
 	_open_intro_prompt()
 
 
-## A scroll notch arrives as a pressed InputEventMouseButton, so "any mouse button" dismissed the
-## intro on the smallest accidental scroll — including the inertial tail of one begun before the
-## game finished loading. A deliberate click only.
 static func _is_intro_advance(event: InputEvent) -> bool:
 	if event is InputEventKey:
 		var key := event as InputEventKey
@@ -373,7 +314,26 @@ static func _is_intro_advance(event: InputEvent) -> bool:
 
 
 func _menu_button(text: String, on_pressed: Callable) -> Button:
-	return MenuShellScript.make_menu_button(text, on_pressed)
+	var button := MenuShellScript.make_menu_button(text, on_pressed)
+	_style_title_button(button)
+	return button
+
+
+func _style_title_button(button: Button) -> void:
+	button.add_theme_stylebox_override(&"focus", StyleBoxEmpty.new())
+	button.ready.connect(_apply_hover_highlight.bind(button), CONNECT_ONE_SHOT)
+
+
+func _apply_hover_highlight(button: Button) -> void:
+	if not is_instance_valid(button):
+		return
+	var base := button.get_theme_stylebox(&"hover")
+	var hover := (base.duplicate() if base != null else StyleBoxFlat.new()) as StyleBoxFlat
+	if hover == null:
+		return
+	hover.border_color = GameUISkinScript.ACCENT_BAR
+	hover.set_border_width_all(2)
+	button.add_theme_stylebox_override(&"hover", hover)
 
 
 func _connect_global_settings() -> void:
@@ -417,20 +377,6 @@ func _on_new_game() -> void:
 			Callable(),
 			"Very well",
 			"Back"
-		)
-		return
-	if LocalSave.has_playable_character():
-		MenuShellScript.show_confirmation(
-			self,
-			"New Warden",
-			"Create a new warden? Existing wardens stay on disk — pick any of them from Continue.",
-			func() -> void:
-				_show_main_panel(false)
-				_character_create.open_creation()
-				_character_create.move_to_front(),
-			Callable(),
-			"Create Warden",
-			"Cancel"
 		)
 		return
 	_show_main_panel(false)
@@ -487,9 +433,6 @@ func _on_character_created(
 
 func _on_character_create_cancelled() -> void:
 	_show_main_panel(true)
-	# Backing out of creation must leave Continue exactly as it was found. It is also the moment the
-	# button's state is most worth re-checking: this is the path a player takes when they change
-	# their mind and want the warden they already have.
 	_refresh_continue_button()
 
 
@@ -509,6 +452,15 @@ func _on_continue_slot_deleted(_character_id: String) -> void:
 
 
 func _input(event: InputEvent) -> void:
+	if (
+		not _intro_active
+		and not (event is InputEventMouse)
+		and _menu_panel != null
+		and is_instance_valid(_menu_panel)
+		and _menu_panel.visible
+		and get_viewport().gui_get_focus_owner() == null
+	):
+		_focus_first_menu_button()
 	if _intro_active:
 		if _intro_ready and _is_intro_advance(event):
 			get_viewport().set_input_as_handled()

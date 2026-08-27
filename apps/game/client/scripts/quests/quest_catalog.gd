@@ -1,13 +1,9 @@
 extends RefCounted
 class_name QuestCatalog
 
-## Quest definitions from content/quests/ (QUEST-4.1).
 
 const QUEST_DIR := "content/quests"
 
-## Owned by DungeonQuestCatalog, which reads it as a single collection of floor-NPC bindings
-## rather than as one quest per file. It shares this directory, so the walk below has to pass over
-## it instead of reporting it as a quest with no id.
 const FOREIGN_FILES: PackedStringArray = ["dungeon_quests.json"]
 
 static var _definitions: Dictionary = {}

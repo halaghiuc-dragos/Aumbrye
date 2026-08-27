@@ -1,6 +1,5 @@
 extends Node
 
-## Subtle forge OmniLight + emissive pulse for hub blacksmith (one intentional motion cue).
 
 const EMISSION_PARAM := "emission_energy"
 
@@ -34,7 +33,7 @@ func _process(delta: float) -> void:
 	_t += delta
 	var flick: float = 0.88 + sin(_t * 8.0) * 0.06 + sin(_t * 13.0) * 0.04
 	if _light:
-		_light.light_energy = _base_energy * flick
+		_light.light_energy = _base_energy * flick * NightLights.scale_for(_light)
 	if _shader_mat:
 		_shader_mat.set_shader_parameter(EMISSION_PARAM, _base_emission * flick)
 	elif _standard_mat:

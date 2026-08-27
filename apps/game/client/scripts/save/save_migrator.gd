@@ -1,10 +1,8 @@
 extends RefCounted
 class_name SaveMigrator
 
-## SCHEMA-7.1 — versioned save migrations.
 
 const CURRENT_VERSION := 12
-const MIGRATION_DOC := "docs/SAVE_MIGRATIONS.md"
 const NIL_ACCOUNT_ID := "00000000-0000-4000-8000-000000000000"
 const TALENT_TREE_PATH := "content/talents/tree.json"
 
@@ -102,125 +100,6 @@ const STEPS: Array[Dictionary] = [
 	},
 ]
 
-const STEPS_DOC: Array[Dictionary] = [
-	{
-		"from": 1,
-		"to": 2,
-		"summary": "activeRun floor fields",
-		"added": ["activeRun.currentFloor", "activeRun.maxFloors", "activeRun.floorDefinitions"],
-		"removed": [],
-		"recovery": "Step failure quarantines the file; pre-migration artefact retained.",
-	},
-	{
-		"from": 2,
-		"to": 3,
-		"summary": "activeRun.runMode; drop floorDefinitions",
-		"added": ["activeRun.runMode"],
-		"removed": ["activeRun.floorDefinitions"],
-		"recovery": "Step failure quarantines the file; pre-migration artefact retained.",
-	},
-	{
-		"from": 3,
-		"to": 4,
-		"summary": "lastCheckpoint; snapshot.worldFlags",
-		"added":
-		["activeRun.lastCheckpoint", "activeRun.snapshot.worldFlags", "activeRun.schemaVersion"],
-		"removed": [],
-		"recovery": "Step failure quarantines the file; pre-migration artefact retained.",
-	},
-	{
-		"from": 4,
-		"to": 5,
-		"summary": "typed sections; equipped instances; accountId reset",
-		"added":
-		[
-			"character.appearance",
-			"character.appearanceTheme",
-			"currencies.coins",
-			"inventory.equipped.<slot>",
-			"inventory.slots[*].instanceId",
-			"activeRun.clearedFloors",
-			"activeRun.schemaVersion",
-		],
-		"removed":
-		["character.lastHubMessage", "activeRun.playerDead", "activeRun.floorDefinitions"],
-		"recovery":
-		"playerDead with checkpoint restores snapshot; without checkpoint drops activeRun only.",
-	},
-	{
-		"from": 5,
-		"to": 6,
-		"summary": "meta.achievements mythic_loot renamed to aumbral_loot",
-		"added": ["meta.achievements.aumbral_loot"],
-		"removed": ["meta.achievements.mythic_loot"],
-		"recovery": "Step failure quarantines the file; pre-migration artefact retained.",
-	},
-	{
-		"from": 6,
-		"to": 7,
-		"summary": "dungeon_unlocked_count and per-dungeon difficulty tiers",
-		"added": ["flags.dungeon_unlocked_count", "flags.dungeon_tier_<id>"],
-		"removed": [],
-		"recovery": "Step failure quarantines the file; pre-migration artefact retained.",
-	},
-	{
-		"from": 7,
-		"to": 8,
-		"summary": "meta.accessibility camera settings defaults",
-		"added": [
-			"meta.accessibility.cameraMouseSensitivity",
-			"meta.accessibility.cameraStickSensitivity",
-			"meta.accessibility.cameraInvertY",
-			"meta.accessibility.cameraFov",
-			"meta.accessibility.cameraStickCurve",
-			"meta.accessibility.cameraStickDeadzone",
-		],
-		"removed": [],
-		"recovery": "Step failure quarantines the file; pre-migration artefact retained.",
-	},
-	{
-		"from": 8,
-		"to": 9,
-		"summary": "meta.display block; ui_scale moved from accessibility",
-		"added": [
-			"meta.display.window_mode",
-			"meta.display.window_size",
-			"meta.display.monitor_index",
-			"meta.display.vsync_mode",
-			"meta.display.max_fps",
-			"meta.display.ui_scale",
-			"meta.display.hud_safe_area",
-		],
-		"removed": [],
-		"recovery": "Step failure quarantines the file; pre-migration artefact retained.",
-	},
-	{
-		"from": 9,
-		"to": 10,
-		"summary": "inventory.quickSlotInstances replaces quickSlots index array",
-		"added": ["inventory.quickSlotInstances"],
-		"removed": ["inventory.quickSlots"],
-		"recovery": "Step failure quarantines the file; pre-migration artefact retained.",
-	},
-	{
-		"from": 10,
-		"to": 11,
-		"summary": "currencies.coins collapsed into currencies.gold",
-		"added": ["currencies.gold"],
-		"removed": ["currencies.coins"],
-		"recovery": "Step failure quarantines the file; pre-migration artefact retained.",
-	},
-	{
-		"from": 11,
-		"to": 12,
-		"summary": "account scope block; talent ids revalidated against the grown tree",
-		"added": ["account.storage", "account.flags", "account.endlessBestFloor", "account.descentTokens"],
-		"removed": [],
-		"recovery": "Step failure quarantines the file; pre-migration artefact retained.",
-	},
-]
-
-
 static func classify(data: Dictionary) -> int:
 	var version := int(data.get("schemaVersion", 0))
 	if version == CURRENT_VERSION:
@@ -232,12 +111,6 @@ static func classify(data: Dictionary) -> int:
 	return RESULT_MIGRATABLE
 
 
-## C-234: this required an exact contiguous chain (`version == step["from"]`) while `migrate` uses
-## a range test (`version < from` skip, `version >= to` skip). `STEPS` is contiguous 1→12 today so
-## the two agree, but the moment a step is added out of order or a version is skipped, `migrate`
-## would do the work while `describe` — which is what a user and the crash log see — reported that
-## nothing would happen. The two now share one rule; `plan` is the description of what `migrate`
-## will do, so it has to select the same steps.
 static func plan(from_version: int) -> Array[Dictionary]:
 	var steps: Array[Dictionary] = []
 	var version := from_version
@@ -415,8 +288,6 @@ static func _normalize_currencies(copy: Dictionary) -> void:
 	if not currencies is Dictionary:
 		currencies = {}
 	var cur: Dictionary = currencies
-	# "gold" is authoritative when present; "coins" is read only as a fallback for
-	# saves that predate "gold" being written at all — never reconciled by max().
 	var resolved_gold: int
 	if cur.has("gold"):
 		resolved_gold = maxi(0, int(cur.get("gold", 0)))
@@ -600,7 +471,6 @@ static func _normalize_quests(copy: Dictionary) -> void:
 		return
 	var legacy: Dictionary = quests
 	if legacy.has("states") or legacy.has("progress"):
-		# Already split into states/progress: re-key and re-type in place.
 		var split_states: Dictionary = {}
 		var split_progress: Dictionary = {}
 		var states_raw: Variant = legacy.get("states", {})
@@ -841,10 +711,6 @@ static func _migrate_v10_to_v11(data: Dictionary) -> Dictionary:
 	return copy
 
 
-## Splits the single-character document into character scope and account scope. The
-## character keeps everything it had; the account block is a copy the stash and the
-## world-knowledge flags are adopted from, so a second warden starts where the first
-## one left the shared parts of the world.
 static func _migrate_v11_to_v12(data: Dictionary) -> Dictionary:
 	var copy: Dictionary = data.duplicate(true)
 	copy["schemaVersion"] = 12

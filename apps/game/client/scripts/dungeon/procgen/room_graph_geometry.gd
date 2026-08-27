@@ -1,20 +1,10 @@
 class_name RoomGraphGeometry
 extends RefCounted
 
-## Phase 2 — socket-aligned world positions from the validated graph.
 
 const HEIGHT_STEP := 3.0
 
 
-## C-211: `build_rooms` and `validate_door_topology` carried the same 65-line BFS statement for
-## statement — the same `doors_for_step`, the same `yaw_rad_for_incoming_door`, the same four-branch
-## half-extent accumulation — differing only in what they did on a door mismatch (`push_error` and
-## carry on, versus `return {ok: false}`) and in whether they assembled a room list afterwards. Any
-## fix to the positioning rule had to be made twice, and the two had **already diverged**.
-##
-## One traversal, with `strict` deciding the failure action. Returns the position and yaw maps the
-## builder needs and the validation result the validator needs, so neither has to re-derive the
-## other's work.
 static func _walk_layout(
 	graph: RoomGraph, assignment: Dictionary, strict: bool
 ) -> Dictionary:
@@ -24,9 +14,6 @@ static func _walk_layout(
 	var positions := {}
 	var yaws := {}
 	var visited := {}
-	# The edges this traversal placed rooms along. Only these are guaranteed to line up: a room's
-	# position is derived from its parent's, so any *other* edge between two rooms is whatever
-	# distance the layout happened to leave between them.
 	var placement_edges := {}
 	var entrance_id: String = assignment.get("entrance_layout_id", graph.start_id)
 	if not rooms_by_layout.has(entrance_id):
@@ -51,7 +38,7 @@ static func _walk_layout(
 				continue
 			if neighbor_slot.slot_type == RoomGraphSlot.SlotType.SECRET:
 				continue
-			if not (current_slot.door_mask & _dir_to_door(dir)):
+			if not (current_slot.door_mask & dir_to_door(dir)):
 				continue
 			var neighbor_id := neighbor_slot.slot_id
 			if visited.has(neighbor_id):
@@ -112,7 +99,6 @@ static func _walk_layout(
 
 
 static func build_rooms(graph: RoomGraph, assignment: Dictionary) -> Array:
-	# C-211: one traversal, shared with `validate_door_topology`.
 	var walk := _walk_layout(graph, assignment, false)
 	if not bool(walk.get("ok", false)):
 		push_error("RoomGraphGeometry: %s" % str(walk.get("reason", "layout walk failed")))
@@ -160,20 +146,6 @@ static func build_rooms(graph: RoomGraph, assignment: Dictionary) -> Array:
 	return built
 
 
-## Edge kinds for the definition.
-##
-## An edge is a `shortcut` whenever it is not one of the edges `_walk_layout` placed rooms along,
-## and that test now takes precedence over the corridor test. Two things were wrong before:
-##
-##   * the corridor check ran first, so a non-tree edge touching a corridor room was labelled
-##     `corridor`. `DungeonBuilder._build_doorway_bridges` only closes *shortcuts* when their two
-##     door sockets fail to meet, so those edges fell through to `push_error` and the floor was
-##     built anyway — with a carved doorway opening into a four-unit hole.
-##   * the test asked `graph.walk_edges`, the spanning tree from the Phase 1 grid walk. Rooms are
-##     positioned by a *different* traversal, `_walk_layout`'s breadth-first walk from the
-##     entrance, and the two trees do not have to agree. An edge could therefore be called
-##     spanning — and so trusted to line up — when the room at its far end had been placed
-##     through some other edge entirely.
 static func build_edges(graph: RoomGraph, assignment: Dictionary) -> Array:
 	var walk := _walk_layout(graph, assignment, false)
 	var placement_edges: Dictionary = walk.get("placement_edges", {})
@@ -190,7 +162,7 @@ static func build_edges(graph: RoomGraph, assignment: Dictionary) -> Array:
 		if slot.slot_type == RoomGraphSlot.SlotType.SECRET:
 			continue
 		for dir in _directions():
-			if not (slot.door_mask & _dir_to_door(dir)):
+			if not (slot.door_mask & dir_to_door(dir)):
 				continue
 			var neighbor: RoomGraphSlot = graph.slots.get(cell + dir) as RoomGraphSlot
 			if neighbor == null or neighbor.slot_type == RoomGraphSlot.SlotType.SECRET:
@@ -231,23 +203,10 @@ static func build_edges(graph: RoomGraph, assignment: Dictionary) -> Array:
 
 
 static func validate_door_topology(graph: RoomGraph, assignment: Dictionary) -> Dictionary:
-	# C-211: the strict half of the same walk. It used to be a verbatim copy.
 	var walk := _walk_layout(graph, assignment, true)
 	if not bool(walk.get("ok", false)):
 		return {"ok": false, "reason": str(walk.get("reason", "layout walk failed"))}
 	return {"ok": true}
-
-
-## Whether an edge is in the Phase 1 grid walk's spanning tree.
-##
-## Not what `build_edges` wants — see its comment — because rooms are positioned by a different
-## traversal. Kept because it is the honest answer to a question the graph layer does ask.
-static func _is_spanning_edge(graph: RoomGraph, cell_a: Vector2i, cell_b: Vector2i) -> bool:
-	var key := _edge_key(cell_a, cell_b)
-	for edge in graph.walk_edges:
-		if edge.get("key", "") == key:
-			return true
-	return false
 
 
 static func _edge_key(a: Vector2i, b: Vector2i) -> String:
@@ -256,10 +215,6 @@ static func _edge_key(a: Vector2i, b: Vector2i) -> String:
 	return "%d,%d|%d,%d" % [b.x, b.y, a.x, a.y]
 
 
-## C-254: `room_graph_assigner.assign()` drops secrets whose template cannot be resolved and returns
-## the surviving ids as `secret_layout_ids` — a list that had no consumer. Both loops below used to
-## iterate `graph.secret_ids` (the unfiltered source), so a dropped secret faulted on
-## `rooms_by_layout[secret_id]` and then lost its world position entirely.
 static func _placed_secret_ids(graph: RoomGraph, assignment: Dictionary) -> Array:
 	var raw: Variant = assignment.get("secret_layout_ids", null)
 	var ids: Array = raw if raw is Array else graph.secret_ids
@@ -361,7 +316,8 @@ static func _directions() -> Array[Vector2i]:
 	return [Vector2i(0, -1), Vector2i(1, 0), Vector2i(0, 1), Vector2i(-1, 0)]
 
 
-static func _dir_to_door(dir: Vector2i) -> int:
+## The door slot a step in `dir` leaves through. Shared with `room_graph_paths`.
+static func dir_to_door(dir: Vector2i) -> int:
 	if dir == Vector2i(0, -1):
 		return RoomGraphSlot.DOOR_NORTH
 	if dir == Vector2i(1, 0):
@@ -386,11 +342,6 @@ static func _minimap_kind_for_semantic(semantic_id: String, room_type: String) -
 		_:
 			if room_type == "combat":
 				return "combat"
-			# C-217: `MINIMAP_RESERVED_KINDS` protects "secret" from being overwritten by content
-			# annotation, but nothing ever produced it — secret slots carry semantic "secret" or
-			# "secret_N", neither of which matched a branch, so every secret room fell through to
-			# "unknown" and shared a glyph with lore and puzzle rooms. Keyed off the room type,
-			# which is "secret" for both forms.
 			if room_type == "secret":
 				return "secret"
 			return "unknown"

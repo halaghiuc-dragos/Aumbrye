@@ -1,6 +1,5 @@
 extends Area3D
 
-## World item pickup — adds to grid inventory on interact (INV-2.1).
 
 const DioramaSkin := preload("res://scripts/art/props/diorama_interactable_skin.gd")
 const RarityRegistryScript := preload("res://scripts/loot/rarity_registry.gd")
@@ -8,11 +7,15 @@ const RarityRegistryScript := preload("res://scripts/loot/rarity_registry.gd")
 @export var item_id := "iron_scrap"
 @export var quantity := 1
 
+const DESPAWN_SECONDS := 20.0 * 60.0
+const DESPAWN_FADE_SECONDS := 20.0
+
 var _visual: Node3D
 var _label: Label3D
 var _player: Node3D
 var _beam: Node3D
 var _rarity := "common"
+var _despawn_timer := 0.0
 
 
 func _ready() -> void:
@@ -34,6 +37,7 @@ func _ready() -> void:
 	body_entered.connect(_on_body_entered)
 	body_exited.connect(_on_body_exited)
 	set_process_unhandled_input(false)
+	set_process(false)
 	_start_bob()
 
 
@@ -45,6 +49,28 @@ func _start_bob() -> void:
 	tween.set_loops()
 	tween.tween_property(_visual, "position:y", base_y + 0.08, 0.83).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
 	tween.tween_property(_visual, "position:y", base_y - 0.08, 0.83).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+
+
+func set_despawn_after_drop() -> void:
+	_despawn_timer = DESPAWN_SECONDS
+	set_process(true)
+
+
+func _process(delta: float) -> void:
+	if _despawn_timer <= 0.0:
+		return
+	_despawn_timer -= delta
+	if _despawn_timer <= 0.0:
+		queue_free()
+		return
+	if _despawn_timer >= DESPAWN_FADE_SECONDS:
+		return
+	var fade := _despawn_timer / DESPAWN_FADE_SECONDS
+	var shown := sin(_despawn_timer * (10.0 - 7.0 * fade)) > -0.4
+	if _visual and is_instance_valid(_visual):
+		_visual.visible = shown
+	if _beam and is_instance_valid(_beam):
+		_beam.visible = shown
 
 
 func configure(id: String, qty: int = 1, rarity: String = "") -> void:

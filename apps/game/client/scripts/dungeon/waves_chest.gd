@@ -1,6 +1,5 @@
 extends Node3D
 
-## Waves lobby chest — opens into WavesRunService inventory only.
 
 const DioramaSkin := preload("res://scripts/art/props/diorama_interactable_skin.gd")
 const InputGlyphServiceScript := preload("res://scripts/ui/input_glyph_service.gd")
@@ -34,23 +33,25 @@ func configure(index: int) -> void:
 	add_child(_label)
 
 
-## C-228: this only set the flag. `configure()` had already built the closed visual, so after
-## continuing a Waves run every looted chest still looked shut — and walking up gave no prompt,
-## because both `_on_body_entered` and `_process` bail on `_opened`. The lobby lied about its state.
-##
-## Opened chests are flattened and dimmed in place rather than hidden, so the player can still see
-## where they were and that they are spent.
 func apply_opened_state(open: bool) -> void:
 	_opened = open
 	if _label:
 		_label.visible = false
 	if _visual == null or not is_instance_valid(_visual):
 		return
-	_visual.scale = Vector3(1.0, 0.4, 1.0) if open else Vector3.ONE
+	var lid := DioramaSkin.find_chest_lid(_visual)
+	if lid:
+		if open and not is_zero_approx(lid.rotation.x - DioramaSkin.LID_OPEN_ANGLE):
+			var tween := create_tween()
+			tween.set_trans(Tween.TRANS_BACK)
+			tween.set_ease(Tween.EASE_OUT)
+			tween.tween_property(lid, "rotation:x", DioramaSkin.LID_OPEN_ANGLE, 0.42)
+		elif not open:
+			lid.rotation.x = 0.0
 	for child in _visual.get_children():
 		if child is GeometryInstance3D:
 			var mesh_child := child as GeometryInstance3D
-			mesh_child.transparency = 0.45 if open else 0.0
+			mesh_child.transparency = 0.35 if open else 0.0
 
 
 func _on_body_entered(body: Node3D) -> void:
@@ -69,10 +70,6 @@ func _on_body_exited(body: Node3D) -> void:
 		_label.visible = false
 
 
-## C-226: this polled the `Input` singleton from `_process`, so a press already consumed by the
-## inventory panel, the pause menu or a dialogue box still opened the chest. `_unhandled_input`
-## only ever sees what no focused Control claimed, and marking the event handled stops it
-## travelling further. Same pattern as `room_merchant_content` and `room_lore_content`.
 func _unhandled_input(event: InputEvent) -> void:
 	if _opened or _player == null:
 		return

@@ -1,6 +1,5 @@
 extends Control
 
-## Hub castle portal menu — dungeon dropdown, difficulty tier, continue, seed (FLOW-3.1).
 
 const GameUISkinScript := preload("res://scripts/ui/game_ui_skin.gd")
 const TowerBoardScript := preload("res://scripts/ui/tower_board_ui.gd")
@@ -125,8 +124,6 @@ func _build_difficulty_dropdown() -> void:
 	_build_tier_ladder()
 
 
-## The ladder replaces the difficulty dropdown: one card per rung, showing whether it is cleared,
-## available or still shut, what rules it brings, what it pays, and the player's own best run on it.
 func _build_tier_ladder() -> void:
 	if _difficulty_dropdown:
 		_difficulty_dropdown.visible = false
@@ -280,8 +277,6 @@ func close_menu() -> void:
 	_close_board()
 	visible = false
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
-	# Through PlayerControls: closing this panel must not grab the mouse back if another one is
-	# still open behind it.
 	PlayerControls.capture_mouse_if_allowed()
 	menu_closed.emit()
 
@@ -416,10 +411,6 @@ func get_selected_dungeon() -> String:
 
 func get_selected_difficulty_tier() -> int:
 	return _selected_difficulty
-
-
-func get_selected_biome() -> String:
-	return DungeonCatalog.get_biome_id(_selected_dungeon)
 
 
 func _castle_run_continuable() -> bool:

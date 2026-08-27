@@ -1,6 +1,5 @@
 extends Control
 
-## Epilogue text card after the final boss.
 
 const GameUISkinScript := preload("res://scripts/ui/game_ui_skin.gd")
 

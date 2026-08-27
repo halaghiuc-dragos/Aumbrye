@@ -1,7 +1,6 @@
 extends RefCounted
 class_name DioramaRoomDressing
 
-## Procedural pixel-diorama props spawned at runtime per biome + room template.
 
 const ROOM_SUFFIXES := [
 	"entrance",
@@ -15,7 +14,6 @@ const ROOM_SUFFIXES := [
 	"puzzle",
 ]
 
-## How much of a prop's shortest side is taken off each corner.
 const PROP_BEVEL_RATIO := 0.16
 
 static var _shadow_omni_budget: int = 0
@@ -65,19 +63,9 @@ static func apply_to_room(room: RoomTemplate, biome_id: String, room_seed: int =
 			_spawn_puzzle(dressing, accent_mat, biome_id)
 		_:
 			_spawn_generic_corners(dressing, half_w, half_d, accent_mat, biome_id, prop_rng)
-	# C-195: `prop_rng` was created, seeded from the room seed, and passed to exactly **one** of the
-	# ten branches — so nine of ten room kinds placed identical props at identical positions on
-	# every seed, forever. A dungeon whose layout is procedural and whose rooms are pixel-identical
-	# between runs reads as a rebuilt corridor rather than a new place.
-	#
-	# Rather than rewrite nine spawn functions, the variation is applied to what they produced:
-	# a small seeded yaw and ground offset per free-standing prop. Wall-anchored and lighting props
-	# are exempt by name — a sconce that drifts off its wall is worse than a sconce that repeats.
 	_apply_seeded_prop_variation(dressing, prop_rng)
 
 
-## C-195: props that must not move — anything mounted to a surface, and anything that carries a
-## light, since both read as broken the moment they drift.
 const VARIATION_EXEMPT_TOKENS := [
 	"Torch", "Sconce", "Light", "Wall", "Pillar", "Column", "Door", "Stair", "Altar", "Banner"
 ]
@@ -107,28 +95,6 @@ static func _apply_seeded_prop_variation(
 		)
 		prop.position.x += prop_rng.randf_range(-VARIATION_OFFSET, VARIATION_OFFSET)
 		prop.position.z += prop_rng.randf_range(-VARIATION_OFFSET, VARIATION_OFFSET)
-
-
-static func apply_to_waves_arena(
-	parent: Node3D, biome_id: String = BiomeRegistry.BIOME_UMBRAL
-) -> void:
-	if parent.get_node_or_null("DioramaDressing") != null:
-		return
-	var dressing := Node3D.new()
-	dressing.name = "DioramaDressing"
-	parent.add_child(dressing)
-	var accent_mat := BiomeRegistry.get_accent_material(biome_id)
-	var wall_mat := BiomeRegistry.get_wall_material(biome_id)
-	var half := 18.0
-	_spawn_corner_pillar(dressing, Vector3(-half, 0.0, -half), wall_mat, 2.4)
-	_spawn_corner_pillar(dressing, Vector3(half, 0.0, -half), wall_mat, 2.4)
-	_spawn_corner_pillar(dressing, Vector3(-half, 0.0, half), wall_mat, 2.4)
-	_spawn_corner_pillar(dressing, Vector3(half, 0.0, half), wall_mat, 2.4)
-	_spawn_brazier(dressing, Vector3(-6.0, 0.0, -half + 1.5), accent_mat, biome_id, 0.55)
-	_spawn_brazier(dressing, Vector3(6.0, 0.0, -half + 1.5), accent_mat, biome_id, 0.55)
-	_spawn_brazier(dressing, Vector3(-6.0, 0.0, half - 1.5), accent_mat, biome_id, 0.55)
-	_spawn_brazier(dressing, Vector3(6.0, 0.0, half - 1.5), accent_mat, biome_id, 0.55)
-	_add_biome_banner(dressing, Vector3(0.0, 0.0, -half + 0.8), accent_mat, 3.2, 1.6)
 
 
 static func apply_ceiling_lighting(
@@ -170,19 +136,6 @@ static func apply_ceiling_lighting(
 	_spawn_room_center_fill(lights, half_w, half_d, biome_id)
 
 
-## Validation fixture: hall torch pass without a RoomTemplate.
-static func spawn_hall_torches_fixture(
-	parent: Node3D, biome_id: String, half_w: float, half_d: float
-) -> void:
-	_begin_room_torch_pass(biome_id)
-	var accent_mat := BiomeRegistry.get_accent_material(biome_id)
-	var torch_y := CastleRoomConstants.WALL_HEIGHT - 0.35
-	_spawn_ceiling_torch(parent, Vector3(0.0, torch_y, 0.0), accent_mat, biome_id)
-	_spawn_ceiling_torch(parent, Vector3(-4.0, torch_y, 0.0), accent_mat, biome_id)
-	_spawn_ceiling_torch(parent, Vector3(4.0, torch_y, 0.0), accent_mat, biome_id)
-	_spawn_wall_midpoint_torches(parent, half_w, half_d, accent_mat, biome_id)
-
-
 static func _spawn_wall_midpoint_torches(
 	parent: Node3D, half_w: float, half_d: float, accent_mat: Material, biome_id: String
 ) -> void:
@@ -208,29 +161,6 @@ static func _spawn_room_center_fill(
 		false
 	)
 	parent.add_child(light)
-
-
-static func apply_shell_lighting(shell: Node3D, bounds: AABB, biome_id: String) -> void:
-	if shell.get_node_or_null("ShellLighting") != null:
-		return
-	_begin_room_torch_pass(biome_id)
-	var lights := Node3D.new()
-	lights.name = "ShellLighting"
-	shell.add_child(lights)
-	var accent_mat := BiomeRegistry.get_accent_material(biome_id)
-	var spacing := VisualLighting.SHELL_TORCH_SPACING
-	var torch_y := CastleRoomConstants.WALL_HEIGHT - 0.4
-	var min_x := bounds.position.x + spacing * 0.5
-	var min_z := bounds.position.z + spacing * 0.5
-	var max_x := bounds.position.x + bounds.size.x - spacing * 0.5
-	var max_z := bounds.position.z + bounds.size.z - spacing * 0.5
-	var x := min_x
-	while x <= max_x:
-		var z := min_z
-		while z <= max_z:
-			_spawn_ceiling_torch(lights, Vector3(x, torch_y, z), accent_mat, biome_id)
-			z += spacing
-		x += spacing
 
 
 static func apply_arena_ceiling_lighting(
@@ -425,7 +355,6 @@ static func _spawn_obstacle_course(
 	accent_mat: Material,
 	biome_id: String
 ) -> void:
-	# Raised platforms (jump), narrow gaps (dash), and low barriers.
 	_add_obstacle_block(
 		parent, Vector3(-3.5, 0.55, -1.0), Vector3(2.8, 1.1, 2.8), floor_mat, "ObstaclePlatformA"
 	)
@@ -519,10 +448,6 @@ static func _spawn_brazier(
 static func _spawn_wall_sconce(
 	parent: Node3D, pos: Vector3, accent_mat: Material, biome_id: String
 ) -> void:
-	# C-197: this drew a 0.25 x 0.5 x 0.35 box and then `_spawn_wall_torch` drew a 0.22 x 0.42 x 0.28
-	# box at the **same position** — fully enclosed by the first, never visible, and carrying its own
-	# bevelled mesh, material override and draw call. Where a torch is spawned it *is* the sconce;
-	# the bracket box is only needed when there is no torch to stand in for it.
 	if biome_id != "":
 		_spawn_wall_torch(parent, pos, accent_mat, biome_id)
 		return
@@ -563,86 +488,8 @@ static func _spawn_ceiling_torch(
 	_add_torch_embers(parent, pos + Vector3(0.0, -0.1, 0.0), _biome_light_color(biome_id))
 
 
-## Rising embers over a torch.
-##
-## A torch was a lit box: the flicker on the light was the only thing saying it was on fire. A
-## handful of embers costs one emitter per torch and is what makes a corridor of them read as a
-## living space rather than a corridor of lamps.
-##
-## Deliberately small. A dungeon floor can hold a couple of dozen torches, so the count per
-## emitter is what keeps the total sane — and the whole thing sits behind the particle-quality
-## setting, which zeroes it on the lowest tier.
-const TORCH_EMBER_COUNT := 7
-
-
-## C-196: this built a BoxMesh, ParticleProcessMaterial, Gradient, GradientTexture1D and
-## StandardMaterial3D per torch. A floor carries 36-44 torches (C-176), so ~200 resources were
-## allocated where ten would do — and because every emitter got its own StandardMaterial3D, none of
-## them batched. Everything except the tint is identical, and within a floor the tint is identical
-## too, so the whole set is cached by tint.
-static var _ember_cache: Dictionary = {}
-
-
-static func clear_ember_cache() -> void:
-	_ember_cache.clear()
-
-
-static func _ember_assets(tint: Color) -> Dictionary:
-	var key := tint.to_html(false)
-	if _ember_cache.has(key):
-		return _ember_cache[key]
-	var chunk := BoxMesh.new()
-	chunk.size = Vector3(0.05, 0.05, 0.05)
-	var mat := ParticleProcessMaterial.new()
-	mat.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_SPHERE
-	mat.emission_sphere_radius = 0.11
-	mat.direction = Vector3(0.0, 1.0, 0.0)
-	mat.spread = 22.0
-	mat.initial_velocity_min = 0.35
-	mat.initial_velocity_max = 0.85
-	# Slight upward gravity: embers ride the heat rather than falling back.
-	mat.gravity = Vector3(0.0, 0.28, 0.0)
-	mat.damping_min = 0.2
-	mat.damping_max = 0.6
-	mat.scale_min = 0.5
-	mat.scale_max = 1.1
-	# Fade from the flame's own colour out to nothing as they cool.
-	var ramp := Gradient.new()
-	ramp.set_color(0, Color(tint.r, tint.g, tint.b, 0.95))
-	ramp.set_color(1, Color(tint.r * 0.6, tint.g * 0.25, tint.b * 0.1, 0.0))
-	var ramp_tex := GradientTexture1D.new()
-	ramp_tex.gradient = ramp
-	mat.color_ramp = ramp_tex
-	# A plain unshaded material that takes its colour from the particle, not the diorama surface
-	# shader: that shader reads a world-space pattern and has no notion of per-particle colour, so
-	# the ramp above would never reach the screen through it.
-	var ember_mat := StandardMaterial3D.new()
-	ember_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	ember_mat.vertex_color_use_as_albedo = true
-	ember_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	ember_mat.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
-	ember_mat.disable_receive_shadows = true
-	ember_mat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
-	chunk.material = ember_mat
-	var assets := {"mesh": chunk, "process": mat}
-	_ember_cache[key] = assets
-	return assets
-
-
 static func _add_torch_embers(parent: Node3D, pos: Vector3, tint: Color) -> void:
-	if PixelDioramaSettings.particle_quality <= 0:
-		return
-	var assets := _ember_assets(tint)
-	var embers := GPUParticles3D.new()
-	embers.name = "TorchEmbers"
-	embers.position = pos
-	embers.amount = maxi(2, int(TORCH_EMBER_COUNT * PixelDioramaSettings.particle_amount_scale()))
-	embers.lifetime = 2.4
-	embers.randomness = 0.7
-	embers.visibility_aabb = AABB(Vector3(-0.8, -0.4, -0.8), Vector3(1.6, 3.2, 1.6))
-	embers.draw_pass_1 = assets["mesh"]
-	embers.process_material = assets["process"]
-	parent.add_child(embers)
+	LightEmbers.attach(parent, pos, tint)
 
 
 static func _add_obstacle_block(
@@ -703,7 +550,7 @@ static func _add_biome_banner(
 	)
 	_add_box(
 		parent,
-		pos + Vector3(0.0, height * 0.5 + 1.2, 0.0),
+		pos + Vector3(0.0, height * 0.5 + 1.2, 0.11),
 		Vector3(width, height, 0.08),
 		accent_mat,
 		"Banner"
@@ -715,9 +562,6 @@ static func _add_box(
 ) -> MeshInstance3D:
 	var mesh_instance := MeshInstance3D.new()
 	mesh_instance.name = node_name
-	# Chamfered, not a raw box. Every torch, brazier, pillar, banner and chest in the dungeon comes
-	# through here, and as plain BoxMeshes they read as shipping crates standing next to characters
-	# that are now properly sculpted. The cut is proportional so a small prop is not swallowed by it.
 	var bevel: float = minf(size.x, minf(size.y, size.z)) * PROP_BEVEL_RATIO
 	mesh_instance.mesh = PixelDioramaStyle.bevel_box_mesh(size, bevel)
 	mesh_instance.position = pos
@@ -753,14 +597,6 @@ static func _material_light_color(mat: Material, biome_id: String = "") -> Color
 	return Color(0.9, 0.75, 0.5)
 
 
-## C-176: `_begin_room_torch_pass` reset `_shadow_omni_budget` to 0, so `max_shadow_omnis` — a
-## single small number (default 2) authored once per biome — was spent *per room*. A 28-room floor
-## therefore produced up to 56 shadow-casting omni lights rather than 2, which is the opposite of
-## what a budget named for the whole lighting profile means and is the most expensive thing a
-## pixel-diorama floor can do.
-##
-## The counter is reset once per floor by `begin_floor_lighting_pass()`; the per-room call now only
-## refreshes the flicker config, which genuinely is per-biome.
 static func begin_floor_lighting_pass(biome_id: String) -> void:
 	_torch_flicker = VisualLighting.get_torch_config_for_biome(biome_id)
 	_max_shadow_omnis = int(_torch_flicker.get("max_shadow_omnis", 2))

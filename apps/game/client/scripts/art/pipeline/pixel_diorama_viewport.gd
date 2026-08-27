@@ -1,10 +1,5 @@
 extends Node
 
-## Crisp low-res 3D: shared-world SubViewport + mirrored camera (no node reparenting).
-##
-## The scene graph is never reparented into the SubViewport; only the camera is
-## mirrored. See docs/design/visual_enhancement_plan.md for the rejected
-## alternatives (own_world_3d, scaling_3d_scale, pivot snapping) and why.
 
 signal world_attached(scene_root: Node)
 
@@ -37,16 +32,9 @@ const PULSE_TUNING := {
 	},
 }
 
-## Fallback focus distance when the spring arm cannot be resolved.
 const SNAP_FOCUS_DISTANCE_FALLBACK := 5.0
 
 var _layer: CanvasLayer
-## Visual layer the contour quad lives on.
-##
-## The SubViewport shares the main World3D (`own_world_3d = false`), so anything parented under the
-## render camera is in the same world the gameplay camera is looking at. Giving the quad a layer of
-## its own and adding only that bit to the render camera's cull mask is what keeps a full-screen
-## black quad from being drawn over the actual game.
 const OUTLINE_LAYER_BIT := 19
 const OUTLINE_LAYER_MASK := 1 << OUTLINE_LAYER_BIT
 
@@ -155,11 +143,6 @@ func _build_nodes() -> void:
 	_viewport.handle_input_locally = false
 	_viewport.gui_disable_input = true
 	_viewport.render_target_update_mode = SubViewport.UPDATE_WHEN_VISIBLE
-	# C-94: verified — no anti-aliasing mode is set anywhere in the project, so B-02 (FXAA inside
-	# the low-res viewport) does not reproduce; these three took Godot's disabled defaults. Stated
-	# explicitly so a later project-wide AA setting cannot silently start smearing the pixel render,
-	# which is the failure the original finding was reaching for. Nearest filtering
-	# (`default_texture_filter=0`) is already correct project-wide.
 	_viewport.screen_space_aa = Viewport.SCREEN_SPACE_AA_DISABLED
 	_viewport.msaa_3d = Viewport.MSAA_DISABLED
 	_viewport.use_taa = false
@@ -167,19 +150,12 @@ func _build_nodes() -> void:
 	_render_camera = Camera3D.new()
 	_render_camera.name = "PixelRenderCamera"
 	_render_camera.current = false
-	# Copied from the gameplay camera every frame in _process, which is the only way it can track a
-	# camera that itself moves at render cadence. With project-wide physics interpolation on, that
-	# made Godot warn on every write, and interpolating this camera would smear the low-resolution
-	# render off the gameplay camera it is meant to reproduce exactly.
 	_render_camera.physics_interpolation_mode = Node.PHYSICS_INTERPOLATION_MODE_OFF
 	_viewport.add_child(_render_camera)
 	_build_outline_pass()
 	_finish_material = PixelDioramaSettings.make_screen_finish_material()
 
 
-## A clip-space quad parented to the render camera. It reads the depth and normal buffers of the
-## pass it is drawn in, so it has to live inside the SubViewport rather than being a canvas shader
-## over the top of it — the screen finish is a `canvas_item` shader and has no depth to read.
 func _build_outline_pass() -> void:
 	_outline_material = PixelDioramaSettings.make_outline_material()
 	if _outline_material.shader == null:
@@ -192,11 +168,7 @@ func _build_outline_pass() -> void:
 	_outline_quad.material_override = _outline_material
 	_outline_quad.layers = OUTLINE_LAYER_MASK
 	_outline_quad.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	# The vertex shader rewrites POSITION into clip space, so the quad's real bounds say nothing
-	# about where it lands on screen. Without a cull margin the engine frustum-culls it away the
-	# moment the camera turns.
 	_outline_quad.extra_cull_margin = 16384.0
-	# Drawn after the world, so the contour sits over the geometry it was derived from.
 	_outline_material.render_priority = 100
 	_render_camera.add_child(_outline_quad)
 
@@ -219,9 +191,10 @@ func _process(_delta: float) -> void:
 	_render_camera.near = _source_camera.near
 	_render_camera.far = _source_camera.far
 	_render_camera.keep_aspect = _source_camera.keep_aspect
-	# Everything the gameplay camera sees, plus the contour layer that only this camera may see.
 	_render_camera.cull_mask = _source_camera.cull_mask | OUTLINE_LAYER_MASK
-	_render_camera.global_transform = _mirrored_transform()
+	var snapped_xform := _mirrored_transform()
+	_render_camera.global_transform = snapped_xform
+	_hold_sky_still(xform.basis, snapped_xform.basis)
 	_last_source_xform = xform
 	_last_source_fov = fov
 
@@ -232,8 +205,6 @@ func _focus_distance() -> float:
 	return SNAP_FOCUS_DISTANCE_FALLBACK
 
 
-## Snapping happens on the render camera only. Snapping the gameplay CameraPivot
-## decouples yaw from player movement and breaks SpringArm follow.
 func _mirrored_transform() -> Transform3D:
 	PixelDioramaSettings.snap_fov_hint = _source_camera.fov
 	return PixelCameraSnap.snap_transform(
@@ -242,6 +213,22 @@ func _mirrored_transform() -> Transform3D:
 		_focus_distance(),
 		PixelDioramaSettings.camera_snap_enabled
 	)
+
+
+func _hold_sky_still(true_basis: Basis, snapped_basis: Basis) -> void:
+	var env := _world_environment()
+	if env == null:
+		return
+	if absf(true_basis.determinant()) < 0.00001:
+		return
+	env.sky_rotation = (snapped_basis * true_basis.inverse()).get_euler()
+
+
+func _world_environment() -> Environment:
+	if _attached_scene == null or not is_instance_valid(_attached_scene):
+		return null
+	var node := _attached_scene.get_node_or_null("WorldEnvironment") as WorldEnvironment
+	return node.environment if node else null
 
 
 func apply_settings() -> void:
@@ -259,7 +246,6 @@ func apply_settings() -> void:
 		_disable_pipeline()
 
 
-## Deferred entry point used by PixelDioramaBootstrap.attach_deferred().
 func bootstrap_scene(scene_root: Node) -> void:
 	if scene_root == null or not is_instance_valid(scene_root):
 		return
@@ -269,9 +255,6 @@ func bootstrap_scene(scene_root: Node) -> void:
 
 
 func attach_to_scene(scene_root: Node) -> void:
-	# A new scene means a new player state. Without this, dying at 10% health and reloading into the
-	# hub carried the low-health vignette across with it, because the fresh reactions node never
-	# crosses the threshold downward and so never sends the release.
 	clear_distress()
 	if not PixelDioramaSettings.low_res_viewport_enabled:
 		detach()
@@ -302,7 +285,6 @@ func detach() -> void:
 
 
 func get_gameplay_camera() -> Camera3D:
-	## Active 3D camera for billboards, lock-on, and HUD (mirrors SubViewport when low-res is on).
 	if PixelDioramaSettings.low_res_viewport_enabled:
 		if is_instance_valid(_render_camera) and _render_camera.current:
 			return _render_camera
@@ -314,10 +296,6 @@ func get_gameplay_camera() -> Camera3D:
 	return tree.root.get_camera_3d()
 
 
-## The internal resolution is expressed as an integer divisor of the window, not
-## as an absolute size: SubViewportContainer.stretch drives the SubViewport size
-## from the container, and any non-integer ratio would put the nearest-neighbour
-## upscale on fractional pixel boundaries and shimmer.
 func _apply_internal_size() -> void:
 	if _viewport == null or _container == null:
 		return
@@ -334,7 +312,6 @@ func _apply_internal_size() -> void:
 		)
 		return
 	var target := PixelDioramaSettings.viewport_internal_size()
-	# Godot 4.7+: SubViewport.size cannot change while container stretch is on.
 	_container.stretch = false
 	if PixelDioramaSettings.is_native_hd_preset():
 		_viewport.size = target
@@ -380,8 +357,6 @@ func _apply_screen_finish() -> void:
 	if _finish_material == null:
 		_finish_material = PixelDioramaSettings.make_screen_finish_material()
 	PixelDioramaSettings.apply_to_screen_finish(_finish_material)
-	# Re-assert after the grade: applying a grade rebuilds every uniform from settings and would
-	# otherwise silently clear a distress state the player is currently in.
 	_finish_material.set_shader_parameter("distress", _distress)
 	_container.material = _finish_material
 
@@ -389,9 +364,6 @@ func _apply_screen_finish() -> void:
 func pulse_screen(kind: ScreenPulse, scale: float = 1.0) -> void:
 	if _finish_material == null or not PixelDioramaSettings.screen_finish_enabled:
 		return
-	# The Accessibility page's "Screen Pulse" slider is applied here and nowhere else. It was
-	# previously stored and displayed but never consulted, so full-screen damage and heal flashes
-	# fired at full strength no matter where the player set it — and at zero it should not fire.
 	var accessibility_scale := AccessibilitySettings.screen_pulse_scale()
 	if accessibility_scale <= 0.0:
 		return
@@ -412,18 +384,7 @@ func pulse_screen(kind: ScreenPulse, scale: float = 1.0) -> void:
 	)
 
 
-## Holds (or releases) the sustained low-health vignette.
-##
-## `CombatEvents.notify_health_ratio` has latched a low-health state since it was written, and
-## dispatched `onLowHealth` for gear affixes to hook, but nothing ever showed the player anything —
-## the only signal you were about to die was the health bar itself. This is the visual half.
-##
-## Ramping rather than snapping matters both ways: appearing instantly reads as a glitch, and
-## clearing instantly on a heal robs the recovery of its moment. The release is quicker than the
-## onset because relief should feel immediate where dread should creep.
 func set_distress(active: bool, strength: float = 0.85) -> void:
-	# Respects the Accessibility "Screen Pulse" slider. A player who set it to zero has asked for no
-	# full-screen effects, and the health bar still carries the information.
 	var scale := AccessibilitySettings.screen_pulse_scale()
 	var target := (clampf(strength, 0.0, 1.0) * scale) if active else 0.0
 	if is_equal_approx(target, _distress):
@@ -446,8 +407,6 @@ func set_distress(active: bool, strength: float = 0.85) -> void:
 	)
 
 
-## Drops the distress state immediately, without the release ramp. For scene changes, where there
-## is no continuity to preserve and a fade would just bleed one screen into the next.
 func clear_distress() -> void:
 	if _distress_tween and _distress_tween.is_valid():
 		_distress_tween.kill()
@@ -514,11 +473,6 @@ func _bind_source_camera(scene_root: Node) -> void:
 			_bind_warned = true
 			push_warning("PixelDioramaViewport: no source camera in %s" % scene_root.name)
 		return
-	# A Camera3D's default cull mask is all twenty layers, the contour layer among them. With the
-	# pipeline on it made no visible difference — the gameplay camera's output is covered by the
-	# SubViewportContainer — but with Low-Res Viewport turned off in Advanced Pixel Options the
-	# gameplay camera draws straight to the window, and a full-screen contour quad drawn by a camera
-	# whose depth buffer it was never derived from is just a dark sheet over the game.
 	_source_camera.cull_mask &= ~OUTLINE_LAYER_MASK
 	if PixelDioramaSettings.low_res_viewport_enabled:
 		_enable_pipeline()

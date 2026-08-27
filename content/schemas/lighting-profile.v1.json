@@ -66,12 +66,17 @@
         "zenith": { "$ref": "#/$defs/hexColor" },
         "horizon": { "$ref": "#/$defs/hexColor" },
         "ground": { "$ref": "#/$defs/hexColor" },
+        "apex": { "$ref": "#/$defs/hexColor" },
         "bands": { "type": "number", "minimum": 2, "maximum": 24 },
+        "band_softness": { "type": "number", "minimum": 0, "maximum": 1 },
         "horizon_falloff": { "type": "number", "minimum": 0.5, "maximum": 8 },
         "sun_size": { "type": "number", "minimum": 0, "maximum": 0.3 },
         "sun_glow": { "type": "number", "minimum": 0, "maximum": 1 },
         "cloud_amount": { "type": "number", "minimum": 0, "maximum": 1 },
-        "cloud_color": { "$ref": "#/$defs/hexColor" }
+        "cloud_color": { "$ref": "#/$defs/hexColor" },
+        "cloud_shadow": { "$ref": "#/$defs/hexColor" },
+        "cloud_drift": { "type": "number", "minimum": 0, "maximum": 0.2 },
+        "cloud_ceiling": { "type": "number", "minimum": 0.1, "maximum": 1 }
       }
     },
     "motesBlock": {

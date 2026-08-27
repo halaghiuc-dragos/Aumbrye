@@ -1,36 +1,33 @@
 extends Node3D
 class_name EnemyHealthBar
 
-## Billboard HP bar above enemies — nearest-filtered Sprite3D quads.
 
 const PixelStyle := preload("res://scripts/art/style/pixel_diorama_style.gd")
+## The attack-class colours live on VfxService, so the wind-up meter and the ground telegraph
+## cannot drift apart.
+const VfxServiceScript := preload("res://scripts/art/vfx/vfx_service.gd")
 
 const BAR_TEX_W := 28
 const BAR_TEX_H := 3
-const ATTACK_BAR_TEX_H := 3
 const FILL_TEX_W := BAR_TEX_W - 2
 const FILL_TEX_H := 1
 const BAR_WORLD_W := BAR_TEX_W * PixelStyle.WORLD_PIXEL
 const BAR_WORLD_H := BAR_TEX_H * PixelStyle.WORLD_PIXEL
 const ATTACK_BAR_OFFSET_PIXELS := -4
 
-## C-96: the enemy bar had a health strip and a wind-up strip and no poise readout, so a
-## stagger-focused build could not see the one value it exists to drive down. Sits below the health
-## bar, thinner, and only appears once the enemy has actually taken poise damage — a full poise bar
-## on every idle enemy is noise.
 const POISE_BAR_OFFSET_PIXELS := 4
 const ATTACK_BAR_OFFSET_Y := ATTACK_BAR_OFFSET_PIXELS * PixelStyle.WORLD_PIXEL
 const POISE_BAR_OFFSET_Y := POISE_BAR_OFFSET_PIXELS * PixelStyle.WORLD_PIXEL
 const FILL_WORLD_W := FILL_TEX_W * PixelStyle.WORLD_PIXEL
-## Draw order for the stacked quads. The fill used to be pushed toward the camera with
-## `position.z = -0.02`, but `BILLBOARD_FIXED_Y` turns the *quad* to face the camera and leaves the
-## node's own axes alone — local -Z is a fixed world direction, so which side of the bar it points
-## at depends on where the enemy happens to be standing. From half the angles in the arena the red
-## fill sorted behind its own black backing and the bar read as an empty box.
-##
-## Sprite3D quads are transparent and do not write depth, so two coplanar layers composite purely by
-## render priority. That is the same from every angle, and unlike `no_depth_test` it keeps the bar
-## correctly hidden behind walls.
+const BAR_BORDER_COLOR := Color(0.02, 0.02, 0.02, 1.0)
+const BAR_WELL_COLOR := Color(0.04, 0.04, 0.04, 1.0)
+const HEALTH_FILL_COLOR := Color(0.9, 0.15, 0.1, 1.0)
+const POISE_FILL_COLOR := Color(0.82, 0.74, 0.45, 1.0)
+## Draw order for the stacked quads. `BILLBOARD_FIXED_Y` turns the *quad* to face the camera and
+## leaves the node's own axes alone, so neither `position.z` nor `position.x` can be used to
+## order or align these — local axes are fixed world directions unrelated to the bar on screen.
+## Sprite3D quads are transparent and write no depth, so coplanar layers composite purely by
+## render priority, which is the same from every angle and still hides correctly behind walls.
 const BAR_PRIORITY_BG := 0
 const BAR_PRIORITY_FILL := 1
 const DEFAULT_HEIGHT := 2.2
@@ -42,14 +39,8 @@ var _fill_sprite: Sprite3D
 var _attack_bg_sprite: Sprite3D
 var _attack_fill_sprite: Sprite3D
 var _health: Health
-var _bg_texture: ImageTexture
-var _fill_texture: ImageTexture
-var _attack_bg_texture: ImageTexture
-var _attack_fill_texture: ImageTexture
 var _poise_bg_sprite: Sprite3D
 var _poise_fill_sprite: Sprite3D
-var _poise_bg_texture: ImageTexture
-var _poise_fill_texture: ImageTexture
 var _poise: Poise
 var _alive := true
 var _in_range := true
@@ -64,7 +55,6 @@ func setup(health: Health, height_offset: float = DEFAULT_HEIGHT, poise: Poise =
 	health.health_changed.connect(_on_health_changed)
 	health.died.connect(_on_died)
 	_on_health_changed(health.current, health.max_health)
-	# C-96: optional — the training dummy and some scripted actors have no Poise node.
 	if poise:
 		_poise = poise
 		poise.poise_changed.connect(_on_poise_changed)
@@ -93,88 +83,60 @@ func _apply_visibility() -> void:
 
 
 func _build_sprites() -> void:
-	_bg_texture = _make_bar_texture(Color(0.04, 0.04, 0.04, 1.0), 1.0)
-	_fill_texture = _make_solid_texture(Color(0.9, 0.15, 0.1, 1.0))
-
-	_bg_sprite = Sprite3D.new()
-	_bg_sprite.name = "Background"
-	_bg_sprite.texture = _bg_texture
-	_bg_sprite.billboard = BaseMaterial3D.BILLBOARD_FIXED_Y
-	PixelStyle.configure_pixel_sprite(_bg_sprite)
-	_bg_sprite.render_priority = BAR_PRIORITY_BG
-	add_child(_bg_sprite)
-
-	_fill_sprite = Sprite3D.new()
-	_fill_sprite.name = "Fill"
-	_fill_sprite.texture = _fill_texture
-	_fill_sprite.billboard = BaseMaterial3D.BILLBOARD_FIXED_Y
-	PixelStyle.configure_pixel_sprite(_fill_sprite)
-	_fill_sprite.render_priority = BAR_PRIORITY_FILL
-	add_child(_fill_sprite)
-	_build_attack_sprites()
-	_build_poise_sprites()
-
-
-func _build_attack_sprites() -> void:
-	_attack_bg_texture = _make_bar_texture(Color(0.04, 0.04, 0.04, 1.0), 1.0, ATTACK_BAR_TEX_H)
-	_attack_fill_texture = _make_solid_texture(Color(0.95, 0.55, 0.15, 1.0))
-
-	_attack_bg_sprite = Sprite3D.new()
-	_attack_bg_sprite.name = "AttackBackground"
-	_attack_bg_sprite.texture = _attack_bg_texture
-	_attack_bg_sprite.billboard = BaseMaterial3D.BILLBOARD_FIXED_Y
-	PixelStyle.configure_pixel_sprite(_attack_bg_sprite)
-	_attack_bg_sprite.render_priority = BAR_PRIORITY_BG
-	_attack_bg_sprite.position.y = ATTACK_BAR_OFFSET_Y
-	_attack_bg_sprite.visible = false
-	add_child(_attack_bg_sprite)
-
-	_attack_fill_sprite = Sprite3D.new()
-	_attack_fill_sprite.name = "AttackFill"
-	_attack_fill_sprite.texture = _attack_fill_texture
-	_attack_fill_sprite.billboard = BaseMaterial3D.BILLBOARD_FIXED_Y
-	PixelStyle.configure_pixel_sprite(_attack_fill_sprite)
-	_attack_fill_sprite.render_priority = BAR_PRIORITY_FILL
-	_attack_fill_sprite.position.y = ATTACK_BAR_OFFSET_Y
-	_attack_fill_sprite.visible = false
-	add_child(_attack_fill_sprite)
+	_bg_sprite = _make_bar_sprite("Background", BAR_PRIORITY_BG, 0.0, Color.WHITE, _bar_texture())
+	_fill_sprite = _make_bar_sprite(
+		"Fill", BAR_PRIORITY_FILL, 0.0, HEALTH_FILL_COLOR, _fill_step_texture(FILL_TEX_W)
+	)
+	_attack_bg_sprite = _make_bar_sprite(
+		"AttackBackground", BAR_PRIORITY_BG, ATTACK_BAR_OFFSET_Y, Color.WHITE, _bar_texture()
+	)
+	_attack_fill_sprite = _make_bar_sprite(
+		"AttackFill",
+		BAR_PRIORITY_FILL,
+		ATTACK_BAR_OFFSET_Y,
+		VfxServiceScript.TELEGRAPH_CLASS_TINTS["blockable"],
+		_fill_step_texture(FILL_TEX_W)
+	)
+	_poise_bg_sprite = _make_bar_sprite(
+		"PoiseBackground", BAR_PRIORITY_BG, POISE_BAR_OFFSET_Y, Color.WHITE, _bar_texture()
+	)
+	_poise_fill_sprite = _make_bar_sprite(
+		"PoiseFill",
+		BAR_PRIORITY_FILL,
+		POISE_BAR_OFFSET_Y,
+		POISE_FILL_COLOR,
+		_fill_step_texture(FILL_TEX_W)
+	)
+	for sprite in [_attack_bg_sprite, _attack_fill_sprite, _poise_bg_sprite, _poise_fill_sprite]:
+		sprite.visible = false
 
 
-func _build_poise_sprites() -> void:
-	_poise_bg_texture = _make_bar_texture(Color(0.04, 0.04, 0.04, 1.0), 1.0, ATTACK_BAR_TEX_H)
-	_poise_fill_texture = _make_solid_texture(Color(0.82, 0.74, 0.45, 1.0))
-
-	_poise_bg_sprite = Sprite3D.new()
-	_poise_bg_sprite.name = "PoiseBackground"
-	_poise_bg_sprite.texture = _poise_bg_texture
-	_poise_bg_sprite.billboard = BaseMaterial3D.BILLBOARD_FIXED_Y
-	PixelStyle.configure_pixel_sprite(_poise_bg_sprite)
-	_poise_bg_sprite.render_priority = BAR_PRIORITY_BG
-	_poise_bg_sprite.position.y = POISE_BAR_OFFSET_Y
-	_poise_bg_sprite.visible = false
-	add_child(_poise_bg_sprite)
-
-	_poise_fill_sprite = Sprite3D.new()
-	_poise_fill_sprite.name = "PoiseFill"
-	_poise_fill_sprite.texture = _poise_fill_texture
-	_poise_fill_sprite.billboard = BaseMaterial3D.BILLBOARD_FIXED_Y
-	PixelStyle.configure_pixel_sprite(_poise_fill_sprite)
-	_poise_fill_sprite.render_priority = BAR_PRIORITY_FILL
-	_poise_fill_sprite.position.y = POISE_BAR_OFFSET_Y
-	_poise_fill_sprite.visible = false
-	add_child(_poise_fill_sprite)
+func _make_bar_sprite(
+	sprite_name: String, priority: int, offset_y: float, tint: Color, texture: Texture2D
+) -> Sprite3D:
+	var sprite := Sprite3D.new()
+	sprite.name = sprite_name
+	sprite.texture = texture
+	sprite.modulate = tint
+	sprite.billboard = BaseMaterial3D.BILLBOARD_FIXED_Y
+	PixelStyle.configure_pixel_sprite(sprite)
+	sprite.render_priority = priority
+	sprite.position.y = offset_y
+	add_child(sprite)
+	return sprite
 
 
 func _on_poise_changed(current: float, max_value: float) -> void:
 	if _poise_fill_sprite == null or max_value <= 0.0:
 		return
 	var ratio := clampf(current / max_value, 0.0, 1.0)
-	# Only worth showing once the player has started breaking it.
 	var should_show := ratio < 0.999 and _alive
 	_poise_bg_sprite.visible = should_show
 	_poise_fill_sprite.visible = should_show
 	if should_show:
 		_apply_fill(_poise_fill_sprite, ratio)
+		if ratio > 0.001:
+			_poise_fill_sprite.modulate = POISE_FILL_COLOR
 
 
 func _on_poise_broken() -> void:
@@ -183,20 +145,12 @@ func _on_poise_broken() -> void:
 	_poise_fill_sprite.modulate = Color(0.95, 0.4, 0.25, 1.0)
 
 
-## C-125: the wind-up meter existed and was always orange. Tinting it by attack class is the
-## consumer §4 asked for — white/amber for blockable, red for unblockable, blue for parryable — and
-## unlike the world-space telegraph it cannot be pointed backwards (C-70).
-const TELEGRAPH_CLASS_TINTS := {
-	"blockable": Color(0.95, 0.55, 0.15, 1.0),
-	"unblockable": Color(0.95, 0.22, 0.16, 1.0),
-	"parryable": Color(0.45, 0.78, 1.0, 1.0),
-}
 
 
 func begin_attack_telegraph(_duration: float, attack_class: String = "blockable") -> void:
 	if _attack_fill_sprite:
-		_attack_fill_sprite.modulate = TELEGRAPH_CLASS_TINTS.get(
-			attack_class, TELEGRAPH_CLASS_TINTS["blockable"]
+		_attack_fill_sprite.modulate = VfxServiceScript.TELEGRAPH_CLASS_TINTS.get(
+			attack_class, VfxServiceScript.TELEGRAPH_CLASS_TINTS["blockable"]
 		)
 	if _attack_bg_sprite:
 		_attack_bg_sprite.visible = true
@@ -218,36 +172,40 @@ func hide_attack_telegraph() -> void:
 		_attack_fill_sprite.visible = false
 
 
+static var _step_textures: Array[ImageTexture] = []
+
+
+static func _fill_step_texture(step: int) -> ImageTexture:
+	if _step_textures.is_empty():
+		for i in FILL_TEX_W + 1:
+			var img := Image.create(FILL_TEX_W, FILL_TEX_H, false, Image.FORMAT_RGBA8)
+			img.fill(Color(0, 0, 0, 0))
+			for x in i:
+				img.set_pixel(x, 0, Color.WHITE)
+			_step_textures.append(ImageTexture.create_from_image(img))
+	return _step_textures[clampi(step, 0, FILL_TEX_W)]
+
+
 func _apply_fill(sprite: Sprite3D, ratio: float) -> void:
-	var fill_ratio := PixelStyle.snap_fill_ratio(ratio, FILL_TEX_W)
-	var fill_w := FILL_WORLD_W * fill_ratio
-	sprite.position.x = FILL_WORLD_W * 0.5 - fill_w * 0.5
-	sprite.scale.x = maxf(fill_ratio, 0.001)
+	var steps := int(round(clampf(ratio, 0.0, 1.0) * float(FILL_TEX_W)))
+	sprite.texture = _fill_step_texture(steps)
 
 
-func _make_bar_texture(
-	color: Color, fill_ratio: float, bar_height: int = BAR_TEX_H
-) -> ImageTexture:
-	var img := Image.create(BAR_TEX_W, bar_height, false, Image.FORMAT_RGBA8)
-	img.fill(Color(0, 0, 0, 0))
-	var fill_w := int(round(float(BAR_TEX_W - 2) * clampf(fill_ratio, 0.0, 1.0)))
-	for y in bar_height:
+## The empty frame every bar sits in: a dark border round a darker well. Identical for all three
+## bars and for every enemy, so it is built once and shared.
+static var _frame_texture: ImageTexture
+
+
+static func _bar_texture() -> ImageTexture:
+	if _frame_texture != null:
+		return _frame_texture
+	var img := Image.create(BAR_TEX_W, BAR_TEX_H, false, Image.FORMAT_RGBA8)
+	for y in BAR_TEX_H:
 		for x in BAR_TEX_W:
-			var border := x == 0 or x == BAR_TEX_W - 1 or y == 0 or y == bar_height - 1
-			if border:
-				img.set_pixel(x, y, Color(0.02, 0.02, 0.02, 1.0))
-			elif x >= 1 and x < 1 + fill_w:
-				img.set_pixel(x, y, color)
-	var tex := ImageTexture.create_from_image(img)
-	return tex
-
-
-func _make_solid_texture(color: Color) -> ImageTexture:
-	var img := Image.create(FILL_TEX_W, FILL_TEX_H, false, Image.FORMAT_RGBA8)
-	img.fill(color)
-	return ImageTexture.create_from_image(img)
-
-
+			var border := x == 0 or x == BAR_TEX_W - 1 or y == 0 or y == BAR_TEX_H - 1
+			img.set_pixel(x, y, BAR_BORDER_COLOR if border else BAR_WELL_COLOR)
+	_frame_texture = ImageTexture.create_from_image(img)
+	return _frame_texture
 func _on_health_changed(current: float, max_value: float) -> void:
 	if _fill_sprite == null:
 		return

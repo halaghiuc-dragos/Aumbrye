@@ -1,7 +1,6 @@
 extends RefCounted
 class_name DungeonCatalog
 
-## Data-driven dungeon ladder from content/dungeons/ (DCT-06, DCT-12).
 
 const DUNGEON_DIR := "content/dungeons"
 const DEFAULT_DUNGEON_ID := "forgotten_castle"
@@ -93,14 +92,6 @@ static func count() -> int:
 	return ENTRIES.size()
 
 
-static func get_dungeon_index(dungeon_id: String) -> int:
-	_ensure_loaded()
-	for i in ENTRIES.size():
-		if str(ENTRIES[i].get("id", "")) == dungeon_id:
-			return i
-	return -1
-
-
 static func get_order_for_dungeon(dungeon_id: String) -> int:
 	var entry := get_entry(dungeon_id)
 	if entry.is_empty():
@@ -110,17 +101,6 @@ static func get_order_for_dungeon(dungeon_id: String) -> int:
 
 static func get_tier_for_dungeon(dungeon_id: String) -> int:
 	return get_order_for_dungeon(dungeon_id)
-
-
-static func get_dungeon_for_tier(tier: int) -> String:
-	_ensure_loaded()
-	for entry in ENTRIES:
-		if int(entry.get("order", 0)) == tier:
-			return str(entry.get("id", DEFAULT_DUNGEON_ID))
-	var index := clampi(tier - 1, 0, ENTRIES.size() - 1)
-	if ENTRIES.is_empty():
-		return DEFAULT_DUNGEON_ID
-	return str(ENTRIES[index].get("id", DEFAULT_DUNGEON_ID))
 
 
 static func is_unlocked_at_tier(dungeon_id: String, max_unlocked_tier: int) -> bool:
@@ -141,10 +121,6 @@ static func get_difficulty_tier_data(dungeon_id: String, tier: int) -> Dictionar
 	if tiers.is_empty():
 		return {}
 	return tiers[0] if tiers[0] is Dictionary else {}
-
-
-static func get_difficulty_tier_label(dungeon_id: String, tier: int) -> String:
-	return str(get_difficulty_tier_data(dungeon_id, tier).get("label", "Tier %d" % tier))
 
 
 static func max_difficulty_tier(dungeon_id: String) -> int:

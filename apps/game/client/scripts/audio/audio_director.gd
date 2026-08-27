@@ -1,6 +1,5 @@
 extends Node
 
-## Autoload — per-biome ambience/boss music, SFX pool, and bus routing.
 
 const MIX_RATE := 44100.0
 const GENERATOR_BUFFER_SEC := 0.25
@@ -32,7 +31,6 @@ const BIOME_REVERB_PRESETS := {
 	"iron_vault": "vault",
 }
 
-## Primary path for each SFX key. Bank variants in `content/audio/sfx.json` take precedence.
 const SFX_PROFILES := {
 	"hit": {"path": "res://assets/audio/sfx/hit.ogg", "bus": &"SFX"},
 	"hit_armor": {"path": "res://assets/audio/sfx/hit_armor.ogg", "bus": &"SFX"},
@@ -57,36 +55,15 @@ const SFX_PROFILES := {
 	"door_release": {"path": "res://assets/audio/sfx/door_release.ogg", "bus": &"SFX"},
 	"portal_open": {"path": "res://assets/audio/sfx/portal_open.ogg", "bus": &"SFX"},
 	"portal_enter": {"path": "res://assets/audio/sfx/portal_enter.ogg", "bus": &"UI"},
-	# C-161: `RarityRegistry.drop_sfx_id()` produces six ids — `loot_drop_common` through
-	# `loot_drop_aumbral` — and **none of them existed**, so in a looter every loot drop played the
-	# missing-sfx fallback tone, and the *same* tone for a common and an aumbral. `RarityRegistry`
-	# carefully defines per-rarity beam height, beam energy, display colour, an epic toast threshold
-	# and an aumbral camera nudge, and `world_item_pickup` uses all of them; the one channel that
-	# says "this one matters" by itself was the one that beeped.
-	#
-	# All six are now authored (`tools/generate_foley.py`). Each is the same landing impact — the
-	# event does not change with rarity — under a chime that gains a note per tier, so the ladder
-	# reads as one scale rather than six unrelated noises. Aumbral is deliberately the odd one:
-	# its chime is built on a tritone instead of a fifth and carries a sub-octave drop, so the top
-	# of the scale sounds wrong rather than merely louder.
 	"loot_drop_common": {"path": "res://assets/audio/sfx/loot_drop_common.ogg", "bus": &"SFX"},
 	"loot_drop_magic": {"path": "res://assets/audio/sfx/loot_drop_magic.ogg", "bus": &"SFX"},
 	"loot_drop_rare": {"path": "res://assets/audio/sfx/loot_drop_rare.ogg", "bus": &"SFX"},
 	"loot_drop_epic": {"path": "res://assets/audio/sfx/loot_drop_epic.ogg", "bus": &"SFX"},
 	"loot_drop_legendary": {"path": "res://assets/audio/sfx/loot_drop_legendary.ogg", "bus": &"SFX"},
 	"loot_drop_aumbral": {"path": "res://assets/audio/sfx/loot_drop_aumbral.ogg", "bus": &"SFX"},
-	# C-122: three ids were requested by live gameplay code and defined nowhere, so each played a
-	# generic synthesized tone through the missing-sfx fallback. `dodge_perfect` is the audio reward
-	# for a perfectly timed dodge — the most skilful action in the genre, and the thing the whole
-	# i-frame model exists to make possible — and it beeped. `exhausted` and `resource_denied` are
-	# the two "you cannot act" cues, the other moment audio has to be unambiguous. All three borrow
-	# All three are now authored (`tools/generate_foley.py`).
 	"dodge_perfect": {"path": "res://assets/audio/sfx/dodge_perfect.ogg", "bus": &"SFX"},
 	"exhausted": {"path": "res://assets/audio/sfx/exhausted.ogg", "bus": &"SFX"},
 	"resource_denied": {"path": "res://assets/audio/sfx/resource_denied.ogg", "bus": &"UI"},
-	# C-65: guard break was the only major defensive event with no sound at all — the harshest
-	# defensive failure in the game was communicated by a 0.16 s material flash. Now authored
-	# (`tools/generate_foley.py`): bright metal failing over the weight of it dropping.
 	"guard_break": {"path": "res://assets/audio/sfx/guard_break.ogg", "bus": &"SFX"},
 	"boss_reveal": {"path": "res://assets/audio/shared/sting_boss.ogg", "bus": &"Music"},
 }
@@ -104,7 +81,6 @@ const LAYER_KEYS: Array[String] = [LAYER_AMBIENCE, LAYER_EXPLORE, LAYER_COMBAT, 
 const LAYER_SILENCE_DB := -60.0
 const LAYER_MAX_DB := 6.0
 
-## Piecewise-linear gain per layer against the 0..1 combat intensity axis.
 const LAYER_GAIN_CURVE := {
 	LAYER_AMBIENCE: [[0.0, 1.0], [0.55, 0.8], [1.0, 0.5]],
 	LAYER_EXPLORE: [[0.0, 1.0], [0.35, 0.55], [0.7, 0.0], [1.0, 0.0]],
@@ -119,7 +95,6 @@ const LOW_VITALITY_THRESHOLD := 0.35
 const INTENSITY_EPSILON := 0.005
 
 var _ambience: AudioStreamPlayer
-## The two pieces that are not tied to a biome: the title/menu theme and the hub's.
 const MENU_THEME_PATH := "res://assets/audio/shared/title_theme.ogg"
 const HUB_THEME_PATH := "res://assets/audio/shared/hub_theme.ogg"
 
@@ -157,17 +132,6 @@ var _boss_active := false
 var _player_vitality := 1.0
 
 
-## Stops every player and drops its stream before the tree goes away.
-##
-## Without this the engine reported four leaked ObjectDB instances and two resources still in use
-## on every exit — an `AudioStreamOggVorbis`, its `OggPacketSequence`, and the two playback objects
-## the audio server holds while a stream is *playing*. They were all `title_theme.ogg`: the menu
-## music is still running when the tree tears down, so the server had not released its playback and
-## the resource never reached a zero refcount.
-##
-## This is not a memory problem in a running game — everything is freed on process exit either way
-## — but it is noise on every single shutdown, and noise on shutdown is how a real leak later goes
-## unnoticed.
 func _exit_tree() -> void:
 	var players: Array[Node] = [_music, _explore, _combat_layer, _ambience]
 	players.append_array(_sfx_pool)
@@ -212,16 +176,12 @@ func _ready() -> void:
 	_report_placeholder_sfx()
 
 
-## One consolidated debug-build note about SFX keys that are still borrowing another sound's file
-## (a door that whooshes like a sword) or have no file at all and fall through to a synthesized
-## tone. Without an explicit marker these placeholders are invisible and ship by default.
 func _report_placeholder_sfx() -> void:
 	if not OS.is_debug_build():
 		return
 	var pending: Array[String] = []
 	for key in SFX_PROFILES:
 		var profile: Dictionary = SFX_PROFILES[key]
-		# A real variant authored in the SFX bank supersedes the placeholder entry.
 		if bool(profile.get("placeholder", false)) and not _bank_covers(str(key)):
 			pending.append(str(key))
 	if pending.is_empty():
@@ -233,14 +193,6 @@ func _report_placeholder_sfx() -> void:
 	)
 
 
-## C-251: the report used to ask `_sfx_bank.has(key)` directly, which cannot see through the one
-## indirection the bank actually uses. `footstep_stone` and its siblings are never requested as
-## bank keys — `play_sfx(kind, world_pos, surface)` asks for `footstep` and resolves the surface
-## from `surface_variants`. So three authored surfaces were reported as "still need real foley",
-## and a developer scanning the banner would dismiss the whole list as stale.
-##
-## All four surfaces now carry three authored variants (`tools/generate_foley.py`); the profiles
-## below are the single-file fallback used only when the bank itself fails to load.
 static func _profile_bank_key(key: String) -> Array:
 	if key.begins_with("footstep_"):
 		return ["footstep", key.substr("footstep_".length())]
@@ -291,10 +243,6 @@ func set_biome(biome_id: String) -> void:
 			"bossFreq": 196.0,
 			"crossfadeSeconds": DEFAULT_CROSSFADE,
 		}
-	# Order matters: _explore_freq and _combat_freq fall back to _ambience_freq and _music_freq, so
-	# both sources must already reflect the NEW profile. Reading _music_freq before updating it
-	# meant any profile without an explicit combatFreq inherited the PREVIOUS biome's boss
-	# frequency — audible as a wrong-pitch combat layer after every biome change in endless mode.
 	_ambience_freq = float(_profile.get("ambienceFreq", 110.0))
 	_music_freq = float(_profile.get("bossFreq", 196.0))
 	_explore_freq = float(_profile.get("exploreFreq", _ambience_freq))
@@ -410,12 +358,6 @@ func _tween_layer(
 	tween.tween_property(player, "volume_db", target_db, maxf(0.05, duration))
 
 
-func get_combat_intensity() -> float:
-	return _intensity
-
-
-## Real-signal input for the vertical mix: a wounded player lifts the combat bed a step
-## without needing a per-frame poll of the player's health.
 func notify_player_vitality(ratio: float) -> void:
 	var clamped := clampf(ratio, 0.0, 1.0)
 	if absf(clamped - _player_vitality) < 0.01:
@@ -439,8 +381,6 @@ func play_dungeon_ambience() -> void:
 func play_menu_music() -> void:
 	_current_mode = "menu"
 	_combat_engagements = 0
-	# Frequencies stay set so the tone generator can still stand in if the theme fails to load —
-	# but the title and menus now have an actual piece of music rather than a held sine chord.
 	_ambience_freq = 98.0
 	_music_freq = 392.0
 	_explore_freq = 523.0
@@ -457,8 +397,6 @@ func play_menu_music() -> void:
 	_apply_reverb_preset("cathedral")
 	_fade_out_player(_combat_layer, _crossfade)
 	_fade_out_player(_ambience, _crossfade)
-	# The theme carries its own harmony, so the second generator layer that used to pad it out
-	# would only fight it.
 	_fade_out_player(_explore, _crossfade)
 	_fade_in_player(_music)
 
@@ -494,15 +432,6 @@ func play_boss_music() -> void:
 	_apply_layer_mix(_crossfade)
 
 
-## C-79: a boss crossing 55% health, roaring, spawning adds and ringing the arena with hazards used
-## to happen over completely unchanged music — `play_boss_music()` was called once per fight and
-## nothing ever touched it again. `onEnter` supported vfx, sfx, shake, tell duration, invulnerability,
-## telegraph shape/radius/tint, adds and hazards, and had no `music` key at all.
-##
-## Two ways to mark the beat, so it lands whether or not real stems are authored: a phase that names
-## a `music` path crossfades the boss layer to it, and every phase — authored path or not — fires the
-## `boss_reveal` sting and lifts the synth fallback's pitch a fifth, so the transition is audible
-## even on placeholder audio.
 func set_boss_phase(phase_index: int, music_path: String = "") -> void:
 	if not _boss_active:
 		return
@@ -522,7 +451,6 @@ func end_boss_music() -> void:
 	_boss_active = false
 	_current_mode = "dungeon"
 	_intensity = -1.0
-	# C-79: restore the biome's authored boss stem and pitch, in case a phase swapped either.
 	_music_freq = float(_profile.get("bossFreq", 196.0))
 	_music.set_meta(&"freq", _music_freq)
 	var boss_path: String = _profile.get("bossPath", "")
@@ -583,13 +511,6 @@ func play_ui_sfx() -> void:
 	play_sfx("ui")
 
 
-## Short audible cue routed through a specific bus, for the Test buttons on the Audio settings
-## page.
-##
-## Every one of those buttons used to play the UI click, which lives on the UI bus — so testing
-## Music or Ambience played a sound governed by a different slider than the one being dragged, and
-## dragging Music to zero left its Test button as loud as ever. Routing the preview through the bus
-## under test is the whole point of the control.
 func preview_bus(bus: StringName) -> void:
 	var idx := AudioServer.get_bus_index(bus)
 	if idx < 0:
@@ -604,7 +525,6 @@ func preview_bus(bus: StringName) -> void:
 	preview.play()
 
 
-## Distinct pitch per bus so the player can hear which channel answered.
 func _preview_tone_for_bus(bus: StringName) -> AudioStream:
 	var freq := 440.0
 	match bus:
@@ -619,8 +539,6 @@ func _preview_tone_for_bus(bus: StringName) -> AudioStream:
 	return _make_tone_stream(freq, 0.22)
 
 
-## Short 16-bit sine burst with a soft attack and decay, so a preview reads as a tone rather than
-## as two clicks where the waveform starts and stops.
 func _make_tone_stream(freq: float, seconds: float) -> AudioStreamWAV:
 	var rate := int(MIX_RATE)
 	var frames := maxi(1, int(rate * seconds))
@@ -645,17 +563,6 @@ func play_cue(cue_name: StringName, world_pos: Variant = null) -> void:
 	play_sfx(String(cue_name), world_pos)
 
 
-## Plays a one-shot stinger and ducks the music under it.
-##
-## Stingers are declared per biome in `content/audio_profiles/<biome>.json` under `stingers`, as
-## direct paths to composed cues. That block was never read: this forwarded straight to play_sfx,
-## which looks the id up in the SFX *bank* — where "boss_reveal" has never existed. So the most
-## dramatic moment in a run played the synthesized fallback beep and pushed a missing-cue warning,
-## while sting_boss.ogg sat unreferenced on disk. The duck below fired correctly either way, which
-## is what kept it from being obvious.
-##
-## Falls through to the SFX bank when a profile does not declare the id, so stingers can still be
-## authored as ordinary cues.
 func play_stinger(stinger_id: String) -> void:
 	var before_db := _music.volume_db if _music else 0.0
 	var stingers: Dictionary = _profile.get("stingers", {})
@@ -671,10 +578,6 @@ func play_stinger(stinger_id: String) -> void:
 		var tween := create_tween()
 		_active_tweens[_music] = tween
 		tween.tween_property(_music, "volume_db", before_db, 1.2)
-
-
-func has_combat_sfx(kind: String) -> bool:
-	return _sfx_streams.has(kind) and not (_sfx_streams[kind] as Array).is_empty()
 
 
 func has_sfx(kind: String) -> bool:
@@ -782,14 +685,9 @@ func _play_stream(stream: AudioStream, world_pos: Variant, entry: Dictionary, ki
 		bus = StringName(str(entry["bus"]))
 	elif SFX_PROFILES.has(kind):
 		bus = SFX_PROFILES[kind].get("bus", &"SFX")
-	# C-161: the bank entry wins where it defines a key, and the profile fills the rest — these
-	# come from two sources (`content/audio/sfx.json` and `SFX_PROFILES`) and only the bank half was
-	# ever consulted here.
 	var profile: Dictionary = SFX_PROFILES.get(kind, {})
 	var volume_db := float(entry.get("volume_db", profile.get("volume_db", 0.0)))
 	var pitch_jitter := float(entry.get("pitch_jitter", profile.get("pitch_jitter", 0.0)))
-	# A fixed `pitch`, distinct from the random `pitch_jitter` — it is what lets six loot-drop
-	# rarities share three files and still read as a ladder.
 	var pitch_scale := float(entry.get("pitch", profile.get("pitch", 1.0)))
 	if pitch_jitter > 0.0:
 		pitch_scale *= 1.0 + _rng.randf_range(-pitch_jitter, pitch_jitter)

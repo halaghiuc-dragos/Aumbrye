@@ -33,6 +33,7 @@
     "arcane": 0.4,
     "physical": 0.2
   },
+  "weapon_kit": "greatsword",
   "attacks": [
     {
       "id": "probe",

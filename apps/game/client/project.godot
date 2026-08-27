@@ -59,7 +59,11 @@ GameFacade="*res://scripts/app/game_facade.gd"
 InputRebindService="*res://scripts/app/input_rebind_service.gd"
 DebugConsole="*res://scripts/debug/debug_console.gd"
 InputGlyphWatcher="*res://scripts/ui/input_glyph_watcher.gd"
+DayNightService="*res://scripts/art/world/day_night_service.gd"
+NightLights="*res://scripts/art/world/night_lights.gd"
 UISymbolBus="*res://scripts/ui/ui_symbol_bus.gd"
+WindService="*res://scripts/art/world/wind_service.gd"
+WeatherService="*res://scripts/art/world/weather_service.gd"
 
 [debug]
 
@@ -414,3 +418,26 @@ textures/canvas_textures/default_texture_filter=0
 textures/default_filters/anisotropic_filtering_level=0
 limits/global_shader_variables/buffer_size=1048576
 textures/default_filters/texture_filter=0
+
+[shader_globals]
+
+wind_vector={
+"type": "vec3",
+"value": Vector3(0, 0, 0)
+}
+wind_time={
+"type": "float",
+"value": 0.0
+}
+wind_gust={
+"type": "float",
+"value": 0.0
+}
+wind_drift={
+"type": "vec3",
+"value": Vector3(0, 0, 0)
+}
+rain_amount={
+"type": "float",
+"value": 0.0
+}

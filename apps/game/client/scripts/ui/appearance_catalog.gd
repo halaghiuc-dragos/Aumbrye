@@ -1,7 +1,6 @@
 extends RefCounted
 class_name AppearanceCatalog
 
-## Player-facing warden aspects loaded from content.
 
 const ASPECTS_PATH := "content/appearance/aspects.json"
 const PixelStyle := preload("res://scripts/art/style/pixel_diorama_style.gd")
@@ -20,7 +19,6 @@ static func get_titles() -> Array[Dictionary]:
 	return _titles
 
 
-## An aspect or title with no unlockFlag is always offered; the rest are earned.
 static func is_unlocked(entry: Dictionary) -> bool:
 	var flag := str(entry.get("unlockFlag", ""))
 	if flag == "":
@@ -78,30 +76,6 @@ static func unlocked_titles() -> Array[Dictionary]:
 	return out
 
 
-static func unlocked_title_labels() -> PackedStringArray:
-	var labels := PackedStringArray()
-	for entry in unlocked_titles():
-		labels.append(_entry_label(entry))
-	return labels
-
-
-static func unlocked_title_id(index: int) -> String:
-	var entries := unlocked_titles()
-	if entries.is_empty():
-		return ""
-	return str(entries[clampi(index, 0, entries.size() - 1)].get("id", ""))
-
-
-static func unlocked_title_index(title_id: String) -> int:
-	var entries := unlocked_titles()
-	for i in entries.size():
-		if str(entries[i].get("id", "")) == title_id:
-			return i
-	return 0
-
-
-## An empty catalog means content is not loaded yet, not that the title is bogus —
-## dropping it there would quietly strip an earned title on an early boot.
 static func is_title_id(title_id: String) -> bool:
 	if title_id == "":
 		return true
@@ -147,19 +121,6 @@ static func theme_for_index(index: int) -> int:
 	var aspect := aspect_at(index)
 	var theme_name := str(aspect.get("paletteTheme", "castle"))
 	return int(PixelStyle._palette_theme_from_string(theme_name))
-
-
-static func label_for_index(index: int) -> String:
-	var aspect := aspect_at(index)
-	var key := str(aspect.get("nameKey", ""))
-	return String(TranslationServer.translate(key)) if key != "" else "?"
-
-
-static func index_for_theme(theme: int) -> int:
-	for i in get_aspects().size():
-		if theme_for_index(i) == theme:
-			return i
-	return 0
 
 
 static func clear_cache() -> void:

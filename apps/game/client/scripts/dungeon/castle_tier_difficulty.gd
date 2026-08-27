@@ -1,7 +1,6 @@
 extends RefCounted
 class_name CastleTierDifficulty
 
-## Castle-mode scaling from catalog difficulty tiers and per-floor growth (DCT-02, DCT-13).
 
 const HP_COMBINED_CAP := 4.0
 const DAMAGE_COMBINED_CAP := 2.6
@@ -51,7 +50,6 @@ static func combined_damage_multiplier(
 	)
 
 
-## How far along the dungeon ladder this run sits, on 0..1, for behaviour scaling.
 static func behaviour_progress(dungeon_id: String, difficulty_tier: int, floor_index: int) -> float:
 	var max_tier := maxi(1, DungeonCatalog.max_difficulty_tier(dungeon_id))
 	var tier_ratio := 0.0

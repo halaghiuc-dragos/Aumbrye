@@ -1,7 +1,6 @@
 extends RefCounted
 class_name GlobalDropService
 
-## Rolls rare global drops (skip-floor items) from content/loot/global_drops.json.
 
 const DROPS_PATH := "content/loot/global_drops.json"
 const EndlessDifficultyScript := preload("res://scripts/dungeon/endless_difficulty.gd")
@@ -35,12 +34,6 @@ static func roll_enemy_drop(
 		if resolved_id == "":
 			resolved_id = DungeonCatalog.DEFAULT_DUNGEON_ID
 		bonus += CastleTierDifficulty.loot_bonus(resolved_id, difficulty_tier)
-	# C-104: this was seeded from `get_instance_id()` — a Godot allocation-order artefact that
-	# depends on how many objects happened to be created first, and varies with scene-load order and
-	# chunked-build timing. It has no relationship to `RunFlow.current_seed`, so the game's *rarest*
-	# drops were the one loot channel a seed could not reproduce: two players on the same seed got
-	# different global drops and a replayed run diverged. `inventory_service._loot_roll_seed()`
-	# twenty lines away was already fixed this way (BUG-14); this is the same treatment.
 	var rng := RandomNumberGenerator.new()
 	var run_seed: int = RunFlow.current_seed if RunFlow else 0
 	rng.seed = FloorSeedMix.mix(run_seed, floor_index * 1337 + int(enemy_seed))

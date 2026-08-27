@@ -1,9 +1,6 @@
 extends Node
 class_name StatusController
 
-## Applies data-defined statuses — buffs and debuffs alike — on the physics tick.
-## Debuffs may accumulate through a build-up meter before they take hold; buffs
-## contribute stat totals and passive ticks through the same timing and stacking path.
 
 signal statuses_changed
 signal build_up_changed
@@ -36,9 +33,6 @@ func _physics_process(delta: float) -> void:
 	if _active.is_empty():
 		return
 	var expired: Array[String] = []
-	# Iterate a snapshot of the keys: `_apply_tick` below routes damage through the Hurtbox,
-	# which can reach `apply_status` (an on-hit status, a death handler, a keystone rule) and
-	# insert into `_active` while this loop is walking it.
 	for status_id in _active.keys():
 		if not _active.has(status_id):
 			continue
@@ -99,9 +93,6 @@ func apply_status(status_id: String, stacks: int = 1, duration_override: float =
 		)
 
 
-## Feeds a resistance meter rather than applying the status outright. Returns true
-## on the frame the meter fills and the status takes hold. Statuses without a
-## `buildUpThreshold` apply immediately, so callers need no special case.
 func add_build_up(status_id: String, amount: float = -1.0) -> bool:
 	if status_id == "":
 		return false
@@ -152,7 +143,6 @@ func get_active_statuses() -> Array[Dictionary]:
 	return out
 
 
-## Meters currently filling, for HUD build-up bars. Ratio is 0..1 toward the proc.
 func get_build_up_meters() -> Array[Dictionary]:
 	var out: Array[Dictionary] = []
 	for status_id in _meters:
@@ -183,8 +173,6 @@ func get_damage_taken_multiplier() -> float:
 	return _damage_taken_multiplier
 
 
-## Aggregated stat contribution of active buff statuses, keyed the same way as
-## equipment and relic stat totals.
 func get_stat_totals() -> Dictionary:
 	return _stat_totals.duplicate()
 
@@ -257,13 +245,6 @@ func _burst(def: Dictionary) -> void:
 func _deal_damage(amount: float, dmg_type: String) -> void:
 	if amount <= 0.0 or _health == null or _health.is_dead():
 		return
-	# C-26: this pre-applied resistance and then handed the result to
-	# `receive_periodic_damage`, which builds a `DamageInfo` and calls `receive_hit` — where
-	# `_apply_resistances` runs again. Every poison, burn and bleed tick was reduced twice, so a
-	# 50% frost-resistant enemy took 25% frost tick damage, and the error compounded with the
-	# `tickGrowth` ramp. The hurtbox owns resistance, as it does for every other damage path; the
-	# raw amount goes to it. The direct-Health fallback has no hurtbox to resolve it, so it still
-	# applies resistance here.
 	var body := get_parent()
 	if body:
 		var hurtbox := body.get_node_or_null("Hurtbox") as Hurtbox
@@ -282,9 +263,6 @@ func _get_resistances() -> Dictionary:
 	return {}
 
 
-## C-30: there was no public single-status removal, so `swamp_cleanse_zone` reached for
-## `clear_all()` and deleted the player's entire build to strip one poison. Returns whether
-## anything was actually removed.
 func remove_status(status_id: String) -> bool:
 	if not _active.has(status_id):
 		return false
@@ -328,10 +306,6 @@ func _recalc_modifiers() -> void:
 		for stat in stats:
 			_stat_totals[stat] = float(_stat_totals.get(stat, 0.0)) + float(stats[stat]) * stacks
 	_slow_multiplier = slow * haste
-	# C-27: `_stat_totals` is rebuilt above but was not part of this comparison. `apply_status`
-	# emits unconditionally, so *gaining* a buff was fine — but expiry runs through
-	# `_physics_process` -> `_recalc_modifiers()`, so a buff whose only effect is `stats` fell off
-	# without telling anyone, and anything caching `get_stat_totals()` kept the bonus forever.
 	if (
 		not is_equal_approx(prev_slow, _slow_multiplier)
 		or prev_stun != _stunned

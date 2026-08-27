@@ -1,10 +1,6 @@
 extends RefCounted
 class_name RunReplay
 
-## Deterministic input capture keyed to a run seed. Samples are only appended when the
-## gameplay input state actually changes, so a quiet stretch of a run costs nothing, and
-## the stream is hard-capped so an opted-in recording can never grow the save without
-## bound.
 
 const META_KEY := "run_replay"
 const OPT_IN_KEY := "replayRecordingEnabled"
@@ -14,7 +10,6 @@ const MAX_ENTRIES := 8192
 const AXIS_QUANTUM := 100.0
 const PLAYBACK_TAIL_TICKS := 120
 
-## Bit index inside the packed action mask. Order is part of the on-disk format.
 const ACTIONS: Array[StringName] = [
 	&"sprint",
 	&"jump",
@@ -95,8 +90,6 @@ static func discard() -> void:
 	_recording = false
 
 
-## Sampled once per physics frame from the input gate. Cheap when idle: one frame-stamp
-## compare and an early return whenever nothing is being recorded or replayed.
 static func pump() -> void:
 	if not _recording and not _playing:
 		return
@@ -188,7 +181,6 @@ static func _decompress(packed: PackedByteArray, expected_entries: int) -> Packe
 	return packed.decompress(expected_entries * ENTRY_BYTES, FileAccess.COMPRESSION_ZSTD)
 
 
-## Persisted through the free-form meta blob so no save migration is involved.
 static func save_to_meta() -> bool:
 	if _entry_count <= 0:
 		return false
@@ -200,14 +192,6 @@ static func save_to_meta() -> bool:
 
 static func load_from_meta() -> Dictionary:
 	return LocalSave.get_meta_data().get(META_KEY, {})
-
-
-static func clear_meta() -> void:
-	var meta := LocalSave.get_meta_data()
-	if not meta.has(META_KEY):
-		return
-	meta.erase(META_KEY)
-	LocalSave.set_meta_data(meta)
 
 
 static func decode(replay: Dictionary) -> Array:
@@ -257,8 +241,6 @@ static func start_playback(replay: Dictionary) -> bool:
 	return true
 
 
-## Re-zeroes the playback clock at the same point in the run lifecycle where recording
-## zeroed its own, so the two streams share an origin regardless of load time.
 static func rebase_playback() -> void:
 	if not _playing:
 		return

@@ -1,7 +1,6 @@
 extends RefCounted
 class_name DungeonSeedService
 
-## Base run seed → per-tier generation seeds. Tier 1 uses base seed X; tier 2+ derives Y.
 
 const TIER_SEED_MULTIPLIER := 104729
 
@@ -25,14 +24,6 @@ static func generation_seed(base_seed: int, tier: int, floor_index: int) -> int:
 
 static func can_access_tier(tier: int) -> bool:
 	return tier <= DungeonTierService.get_max_unlocked_tier()
-
-
-static func can_access_dungeon(dungeon_id: String) -> bool:
-	return DungeonTierService.is_dungeon_unlocked(dungeon_id)
-
-
-static func tier_for_dungeon(dungeon_id: String) -> int:
-	return DungeonCatalog.get_tier_for_dungeon(dungeon_id)
 
 
 static func describe_tier_seed(base_seed: int, tier: int) -> String:

@@ -1,8 +1,6 @@
 class_name LightFlicker
 extends Node
 
-## Deterministic two-octave flicker for torch omnis. Disabled when culled or when
-## PixelDioramaSettings.light_animation is false.
 
 var _light: OmniLight3D
 var _base_energy: float = 1.0
@@ -29,14 +27,14 @@ func _process(delta: float) -> void:
 		queue_free()
 		return
 	if not PixelDioramaSettings.light_animation:
-		_light.light_energy = _base_energy
+		_light.light_energy = _base_energy * NightLights.scale_for(_light)
 		return
 	_cull_timer += delta
 	if _cull_timer >= 0.25:
 		_cull_timer = 0.0
 		_visible = _light.is_visible_in_tree()
 		if not _visible:
-			_light.light_energy = _base_energy
+			_light.light_energy = _base_energy * NightLights.scale_for(_light)
 	if not _visible:
 		return
 	_time += delta
@@ -44,14 +42,5 @@ func _process(delta: float) -> void:
 		(sin(_time * _hz * TAU + _phase) * 0.6 + sin(_time * _hz * 2.7 * TAU + _phase * 1.7) * 0.4)
 		* 0.5
 	)
-	var energy := _base_energy * (1.0 + _amount * swing)
+	var energy := _base_energy * (1.0 + _amount * swing) * NightLights.scale_for(_light)
 	_light.light_energy = maxf(energy, 0.0)
-
-
-static func compute_energy_at(
-	base_energy: float, amount: float, hz: float, phase: float, time: float
-) -> float:
-	var swing := (
-		(sin(time * hz * TAU + phase) * 0.6 + sin(time * hz * 2.7 * TAU + phase * 1.7) * 0.4) * 0.5
-	)
-	return maxf(base_energy * (1.0 + amount * swing), 0.0)

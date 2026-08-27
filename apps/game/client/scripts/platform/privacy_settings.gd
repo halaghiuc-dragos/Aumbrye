@@ -1,7 +1,6 @@
 extends RefCounted
 class_name PrivacySettings
 
-## Privacy preferences persisted in local save meta.
 
 const SAVE_KEY := "privacy"
 

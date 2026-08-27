@@ -1,9 +1,6 @@
 extends Node
 class_name BossPhaseController
 
-## Data-driven boss phases. Thresholds, move-set swaps, opening tells, add spawns and
-## arena hazards all come from the boss definition's `phases` array; locomotion and hit
-## resolution stay with `CastleEnemyBase`.
 
 signal phase_entered(index: int, phase: Dictionary)
 
@@ -14,10 +11,6 @@ var _phases: Array = []
 var _index := -1
 var _spawned: Array[Node] = []
 
-## C-78: `_spawned` was only emptied by `reset_phases()` — i.e. a fight *restart* — so nothing
-## cleared it when the boss died. Phase-2 adds kept fighting over the corpse and any hazard ring
-## authored without a `lifetime` persisted in the arena for the rest of the run. This is the subset
-## that must not outlive the boss.
 var _despawn_on_death: Array[Node] = []
 
 
@@ -28,17 +21,6 @@ func setup(boss: CastleEnemyBase, phases: Array) -> void:
 
 func get_phase_index() -> int:
 	return maxi(_index, 0)
-
-
-func get_phase_count() -> int:
-	return _phases.size()
-
-
-func get_phase_data() -> Dictionary:
-	if _index < 0 or _index >= _phases.size():
-		return {}
-	var entry: Variant = _phases[_index]
-	return entry if entry is Dictionary else {}
 
 
 func reset_phases() -> void:
@@ -101,7 +83,6 @@ func _play_entry(on_enter: Dictionary) -> void:
 			maxf(0.2, tell),
 			_color_from(on_enter.get("telegraphTint", null), Color(0.95, 0.6, 0.35)),
 			String(on_enter.get("telegraphShape", "circle")),
-			# C-41: telegraph cones pointed behind the boss.
 			CombatFacing.forward_of(_boss)
 		)
 	var vfx := String(on_enter.get("vfx", ""))
@@ -110,8 +91,6 @@ func _play_entry(on_enter: Dictionary) -> void:
 	var sfx := String(on_enter.get("sfx", ""))
 	if sfx != "" and AudioDirector:
 		AudioDirector.play_sfx(sfx, origin + Vector3(0.0, 1.0, 0.0))
-	# C-79: the missing musical beat. `music` is optional — the phase index alone is enough for
-	# AudioDirector to mark the transition.
 	if AudioDirector:
 		AudioDirector.set_boss_phase(get_phase_index(), String(on_enter.get("music", "")))
 	var shake := float(on_enter.get("shake", 0.0))
@@ -121,21 +100,15 @@ func _play_entry(on_enter: Dictionary) -> void:
 		if spec is Dictionary:
 			var adds: Array = _boss.spawn_adds(spec as Dictionary)
 			_spawned.append_array(adds)
-			# C-78: adds are tracked separately because they are the one spawn class where
-			# outliving the boss can be the intent ("clear the room"). Authored per wave.
 			if bool((spec as Dictionary).get("despawnOnDeath", false)):
 				_despawn_on_death.append_array(adds)
 	for spec in on_enter.get("hazards", []):
 		if spec is Dictionary:
 			var hazards: Array = _boss.spawn_hazard_ring(spec as Dictionary)
 			_spawned.append_array(hazards)
-			# Hazards are never intended to survive the fight: the victory lap should not happen
-			# in a field of damage zones.
 			_despawn_on_death.append_array(hazards)
 
 
-## C-78: called from the boss's death path. Frees hazards unconditionally and adds only where the
-## wave authored `despawnOnDeath`.
 func clear_death_spawns() -> void:
 	for node in _despawn_on_death:
 		if is_instance_valid(node):

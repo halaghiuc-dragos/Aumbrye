@@ -1,11 +1,11 @@
 extends Node3D
 
-## M4 hub — blacksmith, merchant, storage, arena, quest board, portals (HUB-4.1).
 
 const HubDioramaScript := preload("res://scripts/hub/hub_diorama.gd")
 const CharacterCreateUIScript := preload("res://scripts/ui/character_create_ui.gd")
 const PixelStyle := preload("res://scripts/art/style/pixel_diorama_style.gd")
 const HubNpcScene := preload("res://scenes/hub/hub_npc.tscn")
+const RainFieldScript := preload("res://scripts/art/world/rain_field.gd")
 
 const INTERACT_HANDLERS := {
 	"castle_portal": "_open_castle_menu",
@@ -21,10 +21,9 @@ const INTERACT_HANDLERS := {
 	"appearance_mirror": "open_appearance_mirror",
 }
 
-@onready var _castle_portal_label: Label3D = $CastlePortal/PortalLabel
+@onready var _castle_portal_area: HubInteractable = $CastlePortal/InteractArea
 @onready var _message_label: Label3D = $Player/MessageAnchor/MessageLabel
 @onready var _tip_label: Label3D = $Player/MessageAnchor/TipLabel
-@onready var _prompt_label: Label3D = $Player/MessageAnchor/PromptLabel
 @onready var _castle_menu: Control = $CastleEntryMenu
 @onready var _endless_menu: Control = $UmbralEndlessMenu
 @onready var _waves_menu: Control = $UmbralWavesMenu
@@ -40,6 +39,7 @@ var _nearby: Array[String] = []
 var _interactable_by_id: Dictionary = {}
 var _current_prompt := ""
 var _prompt_writes := 0
+var _message_dismiss_armed := false
 
 
 func _ready() -> void:
@@ -55,16 +55,8 @@ func _ready() -> void:
 	_apply_npc_availability()
 	_assert_interact_handlers()
 
-	# C-91: `_refresh_tip_surface()` was only ever reached from `_handle_tip_input`'s two branches
-	# and `_on_save_loaded`, so a tip whose `showWhen` precondition became true through play —
-	# unlocking the blacksmith, finishing a first run, picking up an item — did not appear until the
-	# player happened to press a key that refreshed the surface. The preconditions are evaluated
-	# against live state, so the surface follows the signals that change it.
 	_connect_tip_refresh_sources()
 
-	# The prompt is blanked while a dialogue is up and had nothing to restore it afterwards, so
-	# walking away from a finished conversation left the player standing in the zone with no "(E)"
-	# on screen and no reason to think they could talk again.
 	_dialogue_ui.closed.connect(_update_prompt)
 
 	_castle_menu.dungeon_run_requested.connect(_on_dungeon_run)
@@ -82,6 +74,7 @@ func _ready() -> void:
 		if npc.has_signal("shop_requested"):
 			npc.shop_requested.connect(_on_npc_shop)
 
+	call_deferred("_face_spawn_view")
 	_show_return_message()
 	_refresh_castle_portal_label()
 	RunFlow.returned_to_hub.connect(_on_returned_to_hub)
@@ -90,12 +83,37 @@ func _ready() -> void:
 	if InventoryService and not InventoryService.inventory_rejected.is_connected(_on_inventory_rejected):
 		InventoryService.inventory_rejected.connect(_on_inventory_rejected)
 	AudioDirector.play_hub_ambience()
+	_attach_weather()
 	call_deferred("_apply_player_viewmodel_theme")
 	LocalSave.save_loaded.connect(_on_save_loaded)
 	call_deferred("_boot_save_and_services")
 
 
+func _face_spawn_view() -> void:
+	var player := get_node_or_null("Player") as Node3D
+	if player == null:
+		return
+	var arm := player.get_node_or_null("CameraPivot/SpringArm3D")
+	if arm != null and arm.has_method("snap_look_direction"):
+		arm.call("snap_look_direction", Vector3(0.0, 0.0, -1.0))
+
+
+func _attach_weather() -> void:
+	WeatherService.set_outdoors(true)
+	var player := get_node_or_null("Player") as Node3D
+	if player == null or get_node_or_null("RainField") != null:
+		return
+	var rain := Node3D.new()
+	rain.set_script(RainFieldScript)
+	add_child(rain)
+	rain.call(
+		"set_floor_extent", HubDioramaScript.FLOOR_WIDTH * 0.5, HubDioramaScript.FLOOR_DEPTH * 0.5
+	)
+	rain.call("setup", player)
+
+
 func _exit_tree() -> void:
+	WeatherService.set_outdoors(false)
 	if DungeonTierService and DungeonTierService.tier_unlocked.is_connected(_refresh_castle_portal_label):
 		DungeonTierService.tier_unlocked.disconnect(_refresh_castle_portal_label)
 	if RunFlow.returned_to_hub.is_connected(_on_returned_to_hub):
@@ -115,9 +133,6 @@ func _boot_save_and_services() -> void:
 	if not synced and LocalSave.has_save():
 		reloaded = LocalSave.reload_active_into_services()
 	if CharacterService.class_id == "":
-		# Reaching the hub without a class means the save the services were populated from is not
-		# the one the player just chose. Say so: this used to return the player to the main menu
-		# with no message at all, which is indistinguishable from the Begin button doing nothing.
 		push_error(
 			(
 				"Hub: no class on the active character (id '%s') — returning to the main menu. "
@@ -163,8 +178,6 @@ func _apply_npc_availability() -> void:
 func _on_save_loaded() -> void:
 	HubTutorialService.load_from_save()
 	_apply_npc_availability()
-	# Arrivals are keyed off the tier ladder, and a tier can unlock while the player is standing in
-	# the plaza reading the results of the run that unlocked it.
 	if DungeonTierService and not DungeonTierService.tier_unlocked.is_connected(_on_tier_unlocked):
 		DungeonTierService.tier_unlocked.connect(_on_tier_unlocked)
 	_refresh_tip_surface()
@@ -181,18 +194,7 @@ func _auto_equip_starting_weapon() -> void:
 	var weapon_id := (
 		ClassCatalog.get_starting_weapon_item_id(class_id) if class_id != "" else "castle_sword"
 	)
-	_auto_equip_weapon_item(weapon_id)
-
-
-func _auto_equip_weapon_item(item_id: String) -> void:
-	var grid := InventoryService.inventory
-	for i in grid.slots.size():
-		if grid.slots[i].get("itemId", "") == item_id:
-			grid.equip_weapon(i)
-			return
-	if grid.add_item(item_id, 1):
-		grid.equip_weapon(grid.slots.size() - 1)
-
+	InventoryService.equip_weapon_item(weapon_id)
 
 func _apply_pixel_diorama_to_scene() -> void:
 	PixelDioramaBootstrap.attach(self)
@@ -273,17 +275,49 @@ func _on_appearance_mirror_saved(_profile: Dictionary) -> void:
 	_update_prompt()
 
 
+const MESSAGE_DISMISS_ACTIONS: Array[StringName] = [
+	&"move_forward",
+	&"move_back",
+	&"move_left",
+	&"move_right",
+	&"sprint",
+	&"jump",
+	&"dodge",
+	&"interact",
+]
+
+
 func show_hub_message(message: String) -> void:
 	_message_label.text = message
+	_message_label.visible = message != ""
+	_message_dismiss_armed = message != ""
+
+
+func _dismiss_message_on_movement() -> void:
+	if not _message_dismiss_armed:
+		return
+	for action in MESSAGE_DISMISS_ACTIONS:
+		if InputMap.has_action(action) and Input.is_action_pressed(action):
+			_clear_hub_message()
+			return
+	if Input.get_vector("move_left", "move_right", "move_forward", "move_back").length_squared() > 0.04:
+		_clear_hub_message()
+
+
+func _clear_hub_message() -> void:
+	_message_dismiss_armed = false
+	_message_label.text = ""
+	_message_label.visible = false
+
+
+func _process(_delta: float) -> void:
+	_dismiss_message_on_movement()
 
 
 func _ui_is_open(ui: Control) -> bool:
 	return ui != null and ui.has_method("is_open") and ui.call("is_open")
 
 
-## Public, because `PlayerControls.gameplay_input_blocked` asks the scene whether a panel of its own
-## is up before it grabs the mouse back. Keeping the list here rather than copying it into
-## PlayerControls means the hub's own prompt suppression and the mouse decision cannot disagree.
 func has_open_ui() -> bool:
 	return _any_ui_open()
 
@@ -339,16 +373,6 @@ func _on_interact_exit(interact_id: String) -> void:
 	_update_prompt()
 
 
-## Despite the name this used to return the *last zone entered*, not the nearest one, which is only
-## the same thing when zones do not overlap. They do: Rook's patch sits inside the merchant's zone,
-## Cinder's inside Aldric's, Tallow's inside the quartermaster's. Walk up to the dog from the plaza
-## and you enter the merchant's zone second, so the prompt read "Merchant (E)" while you were
-## standing on top of the dog, and E opened the shop instead of the dialogue.
-##
-## Distance is measured on the ground plane and against the zone's collision shape rather than the
-## Area3D origin, because a shop's area sits at the building origin with the shape pushed out in
-## front of it, and a stray's sphere sits above the animal's feet. Comparing origins would hand the
-## contest back to the building.
 func _nearest_interact_id() -> String:
 	if _nearby.is_empty():
 		return ""
@@ -384,20 +408,13 @@ func _update_prompt() -> void:
 	if next_text == _current_prompt:
 		return
 	_current_prompt = next_text
-	_prompt_label.text = next_text
 	_prompt_writes += 1
-
-
-func get_prompt_write_count() -> int:
-	return _prompt_writes
 
 
 func _dispatch_interact(interact_id: String) -> void:
 	if interact_id.begins_with("npc:"):
 		_trigger_npc_interact(interact_id.substr(4))
 		return
-	# The strays. They carry a dialogue id directly rather than an NPC id, because they are not in
-	# the NPC catalogue — they have no schedule, no availability gate and nothing to sell.
 	if interact_id.begins_with("stray:"):
 		_on_npc_dialogue("", interact_id.substr(6))
 		return
@@ -458,8 +475,8 @@ func _assert_interact_handlers() -> void:
 
 
 func _refresh_castle_portal_label() -> void:
-	if _castle_portal_label:
-		_castle_portal_label.text = DungeonTierService.get_hub_portal_label()
+	if _castle_portal_area:
+		_castle_portal_area.set_display_name(DungeonTierService.get_hub_portal_label())
 
 
 func _on_returned_to_hub(_message: String) -> void:
@@ -468,14 +485,12 @@ func _on_returned_to_hub(_message: String) -> void:
 
 func _show_return_message() -> void:
 	if RunFlow.last_hub_message != "":
-		_message_label.text = RunFlow.last_hub_message
+		show_hub_message(RunFlow.last_hub_message)
 		RunFlow.last_hub_message = ""
 	else:
-		_message_label.text = "Welcome to Aumbrye Tower — explore the landmarks"
+		show_hub_message("Welcome to Aumbrye Tower — explore the landmarks")
 
 
-## C-91: every source whose change can flip a tip's `showWhen`. Bound methods rather than lambdas —
-## Godot only auto-disconnects callables bound to an object, and these outlive the hub scene.
 func _connect_tip_refresh_sources() -> void:
 	if InventoryService:
 		InventoryService.inventory_changed.connect(_on_tip_source_changed)
@@ -555,7 +570,7 @@ func _on_waves_continue() -> void:
 
 func _refresh_hub_message() -> void:
 	if RunFlow.last_hub_message != "":
-		_message_label.text = RunFlow.last_hub_message
+		show_hub_message(RunFlow.last_hub_message)
 		RunFlow.last_hub_message = ""
 
 

@@ -1,6 +1,5 @@
 extends Node
 
-## M6 achievement service — unlock tracking, toasts, cloud sync.
 
 signal achievement_unlocked(achievement_id: String, display_name: String)
 
@@ -151,26 +150,6 @@ func get_hooked_achievement_ids() -> Array[String]:
 			if hook_id != "":
 				ids.append(hook_id)
 	return ids
-
-
-func validate_catalog_coverage() -> Dictionary:
-	var missing: PackedStringArray = []
-	for def in _definitions:
-		if not def is Dictionary:
-			continue
-		var id: String = str(def.get("id", ""))
-		if id == "":
-			continue
-		if is_manual_unlock(id):
-			continue
-		var hooked := false
-		for hook_id in get_hooked_achievement_ids():
-			if hook_id == id:
-				hooked = true
-				break
-		if not hooked:
-			missing.append(id)
-	return {"ok": missing.is_empty(), "missing": missing}
 
 
 func _check_all_biomes() -> void:

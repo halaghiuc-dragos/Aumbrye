@@ -16,16 +16,11 @@ var _regen_multiplier := 1.0
 
 
 func _ready() -> void:
-	# See Stamina._ready: regen is a physics-tick system; set_process(false) disabled a callback
-	# this class never implemented.
 	set_process(false)
 	set_physics_process(true)
 	mana_changed.emit(current, max_mana)
 
 
-## C-49: `Mana` was the one resource that never received the BUG-13 `preserve_ratio` parameter that
-## `Health`, `Poise` and `Stamina` all carry, so the hardening against the equipment path — which
-## fires on every inventory change — skipped it, and moving an item zeroed the 0.7 s mana delay.
 func configure(
 	max_value: float, regen_multiplier: float = 1.0, preserve_ratio: bool = false
 ) -> void:
@@ -57,9 +52,6 @@ func restore(amount: float) -> void:
 	mana_changed.emit(current, max_mana)
 
 
-## C-57: `consume` and `drain` were byte-identical apart from the `insufficient` emit — two methods
-## where one with a flag does. (`Stamina`'s pair was also flagged, but those two genuinely differ:
-## `drain` clamps to zero and spends what is there, `consume` is all-or-nothing. Left alone.)
 func consume(amount: float, notify_insufficient: bool = true) -> bool:
 	if current < amount:
 		if notify_insufficient:

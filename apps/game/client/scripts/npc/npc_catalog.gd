@@ -1,7 +1,6 @@
 extends RefCounted
 class_name NpcCatalog
 
-## Data-driven NPC definitions from content/npcs/ (NPC-4.1).
 
 const NPC_DIR := "content/npcs"
 
@@ -26,10 +25,6 @@ static func reload() -> void:
 	_definitions.clear()
 	_loaded = false
 	_ensure_loaded()
-
-
-static func is_loaded() -> bool:
-	return _loaded
 
 
 static func _ensure_loaded() -> void:

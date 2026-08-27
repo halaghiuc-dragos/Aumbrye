@@ -1,7 +1,6 @@
 class_name WorldFlags
 extends RefCounted
 
-## Canonical run-flag id builders. Every WorldState key must come from here.
 
 const NS_LOCK := "lock"
 const NS_LEVER := "lever"
@@ -34,16 +33,8 @@ static func room_cleared(room_id: String) -> String:
 	return "%s.%s.cleared" % [NS_ROOM, room_id]
 
 
-static func chest_opened(instance_id: String) -> String:
-	return "%s.%s.opened" % [NS_CHEST, instance_id]
-
-
 static func secret_opened(secret_id: String) -> String:
 	return "%s.%s.opened" % [NS_SECRET, secret_id]
-
-
-static func trap_disarmed(trap_id: String) -> String:
-	return "%s.%s.disarmed" % [NS_TRAP, trap_id]
 
 
 static func is_valid_id(flag_id: String) -> bool:

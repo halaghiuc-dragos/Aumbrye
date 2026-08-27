@@ -1,7 +1,6 @@
 extends RefCounted
 class_name RunLifecycle
 
-## Unified run outcome assembly for RunFlow (escape / death / waves / respawn).
 
 const OUTCOME_ESCAPED := "escaped"
 const OUTCOME_DIED := "died"

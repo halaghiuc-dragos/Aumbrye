@@ -1,7 +1,6 @@
 extends RefCounted
 class_name LeaderboardSettings
 
-## M6 leaderboard opt-in (META-6.2).
 
 const SAVE_KEY := "leaderboard"
 

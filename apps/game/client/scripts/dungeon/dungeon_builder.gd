@@ -1,7 +1,6 @@
 extends Node3D
 class_name DungeonBuilder
 
-## Loads a DungeonDefinition fixture and instances room templates (BUILDER-2.1).
 
 const FIXTURE_RELATIVE := "content/fixtures/forgotten_castle_slice.json"
 
@@ -13,9 +12,6 @@ const ENEMY_SCENES_FALLBACK := {
 }
 
 const CHEST_SCENE := preload("res://scenes/loot/loot_chest.tscn")
-const SPIKE_TRAP_SCENE := preload("res://scenes/traps/spike_trap.tscn")
-const FALLING_TRAP_SCENE := preload("res://scenes/traps/falling_trap.tscn")
-const POISON_POOL_SCENE := preload("res://scenes/traps/poison_pool.tscn")
 const EXIT_PORTAL_SCENE := preload("res://scenes/dungeon/exit_portal.tscn")
 const BOSS_ROOM_DOOR_SCENE := preload("res://scenes/dungeon/boss_room_door.tscn")
 const STAIR_LEVER_SCENE := preload("res://scenes/dungeon/stair_lever.tscn")
@@ -34,14 +30,9 @@ const RoomContentSpawnerScript := preload(
 signal build_complete
 signal boss_defeated
 signal snapshot_dirty
-## PERF-03: emitted between build steps when building chunked, so a loading-screen host can show
-## progress. `ratio` is in [0, 1]; the final emission with ratio 1.0 fires immediately before
-## `build_complete`.
 signal build_progress(ratio: float)
 signal room_cleared(room_id: String)
 
-## Rooms/enemies are instantiated in small batches even within a single "step" so a floor with
-## many rooms or a crowded encounter cannot itself blow the per-frame budget below.
 const CHUNK_ROOMS_PER_FRAME := 3
 const CHUNK_ENEMIES_PER_FRAME := 4
 const CHUNK_LOOT_PER_FRAME := 6
@@ -64,33 +55,18 @@ var _boss_door: Node3D
 var _stair_levers: Dictionary = {}
 var _is_final_floor := false
 
-## Monotonic build id. A chunked build suspends across ~23 `await`s; if the player dies or exits to
-## hub in between, the scene swap frees this builder's nodes and the resumed coroutine would run
-## against freed instances — the classic intermittent "previously freed instance" crash. Every
-## build captures this value on entry and bails the moment it no longer matches.
 var _build_generation := 0
 
 
 func _exit_tree() -> void:
 	cancel()
-	# C-86: `unload_from_parent()` frees the floor's navigation map correctly — and had no gameplay
-	# caller anywhere in the repository. `CastleRun` creates the builder and never unloads it; floor
-	# transitions replace the scene, so the builder is freed and only `cancel()` ran. Every floor
-	# build therefore created a NavigationServer3D map, set it **active**, and never freed it — so a
-	# ten-floor castle run leaked ten and an Umbral Endless run leaked one per floor without bound,
-	# each still being stepped every frame alongside the live one.
 	unload_from_parent(get_parent() as Node3D)
 
 
-## Invalidates any build currently suspended mid-await. Safe to call at any time.
 func cancel() -> void:
 	_build_generation += 1
 
 
-## Yields between build steps and reports whether the build is still allowed to continue.
-##
-## Returns false when the build was cancelled, the builder left the tree, or the tree itself is
-## gone — every caller must treat that as "stop immediately and touch nothing".
 func _yield_step(chunked: bool, my_gen: int) -> bool:
 	if chunked:
 		var tree := get_tree()
@@ -100,32 +76,15 @@ func _yield_step(chunked: bool, my_gen: int) -> bool:
 	return my_gen == _build_generation and is_inside_tree()
 
 
-## Sole owner of the in-run floor definition cache (REF-11: previously duplicated in
-## RunFlow.floor_definitions with a separate, disagreeing eviction policy).
-## BUG-30: bounded to MAX_CACHED_FLOORS with distance-from-current eviction — this is a *static*
-## cache with no per-run eviction of its own (only clear_floor_cache(), called at run start/end),
-## so an endless run used to hold every floor definition it had ever generated in memory for as
-## long as the run lasted.
 const MAX_CACHED_FLOORS := 8
 
 static var _floor_definition_cache: Dictionary = {}
 
-## Identity of the run the cached floors belong to.
-##
-## The cache is static, so a run abandoned by a crash used to leave its definitions sitting there
-## until clear_floor_cache() happened to be called — and two runs that share floor indices (seeded
-## and challenge runs in particular) would then read each other's floors. Stamping the owning run
-## makes a stale hit impossible rather than merely unlikely.
 static var _cache_run_key := ""
 
-## Floor the player is actually on, for farthest-first eviction. -1 means "not set for this run",
-## in which case eviction measures distance from whichever floor is being stored — the right
-## default for callers that only ever cache the floor they are on.
 static var _cache_reference_floor := -1
 
 
-## Binds the cache to a run, discarding anything left over from a previous one.
-## `run_key` should identify the run uniquely, e.g. "%s:%d:%s" % [run_mode, seed, run_id].
 static func begin_run_cache(run_key: String) -> void:
 	if run_key != _cache_run_key:
 		_floor_definition_cache.clear()
@@ -133,7 +92,6 @@ static func begin_run_cache(run_key: String) -> void:
 	_cache_reference_floor = -1
 
 
-## Tells the cache which floor to measure eviction distance from.
 static func set_reference_floor(floor_index: int) -> void:
 	_cache_reference_floor = floor_index
 
@@ -173,13 +131,6 @@ static func _trim_floor_cache(reference_floor: int) -> void:
 		_floor_definition_cache.erase(str(keys.pop_front()))
 
 
-## `chunked=false` (the default) builds synchronously in one call, exactly as before — every
-## validation-suite fixture and any other caller that does not pass `chunked=true` sees no
-## behavioural change at all, since none of the `await`s below are ever reached.
-## `chunked=true` (used by the real gameplay path, see RunFlow._transition_floor /
-## CastleRun._ready) yields to the scheduler between build steps — and, within the two heaviest
-## steps, every few rooms/enemies — so a floor build never blocks a single frame for its full
-## duration. Callers must `await` this when passing `chunked=true`.
 func build(
 	parent: Node3D,
 	player: CharacterBody3D,
@@ -202,8 +153,6 @@ func build_from_source(
 	def: Dictionary,
 	chunked: bool = false
 ) -> void:
-	# Supersede any build already in flight, and remember our own id so every resumption below can
-	# tell whether it is still the current one.
 	cancel()
 	var my_gen := _build_generation
 	_player = player
@@ -234,8 +183,6 @@ func build_from_source(
 	_entities = Node3D.new()
 	_entities.name = "Entities"
 	_dungeon_root.add_child(_entities)
-	# 21 progress-reporting steps; kept as a flat list (rather than dividing by an exact count)
-	# so adding/removing a step later cannot desync the ratio math.
 	const TOTAL_STEPS := 21.0
 	var step := 0.0
 
@@ -397,8 +344,6 @@ func open_exit_portal() -> void:
 
 
 func _build_rooms(chunked: bool, my_gen: int) -> bool:
-	# C-176: the shadow-casting omni budget is a floor budget, and was being reset per room — so a
-	# 28-room floor spent `max_shadow_omnis` (default 2) twenty-eight times over.
 	DioramaRoomDressing.begin_floor_lighting_pass(biome_id)
 	var unknown: Array[String] = []
 	for room_def in definition.get("rooms", []):
@@ -426,7 +371,6 @@ func _build_rooms(chunked: bool, my_gen: int) -> bool:
 		instance.template_id = template_id
 		instance.room_type = str(room_def.get("type", instance.room_type))
 		instance.room_kind = str(room_def.get("kind", ""))
-		# C-151: the authored tags, onto the node and into groups.
 		var room_tags := PackedStringArray()
 		for tag in room_def.get("tags", []):
 			var tag_name := str(tag)
@@ -440,8 +384,6 @@ func _build_rooms(chunked: bool, my_gen: int) -> bool:
 			blockout.skip_floor = false
 		rooms_root.add_child(instance)
 		_rooms[room_def.get("id", "")] = instance
-		# Template, not kind: this is about geometry. Any room built from the stairs scene has steps
-		# in it and needs stair collision, whatever role the generator gave the room.
 		if str(room_def.get("templateId", "")).ends_with("_stairs"):
 			STAIR_COLLISION.ensure_stair_collision(instance)
 		if chunked and (i + 1) % CHUNK_ROOMS_PER_FRAME == 0:
@@ -451,8 +393,6 @@ func _build_rooms(chunked: bool, my_gen: int) -> bool:
 
 
 func _setup_floor_nav_map() -> void:
-	# C-86: `build_from_source()` can run more than once on the same builder, and each call used to
-	# assign a fresh RID over the old one without freeing it.
 	if _floor_nav_map != RID():
 		NavigationServer3D.free_rid(_floor_nav_map)
 		_floor_nav_map = RID()
@@ -523,7 +463,6 @@ func _open_blockout_door_toward(from_room: RoomTemplate, to_room: RoomTemplate) 
 			blockout.door_west = true
 
 
-## Inverse of `_open_blockout_door_toward`, for a shortcut whose two rooms did not end up flush.
 func _close_blockout_door_toward(from_room: RoomTemplate, to_room: RoomTemplate) -> void:
 	var blockout := from_room.get_blockout()
 	if blockout == null:
@@ -571,20 +510,6 @@ func _build_doorway_bridges() -> void:
 		offset.y = 0.0
 		var span := offset.length()
 		if span >= 0.5:
-			# C-210: a doorway carved between two rooms whose sockets do not meet opens into a
-			# hole. Close it rather than build it.
-			#
-			# For a `shortcut` this is expected, not a fault. Rooms are positioned by a
-			# breadth-first walk out from the entrance, so only the edges that walk *used* are
-			# guaranteed to touch; a shortcut joins two grid-adjacent cells reached along different
-			# branches, and once room sizes vary their world positions have no reason to line up.
-			# Measured on the committed fixture: every `door`, `corridor` and `secret` edge touches
-			# exactly, and every `shortcut` misses — by 8.0, 17.2 and 19.8 units, which are not
-			# footprint mismatches but rooms that are simply nowhere near each other.
-			#
-			# Closing them is correct under this layout. Opening them needs the constraint-solving
-			# positioning rewrite tracked as C-157, and until that lands a per-edge warning reports
-			# expected behaviour as a defect on every floor. One summary line at the end instead.
 			if kind == "shortcut":
 				_close_blockout_door_toward(from_room, to_room)
 				_close_blockout_door_toward(to_room, from_room)
@@ -592,8 +517,6 @@ func _build_doorway_bridges() -> void:
 					"%s->%s (%.1f)" % [edge.get("from", ""), edge.get("to", ""), span]
 				)
 			else:
-				# A tree edge that does not meet *is* a fault: those are load-bearing for
-				# connectivity and cannot simply be closed.
 				push_error(
 					(
 						"DungeonBuilder: doorway span %.2f on %s->%s indicates a footprint mismatch"
@@ -821,7 +744,6 @@ func _build_nav_links() -> void:
 		var link := NavigationLink3D.new()
 		link.bidirectional = true
 		link.travel_cost = 1.0
-		# Method, not property — see castle_blockout.set_navigation_map.
 		link.set_navigation_map(_floor_nav_map)
 		link.start_position = _nav_links_root.to_local(
 			from_socket.global_position + from_socket.get_world_facing() * -0.5
@@ -1111,21 +1033,6 @@ func _create_stair_lever(room: RoomTemplate, room_id: String) -> void:
 	_stair_levers[room_id] = lever
 
 
-func get_stair_lever() -> Node3D:
-	var stair_id := RunFloorConfig.find_stairs_room_id(definition)
-	if stair_id == "":
-		return null
-	return _stair_levers.get(stair_id, null) as Node3D
-
-
-func get_stair_levers() -> Array[Node3D]:
-	var out: Array[Node3D] = []
-	for lever in _stair_levers.values():
-		if lever is Node3D:
-			out.append(lever)
-	return out
-
-
 func _place_stair_lever_on_wall(lever: Node3D, room: RoomTemplate) -> bool:
 	var spawn := room.get_node_or_null("SpawnPoints/LeverSpawn") as Node3D
 	if spawn == null:
@@ -1145,14 +1052,6 @@ func _unlock_stair_lever() -> void:
 		if lever and lever.has_method("unlock"):
 			lever.call("configure", can_ascend, can_descend, can_retreat, floor_index)
 			lever.call("unlock")
-
-
-func get_floor_nav_map() -> RID:
-	return _floor_nav_map
-
-
-func get_dungeon_root() -> Node3D:
-	return _dungeon_root
 
 
 func get_stair_spawn_global(stair_room_id: String, _ascending: bool) -> Dictionary:
@@ -1197,10 +1096,6 @@ func _setup_boss_door(castle_run: Node3D) -> void:
 		castle_run.call("register_boss_door", door)
 
 
-func get_boss_door() -> Node3D:
-	return _boss_door
-
-
 func _boss_approach_socket(room: RoomTemplate) -> DoorwaySocket:
 	var sockets := room.get_sockets()
 	if sockets.is_empty():
@@ -1209,11 +1104,6 @@ func _boss_approach_socket(room: RoomTemplate) -> DoorwaySocket:
 		return sockets[0]
 	var best: DoorwaySocket = null
 	var best_dot := -2.0
-	# C-116: this negated the basis z, so a room with more than one candidate socket picked the one
-	# on the **opposite** wall — the boss door bridged across the room instead of out of it. The
-	# project's forward for a placed node is +basis.z (`CombatFacing`), the same convention the
-	# C-41 sweep applied everywhere else; this site is a *room*, not a camera, and was missed by
-	# that sweep because it reads `room.` rather than a facing or camera node.
 	var approach := CombatFacing.forward_of(room)
 	for socket in sockets:
 		var dot := socket.get_world_facing().dot(approach)
@@ -1225,10 +1115,6 @@ func _boss_approach_socket(room: RoomTemplate) -> DoorwaySocket:
 
 func get_tracked_enemy(placement_id: String) -> Node:
 	return _enemy_by_id.get(placement_id)
-
-
-func get_spawned_enemy_count() -> int:
-	return _enemy_by_id.size()
 
 
 func get_boss_door_outside_spawn() -> Vector3:

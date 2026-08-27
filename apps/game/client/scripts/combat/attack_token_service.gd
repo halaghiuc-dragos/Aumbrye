@@ -1,6 +1,5 @@
 extends Node
 
-## Limits simultaneous enemy attack commitments per room group.
 
 const DEFAULT_MAX_TOKENS := 2
 
@@ -21,10 +20,6 @@ func release_token(group_id: String) -> void:
 		_active_counts.erase(group_id)
 	else:
 		_active_counts[group_id] = count - 1
-
-
-func reset_group(group_id: String) -> void:
-	_active_counts.erase(group_id)
 
 
 func reset_all() -> void:

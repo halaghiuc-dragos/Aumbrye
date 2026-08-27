@@ -1,10 +1,5 @@
 extends SceneTree
 
-## Headless exporter — no autoloads required.
-##   godot --path . --headless --script res://scripts/tools/export_diorama_anim_libraries.gd
-##   godot --path . --headless --script res://scripts/tools/export_diorama_anim_libraries.gd -- --verify
-##   godot --path . --headless --script res://scripts/tools/export_diorama_anim_libraries.gd -- --profile player
-##   godot --path . --headless --script res://scripts/tools/export_diorama_anim_libraries.gd -- --digests
 
 const AnimLibrary := preload("res://scripts/art/characters/diorama_anim_library.gd")
 const CharacterSkin := preload("res://scripts/art/characters/diorama_character_skin.gd")

@@ -1,11 +1,6 @@
 extends RefCounted
 class_name MaterialDissolve
 
-## Death dissolve via dither-clip on pixel_diorama_surface materials.
-##
-## REF-06: dissolve uniforms are `instance uniform` on the shared pixel-diorama shaders, so
-## dissolving a character is a per-`MeshInstance3D` shader-parameter write, not a per-death
-## material duplication across every mesh part.
 
 const MaterialFlashScript := preload("res://scripts/art/characters/material_flash.gd")
 const CharacterRigCatalogScript := preload("res://scripts/art/characters/character_rig_catalog.gd")
@@ -19,13 +14,6 @@ const SWEEP_PARAM := &"dissolve_sweep"
 static func default_dissolve_duration() -> float:
 	return VfxServiceScript.get_death_burst_lifetime()
 const META_ACTIVE_TWEEN := &"material_dissolve_tween"
-## Handles for the sink and squash tweens `_apply_sink_and_scale` starts on the visual itself.
-##
-## These used to be started and forgotten. `_restore_death_state` puts position and scale back in
-## one assignment, but a tween that is still running simply drives them away again on its next
-## step — so anything that revives before the death animation has finished gets reset and then
-## dragged straight back underground. That is why a killed training dummy respawned as nothing but
-## a health bar: the body was alive, reset, and eight metres under the floor.
 const META_DEATH_TWEENS := &"material_dissolve_death_tweens"
 const META_DEATH_STATE := &"death_visual_state"
 const SINK_DELAY := 0.45
@@ -79,7 +67,7 @@ static func dissolve(node: Node3D, opts: Dictionary = {}) -> void:
 		return
 	var tree := node.get_tree()
 	var merged := _merge_opts(node, opts)
-	var meshes := _gather_meshes(node)
+	var meshes := MaterialFlashScript.gather_meshes(node)
 	if meshes.is_empty():
 		return
 	var duration := float(merged.get("duration", default_dissolve_duration()))
@@ -120,7 +108,7 @@ static func dissolve(node: Node3D, opts: Dictionary = {}) -> void:
 static func restore(node: Node3D) -> void:
 	if node == null or not is_instance_valid(node):
 		return
-	for mesh in _gather_meshes(node):
+	for mesh in MaterialFlashScript.gather_meshes(node):
 		_restore_mesh(mesh)
 
 
@@ -132,14 +120,6 @@ static func death_opts_for_profile(profile: String, archetype_id: String = "") -
 static func death_opts_for_enemy(
 	profile: String, is_boss: bool, data: Dictionary, archetype_id: String = ""
 ) -> Dictionary:
-	# C-169: three of the six authored death profiles were unreachable. `PROFILE_RIG_KIND` maps only
-	# the seven anim profiles, and nothing ever selected `blob` or `flyer` — so the slime that should
-	# spread outward and the bat that should fall used the humanoid limb-stagger sweep, and the two
-	# profiles authored for them (0.45s out / 0.0 stagger, 0.50s down / 0.0 stagger) sat unused.
-	#
-	# An explicit `deathRigKind` in the enemy definition wins; otherwise the shape is inferred from
-	# the same id conventions `profile_for_enemy_data` already relies on. Bosses and constructs keep
-	# priority, since those are statements about the fight rather than the silhouette.
 	var rig_kind: String = str(PROFILE_RIG_KIND.get(profile, "humanoid"))
 	var authored := str(data.get("deathRigKind", ""))
 	if authored != "" and DEATH_DEFAULTS.has(authored):
@@ -157,7 +137,6 @@ static func death_opts_for_enemy(
 	return _death_opts_for_rig_kind(rig_kind, archetype_id)
 
 
-## C-169: silhouette from the id, using the same naming conventions the rig catalogue already reads.
 static func _inferred_rig_kind(enemy_id: String) -> String:
 	for token in ["slime", "bloat", "swarm", "leech", "toad", "bogling"]:
 		if enemy_id.contains(token):
@@ -197,8 +176,6 @@ static func _merge_opts(_node: Node3D, opts: Dictionary) -> Dictionary:
 
 
 static func _record_death_state(visual: Node3D) -> void:
-	# A second death before the first finished would otherwise record the half-sunk pose as the one
-	# to restore to.
 	_kill_death_tweens(visual)
 	if visual.has_meta(META_DEATH_STATE):
 		_restore_death_state(visual)
@@ -212,7 +189,6 @@ static func _record_death_state(visual: Node3D) -> void:
 
 
 static func _restore_death_state(visual: Node3D) -> void:
-	# Before the assignment, not after: a live tween outlives it otherwise.
 	_kill_death_tweens(visual)
 	if not visual.has_meta(META_DEATH_STATE):
 		return
@@ -284,10 +260,6 @@ static func _has_dissolve_shader(mesh: MeshInstance3D) -> bool:
 
 
 static func _object_sweep_dir(node: Node3D, world_dir: Vector3, sweep_mode: String) -> Vector3:
-	# Only when the basis can actually be inverted. The death visual scales the node it is playing
-	# on down toward nothing, so a second death starting on an already-shrunk node hands `inverse()`
-	# a singular basis and Godot logs `Condition "det == 0" is true` from `basis.cpp`. The sweep is
-	# a direction hint; falling back to the mode's default is a better answer than an error.
 	if world_dir.length_squared() > 0.01 and absf(node.global_transform.basis.determinant()) > 0.00001:
 		var local := node.global_transform.basis.inverse() * world_dir.normalized()
 		if local.length_squared() > 0.000001:
@@ -334,11 +306,3 @@ static func _mesh_pivot_name(mesh: MeshInstance3D) -> String:
 		return parent.name
 	return ""
 
-
-static func _gather_meshes(root: Node) -> Array[MeshInstance3D]:
-	var out: Array[MeshInstance3D] = []
-	if root is MeshInstance3D:
-		out.append(root)
-	for child in root.get_children():
-		out.append_array(_gather_meshes(child))
-	return out

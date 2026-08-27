@@ -1,7 +1,6 @@
 extends RefCounted
 class_name InputGlyphService
 
-## Resolves input prompts through the shared glyph atlas (SIG-01..SIG-07).
 
 enum DeviceFamily { KEYBOARD, XBOX, PLAYSTATION, GENERIC }
 
@@ -22,12 +21,6 @@ static func disconnect_device_family_changed(callback: Callable) -> void:
 	var watcher := _get_watcher()
 	if watcher and watcher.device_family_changed.is_connected(callback):
 		watcher.device_family_changed.disconnect(callback)
-
-
-static func emit_device_family_changed_for_test() -> void:
-	var watcher := _get_watcher()
-	if watcher:
-		watcher.device_family_changed.emit()
 
 
 static func current_family() -> DeviceFamily:
@@ -70,10 +63,6 @@ static func _on_symbols_invalidated(_reason: StringName) -> void:
 	invalidate_caches()
 
 
-static func detect_family() -> DeviceFamily:
-	return _family
-
-
 static func get_action_glyph_texture(action: String) -> AtlasTexture:
 	_ensure_bus_wired()
 	var cache_key := "%s:%d" % [action, int(_family)]
@@ -89,8 +78,8 @@ static func get_action_glyph(action: String) -> String:
 	return _text_for_action(action, _family)
 
 
-static func format_interact_label(prefix: String = "Press") -> String:
-	return "%s %s" % [prefix, get_action_glyph("interact")]
+static func format_interact_name(display_name: String) -> String:
+	return "%s (%s)" % [display_name, get_action_glyph("interact")]
 
 
 static func get_action_display_name(action: String) -> String:
@@ -127,10 +116,6 @@ static func get_action_display_name(action: String) -> String:
 			return action.replace("_", " ").capitalize()
 		_:
 			return action.replace("_", " ").capitalize()
-
-
-static func format_action_hint(action: String) -> String:
-	return "%s %s" % [get_action_display_name(action), get_action_glyph(action)]
 
 
 static func _cell_key_for_action(action: String, family: DeviceFamily) -> String:
@@ -292,11 +277,6 @@ static func _text_for_action(action: String, family: DeviceFamily) -> String:
 			return _keyboard_text(action)
 
 
-## Short, player-facing name for any bound input.
-##
-## InputEvent.as_text() is written for the editor: a key prints as "C (Physical)" and a pad button
-## as "Joypad Button 0 (Bottom Action...)". Neither fits on a binding button, and both leak engine
-## vocabulary into the settings screen.
 static func format_event_label(event: InputEvent) -> String:
 	if event is InputEventKey:
 		var key := event as InputEventKey
@@ -340,9 +320,6 @@ static func _joy_axis_label(axis: int, axis_value: float) -> String:
 			return "Axis %d%s" % [axis, direction]
 
 
-## Keyed off Godot's JoyButton enum rather than bare integers. The literals this replaced did not
-## line up with it — index 5 is GUIDE, not the right shoulder, and index 8 is the right stick, not
-## the left — so several bindings printed the wrong button name.
 const XBOX_BUTTON_NAMES: Dictionary = {
 	JOY_BUTTON_A: "A",
 	JOY_BUTTON_B: "B",
@@ -465,9 +442,6 @@ static func _generic_text(action: String) -> String:
 			return "Btn"
 
 
-## C-227 / C-229: world-space prompts hardcoded "Press E", so controller players and anyone who
-## rebound `interact` were told to press a key that does nothing. Resolves the live binding for the
-## active device family, falling back to the action's display name.
 static func get_action_prompt(action: StringName, template_key: String = "PROMPT_PRESS") -> String:
 	var label := get_action_display_name(action)
 	if label == "":

@@ -39,8 +39,6 @@ func _ready() -> void:
 	_animator = AnimControllerScript.new()
 	_animator.name = "AnimController"
 	add_child(_animator)
-	# A training dummy is struck but never strikes: it has no hitbox, so its attack clips' frame
-	# signals have nothing to drive and their absence is not a wiring fault.
 	_animator.expects_hitbox_listeners = false
 	_animator.set_profile("melee")
 	_animator.set_weapon("sword")
@@ -186,7 +184,6 @@ func _start_windup() -> void:
 			float(_data.get("recovery_duration", 0.9))
 		)
 	begin_attack_windup_bar(windup)
-	# C-41: telegraph aimed behind the dummy.
 	var forward := CombatFacing.forward_of(self)
 	VfxService.play_telegraph(
 		global_position,

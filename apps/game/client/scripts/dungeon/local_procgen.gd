@@ -1,7 +1,6 @@
 extends RefCounted
 class_name LocalProcgen
 
-## Offline dungeon generation — GDScript two-phase procgen (primary), optional C# CLI for tooling.
 
 const DEFAULT_BIOME := "forgotten_castle"
 const CLI_RELATIVE := "tools/procgen-cli"
@@ -56,9 +55,6 @@ static func generate(
 			continue
 		var definition: Dictionary = gd_result.get("definition", {})
 		var validation: Dictionary = DungeonDefinitionValidatorScript.validate(definition)
-		# C-144: the content assigner's fallback and any validation failure it reported travel with
-		# the definition's own warnings, so a degraded floor is visible to `RunFlow` rather than
-		# only to the offline seed-health tool.
 		var all_warnings: Array = []
 		all_warnings.append_array(gd_result.get("warnings", []))
 		all_warnings.append_array(validation.get("warnings", []))

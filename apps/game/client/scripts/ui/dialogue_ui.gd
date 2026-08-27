@@ -1,21 +1,10 @@
 extends Control
 
-## Branching dialogue UI with gamepad choice navigation (DLG-4.1).
 
 const GameUISkinScript := preload("res://scripts/ui/game_ui_skin.gd")
 
 signal closed
 
-## Suppressed for as long as a line is on screen.
-##
-## The dialogue box never touched the input gate. `PlayerControls.is_player_meta_ui_open()` does not
-## count a conversation as meta UI — deliberately, because the camera should stay live — so
-## `PlayerInput.blocked()` stayed false and the weapon controller kept polling `light_attack`. The
-## click that picked a reply also swung the sword: a Button consuming the GUI event does nothing to
-## stop a poll. This is exactly the partial gate C-85 built `block_groups` for, and nothing used it.
-##
-## `interact` goes with it. It is the key that advances the line, and while it is doing that it must
-## not also re-fire the interactable standing in front of the player.
 const BLOCKED_GROUPS := [PlayerInput.Group.COMBAT, PlayerInput.Group.INTERACT]
 
 @onready var _speaker_label: Label = $Panel/Margin/VBox/SpeakerLabel
@@ -38,8 +27,6 @@ func _ready() -> void:
 	_runner.line_changed.connect(_on_line_changed)
 	_runner.dialogue_ended.connect(_on_dialogue_ended)
 	_runner.action_triggered.connect(_on_action_triggered)
-	# Clicking the box advances it, the same as pressing the key. Choices are Buttons and already
-	# take a click; this covers the plain lines between them.
 	var panel := get_node_or_null("Panel") as Control
 	if panel:
 		panel.gui_input.connect(_on_panel_gui_input)
@@ -65,15 +52,10 @@ func close() -> void:
 	visible = false
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	PlayerInput.unblock_groups(BLOCKED_GROUPS)
-	# Through PlayerControls rather than straight to `Input`: a dialogue can be closed while the
-	# inventory or the pause menu is up, and grabbing the mouse back would strand that menu with no
-	# cursor.
 	PlayerControls.capture_mouse_if_allowed()
 	closed.emit()
 
 
-## A dialogue torn down mid-line — a scene change, the NPC being freed — would otherwise leave the
-## player unable to attack for the rest of the run.
 func _exit_tree() -> void:
 	PlayerInput.unblock_groups(BLOCKED_GROUPS)
 
@@ -101,8 +83,6 @@ func _unhandled_input(event: InputEvent) -> void:
 		_runner.select_choice(_selected_index)
 
 
-## Advance on a left click anywhere in the box, but only on a line with no replies — on a line that
-## has them, a stray click in the margin should not pick one for the player.
 func _on_panel_gui_input(event: InputEvent) -> void:
 	if not visible or not _choice_buttons.is_empty():
 		return
@@ -153,8 +133,6 @@ func _rebuild_choices(choices: Array) -> void:
 		btn.focus_mode = Control.FOCUS_NONE
 		var idx := i
 		btn.pressed.connect(func() -> void: _runner.select_choice(idx))
-		# Hovering moves the keyboard selection with the pointer, so the highlight always shows the
-		# reply that is actually about to be taken whichever device the player reaches for.
 		btn.mouse_entered.connect(
 			func() -> void:
 				_selected_index = idx

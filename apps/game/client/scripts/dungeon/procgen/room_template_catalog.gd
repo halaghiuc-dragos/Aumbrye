@@ -1,7 +1,6 @@
 class_name RoomTemplateCatalog
 extends RefCounted
 
-## Room kit dimensions and doorway masks (mirrors C# RoomTemplateCatalog).
 
 const ALL_DOORS := (
 	RoomGraphSlot.DOOR_NORTH
@@ -270,28 +269,10 @@ static func anchors_for(template_id: String, role: String) -> Array:
 	return list
 
 
-static func anchor_inside_kind(kind: String, anchor: Vector3, margin: float = 1.5) -> bool:
-	var base: Dictionary = KIND_SPECS.get(kind, {})
-	if base.is_empty():
-		return false
-	var hw := float(base["width"]) * 0.5 - margin
-	var hd := float(base["depth"]) * 0.5 - margin
-	return absf(anchor.x) <= hw and absf(anchor.z) <= hd
-
-
 static func has_door(template_id: String, door_mask: int) -> bool:
 	return (get_spec(template_id)["doors"] & door_mask) != 0
 
 
-## C-264 (root cause behind C-212): this was a plain bitmask-subset test, which is right for
-## multi-door templates but wrong for single-door ones. `room_graph_geometry` rotates a single-door
-## room to face its incoming door — that is exactly what `yaw_rad_for_incoming_door` /
-## `yaw_rad_for_entrance` exist to do, and both key off `primary_door_mask`, which is non-zero only
-## for a single-bit mask. So `boss` (DOOR_NORTH) was rejected for every dead end whose one door
-## faced south, east or west: three quarters of them, even though the builder would have rotated it
-## to fit. Preferring dead-end boss slots (the C-212 fix) only helped the one direction in four that
-## happened to already be north. Single-door templates now match any single-door requirement, which
-## is the capability the geometry pass actually has.
 static func supports_doors(template_id: String, required_doors: int) -> bool:
 	var doors := int(get_spec(template_id)["doors"])
 	if (doors & required_doors) == required_doors:

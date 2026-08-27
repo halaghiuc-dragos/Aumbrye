@@ -28,6 +28,7 @@
   "phaseCount": 2,
   "enemy_type": "boss",
   "damage_type": "arcane",
+  "weapon_kit": "staff",
   "attacks": [
     {
       "id": "probe",

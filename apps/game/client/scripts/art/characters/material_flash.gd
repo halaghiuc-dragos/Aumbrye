@@ -1,12 +1,6 @@
 extends RefCounted
 class_name MaterialFlash
 
-## Brief albedo flash on hit via pixel_diorama shader flash uniforms.
-##
-## REF-06: flash uniforms are `instance uniform` on the shared pixel-diorama shaders, so a hit
-## flash is a per-`MeshInstance3D` shader-parameter write, not a per-hit material duplication —
-## every character/prop keeps sharing one `ShaderMaterial` resource regardless of how often it
-## flashes.
 
 const FLASH_PARAM := &"flash_amount"
 const FLASH_COLOR_PARAM := &"flash_color"
@@ -20,10 +14,6 @@ const MIN_LOCAL_STRENGTH := 0.35
 
 const META_ACTIVE_TWEEN := &"material_flash_tween"
 
-## C-162: this listed `holy`, which is not a damage type in `DamageInfo.ALL_TYPES`, and omitted
-## `lightning`, which is — so lightning hits flashed white like physical ones (the `Color.WHITE`
-## default), and a colour was maintained for a type nothing can ever deal. The table now matches
-## `ALL_TYPES` exactly.
 const FLASH_TINTS: Dictionary = {
 	"physical": Color.WHITE,
 	"fire": Color(1.0, 0.72, 0.42),
@@ -33,15 +23,8 @@ const FLASH_TINTS: Dictionary = {
 	"arcane": Color(0.86, 0.72, 1.0),
 }
 
-## C-102: `AccessibilitySettings.get_damage_color()` handles protanopia, deuteranopia and
-## tritanopia and had exactly one non-test caller — the floating damage number. The *world-space*
-## damage-type signal, this table, had no colourblind path at all, so a colourblind player got a
-## corrected number over a hit whose actual colour cue was unchanged. `emphasise_telegraph_tint`
-## deliberately preserves hue (correctly, and documented), which left the flash as the only
-## remaining channel, and it was the one not covered.
-##
-## The accessibility palette is used at full strength when a mode is active; the authored tints,
-## which are lighter and tuned for a flash rather than for text, stand when it is not.
+## The world-space damage-type cue, and the only one with a colourblind path — the floating
+## number has its own, and `emphasise_telegraph_tint` deliberately preserves hue.
 static func tint_for_damage_type(damage_type: String) -> Color:
 	if AccessibilitySettings and AccessibilitySettings.colorblind_mode != "default":
 		return AccessibilitySettings.get_damage_color(damage_type)
@@ -55,7 +38,7 @@ static func flash(node: Node3D, params: Variant = null) -> void:
 	if node == null or not is_instance_valid(node):
 		return
 	var p := _normalize_params(params)
-	for mesh in _gather_meshes(node):
+	for mesh in gather_meshes(node):
 		_flash_mesh(mesh, p)
 
 
@@ -74,7 +57,7 @@ static func cancel(mesh: MeshInstance3D) -> void:
 static func restore_all(node: Node3D) -> void:
 	if node == null or not is_instance_valid(node):
 		return
-	for mesh in _gather_meshes(node):
+	for mesh in gather_meshes(node):
 		cancel(mesh)
 
 
@@ -100,12 +83,13 @@ static func _normalize_params(params: Variant) -> Dictionary:
 	return out
 
 
-static func _gather_meshes(root: Node) -> Array[MeshInstance3D]:
+## Every MeshInstance3D under a node, including the node itself. Shared with `material_dissolve`.
+static func gather_meshes(root: Node) -> Array[MeshInstance3D]:
 	var out: Array[MeshInstance3D] = []
 	if root is MeshInstance3D:
 		out.append(root)
 	for child in root.get_children():
-		out.append_array(_gather_meshes(child))
+		out.append_array(gather_meshes(child))
 	return out
 
 

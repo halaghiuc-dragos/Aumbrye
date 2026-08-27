@@ -1,7 +1,6 @@
 class_name RunModeCatalog
 extends RefCounted
 
-## Alternate rule sets — recombinations of the existing dungeon, floor and modifier services.
 
 const CATALOG_PATH := "content/modes/catalog.json"
 
@@ -60,7 +59,6 @@ static func base_modifiers(mode_id: String) -> Array[String]:
 	return _string_array(get_mode(mode_id).get("modifiers", []))
 
 
-## Base rules plus every escalation step the given floor has already reached.
 static func modifiers_for_floor(mode_id: String, floor_index: int) -> Array[String]:
 	var active := base_modifiers(mode_id)
 	var steps: Variant = get_mode(mode_id).get("escalation", [])

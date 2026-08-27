@@ -1,6 +1,5 @@
 extends Node
 
-## Permanent XP, level, and talent points (PROG-4.1 / PROG-4.2 client).
 
 signal progression_changed
 signal xp_granted(amount: int, reason: String)
@@ -39,13 +38,6 @@ func _ready() -> void:
 
 func get_available_talent_points() -> int:
 	return maxi(0, _talent_points_from_level() - talent_points_spent)
-
-
-func xp_to_next_level() -> int:
-	var next := _xp_required_for_level(level + 1)
-	if next < 0:
-		return 0
-	return maxi(0, next - xp)
 
 
 func xp_progress_ratio() -> float:
@@ -98,11 +90,6 @@ func apply_abandon_xp_fraction(full_xp: int) -> int:
 	return int(full_xp * fraction)
 
 
-func get_talent_tree() -> Dictionary:
-	return _talent_tree.duplicate(true)
-
-
-## Shared branches carry no classId; a class branch is offered only to that class.
 func is_branch_available(branch: Dictionary) -> bool:
 	var required := str(branch.get("classId", ""))
 	if required == "":
@@ -186,13 +173,9 @@ func respec_talents() -> void:
 	talent_points_spent = 0
 	_sync_keystone_rules()
 	progression_changed.emit()
-	# Every sibling mutator autosaves; this one did not, so a respec was lost on a crash or a
-	# quit that never reached another save point.
 	LocalSave.autosave()
 
 
-## Called when the owning class changes, since a class branch and its keystone are
-## only live for the class that owns them.
 func refresh_talent_rules() -> void:
 	_sync_keystone_rules()
 
@@ -270,23 +253,6 @@ func get_descent_tokens() -> int:
 	return descent_tokens
 
 
-func spend_descent_tokens(amount: int) -> bool:
-	if amount <= 0 or descent_tokens < amount:
-		return false
-	descent_tokens -= amount
-	progression_changed.emit()
-	return true
-
-
-func grant_descent_tokens(amount: int) -> void:
-	if amount <= 0:
-		return
-	descent_tokens += amount
-	progression_changed.emit()
-
-
-## The ratchet: only floors deeper than the character has ever reached mint anything, so a run is
-## worth exactly what it added to the record.
 func register_endless_depth(floor_reached: int) -> Dictionary:
 	var reached := maxi(0, floor_reached)
 	var previous := endless_best_floor
@@ -326,7 +292,6 @@ func register_endless_depth(floor_reached: int) -> Dictionary:
 	return result
 
 
-## Local-only tuning data: where runs actually end, kept as a bounded rolling window.
 func record_failure_point(entry: Dictionary) -> void:
 	if entry.is_empty():
 		return
@@ -335,11 +300,6 @@ func record_failure_point(entry: Dictionary) -> void:
 	progression_changed.emit()
 
 
-func get_failure_points() -> Array:
-	return failure_points.duplicate(true)
-
-
-## The place this character keeps dying, as (label, count), most frequent first.
 func get_failure_hotspots(limit: int = 3) -> Array[Dictionary]:
 	var counts := {}
 	for entry in failure_points:

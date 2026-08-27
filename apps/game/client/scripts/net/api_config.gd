@@ -1,6 +1,5 @@
 extends Node
 
-## API base URL, session tokens, cloud state, and pooled HTTP transport.
 
 signal cloud_state_changed(state: int, detail: String)
 signal version_mismatch
@@ -12,7 +11,6 @@ const CLIENT_VERSION := "0.4.0"
 const CONTENT_VERSION := "1"
 const REQUEST_TIMEOUT_SECONDS := 8.0
 const SESSION_PATH := "user://session.json"
-## Random per-install secret mixed into the session-file password. See _session_pass().
 const INSTALL_KEY_PATH := "user://install_key"
 const USER_API_CONFIG_PATH := "user://api_config.json"
 const DEV_API_CONFIG_PATH := "res://config/dev_api.json"
@@ -34,7 +32,6 @@ var _http_busy_since_msec: Dictionary = {}
 var _active_http: Array[HTTPRequest] = []
 
 var _test_is_debug_build: Variant = null
-## Memoized per-install secret; read once per process from INSTALL_KEY_PATH.
 var _cached_install_secret := ""
 var _test_env_api_url: Variant = null
 var _test_user_api_config: Variant = null
@@ -258,20 +255,6 @@ func _resolve_base_url() -> String:
 	return resolved
 
 
-## Password for the encrypted session file.
-##
-## Threat model: local malware running as the player can always read whatever the game itself can
-## read — this cannot be fixed client-side. The goal is narrower: raise the bar from "copy one
-## file and decrypt it with a publicly known scheme" to "copy two files AND know the scheme".
-##
-## OS.get_unique_id() alone was not enough for that. It is a stable, low-entropy machine identifier
-## that any local process can read, it never rotates, and it is documented to return an empty
-## string on some platforms — which made the session file effectively plaintext there. Mixing in a
-## random per-install secret binds the file to both this machine and this installation, and keeps
-## the encryption meaningful even where the machine id is unavailable.
-##
-## Longer term, Steam builds should carry Steam auth session tickets instead, so no long-lived
-## refresh token rests on disk at all.
 func _session_pass() -> String:
 	var secret := _install_secret()
 	var machine := OS.get_unique_id()
@@ -281,8 +264,6 @@ func _session_pass() -> String:
 	return secret + ":" + machine
 
 
-## Reads the per-install secret, generating it on first use. Returns "" only if it cannot be
-## created, in which case the machine id alone still protects the file.
 func _install_secret() -> String:
 	if _cached_install_secret != "":
 		return _cached_install_secret
@@ -311,15 +292,3 @@ func _is_release_build() -> bool:
 	if _test_is_debug_build != null:
 		return not bool(_test_is_debug_build)
 	return not OS.is_debug_build()
-
-
-func reset_test_overrides() -> void:
-	_test_is_debug_build = null
-	_test_env_api_url = null
-	_test_user_api_config = null
-	_test_dev_api_config = null
-
-
-func apply_test_base_url_resolution() -> void:
-	base_url = _resolve_base_url()
-	_update_cloud_state_from_config()

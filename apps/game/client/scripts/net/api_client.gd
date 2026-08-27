@@ -1,7 +1,6 @@
 extends RefCounted
 class_name ApiClient
 
-## HTTP client for auth, runs, saves, and leaderboards.
 
 const AUTH_REGISTER := "/api/v1/auth/register"
 const AUTH_LOGIN := "/api/v1/auth/login"
@@ -21,14 +20,6 @@ const RETRY_BASE_DELAY := 0.4
 static var _transport_override: Callable = Callable()
 
 
-static func set_transport_override(handler: Callable) -> void:
-	_transport_override = handler
-
-
-static func clear_transport_override() -> void:
-	_transport_override = Callable()
-
-
 static func register(email: String, password: String) -> Dictionary:
 	var result := await _request_json(
 		_build_url(AUTH_REGISTER), HTTPClient.METHOD_POST, {"email": email, "password": password}, false
@@ -45,24 +36,6 @@ static func login(email: String, password: String) -> Dictionary:
 	if result.get("ok", false):
 		_store_tokens(result.get("body", {}), email)
 	return result
-
-
-static func login_steam(ticket_hex: String, app_id: int) -> Dictionary:
-	var result := await _request_json(
-		_build_url(AUTH_STEAM),
-		HTTPClient.METHOD_POST,
-		{"ticketHex": ticket_hex, "appId": app_id},
-		false
-	)
-	if result.get("ok", false):
-		_store_tokens(result.get("body", {}), "Steam")
-	return result
-
-
-static func upload_crash_report(payload: Dictionary) -> Dictionary:
-	return await _request_json(
-		_build_url("/api/v1/telemetry/crash"), HTTPClient.METHOD_POST, payload, access_token_optional()
-	)
 
 
 static func access_token_optional() -> bool:
@@ -117,8 +90,6 @@ static func require_session() -> bool:
 
 
 static func create_run(biome_id: String, run_seed: Variant = null, tier: int = 1) -> Dictionary:
-	# Creating a run is not idempotent — a retried POST that actually succeeded server-side would
-	# leave an orphan Active run behind, so this one never replays.
 	return await _authed_json(
 		RUNS_CREATE,
 		HTTPClient.METHOD_POST,
@@ -146,16 +117,9 @@ static func complete_run(
 		"elapsedSeconds": elapsed,
 		"bossDefeated": boss_defeated,
 		"lootClaimedInstanceIds": loot_claimed_ids,
-		# The server validates loot claims against the floors this run generated and needs to know
-		# which floor_index the run ended on. Omitting it made every multi-floor_index completion validate as
-		# floor_index 1 and reject legitimate claims from floors 2+.
 		"floor": maxi(1, floor_index),
-		# The server's XP economy is kills-driven, matching ProgressionService; without this a
-		# cloud-completed run awarded nothing.
 		"kills": maxi(0, kills),
 	}
-	# Safe to replay: the server claims the run with a guarded status flip and replays the cached
-	# result for a repeat call, so a retry after a timeout cannot double-grant progression.
 	return await _authed_json(RUNS_COMPLETE % run_id, HTTPClient.METHOD_POST, payload, true)
 
 
@@ -203,12 +167,9 @@ static func submit_leaderboard(run_id: String, opt_in: bool) -> Dictionary:
 	return await _authed_json(LEADERBOARDS_SUBMIT, HTTPClient.METHOD_POST, payload)
 
 
-## GET /leaderboards is public server-side, so viewing boards deliberately does NOT require a
-## session — signed-out players can still browse them from the menus.
 static func fetch_leaderboard(biome_id: String, tier: int, limit: int = 10) -> Dictionary:
 	var url := (
 		_build_url(LEADERBOARDS)
-		# Encoded so a biome id containing '&' or a space cannot corrupt the query string.
 		+ "?biomeId=%s&tier=%d&limit=%d" % [biome_id.uri_encode(), tier, limit]
 	)
 	var result := await _request_json(url, HTTPClient.METHOD_GET, {}, false)
@@ -248,12 +209,6 @@ static func _build_url(path: String) -> String:
 	return ApiConfig.get_base_url() + path
 
 
-## Whether a method is safe to replay after a timeout or 5xx.
-##
-## A POST that times out may well have been applied server-side already, so blind retries can
-## double-create runs or double-complete them. GET/PUT/DELETE are idempotent by contract, so they
-## always retry; POST only retries when the caller opts in (because the endpoint honours an
-## idempotency key, or because the operation is genuinely repeatable).
 static func _is_idempotent(method: int) -> bool:
 	return method != HTTPClient.METHOD_POST
 

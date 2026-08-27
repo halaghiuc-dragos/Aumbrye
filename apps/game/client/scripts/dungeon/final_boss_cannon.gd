@@ -1,6 +1,5 @@
 extends Node3D
 
-## Crystal cannon for final boss puzzle — load collected crystals, then fire to break shield.
 
 const DioramaSkin := preload("res://scripts/art/props/diorama_interactable_skin.gd")
 
@@ -113,4 +112,4 @@ func _update_label() -> void:
 	elif _loaded < _required:
 		_label.text = "Load crystals (%d/%d)" % [_loaded, _required]
 	else:
-		_label.text = "%s Fire cannon!" % InputGlyphService.format_interact_label()
+		_label.text = InputGlyphService.format_interact_name("Fire cannon")

@@ -1,8 +1,6 @@
 class_name RoomLayoutCatalog
 extends RefCounted
 
-## Per-biome room layout variants from content/rooms/. Variant 0 is always the room kit's own
-## anchor set; the rest come from data, so two courtyards in one floor rarely lay out the same.
 
 const LAYOUT_DIR := "content/rooms"
 
@@ -23,7 +21,6 @@ static func variant_count(biome_id: String, kind: String) -> int:
 	return 1 + variants_for_kind(biome_id, kind).size()
 
 
-## Pure: the same seed and room id always resolve to the same variant, in any call order.
 static func variant_for_room(biome_id: String, run_seed: int, room_id: String, template_id: String) -> int:
 	var kind := RoomTemplateCatalog.kind_from_template_id(template_id)
 	var count := variant_count(biome_id, kind)

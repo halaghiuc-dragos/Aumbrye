@@ -1,6 +1,5 @@
 extends Control
 
-## Achievement unlock toast (M6 META-6.1).
 
 const GameUISkinScript := preload("res://scripts/ui/game_ui_skin.gd")
 

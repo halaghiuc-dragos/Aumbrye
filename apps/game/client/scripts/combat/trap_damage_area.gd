@@ -1,7 +1,6 @@
 extends Area3D
 class_name TrapDamageArea
 
-## Applies DamageInfo to hurtboxes entering the area (traps, hazards).
 
 @export var damage := 15.0
 @export var poise_damage := 10.0
@@ -9,7 +8,6 @@ class_name TrapDamageArea
 @export var team := "trap"
 @export var hit_interval := 0.5
 
-## Only worth walking the dictionary once it has grown past a handful of live overlaps.
 const PRUNE_THRESHOLD := 16
 
 var _cooldowns: Dictionary = {}
@@ -53,9 +51,6 @@ func _on_area_entered(area: Area3D) -> void:
 	_try_hit(area)
 
 
-## C-128/C-129: when a trap resolves its own damage through `TrapTactics.strike()` — which is the
-## path that reads `enemyDamageMultiplier` and the authored `damage` — this area is still needed for
-## its overlap queries but must not deal damage of its own, or every hit lands twice.
 @export var deals_damage := true
 
 
@@ -77,9 +72,6 @@ func _try_hit(area: Area3D) -> void:
 	area.call("receive_hit", info)
 
 
-## C-57: `_cooldowns` accumulated one entry per instance id that ever touched the trap and lived as
-## long as the trap did — a floor's worth of dead ids on a spike pack the player walks over
-## repeatedly. Entries older than the interval can never suppress anything, so they are dropped.
 func _prune_cooldowns(now: float) -> void:
 	if _cooldowns.size() <= PRUNE_THRESHOLD:
 		return

@@ -1,6 +1,5 @@
 extends Control
 
-## The board in the tower: this week's challenge, the alternate rule sets, and what the hub has earned.
 
 signal closed
 
@@ -39,8 +38,6 @@ func close() -> void:
 	_open = false
 	visible = false
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
-	# Through PlayerControls: closing this panel must not grab the mouse back if another one is
-	# still open behind it.
 	PlayerControls.capture_mouse_if_allowed()
 	closed.emit()
 

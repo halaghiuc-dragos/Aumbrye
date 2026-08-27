@@ -1,7 +1,6 @@
 extends Control
 class_name BindingCaptureModal
 
-## Listens for the next binding event and resolves conflicts with swap/cancel (SET-04).
 
 signal captured(action: StringName, event: InputEvent)
 signal cancelled

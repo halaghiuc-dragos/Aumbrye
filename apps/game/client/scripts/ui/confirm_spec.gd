@@ -1,7 +1,6 @@
 class_name ConfirmSpec
 extends RefCounted
 
-## Destructive confirmation payload for MenuStack.confirm().
 
 var title_key: StringName = &""
 var message_key: StringName = &""

@@ -1,7 +1,6 @@
 extends RoomTemplate
 class_name CastleRoomScene
 
-## Shared setup for castle blockout rooms — applies materials and socket rotations.
 
 const DoorwaySocketScript := preload("res://scripts/dungeon/doorway_socket.gd")
 const RoomTemplateCatalogScript := preload("res://scripts/dungeon/procgen/room_template_catalog.gd")

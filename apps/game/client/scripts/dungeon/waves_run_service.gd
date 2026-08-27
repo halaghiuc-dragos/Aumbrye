@@ -1,6 +1,5 @@
 extends Node
 
-## Autoload — Umbral Waves run state, isolated inventory, and save snapshot.
 
 signal waves_changed
 signal inventory_changed
@@ -10,10 +9,14 @@ const WAVES_DEFINITION_PATH := "content/waves/umbral_waves.json"
 
 var MILESTONES: Array[int] = [5, 10, 20, 50]
 
+const TORCH_ITEM_ID := "waves_torch"
+
 var current_wave: int = 0
 var prep_active: bool = false
 var lobby_ready: bool = false
 var chests_opened: Dictionary = {}
+var chest_set: int = 0
+var torch_placed: bool = false
 var waves_inventory: GridInventory = GridInventory.new(8, 5)
 var _kill_count := 0
 var _run_seed := 0
@@ -21,14 +24,6 @@ var _definition: Dictionary = {}
 var _chest_defs: Array = []
 
 
-## C-189: the change signal was connected once, in `_ready`, to the `GridInventory` built at
-## declaration — and two functions then **replaced the object** without reconnecting. So starting a
-## Waves run, or continuing one, silently disconnected the inventory UI from the inventory it was
-## displaying: picking anything up emitted nothing and the panel never refreshed.
-##
-## A bound method rather than a lambda, so the connection is auto-cleaned with this node and the
-## rebind can check `is_connected` — which a lambda cannot do (see `inventory_ui`'s note on the
-## same distinction).
 func _ready() -> void:
 	_bind_inventory_signals()
 	_load_definition()
@@ -69,10 +64,11 @@ func begin_new_run(run_seed: int = 0) -> void:
 	prep_active = false
 	lobby_ready = false
 	chests_opened.clear()
+	chest_set = 0
+	torch_placed = false
 	_kill_count = 0
 	_run_seed = run_seed if run_seed > 0 else randi_range(1, 2_147_483_646)
 	waves_inventory = GridInventory.new(8, 5)
-	# C-189: the object was replaced; the signal has to follow it.
 	_bind_inventory_signals()
 	waves_changed.emit()
 
@@ -83,6 +79,8 @@ func restore_from_save(saved: Dictionary) -> void:
 	lobby_ready = bool(saved.get("lobbyReady", false))
 	_kill_count = int(saved.get("killCount", 0))
 	_run_seed = int(saved.get("seed", 1))
+	chest_set = int(saved.get("chestSet", 0))
+	torch_placed = bool(saved.get("torchPlaced", false))
 	var chests: Variant = saved.get("chestsOpened", {})
 	chests_opened = chests if chests is Dictionary else {}
 	var inv: Variant = saved.get("wavesInventory", {})
@@ -90,13 +88,10 @@ func restore_from_save(saved: Dictionary) -> void:
 		waves_inventory.from_save_dict(inv)
 	else:
 		waves_inventory = GridInventory.new(8, 5)
-	# C-189: the object was replaced; the signal has to follow it.
 	_bind_inventory_signals()
 	waves_changed.emit()
 
 
-## C-188: `waves_run` reached for `to_save_dict()` — a full serialisation of the run state,
-## constructed and thrown away — to read one integer, once per enemy per wave.
 func get_seed() -> int:
 	return _run_seed
 
@@ -110,6 +105,8 @@ func to_save_dict() -> Dictionary:
 		"prepActive": prep_active,
 		"lobbyReady": lobby_ready,
 		"killCount": _kill_count,
+		"chestSet": chest_set,
+		"torchPlaced": torch_placed,
 		"chestsOpened": chests_opened.duplicate(true),
 		"wavesInventory": waves_inventory.to_save_dict(),
 	}
@@ -133,10 +130,42 @@ func _chest_def_for_index(index: int) -> Dictionary:
 	return _chest_defs[index]
 
 
-func all_chests_opened() -> bool:
-	for i in _chest_defs.size():
-		if not chests_opened.get(str(i), false):
-			return false
+func _chest_salt(index: int) -> int:
+	return index + chest_set * 8191
+
+
+func begin_chest_set() -> void:
+	chest_set += 1
+	chests_opened.clear()
+	lobby_ready = false
+	torch_placed = false
+	waves_changed.emit()
+
+
+func get_torch_chest_index() -> int:
+	_ensure_definition()
+	var count := _chest_defs.size()
+	if count <= 0:
+		return -1
+	var rng := RandomNumberGenerator.new()
+	rng.seed = FloorSeedMix.mix(_run_seed, 60013 + chest_set * 31)
+	return rng.randi_range(0, count - 1)
+
+
+func has_torch() -> bool:
+	for slot in waves_inventory.slots:
+		if str(slot.get("itemId", "")) == TORCH_ITEM_ID:
+			return true
+	return false
+
+
+func place_torch() -> bool:
+	if torch_placed or not has_torch():
+		return false
+	waves_inventory.remove_items_by_id(TORCH_ITEM_ID, 1)
+	torch_placed = true
+	lobby_ready = true
+	waves_changed.emit()
 	return true
 
 
@@ -150,19 +179,22 @@ func open_chest(index: int) -> Dictionary:
 	var chest_type: String = str(chest_def.get("id", ""))
 	if chest_type == "supplies":
 		return _open_supplies_chest(index, chest_def)
-	var rarity := _roll_chest_rarity(chest_def, index)
-	var item_id := _roll_chest_item(chest_def, index)
+	var salt := _chest_salt(index)
+	var rarity := _roll_chest_rarity(chest_def, salt)
+	var item_id := _roll_chest_item(chest_def, salt)
 	if item_id == "":
 		item_id = "health_potion"
-	# C-192: `String.hash()` is not a cross-version guarantee; `FloorSeedMix` exists for this.
 	var roll_seed := FloorSeedMix.mix(
-		_run_seed, index * 997 + FloorSeedMix.stable_string_hash(rarity)
+		_run_seed, salt * 997 + FloorSeedMix.stable_string_hash(rarity)
 	)
 	if not waves_inventory.add_rolled_item_with_rarity(item_id, rarity, roll_seed):
 		waves_inventory.add_item(item_id, 1, {"rarity": rarity})
 	chests_opened[key] = true
+	var torch_found := _grant_torch_if_hidden_here(index)
 	waves_changed.emit()
-	return {"itemId": item_id, "rarity": rarity, "chestType": chest_type}
+	return {
+		"itemId": item_id, "rarity": rarity, "chestType": chest_type, "torch": torch_found
+	}
 
 
 func _open_supplies_chest(index: int, chest_def: Dictionary) -> Dictionary:
@@ -174,22 +206,30 @@ func _open_supplies_chest(index: int, chest_def: Dictionary) -> Dictionary:
 		return {}
 	var multi: Dictionary = chest_def.get("multi_grant", {"min": 2, "max": 4})
 	var rng := RandomNumberGenerator.new()
-	rng.seed = _run_seed + index * 1597
+	rng.seed = _run_seed + _chest_salt(index) * 1597
 	var item_count := rng.randi_range(int(multi.get("min", 2)), int(multi.get("max", 4)))
 	var granted: Array[Dictionary] = []
 	for i in item_count:
 		var item_id := str(pool[rng.randi_range(0, pool.size() - 1)])
-		var rarity := _roll_chest_rarity(chest_def, index + i * 17)
-		# C-192: `String.hash()` is not a cross-version guarantee; `FloorSeedMix` exists for this.
+		var rarity := _roll_chest_rarity(chest_def, _chest_salt(index) + i * 17)
 		var roll_seed := FloorSeedMix.mix(
-			_run_seed, index * 997 + FloorSeedMix.stable_string_hash(rarity) + i * 131
+			_run_seed, _chest_salt(index) * 997 + FloorSeedMix.stable_string_hash(rarity) + i * 131
 		)
 		if not waves_inventory.add_rolled_item_with_rarity(item_id, rarity, roll_seed):
 			waves_inventory.add_item(item_id, 1, {"rarity": rarity})
 		granted.append({"itemId": item_id, "rarity": rarity})
 	chests_opened[key] = true
+	var torch_found := _grant_torch_if_hidden_here(index)
 	waves_changed.emit()
-	return {"items": granted, "chestType": "supplies"}
+	return {"items": granted, "chestType": "supplies", "torch": torch_found}
+
+
+func _grant_torch_if_hidden_here(index: int) -> bool:
+	if torch_placed or index != get_torch_chest_index():
+		return false
+	if has_torch():
+		return false
+	return waves_inventory.add_item(TORCH_ITEM_ID, 1)
 
 
 func _roll_chest_rarity(chest_def: Dictionary, index: int) -> String:
@@ -241,13 +281,6 @@ func _filter_weapon_pool(pool: Array) -> Array:
 	return filtered
 
 
-func mark_ready() -> void:
-	if not all_chests_opened():
-		return
-	lobby_ready = true
-	waves_changed.emit()
-
-
 func start_waves() -> void:
 	if not lobby_ready:
 		return
@@ -275,10 +308,6 @@ func is_milestone(wave: int) -> bool:
 	return wave in MILESTONES
 
 
-## C-191: `waves_run._on_wave_cleared` gated the run's ending on `current_wave >= 50` — a literal
-## sitting next to a `MILESTONES` list that is *loaded from content* and can be re-authored to any
-## values. Change the content to end at 40 and the run would never end; change it to 60 and the run
-## would end twenty waves early. The final wave is whatever the last milestone says it is.
 func final_wave() -> int:
 	if MILESTONES.is_empty():
 		return 0
@@ -321,9 +350,6 @@ func transfer_early_exit_items(keep_fraction: float) -> Array[String]:
 	rng.seed = _run_seed + current_wave * 701 + int(keep_fraction * 1000.0)
 	var picked: Array[String] = []
 	var working := pool.duplicate()
-	# C-190: `pop_at` removed the item unconditionally, so a full inventory destroyed the reward
-	# with no message and no retry — the payout for surviving to wave 10 or 25. Peek first, only
-	# consume on success, and surface the failure.
 	for _i in keep_count:
 		if working.is_empty():
 			break
@@ -398,8 +424,6 @@ func apply_equipment_to_player(player: Node) -> void:
 	var health := player.get_node_or_null("Health") as Health
 	if health:
 		var bonus_hp: float = float(stats.get("maxHealth", 0.0))
-		# BUG-13: same fix as InventoryService.apply_equipment_to_player_node — this is called
-		# from the waves inventory UI on every equipment change, not only at wave start.
 		health.configure(Health.MAX_HEALTH + bonus_hp, true)
 	var weapon := player.get_node_or_null("WeaponController")
 	if weapon and weapon.has_method("load_weapon_from_path"):

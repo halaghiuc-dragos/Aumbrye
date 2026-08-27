@@ -1,31 +1,17 @@
 class_name HubFauna
 extends RefCounted
 
-## Ambient life for the hub plaza — birds over the tower, strays between the stalls.
-##
-## Built from the same `PixelDioramaStyle.add_box` primitives as every other piece of hub dressing,
-## so the animals sit in the same pixel-diorama language rather than looking like imported models.
-##
-## Purely visual: no collision body, no hurtbox, not in `lockable`. They cannot be hit, locked onto
-## or walked into, and the player passes straight through them.
 
 const BirdScript := preload("res://scripts/hub/hub_bird.gd")
 const StrayScript := preload("res://scripts/hub/hub_stray.gd")
 
-## Flight rings over the plaza: centre, radius, height, period in seconds, and how many birds share
-## the ring. Staggered so the flock never lines up into a rotating spoke.
 const BIRD_RINGS := [
 	{"centre": Vector3(0.0, 0.0, -6.0), "radius": 16.0, "height": 15.0, "period": 26.0, "count": 4},
 	{"centre": Vector3(-6.0, 0.0, 2.0), "radius": 11.0, "height": 11.5, "period": 19.0, "count": 3},
 	{"centre": Vector3(9.0, 0.0, 4.0), "radius": 13.5, "height": 18.0, "period": 33.0, "count": 3},
 ]
 
-## Where the strays live. Each keeps to a home patch rather than roaming the whole plaza, which is
-## what makes them read as belonging to the stall they are next to.
 const STRAYS := [
-	# Cinder and Tallow used to sit at -15.6 and 16.2, which the enlarged stalls now stand on. Both
-	# moved out to the flagstone just in front of their stall rather than further into the plaza:
-	# Cinder's line is about the warm stone nearest the forge, and it should stay true.
 	{"kind": "cat", "home": Vector3(-13.4, 0.0, 1.2), "range": 2.6, "tint": 0,
 		"name": "Cinder", "dialogue": "stray_cat_cinder"},
 	{"kind": "cat", "home": Vector3(13.6, 0.0, 9.4), "range": 2.2, "tint": 1,
@@ -38,8 +24,6 @@ const STRAYS := [
 		"name": "Bramble", "dialogue": "stray_dog_bramble"},
 ]
 
-## Interact zone size. Wider than the NPC capsule (0.6m): an animal that wanders while you are
-## walking up to it is much harder to stand on top of than a shopkeeper who never moves.
 const STRAY_INTERACT_RADIUS := 1.4
 
 const BIRD_TINTS := [
@@ -85,14 +69,12 @@ static func _spawn_birds(root: Node3D) -> void:
 				float(ring["radius"]) + (index % 3) * 0.8,
 				float(ring["height"]) + (index % 4) * 0.7,
 				float(ring["period"]),
-				# Spread round the ring, plus a nudge so two rings never beat together.
 				TAU * float(i) / float(count) + index * 0.37,
 				wings
 			)
 			index += 1
 
 
-## Returns the two wing pivots, which the flight script rotates to flap.
 static func _build_bird(parent: Node3D, tint: Color) -> Array:
 	var body_mat := PixelDioramaStyle.make_material(tint)
 	var beak_mat := PixelDioramaStyle.make_material(Color(0.85, 0.62, 0.24))
@@ -134,6 +116,7 @@ static func _spawn_strays(root: Node3D) -> void:
 			else _build_dog(animal, DOG_TINTS[int(spec["tint"]) % DOG_TINTS.size()])
 		)
 		animal.set_script(StrayScript)
+		animal.call("set_voice", &"stray_meow" if kind == "cat" else &"stray_bark")
 		animal.call(
 			"setup",
 			spec["home"],
@@ -145,11 +128,6 @@ static func _spawn_strays(root: Node3D) -> void:
 		_add_stray_interact(animal, spec, kind)
 
 
-## The same `HubInteractable` zone every shopkeeper uses, so petting a cat goes through exactly the
-## routing that talking to a blacksmith does — the hub already knows how to turn an `npc:` interact
-## id into a conversation, and an animal is not a special case worth a second path.
-##
-## The zone is a child of the animal, so it wanders with it.
 static func _add_stray_interact(animal: Node3D, spec: Dictionary, kind: String) -> void:
 	var area := Area3D.new()
 	area.name = "InteractArea"
@@ -157,7 +135,7 @@ static func _add_stray_interact(animal: Node3D, spec: Dictionary, kind: String) 
 	area.collision_mask = 2
 	area.set_script(load("res://scripts/hub/hub_interactable.gd"))
 	area.set("interact_id", "stray:%s" % str(spec["dialogue"]))
-	area.set("prompt_text", "%s (E)" % str(spec["name"]))
+	area.set("display_name", str(spec["name"]))
 	area.set("enter_sound", &"" )
 	animal.add_child(area)
 	area.connect("player_entered", Callable(animal, "set_player_near").bind(true))

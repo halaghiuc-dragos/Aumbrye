@@ -46,7 +46,7 @@ func _ready() -> void:
 func _refresh_sibling_cache() -> void:
 	_cached_dodge = _find_dodge()
 	_cached_guard = _find_guard()
-	_cached_character_body = _find_character_body()
+	_cached_character_body = CombatGroups.owning_body(self)
 
 
 func set_debug_draw(enabled: bool) -> void:
@@ -93,9 +93,6 @@ func receive_hit(info: DamageInfo) -> void:
 		arc = DamageInfo.classify_arc(owner_body, info.source.global_position)
 
 	var guard := _cached_guard if not info.ignore_guard else null
-	# The arc is computed above and was then ignored here, so a parry landed on an attacker
-	# standing behind you. A parry is a frontal read; it has to be gated on the same arc the
-	# block is.
 	if guard and guard.has_method("try_parry_attack") and info.source:
 		if guard.call("try_parry_attack", info.source, arc):
 			res.parried = true
@@ -116,7 +113,6 @@ func receive_hit(info: DamageInfo) -> void:
 			res.blocked = true
 			_emit_block_feedback(final_amount)
 
-	# A successful block absorbs the hit frontally; it cannot also be a backstab.
 	final_amount = _apply_arc_multipliers(
 		final_amount, final_poise, info, res, DamageInfo.HitArc.FRONT if blocked else arc
 	)
@@ -130,9 +126,6 @@ func receive_hit(info: DamageInfo) -> void:
 	if _poise and _poise.is_broken():
 		final_amount *= POISE_BROKEN_DAMAGE_MULT
 
-	# Applied last, after every combat modifier, so the accessibility multiplier scales what the
-	# player actually loses rather than an intermediate figure. Enemies are untouched: this is an
-	# assist for the person holding the controller, not a global difficulty dial.
 	if team == "player":
 		final_amount = AccessibilitySettings.scale_incoming_player_damage(final_amount)
 
@@ -154,10 +147,6 @@ func receive_hit(info: DamageInfo) -> void:
 			var stamina := owner_body.get_node_or_null("Stamina") as Stamina
 			if stamina and stamina.is_exhausted():
 				poise_hit *= EXHAUSTED_POISE_MULT
-		# Hyperarmor reduces poise damage rather than negating it — the soulslike convention, and
-		# what the HYPERARMOR_POISE_MULT scaling above already implies. Previously the reduced hit
-		# was reported in res.poise_outgoing but never actually applied, so telemetry and the HUD
-		# showed poise damage that nothing had taken.
 		_poise.take_poise_damage(poise_hit)
 		res.poise_outgoing = poise_hit
 
@@ -175,33 +164,11 @@ func receive_hit(info: DamageInfo) -> void:
 	_emit_attacker_feedback(info, final_amount, impact, res.blocked)
 	_dispatch_combat_events(info, res)
 	hit_resolved.emit(res)
-	# C-124: the run's damage breakdown. Only hits the *player* landed count — `team` here is the
-	# victim's, so an enemy hurtbox resolving a hit is the player's work.
 	if team != "player" and RunBuffs and res.outgoing > 0.0:
 		RunBuffs.note_player_hit(res)
 	damaged.emit(info)
 	if team == "player" and (final_amount > 0.0 or final_poise > 0.0):
 		hurt_received.emit(final_amount, final_poise, info.direction)
-
-
-## C-57: this refused to apply a status while guarding, but the hit path
-## (`_apply_status_from_hit`) has no such rule — so blocking a fire attack still burned you, while
-## an identical status arriving through this path did not. Two rules for one question. The hit path
-## is authoritative: a block reduces damage, it does not negate the status the hit carries, which
-## is also what makes elemental resistance worth building. I-frames are different — they are true
-## invulnerability and `receive_hit` already returns before any status is applied — so that check
-## stays, and the two paths now agree.
-func try_apply_status(status_id: String, stacks: int = 1, duration: float = -1.0) -> bool:
-	if status_id == "":
-		return false
-	var dodge := _cached_dodge
-	if dodge and dodge.get("iframes_active"):
-		return false
-	var ctrl := _resolve_status_controller()
-	if ctrl == null:
-		return false
-	ctrl.apply_status(status_id, stacks, duration)
-	return true
 
 
 func receive_periodic_damage(amount: float, dmg_type: String = DamageInfo.TYPE_PHYSICAL) -> void:
@@ -220,7 +187,6 @@ func _apply_arc_multipliers(
 	var dmg_mult := DamageInfo.arc_damage_multiplier(arc)
 	var poise_mult := DamageInfo.arc_poise_multiplier(arc)
 	res.backstab = arc == DamageInfo.HitArc.BACK
-	# poise is returned via caller modifying final_poise separately — store in res stages
 	res.stages.append(
 		{
 			"stage": "arc",
@@ -362,9 +328,6 @@ func _emit_victim_feedback(
 	var body := _cached_character_body
 	if body == null:
 		return
-	# Status ticks route through receive_hit, so a 10-tick poison stack used to spawn 20 decals
-	# plus 10 full-strength flashes and 10 camera shakes. Ticks keep a subdued flash for
-	# readability and skip the heavy per-hit VFX entirely.
 	if periodic:
 		_emit_periodic_feedback(body, damage_type)
 		return
@@ -408,8 +371,6 @@ func _emit_victim_feedback(
 		feedback.call("on_hit_received", damage, direction, damage_type, impact)
 
 
-## Lightweight victim feedback for a damage-over-time tick: a dim material flash only, no decals
-## and no camera shake.
 func _emit_periodic_feedback(body: Node3D, damage_type: String) -> void:
 	var visual: Node3D = null
 	if body.has_method("get_diorama_visual"):
@@ -431,12 +392,6 @@ func _emit_periodic_feedback(body: Node3D, damage_type: String) -> void:
 	)
 
 
-## Applies the multiplier that damage-amplifying and damage-reducing statuses accumulate.
-##
-## `StatusController` computed this from every active status's `damageTakenMultiplier` and
-## exposed it through `get_damage_taken_multiplier()`, and no damage path ever asked for it — so
-## the field did nothing wherever it was authored. Applied after resistances so a status reads
-## as a modifier on what actually gets through, not on the raw swing.
 func _apply_status_damage_taken(amount: float) -> float:
 	if amount <= 0.0:
 		return amount
@@ -467,7 +422,7 @@ func _get_resistances() -> Dictionary:
 func _resolve_status_controller() -> StatusController:
 	if _status_controller and is_instance_valid(_status_controller):
 		return _status_controller
-	var body := _find_character_body()
+	var body := CombatGroups.owning_body(self)
 	if body == null:
 		return null
 	var ctrl := body.get_node_or_null("StatusController") as StatusController
@@ -479,9 +434,6 @@ func _resolve_status_controller() -> StatusController:
 	ctrl = StatusController.new()
 	ctrl.name = "StatusController"
 	ctrl.team = team
-	# Deferred: this resolver runs from _ready, while the parent is still adding its own children,
-	# and a direct add_child() there fails outright — every enemy spawned without the status
-	# controller it needs for burns, bleeds and other applied effects.
 	body.add_child.call_deferred(ctrl)
 	ctrl.set_health(_health)
 	_status_controller = ctrl
@@ -522,16 +474,6 @@ func _notify_player_status_applied(info: DamageInfo, victim_body: Node3D) -> voi
 		AchievementService.notify(
 			"status_applied", {"status_id": info.status_id}
 		)
-
-
-func _find_character_body() -> Node3D:
-	var node: Node = self
-	while node:
-		if node is CharacterBody3D:
-			return node as Node3D
-		node = node.get_parent()
-	return null
-
 
 func _surface_normal_from_direction(direction: Vector3) -> Vector3:
 	if direction.length_squared() < 0.01:

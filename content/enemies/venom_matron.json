@@ -30,6 +30,7 @@
   "damage_type": "poison",
   "status_on_hit": "poison",
   "status_stacks_on_hit": 2,
+  "weapon_kit": "staff",
   "attacks": [
     {
       "id": "probe",

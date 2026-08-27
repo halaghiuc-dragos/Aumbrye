@@ -21,10 +21,6 @@ func configure(_entry: Dictionary, _definition: Dictionary) -> void:
 	root.add_child(bonfire)
 	_rest_area = Area3D.new()
 	_rest_area.name = "RestArea"
-	# The player is on collision_layer 2 (scenes/player/player.tscn). Without these the area kept
-	# Godot's default mask of 1, never reported the player, and every rest path below was dead —
-	# taking the heal, the flask refill, the enemy respawn and the whole death-checkpoint system
-	# with it. Matches the convention every sibling in room_content/ already uses.
 	_rest_area.collision_layer = 0
 	_rest_area.collision_mask = 2
 	_rest_area.monitoring = true
@@ -49,9 +45,6 @@ func _on_body_exited(body: Node3D) -> void:
 		_player = null
 
 
-## Mirrors room_lore_content / room_merchant_content: proximity flag + _unhandled_input, so a press
-## already consumed by a menu cannot rest here. Polling Input directly (the previous shape) ignored
-## input consumption entirely and could respawn every enemy on the floor from the inventory screen.
 func _unhandled_input(event: InputEvent) -> void:
 	if _player == null or not PlayerInput.interact_just_pressed(event):
 		return

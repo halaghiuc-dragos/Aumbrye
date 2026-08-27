@@ -68,10 +68,9 @@ A save with no `schemaVersion` at all is classified `RESULT_UNKNOWN` and routed 
 
 ## Maintenance note
 
-`save_migrator.gd` also declares a `STEPS_DOC` constant intended to mirror `STEPS` for documentation.
-It currently holds **8** entries against `STEPS`' **9**, stopping at the 8→9 step, and it has **no reader
-anywhere in the project**. Either wire it into a validation assertion that fails when it falls out of sync
-with `STEPS`, or delete it — a documentation table nothing checks will keep drifting.
+`STEPS` in `save_migrator.gd` is the single source of truth for the migration chain. A parallel
+`STEPS_DOC` table used to duplicate it for documentation; nothing read it, it drifted out of sync,
+and it has been removed. Document steps here instead.
 
 ## Related
 

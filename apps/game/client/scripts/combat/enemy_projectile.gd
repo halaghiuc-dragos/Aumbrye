@@ -1,22 +1,16 @@
 extends Area3D
 class_name Projectile
 
-## Ranged projectile shared by enemies (ENEMY-2.2) and the player bow (REF-14): a real travelling
-## Hitbox with a team, not a melee hitbox stretched into a box for the duration of the "shot".
-## Rollable via dodge i-frames like any other hitbox. `team` picks which side it can hit — set on
-## the scene root for the enemy/player variants, or via `launch()`'s optional override.
+
+const PixelStyleScript := preload("res://scripts/art/style/pixel_diorama_style.gd")
+const LightEmbersScript := preload("res://scripts/art/vfx/light_embers.gd")
+const MaterialFlashScript := preload("res://scripts/art/characters/material_flash.gd")
 
 @onready var _hitbox: Hitbox = $Hitbox
+@onready var _visual: Node3D = $Visual
 
 @export var team: String = "enemy"
 
-## C-47: how many targets the projectile passes *through* before stopping. It used to stop only on
-## a world raycast hit or when its 4 s lifetime expired — hitting a hurtbox did nothing to it, and
-## `Hitbox._hit_times` only prevents re-hitting the *same* target, so one player arrow through a
-## corridor of six enemies dealt six full hits and kept flying. The enemy variant had the subtler
-## version: an arrow passed through the player rather than stopping, so a blocked arrow never
-## visibly *stopped*. Zero means the first target consumes it; piercing is now an authored bow
-## property rather than an accident.
 @export var pierce := 0
 
 var _velocity := Vector3.ZERO
@@ -55,6 +49,43 @@ func launch(
 	_pierce_remaining = maxi(0, pierce)
 	_hitbox.enable()
 	look_at(global_position + direction)
+	_build_visual(dmg_type)
+
+
+func _build_visual(dmg_type: String) -> void:
+	if _visual == null:
+		return
+	for child in _visual.get_children():
+		_visual.remove_child(child)
+		child.queue_free()
+	var element := MaterialFlashScript.tint_for_damage_type(dmg_type)
+	var shaft_mat := PixelStyleScript.make_material(Color(0.42, 0.30, 0.18))
+	var head_mat := PixelStyleScript.make_glow_material(element, element.darkened(0.35), 1.9)
+	var fletch_mat := PixelStyleScript.make_material(element.lightened(0.25))
+	_add_part(Vector3(0.05, 0.05, 0.62), Vector3(0.0, 0.0, 0.06), shaft_mat, "Shaft")
+	_add_part(Vector3(0.09, 0.09, 0.18), Vector3(0.0, 0.0, -0.32), head_mat, "Head")
+	for i in 2:
+		var axis: Vector3 = Vector3.RIGHT if i == 0 else Vector3.UP
+		_add_part(
+			Vector3(0.02, 0.02, 0.16) + axis * 0.14,
+			Vector3(0.0, 0.0, 0.3),
+			fletch_mat,
+			"Fletch%d" % i
+		)
+	if dmg_type != DamageInfo.TYPE_PHYSICAL:
+		LightEmbersScript.attach(_visual, Vector3(0.0, 0.0, -0.2), element, 0.7, 0.5)
+
+
+func _add_part(size: Vector3, pos: Vector3, mat: Material, part_name: String) -> void:
+	var mesh := MeshInstance3D.new()
+	mesh.name = part_name
+	var box := BoxMesh.new()
+	box.size = size
+	mesh.mesh = box
+	mesh.position = pos
+	mesh.material_override = mat
+	mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	_visual.add_child(mesh)
 
 
 func _on_hit_landed(_target: Node) -> void:
@@ -73,9 +104,6 @@ func _physics_process(delta: float) -> void:
 			var params := PhysicsRayQueryParameters3D.create(
 				global_position, global_position + motion
 			)
-			# C-52: `combat_layers.gd` was written specifically to stop bare `collision_mask = 1`
-			# duplicating across perception, targeting and camera code, and its docstring says so.
-			# The value is right today; naming it is what stops the drift its own author predicted.
 			params.collision_mask = CombatLayers.WORLD_OCCLUDERS
 			params.collide_with_areas = false
 			params.collide_with_bodies = true

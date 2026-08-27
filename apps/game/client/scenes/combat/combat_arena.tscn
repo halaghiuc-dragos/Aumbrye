@@ -75,10 +75,12 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -6)
 [node name="DoorFrame" type="MeshInstance3D" parent="HubReturn"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.75, 0)
 mesh = SubResource("BoxMesh_door_frame")
+metadata/legacy_blockout = true
 
 [node name="DoorPad" type="MeshInstance3D" parent="HubReturn"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.05, 0)
 mesh = SubResource("BoxMesh_pad")
+metadata/legacy_blockout = true
 
 [node name="InteractArea" type="Area3D" parent="HubReturn"]
 collision_layer = 0

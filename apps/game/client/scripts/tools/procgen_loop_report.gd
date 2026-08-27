@@ -1,14 +1,5 @@
 extends SceneTree
 
-## Circularity report for generated layouts — how many shortcut loops each biome produces and how
-## much backtracking they remove.
-##
-## The seed-health sweep answers "does it generate?". This answers "does it fold back on itself?",
-## which is a separate property and the one that makes a layout read as a place rather than a tree.
-##
-## From repo root:
-##   godot --path apps/game/client --headless --script res://scripts/tools/procgen_loop_report.gd \
-##     -- --from 1 --count 200
 
 const RoomGraphGeneratorScript := preload("res://scripts/dungeon/procgen/room_graph_generator.gd")
 const RoomGraphConfigScript := preload("res://scripts/dungeon/procgen/room_graph_config.gd")
@@ -71,7 +62,5 @@ func _initialize() -> void:
 	quit(0)
 
 
-## Biome JSON read straight off disk. Autoloads are not registered under `--script`, so the
-## registry is unavailable here; the seed-health sweep resolves biomes the same way.
 static func _fetch_biome(biome_id: String) -> Dictionary:
 	return SeedHealthScript._fetch_biome(biome_id)

@@ -1,6 +1,5 @@
 extends Control
 
-## Storage grid transfer UI (HUB-4.4).
 
 const GameUISkinScript := preload("res://scripts/ui/game_ui_skin.gd")
 const ItemListPresenterScript := preload("res://scripts/ui/item_list_presenter.gd")
@@ -47,8 +46,6 @@ func open() -> void:
 func close() -> void:
 	visible = false
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
-	# Through PlayerControls: closing this panel must not grab the mouse back if another one is
-	# still open behind it.
 	PlayerControls.capture_mouse_if_allowed()
 	closed.emit()
 
@@ -114,13 +111,11 @@ func _on_to_inv() -> void:
 	_refresh()
 
 
-## A stack count is only worth showing when there is actually a stack.
 func _row_text(definition: Dictionary, item_id: String, quantity: int) -> String:
 	var display_name := str(definition.get("name", item_id))
 	return "%s x%d" % [display_name, quantity] if quantity > 1 else display_name
 
 
-## Empty-state rows, so a player looking at two blank boxes can tell the screen is working.
 func _refresh_empty_states() -> void:
 	if _inv_indices.is_empty():
 		ItemListPresenterScript.add_plain_row(_inv_list, tr("STORAGE_INVENTORY_EMPTY"), false)

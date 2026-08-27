@@ -136,10 +136,6 @@ func _physics_process(delta: float) -> void:
 		velocity.x = lunge.x
 		velocity.z = lunge.z
 		move_and_slide()
-		# C-25: `_update_floor_state()` both computes the fall height *and* consumes the
-		# transition by resetting `_was_on_floor`. Discarding its return here meant touching down
-		# in this state cost no fall damage, no landing dip and no landing footstep — press dodge
-		# as you land and a lethal fall was free.
 		_consume_landing()
 		_update_character_animation(delta, 0.0)
 		return
@@ -153,7 +149,6 @@ func _physics_process(delta: float) -> void:
 		velocity.x = locked_horizontal.x
 		velocity.z = locked_horizontal.z
 		move_and_slide()
-		# C-25: see above.
 		_consume_landing()
 		_update_character_animation(delta, 0.0)
 		return
@@ -161,7 +156,6 @@ func _physics_process(delta: float) -> void:
 	if _dodge:
 		_dodge.process_dash_physics(delta)
 		if _dodge.is_dodging:
-			# C-25: see above.
 			_consume_landing()
 			_update_character_animation(delta, 0.0)
 			return
@@ -256,12 +250,6 @@ func _physics_process(delta: float) -> void:
 		if lunge.length_squared() > 0.01:
 			horizontal += lunge
 
-	if locked_on:
-		var dodging := _dodge != null and _dodge.is_dodging
-		horizontal = LockOnMovement.apply_orbit_radius_correction(
-			self, _lock_on, input_dir, horizontal, delta, dodging
-		)
-
 	velocity.x = horizontal.x
 	velocity.z = horizontal.z
 
@@ -283,7 +271,6 @@ func _physics_process(delta: float) -> void:
 	_update_character_animation(delta, fall_height)
 
 
-## C-25: the three early-return branches share this so a landing is never silently swallowed.
 func _consume_landing() -> void:
 	var fall_height := _update_floor_state()
 	if fall_height > 0.0:
@@ -305,9 +292,6 @@ func _update_floor_state() -> float:
 
 func _on_landed(fall_height: float) -> void:
 	if fall_height < LAND_SOFT_HEIGHT:
-		# C-67: this fired a footstep for every sub-1.2 m landing on top of the locomotion
-		# footstep timer, so stepping off a kerb double-played the sound. Resetting the timer
-		# makes the landing step *be* the next step rather than an extra one.
 		play_footstep_effects()
 		_footstep_timer = VfxService.FOOTSTEP_INTERVAL_WALK
 		return
@@ -368,12 +352,12 @@ func _clamp_airborne_turn(horizontal: Vector3) -> Vector3:
 func _get_move_direction(input_dir: Vector2) -> Vector3:
 	if LockOnMovement.is_active(_lock_on):
 		return LockOnMovement.get_move_direction(
-			self, _lock_on, input_dir, _get_camera_relative_direction
+			self, _lock_on, input_dir, get_camera_relative_direction
 		)
-	return _get_camera_relative_direction(input_dir)
+	return get_camera_relative_direction(input_dir)
 
 
-func _get_camera_relative_direction(input_dir: Vector2) -> Vector3:
+func get_camera_relative_direction(input_dir: Vector2) -> Vector3:
 	if input_dir.length_squared() < 0.01:
 		return Vector3.ZERO
 	var yaw_basis := Basis.IDENTITY
@@ -381,10 +365,6 @@ func _get_camera_relative_direction(input_dir: Vector2) -> Vector3:
 		yaw_basis = Basis(Vector3.UP, _camera_yaw.global_rotation.y)
 	var direction := (yaw_basis * Vector3(input_dir.x, 0.0, input_dir.y)).normalized()
 	return direction
-
-
-func get_camera_relative_direction(input_dir: Vector2) -> Vector3:
-	return _get_camera_relative_direction(input_dir)
 
 
 func get_facing_direction() -> Vector3:
@@ -426,7 +406,6 @@ func _resolve_footstep_surface() -> StringName:
 	return _cached_surface
 
 
-## Fallback when animation markers are absent; otherwise footsteps come from clips.
 func _update_footstep_vfx(delta: float) -> void:
 	if _anim_director and _anim_director.has_method("has_footstep_markers"):
 		if _anim_director.call("has_footstep_markers"):
@@ -455,7 +434,6 @@ func _update_character_animation(_delta: float, fall_height: float) -> void:
 	var local_dir := Vector2.ZERO
 	var horizontal := Vector2(velocity.x, velocity.z)
 	if horizontal.length_squared() > 0.04:
-		# The node the mesh is actually turned by, not the body it hangs under.
 		local_dir = LockOnMovement.world_velocity_to_local_facing(_facing, velocity)
 	_anim_director.update_locomotion(
 		is_on_floor(),

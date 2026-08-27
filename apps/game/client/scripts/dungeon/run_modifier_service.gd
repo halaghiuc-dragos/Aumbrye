@@ -1,7 +1,6 @@
 extends RefCounted
 class_name RunModifierService
 
-## Named run modifiers from difficulty tiers, descent pacts and endless depth (DCT-13).
 
 const FloorSeedMixScript := preload("res://scripts/dungeon/floor_seed_mix.gd")
 
@@ -96,8 +95,6 @@ static func describe_all(modifiers: Array) -> String:
 	return "\n".join(lines)
 
 
-## Endless floors draw a seeded handful from the whole pool per band of floors, so two bands at
-## the same depth on different seeds differ, and no depth settles on one permanent set.
 static func endless_modifiers_for_floor(floor_index: int, run_seed: int = 0) -> Array[String]:
 	var floor_clamped := maxi(1, floor_index)
 	var band := int((floor_clamped - 1) / float(ENDLESS_BAND_FLOORS))

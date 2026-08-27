@@ -1,6 +1,5 @@
 extends Control
 
-## In-run pause overlay — resume, run info, settings, abandon, quit to menu.
 
 signal closed
 signal cancel_requested
@@ -50,8 +49,6 @@ func toggle() -> void:
 
 
 func open_menu() -> void:
-	# Raised on open, so the panel the player just asked for is the one on top: these are all
-	# siblings on one CanvasLayer and draw in child order, which is otherwise fixed at build time.
 	move_to_front()
 	if _open:
 		return
@@ -224,9 +221,6 @@ func _refresh_run_info() -> void:
 		else:
 			_floor_value.text = "—"
 	if _time_value:
-		# The warden's total time, not the run's. `get_run_elapsed_seconds()` is a run timer, so
-		# outside a run this row was a permanent 00:00 — which is most of the time a player spends
-		# in the pause screen, since the hub is where you stop to think.
 		var played := LocalSave.get_playtime_seconds()
 		if RunFlow.is_run_active():
 			_time_value.text = "%s  (run %s)" % [

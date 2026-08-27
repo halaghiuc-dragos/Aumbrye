@@ -1,6 +1,5 @@
 extends Node
 
-## Modal stack — mouse mode, ui_cancel routing, and shared confirmations.
 
 signal stack_changed(depth: int)
 
@@ -49,11 +48,6 @@ func pop(modal: Control) -> void:
 	_stack.remove_at(idx)
 	for i in range(_focus_records.size() - 1, -1, -1):
 		if _focus_records[i].get("modal") == modal:
-			# Validity first, cast second. `as Control` on a freed object raises "Trying to cast a
-			# freed object" by itself, so testing `is_instance_valid` on the *result* is too late:
-			# the error has already been reported. The control that had focus when the modal opened
-			# is routinely gone by the time it closes — character creation frees its own buttons
-			# when the confirmation dialog commits — so this fired on a completely ordinary path.
 			var previous: Variant = _focus_records[i].get("focus")
 			_focus_records.remove_at(i)
 			if is_instance_valid(previous):
@@ -67,9 +61,6 @@ func pop(modal: Control) -> void:
 	stack_changed.emit(depth())
 
 
-## Scene teardown (floor restart, return to main menu) can leave a modal mid-close if the old
-## scene is freed out from under it. RunFlow calls this instead of writing `get_tree().paused`
-## itself, keeping MenuStack the sole owner of pause state.
 func force_unpause() -> void:
 	_stack.clear()
 	_focus_records.clear()
@@ -109,7 +100,6 @@ func confirm(spec: ConfirmSpec) -> void:
 	_active_spec = spec
 	_active_confirm = _build_confirm_overlay(spec)
 	_confirm_layer.add_child(_active_confirm)
-	# Only now are the buttons in the tree; see `_wire_confirm_focus`.
 	_wire_confirm_focus(spec)
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	stack_changed.emit(depth())
@@ -150,13 +140,6 @@ func _build_confirm_overlay(spec: ConfirmSpec) -> Control:
 	return overlay
 
 
-## Focus wiring, deliberately separate from building the overlay.
-##
-## `get_path()` and `grab_focus()` both require the node to be inside the tree, and this all used to
-## run inside `_build_confirm_overlay`, which returns the overlay *before* the caller adds it. Godot
-## logged three errors per dialog and returned empty NodePaths, so the two buttons had no focus
-## neighbours and neither ever took focus: every confirmation prompt in the game opened with nothing
-## selected and no way to move between the options on a keyboard or a pad.
 func _wire_confirm_focus(spec: ConfirmSpec) -> void:
 	var cancel := _confirm_cancel_button
 	var confirm_btn := _confirm_accept_button

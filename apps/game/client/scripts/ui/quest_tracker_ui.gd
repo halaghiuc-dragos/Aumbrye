@@ -1,6 +1,5 @@
 extends Control
 
-## Compact HUD panel listing active quest objectives.
 
 const GameUISkinScript := preload("res://scripts/ui/game_ui_skin.gd")
 

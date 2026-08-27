@@ -1,7 +1,6 @@
 extends RefCounted
 class_name DialogueRunner
 
-## Executes JSON branching dialogue trees (DLG-4.1).
 
 signal line_changed(speaker: String, text: String, choices: Array)
 signal dialogue_ended
@@ -69,8 +68,6 @@ func advance() -> void:
 
 func end_dialogue() -> void:
 	_active = false
-	# Dropped rather than cleared in place. `clear()` empties whatever dictionary this is pointing
-	# at, which is only safe while nothing else shares it — and for a long time something did.
 	_dialogue = {}
 	_current_node_id = ""
 	dialogue_ended.emit()
@@ -149,7 +146,7 @@ func _execute_action(action: Dictionary) -> void:
 		"increment_flag":
 			var counter_id: String = str(action.get("flag", ""))
 			var amount: int = int(action.get("amount", 1))
-			CharacterService.set_flag(counter_id, _flag_number(counter_id) + amount)
+			CharacterService.set_flag(counter_id, DialogueConditions.flag_number(counter_id) + amount)
 		"add_gold":
 			CharacterService.add_gold(int(action.get("amount", 0)))
 		"start_quest":
@@ -172,7 +169,7 @@ func _execute_action(action: Dictionary) -> void:
 			AudioDirector.play_sfx(str(action.get("sfxId", "ui")))
 		"advance_story_beat":
 			var beat: int = int(action.get("beat", 0))
-			if beat > _flag_number(STORY_BEAT_FLAG):
+			if beat > DialogueConditions.flag_number(STORY_BEAT_FLAG):
 				CharacterService.set_flag(STORY_BEAT_FLAG, beat)
 		"record_discovery":
 			QuestService.register_discovery(str(action.get("discoveryId", "")))
@@ -193,15 +190,5 @@ func _apply_relationship(action: Dictionary) -> void:
 	if action.has("value"):
 		CharacterService.set_flag(flag_id, int(action.get("value", 0)))
 		return
-	CharacterService.set_flag(flag_id, _flag_number(flag_id) + int(action.get("delta", 1)))
+	CharacterService.set_flag(flag_id, DialogueConditions.flag_number(flag_id) + int(action.get("delta", 1)))
 
-
-func _flag_number(flag_id: String) -> int:
-	var raw: Variant = CharacterService.get_flag(flag_id, 0)
-	if raw is bool:
-		return 1 if raw else 0
-	if raw is int or raw is float:
-		return int(raw)
-	if raw is String and str(raw).is_valid_int():
-		return int(str(raw))
-	return 0

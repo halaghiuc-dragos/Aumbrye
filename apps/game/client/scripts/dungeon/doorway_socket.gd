@@ -1,8 +1,6 @@
 extends Marker3D
 class_name DoorwaySocket
 
-## Doorway attachment point on a castle room template edge.
-## Doorway socket markers for room prefab connectivity (N/E/S/W at room edges).
 
 @export var direction: CastleRoomConstants.Direction = CastleRoomConstants.Direction.NORTH
 @export var socket_id: String = ""
@@ -17,7 +15,6 @@ func get_socket_name() -> String:
 
 func get_world_facing() -> Vector3:
 	var room := get_parent().get_parent() as Node3D
-	# Named `room_basis` rather than `basis`, which would shadow Node3D.basis.
 	var room_basis := global_transform.basis if room == null else room.global_transform.basis
 	match direction:
 		CastleRoomConstants.Direction.NORTH:

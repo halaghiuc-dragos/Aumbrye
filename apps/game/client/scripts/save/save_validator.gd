@@ -13,15 +13,6 @@ const REQUIRED_TOP_LEVEL: Array[String] = [
 const NIL_UUID := "00000000-0000-4000-8000-000000000000"
 
 
-## True for a native int, or a float with no fractional part. JSON has no int type, so
-## JSON.parse_string() always returns float for numbers (Godot 4, documented behaviour) — any
-## code path that validates data straight off a JSON round-trip (LocalSave._write_save()'s own
-## verify-before-commit step, in particular) would otherwise fail a strict `typeof() == TYPE_INT`
-## check for every legitimately-integer field, every time, because the values it is checking
-## have already gone through JSON.stringify()/parse_string() and arrive as e.g. 5.0. The load
-## path avoids this only because SaveMigrator.migrate() happens to re-coerce these same fields
-## with int() before validate() runs; the write path's verify step has no such pass. Validating
-## by numeric value rather than by native Variant type is correct for both paths.
 static func _is_whole_number(value: Variant) -> bool:
 	if typeof(value) == TYPE_INT:
 		return true
@@ -30,7 +21,6 @@ static func _is_whole_number(value: Variant) -> bool:
 	return false
 
 
-## Returns human-readable problem strings; empty means valid.
 static func validate(data: Dictionary) -> Array[String]:
 	var problems: Array[String] = []
 	var version := int(data.get("schemaVersion", 0))

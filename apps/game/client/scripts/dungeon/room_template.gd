@@ -1,28 +1,15 @@
 extends Node3D
 class_name RoomTemplate
 
-## Hand-authored dungeon room prefab consumed by DungeonBuilder (M2+).
 
 @export var template_id: String = ""
 @export var room_id: String = ""
 @export var room_type: String = "combat"
-## The role the floor generator assigned this room — `combat`, `stairs`, `boss`, `treasure`,
-## `shop`, `rest`, `lore`. Distinct from `template_id`, which only says which *scene* was picked
-## to fit the room's door mask: templates are interchangeable shapes, so an ordinary combat room
-## can legitimately be built from `castle_stairs` geometry. Anything that cares about a room's
-## role must read this and not the template id.
 @export var room_kind: String = ""
 
-## C-151: the generator tags rooms `["merchant"]`, `["traversal"]`, `["spawn"]`, `["final_arena"]`,
-## `["final_boss"]` and so on, `room_graph_geometry` copies them into every room record, and nothing
-## anywhere read them — a room-level behaviour hook carried all the way into the definition and
-## dropped on the floor. They reach the room node now, and the node joins a group per tag so a
-## system can find "every arena" or "the merchant room" without walking the definition.
 @export var room_tags: PackedStringArray = PackedStringArray()
 
 
-func has_room_tag(tag: String) -> bool:
-	return room_tags.has(tag)
 @export var player_spawn_path: NodePath = NodePath("SpawnPoints/PlayerSpawn")
 @export var nav_region_path: NodePath = NodePath("CastleBlockout/NavigationRegion3D")
 

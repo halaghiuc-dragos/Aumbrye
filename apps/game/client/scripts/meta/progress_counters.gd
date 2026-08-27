@@ -1,7 +1,6 @@
 class_name ProgressCounters
 extends RefCounted
 
-## Read-only account/character progress totals that gate hub dressing and alternate modes.
 
 const KEY_DUNGEONS_CLEARED := "dungeonsCleared"
 const KEY_MAX_TIER := "maxUnlockedTier"
@@ -67,7 +66,6 @@ static func meets(condition: Dictionary, counters: Dictionary = {}) -> bool:
 	return true
 
 
-## The single requirement furthest from being met, for "what is still missing" copy.
 static func shortfall(condition: Dictionary, counters: Dictionary = {}) -> Dictionary:
 	if condition.is_empty():
 		return {}

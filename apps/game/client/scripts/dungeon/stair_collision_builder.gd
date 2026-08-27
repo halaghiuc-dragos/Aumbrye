@@ -1,8 +1,6 @@
 extends RefCounted
 class_name StairCollisionBuilder
 
-## FLOOR-7.3 — physical collision geometry for stair ramps.
-
 
 static func ensure_stair_collision(room: RoomTemplate) -> void:
 	if room == null:

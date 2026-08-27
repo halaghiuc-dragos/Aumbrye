@@ -1,7 +1,6 @@
 extends RefCounted
 class_name RarityRegistry
 
-## Global rarity tiers, display names, upgrade caps, and mode drop bonuses.
 
 const TIER_ORDER: Array[String] = [
 	"common",

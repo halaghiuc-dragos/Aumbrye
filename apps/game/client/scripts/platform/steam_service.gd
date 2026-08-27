@@ -1,6 +1,5 @@
 extends Node
 
-## STEAM-7.1–7.4 — Steamworks integration with dev stub when SDK missing.
 
 signal steam_ready
 signal steam_shutdown
@@ -179,16 +178,6 @@ func write_cloud_file(file_name: String, data: String) -> bool:
 		if steam and steam.has_method("fileWrite"):
 			return bool(steam.fileWrite(file_name, data))
 	return false
-
-
-func get_auth_ticket_hex() -> String:
-	if is_stub_mode or not Engine.has_singleton("Steam"):
-		return ""
-	var steam := Engine.get_singleton("Steam")
-	if not steam.has_method("getAuthTicketForWebApi"):
-		return ""
-	var ticket: Dictionary = steam.getAuthTicketForWebApi(WEB_API_IDENTITY)
-	return await _await_web_api_ticket(int(ticket.get("id", 0)))
 
 
 func shutdown() -> void:

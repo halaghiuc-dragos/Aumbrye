@@ -1,9 +1,5 @@
 extends CastleEnemyBase
 
-## Floor 10 final boss — Forgotten Castle (FLOOR-7.5).
-## Phase 1: combat to ~25% HP
-## Phase 2: dodge simultaneous floor spikes
-## Phase 3: collect crystals → cannon → break shield (immune until fired)
 
 signal boss_defeated
 const SPIKE_SCENE := preload("res://scenes/traps/spike_trap.tscn")

@@ -1,7 +1,5 @@
 extends CastleEnemyBase
 
-## Crystal caverns melee slime — frost-vulnerable (THEME-5.2).
-
 
 func _resolve_enemy_id() -> String:
 	return "crystal_slime"

@@ -1,14 +1,6 @@
 class_name DioramaAnimController
 extends Node
 
-## Drives a voxel rig with a real AnimationPlayer and a strict priority stack.
-##
-## Add it as a child of the character body, then bind() the DioramaVisual built by
-## DioramaCharacterSkin. Clips are compiled from DioramaAnimLibrary against that
-## specific rig, so profiles with missing limbs simply get fewer tracks.
-##
-## Priority (highest wins): death > stagger > attack/parry > block > dash > locomotion.
-## A lower-priority request is remembered and applied when the stack unwinds.
 
 signal swing_frame
 signal footstep_frame
@@ -34,34 +26,12 @@ const ACTION_BLEND := 0.06
 const LIBRARY_NAME := &""
 const RUNTIME_LIBRARY_NAME := &"runtime"
 const ATTACK_CACHE_LIMIT := 24
-## Floor on locomotion playback rate. 0.35, not 0.5: enemies enter the walk clip at 0.35 m/s and
-## routinely approach at 0.6, which against a 2.0 m/s clip asks for 0.30 — so a 0.5 floor cycled
-## their legs at nearly twice the ground they covered. A 0.35 floor still keeps a near-stationary
-## character from crawling, while letting a slow approach actually look slow.
 const SPEED_SCALE_MIN := 0.35
 const SPEED_SCALE_MAX := 2.2
-## How far past a clamp bound a raw scale must land before it is reported. See
-## `_locomotion_speed_scale`.
 const CLAMP_REPORT_MARGIN := 0.35
 
-## Consecutive out-of-range requests before a clip is reported as miscalibrated.
-##
-## Reporting the first one described a passing moment, not a fault: an enemy decelerating through
-## the 0.35 m/s walk threshold spends a few frames asking for a scale below the floor, which is the
-## floor doing its job. A clip whose `stride_m` genuinely does not describe the speeds it is used
-## at is out of range *continuously* — half a second of it is the signal this report wants, and it
-## is what the melee and boss rigs were producing before the stride table was retuned.
 const CLAMP_REPORT_FRAMES := 30
 
-## Per-rig stride multiplier applied to a clip's authored `stride_m`.
-##
-## Stride length is a property of the body, not of the clip, but `AnimLibrary.clip_meta` is keyed
-## by clip name alone and so returns one figure for every rig that shares the table. A hound covers
-## far less ground per cycle than a warden of the same clip, so driving both from the biped's
-## 1.6 m left the hound's playback rate pinned to the floor whenever it approached slowly — it was
-## the last locomotion clamp still being reported.
-##
-## Values are relative to the biped the clips were authored for; anything absent is 1.0.
 const STRIDE_SCALE_BY_PROFILE := {
 	"hound": 0.55,
 	"brute": 1.25,
@@ -86,27 +56,15 @@ var _desired_locomotion: StringName = &"idle"
 var _blocking := false
 var _dead := false
 var _compiled_attacks: Dictionary = {}
-var _attack_cache_order: Array = []
 var _missing_clips: Dictionary = {}
 var _clamped_clips: Dictionary = {}
-## Consecutive requests per clip whose raw scale landed outside the report margin. See
-## `_report_clamp`.
 var _clamp_streak: Dictionary = {}
 var _hitbox_signals_warned := false
 
-## Whether this rig's owner is expected to act on hitbox frames.
-##
-## Attack clips emit open/close frames whether or not the owner can hurt anything, so a purely
-## passive actor — the training dummies, which have no hitbox and never swing — tripped the
-## "no listeners" warning once each on every arena load. Owners that cannot attack set this false
-## so the warning keeps meaning "something that should be wired is not".
 var expects_hitbox_listeners := true
 var _mirrors: Array[DioramaAnimController] = []
 
 
-## Registers a rig that should play whatever this controller plays. Used to keep
-## the first-person viewmodel in lockstep with the third-person body from a
-## single set of gameplay calls.
 func add_mirror(other: DioramaAnimController) -> void:
 	if other != null and other != self and not _mirrors.has(other):
 		_mirrors.append(other)
@@ -158,12 +116,10 @@ func _finish_bind() -> void:
 		_library = loaded
 	_runtime_library = AnimationLibrary.new()
 	_missing_clips.clear()
-	_attack_cache_order.clear()
 	_hitbox_signals_warned = false
 	_player = AnimationPlayer.new()
 	_player.name = "DioramaAnimPlayer"
 	visual.add_child(_player)
-	# Tracks are authored relative to the visual root (parent of this player).
 	_player.root_node = NodePath("..")
 	_player.add_animation_library(LIBRARY_NAME, _library)
 	_player.add_animation_library(RUNTIME_LIBRARY_NAME, _runtime_library)
@@ -173,7 +129,6 @@ func _finish_bind() -> void:
 	_dead = false
 	_priority = Priority.LOCOMOTION
 	_desired_locomotion = &"idle"
-	# set_weapon may have arrived before the rig existed; apply it now.
 	if _weapon_id != "":
 		CharacterSkin.attach_weapon(visual, _weapon_id, _theme)
 	_play(&"idle", LOCOMOTION_BLEND)
@@ -218,24 +173,6 @@ func has_footstep_markers() -> bool:
 				var method_data: Dictionary = anim.track_get_key_value(track_idx, key_idx)
 				if String(method_data.get("method", "")) == "anim_footstep":
 					return true
-	return false
-
-
-func has_marker_tracks() -> bool:
-	if not is_bound() or _library == null:
-		return false
-	for clip_name in [&"walk", &"run"]:
-		if not _library.has_animation(clip_name):
-			continue
-		var anim := _library.get_animation(clip_name)
-		if anim == null:
-			continue
-		var method_count := 0
-		for track_idx in anim.get_track_count():
-			if anim.track_get_type(track_idx) == Animation.TYPE_METHOD:
-				method_count += anim.track_get_key_count(track_idx)
-		if method_count >= 2:
-			return true
 	return false
 
 
@@ -285,14 +222,11 @@ func has_clip(clip: StringName) -> bool:
 
 func select_locomotion_clip(speed: float) -> StringName:
 	var clip := AnimLibrary.select_locomotion_clip(speed)
-	# C-171: the `jog` special case is gone with the tier that produced it; the generic
-	# missing-clip fallback below covers anything else the library lacks.
 	if clip != &"idle" and not has_clip(clip) and has_clip(&"walk"):
 		clip = &"walk"
 	return clip
 
 
-## state: idle | walk | run | air. speed_ratio scales playback for walk/run.
 func request_locomotion(state: StringName, params: Dictionary = {}) -> void:
 	for mirror in _live_mirrors():
 		mirror.request_locomotion(state, params)
@@ -307,11 +241,6 @@ func request_locomotion(state: StringName, params: Dictionary = {}) -> void:
 		_play(clip, LOCOMOTION_BLEND)
 
 
-## The directional clip is chosen from the *body's* library by `player_anim_director`, then handed
-## to every mirror rig as well. The viewmodel library has no strafe variants, so `run_r` resolved on
-## the body and then warned "clip 'run_r' missing" once the mirror was asked for it — and the
-## viewmodel played nothing at all while strafing. Degrading to the base gait is what a rig without
-## strafes should do.
 func _locomotion_fallback(state: StringName) -> StringName:
 	if has_clip(state):
 		return state
@@ -336,11 +265,6 @@ func _locomotion_speed_scale(state: StringName, params: Dictionary) -> float:
 	if travel <= 0.0 or length <= 0.0:
 		return 1.0
 	var raw := travel * length / stride_m
-	# Only a *large* miss is worth reporting. Clamping at the edge of the band is the clamp doing
-	# its job — a character creeping at 0.4 m/s should not have its legs crawl — and warning about
-	# it drowned the console in messages that described correct behaviour. A raw scale beyond this
-	# margin means the clip's `stride_m` does not describe the speeds it is being used at, which is
-	# a real authoring fault and is what this report exists to catch.
 	var far_out := (
 		raw < SPEED_SCALE_MIN * (1.0 - CLAMP_REPORT_MARGIN)
 		or raw > SPEED_SCALE_MAX * (1.0 + CLAMP_REPORT_MARGIN)
@@ -421,8 +345,6 @@ func _flinch_clip_for(world_dir: Vector3) -> StringName:
 	var facing := body.get_node_or_null("Facing") as Node3D
 	if facing == null:
 		return &"flinch_f" if has_clip(&"flinch_f") else &"flinch"
-	# C-41: forward is +basis.z for a Facing node (`CombatFacing.forward_of`); this had forked to
-	# -basis.z, so flinch/stagger direction clips were mirrored front-to-back.
 	var forward := CombatFacing.forward_of(facing)
 	var right := facing.global_transform.basis.x
 	var flat := Vector3(world_dir.x, 0.0, world_dir.z).normalized()
@@ -451,8 +373,6 @@ func play_stagger(duration: float = 0.0, direction: Vector3 = Vector3.ZERO) -> v
 	_begin_action(clip, Priority.STAGGER, scale)
 
 
-## C-58: the single live implementation. Exposed publicly so `PlayerCombatReactions` can delegate
-## rather than keep a second, divergent copy.
 func stagger_clip_for_direction(world_dir: Vector3) -> StringName:
 	return _stagger_clip_for(world_dir)
 
@@ -466,8 +386,6 @@ func _stagger_clip_for(world_dir: Vector3) -> StringName:
 	var facing := body.get_node_or_null("Facing") as Node3D
 	if facing == null:
 		return &"stagger"
-	# C-41: forward is +basis.z for a Facing node (`CombatFacing.forward_of`); this had forked to
-	# -basis.z, so flinch/stagger direction clips were mirrored front-to-back.
 	var forward := CombatFacing.forward_of(facing)
 	var right := facing.global_transform.basis.x
 	var flat := Vector3(world_dir.x, 0.0, world_dir.z).normalized()
@@ -493,11 +411,6 @@ func play_heal(duration: float = 1.35) -> void:
 			_player.speed_scale = clampf(clip_length / duration, 0.4, 2.5)
 
 
-## Drops the drink animation and hands the rig back to locomotion.
-##
-## Needed because the drink is now interruptible: without this the character keeps miming a
-## flask it no longer has until the clip runs out, which reads as the heal still landing.
-## A stagger arriving in the same frame outranks this and repossesses the rig immediately.
 func cancel_heal() -> void:
 	for mirror in _live_mirrors():
 		if mirror.has_method("cancel_heal"):
@@ -515,8 +428,6 @@ func play_death() -> void:
 		return
 	_dead = true
 	_blocking = false
-	# C-164: `revive()` already forwards to every mirror; death did not, so the viewmodel kept
-	# resuming locomotion over a dead player.
 	for mirror in _live_mirrors():
 		mirror.mirror_set_dead(true)
 	_start_action(&"death", Priority.DEATH)
@@ -536,15 +447,14 @@ func revive() -> void:
 	_desired_locomotion = &"idle"
 	reset_combo()
 	_player.speed_scale = 1.0
+	_player.stop()
+	_apply_rest_pose()
 	if has_clip(&"RESET"):
-		_play(&"RESET", 0.1)
+		_play(&"RESET", 0.0)
 	else:
-		_apply_rest_pose()
 		_play(&"idle", 0.0)
 
 
-## Plays the next combo swing stretched onto the weapon's real phase timings, so
-## the visual strike lands in the same frame the hitbox opens.
 func play_attack(
 	startup: float, active: float, recovery: float, clip_override: StringName = &""
 ) -> void:
@@ -591,15 +501,14 @@ func _ensure_attack_clip(
 		% [clip, roundi(startup * 100.0), roundi(active * 100.0), roundi(recovery * 100.0)]
 	)
 	if _compiled_attacks.has(key):
-		var existing_idx := _attack_cache_order.find(key)
-		if existing_idx >= 0:
-			_attack_cache_order.remove_at(existing_idx)
-		_attack_cache_order.append(key)
 		return _compiled_attacks[key]
-	while _attack_cache_order.size() >= ATTACK_CACHE_LIMIT:
-		var evict_key: String = _attack_cache_order[0]
-		_attack_cache_order.remove_at(0)
-		var evict_path: StringName = _compiled_attacks.get(evict_key, &"")
+	# Oldest-first eviction, off the Dictionary's own insertion order — the expensive part
+	# (`AnimLibrary.build_attack`) is memoised globally, so this bound only caps how many clips one
+	# rig's runtime library holds. A rig cycles through a handful of attacks and never reaches the
+	# limit in practice, which is why true LRU ordering was not worth a scan on every cache hit.
+	while _compiled_attacks.size() >= ATTACK_CACHE_LIMIT:
+		var evict_key: String = _compiled_attacks.keys()[0]
+		var evict_path: StringName = _compiled_attacks[evict_key]
 		_compiled_attacks.erase(evict_key)
 		var evict_name := _clip_name_from_player_path(evict_path)
 		if evict_name != &"" and _runtime_library.has_animation(evict_name):
@@ -611,7 +520,6 @@ func _ensure_attack_clip(
 	_runtime_library.add_animation(runtime_name, anim)
 	var player_path := StringName("%s/%s" % [RUNTIME_LIBRARY_NAME, key])
 	_compiled_attacks[key] = player_path
-	_attack_cache_order.append(key)
 	return player_path
 
 
@@ -658,17 +566,6 @@ func _play_local(clip: StringName, blend: float) -> void:
 	_player.play(clip, blend)
 
 
-## A mirror follows the rig that drives it, but is not required to have the same clip library.
-##
-## The first-person viewmodel is arms only, so it has no locomotion clips at all — mirroring the
-## body's "idle" through the normal path made it report a missing clip on every bind, for a clip it
-## is not supposed to own. A mirror silently keeps its current pose for anything it lacks; a clip
-## genuinely missing from the rig that drives it is still reported by that rig.
-## C-164: the mirror received the death *clip* and its priority but never the `_dead` state, so on
-## the first-person viewmodel `_on_animation_finished` saw `_dead == false`, fell through its early
-## return and called `_resume_locomotion()` — the arms went back to idling over a dead player. The
-## driving controller's own `_dead` guard is what stops that, and it was the one field that did not
-## propagate.
 func mirror_apply(
 	priority: int, locomotion: StringName, clip: StringName, blend: float, scale: float
 ) -> void:
@@ -681,7 +578,6 @@ func mirror_apply(
 	_play_local(clip, blend)
 
 
-## C-164: death and revival are states, not clips, and have to cross to the mirror as states.
 func mirror_set_dead(dead: bool) -> void:
 	_dead = dead
 
@@ -746,11 +642,6 @@ func _report_missing(clip: StringName, context: String) -> void:
 	)
 
 
-## Throttled per clip, matching `_report_missing_clip` directly above. This fired from
-## `_locomotion_speed_scale`, which runs every physics frame — a training grunt whose stride metadata
-## puts it permanently out of range produced a warning *per frame*. The validation run logged 3,198
-## of these before dying; the flood is not the underlying tuning problem, but it buries every other
-## diagnostic and makes the log unreadable.
 func _report_clamp(clip: StringName, raw_scale: float) -> void:
 	if _clamped_clips.has(clip):
 		return
@@ -776,7 +667,6 @@ func _check_hitbox_signal_listeners() -> void:
 		push_warning("DioramaAnimController[%s]: hitbox signals have no listeners" % _profile)
 
 
-## Called from AnimationPlayer method tracks. See DioramaAnimLibrary markers.
 func anim_swing_vfx() -> void:
 	swing_frame.emit()
 
@@ -810,12 +700,6 @@ func set_speed_scale(scale: float) -> void:
 			mirror._player.speed_scale = clamped
 
 
-func get_weapon_mount() -> Node3D:
-	if _visual == null:
-		return null
-	return CharacterSkin.find_part(_visual, CharacterSkin.WEAPON_MOUNT)
-
-
 func _apply_rest_pose() -> void:
 	if _visual == null:
 		return
@@ -839,9 +723,7 @@ func _teardown() -> void:
 	_library = null
 	_runtime_library = null
 	_compiled_attacks.clear()
-	_attack_cache_order.clear()
 	_missing_clips.clear()
-	AnimLibrary.clear_attack_cache()
 	_rest_pose.clear()
 	_blocking = false
 	_dead = false

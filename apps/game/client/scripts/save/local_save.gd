@@ -1,6 +1,5 @@
 extends Node
 
-## Autoload — local JSON save + cloud cache (SAVE-4.1).
 
 const SAVE_PATH := "user://aumbrye_save.json"
 const STEAM_CLOUD_SAVE_NAME := "aumbrye_save.json"
@@ -12,13 +11,6 @@ const CHARACTERS_DIR := "user://characters/"
 const BACKUP_DIR := "user://backups/"
 const BACKUP_COUNT := 5
 
-## C-232: backup depth used to be measured in *writes*, and 56 call sites reach `autosave()`
-## immediately — including display mode, key rebinding, locale, audio, accessibility and privacy
-## settings. Opening the options screen and changing a handful of them cycled the whole five-deep
-## history without a second of play, leaving five backups all stamped within the same minute.
-## Rotation is now gated on the age of the newest backup, so the history spans real time.
-## `autosave_checkpoint()` bypasses the gate for run-boundary saves, which are the states a player
-## actually wants to return to.
 const BACKUP_MIN_INTERVAL_SEC := 300
 const SAVE_SCHEMA_VERSION := SaveMigrator.CURRENT_VERSION
 const AUTOSAVE_MIN_INTERVAL := 2.0
@@ -28,9 +20,6 @@ signal save_failed(reason: String)
 signal cloud_sync_completed(server_won: bool)
 signal backup_restored(index: int)
 
-## C-233: a save could not be read and every backup failed with it. Carries the reason and the path
-## the unreadable file was quarantined to, so the player can be told where their data went before
-## anything is discarded.
 signal save_recovery_required(reason: String, quarantine_path: String)
 
 enum SavePriority { IMMEDIATE, DEFERRED }
@@ -46,24 +35,10 @@ var _pending_new_game: Dictionary = {}
 var _roster: Dictionary = {"characters": [], "activeId": "", "localAccountId": ""}
 var _account: Dictionary = {}
 var _active_character_id: String = ""
-## Whether `_active_character_id` points at a character whose document is actually loaded into the
-## services, as opposed to merely being the roster's `activeId`.
-##
-## These came apart at the main menu, and that is what cost a save. `_load_roster()` sets
-## `_active_character_id` from `activeId` at boot, so from the title screen the pointer already says
-## "Bexley is active" while `CharacterService` holds nothing at all. Any autosave from there — a
-## settings toggle, or the live appearance preview in character creation, which calls
-## `set_appearance_profile()` on every slider — then built a payload out of that empty service and
-## wrote it over Bexley's file. See `_build_save_payload`, which stamped `classId` from the empty
-## service, and `list_character_slots`, which hides an entry whose `classId` is blank: the character
-## file survived intact, the roster entry went blank, and Continue greyed out. It read as the save
-## having been deleted by pressing New Game.
 var _character_loaded := false
 var _autosave_pending := false
 var _force_backup_rotation := false
 
-## C-233: set when a load failed past every recovery route and the player has not yet chosen what to
-## do. Read by the title screen; nothing is reset while it stands.
 var recovery_required := false
 var recovery_reason := ""
 var recovery_quarantine_path := ""
@@ -76,28 +51,12 @@ func has_save() -> bool:
 	return FileAccess.file_exists(SAVE_PATH)
 
 
-## Loads the legacy single-save document at `SAVE_PATH`.
-##
-## This is *not* the right entry point once a roster exists — each character has its own document
-## under `characters/`, and `SAVE_PATH` is only the pre-roster file kept for migration. Use
-## `reload_active_into_services()` unless you specifically mean the legacy path.
 func load_into_services() -> bool:
 	if not FileAccess.file_exists(SAVE_PATH):
 		return false
 	return _load_document(SAVE_PATH)
 
 
-## Reloads whichever document is authoritative for the active character.
-##
-## The same rule `_ready()` and `execute_boot()`'s CONTINUE_MAIN branch already apply: the active
-## character's own document when there is one, and only otherwise the legacy save.
-##
-## `Hub._boot_save_and_services` used to call `load_into_services()` directly, which meant that
-## after character creation the hub re-read a stale `aumbrye_save.json` belonging to nobody — so
-## `CharacterService.class_id` came back empty, the hub's own guard fired, and the player was sent
-## straight back to the main menu holding a character that had in fact been created and written to
-## disk correctly. That is the "Begin sends me to the menu" bug.
-## The roster id of the character currently loaded, or "" before one is chosen.
 func get_active_character_id() -> String:
 	return _active_character_id
 
@@ -139,19 +98,10 @@ func get_level() -> int:
 	return int(_character().get("level", 1))
 
 
-func get_xp() -> int:
-	return int(_character().get("xp", 0))
-
-
 func get_character_name() -> String:
 	return str(_character().get("name", "Wanderer"))
 
 
-## Name plus the earned title the player picked in character creation, e.g. "Isolde the Oathkept".
-##
-## The Title row wrote its choice into the appearance profile and the profile was saved and
-## reloaded faithfully, but nothing in the game ever read it back — the title could be chosen and
-## then never appeared anywhere. This is the accessor screens use when they name the warden.
 func get_character_display_name() -> String:
 	var base := get_character_name()
 	var title_id := str(get_appearance_profile().get("title", ""))
@@ -192,16 +142,22 @@ func get_appearance_profile() -> Dictionary:
 	return CharacterAppearance.from_character_dict(_character())
 
 
-## Seconds this warden has been played for, across every session.
-##
-## Counted here rather than per run: the pause screen's clock read 00:00 anywhere outside a run,
-## because `RunFlow.get_run_elapsed_seconds()` is a *run* timer and the hub is not a run. This is
-## the number a player means by "how long have I played this character".
+const PLAYTIME_FLUSH_SECONDS := 45.0
+
+var _playtime_flush := PLAYTIME_FLUSH_SECONDS
+
+
+func _notification(what: int) -> void:
+	if what != NOTIFICATION_WM_CLOSE_REQUEST and what != NOTIFICATION_EXIT_TREE:
+		return
+	if _character_loaded and not _cached_state.is_empty():
+		autosave_checkpoint()
+
+
 func get_playtime_seconds() -> float:
 	return float(_character().get("playtimeSeconds", 0.0))
 
 
-## `H:MM:SS` once past an hour, `MM:SS` before it.
 func format_playtime(seconds: float) -> String:
 	var total := maxi(0, int(seconds))
 	@warning_ignore("integer_division")
@@ -214,8 +170,6 @@ func format_playtime(seconds: float) -> String:
 	return "%02d:%02d" % [minutes, secs]
 
 
-## Only while a character is actually loaded — the same gate that stops a menu-time autosave
-## writing over a save. Time spent on the title screen belongs to nobody.
 func _process(delta: float) -> void:
 	if not _character_loaded or _cached_state.is_empty():
 		return
@@ -224,6 +178,10 @@ func _process(delta: float) -> void:
 		return
 	character["playtimeSeconds"] = float(character.get("playtimeSeconds", 0.0)) + delta
 	_cached_state["character"] = character
+	_playtime_flush -= delta
+	if _playtime_flush <= 0.0:
+		_playtime_flush = PLAYTIME_FLUSH_SECONDS
+		autosave_checkpoint()
 
 
 func has_playable_character() -> bool:
@@ -244,12 +202,6 @@ func used_character_slots() -> int:
 
 func can_create_character() -> bool:
 	return used_character_slots() < MAX_CHARACTER_SLOTS
-
-
-## The stash, the bestiary and everything the world itself learned live once per
-## account, which is the whole reason a second warden is worth starting.
-func get_account_data() -> Dictionary:
-	return _account.duplicate(true)
 
 
 func get_account_flags() -> Dictionary:
@@ -289,8 +241,6 @@ func _save_account() -> void:
 	file.close()
 
 
-## An account flag never regresses when a second character has seen less of the world
-## than the first: booleans latch true, counters keep the higher value, dictionaries merge.
 func _merge_account_flag(flag_id: String, value: Variant) -> void:
 	var flags: Dictionary = _account.get("flags", {})
 	if not flags.has(flag_id):
@@ -332,9 +282,6 @@ func _harvest_account_scope(data: Dictionary) -> void:
 	_save_account()
 
 
-## Adopts whatever the document carries into the account layer the first time it is
-## seen, then hands the account copy back so every character shares one stash and one
-## record of what the world has already given up.
 func _apply_account_scope(working: Dictionary) -> void:
 	var adopted: Variant = working.get("account", {})
 	if adopted is Dictionary and not (adopted as Dictionary).is_empty():
@@ -389,7 +336,7 @@ func list_character_slots() -> Array[Dictionary]:
 							"%s — %s (Lv%d)"
 							% [
 								entry.get("name", "Warden"),
-								class_id,
+								class_display_name(class_id),
 								int(entry.get("level", 1)),
 							]
 						),
@@ -397,10 +344,10 @@ func list_character_slots() -> Array[Dictionary]:
 					),
 					"detail":
 					(
-						"Class: %s\nLast played: %s"
+						"Class: %s     Last played: %s"
 						% [
-							class_id,
-							entry.get("savedAt", "unknown"),
+							class_display_name(class_id),
+							format_save_stamp(str(entry.get("savedAt", ""))),
 						]
 					),
 				}
@@ -409,15 +356,37 @@ func list_character_slots() -> Array[Dictionary]:
 	return slots
 
 
-## Width the Continue list's rows are padded to, in characters.
-##
-## The list is an `ItemList`, which takes one plain string per row and cannot align a column on its
-## own. `aumbrye_pixel.ttf` is monospace — every glyph measures the same width — so padding with
-## spaces puts the time on an exact right margin rather than an approximate one.
 const SLOT_LABEL_WIDTH := 46
 
 
-## One Continue row: the warden on the left, their time flush right in the same slot.
+func class_display_name(class_id: String) -> String:
+	if class_id.strip_edges().is_empty():
+		return "Unknown"
+	var display := str(ClassCatalog.get_definition(class_id).get("name", ""))
+	return display if display != "" else class_id.capitalize()
+
+
+func format_save_stamp(stamp: String) -> String:
+	var unix := _save_stamp_unix(stamp)
+	if unix <= 0:
+		return "unknown"
+	var local := Time.get_datetime_dict_from_unix_time(
+		unix + Time.get_time_zone_from_system().get("bias", 0) * 60
+	)
+	return "%d %s %d, %02d:%02d" % [
+		int(local["day"]),
+		MONTH_NAMES[clampi(int(local["month"]) - 1, 0, 11)],
+		int(local["year"]),
+		int(local["hour"]),
+		int(local["minute"]),
+	]
+
+
+const MONTH_NAMES: Array[String] = [
+	"Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
+]
+
+
 func _slot_label(left: String, right: String) -> String:
 	var gap := SLOT_LABEL_WIDTH - left.length() - right.length()
 	if gap < 2:
@@ -457,28 +426,12 @@ func queue_boot_new_game(class_id: String, character_name: String, appearance: D
 	_boot_backup_index = -1
 
 
-func queue_boot_continue_main() -> void:
-	_boot_mode = BootMode.CONTINUE_MAIN
-	_boot_backup_index = -1
-	_boot_character_id = ""
-
-
 func queue_boot_continue_character(character_id: String) -> void:
 	_boot_mode = BootMode.CONTINUE_CHARACTER
 	_boot_character_id = character_id
 	_boot_backup_index = -1
 
 
-func queue_boot_continue_backup(index: int) -> void:
-	_boot_mode = BootMode.CONTINUE_BACKUP
-	_boot_backup_index = index
-
-
-## Why the last `execute_boot()` returned false, as a translation key. Empty when it succeeded.
-##
-## The call used to return a bare bool, so `LoadingScreen` showed "Could not load save" for every
-## cause — including a full character roster, which is not a load failure at all and which the
-## player can actually do something about.
 var last_boot_failure := ""
 
 
@@ -538,7 +491,7 @@ func _apply_new_game_boot() -> bool:
 		CharacterService.set_class_id(class_id)
 	var starter_weapon := ClassCatalog.get_starting_weapon_item_id(class_id)
 	InventoryService.inventory.add_item(starter_weapon, 1)
-	_equip_weapon_item(starter_weapon)
+	InventoryService.equip_weapon_item(starter_weapon)
 	_add_roster_entry(character_id, character_name, class_id)
 	autosave()
 	return true
@@ -556,10 +509,6 @@ func load_character(character_id: String) -> bool:
 func get_recipes() -> Array:
 	var recipes: Variant = _cached_state.get("recipes", [])
 	return recipes.duplicate() if recipes is Array else []
-
-
-func get_owned_recipes() -> Array:
-	return get_recipes()
 
 
 func has_recipe(recipe_id: String) -> bool:
@@ -618,17 +567,6 @@ func clear_merchant_purchased(merchant_id: String) -> void:
 func clear_all_merchant_purchases() -> void:
 	_cached_state["merchants"] = {}
 
-
-func _equip_weapon_item(item_id: String) -> void:
-	var grid := InventoryService.inventory
-	for i in grid.slots.size():
-		if grid.slots[i].get("itemId", "") == item_id:
-			grid.equip_weapon(i)
-			return
-	if grid.add_item(item_id, 1):
-		grid.equip_weapon(grid.slots.size() - 1)
-
-
 func _read_character_summary(path: String) -> Dictionary:
 	if not FileAccess.file_exists(path):
 		return {"hasCharacter": false}
@@ -644,13 +582,6 @@ func _read_character_summary(path: String) -> Dictionary:
 		"level": int(character.get("level", 1)),
 		"savedAt": str(parsed.get("cloudUpdatedAt", parsed.get("savedAt", ""))),
 	}
-
-
-func get_talents() -> Dictionary:
-	if is_instance_valid(ProgressionService):
-		return ProgressionService.talents.duplicate()
-	var talents: Variant = _cached_state.get("talents", {})
-	return talents if talents is Dictionary else {}
 
 
 func list_backups(character_id: String = "") -> Array[Dictionary]:
@@ -689,9 +620,6 @@ func restore_backup(index: int, character_id: String = "") -> bool:
 	return true
 
 
-## C-233: extracted from `restore_backup` so the premigrate artefacts can be recovered through the
-## identical migrate/validate path. Returns false without side effects if the file is missing,
-## unparseable, fails migration or fails validation.
 func _adopt_document_file(path: String, character_id: String) -> bool:
 	if not FileAccess.file_exists(path):
 		return false
@@ -824,9 +752,6 @@ func _flush_deferred_autosave() -> void:
 	autosave(SavePriority.DEFERRED)
 
 
-## Forces a backup generation regardless of how recently the last one was taken. For run-boundary
-## saves — floor transition, bonfire rest, death, escape, retreat — where the pre-transition state
-## is worth keeping even if the player just changed a setting.
 func autosave_checkpoint() -> void:
 	_force_backup_rotation = true
 	autosave()
@@ -849,18 +774,9 @@ func autosave(priority: SavePriority = SavePriority.IMMEDIATE) -> void:
 	if _write_save(_build_save_payload(), true, priority):
 		return
 
-	# A full disk or an antivirus lock used to fail here in total silence — save_failed only ever
-	# fired for load problems, so a player could keep going for hours believing they were saved.
-	# Retry once shortly after, in case the lock was transient, then tell the player.
 	_retry_failed_autosave(priority)
 
 
-## Refuses to write when the roster names an active character but nothing has been loaded for them.
-##
-## Not a failure — there is simply nothing worth persisting yet, and the only thing such a write can
-## do is replace a real save with the defaults of an empty session. Deliberately silent: the main
-## menu reaches `autosave()` through dozens of settings call sites, and warning on each would be
-## noise about the normal case.
 func _can_write_active_document() -> bool:
 	return _active_character_id == "" or _character_loaded
 
@@ -920,22 +836,6 @@ func delete_character(character_id: String) -> bool:
 	return true
 
 
-func delete_character_slot(backup_index: int) -> bool:
-	if backup_index < 0:
-		if _active_character_id != "":
-			return delete_character(_active_character_id)
-		delete_save()
-		return true
-	if backup_index >= BACKUP_COUNT:
-		return false
-	var path := _rotating_backup_path(backup_index, _active_character_id)
-	if not FileAccess.file_exists(path):
-		return false
-	DirAccess.remove_absolute(path)
-	return true
-
-
-## Pull cloud save; server wins on conflict (local backed up first).
 func sync_from_cloud() -> Dictionary:
 	if is_instance_valid(ApiConfig) and ApiConfig.access_token == "":
 		if not await ApiClient.require_session():
@@ -973,7 +873,6 @@ func sync_from_cloud() -> Dictionary:
 	return {"ok": true, "conflictBackup": conflict_backup}
 
 
-## Push local save to cloud; returns false on conflict (server state in result).
 func push_to_cloud() -> Dictionary:
 	if is_instance_valid(ApiConfig) and ApiConfig.access_token == "":
 		if not await ApiClient.require_session():
@@ -1077,10 +976,6 @@ func _build_save_payload() -> Dictionary:
 		character["level"] = ProgressionService.level
 		character["xp"] = ProgressionService.xp
 	if is_instance_valid(CharacterService):
-		# Only when the service actually holds a class. An empty service means no character is
-		# loaded, and blanking the stored `classId` is what orphans a save: `list_character_slots`
-		# skips entries without one, so the warden vanishes from Continue while their file is fine.
-		# `set_character_profile` has always guarded this; the payload builder did not.
 		if CharacterService.class_id != "":
 			character["classId"] = CharacterService.class_id
 		character["appearanceTheme"] = CharacterService.appearance_theme
@@ -1106,8 +1001,6 @@ func _build_save_payload() -> Dictionary:
 		"storage":
 		StorageService.get_save_storage() if StorageService else _cached_state.get("storage", {}),
 		"itemInstances": _build_item_instances(),
-		# BUG-18: persist the instance-id high-water mark so a fresh session cannot mint an id
-		# that collides with one already on disk from a prior session.
 		"itemInstanceOrdinal": GridInventory._next_instance_ordinal,
 		"talents":
 		(
@@ -1273,32 +1166,14 @@ func _recover_from_corruption(path: String, character_id: String, reason: String
 			)
 		else:
 			push_error("LocalSave: corrupt save (%s) — quarantined to %s" % [reason, corrupt_path])
-	# C-233: this emitted the raw reason, which `combat_hud._on_save_failed` renders through its
-	# default arm as "Saving failed (corrupt_schema: ...)" — wrong verb for a *load* failure, and
-	# no mention of the quarantine copy. Load failures now carry their own reason so the message
-	# can name the file that was kept.
 	save_failed.emit("load_failed")
 	for backup in list_backups(character_id):
 		var index: int = int(backup.get("index", 0))
 		if restore_backup(index, character_id):
 			return true
-	# C-233: a bug in any migration step fails identically on the live save and on all five rotating
-	# backups, because they are documents of the same vintage. The premigrate artefacts are the only
-	# copies a later build could still read, so they are tried after the backups rather than not at
-	# all.
 	if _restore_from_premigrate(character_id):
 		return true
 	if character_id == "":
-		# C-233 (fix 1): this used to call `_reset_to_defaults()` immediately — a silent, automatic
-		# wipe of the player's progress, announced only through a message that said "Saving failed".
-		# The data is not gone (it is quarantined next to the save), but nothing told the player
-		# that, and nothing gave them the choice.
-		#
-		# Nothing is reset here now. The failure is published with the quarantine path, and
-		# `recovery_required` holds until someone resolves it — the title screen offers the choice
-		# and calls `resolve_recovery_start_fresh()` or `resolve_recovery_dismiss()`. If no UI is
-		# listening the game still boots on defaults (`_state` was never populated), so this cannot
-		# soft-lock a build that has not wired the screen; it just stops the wipe being silent.
 		print_verbose("LocalSave: %s — awaiting player recovery decision" % reason)
 		recovery_required = true
 		recovery_reason = reason
@@ -1307,7 +1182,6 @@ func _recover_from_corruption(path: String, character_id: String, reason: String
 	return false
 
 
-## C-233: the player's answer to the recovery prompt — discard the unreadable save and begin again.
 func resolve_recovery_start_fresh() -> void:
 	if not recovery_required:
 		return
@@ -1317,14 +1191,10 @@ func resolve_recovery_start_fresh() -> void:
 	save_loaded.emit()
 
 
-## C-233: the player's answer to the recovery prompt — leave the quarantined file alone and carry on
-## with an empty profile, so a later build with a fixed migrator can still read it.
 func resolve_recovery_dismiss() -> void:
 	recovery_required = false
 
 
-## Newest premigrate snapshot first. These are pre-migration documents, so they are only useful
-## when the live save and every rotating backup died in the migrator itself.
 func _restore_from_premigrate(character_id: String) -> bool:
 	var prefix := character_id if character_id != "" else "legacy"
 	var matches: Array[String] = []
@@ -1398,13 +1268,6 @@ func _active_save_path(character_id: String = "") -> String:
 	return SAVE_PATH
 
 
-
-## C-238: shared adoption gate for documents of unknown provenance.
-##
-## `_load_document` ran classify -> premigrate snapshot -> migrate -> validate before applying a
-## disk save. `sync_from_cloud` and `push_to_cloud`'s conflict branch applied the server document
-## straight to services with none of it, then wrote it back stamped with the *current*
-## schemaVersion — permanently disqualifying the migrator from ever repairing it.
 func _adopt_foreign_document(parsed: Dictionary, source: String) -> Dictionary:
 	match SaveMigrator.classify(parsed):
 		SaveMigrator.RESULT_TOO_NEW:
@@ -1464,8 +1327,6 @@ func _write_save(
 	file.store_string(json_text)
 	file.close()
 	if priority == SavePriority.IMMEDIATE:
-		# Read back through a fresh handle and re-parse — the strongest corruption guard, worth
-		# the cost for a save the caller is treating as urgent (e.g. before quitting).
 		var verified = JSON.parse_string(_read_raw_text(temp_path))
 		if not verified is Dictionary:
 			if CrashLogger:
@@ -1474,8 +1335,6 @@ func _write_save(
 				)
 			DirAccess.remove_absolute(temp_path)
 			return false
-		# Log WHICH invariant the round-tripped save broke. Deleting the temp file silently made
-		# corruption sources undiagnosable.
 		var problems := SaveValidator.validate(verified)
 		if not problems.is_empty():
 			if CrashLogger:
@@ -1488,10 +1347,6 @@ func _write_save(
 			DirAccess.remove_absolute(temp_path)
 			return false
 	else:
-		# Deferred autosaves validate the in-memory payload that was just serialized instead of
-		# reading the file back — the write handle is already flushed and closed above, so the
-		# on-disk bytes match `normalized`; this is the expensive re-read/re-parse round trip
-		# a background autosave does not need to pay for.
 		var deferred_problems := SaveValidator.validate(normalized)
 		if not deferred_problems.is_empty():
 			DirAccess.remove_absolute(temp_path)
@@ -1505,10 +1360,6 @@ func _write_save(
 					"LocalSave: deferred validation failed — %s" % ", ".join(deferred_problems)
 				)
 			return false
-	# C-231: rotation happens here — after the temp file exists and has validated, immediately
-	# before the commit. It used to run *before* the write, so a failed write (full disk, AV lock)
-	# still consumed a backup generation and duplicated the current save into slot 0. Three failures
-	# collapsed the whole five-slot history, precisely when a player would want to roll back.
 	if rotate_backups and FileAccess.file_exists(target_path):
 		if _force_backup_rotation or _backup_slot_is_stale(_active_character_id):
 			_rotate_backups(target_path, _active_character_id)
@@ -1522,20 +1373,10 @@ func _write_save(
 	return true
 
 
-## Current time as an ISO-8601 UTC instant.
-##
-## Save timestamps are compared against `cloudUpdatedAt`, which the backend writes in UTC. Stamping
-## local time here meant any player east of UTC produced strings that sorted ahead of newer cloud
-## saves, so adoption silently kept the older copy.
 func _utc_now_iso() -> String:
 	return Time.get_datetime_string_from_system(true) + "Z"
 
 
-## Parses a save timestamp to a unix time, or 0 when it cannot be trusted.
-##
-## Legacy saves carry local-time strings with no offset suffix; those are indistinguishable from
-## UTC once written, so a parse that succeeds is taken at face value and a parse that fails is
-## reported as unknown for the caller to handle conservatively.
 func _save_stamp_unix(stamp: String) -> int:
 	if stamp.strip_edges().is_empty():
 		return 0
@@ -1556,13 +1397,9 @@ func _try_adopt_steam_cloud_save() -> void:
 	var cloud_updated := str(parsed.get("cloudUpdatedAt", parsed.get("savedAt", "")))
 	var local_updated := str(_cached_state.get("cloudUpdatedAt", _cached_state.get("savedAt", "")))
 	if local_updated != "":
-		# Compare parsed instants, never raw strings: a lexicographic compare across two different
-		# clocks is what discarded hours of progress on a fresh install with Steam Cloud enabled.
 		var cloud_unix := _save_stamp_unix(cloud_updated)
 		var local_unix := _save_stamp_unix(local_updated)
 		if cloud_unix == 0 or local_unix == 0:
-			# An untrusted stamp on either side: keep the local save, which is the copy the player
-			# is definitely holding.
 			push_warning(
 				"LocalSave: unparseable save timestamp (cloud='%s', local='%s'); keeping local."
 				% [cloud_updated, local_updated]
@@ -1749,13 +1586,6 @@ func _load_roster() -> void:
 	_heal_roster_class_ids()
 
 
-## Puts back a `classId` that this bug blanked, reading it from the character's own document or,
-## failing that, from its newest rotating backup.
-##
-## Needed because the damage already shipped: a roster entry whose `classId` went blank is skipped
-## by `list_character_slots`, so the warden is gone from Continue and the player is told they have
-## no save at all. The files were never deleted, and the backups still carry the class — so this is
-## recoverable without the player doing anything, and it runs on every boot.
 func _heal_roster_class_ids() -> void:
 	var characters: Array = _roster.get("characters", [])
 	var healed := 0
@@ -1769,10 +1599,6 @@ func _heal_roster_class_ids() -> void:
 		var in_document := _class_id_in_document(path)
 		if in_roster != "" and in_document != "":
 			continue
-		# Either side can be the blank one, and they are repaired independently. Healing only the
-		# roster puts the warden back in Continue but then bounces the player to the main menu on
-		# load, because the hub refuses a character with no class; healing only the document leaves
-		# them invisible. The class itself comes from whichever copy still has it.
 		var recovered := in_roster if in_roster != "" else in_document
 		if recovered == "":
 			recovered = _recover_class_id(character_id)
@@ -1795,8 +1621,6 @@ func _heal_roster_class_ids() -> void:
 	)
 
 
-## The class this character was, from the newest rotating backup still holding one. Reached only
-## when neither the roster nor the live document has it any more.
 func _recover_class_id(character_id: String) -> String:
 	for i in BACKUP_COUNT:
 		var from_backup := _class_id_in_document(_rotating_backup_path(i, character_id))
@@ -1805,7 +1629,6 @@ func _recover_class_id(character_id: String) -> String:
 	return ""
 
 
-## Writes a recovered class back into a character document, touching nothing else in it.
 func _restore_class_id_in_document(path: String, class_id: String) -> void:
 	if class_id == "" or not FileAccess.file_exists(path):
 		return
@@ -1969,8 +1792,6 @@ func _update_roster_entry_metadata(data: Dictionary) -> void:
 		if str(entry.get("id", "")) != _active_character_id:
 			continue
 		entry["name"] = str(character.get("name", entry.get("name", "Warden")))
-		# An empty incoming value never overwrites a known one — a blank `classId` here is what
-		# hides a warden from Continue.
 		var incoming_class := str(character.get("classId", ""))
 		if incoming_class != "":
 			entry["classId"] = incoming_class

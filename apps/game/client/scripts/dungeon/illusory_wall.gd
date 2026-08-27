@@ -1,6 +1,5 @@
 extends Node3D
 
-## Illusory wall that dissolves on interact and opens the secret room doorway.
 
 const MaterialDissolveScript := preload("res://scripts/art/characters/material_dissolve.gd")
 

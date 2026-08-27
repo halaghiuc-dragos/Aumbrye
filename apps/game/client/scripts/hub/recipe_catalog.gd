@@ -1,7 +1,6 @@
 extends RefCounted
 class_name RecipeCatalog
 
-## Blacksmith upgrade/repair recipes from content/recipes/ (HUB-4.2).
 
 const RECIPE_DIR := "content/recipes"
 
@@ -52,13 +51,6 @@ static func get_unlock_recipe_for_item(item_id: String) -> Dictionary:
 	return {}
 
 
-static func get_upgrade_recipe(item_id: String, from_level: int) -> Dictionary:
-	var recipes := get_upgrade_recipes(item_id, from_level)
-	if recipes.is_empty():
-		return {}
-	return recipes[0]
-
-
 static func upgrade_stat_bonus(item_id: String, to_level: int) -> Dictionary:
 	_ensure_loaded()
 	var result: Dictionary = {}
@@ -99,10 +91,6 @@ static func reload() -> void:
 	_definitions.clear()
 	_loaded = false
 	_ensure_loaded()
-
-
-static func is_loaded() -> bool:
-	return _loaded
 
 
 static func _ensure_loaded() -> void:

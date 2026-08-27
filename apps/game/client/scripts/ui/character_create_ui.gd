@@ -1,6 +1,5 @@
 extends Control
 
-## Character creation — class cards, live preview, naming, and appearance rows.
 
 const GameUISkinScript := preload("res://scripts/ui/game_ui_skin.gd")
 const MenuShellScript := preload("res://scripts/ui/menu_shell.gd")
@@ -12,17 +11,13 @@ const WardenPreviewRigScript := preload("res://scripts/ui/warden_preview_rig.gd"
 const NameValidatorScript := preload("res://scripts/ui/name_validator.gd")
 const ItemIconAtlasScript := preload("res://scripts/ui/item_icon_atlas.gd")
 
-## Enough for the twelve stat rows plus the header; scrolls beyond that.
 const COMPARISON_TABLE_HEIGHT := 232.0
-## Shared by the name field and the Suggest Name button below it.
 const NAME_ROW_HEIGHT := 32
 const STAT_NAME_COLUMN_WIDTH := 140.0
 const RESOLVED_COLUMN_WIDTH := 84.0
 const CLASS_COLUMN_WIDTH := 72.0
 const UNSELECTED_ALPHA := Color(1, 1, 1, 0.4)
 
-## Canonical stat order. ClassCatalog owns it so the table, the class cards and the balance check
-## can never disagree about which twelve stats a class has or what order they come in.
 const STAT_ORDER: PackedStringArray = ClassCatalog.RATING_STATS
 
 signal completed(class_id: String, character_name: String, appearance: Dictionary)
@@ -50,7 +45,6 @@ var _comparison_headers: Array[Label] = []
 var _resolved_cells: Array[Label] = []
 var _resolved_header: Label
 var _perk_line: Label
-## Guards `_on_perk_line_resized`: padding the label changes its height, which re-emits `resized`.
 var _padding_perk := false
 var _weapon_line: Label
 var _weapon_icon: TextureRect
@@ -127,21 +121,11 @@ func _build_ui() -> void:
 	_build_detail_column(columns)
 	_build_comparison_table(outer_vbox)
 	_wire_focus_neighbors()
-	# Last, once every widget the refresh touches exists. The perk label is padded to the tallest
-	# perk in the roster, and line count means nothing until layout has given the label a width —
-	# this is what redoes the padding once it has one.
 	_perk_line.resized.connect(_on_perk_line_resized)
 
 
-## Every class's full stat profile at once, so the pick is a comparison rather than a guess.
-##
-## The detail card beside the preview describes only the highlighted class, which meant judging a
-## tradeoff required selecting each of the seven in turn and remembering what the others said.
 func _build_comparison_table(parent: VBoxContainer) -> void:
 	parent.add_child(_column_header(tr("CREATE_COMPARE_HEADER")))
-	# Scrolled and height-capped: the table grows with the class roster, and letting it size freely
-	# pushed the modal taller than the screen — the panel grows from its centre, so the overflow
-	# clipped the title off the top and the last class off the bottom at the same time.
 	var scroll := ScrollContainer.new()
 	scroll.name = "ComparisonScroll"
 	scroll.custom_minimum_size = Vector2(0, COMPARISON_TABLE_HEIGHT)
@@ -156,12 +140,6 @@ func _build_comparison_table(parent: VBoxContainer) -> void:
 	scroll.add_child(_comparison_grid)
 
 
-## A stat-by-class matrix: twelve stat rows against one rating column per class, plus a leading
-## column showing what the *currently selected* class actually reaches on that stat.
-##
-## Ratings share one scale, so a row can be scanned to see who is best and worst at a stat and a
-## column read as everything a class trades. The resolved column is what turns the ratings back
-## into numbers the player will meet in the dungeon, and it is the part that tracks the selection.
 func _populate_comparison_table() -> void:
 	if _comparison_grid == null:
 		return
@@ -224,11 +202,6 @@ func _populate_comparison_table() -> void:
 	_refresh_comparison_selection()
 
 
-## Retargets the matrix at the selected class: fades every rating column but theirs, and rewrites
-## the resolved column with the values their ratings actually produce.
-##
-## This is the part that has to run on every selection change rather than only on rebuild — the
-## ratings themselves are fixed per class, but which of them is *yours* is not.
 func _refresh_comparison_selection() -> void:
 	for i in _comparison_headers.size():
 		_comparison_headers[i].add_theme_color_override(
@@ -279,8 +252,6 @@ func _build_class_column(parent: HBoxContainer) -> VBoxContainer:
 	var scroll := ScrollContainer.new()
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	scroll.custom_minimum_size = Vector2(0, 280)
-	# Nothing in a class card wants horizontal scrolling, and leaving the mode on meant the
-	# vertical bar's width could push the cards wide enough to ask for a horizontal one too.
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	col.add_child(scroll)
 	_class_cards_box = VBoxContainer.new()
@@ -308,9 +279,6 @@ func _build_preview_column(parent: HBoxContainer) -> VBoxContainer:
 	viewport_frame.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	GameUISkinScript.style_panel(viewport_frame)
 	col.add_child(viewport_frame)
-	# Pinned to a 3:4 portrait. Left to fill the column the preview became a very tall, very narrow
-	# slot, and since Godot keeps the vertical FOV and derives the horizontal one from the aspect,
-	# a narrow frame crops the warden's shoulders no matter how far back the camera stands.
 	var aspect := AspectRatioContainer.new()
 	aspect.name = "PreviewAspect"
 	aspect.ratio = 0.75
@@ -321,42 +289,26 @@ func _build_preview_column(parent: HBoxContainer) -> VBoxContainer:
 	viewport_container.name = "PreviewViewport"
 	viewport_container.custom_minimum_size = Vector2(270, 360)
 	viewport_container.stretch = true
-	# The preview is the one place a player studies their warden closely, and it was the one place
-	# rendering it at native desktop resolution: every other view of a character goes through the
-	# pixel viewport at 480x270 and is upscaled with nearest filtering. At full resolution the
-	# surface shader's stitch and dither patterns are finer than a pixel of the intended look, so
-	# armour read as a translucent mesh and the figure a player approved in creation was not the
-	# figure the game then drew.
-	#
-	# `stretch_shrink` renders the SubViewport at 1/N and scales it back up, which is the same
-	# trick the main pipeline uses. N comes from the player's own resolution preset rather than a
-	# constant, so the portrait keeps matching the game when they change it.
 	viewport_container.stretch_shrink = _preview_pixel_shrink()
 	viewport_container.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	aspect.add_child(viewport_container)
 	_preview_viewport = SubViewport.new()
-	# Size is driven by the container because `stretch` is on; setting it here did nothing.
 	_preview_viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS
 	_preview_viewport.own_world_3d = true
 	viewport_container.add_child(_preview_viewport)
 	var stage := Node3D.new()
 	stage.name = "PreviewStage"
 	_preview_viewport.add_child(stage)
-	# Without an environment the SubViewport clears to the engine's default grey, which is what
-	# made the portrait read as a flat placeholder box cut out of the panel.
 	var world_env := WorldEnvironment.new()
 	world_env.name = "PreviewEnvironment"
 	var env := Environment.new()
 	env.background_mode = Environment.BG_COLOR
 	env.background_color = GameUISkinScript.FRAME_BG.darkened(0.35)
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
-	# Low enough that the key light still decides which faces are lit. See WardenPreviewRig.
 	env.ambient_light_color = Color(0.34, 0.36, 0.48)
 	env.ambient_light_energy = 0.32
 	world_env.environment = env
 	stage.add_child(world_env)
-	# Camera and lights belong to the rig; adding a second set here left two cameras fighting over
-	# which one was current.
 	_preview_rig = WardenPreviewRigScript.new()
 	_preview_rig.name = "WardenPreviewRig"
 	stage.add_child(_preview_rig)
@@ -399,9 +351,6 @@ func _build_detail_column(parent: HBoxContainer) -> VBoxContainer:
 	_name_input.placeholder_text = tr("CREATE_NAME_PLACEHOLDER")
 	_name_input.max_length = NameValidatorScript.MAX_LENGTH
 	_name_input.text_changed.connect(_on_name_changed)
-	# The field and the button under it are one control in the player's head — you type a name or you
-	# ask for one — so they are the same height. The LineEdit had no minimum and sat at whatever the
-	# theme's font and padding produced, which was several pixels shorter than the button.
 	_name_input.custom_minimum_size = Vector2(0, NAME_ROW_HEIGHT)
 	_name_column.add_child(_name_input)
 	_name_error = Label.new()
@@ -451,8 +400,6 @@ func _build_detail_column(parent: HBoxContainer) -> VBoxContainer:
 		_row_label("CREATE_ROW_FACE", "Countenance"), CharacterAppearanceScript.FACE_LABELS
 	)
 	appearance_box.add_child(_face_row)
-	# The class stats, perk and starting weapon all describe the selected class, so they live in one
-	# titled card rather than as three loose strips floating under the appearance rows.
 	var stats_card := PanelContainer.new()
 	stats_card.name = "ClassStatsCard"
 	col.add_child(stats_card)
@@ -460,10 +407,6 @@ func _build_detail_column(parent: HBoxContainer) -> VBoxContainer:
 	stats_box.add_theme_constant_override("separation", 8)
 	stats_card.add_child(stats_box)
 	stats_box.add_child(_column_header(tr("CREATE_CLASS_DETAIL_HEADER"), true))
-	# The twelve-stat list that used to live here is now the All Classes matrix below, which shows
-	# the same numbers for the selected class alongside every other class and a Base column. Two
-	# copies of it cost more vertical space than the modal has, and the matrix is the more useful
-	# of the two. What remains is what only applies to the current pick.
 	_perk_line = Label.new()
 	_perk_line.name = "PerkLine"
 	_perk_line.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -506,12 +449,6 @@ func _build_detail_column(parent: HBoxContainer) -> VBoxContainer:
 	return col
 
 
-## Section heading with an accent rule under it, so the three columns read as labelled groups
-## instead of one continuous run of controls.
-## `centered` for the headers that sit over a column, matching "Choose Your Class" — the class
-## column builds its own header and has always centred it. The full-width comparison table keeps a
-## left-aligned header: centred over the whole modal it reads as a title for the screen rather than
-## a label for the table under it.
 func _column_header(text: String, centered: bool = false) -> VBoxContainer:
 	var box := VBoxContainer.new()
 	box.add_theme_constant_override("separation", 3)
@@ -644,9 +581,6 @@ func _select_class_index(index: int) -> void:
 		_class_cards[i].set_selected_mark(i == index)
 	_initial_focus_card = _class_cards[index]
 	_refresh_comparison_selection()
-	# Rebuild the warden, not just the text. Default clothing is per class, so picking a different
-	# card has to re-dress the preview — otherwise the figure keeps the previous class's outfit
-	# until some unrelated appearance row is touched, which reads as the picker being ignored.
 	_refresh_preview()
 
 
@@ -679,17 +613,9 @@ func _refresh_class_detail() -> void:
 	_preview_caption.text = "%s — %s" % [str(class_def.get("name", "")), aspect_label]
 
 
-
-
-
-
 func _on_perk_line_resized() -> void:
 	if _padding_perk:
 		return
-	# `add_child` emits `resized` synchronously, so connecting this at the point the label is built
-	# fired it while the rest of the card — the weapon row, the caption — was still nil, and the
-	# refresh assigned `text` on nothing. Connected after the whole screen exists now, and still
-	# guarded: the card is refreshed by a dozen paths and none of them should depend on build order.
 	if _weapon_line == null or _weapon_icon == null or _preview_caption == null:
 		return
 	_padding_perk = true
@@ -710,20 +636,9 @@ func _perk_text(class_def: Dictionary) -> String:
 	)
 
 
-## Blank lines under the perk so the card is the same height whichever class is highlighted.
-##
-## The perk paragraph wraps to however many lines its wording needs, and the card is sized by its
-## contents — so Sentinel, whose perk is a line shorter than the rest, made the whole detail block
-## jump up by a line and drag the starting-weapon row with it. Padding to the tallest perk in the
-## roster holds the weapon row still. Measured rather than hardcoded to Sentinel: the wording is
-## content, and a wrap point moves the moment anyone edits a string or changes the font.
 func _pad_perk_text(text: String) -> String:
-	# Line count is meaningless before the label has a width to wrap against — leave it unpadded
-	# and let the `resized` pass below redo it once layout has run.
 	if _perk_line.size.x <= 1.0:
 		return text
-	# The loop below writes to the label repeatedly to measure it, and each write can queue a
-	# resize. Held down so none of them re-enter this through `_on_perk_line_resized`.
 	var was_padding := _padding_perk
 	_padding_perk = true
 	var restore := _perk_line.text
@@ -740,11 +655,6 @@ func _pad_perk_text(text: String) -> String:
 	return text + "\n".repeat(tallest - own)
 
 
-## The figure a rating actually produces in play — "145", "18%", "112%".
-##
-## Stats divide into three shapes: pools and armour points read as plain numbers, chances and
-## reductions as a percentage of themselves, and the multiplier stats as a percentage of the
-## baseline (a x1.12 damage multiplier reads as 112%).
 func _format_resolved(stat_name: String, rating: float) -> String:
 	var value := ClassCatalog.resolved_value(stat_name, rating)
 	match stat_name:
@@ -799,17 +709,9 @@ func _build_appearance_profile() -> Dictionary:
 	)
 	if _selected_class_index >= 0 and _selected_class_index < _classes.size():
 		profile["classId"] = str(_classes[_selected_class_index].get("id", ""))
-	# Title is not part of character creation. It stays on the profile — earned titles are awarded
-	# elsewhere and `CharacterAppearance.sanitize` preserves whatever is already there — but it is
-	# not something the player picks alongside their hair.
 	return profile
 
 
-## How many screen pixels one preview pixel should cover, so the portrait has the same pixel
-## density as the world. Derived from the window height against the internal buffer height the
-## player's resolution preset asks for — at the 1080p window and the default 480x270 preset that
-## is 4, and at the native-HD preset it collapses to 1, which is the correct answer for a preset
-## that has deliberately turned the pixel look off.
 func _preview_pixel_shrink() -> int:
 	var internal := PixelDioramaSettings.viewport_internal_size()
 	if internal.y <= 0:
@@ -859,12 +761,6 @@ func _on_random_name_pressed() -> void:
 	_update_name_validation()
 
 
-## Randomises every row the player can set.
-##
-## Complexion, hair, countenance and title were skipped, so Randomize left four of the nine rows
-## on whatever they already were — pressing it repeatedly could never produce a warden with, say,
-## different hair. Aspect and title are drawn from the *unlocked* lists rather than the full
-## catalogue, so this cannot hand the player something they have not earned.
 func _on_randomize_pressed() -> void:
 	_aspect_row.select(randi() % maxi(AppearanceCatalogScript.unlocked_aspect_count(), 1))
 	_frame_row.select(randi() % CharacterAppearanceScript.FRAME_LABELS.size())
@@ -931,7 +827,17 @@ func _on_confirm_pressed() -> void:
 	)
 
 
+func request_cancel() -> void:
+	_on_back_pressed()
+
+
+func _on_cancel_requested() -> void:
+	_on_back_pressed()
+
+
 func _on_back_pressed() -> void:
+	if not visible:
+		return
 	_save_draft_profile()
 	visible = false
 	_unregister_menu_stack()

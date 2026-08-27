@@ -1,7 +1,6 @@
 class_name DungeonQuestCatalog
 extends RefCounted
 
-## Floor NPC quest entries from `content/quests/dungeon_quests.json`.
 
 const QUEST_PATH := "content/quests/dungeon_quests.json"
 

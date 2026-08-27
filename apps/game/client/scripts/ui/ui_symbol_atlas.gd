@@ -1,7 +1,6 @@
 extends RefCounted
 class_name UISymbolAtlas
 
-## Data-driven atlas loader for authored UI symbol textures.
 
 var _manifest_path: String = ""
 var _manifest: Dictionary = {}
@@ -63,18 +62,6 @@ func rows() -> int:
 	return _rows
 
 
-func manifest_path() -> String:
-	return _manifest_path
-
-
-func source_texture() -> Texture2D:
-	return _source
-
-
-func unknown_region() -> Rect2:
-	return _rect_from_cell(_unknown.x, _unknown.y)
-
-
 func cell(key: String) -> AtlasTexture:
 	if _cell_cache.has(key):
 		return _cell_cache[key]
@@ -105,3 +92,34 @@ func _region_for_key(key: String) -> Rect2:
 func _rect_from_cell(col: int, row: int) -> Rect2:
 	var size := float(_cell_size)
 	return Rect2(float(col) * size, float(row) * size, size, size)
+
+
+## Manifest-keyed cache behind the four `*_icon_atlas` facades. Each of them used to carry its own
+## copy of the same lazy-load pair (`_atlas` + `_loaded` + `_ensure_loaded` + `reload`), which is
+## three pieces of state per facade to express "load this manifest once".
+##
+## The texture override is part of the key, so the status atlas's colourblind variant is a separate
+## entry rather than something a caller has to remember to invalidate.
+static var _shared: Dictionary = {}
+
+
+static func shared(atlas_manifest_path: String, texture_override: String = "") -> UISymbolAtlas:
+	var key := "%s|%s" % [atlas_manifest_path, texture_override]
+	var existing: UISymbolAtlas = _shared.get(key)
+	if existing != null:
+		return existing
+	var made := load_manifest(atlas_manifest_path, texture_override)
+	_shared[key] = made
+	return made
+
+
+static func drop_shared(atlas_manifest_path: String) -> void:
+	for key in _shared.keys():
+		if str(key).begins_with(atlas_manifest_path + "|"):
+			_shared.erase(key)
+
+
+static func invalidate_shared(atlas_manifest_path: String) -> void:
+	for key in _shared.keys():
+		if str(key).begins_with(atlas_manifest_path + "|"):
+			(_shared[key] as UISymbolAtlas).invalidate()

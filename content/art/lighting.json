@@ -4,19 +4,19 @@
     "hub": {
       "display_name": "Aumbrye Hub",
       "ambient": {
-        "color": "#5d6b93",
-        "energy": 0.34
+        "color": "#4a5273",
+        "energy": 0.25
       },
       "fog": {
-        "color": "#6b6690",
+        "color": "#4b4666",
         "enabled": true,
-        "density": 0.011,
-        "aerial": 0.65,
+        "density": 0.006,
+        "aerial": 0.1,
         "sky_affect": 0.0
       },
       "sun": {
-        "color": "#ffd2a0",
-        "energy": 0.85,
+        "color": "#ffc794",
+        "energy": 0.66,
         "rotation_deg": [
           -28.6,
           97.4,
@@ -25,8 +25,8 @@
         "shadows": true
       },
       "fill": {
-        "color": "#7f9ae0",
-        "energy": 0.36,
+        "color": "#6b82c4",
+        "energy": 0.24,
         "rotation_deg": [
           -14.3,
           -120.3,
@@ -35,26 +35,31 @@
         "shadows": false
       },
       "sky": {
-        "zenith": "#1d2450",
-        "horizon": "#e08a52",
-        "ground": "#2a2230",
-        "bands": 8.0,
+        "zenith": "#141a3c",
+        "horizon": "#b4653c",
+        "ground": "#201a26",
+        "apex": "#070a20",
+        "bands": 12.0,
+        "band_softness": 0.28,
         "horizon_falloff": 3.2,
         "sun_size": 0.045,
         "sun_glow": 0.7,
-        "cloud_amount": 0.5,
-        "cloud_color": "#e8b48e"
+        "cloud_amount": 0.55,
+        "cloud_color": "#e8b48e",
+        "cloud_shadow": "#6b4258",
+        "cloud_drift": 0.024,
+        "cloud_ceiling": 0.66
       },
       "atmosphere": {
         "motes": {
-          "tint": "#c9bda0",
-          "alpha": 0.34,
-          "amount": 24,
-          "radius": 11.0,
-          "fall_speed": 0.15
+          "tint": "#b6ab92",
+          "alpha": 0.42,
+          "amount": 34,
+          "radius": 13.0,
+          "fall_speed": 0.11
         },
         "fog_volume": {
-          "enabled": false
+          "enabled": true
         }
       },
       "torch": {
@@ -68,48 +73,6 @@
     },
     "arena": {
       "display_name": "Combat Arena",
-      "ambient": {
-        "color": "#8f8fb3",
-        "energy": 0.44
-      },
-      "fog": {
-        "enabled": true,
-        "color": "#6b7699",
-        "density": 0.0026,
-        "aerial": 0.25,
-        "sky_affect": 0.0
-      },
-      "sun": {
-        "color": "#faebd1",
-        "energy": 1.8,
-        "rotation_deg": [
-          -52.7,
-          37.2,
-          0.0
-        ],
-        "shadows": true
-      },
-      "fill": {
-        "color": "#9eb3f5",
-        "energy": 0.3,
-        "rotation_deg": [
-          -11.5,
-          -77.3,
-          0.0
-        ],
-        "shadows": false
-      },
-      "sky": {
-        "zenith": "#29386b",
-        "horizon": "#8f8fb8",
-        "ground": "#242433",
-        "bands": 7.0,
-        "horizon_falloff": 2.4,
-        "sun_size": 0.045,
-        "sun_glow": 0.4,
-        "cloud_amount": 0.25,
-        "cloud_color": "#c7c7e0"
-      },
       "torch": {
         "color": "#ffb45a",
         "energy": 0.92,
@@ -133,48 +96,6 @@
     },
     "waves_outdoors": {
       "display_name": "Waves Outdoors",
-      "ambient": {
-        "color": "#adc2b3",
-        "energy": 0.5
-      },
-      "fog": {
-        "enabled": true,
-        "color": "#bdd6eb",
-        "density": 0.0018,
-        "aerial": 0.32,
-        "sky_affect": 0.0
-      },
-      "sun": {
-        "color": "#fff0c2",
-        "energy": 1.85,
-        "rotation_deg": [
-          -50.4,
-          17.2,
-          0.0
-        ],
-        "shadows": true
-      },
-      "fill": {
-        "color": "#80adf2",
-        "energy": 0.28,
-        "rotation_deg": [
-          -10.3,
-          -103.1,
-          0.0
-        ],
-        "shadows": false
-      },
-      "sky": {
-        "zenith": "#4d85db",
-        "horizon": "#d1e6f5",
-        "ground": "#334733",
-        "bands": 9.0,
-        "horizon_falloff": 2.4,
-        "sun_size": 0.045,
-        "sun_glow": 0.4,
-        "cloud_amount": 0.65,
-        "cloud_color": "#fffffa"
-      },
       "torch": {
         "color": "#ffb45a",
         "energy": 0.92,
@@ -764,5 +685,179 @@
     "venom_mire": "venom_mire",
     "glacial_hollow": "glacial_hollow",
     "umbral_chapel": "umbral_chapel"
+  },
+  "day_night": {
+    "cycle_seconds": 1200.0,
+    "_comment": "Stops around one full day. `at` is the fraction of the cycle: 0.0 is midnight. Each stop is a complete description of the light at that hour; the service blends the two it sits between. `sun_elevation` is degrees above the horizon and may go negative, which is how the sun sets.",
+    "stops": [
+      {
+        "at": 0.0,
+        "name": "midnight",
+        "sun_elevation": -18.0,
+        "sun_azimuth": 300.0,
+        "sun_color": "#5c6ea8",
+        "sun_energy": 0.1,
+        "fill_color": "#3d4a80",
+        "fill_energy": 0.16,
+        "ambient_color": "#2f3859",
+        "ambient_energy": 0.3,
+        "sky_zenith": "#080b18",
+        "sky_horizon": "#1d2340",
+        "sky_apex": "#02030a",
+        "sky_ground": "#181c33",
+        "cloud_color": "#3a3d5c",
+        "cloud_shadow": "#14162a",
+        "sun_glow": 0.2,
+        "fog_scale": 1.5,
+        "fog_color": "#141834"
+      },
+      {
+        "at": 0.22,
+        "name": "dawn",
+        "sun_elevation": 4.0,
+        "sun_azimuth": 82.0,
+        "sun_color": "#ffb178",
+        "sun_energy": 0.62,
+        "fill_color": "#7f93d6",
+        "fill_energy": 0.26,
+        "ambient_color": "#4e5170",
+        "ambient_energy": 0.36,
+        "sky_zenith": "#2b3a76",
+        "sky_horizon": "#e2864c",
+        "sky_apex": "#101a44",
+        "sky_ground": "#a86544",
+        "cloud_color": "#f6c39a",
+        "cloud_shadow": "#6b4a63",
+        "sun_glow": 0.75,
+        "fog_scale": 1.35,
+        "fog_color": "#6a5a72"
+      },
+      {
+        "at": 0.42,
+        "name": "noon",
+        "sun_elevation": 68.0,
+        "sun_azimuth": 140.0,
+        "sun_color": "#fff0d2",
+        "sun_energy": 1.35,
+        "fill_color": "#a8c0ff",
+        "fill_energy": 0.34,
+        "ambient_color": "#8e9ac0",
+        "ambient_energy": 0.46,
+        "sky_zenith": "#3f6ec0",
+        "sky_horizon": "#bcd3ea",
+        "sky_apex": "#25489a",
+        "sky_ground": "#8fa2b8",
+        "cloud_color": "#ffffff",
+        "cloud_shadow": "#8f9ab8",
+        "sun_glow": 0.42,
+        "fog_scale": 0.55,
+        "fog_color": "#9fb2cf"
+      },
+      {
+        "at": 0.62,
+        "name": "afternoon",
+        "sun_elevation": 34.0,
+        "sun_azimuth": 196.0,
+        "sun_color": "#ffdca6",
+        "sun_energy": 1.05,
+        "fill_color": "#93a8ec",
+        "fill_energy": 0.3,
+        "ambient_color": "#79809f",
+        "ambient_energy": 0.38,
+        "sky_zenith": "#3a5aa4",
+        "sky_horizon": "#dcae7e",
+        "sky_apex": "#1e3272",
+        "sky_ground": "#a5825f",
+        "cloud_color": "#ffe6c4",
+        "cloud_shadow": "#8a7290",
+        "sun_glow": 0.55,
+        "fog_scale": 0.8,
+        "fog_color": "#8b7f93"
+      },
+      {
+        "at": 0.7,
+        "name": "sunset",
+        "sun_elevation": 13.0,
+        "sun_azimuth": 229.0,
+        "sun_color": "#ff9a5c",
+        "sun_energy": 0.8,
+        "fill_color": "#7f8ed2",
+        "fill_energy": 0.27,
+        "ambient_color": "#665f7d",
+        "ambient_energy": 0.32,
+        "sky_zenith": "#2a3f7e",
+        "sky_horizon": "#e8894a",
+        "sky_apex": "#131e55",
+        "sky_ground": "#ac673a",
+        "cloud_color": "#ffcf9e",
+        "cloud_shadow": "#7a5273",
+        "sun_glow": 0.85,
+        "fog_scale": 0.95,
+        "fog_color": "#6d5c7d"
+      },
+      {
+        "at": 0.745,
+        "name": "afterglow",
+        "sun_elevation": 4.0,
+        "sun_azimuth": 246.0,
+        "sun_color": "#ff8552",
+        "sun_energy": 0.64,
+        "fill_color": "#7288cc",
+        "fill_energy": 0.25,
+        "ambient_color": "#585472",
+        "ambient_energy": 0.28,
+        "sky_zenith": "#1f2c60",
+        "sky_horizon": "#d0743f",
+        "sky_apex": "#0d1438",
+        "sky_ground": "#9c5732",
+        "cloud_color": "#f4c096",
+        "cloud_shadow": "#734a66",
+        "sun_glow": 0.8,
+        "fog_scale": 1.0,
+        "fog_color": "#5c5272"
+      },
+      {
+        "at": 0.78,
+        "name": "dusk",
+        "sun_elevation": -3.0,
+        "sun_azimuth": 262.0,
+        "sun_color": "#ffc794",
+        "sun_energy": 0.5,
+        "fill_color": "#6b82c4",
+        "fill_energy": 0.24,
+        "ambient_color": "#4a5273",
+        "ambient_energy": 0.34,
+        "sky_zenith": "#141a3c",
+        "sky_horizon": "#b4653c",
+        "sky_apex": "#070a20",
+        "sky_ground": "#87503a",
+        "cloud_color": "#e8b48e",
+        "cloud_shadow": "#6b4258",
+        "sun_glow": 0.7,
+        "fog_scale": 1.0,
+        "fog_color": "#4b4666"
+      },
+      {
+        "at": 0.9,
+        "name": "nightfall",
+        "sun_elevation": -14.0,
+        "sun_azimuth": 286.0,
+        "sun_color": "#7d7ec0",
+        "sun_energy": 0.18,
+        "fill_color": "#4a5a9c",
+        "fill_energy": 0.18,
+        "ambient_color": "#36406a",
+        "ambient_energy": 0.32,
+        "sky_zenith": "#0a0d20",
+        "sky_horizon": "#3a2846",
+        "sky_apex": "#04050f",
+        "sky_ground": "#2e2038",
+        "cloud_color": "#5b5372",
+        "cloud_shadow": "#221e36",
+        "sun_glow": 0.3,
+        "fog_scale": 1.3,
+        "fog_color": "#242046"
+      }
+    ]
   }
 }

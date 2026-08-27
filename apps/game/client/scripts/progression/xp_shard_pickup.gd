@@ -1,6 +1,5 @@
 extends Area3D
 
-## Recoverable XP left at a death spot — grants stored XP on interact.
 
 const DioramaSkin := preload("res://scripts/art/props/diorama_interactable_skin.gd")
 
@@ -8,8 +7,6 @@ const BEACON_HEIGHT := 14.0
 const BEACON_BOTTOM_RADIUS := 0.32
 const BEACON_TOP_RADIUS := 0.06
 const BEACON_COLOR := Color(0.62, 0.86, 1.0, 0.34)
-## Pushes the beam behind opaque geometry in the transparency sort so it does not flicker
-## against room walls it is deliberately drawing through.
 const BEACON_SORTING_OFFSET := -8.0
 
 var _xp_amount := 0
@@ -43,15 +40,6 @@ func _ready() -> void:
 	_start_bob()
 
 
-## A pillar of light above the death spot, visible across a room and through the gaps between
-## floors.
-##
-## The recovery loop itself is complete — the shard spawns where you fell, holds the deferred XP
-## and the staked gold, and hands both back on interact. But it was a knee-high pickup with a
-## label that only appears once you are already standing on it, in a procedurally generated
-## floor you have just respawned into from the other end. A recovery run you cannot navigate is
-## not a recovery run; the pressure of "it is over there and something is standing on it" is the
-## entire point of the mechanic.
 func _build_beacon() -> void:
 	var beam := MeshInstance3D.new()
 	beam.name = "ShardBeacon"
@@ -68,8 +56,6 @@ func _build_beacon() -> void:
 	material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	material.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
 	material.cull_mode = BaseMaterial3D.CULL_DISABLED
-	# No depth test: the beam reads through walls and floors, which is what makes it a waypoint
-	# rather than decoration.
 	material.no_depth_test = true
 	material.albedo_color = BEACON_COLOR
 	beam.material_override = material

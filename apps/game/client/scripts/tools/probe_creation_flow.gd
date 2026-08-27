@@ -1,13 +1,5 @@
 extends Node
 
-## Drives main menu -> character creation -> Begin, and reports which scene the game lands on.
-##
-## `LoadingScreen` returns the player to the main menu whenever `LocalSave.execute_boot()` is
-## false, and it does so silently in a release run, so from the outside a failed boot and a
-## deliberate cancel look identical. This walks the real UI and prints every branch it takes.
-##
-## Usage:
-##   godot --path apps/game/client --resolution 1280x720 res://scenes/debug/probe_creation_flow.tscn
 
 const MAIN_MENU := "res://scenes/ui/main_menu.tscn"
 
@@ -85,15 +77,12 @@ func _ready() -> void:
 		await get_tree().process_frame
 
 	print("boot mode queued; letting the real LoadingScreen run")
-	# The watcher lives on the tree root, not under this scene: `SceneTransition.goto` frees the
-	# current scene, and a coroutine awaiting inside it never resumes.
 	var watcher := Node.new()
 	watcher.name = "SceneWatcher"
 	watcher.process_mode = Node.PROCESS_MODE_ALWAYS
 	watcher.set_script(load("res://scripts/tools/probe_scene_watcher.gd"))
 	get_tree().root.add_child(watcher)
 	SceneTransition.goto(get_tree(), "res://scenes/ui/loading_screen.tscn")
-
 
 
 func _find_line_edit(root: Node) -> LineEdit:

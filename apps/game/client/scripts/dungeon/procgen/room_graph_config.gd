@@ -1,9 +1,6 @@
 class_name RoomGraphConfig
 extends RefCounted
 
-## Tunable parameters for grid-based room-graph generation. Every field is declared by the biome
-## under `generator`; the defaults below are what a biome gets when it declares nothing, and no
-## field changes behind the player's back at a room-count threshold.
 
 var grid_width: int = 9
 var grid_height: int = 9
@@ -16,19 +13,10 @@ var min_dead_ends: int = 2
 var max_secrets: int = 2
 var loop_budget: int = 3
 
-## How much backtracking a door has to save before it counts as a shortcut rather than a hole in a
-## wall. A candidate's detour is the number of rooms between its two sides on the current route, so
-## a detour of 3 is a plain 2x2 block — the smallest cycle a grid can hold and worth nothing to a
-## player. 5 means opening the door saves at least four rooms of walking, which is the point at
-## which a loop reads as a shortcut back into somewhere you have already been.
 var loop_min_detour: int = 5
 
-## Relaxed threshold used only when the strict one cannot fill the budget, so a cramped layout
-## still gets some circulation instead of none.
 var loop_fallback_detour: int = 3
 
-## Layouts with no loop at all are rerolled while looping is enabled. One real shortcut is the
-## difference between a branching tree and a level that folds back on itself.
 var min_loops: int = 1
 var branch_max_depth: int = 8
 var allow_2x2_blocks: bool = true

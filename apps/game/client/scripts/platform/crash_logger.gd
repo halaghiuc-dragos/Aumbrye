@@ -1,6 +1,5 @@
 extends Node
 
-## PERF-7.2 — structured crash logging with upload opt-in.
 
 const PrivacySettingsScript := preload("res://scripts/platform/privacy_settings.gd")
 
@@ -49,10 +48,6 @@ func log_warning(context: String, details: Dictionary = {}) -> void:
 	var payload := _build_payload(context, details)
 	payload["severity"] = "warning"
 	_append_log(payload)
-
-
-func log_exception(context: String, error: Variant) -> void:
-	log_error(context, {"exception": str(error)})
 
 
 func scrub_payload(payload: Dictionary) -> Dictionary:

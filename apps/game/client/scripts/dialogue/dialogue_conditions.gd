@@ -1,7 +1,6 @@
 extends RefCounted
 class_name DialogueConditions
 
-## Evaluates dialogue/quest condition blocks against CharacterService state (DLG-4.1).
 
 const KNOWN_KEYS := [
 	"all",
@@ -61,7 +60,7 @@ static func evaluate(condition: Variant) -> bool:
 	if condition.has("flag"):
 		var flag_id: String = str(condition.get("flag", ""))
 		if condition.has("atLeast"):
-			return _flag_number(flag_id) >= int(condition.get("atLeast", 0))
+			return flag_number(flag_id) >= int(condition.get("atLeast", 0))
 		var expected: Variant = condition.get("value", true)
 		return CharacterService.get_flag(flag_id) == expected
 
@@ -113,12 +112,12 @@ static func evaluate(condition: Variant) -> bool:
 		if npc_key == "":
 			return false
 		return (
-			_flag_number("%s%s" % [RELATIONSHIP_FLAG_PREFIX, npc_key])
+			flag_number("%s%s" % [RELATIONSHIP_FLAG_PREFIX, npc_key])
 			>= int(condition.get("atLeast", 1))
 		)
 
 	if condition.has("storyBeat"):
-		return _flag_number(STORY_BEAT_FLAG) >= int(condition.get("storyBeat", 0))
+		return flag_number(STORY_BEAT_FLAG) >= int(condition.get("storyBeat", 0))
 
 	if condition.has("questCompletions"):
 		var completed_id: String = str(condition.get("questCompletions", ""))
@@ -150,17 +149,7 @@ static func evaluate(condition: Variant) -> bool:
 			>= int(condition.get("bountyTokens", 0))
 		)
 
-	# NOTE: this used to `assert(false)` here. In a debug build that halts the process, so any
-	# content typo in a dialogue condition crashed the game outright — and it aborted the whole
-	# validation run, because hub_m4_suite deliberately feeds `{"minLvl": 1}` to exercise this
-	# path. That abort is why the suite could never reach the end and why CI was never wired.
-	#
-	# OPEN QUESTION for the team: the comment below says unknown keys fail *open* (return true),
-	# while hub_m4_suite.gd:187 asserts they fail *closed* (expects false). With the assert gone
-	# the suite now reports that disagreement instead of hiding it behind a crash. Current
-	# behaviour is preserved until the intended semantics are chosen.
 	push_warning("DialogueConditions: unrecognized condition keys: %s" % str(condition.keys()))
-	# Release builds fail open: an unknown key must never silently hide content.
 	return true
 
 
@@ -169,7 +158,8 @@ static func _last_run() -> Dictionary:
 	return raw if raw is Dictionary else {}
 
 
-static func _flag_number(flag_id: String) -> int:
+## Reads a world flag as a number, tolerating the bool/int/float/String forms saves have carried.
+static func flag_number(flag_id: String) -> int:
 	var raw: Variant = CharacterService.get_flag(flag_id, 0)
 	if raw is bool:
 		return 1 if raw else 0

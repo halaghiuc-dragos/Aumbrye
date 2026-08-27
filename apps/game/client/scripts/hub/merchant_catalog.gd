@@ -1,7 +1,6 @@
 extends RefCounted
 class_name MerchantCatalog
 
-## Merchant stock definitions from content/merchant/ (HUB-4.3).
 
 const MERCHANT_DIR := "content/merchant"
 
@@ -15,19 +14,10 @@ static func get_stock(merchant_id: String) -> Array:
 	return entry if entry is Array else []
 
 
-static func has_merchant(merchant_id: String) -> bool:
-	_ensure_loaded()
-	return _stocks.has(merchant_id)
-
-
 static func reload() -> void:
 	_stocks.clear()
 	_loaded = false
 	_ensure_loaded()
-
-
-static func is_loaded() -> bool:
-	return _loaded
 
 
 static func _ensure_loaded() -> void:

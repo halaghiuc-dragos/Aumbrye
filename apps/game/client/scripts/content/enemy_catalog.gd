@@ -1,13 +1,11 @@
 extends RefCounted
 class_name EnemyCatalog
 
-## Single source of truth for enemy content paths and Godot scenes.
 
 static var _definitions: Dictionary = {}
 static var _scenes: Dictionary = {}
 static var _load_attempted := false
 
-## Legacy boss IDs removed from content; map to canonical definitions.
 const LEGACY_ALIASES: Dictionary = {
 	"castle_knight": "boss_castle_knight",
 	"crystal_sovereign": "boss_crystal_sovereign",

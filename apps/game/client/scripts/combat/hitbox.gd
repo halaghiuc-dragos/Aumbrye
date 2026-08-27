@@ -1,11 +1,9 @@
 extends Area3D
 class_name Hitbox
 
-## C-47: emitted after a hit resolves, so a travelling hitbox can count what it has struck.
 signal hit_landed(target: Node)
 
 const DEBUG_SCRIPT := preload("res://scripts/combat/combat_collision_debug.gd")
-## C-52: named rather than a bare literal — see `combat_layers.gd`.
 const WORLD_COLLISION_MASK := CombatLayers.WORLD_OCCLUDERS
 
 @export var damage_amount := 10.0
@@ -55,10 +53,6 @@ func _ready() -> void:
 
 func is_active() -> bool:
 	return _active
-
-
-func get_last_overlap_count() -> int:
-	return _last_overlap_count
 
 
 func set_debug_draw(enabled: bool) -> void:
@@ -115,13 +109,6 @@ func set_combat_owner(node: Node) -> void:
 	_combat_owner = node
 
 
-## Scans every physics frame the hitbox is open.
-##
-## This used to skip alternate frames. A light attack's active window is 0.12 s — seven physics
-## frames — so the shape query ran three times, and each target additionally has to clear the
-## line-of-sight gate on one of those frames. Hits at the edge of a swing were genuinely lost,
-## and a dropped hit in a soulslike reads as the game cheating. Saving one intersect_shape
-## across a window that never exceeds ~0.2 s is not worth that.
 func _physics_process(_delta: float) -> void:
 	if not _active:
 		return
@@ -197,11 +184,6 @@ func _try_hit(area: Area3D) -> void:
 		var mana := _owner_node.get_node_or_null("Mana") as Mana
 		if mana:
 			mana.restore(mana_restore)
-	# C-06: this fired a second `play_hit_spark` from the attacker side, unconditionally and
-	# *before* `receive_hit` resolved — so every landed hit spawned two sparks, and a hit that was
-	# blocked or parried still emitted a flesh-hit spark on top of the block VFX. The player could
-	# not tell a blocked hit from a landed one by looking at it. `HitFeedback` owns impact VFX from
-	# the victim side, where the resolution and the crit flag are both known.
 
 
 func _body_of(area: Area3D) -> Node:
@@ -251,7 +233,6 @@ func _has_clear_line_to(target: Area3D) -> bool:
 	var target_shape := target.get_node_or_null("CollisionShape3D") as CollisionShape3D
 	if target_shape:
 		to = target_shape.global_position
-	# Keep the ray above walkable geometry so downward melee angles do not false-block on the floor.
 	const MIN_LOS_HEIGHT := 0.75
 	from.y = maxf(from.y, MIN_LOS_HEIGHT)
 	to.y = maxf(to.y, MIN_LOS_HEIGHT)

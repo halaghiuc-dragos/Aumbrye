@@ -1,13 +1,6 @@
 class_name DioramaViewmodel
 extends RefCounted
 
-## First-person arms and weapon, mounted on the player camera.
-##
-## The pivots are deliberately named ArmL/ArmR/WeaponMount/ShieldMount, matching
-## the third-person rig, so the exact same attack and guard clips drive both
-## views. The parent node is called ViewRoot rather than Root so the clips' body
-## and root-motion tracks are skipped here: a whole-body lunge that reads well
-## from behind would throw the camera around in first person.
 
 const PixelStyle := preload("res://scripts/art/style/pixel_diorama_style.gd")
 const CharacterSkin := preload("res://scripts/art/characters/diorama_character_skin.gd")

@@ -1,6 +1,5 @@
 extends Node
 
-## Run-scoped flags for dungeon locks, levers, keys, and room content (not persisted).
 
 signal flag_changed(flag_id: String, value: Variant)
 signal namespace_changed(flag_namespace: String, flag_id: String, value: Variant)
@@ -42,15 +41,6 @@ func is_flag_true(flag_id: String) -> bool:
 
 func get_flag(flag_id: String, default_value: Variant = null) -> Variant:
 	return _flags.get(flag_id, default_value)
-
-
-func erase_flag(flag_id: String) -> bool:
-	if not _flags.has(flag_id):
-		return false
-	_flags.erase(flag_id)
-	flag_changed.emit(flag_id, null)
-	namespace_changed.emit(flag_id.split(".")[0], flag_id, null)
-	return true
 
 
 func all_flags() -> Dictionary:

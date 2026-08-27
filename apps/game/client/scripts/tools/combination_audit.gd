@@ -1,24 +1,11 @@
 extends Node
 
-## Builds every combination of the character options and checks each one against the invariants a
-## warden has to satisfy, without rendering any of them.
-##
-## Rendering every combination is not possible — stature x build x head x trim x hair x hair colour
-## x skin x face x class is over a million wardens — but the things that actually go wrong are
-## structural and can be asserted on the built rig: a part that failed to load, hair coming through a
-## hood, a face plate under a visor, a class with no clothing, a body that is not one connected
-## height. The contact sheets stay the visual check; this is the exhaustive one.
-##
-## Usage:
-##   godot --headless --path apps/game/client res://scenes/debug/combination_audit.tscn
 
 const CLASS_IDS: PackedStringArray = [
 	"knight", "sentinel", "berserker", "rogue", "hunter", "scholar", "herald",
 ]
 const REQUIRED_PARTS: PackedStringArray = ["Root", "Torso", "Head", "ArmL", "ArmR", "LegL", "LegR"]
 
-## A standard warden is 1.36 m; compact and tall move it by a few voxels either way. Anything
-## outside this is a part that did not land where it belongs.
 const MIN_HEIGHT := 1.15
 const MAX_HEIGHT := 1.65
 
@@ -41,7 +28,6 @@ func _ready() -> void:
 	get_tree().quit(0 if _failures.is_empty() else 1)
 
 
-## Everything that changes the rig's shape.
 func _sweep_geometry() -> void:
 	for height in CharacterAppearance.FRAME_VARIANTS:
 		for bulk in CharacterAppearance.FRAME_VARIANTS:
@@ -66,7 +52,6 @@ func _sweep_geometry() -> void:
 							})
 
 
-## Everything that only changes colour or the face plate, at one geometry.
 func _sweep_cosmetics() -> void:
 	for face in CharacterAppearance.FACE_STYLES:
 		for skin in CharacterAppearance.SKIN_TONES:
@@ -107,8 +92,6 @@ func _check(profile: Dictionary) -> void:
 		var open_face: bool = str(profile.get("head", "")) == CharacterAppearance.HEAD_OPEN
 		var hair_node := head.get_node_or_null("Hair")
 		var hair_shown := hair_node != null and (hair_node as Node3D).visible
-		# Hair belongs to an open head only: a hood wraps the skull and a visor helm covers it, and
-		# hair under either came through the covering.
 		if not open_face and hair_shown:
 			_failures.append("%s: hair visible under a covered head" % label)
 		var plate := head.get_node_or_null("FacePlate")

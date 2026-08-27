@@ -1,8 +1,6 @@
 class_name ContentSchemaValidator
 extends RefCounted
 
-## Lightweight structural checks for hot-path content loaded at runtime.
-## Full JSON Schema validation remains in CI (`scripts/validate-content/validate.mjs`).
 
 const XP_CURVE_KEYS: PackedStringArray = [
 	"baseXpPerKill",

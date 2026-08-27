@@ -1,14 +1,7 @@
 extends RefCounted
 class_name PlayerInput
 
-## Static gameplay input gate — blocks polling while meta UI or pause menu is open, and
-## is the single seam where a run's input stream is captured or played back.
 
-
-## C-85: the gate used to be one global boolean for every gameplay action, so a context that wanted
-## to keep the camera live while stopping attacks — a dialogue overlay, a cutscene, a boss intro —
-## had no way to say so. `InputRebindService.get_context_groups()` already sketched the right model
-## and nothing consumed it. Actions are grouped, and a context can suppress groups independently.
 enum Group { MOVEMENT, COMBAT, INTERACT, CAMERA }
 
 const GROUP_BY_ACTION := {
@@ -38,8 +31,6 @@ const GROUP_BY_ACTION := {
 	&"toggle_camera": Group.CAMERA,
 }
 
-## Groups suppressed on top of the global gate. Set by whichever context needs partial control;
-## cleared by `clear_group_blocks()`.
 static var _blocked_groups := 0
 
 
@@ -77,10 +68,6 @@ static func _action_blocked(action: StringName) -> bool:
 	return group_blocked(GROUP_BY_ACTION[action])
 
 
-## C-84: every accessor used to open with `RunReplay.pump()`. `WeaponController._physics_process`
-## alone queries `just_pressed` five times a frame, `Dodge` three, `Guard` two, `Locomotion` two,
-## `PlayerHeal` one — well over a dozen pumps per physics frame for a system that advances once.
-## `RunFlow` pumps once per physics frame through `pump_frame()`; the accessors are pure reads.
 static func pump_frame() -> void:
 	RunReplay.pump()
 
@@ -109,14 +96,6 @@ static func just_pressed(action: StringName) -> bool:
 	return Input.is_action_just_pressed(action)
 
 
-## C-87: eighteen files read the `interact` action straight off the `InputEvent` (two of them polled
-## `Input` directly), bypassing this class entirely — so `RunReplay` could walk a floor but never
-## open a door, pull a lever, take a rest, loot a chest or buy anything, and the two polled sites
-## fired through open menus. `interact` is already in `RunReplay.ACTIONS`; routing through here is
-## what makes it reachable.
-##
-## Event-driven callers pass the event they are already handling, so consumption stays with
-## `_unhandled_input` where it belongs.
 static func interact_just_pressed(event: InputEvent = null) -> bool:
 	if RunReplay.is_playing():
 		return RunReplay.playback_just_pressed(&"interact")

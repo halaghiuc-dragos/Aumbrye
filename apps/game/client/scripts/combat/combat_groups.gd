@@ -1,21 +1,9 @@
 class_name CombatGroups
 extends RefCounted
 
-## C-57: single source of truth for the scene groups combat code scans.
-##
-## `weapon_controller._find_soft_lock_target()` scanned `lockable` while
-## `_resolve_backstab_target()` and `CombatEvents._spread_status()` scanned `enemy`, for what is
-## the same question — "which hostiles are near me". Every spawn path adds both groups together
-## (`castle_enemy_base`, `training_grunt`, `dungeon_builder._ensure_enemy_groups`), so the two are
-## synonyms today and nothing is broken; the risk is an entity that joins one and not the other
-## becoming soft-lockable but not backstabbable, silently. Naming them here is the same move
-## `combat_layers.gd` makes for collision masks, for the same reason.
 
-## Anything the player may target or strike. Enemies join this on spawn.
 const HOSTILE := &"enemy"
 
-## Anything the lock-on camera may acquire. Kept distinct from HOSTILE because a future
-## destructible or NPC could reasonably be one without being the other.
 const LOCKABLE := &"lockable"
 
 
@@ -25,3 +13,14 @@ static func hostiles(tree: SceneTree) -> Array[Node]:
 
 static func lockables(tree: SceneTree) -> Array[Node]:
 	return tree.get_nodes_in_group(LOCKABLE)
+
+
+## The CharacterBody3D an Area3D hangs off, walking up the tree. Hitboxes, hurtboxes and shields all
+## need their wielder and all sit at different depths under it.
+static func owning_body(node: Node) -> Node3D:
+	var current := node
+	while current:
+		if current is CharacterBody3D:
+			return current as Node3D
+		current = current.get_parent()
+	return null

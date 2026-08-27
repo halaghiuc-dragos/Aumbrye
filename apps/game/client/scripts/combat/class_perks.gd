@@ -1,10 +1,6 @@
 class_name ClassPerks
 extends RefCounted
 
-## Implements the five class perk ids authored in content/classes/*.json.
-## Each perk is a small conditional effect wired into the one system it
-## touches, rather than a generic stat bonus, since none of them are
-## expressible as a flat number merged at equip time.
 
 const BLOODRAGE := "bloodrage"
 const STEADFAST := "steadfast"
@@ -27,7 +23,6 @@ static func is_player_perk(body: Node, perk_id: String) -> bool:
 	return ClassCatalog.get_perk(CharacterService.class_id) == perk_id
 
 
-## bloodrage: heavier hits the lower the player's health is.
 static func bloodrage_damage_multiplier(body: Node, health: Health) -> float:
 	if health == null or health.max_health <= 0.0 or not is_player_perk(body, BLOODRAGE):
 		return 1.0
@@ -35,7 +30,6 @@ static func bloodrage_damage_multiplier(body: Node, health: Health) -> float:
 	return 1.0 + missing_fraction * BLOODRAGE_MAX_BONUS
 
 
-## steadfast: poise regenerates faster while actively guarding.
 static func steadfast_poise_regen_multiplier(body: Node) -> float:
 	if not is_player_perk(body, STEADFAST):
 		return 1.0
@@ -45,18 +39,15 @@ static func steadfast_poise_regen_multiplier(body: Node) -> float:
 	return 1.0
 
 
-## shadowstep: backstep dodges keep i-frames open a little longer.
 static func shadowstep_iframe_bonus(body: Node, is_backstep: bool) -> float:
 	if not is_backstep or not is_player_perk(body, SHADOWSTEP):
 		return 0.0
 	return SHADOWSTEP_IFRAME_BONUS
 
 
-## bulwark: shields are steadier in this player's hands.
 static func bulwark_stability_bonus(body: Node) -> float:
 	return BULWARK_STABILITY_BONUS if is_player_perk(body, BULWARK) else 0.0
 
 
-## arcane_focus: landing a hit restores a sliver of mana.
 static func arcane_focus_mana_on_hit(body: Node) -> float:
 	return ARCANE_FOCUS_MANA_ON_HIT if is_player_perk(body, ARCANE_FOCUS) else 0.0

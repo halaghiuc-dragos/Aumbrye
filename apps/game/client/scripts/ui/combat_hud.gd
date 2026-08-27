@@ -15,18 +15,10 @@ const BAR_WIDTH := 280.0
 const HEALTH_BAR_HEIGHT := 22.0
 const STAMINA_BAR_HEIGHT := 16.0
 const MANA_BAR_HEIGHT := 16.0
-const ATTACK_BAR_HEIGHT := 10.0
 const LOW_HP_RATIO := 0.25
 const VIGNETTE_COOLDOWN := 0.8
 const HINT_AUTO_HIDE_SECONDS := 60.0
 const STATUS_REFRESH_INTERVAL := 0.1
-# The three resource bars are on screen for the whole game, so they set its colour more than any
-# other element. They used to be pure red, pure green and pure blue — the sRGB primaries — against
-# a UI built entirely from parchment, tarnished gold and deep indigo, and read as programmer art
-# bolted onto someone else's game. These are the same three readings pulled into that palette:
-# arterial red rather than fire-engine red, a moss green that belongs next to gold, and an arcane
-# violet-blue instead of a hyperlink blue. Each stays clearly distinct at a glance, which is the
-# one thing a resource bar has to do.
 const HEALTH_FILL := Color(0.71, 0.17, 0.19, 1.0)
 const HEALTH_BG := Color(0.14, 0.05, 0.06, 0.92)
 const STAMINA_FILL := Color(0.52, 0.68, 0.34, 1.0)
@@ -34,24 +26,14 @@ const STAMINA_BG := Color(0.08, 0.11, 0.06, 0.92)
 const MANA_FILL := Color(0.44, 0.42, 0.85, 1.0)
 const MANA_BG := Color(0.06, 0.06, 0.14, 0.92)
 
-## C-96: poise is a fully implemented system with real stakes — breaking an enemy's poise staggers
-## it and applies POISE_BROKEN_DAMAGE_MULT (1.35x); having yours broken staggers you for up to
-## 1.25 s — and the HUD bound Health, Stamina and Mana and nothing else. A stagger-focused build,
-## which is the whole reason `poise_damage`, `TWO_HAND_POISE_MULT` and the heavy archetype exist,
-## was played blind. Slimmer than the resource bars because it is a threat meter, not a budget.
 const POISE_BAR_HEIGHT := 10.0
 const POISE_FILL := Color(0.82, 0.74, 0.45, 1.0)
 const POISE_BG := Color(0.14, 0.12, 0.07, 0.92)
 const POISE_BROKEN_FILL := Color(0.9, 0.35, 0.25, 1.0)
 
-## C-126: the invulnerable tint for the stamina bar during a roll's i-frames.
 const IFRAME_FILL := Color(0.86, 0.95, 1.0, 1.0)
 
-## C-127: below this, an XP grant is trickle rather than an event worth interrupting for.
 const XP_BANNER_MIN := 25
-const ATTACK_STARTUP_FILL := Color(0.95, 0.55, 0.18, 1.0)
-const ATTACK_ACTIVE_FILL := Color(0.85, 0.18, 0.12, 1.0)
-const ATTACK_RECOVERY_FILL := Color(0.45, 0.45, 0.48, 1.0)
 const LOCK_RETICLE_OCCLUDED := Color(1.0, 0.62, 0.55, 1.0)
 
 @export var player_path: NodePath
@@ -60,12 +42,9 @@ const LOCK_RETICLE_OCCLUDED := Color(1.0, 0.62, 0.55, 1.0)
 @onready var _health_bar: ProgressBar = $ResourcePanel/VBox/HealthBar
 @onready var _stamina_bar: ProgressBar = $ResourcePanel/VBox/StaminaBar
 
-## C-96: built at runtime rather than added to the scene, so the bar exists only where a Poise node
-## does — enemies and the training dummy share this HUD in the arena scene.
 var _poise_bar: ProgressBar
 var _poise_broken_shown := false
 @onready var _mana_bar: ProgressBar = $ResourcePanel/VBox/ManaBar
-@onready var _attack_bar: ProgressBar = $ResourcePanel/VBox/AttackBar
 @onready var _xp_bar: ProgressBar = $ResourcePanel/VBox/XpBar
 @onready var _level_label: Label = $ResourcePanel/VBox/LevelLabel
 @onready var _status_row: HBoxContainer = $ResourcePanel/VBox/StatusRow
@@ -107,8 +86,6 @@ var _riposte_prompt_timer := 0.0
 var _build_up_rows: Dictionary = {}
 var _last_health := -1.0
 var _vignette_cooldown := 0.0
-var _attack_styles: Dictionary = {}
-var _attack_phase_style := ""
 var _hint_session_start := 0.0
 var _hint_actions_used: Dictionary = {
 	"dodge": false,
@@ -129,7 +106,6 @@ const SLOW_UPDATE_INTERVAL := 0.1
 func _ready() -> void:
 	GameUISkinScript.apply_pixel_theme(self)
 	_style_resource_bars()
-	_cache_attack_styles()
 	_rebuild_controls_hint()
 	_apply_controls_hint_visibility()
 	_hint_session_start = Time.get_ticks_msec() / 1000.0
@@ -169,11 +145,6 @@ func _ready() -> void:
 				_lock_on.lock_occluded.connect(_on_lock_occluded)
 	if ProgressionService:
 		ProgressionService.progression_changed.connect(_on_progression_changed)
-		# C-127: `xp_granted`, `endless_depth_record` and `endless_milestone_reached` were all
-		# emitted and none was connected, so gaining XP, setting a new endless depth record and
-		# hitting a milestone produced no UI event at all — and `endless_depth_record` carries
-		# `tokens_awarded`, a reward the player was never told about. The XP bar only moved because
-		# `progression_changed` happened to be connected separately.
 		if not ProgressionService.xp_granted.is_connected(_on_xp_granted):
 			ProgressionService.xp_granted.connect(_on_xp_granted)
 		if not ProgressionService.endless_depth_record.is_connected(_on_endless_depth_record):
@@ -217,32 +188,11 @@ func _style_resource_bars() -> void:
 	if _poise_bar:
 		_poise_bar.custom_minimum_size = Vector2(BAR_WIDTH, POISE_BAR_HEIGHT)
 		_apply_bar_style(_poise_bar, POISE_FILL, POISE_BG)
-	_attack_bar.custom_minimum_size = Vector2(BAR_WIDTH, ATTACK_BAR_HEIGHT)
-	_apply_bar_style(_attack_bar, ATTACK_STARTUP_FILL, STAMINA_BG)
 	_boss_health_bar.custom_minimum_size = Vector2(420, 18)
 	_apply_bar_style(_boss_health_bar, Color(0.72, 0.12, 0.1, 1.0), Color(0.08, 0.04, 0.04, 0.95))
 	_boss_name_label.add_theme_color_override("font_color", Color(0.95, 0.86, 0.72))
 	_branch_banner.add_theme_color_override("font_color", Color(0.86, 0.83, 0.76))
 	_warning_banner.add_theme_color_override("font_color", Color(0.98, 0.86, 0.55))
-
-
-func _cache_attack_styles() -> void:
-	_attack_styles = {
-		"startup": _make_attack_style(ATTACK_STARTUP_FILL),
-		"active": _make_attack_style(ATTACK_ACTIVE_FILL),
-		"recovery": _make_attack_style(ATTACK_RECOVERY_FILL),
-	}
-
-
-func _make_attack_style(fill_color: Color) -> StyleBoxFlat:
-	var style := StyleBoxFlat.new()
-	style.bg_color = fill_color
-	style.border_width_left = 1
-	style.border_width_top = 1
-	style.border_width_right = 1
-	style.border_width_bottom = 1
-	style.border_color = Color(0.04, 0.04, 0.04, 0.95)
-	return style
 
 
 func _apply_bar_style(bar: ProgressBar, fill_color: Color, bg_color: Color) -> void:
@@ -351,8 +301,6 @@ func _refresh_status_icons() -> void:
 			_status_pips.erase(status_id)
 
 
-## Health, stamina and status *values* arrive by signal; this handles only genuinely continuous
-## elements (reticle tracking, cooldown sweeps, telegraph progress). A hidden HUD ticks nothing.
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_VISIBILITY_CHANGED:
 		set_process(is_visible_in_tree())
@@ -366,11 +314,8 @@ func _process(delta: float) -> void:
 	_update_lock_reticle()
 	if _riposte_prompt_timer > 0.0:
 		_riposte_prompt_timer = maxf(0.0, _riposte_prompt_timer - delta)
-	# The riposte prompt has to keep updating after the block ends, because the parry that opened
-	# it is exactly what drops the guard.
 	if _guard_indicator_active or _riposte_prompt_timer > 0.0:
 		_update_guard_indicators()
-	_update_attack_bar()
 	_update_status_timers(delta)
 	_track_controls_hint_usage()
 	_slow_update_timer -= delta
@@ -432,9 +377,6 @@ func unbind_boss() -> void:
 
 
 func _unbind_boss() -> void:
-	# A dying boss emits BOTH boss_defeated and enemy_died, and both are wired here — so this runs
-	# twice in one frame. Claim the state first and bail on re-entry, otherwise the unbind side
-	# effects (panel fade, audio sting) fire twice.
 	if _boss_node == null and _boss_health == null:
 		return
 	var boss := _boss_node
@@ -539,13 +481,6 @@ func _bind_player_resources() -> void:
 		poise.poise_changed.connect(_on_poise_changed)
 		poise.poise_broken.connect(_on_poise_broken)
 		_on_poise_changed(poise.current, poise.max_poise)
-	# C-121: these three used to pass the class constant rather than the node's real maximum, so a
-	# character with 160 max HP from equipment bound a bar with `max_value = 100` and `value = 160`.
-	# `ProgressBar` clamps, so it read as full — true, but by accident — and it self-corrected on the
-	# first signal. It becomes a real bug the moment a numeric readout sits beside the bar.
-	# C-126: `Dodge.iframes_changed` fires three times per roll — open, close, roll end — and had no
-	# listener at all, so for a game whose defensive model *is* the i-frame window, and which ships
-	# an accessibility slider that widens it, the invulnerable state was completely invisible.
 	var dodge := _player.get_node_or_null("Dodge")
 	if dodge and dodge.has_signal("iframes_changed"):
 		dodge.iframes_changed.connect(_on_iframes_changed)
@@ -565,9 +500,6 @@ func _bind_player_resources() -> void:
 		_on_mana_changed(mana.current, mana.max_mana)
 
 
-## C-96 / C-97: the poise meter, built from the same pattern the status build-up meters use rather
-## than a new widget. Inserted under the mana bar so the three resources read top to bottom and the
-## threat meter sits beneath them.
 func _ensure_poise_bar() -> void:
 	if _poise_bar != null and is_instance_valid(_poise_bar):
 		return
@@ -585,10 +517,6 @@ func _ensure_poise_bar() -> void:
 	host.move_child(_poise_bar, _mana_bar.get_index() + 1)
 
 
-## C-126: the stamina bar is where the roll's cost already reads, so it is where its reward reads
-## too — a bright rim for exactly as long as the player is untouchable.
-## C-127: XP is a steady trickle, so it is shown as a banner only when it arrives in a lump the
-## player did something to earn — a boss, a room clear — rather than on every kill.
 func _on_xp_granted(amount: int, reason: String) -> void:
 	if amount < XP_BANNER_MIN or reason == "kill":
 		return
@@ -625,7 +553,6 @@ func _on_poise_changed(current: float, max_value: float) -> void:
 		return
 	_poise_bar.max_value = maxf(1.0, max_value)
 	_poise_bar.value = current
-	# Recovering past the break restores the normal fill; the break tint is set in _on_poise_broken.
 	if current > 0.0 and _poise_broken_shown:
 		_poise_broken_shown = false
 		_apply_bar_style(_poise_bar, POISE_FILL, POISE_BG)
@@ -639,23 +566,18 @@ func _on_poise_broken() -> void:
 	_flash_resource_bar(_poise_bar, POISE_BROKEN_FILL)
 
 
-## C-235: puts the four consumable quick slots on screen. The input for them is gated on every meta
-## UI being closed, and the only previous rendering lived *inside* the inventory panel — so the bar
-## was visible exactly when it could not be used. Sits beside the flask counter.
 func _bind_quick_slots() -> void:
 	if _quick_slot_bar != null and is_instance_valid(_quick_slot_bar):
 		return
-	if _status_row == null:
-		return
-	var host := _status_row.get_parent() as Control
+	var host := get_node_or_null("QuickSlotAnchor") as Control
+	if host == null:
+		host = _status_row.get_parent() as Control if _status_row != null else null
 	if host == null:
 		return
 	_quick_slot_bar = QuickSlotBarScript.new()
 	host.add_child(_quick_slot_bar)
-	host.move_child(_quick_slot_bar, _status_row.get_index() + 1)
 
 
-## Builds and binds the flask counter. See HealChargeMeter for why it did not exist before.
 func _bind_heal_charges() -> void:
 	if _heal_charge_row == null and _status_row != null:
 		_heal_charge_row = HealChargeMeterScript.bind(
@@ -706,9 +628,6 @@ func _update_lock_reticle() -> void:
 	_lock_reticle_alpha = lerpf(_lock_reticle_alpha, target_alpha, 0.22)
 	_lock_reticle.visible = _lock_reticle_alpha > 0.05
 	_lock_reticle.modulate.a = _lock_reticle_alpha
-	# LockOn tracks occlusion and emits `lock_occluded`, and nothing displayed it — the reticle
-	# looked identical whether the target was in the open or behind a wall, right up until the
-	# lock silently dropped at the end of the grace window.
 	var occluded_tint := LOCK_RETICLE_OCCLUDED if _lock_target_occluded else Color.WHITE
 	_lock_reticle.modulate.r = occluded_tint.r
 	_lock_reticle.modulate.g = occluded_tint.g
@@ -726,11 +645,6 @@ func _on_lock_occluded(occluded: bool) -> void:
 	_lock_target_occluded = occluded
 
 
-## Announces the riposte window opened by a successful parry.
-##
-## `Guard.riposte_ready` was emitted and never listened to, so the 1.4 s window in which a heavy
-## press becomes a critical riposte was invisible — the player had to already know the mechanic
-## existed and guess at its length.
 func _on_riposte_ready() -> void:
 	if _parry_label == null:
 		return
@@ -806,8 +720,6 @@ func _on_stamina_depleted() -> void:
 	AudioDirector.play_sfx("exhausted")
 
 
-## C-219: clears the exhausted tint when Stamina actually recovers, rather than leaving it until an
-## unrelated `insufficient` flash happens to tween modulate back to white.
 func _on_stamina_recovered() -> void:
 	_stamina_bar.modulate = Color.WHITE
 
@@ -823,24 +735,6 @@ func _flash_resource_bar(bar: ProgressBar, flash_color: Color) -> void:
 	tween.tween_property(bar, "modulate", flash_color, 0.09)
 	tween.tween_property(bar, "modulate", Color.WHITE, 0.18)
 	AudioDirector.play_sfx("resource_denied")
-
-
-func _update_attack_bar() -> void:
-	if _weapon_controller == null:
-		return
-	if not _weapon_controller.is_attacking:
-		_attack_bar.visible = false
-		_attack_phase_style = ""
-		return
-	var phase_info: Dictionary = _weapon_controller.get_attack_phase_progress()
-	var progress: float = float(phase_info.get("progress", 0.0))
-	var phase: String = str(phase_info.get("phase", "startup"))
-	_attack_bar.visible = true
-	_attack_bar.max_value = 1.0
-	_attack_bar.value = progress
-	if phase != _attack_phase_style and _attack_styles.has(phase):
-		_attack_bar.add_theme_stylebox_override("fill", _attack_styles[phase])
-		_attack_phase_style = phase
 
 
 func _on_lock_changed(_target: Node3D, locked: bool) -> void:
@@ -968,9 +862,6 @@ func set_branch_previews(hints: Array) -> void:
 	for hint in hints:
 		if not hint is Dictionary:
 			continue
-		# C-147: `neutral` (empty and puzzle rooms) counts as neither, so the banner stops calling
-		# an empty room a reward — and stops calling it a danger instead, which would be the other
-		# way to be wrong.
 		match str(hint.get("hint", "")):
 			"reward":
 				reward_count += 1
@@ -1007,9 +898,6 @@ func _update_objective_marker() -> void:
 	var center := viewport_size * 0.5
 	var behind := camera.is_position_behind(_objective_world_pos)
 	if behind or not Rect2(Vector2.ZERO, viewport_size).has_point(screen_pos):
-		# C-220: `unproject_position` mirrors points behind the camera through the centre, so the
-		# off-screen direction has to be negated in that case. The behind branch used to reuse the
-		# mirrored vector unchanged, pointing the arrow away from the objective.
 		var dir := (screen_pos - center).normalized()
 		if behind:
 			dir = -dir
@@ -1039,9 +927,6 @@ func show_respawn_outcome(results: Dictionary) -> void:
 	var xp_gained: int = int(results.get("xp_gained", 0))
 	var xp_deferred: int = int(results.get("xp_deferred", 0))
 	var loot_lost: Array = results.get("loot_lost", [])
-	# C-221: these three handlers hardcoded English in a file that otherwise routes everything
-	# through `tr()`. The death screen and the save-failure warning are among the strings that
-	# matter most in a player's own language.
 	var lines: PackedStringArray = [
 		tr("RESPAWN_XP_GAINED").format({"xp": xp_gained}),
 	]
@@ -1068,8 +953,6 @@ func _on_inventory_rejected(reason: String) -> void:
 		show_run_warning(tr("WARN_INVENTORY_FULL"))
 
 
-## A failed save is silent otherwise — the player keeps going for hours believing progress is
-## kept. Non-blocking, but it has to be visible.
 func _on_save_failed(reason: String) -> void:
 	match reason:
 		"write_failed":
@@ -1136,10 +1019,6 @@ func _apply_hud_safe_area() -> void:
 	offset_bottom = -margin_px.y
 
 
-## C-136: this polled the `Input` singleton directly, bypassing `PlayerInput` (C-87's set), so the
-## tutorial hint never registered usage during a replay — a replayed run would keep showing the
-## control hints forever because, as far as this function could see, the player never pressed
-## anything. The early return is correctly guarded already; only the bypass was the defect.
 func _track_controls_hint_usage() -> void:
 	if _controls_hint == null or not AccessibilitySettings.show_control_hints:
 		return

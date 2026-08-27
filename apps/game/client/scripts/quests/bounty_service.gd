@@ -1,7 +1,6 @@
 class_name BountyService
 extends RefCounted
 
-## Rotating daily/weekly bounties drawn from the repeatable quest pool with a date-derived seed.
 
 const KIND_DAILY := "daily"
 const KIND_WEEKLY := "weekly"
@@ -40,7 +39,6 @@ static func slot_count(kind: String) -> int:
 	return WEEKLY_COUNT if kind == KIND_WEEKLY else DAILY_COUNT
 
 
-## Deterministic: same period index and account seed always yield the same bounties.
 static func roll(kind: String, index: int) -> Array[String]:
 	var pool := pool_for(kind)
 	var wanted: int = min(slot_count(kind), pool.size())
@@ -100,7 +98,6 @@ static func is_claimed(quest_id: String) -> bool:
 	return quest_id in _claimed_ids(kind)
 
 
-## A bounty is offerable only while it is in the current roll and unclaimed for that period.
 static func is_offerable(quest_id: String) -> bool:
 	if not is_bounty(quest_id):
 		return true
@@ -143,16 +140,6 @@ static func add_tokens(amount: int) -> void:
 	CharacterService.set_flag(TOKENS_FLAG, get_tokens() + amount)
 
 
-static func spend_tokens(amount: int) -> bool:
-	if amount <= 0 or CharacterService == null:
-		return false
-	var held := get_tokens()
-	if held < amount:
-		return false
-	CharacterService.set_flag(TOKENS_FLAG, held - amount)
-	return true
-
-
 static func _period_seed(kind: String, index: int) -> int:
 	var account_seed := 0
 	if CharacterService:
@@ -167,7 +154,6 @@ static func _state() -> Dictionary:
 	return raw.duplicate(true) if raw is Dictionary else {}
 
 
-## Rotating the period discards the previous period's claim list.
 static func _period_state(state: Dictionary, kind: String) -> Dictionary:
 	var raw: Variant = state.get(kind, {})
 	var period: Dictionary = raw if raw is Dictionary else {}

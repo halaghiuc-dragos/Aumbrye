@@ -1,7 +1,6 @@
 extends RefCounted
 class_name CharacterRigCatalog
 
-## Loads character rig manifests from content/characters/.
 
 const CONTENT_RELATIVE := "content/characters"
 const MANIFEST_SUFFIX := ".json"
@@ -27,22 +26,6 @@ static func clear_cache() -> void:
 	_cache.clear()
 
 
-static func list_archetype_ids() -> PackedStringArray:
-	var ids: PackedStringArray = []
-	var dir := DirAccess.open(ContentLoader.content_path(CONTENT_RELATIVE))
-	if dir == null:
-		return ids
-	dir.list_dir_begin()
-	var file_name := dir.get_next()
-	while file_name != "":
-		if not dir.current_is_dir() and file_name.ends_with(MANIFEST_SUFFIX):
-			ids.append(file_name.trim_suffix(MANIFEST_SUFFIX))
-		file_name = dir.get_next()
-	dir.list_dir_end()
-	ids.sort()
-	return ids
-
-
 static func has_manifest(archetype_id: String) -> bool:
 	return not get_manifest(archetype_id).is_empty()
 
@@ -63,8 +46,6 @@ static func get_manifest(archetype_id: String) -> Dictionary:
 
 
 static func archetype_for_player(profile: Dictionary) -> String:
-	# `sanitize` already migrates the legacy pair, but this is also reached with raw saved profiles
-	# that have never been through it.
 	var frame := str(profile.get("frame", ""))
 	if not (frame in CharacterAppearance.FRAME_VARIANTS):
 		frame = CharacterAppearance.frame_from_legacy(

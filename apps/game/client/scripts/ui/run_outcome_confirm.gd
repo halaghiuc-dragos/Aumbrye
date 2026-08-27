@@ -1,7 +1,6 @@
 extends RefCounted
 class_name RunOutcomeConfirm
 
-## Pause-style confirmation before ending a run via the exit portal.
 
 const MenuShellScript := preload("res://scripts/ui/menu_shell.gd")
 

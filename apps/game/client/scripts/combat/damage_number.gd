@@ -1,9 +1,6 @@
 extends Node3D
 class_name DamageNumberSpawner
 
-## C-33: both static factories called `load()` on every spawn — once per hit. ResourceLoader
-## caches, so this was a lookup rather than a disk read, but a `preload` const removes it entirely
-## and fails at parse time rather than silently returning null if the scene ever moves.
 const SCENE := preload("res://scenes/combat/damage_number.tscn")
 
 const LIFETIME := 0.65

@@ -1,6 +1,5 @@
 extends Node3D
 
-## Castle run scene controller — uses DungeonBuilder as authoritative path.
 
 const BUILDER_SCRIPT := preload("res://scripts/dungeon/dungeon_builder.gd")
 const BOSS_ROOM_ID := "boss"
@@ -47,11 +46,6 @@ func _ready() -> void:
 		push_error("CastleRun: missing procgen dungeon definition")
 		RunFlow.return_to_hub("Dungeon data missing — could not load generated layout.")
 		return
-	# PERF-03: the build below is chunked and can span several frames. Freeze the player for that
-	# window — it has no floor, rooms, or nav mesh to stand on yet — rather than let its own
-	# _physics_process run with nothing built. Every step from here down already assumed a fully
-	# built floor when the build was synchronous; awaiting in the same order preserves that
-	# guarantee instead of racing it.
 	var player_process_mode := Node.PROCESS_MODE_INHERIT
 	if _player:
 		player_process_mode = _player.process_mode
@@ -73,10 +67,6 @@ func _ready() -> void:
 	_restore_saved_snapshot(snapshot)
 	_apply_floor_transition_spawn(snapshot)
 	player_room_id = _find_room_id_at(_player.global_position)
-	# C-182: this used to run at the end of _wire_run_ui(), before player_room_id was resolved, so
-	# _notify_room("") returned immediately and the HUD was never told which room the run starts in
-	# — no minimap reveal, no "you are here", no objective marker, and no boss bar when a save is
-	# resumed inside the boss room. _physics_process only fires on a *change*, so nothing recovered.
 	_notify_room(player_room_id)
 	call_deferred("_ensure_safe_player_spawn")
 	_wire_player_death()
@@ -365,11 +355,6 @@ func _wire_player_health_autosave() -> void:
 		health.health_changed.connect(_on_player_health_changed)
 
 
-## C-183: this used to call `_persist_snapshot()` directly, which walks every enemy, every loot node
-## and all world flags and allocates a fresh nested dictionary — once per damage event. In a boss
-## fight with chip damage or a DoT that is several full world serialisations per second, on the main
-## thread, in exactly the frames that need to feel sharp. Marked dirty here and flushed at most once
-## per SNAPSHOT_DEBOUNCE_SEC from _physics_process instead.
 func _on_player_health_changed(_current: float, _max_value: float) -> void:
 	if AudioDirector:
 		AudioDirector.notify_player_vitality(_current / maxf(_max_value, 0.001))
@@ -414,10 +399,6 @@ func _apply_floor_transition_spawn(snapshot: Dictionary = {}) -> void:
 
 func _place_at_stair_from_snapshot(snapshot: Dictionary) -> void:
 	var ascending := bool(snapshot.get("ascending", true))
-	# C-184: this called `_resolve_dungeon_definition()`, which ends in `def.duplicate(true)` — a
-	# full deep copy of the room graph, placements, content assignments and branch previews — to
-	# read one field. It ran here and again in `_teleport_to_safe_spawn`, both during a floor
-	# transition, which is the most expensive moment available. `_dungeon_def` already holds it.
 	var stair_id := RunFloorConfig.find_stairs_room_id(_dungeon_def)
 	var spawn_info := _builder.get_stair_spawn_global(stair_id, ascending)
 	if spawn_info.is_empty():
@@ -510,7 +491,6 @@ func _teleport_to_safe_spawn(snapshot: Dictionary) -> void:
 			CharacterFloorSnapScript.snap_to_floor_below(_player)
 			player_room_id = room_id
 			return
-	# C-184: see `_place_at_stair_from_snapshot` — the cached definition, not another deep copy.
 	var entrance_id := str(_dungeon_def.get("placements", {}).get("entrance", "entrance"))
 	var entrance := _builder.get_room(entrance_id)
 	if entrance != null:
@@ -601,11 +581,6 @@ func _persist_snapshot() -> void:
 	LocalSave.set_active_run(active)
 
 
-## Presents the relic choice a boss kill has earned.
-##
-## Keyed to dungeon and floor so the run seed fixes which three appear — dying and coming back
-## re-presents the same offer rather than rerolling it. Silent when the roll comes back empty
-## (nothing left this run can take), so the kill is never blocked on a dead modal.
 func _offer_boss_relic() -> void:
 	if _relic_offer == null or not is_instance_valid(_relic_offer):
 		return
@@ -622,9 +597,6 @@ func _on_boss_defeated() -> void:
 	RunFlow.register_boss_defeated()
 	if _boss_door:
 		_boss_door.call("release_door")
-	# The counterpart to the boss_reveal sting. Every biome profile has declared a floor_clear
-	# stinger since they were authored, and sting_clear.ogg has been on disk unreferenced — nothing
-	# ever called it, so killing a boss dropped straight back to ambience with no punctuation.
 	AudioDirector.play_stinger("floor_clear")
 	AudioDirector.play_dungeon_ambience()
 	_persist_snapshot()
@@ -641,8 +613,6 @@ func _on_boss_defeated() -> void:
 					)
 				)
 			)
-	# Last, and after the epilogue has closed. The offer pauses the tree, and opening it before
-	# an awaited card would stack two modals and leave the pause owned by whichever popped last.
 	_offer_boss_relic()
 
 

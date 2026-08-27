@@ -1,6 +1,5 @@
 extends Area3D
 
-## Post-boss escape portal — confirmed interact ends the run (FLOW-2.1).
 
 const DioramaSkin := preload("res://scripts/art/props/diorama_interactable_skin.gd")
 const PixelStyle := preload("res://scripts/art/style/pixel_diorama_style.gd")
@@ -40,16 +39,6 @@ func activate() -> void:
 	_update_label()
 	AudioDirector.play_cue(&"portal_open", global_position)
 	VfxService.play_portal_activate(global_position)
-
-
-func deactivate() -> void:
-	_state = State.DORMANT
-	_near_player = false
-	_confirm_pending = false
-	monitoring = false
-	visible = false
-	if _label:
-		_label.visible = false
 
 
 func is_active() -> bool:
@@ -96,5 +85,5 @@ func _update_label() -> void:
 	if _state != State.ACTIVE or not _near_player:
 		_label.visible = false
 		return
-	_label.text = "%s  Leave the dungeon" % InputGlyphService.format_interact_label()
+	_label.text = InputGlyphService.format_interact_name("Leave the dungeon")
 	_label.visible = true

@@ -1,7 +1,6 @@
 class_name HubGrowthService
 extends RefCounted
 
-## Which hub dressing the player has earned, derived from progress that already persists.
 
 const CATALOG_PATH := "content/ui/hub_growth.json"
 
@@ -27,7 +26,6 @@ static func get_entry(entry_id: String) -> Dictionary:
 	return {}
 
 
-## Ids of every dressing piece the hub should be showing right now.
 static func get_unlocked_ids() -> Array[String]:
 	var counters := ProgressCounters.snapshot()
 	var out: Array[String] = []
@@ -50,26 +48,6 @@ static func is_unlocked(entry_id: String, counters: Dictionary = {}) -> bool:
 	return ProgressCounters.meets(condition as Dictionary, counters)
 
 
-## Dressing ids grouped by the hub anchor they belong to, for a diorama to spawn against.
-static func get_unlocked_by_anchor() -> Dictionary:
-	var counters := ProgressCounters.snapshot()
-	var grouped := {}
-	for entry in get_all():
-		var condition: Variant = entry.get("condition", {})
-		if not condition is Dictionary:
-			continue
-		if not ProgressCounters.meets(condition as Dictionary, counters):
-			continue
-		var anchor := str(entry.get("anchor", ""))
-		if anchor == "":
-			continue
-		if not grouped.has(anchor):
-			grouped[anchor] = []
-		(grouped[anchor] as Array).append(str(entry.get("id", "")))
-	return grouped
-
-
-## Every dressing piece with its state and, when still shut, what is missing.
 static func get_standing() -> Array[Dictionary]:
 	var counters := ProgressCounters.snapshot()
 	var rows: Array[Dictionary] = []

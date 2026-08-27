@@ -1,7 +1,5 @@
 extends Node
 
-## Aumbrye Dungeons progression. Two ladders, two words: "depth" counts how many dungeons the
-## character has opened, "tier" counts the difficulty rungs inside one dungeon.
 
 const FLAG_UNLOCKED_COUNT := "dungeon_unlocked_count"
 const FLAG_MAX_TIER_LEGACY := "dungeon_max_tier"
@@ -26,10 +24,6 @@ func get_max_unlocked_tier() -> int:
 	return clampi(count, 1, MAX_DEPTH)
 
 
-func get_max_unlocked_depth() -> int:
-	return get_max_unlocked_tier()
-
-
 func get_hub_portal_label() -> String:
 	return HUB_LABEL_PREFIX + str(get_max_unlocked_tier())
 
@@ -50,15 +44,6 @@ func unlock_next_tier() -> void:
 
 func is_dungeon_unlocked(dungeon_id: String) -> bool:
 	return DungeonCatalog.is_unlocked_at_tier(dungeon_id, get_max_unlocked_tier())
-
-
-func get_unlocked_dungeon_ids() -> Array[String]:
-	var ids: Array[String] = []
-	for entry in DungeonCatalog.ENTRIES:
-		var dungeon_id := str(entry.get("id", ""))
-		if is_dungeon_unlocked(dungeon_id):
-			ids.append(dungeon_id)
-	return ids
 
 
 func _difficulty_flag(dungeon_id: String) -> String:
@@ -116,7 +101,6 @@ func record_clear_result(dungeon_id: String, tier: int, elapsed_seconds: float) 
 	CharacterService.set_flag(_best_flag(dungeon_id), results)
 
 
-## One row per difficulty rung, ready for the ladder screen: state, stakes and reward.
 func get_difficulty_ladder(dungeon_id: String) -> Array[Dictionary]:
 	var cap := get_unlocked_difficulty_cap(dungeon_id)
 	var unlocked := is_dungeon_unlocked(dungeon_id)

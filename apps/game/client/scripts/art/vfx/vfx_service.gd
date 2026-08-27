@@ -1,6 +1,5 @@
 extends Node
 
-## Global one-shot combat and locomotion particle bursts (hub, dungeon, arena).
 
 const FOOTSTEP_INTERVAL_WALK := 0.42
 const FOOTSTEP_INTERVAL_SPRINT := 0.28
@@ -18,7 +17,6 @@ const PixelStyle := preload("res://scripts/art/style/pixel_diorama_style.gd")
 
 static var _particle_material_cache: Dictionary = {}
 
-## C-93: throttles the unknown-telegraph-shape warning to one line per shape.
 static var _warned_telegraph_shapes: Dictionary = {}
 
 var _root: Node3D
@@ -33,34 +31,24 @@ var _decal_textures: Dictionary = {}
 var _burst_pool: Array[CPUParticles3D] = []
 var _gpu_burst_pool: Array[GPUParticles3D] = []
 var _decal_pool: Array[Decal] = []
-var _burst_acquire_gen: PackedInt64Array = []
-var _gpu_acquire_gen: PackedInt64Array = []
-var _decal_acquire_gen: PackedInt64Array = []
-var _acquire_counter := 0
+var _burst_cursor := 0
+var _gpu_cursor := 0
+var _decal_cursor := 0
 
 var _sweep_entries: Array[Dictionary] = []
+var _telegraphs: Array[Dictionary] = []
 var _free_nodes: Array[Node] = []
 
-## BUG-41: VfxService is the single owner of Engine.time_scale. Every requester (hit-stop,
-## the death sequence, …) calls push_time_scale(id, scale, duration_ms) / release_time_scale(id)
-## instead of writing Engine.time_scale directly, so overlapping or interrupted requests cannot
-## corrupt a private restore cache (BUG-39) or strand the engine at a slowed scale (BUG-27).
-## duration_ms == 0 means "persists until release_time_scale(id) is called" — used by the death
-## sequence, whose length spans several awaits rather than one fixed window.
 var _time_scale_requests: Dictionary = {}
 var _shake_amount := 0.0
 var _shake_decay_rate := 9.0
-## Wall-clock deadline for the active shake; 0 means "decay only, no hard cut-off".
 var _shake_until_ms := 0
 
 
 func _ready() -> void:
-	# Must keep ticking while the tree is paused. This service owns Engine.time_scale, and its
-	# expiry bookkeeping runs in _process: if the pause menu opened during a hitstop, _process
-	# stopped, the request never expired, and Engine.time_scale stayed at ~0.05 — so the pause menu
-	# itself (PROCESS_MODE_ALWAYS, and therefore still running) animated in extreme slow motion
-	# until unpause. The sweep and time-scale logic use wall-clock Time.get_ticks_msec(), so
-	# running during pause is safe.
+	# Must keep ticking while the tree is paused: this service owns Engine.time_scale and expires
+	# its requests in `_process`. Opening the pause menu mid-hitstop would otherwise strand the
+	# engine at ~0.05 until unpause. All the bookkeeping uses wall-clock time, so this is safe.
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	_load_effects()
 	_root = Node3D.new()
@@ -77,11 +65,13 @@ func _process(delta: float) -> void:
 		_sweep_entries.is_empty()
 		and _free_nodes.is_empty()
 		and _time_scale_requests.is_empty()
+		and _telegraphs.is_empty()
 		and is_zero_approx(_shake_amount)
 	):
 		set_process(false)
 		return
 	_sweep_pools()
+	_update_telegraphs(delta)
 	_update_time_scale()
 	if _shake_until_ms > 0 and Time.get_ticks_msec() >= _shake_until_ms:
 		_shake_amount = 0.0
@@ -98,16 +88,6 @@ static func clear_particle_material_cache() -> void:
 	_particle_material_cache.clear()
 
 
-static func get_particle_material_cache_size() -> int:
-	return _particle_material_cache.size()
-
-
-static func get_particle_material_cache_entries() -> Array:
-	return _particle_material_cache.values()
-
-
-## Memoized: this is called once per enemy death, and it used to re-read and re-parse the whole
-## effects JSON from disk on the main thread every time — a disk hit per kill in wave mode.
 static var _death_burst_lifetime := -1.0
 
 
@@ -145,7 +125,6 @@ func _init_pools() -> void:
 		var decal := _make_decal_node("DecalPool%d" % i)
 		_root.add_child(decal)
 		_decal_pool.append(decal)
-	_resize_acquire_gens()
 
 
 func _on_pixel_world_attached(scene_root: Node) -> void:
@@ -171,7 +150,6 @@ func _ready_vfx_root() -> void:
 	_init_pools()
 
 
-## Plays a data-defined effect. Unknown ids play fallback and warn once per id.
 func play(
 	effect_id: String,
 	world_pos: Vector3,
@@ -216,15 +194,6 @@ func play_block(world_pos: Vector3, forward: Vector3 = Vector3.FORWARD) -> void:
 	play("block", world_pos, forward)
 
 
-## Kick-off dust for a roll or backstep.
-##
-## `travel` is the direction the player is going; the burst is aimed against it so the dust is
-## left behind rather than pushed ahead, which is what makes the roll read as having launched off
-## the ground instead of gliding.
-##
-## No hitstop and no shake layer, deliberately. A dodge is the one action that must never cost the
-## player a frame of control, and shaking the camera during an evade fights the thing the evade
-## exists to do — see the readability rule in `hit_feedback.gd`.
 func play_dodge(world_pos: Vector3, travel: Vector3 = Vector3.FORWARD) -> void:
 	var back := -travel
 	back.y = 0.0
@@ -233,8 +202,6 @@ func play_dodge(world_pos: Vector3, travel: Vector3 = Vector3.FORWARD) -> void:
 	play("dodge", world_pos, back.normalized())
 
 
-## C-20: the flask drink used to borrow `hit_spark`. Rises rather than sprays, and carries no
-## shake or hitstop layer for the same reason `play_dodge` does not.
 func play_heal(world_pos: Vector3) -> void:
 	play("heal", world_pos, Vector3.UP)
 
@@ -253,11 +220,6 @@ func play_hit_spark(
 	play("hit_spark", world_pos, direction, Color(0, 0, 0, 0), normal)
 
 
-## The louder cousin of play_hit_spark, for a hit that actually rolled a critical.
-##
-## A crit is a designed mechanic with a stat behind it — every class carries a critChance rating —
-## but it produced exactly the same spark as any other hit, so the roll landing was invisible
-## unless the damage happened to cross the impact-class threshold on its own.
 func play_crit_spark(
 	world_pos: Vector3, direction: Vector3 = Vector3.UP, normal: Vector3 = Vector3.UP
 ) -> void:
@@ -329,17 +291,26 @@ func play_weapon_trail(
 	play("weapon_trail", world_pos, forward, tint, Vector3.UP, {"radius": radius})
 
 
+const TELEGRAPH_CLASS_TINTS := {
+	"blockable": Color(0.98, 0.68, 0.20, 1.0),
+	"unblockable": Color(0.96, 0.24, 0.18, 1.0),
+	"parryable": Color(0.42, 0.76, 1.0, 1.0),
+}
+
+
+func telegraph_class_tint(attack_class: String) -> Color:
+	return TELEGRAPH_CLASS_TINTS.get(attack_class, TELEGRAPH_CLASS_TINTS["blockable"])
+
+
 func play_telegraph(
 	world_pos: Vector3,
 	radius: float = 1.6,
 	duration: float = 0.6,
-	tint: Color = Color(0.95, 0.34, 0.28),
+	tint: Color = Color(0.98, 0.68, 0.20),
 	shape: String = "circle",
-	forward: Vector3 = Vector3.FORWARD
+	forward: Vector3 = Vector3.FORWARD,
+	follow: Node3D = null
 ) -> void:
-	# C-93: an unknown shape used to fall back to `telegraph_circle` in silence — and the fallback
-	# was pointless anyway, because the layer values are identical and `shape` is overridden a
-	# moment later, so the substitution changed nothing while hiding the authoring mistake.
 	var effect_id := "telegraph_%s" % shape
 	if not _effects.has(effect_id):
 		if not _warned_telegraph_shapes.has(shape):
@@ -348,9 +319,6 @@ func play_telegraph(
 				"VfxService: no 'telegraph_%s' effect declared; drawing it anyway" % shape
 			)
 		effect_id = "telegraph_circle"
-	# Single point where the "Emphasise Attack Tells" assist is honoured. Duration is left alone on
-	# purpose — the setting should make a wind-up easier to see, not give the player more time than
-	# the attack actually allows.
 	var emphasised_tint := AccessibilitySettings.emphasise_telegraph_tint(tint)
 	var emphasised_radius := radius * AccessibilitySettings.telegraph_radius_scale()
 	play(
@@ -364,6 +332,7 @@ func play_telegraph(
 			"duration": duration,
 			"shape": shape,
 			"forward": forward,
+			"follow": follow,
 		}
 	)
 
@@ -376,10 +345,6 @@ func request_hitstop(duration_ms: int, strength: float = 0.05) -> void:
 	push_time_scale(&"vfx_hitstop", strength, duration_ms)
 
 
-## Requests Engine.time_scale = scale for at least duration_ms of unscaled wall time (or until
-## release_time_scale(id) if duration_ms is 0). Repeated pushes to the same id extend the
-## deadline and keep the strongest (lowest) scale rather than resetting it — the same
-## "never shorten an in-flight freeze" rule the old per-caller implementations each hand-rolled.
 func push_time_scale(id: StringName, scale: float, duration_ms: int = 0) -> void:
 	set_process(true)
 	var until_ms := 0
@@ -426,10 +391,6 @@ func _update_time_scale() -> void:
 	_apply_time_scale()
 
 
-## `duration_ms` is a hard cut-off for the shake. The exponential decay below usually fades it out
-## well before then; the deadline exists so a long shake cannot outlive its caller's intent, and so
-## the parameter callers have been tuning against actually does something (it was accepted and
-## silently ignored).
 func request_shake(amount: float, duration_ms: int) -> void:
 	var scale := PixelDioramaSettings.screen_shake_scale
 	if scale <= 0.0 or AccessibilitySettings.camera_shake_scale() <= 0.0:
@@ -446,10 +407,6 @@ func consume_shake() -> Vector3:
 	if _shake_amount < 0.001:
 		return Vector3.ZERO
 	return Vector3(randf_range(-1.0, 1.0), randf_range(-1.0, 1.0), 0.0) * _shake_amount * 0.06
-
-
-func get_burst_pool_size() -> int:
-	return _burst_pool.size()
 
 
 func _footstep_effect_id(surface: StringName) -> String:
@@ -577,7 +534,8 @@ func _play_glyph_layer(
 	var shape := String(overrides.get("shape", layer.get("shape", "circle")))
 	var tint := _color_from_layer(layer, tint_override)
 	var glyph_forward: Vector3 = overrides.get("forward", forward)
-	_build_telegraph_glyph(world_pos, radius, duration, tint, shape, glyph_forward)
+	var follow: Node3D = overrides.get("follow", null) as Node3D
+	_build_telegraph_glyph(world_pos, radius, duration, tint, shape, glyph_forward, follow)
 
 
 func _play_impact_layer(layer: Dictionary) -> void:
@@ -671,41 +629,47 @@ func _emit_gpu_burst(
 
 
 func _acquire_burst() -> CPUParticles3D:
-	return _acquire_from_pool(_burst_pool, _burst_acquire_gen, BURST_POOL_MAX, _make_cpu_burst_node)
+	_burst_cursor = _next_cursor(_burst_pool, _burst_cursor)
+	return _acquire_from_pool(_burst_pool, _burst_cursor, BURST_POOL_MAX, _make_cpu_burst_node)
 
 
 func _acquire_gpu_burst() -> GPUParticles3D:
+	_gpu_cursor = _next_cursor(_gpu_burst_pool, _gpu_cursor)
 	return _acquire_from_pool(
-		_gpu_burst_pool, _gpu_acquire_gen, GPU_BURST_POOL_MAX, _make_gpu_burst_node
+		_gpu_burst_pool, _gpu_cursor, GPU_BURST_POOL_MAX, _make_gpu_burst_node
 	)
 
 
 func _acquire_decal() -> Decal:
-	return _acquire_from_pool(_decal_pool, _decal_acquire_gen, DECAL_POOL_MAX, _make_decal_node)
+	_decal_cursor = _next_cursor(_decal_pool, _decal_cursor)
+	return _acquire_from_pool(_decal_pool, _decal_cursor, DECAL_POOL_MAX, _make_decal_node)
 
 
-func _acquire_from_pool(
-	pool: Array, gens: PackedInt64Array, cap: int, factory: Callable
-) -> Variant:
-	var best_idx := -1
-	var best_gen := 9223372036854775807
-	for i in pool.size():
-		var node = pool[i]
+func _next_cursor(pool: Array, cursor: int) -> int:
+	return 0 if pool.is_empty() else (cursor + 1) % pool.size()
+
+
+## First idle node, else a new one up to the cap, else the node the round-robin cursor is on.
+##
+## The victim used to be chosen by least-recently-acquired, tracked in a generation counter and
+## three parallel arrays kept in step with the pools. That only decides which effect gets cut short
+## when the pool is full *and* every node in it is still emitting — at which point an effect is
+## being dropped either way, and cycling spreads the loss instead of repeatedly stealing the same
+## node.
+func _acquire_from_pool(pool: Array, cursor: int, cap: int, factory: Callable) -> Variant:
+	for node in pool:
 		if not _is_pool_node_busy(node):
 			return node
-		if gens[i] < best_gen:
-			best_gen = gens[i]
-			best_idx = i
 	if pool.size() < cap:
 		var fresh = factory.call("Pool%d" % pool.size())
 		pool.append(fresh)
-		gens.append(0)
 		_root.add_child(fresh)
 		return fresh
-	if best_idx >= 0:
-		_stop_pool_node(pool[best_idx])
-		return pool[best_idx]
-	return pool[0]
+	if pool.is_empty():
+		return null
+	var victim = pool[cursor % pool.size()]
+	_stop_pool_node(victim)
+	return victim
 
 
 func _is_pool_node_busy(node: Variant) -> bool:
@@ -725,19 +689,6 @@ func _stop_pool_node(node: Variant) -> void:
 		(node as GPUParticles3D).emitting = false
 	elif node is Decal:
 		(node as Decal).visible = false
-
-
-func _mark_acquired(pool: Array, gens: PackedInt64Array, node: Variant) -> void:
-	_acquire_counter += 1
-	var idx := pool.find(node)
-	if idx >= 0 and idx < gens.size():
-		gens[idx] = _acquire_counter
-
-
-func _resize_acquire_gens() -> void:
-	_burst_acquire_gen.resize(_burst_pool.size())
-	_gpu_acquire_gen.resize(_gpu_burst_pool.size())
-	_decal_acquire_gen.resize(_decal_pool.size())
 
 
 func _make_cpu_burst_node(node_name: String) -> CPUParticles3D:
@@ -783,7 +734,6 @@ func _make_decal_node(node_name: String) -> Decal:
 
 func _schedule_pool_return(particles: CPUParticles3D, delay: float) -> void:
 	set_process(true)
-	_mark_acquired(_burst_pool, _burst_acquire_gen, particles)
 	_sweep_entries.append(
 		{
 			"node": particles,
@@ -795,7 +745,6 @@ func _schedule_pool_return(particles: CPUParticles3D, delay: float) -> void:
 
 func _schedule_gpu_return(particles: GPUParticles3D, delay: float) -> void:
 	set_process(true)
-	_mark_acquired(_gpu_burst_pool, _gpu_acquire_gen, particles)
 	_sweep_entries.append(
 		{
 			"node": particles,
@@ -807,7 +756,6 @@ func _schedule_gpu_return(particles: GPUParticles3D, delay: float) -> void:
 
 func _schedule_decal_return(decal: Decal, delay: float) -> void:
 	set_process(true)
-	_mark_acquired(_decal_pool, _decal_acquire_gen, decal)
 	_sweep_entries.append(
 		{"node": decal, "expires_at": Time.get_ticks_msec() + int(delay * 1000.0), "kind": "decal"}
 	)
@@ -949,15 +897,12 @@ func _spawn_decal(
 	)
 	var n := normal.normalized() if normal.length_squared() > 0.01 else Vector3.UP
 	decal.global_position = world_pos + n * 0.02
-	var tangent := direction
-	tangent.y = 0.0
-	if tangent.length_squared() < 0.01:
-		tangent = Vector3.FORWARD
+	var tangent := direction - n * direction.dot(n)
+	if tangent.length_squared() < 0.0001:
+		var seed_axis := Vector3.FORWARD if absf(n.z) < 0.9 else Vector3.RIGHT
+		tangent = seed_axis - n * seed_axis.dot(n)
 	tangent = tangent.normalized()
-	var bitangent := n.cross(tangent).normalized()
-	if bitangent.length_squared() < 0.01:
-		bitangent = Vector3.RIGHT
-	decal.global_basis = Basis(bitangent, n, -tangent)
+	decal.global_basis = Basis(n.cross(tangent), n, -tangent)
 	decal.modulate = Color(1, 1, 1, 1)
 	decal.visible = true
 	if fade > 0.0:
@@ -1028,7 +973,13 @@ func _build_weapon_trail(
 
 
 func _build_telegraph_glyph(
-	world_pos: Vector3, radius: float, duration: float, tint: Color, shape: String, forward: Vector3
+	world_pos: Vector3,
+	radius: float,
+	duration: float,
+	tint: Color,
+	shape: String,
+	forward: Vector3,
+	follow: Node3D = null
 ) -> void:
 	var glyph := Node3D.new()
 	glyph.name = "TelegraphGlyph"
@@ -1037,102 +988,167 @@ func _build_telegraph_glyph(
 	glyph.global_position = world_pos + Vector3(0.0, 0.03, 0.0)
 	if forward.length_squared() > 0.01:
 		glyph.look_at(glyph.global_position + Vector3(forward.x, 0.0, forward.z), Vector3.UP)
+
 	var rim_mat := PixelStyle.make_glow_material(
-		Color(tint.r, tint.g, tint.b, 0.95),
-		Color(tint.r, tint.g, tint.b, 0.55).darkened(0.15),
-		1.35
+		Color(tint.r, tint.g, tint.b, 1.0), Color(tint.r, tint.g, tint.b, 0.8), 2.1
 	)
 	var fill_mat := PixelStyle.make_glow_material(
-		Color(tint.r, tint.g, tint.b, 0.42), Color(tint.r, tint.g, tint.b, 0.22).darkened(0.2), 0.55
+		Color(tint.r, tint.g, tint.b, 0.5), Color(tint.r, tint.g, tint.b, 0.3), 0.9
 	)
+	var sweep := Node3D.new()
+	sweep.name = "Sweep"
+	glyph.add_child(sweep)
+
 	match shape:
 		"line":
-			var line := MeshInstance3D.new()
-			var line_mesh := BoxMesh.new()
-			line_mesh.size = PixelStyle.snap_size_to_pixel_grid(
-				Vector3(radius * 0.22, 0.02, radius * 2.0)
-			)
-			line.mesh = line_mesh
-			line.material_override = fill_mat
-			line.position = Vector3(0.0, 0.0, -radius)
-			line.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-			glyph.add_child(line)
+			_telegraph_line(glyph, sweep, radius, rim_mat, fill_mat)
 		"cone":
-			var wedge_segments := 8
-			for i in wedge_segments:
-				var angle := lerpf(-PI * 0.35, PI * 0.35, float(i) / float(wedge_segments - 1))
-				var block := MeshInstance3D.new()
-				var wedge := BoxMesh.new()
-				wedge.size = PixelStyle.snap_size_to_pixel_grid(
-					Vector3(0.18, 0.02, radius * 0.9)
-				)
-				block.mesh = wedge
-				block.material_override = rim_mat if i == 0 or i == wedge_segments - 1 else fill_mat
-				block.position = Vector3(
-					sin(angle) * radius * 0.45, 0.0, -cos(angle) * radius * 0.45
-				)
-				block.rotation.y = angle
-				block.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-				glyph.add_child(block)
+			_telegraph_cone(glyph, sweep, radius, rim_mat, fill_mat)
 		"ring":
-			# C-93: `ring` is authored on 71 telegraphs (44 attacks, 27 boss onEnter) and had no
-			# case here, so it fell to the circle branch and the safe centre was covered by the
-			# fill disc — the one shape that says "step in, not out" did not exist. A ring is the
-			# rim only, with a heavier rim than the circle so the two read differently at a glance,
-			# and no centre core (that core is what marks the dangerous middle).
-			var ring_tick := BoxMesh.new()
-			ring_tick.size = PixelStyle.snap_size_to_pixel_grid(Vector3(0.3, 0.03, 0.3))
-			var ring_segments := 20
-			for i in ring_segments:
-				var angle := TAU * float(i) / float(ring_segments)
-				var block := MeshInstance3D.new()
-				block.mesh = ring_tick
-				block.material_override = rim_mat
-				block.position = Vector3(cos(angle), 0.0, sin(angle)) * radius
-				block.rotation.y = -angle
-				block.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-				glyph.add_child(block)
+			_telegraph_ring(glyph, sweep, radius, rim_mat)
 		_:
-			var tick := BoxMesh.new()
-			tick.size = PixelStyle.snap_size_to_pixel_grid(Vector3(0.22, 0.02, 0.22))
-			var segments := 16
-			for i in segments:
-				var angle := TAU * float(i) / float(segments)
-				var block := MeshInstance3D.new()
-				block.mesh = tick
-				block.material_override = rim_mat
-				block.position = Vector3(cos(angle), 0.0, sin(angle)) * radius
-				block.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-				glyph.add_child(block)
-			var fill := MeshInstance3D.new()
-			var disc := CylinderMesh.new()
-			disc.top_radius = radius * 0.55
-			disc.bottom_radius = radius * 0.55
-			disc.height = PixelStyle.WORLD_PIXEL
-			fill.mesh = disc
-			fill.material_override = fill_mat
-			fill.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-			glyph.add_child(fill)
-	var center: MeshInstance3D = null
-	if shape != "ring":
-		center = MeshInstance3D.new()
-		var core := BoxMesh.new()
-		core.size = PixelStyle.snap_size_to_pixel_grid(Vector3(0.28, 0.04, 0.28))
-		center.mesh = core
-		center.material_override = rim_mat
-		center.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-		glyph.add_child(center)
+			_telegraph_circle(glyph, sweep, radius, rim_mat, fill_mat)
+
+	sweep.scale = Vector3(0.001, 1.0, 0.001)
 	var tween := create_tween()
-	tween.set_parallel(true)
-	# C-93: a circle collapses inward — the danger is closing on the centre. A ring expands, because
-	# the danger is the rim arriving and the centre is where the player wants to be.
-	var end_scale := Vector3(1.25, 1.0, 1.25) if shape == "ring" else Vector3(0.35, 1.0, 0.35)
-	tween.tween_property(glyph, "scale", end_scale, duration)
-	tween.set_trans(Tween.TRANS_QUAD)
-	if center != null:
-		tween.tween_property(center, "scale", Vector3(1.6, 1.0, 1.6), duration * 0.5)
-		tween.chain().tween_property(center, "scale", Vector3(0.6, 1.0, 0.6), duration * 0.5)
-	_schedule_free(glyph, duration + 0.1)
+	tween.set_trans(Tween.TRANS_LINEAR)
+	tween.tween_property(sweep, "scale", Vector3.ONE, duration)
+	_schedule_free(glyph, duration + 0.12)
+	if follow != null and is_instance_valid(follow):
+		_telegraphs.append({"glyph": glyph, "follow": follow, "y": 0.03})
+		set_process(true)
+
+
+func _telegraph_circle(
+	glyph: Node3D, sweep: Node3D, radius: float, rim_mat: Material, fill_mat: Material
+) -> void:
+	_telegraph_rim_ring(glyph, radius, rim_mat, 24, 0.26)
+	var fill := MeshInstance3D.new()
+	var disc := CylinderMesh.new()
+	disc.top_radius = radius
+	disc.bottom_radius = radius
+	disc.height = PixelStyle.WORLD_PIXEL
+	disc.radial_segments = 20
+	fill.mesh = disc
+	fill.material_override = fill_mat
+	fill.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	sweep.add_child(fill)
+
+
+func _telegraph_ring(glyph: Node3D, sweep: Node3D, radius: float, rim_mat: Material) -> void:
+	_telegraph_rim_ring(glyph, radius, rim_mat, 24, 0.26)
+	_telegraph_rim_ring(sweep, radius, rim_mat, 20, 0.3)
+
+
+func _telegraph_rim_ring(
+	parent: Node3D, radius: float, rim_mat: Material, segments: int, tick: float
+) -> void:
+	var mesh := BoxMesh.new()
+	mesh.size = PixelStyle.snap_size_to_pixel_grid(Vector3(tick, 0.04, tick))
+	for i in segments:
+		var angle := TAU * float(i) / float(segments)
+		var block := MeshInstance3D.new()
+		block.mesh = mesh
+		block.material_override = rim_mat
+		block.position = Vector3(sin(angle), 0.0, cos(angle)) * radius
+		block.rotation.y = angle
+		block.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		parent.add_child(block)
+
+
+func _telegraph_line(
+	glyph: Node3D, sweep: Node3D, radius: float, rim_mat: Material, fill_mat: Material
+) -> void:
+	var width := maxf(radius * 0.34, 0.24)
+	var length := radius * 2.0
+	for side in [-1.0, 1.0]:
+		var edge := MeshInstance3D.new()
+		var edge_mesh := BoxMesh.new()
+		edge_mesh.size = PixelStyle.snap_size_to_pixel_grid(Vector3(0.1, 0.04, length))
+		edge.mesh = edge_mesh
+		edge.material_override = rim_mat
+		edge.position = Vector3(side * width * 0.5, 0.0, -length * 0.5)
+		edge.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		glyph.add_child(edge)
+	var cap := MeshInstance3D.new()
+	var cap_mesh := BoxMesh.new()
+	cap_mesh.size = PixelStyle.snap_size_to_pixel_grid(Vector3(width, 0.04, 0.1))
+	cap.mesh = cap_mesh
+	cap.material_override = rim_mat
+	cap.position = Vector3(0.0, 0.0, -length)
+	cap.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	glyph.add_child(cap)
+	var fill := MeshInstance3D.new()
+	var fill_mesh := BoxMesh.new()
+	fill_mesh.size = PixelStyle.snap_size_to_pixel_grid(Vector3(width * 0.86, 0.03, length))
+	fill.mesh = fill_mesh
+	fill.material_override = fill_mat
+	fill.position = Vector3(0.0, 0.0, -length * 0.5)
+	fill.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	sweep.add_child(fill)
+
+
+func _telegraph_cone(
+	glyph: Node3D, sweep: Node3D, radius: float, rim_mat: Material, fill_mat: Material
+) -> void:
+	var half := PI * 0.38
+	var segments := 12
+	for i in segments:
+		var angle := lerpf(-half, half, float(i) / float(segments - 1))
+		var on_edge := i == 0 or i == segments - 1
+		var arc := MeshInstance3D.new()
+		var arc_mesh := BoxMesh.new()
+		arc_mesh.size = PixelStyle.snap_size_to_pixel_grid(Vector3(0.26, 0.04, 0.26))
+		arc.mesh = arc_mesh
+		arc.material_override = rim_mat
+		arc.position = Vector3(sin(angle), 0.0, -cos(angle)) * radius
+		arc.rotation.y = angle
+		arc.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		glyph.add_child(arc)
+		if on_edge:
+			var edge := MeshInstance3D.new()
+			var edge_mesh := BoxMesh.new()
+			edge_mesh.size = PixelStyle.snap_size_to_pixel_grid(Vector3(0.1, 0.04, radius))
+			edge.mesh = edge_mesh
+			edge.material_override = rim_mat
+			edge.position = Vector3(sin(angle), 0.0, -cos(angle)) * radius * 0.5
+			edge.rotation.y = angle
+			edge.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+			glyph.add_child(edge)
+	for i in segments:
+		var angle := lerpf(-half, half, float(i) / float(segments - 1))
+		var wedge := MeshInstance3D.new()
+		var wedge_mesh := BoxMesh.new()
+		wedge_mesh.size = PixelStyle.snap_size_to_pixel_grid(
+			Vector3(radius * 2.0 * half / float(segments), 0.03, radius)
+		)
+		wedge.mesh = wedge_mesh
+		wedge.material_override = fill_mat
+		wedge.position = Vector3(sin(angle), 0.0, -cos(angle)) * radius * 0.5
+		wedge.rotation.y = angle
+		wedge.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		sweep.add_child(wedge)
+
+
+func _update_telegraphs(_delta: float) -> void:
+	var keep: Array[Dictionary] = []
+	for entry in _telegraphs:
+		# Read as Variant first. Assigning a freed instance to a typed `Node3D` local throws before
+		# `is_instance_valid` can be reached, and an enemy dying mid-wind-up does exactly that.
+		var glyph_ref: Variant = entry["glyph"]
+		var follow_ref: Variant = entry["follow"]
+		if not is_instance_valid(glyph_ref) or not is_instance_valid(follow_ref):
+			continue
+		var glyph := glyph_ref as Node3D
+		var follow := follow_ref as Node3D
+		glyph.global_position = follow.global_position + Vector3(0.0, float(entry["y"]), 0.0)
+		var forward := _resolve_forward(follow)
+		if forward.length_squared() > 0.01:
+			glyph.look_at(
+				glyph.global_position + Vector3(forward.x, 0.0, forward.z), Vector3.UP
+			)
+		keep.append(entry)
+	_telegraphs = keep
 
 
 func _burst_visibility_aabb(cfg: Dictionary) -> AABB:
@@ -1149,7 +1165,6 @@ func _resolve_forward(body: Node3D) -> Vector3:
 	if body.has_method("get_facing_direction"):
 		return body.call("get_facing_direction")
 	var facing := body.get_node_or_null("Facing") as Node3D
-	# C-41: same forked convention — VFX aimed away from where the actor was facing.
 	if facing:
 		return CombatFacing.forward_of(facing)
 	return CombatFacing.forward_of(body)

@@ -1,8 +1,5 @@
 extends Node
 
-## Run-scoped rule engine shared by unique items, relics, class perks and talent
-## keystones. Sources register data-declared rules; gameplay code dispatches named
-## events. Rules never reference each other, so registration order is irrelevant.
 
 signal rule_triggered(source_id: String, effect: String)
 
@@ -38,8 +35,6 @@ const ALL_EVENTS: Array[StringName] = [
 	ON_RUN_START,
 ]
 
-## C-55: the events whose dispatch context carries a damage `amount`. Effects that scale off damage
-## — `lifesteal` — are meaningless on any other event unless the rule supplies a flat `amount`.
 const AMOUNT_EVENTS: Array[StringName] = [
 	ON_HIT,
 	ON_CRIT,
@@ -77,18 +72,9 @@ func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	for event in ALL_EVENTS:
 		_rules_by_event[event] = [] as Array[Dictionary]
-	# C-43: this seeded here, at application boot. `CombatEvents` is an autoload, and
-	# `RunFlow.current_seed` is `var current_seed: int = 0` until a run actually starts — so the
-	# seed was a fixed constant derived from `mix(0, ...)`, identical on every launch, and
-	# `_try_rule`'s chance gate walked the *same* random sequence every run. Two players with the
-	# same build saw the same procs at the same points. (`Hitbox` does the same thing for
-	# `_crit_rng` and is fine, because its `_ready` runs when a combatant spawns, after the seed
-	# is set — the bug was specific to the autoload.) Seeded lazily on first dispatch instead, and
-	# re-armed by `clear_all()`, which every run boundary calls.
 	_rng_seeded = false
 
 
-## C-43: the run seed is not known at autoload time, so the stream is armed on first use.
 func _ensure_rng_seeded() -> void:
 	if _rng_seeded:
 		return
@@ -105,11 +91,6 @@ func register(source_id: String, rules: Array) -> void:
 		if not entry is Dictionary:
 			continue
 		var rule: Dictionary = (entry as Dictionary).duplicate(true)
-		# C-54: a misspelled event or effect used to be skipped in total silence — no warning, no
-		# counter — and the item still registered if any *other* rule in it validated, so a
-		# partly-broken item looked healthy. There are no live typos in the shipped content today,
-		# which makes this a latent trap rather than a present bug; it becomes a real one the
-		# moment a rule-authoring pass starts, which is the argument for fixing it first.
 		var event := StringName(str(rule.get("event", "")))
 		if not _rules_by_event.has(event):
 			push_warning(
@@ -123,8 +104,6 @@ func register(source_id: String, rules: Array) -> void:
 				% [source_id, effect]
 			)
 			continue
-		# C-55: `lifesteal` reads `ctx["amount"]`, which only the damage-carrying events provide.
-		# Authored on `onKill` — the most common event in the content — it silently healed zero.
 		if effect == "lifesteal" and not AMOUNT_EVENTS.has(event):
 			if not rule.has("amount"):
 				push_warning(
@@ -172,7 +151,6 @@ func clear_all() -> void:
 	_stacks.clear()
 	_cooldowns.clear()
 	_low_health_latched = false
-	# C-43: a cleared dispatcher re-seeds against whatever run comes next.
 	_rng_seeded = false
 
 
@@ -187,8 +165,6 @@ func dispatch(event: StringName, ctx: Dictionary = {}) -> void:
 	_reset_stacks_for(event)
 
 
-## Aggregated multiplicative bonus contributed by `add_stack` rules, e.g. a unique
-## whose consecutive parries raise damage. Returns 0.0 when nothing is stacked.
 func get_stat_bonus(stat: String) -> float:
 	if _stacks.is_empty():
 		return 0.0
@@ -219,10 +195,6 @@ func notify_health_ratio(ratio: float, actor: Node) -> void:
 
 func _try_rule(rule: Dictionary, ctx: Dictionary) -> void:
 	var cooldown := float(rule.get("cooldown", 0.0))
-	# C-44: the event was not in this key, so an item with `onParry -> restore_stamina` and
-	# `onHit -> restore_stamina` shared one cooldown and triggering either locked out both. The
-	# `stackId` is included too, since two rules can share source, event and effect while being
-	# separately stacked.
 	var key := "%s/%s/%s/%s" % [
 		str(rule.get("sourceId", "")),
 		str(rule.get("event", "")),
@@ -284,8 +256,6 @@ func _apply_effect(rule: Dictionary, ctx: Dictionary) -> void:
 		"lifesteal":
 			var self_health := _node_child(ctx.get("actor"), "Health") as Health
 			if self_health:
-				# C-55: events that carry no damage `amount` may declare a flat `amount` on the
-				# rule instead; `register()` rejects the pairing when neither is present.
 				var base := float(ctx.get("amount", 0.0))
 				if base <= 0.0:
 					base = float(rule.get("amount", 0.0))

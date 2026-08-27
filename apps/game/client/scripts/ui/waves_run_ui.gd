@@ -1,16 +1,18 @@
 extends Control
 
-## In-run UI for Umbral Waves lobby, combat, prep, and reward pick.
 
 const GameUISkinScript := preload("res://scripts/ui/game_ui_skin.gd")
 const MenuShellScript := preload("res://scripts/ui/menu_shell.gd")
+const InputGlyphServiceScript := preload("res://scripts/ui/input_glyph_service.gd")
 
 var _label: Label
-var _ready_button: Button
 var _reward_box: VBoxContainer
+var _enemies_remaining := 0
+var _wave_shown := 0
 var _confirm_button: Button
 var _confirm_hint: Label
 var _selected_rewards: Array[String] = []
+var _reward_stack_pushed := false
 
 
 func _ready() -> void:
@@ -18,8 +20,13 @@ func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	var panel := PanelContainer.new()
 	panel.name = "Panel"
-	panel.set_anchors_preset(Control.PRESET_TOP_WIDE)
-	panel.offset_bottom = 120.0
+	panel.set_anchors_preset(Control.PRESET_CENTER_TOP)
+	panel.anchor_left = 0.5
+	panel.anchor_right = 0.5
+	panel.offset_left = -360.0
+	panel.offset_right = 360.0
+	panel.offset_top = 16.0
+	panel.grow_horizontal = Control.GROW_DIRECTION_BOTH
 	add_child(panel)
 	GameUISkinScript.style_panel(panel)
 	var margin := MarginContainer.new()
@@ -30,9 +37,6 @@ func _ready() -> void:
 	_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	GameUISkinScript.style_body_label(_label)
 	vbox.add_child(_label)
-	_ready_button = MenuShellScript.make_menu_button("Ready — start waves", _on_ready_pressed)
-	_ready_button.visible = false
-	vbox.add_child(_ready_button)
 	_reward_box = VBoxContainer.new()
 	_reward_box.visible = false
 	vbox.add_child(_reward_box)
@@ -40,7 +44,6 @@ func _ready() -> void:
 
 func show_lobby() -> void:
 	_reward_box.visible = false
-	_ready_button.visible = true
 	refresh_lobby()
 
 
@@ -50,29 +53,48 @@ func refresh_lobby() -> void:
 	for i in total:
 		if WavesRunService.chests_opened.get(str(i), false):
 			opened += 1
-	_label.text = (
-		"Open all %d chests (%d/%d). Walk to chest + E. Waves loadout only."
-		% [total, opened, total]
-	)
-	_ready_button.disabled = not WavesRunService.all_chests_opened()
-	if WavesRunService.all_chests_opened() and not WavesRunService.lobby_ready:
-		_label.text += "\nAll chests open — press Ready."
+	var glyph := InputGlyphServiceScript.get_action_glyph("interact")
+	var lines: Array[String] = []
+	if WavesRunService.chest_set > 0:
+		lines.append(
+			"Wave %d cleared. The torch is spent and fresh caches have come up."
+			% WavesRunService.current_wave
+		)
+	if WavesRunService.has_torch():
+		lines.append("You have the torch. Light the cresset at the centre (%s)." % glyph)
+	else:
+		lines.append("A torch is buried in one of these caches. Find it.")
+	lines.append("Caches opened %d/%d — walk up and press %s." % [opened, total, glyph])
+	_label.text = "\n".join(lines)
 
 
 func show_combat(wave: int) -> void:
-	_ready_button.visible = false
 	_reward_box.visible = false
-	_label.text = tr("WAVES_WAVE_ACTIVE").format({"wave": wave})
+	_wave_shown = wave
+	_refresh_combat_label()
 
 
-func show_prep(wave: int, countdown: float) -> void:
-	_ready_button.visible = false
-	_label.text = tr("WAVES_MILESTONE_CLEARED").format({"wave": wave, "seconds": "%.0f" % countdown})
+func set_enemies_remaining(count: int) -> void:
+	_enemies_remaining = maxi(0, count)
+	if _reward_box.visible:
+		return
+	_refresh_combat_label()
+
+
+func _refresh_combat_label() -> void:
+	if _wave_shown <= 0:
+		return
+	_label.text = "%s  —  %d left" % [
+		tr("WAVES_WAVE_ACTIVE").format({"wave": _wave_shown}),
+		_enemies_remaining,
+	]
 
 
 func show_reward_pick() -> void:
-	_ready_button.visible = false
 	_reward_box.visible = true
+	if MenuStack and not _reward_stack_pushed:
+		_reward_stack_pushed = true
+		MenuStack.push(self, true)
 	_selected_rewards.clear()
 	for child in _reward_box.get_children():
 		child.queue_free()
@@ -82,9 +104,6 @@ func show_reward_pick() -> void:
 		var item_id: String = str(slot.get("itemId", ""))
 		if item_id == "":
 			continue
-		# C-247: this read `"Take %s" % item_id`, so the final screen of the mode offered
-		# "Take unique_widow_of_the_stair". `get_slot_display_name` resolves the catalog name and
-		# prefixes the rarity, exactly as the inventory and loadout lists already do.
 		var display_name: String = inventory.get_slot_display_name(slot)
 		var quantity: int = int(slot.get("quantity", 1))
 		if quantity > 1:
@@ -100,14 +119,6 @@ func show_reward_pick() -> void:
 	_confirm_button = MenuShellScript.make_menu_button("Confirm selection", _on_confirm_rewards)
 	_reward_box.add_child(_confirm_button)
 	_refresh_confirm_state()
-
-
-func _on_ready_pressed() -> void:
-	var run := get_tree().get_first_node_in_group("waves_run")
-	if run and run.has_method("try_ready"):
-		run.call("try_ready")
-	if run and run.has_method("start_waves_from_lobby") and WavesRunService.lobby_ready:
-		run.call("start_waves_from_lobby")
 
 
 func _on_pick_reward(item_id: String, btn: Button) -> void:
@@ -141,6 +152,9 @@ func _refresh_confirm_state() -> void:
 func _on_confirm_rewards() -> void:
 	if _confirm_button and _confirm_button.disabled:
 		return
+	if MenuStack and _reward_stack_pushed:
+		_reward_stack_pushed = false
+		MenuStack.pop(self)
 	var run := get_tree().get_first_node_in_group("waves_run")
 	if run and run.has_method("complete_waves_with_rewards"):
 		run.call("complete_waves_with_rewards", _selected_rewards.duplicate())

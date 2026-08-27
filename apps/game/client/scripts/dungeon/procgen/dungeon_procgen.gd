@@ -1,7 +1,6 @@
 class_name DungeonProcgen
 extends RefCounted
 
-## Two-phase dungeon generator: room graph (Phase 1) → geometry + placements (Phase 2).
 
 const RoomGraphGeneratorScript := preload("res://scripts/dungeon/procgen/room_graph_generator.gd")
 const RoomGraphConfigScript := preload("res://scripts/dungeon/procgen/room_graph_config.gd")
@@ -68,7 +67,6 @@ static func generate(
 			"ok": false,
 			"error": str(placements.get("error", "Placement failed")),
 		}
-	# C-215: reject an over-cap floor before the expensive passes rather than after them.
 	if graph.secret_ids.size() > config.max_secrets:
 		return {
 			"ok": false,
@@ -82,23 +80,17 @@ static func generate(
 	var content_config := RoomContentConfigScript.for_floor(
 		floor_index, RunFloorConfig.MAX_FLOORS, run_seed
 	)
-	# C-145: the real dungeon tier, so reward caches and locked vaults scale like the treasure room.
 	var content_result := RoomContentAssignerScript.assign(
 		graph, assignment, content_rng, content_config, biome_id, tier
 	)
 	var content: Dictionary = content_result.get("content", {})
-	# C-144: `used_fallback` was returned and read only by the seed-health tool and the deleted
-	# suites — `RunFlow.current_generation_warnings`, which exists precisely to record degraded
-	# generation, never learned about it, so neither the player nor telemetry could tell a fallback
-	# floor from a clean one. It rides the warnings channel now, alongside any validation failure the
-	# fallback reported.
 	var content_warnings: Array = []
 	if bool(content_result.get("used_fallback", false)):
 		content_warnings.append("content_assignment_fallback")
 	content_warnings.append_array(content_result.get("warnings", []))
 	_annotate_minimap_rooms(rooms, content.get("roomContent", []))
 	var landmarks := _build_landmark_hints(rooms, graph)
-	var run_id := _deterministic_run_id(run_seed, biome_id, floor_index)
+	var run_id := deterministic_run_id(run_seed, biome_id, floor_index)
 	var definition := {
 		"schemaVersion": 2,
 		"runId": run_id,
@@ -139,10 +131,6 @@ static func generate(
 		),
 		"landmarks": landmarks,
 	}
-	# C-215: the secret cap is validated *after* the full definition is assembled — rooms, edges,
-	# placements, content assignment, branch previews and landmarks — so exceeding it throws away
-	# every one of those passes. The graph knows its secret count immediately after assignment, so
-	# the check is made there too; this one stays as the belt-and-braces final assertion.
 	var secret_count := RunFloorConfig.count_secrets(definition)
 	if secret_count > config.max_secrets:
 		return {
@@ -154,15 +142,10 @@ static func generate(
 		"definition": definition,
 		"generation_seed": run_seed,
 		"run_id": run_id,
-		# C-144: degraded generation reaches the run.
 		"warnings": content_warnings,
 	}
 
 
-## C-214: the guard encounter in the final floor's arena. `finalFloor.arenaEnemies` overrides it
-## wholesale where a biome wants a hand-authored fight; otherwise the biome's own weighted pool is
-## drawn against a threat budget, excluding anything reserved as a boss so the final boss cannot
-## appear twice on its own floor.
 const FINAL_ARENA_THREAT_BASE := 90.0
 const FINAL_ARENA_THREAT_PER_TIER := 26.0
 const FINAL_ARENA_ANCHORS: Array[Vector3] = [
@@ -246,7 +229,7 @@ static func _generate_final_floor(
 	var boss_enemy_id := _resolve_final_boss_id(biome, final_floor)
 	var lobby_chests: Array = final_floor.get("lobbyChests", _default_final_lobby_chests())
 	var layout := _build_final_floor_layout(prefix)
-	var run_id := _deterministic_run_id(run_seed, biome_id, floor_index)
+	var run_id := deterministic_run_id(run_seed, biome_id, floor_index)
 	var definition := {
 		"schemaVersion": 2,
 		"runId": run_id,
@@ -258,11 +241,6 @@ static func _generate_final_floor(
 		"edges": layout.get("edges", []),
 		"placements":
 		{
-			# C-214: the final floor of a castle run bypassed the whole generator and hand-built
-			# three rooms in a line — entrance, arena, boss — with `"enemies": []`. So the last
-			# floor before the final boss, the one that should be the run's tightest stretch, was a
-			# walk through an empty arena to two chests. The arena room exists and is 24x24; it was
-			# just never populated.
 			"enemies": _final_floor_arena_enemies(biome, final_floor, run_seed, tier, floor_index),
 			"loot": lobby_chests,
 			"puzzles": [],
@@ -368,13 +346,6 @@ static func _build_final_floor_layout(prefix: String) -> Dictionary:
 
 
 static func deterministic_run_id(run_seed: int, biome_id: String, floor_index: int) -> String:
-	return _deterministic_run_id(run_seed, biome_id, floor_index)
-
-
-static func _deterministic_run_id(run_seed: int, biome_id: String, floor_index: int) -> String:
-	# C-215: a fifth `String.hash()` determinism site (see C-192). The run id is persisted into saves
-	# and telemetry, so a value that is only build-stable means a saved run's identity changes
-	# meaning across an engine upgrade.
 	var mixed := (
 		run_seed
 		^ FloorSeedMix.stable_string_hash(biome_id)

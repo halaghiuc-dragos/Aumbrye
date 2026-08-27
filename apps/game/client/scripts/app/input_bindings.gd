@@ -1,7 +1,6 @@
 extends RefCounted
 class_name InputBindings
 
-## Runtime input rebinding overlay. Defaults come from project.godot; overrides live in LocalSave meta.
 
 const SAVE_KEY := "input_bindings"
 
@@ -37,8 +36,6 @@ const KEYBOARD_ONLY: Array[StringName] = [
 	&"quick_slot_2",
 	&"quick_slot_3",
 	&"quick_slot_4",
-	# Every gamepad button 0–14 is already spoken for, so the stack split is a keyboard action
-	# until a chord or a radial frees one up.
 	&"inventory_split",
 ]
 
@@ -117,33 +114,25 @@ static func get_action_label(action: StringName) -> String:
 	return InputGlyphService.get_action_display_name(str(action))
 
 
-static func get_action_events(action: StringName) -> Array:
-	return _get_action_events(action)
-
-
 static func get_action_binding_text(action: StringName) -> String:
 	var parts: PackedStringArray = []
-	for event in _get_action_events(action):
+	for event in get_action_events(action):
 		parts.append(event.as_text())
 	return ", ".join(parts) if not parts.is_empty() else "(unbound)"
-
-
-static func find_conflict(action: StringName, event: InputEvent) -> StringName:
-	return _find_conflict(action, event)
 
 
 static func swap_binding(action: StringName, conflict: StringName, event: InputEvent) -> Dictionary:
 	if action not in REBINDABLE or conflict not in REBINDABLE:
 		return {"ok": false, "conflict": StringName()}
 	var give_to_conflict: InputEvent = null
-	for existing in _get_action_events(action):
+	for existing in get_action_events(action):
 		if _same_device_family(existing, event):
 			give_to_conflict = existing
 			break
 	if give_to_conflict != null:
 		_replace_matching_device_events(conflict, give_to_conflict.duplicate())
 	else:
-		for existing in _get_action_events(conflict):
+		for existing in get_action_events(conflict):
 			if _same_device_family(existing, event):
 				InputMap.action_erase_event(conflict, existing)
 				break
@@ -157,7 +146,7 @@ static func swap_binding(action: StringName, conflict: StringName, event: InputE
 static func rebind(action: StringName, event: InputEvent) -> Dictionary:
 	if action not in REBINDABLE:
 		return {"ok": false, "conflict": StringName()}
-	var conflict := _find_conflict(action, event)
+	var conflict := find_conflict(action, event)
 	if conflict != &"":
 		return {"ok": false, "conflict": conflict}
 	_replace_matching_device_events(action, event)
@@ -185,14 +174,7 @@ static func reset_all() -> void:
 	save()
 
 
-static func has_gamepad_event(action: StringName) -> bool:
-	for event in _get_action_events(action):
-		if event is InputEventJoypadButton or event is InputEventJoypadMotion:
-			return true
-	return false
-
-
-static func _get_action_events(action: StringName) -> Array:
+static func get_action_events(action: StringName) -> Array:
 	return InputMap.action_get_events(action)
 
 
@@ -200,7 +182,7 @@ static func _serialize_all_overrides() -> Dictionary:
 	var out: Dictionary = {}
 	for action in REBINDABLE:
 		var serialized: Array = []
-		for event in _get_action_events(action):
+		for event in get_action_events(action):
 			var default_events: Array = _defaults.get(action, [])
 			var is_default := false
 			for default_event in default_events:
@@ -216,17 +198,17 @@ static func _serialize_all_overrides() -> Dictionary:
 
 static func _persist_action_override(action: StringName) -> void:
 	var serialized: Array = []
-	for event in _get_action_events(action):
+	for event in get_action_events(action):
 		serialized.append(_serialize_event(event))
 	_saved_bindings[str(action)] = serialized
 
 
-static func _find_conflict(action: StringName, event: InputEvent) -> StringName:
+static func find_conflict(action: StringName, event: InputEvent) -> StringName:
 	var signature := _event_signature(event)
 	for other_action in REBINDABLE:
 		if other_action == action:
 			continue
-		for existing in _get_action_events(other_action):
+		for existing in get_action_events(other_action):
 			if _event_signature(existing) == signature:
 				return other_action
 	return &""
@@ -234,7 +216,7 @@ static func _find_conflict(action: StringName, event: InputEvent) -> StringName:
 
 static func _replace_matching_device_events(action: StringName, event: InputEvent) -> void:
 	var kept: Array = []
-	for existing in _get_action_events(action):
+	for existing in get_action_events(action):
 		if not _same_device_family(existing, event):
 			kept.append(existing)
 	InputMap.action_erase_events(action)

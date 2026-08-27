@@ -1,6 +1,5 @@
 extends Control
 
-## Floor transition menu — ascend, descend, retreat without modifier keys.
 
 const GameUISkinScript := preload("res://scripts/ui/game_ui_skin.gd")
 const MenuShellScript := preload("res://scripts/ui/menu_shell.gd")

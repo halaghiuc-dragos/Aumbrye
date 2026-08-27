@@ -1,8 +1,6 @@
 extends RefCounted
 class_name DescentPactService
 
-## Seeded descent choices offered at the stair lever. The same run seed and floor always offer the
-## same pair, so a shared seed still produces one run.
 
 const PACTS_PATH := "content/progression/descent_pacts.json"
 const FloorSeedMixScript := preload("res://scripts/dungeon/floor_seed_mix.gd")

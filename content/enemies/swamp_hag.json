@@ -34,6 +34,7 @@
     "poison": 0.7,
     "physical": 0.15
   },
+  "weapon_kit": "staff",
   "attacks": [
     {
       "id": "probe",

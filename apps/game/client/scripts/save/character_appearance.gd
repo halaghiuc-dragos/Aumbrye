@@ -1,7 +1,6 @@
 class_name CharacterAppearance
 extends RefCounted
 
-## Warden visual customization — persisted on character save.
 
 const PixelStyle := preload("res://scripts/art/style/pixel_diorama_style.gd")
 const DungeonCatalogScript := preload("res://scripts/dungeon/dungeon_catalog.gd")
@@ -13,14 +12,6 @@ const HEAD_OPEN := "open"
 const HEAD_VISOR := "visor"
 const HEAD_HOOD := "hood"
 
-## One axis, five bodies.
-##
-## Stature and build were two independent five-step sliders — twenty-five rigs to build and animate
-## for a choice the player experiences as "what shape is my warden", and twenty-one of the
-## twenty-five were interpolations nobody would pick deliberately. Five named frames cover the four
-## corners of that grid plus the middle, and each is a silhouette you can tell from the other four
-## across a room. The ids match `PLAYER_FRAMES` in `tools/voxel-import/archetypes.py`, which is what
-## actually builds them.
 const FRAME_SLIGHT := "slight"
 const FRAME_LEAN := "lean"
 const FRAME_STANDARD := "standard"
@@ -36,9 +27,6 @@ const FRAME_VARIANTS := [
 const FRAME_LABELS := ["Slight", "Lean", "Standard", "Stout", "Towering"]
 
 
-## Characters created before the two sliders became one still carry `heightVariant` and
-## `bulkVariant`. Mapped rather than dropped: a player who built a short broad warden gets the short
-## broad frame, not the default.
 static func frame_from_legacy(height_variant: String, bulk_variant: String) -> String:
 	var tall := height_variant in ["tall", "towering"]
 	var short := height_variant in ["slight", "compact"]
@@ -63,15 +51,6 @@ const SKIN_TONE_TAN := "tan"
 const SKIN_TONE_UMBER := "umber"
 const SKIN_TONE_ASHEN := "ashen"
 const SKIN_TONE_RUDDY := "ruddy"
-## Every appearance axis is one ordered table: id, label, and (where it has one) colour.
-##
-## These used to be three separate literals per axis — an id array, a label array and a `match`
-## returning a colour — kept in alignment by hand. That is fine at eight entries and a bug waiting
-## at twenty-five, because the UI selects by *index* into the label array and reads back by index
-## into the id array. One table means an id and its label cannot drift apart.
-##
-## The hair and face id lists are the sculptor's own (`tools/voxel_sculpt.py`), so the game cannot
-## offer a style with no mesh behind it.
 const SKIN_TONE_TABLE: Array = [
 	["pale", "Pale", Color(0.94, 0.82, 0.75)],
 	["porcelain", "Porcelain", Color(0.96, 0.88, 0.83)],
@@ -227,13 +206,6 @@ const FACE_HOLLOW := "hollow"
 static var FACE_STYLES: Array = _ids(FACE_STYLE_TABLE)
 static var FACE_LABELS: Array = _labels(FACE_STYLE_TABLE)
 
-## Hair colour, as an axis of its own.
-##
-## There was none: every warden's hair resolved to one palette slot, so the only thing the seven
-## hair *styles* could vary was silhouette, and two characters in the same biome were identical from
-## the neck up. These are literal RGB, deliberately not palette slots — hair colour is a choice the
-## player makes about their character, not a property of the room they are standing in, and snapping
-## it to the biome palette is exactly what made every warden look the same.
 const HAIR_COLOR_BLACK := "black"
 const HAIR_COLOR_ASH := "ash"
 const HAIR_COLOR_BROWN := "brown"
@@ -249,11 +221,9 @@ const HEAD_LABELS := ["Open face", "Visor helm", "Hooded"]
 
 const TRIM_LABELS := ["Plain", "Trimmed", "Pauldrons"]
 
-## Legacy float presets kept for save migration only.
 const HEIGHT_PRESETS := [0.9, 1.0, 1.1]
 const BULK_PRESETS := [0.88, 1.0, 1.14]
 
-## Legacy float clamps kept for migration validation.
 const HEIGHT_MIN := 0.92
 const HEIGHT_MAX := 1.08
 const BULK_MIN := 0.90
@@ -327,9 +297,6 @@ static func _head_from_index(index: int) -> String:
 			return HEAD_HOOD
 
 
-## The two legacy axes, as the strings the *old* save format used. They are not choices any more —
-## nothing offers them and no constant names them — but a profile written before the change still
-## carries them, and `frame_from_legacy` reads them to decide which frame that character becomes.
 static func height_variant_from_legacy(height: float) -> String:
 	var clamped := clampf(height, HEIGHT_MIN, HEIGHT_MAX)
 	if clamped <= 0.94:
@@ -353,23 +320,6 @@ static func _character_service() -> Node:
 	if tree == null or tree.root == null:
 		return null
 	return tree.root.get_node_or_null("CharacterService")
-
-
-static func available_theme_options() -> Array[Dictionary]:
-	var out: Array[Dictionary] = []
-	var svc := _character_service()
-	for entry in THEME_OPTIONS:
-		var dungeon_id := str(entry.get("dungeonId", ""))
-		if dungeon_id == "":
-			out.append(entry)
-			continue
-		var flag := DungeonCatalogScript.get_clear_flag(dungeon_id)
-		if flag == "":
-			out.append(entry)
-			continue
-		if svc != null and svc.has_method("has_flag") and svc.call("has_flag", flag):
-			out.append(entry)
-	return out
 
 
 static func theme_label(theme: int) -> String:
@@ -426,9 +376,6 @@ static func sanitize(profile: Variant) -> Dictionary:
 	clean["trim"] = clampi(int(input.get("trim", clean["trim"])), 0, TRIM_LABELS.size() - 1)
 	var title := str(input.get("title", ""))
 	clean["title"] = title if AppearanceCatalog.is_title_id(title) else ""
-	# Carried through rather than validated: it is not an appearance choice, it is the class whose
-	# default clothing the rig should wear, and character creation supplies it before the class is
-	# committed anywhere else.
 	var class_id := str(input.get("classId", ""))
 	if class_id != "":
 		clean["classId"] = class_id
@@ -480,16 +427,10 @@ static func describe(profile: Dictionary) -> String:
 	]
 
 
-## Literal hair colour. Multiplied into the hair mesh's own instance tint, so it is the only thing
-## on the model that does not track the biome palette.
 static func hair_color_rgb(hair_color: String) -> Color:
 	return _color_for(HAIR_COLOR_TABLE, hair_color, Color(0.32, 0.21, 0.13))
 
 
-## Literal skin colour for the face plate, rather than the near-white multiplier `skin_tint_vector`
-## returns. That multiplier was applied to the *whole body* and ranged 0.74..1.09, so a tone change
-## moved every surface on the warden by a few percent and none of the eight tones was tellable from
-## any other.
 static func skin_color_rgb(skin_tone: String) -> Color:
 	return _color_for(SKIN_TONE_TABLE, skin_tone, Color(0.80, 0.62, 0.48))
 

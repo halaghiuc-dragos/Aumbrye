@@ -1,6 +1,5 @@
 extends Node3D
 
-## Boss arena door — earned gate with open / seal / release lifecycle.
 
 const DioramaSkin := preload("res://scripts/art/props/diorama_interactable_skin.gd")
 
@@ -31,12 +30,6 @@ func _ready() -> void:
 	_update_label()
 
 
-## Idempotent, and called from `configure()` as well as `_ready()`.
-##
-## DungeonBuilder configures the door on the instantiated scene before it adds it to the tree, so
-## `_ready()` has not run yet and every one of these references was still null — `configure()`
-## then threw on the barrier's `disabled` and the label's `visible` on every dungeon build. The
-## children exist as soon as the scene is instantiated, so they can be resolved on demand.
 func _resolve_nodes() -> void:
 	if _barrier != null:
 		return
@@ -72,10 +65,6 @@ func configure(
 		_state = State.CLOSED
 	_apply_barrier_visual()
 	_update_label()
-
-
-func get_state() -> State:
-	return _state
 
 
 func get_state_name() -> String:
@@ -191,7 +180,7 @@ func _update_label() -> void:
 			_label.text = _locked_prompt()
 			_label.visible = true
 		State.CLOSED:
-			_label.text = "%s Enter the arena" % InputGlyphService.format_interact_label()
+			_label.text = InputGlyphService.format_interact_name("Enter the arena")
 			_label.visible = true
 		State.SEALED:
 			_label.text = "The way back is sealed"

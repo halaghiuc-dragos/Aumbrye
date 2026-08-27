@@ -1,6 +1,5 @@
 extends Area3D
 
-## Collectible crystal for final boss puzzle phase.
 
 const DioramaSkin := preload("res://scripts/art/props/diorama_interactable_skin.gd")
 

@@ -1,14 +1,7 @@
 class_name FloorSeedMix
 extends RefCounted
 
-## SplitMix64-style floor seed mixing with uint64-safe math for GDScript (LPG-05).
 
-
-## C-192: several seeded systems reached for Godot's `String.hash()` / `Variant.hash()` to fold a
-## string into a seed. That is stable within a build but is not a documented cross-version
-## guarantee — which is precisely why this file exists. FNV-1a over the UTF-8 bytes is a defined
-## algorithm that will produce the same number in any engine version, so a seed keeps meaning the
-## same run after an upgrade.
 static func stable_string_hash(text: String) -> int:
 	var hash_value := 0x811C9DC5
 	for byte in text.to_utf8_buffer():
@@ -53,7 +46,6 @@ static func _shr_u64(parts: PackedInt64Array, shift: int) -> PackedInt64Array:
 		var shifted_lo := (lo >> shift) | ((hi & carry_mask) << (32 - shift))
 		var shifted_hi := hi >> shift
 		return PackedInt64Array([shifted_lo & 0xFFFFFFFF, shifted_hi & 0xFFFFFFFF])
-	# A shift of 32 or more moves the high word into the low one and clears the high.
 	var wrapped_lo := hi >> (shift - 32)
 	return PackedInt64Array([wrapped_lo & 0xFFFFFFFF, 0])
 

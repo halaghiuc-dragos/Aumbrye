@@ -1,7 +1,6 @@
 class_name CharacterFloorSnap
 extends RefCounted
 
-## Align CharacterBody3D collision feet and diorama visuals to floor height.
 
 const PROBE_UP_OFFSET := 1.0
 const PROBE_MAX_DROP := 6.0
@@ -66,10 +65,6 @@ static func snap_feet_to_world_y(body: CharacterBody3D, world_floor_y: float) ->
 	body.global_position += Vector3(0.0, delta_y, 0.0)
 
 
-static func snap_feet_to_floor(body: CharacterBody3D, floor_y: float = 0.0) -> void:
-	snap_feet_to_world_y(body, floor_y)
-
-
 static func probe_floor_y(
 	world: World3D,
 	from: Vector3,
@@ -122,13 +117,3 @@ static func align_diorama_visual(body: Node3D, visual: Node3D) -> void:
 static func snap_character(body: CharacterBody3D, visual: Node3D, fallback_y: float = NAN) -> void:
 	snap_to_floor_below(body, fallback_y)
 	align_diorama_visual(body, visual)
-
-
-static func feet_world_y(body: Node3D) -> float:
-	return body.to_global(Vector3(0.0, collision_bottom_local(body), 0.0)).y
-
-
-static func visual_feet_world_y(visual: Node3D) -> float:
-	if visual == null:
-		return NAN
-	return visual.global_position.y

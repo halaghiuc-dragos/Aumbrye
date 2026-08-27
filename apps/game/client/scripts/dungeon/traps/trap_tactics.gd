@@ -1,8 +1,6 @@
 extends RefCounted
 class_name TrapTactics
 
-## Shared trap behaviour: content lookup, hazard advertisement for anyone steering
-## around a live volume, and a damage pass that treats every faction alike.
 
 const HAZARD_GROUP := "trap_volume"
 const ARMED_META := "hazard_armed"
@@ -11,13 +9,6 @@ const RADIUS_META := "hazard_radius"
 static var _definitions: Dictionary = {}
 
 
-## C-88: the content file a trap loads — its damage, status and telegraph — was chosen by
-## snake-casing the *scene node's name*. Rename `SpikeTrap` in the editor and the trap silently
-## falls back to `{}` and runs on its `@export` defaults, with no warning anywhere. Same failure
-## mode as C-17, and worse for being silent.
-##
-## An explicit `trap_id` on the node wins; the name derivation is kept as a fallback so existing
-## scenes keep working, and it now says when it is guessing.
 static func trap_id_for(node: Node) -> String:
 	var explicit := str(node.get("trap_id")) if node.get("trap_id") != null else ""
 	if explicit != "":
@@ -26,10 +17,6 @@ static func trap_id_for(node: Node) -> String:
 	var at := raw.find("@")
 	if at > 0:
 		raw = raw.substr(0, at)
-	# C-131: `content/traps/*.json` already declares `"scene": "res://scenes/traps/<id>.tscn"` for
-	# every trap, so the scene the node was instanced from identifies it exactly. That map is built
-	# from content and consulted before falling back to the name heuristic, which is the last resort
-	# rather than the only route.
 	var from_scene := _id_for_scene_path(node.scene_file_path)
 	if from_scene != "":
 		return from_scene
@@ -48,7 +35,6 @@ static func trap_id_for(node: Node) -> String:
 
 static var _warned_derived: Dictionary = {}
 
-## C-131: scene path -> trap id, built once from `content/traps/`.
 static var _scene_to_id: Dictionary = {}
 static var _scene_map_built := false
 
@@ -79,8 +65,6 @@ static func definition(trap_id: String) -> Dictionary:
 	if _definitions.has(trap_id):
 		return _definitions[trap_id]
 	var data: Dictionary = ContentLoader.load_json("content/traps/%s.json" % trap_id)
-	# C-88: the empty-definition fallback was silent, so a trap running on `@export` defaults was
-	# indistinguishable from one running on authored values.
 	if data.is_empty():
 		push_warning("TrapTactics: no content/traps/%s.json — trap runs on scene defaults" % trap_id)
 	_definitions[trap_id] = data
@@ -102,16 +86,10 @@ static func set_armed(node: Node3D, armed: bool) -> void:
 	node.set_meta(ARMED_META, armed)
 
 
-static func is_armed(node: Node3D) -> bool:
-	return bool(node.get_meta(ARMED_META, false))
-
-
 static func hazard_radius(node: Node3D) -> float:
 	return float(node.get_meta(RADIUS_META, 0.0))
 
 
-## Bodies near enough to be worth arming a trap for. Trigger modes decide whether
-## enemies count, which is what makes a plate baitable and a proximity trap not.
 static func trigger_present(
 	node: Node3D, radius: float, include_player: bool, include_enemies: bool
 ) -> bool:
@@ -134,8 +112,6 @@ static func trigger_present(
 	return false
 
 
-## Applies damage and status build-up to every hurtbox inside `area` that is not
-## part of the trap itself. Returns the number of non-player victims struck.
 static func strike(area: Area3D, source: Node3D, cfg: Dictionary, cooldowns: Dictionary) -> int:
 	if not area.monitoring:
 		return 0
@@ -197,3 +173,22 @@ static func _resolve_controller(hurtbox: Hurtbox) -> StatusController:
 		if found != null:
 			return found
 	return null
+
+
+## A trigger radius wide enough to cover the trap's own hitbox, whatever shape it was authored with.
+## The trap's authored radius wins when it is already the larger of the two.
+static func trigger_radius_for_hitbox(hitbox: Node, authored_radius: float) -> float:
+	if hitbox == null:
+		return authored_radius
+	var shape_node := hitbox.get_node_or_null("CollisionShape3D") as CollisionShape3D
+	if shape_node == null or shape_node.shape == null:
+		return authored_radius
+	var horizontal := 0.0
+	var shape := shape_node.shape
+	if shape is BoxShape3D:
+		horizontal = maxf((shape as BoxShape3D).size.x, (shape as BoxShape3D).size.z) * 0.5
+	elif shape is CapsuleShape3D:
+		horizontal = (shape as CapsuleShape3D).radius
+	elif shape is CylinderShape3D:
+		horizontal = (shape as CylinderShape3D).radius
+	return maxf(authored_radius, horizontal + 0.5)

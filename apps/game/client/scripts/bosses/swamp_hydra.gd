@@ -1,13 +1,9 @@
-extends CastleEnemyBase
+extends "res://scripts/bosses/arena_boss.gd"
 
-## Swamp Hydra boss shell — arena containment, presentation and the cleanse windows the
-## poison phase opens. Phases and move sets live in `content/bosses/swamp_hydra.json`.
 
-signal boss_defeated
 const CLEANSE_SCENE := preload("res://scenes/bosses/swamp_cleanse_zone.tscn")
 const CLEANSE_INTERVAL := 8.0
 
-var _arena_center := Vector3.ZERO
 var _cleanse_zones: Array[Node3D] = []
 var _cleanse_cooldown := 0.0
 var _cleanse_active := false
@@ -27,7 +23,6 @@ func get_lock_aim_point() -> Vector3:
 
 func _ready() -> void:
 	super._ready()
-	_arena_center = global_position
 	_apply_mesh_tint(Color(0.25, 0.4, 0.15, 1.0))
 	scale = Vector3(1.35, 1.1, 1.35)
 	if not boss_phase_entered.is_connected(_on_boss_phase_entered):
@@ -38,7 +33,6 @@ func _physics_process(delta: float) -> void:
 	super._physics_process(delta)
 	if _state == State.DEAD:
 		return
-	_clamp_to_arena()
 	if not _cleanse_active:
 		return
 	_cleanse_cooldown -= delta
@@ -47,10 +41,7 @@ func _physics_process(delta: float) -> void:
 		_spawn_cleanse_window()
 
 
-## The poison phase is only survivable because it keeps opening a clean patch of ground.
 func _on_boss_phase_entered(_index: int, phase: Dictionary) -> void:
-	# C-80: the `phase_changed` relay lives on `CastleEnemyBase` now; this handler keeps only the
-	# behaviour that is actually the hydra's.
 	var wants_cleanse := bool(phase.get("cleanseWindows", false))
 	if wants_cleanse and not _cleanse_active:
 		_cleanse_cooldown = 2.0
@@ -75,7 +66,6 @@ func _spawn_cleanse_window() -> void:
 
 func _on_died() -> void:
 	super._on_died()
-	boss_defeated.emit()
 	_cleanse_active = false
 	for zone in _cleanse_zones:
 		if is_instance_valid(zone):
@@ -83,22 +73,5 @@ func _on_died() -> void:
 	_cleanse_zones.clear()
 
 
-## Re-entering the arena restarts the fight from phase one rather than resuming a
-## partially worn-down boss.
-func apply_state(state: Dictionary) -> void:
-	if not state.get("alive", true):
-		super.apply_state(state)
-		return
+func _on_arena_reset() -> void:
 	_cleanse_active = false
-	if is_dead():
-		respawn_at_rest()
-		return
-	if _health:
-		_health.reset_health()
-	restart_phases()
-	_state = State.PATROL
-
-
-func _clamp_to_arena() -> void:
-	# C-81: bounds come from the boss definition now — see `CastleEnemyBase.clamp_to_arena`.
-	clamp_to_arena(_arena_center)

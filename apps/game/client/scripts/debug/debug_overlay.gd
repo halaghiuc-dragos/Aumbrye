@@ -3,10 +3,6 @@ extends CanvasLayer
 @export var player_path: NodePath
 @export var enemy_path: NodePath
 
-## The training arena is a shipped feature reached from the hub, not a developer-only scene, and
-## this overlay was drawing a wall of engine readouts — player position, camera yaw, i-frame state,
-## FPS — across the top-right of it in every build. It stays available on F1 for development, but a
-## player never sees it unless they ask for it.
 var show_debug := OS.is_debug_build()
 var show_hitboxes := false
 
@@ -22,7 +18,6 @@ var _hit_feedback: Node
 func _ready() -> void:
 	_label = $DebugLabel
 	_apply_overlay_layout()
-	# The scene has the label visible; without this the initial state ignores show_debug entirely.
 	_label.visible = show_debug
 	if player_path:
 		_player = get_node(player_path) as CharacterBody3D

@@ -1,17 +1,6 @@
 class_name DioramaAnimLibrary
 extends RefCounted
 
-## Authored keyframe tables for voxel characters, compiled into AnimationLibrary
-## resources at runtime.
-##
-## Clips are stored as offsets from each part's rest pose, not absolute transforms,
-## because the rigs are built procedurally and every profile has different limb
-## positions. Compiling per rig lets one clip table drive the player, a hound, and
-## a brute without re-authoring anything.
-##
-## Key format: [time, x, y, z]. "rot" is euler radians on the part's pivot, "pos"
-## is a metre offset. Attack clips use normalised time (0..1) and are stretched to
-## the weapon's real startup/active/recovery timings when compiled.
 
 const HITBOX_ON := &"anim_hitbox_on"
 const HITBOX_OFF := &"anim_hitbox_off"
@@ -20,7 +9,6 @@ const FOOTSTEP := &"anim_footstep"
 const HEAL_GULP := &"anim_heal_gulp"
 const HEAL_COMMIT := &"anim_heal_commit"
 
-## Authored libraries exported via scripts/tools/export_diorama_anim_libraries.gd
 const AUTHORED_LIBRARY_PATHS := {
 	"player": "res://assets/animations/diorama/player_locomotion.res",
 	"melee": "res://assets/animations/diorama/melee_locomotion.res",
@@ -33,9 +21,10 @@ const AUTHORED_LIBRARY_PATHS := {
 const POSE_MARKER := &"__pose__"
 const DIGESTS_PATH := "res://assets/animations/diorama/digests.json"
 
+const ATTACK_CACHE_LIMIT := 192
+
 static var _attack_cache: Dictionary = {}
 
-## Locomotion, reaction, and guard clips. Times are in seconds.
 const CLIPS := {
 	&"idle":
 	{
@@ -66,17 +55,6 @@ const CLIPS := {
 	&"walk":
 	{
 		"length": 0.8,
-		# 1.6 m per 0.8 s cycle = 2.0 m/s at speed_scale 1.0.
-		#
-		# This was 3.6 m — 4.5 m/s, which is a sprint, not a walk. `_locomotion_speed_scale`
-		# divides real travel by this, so every character that walked came out well under 1.0 and
-		# was clamped up to the 0.5 floor: a ranged enemy approaching at 0.9 m/s asked for 0.20 and
-		# got 0.5, cycling its legs two and a half times faster than the ground it covered. That is
-		# foot-skating, and it was reported on every spawn as a clamp warning.
-		#
-		# 2.0 m/s is the geometric centre of the band `walk` is actually used over: enemies switch
-		# to `run` at 0.85 x move_speed and their move speeds run 2.2 to 5.5, so walk covers roughly
-		# 0.9 to 4.7 m/s, and sqrt(0.9 x 4.7) is 2.06.
 		"stride_m": 1.6,
 		"loop": true,
 		"tracks":
@@ -105,7 +83,6 @@ const CLIPS := {
 			{"rot": [[0.0, -0.4, 0.0, 0.06], [0.4, 0.38, 0.0, 0.06], [0.8, -0.4, 0.0, 0.06]]},
 			"ArmR":
 			{"rot": [[0.0, 0.38, 0.0, -0.06], [0.4, -0.4, 0.0, -0.06], [0.8, 0.38, 0.0, -0.06]]},
-			# Quadruped-only pivots; skipped on rigs that do not have them.
 			"LegBL":
 			{"rot": [[0.0, -0.45, 0.0, 0.0], [0.4, 0.55, 0.0, 0.0], [0.8, -0.45, 0.0, 0.0]]},
 			"LegBR":
@@ -117,9 +94,6 @@ const CLIPS := {
 	&"run":
 	{
 		"length": 0.56,
-		# 2.35 m per 0.56 s cycle = 4.2 m/s at speed_scale 1.0, sitting in the upper half of the
-		# 1.9-5.5 m/s band enemies and a sprinting player use this clip over. Was 3.92 m — 7.0 m/s,
-		# which nothing in the game ever reaches, so `run` skated exactly as `walk` did.
 		"stride_m": 2.35,
 		"loop": true,
 		"tracks":
@@ -1073,7 +1047,6 @@ const CLIPS := {
 	},
 }
 
-## Additive upper-body clips layered on top of locomotion.
 const ADDITIVE_CLIPS := {
 	&"breathe":
 	{
@@ -1114,9 +1087,6 @@ const ADDITIVE_CLIPS := {
 	},
 }
 
-## Attack clips in normalised time. "startup_end" / "active_end" mark where the
-## real weapon phases must land; compile_attack() stretches each segment to match
-## the JSON timings so the strike frame and the hitbox always agree.
 const ATTACKS := {
 	&"attack_light_1":
 	{
@@ -1156,10 +1126,8 @@ const ATTACKS := {
 			},
 			"ArmR":
 			{
-				## Attack clips in normalised time. "startup_end" / "active_end" mark where the
 				"rot":
 				[
-					## real weapon phases must land; compile_attack() stretches each segment to match
 					[0.0, 0.0, 0.0, -0.05],
 					[0.34, -1.5, -0.35, -0.85],
 					[0.5, 0.55, 0.5, 0.5],
@@ -1169,7 +1137,6 @@ const ATTACKS := {
 			},
 			"ArmL":
 			{
-				## the JSON timings so the strike frame and the hitbox always agree.
 				"rot":
 				[
 					[0.0, 0.0, 0.0, 0.05],
@@ -1858,7 +1825,6 @@ const ATTACKS := {
 	},
 }
 
-## Which attack clip an enemy or weapon archetype swings.
 const PROFILE_ATTACKS := {
 	"player": [&"attack_light_1", &"attack_light_2", &"attack_light_3"],
 	"melee": [&"attack_light_1", &"attack_light_2"],
@@ -1899,13 +1865,6 @@ static func heavy_clip_for(weapon_archetype: String) -> StringName:
 			return &"attack_heavy"
 
 
-## Compiles every locomotion/reaction clip that the given rig can actually play.
-## rest_pose maps part name -> {"position": Vector3, "rotation": Vector3}.
-## Prefers authored .res libraries when profile matches and file exists.
-static func can_use_authored_library(rest_pose: Dictionary, profile: String) -> bool:
-	return _can_use_authored_library(rest_pose, profile)
-
-
 static func build_additive_library(rest_pose: Dictionary) -> AnimationLibrary:
 	var library := AnimationLibrary.new()
 	for clip_name in ADDITIVE_CLIPS:
@@ -1916,8 +1875,6 @@ static func build_additive_library(rest_pose: Dictionary) -> AnimationLibrary:
 
 
 static func _compile_additive(spec: Dictionary, rest_pose: Dictionary) -> Animation:
-	# Godot 4.7 removed per-track blend modes; additive clips run on a second
-	# AnimationPlayer that only keys Torso/Head so they layer without fighting legs.
 	return _compile(spec, rest_pose, "", 1.0)
 
 
@@ -1961,26 +1918,12 @@ static func clip_meta(clip: StringName) -> Dictionary:
 	}
 
 
-## C-171: this returned `&"jog"` for 2.4–5.0 m/s and **no `jog` clip exists** in `CLIPS`. The
-## controller wrapper caught it (`if clip == &"jog" and not has_clip(&"jog"): clip = &"walk"`), so
-## the fallback was graceful — but the whole path was dead anyway: nothing outside that wrapper
-## calls this. `PlayerAnimDirector` picks run vs walk from the sprint flag and `CastleEnemyBase`
-## compares speed against `_move_speed * 0.85` directly.
-##
-## The tier is dropped rather than the function: a speed-tiered selector is worth having, and
-## naming a clip that does not exist is what made it a trap. If a `jog` clip is ever authored, add
-## it to `CLIPS` and reinstate the band here — the callers above are the ones that would need to
-## start using this.
 static func select_locomotion_clip(speed: float) -> StringName:
 	if speed < 0.15:
 		return &"idle"
 	if speed < 2.4:
 		return &"walk"
 	return &"run"
-
-
-static func clear_attack_cache() -> void:
-	_attack_cache.clear()
 
 
 static func library_digest(library: AnimationLibrary) -> String:
@@ -2023,9 +1966,7 @@ static func compile_authored_library(rest_pose: Dictionary, events_path: String,
 	return library
 
 
-static func _can_use_authored_library(rest_pose: Dictionary, profile: String) -> bool:
-	# Authored locomotion clips target a full Root/Torso rig. Viewmodel and other
-	# partial rigs must compile so tracks are remapped to the pivots that exist.
+static func can_use_authored_library(rest_pose: Dictionary, profile: String) -> bool:
 	if not rest_pose.has("Root"):
 		return false
 	var authored_path: String = AUTHORED_LIBRARY_PATHS.get(profile, "")
@@ -2043,7 +1984,7 @@ static func build_library(
 	profile: String = "player",
 	force_compile: bool = false
 ) -> AnimationLibrary:
-	if not force_compile and _can_use_authored_library(rest_pose, profile):
+	if not force_compile and can_use_authored_library(rest_pose, profile):
 		var authored_path: String = AUTHORED_LIBRARY_PATHS.get(profile, "")
 		var loaded := ResourceLoader.load(authored_path) as AnimationLibrary
 		if loaded != null:
@@ -2055,44 +1996,8 @@ static func build_library(
 static func _supplement_authored_library(
 	library: AnimationLibrary, rest_pose: Dictionary, events_path: String
 ) -> void:
-	# C-172: this list is the staleness guard — clips a stale `.res` export might lack, recompiled
-	# from `CLIPS` at load. It named 17 and omitted `stagger_f/b/l/r` and `dash_f/b/l/r`, although
-	# all eight are in `CLIPS` and `compile_authored_library()` exports everything in it. Latent
-	# rather than live, and it becomes live the moment a directional clip changes without re-running
-	# the exporter — at which point `_stagger_clip_for()` silently falls back to the generic
-	# `stagger` and `play_dash()` to `dash_f`, which is exactly the degradation C-58 and C-59
-	# describe from a different cause.
-	var supplemental: Array[StringName] = [
-		&"stagger_f",
-		&"stagger_b",
-		&"stagger_l",
-		&"stagger_r",
-		&"dash_f",
-		&"dash_b",
-		&"dash_l",
-		&"dash_r",
-		&"walk_b",
-		&"walk_l",
-		&"walk_r",
-		&"run_b",
-		&"run_l",
-		&"run_r",
-		&"turn_l",
-		&"turn_r",
-		&"block_walk",
-		&"flinch_f",
-		&"flinch_l",
-		&"flinch_r",
-		&"flinch_b",
-		&"air_rise",
-		&"air_fall",
-		&"land_hard",
-		&"heal",
-	]
-	for clip_name in supplemental:
+	for clip_name in CLIPS:
 		if library.has_animation(clip_name):
-			continue
-		if not CLIPS.has(clip_name):
 			continue
 		var anim := _compile(CLIPS[clip_name], rest_pose, events_path, 1.0)
 		if anim:
@@ -2110,7 +2015,6 @@ static func _supplement_authored_library(
 				library.add_animation(clip_name, anim)
 
 
-## Builds one attack clip stretched so its phase boundaries match the weapon data.
 static func build_attack(
 	clip_name: StringName,
 	rest_pose: Dictionary,
@@ -2142,6 +2046,8 @@ static func build_attack(
 	}
 	var anim := _compile(spec_copy, rest_pose, events_path, 1.0, phase_map)
 	if anim != null:
+		while _attack_cache.size() >= ATTACK_CACHE_LIMIT:
+			_attack_cache.erase(_attack_cache.keys()[0])
 		_attack_cache[cache_key] = anim
 	return anim
 
@@ -2231,7 +2137,6 @@ static func _add_vector_track(
 		anim.track_insert_key(track, time, rest_value + offset)
 
 
-## Piecewise-linear stretch of a normalised attack timeline onto real phase times.
 static func _remap_time(normalised: float, phase_map: Dictionary) -> float:
 	if phase_map.is_empty():
 		return normalised

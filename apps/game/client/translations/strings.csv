@@ -630,7 +630,6 @@ RESULTS_REPORT_TITLE,Run Report,Raportul trecerii
 EPILOGUE_TITLE,The Oath Fulfilled,Jurământul împlinit
 EPILOGUE_HINT,Enter to continue,Enter pentru a continua
 WAVES_WAVE_ACTIVE,Wave {wave} — clear all enemies.,Valul {wave} — curăță toți dușmanii.
-WAVES_MILESTONE_CLEARED,Milestone wave {wave} cleared! Walls rebuild — prep {seconds}s.,Valul de referință {wave} a fost curățat! Zidurile se refac — pregătire {seconds}s.
 WAVES_VICTORY_PICK,Victory! Choose up to 3 items to keep:,Victorie! Alege până la 3 obiecte de păstrat:
 WAVES_PICK_AT_LEAST_ONE,Pick at least one reward,Alege cel puțin o recompensă
 ENDLESS_CONTINUE,Continue endless run (floor {floor}). {record},Continuă trecerea fără sfârșit (etajul {floor}). {record}

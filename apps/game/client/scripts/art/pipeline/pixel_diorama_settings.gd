@@ -1,14 +1,11 @@
 extends RefCounted
 class_name PixelDioramaSettings
 
-## User-configurable pixel-diorama visual settings (persisted in LocalSave meta).
-##
-## Single source of truth for every tunable that shapes the pixel look: internal
-## render resolution, surface shader uniforms, shading bands, and the screen-space
-## finish pass. Art modules read from here rather than defining their own defaults.
+const DebouncedSaveScript := preload("res://scripts/app/debounced_save.gd")
+
 
 const SAVE_KEY := "pixel_diorama"
-const SETTINGS_VERSION := 1
+const SETTINGS_VERSION := 2
 const SAVE_DEBOUNCE_SEC := 0.35
 
 const SURFACE_SHADER_SUFFIX := "pixel_diorama_surface.gdshader"
@@ -27,6 +24,10 @@ const DEFAULT_SHADE_BANDS := 4.0
 const DEFAULT_SHADE_DITHER := 0.55
 const DEFAULT_LIGHT_WRAP := 0.16
 const DEFAULT_AMBIENT_OCCLUSION := true
+const DEFAULT_REFLECTIONS := true
+const DEFAULT_CINEMATIC_FINISH := 1.0
+const DEFAULT_BOUNCE_LIGHT := false
+const DEFAULT_SOFT_SHADOWS := true
 const DEFAULT_RIM_STRENGTH := 0.08
 const DEFAULT_LINEAR_TONEMAP := true
 const DEFAULT_GLOW_ENABLED := true
@@ -34,40 +35,15 @@ const DEFAULT_NEAREST_TEXTURE_FILTER := true
 const DEFAULT_ANTI_ALIASING_OFF := false
 const DEFAULT_LOW_RES_VIEWPORT := true
 
-## Screen-space contour pass. See `assets/shared/pixel_outline.gdshader` — `edge_strength` above is
-## a texture-space cell border, not a silhouette, so until this existed nothing in the game had an
-## outline and forms dissolved into backgrounds of similar value.
 const OUTLINE_SHADER_PATH := "res://assets/shared/pixel_outline.gdshader"
 const DEFAULT_OUTLINE_ENABLED := true
 const DEFAULT_OUTLINE_STRENGTH := 0.85
-## Whole rendered pixels, so the contour lands on the pixel grid instead of smearing across it.
 const DEFAULT_OUTLINE_THICKNESS := 1.0
 const DEFAULT_OUTLINE_COLOR := Color(0.03, 0.025, 0.05)
 const DEFAULT_OUTLINE_INTERIOR := 0.45
 const DEFAULT_VIEWPORT_WIDTH := 1920
 const DEFAULT_VIEWPORT_HEIGHT := 1080
-const DEFAULT_CAMERA_SNAP := true
-## Off by default: the gameplay camera snap destabilises the camera it is applied to.
-##
-## It quantises the *camera node's* transform to the pixel grid to stop surface patterns crawling.
-## The trouble is that its output lands in the camera's local transform, and nothing rewrites that
-## local in full each frame — `_apply_shoulder_offset` sets `position.x`, the spring arm sets z, and
-## y and the basis keep whatever the snap left. Every attempt to undo the previous frame's
-## correction fights one of the other writers, because they interleave differently depending on
-## whether a physics tick landed between two process frames.
-##
-## Measured on a walking player, as the worst deviation from the camera's mean offset to it:
-## snap on 2.58 m, snap off 0.29 m. On screen that is the camera jumping the length of its own
-## spring arm several times a second.
-##
-## The rendered image is still pixel-stable: `PixelDioramaViewport._mirrored_transform()` snaps a
-## *mirror* of this camera, writing to a different node than it reads, so it has no feedback path.
-## That is the one that matters for how the game looks. This one is a second, redundant snap on the
-## live camera, and turning it off costs a small amount of surface-pattern crawl and buys a camera
-## that holds still.
-##
-## The setting is kept rather than the code deleted: the crawl it was meant to fix is real, and a
-## correct implementation would write to a node nothing else touches.
+const DEFAULT_CAMERA_SNAP := false
 const DEFAULT_GAMEPLAY_CAMERA_SNAP := false
 const DEFAULT_SCREEN_FINISH := true
 const DEFAULT_CONTRAST := 1.08
@@ -89,16 +65,6 @@ const DEFAULT_PULSE_TINT := Color(0.62, 0.08, 0.08)
 
 const QUALITY_LABELS: Array[String] = ["Low", "Medium", "High"]
 
-## Internal render resolutions offered in Settings. All are 16:9 so the
-## nearest-neighbour upscale stays square-pixel at common window sizes.
-## The render resolution is fixed at Full HD and is no longer a setting — the chunky 320x180 and
-## 480x270 options are gone along with the row that offered them. Everything the player can still
-## reach (pixel scale, colour levels, pattern strength) sits under Display > Advanced Pixel Options
-## and tunes how the image is stylised, not what it is rendered at.
-##
-## Kept as a one-entry list rather than dissolved into loose constants because `_preset_for_size`
-## and `is_native_hd_preset` are the pipeline's way of asking "is this a native-resolution pass",
-## and the viewport uses that answer in three places.
 const RESOLUTION_PRESETS: Array = [
 	{
 		"label": "1920 x 1080 (Full HD)",
@@ -129,6 +95,10 @@ static var rim_strength: float = DEFAULT_RIM_STRENGTH
 static var linear_tonemap: bool = DEFAULT_LINEAR_TONEMAP
 static var glow_enabled: bool = DEFAULT_GLOW_ENABLED
 static var ambient_occlusion_enabled: bool = DEFAULT_AMBIENT_OCCLUSION
+static var reflections_enabled: bool = DEFAULT_REFLECTIONS
+static var cinematic_finish_amount: float = DEFAULT_CINEMATIC_FINISH
+static var bounce_light_enabled: bool = DEFAULT_BOUNCE_LIGHT
+static var soft_shadows_enabled: bool = DEFAULT_SOFT_SHADOWS
 static var nearest_texture_filter: bool = DEFAULT_NEAREST_TEXTURE_FILTER
 static var anti_aliasing_off: bool = DEFAULT_ANTI_ALIASING_OFF
 static var low_res_viewport_enabled: bool = DEFAULT_LOW_RES_VIEWPORT
@@ -163,17 +133,12 @@ static var debug_flat_materials: bool = false
 
 static var _debug_flat_cached: bool = false
 
-## Height the SubViewport actually renders at, which is the requested preset
-## rounded to an integer divisor of the window. Set by PixelDioramaViewport.
 static var active_render_height: int = DEFAULT_VIEWPORT_HEIGHT
 
-## Last source-camera fov mirrored by PixelDioramaViewport / orbit camera snap.
-## Runtime-only; not persisted. Used by PixelCameraSnap.rotation_step_radians().
 static var snap_fov_hint: float = 75.0
 
 static var _tracked: Array[WeakRef] = []
 static var _biome_grade_override: Dictionary = {}
-static var _save_timer: SceneTreeTimer = null
 
 
 static func load_from_save() -> void:
@@ -192,6 +157,12 @@ static func load_from_save() -> void:
 	rim_strength = float(data.get("rim_strength", DEFAULT_RIM_STRENGTH))
 	linear_tonemap = bool(data.get("linear_tonemap", DEFAULT_LINEAR_TONEMAP))
 	glow_enabled = bool(data.get("glow_enabled", DEFAULT_GLOW_ENABLED))
+	reflections_enabled = bool(data.get("reflections_enabled", DEFAULT_REFLECTIONS))
+	cinematic_finish_amount = float(
+		data.get("cinematic_finish_amount", DEFAULT_CINEMATIC_FINISH)
+	)
+	bounce_light_enabled = bool(data.get("bounce_light_enabled", DEFAULT_BOUNCE_LIGHT))
+	soft_shadows_enabled = bool(data.get("soft_shadows_enabled", DEFAULT_SOFT_SHADOWS))
 	ambient_occlusion_enabled = bool(
 		data.get("ambient_occlusion_enabled", DEFAULT_AMBIENT_OCCLUSION)
 	)
@@ -205,9 +176,6 @@ static func load_from_save() -> void:
 	outline_thickness = float(data.get("outline_thickness", DEFAULT_OUTLINE_THICKNESS))
 	outline_color = _color_from_save(data.get("outline_color", null), DEFAULT_OUTLINE_COLOR)
 	outline_interior = float(data.get("outline_interior", DEFAULT_OUTLINE_INTERIOR))
-	# Not read back from the save. Any profile written while the chunky presets existed still has
-	# `viewport_width: 480` in it, and honouring that would leave those players on a resolution the
-	# settings page no longer offers a way out of.
 	viewport_width = DEFAULT_VIEWPORT_WIDTH
 	viewport_height = DEFAULT_VIEWPORT_HEIGHT
 	camera_snap_enabled = bool(data.get("camera_snap_enabled", DEFAULT_CAMERA_SNAP))
@@ -255,6 +223,10 @@ static func save() -> void:
 		"rim_strength": rim_strength,
 		"linear_tonemap": linear_tonemap,
 		"glow_enabled": glow_enabled,
+		"reflections_enabled": reflections_enabled,
+		"cinematic_finish_amount": cinematic_finish_amount,
+		"bounce_light_enabled": bounce_light_enabled,
+		"soft_shadows_enabled": soft_shadows_enabled,
 		"ambient_occlusion_enabled": ambient_occlusion_enabled,
 		"nearest_texture_filter": nearest_texture_filter,
 		"anti_aliasing_off": anti_aliasing_off,
@@ -311,15 +283,7 @@ static func apply_live() -> void:
 
 
 static func request_save() -> void:
-	var tree := Engine.get_main_loop() as SceneTree
-	if tree == null:
-		save()
-		return
-	if _save_timer != null and is_instance_valid(_save_timer):
-		_save_timer.time_left = SAVE_DEBOUNCE_SEC
-		return
-	_save_timer = tree.create_timer(SAVE_DEBOUNCE_SEC)
-	_save_timer.timeout.connect(_on_save_debounce_timeout, CONNECT_ONE_SHOT)
+	DebouncedSaveScript.request(&"diorama_settings", SAVE_DEBOUNCE_SEC, _on_save_debounce_timeout)
 
 
 static func apply_all() -> void:
@@ -398,16 +362,10 @@ static func _graded_color(key: String, fallback: Color) -> Color:
 	return fallback
 
 
-static func clear_biome_screen_grade() -> void:
-	_biome_grade_override = {}
-	_notify_viewport()
-
-
 static func mark_tuning_user_edited() -> void:
 	tuning_is_preset_default = false
 
 
-## Restores the tuned "crisp diorama" look, discarding user experimentation.
 static func apply_beauty_defaults() -> void:
 	pixel_scale = DEFAULT_PIXEL_SCALE
 	color_levels = DEFAULT_COLOR_LEVELS
@@ -420,6 +378,10 @@ static func apply_beauty_defaults() -> void:
 	rim_strength = DEFAULT_RIM_STRENGTH
 	linear_tonemap = DEFAULT_LINEAR_TONEMAP
 	glow_enabled = DEFAULT_GLOW_ENABLED
+	reflections_enabled = DEFAULT_REFLECTIONS
+	cinematic_finish_amount = DEFAULT_CINEMATIC_FINISH
+	bounce_light_enabled = DEFAULT_BOUNCE_LIGHT
+	soft_shadows_enabled = DEFAULT_SOFT_SHADOWS
 	ambient_occlusion_enabled = DEFAULT_AMBIENT_OCCLUSION
 	nearest_texture_filter = DEFAULT_NEAREST_TEXTURE_FILTER
 	anti_aliasing_off = DEFAULT_ANTI_ALIASING_OFF
@@ -472,18 +434,6 @@ static func viewport_internal_size() -> Vector2i:
 	return Vector2i(maxi(160, viewport_width), maxi(90, viewport_height))
 
 
-static func set_resolution_preset(index: int) -> void:
-	if index < 0 or index >= RESOLUTION_PRESETS.size():
-		return
-	var preset: Dictionary = RESOLUTION_PRESETS[index]
-	viewport_width = int(preset.get("width", DEFAULT_VIEWPORT_WIDTH))
-	viewport_height = int(preset.get("height", DEFAULT_VIEWPORT_HEIGHT))
-	var tuning: Variant = preset.get("tuning", {})
-	if tuning is Dictionary and not (tuning as Dictionary).is_empty():
-		_apply_preset_tuning(tuning as Dictionary)
-		tuning_is_preset_default = true
-
-
 static func is_native_hd_preset() -> bool:
 	var preset := _preset_for_size(viewport_width, viewport_height)
 	return not preset.is_empty() and bool(preset.get("native", false))
@@ -516,23 +466,12 @@ static func _migrate_settings(data: Dictionary, from_version: int) -> Dictionary
 	var migrated := data.duplicate(true)
 	if from_version <= 0:
 		migrated["tuning_is_preset_default"] = true
+	if from_version <= 1:
+		migrated.erase("camera_snap_enabled")
 	migrated["version"] = SETTINGS_VERSION
 	return migrated
 
 
-static func current_resolution_preset() -> int:
-	for i in RESOLUTION_PRESETS.size():
-		var preset: Dictionary = RESOLUTION_PRESETS[i]
-		if (
-			int(preset.get("width", 0)) == viewport_width
-			and int(preset.get("height", 0)) == viewport_height
-		):
-			return i
-	return -1
-
-
-## World-space height of one rendered pixel at the given focus distance. Snapping
-## the render camera to this grid stops surface patterns from crawling as it moves.
 static func camera_snap_step(fov_degrees: float = 75.0, focus_distance: float = 5.0) -> float:
 	var half_extent := tan(deg_to_rad(clampf(fov_degrees, 10.0, 170.0)) * 0.5)
 	var height := float(maxi(90, active_render_height))
@@ -566,17 +505,23 @@ static func configure_environment(environment: Environment) -> void:
 		environment.tonemap_white = 1.0
 	environment.glow_enabled = glow_enabled
 	if glow_enabled:
-		# Keep bloom tight so it haloes emissives instead of softening silhouettes.
-		environment.glow_intensity = 0.55
-		environment.glow_bloom = 0.05
-		environment.glow_hdr_threshold = 1.0
+		environment.glow_intensity = 0.62
+		environment.glow_bloom = 0.08
+		environment.glow_strength = 1.0
+		environment.glow_hdr_threshold = 0.82
+		environment.glow_hdr_scale = 2.0
 		environment.glow_blend_mode = Environment.GLOW_BLEND_MODE_ADDITIVE
+		environment.set_glow_level(1, 0.9)
+		environment.set_glow_level(2, 0.7)
+		environment.set_glow_level(3, 0.4)
+		environment.set_glow_level(4, 0.15)
+		environment.set_glow_level(5, 0.12)
+		environment.set_glow_level(6, 0.1)
 	_configure_occlusion(environment)
+	_configure_reflections(environment)
+	_configure_bounce_light(environment)
 
 
-## Short-radius SSAO. In a diorama the single most important cue is where an
-## object touches the ground, and flat banded lighting gives none of it. The
-## radius is kept small so it reads as a contact shadow, not a dirt wash.
 static func _configure_occlusion(environment: Environment) -> void:
 	if not ambient_occlusion_enabled:
 		environment.ssao_enabled = false
@@ -588,22 +533,30 @@ static func _configure_occlusion(environment: Environment) -> void:
 	environment.ssao_detail = 0.0
 	environment.ssao_horizon = 0.16
 	environment.ssao_sharpness = 1.0
-	# Occlusion has to bite into direct light, not only ambient.
-	#
-	# Godot's SSAO darkens the ambient term by default, which was fine when interiors ran an ambient
-	# energy of 0.78 — but that flat fill was exactly what stopped torches casting any pool at all,
-	# so it is now down around 0.2 and there is almost nothing left for AO to darken. A character
-	# stood on a lit floor with no shading at the feet and read as pasted on top of it rather than
-	# standing in the room. Letting AO take a third of the direct light back restores the contact.
 	environment.ssao_light_affect = 0.35
 	environment.ssao_ao_channel_affect = 0.0
 
 
-## Directional shadows tuned for chunky low-poly geometry at low resolution:
-## a short range keeps texel density high so shadow edges stay blocky, not noisy.
-## Large flat box tops sit near-parallel to the sun and acne badly on the depth
-## test alone, so normal bias does the real work here and depth bias stays low
-## enough that contact points don't visibly detach.
+static func _configure_reflections(environment: Environment) -> void:
+	environment.ssr_enabled = reflections_enabled
+	if not reflections_enabled:
+		return
+	environment.ssr_max_steps = 32
+	environment.ssr_fade_in = 0.2
+	environment.ssr_fade_out = 6.0
+	environment.ssr_depth_tolerance = 0.4
+
+
+static func _configure_bounce_light(environment: Environment) -> void:
+	environment.ssil_enabled = bounce_light_enabled
+	if not bounce_light_enabled:
+		return
+	environment.ssil_radius = 2.4
+	environment.ssil_intensity = 0.7
+	environment.ssil_sharpness = 0.98
+	environment.ssil_normal_rejection = 1.0
+
+
 static func configure_directional_shadow(
 	light: DirectionalLight3D, enable_shadows: bool = true
 ) -> void:
@@ -616,19 +569,15 @@ static func configure_directional_shadow(
 	light.directional_shadow_mode = DirectionalLight3D.SHADOW_ORTHOGONAL
 	match clampi(shadow_quality, 0, 2):
 		2:
-			light.directional_shadow_max_distance = 32.0
+			light.directional_shadow_max_distance = 46.0
 			light.shadow_bias = 0.008
 			light.shadow_normal_bias = 0.18
 		_:
-			light.directional_shadow_max_distance = 24.0
+			light.directional_shadow_max_distance = 34.0
 			light.shadow_bias = 0.01
 			light.shadow_normal_bias = 0.2
-	# Not fully opaque. At 1.0 a shadow is a hole punched to black regardless of the ambient and
-	# fill lights the profile sets up, which under a strong sun turns every cast shadow into a flat
-	# silhouette and loses the shape of whatever is standing in it. Letting a little of the fill
-	# through keeps shadows coloured by the scene — and now that the colour quantizer preserves hue
-	# rather than collapsing dark tints to a primary, that tint actually survives to the screen.
-	# The indoor omni path has used 0.85 for the same reason.
+	light.light_angular_distance = 1.6 if soft_shadows_enabled else 0.0
+	light.shadow_blur = 1.0 if soft_shadows_enabled else 0.6
 	light.shadow_opacity = 0.86
 
 
@@ -669,12 +618,6 @@ static func _set_shader_param_unless_authored(
 	if authored.has(param):
 		return
 	mat.set_shader_parameter(param, value)
-
-
-static func apply_to_standard_material(mat: StandardMaterial3D) -> void:
-	if mat == null:
-		return
-	mat.texture_filter = texture_filter_mode()
 
 
 static func make_outline_material() -> ShaderMaterial:
@@ -726,6 +669,14 @@ static func apply_to_screen_finish(mat: ShaderMaterial) -> void:
 	mat.set_shader_parameter("damage_pulse", 0.0)
 	mat.set_shader_parameter("pulse_tint", pulse_tint)
 	mat.set_shader_parameter("posterize_levels", _graded_float("posterize_levels", posterize_levels))
+	mat.set_shader_parameter(
+		"source_texel",
+		Vector2(1.0 / float(maxi(1, viewport_width)), 1.0 / float(maxi(1, active_render_height)))
+	)
+	mat.set_shader_parameter("filmic_amount", cinematic_finish_amount)
+	mat.set_shader_parameter("halation_strength", 0.22 * cinematic_finish_amount)
+	mat.set_shader_parameter("aberration_strength", 1.1 * cinematic_finish_amount)
+	mat.set_shader_parameter("grain_strength", 0.022 * cinematic_finish_amount)
 
 
 static func apply_to_scene(root: Node) -> void:
@@ -747,7 +698,6 @@ static func _apply_world_environments(root: Node) -> void:
 		if env_node.environment:
 			configure_environment(env_node.environment)
 	if root is DirectionalLight3D:
-		# Only retune lights that already cast; fill lights must stay shadowless.
 		var dir_light := root as DirectionalLight3D
 		if dir_light.shadow_enabled:
 			configure_directional_shadow(dir_light)
@@ -783,7 +733,6 @@ static func _notify_viewport() -> void:
 
 
 static func _on_save_debounce_timeout() -> void:
-	_save_timer = null
 	save()
 
 

@@ -1,6 +1,5 @@
 extends Node
 
-## Quest progress tracking — optional, never blocks portals (QUEST-4.1).
 
 signal quest_updated(quest_id: String, state: String)
 
@@ -30,8 +29,6 @@ const QUEST_TYPES: Array[String] = [
 
 const RunLifecycleScript := preload("res://scripts/app/run_lifecycle.gd")
 
-## Active quest ids indexed by trigger type, rebuilt only when quest state actually changes
-## (accept/complete/save load) rather than scanned per trigger.
 var _active_by_type: Dictionary = {}
 var _index_built := false
 
@@ -155,10 +152,6 @@ func get_bounty_tokens() -> int:
 	return BountyService.get_tokens()
 
 
-func get_active_bounties() -> Array[Dictionary]:
-	return BountyService.get_active_definitions()
-
-
 func get_available_quests() -> Array[Dictionary]:
 	var result: Array[Dictionary] = []
 	for quest_id in QuestCatalog.get_all_ids():
@@ -267,7 +260,6 @@ func register_run_outcome(outcome: String, _context: Dictionary = {}) -> void:
 	_check_reach_depth_quests(results)
 
 
-## Summary of the run that just ended, so hub dialogue can react to it.
 func _record_last_run(outcome: String, results: Dictionary) -> void:
 	if CharacterService == null:
 		return
@@ -376,10 +368,6 @@ func _grant_rewards(def: Dictionary) -> void:
 		return
 	if rewards.has("gold"):
 		CharacterService.add_gold(int(rewards.get("gold", 0)))
-	# C-241: `add_item` returns a bool that used to be discarded, so a full inventory silently ate
-	# the reward while the quest still flipped to COMPLETED — permanently, for non-repeatables.
-	# `merchant_service.buy_item` already shows the right shape: check space, then surface the
-	# rejection through the signal the HUD and hub both listen to.
 	for item_entry in rewards.get("items", []):
 		if not item_entry is Dictionary:
 			continue

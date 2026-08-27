@@ -11,11 +11,6 @@ const SCORE_THREAT_WEIGHT := 0.5
 const SCORE_PRIORITY_WEIGHT := 0.5
 const SWITCH_COOLDOWN_STICK := 0.15
 
-## Effective ranges, after the accessibility "Lock-On Range" multiplier.
-##
-## The constants below are the authored baseline; the setting scaled neither of them before, so
-## the slider moved without effect. Acquire and break are scaled together so the lock does not
-## become easier to gain than to keep.
 static func acquire_range() -> float:
 	return LOCK_ACQUIRE_RANGE * AccessibilitySettings.lock_on_range_scale()
 
@@ -100,17 +95,21 @@ func get_orbit_radius() -> float:
 	return LockOnMovement.get_orbit_radius(self, current_target)
 
 
+func switch_target(direction: int) -> bool:
+	if not is_locked or _switch_cooldown > 0.0:
+		return false
+	if _switch_target(direction):
+		_switch_cooldown = SWITCH_COOLDOWN_STICK
+		return true
+	return false
+
+
 func break_lock() -> void:
 	if is_locked:
 		_break_lock()
 
 
 func request_lock(target: Node3D = null) -> bool:
-	# C-18: the explicit-target path used to call `_set_lock` with no range, vertical or
-	# line-of-sight check at all, and `_set_lock` did not reset `_break_grace_timer` — so a
-	# scripted lock (boss intro, camera state restore) onto a target outside `break_range()` broke
-	# on the very first `_update_lock` tick with zero grace, because the timer was still 0 from the
-	# previous break. The grace reset moved into `_set_lock`; the range check is here.
 	if target != null and is_instance_valid(target):
 		if not _is_lock_candidate_valid(target):
 			return false
@@ -123,14 +122,6 @@ func request_lock(target: Node3D = null) -> bool:
 		_set_lock(best)
 		return true
 	return false
-
-
-func cycle_target(direction: int) -> bool:
-	if not is_locked or direction == 0:
-		return false
-	var before := current_target
-	_switch_target(direction)
-	return current_target != before and current_target != null
 
 
 func _toggle_lock() -> void:
@@ -154,7 +145,6 @@ func _set_lock(target: Node3D) -> void:
 	_disconnect_target_death()
 	current_target = target
 	is_locked = true
-	# C-18: a fresh lock starts with a full break grace, not whatever the previous break left.
 	_break_grace_timer = LOCK_BREAK_GRACE
 	_los_grace_timer = 0.0
 	_was_occluded = false
@@ -404,11 +394,6 @@ func _has_line_of_sight_to(target: Node3D) -> bool:
 	params.collision_mask = 1
 	params.collide_with_areas = false
 	params.collide_with_bodies = true
-	# C-19: this walked the entire `lockable` group on every call to rebuild the defeated-enemy
-	# exclude list. `_update_lock` calls it once per physics frame while locked, and
-	# `_find_best_target` calls it per candidate, making acquisition O(n^2). The defeated set only
-	# changes when something dies or the group changes, so it is cached and invalidated rather
-	# than rebuilt.
 	var excludes: Array[RID] = _defeated_exclude_rids().duplicate()
 	if _player is CollisionObject3D:
 		excludes.append((_player as CollisionObject3D).get_rid())
@@ -439,11 +424,6 @@ func _is_defeated(node: Node) -> bool:
 	return health != null and health.is_dead()
 
 
-## C-82: this ran `find_children("*", "MeshInstance3D", true, false)` — a full subtree walk of the
-## enemy rig — on every call, and it is called from the camera's per-frame path *and* from
-## `player_anim_director._update_head_look()` every frame: two full-subtree searches per locked
-## target per frame. The rig does not change shape between frames, so the aim point is cached as a
-## local offset from the target's origin and recomputed at most once per physics frame.
 static var _aim_offset_cache: Dictionary = {}
 static var _aim_offset_frame: Dictionary = {}
 
@@ -472,8 +452,6 @@ static func get_target_aim_point(target: Node3D) -> Vector3:
 	return target.global_position + offset
 
 
-## Instance ids are never reused within a session, so entries would otherwise accumulate one per
-## enemy the player has ever locked. Trimmed when the table grows past a floor's worth.
 static func _prune_aim_cache() -> void:
 	if _aim_offset_cache.size() <= 64:
 		return
@@ -482,16 +460,6 @@ static func _prune_aim_cache() -> void:
 		if frame - int(_aim_offset_frame.get(id, 0)) > 600:
 			_aim_offset_cache.erase(id)
 			_aim_offset_frame.erase(id)
-
-
-static func get_target_height(target: Node3D) -> float:
-	if target == null or not is_instance_valid(target):
-		return 1.8
-	var visual := target.get_node_or_null("DioramaVisual") as Node3D
-	var aabb := _mesh_aabb_from_root(visual if visual else target)
-	if aabb.size.y > 0.01:
-		return aabb.size.y
-	return 1.8
 
 
 static func _mesh_aabb_from_root(root: Node) -> AABB:
@@ -524,12 +492,6 @@ static func _aim_point_from_meshes(root: Node) -> Vector3:
 	return Vector3.INF
 
 
-## C-17: `"MeshInstance3D"` was in this skip list, but that is Godot's *default* node name and the
-## project genuinely uses it (`final_boss_crystal.gd` looks up `get_node_or_null("MeshInstance3D")`).
-## Any enemy whose mesh kept the default name was excluded from the aim-point AABB, so
-## `get_target_aim_point` fell through to a flat `+1.2 y` offset — which for the small enemies
-## (`swamp_leech` at scale 0.6, `crystal_slime` at 0.85) aimed the reticle well above the body.
-## Only the telegraph mesh is genuinely not part of the silhouette.
 static func _should_skip_lock_aim_mesh(mesh: MeshInstance3D) -> bool:
 	match mesh.name:
 		"TelegraphMesh":
@@ -573,7 +535,6 @@ func _is_ui_focused() -> bool:
 	return focus != null and focus is Control
 
 
-## Cached RIDs of defeated lockables, rebuilt at most once per physics frame (see C-19).
 var _defeated_rids: Array[RID] = []
 var _defeated_rids_frame := -1
 
@@ -593,7 +554,6 @@ func _defeated_exclude_rids() -> Array[RID]:
 	return _defeated_rids
 
 
-## C-18: the same gate `_find_best_target` applies, reused for explicitly requested targets.
 func _is_lock_candidate_valid(target: Node3D) -> bool:
 	if _player == null:
 		_resolve_player()

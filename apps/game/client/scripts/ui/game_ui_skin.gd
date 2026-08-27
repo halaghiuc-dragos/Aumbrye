@@ -1,7 +1,6 @@
 class_name GameUISkin
 extends RefCounted
 
-## Global modal menu styling — inventory, settings, talents, hub portals.
 
 const THEME_PATH := "res://assets/ui/aumbrye_ui.tres"
 const FONT_PATH := "res://assets/ui/fonts/aumbrye_pixel.ttf"
@@ -11,8 +10,6 @@ const BACKDROP_COLOR := Color(0.02, 0.015, 0.05, 0.78)
 
 const PANEL_HALF_W := 580.0
 const PANEL_HALF_H := 360.0
-## Wide enough that the six-tab row fits on one line at the largest interface scale, so the panel
-## never has to overflow its own frame to show its tabs.
 const SETTINGS_HALF_W := 460.0
 const SETTINGS_HALF_H := 320.0
 const MENU_HALF_W := 260.0
@@ -31,17 +28,6 @@ const FONT_SIZE_MICRO := 10
 const HEADER_FONT_SIZE := FONT_SIZE_HEADER
 const TITLE_FONT_SIZE := FONT_SIZE_TITLE
 const HINT_FONT_SIZE := FONT_SIZE_SMALL
-## Gold on violet, the wordmark's own two colours.
-##
-## The interface used to be gold on brown, which is one colour and its own shadow — everything sat
-## in the same warm register and nothing separated a frame from what it framed. Violet is the
-## complement, so a gold heading now reads *against* its panel rather than out of it, and the same
-## pair runs from the title screen through every menu, dialogue box and portal frame.
-##
-## The split is by role, not by taste: **violet holds the structure** — frames, rules, dividers —
-## and **gold carries meaning** — headings, values, whatever the eye is meant to land on. Anything
-## semantic keeps its own colour; damage is still red and a stat gain is still green, because those
-## are information and not decoration.
 const VIOLET := Color(0.45, 0.30, 0.72)
 const VIOLET_DEEP := Color(0.16, 0.09, 0.30)
 const GOLD := Color(0.96, 0.82, 0.42)
@@ -64,8 +50,6 @@ const PANEL_BORDER_WIDTH := 2
 const FOCUS_RING_COLOR := GOLD
 
 const INVENTORY_PANEL_HALF_W := 720.0
-## A floor, not a fixed height: a PanelContainer grows to fit its contents, so asking for 960px
-## around ~660px of grid and slots left a quarter of the screen as empty framed void.
 const INVENTORY_PANEL_HALF_H := 350.0
 const INVENTORY_CELL_SIZE := 64
 const INVENTORY_EQUIP_CELL_SIZE := 82
@@ -100,8 +84,6 @@ const BACKDROP_SHADER_PATH := "res://assets/shared/ui_vignette.gdshader"
 static var _backdrop_material: ShaderMaterial
 
 
-## One shared material for every backdrop in the game. The vignette has no per-screen state, so
-## there is nothing to gain from a copy per menu and a fair amount of texture memory to lose.
 static func _backdrop_vignette_material() -> ShaderMaterial:
 	if _backdrop_material != null:
 		return _backdrop_material
@@ -119,7 +101,6 @@ static func make_backdrop(parent: Control, name: String = "Backdrop") -> ColorRe
 	backdrop.set_anchors_preset(Control.PRESET_FULL_RECT)
 	backdrop.color = BACKDROP_COLOR
 	backdrop.mouse_filter = Control.MOUSE_FILTER_STOP
-	# Flat fill alone gave every menu a dead field to float on; the vignette puts a room behind it.
 	backdrop.material = _backdrop_vignette_material()
 	parent.add_child(backdrop)
 	backdrop.show_behind_parent = true
@@ -188,18 +169,12 @@ static func make_list_style(state: StringName) -> StyleBoxFlat:
 	return style
 
 
-## Frame for one entry in a vertical list (settings rows, binding rows). Deliberately lighter than
-## make_panel_style(): a full panel frame per row, with its 18px margins and drop shadow, turns a
-## settings page into a stack of competing boxes and cuts how many rows fit on screen roughly in
-## half.
 static func make_row_style(selected: bool = false, vertical_padding: int = 7) -> StyleBoxFlat:
 	var style := StyleBoxFlat.new()
 	style.bg_color = FRAME_BG.lightened(0.06 if selected else 0.03)
 	style.border_color = ACCENT_BAR if selected else FRAME_BORDER.darkened(0.25)
 	style.set_border_width_all(1)
 	style.set_corner_radius_all(_panel_corner_radius())
-	# Vertical padding is deliberately tighter than horizontal: these rows stack nine deep in
-	# character creation, where every pixel of row height comes out of the panel's budget.
 	style.set_content_margin_all(vertical_padding)
 	style.content_margin_left = 14
 	style.content_margin_right = 14
@@ -269,13 +244,6 @@ static func clamped_panel_half_size(half_w: float, half_h: float, parent: Contro
 	return Vector2(minf(half_w, viewport_size.x * 0.48), minf(half_h, viewport_size.y * 0.48))
 
 
-## Anchors a panel on the viewport centre at the given half-extents.
-##
-## The grow directions matter as much as the offsets: a PanelContainer is never laid out smaller
-## than its contents, and the default grow direction is END, so a panel whose contents overflow the
-## requested size expands to the right and downwards only — which is what pushed the settings panel
-## off the right edge of the screen once its tab row grew wider than the panel. Growing both ways
-## keeps the panel centred no matter how large its contents turn out to be.
 static func center_panel_in_parent(panel: Control, half_w: float, half_h: float) -> void:
 	panel.set_anchors_preset(Control.PRESET_CENTER)
 	panel.grow_horizontal = Control.GROW_DIRECTION_BOTH
@@ -336,26 +304,12 @@ static func section_content(frame: PanelContainer) -> VBoxContainer:
 	return frame.get_meta("content_vbox") as VBoxContainer
 
 
-## The frame's own heading, for panels whose title changes at runtime. Without this a caller has
-## no way to retitle a section and ends up adding a second title label inside the frame, which is
-## how the inventory came to print "STASH" and "Stash" one above the other.
 static func section_header(frame: PanelContainer) -> Label:
 	if frame == null or not frame.has_meta("header_label"):
 		return null
 	return frame.get_meta("header_label") as Label
 
 
-## Applies a variation's font and alignment, and nothing else.
-##
-## This used to also switch on `clip_text` and word wrapping for body text. Both make a Label
-## report a minimum width of zero — a clipped label can always be cut, and a wrapping label can
-## always fold — so any label styled this way collapsed the moment it shared a row with an
-## expanding sibling. That is one bug with several faces: appearance-row and stat-grid labels
-## disappeared outright, and the pause menu's run-info keys folded to a single character per line
-## ("M / o / d / e" down the panel).
-##
-## Wrapping is now opt-in, set by the caller on labels that own a full row and genuinely hold
-## prose — descriptions, confirmations, subtitles.
 static func _apply_label_variation(label: Label, variation: StringName) -> void:
 	label.theme_type_variation = variation
 	if variation == VAR_HINT_TEXT or variation == VAR_MENU_TITLE or variation == VAR_SECTION_TITLE:
@@ -519,8 +473,6 @@ static func apply_pixel_theme(root: Control) -> void:
 		var bar := child as ProgressBar
 		if bar:
 			bar.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-	# TextureRect carries the actual sprite art — icons, portraits, HUD symbols. Leaving it on the
-	# default filter is what makes pixel icons read as soft next to crisp text and panels.
 	var texture_rect_type := &"TextureRect"
 	for child in root.find_children("*", texture_rect_type):
 		var rect := child as TextureRect
@@ -541,10 +493,6 @@ static func restyle_tree(root: Control) -> void:
 		var panel := child as PanelContainer
 		if panel:
 			style_panel(panel)
-
-
-static func hub_palette_color(slot: int) -> Color:
-	return PixelStyle.get_palette_color(PixelStyle.PaletteTheme.HUB, slot)
 
 
 static func _register_label_variation(
@@ -695,8 +643,6 @@ static func style_progress_bar(bar: ProgressBar, fill_color: Color, bg_color: Co
 			bar.step = bar.max_value / float(steps)
 
 
-## One authored pixel unit for UI. Every frame border, inset and gap in the pixel layouts is
-## a whole multiple of this, so the screens quantise to the same grid the world does.
 const PIXEL_UNIT := 2
 const FRAME_OUTER := Color(0.02, 0.02, 0.03, 0.98)
 const FRAME_INNER := Color(0.09, 0.08, 0.11, 0.98)
@@ -707,8 +653,6 @@ const LADDER_CLEARED := Color(0.62, 0.78, 0.58)
 const LADDER_CURRENT := Color(0.95, 0.82, 0.40)
 
 
-## Hard-edged frame with no corner rounding and no drop shadow: the pixel-art equivalent of
-## a nine-slice. `depth` multiplies the border weight in whole pixel units.
 static func make_pixel_frame_style(
 	fill: Color = FRAME_INNER, border: Color = FRAME_BEVEL_LIGHT, depth: int = 1
 ) -> StyleBoxFlat:
@@ -723,9 +667,6 @@ static func make_pixel_frame_style(
 	return style
 
 
-## Two nested hard frames — an outer black keyline and an inner bevel — which is what makes a
-## panel read as authored pixel art rather than as a rounded control container. Returns the
-## outer PanelContainer; use `pixel_frame_content()` for the VBox to fill.
 static func make_pixel_frame(title: String = "") -> PanelContainer:
 	var outer := PanelContainer.new()
 	outer.add_theme_stylebox_override(
@@ -757,8 +698,6 @@ static func pixel_frame_content(frame: PanelContainer) -> VBoxContainer:
 	return frame.get_meta("content_vbox") as VBoxContainer
 
 
-## Thin quantised meter used for status build-up. Unlike the resource bars it has no label and
-## snaps its fill to whole pixel steps so a rising meter ticks rather than creeps.
 static func make_meter_bar(fill_color: Color, width_px: int = 96) -> ProgressBar:
 	var bar := ProgressBar.new()
 	bar.show_percentage = false
@@ -780,9 +719,6 @@ static func make_meter_bar(fill_color: Color, width_px: int = 96) -> ProgressBar
 	return bar
 
 
-## Styles one rung of the difficulty ladder in place. The rung stays a Button so focus, toggle
-## and controller navigation keep working; only the look becomes an authored pixel plate whose
-## border colour carries the tier state.
 static func style_ladder_button(button: Button, state: StringName) -> void:
 	if button == null:
 		return
@@ -857,34 +793,3 @@ static func make_symbol_icon_caption_row(tex: AtlasTexture, caption: String, siz
 	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	row.add_child(label)
 	return row
-
-
-static func make_symbol_badge(tex: AtlasTexture, stacks: int, ratio: float, size_px: int = 16) -> Control:
-	var root := Control.new()
-	root.custom_minimum_size = Vector2(size_px + 4, size_px + 8)
-	root.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var arc := TextureProgressBar.new()
-	arc.name = "DurationArc"
-	arc.custom_minimum_size = Vector2(size_px + 4, size_px + 4)
-	arc.max_value = 1.0
-	arc.value = clampf(ratio, 0.0, 1.0)
-	arc.fill_mode = TextureProgressBar.FILL_CLOCKWISE
-	arc.show_percentage = false
-	arc.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	root.add_child(arc)
-	var icon := make_symbol_rect(tex, size_px)
-	icon.name = "Icon"
-	root.add_child(icon)
-	var stack_label := Label.new()
-	stack_label.name = "StackLabel"
-	stack_label.theme_type_variation = VAR_BODY_TEXT
-	stack_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	stack_label.vertical_alignment = VERTICAL_ALIGNMENT_BOTTOM
-	stack_label.offset_left = size_px - 6
-	stack_label.offset_top = size_px - 4
-	stack_label.custom_minimum_size = Vector2(size_px, 12)
-	stack_label.visible = stacks > 1
-	stack_label.text = "x%d" % stacks
-	stack_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	root.add_child(stack_label)
-	return root

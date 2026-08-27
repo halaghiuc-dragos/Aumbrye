@@ -3,23 +3,6 @@ class_name PlayerAnimDirector
 extends DioramaAnimController
 
 
-## Single place where player gameplay state becomes player animation.
-
-
-##
-
-
-## Subclasses the rig controller so AnimationPlayer method tracks resolve
-
-
-## straight onto this node. Locomotion owns the per-frame call; everything else
-
-
-## arrives through the existing combat signals, so no combat script needs to
-
-
-## know that a rig exists.
-
 const DEFAULT_STAGGER := 0.85
 const CAMERA_PATH := "CameraPivot/SpringArm3D/Camera3D"
 const SPRING_PATH := "CameraPivot/SpringArm3D"
@@ -30,20 +13,16 @@ const PixelStyle := preload("res://scripts/art/style/pixel_diorama_style.gd")
 const DamageInfoScript := preload("res://scripts/combat/damage_info.gd")
 
 
-## How far the viewmodel lags the camera. Low enough to feel attached, high
-
-
-## enough that a fast mouse flick throws the weapon around a little.
-
 const SWAY_RESPONSE := 9.0
 const SWAY_YAW_LIMIT := 0.09
 const SWAY_PITCH_LIMIT := 0.07
 const BOB_HEIGHT := 0.014
+const HEAD_LOOK_SPEED := 9.0
 
-## C-66: cached per-frame lookups for the head-look pose.
 var _cached_lock_on: LockOn
 var _cached_head: Node3D
 var _last_head_look := Vector3(INF, INF, INF)
+var _head_look := Vector3.ZERO
 
 var _viewmodel_root: Node3D
 var _viewmodel_anim: DioramaAnimController
@@ -87,12 +66,6 @@ func _ready() -> void:
 	sync_camera_mode()
 
 
-## Builds the first-person arms and slaves them to this director, so gameplay
-
-
-## code keeps making one animation call regardless of which camera is active.
-
-
 func _build_viewmodel() -> void:
 	var camera := _body.get_node_or_null(CAMERA_PATH) as Camera3D
 	if camera == null:
@@ -110,8 +83,6 @@ func _build_viewmodel() -> void:
 	_viewmodel_anim = DioramaAnimController.new()
 	_viewmodel_anim.name = "ViewmodelAnim"
 	add_child(_viewmodel_anim)
-	# A visual mirror of the body rig: it draws the first-person arms and owns no hitbox, so the
-	# attack clips' frame signals are the driving controller's business, not its own.
 	_viewmodel_anim.expects_hitbox_listeners = false
 	_viewmodel_anim.set_profile("player")
 	_viewmodel_anim.set_theme(_viewmodel_theme)
@@ -135,9 +106,6 @@ func set_viewmodel_theme(theme: int) -> void:
 func flash_viewmodel(params: Dictionary) -> void:
 	if _viewmodel_root and is_instance_valid(_viewmodel_root):
 		MaterialFlashScript.flash(_viewmodel_root, params)
-
-
-## Called on camera toggle: only one of the two rigs may be visible at a time.
 
 
 func sync_camera_mode() -> void:
@@ -193,17 +161,6 @@ func _on_hurtbox_damaged(info: DamageInfo) -> void:
 	_arbitrate_hit_reaction(info)
 
 
-## C-64: this used to run its own numeric ladder — `poise_damage >= 20.0` plays the stagger,
-## `>= 8.0` plays the flinch — in parallel with `PlayerCombatReactions`, which decides the *actual*
-## stagger from `Poise.poise_broken` and scales its duration between STAGGER_POISE_LOW (10) and
-## STAGGER_POISE_HIGH (45). Two independent thresholds for one concept, and they disagreed in both
-## directions: a 25-poise hit that did not break poise played the full stagger animation while the
-## character stayed fully actionable (reading as a broken animation rather than a rule), and a
-## poise break from a 9-poise final hit staggered for real while the director played a flinch.
-##
-## The real stagger arrives on `stagger_started` -> `_on_stagger_started`, which this director
-## already connects. So the ladder is gone: everything that is not a block reads as a flinch here,
-## and the stagger comes from the signal that means it.
 func _arbitrate_hit_reaction(info: DamageInfo) -> void:
 	if _guard and bool(_guard.get("is_blocking")) and _is_frontal_hit(info.direction):
 		play_block_impact()
@@ -222,7 +179,6 @@ func _is_frontal_hit(direction: Vector3) -> bool:
 	var facing := _body.get_node_or_null("Facing") as Node3D
 	if facing == null:
 		return true
-	# C-41: forward is +basis.z for a Facing node.
 	var facing_forward := CombatFacing.forward_of(facing)
 	var flat_facing := Vector3(facing_forward.x, 0.0, facing_forward.z)
 	if flat_facing.length_squared() < 0.01:
@@ -231,12 +187,6 @@ func _is_frontal_hit(direction: Vector3) -> bool:
 	if flat_hit.length_squared() < 0.01:
 		return true
 	return flat_facing.normalized().angle_to(-flat_hit.normalized()) <= deg_to_rad(55.0)
-
-
-## Called by locomotion after move_and_slide so the pose matches the frame that
-
-
-## was actually simulated.
 
 
 func update_locomotion(
@@ -325,20 +275,36 @@ func _process(delta: float) -> void:
 	_update_head_look(delta)
 
 
-## C-66: this ran `_body.get_node_or_null("LockOn")` and `CharacterSkin.find_part(_visual, "Head")`
-## — a tree search — on every frame, then mutated the shared `head_look` `Animation` resource in
-## place. That resource may be shared between the body rig and the mirrored viewmodel controller,
-## so a per-frame write to it is both wasted work and a cross-talk hazard. The two node lookups are
-## cached and invalidated when the visual is rebuilt; the key write is skipped when the pose has
-## not moved enough to see.
-## C-66: the cached rig references belong to one bound visual; a rebind invalidates them.
 func bind(visual: Node3D) -> void:
 	_cached_head = null
 	_last_head_look = Vector3(INF, INF, INF)
+	_head_look = Vector3.ZERO
 	super.bind(visual)
 
 
-func _update_head_look(_delta: float) -> void:
+func _release_head_look(delta: float) -> void:
+	if _last_head_look.x == INF or _head_look.is_zero_approx():
+		return
+	_head_look = _head_look.lerp(Vector3.ZERO, clampf(delta * HEAD_LOOK_SPEED, 0.0, 1.0))
+	if _head_look.length_squared() < 0.000001:
+		_head_look = Vector3.ZERO
+	_write_head_look(_head_look)
+
+
+func _write_head_look(look_rot: Vector3) -> void:
+	if _additive_library == null or not _additive_library.has_animation(&"head_look"):
+		return
+	var anim := _additive_library.get_animation(&"head_look")
+	if anim.get_track_count() > 0 and not look_rot.is_equal_approx(_last_head_look):
+		_last_head_look = look_rot
+		var rest: Dictionary = _rest_pose.get("Head", {})
+		var base_rot: Vector3 = rest.get("rotation", Vector3.ZERO)
+		anim.track_set_key_value(0, 0, base_rot + look_rot)
+	if _additive_player and _additive_player.current_animation != "head_look":
+		_additive_player.play(&"head_look")
+
+
+func _update_head_look(delta: float) -> void:
 	if _visual == null or _additive_player == null:
 		return
 	var lock_on := _cached_lock_on
@@ -346,6 +312,7 @@ func _update_head_look(_delta: float) -> void:
 		lock_on = _body.get_node_or_null("LockOn") as LockOn
 		_cached_lock_on = lock_on
 	if lock_on == null or lock_on.current_target == null:
+		_release_head_look(delta)
 		return
 	var head := _cached_head
 	if head == null or not is_instance_valid(head):
@@ -354,30 +321,28 @@ func _update_head_look(_delta: float) -> void:
 	if head == null:
 		return
 	var aim := LockOn.get_target_aim_point(lock_on.current_target)
-	# A rig being dissolved is scaled toward nothing, and inverting a singular basis logs
-	# `Condition "det == 0" is true` from `basis.cpp` — with no script frames attached, because the
-	# failure is inside the engine's own maths. Nothing to look at with a head of zero size anyway.
-	if absf(head.global_transform.basis.determinant()) < 0.00001:
+	var parent := head.get_parent() as Node3D
+	if parent == null:
 		return
-	var local := head.global_transform.affine_inverse() * aim
-	var yaw := atan2(local.x, -local.z)
-	var pitch := atan2(local.y, Vector2(local.x, local.z).length())
-	var look_rot := Vector3(clampf(pitch, -0.35, 0.35), clampf(yaw, -0.55, 0.55), 0.0)
-	if _additive_library and _additive_library.has_animation(&"head_look"):
-		var anim := _additive_library.get_animation(&"head_look")
-		if anim.get_track_count() > 0 and not look_rot.is_equal_approx(_last_head_look):
-			_last_head_look = look_rot
-			var rest: Dictionary = _rest_pose.get("Head", {})
-			var base_rot: Vector3 = rest.get("rotation", Vector3.ZERO)
-			anim.track_set_key_value(0, 0, base_rot + look_rot)
-		if _additive_player.current_animation != "head_look":
-			_additive_player.play(&"head_look")
-
-
-## Counter-rotates and bobs the arms so the first-person view has weight. Purely
-
-
-## additive on top of whatever clip the mirrored controller is playing.
+	var rest: Dictionary = _rest_pose.get("Head", {})
+	var base_rot: Vector3 = rest.get("rotation", Vector3.ZERO)
+	if absf(parent.global_transform.basis.determinant()) < 0.00001:
+		return
+	var local := (parent.global_transform.affine_inverse() * aim) - head.position
+	if local.length_squared() < 0.0001:
+		return
+	var yaw := atan2(local.x, local.z) - base_rot.y
+	var pitch := -atan2(local.y, Vector2(local.x, local.z).length()) - base_rot.x
+	var wanted := Vector3(
+		clampf(wrapf(pitch, -PI, PI), -0.35, 0.35),
+		clampf(wrapf(yaw, -PI, PI), -0.55, 0.55),
+		0.0,
+	)
+	if _last_head_look.x == INF:
+		_head_look = wanted
+	else:
+		_head_look = _head_look.lerp(wanted, clampf(delta * HEAD_LOOK_SPEED, 0.0, 1.0))
+	_write_head_look(_head_look)
 
 
 func _update_viewmodel_sway(delta: float) -> void:
@@ -419,19 +384,12 @@ func _on_dash_started() -> void:
 	play_dash(direction)
 
 
-## Picks the roll clip from the dash vector expressed in the rig's own frame, so
-
-
-## a left roll reads as a left roll no matter where the camera is.
-
-
 func _dash_clip_for(world_dir: Vector3) -> StringName:
 	if world_dir.length_squared() < 0.01:
 		return &"dash_b"
 	var facing := _body.get_node_or_null("Facing") as Node3D
 	if facing == null:
 		return &"dash_f"
-	# C-41: dash direction clips were mirrored front-to-back.
 	var forward := CombatFacing.forward_of(facing)
 	var right := facing.global_transform.basis.x
 	var flat := Vector3(world_dir.x, 0.0, world_dir.z).normalized()
@@ -490,9 +448,6 @@ func play_backstab(startup: float, active: float, recovery: float) -> void:
 	play_attack(startup, active, recovery, _execution_clip(&"attack_thrust"))
 
 
-## C-67: riposte and backstab both returned `attack_thrust`, so the two executions read as the same
-## move. They are different acts — a backstab is a thrust from behind, a riposte is the follow-up
-## to a parry — and the library already ships a second thrust variant.
 func _execution_clip(preferred: StringName) -> StringName:
 	if AnimLibrary.ATTACKS.has(preferred):
 		return preferred
@@ -503,8 +458,6 @@ func _execution_clip(preferred: StringName) -> StringName:
 
 func _on_weapon_changed(archetype: String) -> void:
 	var needs_rebind := archetype == "bow" or _last_weapon_archetype == "bow"
-	# C-174: pass the *item* id so the per-item alias table can match; the archetype stays as the
-	# fallback `resolve_id` uses when no alias exists.
 	var weapon_id := archetype
 	if _weapon and _weapon.has_method("get_weapon_id"):
 		var equipped := String(_weapon.call("get_weapon_id"))

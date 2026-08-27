@@ -1,7 +1,6 @@
 extends Node
 class_name Dodge
 
-## Dash (Space / gamepad B) and jump (F / gamepad A). Bindings locked per DEC-G07–DEC-G10.
 
 const JUMP_VELOCITY := 4.8
 const COYOTE_TIME := 0.12
@@ -10,13 +9,6 @@ const DODGE_BURST_FRACTION := 0.35
 const DODGE_SPEED := 9.0
 const DODGE_BACK_SPEED := 6.0
 
-## A neutral backstep is a spacing tool, not a commitment: shorter travel and a shorter roll so
-## it can be threaded between attacks. These scale the weight-class profile rather than
-## replacing it, so heavy armour still backsteps worse than light does.
-##
-## Previously `_dodge_speed` (and therefore DODGE_BACK_SPEED above) was computed and then never
-## read by `_process_dash`, which used the weight-class peak/end speeds for everything — so a
-## backstep travelled exactly as far as a full committed roll and the option did not exist.
 const BACKSTEP_SPEED_MULT := DODGE_BACK_SPEED / DODGE_SPEED
 const BACKSTEP_DURATION_MULT := 0.8
 const DODGE_STAMINA_COST := 32.0
@@ -81,8 +73,6 @@ var _dodge_timer := 0.0
 var _recovery_timer := 0.0
 var _dodge_direction := Vector3.ZERO
 var _is_backstep := false
-## C-67: set while an execution or wake-up window owns the invulnerability, so the roll ending does
-## not retract someone else's grant.
 var _external_iframes := false
 var _dodge_speed := DODGE_SPEED
 var _talent_stamina_mult := 1.0
@@ -99,9 +89,6 @@ var _peak_speed := 11.0
 var _end_speed := 3.6
 var _recovery_speed_mult := 0.7
 var _weight_stamina_mult := 1.0
-## Length of the roll currently in flight. Equals `_duration` for a directional roll and is
-## shortened for a backstep, so `get_dash_progress` and the i-frame window stay in sync with the
-## motion actually being played.
 var _active_duration := 0.55
 
 
@@ -131,10 +118,6 @@ func configure(data: Dictionary = {}, weight_class: String = "medium") -> void:
 
 func set_stamina_cost_multiplier(mult: float) -> void:
 	_talent_stamina_mult = maxf(0.1, mult)
-
-
-func get_weight_class() -> String:
-	return _weight_class
 
 
 func _load_tuning() -> void:
@@ -198,12 +181,6 @@ func process_dodge_physics(delta: float) -> void:
 		return
 	if PlayerInput.just_pressed(&"dodge") and _can_dash():
 		_start_dash()
-		# C-63: `_start_dash()` sets `is_dodging` but performs no motion — `_process_dash`, which
-		# owns the roll's `move_and_slide()`, only ran from the *next* frame. Locomotion sees
-		# `is_dodging` and returns before its own `move_and_slide()`, so the first frame of every
-		# roll applied no movement and no gravity: 16.7 ms of dead air at 60 Hz, on the input the
-		# whole genre is timed around, in exactly the frame the player expects to have left the
-		# ground. Falling through means the roll moves on the frame it starts.
 		if is_dodging:
 			_process_dash(delta)
 
@@ -237,9 +214,6 @@ func grant_external_iframes(active: bool) -> void:
 	iframes_changed.emit(iframes_active)
 
 
-## C-67: this skipped the attack-commitment check `_can_dash()` performs, so the stagger rollout
-## could cancel a swing a normal dodge could not. It keeps its own stamina handling — the caller
-## supplies the cost — but it has to respect the same cancel window.
 func try_rollout_dash(stamina_cost: float) -> bool:
 	if is_dodging or _recovery_timer > 0.0:
 		return false
@@ -252,10 +226,6 @@ func try_rollout_dash(stamina_cost: float) -> bool:
 
 
 func _update_timers(delta: float) -> void:
-	# C-01: the decrement used to be gated on `_was_on_floor`, which is assigned the *current* floor
-	# state at the end of this function — so the branch was reachable only on the single frame after
-	# leaving the ground. The timer ticked once, froze, and `_handle_jump_buffer` kept seeing
-	# `_coyote_timer > 0.0` for the whole descent: one free mid-air jump on every fall.
 	if _body and _body.is_on_floor():
 		_coyote_timer = COYOTE_TIME
 	elif _coyote_timer > 0.0:
@@ -271,9 +241,6 @@ func _handle_jump_buffer() -> void:
 	if _jump_buffer_timer <= 0.0 or not _body:
 		return
 	if _coyote_timer > 0.0 and not is_dodging:
-		# Jump used to ignore the attack commitment window that _can_dash respects twelve lines
-		# below, so tapping jump cancelled any swing at any phase for 18 stamina — bypassing
-		# cancel_into/cancel_after and the entire reason heavy attacks feel heavy.
 		if _weapon and not _weapon.allows_cancel_into("dodge"):
 			return
 		if _stamina and not _stamina.consume(JUMP_STAMINA_COST):
@@ -303,10 +270,6 @@ func _start_dash(skip_cost: bool = false) -> void:
 	var lock_on := _body.get_node_or_null("LockOn")
 	if LockOnMovement.is_active(lock_on):
 		_dodge_direction = LockOnMovement.get_locked_dodge_direction(_body, lock_on, input_dir)
-		# C-02: this also required `absf(input_dir.x) >= 0.01`, so locked on and holding pure
-		# forward or pure backward — the two most common inputs in a boss fight — classified as a
-		# backstep and took the 0.667 speed and 0.8 duration multipliers. Classify on the whole
-		# vector; the locked-on direction helper already resolves which way the roll goes.
 		if input_dir.length_squared() > 0.01:
 			_dodge_speed = DODGE_SPEED
 		else:
@@ -324,9 +287,6 @@ func _start_dash(skip_cost: bool = false) -> void:
 	_active_duration = _duration * (BACKSTEP_DURATION_MULT if _is_backstep else 1.0)
 	_dodge_timer = _active_duration
 	dash_started.emit()
-	# Dodge was the one core action with no VFX entry at all — it moved the character and nothing
-	# else acknowledged it. The dust is spawned at the feet, not the chest, so it reads as ground
-	# contact; the roll leaves from where it pushed off.
 	if _body and VfxService:
 		VfxService.play_dodge(
 			_body.global_position + Vector3(0.0, 0.05, 0.0), _dodge_direction
@@ -342,7 +302,7 @@ func _get_attack_backstep_direction() -> Vector3:
 		back.y = 0.0
 		if back.length_squared() > 0.01:
 			return back.normalized()
-	var fallback := -_get_facing_forward()
+	var fallback := -CombatFacing.aim_forward_of(_body)
 	fallback.y = 0.0
 	if fallback.length_squared() > 0.01:
 		return fallback.normalized()
@@ -353,13 +313,6 @@ func _get_camera_relative_direction(input_dir: Vector2) -> Vector3:
 	if _body.has_method("get_camera_relative_direction"):
 		return _body.call("get_camera_relative_direction", input_dir)
 	return Vector3.ZERO
-
-
-func _get_facing_forward() -> Vector3:
-	if _body.has_method("get_facing_direction"):
-		return _body.call("get_facing_direction")
-	return CombatFacing.forward_of(_body)
-
 
 func _process_dash(delta: float) -> void:
 	_dodge_timer -= delta
@@ -377,10 +330,6 @@ func _process_dash(delta: float) -> void:
 		_body.velocity += _body.get_gravity() * delta
 	elif _body.velocity.y > 0.0:
 		_body.velocity.y = 0.0
-	# C-02: the i-frame window is authored as absolute times against the *unshortened* roll, so a
-	# backstep (0.8 duration) used to end at 0.384 s while the window ran to 0.42 s — the roll
-	# finished before its own invulnerability did, silently costing 8% of the defensive window.
-	# Scaling the window by the same factor as the duration keeps it a fixed fraction of the roll.
 	var window_scale := _active_duration / maxf(0.001, _duration)
 	var iframe_end := _iframe_end + ClassPerks.shadowstep_iframe_bonus(_body, _is_backstep)
 	iframe_end = _apply_dodge_window_assist(iframe_end)
@@ -395,11 +344,6 @@ func _process_dash(delta: float) -> void:
 		_end_dash()
 
 
-## Stretches the invulnerable part of the roll by the accessibility "Dodge Window" multiplier.
-##
-## The setting existed, saved and loaded, and was shown in the Accessibility page, but nothing in
-## the game ever read it — moving the slider changed nothing. Scaling the window's length from its
-## start keeps the wind-up honest: the roll still has to be timed, it just forgives a later press.
 func _apply_dodge_window_assist(iframe_end: float) -> float:
 	var generosity := AccessibilitySettings.assist_iframe_generosity
 	if is_equal_approx(generosity, 1.0):
@@ -409,10 +353,6 @@ func _apply_dodge_window_assist(iframe_end: float) -> float:
 
 func _end_dash() -> void:
 	is_dodging = false
-	# C-67: this cleared `iframes_active` unconditionally, which would clobber
-	# `grant_external_iframes(true)` if an execution or stagger-wakeup window ever overlapped the
-	# end of a roll. `_is_action_blocked()` currently prevents the overlap, so it is a correctness
-	# landmine rather than a live bug — but the roll should only ever retract its own grant.
 	if not _external_iframes:
 		iframes_active = false
 		iframes_changed.emit(false)

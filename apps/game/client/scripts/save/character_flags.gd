@@ -1,7 +1,6 @@
 class_name CharacterFlags
 extends RefCounted
 
-## Registered character flag ids — type, default, and JSON-safe coercion.
 
 enum Kind { BOOL, INT, STRING, DICT }
 
@@ -98,13 +97,6 @@ static func default_for(flag_id: String) -> Variant:
 			return default_value.duplicate(true)
 		return default_value
 	return false
-
-
-static func content_writable_ids() -> PackedStringArray:
-	var ids: PackedStringArray = []
-	for flag_id in REGISTRY:
-		ids.append(flag_id)
-	return ids
 
 
 static func coerce(flag_id: String, value: Variant) -> Variant:

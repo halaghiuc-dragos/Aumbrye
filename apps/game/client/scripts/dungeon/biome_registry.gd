@@ -1,7 +1,6 @@
 extends RefCounted
 class_name BiomeRegistry
 
-## Data-driven biome kit loader: room scenes, materials, lighting, audio.
 
 const LootTableLoaderScript := preload("res://scripts/loot/loot_table_loader.gd")
 
@@ -33,19 +32,10 @@ static var ALL_BIOMES: Array[String] = []
 static var _cache: Dictionary = {}
 static var _room_scene_cache: Dictionary = {}
 static var _index_ready := false
-## PERF-03: paths handed to ResourceLoader.load_threaded_request() by prewarm_room_scenes(), so
-## get_room_scenes() knows to collect them with load_threaded_get() instead of a second, redundant
-## synchronous load() once the floor build actually needs them.
 static var _threaded_paths: Dictionary = {}
 static var _segment_cache: Dictionary = {}
-## C-179: one material instance per (biome, slot), so rooms of a biome share it and Godot can batch.
 static var _material_cache: Dictionary = {}
-## C-193: templatePrefix -> biome id, built once instead of rescanned per room.
 static var _prefix_index: Dictionary = {}
-
-
-static func warm_index() -> void:
-	_ensure_biome_index()
 
 
 static func get_biome(biome_id: String) -> Dictionary:
@@ -69,17 +59,6 @@ static func get_display_name(biome_id: String) -> String:
 	return str(biome.get("name", ""))
 
 
-## Kicks off a background load for every room template in `biome_id` without blocking. Call this
-## as early as possible in a floor transition (RunFlow._transition_floor) so the disk/import cost
-## overlaps with whatever else the transition is doing instead of landing entirely inside the
-## chunked DungeonBuilder call. Safe to call redundantly — already-cached or already-requested
-## biomes are a no-op.
-## Parses the JSON a floor of `biome_id` will need — enemy, boss, trap and loot-table definitions —
-## into ContentLoader's cache while a loading screen is up.
-##
-## Room *scenes* are prewarmed by prewarm_room_scenes(); this is the content half. Without it, each
-## enemy's definition is read and parsed from disk on the main thread at its own `_ready`, which is
-## exactly when a floor transition can least afford it. Returns how many files were newly parsed.
 static func prewarm_content(biome_id: String) -> int:
 	var biome := get_biome(biome_id)
 	if biome.is_empty():
@@ -153,8 +132,6 @@ static func _load_room_scene(path: String) -> Resource:
 	if _threaded_paths.has(path):
 		var status := ResourceLoader.load_threaded_get_status(path)
 		if status == ResourceLoader.THREAD_LOAD_IN_PROGRESS:
-			# Prewarm started but the floor build reached this template before the background
-			# load finished — block just long enough to get it rather than skip the room.
 			return ResourceLoader.load_threaded_get(path)
 		if status == ResourceLoader.THREAD_LOAD_LOADED:
 			return ResourceLoader.load_threaded_get(path)
@@ -174,18 +151,10 @@ static func get_wall_material(biome_id: String) -> Material:
 	return _load_material(biome_id, "wall")
 
 
-static func get_ceiling_material(biome_id: String) -> Material:
-	return _load_material(biome_id, "ceiling")
-
-
 static func get_accent_material(biome_id: String) -> Material:
 	return _load_material(biome_id, "accent")
 
 
-## C-193: this scanned every biome and called `get_biome()` — a full `duplicate(true)` of the biome
-## JSON — to read one string, and `castle_room_scene._resolve_biome_id()` calls it once per room. A
-## twelve-room floor therefore deep-copied the largest content dictionaries in the game ~120 times
-## inside the chunked build. The prefix map is built once and reused.
 static func biome_from_template_id(template_id: String) -> String:
 	_ensure_biome_index()
 	var prefix := template_id.get_slice("_", 0)
@@ -265,30 +234,14 @@ static func resolve_biome_id(definition: Dictionary, fallback: String = BIOME_CA
 	return biome_id
 
 
-static func room_scene_path(biome_id: String, kind: String) -> String:
-	var biome := get_biome(biome_id)
-	if biome.is_empty():
-		return ""
-	var prefix := str(biome.get("templatePrefix", ""))
-	var folder := str(biome.get("assetFolder", ""))
-	return "res://scenes/rooms/%s/%s_%s.tscn" % [folder, prefix, kind]
-
-
 const ENDLESS_SEGMENT_MIN_FLOORS := 10
 const ENDLESS_SEGMENT_MAX_FLOORS := 20
 
 
-## Deterministic biome schedule for endless runs: partitions the floor axis into
-## seeded 10-20 floor segments and draws a biome per segment without immediate
-## repeats. Pure function of (run_seed, floor_index), so it stays correct across
-## save/load and across a floor skip that jumps straight to a distant floor.
 static func biome_for_floor(run_seed: int, floor_index: int) -> String:
 	return segment_for_floor(run_seed, floor_index).get("biomeId", BIOME_UMBRAL)
 
 
-## The whole segment a floor falls in: biome, first floor and last floor. Segment boundaries are
-## walked once per run seed and cached, so a jump to floor 501 costs the same walk as floor 2 and
-## a reloaded save agrees with the run it came from.
 static func segment_for_floor(run_seed: int, floor_index: int) -> Dictionary:
 	_ensure_biome_index()
 	if ALL_BIOMES.is_empty():
@@ -301,11 +254,6 @@ static func segment_for_floor(run_seed: int, floor_index: int) -> Dictionary:
 		if target <= int(segment.get("lastFloor", 0)):
 			return segment
 	return segments[segments.size() - 1]
-
-
-static func is_segment_start(run_seed: int, floor_index: int) -> bool:
-	var segment := segment_for_floor(run_seed, floor_index)
-	return int(segment.get("firstFloor", 1)) == maxi(1, floor_index)
 
 
 static func _segments_for_seed(run_seed: int) -> Array:
@@ -325,8 +273,6 @@ static func _extend_segments(run_seed: int, segments: Array, target_floor: int) 
 		previous_biome = str(last.get("biomeId", ""))
 		segment_index = int(last.get("index", 0)) + 1
 	while segments.is_empty() or int(segments[segments.size() - 1].get("lastFloor", 0)) < target_floor:
-		# C-192: this documented itself as a stable schedule while seeding from `String.hash()`,
-		# which is the one thing that makes it not stable across engine versions.
 		rng.seed = FloorSeedMix.mix(run_seed, segment_index + 2)
 		var segment_length := rng.randi_range(
 			ENDLESS_SEGMENT_MIN_FLOORS, ENDLESS_SEGMENT_MAX_FLOORS
@@ -349,14 +295,6 @@ static func _extend_segments(run_seed: int, segments: Array, target_floor: int) 
 		floor_cursor += segment_length
 		previous_biome = chosen
 		segment_index += 1
-
-
-static func clear_caches() -> void:
-	_cache.clear()
-	_room_scene_cache.clear()
-	_segment_cache.clear()
-	_material_cache.clear()
-	_prefix_index.clear()
 
 
 static func _ensure_biome_index() -> void:
@@ -397,15 +335,6 @@ static func _load_material(biome_id: String, slot: String) -> Material:
 			return null
 	if base == null:
 		return null
-	# C-179: this used to `.duplicate()` on every call, handing out a fresh byte-identical
-	# ShaderMaterial each time and defeating PixelDioramaStyle's cache entirely — Godot batches by
-	# material *instance*, so a floor emitted dozens of separate draw batches for materially uniform
-	# geometry, and every copy appended a WeakRef to PixelDioramaSettings._tracked.
-	# `diorama_room_dressing` alone requests the accent material six times per room.
-	#
-	# Verified before changing: no dungeon consumer mutates the material it receives. The one file
-	# that does mutate style materials, `waves_outdoors_diorama.gd`, calls
-	# `PixelDioramaStyle.make_surface_material(...).duplicate()` itself and never comes through here.
 	var cache_key := "%s/%s" % [biome_id, slot]
 	if _material_cache.has(cache_key):
 		var cached: Material = _material_cache[cache_key]

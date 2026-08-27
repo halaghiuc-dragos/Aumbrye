@@ -1,19 +1,11 @@
 extends Control
 
-## Hub weapon loadout — swap between unlocked archetypes (WPN-5.5).
 
 const GameUISkinScript := preload("res://scripts/ui/game_ui_skin.gd")
 const ItemListPresenterScript := preload("res://scripts/ui/item_list_presenter.gd")
 
 signal closed
 
-## C-246: this was a hardcoded list of five, against `content/items/` defining **70** items with
-## `itemType: "weapon"` — five tiers of a material ladder, the biome weapons and 19 uniques. So the
-## Loadout screen showed 7% of the game's weapons, and finding a unique could not change what the
-## screen offered. The list is derived from the catalogue now.
-##
-## The three starters stay named, because `_is_weapon_unlocked` grants them unconditionally and that
-## is a statement about the starting kit rather than about the catalogue.
 const STARTER_WEAPONS: Array[String] = [
 	"castle_sword",
 	"training_greatsword",
@@ -53,8 +45,6 @@ func open() -> void:
 func close() -> void:
 	visible = false
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
-	# Through PlayerControls: closing this panel must not grab the mouse back if another one is
-	# still open behind it.
 	PlayerControls.capture_mouse_if_allowed()
 	closed.emit()
 
@@ -91,9 +81,6 @@ func _is_weapon_unlocked(item_id: String) -> bool:
 		return false
 	if item_id in STARTER_WEAPONS:
 		return true
-	# C-246: a weapon the player is actually carrying is available whether or not the blacksmith
-	# has ever unlocked it — finding a unique in a run is the point of finding it. Otherwise the
-	# blacksmith gate stands.
 	if InventoryService and _holds_item(InventoryService.inventory, item_id):
 		return true
 	if StorageService and _holds_item(StorageService.storage, item_id):
@@ -123,17 +110,6 @@ func _on_equip_pressed() -> void:
 	if index.is_empty():
 		return
 	var item_id: String = _list.get_item_metadata(index[0])
-	_equip_weapon_item(item_id)
+	InventoryService.equip_weapon_item(item_id)
 	_refresh_list()
 
-
-func _equip_weapon_item(item_id: String) -> void:
-	var grid := InventoryService.inventory
-	if grid.get_equipped_weapon_id() == item_id:
-		return
-	for i in grid.slots.size():
-		if grid.slots[i].get("itemId", "") == item_id:
-			grid.equip_weapon(i)
-			return
-	if grid.add_item(item_id, 1):
-		grid.equip_weapon(grid.slots.size() - 1)

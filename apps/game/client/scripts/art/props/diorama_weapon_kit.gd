@@ -1,11 +1,6 @@
 class_name DioramaWeaponKit
 extends RefCounted
 
-## Hand-held weapon meshes for character mounts.
-##
-## Box assemblies aligned to VoxelGridScript.EDGE (0.04 m) so silhouettes stay readable
-## at the chunky 480x270 preset. Each weapon hangs downward from its grip, matching
-## the hand mount at the bottom of the arm pivot.
 
 const PixelStyle := preload("res://scripts/art/style/pixel_diorama_style.gd")
 const VoxelGridScript := preload("res://scripts/art/characters/voxel_grid.gd")
@@ -18,7 +13,6 @@ const KNOWN_KITS := [
 	"sword", "greatsword", "dagger", "spear", "bow", "shield", "axe", "staff", "unknown"
 ]
 
-## Maps content weapon ids and equipment items onto a kit entry.
 const ARCHETYPE_ALIASES := {
 	"sword_basic": "sword",
 	"training_sword": "sword",
@@ -63,10 +57,6 @@ static func resolve_id(weapon_id: String, archetype: String = "") -> String:
 	return weapon_id
 
 
-static func has_kit(kit_id: String) -> bool:
-	return kit_id in KNOWN_KITS
-
-
 static func build(weapon_id: String, theme: int) -> Node3D:
 	var kit_id := resolve_id(weapon_id)
 	match kit_id:
@@ -104,8 +94,6 @@ static func _root(weapon_name: String) -> Node3D:
 	return root
 
 
-## Blades point down the -Y axis of the mount; attack clips rotate the arm, and
-## the blade follows because it is parented to the hand.
 static func _build_sword(theme: int, blade_length: float, blade_width: float) -> Node3D:
 	var root := _root("sword")
 	var steel := PixelStyle.make_material(BLADE_STEEL)

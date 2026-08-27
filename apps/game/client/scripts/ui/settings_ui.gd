@@ -1,6 +1,5 @@
 extends Control
 
-## Tabbed settings overlay driven by SettingsSchema (SET-01..SET-17).
 
 signal closed
 signal cancel_requested
@@ -34,16 +33,12 @@ var _footer_hint: Control
 func _ready() -> void:
 	visible = false
 	process_mode = Node.PROCESS_MODE_ALWAYS
+	cancel_requested.connect(close_settings)
 	GameUISkinScript.ensure_full_rect(self)
-	# DisplayService switches to fullscreen provisionally and reverts unless something confirms.
-	# Nothing ever did, so choosing Fullscreen applied and then silently undid itself a few seconds
-	# later — the option could not be used at all.
 	if DisplayService and not DisplayService.fullscreen_confirm_needed.is_connected(
 		_on_fullscreen_confirm_needed
 	):
 		DisplayService.fullscreen_confirm_needed.connect(_on_fullscreen_confirm_needed)
-	# Display rows are not independent either: picking a resolution drops the window out of
-	# fullscreen, so the Window Mode row above it would otherwise keep claiming "Fullscreen".
 	if DisplayService and not DisplayService.display_changed.is_connected(_on_display_changed):
 		DisplayService.display_changed.connect(_on_display_changed)
 	LocaleSettingsScript.connect_changed(_on_locale_changed)
@@ -61,11 +56,6 @@ func _on_display_changed(_field: StringName, _value: Variant) -> void:
 	_on_external_settings_changed()
 
 
-## Pulls every visible row back in line with the values behind it.
-##
-## Settings on this page are not independent — the Reduced Motion toggle rewrites the three motion
-## sliders, and each of those re-derives the toggle. Only the row the player touched used to
-## update, so the rest of the page kept displaying values the game was no longer using.
 func _on_external_settings_changed() -> void:
 	if not _open:
 		return
@@ -77,8 +67,6 @@ func _on_external_settings_changed() -> void:
 			(row as SettingsRow).refresh_from_source()
 
 
-## Rebuilds the whole shell, not just the active page: the title, the tab labels and the footer are
-## all assigned already-translated text, so they keep the previous language until reconstructed.
 func _on_locale_changed() -> void:
 	if not _open:
 		_discard_ui()
@@ -138,7 +126,6 @@ func _build_ui_if_needed() -> void:
 	_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_scroll.follow_focus = true
-	# Rows must fit the panel width rather than scroll sideways out of it.
 	_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	_content_vbox.add_child(_scroll)
 	_page_host = VBoxContainer.new()
@@ -244,8 +231,6 @@ func _add_audio_test_button(row: SettingsRow, setting_id: String) -> void:
 			host.add_child(test)
 
 
-## Each Test button previews through its own bus, so the sound it makes is governed by the slider
-## sitting next to it.
 func _play_audio_test(setting_id: String) -> void:
 	if AudioDirector == null:
 		return
@@ -259,7 +244,6 @@ func _play_audio_test(setting_id: String) -> void:
 		"ui_volume":
 			AudioDirector.preview_bus(&"UI")
 		_:
-			# Master has no bus of its own to demonstrate; the SFX bus feeds through it.
 			AudioDirector.preview_bus(&"SFX")
 
 
@@ -335,7 +319,6 @@ func _pixel_slider(
 ) -> VBoxContainer:
 	var box := VBoxContainer.new()
 	var label := Label.new()
-	# Same format as the drag handler below; str() printed "8" where dragging printed "8.00".
 	label.text = "%s %.2f" % [tr("SETTINGS_%s_NAME" % label_key.to_upper()), initial]
 	GameUISkinScript.style_body_label(label)
 	label.autowrap_mode = TextServer.AUTOWRAP_OFF
@@ -365,9 +348,6 @@ func _pixel_slider(
 
 
 func _build_controls_page() -> void:
-	# One instruction for the page, and a column header, instead of repeating the same sentence and
-	# leaving two unlabelled buttons per row. Twenty copies of "Select a slot to rebind this
-	# action." also pushed the slot buttons clean off the right edge of the panel.
 	_page_host.add_child(_binding_page_hint())
 	_page_host.add_child(_binding_header_row())
 	for action in InputRebindService.get_rebindable_actions():
@@ -440,8 +420,6 @@ func _binding_header_row() -> HBoxContainer:
 	return header
 
 
-## Fixed-width and clipped: a binding can print as anything from "E" to a long joypad axis name,
-## and letting the button size to its own text is what shunted the whole row past the panel edge.
 func _binding_button(text: String) -> Button:
 	var button := GameUISkinScript.make_button(text)
 	button.custom_minimum_size = Vector2(BINDING_SLOT_WIDTH, 0)
@@ -468,8 +446,6 @@ func _start_binding_capture(action: StringName, device_family: String) -> void:
 
 
 func _build_advanced_page() -> void:
-	# The schema declares rows on this page (replay recording), but this branch replaced the schema
-	# build entirely instead of adding to it, so those settings were unreachable in game.
 	_build_schema_page("advanced")
 	var privacy := CheckBox.new()
 	privacy.text = tr("SETTINGS_CRASH_REPORTS")

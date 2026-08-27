@@ -1,16 +1,5 @@
 extends Node
 
-## Thin facade grouping autoloads by concern. Prefer injecting dependencies in new code;
-## use these accessors when crossing subsystem boundaries from UI or debug tooling.
-##
-## Groups (see docs/design/AUTOLOAD_FACADES.md):
-##   persistence — LocalSave, CharacterService
-##   progression — ProgressionService, QuestService, AchievementService
-##   inventory   — InventoryService, StorageService
-##   run         — RunFlow, WavesRunService, DungeonTierService
-##   presentation — AudioDirector, VfxService, PixelDioramaViewport
-##   platform    — SteamService, CrashLogger, ApiConfig
-
 
 func persistence() -> Dictionary:
 	return {"save": LocalSave, "character": CharacterService}
@@ -54,9 +43,6 @@ func _ready() -> void:
 		_run_smoke_test()
 
 
-## Fails loudly instead of degrading silently when the content catalogues resolve empty —
-## see BUG-01. A blank catalogue otherwise presents as missing enemies, items and dialogue
-## with no diagnostic, which is nearly impossible to distinguish from an authoring mistake.
 func _verify_content_loaded() -> void:
 	var probe := EnemyCatalog.get_definition("castle_grunt")
 	if not probe.is_empty():
@@ -78,19 +64,6 @@ func _verify_content_loaded() -> void:
 	get_tree().quit(1)
 
 
-## QA-05: boots every subsystem an exported build needs and quits with a status code, so CI can
-## catch the class of failure that only exists outside the editor (BUG-01, BUG-02) instead of
-## uploading a release that has never actually run. Invoked with `--smoke-test` on the command
-## line:
-##
-##     godot --path apps/game/client --headless -- --smoke-test
-##
-## C-261: this used to point at `godot-export` / `smoke-test` jobs in `.github/workflows/` that did
-## not exist and never had — the smoke test was written for a pipeline that was never committed.
-##
-## There is no pipeline, by decision: this project has no CI and will not have one (see CLAUDE.md).
-## Nothing runs the smoke test automatically. Run it by hand, or through `scripts/validate.mjs`,
-## which drives it as the `godot` layer.
 func _run_smoke_test() -> void:
 	print("SMOKE-TEST: booting")
 	var failures: Array[String] = []

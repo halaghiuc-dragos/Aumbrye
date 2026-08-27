@@ -1,11 +1,14 @@
 class_name WavesOutdoorsDiorama
 extends RefCounted
 
-## Aumbrye Outskirts garden — large open meadow for Umbral Waves (no ceiling).
 
 const TILE_SIZE := 2.0
+const TILE_TOP := 0.12
+const TILE_BED_DROP := 0.01
+const TILE_BED_THICK := 0.2
 const FLOOR_HALF := 105.0
 const ARENA_HALF := 34.0
+const TILE_FIELD_HALF := 62.0
 const CASTLE_BACK_Z := -88.0
 
 
@@ -49,16 +52,32 @@ static func _load_materials() -> Dictionary:
 	var flower_white := PixelDioramaStyle.make_glow_material(
 		Color(0.92, 0.9, 0.82), Color(0.66, 0.64, 0.58), 0.45
 	)
+	for bloom in [flower_red, flower_yellow, flower_purple, flower_white]:
+		PixelDioramaStyle.set_authored_param(bloom, "wind_sway", 0.45)
 	var birch_trunk := (
 		PixelDioramaStyle.make_prop_material(theme, false).duplicate() as ShaderMaterial
 	)
 	birch_trunk.set_shader_parameter("color_base", Color(0.82, 0.78, 0.72))
 	birch_trunk.set_shader_parameter("color_shadow", Color(0.54, 0.5, 0.46))
+	var blade := grass_dark.duplicate() as ShaderMaterial
+	PixelDioramaStyle.set_authored_param(blade, "wind_sway", 0.55)
+	var blade_alt := grass.duplicate() as ShaderMaterial
+	PixelDioramaStyle.set_authored_param(blade_alt, "color_base", Color(0.34, 0.55, 0.26))
+	PixelDioramaStyle.set_authored_param(blade_alt, "wind_sway", 0.62)
+	var stem := grass_dark.duplicate() as ShaderMaterial
+	PixelDioramaStyle.set_authored_param(stem, "wind_sway", 0.45)
+	var floor_wet := (PixelDioramaStyle.make_floor_material(theme).duplicate()) as ShaderMaterial
+	PixelDioramaStyle.set_authored_param(floor_wet, "wetness_response", 1.0)
+	for turf in [grass, grass_alt, grass_dark]:
+		PixelDioramaStyle.set_authored_param(turf, "wetness_response", 0.7)
 	return {
-		"floor": PixelDioramaStyle.make_floor_material(theme),
+		"floor": PixelDioramaSettings.track(floor_wet),
 		"grass": grass,
 		"grass_alt": grass_alt,
 		"grass_dark": grass_dark,
+		"blade": PixelDioramaSettings.track(blade),
+		"blade_alt": PixelDioramaSettings.track(blade_alt),
+		"stem": PixelDioramaSettings.track(stem),
 		"wall": PixelDioramaStyle.make_wall_material(theme),
 		"accent": PixelDioramaStyle.make_accent_material(theme),
 		"wood": PixelDioramaStyle.make_prop_material(theme, false),
@@ -80,27 +99,39 @@ static func _build_floor(root: Node3D, mats: Dictionary) -> void:
 	root.add_child(floor_body)
 
 	var span := FLOOR_HALF * 2.0
-	var tiles := Node3D.new()
-	tiles.name = "Tiles"
-	floor_body.add_child(tiles)
 
-	var cols := int(span / TILE_SIZE)
-	var rows := int(span / TILE_SIZE)
-	var origin_x := -FLOOR_HALF + TILE_SIZE * 0.5
-	var origin_z := -FLOOR_HALF + TILE_SIZE * 0.5
-	for row in rows:
-		for col in cols:
-			var dist := Vector2(origin_x + col * TILE_SIZE, origin_z + row * TILE_SIZE).length()
+	var batch := PixelBoxBatch.new()
+	batch.add(
+		Vector3(TILE_FIELD_HALF * 2.0, TILE_BED_THICK, TILE_FIELD_HALF * 2.0),
+		Vector3(0.0, TILE_TOP - TILE_BED_DROP - TILE_BED_THICK * 0.5, 0.0),
+		mats.grass
+	)
+	var origin := -TILE_FIELD_HALF + TILE_SIZE * 0.5
+	var side := int(TILE_FIELD_HALF * 2.0 / TILE_SIZE)
+	for row in side:
+		for col in side:
+			var x := origin + col * TILE_SIZE
+			var z := origin + row * TILE_SIZE
 			var alt := (row + col) % 2 == 1
 			var mat: Material = mats.grass_alt if alt else mats.grass
-			if dist < ARENA_HALF + 4.0:
+			if Vector2(x, z).length() < ARENA_HALF + 4.0:
 				mat = mats.floor
-			PixelDioramaStyle.add_box(
-				tiles,
-				Vector3(TILE_SIZE * 0.98, 0.12, TILE_SIZE * 0.98),
-				Vector3(origin_x + col * TILE_SIZE, 0.06, origin_z + row * TILE_SIZE),
-				mat
-			)
+			batch.add(Vector3(TILE_SIZE, 0.12, TILE_SIZE), Vector3(x, 0.06, z), mat)
+	batch.commit(
+		floor_body,
+		"Tiles",
+		AABB(
+			Vector3(-TILE_FIELD_HALF, -0.5, -TILE_FIELD_HALF),
+			Vector3(TILE_FIELD_HALF * 2.0, 1.5, TILE_FIELD_HALF * 2.0)
+		)
+	)
+	PixelDioramaStyle.add_box(
+		floor_body,
+		Vector3(span, 0.1, span),
+		Vector3(0.0, 0.04, 0.0),
+		mats.grass_dark,
+		"FarField"
+	)
 
 	var collision := CollisionShape3D.new()
 	var shape := BoxShape3D.new()
@@ -118,18 +149,43 @@ static func _spawn_grass_patches(root: Node3D, mats: Dictionary) -> void:
 	root.add_child(patches)
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 90210
-	for i in 320:
+	for i in 260:
 		var x := rng.randf_range(-FLOOR_HALF + 4.0, FLOOR_HALF - 4.0)
 		var z := rng.randf_range(-FLOOR_HALF + 4.0, FLOOR_HALF - 8.0)
 		if Vector2(x, z).length() < ARENA_HALF - 2.0:
 			continue
 		if absf(z - CASTLE_BACK_Z) < 12.0:
 			continue
-		var h := rng.randf_range(0.14, 0.48)
-		var mat: Material = mats.grass_dark if rng.randf() > 0.55 else mats.accent
-		PixelDioramaStyle.add_box(
-			patches, Vector3(0.1, h, 0.1), Vector3(x, h * 0.5, z), mat, "GrassBlade_%d" % i
+		_spawn_grass_tuft(patches, mats, rng, Vector3(x, 0.0, z), 1.0, "Tuft_%d" % i)
+	for i in 90:
+		var angle := rng.randf_range(0.0, TAU)
+		var dist := rng.randf_range(11.0, ARENA_HALF - 2.5)
+		var pos := Vector3(cos(angle) * dist, 0.0, sin(angle) * dist)
+		_spawn_grass_tuft(patches, mats, rng, pos, 0.62, "ArenaTuft_%d" % i)
+
+
+static func _spawn_grass_tuft(
+	parent: Node3D,
+	mats: Dictionary,
+	rng: RandomNumberGenerator,
+	base: Vector3,
+	scale: float,
+	node_name: String
+) -> void:
+	var blades := rng.randi_range(3, 5)
+	for i in blades:
+		var h := rng.randf_range(0.16, 0.5) * scale
+		var offset := Vector3(rng.randf_range(-0.18, 0.18), 0.0, rng.randf_range(-0.18, 0.18))
+		var mat: Material = mats.blade if rng.randf() > 0.45 else mats.blade_alt
+		var blade := PixelDioramaStyle.add_box(
+			parent,
+			Vector3(0.075, h, 0.075),
+			base + offset + Vector3(0.0, h * 0.5, 0.0),
+			mat,
+			"%s_%d" % [node_name, i]
 		)
+		blade.rotation.z = rng.randf_range(-0.22, 0.22)
+		blade.rotation.x = rng.randf_range(-0.22, 0.22)
 
 
 static func _spawn_flowers(root: Node3D, mats: Dictionary) -> void:
@@ -154,7 +210,7 @@ static func _spawn_flowers(root: Node3D, mats: Dictionary) -> void:
 			flowers,
 			Vector3(0.06, stem_h, 0.06),
 			Vector3(x, stem_h * 0.5, z),
-			mats.grass_dark,
+			mats.stem,
 			"Stem_%d" % i
 		)
 		PixelDioramaStyle.add_box(

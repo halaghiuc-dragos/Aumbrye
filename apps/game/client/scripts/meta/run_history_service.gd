@@ -1,7 +1,6 @@
 class_name RunHistoryService
 extends RefCounted
 
-## Account-scoped log of the last runs, with the personal bests the results screen compares against.
 
 const META_KEY := "run_history"
 const MAX_RUNS := 20
@@ -59,7 +58,6 @@ static func build_entry(results: Dictionary) -> Dictionary:
 	}
 
 
-## Prepends the finished run and trims to the retained window. Returns the stored entry.
 static func record(results: Dictionary) -> Dictionary:
 	var entry := build_entry(results)
 	var runs := get_runs()
@@ -110,7 +108,6 @@ static func best_kills(scope: Dictionary, skip_newest: bool = false) -> int:
 	return best
 
 
-## Fastest successful run in scope, or 0.0 when none has been finished yet.
 static func best_time(scope: Dictionary, skip_newest: bool = false) -> float:
 	var best := 0.0
 	for entry in runs_for(scope, skip_newest):
@@ -124,7 +121,6 @@ static func best_time(scope: Dictionary, skip_newest: bool = false) -> float:
 	return best
 
 
-## Share of the recent window that ended in success, as a 0..1 ratio, or -1.0 when too few runs.
 static func recent_success_rate(scope: Dictionary) -> float:
 	var window := runs_for(scope)
 	if window.size() > TREND_WINDOW:
@@ -138,7 +134,6 @@ static func recent_success_rate(scope: Dictionary) -> float:
 	return float(wins) / float(window.size())
 
 
-## Compares the run that was just recorded against everything before it.
 static func summarize(results: Dictionary) -> Dictionary:
 	var scope := {"runMode": str(results.get("run_mode", "castle"))}
 	var mode_id := str(results.get("alternate_mode", ""))

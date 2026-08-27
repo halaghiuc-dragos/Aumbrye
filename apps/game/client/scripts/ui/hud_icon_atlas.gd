@@ -1,7 +1,6 @@
 extends RefCounted
 class_name HudIconAtlas
 
-## Authored HUD pip regions from `hud_pips.png`.
 
 const MANIFEST_PATH := "content/ui/hud_atlas.json"
 const RETICLE_PATH := "res://assets/ui/hud_reticle.png"
@@ -13,16 +12,6 @@ static var _reticle: Texture2D
 static var _objective: Texture2D
 static var _pip_cache: Dictionary = {}
 static var _loaded := false
-
-
-static func get_reticle_texture() -> Texture2D:
-	_ensure_loaded()
-	return _reticle
-
-
-static func get_objective_texture() -> Texture2D:
-	_ensure_loaded()
-	return _objective
 
 
 static func get_pip_filled() -> AtlasTexture:

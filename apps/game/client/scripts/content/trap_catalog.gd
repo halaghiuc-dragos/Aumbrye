@@ -1,7 +1,6 @@
 class_name TrapCatalog
 extends RefCounted
 
-## Resolves trap ids to scene paths from content/traps/<id>.json (PLC-06).
 
 static var _cache: Dictionary = {}
 

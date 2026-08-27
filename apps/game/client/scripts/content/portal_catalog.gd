@@ -1,7 +1,6 @@
 extends RefCounted
 class_name PortalCatalog
 
-## Resolves portal definitions from `content/art/portals.json`.
 
 const DATA_PATH := "content/art/portals.json"
 const FALLBACK_ID := "hub_return"

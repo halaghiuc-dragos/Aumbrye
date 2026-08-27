@@ -1,6 +1,5 @@
 extends Node
 
-## Autoload — window, vsync, monitor, frame cap, UI scale, and HUD safe area.
 
 signal display_changed(field: StringName, value: Variant)
 signal fullscreen_confirm_needed
@@ -125,8 +124,6 @@ func confirm_fullscreen() -> void:
 	save()
 
 
-## Goes straight back to the mode in use before fullscreen was chosen, without waiting out the
-## countdown. This is what the settings prompt calls when the player says the mode is unusable.
 func revert_fullscreen() -> void:
 	if not _pending_fullscreen_confirm:
 		return
@@ -181,33 +178,6 @@ func set_hud_safe_area(value: float) -> void:
 	display_changed.emit(&"hud_safe_area", hud_safe_area)
 
 
-func set_field(field: String, value: Variant) -> void:
-	match field:
-		"window_mode":
-			set_window_mode(str(value))
-		"window_size":
-			if value is Vector2i:
-				set_window_size(value)
-			elif value is Array and value.size() >= 2:
-				set_window_size(Vector2i(int(value[0]), int(value[1])))
-		"monitor_index":
-			set_monitor_index(int(value))
-		"vsync_mode":
-			set_vsync_mode(str(value))
-		"max_fps":
-			set_max_fps(int(value))
-		"ui_scale":
-			set_ui_scale(float(value))
-		"hud_safe_area":
-			set_hud_safe_area(float(value))
-		_:
-			pass
-
-
-func sanitize_persisted_settings_for_test() -> void:
-	sanitize_persisted_settings()
-
-
 func sanitize_persisted_settings() -> void:
 	var screen_count := DisplayServer.get_screen_count()
 	if monitor_index < 0 or monitor_index >= screen_count:
@@ -215,10 +185,6 @@ func sanitize_persisted_settings() -> void:
 	if not window_size_fits_any_monitor(window_size):
 		window_size = _largest_fitting_16_9()
 		window_mode = WINDOW_MODE_WINDOWED
-		# A headless run reports zero screens, so nothing can ever fit and this fires every time —
-		# on the smoke test, on every CI run, on every offline tool. The fallback is still applied,
-		# because the settings do need a sane value; there is just nothing for a player to act on
-		# when there is no display at all.
 		if screen_count > 0:
 			push_warning(
 				(
@@ -237,9 +203,6 @@ func window_size_fits_any_monitor(size: Vector2i) -> bool:
 	return false
 
 
-## Headless has no screens: `screen_get_usable_rect()` crashes the engine there rather than
-## returning an empty rect, which aborted the whole validation run inside m6_suite
-## (settings_schema.entries() -> _monitor_row() -> _monitor_option_labels()).
 func get_monitor_labels() -> PackedStringArray:
 	var labels := PackedStringArray()
 	var count := DisplayServer.get_screen_count()
@@ -251,17 +214,6 @@ func get_monitor_labels() -> PackedStringArray:
 	return labels
 
 
-func current_resolution_preset() -> int:
-	for i in RESOLUTION_PRESETS.size():
-		if RESOLUTION_PRESETS[i] == window_size:
-			return i
-	return -1
-
-
-## The window sizes offered in Settings > Display. Presets larger than every attached monitor are
-## dropped, because `_apply_window_size()` clamps them anyway and an option that silently becomes a
-## different size reads as a broken control. Headless has no screens to measure, so it gets the
-## full list rather than an empty one.
 func available_resolutions() -> Array[Vector2i]:
 	var out: Array[Vector2i] = []
 	if DisplayServer.get_screen_count() <= 0 or DisplayServer.get_name() == "headless":
@@ -282,8 +234,6 @@ func resolution_labels() -> PackedStringArray:
 	return labels
 
 
-## Falls back to the closest offered size by area, so a window sized by dragging its corner still
-## shows the option nearest to what the player is actually looking at.
 func resolution_index() -> int:
 	var options := available_resolutions()
 	for i in options.size():
@@ -368,13 +318,6 @@ func _apply_monitor() -> void:
 	DisplayServer.window_set_current_screen(monitor_index)
 
 
-## Escape hatch for the diagnostic scenes.
-##
-## `capture_ui_screens`, `capture_world_screens` and the rest boot the real autoloads, so they
-## honour whatever window mode the player's save asks for. A profile set to Borderless meant every
-## capture run took over the whole screen — the tools are meant to be run while working, not to
-## seize the desktop. Set `AUMBRYE_FORCE_WINDOWED=1` and the mode is pinned to windowed for that
-## process only; nothing is written back, so the player's setting is untouched.
 static func force_windowed() -> bool:
 	return OS.get_environment("AUMBRYE_FORCE_WINDOWED") != ""
 
@@ -452,9 +395,6 @@ func _start_fullscreen_timer() -> void:
 	)
 
 
-## Dropping the SceneTreeTimer reference does not stop it — the timeout still fires. Each countdown
-## therefore carries a token, and a stale one is ignored; otherwise a player who switched to
-## fullscreen, back, and to fullscreen again could have the first countdown revert the second.
 func _cancel_fullscreen_timer() -> void:
 	_fullscreen_token += 1
 	_fullscreen_timer = null

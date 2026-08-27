@@ -1,7 +1,5 @@
 extends SceneTree
 
-## Headless exporter — converts mesh JSON intermediates to committed .mesh resources.
-##   godot --path apps/game/client --headless --script res://scripts/tools/export_voxel_meshes.gd
 
 const INTERMEDIATE_ROOT := "res://assets/characters/_intermediate/"
 const OUTPUT_ROOT := "res://assets/characters/"

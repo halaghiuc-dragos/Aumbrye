@@ -1,6 +1,5 @@
 extends Node
 
-## Reports which scene the game settles on, from the tree root so it survives scene changes.
 
 var _elapsed := 0.0
 

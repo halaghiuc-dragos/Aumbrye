@@ -1,7 +1,6 @@
 extends RefCounted
 class_name DioramaPropFactory
 
-## Spawns chunky low-poly diorama props as MeshInstance3D hierarchies.
 
 enum PropKind { CRATE, PILLAR, TORCH, BANNER }
 
@@ -18,23 +17,6 @@ static func create_prop(kind: PropKind, biome_id: String = BiomeRegistry.BIOME_C
 		PropKind.BANNER:
 			return _make_banner(theme)
 		_:
-			return Node3D.new()
-
-
-static func create_prop_named(
-	kind_name: String, biome_id: String = BiomeRegistry.BIOME_CASTLE
-) -> Node3D:
-	match kind_name.to_lower():
-		"crate":
-			return create_prop(PropKind.CRATE, biome_id)
-		"pillar":
-			return create_prop(PropKind.PILLAR, biome_id)
-		"torch":
-			return create_prop(PropKind.TORCH, biome_id)
-		"banner":
-			return create_prop(PropKind.BANNER, biome_id)
-		_:
-			push_warning("DioramaPropFactory: unknown prop '%s'" % kind_name)
 			return Node3D.new()
 
 
@@ -129,6 +111,7 @@ static func _make_torch(theme: PixelDioramaStyle.PaletteTheme) -> Node3D:
 	light.shadow_enabled = false
 	light.position = Vector3(0.0, 1.35, 0.25)
 	root.add_child(light)
+	LightEmbers.attach(root, Vector3(0.0, 1.42, 0.25), light.light_color)
 
 	return root
 

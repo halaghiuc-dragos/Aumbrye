@@ -7,20 +7,14 @@ const THIRD_PERSON_MIN_PITCH := deg_to_rad(-45.0)
 const THIRD_PERSON_MAX_PITCH := deg_to_rad(60.0)
 const FIRST_PERSON_MIN_PITCH := deg_to_rad(-80.0)
 const FIRST_PERSON_MAX_PITCH := deg_to_rad(80.0)
-## Scroll-wheel dolly range, around the 4.0 m default. Deliberately shallow: this is a nudge for
-## framing, not a strategy-game zoom. Was 2.5..7.0 in half-metre steps, which let the player pull
-## far enough back that the warden became a detail in the room.
 const MIN_ZOOM := 3.2
 const MAX_ZOOM := 5.2
 const ZOOM_STEP := 0.25
-const ZOOM_SPEED := 8.0
 const FIRST_PERSON_LENGTH := 0.0
 const FIRST_PERSON_FOV := 82.0
 const FIRST_PERSON_NEAR := 0.02
 const THIRD_PERSON_NEAR := 0.05
 const CAMERA_MODE_BLEND_TIME := 0.22
-## Degrees of extra field of view at full sprint, and how fast the lens opens and closes. Opening
-## is slower than closing: a run takes a moment to build, but the moment you stop, it is over.
 const SPRINT_FOV_GAIN := 6.0
 const SPRINT_FOV_ATTACK := 2.6
 const SPRINT_FOV_RELEASE := 7.0
@@ -28,6 +22,13 @@ const SHOULDER_OFFSET_X := 0.45
 const SHOULDER_OFFSET_BLEND := 8.0
 const ARM_PULL_IN_RATE := 24.0
 const ARM_PUSH_OUT_RATE := 6.0
+const LOCK_YAW_RATE := 9.0
+const LOCK_PITCH_RATE := 7.0
+const LOCK_FRAME_BIAS := 0.62
+const LOCK_CLOSE_RANGE := 4.5
+const LOCK_CLOSE_DOLLY := 0.9
+const LOCK_SWITCH_MOUSE := 0.5
+const LOCK_SWITCH_DECAY := 6.0
 
 @export var yaw_pivot_path: NodePath
 @export var facing_path: NodePath = NodePath("../../Facing")
@@ -48,11 +49,11 @@ var _lock_on_active := false
 var _lock_focus := Vector3.ZERO
 var _lock_pivot_base := Vector3(0.0, 1.6, 0.0)
 var _lock_pivot_offset := Vector3.ZERO
-const LOCK_PITCH_BIAS_MAX := deg_to_rad(12.0)
 const LOCK_PITCH_MOUSE_MAX := deg_to_rad(28.0)
 
 var _lock_pitch_bias := 0.0
-var _stick_drove_lock_pitch := false
+var _lock_dolly := 0.0
+var _lock_switch_travel := 0.0
 var _shoulder_x := 0.0
 
 var _shake_offset := Vector3.ZERO
@@ -66,20 +67,12 @@ var _death_framing := false
 const DEATH_FRAMING_DOLLY := 0.12
 var _fov_kick := 0.0
 var _sprint_fov := 0.0
-## The camera's local transform as the spring arm and the camera effects left it, before the pixel
-## snap adjusted it. Restored at the top of `_process`; see the comment there.
-##
-## Holding the pre-snap **world** transform instead — which is what this did — pinned the camera in
-## world space: restoring undid the spring arm's motion and reading it straight back as the next
-## base meant it never advanced again. The camera froze where it stood when the snap first applied
-## and the player walked out of frame.
 
 
-## Mouse-look deltas arrive from `_unhandled_input` at render-event cadence, but the SpringArm3D's
-## own transform must only ever be written from `_physics_process` — with 3D physics interpolation
-## enabled, Godot interpolates a physics-driven node's rendered transform between ticks, and a
-## write from any other callback would fight that interpolation and reintroduce camera judder.
-## Buffer here, consume (and clear) in `_physics_process`.
+## The SpringArm3D's own transform must only ever be written from `_physics_process`. With 3D
+## physics interpolation on, Godot interpolates a physics-driven node between ticks, and a write
+## from any other callback fights that and reintroduces judder. Mouse deltas arrive at render
+## cadence, so they are buffered here and consumed in `_physics_process`.
 var _pending_mouse_yaw := 0.0
 var _pending_mouse_pitch := 0.0
 
@@ -95,12 +88,9 @@ func _ready() -> void:
 		_facing = get_node_or_null(facing_path) as Node3D
 	_camera = get_node_or_null("Camera3D") as Camera3D
 	if _camera:
-		# The arm is physics-driven and stays interpolated; the camera hanging off it is not.
-		# Shoulder offset, optics, shake and the gameplay pixel snap are all deliberately applied
-		# in _process, at render cadence — with project-wide physics interpolation on, every one of
-		# those writes made Godot warn that an interpolated Camera3D was moved outside a physics
-		# tick, and the snap in particular cannot work if the engine interpolates it back off the
-		# pixel grid afterwards. Opting this one node out is what lets both behave correctly.
+		# The arm stays interpolated; the camera hanging off it must not be. Shoulder offset, optics,
+		# shake and the pixel snap are all applied in `_process` by design, and the snap cannot work
+		# if the engine interpolates the camera back off the pixel grid afterwards.
 		_camera.physics_interpolation_mode = Node.PHYSICS_INTERPOLATION_MODE_OFF
 	if LocalSave.is_first_person_camera():
 		_apply_first_person(true)
@@ -132,6 +122,7 @@ func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventMouseMotion and Input.get_mouse_mode() == Input.MOUSE_MODE_CAPTURED:
 		if _lock_on_active:
 			_apply_lock_pitch_look(-event.relative.y * _mouse_sensitivity())
+			_accumulate_lock_switch(-event.relative.x * _mouse_sensitivity())
 			get_viewport().set_input_as_handled()
 			return
 		_pending_mouse_yaw += -event.relative.x * _mouse_sensitivity()
@@ -171,32 +162,18 @@ func _update_mode_blend(delta: float) -> void:
 	var target_blend := 1.0 if _first_person else 0.0
 	var blend_rate := 1.0 / maxf(CAMERA_MODE_BLEND_TIME, 0.001)
 	_fp_blend = move_toward(_fp_blend, target_blend, blend_rate * delta)
-	# C-16: the pitch limits move with the blend, so re-clamp as they move.
 	_reclamp_pitch()
 
 
 func _update_arm_length(delta: float) -> void:
 	var ideal := lerpf(_target_zoom, FIRST_PERSON_LENGTH, _fp_blend)
-	# C-22: the death-framing pull-back, which used to be written into an offset component the
-	# camera never reads. Moving the arm is the only way a spring-arm camera dollies.
 	if _death_framing:
 		ideal += DEATH_FRAMING_DOLLY
-	# Smoothed toward the *desired* length. Collision is `SpringArm3D`'s own job — it already pulls
-	# its child in when the cast hits something, and `spring_length` is the maximum it may extend to.
-	#
-	# What this replaces fed the node's output back into its input:
-	#
-	#     spring_length = ideal
-	#     hit_length = minf(ideal, get_hit_length())   # measured against the PREVIOUS spring_length
-	#     spring_length = smoothed_toward(hit_length)
-	#
-	# `get_hit_length()` reports the last completed physics query, which ran with the previous
-	# `spring_length`. With nothing to hit it simply returns that previous length, so once the arm
-	# shortened, the shortened value became the ceiling for every frame after — a one-way ratchet.
-	# Measured: zooming in moved the arm 4.00 -> 3.25, and zooming back out moved `_target_zoom` to
-	# 4.75 while the arm stayed at 3.25. Leaving first person was the same failure at its limit —
-	# the arm had been driven to 0.00 and could never climb back, so third person came back with the
-	# camera inside the warden's head.
+	ideal += _lock_dolly
+	# Smoothed toward the *desired* length, never toward `get_hit_length()`. That reports the last
+	# completed query, which ran with the previous `spring_length`, so feeding it back makes the
+	# shortened value the new ceiling — a one-way ratchet the arm can never climb out of.
+	# Collision is the SpringArm's own job; `spring_length` is only the maximum it may extend to.
 	var rate := ARM_PULL_IN_RATE if ideal < _smoothed_arm_length else ARM_PUSH_OUT_RATE
 	_smoothed_arm_length = lerpf(_smoothed_arm_length, ideal, clampf(rate * delta, 0.0, 1.0))
 	spring_length = _smoothed_arm_length
@@ -244,10 +221,6 @@ func _stick_curve_magnitude(magnitude: float, deadzone: float, curve: float) -> 
 	return stick_curve_magnitude(magnitude, deadzone, curve)
 
 
-## C-16: `_pitch` was only ever clamped inside `_apply_look`, using limits that lerp with
-## `_fp_blend` (FP allows +/-80 deg, TP -45/+60). Look straight down in first person, toggle to
-## third, and `rotation.x` kept the out-of-range value until the player next moved the camera.
-## `apply_state` restoring a saved pitch had the same hole. Called from both.
 func _reclamp_pitch() -> void:
 	_pitch = clampf(_pitch, _min_pitch(), _max_pitch())
 	rotation.x = _pitch
@@ -268,12 +241,6 @@ func _apply_lock_pitch_look(pitch_delta: float) -> void:
 	)
 
 
-func get_yaw_basis() -> Basis:
-	if _yaw_pivot:
-		return Basis(Vector3.UP, _yaw_pivot.global_rotation.y)
-	return Basis(Vector3.UP, global_rotation.y)
-
-
 func snap_look_direction(world_direction: Vector3) -> void:
 	var dir := world_direction
 	dir.y = 0.0
@@ -285,21 +252,9 @@ func snap_look_direction(world_direction: Vector3) -> void:
 	_yaw_pivot.reset_physics_interpolation()
 	reset_physics_interpolation()
 
-
-func blend_look_direction(world_direction: Vector3, blend_rate: float) -> void:
-	var dir := world_direction
-	dir.y = 0.0
-	if dir.length_squared() < 0.0001 or _yaw_pivot == null:
-		return
-	dir = dir.normalized()
-	var target_yaw := _yaw_for_look_direction(dir, not _lock_on_active)
-	_yaw_pivot.rotation.y = lerp_angle(
-		_yaw_pivot.rotation.y, target_yaw, clampf(blend_rate, 0.0, 1.0)
-	)
-
-
 func set_lock_on_active(active: bool) -> void:
 	_lock_on_active = active
+	_lock_switch_travel = 0.0
 	if active:
 		_lock_pivot_offset = Vector3.ZERO
 		_lock_pitch_bias = 0.0
@@ -310,64 +265,62 @@ func set_lock_on_active(active: bool) -> void:
 		_lock_focus = Vector3.ZERO
 		_lock_pivot_offset = Vector3.ZERO
 		_lock_pitch_bias = 0.0
+		_lock_dolly = 0.0
 		if _yaw_pivot:
 			_yaw_pivot.position = _lock_pivot_base
 			_yaw_pivot.reset_physics_interpolation()
 
 
 func update_lock_on_frame(focus_world: Vector3, player_eye: Vector3, delta: float) -> void:
-	if _yaw_pivot == null:
-		return
 	_lock_focus = focus_world
-	if _first_person:
-		_yaw_pivot.position = _lock_pivot_base
-	var to_focus := focus_world - player_eye
-	to_focus.y = 0.0
-	if to_focus.length_squared() < 0.0001:
+	if not _lock_on_active or _yaw_pivot == null:
 		return
-	var flat_dir := to_focus.normalized()
-	blend_look_direction(flat_dir, 8.0 * delta)
+	var to_target := focus_world - player_eye
+	var flat := Vector3(to_target.x, 0.0, to_target.z)
+	if flat.length_squared() < 0.0001:
+		return
+	var planar := flat.length()
+	flat /= planar
 
-	if not _first_person:
-		var player_body := _yaw_pivot.get_parent() as Node3D
-		if player_body:
-			var local_focus := player_body.to_local(focus_world)
-			var local_eye := player_body.to_local(player_eye)
-			var local_delta := local_focus - local_eye
-			local_delta.y = 0.0
-			var planar_dist := local_delta.length()
-			if planar_dist > 0.01:
-				var local_dir := local_delta / planar_dist
-				var shift := clampf(planar_dist * 0.42, 0.35, 2.0)
-				var target_offset := Vector3(local_dir.x * shift, 0.0, local_dir.z * shift)
-				_lock_pivot_offset = _lock_pivot_offset.lerp(
-					target_offset, clampf(6.0 * delta, 0.0, 1.0)
-				)
-				_yaw_pivot.position = _lock_pivot_base + _lock_pivot_offset
+	var yaw_blend := clampf(delta * LOCK_YAW_RATE, 0.0, 1.0)
+	var target_yaw := _yaw_for_look_direction(flat, not _lock_on_active)
+	_yaw_pivot.rotation.y = lerp_angle(_yaw_pivot.rotation.y, target_yaw, yaw_blend)
 
+	var frame_point := player_eye.lerp(focus_world, LOCK_FRAME_BIAS)
 	var pivot_world := _yaw_pivot.global_position
-	var aim_dir := (focus_world - pivot_world).normalized()
-	var target_pitch := clampf(asin(clampf(aim_dir.y, -1.0, 1.0)), _min_pitch(), _max_pitch())
-	# C-14: `_lock_pitch_bias` has two writers with different limits. `_apply_lock_pitch_look`
-	# (mouse) clamps to +/-28 deg; this ran every physics frame and re-clamped the same variable to
-	# +/-12 deg, then decayed it toward zero whenever the *stick* was idle — which for a
-	# mouse-and-keyboard player is always. Mouse pitch while locked on was therefore capped at less
-	# than half its intended range and then actively erased, making LOCK_PITCH_MOUSE_MAX dead.
-	# The stick now only ever adds within its own limit, and the decay only runs when the stick is
-	# the thing driving the bias.
-	var stick := Input.get_vector("look_left", "look_right", "look_up", "look_down")
-	if absf(stick.y) >= 0.15:
-		_lock_pitch_bias = clampf(
-			_lock_pitch_bias + stick.y * LOCK_PITCH_BIAS_MAX * delta * 6.0,
-			-LOCK_PITCH_MOUSE_MAX,
-			LOCK_PITCH_MOUSE_MAX
-		)
-	elif _stick_drove_lock_pitch:
-		_lock_pitch_bias = lerpf(_lock_pitch_bias, 0.0, clampf(4.0 * delta, 0.0, 1.0))
-	_stick_drove_lock_pitch = absf(stick.y) >= 0.15
-	target_pitch = clampf(target_pitch + _lock_pitch_bias, _min_pitch(), _max_pitch())
-	_pitch = lerpf(_pitch, target_pitch, clampf(8.0 * delta, 0.0, 1.0))
+	var to_frame := frame_point - pivot_world
+	var frame_planar := Vector2(to_frame.x, to_frame.z).length()
+	var wanted_pitch := 0.0
+	if frame_planar > 0.05:
+		wanted_pitch = atan2(to_frame.y, frame_planar)
+	wanted_pitch = clampf(
+		wanted_pitch + _lock_pitch_bias, _min_pitch(), _max_pitch()
+	)
+	var pitch_blend := clampf(delta * LOCK_PITCH_RATE, 0.0, 1.0)
+	_pitch = lerpf(_pitch, wanted_pitch, pitch_blend)
 	rotation.x = _pitch
+
+	var close := clampf(1.0 - planar / LOCK_CLOSE_RANGE, 0.0, 1.0)
+	_lock_dolly = lerpf(_lock_dolly, close * LOCK_CLOSE_DOLLY, pitch_blend)
+	_lock_switch_travel *= maxf(0.0, 1.0 - LOCK_SWITCH_DECAY * delta)
+
+
+func _accumulate_lock_switch(yaw_delta: float) -> void:
+	if not _lock_on_active:
+		return
+	if signf(yaw_delta) != signf(_lock_switch_travel):
+		_lock_switch_travel = 0.0
+	_lock_switch_travel += yaw_delta
+	if absf(_lock_switch_travel) < LOCK_SWITCH_MOUSE:
+		return
+	var direction := -1 if _lock_switch_travel > 0.0 else 1
+	_lock_switch_travel = 0.0
+	var body := _get_player_body()
+	if body == null:
+		return
+	var lock_on := body.get_node_or_null("LockOn")
+	if lock_on and lock_on.has_method("switch_target"):
+		lock_on.call("switch_target", direction)
 
 
 func _yaw_for_look_direction(flat_dir: Vector3, apply_fp_offset: bool = true) -> float:
@@ -516,27 +469,17 @@ func _update_body_visibility() -> void:
 func _apply_shoulder_offset(delta: float) -> void:
 	if _camera == null:
 		return
-	var target := 0.0 if _fp_blend > 0.99 else SHOULDER_OFFSET_X
+	var target := 0.0 if _fp_blend > 0.99 or _lock_on_active else SHOULDER_OFFSET_X
+	# Held as a value only, folded into the camera's `h_offset` by
+	# `_apply_camera_effects_transform`. Writing `_camera.position.x` instead does not survive: the
+	# spring arm owns its child's position and rewrites it every physics tick.
 	_shoulder_x = lerpf(_shoulder_x, target, clampf(SHOULDER_OFFSET_BLEND * delta, 0.0, 1.0))
-	# Held as a value only. `_apply_camera_effects_transform` folds it into `h_offset`, which is a
-	# lens shift the spring arm never touches.
-	#
-	# This used to write `_camera.position.x` directly. The spring arm owns its child's position and
-	# rewrites it every physics tick, so the offset was applied in `_process` and wiped in
-	# `_physics_process`: at any framerate where the two interleave the camera flicked between
-	# offset and centred several times a second. Measured on a walking player, the camera's offset
-	# to it varied by 0.288 m on x — the whole shoulder offset — while y and z held to a millionth
-	# of a metre.
 
 
 func _apply_camera_optics() -> void:
 	if _camera == null:
 		return
 	var fov := lerpf(_third_person_fov(), _first_person_fov(), _fp_blend) - _fov_kick
-	# Sprinting widens the lens slightly. The player's speed is already capped by the locomotion
-	# system, so the only way running can *feel* faster than walking is optically: a wider field
-	# pushes the edges of the frame outward and the ground past the camera quicker. Impact punch
-	# uses the opposite sign on the same value, which keeps the two readable as different things.
 	fov += _sprint_fov * SPRINT_FOV_GAIN
 	_camera.fov = fov
 	var near := lerpf(THIRD_PERSON_NEAR, FIRST_PERSON_NEAR, _fp_blend)
@@ -546,9 +489,6 @@ func _apply_camera_optics() -> void:
 func _update_camera_effects(delta: float) -> void:
 	if _shake_timer > 0.0:
 		_shake_timer -= delta
-		# C-15: the envelope was normalised against a hardcoded 0.11 s regardless of the duration
-		# passed in, so HitFeedback's 0.2 s crit shake ran at full amplitude for 0.09 s and only
-		# then began to decay — a flat top instead of a falloff.
 		var t := 1.0 - clampf(_shake_timer / maxf(0.001, _shake_duration), 0.0, 1.0)
 		var noise := sin(Time.get_ticks_msec() * 0.04) * cos(Time.get_ticks_msec() * 0.031)
 		_shake_offset = Vector3(noise, absf(noise) * 0.55, 0.0) * _shake_strength * (1.0 - t)
@@ -564,8 +504,6 @@ func _update_camera_effects(delta: float) -> void:
 	_update_sprint_fov(delta)
 
 
-## Eased toward the locomotion's own sprint blend rather than snapped to it, so the lens opens as
-## the warden builds up rather than the instant the key goes down.
 func _update_sprint_fov(delta: float) -> void:
 	var target := 0.0
 	var body := _get_player_body()
@@ -573,7 +511,6 @@ func _update_sprint_fov(delta: float) -> void:
 		var loco := body as Node
 		if loco.has_method("get_sprint_blend"):
 			target = clampf(float(loco.call("get_sprint_blend")), 0.0, 1.0)
-	# Not while aiming down the first-person view, where a shifting field of view reads as drift.
 	target *= 1.0 - _fp_blend
 	var rate := SPRINT_FOV_ATTACK if target > _sprint_fov else SPRINT_FOV_RELEASE
 	_sprint_fov = lerpf(_sprint_fov, target, clampf(delta * rate, 0.0, 1.0))
@@ -583,33 +520,14 @@ func _apply_camera_effects_transform() -> void:
 	if _camera == null:
 		return
 	var offset := _shake_offset + _punch_offset + VfxService.consume_shake()
-	# The shoulder offset rides here rather than on the camera's position; see `_apply_shoulder_offset`.
 	offset.x += _shoulder_x
 	offset.y += _landing_dip
-	# C-22: `offset.z` was computed under `_death_framing` and then dropped on the floor — only x
-	# and y reach `h_offset`/`v_offset`, so the death-framing dolly did nothing. Camera3D has no
-	# z-offset property; the pull-back has to move the spring arm, which is what `_death_dolly`
-	# does in `_update_arm_length`.
 	if _death_framing:
 		offset.y += 0.18
 	_camera.h_offset = offset.x
 	_camera.v_offset = offset.y
 
 
-## No pixel snap here, deliberately.
-##
-## `PixelDioramaViewport._mirrored_transform()` already snaps, and says why it must be the only
-## place that does: "Snapping happens on the render camera only. Snapping the gameplay CameraPivot
-## decouples yaw from player movement and breaks SpringArm follow." It reads this camera as a clean
-## source and writes the snapped result to its own render camera, so there is no feedback path.
-##
-## This node used to snap as well, writing the result back into the camera the SpringArm owns. That
-## is the same mistake `_apply_shoulder_offset` documents twenty lines above — the arm rewrites its
-## child's transform every physics tick — and it needed a cached "clean" local to undo itself with,
-## which then went stale: measured across a 4.6 -> 3.2 zoom, the camera's local z sat frozen at
-## 4.000 while the arm travelled to 3.213, and its world z alternated between 4.000 and a drifting
-## value on every other frame. That alternation is the flicker after a zoom. It also corrupted the
-## source the render camera reads, so the two snap systems were compounding.
 func _capture_mouse_if_allowed() -> void:
 	if PlayerInput.blocked():
 		return

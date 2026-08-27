@@ -1,6 +1,5 @@
 extends Node
 
-## Autoload singleton — persisted grid inventory + equipment stats (M2/M4).
 
 const EquipmentHelper := preload("res://scripts/items/equipment.gd")
 const RarityRegistryScript := preload("res://scripts/loot/rarity_registry.gd")
@@ -15,13 +14,11 @@ const WorldItemPickupScript := preload("res://scripts/inventory/world_item_picku
 signal inventory_changed
 signal equipment_stats_changed(stats: Dictionary)
 signal inventory_rejected(reason: String)
+signal quick_slots_changed
 
 var inventory: GridInventory = GridInventory.new()
 var quick_slot_instances: Array[String] = ["", "", "", ""]
 var _registered_rule_sources: Array = []
-## Guards the status-driven stat refresh against re-entering itself: reconfiguring Health,
-## Poise and Mana emits change signals of their own, and a status expiring inside that cascade
-## would otherwise recurse.
 var _applying_status_refresh := false
 
 
@@ -53,11 +50,6 @@ func _sync_unique_rules() -> void:
 		var rules: Variant = def.get("rules", [])
 		if not rules is Array or (rules as Array).is_empty():
 			continue
-		# C-103: this keyed on `itemId`, so equipping two rules-bearing items with the same id —
-		# two rings of the same unique, which the grid permits — collapsed to one `CombatEvents`
-		# source and the rule fired once. Same defect class as C-32 (relic stacking). The grid
-		# already mints and tracks a per-copy `instanceId`; keying on it makes two copies two
-		# sources, which is what `maxStacks` being authored per rule implies.
 		wanted[_rule_source_id(item_id, str(instance.get("instanceId", "")))] = rules
 	for source_id in _registered_rule_sources:
 		if not wanted.has(source_id):
@@ -108,10 +100,6 @@ func add_loot(item_id: String, opts: Dictionary = {}) -> bool:
 	var quantity: int = int(opts.get("quantity", 1))
 	var added := false
 	if _should_roll_loot(def, bool(opts.get("roll", false))):
-		# BUG-14: an explicit rollSeed (opts) is an intentional reproduce-this-exact-item
-		# request and is reused verbatim across quantity — a natural loot roll instead mixes a
-		# fresh per-drop ordinal into the seed on every unit, so two copies of the same item in
-		# one run (or two units of one add_loot(quantity=N) call) do not roll identically.
 		var explicit_seed: Variant = opts.get("rollSeed")
 		var run_mode := RunFlow.get_run_mode() if RunFlow else ""
 		for _i in quantity:
@@ -145,10 +133,6 @@ func _should_roll_loot(def: Dictionary, force_roll: bool = false) -> bool:
 	return bool(def.get("rollAffixes", false))
 
 
-## BUG-14: mixes a monotonic per-run drop ordinal into the seed so every natural drop is unique
-## even for repeat copies of the same item — the previous formula was a pure function of
-## (run seed, item_id), constant for the whole run, so every iron_greatsword drop in one run
-## rolled the same rarity, the same affixes and the same instance id.
 func _loot_roll_seed(item_id: String) -> int:
 	if not RunFlow or RunFlow.current_seed <= 0:
 		return -1
@@ -167,8 +151,6 @@ func _on_item_added_success(item_id: String, instance_data: Dictionary) -> void:
 	_notify_item_obtained(item_id, instance_data)
 
 
-## Public counterpart to `_emit_inventory_rejected` for callers that grant items outside `add_loot`
-## (quest rewards, waves early-exit payouts). Both used to drop the item silently — C-241, C-190.
 func notify_reward_lost(item_id: String) -> void:
 	push_warning("InventoryService: reward '%s' could not be granted — inventory full" % item_id)
 	_emit_inventory_rejected("full")
@@ -219,9 +201,6 @@ func consume_boss_sigil() -> bool:
 	)
 
 
-## C-132: the sealed-doors modifier asks for two keys and the generator only ever places one, so a
-## door could demand more than the player can possibly hold. Counting has to be possible *before*
-## consuming anything.
 func count_dungeon_keys(key_id: String) -> int:
 	return inventory.find_slots_where(
 		func(slot: Dictionary) -> bool:
@@ -236,25 +215,10 @@ func consume_dungeon_key(key_id: String) -> bool:
 	)
 
 
-func dungeon_keys_for_floor() -> Array[String]:
-	var keys: Array[String] = []
-	for i in inventory.find_slots_where(
-		func(slot: Dictionary) -> bool: return slot.get("itemId", "") == "dungeon_key"
-	):
-		var key_id := str(inventory.slots[i].get("keyId", ""))
-		if key_id != "":
-			keys.append(key_id)
-	return keys
-
-
 func clear_dungeon_keys() -> void:
-	var kept: Array[Dictionary] = []
-	for slot in inventory.slots:
-		if slot.get("itemId", "") == "dungeon_key":
-			continue
-		kept.append(slot)
-	inventory.slots = kept
-	inventory.changed.emit()
+	inventory.remove_all_where(
+		func(slot: Dictionary) -> bool: return slot.get("itemId", "") == "dungeon_key"
+	)
 
 
 func apply_death_durability_loss(amount: int) -> void:
@@ -318,18 +282,6 @@ func get_equipment_stats() -> Dictionary:
 	)
 
 
-## Everything that behaves like gear for combat purposes: equipment affixes, the class's own
-## bonuses, run relics, consumable buffs, and active buff statuses.
-##
-## Deliberately excludes talents, because `CombatStatModifiers` takes the talent dictionary as a
-## separate argument and *adds* both — folding talents in here would count every talent stat
-## twice.
-##
-## This exists because `apply_equipment_to_player_node` passed the equipment-and-class aggregate
-## to all but two of its consumers, so relic stats, consumable-buff stats and status-buff stats
-## reached nothing except max health and elemental resistances. Stamina, poise, mana, weapon
-## damage, move speed, dodge cost, block reduction, armour and flat damage reduction all ignored
-## them — which is most of what a relic or a potion is *for*.
 func get_combat_aggregate_stats() -> Dictionary:
 	var stats := _merge_stat_dicts(get_equipment_only_stats(), get_class_stats())
 	if RunBuffs:
@@ -338,8 +290,6 @@ func get_combat_aggregate_stats() -> Dictionary:
 	return _merge_stat_dicts(stats, get_status_buff_stats())
 
 
-## Stat contribution of active buff statuses on the player (stoneskin, focus, resolve,
-## swiftness). `StatusController` aggregated these and exposed them, and nothing ever asked.
 func get_status_buff_stats() -> Dictionary:
 	var player := get_tree().get_first_node_in_group("player")
 	if player == null:
@@ -365,60 +315,9 @@ func get_talent_stats() -> Dictionary:
 	return ProgressionService.get_talent_stat_totals() if ProgressionService else {}
 
 
-func compare_slot_to_equipped(index: int) -> Dictionary:
-	if index < 0 or index >= inventory.slots.size():
-		return {}
-	var slot: Dictionary = inventory.slots[index]
-	var def := get_item_def(slot.get("itemId", ""))
-	var slot_name := Equipment.slot_for_item_def(def)
-	if slot_name == "":
-		return {}
-	return Equipment.compare_stats(
-		inventory.equipped, slot, Callable(AffixRoller, "get_affix_stat")
-	)
-
-
-func format_slot_tooltip(slot: Dictionary, compare_delta: Dictionary = {}) -> String:
-	var lines: PackedStringArray = []
-	lines.append(inventory.get_slot_display_name(slot))
-	var def := get_item_def(slot.get("itemId", ""))
-	var subtitle := _format_item_subtitle(slot, def)
-	if subtitle != "":
-		lines.append(subtitle)
-	if def.has("description"):
-		lines.append(str(def.get("description", "")))
-	var rule_text := str(def.get("ruleText", ""))
-	if rule_text != "":
-		lines.append("")
-		lines.append(rule_text)
-	var stats := Equipment.stats_for_instance(slot, Callable(AffixRoller, "get_affix_stat"))
-	var stat_lines: PackedStringArray = []
-	for stat in Equipment.STAT_KEYS:
-		var line := Equipment.format_stat_line(stat, stats.get(stat, 0.0))
-		if line == "":
-			continue
-		if compare_delta.has(stat) and not is_zero_approx(compare_delta[stat]):
-			line += " (%s)" % Equipment.format_delta_line(stat, compare_delta[stat])
-		stat_lines.append(line)
-	if not stat_lines.is_empty():
-		lines.append("")
-		lines.append_array(stat_lines)
-	var affix_lines: PackedStringArray = []
-	for affix in slot.get("affixes", []):
-		if not affix is Dictionary:
-			continue
-		var affix_line := AffixRoller.format_affix_line(affix)
-		if affix_line != "":
-			affix_lines.append(affix_line)
-	if not affix_lines.is_empty():
-		lines.append("")
-		lines.append_array(affix_lines)
-	var footer := _format_item_footer(slot, def)
-	if footer != "":
-		lines.append("")
-		lines.append(footer)
-	return "\n".join(lines)
-
+const STAT_COLOR_BETTER := "#7fd67f"
+const STAT_COLOR_WORSE := "#e07a7a"
+const STAT_COLOR_EQUAL := "#e0cf7a"
 
 func _format_item_subtitle(slot: Dictionary, def: Dictionary) -> String:
 	var parts: PackedStringArray = []
@@ -453,53 +352,96 @@ func _format_item_footer(slot: Dictionary, def: Dictionary) -> String:
 	return tr("INV_DURABILITY") % [current, maximum]
 
 
-func format_comparison_bbcode(slot: Dictionary) -> String:
+func format_slot_tooltip_bbcode(slot: Dictionary) -> String:
 	var def := get_item_def(slot.get("itemId", ""))
-	var slot_name := Equipment.slot_for_item_def(def)
-	if slot_name == "":
-		return ""
 	var resolver := Callable(AffixRoller, "get_affix_stat")
-	var equipped_instance: Dictionary = inventory.equipped.get(slot_name, {})
-	if equipped_instance.is_empty() or equipped_instance.get("instanceId", "") == slot.get(
-		"instanceId", ""
-	):
-		return ""
-	var current := Equipment.slot_stats(equipped_instance, resolver)
-	var candidate := Equipment.slot_stats(slot, resolver)
 	var lines: PackedStringArray = []
-	var title: String = tr("INV_COMPARE_TITLE") % inventory.get_slot_display_name(equipped_instance)
-	lines.append("[b]%s[/b]" % title)
-	for stat in Equipment.STAT_KEYS:
-		var new_value := float(candidate.get(stat, 0.0))
-		var old_value := float(current.get(stat, 0.0))
-		if is_zero_approx(new_value) and is_zero_approx(old_value):
-			continue
-		var delta := new_value - old_value
-		var row := (
-			"%s  %s → %s"
-			% [
-				Equipment.stat_display_name(stat),
-				Equipment.format_stat_value(stat, old_value, false),
-				Equipment.format_stat_value(stat, new_value, false),
-			]
+	lines.append("[b]%s[/b]" % _escape_bbcode(inventory.get_slot_display_name(slot)))
+	var subtitle := _format_item_subtitle(slot, def)
+	if subtitle != "":
+		lines.append(_escape_bbcode(subtitle))
+	if def.has("description"):
+		lines.append(_escape_bbcode(str(def.get("description", ""))))
+	var rule_text := str(def.get("ruleText", ""))
+	if rule_text != "":
+		lines.append("")
+		lines.append(_escape_bbcode(rule_text))
+
+	var equipped_stats: Dictionary = {}
+	var slot_name := Equipment.slot_for_item_def(def)
+	var is_worn := false
+	if slot_name != "":
+		var worn: Dictionary = inventory.equipped.get(slot_name, {})
+		is_worn = (
+			not worn.is_empty()
+			and str(worn.get("instanceId", "")) == str(slot.get("instanceId", ""))
 		)
-		if is_zero_approx(delta):
-			lines.append(row)
-		else:
-			var color := "#7fd67f" if delta > 0.0 else "#e07a7a"
-			row += "  [color=%s]%s[/color]" % [color, Equipment.format_stat_value(stat, delta)]
-			lines.append(row)
-	if lines.size() <= 1:
-		return ""
+		if not worn.is_empty() and not is_worn:
+			equipped_stats = Equipment.slot_stats(worn, resolver)
+
+	var stats := Equipment.stats_for_instance(slot, resolver)
+	var keys: Array[String] = []
+	for stat in Equipment.STAT_KEYS:
+		if is_zero_approx(float(stats.get(stat, 0.0))) and is_zero_approx(
+			float(equipped_stats.get(stat, 0.0))
+		):
+			continue
+		keys.append(stat)
+	if not keys.is_empty():
+		lines.append("")
+		for stat in keys:
+			var value := float(stats.get(stat, 0.0))
+			var line := Equipment.format_stat_line(stat, value)
+			if line == "":
+				line = "%s %s" % [
+					Equipment.format_stat_value(stat, 0.0, false),
+					Equipment.stat_display_name(stat),
+				]
+			if equipped_stats.is_empty():
+				lines.append(_escape_bbcode(line))
+				continue
+			var delta := value - float(equipped_stats.get(stat, 0.0))
+			var color := STAT_COLOR_EQUAL
+			if delta > 0.0001:
+				color = STAT_COLOR_BETTER
+			elif delta < -0.0001:
+				color = STAT_COLOR_WORSE
+			lines.append("[color=%s]%s[/color]" % [color, _escape_bbcode(line)])
+
+	var affix_lines: PackedStringArray = []
+	for affix in slot.get("affixes", []):
+		if not affix is Dictionary:
+			continue
+		var affix_line := AffixRoller.format_affix_line(affix)
+		if affix_line != "":
+			affix_lines.append(_escape_bbcode(affix_line))
+	if not affix_lines.is_empty():
+		lines.append("")
+		lines.append_array(affix_lines)
+	var footer := _format_item_footer(slot, def)
+	if footer != "":
+		lines.append("")
+		lines.append(_escape_bbcode(footer))
+	if not equipped_stats.is_empty():
+		lines.append("")
+		lines.append("[i]%s[/i]" % _escape_bbcode(_comparison_caption(slot_name)))
 	return "\n".join(lines)
 
 
-## C-243: removes only the instances this run actually granted.
-##
-## This used to call `remove_items_by_id(item_id, 999)`, which deletes every stack sharing the id —
-## including stock the player brought into the run or bought from the hub merchant. `add_loot`
-## already tags each in-run pickup with `runLoot`, and `strip_equipped_run_loot` already honours
-## that flag; the grid half simply never did.
+func _comparison_caption(slot_name: String) -> String:
+	var worn: Dictionary = inventory.equipped.get(slot_name, {})
+	var worn_name := inventory.get_slot_display_name(worn)
+	var class_id := str(CharacterService.class_id) if CharacterService else ""
+	var class_def := ClassCatalog.get_definition(class_id)
+	var class_name_text := str(class_def.get("displayName", ""))
+	if class_name_text == "":
+		return tr("INV_COMPARE_TITLE") % worn_name
+	return "%s  -  %s" % [tr("INV_COMPARE_TITLE") % worn_name, class_name_text]
+
+
+func _escape_bbcode(text: String) -> String:
+	return text.replace("[", "[lb]")
+
 func remove_run_loot(_item_ids: Array = []) -> void:
 	var doomed: Array[int] = inventory.find_slots_where(
 		func(slot: Dictionary) -> bool: return bool(slot.get("runLoot", false))
@@ -518,11 +460,6 @@ func get_class_stats() -> Dictionary:
 	return {}
 
 
-## Reapplies the player's stat block whenever a buff status is gained or lost.
-##
-## Buff statuses contribute to the same aggregate as gear, so they have to trigger the same
-## recalculation gear does — otherwise a buff only takes effect on the next unrelated inventory
-## change, and never wears off at all.
 func _bind_status_stat_refresh(player: Node) -> void:
 	var controller := player.get_node_or_null("StatusController")
 	if controller == null or not controller.has_signal("statuses_changed"):
@@ -537,8 +474,6 @@ func _on_player_statuses_changed() -> void:
 	var player := get_tree().get_first_node_in_group("player")
 	if player == null or not is_instance_valid(player):
 		return
-	# Re-entrancy guard: configuring Health/Poise/Mana below emits their own change signals, and
-	# a status expiring during that cascade would otherwise recurse back into here.
 	_applying_status_refresh = true
 	apply_equipment_to_player_node(player)
 	_applying_status_refresh = false
@@ -554,9 +489,6 @@ func apply_equipment_to_player_node(player: Node) -> void:
 	var health := player.get_node_or_null("Health") as Health
 	if health:
 		var bonus_hp: float = float(merged_stats.get("maxHealth", 0.0))
-		# BUG-13: preserve_ratio=true — this path runs on every inventory change (add, remove,
-		# move, split, sort all emit `changed`), so refilling here would full-heal the player
-		# for free on any pickup, mid-fight.
 		health.configure(Health.MAX_HEALTH + bonus_hp, true)
 	var stamina := player.get_node_or_null("Stamina") as Stamina
 	if stamina:
@@ -564,8 +496,6 @@ func apply_equipment_to_player_node(player: Node) -> void:
 			Stamina.MAX_STAMINA
 			+ CombatStatModifiersScript.max_stamina_bonus(equip_stats, talent_stats)
 		)
-		# C-49: preserve_ratio=true for the same reason as Health and Poise — the equipment path
-		# fires on every inventory change and must not reset the regen delay or clear exhaustion.
 		stamina.configure(
 			max_stamina,
 			CombatStatModifiersScript.stamina_regen_multiplier(equip_stats, talent_stats),
@@ -577,15 +507,12 @@ func apply_equipment_to_player_node(player: Node) -> void:
 			Poise.MAX_POISE + CombatStatModifiersScript.max_poise_bonus(equip_stats, talent_stats)
 		)
 		var break_dur := float(get_class_stats().get("poise_break_duration", 1.2))
-		# BUG-13: preserve_ratio=true for the same reason as Health above — this must not clear
-		# an in-progress stagger build-up just because the inventory changed.
 		poise.configure(max_poise, break_dur, true)
 	var mana := player.get_node_or_null("Mana") as Mana
 	if mana:
 		var max_mana := (
 			Mana.MAX_MANA + CombatStatModifiersScript.max_mana_bonus(equip_stats, talent_stats)
 		)
-		# C-49: same reason.
 		mana.configure(
 			max_mana,
 			CombatStatModifiersScript.mana_regen_multiplier(equip_stats, talent_stats),
@@ -594,7 +521,6 @@ func apply_equipment_to_player_node(player: Node) -> void:
 	var weapon := player.get_node_or_null("WeaponController")
 	if weapon and weapon.has_method("load_weapon_from_path"):
 		weapon.load_weapon_from_path(inventory.get_equipped_weapon_data_path())
-		# C-245: the equipped weapon's infusion, so the converted damage type reaches the hitbox.
 		if weapon.has_method("set_infusion"):
 			weapon.call("set_infusion", str(inventory.get_equipped_weapon_infusion()))
 		if weapon.has_method("set_combat_stat_modifiers"):
@@ -689,6 +615,7 @@ func set_quick_slot(quick_index: int, instance_id: String) -> void:
 	if quick_index < 0 or quick_index > 3:
 		return
 	quick_slot_instances[quick_index] = instance_id if instance_id != "" else ""
+	quick_slots_changed.emit()
 	if LocalSave:
 		LocalSave.request_autosave()
 
@@ -697,12 +624,6 @@ func get_quick_slot_index(quick_index: int) -> int:
 	if quick_index < 0 or quick_index >= quick_slot_instances.size():
 		return -1
 	return inventory.find_instance_index(quick_slot_instances[quick_index])
-
-
-func get_quick_slot_instance_id(quick_index: int) -> String:
-	if quick_index < 0 or quick_index >= quick_slot_instances.size():
-		return ""
-	return quick_slot_instances[quick_index]
 
 
 func get_quick_slot_label(quick_index: int) -> String:
@@ -764,23 +685,14 @@ func drop_slot_at_index(index: int) -> bool:
 	var slot: Dictionary = inventory.slots[index]
 	var item_id: String = str(slot.get("itemId", ""))
 	var qty: int = int(slot.get("quantity", 1))
-	if RunFlow and RunFlow.is_run_active():
-		var player := get_tree().get_first_node_in_group("player")
-		if player == null:
-			return false
-		var removed := inventory.remove_at(index)
-		if removed.is_empty():
-			return false
-		_spawn_world_pickup(
-			player.global_position, item_id, qty, inventory.get_slot_rarity(removed)
-		)
-		return true
-	var result := MerchantService.sell_item(index, qty)
-	return bool(result.get("ok", false))
-
-
-func split_stack_at_index(index: int) -> bool:
-	return inventory.split_stack(index)
+	var player := get_tree().get_first_node_in_group("player")
+	if player == null:
+		return false
+	var removed := inventory.remove_at(index)
+	if removed.is_empty():
+		return false
+	_spawn_world_pickup(player.global_position, item_id, qty, inventory.get_slot_rarity(removed))
+	return true
 
 
 static func migrate_quick_slots_from_indices(slots: Array, quick_slots: Array) -> Array[String]:
@@ -806,6 +718,7 @@ func _spawn_world_pickup(
 	root.add_child(pickup)
 	pickup.global_position = world_pos + Vector3(0, 0.5, 1.0)
 	pickup.configure(item_id, quantity, rarity)
+	pickup.set_despawn_after_drop()
 
 
 func _restore_quick_slots(raw: Variant) -> void:
@@ -814,8 +727,10 @@ func _restore_quick_slots(raw: Variant) -> void:
 		if not raw.is_empty() and raw[0] is String:
 			for i in mini(raw.size(), 4):
 				quick_slot_instances[i] = str(raw[i])
+			quick_slots_changed.emit()
 			return
 		quick_slot_instances = migrate_quick_slots_from_indices(inventory.slots, raw)
+	quick_slots_changed.emit()
 
 
 func _merge_stat_dicts(a: Dictionary, b: Dictionary) -> Dictionary:
@@ -823,3 +738,17 @@ func _merge_stat_dicts(a: Dictionary, b: Dictionary) -> Dictionary:
 	for stat in b:
 		out[stat] = out.get(stat, 0.0) + float(b[stat])
 	return out
+
+
+## Equips `item_id` as the weapon, granting it first if the warden does not already carry one.
+## The save load path, the hub's starting-weapon guard and the loadout screen each had their own
+## copy; only the loadout one skipped a redundant re-equip, which is kept here for all three.
+func equip_weapon_item(item_id: String) -> void:
+	if inventory.get_equipped_weapon_id() == item_id:
+		return
+	for i in inventory.slots.size():
+		if inventory.slots[i].get("itemId", "") == item_id:
+			inventory.equip_weapon(i)
+			return
+	if inventory.add_item(item_id, 1):
+		inventory.equip_weapon(inventory.slots.size() - 1)

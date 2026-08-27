@@ -1,13 +1,7 @@
 extends Node
 
-## Waits for a RunFlow-driven scene to open, lets it run, then ends the phase.
-##
-## Lives on the tree root so it survives the scene changes it is watching: `RunSceneRouter` replaces
-## the current scene, and a coroutine awaiting inside a freed node never resumes.
 
-## Frames to let a floor build, navigation bake and the first enemies act.
 const SETTLE_FRAMES := 150
-## Frames after the follow-up step, for whatever that opens in turn.
 const FOLLOW_UP_FRAMES := 120
 const TIMEOUT_SECONDS := 75.0
 

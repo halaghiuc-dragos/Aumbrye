@@ -1,7 +1,6 @@
 extends RefCounted
 class_name HubTutorialService
 
-## Content-driven first-run hub tips with glyph substitution and per-character state.
 
 const SAVE_KEY := "hub_tutorial"
 const CONTENT_PATH := "content/hub/tips.json"
@@ -38,11 +37,6 @@ static func load_catalog() -> void:
 			continue
 		_catalog.append(tip)
 		_catalog_ids.append(tip_id)
-
-
-static func catalog_ids() -> Array[String]:
-	load_catalog()
-	return _catalog_ids.duplicate()
 
 
 static func reset_for_character() -> void:
@@ -84,10 +78,6 @@ static func should_show_tips() -> bool:
 	if not tips_enabled or tips_completed:
 		return false
 	return not _current_tip_entry().is_empty()
-
-
-static func current_tip_id() -> String:
-	return str(_current_tip_entry().get("id", ""))
 
 
 static func get_current_tip() -> String:

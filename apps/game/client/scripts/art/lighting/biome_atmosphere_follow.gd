@@ -1,7 +1,6 @@
 class_name BiomeAtmosphereFollow
 extends Node3D
 
-## Snaps atmosphere holder to a follow target on a coarse grid so motes stay local.
 
 const SNAP_GRID := 4.0
 

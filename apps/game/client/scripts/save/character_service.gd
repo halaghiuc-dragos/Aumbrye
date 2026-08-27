@@ -1,6 +1,5 @@
 extends Node
 
-## Autoload — gold, level, flags, quest progress (M4 character state).
 
 signal gold_changed(amount: int)
 signal level_changed(level: int)
@@ -37,12 +36,6 @@ var level: int:
 		return get_level()
 
 
-
-## Emits `appearance_changed`.
-##
-## `CharacterAppearance.apply_to_service` used to reach in and emit the signal itself. That works,
-## but it means this class declares a signal it never sends — which is both a warning and a real
-## readability problem: nothing in this file tells you when the signal fires.
 func notify_appearance_changed(profile: Dictionary) -> void:
 	appearance_changed.emit(profile)
 
@@ -91,17 +84,6 @@ func is_flag_truthy(flag_id: String) -> bool:
 	return CharacterFlags.is_truthy(flag_id, get_flag(flag_id))
 
 
-func unregistered_flag_ids() -> PackedStringArray:
-	var ids: PackedStringArray = []
-	for flag_id in _unregistered_flag_ids:
-		ids.append(flag_id)
-	return ids
-
-
-## BUG-42: apply_bonus must be false for every refund/credit path (a failed purchase, a failed
-## unlock, a save restore) — goldFind is meant to reward *earning* gold, not crediting it back.
-## Applying it to refunds turned "fail a purchase with a full bag" into a repeatable money
-## printer, since the refund itself compounded the same bonus that made the bag fill up.
 func add_gold(amount: int, apply_bonus: bool = true) -> void:
 	if amount <= 0:
 		return
@@ -157,21 +139,6 @@ func set_quest_progress(quest_id: String, progress: Dictionary) -> void:
 	LocalSave.request_autosave(LocalSave.SavePriority.DEFERRED)
 
 
-func active_quest_ids() -> Array[String]:
-	var ids: Array[String] = []
-	for quest_id in quest_states:
-		if str(quest_states[quest_id]) == "active":
-			ids.append(str(quest_id))
-	return ids
-
-
-func clear_quest(quest_id: String) -> void:
-	quest_states.erase(quest_id)
-	quest_progress.erase(quest_id)
-	quests_changed.emit()
-	LocalSave.request_autosave(LocalSave.SavePriority.DEFERRED)
-
-
 func get_class_id() -> String:
 	return class_id
 
@@ -182,8 +149,6 @@ func set_class_id(new_class_id: String) -> void:
 	LocalSave.request_autosave(LocalSave.SavePriority.DEFERRED)
 
 
-## The chosen class contributes its perk to the same rule engine that serves unique
-## items, relics and talent keystones, so exactly one source id is live at a time.
 func _sync_perk_rules() -> void:
 	if not is_instance_valid(CombatEvents):
 		return
@@ -225,9 +190,6 @@ func to_save_dict() -> Dictionary:
 
 
 func from_save_dict(data: Dictionary) -> void:
-	# A pre-migration save may carry a stale "coins" field alongside "gold" — "gold"
-	# is the single source of truth once present; "coins" is read only when a save
-	# predates the field being written at all.
 	if data.has("gold"):
 		gold = int(data.get("gold", DEFAULT_GOLD))
 	elif data.has("coins"):

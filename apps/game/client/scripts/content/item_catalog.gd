@@ -1,7 +1,6 @@
 extends RefCounted
 class_name ItemCatalog
 
-## Single source of truth for item content paths and definitions.
 
 const CATEGORY_DIRS: Array[String] = [
 	"content/items/equipment",

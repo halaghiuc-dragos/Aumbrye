@@ -1,14 +1,5 @@
 extends Node
 
-## Generates floors and reports how many pass `DungeonDefinitionValidator`, with the error mix.
-##
-## `procgen_seed_health.gd` covers Phase 1 — the room graph — and stops there. Everything the
-## validator checks is Phase 2: footprints, placements, lock solvability. Nothing measured that,
-## which is how `entrance_present` and a degrees-for-radians footprint bug both failed every floor
-## of every biome without appearing in any sweep.
-##
-## Usage:
-##   godot --headless --path apps/game/client res://scenes/debug/definition_health.tscn -- --seeds=200
 
 const DungeonProcgenScript := preload("res://scripts/dungeon/procgen/dungeon_procgen.gd")
 const ValidatorScript := preload("res://scripts/dungeon/dungeon_definition_validator.gd")

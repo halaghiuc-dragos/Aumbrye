@@ -1,7 +1,6 @@
 class_name RoomGraphAssigner
 extends RefCounted
 
-## Assign semantic ids, templates, and types from a validated Phase 1 graph.
 
 const COMBAT_SEMANTICS := ["courtyard", "hall", "arena"]
 
@@ -28,9 +27,6 @@ static func assign(biome: Dictionary, graph: RoomGraph, rng: RandomNumberGenerat
 			graph, slot, prefix, combat_preferred, biome_templates, combat_index, filler_index, rng
 		)
 		if str(resolved.get("template_id", "")).is_empty():
-			# Only kind-filtered lookups can come back empty, and of those only secrets are
-			# optional. Emitting the room anyway produced a zero-extent ghost that no room scene
-			# could satisfy, so the secret silently failed to build.
 			dropped_layout_ids.append(layout_id)
 			continue
 		if resolved["type"] == "combat":
@@ -59,9 +55,6 @@ static func assign(biome: Dictionary, graph: RoomGraph, rng: RandomNumberGenerat
 	}
 
 
-## Resolves a template for a slot whose kind is mandatory, falling back to any template that fits
-## the door pattern. A floor without its entrance or stairs is unplayable, so a wrong-kind room is
-## strictly better than none.
 static func _pick_required_template(
 	preferred_template_id: String,
 	required_doors: int,
@@ -74,9 +67,6 @@ static func _pick_required_template(
 	)
 	if not picked.is_empty():
 		return picked
-	# Throttled per (kind, mask): real generation never hits this — a 10,000-seed sweep produces
-	# zero — but the validation suites build synthetic graphs with no qualifying dead end, where the
-	# fallback is correct behaviour and fired 7,000+ times per run, burying every other diagnostic.
 	var warn_key := "%s/%d" % [required_kind, required_doors]
 	if not _fallback_warned.has(warn_key):
 		_fallback_warned[warn_key] = true
@@ -141,11 +131,6 @@ static func _resolve_room(
 				"tags": ["spawn"],
 			}
 		RoomGraphSlot.SlotType.BOSS:
-			# C-212: this used to hardcode "%s_boss" with no door check, while `boss` declares only
-			# DOOR_NORTH and rotation can satisfy exactly one direction. A boss slot with two tree
-			# doors therefore failed `_doors_aligned` on every one of the 12 assignment attempts —
-			# the retry loop redraws every other slot but never this one — burning a full
-			# regeneration. Routed through the same required-template path as entrance and stairs.
 			var boss_doors := _required_doors_for_slot(graph, slot)
 			return {
 				"semantic_id": "boss",
@@ -180,12 +165,6 @@ static func _resolve_room(
 			}
 		RoomGraphSlot.SlotType.SHOP:
 			var shop_doors := _required_doors_for_slot(graph, slot)
-			# C-204: `<prefix>_shop` has a KIND_SPECS entry and five authored layout variants per
-			# biome, but no scene on disk and no entry in any biome's roomTemplateIds — so when
-			# `pick_template_for_doors` happened to draw it, the definition failed
-			# `room_template_resolves` and the whole floor was regenerated. Passing the preferred id
-			# only when a scene actually backs it keeps the shop slot working (it falls back to an
-			# ordinary template and still carries type/tags) without the wasted generations.
 			var shop_preferred := "%s_shop" % prefix
 			if not biome_templates.has(shop_preferred):
 				shop_preferred = ""
@@ -225,12 +204,6 @@ static func _resolve_room(
 				"tags": ["secret_room"],
 			}
 		_:
-			# C-213: past the third combat room the semantic became `combat_N`, which is not a key
-			# in `combat_preferred`, so every room from the fourth on fell through to the
-			# `"%s_courtyard"` default. On a floor with a dozen combat rooms that is nine identical
-			# courtyards. Cycling the three authored kinds keeps every combat room a deliberate
-			# shape while leaving the first three in their existing order, so early-floor pacing is
-			# unchanged.
 			var semantic: String = (
 				COMBAT_SEMANTICS[combat_index]
 				if combat_index < COMBAT_SEMANTICS.size()

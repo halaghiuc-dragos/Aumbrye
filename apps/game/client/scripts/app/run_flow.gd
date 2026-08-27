@@ -1,6 +1,5 @@
 extends Node
 
-## Autoload — hub ↔ dungeon ↔ results flow (FLOW-2.1 / FLOW-4.1).
 
 signal run_started
 signal run_ended(results: Dictionary)
@@ -25,16 +24,10 @@ const ARENA_SCENE := RunSceneRouter.ARENA_SCENE
 const RESULTS_SCENE := RunSceneRouter.RESULTS_SCENE
 const MAIN_MENU_SCENE := "res://scenes/ui/main_menu.tscn"
 const DEFAULT_BIOME := "forgotten_castle"
-## Intentionally off pending server-authoritative runs; net_suite covers the stub path.
 const USE_ONLINE_PROCgen := false
 
-## Achievement / progression tuning
 const SPEED_CLEAR_MAX_SECONDS := 900.0
 const WAVES_COMPLETION_XP := 500
-## BUG-30: endless runs can reach hundreds of floors; these bound the run-history arrays so
-## RAM and save size stop growing linearly with floor count in the one mode meant to be played
-## forever. Gating logic only ever queries near current_floor, so keeping the highest-numbered
-## entries (rather than an arbitrary window) never drops something a live check still needs.
 const MAX_CLEARED_FLOORS_TRACKED := 50
 const MAX_LOOT_HISTORY_TRACKED := 500
 
@@ -43,16 +36,11 @@ const SkipFloorSvc := preload("res://scripts/dungeon/skip_floor_service.gd")
 const XP_SHARD_FLAG := "recoverable_xp_shard"
 const DEATH_GOLD_STAKE_RATIO := 0.4
 
-## Preloaded rather than referenced by class_name: RunFlow is an autoload, so it is compiled before
-## the project-wide global-class table is fully built and a bare `CloudOutbox` fails to resolve.
 const CloudOutboxScript := preload("res://scripts/net/cloud_outbox.gd")
 
 var _pending_endless_seed := 0
 var _pending_descent_pact := ""
-## Floor-skip item reserved for the run being started, spent only once a floor generates.
 var _pending_skip_item := ""
-## Progress counters as they stood when the current floor began, so restarting a floor can undo
-## that attempt instead of banking its kills and loot claims.
 var _floor_entry_marker := {}
 var _pending_region_card := false
 var _active_descent_pact := ""
@@ -90,16 +78,12 @@ var _boss_fight_active := false
 var _boss_fight_damage_taken := false
 var _loot_collected: Array[String] = []
 var _loot_claimed_instance_ids: Array[String] = []
-## BUG-14: monotonic per-run counter mixed into every loot roll seed so two drops of the same
-## item in one run cannot roll identical affixes. Persisted with the run so it stays unique
-## across save/load and deterministic for a given seed (never rolled back on death, so ordinals
-## are never reused even after a checkpoint strips collected loot).
 var _loot_drop_ordinal := 0
 var _pending_snapshot: Dictionary = {}
 var _is_continue := false
 var _cleared_floors: Array[int] = []
-## Validation-only: when set, the next `_resolve_floor_definition` call returns this value ([] = empty).
 var _test_resolve_floor_override: Variant = null
+var _run_starting := false
 
 
 func _ready() -> void:
@@ -107,9 +91,6 @@ func _ready() -> void:
 	PixelDioramaBootstrap.prime()
 
 
-## C-84: the single owner of the replay pump. `RunReplay.pump()` already early-returns when neither
-## recording nor playing, so this costs nothing outside a replay, and the input accessors no longer
-## each carry a call they only needed one of per frame.
 func _physics_process(_delta: float) -> void:
 	PlayerInput.pump_frame()
 
@@ -118,8 +99,6 @@ func start_new_castle_run() -> void:
 	start_new_run(DungeonCatalog.DEFAULT_DUNGEON_ID)
 
 
-## Reserves the seed the next endless run will use so the portal can preview the exact biome and
-## difficulty a skip lands on, rather than a different roll.
 func next_endless_preview_seed() -> int:
 	_pending_endless_seed = randi_range(1, 2_147_483_646)
 	return _pending_endless_seed
@@ -127,8 +106,6 @@ func next_endless_preview_seed() -> int:
 
 func start_endless_run(start_floor: int = 1, skip_item_id: String = "") -> void:
 	if skip_item_id != "":
-		# Read the destination floor without spending the item yet. Skips are rare milestone
-		# rewards; consuming one up front meant a failed floor generation destroyed it for nothing.
 		if not SkipFloorSvc.has_skip(InventoryService.inventory, skip_item_id):
 			last_hub_message = "You do not have that skip item."
 			return
@@ -147,7 +124,6 @@ func start_endless_run(start_floor: int = 1, skip_item_id: String = "") -> void:
 	await _start_mode_run(RM.MODE_ENDLESS, starting_biome, endless_seed, start_floor)
 
 
-## The week's challenge: one seed, one rule set, the same run for everyone who plays it.
 func start_challenge_run() -> void:
 	var challenge := ChallengeService.get_active_challenge()
 	if challenge.is_empty():
@@ -185,10 +161,6 @@ func start_alternate_mode_run(mode_id: String) -> void:
 		await start_new_run(RunModeCatalog.dungeon_of(mode_id))
 
 
-func get_active_alternate_mode() -> String:
-	return _active_alternate_mode
-
-
 func get_active_challenge() -> Dictionary:
 	return _active_challenge
 
@@ -205,6 +177,9 @@ func continue_waves_run() -> void:
 
 
 func start_new_run(dungeon_id: String, run_seed: Variant = null, difficulty_tier: int = 1) -> void:
+	if _run_starting:
+		push_warning("RunFlow: a run is already starting; ignoring the second request")
+		return
 	var resolved_id := _resolve_dungeon_id(dungeon_id)
 	if not DungeonTierService.is_dungeon_unlocked(resolved_id):
 		_emit_run_warning("That dungeon is not unlocked yet.")
@@ -264,21 +239,15 @@ func continue_endless_run() -> void:
 	_restore_castle_run(saved)
 
 
-func start_castle_run() -> void:
-	start_new_castle_run()
-
-
 func _start_mode_run(mode: String, biome_id: String, run_seed: Variant, start_floor: int) -> void:
+	if _run_starting:
+		push_warning("RunFlow: a run is already starting; ignoring the second request")
+		return
+	_run_starting = true
 	run_mode = mode
 	_is_continue = false
 	_pending_snapshot.clear()
-	var preserved_tier := current_dungeon_tier
-	var preserved_difficulty := current_difficulty_tier
-	var preserved_dungeon_id := current_dungeon_id
 	_reset_run_stats()
-	current_dungeon_tier = preserved_tier
-	current_difficulty_tier = preserved_difficulty
-	current_dungeon_id = preserved_dungeon_id
 	max_floors = RunFloorConfig.max_floors_for_mode(run_mode)
 	_promote_pending_rule_set(start_floor)
 	current_dungeon_definition = {}
@@ -291,9 +260,7 @@ func _start_mode_run(mode: String, biome_id: String, run_seed: Variant, start_fl
 	current_biome_id = biome_id
 	current_floor = maxi(1, start_floor)
 	_clear_floor_cache()
-	# PERF-03: overlap the first floor's room-template loads with dungeon generation below.
 	BiomeRegistry.prewarm_room_scenes(biome_id)
-	# …and parse the biome's enemy/trap/loot JSON now rather than at each node's _ready.
 	BiomeRegistry.prewarm_content(biome_id)
 
 	var gen := await _generate_dungeon(biome_id, run_seed, current_floor)
@@ -301,15 +268,11 @@ func _start_mode_run(mode: String, biome_id: String, run_seed: Variant, start_fl
 		var reason := str(gen.get("reason", gen.get("error", "unknown")))
 		var fail_seed := maxi(1, int(gen.get("input_seed", _resolved_run_seed(run_seed))))
 		var fail_msg := "Floor generation failed — seed %d, reason %s" % [fail_seed, reason]
-		# Both, not either. Routing this only to the crash log made a failed floor completely
-		# silent in the console: the player is returned to the hub having pressed Enter Castle and
-		# nothing anywhere says why, and a walk of every game phase cannot tell a run that failed
-		# to generate from one that was never started.
 		if CrashLogger:
 			CrashLogger.log_error("run_flow.procgen_failed", {"message": fail_msg})
 		push_error("RunFlow: %s" % fail_msg)
-		# No floor was reached, so the skip item is not spent.
 		_pending_skip_item = ""
+		_run_starting = false
 		return_to_hub(fail_msg)
 		return
 
@@ -328,14 +291,15 @@ func _start_mode_run(mode: String, biome_id: String, run_seed: Variant, start_fl
 	if current_dungeon_definition.is_empty():
 		last_hub_message = "Failed to load dungeon definition."
 		_pending_skip_item = ""
+		_run_starting = false
 		return_to_hub(last_hub_message)
 		return
 
 	_consume_pending_skip()
 	_enter_run()
+	_run_starting = false
 
 
-## Spends a reserved floor-skip item now that a floor has actually been generated.
 func _consume_pending_skip() -> void:
 	if _pending_skip_item == "":
 		return
@@ -351,19 +315,6 @@ func _resolved_run_seed(run_seed: Variant) -> int:
 	return 0
 
 
-## C-110: the layout comes from the C# generator when the server is reachable and from the GDScript
-## generator when it is not, and the two are **not** verified to agree — `cross_stack_parity_suite`
-## asserted seed mixing, room-kit specs and the biome catalog, never a generated layout, and
-## ADR-0002 lists "diff the canonical JSON across a seed matrix" as still-open work. `SeededRandom.cs`
-## is SplitMix64 with a frozen contract; the GDScript side uses Godot's built-in RNG seeded through
-## a SplitMix64 *mixer*, which is not the same thing as the same stream.
-##
-## The consequence is that seeded reproducibility was connectivity-dependent: two players entering
-## the same seed got different dungeons if one of them was offline. Where reproducibility is the
-## whole point of the run — an explicitly entered seed, or the weekly challenge that is meant to be
-## "the same run for everyone who plays it" — the local generator is now used unconditionally, so
-## every participant walks the same floor regardless of connectivity. Ordinary runs still prefer the
-## server. Fix (3), full generator parity, remains ADR-0002's.
 func _generate_dungeon(biome_id: String, run_seed: Variant, floor_index: int = 1) -> Dictionary:
 	var reproducibility_required := run_seed != null or not _active_challenge.is_empty()
 	if not reproducibility_required and USE_ONLINE_PROCgen and ApiConfig.cloud_calls_enabled():
@@ -402,12 +353,23 @@ func _try_online_generate(biome_id: String, run_seed: Variant, floor_index: int 
 
 
 func _restore_castle_run(saved: Dictionary) -> void:
+	if _run_starting:
+		push_warning("RunFlow: a run is already starting; ignoring the continue request")
+		return
+	_run_starting = true
 	current_run_id = str(saved.get("runId", ""))
 	current_biome_id = str(saved.get("biomeId", DEFAULT_BIOME))
 	current_seed = int(saved.get("seed", 0))
 	run_mode = str(saved.get("runMode", RM.MODE_CASTLE))
 	current_floor = int(saved.get("currentFloor", 1))
 	max_floors = int(saved.get("maxFloors", RunFloorConfig.max_floors_for_mode(run_mode)))
+	current_dungeon_id = str(saved.get("dungeonId", DungeonCatalog.DEFAULT_DUNGEON_ID))
+	if not DungeonCatalog.is_valid(current_dungeon_id):
+		if DungeonCatalog.is_valid(current_biome_id):
+			current_dungeon_id = current_biome_id
+		else:
+			current_dungeon_id = DungeonCatalog.DEFAULT_DUNGEON_ID
+	current_biome_id = DungeonCatalog.get_biome_id(current_dungeon_id)
 	current_dungeon_tier = int(
 		saved.get("dungeonTier", DungeonCatalog.get_order_for_dungeon(current_dungeon_id))
 	)
@@ -420,15 +382,7 @@ func _restore_castle_run(saved: Dictionary) -> void:
 	_base_run_modifiers = RunModifierService.active_modifiers()
 	_pending_descent_pact = ""
 	_active_descent_pact = ""
-	current_dungeon_id = str(saved.get("dungeonId", DungeonCatalog.DEFAULT_DUNGEON_ID))
-	if not DungeonCatalog.is_valid(current_dungeon_id):
-		if DungeonCatalog.is_valid(current_biome_id):
-			current_dungeon_id = current_biome_id
-		else:
-			current_dungeon_id = DungeonCatalog.DEFAULT_DUNGEON_ID
-	current_biome_id = DungeonCatalog.get_biome_id(current_dungeon_id)
 	_clear_floor_cache()
-	# PERF-03: overlap the resumed floor's room-template loads with any regeneration below.
 	BiomeRegistry.prewarm_room_scenes(current_biome_id)
 	BiomeRegistry.prewarm_content(current_biome_id)
 	var def: Variant = saved.get("dungeonDefinition", {})
@@ -445,6 +399,7 @@ func _restore_castle_run(saved: Dictionary) -> void:
 		_pending_snapshot.clear()
 		LocalSave.clear_active_run()
 		last_hub_message = "Saved run data was invalid."
+		_run_starting = false
 		return_to_hub(last_hub_message)
 		return
 
@@ -491,9 +446,9 @@ func _restore_castle_run(saved: Dictionary) -> void:
 	)
 
 	_enter_run()
+	_run_starting = false
 
 
-## Snapshots per-floor progress so restart_current_floor can roll a failed attempt back.
 func _mark_floor_entry() -> void:
 	_floor_entry_marker = {
 		"floor": current_floor,
@@ -562,10 +517,12 @@ func go_to_arena() -> void:
 
 
 func return_to_hub(message: String = "") -> void:
-	if run_mode == RM.MODE_WAVES and _run_active:
+	_run_starting = false
+	if run_mode == RM.MODE_WAVES:
 		LocalSave.clear_waves_active_run()
 		WavesRunService.begin_new_run()
 	_run_active = false
+	run_mode = RM.MODE_CASTLE
 	last_hub_message = message
 	_clear_run_meta()
 	LocalSave.autosave_checkpoint()
@@ -573,13 +530,6 @@ func return_to_hub(message: String = "") -> void:
 	returned_to_hub.emit(message)
 
 
-## Leaves the floor keeping everything collected, at the cost of the run's XP and the run itself.
-##
-## C-230: the "escape" consumable (escape_stone / homeward_bone) used to call the generic
-## `return_to_hub()`, which destroys nothing, grants nothing and — critically — never calls
-## `clear_active_run()`. Loot was banked for free and the same run could then be resumed from the
-## portal, turning every descent into a zero-risk extraction trip. This is the deliberate version:
-## the haul is kept, the floor's XP is forfeited into a recoverable shard, and the run ends.
 func escape_with_loot() -> bool:
 	if not _run_active:
 		return false
@@ -615,18 +565,7 @@ func escape_with_loot() -> bool:
 			}
 		)
 	)
-	var run_id := current_run_id
-	var loot_instance_ids := _loot_claimed_instance_ids.duplicate()
-	LocalSave.clear_active_run()
-	LocalSave.autosave_checkpoint()
-	QuestService.register_run_outcome(RunLifecycle.OUTCOME_RETREATED, {"run_mode": run_mode})
-	MerchantService.restock_all()
-	_decorate_run_results()
-	run_ended.emit(last_run_results)
-	_cloud_finalize_run(run_id, "retreated", elapsed, _boss_defeated, loot_instance_ids)
-	get_tree().root.set_meta("run_results", last_run_results)
-	_run_active = false
-	_clear_in_run_meta()
+	_finish_run(RunLifecycle.OUTCOME_RETREATED, "retreated", elapsed, _boss_defeated)
 	_goto_scene(RESULTS_SCENE)
 	return true
 
@@ -685,23 +624,10 @@ func complete_run_via_portal() -> void:
 			}
 		)
 	)
-	var run_id := current_run_id
-	var loot_instance_ids := _loot_claimed_instance_ids.duplicate()
 	var boss := _boss_defeated
 	var cleared_dungeon := current_dungeon_id
-	LocalSave.clear_active_run()
-	LocalSave.autosave_checkpoint()
-	QuestService.register_run_outcome(RunLifecycle.OUTCOME_ESCAPED, {"run_mode": run_mode})
-	MerchantService.restock_all()
-	_decorate_run_results()
-	run_ended.emit(last_run_results)
-	_cloud_finalize_run(run_id, "escaped", elapsed, boss, loot_instance_ids)
-	_clear_in_run_meta()
+	_finish_run(RunLifecycle.OUTCOME_ESCAPED, "escaped", elapsed, boss)
 	_handle_escape_meta(elapsed, boss)
-	# Published after _clear_in_run_meta, which wipes the other in-run meta keys. It currently
-	# skips "run_results" specifically, but writing afterwards keeps this correct without relying
-	# on that exemption. There used to be a duplicate write before the clear as well.
-	get_tree().root.set_meta("run_results", last_run_results)
 	if run_mode == RM.MODE_CASTLE:
 		_mark_dungeon_cleared(cleared_dungeon)
 		DungeonTierService.record_clear_result(
@@ -763,20 +689,29 @@ func on_player_died() -> void:
 			}
 		)
 	)
+	_finish_run(RunLifecycle.OUTCOME_DIED, "died", elapsed, _boss_defeated)
+	_goto_scene(RESULTS_SCENE)
+
+
+func _finish_run(
+	outcome: String, cloud_outcome: String, elapsed: float, boss_defeated: bool
+) -> void:
 	var run_id := current_run_id
 	var loot_instance_ids := _loot_claimed_instance_ids.duplicate()
-	var boss := _boss_defeated
-	LocalSave.clear_active_run()
+	if run_mode == RM.MODE_WAVES:
+		LocalSave.clear_waves_active_run()
+	else:
+		LocalSave.clear_active_run()
 	LocalSave.autosave_checkpoint()
-	QuestService.register_run_outcome(RunLifecycle.OUTCOME_DIED, {"run_mode": run_mode})
+	QuestService.register_run_outcome(outcome, {"run_mode": run_mode})
 	MerchantService.restock_all()
 	_decorate_run_results()
 	run_ended.emit(last_run_results)
-	_cloud_finalize_run(run_id, "died", elapsed, boss, loot_instance_ids)
-	get_tree().root.set_meta("run_results", last_run_results)
+	if cloud_outcome != "":
+		_cloud_finalize_run(run_id, cloud_outcome, elapsed, boss_defeated, loot_instance_ids)
 	_run_active = false
 	_clear_in_run_meta()
-	_goto_scene(RESULTS_SCENE)
+	get_tree().root.set_meta("run_results", last_run_results)
 
 
 func register_kill(enemy_id: String = "") -> void:
@@ -883,16 +818,8 @@ func retreat_to_hub() -> void:
 	returned_to_hub.emit(last_hub_message)
 
 
-func get_dungeon_tier() -> int:
-	return current_dungeon_tier
-
-
 func get_difficulty_tier() -> int:
 	return current_difficulty_tier
-
-
-func get_dungeon_id() -> String:
-	return current_dungeon_id
 
 
 func get_run_mode() -> String:
@@ -931,9 +858,6 @@ func _transition_floor(ascending: bool) -> void:
 		if next_biome != current_biome_id:
 			_pending_region_card = true
 		current_biome_id = next_biome
-	# PERF-03: kick off background loads for the next floor's room templates as early as possible
-	# in the transition so their disk cost overlaps with dungeon generation and the scene swap,
-	# instead of landing entirely inside DungeonBuilder's (now chunked) build call.
 	BiomeRegistry.prewarm_room_scenes(current_biome_id)
 	BiomeRegistry.prewarm_content(current_biome_id)
 	if _active_alternate_mode != "":
@@ -982,8 +906,6 @@ func _transition_floor(ascending: bool) -> void:
 	_goto_scene(CASTLE_RUN_SCENE)
 
 
-## Everything the results screen needs that is not part of the outcome itself: the seed to share,
-## the relics that carried the run, and the comparison against every run before it.
 func _decorate_run_results() -> void:
 	if _run_highlights.is_empty():
 		_run_highlights = RunBuffs.get_run_highlights()
@@ -1018,10 +940,6 @@ func set_pending_descent_pact(pact_id: String) -> void:
 	_pending_descent_pact = pact_id
 
 
-func get_active_descent_pact() -> String:
-	return _active_descent_pact
-
-
 func consume_pending_region_card() -> bool:
 	if not _pending_region_card:
 		return false
@@ -1040,8 +958,6 @@ func _apply_pending_descent_pact() -> void:
 	)
 
 
-## Alternate rule sets and the weekly challenge own the modifier list for the whole run, so they
-## are applied after the dungeon's own difficulty modifiers rather than merged with them.
 func _promote_pending_rule_set(start_floor: int) -> void:
 	_active_alternate_mode = _pending_alternate_mode
 	_active_challenge = _pending_challenge
@@ -1132,17 +1048,10 @@ func _clear_floor_cache() -> void:
 	DungeonBuilder.clear_floor_cache()
 
 
-## Identity of the run the floor cache currently belongs to.
-##
-## The cache is static and survives a crash-abandoned run, so entries must be scoped to the run
-## that produced them — otherwise two runs sharing floor indices (seeded and weekly-challenge runs
-## especially) read each other's floors.
 func _run_cache_key() -> String:
 	return "%s:%d:%s" % [run_mode, current_seed, current_run_id]
 
 
-## Binds the shared floor cache to this run, wiping anything left from a different one. Called
-## before every store so the binding cannot drift out of date.
 func _bind_run_cache() -> void:
 	DungeonBuilder.begin_run_cache(_run_cache_key())
 	DungeonBuilder.set_reference_floor(current_floor)
@@ -1178,8 +1087,6 @@ func get_loot_claimed_instance_ids() -> Array[String]:
 	return _loot_claimed_instance_ids.duplicate()
 
 
-## BUG-14: call once per rolled-loot unit; mix the result into the roll seed so identical items
-## dropped in the same run do not roll identical affixes.
 func next_loot_drop_ordinal() -> int:
 	_loot_drop_ordinal += 1
 	return _loot_drop_ordinal
@@ -1213,10 +1120,6 @@ func get_run_mode_label() -> String:
 			return run_mode
 
 
-## Interpolates a translated string only when its placeholders survived translation.
-##
-## A locale whose entry drops or malforms "%d" would otherwise raise at the `%` operator, crashing
-## the pause menu for that language only — a failure English-only testing never sees.
 func _tr_fmt(key: String, args: Array) -> String:
 	var text := tr(key)
 	if not text.contains("%"):
@@ -1255,11 +1158,6 @@ func can_restart_current_floor() -> bool:
 	return _run_active and run_mode == RM.MODE_CASTLE and not _cleared_floors.has(current_floor)
 
 
-## Undoes the progress banked during a failed attempt at the current floor.
-##
-## Without this, restarting repeatedly farmed kill-count XP and kept loot ids claimed against chest
-## instances the regenerated floor no longer contains — which then surfaced as duplicate-claim
-## rejections or phantom loot at completion.
 func _rollback_to_floor_entry() -> void:
 	if _floor_entry_marker.is_empty():
 		return
@@ -1268,8 +1166,6 @@ func _rollback_to_floor_entry() -> void:
 
 	_kill_count = mini(_kill_count, int(_floor_entry_marker.get("kills", _kill_count)))
 
-	# History is trimmed from the front at a cap, so the recorded sizes are upper bounds rather
-	# than exact indices — clamp instead of trusting them outright.
 	var loot_keep := mini(_loot_collected.size(), int(_floor_entry_marker.get("loot", 0)))
 	var dropped_items := _loot_collected.slice(loot_keep)
 	_loot_collected = _loot_collected.slice(0, loot_keep)
@@ -1279,7 +1175,6 @@ func _rollback_to_floor_entry() -> void:
 	)
 	_loot_claimed_instance_ids = _loot_claimed_instance_ids.slice(0, claims_keep)
 
-	# Keep the bag in step with the rolled-back ledger.
 	if InventoryService and InventoryService.inventory:
 		for item_id in dropped_items:
 			InventoryService.inventory.remove_items_by_id(str(item_id), 1)
@@ -1396,9 +1291,6 @@ func _reset_run_stats() -> void:
 func _cloud_finalize_run(
 	run_id: String, outcome: String, elapsed: float, boss_defeated: bool, loot_instance_ids: Array
 ) -> void:
-	# Queue before firing. This stays fire-and-forget so the results screen never waits on the
-	# network, but the outbox guarantees eventual delivery even if the player quits right here or
-	# the request never lands.
 	var finished_floor := current_floor
 	CloudOutboxScript.enqueue(
 		run_id, outcome, elapsed, boss_defeated, loot_instance_ids, finished_floor, _kill_count
@@ -1460,16 +1352,12 @@ func _handle_escape_meta(elapsed: float, boss_defeated: bool) -> void:
 		_submit_leaderboard_async(current_biome_id, current_dungeon_tier, elapsed)
 
 
-## The run identity is already on `current_run_id`, which is what the endpoint takes; the three
-## call-site arguments are kept because the caller reads better for passing them.
 func _submit_leaderboard_async(_biome_id: String, _tier: int, _elapsed: float) -> void:
 	var lb := await ApiClient.submit_leaderboard(current_run_id, true)
 	last_run_results["leaderboard_submit_attempted"] = true
 	last_run_results["leaderboard_submit_ok"] = lb.get("ok", false)
 	if not lb.get("ok", false):
 		last_run_results["leaderboard_submit_error"] = str(lb.get("error", "unknown"))
-	# Only credit the achievement for a submission the server actually accepted — an offline
-	# player or a failed POST used to unlock it just for trying.
 	var submitted: bool = lb.get("ok", false) and lb.get("body", {}).get("submitted", false)
 	last_run_results["leaderboard_submitted"] = submitted
 	if AchievementService and submitted:
@@ -1504,7 +1392,6 @@ func _respawn_rules_summary() -> String:
 	)
 
 
-## C-132: room content needs to tell the player why a door refused them.
 func emit_run_warning(message: String) -> void:
 	_emit_run_warning(message)
 
@@ -1540,8 +1427,6 @@ func store_recoverable_xp_shard(
 	)
 
 
-## The stake: a share of the character's coin is left where they fell. Storing a new echo
-## overwrites the old one, so a second death before recovery loses the first for good.
 func _take_death_gold_stake() -> int:
 	var held := CharacterService.gold
 	if held <= 0:
@@ -1554,7 +1439,6 @@ func _take_death_gold_stake() -> int:
 	return staked
 
 
-## Where the run actually ended, aggregated locally so tiers can be tuned without a backend.
 func _record_failure_point() -> Dictionary:
 	var enemy_id := _nearest_enemy_catalog_id()
 	var region := BiomeRegistry.get_display_name(current_biome_id)
@@ -1728,25 +1612,6 @@ func _store_recoverable_xp_shard_from_active_run(xp_amount: int, gold_amount: in
 	)
 
 
-## Replays the stored input stream against the seed it was captured on. Recording is
-## suppressed for the duration so a playback cannot overwrite its own source.
-func start_replay_run() -> bool:
-	var replay := RunReplay.load_from_meta()
-	if replay.is_empty():
-		return false
-	var replay_seed := RunReplay.replay_seed(replay)
-	if replay_seed <= 0:
-		return false
-	if not RunReplay.start_playback(replay):
-		return false
-	start_castle_run_with_seed(replay_seed)
-	return true
-
-
-func stop_replay_run() -> void:
-	RunReplay.stop_playback()
-
-
 func _register_run_started() -> void:
 	CharacterService.set_flag("runs_started", int(CharacterService.get_flag("runs_started", 0)) + 1)
 	if RunReplay.is_playing():
@@ -1851,14 +1716,7 @@ func complete_waves_run(rewards: Array[String]) -> void:
 			}
 		)
 	)
-	LocalSave.clear_waves_active_run()
-	LocalSave.autosave_checkpoint()
-	QuestService.register_run_outcome(RunLifecycle.OUTCOME_WAVES_COMPLETE, {"run_mode": run_mode})
-	MerchantService.restock_all()
-	_decorate_run_results()
-	run_ended.emit(last_run_results)
-	get_tree().root.set_meta("run_results", last_run_results)
-	_clear_in_run_meta()
+	_finish_run(RunLifecycle.OUTCOME_WAVES_COMPLETE, "", elapsed, false)
 	_goto_scene(RESULTS_SCENE)
 
 
@@ -1887,13 +1745,6 @@ func on_waves_failed() -> void:
 			}
 		)
 	)
-	LocalSave.clear_waves_active_run()
-	LocalSave.autosave_checkpoint()
-	QuestService.register_run_outcome(RunLifecycle.OUTCOME_WAVES_FAILED, {"run_mode": run_mode})
-	MerchantService.restock_all()
-	_decorate_run_results()
-	run_ended.emit(last_run_results)
-	get_tree().root.set_meta("run_results", last_run_results)
-	_run_active = false
-	_clear_in_run_meta()
+	WavesRunService.begin_new_run()
+	_finish_run(RunLifecycle.OUTCOME_WAVES_FAILED, "", elapsed, false)
 	_goto_scene(RESULTS_SCENE)

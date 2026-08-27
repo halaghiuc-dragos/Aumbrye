@@ -4,9 +4,9 @@
   "interactType": "dialogue",
   "dialogueId": "tallow_greeting",
   "position": {
-    "x": -13.0,
+    "x": -17.2,
     "y": 0,
-    "z": -13.0
+    "z": -13.6
   },
   "appearance": {
     "classId": "knight",

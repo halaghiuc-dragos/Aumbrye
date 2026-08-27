@@ -1,22 +1,22 @@
 extends Area3D
 class_name HubInteractable
 
-## Reusable hub interact zone — press E / gamepad to trigger (HUB-4.1).
 
 signal player_entered
 signal player_exited
 signal interacted
 
-@export var prompt_text: String = "Interact (E)"
+@export var display_name: String = "Interact"
 @export var interact_id: String = ""
 @export var enabled: bool = true
 @export var enter_sound: StringName = &"ui_interact_near"
 @export var highlight_target: NodePath
+@export var label_path: NodePath
 
 var _near_player := false
+var _label: Label3D
 var _highlight_node: Node3D
 var _highlight_tween: Tween
-## `pixel_diorama_emissive.gdshader` declares `emission_energy` with a default of 1.6.
 const EMISSION_PARAM := &"emission_energy"
 const FALLBACK_EMISSION := 1.6
 
@@ -37,6 +37,8 @@ func _finalize_setup() -> void:
 	if not enabled:
 		set_enabled(false)
 	_resolve_highlight_target()
+	_resolve_label()
+	_refresh_label()
 
 
 func is_player_near() -> bool:
@@ -44,16 +46,43 @@ func is_player_near() -> bool:
 
 
 func get_prompt() -> String:
-	return prompt_text
+	return "%s (%s)" % [display_name, interact_glyph()]
+
+
+static func interact_glyph() -> String:
+	var glyph := InputGlyphService.get_action_glyph("interact")
+	return glyph if glyph != "" else "E"
+
+
+func set_display_name(value: String) -> void:
+	display_name = value
+	_refresh_label()
+
+
+func _resolve_label() -> void:
+	if not label_path.is_empty():
+		_label = get_node_or_null(label_path) as Label3D
+	if _label != null:
+		return
+	var host := get_parent()
+	if host == null:
+		return
+	for child in host.get_children():
+		if child is Label3D:
+			_label = child as Label3D
+			return
+
+
+func _refresh_label() -> void:
+	if _label == null or not is_instance_valid(_label):
+		return
+	_label.text = get_prompt() if is_player_near() else display_name
 
 
 func get_interact_id() -> String:
 	return interact_id
 
 
-## Where the zone actually sits, for `Hub._nearest_interact_id`. The Area3D itself is parked at its
-## owner's origin — a shop's at the building centre, with the shape pushed out to the counter — so
-## the shape is the honest answer to "how close is the player to this thing".
 func get_focus_position() -> Vector3:
 	for child in get_children():
 		var shape := child as CollisionShape3D
@@ -73,6 +102,7 @@ func set_enabled(value: bool) -> void:
 	if not value:
 		_near_player = false
 		_stop_highlight()
+	_refresh_label()
 
 
 func _resolve_highlight_target() -> void:
@@ -89,6 +119,7 @@ func _on_body_entered(body: Node3D) -> void:
 		if enter_sound != StringName():
 			AudioDirector.play_sfx(str(enter_sound), global_position)
 		_start_highlight()
+		_refresh_label()
 		player_entered.emit()
 
 
@@ -96,6 +127,7 @@ func _on_body_exited(body: Node3D) -> void:
 	if body.is_in_group("player"):
 		_near_player = false
 		_stop_highlight()
+		_refresh_label()
 		player_exited.emit()
 
 
@@ -130,13 +162,6 @@ func _start_highlight() -> void:
 	)
 
 
-## `get_shader_parameter` returns null for a uniform that has never been assigned from code, even
-## when the shader declares it with a default — and `float(null)` is a hard error, not 0.0. It threw
-## on the first frame a player stepped into any hub interact zone, before the pulse tween was
-## created, so no hub prop has ever actually highlighted.
-##
-## The declared default is what the material is really rendering with, so that is what the pulse has
-## to start and end on. Guessing 1.0 instead would have dimmed every prop on approach.
 static func _shader_emission_energy(mat: ShaderMaterial) -> float:
 	var value: Variant = mat.get_shader_parameter(EMISSION_PARAM)
 	if value == null and mat.shader != null:

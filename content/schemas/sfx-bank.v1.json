@@ -31,7 +31,7 @@
           "type": "boolean",
           "description": "True when this entry borrows another sound's file or has no real foley yet. Content validation reports these, and --strict-content rejects them, so temporary audio cannot ship unnoticed."
         },
-        "bus": { "type": "string", "enum": ["SFX", "UI"] },
+        "bus": { "type": "string", "enum": ["SFX", "UI", "Ambience"] },
         "variants": {
           "type": "array",
           "items": { "type": "string", "minLength": 1 }

@@ -1,7 +1,8 @@
 extends RefCounted
 class_name AudioSettings
 
-## Persisted bus volume levels (0–1 linear).
+const DebouncedSaveScript := preload("res://scripts/app/debounced_save.gd")
+
 
 const SAVE_KEY := "audio"
 
@@ -11,7 +12,6 @@ static var sfx_volume: float = 1.0
 static var ambience_volume: float = 1.0
 static var ui_volume: float = 1.0
 
-static var _save_timer: SceneTreeTimer
 const SAVE_DEBOUNCE_SEC := 0.5
 static var _pending_commit := false
 static var _changed_listeners: Array[Callable] = []
@@ -43,15 +43,7 @@ static func apply_live(setting_id: String = "", value: Variant = null) -> void:
 
 static func request_commit() -> void:
 	_pending_commit = true
-	var tree := Engine.get_main_loop() as SceneTree
-	if tree == null:
-		commit()
-		return
-	if _save_timer != null and is_instance_valid(_save_timer):
-		_save_timer.time_left = SAVE_DEBOUNCE_SEC
-		return
-	_save_timer = tree.create_timer(SAVE_DEBOUNCE_SEC)
-	_save_timer.timeout.connect(_on_commit_timeout, CONNECT_ONE_SHOT)
+	DebouncedSaveScript.request(&"audio_settings", SAVE_DEBOUNCE_SEC, _on_commit_timeout)
 
 
 static func commit() -> void:

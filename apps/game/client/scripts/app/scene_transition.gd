@@ -1,9 +1,6 @@
 extends CanvasLayer
 class_name SceneTransition
 
-## Owns scene navigation: a full-screen loading overlay, a threaded resource load, and the
-## progress reported by whatever the new scene builds after it comes up. Instantiated on
-## demand and freed when the target scene is ready, so nothing polls between transitions.
 
 const GROUP := &"scene_transition"
 const OVERLAY_LAYER := 200
@@ -26,8 +23,6 @@ var _bar: ProgressBar
 var _status: Label
 
 
-## Entry point for every scene change. Falls back to the plain deferred swap when a
-## threaded request cannot be started, so headless and validation runs behave as before.
 static func goto(tree: SceneTree, path: String, status_text: String = "") -> void:
 	if tree == null or path.is_empty():
 		return
@@ -39,11 +34,6 @@ static func goto(tree: SceneTree, path: String, status_text: String = "") -> voi
 		existing.queue_free()
 	var transition := SceneTransition.new()
 	transition._path = path
-	# Deferred: this is the entry point for every scene change, including ones requested from a
-	# scene's own _ready — a dungeon that finds no run definition and bounces back to the hub, for
-	# instance. The root is still setting up children at that moment, so a direct add_child() fails
-	# outright, and because the transition node carries the load request, the scene change it was
-	# asked to perform never happened at all.
 	tree.root.add_child.call_deferred(transition)
 	if status_text != "":
 		transition.set_status(status_text)
@@ -55,8 +45,6 @@ static func active(tree: SceneTree) -> SceneTransition:
 	return tree.get_first_node_in_group(GROUP) as SceneTransition
 
 
-## Called by a freshly loaded scene that still has work to do — the overlay stays up and
-## tracks that work instead of blinking away on an unbuilt level.
 static func claim(tree: SceneTree, status_text: String = "") -> SceneTransition:
 	var transition := active(tree)
 	if transition == null:
@@ -144,8 +132,6 @@ func _swap_to_loaded() -> void:
 	get_tree().change_scene_to_packed(packed)
 
 
-## Callable before the overlay exists, since the node is now added deferred and callers set the
-## status straight after requesting the transition.
 func set_status(text: String) -> void:
 	if _status:
 		_status.text = text

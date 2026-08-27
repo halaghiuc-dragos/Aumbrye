@@ -1,7 +1,6 @@
 class_name RoomGraphGenerator
 extends RefCounted
 
-## Phase 1 — Isaac-style grid room graph with backtracking walk, bbox fill, and validation.
 
 const RoomGraphSlotScript := preload("res://scripts/dungeon/procgen/room_graph_slot.gd")
 const RoomGraphScript := preload("res://scripts/dungeon/procgen/room_graph.gd")
@@ -16,9 +15,6 @@ const DIR_WEST := Vector2i(-1, 0)
 const DIRECTIONS: Array[Vector2i] = [DIR_NORTH, DIR_EAST, DIR_SOUTH, DIR_WEST]
 const HEIGHT_RUN_LENGTH := 4
 
-## Fraction of the generation attempts that must produce a looping layout before the requirement
-## is dropped. Generation failing outright is far worse than one seed in a few hundred laying out
-## as a tree.
 const LOOP_STRICT_ATTEMPT_FRACTION := 0.75
 
 const DIR_TO_DOOR := {
@@ -30,11 +26,6 @@ const DIR_TO_DOOR := {
 
 class GenerationReport extends RefCounted:
 	var ok: bool = false
-	## C-150: initialised false, assigned false on both the success and exhausted paths, and never
-	## set true by anything — the graph generator has no fallback, unlike `RoomContentAssigner`
-	## (C-144). Kept on the report because `scripts/tools/procgen_seed_health.gd` branches on it, and
-	## removing it would silently change that tool's output; documented so the next reader does not
-	## spend time looking for the path that sets it.
 	var used_fallback: bool = false
 	var attempts: int = 0
 	var reasons: PackedStringArray = []
@@ -53,12 +44,6 @@ static func generate_reported(config: RoomGraphConfig, run_seed: int) -> Generat
 	var report := GenerationReport.new()
 	var rng := RandomNumberGenerator.new()
 	rng.seed = run_seed
-	# Circularity is a preference, not a precondition. Enforcing it as a hard validation rule for
-	# every attempt made whole seeds ungeneratable — a biome with height levels and a high dead-end
-	# floor can produce a layout where no two adjacent rooms are both far apart on the route and
-	# within one height level of each other. Insisting on a loop for most of the attempt budget
-	# gets the circular layout nearly always, and standing down for the rest guarantees the run
-	# still gets a dungeon.
 	var strict_attempts := int(config.max_generation_attempts * LOOP_STRICT_ATTEMPT_FRACTION)
 	for attempt in config.max_generation_attempts:
 		report.attempts = attempt + 1
@@ -342,32 +327,13 @@ static func _apply_door_connections(
 		_open_shortcut_loops(graph, rng, config, config.loop_fallback_detour)
 
 
-## Opens the doors that fold the level back on itself.
-##
-## The walk leaves a spanning tree, so every pair of adjacent rooms without a door between them is
-## a possible loop. Picking from those at random — which is what this did — almost always produced
-## a door across a 2x2 block: technically a cycle, worth nothing to walk, and indistinguishable
-## from a wider corridor.
-##
-## A shortcut is only interesting in proportion to how much walking it removes, so candidates are
-## scored by their *detour*: the distance between their two sides along the route the player
-## currently has. Distances are recomputed after each opening, which is what stops the budget being
-## spent on three parallel doors that all bypass the same corridor — once the first is open the
-## other two score near zero and drop out on their own.
 static func _open_shortcut_loops(
 	graph: RoomGraph, rng: RandomNumberGenerator, config: RoomGraphConfig, min_detour: int
 ) -> void:
 	while graph.loop_edges.size() < config.loop_budget:
 		var distances := _door_bfs_cell_distances(graph)
 		var best: Array = []
-		# C-149: per-origin BFS results, discarded after each opening because opening a door
-		# changes every distance — which is exactly why the original design recomputes distances
-		# between openings.
 		var origin_distances := {}
-		# C-205: this was `min_detour - 1`. A candidate whose detour equalled that value failed both
-		# comparisons below and fell through to `best.append(...)`, so the accepted floor was one
-		# step under the threshold — 4 on the strict pass and, worse, 2 on the fallback, which is
-		# below the "plain 2x2 block" value this scorer exists to reject.
 		var best_detour := min_detour
 		var seen := {}
 		for cell in graph.occupied_cells():
@@ -381,14 +347,8 @@ static func _open_shortcut_loops(
 				var neighbor: RoomGraphSlot = graph.slots[neighbor_cell]
 				if neighbor.slot_type == RoomGraphSlotScript.SlotType.SECRET:
 					continue
-				if slot.door_mask & _dir_to_door(dir):
+				if slot.door_mask & RoomGraphGeometry.dir_to_door(dir):
 					continue
-				# Never spend a dead end on a shortcut. Cul-de-sacs are where the treasure, the
-				# stairs and the shop are placed, and biomes declare a minimum number of them —
-				# scoring purely by detour drove the search straight at them, because the rooms
-				# furthest apart on the route are usually the ends of two different branches.
-				# Opening those doors quietly dissolved the dead-end budget and made whole seeds
-				# fail to generate.
 				if slot.connection_count() <= 1 or neighbor.connection_count() <= 1:
 					continue
 				var key := _edge_key(cell, neighbor_cell)
@@ -397,22 +357,8 @@ static func _open_shortcut_loops(
 				seen[key] = true
 				if not distances.has(cell) or not distances.has(neighbor_cell):
 					continue
-				# A door between rooms on different height levels would be a drop, not a shortcut,
-				# and the height validator rejects gaps wider than one level outright.
 				if absi(slot.height_level - neighbor.height_level) > 1:
 					continue
-				# C-149: this scored `|d[a] - d[b]|` where `d` is BFS depth **from the start room**,
-				# which equals the walking distance between `a` and `b` only when one is an
-				# ancestor of the other. For two rooms on different branches it is the difference of
-				# two depths, not the length of the walk between them — so a pair three rooms apart
-				# down a shared corridor could score 0 while a pair on opposite branches, already
-				# close by another route, could score high. The comment above describes exactly the
-				# right design ("worth opening in proportion to how much walking it removes"); the
-				# metric was measuring something else.
-				#
-				# The real detour is the existing walking distance between the two cells, which is a
-				# BFS from one of them through the current door graph. Memoised per opening, so the
-				# cost is one BFS per candidate origin rather than one per candidate pair.
 				if not origin_distances.has(cell):
 					origin_distances[cell] = _door_bfs_from_cell(graph, cell)
 				var from_cell: Dictionary = origin_distances[cell]
@@ -427,8 +373,6 @@ static func _open_shortcut_loops(
 				best.append([cell, neighbor_cell])
 		if best.is_empty():
 			return
-		# Every candidate left is tied on detour, so the seed picks between equally good shortcuts
-		# rather than between a good one and a bad one.
 		var pair: Array = best[rng.randi_range(0, best.size() - 1)]
 		_set_door_between(graph, pair[0], pair[1])
 		graph.loop_edges.append(
@@ -436,9 +380,6 @@ static func _open_shortcut_loops(
 		)
 
 
-## Room-to-room distances from the start over the doors that are currently open, keyed by cell.
-## C-149: BFS through the current door graph from an arbitrary cell, for measuring how far apart two
-## rooms actually are. `_door_bfs_cell_distances` is the same walk pinned to the start room.
 static func _door_bfs_from_cell(graph: RoomGraph, origin: Vector2i) -> Dictionary:
 	var distances := {}
 	if not graph.slots.has(origin):
@@ -451,7 +392,7 @@ static func _door_bfs_from_cell(graph: RoomGraph, origin: Vector2i) -> Dictionar
 		if slot == null:
 			continue
 		for dir in DIRECTIONS:
-			if not (slot.door_mask & _dir_to_door(dir)):
+			if not (slot.door_mask & RoomGraphGeometry.dir_to_door(dir)):
 				continue
 			var neighbor_cell: Vector2i = cell + dir
 			var neighbor: RoomGraphSlot = graph.get_slot_at(neighbor_cell)
@@ -477,7 +418,7 @@ static func _door_bfs_cell_distances(graph: RoomGraph) -> Dictionary:
 		if slot == null:
 			continue
 		for dir in DIRECTIONS:
-			if not (slot.door_mask & _dir_to_door(dir)):
+			if not (slot.door_mask & RoomGraphGeometry.dir_to_door(dir)):
 				continue
 			var neighbor_cell: Vector2i = cell + dir
 			var neighbor: RoomGraphSlot = graph.get_slot_at(neighbor_cell)
@@ -503,7 +444,7 @@ static func _smooth_height_levels(graph: RoomGraph, config: RoomGraphConfig) -> 
 			if slot.slot_type == RoomGraphSlotScript.SlotType.SECRET:
 				continue
 			for dir in DIRECTIONS:
-				if not (slot.door_mask & _dir_to_door(dir)):
+				if not (slot.door_mask & RoomGraphGeometry.dir_to_door(dir)):
 					continue
 				var neighbor: RoomGraphSlot = graph.get_slot_at(cell + dir)
 				if neighbor == null or neighbor.slot_type == RoomGraphSlotScript.SlotType.SECRET:
@@ -605,15 +546,6 @@ static func _pick_boss_id(
 		for slot_id in distances:
 			if slot_id != graph.start_id:
 				boss_candidates.append(slot_id)
-	# C-212 (revised): fewest-connections was only a *tie-break* among the most distant rooms, so
-	# the boss regularly landed on a two- or three-door slot — and `*_boss` declares a single door
-	# (DOOR_NORTH), which rotation can point in exactly one direction. Measured over a full
-	# validation run, the resulting template fallback fired 7,044 times, meaning the boss fight was
-	# frequently placed in an ordinary room instead of the 28x28 boss arena.
-	#
-	# Dead-endness is now the primary key: a single-door slot at or beyond `boss_min_distance` is
-	# always preferred, and distance decides between them. The old ordering remains as the fallback
-	# for layouts with no qualifying dead end.
 	boss_candidates.sort_custom(
 		func(a: String, b: String) -> bool:
 			var sa := graph.get_slot(a)
@@ -766,12 +698,6 @@ static func _place_secret_attachments(
 			continue
 		var parent_slot: RoomGraphSlot = graph.get_slot_at(parent_cell)
 		slot.secret_parent_id = parent_slot.slot_id
-		# C-148: `_place_secret_attachments()` runs *after* `_smooth_height_levels()`, and
-		# `_make_slot()` leaves `height_level` at its default 0 — which nothing here ever assigned,
-		# even though the parent cell is resolved on the very next line. `room_graph_geometry` turns
-		# that field into world Y, so on any floor where the parent sits above level 0 the secret
-		# room was built below it, connected by a door between two different heights. Inheriting the
-		# parent's level is what smoothing would have done had the room existed when it ran.
 		slot.height_level = parent_slot.height_level
 		slot.secret_mechanism = "hidden_lever" if rng.randf() < 0.5 else "illusory_wall"
 		graph.add_slot(cell, slot)
@@ -793,14 +719,6 @@ static func _pick_secret_parent_cell(
 	return neighbors[rng.randi_range(0, neighbors.size() - 1)]
 
 
-## C-206: the call site reads as "top up to the minimum" — `if ... graph.main_slot_count() <
-## config.min_rooms` — and the function took no target and had no stopping condition, filling the
-## *entire* bounding rectangle. A sparse L-shaped walk on a 6x6 span could therefore jump from 14
-## rooms straight to 36, well past `min_rooms` and past `max_rooms`, with the excess all
-## `is_filler`. Measured at 0 occurrences over 10,000 seeds with the current biome configs, so this
-## was latent — the walk rarely leaves a rectangle sparse enough — but nothing bounded it.
-##
-## It now stops at the target it was called to reach.
 static func _fill_bounding_box(
 	graph: RoomGraph, next_index: int, target_rooms: int = 0
 ) -> int:
@@ -827,7 +745,6 @@ static func _fill_bounding_box(
 			slot.is_filler = true
 			graph.add_slot(cell, slot)
 			next_index += 1
-			# C-206: the stopping condition the call site always implied.
 			if target_rooms > 0 and graph.main_slot_count() >= target_rooms:
 				return next_index
 	return next_index
@@ -873,8 +790,6 @@ static func _validate_graph(
 	if dead_ends < config.min_dead_ends:
 		_last_validate_reason = "Not enough dead ends (%d < %d)" % [dead_ends, config.min_dead_ends]
 		return {"ok": false, "reason": _last_validate_reason}
-	# A layout that folds back on itself is a design requirement, not a bonus, so a tree gets
-	# rerolled the same way an under-sized or disconnected one does.
 	if require_loops and config.loop_budget > 0 and graph.loop_edges.size() < config.min_loops:
 		_last_validate_reason = (
 			"Not enough shortcut loops (%d < %d)" % [graph.loop_edges.size(), config.min_loops]
@@ -891,7 +806,7 @@ static func _validate_graph(
 			if slot.slot_type == RoomGraphSlotScript.SlotType.SECRET:
 				continue
 			for dir in DIRECTIONS:
-				if not (slot.door_mask & _dir_to_door(dir)):
+				if not (slot.door_mask & RoomGraphGeometry.dir_to_door(dir)):
 					continue
 				var neighbor: RoomGraphSlot = graph.get_slot_at(cell + dir)
 				if neighbor == null or neighbor.slot_type == RoomGraphSlotScript.SlotType.SECRET:
@@ -912,16 +827,6 @@ static func _validate_graph(
 				return {"ok": false, "reason": _last_validate_reason}
 	_last_validate_reason = ""
 	return {"ok": true}
-
-
-static func _dir_to_door(dir: Vector2i) -> int:
-	if dir == DIR_NORTH:
-		return RoomGraphSlotScript.DOOR_NORTH
-	if dir == DIR_EAST:
-		return RoomGraphSlotScript.DOOR_EAST
-	if dir == DIR_SOUTH:
-		return RoomGraphSlotScript.DOOR_SOUTH
-	return RoomGraphSlotScript.DOOR_WEST
 
 
 static func _apply_secret_door_masks(graph: RoomGraph) -> void:

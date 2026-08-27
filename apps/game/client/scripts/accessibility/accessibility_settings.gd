@@ -1,7 +1,8 @@
 extends RefCounted
 class_name AccessibilitySettings
 
-## M6 accessibility baseline (A11Y-6.1).
+const DebouncedSaveScript := preload("res://scripts/app/debounced_save.gd")
+
 
 const SAVE_KEY := "accessibility"
 
@@ -26,8 +27,6 @@ const MOTION_INTENSITY_MAX := 1.0
 const MOTION_INTENSITY_DEFAULT := 1.0
 const MOTION_OFF_EPSILON := 0.001
 
-## Kept as booleans so existing gates keep short-circuiting; they mirror the scalar
-## below hitting zero and are rewritten by every scalar setter.
 static var reduce_camera_shake: bool = false
 static var reduce_hitstop: bool = false
 
@@ -53,7 +52,6 @@ static var assist_lock_on_range: float = ASSIST_LOCK_ON_DEFAULT
 static var assist_telegraph_emphasis: bool = false
 
 static var _settings_changed_listeners: Array[Callable] = []
-static var _save_timer: SceneTreeTimer
 const ASSIST_DAMAGE_TAKEN_MIN := 0.5
 const ASSIST_DAMAGE_TAKEN_MAX := 1.0
 const ASSIST_DAMAGE_TAKEN_DEFAULT := 1.0
@@ -85,8 +83,6 @@ static func set_screen_pulse_intensity(value: float) -> void:
 	_refresh_reduced_motion()
 
 
-## Master switch: drives all three motion scalars at once and is itself re-derived
-## whenever one of them is moved on its own.
 static func set_reduced_motion(value: bool) -> void:
 	reduced_motion = value
 	var target := MOTION_INTENSITY_MIN if value else MOTION_INTENSITY_DEFAULT
@@ -105,31 +101,19 @@ static func _refresh_reduced_motion() -> void:
 	)
 
 
-## Combat assists. Each of these had a slider on the Accessibility page, was saved and reloaded,
-## and was read by nothing at all — four settings the player could move that changed no part of
-## the game. The helpers below are the single place each one is honoured.
-
-
-## Scales a hit about to land on the player. Below 1.00x softens runs; never touches enemies.
 static func scale_incoming_player_damage(amount: float) -> float:
 	if amount <= 0.0 or is_equal_approx(assist_damage_taken, ASSIST_DAMAGE_TAKEN_DEFAULT):
 		return amount
 	return amount * assist_damage_taken
 
 
-## Multiplier on how far the player can acquire and hold a lock-on target.
 static func lock_on_range_scale() -> float:
 	return maxf(0.01, assist_lock_on_range)
 
 
-## How much larger an attack telegraph is drawn when emphasis is on.
 const TELEGRAPH_EMPHASIS_RADIUS_SCALE := 1.12
 
 
-## Pushes an attack telegraph's colour towards a brighter, fully opaque version of itself.
-##
-## Deliberately keeps the hue: the telegraph's colour already carries which attack is coming, and
-## recolouring every wind-up to one warning colour would trade one readability problem for another.
 static func emphasise_telegraph_tint(tint: Color) -> Color:
 	if not assist_telegraph_emphasis:
 		return tint
@@ -187,15 +171,7 @@ static func apply_live(setting_id: String = "", value: Variant = null) -> void:
 
 static func request_commit() -> void:
 	_pending_commit = true
-	var tree := Engine.get_main_loop() as SceneTree
-	if tree == null:
-		commit()
-		return
-	if _save_timer != null and is_instance_valid(_save_timer):
-		_save_timer.time_left = SAVE_DEBOUNCE_SEC
-		return
-	_save_timer = tree.create_timer(SAVE_DEBOUNCE_SEC)
-	_save_timer.timeout.connect(_on_commit_timeout, CONNECT_ONE_SHOT)
+	DebouncedSaveScript.request(&"accessibility_settings", SAVE_DEBOUNCE_SEC, _on_commit_timeout)
 
 
 static func commit() -> void:
@@ -258,8 +234,6 @@ static func load_from_save() -> void:
 	assist_telegraph_emphasis = bool(data.get("assistTelegraphEmphasis", false))
 
 
-## Saves written before the motion scalars existed only carried the two booleans; a stored
-## `true` maps onto a zero intensity so an old profile keeps the motion it asked for.
 static func _load_motion_keys(data: Dictionary) -> void:
 	var legacy_shake := bool(data.get("reduce_camera_shake", false))
 	var legacy_hitstop := bool(data.get("reduce_hitstop", false))
@@ -319,8 +293,6 @@ static func save() -> void:
 	changed_notify("all", null)
 
 
-## True when the player has turned any combat assist away from its default, so the results screen
-## can say so plainly rather than hide it.
 static func assists_active() -> bool:
 	return (
 		assist_damage_taken < ASSIST_DAMAGE_TAKEN_DEFAULT
@@ -396,8 +368,6 @@ static func _default_damage_color(damage_type: String) -> Color:
 			return Color(0.4, 0.7, 1.0)
 		"poison":
 			return Color(0.4, 0.9, 0.3)
-		# C-162: `lightning` is in `DamageInfo.ALL_TYPES` and was missing from every palette here,
-		# so lightning damage numbers fell through to the physical red.
 		"lightning":
 			return Color(1.0, 0.9, 0.35)
 		"arcane":

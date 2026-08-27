@@ -1,19 +1,12 @@
 extends RefCounted
 class_name LocaleSettings
 
-## Locale preference stored in save meta (CFG-10).
 
 const SAVE_KEY := "locale"
 const SUPPORTED_LOCALES := ["en", "ro"]
 
 static var locale: String = "en"
 
-## Screens that need to rebuild themselves when the language changes.
-##
-## Godot re-translates a Control's `text` only when it still holds the original message. Every
-## label here is assigned an already-translated string — often formatted with `%` arguments — so
-## nothing on screen changes language until it is rebuilt. Without this, picking a language in
-## Settings left the whole interface in the previous one until the game was restarted.
 static var _changed_listeners: Array[Callable] = []
 
 

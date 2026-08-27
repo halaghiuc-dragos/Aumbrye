@@ -1,7 +1,6 @@
 @tool
 extends Node3D
 
-## Reusable prop kit — instances crate, pillar, torch, and banner for editor reference.
 
 const PROP_SPACING := 2.5
 

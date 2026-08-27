@@ -1,7 +1,6 @@
 extends RefCounted
 class_name FloorShellBuilder
 
-## Per-room ceilings, perimeter walls, and room lighting (no monolithic floor).
 
 const CEILING_THICKNESS := 0.4
 const SHELL_PADDING := 2.0
@@ -19,35 +18,12 @@ static func build(parent: Node3D, rooms: Dictionary, biome_id: String) -> void:
 	parent.add_child(shell)
 
 	var wall_mat := BiomeRegistry.get_wall_material(biome_id)
-	# Rooms already have their own floors and ceilings via CastleBlockout — a monolithic
-	# shell floor or ceiling would bridge empty grid cells and expose the full graph layout.
 	_build_perimeter_walls(shell, bounds, wall_mat)
 
 	for room in rooms.values():
 		var template := room as RoomTemplate
 		if template:
 			DioramaRoomDressing.apply_ceiling_lighting(template, biome_id, template.room_type)
-
-
-static func build_arena_shell(parent: Node3D, half_extent: float, biome_id: String) -> void:
-	var shell := Node3D.new()
-	shell.name = "FloorShell"
-	parent.add_child(shell)
-	var span := half_extent * 2.0 + SHELL_PADDING
-	var wall_mat := BiomeRegistry.get_wall_material(biome_id)
-	var ceiling_y := CastleRoomConstants.WALL_HEIGHT + CEILING_THICKNESS * 0.5
-	_add_slab(
-		shell,
-		"CeilingSlab",
-		Vector3(0.0, ceiling_y, 0.0),
-		Vector3(span, CEILING_THICKNESS, span),
-		wall_mat,
-		true
-	)
-	var half_span := span * 0.5
-	var arena_bounds := AABB(Vector3(-half_span, 0.0, -half_span), Vector3(span, 0.0, span))
-	_build_perimeter_walls(shell, arena_bounds, wall_mat)
-	DioramaRoomDressing.apply_arena_ceiling_lighting(shell, half_extent, biome_id)
 
 
 static func _build_perimeter_walls(shell: Node3D, bounds: AABB, wall_mat: Material) -> void:
@@ -135,39 +111,6 @@ static func _room_corner_bounds(parent: Node3D, room: RoomTemplate) -> Array:
 		max_v.x = maxf(max_v.x, local.x)
 		max_v.z = maxf(max_v.z, local.z)
 	return [min_v, max_v]
-
-
-static func _add_slab(
-	parent: Node3D,
-	node_name: String,
-	center: Vector3,
-	size: Vector3,
-	material: Material,
-	with_collision: bool
-) -> void:
-	var body := StaticBody3D.new()
-	body.name = node_name
-	body.collision_layer = 1
-	body.collision_mask = 0
-	body.position = center
-	body.set_meta("surface", "stone")
-	parent.add_child(body)
-
-	var mesh_instance := MeshInstance3D.new()
-	var box := BoxMesh.new()
-	box.size = size
-	mesh_instance.mesh = box
-	if material:
-		mesh_instance.material_override = material
-	body.add_child(mesh_instance)
-
-	if with_collision:
-		var collision := CollisionShape3D.new()
-		var shape := BoxShape3D.new()
-		shape.size = size
-		collision.shape = shape
-		body.add_child(collision)
-
 
 static func _add_wall_segment(
 	parent: Node3D, center: Vector3, size: Vector3, material: Material, node_name: String

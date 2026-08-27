@@ -1,8 +1,6 @@
 extends Control
 
 
-## Post-run outcome screen — escape/death/waves economy (FLOW-2.1 / FLOW-4.1).
-
 const GameUISkinScript := preload("res://scripts/ui/game_ui_skin.gd")
 const RunLifecycleScript := preload("res://scripts/app/run_lifecycle.gd")
 
@@ -28,6 +26,7 @@ func _ready() -> void:
 	_display_from_run_flow()
 	_load_leaderboard_panel()
 	process_mode = Node.PROCESS_MODE_ALWAYS
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	if not ApiConfig.cloud_state_changed.is_connected(_on_cloud_state_changed):
 		ApiConfig.cloud_state_changed.connect(_on_cloud_state_changed)
 	_refresh_cloud_indicator()
@@ -249,7 +248,6 @@ func _highlight_lines(results: Dictionary) -> Array[String]:
 				if relic is Dictionary and str((relic as Dictionary).get("id", "")) == top_relic:
 					top_name = str((relic as Dictionary).get("name", top_relic))
 		lines.append(tr("RESULTS_TOP_RELIC").format({"relic": top_name, "count": top_procs}))
-	# C-124: the biggest hit of the run, and what made it big.
 	var best_hit: Dictionary = highlights.get("bestHit", {})
 	if best_hit is Dictionary and float(best_hit.get("amount", 0.0)) > 0.0:
 		var flags: PackedStringArray = []

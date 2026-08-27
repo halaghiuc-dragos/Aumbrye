@@ -1,7 +1,5 @@
 extends Node3D
 
-## Data-driven room hazard. Every trap identity — what arms it, how long it
-## telegraphs, what it leaves behind — lives in content/traps/<id>.json.
 
 const DioramaSkin := preload("res://scripts/art/props/diorama_interactable_skin.gd")
 
@@ -23,10 +21,6 @@ var _one_shot := false
 
 
 func _ready() -> void:
-	# C-140: `room_trap_content` already writes `trap_id` as node meta — the id it rolled from the
-	# biome's weighted `trapPool` — and nothing read it. Preferring it here means the spawner's own
-	# decision identifies the trap, ahead of the scene-path map (C-131) and well ahead of the node
-	# name. All three agree today; this makes the most authoritative source win.
 	if trap_id == "":
 		trap_id = str(get_meta("trap_id", ""))
 	if trap_id == "":
@@ -67,10 +61,6 @@ func _physics_process(delta: float) -> void:
 					_state = State.IDLE
 		State.SPENT:
 			set_physics_process(false)
-
-
-func is_hazard_live() -> bool:
-	return _state == State.TELEGRAPH or _state == State.ACTIVE
 
 
 func hazard_radius() -> float:

@@ -1,15 +1,6 @@
 extends RefCounted
 class_name DifficultyProfile
 
-## Common interface over "how much stronger are enemies here" for the three run
-## modes. Each mode keeps its own scaling shape — castle reads catalog tiers, endless uses a
-## continuous per-floor curve with a knee and a soft cap, waves is flat-linear — but consumers
-## (DungeonBuilder, GlobalDropService) no longer need to branch on run mode themselves: they ask
-## `DifficultyProfile.for_run(...)` for a profile bound to the current dungeon/tier and then call
-## the same methods regardless of mode.
-##
-## Numbers are only half of it. `behaviour_modifiers()` returns the same profile expressed as
-## reaction speed and aggression, so a deeper floor is a faster fight rather than a longer one.
 
 const EndlessDifficultyScript := preload("res://scripts/dungeon/endless_difficulty.gd")
 const CastleTierDifficultyScript := preload("res://scripts/dungeon/castle_tier_difficulty.gd")
@@ -25,7 +16,6 @@ const MOVE_SPEED_MULT_CEILING := 1.4
 const WAVES_FULL_PRESSURE_WAVE := 40.0
 
 
-## `progress` is the mode's natural counter: floor index for castle/endless, wave index for waves.
 func hp_multiplier(_progress: int) -> float:
 	return 1.0
 
@@ -38,15 +28,10 @@ func rare_drop_bonus(_progress: int) -> float:
 	return 0.0
 
 
-## 0..1 — how far into this mode's difficulty range the run currently sits.
 func pressure(_progress: int) -> float:
 	return 0.0
 
 
-## Reserved for future data-driven difficulty modifiers (e.g. "enrage", "double spawns"); none of
-## the three curves currently attach any, so every profile returns an empty list today.
-## Multipliers over an enemy's own tuning, shaped for `apply_phase_modifiers()`. Damage is left
-## out on purpose: it is already carried by `damage_multiplier()` and would double up here.
 func behaviour_modifiers(progress: int) -> Dictionary:
 	var p := pressure(progress)
 	var cooldown := lerpf(1.0, COOLDOWN_AT_FULL_PRESSURE, p)

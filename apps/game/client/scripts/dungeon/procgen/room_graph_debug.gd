@@ -1,8 +1,6 @@
 class_name RoomGraphDebug
 extends RefCounted
 
-## ASCII debug visualizer for Phase 1 room graphs.
-
 
 static func print_graph(graph: RoomGraph) -> void:
 	print(render_ascii(graph))

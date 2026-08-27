@@ -1,7 +1,5 @@
 extends CastleEnemyBase
 
-## Swamp toad — bulky melee jumper (THEME-5.3).
-
 
 func _resolve_enemy_id() -> String:
 	return "swamp_toad"

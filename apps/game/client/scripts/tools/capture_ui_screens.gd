@@ -1,27 +1,16 @@
 extends Node
 
-## Boots UI scenes one at a time and writes a PNG of each, for reviewing visual consistency
-## without playing through the game by hand.
-##
-## Must run windowed — a headless run has no rendering device and produces blank images.
-##
-## Usage:
-##   godot --path apps/game/client --resolution 1920x1080 \
-##     res://scenes/debug/capture_ui_screens.tscn
 
 const OUTPUT_DIR := "user://ui_captures"
 
-## Scenes that stand up on their own, in the order a player meets them.
 const SCENES: Array[String] = [
-	"res://scenes/ui/main_menu.tscn",  # also the boot intro; see main_menu.gd
+	"res://scenes/ui/main_menu.tscn",
 	"res://scenes/ui/character_create.tscn",
 	"res://scenes/ui/castle_entry_menu.tscn",
 	"res://scenes/ui/umbral_endless_menu.tscn",
 	"res://scenes/ui/umbral_waves_menu.tscn",
 	"res://scenes/ui/results_screen.tscn",
 	"res://scenes/ui/loading_screen.tscn",
-	# Hub UIs. These have their own scenes and reach their widgets through @onready unique names —
-	# attaching the script to a bare Control instead leaves every one of those lookups null.
 	"res://scenes/ui/quest_board_ui.tscn",
 	"res://scenes/ui/storage_ui.tscn",
 	"res://scenes/ui/merchant_ui.tscn",
@@ -29,8 +18,6 @@ const SCENES: Array[String] = [
 	"res://scenes/ui/loadout_ui.tscn",
 ]
 
-## Screens with no .tscn of their own — a bare Control built entirely by its script. Attaching the
-## script to a fresh Control is how the game itself creates them (see PlayerControls).
 const SCRIPT_SCREENS: Dictionary = {
 	"settings_ui": "res://scripts/ui/settings_ui.gd",
 	"pause_menu": "res://scripts/ui/pause_menu.gd",
@@ -40,7 +27,6 @@ const SCRIPT_SCREENS: Dictionary = {
 	"achievements_ui": "res://scripts/ui/achievements_ui.gd",
 }
 
-## Frames to let a scene settle before capturing, so tweens and deferred layout have run.
 const SETTLE_FRAMES := 12
 
 
@@ -53,12 +39,7 @@ func _ready() -> void:
 	get_tree().quit(0)
 
 
-## Most of these screens are modals that start hidden and are shown by an explicit call, so an
-## as-instantiated capture would just record the clear colour.
 func _open_if_modal(instance: Node) -> void:
-	# Screens whose opener is missing from this list are captured in whatever state _ready() left
-	# them, which is not the state a player ever sees — the talents screen came out as an empty box
-	# because `open_talents` was not listed and its list is only filled by the open call.
 	for method in [
 		"open_menu",
 		"open_creation",
@@ -89,9 +70,6 @@ func _capture_all() -> void:
 		await _capture_instance(packed.instantiate(), scene_path.get_file().get_basename())
 
 
-## The main menu boots into its title intro on the first instance of a process, so the entry in
-## SCENES above records that state. This records the other one — the wordmark docked above the
-## panel — by instantiating it again and skipping the intro.
 func _capture_menu_after_intro() -> void:
 	var packed := load("res://scenes/ui/main_menu.tscn") as PackedScene
 	if packed == null:
@@ -111,7 +89,6 @@ func _capture_menu_after_intro() -> void:
 	await get_tree().process_frame
 
 
-## Settings is six pages behind one script, and only the first is visible as instantiated.
 func _capture_settings_pages() -> void:
 	var script := load("res://scripts/ui/settings_ui.gd") as Script
 	if script == null:
@@ -153,17 +130,10 @@ func _capture_script_screens() -> void:
 		await _capture_instance(instance, str(screen_name))
 
 
-## Screens are parented to a full-rect Control and anchored full-rect themselves, matching how
-## PlayerControls hosts them in game. Hanging them off a bare Node instead leaves them zero-sized,
-## so anything that centres itself lands in the top-left corner.
 func _capture_instance(instance: Node, screen_name: String) -> void:
 	var host := Control.new()
 	host.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(host)
-	# Offsets as well as anchors, and before the screen is parented: set_anchors_preset() alone
-	# rewrites the offsets to preserve the control's current rect, so a freshly created host stayed
-	# zero-sized and every screen that centres itself piled up in the top-left corner. The screen
-	# also has to be full-rect before it enters the tree, since these build their panels in _ready.
 	host.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	if instance is Control:
 		(instance as Control).set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)

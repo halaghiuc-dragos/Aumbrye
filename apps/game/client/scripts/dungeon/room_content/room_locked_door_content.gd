@@ -1,6 +1,5 @@
 extends Node3D
 
-## Blocks a doorway until the player uses the matching dungeon key from inventory.
 
 const DIORAMA_SKIN := preload("res://scripts/art/props/diorama_interactable_skin.gd")
 
@@ -96,9 +95,6 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 	if not PlayerInput.interact_just_pressed(event):
 		return
-	# C-132: this loop consumed greedily and checked afterwards, so a player walking up with one key
-	# to a two-key door had the key **destroyed** and the door stayed sealed forever — with whatever
-	# was behind it lost for the rest of the run. Count first, consume only on success.
 	if InventoryService.count_dungeon_keys(_key_id) < _keys_required:
 		if RunFlow:
 			RunFlow.emit_run_warning(
@@ -150,10 +146,6 @@ func _update_label() -> void:
 		_label.text = "Locked — find key"
 
 
-## C-134: `WorldState` is an autoload, so its signal outlives every floor. Godot does clean up the
-## connection when this node is freed, so this was never a leak in practice — but floor teardown
-## then depends entirely on node freeing being complete and ordered, and C-86 showed how fragile
-## that assumption was. One explicit disconnect makes it independent of teardown order.
 func _exit_tree() -> void:
 	if _lock_flag_id != "" and WorldState.namespace_changed.is_connected(_on_namespace_changed):
 		WorldState.namespace_changed.disconnect(_on_namespace_changed)

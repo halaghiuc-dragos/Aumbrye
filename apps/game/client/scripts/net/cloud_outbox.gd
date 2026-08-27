@@ -1,24 +1,8 @@
 extends RefCounted
 
-## Intentionally NOT declared with `class_name`. This script references the LocalSave, ApiConfig
-## and ApiClient autoloads, and scripts in the global-class table are compiled before autoload
-## singletons are registered as global identifiers — which fails the whole compile. Consumers
-## preload it instead (see RunFlow.CloudOutboxScript).
-
-## Durable queue of run completions that still owe the server a call.
-##
-## Cloud finalisation is deliberately fire-and-forget so the results screen never waits on the
-## network. The cost was that quitting on the results screen lost the completion outright: the
-## client had already cleared its local active run, while the server kept the run Active forever —
-## which also blocks leaderboard submission, since that requires a Completed run.
-##
-## Entries are persisted in the save's meta block and replayed on the next boot. Replay is safe
-## because `/runs/{id}/complete` is idempotent server-side: it claims the run with a guarded status
-## flip and replays its cached result for any repeat call.
 
 const META_KEY := "cloudOutbox"
 const MAX_ATTEMPTS := 5
-## Bounds the queue so a permanently offline player cannot grow their save without limit.
 const MAX_ENTRIES := 32
 
 
@@ -37,7 +21,6 @@ static func _write(entries: Array) -> void:
 	LocalSave.patch_meta(meta)
 
 
-## Records a completion that has not been acknowledged by the server yet.
 static func enqueue(
 	run_id: String,
 	outcome: String,
@@ -70,7 +53,6 @@ static func enqueue(
 	_write(entries)
 
 
-## Drops an entry the server has acknowledged.
 static func resolve(run_id: String) -> void:
 	var entries := _read()
 	var kept: Array = []
@@ -82,11 +64,6 @@ static func resolve(run_id: String) -> void:
 		_write(kept)
 
 
-static func pending_count() -> int:
-	return _read().size()
-
-
-## Retries every queued completion once. Called after the session is restored at boot.
 static func replay() -> void:
 	if not ApiConfig.cloud_calls_enabled():
 		return
@@ -117,7 +94,6 @@ static func replay() -> void:
 
 		var attempts := int(record.get("attempts", 0)) + 1
 		if attempts >= MAX_ATTEMPTS:
-			# Give up rather than retrying a permanently rejected completion every boot.
 			push_warning(
 				(
 					"CloudOutbox: dropping run %s after %d failed attempts — %s"

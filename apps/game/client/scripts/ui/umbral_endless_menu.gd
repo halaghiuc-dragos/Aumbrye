@@ -1,6 +1,5 @@
 extends Control
 
-## Umbral Endless portal menu — new/continue + optional skip-floor consumables.
 
 const SkipFloorSvc := preload("res://scripts/dungeon/skip_floor_service.gd")
 
@@ -49,8 +48,6 @@ func open_menu() -> void:
 func close_menu() -> void:
 	visible = false
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
-	# Through PlayerControls: closing this panel must not grab the mouse back if another one is
-	# still open behind it.
 	PlayerControls.capture_mouse_if_allowed()
 	menu_closed.emit()
 

@@ -1,11 +1,6 @@
 class_name VisualLighting
 extends RefCounted
 
-## Single entry point for every light and environment decision in the game.
-##
-## Profiles live in `content/art/lighting.json`. Outdoor scenes use sky + sun + fill;
-## dungeon interiors use key light + torch omnis. Shadow and tonemap tuning defer to
-## PixelDioramaSettings so the pixel look stays consistent across scene types.
 
 const LightFlickerScript := preload("res://scripts/art/lighting/light_flicker.gd")
 const BiomeAtmosphereFollowScript := preload(
@@ -21,19 +16,37 @@ const ROOM_FILL_ENERGY := 0.88
 const SHELL_TORCH_SPACING := 16.0
 
 const SKY_SHADER_PATH := "res://assets/shared/pixel_sky.gdshader"
+const SKY_BIRDS_SCRIPT := "res://scripts/art/world/sky_birds.gd"
+const SKY_BIRDS_NAME := "SkyBirds"
+
+const GATE_ROW_WIND := Vector3(0.0, 0.0, 1.0)
+
+const SKYLINE_SCRIPT := "res://scripts/art/world/distant_skyline.gd"
+const SKYLINE_NAME := "DistantSkyline"
+
+const REFLECTION_PROBE_NAME := "LevelReflectionProbe"
+const HUB_PROBE_EXTENTS := Vector3(26.0, 12.0, 22.0)
+const HUB_PROBE_ORIGIN := Vector3(0.0, 6.0, 0.0)
+const ARENA_PROBE_EXTENTS := Vector3(17.0, 9.0, 17.0)
+const ARENA_PROBE_ORIGIN := Vector3(0.0, 4.5, 0.0)
 const LIGHTING_DATA_PATH := "content/art/lighting.json"
 
 const SKY_UNIFORM_NAMES: PackedStringArray = [
 	"zenith_color",
 	"horizon_color",
 	"ground_color",
+	"apex_color",
 	"bands",
+	"band_softness",
 	"horizon_falloff",
 	"sun_color",
 	"sun_size",
 	"sun_glow",
 	"cloud_amount",
 	"cloud_color",
+	"cloud_shadow_color",
+	"cloud_drift",
+	"cloud_ceiling",
 ]
 
 static var _data_cache: Dictionary = {}
@@ -42,22 +55,64 @@ static var _atmosphere_profile_id: String = ""
 static var _atmosphere_follow: WeakRef
 
 
-## Lighting *and* atmosphere. Only the dungeon path called `attach_atmosphere`, so the hub and the
-## arena — the two spaces a player spends the most idle time in — had no drifting motes and no fog
-## volume at all, while every dungeon room did. The profiles already described the motes; nothing
-## was reading them.
 static func apply_hub(root: Node3D) -> void:
 	apply_profile(root, "hub")
 	attach_atmosphere(root, "hub")
+	attach_sky_birds(root)
+	attach_reflection_probe(root, HUB_PROBE_EXTENTS, HUB_PROBE_ORIGIN)
+	attach_distant_skyline(root, "hub")
+	WindService.set_fixed_direction(GATE_ROW_WIND)
 
 
 static func apply_arena(root: Node3D) -> void:
-	apply_profile(root, "arena")
+	apply_profile(root, "hub")
 	attach_atmosphere(root, "arena")
+	attach_sky_birds(root)
+	attach_reflection_probe(root, ARENA_PROBE_EXTENTS, ARENA_PROBE_ORIGIN)
+	attach_distant_skyline(root, "hub")
+	WindService.set_fixed_direction(GATE_ROW_WIND)
+
+
+static func attach_distant_skyline(root: Node3D, profile_id: String) -> void:
+	if root == null or root.get_node_or_null(SKYLINE_NAME) != null:
+		return
+	var sky: Dictionary = get_profile(profile_id).get("sky", {})
+	var skyline := Node3D.new()
+	skyline.name = SKYLINE_NAME
+	skyline.set_script(load(SKYLINE_SCRIPT))
+	root.add_child(skyline)
+	skyline.call("build", _parse_color(sky.get("horizon", "#b4653c")))
+
+
+static func attach_reflection_probe(root: Node3D, extents: Vector3, origin: Vector3) -> void:
+	if root == null or root.get_node_or_null(REFLECTION_PROBE_NAME) != null:
+		return
+	var probe := ReflectionProbe.new()
+	probe.name = REFLECTION_PROBE_NAME
+	probe.size = extents * 2.0
+	probe.origin_offset = Vector3.ZERO
+	probe.position = origin
+	probe.update_mode = ReflectionProbe.UPDATE_ONCE
+	probe.interior = false
+	probe.max_distance = 90.0
+	probe.ambient_mode = ReflectionProbe.AMBIENT_ENVIRONMENT
+	root.add_child(probe)
+
+
+static func attach_sky_birds(root: Node3D) -> void:
+	if root == null or root.get_node_or_null(SKY_BIRDS_NAME) != null:
+		return
+	var birds := Node3D.new()
+	birds.name = SKY_BIRDS_NAME
+	birds.set_script(load(SKY_BIRDS_SCRIPT))
+	root.add_child(birds)
 
 
 static func apply_waves_outdoors(root: Node3D) -> void:
-	apply_profile(root, "waves_outdoors")
+	apply_profile(root, "hub")
+	attach_atmosphere(root, "hub")
+	attach_sky_birds(root)
+	attach_distant_skyline(root, "hub")
 
 
 static func profile_for_biome(biome_id: String) -> String:
@@ -77,24 +132,6 @@ static func get_profile(profile_id: String) -> Dictionary:
 		return (profiles[profile_id] as Dictionary).duplicate(true)
 	push_warning("VisualLighting: unknown profile '%s', falling back to hub" % profile_id)
 	return (profiles.get("hub", {}) as Dictionary).duplicate(true)
-
-
-static func profile_summary(profile_id: String) -> Dictionary:
-	var profile := get_profile(profile_id)
-	if profile.is_empty():
-		return {}
-	var ambient: Dictionary = profile.get("ambient", {})
-	var fog: Dictionary = profile.get("fog", {})
-	var torch: Dictionary = profile.get("torch", {})
-	return {
-		"ambient_color": _parse_color(ambient.get("color", "#9e8f85")),
-		"ambient_energy": float(ambient.get("energy", 0.5)),
-		"fog_enabled": bool(fog.get("enabled", false)),
-		"fog_color": _parse_color(fog.get("color", "#332e38")),
-		"fog_density": float(fog.get("density", 0.01)),
-		"torch_color": _parse_color(torch.get("color", ambient.get("color", "#ffb45a"))),
-		"torch_energy": float(torch.get("energy", TORCH_OMNI_ENERGY)),
-	}
 
 
 static func get_torch_config(profile_id: String) -> Dictionary:
@@ -126,24 +163,19 @@ static func apply_profile(root: Node3D, profile_id: String) -> void:
 	_apply_key_light(root, profile.get("key_light", {}))
 	if not has_sky:
 		_remove_node(root, "FillLight")
-
-
-static func apply_indoor_environment(environment: Environment, lighting_profile: Dictionary) -> void:
-	if environment == null:
-		return
-	var base_ambient: Color = lighting_profile.get("ambient_color", Color(0.58, 0.5, 0.44))
-	environment.background_mode = Environment.BG_COLOR
-	environment.background_color = base_ambient.lerp(Color(0.1, 0.09, 0.12), 0.68)
-	environment.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
-	environment.ambient_light_color = base_ambient.lerp(Color(0.78, 0.68, 0.55), 0.42)
-	environment.ambient_light_energy = float(lighting_profile.get("ambient_energy", 0.5))
-	var fog_enabled := bool(lighting_profile.get("fog_enabled", false))
-	environment.fog_enabled = fog_enabled
-	if fog_enabled:
-		environment.fog_light_color = lighting_profile.get("fog_color", Color(0.35, 0.32, 0.38))
-		environment.fog_density = float(lighting_profile.get("fog_density", 0.004))
-		environment.fog_sky_affect = 0.0
-	PixelDioramaSettings.configure_environment(environment)
+	if has_sky:
+		NightLights.bind(root)
+	else:
+		NightLights.clear()
+	if has_sky:
+		DayNightService.register_level(
+			_environment_of(root),
+			root.get_node_or_null("DirectionalLight3D") as DirectionalLight3D,
+			root.get_node_or_null("FillLight") as DirectionalLight3D,
+			profile_id
+		)
+	else:
+		DayNightService.clear_level()
 
 
 static func configure_soft_omni(
@@ -187,10 +219,6 @@ static func flicker_phase_for_position(pos: Vector3) -> float:
 	return fposmod(pos.x * 12.9898 + pos.z * 78.233, TAU)
 
 
-static func apply_biome_atmosphere(root: Node3D, biome_id: String, follow: Node3D = null) -> void:
-	attach_atmosphere(root, profile_for_biome(biome_id), follow)
-
-
 static func attach_atmosphere(root: Node3D, profile_id: String, follow: Node3D = null) -> void:
 	if root == null:
 		return
@@ -227,37 +255,19 @@ static func refresh_atmosphere() -> void:
 	attach_atmosphere(scene_root, _atmosphere_profile_id, follow)
 
 
-static func sky_uniforms_for_profile(profile_id: String) -> Dictionary:
-	var sky: Dictionary = get_profile(profile_id).get("sky", {})
-	if sky.is_empty():
-		return {}
-	var ambient: Dictionary = get_profile(profile_id).get("ambient", {})
-	var sun: Dictionary = get_profile(profile_id).get("sun", {})
-	return {
-		"zenith_color": _parse_color(sky.get("zenith", "#4a6bad")),
-		"horizon_color": _parse_color(sky.get("horizon", "#edb875")),
-		"ground_color": _parse_color(sky.get("ground", "#3d3130")),
-		"bands": float(sky.get("bands", 8.0)),
-		"horizon_falloff": float(sky.get("horizon_falloff", 2.4)),
-		"sun_color": _parse_color(sun.get("color", ambient.get("color", "#ffe0a8"))),
-		"sun_size": float(sky.get("sun_size", 0.045)),
-		"sun_glow": float(sky.get("sun_glow", 0.4)),
-		"cloud_amount": float(sky.get("cloud_amount", 0.0)),
-		"cloud_color": _parse_color(sky.get("cloud_color", "#fae0c2")),
-	}
-
-
-static func tonemap_white_for_profile(profile_id: String) -> float:
-	var grade: Dictionary = get_profile(profile_id).get("grade", {})
-	if grade.has("white"):
-		return float(grade.get("white", 1.2))
-	return 1.2 if PixelDioramaSettings.linear_tonemap else 1.0
-
-
 static func _load_data() -> Dictionary:
 	if _data_cache.is_empty():
 		_data_cache = ContentLoader.load_json(LIGHTING_DATA_PATH)
 	return _data_cache
+
+
+static func _environment_of(root: Node3D) -> Environment:
+	var node := root.get_node_or_null("WorldEnvironment") as WorldEnvironment
+	return node.environment if node else null
+
+
+static func day_night_block() -> Dictionary:
+	return _load_data().get("day_night", {})
 
 
 static func _apply_environment(root: Node3D, profile: Dictionary, has_sky: bool) -> void:
@@ -320,13 +330,24 @@ static func sky_uniforms_for_profile_from_raw(profile: Dictionary) -> Dictionary
 		"zenith_color": _parse_color(sky.get("zenith", "#4a6bad")),
 		"horizon_color": _parse_color(sky.get("horizon", "#edb875")),
 		"ground_color": _parse_color(sky.get("ground", "#3d3130")),
+		"apex_color": _parse_color(
+			sky.get("apex", "")
+		) if str(sky.get("apex", "")) != "" else _parse_color(sky.get("zenith", "#4a6bad")).darkened(0.42),
 		"bands": float(sky.get("bands", 8.0)),
+		"band_softness": float(sky.get("band_softness", 0.45)),
 		"horizon_falloff": float(sky.get("horizon_falloff", 2.4)),
 		"sun_color": _parse_color(sun.get("color", ambient.get("color", "#ffe0a8"))),
 		"sun_size": float(sky.get("sun_size", 0.045)),
 		"sun_glow": float(sky.get("sun_glow", 0.4)),
 		"cloud_amount": float(sky.get("cloud_amount", 0.0)),
 		"cloud_color": _parse_color(sky.get("cloud_color", "#fae0c2")),
+		"cloud_shadow_color": (
+			_parse_color(sky.get("cloud_shadow", ""))
+			if str(sky.get("cloud_shadow", "")) != ""
+			else _parse_color(sky.get("cloud_color", "#fae0c2")).darkened(0.42)
+		),
+		"cloud_drift": float(sky.get("cloud_drift", 0.02)),
+		"cloud_ceiling": float(sky.get("cloud_ceiling", 0.62)),
 	}
 
 
@@ -414,11 +435,6 @@ static func _rebuild_atmosphere(holder: Node3D, profile_id: String, follow: Node
 		)
 	var fog: Dictionary = profile.get("fog", {})
 	var fog_volume: Dictionary = atmosphere.get("fog_volume", {})
-	# Opt-in, and it defaults to *off*. A FogVolume only renders when the Environment has
-	# volumetric fog switched on, and nothing ever switched it on — so the old default-true built a
-	# FogVolume into every dungeon that drew nothing at all. Declaring it now genuinely turns the
-	# feature on, which is what puts visible shafts in a torch-lit room, so it has to be a
-	# deliberate per-profile choice rather than something a missing key opts you into.
 	if bool(fog.get("enabled", false)) and bool(fog_volume.get("enabled", false)):
 		_enable_volumetric_fog(holder, fog, fog_volume)
 		var size_arr: Array = fog_volume.get("size", [48.0, 8.0, 48.0])
@@ -435,9 +451,6 @@ static func _rebuild_atmosphere(holder: Node3D, profile_id: String, follow: Node
 		holder.add_child(fog_node)
 
 
-## Switches volumetric fog on for the scene that owns `holder`, so declared FogVolumes actually
-## render. Kept deliberately cheap: a coarse froxel depth and a short range are all a diorama needs
-## for light shafts, and they keep the cost off the frame budget in a room full of torches.
 static func _enable_volumetric_fog(
 	holder: Node3D, fog: Dictionary, fog_volume: Dictionary
 ) -> void:

@@ -1,7 +1,6 @@
 extends RefCounted
 class_name MerchantService
 
-## Buy/sell consumables from merchant stock data (HUB-4.3).
 
 const RarityRegistryScript := preload("res://scripts/loot/rarity_registry.gd")
 const EquipmentScript := preload("res://scripts/items/equipment.gd")
@@ -17,10 +16,6 @@ static func get_buy_price(item_id: String, merchant_id: String = "hub_merchant")
 	return int(ItemCatalog.get_definition(item_id).get("value", 10))
 
 
-static func get_sell_price(item_id: String) -> int:
-	return get_slot_unit_sell_price({"itemId": item_id, "quantity": 1})
-
-
 static func get_slot_unit_sell_price(slot: Dictionary) -> int:
 	var item_id: String = slot.get("itemId", "")
 	var base := maxi(1, ItemCatalog.get_loot_value(item_id))
@@ -31,10 +26,6 @@ static func get_slot_unit_sell_price(slot: Dictionary) -> int:
 	price = int(
 		round(float(price) * EquipmentScript.upgrade_multiplier(int(slot.get("upgradeLevel", 0))))
 	)
-	# Affix values are in whatever unit their stat uses (fractions, flat points,
-	# multipliers) — pricing off the raw number is scale-blind. Price instead from
-	# the item's rarity tier, which is what the affix's own value band was rolled
-	# against, so a stronger rarity always sells for more regardless of affix unit.
 	var affix_tier := maxi(0, RarityRegistryScript.tier_index(rarity))
 	for affix in slot.get("affixes", []):
 		if affix is Dictionary:
@@ -49,10 +40,6 @@ static func get_slot_sell_price(slot: Dictionary) -> int:
 
 static func get_purchased(merchant_id: String) -> Dictionary:
 	return LocalSave.get_merchant_purchased(merchant_id)
-
-
-static func restock(merchant_id: String) -> void:
-	LocalSave.clear_merchant_purchased(merchant_id)
 
 
 static func restock_all() -> void:
@@ -81,11 +68,6 @@ static func get_available_stock(merchant_id: String = "hub_merchant") -> Array[D
 	return result
 
 
-## BUG-43: validate everything, then commit — never spend and refund. Stock, affordability and
-## inventory space are all checked before CharacterService.spend_gold() runs, so the common
-## failure paths no longer need a refund at all. add_loot() can still fail after the space check
-## (a stack/placement edge case) — that residual path still refunds, and BUG-42 makes sure the
-## refund does not also apply the goldFind bonus.
 static func buy_item(item_id: String, merchant_id: String = "hub_merchant") -> Dictionary:
 	var found_entry: Dictionary = {}
 	for entry in MerchantCatalog.get_stock(merchant_id):

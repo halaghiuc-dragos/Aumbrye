@@ -1,7 +1,6 @@
 class_name NameValidator
 extends RefCounted
 
-## Warden name rules for character creation.
 
 const MIN_LENGTH := 2
 const MAX_LENGTH := 18
@@ -50,11 +49,6 @@ static func random_valid_name(existing_names: PackedStringArray = []) -> String:
 	return str(first_list[0])
 
 
-## C-249: `character_create_ui` validates on every text change, so this compiled the pattern and
-## rebuilt the lower-cased blocklist once per keystroke — eighteen times for an eighteen-character
-## name. Both are constant for the session.
-## The blocklist cache C-249 added is `_lists_cache` / `_lists_loaded` below; the pair that used
-## to live here was left behind by C-248's rewrite from one list to three and cached nothing.
 static var _charset_regex: RegEx = null
 
 
@@ -67,19 +61,6 @@ static func _matches_charset(trimmed: String) -> bool:
 	return _charset_regex.search(trimmed) != null
 
 
-## C-248: matching was `lowered == blocked` — equality, not containment — so `admin` was rejected
-## while `admin1`, `xadmin` and `The admin` all passed. Impersonation is the whole point of the
-## list, and `Admin_Steve` is the attack; the bare reserved word is what nobody would pick.
-##
-## Three rules, because one rule is wrong for both ends of the list:
-##   - `reserved` (5+ characters): matched anywhere in the normalised name.
-##   - `shortReserved` (`god`, `dev`, `test`, `null`): matched as a whole token only, because a
-##     substring rule on three letters rejects Godwin, Devlin and Testa.
-##   - `blocked`: substring, and currently empty — populating it is a product decision.
-##
-## Normalisation folds the cheap evasions: case, separators, and leetspeak digit substitutions.
-## This remains a client-side courtesy. Names reach other players through the leaderboard
-## (`results_screen`, `ApiClient`), so the authoritative check belongs on the server.
 const _LEET_FOLD := {
 	"0": "o", "1": "i", "3": "e", "4": "a", "5": "s", "7": "t", "@": "a", "$": "s", "!": "i"
 }
@@ -94,7 +75,6 @@ static func _name_lists() -> Dictionary:
 	_lists_loaded = true
 	var data: Dictionary = ContentLoader.load_json(BLOCKED_PATH)
 	var reserved := _string_list(data.get("reserved", []))
-	# schemaVersion 1 documents carried everything under `blocked`, all of them reserved words.
 	if reserved.is_empty() and not data.has("reserved"):
 		reserved = _string_list(data.get("blocked", []))
 		_lists_cache = {

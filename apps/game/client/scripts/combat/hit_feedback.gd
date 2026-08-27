@@ -89,9 +89,6 @@ func _director() -> Node:
 
 
 func _process(_delta: float) -> void:
-	# Measured against unscaled wall time, not the delta this callback receives — delta is
-	# itself scaled by the hit-stop this timer is tracking, which was BUG-40 (a 0.09s freeze
-	# measuring itself on an 0.08x clock runs ~12x long).
 	if _anim_hitstop_until_ms > 0 and Time.get_ticks_msec() >= _anim_hitstop_until_ms:
 		_anim_hitstop_until_ms = 0
 		var director := _director()
@@ -114,18 +111,6 @@ func on_hit(
 	_play_hit_sfx(target, direction, impact)
 	if show_damage_numbers and target is Node3D:
 		_spawn_damage_number(target as Node3D, damage, Vector3.ZERO, damage_type)
-	# C-51: this used to also run `_flash_diorama_body(target, 1.0, Color.WHITE, crit)` on the same
-	# visual the victim's `Hurtbox._emit_victim_feedback` had just flashed — a flat white,
-	# full-strength flash overwriting a careful one that is damage-proportional (strength 0.35→1.0,
-	# duration 0.14→0.30) and tinted by damage type. A fire hit and a physical hit looked
-	# identical on the target. Same resolution as C-06: the victim side owns victim feedback. This
-	# function keeps hitstop, camera punch, rumble, audio and the damage number.
-
-
-func preview_hitstop_duration(damage: float) -> float:
-	if feedback_intensity <= 0.0 or AccessibilitySettings.hitstop_scale() <= 0.0:
-		return 0.0
-	return _freeze_duration(impact_class_for_damage(damage)) * AccessibilitySettings.hitstop_scale()
 
 
 func impact_class_for_damage(damage: float) -> int:
@@ -218,9 +203,6 @@ func _apply_hitstop(impact: int = ImpactClass.SOLID) -> void:
 	if duration <= 0.0:
 		return
 	var duration_ms := int(duration * 1000.0)
-	# BUG-41: Engine.time_scale has exactly one owner (VfxService). Pushing/releasing by id
-	# means a second hit landing mid-freeze extends the existing request instead of caching
-	# the already-slowed scale as its own "restore to" value (BUG-39).
 	if impact == ImpactClass.CRITICAL:
 		VfxService.push_time_scale(&"hitstop", HITSTOP_TIME_SCALE, duration_ms)
 	var director := _director()

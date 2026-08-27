@@ -1,6 +1,5 @@
 extends Node
 
-## Autoload — hub storage grid separate from player inventory (HUB-4.4).
 
 signal storage_changed
 

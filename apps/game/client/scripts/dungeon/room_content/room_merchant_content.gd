@@ -48,16 +48,11 @@ func _unhandled_input(event: InputEvent) -> void:
 const MERCHANT_UI_GROUP := &"dungeon_merchant_ui"
 
 
-## C-202: the instance used to be parented to `get_tree().root` and guarded by `_merchant_ui`, a
-## member of this content node — which is freed with the run scene on every floor transition. The
-## guard died, the Control did not, so each floor added another live merchant UI to the root.
-## Looked up by group instead, the way room_lore_content finds the shared dialogue UI.
 func _open_merchant() -> void:
 	var existing := get_tree().get_first_node_in_group(MERCHANT_UI_GROUP) as Control
 	if existing == null or not is_instance_valid(existing):
 		existing = MERCHANT_SCENE.instantiate() as Control
 		existing.add_to_group(MERCHANT_UI_GROUP)
-		# Parent to the run scene, not the root, so it dies with the floor that created it.
 		var host: Node = get_tree().current_scene
 		if host == null:
 			host = get_tree().root

@@ -1,6 +1,5 @@
 class_name CastleRoomConstants
 
-## Shared blockout dimensions for Forgotten Castle room kit (ART-2.1).
 
 const GRID_UNIT := 4.0
 const DOOR_WIDTH := 3.0

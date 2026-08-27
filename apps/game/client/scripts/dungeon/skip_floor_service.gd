@@ -1,8 +1,6 @@
 extends RefCounted
 class_name SkipFloorService
 
-## Rare skip-floor consumables for Umbral Endless starts, and the ladder that turns a stack of
-## small ones into a larger one.
 
 const EndlessDifficultyScript := preload("res://scripts/dungeon/endless_difficulty.gd")
 
@@ -37,8 +35,6 @@ static func get_available_skips(inventory: GridInventory) -> Array[Dictionary]:
 	return found
 
 
-## Whether the skip could be spent right now, without spending it. Lets a caller confirm the item
-## is usable and read its destination floor before committing to a run that might fail to generate.
 static func has_skip(inventory: GridInventory, item_id: String) -> bool:
 	if not SKIP_ITEMS.has(item_id):
 		return false
@@ -61,7 +57,6 @@ static func start_floor_for_item(item_id: String) -> int:
 	return int(SKIP_ITEMS.get(item_id, 1))
 
 
-## Everything the portal needs to state the stake before the player commits.
 static func describe_skip(item_id: String, run_seed: int) -> Dictionary:
 	var start_floor := start_floor_for_item(item_id)
 	var definition := ItemCatalog.get_definition(item_id)

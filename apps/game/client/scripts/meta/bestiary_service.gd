@@ -1,7 +1,6 @@
 class_name BestiaryService
 extends RefCounted
 
-## Per-enemy kill record and tiered reveal, driven by content/bestiary/entries.json.
 
 const CATALOG_PATH := "content/bestiary/entries.json"
 const KILLS_FLAG := "bestiary_kills"
@@ -69,7 +68,6 @@ static func kills_to_next_tier(enemy_id: String) -> int:
 	return 0
 
 
-## Returns the entry as the player has earned it — unrevealed tiers are omitted.
 static func get_revealed(enemy_id: String) -> Dictionary:
 	var entry := get_entry(enemy_id)
 	if entry.is_empty():

@@ -29,6 +29,7 @@
   "enemy_type": "boss",
   "damage_type": "frost",
   "status_on_hit": "freeze",
+  "weapon_kit": "staff",
   "attacks": [
     {
       "id": "probe",

@@ -1,7 +1,6 @@
 extends PanelContainer
 class_name SettingsRow
 
-## One labeled settings row with name, description, widget, and formatted value (SET-01, SET-13).
 
 const GameUISkinScript := preload("res://scripts/ui/game_ui_skin.gd")
 const SettingsSchemaScript := preload("res://scripts/ui/settings_schema.gd")
@@ -28,8 +27,6 @@ func _on_focus_changed(focused: bool) -> void:
 	add_theme_stylebox_override("panel", GameUISkinScript.make_row_style(focused))
 
 
-## Clicking anywhere on the row focuses it, so pointer and keyboard agree on which setting is
-## being edited. The widget itself keeps its own click handling.
 func _gui_input(event: InputEvent) -> void:
 	if event is InputEventMouseButton:
 		var click := event as InputEventMouseButton
@@ -129,8 +126,6 @@ func _on_option_selected(idx: int) -> void:
 	_refresh_value()
 
 
-## Only sliders get a value column. A dropdown and a checkbox already state their own value, so
-## repeating it in a third column just read as the same word printed twice per row.
 func _refresh_value() -> void:
 	var format_id := str(_entry.get("format", ""))
 	match str(_entry.get("kind", "")):
@@ -168,14 +163,6 @@ func reset_to_default() -> void:
 				_on_option_selected(_option.selected)
 
 
-## Re-reads the setting's current value into the widget without invoking the setter.
-##
-## Some settings move others: "Reduced Motion" drives the three motion scalars, and each motion
-## scalar re-derives "Reduced Motion". Without this the sliders kept showing their old positions
-## while the values underneath had changed, so the page disagreed with the game.
-##
-## Signals are blocked while the value is written, otherwise the assignment fires value_changed and
-## the setter runs again — with the coupled settings above, that recurses.
 func refresh_from_source() -> void:
 	var getter: Callable = _entry.get("getter", Callable())
 	if not getter.is_valid():

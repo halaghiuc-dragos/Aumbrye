@@ -1,6 +1,5 @@
 extends Control
 
-## Grid inventory UX — D2-inspired paper doll + stash grid (INV-4.1).
 
 const GameUISkinScript := preload("res://scripts/ui/game_ui_skin.gd")
 const MenuShellScript := preload("res://scripts/ui/menu_shell.gd")
@@ -12,7 +11,6 @@ const RunModeConfigScript := preload("res://scripts/app/run_mode_config.gd")
 const ItemIconAtlasScript := preload("res://scripts/ui/item_icon_atlas.gd")
 const ConsumableServiceScript := preload("res://scripts/inventory/consumable_service.gd")
 
-## Arrow-key navigation, as (action, step) pairs.
 const _NAV_DIRECTIONS := [
 	[&"ui_left", Vector2i(-1, 0)],
 	[&"ui_right", Vector2i(1, 0)],
@@ -20,14 +18,22 @@ const _NAV_DIRECTIONS := [
 	[&"ui_down", Vector2i(0, 1)],
 ]
 
-## Per-cell bookkeeping for `_highlight_cursor`, so it repaints from a known base instead of
-## compounding a tint onto whatever the previous pass left behind.
 const CELL_BASE_MODULATE := &"inv_base_modulate"
 const CELL_HAS_ITEM := &"inv_has_item"
 const CELL_HIGHLIGHT_TINT := Color(1.2, 1.2, 1.05)
 
 const CELL_SIZE := InventoryUILayoutScript.CELL_SIZE
 const EQUIP_CELL_SIZE := InventoryUILayoutScript.EQUIP_CELL_SIZE
+const ITEM_MENU_EQUIP := 1
+const ITEM_MENU_USE := 2
+const ITEM_MENU_DROP := 3
+const ITEM_MENU_BIND_BASE := 100
+const QUICK_SLOT_BINDS := 4
+
+const TOOLTIP_WIDTH := 380.0
+const TOOLTIP_GAP := 12.0
+const HINT_ROW_HEIGHT := 16
+
 const GRID_GAP := InventoryUILayoutScript.GRID_GAP
 const EQUIP_LAYOUT: Array = InventoryUILayoutScript.EQUIP_LAYOUT
 const SLOT_LABELS: Dictionary = InventoryUILayoutScript.SLOT_LABELS
@@ -37,9 +43,9 @@ enum FocusArea { GRID, EQUIPMENT }
 var _backdrop: ColorRect
 var _grid: GridContainer
 var _tooltip_panel: PanelContainer
-var _tooltip_scroll: ScrollContainer
 var _tooltip_content: VBoxContainer
 var _hint_row: HBoxContainer
+var _item_menu: PopupMenu
 var _filter_label: Label
 var _search_edit: LineEdit
 var _search_text := ""
@@ -74,7 +80,6 @@ var _btn_equip: Button
 var _btn_unequip: Button
 var _btn_use: Button
 var _btn_drop: Button
-## Which grid slot the 1-4 keys would bind, or -1. Was the visibility flag for the Bind buttons.
 var _bind_target_index := -1
 
 
@@ -86,9 +91,6 @@ func _ready() -> void:
 	_build_equipment_panel()
 	_bind_inventory_context()
 	InventoryService.inventory_changed.connect(_on_main_inventory_changed)
-	# Bound method, NOT a lambda. The SceneTree outlives this node, and Godot only auto-disconnects
-	# callables bound to an object — a lambda's connection survives the free, so the next scene
-	# change would invoke it against a freed instance and keep erroring for the rest of the session.
 	get_tree().scene_changed.connect(_on_scene_changed)
 	if WavesRunService:
 		WavesRunService.inventory_changed.connect(_on_waves_inventory_changed)
@@ -206,8 +208,6 @@ func _build_ui_shell() -> void:
 	var grid_frame := GameUISkinScript.make_section_frame(tr("INV_TITLE_STASH"))
 	root_hbox.add_child(grid_frame)
 	var grid_vbox := GameUISkinScript.section_content(grid_frame)
-	# The section frame already draws this title. A second label inside it printed the same word
-	# twice, once upper-cased by the frame and once not.
 	_title_label = GameUISkinScript.section_header(grid_frame)
 	_filter_label = Label.new()
 	_filter_label.name = "FilterLabel"
@@ -223,31 +223,9 @@ func _build_ui_shell() -> void:
 	_grid.name = "GridContainer"
 	_grid.add_theme_constant_override("h_separation", GRID_GAP)
 	_grid.add_theme_constant_override("v_separation", GRID_GAP)
-	# The column is as wide as the keybind hint row under it, which is wider than ten cells, so a
-	# left-aligned grid sat against one edge with a column of dead space beside it.
 	_grid.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	grid_vbox.add_child(_grid)
-	_tooltip_panel = PanelContainer.new()
-	_tooltip_panel.name = "TooltipPanel"
-	_tooltip_panel.visible = false
-	_tooltip_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_tooltip_panel.z_index = 50
-	var tooltip_style := GameUISkinScript.make_panel_style()
-	_tooltip_panel.add_theme_stylebox_override("panel", tooltip_style)
-	grid_vbox.add_child(_tooltip_panel)
-	var tooltip_margin := MarginContainer.new()
-	tooltip_margin.add_theme_constant_override("margin_left", 8)
-	tooltip_margin.add_theme_constant_override("margin_top", 6)
-	tooltip_margin.add_theme_constant_override("margin_right", 8)
-	tooltip_margin.add_theme_constant_override("margin_bottom", 6)
-	_tooltip_panel.add_child(tooltip_margin)
-	_tooltip_scroll = ScrollContainer.new()
-	_tooltip_scroll.custom_minimum_size = Vector2(560, 88)
-	_tooltip_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	tooltip_margin.add_child(_tooltip_scroll)
-	_tooltip_content = VBoxContainer.new()
-	_tooltip_content.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_tooltip_scroll.add_child(_tooltip_content)
+	_build_tooltip_overlay()
 	var footer := VBoxContainer.new()
 	footer.add_theme_constant_override("separation", 6)
 	grid_vbox.add_child(footer)
@@ -257,31 +235,34 @@ func _build_ui_shell() -> void:
 	_btn_unequip = MenuShellScript.make_menu_button(tr("INV_BTN_UNEQUIP"), _on_action_unequip_pressed)
 	_btn_use = MenuShellScript.make_menu_button(tr("INV_BTN_USE"), _on_action_use_pressed)
 	_btn_drop = MenuShellScript.make_menu_button(tr("INV_BTN_DROP"), _on_action_drop_pressed)
-	# C-244: in the hub `drop_slot_at_index` routes to MerchantService.sell_item — the button is
-	# labelled "Drop" in both contexts, so a player discarding a duplicate expects it to hit the
-	# floor and be recoverable. Relabelled per context in _update_action_buttons().
 	_action_row.add_child(_btn_equip)
 	_action_row.add_child(_btn_unequip)
 	_action_row.add_child(_btn_use)
 	_action_row.add_child(_btn_drop)
-	# No Bind 1-4 buttons. Pressing 1, 2, 3 or 4 on a selected item does the same thing, and four
-	# more buttons here were most of the row's width — the row is the thing that was resizing the
-	# window, and the reason the remaining controls were cramped enough to be hard to read.
+	_pin_action_button_widths()
 	_btn_equip.focus_neighbor_top = _grid.get_path()
 	footer.add_child(_action_row)
 	_reserve_action_row_width()
 	_quick_slot_row = HBoxContainer.new()
 	_quick_slot_row.add_theme_constant_override("separation", 10)
 	footer.add_child(_quick_slot_row)
-	# C-223: the stat-delta comparison the footer label was built for is rendered inside the
-	# tooltip instead (see `_refresh_detail`'s `format_comparison_bbcode` call). An earlier fix
-	# removed the `add_child` and the styling but left the `Label.new()`, so every InventoryUI
-	# leaked one unparented, never-freed orphan node. The construction is gone with it.
+	# A plain `Control`, not a container: unlike a container it does not adopt its children's
+	# minimum size, so a long hint is clipped instead of widening the panel. The window's
+	# dimensions must never change — not on hover, not on selection, not on any action.
+	var hint_clip := Control.new()
+	hint_clip.name = "HintClip"
+	hint_clip.clip_contents = true
+	hint_clip.custom_minimum_size.y = HINT_ROW_HEIGHT
+	hint_clip.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	hint_clip.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	footer.add_child(hint_clip)
 	_hint_row = HBoxContainer.new()
 	_hint_row.name = "HintRow"
 	_hint_row.alignment = BoxContainer.ALIGNMENT_CENTER
 	_hint_row.add_theme_constant_override("separation", 8)
-	footer.add_child(_hint_row)
+	_hint_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_hint_row.set_anchors_preset(Control.PRESET_FULL_RECT)
+	hint_clip.add_child(_hint_row)
 	var separator := VSeparator.new()
 	separator.custom_minimum_size.x = 4
 	root_hbox.add_child(separator)
@@ -309,12 +290,6 @@ func _build_ui_shell() -> void:
 	add_child(_drag_ghost)
 
 
-## Closing is handled here rather than in `_unhandled_input`, which never saw either key.
-##
-## `inventory` is bound to Tab, and Tab is also `ui_focus_next`; Escape is `ui_cancel`. Both are
-## consumed by the focused control — a button, or the search field — during GUI input, which runs
-## first. Opening worked because nothing inside the inventory had focus yet, so that press reached
-## `_unhandled_input`; closing never did.
 func _input(event: InputEvent) -> void:
 	if not _inventory_open:
 		return
@@ -323,7 +298,6 @@ func _input(event: InputEvent) -> void:
 		get_viewport().set_input_as_handled()
 		return
 	if event.is_action_pressed("ui_cancel"):
-		# A drag in progress is cancelled first; a second press then closes.
 		if _drag_index >= 0 or _drag_equip_slot != "":
 			_clear_drag()
 			_refresh_all()
@@ -331,10 +305,6 @@ func _input(event: InputEvent) -> void:
 			hide_inventory()
 		get_viewport().set_input_as_handled()
 		return
-	# Arrow keys are `ui_left`/`ui_right`/`ui_up`/`ui_down`, which Godot's focus system claims for
-	# moving between controls, and the digits are swallowed by the search field whenever it holds
-	# focus. Both are handled here for the same reason Tab and Escape are: GUI input runs first, so
-	# `_unhandled_input` never saw them and neither grid navigation nor quick-binding worked.
 	for direction in _NAV_DIRECTIONS:
 		if event.is_action_pressed(direction[0]):
 			_navigate(direction[1])
@@ -378,9 +348,6 @@ func _unhandled_input(event: InputEvent) -> void:
 		get_viewport().set_input_as_handled()
 		return
 	elif event.is_action_pressed("inventory_split"):
-		# Was bound to "ui_page_down", which this project never defines — Godot logs an error and
-		# returns false for an unknown action, so splitting a stack was unreachable and the
-		# implemented `_split_selected_stack` could not be triggered by any input.
 		_split_selected_stack()
 		get_viewport().set_input_as_handled()
 		return
@@ -388,9 +355,6 @@ func _unhandled_input(event: InputEvent) -> void:
 		get_viewport().set_input_as_handled()
 
 
-## Only runs while a drag is in flight; set_process is toggled by _begin_drag / _clear_drag.
-## C-98: the drag-ghost tick is already gated on drag state, which is stricter than visibility —
-## this closes the case where a drag is abandoned by the panel being hidden.
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_VISIBILITY_CHANGED and not is_visible_in_tree():
 		set_process(false)
@@ -412,8 +376,6 @@ func toggle() -> void:
 
 
 func show_inventory() -> void:
-	# Raised on open, so the panel the player just asked for is the one on top: these are all
-	# siblings on one CanvasLayer and draw in child order, which is otherwise fixed at build time.
 	move_to_front()
 	_bind_inventory_context()
 	_inventory_open = true
@@ -426,11 +388,6 @@ func show_inventory() -> void:
 	_clear_drag()
 	_rebuild_visible_indices()
 	_refresh_all()
-	# `_focus_grid_cursor` has never existed, so this raised "Method not found" on every open and
-	# the grid cursor was left unhighlighted until the player moved it. Deferred because the cell
-	# rects are not final until the container has laid out, and the highlight follows the rects.
-	# Passing the Callable rather than a name string means a rename is a parse error, not a
-	# runtime message nobody reads.
 	_highlight_cursor.call_deferred()
 
 
@@ -665,15 +622,6 @@ func _refresh_equipment() -> void:
 			cell.self_modulate = Color(1.1, 1.0, 0.55)
 
 
-## Repaints every cell from its base colour, rather than tinting whatever is already there.
-##
-## This used to *multiply* `self_modulate` in place and never put it back. `_refresh_grid` resets
-## the cells first, so a full refresh looked right — but the hover handlers call straight in here,
-## so each mouse-over multiplied the tint again and mousing away never restored it. Cells grew
-## steadily more yellow and stayed lit with the cursor nowhere near them.
-##
-## The tint is also earned now: an empty cell has nothing to point at, so it is left alone whether
-## the mouse or the arrow keys are on it.
 func _highlight_cursor() -> void:
 	var inv := _inventory()
 	var idx := _cursor.y * inv.grid_width + _cursor.x
@@ -702,37 +650,94 @@ func _update_filter_label() -> void:
 		).to_upper()
 
 
-func _hide_tooltip() -> void:
+## The description is a floating pop-up parented to the root, outside every container, so nothing
+## it does can resize the panel. It is faded rather than hidden, because hiding a Control re-runs
+## the layout it is deliberately outside of.
+func _build_tooltip_overlay() -> void:
+	_tooltip_panel = PanelContainer.new()
+	_tooltip_panel.name = "TooltipPanel"
+	_tooltip_panel.modulate.a = 0.0
+	_tooltip_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_tooltip_panel.z_index = 80
+	_tooltip_panel.top_level = true
+	_tooltip_panel.custom_minimum_size.x = TOOLTIP_WIDTH
+	_tooltip_panel.add_theme_stylebox_override("panel", GameUISkinScript.make_panel_style())
+	add_child(_tooltip_panel)
+	var tooltip_margin := MarginContainer.new()
+	tooltip_margin.add_theme_constant_override("margin_left", 10)
+	tooltip_margin.add_theme_constant_override("margin_top", 8)
+	tooltip_margin.add_theme_constant_override("margin_right", 10)
+	tooltip_margin.add_theme_constant_override("margin_bottom", 8)
+	_tooltip_panel.add_child(tooltip_margin)
+	_tooltip_content = VBoxContainer.new()
+	_tooltip_content.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	tooltip_margin.add_child(_tooltip_content)
+
+
+func _place_tooltip_near(anchor_rect: Rect2) -> void:
+	if _tooltip_panel == null:
+		return
+	var wanted := _tooltip_panel.get_combined_minimum_size()
+	wanted.x = maxf(wanted.x, TOOLTIP_WIDTH)
+	_tooltip_panel.size = wanted
+	var screen := get_viewport_rect().size
+	var pos := Vector2(anchor_rect.end.x + TOOLTIP_GAP, anchor_rect.position.y)
+	if pos.x + wanted.x > screen.x - TOOLTIP_GAP:
+		pos.x = anchor_rect.position.x - TOOLTIP_GAP - wanted.x
+	pos.x = clampf(pos.x, TOOLTIP_GAP, maxf(TOOLTIP_GAP, screen.x - wanted.x - TOOLTIP_GAP))
+	pos.y = clampf(pos.y, TOOLTIP_GAP, maxf(TOOLTIP_GAP, screen.y - wanted.y - TOOLTIP_GAP))
+	_tooltip_panel.global_position = pos
+
+
+func _detail_anchor_rect() -> Rect2:
+	var control: Control = null
+	if _hover_equip_slot != "" and _equip_cells.has(_hover_equip_slot):
+		control = _equip_cells[_hover_equip_slot] as Control
+	elif _hover_grid_index >= 0 and _hover_grid_index < _cells.size():
+		control = _cells[_hover_grid_index] as Control
+	if control != null and control.is_inside_tree():
+		return Rect2(control.global_position, control.size)
+	var mouse := get_viewport().get_mouse_position()
+	return Rect2(mouse, Vector2(8, 8))
+
+
+func _set_tooltip_shown(shown: bool) -> void:
 	if _tooltip_panel:
-		_tooltip_panel.visible = false
+		_tooltip_panel.modulate.a = 1.0 if shown else 0.0
+
+
+func _hide_tooltip() -> void:
+	_set_tooltip_shown(false)
 
 
 func _show_tooltip(
 	header: String, body: String, hint: String = "", comparison: String = ""
 ) -> void:
 	for child in _tooltip_content.get_children():
+		_tooltip_content.remove_child(child)
 		child.queue_free()
 	if header != "":
 		var title := Label.new()
 		title.text = header
 		title.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		title.custom_minimum_size.x = TOOLTIP_WIDTH - 20.0
 		GameUISkinScript.style_section_title(title)
 		_tooltip_content.add_child(title)
-	if body != "":
-		var body_label := Label.new()
-		body_label.text = body
-		body_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		GameUISkinScript.style_body_label(body_label)
-		_tooltip_content.add_child(body_label)
-	if comparison != "":
-		var compare_label := RichTextLabel.new()
-		compare_label.bbcode_enabled = true
-		compare_label.fit_content = true
-		compare_label.scroll_active = false
-		compare_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		compare_label.text = comparison
-		_tooltip_content.add_child(compare_label)
-	_tooltip_panel.visible = header != "" or body != "" or comparison != ""
+	for text in [body, comparison]:
+		if str(text) == "":
+			continue
+		var rich := RichTextLabel.new()
+		rich.bbcode_enabled = true
+		rich.fit_content = true
+		rich.scroll_active = false
+		rich.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		rich.custom_minimum_size.x = TOOLTIP_WIDTH - 20.0
+		rich.text = str(text)
+		_tooltip_content.add_child(rich)
+	var has_content := header != "" or body != "" or comparison != ""
+	_set_tooltip_shown(has_content)
+	if has_content:
+		_place_tooltip_near(_detail_anchor_rect())
 	if hint != "":
 		_set_hint_text(hint)
 
@@ -753,7 +758,11 @@ func _update_detail() -> void:
 				tr("INV_HINT_UNEQUIP")
 			)
 			return
-		_show_tooltip(_build_tooltip_header(detail_slot), _format_slot_tooltip(detail_slot), "")
+		_show_tooltip(
+			_build_tooltip_header(detail_slot),
+			InventoryService.format_slot_tooltip_bbcode(detail_slot),
+			""
+		)
 		_set_hint_text(tr("INV_HINT_UNEQUIP"))
 		return
 	if _hover_grid_index >= 0:
@@ -765,12 +774,10 @@ func _update_detail() -> void:
 		_footer_hint_default()
 		return
 	detail_slot = inv.slots[compare_index]
-	var delta := _compare_slot_to_equipped(compare_index)
 	_show_tooltip(
 		_build_tooltip_header(detail_slot),
-		_format_slot_tooltip(detail_slot, delta),
-		"",
-		InventoryService.format_comparison_bbcode(detail_slot)
+		InventoryService.format_slot_tooltip_bbcode(detail_slot),
+		""
 	)
 	var def := _item_def(detail_slot.get("itemId", ""))
 	var item_type: String = def.get("itemType", "")
@@ -885,9 +892,6 @@ func _try_equip_dragged_to_slot(slot_name: String) -> bool:
 	return false
 
 
-## C-222: Use and Split hardcoded InventoryService while `_inventory()` may be the Waves grid, so a
-## press here consumed slot N of the *main* inventory. Drop and the quick-slot binds were already
-## guarded; these two were missed.
 func _use_selected_consumable() -> void:
 	if _waves_mode:
 		_set_hint_text(tr("INV_USE_FAILED"))
@@ -944,6 +948,18 @@ func _on_cell_gui_input(event: InputEvent, x: int, y: int) -> void:
 		_highlight_cursor()
 		_refresh_equipment()
 		_update_detail()
+	elif (
+		event is InputEventMouseButton
+		and event.button_index == MOUSE_BUTTON_RIGHT
+		and event.pressed
+	):
+		_cursor = Vector2i(x, y)
+		_focus_area = FocusArea.GRID
+		_selected_index = _inventory().find_slot_at(x, y)
+		_highlight_cursor()
+		_refresh_equipment()
+		_update_detail()
+		_open_item_menu((event as InputEventMouseButton).global_position)
 	_update_action_buttons()
 
 
@@ -989,6 +1005,68 @@ func _on_equip_mouse_exited() -> void:
 	_update_action_buttons()
 
 
+func _open_item_menu(at_screen: Vector2) -> void:
+	if _item_menu != null and is_instance_valid(_item_menu):
+		_item_menu.queue_free()
+	_item_menu = null
+	var inv := _inventory()
+	if _selected_index < 0 or _selected_index >= inv.slots.size():
+		return
+	var slot: Dictionary = inv.slots[_selected_index]
+	var item_id := str(slot.get("itemId", ""))
+	if item_id == "":
+		return
+	var def := _item_def(item_id)
+	var item_type := str(def.get("itemType", ""))
+
+	var menu := PopupMenu.new()
+	menu.name = "ItemMenu"
+	if item_type in ["weapon", "armor", "accessory"]:
+		menu.add_item(tr("INV_BTN_EQUIP"), ITEM_MENU_EQUIP)
+	elif item_type == "consumable":
+		menu.add_item(tr("INV_BTN_USE"), ITEM_MENU_USE)
+	if item_type == "consumable" and not _waves_mode:
+		for quick in QUICK_SLOT_BINDS:
+			menu.add_item("Bind to %d" % (quick + 1), ITEM_MENU_BIND_BASE + quick)
+	if menu.item_count > 0:
+		menu.add_separator()
+	menu.add_item(tr("INV_BTN_DROP"), ITEM_MENU_DROP)
+	menu.id_pressed.connect(_on_item_menu_id)
+	add_child(menu)
+	_item_menu = menu
+	menu.position = Vector2i(at_screen)
+	menu.popup()
+
+
+func _bind_selected_to_quick_slot(quick_index: int) -> void:
+	if _waves_mode or _selected_index < 0:
+		return
+	var slots := _inventory().slots
+	if _selected_index >= slots.size():
+		return
+	var slot: Dictionary = slots[_selected_index]
+	InventoryService.set_quick_slot(quick_index, str(slot.get("instanceId", "")))
+	_refresh_quick_slot_row()
+
+
+func _on_item_menu_id(id: int) -> void:
+	var inv := _inventory()
+	if _selected_index < 0 or _selected_index >= inv.slots.size():
+		return
+	if id >= ITEM_MENU_BIND_BASE:
+		_bind_selected_to_quick_slot(id - ITEM_MENU_BIND_BASE)
+		return
+	match id:
+		ITEM_MENU_EQUIP:
+			if inv.equip_from_index(_selected_index):
+				_apply_equipment()
+				_refresh_all()
+		ITEM_MENU_USE:
+			_use_selected_consumable()
+		ITEM_MENU_DROP:
+			_on_action_drop_pressed()
+
+
 func _handle_grid_press(x: int, y: int) -> void:
 	var inv := _inventory()
 	if _drag_equip_slot != "":
@@ -1000,21 +1078,10 @@ func _handle_grid_press(x: int, y: int) -> void:
 	var idx := inv.find_slot_at(x, y)
 	if idx < 0:
 		return
-	var slot: Dictionary = inv.slots[idx]
-	var def := _item_def(slot.get("itemId", ""))
-	var item_type: String = def.get("itemType", "")
-	if item_type in ["weapon", "armor", "accessory"]:
-		if inv.equip_from_index(idx):
-			_apply_equipment()
-			_refresh_all()
-		return
-	if item_type == "consumable":
-		_selected_index = idx
-		_use_selected_consumable()
-		return
+	_selected_index = idx
 	_drag_index = idx
 	_mouse_dragging = true
-	_show_drag_ghost_from_slot(slot)
+	_show_drag_ghost_from_slot(_inventory().slots[idx])
 	_refresh_all()
 
 
@@ -1175,28 +1242,12 @@ func _item_def(item_id: String) -> Dictionary:
 	return ItemCatalog.get_definition(item_id)
 
 
-func _compare_slot_to_equipped(index: int) -> Dictionary:
-	var inv := _inventory()
-	if index < 0 or index >= inv.slots.size():
-		return {}
-	var slot: Dictionary = inv.slots[index]
-	var def := _item_def(slot.get("itemId", ""))
-	var slot_name := Equipment.slot_for_item_def(def)
-	if slot_name == "":
-		return {}
-	return Equipment.compare_stats(inv.equipped, slot, Callable(AffixRoller, "get_affix_stat"))
-
-
 func _slot_label(slot_name: String) -> String:
 	return str(SLOT_LABELS.get(slot_name, slot_name))
 
 
 func _build_tooltip_header(slot: Dictionary) -> String:
 	return _inventory().get_slot_display_name(slot)
-
-
-func _format_slot_tooltip(slot: Dictionary, compare_delta: Dictionary = {}) -> String:
-	return InventoryService.format_slot_tooltip(slot, compare_delta)
 
 
 func _refresh_quick_slot_row() -> void:
@@ -1213,24 +1264,10 @@ func _refresh_quick_slot_row() -> void:
 		_quick_slot_row.add_child(label)
 
 
-## Reserves the action row's widest layout, once, at build time.
-##
-## `_update_action_buttons` shows and hides these buttons by context — an equipped item offers only
-## Unequip, a grid selection offers Equip, Use, Drop and four Binds. An HBoxContainer's minimum
-## width is the sum of its *visible* children, and every container above it honours that, so the
-## whole inventory resized as the cursor crossed into the character panel: measured, the row went
-## 448 px to 1360 px and carried the window from 1440 to 1830. That is the flicker.
-##
-## Reserving the full width means the row is always as wide as its busiest state, so hiding a button
-## leaves a gap rather than shrinking the window. Summed from the buttons rather than hardcoded, so
-## it stays correct if the set or the font changes.
 func _reserve_action_row_width() -> void:
 	if _action_row == null:
 		return
 	var separation := float(_action_row.get_theme_constant("separation"))
-	# The two layouts are mutually exclusive: an equipment slot offers Unequip, a grid selection
-	# offers everything else. Reserving the sum of *all* the buttons would reserve a row that never
-	# actually appears — measured, that pushed the window to 2286 px, wider than a 1920 screen.
 	var grid_side := 0.0
 	var grid_count := 0
 	for child in _action_row.get_children():
@@ -1241,8 +1278,33 @@ func _reserve_action_row_width() -> void:
 		grid_count += 1
 	if grid_count > 1:
 		grid_side += separation * float(grid_count - 1)
+	var row_height := 0.0
+	for child in _action_row.get_children():
+		var ctl := child as Control
+		if ctl != null:
+			row_height = maxf(row_height, ctl.get_combined_minimum_size().y)
+	_action_row.custom_minimum_size.y = row_height
 	var equip_side := _btn_unequip.get_combined_minimum_size().x if _btn_unequip != null else 0.0
 	_action_row.custom_minimum_size.x = maxf(grid_side, equip_side)
+
+
+func _pin_action_button_widths() -> void:
+	for pinned in [
+		{"button": _btn_drop, "keys": ["INV_BTN_DROP"]},
+		{"button": _btn_equip, "keys": ["INV_BTN_EQUIP"]},
+		{"button": _btn_unequip, "keys": ["INV_BTN_UNEQUIP"]},
+		{"button": _btn_use, "keys": ["INV_BTN_USE"]},
+	]:
+		var button := pinned["button"] as Button
+		if button == null:
+			continue
+		var was := button.text
+		var widest := 0.0
+		for key in pinned["keys"]:
+			button.text = tr(str(key))
+			widest = maxf(widest, button.get_combined_minimum_size().x)
+		button.text = was
+		button.custom_minimum_size.x = maxf(button.custom_minimum_size.x, widest)
 
 
 func _update_action_buttons() -> void:
@@ -1275,9 +1337,7 @@ func _update_action_buttons() -> void:
 	_btn_unequip.visible = can_unequip
 	_btn_drop.visible = can_drop and not _waves_mode
 	if _btn_drop.visible:
-		var in_run := RunFlow != null and RunFlow.is_run_active()
-		_btn_drop.text = tr("INV_BTN_DROP") if in_run else tr("INV_BTN_SELL")
-	# `bind_index` still drives whether the number keys do anything; see `_try_quick_slot_bind_input`.
+		_btn_drop.text = tr("INV_BTN_DROP")
 	_bind_target_index = bind_index
 
 
@@ -1308,14 +1368,6 @@ func _on_action_drop_pressed() -> void:
 	if InventoryService.drop_slot_at_index(_selected_index):
 		_selected_index = -1
 		_refresh_all()
-
-
-func _on_bind_quick_slot_pressed(quick_index: int) -> void:
-	if _selected_index < 0 or _waves_mode:
-		return
-	var slot: Dictionary = _inventory().slots[_selected_index]
-	InventoryService.set_quick_slot(quick_index, str(slot.get("instanceId", "")))
-	_refresh_quick_slot_row()
 
 
 func _try_quick_slot_bind_input(event: InputEvent) -> bool:

@@ -2,14 +2,8 @@
 extends Node3D
 class_name CastleBlockout
 
-## Procedural castle blockout geometry with doorway cutouts.
 
-## Navigation bake grid. `DungeonBuilder._setup_floor_nav_map` sets the same cell size on the
-## floor's navigation map, so the two must agree or agents path against a different grid than the
-## one their mesh was baked on.
 const NAV_CELL_SIZE := 0.25
-## The warden is 1.44 m tall and about 0.4 m across the pauldrons; these are the clearances an
-## agent needs, before snapping to the bake grid above.
 const NAV_AGENT_HEIGHT := 1.8
 const NAV_AGENT_RADIUS := 0.45
 
@@ -106,10 +100,6 @@ func finalize_geometry() -> void:
 		_rebuild()
 	_build_navigation_mesh()
 	_geometry_dirty = false
-
-
-func get_nav_bake_count() -> int:
-	return _nav_bake_count
 
 
 func _rebuild() -> void:
@@ -374,17 +364,6 @@ func _build_navigation_mesh() -> void:
 		_nav_region.owner = get_tree().edited_scene_root
 
 	var nav_mesh := NavigationMesh.new()
-	# Agent dimensions snapped up to the voxel grid the baker rasterizes on.
-	#
-	# The baker ceils `agent_height` to whole `cell_height` units and `agent_radius` to whole
-	# `cell_size` units, and warns each time it has to. Authored as 1.8 and 0.45 against a 0.25
-	# grid, both were rounded — to 2.0 and 0.5 — so the numbers in this file described an agent
-	# the navigation mesh was never built for, and every bake printed two warnings. A floor bakes
-	# a region per room, so a single castle run filled the console with them.
-	#
-	# Writing the snapped values changes nothing about the result and makes the file honest. The
-	# arithmetic is spelled out rather than hard-coded so that changing the cell size cannot
-	# quietly reintroduce the mismatch.
 	nav_mesh.cell_size = NAV_CELL_SIZE
 	nav_mesh.cell_height = NAV_CELL_SIZE
 	nav_mesh.agent_height = ceilf(NAV_AGENT_HEIGHT / NAV_CELL_SIZE) * NAV_CELL_SIZE
@@ -421,9 +400,6 @@ func set_navigation_map(map: RID) -> void:
 		_nav_region.set_navigation_map(map)
 	for link in _nav_links:
 		if is_instance_valid(link):
-			# NavigationLink3D exposes this as a method, not a property: the assignment form fails at
-			# runtime, so every door link was silently left off the floor's navigation map and enemies
-			# had no path through a doorway.
 			link.set_navigation_map(map)
 
 
@@ -506,69 +482,6 @@ func _build_height_stairs(step_count: int, direction: Vector2i, step_height: flo
 		else:
 			center = Vector3(-room_width * 0.5 + offset, step_height * (i + 0.5), 0.0)
 		_add_wall_segment(center, Vector3(width, step_height, step_depth))
-
-
-func add_door_nav_link(local_start: Vector3, local_end: Vector3) -> NavigationLink3D:
-	var link := NavigationLink3D.new()
-	link.name = "DoorNavLink"
-	link.start_position = local_start
-	link.end_position = local_end
-	link.bidirectional = true
-	link.travel_cost = 1.0
-	link.enabled = true
-	if _navigation_map != RID():
-		# C-185: this used the assignment form that the comment in `set_navigation_map()` ninety
-		# lines above explicitly condemns — "NavigationLink3D exposes this as a method, not a
-		# property: the assignment form fails at runtime, so every door link was silently left off
-		# the floor's navigation map and enemies had no path through a doorway." The bug was fixed
-		# there and left standing here. This function has no callers today, so it was latent; the
-		# next person to call it would have reintroduced the exact defect the comment records.
-		link.set_navigation_map(_navigation_map)
-	add_child(link)
-	if Engine.is_editor_hint():
-		link.owner = get_tree().edited_scene_root
-	_nav_links.append(link)
-	return link
-
-
-func count_wall_collision_shapes() -> int:
-	var count := 0
-	if _walls_body == null or not is_instance_valid(_walls_body):
-		return count
-	for child in _walls_body.get_children():
-		if child is CollisionShape3D:
-			count += 1
-	return count
-
-
-func count_wall_meshes() -> int:
-	var count := 0
-	if _walls_body == null or not is_instance_valid(_walls_body):
-		return count
-	for child in _walls_body.get_children():
-		if child is MeshInstance3D:
-			count += 1
-	return count
-
-
-func get_nav_mesh_vertices_local() -> PackedVector3Array:
-	if _nav_region == null or _nav_region.navigation_mesh == null:
-		return PackedVector3Array()
-	return _nav_region.navigation_mesh.get_vertices()
-
-
-func get_cover_aabbs_local() -> Array[AABB]:
-	var boxes: Array[AABB] = []
-	for node in _cover_nodes:
-		if not is_instance_valid(node):
-			continue
-		for child in node.get_children():
-			if child is CollisionShape3D and child.shape is BoxShape3D:
-				var shape := child.shape as BoxShape3D
-				var half := shape.size * 0.5
-				var center: Vector3 = child.position
-				boxes.append(AABB(center - half, shape.size))
-	return boxes
 
 
 func sync_dimensions_from_kind() -> void:

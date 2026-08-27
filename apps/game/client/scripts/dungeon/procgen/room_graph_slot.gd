@@ -1,7 +1,6 @@
 class_name RoomGraphSlot
 extends RefCounted
 
-## One cell in the abstract room-graph grid (Phase 1).
 
 enum SlotType {
 	EMPTY,
@@ -26,7 +25,7 @@ var slot_type: SlotType = SlotType.EMPTY
 var door_mask: int = 0
 var graph_distance: int = -1
 var secret_parent_id: String = ""
-var secret_mechanism: String = ""  # illusory_wall | hidden_lever
+var secret_mechanism: String = ""
 var is_filler: bool = false
 var on_critical_path: bool = false
 var height_level: int = 0

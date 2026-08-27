@@ -1,6 +1,5 @@
 extends Control
 
-## Boss name card on first boss-room entry.
 
 const GameUISkinScript := preload("res://scripts/ui/game_ui_skin.gd")
 

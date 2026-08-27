@@ -1,6 +1,5 @@
 extends Control
 
-## Room-graph minimap — fog-of-war, footprints, player marker, optional full-map overlay.
 
 enum RevealTier { UNKNOWN = 0, SEEN = 1, VISITED = 2 }
 
@@ -22,11 +21,6 @@ const COLOR_PLAYER := Color(0.95, 0.92, 0.82, 1.0)
 
 const ICON_ATLAS_PATH := "res://assets/ui/minimap_icons.png"
 
-## C-217: the atlas was a 4x2 grid of eight solid colour swatches, and fourteen kinds were mapped
-## onto it — so hazard read as combat, npc as shop, vault as key, and lore, puzzle and unexplored
-## all shared one glyph. Only `rest` escaped, via a special-cased tint. The atlas is now 8x2 and
-## every kind that the procgen can emit has its own cell, including `secret`, which
-## `MINIMAP_RESERVED_KINDS` protects but nothing ever set — it used to fall through to `unknown`.
 const KIND_CELLS := {
 	"combat": Vector2i(0, 0),
 	"treasure": Vector2i(1, 0),
@@ -45,8 +39,6 @@ const KIND_CELLS := {
 	"secret": Vector2i(6, 1),
 }
 
-## C-217: seven of fourteen kinds had a legend row, so the five ambiguous ones were undocumented
-## as well as indistinguishable.
 const LEGEND_ENTRIES := [
 	{"kind": "combat", "label_key": "MAP_LEGEND_COMBAT"},
 	{"kind": "treasure", "label_key": "MAP_LEGEND_TREASURE"},
@@ -142,43 +134,11 @@ func mark_cleared(room_id: String) -> void:
 	queue_redraw()
 
 
-func is_room_cleared(room_id: String) -> bool:
-	return _cleared.has(room_id)
-
-
 func set_fog_of_war(enabled: bool) -> void:
 	if _fog_of_war == enabled:
 		return
 	_fog_of_war = enabled
 	queue_redraw()
-
-
-func get_player_map_point() -> Vector2:
-	if _player == null or not is_instance_valid(_player):
-		return Vector2.ZERO
-	return _map_point(
-		Vector2(_player.global_position.x, _player.global_position.z), _content_rect()
-	)
-
-
-func get_bounds_for_test() -> Rect2:
-	return _bounds
-
-
-func map_point_for_test(world_xz: Vector2, map_rect: Rect2) -> Vector2:
-	return _map_point(world_xz, map_rect)
-
-
-func count_drawn_edges_for_test() -> int:
-	var count := 0
-	for edge in _edges:
-		if not edge is Dictionary:
-			continue
-		var from_id := str(edge.get("from", ""))
-		var to_id := str(edge.get("to", ""))
-		if _should_draw_edge(from_id, to_id):
-			count += 1
-	return count
 
 
 func icon_cell_for_kind(kind: String) -> Vector2i:
@@ -218,16 +178,6 @@ func enable_overlay_mode() -> void:
 	queue_redraw()
 
 
-func disable_overlay_mode() -> void:
-	_overlay_mode = false
-	set_anchors_and_offsets_preset(Control.PRESET_TOP_LEFT)
-	custom_minimum_size = HUD_SIZE
-	mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_zoom = 1.0
-	_pan = Vector2.ZERO
-	queue_redraw()
-
-
 func _ready() -> void:
 	if not _overlay_mode:
 		custom_minimum_size = HUD_SIZE
@@ -235,8 +185,6 @@ func _ready() -> void:
 	_icon_atlas = load(ICON_ATLAS_PATH) as Texture2D
 
 
-## C-98: `combat_hud` stops processing when hidden and was the only UI that did. A hidden minimap
-## was still running its redraw throttle and stick-pan poll every frame behind the pause menu.
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_VISIBILITY_CHANGED:
 		set_process(is_visible_in_tree())
@@ -246,9 +194,6 @@ func _process(delta: float) -> void:
 	if not is_visible_in_tree():
 		set_process(false)
 		return
-	# C-218: pan and zoom were mouse-only, so on a controller the overlay was a fixed image. The
-	# stick is an analog axis, not a discrete press, so it is polled rather than routed through
-	# `_unhandled_input` — and only while `_overlay_mode` is set, which nothing else does.
 	if _overlay_mode:
 		_apply_stick_pan(delta)
 	if _player == null or not is_instance_valid(_player):
@@ -266,7 +211,6 @@ func _process(delta: float) -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	if not _overlay_mode:
 		return
-	# C-218: discrete controller zoom on the shoulder buttons, alongside the wheel.
 	if event.is_action_pressed("ui_page_next"):
 		_apply_zoom(1.1)
 		get_viewport().set_input_as_handled()
@@ -387,7 +331,6 @@ func _draw_room_icon(room_def: Dictionary, center: Vector2, cleared: bool = fals
 	var cell: Vector2i = icon_cell_for_kind(kind)
 	var region := Rect2(cell.x * ICON_CELL, cell.y * ICON_CELL, ICON_CELL, ICON_CELL)
 	var dest := Rect2(center - Vector2(ICON_CELL, ICON_CELL) * 0.5, Vector2(ICON_CELL, ICON_CELL))
-	# C-217: `rest` no longer needs a special-cased tint — it has its own atlas cell.
 	var tint := CLEARED_TINT if cleared else Color.WHITE
 	draw_texture_rect_region(_icon_atlas, dest, region, tint, false)
 
@@ -421,8 +364,6 @@ func _draw_legend() -> void:
 		return
 	var font := ThemeDB.fallback_font
 	var font_size := ThemeDB.fallback_font_size
-	# C-217: the legend was a single row of seven entries. Fourteen will not fit on one line at any
-	# reasonable window width, so it wraps upward from the bottom edge.
 	var row_height := float(ICON_CELL) + 6.0
 	var y := size.y - 24.0
 	var x := 12.0
@@ -527,8 +468,6 @@ func _room_pixel_size(room_def: Dictionary, map_rect: Rect2) -> Vector2:
 	if world_w <= 0.0 or world_z <= 0.0:
 		return Vector2(FALLBACK_ROOM_PX, FALLBACK_ROOM_PX)
 	var s := _uniform_scale(map_rect) * _zoom
-	# maxf, not maxi: maxi narrows both arguments to int, so a room 12.8 px wide was clamped
-	# against 4 as 12 and the trailing floor() had nothing left to do.
 	return Vector2(maxf(4.0, world_w * s), maxf(4.0, world_z * s)).floor()
 
 

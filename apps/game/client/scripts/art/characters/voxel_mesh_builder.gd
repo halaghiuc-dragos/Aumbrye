@@ -1,7 +1,6 @@
 extends RefCounted
 class_name VoxelMeshBuilder
 
-## Builds greedy-merged voxel ArrayMeshes from authored .voxels.json data.
 
 static var _cache: Dictionary = {}
 
@@ -12,41 +11,6 @@ static func baked_mesh_path(path: String) -> String:
 	return path.substr(0, path.length() - ".voxels.json".length()) + ".tres"
 
 
-## C-170: the baked `.tres` was loaded **only when no theme was supplied** (`theme < 0`), and the
-## three call sites that matter all supply one — body parts, hair and equipment visuals. So all 40
-## baked meshes were dead weight: produced by `scripts/tools/export_voxel_meshes.gd`, shipped in the
-## export, and never loaded, while the greedy mesher rebuilt the same geometry at runtime.
-##
-## The guard was not wrong: colour is written into *vertex colours* (`_emit_triangle` calls
-## `st.set_color`), and a baked mesh carries the unsnapped colour, so reusing it verbatim for a
-## themed rig would have been the wrong colour. But the geometry does not depend on the theme —
-## only the colour does, and every voxel in a part shares one flat colour. So the baked mesh is
-## loaded whatever the theme, and the colour array is rewritten to the snapped value, which is
-## exactly what the themed build would have produced at a fraction of the cost.
-## C-266: the baked `.tres` is used **only when the `.voxels.json` source is absent**.
-##
-## C-170 made the baked mesh load whatever the theme, on the reasoning that "the geometry does not
-## depend on the theme — only the colour does". The geometry does not depend on the theme, but the
-## baked meshes are not in the same coordinate convention as the ones the mesher builds, and that
-## went unnoticed because nothing compared them:
-##
-##   * `_build_from_voxels` emits cells at their authored coordinates, so a part occupies
-##     `0 .. size` on every axis and grows up and out of its origin corner.
-##   * every baked `.tres` under `assets/characters/` was exported *after* `build_from_manifest`
-##     had already centred it in x/z and hung it from its joint, so it occupies `-size .. 0` in y
-##     and straddles zero in x/z.
-##
-## `build_from_manifest` then applies `_centre_offset` and the hang rule a second time, so a baked
-## part ends up one full part-height below where it belongs. For legs and arms the two conventions
-## happen to cancel; for a torso or a head they do not. `player_warden/torso.tres` put the warden's
-## torso at y -0.16..0.48 — inside the legs, with the arms and head left floating in the gap above
-## it — and the six lean/heavy/tall body-shape variants ship *every* part baked, which is why
-## changing Build or Stature in character creation visibly took the preview apart.
-##
-## Preferring the source removes the whole class of defect rather than re-deriving the offset:
-## a mesh built from the authored cells is correct by construction. `assets/characters/equipment/`
-## keeps working from its bakes, which is what it has always done — those have no source and their
-## hung convention is what their mount points expect.
 static func load_mesh(source_path: String, theme: int = -1) -> ArrayMesh:
 	var path := source_path
 	var baked := baked_mesh_path(path)
@@ -79,8 +43,6 @@ static func load_mesh(source_path: String, theme: int = -1) -> ArrayMesh:
 	return mesh
 
 
-## C-170: the part's authored base colour, snapped to the theme palette — the same value
-## `_build_from_voxels` would have computed.
 static func _theme_colour_for(source_path: String, theme: int) -> Color:
 	var text := FileAccess.get_file_as_string(source_path)
 	if text.is_empty():
@@ -95,8 +57,6 @@ static func _theme_colour_for(source_path: String, theme: int) -> Color:
 	return _snap_to_palette(base, theme) if theme >= 0 else base
 
 
-## Rewrites the whole vertex-colour array to one flat value. Every voxel in a part shares a colour
-## by construction (see `_build_from_voxels`), so this is the complete colour information.
 static func _recolour_mesh(mesh: ArrayMesh, color: Color) -> ArrayMesh:
 	if mesh.get_surface_count() == 0:
 		return mesh
@@ -117,16 +77,6 @@ static func clear_cache() -> void:
 	_palette_cache.clear()
 
 
-## Standard binary-plane greedy mesher: for each of the 3 axes, sweep every boundary slice
-## perpendicular to that axis, build a 2D mask of exposed faces, then merge the mask into maximal
-## rectangles instead of emitting one quad per exposed voxel face.
-##
-## The mask entry packs direction *and* material as `sign * (material_index + 1)`, so 0 still means
-## "no face" and two faces merge only when they point the same way **and** carry the same material.
-## Parts used to be a single flat colour, which let any two same-direction faces join; that is what
-## made every warden read as one lump of plastic. A part may now carry a `palette` array and give
-## each cell a fourth element selecting from it, and a cell without one falls back to index 0 —
-## so every `.voxels.json` authored before this still loads unchanged.
 static func _build_from_voxels(
 	data: Dictionary, theme: int = -1, source_path: String = "<inline>"
 ) -> ArrayMesh:
@@ -134,10 +84,6 @@ static func _build_from_voxels(
 	var cells: Array = data.get("cells", [])
 	var colors := _resolve_palette(data, theme)
 	if cells.is_empty():
-		# A part with no cells is almost always an authoring mistake, not a request for a solid
-		# block — `hair_short` and `hair_long` both shipped this way and both rendered as slabs
-		# nobody recognised as hair. Filling the box is kept so such a file still shows *something*
-		# rather than vanishing, but it no longer does so silently.
 		push_warning(
 			(
 				"VoxelMeshBuilder: %s has an empty `cells` array; filling its %s bounding box. "
@@ -150,7 +96,6 @@ static func _build_from_voxels(
 			for y in int(size_arr[1]):
 				for z in int(size_arr[2]):
 					cells.append([x, y, z])
-	# Value is the material index, not `true` — `_face_material` reads it back out.
 	var solid: Dictionary = {}
 	for cell in cells:
 		if cell is Array and cell.size() >= 3:
@@ -272,7 +217,6 @@ static func _emit_quad(
 	edge: float,
 	colors: PackedColorArray
 ) -> void:
-	# `c` packs direction in its sign and the material index in its magnitude.
 	var face_color := colors[clampi(absi(c) - 1, 0, colors.size() - 1)]
 	var plane_d := float(origin[d] + slice) * edge
 	var u0 := float(origin[u] + i0) * edge
@@ -287,11 +231,11 @@ static func _emit_quad(
 	normal_arr[d] = 1.0 if c > 0 else -1.0
 	var n := Vector3(normal_arr[0], normal_arr[1], normal_arr[2])
 	if c > 0:
-		_emit_triangle(st, a, b, c2, n, face_color)
-		_emit_triangle(st, a, c2, e, n, face_color)
-	else:
 		_emit_triangle(st, a, c2, b, n, face_color)
 		_emit_triangle(st, a, e, c2, n, face_color)
+	else:
+		_emit_triangle(st, a, b, c2, n, face_color)
+		_emit_triangle(st, a, c2, e, n, face_color)
 
 
 static func _uv_to_vec3(d: int, u: int, v: int, d_val: float, u_val: float, v_val: float) -> Vector3:
@@ -316,21 +260,6 @@ static func _emit_triangle(
 	st.add_vertex(c)
 
 
-## A part's materials, resolved against the theme.
-##
-## Three forms, in order of preference:
-##
-##   * `paletteSlots` — indices into `PixelDioramaStyle.PaletteSlot`, resolved by lookup. This is
-##     the form authored parts use, because it is the only one that cannot lose a distinction:
-##     two different RGB values can snap to the *same* nearest slot in some theme and silently
-##     collapse a part's shading back to one flat colour, which is exactly what multi-material
-##     support exists to avoid.
-##   * `palette` — literal RGB per material, snapped to the nearest slot when a theme applies.
-##   * `color` — the single flat colour every part carried before, kept so that the 181 files
-##     authored against the old format load unchanged.
-##
-## `palette` doubles as the untinted appearance (`theme < 0`) for a slot-authored part, so a part
-## should supply both; when it does not, the slots are read from the castle theme.
 static func _resolve_palette(data: Dictionary, theme: int) -> PackedColorArray:
 	var out := PackedColorArray()
 	var slots: Array = data.get("paletteSlots", [])

@@ -1,16 +1,11 @@
 extends RefCounted
 class_name EnemyBlackboard
 
-## Per-room shared awareness: who is awake, where the player was last seen, and which
-## members are pressing versus circling. Roles cooperate with AttackTokenService — the
-## board decides who is *allowed* to ask for a token, the service still decides how many
-## swings land at once.
 
 enum Role { ENGAGER, FLANKER, WAITER }
 
 const MAX_ENGAGERS := 2
 
-## C-29: how many physics frames a cached room centre may be reused for.
 const BOUNDS_MAX_STALE_FRAMES := 6
 const MAX_FLANKERS := 2
 
@@ -26,9 +21,10 @@ static func room_key(node: Node) -> int:
 
 static func register(room_id: int, member: Node) -> void:
 	var record := _record(room_id)
-	var member_ids: Array = record["member_ids"]
-	if not member_ids.has(member):
-		member_ids.append(member)
+	var members_list: Array = record["members"]
+	if not members_list.has(member):
+		members_list.append(member)
+		_assign_roles(record)
 
 
 static func unregister(room_id: int, member: Node) -> void:
@@ -55,15 +51,6 @@ static func members(room_id: int) -> Array:
 	return record["members"]
 
 
-## Registered members within `radius` of `origin`, across every room.
-##
-## Walks only the per-room rosters rather than the whole `enemy` scene group, and skips a room
-## outright once its cached centre is further away than the radius plus the room's own extent —
-## so a crowded endless floor costs a few room checks instead of an O(N) scan inside one frame.
-##
-## Note this sees only members that registered with the board. Bosses deliberately do not (see
-## CastleEnemyBase._join_room_board), so this is the right query for ally-alert propagation but NOT
-## for player-facing target selection, which must still be able to find a boss.
 static func nearby(origin: Vector3, radius: float) -> Array:
 	var found: Array = []
 	if radius <= 0.0:
@@ -91,14 +78,7 @@ static func nearby(origin: Vector3, radius: float) -> Array:
 	return found
 
 
-## Cached centre/extent for a room's roster, refreshed when the membership changes so the common
-## case is a single Vector3 comparison instead of re-measuring every member.
 static func _room_bounds(record: Dictionary, members_list: Array) -> Dictionary:
-	# C-29: the cache was keyed on member *count* alone — the comment said "refreshed when the
-	# membership changes", but enemies move every frame while the count stays constant, so
-	# `nearby()` culled whole rooms against a stale centre and ally-alert propagation could miss
-	# enemies that had walked toward the player. Count still invalidates immediately; a frame
-	# stamp bounds how stale the centre can get.
 	var frame := Engine.get_physics_frames()
 	var cached: Variant = record.get("bounds")
 	if (
@@ -145,8 +125,6 @@ static func report_engaged(room_id: int, member: Node, engaged: bool) -> void:
 	_assign_roles(record)
 
 
-## Hands the pressing slot to the next member in line after a swing resolves or a hit
-## staggers the current engager, so a group takes turns instead of one enemy monopolising.
 static func yield_engager(room_id: int, member: Node) -> void:
 	if not _rooms.has(room_id):
 		return
@@ -160,27 +138,10 @@ static func yield_engager(room_id: int, member: Node) -> void:
 	_assign_roles(record)
 
 
-## C-28: both defaults used to be `Role.ENGAGER`, but `_assign_roles` only writes entries for
-## members in the `engaged` list — so every enemy that had *not* engaged reported the pressing role
-## instead of the waiting one, which is exactly backwards from this file's own stated purpose ("the
-## board decides who is *allowed* to ask for a token"). An unknown member waits.
-static func role_for(room_id: int, member: Node) -> int:
-	if not _rooms.has(room_id):
-		return Role.WAITER
-	var roles: Dictionary = (_rooms[room_id] as Dictionary)["roles"]
-	return int(roles.get(member.get_instance_id(), Role.WAITER))
-
-
 static func report_player_position(room_id: int, position: Vector3) -> void:
 	var record := _record(room_id)
 	record["alert_position"] = position
 	record["alerted"] = true
-
-
-static func has_alert(room_id: int) -> bool:
-	if not _rooms.has(room_id):
-		return false
-	return bool((_rooms[room_id] as Dictionary)["alerted"])
 
 
 static func alert_position(room_id: int) -> Vector3:
@@ -189,20 +150,8 @@ static func alert_position(room_id: int) -> Vector3:
 	return (_rooms[room_id] as Dictionary)["alert_position"]
 
 
-static func clear_room(room_id: int) -> void:
-	_rooms.erase(room_id)
-
-
 static func clear_all() -> void:
 	_rooms.clear()
-
-
-static func engaged_count(room_id: int) -> int:
-	if not _rooms.has(room_id):
-		return 0
-	var record: Dictionary = _rooms[room_id]
-	_prune(record)
-	return (record["engaged"] as Array).size()
 
 
 static func _record(room_id: int) -> Dictionary:

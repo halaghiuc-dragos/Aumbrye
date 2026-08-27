@@ -1,7 +1,6 @@
 class_name ProcgenPlacements
 extends RefCounted
 
-## Enemy and loot placement with anchored positions and data-driven loot (PLC-01..PLC-16).
 
 static var _threat_cost_cache: Dictionary = {}
 
@@ -216,7 +215,6 @@ static func _place_loot(
 				)
 			)
 	var combat_rooms: Array = _sorted_combat_rooms(assignment)
-	# C-158: remembered so the armory draw can exclude it.
 	var side_room_id := ""
 	if combat_rooms.size() > 0:
 		var side_room: Dictionary = combat_rooms[
@@ -244,11 +242,6 @@ static func _place_loot(
 			)
 		)
 	if combat_rooms.size() > 0:
-		# C-158: this drew a second time from the same list with no exclusion of the first pick, so
-		# on a floor with few combat rooms the side chest and the armory chest regularly landed in
-		# the same room — and when they did, the side chest took `anchors[0]` while the armory chest
-		# took `anchors[1]` *or fell back to `anchors[0]`*, stacking two chests on one point. The
-		# already-used room is removed from the pool when there is another to pick.
 		var armory_pool: Array = combat_rooms
 		if combat_rooms.size() > 1 and side_room_id != "":
 			armory_pool = []
@@ -272,12 +265,6 @@ static func _place_loot(
 				ProcgenLootRoller.roll_chest(biome, "armory", tier, loot_rng)
 			)
 		)
-	# C-159: `RoomContentAssigner` builds `no_trap_semantics` from the reserved rooms **plus every
-	# neighbour of the start room**, so the content pass will not put a trap next to the spawn. This
-	# pass had no such rule and fell back to `"hub"`, which is the entrance room itself — two
-	# trap-placing systems disagreeing about whether the spawn is safe, with only one of them
-	# written with the question in mind. In practice the stairs room types as `"corridor"` and is
-	# found first, so the entrance fallback was rare rather than never; it is now impossible.
 	var spawn_safe_ids := _spawn_safe_room_ids(graph)
 	var corridor: Dictionary = _first_room_of_type(rooms, "corridor", spawn_safe_ids)
 	if corridor.is_empty():
@@ -470,8 +457,6 @@ static func _vec_dict(offset: Vector3) -> Dictionary:
 	return {"x": offset.x, "y": offset.y, "z": offset.z}
 
 
-## C-159: `excluded` carries the spawn room and its neighbours, matching the rule the content pass
-## already applies.
 static func _first_room_of_type(
 	rooms: Array, room_type: String, excluded: Dictionary = {}
 ) -> Dictionary:
@@ -484,7 +469,6 @@ static func _first_room_of_type(
 	return {}
 
 
-## C-159: the start room plus every room adjacent to it — the set the content pass refuses to trap.
 static func _spawn_safe_room_ids(graph: RoomGraph) -> Dictionary:
 	var unsafe := {}
 	if graph == null or graph.start_id == "":
@@ -544,10 +528,6 @@ static func _enemy_threat_cost(enemy_id: String) -> float:
 			cost = float(boss_data.get("threat_cost", boss_data.get("threatCost", 50)))
 	_threat_cost_cache[enemy_id] = cost
 	return cost
-
-
-static func clear_threat_cache() -> void:
-	_threat_cost_cache.clear()
 
 
 static func _wall_direction_from_mask(door_mask: int) -> String:

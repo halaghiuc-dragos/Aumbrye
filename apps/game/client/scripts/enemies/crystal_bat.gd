@@ -1,7 +1,5 @@
 extends "res://scripts/enemies/castle_archer.gd"
 
-## Crystal bat — fast ranged harass (THEME-5.2).
-
 
 func _resolve_enemy_id() -> String:
 	return "crystal_bat"

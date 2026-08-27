@@ -1,6 +1,5 @@
 extends Control
 
-## Achievement browser — locked/unlocked list from catalog (META-6.1).
 
 signal closed
 
@@ -22,15 +21,16 @@ func is_open() -> bool:
 
 
 func open() -> void:
-	# Raised on open, so the panel the player just asked for is the one on top: these are all
-	# siblings on one CanvasLayer and draw in child order, which is otherwise fixed at build time.
 	move_to_front()
 	_build_ui_if_needed()
 	_refresh()
 	_open = true
 	visible = true
 	mouse_filter = Control.MOUSE_FILTER_STOP
-	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	if MenuStack:
+		MenuStack.push(self)
+	else:
+		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	if _list:
 		_list.grab_focus()
 
@@ -41,9 +41,10 @@ func close() -> void:
 	_open = false
 	visible = false
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
-	# Through PlayerControls: closing this panel must not grab the mouse back if another one is
-	# still open behind it.
-	PlayerControls.capture_mouse_if_allowed()
+	if MenuStack:
+		MenuStack.pop(self)
+	else:
+		PlayerControls.capture_mouse_if_allowed()
 	closed.emit()
 
 
@@ -101,6 +102,12 @@ func _refresh() -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	if not _open:
 		return
+	if MenuStack != null:
+		return
 	if event.is_action_pressed("ui_cancel"):
 		get_viewport().set_input_as_handled()
 		close()
+
+
+func _on_cancel_requested() -> void:
+	close()

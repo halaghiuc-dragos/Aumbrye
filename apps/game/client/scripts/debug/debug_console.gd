@@ -1,10 +1,8 @@
 extends Node
 
-## Debug-only command console for content iteration and dev utilities.
 
 var _commands: Dictionary = {}
 
-## C-252: the entry overlay, built on demand so a debug build pays nothing until the key is pressed.
 var _overlay: CanvasLayer
 var _entry: LineEdit
 var _output: Label
@@ -40,14 +38,6 @@ func execute(line: String) -> String:
 	return str(_commands[command_name].handler.call(args))
 
 
-## C-252: `register_command`, `execute` with argument splitting and `_cmd_help` listing every
-## registered command all existed — and the only caller of `execute` was one hardcoded
-## `execute("content_reload")` on the `debug_console` key. So `help` could never be run, arguments
-## could never be passed, and the key was in practice a "reload content" hotkey. A command framework
-## with no way to enter a command.
-##
-## The key now opens a one-line entry overlay: type, Enter to run, Escape to close, Up/Down through
-## history. Debug builds only — `_ready` disables input entirely outside them.
 func _input(event: InputEvent) -> void:
 	if not OS.is_debug_build():
 		return
@@ -67,7 +57,6 @@ func _build_overlay() -> void:
 	_overlay = CanvasLayer.new()
 	_overlay.name = "DebugConsoleOverlay"
 	_overlay.layer = 128
-	# So the console is usable while the game is paused, which is when it is most wanted.
 	_overlay.process_mode = Node.PROCESS_MODE_ALWAYS
 	add_child(_overlay)
 

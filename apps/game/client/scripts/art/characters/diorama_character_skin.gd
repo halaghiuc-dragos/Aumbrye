@@ -1,17 +1,6 @@
 extends RefCounted
 class_name DioramaCharacterSkin
 
-## Chunky pixel-diorama rigs for players, enemies, and training dummies.
-##
-## Every body is a hierarchy of pivot Node3Ds with the box mesh offset beneath the
-## joint, so an arm rotates about the shoulder rather than about the middle of its
-## own mesh. AnimationPlayer clips drive those pivots by name, which is why the
-## node names here are a contract shared with DioramaAnimLibrary.
-##
-##   DioramaVisual/Root/LegL|LegR
-##   DioramaVisual/Root/Torso/Head
-##   DioramaVisual/Root/Torso/ArmL/ShieldMount
-##   DioramaVisual/Root/Torso/ArmR/WeaponMount
 
 const VISUAL_NAME := "DioramaVisual"
 const ROOT_NAME := "Root"
@@ -35,8 +24,6 @@ const APPEARANCE_EXTRAS := [PART_VISOR, PART_HOOD, PART_BELT_TRIM, PART_PAULDRON
 
 static var _warned_missing_parts: Dictionary = {}
 
-## Hidden in first person. Torso is a pivot, so its children (head, arms, weapon)
-## go with it while the legs stay visible under the camera.
 const FIRST_PERSON_HIDDEN_PARTS := ["Torso"]
 
 const PixelStyle := preload("res://scripts/art/style/pixel_diorama_style.gd")
@@ -53,7 +40,6 @@ const SKIN_TINT_PARAM := &"skin_tint"
 const ARENA_DUMMY_ACCENT := Color(1.0, 0.35, 0.1)
 const ARENA_DUMMY_GLOW := Color(0.6, 0.2, 0.05)
 
-## Body proportions per profile, in metres. torso/head/arm/leg are box sizes.
 const PROFILES := {
 	"player":
 	{
@@ -159,7 +145,6 @@ static func build_preview_body(parent: Node3D, profile: Dictionary) -> Node3D:
 	if root == null:
 		_build_humanoid(visual, "player", _body_materials(theme, "player"))
 	_apply_player_appearance(visual, clean, _body_materials(theme, "player"))
-	# Must follow _apply_player_appearance, which resets the root pivot's position.
 	_ground_rig(visual)
 	MeshMergerScript.merge(visual)
 	return visual
@@ -208,32 +193,16 @@ static func _apply_player_appearance(visual: Node3D, profile: Dictionary, mats: 
 	var pauldron_r := _require_part(visual, PART_PAULDRON_R)
 	if pauldron_r:
 		pauldron_r.visible = trim >= 2
-	# Hair only with an open head. A cowl that wraps the skull has nothing for hair to come through,
-	# and a visor helm is no different — every hair style was sitting as a tuft on top of the helmet.
-	# Head covering wins over hair, for both coverings.
 	if head_style == CharacterAppearance.HEAD_OPEN:
 		_apply_hair(visual, profile, mats)
 	_apply_face(visual, profile, mats)
 	_apply_class_armor(visual, profile, mats)
 
 
-## Skin tone is carried by the face plate, which is the only part of a warden that is skin.
-##
-## This used to push a near-white multiplier (0.74..1.09) onto *every mesh in the rig*, so choosing
-## a tone moved the whole suit of armour by a few percent and none of the eight tones could be told
-## from any other. The body keeps the biome palette; `_apply_face` tints the plate.
 static func _apply_skin_tone(visual: Node3D, _profile: Dictionary, _mats: Dictionary) -> void:
 	_set_skin_tint(visual, Vector3.ONE)
 
 
-## The head this rig was built with, as a multiple of the head the shared meshes were authored
-## against.
-##
-## Hair and the face plate are authored **once**, in `player_warden/`, and shared by all
-## twenty-five statures — generating them per archetype would be 625 hair meshes for a silhouette
-## the head already determines. The head itself is now proportional (7, 8 or 9 voxels), so anything
-## shared has to be scaled to the head it lands on or a `slight` warden wears a crop two voxels too
-## wide and a `towering` one wears one two voxels too narrow.
 const AUTHORED_HEAD_VOXELS := 8.0
 
 
@@ -258,7 +227,6 @@ static func _apply_hair(visual: Node3D, profile: Dictionary, mats: Dictionary) -
 	var mesh_path := "res://assets/characters/player_warden/hair_%s.voxels.json" % hair
 	if not ResourceLoader.exists(mesh_path):
 		return
-	# theme -1: no palette snapping. The volume is white and the colour is the instance tint.
 	var mesh: ArrayMesh = VoxelMeshBuilderScript.load_mesh(mesh_path, -1)
 	if mesh == null:
 		return
@@ -268,47 +236,18 @@ static func _apply_hair(visual: Node3D, profile: Dictionary, mats: Dictionary) -
 	mesh_inst.name = "Mesh"
 	mesh_inst.mesh = mesh
 	mesh_inst.material_override = _make_voxel_material(int(mats.get("theme", 0)))
-	# Hair volumes are authored in head-local layers — the crown is the volume's top layer — so the
-	# holder sits on the head's own pivot. It used to carry a fixed `EDGE * 3`, which put a
-	# two-layer crop across the middle of the face.
-	#
-	# Pivot-relative, like every other thing that hangs off a part — the Visor and Hood extras do
-	# the same. The head is seated into the collar by lowering its *joint*, so the pivot is already
-	# in the right place and nothing here has to compensate.
-	#
-	# The centring offset is the same one `_attach_manifest_extras` applies, and its absence here
-	# is why hair grew out of the head's corner and stuck out to one side.
 	mesh_inst.position = _centre_offset(mesh)
 	holder.scale = Vector3.ONE * _head_scale(head)
-	# The hair volume is authored white, and the chosen colour arrives as the instance tint the
-	# surface shader multiplies COLOR by. Hair is the one thing on the model that must *not* track
-	# the biome palette: it is a decision about the character, and snapping it to a theme slot is
-	# what made every warden in a biome identical from the neck up.
 	var hair_color := CharacterAppearance.hair_color_rgb(
 		str(profile.get("hairColor", CharacterAppearance.HAIR_COLOR_BROWN))
 	)
 	holder.add_child(mesh_inst)
 	head.add_child(holder)
-	# After the instance is in the tree, not before. `set_instance_shader_parameter` writes through
-	# to the rendering server's instance, and a MeshInstance3D that has not entered the tree has no
-	# instance to write to — the value is silently dropped. Set early, hair rendered as its authored
-	# white and every colour choice did nothing.
 	mesh_inst.set_instance_shader_parameter(
 		SKIN_TINT_PARAM, Vector3(hair_color.r, hair_color.g, hair_color.b)
 	)
 
 
-## Attaches the face plate for the chosen style and tints it with the chosen skin tone.
-##
-## The plate is a separate `MeshInstance3D` on purpose: the body's colours come from the biome
-## palette, and skin must not. Its volume is authored white for the skin field and near-black for
-## the features, so multiplying the whole plate by the skin colour makes the field skin-coloured and
-## leaves eyes, brow and mouth dark whatever tone is picked.
-##
-## What this replaces: two of the six styles drew a couple of accent boxes positioned against
-## `PROFILES["player"]` — a hardcoded box spec that is not the size of the voxel head actually being
-## built — and `weary`, `scarred` and `hollow` drew nothing at all. Four of six face choices did
-## literally nothing, and the two that did put their marks in the wrong place.
 static func _apply_face(visual: Node3D, profile: Dictionary, _mats: Dictionary) -> void:
 	var head := find_part(visual, PART_HEAD)
 	if head == null:
@@ -317,7 +256,6 @@ static func _apply_face(visual: Node3D, profile: Dictionary, _mats: Dictionary) 
 	if existing:
 		head.remove_child(existing)
 		existing.queue_free()
-	# A visor or a hood covers the face; drawing a plate under either just fights the helm.
 	var head_style := str(profile.get("head", CharacterAppearance.HEAD_VISOR))
 	if head_style != CharacterAppearance.HEAD_OPEN:
 		return
@@ -325,7 +263,6 @@ static func _apply_face(visual: Node3D, profile: Dictionary, _mats: Dictionary) 
 	var mesh_path := "res://assets/characters/player_warden/face_%s.voxels.json" % face
 	if not ResourceLoader.exists(mesh_path):
 		return
-	# theme -1: the plate's white/near-black pair must survive un-snapped.
 	var mesh: ArrayMesh = VoxelMeshBuilderScript.load_mesh(mesh_path, -1)
 	if mesh == null:
 		return
@@ -334,9 +271,6 @@ static func _apply_face(visual: Node3D, profile: Dictionary, _mats: Dictionary) 
 	mesh_inst.name = "Mesh"
 	mesh_inst.mesh = mesh
 	mesh_inst.material_override = _make_voxel_material(0)
-	# Sat on the head's own front face, one voxel up from its base, so the plate covers the face and
-	# leaves the crown and the jaw edge as helm. Derived from the head mesh rather than from
-	# constants: the head is a different size for every stature and build.
 	var head_mesh := head.get_node_or_null("Mesh") as MeshInstance3D
 	var head_front := 0.16
 	var head_base := 0.0
@@ -353,24 +287,11 @@ static func _apply_face(visual: Node3D, profile: Dictionary, _mats: Dictionary) 
 	var skin := CharacterAppearance.skin_color_rgb(
 		str(profile.get("skinTone", CharacterAppearance.SKIN_TONE_NEUTRAL))
 	)
-	# The plate's *placement* is measured off this head already; its *size* is not, because the
-	# mesh is one of the shared six-by-four masks.
 	mesh_inst.scale = Vector3.ONE * _head_scale(head)
 	holder.add_child(mesh_inst)
-	# In the tree first — see `_apply_hair`.
 	mesh_inst.set_instance_shader_parameter(SKIN_TINT_PARAM, Vector3(skin.r, skin.g, skin.b))
 
 
-## The default clothing a class wears with nothing equipped.
-##
-## An authored volume per class that wraps the torso, with its own literal palette. What it replaces:
-## a single `add_box` for five of the seven classes — herald and hunter had none — each positioned
-## against `PROFILES["player"]`, a hardcoded box spec that is not the size of the voxel torso being
-## built, and each coloured from the biome palette, so every class in a given dungeon came out the
-## same colour as every other.
-##
-## Placed from the torso mesh's own bounds so it fits whatever stature and build the player picked,
-## and dropped by the asset's `skirtDrop` because a robe and a set of faulds hang below the body.
 static func _apply_class_armor(visual: Node3D, profile: Dictionary, _mats: Dictionary) -> void:
 	var torso := find_part(visual, PART_TORSO)
 	if torso == null:
@@ -379,9 +300,6 @@ static func _apply_class_armor(visual: Node3D, profile: Dictionary, _mats: Dicti
 	if existing:
 		torso.remove_child(existing)
 		existing.queue_free()
-	# The profile wins over the service. During character creation the player has not committed a
-	# class yet, so `CharacterService` still holds the *previous* character's — the preview showed
-	# the wrong clothing for the whole of the screen whose entire job is choosing a class.
 	var class_id := str(profile.get("classId", ""))
 	if class_id == "":
 		var svc := _character_service()
@@ -392,7 +310,6 @@ static func _apply_class_armor(visual: Node3D, profile: Dictionary, _mats: Dicti
 	var mesh_path := _garment_path(profile, class_id)
 	if mesh_path == "":
 		return
-	# theme -1: the class palette is the point and must not be snapped to the biome's.
 	var mesh: ArrayMesh = VoxelMeshBuilderScript.load_mesh(mesh_path, -1)
 	if mesh == null:
 		return
@@ -415,26 +332,17 @@ static func _apply_class_armor(visual: Node3D, profile: Dictionary, _mats: Dicti
 	holder.add_child(mesh_inst)
 
 
-## The garment authored for *this* frame's torso, falling back to the base warden's.
-##
-## Unlike hair and the face plate, clothing is not shared across frames and is not scaled at
-## runtime: `sculpt_garment` grows every panel, hem and sash out of the torso volume it is handed,
-## so a surcoat cut for the standard 12-wide chest does not close around Stout's 14 and hangs off
-## the sides of Slight's 10. The generator writes one per frame; this picks the right one.
 static func _garment_path(profile: Dictionary, class_id: String) -> String:
 	var archetype := CharacterRigCatalogScript.archetype_for_player(profile)
 	var path := "res://assets/characters/%s/garment_%s.voxels.json" % [archetype, class_id]
 	if ResourceLoader.exists(path):
 		return path
-	# A frame whose meshes have not been generated still gets dressed, just in the base cut.
 	push_warning("DioramaCharacterSkin: no %s garment for %s, using the base warden's"
 		% [class_id, archetype])
 	var fallback := "res://assets/characters/player_warden/garment_%s.voxels.json" % class_id
 	return fallback if ResourceLoader.exists(fallback) else ""
 
 
-## How far below the torso's base a garment volume begins, in voxels. Written into the asset by the
-## generator; a robe's hem is part of the garment and cannot be recovered from the mesh alone.
 static func _garment_skirt_drop(mesh_path: String) -> int:
 	var text := FileAccess.get_file_as_string(mesh_path)
 	if text.is_empty():
@@ -498,37 +406,12 @@ static func build_training_dummy(parent: Node3D) -> Node3D:
 	return visual
 
 
-## Largest correction treated as an authoring slip rather than a broken rig. A whole diorama
-## character is about 1.4 units tall, so anything past this is not a misplaced limb.
 const MAX_GROUNDING_CORRECTION := 0.8
 
 
-## Drops the assembled rig so its lowest mesh voxel sits on y = 0.
-##
-## Every rig in the game was built floating: a limb's joint marks where it attaches, and the parts
-## that hang from a joint need a negative meshOffset to grow downwards from it. The arms carry one;
-## the legs never did, so they grew upwards out of the hip and left the whole body hovering a third
-## to half its own height above the floor — players, every enemy, the training dummies and the
-## character-creation preview alike. This used to be reported as an error on every single spawn and
-## otherwise left alone.
-##
-## Correcting here rather than in the 24 rig manifests keeps one rule in one place and means a rig
-## added later cannot reintroduce the bug.
-## Parts whose joint marks their top, so the mesh must grow downwards from it.
-##
-## A rig's `joint` is the attachment point. Arms hang from the shoulder and every manifest gives
-## them a negative meshOffset to say so; legs hang from the hip and not one of the nineteen rigs
-## ever did. Their meshes therefore grew *upwards* out of the hip, occupying exactly the same space
-## as the torso — which is why an assembled warden read as a knot of overlapping boxes with no
-## legs beneath it.
-##
-## Derived from the built mesh rather than written into the manifests because six of the player's
-## body-shape variants ship as baked .tres resources whose extents are not readable from the
-## content files at all. A manifest that states its own meshOffset is still honoured.
 const HANGING_PARTS: PackedStringArray = ["LegL", "LegR", "LegBL", "LegBR"]
 
 
-## Drop needed to put a mesh's top edge on the joint it hangs from.
 static func _hang_offset(mesh: ArrayMesh) -> float:
 	if mesh == null:
 		return 0.0
@@ -538,17 +421,6 @@ static func _hang_offset(mesh: ArrayMesh) -> float:
 	return -(aabb.position.y + aabb.size.y)
 
 
-## Shift that centres a mesh sideways and front-to-back on the joint it is attached to.
-##
-## Voxel meshes are built from cell coordinates starting at zero, so a mesh grows out of its origin
-## corner in +x/+y/+z. The joints, however, are authored as body-axis positions — hips at x = -3
-## and +3, shoulders at -8 and +8 — which only line up if the mesh straddles that point. Without
-## this the whole body sat to one side of its own centre line: the torso occupied x 0.00..0.48
-## instead of -0.24..0.24, the left arm ended 0.16 short of the torso and floated beside it, and
-## the legs straddled the centre rather than meeting at it.
-##
-## Height is deliberately untouched — y is positional, not centred. A torso stacks up from the
-## hips, a head from the neck, and limbs hang from their joints via _hang_offset above.
 static func _centre_offset(mesh: ArrayMesh) -> Vector3:
 	if mesh == null:
 		return Vector3.ZERO
@@ -643,8 +515,6 @@ static func profile_for_enemy_data(data: Dictionary) -> String:
 	return enemy_type
 
 
-## Builds a throwaway rig for `profile` and returns its rest pose.
-## Same code path as the runtime rig, so the exporter and the game cannot diverge.
 static func rest_pose_for_profile(profile: String) -> Dictionary:
 	var holder := Node3D.new()
 	var visual := _make_visual(holder)
@@ -711,8 +581,6 @@ static func _build_reference_quadruped(visual: Node3D) -> Node3D:
 	return root
 
 
-## Maps every animatable pivot to its rest transform and path from the visual root.
-## DioramaAnimController feeds this to DioramaAnimLibrary to compile clips.
 static func collect_rest_pose(visual: Node3D) -> Dictionary:
 	var pose: Dictionary = {}
 	if visual == null:
@@ -725,7 +593,6 @@ static func attach_weapon(visual: Node3D, weapon_id: String, theme: int) -> void
 	var mount := find_part(visual, WEAPON_MOUNT)
 	if mount == null:
 		return
-	# Anim pivots (Bow/Shield) must survive kit swaps — attack clips key them by name.
 	for child in mount.get_children():
 		if child.name in ["Bow", "Shield"]:
 			continue
@@ -746,7 +613,6 @@ static func attach_weapon(visual: Node3D, weapon_id: String, theme: int) -> void
 				child.queue_free()
 			target_mount = bow_pivot
 		if kit_id == "spear":
-			# Shaft along -Z (forward thrust), grip at hand mount.
 			weapon.position = Vector3(0.04, -0.12, -0.22)
 			weapon.rotation = Vector3(deg_to_rad(82.0), 0.0, deg_to_rad(2.0))
 		if visual.name == "ViewRoot":
@@ -754,14 +620,6 @@ static func attach_weapon(visual: Node3D, weapon_id: String, theme: int) -> void
 		target_mount.add_child(weapon)
 
 
-## C-68: the per-enemy `_apply_mesh_tint` colours in fourteen enemy scripts were written onto the
-## legacy `_mesh`, which `_setup_diorama_visual` immediately hides — so the colour a player actually
-## sees came from `theme_for_enemy_id`, which matches on the id *prefix*. All eight `crystal_*`
-## enemies shared one palette and all six `swamp_*` another, leaving the bestiary differentiated by
-## `scale` alone. This routes the authored tint into the visible rig instead of deleting it.
-##
-## Materials are duplicated per rig before mutation: the theme materials are shared for batching,
-## and writing a per-enemy colour into a shared material would tint every enemy of that biome.
 static func apply_body_tint(visual: Node3D, tint: Color) -> void:
 	if visual == null:
 		return
@@ -802,8 +660,6 @@ static func find_part(visual: Node3D, part_name: String) -> Node3D:
 	return null
 
 
-## First person hides the upper body but keeps it casting shadows, so the player
-## still reads as a physical presence on the floor next to them.
 static func apply_first_person(facing: Node3D, enabled: bool) -> void:
 	if facing == null:
 		return
@@ -824,7 +680,6 @@ static func sync_first_person_weapon_shadows(visual: Node3D, first_person: bool)
 
 
 static func _apply_first_person_weapon_shadows(visual: Node3D, first_person: bool) -> void:
-	# Third-person rig weapons still cast shadows in FP; viewmodel weapon is screen-only.
 	for mount_name in [WEAPON_MOUNT, SHIELD_MOUNT, "Bow"]:
 		var mount := find_part(visual, mount_name)
 		if mount:
@@ -984,8 +839,6 @@ static func _build_quadruped(visual: Node3D, mats: Dictionary) -> Node3D:
 	var tail := _add_pivot(torso_pivot, "Tail", Vector3(0.0, 0.24, -0.38))
 	PixelStyle.add_box(tail, Vector3(0.1, 0.1, 0.3), Vector3(0.0, 0.02, -0.15), body, "Mesh")
 
-	# Front pair carries the LegL/LegR names the shared clips animate; the rear
-	# pair mirrors them through a duplicate of the same names' motion.
 	for entry in [
 		{"name": "LegL", "pos": Vector3(-0.16, body_y, 0.26)},
 		{"name": "LegR", "pos": Vector3(0.16, body_y, 0.26)},
@@ -1023,7 +876,6 @@ static func _collect_rest_pose_recursive(node: Node3D, visual: Node3D, pose: Dic
 		_collect_rest_pose_recursive(part, visual, pose)
 
 
-## Size and darkness of the blob every character stands on.
 const CONTACT_SHADOW_SIZE := Vector3(1.35, 1.5, 1.35)
 const CONTACT_SHADOW_ALPHA := 0.88
 const CONTACT_SHADOW_NAME := "ContactShadow"
@@ -1038,31 +890,18 @@ static func _make_visual(parent: Node3D) -> Node3D:
 	return visual
 
 
-## A projected blob under the feet, so a character reads as standing in the room rather than
-## pasted on top of it.
-##
-## Screen-space occlusion cannot do this job here. It only darkens the ambient term, and interiors
-## now run a deliberately low ambient so that torches can actually pool — and the pixel pipeline
-## renders at a low internal resolution where a sub-metre occlusion radius is close to sub-pixel
-## anyway. Measured, it produced no darkening at the feet whatsoever. A decal is independent of
-## both, costs one draw, and is something the art direction can actually control.
 static func _attach_contact_shadow(visual: Node3D) -> void:
 	if visual.has_node(CONTACT_SHADOW_NAME):
 		return
 	var decal := Decal.new()
 	decal.name = CONTACT_SHADOW_NAME
 	decal.size = CONTACT_SHADOW_SIZE
-	# Projects straight down from just above the feet onto whatever the character is standing on,
-	# so it follows stairs and ledges without any per-frame work.
 	decal.position = Vector3(0.0, 0.45, 0.0)
 	decal.texture_albedo = _contact_shadow_texture()
 	decal.modulate = Color(0.0, 0.0, 0.0, CONTACT_SHADOW_ALPHA)
 	decal.albedo_mix = 1.0
-	# Barely any vertical fade: the blob should be at full strength where it meets the floor,
-	# and the first pass at 0.4/1.2 faded most of it away before it landed.
 	decal.upper_fade = 0.15
 	decal.lower_fade = 0.25
-	# Cheap at distance: a blob a room away is a couple of pixels and not worth projecting.
 	decal.distance_fade_enabled = true
 	decal.distance_fade_begin = 22.0
 	decal.distance_fade_length = 8.0
@@ -1072,8 +911,6 @@ static func _attach_contact_shadow(visual: Node3D) -> void:
 static var _contact_shadow_tex: Texture2D
 
 
-## Radial falloff, generated rather than shipped as a PNG — it is two lines of gradient and would
-## otherwise be one more asset to keep in step with the palette.
 static func _contact_shadow_texture() -> Texture2D:
 	if _contact_shadow_tex != null:
 		return _contact_shadow_tex
@@ -1107,13 +944,6 @@ static func build_from_manifest(visual: Node3D, archetype_id: String, theme: int
 	var parts: Dictionary = manifest.get("parts", {})
 	if parts.is_empty():
 		return null
-	# No skin tint on body parts, and in particular not the *player's*.
-	#
-	# This used to read `CharacterService.appearance_profile` and multiply every mesh of whatever it
-	# was building by the player's skin tone — including every enemy, every training dummy and every
-	# hub NPC, since they all come through here. So the player's tone quietly recoloured the entire
-	# cast, and changing it changed all of them together. Skin now lives on the face plate, which is
-	# its own instance and carries its own tint.
 	var mat := _make_voxel_material(theme)
 	var root := _add_pivot(visual, ROOT_NAME, Vector3.ZERO)
 	var built: Dictionary = {ROOT_NAME: root}
@@ -1198,9 +1028,6 @@ static func _attach_manifest_extras(
 		var mesh_inst := MeshInstance3D.new()
 		mesh_inst.name = "Mesh"
 		mesh_inst.mesh = mesh
-		# Extras are voxel meshes with the same corner origin as the parts they hang off, so they
-		# need the same centring — otherwise a visor sits on one half of a face that has itself
-		# just been recentred, and the two drift apart.
 		mesh_inst.position = _centre_offset(mesh)
 		mesh_inst.material_override = mat
 		holder.add_child(mesh_inst)
@@ -1218,9 +1045,6 @@ static func _archetype_id_for_profile(profile: String) -> String:
 			return "enemy_melee"
 
 
-## Body, hair and equipment now share one voxel material per theme. Skin tone is a per-mesh
-## instance shader parameter rather than a material uniform, so nothing about a character's
-## colour variation is stored on the material and the cached instance can be shared freely.
 static var _untinted_material_cache: Dictionary = {}
 
 
@@ -1244,8 +1068,26 @@ static func _set_skin_tint(node: Node, tint: Vector3) -> void:
 		_set_skin_tint(child, tint)
 
 
-static func clear_material_cache() -> void:
-	_untinted_material_cache.clear()
+const META_DEFAULT_VISIBLE := &"skin_default_visible"
+
+
+## The rig's bare state, recorded once per character and restored before every equipment pass.
+## It cannot be inferred from the mesh merger's flag: a part hidden by armour is deliberately not
+## merged and so never carries one, which is what used to leave the head missing on unequip.
+static func _capture_default_visibility(node: Node) -> void:
+	var mesh := node as GeometryInstance3D
+	if mesh != null and not mesh.has_meta(META_DEFAULT_VISIBLE):
+		mesh.set_meta(META_DEFAULT_VISIBLE, mesh.visible)
+	for child in node.get_children():
+		_capture_default_visibility(child)
+
+
+static func _restore_default_visibility(node: Node) -> void:
+	var mesh := node as GeometryInstance3D
+	if mesh != null and mesh.has_meta(META_DEFAULT_VISIBLE):
+		mesh.visible = bool(mesh.get_meta(META_DEFAULT_VISIBLE))
+	for child in node.get_children():
+		_restore_default_visibility(child)
 
 
 static func apply_equipment(visual: Node3D, equipped: Dictionary, theme: int) -> void:
@@ -1253,6 +1095,8 @@ static func apply_equipment(visual: Node3D, equipped: Dictionary, theme: int) ->
 		return
 	MeshMergerScript.unmerge(visual)
 	_clear_equipment_visuals(visual)
+	_capture_default_visibility(visual)
+	_restore_default_visibility(visual)
 	for slot_name in equipped:
 		var inst: Dictionary = equipped.get(slot_name, {})
 		if inst.is_empty():
@@ -1270,11 +1114,8 @@ static func apply_equipment(visual: Node3D, equipped: Dictionary, theme: int) ->
 
 static func _clear_equipment_visuals(visual: Node3D) -> void:
 	for node in _collect_nodes_named(visual, EQUIP_VISUAL_PREFIX):
+		node.get_parent().remove_child(node)
 		node.queue_free()
-	for part_name in ["LegL", "LegR", "Torso", "Head", "ArmL", "ArmR"]:
-		var part := find_part(visual, part_name)
-		if part:
-			_set_meshes_visible(part, true)
 
 
 static func _collect_nodes_named(root: Node, prefix: String) -> Array[Node]:
@@ -1286,6 +1127,47 @@ static func _collect_nodes_named(root: Node, prefix: String) -> Array[Node]:
 	return found
 
 
+const NESTED_PARTS: Array[String] = [
+	PART_ARM_L, PART_ARM_R, PART_HEAD, PART_TORSO, "LegL", "LegR"
+]
+
+
+static func _part_own_aabb(part: Node3D) -> AABB:
+	var boxes: Array[AABB] = []
+	_collect_own_boxes(part, part, boxes)
+	if boxes.is_empty():
+		return AABB()
+	var result: AABB = boxes[0]
+	for i in range(1, boxes.size()):
+		result = result.merge(boxes[i])
+	return result
+
+
+static func _collect_own_boxes(node: Node, root: Node3D, out: Array[AABB]) -> void:
+	var mesh := node as MeshInstance3D
+	if mesh != null and mesh.mesh != null:
+		var local := root.global_transform.affine_inverse() * mesh.global_transform
+		out.append(local * mesh.mesh.get_aabb())
+	for child in node.get_children():
+		var child_name := str(child.name)
+		if child_name in NESTED_PARTS or child_name.begins_with(EQUIP_VISUAL_PREFIX):
+			continue
+		_collect_own_boxes(child, root, out)
+
+
+static func _hide_part_meshes(part: Node, hidden: bool) -> void:
+	if part is GeometryInstance3D:
+		var already_merged := (
+			not hidden and MeshMergerScript.is_merged_source(part as MeshInstance3D)
+		)
+		if not already_merged:
+			(part as GeometryInstance3D).visible = not hidden
+	for child in part.get_children():
+		if str(child.name) in NESTED_PARTS:
+			continue
+		_hide_part_meshes(child, hidden)
+
+
 static func _apply_equipment_visual(visual: Node3D, vis: Dictionary, theme: int) -> void:
 	var attach_name := str(vis.get("attach", ""))
 	if attach_name == "":
@@ -1293,10 +1175,6 @@ static func _apply_equipment_visual(visual: Node3D, vis: Dictionary, theme: int)
 	var mount := find_part(visual, attach_name)
 	if mount == null:
 		return
-	for hide_name in vis.get("hide", []):
-		var hidden := find_part(visual, str(hide_name))
-		if hidden:
-			_set_meshes_visible(hidden, false)
 	var mesh_path := str(vis.get("mesh", ""))
 	if mesh_path == "":
 		return
@@ -1304,8 +1182,15 @@ static func _apply_equipment_visual(visual: Node3D, vis: Dictionary, theme: int)
 	if mesh == null:
 		push_error("DioramaCharacterSkin: equipment mesh missing %s" % mesh_path)
 		return
+	for hide_name in vis.get("hide", []):
+		var hidden := find_part(visual, str(hide_name))
+		if hidden:
+			_hide_part_meshes(hidden, true)
 	var holder := Node3D.new()
 	holder.name = "%s%s" % [EQUIP_VISUAL_PREFIX, attach_name]
+	var target := _part_own_aabb(mount)
+	if target.size != Vector3.ZERO:
+		holder.position = target.get_center() - mesh.get_aabb().get_center()
 	var mesh_inst := MeshInstance3D.new()
 	mesh_inst.name = "Mesh"
 	mesh_inst.mesh = mesh
