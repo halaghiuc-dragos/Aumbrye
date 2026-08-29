@@ -54,8 +54,7 @@ func gameplay_input_blocked() -> bool:
 
 
 func modal_stack_open() -> bool:
-	var stack := get_tree().root.get_node_or_null("/root/MenuStack")
-	return stack != null and int(stack.call("depth")) > 0
+	return MenuStack.depth() > 0
 
 
 func scene_ui_open() -> bool:

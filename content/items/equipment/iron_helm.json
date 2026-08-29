@@ -1,20 +1,15 @@
 {
-    "id":  "iron_helm",
-    "name":  "Iron Helm",
-    "itemType":  "armor",
-    "gridWidth":  2,
-    "gridHeight":  2,
-    "stackSize":  1,
-    "rarity":  "common",
-    "description":  "A bucket helm dented by countless tower echoes.",
-    "value":  20,
-    "stats":  {
-                  "defense":  3
-              },
-    "equipmentSlot":  "helmet",
-    "visual": {
-        "attach": "Head",
-        "mesh": "res://assets/characters/equipment/iron_helm.tres",
-        "hide": ["Head"]
-    }
+  "id": "iron_helm",
+  "name": "Iron Helm",
+  "itemType": "armor",
+  "gridWidth": 2,
+  "gridHeight": 2,
+  "stackSize": 1,
+  "rarity": "common",
+  "description": "A bucket helm dented by countless tower echoes.",
+  "value": 20,
+  "stats": {
+    "defense": 3
+  },
+  "equipmentSlot": "helmet"
 }

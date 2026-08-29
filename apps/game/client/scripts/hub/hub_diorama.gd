@@ -363,6 +363,86 @@ static func _spawn_brazier(
 	flicker.setup(light, coals)
 
 
+# Porch lanterns for a service tent.
+#
+# The tents each carried one lamp, tucked inside against the back wall, so at dusk the plaza was a
+# ring of dark canvas with a glow somewhere behind it and no light on the ground anyone walks on.
+# These sit outside: a pair on posts flanking the entrance and one hung under each eave. They are in
+# the `NightLights` group like everything else, so they come up through the dusk ramp on their own
+# stagger rather than all together.
+static func _spawn_tent_lanterns(
+	visuals: Node3D, mats: Dictionary, width: float, depth: float, wall_height: float
+) -> void:
+	var half_w := width * 0.5
+	var half_d := depth * 0.5
+	var root := Node3D.new()
+	root.name = "TentLanterns"
+	visuals.add_child(root)
+	for raw_side in [-1.0, 1.0]:
+		var side: float = raw_side
+		var side_tag: String = "R" if side > 0.0 else "L"
+		# The entrance pair, on their own posts just clear of the guy ropes.
+		var post_x := side * (half_w + 0.5)
+		var post_z := half_d + 0.45
+		var post_top := wall_height + 0.5
+		PixelDioramaStyle.add_box(
+			root,
+			Vector3(0.14, post_top, 0.14),
+			Vector3(post_x, post_top * 0.5, post_z),
+			mats.wood,
+			"PorchPost%s" % side_tag
+		)
+		PixelDioramaStyle.add_box(
+			root,
+			Vector3(0.44, 0.1, 0.14),
+			Vector3(post_x - side * 0.16, post_top - 0.05, post_z),
+			mats.wood,
+			"PorchArm%s" % side_tag
+		)
+		_spawn_tent_lantern(
+			root,
+			mats,
+			Vector3(post_x - side * 0.32, post_top - 0.34, post_z),
+			"PorchLantern%s" % side_tag,
+			0.85
+		)
+		# One under each eave, so the flanks of the tent are lit as well as its face.
+		_spawn_tent_lantern(
+			root,
+			mats,
+			Vector3(side * (half_w + 0.12), wall_height - 0.12, 0.0),
+			"EaveLantern%s" % side_tag,
+			0.6
+		)
+
+
+static func _spawn_tent_lantern(
+	parent: Node3D, mats: Dictionary, at: Vector3, node_name: String, strength: float
+) -> void:
+	var glass := PixelDioramaStyle.make_custom_emissive(LANTERN_LIGHT_COLOR, 1.25)
+	PixelDioramaStyle.add_box(
+		parent,
+		Vector3(0.28, 0.08, 0.28),
+		at + Vector3(0.0, 0.19, 0.0),
+		mats.accent,
+		node_name + "Cap"
+	)
+	PixelDioramaStyle.add_box(
+		parent, Vector3(0.24, 0.3, 0.24), at, glass, node_name + "Glass"
+	)
+	var lamp := OmniLight3D.new()
+	lamp.name = node_name
+	lamp.light_color = LANTERN_LIGHT_COLOR
+	lamp.light_energy = LANTERN_ENERGY * strength
+	lamp.omni_range = LANTERN_RANGE
+	lamp.shadow_enabled = false
+	lamp.position = at
+	lamp.add_to_group(NightLights.GROUP)
+	parent.add_child(lamp)
+	VisualLighting.attach_flicker(lamp, 0.08, 5.5)
+	LightEmbers.attach(parent, at + Vector3(0.0, 0.14, 0.0), LANTERN_LIGHT_COLOR, 0.35, 0.45)
+
+
 static func _spawn_banner_avenue(parent: Node3D, mats: Dictionary) -> void:
 	for i in 4:
 		var z := -2.0 + i * 4.5
@@ -948,6 +1028,7 @@ static func _dress_blacksmith(building: Node3D, mats: Dictionary) -> void:
 	dressing.add_child(flicker)
 	flicker.setup(forge_light, forge)
 
+	_spawn_tent_lanterns(visuals, mats, width, depth, wall_height)
 	_add_ridge_sign(visuals, depth * 0.5, wall_height + roof_peak, mats.accent, mats.wood)
 	_position_door_interact(building, width, depth, wall_height, wall_height + roof_peak, yaw)
 
@@ -1009,6 +1090,7 @@ static func _dress_merchant(building: Node3D, mats: Dictionary) -> void:
 	dressing.add_child(lantern)
 	LightEmbers.attach(dressing, lantern.position, lantern.light_color, 0.5, 0.6)
 
+	_spawn_tent_lanterns(visuals, mats, width, depth, wall_height)
 	_add_ridge_sign(visuals, depth * 0.5, wall_height + roof_peak, mats.accent, mats.wood)
 	_position_door_interact(building, width, depth, wall_height, wall_height + roof_peak, yaw)
 
@@ -1061,6 +1143,7 @@ static func _dress_storage(building: Node3D, mats: Dictionary) -> void:
 	dressing.add_child(lamp)
 	LightEmbers.attach(dressing, lamp.position, lamp.light_color, 0.5, 0.6)
 
+	_spawn_tent_lanterns(visuals, mats, width, depth, wall_height)
 	_add_ridge_sign(visuals, depth * 0.5, wall_height + roof_peak, mats.accent, mats.wood)
 	_position_door_interact(building, width, depth, wall_height, wall_height + roof_peak, yaw)
 
@@ -1114,6 +1197,7 @@ static func _dress_quest_board(board: Node3D, mats: Dictionary) -> void:
 	dressing.add_child(paper_light)
 	LightEmbers.attach(dressing, paper_light.position, paper_light.light_color, 0.5, 0.6)
 
+	_spawn_tent_lanterns(visuals, mats, width, depth, wall_height)
 	_add_ridge_sign(visuals, depth * 0.5, wall_height + roof_peak, mats.accent, mats.wood)
 	_position_door_interact(board, width, depth, wall_height, wall_height + roof_peak, yaw)
 

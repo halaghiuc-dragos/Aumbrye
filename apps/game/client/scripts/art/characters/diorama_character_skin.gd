@@ -33,8 +33,20 @@ const VoxelGridScript := preload("res://scripts/art/characters/voxel_grid.gd")
 const VoxelMeshBuilderScript := preload("res://scripts/art/characters/voxel_mesh_builder.gd")
 const CharacterRigCatalogScript := preload("res://scripts/art/characters/character_rig_catalog.gd")
 const MeshMergerScript := preload("res://scripts/art/characters/character_mesh_merger.gd")
+const EquipmentKitScript := preload("res://scripts/art/characters/equipment_model_kit.gd")
 
 const EQUIP_VISUAL_PREFIX := "EquipVisual_"
+
+## Marks a node as a mounted equipment model.
+##
+## The name alone is not enough to find these again. Two pieces of gear can mount to the
+## same body part -- a breastplate and an amulet both hang off the torso -- and when the
+## second holder is added under a name a sibling already has, Godot drops the name and
+## auto-generates `@Node3D@N` instead of suffixing it. That holder then no longer matches
+## the `EquipVisual_` prefix, so it survives every later clear: a stale model welded to
+## the body, and its geometry counted as part of the body when fitting the next item.
+## Metadata survives the rename, so the mark is what clearing and fitting both go by.
+const EQUIP_VISUAL_META := &"aumbrye_equip_visual"
 const SKIN_TINT_PARAM := &"skin_tint"
 
 const ARENA_DUMMY_ACCENT := Color(1.0, 0.35, 0.1)
@@ -1090,6 +1102,16 @@ static func _restore_default_visibility(node: Node) -> void:
 		_restore_default_visibility(child)
 
 
+## The order slots are dressed in, worst-fitting first.
+##
+## A dictionary iterates in insertion order, which is whatever order the save happened to equip
+## things in — so a pendant could be built before the breastplate it is supposed to hang over. This
+## fixes the order outright, and puts neckwear last so it is always the outermost layer.
+const EQUIP_DRESS_ORDER: Array[String] = [
+	"chest", "helmet", "gloves", "boots", "secondary", "weapon", "relic", "ring", "amulet"
+]
+
+
 static func apply_equipment(visual: Node3D, equipped: Dictionary, theme: int) -> void:
 	if visual == null:
 		return
@@ -1097,7 +1119,14 @@ static func apply_equipment(visual: Node3D, equipped: Dictionary, theme: int) ->
 	_clear_equipment_visuals(visual)
 	_capture_default_visibility(visual)
 	_restore_default_visibility(visual)
+	var slots: Array[String] = []
+	for slot_name in EQUIP_DRESS_ORDER:
+		if equipped.has(slot_name):
+			slots.append(slot_name)
 	for slot_name in equipped:
+		if not (str(slot_name) in slots):
+			slots.append(str(slot_name))
+	for slot_name in slots:
 		var inst: Dictionary = equipped.get(slot_name, {})
 		if inst.is_empty():
 			continue
@@ -1107,24 +1136,32 @@ static func apply_equipment(visual: Node3D, equipped: Dictionary, theme: int) ->
 		var def := ItemCatalog.get_definition(item_id)
 		var vis: Dictionary = def.get("visual", {})
 		if vis.is_empty():
+			vis = EquipmentKitScript.visual_for(item_id, str(slot_name), def)
+		if vis.is_empty():
 			continue
 		_apply_equipment_visual(visual, vis, theme)
 	MeshMergerScript.merge(visual)
 
 
 static func _clear_equipment_visuals(visual: Node3D) -> void:
-	for node in _collect_nodes_named(visual, EQUIP_VISUAL_PREFIX):
+	for node in _collect_equipment_visuals(visual):
 		node.get_parent().remove_child(node)
 		node.queue_free()
 
 
-static func _collect_nodes_named(root: Node, prefix: String) -> Array[Node]:
+## Every mounted equipment model under `root`. Matches the metadata mark first and the
+## name second, so holders written before the mark existed are still cleaned up.
+static func _collect_equipment_visuals(root: Node) -> Array[Node]:
 	var found: Array[Node] = []
-	if str(root.name).begins_with(prefix):
+	if is_equipment_visual(root):
 		found.append(root)
 	for child in root.get_children():
-		found.append_array(_collect_nodes_named(child, prefix))
+		found.append_array(_collect_equipment_visuals(child))
 	return found
+
+
+static func is_equipment_visual(node: Node) -> bool:
+	return node.has_meta(EQUIP_VISUAL_META) or str(node.name).begins_with(EQUIP_VISUAL_PREFIX)
 
 
 const NESTED_PARTS: Array[String] = [
@@ -1149,8 +1186,7 @@ static func _collect_own_boxes(node: Node, root: Node3D, out: Array[AABB]) -> vo
 		var local := root.global_transform.affine_inverse() * mesh.global_transform
 		out.append(local * mesh.mesh.get_aabb())
 	for child in node.get_children():
-		var child_name := str(child.name)
-		if child_name in NESTED_PARTS or child_name.begins_with(EQUIP_VISUAL_PREFIX):
+		if str(child.name) in NESTED_PARTS or is_equipment_visual(child):
 			continue
 		_collect_own_boxes(child, root, out)
 
@@ -1163,37 +1199,140 @@ static func _hide_part_meshes(part: Node, hidden: bool) -> void:
 		if not already_merged:
 			(part as GeometryInstance3D).visible = not hidden
 	for child in part.get_children():
-		if str(child.name) in NESTED_PARTS:
+		# Hiding a body part must not hide the gear worn on it -- a breastplate covering
+		# the torso should not take an already-mounted pendant with it.
+		if str(child.name) in NESTED_PARTS or is_equipment_visual(child):
 			continue
 		_hide_part_meshes(child, hidden)
 
 
 static func _apply_equipment_visual(visual: Node3D, vis: Dictionary, theme: int) -> void:
-	var attach_name := str(vis.get("attach", ""))
-	if attach_name == "":
+	# `attach` is a list now: a pair of gauntlets or boots is one model worn on two limbs, and the
+	# second copy is mirrored across X so the thumb and the buckles end up on the right sides.
+	var attach_names: Array = []
+	var raw_attach: Variant = vis.get("attach", "")
+	if raw_attach is Array:
+		attach_names = (raw_attach as Array).duplicate()
+	elif str(raw_attach) != "":
+		attach_names = [str(raw_attach)]
+	if attach_names.is_empty():
 		return
-	var mount := find_part(visual, attach_name)
-	if mount == null:
-		return
+	var voxels: Dictionary = vis.get("voxels", {})
+	var mesh: ArrayMesh = null
 	var mesh_path := str(vis.get("mesh", ""))
-	if mesh_path == "":
-		return
-	var mesh: ArrayMesh = VoxelMeshBuilderScript.load_mesh(mesh_path, theme)
+	if mesh_path != "":
+		mesh = VoxelMeshBuilderScript.load_mesh(mesh_path, theme)
+		if mesh == null:
+			push_error("DioramaCharacterSkin: equipment mesh missing %s" % mesh_path)
+			return
+	elif not voxels.is_empty():
+		mesh = _kit_mesh(vis, voxels, theme, false)
 	if mesh == null:
-		push_error("DioramaCharacterSkin: equipment mesh missing %s" % mesh_path)
 		return
 	for hide_name in vis.get("hide", []):
 		var hidden := find_part(visual, str(hide_name))
 		if hidden:
 			_hide_part_meshes(hidden, true)
+	# The mirrored copy is built from mirrored *voxels* rather than from a negative scale, which
+	# would flip the triangle winding and turn the model inside out.
+	var mirror_extras := bool(vis.get("mirror_after_first", false)) and not voxels.is_empty()
+	var mirrored_mesh: ArrayMesh = null
+	for i in attach_names.size():
+		var attach_name := str(attach_names[i])
+		var mount := find_part(visual, attach_name)
+		if mount == null:
+			continue
+		var use := mesh
+		if mirror_extras and i > 0:
+			if mirrored_mesh == null:
+				mirrored_mesh = _kit_mesh(vis, voxels, theme, true)
+			if mirrored_mesh != null:
+				use = mirrored_mesh
+		_mount_equipment_mesh(mount, attach_name, use, vis, theme)
+
+
+## Kit models are rebuilt whenever equipment changes, and equipment is reapplied on every stat
+## refresh — so the meshes are cached by item, slot and theme rather than remeshed each time.
+static var _kit_mesh_cache: Dictionary = {}
+
+
+static func _kit_mesh(
+	vis: Dictionary, voxels: Dictionary, theme: int, mirrored: bool
+) -> ArrayMesh:
+	var key := str(vis.get("cache_key", ""))
+	if key == "":
+		if mirrored:
+			return VoxelMeshBuilderScript.build_from_data(_mirror_voxels(voxels), theme)
+		return VoxelMeshBuilderScript.build_from_data(voxels, theme)
+	key = "%s|%d|%s" % [key, theme, str(mirrored)]
+	if _kit_mesh_cache.has(key):
+		return _kit_mesh_cache[key]
+	var data := _mirror_voxels(voxels) if mirrored else voxels
+	var mesh := VoxelMeshBuilderScript.build_from_data(data, theme, key)
+	_kit_mesh_cache[key] = mesh
+	return mesh
+
+
+## The same voxel model reflected across X.
+static func _mirror_voxels(voxels: Dictionary) -> Dictionary:
+	var cells: Array = voxels.get("cells", [])
+	var max_x := 0
+	for cell in cells:
+		if cell is Array and (cell as Array).size() >= 1:
+			max_x = maxi(max_x, int(cell[0]))
+	var flipped: Array = []
+	for cell in cells:
+		if not (cell is Array) or (cell as Array).size() < 3:
+			continue
+		var c: Array = cell
+		var mat := int(c[3]) if c.size() >= 4 else 0
+		flipped.append([max_x - int(c[0]), int(c[1]), int(c[2]), mat])
+	var out := voxels.duplicate(true)
+	out["cells"] = flipped
+	return out
+
+
+## Fits one equipment mesh onto one body part.
+##
+## `fit` says how big the model should be as a multiple of the part's own box and `anchor` says which
+## corner, edge or face of the two boxes to line up, so a model is sized and placed by the body it is
+## worn on rather than by whatever absolute coordinates it happened to be modelled at. Without this
+## the old path simply centred the mesh on the part, which is why a helmet sat over the head like a
+## crate and boots floated at mid-shin.
+static func _mount_equipment_mesh(
+	mount: Node3D, attach_name: String, mesh: ArrayMesh, vis: Dictionary, theme: int
+) -> void:
 	var holder := Node3D.new()
 	holder.name = "%s%s" % [EQUIP_VISUAL_PREFIX, attach_name]
 	var target := _part_own_aabb(mount)
-	if target.size != Vector3.ZERO:
-		holder.position = target.get_center() - mesh.get_aabb().get_center()
+	var bounds := mesh.get_aabb()
+	var scale := Vector3.ONE
+	var offset := Vector3.ZERO
+	if target.size != Vector3.ZERO and bounds.size != Vector3.ZERO:
+		var fit: Vector3 = vis.get("fit", Vector3.ONE)
+		var anchor: Vector3 = vis.get("anchor", Vector3.ZERO)
+		for axis in 3:
+			if bounds.size[axis] <= 0.0001 or target.size[axis] <= 0.0001:
+				continue
+			scale[axis] = target.size[axis] * fit[axis] / bounds.size[axis]
+		# The anchor point, on the part's box and on the model's, in the same relative place.
+		var target_point := target.get_center() + target.size * 0.5 * anchor
+		var mesh_point := bounds.get_center() + bounds.size * 0.5 * anchor
+		offset = target_point - mesh_point * scale
+		offset.z += target.size.z * float(vis.get("forward", 0.0))
+	else:
+		# A bare pivot with no geometry of its own — a weapon or shield mount. The model keeps its
+		# modelled size and hangs off the mount where the kit asks.
+		offset = -bounds.get_center()
+	offset += vis.get("offset", Vector3.ZERO) as Vector3
+	holder.scale = scale
+	holder.position = offset
 	var mesh_inst := MeshInstance3D.new()
 	mesh_inst.name = "Mesh"
 	mesh_inst.mesh = mesh
 	mesh_inst.material_override = _make_voxel_material(theme)
+	holder.set_meta(EQUIP_VISUAL_META, true)
 	holder.add_child(mesh_inst)
-	mount.add_child(holder)
+	# `true` = force a readable name: on a collision Godot suffixes it ("EquipVisual_Torso2")
+	# rather than throwing the name away.
+	mount.add_child(holder, true)

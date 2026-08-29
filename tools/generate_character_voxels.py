@@ -11,28 +11,26 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "tools" / "voxel-import"))
 sys.path.insert(0, str(ROOT / "tools"))
 
-from voxel_sculpt import (  # noqa: E402
-    MATERIALS,
-    sculpt_face,
-    sculpt_for_part,
-    sculpt_hair,
-)
-from voxel_sculpt import (  # noqa: E402
-    FACE_MASKS,
-    GARMENT_PALETTES,
-    HAIR_RECIPES,
-    HOOD_DROP,
-    SKIRT_DROP,
-    sculpt_garment,
-    sculpt_hood,
-)
-
 from archetypes import (  # noqa: E402
     ArchetypeSpec,
     ExtraSpec,
     PartSpec,
     all_archetypes,
     theme_colours,
+)
+
+from voxel_sculpt import (  # noqa: E402
+    FACE_MASKS,
+    GARMENT_PALETTES,
+    HAIR_RECIPES,
+    HOOD_DROP,
+    MATERIALS,
+    SKIRT_DROP,
+    sculpt_face,
+    sculpt_for_part,
+    sculpt_garment,
+    sculpt_hair,
+    sculpt_hood,
 )
 
 VOXEL_EDGE = 0.04

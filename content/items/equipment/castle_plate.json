@@ -9,10 +9,8 @@
   "rarity": "magic",
   "description": "Heavy chest armor with decent protection.",
   "value": 35,
-  "stats": { "defense": 10, "maxHealth": 15 },
-  "visual": {
-    "attach": "Torso",
-    "mesh": "res://assets/characters/equipment/castle_plate.tres",
-    "hide": ["Torso"]
+  "stats": {
+    "defense": 10,
+    "maxHealth": 15
   }
 }

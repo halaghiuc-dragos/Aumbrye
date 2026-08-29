@@ -1,0 +1,11 @@
+{
+  "id": "waves_torch",
+  "name": "Pitch Torch",
+  "itemType": "material",
+  "gridWidth": 1,
+  "gridHeight": 2,
+  "stackSize": 1,
+  "description": "Bound in oiled rag and still heavy with pitch. The Outskirts hold nothing back once it is burning, and nothing comes at all until it is.",
+  "value": 0,
+  "lootValue": 0
+}

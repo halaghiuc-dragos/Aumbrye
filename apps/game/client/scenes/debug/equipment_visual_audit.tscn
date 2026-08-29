@@ -1,0 +1,6 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scripts/tools/equipment_visual_audit.gd" id="1_audit"]
+
+[node name="EquipmentVisualAudit" type="Node"]
+script = ExtResource("1_audit")

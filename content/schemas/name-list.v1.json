@@ -8,14 +8,22 @@
   "required": ["schemaVersion"],
   "properties": {
     "schemaVersion": { "type": "integer", "minimum": 1 },
+    "_comment": { "type": "string" },
     "first": { "$ref": "#/$defs/words" },
     "epithet": { "$ref": "#/$defs/words" },
-    "blocked": { "$ref": "#/$defs/words" }
+    "reserved": { "$ref": "#/$defs/words" },
+    "shortReserved": { "$ref": "#/$defs/words" },
+    "blocked": { "$ref": "#/$defs/wordsMaybeEmpty" }
   },
   "$defs": {
     "words": {
       "type": "array",
       "minItems": 1,
+      "uniqueItems": true,
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "wordsMaybeEmpty": {
+      "type": "array",
       "uniqueItems": true,
       "items": { "type": "string", "minLength": 1 }
     }

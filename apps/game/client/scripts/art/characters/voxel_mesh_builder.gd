@@ -72,6 +72,12 @@ static func _recolour_mesh(mesh: ArrayMesh, color: Color) -> ArrayMesh:
 	return out
 
 
+## Builds a mesh straight from voxel data, for models generated at runtime rather than loaded from
+## an asset. Not cached: the caller owns whatever caching its data deserves.
+static func build_from_data(data: Dictionary, theme: int = -1, source: String = "<generated>") -> ArrayMesh:
+	return _build_from_voxels(data, theme, source)
+
+
 static func clear_cache() -> void:
 	_cache.clear()
 	_palette_cache.clear()
@@ -273,12 +279,16 @@ static func _resolve_palette(data: Dictionary, theme: int) -> PackedColorArray:
 	if palette.is_empty():
 		var color_arr: Array = data.get("color", [0.5, 0.5, 0.5])
 		palette = [color_arr]
+	# Authored art is snapped to the biome's eight-colour palette so it sits in the scene. Gear opts
+	# out: a pit-iron helm and a hoarfrost helm both landing on the same nearest palette entry is
+	# exactly the flattening that made every piece of equipment look like the same grey block.
+	var snap := bool(data.get("snapToTheme", true))
 	for entry in palette:
 		if not entry is Array or (entry as Array).size() < 3:
 			continue
 		var arr: Array = entry
 		var color := Color(float(arr[0]), float(arr[1]), float(arr[2]))
-		out.append(_snap_to_palette(color, theme) if theme >= 0 else color)
+		out.append(_snap_to_palette(color, theme) if snap and theme >= 0 else color)
 	if out.is_empty():
 		out.append(Color(0.5, 0.5, 0.5))
 	return out

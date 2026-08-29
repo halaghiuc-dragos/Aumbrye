@@ -11,6 +11,15 @@ const DAYS_PER_LUNAR_MONTH := 29.53
 
 const LUNAR_INCLINATION_DEG := 5.14
 
+# Where in the lunar month day zero sits, in days.
+#
+# Without this the first save starts at a new moon: the moon rides with the sun, so it is up all
+# day, down all night, and unlit besides — three separate reasons for it to be invisible, and it
+# takes a week of in-game days before it climbs out of the glare. Starting half a month in puts a
+# full moon opposite the sun on day zero, up from dusk until dawn, and the phases still run from
+# there.
+const LUNAR_EPOCH_DAYS := DAYS_PER_LUNAR_MONTH * 0.5
+
 
 static func sun_direction(phase: float, day: float) -> Vector3:
 	return _horizon_vector(_hour_angle(phase), _solar_declination(day))
@@ -22,7 +31,7 @@ static func moon_direction(phase: float, day: float) -> Vector3:
 
 
 static func elongation(day: float) -> float:
-	return fposmod(day / DAYS_PER_LUNAR_MONTH, 1.0) * TAU
+	return fposmod((day + LUNAR_EPOCH_DAYS) / DAYS_PER_LUNAR_MONTH, 1.0) * TAU
 
 
 static func illuminated_fraction(day: float) -> float:
@@ -48,8 +57,13 @@ static func _solar_declination(day: float) -> float:
 
 
 static func _lunar_declination(day: float) -> float:
-	var mirrored := -_solar_declination(day) * cos(elongation(day))
-	return mirrored + deg_to_rad(LUNAR_INCLINATION_DEG) * sin(day / DAYS_PER_LUNAR_MONTH * TAU * 1.1)
+	# The moon tracks the sun's declination at new and mirrors it at full, which is what keeps a
+	# full moon high in winter and low in summer. The sign used to be the other way round, which
+	# put every full moon on the sun's own arc.
+	var mirrored := _solar_declination(day) * cos(elongation(day))
+	return mirrored + deg_to_rad(LUNAR_INCLINATION_DEG) * sin(
+		(day + LUNAR_EPOCH_DAYS) / DAYS_PER_LUNAR_MONTH * TAU * 1.1
+	)
 
 
 static func _horizon_vector(hour_angle: float, declination: float) -> Vector3:

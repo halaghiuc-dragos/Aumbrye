@@ -67,6 +67,8 @@ var _visible_indices: Array[int] = []
 var _drag_index := -1
 var _drag_equip_slot := ""
 var _mouse_dragging := false
+# Where the pointer went down, so a release can tell a drag from a plain click.
+var _drag_origin_cell := Vector2i(-1, -1)
 var _sort_mode_idx := 0
 var _type_filter_idx := 0
 var _rarity_filter_idx := 0
@@ -206,6 +208,12 @@ func _build_ui_shell() -> void:
 	root_hbox.add_theme_constant_override("separation", GameUISkinScript.SECTION_SEPARATION)
 	margin.add_child(root_hbox)
 	var grid_frame := GameUISkinScript.make_section_frame(tr("INV_TITLE_STASH"))
+	# The stash and the paperdoll are the only two things in this window, so between them they take
+	# all of it. Without these the two frames sat at their own minimum widths and left a wide empty
+	# band down the right-hand side of the panel.
+	grid_frame.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	grid_frame.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	grid_frame.size_flags_stretch_ratio = 1.9
 	root_hbox.add_child(grid_frame)
 	var grid_vbox := GameUISkinScript.section_content(grid_frame)
 	_title_label = GameUISkinScript.section_header(grid_frame)
@@ -226,6 +234,11 @@ func _build_ui_shell() -> void:
 	_grid.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	grid_vbox.add_child(_grid)
 	_build_tooltip_overlay()
+	var grid_spacer := Control.new()
+	grid_spacer.name = "GridSpacer"
+	grid_spacer.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	grid_spacer.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	grid_vbox.add_child(grid_spacer)
 	var footer := VBoxContainer.new()
 	footer.add_theme_constant_override("separation", 6)
 	grid_vbox.add_child(footer)
@@ -267,6 +280,9 @@ func _build_ui_shell() -> void:
 	separator.custom_minimum_size.x = 4
 	root_hbox.add_child(separator)
 	var equip_frame := GameUISkinScript.make_section_frame(tr("INV_TITLE_CHARACTER"))
+	equip_frame.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	equip_frame.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	equip_frame.size_flags_stretch_ratio = 1.0
 	root_hbox.add_child(equip_frame)
 	var equip_vbox := GameUISkinScript.section_content(equip_frame)
 	_equip_wrap = Control.new()
@@ -274,6 +290,11 @@ func _build_ui_shell() -> void:
 	_equip_wrap.custom_minimum_size = Vector2(
 		EQUIP_CELL_SIZE * 3 + GRID_GAP * 2 + 24, EQUIP_CELL_SIZE * 4 + GRID_GAP * 3 + 24
 	)
+	# Fills the character column rather than sitting at its minimum size in the top corner of it:
+	# the paperdoll backdrop is anchored to this control, so growing it is what puts the figure
+	# behind the slots instead of leaving a tall empty box underneath them.
+	_equip_wrap.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_equip_wrap.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	equip_vbox.add_child(_equip_wrap)
 	GameUISkinScript.build_paperdoll_backdrop(_equip_wrap, EQUIP_CELL_SIZE, GRID_GAP)
 	_equip_host = GridContainer.new()
@@ -281,7 +302,15 @@ func _build_ui_shell() -> void:
 	_equip_host.columns = 3
 	_equip_host.add_theme_constant_override("h_separation", GRID_GAP)
 	_equip_host.add_theme_constant_override("v_separation", GRID_GAP)
-	_equip_wrap.add_child(_equip_host)
+	# A centring container rather than anchors on the grid itself: the grid's minimum size is not
+	# known until its cells are in, so an anchor preset applied here would centre a zero-sized rect
+	# and leave the paperdoll hanging off the corner of the frame.
+	var equip_center := CenterContainer.new()
+	equip_center.name = "EquipCenter"
+	equip_center.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	equip_center.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_equip_wrap.add_child(equip_center)
+	equip_center.add_child(_equip_host)
 	_drag_ghost = _make_item_cell(CELL_SIZE, "common", 0)
 	_drag_ghost.visible = false
 	set_process(false)
@@ -852,18 +881,35 @@ func _unequip_slot(slot_name: String) -> void:
 
 func _drop_on_grid(x: int, y: int) -> void:
 	var inv := _inventory()
-	if inv.move_slot(_drag_index, x, y):
+	if not inv.move_slot(_drag_index, x, y):
+		# The drop was refused -- the cells are taken, or the item overhangs the edge.
+		# Nothing moved, but the drag still has to end: leaving it live kept the ghost on
+		# screen and made the next click anywhere drop this item again instead of
+		# selecting whatever was actually clicked.
+		_set_hint_text(tr("INV_MOVE_FAILED"))
 		_clear_drag()
 		_refresh_all()
+		return
+	_clear_drag()
+	_refresh_all()
 
 
 func _drop_equip_on_grid(slot_name: String, x: int, y: int) -> void:
 	var inv := _inventory()
 	var instance: Dictionary = inv.equipped.get(slot_name, {})
 	if instance.is_empty():
+		# The slot emptied between picking the item up and letting go of it -- taken off
+		# with the keyboard, say. End the drag rather than leaving it holding nothing.
+		_clear_drag()
+		_refresh_all()
 		return
 	var instance_id: String = instance.get("instanceId", "")
 	if not inv.unequip(slot_name):
+		# No room in the stash to take it off. Same trap as above: returning here left the
+		# drag live, so the ghost stayed stuck to the cursor with the item still worn.
+		_set_hint_text(tr("INV_STASH_FULL"))
+		_clear_drag()
+		_refresh_all()
 		return
 	var new_index := -1
 	for i in inv.slots.size():
@@ -943,8 +989,12 @@ func _on_cell_gui_input(event: InputEvent, x: int, y: int) -> void:
 		if event.pressed:
 			_handle_grid_press(x, y)
 		elif _mouse_dragging:
-			_handle_grid_release(x, y)
-			_mouse_dragging = false
+			# Not `x, y`. Godot delivers a button release to whichever control took the *press*, so
+			# these coordinates are always the cell the drag started from — which is why dropping an
+			# item onto an equipment slot did nothing at all: the release resolved back onto the
+			# source cell and the drag ended there. The pointer position is the only thing that says
+			# where the item was actually let go.
+			_finish_mouse_drag(event.global_position)
 		_highlight_cursor()
 		_refresh_equipment()
 		_update_detail()
@@ -966,10 +1016,15 @@ func _on_cell_gui_input(event: InputEvent, x: int, y: int) -> void:
 func _on_equip_gui_input(event: InputEvent, slot_name: String) -> void:
 	if not _inventory_open:
 		return
-	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and event.pressed:
+	if not (event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT):
+		return
+	var button := event as InputEventMouseButton
+	if button.pressed:
 		_focus_area = FocusArea.EQUIPMENT
 		_equip_cursor = _equip_nav_slots.find(slot_name)
 		_handle_equip_press(slot_name)
+	elif _mouse_dragging:
+		_finish_mouse_drag(button.global_position)
 
 
 func _on_cell_mouse_entered(x: int, y: int) -> void:
@@ -1081,21 +1136,81 @@ func _handle_grid_press(x: int, y: int) -> void:
 	_selected_index = idx
 	_drag_index = idx
 	_mouse_dragging = true
+	_drag_origin_cell = Vector2i(x, y)
 	_show_drag_ghost_from_slot(_inventory().slots[idx])
 	_refresh_all()
-
-
-func _handle_grid_release(x: int, y: int) -> void:
-	if _drag_index < 0:
-		return
-	_drop_on_grid(x, y)
 
 
 func _handle_equip_press(slot_name: String) -> void:
 	if _drag_index >= 0:
 		_try_equip_dragged_to_slot(slot_name)
 		return
-	_unequip_slot(slot_name)
+	# Picking an equipped item up rather than taking it off outright. A press that is released on
+	# the same slot still reads as a click and unequips (see `_finish_mouse_drag`); one released
+	# over the stash puts the item down there instead.
+	if _inventory().equipped.get(slot_name, {}).is_empty():
+		return
+	_drag_equip_slot = slot_name
+	_mouse_dragging = true
+	_drag_origin_cell = Vector2i(-1, -1)
+	_show_drag_ghost_from_slot(_inventory().equipped[slot_name])
+	_refresh_all()
+
+
+# Resolves a mouse drag against whatever sits under the pointer when the button comes up.
+func _finish_mouse_drag(global_pos: Vector2) -> void:
+	_mouse_dragging = false
+	var equip_slot := _equip_slot_at(global_pos)
+	if _drag_equip_slot != "":
+		var from_slot := _drag_equip_slot
+		if equip_slot == from_slot:
+			# Pressed and released on the same slot with nothing in between: a click, so take it off.
+			_clear_drag()
+			_unequip_slot(from_slot)
+			return
+		var grid_cell := _grid_cell_at(global_pos)
+		if grid_cell.x >= 0:
+			_drop_equip_on_grid(from_slot, grid_cell.x, grid_cell.y)
+			return
+		_clear_drag()
+		_refresh_all()
+		return
+	if _drag_index < 0:
+		_clear_drag()
+		return
+	if equip_slot != "":
+		if not _try_equip_dragged_to_slot(equip_slot):
+			_set_hint_text(tr("INV_EQUIP_FAILED"))
+			_clear_drag()
+			_refresh_all()
+		return
+	var target := _grid_cell_at(global_pos)
+	if target.x < 0 or target == _drag_origin_cell:
+		# Dropped on nothing, or let go where it was picked up — leave the item where it is.
+		_clear_drag()
+		_refresh_all()
+		return
+	_drop_on_grid(target.x, target.y)
+
+
+# The equipment slot under a screen position, or "" for none.
+func _equip_slot_at(global_pos: Vector2) -> String:
+	for slot_name in _equip_cells:
+		var cell: PanelContainer = _equip_cells[slot_name]
+		if is_instance_valid(cell) and cell.get_global_rect().has_point(global_pos):
+			return str(slot_name)
+	return ""
+
+
+# The stash cell under a screen position, as grid coordinates, or (-1, -1) for none.
+func _grid_cell_at(global_pos: Vector2) -> Vector2i:
+	var width := _inventory().grid_width
+	for i in _cells.size():
+		var cell := _cells[i]
+		if is_instance_valid(cell) and cell.get_global_rect().has_point(global_pos):
+			@warning_ignore("integer_division")
+			return Vector2i(i % width, i / width)
+	return Vector2i(-1, -1)
 
 
 func _show_drag_ghost_from_slot(slot: Dictionary) -> void:
@@ -1111,6 +1226,7 @@ func _clear_drag() -> void:
 	_drag_index = -1
 	_drag_equip_slot = ""
 	_mouse_dragging = false
+	_drag_origin_cell = Vector2i(-1, -1)
 	_drag_ghost.visible = false
 	set_process(false)
 

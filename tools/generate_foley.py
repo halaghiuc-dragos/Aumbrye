@@ -387,7 +387,6 @@ def footstep_water(rng: np.random.Generator, variant: int) -> np.ndarray:
     """A boot into shallow water: a bright burst that darkens fast, then droplets."""
     seconds = 0.42
     n = A.n_samples(seconds)
-    span = np.linspace(0.0, 1.0, n, dtype=np.float32)
     splash = A.noise(seconds, rng)
     # Sweeping the band downward is the splash: the spray is bright and the body of it is not.
     bright = A.bandpass(splash, 1400.0, 9000.0) * np.exp(-np.linspace(0.0, 16.0, n, dtype=np.float32))

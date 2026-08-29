@@ -35,10 +35,25 @@ uniform float normal_threshold : hint_range(0.0, 1.0) = 0.42;
 // scene gets a hard black line and the world turns into a wireframe.
 uniform float interior_scale : hint_range(0.0, 1.0) = 0.45;
 
-// Beyond this many metres the contour fades out. A one-pixel line on something 40m away is noise
-// that crawls as the camera moves; the palette carries distance instead.
+// Beyond this many metres the contour eases off. A full-strength one-pixel line on something 40m
+// away is noise that crawls as the camera moves, so the far half of the scene gets a lighter stroke
+// and lets the palette carry the distance.
 uniform float fade_start : hint_range(1.0, 200.0) = 26.0;
 uniform float fade_end : hint_range(1.0, 300.0) = 46.0;
+// What is left of the contour past `fade_end`, rather than nothing at all. Fading the whole way to
+// zero is what left the background village and the mountains as flat untouched shapes while
+// everything in front of them was drawn with a line round it -- the distance read as a painted
+// backdrop rather than as the same world further away. Softened and tinted into the haze by
+// `outline_depth_tint` below, a distant contour separates the forms without shouting.
+uniform float far_strength : hint_range(0.0, 1.0) = 0.55;
+
+// Silhouettes against the sky.
+//
+// The contour is drawn on the *farther* side of a depth step, which is the right rule everywhere
+// except against the sky: there the far side is the sky itself, which is skipped, so a mountain on
+// the horizon or a rooftop against open air came out with no outline at all. Where a neighbouring
+// pixel is sky, the line is drawn on the object's own edge instead.
+uniform float sky_edge_scale : hint_range(0.0, 1.0) = 1.0;
 
 // The contour is not one colour.
 //
@@ -69,6 +84,13 @@ float view_depth(vec2 uv, mat4 inv_proj) {
 	return -view.z / max(view.w, 0.000001);
 }
 
+// Is there geometry at this pixel, or is it open sky? Tested at both extremes rather than against
+// one of them, because which end of the buffer means "far" depends on whether the renderer is using
+// a reversed depth range, and a contour pass should not quietly invert when that changes.
+float is_solid(float raw) {
+	return step(0.0000001, raw) * step(raw, 0.9999999);
+}
+
 vec3 view_normal(vec2 uv) {
 	return normalize(texture(normal_tex, uv).xyz * 2.0 - 1.0);
 }
@@ -89,6 +111,7 @@ void fragment() {
 
 	float depth_edge = 0.0;
 	float normal_edge = 0.0;
+	float sky_edge = 0.0;
 	for (int i = 0; i < 4; i++) {
 		vec2 sample_uv = clamp(uv + offsets[i], vec2(0.0), vec2(1.0));
 		float d = view_depth(sample_uv, INV_PROJECTION_MATRIX);
@@ -96,6 +119,7 @@ void fragment() {
 		// the contour on the outside of the form instead of doubling it on both sides of every edge.
 		depth_edge = max(depth_edge, (centre_depth - d) / max(centre_depth, 0.001));
 		normal_edge = max(normal_edge, 1.0 - dot(centre_normal, view_normal(sample_uv)));
+		sky_edge = max(sky_edge, 1.0 - is_solid(texture(depth_tex, sample_uv).x));
 	}
 
 	float silhouette = smoothstep(
@@ -103,15 +127,14 @@ void fragment() {
 	);
 	float crease = smoothstep(normal_threshold, normal_threshold + 0.28, normal_edge)
 		* interior_scale;
-	float edge = clamp(max(silhouette, crease), 0.0, 1.0);
+	float edge = clamp(max(max(silhouette, crease), sky_edge * sky_edge_scale), 0.0, 1.0);
 
-	// The sky has no geometry to outline; without this the horizon gets a hard black band. Tested
-	// at both extremes rather than against one of them, because which end of the buffer means "far"
-	// depends on whether the renderer is using a reversed depth range, and a contour pass should not
-	// quietly invert when that changes.
-	float raw = texture(depth_tex, uv).x;
-	edge *= step(0.0000001, raw) * step(raw, 0.9999999);
-	edge *= 1.0 - smoothstep(fade_start, fade_end, centre_depth);
+	// The sky itself has no geometry to outline; without this the whole upper half of the frame
+	// would be drawn as one edge. This is also what keeps the sky-facing contour above on the
+	// object's side of the boundary rather than bleeding into the air.
+	edge *= is_solid(texture(depth_tex, uv).x);
+	// Far away the stroke is lightened rather than removed, so distance keeps its contours.
+	edge *= mix(1.0, far_strength, smoothstep(fade_start, fade_end, centre_depth));
 
 	// Recede the contour into the distance colour, then let a bright surface bleach it.
 	float distance_mix = smoothstep(2.0, fade_end, centre_depth) * outline_depth_tint;

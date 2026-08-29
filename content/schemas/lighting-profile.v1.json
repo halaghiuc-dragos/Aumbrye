@@ -15,9 +15,50 @@
     "biome_profile_map": {
       "type": "object",
       "additionalProperties": { "type": "string", "minLength": 1 }
-    }
+    },
+    "day_night": { "$ref": "#/$defs/dayNight" }
   },
   "$defs": {
+    "dayNight": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["cycle_seconds", "stops"],
+      "properties": {
+        "cycle_seconds": { "type": "number", "exclusiveMinimum": 0 },
+        "_comment": { "type": "string" },
+        "stops": {
+          "type": "array",
+          "minItems": 2,
+          "items": { "$ref": "#/$defs/dayNightStop" }
+        }
+      }
+    },
+    "dayNightStop": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["at", "name"],
+      "properties": {
+        "at": { "type": "number", "minimum": 0, "maximum": 1 },
+        "name": { "type": "string", "minLength": 1 },
+        "sun_elevation": { "type": "number", "minimum": -90, "maximum": 90 },
+        "sun_azimuth": { "type": "number", "minimum": -360, "maximum": 360 },
+        "sun_color": { "$ref": "#/$defs/hexColor" },
+        "sun_energy": { "type": "number", "minimum": 0, "maximum": 8 },
+        "sun_glow": { "type": "number", "minimum": 0, "maximum": 1 },
+        "fill_color": { "$ref": "#/$defs/hexColor" },
+        "fill_energy": { "type": "number", "minimum": 0, "maximum": 8 },
+        "ambient_color": { "$ref": "#/$defs/hexColor" },
+        "ambient_energy": { "type": "number", "minimum": 0, "maximum": 8 },
+        "sky_zenith": { "$ref": "#/$defs/hexColor" },
+        "sky_horizon": { "$ref": "#/$defs/hexColor" },
+        "sky_ground": { "$ref": "#/$defs/hexColor" },
+        "sky_apex": { "$ref": "#/$defs/hexColor" },
+        "cloud_color": { "$ref": "#/$defs/hexColor" },
+        "cloud_shadow": { "$ref": "#/$defs/hexColor" },
+        "fog_color": { "$ref": "#/$defs/hexColor" },
+        "fog_scale": { "type": "number", "minimum": 0, "maximum": 8 }
+      }
+    },
     "hexColor": {
       "type": "string",
       "pattern": "^#[0-9a-fA-F]{6}$"
@@ -105,7 +146,6 @@
     "profile": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["ambient", "fog"],
       "properties": {
         "display_name": { "type": "string" },
         "ambient": { "$ref": "#/$defs/colorBlock" },

@@ -448,7 +448,10 @@ SETTINGS_RESTORE_BACKUP,Restore backup %d  -  %s,Restaureaza copia %d  -  %s
 SETTINGS_RESTORE_TITLE,Restore Backup,Restaureaza copia
 SETTINGS_RESTORE_BODY,Replace your current save with backup %d? This cannot be undone.,Inlocuiesti salvarea curenta cu copia %d? Actiunea nu poate fi anulata.
 SETTINGS_RESTORE_CONFIRM,Restore,Restaureaza
+INV_EQUIP_FAILED,That item does not go in that slot.,Obiectul nu se potrivește în acel loc.
 INV_USE_FAILED,That item cannot be used right now.,Obiectul nu poate fi folosit acum.
+INV_MOVE_FAILED,There is no room for that there.,Nu este loc pentru asta acolo.
+INV_STASH_FULL,Your stash is full.,Inventarul tau este plin.
 CREATE_NAME_HEADER,Your Warden,Gardianul tau
 CREATE_APPEARANCE_HEADER,Appearance,Infatisare
 CREATE_CLASS_DETAIL_HEADER,Class Details,Detalii clasa

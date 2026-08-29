@@ -9,10 +9,8 @@
   "rarity": "common",
   "description": "A dented helm from the castle armory.",
   "value": 15,
-  "stats": { "defense": 4, "maxHealth": 5 },
-  "visual": {
-    "attach": "Head",
-    "mesh": "res://assets/characters/equipment/castle_helm.tres",
-    "hide": ["Head"]
+  "stats": {
+    "defense": 4,
+    "maxHealth": 5
   }
 }

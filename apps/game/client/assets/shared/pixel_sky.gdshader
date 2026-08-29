@@ -317,7 +317,7 @@ float comet(vec3 eye, out float head_amount) {
 // side is what stops a crescent looking like a detached sliver.
 vec3 moon_disc(vec3 eye) {
 	float d = dot(eye, moon_direction);
-	if (d < cos(moon_size * 1.1)) {
+	if (d < cos(moon_size * 1.3)) {
 		return vec3(0.0);
 	}
 	// Position within the disc, in units of its radius: along the sunward axis and square to it.
@@ -325,16 +325,21 @@ vec3 moon_disc(vec3 eye) {
 	vec3 across = normalize(cross(moon_direction, moon_sun_axis));
 	float u = dot(offset, moon_sun_axis) / moon_size;
 	float v = dot(offset, across) / moon_size;
-	float r = clamp(length(vec2(u, v)), 0.0, 1.0);
-	float disc = smoothstep(1.0, 0.86, r);
-	// A ring just outside the limb, for the contour. Returned in z.
-	// Thin, like the world's contour: a rim a fifth as wide as the first attempt's.
-	float rim = smoothstep(1.06, 0.99, r) - disc;
+	// Not clamped to the limb: the contour ring lives *outside* r = 1, and clamping used to flatten
+	// everything beyond the disc onto the same value, so the rim came out as a wide slab with a
+	// hard cut at the early-out radius instead of a ring.
+	float r = length(vec2(u, v));
+	// A hard limb with just enough softness to keep it from crawling, matching the sun's stepped
+	// disc rather than the wide fade this used to have.
+	float disc = smoothstep(1.0, 0.985, r);
+	// The contour: a ring just outside the limb, the same 7% of a radius wide as the sun's, so the
+	// two bodies wear the same rim. Returned in z.
+	float rim = smoothstep(1.075, 1.06, r) - disc;
 	// The terminator, as the standard ellipse: at full it clears the whole disc, at new none of it.
 	float edge = (1.0 - 2.0 * moon_phase) * sqrt(max(0.0, 1.0 - v * v));
 	float lit = smoothstep(edge - 0.08, edge + 0.08, u) * disc;
 	// Limb darkening, so the disc is a sphere rather than a sticker.
-	lit *= mix(1.0, 0.78, r * r);
+	lit *= mix(1.0, 0.78, min(r, 1.0) * min(r, 1.0));
 	return vec3(lit, disc, clamp(rim, 0.0, 1.0));
 }
 
@@ -496,17 +501,20 @@ void sky() {
 
 		if (moon_bright > 0.001) {
 			vec3 moon = moon_disc(EYEDIR);
-			// Contour first, so the disc covers all but its own rim.
+			// The halo goes down first, before the contour and the disc.
+			//
+			// It used to be added last, on top of everything, and it is brightest exactly where the
+			// contour is — so the rim was washed straight back out and the moon had no outline at
+			// all while the sun did. Quantised into stops for the same reason the sun's is: a smooth
+			// falloff is the one thing in this sky that is not pixel art.
+			float halo = floor(pow(clamp(dot(EYEDIR, moon_direction), 0.0, 1.0), 190.0) * 4.0) / 4.0;
+			col += moon_color.rgb * halo * moon_bright * (0.25 + 0.75 * moon_phase) * 0.26;
+			// The contour, then the disc over all but its own rim.
 			col = mix(col, sky_outline_color.rgb, moon.z * moon_bright * sky_outline_strength);
-			// Earthshine: the unlit limb is faintly visible, which is why you can see the whole
-			// disc of a young moon and not just the crescent.
 			// Earthshine on the unlit limb. Strong enough that a new moon is still a disc in the
 			// sky rather than nothing at all.
 			col = mix(col, moon_dark_color.rgb, moon.y * moon_bright * 0.8);
 			col = mix(col, moon_color.rgb, moon.x * moon_bright);
-			// A soft halo, brighter the fuller the moon.
-			float halo = pow(clamp(dot(EYEDIR, moon_direction), 0.0, 1.0), 190.0);
-			col += moon_color.rgb * halo * moon_bright * (0.25 + 0.75 * moon_phase) * 0.5;
 		}
 
 		// The sun. Taken from `sun_direction` rather than from `LIGHT0_DIRECTION`, because the sun

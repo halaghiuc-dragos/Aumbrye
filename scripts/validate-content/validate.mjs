@@ -695,7 +695,10 @@ const QUEST_TYPES = new Set([
 ]);
 
 const QUEST_REQUIRED_FIELDS = {
-  kill: ["targetId"],
+  // "kill" takes no targetId: QuestService.register_kill treats an absent targetId as
+  // "any kill counts", which is what the open-ended bounties rely on. "defeat_with"
+  // does require one -- it skips every kill whose enemy id does not match.
+  kill: [],
   fetch: ["targetItemId"],
   escape: [],
   clear_without: [],

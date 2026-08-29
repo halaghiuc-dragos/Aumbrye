@@ -4,12 +4,18 @@ extends Node
 const DAY_FRACTION := 0.10
 
 const STAGGER_SPREAD := 0.55
-const LIGHT_UP_WINDOW := 0.22
+# How much of the dusk window one lamp takes to come up. Wide, because a lamp that snaps on is a
+# switch and a lamp that fades over half a minute is someone walking round with a taper.
+const LIGHT_UP_WINDOW := 0.3
 
 const GROUP := &"world_light"
 
-const DUSK_START_DEG := 22.0
-const DUSK_END_DEG := -6.0
+# The dusk ramp, in degrees of solar elevation. It used to open at 22 degrees — an hour of daylight
+# still to go — so the lamps were already up while the sun was well clear of the rooftops. Opening
+# it just above the horizon means the first lamps light at sunset and the last are up once the sky
+# has gone.
+const DUSK_START_DEG := 6.0
+const DUSK_END_DEG := -8.0
 
 const META_BASE_ENERGY := &"night_light_base_energy"
 const META_THRESHOLD := &"night_light_threshold"
