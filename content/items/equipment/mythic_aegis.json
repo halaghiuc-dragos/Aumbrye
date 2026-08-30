@@ -8,6 +8,20 @@
   "rarity": "aumbral",
   "description": "A tower-forged buckler said to have turned a sovereign's blow once.",
   "value": 20,
+  "ruleText": "Each block hardens you 3%, up to 5 stacks. Resets when you are hit.",
+  "rules": [
+    {
+      "event": "onBlock",
+      "effect": "add_stack",
+      "stackId": "aegis",
+      "maxStacks": 5,
+      "stat": "defense",
+      "perStack": 3.0,
+      "resetOn": [
+        "onHitTaken"
+      ]
+    }
+  ],
   "stats": {
     "maxHealth": 60,
     "defense": 20

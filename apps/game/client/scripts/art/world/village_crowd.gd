@@ -329,6 +329,10 @@ func commit(materials: Dictionary, bounds: AABB) -> void:
 		node.multimesh = multimesh
 		node.material_override = materials.get(mat_key) as Material
 		node.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		# The walk is stepped from _process, not physics, so the interpolator has no
+		# pair of physics frames to blend and would warn on every write. The crowd
+		# already runs at its own tick rate and writes final transforms.
+		node.physics_interpolation_mode = Node.PHYSICS_INTERPOLATION_MODE_OFF
 		node.custom_aabb = bounds
 		add_child(node)
 		_meshes[mat_key] = multimesh

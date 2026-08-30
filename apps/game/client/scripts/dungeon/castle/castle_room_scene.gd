@@ -30,6 +30,49 @@ func _ready() -> void:
 		if needs_rebuild:
 			blockout._request_rebuild()
 	DioramaRoomDressing.apply_to_room(self, biome_id, room_id.hash())
+	_skin_untextured_props(biome_id)
+
+
+## Authored props with no material on them.
+##
+## A room scene may author a prop the code also knows how to build -- the stair ramp is the case
+## that started this. `_ensure_stair_ramp` returns early when the node already exists, which is the
+## right call for its geometry and the wrong one for its material: the authored node kept its
+## position and never got skinned, so every stairs room in all ten biomes had the player walking up
+## a slab of Godot's default grey. The secret-cue panel in the courtyards was worse -- nothing in
+## the code touched it at all, so it was never going to get a material from anywhere.
+##
+## Rather than chase each prop, anything visible in Props with nothing to draw it with gets the
+## biome accent. It cannot overwrite authored art, because it only touches meshes that have no
+## material of any kind, and it means the next authored prop someone forgets to skin comes out in
+## the palette instead of in grey.
+func _skin_untextured_props(biome_id: String) -> void:
+	var props := get_node_or_null("Props") as Node3D
+	if props == null:
+		return
+	var accent := BiomeRegistry.get_accent_material(biome_id)
+	if accent == null:
+		return
+	for node in props.find_children("*", "MeshInstance3D", true, false):
+		var mesh_instance := node as MeshInstance3D
+		if mesh_instance == null or not mesh_instance.visible:
+			continue
+		if _has_any_material(mesh_instance):
+			continue
+		mesh_instance.material_override = accent
+
+
+static func _has_any_material(mesh_instance: MeshInstance3D) -> bool:
+	if mesh_instance.material_override != null:
+		return true
+	if mesh_instance.mesh == null:
+		return true
+	for surface in mesh_instance.mesh.get_surface_count():
+		if mesh_instance.get_surface_override_material(surface) != null:
+			return true
+		if mesh_instance.mesh.surface_get_material(surface) != null:
+			return true
+	return false
 
 
 func sync_kit_contract() -> void:

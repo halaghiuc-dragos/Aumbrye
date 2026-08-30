@@ -1002,6 +1002,165 @@
           "max": 19
         }
       }
+    },
+    {
+      "id": "of_the_narrow_path",
+      "displayName": "of the Narrow Path",
+      "kind": "suffix",
+      "itemTypes": [
+        "weapon",
+        "armor",
+        "accessory"
+      ],
+      "weight": 34,
+      "ruleText": "Consecutive dodges sharpen you until you are hit.",
+      "rules": [
+        {
+          "event": "onDodge",
+          "effect": "add_stack",
+          "stackId": "narrow_affix",
+          "maxStacks": 5,
+          "stat": "critChance",
+          "perStack": 2.0,
+          "resetOn": [
+            "onHitTaken"
+          ]
+        }
+      ],
+      "minRarity": "rare"
+    },
+    {
+      "id": "of_the_open_wound",
+      "displayName": "of the Open Wound",
+      "kind": "suffix",
+      "itemTypes": [
+        "weapon"
+      ],
+      "weight": 38,
+      "ruleText": "Critical strikes return a little of what they take.",
+      "rules": [
+        {
+          "event": "onCrit",
+          "effect": "lifesteal",
+          "pct": 0.05
+        }
+      ],
+      "minRarity": "rare"
+    },
+    {
+      "id": "of_quiet_hands",
+      "displayName": "of Quiet Hands",
+      "kind": "suffix",
+      "itemTypes": [
+        "weapon"
+      ],
+      "weight": 30,
+      "ruleText": "A backstab costs you nothing you cannot get back.",
+      "rules": [
+        {
+          "event": "onBackstab",
+          "effect": "restore_stamina",
+          "amount": 20.0
+        }
+      ],
+      "minRarity": "rare"
+    },
+    {
+      "id": "of_the_slow_count",
+      "displayName": "of the Slow Count",
+      "kind": "suffix",
+      "itemTypes": [
+        "weapon"
+      ],
+      "weight": 26,
+      "ruleText": "What one of them carries, the ones beside it catch.",
+      "rules": [
+        {
+          "event": "onKill",
+          "effect": "spread_status",
+          "statusId": "poison",
+          "stacks": 1,
+          "radius": 5.0
+        }
+      ],
+      "minRarity": "rare"
+    },
+    {
+      "id": "of_the_kept_vigil",
+      "displayName": "of the Kept Vigil",
+      "kind": "suffix",
+      "itemTypes": [
+        "armor"
+      ],
+      "weight": 36,
+      "ruleText": "Every blow turned aside is a little breath returned.",
+      "rules": [
+        {
+          "event": "onBlock",
+          "effect": "restore_stamina",
+          "amount": 7.0,
+          "cooldown": 1.0
+        }
+      ],
+      "minRarity": "rare"
+    },
+    {
+      "id": "of_the_ember_tithe",
+      "displayName": "of the Ember Tithe",
+      "kind": "suffix",
+      "itemTypes": [
+        "weapon",
+        "armor"
+      ],
+      "weight": 30,
+      "ruleText": "A riposte closes the wound it was owed.",
+      "rules": [
+        {
+          "event": "onRiposte",
+          "effect": "restore_health",
+          "amount": 16.0
+        }
+      ],
+      "minRarity": "rare"
+    },
+    {
+      "id": "of_the_long_hold",
+      "displayName": "of the Long Hold",
+      "kind": "suffix",
+      "itemTypes": [
+        "armor",
+        "accessory"
+      ],
+      "weight": 28,
+      "ruleText": "Standing in a burning room stops mattering so much.",
+      "rules": [
+        {
+          "event": "onStatusApplied",
+          "effect": "clear_status",
+          "cooldown": 40.0
+        }
+      ],
+      "minRarity": "rare"
+    },
+    {
+      "id": "of_written_fire",
+      "displayName": "of Written Fire",
+      "kind": "suffix",
+      "itemTypes": [
+        "weapon",
+        "accessory"
+      ],
+      "weight": 32,
+      "ruleText": "Arcane work catches, and keeps catching.",
+      "rules": [
+        {
+          "event": "onCrit",
+          "effect": "apply_status",
+          "statusId": "burn",
+          "stacks": 2
+        }
+      ],
+      "minRarity": "rare"
     }
   ]
 }

@@ -84,6 +84,23 @@ func _ready() -> void:
 		_verify_socket_positions()
 
 
+## A blockout with no materials assigned builds its floors and walls in Godot's default grey.
+##
+## CastleRoomScene fills these in before the first build, so a room instanced the normal way is
+## fine. A blockout dropped straight into a scene as a bare Node3D is not -- the two shortcut
+## rooms in the castle slice are exactly that, and their walls, floor and ceiling came out grey.
+## Falling back to the biome's own materials here means the geometry is skinned wherever it is
+## built from, rather than only on the path that happens to remember.
+func _ensure_materials() -> void:
+	var biome_id := str(get_meta("biome_id", BiomeRegistry.BIOME_CASTLE))
+	if floor_material == null:
+		floor_material = BiomeRegistry.get_floor_material(biome_id)
+	if wall_material == null:
+		wall_material = BiomeRegistry.get_wall_material(biome_id)
+	if accent_material == null:
+		accent_material = BiomeRegistry.get_accent_material(biome_id)
+
+
 func _request_rebuild() -> void:
 	if _applying_kind_spec:
 		return
@@ -103,6 +120,7 @@ func finalize_geometry() -> void:
 
 
 func _rebuild() -> void:
+	_ensure_materials()
 	_apply_kind_spec()
 	_clear_geometry_children()
 	_geometry_root = Node3D.new()

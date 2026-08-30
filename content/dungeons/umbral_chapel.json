@@ -13,7 +13,7 @@
   "difficultyTiers": [
     {
       "tier": 1,
-      "label": "Shadowed",
+      "label": "Dimmed",
       "description": "The dungeon as it lies. Nothing has been roused yet.",
       "hpMult": 1,
       "damageMult": 1,

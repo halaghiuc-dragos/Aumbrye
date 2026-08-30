@@ -31,10 +31,18 @@ static func offers_for_descent(run_seed: int, target_floor: int) -> Array[Dictio
 	var offers: Array[Dictionary] = []
 	if pacts.is_empty():
 		return offers
-	var count := mini(int(_load().get("offerCount", 2)), pacts.size())
+	var pool: Array = []
+	for pact in pacts:
+		if not pact is Dictionary:
+			continue
+		if VaultService and not VaultService.is_pact_available(str((pact as Dictionary).get("id", ""))):
+			continue
+		pool.append(pact)
+	if pool.is_empty():
+		return offers
+	var count := mini(int(_load().get("offerCount", 2)), pool.size())
 	var rng := RandomNumberGenerator.new()
 	rng.seed = FloorSeedMixScript.mix(maxi(1, run_seed), maxi(1, target_floor) * 977 + 41)
-	var pool: Array = pacts.duplicate()
 	for _i in count:
 		if pool.is_empty():
 			break

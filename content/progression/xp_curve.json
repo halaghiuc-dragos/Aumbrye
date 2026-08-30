@@ -3,7 +3,7 @@
   "baseXpPerKill": 25,
   "bossBonusXp": 400,
   "escapeBonusXp": 200,
-  "deathXpFraction": 0.5,
+  "deathXpFraction": 0.75,
   "abandonedXpFraction": 0,
   "talentPointsPerLevel": 1,
   "levels": [

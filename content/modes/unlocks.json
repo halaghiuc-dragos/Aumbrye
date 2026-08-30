@@ -1,0 +1,47 @@
+{
+  "schemaVersion": 1,
+  "note": "Gating for the three core run modes. Portal nodes live in scenes/hub/hub.tscn; the hub reads displayName and lockedLabel straight from here.",
+  "modes": [
+    {
+      "id": "castle",
+      "portalNode": "CastlePortal",
+      "displayName": "The Descent",
+      "lockedLabel": "",
+      "announce": "",
+      "requirements": []
+    },
+    {
+      "id": "waves",
+      "portalNode": "UmbralWavesPortal",
+      "displayName": "The Vigil",
+      "lockedLabel": "The Vigil — sealed",
+      "announce": "The Vigil answers. Something in the tower has started counting.",
+      "requirements": [
+        {
+          "type": "dungeonDepth",
+          "value": 3,
+          "text": "Reach Depth 3 of the Descent"
+        }
+      ]
+    },
+    {
+      "id": "endless",
+      "portalNode": "UmbralEndlessPortal",
+      "displayName": "The Long Dark",
+      "lockedLabel": "The Long Dark — sealed",
+      "announce": "The stair beneath the tower unseals. It does not end.",
+      "requirements": [
+        {
+          "type": "dungeonDepthCleared",
+          "value": 10,
+          "text": "Clear Depth 10 of the Descent"
+        },
+        {
+          "type": "wavesCompletions",
+          "value": 1,
+          "text": "Survive the Vigil once"
+        }
+      ]
+    }
+  ]
+}

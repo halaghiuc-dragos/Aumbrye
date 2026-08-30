@@ -125,6 +125,18 @@ static func _exit_reachable(definition: Dictionary, entrance_id: String, exit_id
 	return false
 
 
+## Public so the generator can apply the same test before it hands a floor over.
+##
+## The generator lays rooms out on a cell grid and then walks that grid placing each room flush
+## against its parent, offsetting by the two half-extents. Rooms in different cells can still
+## overlap in world space once the templates differ in size, because two branches of the walk
+## accumulate their positions independently. Its retry loop rejected layouts whose doors did not
+## line up but never looked at overlap, so it would return one of these, and the floor died here
+## instead -- with the player already having pressed New Run.
+static func has_room_overlap(rooms: Array) -> bool:
+	return _has_room_overlap(rooms)
+
+
 static func _has_room_overlap(rooms: Array) -> bool:
 	var aabbs: Array[Rect2] = []
 	for room in rooms:

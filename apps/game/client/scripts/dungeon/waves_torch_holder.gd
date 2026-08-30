@@ -131,14 +131,28 @@ func _on_body_exited(body: Node3D) -> void:
 func _refresh_label() -> void:
 	if _label == null or not is_instance_valid(_label):
 		return
-	if _player == null or _lit:
+	if _player == null:
+		_label.visible = false
+		return
+	# First lobby: the cresset is dark and wants the torch buried in one of the caches.
+	# Later intermissions: it is already burning, and the interaction calls the next wave.
+	if WavesRunService.is_first_lobby():
+		if _lit:
+			_label.visible = false
+			return
+		_label.visible = true
+		if WavesRunService.has_torch():
+			_label.text = "%s (%s)" % [DISPLAY_NAME, _interact_glyph()]
+		else:
+			_label.text = "%s — no torch" % DISPLAY_NAME
+		return
+	if not WavesRunService.prep_active:
 		_label.visible = false
 		return
 	_label.visible = true
-	if WavesRunService.has_torch():
-		_label.text = "%s (%s)" % [DISPLAY_NAME, _interact_glyph()]
-	else:
-		_label.text = "%s — no torch" % DISPLAY_NAME
+	_label.text = (
+		"Call wave %d (%s)" % [WavesRunService.current_wave + 1, _interact_glyph()]
+	)
 
 
 static func _interact_glyph() -> String:
@@ -147,11 +161,14 @@ static func _interact_glyph() -> String:
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	if _lit or _player == null:
+	if _player == null:
 		return
 	if not PlayerInput.interact_just_pressed(event):
 		return
-	if not WavesRunService.has_torch():
+	if WavesRunService.is_first_lobby():
+		if _lit or not WavesRunService.has_torch():
+			return
+	elif not WavesRunService.prep_active:
 		return
 	get_viewport().set_input_as_handled()
 	var run := get_tree().get_first_node_in_group("waves_run")

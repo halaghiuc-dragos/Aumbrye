@@ -3,451 +3,1143 @@
   "texture": "res://assets/ui/item_icons.png",
   "cellSize": 16,
   "columns": 16,
-  "rows": 16,
-  "unknown": {
-    "col": 15,
-    "row": 15
-  },
+  "rows": 18,
   "cells": {
-    "castle_amulet": {
+    "alchemists_fire": {
+      "col": 8,
+      "row": 11
+    },
+    "antidote": {
+      "col": 14,
+      "row": 11
+    },
+    "arcane_catalyst": {
+      "col": 4,
+      "row": 14
+    },
+    "arcane_dust": {
+      "col": 6,
+      "row": 15
+    },
+    "aumbral_tear": {
       "col": 0,
-      "row": 0
+      "row": 16
+    },
+    "binding_thread": {
+      "col": 7,
+      "row": 15
+    },
+    "blood_relic_stone": {
+      "col": 3,
+      "row": 15
+    },
+    "bloodlust": {
+      "col": 11,
+      "row": 11
+    },
+    "bloodlust_charm": {
+      "col": 0,
+      "row": 14
+    },
+    "bloodstaunch": {
+      "col": 15,
+      "row": 11
+    },
+    "bog_resin": {
+      "col": 8,
+      "row": 15
+    },
+    "boss_sigil": {
+      "col": 2,
+      "row": 16
+    },
+    "caltrops": {
+      "col": 10,
+      "row": 11
+    },
+    "castle_amulet": {
+      "col": 14,
+      "row": 9
     },
     "castle_banner": {
-      "col": 1,
-      "row": 0
+      "col": 10,
+      "row": 10
     },
     "castle_boots": {
-      "col": 2,
-      "row": 0
+      "col": 10,
+      "row": 4
     },
     "castle_buckler": {
-      "col": 3,
-      "row": 0
+      "col": 11,
+      "row": 2
     },
     "castle_chalice": {
-      "col": 4,
-      "row": 0
+      "col": 11,
+      "row": 10
     },
     "castle_crown": {
-      "col": 5,
-      "row": 0
+      "col": 15,
+      "row": 5
     },
     "castle_gauntlets": {
-      "col": 6,
-      "row": 0
+      "col": 0,
+      "row": 7
     },
     "castle_helm": {
-      "col": 7,
-      "row": 0
+      "col": 13,
+      "row": 7
     },
     "castle_plate": {
-      "col": 8,
-      "row": 0
+      "col": 3,
+      "row": 6
     },
     "castle_ring": {
-      "col": 9,
-      "row": 0
+      "col": 13,
+      "row": 10
     },
     "castle_sword": {
-      "col": 10,
-      "row": 0
+      "col": 11,
+      "row": 3
     },
     "cathedral_arcane_staff": {
-      "col": 11,
-      "row": 0
+      "col": 3,
+      "row": 3
     },
     "cathedral_gloves": {
-      "col": 12,
-      "row": 0
+      "col": 1,
+      "row": 7
     },
     "cathedral_holy_charm": {
       "col": 13,
-      "row": 0
+      "row": 5
     },
     "cathedral_pilgrim_boots": {
-      "col": 14,
-      "row": 0
+      "col": 11,
+      "row": 4
     },
     "cathedral_sanctum_ring": {
-      "col": 15,
-      "row": 0
+      "col": 11,
+      "row": 8
     },
     "cathedral_shadow_cloak": {
-      "col": 0,
-      "row": 1
+      "col": 14,
+      "row": 5
     },
     "cathedral_shadow_dagger": {
-      "col": 1,
-      "row": 1
+      "col": 10,
+      "row": 0
     },
     "cathedral_warden_helm": {
-      "col": 2,
-      "row": 1
+      "col": 14,
+      "row": 7
+    },
+    "chapel_wax": {
+      "col": 9,
+      "row": 15
+    },
+    "cinder_dust": {
+      "col": 10,
+      "row": 15
+    },
+    "cracked_lodestone": {
+      "col": 3,
+      "row": 16
     },
     "crystal_bow": {
       "col": 3,
-      "row": 1
+      "row": 0
     },
     "crystal_frost_ring": {
-      "col": 4,
-      "row": 1
+      "col": 14,
+      "row": 10
     },
     "crystal_prism_amulet": {
-      "col": 5,
-      "row": 1
+      "col": 15,
+      "row": 9
     },
     "crystal_shard_blade": {
-      "col": 6,
-      "row": 1
+      "col": 12,
+      "row": 3
+    },
+    "dungeon_key": {
+      "col": 15,
+      "row": 14
+    },
+    "elixir_clarity": {
+      "col": 0,
+      "row": 12
+    },
+    "elixir_focus": {
+      "col": 1,
+      "row": 12
+    },
+    "elixir_iron_skin": {
+      "col": 0,
+      "row": 13
+    },
+    "elixir_might": {
+      "col": 2,
+      "row": 12
+    },
+    "elixir_swiftness": {
+      "col": 3,
+      "row": 12
+    },
+    "elixir_vigor": {
+      "col": 4,
+      "row": 12
+    },
+    "elixir_warding": {
+      "col": 5,
+      "row": 12
+    },
+    "ember_catalyst": {
+      "col": 5,
+      "row": 14
     },
     "ember_gauntlets": {
-      "col": 7,
-      "row": 1
+      "col": 2,
+      "row": 7
+    },
+    "escape_stone": {
+      "col": 2,
+      "row": 13
+    },
+    "everburning_torch": {
+      "col": 10,
+      "row": 13
+    },
+    "firebomb": {
+      "col": 9,
+      "row": 11
+    },
+    "flame_relic_core": {
+      "col": 4,
+      "row": 15
     },
     "flame_sword": {
-      "col": 8,
-      "row": 1
+      "col": 13,
+      "row": 3
+    },
+    "flask_ashen_measure": {
+      "col": 1,
+      "row": 13
+    },
+    "flask_deep_draught": {
+      "col": 6,
+      "row": 12
+    },
+    "flask_dregs": {
+      "col": 7,
+      "row": 12
     },
     "frost_amulet": {
-      "col": 9,
-      "row": 1
+      "col": 6,
+      "row": 4
+    },
+    "frost_crystal": {
+      "col": 6,
+      "row": 14
+    },
+    "frost_flask": {
+      "col": 8,
+      "row": 12
     },
     "frost_gauntlets": {
-      "col": 10,
-      "row": 1
+      "col": 3,
+      "row": 7
     },
     "frost_glacier_sword": {
-      "col": 11,
+      "col": 4,
       "row": 1
     },
     "frost_ice_ring": {
       "col": 12,
-      "row": 1
+      "row": 8
     },
     "frost_knight_helm": {
-      "col": 13,
-      "row": 1
+      "col": 15,
+      "row": 7
     },
     "frost_knight_plate": {
-      "col": 14,
-      "row": 1
-    },
-    "frost_raider_boots": {
-      "col": 15,
-      "row": 1
-    },
-    "frost_warlord_blade": {
-      "col": 0,
-      "row": 2
-    },
-    "gold_ring": {
-      "col": 1,
-      "row": 2
-    },
-    "training_greatsword": {
-      "col": 2,
-      "row": 2
-    },
-    "guard_spear": {
-      "col": 3,
-      "row": 2
-    },
-    "hunter_bow": {
       "col": 4,
-      "row": 2
-    },
-    "iron_boots": {
-      "col": 5,
-      "row": 2
-    },
-    "iron_gauntlets": {
-      "col": 6,
-      "row": 2
-    },
-    "iron_helm": {
-      "col": 7,
-      "row": 2
-    },
-    "iron_plate": {
-      "col": 8,
-      "row": 2
-    },
-    "iron_sword": {
-      "col": 9,
-      "row": 2
-    },
-    "jade_amulet": {
-      "col": 10,
-      "row": 2
-    },
-    "knight_blade": {
-      "col": 11,
-      "row": 2
-    },
-    "mythic_aegis": {
-      "col": 12,
-      "row": 2
-    },
-    "mythic_blade": {
-      "col": 13,
-      "row": 2
-    },
-    "mythic_crown": {
-      "col": 14,
-      "row": 2
-    },
-    "mythic_ring": {
-      "col": 15,
-      "row": 2
-    },
-    "rogue_dagger": {
-      "col": 0,
-      "row": 3
-    },
-    "ruby_amulet": {
-      "col": 1,
-      "row": 3
-    },
-    "sage_staff": {
-      "col": 2,
-      "row": 3
-    },
-    "silver_ring": {
-      "col": 3,
-      "row": 3
-    },
-    "steel_boots": {
-      "col": 4,
-      "row": 3
-    },
-    "steel_gauntlets": {
-      "col": 5,
-      "row": 3
-    },
-    "steel_helm": {
-      "col": 6,
-      "row": 3
-    },
-    "steel_plate": {
-      "col": 7,
-      "row": 3
-    },
-    "swamp_bog_boots": {
-      "col": 8,
-      "row": 3
-    },
-    "swamp_mire_charm": {
-      "col": 9,
-      "row": 3
-    },
-    "swamp_toxin_dagger": {
-      "col": 10,
-      "row": 3
-    },
-    "tide_boots": {
-      "col": 11,
-      "row": 3
-    },
-    "venom_dagger": {
-      "col": 12,
-      "row": 3
-    },
-    "void_amulet": {
-      "col": 13,
-      "row": 3
-    },
-    "war_hammer": {
-      "col": 14,
-      "row": 3
-    },
-    "elixir_might": {
-      "col": 15,
-      "row": 3
-    },
-    "elixir_vigor": {
-      "col": 0,
-      "row": 4
-    },
-    "health_potion": {
-      "col": 1,
-      "row": 4
-    },
-    "mana_potion": {
-      "col": 2,
-      "row": 4
-    },
-    "skip_10_floors": {
-      "col": 3,
-      "row": 4
-    },
-    "skip_100_floors": {
-      "col": 4,
-      "row": 4
-    },
-    "skip_250_floors": {
-      "col": 12,
       "row": 6
     },
-    "skip_500_floors": {
-      "col": 5,
-      "row": 4
-    },
-    "skip_50_floors": {
-      "col": 6,
-      "row": 4
-    },
-    "stamina_potion": {
-      "col": 7,
-      "row": 4
-    },
-    "dungeon_key": {
-      "col": 8,
-      "row": 4
-    },
-    "iron_scrap": {
-      "col": 9,
-      "row": 4
-    },
-    "knight_relic": {
-      "col": 10,
-      "row": 4
-    },
-    "frost_crystal": {
-      "col": 11,
-      "row": 4
-    },
-    "shadow_essence": {
+    "frost_raider_boots": {
       "col": 12,
-      "row": 4
-    },
-    "arcane_dust": {
-      "col": 13,
       "row": 4
     },
     "frost_relic_shard": {
+      "col": 7,
+      "row": 14
+    },
+    "frost_warlord_blade": {
+      "col": 5,
+      "row": 1
+    },
+    "glimmer_ash": {
+      "col": 11,
+      "row": 15
+    },
+    "gold_ring": {
+      "col": 13,
+      "row": 8
+    },
+    "graysteel_band": {
+      "col": 15,
+      "row": 10
+    },
+    "graysteel_cuirass": {
+      "col": 5,
+      "row": 6
+    },
+    "graysteel_gauntlets": {
+      "col": 4,
+      "row": 7
+    },
+    "graysteel_greatsword": {
+      "col": 6,
+      "row": 1
+    },
+    "graysteel_greaves": {
+      "col": 13,
+      "row": 4
+    },
+    "graysteel_halberd": {
+      "col": 15,
+      "row": 1
+    },
+    "graysteel_helm": {
+      "col": 0,
+      "row": 8
+    },
+    "graysteel_ingot": {
+      "col": 12,
+      "row": 14
+    },
+    "graysteel_kiteshield": {
+      "col": 0,
+      "row": 9
+    },
+    "graysteel_longsword": {
+      "col": 14,
+      "row": 3
+    },
+    "graysteel_pendant": {
+      "col": 0,
+      "row": 10
+    },
+    "graysteel_shortsword": {
+      "col": 12,
+      "row": 2
+    },
+    "graysteel_waraxe": {
+      "col": 0,
+      "row": 0
+    },
+    "graysteel_warhammer": {
+      "col": 2,
+      "row": 2
+    },
+    "greater_health_potion": {
+      "col": 9,
+      "row": 12
+    },
+    "greater_mana_potion": {
+      "col": 10,
+      "row": 12
+    },
+    "greater_stamina_potion": {
+      "col": 11,
+      "row": 12
+    },
+    "guard_spear": {
+      "col": 14,
+      "row": 2
+    },
+    "hardening_quench": {
+      "col": 1,
+      "row": 15
+    },
+    "health_potion": {
+      "col": 12,
+      "row": 12
+    },
+    "hoarfrost_cuirass": {
+      "col": 6,
+      "row": 6
+    },
+    "hoarfrost_gauntlets": {
+      "col": 5,
+      "row": 7
+    },
+    "hoarfrost_greatsword": {
+      "col": 7,
+      "row": 1
+    },
+    "hoarfrost_greaves": {
       "col": 14,
       "row": 4
     },
-    "flame_relic_core": {
+    "hoarfrost_halberd": {
+      "col": 0,
+      "row": 2
+    },
+    "hoarfrost_helm": {
+      "col": 1,
+      "row": 8
+    },
+    "hoarfrost_kiteshield": {
+      "col": 1,
+      "row": 9
+    },
+    "hoarfrost_longbow": {
+      "col": 4,
+      "row": 0
+    },
+    "hoarfrost_longsword": {
+      "col": 15,
+      "row": 3
+    },
+    "hoarfrost_pendant": {
+      "col": 1,
+      "row": 10
+    },
+    "hoarfrost_shard": {
+      "col": 8,
+      "row": 16
+    },
+    "hoarfrost_towershield": {
+      "col": 8,
+      "row": 9
+    },
+    "hoarfrost_warhammer": {
+      "col": 3,
+      "row": 2
+    },
+    "homeward_bone": {
+      "col": 3,
+      "row": 13
+    },
+    "hunter_bow": {
+      "col": 5,
+      "row": 0
+    },
+    "iron_boots": {
       "col": 15,
       "row": 4
     },
-    "poison_relic_vial": {
-      "col": 0,
-      "row": 5
-    },
-    "shadow_relic_veil": {
-      "col": 1,
-      "row": 5
-    },
-    "sun_relic_medallion": {
-      "col": 2,
-      "row": 5
-    },
-    "stone_relic_heart": {
-      "col": 3,
-      "row": 5
-    },
-    "wind_relic_charm": {
-      "col": 4,
-      "row": 5
-    },
-    "blood_relic_stone": {
-      "col": 5,
-      "row": 5
-    },
-    "bloodlust_charm": {
+    "iron_gauntlets": {
       "col": 6,
-      "row": 5
+      "row": 7
     },
-    "swift_step_charm": {
+    "iron_helm": {
+      "col": 2,
+      "row": 8
+    },
+    "iron_plate": {
       "col": 7,
-      "row": 5
+      "row": 6
     },
-    "bloodlust": {
-      "col": 8,
-      "row": 5
+    "iron_scrap": {
+      "col": 7,
+      "row": 16
+    },
+    "iron_sword": {
+      "col": 0,
+      "row": 4
     },
     "iron_will": {
+      "col": 12,
+      "row": 11
+    },
+    "jade_amulet": {
+      "col": 7,
+      "row": 4
+    },
+    "knight_blade": {
+      "col": 1,
+      "row": 4
+    },
+    "knight_relic": {
+      "col": 5,
+      "row": 15
+    },
+    "mana_potion": {
+      "col": 13,
+      "row": 12
+    },
+    "mirebrass_band": {
+      "col": 0,
+      "row": 11
+    },
+    "mirebrass_buckler": {
       "col": 9,
       "row": 5
     },
-    "relic_bloodstone": {
-      "col": 10,
-      "row": 5
+    "mirebrass_cuirass": {
+      "col": 8,
+      "row": 6
     },
-    "relic_flame_core": {
+    "mirebrass_dagger": {
       "col": 11,
-      "row": 5
+      "row": 0
     },
-    "relic_frost_shard": {
-      "col": 12,
-      "row": 5
-    },
-    "relic_poison_vial": {
+    "mirebrass_dross": {
       "col": 13,
+      "row": 14
+    },
+    "mirebrass_greaves": {
+      "col": 0,
       "row": 5
     },
-    "relic_shadow_veil": {
-      "col": 14,
-      "row": 5
+    "mirebrass_helm": {
+      "col": 3,
+      "row": 8
     },
-    "relic_stone_heart": {
+    "mirebrass_pendant": {
+      "col": 2,
+      "row": 10
+    },
+    "mirebrass_rapier": {
+      "col": 7,
+      "row": 2
+    },
+    "mirebrass_shortbow": {
+      "col": 6,
+      "row": 0
+    },
+    "mirebrass_spear": {
       "col": 15,
-      "row": 5
+      "row": 2
     },
-    "relic_sun_medallion": {
+    "mirebrass_staff": {
+      "col": 4,
+      "row": 3
+    },
+    "mythic_aegis": {
+      "col": 2,
+      "row": 9
+    },
+    "mythic_blade": {
+      "col": 8,
+      "row": 1
+    },
+    "mythic_crown": {
       "col": 0,
       "row": 6
     },
-    "relic_wind_charm": {
+    "mythic_ring": {
+      "col": 14,
+      "row": 8
+    },
+    "pitiron_band": {
       "col": 1,
+      "row": 11
+    },
+    "pitiron_buckler": {
+      "col": 10,
+      "row": 5
+    },
+    "pitiron_cuirass": {
+      "col": 9,
       "row": 6
     },
-    "swift_step": {
-      "col": 2,
-      "row": 6
+    "pitiron_dagger": {
+      "col": 12,
+      "row": 0
     },
-    "slot/helmet": {
-      "col": 3,
-      "row": 6
+    "pitiron_gauntlets": {
+      "col": 7,
+      "row": 7
     },
-    "slot/chest": {
+    "pitiron_greaves": {
+      "col": 1,
+      "row": 5
+    },
+    "pitiron_helm": {
       "col": 4,
+      "row": 8
+    },
+    "pitiron_longsword": {
+      "col": 2,
+      "row": 4
+    },
+    "pitiron_shortsword": {
+      "col": 13,
+      "row": 2
+    },
+    "pitiron_slag": {
+      "col": 14,
+      "row": 14
+    },
+    "pitiron_spear": {
+      "col": 0,
+      "row": 3
+    },
+    "pitiron_waraxe": {
+      "col": 1,
+      "row": 0
+    },
+    "poison_relic_vial": {
+      "col": 3,
+      "row": 14
+    },
+    "reforging_stone": {
+      "col": 4,
+      "row": 16
+    },
+    "relic_bloodstone": {
+      "col": 2,
+      "row": 17
+    },
+    "relic_flame_core": {
+      "col": 3,
+      "row": 17
+    },
+    "relic_frost_shard": {
+      "col": 15,
+      "row": 16
+    },
+    "relic_poison_vial": {
+      "col": 14,
+      "row": 16
+    },
+    "relic_shadow_veil": {
+      "col": 4,
+      "row": 17
+    },
+    "relic_stone_heart": {
+      "col": 0,
+      "row": 17
+    },
+    "relic_sun_medallion": {
+      "col": 1,
+      "row": 17
+    },
+    "relic_wind_charm": {
+      "col": 13,
+      "row": 16
+    },
+    "reliquary_band": {
+      "col": 2,
+      "row": 11
+    },
+    "reliquary_cuirass": {
+      "col": 10,
       "row": 6
     },
-    "slot/gloves": {
+    "reliquary_gauntlets": {
+      "col": 8,
+      "row": 7
+    },
+    "reliquary_gilt": {
+      "col": 12,
+      "row": 15
+    },
+    "reliquary_greatsword": {
+      "col": 9,
+      "row": 1
+    },
+    "reliquary_helm": {
       "col": 5,
-      "row": 6
+      "row": 8
+    },
+    "reliquary_kiteshield": {
+      "col": 3,
+      "row": 9
+    },
+    "reliquary_longsword": {
+      "col": 3,
+      "row": 4
+    },
+    "reliquary_pendant": {
+      "col": 3,
+      "row": 10
+    },
+    "reliquary_rapier": {
+      "col": 8,
+      "row": 2
+    },
+    "reliquary_spear": {
+      "col": 1,
+      "row": 3
+    },
+    "reliquary_staff": {
+      "col": 5,
+      "row": 3
+    },
+    "reliquary_towershield": {
+      "col": 9,
+      "row": 9
+    },
+    "rime_catalyst": {
+      "col": 8,
+      "row": 14
+    },
+    "rogue_dagger": {
+      "col": 13,
+      "row": 0
+    },
+    "ruby_amulet": {
+      "col": 8,
+      "row": 4
+    },
+    "sable_grain": {
+      "col": 13,
+      "row": 15
+    },
+    "sage_staff": {
+      "col": 6,
+      "row": 3
+    },
+    "seekers_lantern": {
+      "col": 11,
+      "row": 13
+    },
+    "shadow_essence": {
+      "col": 14,
+      "row": 15
+    },
+    "shadow_relic_veil": {
+      "col": 12,
+      "row": 16
+    },
+    "silver_ring": {
+      "col": 15,
+      "row": 8
+    },
+    "skip_100_floors": {
+      "col": 5,
+      "row": 13
+    },
+    "skip_10_floors": {
+      "col": 6,
+      "row": 13
+    },
+    "skip_250_floors": {
+      "col": 7,
+      "row": 13
+    },
+    "skip_500_floors": {
+      "col": 8,
+      "row": 13
+    },
+    "skip_50_floors": {
+      "col": 9,
+      "row": 13
+    },
+    "slot/amulet": {
+      "col": 5,
+      "row": 17
     },
     "slot/boots": {
       "col": 6,
-      "row": 6
+      "row": 17
     },
-    "slot/weapon": {
+    "slot/chest": {
       "col": 7,
-      "row": 6
+      "row": 17
     },
-    "slot/secondary": {
-      "col": 8,
-      "row": 6
-    },
-    "slot/ring": {
+    "slot/gloves": {
       "col": 9,
-      "row": 6
+      "row": 17
     },
-    "slot/amulet": {
+    "slot/helmet": {
       "col": 10,
-      "row": 6
+      "row": 17
     },
     "slot/relic": {
+      "col": 8,
+      "row": 17
+    },
+    "slot/ring": {
+      "col": 11,
+      "row": 17
+    },
+    "slot/secondary": {
+      "col": 12,
+      "row": 17
+    },
+    "slot/weapon": {
+      "col": 13,
+      "row": 17
+    },
+    "spellglass_band": {
+      "col": 3,
+      "row": 11
+    },
+    "spellglass_buckler": {
+      "col": 11,
+      "row": 5
+    },
+    "spellglass_cuirass": {
       "col": 11,
       "row": 6
     },
-    "unknown": {
+    "spellglass_dagger": {
+      "col": 14,
+      "row": 0
+    },
+    "spellglass_gauntlets": {
+      "col": 9,
+      "row": 7
+    },
+    "spellglass_greatsword": {
+      "col": 10,
+      "row": 1
+    },
+    "spellglass_greaves": {
+      "col": 2,
+      "row": 5
+    },
+    "spellglass_helm": {
+      "col": 6,
+      "row": 8
+    },
+    "spellglass_kiteshield": {
+      "col": 4,
+      "row": 9
+    },
+    "spellglass_longbow": {
+      "col": 7,
+      "row": 0
+    },
+    "spellglass_longsword": {
+      "col": 4,
+      "row": 4
+    },
+    "spellglass_pendant": {
+      "col": 4,
+      "row": 10
+    },
+    "spellglass_rapier": {
+      "col": 9,
+      "row": 2
+    },
+    "spellglass_sliver": {
+      "col": 9,
+      "row": 16
+    },
+    "spellglass_staff": {
+      "col": 7,
+      "row": 3
+    },
+    "spellglass_towershield": {
+      "col": 10,
+      "row": 9
+    },
+    "stamina_potion": {
+      "col": 14,
+      "row": 12
+    },
+    "steel_boots": {
+      "col": 3,
+      "row": 5
+    },
+    "steel_gauntlets": {
+      "col": 10,
+      "row": 7
+    },
+    "steel_helm": {
+      "col": 7,
+      "row": 8
+    },
+    "steel_plate": {
+      "col": 12,
+      "row": 6
+    },
+    "stone_relic_heart": {
+      "col": 11,
+      "row": 14
+    },
+    "storm_catalyst": {
+      "col": 9,
+      "row": 14
+    },
+    "storm_salt": {
       "col": 15,
       "row": 15
+    },
+    "sun_relic_medallion": {
+      "col": 0,
+      "row": 15
+    },
+    "swamp_bog_boots": {
+      "col": 4,
+      "row": 5
+    },
+    "swamp_mire_charm": {
+      "col": 12,
+      "row": 10
+    },
+    "swamp_toxin_dagger": {
+      "col": 15,
+      "row": 0
+    },
+    "swift_step": {
+      "col": 13,
+      "row": 11
+    },
+    "swift_step_charm": {
+      "col": 1,
+      "row": 14
+    },
+    "thunder_stone": {
+      "col": 4,
+      "row": 13
+    },
+    "tide_boots": {
+      "col": 5,
+      "row": 5
+    },
+    "training_greatsword": {
+      "col": 11,
+      "row": 1
+    },
+    "transmutation_seal": {
+      "col": 5,
+      "row": 16
+    },
+    "unique_aumbral_verdict": {
+      "col": 12,
+      "row": 1
+    },
+    "unique_bog_oath": {
+      "col": 12,
+      "row": 5
+    },
+    "unique_cavernlight_helm": {
+      "col": 8,
+      "row": 8
+    },
+    "unique_censer_of_small_mercies": {
+      "col": 5,
+      "row": 10
+    },
+    "unique_choirless_helm": {
+      "col": 9,
+      "row": 8
+    },
+    "unique_confessors_burden": {
+      "col": 5,
+      "row": 9
+    },
+    "unique_courtyard_vigil": {
+      "col": 6,
+      "row": 9
+    },
+    "unique_crown_of_the_crystal_sovereign": {
+      "col": 1,
+      "row": 6
+    },
+    "unique_debtors_pendant": {
+      "col": 6,
+      "row": 10
+    },
+    "unique_deep_cut": {
+      "col": 8,
+      "row": 0
+    },
+    "unique_drowned_procession": {
+      "col": 2,
+      "row": 3
+    },
+    "unique_facet_and_fracture": {
+      "col": 0,
+      "row": 1
+    },
+    "unique_fen_widows_veil": {
+      "col": 13,
+      "row": 9
+    },
+    "unique_foundry_gauntlets": {
+      "col": 11,
+      "row": 7
+    },
+    "unique_frostbitten_oath": {
+      "col": 4,
+      "row": 2
+    },
+    "unique_gatewardens_answer": {
+      "col": 1,
+      "row": 2
+    },
+    "unique_glacier_watch": {
+      "col": 11,
+      "row": 9
+    },
+    "unique_hearthless_cuirass": {
+      "col": 13,
+      "row": 6
+    },
+    "unique_heirless_crown": {
+      "col": 2,
+      "row": 6
+    },
+    "unique_inventory_of_the_dead": {
+      "col": 14,
+      "row": 6
+    },
+    "unique_ironmongers_promise": {
+      "col": 2,
+      "row": 0
+    },
+    "unique_last_muster": {
+      "col": 5,
+      "row": 4
+    },
+    "unique_lattice_ward": {
+      "col": 7,
+      "row": 9
+    },
+    "unique_lector_gauntlets": {
+      "col": 12,
+      "row": 7
+    },
+    "unique_ledger_of_debts": {
+      "col": 7,
+      "row": 10
+    },
+    "unique_leechbound_band": {
+      "col": 4,
+      "row": 11
+    },
+    "unique_mire_tongue": {
+      "col": 1,
+      "row": 1
+    },
+    "unique_prism_of_no_colour": {
+      "col": 8,
+      "row": 3
+    },
+    "unique_quartermasters_tally": {
+      "col": 5,
+      "row": 2
+    },
+    "unique_refraction_greaves": {
+      "col": 6,
+      "row": 5
+    },
+    "unique_reliquary_of_ash": {
+      "col": 10,
+      "row": 2
+    },
+    "unique_rimeglass_pendant": {
+      "col": 8,
+      "row": 10
+    },
+    "unique_rot_and_remedy": {
+      "col": 9,
+      "row": 3
+    },
+    "unique_sallyport_greaves": {
+      "col": 7,
+      "row": 5
+    },
+    "unique_sealed_requisition": {
+      "col": 12,
+      "row": 9
+    },
+    "unique_snowblind": {
+      "col": 9,
+      "row": 0
+    },
+    "unique_stiltwalkers_greaves": {
+      "col": 8,
+      "row": 5
+    },
+    "unique_stonewife_band": {
+      "col": 5,
+      "row": 11
+    },
+    "unique_thawing_band": {
+      "col": 6,
+      "row": 11
+    },
+    "unique_the_apostate": {
+      "col": 13,
+      "row": 1
+    },
+    "unique_the_geodes_patience": {
+      "col": 15,
+      "row": 6
+    },
+    "unique_the_long_winter": {
+      "col": 14,
+      "row": 1
+    },
+    "unique_the_quiet_hour": {
+      "col": 9,
+      "row": 10
+    },
+    "unique_the_singing_stone": {
+      "col": 7,
+      "row": 11
+    },
+    "unique_the_unsaid_prayer": {
+      "col": 10,
+      "row": 3
+    },
+    "unique_vaultkeeper_helm": {
+      "col": 10,
+      "row": 8
+    },
+    "unique_widow_of_the_stair": {
+      "col": 2,
+      "row": 1
+    },
+    "vault_sealing_wax": {
+      "col": 6,
+      "row": 16
+    },
+    "venom_catalyst": {
+      "col": 10,
+      "row": 14
+    },
+    "venom_dagger": {
+      "col": 3,
+      "row": 1
+    },
+    "venom_pot": {
+      "col": 15,
+      "row": 12
+    },
+    "void_amulet": {
+      "col": 9,
+      "row": 4
+    },
+    "war_hammer": {
+      "col": 6,
+      "row": 2
+    },
+    "waves_torch": {
+      "col": 11,
+      "row": 16
+    },
+    "whetstone_arcane": {
+      "col": 12,
+      "row": 13
+    },
+    "whetstone_ember": {
+      "col": 13,
+      "row": 13
+    },
+    "whetstone_rime": {
+      "col": 14,
+      "row": 13
+    },
+    "whetstone_venom": {
+      "col": 15,
+      "row": 13
+    },
+    "whetting_oil": {
+      "col": 2,
+      "row": 15
+    },
+    "wind_relic_charm": {
+      "col": 2,
+      "row": 14
     }
   }
 }

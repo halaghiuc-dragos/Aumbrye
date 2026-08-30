@@ -8,6 +8,20 @@
   "rarity": "aumbral",
   "description": "A relic of a war no one remembers, still hungry for battle.",
   "value": 20,
+  "ruleText": "Kills sharpen the blade 4%, up to 8 stacks, until you take a hit.",
+  "rules": [
+    {
+      "event": "onKill",
+      "effect": "add_stack",
+      "stackId": "mythic_edge",
+      "maxStacks": 8,
+      "stat": "damagePercent",
+      "perStack": 4.0,
+      "resetOn": [
+        "onHitTaken"
+      ]
+    }
+  ],
   "stats": {
     "attackSpeed": 0.1,
     "physicalDamage": 35

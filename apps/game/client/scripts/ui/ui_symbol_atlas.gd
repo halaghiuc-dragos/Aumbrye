@@ -10,6 +10,7 @@ var _cell_size: int = 16
 var _columns: int = 1
 var _rows: int = 1
 var _unknown: Vector2i = Vector2i.ZERO
+var _has_unknown: bool = false
 
 
 static func load_manifest(atlas_manifest_path: String, texture_override: String = "") -> UISymbolAtlas:
@@ -34,7 +35,8 @@ func _load(atlas_manifest_path: String, texture_override: String = "") -> void:
 		push_warning("UISymbolAtlas: missing texture %s" % texture_path)
 		return
 	var unknown: Variant = _manifest.get("unknown", {})
-	if unknown is Dictionary:
+	_has_unknown = unknown is Dictionary and (unknown as Dictionary).has("col")
+	if _has_unknown:
 		_unknown = Vector2i(int(unknown.get("col", 0)), int(unknown.get("row", 0)))
 
 
@@ -77,15 +79,18 @@ func invalidate() -> void:
 	_cell_cache.clear()
 
 
+## A sheet that declares no "unknown" cell has no fallback marker by design: the generator refuses
+## to build unless every key is drawn, so a miss here is a bug in the data rather than a hole the
+## art is expected to paper over. Drawing nothing and saying so is more honest than drawing a
+## placeholder a player would find in their bag.
 func _region_for_key(key: String) -> Rect2:
 	var cells: Variant = _manifest.get("cells", {})
 	if cells is Dictionary and (cells as Dictionary).has(key):
 		var entry: Dictionary = (cells as Dictionary)[key]
 		return _rect_from_cell(int(entry.get("col", 0)), int(entry.get("row", 0)))
-	if key != "unknown":
-		push_warning(
-			"ui symbol atlas '%s' has no cell for key '%s'" % [_manifest_path, key]
-		)
+	push_error("ui symbol atlas '%s' has no cell for key '%s'" % [_manifest_path, key])
+	if not _has_unknown:
+		return Rect2()
 	return _rect_from_cell(_unknown.x, _unknown.y)
 
 

@@ -14,6 +14,21 @@ var _near_player := false
 func configure(secret_room_id: String, builder: DungeonBuilder) -> void:
 	_secret_room_id = secret_room_id
 	_builder = builder
+	_skin(DioramaInteractableSkin.resolve_biome(self))
+
+
+## An illusory wall has one job: to be indistinguishable from the wall it sits in.
+##
+## Its mesh carried no material at all, so it rendered in Godot's default grey -- a pale slab in a
+## dark stone doorway, which is both the ugliest thing on screen and a free answer to every secret
+## in the game. Taking the biome's own wall material is the whole trick.
+func _skin(biome_id: String) -> void:
+	var mesh_instance := get_node_or_null("StaticBody3D/MeshInstance3D") as MeshInstance3D
+	if mesh_instance == null:
+		return
+	var wall := BiomeRegistry.get_wall_material(biome_id)
+	if wall:
+		mesh_instance.material_override = wall
 
 
 func mark_revealed() -> void:
@@ -25,6 +40,9 @@ func mark_revealed() -> void:
 
 
 func _ready() -> void:
+	# Skinned on entry as well as on configure: a wall placed by a room template rather than by the
+	# builder never gets configured, and it still has to look like the wall around it.
+	_skin(DioramaInteractableSkin.resolve_biome(self))
 	_barrier = get_node_or_null("StaticBody3D") as StaticBody3D
 	_interact_area = get_node_or_null("InteractArea") as Area3D
 	if _interact_area:

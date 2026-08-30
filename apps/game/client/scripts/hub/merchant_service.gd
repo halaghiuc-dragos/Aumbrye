@@ -4,6 +4,7 @@ class_name MerchantService
 
 const RarityRegistryScript := preload("res://scripts/loot/rarity_registry.gd")
 const EquipmentScript := preload("res://scripts/items/equipment.gd")
+const ItemQualityScript := preload("res://scripts/items/item_quality.gd")
 const AFFIX_BASE_SELL_PRICE := 6
 
 static var _warned_missing_items: Dictionary = {}
@@ -26,6 +27,10 @@ static func get_slot_unit_sell_price(slot: Dictionary) -> int:
 	price = int(
 		round(float(price) * EquipmentScript.upgrade_multiplier(int(slot.get("upgradeLevel", 0))))
 	)
+	# Condition is priced more steeply than it is statted -- a masterforged blade is 20% better and
+	# 70% dearer. That is what stops the shop being a laundry for bad rolls: selling a chipped
+	# sword to buy a keen one should cost the player something.
+	price = int(round(float(price) * ItemQualityScript.value_multiplier(str(slot.get("quality", "")))))
 	var affix_tier := maxi(0, RarityRegistryScript.tier_index(rarity))
 	for affix in slot.get("affixes", []):
 		if affix is Dictionary:

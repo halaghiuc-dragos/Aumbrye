@@ -43,6 +43,8 @@ const LOCK_RETICLE_OCCLUDED := Color(1.0, 0.62, 0.55, 1.0)
 @onready var _stamina_bar: ProgressBar = $ResourcePanel/VBox/StaminaBar
 
 var _poise_bar: ProgressBar
+var _health_trail: ProgressBar
+var _health_trail_hold := 0.0
 var _poise_broken_shown := false
 @onready var _mana_bar: ProgressBar = $ResourcePanel/VBox/ManaBar
 @onready var _xp_bar: ProgressBar = $ResourcePanel/VBox/XpBar
@@ -178,9 +180,58 @@ func _exit_tree() -> void:
 		DisplayService.display_changed.disconnect(_on_display_changed)
 
 
+## How fast the ghost behind the health bar catches up, in bar-fractions per second.
+const HEALTH_TRAIL_DRAIN := 0.55
+const HEALTH_TRAIL_DELAY := 0.35
+const HEALTH_TRAIL_FILL := Color(0.98, 0.55, 0.52, 1.0)
+
+
+## A pale ghost that lags behind the health bar after a hit and then drains away.
+##
+## A bar that simply jumps to its new value tells the player their health changed but not by how
+## much. The trail leaves the old reading visible for a beat, so the size of the hit is legible in
+## peripheral vision — which is the whole job of a soulslike health bar during a fight.
+func _ensure_health_trail() -> void:
+	if _health_trail != null and is_instance_valid(_health_trail):
+		return
+	var parent := _health_bar.get_parent() as Control
+	if parent == null:
+		return
+	_health_trail = ProgressBar.new()
+	_health_trail.name = "HealthTrail"
+	_health_trail.show_percentage = false
+	_health_trail.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_health_trail.custom_minimum_size = Vector2(BAR_WIDTH, HEALTH_BAR_HEIGHT)
+	GameUISkinScript.style_progress_bar(_health_trail, HEALTH_TRAIL_FILL, HEALTH_BG)
+	parent.add_child(_health_trail)
+	parent.move_child(_health_trail, _health_bar.get_index())
+	# The real bar draws over the ghost, so only the difference between them shows.
+	_health_bar.z_index = 1
+
+
+func _update_health_trail(delta: float) -> void:
+	if _health_trail == null or not is_instance_valid(_health_trail):
+		return
+	_health_trail.max_value = _health_bar.max_value
+	if _health_trail.value < _health_bar.value:
+		_health_trail.value = _health_bar.value
+		_health_trail_hold = 0.0
+		return
+	if _health_trail.value <= _health_bar.value:
+		return
+	if _health_trail_hold > 0.0:
+		_health_trail_hold -= delta
+		return
+	var span := maxf(1.0, _health_bar.max_value)
+	_health_trail.value = maxf(
+		_health_bar.value, _health_trail.value - span * HEALTH_TRAIL_DRAIN * delta
+	)
+
+
 func _style_resource_bars() -> void:
 	_health_bar.custom_minimum_size = Vector2(BAR_WIDTH, HEALTH_BAR_HEIGHT)
 	_apply_bar_style(_health_bar, HEALTH_FILL, HEALTH_BG)
+	_ensure_health_trail()
 	_stamina_bar.custom_minimum_size = Vector2(BAR_WIDTH, STAMINA_BAR_HEIGHT)
 	_apply_bar_style(_stamina_bar, STAMINA_FILL, STAMINA_BG)
 	_mana_bar.custom_minimum_size = Vector2(BAR_WIDTH, MANA_BAR_HEIGHT)
@@ -307,6 +358,7 @@ func _notification(what: int) -> void:
 
 
 func _process(delta: float) -> void:
+	_update_health_trail(delta)
 	if not is_visible_in_tree():
 		set_process(false)
 		return
@@ -686,6 +738,12 @@ func _get_camera() -> Camera3D:
 func _on_health_changed(current: float, max_value: float) -> void:
 	_health_bar.max_value = max_value
 	_health_bar.value = current
+	if _health_trail != null and is_instance_valid(_health_trail):
+		_health_trail.max_value = max_value
+		if current > _health_trail.value:
+			_health_trail.value = current
+		elif current < _last_health:
+			_health_trail_hold = HEALTH_TRAIL_DELAY
 	if (
 		_last_health > 0.0
 		and current < _last_health

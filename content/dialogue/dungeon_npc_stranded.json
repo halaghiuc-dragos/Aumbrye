@@ -4,7 +4,7 @@
   "nodes": {
     "start": {
       "speaker": "Stranded scout",
-      "text": "Another echo. You have the look. Relit and sent down, and nobody told you what the lamp runs on.",
+      "text": "Another umbral. You have the look. Relit and sent down, and nobody told you what the lamp runs on.",
       "actions": [
         { "type": "set_flag", "flag": "met_dungeon_npc", "value": true },
         { "type": "record_discovery", "discoveryId": "stranded_scout" }

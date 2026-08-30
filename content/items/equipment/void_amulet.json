@@ -8,6 +8,14 @@
   "rarity": "legendary",
   "description": "Dark glass that seems to swallow the torchlight around your throat.",
   "value": 20,
+  "ruleText": "Dropping below a third of your health clears every status on you, once a minute.",
+  "rules": [
+    {
+      "event": "onLowHealth",
+      "effect": "clear_status",
+      "cooldown": 60.0
+    }
+  ],
   "stats": {
     "maxHealth": 29,
     "arcaneDamage": 18

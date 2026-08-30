@@ -69,6 +69,12 @@ func force_unpause() -> void:
 	_active_confirm = null
 	_active_spec = null
 	_focus_before_confirm = null
+	# Whatever was saved on the way in belonged to the scene being left. Quit-to-menu
+	# closes the pause menu and changes scene from inside a confirm callback, and the
+	# dismissal that follows would otherwise restore the run's captured mouse over the
+	# main menu.
+	_saved_mouse_mode = Input.MOUSE_MODE_VISIBLE
+	_saved_paused = false
 	get_tree().paused = false
 	stack_changed.emit(depth())
 

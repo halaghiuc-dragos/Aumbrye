@@ -127,6 +127,15 @@ func floor_options() -> Array[Dictionary]:
 	return options
 
 
+## What the stair should tell the player before they choose. In the Long Dark that is the Waning:
+## once the difficulty curve stops flattening, banking the run is a real decision and the player
+## needs the number in front of them to make it.
+func pressure_note() -> String:
+	if RunFlow.get_run_mode() != RunModeConfig.MODE_ENDLESS:
+		return ""
+	return EndlessDifficulty.describe_pressure(_floor_index + 1)
+
+
 func use(direction: String) -> void:
 	if not _unlocked:
 		return

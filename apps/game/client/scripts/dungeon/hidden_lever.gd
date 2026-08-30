@@ -28,6 +28,7 @@ func _flag_id() -> String:
 
 
 func _ready() -> void:
+	_skin()
 	_interact_area = get_node_or_null("InteractArea") as Area3D
 	if _interact_area:
 		_interact_area.body_entered.connect(_on_body_entered)
@@ -60,3 +61,16 @@ func _pull() -> void:
 	if _builder:
 		_builder.reveal_secret(_secret_room_id)
 	mark_used()
+
+
+## The lever's mesh carried no material, so the one interactive object in a room was also the one
+## grey object in it. It takes the biome accent, the same as every other lever in the game.
+func _skin() -> void:
+	var mesh_instance := get_node_or_null("MeshInstance3D") as MeshInstance3D
+	if mesh_instance == null or mesh_instance.material_override != null:
+		return
+	var accent := BiomeRegistry.get_accent_material(
+		DioramaInteractableSkin.resolve_biome(self)
+	)
+	if accent:
+		mesh_instance.material_override = accent

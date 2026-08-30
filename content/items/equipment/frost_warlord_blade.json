@@ -8,6 +8,22 @@
   "rarity": "legendary",
   "description": "Forged in glacial depths, it drinks warmth from every wound.",
   "value": 20,
+  "ruleText": "Every hit chills. Killing a frozen enemy returns 12 health.",
+  "rules": [
+    {
+      "event": "onHit",
+      "effect": "apply_status",
+      "statusId": "freeze",
+      "stacks": 1,
+      "chance": 0.35
+    },
+    {
+      "event": "onKill",
+      "effect": "restore_health",
+      "amount": 12.0,
+      "ifTargetHasStatus": "freeze"
+    }
+  ],
   "stats": {
     "frostDamage": 18,
     "physicalDamage": 41

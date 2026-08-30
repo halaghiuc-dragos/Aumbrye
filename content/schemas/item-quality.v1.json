@@ -1,0 +1,62 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://aumbrye.dev/schemas/item-quality.v1.json",
+  "title": "ItemQualityTiers",
+  "description": "Condition tiers rolled onto an equipment drop. Quality scales an item's own base stats; rarity and affixes are separate axes layered on top.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "categories", "tiers", "rarityBias"],
+  "properties": {
+    "schemaVersion": { "type": "integer", "const": 1 },
+    "$comment": { "type": "string" },
+    "categories": {
+      "description": "Item type to its ladder of tier ids, worst first. Every ladder must be the same length so a roll index means the same thing everywhere.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["weapon", "armor", "accessory"],
+      "properties": {
+        "weapon": { "$ref": "#/$defs/ladder" },
+        "armor": { "$ref": "#/$defs/ladder" },
+        "accessory": { "$ref": "#/$defs/ladder" }
+      }
+    },
+    "tiers": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "displayName", "statMultiplier", "weight", "valueMultiplier"],
+        "properties": {
+          "id": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" },
+          "displayName": { "type": "string", "minLength": 1 },
+          "statMultiplier": { "type": "number", "minimum": 0.1, "maximum": 3.0 },
+          "valueMultiplier": { "type": "number", "minimum": 0.1, "maximum": 10.0 },
+          "weight": { "type": "integer", "minimum": 0 }
+        }
+      }
+    },
+    "rarityBias": {
+      "description": "Steps up the ladder a drop of this rarity is nudged, so better items tend to be better examples of themselves.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["common", "magic", "rare", "epic", "legendary", "aumbral"],
+      "properties": {
+        "common": { "type": "integer", "minimum": 0 },
+        "magic": { "type": "integer", "minimum": 0 },
+        "rare": { "type": "integer", "minimum": 0 },
+        "epic": { "type": "integer", "minimum": 0 },
+        "legendary": { "type": "integer", "minimum": 0 },
+        "aumbral": { "type": "integer", "minimum": 0 }
+      }
+    }
+  },
+  "$defs": {
+    "ladder": {
+      "type": "array",
+      "minItems": 5,
+      "maxItems": 5,
+      "items": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" }
+    }
+  }
+}

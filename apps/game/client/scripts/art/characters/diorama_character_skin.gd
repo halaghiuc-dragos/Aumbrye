@@ -1292,6 +1292,36 @@ static func _mirror_voxels(voxels: Dictionary) -> Dictionary:
 	return out
 
 
+## The thinnest gap that can still be drawn: one voxel of the grid everything here is modelled on.
+##
+## A worn model that surrounds a body part by less than this puts its surface inside a single voxel
+## of the skin underneath. At the resolution the diorama renders at, those two surfaces land on the
+## same pixel and the depth test has no way to order them, so the seam flickers between armour and
+## body as the camera moves — the "pixels clipping on equipment" the player actually sees.
+##
+## Measured against the authored fits, six of the eight surrounding axes were under one voxel: a
+## hood cleared the head by 0.20 of a voxel, gauntlets cleared the arm by 0.37, and a breastplate
+## cleared the torso's front face by 0.85. Only slots that hide the part beneath them were safe.
+const EQUIP_MIN_CLEARANCE := VoxelGridScript.EDGE
+
+
+## Grows a worn model just enough that it clears the part it is worn on.
+##
+## Only axes where the model already surrounds the part are touched, so a pendant sitting in front
+## of the chest or a breastplate that stops above the waist keeps its authored proportions. The
+## adjustment is the minimum that makes the surfaces separable, which keeps silhouettes as close to
+## the authored intent as a renderable model allows.
+static func _enforce_equipment_clearance(scale: Vector3, bounds: AABB, target: AABB) -> void:
+	for axis in 3:
+		var modelled := bounds.size[axis] * scale[axis]
+		var part := target.size[axis]
+		if modelled <= part or part <= 0.0001 or modelled <= 0.0001:
+			continue
+		if (modelled - part) * 0.5 >= EQUIP_MIN_CLEARANCE:
+			continue
+		scale[axis] *= (part + EQUIP_MIN_CLEARANCE * 2.0) / modelled
+
+
 ## Fits one equipment mesh onto one body part.
 ##
 ## `fit` says how big the model should be as a multiple of the part's own box and `anchor` says which
@@ -1315,6 +1345,7 @@ static func _mount_equipment_mesh(
 			if bounds.size[axis] <= 0.0001 or target.size[axis] <= 0.0001:
 				continue
 			scale[axis] = target.size[axis] * fit[axis] / bounds.size[axis]
+		_enforce_equipment_clearance(scale, bounds, target)
 		# The anchor point, on the part's box and on the model's, in the same relative place.
 		var target_point := target.get_center() + target.size * 0.5 * anchor
 		var mesh_point := bounds.get_center() + bounds.size * 0.5 * anchor

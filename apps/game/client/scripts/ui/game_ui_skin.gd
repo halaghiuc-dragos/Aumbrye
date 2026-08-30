@@ -631,16 +631,73 @@ static func style_progress_bar(bar: ProgressBar, fill_color: Color, bg_color: Co
 	bg.set_border_width_all(2 if pixel else 1)
 	bg.set_corner_radius_all(radius)
 	bg.set_content_margin_all(2 if pixel else 2)
+	if pixel:
+		bar.add_theme_stylebox_override("background", bg)
+		bar.add_theme_stylebox_override("fill", make_bar_fill_style(fill_color, bar))
+		bar.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+		var steps := maxi(2, PIXEL_BAR_STEPS)
+		if bar.max_value > 0.0:
+			bar.step = bar.max_value / float(steps)
+		return
 	var fill := StyleBoxFlat.new()
 	fill.bg_color = fill_color
 	fill.set_corner_radius_all(inner_radius)
 	bar.add_theme_stylebox_override("background", bg)
 	bar.add_theme_stylebox_override("fill", fill)
-	if pixel:
-		bar.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-		var steps := maxi(2, PIXEL_BAR_STEPS)
-		if bar.max_value > 0.0:
-			bar.step = bar.max_value / float(steps)
+
+
+## A resource bar that reads as a lit tube rather than a flat block.
+##
+## The fill was a single solid colour, which at this scale reads as a coloured rectangle and gives
+## the eye nothing to catch. This bakes a vertical ramp — bright across the top third, falling away
+## below — plus a bright leading edge held at a fixed width by the nine-patch margin, so the head of
+## the bar stays legible at a glance no matter how full it is.
+const BAR_FILL_TEX_WIDTH := 4
+const BAR_FILL_EDGE_GAIN := 1.75
+const BAR_FILL_TOP_GAIN := 1.34
+const BAR_FILL_MID_GAIN := 0.62
+const BAR_FILL_LOW_BASE := 0.92
+const BAR_FILL_LOW_FALL := 0.30
+const BAR_FILL_BREAK := 0.55
+
+static var _bar_fill_cache: Dictionary = {}
+
+
+static func _shade(color: Color, factor: float) -> Color:
+	return Color(
+		clampf(color.r * factor, 0.0, 1.0),
+		clampf(color.g * factor, 0.0, 1.0),
+		clampf(color.b * factor, 0.0, 1.0),
+		color.a
+	)
+
+
+static func make_bar_fill_style(fill_color: Color, bar: ProgressBar = null) -> StyleBoxTexture:
+	var height := 16
+	if bar != null and bar.custom_minimum_size.y > 0.0:
+		height = maxi(6, int(bar.custom_minimum_size.y) - 4)
+	var key := "%s|%d" % [fill_color.to_html(true), height]
+	if not _bar_fill_cache.has(key):
+		var img := Image.create(BAR_FILL_TEX_WIDTH, height, false, Image.FORMAT_RGBA8)
+		for y in height:
+			var t := float(y) / float(maxi(1, height - 1))
+			var gain := (
+				BAR_FILL_TOP_GAIN - BAR_FILL_MID_GAIN * t
+				if t < BAR_FILL_BREAK
+				else BAR_FILL_LOW_BASE - BAR_FILL_LOW_FALL * (t - BAR_FILL_BREAK)
+			)
+			var body := _shade(fill_color, gain)
+			for x in BAR_FILL_TEX_WIDTH - 1:
+				img.set_pixel(x, y, body)
+			img.set_pixel(BAR_FILL_TEX_WIDTH - 1, y, _shade(fill_color, BAR_FILL_EDGE_GAIN))
+		for x in BAR_FILL_TEX_WIDTH:
+			img.set_pixel(x, 0, _shade(fill_color, BAR_FILL_EDGE_GAIN))
+		_bar_fill_cache[key] = ImageTexture.create_from_image(img)
+	var style := StyleBoxTexture.new()
+	style.texture = _bar_fill_cache[key]
+	# Only the last column is pinned; the ramp columns stretch to whatever the bar is showing.
+	style.set_texture_margin(SIDE_RIGHT, 1)
+	return style
 
 
 const PIXEL_UNIT := 2

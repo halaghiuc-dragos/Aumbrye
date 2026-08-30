@@ -8,9 +8,7 @@
   "required": [
     "id",
     "displayName",
-    "kind",
-    "stat",
-    "tiers"
+    "kind"
   ],
   "properties": {
     "id": {
@@ -83,6 +81,31 @@
     "template": {
       "type": "string",
       "description": "Tooltip line pattern; {value} and {stat} are substituted at render time."
+    },
+    "ruleText": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Player-facing rules text for a behavioural affix, shown in place of a stat line."
+    },
+    "rules": {
+      "type": "array",
+      "minItems": 1,
+      "description": "CombatEvents rule declarations registered while an item carrying this affix is equipped.",
+      "items": {
+        "type": "object"
+      }
+    },
+    "minRarity": {
+      "type": "string",
+      "enum": [
+        "common",
+        "magic",
+        "rare",
+        "epic",
+        "legendary",
+        "aumbral"
+      ],
+      "description": "Lowest item rarity this affix can roll on. Defaults to common."
     }
   },
   "$defs": {

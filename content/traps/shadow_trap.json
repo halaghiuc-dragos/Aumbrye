@@ -1,6 +1,6 @@
 {
   "id": "shadow_trap",
-  "name": "Shadow Snare",
+  "name": "Umbral Snare",
   "description": "It does not care whose weight it takes. Give it something else to hold.",
   "scene": "res://scenes/traps/shadow_trap.tscn",
   "trigger": "plate",

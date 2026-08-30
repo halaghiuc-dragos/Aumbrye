@@ -1,15 +1,20 @@
 extends Node3D
 
 
-const ENEMY_SCENES := {
+## Fallback only. Enemies resolve through `EnemyCatalog.get_scene()` so the Vigil can field the
+## whole bestiary; this dictionary exists purely so a content gap cannot leave a wave empty.
+const ENEMY_SCENES_FALLBACK := {
 	"castle_grunt": preload("res://scenes/enemies/castle_grunt.tscn"),
 	"castle_archer": preload("res://scenes/enemies/castle_archer.tscn"),
 	"castle_shield": preload("res://scenes/enemies/castle_shield.tscn"),
-	"castle_knight": preload("res://scenes/enemies/castle_knight.tscn"),
 	"castle_hound": preload("res://scenes/enemies/castle_hound.tscn"),
-	"boss_castle_knight": preload("res://scenes/enemies/castle_knight.tscn"),
-	"miniboss_castle_captain": preload("res://scenes/enemies/castle_knight.tscn"),
 }
+
+## Enemies rise at the arena edge, never on top of the player, and never without warning.
+const SPAWN_RING_RADIUS := 24.0
+const SPAWN_MIN_PLAYER_DISTANCE := 12.0
+const SPAWN_TELEGRAPH_SECONDS := 1.1
+const SPAWN_TELEGRAPH_STAGGER := 0.12
 
 @export var player_path: NodePath = NodePath("Player")
 
@@ -21,10 +26,15 @@ var _wave_ui: Control
 var _lobby_active := true
 var _torch_holder: Node3D
 var _torchlight: Node3D
+var _spawn_markers: Array[Node3D] = []
+var _pending_spawns := 0
+var _cash_out_portal: Node3D
 const WavesOutdoorsDioramaScript := preload("res://scripts/dungeon/waves_outdoors_diorama.gd")
 const CharacterFloorSnapScript := preload("res://scripts/art/characters/character_floor_snap.gd")
 const WavesTorchHolderScript := preload("res://scripts/dungeon/waves_torch_holder.gd")
 const WavesTorchlightScript := preload("res://scripts/dungeon/waves_torchlight.gd")
+const WavesSpawnMarkerScript := preload("res://scripts/dungeon/waves_spawn_marker.gd")
+const WavesCashOutPortalScript := preload("res://scripts/dungeon/waves_cash_out_portal.gd")
 const RainFieldScript := preload("res://scripts/art/world/rain_field.gd")
 
 const WAVES_FLOOR_HALF := 105.0
@@ -142,8 +152,14 @@ func _ensure_torch_holder() -> void:
 	_torch_holder = holder
 
 
+## The cresset is the "I am ready" switch. On the first lobby it needs the torch buried in one of
+## the caches; from the second intermission on it is already burning and the interaction simply
+## calls the next wave, so re-kitting is not gated behind a repeated fetch quest.
 func light_cresset() -> void:
-	if not WavesRunService.place_torch():
+	if WavesRunService.is_first_lobby():
+		if not WavesRunService.place_torch():
+			return
+	elif not WavesRunService.lobby_ready:
 		return
 	if _torch_holder and is_instance_valid(_torch_holder):
 		_torch_holder.call("set_lit", true)
@@ -179,6 +195,7 @@ func _show_lobby() -> void:
 		_torchlight.call("set_lit", true, true)
 	if _player:
 		_player.global_position = LOBBY_SPAWN
+	_refresh_cash_out_portal()
 	if _wave_ui and _wave_ui.has_method("show_lobby"):
 		_wave_ui.call("show_lobby")
 
@@ -226,8 +243,11 @@ func start_waves_from_lobby() -> void:
 	if resuming:
 		WavesRunService.leave_prep()
 		WavesRunService.advance_wave()
+		WavesRunService.auto_equip_best_weapon()
 	else:
 		WavesRunService.start_waves()
+	if _player:
+		WavesRunService.apply_equipment_to_player(_player)
 	_lobby_active = false
 	_ensure_walls()
 	_clear_chests()
@@ -254,30 +274,77 @@ func _start_combat_from_continue() -> void:
 
 func _start_wave() -> void:
 	_clear_enemies()
+	_clear_spawn_markers()
 	var wave := WavesRunService.current_wave
-	for enemy_id in WavesRunService.get_enemies_for_wave(wave):
-		_spawn_enemy(enemy_id)
+	var enemy_ids := WavesRunService.get_enemies_for_wave(wave)
+	_pending_spawns = enemy_ids.size()
 	if _wave_ui and _wave_ui.has_method("set_enemies_remaining"):
-		_wave_ui.call("set_enemies_remaining", _active_enemies.size())
+		_wave_ui.call("set_enemies_remaining", _pending_spawns)
+	for index in enemy_ids.size():
+		_spawn_enemy_telegraphed(str(enemy_ids[index]), index, enemy_ids.size())
 	_persist_waves_save()
 
 
-func _spawn_enemy(enemy_id: String) -> void:
-	var scene: PackedScene = ENEMY_SCENES.get(enemy_id)
+## Picks a point on the arena edge that the player can see coming and is not standing on.
+func _spawn_point_for(index: int, total: int, wave: int) -> Vector3:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = FloorSeedMix.mix(WavesRunService.get_seed(), wave * 17 + index)
+	var spread := TAU / float(maxi(1, total))
+	var base_angle := rng.randf_range(0.0, TAU) if index == 0 else 0.0
+	var angle := base_angle + spread * float(index) + rng.randf_range(-spread * 0.3, spread * 0.3)
+	var radius := SPAWN_RING_RADIUS * rng.randf_range(0.82, 1.0)
+	var point := Vector3(cos(angle) * radius, 0.0, sin(angle) * radius)
+	if _player == null:
+		return point
+	# Never open a wave inside the player's guard — push the point around the ring until it is far
+	# enough away that they get to react to it.
+	var player_flat := Vector3(_player.global_position.x, 0.0, _player.global_position.z)
+	for _attempt in 8:
+		if point.distance_to(player_flat) >= SPAWN_MIN_PLAYER_DISTANCE:
+			break
+		angle += spread if spread > 0.4 else 0.7
+		point = Vector3(cos(angle) * radius, 0.0, sin(angle) * radius)
+	return point
+
+
+func _spawn_enemy_telegraphed(enemy_id: String, index: int, total: int) -> void:
+	var wave := WavesRunService.current_wave
+	var point := _spawn_point_for(index, total, wave)
+	var marker := Node3D.new()
+	marker.name = "SpawnMarker"
+	marker.set_script(WavesSpawnMarkerScript)
+	add_child(marker)
+	marker.position = point
+	marker.call("setup")
+	_spawn_markers.append(marker)
+	AudioDirector.play_sfx("windup", point)
+	await get_tree().create_timer(
+		SPAWN_TELEGRAPH_SECONDS + SPAWN_TELEGRAPH_STAGGER * float(index)
+	).timeout
+	if not is_inside_tree() or _lobby_active:
+		return
+	if wave != WavesRunService.current_wave:
+		return
+	if marker != null and is_instance_valid(marker):
+		_spawn_markers.erase(marker)
+		marker.queue_free()
+	_pending_spawns = maxi(0, _pending_spawns - 1)
+	_spawn_enemy(enemy_id, point)
+
+
+func _spawn_enemy(enemy_id: String, spawn_point: Vector3) -> void:
+	var scene := _resolve_enemy_scene(enemy_id)
 	if scene == null:
+		push_warning("WavesRun: no scene for enemy '%s'" % enemy_id)
+		_refresh_remaining()
 		return
 	var enemy: CharacterBody3D = scene.instantiate() as CharacterBody3D
 	if enemy == null:
+		_refresh_remaining()
 		return
-	if enemy.has_method("set_catalog_id") and (
-		enemy_id.begins_with("boss_") or enemy_id.begins_with("miniboss_")
-	):
-		enemy.call("set_catalog_id", enemy_id)
-	var rng := RandomNumberGenerator.new()
-	rng.seed = FloorSeedMix.mix(
-		WavesRunService.get_seed(), WavesRunService.current_wave * 17 + _active_enemies.size()
-	)
-	enemy.position = Vector3(rng.randf_range(-28, 28), 0.0, rng.randf_range(-28, 28))
+	if enemy.has_method("set_catalog_id"):
+		enemy.call("set_catalog_id", EnemyCatalog.resolve_id(enemy_id))
+	enemy.position = spawn_point
 	add_child(enemy)
 	CharacterFloorSnapScript.snap_to_floor_below(enemy)
 	if enemy.has_method("set_player"):
@@ -287,6 +354,31 @@ func _spawn_enemy(enemy_id: String) -> void:
 	elif enemy.has_signal("boss_defeated"):
 		enemy.boss_defeated.connect(_on_enemy_died.bind(enemy))
 	_active_enemies.append(enemy)
+	if VfxService:
+		VfxService.play_portal_activate(spawn_point)
+	_refresh_remaining()
+
+
+func _resolve_enemy_scene(enemy_id: String) -> PackedScene:
+	var scene := EnemyCatalog.get_scene(enemy_id)
+	if scene != null:
+		return scene
+	if ENEMY_SCENES_FALLBACK.has(enemy_id):
+		return ENEMY_SCENES_FALLBACK[enemy_id]
+	return null
+
+
+func _refresh_remaining() -> void:
+	if _wave_ui and _wave_ui.has_method("set_enemies_remaining"):
+		_wave_ui.call("set_enemies_remaining", _active_enemies.size() + _pending_spawns)
+
+
+func _clear_spawn_markers() -> void:
+	for marker in _spawn_markers:
+		if is_instance_valid(marker):
+			marker.queue_free()
+	_spawn_markers.clear()
+	_pending_spawns = 0
 
 
 func _on_enemy_died(enemy: Node) -> void:
@@ -299,18 +391,18 @@ func _on_enemy_died(enemy: Node) -> void:
 		func(e: Node) -> bool:
 			return is_instance_valid(e) and not (e.has_method("is_dead") and e.call("is_dead"))
 	)
-	if _wave_ui and _wave_ui.has_method("set_enemies_remaining"):
-		_wave_ui.call("set_enemies_remaining", _active_enemies.size())
-	if _active_enemies.is_empty():
+	_refresh_remaining()
+	if _active_enemies.is_empty() and _pending_spawns <= 0:
 		_on_wave_cleared()
 
 
 func _on_wave_cleared() -> void:
-	if WavesRunService.is_final_milestone():
+	var wave := WavesRunService.current_wave
+	if wave >= WavesRunService.final_wave():
 		_douse_cresset()
 		_show_reward_pick()
 		return
-	if WavesRunService.is_milestone(WavesRunService.current_wave):
+	if WavesRunService.is_intermission_wave(wave):
 		_enter_intermission()
 	else:
 		WavesRunService.advance_wave()
@@ -325,7 +417,39 @@ func _enter_intermission() -> void:
 	WavesRunService.begin_chest_set()
 	_ensure_walls()
 	_clear_enemies()
+	_clear_spawn_markers()
 	_show_lobby()
+
+
+## The wizard's way out. From `cashOutFromWave` on, every intermission opens a portal beside the
+## cresset; speaking to him banks exactly one carried item and ends the Vigil there.
+func _refresh_cash_out_portal() -> void:
+	var offered := WavesRunService.is_cash_out_wave(WavesRunService.current_wave)
+	if not offered:
+		if _cash_out_portal != null and is_instance_valid(_cash_out_portal):
+			_cash_out_portal.queue_free()
+		_cash_out_portal = null
+		return
+	if _cash_out_portal != null and is_instance_valid(_cash_out_portal):
+		return
+	var portal := Node3D.new()
+	portal.name = "WavesCashOutPortal"
+	portal.set_script(WavesCashOutPortalScript)
+	add_child(portal)
+	portal.call("setup", self)
+	_cash_out_portal = portal
+	if VfxService:
+		VfxService.play_portal_activate(portal.global_position)
+
+
+## Called by the wizard once the player has chosen what to walk away with.
+func cash_out_with_item(item_id: String) -> void:
+	RunFlow.cash_out_waves_run(item_id)
+
+
+func open_cash_out_picker() -> void:
+	if _wave_ui and _wave_ui.has_method("show_cash_out_pick"):
+		_wave_ui.call("show_cash_out_pick")
 
 
 func _process(delta: float) -> void:

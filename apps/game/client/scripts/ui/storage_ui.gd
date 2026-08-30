@@ -16,6 +16,15 @@ signal closed
 var _inv_indices: Array[int] = []
 var _storage_indices: Array[int] = []
 
+## The full description of whichever row is selected.
+##
+## The storage panel had no way to look at an item. Its one text line was a status line -- "moved
+## to storage", "select an item first" -- so the player deciding what to bank could see a name and
+## nothing else: not the condition, not the stats, not what it compares against. The inventory has
+## described items properly all along; this is the same description, so an item reads the same
+## wherever the player meets it.
+var _description: RichTextLabel
+
 
 func _ready() -> void:
 	visible = false
@@ -29,6 +38,48 @@ func _ready() -> void:
 	_close_button.pressed.connect(close)
 	InventoryService.inventory_changed.connect(_refresh)
 	StorageService.storage_changed.connect(_refresh)
+	_build_description()
+	_inv_list.item_selected.connect(_on_inventory_row_selected)
+	_storage_list.item_selected.connect(_on_storage_row_selected)
+
+
+func _build_description() -> void:
+	_description = RichTextLabel.new()
+	_description.bbcode_enabled = true
+	_description.fit_content = true
+	_description.scroll_active = false
+	_description.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_description.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_detail_label.get_parent().add_child(_description)
+	_detail_label.get_parent().move_child(_description, _detail_label.get_index())
+
+
+## Selecting in one list clears the other, so there is never a question about which item the
+## description belongs to -- and the transfer buttons already act on one list at a time.
+func _on_inventory_row_selected(row: int) -> void:
+	_storage_list.deselect_all()
+	_describe(InventoryService.inventory.slots, _inv_indices, row)
+
+
+func _on_storage_row_selected(row: int) -> void:
+	_inv_list.deselect_all()
+	_describe(StorageService.storage.slots, _storage_indices, row)
+
+
+func _describe(slots: Array, indices: Array[int], row: int) -> void:
+	if _description == null:
+		return
+	if row < 0 or row >= indices.size():
+		_description.text = ""
+		return
+	var index: int = indices[row]
+	if index < 0 or index >= slots.size():
+		_description.text = ""
+		return
+	_description.text = InventoryService.format_slot_tooltip_bbcode(slots[index])
+	# The status line is about the last action, not about this item; a fresh selection has no
+	# action behind it yet, so leaving the old message up would attach it to the wrong thing.
+	_detail_label.text = ""
 
 
 func is_open() -> bool:
@@ -68,7 +119,7 @@ func _refresh() -> void:
 		var def := ItemCatalog.get_definition(item_id)
 		var qty: int = int(slot.get("quantity", 1))
 		ItemListPresenterScript.add_row(
-			_inv_list, item_id, def, _row_text(def, item_id, qty), str(slot.get("rarity", ""))
+			_inv_list, item_id, def, _row_text(slot, qty), str(slot.get("rarity", ""))
 		)
 		_inv_indices.append(i)
 	_storage_list.clear()
@@ -79,10 +130,13 @@ func _refresh() -> void:
 		var def := ItemCatalog.get_definition(item_id)
 		var qty: int = int(slot.get("quantity", 1))
 		ItemListPresenterScript.add_row(
-			_storage_list, item_id, def, _row_text(def, item_id, qty), str(slot.get("rarity", ""))
+			_storage_list, item_id, def, _row_text(slot, qty), str(slot.get("rarity", ""))
 		)
 		_storage_indices.append(i)
 	_refresh_empty_states()
+	if _description and _inv_list.get_selected_items().is_empty() \
+			and _storage_list.get_selected_items().is_empty():
+		_description.text = ""
 
 
 func _on_to_storage() -> void:
@@ -111,8 +165,10 @@ func _on_to_inv() -> void:
 	_refresh()
 
 
-func _row_text(definition: Dictionary, item_id: String, quantity: int) -> String:
-	var display_name := str(definition.get("name", item_id))
+## The name the rest of the game uses, so a chipped ring is called a chipped ring here too rather
+## than reverting to its base name the moment it is put away.
+func _row_text(slot: Dictionary, quantity: int) -> String:
+	var display_name := InventoryService.inventory.get_slot_display_name(slot)
 	return "%s x%d" % [display_name, quantity] if quantity > 1 else display_name
 
 

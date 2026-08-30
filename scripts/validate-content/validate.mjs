@@ -163,6 +163,9 @@ function resolveSchemaForFile(filePath) {
   if (name === "affixes/prefixes.json" || name === "affixes/suffixes.json") {
     return join(schemasRoot, "affix-pack.v1.json");
   }
+  if (name === "affixes/quality_tiers.json") {
+    return join(schemasRoot, "item-quality.v1.json");
+  }
   if (name === "affixes/rarity_rules.json") {
     return join(schemasRoot, "affix-rarity-rules.v1.json");
   }
@@ -285,6 +288,12 @@ function resolveSchemaForFile(filePath) {
   }
   if (name === "challenges/weekly.json") {
     return join(schemasRoot, "challenge-rotation.v1.json");
+  }
+  if (name === "modes/unlocks.json") {
+    return join(schemasRoot, "mode-unlocks.v1.json");
+  }
+  if (name === "progression/vault.json") {
+    return join(schemasRoot, "vault-catalog.v1.json");
   }
   if (name === "modes/catalog.json") {
     return join(schemasRoot, "run-mode-catalog.v1.json");

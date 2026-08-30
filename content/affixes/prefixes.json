@@ -996,6 +996,164 @@
           "max": 57
         }
       }
+    },
+    {
+      "id": "rimebound",
+      "displayName": "Rimebound",
+      "kind": "prefix",
+      "itemTypes": [
+        "weapon"
+      ],
+      "weight": 42,
+      "ruleText": "Your heavy attacks leave frost in the wound.",
+      "rules": [
+        {
+          "event": "onHit",
+          "effect": "apply_status",
+          "statusId": "freeze",
+          "stacks": 1,
+          "chance": 0.25
+        }
+      ],
+      "minRarity": "rare"
+    },
+    {
+      "id": "sworn",
+      "displayName": "Sworn",
+      "kind": "prefix",
+      "itemTypes": [
+        "weapon"
+      ],
+      "weight": 38,
+      "ruleText": "The first hit on an untouched enemy always draws blood.",
+      "rules": [
+        {
+          "event": "onHit",
+          "effect": "apply_status",
+          "statusId": "bleed",
+          "stacks": 2,
+          "chance": 0.3
+        }
+      ],
+      "minRarity": "rare"
+    },
+    {
+      "id": "ashen",
+      "displayName": "Ashen",
+      "kind": "prefix",
+      "itemTypes": [
+        "weapon"
+      ],
+      "weight": 40,
+      "ruleText": "Kills leave an ember; you take the warmth back.",
+      "rules": [
+        {
+          "event": "onKill",
+          "effect": "restore_stamina",
+          "amount": 9.0
+        }
+      ],
+      "minRarity": "rare"
+    },
+    {
+      "id": "vengeful",
+      "displayName": "Vengeful",
+      "kind": "prefix",
+      "itemTypes": [
+        "armor"
+      ],
+      "weight": 30,
+      "ruleText": "Taking a hit while guarding returns a flask charge, once a room.",
+      "rules": [
+        {
+          "event": "onBlock",
+          "effect": "refund_flask",
+          "amount": 1.0,
+          "cooldown": 45.0
+        }
+      ],
+      "minRarity": "rare"
+    },
+    {
+      "id": "hollowing",
+      "displayName": "Hollowing",
+      "kind": "prefix",
+      "itemTypes": [
+        "armor"
+      ],
+      "weight": 32,
+      "ruleText": "At the edge, something stops the bleeding for you.",
+      "rules": [
+        {
+          "event": "onLowHealth",
+          "effect": "restore_health",
+          "amount": 30.0,
+          "cooldown": 75.0
+        }
+      ],
+      "minRarity": "rare"
+    },
+    {
+      "id": "patient",
+      "displayName": "Patient",
+      "kind": "prefix",
+      "itemTypes": [
+        "weapon",
+        "armor"
+      ],
+      "weight": 34,
+      "ruleText": "A parry sharpens you until something lands.",
+      "rules": [
+        {
+          "event": "onParry",
+          "effect": "add_stack",
+          "stackId": "patient",
+          "maxStacks": 4,
+          "stat": "damagePercent",
+          "perStack": 4.0,
+          "resetOn": [
+            "onHitTaken"
+          ]
+        }
+      ],
+      "minRarity": "rare"
+    },
+    {
+      "id": "tithed",
+      "displayName": "Tithed",
+      "kind": "prefix",
+      "itemTypes": [
+        "armor",
+        "accessory"
+      ],
+      "weight": 36,
+      "ruleText": "The dead pay a toll on the way out.",
+      "rules": [
+        {
+          "event": "onKill",
+          "effect": "bonus_gold",
+          "amount": 14.0
+        }
+      ],
+      "minRarity": "rare"
+    },
+    {
+      "id": "wakeful",
+      "displayName": "Wakeful",
+      "kind": "prefix",
+      "itemTypes": [
+        "armor"
+      ],
+      "weight": 34,
+      "ruleText": "Clearing a room settles your breathing.",
+      "rules": [
+        {
+          "event": "onRoomClear",
+          "effect": "restore_health",
+          "amount": 14.0
+        }
+      ],
+      "minRarity": "rare"
     }
   ]
 }

@@ -111,6 +111,10 @@ func _build_ui() -> void:
 		self, tr("CREATE_TITLE"), 880.0, 494.0
 	)
 	var outer_vbox: VBoxContainer = shell["content_vbox"]
+	# The one screen where a player asks "what am I?" — answer it. Until now the premise string
+	# existed in the catalogue and was never shown anywhere, so the fiction lived entirely in the
+	# subtitle on the title screen and nowhere the player actually stopped to read.
+	MenuShellScript.add_subtitle(outer_vbox, tr("STORY_PREMISE"))
 	var columns := HBoxContainer.new()
 	columns.name = "Columns"
 	columns.size_flags_vertical = Control.SIZE_EXPAND_FILL

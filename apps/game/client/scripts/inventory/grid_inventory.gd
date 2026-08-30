@@ -3,6 +3,7 @@ class_name GridInventory
 
 const EquipmentHelper := preload("res://scripts/items/equipment.gd")
 const RarityRegistryScript := preload("res://scripts/loot/rarity_registry.gd")
+const ItemQualityScript := preload("res://scripts/items/item_quality.gd")
 
 const DEFAULT_WIDTH := 10
 const DEFAULT_HEIGHT := 6
@@ -131,6 +132,11 @@ func get_slot_display_name(slot: Dictionary) -> String:
 	if slot.get("itemId", "") == "dungeon_key" and slot.has("keyLabel"):
 		return str(slot.get("keyLabel", "Dungeon Key"))
 	var name: String = def.get("name", slot.get("itemId", "?"))
+	# The neutral condition is left unsaid. Naming every ordinary drop "Sturdy" would make the
+	# word noise, and the point of the condition is that it stands out when it is not ordinary.
+	var quality: String = str(slot.get("quality", ""))
+	if quality != "" and not ItemQualityScript.is_neutral(quality):
+		name = "%s %s" % [ItemQualityScript.display_name(quality), name]
 	var rarity: String = get_slot_rarity(slot)
 	if rarity != "common" and rarity != "":
 		return "[%s] %s" % [RarityRegistryScript.display_name(rarity), name]
@@ -178,9 +184,13 @@ func add_item(item_id: String, quantity: int = 1, instance_data: Dictionary = {}
 	var def := get_item_def(item_id)
 	if def.is_empty():
 		return false
-	var snapshot: Array[Dictionary] = []
-	for existing_slot in slots:
-		snapshot.append(existing_slot.duplicate(true))
+	# An add that runs out of room has to leave the inventory exactly as it found it. This used to
+	# deep-copy every slot up front to roll back from, which meant a full copy of the grid — affix
+	# arrays and all — on every successful add too, and adds happen on every pickup and every loot
+	# roll. Recording just the mutations costs nothing when the item fits and undoes precisely when
+	# it does not. Indices stay valid because this function only ever appends.
+	var bumped_stacks: Array = []
+	var appended := 0
 	var max_stack: int = def.get("stackSize", 1)
 	if max_stack > 1 and instance_data.is_empty():
 		for i in slots.size():
@@ -193,6 +203,7 @@ func add_item(item_id: String, quantity: int = 1, instance_data: Dictionary = {}
 			if current_qty >= max_stack:
 				continue
 			var addable := mini(quantity, max_stack - current_qty)
+			bumped_stacks.append([i, current_qty])
 			slot["quantity"] = current_qty + addable
 			quantity -= addable
 			if quantity <= 0:
@@ -215,9 +226,14 @@ func add_item(item_id: String, quantity: int = 1, instance_data: Dictionary = {}
 			slot_data["rarity"] = def.get("rarity", "common")
 		slots.append(_normalize_slot(slot_data))
 		_occupy_slot_rect(slots.size() - 1)
+		appended += 1
 		quantity -= place_qty
 	if quantity > 0:
-		slots = snapshot
+		for entry in bumped_stacks:
+			var restore: Array = entry
+			(slots[int(restore[0])] as Dictionary)["quantity"] = int(restore[1])
+		for _i in appended:
+			slots.pop_back()
 		_mark_occupancy_dirty()
 		return false
 	changed.emit()
@@ -604,12 +620,38 @@ func _return_equipped_to_grid(slot_name: String) -> bool:
 	return true
 
 
+## The tight version of `can_place` swept over the whole grid.
+##
+## Going through `can_place` per cell re-fetched the item definition and re-checked the occupancy
+## cache up to `grid_width * grid_height` times for a single placement — and a placement happens on
+## every pickup, every loot roll and every unequip. Resolving the definition once and reading the
+## occupancy array directly does the same work with one lookup instead of eighty.
 func _find_first_fit(item_id: String) -> Vector2i:
-	for y in grid_height:
-		for x in grid_width:
-			if can_place(item_id, x, y):
+	var def := get_item_def(item_id)
+	if def.is_empty():
+		return Vector2i(-1, -1)
+	var w: int = def.get("gridWidth", 1)
+	var h: int = def.get("gridHeight", 1)
+	if w <= 0 or h <= 0 or w > grid_width or h > grid_height:
+		return Vector2i(-1, -1)
+	_ensure_occupancy()
+	var max_y := grid_height - h
+	var max_x := grid_width - w
+	for y in range(max_y + 1):
+		for x in range(max_x + 1):
+			if _rect_is_free(x, y, w, h):
 				return Vector2i(x, y)
 	return Vector2i(-1, -1)
+
+
+## Assumes occupancy is current and the rect is in bounds; callers above guarantee both.
+func _rect_is_free(x: int, y: int, w: int, h: int) -> bool:
+	for yy in range(y, y + h):
+		var row := yy * grid_width
+		for xx in range(x, x + w):
+			if _occupancy[row + xx] != -1:
+				return false
+	return true
 
 
 func _repack_slots() -> void:

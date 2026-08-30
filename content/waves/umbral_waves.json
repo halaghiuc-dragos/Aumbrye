@@ -1,11 +1,15 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "id": "umbral_waves",
-  "milestones": [5, 10, 20, 50],
+  "note": "The Vigil. Fifty waves, an intermission every five, a warden every ten. The roster widens one biome family at a time so the player is still learning a new moveset at wave 40.",
+  "finalWave": 50,
+  "intermissionEvery": 5,
+  "bossEvery": 10,
+  "cashOutFromWave": 20,
   "count": {
-    "base": 2,
+    "base": 3,
     "per_half_wave": 1,
-    "cap": 12,
+    "cap": 14,
     "milestone_bonus": 2
   },
   "base_roster": [
@@ -15,7 +19,22 @@
     "castle_hound"
   ],
   "roster_unlocks": [
-    { "wave": 5, "ids": ["castle_knight"] }
+    { "wave": 5, "ids": ["crystal_slime", "crystal_bat", "crystal_spitter"] },
+    { "wave": 10, "ids": ["swamp_bogling", "swamp_toad", "swamp_spitter", "castle_knight"] },
+    { "wave": 15, "ids": ["frost_hound", "frost_archer", "frost_raider"] },
+    { "wave": 20, "ids": ["cathedral_acolyte", "cathedral_shade", "crystal_golem"] },
+    { "wave": 25, "ids": ["iron_needle", "iron_ratchet", "iron_sentinel"] },
+    { "wave": 30, "ids": ["prism_shardling", "prism_lantern", "prism_refractor"] },
+    { "wave": 35, "ids": ["venom_drifter", "venom_censer", "venom_thresher"] },
+    { "wave": 40, "ids": ["glacial_pilgrim", "glacial_keener", "glacial_hollowed"] },
+    { "wave": 45, "ids": ["umbral_penitent", "umbral_cowl", "umbral_censer"] }
+  ],
+  "boss_unlocks": [
+    { "wave": 10, "ids": ["miniboss_castle_captain", "miniboss_crystal_guardian"] },
+    { "wave": 20, "ids": ["boss_castle_knight", "swamp_hydra"] },
+    { "wave": 30, "ids": ["boss_frost_warlord", "miniboss_cathedral_bell"] },
+    { "wave": 40, "ids": ["iron_conclave", "prism_choirmaster"] },
+    { "wave": 50, "ids": ["umbral_hierarch"] }
   ],
   "milestone_bosses": ["boss_castle_knight", "miniboss_castle_captain"],
   "chests": [
@@ -58,20 +77,9 @@
     },
     {
       "id": "supplies",
-      "label": "Supply Cache",
-      "rarity_weights": { "common": 35, "magic": 35, "rare": 20, "epic": 8, "legendary": 2 },
-      "pool": [
-        "health_potion",
-        "mana_potion",
-        "stamina_potion",
-        "elixir_might",
-        "gold_ring",
-        "iron_boots",
-        "iron_sword",
-        "steel_sword",
-        "castle_ring",
-        "ruby_amulet"
-      ],
+      "label": "Supplies",
+      "rarity_weights": { "common": 60, "magic": 30, "rare": 10 },
+      "pool": ["health_potion", "stamina_potion", "mana_potion", "elixir_vigor"],
       "multi_grant": { "min": 2, "max": 4 }
     }
   ]

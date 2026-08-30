@@ -7,9 +7,17 @@ signal inventory_changed
 const RarityRegistryScript := preload("res://scripts/loot/rarity_registry.gd")
 const WAVES_DEFINITION_PATH := "content/waves/umbral_waves.json"
 
-var MILESTONES: Array[int] = [5, 10, 20, 50]
-
 const TORCH_ITEM_ID := "waves_torch"
+
+const DEFAULT_FINAL_WAVE := 50
+const DEFAULT_INTERMISSION_EVERY := 5
+const DEFAULT_BOSS_EVERY := 10
+const DEFAULT_CASH_OUT_FROM := 20
+
+var _final_wave := DEFAULT_FINAL_WAVE
+var _intermission_every := DEFAULT_INTERMISSION_EVERY
+var _boss_every := DEFAULT_BOSS_EVERY
+var _cash_out_from := DEFAULT_CASH_OUT_FROM
 
 var current_wave: int = 0
 var prep_active: bool = false
@@ -52,11 +60,10 @@ func _load_definition() -> void:
 	for entry in data.get("chests", []):
 		if entry is Dictionary:
 			_chest_defs.append(entry)
-	var loaded_milestones: Variant = data.get("milestones", [])
-	if loaded_milestones is Array and not (loaded_milestones as Array).is_empty():
-		MILESTONES.clear()
-		for wave in loaded_milestones:
-			MILESTONES.append(int(wave))
+	_final_wave = maxi(1, int(data.get("finalWave", DEFAULT_FINAL_WAVE)))
+	_intermission_every = maxi(1, int(data.get("intermissionEvery", DEFAULT_INTERMISSION_EVERY)))
+	_boss_every = maxi(1, int(data.get("bossEvery", DEFAULT_BOSS_EVERY)))
+	_cash_out_from = maxi(1, int(data.get("cashOutFromWave", DEFAULT_CASH_OUT_FROM)))
 
 
 func begin_new_run(run_seed: int = 0) -> void:
@@ -70,6 +77,7 @@ func begin_new_run(run_seed: int = 0) -> void:
 	_run_seed = run_seed if run_seed > 0 else randi_range(1, 2_147_483_646)
 	waves_inventory = GridInventory.new(8, 5)
 	_bind_inventory_signals()
+	InventoryService.reset_waves_quick_slots()
 	waves_changed.emit()
 
 
@@ -89,6 +97,7 @@ func restore_from_save(saved: Dictionary) -> void:
 	else:
 		waves_inventory = GridInventory.new(8, 5)
 	_bind_inventory_signals()
+	InventoryService.restore_waves_quick_slots(saved.get("quickSlots", []))
 	waves_changed.emit()
 
 
@@ -109,6 +118,7 @@ func to_save_dict() -> Dictionary:
 		"torchPlaced": torch_placed,
 		"chestsOpened": chests_opened.duplicate(true),
 		"wavesInventory": waves_inventory.to_save_dict(),
+		"quickSlots": InventoryService.get_waves_quick_slots(),
 	}
 
 
@@ -134,12 +144,19 @@ func _chest_salt(index: int) -> int:
 	return index + chest_set * 8191
 
 
+## A fresh set of caches rises at every intermission. The torch hunt is a first-lobby ritual only —
+## after that the cresset is already burning and the player just walks back to it when ready, so
+## later intermissions are pure looting rather than a repeated fetch quest.
 func begin_chest_set() -> void:
 	chest_set += 1
 	chests_opened.clear()
-	lobby_ready = false
-	torch_placed = false
+	torch_placed = true
+	lobby_ready = true
 	waves_changed.emit()
+
+
+func is_first_lobby() -> bool:
+	return chest_set <= 0
 
 
 func get_torch_chest_index() -> int:
@@ -286,7 +303,29 @@ func start_waves() -> void:
 		return
 	current_wave = 1
 	prep_active = false
+	auto_equip_best_weapon()
 	waves_changed.emit()
+
+
+## The Vigil starts you with nothing, so the first wave should not begin with a looted sword still
+## sitting in the grid. If no weapon is equipped, put the best one found so far in your hand.
+func auto_equip_best_weapon() -> bool:
+	if waves_inventory.get_equipped_weapon_id() != "":
+		return false
+	var best_index := -1
+	var best_value := -1.0
+	for index in waves_inventory.slots.size():
+		var slot: Dictionary = waves_inventory.slots[index]
+		var def := ItemCatalog.get_definition(str(slot.get("itemId", "")))
+		if def.get("itemType", "") != "weapon" or str(def.get("weaponId", "")) == "":
+			continue
+		var value := float(def.get("value", 0))
+		if value > best_value:
+			best_value = value
+			best_index = index
+	if best_index < 0:
+		return false
+	return waves_inventory.equip_weapon(best_index)
 
 
 func advance_wave() -> void:
@@ -304,14 +343,44 @@ func leave_prep() -> void:
 	waves_changed.emit()
 
 
-func is_milestone(wave: int) -> bool:
-	return wave in MILESTONES
-
-
 func final_wave() -> int:
-	if MILESTONES.is_empty():
-		return 0
-	return int(MILESTONES[MILESTONES.size() - 1])
+	_ensure_definition()
+	return _final_wave
+
+
+func intermission_every() -> int:
+	_ensure_definition()
+	return _intermission_every
+
+
+## Every fifth wave the walls come back up, a fresh set of caches rises, and the player gets to
+## breathe and re-kit. The final wave never breaks — it ends the run instead.
+func is_intermission_wave(wave: int) -> bool:
+	_ensure_definition()
+	return wave > 0 and wave < _final_wave and wave % _intermission_every == 0
+
+
+## A warden walks every tenth wave, and on the last wave regardless.
+func is_boss_wave(wave: int) -> bool:
+	_ensure_definition()
+	return wave > 0 and (wave == _final_wave or wave % _boss_every == 0)
+
+
+## From here on an intermission also opens the wizard's portal, so the player can bank one item
+## and walk away instead of losing the lot.
+func is_cash_out_wave(wave: int) -> bool:
+	_ensure_definition()
+	return is_intermission_wave(wave) and wave >= _cash_out_from
+
+
+func cash_out_from_wave() -> int:
+	_ensure_definition()
+	return _cash_out_from
+
+
+## Kept for older code paths and save data that still speak in "milestones".
+func is_milestone(wave: int) -> bool:
+	return is_intermission_wave(wave) or is_boss_wave(wave)
 
 
 func is_final_milestone() -> bool:
@@ -326,92 +395,155 @@ func get_kill_count() -> int:
 	return _kill_count
 
 
+## Walking out of the Vigil on your own feet is a total loss — that is the whole tension of the
+## mode. The only way to bank anything before wave 50 is the wizard's portal (`is_cash_out_wave`),
+## and it takes exactly one item.
 func get_early_exit_keep_fraction() -> float:
-	if current_wave >= 25:
-		return 0.5
-	if current_wave >= 10:
-		return 0.25
 	return 0.0
 
 
-func transfer_early_exit_items(keep_fraction: float) -> Array[String]:
-	if keep_fraction <= 0.0:
-		return []
-	var pool: Array[String] = []
+## Every distinct item currently carried in the Vigil loadout, newest chest first, for the
+## cash-out picker. Equipped pieces count — the player can bank the sword they are holding.
+func get_cash_out_options() -> Array[Dictionary]:
+	var options: Array[Dictionary] = []
+	var seen: Dictionary = {}
+	for slot_name in waves_inventory.equipped:
+		var equipped: Variant = waves_inventory.equipped[slot_name]
+		if not equipped is Dictionary:
+			continue
+		_append_cash_out_option(options, seen, equipped as Dictionary, true)
 	for slot in waves_inventory.slots:
-		var item_id := str(slot.get("itemId", ""))
-		if item_id != "":
-			pool.append(item_id)
-	if pool.is_empty():
-		return []
-	var keep_count := maxi(1, int(ceil(float(pool.size()) * keep_fraction)))
-	keep_count = mini(keep_count, pool.size())
-	var rng := RandomNumberGenerator.new()
-	rng.seed = _run_seed + current_wave * 701 + int(keep_fraction * 1000.0)
-	var picked: Array[String] = []
-	var working := pool.duplicate()
-	for _i in keep_count:
-		if working.is_empty():
+		_append_cash_out_option(options, seen, slot, false)
+	return options
+
+
+func _append_cash_out_option(
+	options: Array[Dictionary], seen: Dictionary, slot: Dictionary, is_equipped: bool
+) -> void:
+	var item_id := str(slot.get("itemId", ""))
+	if item_id == "":
+		return
+	var rarity := waves_inventory.get_slot_rarity(slot)
+	var key := "%s|%s" % [item_id, rarity]
+	if seen.has(key):
+		return
+	seen[key] = true
+	options.append(
+		{
+			"itemId": item_id,
+			"rarity": rarity,
+			"equipped": is_equipped,
+			"displayName": waves_inventory.get_slot_display_name(slot),
+		}
+	)
+
+
+## Moves one chosen item out of the Vigil and into the character's real inventory.
+func cash_out_item(item_id: String) -> bool:
+	if item_id == "":
+		return false
+	var carried := false
+	for option in get_cash_out_options():
+		if str(option.get("itemId", "")) == item_id:
+			carried = true
 			break
-		var idx := rng.randi_range(0, working.size() - 1)
-		var item_id: String = str(working[idx])
-		if InventoryService.add_item(item_id, 1):
-			working.remove_at(idx)
-			picked.append(item_id)
-		else:
-			InventoryService.notify_reward_lost(item_id)
-			break
-	return picked
+	if not carried:
+		return false
+	if not InventoryService.add_item(item_id, 1):
+		InventoryService.notify_reward_lost(item_id)
+		return false
+	return true
+
+
+## The roster slides rather than accumulates. If every band stayed in the pool forever, wave 50
+## would still be mostly castle grunts by sheer weight of numbers and the escalation would read as
+## noise. Keeping only the most recent bands means the player is still learning an unfamiliar
+## moveset at wave 40, which is the whole reason the Vigil is fifty waves long.
+const ROSTER_ACTIVE_BANDS := 3
 
 
 func _roster_for_wave(wave: int) -> Array[String]:
-	var roster: Array[String] = []
-	for enemy_id in _definition.get(
-		"base_roster", ["castle_grunt", "castle_archer", "castle_shield", "castle_hound"]
-	):
-		roster.append(str(enemy_id))
+	var unlocked: Array[Dictionary] = []
 	for unlock in _definition.get("roster_unlocks", []):
 		if not unlock is Dictionary:
 			continue
-		if wave < int(unlock.get("wave", 0)):
-			continue
+		if wave >= int((unlock as Dictionary).get("wave", 0)):
+			unlocked.append(unlock)
+	unlocked.sort_custom(
+		func(a: Dictionary, b: Dictionary) -> bool:
+			return int(a.get("wave", 0)) < int(b.get("wave", 0))
+	)
+	var roster: Array[String] = []
+	var active := unlocked.slice(maxi(0, unlocked.size() - ROSTER_ACTIVE_BANDS))
+	for unlock in active:
 		for enemy_id in unlock.get("ids", []):
+			roster.append(str(enemy_id))
+	# The castle roster is the mode's baseline and only fades out once three deeper bands are live.
+	if active.size() < ROSTER_ACTIVE_BANDS or roster.is_empty():
+		for enemy_id in _definition.get(
+			"base_roster", ["castle_grunt", "castle_archer", "castle_shield", "castle_hound"]
+		):
 			roster.append(str(enemy_id))
 	return roster
 
 
 func _enemy_count_for_wave(wave: int) -> int:
 	var count_cfg: Dictionary = _definition.get(
-		"count", {"base": 2, "per_half_wave": 1, "cap": 12, "milestone_bonus": 2}
+		"count", {"base": 3, "per_half_wave": 1, "cap": 14, "milestone_bonus": 2}
 	)
 	var count := mini(
-		int(count_cfg.get("base", 2)) + (wave >> 1) * int(count_cfg.get("per_half_wave", 1)),
-		int(count_cfg.get("cap", 12))
+		int(count_cfg.get("base", 3)) + (wave >> 1) * int(count_cfg.get("per_half_wave", 1)),
+		int(count_cfg.get("cap", 14))
 	)
-	if is_milestone(wave):
+	if is_boss_wave(wave):
+		# A warden brings a smaller escort — the fight should be about the warden.
+		count = maxi(2, count >> 1)
+	elif is_intermission_wave(wave):
 		count += int(count_cfg.get("milestone_bonus", 2))
 	return count
 
 
+## The wardens eligible at this wave: the deepest band the player has reached, so wave 50 does not
+## roll the wave-10 captain.
+func _bosses_for_wave(wave: int) -> Array[String]:
+	var bands: Array = _definition.get("boss_unlocks", [])
+	var best_wave := 0
+	var best_ids: Array[String] = []
+	for band in bands:
+		if not band is Dictionary:
+			continue
+		var band_wave := int((band as Dictionary).get("wave", 0))
+		if band_wave > wave or band_wave < best_wave:
+			continue
+		if band_wave > best_wave:
+			best_ids.clear()
+			best_wave = band_wave
+		for enemy_id in (band as Dictionary).get("ids", []):
+			best_ids.append(str(enemy_id))
+	if best_ids.is_empty():
+		for enemy_id in _definition.get("milestone_bosses", ["boss_castle_knight"]):
+			best_ids.append(str(enemy_id))
+	return best_ids
+
+
 func get_enemies_for_wave(wave: int) -> Array[String]:
 	_ensure_definition()
-	var count := _enemy_count_for_wave(wave)
 	var roster := _roster_for_wave(wave)
 	var enemies: Array[String] = []
+	if roster.is_empty():
+		push_error("WavesRunService: empty roster at wave %d" % wave)
+		return enemies
+	var count := _enemy_count_for_wave(wave)
 	var rng := RandomNumberGenerator.new()
-	rng.seed = _run_seed + wave * 313
-	for i in count:
+	rng.seed = FloorSeedMix.mix(_run_seed, wave * 313)
+	for _i in count:
 		enemies.append(roster[rng.randi_range(0, roster.size() - 1)])
-	if is_milestone(wave):
-		var milestone_bosses: Array = _definition.get(
-			"milestone_bosses", ["boss_castle_knight", "miniboss_castle_captain"]
-		)
-		if not milestone_bosses.is_empty():
+	if is_boss_wave(wave):
+		var bosses := _bosses_for_wave(wave)
+		if not bosses.is_empty():
 			var boss_rng := RandomNumberGenerator.new()
-			boss_rng.seed = _run_seed + wave * 911
-			enemies.append(
-				str(milestone_bosses[boss_rng.randi_range(0, milestone_bosses.size() - 1)])
-			)
+			boss_rng.seed = FloorSeedMix.mix(_run_seed, wave * 911)
+			enemies.append(str(bosses[boss_rng.randi_range(0, bosses.size() - 1)]))
 	return enemies
 
 

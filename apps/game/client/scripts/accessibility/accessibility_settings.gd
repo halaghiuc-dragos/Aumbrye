@@ -376,6 +376,52 @@ static func _default_damage_color(damage_type: String) -> Color:
 			return Color(1.0, 0.2, 0.2)
 
 
+## Attack telegraphs are the one read in the game where getting the colour wrong costs the player
+## the hit: blockable, unblockable and parryable are told apart by tint alone, since the shape of a
+## telegraph says where the attack lands rather than what kind it is. The default triad is amber,
+## red and blue, and amber against red is exactly the pair that collapses under protanopia and
+## deuteranopia -- so the same colourblind setting that remaps damage numbers remaps these too.
+static func get_telegraph_class_color(attack_class: String) -> Color:
+	match colorblind_mode:
+		"protanopia", "deuteranopia":
+			return _cb_telegraph_class_color(attack_class)
+		"tritanopia":
+			return _cb_telegraph_class_color(attack_class, true)
+		_:
+			return _default_telegraph_class_color(attack_class)
+
+
+static func _default_telegraph_class_color(attack_class: String) -> Color:
+	match attack_class:
+		"unblockable":
+			return Color(0.96, 0.24, 0.18)
+		"parryable":
+			return Color(0.42, 0.76, 1.0)
+		_:
+			return Color(0.98, 0.68, 0.20)
+
+
+static func _cb_telegraph_class_color(attack_class: String, tritanopia: bool = false) -> Color:
+	if tritanopia:
+		# Blue and yellow collapse here, so the triad runs red -- white -- cyan instead.
+		match attack_class:
+			"unblockable":
+				return Color(1.0, 0.96, 0.96)
+			"parryable":
+				return Color(0.13, 0.85, 0.95)
+			_:
+				return Color(1.0, 0.36, 0.24)
+	# Red and amber collapse here, so the triad separates on the blue-yellow axis and on
+	# lightness: a saturated amber, a near-white, and a deep blue.
+	match attack_class:
+		"unblockable":
+			return Color(1.0, 0.97, 0.92)
+		"parryable":
+			return Color(0.16, 0.44, 0.98)
+		_:
+			return Color(0.98, 0.80, 0.10)
+
+
 static func _cb_damage_color(damage_type: String, tritanopia: bool = false) -> Color:
 	if tritanopia:
 		match damage_type:

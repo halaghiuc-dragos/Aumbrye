@@ -6,12 +6,17 @@ const PREFIXES_PATH := "content/affixes/prefixes.json"
 const SUFFIXES_PATH := "content/affixes/suffixes.json"
 const RARITY_PATH := "content/affixes/rarity_rules.json"
 const RarityRegistryScript := preload("res://scripts/loot/rarity_registry.gd")
+const ItemQualityScript := preload("res://scripts/items/item_quality.gd")
 const ContentSchemaValidatorScript := preload("res://scripts/app/content_schema_validator.gd")
 
 static var _prefixes: Array = []
 static var _suffixes: Array = []
 static var _rarity_rules: Dictionary = {}
+## Kept beside the per-rarity rules rather than inside them: _parse_rarity_rules reshapes that file
+## into a map keyed by rarity, so anything not per-rarity is dropped on the way through.
+static var _affix_group_limits: Dictionary = {}
 static var _loaded := false
+static var _affix_index: Dictionary = {}
 
 
 static func roll_instance(
@@ -34,7 +39,7 @@ static func roll_instance(
 	)
 	var affix_count := _roll_affix_count(rarity, rng)
 	var item_type: String = str(def.get("itemType", ""))
-	var pool: Array = _build_affix_pool(item_type)
+	var pool: Array = _build_affix_pool(item_type, rarity)
 	var affixes: Array = _pick_weighted_affixes(pool, affix_count, rarity, rng)
 	var instance := {
 		"instanceId": GridInventory.mint_instance_id(item_id),
@@ -44,20 +49,24 @@ static func roll_instance(
 		"affixes": affixes,
 		"rollSeed": effective_seed,
 	}
+	# Condition is rolled from the same rng as the affixes, after them, so an existing seed keeps
+	# producing the affixes it always did and only gains a quality on top.
+	var quality := ItemQualityScript.roll(item_type, rarity, rng)
+	if quality != "":
+		instance["quality"] = quality
 	if OS.is_debug_build():
 		ContentSchemaValidatorScript.validate_roll_instance(instance, item_id)
 	return instance
 
 
+## Affix lookup is on the hot path: `Equipment.slot_stats` resolves the stat for every affix on
+## every equipped piece, and that runs on each inventory change, each stat refresh, each buff tick
+## and each equipment reapply. Scanning both 34-entry arrays per affix turned a per-frame-ish
+## operation into a few hundred string comparisons, so the packs are indexed once on load.
 static func get_affix_stat(affix_id: String) -> String:
 	_ensure_loaded()
-	for affix in _prefixes:
-		if affix.get("id", "") == affix_id:
-			return str(affix.get("stat", ""))
-	for affix in _suffixes:
-		if affix.get("id", "") == affix_id:
-			return str(affix.get("stat", ""))
-	return ""
+	var def: Variant = _affix_index.get(affix_id, null)
+	return str((def as Dictionary).get("stat", "")) if def is Dictionary else ""
 
 
 static func roll_identical(item_id: String, roll_seed: int) -> Dictionary:
@@ -66,13 +75,8 @@ static func roll_identical(item_id: String, roll_seed: int) -> Dictionary:
 
 static func get_affix_def(affix_id: String) -> Dictionary:
 	_ensure_loaded()
-	for affix in _prefixes:
-		if affix.get("id", "") == affix_id:
-			return affix
-	for affix in _suffixes:
-		if affix.get("id", "") == affix_id:
-			return affix
-	return {}
+	var def: Variant = _affix_index.get(affix_id, null)
+	return def if def is Dictionary else {}
 
 
 static func format_affix_line(affix: Dictionary) -> String:
@@ -83,6 +87,8 @@ static func format_affix_line(affix: Dictionary) -> String:
 	var value := float(affix.get("value", 0.0))
 	if def.is_empty():
 		return "%s %s" % [affix_id, str(value)]
+	if is_behavioural(def):
+		return "%s — %s" % [str(def.get("displayName", affix_id)), str(def.get("ruleText", ""))]
 	var stat := str(def.get("stat", ""))
 	var template := str(def.get("template", "+{value} {stat}"))
 	var body := template.replace("{value}", Equipment.format_stat_value(stat, value, false)).replace(
@@ -117,6 +123,12 @@ static func _ensure_loaded() -> void:
 	_prefixes = prefixes.get("affixes", [])
 	_suffixes = suffixes.get("affixes", [])
 	_rarity_rules = _parse_rarity_rules(rules)
+	_affix_group_limits = rules.get("affixGroupLimits", {})
+	_affix_index.clear()
+	for pack in [_prefixes, _suffixes]:
+		for affix in pack:
+			if affix is Dictionary:
+				_affix_index[str((affix as Dictionary).get("id", ""))] = affix
 	_loaded = true
 
 
@@ -190,15 +202,47 @@ static func _pick_rarity(
 	return "common"
 
 
-static func _build_affix_pool(item_type: String) -> Array:
+static func _build_affix_pool(item_type: String, rarity: String = "") -> Array:
 	var pool: Array = []
 	for affix in _prefixes:
-		if _affix_applies_to_item(affix, item_type):
+		if _affix_applies_to_item(affix, item_type) and _affix_allows_rarity(affix, rarity):
 			pool.append(affix)
 	for affix in _suffixes:
-		if _affix_applies_to_item(affix, item_type):
+		if _affix_applies_to_item(affix, item_type) and _affix_allows_rarity(affix, rarity):
 			pool.append(affix)
 	return pool
+
+
+## Behavioural affixes declare a `minRarity` so they cannot land on a common or a magic. Finding
+## one should read as an event, and the flat stat rolls are what make that contrast work.
+static func _affix_allows_rarity(affix_def: Dictionary, rarity: String) -> bool:
+	var minimum := str(affix_def.get("minRarity", ""))
+	if minimum == "" or rarity == "":
+		return true
+	var order: Array = RarityRegistryScript.TIER_ORDER
+	var need := order.find(RarityRegistryScript.normalize(minimum))
+	var have := order.find(RarityRegistryScript.normalize(rarity))
+	if need < 0 or have < 0:
+		return true
+	return have >= need
+
+
+## True when the affix carries CombatEvents rules rather than a stat line.
+static func is_behavioural(affix_def: Dictionary) -> bool:
+	var rules: Variant = affix_def.get("rules", [])
+	return rules is Array and not (rules as Array).is_empty()
+
+
+## The rules an equipped instance's affixes contribute, keyed for CombatEvents registration.
+static func rules_for_instance(instance: Dictionary) -> Array:
+	var out: Array = []
+	for entry in instance.get("affixes", []):
+		if not entry is Dictionary:
+			continue
+		var def := get_affix_def(str((entry as Dictionary).get("affixId", "")))
+		if is_behavioural(def):
+			out.append_array((def.get("rules", []) as Array).duplicate(true))
+	return out
 
 
 static func _affix_applies_to_item(affix_def: Dictionary, item_type: String) -> bool:
@@ -208,12 +252,29 @@ static func _affix_applies_to_item(affix_def: Dictionary, item_type: String) -> 
 	return item_type in types
 
 
+## Which family an affix belongs to, for the stacking limits.
+##
+## Five different flat-damage prefixes are five different affixes on five different stats, so
+## nothing in the roller stopped a weapon taking all of them at once -- and the result added more
+## damage than the weapon itself carried, on every hit, at every attack speed. Grouping them means
+## a weapon can still roll elemental damage, just not five kinds of it.
+static func _affix_group(affix_def: Dictionary) -> String:
+	var stat := str(affix_def.get("stat", ""))
+	if stat in Equipment.FLAT_DAMAGE_STAT_KEYS:
+		return "flatDamage"
+	if stat.begins_with("resist"):
+		return "resist"
+	return stat
+
+
 static func _pick_weighted_affixes(
 	pool: Array, count: int, rarity: String, rng: RandomNumberGenerator
 ) -> Array:
 	var result: Array = []
 	if count <= 0 or pool.is_empty():
 		return result
+	var group_limits: Dictionary = _affix_group_limits
+	var group_taken: Dictionary = {}
 	var candidates: Array = pool.duplicate()
 	while result.size() < count and not candidates.is_empty():
 		var total_weight := 0
@@ -232,6 +293,19 @@ static func _pick_weighted_affixes(
 			break
 		var chosen: Dictionary = candidates[picked_index]
 		candidates.remove_at(picked_index)
+		var group := _affix_group(chosen)
+		if group_limits.has(group):
+			var taken := int(group_taken.get(group, 0))
+			if taken >= int(group_limits[group]):
+				# The family is full. Drop every remaining affix from it so the loop does not
+				# spin re-picking members it is only going to reject.
+				var kept: Array = []
+				for candidate in candidates:
+					if _affix_group(candidate) != group:
+						kept.append(candidate)
+				candidates = kept
+				continue
+			group_taken[group] = taken + 1
 		var value := _roll_tier_value(chosen, rarity, rng)
 		(
 			result
@@ -248,6 +322,8 @@ static func _pick_weighted_affixes(
 static func _roll_tier_value(
 	affix_def: Dictionary, rarity: String, rng: RandomNumberGenerator
 ) -> float:
+	if is_behavioural(affix_def):
+		return 0.0
 	var tiers: Variant = affix_def.get("tiers", {})
 	if not tiers is Dictionary:
 		return float(rng.randi_range(1, 3))

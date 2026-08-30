@@ -17,7 +17,9 @@ static func get_icon(item_id: String, icon_path: String = "") -> AtlasTexture:
 	var atlas := _atlas()
 	if atlas == null:
 		return AtlasTexture.new()
-	return atlas.cell(item_id) if atlas.has_cell(item_id) else atlas.cell("unknown")
+	# No fallback marker: the sheet is built with a cell for every item in the content tree, and
+	# the build fails if one is missing. An id that misses here is a bug worth an error, not a "?".
+	return atlas.cell(item_id)
 
 
 static func get_slot_icon(slot_name: String) -> AtlasTexture:

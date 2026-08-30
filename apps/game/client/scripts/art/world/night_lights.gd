@@ -109,4 +109,11 @@ func _apply(dusk: float) -> void:
 		var base: float = light.get_meta(META_BASE_ENERGY, light.light_energy)
 		light.light_energy = base * _lit_fraction(dusk, float(light.get_meta(META_THRESHOLD, 0.0)))
 	if stale:
-		_lights = _lights.filter(func(l: Light3D) -> bool: return is_instance_valid(l))
+		# Rebuilt by hand rather than with filter(): a freed entry arrives at the
+		# predicate as a plain Object, which will not bind to a Light3D parameter,
+		# and filter()'s untyped Array will not assign back to a typed one either.
+		var live: Array[Light3D] = []
+		for light in _lights:
+			if is_instance_valid(light):
+				live.append(light)
+		_lights = live

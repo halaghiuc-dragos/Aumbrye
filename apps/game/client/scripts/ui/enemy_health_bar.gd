@@ -5,7 +5,6 @@ class_name EnemyHealthBar
 const PixelStyle := preload("res://scripts/art/style/pixel_diorama_style.gd")
 ## The attack-class colours live on VfxService, so the wind-up meter and the ground telegraph
 ## cannot drift apart.
-const VfxServiceScript := preload("res://scripts/art/vfx/vfx_service.gd")
 
 const BAR_TEX_W := 28
 const BAR_TEX_H := 3
@@ -94,7 +93,7 @@ func _build_sprites() -> void:
 		"AttackFill",
 		BAR_PRIORITY_FILL,
 		ATTACK_BAR_OFFSET_Y,
-		VfxServiceScript.TELEGRAPH_CLASS_TINTS["blockable"],
+		AccessibilitySettings.get_telegraph_class_color("blockable"),
 		_fill_step_texture(FILL_TEX_W)
 	)
 	_poise_bg_sprite = _make_bar_sprite(
@@ -149,8 +148,10 @@ func _on_poise_broken() -> void:
 
 func begin_attack_telegraph(_duration: float, attack_class: String = "blockable") -> void:
 	if _attack_fill_sprite:
-		_attack_fill_sprite.modulate = VfxServiceScript.TELEGRAPH_CLASS_TINTS.get(
-			attack_class, VfxServiceScript.TELEGRAPH_CLASS_TINTS["blockable"]
+		# The same source as the ground telegraph, so the bar over an enemy's head and the ring
+		# under its feet never disagree about whether an attack can be blocked.
+		_attack_fill_sprite.modulate = AccessibilitySettings.get_telegraph_class_color(
+			attack_class
 		)
 	if _attack_bg_sprite:
 		_attack_bg_sprite.visible = true

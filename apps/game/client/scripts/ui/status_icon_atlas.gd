@@ -12,9 +12,6 @@ static func get_icon(status_id: String) -> AtlasTexture:
 	var atlas := _atlas()
 	if atlas == null:
 		return AtlasTexture.new()
-	if not atlas.has_cell(status_id):
-		push_warning("status icon missing for id '%s'" % status_id)
-		return atlas.cell("unknown")
 	return atlas.cell(status_id)
 
 

@@ -245,7 +245,7 @@ func get_weapon_art_cooldown_duration() -> float:
 
 
 func _cooldown_duration_multiplier() -> float:
-	var reduction: float = float(_talent_stats.get("cooldownReduction", 0.0))
+	var reduction := CombatStatModifiersScript.cooldown_reduction(_equipment_stats, _talent_stats)
 	return maxf(0.1, 1.0 - reduction)
 
 
@@ -652,9 +652,29 @@ func _clear_execution_state() -> void:
 	_execution_target = null
 
 
-func _start_attack(attack: Dictionary) -> void:
+## Attack speed is applied once, here, by scaling the timings into the copy of the attack this
+## swing will use. Every consumer downstream -- the phase machine, the animation director, the
+## cancel window, the lunge -- reads its timings off `_current_attack`, so scaling at the source
+## is the only way they are guaranteed to agree. Scaling at each call site instead would let the
+## hitbox open on a frame the animation had not reached yet the first time one was missed.
+##
+## The copy matters: the attack dictionaries come straight out of the weapon data, and writing
+## scaled numbers back into those would compound the multiplier on every swing.
+func _scaled_attack(attack: Dictionary) -> Dictionary:
+	var scale := CombatStatModifiersScript.attack_phase_scale(_equipment_stats, _talent_stats)
+	if is_equal_approx(scale, 1.0):
+		return attack
+	var scaled := attack.duplicate(true)
+	for key in ["startup", "active", "recovery", "cancel_after"]:
+		if scaled.has(key):
+			scaled[key] = float(scaled[key]) * scale
+	return scaled
+
+
+func _start_attack(attack_source: Dictionary) -> void:
 	if _stamina:
 		_stamina.set_regen_state(Stamina.RegenState.SUPPRESSED)
+	var attack := _scaled_attack(attack_source)
 	_current_attack = attack
 	is_attacking = true
 	current_phase = AttackPhase.STARTUP
@@ -716,8 +736,13 @@ func _process_attack_phase(delta: float) -> void:
 func _enable_hitbox_for_attack() -> void:
 	if _hitbox == null or not _hitbox.has_method("enable"):
 		return
-	var dmg: float = float(_current_attack.get("damage", 10.0)) * _damage_multiplier
-	dmg += CombatStatModifiersScript.flat_damage_bonus(_equipment_stats)
+	var base_damage: float = float(_current_attack.get("damage", 10.0))
+	var dmg: float = base_damage * _damage_multiplier
+	dmg += CombatStatModifiersScript.flat_damage_bonus(
+		_equipment_stats,
+		CombatStatModifiersScript.attack_weight(_current_attack, _weapon_data),
+		base_damage
+	)
 	if _body:
 		dmg *= ClassPerks.bloodrage_damage_multiplier(
 			_body, _body.get_node_or_null("Health") as Health
@@ -841,8 +866,13 @@ func _spawn_arrow(attack: Dictionary, charge: float) -> void:
 		var to_target: Vector3 = (_lock_on.current_target as Node3D).global_position - origin
 		if to_target.length_squared() > 0.01:
 			direction = to_target.normalized()
-	var dmg: float = float(attack.get("damage", 20.0)) * _damage_multiplier
-	dmg += CombatStatModifiersScript.flat_damage_bonus(_equipment_stats)
+	var shot_damage: float = float(attack.get("damage", 20.0))
+	var dmg: float = shot_damage * _damage_multiplier
+	dmg += CombatStatModifiersScript.flat_damage_bonus(
+		_equipment_stats,
+		CombatStatModifiersScript.attack_weight(attack, _weapon_data),
+		shot_damage
+	)
 	var poise: float = (
 		float(attack.get("poise_damage", 15.0))
 		* _damage_multiplier

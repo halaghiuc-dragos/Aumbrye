@@ -12,6 +12,14 @@ const INTERRUPT_DAMAGE_THRESHOLD := 4.0
 
 const HEAL_COMMIT_FRACTION := 0.62
 
+## Passive regeneration from gear.
+##
+## Thirteen items have carried `healthRegen` since the first loot pass with nothing reading it.
+## It lives here rather than on Health because it is the same decision the flask is: how much
+## pressure the player is under between fights. Regen holds off for a moment after a hit, so it
+## tops the player up between encounters without quietly winning one for them.
+const REGEN_SUPPRESSION_AFTER_HIT := 4.0
+
 signal charges_changed(current: int, max_value: int)
 signal heal_started
 signal heal_ended
@@ -28,6 +36,7 @@ var _reactions: Node
 var _anim_director: Node
 var _drink_timer := 0.0
 var _heal_committed := false
+var _regen_suppressed := 0.0
 
 
 func _ready() -> void:
@@ -61,6 +70,8 @@ func _bind_interrupt_signals() -> void:
 
 
 func _on_hurt_received(amount: float, _poise_damage: float, _direction: Vector3) -> void:
+	if amount > 0.0:
+		suppress_regen()
 	if not is_drinking:
 		return
 	if amount < INTERRUPT_DAMAGE_THRESHOLD:
@@ -113,6 +124,7 @@ func _connect_heal_anim_signals() -> void:
 
 
 func _physics_process(delta: float) -> void:
+	_process_regen(delta)
 	if not is_drinking:
 		if PlayerInput.just_pressed(&"heal"):
 			_try_drink()
@@ -120,6 +132,25 @@ func _physics_process(delta: float) -> void:
 	_drink_timer -= delta
 	if _drink_timer <= 0.0:
 		_finish_drink()
+
+
+func _process_regen(delta: float) -> void:
+	if _regen_suppressed > 0.0:
+		_regen_suppressed -= delta
+		return
+	if _health == null or _health.is_dead() or _health.current >= _health.max_health:
+		return
+	var per_second := 0.0
+	if _body:
+		per_second = float(_body.get_meta("combat_health_regen", 0.0))
+	if per_second <= 0.0:
+		return
+	_health.heal(per_second * delta)
+
+
+## Called when the player is hit, so regeneration cannot tick through a fight.
+func suppress_regen() -> void:
+	_regen_suppressed = REGEN_SUPPRESSION_AFTER_HIT
 
 
 func refill_charges() -> void:

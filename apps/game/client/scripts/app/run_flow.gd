@@ -34,7 +34,7 @@ const MAX_LOOT_HISTORY_TRACKED := 500
 const RM := preload("res://scripts/app/run_mode_config.gd")
 const SkipFloorSvc := preload("res://scripts/dungeon/skip_floor_service.gd")
 const XP_SHARD_FLAG := "recoverable_xp_shard"
-const DEATH_GOLD_STAKE_RATIO := 0.4
+const DEATH_GOLD_STAKE_RATIO := 0.15
 
 const CloudOutboxScript := preload("res://scripts/net/cloud_outbox.gd")
 
@@ -51,6 +51,7 @@ var _pending_mode_floors := 0
 var _active_alternate_mode := ""
 var _active_challenge: Dictionary = {}
 var _run_highlights: Dictionary = {}
+var _repeat_descriptor: Dictionary = {}
 
 var run_mode: String = "castle"
 
@@ -693,9 +694,69 @@ func on_player_died() -> void:
 	_goto_scene(RESULTS_SCENE)
 
 
+## Remembers what the player just played so the results screen can offer it again in one press.
+## The single biggest lever on "one more run" is not making them walk back through the hub.
+func _capture_repeat_descriptor() -> void:
+	_repeat_descriptor = {
+		"mode": run_mode,
+		"dungeonId": current_dungeon_id,
+		"difficultyTier": current_difficulty_tier,
+	}
+
+
+func can_repeat_run() -> bool:
+	var mode := str(_repeat_descriptor.get("mode", ""))
+	if mode == "":
+		return false
+	if _active_alternate_mode != "" or not _active_challenge.is_empty():
+		return false
+	if ModeUnlockService and not ModeUnlockService.is_unlocked(mode):
+		return false
+	return true
+
+
+func describe_repeat() -> String:
+	match str(_repeat_descriptor.get("mode", "")):
+		RM.MODE_WAVES:
+			return tr("RESULTS_VIGIL_AGAIN")
+		RM.MODE_ENDLESS:
+			return tr("RESULTS_LONG_DARK_AGAIN")
+		_:
+			return tr("RESULTS_DESCEND_AGAIN")
+
+
+## Straight from the results screen into another run of the same shape — same mode, same dungeon,
+## same difficulty, fresh seed.
+func repeat_last_run() -> void:
+	if not can_repeat_run():
+		return_to_hub()
+		return
+	var descriptor := _repeat_descriptor.duplicate(true)
+	_repeat_descriptor.clear()
+	_run_starting = false
+	_run_active = false
+	last_hub_message = ""
+	_clear_run_meta()
+	LocalSave.autosave_checkpoint()
+	match str(descriptor.get("mode", "")):
+		RM.MODE_WAVES:
+			LocalSave.clear_waves_active_run()
+			WavesRunService.begin_new_run()
+			start_waves_run()
+		RM.MODE_ENDLESS:
+			start_endless_run(1)
+		_:
+			await start_new_run(
+				str(descriptor.get("dungeonId", DungeonCatalog.DEFAULT_DUNGEON_ID)),
+				null,
+				int(descriptor.get("difficultyTier", 1))
+			)
+
+
 func _finish_run(
 	outcome: String, cloud_outcome: String, elapsed: float, boss_defeated: bool
 ) -> void:
+	_capture_repeat_descriptor()
 	var run_id := current_run_id
 	var loot_instance_ids := _loot_claimed_instance_ids.duplicate()
 	if run_mode == RM.MODE_WAVES:
@@ -705,6 +766,10 @@ func _finish_run(
 	LocalSave.autosave_checkpoint()
 	QuestService.register_run_outcome(outcome, {"run_mode": run_mode})
 	MerchantService.restock_all()
+	# Progress has moved as far as it is going to for this run — open anything it earned before
+	# the results screen draws, so the screen can show what the run added to the vault.
+	if VaultService:
+		VaultService.evaluate()
 	_decorate_run_results()
 	run_ended.emit(last_run_results)
 	if cloud_outcome != "":
@@ -1206,6 +1271,12 @@ func is_run_active() -> bool:
 	return _run_active
 
 
+## True while the scene being entered is a floor change rather than the start of a run.
+func has_floor_transition() -> bool:
+	var tree := get_tree()
+	return tree != null and tree.root.has_meta("floor_transition")
+
+
 func is_continue_restore() -> bool:
 	return _is_continue
 
@@ -1373,21 +1444,21 @@ func _mark_dungeon_cleared(dungeon_id: String) -> void:
 func _escape_rules_summary() -> String:
 	return (
 		"Escaped alive: kept all loot and full XP. "
-		+ "The tower releases you — your echo returns to Aumbrye Tower with proof of the oath."
+		+ "The tower releases you — your umbral returns to Aumbrye Tower with proof of the oath."
 	)
 
 
 func _death_rules_summary() -> String:
 	return (
-		"The tower pulls you back: 50% XP saved, the rest lingers as a recoverable echo at your death spot, "
+		"The tower pulls you back: 50% XP saved, the rest lingers as a recoverable umbral at your death spot, "
 		+ "together with a share of your coin. Die again before you reach it and it is gone. "
-		+ "Run loot and relics are lost. Your echo wakes in Aumbrye Tower — the ascent begins again."
+		+ "Run loot and relics are lost. Your umbral wakes in Aumbrye Tower — the ascent begins again."
 	)
 
 
 func _respawn_rules_summary() -> String:
 	return (
-		"Bonfire respawn: 50% XP saved, the rest lingers as a recoverable echo at your death spot. "
+		"Bonfire respawn: 50% XP saved, the rest lingers as a recoverable umbral at your death spot. "
 		+ "Loot gained since the last bonfire was stripped."
 	)
 
@@ -1668,26 +1739,67 @@ func _start_waves_run(is_continue: bool) -> void:
 		CombatEvents.dispatch(CombatEvents.ON_RUN_START, {})
 
 
+## Walking out under your own power. The Vigil loadout is lost in full — the summoner's portal is
+## the only way to bank anything before the final wave.
 func quit_waves_run() -> void:
 	if run_mode != RM.MODE_WAVES:
 		return
 	var wave := WavesRunService.current_wave
-	var keep_fraction := WavesRunService.get_early_exit_keep_fraction()
-	var kept_items: Array[String] = []
-	if keep_fraction > 0.0:
-		kept_items = WavesRunService.transfer_early_exit_items(keep_fraction)
 	LocalSave.clear_waves_active_run()
 	WavesRunService.begin_new_run()
 	_run_active = false
-	if keep_fraction > 0.0 and not kept_items.is_empty():
-		last_hub_message = (
-			"Left waves at wave %d — kept %d item(s) (%d%% milestone transfer)."
-			% [wave, kept_items.size(), int(round(keep_fraction * 100.0))]
-		)
-	else:
-		last_hub_message = "Left waves early — loadout was not kept."
+	last_hub_message = (
+		"Left the Vigil at wave %d. The loadout stayed behind." % wave
+		if wave > 0
+		else "Left the Vigil before it began."
+	)
 	_clear_in_run_meta()
 	return_to_hub(last_hub_message)
+
+
+## The summoner's offer: one carried item comes home, the Vigil ends, and everything else is left
+## on the floor. Runs the full results screen so the exit still feels like a run that concluded.
+func cash_out_waves_run(item_id: String) -> void:
+	if run_mode != RM.MODE_WAVES:
+		return
+	var wave := WavesRunService.current_wave
+	var elapsed := 0.0
+	if _run_start_time > 0.0:
+		elapsed = (Time.get_ticks_msec() / 1000.0) - _run_start_time
+	var banked := WavesRunService.cash_out_item(item_id)
+	var kept: Array[String] = [item_id] if banked else []
+	_record_waves_progress(false)
+	CharacterService.set_flag(
+		"waves_cash_outs", int(CharacterService.get_flag("waves_cash_outs")) + 1
+	)
+	var xp_award := int(round(WAVES_COMPLETION_XP * clampf(float(wave) / 50.0, 0.1, 1.0)))
+	var xp_result := ProgressionService.grant_xp(xp_award, "waves_cash_out")
+	last_run_results = (
+		RunLifecycle
+		. build_results(
+			RunLifecycle.OUTCOME_WAVES_COMPLETE,
+			elapsed,
+			WavesRunService.get_kill_count(),
+			kept,
+			xp_result,
+			xp_award,
+			(
+				"Left the Vigil at wave %d through the summoner's portal, carrying one thing."
+				% wave
+			),
+			{
+				"run_mode": RM.MODE_WAVES,
+				"floor_reached": wave,
+				"boss_defeated": false,
+				"loot_kept": banked,
+				"run_relics_lost": false,
+				"loot_lost": [],
+			}
+		)
+	)
+	WavesRunService.begin_new_run()
+	_finish_run(RunLifecycle.OUTCOME_WAVES_COMPLETE, "", elapsed, false)
+	_goto_scene(RESULTS_SCENE)
 
 
 func complete_waves_run(rewards: Array[String]) -> void:
@@ -1695,6 +1807,7 @@ func complete_waves_run(rewards: Array[String]) -> void:
 	var elapsed := (Time.get_ticks_msec() / 1000.0) - _run_start_time
 	for item_id in rewards:
 		InventoryService.add_item(item_id, 1)
+	_record_waves_progress(true)
 	var xp_result := ProgressionService.grant_xp(WAVES_COMPLETION_XP, "waves")
 	last_run_results = (
 		RunLifecycle
@@ -1720,10 +1833,22 @@ func complete_waves_run(rewards: Array[String]) -> void:
 	_goto_scene(RESULTS_SCENE)
 
 
+## Records how far the Vigil got. `completed` also advances the endless-mode unlock counter.
+func _record_waves_progress(completed: bool) -> void:
+	var reached := WavesRunService.current_wave
+	if reached > int(CharacterService.get_flag("waves_best_wave")):
+		CharacterService.set_flag("waves_best_wave", reached)
+	if completed:
+		CharacterService.set_flag(
+			"waves_completions", int(CharacterService.get_flag("waves_completions")) + 1
+		)
+
+
 func on_waves_failed() -> void:
 	var elapsed := 0.0
 	if _run_start_time > 0.0:
 		elapsed = (Time.get_ticks_msec() / 1000.0) - _run_start_time
+	_record_waves_progress(false)
 	var had_relics := _had_run_relics()
 	last_run_results = (
 		RunLifecycle

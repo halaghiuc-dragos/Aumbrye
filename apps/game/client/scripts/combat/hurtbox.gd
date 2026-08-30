@@ -5,8 +5,20 @@ const DEBUG_SCRIPT := preload("res://scripts/combat/combat_collision_debug.gd")
 const MaterialFlashScript := preload("res://scripts/art/characters/material_flash.gd")
 const DamageResolutionScript := preload("res://scripts/combat/damage_resolution.gd")
 const HitFeedbackScript := preload("res://scripts/combat/hit_feedback.gd")
-const DEFENSE_PER_POINT := 0.02
-const DEFENSE_CAP := 0.9
+## Armour follows a diminishing-returns curve rather than a straight line.
+##
+## The old rule was `points * 0.02`, capped at 90%. Defence and armour sum across all nine
+## equipment slots, and the gear in the content tree carries enough of both that the player crossed
+## the cap in the *second* biome of ten -- from there on they took a flat tenth of every hit, for
+## the rest of the game, no matter what hit them. That is why a training dummy could swing at the
+## player all day and why every telegraph in the game was safe to ignore.
+##
+## `points / (points + DEFENSE_SOFTENING)` never reaches immunity, so another point of armour is
+## always worth something and never trivialises the fight. At the softening constant below a
+## starting loadout removes about a fifth of incoming damage and a fully geared one about a half.
+## The remaining cap is there so flat damageReduction cannot stack past it either.
+const DEFENSE_SOFTENING := 150.0
+const DEFENSE_CAP := 0.75
 const HYPERARMOR_POISE_MULT := 0.25
 const POISE_BROKEN_DAMAGE_MULT := 1.35
 const EXHAUSTED_POISE_MULT := 1.5
@@ -82,6 +94,18 @@ func receive_hit(info: DamageInfo) -> void:
 			return
 
 	var owner_body := _cached_character_body
+	# Evasion is rolled before guard, arc and armour so a slipped hit is a clean miss rather than a
+	# hit that happens to arrive at zero: the difference is visible, since a miss plays no impact,
+	# costs no poise and cannot apply a status.
+	if not info.periodic and _roll_evasion(owner_body):
+		res.dodged = true
+		res.outgoing = 0.0
+		res.poise_outgoing = 0.0
+		var evade_feedback := owner_body.get_node_or_null("HitFeedback") if owner_body else null
+		if evade_feedback and evade_feedback.has_method("on_dodge_iframe"):
+			evade_feedback.call("on_dodge_iframe")
+		hit_resolved.emit(res)
+		return
 	if owner_body and owner_body.has_method("is_immune") and owner_body.call("is_immune"):
 		res.outgoing = 0.0
 		res.poise_outgoing = 0.0
@@ -199,6 +223,15 @@ func _apply_arc_multipliers(
 	return amount * dmg_mult
 
 
+func _roll_evasion(body: Node) -> bool:
+	if body == null:
+		return false
+	var chance := float(body.get_meta("combat_evasion", 0.0))
+	if chance <= 0.0:
+		return false
+	return randf() < chance
+
+
 func _apply_defense(amount: float) -> float:
 	if amount <= 0.0:
 		return amount
@@ -209,7 +242,8 @@ func _apply_defense(amount: float) -> float:
 	var damage_reduction := float(body.get_meta("combat_damage_reduction", 0.0))
 	if defense <= 0.0 and damage_reduction <= 0.0:
 		return amount
-	var reduction := clampf(defense * DEFENSE_PER_POINT + damage_reduction, 0.0, DEFENSE_CAP)
+	var from_armour := maxf(0.0, defense) / (maxf(0.0, defense) + DEFENSE_SOFTENING)
+	var reduction := clampf(from_armour + damage_reduction, 0.0, DEFENSE_CAP)
 	return amount * (1.0 - reduction)
 
 

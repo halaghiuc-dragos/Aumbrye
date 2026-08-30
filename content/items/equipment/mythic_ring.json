@@ -8,6 +8,14 @@
   "rarity": "aumbral",
   "description": "A band of star-metal humming at the tower's threshold.",
   "value": 20,
+  "ruleText": "Critical hits return 4% of the damage as health.",
+  "rules": [
+    {
+      "event": "onCrit",
+      "effect": "lifesteal",
+      "pct": 0.04
+    }
+  ],
   "stats": {
     "physicalDamage": 10,
     "arcaneDamage": 10,

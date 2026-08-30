@@ -1,16 +1,25 @@
 {
-    "id":  "mythic_crown",
-    "name":  "Mythic Crown",
-    "itemType":  "armor",
-    "gridWidth":  2,
-    "gridHeight":  2,
-    "stackSize":  1,
-    "rarity":  "aumbral",
-    "description":  "A circlet of forgotten kings — weighty with names no one speaks.",
-    "value":  20,
-    "stats":  {
-                  "maxHealth":  50,
-                  "defense":  12
-              },
-    "equipmentSlot":  "helmet"
+  "id": "mythic_crown",
+  "name": "Mythic Crown",
+  "itemType": "armor",
+  "gridWidth": 2,
+  "gridHeight": 2,
+  "stackSize": 1,
+  "rarity": "aumbral",
+  "description": "A circlet of forgotten kings — weighty with names no one speaks.",
+  "value": 20,
+  "ruleText": "Clearing a room restores a flask charge, once per room.",
+  "rules": [
+    {
+      "event": "onRoomClear",
+      "effect": "refund_flask",
+      "amount": 1.0,
+      "cooldown": 5.0
+    }
+  ],
+  "stats": {
+    "maxHealth": 50,
+    "defense": 12
+  },
+  "equipmentSlot": "helmet"
 }

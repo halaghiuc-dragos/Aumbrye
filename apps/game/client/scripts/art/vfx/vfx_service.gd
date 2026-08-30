@@ -291,15 +291,12 @@ func play_weapon_trail(
 	play("weapon_trail", world_pos, forward, tint, Vector3.UP, {"radius": radius})
 
 
-const TELEGRAPH_CLASS_TINTS := {
-	"blockable": Color(0.98, 0.68, 0.20, 1.0),
-	"unblockable": Color(0.96, 0.24, 0.18, 1.0),
-	"parryable": Color(0.42, 0.76, 1.0, 1.0),
-}
-
-
+## The triad lives in AccessibilitySettings alongside the damage-number colours, because it has to
+## be remapped for the same colourblind modes and for the same reason.
 func telegraph_class_tint(attack_class: String) -> Color:
-	return TELEGRAPH_CLASS_TINTS.get(attack_class, TELEGRAPH_CLASS_TINTS["blockable"])
+	var tint := AccessibilitySettings.get_telegraph_class_color(attack_class)
+	tint.a = 1.0
+	return tint
 
 
 func play_telegraph(

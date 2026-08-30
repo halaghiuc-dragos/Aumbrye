@@ -5,6 +5,7 @@ const FLAG_UNLOCKED_COUNT := "dungeon_unlocked_count"
 const FLAG_MAX_TIER_LEGACY := "dungeon_max_tier"
 const FLAG_DIFFICULTY_PREFIX := "dungeon_tier_"
 const FLAG_BEST_PREFIX := "dungeon_best_"
+const FLAG_DEPTH_CLEARED := "dungeon_depth_cleared"
 const MAX_TIER := 10
 const MAX_DEPTH := MAX_TIER
 const HUB_LABEL_PREFIX := "Aumbrye Dungeons — Depth "
@@ -139,8 +140,21 @@ func get_difficulty_ladder(dungeon_id: String) -> Array[Dictionary]:
 	return rows
 
 
+## The deepest dungeon order this character has actually beaten, as opposed to merely unlocked.
+##
+## `FLAG_DEPTH_CLEARED` only started being written when the mode ladder landed, so a save from
+## before that carries 0. Unlocking depth N is only possible by clearing order N-1, so the old
+## unlock count is a sound floor and a veteran save keeps the access it earned.
+func get_deepest_cleared() -> int:
+	var recorded := int(CharacterService.get_flag(FLAG_DEPTH_CLEARED))
+	var implied := get_max_unlocked_tier() - 1
+	return clampi(maxi(recorded, implied), 0, MAX_DEPTH)
+
+
 func on_dungeon_cleared(dungeon_id: String, difficulty_tier: int = 1) -> void:
 	var cleared_order := DungeonCatalog.get_order_for_dungeon(dungeon_id)
+	if cleared_order > get_deepest_cleared():
+		CharacterService.set_flag(FLAG_DEPTH_CLEARED, clampi(cleared_order, 0, MAX_DEPTH))
 	if cleared_order >= get_max_unlocked_tier() and cleared_order < MAX_DEPTH:
 		unlock_next_tier()
 	if difficulty_tier >= get_unlocked_difficulty_cap(dungeon_id):

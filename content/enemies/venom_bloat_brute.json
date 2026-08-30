@@ -7,7 +7,7 @@
   "health": 305,
   "poise": 173,
   "move_speed": 2.8,
-  "attack_damage": 33,
+  "attack_damage": 46,
   "attack_poise_damage": 38,
   "windup_duration": 0.85,
   "active_duration": 0.2,
@@ -37,7 +37,7 @@
       "windup_variance": 0.1,
       "active_duration": 0.2,
       "recovery_duration": 1.1,
-      "attack_damage": 36,
+      "attack_damage": 50,
       "attack_poise_damage": 49,
       "max_range": 2.6,
       "telegraph_radius": 2.21,
@@ -54,7 +54,7 @@
       "windup_variance": 0.2,
       "active_duration": 0.27,
       "recovery_duration": 1.65,
-      "attack_damage": 53,
+      "attack_damage": 74,
       "attack_poise_damage": 74,
       "max_range": 2.86,
       "telegraph_radius": 2.99,
@@ -71,7 +71,7 @@
       "windup_variance": 0.3,
       "active_duration": 0.24,
       "recovery_duration": 1.43,
-      "attack_damage": 43,
+      "attack_damage": 60,
       "attack_poise_damage": 59,
       "max_range": 3.64,
       "telegraph_radius": 3.12,
@@ -79,6 +79,29 @@
       "damage_type": "poison",
       "status_on_hit": "poison",
       "status_stacks_on_hit": 2
+    },
+    {
+      "id": "sig_bloom",
+      "name": "Bloom",
+      "weight": 1.2,
+      "windup_duration": 1.25,
+      "windup_variance": 0.15,
+      "active_duration": 0.2,
+      "recovery_duration": 1.1,
+      "attack_damage": 36,
+      "attack_poise_damage": 30,
+      "max_range": 4.2,
+      "telegraph_radius": 4.0,
+      "telegraph_shape": "ring",
+      "damage_type": "poison",
+      "status_on_hit": "poison",
+      "status_stacks_on_hit": 3,
+      "spawn_hazard": {
+        "scene": "res://scenes/traps/poison_pool.tscn",
+        "count": 3,
+        "radius": 5.0,
+        "lifetime": 10.0
+      }
     }
   ]
 }

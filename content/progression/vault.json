@@ -1,0 +1,327 @@
+{
+  "schemaVersion": 1,
+  "note": "The Warden's Vault. Anything listed here is withheld from the run pools until its trigger fires; anything NOT listed is available from the first run. Unlocking is permanent per character and is what makes run 40 contain things run 1 could not.",
+  "entries": [
+    {
+      "id": "vault_penitent_chain",
+      "type": "relic",
+      "grants": "penitent_chain",
+      "name": "Penitent Chain",
+      "flavour": "Cut from the warden's own vigil-chain. It remembers being held.",
+      "trigger": {
+        "type": "biomeCleared",
+        "key": "forgotten_castle"
+      }
+    },
+    {
+      "id": "vault_the_narrow_path",
+      "type": "relic",
+      "grants": "the_narrow_path",
+      "name": "The Narrow Path",
+      "flavour": "Walked once, by someone who did not come back the same width.",
+      "trigger": {
+        "type": "dungeonDepth",
+        "value": 2
+      }
+    },
+    {
+      "id": "vault_mourners_interest",
+      "type": "relic",
+      "grants": "mourners_interest",
+      "name": "Mourner's Interest",
+      "flavour": "Grief, compounding.",
+      "trigger": {
+        "type": "biomeCleared",
+        "key": "frozen_fortress"
+      }
+    },
+    {
+      "id": "vault_the_cold_room",
+      "type": "relic",
+      "grants": "the_cold_room",
+      "name": "The Cold Room",
+      "flavour": "Where they laid the ones the frost took first.",
+      "trigger": {
+        "type": "biomeCleared",
+        "key": "glacial_hollow"
+      }
+    },
+    {
+      "id": "vault_rot_in_the_well",
+      "type": "relic",
+      "grants": "rot_in_the_well",
+      "name": "Rot In The Well",
+      "flavour": "They stopped drawing from it. They did not stop drinking.",
+      "trigger": {
+        "type": "biomeCleared",
+        "key": "poison_swamp"
+      }
+    },
+    {
+      "id": "vault_ash_in_the_lungs",
+      "type": "relic",
+      "grants": "ash_in_the_lungs",
+      "name": "Ash In The Lungs",
+      "flavour": "The mire breathes out. Something has to breathe it in.",
+      "trigger": {
+        "type": "biomeCleared",
+        "key": "venom_mire"
+      }
+    },
+    {
+      "id": "vault_the_ember_tithe",
+      "type": "relic",
+      "grants": "the_ember_tithe",
+      "name": "The Ember Tithe",
+      "flavour": "Paid nightly, in the only currency the forge accepted.",
+      "trigger": {
+        "type": "biomeCleared",
+        "key": "iron_vault"
+      }
+    },
+    {
+      "id": "vault_the_stone_saint",
+      "type": "relic",
+      "grants": "the_stone_saint",
+      "name": "The Stone Saint",
+      "flavour": "Carved facing the door. Nobody remembers deciding that.",
+      "trigger": {
+        "type": "biomeCleared",
+        "key": "dark_cathedral"
+      }
+    },
+    {
+      "id": "vault_answered_in_kind",
+      "type": "relic",
+      "grants": "answered_in_kind",
+      "name": "Answered In Kind",
+      "flavour": "The prism gives back exactly what is put to it.",
+      "trigger": {
+        "type": "biomeCleared",
+        "key": "prism_depths"
+      }
+    },
+    {
+      "id": "vault_a_share_of_ruin",
+      "type": "relic",
+      "grants": "a_share_of_ruin",
+      "name": "A Share Of Ruin",
+      "flavour": "Split evenly, as agreed, between everyone still standing.",
+      "trigger": {
+        "type": "biomeCleared",
+        "key": "crystal_caverns"
+      }
+    },
+    {
+      "id": "vault_the_last_ward",
+      "type": "relic",
+      "grants": "the_last_ward",
+      "name": "The Last Ward",
+      "flavour": "The final line of the oath, struck out and rewritten in a shakier hand.",
+      "trigger": {
+        "type": "biomeCleared",
+        "key": "umbral_chapel"
+      }
+    },
+    {
+      "id": "vault_the_kept_vigil",
+      "type": "relic",
+      "grants": "the_kept_vigil",
+      "name": "The Kept Vigil",
+      "flavour": "Someone stood the whole night. This is what they were holding.",
+      "trigger": {
+        "type": "wavesWave",
+        "value": 10
+      }
+    },
+    {
+      "id": "vault_the_long_hold",
+      "type": "relic",
+      "grants": "the_long_hold",
+      "name": "The Long Hold",
+      "flavour": "Twenty rounds without setting it down.",
+      "trigger": {
+        "type": "wavesWave",
+        "value": 20
+      }
+    },
+    {
+      "id": "vault_the_slow_count",
+      "type": "relic",
+      "grants": "the_slow_count",
+      "name": "The Slow Count",
+      "flavour": "Fifty. Whoever was counting has stopped.",
+      "trigger": {
+        "type": "wavesWave",
+        "value": 50
+      }
+    },
+    {
+      "id": "vault_the_bleeding_edge",
+      "type": "relic",
+      "grants": "the_bleeding_edge",
+      "name": "The Bleeding Edge",
+      "flavour": "Kept sharp by use, not by care.",
+      "trigger": {
+        "type": "enemyKills",
+        "key": "castle_knight",
+        "value": 25
+      }
+    },
+    {
+      "id": "vault_the_open_wound",
+      "type": "relic",
+      "grants": "the_open_wound",
+      "name": "The Open Wound",
+      "flavour": "It was never dressed. That turned out to be useful.",
+      "trigger": {
+        "type": "enemyKills",
+        "key": "swamp_hag",
+        "value": 10
+      }
+    },
+    {
+      "id": "vault_gravekeepers_due",
+      "type": "relic",
+      "grants": "gravekeepers_due",
+      "name": "Gravekeeper's Due",
+      "flavour": "One coin a body. The ledger balanced for a long time.",
+      "trigger": {
+        "type": "totalKills",
+        "value": 500
+      }
+    },
+    {
+      "id": "vault_widows_tithe",
+      "type": "relic",
+      "grants": "widows_tithe",
+      "name": "Widow's Tithe",
+      "flavour": "Given by those with the least left to give.",
+      "trigger": {
+        "type": "deaths",
+        "value": 10
+      }
+    },
+    {
+      "id": "vault_the_hollow_flask",
+      "type": "relic",
+      "grants": "the_hollow_flask",
+      "name": "The Hollow Flask",
+      "flavour": "Drained on the stair, and never refilled.",
+      "trigger": {
+        "type": "deaths",
+        "value": 3
+      }
+    },
+    {
+      "id": "vault_a_debt_of_breath",
+      "type": "relic",
+      "grants": "a_debt_of_breath",
+      "name": "A Debt Of Breath",
+      "flavour": "Owed to whatever kept breathing for you.",
+      "trigger": {
+        "type": "dungeonDepthCleared",
+        "value": 5
+      }
+    },
+    {
+      "id": "vault_mythic_blade",
+      "type": "item",
+      "grants": "mythic_blade",
+      "name": "Aumbral Blade",
+      "flavour": "The sound a sword makes is the last thing it keeps.",
+      "trigger": {
+        "type": "dungeonDepthCleared",
+        "value": 10
+      }
+    },
+    {
+      "id": "vault_mythic_aegis",
+      "type": "item",
+      "grants": "mythic_aegis",
+      "name": "Aumbral Aegis",
+      "flavour": "It does not stop the blow. It stops the umbral of it.",
+      "trigger": {
+        "type": "dungeonDepthCleared",
+        "value": 8
+      }
+    },
+    {
+      "id": "vault_mythic_crown",
+      "type": "item",
+      "grants": "mythic_crown",
+      "name": "Aumbral Crown",
+      "flavour": "Worn by the one who decided the tower would hold.",
+      "trigger": {
+        "type": "wavesCompletions",
+        "value": 1
+      }
+    },
+    {
+      "id": "vault_mythic_ring",
+      "type": "item",
+      "grants": "mythic_ring",
+      "name": "Aumbral Ring",
+      "flavour": "Small enough to swallow. Several did.",
+      "trigger": {
+        "type": "totalKills",
+        "value": 1000
+      }
+    },
+    {
+      "id": "vault_void_amulet",
+      "type": "item",
+      "grants": "void_amulet",
+      "name": "Void Amulet",
+      "flavour": "Holds a silence the chapel could not.",
+      "trigger": {
+        "type": "biomeCleared",
+        "key": "umbral_chapel"
+      }
+    },
+    {
+      "id": "vault_frost_warlord_blade",
+      "type": "item",
+      "grants": "frost_warlord_blade",
+      "name": "Frost Warlord's Blade",
+      "flavour": "Taken off the warlord, still cold.",
+      "trigger": {
+        "type": "biomeCleared",
+        "key": "frozen_fortress"
+      }
+    },
+    {
+      "id": "vault_cathedral_shadow_dagger",
+      "type": "item",
+      "grants": "cathedral_shadow_dagger",
+      "name": "Umbral Dagger",
+      "flavour": "Carried under a vestment for eleven years without being drawn.",
+      "trigger": {
+        "type": "biomeCleared",
+        "key": "dark_cathedral"
+      }
+    },
+    {
+      "id": "vault_pact_cursed_depths",
+      "type": "pact",
+      "grants": "cursed_depths",
+      "name": "Cursed Depths",
+      "flavour": "A worse road, and a better reason to walk it.",
+      "trigger": {
+        "type": "dungeonDepth",
+        "value": 3
+      }
+    },
+    {
+      "id": "vault_pact_starved_road",
+      "type": "pact",
+      "grants": "starved_road",
+      "name": "The Starved Road",
+      "flavour": "No hearth will take you below this line.",
+      "trigger": {
+        "type": "dungeonDepth",
+        "value": 5
+      }
+    }
+  ]
+}

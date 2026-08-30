@@ -82,6 +82,13 @@ const REGISTRY: Dictionary = {
 	"aldric_apprenticed": {"kind": Kind.BOOL, "default": false},
 	"elara_ledger_settled": {"kind": Kind.BOOL, "default": false},
 	"vessit_bounties_open": {"kind": Kind.BOOL, "default": false},
+	"dungeon_depth_cleared": {"kind": Kind.INT, "default": 0},
+	"waves_completions": {"kind": Kind.INT, "default": 0},
+	"waves_best_wave": {"kind": Kind.INT, "default": 0},
+	"waves_cash_outs": {"kind": Kind.INT, "default": 0},
+	"modes_announced": {"kind": Kind.DICT, "default": {}},
+	"vault_unlocked": {"kind": Kind.DICT, "default": {}},
+	"vault_pending_announce": {"kind": Kind.DICT, "default": {}},
 }
 
 

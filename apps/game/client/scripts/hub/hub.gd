@@ -77,6 +77,7 @@ func _ready() -> void:
 	call_deferred("_face_spawn_view")
 	_show_return_message()
 	_refresh_castle_portal_label()
+	_announce_mode_unlocks()
 	RunFlow.returned_to_hub.connect(_on_returned_to_hub)
 	if not RunFlow.run_warning.is_connected(_on_run_warning):
 		RunFlow.run_warning.connect(_on_run_warning)
@@ -443,11 +444,77 @@ func _open_castle_menu() -> void:
 
 
 func _open_endless_menu() -> void:
+	if not _require_mode_unlocked(ModeUnlockService.MODE_ENDLESS):
+		return
 	_endless_menu.open_menu()
 
 
 func _open_waves_menu() -> void:
+	if not _require_mode_unlocked(ModeUnlockService.MODE_WAVES):
+		return
 	_waves_menu.open_menu()
+
+
+## Refuses a sealed portal and tells the player exactly what opens it.
+func _require_mode_unlocked(mode_id: String) -> bool:
+	if ModeUnlockService.is_unlocked(mode_id):
+		return true
+	show_hub_message(ModeUnlockService.lock_message(mode_id))
+	AudioDirector.play_sfx("ui", Vector3.ZERO)
+	return false
+
+
+## A sealed portal stays visible and keeps its frame — it just goes dark and says what it wants.
+## A visible locked door is a goal; a missing one is nothing.
+func _refresh_mode_portals() -> void:
+	for mode_id in ModeUnlockService.all_mode_ids():
+		var node_name := ModeUnlockService.portal_node_name(mode_id)
+		if node_name == "":
+			continue
+		var portal := get_node_or_null(node_name) as Node3D
+		if portal == null:
+			continue
+		var area := portal.get_node_or_null("InteractArea") as HubInteractable
+		if area == null:
+			continue
+		var unlocked := ModeUnlockService.is_unlocked(mode_id)
+		if mode_id == ModeUnlockService.MODE_CASTLE:
+			area.set_display_name(DungeonTierService.get_hub_portal_label())
+		else:
+			area.set_display_name(
+				ModeUnlockService.display_name(mode_id)
+				if unlocked
+				else ModeUnlockService.locked_label(mode_id)
+			)
+		_set_portal_lit(portal, unlocked)
+
+
+func _set_portal_lit(portal: Node3D, lit: bool) -> void:
+	var glow := portal.get_node_or_null("DioramaVisuals/PortalGlow") as Node3D
+	if glow != null:
+		glow.visible = lit
+	var hum := portal.get_node_or_null(HubDioramaScript.PORTAL_HUM_NAME) as AudioStreamPlayer3D
+	if hum != null:
+		if lit:
+			if not hum.playing:
+				hum.play()
+		else:
+			hum.stop()
+
+
+## Celebrates a newly-opened portal exactly once, the first time the player is back in the hub.
+func _announce_mode_unlocks() -> void:
+	var fresh := ModeUnlockService.consume_announcements()
+	if fresh.is_empty():
+		return
+	var lines: Array[String] = []
+	for entry in fresh:
+		var announce := str(entry.get("announce", ""))
+		lines.append(
+			announce if announce != "" else "%s has opened." % str(entry.get("name", ""))
+		)
+	show_hub_message("\n".join(lines))
+	AudioDirector.play_stinger("floor_clear")
 
 
 func _show_coming_soon_skies() -> void:
@@ -477,6 +544,7 @@ func _assert_interact_handlers() -> void:
 func _refresh_castle_portal_label() -> void:
 	if _castle_portal_area:
 		_castle_portal_area.set_display_name(DungeonTierService.get_hub_portal_label())
+	_refresh_mode_portals()
 
 
 func _on_returned_to_hub(_message: String) -> void:

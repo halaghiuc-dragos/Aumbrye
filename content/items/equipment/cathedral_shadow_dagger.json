@@ -1,13 +1,27 @@
 {
   "id": "cathedral_shadow_dagger",
-  "name": "Cathedral Shadow Dagger",
+  "name": "Cathedral Umbral Dagger",
   "itemType": "weapon",
   "gridWidth": 1,
   "gridHeight": 2,
   "stackSize": 1,
   "rarity": "legendary",
-  "description": "Blessed steel twisted for silent work in the dark.",
+  "description": "Blessed steel twisted for silent work, and quiet enough to leave no umbral of its own.",
   "value": 20,
+  "ruleText": "Backstabs restore 25 stamina and leave the target bleeding.",
+  "rules": [
+    {
+      "event": "onBackstab",
+      "effect": "restore_stamina",
+      "amount": 25.0
+    },
+    {
+      "event": "onBackstab",
+      "effect": "apply_status",
+      "statusId": "bleed",
+      "stacks": 2
+    }
+  ],
   "stats": {
     "arcaneDamage": 21,
     "physicalDamage": 29

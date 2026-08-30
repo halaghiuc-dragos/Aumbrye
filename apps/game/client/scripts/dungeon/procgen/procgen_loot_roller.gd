@@ -95,9 +95,16 @@ static func _pick_weighted(
 		var min_tier := int(entry.get("minTier", 1))
 		if min_tier > tier:
 			continue
+		var entry_item_id := str(entry.get("itemId", ""))
+		# Vault-gated items are not in the pool until the character has earned them; an unlisted
+		# item is always available, so this only ever removes the handful named in vault.json.
+		if entry_item_id != "" and VaultService and not VaultService.is_item_available(entry_item_id):
+			continue
 		if budget_ceiling > 0.0:
-			var item_id := str(entry.get("itemId", ""))
-			if item_id != "" and float(ItemCatalog.get_loot_value(item_id)) > budget_ceiling:
+			if (
+				entry_item_id != ""
+				and float(ItemCatalog.get_loot_value(entry_item_id)) > budget_ceiling
+			):
 				continue
 		eligible.append(entry)
 	if eligible.is_empty():

@@ -120,7 +120,7 @@
   },
   "art": {
     "id": "shadowstep",
-    "name": "Shadowstep",
+    "name": "Umbralstep",
     "stamina_cost": 20,
     "damage": 24,
     "poise_damage": 18,

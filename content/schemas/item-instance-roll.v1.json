@@ -5,27 +5,65 @@
   "description": "Rolled inventory item instance produced by AffixRoller.",
   "type": "object",
   "additionalProperties": false,
-  "required": ["instanceId", "itemId", "quantity", "rarity", "affixes", "rollSeed"],
+  "required": [
+    "instanceId",
+    "itemId",
+    "quantity",
+    "rarity",
+    "affixes",
+    "rollSeed"
+  ],
   "properties": {
-    "instanceId": { "type": "string", "minLength": 1 },
-    "itemId": { "type": "string", "minLength": 1 },
-    "quantity": { "type": "integer", "minimum": 1 },
+    "instanceId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "itemId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "quantity": {
+      "type": "integer",
+      "minimum": 1
+    },
     "rarity": {
       "type": "string",
-      "enum": ["common", "magic", "rare", "epic", "legendary", "aumbral"]
+      "enum": [
+        "common",
+        "magic",
+        "rare",
+        "epic",
+        "legendary",
+        "aumbral"
+      ]
     },
     "affixes": {
       "type": "array",
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["affixId", "value"],
+        "required": [
+          "affixId",
+          "value"
+        ],
         "properties": {
-          "affixId": { "type": "string", "minLength": 1 },
-          "value": { "type": "number" }
+          "affixId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "value": {
+            "type": "number"
+          }
         }
       }
     },
-    "rollSeed": { "type": "integer" }
+    "rollSeed": {
+      "type": "integer"
+    },
+    "quality": {
+      "description": "Condition tier id from content/affixes/quality_tiers.json. Absent on item types that carry no base stats, and on rolls made before the system existed.",
+      "type": "string",
+      "minLength": 1
+    }
   }
 }

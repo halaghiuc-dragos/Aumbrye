@@ -1,0 +1,142 @@
+{
+  "schemaVersion": 1,
+  "$comment": "Item condition, rolled once when an item drops and fixed for its lifetime. This is a separate axis from rarity and affixes: rarity says how many affixes an item carries, affixes add flat stats on top, and quality scales the item's own base stats up or down. A rusted ring is still a ring of its rarity; it is simply a worse example of one.",
+  "categories": {
+    "weapon": [
+      "chipped",
+      "dull",
+      "balanced",
+      "keen",
+      "masterforged"
+    ],
+    "armor": [
+      "battered",
+      "worn",
+      "sturdy",
+      "reinforced",
+      "masterwrought"
+    ],
+    "accessory": [
+      "tarnished",
+      "clouded",
+      "polished",
+      "gleaming",
+      "brilliant"
+    ]
+  },
+  "tiers": [
+    {
+      "id": "chipped",
+      "displayName": "Chipped",
+      "statMultiplier": 0.8,
+      "weight": 10,
+      "valueMultiplier": 0.6
+    },
+    {
+      "id": "dull",
+      "displayName": "Dull",
+      "statMultiplier": 0.9,
+      "weight": 20,
+      "valueMultiplier": 0.8
+    },
+    {
+      "id": "balanced",
+      "displayName": "Balanced",
+      "statMultiplier": 1.0,
+      "weight": 40,
+      "valueMultiplier": 1.0
+    },
+    {
+      "id": "keen",
+      "displayName": "Keen",
+      "statMultiplier": 1.1,
+      "weight": 20,
+      "valueMultiplier": 1.3
+    },
+    {
+      "id": "masterforged",
+      "displayName": "Masterforged",
+      "statMultiplier": 1.2,
+      "weight": 10,
+      "valueMultiplier": 1.7
+    },
+    {
+      "id": "battered",
+      "displayName": "Battered",
+      "statMultiplier": 0.8,
+      "weight": 10,
+      "valueMultiplier": 0.6
+    },
+    {
+      "id": "worn",
+      "displayName": "Worn",
+      "statMultiplier": 0.9,
+      "weight": 20,
+      "valueMultiplier": 0.8
+    },
+    {
+      "id": "sturdy",
+      "displayName": "Sturdy",
+      "statMultiplier": 1.0,
+      "weight": 40,
+      "valueMultiplier": 1.0
+    },
+    {
+      "id": "reinforced",
+      "displayName": "Reinforced",
+      "statMultiplier": 1.1,
+      "weight": 20,
+      "valueMultiplier": 1.3
+    },
+    {
+      "id": "masterwrought",
+      "displayName": "Masterwrought",
+      "statMultiplier": 1.2,
+      "weight": 10,
+      "valueMultiplier": 1.7
+    },
+    {
+      "id": "tarnished",
+      "displayName": "Tarnished",
+      "statMultiplier": 0.8,
+      "weight": 10,
+      "valueMultiplier": 0.6
+    },
+    {
+      "id": "clouded",
+      "displayName": "Clouded",
+      "statMultiplier": 0.9,
+      "weight": 20,
+      "valueMultiplier": 0.8
+    },
+    {
+      "id": "polished",
+      "displayName": "Polished",
+      "statMultiplier": 1.0,
+      "weight": 40,
+      "valueMultiplier": 1.0
+    },
+    {
+      "id": "gleaming",
+      "displayName": "Gleaming",
+      "statMultiplier": 1.1,
+      "weight": 20,
+      "valueMultiplier": 1.3
+    },
+    {
+      "id": "brilliant",
+      "displayName": "Brilliant",
+      "statMultiplier": 1.2,
+      "weight": 10,
+      "valueMultiplier": 1.7
+    }
+  ],
+  "rarityBias": {
+    "common": 0,
+    "magic": 0,
+    "rare": 0,
+    "epic": 1,
+    "legendary": 1,
+    "aumbral": 1
+  }
+}

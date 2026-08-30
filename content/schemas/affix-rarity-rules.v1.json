@@ -5,33 +5,110 @@
   "description": "Affix count and rarity roll weights for loot generation.",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schemaVersion", "affixCounts", "rarityWeights"],
+  "required": [
+    "schemaVersion",
+    "affixCounts",
+    "rarityWeights",
+    "affixGroupLimits"
+  ],
   "properties": {
-    "schemaVersion": { "type": "integer", "const": 1 },
+    "schemaVersion": {
+      "type": "integer",
+      "const": 1
+    },
     "affixCounts": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["common", "magic", "rare", "epic", "legendary", "aumbral"],
+      "required": [
+        "common",
+        "magic",
+        "rare",
+        "epic",
+        "legendary",
+        "aumbral"
+      ],
       "properties": {
-        "common": { "$ref": "#/$defs/countRange" },
-        "magic": { "$ref": "#/$defs/countRange" },
-        "rare": { "$ref": "#/$defs/countRange" },
-        "epic": { "$ref": "#/$defs/countRange" },
-        "legendary": { "$ref": "#/$defs/countRange" },
-        "aumbral": { "$ref": "#/$defs/countRange" }
+        "common": {
+          "$ref": "#/$defs/countRange"
+        },
+        "magic": {
+          "$ref": "#/$defs/countRange"
+        },
+        "rare": {
+          "$ref": "#/$defs/countRange"
+        },
+        "epic": {
+          "$ref": "#/$defs/countRange"
+        },
+        "legendary": {
+          "$ref": "#/$defs/countRange"
+        },
+        "aumbral": {
+          "$ref": "#/$defs/countRange"
+        }
       }
     },
     "rarityWeights": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["common", "magic", "rare", "epic", "legendary", "aumbral"],
+      "required": [
+        "common",
+        "magic",
+        "rare",
+        "epic",
+        "legendary",
+        "aumbral"
+      ],
       "properties": {
-        "common": { "type": "integer", "minimum": 0 },
-        "magic": { "type": "integer", "minimum": 0 },
-        "rare": { "type": "integer", "minimum": 0 },
-        "epic": { "type": "integer", "minimum": 0 },
-        "legendary": { "type": "integer", "minimum": 0 },
-        "aumbral": { "type": "integer", "minimum": 0 }
+        "common": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "magic": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "rare": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "epic": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "legendary": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "aumbral": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "$comment": {
+      "type": "string"
+    },
+    "affixGroupLimits": {
+      "description": "Maximum affixes from one stat family on a single item. Keys are family names derived from the affix stat.",
+      "type": "object",
+      "additionalProperties": {
+        "type": "integer",
+        "minimum": 1
+      },
+      "required": [
+        "flatDamage",
+        "resist"
+      ],
+      "properties": {
+        "flatDamage": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "resist": {
+          "type": "integer",
+          "minimum": 1
+        }
       }
     }
   },
@@ -39,10 +116,19 @@
     "countRange": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["min", "max"],
+      "required": [
+        "min",
+        "max"
+      ],
       "properties": {
-        "min": { "type": "integer", "minimum": 0 },
-        "max": { "type": "integer", "minimum": 0 }
+        "min": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "max": {
+          "type": "integer",
+          "minimum": 0
+        }
       }
     }
   }

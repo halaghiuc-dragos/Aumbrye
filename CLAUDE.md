@@ -26,6 +26,16 @@ these by hand:
 | cited paths exist | `node scripts/check-doc-paths.mjs` |
 | floor generation | `res://scenes/debug/definition_health.tscn` |
 | character options | `res://scenes/debug/combination_audit.tscn` |
+| every icon resolves to artwork | `res://scenes/debug/icon_atlas_audit.tscn` |
+| icon sheets match their source | `python tools/icon-gen/atlas_build.py --check` |
+| item condition rolls and scales | `res://scenes/debug/item_quality_audit.tscn` |
+| shadows follow the day-night cycle | `res://scenes/debug/shadow_cycle_audit.tscn` |
+| the player↔enemy exchange is in band | `node scripts/balance/balance-cli.mjs` |
+| gear stats reach combat, caps hold | `res://scenes/debug/combat_stats_audit.tscn` |
+| every item has its own icon, condition reads | `res://scenes/debug/inventory_ux_audit.tscn` |
+| every scene loads and is skinned | `res://scenes/debug/scene_sweep.tscn` — add `-- --verbose` for the full list |
+| what each scene costs per frame | `res://scenes/debug/perf_audit.tscn` — needs a display; headless reports no GPU cost |
+| where a dungeon floor's draw calls go | `res://scenes/debug/draw_call_probe.tscn` |
 | frame matches the pick | `res://scenes/debug/frame_audit.tscn` |
 | camera zooms and un-zooms | `res://scenes/debug/camera_zoom_audit.tscn` |
 | the camera follows | `res://scenes/debug/camera_follow_audit.tscn` |

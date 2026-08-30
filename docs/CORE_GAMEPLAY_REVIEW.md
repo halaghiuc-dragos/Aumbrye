@@ -948,7 +948,7 @@ Zero gameplay surface. Listed so the module count is complete.
 
 | Group | Files | Purpose |
 |---|---:|---|
-| Asset generation (Python) | 12 | `generate_character_voxels`, `generate_item_icons`, `generate_ui_atlases`, `generate_ui_assets`, `generate_tile_atlases`, `generate_class_icons`, `generate_pixel_diorama_materials`, `normalize_pixel_textures`, `voxel_sculpt`, `generate_expansion_biomes`, `gen_content`, `generated_manifest` |
+| Asset generation (Python) | 11 | `generate_character_voxels`, `icon-gen/atlas_build`, `generate_ui_assets`, `generate_tile_atlases`, `generate_class_icons`, `generate_pixel_diorama_materials`, `normalize_pixel_textures`, `voxel_sculpt`, `generate_expansion_biomes`, `gen_content`, `generated_manifest` |
 | Audio | 7 | `audio_synth`, `generate_music`, `generate_sfx`, `scripts/tools/generate-combat-sfx`, `generate-biome-audio`, `generate-game-audio`, `fix-audio-imports`. **The 11 placeholder SFX in §4 are this module's backlog** |
 | Voxel import | 8 | `tools/voxel-import/` — `cli`, `convert`, `vox_io`, `mesh_builder`, `godot_mesh_writer`, `palette`, `archetypes`, `test_convert` |
 | Content authoring (mjs) | 8 | `item-generator`, `gen_loot_tables`, `gen_input_glyphs`, `balance-export`, `fill_warden_extras`, `add_settings_strings`, `find_missing_strings`, `dedupe_strings_csv` |

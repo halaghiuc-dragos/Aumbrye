@@ -3,6 +3,8 @@ extends Control
 
 const GameUISkinScript := preload("res://scripts/ui/game_ui_skin.gd")
 const RunLifecycleScript := preload("res://scripts/app/run_lifecycle.gd")
+const RarityRegistryScript := preload("res://scripts/loot/rarity_registry.gd")
+const ItemIconAtlasScript := preload("res://scripts/ui/item_icon_atlas.gd")
 
 @onready var _title_label: Label = $Panel/Margin/VBox/Title
 @onready var _time_label: Label = $Panel/Margin/VBox/TimeLabel
@@ -15,9 +17,13 @@ var _run_report_frame: PanelContainer
 var _seed_button: Button
 @onready var _hint_label: Label = $Panel/Margin/VBox/HintLabel
 var _continue_button: Button
+var _repeat_button: Button
+var _vault_label: Label
 var _cloud_indicator: Label
 var _cloud_retry_button: Button
 var _leaderboard_label: Label
+var _returning := false
+var _loot_row: HBoxContainer
 
 
 func _ready() -> void:
@@ -30,7 +36,11 @@ func _ready() -> void:
 	if not ApiConfig.cloud_state_changed.is_connected(_on_cloud_state_changed):
 		ApiConfig.cloud_state_changed.connect(_on_cloud_state_changed)
 	_refresh_cloud_indicator()
-	if _continue_button:
+	_show_vault_unlocks()
+	_refresh_repeat_button()
+	if _repeat_button and _repeat_button.visible:
+		_repeat_button.grab_focus()
+	elif _continue_button:
 		_continue_button.grab_focus()
 
 
@@ -70,6 +80,21 @@ func _ensure_ui_nodes() -> void:
 		_seed_button.visible = false
 		_seed_button.pressed.connect(_on_copy_seed_pressed)
 		vbox.add_child(_seed_button)
+	if _vault_label == null:
+		_vault_label = Label.new()
+		_vault_label.name = "VaultLabel"
+		_vault_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		_vault_label.visible = false
+		GameUISkinScript.style_body_label(_vault_label)
+		vbox.add_child(_vault_label)
+	# "Descend again" comes before "Continue" and takes focus: the next run should always be one
+	# press away, and walking back through the hub should be the deliberate choice.
+	if _repeat_button == null:
+		_repeat_button = GameUISkinScript.make_button(RunFlow.describe_repeat())
+		_repeat_button.name = "RepeatRunButton"
+		_repeat_button.visible = false
+		_repeat_button.pressed.connect(_on_repeat_pressed)
+		vbox.add_child(_repeat_button)
 	if _continue_button == null:
 		_continue_button = GameUISkinScript.make_button(tr("RESULTS_CONTINUE"))
 		_continue_button.name = "ContinueButton"
@@ -101,6 +126,7 @@ func _display_from_run_flow() -> void:
 			_loot_label.text = tr("RESULTS_LOOT_KEPT").format({"items": ", ".join(loot) if loot.size() > 0 else tr("RESULTS_LOOT_NONE")})
 		else:
 			_loot_label.text = tr("RESULTS_LOOT_LOST").format({"items": ", ".join(loot) if loot.size() > 0 else tr("RESULTS_LOOT_NONE")})
+		_build_loot_row(loot)
 		var xp_gained: int = int(results.get("xp_gained", 0))
 		if outcome == RunLifecycleScript.OUTCOME_DIED:
 			var full_xp: int = int(results.get("xp_full_would_be", xp_gained * 2))
@@ -372,7 +398,7 @@ func _on_cloud_retry_pressed() -> void:
 func _title_for_outcome(outcome: String, hero_name: String) -> String:
 	match outcome:
 		RunLifecycleScript.OUTCOME_DIED:
-			return "%s — Echo Returned" % hero_name
+			return "%s — Umbral Returned" % hero_name
 		RunLifecycleScript.OUTCOME_WAVES_COMPLETE:
 			return tr("RESULTS_WAVES_CLEARED") % hero_name
 		RunLifecycleScript.OUTCOME_WAVES_FAILED:
@@ -399,6 +425,119 @@ func _hub_message_for_outcome(outcome: String) -> String:
 			return "Returned to Aumbrye Tower."
 
 
+## The haul, as objects rather than a comma-separated string. A row of rarity-framed icons with
+## the best find last and largest — the end of a run is where a roguelite either hooks you or lets
+## you go, and a list of names is a receipt, not a reward.
+const LOOT_ROW_CELL := 52.0
+const LOOT_ROW_BEST_CELL := 68.0
+const LOOT_ROW_MAX := 10
+
+
+func _build_loot_row(loot: Array) -> void:
+	if _loot_row != null and is_instance_valid(_loot_row):
+		_loot_row.queue_free()
+		_loot_row = null
+	if loot.is_empty():
+		return
+	var ranked := _rank_loot(loot)
+	var row := HBoxContainer.new()
+	row.name = "LootRow"
+	row.alignment = BoxContainer.ALIGNMENT_CENTER
+	row.add_theme_constant_override("separation", 6)
+	for entry in ranked:
+		row.add_child(_make_loot_cell(str(entry.get("itemId", "")), bool(entry.get("best", false))))
+	var vbox: VBoxContainer = $Panel/Margin/VBox
+	vbox.add_child(row)
+	if _loot_label and _loot_label.get_parent() == vbox:
+		vbox.move_child(row, _loot_label.get_index() + 1)
+	_loot_row = row
+
+
+## Best find last, so the eye lands on it. Ties break on the item's own value.
+func _rank_loot(loot: Array) -> Array[Dictionary]:
+	var entries: Array[Dictionary] = []
+	for raw in loot:
+		var item_id := str(raw)
+		if item_id == "":
+			continue
+		var def := ItemCatalog.get_definition(item_id)
+		entries.append(
+			{
+				"itemId": item_id,
+				"tier": RarityRegistryScript.tier_index(str(def.get("rarity", "common"))),
+				"value": float(def.get("value", 0)),
+				"best": false,
+			}
+		)
+	entries.sort_custom(
+		func(a: Dictionary, b: Dictionary) -> bool:
+			if int(a.get("tier", 0)) != int(b.get("tier", 0)):
+				return int(a.get("tier", 0)) < int(b.get("tier", 0))
+			return float(a.get("value", 0.0)) < float(b.get("value", 0.0))
+	)
+	if entries.size() > LOOT_ROW_MAX:
+		entries = entries.slice(entries.size() - LOOT_ROW_MAX)
+	if not entries.is_empty():
+		entries[entries.size() - 1]["best"] = true
+	return entries
+
+
+func _make_loot_cell(item_id: String, is_best: bool) -> Control:
+	var def := ItemCatalog.get_definition(item_id)
+	var rarity := str(def.get("rarity", "common"))
+	var cell_px := LOOT_ROW_BEST_CELL if is_best else LOOT_ROW_CELL
+	var cell := PanelContainer.new()
+	cell.custom_minimum_size = Vector2(cell_px, cell_px)
+	cell.tooltip_text = str(def.get("name", item_id))
+	cell.add_theme_stylebox_override(
+		"panel", GameUISkinScript.make_item_cell_style(rarity, true)
+	)
+	var icon := TextureRect.new()
+	icon.texture = ItemIconAtlasScript.get_icon(item_id, str(def.get("iconPath", "")))
+	icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	cell.add_child(icon)
+	return cell
+
+
+## What this run permanently added to the pools. This is the line that makes a run matter beyond
+## its own loot — it says the next run will contain something this one did not.
+func _show_vault_unlocks() -> void:
+	if _vault_label == null or VaultService == null:
+		return
+	var opened := VaultService.consume_announcements()
+	if opened.is_empty():
+		_vault_label.visible = false
+		return
+	var lines: Array[String] = [tr("RESULTS_VAULT_HEADER")]
+	for entry in opened:
+		var flavour := str(entry.get("flavour", ""))
+		var name_text := str(entry.get("name", ""))
+		lines.append(
+			"  %s — %s" % [name_text, flavour] if flavour != "" else "  %s" % name_text
+		)
+	lines.append(VaultService.describe_progress())
+	_vault_label.text = "\n".join(lines)
+	_vault_label.visible = true
+
+
+func _refresh_repeat_button() -> void:
+	if _repeat_button == null:
+		return
+	var can_repeat := RunFlow.can_repeat_run()
+	_repeat_button.visible = can_repeat
+	if can_repeat:
+		_repeat_button.text = RunFlow.describe_repeat()
+
+
+func _on_repeat_pressed() -> void:
+	if _returning:
+		return
+	_returning = true
+	RunFlow.repeat_last_run()
+
+
 func _on_continue_pressed() -> void:
 	_accept_and_return()
 
@@ -414,6 +553,9 @@ func _unhandled_input(event: InputEvent) -> void:
 
 
 func _accept_and_return() -> void:
+	if _returning:
+		return
+	_returning = true
 	var outcome: String = RunFlow.last_run_results.get(
 		"outcome", RunLifecycleScript.OUTCOME_ESCAPED
 	)

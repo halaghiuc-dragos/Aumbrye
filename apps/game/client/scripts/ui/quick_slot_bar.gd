@@ -24,6 +24,8 @@ func _ready() -> void:
 			InventoryService.inventory_changed.connect(refresh)
 		if not InventoryService.quick_slots_changed.is_connected(refresh):
 			InventoryService.quick_slots_changed.connect(refresh)
+	if WavesRunService and not WavesRunService.inventory_changed.is_connected(refresh):
+		WavesRunService.inventory_changed.connect(refresh)
 	if PlayerControls:
 		if not PlayerControls.quick_slot_used.is_connected(_on_quick_slot_used):
 			PlayerControls.quick_slot_used.connect(_on_quick_slot_used)
@@ -39,6 +41,8 @@ func _exit_tree() -> void:
 		InventoryService.inventory_changed.disconnect(refresh)
 	if InventoryService.quick_slots_changed.is_connected(refresh):
 		InventoryService.quick_slots_changed.disconnect(refresh)
+	if WavesRunService and WavesRunService.inventory_changed.is_connected(refresh):
+		WavesRunService.inventory_changed.disconnect(refresh)
 
 
 func _build() -> void:
@@ -103,10 +107,11 @@ func refresh() -> void:
 			continue
 		var icon := pip.get_node_or_null("Stack/Icon") as TextureRect
 		var count := pip.get_node_or_null("Stack/Count") as Label
+		var source := InventoryService.active_inventory()
 		var idx := InventoryService.get_quick_slot_index(i)
-		var has_item := idx >= 0 and idx < InventoryService.inventory.slots.size()
+		var has_item := idx >= 0 and idx < source.slots.size()
 		if has_item:
-			var slot: Dictionary = InventoryService.inventory.slots[idx]
+			var slot: Dictionary = source.slots[idx]
 			var item_id := str(slot.get("itemId", ""))
 			var def := ItemCatalog.get_definition(item_id)
 			if icon:

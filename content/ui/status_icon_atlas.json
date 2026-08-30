@@ -2,64 +2,56 @@
   "schemaVersion": 1,
   "texture": "res://assets/ui/status_icons.png",
   "cellSize": 16,
-  "columns": 8,
-  "rows": 6,
-  "unknown": {
-    "col": 7,
-    "row": 5
-  },
+  "columns": 4,
+  "rows": 3,
   "cells": {
+    "bleed": {
+      "col": 3,
+      "row": 0
+    },
     "burn": {
       "col": 0,
+      "row": 0
+    },
+    "focus": {
+      "col": 2,
+      "row": 1
+    },
+    "frame_buff": {
+      "col": 2,
+      "row": 2
+    },
+    "frame_debuff": {
+      "col": 3,
+      "row": 2
+    },
+    "freeze": {
+      "col": 2,
       "row": 0
     },
     "poison": {
       "col": 1,
       "row": 0
     },
-    "freeze": {
-      "col": 2,
-      "row": 0
-    },
-    "stun": {
-      "col": 3,
-      "row": 0
-    },
-    "bleed": {
-      "col": 4,
-      "row": 0
-    },
-    "focus": {
-      "col": 5,
-      "row": 0
-    },
     "resolve": {
-      "col": 6,
-      "row": 0
+      "col": 3,
+      "row": 1
     },
     "stoneskin": {
-      "col": 7,
-      "row": 0
+      "col": 0,
+      "row": 2
     },
-    "swiftness": {
+    "stun": {
       "col": 0,
       "row": 1
+    },
+    "swiftness": {
+      "col": 1,
+      "row": 2
     },
     "torpor": {
       "col": 1,
       "row": 1
-    },
-    "frame_buff": {
-      "col": 7,
-      "row": 4
-    },
-    "frame_debuff": {
-      "col": 6,
-      "row": 5
-    },
-    "unknown": {
-      "col": 7,
-      "row": 5
     }
   }
 }

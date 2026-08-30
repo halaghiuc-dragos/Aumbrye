@@ -38,6 +38,11 @@ func _resolve_nodes() -> void:
 		return
 	_barrier_shape = _barrier.get_node_or_null("BarrierShape") as CollisionShape3D
 	_barrier_mesh = _barrier.get_node_or_null("MeshInstance3D") as MeshInstance3D
+	# Skinned as soon as the nodes resolve, not only in configure(). A door the builder never
+	# configures still stands in the room, and an unskinned barrier is Godot's default grey across
+	# a whole doorway.
+	if _barrier_mesh and _barrier_mesh.material_override == null:
+		_barrier_mesh.material_override = BiomeRegistry.get_wall_material(_biome_id)
 	_interact_area = get_node_or_null("InteractArea") as Area3D
 	_label = get_node_or_null("Label3D") as Label3D
 

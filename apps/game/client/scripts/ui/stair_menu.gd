@@ -65,6 +65,15 @@ func _rebuild_buttons(options: Array) -> void:
 		if child.name != "TitleLabel" and child.name != "HintLabel":
 			child.queue_free()
 	_action_buttons.clear()
+	if _lever != null and is_instance_valid(_lever) and _lever.has_method("pressure_note"):
+		var note := str(_lever.call("pressure_note"))
+		if note != "":
+			var pressure := Label.new()
+			pressure.name = "PressureLabel"
+			pressure.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+			GameUISkinScript.style_body_label(pressure)
+			pressure.text = note
+			vbox.add_child(pressure)
 	for option in options:
 		if not option is Dictionary:
 			continue

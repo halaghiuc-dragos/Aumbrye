@@ -267,9 +267,33 @@ static func _remove_visual(parent: Node3D) -> void:
 	var visuals := parent.get_node_or_null("DioramaVisuals")
 	if visuals:
 		visuals.queue_free()
+	# Authored placeholder meshes.
+	#
+	# This used to drop only children literally named "MeshInstance3D", so a placeholder given any
+	# other name survived and drew underneath the built visual. The exit portal in the castle slice
+	# was one: a bare 3x3 BoxMesh called "PortalMesh" with no material on it, rendering as a slab of
+	# Godot's default grey in the middle of the boss room doorway.
+	#
+	# Matching on "has no material" rather than on the name catches the whole class of them and
+	# cannot take authored art with it: a mesh with no material anywhere is already broken, since
+	# default grey is the one colour the palette never produces.
 	for child in parent.get_children():
-		if child is MeshInstance3D and child.name == "MeshInstance3D":
+		if child is MeshInstance3D and _is_untextured(child as MeshInstance3D):
 			child.queue_free()
+
+
+## A mesh with nothing to draw it with -- no override, no surface material, no mesh at all.
+static func _is_untextured(mesh_instance: MeshInstance3D) -> bool:
+	if mesh_instance.material_override != null:
+		return false
+	if mesh_instance.mesh == null:
+		return true
+	for surface in mesh_instance.mesh.get_surface_count():
+		if mesh_instance.get_surface_override_material(surface) != null:
+			return false
+		if mesh_instance.mesh.surface_get_material(surface) != null:
+			return false
+	return true
 
 
 static func _add_box(

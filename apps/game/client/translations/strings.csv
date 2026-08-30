@@ -31,7 +31,7 @@ MAP_LEGEND_ENTRANCE,Entrance,Intrare
 MAP_LEGEND_STAIRS,Stairs,Scări
 UI_PAUSE,Paused,Pauză
 UI_RESUME,Resume,Continuă
-STORY_PREMISE,The Umbral Tower binds fallen wardens as echoes until the oath is fulfilled.,Turnul Umbral leagă gardienii căzuți ca ecouri până când jurământul este împlinit.
+STORY_PREMISE,The Umbral Tower binds fallen wardens as umbrals until the oath is fulfilled.,Turnul Umbral leagă gardienii căzuți ca umbrali până când jurământul este împlinit.
 talent.branch.arms,Arms,Arms
 talent.branch.guard,Guard,Guard
 talent.branch.aptitude,Aptitude,Aptitude
@@ -60,7 +60,7 @@ HUD_BRANCH_AHEAD,Branch ahead — %s,Ramură în față — %s
 HUD_BRANCH_REWARD,%d reward path(s),%d cale(i) recompensă
 HUD_BRANCH_DANGER,%d danger path(s),%d cale(i) pericol
 HUD_BOSS_FALLBACK,Boss,Șef
-CREATE_TITLE,Create Your Warden,Creează-ți Gardianul
+CREATE_TITLE,Raise Your Umbral,Ridică-ți Umbralul
 CREATE_CLASS_HEADER,Choose Your Class,Alege Clasa
 CREATE_NAME_PLACEHOLDER,Warden name (required),Nume gardian (obligatoriu)
 CREATE_NAME_ERR_SHORT,Name must be at least 2 characters.,Numele trebuie să aibă cel puțin 2 caractere.
@@ -114,7 +114,7 @@ CLASS_PERK_BLOODRAGE,Bloodrage,Sânge Furios
 CLASS_PERK_BLOODRAGE_DESC,Gain momentum as health falls.,Câștigă avânt pe măsură ce viața scade.
 CLASS_PERK_STEADFAST,Steadfast,Neclintit
 CLASS_PERK_STEADFAST_DESC,Extra armor and health for long fights.,Armură și viață suplimentare pentru lupte lungi.
-CLASS_PERK_SHADOWSTEP,Shadowstep,Pas din Umbră
+CLASS_PERK_SHADOWSTEP,Umbralstep,Pas Umbral
 CLASS_PERK_SHADOWSTEP_DESC,Move faster and strike from the flank.,Mișcă-te mai repede și lovește din flanc.
 CLASS_PERK_ARCANE_FOCUS,Arcane Focus,Focalizare Arcană
 CLASS_PERK_ARCANE_FOCUS_DESC,Improved stamina flow for sustained casting.,Flux de rezistență îmbunătățit pentru vrăji susținute.
@@ -515,7 +515,7 @@ STORAGE_MOVE_FAILED,That move failed.,Mutarea a esuat.
 STORAGE_INVENTORY_EMPTY,Your inventory is empty.,Inventarul e gol.
 STORAGE_STORAGE_EMPTY,Storage is empty.,Depozitul e gol.
 LOADOUT_EQUIPPED_ROW,%s  (equipped),%s  (echipat)
-MENU_SUBTITLE,Echo of the Fallen Warden,Ecoul Gardianului Cazut
+MENU_SUBTITLE,Umbral of the Fallen Warden,Umbralul Gardianului Căzut
 TITLE_PRESS_ANY_KEY,Press any key to continue,Apasa orice tasta pentru a continua
 MENU_NEW_GAME,New Game,Joc nou
 MENU_CONTINUE,Continue,Continua
@@ -531,7 +531,7 @@ CONTINUE_DELETE,Delete Warden,Sterge gardianul
 CONTINUE_NO_WARDENS,No wardens yet - create one with New Game.,Niciun gardian inca - creeaza unul din Joc nou.
 LOADING_ENTERING,Entering Aumbrye Tower,Intri in Turnul Aumbrye
 LOADING_PREPARING,Preparing your warden...,Se pregateste gardianul...
-LOADING_SYNCING,Syncing echo...,Se sincronizeaza ecoul...
+LOADING_SYNCING,Syncing umbral...,Se sincronizează umbralul...
 LOADING_SAVE_FAILED,Could not load save - returning to menu.,Salvarea nu a putut fi incarcata - revenire la meniu.
 LOADING_SLOTS_FULL,All character slots are full - delete one to start a new warden.,Toate sloturile de personaje sunt pline - sterge unul pentru a incepe un warden nou.
 LOADING_CHARACTER_MISSING,That character's save could not be found - returning to menu.,Salvarea acelui personaj nu a fost gasita - revenire la meniu.
@@ -690,3 +690,41 @@ ASPECT_AMETHYST_WARD,Amethyst Ward,Pavăza de Ametist
 ASPECT_AMETHYST_WARD_DESC,Cut against dreaming. It did not work.,Tăiată împotriva visării. N-a funcționat.
 ASPECT_SAFFRON_HERALD,Saffron Herald,Vestitorul de Șofran
 ASPECT_SAFFRON_HERALD_DESC,Loud enough to be seen coming. That is the point.,Destul de strident cât să fii văzut venind. Asta e ideea.
+TALENTS_BLOCKED_BY,Closed off by: %s,Blocat de: %s
+TALENTS_CLOSES_OFF,Taking this closes: %s,Alegerea aceasta închide: %s
+WAVES_CASH_OUT_INTRO,The summoner will send one thing home with you. Everything else stays in the Vigil.,Invocatorul îți va trimite un singur lucru acasă. Restul rămâne în Veghe.
+WAVES_CASH_OUT_EMPTY,The summoner waits. You are carrying nothing worth taking.,Invocatorul așteaptă. Nu duci nimic care să merite luat.
+WAVES_CASH_OUT_CONFIRM,Take it and leave,Ia-l și pleacă
+WAVES_CASH_OUT_STAY,Stay in the Vigil,Rămâi în Veghe
+WAVES_CASH_OUT_PICK_HINT,Choose the one thing you are walking out with.,Alege singurul lucru cu care pleci.
+RESULTS_DESCEND_AGAIN,Descend again,Coboară din nou
+RESULTS_VIGIL_AGAIN,Stand the Vigil again,Stai din nou de Veghe
+RESULTS_LONG_DARK_AGAIN,Back into the Long Dark,Înapoi în Bezna Lungă
+RESULTS_VAULT_HEADER,Added to the vault:,Adăugat în seif:
+VAULT_PROGRESS,Vault %d/%d,Seif %d/%d
+INV_STATS_TITLE,Warden,Veghetor
+INV_STATS_EMPTY,Nothing equipped.,Nimic echipat.
+UMBRAL_RECOVER_XP,Recover it ({xp} XP),Recuperează-l ({xp} XP)
+UMBRAL_RECOVER_XP_GOLD,"Recover it ({xp} XP, {gold} gold)","Recuperează-l ({xp} XP, {gold} aur)"
+UMBRAL_TITLE,The Umbral,Umbralul
+UMBRAL_SUBTITLE,What the last warden left here has not finished sounding.,Ce a lăsat ultimul gardian aici încă nu a terminat de răsunat.
+UMBRAL_LISTEN,Take the umbral instead — leave what it was carrying,Ia umbralul în schimb — lasă ce ducea
+UMBRAL_HINT,Taking the umbral spends what was staked here and offers a relic for the rest of this run.,Luarea umbralului consumă ce a fost pus aici și oferă o relicvă pentru restul acestei incursiuni.
+UMBRAL_LEAVE,Leave it sounding,Lasă-l să răsune
+QUALITY_CHIPPED,Chipped,Ciobit
+QUALITY_DULL,Dull,Tocit
+QUALITY_BALANCED,Balanced,Echilibrat
+QUALITY_KEEN,Keen,Ascutit
+QUALITY_MASTERFORGED,Masterforged,Faurit Maiestrit
+QUALITY_BATTERED,Battered,Lovit
+QUALITY_WORN,Worn,Uzat
+QUALITY_STURDY,Sturdy,Trainic
+QUALITY_REINFORCED,Reinforced,Intarit
+QUALITY_MASTERWROUGHT,Masterwrought,Lucrat Maiestrit
+QUALITY_TARNISHED,Tarnished,Innegrit
+QUALITY_CLOUDED,Clouded,Tulbure
+QUALITY_POLISHED,Polished,Lustruit
+QUALITY_GLEAMING,Gleaming,Stralucitor
+QUALITY_BRILLIANT,Brilliant,Nestemat
+STAT_ATTACK_SPEED,Attack Speed,Viteză de atac
+INV_CONDITION,Condition:,Stare:

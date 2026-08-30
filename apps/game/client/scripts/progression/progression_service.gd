@@ -125,7 +125,20 @@ func can_unlock_talent(node_id: String) -> bool:
 	for req in node.get("requires", []):
 		if get_talent_rank(str(req)) <= 0:
 			return false
+	# Paired keystones exclude each other: taking one closes the other for the rest of the build.
+	# Respec reopens both, so the choice is committing rather than permanent.
+	for excluded in node.get("excludes", []):
+		if get_talent_rank(str(excluded)) > 0:
+			return false
 	return true
+
+
+## The node this one is locked out by, if the player has already committed to its opposite.
+func blocked_by(node_id: String) -> String:
+	for excluded in _find_talent_node(node_id).get("excludes", []):
+		if get_talent_rank(str(excluded)) > 0:
+			return str(excluded)
+	return ""
 
 
 func unlock_talent(node_id: String) -> bool:
@@ -166,6 +179,25 @@ func get_talent_stat_totals() -> Dictionary:
 				var per_rank: float = float(effect.get("valuePerRank", 0.0))
 				totals[stat] = totals.get(stat, 0.0) + per_rank * rank
 	return totals
+
+
+## Drops any saved talent whose node no longer exists in the tree and recomputes the spend from
+## what survived, so retuning the tree refunds the difference instead of stranding points.
+func _prune_unknown_talents() -> void:
+	_load_talent_tree()
+	var kept: Dictionary = {}
+	var spent := 0
+	for node_id in talents:
+		var node := _find_talent_node(str(node_id))
+		if node.is_empty():
+			continue
+		var rank := mini(int(talents[node_id]), int(node.get("maxRank", 1)))
+		if rank <= 0:
+			continue
+		kept[node_id] = rank
+		spent += rank * int(node.get("costPerRank", 1))
+	talents = kept
+	talent_points_spent = spent
 
 
 func respec_talents() -> void:
@@ -229,6 +261,7 @@ func from_save_dict(data: Dictionary) -> void:
 	var saved_talents: Variant = data.get("talents", {})
 	if saved_talents is Dictionary:
 		talents = saved_talents.duplicate()
+	_prune_unknown_talents()
 	endless_best_floor = maxi(0, int(data.get("endlessBestFloor", 0)))
 	descent_tokens = maxi(0, int(data.get("descentTokens", 0)))
 	endless_milestones = {}

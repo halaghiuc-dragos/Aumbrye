@@ -186,6 +186,14 @@
               }
             }
           }
+        },
+        "excludes": {
+          "type": "array",
+          "description": "Node ids that cannot be taken alongside this one; used for paired, mutually exclusive keystones.",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
         }
       }
     }

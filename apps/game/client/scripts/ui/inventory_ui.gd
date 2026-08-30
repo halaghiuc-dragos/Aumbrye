@@ -60,6 +60,18 @@ var _focus_area := FocusArea.GRID
 var _selected_index := -1
 var _hover_grid_index := -1
 var _hover_equip_slot := ""
+
+## Which device is currently driving the panel.
+##
+## The tooltip used to be resolved from the hover *and* the keyboard cursor in one pass, falling
+## back to the selection when nothing was hovered. With a mouse that reads as a bug: move the
+## pointer off the grid and the description of the last item you clicked stays on screen, pointing
+## at nothing. The two models want different answers to "what is the player looking at" -- a
+## pointer is looking at what it is over, and nothing when it is over nothing; a cursor is always
+## somewhere. Tracking which one is live lets each answer for itself.
+enum InputMode { POINTER, CURSOR }
+
+var _input_mode: InputMode = InputMode.CURSOR
 var _cells: Array[PanelContainer] = []
 var _equip_cells: Dictionary = {}
 var _equip_nav_slots: Array[String] = []
@@ -73,6 +85,7 @@ var _sort_mode_idx := 0
 var _type_filter_idx := 0
 var _rarity_filter_idx := 0
 var _equip_wrap: Control
+var _stat_label: RichTextLabel
 var _waves_mode := false
 var _bound_grid_w := -1
 var _bound_grid_h := -1
@@ -311,6 +324,7 @@ func _build_ui_shell() -> void:
 	equip_center.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_equip_wrap.add_child(equip_center)
 	equip_center.add_child(_equip_host)
+	_build_stat_panel(equip_vbox)
 	_drag_ghost = _make_item_cell(CELL_SIZE, "common", 0)
 	_drag_ghost.visible = false
 	set_process(false)
@@ -427,6 +441,110 @@ func hide_inventory() -> void:
 	_clear_drag()
 	if MenuStack:
 		MenuStack.pop(self)
+
+
+## Offence, defence and resistances for the live loadout. Without this the entire loot system is
+## invisible: 264 items and 68 affixes mean nothing if the player cannot tell whether the thing
+## they just picked up is better than the thing they are wearing.
+const STAT_PANEL_UP := "#7fd67f"
+const STAT_PANEL_DOWN := "#e07a7a"
+
+const STAT_PANEL_OFFENCE: Array[String] = [
+	"physicalDamage",
+	"fireDamage",
+	"frostDamage",
+	"poisonDamage",
+	"arcaneDamage",
+	"damagePercent",
+	"critChance",
+	"poiseDamage",
+]
+const STAT_PANEL_DEFENCE: Array[String] = [
+	"maxHealth",
+	"defense",
+	"armor",
+	"poise",
+	"evasion",
+	"blockReduction",
+	"damageReduction",
+]
+const STAT_PANEL_UPKEEP: Array[String] = [
+	"staminaMax",
+	"staminaRegen",
+	"staminaCostReduction",
+	"manaMax",
+	"manaRegen",
+	"healthRegen",
+	"moveSpeedPercent",
+]
+const STAT_PANEL_RESISTS: Array[String] = [
+	"resistPhysical",
+	"resistFire",
+	"resistFrost",
+	"resistPoison",
+	"resistLightning",
+	"resistArcane",
+]
+
+
+func _build_stat_panel(host: VBoxContainer) -> void:
+	var frame := GameUISkinScript.make_section_frame(tr("INV_STATS_TITLE"))
+	frame.name = "StatFrame"
+	frame.size_flags_vertical = Control.SIZE_SHRINK_END
+	host.add_child(frame)
+	var content := GameUISkinScript.section_content(frame)
+	_stat_label = RichTextLabel.new()
+	_stat_label.name = "StatLabel"
+	_stat_label.bbcode_enabled = true
+	_stat_label.fit_content = true
+	_stat_label.scroll_active = false
+	_stat_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_stat_label.custom_minimum_size.y = 132.0
+	_stat_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	content.add_child(_stat_label)
+	_refresh_stat_panel()
+
+
+func _refresh_stat_panel() -> void:
+	if _stat_label == null or not is_instance_valid(_stat_label):
+		return
+	# In the Vigil the panel must read the run's own loadout, not the character's hub gear.
+	var stats := (
+		Equipment.aggregate_stats(
+			WavesRunService.waves_inventory.equipped, Callable(AffixRoller, "get_affix_stat")
+		)
+		if _waves_mode
+		else InventoryService.get_combat_aggregate_stats()
+	)
+	var columns: Array[String] = []
+	for group in [STAT_PANEL_OFFENCE, STAT_PANEL_DEFENCE, STAT_PANEL_UPKEEP, STAT_PANEL_RESISTS]:
+		var lines := _stat_group_lines(stats, group)
+		if not lines.is_empty():
+			columns.append("\n".join(lines))
+	_stat_label.text = (
+		"\n\n".join(columns) if not columns.is_empty() else tr("INV_STATS_EMPTY")
+	)
+
+
+static func _bbcode_safe(text: String) -> String:
+	return text.replace("[", "[lb]")
+
+
+func _stat_group_lines(stats: Dictionary, group: Array[String]) -> Array[String]:
+	var lines: Array[String] = []
+	for stat in group:
+		var value := float(stats.get(stat, 0.0))
+		if is_zero_approx(value):
+			continue
+		lines.append(
+			"%s  [color=%s]%s[/color]"
+			% [
+				_bbcode_safe(Equipment.stat_display_name(stat)),
+				STAT_PANEL_UP if value > 0.0 else STAT_PANEL_DOWN,
+				_bbcode_safe(Equipment.format_stat_value(stat, value)),
+			]
+		)
+	return lines
 
 
 func _build_equipment_panel() -> void:
@@ -560,6 +678,7 @@ func _refresh_all() -> void:
 	_update_filter_label()
 	_update_detail()
 	_refresh_quick_slot_row()
+	_refresh_stat_panel()
 	_update_action_buttons()
 
 
@@ -773,36 +892,35 @@ func _show_tooltip(
 
 func _update_detail() -> void:
 	var inv := _inventory()
-	var detail_slot: Dictionary = {}
-	var compare_index := -1
-	if _focus_area == FocusArea.EQUIPMENT or _hover_equip_slot != "":
-		var slot_name := (
-			_hover_equip_slot if _hover_equip_slot != "" else _equip_nav_slots[_equip_cursor]
-		)
-		detail_slot = inv.equipped.get(slot_name, {})
-		if detail_slot.is_empty():
+
+	# Nothing is described while an item is in the hand. The tooltip would sit over the grid the
+	# player is trying to drop into, and describe the thing they are already holding.
+	if _is_dragging():
+		_hide_tooltip()
+		return
+
+	var equip_slot := _described_equip_slot()
+	if equip_slot != "":
+		var equipped: Dictionary = inv.equipped.get(equip_slot, {})
+		if equipped.is_empty():
 			_show_tooltip(
-				tr("INV_EMPTY_SLOT") % _slot_label(slot_name),
-				"",
-				tr("INV_HINT_UNEQUIP")
+				tr("INV_EMPTY_SLOT") % _slot_label(equip_slot), "", tr("INV_HINT_UNEQUIP")
 			)
 			return
 		_show_tooltip(
-			_build_tooltip_header(detail_slot),
-			InventoryService.format_slot_tooltip_bbcode(detail_slot),
+			_build_tooltip_header(equipped),
+			InventoryService.format_slot_tooltip_bbcode(equipped),
 			""
 		)
 		_set_hint_text(tr("INV_HINT_UNEQUIP"))
 		return
-	if _hover_grid_index >= 0:
-		compare_index = _index_at_grid_cell(_hover_grid_index)
-	elif _selected_index >= 0:
-		compare_index = _selected_index
+
+	var compare_index := _described_grid_index()
 	if compare_index < 0:
 		_hide_tooltip()
 		_footer_hint_default()
 		return
-	detail_slot = inv.slots[compare_index]
+	var detail_slot: Dictionary = inv.slots[compare_index]
 	_show_tooltip(
 		_build_tooltip_header(detail_slot),
 		InventoryService.format_slot_tooltip_bbcode(detail_slot),
@@ -823,7 +941,32 @@ func _update_detail() -> void:
 		_set_hint_text(tr("INV_HINT_MOVE"))
 
 
+func _is_dragging() -> bool:
+	return _mouse_dragging or _drag_index >= 0 or _drag_equip_slot != ""
+
+
+## Which equipment slot the player is looking at, or "" for none. A pointer answers with what it is
+## over; a cursor answers with where it sits.
+func _described_equip_slot() -> String:
+	if _input_mode == InputMode.POINTER:
+		return _hover_equip_slot
+	if _focus_area != FocusArea.EQUIPMENT:
+		return ""
+	return str(_equip_nav_slots[_equip_cursor])
+
+
+## Which grid slot the player is looking at, or -1. Same split: off the grid, a pointer is looking
+## at nothing, and saying so is the whole fix for the description that used to stay behind.
+func _described_grid_index() -> int:
+	if _input_mode == InputMode.POINTER:
+		return _index_at_grid_cell(_hover_grid_index) if _hover_grid_index >= 0 else -1
+	if _focus_area != FocusArea.GRID:
+		return -1
+	return _selected_index
+
+
 func _navigate(delta: Vector2i) -> void:
+	_input_mode = InputMode.CURSOR
 	if _focus_area == FocusArea.EQUIPMENT:
 		if delta.x < 0:
 			_focus_area = FocusArea.GRID
@@ -1030,6 +1173,7 @@ func _on_equip_gui_input(event: InputEvent, slot_name: String) -> void:
 func _on_cell_mouse_entered(x: int, y: int) -> void:
 	if not _inventory_open:
 		return
+	_input_mode = InputMode.POINTER
 	_hover_grid_index = y * _inventory().grid_width + x
 	_hover_equip_slot = ""
 	_highlight_cursor()
@@ -1038,6 +1182,7 @@ func _on_cell_mouse_entered(x: int, y: int) -> void:
 
 
 func _on_cell_mouse_exited() -> void:
+	_input_mode = InputMode.POINTER
 	_hover_grid_index = -1
 	_highlight_cursor()
 	_update_detail()
@@ -1047,6 +1192,7 @@ func _on_cell_mouse_exited() -> void:
 func _on_equip_mouse_entered(slot_name: String) -> void:
 	if not _inventory_open:
 		return
+	_input_mode = InputMode.POINTER
 	_hover_equip_slot = slot_name
 	_refresh_equipment()
 	_update_detail()
@@ -1054,6 +1200,7 @@ func _on_equip_mouse_entered(slot_name: String) -> void:
 
 
 func _on_equip_mouse_exited() -> void:
+	_input_mode = InputMode.POINTER
 	_hover_equip_slot = ""
 	_refresh_equipment()
 	_update_detail()
@@ -1229,6 +1376,10 @@ func _clear_drag() -> void:
 	_drag_origin_cell = Vector2i(-1, -1)
 	_drag_ghost.visible = false
 	set_process(false)
+	# Putting the item down is the moment the description becomes useful again, and not every
+	# caller of this remembers to refresh. Doing it here means none of them have to.
+	if _inventory_open:
+		_update_detail()
 
 
 func _apply_equipment() -> void:

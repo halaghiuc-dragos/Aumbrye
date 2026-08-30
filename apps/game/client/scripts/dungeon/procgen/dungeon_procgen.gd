@@ -52,12 +52,23 @@ static func generate(
 		rooms = RoomGraphGeometryScript.build_rooms(graph, assignment)
 		if rooms.is_empty():
 			continue
+		# The same test the definition validator will apply in a moment. Checking it here is the
+		# difference between this attempt being discarded and the whole floor failing: the loop
+		# already exists to throw away layouts that do not work, and an overlapping one does not
+		# work. Rejecting it costs one more assignment; letting it through costs the player a run.
+		if DungeonDefinitionValidator.has_room_overlap(rooms):
+			rooms = []
+			continue
 		edges = RoomGraphGeometryScript.build_edges(graph, assignment)
 		break
 	if rooms.is_empty():
 		return {
 			"ok": false,
-			"error": "Geometry build failed after %d assignment attempts" % MAX_ASSIGNMENT_ATTEMPTS,
+			"error":
+			(
+				"Geometry build failed after %d assignment attempts"
+				% MAX_ASSIGNMENT_ATTEMPTS
+			),
 		}
 	var placements := ProcgenPlacementsScript.place(
 		biome, assignment, run_seed, tier, player_level, floor_index, graph

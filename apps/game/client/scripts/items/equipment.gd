@@ -1,6 +1,8 @@
 extends RefCounted
 class_name Equipment
 
+const ItemQualityScript := preload("res://scripts/items/item_quality.gd")
+
 
 const SLOT_ORDER: Array[String] = [
 	"helmet",
@@ -44,6 +46,9 @@ const STAT_KEYS: Array[String] = [
 	"xpGain",
 	"goldFind",
 	"cooldownReduction",
+	# Carried on gear since the first loot pass but absent from this list, so slot_stats never
+	# summed it and nothing downstream could read it. It scales how fast the player swings.
+	"attackSpeed",
 ]
 
 const FLAT_DAMAGE_STAT_KEYS: Array[String] = [
@@ -96,6 +101,7 @@ const STAT_DISPLAY: Dictionary = {
 	"goldFind": {"key": "STAT_GOLD_FIND", "label": "Gold Find", "unit": UNIT_FRACTION},
 	"cooldownReduction":
 	{"key": "STAT_COOLDOWN_RED", "label": "Cooldown Reduction", "unit": UNIT_FRACTION},
+	"attackSpeed": {"key": "STAT_ATTACK_SPEED", "label": "Attack Speed", "unit": UNIT_FRACTION},
 	"physicalDamage":
 	{"key": "STAT_PHYSICAL_DAMAGE", "label": "Physical Damage", "unit": UNIT_FLAT},
 	"fireDamage": {"key": "STAT_FIRE_DAMAGE", "label": "Fire Damage", "unit": UNIT_FLAT},
@@ -305,6 +311,11 @@ static func slot_stats(slot: Dictionary, affix_resolver: Callable = Callable()) 
 	var recipe_bonus := RecipeCatalog.upgrade_stat_bonus(item_id, upgrade_level)
 	var use_recipe_bonus := not recipe_bonus.is_empty()
 	var mult := upgrade_multiplier(upgrade_level, upgrade_path)
+	# Condition scales the item's own numbers, so it multiplies with the upgrade level rather than
+	# adding beside it: upgrading a chipped sword makes a better chipped sword, and never turns it
+	# into a masterforged one. Affixes are added afterwards and are deliberately untouched -- they
+	# are enchantments on the item, not part of its make.
+	mult *= ItemQualityScript.stat_multiplier(str(slot.get("quality", "")))
 	var totals: Dictionary = {}
 	for stat in STAT_KEYS:
 		var base_val := float(base_stats.get(stat, 0.0))

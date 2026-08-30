@@ -4,8 +4,15 @@
   "quantity": 1,
   "rarity": "legendary",
   "affixes": [
-    { "affixId": "sharp", "value": 24 },
-    { "affixId": "of_flames", "value": 25 }
+    {
+      "affixId": "sharp",
+      "value": 24
+    },
+    {
+      "affixId": "of_flames",
+      "value": 25
+    }
   ],
-  "rollSeed": 424242
+  "rollSeed": 424242,
+  "quality": "masterforged"
 }

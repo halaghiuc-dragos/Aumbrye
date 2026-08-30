@@ -911,6 +911,34 @@ static func add_box(
 	return mesh_inst
 
 
+## How far a stacked box sinks into the one beneath it.
+##
+## Boxes that butt at an exact shared plane leave two coincident faces, and the depth buffer has no
+## way to order them: the seam flickers between the two materials as the camera moves, which reads
+## as pixels tearing along the join. Large near/far ratios make it worse, and the hub runs its
+## ground out to 3800m for the skyline, so the ratio here is not something we can tighten.
+##
+## Seating the upper box a hair into the lower one removes the coincidence outright. The sliver is
+## buried inside solid geometry, so nothing about the silhouette changes.
+const SEAM_BITE := 0.012
+
+
+## `add_box`, but the box grows downward by `bite` so its underside sits inside whatever it stands
+## on. Use for anything stacked face-to-face; plain `add_box` is still right for free-floating
+## detail that shares no plane with a neighbour.
+static func add_seated_box(
+	parent: Node3D,
+	size: Vector3,
+	position: Vector3,
+	material: Material,
+	node_name: String = "",
+	bite: float = SEAM_BITE
+) -> MeshInstance3D:
+	var seated_size := Vector3(size.x, size.y + bite, size.z)
+	var seated_pos := Vector3(position.x, position.y - bite * 0.5, position.z)
+	return add_box(parent, seated_size, seated_pos, material, node_name)
+
+
 static func make_portal_material(portal_id: String) -> ShaderMaterial:
 	if _portal_material_cache.has(portal_id):
 		return _portal_material_cache[portal_id] as ShaderMaterial
@@ -1066,8 +1094,12 @@ static func _build_portal_arch(
 	visuals: Node3D, o: Vector3, frame_mat: Material, accent_mat: Material, floor_mat: Material
 ) -> void:
 	add_box(visuals, Vector3(4.2, 0.24, 2.4), o + Vector3(0.0, 0.12, 0.0), frame_mat, "Plinth")
-	add_box(visuals, Vector3(3.7, 0.2, 2.1), o + Vector3(0.0, 0.34, 0.0), frame_mat, "PlinthUpper")
-	add_box(visuals, Vector3(3.3, 0.12, 1.8), o + Vector3(0.0, 0.5, 0.0), accent_mat, "PlinthCap")
+	add_seated_box(
+		visuals, Vector3(3.7, 0.2, 2.1), o + Vector3(0.0, 0.34, 0.0), frame_mat, "PlinthUpper"
+	)
+	add_seated_box(
+		visuals, Vector3(3.3, 0.12, 1.8), o + Vector3(0.0, 0.5, 0.0), accent_mat, "PlinthCap"
+	)
 	add_box(visuals, Vector3(2.8, 0.14, 1.5), o + Vector3(0.0, 0.55, 0.35), floor_mat, "Pad")
 
 	var centre := o + Vector3(0.0, RING_CENTER_Y, 0.0)
@@ -1112,19 +1144,20 @@ static func _build_portal_arch(
 		var tag := "R" if side > 0.0 else "L"
 		var pier_top := RING_CENTER_Y - 0.4
 		var pier_h := pier_top - 0.56
-		add_box(
+		add_seated_box(
 			visuals,
 			Vector3(0.62, pier_h, 0.86),
 			o + Vector3(side * 1.42, 0.56 + pier_h * 0.5, 0.0),
 			frame_mat,
 			"Pier%s" % tag
 		)
-		add_box(
+		add_seated_box(
 			visuals,
 			Vector3(0.8, 0.22, 1.0),
 			o + Vector3(side * 1.42, 0.67, 0.0),
 			accent_mat,
-			"PierBase%s" % tag
+			"PierBase%s" % tag,
+			SEAM_BITE * 2.0
 		)
 		add_box(
 			visuals,
@@ -1141,7 +1174,14 @@ static func _build_portal_arch(
 			"SconceBowl%s" % tag
 		)
 
-	add_box(visuals, Vector3(2.6, 0.12, 0.24), o + Vector3(0.0, 0.62, 0.42), accent_mat, "Threshold")
+	add_seated_box(
+		visuals,
+		Vector3(2.6, 0.12, 0.24),
+		o + Vector3(0.0, 0.62, 0.42),
+		accent_mat,
+		"Threshold",
+		SEAM_BITE * 3.0
+	)
 
 
 static func _build_portal_collision(visuals: Node3D, o: Vector3) -> void:

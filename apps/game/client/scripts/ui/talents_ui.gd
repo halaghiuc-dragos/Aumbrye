@@ -143,18 +143,47 @@ func _update_detail() -> void:
 			line = Equipment.format_stat_line(stat, value)
 		if line != "":
 			effect_lines.append(line)
-	var can := ProgressionService.can_unlock_talent(node.get("id", ""))
+	var node_id: String = str(node.get("id", ""))
+	var can := ProgressionService.can_unlock_talent(node_id)
 	var display_name: String = _talent_display_name(node)
 	if bool(node.get("keystone", false)):
 		display_name = "◆ %s" % display_name
-	_detail_label.text = (
-		"%s\n%s\n%s"
-		% [
-			display_name,
-			", ".join(effect_lines),
-			tr("TALENTS_CAN_UNLOCK") if can else tr("TALENTS_LOCKED"),
-		]
-	)
+	var lines: PackedStringArray = [display_name]
+	# A keystone's rules text is the reason to take it — it has to be on screen, not just its
+	# stat line, or the whole tree reads as percentages again.
+	var description: String = str(node.get("description", ""))
+	if description != "":
+		lines.append(description)
+	var effects_line := ", ".join(effect_lines)
+	if effects_line != "":
+		lines.append(effects_line)
+	lines.append_array(_exclusivity_lines(node, node_id))
+	lines.append(tr("TALENTS_CAN_UNLOCK") if can else tr("TALENTS_LOCKED"))
+	_detail_label.text = "\n".join(lines)
+
+
+## Paired keystones are the one real decision in the tree, so say out loud what taking one costs.
+func _exclusivity_lines(node: Dictionary, node_id: String) -> PackedStringArray:
+	var lines: PackedStringArray = []
+	var excludes: Variant = node.get("excludes", [])
+	if not excludes is Array or (excludes as Array).is_empty():
+		return lines
+	var blocker := ProgressionService.blocked_by(node_id)
+	if blocker != "":
+		lines.append(tr("TALENTS_BLOCKED_BY") % _node_name_for_id(blocker))
+		return lines
+	var names: PackedStringArray = []
+	for excluded in (excludes as Array):
+		names.append(_node_name_for_id(str(excluded)))
+	lines.append(tr("TALENTS_CLOSES_OFF") % ", ".join(names))
+	return lines
+
+
+func _node_name_for_id(node_id: String) -> String:
+	for node in _nodes:
+		if str(node.get("id", "")) == node_id:
+			return _talent_display_name(node)
+	return node_id
 
 
 func _unlock_selected() -> void:

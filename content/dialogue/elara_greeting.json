@@ -80,7 +80,7 @@
     },
     "veteran": {
       "speaker": "Elara",
-      "text": "You have climbed enough times that the echoes know your step. That is not the compliment it sounds like. Spend the knowledge before something spends you.",
+      "text": "You have climbed enough times that the umbrals know your step. That is not the compliment it sounds like. Spend the knowledge before something spends you.",
       "actions": [
         {
           "type": "set_relationship",

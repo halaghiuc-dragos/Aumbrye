@@ -279,7 +279,7 @@ layout_mode = 2
 [node name="Title" type="Label" parent="RespawnOutcomeOverlay/Panel/Margin/VBox"]
 theme_type_variation = "MenuTitle"
 layout_mode = 2
-text = "Echo Returned"
+text = "Umbral Returned"
 horizontal_alignment = 1
 
 [node name="Body" type="Label" parent="RespawnOutcomeOverlay/Panel/Margin/VBox"]

@@ -20,7 +20,11 @@ var _interactable: HubInteractable
 var _greeted_this_visit := false
 
 
+const PixelStyle := preload("res://scripts/art/style/pixel_diorama_style.gd")
+
+
 func _ready() -> void:
+	_skin_body()
 	_data = NpcCatalog.get_definition(npc_id)
 	_interactable = get_node_or_null("InteractArea") as HubInteractable
 	if _interactable == null:
@@ -243,3 +247,15 @@ func _on_interacted() -> void:
 		dialogue_requested.emit(npc_id, dialogue_id)
 		return
 	shop_requested.emit(npc_id, service)
+
+
+## The NPC body mesh carried no material, so every villager in the hub was a grey block until
+## something else happened to skin it. Uses the hub's own palette rather than a biome accent,
+## because the hub is where these stand.
+func _skin_body() -> void:
+	var body := get_node_or_null("Body") as MeshInstance3D
+	if body == null or body.material_override != null:
+		return
+	body.material_override = PixelStyle.make_prop_material(
+		PixelStyle.theme_from_biome(BiomeRegistry.BIOME_CASTLE), false
+	)

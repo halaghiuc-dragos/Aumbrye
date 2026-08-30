@@ -87,9 +87,9 @@ func configure(world_pos: Vector3, xp_amount: int, gold_amount: int = 0) -> void
 	_xp_amount = maxi(0, xp_amount)
 	_gold_amount = maxi(0, gold_amount)
 	if _gold_amount > 0:
-		_label.text = "Echo shard (+%d XP, %d gold)" % [_xp_amount, _gold_amount]
+		_label.text = "Umbral shard (+%d XP, %d gold)" % [_xp_amount, _gold_amount]
 	else:
-		_label.text = "Echo shard (+%d XP)" % _xp_amount
+		_label.text = "Umbral shard (+%d XP)" % _xp_amount
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -117,9 +117,68 @@ func _collect() -> void:
 	if _xp_amount <= 0 and _gold_amount <= 0:
 		queue_free()
 		return
+	var offer := _umbral_ui()
+	if offer == null:
+		# No UI available (an arena or a stripped scene) — fall back to the plain refund rather
+		# than stranding the player's staked XP behind a menu that cannot open.
+		_recover()
+		return
+	if offer.is_open():
+		return
+	offer.recovered.connect(_recover, CONNECT_ONE_SHOT)
+	offer.listened.connect(_listen, CONNECT_ONE_SHOT)
+	offer.dismissed.connect(_on_offer_dismissed, CONNECT_ONE_SHOT)
+	offer.open_offer(_xp_amount, _gold_amount)
+
+
+func _umbral_ui() -> Node:
+	var existing := get_tree().get_first_node_in_group("umbral_shard_ui")
+	if existing != null:
+		return existing
+	var run := get_tree().get_first_node_in_group("castle_run")
+	if run == null:
+		return null
+	var ui := Control.new()
+	ui.name = "UmbralShardUI"
+	ui.set_script(load("res://scripts/ui/umbral_shard_ui.gd"))
+	run.add_child(ui)
+	return ui
+
+
+func _on_offer_dismissed() -> void:
+	_disconnect_offer()
+
+
+func _disconnect_offer() -> void:
+	var offer := get_tree().get_first_node_in_group("umbral_shard_ui")
+	if offer == null:
+		return
+	for entry in [
+		["recovered", _recover], ["listened", _listen], ["dismissed", _on_offer_dismissed]
+	]:
+		var signal_name: String = entry[0]
+		var callable: Callable = entry[1]
+		if offer.is_connected(signal_name, callable):
+			offer.disconnect(signal_name, callable)
+
+
+func _recover() -> void:
+	_disconnect_offer()
 	if _xp_amount > 0:
 		ProgressionService.grant_xp(_xp_amount, "xp_shard")
 	if _gold_amount > 0:
 		CharacterService.add_gold(_gold_amount, false)
 	RunFlow.clear_recoverable_xp_shard()
+	queue_free()
+
+
+## Leave the numbers where they fell and take the warden instead — a relic choice, for this run.
+func _listen() -> void:
+	_disconnect_offer()
+	RunFlow.clear_recoverable_xp_shard()
+	var run := get_tree().get_first_node_in_group("castle_run")
+	if run != null and run.has_method("offer_umbral_relic"):
+		run.call("offer_umbral_relic")
+	VfxService.play_rune_flare(global_position + Vector3(0.0, 1.0, 0.0))
+	AudioDirector.play_stinger("floor_clear")
 	queue_free()

@@ -79,9 +79,16 @@ func _ready() -> void:
 	_announce_floor_entry(def)
 	AudioDirector.play_dungeon_ambience()
 	set_physics_process(true)
+	var offer_umbral := (
+		not RunFlow.is_continue_restore()
+		and RunFlow.get_current_floor() == 1
+		and not RunFlow.has_floor_transition()
+	)
 	RunFlow.clear_continue_restore()
 	call_deferred("_persist_snapshot")
 	call_deferred("_apply_pixel_diorama_scene")
+	if offer_umbral:
+		call_deferred("_offer_opening_umbral")
 
 
 func _apply_biome_presentation(def: Dictionary) -> void:
@@ -581,6 +588,27 @@ func _persist_snapshot() -> void:
 	LocalSave.set_active_run(active)
 
 
+## The umbral the shard carries. A separate offer key from the opening umbral so listening to a
+## dead warden cannot re-roll the choice the run opened with.
+func offer_umbral_relic() -> void:
+	if _relic_offer == null or not is_instance_valid(_relic_offer):
+		return
+	if not _relic_offer.has_method("open_offer"):
+		return
+	_relic_offer.call("open_offer", "shard:%d:%d" % [RunFlow.current_seed, RunFlow.current_floor])
+
+
+## The opening umbral. A relic choice before the first room, so the player knows what this run is
+## about inside the first minute instead of finding out at the first boss. Seeded on the run so
+## the same seed always opens the same three.
+func _offer_opening_umbral() -> void:
+	if _relic_offer == null or not is_instance_valid(_relic_offer):
+		return
+	if not _relic_offer.has_method("open_offer"):
+		return
+	_relic_offer.call("open_offer", "umbral:%d" % RunFlow.current_seed)
+
+
 func _offer_boss_relic() -> void:
 	if _relic_offer == null or not is_instance_valid(_relic_offer):
 		return
@@ -609,7 +637,7 @@ func _on_boss_defeated() -> void:
 					"show_epilogue",
 					(
 						"The Forgotten Sovereign falls. The tower's reset slows — for one breath the oath is fulfilled. "
-						+ "Your echo endures in Aumbrye Tower until the next summons."
+						+ "Your umbral endures in Aumbrye Tower until the next summons."
 					)
 				)
 			)

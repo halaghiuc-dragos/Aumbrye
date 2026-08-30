@@ -190,6 +190,8 @@ func _offer_candidates() -> Array[String]:
 		var def := RelicCatalog.get_definition(relic_id)
 		if def.is_empty() or not bool(def.get("offerable", true)):
 			continue
+		if VaultService and not VaultService.is_relic_available(relic_id):
+			continue
 		if _stacks_of(relic_id) >= int(def.get("maxStacks", 1)):
 			continue
 		out.append(relic_id)

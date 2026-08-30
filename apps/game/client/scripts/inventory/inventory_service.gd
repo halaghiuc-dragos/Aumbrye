@@ -2,6 +2,7 @@ extends Node
 
 
 const EquipmentHelper := preload("res://scripts/items/equipment.gd")
+const ItemQualityScript := preload("res://scripts/items/item_quality.gd")
 const RarityRegistryScript := preload("res://scripts/loot/rarity_registry.gd")
 const RunModeConfigScript := preload("res://scripts/app/run_mode_config.gd")
 const CombatStatModifiersScript := preload("res://scripts/combat/combat_stat_modifiers.gd")
@@ -9,6 +10,12 @@ const CharacterSkinScript := preload("res://scripts/art/characters/diorama_chara
 const PixelStyleScript := preload("res://scripts/art/style/pixel_diorama_style.gd")
 const PlayerControlsScript := preload("res://scripts/app/player_controls.gd")
 const ConsumableServiceScript := preload("res://scripts/inventory/consumable_service.gd")
+
+## Same green and red the equipped-stat comparison already uses, so "better" and "worse" read the
+## same way wherever the player sees them.
+const CONDITION_GOOD_COLOR := "#7fd67f"
+const CONDITION_POOR_COLOR := "#e07a7a"
+const CONDITION_NEUTRAL_COLOR := "#c9c2b4"
 const WorldItemPickupScript := preload("res://scripts/inventory/world_item_pickup.gd")
 
 signal inventory_changed
@@ -18,6 +25,7 @@ signal quick_slots_changed
 
 var inventory: GridInventory = GridInventory.new()
 var quick_slot_instances: Array[String] = ["", "", "", ""]
+var waves_quick_slot_instances: Array[String] = ["", "", "", ""]
 var _registered_rule_sources: Array = []
 var _applying_status_refresh := false
 
@@ -46,11 +54,16 @@ func _sync_unique_rules() -> void:
 		if instance.is_empty():
 			continue
 		var item_id := str(instance.get("itemId", ""))
+		var instance_id := str(instance.get("instanceId", ""))
 		var def := get_item_def(item_id)
 		var rules: Variant = def.get("rules", [])
-		if not rules is Array or (rules as Array).is_empty():
-			continue
-		wanted[_rule_source_id(item_id, str(instance.get("instanceId", "")))] = rules
+		if rules is Array and not (rules as Array).is_empty():
+			wanted[_rule_source_id(item_id, instance_id)] = rules
+		# A rolled behavioural affix carries its own rules, registered separately from the item's
+		# so two instances of the same base with different rolls do not collide.
+		var affix_rules := AffixRoller.rules_for_instance(instance)
+		if not affix_rules.is_empty():
+			wanted["affix/%s#%s" % [item_id, instance_id]] = affix_rules
 	for source_id in _registered_rule_sources:
 		if not wanted.has(source_id):
 			CombatEvents.unregister(str(source_id))
@@ -352,6 +365,33 @@ func _format_item_footer(slot: Dictionary, def: Dictionary) -> String:
 	return tr("INV_DURABILITY") % [current, maximum]
 
 
+## The item's condition, on a line of its own.
+##
+## It used to be appended to the subtitle beside the slot name, the infusion and the upgrade level,
+## where it read as one more word in a run-on and was easy to miss entirely -- and the neutral tier
+## was left out altogether, so most items said nothing about an axis that is always there. Naming
+## it, always, is what makes the player aware the axis exists at all; a "Balanced" that says +0% is
+## worth a line, because it tells them the roll could have gone either way.
+func _format_condition_line(slot: Dictionary) -> String:
+	var quality := str(slot.get("quality", ""))
+	if quality == "" or not ItemQualityScript.exists(quality):
+		return ""
+	var delta := ItemQualityScript.stat_multiplier(quality) - 1.0
+	var percent := roundi(delta * 100.0)
+	var colour := CONDITION_NEUTRAL_COLOR
+	if percent > 0:
+		colour = CONDITION_GOOD_COLOR
+	elif percent < 0:
+		colour = CONDITION_POOR_COLOR
+	return "%s [color=%s]%s[/color] [color=%s](%+d%% base stats)[/color]" % [
+		tr("INV_CONDITION"),
+		colour,
+		_escape_bbcode(ItemQualityScript.display_name(quality)),
+		colour,
+		percent,
+	]
+
+
 func format_slot_tooltip_bbcode(slot: Dictionary) -> String:
 	var def := get_item_def(slot.get("itemId", ""))
 	var resolver := Callable(AffixRoller, "get_affix_stat")
@@ -360,6 +400,9 @@ func format_slot_tooltip_bbcode(slot: Dictionary) -> String:
 	var subtitle := _format_item_subtitle(slot, def)
 	if subtitle != "":
 		lines.append(_escape_bbcode(subtitle))
+	var condition := _format_condition_line(slot)
+	if condition != "":
+		lines.append(condition)
 	if def.has("description"):
 		lines.append(_escape_bbcode(str(def.get("description", ""))))
 	var rule_text := str(def.get("ruleText", ""))
@@ -550,6 +593,12 @@ func apply_equipment_to_player_node(player: Node) -> void:
 	var defense_points := CombatStatModifiersScript.defense_points(equip_stats, talent_stats)
 	player.set_meta("combat_defense", defense_points)
 	player.set_meta(
+		"combat_evasion", CombatStatModifiersScript.evasion_chance(equip_stats, talent_stats)
+	)
+	player.set_meta(
+		"combat_health_regen", CombatStatModifiersScript.health_regen(equip_stats, talent_stats)
+	)
+	player.set_meta(
 		"combat_damage_reduction",
 		CombatStatModifiersScript.damage_reduction(equip_stats, talent_stats)
 	)
@@ -611,35 +660,71 @@ func try_use_slot_index(index: int) -> Dictionary:
 	return {"ok": false, "reason": tr("INV_USE_FAILED")}
 
 
+## The Vigil runs on its own loadout: nothing carried in from the hub, and nothing looted inside it
+## leaks back out except through the summoner. Everything quick-slot related therefore has to point
+## at whichever inventory is currently in play, or the potions the player just pulled out of a
+## cache would be unusable while their hub potions sat uselessly on the bar.
+func is_waves_context() -> bool:
+	return RunFlow != null and RunModeConfigScript.is_waves(RunFlow.get_run_mode())
+
+
+func active_inventory() -> GridInventory:
+	if is_waves_context() and WavesRunService != null:
+		return WavesRunService.waves_inventory
+	return inventory
+
+
+func _active_quick_slots() -> Array[String]:
+	return waves_quick_slot_instances if is_waves_context() else quick_slot_instances
+
+
+func reset_waves_quick_slots() -> void:
+	waves_quick_slot_instances = ["", "", "", ""]
+	quick_slots_changed.emit()
+
+
+func get_waves_quick_slots() -> Array[String]:
+	return waves_quick_slot_instances.duplicate()
+
+
+func restore_waves_quick_slots(raw: Variant) -> void:
+	waves_quick_slot_instances = ["", "", "", ""]
+	if raw is Array:
+		for i in mini((raw as Array).size(), 4):
+			waves_quick_slot_instances[i] = str((raw as Array)[i])
+	quick_slots_changed.emit()
+
+
 func set_quick_slot(quick_index: int, instance_id: String) -> void:
 	if quick_index < 0 or quick_index > 3:
 		return
-	quick_slot_instances[quick_index] = instance_id if instance_id != "" else ""
+	_active_quick_slots()[quick_index] = instance_id if instance_id != "" else ""
 	quick_slots_changed.emit()
-	if LocalSave:
+	if LocalSave and not is_waves_context():
 		LocalSave.request_autosave()
 
 
 func get_quick_slot_index(quick_index: int) -> int:
-	if quick_index < 0 or quick_index >= quick_slot_instances.size():
+	var slots := _active_quick_slots()
+	if quick_index < 0 or quick_index >= slots.size():
 		return -1
-	return inventory.find_instance_index(quick_slot_instances[quick_index])
+	return active_inventory().find_instance_index(slots[quick_index])
 
 
 func get_quick_slot_label(quick_index: int) -> String:
+	var target := active_inventory()
 	var idx := get_quick_slot_index(quick_index)
-	if idx < 0 or idx >= inventory.slots.size():
+	if idx < 0 or idx >= target.slots.size():
 		return "Empty"
-	return inventory.get_slot_display_name(inventory.slots[idx])
+	return target.get_slot_display_name(target.slots[idx])
 
 
 func activate_quick_slot(quick_index: int) -> String:
-	if RunFlow and RunModeConfigScript.is_waves(RunFlow.get_run_mode()):
-		return ""
+	var target := active_inventory()
 	var idx := get_quick_slot_index(quick_index)
-	if idx < 0 or idx >= inventory.slots.size():
+	if idx < 0 or idx >= target.slots.size():
 		return ""
-	var slot: Dictionary = inventory.slots[idx]
+	var slot: Dictionary = target.slots[idx]
 	var item_id := str(slot.get("itemId", ""))
 	if _use_or_equip_index(idx):
 		return item_id
@@ -647,14 +732,15 @@ func activate_quick_slot(quick_index: int) -> String:
 
 
 func _use_or_equip_index(index: int) -> bool:
-	if index < 0 or index >= inventory.slots.size():
+	var target := active_inventory()
+	if index < 0 or index >= target.slots.size():
 		return false
-	var slot: Dictionary = inventory.slots[index]
+	var slot: Dictionary = target.slots[index]
 	var def := get_item_def(slot.get("itemId", ""))
 	var item_type: String = def.get("itemType", "")
 	if item_type in ["weapon", "armor", "accessory"]:
-		if inventory.equip_from_index(index):
-			_apply_equipment_to_player()
+		if target.equip_from_index(index):
+			_apply_active_equipment_to_player()
 			return true
 		return false
 	if item_type == "consumable":
@@ -662,11 +748,25 @@ func _use_or_equip_index(index: int) -> bool:
 	return false
 
 
+## Re-applies whichever loadout is live. In the Vigil that is the run's own inventory, so equipping
+## a looted sword takes effect immediately without touching the character's real gear.
+func _apply_active_equipment_to_player() -> void:
+	if is_waves_context() and WavesRunService != null:
+		var player := get_tree().get_first_node_in_group("player")
+		if player != null:
+			WavesRunService.apply_equipment_to_player(player)
+		return
+	_apply_equipment_to_player()
+
+
 func _use_consumable_at_index(index: int) -> bool:
 	var player := get_tree().get_first_node_in_group("player")
 	if player == null:
 		return false
-	var slot: Dictionary = inventory.slots[index]
+	var target := active_inventory()
+	if index < 0 or index >= target.slots.size():
+		return false
+	var slot: Dictionary = target.slots[index]
 	var def := get_item_def(slot.get("itemId", ""))
 	var in_run := RunFlow != null and RunFlow.is_run_active()
 	var in_hub := not in_run
@@ -675,7 +775,7 @@ func _use_consumable_at_index(index: int) -> bool:
 		return false
 	if not ConsumableServiceScript.apply(def, player):
 		return false
-	inventory.consume_at(index)
+	target.consume_at(index)
 	return true
 
 
