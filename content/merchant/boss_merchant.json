@@ -1,0 +1,8 @@
+{
+  "id": "boss_merchant",
+  "items": [
+    { "itemId": "health_potion", "price": 30, "stock": 3 },
+    { "itemId": "stamina_potion", "price": 24, "stock": 2 },
+    { "itemId": "iron_scrap", "price": 12, "stock": 4 }
+  ]
+}

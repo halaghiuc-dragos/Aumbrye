@@ -41,6 +41,13 @@ func _ready() -> void:
 		if not fixture.is_empty():
 			get_tree().root.set_meta("dungeon_definition", fixture)
 
+	# The tree root is still finishing its own setup on the frame this node's `_ready()` runs in --
+	# `add_child` on it from here fails with "Parent node is busy setting up children". Every target
+	# after the first was safe by accident, landing after the previous one's settle/sample frames
+	# had already let a frame pass; only the first `_measure` call raced the root and silently
+	# measured an empty scene (0 draws, 0 objects) while still printing a frame time.
+	await get_tree().process_frame
+
 	print("PERF %-14s %8s %8s %7s %9s %8s %9s %8s" % [
 		"scene", "avg_ms", "p95_ms", "fps", "draws", "prims_k", "objects", "nodes"])
 	var over_budget: Array[String] = []

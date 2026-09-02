@@ -7,14 +7,13 @@ static func validate_definition(definition: Dictionary) -> Dictionary:
 	if locks.is_empty():
 		return {"ok": true}
 	var placements: Dictionary = definition.get("placements", {})
-	var entrance: Variant = placements.get("entrance")
-	if not entrance is Dictionary:
-		return {"ok": false, "reason": "Missing entrance placement"}
-	var start_id := str(entrance.get("roomId", ""))
+	# `entrance` is a bare room id while `boss` is a record with one inside it. This used to insist
+	# on the record shape for both, so a floor with a lock on it always failed here with "missing
+	# entrance placement" -- the solvability walk below has never once run.
+	var start_id := _placement_room_id(placements.get("entrance"))
 	if start_id == "":
 		return {"ok": false, "reason": "Missing entrance room id"}
-	var boss_placement: Variant = placements.get("boss")
-	var boss_id := str(boss_placement.get("roomId", "")) if boss_placement is Dictionary else ""
+	var boss_id := _placement_room_id(placements.get("boss"))
 	if boss_id == "":
 		return {"ok": true}
 	var adjacency := _definition_adjacency(definition)
@@ -73,24 +72,15 @@ static func validate_definition(definition: Dictionary) -> Dictionary:
 	return {"ok": false, "reason": "Boss unreachable with earned keys"}
 
 
+## A placement is written either as a bare room id or as a record carrying one.
+static func _placement_room_id(placement: Variant) -> String:
+	if placement is Dictionary:
+		return str((placement as Dictionary).get("roomId", ""))
+	return str(placement) if placement != null else ""
+
+
 static func _definition_adjacency(definition: Dictionary) -> Dictionary:
-	var adjacency := {}
-	for edge in definition.get("edges", []):
-		if not edge is Dictionary:
-			continue
-		if str(edge.get("kind", "")) == "secret":
-			continue
-		var from_id := str(edge.get("from", ""))
-		var to_id := str(edge.get("to", ""))
-		if from_id == "" or to_id == "":
-			continue
-		if not adjacency.has(from_id):
-			adjacency[from_id] = []
-		if not adjacency.has(to_id):
-			adjacency[to_id] = []
-		adjacency[from_id].append(to_id)
-		adjacency[to_id].append(from_id)
-	return adjacency
+	return DungeonDefinitionValidator.adjacency_from_edges(definition)
 
 
 static func validate(
@@ -142,11 +132,14 @@ static func validate(
 		var key_room: String = lock.get("keyRoomId", "")
 		var to_room: String = lock.get("to", "")
 		var key_layout: String = lock.get("keyLayoutId", "")
+		var from_room: String = lock.get("from", "")
 		var to_layout := ""
+		var from_layout := ""
 		for layout_id in layout_to_semantic:
 			if layout_to_semantic[layout_id] == to_room:
 				to_layout = layout_id
-				break
+			if layout_to_semantic[layout_id] == from_room:
+				from_layout = layout_id
 		if key_room == "" or to_room == "":
 			return {"ok": false, "reason": "Lock missing key or target room"}
 		var key_layouts: Array = lock.get("keyLayoutIds", [key_layout])
@@ -154,14 +147,27 @@ static func validate(
 			var layout := str(candidate)
 			if layout == "":
 				continue
-			if layout in path:
-				return {"ok": false, "reason": "Key room on critical path"}
+			# A key on the critical path is a weaker hiding place, not an invalid floor, and the
+			# assigner only resorts to one when the approach to the lock has no side branch at all.
+			# Rejecting it here just sent the generator back for an ungated floor instead.
 			if layout == graph.start_id or layout == graph.stairs_id or layout == graph.boss_id:
 				return {"ok": false, "reason": "Key room uses reserved layout"}
-			if to_layout != "" and not RoomGraphPaths.is_on_branch_to(graph, layout, to_layout):
-				return {"ok": false, "reason": "Key room not on branch to locked door"}
-	if not _simulate_path(path_semantic, content, start_semantic, boss_semantic):
-		return {"ok": false, "reason": "Boss unreachable on critical path with earned keys"}
+			# The rule that matters is that the key is gettable with the door shut. This used to
+			# demand the key room be an ancestor of the room behind the door, which on a
+			# breadth-first tree means a room on the critical path -- rejected four lines above.
+			# No lock could satisfy both, so every floor carrying one failed validation and the
+			# assigner retried until it happened to produce a floor with no locks at all.
+			if from_layout != "" and to_layout != "":
+				var open_rooms := RoomGraphPaths.reachable_without_edge(
+					graph, from_layout, to_layout
+				)
+				if not open_rooms.has(layout):
+					return {
+						"ok": false,
+						"reason": "Key room %s is behind the lock it opens" % layout
+					}
+	if not _boss_reachable_with_keys(graph, layout_to_semantic, content, start_semantic, boss_semantic):
+		return {"ok": false, "reason": "Boss unreachable with earned keys"}
 	var collectible_check := _validate_collectibles(content, path_semantic)
 	if not collectible_check.get("ok", false):
 		return collectible_check
@@ -211,45 +217,84 @@ static func validate_pacing(
 	return {"ok": true}
 
 
-static func _simulate_path(
-	path_semantic: Array[String], content: Dictionary, start_semantic: String, boss_semantic: String
+## Whether the player can reach the boss, picking keys up as they explore.
+##
+## This used to walk the critical path and collect only the keys lying on it. But a key is placed
+## *off* the critical path by design -- `_find_key_room_layout` skips on-path rooms, and the check
+## above rejects a key room that is on it -- so the walk could never pick one up, every floor
+## carrying a lock was judged unwinnable, and the assigner retried until it produced a floor with
+## no locks. Exploring the whole reachable region and repeating until no new key turns up is the
+## same fixpoint `validate_definition` already runs against the finished floor.
+static func _boss_reachable_with_keys(
+	graph: RoomGraph,
+	layout_to_semantic: Dictionary,
+	content: Dictionary,
+	start_semantic: String,
+	boss_semantic: String
 ) -> bool:
-	if path_semantic.is_empty():
+	if start_semantic == "" or boss_semantic == "":
 		return false
-	if (
-		path_semantic[0] != start_semantic
-		or path_semantic[path_semantic.size() - 1] != boss_semantic
-	):
-		return false
+	var adjacency := {}
+	var adj := RoomGraphPaths.build_adjacency(graph)
+	for layout_id in adj:
+		var room_id := str(layout_to_semantic.get(layout_id, ""))
+		if room_id == "":
+			continue
+		var neighbors: Array[String] = []
+		for neighbor_layout in adj[layout_id]:
+			var neighbor_id := str(layout_to_semantic.get(str(neighbor_layout), ""))
+			if neighbor_id != "":
+				neighbors.append(neighbor_id)
+		adjacency[room_id] = neighbors
+	var keys_by_room := {}
+	for entry in content.get("roomContent", []):
+		if not entry is Dictionary:
+			continue
+		var key_id := str((entry as Dictionary).get("keyId", ""))
+		if key_id != "":
+			keys_by_room[str((entry as Dictionary).get("roomId", ""))] = key_id
 	var locks_by_to := {}
 	var required_by_to := {}
 	for lock in content.get("locks", []):
-		var to_room := str(lock.get("to", ""))
-		locks_by_to[to_room] = str(lock.get("keyId", ""))
-		required_by_to[to_room] = maxi(1, int(lock.get("keysRequired", 1)))
-	var held_keys := {}
-	var idx := 0
-	while idx < path_semantic.size():
-		var room_id: String = path_semantic[idx]
-		for entry in content.get("roomContent", []):
-			if entry.get("roomId", "") != room_id:
-				continue
-			var found_key := str(entry.get("keyId", ""))
-			if found_key != "":
-				held_keys[found_key] = int(held_keys.get(found_key, 0)) + 1
-		idx += 1
-		if idx >= path_semantic.size():
-			break
-		var next_room: String = path_semantic[idx]
-		if locks_by_to.has(next_room):
-			var required_key: String = locks_by_to[next_room]
-			if required_key == "":
-				continue
-			var needed: int = int(required_by_to.get(next_room, 1))
-			if int(held_keys.get(required_key, 0)) < needed:
-				return false
-			held_keys[required_key] = int(held_keys[required_key]) - needed
-	return true
+		if not lock is Dictionary:
+			continue
+		var to_room := str((lock as Dictionary).get("to", ""))
+		locks_by_to[to_room] = str((lock as Dictionary).get("keyId", ""))
+		required_by_to[to_room] = maxi(1, int((lock as Dictionary).get("keysRequired", 1)))
+	var keys := {}
+	while true:
+		var found_new_key := false
+		var visited := {start_semantic: true}
+		var queue: Array[String] = [start_semantic]
+		var spent := {}
+		while not queue.is_empty():
+			var current: String = queue.pop_front()
+			if keys_by_room.has(current) and not keys.has(current):
+				keys[current] = str(keys_by_room[current])
+				found_new_key = true
+			if current == boss_semantic:
+				return true
+			for neighbor in adjacency.get(current, []):
+				var next_id := str(neighbor)
+				if visited.has(next_id):
+					continue
+				if locks_by_to.has(next_id):
+					var required_key := str(locks_by_to[next_id])
+					if required_key != "":
+						var needed: int = int(required_by_to.get(next_id, 1))
+						var held := 0
+						for room_id in keys:
+							if str(keys[room_id]) == required_key:
+								held += 1
+						held -= int(spent.get(required_key, 0))
+						if held < needed:
+							continue
+						spent[required_key] = int(spent.get(required_key, 0)) + needed
+				visited[next_id] = true
+				queue.append(next_id)
+		if not found_new_key:
+			return false
+	return false
 
 
 static func simulate_collectibles(

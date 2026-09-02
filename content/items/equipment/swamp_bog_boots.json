@@ -9,5 +9,5 @@
   "rarity": "common",
   "description": "Waterlogged boots that grip treacherous mire.",
   "value": 22,
-  "stats": { "defense": 3, "moveSpeedPercent": 5, "maxHealth": 6 }
+  "stats": { "defense": 3, "moveSpeedPercent": 5 }
 }

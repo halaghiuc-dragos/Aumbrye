@@ -6,10 +6,12 @@ const GameUISkinScript := preload("res://scripts/ui/game_ui_skin.gd")
 const ItemIconAtlasScript := preload("res://scripts/ui/item_icon_atlas.gd")
 const InputGlyphServiceScript := preload("res://scripts/ui/input_glyph_service.gd")
 
-const SLOT_SIZE := Vector2(44.0, 44.0)
+const SLOT_SIZE := Vector2(60.0, 60.0)
+const ICON_INSET := 4.0
 const SELECTED_TINT := Color(1.0, 0.92, 0.62, 1.0)
 const IDLE_TINT := Color(0.62, 0.60, 0.56, 1.0)
 const EMPTY_ALPHA := 0.28
+const KEY_BADGE_SIZE := Vector2(15.0, 13.0)
 
 var _slots: Array[PanelContainer] = []
 
@@ -52,7 +54,7 @@ func _build() -> void:
 		pip.name = "QuickSlot%d" % i
 		pip.custom_minimum_size = SLOT_SIZE
 		pip.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		pip.add_theme_stylebox_override("panel", GameUISkinScript.make_panel_style())
+		pip.add_theme_stylebox_override("panel", GameUISkinScript.make_item_cell_style("common", false))
 
 		var stack := Control.new()
 		stack.name = "Stack"
@@ -61,30 +63,56 @@ func _build() -> void:
 
 		var icon := TextureRect.new()
 		icon.name = "Icon"
-		icon.set_anchors_preset(Control.PRESET_FULL_RECT)
+		icon.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+		icon.offset_left = ICON_INSET
+		icon.offset_top = ICON_INSET
+		icon.offset_right = -ICON_INSET
+		icon.offset_bottom = -ICON_INSET
 		icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 		icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 		icon.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 		icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		stack.add_child(icon)
 
+		var key_badge := Panel.new()
+		key_badge.name = "KeyBadge"
+		key_badge.set_anchors_preset(Control.PRESET_TOP_LEFT)
+		key_badge.size = KEY_BADGE_SIZE
+		key_badge.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		var badge_style := StyleBoxFlat.new()
+		badge_style.bg_color = Color(0.05, 0.04, 0.08, 0.85)
+		badge_style.border_color = GameUISkinScript.FRAME_BORDER
+		badge_style.set_border_width_all(1)
+		badge_style.set_corner_radius_all(0)
+		badge_style.set_content_margin_all(0)
+		key_badge.add_theme_stylebox_override("panel", badge_style)
+		stack.add_child(key_badge)
+
 		var key := Label.new()
 		key.name = "Key"
-		key.set_anchors_preset(Control.PRESET_TOP_LEFT)
+		key.set_anchors_preset(Control.PRESET_FULL_RECT)
 		key.text = str(i + 1)
+		key.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		key.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 		key.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		GameUISkinScript.style_hint_label(key)
-		stack.add_child(key)
+		key.add_theme_font_size_override("font_size", GameUISkinScript.FONT_SIZE_MICRO)
+		key.add_theme_color_override("font_color", Color(0.92, 0.88, 0.98, 1.0))
+		key_badge.add_child(key)
 
 		var count := Label.new()
 		count.name = "Count"
 		count.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
 		count.grow_horizontal = Control.GROW_DIRECTION_BEGIN
 		count.grow_vertical = Control.GROW_DIRECTION_BEGIN
+		count.offset_right = -2
+		count.offset_bottom = -1
 		count.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 		count.vertical_alignment = VERTICAL_ALIGNMENT_BOTTOM
 		count.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		GameUISkinScript.style_hint_label(count)
+		count.add_theme_font_size_override("font_size", GameUISkinScript.FONT_SIZE_MICRO)
+		count.add_theme_color_override("font_color", Color(1.0, 0.96, 0.85, 1.0))
+		count.add_theme_color_override("font_outline_color", Color(0.0, 0.0, 0.0, 1.0))
+		count.add_theme_constant_override("outline_size", 3)
 		stack.add_child(count)
 
 		add_child(pip)

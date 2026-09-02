@@ -180,10 +180,6 @@ func get_stat_bonus(stat: String) -> float:
 	return total
 
 
-func get_stack_count(source_id: String, stack_id: String) -> int:
-	return int(_stacks.get("%s/%s" % [source_id, stack_id], 0))
-
-
 func notify_health_ratio(ratio: float, actor: Node) -> void:
 	if ratio <= LOW_HEALTH_RATIO:
 		if not _low_health_latched:

@@ -63,9 +63,23 @@ static func _ensure_loaded() -> void:
 	var loaded := ContentDirLoader.load_id_map(CATEGORY_DIRS, "id", "ItemCatalog", true, true)
 	if _is_strict():
 		loaded = _apply_strict_allowlist(loaded)
-	_definitions = loaded
+	_definitions = _flatten_footprints(loaded)
 	if _definitions.is_empty():
 		push_error("ItemCatalog: no item definitions loaded from %s" % str(CATEGORY_DIRS))
+
+
+## Every item occupies exactly one cell.
+##
+## The grid is a plain slot list, not a Diablo-style packing puzzle, so the `gridWidth`/`gridHeight`
+## fields the content files still carry are collapsed here rather than at each of the half-dozen
+## places that read them. Doing it once on load also means a new content file cannot reintroduce a
+## multi-cell item by accident.
+static func _flatten_footprints(defs: Dictionary) -> Dictionary:
+	for item_id in defs:
+		var def: Dictionary = defs[item_id]
+		def["gridWidth"] = 1
+		def["gridHeight"] = 1
+	return defs
 
 
 static func _is_strict() -> bool:

@@ -1,10 +1,11 @@
 {
   "id": "the_last_ward",
   "name": "The Last Ward",
-  "description": "A block held at the worst moment gives back a little life.",
+  "description": "Eight health spent keeping guard. A block held at the worst moment gives back a little life.",
   "maxStacks": 1,
   "stats": {
-    "armor": 5
+    "armor": 5,
+    "maxHealth": -8
   },
   "tags": [
     "ward"

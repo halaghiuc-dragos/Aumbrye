@@ -1,10 +1,11 @@
 {
   "id": "swift_step",
   "name": "Swift Step",
-  "description": "+10% movement, and the last step before a kill costs nothing.",
+  "description": "Four armour left behind to move faster. +10% movement, and the last step before a kill costs nothing.",
   "maxStacks": 1,
   "stats": {
-    "moveSpeedPercent": 10
+    "moveSpeedPercent": 10,
+    "armor": -4
   },
   "tags": [
     "swift"

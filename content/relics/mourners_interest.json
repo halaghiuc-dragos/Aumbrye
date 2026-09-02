@@ -1,10 +1,11 @@
 {
   "id": "mourners_interest",
   "name": "Mourner’s Interest",
-  "description": "Three percent more damage, and kills against the frozen return health.",
+  "description": "Eight health mourned in advance. Three percent more damage, and kills against the frozen return health.",
   "maxStacks": 2,
   "stats": {
-    "damagePercent": 3
+    "damagePercent": 3,
+    "maxHealth": -8
   },
   "tags": [
     "frost",

@@ -4,8 +4,8 @@ extends RefCounted
 
 const GameUISkinScript := preload("res://scripts/ui/game_ui_skin.gd")
 
-const DEFAULT_BUTTON_MIN := Vector2(220, 36)
-const DEFAULT_SEPARATION := 14
+const DEFAULT_BUTTON_MIN := Vector2(220, 42)
+const DEFAULT_SEPARATION := 26
 
 
 static func build_modal(
@@ -75,7 +75,7 @@ static func make_menu_button(
 static func add_button_row(parent: VBoxContainer, buttons: Array[Button]) -> HBoxContainer:
 	var row := HBoxContainer.new()
 	row.alignment = BoxContainer.ALIGNMENT_CENTER
-	row.add_theme_constant_override("separation", 12)
+	row.add_theme_constant_override("separation", 16)
 	for btn in buttons:
 		row.add_child(btn)
 	parent.add_child(row)
@@ -96,7 +96,7 @@ static func show_confirmation(
 	GameUISkinScript.ensure_full_rect(overlay)
 	parent.add_child(overlay)
 	overlay.move_to_front()
-	var shell: Dictionary = build_modal(overlay, title, 300.0, 130.0)
+	var shell: Dictionary = build_modal(overlay, title, 360.0, 165.0)
 	var vbox: VBoxContainer = shell["content_vbox"]
 	var msg := Label.new()
 	msg.text = message

@@ -30,6 +30,26 @@ const RoomTemplateCatalogScript := preload("res://scripts/dungeon/procgen/room_t
 		wall_height = maxf(value, CastleRoomConstants.DOOR_HEIGHT)
 		_request_rebuild()
 
+@export var door_north_offset: float = 0.0:
+	set(value):
+		door_north_offset = value
+		_request_rebuild()
+
+@export var door_south_offset: float = 0.0:
+	set(value):
+		door_south_offset = value
+		_request_rebuild()
+
+@export var door_east_offset: float = 0.0:
+	set(value):
+		door_east_offset = value
+		_request_rebuild()
+
+@export var door_west_offset: float = 0.0:
+	set(value):
+		door_west_offset = value
+		_request_rebuild()
+
 @export var door_north: bool = false:
 	set(value):
 		door_north = value
@@ -136,25 +156,29 @@ func _rebuild() -> void:
 		Vector3(0.0, 0.0, -room_depth * 0.5),
 		Vector3(room_width, wall_height, CastleRoomConstants.WALL_THICKNESS),
 		door_north,
-		true
+		true,
+		door_north_offset
 	)
 	_build_wall(
 		Vector3(0.0, 0.0, room_depth * 0.5),
 		Vector3(room_width, wall_height, CastleRoomConstants.WALL_THICKNESS),
 		door_south,
-		true
+		true,
+		door_south_offset
 	)
 	_build_wall(
 		Vector3(room_width * 0.5, 0.0, 0.0),
 		Vector3(CastleRoomConstants.WALL_THICKNESS, wall_height, room_depth),
 		door_east,
-		false
+		false,
+		door_east_offset
 	)
 	_build_wall(
 		Vector3(-room_width * 0.5, 0.0, 0.0),
 		Vector3(CastleRoomConstants.WALL_THICKNESS, wall_height, room_depth),
 		door_west,
-		false
+		false,
+		door_west_offset
 	)
 	_build_pending_stairs()
 	if build_ceiling:
@@ -273,41 +297,62 @@ func _build_ceiling() -> void:
 		occluder.owner = get_tree().edited_scene_root
 
 
-func _build_wall(center: Vector3, size: Vector3, has_door: bool, spans_x: bool) -> void:
+## Builds one wall, cutting the doorway at `door_offset` along the wall rather than at its centre.
+##
+## The two flanking segments are sized independently because an off-centre door leaves a longer
+## stretch of wall on one side than the other. `door_offset` is clamped so the opening always stays
+## fully inside the wall -- a door that ran off the end would leave a hole into solid rock.
+func _build_wall(
+	center: Vector3, size: Vector3, has_door: bool, spans_x: bool, door_offset: float = 0.0
+) -> void:
 	if not has_door:
 		_add_wall_segment(center, size)
 		return
 
 	var span := size.x if spans_x else size.z
 	var door := CastleRoomConstants.DOOR_WIDTH
-	var leftover := span - door
-	if leftover <= 0.0:
+	if span - door <= 0.0:
 		_add_wall_segment(center, size)
 		return
 
-	var side := leftover * 0.5
+	var limit := (span - door) * 0.5
+	var offset := clampf(door_offset, -limit, limit)
+	var low := offset - door * 0.5 + span * 0.5
+	var high := span * 0.5 - (offset + door * 0.5)
 	if spans_x:
-		var left_center := Vector3(center.x - (side + door) * 0.5, center.y, center.z)
-		var right_center := Vector3(center.x + (side + door) * 0.5, center.y, center.z)
-		_add_wall_segment(left_center, Vector3(side, size.y, size.z))
-		_add_wall_segment(right_center, Vector3(side, size.y, size.z))
+		if low > 0.0:
+			_add_wall_segment(
+				Vector3(center.x - span * 0.5 + low * 0.5, center.y, center.z),
+				Vector3(low, size.y, size.z)
+			)
+		if high > 0.0:
+			_add_wall_segment(
+				Vector3(center.x + span * 0.5 - high * 0.5, center.y, center.z),
+				Vector3(high, size.y, size.z)
+			)
 	else:
-		var back_center := Vector3(center.x, center.y, center.z - (side + door) * 0.5)
-		var front_center := Vector3(center.x, center.y, center.z + (side + door) * 0.5)
-		_add_wall_segment(back_center, Vector3(size.x, size.y, side))
-		_add_wall_segment(front_center, Vector3(size.x, size.y, side))
+		if low > 0.0:
+			_add_wall_segment(
+				Vector3(center.x, center.y, center.z - span * 0.5 + low * 0.5),
+				Vector3(size.x, size.y, low)
+			)
+		if high > 0.0:
+			_add_wall_segment(
+				Vector3(center.x, center.y, center.z + span * 0.5 - high * 0.5),
+				Vector3(size.x, size.y, high)
+			)
 
 	var lintel_h := wall_height - CastleRoomConstants.DOOR_HEIGHT
 	if lintel_h > 0.0:
 		var lintel_y := CastleRoomConstants.DOOR_HEIGHT + lintel_h * 0.5
 		if spans_x:
 			_add_wall_segment(
-				Vector3(center.x, lintel_y, center.z),
+				Vector3(center.x + offset, lintel_y, center.z),
 				Vector3(door, lintel_h, size.z)
 			)
 		else:
 			_add_wall_segment(
-				Vector3(center.x, lintel_y, center.z),
+				Vector3(center.x, lintel_y, center.z + offset),
 				Vector3(size.x, lintel_h, door)
 			)
 
@@ -542,6 +587,18 @@ func _apply_kind_spec() -> void:
 	_applying_kind_spec = false
 
 
+func _offset_for_direction(direction: CastleRoomConstants.Direction) -> float:
+	match direction:
+		CastleRoomConstants.Direction.NORTH:
+			return door_north_offset
+		CastleRoomConstants.Direction.SOUTH:
+			return door_south_offset
+		CastleRoomConstants.Direction.EAST:
+			return door_east_offset
+		_:
+			return door_west_offset
+
+
 func _verify_socket_positions() -> void:
 	var room := get_parent() as RoomTemplate
 	if room == null:
@@ -550,7 +607,7 @@ func _verify_socket_positions() -> void:
 	var half_d := room_depth * 0.5
 	for socket in room.get_sockets():
 		var expected := RoomTemplateCatalogScript.socket_wall_position(
-			socket.direction, half_w, half_d
+			socket.direction, half_w, half_d, _offset_for_direction(socket.direction)
 		)
 		if socket.position.distance_to(expected) > 0.01:
 			push_warning(

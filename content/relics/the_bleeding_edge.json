@@ -1,7 +1,7 @@
 {
   "id": "the_bleeding_edge",
   "name": "The Bleeding Edge",
-  "description": "Backstabs open wounds that will not close.",
+  "description": "It cuts both ways, eight health given. Backstabs open wounds that will not close.",
   "maxStacks": 1,
   "tags": [
     "blood"
@@ -15,5 +15,8 @@
       "stacks": 2
     }
   ],
-  "offerable": true
+  "offerable": true,
+  "stats": {
+    "maxHealth": -8
+  }
 }

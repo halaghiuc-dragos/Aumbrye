@@ -25,6 +25,7 @@ these by hand:
 | every script compiles clean | `res://scenes/debug/lint_scripts.tscn` — warnings are errors |
 | cited paths exist | `node scripts/check-doc-paths.mjs` |
 | floor generation | `res://scenes/debug/definition_health.tscn` |
+| every door leads somewhere, every room connects | `res://scenes/debug/floor_connectivity_audit.tscn` — add `-- --seeds=N` |
 | character options | `res://scenes/debug/combination_audit.tscn` |
 | every icon resolves to artwork | `res://scenes/debug/icon_atlas_audit.tscn` |
 | icon sheets match their source | `python tools/icon-gen/atlas_build.py --check` |

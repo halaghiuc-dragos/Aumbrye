@@ -1,10 +1,11 @@
 {
   "id": "the_cold_room",
   "name": "The Cold Room",
-  "description": "Frost you inflict spreads to whatever stands near it.",
+  "description": "The cold gets into you too. Frost you inflict spreads to whatever stands near it.",
   "maxStacks": 1,
   "stats": {
-    "frostDamage": 3
+    "frostDamage": 3,
+    "resistFrost": -0.05
   },
   "tags": [
     "frost"

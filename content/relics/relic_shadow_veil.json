@@ -1,10 +1,11 @@
 {
   "id": "relic_shadow_veil",
   "name": "Relic Umbral Veil",
-  "description": "You are harder to follow. Each dodge returns a breath of stamina.",
+  "description": "Ten health thinned to nothing you can hold. You are harder to follow — each dodge returns a breath of stamina.",
   "maxStacks": 1,
   "stats": {
-    "moveSpeed": 0.05
+    "moveSpeed": 0.05,
+    "maxHealth": -10
   },
   "tags": [
     "swift"

@@ -150,6 +150,38 @@ static func move_speed_multiplier(equipment_stats: Dictionary, talent_stats: Dic
 	return maxf(0.1, mult)
 
 
+## Health from gear and talents, softened past a point.
+##
+## Defense already saturates -- `hurtbox.gd` runs armour through a diminishing-returns curve, so a
+## fully-armoured build gets better mitigation but never unlimited mitigation. Health had no
+## equivalent: it summed flat across every slot, so a maxed loadout's effective health (health
+## divided by what survives mitigation) grew roughly seven-fold over a bare one while the deepest
+## enemies' damage only grew two-and-a-half-fold -- the balance tool flags the gap as
+## `endgame_soft_for_maxed_build`. The cap below leaves the first `HEALTH_BONUS_SOFT_CAP` points of
+## bonus health untouched, which is where a new build feels gear turning into survivability, and
+## only softens the stacking past it, which is where a maxed build was outgrowing anything short of
+## rewriting every enemy's damage number.
+const HEALTH_BONUS_SOFT_CAP := 110.0
+const HEALTH_BONUS_SOFTENING := 110.0
+
+
+## Takes an already-summed bonus (equipment, talents, buffs -- whatever a caller has merged
+## together already) since `maxHealth` is gathered from several sources at once and there is no
+## value in forcing every caller to re-split it just to hand the pieces back.
+static func soften_health_bonus(raw: float) -> float:
+	if raw <= HEALTH_BONUS_SOFT_CAP:
+		return maxf(0.0, raw)
+	var excess := raw - HEALTH_BONUS_SOFT_CAP
+	return HEALTH_BONUS_SOFT_CAP + HEALTH_BONUS_SOFTENING * excess / (excess + HEALTH_BONUS_SOFTENING)
+
+
+static func health_bonus(equipment_stats: Dictionary, talent_stats: Dictionary) -> float:
+	var raw := (
+		float(equipment_stats.get("maxHealth", 0.0)) + float(talent_stats.get("maxHealth", 0.0))
+	)
+	return soften_health_bonus(raw)
+
+
 static func defense_points(equipment_stats: Dictionary, talent_stats: Dictionary) -> float:
 	return (
 		float(equipment_stats.get("defense", 0.0))

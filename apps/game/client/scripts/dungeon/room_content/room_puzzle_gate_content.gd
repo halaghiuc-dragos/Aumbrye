@@ -8,20 +8,19 @@ var _barrier: StaticBody3D
 var _unlocked := false
 
 
-func configure(puzzle: Dictionary, from_room: RoomTemplate, to_room: RoomTemplate) -> void:
+func configure(puzzle: Dictionary, _from_room: RoomTemplate, _to_room: RoomTemplate) -> void:
 	_flag_id = str(puzzle.get("flagId", ""))
-	_build_at_socket(from_room, to_room)
+	_build_at_socket()
 	_refresh_state()
 	if _flag_id != "":
 		WorldState.namespace_changed.connect(_on_namespace_changed)
 
 
-func _build_at_socket(from_room: RoomTemplate, to_room: RoomTemplate) -> void:
-	var socket := from_room.socket_toward(to_room)
+func _build_at_socket() -> void:
+	var socket := RoomContentSpawner.door_socket(self)
 	if socket:
 		position = socket.position
 		rotation.y = socket.rotation.y
-		position += Vector3(0.0, 0.0, -0.4).rotated(Vector3.UP, rotation.y)
 	else:
 		position = Vector3(0.0, 0.0, -4.0)
 
@@ -29,7 +28,11 @@ func _build_at_socket(from_room: RoomTemplate, to_room: RoomTemplate) -> void:
 	_barrier.name = "PuzzleGateBarrier"
 	var shape_node := CollisionShape3D.new()
 	var box := BoxShape3D.new()
-	box.size = Vector3(CastleRoomConstants.DOOR_WIDTH, CastleRoomConstants.DOOR_HEIGHT, 0.65)
+	box.size = Vector3(
+		CastleRoomConstants.DOOR_WIDTH,
+		CastleRoomConstants.DOOR_HEIGHT,
+		CastleRoomConstants.WALL_THICKNESS
+	)
 	shape_node.shape = box
 	shape_node.position = Vector3(0.0, CastleRoomConstants.DOOR_HEIGHT * 0.5, 0.0)
 	_barrier.add_child(shape_node)

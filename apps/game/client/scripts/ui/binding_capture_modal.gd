@@ -39,8 +39,8 @@ func _build_prompt() -> void:
 	var shell: Dictionary = MenuShellScript.build_modal(
 		self,
 		tr("SETTINGS_BINDING_PROMPT"),
-		280.0,
-		120.0
+		320.0,
+		140.0
 	)
 	var vbox: VBoxContainer = shell["content_vbox"]
 	var msg := Label.new()

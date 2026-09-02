@@ -1,7 +1,7 @@
 {
   "id": "widows_tithe",
   "name": "Widow’s Tithe",
-  "description": "The dead pay their debts. Every kill yields coin.",
+  "description": "Three percent paid to the dead. Every kill yields coin.",
   "maxStacks": 2,
   "tags": [
     "greed"
@@ -14,5 +14,8 @@
       "amount": 9
     }
   ],
-  "offerable": true
+  "offerable": true,
+  "stats": {
+    "damagePercent": -3
+  }
 }

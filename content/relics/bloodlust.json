@@ -1,10 +1,11 @@
 {
   "id": "bloodlust",
   "name": "Bloodlust",
-  "description": "A kill steadies the hands. +5% damage, and each kill returns stamina.",
+  "description": "Ten health spent on the edge. A kill steadies the hands: +5% damage, and each kill returns stamina.",
   "maxStacks": 2,
   "stats": {
-    "damagePercent": 5
+    "damagePercent": 5,
+    "maxHealth": -10
   },
   "tags": [
     "blood",

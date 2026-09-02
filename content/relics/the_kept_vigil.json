@@ -1,10 +1,11 @@
 {
   "id": "the_kept_vigil",
   "name": "The Kept Vigil",
-  "description": "Falling low refills a flask, once in a long while.",
+  "description": "Three percent given to the watching. Falling low refills a flask, once in a long while.",
   "maxStacks": 1,
   "stats": {
-    "maxHealth": 10
+    "maxHealth": 10,
+    "damagePercent": -3
   },
   "tags": [
     "vigil"

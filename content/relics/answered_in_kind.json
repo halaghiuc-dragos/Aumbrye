@@ -1,7 +1,7 @@
 {
   "id": "answered_in_kind",
   "name": "Answered In Kind",
-  "description": "A riposte mends what the parry risked.",
+  "description": "The mercy costs reserve. A riposte mends what the parry risked.",
   "maxStacks": 1,
   "tags": [
     "poise"
@@ -14,5 +14,8 @@
       "amount": 14
     }
   ],
-  "offerable": true
+  "offerable": true,
+  "stats": {
+    "staminaMax": -8
+  }
 }

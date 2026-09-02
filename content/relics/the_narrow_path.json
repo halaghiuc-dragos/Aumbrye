@@ -1,10 +1,11 @@
 {
   "id": "the_narrow_path",
   "name": "The Narrow Path",
-  "description": "Consecutive dodges sharpen you until something lands.",
+  "description": "Eight health risked to move like this. Consecutive dodges sharpen you until something lands.",
   "maxStacks": 1,
   "stats": {
-    "moveSpeedPercent": 4
+    "moveSpeedPercent": 4,
+    "maxHealth": -8
   },
   "tags": [
     "swift",

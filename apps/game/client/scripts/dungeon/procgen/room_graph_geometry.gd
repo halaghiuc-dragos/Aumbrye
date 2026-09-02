@@ -5,124 +5,25 @@ extends RefCounted
 const HEIGHT_STEP := 3.0
 
 
-static func _walk_layout(
-	graph: RoomGraph, assignment: Dictionary, strict: bool
-) -> Dictionary:
-	var rooms_by_layout := {}
-	for room in assignment.get("rooms", []):
-		rooms_by_layout[room["layout_id"]] = room
-	var positions := {}
-	var yaws := {}
-	var visited := {}
-	var placement_edges := {}
-	var entrance_id: String = assignment.get("entrance_layout_id", graph.start_id)
-	if not rooms_by_layout.has(entrance_id):
-		return {"ok": false, "reason": "Missing entrance room '%s'" % entrance_id}
-	positions[entrance_id] = Vector2.ZERO
-	yaws[entrance_id] = RoomTemplateCatalog.yaw_rad_for_entrance(
-		rooms_by_layout[entrance_id]["template_id"], graph.get_slot(entrance_id).door_mask
-	)
-	visited[entrance_id] = true
-	var queue: Array[String] = [entrance_id]
-	while not queue.is_empty():
-		var current_id: String = queue.pop_front()
-		var current_slot := graph.get_slot(current_id)
-		var current_room: Dictionary = rooms_by_layout[current_id]
-		var current_pos: Vector2 = positions[current_id]
-		var parent_yaw: float = yaws[current_id]
-		var parent_spec := RoomTemplateCatalog.get_spec(current_room["template_id"])
-		for dir in _directions():
-			var neighbor_cell: Vector2i = current_slot.grid_pos + dir
-			var neighbor_slot: RoomGraphSlot = graph.slots.get(neighbor_cell) as RoomGraphSlot
-			if neighbor_slot == null:
-				continue
-			if neighbor_slot.slot_type == RoomGraphSlot.SlotType.SECRET:
-				continue
-			if not (current_slot.door_mask & dir_to_door(dir)):
-				continue
-			var neighbor_id := neighbor_slot.slot_id
-			if visited.has(neighbor_id):
-				continue
-			var neighbor_room: Dictionary = rooms_by_layout[neighbor_id]
-			var child_spec := RoomTemplateCatalog.get_spec(neighbor_room["template_id"])
-			var dx := neighbor_slot.grid_pos.x - current_slot.grid_pos.x
-			var dz := neighbor_slot.grid_pos.y - current_slot.grid_pos.y
-			var door_pair := RoomTemplateCatalog.doors_for_step(dx, dz)
-			var incoming_door: int = int(door_pair[1])
-			var child_yaw := RoomTemplateCatalog.yaw_rad_for_incoming_door(
-				neighbor_room["template_id"], incoming_door
-			)
-			if not _doors_aligned(
-				current_room, neighbor_room, door_pair, parent_yaw, child_yaw, dx, dz
-			):
-				var reason := (
-					"Door mismatch %s→%s on step (%d,%d)"
-					% [current_room["template_id"], neighbor_room["template_id"], dx, dz]
-				)
-				if strict:
-					return {"ok": false, "reason": reason}
-				push_error(reason)
-			var next_pos := current_pos
-			if dz == -1:
-				next_pos.y -= (
-					RoomTemplateCatalog.half_extent_z(parent_spec, parent_yaw)
-					+ RoomTemplateCatalog.half_extent_z(child_spec, child_yaw)
-				)
-			elif dz == 1:
-				next_pos.y += (
-					RoomTemplateCatalog.half_extent_z(parent_spec, parent_yaw)
-					+ RoomTemplateCatalog.half_extent_z(child_spec, child_yaw)
-				)
-			elif dx == 1:
-				next_pos.x += (
-					RoomTemplateCatalog.half_extent_x(parent_spec, parent_yaw)
-					+ RoomTemplateCatalog.half_extent_x(child_spec, child_yaw)
-				)
-			elif dx == -1:
-				next_pos.x -= (
-					RoomTemplateCatalog.half_extent_x(parent_spec, parent_yaw)
-					+ RoomTemplateCatalog.half_extent_x(child_spec, child_yaw)
-				)
-			positions[neighbor_id] = next_pos
-			yaws[neighbor_id] = child_yaw
-			visited[neighbor_id] = true
-			placement_edges[_edge_key(current_slot.grid_pos, neighbor_slot.grid_pos)] = true
-			queue.append(neighbor_id)
-	return {
-		"ok": true,
-		"rooms_by_layout": rooms_by_layout,
-		"positions": positions,
-		"yaws": yaws,
-		"visited": visited,
-		"placement_edges": placement_edges,
-	}
-
-
-static func build_rooms(graph: RoomGraph, assignment: Dictionary) -> Array:
-	var walk := _walk_layout(graph, assignment, false)
-	if not bool(walk.get("ok", false)):
-		push_error("RoomGraphGeometry: %s" % str(walk.get("reason", "layout walk failed")))
-		return []
-	var rooms_by_layout: Dictionary = walk["rooms_by_layout"]
-	var positions: Dictionary = walk["positions"]
-	var yaws: Dictionary = walk["yaws"]
-	var visited: Dictionary = walk["visited"]
-	_place_secret_rooms(graph, assignment, rooms_by_layout, positions, yaws, visited)
+static func build_rooms(graph: RoomGraph, assignment: Dictionary, layout: Dictionary) -> Array:
+	var placements: Dictionary = layout["placements"]
+	var realised: Dictionary = layout["realised_edges"]
+	var door_offsets := _door_offsets_by_room(realised)
 	var built: Array = []
 	for room in assignment.get("rooms", []):
 		var layout_id: String = room["layout_id"]
-		if not positions.has(layout_id):
-			push_error("Room '%s' has no world position" % layout_id)
+		if not placements.has(layout_id):
+			# Dropped rather than fatal: the solver only ever discards optional rooms, so the floor
+			# is still enterable and still has its boss and stairs.
 			continue
-		var pos: Vector2 = positions[layout_id]
-		var yaw_rad: float = yaws.get(layout_id, 0.0)
+		var placement: RoomGraphLayout.Placement = placements[layout_id]
+		var center := placement.center()
 		var slot := graph.get_slot(layout_id)
 		var height_y := 0.0
 		if slot != null:
 			height_y = float(slot.height_level) * HEIGHT_STEP
-		var spec := RoomTemplateCatalog.get_spec(room["template_id"])
-		var half_x := RoomTemplateCatalog.half_extent_x(spec, yaw_rad)
-		var half_z := RoomTemplateCatalog.half_extent_z(spec, yaw_rad)
+		var size_x := float(placement.size.x) * RoomGraphLayout.CELL
+		var size_z := float(placement.size.y) * RoomGraphLayout.CELL
 		(
 			built
 			. append(
@@ -131,10 +32,16 @@ static func build_rooms(graph: RoomGraph, assignment: Dictionary) -> Array:
 					"templateId": room["template_id"],
 					"type": room["type"],
 					"transform":
-					{"x": pos.x, "y": height_y, "z": pos.y, "yaw": rad_to_deg(yaw_rad)},
+					{
+						"x": center.x,
+						"y": height_y,
+						"z": center.y,
+						"yaw": rad_to_deg(placement.yaw),
+					},
 					"tags": room.get("tags", []),
 					"heightLevel": slot.height_level if slot != null else 0,
-					"size": {"x": half_x * 2.0, "z": half_z * 2.0},
+					"size": {"x": size_x, "z": size_z},
+					"doorOffsets": door_offsets.get(layout_id, {}),
 					"kind": _minimap_kind_for_semantic(str(room["semantic_id"]), str(room["type"])),
 				}
 			)
@@ -146,17 +53,71 @@ static func build_rooms(graph: RoomGraph, assignment: Dictionary) -> Array:
 	return built
 
 
-static func build_edges(graph: RoomGraph, assignment: Dictionary) -> Array:
-	var walk := _walk_layout(graph, assignment, false)
-	var placement_edges: Dictionary = walk.get("placement_edges", {})
+## Turns the solver's per-edge offsets into a per-room map of wall name to lateral door offset.
+static func _door_offsets_by_room(realised: Dictionary) -> Dictionary:
+	var out := {}
+	for key in realised:
+		var edge: Dictionary = realised[key]
+		var dir: Vector2i = edge["dir"]
+		var from_id: String = edge["from"]
+		var to_id: String = edge["to"]
+		if not out.has(from_id):
+			out[from_id] = {}
+		if not out.has(to_id):
+			out[to_id] = {}
+		out[from_id][RoomGraphLayout.dir_name(dir)] = float(edge["from_offset"])
+		out[to_id][RoomGraphLayout.dir_name(-dir)] = float(edge["to_offset"])
+	return out
+
+
+## Emits one edge per doorway the lattice actually built, plus the graph links it could not honour.
+##
+## Driven by the solver rather than by graph adjacency, because the two can disagree: the
+## straight-line fallback lays the critical rooms out in a run that ignores their grid positions
+## entirely. Reading connectivity back off the graph there would describe a floor that is not the
+## one being built, and the validator would rightly call the exit unreachable.
+static func build_edges(graph: RoomGraph, assignment: Dictionary, layout: Dictionary) -> Array:
+	var placements: Dictionary = layout["placements"]
+	var realised: Dictionary = layout["realised_edges"]
 	var semantic_by_layout := {}
-	for room in assignment.get("rooms", []):
-		semantic_by_layout[room["layout_id"]] = room["semantic_id"]
 	var type_by_layout := {}
 	for room in assignment.get("rooms", []):
+		semantic_by_layout[room["layout_id"]] = room["semantic_id"]
 		type_by_layout[room["layout_id"]] = room["type"]
 	var edges: Array = []
 	var seen := {}
+	var secret_ids := {}
+	for secret_id in _placed_secret_ids(graph, assignment):
+		secret_ids[str(secret_id)] = true
+	for key in realised:
+		var realised_edge: Dictionary = realised[key]
+		var from_layout := str(realised_edge["from"])
+		var to_layout := str(realised_edge["to"])
+		if secret_ids.has(from_layout) or secret_ids.has(to_layout):
+			continue
+		if not semantic_by_layout.has(from_layout) or not semantic_by_layout.has(to_layout):
+			continue
+		var from_id: String = semantic_by_layout[from_layout]
+		var to_id: String = semantic_by_layout[to_layout]
+		seen[_realised_key(from_layout, to_layout)] = true
+		var kind := "door"
+		if (
+			type_by_layout.get(from_layout, "") == "corridor"
+			or type_by_layout.get(to_layout, "") == "corridor"
+		):
+			kind = "corridor"
+		var door_world: Vector2 = realised_edge["door_world"]
+		edges.append(
+			{
+				"from": from_id,
+				"to": to_id,
+				"kind": kind,
+				"dir": RoomGraphLayout.dir_name(realised_edge["dir"]),
+				"door": {"x": door_world.x, "z": door_world.y},
+			}
+		)
+	# Graph links the lattice left unrealised stay in the definition as shortcuts. The builder
+	# already knows to close a shortcut whose rooms do not touch, and the minimap still draws them.
 	for cell in graph.occupied_cells():
 		var slot: RoomGraphSlot = graph.slots[cell]
 		if slot.slot_type == RoomGraphSlot.SlotType.SECRET:
@@ -167,32 +128,54 @@ static func build_edges(graph: RoomGraph, assignment: Dictionary) -> Array:
 			var neighbor: RoomGraphSlot = graph.slots.get(cell + dir) as RoomGraphSlot
 			if neighbor == null or neighbor.slot_type == RoomGraphSlot.SlotType.SECRET:
 				continue
-			var from_id: String = semantic_by_layout.get(slot.slot_id, slot.slot_id)
-			var to_id: String = semantic_by_layout.get(neighbor.slot_id, neighbor.slot_id)
-			var pair := [from_id, to_id]
-			pair.sort()
-			var key := "%s>%s" % [pair[0], pair[1]]
-			if seen.has(key):
+			if not placements.has(slot.slot_id) or not placements.has(neighbor.slot_id):
 				continue
-			seen[key] = true
-			var kind := "door"
-			if not placement_edges.has(_edge_key(cell, cell + dir)):
-				kind = "shortcut"
-			elif (
-				type_by_layout.get(slot.slot_id, "") == "corridor"
-				or type_by_layout.get(neighbor.slot_id, "") == "corridor"
-			):
-				kind = "corridor"
-			edges.append({"from": from_id, "to": to_id, "kind": kind})
+			var pair_key := _realised_key(slot.slot_id, neighbor.slot_id)
+			if seen.has(pair_key):
+				continue
+			seen[pair_key] = true
+			if not semantic_by_layout.has(slot.slot_id):
+				continue
+			if not semantic_by_layout.has(neighbor.slot_id):
+				continue
+			edges.append(
+				{
+					"from": semantic_by_layout[slot.slot_id],
+					"to": semantic_by_layout[neighbor.slot_id],
+					"kind": "shortcut",
+				}
+			)
 	for secret_id in _placed_secret_ids(graph, assignment):
 		var secret_slot := graph.get_slot(secret_id)
 		if secret_slot == null or secret_slot.secret_parent_id == "":
 			continue
-		var from_semantic: String = semantic_by_layout.get(
-			secret_slot.secret_parent_id, secret_slot.secret_parent_id
-		)
-		var to_semantic: String = semantic_by_layout.get(secret_id, secret_id)
-		edges.append({"from": from_semantic, "to": to_semantic, "kind": "secret"})
+		if not semantic_by_layout.has(secret_id):
+			continue
+		var parent_layout := secret_slot.secret_parent_id
+		if not semantic_by_layout.has(parent_layout):
+			continue
+		var secret_edge := {
+			"from": semantic_by_layout[parent_layout],
+			"to": semantic_by_layout[secret_id],
+			"kind": "secret",
+		}
+		# A secret is seated against its host by the solver, so it gets the same wall-and-offset
+		# treatment as any other doorway. Without it the panel and the hole behind it are placed by
+		# the old centre-delta guess, which for a rehomed secret names a wall at random.
+		var secret_dir: Vector2i = secret_slot.secret_parent_dir
+		if (
+			secret_dir != Vector2i.ZERO
+			and placements.has(parent_layout)
+			and placements.has(secret_id)
+		):
+			var offsets := RoomGraphLayout.door_offsets_between(
+				placements[parent_layout], placements[secret_id], secret_dir
+			)
+			if not offsets.is_empty():
+				var door_world: Vector2 = offsets["world"]
+				secret_edge["dir"] = RoomGraphLayout.dir_name(secret_dir)
+				secret_edge["door"] = {"x": door_world.x, "z": door_world.y}
+		edges.append(secret_edge)
 	edges.sort_custom(
 		func(a: Dictionary, b: Dictionary) -> bool:
 			var ak := "%s>%s" % [a.get("from", ""), a.get("to", "")]
@@ -202,17 +185,22 @@ static func build_edges(graph: RoomGraph, assignment: Dictionary) -> Array:
 	return edges
 
 
+## The lattice solver has no failure mode, so this no longer rejects layouts.
+##
+## It used to run the walk in strict mode and refuse any floor whose doors did not line up, which is
+## what turned an unsatisfiable constraint system into a floor the player could not enter. Sliding
+## doors mean alignment is decided by where two rooms actually meet, so the only thing left worth
+## checking is that the entrance the assigner nominated is a room that exists.
 static func validate_door_topology(graph: RoomGraph, assignment: Dictionary) -> Dictionary:
-	var walk := _walk_layout(graph, assignment, true)
-	if not bool(walk.get("ok", false)):
-		return {"ok": false, "reason": str(walk.get("reason", "layout walk failed"))}
-	return {"ok": true}
+	var entrance_id := str(assignment.get("entrance_layout_id", graph.start_id))
+	for room in assignment.get("rooms", []):
+		if str(room.get("layout_id", "")) == entrance_id:
+			return {"ok": true}
+	return {"ok": false, "reason": "Missing entrance room '%s'" % entrance_id}
 
 
-static func _edge_key(a: Vector2i, b: Vector2i) -> String:
-	if a.x < b.x or (a.x == b.x and a.y < b.y):
-		return "%d,%d|%d,%d" % [a.x, a.y, b.x, b.y]
-	return "%d,%d|%d,%d" % [b.x, b.y, a.x, a.y]
+static func _realised_key(a: String, b: String) -> String:
+	return "%s>%s" % [a, b] if a < b else "%s>%s" % [b, a]
 
 
 static func _placed_secret_ids(graph: RoomGraph, assignment: Dictionary) -> Array:
@@ -226,90 +214,6 @@ static func _placed_secret_ids(graph: RoomGraph, assignment: Dictionary) -> Arra
 		if rooms_by_layout.has(str(secret_id)):
 			out.append(secret_id)
 	return out
-
-
-static func _place_secret_rooms(
-	graph: RoomGraph,
-	assignment: Dictionary,
-	rooms_by_layout: Dictionary,
-	positions: Dictionary,
-	yaws: Dictionary,
-	visited: Dictionary
-) -> void:
-	for secret_id in _placed_secret_ids(graph, assignment):
-		var secret_slot := graph.get_slot(secret_id)
-		if secret_slot == null or secret_slot.secret_parent_id == "":
-			continue
-		var parent_id := secret_slot.secret_parent_id
-		if not positions.has(parent_id):
-			continue
-		var parent_slot := graph.get_slot(parent_id)
-		var parent_room: Dictionary = rooms_by_layout[parent_id]
-		var secret_room: Dictionary = rooms_by_layout[secret_id]
-		var parent_pos: Vector2 = positions[parent_id]
-		var parent_yaw: float = yaws.get(parent_id, 0.0)
-		var parent_spec := RoomTemplateCatalog.get_spec(parent_room["template_id"])
-		var secret_spec := RoomTemplateCatalog.get_spec(secret_room["template_id"])
-		var dx := secret_slot.grid_pos.x - parent_slot.grid_pos.x
-		var dz := secret_slot.grid_pos.y - parent_slot.grid_pos.y
-		var door_pair := RoomTemplateCatalog.doors_for_step(dx, dz)
-		var secret_yaw := RoomTemplateCatalog.yaw_rad_for_incoming_door(
-			secret_room["template_id"], int(door_pair[1])
-		)
-		var next_pos := parent_pos
-		if dz == -1:
-			next_pos.y -= (
-				RoomTemplateCatalog.half_extent_z(parent_spec, parent_yaw)
-				+ RoomTemplateCatalog.half_extent_z(secret_spec, secret_yaw)
-			)
-		elif dz == 1:
-			next_pos.y += (
-				RoomTemplateCatalog.half_extent_z(parent_spec, parent_yaw)
-				+ RoomTemplateCatalog.half_extent_z(secret_spec, secret_yaw)
-			)
-		elif dx == 1:
-			next_pos.x += (
-				RoomTemplateCatalog.half_extent_x(parent_spec, parent_yaw)
-				+ RoomTemplateCatalog.half_extent_x(secret_spec, secret_yaw)
-			)
-		elif dx == -1:
-			next_pos.x -= (
-				RoomTemplateCatalog.half_extent_x(parent_spec, parent_yaw)
-				+ RoomTemplateCatalog.half_extent_x(secret_spec, secret_yaw)
-			)
-		positions[secret_id] = next_pos
-		yaws[secret_id] = secret_yaw
-		visited[secret_id] = true
-
-
-static func _doors_aligned(
-	current_room: Dictionary,
-	neighbor_room: Dictionary,
-	door_pair: Array,
-	parent_yaw: float,
-	child_yaw: float,
-	_dx: int,
-	_dz: int
-) -> bool:
-	var parent_out: int = int(door_pair[0])
-	var child_in: int = int(door_pair[1])
-	if not _door_satisfied(current_room["template_id"], parent_out, parent_yaw):
-		return false
-	if not _door_satisfied(neighbor_room["template_id"], child_in, child_yaw):
-		return false
-	return true
-
-
-static func _door_satisfied(template_id: String, door_mask: int, yaw_rad: float) -> bool:
-	if RoomTemplateCatalog.has_door(template_id, door_mask):
-		return true
-	var primary: int = RoomTemplateCatalog.primary_door_mask(
-		int(RoomTemplateCatalog.get_spec(template_id)["doors"])
-	)
-	if primary == 0:
-		return false
-	var aligned := RoomTemplateCatalog.yaw_to_align_doors(primary, door_mask)
-	return is_equal_approx(aligned, yaw_rad)
 
 
 static func _directions() -> Array[Vector2i]:

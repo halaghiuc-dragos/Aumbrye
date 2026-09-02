@@ -1,10 +1,11 @@
 {
   "id": "the_long_hold",
   "name": "The Long Hold",
-  "description": "Blocks that land build armour; being struck takes all of it back.",
+  "description": "Three percent slower for the weight of it. Blocks that land build armour; being struck takes all of it back.",
   "maxStacks": 1,
   "stats": {
-    "armor": 4
+    "armor": 4,
+    "moveSpeedPercent": -3
   },
   "tags": [
     "ward",

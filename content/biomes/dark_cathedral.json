@@ -4,8 +4,8 @@
   "templatePrefix": "cathedral",
   "assetFolder": "cathedral",
   "roomCount": {
-    "min": 18,
-    "max": 24
+    "min": 22,
+    "max": 28
   },
   "roomTemplateIds": [
     "cathedral_entrance",

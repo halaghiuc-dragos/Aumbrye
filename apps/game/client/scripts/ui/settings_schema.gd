@@ -197,6 +197,24 @@ static func _motion_slider_row(id: String, setter_name: String) -> Dictionary:
 	)
 
 
+## `_motion_slider_row` builds its getter as `Callable(SettingsSchema, "_get_%s" % id)` for all
+## three motion sliders, but only the setters existed -- the getters were never written. A missing
+## method on a Callable fails quietly rather than erroring the page open, so every slider opened at
+## its Range minimum (0%) regardless of the saved intensity, which defaults to 100%. A player who
+## never touched these sliders was seeing "off" for feedback that was actually running at full
+## strength, and dragging from that 0% starting point would have silently turned it off for real.
+static func _get_camera_shake_intensity() -> float:
+	return AccessibilitySettings.camera_shake_intensity
+
+
+static func _get_hitstop_intensity() -> float:
+	return AccessibilitySettings.hitstop_intensity
+
+
+static func _get_screen_pulse_intensity() -> float:
+	return AccessibilitySettings.screen_pulse_intensity
+
+
 static func _set_camera_shake_intensity(v: float) -> void:
 	AccessibilitySettings.set_camera_shake_intensity(v)
 	AccessibilitySettings.apply_live("camera_shake_intensity", v)

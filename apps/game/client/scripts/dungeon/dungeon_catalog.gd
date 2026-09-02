@@ -99,10 +99,6 @@ static func get_order_for_dungeon(dungeon_id: String) -> int:
 	return int(entry.get("order", 1))
 
 
-static func get_tier_for_dungeon(dungeon_id: String) -> int:
-	return get_order_for_dungeon(dungeon_id)
-
-
 static func is_unlocked_at_tier(dungeon_id: String, max_unlocked_tier: int) -> bool:
 	return get_order_for_dungeon(dungeon_id) <= max_unlocked_tier
 

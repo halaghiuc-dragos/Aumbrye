@@ -26,14 +26,14 @@ func _ready() -> void:
 
 
 func _build_ui() -> void:
-	var shell: Dictionary = MenuShellScript.build_modal(self, tr("TALENTS_TITLE"), 340.0, 230.0)
+	var shell: Dictionary = MenuShellScript.build_modal(self, tr("TALENTS_TITLE"), 400.0, 250.0)
 	var vbox: VBoxContainer = shell["content_vbox"]
 	_points_label = Label.new()
 	_points_label.name = "PointsLabel"
 	GameUISkinScript.style_body_label(_points_label)
 	vbox.add_child(_points_label)
 	_node_list = ItemList.new()
-	_node_list.custom_minimum_size = Vector2(560, 260)
+	_node_list.custom_minimum_size = Vector2(700, 280)
 	vbox.add_child(_node_list)
 	_detail_label = Label.new()
 	_detail_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART

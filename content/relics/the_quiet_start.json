@@ -1,7 +1,7 @@
 {
   "id": "the_quiet_start",
   "name": "The Quiet Start",
-  "description": "The run begins with coin someone else no longer needs.",
+  "description": "Three percent strength spent before the first step. The run begins with coin someone else no longer needs.",
   "maxStacks": 1,
   "tags": [
     "greed"
@@ -14,5 +14,8 @@
       "amount": 120
     }
   ],
-  "offerable": true
+  "offerable": true,
+  "stats": {
+    "damagePercent": -3
+  }
 }

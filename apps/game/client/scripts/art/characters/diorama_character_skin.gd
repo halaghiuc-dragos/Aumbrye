@@ -691,22 +691,19 @@ static func sync_first_person_weapon_shadows(visual: Node3D, first_person: bool)
 	_apply_first_person_weapon_shadows(visual, first_person)
 
 
+## Keeps the held weapon in step with the body it hangs off.
+##
+## The mounts sit under `Torso`, so the loop above has already put them in shadows-only -- but a
+## weapon model built *after* that call, which is every weapon swap, comes in drawing normally. This
+## used to set the mounts to `SHADOW_CASTING_SETTING_OFF`, and `OFF` does not mean hidden: it means
+## drawn, casting nothing. That re-showed the third-person weapon at the player's hand, a few
+## centimetres from a first-person camera, so the real sword swung through the view alongside the
+## viewmodel's. Matching the torso keeps the silhouette's shadow armed and the geometry out of frame.
 static func _apply_first_person_weapon_shadows(visual: Node3D, first_person: bool) -> void:
 	for mount_name in [WEAPON_MOUNT, SHIELD_MOUNT, "Bow"]:
 		var mount := find_part(visual, mount_name)
 		if mount:
-			_set_cast_shadow_hidden(mount, first_person)
-
-
-static func _set_cast_shadow_hidden(node: Node, hidden: bool) -> void:
-	if node is GeometryInstance3D:
-		(node as GeometryInstance3D).cast_shadow = (
-			GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-			if hidden
-			else GeometryInstance3D.SHADOW_CASTING_SETTING_ON
-		)
-	for child in node.get_children():
-		_set_cast_shadow_hidden(child, hidden)
+			_set_shadows_only(mount, first_person)
 
 
 static func _disable_cast_shadows(node: Node) -> void:

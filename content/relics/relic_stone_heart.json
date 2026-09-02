@@ -1,10 +1,11 @@
 {
   "id": "relic_stone_heart",
   "name": "Relic Stone Heart",
-  "description": "Weight where the fear used to be. +8 armour, and a guard well kept pays back.",
+  "description": "Four percent slower under the weight. Weight where the fear used to be: +8 armour, and a guard well kept pays back.",
   "maxStacks": 1,
   "stats": {
-    "armor": 8
+    "armor": 8,
+    "moveSpeedPercent": -4
   },
   "tags": [
     "ward",

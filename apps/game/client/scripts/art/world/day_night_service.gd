@@ -107,12 +107,6 @@ func cycle_seconds() -> float:
 	return _cycle_seconds
 
 
-func clock_text() -> String:
-	var minutes := int(phase() * 24.0 * 60.0)
-	@warning_ignore("integer_division")
-	return "%02d:%02d" % [minutes / 60, minutes % 60]
-
-
 func is_night() -> bool:
 	return night_amount() > 0.5
 

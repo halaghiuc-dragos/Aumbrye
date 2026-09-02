@@ -7,7 +7,6 @@ const DEFAULT_CAMERA_PUNCH := 0.15
 const DEFAULT_INTENSITY := 1.0
 const HITSTOP_TIME_SCALE := 0.08
 const GLANCING_DAMAGE := 15.0
-const CRITICAL_DAMAGE := 40.0
 
 const IMPACT_PROFILES := {
 	ImpactClass.GLANCING:
@@ -102,7 +101,7 @@ func on_hit(
 	direction: Vector3 = Vector3.ZERO,
 	damage_type: String = "physical",
 	impact: int = ImpactClass.SOLID,
-	_crit: bool = false
+	crit: bool = false
 ) -> void:
 	hit_landed.emit(target, damage)
 	_apply_hitstop(impact)
@@ -110,15 +109,7 @@ func on_hit(
 	_apply_vibration(impact)
 	_play_hit_sfx(target, direction, impact)
 	if show_damage_numbers and target is Node3D:
-		_spawn_damage_number(target as Node3D, damage, Vector3.ZERO, damage_type)
-
-
-func impact_class_for_damage(damage: float) -> int:
-	if damage < GLANCING_DAMAGE:
-		return ImpactClass.GLANCING
-	if damage >= CRITICAL_DAMAGE:
-		return ImpactClass.CRITICAL
-	return ImpactClass.SOLID
+		_spawn_damage_number(target as Node3D, damage, Vector3.ZERO, damage_type, crit)
 
 
 func _profile(impact: int) -> Dictionary:
@@ -189,11 +180,15 @@ func _spawn_combat_text(at_node: Node3D, text: String, color: Color) -> void:
 
 
 func _spawn_damage_number(
-	at_node: Node3D, damage: float, offset: Vector3 = Vector3.ZERO, damage_type: String = "physical"
+	at_node: Node3D,
+	damage: float,
+	offset: Vector3 = Vector3.ZERO,
+	damage_type: String = "physical",
+	is_crit: bool = false
 ) -> void:
 	var root := get_tree().current_scene
 	if root:
-		DAMAGE_NUMBER.spawn(at_node.global_position + offset, damage, root, damage_type)
+		DAMAGE_NUMBER.spawn(at_node.global_position + offset, damage, root, damage_type, is_crit)
 
 
 func _apply_hitstop(impact: int = ImpactClass.SOLID) -> void:

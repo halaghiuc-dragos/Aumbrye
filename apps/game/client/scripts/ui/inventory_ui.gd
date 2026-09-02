@@ -285,7 +285,7 @@ func _build_ui_shell() -> void:
 	_hint_row = HBoxContainer.new()
 	_hint_row.name = "HintRow"
 	_hint_row.alignment = BoxContainer.ALIGNMENT_CENTER
-	_hint_row.add_theme_constant_override("separation", 8)
+	_hint_row.add_theme_constant_override("separation", 3)
 	_hint_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_hint_row.set_anchors_preset(Control.PRESET_FULL_RECT)
 	hint_clip.add_child(_hint_row)
@@ -458,6 +458,8 @@ const STAT_PANEL_OFFENCE: Array[String] = [
 	"damagePercent",
 	"critChance",
 	"poiseDamage",
+	"attackSpeed",
+	"lifesteal",
 ]
 const STAT_PANEL_DEFENCE: Array[String] = [
 	"maxHealth",
@@ -909,7 +911,7 @@ func _update_detail() -> void:
 			return
 		_show_tooltip(
 			_build_tooltip_header(equipped),
-			InventoryService.format_slot_tooltip_bbcode(equipped),
+			InventoryService.format_slot_tooltip_bbcode(equipped, false),
 			""
 		)
 		_set_hint_text(tr("INV_HINT_UNEQUIP"))
@@ -923,7 +925,7 @@ func _update_detail() -> void:
 	var detail_slot: Dictionary = inv.slots[compare_index]
 	_show_tooltip(
 		_build_tooltip_header(detail_slot),
-		InventoryService.format_slot_tooltip_bbcode(detail_slot),
+		InventoryService.format_slot_tooltip_bbcode(detail_slot, false),
 		""
 	)
 	var def := _item_def(detail_slot.get("itemId", ""))
@@ -1410,10 +1412,18 @@ func _set_hint_text(text: String) -> void:
 
 func _append_hint_separator() -> void:
 	var sep := Label.new()
-	sep.text = "  |  "
+	sep.text = " | "
 	sep.theme_type_variation = GameUISkinScript.VAR_HINT_TEXT
 	sep.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_hint_row.add_child(sep)
+
+
+## The footer hint row has to fit six entries (navigate, pick/equip, close, sort, type, rarity) in
+## a fixed-width strip that is deliberately never allowed to resize the panel around it (see the
+## comment on `hint_clip` above) -- a full item-cell-sized glyph next to a few words of hint text
+## was spending width the row does not have to spare on an icon far bigger than the text next to it
+## needs to be legible.
+const FOOTER_HINT_ICON_SIZE := 12
 
 
 func _append_action_hint(action: String, caption: String) -> void:
@@ -1421,13 +1431,13 @@ func _append_action_hint(action: String, caption: String) -> void:
 		GameUISkinScript.make_symbol_icon_caption_row(
 			InputGlyphServiceScript.get_action_glyph_texture(action),
 			caption,
-			ItemIconAtlasScript.icon_size()
+			FOOTER_HINT_ICON_SIZE
 		)
 	)
 
 
 func _append_navigate_hint() -> void:
-	var size_px := ItemIconAtlasScript.icon_size()
+	var size_px := FOOTER_HINT_ICON_SIZE
 	var row := HBoxContainer.new()
 	row.alignment = BoxContainer.ALIGNMENT_CENTER
 	row.add_theme_constant_override("separation", 2)

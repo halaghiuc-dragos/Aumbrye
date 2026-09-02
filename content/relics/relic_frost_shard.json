@@ -1,10 +1,11 @@
 {
   "id": "relic_frost_shard",
   "name": "Relic Frost Shard",
-  "description": "Cold enough to slow a wound. Backstabs leave frost in the bone.",
+  "description": "Three armour left brittle with the cold. Cold enough to slow a wound — backstabs leave frost in the bone.",
   "maxStacks": 1,
   "stats": {
-    "frostDamage": 4
+    "frostDamage": 4,
+    "armor": -3
   },
   "tags": [
     "frost"

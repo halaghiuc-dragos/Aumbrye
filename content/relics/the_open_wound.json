@@ -1,7 +1,7 @@
 {
   "id": "the_open_wound",
   "name": "The Open Wound",
-  "description": "Strikes against the bleeding drink from them.",
+  "description": "Eight health of your own laid open. Strikes against the bleeding drink from them.",
   "maxStacks": 1,
   "tags": [
     "blood"
@@ -15,5 +15,8 @@
       "ifTargetHasStatus": "bleed"
     }
   ],
-  "offerable": true
+  "offerable": true,
+  "stats": {
+    "maxHealth": -8
+  }
 }

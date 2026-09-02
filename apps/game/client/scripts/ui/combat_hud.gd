@@ -1,5 +1,7 @@
 extends Control
 
+const FloorKeyringScript := preload("res://scripts/dungeon/floor_keyring.gd")
+
 const StatusIconAtlasScript := preload("res://scripts/ui/status_icon_atlas.gd")
 const StatusPipScene := preload("res://scenes/ui/status_pip.tscn")
 const InputGlyphServiceScript := preload("res://scripts/ui/input_glyph_service.gd")
@@ -11,10 +13,10 @@ const MenuShellScript := preload("res://scripts/ui/menu_shell.gd")
 const GameUISkinScript := preload("res://scripts/ui/game_ui_skin.gd")
 const QuickSlotBarScript := preload("res://scripts/ui/quick_slot_bar.gd")
 
-const BAR_WIDTH := 280.0
-const HEALTH_BAR_HEIGHT := 22.0
-const STAMINA_BAR_HEIGHT := 16.0
-const MANA_BAR_HEIGHT := 16.0
+const BAR_WIDTH := 330.0
+const HEALTH_BAR_HEIGHT := 30.0
+const STAMINA_BAR_HEIGHT := 22.0
+const MANA_BAR_HEIGHT := 22.0
 const LOW_HP_RATIO := 0.25
 const VIGNETTE_COOLDOWN := 0.8
 const HINT_AUTO_HIDE_SECONDS := 60.0
@@ -26,12 +28,19 @@ const STAMINA_BG := Color(0.08, 0.11, 0.06, 0.92)
 const MANA_FILL := Color(0.44, 0.42, 0.85, 1.0)
 const MANA_BG := Color(0.06, 0.06, 0.14, 0.92)
 
-const POISE_BAR_HEIGHT := 10.0
+const POISE_BAR_HEIGHT := 14.0
 const POISE_FILL := Color(0.82, 0.74, 0.45, 1.0)
 const POISE_BG := Color(0.14, 0.12, 0.07, 0.92)
 const POISE_BROKEN_FILL := Color(0.9, 0.35, 0.25, 1.0)
 
 const IFRAME_FILL := Color(0.86, 0.95, 1.0, 1.0)
+
+## The XP bar never went through `_apply_bar_style` at all, so it rendered in Godot's default
+## theme -- rounded end caps, no fill texture -- next to four bars built out of the same pixel-block
+## style. Gold ties it to the UI's own accent colour (menu titles, the gold key, the level-up text)
+## rather than inventing a new one just for this bar.
+const XP_FILL := Color(0.85, 0.68, 0.28, 1.0)
+const XP_BG := Color(0.12, 0.10, 0.05, 0.92)
 
 const XP_BANNER_MIN := 25
 const LOCK_RETICLE_OCCLUDED := Color(1.0, 0.62, 0.55, 1.0)
@@ -86,6 +95,8 @@ var _quick_slot_bar: Control
 var _lock_target_occluded := false
 var _riposte_prompt_timer := 0.0
 var _build_up_rows: Dictionary = {}
+var _key_row: HBoxContainer
+var _key_pips: Dictionary = {}
 var _last_health := -1.0
 var _vignette_cooldown := 0.0
 var _hint_session_start := 0.0
@@ -98,7 +109,9 @@ var _hint_actions_used: Dictionary = {
 var _hint_hidden_by_usage := false
 var _map_overlay: Control
 var _map_overlay_minimap: Control
-var _region_banner: Label
+var _region_banner: VBoxContainer
+var _region_title_label: Label
+var _region_subtitle_label: Label
 var _guard_indicator_active := false
 var _slow_update_timer := 0.0
 
@@ -119,6 +132,9 @@ func _ready() -> void:
 	if DisplayService and not DisplayService.display_changed.is_connected(_on_display_changed):
 		DisplayService.display_changed.connect(_on_display_changed)
 	_apply_hud_safe_area()
+	_ensure_key_row()
+	if WorldState and not WorldState.namespace_changed.is_connected(_on_world_flag_changed):
+		WorldState.namespace_changed.connect(_on_world_flag_changed)
 	if player_path:
 		_player = get_node(player_path) as Node3D
 		_guard = _player.get_node_or_null("Guard") as Guard
@@ -191,22 +207,38 @@ const HEALTH_TRAIL_FILL := Color(0.98, 0.55, 0.52, 1.0)
 ## A bar that simply jumps to its new value tells the player their health changed but not by how
 ## much. The trail leaves the old reading visible for a beat, so the size of the hit is legible in
 ## peripheral vision — which is the whole job of a soulslike health bar during a fight.
+##
+## This has to overlap the real bar exactly, not sit next to it. Adding it as a plain sibling next
+## to `_health_bar` inside the VBox that stacks the resource bars did not do that: a VBoxContainer
+## lays every child into its own row regardless of z_index (z_index only reorders drawing between
+## controls that already share a rect, it does not make a container overlap them), so the "ghost"
+## rendered as a second, permanently-visible health bar sitting right above the real one -- read as
+## two health bars, because on screen that is exactly what it was. Wrapping both bars in a plain
+## Control and anchoring them to fill it is what makes them occupy the same rect, with the real bar
+## added second so it draws on top and only the trailing difference peeks out from behind it.
 func _ensure_health_trail() -> void:
 	if _health_trail != null and is_instance_valid(_health_trail):
 		return
 	var parent := _health_bar.get_parent() as Control
 	if parent == null:
 		return
+	var slot_index := _health_bar.get_index()
+	var wrapper := Control.new()
+	wrapper.name = "HealthBarStack"
+	wrapper.custom_minimum_size = Vector2(BAR_WIDTH, HEALTH_BAR_HEIGHT)
+	wrapper.size_flags_horizontal = _health_bar.size_flags_horizontal
+	parent.add_child(wrapper)
+	parent.move_child(wrapper, slot_index)
+	parent.remove_child(_health_bar)
 	_health_trail = ProgressBar.new()
 	_health_trail.name = "HealthTrail"
 	_health_trail.show_percentage = false
 	_health_trail.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_health_trail.custom_minimum_size = Vector2(BAR_WIDTH, HEALTH_BAR_HEIGHT)
+	_health_trail.set_anchors_preset(Control.PRESET_FULL_RECT)
 	GameUISkinScript.style_progress_bar(_health_trail, HEALTH_TRAIL_FILL, HEALTH_BG)
-	parent.add_child(_health_trail)
-	parent.move_child(_health_trail, _health_bar.get_index())
-	# The real bar draws over the ghost, so only the difference between them shows.
-	_health_bar.z_index = 1
+	wrapper.add_child(_health_trail)
+	wrapper.add_child(_health_bar)
+	_health_bar.set_anchors_preset(Control.PRESET_FULL_RECT)
 
 
 func _update_health_trail(delta: float) -> void:
@@ -232,14 +264,20 @@ func _style_resource_bars() -> void:
 	_health_bar.custom_minimum_size = Vector2(BAR_WIDTH, HEALTH_BAR_HEIGHT)
 	_apply_bar_style(_health_bar, HEALTH_FILL, HEALTH_BG)
 	_ensure_health_trail()
+	_label_bar(_health_bar, "HP")
 	_stamina_bar.custom_minimum_size = Vector2(BAR_WIDTH, STAMINA_BAR_HEIGHT)
 	_apply_bar_style(_stamina_bar, STAMINA_FILL, STAMINA_BG)
+	_label_bar(_stamina_bar, "SP")
 	_mana_bar.custom_minimum_size = Vector2(BAR_WIDTH, MANA_BAR_HEIGHT)
 	_apply_bar_style(_mana_bar, MANA_FILL, MANA_BG)
+	_label_bar(_mana_bar, "MP")
 	if _poise_bar:
 		_poise_bar.custom_minimum_size = Vector2(BAR_WIDTH, POISE_BAR_HEIGHT)
 		_apply_bar_style(_poise_bar, POISE_FILL, POISE_BG)
-	_boss_health_bar.custom_minimum_size = Vector2(420, 18)
+		_label_bar(_poise_bar, "PO")
+	_apply_bar_style(_xp_bar, XP_FILL, XP_BG)
+	_label_bar(_xp_bar, "XP")
+	_boss_health_bar.custom_minimum_size = Vector2(460, 26)
 	_apply_bar_style(_boss_health_bar, Color(0.72, 0.12, 0.1, 1.0), Color(0.08, 0.04, 0.04, 0.95))
 	_boss_name_label.add_theme_color_override("font_color", Color(0.95, 0.86, 0.72))
 	_branch_banner.add_theme_color_override("font_color", Color(0.86, 0.83, 0.76))
@@ -250,7 +288,76 @@ func _apply_bar_style(bar: ProgressBar, fill_color: Color, bg_color: Color) -> v
 	GameUISkinScript.style_progress_bar(bar, fill_color, bg_color)
 
 
+## Health, stamina, mana and poise stack directly on top of each other in the corner, told apart by
+## fill colour alone -- fine for a player who has already learned "the blue one is mana", useless
+## on the first ten minutes, and a real problem for colourblind players the rest of the way, since
+## this is exactly the kind of same-shape/different-hue row the game already ships a colourblind
+## mode to account for elsewhere. A short outlined initialism costs almost no space on a bar this
+## thin and reads regardless of which colour the fill actually renders as.
+func _label_bar(bar: ProgressBar, text: String) -> void:
+	if bar == null:
+		return
+	var existing := bar.get_node_or_null("BarLabel") as Label
+	var label := existing if existing else Label.new()
+	if existing == null:
+		label.name = "BarLabel"
+		label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		label.set_anchors_preset(Control.PRESET_FULL_RECT)
+		label.offset_left = 6
+		label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+		label.add_theme_font_size_override("font_size", GameUISkinScript.FONT_SIZE_SMALL)
+		label.add_theme_color_override("font_color", Color(1.0, 1.0, 1.0, 0.92))
+		label.add_theme_color_override("font_outline_color", Color(0.0, 0.0, 0.0, 0.85))
+		label.add_theme_constant_override("outline_size", 3)
+		bar.add_child(label)
+	label.text = text
+
+
 const BUILD_UP_METER_WIDTH := 84
+
+
+## The keycard row.
+##
+## Doom put the keys on the status bar and never explained them, because a lit red card next to a
+## red door explains itself. Held keys are `WorldState` flags, so the row just redraws whenever the
+## key namespace changes -- picking one up, and the ring being emptied on the stairs.
+func _ensure_key_row() -> void:
+	if _key_row != null or _status_row == null:
+		return
+	_key_row = HBoxContainer.new()
+	_key_row.name = "KeyRow"
+	_key_row.add_theme_constant_override("separation", 4)
+	_status_row.add_child(_key_row)
+	for color in FloorKeyringScript.COLOR_ORDER:
+		var pip := ColorRect.new()
+		pip.name = "Key_%s" % color
+		pip.custom_minimum_size = Vector2(10, 14)
+		pip.tooltip_text = str(FloorKeyringScript.COLORS[color]["label"])
+		_key_row.add_child(pip)
+		_key_pips[color] = pip
+	_refresh_key_row()
+
+
+func _refresh_key_row() -> void:
+	if _key_row == null:
+		return
+	var held := FloorKeyringScript.held_colors()
+	var any := false
+	for color in _key_pips:
+		var pip: ColorRect = _key_pips[color]
+		var carried: bool = held.has(color)
+		# Unheld cards stay on the bar as dim outlines, so the player can see how many the floor
+		# has before they have found any of them.
+		var tint: Color = FloorKeyringScript.COLORS[color]["tint"]
+		pip.color = tint if carried else Color(tint.r, tint.g, tint.b, 0.18)
+		any = any or carried
+	_key_row.visible = true
+
+
+func _on_world_flag_changed(flag_namespace: String, _flag_id: String, _value: Variant) -> void:
+	if flag_namespace == WorldFlags.NS_KEY:
+		_refresh_key_row()
 
 
 func _ensure_build_up_box() -> void:
@@ -454,6 +561,7 @@ func _unbind_boss() -> void:
 
 func _on_boss_health_changed(current: float, max_value: float) -> void:
 	_boss_health_bar.max_value = max_value
+	GameUISkinScript.sync_progress_bar_step(_boss_health_bar)
 	_boss_health_bar.value = current
 
 
@@ -567,6 +675,7 @@ func _ensure_poise_bar() -> void:
 	_apply_bar_style(_poise_bar, POISE_FILL, POISE_BG)
 	host.add_child(_poise_bar)
 	host.move_child(_poise_bar, _mana_bar.get_index() + 1)
+	_label_bar(_poise_bar, "PO")
 
 
 func _on_xp_granted(amount: int, reason: String) -> void:
@@ -604,6 +713,7 @@ func _on_poise_changed(current: float, max_value: float) -> void:
 	if _poise_bar == null or not is_instance_valid(_poise_bar):
 		return
 	_poise_bar.max_value = maxf(1.0, max_value)
+	GameUISkinScript.sync_progress_bar_step(_poise_bar)
 	_poise_bar.value = current
 	if current > 0.0 and _poise_broken_shown:
 		_poise_broken_shown = false
@@ -737,9 +847,11 @@ func _get_camera() -> Camera3D:
 
 func _on_health_changed(current: float, max_value: float) -> void:
 	_health_bar.max_value = max_value
+	GameUISkinScript.sync_progress_bar_step(_health_bar)
 	_health_bar.value = current
 	if _health_trail != null and is_instance_valid(_health_trail):
 		_health_trail.max_value = max_value
+		GameUISkinScript.sync_progress_bar_step(_health_trail)
 		if current > _health_trail.value:
 			_health_trail.value = current
 		elif current < _last_health:
@@ -761,11 +873,13 @@ func _on_health_changed(current: float, max_value: float) -> void:
 
 func _on_stamina_changed(current: float, max_value: float) -> void:
 	_stamina_bar.max_value = max_value
+	GameUISkinScript.sync_progress_bar_step(_stamina_bar)
 	_stamina_bar.value = current
 
 
 func _on_mana_changed(current: float, max_value: float) -> void:
 	_mana_bar.max_value = max_value
+	GameUISkinScript.sync_progress_bar_step(_mana_bar)
 	_mana_bar.value = current
 
 
@@ -834,7 +948,9 @@ func show_region_title(title: String, subtitle: String = "") -> void:
 	if title == "":
 		return
 	_ensure_region_banner()
-	_region_banner.text = title if subtitle == "" else "%s\n%s" % [title, subtitle]
+	_region_title_label.text = title
+	_region_subtitle_label.text = subtitle
+	_region_subtitle_label.visible = subtitle != ""
 	_region_banner.visible = true
 	_region_banner.modulate.a = 0.0
 	var tween := create_tween()
@@ -848,18 +964,62 @@ func show_region_title(title: String, subtitle: String = "") -> void:
 	)
 
 
+## A floor entry used to be one plain line of body text -- legible, but no different from a hint
+## the game shows anywhere else, and a new floor is the one moment the run stops to say "this is
+## where you are now." The gold flourish bars either side of the title borrow the same accent used
+## on the pause menu's "RUN INFO" plaque, so the announcement reads as an inscription rather than a
+## toast, and the title carries an outline so it stays legible over whatever the floor looks like.
 func _ensure_region_banner() -> void:
 	if _region_banner != null and is_instance_valid(_region_banner):
 		return
-	_region_banner = Label.new()
+	_region_banner = VBoxContainer.new()
 	_region_banner.name = "RegionBanner"
 	_region_banner.set_anchors_preset(Control.PRESET_CENTER_TOP)
-	_region_banner.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_region_banner.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	_region_banner.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_region_banner.alignment = BoxContainer.ALIGNMENT_CENTER
+	_region_banner.add_theme_constant_override("separation", 4)
 	_region_banner.visible = false
-	GameUISkinScript.style_body_label(_region_banner)
 	add_child(_region_banner)
+
+	var title_row := HBoxContainer.new()
+	title_row.name = "TitleRow"
+	title_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	title_row.add_theme_constant_override("separation", 10)
+	title_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_region_banner.add_child(title_row)
+
+	var left_flourish := ColorRect.new()
+	left_flourish.custom_minimum_size = Vector2(28, 3)
+	left_flourish.color = GameUISkinScript.GOLD
+	left_flourish.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	title_row.add_child(left_flourish)
+
+	_region_title_label = Label.new()
+	_region_title_label.name = "Title"
+	_region_title_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_region_title_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	GameUISkinScript.style_menu_title(_region_title_label)
+	_region_title_label.add_theme_color_override("font_outline_color", Color(0.0, 0.0, 0.0, 0.85))
+	_region_title_label.add_theme_constant_override("outline_size", 5)
+	title_row.add_child(_region_title_label)
+
+	var right_flourish := ColorRect.new()
+	right_flourish.custom_minimum_size = Vector2(28, 3)
+	right_flourish.color = GameUISkinScript.GOLD
+	right_flourish.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	title_row.add_child(right_flourish)
+
+	_region_subtitle_label = Label.new()
+	_region_subtitle_label.name = "Subtitle"
+	_region_subtitle_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_region_subtitle_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_region_subtitle_label.visible = false
+	GameUISkinScript.style_hint_label(_region_subtitle_label)
+	_region_subtitle_label.add_theme_color_override(
+		"font_outline_color", Color(0.0, 0.0, 0.0, 0.85)
+	)
+	_region_subtitle_label.add_theme_constant_override("outline_size", 4)
+	_region_banner.add_child(_region_subtitle_label)
 
 
 func _bind_minimap_player() -> void:

@@ -154,6 +154,8 @@ static func _add_stray_interact(animal: Node3D, spec: Dictionary, kind: String) 
 	label.font_size = 18
 	label.position = Vector3(0.0, 1.0 if kind == "dog" else 0.8, 0.0)
 	label.modulate = Color(0.86, 0.82, 0.78)
+	label.outline_size = 8
+	label.outline_modulate = Color(0.0, 0.0, 0.0, 0.85)
 	animal.add_child(label)
 
 

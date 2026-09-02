@@ -1,10 +1,11 @@
 {
   "id": "relic_wind_charm",
   "name": "Relic Wind Charm",
-  "description": "It moves when nothing else does. Dodges chain into force you keep until struck.",
+  "description": "Ten health spent to move like this. It moves when nothing else does — dodges chain into force you keep until struck.",
   "maxStacks": 1,
   "stats": {
-    "attackSpeed": 0.04
+    "attackSpeed": 0.04,
+    "maxHealth": -10
   },
   "tags": [
     "swift"

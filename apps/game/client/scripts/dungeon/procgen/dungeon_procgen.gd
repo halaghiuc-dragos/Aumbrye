@@ -6,6 +6,7 @@ const RoomGraphGeneratorScript := preload("res://scripts/dungeon/procgen/room_gr
 const RoomGraphConfigScript := preload("res://scripts/dungeon/procgen/room_graph_config.gd")
 const RoomGraphAssignerScript := preload("res://scripts/dungeon/procgen/room_graph_assigner.gd")
 const RoomGraphGeometryScript := preload("res://scripts/dungeon/procgen/room_graph_geometry.gd")
+const RoomGraphLayoutScript := preload("res://scripts/dungeon/procgen/room_graph_layout.gd")
 const ProcgenPlacementsScript := preload("res://scripts/dungeon/procgen/procgen_placements.gd")
 const RoomContentAssignerScript := preload("res://scripts/dungeon/procgen/room_content_assigner.gd")
 const RoomContentConfigScript := preload("res://scripts/dungeon/procgen/room_content_config.gd")
@@ -41,6 +42,7 @@ static func generate(
 	var assignment: Dictionary = {}
 	var rooms: Array = []
 	var edges: Array = []
+	var layout: Dictionary = {}
 	var assign_rng := ProcgenRng.stream(run_seed, "assign")
 	for attempt in MAX_ASSIGNMENT_ATTEMPTS:
 		if attempt > 0:
@@ -49,7 +51,8 @@ static func generate(
 		var door_check := RoomGraphGeometryScript.validate_door_topology(graph, assignment)
 		if not door_check.get("ok", false):
 			continue
-		rooms = RoomGraphGeometryScript.build_rooms(graph, assignment)
+		layout = RoomGraphLayoutScript.solve(graph, assignment)
+		rooms = RoomGraphGeometryScript.build_rooms(graph, assignment, layout)
 		if rooms.is_empty():
 			continue
 		# The same test the definition validator will apply in a moment. Checking it here is the
@@ -59,7 +62,7 @@ static func generate(
 		if DungeonDefinitionValidator.has_room_overlap(rooms):
 			rooms = []
 			continue
-		edges = RoomGraphGeometryScript.build_edges(graph, assignment)
+		edges = RoomGraphGeometryScript.build_edges(graph, assignment, layout)
 		break
 	if rooms.is_empty():
 		return {
@@ -70,6 +73,22 @@ static func generate(
 				% MAX_ASSIGNMENT_ATTEMPTS
 			),
 		}
+	# The lattice may leave an optional room unplaced when its branch folds back on ground another
+	# branch already took. Prune those out of the assignment before anything downstream reads it:
+	# enemies, loot and traps are addressed by room id, and a placement pointing at a room the floor
+	# no longer contains is exactly the `placement_in_room` the validator rejects the whole floor for.
+	var pruned := _prune_to_placed(graph, assignment, layout)
+	assignment = pruned["assignment"]
+	layout = pruned["layout"]
+	rooms = RoomGraphGeometryScript.build_rooms(graph, assignment, layout)
+	edges = RoomGraphGeometryScript.build_edges(graph, assignment, layout)
+	var door_offsets_by_semantic := {}
+	for built_room in rooms:
+		door_offsets_by_semantic[str(built_room.get("id", ""))] = built_room.get("doorOffsets", {})
+	for assignment_room in assignment.get("rooms", []):
+		assignment_room["doorOffsets"] = door_offsets_by_semantic.get(
+			str(assignment_room.get("semantic_id", "")), {}
+		)
 	var placements := ProcgenPlacementsScript.place(
 		biome, assignment, run_seed, tier, player_level, floor_index, graph
 	)
@@ -136,6 +155,7 @@ static func generate(
 		"roomContent": content.get("roomContent", []),
 		"locks": content.get("locks", []),
 		"puzzles": content.get("puzzles", []),
+		"shortcutGates": content.get("shortcutGates", []),
 		"branchPreviews":
 		RoomContentAssignerScript.build_branch_previews(
 			graph, assignment, content.get("roomContent", [])
@@ -227,6 +247,81 @@ static func _pick_weighted_enemy(pool: Array, rng: RandomNumberGenerator) -> Dic
 		if roll <= 0.0:
 			return entry as Dictionary
 	return {}
+
+
+## Drops assignment rooms the lattice could not seat, and any room left unreachable once they go.
+##
+## Takes the caller's already-solved `layout` for this exact `(graph, assignment)` rather than
+## solving again -- `RoomGraphLayout.solve` mutates `graph`'s slots (`_place_secrets` records a
+## secret's chosen parent there), so a second solve of the same inputs is not guaranteed to answer
+## the same way as the first, and downstream content had already been handed out against the first
+## answer. Returns the filtered layout alongside the pruned assignment so the caller can build rooms
+## and edges from it directly instead of asking for a third solve.
+static func _prune_to_placed(graph: RoomGraph, assignment: Dictionary, layout: Dictionary) -> Dictionary:
+	var placements: Dictionary = layout["placements"]
+	var realised: Dictionary = layout["realised_edges"]
+	var neighbors := {}
+	for key in realised:
+		var edge: Dictionary = realised[key]
+		var from_id := str(edge["from"])
+		var to_id := str(edge["to"])
+		if not neighbors.has(from_id):
+			neighbors[from_id] = []
+		if not neighbors.has(to_id):
+			neighbors[to_id] = []
+		neighbors[from_id].append(to_id)
+		neighbors[to_id].append(from_id)
+	var entrance_id := str(assignment.get("entrance_layout_id", graph.start_id))
+	var reachable := {entrance_id: true}
+	var queue: Array[String] = [entrance_id]
+	while not queue.is_empty():
+		var current: String = queue.pop_front()
+		for next_id in neighbors.get(current, []):
+			if reachable.has(next_id):
+				continue
+			reachable[next_id] = true
+			queue.append(next_id)
+	# A secret hangs off its host rather than through a realised door, so it rides along with it.
+	for secret_id in graph.secret_ids:
+		if not placements.has(secret_id):
+			continue
+		var slot := graph.get_slot(secret_id)
+		if slot != null and reachable.has(slot.secret_parent_id):
+			reachable[secret_id] = true
+	var kept: Array = []
+	for room in assignment.get("rooms", []):
+		var layout_id := str(room.get("layout_id", ""))
+		if placements.has(layout_id) and reachable.has(layout_id):
+			kept.append(room)
+	var pruned := assignment.duplicate(true)
+	pruned["rooms"] = kept
+	var kept_ids := {}
+	for room in kept:
+		kept_ids[str(room.get("layout_id", ""))] = true
+	var secrets_kept: Array = []
+	for secret_id in assignment.get("secret_layout_ids", graph.secret_ids):
+		if kept_ids.has(str(secret_id)):
+			secrets_kept.append(secret_id)
+	pruned["secret_layout_ids"] = secrets_kept
+	var pruned_placements := {}
+	for layout_id in placements:
+		if kept_ids.has(str(layout_id)):
+			pruned_placements[layout_id] = placements[layout_id]
+	var pruned_realised := {}
+	for key in realised:
+		var edge: Dictionary = realised[key]
+		if kept_ids.has(str(edge["from"])) and kept_ids.has(str(edge["to"])):
+			pruned_realised[key] = edge
+	return {
+		"assignment": pruned,
+		"layout":
+		{
+			"placements": pruned_placements,
+			"realised_edges": pruned_realised,
+			"dropped": layout.get("dropped", []),
+			"ok": true,
+		},
+	}
 
 
 static func _generate_final_floor(

@@ -658,6 +658,16 @@ static func _pick_obstacle_id(graph: RoomGraph, reserved: Dictionary) -> String:
 		var slot: RoomGraphSlot = graph.get_slot_at(cell)
 		if slot == null or reserved.has(slot.slot_id):
 			continue
+		# Every sibling picker (`_pick_boss_id`, `_dead_end_ids` behind stairs/treasure/shop)
+		# excludes the entrance explicitly; this one did not. `_assign_special_rooms` reassigns
+		# whatever slot this returns to `SlotType.OBSTACLE`, and when it landed on `graph.start_id`
+		# -- which it could, since the entrance is on the critical path and sometimes has exactly
+		# two doors -- the entrance silently stopped being an entrance. Nothing downstream re-checks
+		# that `graph.start_id` still points at a `START` slot, so the floor built anyway, just
+		# without one: `ProcgenPlacements.place()` looks up the entrance by type ("hub") to seat the
+		# player and never finds it, and the whole floor generation attempt fails.
+		if slot.slot_id == graph.start_id:
+			continue
 		if not slot.on_critical_path:
 			continue
 		if slot.connection_count() == 2:
@@ -684,7 +694,24 @@ static func _place_secret_attachments(
 				return a.y < b.y
 			return a.x < b.x
 	)
-	var pick_count := mini(config.max_secrets, candidates.size())
+	# A secret normally wants a well-connected pocket, but a cramped floor can offer none at all.
+	# Rather than ship a floor with nothing hidden on it, fall back to any empty cell that touches
+	# the floor at all -- `min_secrets` is a promise to the player, not a preference.
+	if candidates.size() < config.min_secrets:
+		for x in config.grid_width:
+			for y in config.grid_height:
+				var relaxed := Vector2i(x, y)
+				if graph.slots.has(relaxed) or candidates.has(relaxed):
+					continue
+				if _occupied_neighbor_count(graph, relaxed) < 1:
+					continue
+				candidates.append(relaxed)
+	# One or two, chosen per floor rather than always taking the cap -- a floor that always hides
+	# exactly the same number of rooms stops being a question the player asks themselves.
+	var wanted := config.min_secrets
+	if config.max_secrets > config.min_secrets:
+		wanted = rng.randi_range(config.min_secrets, config.max_secrets)
+	var pick_count := mini(wanted, candidates.size())
 	for i in pick_count:
 		if candidates.is_empty():
 			break

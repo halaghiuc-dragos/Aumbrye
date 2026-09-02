@@ -1,5 +1,7 @@
 extends Node3D
 
+const BossRewardHallScript := preload("res://scripts/dungeon/boss_reward_hall.gd")
+
 
 const BUILDER_SCRIPT := preload("res://scripts/dungeon/dungeon_builder.gd")
 const BOSS_ROOM_ID := "boss"
@@ -79,9 +81,14 @@ func _ready() -> void:
 	_announce_floor_entry(def)
 	AudioDirector.play_dungeon_ambience()
 	set_physics_process(true)
+	# One relic choice per ten-floor block, offered at the block's first floor rather than its
+	# boss -- consistent with why the very first one moved off the first boss to begin with (see
+	# `_offer_opening_umbral`), and the only way to keep the count exactly one per block: the old
+	# scheme also handed one out at every floor's boss, which is one a floor rather than one a
+	# block.
 	var offer_umbral := (
 		not RunFlow.is_continue_restore()
-		and RunFlow.get_current_floor() == 1
+		and RunFloorConfig.floor_within_block(RunFlow.get_current_floor()) == 1
 		and not RunFlow.has_floor_transition()
 	)
 	RunFlow.clear_continue_restore()
@@ -144,10 +151,6 @@ func _physics_process(_delta: float) -> void:
 		if not _boss_door.call("is_sealed"):
 			_boss_door.call("seal_door")
 			_persist_snapshot()
-
-
-func respawn_enemies() -> void:
-	_builder.respawn_enemies()
 
 
 func _wire_run_ui(def: Dictionary) -> void:
@@ -434,6 +437,8 @@ func _apply_snapshot(snapshot: Dictionary) -> void:
 		_boss_door.call("apply_state", door_state)
 	elif _boss_defeated and _boss_door:
 		_boss_door.call("release_door")
+	if _boss_defeated:
+		_open_boss_reward_hall()
 
 	if snapshot.get("inBossFight", false):
 		_apply_boss_fight_continue()
@@ -599,23 +604,16 @@ func offer_umbral_relic() -> void:
 
 
 ## The opening umbral. A relic choice before the first room, so the player knows what this run is
-## about inside the first minute instead of finding out at the first boss. Seeded on the run so
-## the same seed always opens the same three.
+## about inside the first minute instead of finding out at the first boss. Seeded on the run and
+## the block, so the same seed always opens the same three at a given block, and each ten-floor
+## block rolls its own set rather than repeating the first one.
 func _offer_opening_umbral() -> void:
 	if _relic_offer == null or not is_instance_valid(_relic_offer):
 		return
 	if not _relic_offer.has_method("open_offer"):
 		return
-	_relic_offer.call("open_offer", "umbral:%d" % RunFlow.current_seed)
-
-
-func _offer_boss_relic() -> void:
-	if _relic_offer == null or not is_instance_valid(_relic_offer):
-		return
-	if not _relic_offer.has_method("open_offer"):
-		return
-	var offer_key := "boss:%s:%d" % [RunFlow.current_dungeon_id, RunFlow.get_current_floor()]
-	_relic_offer.call("open_offer", offer_key)
+	var block := RunFloorConfig.block_index(RunFlow.get_current_floor())
+	_relic_offer.call("open_offer", "umbral:%d:%d" % [RunFlow.current_seed, block])
 
 
 func _on_boss_defeated() -> void:
@@ -626,6 +624,28 @@ func _on_boss_defeated() -> void:
 	if _boss_door:
 		_boss_door.call("release_door")
 	AudioDirector.play_stinger("floor_clear")
+	# Restocked here and not in `_open_boss_reward_hall`, which also runs on restore: refilling the
+	# shelves on every reload would turn a three-potion stock into an unlimited one.
+	BossRewardHallScript.restock_for_floor()
+	_open_boss_reward_hall()
+
+
+## Puts the merchant and the way home into the boss room once the boss is down.
+##
+## Also runs when a saved run is restored onto a floor that was already cleared, so a player who
+## quits in the boss room and comes back still finds them there.
+func _open_boss_reward_hall() -> void:
+	if not _boss_defeated:
+		return
+	var room := _builder.get_room(_get_boss_room_id())
+	if room == null:
+		return
+	if BossRewardHallScript.is_open_in(room):
+		return
+	var hall := BossRewardHallScript.new()
+	hall.name = BossRewardHallScript.HALL_NAME
+	room.add_child(hall)
+	hall.setup(RunFlow.current_biome_id)
 	AudioDirector.play_dungeon_ambience()
 	_persist_snapshot()
 	if RunFlow.is_final_floor() and RunFlow.get_run_mode() == "castle":
@@ -641,7 +661,6 @@ func _on_boss_defeated() -> void:
 					)
 				)
 			)
-	_offer_boss_relic()
 
 
 func _on_player_died() -> void:

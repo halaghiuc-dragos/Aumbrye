@@ -1,7 +1,7 @@
 {
   "id": "ash_in_the_lungs",
   "name": "Ash In The Lungs",
-  "description": "Fire damage sets what it touches alight.",
+  "description": "You breathe it too. Fire damage sets what it touches alight.",
   "maxStacks": 1,
   "tags": [
     "flame"
@@ -17,5 +17,8 @@
       "ifDamageType": "fire"
     }
   ],
-  "offerable": true
+  "offerable": true,
+  "stats": {
+    "resistFire": -0.05
+  }
 }

@@ -58,20 +58,6 @@ static func active_bounties(kind: String) -> Array[String]:
 	return roll(kind, current_index(kind))
 
 
-static func get_active_definitions() -> Array[Dictionary]:
-	var result: Array[Dictionary] = []
-	for kind in [KIND_DAILY, KIND_WEEKLY]:
-		for quest_id in active_bounties(kind):
-			var def := QuestCatalog.get_definition(quest_id)
-			if def.is_empty():
-				continue
-			var row := def.duplicate(true)
-			row["bountyKind"] = kind
-			row["bountyClaimed"] = is_claimed(quest_id)
-			result.append(row)
-	return result
-
-
 static func bounty_kind(quest_id: String) -> String:
 	var def := QuestCatalog.get_definition(quest_id)
 	var kind := str(def.get("bounty", ""))

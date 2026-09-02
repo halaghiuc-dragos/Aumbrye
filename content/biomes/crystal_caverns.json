@@ -4,8 +4,8 @@
   "templatePrefix": "crystal",
   "assetFolder": "crystal",
   "roomCount": {
-    "min": 16,
-    "max": 20
+    "min": 22,
+    "max": 28
   },
   "roomTemplateIds": [
     "crystal_entrance",

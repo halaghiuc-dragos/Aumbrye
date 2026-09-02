@@ -1,6 +1,8 @@
 extends Node3D
 class_name DungeonBuilder
 
+const RoomTemplateCatalogScript := preload("res://scripts/dungeon/procgen/room_template_catalog.gd")
+
 
 const FIXTURE_RELATIVE := "content/fixtures/forgotten_castle_slice.json"
 
@@ -55,6 +57,8 @@ var _boss_door: Node3D
 var _stair_levers: Dictionary = {}
 var _is_final_floor := false
 
+var _edge_by_pair: Dictionary = {}
+
 var _build_generation := 0
 
 
@@ -74,61 +78,6 @@ func _yield_step(chunked: bool, my_gen: int) -> bool:
 			return false
 		await tree.process_frame
 	return my_gen == _build_generation and is_inside_tree()
-
-
-const MAX_CACHED_FLOORS := 8
-
-static var _floor_definition_cache: Dictionary = {}
-
-static var _cache_run_key := ""
-
-static var _cache_reference_floor := -1
-
-
-static func begin_run_cache(run_key: String) -> void:
-	if run_key != _cache_run_key:
-		_floor_definition_cache.clear()
-	_cache_run_key = run_key
-	_cache_reference_floor = -1
-
-
-static func set_reference_floor(floor_index: int) -> void:
-	_cache_reference_floor = floor_index
-
-
-static func store_floor_cache(floor_index: int, floor_definition: Dictionary) -> void:
-	if floor_definition.is_empty():
-		return
-	_floor_definition_cache[str(floor_index)] = floor_definition.duplicate(true)
-	_trim_floor_cache(_cache_reference_floor if _cache_reference_floor > 0 else floor_index)
-
-
-static func get_floor_cache(floor_index: int) -> Dictionary:
-	var cached: Variant = _floor_definition_cache.get(str(floor_index), {})
-	return cached.duplicate(true) if cached is Dictionary else {}
-
-
-static func erase_floor_cache(floor_index: int) -> void:
-	_floor_definition_cache.erase(str(floor_index))
-
-
-static func clear_floor_cache() -> void:
-	_floor_definition_cache.clear()
-	_cache_run_key = ""
-	_cache_reference_floor = -1
-
-
-static func _trim_floor_cache(reference_floor: int) -> void:
-	if _floor_definition_cache.size() <= MAX_CACHED_FLOORS:
-		return
-	var keys: Array[int] = []
-	for key in _floor_definition_cache:
-		keys.append(int(key))
-	keys.sort_custom(
-		func(a: int, b: int) -> bool: return absi(a - reference_floor) > absi(b - reference_floor)
-	)
-	while _floor_definition_cache.size() > MAX_CACHED_FLOORS:
-		_floor_definition_cache.erase(str(keys.pop_front()))
 
 
 func build(
@@ -206,13 +155,13 @@ func build_from_source(
 	if not await _yield_step(chunked, my_gen):
 		return
 
-	_wire_shortcut_edges()
+	_verify_doorway_alignment()
 	step += 1.0
 	build_progress.emit(step / TOTAL_STEPS)
 	if not await _yield_step(chunked, my_gen):
 		return
 
-	_build_doorway_bridges()
+	_clear_doorway_obstructions()
 	step += 1.0
 	build_progress.emit(step / TOTAL_STEPS)
 	if not await _yield_step(chunked, my_gen):
@@ -412,7 +361,41 @@ func _setup_floor_nav_map() -> void:
 			nav_region.set_navigation_map(_floor_nav_map)
 
 
+## Opens exactly the doorways the floor's edges call for, and no others.
+##
+## Every room starts with the doors its *template* declares -- `_apply_kind_spec` sets all four from
+## the kind spec, and most kinds declare all four -- so without closing them first a room ends up
+## with holes in walls that back onto solid rock or onto a neighbour that has no matching opening.
+## Only edges know which walls are really shared, so they are the authority. Secret doors stay shut
+## on purpose: a secret is revealed by finding its lever or wall, not by the floor being built.
+## The definition edge joining two rooms, in either order, or `{}` when they are not neighbours.
+func edge_between(from_id: String, to_id: String) -> Dictionary:
+	if _edge_by_pair.is_empty():
+		for edge in definition.get("edges", []):
+			var a := str(edge.get("from", ""))
+			var b := str(edge.get("to", ""))
+			_edge_by_pair["%s>%s" % [a, b]] = edge
+			_edge_by_pair["%s>%s" % [b, a]] = edge
+	return _edge_by_pair.get("%s>%s" % [from_id, to_id], {})
+
+
+## The socket on `from_room` that faces the doorway it shares with `to_room`.
+##
+## Everything that wants to sit in a doorway -- the locked door, the puzzle gate, the illusory
+## panel, the navigation link -- has to ask through here rather than through
+## `RoomTemplate.socket_toward`. That guesses the wall from the line between the two room centres,
+## which was correct only while every door was pinned to the middle of its wall. Doors slide now,
+## so two neighbours routinely sit diagonally offset and the centre line points at a corner: the
+## guess picks whichever of the two walls is nearer, and half the time that is the wall the rooms
+## do not share at all.
+func door_socket_between(from_room: RoomTemplate, to_room: RoomTemplate) -> DoorwaySocket:
+	if from_room == null or to_room == null:
+		return null
+	return _socket_for_edge(from_room, to_room, edge_between(from_room.room_id, to_room.room_id))
+
+
 func _sync_blockout_doors_from_edges() -> void:
+	_close_all_blockout_doors()
 	for edge in definition.get("edges", []):
 		var kind := str(edge.get("kind", "door"))
 		if kind in ["secret", "shortcut"]:
@@ -421,81 +404,128 @@ func _sync_blockout_doors_from_edges() -> void:
 		var to_room := get_room(str(edge.get("to", "")))
 		if from_room == null or to_room == null:
 			continue
-		_open_blockout_door_toward(from_room, to_room)
-		_open_blockout_door_toward(to_room, from_room)
+		_open_blockout_door_toward(from_room, to_room, edge)
+		_open_blockout_door_toward(to_room, from_room, edge)
 
 
-func _wire_shortcut_edges() -> void:
-	for edge in definition.get("edges", []):
-		if str(edge.get("kind", "")) != "shortcut":
+func _close_all_blockout_doors() -> void:
+	for room_id in _rooms:
+		var room := get_room(room_id)
+		if room == null:
 			continue
-		var from_id := str(edge.get("from", ""))
-		var to_id := str(edge.get("to", ""))
-		var from_room := get_room(from_id)
-		var to_room := get_room(to_id)
-		if from_room == null or to_room == null:
-			push_error(
-				"DungeonBuilder: shortcut edge %s->%s references missing room" % [from_id, to_id]
-			)
+		var blockout := room.get_blockout()
+		if blockout == null:
 			continue
-		_open_blockout_door_toward(from_room, to_room)
-		_open_blockout_door_toward(to_room, from_room)
+		blockout.door_north = false
+		blockout.door_south = false
+		blockout.door_east = false
+		blockout.door_west = false
 
 
-func _open_blockout_door_toward(from_room: RoomTemplate, to_room: RoomTemplate) -> void:
+## Opens the door on `from_room` that leads to `to_room`, at the point the two rooms share.
+##
+## `edge` carries the wall and the world position of the doorway, because neither can be recovered
+## from the rooms any more: doors slide along their wall now, so two neighbours can sit diagonally
+## offset from each other and the line between their centres no longer names the shared wall.
+func _open_blockout_door_toward(
+	from_room: RoomTemplate, to_room: RoomTemplate, edge: Dictionary = {}
+) -> void:
 	var blockout := from_room.get_blockout()
 	if blockout == null:
 		return
-	var socket := from_room.socket_toward(to_room)
+	var socket := _socket_for_edge(from_room, to_room, edge)
 	if socket == null:
 		push_error(
 			"DungeonBuilder: no socket from %s toward %s" % [from_room.room_id, to_room.room_id]
 		)
 		return
+	var lateral := _door_lateral(from_room, socket, edge)
 	match socket.direction:
 		CastleRoomConstants.Direction.NORTH:
 			blockout.door_north = true
+			blockout.door_north_offset = lateral
 		CastleRoomConstants.Direction.EAST:
 			blockout.door_east = true
+			blockout.door_east_offset = lateral
 		CastleRoomConstants.Direction.SOUTH:
 			blockout.door_south = true
+			blockout.door_south_offset = lateral
 		CastleRoomConstants.Direction.WEST:
 			blockout.door_west = true
+			blockout.door_west_offset = lateral
+	socket.position = RoomTemplateCatalogScript.socket_wall_position(
+		socket.direction, blockout.room_width * 0.5, blockout.room_depth * 0.5, lateral
+	)
 
 
-func _close_blockout_door_toward(from_room: RoomTemplate, to_room: RoomTemplate) -> void:
-	var blockout := from_room.get_blockout()
-	if blockout == null:
-		return
-	var socket := from_room.socket_toward(to_room)
-	if socket == null:
-		return
+## The socket on the wall the edge names, falling back to the old centre-delta guess.
+##
+## `edge.dir` is authored once, facing outward from `edge.from` toward `edge.to` -- so a caller
+## asking for the socket on the far side of the same edge needs the opposite of that facing, or it
+## picks the far room's opposite wall instead of the one the two rooms actually share.
+func _socket_for_edge(
+	from_room: RoomTemplate, to_room: RoomTemplate, edge: Dictionary
+) -> DoorwaySocket:
+	var dir_name := str(edge.get("dir", ""))
+	if dir_name == "":
+		return from_room.socket_toward(to_room)
+	var world_dir := Vector3.ZERO
+	match dir_name:
+		"north":
+			world_dir = Vector3(0.0, 0.0, -1.0)
+		"south":
+			world_dir = Vector3(0.0, 0.0, 1.0)
+		"east":
+			world_dir = Vector3(1.0, 0.0, 0.0)
+		_:
+			world_dir = Vector3(-1.0, 0.0, 0.0)
+	if str(edge.get("from", "")) != from_room.room_id:
+		world_dir = -world_dir
+	var best: DoorwaySocket = null
+	var best_dot := 0.5
+	for socket in from_room.get_sockets():
+		var dot := socket.get_world_facing().dot(world_dir)
+		if dot > best_dot:
+			best_dot = dot
+			best = socket
+	return best if best != null else from_room.socket_toward(to_room)
+
+
+## How far along its wall the doorway sits, in the room's own frame.
+func _door_lateral(from_room: RoomTemplate, socket: DoorwaySocket, edge: Dictionary) -> float:
+	var door: Dictionary = edge.get("door", {})
+	if door.is_empty():
+		return 0.0
+	var local := from_room.to_local(
+		Vector3(float(door.get("x", 0.0)), 0.0, float(door.get("z", 0.0)))
+	)
+	# North and south walls run along the room's local x; east and west along its local z.
 	match socket.direction:
-		CastleRoomConstants.Direction.NORTH:
-			blockout.door_north = false
-		CastleRoomConstants.Direction.EAST:
-			blockout.door_east = false
-		CastleRoomConstants.Direction.SOUTH:
-			blockout.door_south = false
-		CastleRoomConstants.Direction.WEST:
-			blockout.door_west = false
+		CastleRoomConstants.Direction.NORTH, CastleRoomConstants.Direction.SOUTH:
+			return local.x
+		_:
+			return local.z
 
 
-func _build_doorway_bridges() -> void:
-	var closed_shortcuts: PackedStringArray = []
-	var bridges := Node3D.new()
-	bridges.name = "DoorwayBridges"
-	_dungeon_root.add_child(bridges)
+## Checks that both sides of every doorway agree on where it is.
+##
+## Purely a tripwire -- it builds nothing. The two rooms are seated flush on the lattice and the
+## opening is cut from the edge's own world position, so the two sockets should coincide exactly;
+## a nonzero span means a room's footprint and its reserved cells have drifted apart, which is the
+## one failure that silently produces doors opening onto solid rock.
+func _verify_doorway_alignment() -> void:
 	for edge in definition.get("edges", []):
 		var kind := str(edge.get("kind", "door"))
-		if kind == "secret":
+		# Shortcuts are the graph links the lattice could not close: the two rooms do not touch, so
+		# there is no wall to cut. They stay in the definition for the minimap and nothing else.
+		if kind in ["secret", "shortcut"]:
 			continue
 		var from_room := get_room(str(edge.get("from", "")))
 		var to_room := get_room(str(edge.get("to", "")))
 		if from_room == null or to_room == null:
 			continue
-		var from_socket := from_room.socket_toward(to_room)
-		var to_socket := to_room.socket_toward(from_room)
+		var from_socket := _socket_for_edge(from_room, to_room, edge)
+		var to_socket := _socket_for_edge(to_room, from_room, edge)
 		if from_socket == null or to_socket == null:
 			push_error(
 				(
@@ -504,34 +534,109 @@ func _build_doorway_bridges() -> void:
 				)
 			)
 			continue
-		var from_pos := from_socket.global_position
-		var to_pos := to_socket.global_position
-		var offset := to_pos - from_pos
+		var offset := to_socket.global_position - from_socket.global_position
 		offset.y = 0.0
-		var span := offset.length()
-		if span >= 0.5:
-			if kind == "shortcut":
-				_close_blockout_door_toward(from_room, to_room)
-				_close_blockout_door_toward(to_room, from_room)
-				closed_shortcuts.append(
-					"%s->%s (%.1f)" % [edge.get("from", ""), edge.get("to", ""), span]
+		if offset.length() >= 0.5:
+			push_error(
+				(
+					"DungeonBuilder: doorway span %.2f on %s->%s indicates a footprint mismatch"
+					% [offset.length(), edge.get("from", ""), edge.get("to", "")]
 				)
-			else:
-				push_error(
-					(
-						"DungeonBuilder: doorway span %.2f on %s->%s indicates a footprint mismatch"
-						% [span, edge.get("from", ""), edge.get("to", "")]
-					)
-				)
-
-	if not closed_shortcuts.is_empty():
-		print_verbose(
-			(
-				"DungeonBuilder: %d optional shortcut(s) closed because their rooms do not touch "
-				+ "— expected under the current tree-walk layout (C-157): %s"
 			)
-			% [closed_shortcuts.size(), ", ".join(closed_shortcuts)]
-		)
+
+
+## Frees dressing that the doorway sweep found standing in an opening.
+##
+## Room dressing is authored against a room's own frame, from back when every door sat in the
+## middle of its wall -- so a banner hung at the centre of the north wall, and pillars and braziers
+## were tucked into corners well clear of it. Doors slide along their wall now, and the dressing
+## has no idea where this floor put them, so the banner ends up bricking a doorway and a brazier
+## ends up standing in one. Neither the dressing nor the blockout can see the other, so the check
+## has to happen here, once the doors for this floor are final.
+const DOORWAY_CLEARANCE := 1.6
+
+## Half the width kept clear either side of the opening, a little wider than the door itself so a
+## prop cannot clip its jamb.
+const DOORWAY_HALF_SPAN := CastleRoomConstants.DOOR_WIDTH * 0.5 + 0.4
+
+const DRESSING_ROOTS := ["DioramaDressing", "CeilingLighting"]
+
+
+func _clear_doorway_obstructions() -> void:
+	for room_id in _rooms:
+		var room := get_room(room_id)
+		if room == null:
+			continue
+		var blockout := room.get_blockout()
+		if blockout == null:
+			continue
+		var props := room.get_node_or_null("Props") as Node3D
+		if props == null:
+			continue
+		var zones := _doorway_zones(blockout)
+		if zones.is_empty():
+			continue
+		for root in _prop_roots(props):
+			for child in root.get_children():
+				var prop := child as Node3D
+				if prop == null:
+					continue
+				# Markers are not geometry. They are where enemies, chests and levers get put, and
+				# freeing one costs the room its spawn rather than clearing anything.
+				if prop is Marker3D:
+					continue
+				# Anything mounted above the lintel clears the opening on its own -- the ceiling
+				# torches are the whole reason this is checked rather than assumed.
+				if prop.position.y >= CastleRoomConstants.DOOR_HEIGHT:
+					continue
+				if _in_any_doorway(zones, prop.position):
+					root.remove_child(prop)
+					prop.queue_free()
+
+
+## `Props` itself plus the two roots the dressing pass fills, which is every place a room's
+## scenery ends up: authored props sit directly under `Props`, generated ones one level down.
+func _prop_roots(props: Node3D) -> Array[Node3D]:
+	var roots: Array[Node3D] = [props]
+	for root_name in DRESSING_ROOTS:
+		var root := props.get_node_or_null(root_name) as Node3D
+		if root != null:
+			roots.append(root)
+	return roots
+
+
+## Each open doorway as `{axis_pos, along, lo, hi}` in the room's own frame: the strip of floor in
+## front of the opening that has to stay walkable.
+func _doorway_zones(blockout: CastleBlockout) -> Array:
+	var half_w := blockout.room_width * 0.5
+	var half_d := blockout.room_depth * 0.5
+	var zones: Array = []
+	if blockout.door_north:
+		zones.append(_zone(true, blockout.door_north_offset, -half_d, -half_d + DOORWAY_CLEARANCE))
+	if blockout.door_south:
+		zones.append(_zone(true, blockout.door_south_offset, half_d - DOORWAY_CLEARANCE, half_d))
+	if blockout.door_east:
+		zones.append(_zone(false, blockout.door_east_offset, half_w - DOORWAY_CLEARANCE, half_w))
+	if blockout.door_west:
+		zones.append(_zone(false, blockout.door_west_offset, -half_w, -half_w + DOORWAY_CLEARANCE))
+	return zones
+
+
+func _zone(along_x: bool, offset: float, lo: float, hi: float) -> Dictionary:
+	return {"along_x": along_x, "offset": offset, "lo": lo, "hi": hi}
+
+
+## `radius` widens the opening by the half-footprint of whatever is being tested, so a wide pillar
+## whose centre clears the doorway but whose corner does not is still caught.
+func _in_any_doorway(zones: Array, local_pos: Vector3, radius: float = 0.0) -> bool:
+	for zone in zones:
+		var along: float = local_pos.x if zone["along_x"] else local_pos.z
+		var across: float = local_pos.z if zone["along_x"] else local_pos.x
+		if absf(along - float(zone["offset"])) > DOORWAY_HALF_SPAN + radius:
+			continue
+		if across >= float(zone["lo"]) - radius and across <= float(zone["hi"]) + radius:
+			return true
+	return false
 
 
 func _build_height_transitions() -> void:
@@ -621,6 +726,7 @@ func _build_landmarks() -> void:
 func _place_cover() -> void:
 	var cover_placements: Array = definition.get("placements", {}).get("cover", [])
 	var wall_mat := BiomeRegistry.get_wall_material(biome_id)
+	var zones_by_room := {}
 	for placement in cover_placements:
 		var room := get_room(placement.get("roomId", ""))
 		if room == null:
@@ -628,21 +734,24 @@ func _place_cover() -> void:
 		var blockout := room.get_blockout()
 		if blockout == null:
 			continue
+		if not zones_by_room.has(room):
+			zones_by_room[room] = _doorway_zones(blockout)
 		var offset: Dictionary = placement.get("offset", {})
 		var size: Dictionary = placement.get("size", {})
-		var kind: String = str(placement.get("kind", "pillar"))
 		var size_vec := Vector3(
 			float(size.get("x", 1.2)), float(size.get("y", 2.4)), float(size.get("z", 1.2))
 		)
-		blockout.add_cover_obstacle(
-			Vector3(
-				float(offset.get("x", 0.0)),
-				float(offset.get("y", 0.0)),
-				float(offset.get("z", 0.0))
-			),
-			size_vec,
-			wall_mat if kind == "pillar" else wall_mat
+		var local_pos := Vector3(
+			float(offset.get("x", 0.0)), float(offset.get("y", 0.0)), float(offset.get("z", 0.0))
 		)
+		# Cover anchors are authored per room kind, so they know nothing about where this floor slid
+		# the doors. A pillar is solid collision -- one standing in an opening does not just look
+		# wrong, it seals the room. Dropped rather than nudged: the anchor list is generous and the
+		# room reads fine one pillar short.
+		var half_footprint := maxf(size_vec.x, size_vec.z) * 0.5
+		if _in_any_doorway(zones_by_room.get(room, []), local_pos, half_footprint):
+			continue
+		blockout.add_cover_obstacle(local_pos, size_vec, wall_mat)
 
 
 func _place_secret_mechanisms() -> void:
@@ -665,7 +774,7 @@ func _place_secret_mechanisms() -> void:
 		var wall_dir := str(secret.get("wallDirection", ""))
 		var socket := _resolve_secret_socket(parent_room, wall_dir)
 		if socket == null:
-			socket = parent_room.socket_toward(secret_room)
+			socket = door_socket_between(parent_room, secret_room)
 		var mechanism_node: Node3D
 		if mechanism == "hidden_lever":
 			mechanism_node = HIDDEN_LEVER_SCENE.instantiate() as Node3D
@@ -700,8 +809,8 @@ func reveal_secret(secret_room_id: String, set_flag: bool = true) -> void:
 			var from_room := get_room(from_id)
 			var to_room := get_room(to_id)
 			if from_room and to_room:
-				_open_blockout_door_toward(from_room, to_room)
-				_open_blockout_door_toward(to_room, from_room)
+				_open_blockout_door_toward(from_room, to_room, edge)
+				_open_blockout_door_toward(to_room, from_room, edge)
 	for room_id in _rooms:
 		var room := get_room(room_id)
 		if room == null:
@@ -731,14 +840,16 @@ func _build_nav_links() -> void:
 	_dungeon_root.add_child(_nav_links_root)
 	for edge in definition.get("edges", []):
 		var kind: String = edge.get("kind", "door")
-		if kind not in ["door", "corridor", "shortcut", "secret"]:
+		# Shortcuts are deliberately absent: they are the links the lattice could not close, so
+		# there is no opening to walk through and a link across one routes enemies into rock.
+		if kind not in ["door", "corridor", "secret"]:
 			continue
 		var from_room := get_room(edge.get("from", ""))
 		var to_room := get_room(edge.get("to", ""))
 		if from_room == null or to_room == null:
 			continue
-		var from_socket := from_room.socket_toward(to_room)
-		var to_socket := to_room.socket_toward(from_room)
+		var from_socket := _socket_for_edge(from_room, to_room, edge)
+		var to_socket := _socket_for_edge(to_room, from_room, edge)
 		if from_socket == null or to_socket == null:
 			continue
 		var link := NavigationLink3D.new()
@@ -900,6 +1011,7 @@ func _place_room_content() -> void:
 	RoomContentSpawnerScript.spawn_all(self, definition)
 	RoomContentSpawnerScript.spawn_locks(self, definition)
 	RoomContentSpawnerScript.spawn_puzzle_gates(self, definition)
+	RoomContentSpawnerScript.spawn_shortcut_gates(self, definition)
 
 
 func _place_traps() -> void:

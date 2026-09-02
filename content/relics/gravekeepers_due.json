@@ -1,7 +1,7 @@
 {
   "id": "gravekeepers_due",
   "name": "Gravekeeper’s Due",
-  "description": "A room emptied is a room owed. Clearing one pays in coin and blood.",
+  "description": "Four percent strength owed up front. A room emptied is a room owed — clearing one pays in coin and blood.",
   "maxStacks": 1,
   "tags": [
     "greed",
@@ -20,5 +20,8 @@
       "amount": 10
     }
   ],
-  "offerable": true
+  "offerable": true,
+  "stats": {
+    "damagePercent": -4
+  }
 }

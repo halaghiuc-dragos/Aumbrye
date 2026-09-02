@@ -1,5 +1,7 @@
 extends Node3D
 
+const FloorKeyringScript := preload("res://scripts/dungeon/floor_keyring.gd")
+
 
 const DIORAMA_SKIN := preload("res://scripts/art/props/diorama_interactable_skin.gd")
 
@@ -15,24 +17,26 @@ var _near_player := false
 var _unlocked := false
 
 
-func configure(lock: Dictionary, from_room: RoomTemplate, to_room: RoomTemplate) -> void:
+func configure(lock: Dictionary, _from_room: RoomTemplate, _to_room: RoomTemplate) -> void:
 	_key_id = str(lock.get("keyId", ""))
 	_lock_id = str(lock.get("lockId", ""))
 	_keys_required = maxi(1, int(lock.get("keysRequired", 1)))
 	_lock_flag_id = WorldFlags.lock_opened(_lock_id) if _lock_id != "" else ""
 	_to_room_id = str(lock.get("to", ""))
-	_build_at_socket(from_room, to_room)
+	_build_at_socket()
 	_refresh_state()
 	if _lock_flag_id != "":
 		WorldState.namespace_changed.connect(_on_namespace_changed)
 
 
-func _build_at_socket(from_room: RoomTemplate, to_room: RoomTemplate) -> void:
-	var socket := from_room.socket_toward(to_room)
+func _build_at_socket() -> void:
+	# The socket sits on the wall's centre plane, which is exactly where the opening was cut. The
+	# slab used to be pushed 0.4 further into the room, so it read as a plank standing in front of
+	# the doorway instead of filling it -- and you could see daylight past its edge.
+	var socket := RoomContentSpawner.door_socket(self)
 	if socket:
 		position = socket.position
 		rotation.y = socket.rotation.y
-		position += Vector3(0.0, 0.0, -0.4).rotated(Vector3.UP, rotation.y)
 	else:
 		position = Vector3(0.0, 0.0, -4.0)
 
@@ -40,7 +44,11 @@ func _build_at_socket(from_room: RoomTemplate, to_room: RoomTemplate) -> void:
 	_barrier.name = "LockedDoorBarrier"
 	var shape_node := CollisionShape3D.new()
 	var box := BoxShape3D.new()
-	box.size = Vector3(CastleRoomConstants.DOOR_WIDTH, CastleRoomConstants.DOOR_HEIGHT, 0.65)
+	box.size = Vector3(
+		CastleRoomConstants.DOOR_WIDTH,
+		CastleRoomConstants.DOOR_HEIGHT,
+		CastleRoomConstants.WALL_THICKNESS
+	)
 	shape_node.shape = box
 	shape_node.position = Vector3(0.0, CastleRoomConstants.DOOR_HEIGHT * 0.5, 0.0)
 	_barrier.add_child(shape_node)
@@ -73,6 +81,8 @@ func _build_at_socket(from_room: RoomTemplate, to_room: RoomTemplate) -> void:
 	_label.name = "Label3D"
 	_label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	_label.font_size = 24
+	_label.outline_size = 11
+	_label.outline_modulate = Color(0.0, 0.0, 0.0, 0.85)
 	_label.position = Vector3(0.0, 3.6, -1.5)
 	_label.modulate = Color(1.0, 0.85, 0.35, 1.0)
 	add_child(_label)
@@ -95,15 +105,15 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 	if not PlayerInput.interact_just_pressed(event):
 		return
-	if InventoryService.count_dungeon_keys(_key_id) < _keys_required:
+	# Held, not spent. The card stays on the ring, so a second door of the same colour opens on
+	# sight rather than sending the player back for another key.
+	if not FloorKeyringScript.is_held(_key_id):
 		if RunFlow:
 			RunFlow.emit_run_warning(
-				tr("LOCK_NEEDS_KEYS").format({"count": _keys_required})
+				tr("LOCK_NEEDS_KEY").format({"key": FloorKeyringScript.label_for(_key_id)})
 			)
 		get_viewport().set_input_as_handled()
 		return
-	for _i in _keys_required:
-		InventoryService.consume_dungeon_key(_key_id)
 	WorldState.set_flag(_lock_flag_id, true)
 	_unlock()
 	get_viewport().set_input_as_handled()
@@ -137,13 +147,13 @@ func _update_label() -> void:
 		_label.visible = false
 		return
 	_label.visible = _near_player
-	if InventoryService.has_dungeon_key(_key_id):
-		if _keys_required > 1:
-			_label.text = "E — Unlock door (%d keys)" % _keys_required
-		else:
-			_label.text = "E — Unlock door"
+	# Name the colour either way. A door that says which card it wants turns a dead end into a
+	# direction, which is the whole reason the keys are coloured.
+	var key_label := FloorKeyringScript.label_for(_key_id)
+	if FloorKeyringScript.is_held(_key_id):
+		_label.text = "E — Unlock (%s)" % key_label
 	else:
-		_label.text = "Locked — find key"
+		_label.text = "Locked — needs the %s" % key_label
 
 
 func _exit_tree() -> void:

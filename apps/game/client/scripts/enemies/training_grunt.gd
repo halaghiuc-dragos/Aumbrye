@@ -239,6 +239,9 @@ func _on_died() -> void:
 		_hitbox.disable()
 	if _hurtbox:
 		_hurtbox.monitorable = false
+		_hurtbox.monitoring = false
+	if _body_collision:
+		_body_collision.disabled = true
 	if _animator and _animator.is_bound():
 		_animator.play_death()
 	if _mesh:

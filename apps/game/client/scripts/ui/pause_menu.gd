@@ -292,6 +292,12 @@ func _on_abandon() -> void:
 		MenuStack.confirm(spec)
 
 
+## Quitting is not a save point. `return_to_main_menu()` flushes the run to disk before leaving --
+## right for closing the app mid-hub, wrong here, where the same button sat next to "Abandon" in
+## castle mode and quietly did the opposite of it: abandon discarded the run, this saved it, so
+## which one lost your progress depended on which button you happened to press. Every mode now
+## leaves the same way abandoning already did -- through whichever discard path that mode owns --
+## so quitting never leaves a run to continue and never leaves this run's loot in the bag.
 func _on_quit_to_menu() -> void:
 	var spec := ConfirmSpecScript.new()
 	spec.title_key = &"PAUSE_CONFIRM_QUIT_TITLE"
@@ -301,7 +307,12 @@ func _on_quit_to_menu() -> void:
 	spec.destructive = true
 	spec.on_confirm = func() -> void:
 		close_menu()
-		RunFlow.return_to_main_menu()
+		if not RunFlow.is_run_active():
+			RunFlow.return_to_main_menu()
+		elif RunModeConfigScript.is_waves(RunFlow.get_run_mode()):
+			RunFlow.quit_waves_run()
+		else:
+			RunFlow.abandon_active_run()
 	if MenuStack:
 		MenuStack.confirm(spec)
 

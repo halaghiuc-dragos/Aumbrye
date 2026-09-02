@@ -1,5 +1,7 @@
 extends "res://scripts/dungeon/room_content/room_content_base.gd"
 
+const FloorKeyringScript := preload("res://scripts/dungeon/floor_keyring.gd")
+
 const CHEST_SCENE := preload("res://scenes/loot/loot_chest.tscn")
 const DIORAMA_SKIN := preload("res://scripts/art/props/diorama_interactable_skin.gd")
 
@@ -46,6 +48,8 @@ func configure(entry: Dictionary, _definition: Dictionary) -> void:
 	_label.name = "KeyLabel"
 	_label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	_label.font_size = 22
+	_label.outline_size = 10
+	_label.outline_modulate = Color(0.0, 0.0, 0.0, 0.85)
 	_label.position = _anchor(0).position + Vector3(0.0, 2.4, 0.0)
 	_label.modulate = Color(1.0, 0.9, 0.45, 1.0)
 	_label.visible = false
@@ -93,7 +97,9 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 	if not PlayerInput.interact_just_pressed(event):
 		return
-	if not InventoryService.add_dungeon_key(_key_id, _lock_id, _key_label):
+	# Into the floor keyring, not the inventory: a keycard is not loot, and a full bag must never be
+	# the reason a floor cannot be finished.
+	if not FloorKeyringScript.take(_key_id):
 		return
 	_collected = true
 	if _chest:

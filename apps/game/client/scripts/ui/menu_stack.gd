@@ -120,7 +120,7 @@ func _build_confirm_overlay(spec: ConfirmSpec) -> Control:
 	overlay.name = "ConfirmOverlay"
 	GameUISkinScript.ensure_full_rect(overlay)
 	var title := tr(String(spec.title_key)) if spec.title_key != &"" else ""
-	var shell: Dictionary = MenuShellScript.build_modal(overlay, title, 300.0, 130.0)
+	var shell: Dictionary = MenuShellScript.build_modal(overlay, title, 340.0, 155.0)
 	var vbox: VBoxContainer = shell["content_vbox"]
 	var msg := Label.new()
 	msg.text = _format_message(spec)

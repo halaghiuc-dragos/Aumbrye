@@ -68,14 +68,6 @@ static func unlocked_aspect_index_for_theme(theme: int) -> int:
 	return 0
 
 
-static func unlocked_titles() -> Array[Dictionary]:
-	var out: Array[Dictionary] = []
-	for entry in get_titles():
-		if is_unlocked(entry):
-			out.append(entry)
-	return out
-
-
 static func is_title_id(title_id: String) -> bool:
 	if title_id == "":
 		return true

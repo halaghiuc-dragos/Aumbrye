@@ -9,6 +9,7 @@ const NS_ROOM := "room"
 const NS_SECRET := "secret"
 const NS_CHEST := "chest"
 const NS_TRAP := "trap"
+const NS_KEY := "key"
 
 const NAMESPACES: Array[String] = [
 	NS_LOCK,
@@ -18,11 +19,26 @@ const NAMESPACES: Array[String] = [
 	NS_SECRET,
 	NS_CHEST,
 	NS_TRAP,
+	NS_KEY,
 ]
+
+
+## A key the player is carrying on the current floor.
+##
+## Keys live here rather than in the inventory on purpose: they are a Doom keycard, not loot. They
+## take up no bag space, cannot be dropped or sold, and are wiped when the player takes the stairs.
+static func key_held(key_id: String) -> String:
+	return "%s.%s.held" % [NS_KEY, key_id]
 
 
 static func lock_opened(lock_id: String) -> String:
 	return "%s.%s.opened" % [NS_LOCK, lock_id]
+
+
+## A one-way shortcut gate pulled open from its far side -- stays open for the rest of the floor,
+## the same as any other lock.
+static func door_opened(door_id: String) -> String:
+	return "%s.%s.opened" % [NS_DOOR, door_id]
 
 
 static func lever_pulled(lever_id: String) -> String:

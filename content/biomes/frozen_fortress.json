@@ -4,8 +4,8 @@
   "templatePrefix": "frozen",
   "assetFolder": "frozen",
   "roomCount": {
-    "min": 18,
-    "max": 24
+    "min": 22,
+    "max": 28
   },
   "roomTemplateIds": [
     "frozen_entrance",

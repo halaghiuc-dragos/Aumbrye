@@ -1,7 +1,7 @@
 {
   "id": "the_first_step",
   "name": "The First Step",
-  "description": "Each new floor begins with the strength the last one ended without.",
+  "description": "Five percent surrendered to start again clean. Each new floor begins with the strength the last one ended without.",
   "maxStacks": 1,
   "tags": [
     "vigil"
@@ -19,5 +19,8 @@
       "amount": 40
     }
   ],
-  "offerable": true
+  "offerable": true,
+  "stats": {
+    "damagePercent": -5
+  }
 }

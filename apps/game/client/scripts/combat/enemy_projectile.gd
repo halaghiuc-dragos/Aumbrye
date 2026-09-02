@@ -13,6 +13,16 @@ const MaterialFlashScript := preload("res://scripts/art/characters/material_flas
 
 @export var pierce := 0
 
+## Lighter than real-world fall (9.8) so an arrow shot across a typical arena still reads as aimed
+## rather than lobbed, while still visibly arcing instead of flying like a laser.
+const GRAVITY := 9.0
+
+## A shot launched dead level would fall short of dead-level -- the arc has to start on its way up
+## to still cross the target's height by the time it gets there. Scaled off the shot's own speed so
+## a slow lob and a hard draw both keep roughly the same *shape* of arc rather than the fast one
+## flattening out.
+const ARC_LIFT_RATIO := 0.12
+
 var _velocity := Vector3.ZERO
 var _lifetime := 4.0
 var _owner_node: Node
@@ -40,7 +50,9 @@ func launch(
 	crit_multiplier: float = 1.5
 ) -> void:
 	_owner_node = shooter
-	_velocity = direction.normalized() * speed
+	var heading := direction.normalized()
+	_velocity = heading * speed
+	_velocity.y += speed * ARC_LIFT_RATIO
 	_lifetime = 4.0
 	_hitbox.set_combat_owner(shooter)
 	_hitbox.set_attack_values(
@@ -48,7 +60,7 @@ func launch(
 	)
 	_pierce_remaining = maxi(0, pierce)
 	_hitbox.enable()
-	look_at(global_position + direction)
+	_face_velocity()
 	_build_visual(dmg_type)
 
 
@@ -97,6 +109,7 @@ func _on_hit_landed(_target: Node) -> void:
 
 
 func _physics_process(delta: float) -> void:
+	_velocity.y -= GRAVITY * delta
 	var motion := _velocity * delta
 	if motion.length_squared() > 0.0:
 		var space := get_world_3d().direct_space_state
@@ -111,6 +124,18 @@ func _physics_process(delta: float) -> void:
 				queue_free()
 				return
 	global_position += motion
+	_face_velocity()
 	_lifetime -= delta
 	if _lifetime <= 0.0:
 		queue_free()
+
+
+## Points the shaft down the arrow's actual path rather than where it was aimed at launch, so the
+## fall reads in the model's pitch and not just the position -- the difference between an arrow
+## dropping and an arrow that visibly stops caring about gravity.
+func _face_velocity() -> void:
+	if _velocity.length_squared() < 0.0001:
+		return
+	var horizontal := Vector3(_velocity.x, 0.0, _velocity.z)
+	var up := Vector3.UP if horizontal.length_squared() > 0.0001 else Vector3.FORWARD
+	look_at(global_position + _velocity, up)

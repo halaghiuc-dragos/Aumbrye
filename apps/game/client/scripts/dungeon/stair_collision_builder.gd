@@ -2,6 +2,11 @@ extends RefCounted
 class_name StairCollisionBuilder
 
 
+## The ramp is dressing for a room whose name is a naming convention, not a real change in floor
+## height -- the floor stays flat and the player leaves through the lever, not by climbing. Giving
+## the collider the mesh's own tilt turns it into a walkable slope shallow enough to stand on, so
+## the shape here stays axis-aligned instead: solid enough that the player cannot walk through the
+## prop, but flat, so there is nothing to climb.
 static func ensure_stair_collision(room: RoomTemplate) -> void:
 	if room == null:
 		return
@@ -22,11 +27,12 @@ static func ensure_stair_collision(room: RoomTemplate) -> void:
 	var shape_node := CollisionShape3D.new()
 	var box := BoxShape3D.new()
 	if ramp and ramp.mesh is BoxMesh:
-		box.size = (ramp.mesh as BoxMesh).size
-		shape_node.transform = ramp.transform
+		var mesh_size: Vector3 = (ramp.mesh as BoxMesh).size
+		box.size = Vector3(mesh_size.x, 0.4, mesh_size.z)
+		shape_node.position = Vector3(ramp.position.x, 0.2, ramp.position.z)
 	else:
 		box.size = Vector3(4.0, 0.4, 12.0)
-		shape_node.position = Vector3(0.0, 1.2, 0.0)
+		shape_node.position = Vector3(0.0, 0.2, 0.0)
 	shape_node.shape = box
 	body.add_child(shape_node)
 	props.add_child(body)

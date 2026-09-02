@@ -132,19 +132,59 @@ static func apply_ceiling_lighting(
 			_spawn_ceiling_torch(lights, Vector3(x, torch_y, z), accent_mat, biome_id)
 			z += spacing
 		x += spacing
-	_spawn_wall_midpoint_torches(lights, half_w, half_d, accent_mat, biome_id)
+	_spawn_wall_midpoint_torches(lights, blockout, half_w, half_d, accent_mat, biome_id)
 	_spawn_room_center_fill(lights, half_w, half_d, biome_id)
 
 
+## Half the doorway plus a little margin either side -- the band a torch must clear to never sit in
+## the cut opening (embedded in the gap, or hanging in the neighbouring room) rather than on solid
+## wall next to it. The lattice seats a door at its wall's dead centre whenever it can, but roughly
+## a third of doors measured across sample floors land off-centre anyway -- the cell the centred
+## placement wants is often already claimed by another room on a floor this densely packed, and the
+## solver slides the door along the wall rather than fail the room. Flanking geometry alone (below)
+## assumes the common centred case; this clearance check is what still holds on the slid-door third.
+const TORCH_DOOR_CLEARANCE := CastleRoomConstants.DOOR_WIDTH * 0.5 + 0.6
+
+## Where a wall's pair of torches sit, as a fraction of the wall's own half-length out from centre --
+## clamped below by `TORCH_DOOR_CLEARANCE` so they never encroach on a centred door regardless of how
+## short the wall is, and above by the corner inset so they never crowd past the corner prop on a
+## long one.
+const TORCH_FLANK_FRACTION := 0.55
+
+
+## One torch either side of the doorway instead of one in the middle of it. A single midpoint torch
+## and a door are both centred on the wall by default, which put the torch in the doorway on sight;
+## flanking the door the way sconces flank a real doorway fixes that for the common centred case.
+## The wall's actual door state (finalized on the blockout by the time this runs) is still checked
+## per torch, because the lattice does slide a meaningful fraction of doors off-centre to resolve
+## placement conflicts, and a slid door can still reach a flanking torch's position.
 static func _spawn_wall_midpoint_torches(
-	parent: Node3D, half_w: float, half_d: float, accent_mat: Material, biome_id: String
+	parent: Node3D,
+	blockout: CastleBlockout,
+	half_w: float,
+	half_d: float,
+	accent_mat: Material,
+	biome_id: String
 ) -> void:
 	var wall_y := CastleRoomConstants.WALL_HEIGHT * 0.5
 	var inset := 0.55
-	_spawn_wall_torch(parent, Vector3(0.0, wall_y, -half_d + inset), accent_mat, biome_id)
-	_spawn_wall_torch(parent, Vector3(0.0, wall_y, half_d - inset), accent_mat, biome_id)
-	_spawn_wall_torch(parent, Vector3(-half_w + inset, wall_y, 0.0), accent_mat, biome_id)
-	_spawn_wall_torch(parent, Vector3(half_w - inset, wall_y, 0.0), accent_mat, biome_id)
+	var flank_w := clampf(half_w * TORCH_FLANK_FRACTION, TORCH_DOOR_CLEARANCE, half_w - inset)
+	var flank_d := clampf(half_d * TORCH_FLANK_FRACTION, TORCH_DOOR_CLEARANCE, half_d - inset)
+	for side: float in [-1.0, 1.0]:
+		var x := side * flank_w
+		if _clears_door(blockout.door_north, blockout.door_north_offset, x):
+			_spawn_wall_torch(parent, Vector3(x, wall_y, -half_d + inset), accent_mat, biome_id)
+		if _clears_door(blockout.door_south, blockout.door_south_offset, x):
+			_spawn_wall_torch(parent, Vector3(x, wall_y, half_d - inset), accent_mat, biome_id)
+		var z := side * flank_d
+		if _clears_door(blockout.door_west, blockout.door_west_offset, z):
+			_spawn_wall_torch(parent, Vector3(-half_w + inset, wall_y, z), accent_mat, biome_id)
+		if _clears_door(blockout.door_east, blockout.door_east_offset, z):
+			_spawn_wall_torch(parent, Vector3(half_w - inset, wall_y, z), accent_mat, biome_id)
+
+
+static func _clears_door(door_open: bool, door_offset: float, lateral: float) -> bool:
+	return not door_open or absf(lateral - door_offset) >= TORCH_DOOR_CLEARANCE
 
 
 static func _spawn_room_center_fill(
@@ -161,32 +201,6 @@ static func _spawn_room_center_fill(
 		false
 	)
 	parent.add_child(light)
-
-
-static func apply_arena_ceiling_lighting(
-	parent: Node3D, half_extent: float, biome_id: String
-) -> void:
-	if parent.get_node_or_null("CeilingLighting") != null:
-		return
-	var lights := Node3D.new()
-	lights.name = "CeilingLighting"
-	parent.add_child(lights)
-	var accent_mat := BiomeRegistry.get_accent_material(biome_id)
-	var torch_y := CastleRoomConstants.WALL_HEIGHT - 0.35
-	var inset := 2.5
-	_spawn_ceiling_torch(
-		lights, Vector3(-half_extent + inset, torch_y, -half_extent + inset), accent_mat, biome_id
-	)
-	_spawn_ceiling_torch(
-		lights, Vector3(half_extent - inset, torch_y, -half_extent + inset), accent_mat, biome_id
-	)
-	_spawn_ceiling_torch(
-		lights, Vector3(-half_extent + inset, torch_y, half_extent - inset), accent_mat, biome_id
-	)
-	_spawn_ceiling_torch(
-		lights, Vector3(half_extent - inset, torch_y, half_extent - inset), accent_mat, biome_id
-	)
-	_spawn_ceiling_torch(lights, Vector3(0.0, torch_y, 0.0), accent_mat, biome_id)
 
 
 static func _ensure_props_root(room: RoomTemplate) -> Node3D:

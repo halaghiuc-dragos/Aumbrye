@@ -28,6 +28,8 @@ func configure(index: int) -> void:
 	area.body_exited.connect(_on_body_exited)
 	_label = Label3D.new()
 	_label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	_label.outline_size = 11
+	_label.outline_modulate = Color(0.0, 0.0, 0.0, 0.85)
 	_label.position = Vector3(0, 1.5, 0)
 	_label.visible = false
 	add_child(_label)

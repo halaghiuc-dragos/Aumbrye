@@ -1,10 +1,11 @@
 {
   "id": "rot_in_the_well",
   "name": "Rot In The Well",
-  "description": "Killing the poisoned poisons everything standing near them.",
+  "description": "You drink from the same well. Killing the poisoned poisons everything standing near them.",
   "maxStacks": 1,
   "stats": {
-    "poisonDamage": 3
+    "poisonDamage": 3,
+    "resistPoison": -0.05
   },
   "tags": [
     "venom"

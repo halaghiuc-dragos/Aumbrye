@@ -81,6 +81,9 @@ func _ready() -> void:
 		return
 	var occluders := root.find_children("*", "OccluderInstance3D", true, false).size()
 	print("DRAW occluders in the floor: %d" % occluders)
+	print("DRAW project setting occlusion_culling: %s" % str(
+		ProjectSettings.get_setting("rendering/occlusion_culling/use_occlusion_culling", null)
+	))
 
 	RenderingServer.viewport_set_use_occlusion_culling(viewport.get_viewport_rid(), false)
 	for _i in 60:

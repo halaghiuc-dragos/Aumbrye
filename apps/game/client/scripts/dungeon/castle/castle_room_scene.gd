@@ -87,6 +87,22 @@ func sync_kit_contract() -> void:
 	_align_socket_rotations()
 
 
+## The blockout owns where each doorway sits on its wall, so the socket follows it rather than
+## defaulting to the wall centre -- otherwise the marker and the hole in the wall drift apart.
+static func _door_offset_for(
+	blockout: CastleBlockout, direction: CastleRoomConstants.Direction
+) -> float:
+	match direction:
+		CastleRoomConstants.Direction.NORTH:
+			return blockout.door_north_offset
+		CastleRoomConstants.Direction.SOUTH:
+			return blockout.door_south_offset
+		CastleRoomConstants.Direction.EAST:
+			return blockout.door_east_offset
+		_:
+			return blockout.door_west_offset
+
+
 func _resolve_biome_id() -> String:
 	var from_template := BiomeRegistry.biome_from_template_id(template_id)
 	if from_template != "":
@@ -110,7 +126,7 @@ func _ensure_socket_completeness(blockout: CastleBlockout) -> void:
 			socket.direction = direction
 			socket_root.add_child(socket)
 		socket.position = RoomTemplateCatalogScript.socket_wall_position(
-			direction, half_w, half_d
+			direction, half_w, half_d, _door_offset_for(blockout, direction)
 		)
 
 

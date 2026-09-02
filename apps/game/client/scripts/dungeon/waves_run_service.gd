@@ -348,11 +348,6 @@ func final_wave() -> int:
 	return _final_wave
 
 
-func intermission_every() -> int:
-	_ensure_definition()
-	return _intermission_every
-
-
 ## Every fifth wave the walls come back up, a fresh set of caches rises, and the player gets to
 ## breathe and re-kit. The final wave never breaks — it ends the run instead.
 func is_intermission_wave(wave: int) -> bool:
@@ -373,33 +368,12 @@ func is_cash_out_wave(wave: int) -> bool:
 	return is_intermission_wave(wave) and wave >= _cash_out_from
 
 
-func cash_out_from_wave() -> int:
-	_ensure_definition()
-	return _cash_out_from
-
-
-## Kept for older code paths and save data that still speak in "milestones".
-func is_milestone(wave: int) -> bool:
-	return is_intermission_wave(wave) or is_boss_wave(wave)
-
-
-func is_final_milestone() -> bool:
-	return current_wave >= final_wave()
-
-
 func register_kill() -> void:
 	_kill_count += 1
 
 
 func get_kill_count() -> int:
 	return _kill_count
-
-
-## Walking out of the Vigil on your own feet is a total loss — that is the whole tension of the
-## mode. The only way to bank anything before wave 50 is the wizard's portal (`is_cash_out_wave`),
-## and it takes exactly one item.
-func get_early_exit_keep_fraction() -> float:
-	return 0.0
 
 
 ## Every distinct item currently carried in the Vigil loadout, newest chest first, for the

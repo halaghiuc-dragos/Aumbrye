@@ -4,8 +4,8 @@
   "templatePrefix": "mire",
   "assetFolder": "mire",
   "roomCount": {
-    "min": 20,
-    "max": 26
+    "min": 22,
+    "max": 28
   },
   "roomTemplateIds": [
     "mire_entrance",

@@ -6,6 +6,7 @@ const GameUISkinScript := preload("res://scripts/ui/game_ui_skin.gd")
 const ForgeServiceScript := preload("res://scripts/items/forge_service.gd")
 const EquipmentScript := preload("res://scripts/items/equipment.gd")
 const ItemListPresenterScript := preload("res://scripts/ui/item_list_presenter.gd")
+const MenuShellScript := preload("res://scripts/ui/menu_shell.gd")
 
 signal closed
 
@@ -18,6 +19,8 @@ signal closed
 
 var _item_indices: Array = []
 var _forge_row: HBoxContainer
+var _forge_row_path: HBoxContainer
+var _forge_row_convert: HBoxContainer
 var _salvage_button: Button
 var _reroll_button: Button
 var _transmute_button: Button
@@ -32,6 +35,7 @@ var _conversion_picker: OptionButton
 var _convert_button: Button
 var _conversion_recipes: Array[Dictionary] = []
 var _rule_source_index := -1
+var _unlock_button: Button
 
 
 func _ready() -> void:
@@ -52,16 +56,25 @@ func _ready() -> void:
 	$Panel/Margin/VBox/Buttons.add_child(respec_button)
 	_close_button.pressed.connect(close)
 	_item_list.item_selected.connect(_on_item_selected)
-	var unlock_button := GameUISkinScript.make_button(tr("SMITH_UNLOCK_WEAPONS"))
-	unlock_button.pressed.connect(_on_unlock_pressed)
-	$Panel/Margin/VBox/Buttons.add_child(unlock_button)
-	$Panel/Margin/VBox/Buttons.move_child(unlock_button, 0)
+	_unlock_button = GameUISkinScript.make_button(tr("SMITH_UNLOCK_WEAPONS"))
+	_unlock_button.pressed.connect(_on_unlock_pressed)
+	$Panel/Margin/VBox/Buttons.add_child(_unlock_button)
+	$Panel/Margin/VBox/Buttons.move_child(_unlock_button, 0)
 	$Panel/Margin/VBox/Buttons.move_child(_close_button, -1)
+	_refresh_unlock_button()
 	_build_forge_row()
 	CharacterService.gold_changed.connect(_on_gold_changed)
 	InventoryService.inventory_changed.connect(_refresh)
 
 
+## One `_forge_row` used to hold every smithing control the game has grown since launch --
+## salvage, reroll, transmute, infusion, upgrade paths, rule transfer, conversion -- all in a
+## single unwrapped HBoxContainer inside an 800px-wide fixed panel. Nothing here overflowed when
+## there were three buttons; past a certain count of controls, an HBoxContainer just keeps laying
+## children out past its own right edge rather than wrapping, so the row silently grew wider than
+## the panel (and the screen) as each feature bolted its own controls onto the end of it. Splitting
+## it into one row per feature group is the fix, not shrinking the buttons -- there was never
+## going to be a single row all of this fit into.
 func _build_forge_row() -> void:
 	var vbox := $Panel/Margin/VBox as VBoxContainer
 	var heading := Label.new()
@@ -69,10 +82,7 @@ func _build_forge_row() -> void:
 	heading.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	vbox.add_child(heading)
 
-	_forge_row = HBoxContainer.new()
-	_forge_row.name = "ForgeButtons"
-	_forge_row.add_theme_constant_override("separation", 8)
-	vbox.add_child(_forge_row)
+	_forge_row = _new_forge_row(vbox, "ForgeButtons")
 
 	var elements := ForgeServiceScript.infusions()
 	_infuse_element = str(elements[0]) if not elements.is_empty() else ""
@@ -115,64 +125,83 @@ func _build_forge_row() -> void:
 	_build_transfer_controls()
 	_build_conversion_controls()
 
-	for child in _forge_row.get_children():
-		var control := child as Control
-		if control:
-			control.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		if child is BaseButton:
-			GameUISkinScript.wire_button_sfx(child as BaseButton)
+	for row in [_forge_row, _forge_row_path, _forge_row_convert]:
+		if row == null:
+			continue
+		for child in row.get_children():
+			var control := child as Control
+			if control:
+				control.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			if child is BaseButton:
+				GameUISkinScript.wire_button_sfx(child as BaseButton)
 	for child in ($Panel/Margin/VBox/Buttons as HBoxContainer).get_children():
 		var button := child as Control
 		if button:
 			button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 
 
+## A fresh row appended under the forge heading. Each feature group (salvage/reroll/infuse,
+## upgrade paths + rule transfer, conversion) gets its own so a panel-width's worth of controls is
+## the most any single row ever has to fit, instead of every feature added since launch competing
+## for space on one line.
+func _new_forge_row(vbox: VBoxContainer, row_name: String) -> HBoxContainer:
+	var row := HBoxContainer.new()
+	row.name = row_name
+	row.add_theme_constant_override("separation", 8)
+	vbox.add_child(row)
+	return row
+
+
 func _build_upgrade_path_controls() -> void:
 	var paths := ForgeServiceScript.upgrade_paths()
 	if paths.is_empty():
 		return
+	_forge_row_path = _new_forge_row($Panel/Margin/VBox as VBoxContainer, "ForgePathButtons")
 	var label := Label.new()
 	label.text = tr("SMITH_UPGRADE_PATH")
 	GameUISkinScript.style_hint_label(label)
 	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	_forge_row.add_child(label)
+	_forge_row_path.add_child(label)
 
 	_path_picker = OptionButton.new()
 	_path_picker.name = "UpgradePathPicker"
 	for path in paths:
 		_path_picker.add_item(EquipmentScript.upgrade_path_label(path))
 	_path_picker.item_selected.connect(_on_upgrade_path_selected)
-	_forge_row.add_child(_path_picker)
+	_forge_row_path.add_child(_path_picker)
 
 	_path_button = GameUISkinScript.make_button(tr("SMITH_SET_PATH"))
 	_path_button.pressed.connect(_on_set_path_pressed)
-	_forge_row.add_child(_path_button)
+	_forge_row_path.add_child(_path_button)
 
 
 func _build_transfer_controls() -> void:
+	if _forge_row_path == null:
+		_forge_row_path = _new_forge_row($Panel/Margin/VBox as VBoxContainer, "ForgePathButtons")
 	_mark_source_button = GameUISkinScript.make_button(tr("SMITH_MARK_RULE_SOURCE"))
 	_mark_source_button.pressed.connect(_on_mark_source_pressed)
-	_forge_row.add_child(_mark_source_button)
+	_forge_row_path.add_child(_mark_source_button)
 
 	_transfer_button = GameUISkinScript.make_button(tr("SMITH_TRANSFER_RULE"))
 	_transfer_button.pressed.connect(_on_transfer_pressed)
-	_forge_row.add_child(_transfer_button)
+	_forge_row_path.add_child(_transfer_button)
 
 
 func _build_conversion_controls() -> void:
 	var recipes := ForgeServiceScript.conversion_recipes()
 	if recipes.is_empty():
 		return
+	_forge_row_convert = _new_forge_row($Panel/Margin/VBox as VBoxContainer, "ForgeConvertButtons")
 	_conversion_recipes = recipes
 	_conversion_picker = OptionButton.new()
 	_conversion_picker.name = "ConversionPicker"
 	for recipe in recipes:
 		_conversion_picker.add_item(str(recipe.get("name", recipe.get("id", "?"))))
-	_forge_row.add_child(_conversion_picker)
+	_forge_row_convert.add_child(_conversion_picker)
 
 	_convert_button = GameUISkinScript.make_button(tr("SMITH_CONVERT"))
 	_convert_button.pressed.connect(_on_convert_pressed)
-	_forge_row.add_child(_convert_button)
+	_forge_row_convert.add_child(_convert_button)
 
 
 func _on_upgrade_path_selected(_index: int) -> void:
@@ -311,6 +340,7 @@ func _refresh() -> void:
 	elif _item_list.get_selected_items().is_empty():
 		_item_list.select(0)
 		_on_item_selected(0)
+	_refresh_unlock_button()
 
 
 func _on_item_selected(index: int) -> void:
@@ -355,7 +385,23 @@ func _on_repair_pressed() -> void:
 	_refresh()
 
 
+## Every gold-and-permanent action elsewhere in the game asks first -- character creation confirms
+## before starting the run, the merchant makes selling a deliberate two-step pick-then-sell. Respec
+## was the one action in the game that spent real gold and threw away an entire build on a single
+## misclick, with nothing else in its path to catch it.
 func _on_respec_pressed() -> void:
+	MenuShellScript.show_confirmation(
+		self,
+		tr("SMITH_RESPEC_CONFIRM_TITLE"),
+		tr("SMITH_RESPEC_CONFIRM_MESSAGE") % BlacksmithService.RESPEC_COST,
+		_do_respec,
+		Callable(),
+		tr("SMITH_RESPEC_CONFIRM_BUTTON"),
+		tr("UI_CANCEL")
+	)
+
+
+func _do_respec() -> void:
 	var result := BlacksmithService.respec_talents()
 	_detail_label.text = (
 		tr("SMITH_RESPEC_DONE") if result.get("ok", false) else str(result.get("error", tr("SMITH_RESPEC_FAILED")))
@@ -363,14 +409,33 @@ func _on_respec_pressed() -> void:
 	_refresh()
 
 
+func _next_unlock() -> Dictionary:
+	for row in BlacksmithService.get_available_unlocks():
+		if not row.get("owned", false):
+			return row
+	return {}
+
+
+## The button used to just say "Unlock Weapons" and silently pick whatever was next in line --
+## the player found out what they bought and what it cost only after the gold was already spent.
+## Naming the item and its price up front is what turns that into a choice instead of a surprise.
+func _refresh_unlock_button() -> void:
+	if _unlock_button == null:
+		return
+	var next := _next_unlock()
+	if next.is_empty():
+		_unlock_button.text = tr("SMITH_UNLOCK_WEAPONS")
+		_unlock_button.disabled = true
+		return
+	var item_name := str(
+		ItemCatalog.get_definition(str(next.get("itemId", ""))).get("name", next.get("itemId", ""))
+	)
+	_unlock_button.text = tr("SMITH_UNLOCK_NEXT") % [item_name, int(next.get("goldCost", 0))]
+	_unlock_button.disabled = false
+
+
 func _on_unlock_pressed() -> void:
-	var unlocks := BlacksmithService.get_available_unlocks()
-	var next: Dictionary = {}
-	for row in unlocks:
-		if row.get("owned", false):
-			continue
-		next = row
-		break
+	var next := _next_unlock()
 	if next.is_empty():
 		_detail_label.text = tr("SMITH_NO_UNLOCKS")
 		return
@@ -439,6 +504,9 @@ func _report_forge(result: Dictionary, failure_text: String) -> void:
 	_refresh()
 
 
+## Salvage destroys a specific item instance permanently -- the one action in the forge row with
+## no way back at all, not even the gold a respec at least leaves you able to re-earn. It fired
+## immediately on click, same gap as respec had.
 func _on_salvage_pressed() -> void:
 	var inv_index: Variant = _selected_inv_index()
 	if inv_index == null:
@@ -447,14 +515,26 @@ func _on_salvage_pressed() -> void:
 	if slot.is_empty():
 		return
 	var preview := ForgeServiceScript.salvage_preview(slot)
+	var item_name := str(ItemCatalog.get_definition(str(slot.get("itemId", ""))).get("name", slot.get("itemId", "")))
+	var parts: PackedStringArray = []
+	for material_id in preview:
+		parts.append("%s x%d" % [str(material_id), int(preview[material_id])])
+	var yield_text := ", ".join(parts) if parts.size() > 0 else tr("SMITH_SALVAGED")
+	MenuShellScript.show_confirmation(
+		self,
+		tr("SMITH_SALVAGE_CONFIRM_TITLE"),
+		tr("SMITH_SALVAGE_CONFIRM_MESSAGE") % [item_name, yield_text],
+		_do_salvage.bind(inv_index, yield_text),
+		Callable(),
+		tr("SMITH_SALVAGE"),
+		tr("UI_CANCEL")
+	)
+
+
+func _do_salvage(inv_index: Variant, yield_text: String) -> void:
 	var result := ForgeServiceScript.salvage(inv_index)
 	if result.get("ok", false):
-		var parts: PackedStringArray = []
-		for material_id in preview:
-			parts.append("%s x%d" % [str(material_id), int(preview[material_id])])
-		_detail_label.text = (
-			tr("SMITH_SALVAGED_FOR") % ", ".join(parts) if parts.size() > 0 else tr("SMITH_SALVAGED")
-		)
+		_detail_label.text = tr("SMITH_SALVAGED_FOR") % yield_text
 		_refresh()
 		return
 	_report_forge(result, tr("SMITH_SALVAGE_FAILED"))

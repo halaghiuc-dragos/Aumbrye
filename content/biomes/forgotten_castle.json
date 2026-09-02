@@ -4,8 +4,8 @@
   "templatePrefix": "castle",
   "assetFolder": "castle",
   "roomCount": {
-    "min": 16,
-    "max": 20
+    "min": 22,
+    "max": 28
   },
   "roomTemplateIds": [
     "castle_entrance",

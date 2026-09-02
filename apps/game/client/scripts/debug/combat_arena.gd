@@ -116,7 +116,11 @@ func _on_dummy_died(enemy: Node) -> void:
 
 func _orient_player_deferred() -> void:
 	await get_tree().process_frame
+	if not is_instance_valid(self):
+		return
 	await get_tree().process_frame
+	if not is_instance_valid(self):
+		return
 	orient_player_to_hub_return()
 
 

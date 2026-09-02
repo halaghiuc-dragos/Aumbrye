@@ -17,7 +17,7 @@ const HitFeedbackScript := preload("res://scripts/combat/hit_feedback.gd")
 ## always worth something and never trivialises the fight. At the softening constant below a
 ## starting loadout removes about a fifth of incoming damage and a fully geared one about a half.
 ## The remaining cap is there so flat damageReduction cannot stack past it either.
-const DEFENSE_SOFTENING := 150.0
+const DEFENSE_SOFTENING := 340.0
 const DEFENSE_CAP := 0.75
 const HYPERARMOR_POISE_MULT := 0.25
 const POISE_BROKEN_DAMAGE_MULT := 1.35

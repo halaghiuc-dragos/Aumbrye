@@ -1,10 +1,11 @@
 {
   "id": "relic_poison_vial",
   "name": "Relic Poison Vial",
-  "description": "It was never sealed properly. One hit in five carries the rot.",
+  "description": "Three armour eaten through — it was never sealed properly either way. One hit in five carries the rot.",
   "maxStacks": 1,
   "stats": {
-    "poisonDamage": 4
+    "poisonDamage": 4,
+    "armor": -3
   },
   "tags": [
     "venom"

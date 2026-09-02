@@ -1,7 +1,7 @@
 {
   "id": "the_slow_count",
   "name": "The Slow Count",
-  "description": "Every critical lands harder than the last until you are hit.",
+  "description": "Ten health wagered on the count. Every critical lands harder than the last, until you are hit.",
   "maxStacks": 1,
   "tags": [
     "ruin"
@@ -21,5 +21,8 @@
       ]
     }
   ],
-  "offerable": true
+  "offerable": true,
+  "stats": {
+    "maxHealth": -10
+  }
 }

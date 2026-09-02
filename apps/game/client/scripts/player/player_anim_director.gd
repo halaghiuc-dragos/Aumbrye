@@ -86,8 +86,11 @@ func _build_viewmodel() -> void:
 	_viewmodel_anim.expects_hitbox_listeners = false
 	_viewmodel_anim.set_profile("player")
 	_viewmodel_anim.set_theme(_viewmodel_theme)
-	if _weapon != null and _weapon.has_method("get_archetype"):
-		_viewmodel_anim.set_weapon(String(_weapon.call("get_archetype")))
+	# The archetype alone was being passed as the item id, with the archetype left blank. That
+	# resolved to no weapon model on the viewmodel's mount -- first person swung an empty fist --
+	# and to the generic attack clips instead of the ones the equipped weapon actually uses.
+	# `_connect_signals` has already run `_on_weapon_changed`, so the director's own pair is current.
+	_viewmodel_anim.set_weapon(_weapon_id, _weapon_archetype)
 	_viewmodel_anim.bind(_viewmodel_root)
 	add_mirror(_viewmodel_anim)
 	_last_camera_basis = camera.global_transform.basis

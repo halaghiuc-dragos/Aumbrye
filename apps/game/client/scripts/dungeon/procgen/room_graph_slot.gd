@@ -25,6 +25,13 @@ var slot_type: SlotType = SlotType.EMPTY
 var door_mask: int = 0
 var graph_distance: int = -1
 var secret_parent_id: String = ""
+## Which way the parent has to step to reach this secret, once the lattice has actually seated it.
+##
+## `grid_pos` cannot answer this. A secret whose nominated parent is boxed in gets rehomed against
+## whatever room still has a free side, and the graph cell it was authored in stays where it was --
+## so the delta between the two cells names a step of any length in any direction, and the wall the
+## illusory panel went on had nothing to do with the wall the secret is actually behind.
+var secret_parent_dir: Vector2i = Vector2i.ZERO
 var secret_mechanism: String = ""
 var is_filler: bool = false
 var on_critical_path: bool = false

@@ -392,11 +392,16 @@ func _format_condition_line(slot: Dictionary) -> String:
 	]
 
 
-func format_slot_tooltip_bbcode(slot: Dictionary) -> String:
+## `include_name` defaults to true for callers (storage's description panel, the audit tool) that
+## show this text on its own with nowhere else the item's name appears. `inventory_ui` renders that
+## name a second time, as a separately-styled title above this body — pass false there or the name
+## prints twice.
+func format_slot_tooltip_bbcode(slot: Dictionary, include_name: bool = true) -> String:
 	var def := get_item_def(slot.get("itemId", ""))
 	var resolver := Callable(AffixRoller, "get_affix_stat")
 	var lines: PackedStringArray = []
-	lines.append("[b]%s[/b]" % _escape_bbcode(inventory.get_slot_display_name(slot)))
+	if include_name:
+		lines.append("[b]%s[/b]" % _escape_bbcode(inventory.get_slot_display_name(slot)))
 	var subtitle := _format_item_subtitle(slot, def)
 	if subtitle != "":
 		lines.append(_escape_bbcode(subtitle))
@@ -531,7 +536,9 @@ func apply_equipment_to_player_node(player: Node) -> void:
 	var merged_stats := get_equipment_stats()
 	var health := player.get_node_or_null("Health") as Health
 	if health:
-		var bonus_hp: float = float(merged_stats.get("maxHealth", 0.0))
+		var bonus_hp: float = CombatStatModifiersScript.soften_health_bonus(
+			float(merged_stats.get("maxHealth", 0.0))
+		)
 		health.configure(Health.MAX_HEALTH + bonus_hp, true)
 	var stamina := player.get_node_or_null("Stamina") as Stamina
 	if stamina:
@@ -636,6 +643,12 @@ func _apply_equipment_visuals(player: Node) -> void:
 	if CharacterService:
 		theme = CharacterService.appearance_theme as PixelStyleScript.PaletteTheme
 	CharacterSkinScript.apply_equipment(visual, inventory.equipped, theme)
+	# Refitting gear builds fresh `EquipVisual_*` holders, and new geometry draws normally no matter
+	# what the parts around it were set to. Equipping a helmet while in first person therefore put a
+	# helmet inside the camera. The camera owns this state, so re-assert it against the rebuilt tree.
+	var spring := player.get_node_or_null("CameraPivot/SpringArm3D")
+	if spring and spring.has_method("is_first_person"):
+		CharacterSkinScript.apply_first_person(facing, bool(spring.call("is_first_person")))
 
 
 func _apply_equipment_to_player() -> void:

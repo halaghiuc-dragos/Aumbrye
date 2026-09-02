@@ -47,7 +47,6 @@ const KIND_SPECS := {
 			"cover":
 			[Vector3(-2, 0, -2), Vector3(2, 0, 2), Vector3(0, 0, -4), Vector3(1, 0, 4)],
 			"chest": [Vector3(0, 0, 5), Vector3(-2, 0, 4)],
-			"trap": [Vector3(0, 0, 4)],
 		},
 	},
 	"corridor": {
@@ -105,7 +104,11 @@ const KIND_SPECS := {
 			],
 			"cover":
 			[Vector3(-3, 0, -2), Vector3(3, 0, 2), Vector3(0, 0, -4), Vector3(-2, 0, 3)],
-			"chest": [Vector3(6, 0, 5), Vector3(-6, 0, 5)],
+			# Pulled in from x=(-)6 -- the hall's dressing pass lines both side walls with sconces at
+			# x=(-)7.5 and a pillar at x=(-)7.2, z=0, and the old anchor at (6, 5) sat close enough to
+			# the sconce at (7.5, 4.5) for a chest to read as crowded against the wall fixture rather
+			# than placed in the room.
+			"chest": [Vector3(4.5, 0, 4), Vector3(-4.5, 0, 4)],
 			"trap": [Vector3(0, 0, 4)],
 		},
 	},
@@ -349,18 +352,27 @@ static func half_extent_z(spec: Dictionary, yaw_rad: float) -> float:
 	return hw * absf(sin(yaw_rad)) + hd * absf(cos(yaw_rad))
 
 
+## Where a doorway sits on a wall.
+##
+## `lateral` slides the door along that wall, which is what lets two rooms of different sizes share
+## a doorway at all: the lattice places them flush and the door is cut wherever they actually
+## overlap, rather than at each room's own centre.
 static func socket_wall_position(
-	direction: CastleRoomConstants.Direction, half_width: float, half_depth: float
+	direction: CastleRoomConstants.Direction,
+	half_width: float,
+	half_depth: float,
+	lateral: float = 0.0
 ) -> Vector3:
+	# North and south walls run along x, so the door slides in x; east and west run along z.
 	match direction:
 		CastleRoomConstants.Direction.NORTH:
-			return Vector3(0.0, 0.0, -half_depth)
+			return Vector3(lateral, 0.0, -half_depth)
 		CastleRoomConstants.Direction.SOUTH:
-			return Vector3(0.0, 0.0, half_depth)
+			return Vector3(lateral, 0.0, half_depth)
 		CastleRoomConstants.Direction.EAST:
-			return Vector3(half_width, 0.0, 0.0)
+			return Vector3(half_width, 0.0, lateral)
 		CastleRoomConstants.Direction.WEST:
-			return Vector3(-half_width, 0.0, 0.0)
+			return Vector3(-half_width, 0.0, lateral)
 	return Vector3.ZERO
 
 
@@ -376,6 +388,12 @@ static func _door_yaw(door: int) -> float:
 	return 0.0
 
 
+## Kinds that carry a floor-unique marker or prop (the stairs ramp and lever, the boss's authored
+## geometry and exit portal) rather than plain room dressing. Handing one of these to an unrelated
+## slot as a door-mask fallback plants its marker in a room that has no business having it -- a
+## second "stairs" room the player can see, or a second boss arrangement in a combat encounter.
+const KIND_SINGLE_USE := ["stairs", "boss"]
+
 static func pick_template_for_doors(
 	preferred_template_id: String,
 	required_doors: int,
@@ -389,6 +407,9 @@ static func pick_template_for_doors(
 	for template_id in biome_templates:
 		var tid := str(template_id)
 		if tid == preferred_template_id:
+			continue
+		var tid_kind := kind_from_template_id(tid)
+		if tid_kind in KIND_SINGLE_USE and tid_kind != required_kind:
 			continue
 		if supports_doors(tid, required_doors):
 			candidates.append(tid)

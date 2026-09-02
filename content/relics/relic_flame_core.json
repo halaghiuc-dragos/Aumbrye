@@ -1,10 +1,11 @@
 {
   "id": "relic_flame_core",
   "name": "Relic Flame Core",
-  "description": "It keeps a fire that was put out long ago. Kills carry it to the next body.",
+  "description": "It burns you a little first, ten health surrendered. It keeps a fire that was put out long ago; kills carry it to the next body.",
   "maxStacks": 1,
   "stats": {
-    "damagePercent": 5
+    "damagePercent": 5,
+    "maxHealth": -10
   },
   "tags": [
     "flame"

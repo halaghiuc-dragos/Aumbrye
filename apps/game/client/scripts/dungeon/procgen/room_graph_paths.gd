@@ -33,6 +33,41 @@ static func build_adjacency(graph: RoomGraph) -> Dictionary:
 	return adj
 
 
+## Which rooms the player can still reach from the start when the door between `from_id` and
+## `to_id` is shut. This is the soundness test for a locked door: the key has to be in here, or the
+## floor asks for a key that is behind its own lock.
+##
+## Takes a copy of the adjacency rather than editing it. `build_adjacency` hands back its cache by
+## reference, so cutting the edge in place would strip it from every later query on this graph.
+static func reachable_without_edge(
+	graph: RoomGraph, from_id: String, to_id: String
+) -> Dictionary:
+	var source := build_adjacency(graph)
+	var adj := {}
+	for slot_id in source:
+		var neighbors: Array = source[slot_id]
+		# A shut door is shut from both sides, so the edge comes out in both directions.
+		if slot_id == from_id or slot_id == to_id:
+			var blocked := to_id if slot_id == from_id else from_id
+			var filtered: Array = []
+			for neighbor_id in neighbors:
+				if neighbor_id != blocked:
+					filtered.append(neighbor_id)
+			adj[slot_id] = filtered
+		else:
+			adj[slot_id] = neighbors
+	var reachable := {graph.start_id: true}
+	var queue: Array[String] = [graph.start_id]
+	while not queue.is_empty():
+		var current: String = queue.pop_front()
+		for next_id in adj.get(current, []):
+			if reachable.has(next_id):
+				continue
+			reachable[next_id] = true
+			queue.append(next_id)
+	return reachable
+
+
 static func connected_component(graph: RoomGraph, start_id: String) -> Dictionary:
 	var adj := build_adjacency(graph)
 	var component := {start_id: true}

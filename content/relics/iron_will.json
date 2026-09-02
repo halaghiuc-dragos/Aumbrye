@@ -1,10 +1,11 @@
 {
   "id": "iron_will",
   "name": "Iron Will",
-  "description": "Endurance bought slowly. +15 health, and clearing a room mends a little of it.",
+  "description": "Endurance bought slowly, and it weighs on you. +15 health and 3% slower, but clearing a room mends a little of it.",
   "maxStacks": 3,
   "stats": {
-    "maxHealth": 15
+    "maxHealth": 15,
+    "moveSpeedPercent": -3
   },
   "tags": [
     "ward",

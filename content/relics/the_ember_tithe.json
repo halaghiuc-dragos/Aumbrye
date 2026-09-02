@@ -1,7 +1,7 @@
 {
   "id": "the_ember_tithe",
   "name": "The Ember Tithe",
-  "description": "Burning enemies pay coin when they fall.",
+  "description": "Three percent paid to keep the fire lit. Burning enemies pay coin when they fall.",
   "maxStacks": 1,
   "tags": [
     "flame",
@@ -16,5 +16,8 @@
       "ifTargetHasStatus": "burn"
     }
   ],
-  "offerable": true
+  "offerable": true,
+  "stats": {
+    "damagePercent": -3
+  }
 }

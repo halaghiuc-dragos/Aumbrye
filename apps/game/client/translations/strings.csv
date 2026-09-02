@@ -126,7 +126,7 @@ PAUSE_SETTINGS,Settings,Setări
 PAUSE_ABANDON,Abandon run,Renunță la run
 PAUSE_LEAVE_WAVES,Leave waves,Părăsește valurile
 PAUSE_RESTART_FLOOR,Restart floor,Repornește etajul
-PAUSE_QUIT,Quit to menu,Ieși în meniu
+PAUSE_QUIT,Quit run,Părăsește run-ul
 PAUSE_ACHIEVEMENTS,Achievements,Realizări
 PAUSE_BESTIARY,Bestiary,Bestiar
 PAUSE_HINT_RESUME,to resume,ca să continui
@@ -151,9 +151,9 @@ PAUSE_CONFIRM_ABANDON_TITLE,Abandon Run,Renunță la run
 PAUSE_CONFIRM_ABANDON_BODY,Abandon floor %d? %d items and %d gold from this run are lost.,Renunți la etajul %d? %d obiecte și %d aur din acest run se pierd.
 PAUSE_CONFIRM_ABANDON_OK,Abandon,Renunță
 PAUSE_CONFIRM_ABANDON_CANCEL,Keep Playing,Continuă
-PAUSE_CONFIRM_QUIT_TITLE,Quit to Menu,Ieși în meniu
-PAUSE_CONFIRM_QUIT_BODY,Save progress and return to the main menu? You can continue this run later from the hub.,Salvezi progresul și revii la meniul principal? Poți continua run-ul din hub.
-PAUSE_CONFIRM_QUIT_OK,Quit to Menu,Ieși în meniu
+PAUSE_CONFIRM_QUIT_TITLE,Quit Run,Părăsește Run-ul
+PAUSE_CONFIRM_QUIT_BODY,Leave without saving? This run ends here -- its loot and progress are lost, and there is nothing to continue later.,Pleci fara sa salvezi? Acest run se termina aici -- prada si progresul se pierd si nu vei putea continua mai tarziu.
+PAUSE_CONFIRM_QUIT_OK,Quit Run,Părăsește Run-ul
 PAUSE_CONFIRM_QUIT_CANCEL,Keep Playing,Continuă
 PAUSE_CONFIRM_LEAVE_TITLE,Leave Waves,Părăsește valurile
 PAUSE_CONFIRM_LEAVE_BODY,Leave this waves run and return to the hub? Rewards from this attempt may be lost.,Părăsești valurile și revii la hub? Recompensele acestei încercări pot fi pierdute.
@@ -464,8 +464,8 @@ MERCHANT_GOLD,Gold: %d,Aur: %d
 MERCHANT_BUY_ROW,%s   %dg  x%d,%s   %dg  x%d
 MERCHANT_SELL_ROW,%s   %dg,%s   %dg
 MERCHANT_SELL_ROW_STACK,%s x%d   %dg,%s x%d   %dg
-MERCHANT_STOCK_EMPTY,The merchant has nothing left to sell.,Negustorul nu mai are nimic de vandut.
-MERCHANT_INVENTORY_EMPTY,You are carrying nothing to sell.,Nu ai nimic de vandut.
+MERCHANT_STOCK_EMPTY,Nothing left to sell.,Nimic de vandut.
+MERCHANT_INVENTORY_EMPTY,Nothing to sell.,Nu ai nimic de vandut.
 MERCHANT_BUY_HINT,%s costs %d gold.,%s costa %d aur.
 MERCHANT_CANNOT_AFFORD,%s costs %d more gold than you carry.,%s costa cu %d aur mai mult decat ai.
 MERCHANT_SELL_HINT,%s sells for %d gold each.,%s se vinde cu %d aur bucata.
@@ -480,7 +480,11 @@ SMITH_UPGRADE,Upgrade,Imbunatateste
 SMITH_REPAIR,Repair,Repara
 SMITH_CLOSE,Close,Inchide
 SMITH_RESPEC,Respec Talents (%d),Reseteaza talentele (%d)
+SMITH_RESPEC_CONFIRM_TITLE,Respec Talents?,Resetezi talentele?
+SMITH_RESPEC_CONFIRM_MESSAGE,Spend %d gold to reset every talent point? This cannot be undone.,Cheltuiesti %d aur ca sa resetezi toate punctele de talent? Nu poate fi anulat.
+SMITH_RESPEC_CONFIRM_BUTTON,Respec,Reseteaza
 SMITH_UNLOCK_WEAPONS,Unlock Weapons,Deblocheaza arme
+SMITH_UNLOCK_NEXT,Unlock: %s (%dg),Deblocheaza: %s (%dg)
 SMITH_FORGE_SECTION,Forge,Forja
 SMITH_SALVAGE,Salvage,Dezmembreaza
 SMITH_REROLL,Reroll Affixes,Rearunca afixele
@@ -501,6 +505,8 @@ SMITH_UNLOCK_FAILED,That unlock failed.,Deblocarea a esuat.
 SMITH_SALVAGED,Salvaged.,Dezmembrat.
 SMITH_SALVAGED_FOR,Salvaged for %s.,Dezmembrat pentru %s.
 SMITH_SALVAGE_FAILED,That salvage failed.,Dezmembrarea a esuat.
+SMITH_SALVAGE_CONFIRM_TITLE,Salvage Item?,Dezmembrezi obiectul?
+SMITH_SALVAGE_CONFIRM_MESSAGE,Break down %s for %s? This destroys the item and cannot be undone.,Dezmembrezi %s pentru %s? Obiectul e distrus si nu poate fi anulat.
 SMITH_REROLLED,Affixes rerolled.,Afixe rearuncate.
 SMITH_REROLL_FAILED,That reroll failed.,Rearuncarea a esuat.
 SMITH_TRANSMUTED,Rarity transmuted to %s.,Raritate transmutata in %s.
@@ -512,8 +518,8 @@ STORAGE_SELECT_STORAGE,Select an item in storage.,Alege un obiect din depozit.
 STORAGE_MOVED_TO_STORAGE,Moved to storage.,Mutat in depozit.
 STORAGE_MOVED_TO_INVENTORY,Moved to inventory.,Mutat in inventar.
 STORAGE_MOVE_FAILED,That move failed.,Mutarea a esuat.
-STORAGE_INVENTORY_EMPTY,Your inventory is empty.,Inventarul e gol.
-STORAGE_STORAGE_EMPTY,Storage is empty.,Depozitul e gol.
+STORAGE_INVENTORY_EMPTY,Empty.,Gol.
+STORAGE_STORAGE_EMPTY,Empty.,Gol.
 LOADOUT_EQUIPPED_ROW,%s  (equipped),%s  (echipat)
 MENU_SUBTITLE,Umbral of the Fallen Warden,Umbralul Gardianului Căzut
 TITLE_PRESS_ANY_KEY,Press any key to continue,Apasa orice tasta pentru a continua
@@ -564,6 +570,7 @@ CREATE_STAT_MANA,Mana,Mana
 CREATE_STAT_MANA_REGEN,Mana Regen,Regen mana
 CREATE_COMPARE_COL_STAT,Stat,Statistica
 CREATE_COMPARE_COL_YOU,Your Pick,Alegerea ta
+CREATE_COMPARE_COL_YOU_NAMED,Your Pick (%s),Alegerea ta (%s)
 TALENTS_TITLE,Talents,Talente
 TALENTS_POINTS,Points: %d,Puncte: %d
 TALENTS_HINT,Enter: unlock | Esc: close,Enter: deblocheaza | Esc: inchide
@@ -652,6 +659,10 @@ HUD_DEPTH_RECORD,New deepest descent: floor {floor}.,Cea mai adâncă coborâre:
 HUD_DEPTH_RECORD_TOKENS,New deepest descent: floor {floor} — {tokens} descent tokens.,Cea mai adâncă coborâre: etajul {floor} — {tokens} jetoane.
 HUD_MILESTONE,Milestone reached: {name}.,Reper atins: {name}.
 LOCK_NEEDS_KEYS,This lock needs {count} keys.,Lacătul are nevoie de {count} chei.
+LOCK_NEEDS_KEY,You need the {key}.,Ai nevoie de {key}.
+SHORTCUT_WRONG_SIDE,This won't open from this side.,Nu se deschide din partea aceasta.
+SHORTCUT_OPEN_PROMPT,E — Open shortcut,E — Deschide scurtătura
+SHORTCUT_BARRED,Barred from this side,Blocată din partea aceasta
 SMITH_UPGRADE_PATH,Upgrade path,Cale de îmbunătățire
 SMITH_SET_PATH,Set Path,Alege calea
 SMITH_MARK_RULE_SOURCE,Mark Rule Source,Marchează sursa

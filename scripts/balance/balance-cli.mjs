@@ -109,8 +109,18 @@ const PLAYER_BASE_HEALTH = 100;
 const PLAYER_CLASS_HEALTH = 38;
 
 // Mirrors Hurtbox: reduction = points / (points + softening), then capped.
-const DEFENSE_SOFTENING = 150;
+const DEFENSE_SOFTENING = 340;
 const DEFENSE_CAP = 0.75;
+
+// Mirrors CombatStatModifiers.soften_health_bonus: the first HEALTH_BONUS_SOFT_CAP points of
+// stacked maxHealth count in full, past that it saturates the same way defense does.
+const HEALTH_BONUS_SOFT_CAP = 110;
+const HEALTH_BONUS_SOFTENING = 110;
+function softenHealthBonus(raw) {
+  if (raw <= HEALTH_BONUS_SOFT_CAP) return Math.max(0, raw);
+  const excess = raw - HEALTH_BONUS_SOFT_CAP;
+  return HEALTH_BONUS_SOFT_CAP + (HEALTH_BONUS_SOFTENING * excess) / (excess + HEALTH_BONUS_SOFTENING);
+}
 
 // The player lands a fraction of their theoretical dps: whiffs, repositioning, stamina, and the
 // windows they spend dodging rather than swinging.
@@ -439,8 +449,10 @@ function buildEnvelope(enemies, weapons, items, classes) {
   const upgradeMax = 1.0 + UPGRADE_STEP_MAX * UPGRADE_LEVEL_MAX;
 
   // --- what the player can take
-  const healthFloor = PLAYER_BASE_HEALTH + Math.min(...classHealth) + gearHealthMin;
-  const healthCeiling = PLAYER_BASE_HEALTH + Math.max(...classHealth) + gearHealthMax;
+  // Runtime softens the whole bonus (class + gear + talents) it reads off the merged stat sheet,
+  // not gear alone -- mirrored here by softening class and gear together before adding the base.
+  const healthFloor = PLAYER_BASE_HEALTH + softenHealthBonus(Math.min(...classHealth) + gearHealthMin);
+  const healthCeiling = PLAYER_BASE_HEALTH + softenHealthBonus(Math.max(...classHealth) + gearHealthMax);
   const mitigationFloor = Math.min(
     DEFENSE_CAP,
     gearPointsMin / (gearPointsMin + DEFENSE_SOFTENING)
@@ -686,8 +698,28 @@ function buildExport() {
 
   const byRarity = {};
   const byEquipmentSlot = {};
-  const statTotalsByRarity = {};
-  const statTotalsPerRarity = {};
+  // Keyed by rarity *and* slot, not rarity alone. A tower shield legitimately carries more stat
+  // lines than a ring by design -- defense, poise, block reduction, a resist -- so comparing its
+  // stat total against every item of its rarity (rings included) flagged nearly every shield and
+  // heavy armour piece as an "outlier" when nothing about them was actually out of line with its
+  // own kind. Grouping by slot compares a shield to other shields.
+  //
+  // Slots need one more level: "weapon" alone still mixes a dagger with a greatsword, and
+  // "secondary" mixes a buckler with a tower shield. A two-hander is *supposed* to hit harder per
+  // swing to pay for being slower, and a tower shield is *supposed* to block more than a buckler to
+  // pay for the weight -- that is the entire point of the archetype, not a balance mistake.
+  // `baseId` (greatsword, dagger, staff, kiteshield, towershield, ...) is the axis that actually
+  // separates comparable items within a slot. The material-tiered items (hoarfrost_*, graysteel_*,
+  // ...) all carry it; a lot of the named/unique weapons (iron_sword, flame_sword, castle_sword,
+  // ...) don't, but carry the equivalent `weaponId` instead -- fall back to that before giving up
+  // and lumping an item into the bare slot bucket.
+  const archetypeOf = (item) => item.baseId ?? item.weaponId ?? null;
+  const groupKeyFor = (item, rarity, slot) => {
+    const archetype = archetypeOf(item);
+    return archetype ? `${rarity}|${slot}:${archetype}` : `${rarity}|${slot}`;
+  };
+  const statTotalsByGroup = {};
+  const statTotalsPerGroup = {};
   let unauthoredCount = 0;
 
   for (const item of items) {
@@ -696,13 +728,14 @@ function buildExport() {
     const slot = item.equipmentSlot ?? item.itemType ?? "none";
     byEquipmentSlot[slot] = (byEquipmentSlot[slot] ?? 0) + 1;
     const total = statTotal(item.stats);
-    if (!statTotalsPerRarity[rarity]) statTotalsPerRarity[rarity] = [];
-    statTotalsPerRarity[rarity].push(total);
+    const group = groupKeyFor(item, rarity, slot);
+    if (!statTotalsPerGroup[group]) statTotalsPerGroup[group] = [];
+    statTotalsPerGroup[group].push(total);
     if (item.authored === false) unauthoredCount++;
   }
 
-  for (const [rarity, totals] of Object.entries(statTotalsPerRarity)) {
-    statTotalsByRarity[rarity] = median(totals);
+  for (const [group, totals] of Object.entries(statTotalsPerGroup)) {
+    statTotalsByGroup[group] = median(totals);
   }
 
   const dpsByWeaponId = {};
@@ -722,17 +755,30 @@ function buildExport() {
   const runsToLevelCap = baseXp > 0 ? Number((maxXp / baseXp).toFixed(2)) : 0;
 
   const outlierThreshold = 2.0;
+  // A group of one or two has no real median to be an outlier against -- everything in it either
+  // *is* the median or is being compared to a single sibling, so skip judging it rather than flag
+  // (or clear) an item on a sample size that cannot support the claim either way.
+  const minGroupSize = 3;
   const outliers = [];
   for (const item of items) {
     const rarity = item.rarity ?? "common";
+    const slot = item.equipmentSlot ?? item.itemType ?? "none";
+    // "none" is the fallback for items with neither field set -- quest items, currency, charms and
+    // relics all land here together, so most of the group has no stats at all and drags the median
+    // toward zero. That makes every stat-bearing item in it look like a wild outlier for having any
+    // stats whatsoever, which is a property of the bucket, not the item.
+    if (slot === "none") continue;
+    const group = groupKeyFor(item, rarity, slot);
+    if ((statTotalsPerGroup[group] ?? []).length < minGroupSize) continue;
     const total = statTotal(item.stats);
-    const med = statTotalsByRarity[rarity] ?? 0;
+    const med = statTotalsByGroup[group] ?? 0;
     if (med > 0 && total > med * outlierThreshold) {
       outliers.push({
         kind: "item_stat_total",
         id: item.id,
+        group,
         value: Number(total.toFixed(2)),
-        medianForRarity: Number(med.toFixed(2)),
+        medianForSlot: Number(med.toFixed(2)),
         ratio: Number((total / med).toFixed(2)),
       });
     }
@@ -751,7 +797,7 @@ function buildExport() {
       count: items.length,
       byRarity,
       byEquipmentSlot,
-      statTotalsByRarity,
+      statTotalsByGroup,
       unauthoredCount,
     },
     weapons: {
@@ -777,11 +823,11 @@ if (!existsSync(reportsDir)) {
 writeFileSync(exportPath, `${JSON.stringify(report, null, 2)}\n`, "utf8");
 
 if (showSummary) {
-  console.log("Per-rarity stat-total medians:");
-  for (const [rarity, med] of Object.entries(report.items.statTotalsByRarity).sort()) {
-    console.log(`  ${rarity}: ${med.toFixed(2)}`);
+  console.log("Per rarity+slot stat-total medians:");
+  for (const [group, med] of Object.entries(report.items.statTotalsByGroup).sort()) {
+    console.log(`  ${group}: ${med.toFixed(2)}`);
   }
-  console.log("\nOutliers (stat total > 2× median for rarity):");
+  console.log("\nOutliers (stat total > 2× median for rarity+slot):");
   if (report.outliers.length === 0) {
     console.log("  (none)");
   } else {

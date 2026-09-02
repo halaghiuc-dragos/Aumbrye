@@ -8,22 +8,27 @@ const PAPERDOLL_TEXTURE_PATH := "res://assets/ui/paperdoll_silhouette.png"
 
 const BACKDROP_COLOR := Color(0.02, 0.015, 0.05, 0.78)
 
-const PANEL_HALF_W := 580.0
-const PANEL_HALF_H := 360.0
-const SETTINGS_HALF_W := 460.0
-const SETTINGS_HALF_H := 320.0
-const MENU_HALF_W := 260.0
-const MENU_HALF_H := 150.0
+## Bumped across the board for more breathing room in every panel that sizes off these constants --
+## text sitting flush against a border or another line reads as cluttered no matter how correct the
+## content is. Kept proportionate rather than drastic: the fixed-size dialogs whose room this eats
+## into (the confirmation prompts, the relic offer cards) were re-checked after the change rather
+## than assumed to still fit.
+const PANEL_HALF_W := 690.0
+const PANEL_HALF_H := 435.0
+const SETTINGS_HALF_W := 550.0
+const SETTINGS_HALF_H := 390.0
+const MENU_HALF_W := 345.0
+const MENU_HALF_H := 215.0
 
-const PANEL_MARGIN := 18
-const SECTION_SEPARATION := 22
-const GRID_GAP := 4
+const PANEL_MARGIN := 34
+const SECTION_SEPARATION := 36
+const GRID_GAP := 7
 
-const FONT_SIZE_TITLE := 22
-const FONT_SIZE_HEADER := 16
-const FONT_SIZE_BODY := 14
-const FONT_SIZE_SMALL := 12
-const FONT_SIZE_MICRO := 10
+const FONT_SIZE_TITLE := 24
+const FONT_SIZE_HEADER := 18
+const FONT_SIZE_BODY := 15
+const FONT_SIZE_SMALL := 13
+const FONT_SIZE_MICRO := 11
 
 const HEADER_FONT_SIZE := FONT_SIZE_HEADER
 const TITLE_FONT_SIZE := FONT_SIZE_TITLE
@@ -620,45 +625,66 @@ static func _scale_theme_font_sizes(scaled: Theme, base: Theme, scale: float) ->
 			)
 
 
+## Resource bars (health, stamina, mana, poise, XP, the boss bar) always render as pixel blocks,
+## independent of `is_pixel_ui()`. That flag tracks whether the 3D world is going through the
+## low-res diorama viewport, which every player is running with off: the project's only configured
+## resolution preset is flagged `native` (see `RESOLUTION_PRESETS`), so `is_pixel_ui()` has been
+## false for the entire life of the project and every bar has always rendered with the plain
+## rounded/smooth fallback style instead of the textured, seamed one below -- a real player has
+## never seen the pixel bar style this function otherwise draws. Bars are 2D HUD elements layered
+## over the 3D scene either way, not part of what that viewport flag actually renders, so tying
+## their look to it was never the right signal in the first place; every other pixel-art HUD panel
+## in the game (borders, fonts, frames) already reads as pixel-styled regardless of this flag, and
+## bars are the one piece that visibly didn't match.
 static func style_progress_bar(bar: ProgressBar, fill_color: Color, bg_color: Color) -> void:
 	bar.show_percentage = false
-	var pixel := is_pixel_ui()
-	var radius := 0 if pixel else 4
-	var inner_radius := 0 if pixel else 3
 	var bg := StyleBoxFlat.new()
 	bg.bg_color = bg_color
 	bg.border_color = FRAME_BORDER
-	bg.set_border_width_all(2 if pixel else 1)
-	bg.set_corner_radius_all(radius)
-	bg.set_content_margin_all(2 if pixel else 2)
-	if pixel:
-		bar.add_theme_stylebox_override("background", bg)
-		bar.add_theme_stylebox_override("fill", make_bar_fill_style(fill_color, bar))
-		bar.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-		var steps := maxi(2, PIXEL_BAR_STEPS)
-		if bar.max_value > 0.0:
-			bar.step = bar.max_value / float(steps)
-		return
-	var fill := StyleBoxFlat.new()
-	fill.bg_color = fill_color
-	fill.set_corner_radius_all(inner_radius)
+	bg.set_border_width_all(2)
+	bg.set_corner_radius_all(0)
+	bg.set_content_margin_all(2)
 	bar.add_theme_stylebox_override("background", bg)
-	bar.add_theme_stylebox_override("fill", fill)
+	bar.add_theme_stylebox_override("fill", make_bar_fill_style(fill_color, bar))
+	bar.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	sync_progress_bar_step(bar)
 
 
-## A resource bar that reads as a lit tube rather than a flat block.
+## `step` quantises the bar to whole pixel blocks, and it has to be a fraction of *this* bar's own
+## max -- not whatever max the bar happened to have when it was styled. Health/stamina/mana are
+## styled once in `_ready()`, while the scene's default max (100) is still on the bar; the player's
+## real max (100 plus softened gear and talent bonuses, rarely a clean multiple of anything) is set
+## moments later by `Health.configure()` and friends, and never touched `step` again. A leftover
+## step of 12.5 snapping a max of, say, 123 rounds the "full" value down to the nearest multiple of
+## 12.5 instead of the bar's own max, which is why a bar could sit visibly short of full the moment
+## a fresh character's gear applied -- despite `current == max_health` underneath. Call this any
+## time a bar's `max_value` changes, not just when it is first styled.
+static func sync_progress_bar_step(bar: ProgressBar) -> void:
+	var steps := maxi(2, PIXEL_BAR_STEPS)
+	if bar.max_value > 0.0:
+		bar.step = bar.max_value / float(steps)
+
+
+## A resource bar that reads as a row of pixel blocks, matching the rest of the pixel-art frame
+## instead of a smooth-shaded rectangle sitting inside it.
 ##
-## The fill was a single solid colour, which at this scale reads as a coloured rectangle and gives
-## the eye nothing to catch. This bakes a vertical ramp — bright across the top third, falling away
-## below — plus a bright leading edge held at a fixed width by the nine-patch margin, so the head of
-## the bar stays legible at a glance no matter how full it is.
-const BAR_FILL_TEX_WIDTH := 4
+## The fill was a single solid colour stretched across the bar, which at this scale reads as a
+## plain coloured rectangle and clashes with everything else on screen being built out of visible
+## blocks with a dark seam between them (the characters, the props, the telegraph rings). This
+## bakes one repeating tile instead of one stretched ramp: each block keeps the bright-top /
+## fall-off shading that made the bar read as lit rather than flat, and a soft (not pure black,
+## so it doesn't read as a hard grid line) dark seam on its trailing edge, then tiles that block
+## across the bar's whole width so the fill is visibly made of the same kind of pixel the rest of
+## the game is.
+const BAR_FILL_TILE_WIDTH := 8
+const BAR_FILL_SEAM_WIDTH := 2
 const BAR_FILL_EDGE_GAIN := 1.75
 const BAR_FILL_TOP_GAIN := 1.34
 const BAR_FILL_MID_GAIN := 0.62
 const BAR_FILL_LOW_BASE := 0.92
 const BAR_FILL_LOW_FALL := 0.30
 const BAR_FILL_BREAK := 0.55
+const BAR_FILL_SEAM_COLOR := Color(0.0, 0.0, 0.0, 0.4)
 
 static var _bar_fill_cache: Dictionary = {}
 
@@ -678,7 +704,8 @@ static func make_bar_fill_style(fill_color: Color, bar: ProgressBar = null) -> S
 		height = maxi(6, int(bar.custom_minimum_size.y) - 4)
 	var key := "%s|%d" % [fill_color.to_html(true), height]
 	if not _bar_fill_cache.has(key):
-		var img := Image.create(BAR_FILL_TEX_WIDTH, height, false, Image.FORMAT_RGBA8)
+		var img := Image.create(BAR_FILL_TILE_WIDTH, height, false, Image.FORMAT_RGBA8)
+		var body_width := BAR_FILL_TILE_WIDTH - BAR_FILL_SEAM_WIDTH
 		for y in height:
 			var t := float(y) / float(maxi(1, height - 1))
 			var gain := (
@@ -687,16 +714,20 @@ static func make_bar_fill_style(fill_color: Color, bar: ProgressBar = null) -> S
 				else BAR_FILL_LOW_BASE - BAR_FILL_LOW_FALL * (t - BAR_FILL_BREAK)
 			)
 			var body := _shade(fill_color, gain)
-			for x in BAR_FILL_TEX_WIDTH - 1:
-				img.set_pixel(x, y, body)
-			img.set_pixel(BAR_FILL_TEX_WIDTH - 1, y, _shade(fill_color, BAR_FILL_EDGE_GAIN))
-		for x in BAR_FILL_TEX_WIDTH:
-			img.set_pixel(x, 0, _shade(fill_color, BAR_FILL_EDGE_GAIN))
+			var edge := _shade(fill_color, BAR_FILL_EDGE_GAIN)
+			for x in BAR_FILL_TILE_WIDTH:
+				if x == 0:
+					img.set_pixel(x, y, edge)
+				elif x < body_width:
+					img.set_pixel(x, y, body)
+				else:
+					# The seam is blended, not opaque black, so it reads as a shadowed gap
+					# between blocks rather than a line drawn on top of the fill colour.
+					img.set_pixel(x, y, body.blend(BAR_FILL_SEAM_COLOR))
 		_bar_fill_cache[key] = ImageTexture.create_from_image(img)
 	var style := StyleBoxTexture.new()
 	style.texture = _bar_fill_cache[key]
-	# Only the last column is pinned; the ramp columns stretch to whatever the bar is showing.
-	style.set_texture_margin(SIDE_RIGHT, 1)
+	style.axis_stretch_horizontal = StyleBoxTexture.AXIS_STRETCH_MODE_TILE
 	return style
 
 

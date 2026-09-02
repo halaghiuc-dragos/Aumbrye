@@ -6,10 +6,10 @@
 anchors_preset = 5
 anchor_left = 0.5
 anchor_right = 0.5
-offset_left = -160.0
+offset_left = -220.0
 offset_top = 40.0
-offset_right = 160.0
-offset_bottom = 80.0
+offset_right = 220.0
+offset_bottom = 116.0
 grow_horizontal = 2
 script = ExtResource("1_toast")
 
@@ -23,12 +23,14 @@ grow_vertical = 2
 
 [node name="Margin" type="MarginContainer" parent="Panel"]
 layout_mode = 2
-theme_override_constants/margin_left = 12
-theme_override_constants/margin_top = 8
-theme_override_constants/margin_right = 12
-theme_override_constants/margin_bottom = 8
+theme_override_constants/margin_left = 18
+theme_override_constants/margin_top = 12
+theme_override_constants/margin_right = 18
+theme_override_constants/margin_bottom = 12
 
 [node name="Label" type="Label" parent="Panel/Margin"]
 theme_type_variation = "BodyText"
 layout_mode = 2
 horizontal_alignment = 1
+vertical_alignment = 1
+autowrap_mode = 3

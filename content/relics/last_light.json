@@ -1,7 +1,7 @@
 {
   "id": "last_light",
   "name": "Last Light",
-  "description": "At the edge, rarely, the sickness leaves you and some strength returns.",
+  "description": "Three percent given to what is keeping you upright. At the edge, rarely, the sickness leaves you and some strength returns.",
   "maxStacks": 1,
   "tags": [
     "vigil",
@@ -21,5 +21,8 @@
       "cooldown": 90
     }
   ],
-  "offerable": true
+  "offerable": true,
+  "stats": {
+    "damagePercent": -3
+  }
 }

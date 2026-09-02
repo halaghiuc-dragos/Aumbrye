@@ -1,10 +1,11 @@
 {
   "id": "relic_sun_medallion",
   "name": "Relic Sun Medallion",
-  "description": "Warmth that outlived the sun it came from. A new floor refills a flask.",
+  "description": "Three percent strength given to the warmth. It outlived the sun it came from — a new floor refills a flask.",
   "maxStacks": 1,
   "stats": {
-    "healthRegen": 1
+    "healthRegen": 1,
+    "damagePercent": -3
   },
   "tags": [
     "vigil"

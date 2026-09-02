@@ -4,8 +4,8 @@
   "templatePrefix": "prism",
   "assetFolder": "prism",
   "roomCount": {
-    "min": 20,
-    "max": 26
+    "min": 22,
+    "max": 28
   },
   "roomTemplateIds": [
     "prism_entrance",

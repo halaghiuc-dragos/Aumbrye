@@ -91,9 +91,10 @@ static func validate(definition: Dictionary) -> Dictionary:
 	return {"ok": errors.is_empty(), "errors": errors, "warnings": warnings}
 
 
-static func _exit_reachable(definition: Dictionary, entrance_id: String, exit_id: String) -> bool:
-	if entrance_id == "" or exit_id == "":
-		return false
+## Room adjacency from a definition's edge list, both directions, secret doors excluded (a secret
+## is a wall until the player opens it, so it cannot be relied on to keep the floor connected).
+## Shared with `RoomContentValidator`, which walks this same graph to check key/lock reachability.
+static func adjacency_from_edges(definition: Dictionary) -> Dictionary:
 	var adjacency := {}
 	for edge in definition.get("edges", []):
 		if not edge is Dictionary:
@@ -110,6 +111,13 @@ static func _exit_reachable(definition: Dictionary, entrance_id: String, exit_id
 			adjacency[to_id] = []
 		adjacency[from_id].append(to_id)
 		adjacency[to_id].append(from_id)
+	return adjacency
+
+
+static func _exit_reachable(definition: Dictionary, entrance_id: String, exit_id: String) -> bool:
+	if entrance_id == "" or exit_id == "":
+		return false
+	var adjacency := adjacency_from_edges(definition)
 	var queue: Array[String] = [entrance_id]
 	var visited := {entrance_id: true}
 	while not queue.is_empty():

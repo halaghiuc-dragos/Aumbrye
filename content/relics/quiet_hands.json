@@ -1,7 +1,7 @@
 {
   "id": "quiet_hands",
   "name": "Quiet Hands",
-  "description": "A backstab that lands returns half its damage as health.",
+  "description": "Five armour traded for silence. A backstab that lands returns half its damage as health.",
   "maxStacks": 1,
   "tags": [
     "blood",
@@ -15,5 +15,8 @@
       "pct": 0.5
     }
   ],
-  "offerable": true
+  "offerable": true,
+  "stats": {
+    "armor": -5
+  }
 }

@@ -23,6 +23,8 @@ func _ready() -> void:
 	_label.name = "NameLabel"
 	_label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	_label.font_size = 20
+	_label.outline_size = 9
+	_label.outline_modulate = Color(0.0, 0.0, 0.0, 0.85)
 	_label.position = Vector3(0.0, 2.35, 0.0)
 	_label.visible = false
 	add_child(_label)

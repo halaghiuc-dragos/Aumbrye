@@ -108,6 +108,7 @@ const STAT_DISPLAY: Dictionary = {
 	"frostDamage": {"key": "STAT_FROST_DAMAGE", "label": "Frost Damage", "unit": UNIT_FLAT},
 	"arcaneDamage": {"key": "STAT_ARCANE_DAMAGE", "label": "Arcane Damage", "unit": UNIT_FLAT},
 	"poisonDamage": {"key": "STAT_POISON_DAMAGE", "label": "Poison Damage", "unit": UNIT_FLAT},
+	"lifesteal": {"key": "STAT_LIFESTEAL", "label": "Lifesteal", "unit": UNIT_FRACTION},
 }
 
 const UPGRADE_STEP := 0.06

@@ -226,8 +226,12 @@ func _refresh_comparison_selection() -> void:
 		if ratings is Dictionary:
 			selected_ratings = ratings
 	if _resolved_header:
+		# Naming this column after the selected class alone ("Berserker") reads as a duplicate of
+		# the class's own column a few cells to the right ("Berserker" again, with different
+		# numbers) rather than what it actually is: the same stats, resolved to real values instead
+		# of raw ratings. Keeping "Your Pick" in the label is what tells them apart.
 		_resolved_header.text = (
-			str(_classes[_selected_class_index].get("name", ""))
+			tr("CREATE_COMPARE_COL_YOU_NAMED") % str(_classes[_selected_class_index].get("name", ""))
 			if _selected_class_index >= 0 and _selected_class_index < _classes.size()
 			else tr("CREATE_COMPARE_COL_YOU")
 		)

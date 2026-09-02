@@ -1,5 +1,7 @@
 extends Node
 
+const FloorKeyringScript := preload("res://scripts/dungeon/floor_keyring.gd")
+
 
 signal run_started
 signal run_ended(results: Dictionary)
@@ -205,14 +207,6 @@ func start_new_run(dungeon_id: String, run_seed: Variant = null, difficulty_tier
 	await _start_mode_run(RM.MODE_CASTLE, current_biome_id, run_seed, 1)
 
 
-func start_castle_run_with_seed(run_seed_value: int) -> void:
-	start_run_with_seed(DungeonCatalog.DEFAULT_DUNGEON_ID, run_seed_value)
-
-
-func start_run_with_seed(dungeon_id: String, run_seed_value: int) -> void:
-	await start_new_run(dungeon_id, run_seed_value)
-
-
 func continue_castle_run() -> void:
 	var saved := LocalSave.get_active_run()
 	if not LocalSave.has_continuable_run():
@@ -249,7 +243,7 @@ func _start_mode_run(mode: String, biome_id: String, run_seed: Variant, start_fl
 	_is_continue = false
 	_pending_snapshot.clear()
 	_reset_run_stats()
-	max_floors = RunFloorConfig.max_floors_for_mode(run_mode)
+	max_floors = RunFloorConfig.max_floors_for_mode(run_mode, current_dungeon_tier)
 	_promote_pending_rule_set(start_floor)
 	current_dungeon_definition = {}
 	current_run_id = ""
@@ -363,7 +357,9 @@ func _restore_castle_run(saved: Dictionary) -> void:
 	current_seed = int(saved.get("seed", 0))
 	run_mode = str(saved.get("runMode", RM.MODE_CASTLE))
 	current_floor = int(saved.get("currentFloor", 1))
-	max_floors = int(saved.get("maxFloors", RunFloorConfig.max_floors_for_mode(run_mode)))
+	max_floors = int(
+		saved.get("maxFloors", RunFloorConfig.max_floors_for_mode(run_mode, current_dungeon_tier))
+	)
 	current_dungeon_id = str(saved.get("dungeonId", DungeonCatalog.DEFAULT_DUNGEON_ID))
 	if not DungeonCatalog.is_valid(current_dungeon_id):
 		if DungeonCatalog.is_valid(current_biome_id):
@@ -899,6 +895,7 @@ func ascend_floor() -> void:
 	if run_mode == RM.MODE_CASTLE and current_floor >= max_floors:
 		return
 	_stash_current_floor_in_cache()
+	FloorKeyringScript.clear()
 	current_floor += 1
 	_boss_defeated = _cleared_floors.has(current_floor)
 	await _transition_floor(true)
@@ -910,6 +907,9 @@ func descend_floor() -> void:
 	if run_mode == RM.MODE_ENDLESS:
 		return
 	_stash_current_floor_in_cache()
+	# Keys do not travel between floors: the ring is emptied going up or down, so a floor is always
+	# entered without the cards that opened the last one.
+	FloorKeyringScript.clear()
 	current_floor -= 1
 	_boss_defeated = _cleared_floors.has(current_floor)
 	await _transition_floor(false)
@@ -1110,7 +1110,7 @@ func _persist_active_run() -> void:
 
 
 func _clear_floor_cache() -> void:
-	DungeonBuilder.clear_floor_cache()
+	FloorDefinitionCache.clear_floor_cache()
 
 
 func _run_cache_key() -> String:
@@ -1118,26 +1118,26 @@ func _run_cache_key() -> String:
 
 
 func _bind_run_cache() -> void:
-	DungeonBuilder.begin_run_cache(_run_cache_key())
-	DungeonBuilder.set_reference_floor(current_floor)
+	FloorDefinitionCache.begin_run_cache(_run_cache_key())
+	FloorDefinitionCache.set_reference_floor(current_floor)
 
 
 func _stash_current_floor_in_cache() -> void:
 	if current_dungeon_definition.is_empty():
 		return
 	_bind_run_cache()
-	DungeonBuilder.store_floor_cache(current_floor, current_dungeon_definition)
+	FloorDefinitionCache.store_floor_cache(current_floor, current_dungeon_definition)
 
 
 func _get_cached_floor_definition(floor_index: int) -> Dictionary:
-	return DungeonBuilder.get_floor_cache(floor_index)
+	return FloorDefinitionCache.get_floor_cache(floor_index)
 
 
 func _set_current_floor_cache(definition: Dictionary) -> void:
 	if definition.is_empty():
 		return
 	_bind_run_cache()
-	DungeonBuilder.store_floor_cache(current_floor, definition)
+	FloorDefinitionCache.store_floor_cache(current_floor, definition)
 
 
 func register_loot(item_id: String, instance_id: String = "") -> void:
@@ -1251,7 +1251,7 @@ func restart_current_floor() -> void:
 	_boss_defeated = false
 	_boss_fight_active = false
 	_boss_fight_damage_taken = false
-	DungeonBuilder.erase_floor_cache(current_floor)
+	FloorDefinitionCache.erase_floor_cache(current_floor)
 	var definition := await _resolve_floor_definition(current_floor)
 	if definition.is_empty():
 		_emit_run_warning("Could not restart floor %d." % current_floor)

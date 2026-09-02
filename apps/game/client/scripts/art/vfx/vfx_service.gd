@@ -255,7 +255,7 @@ func play_death(
 ) -> void:
 	var scale := 1.0
 	if debris_count > 0:
-		scale = float(debris_count) / 36.0
+		scale = float(debris_count) / 14.0
 	play(
 		"death",
 		world_pos + Vector3(0.0, 0.45, 0.0),
@@ -986,11 +986,16 @@ func _build_telegraph_glyph(
 	if forward.length_squared() > 0.01:
 		glyph.look_at(glyph.global_position + Vector3(forward.x, 0.0, forward.z), Vector3.UP)
 
+	# A telegraph that only grows is easy to miss while dodging something else -- the stepped pixel
+	# flicker (see pixel_diorama_emissive.gdshader) reads as an unmistakable "this is about to hit"
+	# the way a smooth fade would not, and it costs nothing extra since both materials already carry
+	# the uniform, just unused until now. The rim pulses harder than the fill so the outline is what
+	# catches the eye first, with the ground fill as the softer confirmation underneath it.
 	var rim_mat := PixelStyle.make_glow_material(
-		Color(tint.r, tint.g, tint.b, 1.0), Color(tint.r, tint.g, tint.b, 0.8), 2.1
+		Color(tint.r, tint.g, tint.b, 1.0), Color(tint.r, tint.g, tint.b, 0.8), 2.4, 5.0
 	)
 	var fill_mat := PixelStyle.make_glow_material(
-		Color(tint.r, tint.g, tint.b, 0.5), Color(tint.r, tint.g, tint.b, 0.3), 0.9
+		Color(tint.r, tint.g, tint.b, 0.65), Color(tint.r, tint.g, tint.b, 0.4), 1.1, 2.5
 	)
 	var sweep := Node3D.new()
 	sweep.name = "Sweep"

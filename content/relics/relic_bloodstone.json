@@ -1,10 +1,11 @@
 {
   "id": "relic_bloodstone",
   "name": "Relic Bloodstone",
-  "description": "A crimson stone that feeds on spilled blood. Critical hits drink deeper.",
+  "description": "It drinks from you too, eight health given. A crimson stone that feeds on spilled blood — critical hits drink deeper.",
   "maxStacks": 1,
   "stats": {
-    "lifesteal": 0.03
+    "lifesteal": 0.03,
+    "maxHealth": -8
   },
   "tags": [
     "blood"

@@ -1,7 +1,7 @@
 {
   "id": "a_share_of_ruin",
   "name": "A Share Of Ruin",
-  "description": "Parries return stamina; you may hold the line longer than you should.",
+  "description": "Ten health given over. Parries return stamina; you may hold the line longer than you should.",
   "maxStacks": 1,
   "tags": [
     "poise"
@@ -14,5 +14,8 @@
       "amount": 22
     }
   ],
-  "offerable": true
+  "offerable": true,
+  "stats": {
+    "maxHealth": -10
+  }
 }
