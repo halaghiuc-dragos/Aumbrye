@@ -1,6 +1,8 @@
 extends Area3D
 class_name HubInteractable
 
+const InteractPromptScript := preload("res://scripts/ui/interact_prompt.gd")
+
 
 signal player_entered
 signal player_exited
@@ -65,12 +67,18 @@ func _resolve_label() -> void:
 	if _label != null:
 		return
 	var host := get_parent()
-	if host == null:
-		return
-	for child in host.get_children():
-		if child is Label3D:
-			_label = child as Label3D
-			return
+	if host != null:
+		for child in host.get_children():
+			if child is Label3D:
+				_label = child as Label3D
+				return
+	# HD-08: no authored Label3D on this interactable -- build one via the shared prompt style
+	# rather than leaving the object silent. Keeps the emissive highlight as the primary tell and
+	# adds the label alongside it, per the interact-prompt unification.
+	_label = InteractPromptScript.build(self, Vector3(0.0, 2.2, 0.0))
+	# Hub labels are always visible (they show the plain name at rest, the full prompt up close),
+	# unlike the dungeon prompt's hidden-until-near default.
+	_label.visible = true
 
 
 func _refresh_label() -> void:

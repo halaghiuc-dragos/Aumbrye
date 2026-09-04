@@ -8,7 +8,6 @@ enum SlotType {
 	NORMAL,
 	BOSS,
 	TREASURE,
-	SHOP,
 	SECRET,
 	STAIRS,
 	OBSTACLE,
@@ -67,8 +66,6 @@ func type_letter() -> String:
 			return "B"
 		SlotType.TREASURE:
 			return "T"
-		SlotType.SHOP:
-			return "$"
 		SlotType.SECRET:
 			return "?"
 		SlotType.STAIRS:

@@ -33,7 +33,8 @@
       "stamina_cost": 12,
       "startup": 0.15,
       "active": 0.12,
-      "recovery": 0.25
+      "recovery": 0.25,
+      "knockback": 1.4
     },
     {
       "damage": 14,
@@ -42,7 +43,8 @@
       "startup": 0.18,
       "active": 0.14,
       "recovery": 0.28,
-      "heavy_branch": 0
+      "heavy_branch": 0,
+      "knockback": 1.4
     },
     {
       "damage": 18,
@@ -50,7 +52,8 @@
       "stamina_cost": 20,
       "startup": 0.22,
       "active": 0.16,
-      "recovery": 0.35
+      "recovery": 0.35,
+      "knockback": 1.4
     }
   ],
   "heavy_attack": {
@@ -59,7 +62,15 @@
     "stamina_cost": 32,
     "startup": 0.35,
     "active": 0.18,
-    "recovery": 0.45
+    "recovery": 0.45,
+    "knockback": 3.2,
+    "charge": {
+      "max_time": 0.7,
+      "damage_mult": 1.6,
+      "poise_mult": 1.4,
+      "stamina_mult": 1.3,
+      "hyperarmor_at": 0.6
+    }
   },
   "heavy_attacks": [
     {
@@ -71,7 +82,8 @@
       "recovery": 0.42,
       "lunge_distance": 0.55,
       "hyperarmor": true,
-      "cancel_after": 0.7
+      "cancel_after": 0.7,
+      "knockback": 3.2
     }
   ],
   "running_attack": {
@@ -82,7 +94,8 @@
     "active": 0.14,
     "recovery": 0.32,
     "lunge_distance": 1.1,
-    "cancel_after": 0.45
+    "cancel_after": 0.45,
+    "knockback": 2.8
   },
   "rolling_attack": {
     "damage": 13,
@@ -92,7 +105,8 @@
     "active": 0.12,
     "recovery": 0.3,
     "lunge_distance": 0.5,
-    "cancel_after": 0.4
+    "cancel_after": 0.4,
+    "knockback": 1.8
   },
   "art": {
     "id": "guard_break",
@@ -105,6 +119,13 @@
     "recovery": 0.42,
     "lunge_distance": 0.5,
     "hyperarmor": true,
-    "cooldown": 5
+    "cooldown": 5,
+    "knockback": 3.5
+  },
+  "plunge_attack": {
+    "damage": 30,
+    "poise_damage": 25,
+    "stamina_cost": 20,
+    "knockback": 4.0
   }
 }

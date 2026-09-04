@@ -155,7 +155,10 @@ func build_from_source(
 	if not await _yield_step(chunked, my_gen):
 		return
 
-	_verify_doorway_alignment()
+	if _verify_doorway_alignment() and OS.is_debug_build():
+		push_error("DungeonBuilder: aborting build, doorway alignment failed in a debug build")
+		_abort_build(parent)
+		return
 	step += 1.0
 	build_progress.emit(step / TOTAL_STEPS)
 	if not await _yield_step(chunked, my_gen):
@@ -456,6 +459,13 @@ func _open_blockout_door_toward(
 	socket.position = RoomTemplateCatalogScript.socket_wall_position(
 		socket.direction, blockout.room_width * 0.5, blockout.room_depth * 0.5, lateral
 	)
+	# RM-16: a frame around the hole, not just the hole -- guarded since a floor can resync its
+	# door state (`_sync_blockout_doors_from_edges` closes then reopens every door) and this must
+	# not stack a second frame on the same socket when that happens.
+	if socket.get_node_or_null("DoorwayFrameVisual") == null:
+		DIORAMA_SKIN.build_doorway_frame(
+			socket, biome_id, CastleRoomConstants.DOOR_WIDTH, CastleRoomConstants.DOOR_HEIGHT
+		)
 
 
 ## The socket on the wall the edge names, falling back to the old centre-delta guess.
@@ -509,11 +519,14 @@ func _door_lateral(from_room: RoomTemplate, socket: DoorwaySocket, edge: Diction
 
 ## Checks that both sides of every doorway agree on where it is.
 ##
-## Purely a tripwire -- it builds nothing. The two rooms are seated flush on the lattice and the
-## opening is cut from the edge's own world position, so the two sockets should coincide exactly;
-## a nonzero span means a room's footprint and its reserved cells have drifted apart, which is the
-## one failure that silently produces doors opening onto solid rock.
-func _verify_doorway_alignment() -> void:
+## The two rooms are seated flush on the lattice and the opening is cut from the edge's own world
+## position, so the two sockets should coincide exactly; a nonzero span means a room's footprint
+## and its reserved cells have drifted apart, which is the one failure that silently produces doors
+## opening onto solid rock. Returns true if a mismatch was found, so `_build_debug_build()` can
+## abort the build rather than let it limp -- a mismatch here is exactly the failure `BG-01`'s
+## bedrock plane exists to catch, and it should never ship undetected during development.
+func _verify_doorway_alignment() -> bool:
+	var mismatch := false
 	for edge in definition.get("edges", []):
 		var kind := str(edge.get("kind", "door"))
 		# Shortcuts are the graph links the lattice could not close: the two rooms do not touch, so
@@ -533,6 +546,7 @@ func _verify_doorway_alignment() -> void:
 					% [edge.get("from", ""), edge.get("to", "")]
 				)
 			)
+			mismatch = true
 			continue
 		var offset := to_socket.global_position - from_socket.global_position
 		offset.y = 0.0
@@ -543,6 +557,8 @@ func _verify_doorway_alignment() -> void:
 					% [offset.length(), edge.get("from", ""), edge.get("to", "")]
 				)
 			)
+			mismatch = true
+	return mismatch
 
 
 ## Frees dressing that the doorway sweep found standing in an opening.
@@ -607,7 +623,23 @@ func _prop_roots(props: Node3D) -> Array[Node3D]:
 
 ## Each open doorway as `{axis_pos, along, lo, hi}` in the room's own frame: the strip of floor in
 ## front of the opening that has to stay walkable.
+## `RM-01` Trap 3: a round or octagon room's opening sits on the circle, not on the wall-centre
+## rectangle the plain-rect version below assumes -- using the radius in place of `half_w`/`half_d`
+## keeps the zone anchored to where the wall segments were actually skipped
+## (`CastleBlockout._build_curved_perimeter()`), not to a wall that no longer exists there.
 func _doorway_zones(blockout: CastleBlockout) -> Array:
+	if blockout.shape == &"round" or blockout.shape == &"octagon":
+		var radius: float = minf(blockout.room_width, blockout.room_depth) * 0.5
+		var curved_zones: Array = []
+		if blockout.door_north:
+			curved_zones.append(_zone(true, blockout.door_north_offset, -radius, -radius + DOORWAY_CLEARANCE))
+		if blockout.door_south:
+			curved_zones.append(_zone(true, blockout.door_south_offset, radius - DOORWAY_CLEARANCE, radius))
+		if blockout.door_east:
+			curved_zones.append(_zone(false, blockout.door_east_offset, radius - DOORWAY_CLEARANCE, radius))
+		if blockout.door_west:
+			curved_zones.append(_zone(false, blockout.door_west_offset, -radius, -radius + DOORWAY_CLEARANCE))
+		return curved_zones
 	var half_w := blockout.room_width * 0.5
 	var half_d := blockout.room_depth * 0.5
 	var zones: Array = []
@@ -675,10 +707,25 @@ func _build_height_transitions() -> void:
 		var blockout := lower_room.get_blockout()
 		if blockout == null:
 			continue
-		var door_mask := lower_room.door_mask_toward(higher_room)
-		var direction := _door_mask_to_vector(door_mask)
+		var socket := _socket_for_edge(lower_room, higher_room, edge)
+		if socket == null:
+			push_error(
+				(
+					"DungeonBuilder: no height-transition socket from %s toward %s"
+					% [lower_room.room_id, higher_room.room_id]
+				)
+			)
+			continue
+		# RM-04: a "down" one-way edge omits the ramp entirely -- the doorway is still cut normally,
+		# but with nothing to climb, `HEIGHT_STEP`'s 3-unit rise is tall enough on its own that a
+		# player can drop from the higher room into the lower one yet cannot get back up without a
+		# ramp. No separate collision trick needed, unlike `RoomShortcutGateContent`'s barrier.
+		if str(edge.get("oneWay", "")) == "down":
+			continue
+		var direction := _direction_to_vector(socket.direction)
+		var lateral := _door_lateral(lower_room, socket, edge)
 		var step_count := ceili(absf(from_y - to_y) / STEP_HEIGHT)
-		blockout.add_height_stairs(step_count, direction, STEP_HEIGHT)
+		blockout.add_height_stairs(step_count, direction, STEP_HEIGHT, lateral)
 
 
 func _door_mask_to_vector(door_mask: int) -> Vector2i:
@@ -694,6 +741,18 @@ func _door_mask_to_vector(door_mask: int) -> Vector2i:
 	return Vector2i.ZERO
 
 
+func _direction_to_vector(direction: CastleRoomConstants.Direction) -> Vector2i:
+	match direction:
+		CastleRoomConstants.Direction.NORTH:
+			return Vector2i(0, -1)
+		CastleRoomConstants.Direction.EAST:
+			return Vector2i(1, 0)
+		CastleRoomConstants.Direction.SOUTH:
+			return Vector2i(0, 1)
+		_:
+			return Vector2i(-1, 0)
+
+
 func _build_landmarks() -> void:
 	var landmarks: Array = definition.get("landmarks", [])
 	if landmarks.is_empty():
@@ -701,26 +760,26 @@ func _build_landmarks() -> void:
 	var root := Node3D.new()
 	root.name = "Landmarks"
 	_dungeon_root.add_child(root)
-	var accent := BiomeRegistry.get_accent_material(biome_id)
 	for hint in landmarks:
 		var pos: Dictionary = hint.get("position", {})
 		var scale_hint: Dictionary = hint.get("scale", {})
-		var mesh_instance := MeshInstance3D.new()
-		var box := BoxMesh.new()
-		box.size = Vector3(
-			float(scale_hint.get("x", 2.0)),
-			float(scale_hint.get("y", 16.0)),
-			float(scale_hint.get("z", 2.0))
-		)
-		mesh_instance.mesh = box
-		mesh_instance.position = Vector3(
+		var height := float(scale_hint.get("y", 16.0))
+		var half_width := maxf(0.5, float(scale_hint.get("x", 2.0)) * 0.5)
+		var kind := str(hint.get("kind", "landmark"))
+		var landmark: Node3D
+		match kind:
+			"boss_spire":
+				landmark = DioramaPropFactory.build_boss_spire(biome_id, height, half_width)
+			"boss_silhouette":
+				landmark = DioramaPropFactory.build_boss_silhouette(biome_id, height, half_width)
+			"orientation_spire":
+				landmark = DioramaPropFactory.build_orientation_spire(biome_id, height, half_width)
+			_:
+				landmark = DioramaPropFactory.build_orientation_spire(biome_id, height, half_width)
+		landmark.position = Vector3(
 			float(pos.get("x", 0.0)), float(pos.get("y", 0.0)), float(pos.get("z", 0.0))
 		)
-		if accent:
-			mesh_instance.material_override = accent
-		mesh_instance.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-		mesh_instance.name = str(hint.get("kind", "landmark"))
-		root.add_child(mesh_instance)
+		root.add_child(landmark)
 
 
 func _place_cover() -> void:
@@ -782,7 +841,15 @@ func _place_secret_mechanisms() -> void:
 			mechanism_node = ILLUSORY_WALL_SCENE.instantiate() as Node3D
 		if mechanism_node == null:
 			continue
-		if socket:
+		# RM-09: a lever hides best in a place the room's own lighting already draws the eye to,
+		# not tucked in a socket like the illusory wall (which has to sit in an actual doorway gap
+		# to disguise as one). Falls back to the socket when the room has no fixture to anchor on.
+		var fixture_pos: Variant = (
+			_brightest_fixture_position(props) if mechanism == "hidden_lever" else null
+		)
+		if fixture_pos != null:
+			mechanism_node.position = fixture_pos
+		elif socket:
 			mechanism_node.position = socket.position
 			mechanism_node.rotation = socket.rotation
 		if mechanism_node.has_method("configure"):
@@ -794,12 +861,38 @@ func _place_secret_mechanisms() -> void:
 			reveal_secret(secret_room_id, false)
 
 
+## The room's brightest light fixture, in the parent room's local frame -- a `Brazier` first (the
+## biggest light `DioramaRoomDressing` builds), falling back to any wall/ceiling torch. `null` when
+## the room's dressing has nothing of the kind, so the caller falls back to the doorway socket.
+func _brightest_fixture_position(props: Node3D) -> Variant:
+	var dressing := props.get_node_or_null("DioramaDressing")
+	if dressing == null:
+		return null
+	var torch: Node3D = null
+	for child in dressing.get_children():
+		var node := child as Node3D
+		if node == null:
+			continue
+		if node.name.contains("Brazier"):
+			return node.position
+		if torch == null and node.name.contains("Torch"):
+			torch = node
+	if torch != null:
+		return torch.position
+	return null
+
+
 func reveal_secret(secret_room_id: String, set_flag: bool = true) -> void:
 	var secret_room := get_room(secret_room_id)
 	if secret_room == null:
 		return
 	if set_flag:
 		WorldState.set_flag(WorldFlags.secret_opened(secret_room_id), true)
+		# RM-09: a run-level counter for the results screen. Only on a genuine new reveal -- not
+		# when a floor reload replays an already-opened secret from its persisted flag (that call
+		# passes `set_flag = false`), which would otherwise recount the same secret every load.
+		var found := int(WorldState.get_flag(WorldFlags.secrets_found_this_floor(), 0))
+		WorldState.set_flag(WorldFlags.secrets_found_this_floor(), found + 1)
 	for edge in definition.get("edges", []):
 		if str(edge.get("kind", "")) != "secret":
 			continue
@@ -953,6 +1046,11 @@ func _spawn_enemy(placement: Dictionary, index: int) -> void:
 		return
 	if enemy.has_method("set_catalog_id"):
 		enemy.call("set_catalog_id", enemy_id)
+	# RM-08: set before `add_child()` so `_ready()` (which reads it) sees the trigger already
+	# configured, instead of enemy briefly existing idle-and-visible for a frame.
+	var trigger := str(placement.get("trigger", "idle"))
+	if trigger != "idle" and enemy.has_method("set_spawn_trigger"):
+		enemy.call("set_spawn_trigger", trigger, float(placement.get("triggerDelay", 2.0)))
 	enemy.position = _sample_placement_offset(room, placement)
 	room.add_child(enemy)
 	if enemy is CharacterBody3D:
@@ -968,6 +1066,21 @@ func _spawn_enemy(placement: Dictionary, index: int) -> void:
 	_enemy_by_id[placement_key] = enemy
 	if enemy.has_signal("enemy_died"):
 		enemy.enemy_died.connect(_on_tracked_enemy_died.bind(placement_key))
+
+
+## RM-08: called by `castle_run.gd:_notify_room()` on room entry. Enemies not marked `ambush` (or
+## already woken) are unaffected -- `wake_ambush()` on an idle enemy does nothing since `_ambush_hidden`
+## was never set.
+func wake_ambushers(room_id: String) -> void:
+	if room_id == "":
+		return
+	var prefix := "%s:" % room_id
+	for placement_key in _enemy_by_id:
+		if not str(placement_key).begins_with(prefix):
+			continue
+		var enemy: Node = _enemy_by_id[placement_key]
+		if enemy != null and is_instance_valid(enemy) and enemy.has_method("wake_ambush"):
+			enemy.call("wake_ambush")
 
 
 func _place_loot(chunked: bool, my_gen: int) -> void:
@@ -1012,6 +1125,7 @@ func _place_room_content() -> void:
 	RoomContentSpawnerScript.spawn_locks(self, definition)
 	RoomContentSpawnerScript.spawn_puzzle_gates(self, definition)
 	RoomContentSpawnerScript.spawn_shortcut_gates(self, definition)
+	RoomContentSpawnerScript.spawn_arena_gates(self, definition)
 
 
 func _place_traps() -> void:
@@ -1349,6 +1463,10 @@ func _dispatch_room_clear(placement_id: String) -> void:
 			continue
 		return
 	_cleared_rooms[room_id] = true
+	# RM-07: persisted, not just the signal -- an arena lock-in gate reopens by listening for this
+	# flag (see `room_arena_gate_content.gd`), and a save resumed inside an already-cleared arena
+	# has to come back open rather than sealed, which a signal alone cannot survive a reload for.
+	WorldState.set_flag(WorldFlags.room_cleared(room_id), true)
 	room_cleared.emit(room_id)
 	if CombatEvents and _player:
 		CombatEvents.dispatch(CombatEvents.ON_ROOM_CLEAR, {"actor": _player})

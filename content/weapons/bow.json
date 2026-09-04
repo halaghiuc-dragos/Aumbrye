@@ -33,7 +33,8 @@
       "stamina_cost": 8,
       "startup": 0.12,
       "active": 0.08,
-      "recovery": 0.2
+      "recovery": 0.2,
+      "knockback": 1.0
     }
   ],
   "heavy_attack": {
@@ -42,7 +43,8 @@
     "stamina_cost": 18,
     "startup": 0.05,
     "active": 0.1,
-    "recovery": 0.35
+    "recovery": 0.35,
+    "knockback": 2.5
   },
   "running_attack": {
     "damage": 9,
@@ -52,7 +54,8 @@
     "active": 0.08,
     "recovery": 0.22,
     "lunge_distance": 0.7,
-    "cancel_after": 0.35
+    "cancel_after": 0.35,
+    "knockback": 1.5
   },
   "rolling_attack": {
     "damage": 8,
@@ -62,7 +65,8 @@
     "active": 0.08,
     "recovery": 0.2,
     "lunge_distance": 0.3,
-    "cancel_after": 0.35
+    "cancel_after": 0.35,
+    "knockback": 1.0
   },
   "art": {
     "id": "piercing_shot",
@@ -75,6 +79,7 @@
     "recovery": 0.4,
     "lunge_distance": 0,
     "hyperarmor": false,
-    "cooldown": 7
+    "cooldown": 7,
+    "knockback": 2.0
   }
 }

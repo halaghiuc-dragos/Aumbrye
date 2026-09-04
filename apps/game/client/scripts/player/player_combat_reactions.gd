@@ -23,10 +23,13 @@ const DEATH_DESATURATE_SATURATION := 0.25
 signal stagger_started
 signal stagger_ended
 signal player_died
+signal grab_started
+signal grab_ended
 
 var is_staggered := false
 var is_dead := false
 var is_guard_broken := false
+var is_grabbed := false
 var stagger_direction := Vector3.ZERO
 var stagger_duration := 0.0
 
@@ -47,12 +50,17 @@ var _last_hit_direction := Vector3.ZERO
 var _wakeup_iframes_active := false
 var _death_sequence_running := false
 var _saved_screen_saturation := -1.0
+var _grab_timer := 0.0
+var _grab_pending_damage := 0.0
+var _grab_source: Node = null
+var _knockback: Knockback
 
 
 func _ready() -> void:
 	_body = get_parent() as CharacterBody3D
 	_health = _body.get_node_or_null("Health") as Health
 	_poise = _body.get_node_or_null("Poise") as Poise
+	_knockback = _body.get_node_or_null("Knockback") as Knockback
 	_guard = _body.get_node_or_null("Guard") as Guard
 	_dodge = _body.get_node_or_null("Dodge") as Dodge
 	_stamina = _body.get_node_or_null("Stamina") as Stamina
@@ -77,6 +85,10 @@ func _ready() -> void:
 
 func _physics_process(delta: float) -> void:
 	_sync_guard_broken_mirror()
+	if is_grabbed and _grab_timer > 0.0:
+		_grab_timer -= delta
+		if _grab_timer <= 0.0:
+			_end_grab()
 	if is_staggered and _stagger_timer > 0.0:
 		_stagger_timer -= delta
 		_update_stagger_iframes()
@@ -88,11 +100,11 @@ func _physics_process(delta: float) -> void:
 
 
 func can_act() -> bool:
-	return not is_dead and not is_staggered
+	return not is_dead and not is_staggered and not is_grabbed
 
 
 func is_movement_locked() -> bool:
-	if is_dead or is_staggered:
+	if is_dead or is_staggered or is_grabbed:
 		return true
 	if _dodge and _dodge.locks_movement():
 		return true
@@ -147,6 +159,9 @@ func reset_combat_state() -> void:
 		director.call("revive")
 
 
+## `PH-02`: a stagger used to be a timer and a clip -- the body never moved. The impulse is scaled
+## off the poise damage that caused it, so a poise break from a heavy attack visibly rocks the
+## victim and a bare-minimum break barely nudges them.
 func _apply_stagger(duration: float, direction: Vector3 = Vector3.ZERO) -> void:
 	is_staggered = true
 	_stagger_timer = duration
@@ -154,6 +169,8 @@ func _apply_stagger(duration: float, direction: Vector3 = Vector3.ZERO) -> void:
 	stagger_direction = direction
 	stagger_started.emit()
 	_flash_stagger_feedback()
+	if _knockback and direction.length_squared() > 0.0001:
+		_knockback.apply(direction, 0.8 * _last_poise_damage / STAGGER_POISE_HIGH)
 
 
 func _end_stagger() -> void:
@@ -162,6 +179,30 @@ func _end_stagger() -> void:
 	_clear_wakeup_iframes()
 	stagger_ended.emit()
 	_on_stagger_ended()
+
+
+## `EN-02`: a `grab` attack bypasses poise entirely -- it is answered by not being caught, not by
+## blocking or parrying, so nothing about it should read as a poise exchange. A fixed-duration lock
+## with no i-frames, damage applied only once the lock ends, so a dodge or heal used *during* the
+## grab cannot cheat the hit the way an i-framed stagger could.
+func apply_grab(damage: float, source: Node, duration: float) -> void:
+	if is_dead:
+		return
+	is_grabbed = true
+	_grab_timer = duration
+	_grab_pending_damage = damage
+	_grab_source = source
+	grab_started.emit()
+
+
+func _end_grab() -> void:
+	is_grabbed = false
+	_grab_timer = 0.0
+	if _health and _grab_pending_damage > 0.0 and not _health.is_dead():
+		_health.take_damage(_grab_pending_damage)
+	_grab_pending_damage = 0.0
+	_grab_source = null
+	grab_ended.emit()
 
 
 func _cancel_stagger() -> void:
@@ -232,6 +273,8 @@ func _on_died() -> void:
 	_death_sequence_running = true
 	_break_player_lock()
 	is_dead = true
+	if CombatEvents:
+		CombatEvents.dispatch(CombatEvents.ON_DEATH, {"actor": _body})
 	_run_death_sequence()
 
 

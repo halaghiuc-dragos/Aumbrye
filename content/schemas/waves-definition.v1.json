@@ -24,6 +24,10 @@
     "intermissionEvery": { "type": "integer", "minimum": 1 },
     "bossEvery": { "type": "integer", "minimum": 1 },
     "cashOutFromWave": { "type": "integer", "minimum": 1 },
+    "arenaStates": {
+      "type": "array",
+      "items": { "type": "string", "enum": ["open", "dimmed", "hazard", "fog"] }
+    },
     "milestones": {
       "type": "array",
       "items": { "type": "integer", "minimum": 1 }

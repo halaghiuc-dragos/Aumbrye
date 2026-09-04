@@ -35,7 +35,8 @@
       "active": 0.08,
       "recovery": 0.12,
       "status": "bleed",
-      "lunge_distance": 0.25
+      "lunge_distance": 0.25,
+      "knockback": 1.2
     },
     {
       "damage": 8,
@@ -45,7 +46,8 @@
       "active": 0.08,
       "recovery": 0.14,
       "status": "bleed",
-      "lunge_distance": 0.28
+      "lunge_distance": 0.28,
+      "knockback": 1.2
     },
     {
       "damage": 10,
@@ -57,7 +59,8 @@
       "status": "bleed",
       "status_stacks": 2,
       "lunge_distance": 0.32,
-      "heavy_branch": 0
+      "heavy_branch": 0,
+      "knockback": 1.2
     },
     {
       "damage": 12,
@@ -68,7 +71,8 @@
       "recovery": 0.18,
       "status": "bleed",
       "status_stacks": 2,
-      "lunge_distance": 0.34
+      "lunge_distance": 0.34,
+      "knockback": 1.2
     }
   ],
   "heavy_attack": {
@@ -80,7 +84,8 @@
     "recovery": 0.22,
     "status": "bleed",
     "status_stacks": 3,
-    "lunge_distance": 0.4
+    "lunge_distance": 0.4,
+    "knockback": 3.0
   },
   "heavy_attacks": [
     {
@@ -93,7 +98,8 @@
       "status": "bleed",
       "status_stacks": 3,
       "lunge_distance": 0.45,
-      "cancel_after": 0.4
+      "cancel_after": 0.4,
+      "knockback": 3.0
     }
   ],
   "running_attack": {
@@ -105,7 +111,8 @@
     "recovery": 0.16,
     "status": "bleed",
     "lunge_distance": 0.9,
-    "cancel_after": 0.3
+    "cancel_after": 0.3,
+    "knockback": 2.4
   },
   "rolling_attack": {
     "damage": 8,
@@ -115,8 +122,9 @@
     "active": 0.08,
     "recovery": 0.14,
     "status": "bleed",
-    "lunge_distance": 0.4,
-    "cancel_after": 0.3
+    "lunge_distance": 0.85,
+    "cancel_after": 0.3,
+    "knockback": 1.4
   },
   "art": {
     "id": "shadowstep",
@@ -129,6 +137,14 @@
     "recovery": 0.35,
     "lunge_distance": 0.6,
     "hyperarmor": false,
-    "cooldown": 7
-  }
+    "cooldown": 7,
+    "knockback": 2.5
+  },
+  "plunge_attack": {
+    "damage": 24,
+    "poise_damage": 15,
+    "stamina_cost": 16,
+    "knockback": 3.0
+  },
+  "backstab_multiplier": 2.2
 }

@@ -1874,8 +1874,10 @@ static func build_additive_library(rest_pose: Dictionary) -> AnimationLibrary:
 	return library
 
 
+## `AN-01`: additive clips (head_look and friends) stay continuous -- a stepped head-track reads
+## as a glitch, not a pixel-art choice.
 static func _compile_additive(spec: Dictionary, rest_pose: Dictionary) -> Animation:
-	return _compile(spec, rest_pose, "", 1.0)
+	return _compile(spec, rest_pose, "", 1.0, {}, false)
 
 
 static func _authored_has_footstep_markers(library: AnimationLibrary) -> bool:
@@ -2075,7 +2077,8 @@ static func _compile(
 	rest_pose: Dictionary,
 	events_path: String,
 	speed: float,
-	phase_map: Dictionary = {}
+	phase_map: Dictionary = {},
+	resample: bool = true
 ) -> Animation:
 	var anim := Animation.new()
 	var length: float = float(
@@ -2098,7 +2101,8 @@ static func _compile(
 				"%s:position" % node_path,
 				channels["pos"],
 				rest.get("position", Vector3.ZERO),
-				phase_map
+				phase_map,
+				resample
 			)
 			wrote_any = true
 		if channels.has("rot"):
@@ -2107,7 +2111,8 @@ static func _compile(
 				"%s:rotation" % node_path,
 				channels["rot"],
 				rest.get("rotation", Vector3.ZERO),
-				phase_map
+				phase_map,
+				resample
 			)
 			wrote_any = true
 
@@ -2124,17 +2129,156 @@ static func _compile(
 	return anim
 
 
+## `AN-01`: characters are voxel meshes seen through a pixel post-process, but they moved on a
+## continuous curve -- the one thing that gave away "this is 3D" every single frame, on the
+## character the player looks at 100% of the time. `PixelDioramaSettings.animation_steps_per_second`
+## (0 = off) resamples the authored linear curve onto a fixed grid and keys it with
+## `INTERPOLATION_NEAREST`, so the *pose* is still the one the animator authored, it just holds
+## instead of tweening between poses.
 static func _add_vector_track(
-	anim: Animation, path: String, keys: Array, rest_value: Vector3, phase_map: Dictionary
+	anim: Animation,
+	path: String,
+	keys_in: Array,
+	rest_value: Vector3,
+	phase_map: Dictionary,
+	resample: bool = true
 ) -> void:
 	var track := anim.add_track(Animation.TYPE_VALUE)
 	anim.track_set_path(track, NodePath(path))
-	anim.track_set_interpolation_type(track, Animation.INTERPOLATION_LINEAR)
-	anim.value_track_set_update_mode(track, Animation.UPDATE_CONTINUOUS)
+	var keys := keys_in
+	if not phase_map.is_empty():
+		keys = _shape_attack_keys(
+			keys_in, float(phase_map["startup_end"]), float(phase_map["active_end"])
+		)
+	var steps_per_second := PixelDioramaSettings.animation_steps_per_second
+	if resample and steps_per_second > 0.0:
+		anim.track_set_interpolation_type(track, Animation.INTERPOLATION_NEAREST)
+		anim.value_track_set_update_mode(track, Animation.UPDATE_DISCRETE)
+		_insert_stepped_keys(anim, track, keys, rest_value, phase_map, steps_per_second)
+	else:
+		anim.track_set_interpolation_type(track, Animation.INTERPOLATION_LINEAR)
+		anim.value_track_set_update_mode(track, Animation.UPDATE_CONTINUOUS)
+		for key in keys:
+			var time := _remap_time(float(key[0]), phase_map)
+			var offset := Vector3(float(key[1]), float(key[2]), float(key[3]))
+			anim.track_insert_key(track, time, rest_value + offset)
+
+
+## `AN-02`: an attack clip's authored curve gave the wind-back a single key at the end of
+## startup, so the limb travelled there linearly across the *whole* startup with no snap -- the
+## swing read as a smooth sweep rather than a strike. This reshapes any authored attack track
+## (worked out generically from whichever keys the animator already placed, not re-authored by
+## hand per track) onto the six-beat structure that reads as a strike: a small counter-move, the
+## wound pose arriving early and holding, a follow-through that overshoots rest, then a settle.
+## `startup_end`/`active_end` themselves are untouched (the Trap: `WeaponController` scales the
+## clip to the attack's real phase durations against those exact boundaries) -- only the shape of
+## the curve between them changes.
+##
+## Proportions (see PH-02's sibling plan item, "Solution"): anticipation lands at 15% of startup,
+## the wound pose holds from 85% of startup to startup itself, the follow-through overshoots the
+## authored swing peak by 20%, keyed at `active_end`.
+static func _shape_attack_keys(keys: Array, startup_end: float, active_end: float) -> Array:
+	if keys.size() < 2 or startup_end <= 0.0:
+		return keys
+	var start_key: Array = keys[0]
+	var end_key: Array = keys[keys.size() - 1]
+	var wound_key: Array = start_key
+	var wound_dist := INF
+	var peak_key: Array = start_key
+	var peak_mag := -1.0
+	for key in keys:
+		var t := float(key[0])
+		var dist := absf(t - startup_end)
+		if dist < wound_dist:
+			wound_dist = dist
+			wound_key = key
+		if t > startup_end and t <= active_end:
+			var mag := Vector3(float(key[1]), float(key[2]), float(key[3])).length()
+			if mag > peak_mag:
+				peak_mag = mag
+				peak_key = key
+	if peak_mag < 0.0:
+		peak_key = wound_key
+	var start_offset := Vector3(float(start_key[1]), float(start_key[2]), float(start_key[3]))
+	var end_offset := Vector3(float(end_key[1]), float(end_key[2]), float(end_key[3]))
+	var wound_offset := Vector3(float(wound_key[1]), float(wound_key[2]), float(wound_key[3]))
+	var peak_offset := Vector3(float(peak_key[1]), float(peak_key[2]), float(peak_key[3]))
+	var counter_offset := start_offset - wound_offset * ANTICIPATION_COUNTER_FRACTION
+	var overshoot_offset := peak_offset * FOLLOW_THROUGH_OVERSHOOT_MULT
+	return [
+		_key_from(0.0, start_offset),
+		_key_from(startup_end * ANTICIPATION_TIME_FRACTION, counter_offset),
+		_key_from(startup_end * WOUND_POSE_TIME_FRACTION, wound_offset),
+		_key_from(startup_end, wound_offset),
+		_key_from(active_end, overshoot_offset),
+		_key_from(1.0, end_offset),
+	]
+
+
+const ANTICIPATION_TIME_FRACTION := 0.15
+const WOUND_POSE_TIME_FRACTION := 0.85
+const ANTICIPATION_COUNTER_FRACTION := 0.18
+const FOLLOW_THROUGH_OVERSHOOT_MULT := 1.2
+
+
+static func _key_from(time: float, offset: Vector3) -> Array:
+	return [time, offset.x, offset.y, offset.z]
+
+
+## Resamples the authored (continuous) curve onto a fixed grid of `1.0 / steps_per_second` and
+## inserts one key per grid step -- nearest-interpolation on the original sparse keys would pop
+## badly, since the authored keys are placed at whatever times read well, not at even intervals.
+static func _insert_stepped_keys(
+	anim: Animation,
+	track: int,
+	keys: Array,
+	rest_value: Vector3,
+	phase_map: Dictionary,
+	steps_per_second: float
+) -> void:
+	if keys.is_empty():
+		return
+	var remapped: Array = []
 	for key in keys:
 		var time := _remap_time(float(key[0]), phase_map)
 		var offset := Vector3(float(key[1]), float(key[2]), float(key[3]))
-		anim.track_insert_key(track, time, rest_value + offset)
+		remapped.append([time, rest_value + offset])
+	remapped.sort_custom(func(a, b): return a[0] < b[0])
+	var length: float = anim.length
+	var step := 1.0 / steps_per_second
+	var inserted := {}
+	var t := 0.0
+	while t < length + 0.0001:
+		var step_time := roundi(t / step) * step
+		if not inserted.has(step_time):
+			inserted[step_time] = true
+			anim.track_insert_key(track, step_time, _evaluate_linear(remapped, step_time))
+		t += step
+	# The final authored key must land exactly -- otherwise a clip that does not divide evenly
+	# into the step size settles a fraction of a step short of its resting pose.
+	var last_time: float = remapped[remapped.size() - 1][0]
+	if not inserted.has(last_time):
+		anim.track_insert_key(track, last_time, remapped[remapped.size() - 1][1])
+
+
+static func _evaluate_linear(sorted_keys: Array, time: float) -> Vector3:
+	if sorted_keys.size() == 1:
+		return sorted_keys[0][1]
+	if time <= sorted_keys[0][0]:
+		return sorted_keys[0][1]
+	var last: Array = sorted_keys[sorted_keys.size() - 1]
+	if time >= last[0]:
+		return last[1]
+	for i in range(sorted_keys.size() - 1):
+		var a: Array = sorted_keys[i]
+		var b: Array = sorted_keys[i + 1]
+		if time >= a[0] and time <= b[0]:
+			var span: float = b[0] - a[0]
+			if span <= 0.0001:
+				return b[1]
+			var ratio: float = (time - a[0]) / span
+			return (a[1] as Vector3).lerp(b[1], ratio)
+	return last[1]
 
 
 static func _remap_time(normalised: float, phase_map: Dictionary) -> float:

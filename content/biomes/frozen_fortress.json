@@ -4,8 +4,8 @@
   "templatePrefix": "frozen",
   "assetFolder": "frozen",
   "roomCount": {
-    "min": 22,
-    "max": 28
+    "min": 20,
+    "max": 24
   },
   "roomTemplateIds": [
     "frozen_entrance",
@@ -17,7 +17,10 @@
     "frozen_secret",
     "frozen_arena",
     "frozen_boss",
-    "frozen_puzzle"
+    "frozen_puzzle",
+    "frozen_corridor_long",
+    "frozen_corridor_bend",
+    "frozen_balcony"
   ],
   "materials": {
     "floor": "frozen",
@@ -53,7 +56,11 @@
     "rubble": [
       "res://scenes/props/frozen/rubble_a.tscn",
       "res://scenes/props/frozen/rubble_b.tscn"
-    ]
+    ],
+    "banner": "res://scenes/props/frozen/banner.tscn",
+    "statue": "res://scenes/props/frozen/statue.tscn",
+    "altar": "res://scenes/props/frozen/altar.tscn",
+    "debrisPile": "res://scenes/props/frozen/debris_pile.tscn"
   },
   "enemyPool": [
     {
@@ -204,13 +211,15 @@
   "generator": {
     "bossMinDistance": 4,
     "minDeadEnds": 4,
-    "branchMaxDepth": 8,
+    "branchMaxDepth": 4,
     "maxNeighborCount": 4,
-    "loopBudget": 4,
+    "loopBudget": 2,
     "maxGenerationAttempts": 256,
     "maxWalkAttempts": 8192,
     "allow2x2Blocks": true,
-    "fillBoundingBox": true
+    "fillBoundingBox": true,
+    "corridorRatio": 0.3,
+    "floorSilhouette": "spine"
   },
   "lootTablePath": "content/loot/tables/frozen_fortress.json"
 }

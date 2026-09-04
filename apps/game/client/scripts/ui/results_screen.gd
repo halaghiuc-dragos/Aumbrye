@@ -12,6 +12,7 @@ const ItemIconAtlasScript := preload("res://scripts/ui/item_icon_atlas.gd")
 @onready var _loot_label: Label = $Panel/Margin/VBox/LootLabel
 @onready var _xp_label: Label = $Panel/Margin/VBox/XpLabel
 @onready var _rules_label: Label = $Panel/Margin/VBox/RulesLabel
+var _secrets_label: Label
 var _run_report_label: Label
 var _run_report_frame: PanelContainer
 var _seed_button: Button
@@ -24,6 +25,8 @@ var _cloud_retry_button: Button
 var _leaderboard_label: Label
 var _returning := false
 var _loot_row: HBoxContainer
+var _tier_ladder_frame: PanelContainer
+var _tier_ladder_grid: GridContainer
 
 
 func _ready() -> void:
@@ -57,6 +60,13 @@ func _ensure_ui_nodes() -> void:
 		_rules_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		vbox.add_child(_rules_label)
 		vbox.move_child(_rules_label, vbox.get_child_count() - 1)
+	if not has_node("Panel/Margin/VBox/SecretsLabel"):
+		_secrets_label = Label.new()
+		_secrets_label.name = "SecretsLabel"
+		vbox.add_child(_secrets_label)
+		vbox.move_child(_secrets_label, vbox.get_child_count() - 1)
+	else:
+		_secrets_label = $Panel/Margin/VBox/SecretsLabel
 	if _cloud_indicator == null:
 		_cloud_indicator = Label.new()
 		_cloud_indicator.name = "CloudIndicator"
@@ -115,12 +125,19 @@ func _display_from_run_flow() -> void:
 		_loot_label.text = tr("RESULTS_LOOT_EMPTY")
 		_xp_label.text = tr("RESULTS_XP_PENDING")
 		_rules_label.text = ""
+		if _secrets_label:
+			_secrets_label.visible = false
 	else:
 		var total_secs := int(results.get("time_seconds", 0.0))
 		var mins := int(total_secs / 60.0)
 		var secs := total_secs % 60
 		_time_label.text = tr("RESULTS_TIME").format({"time": "%d:%02d" % [mins, secs]})
 		_kills_label.text = tr("RESULTS_KILLS").format({"kills": int(results.get("kills", 0))})
+		if _secrets_label:
+			var secrets_found := int(results.get("secrets_found", 0))
+			_secrets_label.visible = secrets_found > 0
+			if secrets_found > 0:
+				_secrets_label.text = tr("RESULTS_SECRETS").format({"count": secrets_found})
 		var loot: Array = results.get("loot", [])
 		if results.get("loot_kept", true):
 			_loot_label.text = tr("RESULTS_LOOT_KEPT").format({"items": ", ".join(loot) if loot.size() > 0 else tr("RESULTS_LOOT_NONE")})
@@ -141,6 +158,7 @@ func _display_from_run_flow() -> void:
 		if _run_report_frame:
 			_run_report_frame.visible = _run_report_label.text != ""
 		_refresh_seed_button(results)
+		_refresh_tier_ladder(results)
 	_hint_label.text = tr("RESULTS_RETURN_HINT")
 
 
@@ -160,6 +178,48 @@ func _ensure_run_report_label() -> void:
 	if _rules_label and _rules_label.get_parent() == vbox:
 		vbox.move_child(report_frame, _rules_label.get_index() + 1)
 	_run_report_frame = report_frame
+
+
+## MD-04: once the run starts, the tier ladder is gone -- shown again here with the rung this run
+## actually reached marked, so a mid-run climb resolves into something the player can see.
+func _ensure_tier_ladder_row() -> void:
+	if _tier_ladder_frame != null and is_instance_valid(_tier_ladder_frame):
+		return
+	var vbox: VBoxContainer = $Panel/Margin/VBox
+	_tier_ladder_frame = GameUISkinScript.make_pixel_frame(tr("RESULTS_TIER_LADDER_TITLE"))
+	_tier_ladder_frame.name = "TierLadderFrame"
+	_tier_ladder_grid = GridContainer.new()
+	_tier_ladder_grid.name = "TierLadderGrid"
+	_tier_ladder_grid.columns = 5
+	GameUISkinScript.pixel_frame_content(_tier_ladder_frame).add_child(_tier_ladder_grid)
+	_tier_ladder_frame.visible = false
+	vbox.add_child(_tier_ladder_frame)
+	if _run_report_frame and _run_report_frame.get_parent() == vbox:
+		vbox.move_child(_tier_ladder_frame, _run_report_frame.get_index() + 1)
+
+
+func _refresh_tier_ladder(results: Dictionary) -> void:
+	if str(results.get("run_mode", "")) != "castle":
+		if _tier_ladder_frame:
+			_tier_ladder_frame.visible = false
+		return
+	var dungeon_id := str(results.get("dungeon_id", ""))
+	if dungeon_id == "":
+		return
+	_ensure_tier_ladder_row()
+	for child in _tier_ladder_grid.get_children():
+		child.queue_free()
+	var reached_tier := int(results.get("difficulty_tier", 1))
+	for row in DungeonTierService.get_difficulty_ladder(dungeon_id):
+		var tier_num := int(row.get("tier", 1))
+		var btn := GameUISkinScript.make_button(str(row.get("label", "Tier %d" % tier_num)))
+		btn.disabled = true
+		var state := StringName(str(row.get("state", "locked")))
+		if tier_num == reached_tier:
+			state = &"current"
+		GameUISkinScript.style_ladder_button(btn, state)
+		_tier_ladder_grid.add_child(btn)
+	_tier_ladder_frame.visible = true
 
 
 func _refresh_seed_button(results: Dictionary) -> void:

@@ -24,8 +24,9 @@
       "attack_damage": 31,
       "attack_poise_damage": 12,
       "max_range": 2.2,
-      "telegraph_radius": 1.65,
-      "telegraph_shape": "circle"
+      "telegraph_shape": "circle",
+      "attackClass": "parryable",
+      "knockback": 2.0
     }
   ]
 }

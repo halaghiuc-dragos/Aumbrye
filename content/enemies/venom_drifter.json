@@ -39,11 +39,12 @@
       "attack_damage": 22,
       "attack_poise_damage": 13,
       "max_range": 2,
-      "telegraph_radius": 1.47,
       "telegraph_shape": "circle",
       "damage_type": "poison",
       "status_on_hit": "poison",
-      "status_stacks_on_hit": 1
+      "status_stacks_on_hit": 1,
+      "attackClass": "blockable",
+      "knockback": 2.0
     },
     {
       "id": "lunge",
@@ -56,11 +57,12 @@
       "attack_damage": 35,
       "attack_poise_damage": 21,
       "max_range": 3.99,
-      "telegraph_radius": 2.1,
       "telegraph_shape": "line",
       "damage_type": "poison",
       "status_on_hit": "poison",
-      "status_stacks_on_hit": 1
+      "status_stacks_on_hit": 1,
+      "attackClass": "parryable",
+      "knockback": 2.5
     },
     {
       "id": "worry",
@@ -73,7 +75,6 @@
       "attack_damage": 21,
       "attack_poise_damage": 12,
       "max_range": 2.1,
-      "telegraph_radius": 1.37,
       "telegraph_shape": "circle",
       "damage_type": "poison",
       "status_on_hit": "poison",
@@ -90,11 +91,12 @@
           "attack_damage": 15,
           "attack_poise_damage": 12,
           "max_range": 2.1,
-          "telegraph_radius": 1.37,
           "telegraph_shape": "circle",
           "damage_type": "poison",
           "status_on_hit": "poison",
-          "status_stacks_on_hit": 1
+          "status_stacks_on_hit": 1,
+          "attackClass": "blockable",
+          "knockback": 2.0
         },
         {
           "id": "worry_three",
@@ -107,13 +109,16 @@
           "attack_damage": 19,
           "attack_poise_damage": 16,
           "max_range": 2.1,
-          "telegraph_radius": 1.47,
           "telegraph_shape": "circle",
           "damage_type": "poison",
           "status_on_hit": "poison",
-          "status_stacks_on_hit": 1
+          "status_stacks_on_hit": 1,
+          "attackClass": "blockable",
+          "knockback": 2.5
         }
-      ]
+      ],
+      "attackClass": "blockable",
+      "knockback": 2.0
     }
   ]
 }

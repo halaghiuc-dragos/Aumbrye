@@ -507,7 +507,15 @@ static func _straight_line_layout(
 	var cursor := 0
 	var previous_id := ""
 	for layout_id in critical:
+		# The run always steps east, so every room after the first needs its incoming door rotated
+		# to face west (back toward the room before it) -- a hardcoded yaw=0.0 here left single- or
+		# limited-door rooms (e.g. boss) facing whichever way their template's primary door happens
+		# to point, which is only ever correct by accident.
 		var yaw := 0.0
+		if previous_id != "":
+			yaw = RoomTemplateCatalogScript.yaw_rad_for_incoming_door(
+				str(rooms_by_layout[layout_id]["template_id"]), RoomGraphSlot.DOOR_WEST
+			)
 		var size := footprint_cells(str(rooms_by_layout[layout_id]["template_id"]), yaw)
 		var origin := Vector2i(cursor, 0)
 		occupancy.reserve(origin, size, layout_id)

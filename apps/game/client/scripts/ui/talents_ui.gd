@@ -40,6 +40,9 @@ func _build_ui() -> void:
 	GameUISkinScript.style_body_label(_detail_label)
 	vbox.add_child(_detail_label)
 	MenuShellScript.add_hint(vbox, tr("TALENTS_HINT"))
+	# HD-03: `build_modal()` only styles the panel shell -- the pixel-filter sweep needs to run
+	# after the node list and labels exist.
+	GameUISkinScript.apply_pixel_theme(self)
 
 
 func is_open() -> bool:

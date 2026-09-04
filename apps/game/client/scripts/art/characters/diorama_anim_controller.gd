@@ -307,6 +307,50 @@ func set_blocking(holding: bool) -> void:
 		_resume_locomotion()
 
 
+const IMPACT_RECOIL_DURATION := 0.09
+const IMPACT_RECOIL_ARM_OFFSET := Vector3(0.32, 0.0, 0.5)
+const IMPACT_RECOIL_TORSO_OFFSET := Vector3(-0.08, 0.0, 0.0)
+
+var _recoil_tween: Tween
+
+
+## `AN-03`: connecting used to do nothing to the *attacker's* pose -- the weapon passed through the
+## target and the swing just resumed once hit-stop released. `strength` comes straight from
+## `HitFeedback`'s `ImpactClass` (glancing 0.3, solid 0.7, critical 1.0), which `AnimationPlayer`
+## has no built-in way to scale a single played clip by -- there is no per-call blend-amount
+## parameter without an `AnimationTree`. This nudges `ArmR`/`Torso` directly instead and tweens
+## them back, timed to land inside the hit-stop window: the main clip is itself nearly frozen there
+## (`speed_scale` 0.05, see `HitFeedback._freeze_attacker()`), so the nudge reads as the swing
+## hitching against the target rather than fighting the main pose for the property.
+func play_impact_recoil(strength: float) -> void:
+	if _visual == null or not is_bound():
+		return
+	var arm := _resolve_part("ArmR")
+	var torso := _resolve_part("Torso")
+	if arm == null and torso == null:
+		return
+	if _recoil_tween and _recoil_tween.is_valid():
+		_recoil_tween.kill()
+	_recoil_tween = _visual.create_tween()
+	_recoil_tween.set_parallel(true)
+	var amount := clampf(strength, 0.0, 1.0)
+	if arm:
+		var arm_rest: Vector3 = _rest_pose.get("ArmR", {}).get("rotation", arm.rotation)
+		arm.rotation = arm_rest + IMPACT_RECOIL_ARM_OFFSET * amount
+		_recoil_tween.tween_property(arm, "rotation", arm_rest, IMPACT_RECOIL_DURATION)
+	if torso:
+		var torso_rest: Vector3 = _rest_pose.get("Torso", {}).get("rotation", torso.rotation)
+		torso.rotation = torso_rest + IMPACT_RECOIL_TORSO_OFFSET * amount
+		_recoil_tween.tween_property(torso, "rotation", torso_rest, IMPACT_RECOIL_DURATION)
+
+
+func _resolve_part(part_name: String) -> Node3D:
+	if _visual == null or not _rest_pose.has(part_name):
+		return null
+	var data: Dictionary = _rest_pose[part_name]
+	return _visual.get_node_or_null(NodePath(data.get("path", part_name))) as Node3D
+
+
 func play_block_impact() -> void:
 	if not _blocking or not is_bound():
 		return
@@ -482,6 +526,88 @@ func play_attack(
 
 func play_heavy_attack(startup: float, active: float, recovery: float) -> void:
 	play_attack(startup, active, recovery, AnimLibrary.heavy_clip_for(_weapon_archetype))
+
+
+## `AN-04`: the bow already had a draw state (`AttackPhase.DRAWING`) with no held pose -- the
+## character just stood in an idle while charge accumulated. `normalized_time` is a 0..1 fraction
+## of the *played* clip's own (phase-scaled) length; freezing at the `AN-02` wound pose (roughly
+## `startup / (startup+active+recovery)`) is deliberate -- that pose is already the frame a charge
+## should hold on. Plays the clip exactly like `play_attack()`, then stops advancing once playback
+## would reach `normalized_time`, via a one-shot timer rather than a per-frame poll (this
+## controller has no existing `_process`, and one hold check a charge does not need one).
+func hold_at(
+	clip: StringName,
+	normalized_time: float,
+	startup: float = 0.0,
+	active: float = 0.0,
+	recovery: float = 0.0
+) -> void:
+	if not is_bound() or _dead:
+		return
+	for mirror in _live_mirrors():
+		mirror.hold_at(clip, normalized_time, startup, active, recovery)
+	var runtime_name := _ensure_attack_clip(clip, startup, active, recovery)
+	if runtime_name == &"":
+		return
+	_blocking = false
+	_priority = Priority.ATTACK
+	_player.speed_scale = 1.0
+	_player.play(runtime_name, ACTION_BLEND)
+	_charge_shake_active = false
+	var anim := _player.get_animation(runtime_name)
+	if anim == null:
+		return
+	var hold_time := clampf(normalized_time, 0.0, 1.0) * anim.length
+	if hold_time <= 0.0:
+		_player.speed_scale = 0.0
+		return
+	var tree := get_tree()
+	if tree == null:
+		return
+	var timer := tree.create_timer(hold_time, false, false, true)
+	timer.timeout.connect(_on_hold_reached.bind(runtime_name))
+
+
+func _on_hold_reached(runtime_name: StringName) -> void:
+	if not is_bound():
+		return
+	if _player.current_animation == runtime_name:
+		_player.speed_scale = 0.0
+
+
+## `AN-04`: a 1-pixel tremor at full charge, growing linearly with `amount` (0..1). Call every
+## frame while charging; call with 0 (or stop calling) to settle back to the held pose. Like
+## `play_impact_recoil()`, this bypasses the additive `AnimationPlayer` -- there is no per-call
+## amplitude to scale a played clip by -- and is safe to write directly here because the main clip
+## is frozen (`speed_scale` 0) for the entire duration a charge holds, so nothing is fighting this
+## for the property.
+const CHARGE_SHAKE_MAX_ANGLE := 0.073
+
+var _charge_shake_base := Vector3.ZERO
+var _charge_shake_active := false
+
+
+func set_charge_shake(amount: float) -> void:
+	for mirror in _live_mirrors():
+		mirror.set_charge_shake(amount)
+	var arm := _resolve_part("ArmR")
+	if arm == null:
+		return
+	var clamped := clampf(amount, 0.0, 1.0)
+	if clamped <= 0.0:
+		if _charge_shake_active:
+			arm.rotation = _charge_shake_base
+			_charge_shake_active = false
+		return
+	if not _charge_shake_active:
+		_charge_shake_base = arm.rotation
+		_charge_shake_active = true
+	var max_angle := CHARGE_SHAKE_MAX_ANGLE * clamped
+	arm.rotation = _charge_shake_base + Vector3(
+		randf_range(-max_angle, max_angle),
+		randf_range(-max_angle, max_angle),
+		randf_range(-max_angle, max_angle)
+	)
 
 
 func reset_combo() -> void:

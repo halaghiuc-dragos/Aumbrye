@@ -16,11 +16,10 @@ room_type = "combat"
 script = ExtResource("2_blockout")
 room_width = 20.0
 room_depth = 20.0
-door_north = true
-door_south = true
-door_east = true
-door_west = true
-
+door_north = false
+door_south = false
+door_east = false
+door_west = false
 [node name="DoorwaySockets" type="Node3D" parent="."]
 
 [node name="Socket_N" type="Marker3D" parent="DoorwaySockets"]

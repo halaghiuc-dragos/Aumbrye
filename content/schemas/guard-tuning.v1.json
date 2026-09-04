@@ -1,0 +1,25 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://aumbrye.dev/schemas/guard-tuning.v1.json",
+  "title": "GuardTuning",
+  "description": "Parry window, per-attack-class parry generosity, block reduction and grab duration.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "name", "parry_window"],
+  "properties": {
+    "id": { "type": "string", "minLength": 1 },
+    "name": { "type": "string", "minLength": 1 },
+    "description": { "type": "string" },
+    "parry_window": { "type": "number", "exclusiveMinimum": 0 },
+    "parry_window_by_class": {
+      "type": "object",
+      "additionalProperties": { "type": "number", "exclusiveMinimum": 0 }
+    },
+    "block_reduction": {
+      "type": "object",
+      "additionalProperties": { "type": "number", "minimum": 0, "maximum": 1 }
+    },
+    "guard_break_on_unblockable": { "type": "boolean" },
+    "grab_duration": { "type": "number", "exclusiveMinimum": 0 }
+  }
+}

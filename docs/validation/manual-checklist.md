@@ -2,6 +2,34 @@
 
 Items no automated check covers.
 
+## VS-08 — Performance budget
+
+Baseline taken before the MVP depth plan's P1 work, so later regressions are attributable. Budget:
+**16.7 ms/frame** (60 fps) at the Balanced preset — `perf_audit.gd`'s own budget constant. Re-measure
+at the end of each phase and append a row.
+
+Two of the four numbers the plan asks for (draw calls, particle count) need a real display —
+`res://scenes/debug/perf_audit.tscn` and `draw_call_probe.tscn` report `draws=0, prims_k=0.0,
+objects=0` when run `--headless`, exactly as the repo's own working rules warn
+("needs a display; headless reports no GPU cost"). This session is headless throughout, so those two
+columns are marked accordingly rather than filled with fabricated numbers — the next person with a
+display attached should fill them in and can reuse this table's shape.
+
+Method: `godot --headless --path apps/game/client res://scenes/debug/perf_audit.tscn` and
+`res://scenes/debug/draw_call_probe.tscn`.
+
+| Phase | Scene | avg ms | p95 ms | fps | draws | nodes | visible meshes | shadow casters |
+|---|---|---|---|---|---|---|---|---|
+| Before P1 (post-P0) | hub | 6.90 | 8.57 | 145 | n/a (headless) | 4484 | n/a | n/a |
+| Before P1 (post-P0) | combat_arena | 6.91 | 8.93 | 145 | n/a (headless) | 1896 | n/a | n/a |
+| Before P1 (post-P0) | castle_slice | 6.90 | 8.15 | 145 | n/a (headless) | 1253 | n/a | n/a |
+| Before P1 (post-P0) | castle_run | 6.90 | 8.54 | 145 | n/a (headless) | 3992 | 832 | 830 (475 small) |
+
+All four scenes measured inside the 16.7 ms budget (script/process time only, no GPU cost
+included — see caveat above). `castle_run`'s occluder count at this baseline: 36 occluders in the
+floor; occlusion culling is off by project setting, and `draw_call_probe`'s on/off comparison shows
+`-0.1%` frame time / `0.0%` objects either way under `--headless` for the same reason.
+
 > **The suites this was written against no longer exist.** The in-engine harness — 58 suites, 28,631
 > lines — was removed; see `CORE_GAMEPLAY_REVIEW.md` §119. The note that used to stand here described
 > a vacuous heading assertion inside `docs_suite.gd`, which went with it.

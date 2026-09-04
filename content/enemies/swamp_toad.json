@@ -39,8 +39,9 @@
       "attack_damage": 48,
       "attack_poise_damage": 23,
       "max_range": 2.5,
-      "telegraph_radius": 2.13,
-      "telegraph_shape": "circle"
+      "telegraph_shape": "circle",
+      "attackClass": "parryable",
+      "knockback": 2.5
     },
     {
       "id": "slam",
@@ -53,8 +54,9 @@
       "attack_damage": 70,
       "attack_poise_damage": 35,
       "max_range": 2.75,
-      "telegraph_radius": 2.88,
-      "telegraph_shape": "circle"
+      "telegraph_shape": "circle",
+      "attackClass": "unblockable",
+      "knockback": 3.0
     },
     {
       "id": "held_sweep",
@@ -67,8 +69,9 @@
       "attack_damage": 55,
       "attack_poise_damage": 28,
       "max_range": 3.5,
-      "telegraph_radius": 3,
-      "telegraph_shape": "cone"
+      "telegraph_shape": "cone",
+      "attackClass": "unblockable",
+      "knockback": 3.0
     }
   ]
 }

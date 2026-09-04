@@ -1,11 +1,13 @@
 extends "res://scripts/dungeon/room_content/room_content_base.gd"
 
 const DIORAMA_SKIN := preload("res://scripts/art/props/diorama_interactable_skin.gd")
+const InteractPromptScript := preload("res://scripts/ui/interact_prompt.gd")
 
 var _quest_key_id := ""
 var _dialogue_id := "dungeon_npc_stranded"
 var _npc: Node3D
 var _interact_area: Area3D
+var _prompt: InteractPrompt
 
 
 func configure(entry: Dictionary, _definition: Dictionary) -> void:
@@ -29,16 +31,21 @@ func configure(entry: Dictionary, _definition: Dictionary) -> void:
 	_interact_area.body_exited.connect(_on_body_exited.bind(_interact_area))
 	_npc.position = _anchor(0).position
 	_content_root().add_child(_npc)
+	_prompt = InteractPromptScript.build(_npc, Vector3(0.0, 2.4, 0.0))
 
 
 func _on_body_entered(body: Node3D, area: Area3D) -> void:
 	if body.is_in_group("player"):
 		area.set_meta("near_player", true)
+		if _prompt:
+			_prompt.show_action("Talk")
 
 
 func _on_body_exited(body: Node3D, area: Area3D) -> void:
 	if body.is_in_group("player"):
 		area.set_meta("near_player", false)
+		if _prompt:
+			_prompt.hide_prompt()
 
 
 func _unhandled_input(event: InputEvent) -> void:

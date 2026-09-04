@@ -23,9 +23,11 @@ var _walls: Array[StaticBody3D] = []
 var _chest_nodes: Array[Node3D] = []
 var _active_enemies: Array[Node] = []
 var _wave_ui: Control
+var _hud: Control
 var _lobby_active := true
 var _torch_holder: Node3D
 var _torchlight: Node3D
+var _arena_mutator: Node3D
 var _spawn_markers: Array[Node3D] = []
 var _pending_spawns := 0
 var _cash_out_portal: Node3D
@@ -33,16 +35,29 @@ const WavesOutdoorsDioramaScript := preload("res://scripts/dungeon/waves_outdoor
 const CharacterFloorSnapScript := preload("res://scripts/art/characters/character_floor_snap.gd")
 const WavesTorchHolderScript := preload("res://scripts/dungeon/waves_torch_holder.gd")
 const WavesTorchlightScript := preload("res://scripts/dungeon/waves_torchlight.gd")
+const WavesArenaMutatorScript := preload("res://scripts/dungeon/waves_arena_mutator.gd")
 const WavesSpawnMarkerScript := preload("res://scripts/dungeon/waves_spawn_marker.gd")
 const WavesCashOutPortalScript := preload("res://scripts/dungeon/waves_cash_out_portal.gd")
+const DifficultyProfileScript := preload("res://scripts/dungeon/difficulty_profile.gd")
+const RunModifierServiceScript := preload("res://scripts/dungeon/run_modifier_service.gd")
 const RainFieldScript := preload("res://scripts/art/world/rain_field.gd")
 
 const WAVES_FLOOR_HALF := 105.0
 
 const CHEST_RING_RADIUS := 7.5
 const LOBBY_SPAWN := Vector3(0.0, 0.0, 4.6)
+const ARENA_FLOOR_Y := 0.0
+const PIT_RECOVERY_MARGIN := 8.0
+const PIT_DAMAGE_FRACTION := 0.1
 
 var _bird_time := 0.0
+
+## MD-01: "a reason to move" -- the cresset's light drains while the player is away from it and
+## only refuels near it, so holding one corner of the arena for a whole wave goes dark.
+var _cresset_fuel := 1.0
+const CRESSET_DRAIN_SECONDS := 28.0
+const CRESSET_REFUEL_SECONDS := 6.0
+const CRESSET_REFUEL_RADIUS := 13.0
 
 
 func _ready() -> void:
@@ -79,6 +94,10 @@ func _attach_weather() -> void:
 
 func _exit_tree() -> void:
 	WeatherService.set_outdoors(false)
+	# MD-01: the "fog" arena state pushes `DayNightService.fog_boost` (a global), which must not
+	# leak into whatever scene loads next.
+	if _arena_mutator and is_instance_valid(_arena_mutator):
+		_arena_mutator.call("clear_state")
 
 
 func _notification(what: int) -> void:
@@ -140,6 +159,11 @@ func _build_torchlight() -> void:
 	add_child(node)
 	node.call("setup", self)
 	_torchlight = node
+	var mutator := Node3D.new()
+	mutator.name = "WavesArenaMutator"
+	mutator.set_script(WavesArenaMutatorScript)
+	add_child(mutator)
+	_arena_mutator = mutator
 
 
 func _ensure_torch_holder() -> void:
@@ -198,6 +222,8 @@ func _show_lobby() -> void:
 	_refresh_cash_out_portal()
 	if _wave_ui and _wave_ui.has_method("show_lobby"):
 		_wave_ui.call("show_lobby")
+	if _hud and _hud.has_method("set_objective_text"):
+		_hud.call("set_objective_text", "")
 
 
 func _spawn_chests() -> void:
@@ -275,23 +301,66 @@ func _start_combat_from_continue() -> void:
 func _start_wave() -> void:
 	_clear_enemies()
 	_clear_spawn_markers()
+	_cresset_fuel = 1.0
 	var wave := WavesRunService.current_wave
+	# MD-01: one arena mutation per five-wave block -- wave 45 should not be wave 5 with more
+	# enemies. `chest_set` already counts intermission blocks, so it doubles as the block index.
+	if _arena_mutator:
+		_arena_mutator.call(
+			"apply_block", WavesRunService.chest_set, _torchlight, WavesRunService.get_arena_states()
+		)
+	# MD-01: one modifier from wave 10 on, so wave 45 fights differently than wave 5 fought.
+	RunModifierServiceScript.apply_waves_wave_modifier(wave, WavesRunService.get_seed())
+	var subtitle := tr("WAVES_TITLE_SUBTITLE") % wave
+	var active_modifier := RunModifierServiceScript.active_modifiers()
+	if not active_modifier.is_empty():
+		subtitle += "  —  %s" % RunModifierServiceScript.describe(active_modifier[0])
+	# HD-01
+	if _hud and _hud.has_method("show_region_title"):
+		_hud.call("show_region_title", "The Vigil", subtitle)
 	var enemy_ids := WavesRunService.get_enemies_for_wave(wave)
 	_pending_spawns = enemy_ids.size()
-	if _wave_ui and _wave_ui.has_method("set_enemies_remaining"):
-		_wave_ui.call("set_enemies_remaining", _pending_spawns)
+	_refresh_remaining()
 	for index in enemy_ids.size():
 		_spawn_enemy_telegraphed(str(enemy_ids[index]), index, enemy_ids.size())
 	_persist_waves_save()
 
 
-## Picks a point on the arena edge that the player can see coming and is not standing on.
+## MD-01: which side wave `wave` opens from -- "ring" is the original even spread, "converge"
+## forces the player to turn and hold one direction, "scatter" breaks the even spacing so the ring
+## itself stops being a readable pattern. Kept to a minority of waves so the ring stays the norm.
+func _spawn_pattern_for_wave(wave: int) -> String:
+	if wave < 3:
+		return "ring"
+	var rng := RandomNumberGenerator.new()
+	rng.seed = FloorSeedMix.mix(WavesRunService.get_seed(), wave * 811 + 5)
+	var roll := rng.randf()
+	if roll < 0.55:
+		return "ring"
+	elif roll < 0.78:
+		return "converge"
+	return "scatter"
+
+
+## Picks a point the player can see coming and is not standing on -- on the arena edge for "ring"
+## and "scatter", within a forced sector for "converge".
 func _spawn_point_for(index: int, total: int, wave: int) -> Vector3:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = FloorSeedMix.mix(WavesRunService.get_seed(), wave * 17 + index)
+	var angle: float
 	var spread := TAU / float(maxi(1, total))
-	var base_angle := rng.randf_range(0.0, TAU) if index == 0 else 0.0
-	var angle := base_angle + spread * float(index) + rng.randf_range(-spread * 0.3, spread * 0.3)
+	match _spawn_pattern_for_wave(wave):
+		"converge":
+			var sector_rng := RandomNumberGenerator.new()
+			sector_rng.seed = FloorSeedMix.mix(WavesRunService.get_seed(), wave * 991 + 7)
+			var sector_center := sector_rng.randf_range(0.0, TAU)
+			var sector_width := deg_to_rad(70.0)
+			angle = sector_center + rng.randf_range(-sector_width * 0.5, sector_width * 0.5)
+		"scatter":
+			angle = rng.randf_range(0.0, TAU)
+		_:
+			var base_angle := rng.randf_range(0.0, TAU) if index == 0 else 0.0
+			angle = base_angle + spread * float(index) + rng.randf_range(-spread * 0.3, spread * 0.3)
 	var radius := SPAWN_RING_RADIUS * rng.randf_range(0.82, 1.0)
 	var point := Vector3(cos(angle) * radius, 0.0, sin(angle) * radius)
 	if _player == null:
@@ -317,6 +386,7 @@ func _spawn_enemy_telegraphed(enemy_id: String, index: int, total: int) -> void:
 	marker.position = point
 	marker.call("setup")
 	_spawn_markers.append(marker)
+	_refresh_radar_spawn_markers()
 	AudioDirector.play_sfx("windup", point)
 	await get_tree().create_timer(
 		SPAWN_TELEGRAPH_SECONDS + SPAWN_TELEGRAPH_STAGGER * float(index)
@@ -328,6 +398,7 @@ func _spawn_enemy_telegraphed(enemy_id: String, index: int, total: int) -> void:
 	if marker != null and is_instance_valid(marker):
 		_spawn_markers.erase(marker)
 		marker.queue_free()
+		_refresh_radar_spawn_markers()
 	_pending_spawns = maxi(0, _pending_spawns - 1)
 	_spawn_enemy(enemy_id, point)
 
@@ -346,6 +417,7 @@ func _spawn_enemy(enemy_id: String, spawn_point: Vector3) -> void:
 		enemy.call("set_catalog_id", EnemyCatalog.resolve_id(enemy_id))
 	enemy.position = spawn_point
 	add_child(enemy)
+	_apply_wave_scaling(enemy)
 	CharacterFloorSnapScript.snap_to_floor_below(enemy)
 	if enemy.has_method("set_player"):
 		enemy.call("set_player", _player)
@@ -353,10 +425,29 @@ func _spawn_enemy(enemy_id: String, spawn_point: Vector3) -> void:
 		enemy.enemy_died.connect(_on_enemy_died.bind(enemy))
 	elif enemy.has_signal("boss_defeated"):
 		enemy.boss_defeated.connect(_on_enemy_died.bind(enemy))
+	# HD-01: no boss bar showed in the Vigil even on a boss wave (`WavesRunService.is_boss_wave()`)
+	# before this -- the HUD only ever got wired up for castle mode's boss room.
+	if enemy.has_signal("boss_defeated") and _hud and _hud.has_method("bind_boss"):
+		_hud.call("bind_boss", enemy)
 	_active_enemies.append(enemy)
 	if VfxService:
 		VfxService.play_portal_activate(spawn_point)
 	_refresh_remaining()
+
+
+## MD-01: mirrors `DungeonBuilder._apply_floor_scaling()` -- the Vigil spawns enemies directly
+## rather than through `DungeonBuilder`, so it never picked up the wave's HP/damage curve or the
+## per-wave modifier's effects (`WavesDifficultyProfile` already existed but nothing called it).
+func _apply_wave_scaling(enemy: Node) -> void:
+	var wave := WavesRunService.current_wave
+	var profile := DifficultyProfileScript.for_run("waves")
+	var health := enemy.get_node_or_null("Health") as Health
+	if health:
+		health.configure(float(health.max_health) * profile.hp_multiplier(wave))
+	if enemy.has_method("set_damage_multiplier"):
+		enemy.call("set_damage_multiplier", profile.damage_multiplier(wave))
+	if enemy.has_method("apply_phase_modifiers"):
+		enemy.call("apply_phase_modifiers", profile.behaviour_modifiers(wave))
 
 
 func _resolve_enemy_scene(enemy_id: String) -> PackedScene:
@@ -368,9 +459,15 @@ func _resolve_enemy_scene(enemy_id: String) -> PackedScene:
 	return null
 
 
+## HD-01: enemy-count status is HUD territory now -- routed through set_objective_text rather
+## than waves_run_ui.gd's own panel.
 func _refresh_remaining() -> void:
-	if _wave_ui and _wave_ui.has_method("set_enemies_remaining"):
-		_wave_ui.call("set_enemies_remaining", _active_enemies.size() + _pending_spawns)
+	if _hud and _hud.has_method("set_objective_text"):
+		var remaining := _active_enemies.size() + _pending_spawns
+		_hud.call(
+			"set_objective_text",
+			"%s  —  %d left" % [tr("WAVES_WAVE_ACTIVE").format({"wave": WavesRunService.current_wave}), remaining]
+		)
 
 
 func _clear_spawn_markers() -> void:
@@ -379,6 +476,13 @@ func _clear_spawn_markers() -> void:
 			marker.queue_free()
 	_spawn_markers.clear()
 	_pending_spawns = 0
+	_refresh_radar_spawn_markers()
+
+
+## HD-05: keeps the arena radar's pending-spawn dots in sync with `_spawn_markers`.
+func _refresh_radar_spawn_markers() -> void:
+	if _hud and _hud.has_method("set_radar_spawn_markers"):
+		_hud.call("set_radar_spawn_markers", _spawn_markers)
 
 
 func _on_enemy_died(enemy: Node) -> void:
@@ -443,8 +547,8 @@ func _refresh_cash_out_portal() -> void:
 
 
 ## Called by the wizard once the player has chosen what to walk away with.
-func cash_out_with_item(item_id: String) -> void:
-	RunFlow.cash_out_waves_run(item_id)
+func cash_out_with_item(item_ids: Array) -> void:
+	RunFlow.cash_out_waves_run(item_ids)
 
 
 func open_cash_out_picker() -> void:
@@ -455,11 +559,46 @@ func open_cash_out_picker() -> void:
 func _process(delta: float) -> void:
 	_bird_time += delta
 	_animate_birds()
+	_check_arena_fall()
+	_update_cresset_fuel(delta)
+
+
+## MD-01: only active during combat -- the lobby/intermission cresset is a separate always-lit prop
+## (`WavesTorchHolder`), and the ring lighting (`WavesTorchlight`) is held fully lit there too.
+func _update_cresset_fuel(delta: float) -> void:
+	if _lobby_active or _torchlight == null or not is_instance_valid(_torchlight):
+		return
+	if _player == null or not is_instance_valid(_player):
+		return
+	var near_cresset := _player.global_position.length() <= CRESSET_REFUEL_RADIUS
+	if near_cresset:
+		_cresset_fuel = minf(1.0, _cresset_fuel + delta / CRESSET_REFUEL_SECONDS)
+	else:
+		_cresset_fuel = maxf(0.0, _cresset_fuel - delta / CRESSET_DRAIN_SECONDS)
+	_torchlight.call("set_fuel_level", _cresset_fuel)
+
+
+## Same positional (not timer- or velocity-gated) recovery as `CastleRun._recover_fallen_player()`,
+## against the arena's single floor plane instead of a per-room test. Never lethal.
+func _check_arena_fall() -> void:
+	if _player == null:
+		return
+	if _player.global_position.y >= ARENA_FLOOR_Y - PIT_RECOVERY_MARGIN:
+		return
+	_player.global_position = LOBBY_SPAWN
+	CharacterFloorSnapScript.snap_to_floor_below(_player)
+	var health := _player.get_node_or_null("Health") as Health
+	if health:
+		var pit_damage := health.max_health * PIT_DAMAGE_FRACTION
+		health.take_damage(minf(pit_damage, maxf(health.current - 1.0, 0.0)))
+	RunFlow.emit_run_warning(tr("WARN_FELL"))
 
 
 func _show_reward_pick() -> void:
 	if _wave_ui and _wave_ui.has_method("show_reward_pick"):
 		_wave_ui.call("show_reward_pick")
+	if _hud and _hud.has_method("set_objective_text"):
+		_hud.call("set_objective_text", "")
 
 
 func complete_waves_with_rewards(item_ids: Array) -> void:
@@ -491,6 +630,14 @@ func _build_combat_hud() -> void:
 	hud.set("player_path", NodePath("../Player"))
 	hud.set("lock_on_path", NodePath("../Player/LockOn"))
 	add_child(hud)
+	_hud = hud
+	# HD-01: the HUD contract every run scene owes a call to -- see combat_hud.gd's header comment.
+	if hud.has_method("configure_for_mode"):
+		hud.call("configure_for_mode", "waves")
+	# HD-05: the arena has no room graph -- radar mode replaces the dungeon minimap instead of
+	# leaving it hidden.
+	if hud.has_method("enable_arena_radar"):
+		hud.call("enable_arena_radar", SPAWN_RING_RADIUS * 1.1)
 
 
 func _restore_waves_snapshot() -> void:

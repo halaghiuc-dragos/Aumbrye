@@ -53,24 +53,70 @@ const KIND_SPECS := {
 		"width": 8.0,
 		"depth": 12.0,
 		"doors": RoomGraphSlot.DOOR_NORTH | RoomGraphSlot.DOOR_SOUTH,
+		# RM-14: a corridor is compression, not a fight -- lower ceiling than a room, and its own
+		# "enemy" anchor list is capped at two rather than the usual six.
+		"wallHeight": 4.5,
 		"anchors": {
-			"enemy":
-			[
-				Vector3(0, 0, 0),
-				Vector3(2, 0, 2),
-				Vector3(-2, 0, -2),
-				Vector3(2, 0, -2),
-				Vector3(-2, 0, 2),
-				Vector3(0, 0, 3),
-			],
+			"enemy": [Vector3(0, 0, 0), Vector3(0, 0, 3)],
 			"cover": [Vector3(-2, 0, -1), Vector3(2, 0, 1), Vector3(0, 0, -3), Vector3(1, 0, 2)],
 			"chest": [Vector3(0, 0, 3), Vector3(-2, 0, 2)],
 			"trap": [Vector3(0, 0, 3)],
 		},
 	},
+	"corridor_long": {
+		"width": 8.0,
+		"depth": 20.0,
+		"doors": RoomGraphSlot.DOOR_NORTH | RoomGraphSlot.DOOR_SOUTH,
+		"wallHeight": 4.5,
+		"anchors": {
+			"enemy": [Vector3(0, 0, -4), Vector3(0, 0, 4)],
+			"cover": [Vector3(-2, 0, -5), Vector3(2, 0, -1), Vector3(-2, 0, 3), Vector3(2, 0, 7)],
+			"chest": [Vector3(0, 0, 8), Vector3(-2, 0, 6)],
+			"trap": [Vector3(0, 0, 0)],
+		},
+	},
+	"corridor_bend": {
+		"width": 12.0,
+		"depth": 12.0,
+		"doors": RoomGraphSlot.DOOR_NORTH | RoomGraphSlot.DOOR_EAST,
+		"wallHeight": 4.5,
+		"anchors": {
+			"enemy": [Vector3(1, 0, 1), Vector3(-1, 0, -1)],
+			"cover": [Vector3(2, 0, -2), Vector3(-2, 0, 2), Vector3(3, 0, 1), Vector3(1, 0, 3)],
+			"chest": [Vector3(3, 0, 3), Vector3(2, 0, 4)],
+			"trap": [Vector3(0, 0, 0)],
+		},
+	},
+	# RM-19: a balcony is a plain rectangular footprint (walls/doors unchanged) split into two
+	# floor heights internally -- `shape: "split"` is what tells `CastleBlockout` to build it that
+	# way. North/south only, like `corridor`: the split runs along Z (raised half north, lower half
+	# south), and a door on the east/west wall would sit exactly on the seam between the two
+	# heights, which the geometry has no sane answer for.
+	"balcony": {
+		"width": 16.0,
+		"depth": 20.0,
+		"shape": "split",
+		"doors": RoomGraphSlot.DOOR_NORTH | RoomGraphSlot.DOOR_SOUTH,
+		"anchors": {
+			"enemy":
+			[
+				Vector3(0, 3, -6),
+				Vector3(4, 3, -4),
+				Vector3(0, 0, 6),
+				Vector3(-4, 0, 4),
+				Vector3(4, 0, 4),
+				Vector3(0, 0, 2),
+			],
+			"cover": [Vector3(-3, 0, 3), Vector3(3, 0, 5), Vector3(0, 0, 7)],
+			"chest": [Vector3(-4, 3, -6), Vector3(4, 0, 7)],
+			"trap": [Vector3(0, 0, 4)],
+		},
+	},
 	"courtyard": {
 		"width": 20.0,
 		"depth": 20.0,
+		"shape": "octagon",
+		"maxDoors": 3,
 		"doors": ALL_DOORS,
 		"anchors": {
 			"enemy":
@@ -153,7 +199,9 @@ const KIND_SPECS := {
 	"arena": {
 		"width": 24.0,
 		"depth": 24.0,
-		"doors": RoomGraphSlot.DOOR_SOUTH | RoomGraphSlot.DOOR_WEST,
+		"shape": "round",
+		"maxDoors": 3,
+		"doors": RoomGraphSlot.DOOR_NORTH | RoomGraphSlot.DOOR_SOUTH | RoomGraphSlot.DOOR_WEST,
 		"anchors": {
 			"enemy":
 			[
@@ -173,6 +221,7 @@ const KIND_SPECS := {
 	"boss": {
 		"width": 28.0,
 		"depth": 28.0,
+		"shape": "round",
 		"doors": RoomGraphSlot.DOOR_NORTH,
 		"anchors": {
 			"enemy":
@@ -209,25 +258,6 @@ const KIND_SPECS := {
 			"trap": [Vector3(0, 0, 4)],
 		},
 	},
-	"shop": {
-		"width": 12.0,
-		"depth": 12.0,
-		"doors": RoomGraphSlot.DOOR_NORTH | RoomGraphSlot.DOOR_SOUTH,
-		"anchors": {
-			"enemy":
-			[
-				Vector3(3, 0, 2),
-				Vector3(-3, 0, -2),
-				Vector3(0, 0, 0),
-				Vector3(2, 0, -2),
-				Vector3(-2, 0, 2),
-				Vector3(1, 0, -1),
-			],
-			"cover": [Vector3(-2, 0, -2), Vector3(2, 0, 2), Vector3(0, 0, -3), Vector3(-1, 0, 2)],
-			"chest": [Vector3(4, 0, 3), Vector3(-4, 0, 3)],
-			"trap": [Vector3(0, 0, 2)],
-		},
-	},
 }
 
 const FALLBACK_KINDS := ["courtyard", "hall", "arena"]
@@ -247,8 +277,14 @@ static func kind_from_template_id(template_id: String) -> String:
 	return parts[1]
 
 
+## `template_id` is usually `"<prefix>_<kind>"`, but `CastleBlockout._apply_kind_spec()` (via its
+## own `kind` export) can call this with an already-bare kind instead -- and since RM-14/RM-19 a
+## kind name can itself contain an underscore ("corridor_long", "corridor_bend"), re-running
+## `kind_from_template_id()` on one of those corrupts it (`"corridor_long"` -> `"long"`, treating
+## "corridor" as if it were a biome prefix). Checking `KIND_SPECS` directly first, before assuming
+## the input still needs a prefix stripped, handles both callers correctly.
 static func get_spec(template_id: String) -> Dictionary:
-	var kind := kind_from_template_id(template_id)
+	var kind := template_id if KIND_SPECS.has(template_id) else kind_from_template_id(template_id)
 	if not KIND_SPECS.has(kind):
 		push_error("Unknown room template kind '%s' for '%s'" % [kind, template_id])
 		return KIND_SPECS["courtyard"]
@@ -259,6 +295,9 @@ static func get_spec(template_id: String) -> Dictionary:
 		"doors": base["doors"],
 		"half_width": float(base["width"]) * 0.5,
 		"half_depth": float(base["depth"]) * 0.5,
+		"shape": str(base.get("shape", "rect")),
+		"max_doors": int(base.get("maxDoors", 4)),
+		"wall_height": float(base.get("wallHeight", CastleRoomConstants.WALL_HEIGHT)),
 	}
 
 
@@ -376,15 +415,20 @@ static func socket_wall_position(
 	return Vector3.ZERO
 
 
+## Yaw that rotates a room's local -Z (north) axis to face `door`'s world direction.
+##
+## Matches Godot's actual Y-rotation direction (verified: rotation.y=+PI/2 turns local -Z into
+## world -X, i.e. west) -- EAST and WEST are not a mirror-symmetric ±PI/2 swap of each other in the
+## naive sense, this is the sign Godot's basis actually produces.
 static func _door_yaw(door: int) -> float:
 	if door == RoomGraphSlot.DOOR_NORTH:
 		return 0.0
 	if door == RoomGraphSlot.DOOR_EAST:
-		return PI / 2.0
+		return -PI / 2.0
 	if door == RoomGraphSlot.DOOR_SOUTH:
 		return PI
 	if door == RoomGraphSlot.DOOR_WEST:
-		return -PI / 2.0
+		return PI / 2.0
 	return 0.0
 
 
@@ -417,7 +461,7 @@ static func pick_template_for_doors(
 		var prefix := template_prefix_for_biome("forgotten_castle")
 		if not biome_templates.is_empty():
 			prefix = str(biome_templates[0]).split("_", false)[0]
-		for fallback_kind in FALLBACK_KINDS + ["shop"]:
+		for fallback_kind in FALLBACK_KINDS:
 			var candidate := "%s_%s" % [prefix, fallback_kind]
 			if supports_doors(candidate, required_doors):
 				candidates.append(candidate)

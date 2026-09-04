@@ -5,6 +5,7 @@
 [ext_resource type="Script" path="res://scripts/combat/poise.gd" id="3_poise"]
 [ext_resource type="Script" path="res://scripts/combat/hitbox.gd" id="4_hitbox"]
 [ext_resource type="Script" path="res://scripts/combat/hurtbox.gd" id="5_hurtbox"]
+[ext_resource type="Script" path="res://scripts/combat/knockback.gd" id="knockback"]
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_body"]
 radius = 0.5
@@ -39,6 +40,9 @@ script = ExtResource("2_health")
 
 [node name="Poise" type="Node" parent="."]
 script = ExtResource("3_poise")
+
+[node name="Knockback" type="Node" parent="."]
+script = ExtResource("knockback")
 
 [node name="AttackPivot" type="Node3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0.85)

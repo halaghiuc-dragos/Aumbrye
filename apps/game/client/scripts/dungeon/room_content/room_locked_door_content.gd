@@ -4,6 +4,7 @@ const FloorKeyringScript := preload("res://scripts/dungeon/floor_keyring.gd")
 
 
 const DIORAMA_SKIN := preload("res://scripts/art/props/diorama_interactable_skin.gd")
+const InteractPromptScript := preload("res://scripts/ui/interact_prompt.gd")
 
 var _key_id := ""
 var _lock_id := ""
@@ -11,7 +12,7 @@ var _lock_flag_id := ""
 var _to_room_id := ""
 var _keys_required := 1
 var _barrier: StaticBody3D
-var _label: Label3D
+var _label: InteractPrompt
 var _interact_area: Area3D
 var _near_player := false
 var _unlocked := false
@@ -54,13 +55,13 @@ func _build_at_socket() -> void:
 	_barrier.add_child(shape_node)
 	add_child(_barrier)
 
-	var mesh := MeshInstance3D.new()
-	var door_mesh := BoxMesh.new()
-	door_mesh.size = box.size
-	mesh.mesh = door_mesh
-	mesh.position = shape_node.position
-	mesh.material_override = DIORAMA_SKIN.make_telegraph_material(Color(0.55, 0.35, 0.12, 0.95))
-	_barrier.add_child(mesh)
+	# RM-05: a door shape (jambs, lintel, keyhole inset tinted to the key's colour) instead of a
+	# plain telegraph slab -- the same shape a puzzle gate or shortcut gate uses, which is exactly
+	# what made every locked door illegible before.
+	var key_tint := FloorKeyringScript.tint_for(_key_id)
+	if key_tint == Color.WHITE:
+		key_tint = Color(0.85, 0.75, 0.4)
+	DIORAMA_SKIN.build_locked_door_frame(_barrier, RunFlow.current_biome_id, key_tint)
 
 	_interact_area = Area3D.new()
 	_interact_area.name = "InteractArea"
@@ -77,15 +78,7 @@ func _build_at_socket() -> void:
 	_interact_area.body_entered.connect(_on_body_entered)
 	_interact_area.body_exited.connect(_on_body_exited)
 
-	_label = Label3D.new()
-	_label.name = "Label3D"
-	_label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-	_label.font_size = 24
-	_label.outline_size = 11
-	_label.outline_modulate = Color(0.0, 0.0, 0.0, 0.85)
-	_label.position = Vector3(0.0, 3.6, -1.5)
-	_label.modulate = Color(1.0, 0.85, 0.35, 1.0)
-	add_child(_label)
+	_label = InteractPromptScript.build(self)
 
 
 func _on_body_entered(body: Node3D) -> void:
@@ -134,26 +127,24 @@ func _refresh_state() -> void:
 func _unlock() -> void:
 	_unlocked = true
 	if _barrier:
-		_barrier.collision_layer = 0
-		_barrier.visible = false
+		DIORAMA_SKIN.animate_gate_open(_barrier)
 	if _label:
-		_label.visible = false
+		_label.hide_prompt()
 
 
 func _update_label() -> void:
 	if _label == null:
 		return
-	if _unlocked:
-		_label.visible = false
+	if _unlocked or not _near_player:
+		_label.hide_prompt()
 		return
-	_label.visible = _near_player
 	# Name the colour either way. A door that says which card it wants turns a dead end into a
 	# direction, which is the whole reason the keys are coloured.
 	var key_label := FloorKeyringScript.label_for(_key_id)
 	if FloorKeyringScript.is_held(_key_id):
-		_label.text = "E — Unlock (%s)" % key_label
+		_label.show_action("Unlock (%s)" % key_label)
 	else:
-		_label.text = "Locked — needs the %s" % key_label
+		_label.show_text(tr("LOCK_NEEDS_KEY").format({"key": key_label}))
 
 
 func _exit_tree() -> void:

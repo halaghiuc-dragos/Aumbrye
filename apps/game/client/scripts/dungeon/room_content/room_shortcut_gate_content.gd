@@ -137,8 +137,7 @@ func _refresh_state() -> void:
 func _open() -> void:
 	_opened = true
 	if _barrier:
-		_barrier.collision_layer = 0
-		_barrier.visible = false
+		DIORAMA_SKIN.animate_gate_open(_barrier)
 	if _label:
 		_label.visible = false
 

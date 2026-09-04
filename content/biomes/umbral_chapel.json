@@ -4,8 +4,8 @@
   "templatePrefix": "umbral",
   "assetFolder": "umbral",
   "roomCount": {
-    "min": 22,
-    "max": 28
+    "min": 26,
+    "max": 30
   },
   "roomTemplateIds": [
     "umbral_entrance",
@@ -17,7 +17,10 @@
     "umbral_secret",
     "umbral_arena",
     "umbral_boss",
-    "umbral_puzzle"
+    "umbral_puzzle",
+    "umbral_corridor_long",
+    "umbral_corridor_bend",
+    "umbral_balcony"
   ],
   "materials": {
     "floor": "umbral",
@@ -53,7 +56,11 @@
     "rubble": [
       "res://scenes/props/umbral/rubble_a.tscn",
       "res://scenes/props/umbral/rubble_b.tscn"
-    ]
+    ],
+    "banner": "res://scenes/props/umbral/banner.tscn",
+    "statue": "res://scenes/props/umbral/statue.tscn",
+    "altar": "res://scenes/props/umbral/altar.tscn",
+    "debrisPile": "res://scenes/props/umbral/debris_pile.tscn"
   },
   "enemyPool": [
     {
@@ -208,13 +215,15 @@
   "generator": {
     "bossMinDistance": 5,
     "minDeadEnds": 5,
-    "branchMaxDepth": 8,
+    "branchMaxDepth": 9,
     "maxNeighborCount": 4,
     "loopBudget": 4,
     "maxGenerationAttempts": 256,
     "maxWalkAttempts": 8192,
     "allow2x2Blocks": true,
-    "fillBoundingBox": true
+    "fillBoundingBox": true,
+    "corridorRatio": 0.2,
+    "floorSilhouette": "cross"
   },
   "lootTablePath": "content/loot/tables/umbral_chapel.json"
 }

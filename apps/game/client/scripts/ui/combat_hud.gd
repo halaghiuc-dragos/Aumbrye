@@ -1,5 +1,21 @@
 extends Control
 
+## HD-01: the HUD is owned by this script; a run scene (`castle_run.gd`, `waves_run.gd`) may only
+## call its public methods, never draw its own status panel. The mode-neutral contract every run
+## scene owes a call to, so the same information appears in the same place in every mode:
+##   configure_for_mode(run_mode)         -- once, right after instancing the HUD
+##   configure_keys(lock_count)           -- once the floor/wave definition is known (0 if none)
+##   set_objective_text(text)             -- whenever the current objective changes
+##   show_region_title(title, subtitle)   -- entering a region/floor/wave
+##   show_run_warning(message)            -- any error a player-facing panel would have shown
+##   show_respawn_outcome(results)        -- on a respawn/death outcome
+##   bind_boss(boss)                      -- whenever a boss-type enemy spawns
+## `configure_minimap`/`mark_room_visited`/`set_current_room`/`mark_room_cleared`/
+## `set_minimap_fog_of_war`/`set_branch_previews`/`set_objective_world_position` are dungeon-only
+## (no map in Waves) and are skipped rather than called with placeholder data in modes without one.
+## `enable_arena_radar(half_extent)`/`set_radar_spawn_markers(markers)` are the Waves-only inverse
+## -- an arena has no room graph for the dungeon minimap, so it gets a radar instead (HD-05).
+
 const FloorKeyringScript := preload("res://scripts/dungeon/floor_keyring.gd")
 
 const StatusIconAtlasScript := preload("res://scripts/ui/status_icon_atlas.gd")
@@ -12,6 +28,8 @@ const GuardIndicatorScript := preload("res://scripts/ui/guard_indicator.gd")
 const MenuShellScript := preload("res://scripts/ui/menu_shell.gd")
 const GameUISkinScript := preload("res://scripts/ui/game_ui_skin.gd")
 const QuickSlotBarScript := preload("res://scripts/ui/quick_slot_bar.gd")
+const ScreenEdgeScript := preload("res://scripts/ui/screen_edge.gd")
+const DamageDirectionArcScript := preload("res://scripts/ui/damage_direction_arc.gd")
 
 const BAR_WIDTH := 330.0
 const HEALTH_BAR_HEIGHT := 30.0
@@ -95,8 +113,33 @@ var _quick_slot_bar: Control
 var _lock_target_occluded := false
 var _riposte_prompt_timer := 0.0
 var _build_up_rows: Dictionary = {}
+## CB-08: the last 20% before a build-up meter hits its threshold gets a warning -- previously the
+## meter just filled with no signal that poison/bleed/etc. was about to land.
+var _build_up_warned: Dictionary = {}
+const BUILD_UP_WARNING_RATIO := 0.8
 var _key_row: HBoxContainer
 var _key_pips: Dictionary = {}
+
+## HD-06: readouts the combat model already computes but never showed -- what the next swing
+## costs, the two-hand/infusion stance, and where you are in the light-attack combo.
+var _stamina_ghost: ColorRect
+var _stance_row: HBoxContainer
+var _two_hand_swatch: ColorRect
+var _infusion_swatch: ColorRect
+var _art_cooldown_bar: ProgressBar
+var _combo_pip_row: HBoxContainer
+var _combo_pips_ui: Array[TextureRect] = []
+const COMBO_PIP_COUNT := 3
+
+## HD-07: which side a hit came from, since a vignette pulse alone gives no bearing.
+var _damage_arc: Control
+const ELEMENT_COLORS := {
+	"fire": Color(0.86, 0.35, 0.12, 1.0),
+	"frost": Color(0.45, 0.72, 0.92, 1.0),
+	"poison": Color(0.42, 0.72, 0.28, 1.0),
+	"lightning": Color(0.85, 0.78, 0.25, 1.0),
+	"arcane": Color(0.62, 0.4, 0.92, 1.0),
+}
 var _last_health := -1.0
 var _vignette_cooldown := 0.0
 var _hint_session_start := 0.0
@@ -112,10 +155,25 @@ var _map_overlay_minimap: Control
 var _region_banner: VBoxContainer
 var _region_title_label: Label
 var _region_subtitle_label: Label
+
+## HD-02: `RegionBanner`, `WarningBanner` and (formerly) a run scene's own status panel all claimed
+## the top-centre band and could overlap. A queue owns that band now: one message on screen at a
+## time, priority `region (3) > warning (2)`, draining rather than stacking. Branch previews are
+## ambient, not an event, so they get a persistent slot below the queue instead of a turn in it.
+const BANNER_PRIORITY_REGION := 3
+const BANNER_PRIORITY_WARNING := 2
+const BANNER_MIN_DISPLAY := 1.2
+var _banner_queue: Array[Dictionary] = []
+var _banner_draining := false
 var _guard_indicator_active := false
 var _slow_update_timer := 0.0
+var _danger_chevrons: Array[TextureRect] = []
 
 const SLOW_UPDATE_INTERVAL := 0.1
+## `EN-09`: same shape the existing arrow already solves for the objective marker, reused rather
+## than adding a second asset -- a small class-tinted chevron clamped to the screen edge.
+const DANGER_CHEVRON_TEXTURE := preload("res://assets/ui/hud_objective.png")
+const MAX_DANGER_CHEVRONS := 3
 
 
 func _ready() -> void:
@@ -133,6 +191,7 @@ func _ready() -> void:
 		DisplayService.display_changed.connect(_on_display_changed)
 	_apply_hud_safe_area()
 	_ensure_key_row()
+	_ensure_combat_readouts()
 	if WorldState and not WorldState.namespace_changed.is_connected(_on_world_flag_changed):
 		WorldState.namespace_changed.connect(_on_world_flag_changed)
 	if player_path:
@@ -184,6 +243,23 @@ func _ready() -> void:
 		panel.custom_minimum_size = Vector2(460, 220)
 	if _minimap_anchor:
 		_minimap_anchor.visible = false
+	_build_danger_chevrons()
+
+
+func _build_danger_chevrons() -> void:
+	for i in MAX_DANGER_CHEVRONS:
+		var chevron := TextureRect.new()
+		chevron.name = "DangerChevron%d" % i
+		chevron.texture = DANGER_CHEVRON_TEXTURE
+		chevron.texture_filter = TEXTURE_FILTER_NEAREST
+		chevron.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		chevron.stretch_mode = TextureRect.STRETCH_SCALE
+		chevron.size = Vector2(18.0, 18.0)
+		chevron.pivot_offset = chevron.size * 0.5
+		chevron.visible = false
+		chevron.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		add_child(chevron)
+		_danger_chevrons.append(chevron)
 
 
 func _exit_tree() -> void:
@@ -194,6 +270,9 @@ func _exit_tree() -> void:
 	AccessibilitySettings.disconnect_settings_changed(_on_accessibility_settings_changed)
 	if DisplayService and DisplayService.display_changed.is_connected(_on_display_changed):
 		DisplayService.display_changed.disconnect(_on_display_changed)
+	# CB-08: a status screen grade (e.g. still burning at the moment the run ends) must not leak
+	# into whatever scene loads next.
+	PixelDioramaSettings.apply_status_screen_grade([])
 
 
 ## How fast the ghost behind the health bar catches up, in bar-fractions per second.
@@ -339,13 +418,30 @@ func _ensure_key_row() -> void:
 	_refresh_key_row()
 
 
+## RM-05: how many of the row's three pips are actually this floor's locks -- a floor with one
+## lock showed all three cards before, which reads as "you're missing two keys" on a floor that
+## only ever had one. `-1` (the default, before `configure_keys` runs once) shows all three, since
+## that is the least-wrong guess before the definition is known.
+var _lock_count := -1
+
+
+func configure_keys(lock_count: int) -> void:
+	_lock_count = lock_count
+	_refresh_key_row()
+
+
 func _refresh_key_row() -> void:
 	if _key_row == null:
 		return
 	var held := FloorKeyringScript.held_colors()
 	var any := false
-	for color in _key_pips:
+	for i in FloorKeyringScript.COLOR_ORDER.size():
+		var color: String = FloorKeyringScript.COLOR_ORDER[i]
 		var pip: ColorRect = _key_pips[color]
+		if _lock_count >= 0 and i >= _lock_count:
+			pip.visible = false
+			continue
+		pip.visible = true
 		var carried: bool = held.has(color)
 		# Unheld cards stay on the bar as dim outlines, so the player can see how many the floor
 		# has before they have found any of them.
@@ -358,6 +454,120 @@ func _refresh_key_row() -> void:
 func _on_world_flag_changed(flag_namespace: String, _flag_id: String, _value: Variant) -> void:
 	if flag_namespace == WorldFlags.NS_KEY:
 		_refresh_key_row()
+
+
+## HD-06: built once, alongside `_ensure_key_row()`. The stamina ghost is a direct child of the
+## stamina bar (a `ProgressBar`, not a `Container`, so a manually-positioned child sits on top of
+## its fill without fighting layout); the stance row and combo pips join `_status_row` the same way
+## the key row does.
+func _ensure_combat_readouts() -> void:
+	if _stamina_ghost == null and _stamina_bar:
+		_stamina_ghost = ColorRect.new()
+		_stamina_ghost.name = "StaminaCostGhost"
+		_stamina_ghost.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_stamina_ghost.color = Color(0.9, 0.85, 0.2, 0.55)
+		_stamina_ghost.visible = false
+		_stamina_bar.add_child(_stamina_ghost)
+	if _stance_row == null and _status_row:
+		_stance_row = HBoxContainer.new()
+		_stance_row.name = "StanceRow"
+		_stance_row.add_theme_constant_override("separation", 4)
+		_status_row.add_child(_stance_row)
+		_two_hand_swatch = ColorRect.new()
+		_two_hand_swatch.name = "TwoHand"
+		_two_hand_swatch.custom_minimum_size = Vector2(10, 14)
+		_two_hand_swatch.color = Color(0.8, 0.78, 0.7, 1.0)
+		_two_hand_swatch.tooltip_text = "Two-handed"
+		_two_hand_swatch.visible = false
+		_stance_row.add_child(_two_hand_swatch)
+		_infusion_swatch = ColorRect.new()
+		_infusion_swatch.name = "Infusion"
+		_infusion_swatch.custom_minimum_size = Vector2(10, 14)
+		_infusion_swatch.visible = false
+		_stance_row.add_child(_infusion_swatch)
+		_art_cooldown_bar = ProgressBar.new()
+		_art_cooldown_bar.name = "ArtCooldown"
+		_art_cooldown_bar.custom_minimum_size = Vector2(28, 6)
+		_art_cooldown_bar.show_percentage = false
+		_apply_bar_style(_art_cooldown_bar, Color(0.7, 0.62, 0.3, 1.0), Color(0.1, 0.09, 0.05, 0.9))
+		_art_cooldown_bar.visible = false
+		_stance_row.add_child(_art_cooldown_bar)
+	if _combo_pip_row == null and _status_row:
+		_combo_pip_row = HBoxContainer.new()
+		_combo_pip_row.name = "ComboPips"
+		_combo_pip_row.add_theme_constant_override("separation", 2)
+		_status_row.add_child(_combo_pip_row)
+		var pip_size := StatusIconAtlasScript.icon_size()
+		for i in COMBO_PIP_COUNT:
+			var pip := GameUISkinScript.make_symbol_rect(HudIconAtlasScript.get_pip_empty(), pip_size)
+			pip.custom_minimum_size = Vector2(8, 8)
+			_combo_pip_row.add_child(pip)
+			_combo_pips_ui.append(pip)
+		_combo_pip_row.visible = false
+
+
+## HD-06: run on the same slow tick as the danger chevrons -- none of these need per-frame
+## precision, and `_weapon_controller` is only resolved once the player is bound.
+func _update_combat_readouts() -> void:
+	if _weapon_controller == null or not is_instance_valid(_weapon_controller):
+		return
+	_update_stamina_ghost()
+	_update_stance_row()
+	_update_combo_pips()
+
+
+func _update_stamina_ghost() -> void:
+	if _stamina_ghost == null or _stamina_bar == null:
+		return
+	var cost: float = _weapon_controller.call("get_next_attack_cost")
+	if cost <= 0.0 or _stamina_bar.max_value <= 0.0:
+		_stamina_ghost.visible = false
+		return
+	var ratio := clampf(cost / _stamina_bar.max_value, 0.0, 1.0)
+	var current_ratio := clampf(_stamina_bar.value / _stamina_bar.max_value, 0.0, 1.0)
+	var bar_size := _stamina_bar.size
+	var ghost_width := bar_size.x * ratio
+	var ghost_start := bar_size.x * maxf(0.0, current_ratio - ratio)
+	_stamina_ghost.position = Vector2(ghost_start, 0.0)
+	_stamina_ghost.size = Vector2(ghost_width, bar_size.y)
+	_stamina_ghost.color = (
+		Color(0.86, 0.3, 0.24, 0.6) if cost > _stamina_bar.value else Color(0.9, 0.85, 0.2, 0.55)
+	)
+	_stamina_ghost.visible = true
+
+
+func _update_stance_row() -> void:
+	if _stance_row == null:
+		return
+	var two_handed: bool = _weapon_controller.call("is_two_handed")
+	_two_hand_swatch.visible = two_handed
+	var infusion: String = _weapon_controller.call("get_infusion")
+	if infusion != "" and ELEMENT_COLORS.has(infusion):
+		_infusion_swatch.color = ELEMENT_COLORS[infusion]
+		_infusion_swatch.tooltip_text = infusion.capitalize()
+		_infusion_swatch.visible = true
+	else:
+		_infusion_swatch.visible = false
+	var cooldown_total: float = _weapon_controller.call("get_weapon_art_cooldown_duration")
+	var cooldown_left: float = _weapon_controller.call("get_art_cooldown_remaining")
+	if cooldown_total > 0.0 and cooldown_left > 0.0:
+		_art_cooldown_bar.max_value = cooldown_total
+		_art_cooldown_bar.value = cooldown_left
+		_art_cooldown_bar.visible = true
+	else:
+		_art_cooldown_bar.visible = false
+
+
+func _update_combo_pips() -> void:
+	if _combo_pip_row == null:
+		return
+	var index: int = _weapon_controller.call("get_combo_index")
+	_combo_pip_row.visible = index > 0
+	for i in _combo_pips_ui.size():
+		var lit := i < index
+		(_combo_pips_ui[i] as TextureRect).texture = (
+			HudIconAtlasScript.get_pip_filled() if lit else HudIconAtlasScript.get_pip_empty()
+		)
 
 
 func _ensure_build_up_box() -> void:
@@ -412,6 +622,7 @@ func _refresh_build_up_meters() -> void:
 		var bar := row.get_meta("bar") as ProgressBar
 		if bar:
 			bar.value = ratio
+			_update_build_up_warning(status_id, bar, ratio)
 	for status_id in _build_up_rows.keys():
 		if seen.has(status_id):
 			continue
@@ -419,7 +630,27 @@ func _refresh_build_up_meters() -> void:
 		if is_instance_valid(stale):
 			stale.queue_free()
 		_build_up_rows.erase(status_id)
+		_build_up_warned.erase(status_id)
 	_build_up_box.visible = not _build_up_rows.is_empty()
+
+
+## CB-08: flashes on crossing the threshold rather than every frame past it -- a continuous flash
+## once in the danger zone would drown itself out; the moment of crossing is the useful signal.
+func _update_build_up_warning(status_id: String, bar: ProgressBar, ratio: float) -> void:
+	var in_warning := ratio >= BUILD_UP_WARNING_RATIO
+	var was_warning := bool(_build_up_warned.get(status_id, false))
+	if in_warning and not was_warning:
+		_build_up_warned[status_id] = true
+		var tween := create_tween()
+		tween.set_loops(3)
+		tween.tween_property(bar, "modulate", Color(1.4, 0.5, 0.4), 0.12)
+		tween.tween_property(bar, "modulate", Color.WHITE, 0.12)
+		# Reuses the same rising-tension cue a telegraphed attack's wind-up already plays, rather
+		# than inventing a new placeholder sound this project's audio bank otherwise has none of.
+		AudioDirector.play_sfx("windup")
+	elif not in_warning and was_warning:
+		_build_up_warned.erase(status_id)
+		bar.modulate = Color.WHITE
 
 
 func _refresh_status_icons() -> void:
@@ -457,6 +688,9 @@ func _refresh_status_icons() -> void:
 			if is_instance_valid(stale):
 				stale.queue_free()
 			_status_pips.erase(status_id)
+	# CB-08: a distinct, persistent screen treatment per debuff -- burn/freeze/poison should be
+	# visible without reading the status row.
+	PixelDioramaSettings.apply_status_screen_grade(active_ids.keys())
 
 
 func _notification(what: int) -> void:
@@ -481,7 +715,9 @@ func _process(delta: float) -> void:
 	if _slow_update_timer <= 0.0:
 		_slow_update_timer = SLOW_UPDATE_INTERVAL
 		_update_objective_marker()
+		_update_danger_chevrons()
 		_update_controls_hint_visibility(delta)
+		_update_combat_readouts()
 
 
 func _update_status_timers(delta: float) -> void:
@@ -636,6 +872,9 @@ func _bind_player_resources() -> void:
 	var stamina := _player.get_node_or_null("Stamina") as Stamina
 	var mana := _player.get_node_or_null("Mana") as Mana
 	var poise := _player.get_node_or_null("Poise") as Poise
+	var hurtbox := _player.get_node_or_null("Hurtbox") as Hurtbox
+	if hurtbox and not hurtbox.hurt_received.is_connected(_on_player_hurt_direction):
+		hurtbox.hurt_received.connect(_on_player_hurt_direction)
 	if poise:
 		_ensure_poise_bar()
 		poise.poise_changed.connect(_on_poise_changed)
@@ -924,6 +1163,27 @@ func configure_minimap(definition: Dictionary) -> void:
 		_bind_minimap_player()
 
 
+func set_minimap_floor_number(floor_number: int) -> void:
+	if _minimap and _minimap.has_method("set_floor_number"):
+		_minimap.call("set_floor_number", floor_number)
+
+
+## HD-05: the Vigil arena has no room graph, so it gets a radar (arena bounds, live enemies,
+## pending spawns) instead of the dungeon minimap -- called once by `waves_run.gd`, overriding the
+## anchor visibility `configure_for_mode("waves")` hid.
+func enable_arena_radar(half_extent: float) -> void:
+	if _minimap and _minimap.has_method("enable_radar_mode"):
+		_minimap.call("enable_radar_mode", half_extent)
+	if _minimap_anchor:
+		_minimap_anchor.visible = true
+	_bind_minimap_player()
+
+
+func set_radar_spawn_markers(markers: Array) -> void:
+	if _minimap and _minimap.has_method("set_radar_spawn_markers"):
+		_minimap.call("set_radar_spawn_markers", markers)
+
+
 func mark_room_visited(room_id: String) -> void:
 	if _minimap and _minimap.has_method("mark_visited"):
 		_minimap.call("mark_visited", room_id)
@@ -947,6 +1207,39 @@ func set_minimap_fog_of_war(enabled: bool) -> void:
 func show_region_title(title: String, subtitle: String = "") -> void:
 	if title == "":
 		return
+	_enqueue_banner({
+		"kind": "region",
+		"priority": BANNER_PRIORITY_REGION,
+		"title": title,
+		"subtitle": subtitle,
+	})
+
+
+## HD-02: inserts by priority (higher priority drains first), FIFO within the same priority.
+func _enqueue_banner(entry: Dictionary) -> void:
+	var insert_at := _banner_queue.size()
+	for i in _banner_queue.size():
+		if int(_banner_queue[i]["priority"]) < int(entry["priority"]):
+			insert_at = i
+			break
+	_banner_queue.insert(insert_at, entry)
+	if not _banner_draining:
+		_drain_banner_queue()
+
+
+func _drain_banner_queue() -> void:
+	_banner_draining = true
+	while not _banner_queue.is_empty():
+		var entry: Dictionary = _banner_queue.pop_front()
+		match str(entry["kind"]):
+			"region":
+				await _play_region_banner(str(entry["title"]), str(entry.get("subtitle", "")))
+			"warning":
+				await _play_warning_banner(str(entry["message"]))
+	_banner_draining = false
+
+
+func _play_region_banner(title: String, subtitle: String) -> void:
 	_ensure_region_banner()
 	_region_title_label.text = title
 	_region_subtitle_label.text = subtitle
@@ -955,13 +1248,11 @@ func show_region_title(title: String, subtitle: String = "") -> void:
 	_region_banner.modulate.a = 0.0
 	var tween := create_tween()
 	tween.tween_property(_region_banner, "modulate:a", 1.0, 0.6)
-	tween.tween_interval(3.2)
+	tween.tween_interval(maxf(BANNER_MIN_DISPLAY, 3.2))
 	tween.tween_property(_region_banner, "modulate:a", 0.0, 0.8)
-	tween.tween_callback(
-		func() -> void:
-			if _region_banner:
-				_region_banner.visible = false
-	)
+	await tween.finished
+	if _region_banner:
+		_region_banner.visible = false
 
 
 ## A floor entry used to be one plain line of body text -- legible, but no different from a hint
@@ -1111,34 +1402,182 @@ func _update_objective_marker() -> void:
 	if to_target.length_squared() < 4.0:
 		_objective_marker.visible = false
 		return
-	var screen_pos := camera.unproject_position(_objective_world_pos)
 	var viewport_size := get_viewport_rect().size
 	var center := viewport_size * 0.5
-	var behind := camera.is_position_behind(_objective_world_pos)
-	if behind or not Rect2(Vector2.ZERO, viewport_size).has_point(screen_pos):
-		var dir := (screen_pos - center).normalized()
-		if behind:
-			dir = -dir
-		if dir == Vector2.ZERO:
-			dir = Vector2.UP
-		screen_pos = center + dir * minf(viewport_size.x, viewport_size.y) * 0.42
+	var screen_pos := ScreenEdgeScript.edge_position(
+		camera.unproject_position(_objective_world_pos),
+		viewport_size,
+		camera.is_position_behind(_objective_world_pos)
+	)
 	_objective_marker.visible = true
 	_objective_marker.position = (screen_pos - _objective_marker.size * 0.5).floor()
 	_objective_marker.rotation = (screen_pos - center).angle() + PI * 0.5
 
 
+## `EN-09`: the archer winding up behind you gets a chevron on the screen edge a beat before the
+## arrow arrives, the same way the objective marker already tells you where to walk. Runs on the
+## HUD's existing slow tick (0.1 s) rather than a new per-frame process -- a wind-up lasts
+## 0.4-1.5 s, so that cadence is imperceptible here.
+func _update_danger_chevrons() -> void:
+	if _player == null or _danger_chevrons.is_empty():
+		return
+	var camera := _get_camera()
+	if camera == null:
+		return
+	var telegraphing := get_tree().get_nodes_in_group("telegraphing")
+	var player_pos := _player.global_position
+	var entries: Array = []
+	for node in telegraphing:
+		if not (node is Node3D) or not is_instance_valid(node):
+			continue
+		if not node.has_method("telegraphed_attack_class"):
+			continue
+		var dist_sq := player_pos.distance_squared_to((node as Node3D).global_position)
+		entries.append({"node": node, "dist_sq": dist_sq})
+	entries.sort_custom(func(a, b): return float(a["dist_sq"]) < float(b["dist_sq"]))
+
+	var viewport_size := get_viewport_rect().size
+	var center := viewport_size * 0.5
+	var shown := 0
+	for entry in entries:
+		if shown >= MAX_DANGER_CHEVRONS:
+			break
+		var enemy: Node3D = entry["node"]
+		var world_pos := enemy.global_position
+		var screen_pos := camera.unproject_position(world_pos)
+		var behind := camera.is_position_behind(world_pos)
+		if not behind and Rect2(Vector2.ZERO, viewport_size).has_point(screen_pos):
+			# On-screen threats are already covered by the ground telegraph and the intent glyph
+			# over the enemy's own head -- the chevron is only for what you cannot already see.
+			continue
+		screen_pos = ScreenEdgeScript.edge_position(screen_pos, viewport_size, behind)
+		var chevron := _danger_chevrons[shown]
+		var attack_class := str(enemy.call("telegraphed_attack_class"))
+		chevron.modulate = AccessibilitySettings.get_telegraph_class_color(attack_class)
+		chevron.visible = true
+		chevron.position = (screen_pos - chevron.size * 0.5).floor()
+		chevron.rotation = (screen_pos - center).angle() + PI * 0.5
+		shown += 1
+	for i in range(shown, _danger_chevrons.size()):
+		_danger_chevrons[i].visible = false
+
+
+## HD-07: a short arc at the screen edge, in the bearing the hit came from, fading over 0.6 s. The
+## bearing is computed by treating the hit direction as pointing at a synthetic world point behind
+## the player and reusing `ScreenEdge.edge_position()` -- the same clamp the objective marker and
+## danger chevrons use, rather than a bespoke camera-forward/right dot-product calculation. This
+## also naturally computes the bearing against the camera, not the player's facing, since the
+## clamp already projects through `camera.unproject_position()`.
+func _on_player_hurt_direction(_amount: float, _poise_damage: float, direction: Vector3) -> void:
+	if direction.length_squared() < 0.01 or _player == null:
+		return
+	var camera := _get_camera()
+	if camera == null:
+		return
+	_ensure_damage_arc()
+	var source_pos := _player.global_position - direction.normalized() * 10.0
+	var viewport_size := get_viewport_rect().size
+	var center := viewport_size * 0.5
+	var screen_pos := ScreenEdgeScript.edge_position(
+		camera.unproject_position(source_pos), viewport_size, camera.is_position_behind(source_pos)
+	)
+	_damage_arc.position = center
+	_damage_arc.radius = minf(viewport_size.x, viewport_size.y) * 0.42
+	_damage_arc.bearing = (screen_pos - center).angle()
+	_damage_arc.alpha = 1.0
+	_damage_arc.queue_redraw()
+	var arc := _damage_arc
+	var tween := create_tween()
+	var set_alpha := func(a: float) -> void:
+		if arc:
+			arc.alpha = a
+			arc.queue_redraw()
+	tween.tween_method(set_alpha, 1.0, 0.0, 0.6)
+
+
+func _ensure_damage_arc() -> void:
+	if _damage_arc != null:
+		return
+	_damage_arc = Control.new()
+	_damage_arc.name = "DamageDirectionArc"
+	_damage_arc.set_script(DamageDirectionArcScript)
+	_damage_arc.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(_damage_arc)
+
+
 func show_run_warning(message: String) -> void:
+	if message == "":
+		return
+	_enqueue_banner({
+		"kind": "warning",
+		"priority": BANNER_PRIORITY_WARNING,
+		"message": message,
+	})
+
+
+func _play_warning_banner(message: String) -> void:
 	_warning_banner.text = message
 	_warning_banner.visible = true
 	_warning_banner.modulate.a = 1.0
 	var tween := create_tween()
-	tween.tween_interval(4.0)
+	tween.tween_interval(maxf(BANNER_MIN_DISPLAY, 4.0))
 	tween.tween_property(_warning_banner, "modulate:a", 0.0, 0.5)
-	tween.tween_callback(
-		func() -> void:
-			if _warning_banner:
-				_warning_banner.visible = false
-	)
+	await tween.finished
+	if _warning_banner:
+		_warning_banner.visible = false
+
+
+## HD-04: hides what a mode does not have rather than leaving it unconfigured, against exactly
+## this table --
+##
+## | Element                       | castle           | endless        | waves              |
+## |--------------------------------|------------------|----------------|--------------------|
+## | HP / SP / MP / Poise / XP      | shown            | shown          | shown              |
+## | Status pips + build-up meters  | shown            | shown          | shown              |
+## | Heal charges                   | shown            | shown          | shown              |
+## | Quick slots                    | shown            | shown          | shown              |
+## | Lock reticle / guard bars      | shown            | shown          | shown              |
+## | Boss bar + phase pips          | shown            | shown          | shown (boss waves) |
+## | Minimap + map overlay          | shown            | shown          | hidden (one arena) |
+## | Objective marker               | stairs/boss      | stairs         | cresset / portal   |
+## | Objective text                 | "Floor N -- ..."  | "Depth N -- .."| "Wave N -- M left" |
+## | Key row                        | shown            | shown          | hidden             |
+## | Branch previews                | shown            | shown          | hidden             |
+## | Region title                   | floor + theme    | biome + depth  | wave banner        |
+## | Warning banner                 | shown            | shown          | shown              |
+## | Respawn outcome                | shown            | shown          | shown              |
+##
+## "waves" has no floor/map to show a minimap, branch preview or key ring for; "castle" and
+## "endless" share the dungeon HUD wiring already and need nothing hidden here.
+func configure_for_mode(run_mode: String) -> void:
+	if run_mode != "waves":
+		return
+	if _minimap_anchor:
+		_minimap_anchor.visible = false
+	if _branch_banner:
+		_branch_banner.visible = false
+	if _key_row:
+		_key_row.visible = false
+
+
+var _objective_label: Label
+
+
+## HD-01: a text objective line, distinct from `set_objective_world_position()`'s direction arrow
+## -- Waves has no floor to point an arrow across, but "Wave 7 of 10" or "Defeat the warden" is
+## still worth a line. Reuses the same dynamically-created-once pattern as `_ensure_key_row()`.
+func set_objective_text(text: String) -> void:
+	if _objective_label == null:
+		_objective_label = Label.new()
+		_objective_label.name = "ObjectiveLabel"
+		GameUISkinScript.style_body_label(_objective_label)
+		var vbox: Node = _status_row.get_parent() if _status_row else null
+		if vbox:
+			vbox.add_child(_objective_label)
+		else:
+			add_child(_objective_label)
+	_objective_label.text = text
+	_objective_label.visible = text != ""
 
 
 func show_respawn_outcome(results: Dictionary) -> void:

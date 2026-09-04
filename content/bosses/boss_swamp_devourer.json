@@ -39,8 +39,9 @@
       "attack_damage": 43,
       "attack_poise_damage": 18,
       "max_range": 3,
-      "telegraph_radius": 2.1,
-      "telegraph_shape": "circle"
+      "telegraph_shape": "circle",
+      "attackClass": "blockable",
+      "knockback": 2.5
     },
     {
       "id": "cleave",
@@ -53,8 +54,9 @@
       "attack_damage": 84,
       "attack_poise_damage": 32,
       "max_range": 3.3,
-      "telegraph_radius": 3,
-      "telegraph_shape": "cone"
+      "telegraph_shape": "cone",
+      "attackClass": "unblockable",
+      "knockback": 3.0
     },
     {
       "id": "sweepback",
@@ -67,8 +69,9 @@
       "attack_damage": 62,
       "attack_poise_damage": 26,
       "max_range": 4.8,
-      "telegraph_radius": 3.75,
-      "telegraph_shape": "cone"
+      "telegraph_shape": "cone",
+      "attackClass": "unblockable",
+      "knockback": 3.0
     }
   ],
   "phases": [
@@ -88,8 +91,9 @@
           "attack_damage": 43,
           "attack_poise_damage": 18,
           "max_range": 3,
-          "telegraph_radius": 2.1,
-          "telegraph_shape": "circle"
+          "telegraph_shape": "circle",
+          "attackClass": "blockable",
+          "knockback": 2.5
         },
         {
           "id": "cleave",
@@ -102,8 +106,9 @@
           "attack_damage": 84,
           "attack_poise_damage": 32,
           "max_range": 3.3,
-          "telegraph_radius": 3,
-          "telegraph_shape": "cone"
+          "telegraph_shape": "cone",
+          "attackClass": "unblockable",
+          "knockback": 3.0
         },
         {
           "id": "sweepback",
@@ -116,8 +121,9 @@
           "attack_damage": 62,
           "attack_poise_damage": 26,
           "max_range": 4.8,
-          "telegraph_radius": 3.75,
-          "telegraph_shape": "cone"
+          "telegraph_shape": "cone",
+          "attackClass": "unblockable",
+          "knockback": 3.0
         }
       ]
     },
@@ -137,8 +143,9 @@
           "attack_damage": 43,
           "attack_poise_damage": 18,
           "max_range": 3,
-          "telegraph_radius": 2.1,
-          "telegraph_shape": "circle"
+          "telegraph_shape": "circle",
+          "attackClass": "blockable",
+          "knockback": 2.5
         },
         {
           "id": "cleave",
@@ -151,8 +158,9 @@
           "attack_damage": 84,
           "attack_poise_damage": 32,
           "max_range": 3.3,
-          "telegraph_radius": 3,
-          "telegraph_shape": "cone"
+          "telegraph_shape": "cone",
+          "attackClass": "unblockable",
+          "knockback": 3.0
         },
         {
           "id": "charge",
@@ -165,8 +173,9 @@
           "attack_damage": 70,
           "attack_poise_damage": 27,
           "max_range": 7.8,
-          "telegraph_radius": 3.3,
-          "telegraph_shape": "line"
+          "telegraph_shape": "line",
+          "attackClass": "unblockable",
+          "knockback": 3.0
         },
         {
           "id": "feint",
@@ -179,8 +188,11 @@
           "attack_damage": 74,
           "attack_poise_damage": 31,
           "max_range": 3.75,
-          "telegraph_radius": 3.45,
-          "telegraph_shape": "cone"
+          "telegraph_shape": "cone",
+          "attackClass": "unblockable",
+          "hold_fraction": 0.35,
+          "feint_chance": 0.25,
+          "knockback": 3.0
         },
         {
           "id": "quake",
@@ -193,14 +205,15 @@
           "attack_damage": 60,
           "attack_poise_damage": 37,
           "max_range": 3.9,
-          "telegraph_radius": 4,
           "telegraph_shape": "ring",
           "spawn_hazard": {
             "scene": "res://scenes/traps/poison_pool.tscn",
             "count": 4,
             "radius": 7,
             "lifetime": 9
-          }
+          },
+          "attackClass": "unblockable",
+          "knockback": 3.0
         }
       ],
       "moveSpeedMult": 1.09,
@@ -245,8 +258,9 @@
           "attack_damage": 43,
           "attack_poise_damage": 18,
           "max_range": 3,
-          "telegraph_radius": 2.1,
-          "telegraph_shape": "circle"
+          "telegraph_shape": "circle",
+          "attackClass": "blockable",
+          "knockback": 2.5
         },
         {
           "id": "charge",
@@ -259,8 +273,9 @@
           "attack_damage": 70,
           "attack_poise_damage": 27,
           "max_range": 7.8,
-          "telegraph_radius": 3.3,
-          "telegraph_shape": "line"
+          "telegraph_shape": "line",
+          "attackClass": "unblockable",
+          "knockback": 3.0
         },
         {
           "id": "feint",
@@ -273,8 +288,11 @@
           "attack_damage": 74,
           "attack_poise_damage": 31,
           "max_range": 3.75,
-          "telegraph_radius": 3.45,
-          "telegraph_shape": "cone"
+          "telegraph_shape": "cone",
+          "attackClass": "unblockable",
+          "hold_fraction": 0.35,
+          "feint_chance": 0.25,
+          "knockback": 3.0
         },
         {
           "id": "triple",
@@ -287,7 +305,6 @@
           "attack_damage": 43,
           "attack_poise_damage": 18,
           "max_range": 3,
-          "telegraph_radius": 2.55,
           "telegraph_shape": "circle",
           "combo_followups": [
             {
@@ -301,8 +318,9 @@
               "attack_damage": 18,
               "attack_poise_damage": 18,
               "max_range": 3,
-              "telegraph_radius": 2.55,
-              "telegraph_shape": "circle"
+              "telegraph_shape": "circle",
+              "attackClass": "blockable",
+              "knockback": 2.5
             },
             {
               "id": "triple_three",
@@ -315,10 +333,13 @@
               "attack_damage": 25,
               "attack_poise_damage": 25,
               "max_range": 3,
-              "telegraph_radius": 2.85,
-              "telegraph_shape": "cone"
+              "telegraph_shape": "cone",
+              "attackClass": "unblockable",
+              "knockback": 2.5
             }
-          ]
+          ],
+          "attackClass": "parryable",
+          "knockback": 2.5
         },
         {
           "id": "quake",
@@ -331,14 +352,15 @@
           "attack_damage": 60,
           "attack_poise_damage": 37,
           "max_range": 3.9,
-          "telegraph_radius": 4,
           "telegraph_shape": "ring",
           "spawn_hazard": {
             "scene": "res://scenes/traps/poison_pool.tscn",
             "count": 6,
             "radius": 8,
             "lifetime": 9
-          }
+          },
+          "attackClass": "unblockable",
+          "knockback": 3.0
         }
       ],
       "moveSpeedMult": 1.16,
@@ -366,5 +388,9 @@
         ]
       }
     }
-  ]
+  ],
+  "guard_chance": 0.25,
+  "sidestep_chance": 0.2,
+  "punish_window": 1.3,
+  "mass": 2.5
 }

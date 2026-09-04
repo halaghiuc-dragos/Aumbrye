@@ -80,6 +80,11 @@ func get_blockout() -> CastleBlockout:
 	return get_node_or_null("CastleBlockout") as CastleBlockout
 
 
+## X/Z stays a rectangle even for round rooms (RM-01 gives those a circular footprint, but the
+## containment test here only needs to know "roughly this room's plot"). The Y band is what makes
+## this test mean anything at all: without it, a player falling through the floor still reads as
+## "inside" whichever room is overhead, and the out-of-world recovery in `castle_run.gd` can never
+## see that anything went wrong.
 func contains_world_point(world_pos: Vector3) -> bool:
 	var blockout := get_blockout()
 	if blockout == null:
@@ -87,4 +92,8 @@ func contains_world_point(world_pos: Vector3) -> bool:
 	var local := to_local(world_pos)
 	var half_w := blockout.room_width * 0.5
 	var half_d := blockout.room_depth * 0.5
-	return absf(local.x) <= half_w and absf(local.z) <= half_d
+	if absf(local.x) > half_w or absf(local.z) > half_d:
+		return false
+	var min_y := position.y - 4.0
+	var max_y := position.y + CastleRoomConstants.WALL_HEIGHT + 4.0
+	return world_pos.y >= min_y and world_pos.y <= max_y

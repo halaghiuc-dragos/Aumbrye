@@ -1,0 +1,16 @@
+{
+  "id": "guard",
+  "name": "Guard Tuning",
+  "description": "Parry window, per-attack-class parry generosity, block reduction and grab duration.",
+  "parry_window": 0.18,
+  "parry_window_by_class": {
+    "parryable": 1.35,
+    "blockable": 1.0
+  },
+  "block_reduction": {
+    "physical": 0.55,
+    "default": 0.35
+  },
+  "guard_break_on_unblockable": true,
+  "grab_duration": 1.6
+}

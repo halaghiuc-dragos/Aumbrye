@@ -17,7 +17,7 @@
   "scaling": {
     "strength": "D"
   },
-  "ruleText": "Each dodge raises evasion by 5, up to 5 stacks. Resets when you are hit.",
+  "ruleText": "Each dodge raises evasion by 5, up to 5 stacks. Resets when you are hit. A dodge that actually avoids a hit grants swiftness.",
   "rules": [
     {
       "event": "onDodge",
@@ -29,6 +29,13 @@
       "resetOn": [
         "onHitTaken"
       ]
+    },
+    {
+      "event": "onPerfectDodge",
+      "effect": "apply_status",
+      "statusId": "swiftness",
+      "stacks": 1,
+      "applyToActor": true
     }
   ],
   "stats": {

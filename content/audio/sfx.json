@@ -221,38 +221,51 @@
       }
     },
     "weather_wind": {
-    "bus": "Ambience",
-    "variants": ["res://assets/audio/sfx/weather_wind_loop.ogg"],
-    "volume_db": -14.0,
-    "pitch_jitter": 0.0,
-    "max_concurrent": 2,
-    "cooldown_ms": 0,
-    "fallback_tone": { "freq": 120.0, "duration": 0.5 }
-  },
-  "weather_rain": {
-    "bus": "Ambience",
-    "variants": ["res://assets/audio/sfx/weather_rain_loop.ogg"],
-    "volume_db": -10.0,
-    "pitch_jitter": 0.0,
-    "max_concurrent": 2,
-    "cooldown_ms": 0,
-    "fallback_tone": { "freq": 300.0, "duration": 0.5 }
-  },
-  "npc_murmur": {
-    "bus": "SFX",
-    "variants": [
-      "res://assets/audio/sfx/npc_murmur_01.ogg",
-      "res://assets/audio/sfx/npc_murmur_02.ogg",
-      "res://assets/audio/sfx/npc_murmur_03.ogg",
-      "res://assets/audio/sfx/npc_murmur_04.ogg"
-    ],
-    "volume_db": -13.0,
-    "pitch_jitter": 0.09,
-    "max_concurrent": 2,
-    "cooldown_ms": 600,
-    "fallback_tone": { "freq": 180.0, "duration": 0.2 }
-  },
-  "fountain": {
+      "bus": "Ambience",
+      "variants": [
+        "res://assets/audio/sfx/weather_wind_loop.ogg"
+      ],
+      "volume_db": -14.0,
+      "pitch_jitter": 0.0,
+      "max_concurrent": 2,
+      "cooldown_ms": 0,
+      "fallback_tone": {
+        "freq": 120.0,
+        "duration": 0.5
+      }
+    },
+    "weather_rain": {
+      "bus": "Ambience",
+      "variants": [
+        "res://assets/audio/sfx/weather_rain_loop.ogg"
+      ],
+      "volume_db": -10.0,
+      "pitch_jitter": 0.0,
+      "max_concurrent": 2,
+      "cooldown_ms": 0,
+      "fallback_tone": {
+        "freq": 300.0,
+        "duration": 0.5
+      }
+    },
+    "npc_murmur": {
+      "bus": "SFX",
+      "variants": [
+        "res://assets/audio/sfx/npc_murmur_01.ogg",
+        "res://assets/audio/sfx/npc_murmur_02.ogg",
+        "res://assets/audio/sfx/npc_murmur_03.ogg",
+        "res://assets/audio/sfx/npc_murmur_04.ogg"
+      ],
+      "volume_db": -13.0,
+      "pitch_jitter": 0.09,
+      "max_concurrent": 2,
+      "cooldown_ms": 600,
+      "fallback_tone": {
+        "freq": 180.0,
+        "duration": 0.2
+      }
+    },
+    "fountain": {
       "bus": "SFX",
       "variants": [
         "res://assets/audio/sfx/fountain_loop.ogg"

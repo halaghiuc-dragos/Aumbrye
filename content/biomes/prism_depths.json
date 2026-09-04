@@ -5,7 +5,7 @@
   "assetFolder": "prism",
   "roomCount": {
     "min": 22,
-    "max": 28
+    "max": 26
   },
   "roomTemplateIds": [
     "prism_entrance",
@@ -17,7 +17,10 @@
     "prism_secret",
     "prism_arena",
     "prism_boss",
-    "prism_puzzle"
+    "prism_puzzle",
+    "prism_corridor_long",
+    "prism_corridor_bend",
+    "prism_balcony"
   ],
   "materials": {
     "floor": "prism",
@@ -53,7 +56,11 @@
     "rubble": [
       "res://scenes/props/prism/rubble_a.tscn",
       "res://scenes/props/prism/rubble_b.tscn"
-    ]
+    ],
+    "banner": "res://scenes/props/prism/banner.tscn",
+    "statue": "res://scenes/props/prism/statue.tscn",
+    "altar": "res://scenes/props/prism/altar.tscn",
+    "debrisPile": "res://scenes/props/prism/debris_pile.tscn"
   },
   "enemyPool": [
     {
@@ -196,7 +203,8 @@
     "maxGenerationAttempts": 256,
     "maxWalkAttempts": 8192,
     "allow2x2Blocks": true,
-    "fillBoundingBox": true
+    "fillBoundingBox": false,
+    "corridorRatio": 0.1
   },
   "grade": {
     "shadowTint": [

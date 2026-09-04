@@ -54,6 +54,9 @@ const DEFAULT_SHADOW_QUALITY := 1
 const DEFAULT_PARTICLE_QUALITY := 1
 const DEFAULT_LIGHT_ANIMATION := true
 const DEFAULT_HITSTOP_ENABLED := true
+## `AN-01`: 0 means off/continuous. 12 divides evenly into 60 Hz and, at this rig's clip lengths
+## (0.28-1.35 s), yields 4-16 poses per clip -- the range a pixel animator would actually draw.
+const DEFAULT_ANIMATION_STEPS_PER_SECOND := 12.0
 const DEFAULT_SCREEN_SHAKE_SCALE := 1.0
 const DEFAULT_SCREEN_LIFT := 0.0
 const DEFAULT_SHADOW_TINT := Color(0.18, 0.16, 0.26)
@@ -65,13 +68,74 @@ const DEFAULT_PULSE_TINT := Color(0.62, 0.08, 0.08)
 
 const QUALITY_LABELS: Array[String] = ["Low", "Medium", "High"]
 
+## HD-03: `RESOLUTION_PRESETS` held exactly one entry flagged `"native": true`, which made
+## `is_native_hd_preset()` always true and `GameUISkin.is_pixel_ui()` always false -- the pixel
+## treatment (`make_pixel_frame`, `make_bar_fill_style`, the pixel font, the status/HUD/item/glyph
+## atlases) was dead code for every player. These four low-res presets turn it on; `960x540` is the
+## new default so a fresh install sees the pixelled HUD without the player changing a setting.
 const RESOLUTION_PRESETS: Array = [
+	{
+		"label": "640 x 360 (Pixel)",
+		"width": 640,
+		"height": 360,
+		"native": false,
+		"tuning": {
+			"pixel_scale": 3.0,
+			"color_levels": 16.0,
+			"shade_bands": 8.0,
+			"edge_strength": 0.1,
+			"pattern_strength": 0.2,
+			"shade_dither": 0.25,
+		},
+	},
+	{
+		"label": "854 x 480 (Pixel)",
+		"width": 854,
+		"height": 480,
+		"native": false,
+		"tuning": {
+			"pixel_scale": 2.5,
+			"color_levels": 16.0,
+			"shade_bands": 8.0,
+			"edge_strength": 0.1,
+			"pattern_strength": 0.2,
+			"shade_dither": 0.25,
+		},
+	},
+	{
+		"label": "960 x 540 (Pixel)",
+		"width": 960,
+		"height": 540,
+		"native": false,
+		"default": true,
+		"tuning": {
+			"pixel_scale": 2.0,
+			"color_levels": 16.0,
+			"shade_bands": 8.0,
+			"edge_strength": 0.1,
+			"pattern_strength": 0.2,
+			"shade_dither": 0.25,
+		},
+	},
+	{
+		"label": "1280 x 720 (Pixel)",
+		"width": 1280,
+		"height": 720,
+		"native": false,
+		"tuning": {
+			"pixel_scale": 1.5,
+			"color_levels": 16.0,
+			"shade_bands": 8.0,
+			"edge_strength": 0.1,
+			"pattern_strength": 0.2,
+			"shade_dither": 0.25,
+		},
+	},
 	{
 		"label": "1920 x 1080 (Full HD)",
 		"width": DEFAULT_VIEWPORT_WIDTH,
 		"height": DEFAULT_VIEWPORT_HEIGHT,
 		"native": true,
-		"default": true,
 		"tuning": {
 			"pixel_scale": 2.0,
 			"color_levels": 16.0,
@@ -120,6 +184,7 @@ static var shadow_quality: int = DEFAULT_SHADOW_QUALITY
 static var particle_quality: int = DEFAULT_PARTICLE_QUALITY
 static var light_animation: bool = DEFAULT_LIGHT_ANIMATION
 static var hitstop_enabled: bool = DEFAULT_HITSTOP_ENABLED
+static var animation_steps_per_second: float = DEFAULT_ANIMATION_STEPS_PER_SECOND
 static var screen_shake_scale: float = DEFAULT_SCREEN_SHAKE_SCALE
 static var tuning_is_preset_default: bool = false
 static var screen_lift: float = DEFAULT_SCREEN_LIFT
@@ -176,8 +241,17 @@ static func load_from_save() -> void:
 	outline_thickness = float(data.get("outline_thickness", DEFAULT_OUTLINE_THICKNESS))
 	outline_color = _color_from_save(data.get("outline_color", null), DEFAULT_OUTLINE_COLOR)
 	outline_interior = float(data.get("outline_interior", DEFAULT_OUTLINE_INTERIOR))
-	viewport_width = DEFAULT_VIEWPORT_WIDTH
-	viewport_height = DEFAULT_VIEWPORT_HEIGHT
+	# HD-03: this used to hardcode both to the native-HD default on every load, discarding whatever
+	# `save()` had just written a few lines below (it does persist `viewport_width`/`viewport_height`
+	# correctly) -- so `is_native_hd_preset()` was always true and the pixel theme branch was
+	# unreachable for every player, including one who had explicitly picked a pixel preset.
+	var default_preset := _default_preset()
+	viewport_width = int(
+		data.get("viewport_width", default_preset.get("width", DEFAULT_VIEWPORT_WIDTH))
+	)
+	viewport_height = int(
+		data.get("viewport_height", default_preset.get("height", DEFAULT_VIEWPORT_HEIGHT))
+	)
 	camera_snap_enabled = bool(data.get("camera_snap_enabled", DEFAULT_CAMERA_SNAP))
 	gameplay_camera_snap_enabled = bool(
 		data.get("gameplayCameraSnap", data.get("gameplay_camera_snap", DEFAULT_GAMEPLAY_CAMERA_SNAP))
@@ -191,6 +265,9 @@ static func load_from_save() -> void:
 	particle_quality = int(data.get("particle_quality", DEFAULT_PARTICLE_QUALITY))
 	light_animation = bool(data.get("light_animation", DEFAULT_LIGHT_ANIMATION))
 	hitstop_enabled = bool(data.get("hitstop_enabled", DEFAULT_HITSTOP_ENABLED))
+	animation_steps_per_second = float(
+		data.get("animation_steps_per_second", DEFAULT_ANIMATION_STEPS_PER_SECOND)
+	)
 	screen_shake_scale = float(data.get("screen_shake_scale", DEFAULT_SCREEN_SHAKE_SCALE))
 	tuning_is_preset_default = bool(data.get("tuning_is_preset_default", false))
 	screen_lift = float(data.get("screen_lift", DEFAULT_SCREEN_LIFT))
@@ -249,6 +326,7 @@ static func save() -> void:
 		"particle_quality": particle_quality,
 		"light_animation": light_animation,
 		"hitstop_enabled": hitstop_enabled,
+		"animation_steps_per_second": animation_steps_per_second,
 		"screen_shake_scale": screen_shake_scale,
 		"tuning_is_preset_default": tuning_is_preset_default,
 		"screen_lift": screen_lift,
@@ -350,16 +428,66 @@ static func set_biome_screen_grade(biome_id: String) -> void:
 	_notify_viewport()
 
 
+## MD-03: past `EndlessDifficulty.WANE_FLOOR` the floor should visibly look like it is getting
+## harder -- desaturating and dimming progressively -- rather than the player only learning about
+## it from `describe_pressure()` in a menu. Layered on top of whatever `set_biome_screen_grade()`
+## already set for this biome, not a replacement, so each biome keeps its own identity as it fades.
+const WANING_FULL_EFFECT_FLOORS := 100.0
+
+static func apply_waning_grade(floor_index: int) -> void:
+	var wane := EndlessDifficulty.wane_progress(floor_index)
+	if wane <= 0:
+		return
+	var t := clampf(float(wane) / WANING_FULL_EFFECT_FLOORS, 0.0, 1.0)
+	_biome_grade_override["saturation"] = _graded_float("saturation", 1.0) * lerpf(1.0, 0.4, t)
+	_biome_grade_override["contrast"] = _graded_float("contrast", 1.0) * lerpf(1.0, 1.2, t)
+	_biome_grade_override["vignette_strength"] = (
+		_graded_float("vignette_strength", DEFAULT_VIGNETTE) + lerpf(0.0, 0.32, t)
+	)
+	_biome_grade_override["lift"] = _graded_float("lift", DEFAULT_SCREEN_LIFT) - lerpf(0.0, 0.05, t)
+	_notify_viewport()
+
+
+## CB-08: `_status_grade_override` sits above `_biome_grade_override` -- a debuff's screen
+## treatment (burn/freeze/poison) should win over ambient biome mood, and layering it as a separate
+## dict means clearing a debuff never has to remember or restore whatever the biome itself set.
+static var _status_grade_override: Dictionary = {}
+
+
 static func _graded_float(key: String, fallback: float) -> float:
+	if _status_grade_override.has(key):
+		return float(_status_grade_override[key])
 	if _biome_grade_override.has(key):
 		return float(_biome_grade_override[key])
 	return fallback
 
 
 static func _graded_color(key: String, fallback: Color) -> Color:
+	if _status_grade_override.has(key):
+		return _status_grade_override[key] as Color
 	if _biome_grade_override.has(key):
 		return _biome_grade_override[key] as Color
 	return fallback
+
+
+## CB-08: a distinct, persistent screen treatment per debuff while it is active on the player --
+## burn warms the highlight tint, freeze desaturates, poison greens the shadow tint and thickens
+## the vignette. Recomputed from scratch on every call (not incrementally toggled), so multiple
+## simultaneous debuffs combine predictably and clearing one never leaves a stray override behind.
+static func apply_status_screen_grade(active_status_ids: Array) -> void:
+	_status_grade_override = {}
+	if "burn" in active_status_ids:
+		_status_grade_override["highlight_tint"] = Color(1.0, 0.6, 0.3)
+		_status_grade_override["highlight_tint_amount"] = 0.35
+	if "freeze" in active_status_ids:
+		_status_grade_override["saturation"] = _graded_float("saturation", 1.0) * 0.55
+	if "poison" in active_status_ids:
+		_status_grade_override["shadow_tint"] = Color(0.22, 0.55, 0.2)
+		_status_grade_override["shadow_tint_amount"] = 0.32
+		_status_grade_override["vignette_strength"] = (
+			_graded_float("vignette_strength", DEFAULT_VIGNETTE) + 0.16
+		)
+	_notify_viewport()
 
 
 static func mark_tuning_user_edited() -> void:
@@ -409,6 +537,7 @@ static func apply_beauty_defaults() -> void:
 	shadow_quality = DEFAULT_SHADOW_QUALITY
 	particle_quality = DEFAULT_PARTICLE_QUALITY
 	hitstop_enabled = DEFAULT_HITSTOP_ENABLED
+	animation_steps_per_second = DEFAULT_ANIMATION_STEPS_PER_SECOND
 	screen_shake_scale = DEFAULT_SCREEN_SHAKE_SCALE
 	light_animation = DEFAULT_LIGHT_ANIMATION
 	screen_lift = DEFAULT_SCREEN_LIFT
@@ -444,6 +573,37 @@ static func _default_preset() -> Dictionary:
 		if bool(entry.get("default", false)):
 			return entry
 	return RESOLUTION_PRESETS[0]
+
+
+## HD-03: settings-UI plumbing for `RESOLUTION_PRESETS`, mirroring `settings_schema.gd`'s existing
+## `_resolution_row()` pattern (option list + index getter/setter) so the pixel preset is
+## comparable side by side with the other display settings.
+static func preset_labels() -> Array:
+	var labels: Array = []
+	for preset in RESOLUTION_PRESETS:
+		labels.append(str(preset.get("label", "")))
+	return labels
+
+
+static func preset_index() -> int:
+	for i in RESOLUTION_PRESETS.size():
+		var preset: Dictionary = RESOLUTION_PRESETS[i]
+		if int(preset.get("width", 0)) == viewport_width and int(preset.get("height", 0)) == viewport_height:
+			return i
+	return 0
+
+
+static func set_preset_index(idx: int) -> void:
+	if idx < 0 or idx >= RESOLUTION_PRESETS.size():
+		return
+	var preset: Dictionary = RESOLUTION_PRESETS[idx]
+	viewport_width = int(preset.get("width", DEFAULT_VIEWPORT_WIDTH))
+	viewport_height = int(preset.get("height", DEFAULT_VIEWPORT_HEIGHT))
+	var tuning: Variant = preset.get("tuning", {})
+	if tuning is Dictionary and not (tuning as Dictionary).is_empty():
+		_apply_preset_tuning(tuning as Dictionary)
+		tuning_is_preset_default = true
+	save_and_apply()
 
 
 static func _preset_for_size(width: int, height: int) -> Dictionary:

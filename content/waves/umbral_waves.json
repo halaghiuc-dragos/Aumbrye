@@ -6,6 +6,7 @@
   "intermissionEvery": 5,
   "bossEvery": 10,
   "cashOutFromWave": 20,
+  "arenaStates": ["open", "dimmed", "hazard", "fog"],
   "count": {
     "base": 3,
     "per_half_wave": 1,

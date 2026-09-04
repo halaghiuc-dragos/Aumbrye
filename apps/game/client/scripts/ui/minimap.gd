@@ -16,6 +16,7 @@ const COLOR_VISITED := Color(0.55, 0.52, 0.48, 0.95)
 const COLOR_CURRENT := Color(0.95, 0.78, 0.28, 1.0)
 const COLOR_SEEN := Color(0.32, 0.30, 0.28, 0.75)
 const COLOR_EDGE := Color(0.35, 0.33, 0.30, 0.7)
+const COLOR_ONE_WAY := Color(0.85, 0.7, 0.35, 0.85)
 const COLOR_BG := Color(0.05, 0.05, 0.08, 0.82)
 const COLOR_PLAYER := Color(0.95, 0.92, 0.82, 1.0)
 
@@ -81,6 +82,23 @@ var _drag_last := Vector2.ZERO
 var _icon_atlas: Texture2D
 var _cleared: Dictionary = {}
 var _fog_of_war := false
+var _floor_number := 0
+
+const COLOR_STAIRS_OUTLINE := Color(0.95, 0.78, 0.28, 0.9)
+const COLOR_FLOOR_LABEL := Color(0.88, 0.85, 0.78, 0.95)
+
+## HD-05: the Vigil arena has no room graph, so it gets a radar draw path instead of the dungeon
+## one -- arena bounds, the player arrow (already works unmodified, it only needs `_bounds`), a
+## dot per live enemy in the health-bar red, and a pulsing dot per pending spawn in the telegraph
+## amber. Reuses `_map_point()` by pointing `_bounds` at a fixed square instead of the graph's.
+var _radar_mode := false
+var _radar_spawn_markers: Array[Node3D] = []
+var _radar_pulse := 0.0
+const COLOR_RADAR_BOUNDS := Color(0.35, 0.33, 0.30, 0.7)
+const COLOR_RADAR_ENEMY := Color(0.71, 0.17, 0.19, 1.0)
+const COLOR_RADAR_SPAWN := Color(0.98, 0.68, 0.20, 1.0)
+const RADAR_ENEMY_DOT := 2.5
+const RADAR_SPAWN_DOT := 3.0
 
 
 func configure(definition: Dictionary) -> void:
@@ -92,6 +110,31 @@ func configure(definition: Dictionary) -> void:
 	_current_room_id = ""
 	_build_caches()
 	_recompute_bounds()
+	queue_redraw()
+
+
+## HD-05: switches the minimap into arena-radar mode -- no room graph, just a fixed square of
+## `half_extent` world units centred on the origin (the Vigil arena is centred there).
+func enable_radar_mode(half_extent: float) -> void:
+	_radar_mode = true
+	_rooms = []
+	_edges = []
+	_branch_previews = []
+	_bounds = Rect2(-half_extent, -half_extent, half_extent * 2.0, half_extent * 2.0)
+	queue_redraw()
+
+
+func set_radar_spawn_markers(markers: Array) -> void:
+	_radar_spawn_markers = []
+	for marker in markers:
+		if marker is Node3D and is_instance_valid(marker):
+			_radar_spawn_markers.append(marker)
+	queue_redraw()
+
+
+## HD-10: shown in the map corner so the floor number is legible without opening the overlay.
+func set_floor_number(floor_number: int) -> void:
+	_floor_number = floor_number
 	queue_redraw()
 
 
@@ -196,6 +239,10 @@ func _process(delta: float) -> void:
 		return
 	if _overlay_mode:
 		_apply_stick_pan(delta)
+	if _radar_mode:
+		_radar_pulse = fmod(_radar_pulse + delta * 0.8, 1.0)
+		queue_redraw()
+		return
 	if _player == null or not is_instance_valid(_player):
 		return
 	_redraw_timer += delta
@@ -255,6 +302,13 @@ func _apply_stick_pan(delta: float) -> void:
 
 
 func _draw() -> void:
+	if _radar_mode:
+		var radar_rect := _content_rect()
+		draw_rect(Rect2(Vector2.ZERO, size), COLOR_BG)
+		draw_rect(Rect2(Vector2.ZERO, size), Color(0.2, 0.18, 0.16), false, 1.0)
+		_draw_radar(radar_rect)
+		_draw_player_marker(radar_rect)
+		return
 	if _rooms.is_empty():
 		return
 	var map_rect := _content_rect()
@@ -262,8 +316,10 @@ func _draw() -> void:
 	draw_rect(Rect2(Vector2.ZERO, size), Color(0.2, 0.18, 0.16), false, 1.0)
 	_draw_edges(map_rect)
 	_draw_rooms(map_rect)
+	_draw_stairs_outline(map_rect)
 	_draw_branch_previews(map_rect)
 	_draw_player_marker(map_rect)
+	_draw_floor_number()
 	if _overlay_mode:
 		_draw_legend()
 
@@ -296,6 +352,54 @@ func _draw_edges(map_rect: Rect2) -> void:
 			draw_dashed_line(a, b, COLOR_EDGE, 1.0, 4.0, true)
 		else:
 			draw_line(a, b, COLOR_EDGE, 1.0)
+		_draw_one_way_chevron(edge, from_id, to_id, a, b)
+
+
+## RM-04: a chevron toward whichever end is actually approachable -- the open side of a barred
+## gate, or the lower room of a "down"-only drop -- instead of a plain line for both. `edges`
+## carries `oneWay` (see `DungeonProcgen._annotate_one_way_edges` for "gate",
+## `RoomGraphGeometry.build_edges` for "down"); everything else about the line is unchanged.
+func _draw_one_way_chevron(
+	edge: Dictionary, from_id: String, to_id: String, a: Vector2, b: Vector2
+) -> void:
+	var one_way := str(edge.get("oneWay", ""))
+	if one_way == "":
+		return
+	var point_to_b := true
+	if one_way == "gate":
+		var open_room := str(edge.get("openRoomId", ""))
+		point_to_b = open_room == to_id or open_room != from_id
+	elif one_way == "down":
+		var from_height := _room_height_level(from_id)
+		var to_height := _room_height_level(to_id)
+		point_to_b = to_height < from_height
+	else:
+		return
+	var tip := b if point_to_b else a
+	var tail := a if point_to_b else b
+	var dir := (tip - tail).normalized()
+	if dir == Vector2.ZERO:
+		return
+	var mid := (a + b) * 0.5
+	var perp := Vector2(-dir.y, dir.x)
+	var chevron_size := 3.5
+	var points := PackedVector2Array(
+		[
+			mid + dir * chevron_size,
+			mid - dir * chevron_size + perp * chevron_size,
+			mid - dir * chevron_size - perp * chevron_size,
+		]
+	)
+	draw_colored_polygon(points, COLOR_ONE_WAY)
+
+
+func _room_height_level(room_id: String) -> int:
+	for room_def in _rooms:
+		if not room_def is Dictionary:
+			continue
+		if str((room_def as Dictionary).get("id", "")) == room_id:
+			return int((room_def as Dictionary).get("heightLevel", 0))
+	return 0
 
 
 func _draw_rooms(map_rect: Rect2) -> void:
@@ -321,7 +425,43 @@ func _draw_rooms(map_rect: Rect2) -> void:
 		if tier >= RevealTier.VISITED:
 			_draw_room_icon(room_def, center, _cleared.has(room_id))
 			if bool(room_def.get("locked", false)):
-				_draw_lock_mark(rect)
+				_draw_lock_mark(rect, str(room_def.get("lockColor", "")))
+			var key_color := str(room_def.get("keyColor", ""))
+			if key_color != "":
+				_draw_key_room_mark(rect, key_color)
+
+
+## HD-10: a persistent gold outline on the stairs room once seen -- separate from `COLOR_CURRENT`
+## (which moves with the player) so the goal stays marked after you walk away from it.
+func _draw_stairs_outline(map_rect: Rect2) -> void:
+	for room_def in _rooms:
+		if not room_def is Dictionary:
+			continue
+		if str(room_def.get("kind", "")) != "stairs":
+			continue
+		var room_id := str(room_def.get("id", ""))
+		if get_reveal_tier(room_id) == RevealTier.UNKNOWN:
+			continue
+		var center := _map_point(_room_center(room_id), map_rect)
+		var room_px := _room_pixel_size(room_def, map_rect)
+		var rect := Rect2(center - room_px * 0.5, room_px).grow(1.0)
+		draw_rect(rect, COLOR_STAIRS_OUTLINE, false, 1.5)
+		return
+
+
+## HD-10: the floor number in the minimap corner, so it reads without opening the map overlay.
+func _draw_floor_number() -> void:
+	if _floor_number <= 0:
+		return
+	var font := get_theme_default_font()
+	if font == null:
+		return
+	var text := "F%d" % _floor_number
+	var pos := Vector2(PADDING + 2.0, PADDING + 9.0)
+	draw_string(
+		font, pos + Vector2(1, 1), text, HORIZONTAL_ALIGNMENT_LEFT, -1, 9, Color(0, 0, 0, 0.85)
+	)
+	draw_string(font, pos, text, HORIZONTAL_ALIGNMENT_LEFT, -1, 9, COLOR_FLOOR_LABEL)
 
 
 func _draw_room_icon(room_def: Dictionary, center: Vector2, cleared: bool = false) -> void:
@@ -335,12 +475,53 @@ func _draw_room_icon(room_def: Dictionary, center: Vector2, cleared: bool = fals
 	draw_texture_rect_region(_icon_atlas, dest, region, tint, false)
 
 
-func _draw_lock_mark(rect: Rect2) -> void:
+## RM-05: `color_id` is one of `FloorKeyring.COLOR_ORDER` ("red"/"blue"/"yellow") -- an empty or
+## unrecognised id falls back to the old flat `COLOR_LOCKED`, which only happens for a definition
+## generated before this field existed (an in-progress save from before this change).
+func _lock_color(color_id: String) -> Color:
+	if color_id == "" or not FloorKeyring.COLORS.has(color_id):
+		return COLOR_LOCKED
+	return FloorKeyring.COLORS[color_id]["tint"]
+
+
+func _draw_lock_mark(rect: Rect2, color_id: String = "") -> void:
 	var corner := Vector2(rect.position.x + rect.size.x - LOCK_MARK_HALF - 1.0, rect.position.y + LOCK_MARK_HALF + 1.0)
 	draw_rect(
 		Rect2(corner - Vector2(LOCK_MARK_HALF, LOCK_MARK_HALF), Vector2(LOCK_MARK_HALF, LOCK_MARK_HALF) * 2.0),
-		COLOR_LOCKED
+		_lock_color(color_id)
 	)
+
+
+## The key room's mark is hollow (outline only) rather than filled, so it never gets confused with
+## the solid lock mark on the door it opens even though they share a colour on purpose.
+func _draw_key_room_mark(rect: Rect2, color_id: String) -> void:
+	var corner := Vector2(rect.position.x + LOCK_MARK_HALF + 1.0, rect.position.y + LOCK_MARK_HALF + 1.0)
+	draw_rect(
+		Rect2(corner - Vector2(LOCK_MARK_HALF, LOCK_MARK_HALF), Vector2(LOCK_MARK_HALF, LOCK_MARK_HALF) * 2.0),
+		_lock_color(color_id),
+		false,
+		1.5
+	)
+
+
+func _draw_radar(map_rect: Rect2) -> void:
+	var bounds_rect := Rect2(_map_point(_bounds.position, map_rect), _bounds.size * _uniform_scale(map_rect) * _zoom)
+	draw_rect(bounds_rect, COLOR_RADAR_BOUNDS, false, 1.0)
+	var pulse_scale := 1.0 + sin(_radar_pulse * TAU) * 0.35
+	for marker in _radar_spawn_markers:
+		if not is_instance_valid(marker):
+			continue
+		var point := _map_point(Vector2(marker.global_position.x, marker.global_position.z), map_rect)
+		draw_circle(point, RADAR_SPAWN_DOT * pulse_scale, COLOR_RADAR_SPAWN)
+	for enemy in get_tree().get_nodes_in_group("enemy"):
+		if not (enemy is Node3D) or not is_instance_valid(enemy):
+			continue
+		if enemy.has_method("is_dead") and enemy.call("is_dead"):
+			continue
+		var point := _map_point(
+			Vector2((enemy as Node3D).global_position.x, (enemy as Node3D).global_position.z), map_rect
+		)
+		draw_circle(point, RADAR_ENEMY_DOT, COLOR_RADAR_ENEMY)
 
 
 func _draw_player_marker(map_rect: Rect2) -> void:

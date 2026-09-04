@@ -42,9 +42,10 @@
       "attack_damage": 23,
       "attack_poise_damage": 5,
       "max_range": 2.47,
-      "telegraph_radius": 1.95,
       "telegraph_shape": "circle",
-      "damage_type": "physical"
+      "damage_type": "physical",
+      "attackClass": "blockable",
+      "knockback": 2.0
     },
     {
       "id": "lunge",
@@ -57,9 +58,10 @@
       "attack_damage": 37,
       "attack_poise_damage": 8,
       "max_range": 4.94,
-      "telegraph_radius": 1.95,
       "telegraph_shape": "line",
-      "damage_type": "physical"
+      "damage_type": "physical",
+      "attackClass": "parryable",
+      "knockback": 2.0
     },
     {
       "id": "worry",
@@ -72,7 +74,6 @@
       "attack_damage": 23,
       "attack_poise_damage": 5,
       "max_range": 2.6,
-      "telegraph_radius": 1.95,
       "telegraph_shape": "circle",
       "damage_type": "physical",
       "combo_followups": [
@@ -87,9 +88,10 @@
           "attack_damage": 8,
           "attack_poise_damage": 5,
           "max_range": 12,
-          "telegraph_radius": 4,
           "telegraph_shape": "circle",
-          "damage_type": "physical"
+          "damage_type": "physical",
+          "attackClass": "blockable",
+          "knockback": 2.0
         },
         {
           "id": "worry_three",
@@ -102,11 +104,14 @@
           "attack_damage": 10,
           "attack_poise_damage": 6,
           "max_range": 12,
-          "telegraph_radius": 4,
           "telegraph_shape": "circle",
-          "damage_type": "physical"
+          "damage_type": "physical",
+          "attackClass": "blockable",
+          "knockback": 2.0
         }
-      ]
+      ],
+      "attackClass": "parryable",
+      "knockback": 2.0
     }
   ]
 }

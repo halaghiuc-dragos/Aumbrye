@@ -20,6 +20,9 @@ var _los_clear_this_swing: Dictionary = {}
 var _active := false
 var _last_overlap_count := 0
 var _damage_type := DamageInfo.TYPE_PHYSICAL
+var _attack_class := "blockable"
+var _knockback := 0.0
+var _backstab_multiplier := 0.0
 var _status_id := ""
 var _status_stacks := 1
 var _crit_chance := 0.0
@@ -29,6 +32,8 @@ var _shape_query := PhysicsShapeQueryParameters3D.new()
 var _castle_run: Node
 var _execution_target: Node = null
 var _execution_kind := ""
+var _last_shape_transform := Transform3D.IDENTITY
+var _has_swept_transform := false
 
 
 func _ready() -> void:
@@ -63,6 +68,7 @@ func enable() -> void:
 	_active = true
 	monitoring = true
 	set_physics_process(true)
+	_has_swept_transform = false
 	_scan_overlaps()
 
 
@@ -75,6 +81,7 @@ func disable() -> void:
 	_los_clear_this_swing.clear()
 	_execution_target = null
 	_execution_kind = ""
+	_has_swept_transform = false
 
 
 func set_execution(target: Node, kind: String) -> void:
@@ -94,7 +101,10 @@ func set_attack_values(
 	apply_status: String = "",
 	status_stacks: int = 1,
 	crit_chance: float = 0.0,
-	crit_multiplier: float = 1.5
+	crit_multiplier: float = 1.5,
+	attack_class: String = "blockable",
+	knockback: float = 0.0,
+	backstab_multiplier: float = 0.0
 ) -> void:
 	damage_amount = damage
 	poise_damage = poise
@@ -103,6 +113,9 @@ func set_attack_values(
 	_status_stacks = status_stacks
 	_crit_chance = crit_chance
 	_crit_multiplier = crit_multiplier
+	_attack_class = attack_class
+	_knockback = knockback
+	_backstab_multiplier = backstab_multiplier
 
 
 func set_combat_owner(node: Node) -> void:
@@ -119,6 +132,13 @@ func _on_area_entered(area: Area3D) -> void:
 	_try_hit(area)
 
 
+const MAX_OVERLAP_RESULTS := 32
+## Below this fraction of the shape's own smallest extent, a static test is close enough -- the
+## sweep only kicks in once the hitbox has travelled far enough between frames to plausibly have
+## passed through something thinner than itself.
+const SWEEP_TRAVEL_FRACTION := 0.5
+
+
 func _scan_overlaps() -> void:
 	_last_overlap_count = 0
 	if _collision_shape == null or _collision_shape.shape == null:
@@ -127,14 +147,56 @@ func _scan_overlaps() -> void:
 	if space == null:
 		return
 	_shape_query.shape = _collision_shape.shape
-	_shape_query.transform = _collision_shape.global_transform
 	_shape_query.collision_mask = collision_mask
-	const MAX_OVERLAP_RESULTS := 32
-	for result in space.intersect_shape(_shape_query, MAX_OVERLAP_RESULTS):
+	var current_transform := _collision_shape.global_transform
+	var results: Array
+	var did_sweep := false
+	if _has_swept_transform:
+		var travel := current_transform.origin - _last_shape_transform.origin
+		var min_extent := _shape_min_extent(_collision_shape.shape)
+		if travel.length() > min_extent * SWEEP_TRAVEL_FRACTION:
+			results = _sweep(space, _last_shape_transform, travel)
+			did_sweep = true
+	if not did_sweep:
+		_shape_query.transform = current_transform
+		_shape_query.motion = Vector3.ZERO
+		results = space.intersect_shape(_shape_query, MAX_OVERLAP_RESULTS)
+	for result in results:
 		var collider = result.get("collider")
 		if collider is Area3D:
 			_last_overlap_count += 1
 			_try_hit(collider as Area3D)
+	_last_shape_transform = current_transform
+	_has_swept_transform = true
+
+
+## `PH-03`: verified directly against this engine build -- `intersect_shape()` does **not** honour
+## `PhysicsShapeQueryParameters3D.motion`; a query built with a non-zero `motion` returns exactly
+## the same result as a static test at `transform`. `cast_motion()` is the call that actually
+## respects it: it returns the safe/unsafe fraction of `motion` the shape can travel before
+## touching something, so the sweep is a `cast_motion()` to find *where* contact happens, then one
+## `intersect_shape()` at that point to enumerate *what* was touched there.
+func _sweep(space: PhysicsDirectSpaceState3D, from_transform: Transform3D, motion: Vector3) -> Array:
+	_shape_query.transform = from_transform
+	_shape_query.motion = motion
+	var cast := space.cast_motion(_shape_query)
+	var unsafe: float = clampf(float(cast[1]) if cast.size() > 1 else 1.0, 0.0, 1.0)
+	var contact_transform := from_transform
+	contact_transform.origin = from_transform.origin + motion * unsafe
+	_shape_query.transform = contact_transform
+	_shape_query.motion = Vector3.ZERO
+	return space.intersect_shape(_shape_query, MAX_OVERLAP_RESULTS)
+
+
+func _shape_min_extent(shape: Shape3D) -> float:
+	if shape is BoxShape3D:
+		var size: Vector3 = (shape as BoxShape3D).size
+		return minf(size.x, minf(size.y, size.z))
+	if shape is CapsuleShape3D:
+		return (shape as CapsuleShape3D).radius * 2.0
+	if shape is SphereShape3D:
+		return (shape as SphereShape3D).radius * 2.0
+	return 0.3
 
 
 func _try_hit(area: Area3D) -> void:
@@ -171,9 +233,18 @@ func _try_hit(area: Area3D) -> void:
 		final_damage *= _crit_multiplier
 		is_crit = true
 	var info := DamageInfo.create(
-		final_damage, poise_damage, _owner_node, _damage_type, direction, _status_id, _status_stacks
+		final_damage,
+		poise_damage,
+		_owner_node,
+		_damage_type,
+		direction,
+		_status_id,
+		_status_stacks,
+		_attack_class
 	)
 	info.crit = is_crit
+	info.knockback = _knockback
+	info.backstab_multiplier_override = _backstab_multiplier
 	if _execution_kind != "":
 		info.execution = _execution_kind
 		info.ignore_guard = true

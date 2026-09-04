@@ -26,6 +26,10 @@ const ROOM_KINDS := [
 	"arena",
 	"boss",
 	"puzzle",
+	# RM-14 / RM-19
+	"corridor_long",
+	"corridor_bend",
+	"balcony",
 ]
 
 static var ALL_BIOMES: Array[String] = []

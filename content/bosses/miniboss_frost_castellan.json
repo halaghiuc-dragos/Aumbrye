@@ -40,8 +40,9 @@
       "attack_damage": 38,
       "attack_poise_damage": 15,
       "max_range": 3,
-      "telegraph_radius": 2.1,
-      "telegraph_shape": "circle"
+      "telegraph_shape": "circle",
+      "attackClass": "blockable",
+      "knockback": 2.5
     },
     {
       "id": "cleave",
@@ -54,8 +55,9 @@
       "attack_damage": 69,
       "attack_poise_damage": 28,
       "max_range": 3.3,
-      "telegraph_radius": 3,
-      "telegraph_shape": "cone"
+      "telegraph_shape": "cone",
+      "attackClass": "unblockable",
+      "knockback": 3.0
     },
     {
       "id": "chain",
@@ -68,7 +70,6 @@
       "attack_damage": 40,
       "attack_poise_damage": 17,
       "max_range": 3,
-      "telegraph_radius": 2.55,
       "telegraph_shape": "circle",
       "combo_followups": [
         {
@@ -82,10 +83,13 @@
           "attack_damage": 20,
           "attack_poise_damage": 19,
           "max_range": 3,
-          "telegraph_radius": 2.7,
-          "telegraph_shape": "cone"
+          "telegraph_shape": "cone",
+          "attackClass": "unblockable",
+          "knockback": 2.5
         }
-      ]
+      ],
+      "attackClass": "parryable",
+      "knockback": 2.5
     },
     {
       "id": "sig_shatter_cone",
@@ -98,11 +102,12 @@
       "attack_damage": 66,
       "attack_poise_damage": 26,
       "max_range": 5.5,
-      "telegraph_radius": 4.0,
       "telegraph_shape": "cone",
       "damage_type": "frost",
       "status_on_hit": "freeze",
-      "status_stacks_on_hit": 2
+      "status_stacks_on_hit": 2,
+      "attackClass": "unblockable",
+      "knockback": 3.0
     }
   ],
   "phases": [
@@ -122,8 +127,9 @@
           "attack_damage": 38,
           "attack_poise_damage": 15,
           "max_range": 3,
-          "telegraph_radius": 2.1,
-          "telegraph_shape": "circle"
+          "telegraph_shape": "circle",
+          "attackClass": "blockable",
+          "knockback": 2.5
         },
         {
           "id": "cleave",
@@ -136,8 +142,9 @@
           "attack_damage": 69,
           "attack_poise_damage": 28,
           "max_range": 3.3,
-          "telegraph_radius": 3,
-          "telegraph_shape": "cone"
+          "telegraph_shape": "cone",
+          "attackClass": "unblockable",
+          "knockback": 3.0
         },
         {
           "id": "chain",
@@ -150,7 +157,6 @@
           "attack_damage": 40,
           "attack_poise_damage": 17,
           "max_range": 3,
-          "telegraph_radius": 2.55,
           "telegraph_shape": "circle",
           "combo_followups": [
             {
@@ -164,10 +170,13 @@
               "attack_damage": 20,
               "attack_poise_damage": 19,
               "max_range": 3,
-              "telegraph_radius": 2.7,
-              "telegraph_shape": "cone"
+              "telegraph_shape": "cone",
+              "attackClass": "unblockable",
+              "knockback": 2.5
             }
-          ]
+          ],
+          "attackClass": "parryable",
+          "knockback": 2.5
         }
       ]
     },
@@ -187,8 +196,9 @@
           "attack_damage": 38,
           "attack_poise_damage": 15,
           "max_range": 3,
-          "telegraph_radius": 2.1,
-          "telegraph_shape": "circle"
+          "telegraph_shape": "circle",
+          "attackClass": "blockable",
+          "knockback": 2.5
         },
         {
           "id": "cleave",
@@ -201,8 +211,9 @@
           "attack_damage": 69,
           "attack_poise_damage": 28,
           "max_range": 3.3,
-          "telegraph_radius": 3,
-          "telegraph_shape": "cone"
+          "telegraph_shape": "cone",
+          "attackClass": "unblockable",
+          "knockback": 3.0
         },
         {
           "id": "charge",
@@ -215,8 +226,9 @@
           "attack_damage": 58,
           "attack_poise_damage": 24,
           "max_range": 7.8,
-          "telegraph_radius": 3.3,
-          "telegraph_shape": "line"
+          "telegraph_shape": "line",
+          "attackClass": "parryable",
+          "knockback": 2.5
         },
         {
           "id": "feint",
@@ -229,8 +241,9 @@
           "attack_damage": 62,
           "attack_poise_damage": 27,
           "max_range": 3.75,
-          "telegraph_radius": 3.45,
-          "telegraph_shape": "cone"
+          "telegraph_shape": "cone",
+          "attackClass": "unblockable",
+          "knockback": 3.0
         }
       ],
       "moveSpeedMult": 1.1,
@@ -251,5 +264,6 @@
         "shake": 0.4
       }
     }
-  ]
+  ],
+  "mass": 2.0
 }

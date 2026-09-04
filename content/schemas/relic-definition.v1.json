@@ -4,13 +4,30 @@
   "title": "RelicDefinition",
   "type": "object",
   "additionalProperties": false,
-  "required": ["id", "name", "description"],
+  "required": [
+    "id",
+    "name",
+    "description"
+  ],
   "properties": {
-    "id": { "type": "string", "minLength": 1 },
-    "name": { "type": "string", "minLength": 1 },
-    "description": { "type": "string" },
-    "authored": { "type": "boolean" },
-    "maxStacks": { "type": "integer", "minimum": 1 },
+    "id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1
+    },
+    "description": {
+      "type": "string"
+    },
+    "authored": {
+      "type": "boolean"
+    },
+    "maxStacks": {
+      "type": "integer",
+      "minimum": 1
+    },
     "offerable": {
       "type": "boolean",
       "description": "Eligible to appear in a relic offer at a decision point."
@@ -22,12 +39,17 @@
     },
     "tags": {
       "type": "array",
-      "items": { "type": "string", "minLength": 1 },
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
       "description": "Synergy groups; shared tags raise a relic's odds of being offered."
     },
     "stats": {
       "type": "object",
-      "additionalProperties": { "type": "number" }
+      "additionalProperties": {
+        "type": "number"
+      }
     },
     "rules": {
       "type": "array",
@@ -35,7 +57,10 @@
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["event", "effect"],
+        "required": [
+          "event",
+          "effect"
+        ],
         "properties": {
           "event": {
             "type": "string",
@@ -53,7 +78,12 @@
               "onRoomClear",
               "onFloorEnter",
               "onStatusApplied",
-              "onRunStart"
+              "onRunStart",
+              "onDeath",
+              "onPerfectDodge",
+              "onGuardBreak",
+              "onExecute",
+              "onFlask"
             ]
           },
           "effect": {
@@ -68,26 +98,89 @@
               "add_stack",
               "bonus_gold",
               "refund_flask",
-              "clear_status"
+              "clear_status",
+              "deal_damage",
+              "grant_barrier",
+              "empower_next",
+              "reduce_cooldown",
+              "knockback"
             ]
           },
-          "amount": { "type": "number" },
-          "pct": { "type": "number", "minimum": 0 },
-          "chance": { "type": "number", "minimum": 0, "maximum": 1 },
-          "cooldown": { "type": "number", "minimum": 0 },
-          "statusId": { "type": "string" },
-          "stacks": { "type": "integer", "minimum": 1 },
-          "radius": { "type": "number", "minimum": 0 },
-          "stackId": { "type": "string" },
-          "maxStacks": { "type": "integer", "minimum": 1 },
-          "stat": { "type": "string" },
-          "perStack": { "type": "number" },
+          "amount": {
+            "type": "number"
+          },
+          "pct": {
+            "type": "number",
+            "minimum": 0
+          },
+          "chance": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "cooldown": {
+            "type": "number",
+            "minimum": 0
+          },
+          "statusId": {
+            "type": "string"
+          },
+          "stacks": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "radius": {
+            "type": "number",
+            "minimum": 0
+          },
+          "stackId": {
+            "type": "string"
+          },
+          "maxStacks": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "stat": {
+            "type": "string"
+          },
+          "perStack": {
+            "type": "number"
+          },
           "resetOn": {
             "type": "array",
-            "items": { "type": "string", "minLength": 1 }
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
           },
-          "ifTargetHasStatus": { "type": "string" },
-          "ifDamageType": { "type": "string" }
+          "ifTargetHasStatus": {
+            "type": "string"
+          },
+          "ifDamageType": {
+            "type": "string"
+          },
+          "ifWeaponArchetype": {
+            "type": "string"
+          },
+          "ifHealthBelow": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "ifEnemyType": {
+            "type": "string"
+          },
+          "applyToActor": {
+            "type": "boolean"
+          },
+          "multiplier": {
+            "type": "number",
+            "minimum": 1
+          },
+          "knockback": {
+            "type": "number",
+            "minimum": 0
+          }
         }
       }
     }

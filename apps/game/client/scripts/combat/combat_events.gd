@@ -17,6 +17,14 @@ const ON_ROOM_CLEAR := &"onRoomClear"
 const ON_FLOOR_ENTER := &"onFloorEnter"
 const ON_STATUS_APPLIED := &"onStatusApplied"
 const ON_RUN_START := &"onRunStart"
+## CB-06: five events the rules bus never carried -- most of what makes a build feel like a build
+## ("on death, explode"; "a dodge that actually avoided a hit"; "on guard break, ...") had nowhere
+## to hook in.
+const ON_DEATH := &"onDeath"
+const ON_PERFECT_DODGE := &"onPerfectDodge"
+const ON_GUARD_BREAK := &"onGuardBreak"
+const ON_EXECUTE := &"onExecute"
+const ON_FLASK := &"onFlask"
 
 const ALL_EVENTS: Array[StringName] = [
 	ON_HIT,
@@ -33,6 +41,11 @@ const ALL_EVENTS: Array[StringName] = [
 	ON_FLOOR_ENTER,
 	ON_STATUS_APPLIED,
 	ON_RUN_START,
+	ON_DEATH,
+	ON_PERFECT_DODGE,
+	ON_GUARD_BREAK,
+	ON_EXECUTE,
+	ON_FLASK,
 ]
 
 const AMOUNT_EVENTS: Array[StringName] = [
@@ -55,6 +68,11 @@ const EFFECTS: Array[String] = [
 	"bonus_gold",
 	"refund_flask",
 	"clear_status",
+	"deal_damage",
+	"grant_barrier",
+	"empower_next",
+	"reduce_cooldown",
+	"knockback",
 ]
 
 const LOW_HEALTH_RATIO := 0.3
@@ -230,6 +248,29 @@ func _passes_conditions(rule: Dictionary, ctx: Dictionary) -> bool:
 	var required_type := str(rule.get("ifDamageType", ""))
 	if required_type != "" and str(ctx.get("damageType", "")) != required_type:
 		return false
+	var required_archetype := str(rule.get("ifWeaponArchetype", ""))
+	if required_archetype != "":
+		var actor := ctx.get("actor") as Node
+		var weapon := actor.get_node_or_null("WeaponController") if actor else null
+		if weapon == null or not weapon.has_method("get_archetype"):
+			return false
+		if str(weapon.call("get_archetype")) != required_archetype:
+			return false
+	if rule.has("ifHealthBelow"):
+		var actor_health_node := ctx.get("actor") as Node
+		var health := actor_health_node.get_node_or_null("Health") if actor_health_node else null
+		if health == null or not (health is Health):
+			return false
+		var ratio := (health as Health).current / maxf(0.0001, (health as Health).max_health)
+		if ratio >= float(rule.get("ifHealthBelow", 1.0)):
+			return false
+	var required_enemy_type := str(rule.get("ifEnemyType", ""))
+	if required_enemy_type != "":
+		var enemy_node := ctx.get("target") as Node
+		if enemy_node == null or not enemy_node.has_method("get_enemy_id"):
+			return false
+		if str(enemy_node.call("get_enemy_id")) != required_enemy_type:
+			return false
 	return true
 
 
@@ -258,7 +299,12 @@ func _apply_effect(rule: Dictionary, ctx: Dictionary) -> void:
 				var pct := float(rule.get("pct", 0.0))
 				self_health.heal(base * (pct if pct > 0.0 else 1.0))
 		"apply_status":
-			_apply_status_to(ctx.get("target"), rule)
+			# CB-08: self-buffs (the four buff statuses) target the actor, not the usual debuff
+			# target -- `onGuardBreak` and other actor-only events carry no `target` at all.
+			var status_target: Variant = (
+				ctx.get("actor") if bool(rule.get("applyToActor", false)) else ctx.get("target")
+			)
+			_apply_status_to(status_target, rule)
 		"spread_status":
 			_spread_status(ctx, rule)
 		"add_stack":
@@ -276,6 +322,52 @@ func _apply_effect(rule: Dictionary, ctx: Dictionary) -> void:
 			var controller := _node_child(ctx.get("actor"), "StatusController") as StatusController
 			if controller:
 				controller.clear_all()
+		"deal_damage":
+			_deal_damage_to(ctx.get("target"), amount, ctx.get("actor"))
+		"grant_barrier":
+			var barrier_health := _node_child(ctx.get("actor"), "Health") as Health
+			if barrier_health:
+				barrier_health.grant_barrier(amount)
+		"empower_next":
+			var weapon := _node_child(ctx.get("actor"), "WeaponController") as WeaponController
+			if weapon and weapon.has_method("grant_empower"):
+				weapon.call("grant_empower", float(rule.get("multiplier", 1.5)))
+		"reduce_cooldown":
+			var cd_weapon := _node_child(ctx.get("actor"), "WeaponController") as WeaponController
+			if cd_weapon and cd_weapon.has_method("reduce_art_cooldown"):
+				cd_weapon.call("reduce_art_cooldown", amount)
+		"knockback":
+			_apply_knockback_to(ctx.get("target"), ctx.get("actor"), amount)
+
+
+## `deal_damage` reuses the same `Hurtbox.receive_hit()` path every other hit goes through, so it
+## still resolves through guard, armour and resistances rather than bypassing them.
+func _deal_damage_to(target_variant: Variant, amount: float, source_variant: Variant) -> void:
+	var target := target_variant as Node
+	if target == null or not is_instance_valid(target) or amount <= 0.0:
+		return
+	var hurtbox := target.get_node_or_null("Hurtbox")
+	if hurtbox == null or not hurtbox.has_method("receive_hit"):
+		return
+	var info := DamageInfo.create(amount, 0.0, source_variant as Node, DamageInfo.TYPE_PHYSICAL)
+	hurtbox.call("receive_hit", info)
+
+
+func _apply_knockback_to(target_variant: Variant, source_variant: Variant, strength: float) -> void:
+	var target := target_variant as Node3D
+	var source := source_variant as Node3D
+	if target == null or not is_instance_valid(target) or strength <= 0.0:
+		return
+	var knockback_node := target.get_node_or_null("Knockback")
+	if knockback_node == null or not knockback_node.has_method("apply"):
+		return
+	var direction := Vector3.FORWARD
+	if source and is_instance_valid(source):
+		var offset := target.global_position - source.global_position
+		offset.y = 0.0
+		if offset.length_squared() > 0.0001:
+			direction = offset.normalized()
+	knockback_node.call("apply", direction, strength)
 
 
 func _apply_status_to(target: Variant, rule: Dictionary) -> void:

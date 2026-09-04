@@ -47,4 +47,8 @@ static func build_results(
 		"boss_defeated": bool(extra.get("boss_defeated", false)),
 		"cloud_synced": bool(extra.get("cloud_synced", false)),
 		"rules_summary": rules_summary,
+		# RM-09: read directly rather than threading through every one of `build_results()`'s call
+		# sites -- `WorldFlags.secrets_found_this_floor()` is already the single source of truth,
+		# and by the time results are built the floor it counts is the one that just ended.
+		"secrets_found": int(WorldState.get_flag(WorldFlags.secrets_found_this_floor(), 0)),
 	}

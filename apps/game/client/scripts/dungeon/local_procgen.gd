@@ -17,12 +17,18 @@ const RoomContentConfigScript := preload("res://scripts/dungeon/procgen/room_con
 ## first, so two rooms in the same lattice column can be handed different world X values and end up
 ## intersecting. `dungeon_procgen` rejects those layouts rather than shipping overlapping rooms,
 ## which leaves this retry budget as the thing standing between a player and a floor that will not
-## build: measured over 1000 seeds, a single attempt succeeds 26.6% of the time, so three salts left
-## roughly two floor loads in five failing outright. Eighteen builds 98.2% of them, measured over
-## 400 seeds across all ten biomes at a mean of 3.69 attempts. An attempt costs about 62ms and only
-## a failure pays for the next one, so a typical load spends about a fifth of a second here and the
-## worst case runs a little over a second. Order is append-only on purpose -- a seed that already
-## succeeded keeps resolving to the same floor it did before.
+## build.
+##
+## RM-12: the old measurement here (single attempt 26.6%, eighteen salts to 98.2%, mean 3.69
+## attempts) was dominated by the room *graph* -- not this layer's own overlap retries -- failing
+## `RoomGraphGenerator`'s "not enough dead ends" check roughly 30x more often than every other
+## rejection reason combined (`scripts/tools/procgen_seed_health.gd`'s rejection histogram, before
+## `_grow_branches()` capped how many rooms one walk can place). With that fixed, this layer's own
+## measurement (600 seeds across all ten biomes, this file's own `attempts` counter, including the
+## re-roll this loop does on its own to find a floor with the full three-key ring) is 78.3% on the
+## first attempt and 100% by the third. Six salts is a wide margin over that for seeds outside the
+## sample. Order is append-only on purpose -- a seed that already succeeded keeps resolving to the
+## same floor it did before.
 const SEED_SALTS: Array[int] = [
 	0,
 	0x9E3779B9,
@@ -30,18 +36,6 @@ const SEED_SALTS: Array[int] = [
 	0xC2B2AE35,
 	0x27D4EB2F,
 	0x165667B1,
-	0xD3A2646C,
-	0xFD7046C5,
-	0xB55A4F09,
-	0x9E3779B1,
-	0x7FEB352D,
-	0x846CA68B,
-	0xCC9E2D51,
-	0x1B873593,
-	0xE6546B64,
-	0x2545F491,
-	0x94D049BB,
-	0xBF58476D,
 ]
 
 

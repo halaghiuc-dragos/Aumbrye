@@ -17,7 +17,10 @@
     "castle_secret",
     "castle_arena",
     "castle_boss",
-    "castle_puzzle"
+    "castle_puzzle",
+    "castle_corridor_long",
+    "castle_corridor_bend",
+    "castle_balcony"
   ],
   "materials": {
     "floor": "castle",
@@ -53,7 +56,11 @@
     "rubble": [
       "res://scenes/props/castle/rubble_a.tscn",
       "res://scenes/props/castle/rubble_b.tscn"
-    ]
+    ],
+    "banner": "res://scenes/props/castle/banner.tscn",
+    "statue": "res://scenes/props/castle/statue.tscn",
+    "altar": "res://scenes/props/castle/altar.tscn",
+    "debrisPile": "res://scenes/props/castle/debris_pile.tscn"
   },
   "enemyPool": [
     {
@@ -131,7 +138,9 @@
     "maxGenerationAttempts": 256,
     "maxWalkAttempts": 8192,
     "allow2x2Blocks": true,
-    "fillBoundingBox": true
+    "fillBoundingBox": true,
+    "corridorRatio": 0.15,
+    "floorSilhouette": "blob"
   },
   "grade": {
     "shadowTint": [

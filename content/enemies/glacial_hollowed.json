@@ -19,6 +19,14 @@
   "deaggro_range": 16,
   "patrol_radius": 3,
   "block_mitigation": 0.82,
+  "block_reduction": {
+    "physical": 0.82,
+    "fire": 0.35,
+    "frost": 0.6,
+    "poison": 0.35,
+    "lightning": 0.35,
+    "arcane": 0.35
+  },
   "block_angle_deg": 105,
   "vision_cone_deg": 120,
   "hearing_range": 8,
@@ -41,11 +49,12 @@
       "attack_damage": 25,
       "attack_poise_damage": 47,
       "max_range": 2.2,
-      "telegraph_radius": 1.54,
       "telegraph_shape": "circle",
       "damage_type": "frost",
       "status_on_hit": "freeze",
-      "status_stacks_on_hit": 1
+      "status_stacks_on_hit": 1,
+      "attackClass": "unblockable",
+      "knockback": 3.5
     },
     {
       "id": "guard_thrust",
@@ -58,11 +67,12 @@
       "attack_damage": 39,
       "attack_poise_damage": 34,
       "max_range": 2.86,
-      "telegraph_radius": 1.87,
       "telegraph_shape": "line",
       "damage_type": "frost",
       "status_on_hit": "freeze",
-      "status_stacks_on_hit": 1
+      "status_stacks_on_hit": 1,
+      "attackClass": "unblockable",
+      "knockback": 3.0
     },
     {
       "id": "shove",
@@ -75,7 +85,6 @@
       "attack_damage": 19,
       "attack_poise_damage": 59,
       "max_range": 2.2,
-      "telegraph_radius": 1.76,
       "telegraph_shape": "circle",
       "damage_type": "frost",
       "status_on_hit": "freeze",
@@ -92,13 +101,16 @@
           "attack_damage": 30,
           "attack_poise_damage": 37,
           "max_range": 2.2,
-          "telegraph_radius": 1.87,
           "telegraph_shape": "cone",
           "damage_type": "frost",
           "status_on_hit": "freeze",
-          "status_stacks_on_hit": 1
+          "status_stacks_on_hit": 1,
+          "attackClass": "unblockable",
+          "knockback": 3.0
         }
-      ]
+      ],
+      "attackClass": "unblockable",
+      "knockback": 3.5
     },
     {
       "id": "sig_keening",
@@ -112,11 +124,15 @@
       "attack_poise_damage": 28,
       "min_range": 3.5,
       "max_range": 7.5,
-      "telegraph_radius": 3.0,
       "telegraph_shape": "line",
       "damage_type": "frost",
       "status_on_hit": "freeze",
-      "status_stacks_on_hit": 2
+      "status_stacks_on_hit": 2,
+      "attackClass": "unblockable",
+      "knockback": 3.0
     }
-  ]
+  ],
+  "guard_chance": 0.4,
+  "sidestep_chance": 0.1,
+  "punish_window": 1.0
 }

@@ -1,0 +1,47 @@
+{
+  "id": "impact",
+  "name": "Impact Feedback",
+  "description": "Hit-stop, camera punch, controller rumble and audio layer per impact class.",
+  "profiles": {
+    "glancing": {
+      "freeze": 0.04,
+      "punch": 0.07,
+      "shake": 0.0,
+      "shake_time": 0.0,
+      "rumble_weak": 0.18,
+      "rumble_strong": 0.22,
+      "rumble_time": 0.08,
+      "audio_layer": ""
+    },
+    "solid": {
+      "freeze": 0.085,
+      "punch": 0.15,
+      "shake": 0.05,
+      "shake_time": 0.11,
+      "rumble_weak": 0.3,
+      "rumble_strong": 0.45,
+      "rumble_time": 0.12,
+      "audio_layer": ""
+    },
+    "critical": {
+      "freeze": 0.17,
+      "punch": 0.28,
+      "shake": 0.16,
+      "shake_time": 0.2,
+      "rumble_weak": 0.55,
+      "rumble_strong": 0.9,
+      "rumble_time": 0.22,
+      "audio_layer": "hit_armor"
+    },
+    "parry": {
+      "freeze": 0.22,
+      "punch": 0.3,
+      "shake": 0.14,
+      "shake_time": 0.16,
+      "rumble_weak": 0.6,
+      "rumble_strong": 0.95,
+      "rumble_time": 0.2,
+      "audio_layer": ""
+    }
+  }
+}

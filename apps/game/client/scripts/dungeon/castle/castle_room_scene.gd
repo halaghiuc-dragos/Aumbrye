@@ -29,8 +29,28 @@ func _ready() -> void:
 		sync_kit_contract()
 		if needs_rebuild:
 			blockout._request_rebuild()
+		_apply_layout_variant_shape(blockout, biome_id)
 	DioramaRoomDressing.apply_to_room(self, biome_id, room_id.hash())
 	_skin_untextured_props(biome_id)
+
+
+## RM-03: a biome's `content/rooms/<biome>.json` variant may override the template's default shape
+## (e.g. a `hall` authored as `round` for one biome). Goes through `shape_override`, not `shape`
+## directly -- `sync_kit_contract()`'s `_apply_kind_spec()` re-derives `shape` from the kind spec on
+## every rebuild, so a direct assignment here would be silently discarded the next time the room's
+## geometry rebuilds (e.g. when `DungeonBuilder.finalize_geometry()` runs later in the build pass).
+func _apply_layout_variant_shape(blockout: CastleBlockout, biome_id: String) -> void:
+	var variant := RoomLayoutCatalog.variant_for_room(
+		biome_id, RunFlow.current_seed, room_id, template_id
+	)
+	var shape_name := StringName("")
+	if variant > 0:
+		var shape_str := RoomLayoutCatalog.shape_for(biome_id, template_id, variant)
+		if not shape_str.is_empty():
+			shape_name = StringName(shape_str)
+	if blockout.shape_override != shape_name:
+		blockout.shape_override = shape_name
+		blockout.sync_dimensions_from_kind()
 
 
 ## Authored props with no material on them.

@@ -30,8 +30,12 @@ var _stair_menu: Control
 var _boss_intro_shown := false
 var _dungeon_def: Dictionary = {}
 const SNAPSHOT_DEBOUNCE_SEC := 2.0
+const PIT_DAMAGE_FRACTION := 0.1
+const PIT_RECOVERY_MARGIN := 8.0
 var _snapshot_dirty := false
 var _snapshot_timer := 0.0
+var _lowest_room_y := 0.0
+var _room_neighbors: Dictionary = {}
 
 
 func _ready() -> void:
@@ -65,6 +69,8 @@ func _ready() -> void:
 		_player.process_mode = player_process_mode
 	_apply_biome_presentation(def)
 	_wire_run_ui(def)
+	_lowest_room_y = _compute_lowest_room_y()
+	_room_neighbors = _build_room_neighbors(def)
 	var snapshot := _take_run_snapshot_meta()
 	_restore_saved_snapshot(snapshot)
 	_apply_floor_transition_spawn(snapshot)
@@ -102,6 +108,10 @@ func _apply_biome_presentation(def: Dictionary) -> void:
 	var biome_id := BiomeRegistry.resolve_biome_id(def)
 	BiomeRegistry.apply_run_presentation(self, biome_id, RunFlow.get_run_mode())
 	_apply_player_viewmodel_theme(PixelStyle.theme_from_biome(biome_id))
+	# MD-03: the Waning should be visible, not just a line of text in a menu -- layered on top of
+	# the biome's own grade rather than replacing it.
+	if RunFlow.get_run_mode() == "endless":
+		PixelDioramaSettings.apply_waning_grade(RunFlow.get_current_floor())
 
 
 func _apply_player_viewmodel_theme(theme: int) -> void:
@@ -142,6 +152,8 @@ func _physics_process(_delta: float) -> void:
 		player_room_id = room_id
 		_notify_room(room_id)
 		_persist_snapshot()
+	elif room_id == "" and _player.global_position.y < _lowest_room_y - PIT_RECOVERY_MARGIN:
+		_recover_fallen_player()
 	if (
 		_boss_door
 		and not _boss_defeated
@@ -153,11 +165,18 @@ func _physics_process(_delta: float) -> void:
 			_persist_snapshot()
 
 
+## HD-01: the HUD contract every run scene owes a call to -- see combat_hud.gd's header comment.
+## `configure_for_mode` is not called here on purpose: castle and endless share this scene and its
+## HUD wiring by construction, and the contract's per-mode hiding only exists for Waves.
 func _wire_run_ui(def: Dictionary) -> void:
 	_dungeon_def = def
 	_hud = get_node_or_null(hud_path) as Control
 	if _hud and _hud.has_method("configure_minimap"):
 		_hud.call("configure_minimap", def)
+	if _hud and _hud.has_method("set_minimap_floor_number"):
+		_hud.call("set_minimap_floor_number", RunFlow.get_current_floor())
+	if _hud and _hud.has_method("configure_keys"):
+		_hud.call("configure_keys", (def.get("locks", []) as Array).size())
 	_boss_intro = BossIntroScript.new()
 	add_child(_boss_intro)
 	_epilogue_card = EpilogueCardScript.new()
@@ -189,6 +208,9 @@ func _notify_room(room_id: String) -> void:
 			_hud.call("set_current_room", room_id)
 	_update_branch_previews(room_id)
 	_update_objective_for_room(room_id)
+	_update_objective_text(room_id)
+	if _builder and _builder.has_method("wake_ambushers"):
+		_builder.call("wake_ambushers", room_id)
 	if room_id == BOSS_ROOM_ID and not _boss_intro_shown:
 		_boss_intro_shown = true
 		var boss_placement: Variant = _dungeon_def.get("placements", {}).get("boss", {})
@@ -232,11 +254,24 @@ func _announce_floor_entry(def: Dictionary) -> void:
 		CombatEvents.dispatch(CombatEvents.ON_FLOOR_ENTER, {"actor": _player})
 	if _hud == null or not _hud.has_method("show_region_title"):
 		return
+	if RunFlow.get_run_mode() == "endless":
+		_maybe_show_endless_milestone()
 	var biome_id := BiomeRegistry.resolve_biome_id(def)
 	if RunFlow.get_run_mode() != "endless":
+		var floor_num := RunFlow.get_current_floor()
+		# MD-04: named at each block boundary, not just the floor's own theme label -- "which block
+		# am I starting" is exactly what the tier ladder answered before the run began.
+		if RunFloorConfig.floor_within_block(floor_num) == 1:
+			var block_num := RunFloorConfig.block_index(floor_num) + 1
+			_hud.call(
+				"show_region_title",
+				"Block %d" % block_num,
+				"%d floors to the boss" % RunFloorConfig.FLOORS_PER_BLOCK
+			)
+			return
 		var theme_label := str(def.get("floorThemeLabel", ""))
 		if theme_label != "":
-			_hud.call("show_region_title", "Floor %d" % RunFlow.get_current_floor(), theme_label)
+			_hud.call("show_region_title", "Floor %d" % floor_num, theme_label)
 		return
 	if not RunFlow.consume_pending_region_card():
 		return
@@ -246,6 +281,25 @@ func _announce_floor_entry(def: Dictionary) -> void:
 	_hud.call(
 		"show_region_title", region_name, "Floor %d" % RunFlow.get_current_floor()
 	)
+
+
+const ENDLESS_MILESTONE_FLOORS := 25
+
+
+## MD-03: a milestone every 25 floors naming the current multipliers, independent of the biome
+## region card (which only fires on an actual biome change, not every 25th floor).
+func _maybe_show_endless_milestone() -> void:
+	var floor_num := RunFlow.get_current_floor()
+	if floor_num <= 0 or floor_num % ENDLESS_MILESTONE_FLOORS != 0:
+		return
+	var subtitle := (
+		"%.1fx health, %.1fx damage"
+		% [EndlessDifficulty.hp_multiplier(floor_num), EndlessDifficulty.damage_multiplier(floor_num)]
+	)
+	var pressure := EndlessDifficulty.describe_pressure(floor_num)
+	if pressure != "":
+		subtitle = pressure
+	_hud.call("show_region_title", "Depth %d" % floor_num, subtitle)
 
 
 func _spawn_recoverable_xp_shard() -> void:
@@ -282,6 +336,35 @@ func _update_objective_for_room(room_id: String) -> void:
 		var stairs := _builder.get_room(stair_id)
 		if stairs:
 			_hud.call("set_objective_world_position", stairs.global_position)
+
+
+## HD-09: one line saying what to do next, distinct from the world-space arrow `_update_objective_
+## for_room` already draws -- castle names the stair goal (or calls out the boss once you have
+## reached it), endless surfaces the Waning's pressure once the run has gone past the light.
+func _update_objective_text(room_id: String) -> void:
+	if _hud == null or not _hud.has_method("set_objective_text"):
+		return
+	var floor_num := RunFlow.get_current_floor()
+	if RunFlow.get_run_mode() == "endless":
+		var text := "Depth %d" % floor_num
+		var pressure := EndlessDifficulty.describe_pressure(floor_num)
+		if pressure != "":
+			text += " — %s" % pressure
+		_hud.call("set_objective_text", text)
+		return
+	# MD-04: the tier ladder is invisible once the run starts -- block progress on the objective
+	# line answers "how far through this block am I", which the absolute floor number alone does
+	# not (block 3 floor 4 reads very differently from block 1 floor 4).
+	var block_num := RunFloorConfig.block_index(floor_num) + 1
+	var floor_in_block := RunFloorConfig.floor_within_block(floor_num)
+	var block_text := (
+		"Block %d · floor %d of %d" % [block_num, floor_in_block, RunFloorConfig.FLOORS_PER_BLOCK]
+	)
+	if room_id == BOSS_ROOM_ID and not _boss_defeated:
+		block_text += " — the boss bars the stair"
+	elif floor_in_block < RunFloorConfig.FLOORS_PER_BLOCK:
+		block_text += " — boss ahead"
+	_hud.call("set_objective_text", block_text)
 
 
 func register_boss_door(door: Node) -> void:
@@ -340,7 +423,46 @@ func _get_entity_room_id(entity: Node) -> String:
 	return ""
 
 
+func _compute_lowest_room_y() -> float:
+	var lowest := 0.0
+	var found := false
+	for room_id in _builder.get_room_ids():
+		var room := _builder.get_room(room_id)
+		if room == null:
+			continue
+		if not found or room.position.y < lowest:
+			lowest = room.position.y
+			found = true
+	return lowest
+
+
+func _build_room_neighbors(def: Dictionary) -> Dictionary:
+	var neighbors := {}
+	for room_id in _builder.get_room_ids():
+		neighbors[room_id] = []
+	for edge in def.get("edges", []):
+		var from_id := str(edge.get("from", ""))
+		var to_id := str(edge.get("to", ""))
+		if neighbors.has(from_id) and not neighbors[from_id].has(to_id):
+			neighbors[from_id].append(to_id)
+		if neighbors.has(to_id) and not neighbors[to_id].has(from_id):
+			neighbors[to_id].append(from_id)
+	return neighbors
+
+
+## The player is almost always still in the room they were last in, or has just stepped through a
+## door into one of its graph neighbours -- so check those before falling back to the full scan.
+## Load-bearing for `BG-03`'s Y test on the same call: a 28-room floor doing 28 transforms a frame
+## to answer a question that changes a few times a minute was already wasteful before that landed.
 func _find_room_id_at(world_pos: Vector3) -> String:
+	if player_room_id != "":
+		var current := _builder.get_room(player_room_id)
+		if current and current.contains_world_point(world_pos):
+			return player_room_id
+		for neighbor_id in _room_neighbors.get(player_room_id, []):
+			var neighbor := _builder.get_room(neighbor_id)
+			if neighbor and neighbor.contains_world_point(world_pos):
+				return neighbor_id
 	for room_id in _builder.get_room_ids():
 		var room := _builder.get_room(room_id)
 		if room and room.contains_world_point(world_pos):
@@ -494,6 +616,17 @@ func _raycast_floor_y(world_pos: Vector3) -> float:
 	return hit_pos.y
 
 
+## Positional, not timer- or velocity-gated -- a player stuck motionless in the void must still be
+## caught. Never lethal: falling out of the world is the game's fault, not the player's.
+func _recover_fallen_player() -> void:
+	_teleport_to_safe_spawn({"playerRoomId": player_room_id})
+	var health := _player.get_node_or_null("Health") as Health
+	if health:
+		var pit_damage := health.max_health * PIT_DAMAGE_FRACTION
+		health.take_damage(minf(pit_damage, maxf(health.current - 1.0, 0.0)))
+	RunFlow.emit_run_warning(tr("WARN_FELL"))
+
+
 func _teleport_to_safe_spawn(snapshot: Dictionary) -> void:
 	var room_id := str(snapshot.get("playerRoomId", player_room_id))
 	if room_id != "":
@@ -620,6 +753,7 @@ func _on_boss_defeated() -> void:
 	_boss_defeated = true
 	if _hud and _hud.has_method("unbind_boss"):
 		_hud.call("unbind_boss")
+	_update_objective_text(BOSS_ROOM_ID)
 	RunFlow.register_boss_defeated()
 	if _boss_door:
 		_boss_door.call("release_door")

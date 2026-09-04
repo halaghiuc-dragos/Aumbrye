@@ -114,6 +114,9 @@ func _ready() -> void:
 		symbol_bus.symbols_invalidated.connect(_on_symbols_invalidated)
 	InputGlyphServiceScript.connect_device_family_changed(_rebuild_footer_hints)
 	_refresh_all()
+	# HD-03: `make_center_panel()` only styles the panel shell -- the pixel-filter sweep needs to
+	# run after the grid cells and equipment panel exist.
+	GameUISkinScript.apply_pixel_theme(self)
 
 
 func _inventory() -> GridInventory:

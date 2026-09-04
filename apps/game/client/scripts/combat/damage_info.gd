@@ -36,6 +36,14 @@ var ignore_iframes: bool = false
 var ignore_guard: bool = false
 var periodic: bool = false
 var execution: String = ""
+var attack_class: String = "blockable"
+## `PH-01`: how hard this hit shoves the victim, in the same units `Knockback.apply()` takes. Set
+## directly by the caller (`Hitbox`/`Projectile`) after `create()`, the same way `crit` is --
+## it is a per-attack tuning value, not part of the damage-type/status shape `create()` already
+## has too many positional parameters for.
+var knockback: float = 0.0
+## CB-05: the dagger's identity trait -- 0.0 means "use the global `BACKSTAB_DAMAGE_MULT`".
+var backstab_multiplier_override: float = 0.0
 
 
 static func create(
@@ -45,7 +53,8 @@ static func create(
 	dmg_type: String = TYPE_PHYSICAL,
 	hit_direction: Vector3 = Vector3.ZERO,
 	apply_status: String = "",
-	status_stack_count: int = 1
+	status_stack_count: int = 1,
+	dmg_attack_class: String = "blockable"
 ) -> DamageInfo:
 	var info := DamageInfo.new()
 	info.amount = dmg_amount
@@ -65,6 +74,7 @@ static func create(
 	info.direction = hit_direction
 	info.status_id = apply_status
 	info.status_stacks = maxi(1, status_stack_count)
+	info.attack_class = dmg_attack_class
 	return info
 
 

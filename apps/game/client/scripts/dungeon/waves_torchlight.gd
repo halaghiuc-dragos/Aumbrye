@@ -17,6 +17,9 @@ const DARK_FOG_MULTIPLIER := 3.4
 
 var _pyre_lights: Array[OmniLight3D] = []
 var _pyre_flames: Array[Node3D] = []
+var _far_ring_start := 0
+var _far_ring_lit := true
+var _fog_override := 1.0
 var _blend := 0.0
 var _target := 0.0
 var _phase := 0.0
@@ -35,10 +38,18 @@ func set_lit(lit: bool, immediate: bool = false) -> void:
 		_apply_blend()
 
 
+## MD-01: a continuous driver for the fade, alongside the boolean `set_lit()` -- lets the cresset's
+## fuel level (drained by distance, replenished by standing near it) drive the same blend rather
+## than snapping the light on or off.
+func set_fuel_level(level: float) -> void:
+	_target = clampf(level, 0.0, 1.0)
+
+
 func _build_pyres() -> void:
 	var iron := PixelStyle.make_metal_material(Color(0.21, 0.20, 0.24), 0.36)
 	var stone := PixelStyle.make_material(Color(0.34, 0.33, 0.36))
 	_add_pyre_ring(PYRE_RADIUS, PYRE_COUNT, 1.0, iron, stone, "Pyre")
+	_far_ring_start = _pyre_lights.size()
 	_add_pyre_ring(FAR_PYRE_RADIUS, FAR_PYRE_COUNT, 1.6, iron, stone, "FarPyre")
 
 
@@ -91,19 +102,36 @@ func _process(delta: float) -> void:
 	_animate_flames(delta)
 
 
+## MD-01: kills the far ring only, leaving the near ring lit -- called by `WavesArenaMutator` for
+## the "dimmed" arena state.
+func set_far_ring_lit(lit: bool) -> void:
+	_far_ring_lit = lit
+	_apply_blend()
+
+
+## MD-01: `_apply_blend()` already writes `DayNightService.fog_boost` every frame the cresset's
+## fuel is changing (near-constant during combat) -- a second writer racing it would just get
+## stomped, so the "fog" arena state feeds a multiplier in here instead of writing the global
+## directly.
+func set_fog_override(multiplier: float) -> void:
+	_fog_override = maxf(0.01, multiplier)
+	_apply_blend()
+
+
 func _apply_blend() -> void:
 	var eased := _blend * _blend * (3.0 - 2.0 * _blend)
 	for i in _pyre_lights.size():
 		var light := _pyre_lights[i]
 		if not is_instance_valid(light):
 			continue
-		light.light_energy = 2.1 * eased
+		var ring_eased := eased if (i < _far_ring_start or _far_ring_lit) else 0.0
+		light.light_energy = 2.1 * ring_eased
 		var flame := _pyre_flames[i]
 		if is_instance_valid(flame):
-			flame.visible = eased > 0.02
-			flame.scale = Vector3.ONE * maxf(eased, 0.001)
+			flame.visible = ring_eased > 0.02
+			flame.scale = Vector3.ONE * maxf(ring_eased, 0.001)
 	DayNightService.dim = lerpf(DARK_LIGHT_FRACTION, 1.0, eased)
-	DayNightService.fog_boost = lerpf(DARK_FOG_MULTIPLIER, 1.0, eased)
+	DayNightService.fog_boost = lerpf(DARK_FOG_MULTIPLIER, 1.0, eased) * _fog_override
 
 
 func _animate_flames(delta: float) -> void:

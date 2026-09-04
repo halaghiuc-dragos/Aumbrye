@@ -40,9 +40,10 @@
       "attack_damage": 31,
       "attack_poise_damage": 14,
       "max_range": 2.6,
-      "telegraph_radius": 2.08,
       "telegraph_shape": "circle",
-      "damage_type": "arcane"
+      "damage_type": "arcane",
+      "attackClass": "parryable",
+      "knockback": 2.0
     },
     {
       "id": "hex",
@@ -55,9 +56,10 @@
       "attack_damage": 47,
       "attack_poise_damage": 22,
       "max_range": 2.6,
-      "telegraph_radius": 2.86,
       "telegraph_shape": "circle",
-      "damage_type": "arcane"
+      "damage_type": "arcane",
+      "attackClass": "parryable",
+      "knockback": 2.5
     },
     {
       "id": "ward_burst",
@@ -70,9 +72,10 @@
       "attack_damage": 36,
       "attack_poise_damage": 21,
       "max_range": 3.12,
-      "telegraph_radius": 2.6,
       "telegraph_shape": "ring",
-      "damage_type": "arcane"
+      "damage_type": "arcane",
+      "attackClass": "unblockable",
+      "knockback": 2.5
     }
   ]
 }

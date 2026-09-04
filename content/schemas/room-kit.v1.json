@@ -26,6 +26,9 @@
       "required": ["id"],
       "properties": {
         "id": { "type": "string", "minLength": 1 },
+        "weight": { "type": "number", "exclusiveMinimum": 0 },
+        "shape": { "type": "string", "enum": ["round", "octagon", "rect"] },
+        "coverPattern": { "type": "string", "enum": ["ring", "corridor", "scatter", "none"] },
         "anchors": {
           "type": "object",
           "additionalProperties": false,
@@ -35,7 +38,30 @@
             "trap": { "$ref": "#/$defs/anchorList" },
             "cover": { "$ref": "#/$defs/anchorList" }
           }
+        },
+        "props": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/prop" }
         }
+      }
+    },
+    "prop": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "at"],
+      "properties": {
+        "kind": {
+          "type": "string",
+          "enum": ["pillar", "brazier", "rubble", "statue", "altar"]
+        },
+        "at": {
+          "type": "array",
+          "description": "Room-local [x, y, z] offset.",
+          "minItems": 3,
+          "maxItems": 3,
+          "items": { "type": "number" }
+        },
+        "yaw": { "type": "number" }
       }
     },
     "anchorList": {

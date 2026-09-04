@@ -126,6 +126,9 @@ func _build_ui() -> void:
 	_build_comparison_table(outer_vbox)
 	_wire_focus_neighbors()
 	_perk_line.resized.connect(_on_perk_line_resized)
+	# HD-03: `build_modal()` only styles the panel shell -- the pixel-filter sweep needs to run
+	# after all three columns and the comparison table exist.
+	GameUISkinScript.apply_pixel_theme(self)
 
 
 func _build_comparison_table(parent: VBoxContainer) -> void:

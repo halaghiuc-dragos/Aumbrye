@@ -38,10 +38,11 @@
       "attack_damage": 22,
       "attack_poise_damage": 7,
       "max_range": 14,
-      "telegraph_radius": 1.6,
       "telegraph_shape": "line",
       "no_hitbox": true,
-      "projectile_speed": 14
+      "projectile_speed": 14,
+      "attackClass": "blockable",
+      "knockback": 2.0
     },
     {
       "id": "aimed_shot",
@@ -55,10 +56,11 @@
       "attack_poise_damage": 11,
       "min_range": 6.3,
       "max_range": 14,
-      "telegraph_radius": 2.2,
       "telegraph_shape": "line",
       "no_hitbox": true,
-      "projectile_speed": 19
+      "projectile_speed": 19,
+      "attackClass": "blockable",
+      "knockback": 2.0
     },
     {
       "id": "snap_shot",
@@ -71,10 +73,11 @@
       "attack_damage": 15,
       "attack_poise_damage": 5,
       "max_range": 14,
-      "telegraph_radius": 1.4,
       "telegraph_shape": "line",
       "no_hitbox": true,
-      "projectile_speed": 12
+      "projectile_speed": 12,
+      "attackClass": "blockable",
+      "knockback": 2.0
     }
   ]
 }

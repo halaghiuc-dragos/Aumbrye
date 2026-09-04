@@ -99,8 +99,6 @@ static func adjacency_from_edges(definition: Dictionary) -> Dictionary:
 	for edge in definition.get("edges", []):
 		if not edge is Dictionary:
 			continue
-		if str(edge.get("kind", "")) == "secret":
-			continue
 		var from_id := str(edge.get("from", ""))
 		var to_id := str(edge.get("to", ""))
 		if from_id == "" or to_id == "":
@@ -109,6 +107,13 @@ static func adjacency_from_edges(definition: Dictionary) -> Dictionary:
 			adjacency[from_id] = []
 		if not adjacency.has(to_id):
 			adjacency[to_id] = []
+		# RM-06: a secret is only traversable once its mechanism (in the parent/`from` room) has
+		# been found, which a plain reachability walk already enforces on its own -- crossing this
+		# edge requires having reached `from_id` first regardless, so a one-directional edge is
+		# both correct and simpler than modelling "opened" as a separate capability.
+		if str(edge.get("kind", "")) == "secret":
+			adjacency[from_id].append(to_id)
+			continue
 		adjacency[from_id].append(to_id)
 		adjacency[to_id].append(from_id)
 	return adjacency

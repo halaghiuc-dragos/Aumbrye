@@ -134,7 +134,11 @@ static func place_locked_doors(
 			used_key_rooms[extra_layout] = true
 			key_layouts.append(extra_layout)
 		var lock_id := "lock_%s_%s" % [pick["from"], pick["to"]]
-		var key_id := "key_%s_%s" % [pick["from"], pick["to"]]
+		# RM-05: the colour suffix is what makes `FloorKeyring.color_of()` resolve this key id at
+		# all -- without it the door and the chest have no way to know which of Doom's three
+		# keycards they are, and both silently fall back to plain white/no tint.
+		var key_color := FloorKeyring.color_for_index(locks.size())
+		var key_id := "key_%s_%s_%s" % [pick["from"], pick["to"], key_color]
 		(
 			locks
 			. append(
@@ -143,11 +147,12 @@ static func place_locked_doors(
 					"from": pick["from"],
 					"to": pick["to"],
 					"keyId": key_id,
+					"keyColor": key_color,
 					"keyRoomId": layout_semantic.get(key_room_layout, ""),
 					"keyLayoutId": key_room_layout,
 					"keyRoomIds": _semantics_for_layouts(layout_semantic, key_layouts),
 					"keyLayoutIds": key_layouts,
-					"keyLabel": "Key (%s)" % pick["from"].capitalize(),
+					"keyLabel": FloorKeyring.label_for(key_id),
 					"keysRequired": key_layouts.size(),
 				}
 			)

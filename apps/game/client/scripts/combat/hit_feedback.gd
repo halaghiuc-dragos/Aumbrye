@@ -1,6 +1,6 @@
 extends Node
 
-enum ImpactClass { GLANCING, SOLID, CRITICAL }
+enum ImpactClass { GLANCING, SOLID, CRITICAL, PARRY }
 
 const DEFAULT_HITSTOP := 0.09
 const DEFAULT_CAMERA_PUNCH := 0.15
@@ -8,7 +8,19 @@ const DEFAULT_INTENSITY := 1.0
 const HITSTOP_TIME_SCALE := 0.08
 const GLANCING_DAMAGE := 15.0
 
-const IMPACT_PROFILES := {
+## `PH-02`: the attacker recovers first -- that asymmetry is what makes a hit feel like *you* did
+## something rather than like the game paused. The victim's freeze is always this much longer than
+## whatever the attacker gets for the same impact class.
+const VICTIM_FREEZE_MULT := 1.4
+
+const TUNING_PATH := "content/combat/impact.json"
+const IMPACT_CLASS_KEYS := {
+	ImpactClass.GLANCING: "glancing",
+	ImpactClass.SOLID: "solid",
+	ImpactClass.CRITICAL: "critical",
+	ImpactClass.PARRY: "parry",
+}
+const FALLBACK_IMPACT_PROFILES := {
 	ImpactClass.GLANCING:
 	{
 		"freeze": 0.04,
@@ -42,11 +54,24 @@ const IMPACT_PROFILES := {
 		"rumble_time": 0.22,
 		"audio_layer": "hit_armor",
 	},
+	ImpactClass.PARRY:
+	{
+		"freeze": 0.22,
+		"punch": 0.3,
+		"shake": 0.14,
+		"shake_time": 0.16,
+		"rumble_weak": 0.6,
+		"rumble_strong": 0.95,
+		"rumble_time": 0.2,
+		"audio_layer": "",
+	},
 }
+static var _impact_profiles: Dictionary = {}
 const DAMAGE_NUMBER := preload("res://scripts/combat/damage_number.gd")
 const MaterialFlashScript := preload("res://scripts/art/characters/material_flash.gd")
 const COLOR_PARRY := Color(1.0, 0.88, 0.2)
 const COLOR_BLOCK := Color(0.45, 0.78, 1.0)
+const COLOR_JUST_GUARD := Color(0.68, 0.95, 1.0)
 
 signal hit_landed(target: Node, damage: float)
 
@@ -67,9 +92,25 @@ func _ready() -> void:
 	_shake_noise.noise_type = FastNoiseLite.TYPE_SIMPLEX
 	_shake_noise.frequency = 4.0
 	_resolve_orbit_camera()
+	_ensure_impact_profiles_loaded()
 	var guard := get_parent().get_node_or_null("Guard")
 	if guard and guard.has_signal("parry_success"):
 		guard.parry_success.connect(_on_parry_success)
+	if guard and guard.has_signal("just_guard_success"):
+		guard.just_guard_success.connect(_on_just_guard_success)
+
+
+static func _ensure_impact_profiles_loaded() -> void:
+	if not _impact_profiles.is_empty():
+		return
+	var data := ContentLoader.load_json(TUNING_PATH)
+	var profiles: Dictionary = data.get("profiles", {})
+	for impact_class in IMPACT_CLASS_KEYS:
+		var key := String(IMPACT_CLASS_KEYS[impact_class])
+		if profiles.has(key):
+			_impact_profiles[impact_class] = profiles[key]
+		else:
+			_impact_profiles[impact_class] = FALLBACK_IMPACT_PROFILES[impact_class]
 
 
 func _resolve_orbit_camera() -> void:
@@ -104,7 +145,8 @@ func on_hit(
 	crit: bool = false
 ) -> void:
 	hit_landed.emit(target, damage)
-	_apply_hitstop(impact)
+	_freeze_attacker(impact)
+	_apply_impact_recoil(impact)
 	_apply_camera_punch(direction, impact)
 	_apply_vibration(impact)
 	_play_hit_sfx(target, direction, impact)
@@ -112,8 +154,27 @@ func on_hit(
 		_spawn_damage_number(target as Node3D, damage, Vector3.ZERO, damage_type, crit)
 
 
+## `AN-03`: hitting a golem should visibly stop your arm; hitting air should not. `on_hit()` only
+## fires when a hitbox actually landed, so this is never called on a whiff.
+const IMPACT_RECOIL_STRENGTH := {
+	ImpactClass.GLANCING: 0.3,
+	ImpactClass.SOLID: 0.7,
+	ImpactClass.CRITICAL: 1.0,
+	ImpactClass.PARRY: 1.0,
+}
+
+
+func _apply_impact_recoil(impact: int) -> void:
+	var director := _director()
+	if director == null or not director.has_method("play_impact_recoil"):
+		return
+	var strength := float(IMPACT_RECOIL_STRENGTH.get(impact, 0.7))
+	director.call("play_impact_recoil", strength)
+
+
 func _profile(impact: int) -> Dictionary:
-	return IMPACT_PROFILES.get(impact, IMPACT_PROFILES[ImpactClass.SOLID])
+	_ensure_impact_profiles_loaded()
+	return _impact_profiles.get(impact, _impact_profiles[ImpactClass.SOLID])
 
 
 func _freeze_duration(impact: int) -> float:
@@ -133,7 +194,7 @@ func on_hit_received(
 	damage_type: String = "physical",
 	impact: int = ImpactClass.SOLID
 ) -> void:
-	_apply_hitstop(impact)
+	_freeze_victim(impact)
 	_apply_camera_punch(direction, impact)
 	_apply_vibration(impact)
 	_play_combat_sfx_at_body("hit")
@@ -160,8 +221,22 @@ func on_hit_blocked(blocker: Node3D, chip_damage: float) -> void:
 		_spawn_damage_number(blocker, chip_damage, Vector3(0.35, -0.15, 0.0))
 
 
+## CB-03: the defender-side counterpart to `try_just_guard()`'s attacker-side poise hit -- a
+## GLANCING hitstop and its own colour/text, distinct from both a normal block ("BLOCKED", blue)
+## and a parry ("PARRIED", gold, a full freeze).
+func _on_just_guard_success(_attacker: Node) -> void:
+	_apply_hitstop(ImpactClass.GLANCING)
+	_play_combat_sfx_at_body("block")
+	var body := get_parent() as Node3D
+	if body:
+		_flash_diorama_body(body, 0.8, COLOR_JUST_GUARD)
+	if not show_damage_numbers or body == null:
+		return
+	_spawn_combat_text(body, "JUST GUARD", COLOR_JUST_GUARD)
+
+
 func _on_parry_success(_attacker: Node) -> void:
-	_apply_hitstop(ImpactClass.CRITICAL)
+	_freeze_attacker(ImpactClass.PARRY)
 	_play_combat_sfx_at_body("parry")
 	if AchievementService:
 		AchievementService.notify("parry")
@@ -191,10 +266,24 @@ func _spawn_damage_number(
 		DAMAGE_NUMBER.spawn(at_node.global_position + offset, damage, root, damage_type, is_crit)
 
 
-func _apply_hitstop(impact: int = ImpactClass.SOLID) -> void:
+## `PH-02`: called on the attacker's own `HitFeedback` (see `on_hit()`). Left at the impact
+## class's base freeze duration -- the attacker is meant to recover first.
+func _freeze_attacker(impact: int) -> void:
+	_apply_hitstop(impact, false)
+
+
+## Called on the victim's own `HitFeedback` (see `on_hit_received()`). Longer than
+## `_freeze_attacker()` by `VICTIM_FREEZE_MULT` for the same impact class.
+func _freeze_victim(impact: int) -> void:
+	_apply_hitstop(impact, true)
+
+
+func _apply_hitstop(impact: int = ImpactClass.SOLID, is_victim: bool = false) -> void:
 	if feedback_intensity <= 0.0 or AccessibilitySettings.hitstop_scale() <= 0.0:
 		return
 	var duration := _freeze_duration(impact) * AccessibilitySettings.hitstop_scale()
+	if is_victim:
+		duration *= VICTIM_FREEZE_MULT
 	if duration <= 0.0:
 		return
 	var duration_ms := int(duration * 1000.0)

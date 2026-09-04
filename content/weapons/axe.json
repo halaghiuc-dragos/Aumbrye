@@ -32,7 +32,8 @@
       "startup": 0.3,
       "active": 0.16,
       "recovery": 0.4,
-      "lunge_distance": 0.4
+      "lunge_distance": 0.4,
+      "knockback": 1.6
     },
     {
       "damage": 24,
@@ -42,7 +43,8 @@
       "active": 0.18,
       "recovery": 0.44,
       "lunge_distance": 0.45,
-      "heavy_branch": 0
+      "heavy_branch": 0,
+      "knockback": 1.6
     },
     {
       "damage": 30,
@@ -51,7 +53,8 @@
       "startup": 0.38,
       "active": 0.2,
       "recovery": 0.5,
-      "lunge_distance": 0.5
+      "lunge_distance": 0.5,
+      "knockback": 1.6
     }
   ],
   "heavy_attack": {
@@ -61,7 +64,15 @@
     "startup": 0.48,
     "active": 0.22,
     "recovery": 0.58,
-    "lunge_distance": 0.6
+    "lunge_distance": 0.6,
+    "knockback": 3.6,
+    "charge": {
+      "max_time": 0.9,
+      "damage_mult": 1.8,
+      "poise_mult": 1.7,
+      "stamina_mult": 1.4,
+      "hyperarmor_at": 0.55
+    }
   },
   "heavy_attacks": [
     {
@@ -73,7 +84,8 @@
       "recovery": 0.54,
       "lunge_distance": 0.55,
       "hyperarmor": true,
-      "cancel_after": 0.8
+      "cancel_after": 0.8,
+      "knockback": 3.6
     }
   ],
   "running_attack": {
@@ -84,7 +96,8 @@
     "active": 0.18,
     "recovery": 0.42,
     "lunge_distance": 1.2,
-    "cancel_after": 0.6
+    "cancel_after": 0.6,
+    "knockback": 3.0
   },
   "rolling_attack": {
     "damage": 21,
@@ -94,7 +107,8 @@
     "active": 0.16,
     "recovery": 0.4,
     "lunge_distance": 0.55,
-    "cancel_after": 0.55
+    "cancel_after": 0.55,
+    "knockback": 2.0
   },
   "art": {
     "id": "rend",
@@ -107,6 +121,13 @@
     "recovery": 0.48,
     "lunge_distance": 0.45,
     "hyperarmor": true,
-    "cooldown": 6
+    "cooldown": 6,
+    "knockback": 4.0
+  },
+  "plunge_attack": {
+    "damage": 40,
+    "poise_damage": 38,
+    "stamina_cost": 24,
+    "knockback": 4.5
   }
 }

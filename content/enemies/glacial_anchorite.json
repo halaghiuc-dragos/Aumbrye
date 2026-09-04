@@ -42,11 +42,12 @@
       "attack_damage": 37,
       "attack_poise_damage": 29,
       "max_range": 2.8,
-      "telegraph_radius": 1.96,
       "telegraph_shape": "circle",
       "damage_type": "frost",
       "status_on_hit": "freeze",
-      "status_stacks_on_hit": 1
+      "status_stacks_on_hit": 1,
+      "attackClass": "unblockable",
+      "knockback": 3.0
     },
     {
       "id": "cleave",
@@ -59,11 +60,12 @@
       "attack_damage": 68,
       "attack_poise_damage": 51,
       "max_range": 3.08,
-      "telegraph_radius": 2.8,
       "telegraph_shape": "cone",
       "damage_type": "frost",
       "status_on_hit": "freeze",
-      "status_stacks_on_hit": 1
+      "status_stacks_on_hit": 1,
+      "attackClass": "unblockable",
+      "knockback": 3.5
     },
     {
       "id": "chain",
@@ -76,7 +78,6 @@
       "attack_damage": 39,
       "attack_poise_damage": 30,
       "max_range": 2.8,
-      "telegraph_radius": 2.38,
       "telegraph_shape": "circle",
       "damage_type": "frost",
       "status_on_hit": "freeze",
@@ -93,13 +94,16 @@
           "attack_damage": 34,
           "attack_poise_damage": 35,
           "max_range": 2.8,
-          "telegraph_radius": 2.52,
           "telegraph_shape": "cone",
           "damage_type": "frost",
           "status_on_hit": "freeze",
-          "status_stacks_on_hit": 1
+          "status_stacks_on_hit": 1,
+          "attackClass": "unblockable",
+          "knockback": 3.0
         }
-      ]
+      ],
+      "attackClass": "unblockable",
+      "knockback": 3.0
     },
     {
       "id": "sig_keening",
@@ -113,11 +117,12 @@
       "attack_poise_damage": 28,
       "min_range": 3.5,
       "max_range": 7.5,
-      "telegraph_radius": 3.0,
       "telegraph_shape": "line",
       "damage_type": "frost",
       "status_on_hit": "freeze",
-      "status_stacks_on_hit": 2
+      "status_stacks_on_hit": 2,
+      "attackClass": "unblockable",
+      "knockback": 3.0
     }
   ],
   "phases": [
@@ -137,11 +142,12 @@
           "attack_damage": 37,
           "attack_poise_damage": 29,
           "max_range": 2.8,
-          "telegraph_radius": 1.96,
           "telegraph_shape": "circle",
           "damage_type": "frost",
           "status_on_hit": "freeze",
-          "status_stacks_on_hit": 1
+          "status_stacks_on_hit": 1,
+          "attackClass": "unblockable",
+          "knockback": 3.0
         },
         {
           "id": "cleave",
@@ -154,11 +160,12 @@
           "attack_damage": 68,
           "attack_poise_damage": 51,
           "max_range": 3.08,
-          "telegraph_radius": 2.8,
           "telegraph_shape": "cone",
           "damage_type": "frost",
           "status_on_hit": "freeze",
-          "status_stacks_on_hit": 1
+          "status_stacks_on_hit": 1,
+          "attackClass": "unblockable",
+          "knockback": 3.5
         },
         {
           "id": "chain",
@@ -171,7 +178,6 @@
           "attack_damage": 39,
           "attack_poise_damage": 30,
           "max_range": 2.8,
-          "telegraph_radius": 2.38,
           "telegraph_shape": "circle",
           "damage_type": "frost",
           "status_on_hit": "freeze",
@@ -188,13 +194,16 @@
               "attack_damage": 34,
               "attack_poise_damage": 35,
               "max_range": 2.8,
-              "telegraph_radius": 2.52,
               "telegraph_shape": "cone",
               "damage_type": "frost",
               "status_on_hit": "freeze",
-              "status_stacks_on_hit": 1
+              "status_stacks_on_hit": 1,
+              "attackClass": "unblockable",
+              "knockback": 3.0
             }
-          ]
+          ],
+          "attackClass": "unblockable",
+          "knockback": 3.0
         }
       ]
     },
@@ -214,11 +223,12 @@
           "attack_damage": 37,
           "attack_poise_damage": 29,
           "max_range": 2.8,
-          "telegraph_radius": 1.96,
           "telegraph_shape": "circle",
           "damage_type": "frost",
           "status_on_hit": "freeze",
-          "status_stacks_on_hit": 1
+          "status_stacks_on_hit": 1,
+          "attackClass": "unblockable",
+          "knockback": 3.0
         },
         {
           "id": "cleave",
@@ -231,11 +241,12 @@
           "attack_damage": 68,
           "attack_poise_damage": 51,
           "max_range": 3.08,
-          "telegraph_radius": 2.8,
           "telegraph_shape": "cone",
           "damage_type": "frost",
           "status_on_hit": "freeze",
-          "status_stacks_on_hit": 1
+          "status_stacks_on_hit": 1,
+          "attackClass": "unblockable",
+          "knockback": 3.5
         },
         {
           "id": "feint",
@@ -248,11 +259,12 @@
           "attack_damage": 62,
           "attack_poise_damage": 50,
           "max_range": 3.5,
-          "telegraph_radius": 3.22,
           "telegraph_shape": "cone",
           "damage_type": "frost",
           "status_on_hit": "freeze",
-          "status_stacks_on_hit": 1
+          "status_stacks_on_hit": 1,
+          "attackClass": "unblockable",
+          "knockback": 3.5
         },
         {
           "id": "quake",
@@ -265,7 +277,6 @@
           "attack_damage": 51,
           "attack_poise_damage": 59,
           "max_range": 3.64,
-          "telegraph_radius": 3.92,
           "telegraph_shape": "ring",
           "damage_type": "frost",
           "status_on_hit": "freeze",
@@ -275,7 +286,9 @@
             "count": 3,
             "radius": 6,
             "lifetime": 9
-          }
+          },
+          "attackClass": "unblockable",
+          "knockback": 3.5
         }
       ],
       "moveSpeedMult": 1.09,

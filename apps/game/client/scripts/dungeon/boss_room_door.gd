@@ -11,6 +11,7 @@ signal door_sealed
 var _barrier: StaticBody3D
 var _barrier_shape: CollisionShape3D
 var _barrier_mesh: MeshInstance3D
+var _fog_gate: MeshInstance3D
 var _interact_area: Area3D
 var _label: Label3D
 var _near_player := false
@@ -62,6 +63,14 @@ func configure(
 	DioramaSkin.build_boss_door_frame(self, biome_id)
 	if _barrier_mesh:
 		_barrier_mesh.material_override = BiomeRegistry.get_wall_material(biome_id)
+	if _fog_gate == null:
+		var theme := PixelDioramaStyle.theme_from_biome(biome_id)
+		var tint := PixelDioramaStyle.get_palette_color(theme, PixelDioramaStyle.PaletteSlot.EMISSIVE)
+		tint.a = 0.55
+		_fog_gate = DioramaSkin.build_fog_gate(
+			self, CastleRoomConstants.DOOR_WIDTH, CastleRoomConstants.DOOR_HEIGHT, tint
+		)
+		_fog_gate.position += Vector3(0.0, 0.0, 0.05)
 	if requirement == "sigil":
 		_state = State.LOCKED
 	elif requirement == "all_keys" and not _all_locks_open():
@@ -170,8 +179,34 @@ func _apply_barrier_visual() -> void:
 		return
 	var solid := _state in [State.LOCKED, State.CLOSED, State.SEALED]
 	_barrier_shape.disabled = not solid
+	# RM-16 item 4: only the player-facing "door opens" beat (State.OPEN) animates -- sealing is
+	# already a sudden magical event with its own rune-flare VFX, and RELEASED/reset happen off
+	# camera on a run reset, so an instant cut there is the correct read, not a missed animation.
+	if _state == State.OPEN and _barrier_mesh and _barrier_mesh.visible:
+		_animate_open()
+		return
 	if _barrier_mesh:
 		_barrier_mesh.visible = solid
+	if _fog_gate:
+		_fog_gate.visible = solid
+
+
+func _animate_open() -> void:
+	var start_y := _barrier_mesh.position.y
+	var fog_start_y := _fog_gate.position.y if _fog_gate else 0.0
+	var tween := create_tween()
+	tween.set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN)
+	tween.tween_property(_barrier_mesh, "position:y", start_y - 4.5, 0.4)
+	if _fog_gate:
+		tween.parallel().tween_property(_fog_gate, "position:y", fog_start_y - 4.5, 0.4)
+	tween.tween_callback(
+		func() -> void:
+			_barrier_mesh.visible = false
+			_barrier_mesh.position.y = start_y
+			if _fog_gate:
+				_fog_gate.visible = false
+				_fog_gate.position.y = fog_start_y
+	)
 
 
 func _update_label() -> void:

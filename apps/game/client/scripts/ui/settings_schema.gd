@@ -19,6 +19,7 @@ static func entries() -> Array[Dictionary]:
 		_window_mode_row(),
 		_monitor_row(),
 		_resolution_row(),
+		_render_preset_row(),
 		_vsync_row(),
 		_max_fps_row(),
 		_ui_scale_row(),
@@ -444,6 +445,32 @@ static func _get_resolution_index() -> int:
 
 static func _set_resolution_index(idx: int) -> void:
 	DisplayService.set_resolution_index(idx)
+
+
+## HD-03: the render preset (`PixelDioramaSettings.RESOLUTION_PRESETS`) is a different axis than
+## `_resolution_row()`'s window size -- this is the internal diorama render resolution that drives
+## the pixel-art look, comparable side by side against the same option-row pattern.
+static func _render_preset_row() -> Dictionary:
+	return {
+		"id": "render_preset",
+		"page": "display",
+		"kind": "option",
+		"name_key": "SETTINGS_RENDER_PRESET_NAME",
+		"desc_key": "SETTINGS_RENDER_PRESET_DESC",
+		"format": "enum",
+		"default": 0,
+		"options": PixelDioramaSettings.preset_labels(),
+		"getter": Callable(SettingsSchema, "_get_render_preset_index"),
+		"setter": Callable(SettingsSchema, "_set_render_preset_index"),
+	}
+
+
+static func _get_render_preset_index() -> int:
+	return PixelDioramaSettings.preset_index()
+
+
+static func _set_render_preset_index(idx: int) -> void:
+	PixelDioramaSettings.set_preset_index(idx)
 
 
 static func _vsync_row() -> Dictionary:

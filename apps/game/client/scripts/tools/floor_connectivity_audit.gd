@@ -14,6 +14,7 @@ const LocalProcgenScript := preload("res://scripts/dungeon/local_procgen.gd")
 const RunFloorConfigScript := preload("res://scripts/dungeon/run_floor_config.gd")
 const RoomGraphLayoutScript := preload("res://scripts/dungeon/procgen/room_graph_layout.gd")
 const CastleRoomConstantsScript := preload("res://scripts/dungeon/castle/castle_room_constants.gd")
+const DungeonBuilderScript := preload("res://scripts/dungeon/dungeon_builder.gd")
 
 const BIOMES: Array[String] = [
 	"forgotten_castle", "crystal_caverns", "poison_swamp", "frozen_fortress", "dark_cathedral",
@@ -30,6 +31,8 @@ const EPSILON := 0.01
 var _failures: Array[String] = []
 var _checked := 0
 var _metrics: Dictionary = {}
+var _holes_by_biome: Dictionary = {}
+var _cliffs_by_biome: Dictionary = {}
 
 
 func _ready() -> void:
@@ -48,11 +51,11 @@ func _ready() -> void:
 				if not result.get("ok", false):
 					_fail("%s: generation failed (%s)" % [label, str(result.get("error", "?"))])
 					continue
-				_audit_floor(label, result.get("definition", {}))
+				await _audit_floor(label, result.get("definition", {}), biome_id)
 	_report()
 
 
-func _audit_floor(label: String, definition: Dictionary) -> void:
+func _audit_floor(label: String, definition: Dictionary, biome_id: String) -> void:
 	_checked += 1
 	var rooms_by_id := {}
 	for room in definition.get("rooms", []):
@@ -78,6 +81,18 @@ func _audit_floor(label: String, definition: Dictionary) -> void:
 	_check_secrets_are_attached(label, rooms_by_id, secret_ids, edges, adjacency)
 	_collect_metrics(rooms_by_id, adjacency, edges)
 	_collect_lock_metrics(definition, rooms_by_id, adjacency)
+	_check_soft_lock(label, definition)
+	await _check_geometry(label, definition, biome_id)
+
+
+## RM-06 item 4: the generator's own gate (`RoomContentValidator`) already rejects a floor that
+## fails this before it ships, so a real failure here should never happen -- this exists to prove
+## that promise per seed rather than trust it, the same way the rest of this audit re-derives
+## things the generator already checked once.
+func _check_soft_lock(label: String, definition: Dictionary) -> void:
+	var check := RoomContentValidator.validate_definition(definition)
+	if not check.get("ok", true):
+		_fail("%s: soft-lock -- %s" % [label, str(check.get("reason", "?"))])
 
 
 ## Every edge must name two rooms that exist, and must not loop a room back to itself.
@@ -441,6 +456,134 @@ func _room_rect(room: Dictionary) -> Rect2:
 	return Rect2(cx - w * 0.5, cz - d * 0.5, w, d)
 
 
+## Builds the floor for real and casts rays into it -- the check that would have caught the
+## reported fall-through bug before it was reported. `_check_doorways_are_backed()` above reasons
+## about the room definitions; a hole from a height change, a pruned room or a mis-seated secret
+## only exists in the geometry the builder actually produces.
+func _check_geometry(label: String, definition: Dictionary, biome_id: String) -> void:
+	var parent := Node3D.new()
+	add_child(parent)
+	var builder := DungeonBuilderScript.new()
+	parent.add_child(builder)
+	await builder.build_from_definition(parent, null, definition, false)
+	# The physics server registers newly created collision shapes asynchronously -- a ray cast
+	# fired the instant the build finishes can miss rooms built late in the instancing loop, which
+	# reads exactly like a missing floor. One synced physics frame is enough for every shape built
+	# this frame to be queryable.
+	await get_tree().physics_frame
+	await get_tree().physics_frame
+	var space := get_viewport().world_3d.direct_space_state
+	var holes := 0
+	for room_id in builder.get_room_ids():
+		var room := builder.get_room(room_id)
+		if room == null:
+			continue
+		if is_nan(_probe_floor_y(space, room.global_position + Vector3(0.0, 2.0, 0.0))):
+			_fail("%s: room '%s' centre has no floor beneath it" % [label, room_id])
+			holes += 1
+		for socket in room.get_sockets():
+			var inward := -socket.get_world_facing()
+			var probe_pos := socket.global_position + inward * 1.0 + Vector3(0.0, 2.0, 0.0)
+			if is_nan(_probe_floor_y(space, probe_pos)):
+				_fail(
+					"%s: room '%s' doorway %s has no floor 1m inside it"
+					% [label, room_id, socket.get_socket_name()]
+				)
+				holes += 1
+	var cliffs := _check_doorway_continuity(label, builder, definition, space)
+	_holes_by_biome[biome_id] = int(_holes_by_biome.get(biome_id, 0)) + holes
+	_cliffs_by_biome[biome_id] = int(_cliffs_by_biome.get(biome_id, 0)) + cliffs
+	parent.queue_free()
+
+
+## For every non-secret edge, several points across the threshold must each find floor close to
+## the height a monotonic staircase would put it at. A height change must read as a climb, not a
+## drop -- sampled from the *lower* room's own socket, facing toward the higher one, because that
+## is the room `_build_height_transitions()` actually builds the flight in; querying the higher
+## room's socket instead samples across an unrelated stretch of wall and reads as nonsense.
+func _check_doorway_continuity(
+	label: String, builder: DungeonBuilder, definition: Dictionary, space: PhysicsDirectSpaceState3D
+) -> int:
+	var cliffs := 0
+	for edge in definition.get("edges", []):
+		var kind := str(edge.get("kind", "door"))
+		if kind in ["secret", "shortcut"]:
+			continue
+		# RM-04: a "down" one-way edge omits its ramp on purpose (see
+		# `dungeon_builder.gd:_build_height_transitions()`) -- the doorway is meant to drop, so the
+		# jump-detection below would flag exactly the geometry the feature is supposed to build.
+		if str(edge.get("oneWay", "")) == "down":
+			continue
+		var from_room := builder.get_room(str(edge.get("from", "")))
+		var to_room := builder.get_room(str(edge.get("to", "")))
+		if from_room == null or to_room == null:
+			continue
+		var from_y := from_room.position.y
+		var to_y := to_room.position.y
+		var lower_room := from_room if from_y <= to_y else to_room
+		var higher_room := to_room if from_y <= to_y else from_room
+		var socket := builder.door_socket_between(lower_room, higher_room)
+		if socket == null:
+			continue
+		var facing := socket.get_world_facing()
+		var origin := socket.global_position
+		var is_height_change := absf(from_y - to_y) > 0.01
+		var expected_lo := minf(from_y, to_y) - 0.5
+		var expected_hi := maxf(from_y, to_y) + CastleRoomConstantsScript.WALL_HEIGHT + 0.5
+		var samples := 9
+		var prev_y := NAN
+		for i in range(samples):
+			# The +0.13 keeps every sample off a tread seam: treads tile on a 0.8m pitch from the
+			# wall, and a ray fired exactly at a shared edge between two boxes can miss both and
+			# fall through to whatever is underneath, which reads as a hole that is not there.
+			var t := (float(i) - float(samples - 1) * 0.5) * 0.5 + 0.13
+			var probe_pos := origin + facing * t + Vector3(0.0, 3.0, 0.0)
+			var hit_y := _probe_floor_y(space, probe_pos, 8.0)
+			if is_nan(hit_y):
+				_fail(
+					"%s: doorway %s->%s has a gap %.1fm from the threshold"
+					% [label, lower_room.room_id, higher_room.room_id, t]
+				)
+				cliffs += 1
+				continue
+			if hit_y < expected_lo or hit_y > expected_hi:
+				_fail(
+					"%s: doorway %s->%s floor at %.2f is outside expected range %.2f..%.2f"
+					% [label, lower_room.room_id, higher_room.room_id, hit_y, expected_lo, expected_hi]
+				)
+				cliffs += 1
+			# Only a genuine height-transition doorway is expected to climb monotonically -- a
+			# flat doorway can legitimately have a raised prop or cover obstacle near it (a crate,
+			# a torch stand) without that being a floor defect, so the jump test would just be
+			# flagging level-design content, not a hole.
+			elif is_height_change and not is_nan(prev_y) and absf(hit_y - prev_y) > 1.5:
+				_fail(
+					(
+						"%s: doorway %s->%s floor jumps %.2f between samples 0.5m apart --"
+						+ " a cliff, not a staircase"
+					)
+					% [label, lower_room.room_id, higher_room.room_id, absf(hit_y - prev_y)]
+				)
+				cliffs += 1
+			prev_y = hit_y
+	return cliffs
+
+
+func _probe_floor_y(
+	space: PhysicsDirectSpaceState3D, from: Vector3, max_drop: float = 6.0
+) -> float:
+	if space == null:
+		return NAN
+	var params := PhysicsRayQueryParameters3D.create(from, from + Vector3(0.0, -max_drop, 0.0))
+	params.collision_mask = 1
+	params.collide_with_areas = false
+	var hit := space.intersect_ray(params)
+	if hit.is_empty():
+		return NAN
+	var hit_pos: Vector3 = hit.get("position", from)
+	return hit_pos.y
+
+
 func _fail(message: String) -> void:
 	_failures.append(message)
 
@@ -481,6 +624,15 @@ func _report() -> void:
 				),
 			]
 		)
+	var total_holes := 0
+	var total_cliffs := 0
+	for biome_id in BIOMES:
+		var holes := int(_holes_by_biome.get(biome_id, 0))
+		var cliffs := int(_cliffs_by_biome.get(biome_id, 0))
+		total_holes += holes
+		total_cliffs += cliffs
+		print("GEOMETRY %s: %d holes, %d cliffs" % [biome_id, holes, cliffs])
+	print("GEOMETRY TOTAL: %d holes, %d cliffs" % [total_holes, total_cliffs])
 	var shown := 0
 	for failure in _failures:
 		print("  " + failure)

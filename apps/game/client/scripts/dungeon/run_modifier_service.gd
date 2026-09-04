@@ -61,6 +61,16 @@ const ENDLESS_BAND_FLOORS := 25
 const ENDLESS_FIRST_BAND := 2
 const ENDLESS_MAX_MODIFIERS := 5
 
+## MD-01: from wave 10, the Vigil rolls one modifier per wave from this small pool -- kept narrow
+## (combat-only effects, no lock/merchant/trap modifiers, which mean nothing in a single arena).
+const WAVES_MODIFIER_POOL: Array[String] = [
+	MODIFIER_FRENZIED_FOES,
+	MODIFIER_ARMOURED_FOES,
+	MODIFIER_FOG_OF_WAR,
+	MODIFIER_RELENTLESS_FOES,
+]
+const WAVES_MODIFIER_START_WAVE := 10
+
 static var _active: Array[String] = []
 
 
@@ -116,3 +126,18 @@ static func endless_modifiers_for_floor(floor_index: int, run_seed: int = 0) -> 
 
 static func apply_endless_floor_modifiers(floor_index: int, run_seed: int = 0) -> void:
 	set_modifiers(endless_modifiers_for_floor(floor_index, run_seed))
+
+
+## MD-01: one modifier, not a growing stack -- the Vigil is a single arena for fifty waves, so a
+## stacking pool would compound into an unreadable pile by wave 40. Empty before wave 10.
+static func waves_modifier_for_wave(wave: int, run_seed: int = 0) -> String:
+	if wave < WAVES_MODIFIER_START_WAVE or WAVES_MODIFIER_POOL.is_empty():
+		return ""
+	var rng := RandomNumberGenerator.new()
+	rng.seed = FloorSeedMixScript.mix(maxi(1, run_seed), wave * 601 + 3)
+	return WAVES_MODIFIER_POOL[rng.randi_range(0, WAVES_MODIFIER_POOL.size() - 1)]
+
+
+static func apply_waves_wave_modifier(wave: int, run_seed: int = 0) -> void:
+	var modifier_id := waves_modifier_for_wave(wave, run_seed)
+	set_modifiers([modifier_id] if modifier_id != "" else [])

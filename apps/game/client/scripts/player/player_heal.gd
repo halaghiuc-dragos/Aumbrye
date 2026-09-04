@@ -209,6 +209,8 @@ func _on_heal_commit() -> void:
 	if visual:
 		MaterialFlashScript.flash(visual, 0.85)
 	VfxService.play_heal(_body.global_position + Vector3(0.0, 1.1, 0.0))
+	if CombatEvents:
+		CombatEvents.dispatch(CombatEvents.ON_FLASK, {"actor": _body})
 
 
 func _apply_heal_amount() -> void:

@@ -63,7 +63,235 @@ static func apply_to_room(room: RoomTemplate, biome_id: String, room_seed: int =
 			_spawn_puzzle(dressing, accent_mat, biome_id)
 		_:
 			_spawn_generic_corners(dressing, half_w, half_d, accent_mat, biome_id, prop_rng)
+	_spawn_variant_props(dressing, room, biome_id, accent_mat)
+	_spawn_density_props(dressing, room, half_w, half_d, blockout, biome_id, accent_mat, prop_rng)
 	_apply_seeded_prop_variation(dressing, prop_rng)
+
+
+## RM-03: places whatever `props` list the room's biome-specific layout variant authored
+## (`content/rooms/<biome>.json`), on top of whatever the kind's own built-in dressing already
+## placed. Optional -- a variant with no `props` key, or a room on its baseline variant 0, adds
+## nothing here.
+static func _spawn_variant_props(
+	dressing: Node3D, room: RoomTemplate, biome_id: String, accent_mat: Material
+) -> void:
+	var variant := RoomLayoutCatalog.variant_for_room(
+		biome_id, RunFlow.current_seed, room.room_id, room.template_id
+	)
+	if variant <= 0:
+		return
+	var props := RoomLayoutCatalog.props_for(biome_id, room.template_id, variant)
+	for entry in props:
+		if not entry is Dictionary:
+			continue
+		var record: Dictionary = entry
+		var at: Variant = record.get("at", [])
+		if not at is Array or (at as Array).size() < 3:
+			continue
+		var pos := Vector3(float(at[0]), float(at[1]), float(at[2]))
+		var yaw := deg_to_rad(float(record.get("yaw", 0.0)))
+		_spawn_layout_prop(dressing, str(record.get("kind", "")), pos, yaw, accent_mat, biome_id)
+
+
+static func _spawn_layout_prop(
+	parent: Node3D, kind: String, pos: Vector3, yaw: float, accent_mat: Material, biome_id: String
+) -> void:
+	match kind:
+		"pillar":
+			_spawn_corner_pillar(parent, pos, accent_mat, 3.2)
+		"brazier":
+			_spawn_brazier(parent, pos, accent_mat, biome_id)
+		"rubble", "rubble_a":
+			_add_box(parent, pos + Vector3(0.0, 0.3, 0.0), Vector3(1.1, 0.6, 1.1), accent_mat, "Rubble")
+		"rubble_b":
+			var rubble_b := _add_box(
+				parent, pos + Vector3(0.0, 0.22, 0.0), Vector3(0.8, 0.44, 1.3), accent_mat, "Rubble"
+			)
+			rubble_b.rotation.y = yaw
+		"sconce":
+			_spawn_wall_sconce(parent, pos, accent_mat, biome_id)
+		"debris_pile":
+			_add_box(parent, pos + Vector3(0.0, 0.12, 0.0), Vector3(1.6, 0.24, 1.6), accent_mat, "Debris")
+		"statue":
+			var statue := _add_box(
+				parent, pos + Vector3(0.0, 1.4, 0.0), Vector3(0.8, 2.8, 0.8), accent_mat, "Statue"
+			)
+			statue.rotation.y = yaw
+		"altar":
+			var altar := _add_box(
+				parent, pos + Vector3(0.0, 0.5, 0.0), Vector3(1.4, 1.0, 1.4), accent_mat, "Altar"
+			)
+			altar.rotation.y = yaw
+
+
+## RM-11: room area on its own decided almost nothing before this -- a 24x24 arena and an 8x8
+## secret got dressed from the same four-prop kit, which is why a big room read as "60% of the
+## frame is one flat tile pattern" (`docs/GAME_FEEL_REVIEW.md`). `props = clampi(area/26, 3, 14)`
+## scales the count with the room instead.
+const DENSITY_PROP_KINDS := [
+	"pillar", "sconce", "rubble_a", "rubble_b", "banner", "statue", "altar", "debris_pile"
+]
+const DENSITY_MIN_SPACING := 1.8
+const DENSITY_DOORWAY_CLEARANCE := 1.8
+const DENSITY_ANCHOR_CLEARANCE := 1.5
+
+
+## Rejection-sampled scatter (a cheap stand-in for a true Poisson-disc one): a random point is
+## accepted only if it clears every doorway zone, every existing `PropAnchor_N` marker by
+## `DENSITY_ANCHOR_CLEARANCE` (RM-03's variant anchors and the built-in corner anchors both use
+## that name), and every prop this same pass has already placed by `DENSITY_MIN_SPACING`.
+##
+## Cover obstacles (RM-11's third clearance rule) are placed later by `DungeonBuilder._place_cover()`
+## from `definition.placements.cover`, which is not available here -- `apply_to_room()` only ever
+## sees a biome id and a seed, not the floor definition. Skipped rather than plumbed through for
+## one clearance check; a scatter prop landing near a cover pillar is a visual near-miss, not a
+## blocked path (cover placement itself already checks doorway zones and drops rather than nudges).
+static func _spawn_density_props(
+	dressing: Node3D,
+	room: RoomTemplate,
+	half_w: float,
+	half_d: float,
+	blockout: CastleBlockout,
+	biome_id: String,
+	accent_mat: Material,
+	prop_rng: RandomNumberGenerator
+) -> void:
+	var area := half_w * 2.0 * (half_d * 2.0)
+	var count := clampi(int(area / 26.0), 3, 14)
+	var zones := _density_doorway_zones(blockout, half_w, half_d)
+	var anchor_points := _density_anchor_points(room)
+	var placed: Array[Vector2] = []
+	var batch := PixelBoxBatch.new()
+	var margin := 1.2
+	var attempts := 0
+	var max_attempts := count * 15
+	while placed.size() < count and attempts < max_attempts:
+		attempts += 1
+		var pos := Vector2(
+			prop_rng.randf_range(-half_w + margin, half_w - margin),
+			prop_rng.randf_range(-half_d + margin, half_d - margin)
+		)
+		if _density_in_doorway(zones, pos):
+			continue
+		var too_close := false
+		for anchor in anchor_points:
+			if anchor.distance_to(pos) < DENSITY_ANCHOR_CLEARANCE:
+				too_close = true
+				break
+		if not too_close:
+			for existing in placed:
+				if existing.distance_to(pos) < DENSITY_MIN_SPACING:
+					too_close = true
+					break
+		if too_close:
+			continue
+		placed.append(pos)
+		var kind: String = DENSITY_PROP_KINDS[prop_rng.randi_range(0, DENSITY_PROP_KINDS.size() - 1)]
+		var yaw := prop_rng.randf_range(0.0, TAU)
+		var pos3 := Vector3(pos.x, 0.0, pos.y)
+		if kind == "sconce":
+			# The one kind with its own light -- cannot be batched, and rare enough in the mix
+			# that it does not move the draw-call count much on its own.
+			_spawn_wall_sconce(dressing, pos3, accent_mat, biome_id)
+		else:
+			_batch_density_box(batch, kind, pos3, yaw, accent_mat)
+	if not batch.is_empty():
+		batch.commit(
+			dressing,
+			"DensityProps",
+			AABB(Vector3(-half_w, 0.0, -half_d), Vector3(half_w * 2.0, 4.0, half_d * 2.0))
+		)
+
+
+## Every non-"sconce" density kind is a single box, so one `PixelBoxBatch` (one draw call per
+## material -- here, always `accent_mat`) replaces what would otherwise be up to 14 separate
+## `MeshInstance3D` nodes per room. See RM-11's "Solution": draw calls are a stated budget, not
+## whatever the feature happens to cost.
+static func _batch_density_box(
+	batch: PixelBoxBatch, kind: String, pos: Vector3, yaw: float, mat: Material
+) -> void:
+	var basis := Basis(Vector3.UP, yaw)
+	match kind:
+		"pillar":
+			batch.add(Vector3(0.7, 3.2, 0.7), pos + Vector3(0.0, 1.6, 0.0), mat)
+		"rubble", "rubble_a":
+			batch.add(Vector3(1.1, 0.6, 1.1), pos + Vector3(0.0, 0.3, 0.0), mat)
+		"rubble_b":
+			batch.add(Vector3(0.8, 0.44, 1.3), pos + Vector3(0.0, 0.22, 0.0), mat, basis)
+		"debris_pile":
+			batch.add(Vector3(1.6, 0.24, 1.6), pos + Vector3(0.0, 0.12, 0.0), mat)
+		"statue":
+			batch.add(Vector3(0.8, 2.8, 0.8), pos + Vector3(0.0, 1.4, 0.0), mat, basis)
+		"altar":
+			batch.add(Vector3(1.4, 1.0, 1.4), pos + Vector3(0.0, 0.5, 0.0), mat, basis)
+		"banner":
+			batch.add(Vector3(0.7, 2.2, 0.15), pos + Vector3(0.0, 1.1, 0.0), mat, basis)
+
+
+static func _density_doorway_zones(blockout: CastleBlockout, half_w: float, half_d: float) -> Array:
+	var zones: Array = []
+	if blockout.door_north:
+		zones.append(
+			{
+				"along_x": true,
+				"offset": blockout.door_north_offset,
+				"lo": -half_d,
+				"hi": -half_d + DENSITY_DOORWAY_CLEARANCE,
+			}
+		)
+	if blockout.door_south:
+		zones.append(
+			{
+				"along_x": true,
+				"offset": blockout.door_south_offset,
+				"lo": half_d - DENSITY_DOORWAY_CLEARANCE,
+				"hi": half_d,
+			}
+		)
+	if blockout.door_east:
+		zones.append(
+			{
+				"along_x": false,
+				"offset": blockout.door_east_offset,
+				"lo": half_w - DENSITY_DOORWAY_CLEARANCE,
+				"hi": half_w,
+			}
+		)
+	if blockout.door_west:
+		zones.append(
+			{
+				"along_x": false,
+				"offset": blockout.door_west_offset,
+				"lo": -half_w,
+				"hi": -half_w + DENSITY_DOORWAY_CLEARANCE,
+			}
+		)
+	return zones
+
+
+static func _density_in_doorway(zones: Array, pos: Vector2) -> bool:
+	var half_span := CastleRoomConstants.DOOR_WIDTH * 0.5 + 0.4
+	for zone in zones:
+		var along: float = pos.x if bool(zone["along_x"]) else pos.y
+		var across: float = pos.y if bool(zone["along_x"]) else pos.x
+		if absf(along - float(zone["offset"])) > half_span:
+			continue
+		if across >= float(zone["lo"]) and across <= float(zone["hi"]):
+			return true
+	return false
+
+
+static func _density_anchor_points(room: Node) -> Array[Vector2]:
+	var points: Array[Vector2] = []
+	var props := room.get_node_or_null("Props") if room else null
+	if props == null:
+		return points
+	for child in props.get_children():
+		var marker := child as Node3D
+		if marker == null or not marker.name.begins_with("PropAnchor_"):
+			continue
+		points.append(Vector2(marker.position.x, marker.position.z))
+	return points
 
 
 const VARIATION_EXEMPT_TOKENS := [

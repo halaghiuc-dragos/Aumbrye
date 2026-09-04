@@ -1,7 +1,7 @@
 {
   "id": "iron_will",
   "name": "Iron Will",
-  "description": "Endurance bought slowly, and it weighs on you. +15 health and 3% slower, but clearing a room mends a little of it.",
+  "description": "Endurance bought slowly, and it weighs on you. +15 health and 3% slower, but clearing a room mends a little of it and steadies your resolve.",
   "maxStacks": 3,
   "stats": {
     "maxHealth": 15,
@@ -17,6 +17,13 @@
       "event": "onRoomClear",
       "effect": "restore_health",
       "amount": 12
+    },
+    {
+      "event": "onRoomClear",
+      "effect": "apply_status",
+      "statusId": "resolve",
+      "stacks": 1,
+      "applyToActor": true
     }
   ],
   "offerable": true

@@ -174,22 +174,15 @@ func _arbitrate_hit_reaction(info: DamageInfo) -> void:
 		play_flinch(info.direction)
 
 
+## Delegates to `Guard.is_frontal_hit()` -- the single definition of "frontal" for this body, so
+## the block-impact animation always agrees with `Guard`'s own `BLOCK_ARC_DEGREES` rather than
+## judging the arc a second, different way.
 func _is_frontal_hit(direction: Vector3) -> bool:
 	if direction.length_squared() < 0.01:
 		return true
-	if _guard and _guard.has_method("_is_frontal_hit"):
-		return bool(_guard.call("_is_frontal_hit", direction))
-	var facing := _body.get_node_or_null("Facing") as Node3D
-	if facing == null:
-		return true
-	var facing_forward := CombatFacing.forward_of(facing)
-	var flat_facing := Vector3(facing_forward.x, 0.0, facing_forward.z)
-	if flat_facing.length_squared() < 0.01:
-		return true
-	var flat_hit := Vector3(direction.x, 0.0, direction.z)
-	if flat_hit.length_squared() < 0.01:
-		return true
-	return flat_facing.normalized().angle_to(-flat_hit.normalized()) <= deg_to_rad(55.0)
+	if _guard and _guard.has_method("is_frontal_hit"):
+		return bool(_guard.call("is_frontal_hit", direction))
+	return true
 
 
 func update_locomotion(
@@ -438,7 +431,11 @@ func _on_attack_started(attack_name: String) -> void:
 	elif attack_name.begins_with("heavy"):
 		play_heavy_attack(startup, active, recovery)
 	elif attack_name.begins_with("bow"):
-		play_attack(startup, active, recovery, &"attack_shoot")
+		# `AN-04`: hold on the draw's wound pose instead of playing the shot clip straight through
+		# -- `_draw_charge` accumulates in `WeaponController._process_bow_input()` with nothing
+		# telling the player they are still drawing until now.
+		var total := maxf(0.01, startup + active + recovery)
+		hold_at(&"attack_shoot", startup / total, startup, active, recovery)
 	else:
 		play_attack(startup, active, recovery)
 

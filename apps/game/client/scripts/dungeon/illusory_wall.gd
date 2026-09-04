@@ -9,6 +9,7 @@ var _revealed := false
 var _interact_area: Area3D
 var _barrier: StaticBody3D
 var _near_player := false
+var _tell_floor: StaticBody3D
 
 
 func configure(secret_room_id: String, builder: DungeonBuilder) -> void:
@@ -48,6 +49,31 @@ func _ready() -> void:
 	if _interact_area:
 		_interact_area.body_entered.connect(_on_body_entered)
 		_interact_area.body_exited.connect(_on_body_exited)
+	_build_tell()
+
+
+## RM-09: the tell must be ignorable -- a very slow, very faint dust-mote drift in front of the
+## panel, plus a distinct footstep sound within 1.5m of it. A player not looking should just walk
+## past; a player who is looking should feel clever for noticing. Anything louder turns a secret
+## into a waypoint.
+func _build_tell() -> void:
+	if _revealed:
+		return
+	LightEmbers.attach(self, Vector3(0.0, 1.2, -0.4), Color(0.85, 0.82, 0.7, 0.35), 0.3, 0.6)
+	_tell_floor = StaticBody3D.new()
+	_tell_floor.name = "HollowFloorTell"
+	_tell_floor.collision_layer = 1
+	_tell_floor.collision_mask = 0
+	_tell_floor.position = Vector3(0.0, 0.02, -1.0)
+	_tell_floor.set_meta("surface", "hollow")
+	add_child(_tell_floor)
+	var shape := CollisionShape3D.new()
+	var box := BoxShape3D.new()
+	# Thin and raised a hair above the room's own floor so a downward probe ray hits this patch
+	# first instead of tying with (or losing to) the floor collider underneath it.
+	box.size = Vector3(3.0, 0.06, 3.0)
+	shape.shape = box
+	_tell_floor.add_child(shape)
 
 
 func _on_body_entered(body: Node3D) -> void:

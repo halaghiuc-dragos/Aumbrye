@@ -4,8 +4,8 @@
   "templatePrefix": "vault",
   "assetFolder": "vault",
   "roomCount": {
-    "min": 22,
-    "max": 28
+    "min": 20,
+    "max": 24
   },
   "roomTemplateIds": [
     "vault_entrance",
@@ -17,7 +17,10 @@
     "vault_secret",
     "vault_arena",
     "vault_boss",
-    "vault_puzzle"
+    "vault_puzzle",
+    "vault_corridor_long",
+    "vault_corridor_bend",
+    "vault_balcony"
   ],
   "materials": {
     "floor": "vault",
@@ -53,7 +56,11 @@
     "rubble": [
       "res://scenes/props/vault/rubble_a.tscn",
       "res://scenes/props/vault/rubble_b.tscn"
-    ]
+    ],
+    "banner": "res://scenes/props/vault/banner.tscn",
+    "statue": "res://scenes/props/vault/statue.tscn",
+    "altar": "res://scenes/props/vault/altar.tscn",
+    "debrisPile": "res://scenes/props/vault/debris_pile.tscn"
   },
   "enemyPool": [
     {
@@ -190,13 +197,15 @@
   "generator": {
     "bossMinDistance": 5,
     "minDeadEnds": 5,
-    "branchMaxDepth": 8,
+    "branchMaxDepth": 6,
     "maxNeighborCount": 4,
-    "loopBudget": 4,
+    "loopBudget": 3,
     "maxGenerationAttempts": 256,
     "maxWalkAttempts": 8192,
     "allow2x2Blocks": true,
-    "fillBoundingBox": true
+    "fillBoundingBox": true,
+    "corridorRatio": 0.2,
+    "floorSilhouette": "cross"
   },
   "grade": {
     "shadowTint": [

@@ -86,6 +86,26 @@ static func spawn_shortcut_gates(builder: DungeonBuilder, definition: Dictionary
 			node.call("configure", gate, room_a, room_b)
 
 
+## RM-07: exactly one room per floor -- see `RoomContentAssigner._mark_pre_boss_lock_in()` -- has
+## `"lockIn": true` on its `roomContent` entry. One node owns every doorway of that room rather than
+## spawning per-doorway like the other gate kinds, since they all have to close and open together.
+static func spawn_arena_gates(builder: DungeonBuilder, definition: Dictionary) -> void:
+	const ARENA_GATE_SCRIPT := preload("res://scripts/dungeon/room_content/room_arena_gate_content.gd")
+	for entry in definition.get("roomContent", []):
+		if not entry is Dictionary or not bool((entry as Dictionary).get("lockIn", false)):
+			continue
+		var room := builder.get_room(str((entry as Dictionary).get("roomId", "")))
+		if room == null:
+			continue
+		var node := Node3D.new()
+		node.name = "ArenaGates_%s" % (entry as Dictionary).get("roomId", "")
+		node.set_script(ARENA_GATE_SCRIPT)
+		node.set_meta("biome_id", builder.biome_id)
+		room.add_child(node)
+		if node.has_method("configure"):
+			node.call("configure", entry, definition)
+
+
 static func spawn_puzzle_gates(builder: DungeonBuilder, definition: Dictionary) -> void:
 	const GATE_SCRIPT := preload("res://scripts/dungeon/room_content/room_puzzle_gate_content.gd")
 	for puzzle in definition.get("puzzles", []):

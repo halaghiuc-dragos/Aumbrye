@@ -145,6 +145,12 @@ function resolveSchemaForFile(filePath) {
   if (name === "combat/dodge.json") {
     return join(schemasRoot, "dodge-tuning.v1.json");
   }
+  if (name === "combat/guard.json") {
+    return join(schemasRoot, "guard-tuning.v1.json");
+  }
+  if (name === "combat/impact.json") {
+    return join(schemasRoot, "impact-tuning.v1.json");
+  }
   if (name === "items/catalog.json") {
     return join(schemasRoot, "item-catalog.v1.json");
   }
@@ -279,6 +285,9 @@ function resolveSchemaForFile(filePath) {
   }
   if (name === "ui/class_icon_atlas.json") {
     return join(schemasRoot, "ui-symbol-atlas.v1.json");
+  }
+  if (name === "ui/intent_atlas.json") {
+    return join(schemasRoot, "intent-atlas.v1.json");
   }
   if (name === "ui/hud_atlas.json") {
     return join(schemasRoot, "hud-atlas.v1.json");

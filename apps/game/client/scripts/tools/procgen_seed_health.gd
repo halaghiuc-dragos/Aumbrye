@@ -200,15 +200,16 @@ static func reason_bucket(reason: String) -> String:
 
 static func print_summary_table(report: Dictionary) -> void:
 	print("Phase 1 (room graph) only — template assignment and geometry are not covered.")
-	print("Biome                 Seeds  1st-try  Fallback  Rooms min/mean/max")
+	print("Biome                 Seeds  1st-try  Fallback  Rooms min/mean/max  Score mean(p25/p35/p50)")
 	for biome_id in report.get("biomes", {}).keys():
 		var stats: Dictionary = report["biomes"][biome_id]
 		var seeds := int(stats.get("seeds", 0))
 		var first_rate := _rate(int(stats.get("firstAttemptOk", 0)), seeds)
 		var fallback_rate := float(stats.get("fallbackRate", 0.0))
 		var room_stats: Dictionary = stats.get("mainRoomCount", {})
+		var score_stats: Dictionary = stats.get("floorScore", {})
 		print(
-			"%-20s %5d  %7.4f  %8.6f  %d / %.1f / %d"
+			"%-20s %5d  %7.4f  %8.6f  %d / %.1f / %d  %.3f (%.3f/%.3f/%.3f)"
 			% [
 				biome_id,
 				seeds,
@@ -217,6 +218,10 @@ static func print_summary_table(report: Dictionary) -> void:
 				int(room_stats.get("min", 0)),
 				float(room_stats.get("mean", 0.0)),
 				int(room_stats.get("max", 0)),
+				float(score_stats.get("mean", 0.0)),
+				float(score_stats.get("p25", 0.0)),
+				float(score_stats.get("p35", 0.0)),
+				float(score_stats.get("p50", 0.0)),
 			]
 		)
 
@@ -304,12 +309,14 @@ static func _sweep_biome(biome_id: String, seed_from: int, seed_count: int) -> D
 		"failureReasons": {},
 		"mainRoomCount": {"min": 0, "max": 0, "mean": 0.0, "histogram": {}},
 		"worstSeeds": [],
+		"floorScore": {"min": 0.0, "max": 0.0, "mean": 0.0, "p25": 0.0, "p35": 0.0, "p50": 0.0},
 	}
 	var room_total := 0
 	var room_min := 999999
 	var room_max := 0
 	var room_histogram := {}
 	var worst_seeds: Array = []
+	var scores: Array[float] = []
 	for offset in seed_count:
 		var seed_value := seed_from + offset
 		var gen_report := RoomGraphGeneratorScript.generate_reported(config, seed_value)
@@ -336,6 +343,8 @@ static func _sweep_biome(biome_id: String, seed_from: int, seed_count: int) -> D
 		room_min = mini(room_min, main_count)
 		room_max = maxi(room_max, main_count)
 		room_histogram[str(main_count)] = int(room_histogram.get(str(main_count), 0)) + 1
+		# RM-18
+		scores.append(RoomGraphGeneratorScript.score_graph(gen_report.graph, config))
 		if gen_report.attempts > 1 or gen_report.used_fallback:
 			worst_seeds.append(
 				{
@@ -358,7 +367,34 @@ static func _sweep_biome(biome_id: String, seed_from: int, seed_count: int) -> D
 			return int(a.get("attempts", 0)) > int(b.get("attempts", 0))
 	)
 	stats["worstSeeds"] = worst_seeds.slice(0, WORST_SEED_LIMIT)
+	stats["floorScore"] = _score_stats(scores)
 	return {"ok": true, "stats": stats}
+
+
+## RM-18: min/max/mean plus the percentiles the threshold was picked from.
+static func _score_stats(scores: Array[float]) -> Dictionary:
+	if scores.is_empty():
+		return {"min": 0.0, "max": 0.0, "mean": 0.0, "p25": 0.0, "p35": 0.0, "p50": 0.0}
+	var sorted := scores.duplicate()
+	sorted.sort()
+	var total := 0.0
+	for s in sorted:
+		total += s
+	return {
+		"min": sorted[0],
+		"max": sorted[-1],
+		"mean": total / float(sorted.size()),
+		"p25": _percentile(sorted, 0.25),
+		"p35": _percentile(sorted, 0.35),
+		"p50": _percentile(sorted, 0.50),
+	}
+
+
+static func _percentile(sorted: Array[float], fraction: float) -> float:
+	if sorted.is_empty():
+		return 0.0
+	var idx := clampi(int(fraction * float(sorted.size())), 0, sorted.size() - 1)
+	return sorted[idx]
 
 
 static func _graph_metrics(graph: RoomGraph, _config: RoomGraphConfig) -> Dictionary:

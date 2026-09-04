@@ -5,14 +5,20 @@ signal mana_changed(current: float, max_value: float)
 signal depleted
 signal insufficient
 
+## CB-07: mirrors `Stamina.RegenState` exactly so callers look the same -- `BLOCKING` slows regen
+## rather than stopping it, the way holding a shield slows stamina recovery without halting it.
+enum RegenState { NORMAL, BLOCKING, SUPPRESSED }
+
 const MAX_MANA := 100.0
 const REGEN_DELAY := 0.7
 const REGEN_RATE := 20.0
+const REGEN_RATE_BLOCKING := 6.0
 
 var current: float = MAX_MANA
 var max_mana: float = MAX_MANA
 var _regen_timer := 0.0
 var _regen_multiplier := 1.0
+var _regen_state := RegenState.NORMAL
 
 
 func _ready() -> void:
@@ -36,12 +42,21 @@ func configure(
 	mana_changed.emit(current, max_mana)
 
 
+func set_regen_state(state: RegenState) -> void:
+	_regen_state = state
+
+
 func _physics_process(delta: float) -> void:
 	if _regen_timer > 0.0:
 		_regen_timer -= delta
 		return
+	if _regen_state == RegenState.SUPPRESSED:
+		return
 	if current < max_mana:
-		current = minf(max_mana, current + REGEN_RATE * _regen_multiplier * delta)
+		var rate := REGEN_RATE * _regen_multiplier
+		if _regen_state == RegenState.BLOCKING:
+			rate = REGEN_RATE_BLOCKING
+		current = minf(max_mana, current + rate * delta)
 		mana_changed.emit(current, max_mana)
 
 
@@ -76,4 +91,5 @@ func has(amount: float) -> bool:
 func reset_mana() -> void:
 	current = max_mana
 	_regen_timer = 0.0
+	_regen_state = RegenState.NORMAL
 	mana_changed.emit(current, max_mana)

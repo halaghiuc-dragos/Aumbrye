@@ -17,6 +17,18 @@ const HEIGHT_RUN_LENGTH := 4
 
 const LOOP_STRICT_ATTEMPT_FRACTION := 0.75
 
+## RM-18: a graph that passes `_validate_graph()` is legal, not necessarily interesting -- a
+## straight line of rooms with a few one-room stubs off it passes every check there. Below this
+## floor score, a legal graph is rerolled the same as an outright validation failure; the retry
+## budget already absorbs it for free. See `score_graph()` for the weighted metrics and
+## `docs/validation/manual-checklist.md`-adjacent tooling (`procgen_seed_health.gd`) for how the
+## number was picked: roughly the 35th percentile of a 400-seed sweep's score distribution, so this
+## cuts the worst third without moving mean generation cost.
+const SCORE_THRESHOLD := 0.85
+## Once this fraction of the attempt budget is spent, the threshold above lowers linearly to 0 by
+## the final attempt -- a genuinely hostile seed still ships a floor instead of grinding to the cap.
+const ADAPTIVE_SCORE_FRACTION := 0.6
+
 const DIR_TO_DOOR := {
 	Vector2i(0, -1): RoomGraphSlotScript.DOOR_NORTH,
 	Vector2i(1, 0): RoomGraphSlotScript.DOOR_EAST,
@@ -45,10 +57,18 @@ static func generate_reported(config: RoomGraphConfig, run_seed: int) -> Generat
 	var rng := RandomNumberGenerator.new()
 	rng.seed = run_seed
 	var strict_attempts := int(config.max_generation_attempts * LOOP_STRICT_ATTEMPT_FRACTION)
+	var adaptive_start := int(config.max_generation_attempts * ADAPTIVE_SCORE_FRACTION)
 	for attempt in config.max_generation_attempts:
 		report.attempts = attempt + 1
 		var graph := _try_generate_once(config, rng, attempt < strict_attempts)
 		if graph != null:
+			var score := score_graph(graph, config)
+			var threshold := _score_threshold(attempt, adaptive_start, config.max_generation_attempts)
+			if score < threshold:
+				_last_validate_reason = "Floor scored %.3f below threshold %.3f" % [score, threshold]
+				report.reasons.append(_last_validate_reason)
+				rng.seed = run_seed + (attempt + 1) * 1_000_003
+				continue
 			report.ok = true
 			report.used_fallback = false
 			report.graph = graph
@@ -61,6 +81,77 @@ static func generate_reported(config: RoomGraphConfig, run_seed: int) -> Generat
 	report.ok = false
 	report.used_fallback = false
 	return report
+
+
+## Linear ramp from `SCORE_THRESHOLD` down to 0 across the attempts from `adaptive_start` to
+## `max_attempts` -- flat at the full threshold before that point.
+static func _score_threshold(attempt: int, adaptive_start: int, max_attempts: int) -> float:
+	if attempt < adaptive_start or max_attempts <= adaptive_start:
+		return SCORE_THRESHOLD
+	var span := float(max_attempts - adaptive_start)
+	var t := float(attempt - adaptive_start) / maxf(1.0, span)
+	return SCORE_THRESHOLD * (1.0 - clampf(t, 0.0, 1.0))
+
+
+## RM-18: five metrics, each normalised to [0, 1] and equally weighted, describing whether a
+## *legal* floor is also an *interesting* one.
+static func score_graph(graph: RoomGraph, config: RoomGraphConfig) -> float:
+	var main_count := graph.main_slot_count()
+	if main_count <= 0:
+		return 0.0
+	var critical_ids := RoomGraphPathsScript.critical_path_ids(graph)
+	var on_critical := {}
+	for id in critical_ids:
+		on_critical[id] = true
+	var off_critical_count := 0
+	var min_cell := Vector2i(999999, 999999)
+	var max_cell := Vector2i(-999999, -999999)
+	var dead_end_depths: Array[int] = []
+	var distances := RoomGraphPathsScript.bfs_distances(graph, graph.start_id)
+	for cell in graph.occupied_cells():
+		var slot: RoomGraphSlot = graph.slots[cell]
+		if slot.slot_type == RoomGraphSlotScript.SlotType.SECRET:
+			continue
+		if not on_critical.has(slot.slot_id):
+			off_critical_count += 1
+		min_cell.x = mini(min_cell.x, cell.x)
+		min_cell.y = mini(min_cell.y, cell.y)
+		max_cell.x = maxi(max_cell.x, cell.x)
+		max_cell.y = maxi(max_cell.y, cell.y)
+		if not slot.is_filler and slot.is_dead_end():
+			dead_end_depths.append(int(distances.get(slot.slot_id, 0)))
+
+	var branching := _range_score(float(off_critical_count) / float(main_count), 0.35, 0.55)
+
+	var loopiness := 1.0
+	if config.loop_budget > 0:
+		loopiness = clampf(float(graph.loop_edges.size()) / float(config.loop_budget) / 0.5, 0.0, 1.0)
+
+	var path_length := _range_score(float(critical_ids.size()) / float(main_count), 0.30, 0.45)
+
+	var width := float(max_cell.x - min_cell.x + 1)
+	var height := float(max_cell.y - min_cell.y + 1)
+	var aspect := minf(width, height) / maxf(width, height)
+	var spread := _range_score(aspect, 0.6, 1.0)
+
+	var dead_end_depth := 1.0
+	if not dead_end_depths.is_empty():
+		var total := 0
+		for depth in dead_end_depths:
+			total += depth
+		var mean_depth := float(total) / float(dead_end_depths.size())
+		dead_end_depth = clampf(mean_depth / 2.0, 0.0, 1.0)
+
+	return (branching + loopiness + path_length + spread + dead_end_depth) / 5.0
+
+
+## 1.0 inside `[lo, hi]`, decaying linearly to 0 one span-width outside it.
+static func _range_score(value: float, lo: float, hi: float) -> float:
+	if value >= lo and value <= hi:
+		return 1.0
+	var span := maxf(0.0001, hi - lo)
+	var dist := (lo - value) if value < lo else (value - hi)
+	return clampf(1.0 - dist / span, 0.0, 1.0)
 
 
 static func generate(config: RoomGraphConfig, run_seed: int) -> Dictionary:
@@ -102,7 +193,22 @@ static func _try_generate_once(
 		all_cells.assign(graph.occupied_cells())
 		next_index = _grow_branches(graph, all_cells, next_index, config.min_rooms, config, rng)
 	if config.fill_bounding_box and graph.main_slot_count() < config.min_rooms:
-		next_index = _fill_bounding_box(graph, next_index, config.min_rooms)
+		var filler_cap := maxi(1, int(config.min_rooms * 0.15))
+		next_index = _fill_bounding_box(
+			graph, next_index, config.min_rooms, config.floor_silhouette, filler_cap
+		)
+		# RM-15: a shaped, capped fill can still fall short of `min_rooms` on a tight silhouette --
+		# prefer growing an actual branch further over filling more of the rectangle to compensate,
+		# same as the branch-growth fallback above. Only once that still is not enough does an
+		# unrestricted fill step in, so the floor is never shipped under `min_rooms`.
+		if graph.main_slot_count() < config.min_rooms:
+			var all_cells_2: Array = []
+			all_cells_2.assign(graph.occupied_cells())
+			next_index = _grow_branches(graph, all_cells_2, next_index, config.min_rooms, config, rng)
+		if graph.main_slot_count() < config.min_rooms:
+			next_index = _fill_bounding_box(
+				graph, next_index, config.min_rooms, "blob", config.min_rooms
+			)
 	_connect_fillers(graph)
 	_apply_door_connections(graph, rng, config)
 	_smooth_height_levels(graph, config)
@@ -179,6 +285,19 @@ static func _grow_branches(
 	rng: RandomNumberGenerator
 ) -> int:
 	var branch_attempts := 0
+	# RM-12: instrumenting first (`procgen_seed_health.gd`) showed "Not enough dead ends" outweighing
+	# every other rejection reason combined by roughly 30-to-1. The cause: this loop's inner walk has
+	# no reason to stop before `branch_max_depth` or `target_rooms`, so two or three long single-file
+	# walks routinely satisfied `target_rooms` on their own, leaving `branch_attempts` exhausted
+	# without ever starting enough *distinct* branches -- and one walk, however long, is one dead end.
+	# Capping how many rooms a single walk may place before yielding the next attempt to a fresh
+	# origin is what actually produces more of them; sized off `config.min_dead_ends` and the room
+	# budget still to fill, so a biome asking for few dead ends (or few rooms) is not forced into
+	# needlessly short branches it never asked for.
+	var rooms_to_fill := maxi(1, target_rooms - path_cells.size())
+	var per_branch_cap := clampi(
+		int(rooms_to_fill / float(maxi(1, config.min_dead_ends))), 2, config.branch_max_depth
+	)
 	while graph.slots.size() < target_rooms and branch_attempts < config.max_walk_attempts:
 		branch_attempts += 1
 		if path_cells.is_empty():
@@ -186,7 +305,12 @@ static func _grow_branches(
 		var origin_cell: Vector2i = path_cells[rng.randi_range(0, path_cells.size() - 1)]
 		var frontier: Array = [[origin_cell, 0]]
 		var placed_any := false
-		while not frontier.is_empty() and graph.slots.size() < target_rooms:
+		var placed_this_branch := 0
+		while (
+			not frontier.is_empty()
+			and graph.slots.size() < target_rooms
+			and placed_this_branch < per_branch_cap
+		):
 			var entry: Array = frontier.pop_front()
 			var cell: Vector2i = entry[0]
 			var depth: int = entry[1]
@@ -203,11 +327,23 @@ static func _grow_branches(
 					target_cell, "room_%d" % next_index, RoomGraphSlotScript.SlotType.NORMAL
 				)
 				slot.height_level = parent_slot.height_level
+				# RM-19: height used to only ever promote on the critical path, so a climb was
+				# always on the main route and never on a side branch -- the mechanic barely
+				# showed up. Same run-length/chance rule as `_grow_critical_path()`'s own promotion,
+				# just measured in this branch's own depth instead of the whole path's length.
+				if (
+					config.max_height_level > 0
+					and depth > 0
+					and depth % HEIGHT_RUN_LENGTH == 0
+					and rng.randf() < 0.35
+				):
+					slot.height_level = mini(parent_slot.height_level + 1, config.max_height_level)
 				graph.add_slot(target_cell, slot)
 				_record_walk_edge(graph, cell, target_cell)
 				frontier.append([target_cell, depth + 1])
 				next_index += 1
 				placed_any = true
+				placed_this_branch += 1
 				break
 		if not placed_any:
 			continue
@@ -259,8 +395,18 @@ static func _creates_2x2_block(graph: RoomGraph, cell: Vector2i) -> bool:
 	return false
 
 
+## RM-12: instrumenting first (`procgen_seed_health.gd`) showed "Not enough dead ends" dominating
+## every other rejection reason combined by roughly 30-to-1, and far worse on the `maxHeightLevel:
+## 2` biomes (4520 hits per 1000 seeds vs 572) which fill more cells to reach `min_rooms`. The cause
+## was here: every filler attaches to its nearest already-placed neighbour with no regard for what
+## that does to the neighbour's own door count, and a branch tip -- a cell with exactly one walk
+## edge so far, about to become a genuine dead end once doors are cut -- is exactly the kind of
+## neighbour a filler in a mostly-filled rectangle tends to be nearest to. Attaching there silently
+## erases the dead end from the floor's count. This now prefers a non-tip neighbour at the same
+## grid distance, falling back to a tip only when every candidate is one.
 static func _connect_fillers(graph: RoomGraph) -> void:
 	var grid_distances := _grid_bfs_distances(graph, graph.start_id)
+	var walk_edge_counts := _walk_edge_counts(graph)
 	var fillers_to_remove: Array[Vector2i] = []
 	for cell in graph.occupied_cells():
 		var slot: RoomGraphSlot = graph.get_slot_at(cell)
@@ -268,6 +414,7 @@ static func _connect_fillers(graph: RoomGraph) -> void:
 			continue
 		var best_neighbor := Vector2i(-99999, -99999)
 		var best_dist := 99999
+		var best_is_branch_tip := true
 		for dir in DIRECTIONS:
 			var neighbor_cell: Vector2i = cell + dir
 			if not graph.slots.has(neighbor_cell):
@@ -276,15 +423,35 @@ static func _connect_fillers(graph: RoomGraph) -> void:
 			if neighbor.slot_type == RoomGraphSlotScript.SlotType.SECRET:
 				continue
 			var neighbor_dist: int = int(grid_distances.get(neighbor.slot_id, 99999))
-			if neighbor_dist < best_dist:
+			var neighbor_is_branch_tip: bool = int(walk_edge_counts.get(neighbor_cell, 0)) <= 1
+			var better := false
+			if best_neighbor == Vector2i(-99999, -99999):
+				better = true
+			elif best_is_branch_tip and not neighbor_is_branch_tip:
+				better = true
+			elif best_is_branch_tip == neighbor_is_branch_tip and neighbor_dist < best_dist:
+				better = true
+			if better:
 				best_dist = neighbor_dist
 				best_neighbor = neighbor_cell
+				best_is_branch_tip = neighbor_is_branch_tip
 		if best_neighbor == Vector2i(-99999, -99999):
 			fillers_to_remove.append(cell)
 		else:
 			_record_walk_edge(graph, cell, best_neighbor)
+			walk_edge_counts[best_neighbor] = int(walk_edge_counts.get(best_neighbor, 0)) + 1
 	for cell in fillers_to_remove:
 		graph.remove_slot(cell)
+
+
+static func _walk_edge_counts(graph: RoomGraph) -> Dictionary:
+	var counts := {}
+	for edge in graph.walk_edges:
+		var a: Vector2i = edge["a"]
+		var b: Vector2i = edge["b"]
+		counts[a] = int(counts.get(a, 0)) + 1
+		counts[b] = int(counts.get(b, 0)) + 1
+	return counts
 
 
 static func _grid_bfs_distances(graph: RoomGraph, start_id: String) -> Dictionary:
@@ -327,9 +494,32 @@ static func _apply_door_connections(
 		_open_shortcut_loops(graph, rng, config, config.loop_fallback_detour)
 
 
+## Predicts which normal (non-special) slots will land on `RoomGraphAssigner`'s "courtyard" or
+## "arena" semantic slot -- it cycles COMBAT_SEMANTICS = [courtyard, hall, arena] across occupied
+## cells in the same grid order `_sorted_layout_ids()` uses, so index 0 and index 2 of every group
+## of three predict courtyard and arena respectively. Used only to bias which doorways loop-closing
+## prefers to open; a wrong guess (an optional combat room getting dropped by the layout solver
+## shifts the cycle) just means the bias missed, not a correctness bug.
+static func _predicted_extra_door_ids(graph: RoomGraph) -> Dictionary:
+	var boosted := {}
+	var combat_index := 0
+	for cell in graph.occupied_cells():
+		var slot: RoomGraphSlot = graph.slots[cell]
+		if slot.is_filler:
+			continue
+		if slot.slot_type != RoomGraphSlotScript.SlotType.NORMAL:
+			continue
+		var semantic_index := combat_index % 3
+		if semantic_index == 0 or semantic_index == 2:
+			boosted[slot.slot_id] = true
+		combat_index += 1
+	return boosted
+
+
 static func _open_shortcut_loops(
 	graph: RoomGraph, rng: RandomNumberGenerator, config: RoomGraphConfig, min_detour: int
 ) -> void:
+	var boosted_ids := _predicted_extra_door_ids(graph)
 	while graph.loop_edges.size() < config.loop_budget:
 		var distances := _door_bfs_cell_distances(graph)
 		var best: Array = []
@@ -373,7 +563,23 @@ static func _open_shortcut_loops(
 				best.append([cell, neighbor_cell])
 		if best.is_empty():
 			return
-		var pair: Array = best[rng.randi_range(0, best.size() - 1)]
+		# Among ties at the best detour, prefer a pair that grows a predicted courtyard/arena room
+		# toward its target of ~3 doors (RM-02: arenas read as a place you pass through, not a
+		# cul-de-sac) -- capped so the bias stops once that room already has enough doors.
+		var boosted_best: Array = []
+		for pair_candidate in best:
+			var slot_a: RoomGraphSlot = graph.get_slot_at(pair_candidate[0])
+			var slot_b: RoomGraphSlot = graph.get_slot_at(pair_candidate[1])
+			var a_wants := (
+				boosted_ids.has(slot_a.slot_id) and slot_a.connection_count() < 3
+			)
+			var b_wants := (
+				boosted_ids.has(slot_b.slot_id) and slot_b.connection_count() < 3
+			)
+			if a_wants or b_wants:
+				boosted_best.append(pair_candidate)
+		var pool: Array = boosted_best if not boosted_best.is_empty() else best
+		var pair: Array = pool[rng.randi_range(0, pool.size() - 1)]
 		_set_door_between(graph, pair[0], pair[1])
 		graph.loop_edges.append(
 			{"key": _edge_key(pair[0], pair[1]), "a": pair[0], "b": pair[1], "detour": best_detour}
@@ -488,7 +694,7 @@ static func _set_door_between(graph: RoomGraph, cell_a: Vector2i, cell_b: Vector
 
 
 static func _assign_special_rooms(
-	graph: RoomGraph, rng: RandomNumberGenerator, config: RoomGraphConfig
+	graph: RoomGraph, _rng: RandomNumberGenerator, config: RoomGraphConfig
 ) -> void:
 	var distances := RoomGraphPathsScript.bfs_distances(graph, graph.start_id)
 	for cell in graph.slots:
@@ -507,11 +713,6 @@ static func _assign_special_rooms(
 	if treasure_id != "":
 		reserved[treasure_id] = "treasure"
 		graph.treasure_id = treasure_id
-	if rng.randf() < 0.35:
-		var shop_id := _pick_shop_id(graph, distances, reserved, config)
-		if shop_id != "":
-			reserved[shop_id] = "shop"
-			graph.shop_id = shop_id
 	var obstacle_id := _pick_obstacle_id(graph, reserved)
 	if obstacle_id != "":
 		reserved[obstacle_id] = "obstacle"
@@ -527,8 +728,6 @@ static func _assign_special_rooms(
 				slot.slot_type = RoomGraphSlotScript.SlotType.STAIRS
 			"treasure":
 				slot.slot_type = RoomGraphSlotScript.SlotType.TREASURE
-			"shop":
-				slot.slot_type = RoomGraphSlotScript.SlotType.SHOP
 			"obstacle":
 				slot.slot_type = RoomGraphSlotScript.SlotType.OBSTACLE
 
@@ -638,27 +837,12 @@ static func _unreserved_slot_ids(graph: RoomGraph, reserved: Dictionary) -> Arra
 	return ids
 
 
-static func _pick_shop_id(
-	graph: RoomGraph, distances: Dictionary, reserved: Dictionary, _config: RoomGraphConfig
-) -> String:
-	var boss_distance := int(distances.get(graph.boss_id, 0))
-	var candidates: Array[String] = []
-	for slot_id in _dead_end_ids(graph, reserved):
-		var door_distance: int = int(distances.get(slot_id, 0))
-		if door_distance >= 2 and door_distance <= boss_distance - 2:
-			candidates.append(slot_id)
-	if candidates.is_empty():
-		return ""
-	candidates.sort()
-	return candidates[0]
-
-
 static func _pick_obstacle_id(graph: RoomGraph, reserved: Dictionary) -> String:
 	for cell in graph.occupied_cells():
 		var slot: RoomGraphSlot = graph.get_slot_at(cell)
 		if slot == null or reserved.has(slot.slot_id):
 			continue
-		# Every sibling picker (`_pick_boss_id`, `_dead_end_ids` behind stairs/treasure/shop)
+		# Every sibling picker (`_pick_boss_id`, `_dead_end_ids` behind stairs/treasure)
 		# excludes the entrance explicitly; this one did not. `_assign_special_rooms` reassigns
 		# whatever slot this returns to `SlotType.OBSTACLE`, and when it landed on `graph.start_id`
 		# -- which it could, since the entrance is on the critical path and sometimes has exactly
@@ -746,8 +930,14 @@ static func _pick_secret_parent_cell(
 	return neighbors[rng.randi_range(0, neighbors.size() - 1)]
 
 
+## RM-15: "fill every empty cell in the bounding rectangle" is why a floor's outline tends toward
+## a filled block regardless of biome, with roughly a fifth of its rooms being fillers with no
+## authored reason to exist. `silhouette` restricts which empty cells are even candidates, so the
+## fill follows a shape instead of a rectangle; `filler_cap` (15% of `min_rooms`, from the caller)
+## keeps fillers a last resort rather than a fifth of the floor. Cells are still visited nearest the
+## graph's centre first, so a capped fill favours the cells closest to what is already built.
 static func _fill_bounding_box(
-	graph: RoomGraph, next_index: int, target_rooms: int = 0
+	graph: RoomGraph, next_index: int, target_rooms: int, silhouette: String, filler_cap: int
 ) -> int:
 	var min_cell := Vector2i(999999, 999999)
 	var max_cell := Vector2i(-999999, -999999)
@@ -761,20 +951,69 @@ static func _fill_bounding_box(
 		max_cell.y = maxi(max_cell.y, cell.y)
 	if min_cell.x > max_cell.x:
 		return next_index
+	var center := Vector2((min_cell.x + max_cell.x) / 2.0, (min_cell.y + max_cell.y) / 2.0)
+	var half := Vector2(
+		maxf(1.0, (max_cell.x - min_cell.x) / 2.0), maxf(1.0, (max_cell.y - min_cell.y) / 2.0)
+	)
+	var candidates: Array[Vector2i] = []
 	for x in range(min_cell.x, max_cell.x + 1):
 		for y in range(min_cell.y, max_cell.y + 1):
 			var cell := Vector2i(x, y)
 			if graph.slots.has(cell):
 				continue
-			var slot := _make_slot(
-				cell, "room_%d" % next_index, RoomGraphSlotScript.SlotType.NORMAL
-			)
-			slot.is_filler = true
-			graph.add_slot(cell, slot)
-			next_index += 1
-			if target_rooms > 0 and graph.main_slot_count() >= target_rooms:
-				return next_index
+			if _passes_silhouette(cell, center, half, silhouette):
+				candidates.append(cell)
+	candidates.sort_custom(
+		func(a: Vector2i, b: Vector2i) -> bool:
+			return Vector2(a).distance_squared_to(center) < Vector2(b).distance_squared_to(center)
+	)
+	var filled := 0
+	for cell in candidates:
+		if filled >= filler_cap:
+			break
+		if target_rooms > 0 and graph.main_slot_count() >= target_rooms:
+			break
+		var slot := _make_slot(cell, "room_%d" % next_index, RoomGraphSlotScript.SlotType.NORMAL)
+		slot.is_filler = true
+		graph.add_slot(cell, slot)
+		next_index += 1
+		filled += 1
 	return next_index
+
+
+## `cell` is tested in the bounding box's own normalised [-1, 1] space (`half` per axis), not grid
+## units, so the same thresholds read sensibly on a 9-cell grid or a 13-cell one.
+static func _passes_silhouette(
+	cell: Vector2i, center: Vector2, half: Vector2, silhouette: String
+) -> bool:
+	var nx: float = (float(cell.x) - center.x) / half.x
+	var ny: float = (float(cell.y) - center.y) / half.y
+	match silhouette:
+		"cross":
+			return absf(nx) < 0.35 or absf(ny) < 0.35
+		"ring":
+			var dist := sqrt(nx * nx + ny * ny)
+			return dist > 0.4
+		"spine":
+			# Whichever axis the graph is longer along is the spine's own axis; fill stays close
+			# to it rather than to a fixed world direction.
+			if half.x >= half.y:
+				return absf(ny) < 0.4
+			return absf(nx) < 0.4
+		"scatter":
+			return _silhouette_hash(cell) < 0.45
+		_:
+			return true
+
+
+## A cheap, seed-independent hash used only to thin out "scatter" candidates -- deterministic per
+## cell so the same floor always fills the same way, without needing its own RNG threaded through
+## every caller of `_fill_bounding_box()`.
+static func _silhouette_hash(cell: Vector2i) -> float:
+	var h := int(cell.x) * 374761393 + int(cell.y) * 668265263
+	h = (h ^ (h >> 13)) * 1274126177
+	h = h ^ (h >> 16)
+	return float(absi(h) % 10000) / 10000.0
 
 
 static func _validate_graph(
@@ -794,6 +1033,15 @@ static func _validate_graph(
 	if graph.boss_id == "":
 		_last_validate_reason = "Boss room not assigned"
 		return {"ok": false, "reason": _last_validate_reason}
+	var boss_slot := graph.get_slot(graph.boss_id)
+	if boss_slot != null:
+		var boss_non_secret_doors := _non_secret_connection_count(graph, boss_slot)
+		if boss_non_secret_doors != 1:
+			_last_validate_reason = (
+				"Boss room has %d non-secret doors, must have exactly 1 (RM-02)"
+				% boss_non_secret_doors
+			)
+			return {"ok": false, "reason": _last_validate_reason}
 	if graph.stairs_id == "":
 		_last_validate_reason = "Stairs room not assigned"
 		return {"ok": false, "reason": _last_validate_reason}
@@ -854,6 +1102,22 @@ static func _validate_graph(
 				return {"ok": false, "reason": _last_validate_reason}
 	_last_validate_reason = ""
 	return {"ok": true}
+
+
+## Boss's one-door guarantee (RM-02) is about the room's real approach, not whatever a secret
+## happens to burrow into its wall -- `_apply_secret_door_masks` runs before this validates and can
+## add a bit to the boss slot's door_mask if a secret room picked it as a parent, so this counts
+## only doors that lead to a non-secret neighbour.
+static func _non_secret_connection_count(graph: RoomGraph, slot: RoomGraphSlot) -> int:
+	var count := 0
+	for dir in DIRECTIONS:
+		if not (slot.door_mask & RoomGraphGeometry.dir_to_door(dir)):
+			continue
+		var neighbor := graph.get_slot_at(slot.grid_pos + dir)
+		if neighbor != null and neighbor.slot_type == RoomGraphSlotScript.SlotType.SECRET:
+			continue
+		count += 1
+	return count
 
 
 static func _apply_secret_door_masks(graph: RoomGraph) -> void:

@@ -54,6 +54,7 @@ func _ready() -> void:
 		_difficulty_dropdown.item_selected.connect(_on_difficulty_selected)
 	_build_dungeon_dropdown()
 	_build_board_entry()
+	_build_mode_row()
 
 
 func _build_board_entry() -> void:
@@ -66,6 +67,51 @@ func _build_board_entry() -> void:
 	vbox.add_child(button)
 	if _seed_button and _seed_button.get_parent() == vbox:
 		vbox.move_child(button, _seed_button.get_index() + 1)
+
+
+## MD-05: alternate rule sets used to be reachable only through the tower board -- a menu inside a
+## menu inside the hub. Unlocked ones get their own row here, one press away from a run, with the
+## flavour line so the choice reads as "tonight I want X" rather than a rules dump.
+func _build_mode_row() -> void:
+	var vbox := _new_button.get_parent() as VBoxContainer
+	if vbox == null or vbox.has_node("ModeRow"):
+		return
+	var modes := RunModeCatalog.get_all()
+	if modes.is_empty():
+		return
+	var counters := ProgressCounters.snapshot()
+	var row := VBoxContainer.new()
+	row.name = "ModeRow"
+	row.add_theme_constant_override("separation", 4)
+	vbox.add_child(row)
+	if _new_button and _new_button.get_parent() == vbox:
+		vbox.move_child(row, _new_button.get_index() + 1)
+	for mode in modes:
+		var mode_id := str(mode.get("id", ""))
+		var unlocked := RunModeCatalog.is_unlocked(mode_id, counters)
+		if not unlocked:
+			continue
+		var btn := GameUISkinScript.make_button(str(mode.get("name", mode_id)))
+		btn.name = "Mode_%s" % mode_id
+		btn.tooltip_text = str(mode.get("flavour", mode.get("description", "")))
+		btn.disabled = not _can_start_run()
+		btn.pressed.connect(_on_mode_row_pressed.bind(mode_id))
+		row.add_child(btn)
+		var hint := Label.new()
+		hint.text = str(mode.get("description", ""))
+		hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		GameUISkinScript.style_hint_label(hint)
+		row.add_child(hint)
+
+
+func _can_start_run() -> bool:
+	return not RunFlow.is_run_active()
+
+
+func _on_mode_row_pressed(mode_id: String) -> void:
+	if not _can_start_run():
+		return
+	RunFlow.start_alternate_mode_run(mode_id)
 
 
 func _on_board_pressed() -> void:

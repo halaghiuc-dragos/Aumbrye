@@ -361,6 +361,8 @@ SETTINGS_MONITOR_NAME,Monitor,Monitor
 SETTINGS_MONITOR_DESC,Which display the game window opens on.,Pe ce ecran se deschide fereastra jocului.
 SETTINGS_RESOLUTION_NAME,Resolution,Rezolutie
 SETTINGS_RESOLUTION_DESC,Size of the game window.,Dimensiunea ferestrei jocului.
+SETTINGS_RENDER_PRESET_NAME,Pixel Render Scale,Scara de randare pixel
+SETTINGS_RENDER_PRESET_DESC,Internal render resolution -- lower is more pixelated.,Rezolutia interna de randare -- mai mica inseamna mai pixelat.
 SETTINGS_VSYNC_NAME,V-Sync,V-Sync
 SETTINGS_VSYNC_DESC,"Syncs frames to your monitor to remove tearing, at the cost of some input latency.","Sincronizeaza cadrele cu monitorul ca sa elimine ruperea imaginii, cu putina latenta in plus."
 SETTINGS_VSYNC_DISABLED,Off,Oprit
@@ -527,6 +529,7 @@ MENU_NEW_GAME,New Game,Joc nou
 MENU_CONTINUE,Continue,Continua
 MENU_SETTINGS,Settings,Setari
 MENU_QUIT,Quit Game,Iesi din joc
+MENU_TODAY_CHALLENGE,This week: {name} -- {remaining},Saptamana aceasta: {name} -- {remaining}
 SETTINGS_FULLSCREEN_TITLE,Keep Fullscreen?,Pastrezi ecranul complet?
 SETTINGS_FULLSCREEN_BODY,Keep this display mode? It reverts automatically in %d seconds.,Pastrezi acest mod de afisare? Revine automat in %d secunde.
 SETTINGS_FULLSCREEN_KEEP,Keep,Pastreaza
@@ -581,6 +584,7 @@ RELIC_OFFER_SUBTITLE,Take one. The others return to the dark.,Ia una. Celelalte 
 RELIC_OFFER_HINT,This choice is bound to the seed — it will not change.,Alegerea e legată de sămânță — nu se va schimba.
 RELIC_OFFER_TAKE,Take,Ia
 WAVES_TAKE_REWARD,Take {item},Ia {item}
+WAVES_TITLE_SUBTITLE,Wave %d,Valul %d
 RESPAWN_XP_GAINED,XP gained: {xp},XP câștigat: {xp}
 RESPAWN_XP_DEFERRED,XP deferred to shard: {xp},XP amânat în ciob: {xp}
 RESPAWN_LOOT_STRIPPED,Loot stripped: {items},Pradă pierdută: {items}
@@ -601,6 +605,7 @@ RESULTS_CONTINUE,Continue,Continuă
 RESULTS_XP_PENDING,XP: --,XP: --
 RESULTS_TIME,Time: {time},Timp: {time}
 RESULTS_KILLS,Kills: {kills},Ucideri: {kills}
+RESULTS_SECRETS,Secrets found: {count},Secrete găsite: {count}
 RESULTS_LOOT_KEPT,Loot kept: {items},Pradă păstrată: {items}
 RESULTS_LOOT_LOST,Loot lost: {items},Pradă pierdută: {items}
 RESULTS_XP_HALVED,XP gained: {xp} (50% of {full}),XP câștigat: {xp} (50% din {full})
@@ -637,6 +642,7 @@ RESULTS_LEADERBOARD_TITLE,Top 10 for {biome} (tier {tier}):,Top 10 pentru {biome
 RESULTS_CLOUD_FAILED,Cloud sync failed.,Sincronizarea în cloud a eșuat.
 RESULTS_CLOUD_UPDATE_REQUIRED,Update required to use cloud features.,E nevoie de actualizare pentru funcțiile cloud.
 RESULTS_REPORT_TITLE,Run Report,Raportul trecerii
+RESULTS_TIER_LADDER_TITLE,Tier Ladder,Scara nivelurilor
 EPILOGUE_TITLE,The Oath Fulfilled,Jurământul împlinit
 EPILOGUE_HINT,Enter to continue,Enter pentru a continua
 WAVES_WAVE_ACTIVE,Wave {wave} — clear all enemies.,Valul {wave} — curăță toți dușmanii.
@@ -661,6 +667,7 @@ HUD_MILESTONE,Milestone reached: {name}.,Reper atins: {name}.
 LOCK_NEEDS_KEYS,This lock needs {count} keys.,Lacătul are nevoie de {count} chei.
 LOCK_NEEDS_KEY,You need the {key}.,Ai nevoie de {key}.
 SHORTCUT_WRONG_SIDE,This won't open from this side.,Nu se deschide din partea aceasta.
+WARN_FELL,You fell out of the world.,Ai căzut din lume.
 SHORTCUT_OPEN_PROMPT,E — Open shortcut,E — Deschide scurtătura
 SHORTCUT_BARRED,Barred from this side,Blocată din partea aceasta
 SMITH_UPGRADE_PATH,Upgrade path,Cale de îmbunătățire
@@ -703,11 +710,14 @@ ASPECT_SAFFRON_HERALD,Saffron Herald,Vestitorul de Șofran
 ASPECT_SAFFRON_HERALD_DESC,Loud enough to be seen coming. That is the point.,Destul de strident cât să fii văzut venind. Asta e ideea.
 TALENTS_BLOCKED_BY,Closed off by: %s,Blocat de: %s
 TALENTS_CLOSES_OFF,Taking this closes: %s,Alegerea aceasta închide: %s
-WAVES_CASH_OUT_INTRO,The summoner will send one thing home with you. Everything else stays in the Vigil.,Invocatorul îți va trimite un singur lucru acasă. Restul rămâne în Veghe.
+WAVES_CASH_OUT_INTRO,The summoner will send you home. Everything you do not bank stays in the Vigil.,Invocatorul te va trimite acasă. Tot ce nu salvezi rămâne în Veghe.
 WAVES_CASH_OUT_EMPTY,The summoner waits. You are carrying nothing worth taking.,Invocatorul așteaptă. Nu duci nimic care să merite luat.
 WAVES_CASH_OUT_CONFIRM,Take it and leave,Ia-l și pleacă
 WAVES_CASH_OUT_STAY,Stay in the Vigil,Rămâi în Veghe
 WAVES_CASH_OUT_PICK_HINT,Choose the one thing you are walking out with.,Alege singurul lucru cu care pleci.
+WAVES_CASH_OUT_PICK_HINT_MULTI,Choose up to {count} things you are walking out with.,Alege până la {count} lucruri cu care pleci.
+WAVES_CASH_OUT_RISK,Bank {bank} of {total} -- the other {lost} are lost if you fall.,Salvezi {bank} din {total} -- restul de {lost} se pierd dacă cazi.
+WAVES_CASH_OUT_BEST,Best Vigil so far: wave {wave}.,Cea mai bună Veghe de până acum: valul {wave}.
 RESULTS_DESCEND_AGAIN,Descend again,Coboară din nou
 RESULTS_VIGIL_AGAIN,Stand the Vigil again,Stai din nou de Veghe
 RESULTS_LONG_DARK_AGAIN,Back into the Long Dark,Înapoi în Bezna Lungă

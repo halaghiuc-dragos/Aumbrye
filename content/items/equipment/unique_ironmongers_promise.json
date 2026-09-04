@@ -18,12 +18,19 @@
     "strength": "B",
     "dexterity": "D"
   },
-  "ruleText": "Hits heal you for 4% of the damage dealt.",
+  "ruleText": "Hits heal you for 4% of the damage dealt. Your guard breaking hardens you.",
   "rules": [
     {
       "event": "onHit",
       "effect": "lifesteal",
       "pct": 0.04
+    },
+    {
+      "event": "onGuardBreak",
+      "effect": "apply_status",
+      "statusId": "stoneskin",
+      "stacks": 1,
+      "applyToActor": true
     }
   ],
   "stats": {

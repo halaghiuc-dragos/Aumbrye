@@ -205,6 +205,9 @@ func _rebuild_active_page() -> void:
 		_:
 			_build_schema_page(page)
 	_wire_row_focus_neighbors()
+	# HD-03: `build_modal()` only styles the panel shell -- pages rebuild their rows on every tab
+	# switch, so the pixel-filter sweep needs to run here rather than once in `_ready()`.
+	GameUISkinScript.apply_pixel_theme(self)
 
 
 func _build_schema_page(page: String) -> void:

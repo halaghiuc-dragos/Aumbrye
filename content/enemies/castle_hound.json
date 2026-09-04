@@ -35,8 +35,9 @@
       "attack_damage": 24,
       "attack_poise_damage": 8,
       "max_range": 2.28,
-      "telegraph_radius": 1.68,
-      "telegraph_shape": "circle"
+      "telegraph_shape": "circle",
+      "attackClass": "blockable",
+      "knockback": 2.0
     },
     {
       "id": "lunge",
@@ -49,8 +50,9 @@
       "attack_damage": 38,
       "attack_poise_damage": 14,
       "max_range": 4.56,
-      "telegraph_radius": 2.4,
-      "telegraph_shape": "line"
+      "telegraph_shape": "line",
+      "attackClass": "parryable",
+      "knockback": 2.0
     },
     {
       "id": "worry",
@@ -63,7 +65,6 @@
       "attack_damage": 22,
       "attack_poise_damage": 8,
       "max_range": 2.4,
-      "telegraph_radius": 1.56,
       "telegraph_shape": "circle",
       "combo_followups": [
         {
@@ -77,8 +78,9 @@
           "attack_damage": 10,
           "attack_poise_damage": 8,
           "max_range": 2.4,
-          "telegraph_radius": 1.56,
-          "telegraph_shape": "circle"
+          "telegraph_shape": "circle",
+          "attackClass": "blockable",
+          "knockback": 2.0
         },
         {
           "id": "worry_three",
@@ -91,10 +93,13 @@
           "attack_damage": 13,
           "attack_poise_damage": 11,
           "max_range": 2.4,
-          "telegraph_radius": 1.68,
-          "telegraph_shape": "circle"
+          "telegraph_shape": "circle",
+          "attackClass": "blockable",
+          "knockback": 2.0
         }
-      ]
+      ],
+      "attackClass": "parryable",
+      "knockback": 2.0
     }
   ]
 }

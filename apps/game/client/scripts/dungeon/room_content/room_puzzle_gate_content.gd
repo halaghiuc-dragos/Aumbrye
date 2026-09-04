@@ -64,5 +64,4 @@ func is_unlocked() -> bool:
 func _unlock() -> void:
 	_unlocked = true
 	if _barrier:
-		_barrier.collision_layer = 0
-		_barrier.visible = false
+		DIORAMA_SKIN.animate_gate_open(_barrier)

@@ -4,6 +4,7 @@ const FloorKeyringScript := preload("res://scripts/dungeon/floor_keyring.gd")
 
 const CHEST_SCENE := preload("res://scenes/loot/loot_chest.tscn")
 const DIORAMA_SKIN := preload("res://scripts/art/props/diorama_interactable_skin.gd")
+const InteractPromptScript := preload("res://scripts/ui/interact_prompt.gd")
 
 var _key_id := ""
 var _lock_id := ""
@@ -13,7 +14,7 @@ var _collected := false
 
 var _near_player := false
 var _interact_area: Area3D
-var _label: Label3D
+var _label: InteractPrompt
 var _chest: Node3D
 
 
@@ -44,16 +45,7 @@ func configure(entry: Dictionary, _definition: Dictionary) -> void:
 	_content_root().add_child(_interact_area)
 	_interact_area.body_entered.connect(_on_body_entered)
 	_interact_area.body_exited.connect(_on_body_exited)
-	_label = Label3D.new()
-	_label.name = "KeyLabel"
-	_label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-	_label.font_size = 22
-	_label.outline_size = 10
-	_label.outline_modulate = Color(0.0, 0.0, 0.0, 0.85)
-	_label.position = _anchor(0).position + Vector3(0.0, 2.4, 0.0)
-	_label.modulate = Color(1.0, 0.9, 0.45, 1.0)
-	_label.visible = false
-	_content_root().add_child(_label)
+	_label = InteractPromptScript.build(_content_root(), _anchor(0).position + Vector3(0.0, 2.4, 0.0))
 	if _lock_flag_id != "" and WorldState.is_flag_true(_lock_flag_id):
 		_collected = true
 		_chest.visible = false
@@ -68,10 +60,16 @@ func _on_namespace_changed(flag_namespace: String, flag_id: String, _value: Vari
 			_chest.visible = not _collected
 
 
+## RM-05: the same colour as the door it opens, not a fixed amber -- a red door and a blue door
+## used to hand back visually identical chests, so finding a key told you nothing about which door
+## it belonged to until you tried it.
 func _style_key_chest() -> void:
 	var mesh := _chest.get_node_or_null("MeshInstance3D") as MeshInstance3D
 	if mesh:
-		mesh.material_override = DIORAMA_SKIN.make_telegraph_material(Color(0.85, 0.65, 0.15, 1.0))
+		var tint := FloorKeyringScript.tint_for(_key_id)
+		if tint == Color.WHITE:
+			tint = Color(0.85, 0.65, 0.15)
+		mesh.material_override = DIORAMA_SKIN.make_telegraph_material(tint)
 
 
 func _on_body_entered(body: Node3D) -> void:
@@ -80,16 +78,13 @@ func _on_body_entered(body: Node3D) -> void:
 	_near_player = true
 	if _collected:
 		return
-	_label.visible = true
-	_label.text = "%s — %s" % [
-		InputGlyphService.get_action_prompt(&"interact"), _key_label
-	]
+	_label.show_action(_key_label)
 
 
 func _on_body_exited(body: Node3D) -> void:
 	if body.is_in_group("player"):
 		_near_player = false
-		_label.visible = false
+		_label.hide_prompt()
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -104,7 +99,7 @@ func _unhandled_input(event: InputEvent) -> void:
 	_collected = true
 	if _chest:
 		_chest.visible = false
-	_label.visible = false
+	_label.hide_prompt()
 	get_viewport().set_input_as_handled()
 
 

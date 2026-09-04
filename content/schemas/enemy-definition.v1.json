@@ -31,6 +31,10 @@
       "type": "string",
       "enum": ["circle", "cone", "line", "ring"]
     },
+    "attackClass": {
+      "type": "string",
+      "enum": ["blockable", "parryable", "unblockable", "grab"]
+    },
     "hazardSpawn": {
       "type": "object",
       "additionalProperties": false,
@@ -80,6 +84,11 @@
         "status_stacks_on_hit": { "type": "integer", "minimum": 1 },
         "telegraph_radius": { "type": "number", "exclusiveMinimum": 0 },
         "telegraph_shape": { "$ref": "#/definitions/telegraphShape" },
+        "telegraph_arc_deg": { "type": "number", "exclusiveMinimum": 0, "maximum": 360 },
+        "attackClass": { "$ref": "#/definitions/attackClass" },
+        "hold_fraction": { "type": "number", "minimum": 0, "maximum": 0.6 },
+        "feint_chance": { "type": "number", "minimum": 0, "maximum": 0.4 },
+        "knockback": { "type": "number", "minimum": 0 },
         "projectile_speed": { "type": "number", "exclusiveMinimum": 0 },
         "no_hitbox": { "type": "boolean" },
         "spawn_hazard": { "$ref": "#/definitions/hazardSpawn" },
@@ -151,6 +160,7 @@
     "threat_cost": { "type": "integer", "minimum": 0 },
     "health": { "type": "number", "exclusiveMinimum": 0 },
     "poise": { "type": "number", "minimum": 0 },
+    "mass": { "type": "number", "exclusiveMinimum": 0 },
     "move_speed": { "type": "number", "exclusiveMinimum": 0 },
     "attack_damage": { "type": "number", "minimum": 0 },
     "attack_poise_damage": { "type": "number", "minimum": 0 },
@@ -170,6 +180,23 @@
     "retreat_threshold": { "type": "number", "minimum": 0, "maximum": 1 },
     "projectile_speed": { "type": "number", "exclusiveMinimum": 0 },
     "block_mitigation": { "type": "number", "minimum": 0, "maximum": 1 },
+    "block_reduction": {
+      "anyOf": [
+        { "type": "number", "minimum": 0, "maximum": 1 },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "physical": { "type": "number", "minimum": 0, "maximum": 1 },
+            "fire": { "type": "number", "minimum": 0, "maximum": 1 },
+            "frost": { "type": "number", "minimum": 0, "maximum": 1 },
+            "poison": { "type": "number", "minimum": 0, "maximum": 1 },
+            "lightning": { "type": "number", "minimum": 0, "maximum": 1 },
+            "arcane": { "type": "number", "minimum": 0, "maximum": 1 }
+          }
+        }
+      ]
+    },
     "block_angle_deg": { "type": "number", "minimum": 0, "maximum": 180 },
     "vision_cone_deg": { "type": "number", "minimum": 10, "maximum": 360 },
     "hearing_range": { "type": "number", "minimum": 0 },
@@ -179,6 +206,13 @@
     "circle_radius_mult": { "type": "number", "minimum": 1 },
     "telegraph_radius": { "type": "number", "exclusiveMinimum": 0 },
     "telegraph_shape": { "$ref": "#/definitions/telegraphShape" },
+    "telegraph_arc_deg": { "type": "number", "exclusiveMinimum": 0, "maximum": 360 },
+    "attackClass": { "$ref": "#/definitions/attackClass" },
+    "hold_fraction": { "type": "number", "minimum": 0, "maximum": 0.6 },
+    "feint_chance": { "type": "number", "minimum": 0, "maximum": 0.4 },
+    "guard_chance": { "type": "number", "minimum": 0, "maximum": 1 },
+    "sidestep_chance": { "type": "number", "minimum": 0, "maximum": 1 },
+    "punish_window": { "type": "number", "minimum": 0 },
     "weapon_kit": { "type": "string" },
     "coinReward": { "type": "integer", "minimum": 0 },
     "goldReward": { "type": "integer", "minimum": 0 },

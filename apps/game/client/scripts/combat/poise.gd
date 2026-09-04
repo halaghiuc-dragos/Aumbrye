@@ -16,6 +16,9 @@ var _broken := false
 var _regen_timer := 0.0
 var _break_timer := 0.0
 var break_duration := 1.2
+## CB-04: true for exactly one execution per break -- without it a fast weapon (a dagger's 4-hit
+## chain) could execute the same stagger repeatedly before it ends.
+var execution_available := false
 
 
 func _ready() -> void:
@@ -46,6 +49,7 @@ func _physics_process(delta: float) -> void:
 		_break_timer -= delta
 		if _break_timer <= 0.0:
 			_broken = false
+			execution_available = false
 			current = max_poise
 			poise_changed.emit(current, max_poise)
 		return
@@ -74,12 +78,14 @@ func take_poise_damage(amount: float) -> void:
 	if current <= 0.0:
 		_broken = true
 		_break_timer = break_duration
+		execution_available = true
 		poise_broken.emit()
 
 
 func reset_poise() -> void:
 	_broken = false
 	_break_timer = 0.0
+	execution_available = false
 	current = max_poise
 	_regen_timer = 0.0
 	poise_changed.emit(current, max_poise)

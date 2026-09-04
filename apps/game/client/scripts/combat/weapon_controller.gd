@@ -4,6 +4,7 @@ class_name WeaponController
 enum AttackPhase { IDLE, STARTUP, ACTIVE, RECOVERY, DRAWING }
 
 const CombatStatModifiersScript := preload("res://scripts/combat/combat_stat_modifiers.gd")
+const ProjectileContainerScript := preload("res://scripts/combat/projectile_container.gd")
 const WEAPON_DATA_RELATIVE := "content/weapons/sword_basic.json"
 const DEFAULT_HITBOX_SIZE := Vector3(1.2, 0.8, 1.4)
 const DEFAULT_HITBOX_OFFSET := Vector3(0.0, -0.12, 0.55)
@@ -27,6 +28,9 @@ const EXECUTION_RECOVERY := 0.5
 const LUNGE_FRACTION_OF_STARTUP := 1.0
 const LUNGE_FRACTION_OF_ACTIVE := 0.5
 const LUNGE_MIN_SPEED := 0.5
+const PLUNGE_MIN_FALL_TIME := 0.2
+const PLUNGE_RADIUS := 2.4
+const PLUNGE_FALL_HEIGHT_REF := 4.0
 const PLAYER_ARROW_SCENE := preload("res://scenes/combat/player_arrow.tscn")
 const ARROW_BASE_SPEED := 26.0
 
@@ -69,6 +73,7 @@ var is_bow_aiming := false
 
 var _body: CharacterBody3D
 var _stamina: Stamina
+var _mana: Mana
 var _hitbox: Area3D
 var _hitbox_shape: CollisionShape3D
 var _combat_reactions: PlayerCombatReactions
@@ -85,6 +90,20 @@ var _attack_name := ""
 var _damage_multiplier := 1.0
 var _draw_charge := 0.0
 var _hyperarmor_active := false
+## CB-02: armed by pressing light attack while falling, resolved on the `landed` signal rather
+## than the fixed STARTUP/ACTIVE/RECOVERY timer every other attack uses -- a fall's duration is
+## unknown in advance, so "wait for landing" cannot be a phase timer.
+var _airborne_timer := 0.0
+var _plunge_armed := false
+## CB-01: the base `heavy_attack` dict and its `charge` config, held only while charging a melee
+## heavy (`current_phase == DRAWING` for a non-bow archetype) -- distinct from the bow's own
+## draw-and-fire handling in `_process_bow_input()`, which never touches these.
+var _melee_charge_source: Dictionary = {}
+var _melee_charge_config: Dictionary = {}
+## CB-06: `empower_next` rules effect -- a one-shot multiplier consumed by the next hitbox that
+## actually opens, not folded into `_damage_multiplier` (which is gear/talent state, recomputed
+## whenever those change, not a single-use pickup).
+var _empower_multiplier := 1.0
 var _two_hand := false
 
 var _infusion := ""
@@ -119,6 +138,7 @@ func _ready() -> void:
 		set_physics_process(false)
 		return
 	_stamina = _body.get_node_or_null("Stamina") as Stamina
+	_mana = _body.get_node_or_null("Mana") as Mana
 	_combat_reactions = _body.get_node_or_null("CombatReactions") as PlayerCombatReactions
 	_guard = _body.get_node_or_null("Guard") as Guard
 	_dodge = _body.get_node_or_null("Dodge") as Dodge
@@ -129,6 +149,8 @@ func _ready() -> void:
 		_dodge.dodge_ended.connect(_on_dodge_ended)
 	if _guard:
 		_guard.block_state_changed.connect(_on_guard_state_changed)
+	if _body.has_signal("landed"):
+		_body.landed.connect(_on_body_landed)
 	_body_reports_sprint = _body != null and _body.has_method("get_sprint_blend")
 	call_deferred("_connect_anim_hitbox_signals")
 	if hitbox_path:
@@ -153,6 +175,16 @@ func get_debug_state() -> String:
 
 
 func _physics_process(delta: float) -> void:
+	if _body and _body.has_method("is_on_floor"):
+		if _body.is_on_floor():
+			_airborne_timer = 0.0
+			# Safety net alongside the `landed` signal: a teleport (pit recovery, respawn) can put
+			# the player back on the floor without that signal ever firing, which must not leave
+			# the plunge armed forever.
+			if _plunge_armed and not is_attacking:
+				_plunge_armed = false
+		else:
+			_airborne_timer += delta
 	if _combo_idle_timer > 0.0:
 		_combo_idle_timer -= delta
 		if _combo_idle_timer <= 0.0:
@@ -187,12 +219,18 @@ func _physics_process(delta: float) -> void:
 		_process_bow_input(delta)
 		return
 	if is_attacking:
-		_process_attack_phase(delta)
+		if current_phase == AttackPhase.DRAWING:
+			_process_melee_charge(delta)
+		else:
+			_process_attack_phase(delta)
 		return
 	if PlayerInput.just_pressed(&"light_attack"):
-		_try_attack("light")
+		if _plunge_armed:
+			pass
+		elif not _try_arm_plunge():
+			_try_attack("light")
 	elif PlayerInput.just_pressed(&"heavy_attack"):
-		_try_attack("heavy")
+		_try_heavy_attack()
 	if _buffered_attack != "" and not is_attacking:
 		var buffered_kind := _buffered_attack
 		_buffered_attack = ""
@@ -242,6 +280,46 @@ func get_weapon_art_cooldown_duration() -> float:
 	if art.is_empty():
 		return 0.0
 	return float(art.get("cooldown", 5.0)) * _cooldown_duration_multiplier()
+
+
+## HD-06: the HUD reads combat state through getters rather than reaching into private fields.
+func get_next_attack_cost() -> float:
+	var lights: Array = _weapon_data.get("light_attacks", [])
+	if lights.is_empty():
+		return 0.0
+	var attack: Dictionary = lights[_combo_index % lights.size()]
+	# CB-05: a mana-costed attack (the staff) has nothing to show on the stamina ghost.
+	if float(attack.get("mana_cost", 0.0)) > 0.0:
+		return 0.0
+	return _scaled_stamina_cost(float(attack.get("stamina_cost", 10.0)))
+
+
+func is_two_handed() -> bool:
+	return _two_hand
+
+
+func get_infusion() -> String:
+	return _infusion
+
+
+func get_art_cooldown_remaining() -> float:
+	return _art_cooldown_timer
+
+
+## CB-06: `empower_next` rules effect. Grants stack to the larger multiplier rather than
+## compounding -- two "on X, empower your next attack" procs landing the same frame should not
+## multiply into an outlier.
+func grant_empower(multiplier: float) -> void:
+	_empower_multiplier = maxf(_empower_multiplier, multiplier)
+
+
+## CB-06: `reduce_cooldown` rules effect.
+func reduce_art_cooldown(amount: float) -> void:
+	_art_cooldown_timer = maxf(0.0, _art_cooldown_timer - amount)
+
+
+func get_combo_index() -> int:
+	return _combo_index if _combo_idle_timer > 0.0 else 0
 
 
 func _cooldown_duration_multiplier() -> float:
@@ -363,6 +441,13 @@ func get_attack_lunge_velocity() -> Vector3:
 	return forward.normalized() * speed
 
 
+## `AN-04`: growing tremor while a bow draw charges.
+func _update_charge_shake(amount: float) -> void:
+	var director := _body.get_node_or_null("AnimDirector") if _body else null
+	if director and director.has_method("set_charge_shake"):
+		director.call("set_charge_shake", amount)
+
+
 func _connect_anim_hitbox_signals() -> bool:
 	var director := _body.get_node_or_null("AnimDirector") if _body else null
 	if director == null:
@@ -443,13 +528,28 @@ func _try_attack(kind: String) -> void:
 			_last_light_index = _combo_index
 	if attack.is_empty():
 		return
-	var cost: float = _scaled_stamina_cost(float(attack.get("stamina_cost", 10.0)))
-	if _stamina and not _stamina.has(cost):
+	if not _consume_attack_cost(attack):
 		return
-	if _stamina:
-		_stamina.consume(cost)
 	_snap_soft_lock_facing()
 	_start_attack(attack)
+
+
+## CB-05: the staff's identity trait -- an attack with a `mana_cost` spends `Mana` instead of
+## `Stamina`, checked and consumed the same way every other attack already handles affordability.
+func _consume_attack_cost(attack: Dictionary) -> bool:
+	var mana_cost := float(attack.get("mana_cost", 0.0))
+	if mana_cost > 0.0:
+		if _mana and not _mana.has(mana_cost):
+			return false
+		if _mana:
+			_mana.consume(mana_cost)
+		return true
+	var cost: float = _scaled_stamina_cost(float(attack.get("stamina_cost", 10.0)))
+	if _stamina and not _stamina.has(cost):
+		return false
+	if _stamina:
+		_stamina.consume(cost)
+	return true
 
 
 func _situational_attack(kind: String) -> Dictionary:
@@ -490,6 +590,168 @@ func _resolve_heavy_attack() -> Dictionary:
 	return _weapon_data.get("heavy_attack", {})
 
 
+## CB-01: only the base `heavy_attack` (not a combo's `heavy_branch`) ever carries a `charge`
+## block, so a mid-combo heavy still fires instantly the way it always has.
+## CB-02: arms a plunge attack instead of a normal light swing when the fall has gone on long
+## enough to be deliberate (0.2 s) -- a short hop should not turn every landing into an attack.
+func _try_arm_plunge() -> bool:
+	if _body == null or _body.is_on_floor() or _airborne_timer <= PLUNGE_MIN_FALL_TIME:
+		return false
+	var plunge: Variant = _weapon_data.get("plunge_attack", {})
+	if not (plunge is Dictionary) or (plunge as Dictionary).is_empty():
+		return false
+	_plunge_armed = true
+	_attack_name = "plunge_arm"
+	attack_started.emit("plunge_arm")
+	return true
+
+
+## Fires on `Locomotion.landed` -- not the STARTUP/ACTIVE/RECOVERY timer every other attack uses,
+## since a fall's duration cannot be known in advance the way a swing's can.
+func _on_body_landed(fall_height: float) -> void:
+	if not _plunge_armed:
+		return
+	_plunge_armed = false
+	var plunge: Dictionary = _weapon_data.get("plunge_attack", {})
+	if plunge.is_empty():
+		return
+	var cost := _scaled_stamina_cost(float(plunge.get("stamina_cost", 0.0)))
+	if _stamina and not _stamina.has(cost):
+		attack_ended.emit()
+		return
+	if _stamina:
+		_stamina.consume(cost)
+	var fall_scale := clampf(fall_height / PLUNGE_FALL_HEIGHT_REF, 1.0, 2.0)
+	var scaled := plunge.duplicate(true)
+	scaled["damage"] = float(scaled.get("damage", 20.0)) * fall_scale
+	scaled["poise_damage"] = float(scaled.get("poise_damage", 20.0)) * fall_scale
+	_deal_plunge_damage(scaled)
+	attack_ended.emit()
+
+
+## AOE around the landing point rather than the swing hitbox, which is shaped and bone-anchored
+## for a normal attack and has nowhere sensible to be for "everyone near where I landed."
+func _deal_plunge_damage(attack: Dictionary) -> void:
+	if _body == null:
+		return
+	var base_damage := float(attack.get("damage", 20.0))
+	var dmg := base_damage * _damage_multiplier
+	dmg += CombatStatModifiersScript.flat_damage_bonus(
+		_equipment_stats, CombatStatModifiersScript.attack_weight(attack, _weapon_data), base_damage
+	)
+	var poise := (
+		float(attack.get("poise_damage", 20.0))
+		* _damage_multiplier
+		* CombatStatModifiersScript.poise_damage_multiplier(_equipment_stats, _talent_stats)
+	)
+	var dmg_type: String = attack.get("damage_type", _weapon_data.get("damage_type", "physical"))
+	var knockback := float(attack.get("knockback", 0.0))
+	var origin := _body.global_position
+	var radius_sq := PLUNGE_RADIUS * PLUNGE_RADIUS
+	for node in CombatGroups.hostiles(get_tree()):
+		var enemy := node as Node3D
+		if enemy == null or not is_instance_valid(enemy):
+			continue
+		if enemy.has_method("is_dead") and enemy.call("is_dead"):
+			continue
+		var offset := enemy.global_position - origin
+		offset.y = 0.0
+		if offset.length_squared() > radius_sq:
+			continue
+		var hurtbox := enemy.get_node_or_null("Hurtbox")
+		if hurtbox == null or not hurtbox.has_method("receive_hit"):
+			continue
+		var direction := offset.normalized() if offset.length_squared() > 0.0001 else Vector3.FORWARD
+		var info := DamageInfo.create(dmg, poise, _body, dmg_type, direction, "", 1, "unblockable")
+		info.knockback = knockback
+		hurtbox.call("receive_hit", info)
+	if VfxService:
+		VfxService.play_attack_swing(origin)
+
+
+func _try_heavy_attack() -> void:
+	if _try_start_execution():
+		return
+	var heavy := _resolve_heavy_attack()
+	var charge_cfg: Variant = heavy.get("charge", {})
+	if charge_cfg is Dictionary and not (charge_cfg as Dictionary).is_empty():
+		_begin_melee_charge(heavy, charge_cfg as Dictionary)
+		return
+	_try_attack("heavy")
+
+
+func _begin_melee_charge(heavy: Dictionary, charge_cfg: Dictionary) -> void:
+	if _stamina:
+		_stamina.set_regen_state(Stamina.RegenState.SUPPRESSED)
+	if _mana:
+		_mana.set_regen_state(Mana.RegenState.SUPPRESSED)
+	_melee_charge_source = heavy
+	_melee_charge_config = charge_cfg
+	_draw_charge = 0.0
+	is_attacking = true
+	current_phase = AttackPhase.DRAWING
+	_attack_name = "heavy_charge"
+	_combo_index = 0
+	_last_light_index = -1
+	_snap_soft_lock_facing()
+	attack_started.emit("heavy_charge")
+
+
+## Holding accumulates charge toward `max_time`; releasing (or maxing out) fires the swing scaled
+## by however far the charge got. Movement is already locked to `COMMIT_SPEED_MULT` for the whole
+## hold -- `get_move_speed_multiplier()`/`locks_movement()` already treat `DRAWING` that way.
+func _process_melee_charge(delta: float) -> void:
+	var max_time := maxf(0.05, float(_melee_charge_config.get("max_time", 0.9)))
+	if PlayerInput.pressed(&"heavy_attack"):
+		_draw_charge = minf(1.0, _draw_charge + delta / max_time)
+		if _draw_charge >= 1.0:
+			_fire_charged_heavy()
+		return
+	_fire_charged_heavy()
+
+
+func _fire_charged_heavy() -> void:
+	var cfg := _melee_charge_config
+	var charge := _draw_charge
+	var scaled: Dictionary = _melee_charge_source.duplicate(true)
+	scaled.erase("charge")
+	var dmg_mult := lerpf(1.0, float(cfg.get("damage_mult", 1.0)), charge)
+	var poise_mult := lerpf(1.0, float(cfg.get("poise_mult", 1.0)), charge)
+	var stamina_mult := lerpf(1.0, float(cfg.get("stamina_mult", 1.0)), charge)
+	scaled["damage"] = float(scaled.get("damage", 20.0)) * dmg_mult
+	scaled["poise_damage"] = float(scaled.get("poise_damage", 20.0)) * poise_mult
+	scaled["stamina_cost"] = float(scaled.get("stamina_cost", 20.0)) * stamina_mult
+	if scaled.has("lunge_distance"):
+		scaled["lunge_distance"] = float(scaled["lunge_distance"]) * dmg_mult
+	if charge >= float(cfg.get("hyperarmor_at", 1.1)):
+		scaled["hyperarmor"] = true
+	var cost := _scaled_stamina_cost(float(scaled.get("stamina_cost", 20.0)))
+	if _stamina and not _stamina.has(cost):
+		_cancel_melee_charge()
+		return
+	if _stamina:
+		_stamina.consume(cost)
+	_melee_charge_source = {}
+	_melee_charge_config = {}
+	_attack_name = "heavy"
+	_start_attack(scaled)
+
+
+## A charge that cannot be afforded at release fizzles rather than firing anyway -- the same rule
+## every other attack already follows (`_try_attack()` never spends stamina it does not have).
+func _cancel_melee_charge() -> void:
+	if _stamina:
+		_stamina.set_regen_state(Stamina.RegenState.NORMAL)
+	if _mana:
+		_mana.set_regen_state(Mana.RegenState.NORMAL)
+	_melee_charge_source = {}
+	_melee_charge_config = {}
+	_draw_charge = 0.0
+	is_attacking = false
+	current_phase = AttackPhase.IDLE
+	_attack_name = ""
+
+
 func _try_weapon_art() -> void:
 	if is_attacking or _art_cooldown_timer > 0.0:
 		return
@@ -509,6 +771,7 @@ func _try_weapon_art() -> void:
 		"recovery": float(art.get("recovery", 0.4)),
 		"lunge_distance": float(art.get("lunge_distance", _weapon_data.get("lunge_distance", 0.0))),
 		"hyperarmor": bool(art.get("hyperarmor", true)),
+		"knockback": float(art.get("knockback", 0.0)),
 	}
 	_attack_name = "weapon_art"
 	_art_cooldown_timer = get_weapon_art_cooldown_duration()
@@ -521,6 +784,11 @@ func _try_start_execution() -> bool:
 		return false
 	var kind := "riposte"
 	var victim := _resolve_riposte_target()
+	# CB-04: a poise-broken enemy plays the same riposte execution -- breaking poise costs the
+	# player real effort (poise_damage is a stat gear rolls for) and used to pay out nothing but a
+	# stagger animation.
+	if victim == null:
+		victim = _resolve_poise_break_target()
 	if victim == null:
 		victim = _resolve_backstab_target()
 		kind = "backstab"
@@ -534,6 +802,9 @@ func _try_start_execution() -> bool:
 		_stamina.consume(cost)
 	if kind == "riposte" and _guard:
 		_guard.consume_riposte()
+	var victim_poise := victim.get_node_or_null("Poise") as Poise
+	if victim_poise:
+		victim_poise.execution_available = false
 	_execution_kind = kind
 	_execution_target = victim
 	_snap_to_execution_position(victim, kind)
@@ -543,6 +814,8 @@ func _try_start_execution() -> bool:
 	_attack_name = kind
 	_combo_index = 0
 	_last_light_index = -1
+	if CombatEvents:
+		CombatEvents.dispatch(CombatEvents.ON_EXECUTE, {"actor": _body, "target": victim})
 	_start_attack(attack)
 	return true
 
@@ -575,6 +848,34 @@ func _resolve_riposte_target() -> Node3D:
 	if not _is_in_execution_range(victim):
 		return null
 	return victim
+
+
+## CB-04: `Poise.execution_available` gates this to once per break -- without it a fast weapon
+## could execute the same stagger repeatedly before it ends.
+func _resolve_poise_break_target() -> Node3D:
+	var facing := _facing_forward()
+	if facing.length_squared() < 0.01:
+		return null
+	var origin := _body.global_position
+	for node in CombatGroups.hostiles(get_tree()):
+		var enemy := node as Node3D
+		if enemy == null or not is_instance_valid(enemy):
+			continue
+		if enemy.has_method("is_dead") and enemy.call("is_dead"):
+			continue
+		var poise := enemy.get_node_or_null("Poise") as Poise
+		if poise == null or not poise.is_broken() or not poise.execution_available:
+			continue
+		if not _is_in_execution_range(enemy):
+			continue
+		var offset := enemy.global_position - origin
+		offset.y = 0.0
+		if offset.length_squared() < 0.0001:
+			continue
+		if facing.dot(offset.normalized()) < EXECUTION_FACING_DOT:
+			continue
+		return enemy
+	return null
 
 
 func _resolve_backstab_target() -> Node3D:
@@ -674,6 +975,8 @@ func _scaled_attack(attack: Dictionary) -> Dictionary:
 func _start_attack(attack_source: Dictionary) -> void:
 	if _stamina:
 		_stamina.set_regen_state(Stamina.RegenState.SUPPRESSED)
+	if _mana:
+		_mana.set_regen_state(Mana.RegenState.SUPPRESSED)
 	var attack := _scaled_attack(attack_source)
 	_current_attack = attack
 	is_attacking = true
@@ -737,7 +1040,8 @@ func _enable_hitbox_for_attack() -> void:
 	if _hitbox == null or not _hitbox.has_method("enable"):
 		return
 	var base_damage: float = float(_current_attack.get("damage", 10.0))
-	var dmg: float = base_damage * _damage_multiplier
+	var dmg: float = base_damage * _damage_multiplier * _empower_multiplier
+	_empower_multiplier = 1.0
 	dmg += CombatStatModifiersScript.flat_damage_bonus(
 		_equipment_stats,
 		CombatStatModifiersScript.attack_weight(_current_attack, _weapon_data),
@@ -763,7 +1067,23 @@ func _enable_hitbox_for_attack() -> void:
 	var status_stacks: int = int(_current_attack.get("status_stacks", 1))
 	var crit := CombatStatModifiersScript.crit_chance(_equipment_stats, _talent_stats)
 	var crit_mult := CombatStatModifiersScript.crit_multiplier(_equipment_stats, _talent_stats)
-	_hitbox.call("set_attack_values", dmg, poise, dmg_type, status_id, status_stacks, crit, crit_mult)
+	var knockback: float = float(
+		_current_attack.get("knockback", _weapon_data.get("knockback", 0.0))
+	)
+	var backstab_multiplier := float(_weapon_data.get("backstab_multiplier", 0.0))
+	_hitbox.call(
+		"set_attack_values",
+		dmg,
+		poise,
+		dmg_type,
+		status_id,
+		status_stacks,
+		crit,
+		crit_mult,
+		"blockable",
+		knockback,
+		backstab_multiplier
+	)
 	if _hitbox.has_method("set_execution"):
 		_hitbox.call("set_execution", _execution_target, _execution_kind)
 	_hitbox.call("enable")
@@ -784,6 +1104,8 @@ func _cancel_attack() -> void:
 func _end_attack() -> void:
 	if _stamina:
 		_stamina.set_regen_state(Stamina.RegenState.NORMAL)
+	if _mana:
+		_mana.set_regen_state(Mana.RegenState.NORMAL)
 	_clear_execution_state()
 	is_attacking = false
 	current_phase = AttackPhase.IDLE
@@ -807,6 +1129,7 @@ func _process_bow_input(delta: float) -> void:
 			_draw_charge = minf(
 				1.0, _draw_charge + delta / float(_weapon_data.get("draw_time", 0.8))
 			)
+			_update_charge_shake(_draw_charge)
 		elif _draw_charge > 0.05:
 			_fire_bow_shot()
 		else:
@@ -822,6 +1145,8 @@ func _process_bow_input(delta: float) -> void:
 		attack_started.emit("bow_draw")
 		if _stamina:
 			_stamina.set_regen_state(Stamina.RegenState.SUPPRESSED)
+		if _mana:
+			_mana.set_regen_state(Mana.RegenState.SUPPRESSED)
 		return
 	if PlayerInput.just_pressed(&"light_attack"):
 		_try_attack("light")
@@ -839,6 +1164,7 @@ func _fire_bow_shot() -> void:
 	scaled["damage"] = float(heavy.get("damage", 20.0)) * lerpf(0.5, 1.5, _draw_charge)
 	var charge := _draw_charge
 	_draw_charge = 0.0
+	_update_charge_shake(0.0)
 	_current_attack = scaled
 	is_attacking = true
 	current_phase = AttackPhase.STARTUP
@@ -858,14 +1184,21 @@ func _spawn_arrow(attack: Dictionary, charge: float) -> void:
 	if tree == null or tree.current_scene == null:
 		return
 	var arrow: Node3D = PLAYER_ARROW_SCENE.instantiate() as Node3D
-	tree.current_scene.add_child(arrow)
+	var container := ProjectileContainerScript.get_or_create(_body)
+	if container:
+		container.add_child(arrow)
+	else:
+		tree.current_scene.add_child(arrow)
 	var origin := _body.global_position + Vector3(0.0, 1.2, 0.0)
 	arrow.global_position = origin
 	var direction := _get_soft_lock_aim_direction()
+	var target_pos := Vector3.INF
 	if _lock_on and _lock_on.is_locked and _lock_on.current_target:
-		var to_target: Vector3 = (_lock_on.current_target as Node3D).global_position - origin
+		var target_body := _lock_on.current_target as Node3D
+		var to_target: Vector3 = target_body.global_position - origin
 		if to_target.length_squared() > 0.01:
 			direction = to_target.normalized()
+		target_pos = target_body.global_position + Vector3(0.0, 1.0, 0.0)
 	var shot_damage: float = float(attack.get("damage", 20.0))
 	var dmg: float = shot_damage * _damage_multiplier
 	dmg += CombatStatModifiersScript.flat_damage_bonus(
@@ -884,6 +1217,7 @@ func _spawn_arrow(attack: Dictionary, charge: float) -> void:
 	var crit := CombatStatModifiersScript.crit_chance(_equipment_stats, _talent_stats)
 	var crit_mult := CombatStatModifiersScript.crit_multiplier(_equipment_stats, _talent_stats)
 	var speed := ARROW_BASE_SPEED * lerpf(0.75, 1.25, charge)
+	var knockback: float = float(attack.get("knockback", _weapon_data.get("knockback", 0.0)))
 	if arrow.has_method("launch"):
 		arrow.call(
 			"launch",
@@ -896,7 +1230,10 @@ func _spawn_arrow(attack: Dictionary, charge: float) -> void:
 			status_id,
 			status_stacks,
 			crit,
-			crit_mult
+			crit_mult,
+			"blockable",
+			knockback,
+			target_pos
 		)
 	_play_swing_feedback()
 
@@ -907,9 +1244,12 @@ func _reset_bow() -> void:
 	is_attacking = false
 	current_phase = AttackPhase.IDLE
 	is_bow_aiming = false
+	_update_charge_shake(0.0)
 	if was_drawing:
 		if _stamina:
 			_stamina.set_regen_state(Stamina.RegenState.NORMAL)
+		if _mana:
+			_mana.set_regen_state(Mana.RegenState.NORMAL)
 		attack_ended.emit()
 
 
@@ -1070,7 +1410,9 @@ func _vector_from(value: Variant, fallback: Vector3) -> Vector3:
 func _is_action_blocked() -> bool:
 	if _dodge and _dodge.is_dodging:
 		return true
-	if _guard and _guard.is_guard_active:
+	# CB-05: the spear's identity trait -- a thrust from behind a raised guard, not a reason to
+	# drop the shield first.
+	if _guard and _guard.is_guard_active and not bool(_weapon_data.get("attack_while_guarding", false)):
 		return true
 	if _combat_reactions and not _combat_reactions.can_act() and not _hyperarmor_active:
 		return true

@@ -3,6 +3,7 @@ class_name EnemyHealthBar
 
 
 const PixelStyle := preload("res://scripts/art/style/pixel_diorama_style.gd")
+const IntentGlyphScript := preload("res://scripts/ui/enemy_intent_glyph.gd")
 ## The attack-class colours live on VfxService, so the wind-up meter and the ground telegraph
 ## cannot drift apart.
 
@@ -29,6 +30,9 @@ const POISE_FILL_COLOR := Color(0.82, 0.74, 0.45, 1.0)
 ## render priority, which is the same from every angle and still hides correctly behind walls.
 const BAR_PRIORITY_BG := 0
 const BAR_PRIORITY_FILL := 1
+## `Sprite3D` quads write no depth, so the glyph must outrank the fill it sits above (`EN-04`'s
+## trap) or it composites underneath instead of over it.
+const BAR_PRIORITY_GLYPH := 2
 const DEFAULT_HEIGHT := 2.2
 const MAX_VISIBLE_DISTANCE := 25.0
 const DISTANCE_CHECK_INTERVAL := 0.5
@@ -37,6 +41,7 @@ var _bg_sprite: Sprite3D
 var _fill_sprite: Sprite3D
 var _attack_bg_sprite: Sprite3D
 var _attack_fill_sprite: Sprite3D
+var _intent_glyph: Sprite3D
 var _health: Health
 var _poise_bg_sprite: Sprite3D
 var _poise_fill_sprite: Sprite3D
@@ -106,6 +111,7 @@ func _build_sprites() -> void:
 		POISE_FILL_COLOR,
 		_fill_step_texture(FILL_TEX_W)
 	)
+	_intent_glyph = IntentGlyphScript.build(self, BAR_PRIORITY_GLYPH)
 	for sprite in [_attack_bg_sprite, _attack_fill_sprite, _poise_bg_sprite, _poise_fill_sprite]:
 		sprite.visible = false
 
@@ -157,6 +163,7 @@ func begin_attack_telegraph(_duration: float, attack_class: String = "blockable"
 		_attack_bg_sprite.visible = true
 	if _attack_fill_sprite:
 		_attack_fill_sprite.visible = true
+	IntentGlyphScript.show_for_class(_intent_glyph, attack_class)
 	set_attack_telegraph_progress(0.0)
 
 
@@ -171,6 +178,7 @@ func hide_attack_telegraph() -> void:
 		_attack_bg_sprite.visible = false
 	if _attack_fill_sprite:
 		_attack_fill_sprite.visible = false
+	IntentGlyphScript.hide_glyph(_intent_glyph)
 
 
 static var _step_textures: Array[ImageTexture] = []

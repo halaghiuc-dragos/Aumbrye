@@ -11,7 +11,6 @@ var boss_id: String = ""
 var secret_ids: Array[String] = []
 var treasure_id: String = ""
 var stairs_id: String = ""
-var shop_id: String = ""
 var walk_edges: Array = []
 
 var loop_edges: Array = []

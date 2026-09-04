@@ -12,7 +12,10 @@ room_type = "combat"
 [node name="CastleBlockout" type="Node3D" parent="."]
 script = ExtResource("2_blockout")
 kind = &"corridor"
-
+door_north = false
+door_south = false
+door_east = false
+door_west = false
 [node name="DoorwaySockets" type="Node3D" parent="."]
 
 [node name="Socket_N" type="Marker3D" parent="DoorwaySockets"]

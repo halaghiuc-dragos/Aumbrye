@@ -128,10 +128,10 @@ class WavesDifficultyProfile:
 	extends DifficultyProfile
 
 	func hp_multiplier(progress: int) -> float:
-		return WavesDifficultyScript.hp_multiplier(progress)
+		return WavesDifficultyScript.hp_multiplier(progress) * modifier_hp_factor()
 
 	func damage_multiplier(progress: int) -> float:
-		return WavesDifficultyScript.damage_multiplier(progress)
+		return WavesDifficultyScript.damage_multiplier(progress) * modifier_damage_factor()
 
 	func pressure(progress: int) -> float:
 		return clampf(float(maxi(1, progress) - 1) / WAVES_FULL_PRESSURE_WAVE, 0.0, 1.0)

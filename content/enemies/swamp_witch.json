@@ -45,11 +45,12 @@
       "attack_damage": 26,
       "attack_poise_damage": 7,
       "max_range": 2.8,
-      "telegraph_radius": 2.1,
       "telegraph_shape": "circle",
       "damage_type": "poison",
       "status_on_hit": "poison",
-      "status_stacks_on_hit": 1
+      "status_stacks_on_hit": 1,
+      "attackClass": "parryable",
+      "knockback": 2.0
     },
     {
       "id": "hex",
@@ -62,11 +63,12 @@
       "attack_damage": 41,
       "attack_poise_damage": 11,
       "max_range": 2.8,
-      "telegraph_radius": 2.1,
       "telegraph_shape": "circle",
       "damage_type": "poison",
       "status_on_hit": "poison",
-      "status_stacks_on_hit": 1
+      "status_stacks_on_hit": 1,
+      "attackClass": "parryable",
+      "knockback": 2.0
     },
     {
       "id": "ward_burst",
@@ -79,11 +81,12 @@
       "attack_damage": 31,
       "attack_poise_damage": 10,
       "max_range": 3.36,
-      "telegraph_radius": 2.1,
       "telegraph_shape": "ring",
       "damage_type": "poison",
       "status_on_hit": "poison",
-      "status_stacks_on_hit": 1
+      "status_stacks_on_hit": 1,
+      "attackClass": "unblockable",
+      "knockback": 2.0
     }
   ]
 }

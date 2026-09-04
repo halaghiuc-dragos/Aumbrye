@@ -757,6 +757,10 @@ func _finish_run(
 	var loot_instance_ids := _loot_claimed_instance_ids.duplicate()
 	if run_mode == RM.MODE_WAVES:
 		LocalSave.clear_waves_active_run()
+		# MD-01: the Vigil's per-wave modifier is global static state (`RunModifierService._active`)
+		# -- clear it here so a leftover "armoured_foes" from wave 40 doesn't leak into whatever
+		# mode the player starts next.
+		RunModifierService.clear()
 	else:
 		LocalSave.clear_active_run()
 	LocalSave.autosave_checkpoint()
@@ -821,6 +825,11 @@ func rest_at_bonfire(player: Node = null) -> void:
 	var heal := player.get_node_or_null("PlayerHeal")
 	if heal and heal.has_method("refill_charges") and not starved:
 		heal.call("refill_charges")
+	# CB-08: the one place a player could never answer a status before -- `clear_status` existed
+	# as a rules effect and nothing in the content ever used it.
+	var status := player.get_node_or_null("StatusController") as StatusController
+	if status:
+		status.clear_all()
 	for enemy in get_tree().get_nodes_in_group("enemy"):
 		if enemy.has_method("respawn_at_rest"):
 			enemy.call("respawn_at_rest")
@@ -896,6 +905,7 @@ func ascend_floor() -> void:
 		return
 	_stash_current_floor_in_cache()
 	FloorKeyringScript.clear()
+	WorldState.set_flag(WorldFlags.secrets_found_this_floor(), 0)
 	current_floor += 1
 	_boss_defeated = _cleared_floors.has(current_floor)
 	await _transition_floor(true)
@@ -910,6 +920,7 @@ func descend_floor() -> void:
 	# Keys do not travel between floors: the ring is emptied going up or down, so a floor is always
 	# entered without the cards that opened the last one.
 	FloorKeyringScript.clear()
+	WorldState.set_flag(WorldFlags.secrets_found_this_floor(), 0)
 	current_floor -= 1
 	_boss_defeated = _cleared_floors.has(current_floor)
 	await _transition_floor(false)
@@ -1757,23 +1768,27 @@ func quit_waves_run() -> void:
 	return_to_hub(last_hub_message)
 
 
-## The summoner's offer: one carried item comes home, the Vigil ends, and everything else is left
-## on the floor. Runs the full results screen so the exit still feels like a run that concluded.
-func cash_out_waves_run(item_id: String) -> void:
+## The summoner's offer: one or more carried items come home (`WavesRunService.cash_out_bank_
+## count()` -- one below wave 30, escalating to three from wave 40), the Vigil ends, and everything
+## else is left on the floor. Runs the full results screen so the exit still feels like a run that
+## concluded.
+func cash_out_waves_run(item_ids: Array) -> void:
 	if run_mode != RM.MODE_WAVES:
 		return
 	var wave := WavesRunService.current_wave
 	var elapsed := 0.0
 	if _run_start_time > 0.0:
 		elapsed = (Time.get_ticks_msec() / 1000.0) - _run_start_time
-	var banked := WavesRunService.cash_out_item(item_id)
-	var kept: Array[String] = [item_id] if banked else []
+	var kept := WavesRunService.cash_out_items(item_ids)
 	_record_waves_progress(false)
 	CharacterService.set_flag(
 		"waves_cash_outs", int(CharacterService.get_flag("waves_cash_outs")) + 1
 	)
 	var xp_award := int(round(WAVES_COMPLETION_XP * clampf(float(wave) / 50.0, 0.1, 1.0)))
 	var xp_result := ProgressionService.grant_xp(xp_award, "waves_cash_out")
+	var carry_note := (
+		"carrying one thing" if kept.size() <= 1 else "carrying %d things" % kept.size()
+	)
 	last_run_results = (
 		RunLifecycle
 		. build_results(
@@ -1784,14 +1799,14 @@ func cash_out_waves_run(item_id: String) -> void:
 			xp_result,
 			xp_award,
 			(
-				"Left the Vigil at wave %d through the summoner's portal, carrying one thing."
-				% wave
+				"Left the Vigil at wave %d through the summoner's portal, %s."
+				% [wave, carry_note]
 			),
 			{
 				"run_mode": RM.MODE_WAVES,
 				"floor_reached": wave,
 				"boss_defeated": false,
-				"loot_kept": banked,
+				"loot_kept": not kept.is_empty(),
 				"run_relics_lost": false,
 				"loot_lost": [],
 			}
@@ -1821,7 +1836,7 @@ func complete_waves_run(rewards: Array[String]) -> void:
 			"Waves cleared: kept up to 3 chosen items.",
 			{
 				"run_mode": RM.MODE_WAVES,
-				"floor_reached": 0,
+				"floor_reached": WavesRunService.current_wave,
 				"boss_defeated": false,
 				"loot_kept": true,
 				"run_relics_lost": false,

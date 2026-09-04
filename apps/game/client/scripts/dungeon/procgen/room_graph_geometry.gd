@@ -43,6 +43,7 @@ static func build_rooms(graph: RoomGraph, assignment: Dictionary, layout: Dictio
 					"size": {"x": size_x, "z": size_z},
 					"doorOffsets": door_offsets.get(layout_id, {}),
 					"kind": _minimap_kind_for_semantic(str(room["semantic_id"]), str(room["type"])),
+					"shape": str(RoomTemplateCatalog.get_spec(str(room["template_id"])).get("shape", "rect")),
 				}
 			)
 		)
@@ -89,6 +90,7 @@ static func build_edges(graph: RoomGraph, assignment: Dictionary, layout: Dictio
 	var secret_ids := {}
 	for secret_id in _placed_secret_ids(graph, assignment):
 		secret_ids[str(secret_id)] = true
+	var loop_layout_pairs := _loop_layout_pairs(graph)
 	for key in realised:
 		var realised_edge: Dictionary = realised[key]
 		var from_layout := str(realised_edge["from"])
@@ -107,15 +109,24 @@ static func build_edges(graph: RoomGraph, assignment: Dictionary, layout: Dictio
 		):
 			kind = "corridor"
 		var door_world: Vector2 = realised_edge["door_world"]
-		edges.append(
-			{
-				"from": from_id,
-				"to": to_id,
-				"kind": kind,
-				"dir": RoomGraphLayout.dir_name(realised_edge["dir"]),
-				"door": {"x": door_world.x, "z": door_world.y},
-			}
-		)
+		var edge_dict := {
+			"from": from_id,
+			"to": to_id,
+			"kind": kind,
+			"dir": RoomGraphLayout.dir_name(realised_edge["dir"]),
+			"door": {"x": door_world.x, "z": door_world.y},
+		}
+		# RM-04: a loop edge is by definition redundant -- the graph already validated as connected
+		# on its walk edges alone before any loop was opened -- so marking one a one-way "down" drop
+		# (no ramp, see `dungeon_builder.gd:_build_height_transitions()`) can never strand anything
+		# the floor requires the way promoting a dead end to a barred gate could. No walk edge is
+		# ever a candidate here.
+		if _realised_key(from_layout, to_layout) in loop_layout_pairs:
+			var from_slot := graph.get_slot(from_layout)
+			var to_slot := graph.get_slot(to_layout)
+			if from_slot != null and to_slot != null and from_slot.height_level != to_slot.height_level:
+				edge_dict["oneWay"] = "down"
+		edges.append(edge_dict)
 	# Graph links the lattice left unrealised stay in the definition as shortcuts. The builder
 	# already knows to close a shortcut whose rooms do not touch, and the minimap still draws them.
 	for cell in graph.occupied_cells():
@@ -197,6 +208,20 @@ static func validate_door_topology(graph: RoomGraph, assignment: Dictionary) -> 
 		if str(room.get("layout_id", "")) == entrance_id:
 			return {"ok": true}
 	return {"ok": false, "reason": "Missing entrance room '%s'" % entrance_id}
+
+
+## Loop edges are stored as grid cells; realised edges are keyed by layout id. This bridges the
+## two so `build_edges()` can tell whether a given realised edge came from `graph.loop_edges` (safe
+## to make one-way) or `graph.walk_edges` (load-bearing, never touched here).
+static func _loop_layout_pairs(graph: RoomGraph) -> Dictionary:
+	var pairs := {}
+	for loop_edge in graph.loop_edges:
+		var slot_a: RoomGraphSlot = graph.slots.get(loop_edge["a"])
+		var slot_b: RoomGraphSlot = graph.slots.get(loop_edge["b"])
+		if slot_a == null or slot_b == null:
+			continue
+		pairs[_realised_key(slot_a.slot_id, slot_b.slot_id)] = true
+	return pairs
 
 
 static func _realised_key(a: String, b: String) -> String:

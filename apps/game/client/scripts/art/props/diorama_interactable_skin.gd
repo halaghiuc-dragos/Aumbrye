@@ -211,6 +211,35 @@ static func build_boss_door_frame(parent: Node3D, biome_id: String) -> Node3D:
 	return root
 
 
+## RM-05: a locked door reads as a door -- two jambs, a lintel, and a keyhole-sized emissive inset
+## tinted with the key's colour -- instead of an untextured slab the same shape as every other
+## telegraph box in the dungeon. `key_tint` is `FloorKeyring.tint_for(key_id)`; pass `Color.WHITE`
+## for a door whose key id didn't resolve to one of Doom's three colours.
+static func build_locked_door_frame(parent: Node3D, biome_id: String, key_tint: Color) -> Node3D:
+	var root := _make_root(parent)
+	root.name = "LockedDoorFrameVisual"
+	var theme := PixelStyle.theme_from_biome(biome_id)
+	var wall := PixelStyle.make_wall_material(theme)
+	var half_w := CastleRoomConstants.DOOR_WIDTH * 0.5
+	var jamb_x := half_w + 0.15
+	_add_box(root, Vector3(0.3, CastleRoomConstants.DOOR_HEIGHT, 0.3), wall, Vector3(-jamb_x, CastleRoomConstants.DOOR_HEIGHT * 0.5, 0.0))
+	_add_box(root, Vector3(0.3, CastleRoomConstants.DOOR_HEIGHT, 0.3), wall, Vector3(jamb_x, CastleRoomConstants.DOOR_HEIGHT * 0.5, 0.0))
+	_add_box(
+		root,
+		Vector3(CastleRoomConstants.DOOR_WIDTH + 0.6, 0.3, 0.3),
+		wall,
+		Vector3(0.0, CastleRoomConstants.DOOR_HEIGHT + 0.15, 0.0)
+	)
+	var keyhole := PixelStyle.make_glow_material(key_tint, key_tint * 0.6, 1.4)
+	_add_box(
+		root,
+		Vector3(0.5, 0.5, 0.12),
+		keyhole,
+		Vector3(0.0, CastleRoomConstants.DOOR_HEIGHT * 0.5, -0.05)
+	)
+	return root
+
+
 static func build_spikes(parent: Node3D, biome_id: String) -> Node3D:
 	_remove_visual(parent)
 	var root := _make_root(parent)
@@ -251,6 +280,73 @@ static func build_crystal_pillar(
 
 static func make_telegraph_material(color: Color) -> Material:
 	return PixelStyle.make_material(color, color * 0.5)
+
+
+## RM-16 item 4: every gate (locked door, shortcut gate, puzzle gate, boss door) used to just
+## vanish -- `visible = false` the instant it opened. This sinks the barrier into the floor over
+## 0.4s instead. Collision drops immediately, same as before (a player already leaning on the door
+## should not feel it disappear from under them, but should also not get stuck waiting on the
+## animation to pass through).
+static func animate_gate_open(barrier: StaticBody3D) -> void:
+	barrier.collision_layer = 0
+	var start_y := barrier.position.y
+	var tween := barrier.create_tween()
+	tween.set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN)
+	tween.tween_property(barrier, "position:y", start_y - 2.4, 0.4)
+	tween.tween_callback(func() -> void: barrier.visible = false)
+
+
+const FOG_GATE_SHADER_PATH := "res://assets/shared/fog_gate.gdshader"
+
+
+## RM-16: every doorway in the game got a frame -- two jambs, a lintel with a keystone, and a
+## threshold strip in the floor material -- instead of just a rectangular hole with a lintel.
+## Batched with `PixelBoxBatch` (wall material and floor material each collapse to one draw call).
+## `parent` is expected to be the doorway's own `DoorwaySocket` (a `Marker3D`, so its own transform
+## already tracks the door's position/rotation across a room resize); safe to call more than once,
+## the caller is expected to guard against duplicates by checking for `DoorwayFrameVisual` first.
+static func build_doorway_frame(parent: Node3D, biome_id: String, width: float, height: float) -> Node3D:
+	var root := Node3D.new()
+	root.name = "DoorwayFrameVisual"
+	parent.add_child(root)
+	var theme := PixelStyle.theme_from_biome(biome_id)
+	var wall_mat := PixelStyle.make_wall_material(theme)
+	var accent_mat := PixelStyle.make_accent_material(theme)
+	var floor_mat := PixelStyle.make_floor_material(theme)
+	var jamb_batch := PixelBoxBatch.new()
+	var half_w := width * 0.5
+	var jamb_x := half_w + 0.2
+	jamb_batch.add(Vector3(0.4, height, 0.4), Vector3(-jamb_x, height * 0.5, 0.0), wall_mat)
+	jamb_batch.add(Vector3(0.4, height, 0.4), Vector3(jamb_x, height * 0.5, 0.0), wall_mat)
+	jamb_batch.add(Vector3(width + 0.8, 0.4, 0.4), Vector3(0.0, height + 0.2, 0.0), wall_mat)
+	jamb_batch.commit(
+		root, "FrameJambs", AABB(Vector3(-jamb_x - 0.4, 0.0, -0.4), Vector3(jamb_x * 2.0 + 0.8, height + 0.6, 0.8))
+	)
+	_add_box(root, Vector3(0.5, 0.5, 0.5), accent_mat, Vector3(0.0, height + 0.2, 0.0))
+	var threshold := _add_box(root, Vector3(width, 0.06, 0.5), floor_mat, Vector3(0.0, 0.03, 0.0))
+	threshold.name = "Threshold"
+	return root
+
+
+## RM-07: a translucent scrolling-noise plane in `tint`, sized to a doorway. `boss_room_door.gd`
+## and the arena lock-in gate (`room_arena_gate_content.gd`) both use this -- neither shows just a
+## barrier box any more, both show a wall of light the collision box (kept, unchanged) sits behind.
+static func build_fog_gate(
+	parent: Node3D, width: float, height: float, tint: Color
+) -> MeshInstance3D:
+	var mesh_instance := MeshInstance3D.new()
+	mesh_instance.name = "FogGateVisual"
+	var quad := QuadMesh.new()
+	quad.size = Vector2(width, height)
+	mesh_instance.mesh = quad
+	mesh_instance.position = Vector3(0.0, height * 0.5, 0.0)
+	var mat := ShaderMaterial.new()
+	mat.shader = load(FOG_GATE_SHADER_PATH) as Shader
+	mat.set_shader_parameter("tint", tint)
+	mesh_instance.material_override = mat
+	mesh_instance.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	parent.add_child(mesh_instance)
+	return mesh_instance
 
 
 static func _make_root(parent: Node3D) -> Node3D:

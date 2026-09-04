@@ -66,6 +66,10 @@ for (const dir of SCAN_DIRS) {
     const lines = text.split("\n");
     lines.forEach((line, i) => {
       if (line.includes("~~")) return;
+      // A planning document has to cite files it is asking someone to create. `*(new)*` on the
+      // line marks that deliberately, the same way `~~strikethrough~~` marks deliberate history.
+      // Without this, a plan can only be written by lying about what it wants built.
+      if (line.includes("*(new)*")) return;
       for (const m of line.matchAll(PATH_RE)) {
         const ref = m[1];
         if (IGNORE_RE.some((re) => re.test(ref))) continue;
@@ -81,7 +85,8 @@ if (failures.length > 0) {
   console.error(`DOC-01: ${failures.length} citation(s) point at files that do not exist:\n`);
   for (const f of failures) console.error("  " + f);
   console.error(
-    "\nEither fix the path, delete the claim, or mark it ~~struck through~~ if it is deliberate history."
+    "\nEither fix the path, delete the claim, mark it ~~struck through~~ if it is deliberate history,\n" +
+    "or mark the line *(new)* if it is a file a plan is asking to be created."
   );
   process.exit(1);
 }

@@ -54,6 +54,9 @@ func open_menu() -> void:
 		return
 	_rebuild_actions()
 	_refresh_run_info()
+	# HD-03: `build_modal()` only styles the panel shell -- action buttons are rebuilt fresh each
+	# open, so the pixel-filter sweep needs to run here rather than once in `_ready()`.
+	GameUISkinScript.apply_pixel_theme(self)
 	_open = true
 	visible = true
 	mouse_filter = Control.MOUSE_FILTER_STOP

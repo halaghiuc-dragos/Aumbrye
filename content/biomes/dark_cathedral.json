@@ -5,7 +5,7 @@
   "assetFolder": "cathedral",
   "roomCount": {
     "min": 22,
-    "max": 28
+    "max": 26
   },
   "roomTemplateIds": [
     "cathedral_entrance",
@@ -17,7 +17,10 @@
     "cathedral_secret",
     "cathedral_arena",
     "cathedral_boss",
-    "cathedral_puzzle"
+    "cathedral_puzzle",
+    "cathedral_corridor_long",
+    "cathedral_corridor_bend",
+    "cathedral_balcony"
   ],
   "materials": {
     "floor": "cathedral",
@@ -53,7 +56,11 @@
     "rubble": [
       "res://scenes/props/cathedral/rubble_a.tscn",
       "res://scenes/props/cathedral/rubble_b.tscn"
-    ]
+    ],
+    "banner": "res://scenes/props/cathedral/banner.tscn",
+    "statue": "res://scenes/props/cathedral/statue.tscn",
+    "altar": "res://scenes/props/cathedral/altar.tscn",
+    "debrisPile": "res://scenes/props/cathedral/debris_pile.tscn"
   },
   "enemyPool": [
     {
@@ -186,13 +193,15 @@
   "generator": {
     "bossMinDistance": 4,
     "minDeadEnds": 4,
-    "branchMaxDepth": 8,
+    "branchMaxDepth": 12,
     "maxNeighborCount": 4,
-    "loopBudget": 4,
+    "loopBudget": 2,
     "maxGenerationAttempts": 256,
     "maxWalkAttempts": 8192,
     "allow2x2Blocks": true,
-    "fillBoundingBox": true
+    "fillBoundingBox": true,
+    "corridorRatio": 0.25,
+    "floorSilhouette": "spine"
   },
   "grade": {
     "shadowTint": [

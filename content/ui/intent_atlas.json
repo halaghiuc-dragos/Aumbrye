@@ -1,0 +1,8 @@
+{
+  "schemaVersion": 1,
+  "texture": "res://assets/ui/intent_icons.png",
+  "sword": { "x": 0, "y": 0, "w": 16, "h": 16 },
+  "shield_break": { "x": 16, "y": 0, "w": 16, "h": 16 },
+  "parry_star": { "x": 32, "y": 0, "w": 16, "h": 16 },
+  "hand": { "x": 48, "y": 0, "w": 16, "h": 16 }
+}

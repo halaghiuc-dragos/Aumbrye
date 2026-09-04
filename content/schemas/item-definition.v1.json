@@ -298,7 +298,12 @@
               "onRoomClear",
               "onFloorEnter",
               "onStatusApplied",
-              "onRunStart"
+              "onRunStart",
+              "onDeath",
+              "onPerfectDodge",
+              "onGuardBreak",
+              "onExecute",
+              "onFlask"
             ]
           },
           "effect": {
@@ -313,7 +318,12 @@
               "add_stack",
               "bonus_gold",
               "refund_flask",
-              "clear_status"
+              "clear_status",
+              "deal_damage",
+              "grant_barrier",
+              "empower_next",
+              "reduce_cooldown",
+              "knockback"
             ]
           },
           "amount": {
@@ -366,6 +376,28 @@
           },
           "ifDamageType": {
             "type": "string"
+          },
+          "ifWeaponArchetype": {
+            "type": "string"
+          },
+          "ifHealthBelow": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "ifEnemyType": {
+            "type": "string"
+          },
+          "applyToActor": {
+            "type": "boolean"
+          },
+          "multiplier": {
+            "type": "number",
+            "minimum": 1
+          },
+          "knockback": {
+            "type": "number",
+            "minimum": 0
           }
         }
       }

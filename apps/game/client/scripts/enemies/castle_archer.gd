@@ -2,9 +2,11 @@ extends CastleEnemyBase
 
 
 const PROJECTILE_SCENE := preload("res://scenes/combat/enemy_projectile.tscn")
+const ProjectileContainerScript := preload("res://scripts/combat/projectile_container.gd")
 
 var _locked_shot_direction := Vector3.FORWARD
 var _locked_shot_speed := 12.0
+var _locked_shot_target := Vector3.INF
 
 
 func _resolve_enemy_id() -> String:
@@ -52,9 +54,11 @@ func _lock_shot_trajectory() -> void:
 	_locked_shot_speed = _data.get("projectile_speed", 12.0)
 	if _player == null:
 		_locked_shot_direction = CombatFacing.forward_of(self)
+		_locked_shot_target = Vector3.INF
 		return
 	var spawn_pos := global_position + Vector3(0, 1.2, 0)
 	var target_pos := _player.global_position + Vector3(0, 1.0, 0)
+	_locked_shot_target = target_pos
 	var to_target := target_pos - spawn_pos
 	to_target.y = 0.0
 	if to_target.length_squared() < 0.01:
@@ -78,7 +82,11 @@ func _start_attack() -> void:
 
 func _fire_projectile() -> void:
 	var projectile: Node3D = PROJECTILE_SCENE.instantiate() as Node3D
-	get_tree().current_scene.add_child(projectile)
+	var container := ProjectileContainerScript.get_or_create(self)
+	if container:
+		container.add_child(projectile)
+	else:
+		get_tree().current_scene.add_child(projectile)
 	projectile.global_position = global_position + Vector3(0, 1.2, 0)
 	if not projectile.has_method("launch"):
 		return
@@ -99,5 +107,10 @@ func _fire_projectile() -> void:
 			_current_attack_data.get(
 				"status_stacks_on_hit", _data.get("status_stacks_on_hit", 1)
 			)
-		)
+		),
+		0.0,
+		1.5,
+		_current_attack_class(),
+		float(_current_attack_data.get("knockback", _data.get("knockback", 0.0))),
+		_locked_shot_target
 	)

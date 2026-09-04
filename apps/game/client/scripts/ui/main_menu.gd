@@ -26,6 +26,7 @@ var _prompt: Label
 var _intro_active := false
 var _intro_ready := false
 var _panel_base_offsets := Vector2.ZERO
+var _today_label: Label
 
 
 func _ready() -> void:
@@ -96,8 +97,18 @@ func _build_ui() -> void:
 	vbox.add_child(continue_btn)
 	vbox.add_child(_menu_button(tr("MENU_SETTINGS"), _on_settings))
 	vbox.add_child(_menu_button(tr("MENU_QUIT"), _on_quit_pressed))
+	_today_label = Label.new()
+	_today_label.name = "TodayLabel"
+	_today_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_today_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	GameUISkinScript.style_hint_label(_today_label)
+	vbox.add_child(_today_label)
+	_refresh_today_label()
 	_refresh_continue_button()
 	_build_wordmark()
+	# HD-03: `make_center_panel()` only styles the panel shell -- the pixel-filter sweep needs to
+	# run after content exists, so it happens here rather than inside the shared builder.
+	GameUISkinScript.apply_pixel_theme(self)
 
 
 func _apply_panel_drop() -> void:
@@ -342,6 +353,34 @@ func _connect_global_settings() -> void:
 		return
 	if not settings.closed.is_connected(_on_settings_closed):
 		settings.closed.connect(_on_settings_closed)
+
+
+## MD-06: the weekly challenge previously lived only on the tower board -- one menu inside the
+## hub, never mentioned anywhere a player would see it without going looking. This "today" line is
+## the first thing a returning player sees.
+func _refresh_today_label() -> void:
+	if _today_label == null or not is_instance_valid(_today_label):
+		return
+	var challenge := ChallengeService.get_active_challenge()
+	if challenge.is_empty():
+		_today_label.visible = false
+		return
+	var remaining := ChallengeService.format_remaining(int(challenge.get("endsInSeconds", 0)))
+	_today_label.text = tr("MENU_TODAY_CHALLENGE").format(
+		{"name": str(challenge.get("name", "")), "remaining": remaining}
+	)
+	_today_label.visible = true
+	if not _today_timer_started:
+		_today_timer_started = true
+		var timer := Timer.new()
+		timer.name = "TodayRefreshTimer"
+		timer.wait_time = 60.0
+		timer.timeout.connect(_refresh_today_label)
+		add_child(timer)
+		timer.start()
+
+
+var _today_timer_started := false
 
 
 func _refresh_continue_button() -> void:

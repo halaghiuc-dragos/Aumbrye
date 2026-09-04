@@ -17,6 +17,8 @@
     "buffer_window": { "type": "number", "minimum": 0 },
     "cancel_into": { "$ref": "#/$defs/cancel_into" },
     "cancel_after": { "type": "number", "minimum": 0, "maximum": 1 },
+    "attack_while_guarding": { "type": "boolean" },
+    "backstab_multiplier": { "type": "number", "exclusiveMinimum": 1 },
     "scaling": {
       "type": "object",
       "additionalProperties": { "type": "number" }
@@ -35,6 +37,7 @@
     },
     "running_attack": { "$ref": "#/$defs/attack_frame_data" },
     "rolling_attack": { "$ref": "#/$defs/attack_frame_data" },
+    "plunge_attack": { "$ref": "#/$defs/plunge_attack" },
     "art": { "$ref": "#/$defs/weapon_art" }
   },
   "$defs": {
@@ -84,7 +87,8 @@
         "damage_type": { "type": "string" },
         "status": { "type": "string" },
         "status_stacks": { "type": "integer", "minimum": 1 },
-        "cooldown": { "type": "number", "minimum": 0 }
+        "cooldown": { "type": "number", "minimum": 0 },
+        "knockback": { "type": "number", "minimum": 0 }
       }
     },
     "attack_frame_data": {
@@ -95,6 +99,7 @@
         "damage": { "type": "number", "minimum": 0 },
         "poise_damage": { "type": "number", "minimum": 0 },
         "stamina_cost": { "type": "number", "minimum": 0 },
+        "mana_cost": { "type": "number", "minimum": 0 },
         "startup": { "type": "number", "minimum": 0 },
         "active": { "type": "number", "minimum": 0 },
         "recovery": { "type": "number", "minimum": 0 },
@@ -105,7 +110,33 @@
         "hyperarmor": { "type": "boolean" },
         "heavy_branch": { "type": "integer", "minimum": 0 },
         "cancel_into": { "$ref": "#/$defs/cancel_into" },
-        "cancel_after": { "type": "number", "minimum": 0, "maximum": 1 }
+        "cancel_after": { "type": "number", "minimum": 0, "maximum": 1 },
+        "knockback": { "type": "number", "minimum": 0 },
+        "charge": { "$ref": "#/$defs/charge" }
+      }
+    },
+    "charge": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["max_time", "damage_mult", "poise_mult", "stamina_mult", "hyperarmor_at"],
+      "properties": {
+        "max_time": { "type": "number", "exclusiveMinimum": 0 },
+        "damage_mult": { "type": "number", "minimum": 1 },
+        "poise_mult": { "type": "number", "minimum": 1 },
+        "stamina_mult": { "type": "number", "minimum": 1 },
+        "hyperarmor_at": { "type": "number", "minimum": 0, "maximum": 1 }
+      }
+    },
+    "plunge_attack": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["damage", "poise_damage", "stamina_cost"],
+      "properties": {
+        "damage": { "type": "number", "minimum": 0 },
+        "poise_damage": { "type": "number", "minimum": 0 },
+        "stamina_cost": { "type": "number", "minimum": 0 },
+        "damage_type": { "type": "string" },
+        "knockback": { "type": "number", "minimum": 0 }
       }
     }
   }

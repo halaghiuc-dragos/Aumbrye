@@ -4,7 +4,7 @@
   "templatePrefix": "swamp",
   "assetFolder": "swamp",
   "roomCount": {
-    "min": 22,
+    "min": 24,
     "max": 28
   },
   "roomTemplateIds": [
@@ -17,7 +17,10 @@
     "swamp_secret",
     "swamp_arena",
     "swamp_boss",
-    "swamp_puzzle"
+    "swamp_puzzle",
+    "swamp_corridor_long",
+    "swamp_corridor_bend",
+    "swamp_balcony"
   ],
   "materials": {
     "floor": "swamp",
@@ -53,7 +56,11 @@
     "rubble": [
       "res://scenes/props/swamp/rubble_a.tscn",
       "res://scenes/props/swamp/rubble_b.tscn"
-    ]
+    ],
+    "banner": "res://scenes/props/swamp/banner.tscn",
+    "statue": "res://scenes/props/swamp/statue.tscn",
+    "altar": "res://scenes/props/swamp/altar.tscn",
+    "debrisPile": "res://scenes/props/swamp/debris_pile.tscn"
   },
   "enemyPool": [
     {
@@ -206,13 +213,14 @@
   "generator": {
     "bossMinDistance": 4,
     "minDeadEnds": 4,
-    "branchMaxDepth": 8,
+    "branchMaxDepth": 5,
     "maxNeighborCount": 4,
-    "loopBudget": 4,
+    "loopBudget": 1,
     "maxGenerationAttempts": 256,
     "maxWalkAttempts": 8192,
     "allow2x2Blocks": true,
-    "fillBoundingBox": true
+    "fillBoundingBox": false,
+    "corridorRatio": 0.1
   },
   "grade": {
     "shadowTint": [

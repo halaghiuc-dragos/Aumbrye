@@ -2,7 +2,10 @@ extends CharacterBody3D
 class_name CastleEnemyBase
 
 
-enum State { PATROL, CHASE, INVESTIGATE, RETREAT, CIRCLE, WINDUP, ATTACK, RECOVERY, STAGGER, DEAD }
+enum State {
+	PATROL, CHASE, INVESTIGATE, RETREAT, CIRCLE, WINDUP, ATTACK, RECOVERY, STAGGER, DEAD,
+	GUARD, SIDESTEP, PUNISH,
+}
 
 signal enemy_died
 signal attack_telegraph_started(attack_class: String)
@@ -24,6 +27,11 @@ const RECOVERY_TRACKING_SPEED_MULT := 0.25
 const WINDUP_APPROACH_SPEED_MULT := 0.45
 const RECOVERY_APPROACH_SPEED_MULT := 0.3
 const PATROL_SPEED_MULT := 0.45
+const SIDESTEP_DURATION := 0.35
+const SIDESTEP_IFRAME_FRACTION := 0.6
+const SIDESTEP_SPEED := 6.0
+const GUARD_FALLBACK_DURATION := 0.6
+const PUNISH_WINDOW_DEFAULT := 0.0
 const HP_BAR_SCRIPT := preload("res://scripts/ui/enemy_health_bar.gd")
 const MaterialDissolveScript := preload("res://scripts/art/characters/material_dissolve.gd")
 const MaterialFlashScript := preload("res://scripts/art/characters/material_flash.gd")
@@ -53,6 +61,7 @@ var _state := State.PATROL
 var _player: Node3D
 var _health: Health
 var _poise: Poise
+var _knockback: Knockback
 var _hitbox: Hitbox
 var _hurtbox: Hurtbox
 var _state_timer := 0.0
@@ -74,7 +83,38 @@ var _combat_registered := false
 var _deaggro_los_timer := 0.0
 var _weapon_charge: Node3D
 var _windup_duration := 0.0
+var _in_windup_hold := false
+var _windup_hold_timer := 0.0
+var _windup_will_feint := false
+var _short_recovery_cooldown := false
+
+## RM-08: "idle" (default) is today's always-perceiving behaviour. "ambush" spawns hidden, frozen
+## and unhittable until `wake_ambush()` is called (by `DungeonBuilder.wake_ambushers()` when the
+## player enters the room). "delayed" does the same but wakes itself on a timer instead of waiting
+## for a call -- simpler than deferring instantiation entirely, and invisible-and-frozen already
+## reads as "not here yet" to the player.
+var _spawn_trigger := "idle"
+var _spawn_trigger_delay := 0.0
+var _ambush_hidden := false
+var _saved_collision_layer := 0
+var _saved_collision_mask := 0
+const FEINT_COOLDOWN := 0.3
+## `PH-02`: matches `PlayerCombatReactions.STAGGER_POISE_HIGH` so a poise break carries the same
+## knockback weight on both sides of a fight, rather than each side inventing its own scale.
+const STAGGER_POISE_HIGH_REFERENCE := 45.0
+
+## `EN-07`: defensive verbs. `is_guarding` is public (no underscore) so `ShieldHurtbox` can read it
+## by name across the module boundary the same way it already reads `block_mitigation` -- mitigation
+## used to apply to every frontal hit unconditionally, which is passive, not a decision.
+var is_guarding := false
+var _sidestep_timer := 0.0
+var _sidestep_iframe_timer := 0.0
+var _guard_timer := 0.0
+var _punish_watching := false
+var _punish_watch_timer := 0.0
+var _defensive_token_held := false
 var _last_hit_direction := Vector3.ZERO
+var _last_hit_poise_damage := 0.0
 var _catalog_id_override := ""
 var _damage_multiplier := 1.0
 var _base_damage_multiplier := 1.0
@@ -114,6 +154,7 @@ var _alert_radius := 12.0
 var _perception_frame := -1
 
 var _circle_direction := 1.0
+var _desired_flank_angle_deg := 0.0
 var _circle_radius_mult := 1.4
 var _room_id := 0
 var _room_registered := false
@@ -227,6 +268,7 @@ func _ready() -> void:
 		_data = EnemyCatalog.get_definition(catalog_id)
 	_health = get_node_or_null("Health") as Health
 	_poise = get_node_or_null("Poise") as Poise
+	_knockback = get_node_or_null("Knockback") as Knockback
 	_hitbox = get_node_or_null("AttackPivot/Hitbox") as Hitbox
 	_hurtbox = get_node_or_null("Hurtbox") as Hurtbox
 	if player_path and not player_path.is_empty():
@@ -254,6 +296,49 @@ func _ready() -> void:
 		AudioDirector.play_boss_music()
 	_pick_patrol_target()
 	_join_room_board()
+	match _spawn_trigger:
+		"ambush":
+			_enter_ambush_hidden()
+		"delayed":
+			_enter_ambush_hidden()
+			get_tree().create_timer(maxf(0.05, _spawn_trigger_delay)).timeout.connect(wake_ambush)
+
+
+## Called by `DungeonBuilder` before this node enters the tree, so `_ready()` can read it.
+func set_spawn_trigger(trigger: String, delay: float = 0.0) -> void:
+	_spawn_trigger = trigger
+	_spawn_trigger_delay = delay
+
+
+func _enter_ambush_hidden() -> void:
+	_ambush_hidden = true
+	visible = false
+	set_physics_process(false)
+	set_process(false)
+	if _hurtbox:
+		_hurtbox.monitoring = false
+	_saved_collision_layer = collision_layer
+	_saved_collision_mask = collision_mask
+	collision_layer = 0
+	collision_mask = 0
+
+
+## `DungeonBuilder.wake_ambushers(room_id)` calls this on room entry; a "delayed" enemy calls it on
+## its own timer instead. Safe to call more than once -- only the first call does anything.
+func wake_ambush() -> void:
+	if not _ambush_hidden:
+		return
+	_ambush_hidden = false
+	if VfxService:
+		VfxService.play_telegraph(global_position, 1.4, 0.35)
+	visible = true
+	set_physics_process(true)
+	set_process(true)
+	if _hurtbox:
+		_hurtbox.monitoring = true
+	collision_layer = _saved_collision_layer
+	collision_mask = _saved_collision_mask
+	_latch_aggro()
 
 
 func get_arena_half_extent() -> float:
@@ -438,12 +523,18 @@ func begin_phase_transition(lock_duration: float, invulnerable_for: float) -> vo
 	hide_attack_windup_bar()
 	_combo_step = 0
 	_release_attack_token()
+	is_guarding = false
+	_sidestep_iframe_timer = 0.0
+	_punish_watching = false
+	if _animator and _animator.is_bound():
+		_animator.set_blocking(false)
+	_release_defensive_token()
 	_state = State.CHASE
 	_cooldown = maxf(_cooldown, _phase_lock_timer)
 
 
 func is_immune() -> bool:
-	return _phase_invuln_timer > 0.0
+	return _phase_invuln_timer > 0.0 or _sidestep_iframe_timer > 0.0
 
 
 func notify_phase_entered(index: int, phase: Dictionary) -> void:
@@ -452,6 +543,17 @@ func notify_phase_entered(index: int, phase: Dictionary) -> void:
 
 func set_player(player: Node3D) -> void:
 	_player = player
+
+
+func get_player() -> Node3D:
+	return _player
+
+
+## `EN-08`: a flanker's target bearing (degrees, signed relative to the player's own facing), set
+## by `EnemyBlackboard._assign_flank_bearings()`. `_process_circle()` steers toward it instead of
+## just orbiting at a radius multiplier.
+func set_desired_flank_angle_deg(angle_deg: float) -> void:
+	_desired_flank_angle_deg = angle_deg
 
 
 func set_catalog_id(id: String) -> void:
@@ -588,14 +690,26 @@ func _attach_health_bar() -> void:
 	_hp_bar.setup(_health, get_hp_bar_height(), _poise)
 
 
+## `EN-09`: the HUD's off-screen danger chevron walks this group on its own slow tick rather than
+## being pushed to per-frame -- see `CombatHud._update_danger_chevrons()`. Membership, not a
+## per-enemy screen check, is what keeps that cheap.
+const TELEGRAPHING_GROUP := "telegraphing"
+
+
+func telegraphed_attack_class() -> String:
+	return _current_attack_class()
+
+
 func begin_attack_windup_bar(duration: float, attack_class: String = "blockable") -> void:
 	_windup_duration = maxf(0.05, duration)
+	add_to_group(TELEGRAPHING_GROUP)
 	if _hp_bar:
 		_hp_bar.begin_attack_telegraph(_windup_duration, attack_class)
 
 
 func hide_attack_windup_bar() -> void:
 	_windup_duration = 0.0
+	remove_from_group(TELEGRAPHING_GROUP)
 	_end_weapon_charge()
 	if _hp_bar:
 		_hp_bar.hide_attack_telegraph()
@@ -611,18 +725,37 @@ func _telegraph_radius_scale() -> float:
 	return 1.0
 
 
+## `EN-03`: the invariant is that the telegraph must never be smaller than the attack. When
+## `telegraph_radius` is not authored, derive it from the attack's own `max_range` -- the reach
+## that will actually open the hitbox -- rather than trust a number authored independently of it.
+## A cone's tip overshoots by 5% so the player can see the edge of the wedge before they are in it.
+func _derived_telegraph_radius(shape: String) -> float:
+	var max_range := float(_current_attack_data.get("max_range", _data.get("max_range", 1.6)))
+	if shape == "cone" or shape == "line":
+		return max_range * 1.05
+	return max_range
+
+
 func _show_attack_telegraph(duration: float) -> void:
-	var radius := float(
-		_current_attack_data.get("telegraph_radius", _data.get("telegraph_radius", 1.6))
-	) * _telegraph_radius_scale()
 	var shape := String(
 		_current_attack_data.get("telegraph_shape", _data.get("telegraph_shape", "circle"))
+	)
+	var radius: float
+	if _current_attack_data.has("telegraph_radius"):
+		radius = float(_current_attack_data.get("telegraph_radius"))
+	elif _data.has("telegraph_radius"):
+		radius = float(_data.get("telegraph_radius"))
+	else:
+		radius = _derived_telegraph_radius(shape)
+	radius *= _telegraph_radius_scale()
+	var arc_deg := float(
+		_current_attack_data.get("telegraph_arc_deg", _data.get("telegraph_arc_deg", 90.0))
 	)
 	var tint := VfxService.telegraph_class_tint(_current_attack_class())
 	if _data.has("telegraph_tint"):
 		tint = Color(_data["telegraph_tint"])
 	var forward := CombatFacing.forward_of(self)
-	VfxService.play_telegraph(global_position, radius, duration, tint, shape, forward, self)
+	VfxService.play_telegraph(global_position, radius, duration, tint, shape, forward, self, arc_deg)
 	_begin_weapon_charge(tint, duration)
 
 
@@ -671,7 +804,11 @@ func _end_weapon_charge() -> void:
 func _apply_hurtbox_data() -> void:
 	if _hurtbox == null:
 		return
-	if not _data.has("block_mitigation") and not _data.has("block_angle_deg"):
+	if (
+		not _data.has("block_mitigation")
+		and not _data.has("block_angle_deg")
+		and not _data.has("block_reduction")
+	):
 		return
 	if _hurtbox.get_script() != ShieldHurtboxScript:
 		_hurtbox.set_script(ShieldHurtboxScript)
@@ -679,6 +816,8 @@ func _apply_hurtbox_data() -> void:
 		_hurtbox.set("block_mitigation", float(_data.get("block_mitigation")))
 	if _data.has("block_angle_deg"):
 		_hurtbox.set("block_angle_deg", float(_data.get("block_angle_deg")))
+	if _data.has("block_reduction"):
+		_hurtbox.call("set_block_reduction", _data.get("block_reduction"))
 
 
 func _apply_mesh_tint(color: Color) -> void:
@@ -778,6 +917,10 @@ func _finalize_death(silent: bool) -> void:
 	_leave_room_engagement()
 	_unregister_combat_engagement()
 	_release_attack_token()
+	is_guarding = false
+	_sidestep_iframe_timer = 0.0
+	_punish_watching = false
+	_release_defensive_token()
 	if _phase_controller and _phase_controller.has_method("clear_death_spawns"):
 		_phase_controller.call("clear_death_spawns")
 	if _is_boss_enemy() and AudioDirector:
@@ -859,6 +1002,13 @@ func apply_stagger(duration: float) -> void:
 	if _state in [State.WINDUP, State.ATTACK]:
 		_combo_step = 0
 		_release_attack_token()
+	if _state in [State.GUARD, State.SIDESTEP, State.PUNISH]:
+		is_guarding = false
+		_sidestep_iframe_timer = 0.0
+		if _animator and _animator.is_bound():
+			_animator.set_blocking(false)
+		_release_defensive_token()
+	_punish_watching = false
 	_state = State.STAGGER
 	_stagger_timer = duration
 	_yield_room_turn()
@@ -866,9 +1016,13 @@ func apply_stagger(duration: float) -> void:
 		_hitbox.disable()
 	hide_attack_windup_bar()
 	if _animator and _animator.is_bound():
-		_animator.play_stagger(duration)
+		_animator.play_stagger(duration, _last_hit_direction)
 	elif _mesh:
 		_mesh.scale = Vector3.ONE
+	if _knockback and _last_hit_direction.length_squared() > 0.0001:
+		# `PH-02`: same normalisation the player's stagger impulse uses, so a poise break reads
+		# with the same weight on both sides of a fight.
+		_knockback.apply(_last_hit_direction, 0.8 * _last_hit_poise_damage / STAGGER_POISE_HIGH_REFERENCE)
 
 
 func cancel_attack() -> void:
@@ -913,6 +1067,10 @@ func _physics_process(delta: float) -> void:
 		velocity.z = 0.0
 	if not is_on_floor():
 		velocity += get_gravity() * delta
+	if _knockback:
+		var impulse := _knockback.consume(delta)
+		velocity.x += impulse.x
+		velocity.z += impulse.z
 	move_and_slide()
 	_update_diorama_animation(delta)
 
@@ -933,6 +1091,8 @@ func _update_diorama_animation(_delta: float) -> void:
 
 func _update_ai(delta: float) -> void:
 	_update_perception(delta)
+	if _room_registered:
+		EnemyBlackboard.maybe_reassign(_room_id)
 	if _phase_lock_timer > 0.0 and _state not in [State.WINDUP, State.ATTACK, State.RECOVERY]:
 		velocity.x = 0.0
 		velocity.z = 0.0
@@ -949,18 +1109,24 @@ func _update_ai(delta: float) -> void:
 		State.CIRCLE:
 			_process_circle(delta)
 		State.WINDUP:
-			var commit := _windup_commit_ratio()
-			_apply_chase_velocity(delta, WINDUP_APPROACH_SPEED_MULT * (1.0 - commit))
-			_on_windup_tick(commit >= 1.0)
-			_state_timer -= delta
-			if _windup_duration > 0.0:
-				var elapsed := _windup_duration - _state_timer
-				if _hp_bar:
-					_hp_bar.set_attack_telegraph_progress(
-						clampf(elapsed / _windup_duration, 0.0, 1.0)
-					)
-			if _state_timer <= 0.0:
-				_start_attack()
+			if _in_windup_hold:
+				_process_windup_hold(delta)
+			else:
+				var commit := _windup_commit_ratio()
+				_apply_chase_velocity(delta, WINDUP_APPROACH_SPEED_MULT * (1.0 - commit))
+				_on_windup_tick(commit >= 1.0)
+				_state_timer -= delta
+				if _windup_duration > 0.0:
+					var elapsed := _windup_duration - _state_timer
+					if _hp_bar:
+						_hp_bar.set_attack_telegraph_progress(
+							clampf(elapsed / _windup_duration, 0.0, 1.0)
+						)
+				if _state_timer <= 0.0:
+					if _windup_hold_timer > 0.0:
+						_enter_windup_hold()
+					else:
+						_start_attack()
 		State.ATTACK:
 			_apply_attack_lunge()
 			_state_timer -= delta
@@ -971,7 +1137,19 @@ func _update_ai(delta: float) -> void:
 			_state_timer -= delta
 			if _state_timer <= 0.0:
 				_state = State.CHASE if _has_aggro() else State.PATROL
-				_cooldown = _attack_cooldown_data
+				if _short_recovery_cooldown:
+					_cooldown = FEINT_COOLDOWN
+					_short_recovery_cooldown = false
+				else:
+					_cooldown = _attack_cooldown_data
+		State.GUARD:
+			_process_guard_state(delta)
+		State.SIDESTEP:
+			_process_sidestep_state(delta)
+		State.PUNISH:
+			_process_punish(delta)
+	if _punish_watching and _state in [State.CHASE, State.CIRCLE]:
+		_process_punish_watch(delta)
 
 
 func _process_patrol(delta: float) -> void:
@@ -1011,6 +1189,8 @@ func _process_chase(delta: float) -> void:
 		_state = State.RETREAT
 		_state_timer = 1.8
 		return
+	if _try_defensive_reaction():
+		return
 	if _can_attack():
 		_start_windup()
 		return
@@ -1048,6 +1228,8 @@ func _process_circle(delta: float) -> void:
 		return
 	_last_known_player_pos = _player.global_position
 	_state_timer -= delta
+	if _try_defensive_reaction():
+		return
 	if _can_attack():
 		_start_windup()
 		return
@@ -1060,7 +1242,14 @@ func _process_circle(delta: float) -> void:
 	var dir := to_player / dist
 	var desired: float = _engage_range * _circle_radius_mult * _role_spacing_mult()
 	var radial := clampf((dist - desired) / maxf(0.5, desired), -1.0, 1.0)
-	var tangent := Vector3(-dir.z, 0.0, dir.x) * _circle_direction
+	var tangent_dir := _circle_direction
+	var tangent_speed_mult := 1.0
+	if _role == EnemyBlackboard.Role.FLANKER:
+		var bearing_error := _flank_bearing_error_deg()
+		if not is_nan(bearing_error):
+			tangent_dir = 1.0 if bearing_error > 0.0 else -1.0
+			tangent_speed_mult = clampf(absf(bearing_error) / 30.0, 0.15, 1.0)
+	var tangent := Vector3(-dir.z, 0.0, dir.x) * tangent_dir * tangent_speed_mult
 	var move := tangent + dir * radial
 	if move.length_squared() < 0.01:
 		velocity = Vector3.ZERO
@@ -1068,6 +1257,26 @@ func _process_circle(delta: float) -> void:
 		velocity = move.normalized() * _move_speed * 0.8
 	if _state_timer <= 0.0:
 		_state = State.CHASE
+
+
+## `EN-08`: how far (in degrees) this flanker still has to travel around the player to reach its
+## assigned bearing, signed so `_process_circle()` can pick a tangent direction from it directly.
+## `NAN` means there is no player facing to steer against, so the caller should fall back to the
+## plain orbit every other role already uses.
+func _flank_bearing_error_deg() -> float:
+	if _player == null:
+		return NAN
+	var facing := CombatFacing.aim_forward_of(_player)
+	facing.y = 0.0
+	if facing.length_squared() < 0.0001:
+		return NAN
+	facing = facing.normalized()
+	var to_self := global_position - _player.global_position
+	to_self.y = 0.0
+	if to_self.length_squared() < 0.0001:
+		return NAN
+	var current := rad_to_deg(facing.signed_angle_to(to_self.normalized(), Vector3.UP))
+	return wrapf(_desired_flank_angle_deg - current, -180.0, 180.0)
 
 
 func _process_investigate(delta: float) -> void:
@@ -1125,6 +1334,35 @@ func _apply_chase_velocity(delta: float, speed_mult: float = 1.0) -> void:
 		velocity = dir * _move_speed * speed_mult
 	else:
 		velocity = Vector3.ZERO
+	velocity += _crowd_separation()
+
+
+## `PH-05`: `NavigationAgent3D` avoidance is enabled but its result is never read -- the state
+## machine writes `velocity` directly in seven places and an avoidance callback would fight all of
+## them. A separation term added at this one choke point is smaller, deterministic and easier to
+## reason about than wiring the callback through every writer. Capped at 30% of `_move_speed` so it
+## nudges a crowd into an arc rather than steering it outright.
+const CROWD_SEPARATION_RADIUS := 1.2
+const CROWD_SEPARATION_CAP_FRACTION := 0.3
+
+
+func _crowd_separation() -> Vector3:
+	var push := Vector3.ZERO
+	for other in EnemyBlackboard.nearby(global_position, CROWD_SEPARATION_RADIUS):
+		if other == self or not (other is Node3D):
+			continue
+		var away := global_position - (other as Node3D).global_position
+		away.y = 0.0
+		var dist := away.length()
+		if dist < 0.01 or dist >= CROWD_SEPARATION_RADIUS:
+			continue
+		push += away / (dist * dist)
+	if push.length_squared() < 0.0001:
+		return Vector3.ZERO
+	var cap := _move_speed * CROWD_SEPARATION_CAP_FRACTION
+	if push.length() > cap:
+		push = push.normalized() * cap
+	return push
 
 
 func _direction_toward(target: Vector3, delta: float, sidestep_when_blocked: bool) -> Vector3:
@@ -1321,6 +1559,166 @@ func _leave_room_engagement() -> void:
 	_role = EnemyBlackboard.Role.ENGAGER
 
 
+## `EN-07`: the enemy reads the player's own public `WeaponController` state -- never the other way
+## round, or the player side picks up AI coupling it should never need. Gated behind the attack
+## token exactly like an attack: the *one* enemy holding a token is the one that reacts, so a room
+## of six does not sidestep in unison.
+func _try_defensive_reaction() -> bool:
+	if _role != EnemyBlackboard.Role.ENGAGER or _player == null or _phase_lock_timer > 0.0:
+		return false
+	var guard_chance := float(_data.get("guard_chance", 0.0))
+	var sidestep_chance := float(_data.get("sidestep_chance", 0.0))
+	if guard_chance <= 0.0 and sidestep_chance <= 0.0:
+		return false
+	var weapon := _player.get_node_or_null("WeaponController") as WeaponController
+	if weapon == null or not weapon.is_attacking:
+		return false
+	if weapon.current_phase != WeaponController.AttackPhase.STARTUP:
+		return false
+	var in_engage_range := _distance_to_player_sq() <= _engage_range * _engage_range
+	if in_engage_range and guard_chance > 0.0 and _enemy_rng.randf() < guard_chance:
+		if not _request_defensive_token():
+			return false
+		_enter_guard_state(weapon)
+		return true
+	if not in_engage_range and sidestep_chance > 0.0 and _enemy_rng.randf() < sidestep_chance:
+		if not _request_defensive_token():
+			return false
+		_enter_sidestep_state()
+		return true
+	return false
+
+
+func _request_defensive_token() -> bool:
+	if _defensive_token_held:
+		return true
+	_attack_token_group = str(_data.get("attack_token_group", "room_default"))
+	if AttackTokenService and not AttackTokenService.request_token(_attack_token_group):
+		return false
+	_defensive_token_held = true
+	return true
+
+
+func _release_defensive_token() -> void:
+	if _defensive_token_held and AttackTokenService:
+		AttackTokenService.release_token(_attack_token_group)
+	_defensive_token_held = false
+
+
+## Held for roughly the player's remaining startup + active window so the shield is actually up
+## while the swing that provoked it lands, rather than a canned duration guessing at the timing.
+func _enter_guard_state(_weapon: WeaponController) -> void:
+	_state = State.GUARD
+	_guard_timer = GUARD_FALLBACK_DURATION
+	is_guarding = true
+	velocity.x = 0.0
+	velocity.z = 0.0
+	if _animator and _animator.is_bound():
+		_animator.set_blocking(true)
+
+
+func _process_guard_state(delta: float) -> void:
+	velocity.x = 0.0
+	velocity.z = 0.0
+	if _player:
+		_face_direction((_player.global_position - global_position), delta)
+	_guard_timer -= delta
+	if _guard_timer <= 0.0:
+		_end_guard_state()
+
+
+func _end_guard_state() -> void:
+	is_guarding = false
+	if _animator and _animator.is_bound():
+		_animator.set_blocking(false)
+	_release_defensive_token()
+	_start_punish_watch()
+	_state = State.CHASE if _has_aggro() else State.PATROL
+
+
+## A 0.35 s lateral dash with i-frames over its first 60% -- the sidestep is the read-and-answer to
+## a ranged or lunging attack the enemy cannot block its way out of.
+func _enter_sidestep_state() -> void:
+	_state = State.SIDESTEP
+	_sidestep_timer = SIDESTEP_DURATION
+	_sidestep_iframe_timer = SIDESTEP_DURATION * SIDESTEP_IFRAME_FRACTION
+
+
+func _process_sidestep_state(delta: float) -> void:
+	var tangent := Vector3(-1.0, 0.0, 0.0)
+	if _player:
+		var to_player := _player.global_position - global_position
+		to_player.y = 0.0
+		if to_player.length_squared() > 0.01:
+			var dir := to_player.normalized()
+			tangent = Vector3(-dir.z, 0.0, dir.x) * _circle_direction
+	velocity = tangent * SIDESTEP_SPEED
+	_sidestep_timer -= delta
+	if _sidestep_iframe_timer > 0.0:
+		_sidestep_iframe_timer -= delta
+	if _sidestep_timer <= 0.0:
+		_end_sidestep_state()
+
+
+func _end_sidestep_state() -> void:
+	_sidestep_iframe_timer = 0.0
+	_release_defensive_token()
+	_start_punish_watch()
+	_state = State.CHASE if _has_aggro() else State.PATROL
+
+
+## `PUNISH` is the payoff for reading the player correctly: if their attack whiffs and lands in
+## `RECOVERY` within `punish_window` of the guard or sidestep, the enemy skips its own cooldown and
+## swings immediately with the fastest attack in its kit.
+func _start_punish_watch() -> void:
+	var window := float(_data.get("punish_window", PUNISH_WINDOW_DEFAULT))
+	if window <= 0.0:
+		return
+	_punish_watching = true
+	_punish_watch_timer = window
+
+
+func _process_punish_watch(delta: float) -> void:
+	_punish_watch_timer -= delta
+	if _punish_watch_timer <= 0.0:
+		_punish_watching = false
+		return
+	if _player == null:
+		return
+	var weapon := _player.get_node_or_null("WeaponController") as WeaponController
+	if weapon == null:
+		return
+	if weapon.current_phase == WeaponController.AttackPhase.RECOVERY:
+		_punish_watching = false
+		_state = State.PUNISH
+
+
+func _process_punish(_delta: float) -> void:
+	velocity.x = 0.0
+	velocity.z = 0.0
+	if not _request_defensive_token():
+		_state = State.CHASE if _has_aggro() else State.PATROL
+		return
+	_current_attack_data = _fastest_attack()
+	_enter_windup(_current_attack_data)
+
+
+func _fastest_attack() -> Dictionary:
+	var fastest: Dictionary = {}
+	var best_windup := INF
+	for entry in _attacks:
+		if not (entry is Dictionary):
+			continue
+		var atk: Dictionary = entry
+		var windup := float(atk.get("windup_duration", _data.get("windup_duration", 0.7)))
+		if windup < best_windup:
+			best_windup = windup
+			fastest = atk
+	if fastest.is_empty():
+		return _first_attack_entry()
+	return fastest
+
+
 func _can_attack() -> bool:
 	if _cooldown > 0.0 or _player == null or _phase_lock_timer > 0.0:
 		return false
@@ -1413,9 +1811,18 @@ func _start_windup() -> void:
 	_enter_windup(_current_attack_data)
 
 
+## `EN-05`: `hold_fraction` reserves the tail of the windup as a frozen hold rather than letting the
+## telegraph fill creep at a constant rate -- a player who dodges on the ring instead of the enemy
+## has nothing to read. The hold is timed separately from `_state_timer`/`_windup_duration` (see
+## `_windup_hold_timer`) precisely so the commit-facing math in `_windup_commit_ratio()` still
+## resolves against the pre-hold run alone: committing facing only through the hold's start, not
+## through the hold itself, is what keeps a feint escapable.
 func _enter_windup(attack_data: Dictionary) -> void:
 	_current_attack_data = attack_data
 	_state = State.WINDUP
+	_in_windup_hold = false
+	_windup_hold_timer = 0.0
+	_windup_will_feint = false
 	var windup: float = float(
 		attack_data.get("windup_duration", _data.get("windup_duration", 0.7))
 	)
@@ -1424,7 +1831,18 @@ func _enter_windup(attack_data: Dictionary) -> void:
 	)
 	if windup_variance > 0.0:
 		windup += _enemy_rng.randf_range(-windup_variance, windup_variance)
-	_state_timer = maxf(0.05, windup)
+	windup = maxf(0.05, windup)
+	var hold_fraction := clampf(
+		float(attack_data.get("hold_fraction", _data.get("hold_fraction", 0.0))), 0.0, 0.6
+	)
+	if hold_fraction > 0.0:
+		var feint_chance := clampf(
+			float(attack_data.get("feint_chance", _data.get("feint_chance", 0.0))), 0.0, 0.4
+		)
+		_windup_will_feint = _enemy_rng.randf() < feint_chance
+		_windup_hold_timer = windup * hold_fraction
+		windup *= (1.0 - hold_fraction)
+	_state_timer = windup
 	_sync_hitbox_from_anim = (
 		_animator != null and _animator.is_bound() and _animator.drives_hitbox_events()
 	)
@@ -1442,15 +1860,27 @@ func _enter_windup(attack_data: Dictionary) -> void:
 	attack_telegraph_started.emit(_current_attack_class())
 
 
+## `EN-01`: every attack in `content/enemies/*.json` and `content/bosses/*.json` now authors
+## `attackClass` directly, so this is a safety net for content that has not been re-authored (or a
+## future addition that forgets it), not the primary path. The poise-derived guess it replaces only
+## ever produced `blockable`/`unblockable`, so `parryable` and `grab` never appeared in the game.
+static var _warned_missing_class: Dictionary = {}
+
+
 func _current_attack_class() -> String:
 	var authored := str(_current_attack_data.get("attackClass", ""))
 	if authored != "":
 		return authored
-	var poise := float(
-		_current_attack_data.get("attack_poise_damage", _data.get("attack_poise_damage", 12.0))
-	)
-	if poise >= Guard.DEFAULT_GUARD_BREAK_POISE:
-		return "unblockable"
+	var root_authored := str(_data.get("attackClass", ""))
+	if root_authored != "":
+		return root_authored
+	var catalog_id := get_enemy_id()
+	if not _warned_missing_class.has(catalog_id):
+		_warned_missing_class[catalog_id] = true
+		push_warning(
+			"CastleEnemyBase: enemy '%s' has an attack with no attackClass -- defaulting to blockable"
+			% catalog_id
+		)
 	return "blockable"
 
 
@@ -1482,7 +1912,10 @@ func _start_attack() -> void:
 				_current_attack_data.get(
 					"status_stacks_on_hit", _data.get("status_stacks_on_hit", 1)
 				)
-			)
+			),
+			0.0,
+			1.5,
+			_current_attack_class()
 		)
 		if not _sync_hitbox_from_anim and not bool(_current_attack_data.get("no_hitbox", false)):
 			_hitbox.enable()
@@ -1630,6 +2063,55 @@ func _on_windup_tick(_committed: bool) -> void:
 	pass
 
 
+## The pre-hold run already committed facing (see `_enter_windup()`'s doc comment), so the hold
+## itself only has to freeze the body and the telegraph -- rolling early during a held tell should
+## still work, since nothing here re-locks the player's position.
+func _enter_windup_hold() -> void:
+	_in_windup_hold = true
+	velocity.x = 0.0
+	velocity.z = 0.0
+	if _animator and _animator.is_bound():
+		_animator.set_speed_scale(0.0)
+	if _windup_will_feint:
+		_cancel_windup_as_feint()
+
+
+func _process_windup_hold(delta: float) -> void:
+	velocity.x = 0.0
+	velocity.z = 0.0
+	_windup_hold_timer -= delta
+	if _windup_hold_timer <= 0.0:
+		_release_windup_hold()
+
+
+func _release_windup_hold() -> void:
+	_in_windup_hold = false
+	_windup_hold_timer = 0.0
+	if _animator and _animator.is_bound():
+		_animator.set_speed_scale(1.0)
+	_start_attack()
+
+
+## A feint is not a whiffed attack -- it never opens a hitbox and never spends the normal recovery,
+## so the follow-up (the real attack) can arrive again quickly. `FEINT_COOLDOWN` is short on
+## purpose: the whole point is to punish a player who rolled the instant the hold began.
+func _cancel_windup_as_feint() -> void:
+	_in_windup_hold = false
+	_windup_hold_timer = 0.0
+	_windup_will_feint = false
+	if _animator and _animator.is_bound():
+		_animator.set_speed_scale(1.0)
+	hide_attack_windup_bar()
+	if _hitbox:
+		_hitbox.disable()
+	_combo_step = 0
+	_release_attack_token()
+	_yield_room_turn()
+	_state = State.RECOVERY
+	_state_timer = 0.25
+	_short_recovery_cooldown = true
+
+
 func _apply_attack_lunge() -> void:
 	velocity.x = 0.0
 	velocity.z = 0.0
@@ -1678,12 +2160,13 @@ func _on_poise_broken() -> void:
 func _on_hurt(info: DamageInfo) -> void:
 	if info.direction.length_squared() > 0.01:
 		_last_hit_direction = info.direction
+	_last_hit_poise_damage = info.poise_damage
 	if is_dead():
 		return
 	if _state in [State.WINDUP, State.ATTACK]:
 		return
 	if _animator and _animator.is_bound():
-		_animator.play_flinch()
+		_animator.play_flinch(_last_hit_direction)
 		return
 	if not _mesh:
 		return

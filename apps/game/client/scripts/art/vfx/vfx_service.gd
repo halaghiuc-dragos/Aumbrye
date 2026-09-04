@@ -306,7 +306,8 @@ func play_telegraph(
 	tint: Color = Color(0.98, 0.68, 0.20),
 	shape: String = "circle",
 	forward: Vector3 = Vector3.FORWARD,
-	follow: Node3D = null
+	follow: Node3D = null,
+	arc_deg: float = 90.0
 ) -> void:
 	var effect_id := "telegraph_%s" % shape
 	if not _effects.has(effect_id):
@@ -330,6 +331,7 @@ func play_telegraph(
 			"shape": shape,
 			"forward": forward,
 			"follow": follow,
+			"arc_deg": arc_deg,
 		}
 	)
 
@@ -529,10 +531,11 @@ func _play_glyph_layer(
 	var radius := float(overrides.get("radius", layer.get("radius", 1.6)))
 	var duration := float(overrides.get("duration", layer.get("duration", 0.6)))
 	var shape := String(overrides.get("shape", layer.get("shape", "circle")))
+	var arc_deg := float(overrides.get("arc_deg", layer.get("arc_deg", 90.0)))
 	var tint := _color_from_layer(layer, tint_override)
 	var glyph_forward: Vector3 = overrides.get("forward", forward)
 	var follow: Node3D = overrides.get("follow", null) as Node3D
-	_build_telegraph_glyph(world_pos, radius, duration, tint, shape, glyph_forward, follow)
+	_build_telegraph_glyph(world_pos, radius, duration, tint, shape, glyph_forward, follow, arc_deg)
 
 
 func _play_impact_layer(layer: Dictionary) -> void:
@@ -976,7 +979,8 @@ func _build_telegraph_glyph(
 	tint: Color,
 	shape: String,
 	forward: Vector3,
-	follow: Node3D = null
+	follow: Node3D = null,
+	arc_deg: float = 90.0
 ) -> void:
 	var glyph := Node3D.new()
 	glyph.name = "TelegraphGlyph"
@@ -1005,7 +1009,7 @@ func _build_telegraph_glyph(
 		"line":
 			_telegraph_line(glyph, sweep, radius, rim_mat, fill_mat)
 		"cone":
-			_telegraph_cone(glyph, sweep, radius, rim_mat, fill_mat)
+			_telegraph_cone(glyph, sweep, radius, rim_mat, fill_mat, arc_deg)
 		"ring":
 			_telegraph_ring(glyph, sweep, radius, rim_mat)
 		_:
@@ -1091,9 +1095,14 @@ func _telegraph_line(
 
 
 func _telegraph_cone(
-	glyph: Node3D, sweep: Node3D, radius: float, rim_mat: Material, fill_mat: Material
+	glyph: Node3D,
+	sweep: Node3D,
+	radius: float,
+	rim_mat: Material,
+	fill_mat: Material,
+	arc_deg: float = 90.0
 ) -> void:
-	var half := PI * 0.38
+	var half := deg_to_rad(arc_deg) * 0.5
 	var segments := 12
 	for i in segments:
 		var angle := lerpf(-half, half, float(i) / float(segments - 1))

@@ -18,6 +18,7 @@ var _final_wave := DEFAULT_FINAL_WAVE
 var _intermission_every := DEFAULT_INTERMISSION_EVERY
 var _boss_every := DEFAULT_BOSS_EVERY
 var _cash_out_from := DEFAULT_CASH_OUT_FROM
+var _arena_states: Array[String] = []
 
 var current_wave: int = 0
 var prep_active: bool = false
@@ -64,6 +65,9 @@ func _load_definition() -> void:
 	_intermission_every = maxi(1, int(data.get("intermissionEvery", DEFAULT_INTERMISSION_EVERY)))
 	_boss_every = maxi(1, int(data.get("bossEvery", DEFAULT_BOSS_EVERY)))
 	_cash_out_from = maxi(1, int(data.get("cashOutFromWave", DEFAULT_CASH_OUT_FROM)))
+	_arena_states = []
+	for entry in data.get("arenaStates", []):
+		_arena_states.append(str(entry))
 
 
 func begin_new_run(run_seed: int = 0) -> void:
@@ -103,6 +107,14 @@ func restore_from_save(saved: Dictionary) -> void:
 
 func get_seed() -> int:
 	return _run_seed
+
+
+## MD-01: `content/waves/umbral_waves.json:arenaStates` -- empty means "let the mutator use its
+## own built-in rotation" rather than a hard failure, since a floor definition authored before this
+## field existed should still get an arena that changes.
+func get_arena_states() -> Array[String]:
+	_ensure_definition()
+	return _arena_states
 
 
 func to_save_dict() -> Dictionary:
@@ -427,6 +439,26 @@ func cash_out_item(item_id: String) -> bool:
 		InventoryService.notify_reward_lost(item_id)
 		return false
 	return true
+
+
+## MD-02: banks each id in turn, returning only the ones that actually made it home -- a full bag
+## can still strip one item out of an otherwise-successful cash-out, same as `cash_out_item()`.
+func cash_out_items(item_ids: Array) -> Array[String]:
+	var banked: Array[String] = []
+	for raw_id in item_ids:
+		if cash_out_item(str(raw_id)):
+			banked.append(str(raw_id))
+	return banked
+
+
+## MD-02: the offer escalates with depth so staying is a temptation, not just a greedy holdout --
+## from wave 30 bank two, from wave 40 bank three.
+func cash_out_bank_count(wave: int) -> int:
+	if wave >= 40:
+		return 3
+	if wave >= 30:
+		return 2
+	return 1
 
 
 ## The roster slides rather than accumulates. If every band stayed in the pool forever, wave 50

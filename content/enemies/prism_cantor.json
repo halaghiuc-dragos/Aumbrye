@@ -40,8 +40,9 @@
       "attack_damage": 38,
       "attack_poise_damage": 24,
       "max_range": 2.8,
-      "telegraph_radius": 1.96,
-      "telegraph_shape": "circle"
+      "telegraph_shape": "circle",
+      "attackClass": "blockable",
+      "knockback": 2.5
     },
     {
       "id": "cleave",
@@ -54,8 +55,9 @@
       "attack_damage": 70,
       "attack_poise_damage": 43,
       "max_range": 3.08,
-      "telegraph_radius": 2.8,
-      "telegraph_shape": "cone"
+      "telegraph_shape": "cone",
+      "attackClass": "unblockable",
+      "knockback": 3.5
     },
     {
       "id": "chain",
@@ -68,7 +70,6 @@
       "attack_damage": 41,
       "attack_poise_damage": 26,
       "max_range": 2.8,
-      "telegraph_radius": 2.38,
       "telegraph_shape": "circle",
       "combo_followups": [
         {
@@ -82,10 +83,13 @@
           "attack_damage": 29,
           "attack_poise_damage": 30,
           "max_range": 2.8,
-          "telegraph_radius": 2.52,
-          "telegraph_shape": "cone"
+          "telegraph_shape": "cone",
+          "attackClass": "unblockable",
+          "knockback": 3.0
         }
-      ]
+      ],
+      "attackClass": "unblockable",
+      "knockback": 3.0
     },
     {
       "id": "sig_split",
@@ -98,7 +102,6 @@
       "attack_damage": 28,
       "attack_poise_damage": 14,
       "max_range": 2.9,
-      "telegraph_radius": 2.2,
       "telegraph_shape": "cone",
       "damage_type": "arcane",
       "combo_followups": [
@@ -112,9 +115,10 @@
           "attack_damage": 18,
           "attack_poise_damage": 14,
           "max_range": 2.9,
-          "telegraph_radius": 2.2,
           "telegraph_shape": "cone",
-          "damage_type": "arcane"
+          "damage_type": "arcane",
+          "attackClass": "unblockable",
+          "knockback": 2.0
         },
         {
           "id": "sig_split_c",
@@ -126,11 +130,14 @@
           "attack_damage": 26,
           "attack_poise_damage": 30,
           "max_range": 3.1,
-          "telegraph_radius": 2.5,
           "telegraph_shape": "cone",
-          "damage_type": "arcane"
+          "damage_type": "arcane",
+          "attackClass": "unblockable",
+          "knockback": 3.0
         }
-      ]
+      ],
+      "attackClass": "unblockable",
+      "knockback": 2.0
     }
   ],
   "phases": [
@@ -150,8 +157,9 @@
           "attack_damage": 38,
           "attack_poise_damage": 24,
           "max_range": 2.8,
-          "telegraph_radius": 1.96,
-          "telegraph_shape": "circle"
+          "telegraph_shape": "circle",
+          "attackClass": "blockable",
+          "knockback": 2.5
         },
         {
           "id": "cleave",
@@ -164,8 +172,9 @@
           "attack_damage": 70,
           "attack_poise_damage": 43,
           "max_range": 3.08,
-          "telegraph_radius": 2.8,
-          "telegraph_shape": "cone"
+          "telegraph_shape": "cone",
+          "attackClass": "unblockable",
+          "knockback": 3.5
         },
         {
           "id": "chain",
@@ -178,7 +187,6 @@
           "attack_damage": 41,
           "attack_poise_damage": 26,
           "max_range": 2.8,
-          "telegraph_radius": 2.38,
           "telegraph_shape": "circle",
           "combo_followups": [
             {
@@ -192,10 +200,13 @@
               "attack_damage": 29,
               "attack_poise_damage": 30,
               "max_range": 2.8,
-              "telegraph_radius": 2.52,
-              "telegraph_shape": "cone"
+              "telegraph_shape": "cone",
+              "attackClass": "unblockable",
+              "knockback": 3.0
             }
-          ]
+          ],
+          "attackClass": "unblockable",
+          "knockback": 3.0
         }
       ]
     },
@@ -215,8 +226,9 @@
           "attack_damage": 38,
           "attack_poise_damage": 24,
           "max_range": 2.8,
-          "telegraph_radius": 1.96,
-          "telegraph_shape": "circle"
+          "telegraph_shape": "circle",
+          "attackClass": "blockable",
+          "knockback": 2.5
         },
         {
           "id": "cleave",
@@ -229,8 +241,9 @@
           "attack_damage": 70,
           "attack_poise_damage": 43,
           "max_range": 3.08,
-          "telegraph_radius": 2.8,
-          "telegraph_shape": "cone"
+          "telegraph_shape": "cone",
+          "attackClass": "unblockable",
+          "knockback": 3.5
         },
         {
           "id": "feint",
@@ -243,8 +256,9 @@
           "attack_damage": 64,
           "attack_poise_damage": 42,
           "max_range": 3.5,
-          "telegraph_radius": 3.22,
-          "telegraph_shape": "cone"
+          "telegraph_shape": "cone",
+          "attackClass": "unblockable",
+          "knockback": 3.5
         },
         {
           "id": "quake",
@@ -257,14 +271,15 @@
           "attack_damage": 52,
           "attack_poise_damage": 50,
           "max_range": 3.64,
-          "telegraph_radius": 3.92,
           "telegraph_shape": "ring",
           "spawn_hazard": {
             "scene": "res://scenes/bosses/crystal_pillar_hazard.tscn",
             "count": 3,
             "radius": 6,
             "lifetime": 9
-          }
+          },
+          "attackClass": "unblockable",
+          "knockback": 3.5
         }
       ],
       "moveSpeedMult": 1.09,

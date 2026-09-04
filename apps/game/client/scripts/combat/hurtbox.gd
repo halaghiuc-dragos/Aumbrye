@@ -22,6 +22,11 @@ const DEFENSE_CAP := 0.75
 const HYPERARMOR_POISE_MULT := 0.25
 const POISE_BROKEN_DAMAGE_MULT := 1.35
 const EXHAUSTED_POISE_MULT := 1.5
+## `PH-01`: a hit that breaks poise this frame shoves harder -- the number that finally makes a
+## poise break *look* like the swing that caused it rather than a stat crossing a threshold.
+const POISE_BREAK_KNOCKBACK_MULT := 2.0
+const KNOCKBACK_MASS_MIN := 0.5
+const KNOCKBACK_MASS_MAX := 3.0
 
 signal damaged(info: DamageInfo)
 signal hurt_received(amount: float, poise_damage: float, direction: Vector3)
@@ -90,6 +95,12 @@ func receive_hit(info: DamageInfo) -> void:
 				var iframe_feedback := iframe_body.get_node_or_null("HitFeedback")
 				if iframe_feedback and iframe_feedback.has_method("on_dodge_iframe"):
 					iframe_feedback.call("on_dodge_iframe")
+				# CB-06: "a dodge that actually avoided a hit" -- the timed i-frame dodge, not the
+				# passive evasion-stat roll below (that is a miss chance, not a player action).
+				if CombatEvents:
+					CombatEvents.dispatch(
+						CombatEvents.ON_PERFECT_DODGE, {"actor": iframe_body, "target": info.source}
+					)
 			hit_resolved.emit(res)
 			return
 
@@ -112,14 +123,27 @@ func receive_hit(info: DamageInfo) -> void:
 		hit_resolved.emit(res)
 		return
 
+	if info.attack_class == "grab" and not info.periodic and _try_apply_grab(info, owner_body, res):
+		hit_resolved.emit(res)
+		return
+
 	var arc := DamageInfo.HitArc.FRONT
 	if owner_body and info.source:
 		arc = DamageInfo.classify_arc(owner_body, info.source.global_position)
 
 	var guard := _cached_guard if not info.ignore_guard else null
 	if guard and guard.has_method("try_parry_attack") and info.source:
-		if guard.call("try_parry_attack", info.source, arc):
+		if guard.call("try_parry_attack", info.source, arc, info.attack_class):
 			res.parried = true
+			res.outgoing = 0.0
+			res.poise_outgoing = 0.0
+			hit_resolved.emit(res)
+			return
+	# CB-03: attempted only once the parry itself was unavailable (unaffordable or on cooldown) --
+	# `try_just_guard()` checks its own tighter timing window independently.
+	if guard and guard.has_method("try_just_guard") and info.source:
+		if guard.call("try_just_guard", info.source, arc, info.attack_class):
+			res.blocked = true
 			res.outgoing = 0.0
 			res.poise_outgoing = 0.0
 			hit_resolved.emit(res)
@@ -162,7 +186,9 @@ func receive_hit(info: DamageInfo) -> void:
 			RunFlow.register_player_boss_damage()
 
 	var hyperarmor := _is_hyperarmor_active()
+	var poise_broke_this_hit := false
 	if _poise and final_poise > 0.0 and (_health == null or not _health.is_dead()):
+		var was_broken := _poise.is_broken()
 		var poise_hit := final_poise
 		if hyperarmor:
 			poise_hit *= HYPERARMOR_POISE_MULT
@@ -173,7 +199,9 @@ func receive_hit(info: DamageInfo) -> void:
 				poise_hit *= EXHAUSTED_POISE_MULT
 		_poise.take_poise_damage(poise_hit)
 		res.poise_outgoing = poise_hit
+		poise_broke_this_hit = not was_broken and _poise.is_broken()
 
+	_apply_knockback(info, res, owner_body, hyperarmor, poise_broke_this_hit)
 	_apply_status_from_hit(info)
 	var impact := _impact_class_for(res, info.execution)
 	_emit_victim_feedback(
@@ -195,6 +223,62 @@ func receive_hit(info: DamageInfo) -> void:
 		hurt_received.emit(final_amount, final_poise, info.direction)
 
 
+## `EN-02`: a grab bypasses poise, guard and parry entirely -- it is answered by not being caught.
+## Returns true only when a `PlayerCombatReactions` on the victim actually accepted the grab; a
+## victim with none (an enemy, say) falls through to the normal damage pipeline instead.
+func _try_apply_grab(info: DamageInfo, owner_body: Node, res: RefCounted) -> bool:
+	if owner_body == null:
+		return false
+	var reactions := owner_body.get_node_or_null("CombatReactions")
+	if reactions == null or not reactions.has_method("apply_grab"):
+		return false
+	var guard := _cached_guard
+	var duration := 1.6
+	if guard and guard.has_method("get_grab_duration"):
+		duration = float(guard.call("get_grab_duration"))
+	var final_amount := _apply_defense(info.amount)
+	final_amount = _apply_resistances(final_amount, info.damage_type)
+	if team == "player":
+		final_amount = AccessibilitySettings.scale_incoming_player_damage(final_amount)
+	res.outgoing = final_amount
+	res.poise_outgoing = 0.0
+	reactions.call("apply_grab", final_amount, info.source, duration)
+	return true
+
+
+## `PH-01`: only a hit that actually landed pushes the victim -- a blocked, parried or dodged hit
+## must not, or a raised shield would still get shoved around by the swing it just stopped.
+## Horizontal-only and mass-scaled (Trap 1): `Knockback.apply()` already flattens the direction, so
+## the only work here is picking the strength and finding the victim's `Knockback` node.
+func _apply_knockback(
+	info: DamageInfo, res: RefCounted, owner_body: Node, hyperarmor: bool, poise_broke: bool
+) -> void:
+	if info.knockback <= 0.0 or res.outgoing <= 0.0:
+		return
+	if res.blocked or res.parried or res.dodged:
+		return
+	if owner_body == null:
+		return
+	var knockback_node := owner_body.get_node_or_null("Knockback") as Knockback
+	if knockback_node == null:
+		return
+	var strength := info.knockback
+	if poise_broke:
+		strength *= POISE_BREAK_KNOCKBACK_MULT
+	if hyperarmor:
+		strength *= HYPERARMOR_POISE_MULT
+	strength /= clampf(_target_mass(owner_body), KNOCKBACK_MASS_MIN, KNOCKBACK_MASS_MAX)
+	knockback_node.apply(info.direction, strength)
+
+
+func _target_mass(body: Node) -> float:
+	if body.has_method("get_enemy_id"):
+		var enemy_id: String = body.call("get_enemy_id")
+		if enemy_id != "":
+			return float(EnemyCatalog.get_definition(enemy_id).get("mass", 1.0))
+	return 1.0
+
+
 func receive_periodic_damage(amount: float, dmg_type: String = DamageInfo.TYPE_PHYSICAL) -> void:
 	var info := DamageInfo.create(amount, 0.0, null, dmg_type)
 	info.ignore_iframes = true
@@ -209,6 +293,10 @@ func _apply_arc_multipliers(
 	if amount <= 0.0 or info.source == null:
 		return amount
 	var dmg_mult := DamageInfo.arc_damage_multiplier(arc)
+	# CB-05: the dagger's backstab is the best in the game -- a per-weapon override on the arc
+	# multiplier every other weapon still gets from the shared default.
+	if arc == DamageInfo.HitArc.BACK and info.backstab_multiplier_override > 0.0:
+		dmg_mult = info.backstab_multiplier_override
 	var poise_mult := DamageInfo.arc_poise_multiplier(arc)
 	res.backstab = arc == DamageInfo.HitArc.BACK
 	res.stages.append(

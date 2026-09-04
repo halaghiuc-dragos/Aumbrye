@@ -21,7 +21,26 @@ signal menu_closed
 
 var _selected_skip := ""
 var _stake_label: Label
+var _stake_card: PanelContainer
 var _preview_seed := 0
+
+## MD-03: a real risk/reward card for the stake, not a plain label -- bordered and tinted danger
+## red so it reads as a warning the moment a skip is picked, distinct from the button list above.
+static func _stake_card_style() -> StyleBoxFlat:
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(0.16, 0.05, 0.05, 0.92)
+	style.border_color = GameUISkinScript.DANGER_COLOR
+	style.set_border_width_all(2)
+	style.set_corner_radius_all(0 if GameUISkinScript.is_pixel_ui() else 6)
+	style.set_content_margin_all(14)
+	return style
+
+
+## Ten floors is a mild trade; five hundred is a legendary one. Escalates the button border from
+## the game's own stat colours rather than inventing a new palette just for this menu.
+static func _skip_stake_color(start_floor: int) -> Color:
+	var t := clampf(float(start_floor) / 501.0, 0.0, 1.0)
+	return GameUISkinScript.STAT_DELTA_POSITIVE.lerp(GameUISkinScript.DANGER_COLOR, t)
 
 
 func _ready() -> void:
@@ -103,22 +122,29 @@ func _build_skip_buttons() -> void:
 		child.queue_free()
 	_selected_skip = ""
 	_stake_label = null
+	_stake_card = null
 	var skips: Array[Dictionary] = SkipFloorSvc.get_available_skips(InventoryService.inventory)
 	for entry in skips:
 		var item_id: String = str(entry.get("itemId", ""))
 		var item_name: String = str(ItemCatalog.get_definition(item_id).get("name", item_id))
 		var info := SkipFloorSvc.describe_skip(item_id, _preview_seed)
+		var start_floor := int(entry.get("startFloor", 1))
 		var btn := GameUISkinScript.make_button(
 			(
 				"%s x%d → floor %d (%s)"
 				% [
 					item_name,
 					int(entry.get("quantity", 1)),
-					int(entry.get("startFloor", 1)),
+					start_floor,
 					str(info.get("biomeName", "")),
 				]
 			)
 		)
+		var border := StyleBoxFlat.new()
+		border.bg_color = Color.TRANSPARENT
+		border.border_color = _skip_stake_color(start_floor)
+		border.set_border_width_all(2)
+		btn.add_theme_stylebox_override("normal", border)
 		btn.pressed.connect(_on_skip_selected.bind(item_id, btn))
 		_skip_box.add_child(btn)
 	for offer in SkipFloorSvc.available_conversions(InventoryService.inventory):
@@ -138,6 +164,10 @@ func _build_skip_buttons() -> void:
 		convert_btn.disabled = not bool(offer.get("affordable", false))
 		convert_btn.pressed.connect(_on_convert_pressed.bind(from_id, to_id))
 		_skip_box.add_child(convert_btn)
+	_stake_card = PanelContainer.new()
+	_stake_card.name = "StakeCard"
+	_stake_card.add_theme_stylebox_override("panel", _stake_card_style())
+	_skip_box.add_child(_stake_card)
 	_stake_label = Label.new()
 	_stake_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	if skips.is_empty():
@@ -145,7 +175,7 @@ func _build_skip_buttons() -> void:
 	else:
 		_stake_label.text = tr("ENDLESS_CHOOSE_STAIR")
 	GameUISkinScript.style_body_label(_stake_label)
-	_skip_box.add_child(_stake_label)
+	_stake_card.add_child(_stake_label)
 	_skip_start_button.disabled = true
 
 

@@ -29,21 +29,25 @@
     {
       "damage": 10,
       "poise_damage": 6,
-      "stamina_cost": 10,
+      "stamina_cost": 0,
       "startup": 0.2,
       "active": 0.12,
       "recovery": 0.28,
-      "lunge_distance": 0.2
+      "lunge_distance": 0.2,
+      "knockback": 1.0,
+      "mana_cost": 10
     },
     {
       "damage": 12,
       "poise_damage": 8,
-      "stamina_cost": 12,
+      "stamina_cost": 0,
       "startup": 0.22,
       "active": 0.14,
       "recovery": 0.3,
       "lunge_distance": 0.22,
-      "heavy_branch": 0
+      "heavy_branch": 0,
+      "knockback": 1.0,
+      "mana_cost": 12
     }
   ],
   "heavy_attack": {
@@ -53,7 +57,8 @@
     "startup": 0.35,
     "active": 0.18,
     "recovery": 0.45,
-    "lunge_distance": 0.3
+    "lunge_distance": 0.3,
+    "knockback": 2.5
   },
   "heavy_attacks": [
     {
@@ -65,7 +70,8 @@
       "recovery": 0.4,
       "damage_type": "arcane",
       "lunge_distance": 0.3,
-      "cancel_after": 0.6
+      "cancel_after": 0.6,
+      "knockback": 2.5
     }
   ],
   "running_attack": {
@@ -77,7 +83,8 @@
     "recovery": 0.3,
     "damage_type": "arcane",
     "lunge_distance": 0.9,
-    "cancel_after": 0.45
+    "cancel_after": 0.45,
+    "knockback": 2.0
   },
   "rolling_attack": {
     "damage": 11,
@@ -88,7 +95,8 @@
     "recovery": 0.28,
     "damage_type": "arcane",
     "lunge_distance": 0.35,
-    "cancel_after": 0.4
+    "cancel_after": 0.4,
+    "knockback": 1.2
   },
   "art": {
     "id": "arcane_nova",
@@ -101,6 +109,7 @@
     "recovery": 0.52,
     "lunge_distance": 0,
     "hyperarmor": true,
-    "cooldown": 9
+    "cooldown": 9,
+    "knockback": 2.0
   }
 }

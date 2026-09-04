@@ -1,9 +1,11 @@
 extends "res://scripts/dungeon/room_content/room_content_base.gd"
 
 const DioramaSkin := preload("res://scripts/art/props/diorama_interactable_skin.gd")
+const InteractPromptScript := preload("res://scripts/ui/interact_prompt.gd")
 
 var _dialogue_id := "dungeon_lore_default"
 var _near_player := false
+var _prompt: InteractPrompt
 
 
 func configure(entry: Dictionary, _definition: Dictionary) -> void:
@@ -26,16 +28,21 @@ func configure(entry: Dictionary, _definition: Dictionary) -> void:
 	prop.position = _anchor(0).position
 	DioramaSkin.build_lectern(prop, DioramaSkin.resolve_biome(self))
 	_content_root().add_child(prop)
+	_prompt = InteractPromptScript.build(prop, Vector3(0.0, 2.4, 0.0))
 
 
 func _on_body_entered(body: Node3D) -> void:
 	if body.is_in_group("player"):
 		_near_player = true
+		if _prompt:
+			_prompt.show_action("Read")
 
 
 func _on_body_exited(body: Node3D) -> void:
 	if body.is_in_group("player"):
 		_near_player = false
+		if _prompt:
+			_prompt.hide_prompt()
 
 
 func _unhandled_input(event: InputEvent) -> void:

@@ -40,11 +40,12 @@
       "attack_damage": 50,
       "attack_poise_damage": 49,
       "max_range": 2.6,
-      "telegraph_radius": 2.21,
       "telegraph_shape": "circle",
       "damage_type": "poison",
       "status_on_hit": "poison",
-      "status_stacks_on_hit": 2
+      "status_stacks_on_hit": 2,
+      "attackClass": "unblockable",
+      "knockback": 3.5
     },
     {
       "id": "slam",
@@ -57,11 +58,12 @@
       "attack_damage": 74,
       "attack_poise_damage": 74,
       "max_range": 2.86,
-      "telegraph_radius": 2.99,
       "telegraph_shape": "circle",
       "damage_type": "poison",
       "status_on_hit": "poison",
-      "status_stacks_on_hit": 2
+      "status_stacks_on_hit": 2,
+      "attackClass": "unblockable",
+      "knockback": 3.5
     },
     {
       "id": "held_sweep",
@@ -74,11 +76,12 @@
       "attack_damage": 60,
       "attack_poise_damage": 59,
       "max_range": 3.64,
-      "telegraph_radius": 3.12,
       "telegraph_shape": "cone",
       "damage_type": "poison",
       "status_on_hit": "poison",
-      "status_stacks_on_hit": 2
+      "status_stacks_on_hit": 2,
+      "attackClass": "unblockable",
+      "knockback": 3.5
     },
     {
       "id": "sig_bloom",
@@ -91,7 +94,6 @@
       "attack_damage": 36,
       "attack_poise_damage": 30,
       "max_range": 4.2,
-      "telegraph_radius": 4.0,
       "telegraph_shape": "ring",
       "damage_type": "poison",
       "status_on_hit": "poison",
@@ -101,7 +103,9 @@
         "count": 3,
         "radius": 5.0,
         "lifetime": 10.0
-      }
+      },
+      "attackClass": "unblockable",
+      "knockback": 3.0
     }
   ]
 }

@@ -11,7 +11,7 @@
     "rest": 0.07,
     "puzzle": 0.06,
     "npc_quest": 0.06,
-    "merchant": 0.01
+    "merchant": 0.05
   },
   "deep": {
     "combat": 0.5,
@@ -23,7 +23,7 @@
     "rest": 0.04,
     "puzzle": 0.05,
     "npc_quest": 0.05,
-    "merchant": 0.01
+    "merchant": 0.04
   },
   "guarantees": {
     "minRewardRooms": 1,

@@ -23,6 +23,19 @@ const SKIP_SCENES: PackedStringArray = [
 	"res://scenes/hub/hub.tscn",
 ]
 
+## VS-04: `castle_run.tscn` is skipped above for cost, but that meant the one place the review
+## called out by name -- "a flat untextured grey rectangle where a doorway should be" -- was never
+## actually inspected, since the static room `.tscn` files it's built from are mostly placeholders
+## that get skinned procedurally at build time. This builds one real floor per biome instead (far
+## cheaper than a full run scene) and runs the exact same `_inspect()` used on every other scene.
+const BUILT_FLOOR_BIOMES: PackedStringArray = [
+	"forgotten_castle", "crystal_caverns", "poison_swamp", "frozen_fortress", "dark_cathedral",
+	"iron_vault", "prism_depths", "venom_mire", "glacial_hollow", "umbral_chapel",
+]
+
+const LocalProcgenScript := preload("res://scripts/dungeon/local_procgen.gd")
+const DungeonBuilderScript := preload("res://scripts/dungeon/dungeon_builder.gd")
+
 var _failures: int = 0
 var _scanned: int = 0
 var _findings: Dictionary = {}
@@ -36,6 +49,7 @@ func _ready() -> void:
 	print("SWEEP scanning %d scenes" % paths.size())
 	for path in paths:
 		await _check_scene(path)
+	await _check_built_floors()
 	_report()
 	print("SCENE SWEEP RESULT %d failures across %d scenes" % [_failures, _scanned])
 	get_tree().quit(1 if _failures > 0 else 0)
@@ -100,6 +114,36 @@ func _check_scene(path: String) -> void:
 	await get_tree().process_frame
 	_inspect(path, instance)
 	instance.free()
+
+
+## VS-04: one built floor per biome, the same material/shadow inspection every static scene gets.
+func _check_built_floors() -> void:
+	var biome_prefixes := {
+		"forgotten_castle": "castle", "crystal_caverns": "crystal", "poison_swamp": "swamp",
+		"frozen_fortress": "frozen", "dark_cathedral": "cathedral", "iron_vault": "vault",
+		"prism_depths": "prism", "venom_mire": "swamp", "glacial_hollow": "frozen",
+		"umbral_chapel": "cathedral",
+	}
+	for biome_id in BUILT_FLOOR_BIOMES:
+		_scanned += 1
+		var label := "built_floor:%s" % biome_id
+		if _verbose:
+			print("  .. %s" % label)
+		var result: Dictionary = LocalProcgenScript.generate(
+			biome_id, 424242, 1, str(biome_prefixes.get(biome_id, "castle")), 1, 1, false, false, true
+		)
+		if not result.get("ok", false):
+			_note(label, "generation_failed", str(result.get("error", "?")), true)
+			continue
+		var definition: Dictionary = result.get("definition", {})
+		var parent := Node3D.new()
+		add_child(parent)
+		var builder := DungeonBuilderScript.new()
+		parent.add_child(builder)
+		await builder.build_from_definition(parent, null, definition, false)
+		await get_tree().physics_frame
+		_inspect(label, parent)
+		parent.free()
 
 
 func _inspect(path: String, root: Node) -> void:

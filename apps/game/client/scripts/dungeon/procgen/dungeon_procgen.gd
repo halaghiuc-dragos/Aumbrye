@@ -47,7 +47,7 @@ static func generate(
 	for attempt in MAX_ASSIGNMENT_ATTEMPTS:
 		if attempt > 0:
 			assign_rng.seed = FloorSeedMix.mix(assign_rng.seed, attempt * 1_000_003)
-		assignment = RoomGraphAssignerScript.assign(biome, graph, assign_rng)
+		assignment = RoomGraphAssignerScript.assign(biome, graph, assign_rng, config)
 		var door_check := RoomGraphGeometryScript.validate_door_topology(graph, assignment)
 		if not door_check.get("ok", false):
 			continue
@@ -118,7 +118,8 @@ static func generate(
 	if bool(content_result.get("used_fallback", false)):
 		content_warnings.append("content_assignment_fallback")
 	content_warnings.append_array(content_result.get("warnings", []))
-	_annotate_minimap_rooms(rooms, content.get("roomContent", []))
+	_annotate_minimap_rooms(rooms, content.get("roomContent", []), content.get("locks", []))
+	_annotate_one_way_edges(edges, content.get("shortcutGates", []))
 	var landmarks := _build_landmark_hints(rooms, graph)
 	var run_id := deterministic_run_id(run_seed, biome_id, floor_index)
 	var definition := {
@@ -555,20 +556,31 @@ const MINIMAP_KIND_BY_CONTENT := {
 const MINIMAP_RESERVED_KINDS := ["boss", "entrance", "stairs", "secret"]
 
 
-static func _annotate_minimap_rooms(rooms: Array, room_content: Array) -> void:
-	var key_rooms := {}
+## RM-05: `locks` carries the actual lock/key relationship (`to` is the room behind the door,
+## `keyRoomIds` are where its key(s) sit, `keyColor` is `FloorKeyring`'s colour string) -- reading
+## it here, rather than a `roomContent`-entry field nothing ever wrote, is what lets the minimap
+## draw the lock mark and the key room in the same colour instead of a colourless generic mark.
+static func _annotate_minimap_rooms(rooms: Array, room_content: Array, locks: Array = []) -> void:
 	var content_kind := {}
-	var locked_rooms := {}
 	for entry in room_content:
 		if not entry is Dictionary:
 			continue
 		var room_id := str(entry.get("roomId", ""))
-		if str(entry.get("keyId", "")) != "":
-			key_rooms[room_id] = true
-			locked_rooms[room_id] = true
 		var content_type := str(entry.get("contentType", ""))
 		if MINIMAP_KIND_BY_CONTENT.has(content_type):
 			content_kind[room_id] = str(MINIMAP_KIND_BY_CONTENT[content_type])
+	var locked_rooms := {}
+	var key_room_colors := {}
+	for lock in locks:
+		if not lock is Dictionary:
+			continue
+		var lock_dict: Dictionary = lock
+		var color := str(lock_dict.get("keyColor", ""))
+		var to_room := str(lock_dict.get("to", ""))
+		if to_room != "":
+			locked_rooms[to_room] = color
+		for key_room in lock_dict.get("keyRoomIds", []):
+			key_room_colors[str(key_room)] = color
 	for room in rooms:
 		if not room is Dictionary:
 			continue
@@ -576,7 +588,41 @@ static func _annotate_minimap_rooms(rooms: Array, room_content: Array) -> void:
 		var current_kind := str(room.get("kind", ""))
 		if current_kind not in MINIMAP_RESERVED_KINDS and content_kind.has(room_id):
 			room["kind"] = content_kind[room_id]
-		if key_rooms.has(room_id):
-			room["kind"] = "key"
 		if locked_rooms.has(room_id):
 			room["locked"] = true
+			room["lockColor"] = locked_rooms[room_id]
+		if key_room_colors.has(room_id):
+			room["keyColor"] = key_room_colors[room_id]
+
+
+## RM-04: `shortcutGates` (the barred-door content) and `edges` (the minimap's own connection list)
+## are built by two separate systems and only meet here. This tags the matching `edges` entry so
+## `minimap.gd` can draw a chevron toward `openRoomId` instead of a plain line, without minimap.gd
+## needing to know the gate/content schema at all.
+static func _annotate_one_way_edges(edges: Array, shortcut_gates: Array) -> void:
+	if shortcut_gates.is_empty():
+		return
+	var open_room_by_pair := {}
+	for gate in shortcut_gates:
+		if not gate is Dictionary:
+			continue
+		var room_a := str((gate as Dictionary).get("roomA", ""))
+		var room_b := str((gate as Dictionary).get("roomB", ""))
+		var open_room := str((gate as Dictionary).get("openRoomId", ""))
+		if room_a == "" or room_b == "" or open_room == "":
+			continue
+		open_room_by_pair[_pair_key(room_a, room_b)] = open_room
+	for edge in edges:
+		if not edge is Dictionary:
+			continue
+		var from_id := str((edge as Dictionary).get("from", ""))
+		var to_id := str((edge as Dictionary).get("to", ""))
+		var open_room: Variant = open_room_by_pair.get(_pair_key(from_id, to_id))
+		if open_room == null:
+			continue
+		(edge as Dictionary)["oneWay"] = "gate"
+		(edge as Dictionary)["openRoomId"] = open_room
+
+
+static func _pair_key(a: String, b: String) -> String:
+	return "%s|%s" % [a, b] if a < b else "%s|%s" % [b, a]

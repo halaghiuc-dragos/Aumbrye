@@ -187,6 +187,22 @@
             "minLength": 1
           },
           "minItems": 1
+        },
+        "banner": {
+          "type": "string",
+          "minLength": 1
+        },
+        "statue": {
+          "type": "string",
+          "minLength": 1
+        },
+        "altar": {
+          "type": "string",
+          "minLength": 1
+        },
+        "debrisPile": {
+          "type": "string",
+          "minLength": 1
         }
       }
     },
@@ -444,6 +460,24 @@
         },
         "fillBoundingBox": {
           "type": "boolean"
+        },
+        "corridorRatio": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "sizeBias": {
+          "type": "number",
+          "minimum": 0
+        },
+        "deadEndRewardRatio": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "floorSilhouette": {
+          "type": "string",
+          "enum": ["blob", "cross", "ring", "spine", "scatter"]
         }
       }
     }

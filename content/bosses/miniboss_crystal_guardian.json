@@ -38,8 +38,9 @@
       "attack_damage": 42,
       "attack_poise_damage": 14,
       "max_range": 3,
-      "telegraph_radius": 2.1,
-      "telegraph_shape": "circle"
+      "telegraph_shape": "circle",
+      "attackClass": "blockable",
+      "knockback": 2.0
     },
     {
       "id": "cleave",
@@ -52,8 +53,9 @@
       "attack_damage": 82,
       "attack_poise_damage": 26,
       "max_range": 3.3,
-      "telegraph_radius": 3,
-      "telegraph_shape": "cone"
+      "telegraph_shape": "cone",
+      "attackClass": "unblockable",
+      "knockback": 3.0
     },
     {
       "id": "chain",
@@ -66,7 +68,6 @@
       "attack_damage": 45,
       "attack_poise_damage": 15,
       "max_range": 3,
-      "telegraph_radius": 2.55,
       "telegraph_shape": "circle",
       "combo_followups": [
         {
@@ -80,10 +81,13 @@
           "attack_damage": 18,
           "attack_poise_damage": 18,
           "max_range": 3,
-          "telegraph_radius": 2.7,
-          "telegraph_shape": "cone"
+          "telegraph_shape": "cone",
+          "attackClass": "unblockable",
+          "knockback": 2.5
         }
-      ]
+      ],
+      "attackClass": "parryable",
+      "knockback": 2.5
     }
   ],
   "phases": [
@@ -103,8 +107,9 @@
           "attack_damage": 42,
           "attack_poise_damage": 14,
           "max_range": 3,
-          "telegraph_radius": 2.1,
-          "telegraph_shape": "circle"
+          "telegraph_shape": "circle",
+          "attackClass": "blockable",
+          "knockback": 2.0
         },
         {
           "id": "cleave",
@@ -117,8 +122,9 @@
           "attack_damage": 82,
           "attack_poise_damage": 26,
           "max_range": 3.3,
-          "telegraph_radius": 3,
-          "telegraph_shape": "cone"
+          "telegraph_shape": "cone",
+          "attackClass": "unblockable",
+          "knockback": 3.0
         },
         {
           "id": "chain",
@@ -131,7 +137,6 @@
           "attack_damage": 45,
           "attack_poise_damage": 15,
           "max_range": 3,
-          "telegraph_radius": 2.55,
           "telegraph_shape": "circle",
           "combo_followups": [
             {
@@ -145,10 +150,13 @@
               "attack_damage": 18,
               "attack_poise_damage": 18,
               "max_range": 3,
-              "telegraph_radius": 2.7,
-              "telegraph_shape": "cone"
+              "telegraph_shape": "cone",
+              "attackClass": "unblockable",
+              "knockback": 2.5
             }
-          ]
+          ],
+          "attackClass": "parryable",
+          "knockback": 2.5
         }
       ]
     },
@@ -168,8 +176,9 @@
           "attack_damage": 42,
           "attack_poise_damage": 14,
           "max_range": 3,
-          "telegraph_radius": 2.1,
-          "telegraph_shape": "circle"
+          "telegraph_shape": "circle",
+          "attackClass": "blockable",
+          "knockback": 2.0
         },
         {
           "id": "cleave",
@@ -182,8 +191,9 @@
           "attack_damage": 82,
           "attack_poise_damage": 26,
           "max_range": 3.3,
-          "telegraph_radius": 3,
-          "telegraph_shape": "cone"
+          "telegraph_shape": "cone",
+          "attackClass": "unblockable",
+          "knockback": 3.0
         },
         {
           "id": "feint",
@@ -196,8 +206,9 @@
           "attack_damage": 73,
           "attack_poise_damage": 25,
           "max_range": 3.75,
-          "telegraph_radius": 3.45,
-          "telegraph_shape": "cone"
+          "telegraph_shape": "cone",
+          "attackClass": "unblockable",
+          "knockback": 2.5
         },
         {
           "id": "quake",
@@ -210,14 +221,15 @@
           "attack_damage": 59,
           "attack_poise_damage": 30,
           "max_range": 3.9,
-          "telegraph_radius": 4,
           "telegraph_shape": "ring",
           "spawn_hazard": {
             "scene": "res://scenes/bosses/crystal_pillar_hazard.tscn",
             "count": 3,
             "radius": 6,
             "lifetime": 9
-          }
+          },
+          "attackClass": "unblockable",
+          "knockback": 3.0
         }
       ],
       "moveSpeedMult": 1.08,
@@ -238,5 +250,6 @@
         "shake": 0.4
       }
     }
-  ]
+  ],
+  "mass": 2.0
 }

@@ -1,7 +1,7 @@
 {
   "id": "a_share_of_ruin",
   "name": "A Share Of Ruin",
-  "description": "Ten health given over. Parries return stamina; you may hold the line longer than you should.",
+  "description": "Ten health given over. Parries return stamina and sharpen you; you may hold the line longer than you should.",
   "maxStacks": 1,
   "tags": [
     "poise"
@@ -12,6 +12,13 @@
       "event": "onParry",
       "effect": "restore_stamina",
       "amount": 22
+    },
+    {
+      "event": "onParry",
+      "effect": "apply_status",
+      "statusId": "focus",
+      "stacks": 1,
+      "applyToActor": true
     }
   ],
   "offerable": true,

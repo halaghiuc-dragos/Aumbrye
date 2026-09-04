@@ -5,10 +5,11 @@ const GameUISkinScript := preload("res://scripts/ui/game_ui_skin.gd")
 const MenuShellScript := preload("res://scripts/ui/menu_shell.gd")
 const InputGlyphServiceScript := preload("res://scripts/ui/input_glyph_service.gd")
 
+## HD-01: this UI owns only the lobby/reward/cash-out flows -- combat status (wave, enemies
+## remaining) is HUD territory, shown via combat_hud.gd's region title / objective text.
+var _panel: PanelContainer
 var _label: Label
 var _reward_box: VBoxContainer
-var _enemies_remaining := 0
-var _wave_shown := 0
 var _confirm_button: Button
 var _confirm_hint: Label
 var _selected_rewards: Array[String] = []
@@ -19,19 +20,19 @@ var _cash_out_active := false
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	process_mode = Node.PROCESS_MODE_ALWAYS
-	var panel := PanelContainer.new()
-	panel.name = "Panel"
-	panel.set_anchors_preset(Control.PRESET_CENTER_TOP)
-	panel.anchor_left = 0.5
-	panel.anchor_right = 0.5
-	panel.offset_left = -360.0
-	panel.offset_right = 360.0
-	panel.offset_top = 16.0
-	panel.grow_horizontal = Control.GROW_DIRECTION_BOTH
-	add_child(panel)
-	GameUISkinScript.style_panel(panel)
+	_panel = PanelContainer.new()
+	_panel.name = "Panel"
+	_panel.set_anchors_preset(Control.PRESET_CENTER_TOP)
+	_panel.anchor_left = 0.5
+	_panel.anchor_right = 0.5
+	_panel.offset_left = -360.0
+	_panel.offset_right = 360.0
+	_panel.offset_top = 16.0
+	_panel.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	add_child(_panel)
+	GameUISkinScript.style_panel(_panel)
 	var margin := MarginContainer.new()
-	panel.add_child(margin)
+	_panel.add_child(margin)
 	var vbox := VBoxContainer.new()
 	margin.add_child(vbox)
 	_label = Label.new()
@@ -44,6 +45,7 @@ func _ready() -> void:
 
 
 func show_lobby() -> void:
+	_panel.visible = true
 	_reward_box.visible = false
 	refresh_lobby()
 
@@ -77,29 +79,15 @@ func refresh_lobby() -> void:
 	_label.text = "\n".join(lines)
 
 
-func show_combat(wave: int) -> void:
+## HD-01: wave/enemy-count status now lives on the HUD (`show_region_title`/`set_objective_text`
+## in combat_hud.gd); this panel just gets out of the way during combat.
+func show_combat(_wave: int) -> void:
+	_panel.visible = false
 	_reward_box.visible = false
-	_wave_shown = wave
-	_refresh_combat_label()
-
-
-func set_enemies_remaining(count: int) -> void:
-	_enemies_remaining = maxi(0, count)
-	if _reward_box.visible:
-		return
-	_refresh_combat_label()
-
-
-func _refresh_combat_label() -> void:
-	if _wave_shown <= 0:
-		return
-	_label.text = "%s  —  %d left" % [
-		tr("WAVES_WAVE_ACTIVE").format({"wave": _wave_shown}),
-		_enemies_remaining,
-	]
 
 
 func show_reward_pick() -> void:
+	_panel.visible = true
 	_reward_box.visible = true
 	if MenuStack and not _reward_stack_pushed:
 		_reward_stack_pushed = true
@@ -130,10 +118,12 @@ func show_reward_pick() -> void:
 	_refresh_confirm_state()
 
 
-## The summoner's offer. Exactly one item, and taking it ends the Vigil — so the list shows what
-## each thing is and the confirm button says plainly what happens.
+## The summoner's offer. `WavesRunService.cash_out_bank_count()` escalates with depth (one below
+## wave 30, up to three from wave 40), and taking it ends the Vigil -- so each option reads as a
+## card (rarity border, tooltip) and the risk of what stays behind is spelled out in words.
 func show_cash_out_pick() -> void:
 	_cash_out_active = true
+	_panel.visible = true
 	_reward_box.visible = true
 	if MenuStack and not _reward_stack_pushed:
 		_reward_stack_pushed = true
@@ -142,18 +132,35 @@ func show_cash_out_pick() -> void:
 	for child in _reward_box.get_children():
 		child.queue_free()
 	var options := WavesRunService.get_cash_out_options()
+	var bank_count := WavesRunService.cash_out_bank_count(WavesRunService.current_wave)
 	if options.is_empty():
 		_label.text = tr("WAVES_CASH_OUT_EMPTY")
 	else:
-		_label.text = tr("WAVES_CASH_OUT_INTRO")
+		var lines: Array[String] = [tr("WAVES_CASH_OUT_INTRO")]
+		lines.append(
+			tr("WAVES_CASH_OUT_RISK").format(
+				{"bank": bank_count, "total": options.size(), "lost": maxi(0, options.size() - bank_count)}
+			)
+		)
+		var best_wave := int(CharacterService.get_flag("waves_best_wave"))
+		if best_wave > 0:
+			lines.append(tr("WAVES_CASH_OUT_BEST").format({"wave": best_wave}))
+		_label.text = "\n".join(lines)
 	for option in options:
 		var item_id := str(option.get("itemId", ""))
+		var rarity := str(option.get("rarity", "common"))
 		var display_name := str(option.get("displayName", item_id))
 		if bool(option.get("equipped", false)):
 			display_name = "%s (equipped)" % display_name
 		var btn := GameUISkinScript.make_button(display_name)
 		btn.toggle_mode = true
-		btn.pressed.connect(_on_pick_cash_out.bind(item_id, btn))
+		btn.add_theme_stylebox_override("normal", GameUISkinScript.make_item_cell_style(rarity, false))
+		btn.add_theme_stylebox_override("pressed", GameUISkinScript.make_item_cell_style(rarity, true))
+		var item_def := ItemCatalog.get_definition(item_id)
+		var description := str(item_def.get("description", ""))
+		if description != "":
+			btn.tooltip_text = description
+		btn.pressed.connect(_on_pick_cash_out.bind(item_id, btn, bank_count))
 		_reward_box.add_child(btn)
 	_confirm_hint = Label.new()
 	_confirm_hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -167,26 +174,33 @@ func show_cash_out_pick() -> void:
 		tr("WAVES_CASH_OUT_STAY"), _on_cancel_cash_out
 	)
 	_reward_box.add_child(back_button)
-	_refresh_cash_out_state()
+	_refresh_cash_out_state(bank_count)
 
 
-func _on_pick_cash_out(item_id: String, btn: Button) -> void:
-	_selected_rewards.clear()
-	for child in _reward_box.get_children():
-		if child is Button and child != btn:
-			(child as Button).button_pressed = false
-	_selected_rewards.append(item_id)
-	btn.button_pressed = true
-	_refresh_cash_out_state()
+func _on_pick_cash_out(item_id: String, btn: Button, bank_count: int) -> void:
+	if item_id in _selected_rewards:
+		_selected_rewards.erase(item_id)
+		btn.button_pressed = false
+	elif _selected_rewards.size() < bank_count:
+		_selected_rewards.append(item_id)
+		btn.button_pressed = true
+	else:
+		btn.button_pressed = false
+	_refresh_cash_out_state(bank_count)
 
 
-func _refresh_cash_out_state() -> void:
+func _refresh_cash_out_state(bank_count: int = 1) -> void:
 	if _confirm_button == null:
 		return
 	var chosen := not _selected_rewards.is_empty()
 	_confirm_button.disabled = not chosen
 	if _confirm_hint:
-		_confirm_hint.text = "" if chosen else tr("WAVES_CASH_OUT_PICK_HINT")
+		if chosen:
+			_confirm_hint.text = ""
+		elif bank_count > 1:
+			_confirm_hint.text = tr("WAVES_CASH_OUT_PICK_HINT_MULTI").format({"count": bank_count})
+		else:
+			_confirm_hint.text = tr("WAVES_CASH_OUT_PICK_HINT")
 
 
 func _on_cancel_cash_out() -> void:
@@ -210,7 +224,7 @@ func _on_confirm_cash_out() -> void:
 	_cash_out_active = false
 	var run := get_tree().get_first_node_in_group("waves_run")
 	if run and run.has_method("cash_out_with_item"):
-		run.call("cash_out_with_item", _selected_rewards[0])
+		run.call("cash_out_with_item", _selected_rewards.duplicate())
 
 
 func _on_pick_reward(item_id: String, btn: Button) -> void:

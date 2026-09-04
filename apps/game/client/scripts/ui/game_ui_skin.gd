@@ -820,6 +820,11 @@ static func style_ladder_button(button: Button, state: StringName) -> void:
 		&"available":
 			border = FRAME_BEVEL_LIGHT
 			text_color = BODY_COLOR
+		# MD-04: the rung a just-finished run actually reached, on the results screen -- distinct
+		# from "cleared" (a tier beaten in some past run) since this run may not have beaten it.
+		&"current":
+			border = LADDER_CURRENT
+			text_color = LADDER_CURRENT
 		_:
 			pass
 	var normal := make_pixel_frame_style(fill, border, 1)

@@ -37,8 +37,9 @@
       "attack_damage": 52,
       "attack_poise_damage": 46,
       "max_range": 2.6,
-      "telegraph_radius": 2.21,
-      "telegraph_shape": "circle"
+      "telegraph_shape": "circle",
+      "attackClass": "unblockable",
+      "knockback": 3.5
     },
     {
       "id": "slam",
@@ -51,8 +52,9 @@
       "attack_damage": 75,
       "attack_poise_damage": 68,
       "max_range": 2.86,
-      "telegraph_radius": 2.99,
-      "telegraph_shape": "circle"
+      "telegraph_shape": "circle",
+      "attackClass": "unblockable",
+      "knockback": 3.5
     },
     {
       "id": "held_sweep",
@@ -65,8 +67,9 @@
       "attack_damage": 61,
       "attack_poise_damage": 54,
       "max_range": 3.64,
-      "telegraph_radius": 3.12,
-      "telegraph_shape": "cone"
+      "telegraph_shape": "cone",
+      "attackClass": "unblockable",
+      "knockback": 3.5
     },
     {
       "id": "sig_split",
@@ -79,7 +82,6 @@
       "attack_damage": 28,
       "attack_poise_damage": 14,
       "max_range": 2.9,
-      "telegraph_radius": 2.2,
       "telegraph_shape": "cone",
       "damage_type": "arcane",
       "combo_followups": [
@@ -93,9 +95,10 @@
           "attack_damage": 18,
           "attack_poise_damage": 14,
           "max_range": 2.9,
-          "telegraph_radius": 2.2,
           "telegraph_shape": "cone",
-          "damage_type": "arcane"
+          "damage_type": "arcane",
+          "attackClass": "unblockable",
+          "knockback": 2.0
         },
         {
           "id": "sig_split_c",
@@ -107,11 +110,15 @@
           "attack_damage": 26,
           "attack_poise_damage": 30,
           "max_range": 3.1,
-          "telegraph_radius": 2.5,
           "telegraph_shape": "cone",
-          "damage_type": "arcane"
+          "damage_type": "arcane",
+          "attackClass": "unblockable",
+          "knockback": 3.0
         }
-      ]
+      ],
+      "attackClass": "unblockable",
+      "knockback": 2.0
     }
-  ]
+  ],
+  "mass": 2.8
 }

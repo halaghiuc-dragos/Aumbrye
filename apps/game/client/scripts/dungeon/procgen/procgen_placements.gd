@@ -119,15 +119,30 @@ static func _place_enemies(
 				var db: int = door_distances.get(str(b.get("layout_id", "")), 0)
 				return da > db
 		)
+	# RM-08: at most one ambush on the floor, and only on a room's second-or-later enemy (never the
+	# guaranteed first one from pass one above, so a room always reads as inhabited from the
+	# doorway). Eligible = depth from entrance >= 3 and not the entrance or one of its neighbours
+	# (`_spawn_safe_room_ids`) -- an ambush in the first two rooms teaches the wrong lesson before
+	# the player has any sense of the floor's danger at all.
+	var unsafe_layout_ids := _spawn_safe_room_ids(graph)
+	state["ambush_placed"] = false
 	for extra_slot in range(1, 4):
 		for room in deeper_first:
 			var room_id := str(room.get("semantic_id", ""))
 			if extra_slot >= int(room_max.get(room_id, 1)):
 				continue
+			var layout_id := str(room.get("layout_id", ""))
+			var depth: int = int(door_distances.get(layout_id, 0))
+			var ambush_eligible := (
+				not bool(state["ambush_placed"])
+				and depth >= 3
+				and not unsafe_layout_ids.has(layout_id)
+				and rng.randf() < 0.35
+			)
 			var anchors: Array = _room_anchors(biome_id, run_seed, room, "enemy")
 			var placed: Dictionary = _attempt_place_enemy(
 				biome, room, anchors, room_anchor_idx, rng, budget, state, elite_rule,
-				elites_required, false
+				elites_required, false, ambush_eligible
 			)
 			if not placed.is_empty():
 				placements.append(placed)
@@ -146,7 +161,8 @@ static func _attempt_place_enemy(
 	state: Dictionary,
 	elite_rule: bool,
 	elites_required: int,
-	is_first_in_room: bool
+	is_first_in_room: bool,
+	ambush_eligible: bool = false
 ) -> Dictionary:
 	var room_id := str(room.get("semantic_id", ""))
 	for _attempt in 4:
@@ -157,10 +173,18 @@ static func _attempt_place_enemy(
 		if _is_reserved_boss_enemy(enemy_id, biome):
 			continue
 		var threat_cost := _enemy_threat_cost(enemy_id)
-		if float(state["threat_used"]) + threat_cost > budget:
+		# RM-08: the one floor-wide ambush ignores the shared budget, the same guarantee pass
+		# one already gives every room's first enemy -- by the time a room reaches its second
+		# or later slot the budget is usually thin, so gating the ambush behind leftover budget
+		# meant the 35% roll almost always landed where the placement would fail anyway and
+		# nothing ever spawned.
+		if float(state["threat_used"]) + threat_cost > budget and not ambush_eligible:
 			return {}
 		var idx: int = room_anchor_idx.get(room_id, 0)
-		var offset: Vector3 = anchors[idx % anchors.size()]
+		# RM-08: an ambush/delayed spawn always takes the last anchor in the list -- a stand-in for
+		# "the far anchor" the plan asks for, without the doorway-relative geometry a precise
+		# "behind the door the player entered" placement would need.
+		var offset: Vector3 = anchors[anchors.size() - 1] if ambush_eligible else anchors[idx % anchors.size()]
 		room_anchor_idx[room_id] = idx + 1
 		var is_elite := false
 		if elite_rule and is_first_in_room:
@@ -168,13 +192,17 @@ static func _attempt_place_enemy(
 				is_elite = true
 				state["elites_placed"] = int(state["elites_placed"]) + 1
 		state["threat_used"] = float(state["threat_used"]) + threat_cost
-		return {
+		var placement := {
 			"roomId": room_id,
 			"enemyId": enemy_id,
 			"offset": _vec_dict(offset),
 			"sampleNavmesh": true,
 			"isElite": is_elite,
 		}
+		if ambush_eligible:
+			placement["trigger"] = "ambush"
+			state["ambush_placed"] = true
+		return placement
 	return {}
 
 
@@ -493,6 +521,49 @@ static func _has_loot_role(biome: Dictionary, role: String) -> bool:
 	return table is Array and not (table as Array).is_empty()
 
 
+static func _cover_entry(room_id: String, offset: Vector3, kind: String) -> Dictionary:
+	var size_y := 2.4 if kind == "pillar" else 3.6
+	return {
+		"roomId": room_id,
+		"offset": _vec_dict(offset),
+		"size": {"x": 1.2, "y": size_y, "z": 1.2},
+		"kind": kind,
+	}
+
+
+## RM-03: a room's biome layout variant may name a `coverPattern` ("ring", "corridor", "scatter" or
+## "none") instead of leaving cover to the template's authored anchor list. "scatter" (or an
+## unauthored room, which has no variant) keeps the original anchor-based placement unchanged.
+static func _cover_for_pattern(
+	pattern: String, room_id: String, template_id: String, pillar_count: int, rng: RandomNumberGenerator
+) -> Array:
+	var spec := RoomTemplateCatalog.get_spec(template_id)
+	var entries: Array = []
+	if pattern == "ring":
+		var radius: float = (
+			minf(float(spec.get("half_width", 6.0)), float(spec.get("half_depth", 6.0))) * 0.55
+		)
+		var start_angle := rng.randf_range(0.0, TAU)
+		for i in pillar_count:
+			var angle := start_angle + TAU * float(i) / float(pillar_count)
+			var offset := Vector3(sin(angle) * radius, 0.0, -cos(angle) * radius)
+			entries.append(_cover_entry(room_id, offset, "pillar" if i % 2 == 0 else "chokepoint"))
+		return entries
+	if pattern == "corridor":
+		var half_d: float = float(spec.get("half_depth", 6.0)) * 0.6
+		@warning_ignore("integer_division")
+		var rows := maxi(1, (pillar_count + 1) / 2)
+		for i in pillar_count:
+			var side := -1.0 if i % 2 == 0 else 1.0
+			@warning_ignore("integer_division")
+			var row := i / 2
+			var z: float = lerp(-half_d, half_d, float(row) / maxf(1.0, float(rows - 1)))
+			var offset := Vector3(side * 2.2, 0.0, z)
+			entries.append(_cover_entry(room_id, offset, "pillar" if i % 2 == 0 else "chokepoint"))
+		return entries
+	return entries
+
+
 static func _place_cover(
 	biome: Dictionary,
 	assignment: Dictionary,
@@ -505,20 +576,22 @@ static func _place_cover(
 	for room in assignment.get("rooms", []):
 		if room.get("type", "") != "combat":
 			continue
-		var anchors: Array = _room_anchors(biome_id, run_seed, room, "cover")
+		var room_id := str(room.get("semantic_id", ""))
+		var template_id := str(room.get("template_id", ""))
+		var variant := RoomLayoutCatalog.variant_for_room(biome_id, run_seed, room_id, template_id)
+		var pattern := RoomLayoutCatalog.cover_pattern_for(biome_id, template_id, variant)
+		if pattern == "none":
+			continue
 		var pillar_count := rng.randi_range(2, 3)
+		if pattern == "ring" or pattern == "corridor":
+			cover.append_array(
+				_cover_for_pattern(pattern, room_id, template_id, pillar_count, rng)
+			)
+			continue
+		var anchors: Array = _room_anchors(biome_id, run_seed, room, "cover")
 		for i in pillar_count:
 			var offset: Vector3 = anchors[i % anchors.size()]
-			var kind := "pillar" if i % 2 == 0 else "chokepoint"
-			var size_y := 2.4 if kind == "pillar" else 3.6
-			cover.append(
-				{
-					"roomId": room["semantic_id"],
-					"offset": _vec_dict(offset),
-					"size": {"x": 1.2, "y": size_y, "z": 1.2},
-					"kind": kind,
-				}
-			)
+			cover.append(_cover_entry(room_id, offset, "pillar" if i % 2 == 0 else "chokepoint"))
 	return cover
 
 

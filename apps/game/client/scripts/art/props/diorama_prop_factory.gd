@@ -116,6 +116,108 @@ static func _make_torch(theme: PixelDioramaStyle.PaletteTheme) -> Node3D:
 	return root
 
 
+## RM-10: replaces `DungeonBuilder._build_landmarks()`'s untextured coloured box with a built
+## prop per landmark kind, batched with `PixelBoxBatch` so each one still costs about one draw call
+## despite being several boxes. `height`/`half_width` come from the landmark hint's own scale, so
+## the generator keeps deciding size and position; only what gets built there changes.
+static func build_boss_spire(
+	biome_id: String, height: float, half_width: float
+) -> Node3D:
+	var theme := PixelDioramaStyle.theme_from_biome(biome_id)
+	var root := Node3D.new()
+	root.name = "boss_spire"
+	var shaft_mat := PixelDioramaStyle.make_wall_material(theme)
+	var batch := PixelBoxBatch.new()
+	var segments := 5
+	var base_w := maxf(1.0, half_width * 2.0)
+	for i in segments:
+		var t := float(i) / float(segments)
+		var seg_w := lerpf(base_w, base_w * 0.25, t)
+		var seg_h := height / float(segments)
+		batch.add(
+			Vector3(seg_w, seg_h, seg_w), Vector3(0.0, seg_h * (float(i) + 0.5), 0.0), shaft_mat
+		)
+	batch.commit(
+		root, "SpireShaft", AABB(Vector3(-base_w, 0.0, -base_w), Vector3(base_w * 2.0, height, base_w * 2.0))
+	)
+	var beacon_mat := PixelDioramaStyle.make_emissive_material(theme, 2.4)
+	var beacon := _make_mesh_instance(_make_box(Vector3.ONE * base_w * 0.3), beacon_mat, "Beacon")
+	beacon.position = Vector3(0.0, height + base_w * 0.15, 0.0)
+	root.add_child(beacon)
+	var light := OmniLight3D.new()
+	light.name = "BeaconLight"
+	light.light_color = PixelDioramaStyle.get_palette_color(theme, PixelDioramaStyle.PaletteSlot.EMISSIVE)
+	light.light_energy = 1.4
+	light.omni_range = 22.0
+	light.shadow_enabled = false
+	light.position = beacon.position
+	root.add_child(light)
+	return root
+
+
+static func build_boss_silhouette(
+	biome_id: String, height: float, half_width: float
+) -> Node3D:
+	var theme := PixelDioramaStyle.theme_from_biome(biome_id)
+	var root := Node3D.new()
+	root.name = "boss_silhouette"
+	var chain_mat := PixelDioramaStyle.make_prop_material(theme, true)
+	var cloth_mat := PixelDioramaStyle.make_accent_material(theme)
+	var batch := PixelBoxBatch.new()
+	var link_size := maxf(0.2, half_width * 0.2)
+	var links := maxi(3, int(height / (link_size * 3.0)))
+	for i in links:
+		batch.add(
+			Vector3(link_size, link_size * 1.6, link_size),
+			Vector3(0.0, link_size * 1.6 * (float(i) + 0.5), 0.0),
+			chain_mat
+		)
+	var cloth_h := height * 0.4
+	batch.add(
+		Vector3(half_width * 0.3, cloth_h, half_width),
+		Vector3(0.0, height - cloth_h * 0.5, 0.0),
+		cloth_mat
+	)
+	batch.commit(
+		root,
+		"SilhouetteBatch",
+		AABB(
+			Vector3(-half_width, 0.0, -half_width), Vector3(half_width * 2.0, height, half_width * 2.0)
+		)
+	)
+	return root
+
+
+static func build_orientation_spire(
+	biome_id: String, height: float, half_width: float
+) -> Node3D:
+	var theme := PixelDioramaStyle.theme_from_biome(biome_id)
+	var root := Node3D.new()
+	root.name = "orientation_spire"
+	var shaft_mat := PixelDioramaStyle.make_wall_material(theme)
+	var cap_mat := PixelDioramaStyle.make_prop_material(theme, true)
+	var batch := PixelBoxBatch.new()
+	var w := maxf(0.4, half_width)
+	batch.add(Vector3(w, height, w), Vector3(0.0, height * 0.5, 0.0), shaft_mat)
+	batch.add(Vector3(w * 1.3, w * 0.25, w * 1.3), Vector3(0.0, height, 0.0), cap_mat)
+	batch.commit(
+		root, "OrientationBatch", AABB(Vector3(-w, 0.0, -w), Vector3(w * 2.0, height + w, w * 2.0))
+	)
+	var lantern_mat := PixelDioramaStyle.make_emissive_material(theme, 1.6)
+	var lantern := _make_mesh_instance(_make_box(Vector3.ONE * w * 0.5), lantern_mat, "Lantern")
+	lantern.position = Vector3(0.0, height + w, 0.0)
+	root.add_child(lantern)
+	var light := OmniLight3D.new()
+	light.name = "LanternLight"
+	light.light_color = PixelDioramaStyle.get_palette_color(theme, PixelDioramaStyle.PaletteSlot.EMISSIVE)
+	light.light_energy = 0.6
+	light.omni_range = 8.0
+	light.shadow_enabled = false
+	light.position = lantern.position
+	root.add_child(light)
+	return root
+
+
 static func _make_banner(theme: PixelDioramaStyle.PaletteTheme) -> Node3D:
 	var root := Node3D.new()
 	root.name = "Banner"

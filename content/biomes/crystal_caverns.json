@@ -4,8 +4,8 @@
   "templatePrefix": "crystal",
   "assetFolder": "crystal",
   "roomCount": {
-    "min": 22,
-    "max": 28
+    "min": 26,
+    "max": 32
   },
   "roomTemplateIds": [
     "crystal_entrance",
@@ -17,7 +17,10 @@
     "crystal_secret",
     "crystal_arena",
     "crystal_boss",
-    "crystal_puzzle"
+    "crystal_puzzle",
+    "crystal_corridor_long",
+    "crystal_corridor_bend",
+    "crystal_balcony"
   ],
   "materials": {
     "floor": "crystal",
@@ -53,7 +56,11 @@
     "rubble": [
       "res://scenes/props/crystal/rubble_a.tscn",
       "res://scenes/props/crystal/rubble_b.tscn"
-    ]
+    ],
+    "banner": "res://scenes/props/crystal/banner.tscn",
+    "statue": "res://scenes/props/crystal/statue.tscn",
+    "altar": "res://scenes/props/crystal/altar.tscn",
+    "debrisPile": "res://scenes/props/crystal/debris_pile.tscn"
   },
   "enemyPool": [
     {
@@ -206,13 +213,14 @@
   "generator": {
     "bossMinDistance": 4,
     "minDeadEnds": 4,
-    "branchMaxDepth": 8,
+    "branchMaxDepth": 10,
     "maxNeighborCount": 4,
-    "loopBudget": 4,
+    "loopBudget": 5,
     "maxGenerationAttempts": 256,
     "maxWalkAttempts": 8192,
     "allow2x2Blocks": true,
-    "fillBoundingBox": true
+    "fillBoundingBox": false,
+    "corridorRatio": 0.05
   },
   "grade": {
     "shadowTint": [

@@ -1,5 +1,9 @@
 extends CharacterBody3D
 
+## CB-02: lets `WeaponController` resolve an armed plunge attack without this script knowing
+## anything about combat -- it just reports "you landed, here is how far you fell."
+signal landed(fall_height: float)
+
 const WALK_SPEED := 4.5
 const SPRINT_SPEED := 7.0
 const ACCELERATION := 12.0
@@ -35,6 +39,7 @@ var _facing: Node3D
 var _stamina: Stamina
 var _dodge: Dodge
 var _combat_reactions: PlayerCombatReactions
+var _knockback: Knockback
 var _lock_on: LockOn
 var _speed_multiplier := 1.0
 var _weapon: WeaponController
@@ -67,6 +72,7 @@ func _ready() -> void:
 	_stamina = get_node_or_null("Stamina") as Stamina
 	_dodge = get_node_or_null("Dodge") as Dodge
 	_combat_reactions = get_node_or_null("CombatReactions") as PlayerCombatReactions
+	_knockback = get_node_or_null("Knockback") as Knockback
 	_lock_on = get_node_or_null("LockOn") as LockOn
 	_weapon = get_node_or_null("WeaponController") as WeaponController
 	_status = get_node_or_null("StatusController") as StatusController
@@ -135,6 +141,7 @@ func _physics_process(delta: float) -> void:
 			velocity += get_gravity() * delta
 		velocity.x = lunge.x
 		velocity.z = lunge.z
+		_apply_knockback(delta)
 		move_and_slide()
 		_consume_landing()
 		_update_character_animation(delta, 0.0)
@@ -148,6 +155,7 @@ func _physics_process(delta: float) -> void:
 		locked_horizontal = locked_horizontal.move_toward(Vector3.ZERO, DECELERATION * delta)
 		velocity.x = locked_horizontal.x
 		velocity.z = locked_horizontal.z
+		_apply_knockback(delta)
 		move_and_slide()
 		_consume_landing()
 		_update_character_animation(delta, 0.0)
@@ -252,6 +260,7 @@ func _physics_process(delta: float) -> void:
 
 	velocity.x = horizontal.x
 	velocity.z = horizontal.z
+	_apply_knockback(delta)
 
 	var attacking: bool = _weapon != null and _weapon.is_attacking
 	if locked_on:
@@ -269,6 +278,17 @@ func _physics_process(delta: float) -> void:
 		_on_landed(fall_height)
 	_update_footstep_vfx(delta)
 	_update_character_animation(delta, fall_height)
+
+
+## `PH-01`: folded into every `move_and_slide()` branch, including the movement-locked and
+## landing-locked ones -- a staggered player must still move when hit, or knockback would be
+## exactly the state (mid-stagger) it exists to sell.
+func _apply_knockback(delta: float) -> void:
+	if _knockback == null:
+		return
+	var impulse := _knockback.consume(delta)
+	velocity.x += impulse.x
+	velocity.z += impulse.z
 
 
 func _consume_landing() -> void:
@@ -291,6 +311,7 @@ func _update_floor_state() -> float:
 
 
 func _on_landed(fall_height: float) -> void:
+	landed.emit(fall_height)
 	if fall_height < LAND_SOFT_HEIGHT:
 		play_footstep_effects()
 		_footstep_timer = VfxService.FOOTSTEP_INTERVAL_WALK

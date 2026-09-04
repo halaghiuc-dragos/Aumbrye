@@ -77,6 +77,9 @@ func _ready() -> void:
 	call_deferred("_face_spawn_view")
 	_show_return_message()
 	_refresh_castle_portal_label()
+	# MD-07: lit before announced, not after -- the portal should already be glowing the moment
+	# the card names it, not catch up a beat later via the deferred boot pass.
+	_refresh_mode_portals()
 	_announce_mode_unlocks()
 	RunFlow.returned_to_hub.connect(_on_returned_to_hub)
 	if not RunFlow.run_warning.is_connected(_on_run_warning):
@@ -503,18 +506,79 @@ func _set_portal_lit(portal: Node3D, lit: bool) -> void:
 
 
 ## Celebrates a newly-opened portal exactly once, the first time the player is back in the hub.
+## MD-07: unlocking a mode is one of maybe five genuinely new things that will ever happen to this
+## player -- a hub message line undersold it. Now: the portal is already lit (see `_ready()`), a
+## stinger plays, and the announce line gets a region-banner-sized card instead of the small
+## world-space message label.
 func _announce_mode_unlocks() -> void:
 	var fresh := ModeUnlockService.consume_announcements()
 	if fresh.is_empty():
 		return
-	var lines: Array[String] = []
 	for entry in fresh:
+		var mode_name := str(entry.get("name", ""))
 		var announce := str(entry.get("announce", ""))
-		lines.append(
-			announce if announce != "" else "%s has opened." % str(entry.get("name", ""))
+		_show_mode_unlock_card(
+			mode_name, announce if announce != "" else "%s has opened." % mode_name
 		)
-	show_hub_message("\n".join(lines))
 	AudioDirector.play_stinger("floor_clear")
+
+
+const GameUISkinScript := preload("res://scripts/ui/game_ui_skin.gd")
+
+var _mode_unlock_layer: CanvasLayer
+
+
+func _show_mode_unlock_card(title: String, subtitle: String) -> void:
+	if _mode_unlock_layer == null or not is_instance_valid(_mode_unlock_layer):
+		_mode_unlock_layer = CanvasLayer.new()
+		_mode_unlock_layer.name = "ModeUnlockLayer"
+		_mode_unlock_layer.layer = 20
+		add_child(_mode_unlock_layer)
+	var card := VBoxContainer.new()
+	card.name = "ModeUnlockCard"
+	card.set_anchors_preset(Control.PRESET_CENTER_TOP)
+	card.offset_top = 48.0
+	card.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	card.alignment = BoxContainer.ALIGNMENT_CENTER
+	card.add_theme_constant_override("separation", 4)
+	_mode_unlock_layer.add_child(card)
+	var title_row := HBoxContainer.new()
+	title_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	title_row.add_theme_constant_override("separation", 12)
+	card.add_child(title_row)
+	var left_flourish := ColorRect.new()
+	left_flourish.custom_minimum_size = Vector2(32, 3)
+	left_flourish.color = GameUISkinScript.GOLD
+	left_flourish.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	title_row.add_child(left_flourish)
+	var title_label := Label.new()
+	title_label.text = title
+	title_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	GameUISkinScript.style_menu_title(title_label)
+	title_label.add_theme_color_override("font_outline_color", Color(0.0, 0.0, 0.0, 0.85))
+	title_label.add_theme_constant_override("outline_size", 5)
+	title_row.add_child(title_label)
+	var right_flourish := ColorRect.new()
+	right_flourish.custom_minimum_size = Vector2(32, 3)
+	right_flourish.color = GameUISkinScript.GOLD
+	right_flourish.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	title_row.add_child(right_flourish)
+	var subtitle_label := Label.new()
+	subtitle_label.text = subtitle
+	subtitle_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	subtitle_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	subtitle_label.custom_minimum_size = Vector2(480, 0)
+	subtitle_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	GameUISkinScript.style_body_label(subtitle_label)
+	subtitle_label.add_theme_color_override("font_outline_color", Color(0.0, 0.0, 0.0, 0.85))
+	subtitle_label.add_theme_constant_override("outline_size", 4)
+	card.add_child(subtitle_label)
+	card.modulate.a = 0.0
+	var tween := create_tween()
+	tween.tween_property(card, "modulate:a", 1.0, 0.6)
+	tween.tween_interval(4.2)
+	tween.tween_property(card, "modulate:a", 0.0, 0.8)
+	tween.tween_callback(card.queue_free)
 
 
 func _show_coming_soon_skies() -> void:
@@ -556,7 +620,18 @@ func _show_return_message() -> void:
 		show_hub_message(RunFlow.last_hub_message)
 		RunFlow.last_hub_message = ""
 	else:
-		show_hub_message("Welcome to Aumbrye Tower — explore the landmarks")
+		show_hub_message(_default_welcome_message())
+
+
+## MD-06: the weekly challenge was announced nowhere outside the tower board it lives on -- this
+## is the passive nudge for a player who never opens the board.
+func _default_welcome_message() -> String:
+	var base := "Welcome to Aumbrye Tower — explore the landmarks"
+	var challenge := ChallengeService.get_active_challenge()
+	if challenge.is_empty():
+		return base
+	var remaining := ChallengeService.format_remaining(int(challenge.get("endsInSeconds", 0)))
+	return "%s. This week: %s (%s)." % [base, str(challenge.get("name", "")), remaining]
 
 
 func _connect_tip_refresh_sources() -> void:

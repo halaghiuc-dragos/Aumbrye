@@ -1,0 +1,29 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://aumbrye.dev/schemas/intent-atlas.v1.json",
+  "title": "Enemy intent glyph atlas",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "texture", "sword", "shield_break", "parry_star", "hand"],
+  "properties": {
+    "schemaVersion": { "type": "integer", "minimum": 1 },
+    "texture": { "type": "string", "minLength": 1 },
+    "sword": { "$ref": "#/$defs/cell" },
+    "shield_break": { "$ref": "#/$defs/cell" },
+    "parry_star": { "$ref": "#/$defs/cell" },
+    "hand": { "$ref": "#/$defs/cell" }
+  },
+  "$defs": {
+    "cell": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["x", "y", "w", "h"],
+      "properties": {
+        "x": { "type": "integer", "minimum": 0 },
+        "y": { "type": "integer", "minimum": 0 },
+        "w": { "type": "integer", "minimum": 1 },
+        "h": { "type": "integer", "minimum": 1 }
+      }
+    }
+  }
+}

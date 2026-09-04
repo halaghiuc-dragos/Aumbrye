@@ -18,6 +18,7 @@
 
 [ext_resource type="Script" path="res://scripts/combat/statuses/status_controller.gd" id="16_status"]
 [ext_resource type="Script" path="res://scripts/combat/mana.gd" id="17_mana"]
+[ext_resource type="Script" path="res://scripts/combat/knockback.gd" id="18_knockback"]
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_body"]
 radius = 0.4
@@ -82,6 +83,9 @@ script = ExtResource("17_mana")
 
 [node name="Poise" type="Node" parent="."]
 script = ExtResource("5_poise")
+
+[node name="Knockback" type="Node" parent="."]
+script = ExtResource("18_knockback")
 
 [node name="Dodge" type="Node" parent="."]
 script = ExtResource("2_dodge")

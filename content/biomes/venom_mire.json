@@ -4,8 +4,8 @@
   "templatePrefix": "mire",
   "assetFolder": "mire",
   "roomCount": {
-    "min": 22,
-    "max": 28
+    "min": 26,
+    "max": 32
   },
   "roomTemplateIds": [
     "mire_entrance",
@@ -17,7 +17,10 @@
     "mire_secret",
     "mire_arena",
     "mire_boss",
-    "mire_puzzle"
+    "mire_puzzle",
+    "mire_corridor_long",
+    "mire_corridor_bend",
+    "mire_balcony"
   ],
   "materials": {
     "floor": "mire",
@@ -53,7 +56,11 @@
     "rubble": [
       "res://scenes/props/mire/rubble_a.tscn",
       "res://scenes/props/mire/rubble_b.tscn"
-    ]
+    ],
+    "banner": "res://scenes/props/mire/banner.tscn",
+    "statue": "res://scenes/props/mire/statue.tscn",
+    "altar": "res://scenes/props/mire/altar.tscn",
+    "debrisPile": "res://scenes/props/mire/debris_pile.tscn"
   },
   "enemyPool": [
     {
@@ -190,13 +197,14 @@
   "generator": {
     "bossMinDistance": 5,
     "minDeadEnds": 5,
-    "branchMaxDepth": 8,
+    "branchMaxDepth": 10,
     "maxNeighborCount": 4,
-    "loopBudget": 4,
+    "loopBudget": 5,
     "maxGenerationAttempts": 256,
     "maxWalkAttempts": 8192,
     "allow2x2Blocks": true,
-    "fillBoundingBox": true
+    "fillBoundingBox": false,
+    "corridorRatio": 0.05
   },
   "grade": {
     "shadowTint": [

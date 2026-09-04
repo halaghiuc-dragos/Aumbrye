@@ -16,6 +16,7 @@ static func assign(
 	var result := _assign_impl(graph, assignment, rng, config, biome_id, tier)
 	if result.get("ok", false):
 		_add_shortcut_gates(graph, assignment, rng, biome_id, tier, result)
+		_guarantee_one_way_gate(graph, assignment, rng, biome_id, tier, result)
 	return result
 
 
@@ -130,19 +131,10 @@ static func _try_assign_once(
 		var semantic: String = room["semantic_id"]
 		var layout_id: String = room["layout_id"]
 		var slot := graph.get_slot(layout_id)
-		if room.get("type", "") == "filler":
-			(
-				room_content
-				. append(
-					{
-						"roomId": semantic,
-						"layoutId": layout_id,
-						"contentType": RoomContentTypes.EMPTY,
-						"templateId": "",
-					}
-				)
-			)
-			continue
+		# RM-15: a filler used to always get RoomContentTypes.EMPTY here regardless of anything
+		# else -- every filler was a room the player walks through with nothing in it, by design,
+		# which is what made a fifth of a floor read as pointless space. It now falls through to
+		# the same per-room content roll as any other off-path room below.
 		if semantic in reserved_semantics:
 			room_content.append(_entry_for_special(room, slot))
 			continue
@@ -155,6 +147,10 @@ static func _try_assign_once(
 						"layoutId": layout_id,
 						"contentType": RoomContentTypes.COMBAT,
 						"templateId": "",
+						# RM-07: one lock-in per floor -- the room immediately before the boss, where
+						# the game wants to test the player before the real test. See
+						# `room_arena_gate_content.gd` for what this flag actually builds.
+						"lockIn": true,
 					}
 				)
 			)
@@ -562,6 +558,148 @@ static func _add_shortcut_gates(
 	result["content"] = content
 
 
+## RM-04: `_add_shortcut_gates` only fires when the lattice happened to seat a loop flush against
+## another room -- a floor where the solver closed no loops gets zero one-way doors, so the
+## soulslike "barred door, opened from the far side" beat appears on some floors and not others.
+## This guarantees at least one by promoting a dead-end branch when nothing else produced a gate.
+##
+## Orientation note: `RoomShortcutGateContent`'s barrier physically blocks *both* directions until
+## opened, and it can only be opened by a player standing on the `openRoomId` side. A genuine graph
+## dead end has exactly one edge -- its only connection to the rest of the floor -- so that edge
+## cannot be barred from the dead-end side without making the room (and its chest) permanently
+## unreachable. This deliberately orients the gate the other way: `openRoomId` is the dead end's
+## *critical-path parent*, which is always already reachable, so the barred door can always be
+## opened before it is ever an obstacle. The invariant this file's header states -- a one-way door
+## may never be the only route to anything the floor requires -- holds trivially for this
+## orientation, and is reverified below via `RoomGraphPaths.reachable_without_edge` before the gate
+## is accepted, exactly as it would be for a lock.
+static func _guarantee_one_way_gate(
+	graph: RoomGraph,
+	assignment: Dictionary,
+	rng: RandomNumberGenerator,
+	biome_id: String,
+	tier: int,
+	result: Dictionary
+) -> void:
+	var content: Dictionary = result.get("content", {})
+	var existing: Array = content.get("shortcutGates", [])
+	if not existing.is_empty():
+		return
+	var room_content: Array = content.get("roomContent", [])
+	if room_content.is_empty():
+		return
+	var layout_semantic := _layout_to_semantic(assignment)
+	var by_room: Dictionary = {}
+	for entry in room_content:
+		if entry is Dictionary:
+			by_room[str((entry as Dictionary).get("roomId", ""))] = entry
+	var distances := RoomGraphPaths.bfs_distances(graph, graph.start_id)
+	var reserved_semantics := _reserved_semantics(graph, assignment, layout_semantic)
+	var candidate_layout := ""
+	var candidate_parent_layout := ""
+	var best_distance := -1
+	for cell in graph.occupied_cells():
+		var slot: RoomGraphSlot = graph.slots[cell]
+		if slot.is_filler or slot.slot_type == RoomGraphSlot.SlotType.SECRET:
+			continue
+		if not slot.is_dead_end():
+			continue
+		if slot.slot_id in [graph.start_id, graph.boss_id, graph.stairs_id]:
+			continue
+		var parent_id := _dead_end_parent_layout_id(graph, slot)
+		if parent_id == "":
+			continue
+		var parent_slot := graph.get_slot(parent_id)
+		if parent_slot == null or not parent_slot.on_critical_path:
+			continue
+		var sem := str(layout_semantic.get(slot.slot_id, ""))
+		var candidate_parent_sem := str(layout_semantic.get(parent_id, ""))
+		if (
+			sem == ""
+			or candidate_parent_sem == ""
+			or not by_room.has(sem)
+			or not by_room.has(candidate_parent_sem)
+		):
+			continue
+		var dist := int(distances.get(slot.slot_id, 0))
+		if dist > best_distance:
+			best_distance = dist
+			candidate_layout = slot.slot_id
+			candidate_parent_layout = parent_id
+	if candidate_layout == "":
+		return
+	if not _one_way_gate_is_safe(
+		graph, assignment, content, candidate_parent_layout, candidate_layout
+	):
+		return
+	var dead_end_sem := str(layout_semantic.get(candidate_layout, ""))
+	var parent_sem := str(layout_semantic.get(candidate_parent_layout, ""))
+	var gates: Array = [
+		{
+			"gateId": "shortcut_deadend_%s" % dead_end_sem,
+			"roomA": dead_end_sem,
+			"roomB": parent_sem,
+			"openRoomId": parent_sem,
+		}
+	]
+	var dead_end_entry: Variant = by_room.get(dead_end_sem)
+	if dead_end_entry is Dictionary and _is_mutable(dead_end_entry as Dictionary, reserved_semantics):
+		_set_content_type(dead_end_entry as Dictionary, RoomContentTypes.REWARD)
+		(dead_end_entry as Dictionary)["items"] = _roll_armory_chest_items(
+			biome_id, rng, dead_end_sem, tier
+		)
+	content["shortcutGates"] = gates
+	result["content"] = content
+
+
+## The dead-end slot's one neighbour, found straight from its door mask rather than from
+## `graph.walk_edges` -- a dead end by construction has exactly one open door, so this is
+## unambiguous, and it works the same whether that edge came from the walk or from a later loop.
+static func _dead_end_parent_layout_id(graph: RoomGraph, slot: RoomGraphSlot) -> String:
+	for dir in [Vector2i(0, -1), Vector2i(1, 0), Vector2i(0, 1), Vector2i(-1, 0)]:
+		if not (slot.door_mask & RoomGraphGeometry.dir_to_door(dir)):
+			continue
+		var neighbor := graph.get_slot_at(slot.grid_pos + dir)
+		if neighbor != null:
+			return neighbor.slot_id
+	return ""
+
+
+## Confirms cutting this edge (in the direction the gate blocks until opened) still leaves the
+## boss, the stairs and every key room reachable -- the same soundness test `RoomLockPlacer` runs
+## for a lock. The dead end itself is expected to drop out; that is the point of the gate.
+static func _one_way_gate_is_safe(
+	graph: RoomGraph,
+	assignment: Dictionary,
+	content: Dictionary,
+	parent_layout_id: String,
+	dead_end_layout_id: String
+) -> bool:
+	var reachable := RoomGraphPaths.reachable_without_edge(
+		graph, parent_layout_id, dead_end_layout_id
+	)
+	if graph.boss_id != "" and not reachable.has(graph.boss_id):
+		return false
+	if graph.stairs_id != "" and not reachable.has(graph.stairs_id):
+		return false
+	var layout_semantic := _layout_to_semantic(assignment)
+	var semantic_layout := {}
+	for layout_id in layout_semantic:
+		semantic_layout[str(layout_semantic[layout_id])] = layout_id
+	var locks: Array = content.get("locks", [])
+	for lock in locks:
+		if not lock is Dictionary:
+			continue
+		var key_rooms: Array = (lock as Dictionary).get(
+			"keyRoomIds", [(lock as Dictionary).get("keyRoomId", "")]
+		)
+		for key_sem in key_rooms:
+			var key_layout: String = str(semantic_layout.get(str(key_sem), ""))
+			if key_layout != "" and not reachable.has(key_layout):
+				return false
+	return true
+
+
 ## Loot for the room on the far side of a one-way shortcut -- rolled from the armory table rather
 ## than the general side-room table, and topped up with a forced pick if the roll came back without
 ## one, so the reward for taking the hard way around is never just consumables.
@@ -774,8 +912,6 @@ static func _entry_for_special(room: Dictionary, slot: RoomGraphSlot) -> Diction
 				content_type = RoomContentTypes.REWARD
 			RoomGraphSlot.SlotType.STAIRS:
 				content_type = RoomContentTypes.STAIRS
-			RoomGraphSlot.SlotType.SHOP:
-				content_type = RoomContentTypes.MERCHANT
 			RoomGraphSlot.SlotType.START:
 				content_type = RoomContentTypes.EMPTY
 	return {
@@ -795,8 +931,6 @@ static func _reserved_semantics(
 	reserved.append(layout_semantic.get(graph.boss_id, "boss"))
 	if graph.treasure_id != "":
 		reserved.append(layout_semantic.get(graph.treasure_id, "treasure"))
-	if graph.shop_id != "":
-		reserved.append(layout_semantic.get(graph.shop_id, "shop"))
 	return reserved
 
 
