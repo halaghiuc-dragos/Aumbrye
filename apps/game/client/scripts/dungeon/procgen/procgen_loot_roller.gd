@@ -10,8 +10,11 @@ const ROLE_SHARES := {
 }
 
 
+## `bonus_share`: SY-08's day-time mechanical tie -- a flat value bonus (roughly one common item's
+## worth) added on top of the normal share, so a chest opened on a floor generated in daylight
+## tends to hold one more item rather than a guaranteed-but-arbitrary extra slot.
 static func roll_chest(
-	biome: Dictionary, role: String, tier: int, rng: RandomNumberGenerator
+	biome: Dictionary, role: String, tier: int, rng: RandomNumberGenerator, bonus_share: float = 0.0
 ) -> Array:
 	var tables: Dictionary = biome.get("lootTables", {})
 	var table: Array = tables.get(role, [])
@@ -21,7 +24,7 @@ static func roll_chest(
 	var total_budget := float(budgets.get("baseLootValue", 80)) + float(
 		budgets.get("lootPerTier", 14)
 	) * float(tier - 1)
-	var share := total_budget * float(ROLE_SHARES.get(role, 0.15))
+	var share := total_budget * float(ROLE_SHARES.get(role, 0.15)) + bonus_share
 	return _fill_share(table, tier, share, rng)
 
 

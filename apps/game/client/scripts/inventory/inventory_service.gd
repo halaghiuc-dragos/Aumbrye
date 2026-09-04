@@ -49,6 +49,7 @@ func _sync_unique_rules() -> void:
 	if not CombatEvents:
 		return
 	var wanted: Dictionary = {}
+	var set_counts: Dictionary = {}
 	for slot_name in EquipmentHelper.SLOT_ORDER:
 		var instance: Dictionary = inventory.equipped.get(slot_name, {})
 		if instance.is_empty():
@@ -64,6 +65,19 @@ func _sync_unique_rules() -> void:
 		var affix_rules := AffixRoller.rules_for_instance(instance)
 		if not affix_rules.is_empty():
 			wanted["affix/%s#%s" % [item_id, instance_id]] = affix_rules
+		var set_id := str(def.get("setId", ""))
+		if set_id != "":
+			set_counts[set_id] = int(set_counts.get(set_id, 0)) + 1
+	# IV-02: a set's bonus at a given piece-count threshold registers once that many pieces of the
+	# same setId are equipped -- unregistering happens for free below, the same way a unregistered
+	# item's rules do, since the threshold's source id simply stops being in `wanted`.
+	for set_id in set_counts:
+		var set_def := ItemSetCatalog.get_definition(set_id)
+		var bonuses: Dictionary = set_def.get("bonuses", {})
+		var equipped_count := int(set_counts[set_id])
+		for threshold_key in bonuses:
+			if equipped_count >= int(str(threshold_key)):
+				wanted["set/%s/%s" % [set_id, threshold_key]] = bonuses[threshold_key]
 	for source_id in _registered_rule_sources:
 		if not wanted.has(source_id):
 			CombatEvents.unregister(str(source_id))

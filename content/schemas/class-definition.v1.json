@@ -67,6 +67,16 @@
       "type": "string",
       "minLength": 1
     },
+    "perkVerb": {
+      "type": "string",
+      "minLength": 1,
+      "description": "UX-08: the perk restated as one short imperative -- 'Rage when hit', not a sentence about mechanics."
+    },
+    "playsLike": {
+      "type": "string",
+      "minLength": 1,
+      "description": "UX-08: one line on how a run with this class actually plays, shown on the class card."
+    },
     "allowedWeaponFamilies": {
       "type": "array",
       "items": {
@@ -153,6 +163,14 @@
       "minLength": 1
     },
     "perkDescriptionText": {
+      "type": "string",
+      "minLength": 1
+    },
+    "perkVerbText": {
+      "type": "string",
+      "minLength": 1
+    },
+    "playsLikeText": {
       "type": "string",
       "minLength": 1
     }

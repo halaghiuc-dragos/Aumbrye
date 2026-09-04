@@ -44,6 +44,10 @@ var attack_class: String = "blockable"
 var knockback: float = 0.0
 ## CB-05: the dagger's identity trait -- 0.0 means "use the global `BACKSTAB_DAMAGE_MULT`".
 var backstab_multiplier_override: float = 0.0
+## `RG-03`: set by `Hitbox` when the hit came from a `Projectile`'s hitbox rather than a melee
+## swing -- lets `Guard` react differently (spark VFX, a parry stamina refund) without a parallel
+## interception path.
+var is_projectile: bool = false
 
 
 static func create(

@@ -23,5 +23,17 @@
     "resistArcane": 0.1,
     "resistLightning": 0.05
   },
+  "ruleText": "A critical hit stacks up to 3% damage, up to 5 times; a hit taken resets the stack.",
+  "rules": [
+    {
+      "event": "onCrit",
+      "effect": "add_stack",
+      "stackId": "spellglass_edge",
+      "maxStacks": 5,
+      "stat": "damagePercent",
+      "perStack": 3.0,
+      "resetOn": ["onHitTaken"]
+    }
+  ],
   "weaponId": "sword_basic"
 }

@@ -9,5 +9,14 @@
   "rarity": "rare",
   "description": "A sacred chalice that mends wounds over time.",
   "value": 48,
-  "stats": { "maxHealth": 20, "defense": 3, "healthRegen": 2 }
+  "stats": { "maxHealth": 20, "defense": 3, "healthRegen": 2 },
+  "ruleText": "Dropping to low health mends 40 health, once every 90 seconds.",
+  "rules": [
+    {
+      "event": "onLowHealth",
+      "effect": "restore_health",
+      "amount": 40.0,
+      "cooldown": 90.0
+    }
+  ]
 }

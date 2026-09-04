@@ -33,6 +33,7 @@ const DEFAULT_LINEAR_TONEMAP := true
 const DEFAULT_GLOW_ENABLED := true
 const DEFAULT_NEAREST_TEXTURE_FILTER := true
 const DEFAULT_ANTI_ALIASING_OFF := false
+const DEFAULT_SHOW_FPS_OVERLAY := false
 const DEFAULT_LOW_RES_VIEWPORT := true
 
 const OUTLINE_SHADER_PATH := "res://assets/shared/pixel_outline.gdshader"
@@ -165,6 +166,10 @@ static var bounce_light_enabled: bool = DEFAULT_BOUNCE_LIGHT
 static var soft_shadows_enabled: bool = DEFAULT_SOFT_SHADOWS
 static var nearest_texture_filter: bool = DEFAULT_NEAREST_TEXTURE_FILTER
 static var anti_aliasing_off: bool = DEFAULT_ANTI_ALIASING_OFF
+## SY-05: an FPS readout as a normal setting rather than the debug-only overlay -- read by
+## debug_overlay.gd, which already computes `Engine.get_frames_per_second()` every frame for the
+## dev panel and now shows just that one line independently of `show_debug`.
+static var show_fps_overlay: bool = DEFAULT_SHOW_FPS_OVERLAY
 static var low_res_viewport_enabled: bool = DEFAULT_LOW_RES_VIEWPORT
 static var outline_enabled: bool = DEFAULT_OUTLINE_ENABLED
 static var outline_strength: float = DEFAULT_OUTLINE_STRENGTH
@@ -235,6 +240,7 @@ static func load_from_save() -> void:
 		data.get("nearest_texture_filter", DEFAULT_NEAREST_TEXTURE_FILTER)
 	)
 	anti_aliasing_off = bool(data.get("anti_aliasing_off", DEFAULT_ANTI_ALIASING_OFF))
+	show_fps_overlay = bool(data.get("show_fps_overlay", DEFAULT_SHOW_FPS_OVERLAY))
 	low_res_viewport_enabled = bool(data.get("low_res_viewport_enabled", DEFAULT_LOW_RES_VIEWPORT))
 	outline_enabled = bool(data.get("outline_enabled", DEFAULT_OUTLINE_ENABLED))
 	outline_strength = float(data.get("outline_strength", DEFAULT_OUTLINE_STRENGTH))
@@ -307,6 +313,7 @@ static func save() -> void:
 		"ambient_occlusion_enabled": ambient_occlusion_enabled,
 		"nearest_texture_filter": nearest_texture_filter,
 		"anti_aliasing_off": anti_aliasing_off,
+		"show_fps_overlay": show_fps_overlay,
 		"low_res_viewport_enabled": low_res_viewport_enabled,
 		"outline_enabled": outline_enabled,
 		"outline_strength": outline_strength,
@@ -494,6 +501,50 @@ static func mark_tuning_user_edited() -> void:
 	tuning_is_preset_default = false
 
 
+## `SY-05`: one-click quality presets. `apply_beauty_defaults()` below already *is* the Beauty
+## preset (every quality toggle on, at the resolution the "default": true entry in
+## `RESOLUTION_PRESETS` names) -- these two give the other two words a player can pick without
+## learning what `shade_bands` or `edge_strength` mean.
+static func apply_performance_preset() -> void:
+	apply_beauty_defaults()
+	_select_resolution_preset(0)
+	shadow_quality = 0
+	particle_quality = 0
+	glow_enabled = false
+	reflections_enabled = false
+	ambient_occlusion_enabled = false
+	soft_shadows_enabled = false
+	bounce_light_enabled = false
+	cinematic_finish_amount = 0.0
+	anti_aliasing_off = true
+	save_and_apply()
+
+
+static func apply_balanced_preset() -> void:
+	apply_beauty_defaults()
+	shadow_quality = 1
+	particle_quality = 1
+	glow_enabled = true
+	reflections_enabled = false
+	ambient_occlusion_enabled = false
+	soft_shadows_enabled = false
+	bounce_light_enabled = false
+	cinematic_finish_amount = 0.5
+	save_and_apply()
+
+
+static func _select_resolution_preset(index: int) -> void:
+	if index < 0 or index >= RESOLUTION_PRESETS.size():
+		return
+	var preset: Dictionary = RESOLUTION_PRESETS[index]
+	viewport_width = int(preset.get("width", DEFAULT_VIEWPORT_WIDTH))
+	viewport_height = int(preset.get("height", DEFAULT_VIEWPORT_HEIGHT))
+	var tuning: Variant = preset.get("tuning", {})
+	if tuning is Dictionary and not (tuning as Dictionary).is_empty():
+		_apply_preset_tuning(tuning as Dictionary)
+		tuning_is_preset_default = true
+
+
 static func apply_beauty_defaults() -> void:
 	pixel_scale = DEFAULT_PIXEL_SCALE
 	color_levels = DEFAULT_COLOR_LEVELS
@@ -638,13 +689,20 @@ static func camera_snap_step(fov_degrees: float = 75.0, focus_distance: float = 
 	return maxf(0.001, 2.0 * maxf(0.5, focus_distance) * half_extent / height)
 
 
+## `VS-02`: a low-res viewport and antialiasing are mutually exclusive by definition -- AA exists
+## to hide the pixel grid a low-res render is built to show off. `low_res_viewport_enabled` forces
+## this regardless of the stored `anti_aliasing_off` toggle, so a saved setting from before low-res
+## was turned on can't quietly soften every edge the resolution drop was supposed to sharpen.
+static func effective_anti_aliasing_off() -> bool:
+	return anti_aliasing_off or low_res_viewport_enabled
+
+
 static func apply_render_quality(viewports: Array) -> void:
-	var msaa := (
-		Viewport.MSAA_DISABLED if anti_aliasing_off else Viewport.MSAA_2X
-	)
+	var off := effective_anti_aliasing_off()
+	var msaa := Viewport.MSAA_DISABLED if off else Viewport.MSAA_2X
 	var ss_aa := (
 		Viewport.SCREEN_SPACE_AA_DISABLED
-		if anti_aliasing_off
+		if off
 		else Viewport.SCREEN_SPACE_AA_FXAA
 	)
 	for vp in viewports:

@@ -1,0 +1,18 @@
+{
+  "id": "hunters_lure",
+  "name": "Hunter's Lure",
+  "itemType": "consumable",
+  "gridWidth": 1,
+  "gridHeight": 1,
+  "stackSize": 8,
+  "rarity": "common",
+  "description": "A knuckle-bone whistle. Thrown past a line, it pulls attention to wherever it lands.",
+  "consumableEffect": {
+    "kind": "throwable",
+    "lure": true,
+    "radius": 10.0,
+    "usableInHub": false
+  },
+  "value": 35,
+  "lootValue": 18
+}

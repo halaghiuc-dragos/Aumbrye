@@ -157,6 +157,62 @@ func describe_progress() -> String:
 	return "Vault %d/%d" % [unlocked_count(), total_count()]
 
 
+## AD-05: the results screen's "Next" block wants the single locked entry closest to opening, not
+## the whole vault -- reuses `_trigger_met()`'s trigger-type switch but returns the progress
+## numbers instead of collapsing them to a bool.
+func nearest_locked_progress() -> Dictionary:
+	var record := _unlocked_record()
+	var best := {}
+	var best_gap := INF
+	for entry_id in _order:
+		if bool(record.get(entry_id, false)):
+			continue
+		var entry: Dictionary = _entries[entry_id]
+		var progress := _trigger_progress(entry.get("trigger", {}))
+		if progress.is_empty():
+			continue
+		var have := int(progress.get("have", 0))
+		var need := int(progress.get("need", 1))
+		var gap := need - have
+		if gap <= 0 or gap >= best_gap:
+			continue
+		best_gap = gap
+		best = {
+			"entryId": entry_id,
+			"name": str(entry.get("name", entry_id)),
+			"have": have,
+			"need": need,
+			"gap": gap,
+		}
+	return best
+
+
+func _trigger_progress(raw: Variant) -> Dictionary:
+	if not raw is Dictionary:
+		return {}
+	var trigger: Dictionary = raw
+	var needed := int(trigger.get("value", 1))
+	var key := str(trigger.get("key", ""))
+	match str(trigger.get("type", "")):
+		"biomeCleared":
+			return {"have": 1 if CharacterService.get_flag("theme_%s_cleared" % key) else 0, "need": 1}
+		"dungeonDepth":
+			return {"have": DungeonTierService.get_max_unlocked_tier(), "need": needed}
+		"dungeonDepthCleared":
+			return {"have": DungeonTierService.get_deepest_cleared(), "need": needed}
+		"enemyKills":
+			return {"have": BestiaryService.get_kills(key), "need": needed}
+		"totalKills":
+			return {"have": _total_kills(), "need": needed}
+		"deaths":
+			return {"have": int(CharacterService.get_flag("deaths")), "need": needed}
+		"wavesWave":
+			return {"have": int(CharacterService.get_flag("waves_best_wave")), "need": needed}
+		"wavesCompletions":
+			return {"have": int(CharacterService.get_flag("waves_completions")), "need": needed}
+	return {}
+
+
 func _unlocked_record() -> Dictionary:
 	var stored: Variant = CharacterService.get_flag(FLAG_UNLOCKED, {})
 	return (stored as Dictionary).duplicate() if stored is Dictionary else {}

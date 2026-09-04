@@ -10,6 +10,8 @@ const InputGlyphServiceScript := preload("res://scripts/ui/input_glyph_service.g
 const RunModeConfigScript := preload("res://scripts/app/run_mode_config.gd")
 const ItemIconAtlasScript := preload("res://scripts/ui/item_icon_atlas.gd")
 const ConsumableServiceScript := preload("res://scripts/inventory/consumable_service.gd")
+const ForgeServiceScript := preload("res://scripts/items/forge_service.gd")
+const ItemCellScript := preload("res://scripts/ui/item_cell.gd")
 
 const _NAV_DIRECTIONS := [
 	[&"ui_left", Vector2i(-1, 0)],
@@ -95,6 +97,7 @@ var _btn_equip: Button
 var _btn_unequip: Button
 var _btn_use: Button
 var _btn_drop: Button
+var _btn_salvage: Button
 var _bind_target_index := -1
 
 
@@ -264,10 +267,12 @@ func _build_ui_shell() -> void:
 	_btn_unequip = MenuShellScript.make_menu_button(tr("INV_BTN_UNEQUIP"), _on_action_unequip_pressed)
 	_btn_use = MenuShellScript.make_menu_button(tr("INV_BTN_USE"), _on_action_use_pressed)
 	_btn_drop = MenuShellScript.make_menu_button(tr("INV_BTN_DROP"), _on_action_drop_pressed)
+	_btn_salvage = MenuShellScript.make_menu_button(tr("SMITH_SALVAGE"), _on_action_salvage_pressed)
 	_action_row.add_child(_btn_equip)
 	_action_row.add_child(_btn_unequip)
 	_action_row.add_child(_btn_use)
 	_action_row.add_child(_btn_drop)
+	_action_row.add_child(_btn_salvage)
 	_pin_action_button_widths()
 	_btn_equip.focus_neighbor_top = _grid.get_path()
 	footer.add_child(_action_row)
@@ -589,50 +594,7 @@ func _on_equip_focus_entered(slot_name: String) -> void:
 
 
 func _make_item_cell(cell_size: int, rarity: String, upgrade_level: int) -> PanelContainer:
-	var cell := PanelContainer.new()
-	cell.custom_minimum_size = Vector2(cell_size, cell_size)
-	cell.focus_mode = Control.FOCUS_ALL
-	var style := GameUISkinScript.make_item_cell_style(rarity, false)
-	cell.add_theme_stylebox_override("panel", style)
-	var icon := GameUISkinScript.make_symbol_rect(null, ItemIconAtlasScript.icon_size())
-	icon.name = "Icon"
-	icon.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	icon.offset_left = 2
-	icon.offset_top = 2
-	icon.offset_right = -2
-	icon.offset_bottom = -2
-	cell.add_child(icon)
-	var stack_label := Label.new()
-	stack_label.name = "StackLabel"
-	stack_label.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
-	stack_label.offset_left = -cell_size + 2
-	stack_label.offset_bottom = -2
-	stack_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	stack_label.vertical_alignment = VERTICAL_ALIGNMENT_BOTTOM
-	stack_label.add_theme_font_size_override("font_size", GameUISkinScript.FONT_SIZE_MICRO)
-	stack_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	stack_label.visible = false
-	cell.add_child(stack_label)
-	var upgrade_label := Label.new()
-	upgrade_label.name = "UpgradeLabel"
-	upgrade_label.set_anchors_preset(Control.PRESET_TOP_RIGHT)
-	upgrade_label.offset_left = -cell_size + 2
-	upgrade_label.offset_top = 0
-	upgrade_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	upgrade_label.add_theme_font_size_override("font_size", GameUISkinScript.FONT_SIZE_MICRO)
-	upgrade_label.add_theme_color_override("font_color", Color(1.0, 0.85, 0.45))
-	upgrade_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	upgrade_label.text = ("+%d" % upgrade_level) if upgrade_level > 0 else ""
-	cell.add_child(upgrade_label)
-	var durability := TextureProgressBar.new()
-	durability.name = "DurabilityBar"
-	durability.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
-	durability.offset_top = -2
-	durability.custom_minimum_size = Vector2(0, 2)
-	durability.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	durability.visible = false
-	cell.add_child(durability)
-	return cell
+	return ItemCellScript.make_cell(cell_size, rarity, upgrade_level)
 
 
 func _set_cell_content(
@@ -642,38 +604,7 @@ func _set_cell_content(
 	slot: Dictionary = {},
 	empty_slot_name: String = ""
 ) -> void:
-	var filled := not slot.is_empty()
-	var display_rarity := rarity if filled else "common"
-	var style := GameUISkinScript.make_item_cell_style(display_rarity, filled)
-	cell.add_theme_stylebox_override("panel", style)
-	var icon: TextureRect = cell.get_node("Icon")
-	var upgrade_label: Label = cell.get_node("UpgradeLabel")
-	var stack_label: Label = cell.get_node("StackLabel")
-	var durability_bar: TextureProgressBar = cell.get_node("DurabilityBar")
-	if filled:
-		var item_id: String = str(slot.get("itemId", ""))
-		var def := _item_def(item_id)
-		icon.texture = ItemIconAtlasScript.get_icon(item_id, str(def.get("iconPath", "")))
-		var qty: int = int(slot.get("quantity", 1))
-		stack_label.text = str(qty) if qty > 1 else ""
-		stack_label.visible = qty > 1
-		var max_dur := BlacksmithServiceScript.get_max_durability(item_id)
-		var current_dur := BlacksmithServiceScript.get_slot_durability(slot)
-		if max_dur > 0 and def.get("itemType", "") in BlacksmithServiceScript.UPGRADEABLE_TYPES:
-			durability_bar.max_value = max_dur
-			durability_bar.value = current_dur
-			durability_bar.visible = current_dur < max_dur
-		else:
-			durability_bar.visible = false
-	elif empty_slot_name != "":
-		icon.texture = ItemIconAtlasScript.get_slot_icon(empty_slot_name)
-		stack_label.visible = false
-		durability_bar.visible = false
-	else:
-		icon.texture = null
-		stack_label.visible = false
-		durability_bar.visible = false
-	upgrade_label.text = ("+%d" % upgrade_level) if upgrade_level > 0 else ""
+	ItemCellScript.set_cell_content(cell, rarity, upgrade_level, slot, empty_slot_name)
 
 
 func _refresh_all() -> void:
@@ -1574,6 +1505,7 @@ func _pin_action_button_widths() -> void:
 		{"button": _btn_equip, "keys": ["INV_BTN_EQUIP"]},
 		{"button": _btn_unequip, "keys": ["INV_BTN_UNEQUIP"]},
 		{"button": _btn_use, "keys": ["INV_BTN_USE"]},
+		{"button": _btn_salvage, "keys": ["SMITH_SALVAGE"]},
 	]:
 		var button := pinned["button"] as Button
 		if button == null:
@@ -1594,6 +1526,7 @@ func _update_action_buttons() -> void:
 	var can_equip := false
 	var can_use := false
 	var can_unequip := false
+	var can_salvage := false
 	var bind_index := -1
 	if _focus_area == FocusArea.EQUIPMENT or _hover_equip_slot != "":
 		var slot_name := (
@@ -1606,6 +1539,7 @@ func _update_action_buttons() -> void:
 		var def := _item_def(slot.get("itemId", ""))
 		var item_type: String = def.get("itemType", "")
 		can_equip = item_type in ["weapon", "armor", "accessory"]
+		can_salvage = item_type in BlacksmithServiceScript.UPGRADEABLE_TYPES
 		if item_type == "consumable":
 			var in_run := RunFlow != null and RunFlow.is_run_active()
 			can_use = bool(
@@ -1618,6 +1552,7 @@ func _update_action_buttons() -> void:
 	_btn_drop.visible = can_drop and not _waves_mode
 	if _btn_drop.visible:
 		_btn_drop.text = tr("INV_BTN_DROP")
+	_btn_salvage.visible = can_salvage and _focus_area == FocusArea.GRID
 	_bind_target_index = bind_index
 
 
@@ -1646,6 +1581,39 @@ func _on_action_drop_pressed() -> void:
 	if _selected_index < 0:
 		return
 	if InventoryService.drop_slot_at_index(_selected_index):
+		_selected_index = -1
+		_refresh_all()
+
+
+## IV-05: salvage is reachable mid-run, not only at the hub blacksmith -- away from the hub it
+## yields at ForgeService.AWAY_FROM_HUB_YIELD_MULT so a full bag on a deep floor is a real
+## trade-off (destroy for a partial refund) rather than a wall.
+func _on_action_salvage_pressed() -> void:
+	if _selected_index < 0:
+		return
+	var inv_index := _selected_index
+	var slot: Dictionary = _inventory().slots[inv_index]
+	var away_from_hub := RunFlow != null and RunFlow.is_run_active()
+	var preview := ForgeServiceScript.salvage_preview(slot, away_from_hub)
+	var item_name := str(_item_def(slot.get("itemId", "")).get("name", slot.get("itemId", "")))
+	var parts: PackedStringArray = []
+	for material_id in preview:
+		parts.append("%s x%d" % [str(material_id), int(preview[material_id])])
+	var yield_text := ", ".join(parts) if parts.size() > 0 else tr("SMITH_SALVAGED")
+	MenuShellScript.show_confirmation(
+		self,
+		tr("SMITH_SALVAGE_CONFIRM_TITLE"),
+		tr("SMITH_SALVAGE_CONFIRM_MESSAGE") % [item_name, yield_text],
+		_do_salvage.bind(inv_index, away_from_hub),
+		Callable(),
+		tr("SMITH_SALVAGE"),
+		tr("UI_CANCEL")
+	)
+
+
+func _do_salvage(inv_index: int, away_from_hub: bool) -> void:
+	var result := ForgeServiceScript.salvage(inv_index, away_from_hub)
+	if result.get("ok", false):
 		_selected_index = -1
 		_refresh_all()
 

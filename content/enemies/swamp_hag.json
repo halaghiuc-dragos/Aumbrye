@@ -27,6 +27,7 @@
   "circle_radius_mult": 1.5,
   "phaseCount": 2,
   "enemy_type": "boss",
+  "hit_material": "flesh",
   "damage_type": "poison",
   "status_on_hit": "poison",
   "status_stacks_on_hit": 2,

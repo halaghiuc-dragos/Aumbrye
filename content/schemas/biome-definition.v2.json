@@ -227,6 +227,14 @@
         }
       }
     },
+    "roleComposition": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "number",
+        "minimum": 0,
+        "maximum": 1
+      }
+    },
     "bossPool": {
       "type": "array",
       "items": {
@@ -247,6 +255,27 @@
         }
       },
       "minItems": 2
+    },
+    "minibossPool": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "enemyId",
+          "weight"
+        ],
+        "properties": {
+          "enemyId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "weight": {
+            "type": "integer",
+            "minimum": 1
+          }
+        }
+      }
     },
     "budgets": {
       "type": "object",
@@ -417,6 +446,47 @@
           "type": "array",
           "items": {
             "type": "object"
+          }
+        },
+        "arenaHazards": {
+          "description": "BS-08: hazard rings dropped into the final-floor arena once the boss fight begins, in the same shape as a boss phase's own `onEnter.hazards` -- reused by `spawn_hazard_ring()`.",
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["scene"],
+            "properties": {
+              "scene": { "type": "string", "minLength": 1 },
+              "count": { "type": "integer", "minimum": 1 },
+              "radius": { "type": "number", "minimum": 0 },
+              "minRadiusFraction": { "type": "number", "minimum": 0, "maximum": 1 },
+              "lifetime": { "type": "number", "minimum": 0 }
+            }
+          }
+        },
+        "arenaAdds": {
+          "description": "BS-08: extra enemies that spawn into the final-floor arena once the boss fight begins, in the same shape as a boss phase's own `onEnter.spawnAdds` -- reused by `spawn_adds()`.",
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["enemyId"],
+            "properties": {
+              "enemyId": { "type": "string", "minLength": 1 },
+              "count": { "type": "integer", "minimum": 1 },
+              "radius": { "type": "number", "minimum": 0 }
+            }
+          }
+        },
+        "arenaModifier": {
+          "description": "BS-08: the biome's final-floor twist on the (otherwise identical) boss pattern -- the same multiplier fields a boss phase applies via `apply_phase_modifiers()`.",
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "moveSpeedMult": { "type": "number", "minimum": 0 },
+            "attackCooldownMult": { "type": "number", "minimum": 0 },
+            "damageMult": { "type": "number", "minimum": 0 },
+            "poiseMult": { "type": "number", "minimum": 0 }
           }
         }
       }

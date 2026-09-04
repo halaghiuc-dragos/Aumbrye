@@ -20,6 +20,12 @@
       "counterKey": "kills"
     },
     {
+      "event": "trap_kill",
+      "achievementId": "trap_kill",
+      "threshold": 1,
+      "counterKey": "trap_kills"
+    },
+    {
       "event": "item_obtained",
       "achievementId": "epic_loot",
       "contextKey": "rarity",

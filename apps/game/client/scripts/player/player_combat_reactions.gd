@@ -55,6 +55,12 @@ var _grab_pending_damage := 0.0
 var _grab_source: Node = null
 var _knockback: Knockback
 
+## AD-06: what actually killed the player, captured at the moment of the hit (not at death, since
+## by the time `_on_died()` runs the guard/dodge/attack state that mattered has already reset).
+var death_recap: Dictionary = {}
+var _last_damage_info: DamageInfo = null
+var _last_player_action := ""
+
 
 func _ready() -> void:
 	_body = get_parent() as CharacterBody3D
@@ -81,6 +87,8 @@ func _ready() -> void:
 	var hurtbox := _body.get_node_or_null("Hurtbox") as Hurtbox
 	if hurtbox and hurtbox.has_signal("hurt_received"):
 		hurtbox.hurt_received.connect(_on_hurt_received)
+	if hurtbox and hurtbox.has_signal("damaged"):
+		hurtbox.damaged.connect(_on_damaged)
 
 
 func _physics_process(delta: float) -> void:
@@ -253,6 +261,78 @@ func _on_hurt_received(_amount: float, poise_damage: float, direction: Vector3) 
 		_last_hit_direction = direction
 
 
+func _on_damaged(info: DamageInfo) -> void:
+	_last_damage_info = info
+	if is_guard_broken:
+		_last_player_action = "guard_broken"
+	elif _guard and _guard.is_blocking:
+		_last_player_action = "blocking"
+	elif _dodge and _dodge.is_dodging:
+		_last_player_action = "dodging"
+	elif _weapon and _weapon.is_attacking:
+		_last_player_action = "attacking"
+	else:
+		_last_player_action = "moving"
+
+
+## AD-06: one honest sentence naming what killed the player and what they were doing -- never a
+## judgement ("you should have"), just the facts `Hurtbox.receive_hit()` already produced.
+func _build_death_recap() -> Dictionary:
+	var recap := {
+		"enemyId": "",
+		"enemyName": "",
+		"attackName": "",
+		"attackClass": "",
+		"playerAction": _last_player_action,
+		"sentence": "",
+	}
+	if _last_damage_info == null or not is_instance_valid(_last_damage_info.source):
+		return recap
+	var source := _last_damage_info.source
+	var enemy_id := ""
+	if source.has_method("get_enemy_id"):
+		enemy_id = str(source.call("get_enemy_id"))
+	var enemy_name := str(EnemyCatalog.get_definition(enemy_id).get("name", enemy_id))
+	if enemy_name == "":
+		enemy_name = source.name
+	var attack_name := ""
+	if source.has_method("get_current_attack_name"):
+		attack_name = str(source.call("get_current_attack_name"))
+	var attack_class := _last_damage_info.attack_class
+	recap["enemyId"] = enemy_id
+	recap["enemyName"] = enemy_name
+	recap["attackName"] = attack_name
+	recap["attackClass"] = attack_class
+	recap["sentence"] = _death_sentence(enemy_name, attack_name, attack_class, _last_player_action)
+	return recap
+
+
+func _death_sentence(enemy_name: String, attack_name: String, attack_class: String, action: String) -> String:
+	var subject := enemy_name if enemy_name != "" else "Something"
+	var attack_phrase := "an attack"
+	if attack_name != "":
+		attack_phrase = "%s's %s" % [subject, attack_name]
+	else:
+		attack_phrase = "%s" % subject
+	var class_note := ""
+	match attack_class:
+		"unblockable":
+			class_note = " (unblockable)"
+		"parryable":
+			class_note = " (parryable)"
+	var action_phrase := ""
+	match action:
+		"blocking":
+			action_phrase = " while you were blocking"
+		"dodging":
+			action_phrase = " while you were dodging"
+		"attacking":
+			action_phrase = " while you were attacking"
+		"guard_broken":
+			action_phrase = " while your guard was broken"
+	return "%s%s killed you%s." % [attack_phrase, class_note, action_phrase]
+
+
 func _on_stagger_ended() -> void:
 	if _poise:
 		_poise.reset_poise()
@@ -273,6 +353,7 @@ func _on_died() -> void:
 	_death_sequence_running = true
 	_break_player_lock()
 	is_dead = true
+	death_recap = _build_death_recap()
 	if CombatEvents:
 		CombatEvents.dispatch(CombatEvents.ON_DEATH, {"actor": _body})
 	_run_death_sequence()

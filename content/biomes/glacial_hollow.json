@@ -84,11 +84,22 @@
       "weight": 1
     }
   ],
+  "roleComposition": {
+    "melee": 0.45,
+    "ranged": 0.25,
+    "shield": 0.3
+  },
   "bossPool": [
     {
       "enemyId": "glacial_warden",
       "weight": 3
     },
+    {
+      "enemyId": "glacial_anchorite",
+      "weight": 1
+    }
+  ],
+  "minibossPool": [
     {
       "enemyId": "glacial_anchorite",
       "weight": 1
@@ -190,7 +201,25 @@
   ],
   "requiresSecret": true,
   "finalFloor": {
-    "bossId": "glacial_warden"
+    "bossId": "glacial_warden",
+    "arenaHazards": [
+      {
+        "scene": "res://scenes/traps/frost_trap.tscn",
+        "count": 6,
+        "radius": 10,
+        "lifetime": 20
+      }
+    ],
+    "arenaAdds": [
+      {
+        "enemyId": "glacial_keener",
+        "count": 3,
+        "radius": 7
+      }
+    ],
+    "arenaModifier": {
+      "moveSpeedMult": 1.1
+    }
   },
   "maxHeightLevel": 2,
   "maxSecrets": 3,

@@ -62,6 +62,10 @@
   "roleText": "Striker / Speed",
   "perkNameText": "Shadowstep",
   "perkDescriptionText": "A strike from behind returns the stamina it spent, and opens the wound wider.",
+  "perkVerb": "CLASS_PERK_VERB_SHADOWSTEP",
+  "perkVerbText": "Steal stamina from the back.",
+  "playsLike": "CLASS_PLAYS_LIKE_ROGUE",
+  "playsLikeText": "Circle behind enemies -- every backstab pays for the next one.",
   "statRatings": {
     "maxHealth": 6,
     "armor": 5,

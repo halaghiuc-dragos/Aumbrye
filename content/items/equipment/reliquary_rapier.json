@@ -24,5 +24,15 @@
     "resistArcane": 0.08,
     "resistFire": 0.04
   },
+  "ruleText": "A parry grants Focus.",
+  "rules": [
+    {
+      "event": "onParry",
+      "effect": "apply_status",
+      "statusId": "focus",
+      "stacks": 1,
+      "applyToActor": true
+    }
+  ],
   "weaponId": "sword_basic"
 }

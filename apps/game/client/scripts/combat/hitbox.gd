@@ -11,6 +11,9 @@ const WORLD_COLLISION_MASK := CombatLayers.WORLD_OCCLUDERS
 @export var team: String = "player"
 
 @export var rehit_interval := 0.0
+## `RG-03`: set by `Projectile` on its own hitbox -- lets `Guard` tell a shot arrow apart from a
+## melee swing when it intercepts the hit.
+var is_projectile := false
 
 var _owner_node: Node
 var _combat_owner: Node
@@ -245,6 +248,7 @@ func _try_hit(area: Area3D) -> void:
 	info.crit = is_crit
 	info.knockback = _knockback
 	info.backstab_multiplier_override = _backstab_multiplier
+	info.is_projectile = is_projectile
 	if _execution_kind != "":
 		info.execution = _execution_kind
 		info.ignore_guard = true

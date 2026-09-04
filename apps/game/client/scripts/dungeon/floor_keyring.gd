@@ -18,9 +18,9 @@ const COLOR_ORDER: Array[String] = ["red", "blue", "yellow"]
 ## Doom's three keycards. The order is fixed so the first lock on a floor is always the red one --
 ## a player learns to read the colour as "how deep is this door" without being told.
 const COLORS := {
-	"red": {"label": "Red Key", "tint": Color(0.85, 0.18, 0.18)},
-	"blue": {"label": "Blue Key", "tint": Color(0.25, 0.45, 0.95)},
-	"yellow": {"label": "Yellow Key", "tint": Color(0.95, 0.80, 0.20)},
+	"red": {"label": "KEY_RED", "tint": Color(0.85, 0.18, 0.18)},
+	"blue": {"label": "KEY_BLUE", "tint": Color(0.25, 0.45, 0.95)},
+	"yellow": {"label": "KEY_YELLOW", "tint": Color(0.95, 0.80, 0.20)},
 }
 
 
@@ -41,8 +41,8 @@ static func color_of(key_id: String) -> String:
 static func label_for(key_id: String) -> String:
 	var color := color_of(key_id)
 	if color == "":
-		return "Key"
-	return str(COLORS[color]["label"])
+		return String(TranslationServer.translate("KEY_GENERIC"))
+	return String(TranslationServer.translate(str(COLORS[color]["label"])))
 
 
 static func tint_for(key_id: String) -> Color:

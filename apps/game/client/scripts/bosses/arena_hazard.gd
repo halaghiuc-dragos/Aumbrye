@@ -7,6 +7,10 @@ enum State { TELEGRAPH, ACTIVE, FADE }
 
 const FADE_TIME := 0.5
 
+## `BS-04`: every arena hazard reads as an unblockable attack -- there is nowhere to sidestep a
+## quadrant flood or a raised floor, only somewhere to not be standing.
+const HAZARD_ATTACK_CLASS := "unblockable"
+
 @export var damage := 8.0
 @export var poise_damage := 5.0
 @export var telegraph_time := 1.0
@@ -39,11 +43,22 @@ func _build_visual() -> void:
 	pass
 
 
+## Routed through `AccessibilitySettings.get_telegraph_class_color()` only under a colourblind
+## mode, matching `MaterialFlash.tint_for_damage_type()`'s precedent: keep the authored hue for
+## sighted players, remap it only when the remap is what actually helps.
 func _telegraph_tint() -> Color:
+	if AccessibilitySettings.colorblind_mode != "default":
+		var tint := AccessibilitySettings.get_telegraph_class_color(HAZARD_ATTACK_CLASS)
+		tint.a = 0.5
+		return tint
 	return Color(1, 0.5, 0, 0.5)
 
 
 func _active_tint() -> Color:
+	if AccessibilitySettings.colorblind_mode != "default":
+		var tint := AccessibilitySettings.get_telegraph_class_color(HAZARD_ATTACK_CLASS)
+		tint.a = 0.9
+		return tint
 	return Color(1, 0.2, 0, 0.9)
 
 

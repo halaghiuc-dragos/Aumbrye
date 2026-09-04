@@ -100,11 +100,21 @@
       "weight": 2
     }
   ],
+  "roleComposition": {
+    "melee": 0.4,
+    "ranged": 0.6
+  },
   "bossPool": [
     {
       "enemyId": "boss_crystal_sovereign",
       "weight": 3
     },
+    {
+      "enemyId": "miniboss_crystal_guardian",
+      "weight": 1
+    }
+  ],
+  "minibossPool": [
     {
       "enemyId": "miniboss_crystal_guardian",
       "weight": 1
@@ -206,7 +216,26 @@
   ],
   "requiresSecret": true,
   "finalFloor": {
-    "bossId": "boss_crystal_sovereign"
+    "bossId": "boss_crystal_sovereign",
+    "arenaHazards": [
+      {
+        "scene": "res://scenes/bosses/crystal_pillar_hazard.tscn",
+        "count": 6,
+        "radius": 10,
+        "lifetime": 20
+      }
+    ],
+    "arenaAdds": [
+      {
+        "enemyId": "crystal_wisp",
+        "count": 3,
+        "radius": 7
+      }
+    ],
+    "arenaModifier": {
+      "damageMult": 1.15,
+      "moveSpeedMult": 1.05
+    }
   },
   "maxHeightLevel": 1,
   "maxSecrets": 2,

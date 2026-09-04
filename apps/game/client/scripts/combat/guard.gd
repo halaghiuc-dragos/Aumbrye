@@ -273,7 +273,8 @@ func modify_incoming_hit(
 func try_parry_attack(
 	attacker: Node,
 	arc: DamageInfo.HitArc = DamageInfo.HitArc.FRONT,
-	attack_class: String = "blockable"
+	attack_class: String = "blockable",
+	is_projectile: bool = false
 ) -> bool:
 	if _state != GuardState.GUARDING or not _parry_ready:
 		return false
@@ -303,6 +304,13 @@ func try_parry_attack(
 		var anchor: Array = VfxService.resolve_combat_anchor(_body)
 		VfxService.play_parry(anchor[0], anchor[1])
 		VfxService.play_impact_decal(anchor[0], anchor[1])
+		# `RG-03`: timing a shield perfectly against an arrow should feel like a clean win, not a
+		# break-even trade -- refund what the parry itself cost, on top of the deflected shot never
+		# spending anything else.
+		if is_projectile:
+			VfxService.play_parry_spark(anchor[0], anchor[1])
+			if _stamina:
+				_stamina.restore(PARRY_STAMINA_COST)
 	_end_guard()
 	block_state_changed.emit(false)
 	return true
@@ -315,7 +323,8 @@ func try_parry_attack(
 func try_just_guard(
 	attacker: Node,
 	arc: DamageInfo.HitArc = DamageInfo.HitArc.FRONT,
-	attack_class: String = "blockable"
+	attack_class: String = "blockable",
+	is_projectile: bool = false
 ) -> bool:
 	if _state != GuardState.GUARDING or _just_guard_timer <= 0.0:
 		return false
@@ -330,6 +339,8 @@ func try_just_guard(
 	if _body:
 		var anchor: Array = VfxService.resolve_combat_anchor(_body)
 		VfxService.play_block(anchor[0], anchor[1])
+		if is_projectile:
+			VfxService.play_hit_spark(anchor[0])
 	return true
 
 

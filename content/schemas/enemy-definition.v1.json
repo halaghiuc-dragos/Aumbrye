@@ -118,6 +118,27 @@
         "damageMult": { "type": "number", "exclusiveMinimum": 0 },
         "poiseMult": { "type": "number", "exclusiveMinimum": 0 },
         "cleanseWindows": { "type": "boolean" },
+        "ordered": {
+          "type": "boolean",
+          "description": "BS-01: walk `attacks` in authored order instead of a weighted roll, so the phase can be learned."
+        },
+        "vulnerability": {
+          "type": "object",
+          "additionalProperties": false,
+          "description": "BS-01: for the duration of this phase, only a procedurally-spawned weak-point Hurtbox takes full damage; the boss's own body Hurtbox is reduced to bodyDamageMult.",
+          "properties": {
+            "region": { "type": "string", "minLength": 1 },
+            "regionDamageMult": { "type": "number", "exclusiveMinimum": 0 },
+            "bodyDamageMult": { "type": "number", "minimum": 0, "maximum": 1 },
+            "radius": { "type": "number", "exclusiveMinimum": 0 },
+            "offset": {
+              "type": "array",
+              "minItems": 3,
+              "maxItems": 3,
+              "items": { "type": "number" }
+            }
+          }
+        },
         "onEnter": {
           "type": "object",
           "additionalProperties": false,
@@ -135,6 +156,29 @@
               "maxItems": 3,
               "items": { "type": "number", "minimum": 0, "maximum": 1 }
             },
+            "bodyTint": {
+              "anyOf": [
+                { "type": "string", "pattern": "^#[0-9a-fA-F]{6}$" },
+                {
+                  "type": "array",
+                  "minItems": 3,
+                  "maxItems": 3,
+                  "items": { "type": "number", "minimum": 0, "maximum": 1 }
+                }
+              ]
+            },
+            "emissive": {
+              "anyOf": [
+                { "type": "string", "pattern": "^#[0-9a-fA-F]{6}$" },
+                {
+                  "type": "array",
+                  "minItems": 3,
+                  "maxItems": 4,
+                  "items": { "type": "number", "minimum": 0 }
+                }
+              ]
+            },
+            "scaleMult": { "type": "number", "exclusiveMinimum": 0 },
             "spawnAdds": {
               "type": "array",
               "minItems": 1,
@@ -144,7 +188,8 @@
               "type": "array",
               "minItems": 1,
               "items": { "$ref": "#/definitions/hazardSpawn" }
-            }
+            },
+            "arenaChange": { "$ref": "#/definitions/hazardSpawn" }
           }
         }
       }
@@ -208,6 +253,7 @@
     "telegraph_shape": { "$ref": "#/definitions/telegraphShape" },
     "telegraph_arc_deg": { "type": "number", "exclusiveMinimum": 0, "maximum": 360 },
     "attackClass": { "$ref": "#/definitions/attackClass" },
+    "voice": { "type": "string" },
     "hold_fraction": { "type": "number", "minimum": 0, "maximum": 0.6 },
     "feint_chance": { "type": "number", "minimum": 0, "maximum": 0.4 },
     "guard_chance": { "type": "number", "minimum": 0, "maximum": 1 },
@@ -223,6 +269,10 @@
     "enemy_type": {
       "type": "string",
       "enum": ["melee", "ranged", "shield", "boss"]
+    },
+    "hit_material": {
+      "type": "string",
+      "enum": ["flesh", "armour", "stone", "crystal", "bone", "ooze"]
     },
     "damage_type": { "$ref": "#/definitions/damageType" },
     "status_on_hit": { "type": "string" },

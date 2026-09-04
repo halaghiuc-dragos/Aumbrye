@@ -2,6 +2,7 @@ extends Control
 
 
 const GameUISkinScript := preload("res://scripts/ui/game_ui_skin.gd")
+const RunContractLabelScript := preload("res://scripts/ui/run_contract_label.gd")
 
 signal waves_run_requested
 signal continue_requested
@@ -10,6 +11,7 @@ signal menu_closed
 @onready var _new_button: Button = $MainPanel/Margin/VBox/NewButton
 @onready var _continue_button: Button = $MainPanel/Margin/VBox/ContinueButton
 @onready var _status_label: Label = $MainPanel/Margin/VBox/StatusLabel
+@onready var _contract_label: Label = $MainPanel/Margin/VBox/ContractLabel
 
 
 func _ready() -> void:
@@ -56,6 +58,7 @@ func _refresh_continue_state() -> void:
 		_status_label.text = tr("WAVES_MENU_CONTINUE").format({"wave": wave})
 	else:
 		_status_label.text = tr("WAVES_MENU_INTRO")
+	RunContractLabelScript.refresh(_contract_label, RunModeConfig.MODE_WAVES, "", 0)
 
 
 func _on_new_pressed() -> void:

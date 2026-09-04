@@ -12,5 +12,16 @@
   "stats": {
     "defense": 4,
     "maxHealth": 14
-  }
+  },
+  "ruleText": "A kill on a poisoned target spreads the poison to nearby enemies.",
+  "rules": [
+    {
+      "event": "onKill",
+      "effect": "spread_status",
+      "statusId": "poison",
+      "stacks": 1,
+      "radius": 4.0,
+      "ifTargetHasStatus": "poison"
+    }
+  ]
 }

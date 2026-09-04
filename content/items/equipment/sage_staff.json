@@ -11,6 +11,14 @@
   "stats": {
     "arcaneDamage": 18
   },
+  "ruleText": "Each kill restores 10 mana.",
+  "rules": [
+    {
+      "event": "onKill",
+      "effect": "restore_mana",
+      "amount": 10.0
+    }
+  ],
   "equipmentSlot": "weapon",
   "weaponId": "staff"
 }

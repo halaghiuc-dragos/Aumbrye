@@ -45,6 +45,21 @@ static func add_plain_row(list: ItemList, text: String, selectable: bool = true)
 	return index
 
 
+## The same comparison tooltip the inventory shows (stats, condition, rules) rather than the
+## bare name/description pair _tooltip() below produces -- so an item reads the same wherever it
+## is looked at, per UX-03. ItemList tooltips are plain text, so the bbcode InventoryService
+## produces is parsed through a throwaway RichTextLabel to strip formatting tags rather than
+## showing them literally.
+static func slot_tooltip(slot: Dictionary) -> String:
+	var bbcode := InventoryService.format_slot_tooltip_bbcode(slot)
+	var stripper := RichTextLabel.new()
+	stripper.bbcode_enabled = true
+	stripper.text = bbcode
+	var plain := stripper.get_parsed_text()
+	stripper.free()
+	return plain
+
+
 static func _tooltip(definition: Dictionary, rarity: String) -> String:
 	var lines: Array[String] = []
 	var name := str(definition.get("name", ""))

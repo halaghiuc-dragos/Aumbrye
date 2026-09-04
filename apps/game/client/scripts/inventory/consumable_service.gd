@@ -3,6 +3,10 @@ class_name ConsumableService
 
 
 const BUFF_META_PREFIX := "consumable_buff_"
+const ThrowableProjectileScene := preload("res://scenes/combat/throwable_projectile.tscn")
+const ProjectileContainerScript := preload("res://scripts/combat/projectile_container.gd")
+const THROWABLE_SPEED := 16.0
+const THROWABLE_ORIGIN_HEIGHT := 1.3
 
 
 static func can_use(def: Dictionary, in_run: bool, in_hub: bool) -> Dictionary:
@@ -64,6 +68,8 @@ static func apply(def: Dictionary, player: Node) -> bool:
 			return true
 		"throw":
 			return _apply_throwable(player, effect)
+		"throwable":
+			return _apply_throwable_projectile(player, effect)
 		"escape":
 			if RunFlow == null or not RunFlow.is_run_active():
 				return false
@@ -125,6 +131,42 @@ static func _apply_throwable(player: Node, effect: Dictionary) -> bool:
 	if VfxService:
 		VfxService.play_rune_flare(origin)
 	return affected > 0
+
+
+## `RG-04`: unlike `_apply_throwable()` (an instant AoE centred on the player), this actually spawns
+## a `Projectile` aimed downrange -- the melee build's answer to an archer on a ledge, not a status
+## the player has to already be standing in melee range to apply.
+static func _apply_throwable_projectile(player: Node, effect: Dictionary) -> bool:
+	var origin_node := player as Node3D
+	if origin_node == null or player.get_tree() == null or player.get_tree().current_scene == null:
+		return false
+	var weapon := player.get_node_or_null("WeaponController") as WeaponController
+	var direction := Vector3.FORWARD
+	if weapon and weapon.has_method("get_soft_lock_aim_direction"):
+		direction = weapon.call("get_soft_lock_aim_direction")
+	elif player.has_method("get_facing_direction"):
+		direction = player.call("get_facing_direction")
+	var projectile: Node3D = ThrowableProjectileScene.instantiate() as Node3D
+	var container := ProjectileContainerScript.get_or_create(player)
+	if container:
+		container.add_child(projectile)
+	else:
+		player.get_tree().current_scene.add_child(projectile)
+	projectile.global_position = origin_node.global_position + Vector3(0.0, THROWABLE_ORIGIN_HEIGHT, 0.0)
+	projectile.call(
+		"configure",
+		str(effect.get("statusId", "")),
+		int(effect.get("statusStacks", 1)),
+		float(effect.get("duration", 6.0)),
+		float(effect.get("radius", 4.0)),
+		float(effect.get("damage", 0.0)),
+		str(effect.get("damageType", DamageInfo.TYPE_PHYSICAL)),
+		bool(effect.get("lure", false))
+	)
+	projectile.call(
+		"launch", direction, THROWABLE_SPEED, 0.0, 0.0, player, DamageInfo.TYPE_PHYSICAL
+	)
+	return true
 
 
 static func _apply_consumable_status(player: Node, effect: Dictionary) -> bool:

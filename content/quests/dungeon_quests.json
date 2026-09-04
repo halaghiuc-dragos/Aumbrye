@@ -22,6 +22,7 @@
       "questId": "rescue_halbrek",
       "dialogueId": "rescue_halbrek",
       "questKeyId": "rescued_halbrek",
+      "targetNpcId": "serjeant_halbrek",
       "biomes": [
         "forgotten_castle"
       ],
@@ -31,6 +32,7 @@
       "questId": "rescue_ivo",
       "dialogueId": "rescue_ivo",
       "questKeyId": "rescued_ivo",
+      "targetNpcId": "clerk_ivo",
       "biomes": [
         "iron_vault"
       ],
@@ -40,6 +42,7 @@
       "questId": "rescue_nettle",
       "dialogueId": "rescue_nettle",
       "questKeyId": "rescued_nettle",
+      "targetNpcId": "fenwife_nettle",
       "biomes": [
         "venom_mire",
         "poison_swamp"
@@ -50,6 +53,7 @@
       "questId": "rescue_corrin",
       "dialogueId": "rescue_corrin",
       "questKeyId": "rescued_corrin",
+      "targetNpcId": "lampwright_corrin",
       "biomes": [
         "prism_depths",
         "crystal_caverns"
@@ -60,6 +64,7 @@
       "questId": "rescue_odile",
       "dialogueId": "rescue_odile",
       "questKeyId": "rescued_odile",
+      "targetNpcId": "lector_odile",
       "biomes": [
         "dark_cathedral"
       ],
@@ -69,6 +74,7 @@
       "questId": "rescue_veil",
       "dialogueId": "rescue_veil",
       "questKeyId": "rescued_veil",
+      "targetNpcId": "widow_of_the_stair",
       "biomes": [
         "umbral_chapel",
         "glacial_hollow"

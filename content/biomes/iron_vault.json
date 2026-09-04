@@ -84,11 +84,22 @@
       "weight": 1
     }
   ],
+  "roleComposition": {
+    "melee": 0.5,
+    "ranged": 0.2,
+    "shield": 0.3
+  },
   "bossPool": [
     {
       "enemyId": "iron_conclave",
       "weight": 3
     },
+    {
+      "enemyId": "iron_foreman",
+      "weight": 1
+    }
+  ],
+  "minibossPool": [
     {
       "enemyId": "iron_foreman",
       "weight": 1
@@ -190,7 +201,26 @@
   ],
   "requiresSecret": true,
   "finalFloor": {
-    "bossId": "iron_conclave"
+    "bossId": "iron_conclave",
+    "arenaHazards": [
+      {
+        "scene": "res://scenes/bosses/arena_hazard.tscn",
+        "count": 6,
+        "radius": 10,
+        "lifetime": 20
+      }
+    ],
+    "arenaAdds": [
+      {
+        "enemyId": "iron_needle",
+        "count": 3,
+        "radius": 7
+      }
+    ],
+    "arenaModifier": {
+      "poiseMult": 1.2,
+      "damageMult": 1.1
+    }
   },
   "maxHeightLevel": 2,
   "maxSecrets": 3,

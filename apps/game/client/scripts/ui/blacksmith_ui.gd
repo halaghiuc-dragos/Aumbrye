@@ -306,6 +306,7 @@ func _refresh() -> void:
 		)
 		if dur <= 0:
 			_item_list.set_item_custom_fg_color(index, GameUISkinScript.DANGER_COLOR)
+		_item_list.set_item_tooltip(index, ItemListPresenterScript.slot_tooltip(slot))
 		_item_indices.append(i)
 	for slot_name in Equipment.SLOT_ORDER:
 		var eq: Dictionary = inv.equipped.get(slot_name, {})
@@ -330,6 +331,7 @@ func _refresh() -> void:
 		)
 		if eq_dur <= 0:
 			_item_list.set_item_custom_fg_color(eq_index, GameUISkinScript.DANGER_COLOR)
+		_item_list.set_item_tooltip(eq_index, ItemListPresenterScript.slot_tooltip(eq))
 		_item_indices.append(slot_name)
 	if _item_indices.is_empty():
 		ItemListPresenterScript.add_plain_row(_item_list, tr("SMITH_NO_ITEMS"), false)

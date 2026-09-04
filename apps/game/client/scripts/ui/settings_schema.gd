@@ -23,6 +23,12 @@ static func entries() -> Array[Dictionary]:
 		_vsync_row(),
 		_max_fps_row(),
 		_ui_scale_row(),
+		_toggle_row(
+			"show_fps_overlay",
+			"display",
+			func() -> bool: return PixelDioramaSettings.show_fps_overlay,
+			Callable(SettingsSchema, "_set_show_fps_overlay")
+		),
 		_volume_row("master_volume", "master"),
 		_volume_row("music_volume", "music"),
 		_volume_row("sfx_volume", "sfx"),
@@ -236,6 +242,11 @@ static func _set_replay_recording(v: bool) -> void:
 	if not v:
 		RunReplay.discard()
 	LocalSave.autosave()
+
+
+static func _set_show_fps_overlay(v: bool) -> void:
+	PixelDioramaSettings.show_fps_overlay = v
+	PixelDioramaSettings.save_and_apply()
 
 
 static func _set_reduced_motion(v: bool) -> void:

@@ -6,12 +6,12 @@
   "gridHeight": 1,
   "stackSize": 8,
   "rarity": "common",
-  "description": "Fen-brewed. The seal is wax and the wax is not reliable.",
+  "description": "Fen-brewed. The seal is wax and the wax is not reliable -- thrown before it lets go on its own.",
   "consumableEffect": {
-    "kind": "throw",
+    "kind": "throwable",
     "statusId": "poison",
     "duration": 12,
-    "radius": 4.5,
+    "radius": 4.0,
     "usableInHub": false
   },
   "value": 50,

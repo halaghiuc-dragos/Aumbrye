@@ -81,6 +81,7 @@ func _ready() -> void:
 	# the card names it, not catch up a beat later via the deferred boot pass.
 	_refresh_mode_portals()
 	_announce_mode_unlocks()
+	_announce_hub_growth()
 	RunFlow.returned_to_hub.connect(_on_returned_to_hub)
 	if not RunFlow.run_warning.is_connected(_on_run_warning):
 		RunFlow.run_warning.connect(_on_run_warning)
@@ -206,6 +207,19 @@ func _apply_pixel_diorama_to_scene() -> void:
 
 func _unhandled_input(event: InputEvent) -> void:
 	if HubTutorialService.should_show_tips() and _handle_tip_input(event):
+		get_viewport().set_input_as_handled()
+		return
+	# UX-09: every other sub-panel handles its own `ui_cancel` internally, but
+	# `character_create_ui.gd` (reused here for the appearance mirror) does not -- it only exposes
+	# `request_cancel()` for whoever opened it to call, which `main_menu.gd` does for the creation
+	# flow but nothing here did for the hub's edit-mode instance. Escape/B silently did nothing.
+	if (
+		event.is_action_pressed("ui_cancel")
+		and _appearance_mirror_ui != null
+		and _appearance_mirror_ui.has_method("is_open")
+		and _appearance_mirror_ui.call("is_open")
+	):
+		_appearance_mirror_ui.call("request_cancel")
 		get_viewport().set_input_as_handled()
 		return
 	if _any_ui_open():
@@ -520,6 +534,43 @@ func _announce_mode_unlocks() -> void:
 		_show_mode_unlock_card(
 			mode_name, announce if announce != "" else "%s has opened." % mode_name
 		)
+	AudioDirector.play_stinger("floor_clear")
+	# MD-07/VS-09: the one hub moment that deserves the camera turning to look at something --
+	# pans to the first newly-lit portal, reusing the reveal framing built for RM-09 secrets.
+	var first_mode_id := str(fresh[0].get("id", ""))
+	var portal_node_name := ModeUnlockService.portal_node_name(first_mode_id)
+	if portal_node_name != "":
+		var portal := get_node_or_null(portal_node_name) as Node3D
+		var player := get_tree().get_first_node_in_group("player")
+		if portal and player:
+			var camera := (player as Node).get_node_or_null("CameraPivot/SpringArm3D")
+			if camera and camera.has_method("play_reveal_framing"):
+				camera.call("play_reveal_framing", portal.global_position)
+
+
+## `SY-03`: names what physically changed in the plaza this run earned -- `HubDioramaScript`
+## already built the matching prop into the scene during `_ready()`'s `HubDioramaScript.apply()`
+## call, above; this is only the announcement half. Appended to whatever `_show_return_message()`
+## already put in the hub message label rather than overwriting it -- a mode unlock is rare enough
+## to earn the big card, but a hub-growth entry is common enough that fighting the welcome-back
+## line for the same small label would mean one of the two never gets read.
+func _announce_hub_growth() -> void:
+	HubGrowthService.evaluate()
+	var fresh := HubGrowthService.consume_announcements()
+	if fresh.is_empty():
+		return
+	var names: Array[String] = []
+	for entry in fresh:
+		var growth_name := str(entry.get("name", ""))
+		if growth_name != "":
+			names.append(growth_name)
+	if names.is_empty():
+		return
+	var line := tr("HUB_GROWTH_ANNOUNCE").format({"names": ", ".join(names)})
+	if _message_label and _message_label.visible and _message_label.text != "":
+		show_hub_message("%s  %s" % [_message_label.text, line])
+	else:
+		show_hub_message(line)
 	AudioDirector.play_stinger("floor_clear")
 
 

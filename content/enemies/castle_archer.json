@@ -25,6 +25,7 @@
   "awareness_rate": 2.8,
   "alert_radius": 16,
   "enemy_type": "ranged",
+  "hit_material": "flesh",
   "weapon_kit": "bow",
   "attacks": [
     {

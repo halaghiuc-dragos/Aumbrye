@@ -100,11 +100,21 @@
       "weight": 2
     }
   ],
+  "roleComposition": {
+    "melee": 0.75,
+    "ranged": 0.25
+  },
   "bossPool": [
     {
       "enemyId": "boss_swamp_devourer",
       "weight": 3
     },
+    {
+      "enemyId": "swamp_hydra",
+      "weight": 1
+    }
+  ],
+  "minibossPool": [
     {
       "enemyId": "swamp_hydra",
       "weight": 1
@@ -206,7 +216,26 @@
   ],
   "requiresSecret": true,
   "finalFloor": {
-    "bossId": "boss_swamp_devourer"
+    "bossId": "boss_swamp_devourer",
+    "arenaHazards": [
+      {
+        "scene": "res://scenes/traps/poison_pool.tscn",
+        "count": 6,
+        "radius": 10,
+        "lifetime": 20
+      }
+    ],
+    "arenaAdds": [
+      {
+        "enemyId": "swamp_toad",
+        "count": 3,
+        "radius": 7
+      }
+    ],
+    "arenaModifier": {
+      "damageMult": 1.1,
+      "poiseMult": 1.15
+    }
   },
   "maxHeightLevel": 1,
   "maxSecrets": 3,

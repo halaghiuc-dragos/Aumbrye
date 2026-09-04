@@ -12,6 +12,18 @@
                   "moveSpeed":  0.1,
                   "defense":  5
               },
+    "ruleText":  "A dodge stacks up to 5% evasion, up to 4 times; a hit taken resets the stack.",
+    "rules":  [
+        {
+            "event":  "onDodge",
+            "effect":  "add_stack",
+            "stackId":  "raider_stride",
+            "maxStacks":  4,
+            "stat":  "evasion",
+            "perStack":  5.0,
+            "resetOn":  ["onHitTaken"]
+        }
+    ],
     "equipmentSlot":  "boots",
     "theme":  "frozen_fortress"
 }

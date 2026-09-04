@@ -60,6 +60,7 @@ static func prime(paths: Array) -> int:
 static func clear_all_caches() -> void:
 	_json_cache.clear()
 	ItemCatalog.clear_cache()
+	ItemSetCatalog.clear_cache()
 	EnemyCatalog.clear_cache()
 	ClassCatalog.clear_cache()
 	RelicCatalog.clear_cache()

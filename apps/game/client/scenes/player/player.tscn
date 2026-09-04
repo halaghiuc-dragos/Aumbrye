@@ -1,4 +1,4 @@
-[gd_scene load_steps=21 format=3 uid="uid://cplayer001"]
+[gd_scene load_steps=22 format=3 uid="uid://cplayer001"]
 
 [ext_resource type="Script" path="res://scripts/player/locomotion.gd" id="1_locomotion"]
 [ext_resource type="Script" path="res://scripts/player/dodge.gd" id="2_dodge"]
@@ -19,6 +19,7 @@
 [ext_resource type="Script" path="res://scripts/combat/statuses/status_controller.gd" id="16_status"]
 [ext_resource type="Script" path="res://scripts/combat/mana.gd" id="17_mana"]
 [ext_resource type="Script" path="res://scripts/combat/knockback.gd" id="18_knockback"]
+[ext_resource type="Script" path="res://scripts/player/player_arrows.gd" id="19_arrows"]
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_body"]
 radius = 0.4
@@ -98,6 +99,9 @@ script = ExtResource("14_reactions")
 
 [node name="PlayerHeal" type="Node" parent="."]
 script = ExtResource("15_heal")
+
+[node name="PlayerArrows" type="Node" parent="."]
+script = ExtResource("19_arrows")
 
 [node name="StatusController" type="Node" parent="."]
 script = ExtResource("16_status")

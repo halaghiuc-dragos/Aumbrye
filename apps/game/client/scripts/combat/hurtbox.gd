@@ -133,7 +133,7 @@ func receive_hit(info: DamageInfo) -> void:
 
 	var guard := _cached_guard if not info.ignore_guard else null
 	if guard and guard.has_method("try_parry_attack") and info.source:
-		if guard.call("try_parry_attack", info.source, arc, info.attack_class):
+		if guard.call("try_parry_attack", info.source, arc, info.attack_class, info.is_projectile):
 			res.parried = true
 			res.outgoing = 0.0
 			res.poise_outgoing = 0.0
@@ -142,7 +142,7 @@ func receive_hit(info: DamageInfo) -> void:
 	# CB-03: attempted only once the parry itself was unavailable (unaffordable or on cooldown) --
 	# `try_just_guard()` checks its own tighter timing window independently.
 	if guard and guard.has_method("try_just_guard") and info.source:
-		if guard.call("try_just_guard", info.source, arc, info.attack_class):
+		if guard.call("try_just_guard", info.source, arc, info.attack_class, info.is_projectile):
 			res.blocked = true
 			res.outgoing = 0.0
 			res.poise_outgoing = 0.0
@@ -160,6 +160,12 @@ func receive_hit(info: DamageInfo) -> void:
 			blocked = true
 			res.blocked = true
 			_emit_block_feedback(final_amount)
+			# `RG-03`: a blocked arrow sparks off the shield instead of just chipping stamina --
+			# the same read a parried one gets, one rung down.
+			if info.is_projectile and VfxService and _cached_character_body:
+				VfxService.play_hit_spark(
+					_cached_character_body.global_position + Vector3(0.0, 1.1, 0.0)
+				)
 
 	final_amount = _apply_arc_multipliers(
 		final_amount, final_poise, info, res, DamageInfo.HitArc.FRONT if blocked else arc
@@ -200,6 +206,19 @@ func receive_hit(info: DamageInfo) -> void:
 		_poise.take_poise_damage(poise_hit)
 		res.poise_outgoing = poise_hit
 		poise_broke_this_hit = not was_broken and _poise.is_broken()
+		# AD-07: the first time the player breaks an enemy's poise, one line names what just
+		# became possible -- easy to miss otherwise, since the stagger animation alone doesn't
+		# say "you can execute now".
+		if (
+			poise_broke_this_hit
+			and team != "player"
+			and info.source != null
+			and is_instance_valid(info.source)
+			and info.source.is_in_group("player")
+		):
+			var hint := HubTutorialService.notify_poise_break_dealt()
+			if hint != "" and RunFlow:
+				RunFlow.emit_run_warning(hint)
 
 	_apply_knockback(info, res, owner_body, hyperarmor, poise_broke_this_hit)
 	_apply_status_from_hit(info)
@@ -213,7 +232,7 @@ func receive_hit(info: DamageInfo) -> void:
 		impact,
 		info.periodic
 	)
-	_emit_attacker_feedback(info, final_amount, impact, res.blocked)
+	_emit_attacker_feedback(info, final_amount, impact, res.blocked, poise_broke_this_hit)
 	_dispatch_combat_events(info, res)
 	hit_resolved.emit(res)
 	if team != "player" and RunBuffs and res.outgoing > 0.0:
@@ -385,7 +404,7 @@ func _impact_class_for(res: RefCounted, execution: String) -> int:
 
 
 func _emit_attacker_feedback(
-	info: DamageInfo, damage: float, impact: int, blocked: bool
+	info: DamageInfo, damage: float, impact: int, blocked: bool, poise_broke: bool = false
 ) -> void:
 	if damage <= 0.0 and not blocked:
 		return
@@ -401,7 +420,8 @@ func _emit_attacker_feedback(
 		info.direction,
 		info.damage_type,
 		impact,
-		bool(info.crit)
+		bool(info.crit),
+		poise_broke
 	)
 
 

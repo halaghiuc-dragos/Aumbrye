@@ -114,6 +114,8 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 	if _gate_flag_id != "":
 		WorldState.set_flag(_gate_flag_id, true)
+	# AU-03: the moment the far, harder side pays off with a permanent shortcut.
+	AudioDirector.play_stinger("shortcut_opened")
 	_open()
 	get_viewport().set_input_as_handled()
 

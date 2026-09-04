@@ -24,6 +24,7 @@
   "alert_radius": 10,
   "circle_radius_mult": 1.2,
   "enemy_type": "melee",
+  "hit_material": "stone",
   "weapon_kit": "greatsword",
   "damage_type": "frost",
   "attacks": [

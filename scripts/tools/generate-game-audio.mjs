@@ -204,6 +204,13 @@ function generateSharedStingers() {
   const specs = [
     { file: "sting_boss.ogg", seconds: 1.2, freq: 196, harmonics: [{ freq: 392, amp: 0.12 }] },
     { file: "sting_clear.ogg", seconds: 0.9, freq: 330, harmonics: [{ freq: 495, amp: 0.08 }] },
+    { file: "sting_secret.ogg", seconds: 0.3, freq: 660, harmonics: [{ freq: 990, amp: 0.1 }] },
+    { file: "sting_key.ogg", seconds: 0.22, freq: 440, harmonics: [{ freq: 660, amp: 0.08 }] },
+    { file: "sting_lock.ogg", seconds: 0.35, freq: 220, harmonics: [{ freq: 110, amp: 0.1 }] },
+    { file: "sting_shortcut.ogg", seconds: 0.3, freq: 330, harmonics: [{ freq: 495, amp: 0.06 }] },
+    { file: "sting_rare_drop.ogg", seconds: 0.5, freq: 880, harmonics: [{ freq: 1320, amp: 0.14 }] },
+    { file: "sting_personal_best.ogg", seconds: 0.6, freq: 990, harmonics: [{ freq: 1485, amp: 0.16 }, { freq: 660, amp: 0.1 }] },
+    { file: "sting_poise_break.ogg", seconds: 0.24, freq: 165, harmonics: [{ freq: 330, amp: 0.1 }] },
   ];
   for (const spec of specs) {
     writeOggFromSamples(join(sharedDir, spec.file), generateBurst(spec.seconds, spec.freq, spec.harmonics, 0.3));
@@ -219,6 +226,10 @@ function generateSfx() {
     { file: "hit_flesh_01.ogg", seconds: 0.08, freq: 220, harmonics: [{ freq: 440, amp: 0.08 }] },
     { file: "hit_flesh_02.ogg", seconds: 0.09, freq: 245, harmonics: [{ freq: 490, amp: 0.07 }] },
     { file: "hit_flesh_03.ogg", seconds: 0.07, freq: 198, harmonics: [{ freq: 396, amp: 0.09 }] },
+    { file: "hit_stone_01.ogg", seconds: 0.12, freq: 130, harmonics: [{ freq: 65, amp: 0.1 }] },
+    { file: "hit_crystal_01.ogg", seconds: 0.1, freq: 780, harmonics: [{ freq: 1170, amp: 0.12 }] },
+    { file: "hit_bone_01.ogg", seconds: 0.06, freq: 340, harmonics: [{ freq: 680, amp: 0.06 }] },
+    { file: "hit_ooze_01.ogg", seconds: 0.16, freq: 95, harmonics: [], noise: 0.06 },
     { file: "block_01.ogg", seconds: 0.1, freq: 160, harmonics: [{ freq: 320, amp: 0.06 }] },
     { file: "block_02.ogg", seconds: 0.11, freq: 145, harmonics: [{ freq: 290, amp: 0.05 }] },
     { file: "parry_01.ogg", seconds: 0.12, freq: 440, harmonics: [{ freq: 880, amp: 0.1 }] },
@@ -230,6 +241,10 @@ function generateSfx() {
     { file: "step_wood_01.ogg", seconds: 0.05, freq: 95, harmonics: [{ freq: 190, amp: 0.03 }] },
     { file: "step_water_01.ogg", seconds: 0.06, freq: 110, harmonics: [] },
     { file: "windup_01.ogg", seconds: 0.22, freq: 72, harmonics: [{ freq: 144, amp: 0.06 }] },
+    { file: "windup_blockable_01.ogg", seconds: 0.14, freq: 140, harmonics: [{ freq: 210, amp: 0.06 }] },
+    { file: "windup_parryable_01.ogg", seconds: 0.26, freq: 520, harmonics: [{ freq: 780, amp: 0.08 }] },
+    { file: "windup_unblockable_01.ogg", seconds: 0.4, freq: 55, harmonics: [{ freq: 110, amp: 0.1 }] },
+    { file: "windup_grab_01.ogg", seconds: 0.45, freq: 300, harmonics: [{ freq: 150, amp: 0.1 }] },
     { file: "ui_click_01.ogg", seconds: 0.04, freq: 520, harmonics: [{ freq: 1040, amp: 0.05 }] },
     { file: "brazier_loop.ogg", seconds: 4, freq: 55, harmonics: [], noise: 0.08 },
     { file: "fountain_loop.ogg", seconds: 5, freq: 88, harmonics: [{ freq: 176, amp: 0.04 }], noise: 0.03 },

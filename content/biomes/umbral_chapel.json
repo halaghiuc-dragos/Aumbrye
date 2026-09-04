@@ -84,11 +84,21 @@
       "weight": 1
     }
   ],
+  "roleComposition": {
+    "melee": 0.6,
+    "ranged": 0.4
+  },
   "bossPool": [
     {
       "enemyId": "umbral_hierarch",
       "weight": 3
     },
+    {
+      "enemyId": "umbral_confessor",
+      "weight": 1
+    }
+  ],
+  "minibossPool": [
     {
       "enemyId": "umbral_confessor",
       "weight": 1
@@ -208,7 +218,25 @@
   },
   "requiresSecret": true,
   "finalFloor": {
-    "bossId": "umbral_hierarch"
+    "bossId": "umbral_hierarch",
+    "arenaHazards": [
+      {
+        "scene": "res://scenes/traps/shadow_trap.tscn",
+        "count": 6,
+        "radius": 10,
+        "lifetime": 20
+      }
+    ],
+    "arenaAdds": [
+      {
+        "enemyId": "umbral_penitent",
+        "count": 3,
+        "radius": 7
+      }
+    ],
+    "arenaModifier": {
+      "damageMult": 1.15
+    }
   },
   "maxHeightLevel": 2,
   "maxSecrets": 3,

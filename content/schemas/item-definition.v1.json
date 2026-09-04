@@ -87,6 +87,7 @@
             "cure",
             "refillFlask",
             "throw",
+            "throwable",
             "escape"
           ]
         },
@@ -95,6 +96,10 @@
         },
         "statusId": {
           "type": "string"
+        },
+        "statusStacks": {
+          "type": "integer",
+          "minimum": 1
         },
         "duration": {
           "type": "number"
@@ -116,6 +121,16 @@
         "radius": {
           "type": "number",
           "minimum": 0
+        },
+        "damage": {
+          "type": "number",
+          "minimum": 0
+        },
+        "damageType": {
+          "type": "string"
+        },
+        "lure": {
+          "type": "boolean"
         }
       }
     },
@@ -217,6 +232,10 @@
     },
     "unique": {
       "type": "boolean"
+    },
+    "setId": {
+      "type": "string",
+      "description": "IV-02: equipment set this piece belongs to; content/items/sets.json keys its 2/4/6-piece bonuses off this."
     },
     "ruleText": {
       "type": "string",

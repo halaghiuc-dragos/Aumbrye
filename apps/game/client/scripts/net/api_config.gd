@@ -7,7 +7,7 @@ signal version_mismatch
 enum CloudState { DISABLED, SIGNED_OUT, SYNCING, SYNCED, ERROR, VERSION_MISMATCH }
 
 const DEFAULT_BASE_URL := "https://api.aumbrye.example"
-const CLIENT_VERSION := "0.4.0"
+const CLIENT_VERSION := "0.6.0"
 const CONTENT_VERSION := "1"
 const REQUEST_TIMEOUT_SECONDS := 8.0
 const SESSION_PATH := "user://session.json"

@@ -59,6 +59,15 @@ var _menu_hidden := false
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
+	# `VS-02`: this node's own `_process` reads the source camera's transform and snaps it for the
+	# pixel render. `OrbitCamera._apply_camera_effects_transform()` (shake, punch, landing dip) also
+	# writes that transform in its own `_process`, on a sibling node, at default priority -- so
+	# without an explicit ordering, which one runs first in a given frame is scene-tree-order
+	# accident, and a shake applied *after* the snap re-introduces the sub-pixel motion the whole
+	# pipeline exists to remove. A higher `process_priority` runs this strictly after every
+	# default-priority node's `_process`, which is exactly "after all camera effects" for any camera
+	# script that does not itself raise its own priority.
+	process_priority = 100
 	_build_nodes()
 	get_tree().root.size_changed.connect(_on_root_size_changed)
 	get_tree().root.child_entered_tree.connect(_on_root_child_entered)

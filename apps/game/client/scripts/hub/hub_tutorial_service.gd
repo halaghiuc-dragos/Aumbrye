@@ -39,6 +39,45 @@ static func load_catalog() -> void:
 		_catalog_ids.append(tip_id)
 
 
+## AD-07: a contextual teaching pass that fires once per account, triggered by the event that
+## makes it relevant rather than a menu the player has to go find. Each hint is recorded as its
+## own `CharacterService` flag so it never repeats, and the flags survive `reset_for_character()`
+## on purpose -- this teaches the combat model itself, not this character's progress.
+const FLAG_TELEGRAPH_PREFIX := "tutorial_seen_telegraph_"
+const FLAG_POISE_BREAK := "tutorial_seen_poise_break_dealt"
+const FLAG_STAMINA_EXHAUSTED := "tutorial_seen_stamina_exhausted"
+
+
+static func notify_telegraph_seen(attack_class: String) -> String:
+	var flag := FLAG_TELEGRAPH_PREFIX + attack_class
+	if bool(CharacterService.get_flag(flag, false)):
+		return ""
+	CharacterService.set_flag(flag, true)
+	match attack_class:
+		"blockable":
+			return String(TranslationServer.translate("TUTORIAL_TELEGRAPH_AMBER"))
+		"parryable":
+			return String(TranslationServer.translate("TUTORIAL_TELEGRAPH_BLUE"))
+		"unblockable":
+			return String(TranslationServer.translate("TUTORIAL_TELEGRAPH_RED"))
+		_:
+			return ""
+
+
+static func notify_poise_break_dealt() -> String:
+	if bool(CharacterService.get_flag(FLAG_POISE_BREAK, false)):
+		return ""
+	CharacterService.set_flag(FLAG_POISE_BREAK, true)
+	return String(TranslationServer.translate("TUTORIAL_POISE_BREAK"))
+
+
+static func notify_stamina_exhausted() -> String:
+	if bool(CharacterService.get_flag(FLAG_STAMINA_EXHAUSTED, false)):
+		return ""
+	CharacterService.set_flag(FLAG_STAMINA_EXHAUSTED, true)
+	return String(TranslationServer.translate("TUTORIAL_STAMINA_EXHAUSTED"))
+
+
 static func reset_for_character() -> void:
 	tips_enabled = true
 	tips_completed = false

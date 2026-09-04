@@ -50,6 +50,10 @@ var _nav_links_root: Node3D
 var _floor_nav_map: RID = RID()
 var _placement_rng: RandomNumberGenerator
 var _boss: Node
+## `BS-06`: at most one miniboss per floor today (`ProcgenPlacements._place_miniboss`), so a single
+## slot -- plus the room it's in, so `castle_run.gd` knows when the player has walked in on it.
+var _miniboss: Node
+var _miniboss_room_id := ""
 var _enemy_by_id: Dictionary = {}
 var _cleared_rooms: Dictionary = {}
 var _chest_by_id: Dictionary = {}
@@ -281,6 +285,14 @@ func get_room_ids() -> Array:
 
 func get_boss() -> Node:
 	return _boss
+
+
+func get_miniboss() -> Node:
+	return _miniboss if is_instance_valid(_miniboss) else null
+
+
+func get_miniboss_room_id() -> String:
+	return _miniboss_room_id
 
 
 func open_exit_portal() -> void:
@@ -893,6 +905,11 @@ func reveal_secret(secret_room_id: String, set_flag: bool = true) -> void:
 		# passes `set_flag = false`), which would otherwise recount the same secret every load.
 		var found := int(WorldState.get_flag(WorldFlags.secrets_found_this_floor(), 0))
 		WorldState.set_flag(WorldFlags.secrets_found_this_floor(), found + 1)
+		# VS-09: the reveal framing -- same gate as the counter above, a genuine new find only.
+		if _player:
+			var camera := _player.get_node_or_null("CameraPivot/SpringArm3D")
+			if camera and camera.has_method("play_reveal_framing"):
+				camera.call("play_reveal_framing", secret_room.global_position)
 	for edge in definition.get("edges", []):
 		if str(edge.get("kind", "")) != "secret":
 			continue
@@ -1051,6 +1068,11 @@ func _spawn_enemy(placement: Dictionary, index: int) -> void:
 	var trigger := str(placement.get("trigger", "idle"))
 	if trigger != "idle" and enemy.has_method("set_spawn_trigger"):
 		enemy.call("set_spawn_trigger", trigger, float(placement.get("triggerDelay", 2.0)))
+	# `EN-12`: set before `add_child()`, same reason as `trigger` above -- `_ready()` reads this
+	# meta to apply the elite's poise, scale, rim and name plate, and add_child() runs `_ready()`
+	# synchronously before this function's own statements after it would otherwise get the chance.
+	if placement.get("isElite", false):
+		enemy.set_meta("is_elite", true)
 	enemy.position = _sample_placement_offset(room, placement)
 	room.add_child(enemy)
 	if enemy is CharacterBody3D:
@@ -1059,8 +1081,10 @@ func _spawn_enemy(placement: Dictionary, index: int) -> void:
 	enemy.set_meta("catalog_id", enemy_id)
 	if enemy.has_method("set_player"):
 		enemy.call("set_player", _player)
-	if placement.get("isElite", false):
-		enemy.set_meta("is_elite", true)
+	if placement.get("isMiniboss", false):
+		enemy.set_meta("is_miniboss", true)
+		_miniboss = enemy
+		_miniboss_room_id = str(placement.get("roomId", ""))
 	_apply_floor_scaling(enemy)
 	_ensure_enemy_groups(enemy)
 	_enemy_by_id[placement_key] = enemy
@@ -1173,11 +1197,37 @@ func _setup_boss() -> void:
 		_boss.call("set_player", _player)
 	_boss.set_meta("catalog_id", enemy_id)
 	_apply_floor_scaling(_boss, true)
+	if _is_final_floor:
+		_apply_final_floor_arena_flavor()
 	if _boss.has_signal("boss_defeated"):
 		_boss.boss_defeated.connect(_on_boss_defeated)
 	_enemy_by_id["boss"] = _boss
 	if RunFlow:
 		RunFlow.begin_boss_fight()
+
+
+## `BS-08`: every biome's final floor uses the same entrance -> arena -> boss line and, absent a
+## bespoke set piece (`final_boss_forgotten_castle.gd` is still the only one), the same reused
+## floor-boss fight -- so the boss *pattern* is not what makes a tier's ending distinct. The biome's
+## `finalFloor.arenaHazards`/`arenaAdds`/`arenaModifier` are the per-biome twist instead, applied
+## once here rather than through the boss's own `phases` (which are per-boss, not per-biome).
+func _apply_final_floor_arena_flavor() -> void:
+	if _boss == null or not is_instance_valid(_boss):
+		return
+	var biome := BiomeRegistry.get_biome(biome_id)
+	var final_floor: Dictionary = biome.get("finalFloor", {}) as Dictionary
+	if final_floor.is_empty():
+		return
+	for spec in final_floor.get("arenaHazards", []):
+		if spec is Dictionary and _boss.has_method("spawn_hazard_ring"):
+			_boss.call("spawn_hazard_ring", spec as Dictionary)
+	for spec in final_floor.get("arenaAdds", []):
+		if spec is Dictionary and _boss.has_method("spawn_adds"):
+			_boss.call("spawn_adds", spec as Dictionary)
+	var modifier: Variant = final_floor.get("arenaModifier", null)
+	if modifier is Dictionary and not (modifier as Dictionary).is_empty():
+		if _boss.has_method("apply_arena_modifier"):
+			_boss.call("apply_arena_modifier", modifier as Dictionary)
 
 
 func _setup_exit_portal() -> void:

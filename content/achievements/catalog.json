@@ -392,6 +392,13 @@
       "description": "Win 25 arena bouts.",
       "category": "combat",
       "hidden": false
+    },
+    {
+      "id": "trap_kill",
+      "name": "Lured",
+      "description": "Kill an enemy with a trap.",
+      "category": "combat",
+      "hidden": false
     }
   ]
 }

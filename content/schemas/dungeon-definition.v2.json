@@ -177,6 +177,10 @@
         "dialogueId": {
           "type": "string"
         },
+        "targetNpcId": {
+          "type": "string",
+          "description": "SY-02: the narrative escort quest (if any) this placed NPC fulfills."
+        },
         "flagId": {
           "type": "string"
         },

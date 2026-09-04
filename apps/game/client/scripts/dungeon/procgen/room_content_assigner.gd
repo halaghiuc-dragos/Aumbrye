@@ -477,6 +477,7 @@ static func _finalize_content_entries(
 			var quest := _pick_dungeon_quest(biome_id, rng)
 			entry["questKeyId"] = str(quest.get("questKeyId", ""))
 			entry["dialogueId"] = str(quest.get("dialogueId", "dungeon_npc_stranded"))
+			entry["targetNpcId"] = str(quest.get("targetNpcId", ""))
 		if content_type == RoomContentTypes.PUZZLE:
 			var puzzle := _build_puzzle_entry(
 				entry, graph, layout_semantic, critical_set, rng, reserved_semantics
@@ -768,7 +769,11 @@ static func _roll_chest_items(
 	if biome.is_empty():
 		return []
 	var role := "secret" if content_type == RoomContentTypes.LOCKED_VAULT else "side"
-	var table: Array = ProcgenLootRoller.roll_chest(biome, role, maxi(1, tier), rng)
+	# SY-08: the day half of the day/night mechanical tie -- night gets an extra enemy per combat
+	# room (`ProcgenPlacements._place_enemies()`'s `night_bonus`), day gets a little extra value in
+	# the chests it generates instead.
+	var day_bonus := 15.0 if DayNightService and not DayNightService.is_night() else 0.0
+	var table: Array = ProcgenLootRoller.roll_chest(biome, role, maxi(1, tier), rng, day_bonus)
 	var items: Array = []
 	for i in table.size():
 		var row: Dictionary = table[i]
@@ -782,6 +787,10 @@ static func _roll_chest_items(
 	return items
 
 
+## SY-02: an accepted escort quest (`content/quests/*.json`, type `escort`) names a `targetNpcId`
+## that used to never actually appear in a run -- `dungeon_quests.json`'s matching `rescue_<name>`
+## entry now carries the same `targetNpcId`, so an active escort quest's NPC is preferred over the
+## uniform-random pick whenever this biome can place it.
 static func _pick_dungeon_quest(biome_id: String, rng: RandomNumberGenerator) -> Dictionary:
 	var quests := DungeonQuestCatalogScript.quests_for_biome(biome_id)
 	if quests.is_empty():
@@ -789,6 +798,18 @@ static func _pick_dungeon_quest(biome_id: String, rng: RandomNumberGenerator) ->
 			"questKeyId": "met_dungeon_npc",
 			"dialogueId": "dungeon_npc_stranded",
 		}
+	if QuestService:
+		var active_targets: Dictionary = {}
+		for quest_def in QuestService.get_active_quests():
+			if str(quest_def.get("type", "")) != "escort":
+				continue
+			var target_npc := str(quest_def.get("targetNpcId", ""))
+			if target_npc != "":
+				active_targets[target_npc] = true
+		if not active_targets.is_empty():
+			for quest in quests:
+				if active_targets.has(str(quest.get("targetNpcId", ""))):
+					return quest
 	return quests[rng.randi_range(0, quests.size() - 1)]
 
 

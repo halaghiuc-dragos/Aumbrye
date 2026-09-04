@@ -13,6 +13,8 @@ enum Phase { LOADING, BUILDING, DONE }
 
 var _path := ""
 var _pending_status := ""
+var _pending_flavor: Array = []
+var _flavor_box: VBoxContainer
 var _phase := Phase.LOADING
 var _claimed := false
 var _grace_frames := UNCLAIMED_GRACE_FRAMES
@@ -69,6 +71,15 @@ static func finish(tree: SceneTree) -> void:
 		transition.dismiss()
 
 
+## UX-06: a floor load is free reading time -- called right after `claim()` with what the
+## generator already knows (floor number, biome, theme label, difficulty-tier flavour) so the
+## overlay teaches the player something instead of sitting on a bare progress bar.
+static func set_flavor_lines(tree: SceneTree, lines: Array) -> void:
+	var transition := active(tree)
+	if transition != null:
+		transition.set_flavor(lines)
+
+
 static func _can_thread_load(path: String) -> bool:
 	if not ResourceLoader.exists(path):
 		return false
@@ -83,6 +94,9 @@ func _ready() -> void:
 	if _pending_status != "":
 		set_status(_pending_status)
 		_pending_status = ""
+	if not _pending_flavor.is_empty():
+		_apply_flavor(_pending_flavor)
+		_pending_flavor.clear()
 	var err := ResourceLoader.load_threaded_request(_path, "PackedScene")
 	if err != OK:
 		get_tree().change_scene_to_file(_path)
@@ -139,6 +153,28 @@ func set_status(text: String) -> void:
 		_pending_status = text
 
 
+func set_flavor(lines: Array) -> void:
+	if _flavor_box == null:
+		_pending_flavor = lines.duplicate()
+		return
+	_apply_flavor(lines)
+
+
+func _apply_flavor(lines: Array) -> void:
+	for child in _flavor_box.get_children():
+		child.queue_free()
+	for line in lines:
+		var text := str(line)
+		if text == "":
+			continue
+		var label := Label.new()
+		label.text = text
+		label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		label.modulate = Color(0.82, 0.8, 0.74)
+		_flavor_box.add_child(label)
+
+
 func set_progress(ratio: float) -> void:
 	if _bar:
 		_bar.value = clampf(ratio, 0.0, 1.0) * 100.0
@@ -186,3 +222,6 @@ func _build_overlay() -> void:
 	_bar.show_percentage = false
 	_bar.custom_minimum_size = Vector2(420.0, 14.0)
 	box.add_child(_bar)
+	_flavor_box = VBoxContainer.new()
+	_flavor_box.add_theme_constant_override("separation", 4)
+	box.add_child(_flavor_box)

@@ -16,6 +16,14 @@ var _runner: DialogueRunner
 var _choice_buttons: Array[Button] = []
 var _selected_index := 0
 
+## UX-04: a typewriter reveal that a press completes -- reduced_motion (and a text length under
+## the minimum worth animating) skips straight to the full line, matching how every other motion
+## setting in this project degrades.
+const TYPEWRITER_CHARS_PER_SEC := 42.0
+const TYPEWRITER_MIN_CHARS := 24
+var _reveal_tween: Tween
+var _is_revealing := false
+
 
 func _ready() -> void:
 	add_to_group("dialogue_ui")
@@ -70,7 +78,12 @@ func _unhandled_input(event: InputEvent) -> void:
 	if _choice_buttons.is_empty():
 		if event.is_action_pressed("ui_accept") or event.is_action_pressed("interact"):
 			get_viewport().set_input_as_handled()
-			_runner.advance()
+			_complete_reveal_or(_runner.advance)
+		return
+	if _is_revealing:
+		if event.is_action_pressed("ui_accept") or event.is_action_pressed("interact"):
+			get_viewport().set_input_as_handled()
+			_skip_reveal()
 		return
 	if event.is_action_pressed("ui_up"):
 		_move_selection(-1)
@@ -92,18 +105,52 @@ func _on_panel_gui_input(event: InputEvent) -> void:
 	if button.button_index != MOUSE_BUTTON_LEFT or not button.pressed:
 		return
 	accept_event()
-	_runner.advance()
+	_complete_reveal_or(_runner.advance)
 
 
 func _on_line_changed(speaker: String, text: String, choices: Array) -> void:
 	_speaker_label.text = speaker
 	_text_label.text = text
 	_apply_subtitle_scale()
+	_start_reveal(text)
 	_rebuild_choices(choices)
 	if choices.is_empty():
 		_hint_label.text = tr("DIALOGUE_HINT_CONTINUE")
 	else:
 		_hint_label.text = tr("DIALOGUE_HINT_CHOOSE")
+
+
+func _start_reveal(text: String) -> void:
+	if _reveal_tween and _reveal_tween.is_valid():
+		_reveal_tween.kill()
+	var char_count := text.length()
+	if AccessibilitySettings.reduced_motion or char_count < TYPEWRITER_MIN_CHARS:
+		_text_label.visible_characters = -1
+		_is_revealing = false
+		return
+	_text_label.visible_characters = 0
+	_is_revealing = true
+	var duration := float(char_count) / TYPEWRITER_CHARS_PER_SEC
+	_reveal_tween = create_tween()
+	_reveal_tween.tween_property(_text_label, "visible_characters", char_count, duration)
+	_reveal_tween.tween_callback(func() -> void: _is_revealing = false)
+
+
+## The press that would otherwise advance/select completes the reveal instead, the same way a
+## skippable cutscene works elsewhere in this project -- the press is never lost, it just does the
+## more useful thing first.
+func _complete_reveal_or(action: Callable) -> void:
+	if _is_revealing:
+		_skip_reveal()
+		return
+	action.call()
+
+
+func _skip_reveal() -> void:
+	if _reveal_tween and _reveal_tween.is_valid():
+		_reveal_tween.kill()
+	_text_label.visible_characters = -1
+	_is_revealing = false
 
 
 func refresh_accessibility() -> void:

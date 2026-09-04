@@ -37,6 +37,11 @@ const DEFAULT_HEIGHT := 2.2
 const MAX_VISIBLE_DISTANCE := 25.0
 const DISTANCE_CHECK_INTERVAL := 0.5
 
+## `EN-12`: gold reads as "this one is worth more" against the same palette every other status
+## colour in this file already uses -- red damage, tan poise, class-tinted telegraphs.
+const ELITE_NAME_COLOR := Color(0.95, 0.78, 0.25, 1.0)
+const ELITE_NAME_OFFSET_Y := (BAR_TEX_H * PixelStyle.WORLD_PIXEL) + 0.14
+
 var _bg_sprite: Sprite3D
 var _fill_sprite: Sprite3D
 var _attack_bg_sprite: Sprite3D
@@ -49,6 +54,7 @@ var _poise: Poise
 var _alive := true
 var _in_range := true
 var _distance_timer: Timer
+var _elite_label: Label3D
 
 
 func setup(health: Health, height_offset: float = DEFAULT_HEIGHT, poise: Poise = null) -> void:
@@ -63,6 +69,26 @@ func setup(health: Health, height_offset: float = DEFAULT_HEIGHT, poise: Poise =
 		_poise = poise
 		poise.poise_changed.connect(_on_poise_changed)
 		poise.poise_broken.connect(_on_poise_broken)
+
+
+## `EN-12`: the name plate that tells you this fight is not like the others -- lazily built so
+## every non-elite enemy (the overwhelming majority) pays nothing for it.
+func mark_elite(display_name: String) -> void:
+	if display_name == "":
+		return
+	if _elite_label == null:
+		_elite_label = Label3D.new()
+		_elite_label.name = "EliteNamePlate"
+		_elite_label.billboard = BaseMaterial3D.BILLBOARD_FIXED_Y
+		_elite_label.font_size = 20
+		_elite_label.outline_size = 9
+		_elite_label.outline_modulate = Color(0.0, 0.0, 0.0, 0.85)
+		_elite_label.modulate = ELITE_NAME_COLOR
+		_elite_label.position.y = ELITE_NAME_OFFSET_Y
+		_elite_label.no_depth_test = true
+		_elite_label.render_priority = BAR_PRIORITY_GLYPH + 1
+		add_child(_elite_label)
+	_elite_label.text = display_name
 
 
 func _build_distance_timer() -> void:

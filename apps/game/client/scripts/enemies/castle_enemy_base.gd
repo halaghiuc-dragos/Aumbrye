@@ -32,6 +32,10 @@ const SIDESTEP_IFRAME_FRACTION := 0.6
 const SIDESTEP_SPEED := 6.0
 const GUARD_FALLBACK_DURATION := 0.6
 const PUNISH_WINDOW_DEFAULT := 0.0
+## `EN-12`: an elite is a visibly, mechanically harder fight, not `is_elite` metadata nobody reads.
+const ELITE_POISE_MULT := 1.4
+const ELITE_SCALE_MULT := 1.15
+const ELITE_RIM_TINT := Color(0.95, 0.78, 0.25, 1.0)
 const HP_BAR_SCRIPT := preload("res://scripts/ui/enemy_health_bar.gd")
 const MaterialDissolveScript := preload("res://scripts/art/characters/material_dissolve.gd")
 const MaterialFlashScript := preload("res://scripts/art/characters/material_flash.gd")
@@ -64,6 +68,9 @@ var _poise: Poise
 var _knockback: Knockback
 var _hitbox: Hitbox
 var _hurtbox: Hurtbox
+## `BS-01` "vulnerability" phases: a procedurally-spawned weak-point Hurtbox, freed once the phase
+## that authored it ends.
+var _weak_point_hurtbox: Hurtbox
 var _state_timer := 0.0
 var _cooldown := 0.0
 var _stagger_timer := 0.0
@@ -72,6 +79,10 @@ var _patrol_target := Vector3.ZERO
 var _patrol_wait := 0.0
 var _aggro_locked := false
 var _diorama_visual: Node3D
+## `BS-03`: the current phase's persistent scale multiplier. `_end_attack()` restores the diorama's
+## rest scale to this instead of `Vector3.ONE`, so a windup's transient grow-and-release doesn't
+## erase a phase's lasting size change.
+var _phase_scale_mult := 1.0
 var _animator: DioramaAnimController
 var _anim_profile := "melee"
 var _last_known_player_pos := Vector3.ZERO
@@ -134,6 +145,9 @@ var _preferred_range := 10.0
 var _retreat_range := 6.0
 
 var _attacks: Array = []
+## `BS-01` "pattern" phases: walk `_attacks` in authored order instead of the weighted roll.
+var _attacks_ordered := false
+var _ordered_attack_index := 0
 var _base_attacks: Array = []
 var _max_attack_range := 2.2
 var _engage_range := 2.2
@@ -187,6 +201,24 @@ func set_damage_multiplier(mult: float) -> void:
 	_damage_multiplier = maxf(0.1, _base_damage_multiplier * _phase_damage_multiplier)
 
 
+## `BS-08`: the biome's final-floor arena modifier, applied once when the boss spawns -- see
+## `dungeon_builder.gd:_apply_final_floor_arena_flavor()`. `damageMult` folds into
+## `_base_damage_multiplier`, the same persistent hook `set_damage_multiplier()` uses, so it survives
+## every later phase transition; `moveSpeedMult`/`attackCooldownMult` are a one-time nudge on top of
+## whatever the boss's own `_data` baseline currently is and get overwritten the next time a
+## health-threshold phase transition calls `apply_phase_modifiers()` from that baseline again -- fine
+## for a single arena-wide flavor multiplier, not meant to out-fight a boss's own phase tuning.
+func apply_arena_modifier(mods: Dictionary) -> void:
+	if mods.has("damageMult"):
+		set_damage_multiplier(_base_damage_multiplier * float(mods["damageMult"]))
+	if mods.has("moveSpeedMult"):
+		_move_speed = maxf(0.01, _move_speed * float(mods["moveSpeedMult"]))
+	if mods.has("attackCooldownMult"):
+		_attack_cooldown_data = maxf(0.0, _attack_cooldown_data * float(mods["attackCooldownMult"]))
+	if mods.has("poiseMult") and _poise:
+		_poise.configure(_poise.max_poise * float(mods["poiseMult"]), _stagger_duration_data)
+
+
 func get_health_ratio() -> float:
 	if _health == null or _health.max_health <= 0.0:
 		return 1.0
@@ -207,6 +239,48 @@ func apply_phase_modifiers(mods: Dictionary) -> void:
 			float(_data.get("poise", 40.0)) * maxf(0.1, float(mods["poiseMult"])),
 			_stagger_duration_data
 		)
+	_apply_vulnerability(mods.get("vulnerability", {}) as Dictionary)
+
+
+## `BS-01` "vulnerability" phases: while `spec` is non-empty, the boss's own body `Hurtbox` takes
+## reduced damage and a procedurally-spawned weak-point `Hurtbox` (a second `Area3D` region, per
+## `hurtbox.gd`'s existing `region`/`region_damage_mult` support) is the only thing that still takes
+## full damage. Called on every phase entry -- including a phase with no `vulnerability` entry,
+## which is what clears it back to normal.
+func _apply_vulnerability(spec: Dictionary) -> void:
+	if _hurtbox == null:
+		return
+	if spec.is_empty():
+		_hurtbox.region_damage_mult = 1.0
+		if _weak_point_hurtbox and is_instance_valid(_weak_point_hurtbox):
+			_weak_point_hurtbox.queue_free()
+		_weak_point_hurtbox = null
+		return
+	_hurtbox.region_damage_mult = clampf(float(spec.get("bodyDamageMult", 0.35)), 0.0, 1.0)
+	if _weak_point_hurtbox == null or not is_instance_valid(_weak_point_hurtbox):
+		_weak_point_hurtbox = Hurtbox.new()
+		_weak_point_hurtbox.name = "VulnerabilityWeakPoint"
+		_weak_point_hurtbox.collision_layer = _hurtbox.collision_layer
+		_weak_point_hurtbox.collision_mask = _hurtbox.collision_mask
+		_weak_point_hurtbox.team = _hurtbox.team
+		_weak_point_hurtbox.health_path = NodePath("../Health")
+		_weak_point_hurtbox.poise_path = NodePath("../Poise")
+		var shape := CollisionShape3D.new()
+		shape.name = "CollisionShape3D"
+		shape.shape = SphereShape3D.new()
+		_weak_point_hurtbox.add_child(shape)
+		add_child(_weak_point_hurtbox)
+		_weak_point_hurtbox.damaged.connect(_on_hurt)
+	_weak_point_hurtbox.region = String(spec.get("region", "weakpoint"))
+	_weak_point_hurtbox.region_damage_mult = maxf(0.0, float(spec.get("regionDamageMult", 1.5)))
+	var sphere := (_weak_point_hurtbox.get_node("CollisionShape3D") as CollisionShape3D).shape as SphereShape3D
+	sphere.radius = maxf(0.1, float(spec.get("radius", 0.4)))
+	var offset := Vector3(0.0, 1.6, 0.0)
+	var raw_offset: Variant = spec.get("offset", null)
+	if raw_offset is Array and (raw_offset as Array).size() >= 3:
+		var parts: Array = raw_offset
+		offset = Vector3(float(parts[0]), float(parts[1]), float(parts[2]))
+	_weak_point_hurtbox.position = offset
 
 
 func get_lock_threat() -> float:
@@ -277,7 +351,10 @@ func _ready() -> void:
 		_health.configure(_data.get("health", 80.0))
 		_health.died.connect(_on_died)
 	if _poise:
-		_poise.configure(_data.get("poise", 40.0), float(_data.get("stagger_duration", 1.0)))
+		var poise_max: float = _data.get("poise", 40.0)
+		if _is_elite():
+			poise_max *= ELITE_POISE_MULT
+		_poise.configure(poise_max, float(_data.get("stagger_duration", 1.0)))
 		_poise.poise_broken.connect(_on_poise_broken)
 	if _hurtbox:
 		_hurtbox.damaged.connect(_on_hurt)
@@ -289,6 +366,8 @@ func _ready() -> void:
 	_setup_diorama_visual()
 	if _health:
 		_attach_health_bar()
+	if _is_elite():
+		_apply_elite_status()
 	_setup_phase_controller()
 	if not boss_phase_entered.is_connected(_relay_phase_changed):
 		boss_phase_entered.connect(_relay_phase_changed)
@@ -400,8 +479,10 @@ func _unpack_tuning() -> void:
 	_circle_radius_mult = maxf(1.0, float(_data.get("circle_radius_mult", 1.4)))
 
 
-func set_active_attacks(list: Array) -> void:
+func set_active_attacks(list: Array, ordered: bool = false) -> void:
 	_attacks = list
+	_attacks_ordered = ordered
+	_ordered_attack_index = 0
 	_max_attack_range = 0.0
 	_engage_range = INF
 	for entry in _attacks:
@@ -502,6 +583,12 @@ func restart_phases() -> void:
 	_phase_damage_multiplier = 1.0
 	_damage_multiplier = _base_damage_multiplier
 	_unpack_tuning()
+	_phase_scale_mult = 1.0
+	if _diorama_visual and is_instance_valid(_diorama_visual):
+		_diorama_visual.scale = Vector3.ONE
+		_apply_mesh_tint(Color.WHITE)
+		MaterialFlashScript.clear_persistent_glow(_diorama_visual)
+	_apply_vulnerability({})
 	if _phase_controller and _phase_controller.has_method("reset_phases"):
 		_phase_controller.call("reset_phases")
 
@@ -541,6 +628,14 @@ func notify_phase_entered(index: int, phase: Dictionary) -> void:
 	boss_phase_entered.emit(index, phase)
 
 
+## `BS-02`: called by the boss-intro sequence while the camera holds. Phase 1 already entered (its
+## `spawnAdds`/`hazards` already ran) the instant `BossPhaseController` started ticking at spawn, so
+## this only replays the telegraph flash/vfx in sync with the framing shot rather than redoing them.
+func play_intro_telegraph() -> void:
+	if _phase_controller and _phase_controller.has_method("replay_intro_telegraph"):
+		_phase_controller.call("replay_intro_telegraph")
+
+
 func set_player(player: Node3D) -> void:
 	_player = player
 
@@ -576,6 +671,12 @@ func get_enemy_id() -> String:
 	if not _catalog_id_override.is_empty():
 		return _catalog_id_override
 	return _resolve_enemy_id()
+
+
+## AD-06: the death recap wants to name the exact attack that landed the killing blow, not just
+## the attack class -- `_current_attack_data` already carries it, this just exposes it publicly.
+func get_current_attack_name() -> String:
+	return str(_current_attack_data.get("name", _current_attack_data.get("id", "")))
 
 
 func _resolve_enemy_id() -> String:
@@ -690,6 +791,25 @@ func _attach_health_bar() -> void:
 	_hp_bar.setup(_health, get_hp_bar_height(), _poise)
 
 
+func _is_elite() -> bool:
+	return bool(get_meta("is_elite", false))
+
+
+## `EN-12`: the poise multiplier lands earlier, alongside `_poise.configure()` in `_ready()` --
+## this covers the rest: +15% scale on the whole body (not `_mesh`, which the windup wind-up and
+## other transient effects scale on top of, so the two must compose rather than fight), a
+## persistent gold rim distinct from any class-tinted VFX, and the name plate on the health bar.
+func _apply_elite_status() -> void:
+	scale *= ELITE_SCALE_MULT
+	var rim_anchor := Vector3(0.0, get_hp_bar_height() * 0.5, 0.0)
+	var embers := LightEmbersScript.attach(self, rim_anchor, ELITE_RIM_TINT, 0.6, 0.9)
+	if embers:
+		embers.name = "EliteRim"
+	if _hp_bar:
+		var display_name := str(_data.get("title", _data.get("name", "")))
+		_hp_bar.mark_elite(display_name)
+
+
 ## `EN-09`: the HUD's off-screen danger chevron walks this group on its own slow tick rather than
 ## being pushed to per-frame -- see `CombatHud._update_danger_chevrons()`. Membership, not a
 ## per-enemy screen check, is what keeps that cheap.
@@ -705,6 +825,11 @@ func begin_attack_windup_bar(duration: float, attack_class: String = "blockable"
 	add_to_group(TELEGRAPHING_GROUP)
 	if _hp_bar:
 		_hp_bar.begin_attack_telegraph(_windup_duration, attack_class)
+	# AD-07: every enemy telegraph funnels through here, so this is the one place that can catch
+	# "first amber/blue/red telegraph ever seen" without a bespoke hook per enemy.
+	var hint := HubTutorialService.notify_telegraph_seen(attack_class)
+	if hint != "" and RunFlow:
+		RunFlow.emit_run_warning(hint)
 
 
 func hide_attack_windup_bar() -> void:
@@ -820,6 +945,42 @@ func _apply_hurtbox_data() -> void:
 		_hurtbox.call("set_block_reduction", _data.get("block_reduction"))
 
 
+## `BS-03`: applies a phase's `onEnter` visual keys -- `bodyTint`, `emissive`, `scaleMult` --
+## permanently to the diorama, so escalating phases stay visibly different after their transient
+## telegraph/VFX/SFX have faded. Called by `BossPhaseController._play_entry()`.
+func apply_phase_visuals(on_enter: Dictionary) -> void:
+	if on_enter.has("bodyTint"):
+		var tint := _color_from_variant(on_enter.get("bodyTint"), Color.WHITE)
+		_apply_mesh_tint(tint)
+	if on_enter.has("emissive") and _diorama_visual and is_instance_valid(_diorama_visual):
+		var spec: Variant = on_enter.get("emissive")
+		var glow_color := Color.WHITE
+		var glow_energy := 2.2
+		if spec is Array and (spec as Array).size() >= 3:
+			var parts: Array = spec
+			glow_color = Color(float(parts[0]), float(parts[1]), float(parts[2]))
+			if parts.size() >= 4:
+				glow_energy = float(parts[3])
+		elif spec is String:
+			glow_color = Color(spec as String)
+		MaterialFlashScript.set_persistent_glow(_diorama_visual, glow_color, glow_energy)
+	if on_enter.has("scaleMult"):
+		_phase_scale_mult = maxf(0.1, float(on_enter.get("scaleMult")))
+		if _diorama_visual:
+			_diorama_visual.scale = Vector3.ONE * _phase_scale_mult
+		elif _mesh:
+			_mesh.scale = Vector3.ONE * _phase_scale_mult
+
+
+func _color_from_variant(value: Variant, fallback: Color) -> Color:
+	if value is Array and (value as Array).size() >= 3:
+		var parts: Array = value
+		return Color(float(parts[0]), float(parts[1]), float(parts[2]))
+	if value is String:
+		return Color(value as String)
+	return fallback
+
+
 func _apply_mesh_tint(color: Color) -> void:
 	if _diorama_visual and is_instance_valid(_diorama_visual):
 		CharacterSkin.apply_body_tint(_diorama_visual, color)
@@ -876,6 +1037,9 @@ func respawn_at_rest() -> void:
 	if _diorama_visual:
 		MaterialDissolveScript.reset_death_visual(_diorama_visual)
 		MaterialFlashScript.restore_all(_diorama_visual)
+		_apply_mesh_tint(Color.WHITE)
+		_phase_scale_mult = 1.0
+		_diorama_visual.scale = Vector3.ONE
 	_pick_patrol_target()
 
 
@@ -945,6 +1109,9 @@ func _finalize_death(silent: bool) -> void:
 	if _hurtbox:
 		_hurtbox.monitorable = false
 		_hurtbox.monitoring = false
+	if _weak_point_hurtbox and is_instance_valid(_weak_point_hurtbox):
+		_weak_point_hurtbox.monitorable = false
+		_weak_point_hurtbox.monitoring = false
 	if _body_collision:
 		_body_collision.disabled = true
 	_play_death_visual()
@@ -1856,8 +2023,24 @@ func _enter_windup(attack_data: Dictionary) -> void:
 		_mesh.scale = Vector3(1.08, 1.08, 1.08)
 	_show_attack_telegraph(_state_timer)
 	begin_attack_windup_bar(_state_timer, _current_attack_class())
-	AudioDirector.play_sfx("windup", global_position + Vector3(0.0, 1.0, 0.0))
+	AudioDirector.play_sfx(_windup_cue(), global_position + Vector3(0.0, 1.0, 0.0))
 	attack_telegraph_started.emit(_current_attack_class())
+
+
+## `AU-04`: audio carries the same read as the colour and the shape -- a rising tone for
+## `parryable`, a low growl for `unblockable`, a short grunt for `blockable`, a shout for `grab`.
+## `"voice"` is an optional per-enemy prefix (e.g. a biome's own windup bank) that only wins if the
+## bank actually defines it; an enemy with no authored voice cue falls back to the plain
+## `windup_<class>` cue every enemy already gets for free.
+func _windup_cue() -> String:
+	var attack_class := _current_attack_class()
+	var class_cue := "windup_%s" % attack_class
+	var voice := str(_data.get("voice", ""))
+	if voice != "":
+		var voiced_cue := "windup_%s_%s" % [voice, attack_class]
+		if AudioDirector.has_sfx_entry(voiced_cue):
+			return voiced_cue
+	return class_cue
 
 
 ## `EN-01`: every attack in `content/enemies/*.json` and `content/bosses/*.json` now authors
@@ -1930,9 +2113,9 @@ func _end_attack() -> void:
 		_hitbox.disable()
 		_hitbox.reset_swing()
 	if _diorama_visual:
-		_diorama_visual.scale = Vector3.ONE
+		_diorama_visual.scale = Vector3.ONE * _phase_scale_mult
 	elif _mesh:
-		_mesh.scale = Vector3.ONE
+		_mesh.scale = Vector3.ONE * _phase_scale_mult
 	var combo: Array = _current_attack_data.get("combo_followups", [])
 	if combo.size() > 0 and _combo_step < combo.size() and _has_aggro() and _phase_lock_timer <= 0.0:
 		_combo_step += 1
@@ -1955,6 +2138,9 @@ func _select_attack_data() -> void:
 	if _combo_step > 0:
 		return
 	_combo_step = 0
+	if _attacks_ordered:
+		_select_ordered_attack_data()
+		return
 	var dist := sqrt(_distance_to_player_sq()) if _player != null else 0.0
 	var candidates: Array[Dictionary] = []
 	var weights: Array[float] = []
@@ -1981,6 +2167,29 @@ func _select_attack_data() -> void:
 			_current_attack_data = candidates[i]
 			return
 	_current_attack_data = candidates[candidates.size() - 1]
+
+
+## `BS-01` "pattern" phases: a fixed, learnable sequence instead of a weighted roll. Walks
+## `_attacks` starting where the last selection left off, skipping any entry out of range this
+## frame but still advancing past it, so the sequence keeps its order rather than stalling on a
+## move the player is currently too far (or too close) to be hit by.
+func _select_ordered_attack_data() -> void:
+	var dist := sqrt(_distance_to_player_sq()) if _player != null else 0.0
+	var attempts := 0
+	while attempts < _attacks.size():
+		var entry: Variant = _attacks[_ordered_attack_index % _attacks.size()]
+		_ordered_attack_index = (_ordered_attack_index + 1) % _attacks.size()
+		attempts += 1
+		if not (entry is Dictionary):
+			continue
+		var atk: Dictionary = entry
+		if dist < float(atk.get("min_range", 0.0)):
+			continue
+		if dist > float(atk.get("max_range", _attack_range)):
+			continue
+		_current_attack_data = atk
+		return
+	_current_attack_data = _first_attack_entry()
 
 
 func _first_attack_entry() -> Dictionary:

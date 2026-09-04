@@ -1,5 +1,5 @@
 {
-  "$comment": "Single source of truth for schema versions that both the backend and the Godot client stamp onto data. Backend code reads this file; ClientVersionParityTests asserts the GDScript constants still agree, so the two cannot drift silently.",
+  "$comment": "Single source of truth for schema versions that both the backend and the Godot client stamp onto data. Backend code reads this file; scripts/validate-content/validate.mjs's validateSchemaVersionParity() asserts the GDScript constants still agree (SY-12 — the ClientVersionParityTests suite this comment used to name was removed; see CORE_GAMEPLAY_REVIEW.md §119), so the two cannot drift silently.",
   "characterState": {
     "current": 12,
     "gdscriptConstant": "SaveMigrator.CURRENT_VERSION",

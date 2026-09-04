@@ -22,6 +22,30 @@ Unless noted, a failed step quarantines the file and retains a pre-migration art
 `playerDead` flag with a checkpoint restores the snapshot, and without one drops `activeRun` only,
 preserving every other section.
 
+## SY-06: fields the MVP depth plan introduced, and why none needed v13
+
+`docs/MVP_DEPTH_PLAN.md`'s SY-06 asked for a running list of the plan's new persisted fields, bundled
+into one migration step per phase rather than one per feature. Checked against the actual
+implementation, none of the plan's additions ended up needing a new schema version:
+
+- **RG-02 quiver charges** — `PlayerArrows.current_arrows`/`max_arrows` are never written to the save
+  at all, matching `PlayerHeal.current_charges` (the pattern it mirrors): both are pure run-session
+  state that resets to full on load, not persisted state. No new key.
+- **IV-02 set bonuses** — computed at runtime from each equipped item's own `setId` (a content field,
+  `content/items/equipment/*.json`) and `content/items/sets.json`. Nothing new to save; the existing
+  `inventory.equipped.<slot>` instance already carries everything needed.
+- **IV-03 keystone talents** — reuses the existing `talents.<nodeId>` rank storage the v5 step already
+  normalizes; a keystone is just a talent node whose rank is 0 or 1, not a new shape.
+- **RM-09 secrets-found counter** and **AD-07 tutorial-seen flags** — both go through
+  `CharacterService.set_flag()`/`WorldState.set_flag()` into the existing generic `flags` dictionary,
+  which the v5 step already declares schema-open ("bool / int / float / String values only", no fixed
+  key list). An old save simply has no entry for a new flag key until it is first set, and every
+  reader already calls `get_flag(key, default)` with a safe default — no backfill required.
+
+`SaveMigrator.CURRENT_VERSION` is still correctly **12** as of this note. The next genuinely
+structural addition (a new required section, a renamed/removed key, or a value that needs
+transformation rather than a default) is what should bump it to 13 — not these.
+
 ## v12 guarantees
 
 `account` is a copy of the parts of a save that belong to the player rather than to one

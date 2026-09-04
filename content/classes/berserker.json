@@ -65,6 +65,10 @@
   "roleText": "Bruiser / Damage",
   "perkNameText": "Bloodrage",
   "perkDescriptionText": "Damage taken feeds a rage that sharpens every swing until the room is quiet.",
+  "perkVerb": "CLASS_PERK_VERB_BLOODRAGE",
+  "perkVerbText": "Rage when hit.",
+  "playsLike": "CLASS_PLAYS_LIKE_BERSERKER",
+  "playsLikeText": "Get hit, hit harder -- a class that wants you reckless.",
   "statRatings": {
     "maxHealth": 13,
     "armor": 7,

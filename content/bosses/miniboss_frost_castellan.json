@@ -26,6 +26,7 @@
   "circle_radius_mult": 1.22,
   "phaseCount": 2,
   "enemy_type": "boss",
+  "hit_material": "armour",
   "status_on_hit": "freeze",
   "status_stacks_on_hit": 2,
   "attacks": [

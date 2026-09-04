@@ -179,10 +179,17 @@ func process_dodge_physics(delta: float) -> void:
 	if is_dodging:
 		_process_dash(delta)
 		return
-	if PlayerInput.just_pressed(&"dodge") and _can_dash():
-		_start_dash()
-		if is_dodging:
-			_process_dash(delta)
+	if PlayerInput.just_pressed(&"dodge"):
+		if _can_dash():
+			_start_dash()
+			if is_dodging:
+				_process_dash(delta)
+		elif _stamina and not is_dodging and _recovery_timer <= 0.0 and not _stamina.has(_scaled_dodge_cost()):
+			# AD-07: the exact moment stamina denies a dodge is the one moment the lesson lands --
+			# shown once ever, via `HubTutorialService`.
+			var hint := HubTutorialService.notify_stamina_exhausted()
+			if hint != "" and RunFlow:
+				RunFlow.emit_run_warning(hint)
 
 
 func get_dash_progress() -> float:

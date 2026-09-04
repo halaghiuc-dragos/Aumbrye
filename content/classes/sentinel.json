@@ -62,6 +62,10 @@
   "roleText": "Defender / Poise",
   "perkNameText": "Bulwark",
   "perkDescriptionText": "What the shield stops is turned back into the body that held it.",
+  "perkVerb": "CLASS_PERK_VERB_BULWARK",
+  "perkVerbText": "Turn blocked hits into healing.",
+  "playsLike": "CLASS_PLAYS_LIKE_SENTINEL",
+  "playsLikeText": "Stand your ground -- what your shield eats heals you back.",
   "statRatings": {
     "maxHealth": 14,
     "armor": 15,

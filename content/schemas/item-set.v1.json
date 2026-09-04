@@ -1,0 +1,96 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://aumbrye.dev/schemas/item-set.v1.json",
+  "title": "ItemSetCatalog",
+  "description": "IV-02: equipment sets. Each key is the setId equipment items declare in their own \"setId\" field; bonuses are keyed by the piece-count threshold that unlocks them and registered through the same CombatEvents rule shape a unique item uses.",
+  "type": "object",
+  "additionalProperties": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["name", "bonuses"],
+    "properties": {
+      "name": {
+        "type": "string",
+        "minLength": 1
+      },
+      "bonuses": {
+        "type": "object",
+        "description": "Keys are piece-count thresholds as strings (\"2\", \"4\", \"6\"); a threshold's rules register only once enough pieces of this set are equipped.",
+        "additionalProperties": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["event", "effect"],
+            "properties": {
+              "event": {
+                "type": "string",
+                "enum": [
+                  "onHit",
+                  "onKill",
+                  "onParry",
+                  "onBlock",
+                  "onDodge",
+                  "onCrit",
+                  "onBackstab",
+                  "onRiposte",
+                  "onHitTaken",
+                  "onLowHealth",
+                  "onRoomClear",
+                  "onFloorEnter",
+                  "onStatusApplied",
+                  "onRunStart",
+                  "onDeath",
+                  "onPerfectDodge",
+                  "onGuardBreak",
+                  "onExecute",
+                  "onFlask"
+                ]
+              },
+              "effect": {
+                "type": "string",
+                "enum": [
+                  "restore_stamina",
+                  "restore_health",
+                  "restore_mana",
+                  "lifesteal",
+                  "apply_status",
+                  "spread_status",
+                  "add_stack",
+                  "bonus_gold",
+                  "refund_flask",
+                  "clear_status",
+                  "deal_damage",
+                  "grant_barrier",
+                  "empower_next",
+                  "reduce_cooldown",
+                  "knockback"
+                ]
+              },
+              "amount": { "type": "number" },
+              "pct": { "type": "number" },
+              "chance": { "type": "number", "minimum": 0, "maximum": 1 },
+              "cooldown": { "type": "number", "minimum": 0 },
+              "statusId": { "type": "string" },
+              "stacks": { "type": "integer", "minimum": 1 },
+              "radius": { "type": "number", "minimum": 0 },
+              "stackId": { "type": "string" },
+              "maxStacks": { "type": "integer", "minimum": 1 },
+              "stat": { "type": "string" },
+              "perStack": { "type": "number" },
+              "resetOn": { "type": "array", "items": { "type": "string" } },
+              "ifTargetHasStatus": { "type": "string" },
+              "ifDamageType": { "type": "string" },
+              "ifWeaponArchetype": { "type": "string" },
+              "ifHealthBelow": { "type": "number", "minimum": 0, "maximum": 1 },
+              "ifEnemyType": { "type": "string" },
+              "applyToActor": { "type": "boolean" },
+              "multiplier": { "type": "number", "minimum": 1 },
+              "knockback": { "type": "number", "minimum": 0 }
+            }
+          }
+        }
+      }
+    }
+  }
+}

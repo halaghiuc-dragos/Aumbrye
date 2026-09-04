@@ -24,6 +24,7 @@
   "alert_radius": 15,
   "circle_radius_mult": 1.6,
   "enemy_type": "melee",
+  "hit_material": "crystal",
   "weapon_kit": "dagger",
   "attacks": [
     {

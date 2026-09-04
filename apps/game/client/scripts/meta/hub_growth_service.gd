@@ -3,6 +3,8 @@ extends RefCounted
 
 
 const CATALOG_PATH := "content/ui/hub_growth.json"
+const FLAG_SEEN := "hub_growth_seen"
+const FLAG_PENDING := "hub_growth_pending"
 
 static var _entries: Array[Dictionary] = []
 static var _loaded := false
@@ -85,6 +87,53 @@ static func unlocked_count() -> int:
 
 static func total_count() -> int:
 	return get_all().size()
+
+
+## `SY-03`: mirrors `VaultService.evaluate()`/`consume_announcements()` exactly -- cheap and
+## idempotent, safe to call any time progress may have moved (a run's end, hub boot). Newly-unlocked
+## entries queue for `consume_announcements()`, which the hub drains on its own boot pass to give
+## the player one line naming what just changed, the same beat `_spawn_growth_props()` in
+## `hub_diorama.gd` builds into the plaza.
+static func evaluate() -> Array[Dictionary]:
+	var seen := _seen_record()
+	var pending := _pending_record()
+	var opened: Array[Dictionary] = []
+	var dirty := false
+	for entry_id in get_unlocked_ids():
+		if bool(seen.get(entry_id, false)):
+			continue
+		seen[entry_id] = true
+		pending[entry_id] = true
+		dirty = true
+		opened.append(get_entry(entry_id).duplicate(true))
+	if dirty:
+		CharacterService.set_flag(FLAG_SEEN, seen)
+		CharacterService.set_flag(FLAG_PENDING, pending)
+	return opened
+
+
+## Drains the queue of unlocks the player has not been shown yet.
+static func consume_announcements() -> Array[Dictionary]:
+	var pending := _pending_record()
+	if pending.is_empty():
+		return []
+	var out: Array[Dictionary] = []
+	for entry_id in pending.keys():
+		var entry := get_entry(str(entry_id))
+		if not entry.is_empty():
+			out.append(entry.duplicate(true))
+	CharacterService.set_flag(FLAG_PENDING, {})
+	return out
+
+
+static func _seen_record() -> Dictionary:
+	var stored: Variant = CharacterService.get_flag(FLAG_SEEN, {})
+	return (stored as Dictionary).duplicate() if stored is Dictionary else {}
+
+
+static func _pending_record() -> Dictionary:
+	var stored: Variant = CharacterService.get_flag(FLAG_PENDING, {})
+	return (stored as Dictionary).duplicate() if stored is Dictionary else {}
 
 
 static func _ensure_loaded() -> void:

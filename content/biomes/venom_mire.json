@@ -84,11 +84,21 @@
       "weight": 1
     }
   ],
+  "roleComposition": {
+    "melee": 0.75,
+    "ranged": 0.25
+  },
   "bossPool": [
     {
       "enemyId": "venom_mireheart",
       "weight": 3
     },
+    {
+      "enemyId": "venom_matron",
+      "weight": 1
+    }
+  ],
+  "minibossPool": [
     {
       "enemyId": "venom_matron",
       "weight": 1
@@ -190,7 +200,25 @@
   ],
   "requiresSecret": true,
   "finalFloor": {
-    "bossId": "venom_mireheart"
+    "bossId": "venom_mireheart",
+    "arenaHazards": [
+      {
+        "scene": "res://scenes/traps/poison_pool.tscn",
+        "count": 6,
+        "radius": 10,
+        "lifetime": 20
+      }
+    ],
+    "arenaAdds": [
+      {
+        "enemyId": "venom_thresher",
+        "count": 3,
+        "radius": 7
+      }
+    ],
+    "arenaModifier": {
+      "poiseMult": 1.15
+    }
   },
   "maxHeightLevel": 2,
   "maxSecrets": 3,

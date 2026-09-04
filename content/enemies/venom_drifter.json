@@ -24,6 +24,7 @@
   "alert_radius": 15,
   "circle_radius_mult": 1.6,
   "enemy_type": "melee",
+  "hit_material": "ooze",
   "damage_type": "poison",
   "status_on_hit": "poison",
   "status_stacks_on_hit": 1,

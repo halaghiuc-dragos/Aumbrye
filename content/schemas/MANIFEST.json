@@ -19,7 +19,7 @@
         "client:scripts/save/save_migrator.gd",
         "client:scripts/save/save_validator.gd"
       ],
-      "notes": "The runtime schemaVersion integer is NOT this file's v1/v2 label — it is pinned in content/fixtures/schema_versions.json and asserted by ClientVersionParityTests."
+      "notes": "The runtime schemaVersion integer is NOT this file's v1/v2 label — it is pinned in content/fixtures/schema_versions.json and asserted by scripts/validate-content/validate.mjs's validateSchemaVersionParity() (SY-12 — the ClientVersionParityTests suite this note used to name was removed; see CORE_GAMEPLAY_REVIEW.md §119)."
     },
     "inventory": {
       "current": "v2",

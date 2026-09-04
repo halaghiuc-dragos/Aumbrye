@@ -5,6 +5,9 @@ const DioramaSkin := preload("res://scripts/art/props/diorama_interactable_skin.
 
 enum State { IDLE, TELEGRAPH, ACTIVE, COOLDOWN, SPENT }
 
+## `BS-04`: same class every other arena/dungeon hazard now telegraphs as -- see `arena_hazard.gd`.
+const HAZARD_ATTACK_CLASS := "unblockable"
+
 @export var trap_id: String = ""
 
 var _def: Dictionary = {}
@@ -140,7 +143,7 @@ func _build_meshes(size: Vector3) -> void:
 	_telegraph.mesh = flat
 	_telegraph.position = Vector3(0.0, 0.05, 0.0)
 	_telegraph.material_override = DioramaSkin.make_telegraph_material(
-		Color(tint.r, tint.g, tint.b, 0.5)
+		AccessibilitySettings.emphasise_telegraph_tint(Color(tint.r, tint.g, tint.b, 0.5))
 	)
 	_telegraph.visible = false
 	add_child(_telegraph)
@@ -158,6 +161,8 @@ func _build_meshes(size: Vector3) -> void:
 
 
 func _tint() -> Color:
+	if AccessibilitySettings.colorblind_mode != "default":
+		return AccessibilitySettings.get_telegraph_class_color(HAZARD_ATTACK_CLASS)
 	var raw := str(_def.get("color", ""))
 	if raw != "" and Color.html_is_valid(raw):
 		return Color.html(raw)

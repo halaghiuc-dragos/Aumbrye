@@ -50,6 +50,7 @@ func _ready() -> void:
 	for path in paths:
 		await _check_scene(path)
 	await _check_built_floors()
+	await _check_hud_matrix()
 	_report()
 	print("SCENE SWEEP RESULT %d failures across %d scenes" % [_failures, _scanned])
 	get_tree().quit(1 if _failures > 0 else 0)
@@ -144,6 +145,55 @@ func _check_built_floors() -> void:
 		await get_tree().physics_frame
 		_inspect(label, parent)
 		parent.free()
+
+
+## SY-09/HD-04: `combat_hud.gd`'s `configure_for_mode()` is the one place that decides which
+## elements a mode gets; this checks it against the same table the plan's HD-04 pastes above that
+## function -- minimap, branch previews and the key row are the elements the table marks "waves".
+## Everything else in the table is either always-on (never toggled by mode) or content-driven (boss
+## bar, objective text), so those are not re-tested here.
+##
+## A bare, freshly-instantiated HUD starts several of these elements hidden regardless of mode --
+## `_minimap_anchor` and `_branch_banner` only turn on once a run feeds them real floor/map data, so
+## reading a bare HUD's default visibility would test that unrelated population timing instead of
+## the mode contract. Each element is forced visible before every call instead, so the assertion
+## after the call tests only what `configure_for_mode()` itself did.
+func _check_hud_matrix() -> void:
+	var label := "hud_matrix"
+	_scanned += 1
+	var packed := load("res://scenes/ui/combat_hud.tscn") as PackedScene
+	if packed == null:
+		_note(label, "unloadable", "combat_hud.tscn did not load as a PackedScene", true)
+		return
+	var hud := packed.instantiate()
+	add_child(hud)
+	await get_tree().process_frame
+	var minimap_anchor: Control = hud.get_node_or_null("MinimapAnchor")
+	var branch_banner: Control = hud.get_node_or_null("BranchBanner")
+	for run_mode in ["castle", "endless", "waves"]:
+		if minimap_anchor:
+			minimap_anchor.visible = true
+		if branch_banner:
+			branch_banner.visible = true
+		var key_row: Control = hud.get("_key_row")
+		if key_row:
+			key_row.visible = true
+		hud.call("configure_for_mode", run_mode)
+		key_row = hud.get("_key_row")
+		var expect_visible: bool = str(run_mode) != "waves"
+		if minimap_anchor and minimap_anchor.visible != expect_visible:
+			_note(label, "hud_matrix_mismatch", "%s: minimap visible=%s, expected %s" % [
+				run_mode, minimap_anchor.visible, expect_visible
+			], true)
+		if branch_banner and branch_banner.visible != expect_visible:
+			_note(label, "hud_matrix_mismatch", "%s: branch banner visible=%s, expected %s" % [
+				run_mode, branch_banner.visible, expect_visible
+			], true)
+		if key_row and key_row.visible != expect_visible:
+			_note(label, "hud_matrix_mismatch", "%s: key row visible=%s, expected %s" % [
+				run_mode, key_row.visible, expect_visible
+			], true)
+	hud.free()
 
 
 func _inspect(path: String, root: Node) -> void:

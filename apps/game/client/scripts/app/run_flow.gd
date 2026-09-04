@@ -634,13 +634,13 @@ func complete_run_via_portal() -> void:
 	_goto_scene(RESULTS_SCENE)
 
 
-func on_player_died() -> void:
+func on_player_died(death_recap: Dictionary = {}) -> void:
 	if get_tree().get_first_node_in_group("training_arena"):
 		return
 	var active := LocalSave.get_active_run()
 	var checkpoint: Variant = active.get("lastCheckpoint", {})
 	if checkpoint is Dictionary and not checkpoint.is_empty() and not _is_permadeath_run():
-		_bonfire_death_respawn(checkpoint)
+		_bonfire_death_respawn(checkpoint, death_recap)
 		return
 	var elapsed := 0.0
 	if _run_start_time > 0.0:
@@ -649,7 +649,7 @@ func on_player_died() -> void:
 	var death_xp := ProgressionService.apply_death_xp_fraction(full_xp)
 	var xp_result := ProgressionService.grant_xp(death_xp, "death")
 	var xp_deferred := full_xp - death_xp
-	var failure_point := _record_failure_point()
+	var failure_point := _record_failure_point(death_recap)
 	var gold_staked := _take_death_gold_stake()
 	_store_recoverable_xp_shard_from_active_run(xp_deferred, gold_staked)
 	var depth_result := _register_endless_depth_reached()
@@ -683,6 +683,7 @@ func on_player_died() -> void:
 				"descent_tokens_awarded": int(depth_result.get("tokens", 0)),
 				"failure_point": failure_point,
 				"assists_active": AccessibilitySettings.assists_active(),
+				"death_recap": death_recap,
 			}
 		)
 	)
@@ -709,6 +710,130 @@ func can_repeat_run() -> bool:
 	if ModeUnlockService and not ModeUnlockService.is_unlocked(mode):
 		return false
 	return true
+
+
+## AD-01: one source for the "why this run" card every mode's entry menu shows -- up to 5 live
+## objectives, sorted by closeness to completion so the card reads as a hook (three things you are
+## about to finish) rather than a wall (everything the game could promise).
+func build_run_contract(mode: String, dungeon_id: String, tier: int) -> Array[Dictionary]:
+	var candidates: Array[Dictionary] = []
+	candidates.append_array(_contract_bounty_lines())
+	var challenge_line := _contract_challenge_line(dungeon_id, tier)
+	if not challenge_line.is_empty():
+		candidates.append(challenge_line)
+	var record_line := _contract_record_line(mode, dungeon_id)
+	if not record_line.is_empty():
+		candidates.append(record_line)
+	var vault_line := _contract_vault_line()
+	if not vault_line.is_empty():
+		candidates.append(vault_line)
+	var bestiary_line := _contract_bestiary_line(dungeon_id)
+	if not bestiary_line.is_empty():
+		candidates.append(bestiary_line)
+	candidates.sort_custom(
+		func(a: Dictionary, b: Dictionary) -> bool:
+			return _contract_closeness(a) < _contract_closeness(b)
+	)
+	return candidates.slice(0, 5)
+
+
+## A line with no numeric target (a record to beat) sorts after every measurable one -- it is
+## context, not a countdown.
+func _contract_closeness(line: Dictionary) -> float:
+	var target := float(line.get("target", 0.0))
+	if target <= 0.0:
+		return INF
+	return target - float(line.get("progress", 0.0))
+
+
+func _contract_bounty_lines() -> Array[Dictionary]:
+	var lines: Array[Dictionary] = []
+	for kind in [BountyService.KIND_DAILY, BountyService.KIND_WEEKLY]:
+		for quest_id in BountyService.active_bounties(kind):
+			if CharacterService.get_quest_state(quest_id) != QuestService.STATE_ACTIVE:
+				continue
+			var def := QuestCatalog.get_definition(quest_id)
+			var required := int(def.get("requiredCount", 1))
+			var have := int(CharacterService.get_quest_progress(quest_id).get("count", 0))
+			lines.append(
+				{
+					"icon": "bounty",
+					"text": "%s (%d/%d)" % [str(def.get("title", quest_id)), have, required],
+					"progress": have,
+					"target": required,
+				}
+			)
+	return lines
+
+
+func _contract_challenge_line(dungeon_id: String, tier: int) -> Dictionary:
+	var challenge := ChallengeService.get_active_challenge()
+	if challenge.is_empty():
+		return {}
+	if str(challenge.get("dungeonId", "")) != dungeon_id:
+		return {}
+	if int(challenge.get("difficultyTier", 0)) != tier:
+		return {}
+	return {
+		"icon": "challenge",
+		"text": tr("CONTRACT_CHALLENGE").format({"name": str(challenge.get("name", ""))}),
+		"progress": 0,
+		"target": 0,
+	}
+
+
+func _contract_record_line(mode: String, dungeon_id: String) -> Dictionary:
+	var scope := {"runMode": mode}
+	if dungeon_id != "":
+		scope["dungeonId"] = dungeon_id
+	var best := RunHistoryService.best_depth(scope)
+	if best <= 0:
+		return {}
+	return {
+		"icon": "record",
+		"text": tr("CONTRACT_RECORD").format({"floor": best}),
+		"progress": 0,
+		"target": 0,
+	}
+
+
+func _contract_vault_line() -> Dictionary:
+	var progress := VaultService.nearest_locked_progress()
+	if progress.is_empty():
+		return {}
+	return {
+		"icon": "vault",
+		"text": tr("CONTRACT_VAULT").format(
+			{"gap": int(progress.get("gap", 0)), "name": str(progress.get("name", ""))}
+		),
+		"progress": int(progress.get("have", 0)),
+		"target": int(progress.get("need", 0)),
+	}
+
+
+func _contract_bestiary_line(dungeon_id: String) -> Dictionary:
+	var biome_id := DungeonCatalog.get_biome_id(dungeon_id)
+	var biome := BiomeRegistry.get_biome(biome_id)
+	var pool: Variant = biome.get("enemyPool", [])
+	if not pool is Array or (pool as Array).is_empty():
+		return {}
+	var best := {}
+	var best_gap := 999999
+	for enemy_id in pool as Array:
+		var gap := BestiaryService.kills_to_next_tier(str(enemy_id))
+		if gap <= 0 or gap >= best_gap:
+			continue
+		best_gap = gap
+		var def := EnemyCatalog.get_definition(str(enemy_id))
+		best = {"gap": gap, "name": str(def.get("name", enemy_id))}
+	if best.is_empty():
+		return {}
+	return {
+		"icon": "bestiary",
+		"text": tr("CONTRACT_BESTIARY").format({"gap": int(best.get("gap", 0)), "name": str(best.get("name", ""))}),
+		"progress": 0,
+		"target": int(best.get("gap", 0)),
+	}
 
 
 func describe_repeat() -> String:
@@ -825,6 +950,9 @@ func rest_at_bonfire(player: Node = null) -> void:
 	var heal := player.get_node_or_null("PlayerHeal")
 	if heal and heal.has_method("refill_charges") and not starved:
 		heal.call("refill_charges")
+	var arrows := player.get_node_or_null("PlayerArrows")
+	if arrows and arrows.has_method("refill_arrows") and not starved:
+		arrows.call("refill_arrows")
 	# CB-08: the one place a player could never answer a status before -- `clear_status` existed
 	# as a rules effect and nothing in the content ever used it.
 	var status := player.get_node_or_null("StatusController") as StatusController
@@ -1521,8 +1649,11 @@ func _take_death_gold_stake() -> int:
 	return staked
 
 
-func _record_failure_point() -> Dictionary:
-	var enemy_id := _nearest_enemy_catalog_id()
+func _record_failure_point(death_recap: Dictionary = {}) -> Dictionary:
+	# AD-06: the recap's enemyId is the one that actually landed the killing blow -- prefer it
+	# over the old nearest-enemy-by-distance guess, which the recap makes obsolete when present.
+	var recap_enemy_id := str(death_recap.get("enemyId", ""))
+	var enemy_id := recap_enemy_id if recap_enemy_id != "" else _nearest_enemy_catalog_id()
 	var region := BiomeRegistry.get_display_name(current_biome_id)
 	if region == "":
 		region = current_biome_id
@@ -1594,7 +1725,7 @@ func clear_recoverable_xp_shard() -> void:
 	CharacterService.set_flag(XP_SHARD_FLAG, {})
 
 
-func _bonfire_death_respawn(checkpoint: Dictionary) -> void:
+func _bonfire_death_respawn(checkpoint: Dictionary, death_recap: Dictionary = {}) -> void:
 	var player := get_tree().get_first_node_in_group("player")
 	var death_pos: Vector3 = Vector3.ZERO
 	if player is Node3D:
@@ -1644,6 +1775,7 @@ func _bonfire_death_respawn(checkpoint: Dictionary) -> void:
 				"loot_lost": loot_lost,
 				"xp_deferred": xp_deferred,
 				"gold_staked": gold_staked,
+				"death_recap": death_recap,
 			}
 		)
 	)

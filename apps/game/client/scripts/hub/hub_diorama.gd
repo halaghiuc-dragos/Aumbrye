@@ -69,6 +69,7 @@ static func apply(hub: Node3D) -> void:
 	_dress_quest_board(hub.get_node_or_null("QuestBoard"), mats)
 	_spawn_fountain(hub, mats)
 	_dress_plaza(hub, mats)
+	_spawn_growth_props(hub, mats)
 	HubFauna.apply(hub)
 	_dress_npcs(hub)
 	_position_npcs_from_content(hub)
@@ -294,6 +295,183 @@ static func _spawn_votive_cairn(
 	glow.position = Vector3(0.0, y + 0.35, 0.0)
 	glow.add_to_group(NightLights.GROUP)
 	root.add_child(glow)
+
+
+## `SY-03`: `HubGrowthService` unlocks entries from run progress -- a banner, a trophy hall, a
+## working forge -- and until now the hub never visibly changed when they did; the growth was a
+## list in a menu nobody walked past. Each entry's own `anchor`/`prop` fields (authored in
+## `content/ui/hub_growth.json` for exactly this) now build a real object near the area they name.
+## Two entries sharing an anchor (`banner_row` after `banner_first_clear`) offset along a row
+## instead of overlapping, so the plaza visibly accumulates rather than one prop replacing another.
+static func _spawn_growth_props(hub: Node3D, mats: Dictionary) -> void:
+	if hub.get_node_or_null("GrowthProps") != null:
+		return
+	var root := Node3D.new()
+	root.name = "GrowthProps"
+	hub.add_child(root)
+	var iron := PixelDioramaStyle.make_metal_material(Color(0.23, 0.23, 0.27), 0.34)
+	var bone := PixelDioramaStyle.make_material(Color(0.74, 0.71, 0.62))
+	var candle := PixelDioramaStyle.make_custom_emissive(Color(1.0, 0.78, 0.42), 1.3)
+	var slot_by_anchor: Dictionary = {}
+	for entry in HubGrowthService.get_all():
+		var entry_id := str(entry.get("id", ""))
+		if not HubGrowthService.is_unlocked(entry_id):
+			continue
+		var anchor := str(entry.get("anchor", "courtyard"))
+		var slot := int(slot_by_anchor.get(anchor, 0))
+		slot_by_anchor[anchor] = slot + 1
+		var base := _growth_anchor_position(hub, anchor) + Vector3(float(slot) * 1.7, 0.0, 0.0)
+		match str(entry.get("prop", "")):
+			"banner":
+				_spawn_growth_banner(root, mats, base, entry_id)
+			"trophy":
+				_spawn_growth_trophy(root, mats, base, entry_id)
+			"marker":
+				_spawn_growth_marker(root, mats, base, entry_id)
+			"shelf":
+				_spawn_growth_shelf(root, mats, base, entry_id)
+			"forge":
+				_spawn_brazier(root, mats, base, "GrowthForge_%s" % entry_id)
+			"board":
+				_spawn_growth_board(root, mats, base, entry_id)
+			"shrine":
+				_spawn_votive_cairn(root, mats, iron, bone, candle, base)
+
+
+## No literal "great hall" or "undercroft" room exists in this hub -- it is one plaza. `workshop`
+## and `undercroft` read off the Blacksmith/Storage tents already anchoring the plaza's two back
+## corners; `great_hall` and `courtyard` are fixed open spots (north wall / south of the fountain)
+## chosen clear of the columns, cairns, carts and gate row `_spawn_grim_dressing()`/`_dress_plaza()`
+## already seat.
+static func _growth_anchor_position(hub: Node3D, anchor: String) -> Vector3:
+	match anchor:
+		"workshop":
+			return _service_world_position(hub, "Blacksmith") + Vector3(2.8, 0.0, 1.6)
+		"undercroft":
+			return _service_world_position(hub, "Storage") + Vector3(-2.8, 0.0, 1.6)
+		"great_hall":
+			return Vector3(-4.0, 0.0, -13.0)
+		_:
+			return Vector3(-4.0, 0.0, 10.5)
+
+
+static func _spawn_growth_banner(
+	parent: Node3D, mats: Dictionary, base: Vector3, node_name: String
+) -> void:
+	var root := Node3D.new()
+	root.name = "GrowthBanner_%s" % node_name
+	root.position = base
+	parent.add_child(root)
+	PixelDioramaStyle.add_box(root, Vector3(0.5, 0.2, 0.5), Vector3(0.0, 0.1, 0.0), mats.wall, "Base")
+	var pole_h := 3.6
+	PixelDioramaStyle.add_box(
+		root, Vector3(0.16, pole_h, 0.16), Vector3(0.0, 0.2 + pole_h * 0.5, 0.0), mats.wood, "Pole"
+	)
+	var vane := Node3D.new()
+	vane.name = "Vane"
+	vane.set_script(BannerVaneScript)
+	root.add_child(vane)
+	PixelDioramaStyle.add_box(
+		vane,
+		Vector3(0.7, 0.12, 0.12),
+		Vector3(0.0, pole_h - 0.1, BANNER_CLOTH_OFFSET),
+		mats.wood,
+		"Crossbar"
+	)
+	PixelDioramaStyle.add_box(
+		vane,
+		Vector3(0.62, 1.3, 0.05),
+		Vector3(0.0, pole_h - 0.75, BANNER_CLOTH_OFFSET),
+		mats.cloth,
+		"Cloth"
+	)
+	PixelDioramaStyle.add_box(
+		root, Vector3(0.2, 0.2, 0.2), Vector3(0.0, pole_h + 0.3, 0.0), mats.accent, "Finial"
+	)
+
+
+static func _spawn_growth_trophy(
+	parent: Node3D, mats: Dictionary, base: Vector3, node_name: String
+) -> void:
+	var root := Node3D.new()
+	root.name = "GrowthTrophy_%s" % node_name
+	root.position = base
+	parent.add_child(root)
+	PixelDioramaStyle.add_box(root, Vector3(0.9, 0.9, 0.6), Vector3(0.0, 0.45, 0.0), mats.wall, "Plinth")
+	PixelDioramaStyle.add_box(root, Vector3(0.7, 0.06, 0.5), Vector3(0.0, 0.93, 0.0), mats.wood, "Shelf")
+	PixelDioramaStyle.add_box(root, Vector3(0.5, 0.5, 0.4), Vector3(0.0, 1.24, 0.0), mats.accent, "Mount")
+	for side in [-1.0, 1.0]:
+		var horn := PixelDioramaStyle.add_box(
+			root,
+			Vector3(0.1, 0.5, 0.1),
+			Vector3(side * 0.24, 1.66, 0.0),
+			mats.training,
+			"Horn%s" % ("R" if side > 0.0 else "L")
+		)
+		horn.rotation.z = side * -0.4
+
+
+static func _spawn_growth_marker(
+	parent: Node3D, mats: Dictionary, base: Vector3, node_name: String
+) -> void:
+	var root := Node3D.new()
+	root.name = "GrowthMarker_%s" % node_name
+	root.position = base
+	parent.add_child(root)
+	PixelDioramaStyle.add_box(root, Vector3(1.0, 0.2, 1.0), Vector3(0.0, 0.1, 0.0), mats.wall, "Base")
+	PixelDioramaStyle.add_box(root, Vector3(0.5, 1.5, 0.3), Vector3(0.0, 0.95, 0.0), mats.wall, "Slab")
+	PixelDioramaStyle.add_box(
+		root, Vector3(0.42, 0.7, 0.04), Vector3(0.0, 1.1, 0.17), mats.accent, "Inscription"
+	)
+
+
+static func _spawn_growth_shelf(
+	parent: Node3D, mats: Dictionary, base: Vector3, node_name: String
+) -> void:
+	var root := Node3D.new()
+	root.name = "GrowthShelf_%s" % node_name
+	root.position = base
+	parent.add_child(root)
+	PixelDioramaStyle.add_box(root, Vector3(1.6, 2.2, 0.5), Vector3(0.0, 1.1, 0.0), mats.wood, "Frame")
+	for i in 4:
+		var y := 0.35 + float(i) * 0.5
+		PixelDioramaStyle.add_box(
+			root, Vector3(1.5, 0.06, 0.46), Vector3(0.0, y, 0.02), mats.roof, "Shelf%d" % i
+		)
+		for b in 5:
+			PixelDioramaStyle.add_box(
+				root,
+				Vector3(0.12, 0.4, 0.3),
+				Vector3(-0.6 + float(b) * 0.28, y + 0.24, 0.0),
+				mats.paper if b % 2 == 0 else mats.accent,
+				"Book%d_%d" % [i, b]
+			)
+
+
+static func _spawn_growth_board(
+	parent: Node3D, mats: Dictionary, base: Vector3, node_name: String
+) -> void:
+	var root := Node3D.new()
+	root.name = "GrowthBoard_%s" % node_name
+	root.position = base
+	parent.add_child(root)
+	for side in [-1.0, 1.0]:
+		PixelDioramaStyle.add_box(
+			root,
+			Vector3(0.14, 2.0, 0.14),
+			Vector3(side * 0.9, 1.0, 0.0),
+			mats.wood,
+			"Post%s" % ("R" if side > 0.0 else "L")
+		)
+	PixelDioramaStyle.add_box(root, Vector3(2.0, 1.3, 0.1), Vector3(0.0, 1.7, 0.0), mats.accent, "Board")
+	for i in 3:
+		PixelDioramaStyle.add_box(
+			root,
+			Vector3(0.4, 0.55, 0.03),
+			Vector3(-0.6 + float(i) * 0.6, 1.7, 0.08),
+			mats.paper,
+			"Notice%d" % i
+		)
 
 
 static func _spawn_railing(parent: Node3D, iron: Material, centre: Vector3, span: float) -> void:

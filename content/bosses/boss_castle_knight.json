@@ -27,6 +27,7 @@
   "circle_radius_mult": 1.2,
   "phaseCount": 3,
   "enemy_type": "boss",
+  "hit_material": "armour",
   "attacks": [
     {
       "id": "probe",
@@ -287,6 +288,17 @@
       "attackCooldownMult": 0.85,
       "damageMult": 1.12,
       "poiseMult": 1.2,
+      "vulnerability": {
+        "region": "cracked_helm",
+        "regionDamageMult": 1.8,
+        "bodyDamageMult": 0.35,
+        "radius": 0.35,
+        "offset": [
+          0.0,
+          1.75,
+          0.0
+        ]
+      },
       "onEnter": {
         "tellDuration": 1.3,
         "invulnerableFor": 1.15,
@@ -299,6 +311,11 @@
         ],
         "sfx": "windup",
         "shake": 0.4,
+        "bodyTint": [
+          0.75,
+          0.68,
+          0.55
+        ],
         "hazards": [
           {
             "scene": "res://scenes/bosses/arena_hazard.tscn",
@@ -430,6 +447,7 @@
           "knockback": 3.0
         }
       ],
+      "ordered": true,
       "moveSpeedMult": 1.18,
       "attackCooldownMult": 0.72,
       "damageMult": 1.28,
@@ -446,13 +464,31 @@
         ],
         "sfx": "windup",
         "shake": 0.4,
+        "bodyTint": [
+          0.55,
+          0.12,
+          0.1
+        ],
+        "emissive": [
+          1.0,
+          0.25,
+          0.1,
+          2.4
+        ],
+        "scaleMult": 1.15,
         "spawnAdds": [
           {
             "enemyId": "castle_grunt",
             "count": 2,
             "radius": 6
           }
-        ]
+        ],
+        "arenaChange": {
+          "scene": "res://scenes/bosses/arena_hazard.tscn",
+          "count": 5,
+          "radius": 9,
+          "minRadiusFraction": 0.6
+        }
       }
     }
   ],

@@ -108,6 +108,9 @@ func _unhandled_input(event: InputEvent) -> void:
 		get_viewport().set_input_as_handled()
 		return
 	WorldState.set_flag(_lock_flag_id, true)
+	# AU-03: only the live open fires the stinger -- `_unlock()` is also reached from
+	# `_refresh_state()` on a floor reload, where the lock is already open and nothing happened.
+	AudioDirector.play_stinger("lock_opened")
 	_unlock()
 	get_viewport().set_input_as_handled()
 
@@ -142,7 +145,7 @@ func _update_label() -> void:
 	# direction, which is the whole reason the keys are coloured.
 	var key_label := FloorKeyringScript.label_for(_key_id)
 	if FloorKeyringScript.is_held(_key_id):
-		_label.show_action("Unlock (%s)" % key_label)
+		_label.show_action(tr("LOCK_UNLOCK_ACTION").format({"key": key_label}))
 	else:
 		_label.show_text(tr("LOCK_NEEDS_KEY").format({"key": key_label}))
 

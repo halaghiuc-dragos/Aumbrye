@@ -51,4 +51,7 @@ static func build_results(
 		# sites -- `WorldFlags.secrets_found_this_floor()` is already the single source of truth,
 		# and by the time results are built the floor it counts is the one that just ended.
 		"secrets_found": int(WorldState.get_flag(WorldFlags.secrets_found_this_floor(), 0)),
+		# AD-06: the one sentence naming what killed the player and what they were doing, built by
+		# `PlayerCombatReactions._build_death_recap()` -- empty on a non-death outcome.
+		"death_recap": extra.get("death_recap", {}),
 	}

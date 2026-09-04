@@ -80,11 +80,21 @@
       "weight": 1
     }
   ],
+  "roleComposition": {
+    "melee": 0.5,
+    "ranged": 0.5
+  },
   "bossPool": [
     {
       "enemyId": "boss_cathedral_hollow",
       "weight": 3
     },
+    {
+      "enemyId": "miniboss_cathedral_bell",
+      "weight": 1
+    }
+  ],
+  "minibossPool": [
     {
       "enemyId": "miniboss_cathedral_bell",
       "weight": 1
@@ -186,7 +196,25 @@
   ],
   "requiresSecret": true,
   "finalFloor": {
-    "bossId": "boss_cathedral_hollow"
+    "bossId": "boss_cathedral_hollow",
+    "arenaHazards": [
+      {
+        "scene": "res://scenes/traps/shadow_trap.tscn",
+        "count": 6,
+        "radius": 10,
+        "lifetime": 20
+      }
+    ],
+    "arenaAdds": [
+      {
+        "enemyId": "cathedral_acolyte",
+        "count": 3,
+        "radius": 7
+      }
+    ],
+    "arenaModifier": {
+      "damageMult": 1.15
+    }
   },
   "maxHeightLevel": 1,
   "maxSecrets": 3,

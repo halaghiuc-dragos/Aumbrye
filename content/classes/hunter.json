@@ -62,6 +62,10 @@
   "roleText": "Ranged / Precision",
   "perkNameText": "Killing Distance",
   "perkDescriptionText": "One clean shot pays for the next, and leaves the quarry bleeding for the walk.",
+  "perkVerb": "CLASS_PERK_VERB_KILLING_DISTANCE",
+  "perkVerbText": "Chain kills into power.",
+  "playsLike": "CLASS_PLAYS_LIKE_HUNTER",
+  "playsLikeText": "Pick fights at range and let every kill fund the next shot.",
   "statRatings": {
     "maxHealth": 8,
     "armor": 7,

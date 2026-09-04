@@ -20,6 +20,7 @@ var _requirement := "none"
 var _floor := 1
 var _locks: Array = []
 var _biome_id := BiomeRegistry.BIOME_CASTLE
+var _frame_torches: Array[OmniLight3D] = []
 
 
 func _ready() -> void:
@@ -60,7 +61,18 @@ func configure(
 	_locks = locks
 	_resolve_nodes()
 	set_meta("biome_id", biome_id)
-	DioramaSkin.build_boss_door_frame(self, biome_id)
+	var lock_key_ids: Array = []
+	for lock in _locks:
+		if lock is Dictionary:
+			var key_id := str((lock as Dictionary).get("keyId", ""))
+			if key_id != "":
+				lock_key_ids.append(key_id)
+	var frame := DioramaSkin.build_boss_door_frame(self, biome_id, requirement, lock_key_ids)
+	_frame_torches.clear()
+	for torch_name in ["FrameTorchL", "FrameTorchR"]:
+		var torch := frame.get_node_or_null(torch_name) as OmniLight3D
+		if torch:
+			_frame_torches.append(torch)
 	if _barrier_mesh:
 		_barrier_mesh.material_override = BiomeRegistry.get_wall_material(biome_id)
 	if _fog_gate == null:
@@ -120,6 +132,7 @@ func seal_door() -> void:
 	_update_label()
 	AudioDirector.play_cue(&"door_seal", global_position)
 	VfxService.play_rune_flare(global_position + Vector3(0.0, 2.0, 0.0))
+	_set_frame_torches_lit(false)
 	door_sealed.emit()
 
 
@@ -128,6 +141,17 @@ func release_door() -> void:
 	_apply_barrier_visual()
 	_label.visible = false
 	AudioDirector.play_cue(&"door_release", global_position)
+	_set_frame_torches_lit(true)
+
+
+## `BS-05`: the sealed corridor read as "the way back is sealed" in text alone -- the frame torches
+## dimming to embers behind the player is the same beat with nothing to read. Set instantly, not
+## tweened: `seal_door()` already has its own rune-flare VFX carrying the moment, and a light fading
+## out over it would read as two separate things happening rather than one.
+func _set_frame_torches_lit(lit: bool) -> void:
+	for torch in _frame_torches:
+		if is_instance_valid(torch):
+			torch.light_energy = 0.85 if lit else 0.08
 
 
 func reset_door() -> void:
@@ -139,6 +163,7 @@ func reset_door() -> void:
 		_state = State.CLOSED
 	_apply_barrier_visual()
 	_update_label()
+	_set_frame_torches_lit(true)
 
 
 func _unhandled_input(event: InputEvent) -> void:

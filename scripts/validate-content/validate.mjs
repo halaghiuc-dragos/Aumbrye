@@ -154,6 +154,9 @@ function resolveSchemaForFile(filePath) {
   if (name === "items/catalog.json") {
     return join(schemasRoot, "item-catalog.v1.json");
   }
+  if (name === "items/sets.json") {
+    return join(schemasRoot, "item-set.v1.json");
+  }
   if (name.startsWith("items/")) {
     return join(schemasRoot, "item-definition.v1.json");
   }
@@ -1174,6 +1177,64 @@ function validateSchemaManifest() {
   return errors;
 }
 
+// SY-12: content/fixtures/schema_versions.json's own comment used to promise that
+// ClientVersionParityTests -- an in-engine test suite this repo does not have and will not have
+// (CLAUDE.md) -- asserted this file agrees with the GDScript constant it names. Nothing ever
+// did. This is the tenth cross-reference pass alongside the nine already above, and it is the
+// thing that actually makes the promise true.
+function validateSchemaVersionParity() {
+  const fixturePath = join(contentRoot, "fixtures", "schema_versions.json");
+  if (!existsSync(fixturePath)) {
+    console.log("OK: schema version parity (no content/fixtures/schema_versions.json to check)");
+    return 0;
+  }
+  let data;
+  try {
+    data = JSON.parse(readFileSync(fixturePath, "utf8"));
+  } catch (err) {
+    console.error(`FAIL: content/fixtures/schema_versions.json is not valid JSON — ${err.message}`);
+    return 1;
+  }
+  let errors = 0;
+  let checked = 0;
+  for (const [key, entry] of Object.entries(data)) {
+    if (key.startsWith("$") || !entry || typeof entry !== "object") continue;
+    const { current, gdscriptConstant, gdscriptFile } = entry;
+    if (current === undefined || !gdscriptConstant || !gdscriptFile) continue;
+    const gdPath = join(repoRoot, gdscriptFile);
+    if (!existsSync(gdPath)) {
+      console.error(
+        `FAIL: schema_versions.json['${key}'].gdscriptFile '${gdscriptFile}' does not exist`
+      );
+      errors++;
+      continue;
+    }
+    const constName = gdscriptConstant.split(".").pop();
+    const source = readFileSync(gdPath, "utf8");
+    const match = new RegExp(`const\\s+${constName}\\s*:?=\\s*(\\d+)`).exec(source);
+    if (!match) {
+      console.error(
+        `FAIL: schema_versions.json['${key}'] names '${gdscriptConstant}' but ${gdscriptFile} has no matching const`
+      );
+      errors++;
+      continue;
+    }
+    checked++;
+    const gdValue = Number(match[1]);
+    if (gdValue !== current) {
+      console.error(
+        `FAIL: schema_versions.json['${key}'].current is ${current} but ${gdscriptConstant} in ${gdscriptFile} is ${gdValue} — bump both together`
+      );
+      errors++;
+    }
+  }
+  if (errors === 0) {
+    console.log(`OK: schema version parity (${checked} constant(s) checked)`);
+  }
+  return errors;
+}
+
+
 function validateAudioPlaceholders() {
   const bankPath = join(contentRoot, "audio", "sfx.json");
   if (!existsSync(bankPath)) {
@@ -1252,6 +1313,7 @@ failures += contentRuleFailures;
 
 failures += validateNarrativeContent();
 failures += validateSchemaManifest();
+failures += validateSchemaVersionParity();
 failures += validateAudioPlaceholders();
 
 if (failures > 0) {

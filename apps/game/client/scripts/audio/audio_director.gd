@@ -585,6 +585,15 @@ func has_sfx(kind: String) -> bool:
 	return _sfx_streams.has(kind) and not (_sfx_streams[kind] as Array).is_empty()
 
 
+## `AU-04`: whether `kind` is a declared cue at all (bank entry, even one served only by its
+## `fallback_tone`), as opposed to `has_sfx()`, which is only true once real authored audio exists.
+## Callers building a cue name from content (e.g. a per-enemy voice prefix) use this to decide
+## whether the specific cue they want is worth playing rather than silently degrading to the
+## generic 220 Hz beep an unregistered `kind` falls back to.
+func has_sfx_entry(kind: String) -> bool:
+	return _sfx_bank.has(kind)
+
+
 func attach_loop_emitter(host: Node3D, key: String, radius: float = 6.0) -> AudioStreamPlayer3D:
 	var player := AudioStreamPlayer3D.new()
 	player.name = "LoopEmitter_%s" % key

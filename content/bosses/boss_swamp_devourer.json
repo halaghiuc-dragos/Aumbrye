@@ -27,6 +27,7 @@
   "circle_radius_mult": 1.3,
   "phaseCount": 3,
   "enemy_type": "boss",
+  "hit_material": "ooze",
   "attacks": [
     {
       "id": "probe",
@@ -239,6 +240,22 @@
             "radius": 7,
             "lifetime": 14
           }
+        ],
+        "bodyTint": [
+          0.3,
+          0.42,
+          0.18
+        ]
+      },
+      "vulnerability": {
+        "region": "maw_gland",
+        "regionDamageMult": 1.75,
+        "bodyDamageMult": 0.35,
+        "radius": 0.45,
+        "offset": [
+          0.0,
+          2.3,
+          0.0
         ]
       }
     },
@@ -385,8 +402,27 @@
             "count": 3,
             "radius": 6
           }
-        ]
-      }
+        ],
+        "bodyTint": [
+          0.55,
+          0.15,
+          0.12
+        ],
+        "emissive": [
+          0.9,
+          0.25,
+          0.1,
+          2.4
+        ],
+        "scaleMult": 1.15,
+        "arenaChange": {
+          "scene": "res://scenes/bosses/arena_hazard.tscn",
+          "count": 5,
+          "radius": 9,
+          "minRadiusFraction": 0.6
+        }
+      },
+      "ordered": true
     }
   ],
   "guard_chance": 0.25,

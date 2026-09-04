@@ -24,11 +24,23 @@ Method: `godot --headless --path apps/game/client res://scenes/debug/perf_audit.
 | Before P1 (post-P0) | combat_arena | 6.91 | 8.93 | 145 | n/a (headless) | 1896 | n/a | n/a |
 | Before P1 (post-P0) | castle_slice | 6.90 | 8.15 | 145 | n/a (headless) | 1253 | n/a | n/a |
 | Before P1 (post-P0) | castle_run | 6.90 | 8.54 | 145 | n/a (headless) | 3992 | 832 | 830 (475 small) |
+| Post P1-P5 pass (2026-09-04) | hub | 6.90 | 8.18 | 145 | n/a (headless) | 4477 | n/a | n/a |
+| Post P1-P5 pass (2026-09-04) | combat_arena | 6.90 | 8.69 | 145 | n/a (headless) | 1904 | n/a | n/a |
+| Post P1-P5 pass (2026-09-04) | castle_slice | 6.90 | 8.12 | 145 | n/a (headless) | 1330 | n/a | n/a |
+| Post P1-P5 pass (2026-09-04) | castle_run | 6.90 | 8.54 | 145 | n/a (headless) | 4290 | n/a (headless) | n/a (headless) |
 
 All four scenes measured inside the 16.7 ms budget (script/process time only, no GPU cost
 included — see caveat above). `castle_run`'s occluder count at this baseline: 36 occluders in the
 floor; occlusion culling is off by project setting, and `draw_call_probe`'s on/off comparison shows
 `-0.1%` frame time / `0.0%` objects either way under `--headless` for the same reason.
+
+**Post P1-P5 pass note.** Taken after implementing essentially all of §RM/§RG/§BS/§IV, most of §UX
+and §AD, and part of §VS/§AX (see session chapters in this checklist's owning conversation for the
+exact item list). Script/process time and fps are unchanged from the P0 baseline to two decimal
+places despite the substantial amount of new logic (equipment sets, boss phase capabilities, HUD
+readouts, camera framings, an input-glyph audit, etc.) — the node counts shifted with the new prop
+scenes and content but the frame budget shows no regression. Draw calls, visible meshes and shadow
+casters still need a real display to re-measure; this session was headless throughout.
 
 > **The suites this was written against no longer exist.** The in-engine harness — 58 suites, 28,631
 > lines — was removed; see `CORE_GAMEPLAY_REVIEW.md` §119. The note that used to stand here described

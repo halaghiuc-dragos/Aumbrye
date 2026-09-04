@@ -84,11 +84,22 @@
       "weight": 1
     }
   ],
+  "roleComposition": {
+    "melee": 0.6,
+    "ranged": 0.2,
+    "shield": 0.2
+  },
   "bossPool": [
     {
       "enemyId": "boss_castle_knight",
       "weight": 3
     },
+    {
+      "enemyId": "miniboss_castle_captain",
+      "weight": 1
+    }
+  ],
+  "minibossPool": [
     {
       "enemyId": "miniboss_castle_captain",
       "weight": 1

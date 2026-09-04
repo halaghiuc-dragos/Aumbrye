@@ -142,14 +142,15 @@ func on_hit(
 	direction: Vector3 = Vector3.ZERO,
 	damage_type: String = "physical",
 	impact: int = ImpactClass.SOLID,
-	crit: bool = false
+	crit: bool = false,
+	poise_broke: bool = false
 ) -> void:
 	hit_landed.emit(target, damage)
 	_freeze_attacker(impact)
 	_apply_impact_recoil(impact)
 	_apply_camera_punch(direction, impact)
 	_apply_vibration(impact)
-	_play_hit_sfx(target, direction, impact)
+	_play_hit_sfx(target, direction, impact, poise_broke)
 	if show_damage_numbers and target is Node3D:
 		_spawn_damage_number(target as Node3D, damage, Vector3.ZERO, damage_type, crit)
 
@@ -334,17 +335,45 @@ func _pulse_damage_vignette() -> void:
 		PixelDioramaViewport.call("pulse_damage_vignette", 0.72 * feedback_intensity)
 
 
-func _play_hit_sfx(target: Node, _direction: Vector3, impact: int = ImpactClass.SOLID) -> void:
-	var cue := "hit"
+## `AU-02`: material replaces the old `enemy_id.contains("shield")` guess -- every enemy authors
+## `hit_material` (`flesh`/`armour`/`stone`/`crystal`/`bone`/`ooze`) directly, so what you heard and
+## what you hit stop being able to disagree. `"flesh"` keeps the original `"hit"` cue id rather than
+## a `hit_flesh` alias, since that is the one material every already-authored variant/SFX file was
+## built for.
+const HIT_MATERIAL_CUES := {
+	"flesh": "hit",
+	"armour": "hit_armor",
+	"stone": "hit_stone",
+	"crystal": "hit_crystal",
+	"bone": "hit_bone",
+	"ooze": "hit_ooze",
+}
+
+
+func _hit_material_for(body: Node3D) -> String:
+	if body == null or not body.has_method("get_enemy_id"):
+		return "flesh"
+	var enemy_id: String = body.call("get_enemy_id")
+	if enemy_id.is_empty():
+		return "flesh"
+	return str(EnemyCatalog.get_definition(enemy_id).get("hit_material", "flesh"))
+
+
+func _play_hit_sfx(
+	target: Node, _direction: Vector3, impact: int = ImpactClass.SOLID, poise_broke: bool = false
+) -> void:
 	var body: Node3D = target as Node3D
-	if body and body.has_method("get_enemy_id"):
-		var enemy_id: String = body.call("get_enemy_id")
-		if enemy_id.contains("shield") or enemy_id.contains("knight"):
-			cue = "hit_armor"
+	var material := _hit_material_for(body)
+	var cue: String = str(HIT_MATERIAL_CUES.get(material, "hit"))
 	_play_combat_sfx_at_body(cue, body)
 	var layer := String(_profile(impact).get("audio_layer", ""))
 	if layer != "" and layer != cue:
 		_play_combat_sfx_at_body(layer, body)
+	# The one cue that answers "did that just work" regardless of what got hit -- distinct from
+	# every material cue above, and from the critical hit's `hit_armor` layer, which fires on
+	# damage dealt rather than on the poise bar actually emptying.
+	if poise_broke:
+		_play_combat_sfx_at_body("hit_poise_break", body)
 
 
 func _play_combat_sfx_at_body(cue: String, body: Node3D = null) -> void:

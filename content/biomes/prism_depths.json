@@ -84,11 +84,21 @@
       "weight": 1
     }
   ],
+  "roleComposition": {
+    "melee": 0.4,
+    "ranged": 0.6
+  },
   "bossPool": [
     {
       "enemyId": "prism_choirmaster",
       "weight": 3
     },
+    {
+      "enemyId": "prism_cantor",
+      "weight": 1
+    }
+  ],
+  "minibossPool": [
     {
       "enemyId": "prism_cantor",
       "weight": 1
@@ -190,7 +200,25 @@
   ],
   "requiresSecret": true,
   "finalFloor": {
-    "bossId": "prism_choirmaster"
+    "bossId": "prism_choirmaster",
+    "arenaHazards": [
+      {
+        "scene": "res://scenes/bosses/crystal_pillar_hazard.tscn",
+        "count": 6,
+        "radius": 10,
+        "lifetime": 20
+      }
+    ],
+    "arenaAdds": [
+      {
+        "enemyId": "prism_lantern",
+        "count": 3,
+        "radius": 7
+      }
+    ],
+    "arenaModifier": {
+      "attackCooldownMult": 0.9
+    }
   },
   "maxHeightLevel": 2,
   "maxSecrets": 3,

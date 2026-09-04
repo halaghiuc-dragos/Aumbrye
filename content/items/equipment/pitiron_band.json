@@ -14,6 +14,7 @@
   "baseId": "band",
   "materialTier": "pitiron",
   "biome": "forgotten_castle",
+  "setId": "pitiron",
   "scaling": {},
   "stats": {
     "maxHealth": 8

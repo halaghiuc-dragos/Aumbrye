@@ -5,6 +5,8 @@ signal opened
 
 const DioramaSkin := preload("res://scripts/art/props/diorama_interactable_skin.gd")
 const InputGlyphServiceScript := preload("res://scripts/ui/input_glyph_service.gd")
+const RarityRegistryScript := preload("res://scripts/loot/rarity_registry.gd")
+const ToastScene: PackedScene = preload("res://scenes/ui/achievement_toast.tscn")
 
 var _mesh: Node3D
 @onready var _interact_area: Area3D = $InteractArea
@@ -65,6 +67,27 @@ func _on_body_exited(body: Node3D) -> void:
 		set_process_unhandled_input(false)
 
 
+func _present_rarity_juice(item_id: String) -> void:
+	var def := ItemCatalog.get_definition(item_id)
+	var rarity := RarityRegistryScript.normalize(str(def.get("rarity", "common")))
+	if AudioDirector:
+		var sfx := RarityRegistryScript.drop_sfx_id(rarity)
+		if AudioDirector.has_sfx(sfx):
+			AudioDirector.play_sfx(sfx, global_position)
+		else:
+			AudioDirector.play_sfx("ui_interact_near", global_position)
+	if RarityRegistryScript.wants_drop_toast(rarity):
+		var toast := ToastScene.instantiate()
+		if toast.has_method("show_loot"):
+			get_tree().root.add_child(toast)
+			toast.show_loot(str(def.get("name", item_id)), RarityRegistryScript.display_color(rarity))
+	if RarityRegistryScript.wants_camera_nudge(rarity) and VfxService:
+		VfxService.request_shake(0.12, 320)
+		# AU-03: the same top-tier gate that earns a camera nudge earns the "you should look at
+		# this" stinger -- a legendary should be impossible to miss even with your eyes elsewhere.
+		AudioDirector.play_stinger("rare_drop")
+
+
 func _open() -> void:
 	if _opened:
 		return
@@ -79,6 +102,7 @@ func _open() -> void:
 			opts["rollSeed"] = int(entry.get("rollSeed", -1))
 		if InventoryService.add_loot(item_id, opts):
 			RunFlow.register_loot(item_id, str(entry.get("instanceId", "")))
+			_present_rarity_juice(item_id)
 		else:
 			remaining.append(entry)
 	_items = remaining

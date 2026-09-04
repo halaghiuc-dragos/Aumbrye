@@ -31,6 +31,81 @@
         "duration": 0.1
       }
     },
+    "hit_stone": {
+      "bus": "SFX",
+      "placeholder": true,
+      "variants": [
+        "res://assets/audio/sfx/hit_stone_01.ogg"
+      ],
+      "volume_db": -1.5,
+      "pitch_jitter": 0.05,
+      "max_concurrent": 3,
+      "cooldown_ms": 40,
+      "fallback_tone": {
+        "freq": 130.0,
+        "duration": 0.12
+      }
+    },
+    "hit_crystal": {
+      "bus": "SFX",
+      "placeholder": true,
+      "variants": [
+        "res://assets/audio/sfx/hit_crystal_01.ogg"
+      ],
+      "volume_db": -2.0,
+      "pitch_jitter": 0.09,
+      "max_concurrent": 3,
+      "cooldown_ms": 40,
+      "fallback_tone": {
+        "freq": 780.0,
+        "duration": 0.1
+      }
+    },
+    "hit_bone": {
+      "bus": "SFX",
+      "placeholder": true,
+      "variants": [
+        "res://assets/audio/sfx/hit_bone_01.ogg"
+      ],
+      "volume_db": -2.0,
+      "pitch_jitter": 0.07,
+      "max_concurrent": 3,
+      "cooldown_ms": 40,
+      "fallback_tone": {
+        "freq": 340.0,
+        "duration": 0.06
+      }
+    },
+    "hit_ooze": {
+      "bus": "SFX",
+      "placeholder": true,
+      "variants": [
+        "res://assets/audio/sfx/hit_ooze_01.ogg"
+      ],
+      "volume_db": -2.0,
+      "pitch_jitter": 0.1,
+      "max_concurrent": 3,
+      "cooldown_ms": 40,
+      "fallback_tone": {
+        "freq": 95.0,
+        "duration": 0.16
+      }
+    },
+    "hit_poise_break": {
+      "bus": "SFX",
+      "placeholder": true,
+      "variants": [
+        "res://assets/audio/shared/sting_poise_break.ogg"
+      ],
+      "volume_db": -2.0,
+      "pitch_jitter": 0.0,
+      "max_concurrent": 2,
+      "cooldown_ms": 150,
+      "fallback_tone": {
+        "freq": 165.0,
+        "duration": 0.24
+      }
+    },
     "block": {
       "bus": "SFX",
       "variants": [
@@ -176,6 +251,156 @@
       "fallback_tone": {
         "freq": 72.0,
         "duration": 0.22
+      }
+    },
+    "windup_blockable": {
+      "bus": "SFX",
+      "placeholder": true,
+      "variants": [
+        "res://assets/audio/sfx/windup_blockable_01.ogg"
+      ],
+      "volume_db": -6.0,
+      "pitch_jitter": 0.06,
+      "max_concurrent": 3,
+      "cooldown_ms": 100,
+      "fallback_tone": {
+        "freq": 140.0,
+        "duration": 0.14
+      }
+    },
+    "windup_parryable": {
+      "bus": "SFX",
+      "placeholder": true,
+      "variants": [
+        "res://assets/audio/sfx/windup_parryable_01.ogg"
+      ],
+      "volume_db": -6.0,
+      "pitch_jitter": 0.05,
+      "max_concurrent": 3,
+      "cooldown_ms": 100,
+      "fallback_tone": {
+        "freq": 520.0,
+        "duration": 0.26
+      }
+    },
+    "windup_unblockable": {
+      "bus": "SFX",
+      "placeholder": true,
+      "variants": [
+        "res://assets/audio/sfx/windup_unblockable_01.ogg"
+      ],
+      "volume_db": -5.0,
+      "pitch_jitter": 0.04,
+      "max_concurrent": 3,
+      "cooldown_ms": 100,
+      "fallback_tone": {
+        "freq": 55.0,
+        "duration": 0.4
+      }
+    },
+    "windup_grab": {
+      "bus": "SFX",
+      "placeholder": true,
+      "variants": [
+        "res://assets/audio/sfx/windup_grab_01.ogg"
+      ],
+      "volume_db": -4.0,
+      "pitch_jitter": 0.03,
+      "max_concurrent": 3,
+      "cooldown_ms": 100,
+      "fallback_tone": {
+        "freq": 300.0,
+        "duration": 0.45
+      }
+    },
+    "secret_found": {
+      "bus": "SFX",
+      "placeholder": true,
+      "variants": [
+        "res://assets/audio/shared/sting_secret.ogg"
+      ],
+      "volume_db": -3.0,
+      "pitch_jitter": 0.0,
+      "max_concurrent": 2,
+      "cooldown_ms": 200,
+      "fallback_tone": {
+        "freq": 660.0,
+        "duration": 0.3
+      }
+    },
+    "key_taken": {
+      "bus": "SFX",
+      "placeholder": true,
+      "variants": [
+        "res://assets/audio/shared/sting_key.ogg"
+      ],
+      "volume_db": -3.0,
+      "pitch_jitter": 0.0,
+      "max_concurrent": 2,
+      "cooldown_ms": 200,
+      "fallback_tone": {
+        "freq": 440.0,
+        "duration": 0.22
+      }
+    },
+    "lock_opened": {
+      "bus": "SFX",
+      "placeholder": true,
+      "variants": [
+        "res://assets/audio/shared/sting_lock.ogg"
+      ],
+      "volume_db": -3.0,
+      "pitch_jitter": 0.0,
+      "max_concurrent": 2,
+      "cooldown_ms": 200,
+      "fallback_tone": {
+        "freq": 220.0,
+        "duration": 0.35
+      }
+    },
+    "shortcut_opened": {
+      "bus": "SFX",
+      "placeholder": true,
+      "variants": [
+        "res://assets/audio/shared/sting_shortcut.ogg"
+      ],
+      "volume_db": -3.0,
+      "pitch_jitter": 0.0,
+      "max_concurrent": 2,
+      "cooldown_ms": 200,
+      "fallback_tone": {
+        "freq": 330.0,
+        "duration": 0.3
+      }
+    },
+    "rare_drop": {
+      "bus": "SFX",
+      "placeholder": true,
+      "variants": [
+        "res://assets/audio/shared/sting_rare_drop.ogg"
+      ],
+      "volume_db": -2.0,
+      "pitch_jitter": 0.0,
+      "max_concurrent": 2,
+      "cooldown_ms": 250,
+      "fallback_tone": {
+        "freq": 880.0,
+        "duration": 0.5
+      }
+    },
+    "personal_best": {
+      "bus": "SFX",
+      "placeholder": true,
+      "variants": [
+        "res://assets/audio/shared/sting_personal_best.ogg"
+      ],
+      "volume_db": -2.0,
+      "pitch_jitter": 0.0,
+      "max_concurrent": 1,
+      "cooldown_ms": 500,
+      "fallback_tone": {
+        "freq": 990.0,
+        "duration": 0.6
       }
     },
     "ui": {

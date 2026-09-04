@@ -4,6 +4,8 @@ extends Control
 const SkipFloorSvc := preload("res://scripts/dungeon/skip_floor_service.gd")
 
 const GameUISkinScript := preload("res://scripts/ui/game_ui_skin.gd")
+const RunContractLabelScript := preload("res://scripts/ui/run_contract_label.gd")
+const AlternateModeRowScript := preload("res://scripts/ui/alternate_mode_row.gd")
 
 signal endless_run_requested(start_floor: int, skip_item_id: String)
 signal continue_requested
@@ -14,6 +16,8 @@ signal menu_closed
 @onready var _new_button: Button = $MainPanel/Margin/VBox/NewButton
 @onready var _continue_button: Button = $MainPanel/Margin/VBox/ContinueButton
 @onready var _status_label: Label = $MainPanel/Margin/VBox/StatusLabel
+@onready var _contract_label: Label = $MainPanel/Margin/VBox/ContractLabel
+@onready var _alt_mode_row: VBoxContainer = $MainPanel/Margin/VBox/AltModeRow
 @onready var _skip_box: VBoxContainer = $SkipPanel/Margin/VBox/SkipBox
 @onready var _skip_start_button: Button = $SkipPanel/Margin/VBox/SkipStartButton
 @onready var _skip_none_button: Button = $SkipPanel/Margin/VBox/SkipNoneButton
@@ -104,6 +108,23 @@ func _refresh_continue_state() -> void:
 		_status_label.text = tr("ENDLESS_CONTINUE").format({"floor": saved_floor, "record": record})
 	else:
 		_status_label.text = tr("ENDLESS_INTRO").format({"record": record})
+	RunContractLabelScript.refresh(_contract_label, RunModeConfig.MODE_ENDLESS, "", 0)
+	_refresh_alt_modes()
+
+
+## MD-05: "One Life" (ironman: endless + permadeath) used to be reachable only through the tower
+## board. Rebuilt every open so a mode unlocked mid-session shows up without reopening.
+func _refresh_alt_modes() -> void:
+	if _alt_mode_row == null:
+		return
+	for child in _alt_mode_row.get_children():
+		child.queue_free()
+	AlternateModeRowScript.build_into(_alt_mode_row, RunModeConfig.MODE_ENDLESS, _on_alt_mode_pressed)
+
+
+func _on_alt_mode_pressed(mode_id: String) -> void:
+	close_menu()
+	RunFlow.start_alternate_mode_run(mode_id)
 
 
 func _show_main_panel() -> void:

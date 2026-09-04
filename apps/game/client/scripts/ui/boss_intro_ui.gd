@@ -6,6 +6,7 @@ const GameUISkinScript := preload("res://scripts/ui/game_ui_skin.gd")
 var _panel: PanelContainer
 var _title_label: Label
 var _subtitle_label: Label
+var _tween: Tween
 
 
 func _ready() -> void:
@@ -15,7 +16,9 @@ func _ready() -> void:
 	_build_ui()
 
 
-func show_intro(boss_id: String) -> void:
+## `BS-02`: `total_duration` sizes the fade-in/hold/fade-out so the label matches whatever the
+## caller's camera framing/skip window is, instead of a hardcoded 2.9s that could outlast it.
+func show_intro(boss_id: String, total_duration: float = 2.9) -> void:
 	var def := EnemyCatalog.get_definition(boss_id)
 	var title := str(def.get("title", def.get("name", boss_id)))
 	var lore := str(def.get("loreText", ""))
@@ -23,11 +26,23 @@ func show_intro(boss_id: String) -> void:
 	_subtitle_label.text = lore
 	visible = true
 	modulate.a = 0.0
-	var tween := create_tween()
-	tween.tween_property(self, "modulate:a", 1.0, 0.35)
-	tween.tween_interval(2.2)
-	tween.tween_property(self, "modulate:a", 0.0, 0.45)
-	tween.tween_callback(func() -> void: visible = false)
+	var fade_in := 0.35
+	var fade_out := 0.45
+	var hold := maxf(0.1, total_duration - fade_in - fade_out)
+	if _tween and _tween.is_valid():
+		_tween.kill()
+	_tween = create_tween()
+	_tween.tween_property(self, "modulate:a", 1.0, fade_in)
+	_tween.tween_interval(hold)
+	_tween.tween_property(self, "modulate:a", 0.0, fade_out)
+	_tween.tween_callback(func() -> void: visible = false)
+
+
+## Called when the player skips the intro sequence early -- cuts the fade instead of racing it.
+func skip_intro() -> void:
+	if _tween and _tween.is_valid():
+		_tween.kill()
+	visible = false
 
 
 func _build_ui() -> void:

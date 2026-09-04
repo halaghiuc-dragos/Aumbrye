@@ -27,6 +27,8 @@ var _returning := false
 var _loot_row: HBoxContainer
 var _tier_ladder_frame: PanelContainer
 var _tier_ladder_grid: GridContainer
+var _next_frame: PanelContainer
+var _next_label: Label
 
 
 func _ready() -> void:
@@ -97,6 +99,19 @@ func _ensure_ui_nodes() -> void:
 		_vault_label.visible = false
 		GameUISkinScript.style_body_label(_vault_label)
 		vbox.add_child(_vault_label)
+	# AD-05: "what you are close to" is the single most valuable line on a roguelite end screen and
+	# it was missing entirely -- shown right above the buttons so it is the last thing read before
+	# the player decides whether to go again.
+	if _next_frame == null:
+		_next_label = Label.new()
+		_next_label.name = "NextLabel"
+		_next_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		GameUISkinScript.style_body_label(_next_label)
+		_next_frame = GameUISkinScript.make_pixel_frame(tr("RESULTS_NEXT_TITLE"))
+		_next_frame.name = "NextFrame"
+		GameUISkinScript.pixel_frame_content(_next_frame).add_child(_next_label)
+		_next_frame.visible = false
+		vbox.add_child(_next_frame)
 	# "Descend again" comes before "Continue" and takes focus: the next run should always be one
 	# press away, and walking back through the hub should be the deliberate choice.
 	if _repeat_button == null:
@@ -153,13 +168,74 @@ func _display_from_run_flow() -> void:
 		if int(results.get("levels_gained", 0)) > 0:
 			_xp_label.text += tr("RESULTS_LEVEL_UP")
 		_rules_label.text = results.get("rules_summary", "")
+		# AD-06: one honest sentence naming what killed the player, ahead of the generic rules
+		# text -- "what happened" before "what it costs you".
+		var death_recap: Dictionary = results.get("death_recap", {})
+		var death_sentence := str(death_recap.get("sentence", ""))
+		if death_sentence != "":
+			_rules_label.text = "%s\n\n%s" % [death_sentence, _rules_label.text]
 		_ensure_run_report_label()
 		_run_report_label.text = _build_run_report(results)
 		if _run_report_frame:
 			_run_report_frame.visible = _run_report_label.text != ""
+		_maybe_play_personal_best_stinger(results)
 		_refresh_seed_button(results)
 		_refresh_tier_ladder(results)
+		_refresh_next_block(results)
 	_hint_label.text = tr("RESULTS_RETURN_HINT")
+
+
+## AD-05: up to three near-misses, ranked by smallest shortfall -- a goal the player can close in
+## the next fifteen minutes is the hook, a distant one is noise.
+func _refresh_next_block(_results: Dictionary) -> void:
+	if _next_frame == null:
+		return
+	var lines: PackedStringArray = []
+	var vault_progress: Dictionary = VaultService.nearest_locked_progress()
+	if not vault_progress.is_empty():
+		lines.append(
+			tr("RESULTS_NEXT_VAULT").format(
+				{
+					"gap": int(vault_progress.get("gap", 0)),
+					"name": str(vault_progress.get("name", "")),
+				}
+			)
+		)
+	var bestiary_progress := _nearest_bestiary_progress(str(RunFlow.current_biome_id))
+	if not bestiary_progress.is_empty():
+		lines.append(
+			tr("RESULTS_NEXT_BESTIARY").format(
+				{
+					"gap": int(bestiary_progress.get("gap", 0)),
+					"name": str(bestiary_progress.get("name", "")),
+				}
+			)
+		)
+	_next_label.text = "\n".join(lines)
+	_next_frame.visible = not lines.is_empty()
+
+
+## Scoped to the run's own biome pool first (what the player was just fighting), falling back to
+## every catalogued enemy so the block still has something to say outside a castle run.
+func _nearest_bestiary_progress(biome_id: String) -> Dictionary:
+	var ids: Array = []
+	if biome_id != "":
+		var biome := BiomeRegistry.get_biome(biome_id)
+		var pool: Variant = biome.get("enemyPool", [])
+		if pool is Array:
+			ids = pool
+	if ids.is_empty():
+		ids = BestiaryService.get_all_ids()
+	var best := {}
+	var best_gap := 999999
+	for enemy_id in ids:
+		var gap := BestiaryService.kills_to_next_tier(str(enemy_id))
+		if gap <= 0 or gap >= best_gap:
+			continue
+		best_gap = gap
+		var def := EnemyCatalog.get_definition(str(enemy_id))
+		best = {"gap": gap, "name": str(def.get("name", enemy_id))}
+	return best
 
 
 func _ensure_run_report_label() -> void:
@@ -259,6 +335,21 @@ func _run_context_lines(results: Dictionary) -> Array[String]:
 			"%s, depth %d." % [dungeon_name, int(results.get("difficulty_tier", 1))]
 		)
 	return lines
+
+
+## `AU-03`: the personal-best stinger fires once, here, rather than inside `_personal_best_lines()`
+## -- that function runs again on every UI refresh, but the results screen itself is only ever
+## displayed once per run. Gated on a genuine *previous* record so a first clear (which trivially
+## "beats" a record of zero) stays quiet; that beat belongs to `RESULTS_TIME_FIRST_CLEAR` alone.
+func _maybe_play_personal_best_stinger(results: Dictionary) -> void:
+	var raw: Variant = results.get("history", {})
+	if not raw is Dictionary:
+		return
+	var history: Dictionary = raw
+	var beat_depth := bool(history.get("depthIsBest", false)) and int(history.get("previousBestDepth", 0)) > 0
+	var beat_time := bool(history.get("timeIsBest", false)) and float(history.get("previousBestTime", 0.0)) > 0.0
+	if beat_depth or beat_time:
+		AudioDirector.play_stinger("personal_best")
 
 
 func _personal_best_lines(results: Dictionary) -> Array[String]:

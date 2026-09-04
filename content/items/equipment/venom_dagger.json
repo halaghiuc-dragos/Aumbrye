@@ -12,6 +12,16 @@
     "poisonDamage": 6,
     "physicalDamage": 14
   },
+  "ruleText": "A backstab has a 40% chance to poison.",
+  "rules": [
+    {
+      "event": "onBackstab",
+      "effect": "apply_status",
+      "statusId": "poison",
+      "stacks": 1,
+      "chance": 0.4
+    }
+  ],
   "equipmentSlot": "weapon",
   "weaponId": "dagger"
 }

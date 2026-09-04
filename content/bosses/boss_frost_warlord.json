@@ -26,6 +26,7 @@
   "circle_radius_mult": 1.25,
   "phaseCount": 3,
   "enemy_type": "boss",
+  "hit_material": "armour",
   "attacks": [
     {
       "id": "probe",
@@ -290,6 +291,22 @@
             "radius": 7,
             "lifetime": 14
           }
+        ],
+        "bodyTint": [
+          0.55,
+          0.72,
+          0.92
+        ]
+      },
+      "vulnerability": {
+        "region": "frost_core",
+        "regionDamageMult": 1.75,
+        "bodyDamageMult": 0.35,
+        "radius": 0.4,
+        "offset": [
+          0.0,
+          1.85,
+          0.0
         ]
       }
     },
@@ -436,8 +453,27 @@
             "count": 2,
             "radius": 6
           }
-        ]
-      }
+        ],
+        "bodyTint": [
+          0.9,
+          0.97,
+          1.0
+        ],
+        "emissive": [
+          0.6,
+          0.85,
+          1.0,
+          2.4
+        ],
+        "scaleMult": 1.15,
+        "arenaChange": {
+          "scene": "res://scenes/bosses/arena_hazard.tscn",
+          "count": 5,
+          "radius": 9,
+          "minRadiusFraction": 0.6
+        }
+      },
+      "ordered": true
     }
   ],
   "guard_chance": 0.25,

@@ -6,12 +6,14 @@
   "gridHeight": 1,
   "stackSize": 8,
   "rarity": "common",
-  "description": "Pitch in a clay shell. Thrown underarm, and thrown early.",
+  "description": "Pitch in a clay shell. Lobbed at range, not underfoot -- an answer to whoever is shooting back.",
   "consumableEffect": {
-    "kind": "throw",
+    "kind": "throwable",
+    "damage": 24,
+    "damageType": "fire",
     "statusId": "burn",
     "duration": 10,
-    "radius": 4.5,
+    "radius": 4.0,
     "usableInHub": false
   },
   "value": 45,

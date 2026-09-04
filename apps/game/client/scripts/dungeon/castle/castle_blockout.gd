@@ -126,6 +126,7 @@ var _navigation_map: RID = RID()
 var _geometry_dirty: bool = true
 var _nav_bake_count: int = 0
 var _applying_kind_spec := false
+var _rebuild_queued := false
 
 
 func _ready() -> void:
@@ -152,15 +153,27 @@ func _ensure_materials() -> void:
 		accent_material = BiomeRegistry.get_accent_material(biome_id)
 
 
+## RM-22: closing all four doors and re-opening one is several `@export` setters firing in a row,
+## each of which used to call `_rebuild()` synchronously -- six to eight rebuilds where one would
+## do. Deferring through `call_deferred` and guarding on `_geometry_dirty` coalesces any number of
+## setter calls within one frame into a single rebuild.
 func _request_rebuild() -> void:
 	if _applying_kind_spec:
 		return
 	_geometry_dirty = true
 	if not is_inside_tree():
 		return
-	if Engine.is_editor_hint():
-		_rebuild()
-		_build_navigation_mesh()
+	if Engine.is_editor_hint() and not _rebuild_queued:
+		_rebuild_queued = true
+		call_deferred("_deferred_rebuild")
+
+
+func _deferred_rebuild() -> void:
+	_rebuild_queued = false
+	if not _geometry_dirty:
+		return
+	_rebuild()
+	_build_navigation_mesh()
 
 
 func finalize_geometry() -> void:

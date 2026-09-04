@@ -14,6 +14,9 @@ const MIN_LOCAL_STRENGTH := 0.35
 
 const META_ACTIVE_TWEEN := &"material_flash_tween"
 
+const PHASE_GLOW_ENERGY_PARAM := &"phase_glow_energy"
+const PHASE_GLOW_COLOR_PARAM := &"phase_glow_color"
+
 const FLASH_TINTS: Dictionary = {
 	"physical": Color.WHITE,
 	"fire": Color(1.0, 0.72, 0.42),
@@ -59,6 +62,31 @@ static func restore_all(node: Node3D) -> void:
 		return
 	for mesh in gather_meshes(node):
 		cancel(mesh)
+	clear_persistent_glow(node)
+
+
+## `BS-03`: an onEnter `"emissive"` phase visual. Unlike `flash()`, this never tweens back down --
+## it stays until the next phase overrides it or `clear_persistent_glow()` is called -- so a boss's
+## escalating phases keep glowing through every hit-flash `flash()` plays on top of it.
+static func set_persistent_glow(node: Node3D, color: Color, energy: float) -> void:
+	if node == null or not is_instance_valid(node):
+		return
+	for mesh in gather_meshes(node):
+		if _mesh_shader(mesh) == null:
+			continue
+		var shader := _mesh_shader(mesh)
+		if _shader_declares(shader, PHASE_GLOW_COLOR_PARAM):
+			mesh.set_instance_shader_parameter(PHASE_GLOW_COLOR_PARAM, Vector3(color.r, color.g, color.b))
+		if _shader_declares(shader, PHASE_GLOW_ENERGY_PARAM):
+			mesh.set_instance_shader_parameter(PHASE_GLOW_ENERGY_PARAM, maxf(0.0, energy))
+
+
+static func clear_persistent_glow(node: Node3D) -> void:
+	if node == null or not is_instance_valid(node):
+		return
+	for mesh in gather_meshes(node):
+		if _mesh_shader(mesh) != null:
+			mesh.set_instance_shader_parameter(PHASE_GLOW_ENERGY_PARAM, 0.0)
 
 
 static func _normalize_params(params: Variant) -> Dictionary:

@@ -59,8 +59,12 @@ side to gain the remaining three capabilities:
 1. Port `room_content_assigner.gd`, the room-graph lock/key logic and puzzle assignment into
    `packages/procedural/Assignment/` as pure functions of `(biome, graph, SeededRandom)`, reusing
    the SplitMix64 stream discipline so the two languages consume RNG identically.
-2. Extend `ClientVersionParityTests` to run both generators across a fixed seed matrix and diff the
-   canonical JSON field by field, restricted to shared capabilities.
+2. Add a parity check — this repo has no test suite and will not have one (`CLAUDE.md`), so this
+   means a debug scene under `scripts/tools/`, matching `procgen_seed_health.gd`'s shape: run both
+   generators across a fixed seed matrix and diff the canonical JSON field by field, restricted to
+   shared capabilities. (`ClientVersionParityTests`, the in-engine test harness this step used to
+   name, was removed — see `CORE_GAMEPLAY_REVIEW.md` §119 and SY-12 in
+   `docs/MVP_DEPTH_PLAN.md`.)
 3. Only once the C# capability set matches the GDScript one may `generatorCapabilities` be widened
    — and that widening is the signal that server-authoritative runs are viable.
 

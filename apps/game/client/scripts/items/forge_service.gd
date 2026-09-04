@@ -68,16 +68,21 @@ static func can_afford_recipe(recipe: Dictionary) -> bool:
 	return true
 
 
-static func salvage_preview(slot: Dictionary) -> Dictionary:
+const AWAY_FROM_HUB_YIELD_MULT := 0.6
+
+static func salvage_preview(slot: Dictionary, reduced: bool = false) -> Dictionary:
 	var rarity := RarityRegistryScript.normalize(str(slot.get("rarity", "common")))
 	var yields: Dictionary = (SALVAGE_YIELD.get(rarity, SALVAGE_YIELD["common"]) as Dictionary).duplicate()
 	var upgrade_level := BlacksmithServiceScript.get_slot_upgrade_level(slot)
 	if upgrade_level > 0:
 		yields["iron_scrap"] = int(yields.get("iron_scrap", 0)) + upgrade_level
+	if reduced:
+		for material_id in yields.keys():
+			yields[material_id] = maxi(1, ceili(int(yields[material_id]) * AWAY_FROM_HUB_YIELD_MULT))
 	return yields
 
 
-static func salvage(inv_index: Variant) -> Dictionary:
+static func salvage(inv_index: Variant, reduced: bool = false) -> Dictionary:
 	if BlacksmithServiceScript.is_equipment_slot(inv_index):
 		return {"ok": false, "error": "unequip first"}
 	var inv := InventoryService.inventory
@@ -87,7 +92,7 @@ static func salvage(inv_index: Variant) -> Dictionary:
 	var def := ItemCatalog.get_definition(str(slot.get("itemId", "")))
 	if def.get("itemType", "") not in BlacksmithServiceScript.UPGRADEABLE_TYPES:
 		return {"ok": false, "error": "not salvageable"}
-	var yields := salvage_preview(slot)
+	var yields := salvage_preview(slot, reduced)
 	if inv.remove_at(inv_index).is_empty():
 		return {"ok": false, "error": "invalid slot"}
 	var granted: Dictionary = {}

@@ -23,6 +23,7 @@
   "alert_radius": 15,
   "circle_radius_mult": 1.6,
   "enemy_type": "melee",
+  "hit_material": "ooze",
   "resistances": {
     "frost": -0.5,
     "physical": 0.1

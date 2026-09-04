@@ -106,6 +106,8 @@ func _refresh_buy_list() -> void:
 		)
 		if price > CharacterService.gold:
 			_buy_list.set_item_custom_fg_color(index, GameUISkinScript.HINT_COLOR.darkened(0.35))
+		var stock_slot := {"itemId": item_id, "rarity": str(def.get("rarity", "common"))}
+		_buy_list.set_item_tooltip(index, ItemListPresenterScript.slot_tooltip(stock_slot))
 		_buy_item_ids.append(item_id)
 
 
@@ -129,9 +131,10 @@ func _refresh_sell_list() -> void:
 			if qty > 1
 			else tr("MERCHANT_SELL_ROW") % [def.get("name", item_id), price]
 		)
-		ItemListPresenterScript.add_row(
+		var sell_row_index := ItemListPresenterScript.add_row(
 			_sell_list, item_id, def, label, str(slot.get("rarity", ""))
 		)
+		_sell_list.set_item_tooltip(sell_row_index, ItemListPresenterScript.slot_tooltip(slot))
 		_sell_indices.append(i)
 
 

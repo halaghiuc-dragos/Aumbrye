@@ -3,6 +3,8 @@ extends Control
 
 const GameUISkinScript := preload("res://scripts/ui/game_ui_skin.gd")
 const TowerBoardScript := preload("res://scripts/ui/tower_board_ui.gd")
+const RunContractLabelScript := preload("res://scripts/ui/run_contract_label.gd")
+const AlternateModeRowScript := preload("res://scripts/ui/alternate_mode_row.gd")
 
 const LAST_DUNGEON_FLAG := "castle_menu_last_dungeon_id"
 const LAST_DIFFICULTY_FLAG := "castle_menu_last_difficulty_tier"
@@ -25,6 +27,8 @@ signal menu_closed
 @onready var _status_label: Label = $MainPanel/Margin/VBox/StatusLabel
 @onready var _dungeon_dropdown: OptionButton = $MainPanel/Margin/VBox/DungeonDropdown
 @onready var _difficulty_dropdown: OptionButton = $MainPanel/Margin/VBox/DifficultyDropdown
+@onready var _contract_label: Label = $MainPanel/Margin/VBox/ContractLabel
+@onready var _alt_mode_row: VBoxContainer = $MainPanel/Margin/VBox/AltModeRow
 
 const LADDER_COLUMNS := 2
 
@@ -290,6 +294,7 @@ func _select_tier(tier: int) -> void:
 		var button: Button = _tier_buttons[tier_num]
 		if button and is_instance_valid(button):
 			button.button_pressed = int(tier_num) == tier
+	_refresh_contract_label()
 
 
 func _on_dungeon_selected(index: int) -> void:
@@ -300,6 +305,13 @@ func _on_dungeon_selected(index: int) -> void:
 	_build_tier_ladder()
 	if _seed_panel.visible:
 		_refresh_seed_hint()
+	_refresh_contract_label()
+
+
+func _refresh_contract_label() -> void:
+	RunContractLabelScript.refresh(
+		_contract_label, RunModeConfig.MODE_CASTLE, _selected_dungeon, _selected_difficulty
+	)
 
 
 func _on_difficulty_selected(index: int) -> void:
@@ -312,11 +324,27 @@ func open_menu() -> void:
 	_close_board()
 	_build_dungeon_dropdown()
 	_refresh_continue_state()
+	_refresh_alt_modes()
 	_show_main_panel()
 	visible = true
 	mouse_filter = Control.MOUSE_FILTER_STOP
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	_new_button.grab_focus()
+
+
+## MD-05: boss_rush and gauntlet are castle-mode rule sets that used to be reachable only through
+## the tower board. Rebuilt every open so a mode unlocked mid-session shows up without reopening.
+func _refresh_alt_modes() -> void:
+	if _alt_mode_row == null:
+		return
+	for child in _alt_mode_row.get_children():
+		child.queue_free()
+	AlternateModeRowScript.build_into(_alt_mode_row, RunModeConfig.MODE_CASTLE, _on_alt_mode_pressed)
+
+
+func _on_alt_mode_pressed(mode_id: String) -> void:
+	close_menu()
+	RunFlow.start_alternate_mode_run(mode_id)
 
 
 func close_menu() -> void:
@@ -444,7 +472,7 @@ func _try_start_seed(text: String) -> void:
 	var run_seed_value := int(parsed)
 	var order := DungeonCatalog.get_order_for_dungeon(_selected_dungeon)
 	if not DungeonSeedService.can_access_tier(order):
-		_seed_hint_label.text = "Tier %d is locked — clear the previous tier first." % order
+		_seed_hint_label.text = tr("ENTRY_SEED_TIER_LOCKED") % order
 		_seed_input.grab_focus()
 		return
 	close_menu()

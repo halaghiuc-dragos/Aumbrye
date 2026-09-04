@@ -61,7 +61,7 @@ func _enter_phase(index: int, silent: bool) -> void:
 	var attacks: Array = phase.get("attacks", []) as Array
 	if attacks.is_empty():
 		attacks = _boss.get_base_attacks()
-	_boss.set_active_attacks(attacks)
+	_boss.set_active_attacks(attacks, bool(phase.get("ordered", false)))
 	_boss.apply_phase_modifiers(phase)
 	var on_enter: Dictionary = phase.get("onEnter", {}) as Dictionary
 	if not silent and not on_enter.is_empty():
@@ -74,6 +74,7 @@ func _play_entry(on_enter: Dictionary) -> void:
 	var tell := maxf(0.0, float(on_enter.get("tellDuration", DEFAULT_TELL_DURATION)))
 	var invuln := maxf(0.0, float(on_enter.get("invulnerableFor", 0.0)))
 	_boss.begin_phase_transition(tell, invuln)
+	_boss.apply_phase_visuals(on_enter)
 	var origin: Vector3 = _boss.global_position
 	var telegraph_radius := float(on_enter.get("telegraphRadius", 0.0))
 	if telegraph_radius > 0.0 and VfxService:
@@ -107,6 +108,42 @@ func _play_entry(on_enter: Dictionary) -> void:
 			var hazards: Array = _boss.spawn_hazard_ring(spec as Dictionary)
 			_spawned.append_array(hazards)
 			_despawn_on_death.append_array(hazards)
+	## `BS-01` "arenaChange": the same `ArenaHazard` telegraph -> active -> fade machinery as
+	## `hazards` above, just named for what it authors: the one hazard ring that redefines the
+	## arena for this phase rather than punctuating a single attack.
+	var arena_change: Variant = on_enter.get("arenaChange", null)
+	if arena_change is Dictionary and not (arena_change as Dictionary).is_empty():
+		var changed: Array = _boss.spawn_hazard_ring(arena_change as Dictionary)
+		_spawned.append_array(changed)
+		_despawn_on_death.append_array(changed)
+
+
+## `BS-02`: re-flashes phase 1's `onEnter` telegraph/vfx for the boss-intro camera beat, without
+## redoing `spawnAdds`/`hazards` -- those already ran once, silently or not, the instant this
+## controller's `_physics_process` first ticked at spawn.
+func replay_intro_telegraph() -> void:
+	if _phases.is_empty() or _boss == null or not is_instance_valid(_boss):
+		return
+	var entry: Variant = _phases[0]
+	if not (entry is Dictionary):
+		return
+	var on_enter: Dictionary = (entry as Dictionary).get("onEnter", {}) as Dictionary
+	if on_enter.is_empty():
+		return
+	var origin: Vector3 = _boss.global_position
+	var telegraph_radius := float(on_enter.get("telegraphRadius", 0.0))
+	if telegraph_radius > 0.0 and VfxService:
+		VfxService.play_telegraph(
+			origin,
+			telegraph_radius,
+			maxf(0.6, float(on_enter.get("tellDuration", DEFAULT_TELL_DURATION))),
+			_color_from(on_enter.get("telegraphTint", null), Color(0.95, 0.6, 0.35)),
+			String(on_enter.get("telegraphShape", "circle")),
+			CombatFacing.forward_of(_boss)
+		)
+	var vfx := String(on_enter.get("vfx", ""))
+	if vfx != "" and VfxService:
+		VfxService.play(vfx, origin + Vector3(0.0, 1.0, 0.0))
 
 
 func clear_death_spawns() -> void:

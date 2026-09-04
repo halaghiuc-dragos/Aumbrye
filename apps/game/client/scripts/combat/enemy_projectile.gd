@@ -46,6 +46,7 @@ func _ready() -> void:
 	collision_layer = CombatLayers.PROJECTILE
 	_hitbox.team = team
 	_hitbox.collision_layer = CombatLayers.PROJECTILE
+	_hitbox.is_projectile = true
 	_hitbox.disable()
 	if not _hitbox.hit_landed.is_connected(_on_hit_landed):
 		_hitbox.hit_landed.connect(_on_hit_landed)
@@ -171,6 +172,13 @@ func _on_hit_landed(_target: Node) -> void:
 	queue_free()
 
 
+## `RG-04`: the hook a `ThrowableProjectile` overrides to explode on terrain instead of silently
+## vanishing -- the default here is exactly the old inline `queue_free()` so every other shot
+## (enemy arrows included) behaves unchanged.
+func _on_world_impact() -> void:
+	queue_free()
+
+
 func _physics_process(delta: float) -> void:
 	if _fading:
 		_fade_timer -= delta
@@ -193,7 +201,7 @@ func _physics_process(delta: float) -> void:
 			params.collide_with_areas = false
 			params.collide_with_bodies = true
 			if space.intersect_ray(params):
-				queue_free()
+				_on_world_impact()
 				return
 	global_position += motion
 	_distance_travelled += motion.length()

@@ -27,6 +27,7 @@
   "circle_radius_mult": 1.35,
   "phaseCount": 3,
   "enemy_type": "boss",
+  "hit_material": "crystal",
   "attacks": [
     {
       "id": "probe",
@@ -273,6 +274,22 @@
             "radius": 7,
             "lifetime": 14
           }
+        ],
+        "bodyTint": [
+          0.55,
+          0.78,
+          1.0
+        ]
+      },
+      "vulnerability": {
+        "region": "core_facet",
+        "regionDamageMult": 1.75,
+        "bodyDamageMult": 0.35,
+        "radius": 0.45,
+        "offset": [
+          0.0,
+          2.2,
+          0.0
         ]
       }
     },
@@ -419,8 +436,27 @@
             "count": 2,
             "radius": 6
           }
-        ]
-      }
+        ],
+        "bodyTint": [
+          0.85,
+          0.95,
+          1.0
+        ],
+        "emissive": [
+          0.6,
+          0.9,
+          1.0,
+          2.8
+        ],
+        "scaleMult": 1.15,
+        "arenaChange": {
+          "scene": "res://scenes/bosses/crystal_pillar_hazard.tscn",
+          "count": 5,
+          "radius": 9,
+          "minRadiusFraction": 0.6
+        }
+      },
+      "ordered": true
     }
   ],
   "guard_chance": 0.25,

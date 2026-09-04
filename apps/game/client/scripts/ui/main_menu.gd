@@ -361,14 +361,35 @@ func _connect_global_settings() -> void:
 func _refresh_today_label() -> void:
 	if _today_label == null or not is_instance_valid(_today_label):
 		return
+	var parts: PackedStringArray = []
+	# SY-08: a free reason for a session to feel different -- the hub's day/night cycle used to
+	# run invisibly to anyone who did not linger outdoors long enough to notice it.
+	if DayNightService:
+		var time_label := DayNightService.describe_time_of_day()
+		if time_label != "":
+			parts.append(time_label)
+	# AD-04: bounties are two clicks and a walk from where the player stands when the game loads
+	# -- this counts unclaimed ones from both rotations so "3 bounties" is visible before anything
+	# is pressed.
+	var open_bounties := 0
+	for kind in [BountyService.KIND_DAILY, BountyService.KIND_WEEKLY]:
+		for quest_id in BountyService.active_bounties(kind):
+			if not BountyService.is_claimed(quest_id):
+				open_bounties += 1
+	if open_bounties > 0:
+		parts.append(tr("MENU_TODAY_BOUNTIES").format({"count": open_bounties}))
 	var challenge := ChallengeService.get_active_challenge()
-	if challenge.is_empty():
+	if not challenge.is_empty():
+		var remaining := ChallengeService.format_remaining(int(challenge.get("endsInSeconds", 0)))
+		parts.append(
+			tr("MENU_TODAY_CHALLENGE").format(
+				{"name": str(challenge.get("name", "")), "remaining": remaining}
+			)
+		)
+	if parts.is_empty():
 		_today_label.visible = false
 		return
-	var remaining := ChallengeService.format_remaining(int(challenge.get("endsInSeconds", 0)))
-	_today_label.text = tr("MENU_TODAY_CHALLENGE").format(
-		{"name": str(challenge.get("name", "")), "remaining": remaining}
-	)
+	_today_label.text = " · ".join(parts)
 	_today_label.visible = true
 	if not _today_timer_started:
 		_today_timer_started = true

@@ -2,6 +2,10 @@ extends Node
 
 
 signal quest_updated(quest_id: String, state: String)
+## SY-02: fired on every progress tick, not just on completion -- `quest_updated` only fires from
+## `complete_quest()`, so a kill/fetch quest going from 1/3 to 2/3 previously produced no signal at
+## all for anything to show a toast off of.
+signal quest_progress_advanced(quest_id: String, count: int, required: int)
 
 const STATE_INACTIVE := "inactive"
 const STATE_ACTIVE := "active"
@@ -337,8 +341,11 @@ func _advance_count(quest_id: String, def: Dictionary) -> void:
 	var count: int = int(progress.get("count", 0)) + 1
 	progress["count"] = count
 	CharacterService.set_quest_progress(quest_id, progress)
-	if count >= int(def.get("requiredCount", 1)):
+	var required := int(def.get("requiredCount", 1))
+	if count >= required:
 		complete_quest(quest_id)
+	else:
+		quest_progress_advanced.emit(quest_id, count, required)
 
 
 func _run_context_matches(def: Dictionary) -> bool:

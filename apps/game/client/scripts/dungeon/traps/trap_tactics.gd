@@ -135,6 +135,7 @@ static func strike(area: Area3D, source: Node3D, cfg: Dictionary, cooldowns: Dic
 		var damage := float(cfg.get("damage", 0.0)) * multiplier
 		if damage > 0.0:
 			var direction := (hurtbox.global_position - area.global_position).normalized()
+			var was_alive := hurtbox._health == null or not hurtbox._health.is_dead()
 			(
 				hurtbox
 				. receive_hit(
@@ -147,6 +148,17 @@ static func strike(area: Area3D, source: Node3D, cfg: Dictionary, cooldowns: Dic
 					)
 				)
 			)
+			# SY-01: `RunFlow.register_kill()`/`QuestService.register_kill()` already fire from the
+			# enemy's own death handler regardless of what killed it -- the one thing genuinely
+			# missing was the achievement, which nothing else can see this hit was a trap's.
+			if (
+				was_alive
+				and hurtbox.team != "player"
+				and hurtbox._health != null
+				and hurtbox._health.is_dead()
+				and AchievementService
+			):
+				AchievementService.notify("trap_kill")
 		_feed_build_up(hurtbox, cfg)
 	if caught > 0 and RunBuffs:
 		RunBuffs.note_trap_catch(caught)

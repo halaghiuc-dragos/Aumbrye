@@ -23,6 +23,7 @@
   "awareness_rate": 2.4,
   "alert_radius": 13,
   "enemy_type": "melee",
+  "hit_material": "flesh",
   "weapon_kit": "spear",
   "damage_type": "frost",
   "status_on_hit": "freeze",

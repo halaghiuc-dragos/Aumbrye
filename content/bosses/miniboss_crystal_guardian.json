@@ -26,6 +26,7 @@
   "circle_radius_mult": 1.2,
   "phaseCount": 2,
   "enemy_type": "boss",
+  "hit_material": "crystal",
   "attacks": [
     {
       "id": "probe",

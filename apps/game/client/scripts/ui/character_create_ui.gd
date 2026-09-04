@@ -48,6 +48,8 @@ var _perk_line: Label
 var _padding_perk := false
 var _weapon_line: Label
 var _weapon_icon: TextureRect
+var _family_line: Label
+var _plays_like_line: Label
 var _class_empty_label: Label
 var _back_button: Button
 var _randomize_button: Button
@@ -439,6 +441,21 @@ func _build_detail_column(parent: HBoxContainer) -> VBoxContainer:
 	_weapon_line.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	GameUISkinScript.style_body_label(_weapon_line)
 	weapon_row.add_child(_weapon_line)
+	# SY-04: `allowedWeaponFamilies` was authored and invisible at the point of choice -- the
+	# starting-weapon line above names one item, this names the whole archetype restriction
+	# `CB-05` gave real mechanical identity to ("this class fights with greatswords and axes").
+	_family_line = Label.new()
+	_family_line.name = "FamilyLine"
+	_family_line.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	GameUISkinScript.style_hint_label(_family_line)
+	stats_box.add_child(_family_line)
+	# UX-08: the perk restated as a verb, and a one-line "plays like" summary -- the two things
+	# the plan named as missing from an otherwise-strong creation screen.
+	_plays_like_line = Label.new()
+	_plays_like_line.name = "PlaysLikeLine"
+	_plays_like_line.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	GameUISkinScript.style_hint_label(_plays_like_line)
+	stats_box.add_child(_plays_like_line)
 	var spacer := Control.new()
 	spacer.name = "FooterSpacer"
 	spacer.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -607,6 +624,10 @@ func _refresh_class_detail() -> void:
 		_perk_line.text = ""
 		_weapon_line.text = ""
 		_weapon_icon.texture = null
+		if _family_line:
+			_family_line.text = ""
+		if _plays_like_line:
+			_plays_like_line.text = ""
 		_preview_caption.text = ""
 		return
 	var class_def := _classes[_selected_class_index]
@@ -618,6 +639,27 @@ func _refresh_class_detail() -> void:
 	_weapon_icon.texture = ItemIconAtlasScript.get_icon(
 		weapon_id, str(weapon_def.get("iconPath", ""))
 	)
+	if _family_line:
+		var families: Array = class_def.get("allowedWeaponFamilies", [])
+		var labels: PackedStringArray = []
+		for family in families:
+			labels.append(str(family).replace("_", " ").capitalize())
+		_family_line.text = (
+			tr("CREATE_WEAPON_FAMILIES") % ", ".join(labels) if not labels.is_empty() else ""
+		)
+	if _plays_like_line:
+		var verb := _row_label(
+			str(class_def.get("perkVerb", "")), str(class_def.get("perkVerbText", ""))
+		)
+		var plays_like := _row_label(
+			str(class_def.get("playsLike", "")), str(class_def.get("playsLikeText", ""))
+		)
+		var parts: PackedStringArray = []
+		if verb != "":
+			parts.append(verb)
+		if plays_like != "":
+			parts.append(plays_like)
+		_plays_like_line.text = " ".join(parts)
 	var aspect_label := AppearanceCatalogScript.unlocked_aspect_label(
 		_aspect_row.get_selected_index()
 	)

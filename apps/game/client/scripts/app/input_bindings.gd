@@ -28,8 +28,12 @@ const REBINDABLE: Array[StringName] = [
 	&"inventory_split",
 ]
 
+## `AX-02`: `toggle_camera` moved off this list -- it now has a real pad binding (right shoulder,
+## `project.godot`'s only free `JoyButton` slot; every other index was already spoken for). The
+## rest stay keyboard-only for real: `zoom_in`/`zoom_out` and the direct `quick_slot_1..4` presses
+## have no free button left to bind to, and `quick_slot_cycle` (already pad-bound) is the actual
+## pad-reachable path to a quick slot.
 const KEYBOARD_ONLY: Array[StringName] = [
-	&"toggle_camera",
 	&"zoom_in",
 	&"zoom_out",
 	&"quick_slot_1",

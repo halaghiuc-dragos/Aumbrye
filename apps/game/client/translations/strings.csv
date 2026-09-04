@@ -81,6 +81,7 @@ CREATE_RANDOM_NAME,Suggest Name,Sugerează Nume
 CREATE_BACK,Back,Înapoi
 CREATE_BEGIN,Begin,Începe
 CREATE_STARTING_WEAPON,Starting weapon: %s,Armă inițială: %s
+CREATE_WEAPON_FAMILIES,Fights with: %s,Luptă cu: %s
 CREATE_PERK,Perk — %s: %s,Avantaj — %s: %s
 CREATE_NO_CLASSES,No classes are available.,Nicio clasă disponibilă.
 CREATE_CONFIRM_TITLE,Begin as Warden?,Începi ca Gardian?
@@ -106,6 +107,20 @@ ASPECT_CATHEDRAL_GOLD_DESC,Gilt left on a thing nobody prays to now.,Poleială r
 ASPECT_SWAMP_WARDEN,Swamp Warden,Străjerul Mlaștinii
 ASPECT_SWAMP_WARDEN_DESC,Bile-green and patient. Earned in the standing water.,Verde-fiere și răbdător. Câștigat în apa stătută.
 CLASS_ROLE_BERSERKER,Frontline / Damage,Front / Daune
+CLASS_PERK_VERB_BLOODRAGE,Rage when hit.,Intra in furie cand esti lovit.
+CLASS_PLAYS_LIKE_BERSERKER,"Get hit, hit harder -- a class that wants you reckless.","Fii lovit, loveste mai tare -- o clasa care te vrea nechibzuit."
+CLASS_PERK_VERB_CONTAGION,Spread the plague.,Raspandeste molima.
+CLASS_PLAYS_LIKE_HERALD,Land one status and watch it jump to everything nearby.,Aplica un singur efect si priveste-l cum se raspandeste.
+CLASS_PERK_VERB_KILLING_DISTANCE,Chain kills into power.,Inlantuie uciderile in putere.
+CLASS_PLAYS_LIKE_HUNTER,Pick fights at range and let every kill fund the next shot.,Alege luptele de la distanta si lasa fiecare ucidere sa plateasca urmatoarea sageata.
+CLASS_PERK_VERB_STEADFAST,Turn blocks into recovery.,Transforma blocajele in recuperare.
+CLASS_PLAYS_LIKE_KNIGHT,Plant your feet and out-last anything that hits your shield.,Ramai pe loc si rezista oricarui atac in scut.
+CLASS_PERK_VERB_SHADOWSTEP,Steal stamina from the back.,Fura rezistenta pe la spate.
+CLASS_PLAYS_LIKE_ROGUE,Circle behind enemies -- every backstab pays for the next one.,Inconjoara inamicii -- fiecare lovitura pe la spate o plateste pe urmatoarea.
+CLASS_PERK_VERB_ARCANE_FOCUS,Refund mana on a hit.,Recupereaza mana la o lovitura.
+CLASS_PLAYS_LIKE_SCHOLAR,Cast freely -- landing blows keeps the well from running dry.,Arunca vraji liber -- loviturile reusite mentin rezerva plina.
+CLASS_PERK_VERB_BULWARK,Turn blocked hits into healing.,Transforma loviturile blocate in vindecare.
+CLASS_PLAYS_LIKE_SENTINEL,Stand your ground -- what your shield eats heals you back.,Ramai ferm -- ce absoarbe scutul tau te vindeca.
 CLASS_ROLE_KNIGHT,Frontline / Sustain,Front / Rezistență
 CLASS_ROLE_ROGUE,Skirmisher / Crit,Hărțuitor / Crit
 CLASS_ROLE_SCHOLAR,Support / Stamina,Suport / Rezistență
@@ -379,6 +394,13 @@ SETTINGS_MAX_FPS_240,240 FPS,240 FPS
 SETTINGS_UI_SCALE_NAME,Interface Scale,Scara interfata
 SETTINGS_UI_SCALE_DESC,Enlarges menu text and panels for easier reading.,Mareste textul si panourile din meniuri pentru citire mai usoara.
 SETTINGS_PIXEL_SECTION,Pixel Rendering,Randare pixel
+SETTINGS_QUALITY_PRESETS,Quality,Calitate
+SETTINGS_SHOW_FPS_OVERLAY_NAME,Show FPS,Afiseaza FPS
+SETTINGS_SHOW_FPS_OVERLAY_DESC,Show a small frame-rate readout in the corner of the screen.,Afiseaza un mic indicator de rata cadrelor in coltul ecranului.
+DEBUG_FPS_READOUT,FPS: %d,FPS: %d
+SETTINGS_PRESET_PERFORMANCE,Performance,Performanta
+SETTINGS_PRESET_BALANCED,Balanced,Echilibrat
+SETTINGS_PRESET_BEAUTY,Beauty,Frumusete
 SETTINGS_PIXEL_ADVANCED,Advanced Pixel Options,Optiuni pixel avansate
 SETTINGS_PIXEL_HIDE,Hide Pixel Options,Ascunde optiunile pixel
 SETTINGS_PIXEL_RESTORE,Restore Recommended Look,Revino la aspectul recomandat
@@ -530,6 +552,13 @@ MENU_CONTINUE,Continue,Continua
 MENU_SETTINGS,Settings,Setari
 MENU_QUIT,Quit Game,Iesi din joc
 MENU_TODAY_CHALLENGE,This week: {name} -- {remaining},Saptamana aceasta: {name} -- {remaining}
+MENU_TODAY_BOUNTIES,{count} bounties open,{count} recompense deschise
+HUD_BOUNTY_COMPLETE,Bounty complete: {name},Recompensa indeplinita: {name}
+TUTORIAL_TELEGRAPH_AMBER,Amber: this can be blocked.,Chihlimbar: acest atac poate fi blocat.
+TUTORIAL_TELEGRAPH_BLUE,Blue: this can be parried. Raise your guard as it lands.,Albastru: acest atac poate fi parat. Ridica garda cand loveste.
+TUTORIAL_TELEGRAPH_RED,Red: this cannot be blocked. Move.,Rosu: acest atac nu poate fi blocat. Misca-te.
+TUTORIAL_POISE_BREAK,Broken. Attack now for an execution.,Echilibru frant. Ataca acum pentru o executie.
+TUTORIAL_STAMINA_EXHAUSTED,Out of stamina. You cannot dodge.,Fara rezistenta. Nu poti eschiva.
 SETTINGS_FULLSCREEN_TITLE,Keep Fullscreen?,Pastrezi ecranul complet?
 SETTINGS_FULLSCREEN_BODY,Keep this display mode? It reverts automatically in %d seconds.,Pastrezi acest mod de afisare? Revine automat in %d secunde.
 SETTINGS_FULLSCREEN_KEEP,Keep,Pastreaza
@@ -556,6 +585,7 @@ RESULTS_OATH_FULFILLED,%s - Oath Fulfilled,%s - Juramant implinit
 RESULTS_RUN_COMPLETE,%s - Run Complete,%s - Cursa terminata
 ENTRY_NEED_WEAPON,Equip a weapon before entering the dungeon.,Echipeaza o arma inainte sa intri in temnita.
 ENTRY_TIER_LOCKED,Tier %d is locked.,Nivelul %d este blocat.
+ENTRY_SEED_TIER_LOCKED,Tier %d is locked -- clear the previous tier first.,Nivelul %d este blocat -- termina mai intai nivelul anterior.
 ENTRY_SEED_INVALID,Invalid - enter digits only,Invalid - doar cifre
 ACHIEVEMENTS_UNAVAILABLE,Achievement service unavailable.,Serviciul de realizari nu este disponibil.
 BESTIARY_EMPTY,The codex is empty.,Codexul este gol.
@@ -642,9 +672,32 @@ RESULTS_LEADERBOARD_TITLE,Top 10 for {biome} (tier {tier}):,Top 10 pentru {biome
 RESULTS_CLOUD_FAILED,Cloud sync failed.,Sincronizarea în cloud a eșuat.
 RESULTS_CLOUD_UPDATE_REQUIRED,Update required to use cloud features.,E nevoie de actualizare pentru funcțiile cloud.
 RESULTS_REPORT_TITLE,Run Report,Raportul trecerii
+RESULTS_NEXT_TITLE,Next,Urmatorul
+RESULTS_NEXT_VAULT,{gap} more unlocks the vault's {name}.,Inca {gap} deblocheaza {name} din seif.
+RESULTS_NEXT_BESTIARY,{gap} more kills masters the {name} bestiary entry.,Inca {gap} ucideri stapanesc intrarea din bestiar pentru {name}.
+STAIR_PRESSURE_BEST,Personal best: floor {floor},Record personal: etajul {floor}
+STAIR_PRESSURE_MILESTONE,{floors} floors to "{label}",{floors} etaje pana la "{label}"
+CONTRACT_CHALLENGE,This run counts toward the weekly challenge: {name}.,Aceasta trecere conteaza pentru provocarea saptamanii: {name}.
+CONTRACT_RECORD,Record to beat: floor {floor}.,Recordul de batut: etajul {floor}.
+CONTRACT_VAULT,{gap} more unlocks the vault's {name}.,Inca {gap} deblocheaza {name} din seif.
+CONTRACT_BESTIARY,{gap} more kills masters the {name} bestiary entry.,Inca {gap} ucideri stapanesc intrarea din bestiar pentru {name}.
 RESULTS_TIER_LADDER_TITLE,Tier Ladder,Scara nivelurilor
 EPILOGUE_TITLE,The Oath Fulfilled,Jurământul împlinit
 EPILOGUE_HINT,Enter to continue,Enter pentru a continua
+EPILOGUE_DEFAULT,"{dungeon} falls silent behind you. Your umbral endures in Aumbrye Tower until the next summons.","{dungeon} rămâne tăcut în urma ta. Umbra ta dăinuie în Turnul Aumbrye până la următoarea chemare."
+EPILOGUE_FACT_BIOME,A new depth of the tower has opened: {biome}.,O noua adâncime a turnului s-a deschis: {biome}.
+EPILOGUE_FACT_TIER,This dungeon now answers at a harder standing: {label}.,Acest tarâm răspunde acum la o treaptă mai grea: {label}.
+EPILOGUE_FACT_VAULT,The Warden's Vault has taken in something new: {name}.,Seiful Wardenului a primit ceva nou: {name}.
+EPILOGUE_FORGOTTEN_CASTLE,"The Forgotten Sovereign falls. The tower's reset slows — for one breath the oath is fulfilled. Your umbral endures in Aumbrye Tower until the next summons.","Suveranul Uitat cade. Reinitializarea turnului incetineste — pentru o suflare, juramantul e implinit. Umbra ta dainuie in Turnul Aumbrye pana la urmatoarea chemare."
+EPILOGUE_CRYSTAL_CAVERNS,"The Sovereign of the Slow Growth stops growing. The caverns hold still, crystal by crystal, for the first time since the tower was young.","Suveranul Cresterii Lente nu mai creste. Pesterile stau nemiscate, cristal cu cristal, pentru prima data de cand turnul era tanar."
+EPILOGUE_DARK_CATHEDRAL,"The Hollow in the Nave is empty at last. The cathedral's bells find nothing left to ring for.","Golul din naos e in sfarsit gol. Clopotele catedralei nu mai gasesc pentru ce sa sune."
+EPILOGUE_FROZEN_FORTRESS,"The Warlord of the Long Winter kneels, and the frost that followed him kneels with him. The fortress thaws by one degree.","Razboinicul Iernii Lungi ingenuncheaza, iar gerul care l-a urmat ingenuncheaza odata cu el. Fortareata se dezgheata cu un grad."
+EPILOGUE_POISON_SWAMP,"The Devourer in the Reeds stops feeding. The water clears, for now, of everything it grew.","Devoratorul din Trestii nu mai devoreaza. Apa se limpezeste, deocamdata, de tot ce a crescut."
+EPILOGUE_GLACIAL_HOLLOW,"The Last of the Long Watch stands down. Nothing keeps the hollow's vigil anymore, which is its own kind of quiet.","Ultimul din Garda Lunga se retrage. Nimic nu mai tine veghea golului, ceea ce e o liniste aparte."
+EPILOGUE_IRON_VAULT,"The Assembly That Never Adjourned finally adjourns. The vault's iron doors, for once, have nothing left to guard.","Adunarea Care Nu S-a Incheiat Niciodata se incheie in sfarsit. Usile de fier ale seifului, pentru o data, n-au nimic de pazit."
+EPILOGUE_PRISM_DEPTHS,"The Keeper of a Silent Choir sings once, and stops. The prism depths hold that last note and let it go.","Pazitorul unui Cor Tacut canta o data, si se opreste. Adancurile de prisma tin ultima nota si o lasa sa plece."
+EPILOGUE_VENOM_MIRE,"What the Water Grew Around is finally pulled free. The mire is only water again, for a while.","Ce a Crescut Apa in Jurul Lui e in sfarsit smuls afara. Mlastina e din nou doar apa, pentru o vreme."
+EPILOGUE_UMBRAL_CHAPEL,"The Last to Leave the Chapel finally leaves it. The umbral chapel stands empty, doors open, for the first time in the tower's memory.","Ultimul Care Pleaca din Capela pleaca in sfarsit. Capela umbrei sta goala, cu usile deschise, pentru prima data in memoria turnului."
 WAVES_WAVE_ACTIVE,Wave {wave} — clear all enemies.,Valul {wave} — curăță toți dușmanii.
 WAVES_VICTORY_PICK,Victory! Choose up to 3 items to keep:,Victorie! Alege până la 3 obiecte de păstrat:
 WAVES_PICK_AT_LEAST_ONE,Pick at least one reward,Alege cel puțin o recompensă
@@ -656,7 +709,9 @@ ENDLESS_DESCEND_TO,Descend to floor {floor},Coboară la etajul {floor}
 WAVES_MENU_CONTINUE,Continue waves run (wave {wave}).,Continuă trecerea prin valuri (valul {wave}).
 WAVES_MENU_INTRO,"Open 6 chests, survive 50 waves.","Deschide 6 cufere, supraviețuiește 50 de valuri."
 QUEST_TRACKER_LINE,{title} — {detail},{title} — {detail}
+QUEST_PROGRESS_TOAST,{title} {count}/{required},{title} {count}/{required}
 ACHIEVEMENT_TOAST,Achievement: {name},Realizare: {name}
+LOOT_TOAST,{name},{name}
 RESULTS_BEST_HIT,Biggest hit: {amount}.,Cea mai mare lovitură: {amount}.
 RESULTS_HIT_BACKSTAB,backstab,pe la spate
 RESULTS_HIT_CRIT,critical,critică
@@ -666,6 +721,24 @@ HUD_DEPTH_RECORD_TOKENS,New deepest descent: floor {floor} — {tokens} descent 
 HUD_MILESTONE,Milestone reached: {name}.,Reper atins: {name}.
 LOCK_NEEDS_KEYS,This lock needs {count} keys.,Lacătul are nevoie de {count} chei.
 LOCK_NEEDS_KEY,You need the {key}.,Ai nevoie de {key}.
+LOCK_UNLOCK_ACTION,Unlock ({key}),Descuie ({key})
+STAIR_PACT_LABEL,Descend to floor {floor} -- {pact} ({desc}),Coboara la etajul {floor} -- {pact} ({desc})
+STAIR_ASCEND_LABEL,Ascend to floor {floor},Urca la etajul {floor}
+STAIR_DESCEND_LABEL,Descend to floor {floor},Coboara la etajul {floor}
+STAIR_RETREAT_LABEL,Retreat to the hub,Retrage-te in oras
+STAIR_SEALED,Sealed -- defeat the floor boss,Sigilat -- infrange sefull etajului
+STAIR_LABEL,Stairs -- floor {floor},Scari -- etajul {floor}
+STAIR_ASCEND_REASON_HIGHEST,Ascend -- floor {floor} is the highest,Urca -- etajul {floor} este cel mai inalt
+STAIR_ASCEND_REASON_UNAVAILABLE,Ascend -- unavailable,Urca -- indisponibil
+STAIR_DESCEND_REASON_LOWEST,Descend -- floor 1 is the lowest,Coboara -- etajul 1 este cel mai jos
+STAIR_DESCEND_REASON_ENDLESS,Descend -- not available in endless mode,Coboara -- indisponibil in modul nesfarsit
+STAIR_DESCEND_REASON_UNAVAILABLE,Descend -- unavailable,Coboara -- indisponibil
+STAIR_RETREAT_REASON_MODE,Retreat -- not available in this mode,Retragere -- indisponibila in acest mod
+STAIR_RETREAT_REASON_BOSS,Retreat -- defeat the boss first,Retragere -- infrange mai intai seful
+KEY_RED,Red Key,Cheia Rosie
+KEY_BLUE,Blue Key,Cheia Albastra
+KEY_YELLOW,Yellow Key,Cheia Galbena
+KEY_GENERIC,Key,Cheie
 SHORTCUT_WRONG_SIDE,This won't open from this side.,Nu se deschide din partea aceasta.
 WARN_FELL,You fell out of the world.,Ai căzut din lume.
 SHORTCUT_OPEN_PROMPT,E — Open shortcut,E — Deschide scurtătura
@@ -749,3 +822,4 @@ QUALITY_GLEAMING,Gleaming,Stralucitor
 QUALITY_BRILLIANT,Brilliant,Nestemat
 STAT_ATTACK_SPEED,Attack Speed,Viteză de atac
 INV_CONDITION,Condition:,Stare:
+HUB_GROWTH_ANNOUNCE,New in the tower: {names}.,Nou în turn: {names}.

@@ -19,6 +19,7 @@ func _ready() -> void:
 	_label = $DebugLabel
 	_apply_overlay_layout()
 	_label.visible = show_debug
+	_build_fps_label()
 	if player_path:
 		_player = get_node(player_path) as CharacterBody3D
 		_dodge = _player.get_node_or_null("Dodge")
@@ -27,6 +28,35 @@ func _ready() -> void:
 		_hit_feedback = _player.get_node_or_null("HitFeedback")
 	if enemy_path:
 		_enemy = get_node(enemy_path) as CharacterBody3D
+
+
+## SY-05: an FPS readout as a normal setting, not the debug-only panel this node otherwise gates
+## behind `show_debug`/F1 -- built here in code rather than added to the three scenes that embed
+## this node (castle_run, combat_arena, hub) as a new authored child.
+var _fps_label: Label
+
+
+func _build_fps_label() -> void:
+	_fps_label = Label.new()
+	_fps_label.name = "FpsLabel"
+	_fps_label.set_anchors_preset(Control.PRESET_TOP_LEFT)
+	_fps_label.offset_left = 12.0
+	_fps_label.offset_top = 12.0
+	_fps_label.offset_right = 140.0
+	_fps_label.offset_bottom = 32.0
+	_fps_label.add_theme_color_override("font_color", Color(0.94, 0.92, 0.86, 1.0))
+	_fps_label.add_theme_color_override("font_shadow_color", Color(0.0, 0.0, 0.0, 0.82))
+	_fps_label.add_theme_constant_override("shadow_offset_x", 1)
+	_fps_label.add_theme_constant_override("shadow_offset_y", 1)
+	add_child(_fps_label)
+	_refresh_fps_label_visibility()
+
+
+func _refresh_fps_label_visibility() -> void:
+	if _fps_label:
+		# The big debug panel already prints FPS in its own line, so the compact readout would
+		# just double it up while `show_debug` is on.
+		_fps_label.visible = PixelDioramaSettings.show_fps_overlay and not show_debug
 
 
 func _apply_overlay_layout() -> void:
@@ -57,6 +87,10 @@ func _input(event: InputEvent) -> void:
 
 
 func _process(_delta: float) -> void:
+	if _fps_label:
+		_refresh_fps_label_visibility()
+		if _fps_label.visible:
+			_fps_label.text = tr("DEBUG_FPS_READOUT") % Engine.get_frames_per_second()
 	if not show_debug:
 		return
 	var lines: PackedStringArray = []

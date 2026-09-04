@@ -67,6 +67,10 @@
   "roleText": "Support / Status",
   "perkNameText": "Contagion",
   "perkDescriptionText": "What one of them is carrying, the ones standing nearest are carrying too.",
+  "perkVerb": "CLASS_PERK_VERB_CONTAGION",
+  "perkVerbText": "Spread the plague.",
+  "playsLike": "CLASS_PLAYS_LIKE_HERALD",
+  "playsLikeText": "Land one status and watch it jump to everything nearby.",
   "statRatings": {
     "maxHealth": 12,
     "armor": 11,

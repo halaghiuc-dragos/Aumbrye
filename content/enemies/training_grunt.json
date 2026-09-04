@@ -1,5 +1,6 @@
 {
   "id": "training_grunt",
+  "hit_material": "flesh",
   "name": "Training Grunt",
   "scene": "res://scenes/enemies/training_grunt.tscn",
   "health": 80,

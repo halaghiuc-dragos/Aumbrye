@@ -12,6 +12,16 @@
                   "attackSpeed":  0.05,
                   "defense":  4
               },
+    "ruleText":  "A hit has a 15% chance to freeze.",
+    "rules":  [
+        {
+            "event":  "onHit",
+            "effect":  "apply_status",
+            "statusId":  "freeze",
+            "stacks":  1,
+            "chance":  0.15
+        }
+    ],
     "equipmentSlot":  "gloves",
     "theme":  "frozen_fortress"
 }

@@ -32,6 +32,7 @@ var _spawn_markers: Array[Node3D] = []
 var _pending_spawns := 0
 var _cash_out_portal: Node3D
 const WavesOutdoorsDioramaScript := preload("res://scripts/dungeon/waves_outdoors_diorama.gd")
+const ToastScene: PackedScene = preload("res://scenes/ui/achievement_toast.tscn")
 const CharacterFloorSnapScript := preload("res://scripts/art/characters/character_floor_snap.gd")
 const WavesTorchHolderScript := preload("res://scripts/dungeon/waves_torch_holder.gd")
 const WavesTorchlightScript := preload("res://scripts/dungeon/waves_torchlight.gd")
@@ -638,6 +639,29 @@ func _build_combat_hud() -> void:
 	# leaving it hidden.
 	if hud.has_method("enable_arena_radar"):
 		hud.call("enable_arena_radar", SPAWN_RING_RADIUS * 1.1)
+	# AD-04: same immediate bounty-complete banner castle_run.gd gets -- waves is a valid bounty
+	# mode too, and used to only learn about it at the results screen.
+	if QuestService and not QuestService.quest_updated.is_connected(_on_quest_updated):
+		QuestService.quest_updated.connect(_on_quest_updated)
+	# SY-02: a quest's counter moving used to produce no feedback at all mid-run.
+	if QuestService and not QuestService.quest_progress_advanced.is_connected(_on_quest_progress_advanced):
+		QuestService.quest_progress_advanced.connect(_on_quest_progress_advanced)
+
+
+func _on_quest_updated(quest_id: String, _state: String) -> void:
+	if not BountyService.is_bounty(quest_id):
+		return
+	var def := QuestCatalog.get_definition(quest_id)
+	if _hud and _hud.has_method("show_run_warning"):
+		_hud.call("show_run_warning", tr("HUD_BOUNTY_COMPLETE").format({"name": str(def.get("title", quest_id))}))
+
+
+func _on_quest_progress_advanced(quest_id: String, count: int, required: int) -> void:
+	var def := QuestCatalog.get_definition(quest_id)
+	var toast := ToastScene.instantiate()
+	if toast.has_method("show_quest_progress"):
+		get_tree().root.add_child(toast)
+		toast.show_quest_progress(str(def.get("title", quest_id)), count, required)
 
 
 func _restore_waves_snapshot() -> void:

@@ -56,6 +56,10 @@
   "roleText": "Defender / Poise",
   "perkNameText": "Steadfast",
   "perkDescriptionText": "Poise recovers faster behind a raised guard, and a blow turned aside gives back the breath it cost.",
+  "perkVerb": "CLASS_PERK_VERB_STEADFAST",
+  "perkVerbText": "Turn blocks into recovery.",
+  "playsLike": "CLASS_PLAYS_LIKE_KNIGHT",
+  "playsLikeText": "Plant your feet and out-last anything that hits your shield.",
   "statRatings": {
     "maxHealth": 13,
     "armor": 13,

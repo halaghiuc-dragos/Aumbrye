@@ -24,6 +24,18 @@
     "resistArcane": 0.08,
     "resistFire": 0.04
   },
+  "ruleText": "Blocking a hit stacks up to 4 armor, up to 4 times; a hit taken resets the stack.",
+  "rules": [
+    {
+      "event": "onBlock",
+      "effect": "add_stack",
+      "stackId": "reliquary_wall",
+      "maxStacks": 4,
+      "stat": "defense",
+      "perStack": 4.0,
+      "resetOn": ["onHitTaken"]
+    }
+  ],
   "block": {
     "stability": 1.7,
     "guardBreakPoise": 78,

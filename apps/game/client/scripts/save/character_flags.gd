@@ -89,6 +89,8 @@ const REGISTRY: Dictionary = {
 	"modes_announced": {"kind": Kind.DICT, "default": {}},
 	"vault_unlocked": {"kind": Kind.DICT, "default": {}},
 	"vault_pending_announce": {"kind": Kind.DICT, "default": {}},
+	"hub_growth_seen": {"kind": Kind.DICT, "default": {}},
+	"hub_growth_pending": {"kind": Kind.DICT, "default": {}},
 }
 
 

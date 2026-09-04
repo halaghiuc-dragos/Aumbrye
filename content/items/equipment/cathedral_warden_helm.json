@@ -12,6 +12,18 @@
                   "maxHealth":  12,
                   "defense":  7
               },
+    "ruleText":  "A hit taken stacks up to 3 armor, up to 4 times; clears when the room clears.",
+    "rules":  [
+        {
+            "event":  "onHitTaken",
+            "effect":  "add_stack",
+            "stackId":  "warden_order",
+            "maxStacks":  4,
+            "stat":  "defense",
+            "perStack":  3.0,
+            "resetOn":  ["onRoomClear"]
+        }
+    ],
     "equipmentSlot":  "helmet",
     "theme":  "dark_cathedral"
 }

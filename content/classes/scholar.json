@@ -61,6 +61,10 @@
   "roleText": "Caster / Arcane",
   "perkNameText": "Arcane Focus",
   "perkDescriptionText": "Study returns itself: telling blows restore the mana that paid for them.",
+  "perkVerb": "CLASS_PERK_VERB_ARCANE_FOCUS",
+  "perkVerbText": "Refund mana on a hit.",
+  "playsLike": "CLASS_PLAYS_LIKE_SCHOLAR",
+  "playsLikeText": "Cast freely -- landing blows keeps the well from running dry.",
   "statRatings": {
     "maxHealth": 7,
     "armor": 5,

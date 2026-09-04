@@ -200,6 +200,7 @@ func _rebuild_active_page() -> void:
 		"advanced":
 			_build_advanced_page()
 		"display":
+			_build_quality_presets()
 			_build_schema_page(page)
 			_build_pixel_disclosure()
 		_:
@@ -248,6 +249,35 @@ func _play_audio_test(setting_id: String) -> void:
 			AudioDirector.preview_bus(&"UI")
 		_:
 			AudioDirector.preview_bus(&"SFX")
+
+
+## `SY-05`: a player on weak hardware previously had to understand `shade_bands` and
+## `edge_strength` to get a frame rate. One-click presets go first, before the schema-driven
+## rows and the collapsed advanced tuning block, so "pick one of three words" is the first thing
+## on this page rather than something found by scrolling.
+func _build_quality_presets() -> void:
+	var title := Label.new()
+	title.text = tr("SETTINGS_QUALITY_PRESETS")
+	title.theme_type_variation = GameUISkinScript.VAR_SECTION_TITLE
+	_page_host.add_child(title)
+	var row := HBoxContainer.new()
+	row.name = "QualityPresetRow"
+	row.add_theme_constant_override("separation", 8)
+	_page_host.add_child(row)
+	for preset in [
+		["SETTINGS_PRESET_PERFORMANCE", PixelDioramaSettings.apply_performance_preset],
+		["SETTINGS_PRESET_BALANCED", PixelDioramaSettings.apply_balanced_preset],
+		["SETTINGS_PRESET_BEAUTY", PixelDioramaSettings.apply_beauty_defaults],
+	]:
+		var btn := GameUISkinScript.make_button(tr(str(preset[0])))
+		var apply_fn: Callable = preset[1]
+		btn.pressed.connect(
+			func() -> void:
+				apply_fn.call()
+				_rebuild_active_page()
+		)
+		GameUISkinScript.wire_button_sfx(btn)
+		row.add_child(btn)
 
 
 func _build_pixel_disclosure() -> void:

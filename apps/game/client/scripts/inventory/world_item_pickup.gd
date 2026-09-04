@@ -104,6 +104,8 @@ func _apply_rarity_presentation() -> void:
 			AudioDirector.play_sfx("ui_interact_near", global_position)
 	if RarityRegistryScript.wants_camera_nudge(_rarity) and VfxService:
 		VfxService.request_shake(0.12, 320)
+		# AU-03: same top-tier gate as the camera nudge -- see `loot_chest.gd:_present_rarity_juice()`.
+		AudioDirector.play_stinger("rare_drop")
 
 
 func _build_beam(color: Color) -> void:

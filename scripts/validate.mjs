@@ -133,6 +133,12 @@ function runContentLayer() {
     "node",
     [join(repoRoot, "scripts/validate-content/validate.mjs"), "--strict-content"],
   );
+  // SY-07: warn-only, never affects this layer's pass/fail -- see the script's own header for why.
+  runCommand(
+    "untranslated-strings",
+    "node",
+    [join(repoRoot, "scripts/check-untranslated-strings.mjs")],
+  );
   return {
     name: "content",
     ok: result.ok,

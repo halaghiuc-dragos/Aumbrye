@@ -118,9 +118,10 @@ func _refresh() -> void:
 		var item_id: String = slot.get("itemId", "")
 		var def := ItemCatalog.get_definition(item_id)
 		var qty: int = int(slot.get("quantity", 1))
-		ItemListPresenterScript.add_row(
+		var inv_row_index := ItemListPresenterScript.add_row(
 			_inv_list, item_id, def, _row_text(slot, qty), str(slot.get("rarity", ""))
 		)
+		_inv_list.set_item_tooltip(inv_row_index, ItemListPresenterScript.slot_tooltip(slot))
 		_inv_indices.append(i)
 	_storage_list.clear()
 	_storage_indices.clear()
@@ -129,9 +130,10 @@ func _refresh() -> void:
 		var item_id: String = slot.get("itemId", "")
 		var def := ItemCatalog.get_definition(item_id)
 		var qty: int = int(slot.get("quantity", 1))
-		ItemListPresenterScript.add_row(
+		var storage_row_index := ItemListPresenterScript.add_row(
 			_storage_list, item_id, def, _row_text(slot, qty), str(slot.get("rarity", ""))
 		)
+		_storage_list.set_item_tooltip(storage_row_index, ItemListPresenterScript.slot_tooltip(slot))
 		_storage_indices.append(i)
 	_refresh_empty_states()
 	if _description and _inv_list.get_selected_items().is_empty() \

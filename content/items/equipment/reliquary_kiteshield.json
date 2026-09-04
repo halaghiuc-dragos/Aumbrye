@@ -23,6 +23,14 @@
     "resistArcane": 0.08,
     "resistFire": 0.04
   },
+  "ruleText": "Blocking restores 10 stamina.",
+  "rules": [
+    {
+      "event": "onBlock",
+      "effect": "restore_stamina",
+      "amount": 10.0
+    }
+  ],
   "block": {
     "stability": 1.35,
     "guardBreakPoise": 52,

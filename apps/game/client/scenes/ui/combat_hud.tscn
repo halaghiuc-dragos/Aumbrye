@@ -206,6 +206,19 @@ theme_override_constants/margin_bottom = 0
 layout_mode = 2
 script = ExtResource("2_minimap")
 
+[node name="ModifierStrip" type="HBoxContainer" parent="."]
+layout_mode = 1
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -160.0
+offset_top = 164.0
+offset_right = -20.0
+offset_bottom = 186.0
+grow_horizontal = 0
+alignment = 2
+theme_override_constants/separation = 4
+
 [node name="ControlsHint" type="HBoxContainer" parent="."]
 layout_mode = 1
 anchors_preset = 12
@@ -239,6 +252,21 @@ anchor_right = 1.0
 offset_top = 44.0
 offset_bottom = 72.0
 grow_horizontal = 2
+horizontal_alignment = 1
+autowrap_mode = 3
+
+[node name="InlineWarning" type="Label" parent="."]
+theme_type_variation = "BodyText"
+visible = false
+layout_mode = 1
+anchors_preset = 12
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_top = -64.0
+offset_bottom = -36.0
+grow_horizontal = 2
+grow_vertical = 0
 horizontal_alignment = 1
 autowrap_mode = 3
 

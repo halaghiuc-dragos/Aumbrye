@@ -80,6 +80,10 @@
       "weight": 2
     }
   ],
+  "roleComposition": {
+    "melee": 0.7,
+    "ranged": 0.3
+  },
   "bossPool": [
     {
       "enemyId": "boss_frost_warlord",
@@ -88,6 +92,12 @@
     {
       "enemyId": "miniboss_frost_castellan",
       "weight": 2
+    }
+  ],
+  "minibossPool": [
+    {
+      "enemyId": "miniboss_frost_castellan",
+      "weight": 1
     }
   ],
   "budgets": {
@@ -204,7 +214,26 @@
   },
   "requiresSecret": true,
   "finalFloor": {
-    "bossId": "boss_frost_warlord"
+    "bossId": "boss_frost_warlord",
+    "arenaHazards": [
+      {
+        "scene": "res://scenes/traps/frost_trap.tscn",
+        "count": 6,
+        "radius": 10,
+        "lifetime": 20
+      }
+    ],
+    "arenaAdds": [
+      {
+        "enemyId": "frost_hound",
+        "count": 3,
+        "radius": 7
+      }
+    ],
+    "arenaModifier": {
+      "damageMult": 1.15,
+      "attackCooldownMult": 0.9
+    }
   },
   "maxHeightLevel": 1,
   "maxSecrets": 3,

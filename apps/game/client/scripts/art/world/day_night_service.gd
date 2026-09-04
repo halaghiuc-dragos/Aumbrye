@@ -111,6 +111,24 @@ func is_night() -> bool:
 	return night_amount() > 0.5
 
 
+## `SY-08`: the hub board's "today" line wants a human word for what the cycle is doing right now
+## -- reuses the same named stops (`midnight`, `dawn`, `noon`, ...) the lighting blend itself
+## already walks through, rather than inventing a second phase-range table that could drift from
+## the one `_bracket()` uses to actually light the scene.
+func describe_time_of_day() -> String:
+	_ensure_loaded()
+	if _stops.is_empty():
+		return ""
+	var p := phase()
+	var current: Dictionary = _stops[_stops.size() - 1]
+	for stop in _stops:
+		if float(stop.get("at", 0.0)) <= p:
+			current = stop
+		else:
+			break
+	return str(current.get("name", "")).capitalize()
+
+
 func _process(_delta: float) -> void:
 	if _environment == null or _environment.get_ref() == null:
 		return

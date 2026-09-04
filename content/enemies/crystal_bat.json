@@ -26,6 +26,7 @@
   "alert_radius": 15,
   "circle_radius_mult": 1.6,
   "enemy_type": "ranged",
+  "hit_material": "crystal",
   "damage_type": "physical",
   "resistances": {
     "physical": 0.15

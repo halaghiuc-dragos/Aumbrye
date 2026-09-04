@@ -12,6 +12,14 @@
     "attackSpeed": 0.08,
     "physicalDamage": 16
   },
+  "ruleText": "A critical shot restores 6 stamina.",
+  "rules": [
+    {
+      "event": "onCrit",
+      "effect": "restore_stamina",
+      "amount": 6.0
+    }
+  ],
   "equipmentSlot": "weapon",
   "weaponId": "bow"
 }

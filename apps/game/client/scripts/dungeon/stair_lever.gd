@@ -87,13 +87,12 @@ func floor_options() -> Array[Dictionary]:
 					{
 						"id": DescentPactService.option_id_for_pact(str(pact.get("id", ""))),
 						"label":
-						(
-							"Descend to floor %d — %s (%s)"
-							% [
-								_floor_index + 1,
-								str(pact.get("label", "Pact")),
-								DescentPactService.describe(pact),
-							]
+						tr("STAIR_PACT_LABEL").format(
+							{
+								"floor": _floor_index + 1,
+								"pact": str(pact.get("label", "Pact")),
+								"desc": DescentPactService.describe(pact),
+							}
 						),
 						"enabled": true,
 						"reason": "",
@@ -103,7 +102,7 @@ func floor_options() -> Array[Dictionary]:
 	options.append(
 		{
 			"id": "ascend",
-			"label": "Ascend to floor %d" % (_floor_index + 1),
+			"label": tr("STAIR_ASCEND_LABEL").format({"floor": _floor_index + 1}),
 			"enabled": _can_ascend,
 			"reason": _ascend_reason(),
 		}
@@ -111,7 +110,7 @@ func floor_options() -> Array[Dictionary]:
 	options.append(
 		{
 			"id": "descend",
-			"label": "Descend to floor %d" % (_floor_index - 1),
+			"label": tr("STAIR_DESCEND_LABEL").format({"floor": _floor_index - 1}),
 			"enabled": _can_descend,
 			"reason": _descend_reason(),
 		}
@@ -119,7 +118,7 @@ func floor_options() -> Array[Dictionary]:
 	options.append(
 		{
 			"id": "retreat",
-			"label": "Retreat to the hub",
+			"label": tr("STAIR_RETREAT_LABEL"),
 			"enabled": _can_retreat and RunFlow.can_retreat_to_hub(),
 			"reason": _retreat_reason(),
 		}
@@ -188,10 +187,12 @@ func _update_label() -> void:
 		_label.visible = false
 		return
 	if not _unlocked:
-		_label.text = "Sealed — defeat the floor boss"
+		_label.text = tr("STAIR_SEALED")
 		_label.visible = true
 		return
-	_label.text = InputGlyphService.format_interact_name("Stairs — floor %d" % _floor_index)
+	_label.text = InputGlyphService.format_interact_name(
+		tr("STAIR_LABEL").format({"floor": _floor_index})
+	)
 	_label.visible = true
 
 
@@ -199,26 +200,26 @@ func _ascend_reason() -> String:
 	if _can_ascend:
 		return ""
 	if RunFlow.is_final_floor() and RunFlow.get_run_mode() != "endless":
-		return "Ascend — floor %d is the highest" % _floor_index
-	return "Ascend — unavailable"
+		return tr("STAIR_ASCEND_REASON_HIGHEST").format({"floor": _floor_index})
+	return tr("STAIR_ASCEND_REASON_UNAVAILABLE")
 
 
 func _descend_reason() -> String:
 	if _can_descend:
 		return ""
 	if _floor_index <= 1:
-		return "Descend — floor 1 is the lowest"
+		return tr("STAIR_DESCEND_REASON_LOWEST")
 	if RunFlow.get_run_mode() == "endless":
-		return "Descend — not available in endless mode"
-	return "Descend — unavailable"
+		return tr("STAIR_DESCEND_REASON_ENDLESS")
+	return tr("STAIR_DESCEND_REASON_UNAVAILABLE")
 
 
 func _retreat_reason() -> String:
 	if _can_retreat and RunFlow.can_retreat_to_hub():
 		return ""
 	if not _can_retreat:
-		return "Retreat — not available in this mode"
-	return "Retreat — defeat the boss first"
+		return tr("STAIR_RETREAT_REASON_MODE")
+	return tr("STAIR_RETREAT_REASON_BOSS")
 
 
 func _setup_animations() -> void:

@@ -1,0 +1,35 @@
+{
+  "pitiron": {
+    "name": "Pit-Iron Set",
+    "bonuses": {
+      "2": [
+        {
+          "event": "onHitTaken",
+          "effect": "add_stack",
+          "stackId": "pitiron_grit",
+          "maxStacks": 3,
+          "stat": "defense",
+          "perStack": 3.0,
+          "resetOn": ["onRoomClear"]
+        }
+      ],
+      "4": [
+        {
+          "event": "onBlock",
+          "effect": "restore_stamina",
+          "amount": 8.0
+        }
+      ],
+      "6": [
+        {
+          "event": "onLowHealth",
+          "effect": "apply_status",
+          "statusId": "stoneskin",
+          "stacks": 1,
+          "applyToActor": true,
+          "cooldown": 60.0
+        }
+      ]
+    }
+  }
+}

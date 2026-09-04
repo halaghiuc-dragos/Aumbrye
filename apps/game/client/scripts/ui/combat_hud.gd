@@ -9,7 +9,7 @@ extends Control
 ##   show_region_title(title, subtitle)   -- entering a region/floor/wave
 ##   show_run_warning(message)            -- any error a player-facing panel would have shown
 ##   show_respawn_outcome(results)        -- on a respawn/death outcome
-##   bind_boss(boss)                      -- whenever a boss-type enemy spawns
+##   bind_boss(boss, is_miniboss)         -- whenever a boss-type enemy spawns
 ## `configure_minimap`/`mark_room_visited`/`set_current_room`/`mark_room_cleared`/
 ## `set_minimap_fog_of_war`/`set_branch_previews`/`set_objective_world_position` are dungeon-only
 ## (no map in Waves) and are skipped rather than called with placeholder data in modes without one.
@@ -24,12 +24,14 @@ const InputGlyphServiceScript := preload("res://scripts/ui/input_glyph_service.g
 const HudIconAtlasScript := preload("res://scripts/ui/hud_icon_atlas.gd")
 const MinimapScript := preload("res://scripts/ui/minimap.gd")
 const HealChargeMeterScript := preload("res://scripts/ui/heal_charge_meter.gd")
+const ArrowChargeMeterScript := preload("res://scripts/ui/arrow_charge_meter.gd")
 const GuardIndicatorScript := preload("res://scripts/ui/guard_indicator.gd")
 const MenuShellScript := preload("res://scripts/ui/menu_shell.gd")
 const GameUISkinScript := preload("res://scripts/ui/game_ui_skin.gd")
 const QuickSlotBarScript := preload("res://scripts/ui/quick_slot_bar.gd")
 const ScreenEdgeScript := preload("res://scripts/ui/screen_edge.gd")
 const DamageDirectionArcScript := preload("res://scripts/ui/damage_direction_arc.gd")
+const BowReticleScript := preload("res://scripts/ui/bow_reticle.gd")
 
 const BAR_WIDTH := 330.0
 const HEALTH_BAR_HEIGHT := 30.0
@@ -89,8 +91,10 @@ var _poise_broken_shown := false
 @onready var _objective_marker: TextureRect = $ObjectiveMarker
 @onready var _minimap_anchor: MarginContainer = $MinimapAnchor
 @onready var _minimap: Control = $MinimapAnchor/Minimap
+@onready var _modifier_strip: HBoxContainer = $ModifierStrip
 @onready var _controls_hint: HBoxContainer = $ControlsHint
 @onready var _warning_banner: Label = $WarningBanner
+@onready var _inline_warning: Label = $InlineWarning
 @onready var _respawn_overlay: Control = $RespawnOutcomeOverlay
 
 var _player: Node3D
@@ -104,11 +108,18 @@ var _boss_node: Node
 var _boss_health: Health
 var _boss_phase_count := 2
 var _boss_current_phase := 1
+## `BS-06`: set when the bound boss is a miniboss -- suppresses the phase pip row and shrinks the
+## health bar, so the HUD itself reads as "this is not the floor boss" without extra copy.
+var _boss_bar_is_mini := false
+const BOSS_BAR_SIZE := Vector2(460, 26)
+const MINIBOSS_BAR_SIZE := Vector2(300, 18)
 var _lock_reticle_alpha := 0.0
+var _bow_reticle: BowReticle
 var _status_pips: Dictionary = {}
 var _status_refresh_timer := 0.0
 var _build_up_box: VBoxContainer
 var _heal_charge_row: HBoxContainer
+var _arrow_charge_row: HBoxContainer
 var _quick_slot_bar: Control
 var _lock_target_occluded := false
 var _riposte_prompt_timer := 0.0
@@ -165,6 +176,14 @@ const BANNER_PRIORITY_WARNING := 2
 const BANNER_MIN_DISPLAY := 1.2
 var _banner_queue: Array[Dictionary] = []
 var _banner_draining := false
+
+## UX-10: the banner lane is for run-level events (region titles, records, milestones); the inline
+## lane is its own small always-in-place slot for gameplay errors that happen at the point of
+## failure ("inventory full", a save that could not write) so they never compete with or get
+## clobbered by a region title mid-drain.
+const INLINE_MIN_DISPLAY := 2.0
+var _inline_queue: Array[String] = []
+var _inline_draining := false
 var _guard_indicator_active := false
 var _slow_update_timer := 0.0
 var _danger_chevrons: Array[TextureRect] = []
@@ -206,6 +225,7 @@ func _ready() -> void:
 		_status_controller = _player.get_node_or_null("StatusController") as StatusController
 		_bind_player_resources()
 		_bind_heal_charges()
+		_bind_arrow_charges()
 		_bind_quick_slots()
 		_bind_minimap_player()
 		if _status_controller:
@@ -244,6 +264,15 @@ func _ready() -> void:
 	if _minimap_anchor:
 		_minimap_anchor.visible = false
 	_build_danger_chevrons()
+	_build_bow_reticle()
+
+
+func _build_bow_reticle() -> void:
+	_bow_reticle = BowReticleScript.new()
+	_bow_reticle.name = "BowReticle"
+	_bow_reticle.visible = false
+	_bow_reticle.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(_bow_reticle)
 
 
 func _build_danger_chevrons() -> void:
@@ -412,7 +441,7 @@ func _ensure_key_row() -> void:
 		var pip := ColorRect.new()
 		pip.name = "Key_%s" % color
 		pip.custom_minimum_size = Vector2(10, 14)
-		pip.tooltip_text = str(FloorKeyringScript.COLORS[color]["label"])
+		pip.tooltip_text = tr(str(FloorKeyringScript.COLORS[color]["label"]))
 		_key_row.add_child(pip)
 		_key_pips[color] = pip
 	_refresh_key_row()
@@ -705,6 +734,7 @@ func _process(delta: float) -> void:
 		return
 	_vignette_cooldown = maxf(0.0, _vignette_cooldown - delta)
 	_update_lock_reticle()
+	_update_bow_reticle()
 	if _riposte_prompt_timer > 0.0:
 		_riposte_prompt_timer = maxf(0.0, _riposte_prompt_timer - delta)
 	if _guard_indicator_active or _riposte_prompt_timer > 0.0:
@@ -736,7 +766,9 @@ func _update_status_timers(delta: float) -> void:
 		pip.call("update_timer", float(entry.get("remaining", 0.0)), float(entry.get("duration", 0.0)))
 
 
-func bind_boss(boss: Node) -> void:
+## `is_miniboss`: `BS-06`'s smaller bar with no phase pips, for a miniboss rather than the floor
+## boss -- see the field comment on `_boss_bar_is_mini`.
+func bind_boss(boss: Node, is_miniboss: bool = false) -> void:
 	_unbind_boss()
 	if boss == null or not is_instance_valid(boss):
 		return
@@ -744,7 +776,9 @@ func bind_boss(boss: Node) -> void:
 	_boss_health = boss.get_node_or_null("Health") as Health
 	if _boss_health == null:
 		return
-	_boss_phase_count = _resolve_boss_phase_count(boss)
+	_boss_bar_is_mini = is_miniboss
+	_boss_health_bar.custom_minimum_size = MINIBOSS_BAR_SIZE if is_miniboss else BOSS_BAR_SIZE
+	_boss_phase_count = 1 if is_miniboss else _resolve_boss_phase_count(boss)
 	_boss_current_phase = 1
 	_boss_health.health_changed.connect(_on_boss_health_changed)
 	if (
@@ -818,6 +852,8 @@ func _resolve_boss_phase_count(boss: Node) -> int:
 func _refresh_boss_phase_pips() -> void:
 	for child in _boss_phase_row.get_children():
 		child.queue_free()
+	if _boss_bar_is_mini:
+		return
 	var pip_size := StatusIconAtlasScript.icon_size()
 	for i in _boss_phase_count:
 		var active := i < _boss_current_phase
@@ -994,6 +1030,18 @@ func _on_heal_interrupted() -> void:
 	HealChargeMeterScript.flash_interrupt(_heal_charge_row)
 
 
+func _bind_arrow_charges() -> void:
+	if _arrow_charge_row != null or _heal_charge_row == null:
+		return
+	_arrow_charge_row = ArrowChargeMeterScript.bind(
+		_player, _heal_charge_row, _on_arrow_charges_changed
+	)
+
+
+func _on_arrow_charges_changed(current: int, max_value: int) -> void:
+	ArrowChargeMeterScript.refresh(_arrow_charge_row, current, max_value)
+
+
 func _on_progression_changed() -> void:
 	if not ProgressionService:
 		return
@@ -1075,6 +1123,47 @@ func _update_guard_indicators() -> void:
 	_riposte_prompt_timer = GuardIndicatorScript.update(
 		_guard, _parry_bar, _block_bar, _parry_label, _riposte_prompt_timer
 	)
+
+
+const BOW_RETICLE_MAX_RANGE := 40.0
+const BOW_RETICLE_ORIGIN_HEIGHT := 1.2
+
+
+## `RG-01`: a raycast along the aim direction rather than the `PH-04` ballistic solve -- the arrow's
+## own arc is shallow enough at bow range that a straight line reads as "where it will land" without
+## needing to duplicate `Projectile._solved_launch_velocity()` here.
+func _update_bow_reticle() -> void:
+	if _bow_reticle == null:
+		return
+	if _weapon_controller == null or not _weapon_controller.is_bow_aiming:
+		_bow_reticle.visible = false
+		return
+	if _player == null or not is_instance_valid(_player):
+		_bow_reticle.visible = false
+		return
+	var camera := _get_camera()
+	if camera == null:
+		_bow_reticle.visible = false
+		return
+	var origin := _player.global_position + Vector3(0.0, BOW_RETICLE_ORIGIN_HEIGHT, 0.0)
+	var direction: Vector3 = _weapon_controller.get_soft_lock_aim_direction()
+	var target_point := origin + direction * BOW_RETICLE_MAX_RANGE
+	var space := _player.get_world_3d().direct_space_state if _player.get_world_3d() else null
+	if space:
+		var params := PhysicsRayQueryParameters3D.create(origin, target_point)
+		params.collision_mask = CombatLayers.WORLD_OCCLUDERS
+		params.collide_with_areas = false
+		params.collide_with_bodies = true
+		var result := space.intersect_ray(params)
+		if not result.is_empty():
+			target_point = result.get("position", target_point)
+	if camera.is_position_behind(target_point):
+		_bow_reticle.visible = false
+		return
+	_bow_reticle.visible = true
+	var screen_pos := camera.unproject_position(target_point)
+	_bow_reticle.position = screen_pos - _bow_reticle.size * 0.5
+	_bow_reticle.set_charge(_weapon_controller.get_draw_charge())
 
 
 func _get_camera() -> Camera3D:
@@ -1166,6 +1255,39 @@ func configure_minimap(definition: Dictionary) -> void:
 func set_minimap_floor_number(floor_number: int) -> void:
 	if _minimap and _minimap.has_method("set_floor_number"):
 		_minimap.call("set_floor_number", floor_number)
+
+
+## AD-03: the generator already varies floors meaningfully (a floor theme from `room_pacing.json`
+## plus whatever `RunModifierService` modifiers are active this run); this is the persistent
+## legibility for it that used to only exist for 3.2s in the region banner subtitle. Each chip is a
+## short abbreviation rather than a real icon -- no per-modifier art exists yet -- with the full
+## description on hover/focus via the engine's own tooltip.
+func set_floor_modifiers(theme_label: String, modifier_ids: Array, theme_description: String = "") -> void:
+	if _modifier_strip == null:
+		return
+	for child in _modifier_strip.get_children():
+		child.queue_free()
+	if theme_label != "":
+		_modifier_strip.add_child(_make_modifier_chip(theme_label, theme_description))
+	for modifier_id in modifier_ids:
+		var id := str(modifier_id)
+		_modifier_strip.add_child(_make_modifier_chip(id, RunModifierService.describe(id)))
+
+
+func _make_modifier_chip(id: String, tooltip: String) -> Control:
+	var panel := PanelContainer.new()
+	panel.tooltip_text = tooltip if tooltip != "" else id
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(0.12, 0.1, 0.08, 0.85)
+	style.set_content_margin_all(3.0)
+	style.set_corner_radius_all(2)
+	panel.add_theme_stylebox_override("panel", style)
+	var label := Label.new()
+	var glyph := id.replace("_", " ")
+	label.text = glyph.substr(0, 1).to_upper() if glyph.length() <= 1 else glyph.split(" ")[0].substr(0, 3).to_upper()
+	label.add_theme_font_size_override("font_size", 10)
+	panel.add_child(label)
+	return panel
 
 
 ## HD-05: the Vigil arena has no room graph, so it gets a radar (arena bounds, live enemies,
@@ -1515,6 +1637,30 @@ func show_run_warning(message: String) -> void:
 	})
 
 
+func show_inline_warning(message: String) -> void:
+	if message == "" or _inline_warning == null:
+		return
+	_inline_queue.append(message)
+	if not _inline_draining:
+		_drain_inline_queue()
+
+
+func _drain_inline_queue() -> void:
+	_inline_draining = true
+	while not _inline_queue.is_empty():
+		var message: String = _inline_queue.pop_front()
+		_inline_warning.text = message
+		_inline_warning.visible = true
+		_inline_warning.modulate.a = 1.0
+		var tween := create_tween()
+		tween.tween_interval(INLINE_MIN_DISPLAY)
+		tween.tween_property(_inline_warning, "modulate:a", 0.0, 0.4)
+		await tween.finished
+	_inline_draining = false
+	if _inline_warning:
+		_inline_warning.visible = false
+
+
 func _play_warning_banner(message: String) -> void:
 	_warning_banner.text = message
 	_warning_banner.visible = true
@@ -1584,9 +1730,12 @@ func show_respawn_outcome(results: Dictionary) -> void:
 	var xp_gained: int = int(results.get("xp_gained", 0))
 	var xp_deferred: int = int(results.get("xp_deferred", 0))
 	var loot_lost: Array = results.get("loot_lost", [])
-	var lines: PackedStringArray = [
-		tr("RESPAWN_XP_GAINED").format({"xp": xp_gained}),
-	]
+	var lines: PackedStringArray = []
+	var recap: Dictionary = results.get("death_recap", {})
+	var recap_sentence := str(recap.get("sentence", ""))
+	if recap_sentence != "":
+		lines.append(recap_sentence)
+	lines.append(tr("RESPAWN_XP_GAINED").format({"xp": xp_gained}))
 	if xp_deferred > 0:
 		lines.append(tr("RESPAWN_XP_DEFERRED").format({"xp": xp_deferred}))
 	if loot_lost.size() > 0:
@@ -1607,17 +1756,17 @@ func _on_run_warning(message: String) -> void:
 
 func _on_inventory_rejected(reason: String) -> void:
 	if reason == "full":
-		show_run_warning(tr("WARN_INVENTORY_FULL"))
+		show_inline_warning(tr("WARN_INVENTORY_FULL"))
 
 
 func _on_save_failed(reason: String) -> void:
 	match reason:
 		"write_failed":
-			show_run_warning(tr("WARN_SAVE_WRITE_FAILED"))
+			show_inline_warning(tr("WARN_SAVE_WRITE_FAILED"))
 		"save_from_newer_build":
-			show_run_warning(tr("WARN_SAVE_FROM_NEWER_BUILD"))
+			show_inline_warning(tr("WARN_SAVE_FROM_NEWER_BUILD"))
 		_:
-			show_run_warning(tr("WARN_SAVE_FAILED_REASON").format({"reason": reason}))
+			show_inline_warning(tr("WARN_SAVE_FAILED_REASON").format({"reason": reason}))
 
 
 func _rebuild_controls_hint() -> void:

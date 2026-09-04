@@ -81,6 +81,8 @@ var _guard: Guard
 var _dodge: Dodge
 var _status: StatusController
 var _lock_on: LockOn
+var _camera_spring: OrbitCamera
+var _arrows: PlayerArrows
 var _weapon_data: Dictionary = {}
 var _combo_index := 0
 var _phase_timer := 0.0
@@ -144,6 +146,8 @@ func _ready() -> void:
 	_dodge = _body.get_node_or_null("Dodge") as Dodge
 	_status = _body.get_node_or_null("StatusController") as StatusController
 	_lock_on = _body.get_node_or_null("LockOn") as LockOn
+	_camera_spring = _body.get_node_or_null("CameraPivot/SpringArm3D") as OrbitCamera
+	_arrows = _body.get_node_or_null("PlayerArrows") as PlayerArrows
 	if _dodge:
 		_dodge.dodge_started.connect(_on_dodge_started)
 		_dodge.dodge_ended.connect(_on_dodge_ended)
@@ -322,6 +326,16 @@ func get_combo_index() -> int:
 	return _combo_index if _combo_idle_timer > 0.0 else 0
 
 
+## `RG-01`: HUD reads for the bow reticle/draw arc through getters rather than reaching into
+## private fields, same as every other HUD readout on this class.
+func get_draw_charge() -> float:
+	return _draw_charge
+
+
+func get_soft_lock_aim_direction() -> Vector3:
+	return _get_soft_lock_aim_direction()
+
+
 func _cooldown_duration_multiplier() -> float:
 	var reduction := CombatStatModifiersScript.cooldown_reduction(_equipment_stats, _talent_stats)
 	return maxf(0.1, 1.0 - reduction)
@@ -439,6 +453,14 @@ func get_attack_lunge_velocity() -> Vector3:
 	if forward.length_squared() < 0.01:
 		return Vector3.ZERO
 	return forward.normalized() * speed
+
+
+## `RG-01`: `OrbitCamera.set_aim_active` composes with lock-on's own dolly/FOV rather than a second
+## camera mode -- driven every bow-input frame so releasing block/light-attack relaxes the camera
+## the same frame `is_bow_aiming` goes false.
+func _sync_camera_aim_state() -> void:
+	if _camera_spring and _camera_spring.has_method("set_aim_active"):
+		_camera_spring.call("set_aim_active", is_bow_aiming)
 
 
 ## `AN-04`: growing tremor while a bow draw charges.
@@ -811,6 +833,10 @@ func _try_start_execution() -> bool:
 	if _dodge and not _execution_iframes:
 		_execution_iframes = true
 		_dodge.grant_external_iframes(true)
+	# VS-09: the camera moment an execution deserves -- runs entirely inside the i-frame window
+	# just granted above, so it never costs the player control.
+	if _camera_spring and _camera_spring.has_method("play_execution_framing"):
+		_camera_spring.call("play_execution_framing", victim)
 	_attack_name = kind
 	_combo_index = 0
 	_last_light_index = -1
@@ -1124,6 +1150,7 @@ func _end_attack() -> void:
 
 func _process_bow_input(delta: float) -> void:
 	is_bow_aiming = PlayerInput.pressed(&"block") or PlayerInput.pressed(&"light_attack")
+	_sync_camera_aim_state()
 	if is_attacking and current_phase == AttackPhase.DRAWING:
 		if PlayerInput.pressed(&"heavy_attack"):
 			_draw_charge = minf(
@@ -1138,7 +1165,7 @@ func _process_bow_input(delta: float) -> void:
 	if is_attacking:
 		_process_attack_phase(delta)
 		return
-	if PlayerInput.pressed(&"heavy_attack"):
+	if PlayerInput.pressed(&"heavy_attack") and _has_arrow_available():
 		current_phase = AttackPhase.DRAWING
 		is_attacking = true
 		_draw_charge = minf(1.0, _draw_charge + delta / float(_weapon_data.get("draw_time", 0.8)))
@@ -1152,7 +1179,17 @@ func _process_bow_input(delta: float) -> void:
 		_try_attack("light")
 
 
+## `RG-02`: an unaffordable shot fizzles rather than firing, the same rule `_try_attack()` already
+## follows for stamina -- checked here (not at draw start) so a draw that goes on long enough to
+## outlast the last arrow release still fizzles cleanly instead of firing on credit.
+func _has_arrow_available() -> bool:
+	return _arrows == null or _arrows.has_arrow()
+
+
 func _fire_bow_shot() -> void:
+	if not _has_arrow_available():
+		_reset_bow()
+		return
 	var heavy: Dictionary = _weapon_data.get("heavy_attack", {})
 	var cost: float = _scaled_stamina_cost(float(heavy.get("stamina_cost", 18.0)))
 	if _stamina and not _stamina.has(cost):
@@ -1160,6 +1197,8 @@ func _fire_bow_shot() -> void:
 		return
 	if _stamina:
 		_stamina.consume(cost)
+	if _arrows:
+		_arrows.consume_arrow()
 	var scaled := heavy.duplicate()
 	scaled["damage"] = float(heavy.get("damage", 20.0)) * lerpf(0.5, 1.5, _draw_charge)
 	var charge := _draw_charge
@@ -1244,6 +1283,7 @@ func _reset_bow() -> void:
 	is_attacking = false
 	current_phase = AttackPhase.IDLE
 	is_bow_aiming = false
+	_sync_camera_aim_state()
 	_update_charge_shake(0.0)
 	if was_drawing:
 		if _stamina:

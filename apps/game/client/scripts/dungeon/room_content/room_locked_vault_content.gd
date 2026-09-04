@@ -97,6 +97,9 @@ func _unhandled_input(event: InputEvent) -> void:
 	if not FloorKeyringScript.take(_key_id):
 		return
 	_collected = true
+	# AU-03: a keycard punctuates the same way a secret or a lock does -- it is the beat that
+	# tells the player their next dead end just opened.
+	AudioDirector.play_stinger("key_taken")
 	if _chest:
 		_chest.visible = false
 	_label.hide_prompt()

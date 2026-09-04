@@ -54,7 +54,16 @@ func _resolve_app_id() -> void:
 		if file:
 			var parsed: Variant = JSON.parse_string(file.get_as_text())
 			if parsed is Dictionary:
-				var cfg_id := str(parsed.get("steamAppId", "")).strip_edges()
+				# SY-11: `JSON.parse_string()` always returns a JSON number as a GDScript float,
+				# so `480` in the file becomes `480.0` here -- `str()`-ing it first gave
+				# `"480.0"`, which `is_valid_int()` rejects, so this branch never fired and every
+				# build silently fell back to the dev app id.
+				var raw_id: Variant = parsed.get("steamAppId", "")
+				if raw_id is float or raw_id is int:
+					app_id = int(raw_id)
+					print_verbose("SteamService: using platform.json steamAppId=%d" % app_id)
+					return
+				var cfg_id := str(raw_id).strip_edges()
 				if cfg_id.is_valid_int():
 					app_id = int(cfg_id)
 					print_verbose("SteamService: using platform.json steamAppId=%d" % app_id)

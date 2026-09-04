@@ -26,6 +26,7 @@
   "circle_radius_mult": 1.35,
   "phaseCount": 3,
   "enemy_type": "boss",
+  "hit_material": "bone",
   "attacks": [
     {
       "id": "probe",
@@ -270,6 +271,22 @@
             "count": 3,
             "radius": 6.5
           }
+        ],
+        "bodyTint": [
+          0.55,
+          0.45,
+          0.8
+        ]
+      },
+      "vulnerability": {
+        "region": "reliquary_heart",
+        "regionDamageMult": 1.75,
+        "bodyDamageMult": 0.35,
+        "radius": 0.4,
+        "offset": [
+          0.0,
+          1.8,
+          0.0
         ]
       }
     },
@@ -417,8 +434,27 @@
             "radius": 8,
             "lifetime": 14
           }
-        ]
-      }
+        ],
+        "bodyTint": [
+          0.3,
+          0.15,
+          0.4
+        ],
+        "emissive": [
+          0.7,
+          0.35,
+          0.95,
+          2.6
+        ],
+        "scaleMult": 1.15,
+        "arenaChange": {
+          "scene": "res://scenes/bosses/arena_hazard.tscn",
+          "count": 5,
+          "radius": 9,
+          "minRadiusFraction": 0.6
+        }
+      },
+      "ordered": true
     }
   ],
   "guard_chance": 0.25,

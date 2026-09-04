@@ -58,6 +58,8 @@ func _pull() -> void:
 		return
 	_used = true
 	WorldState.set_flag(_flag_id(), true)
+	# AU-03: finding a secret should sound like finding one, not like every other interact.
+	AudioDirector.play_stinger("secret_found")
 	if _builder:
 		_builder.reveal_secret(_secret_room_id)
 	mark_used()

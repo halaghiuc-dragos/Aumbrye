@@ -30,6 +30,13 @@ const LOCK_CLOSE_DOLLY := 0.9
 const LOCK_SWITCH_MOUSE := 0.5
 const LOCK_SWITCH_DECAY := 6.0
 
+## `RG-01`: composes with (does not replace) the lock-on dolly/FOV above -- both add onto the same
+## `spring_length`/`fov` so aiming while locked on pulls in further rather than fighting lock-on.
+const AIM_DOLLY := 0.8
+const AIM_FOV_REDUCTION_DEG := 8.0
+const AIM_SHOULDER_EXTRA := 0.15
+const AIM_BLEND_RATE := 6.0
+
 @export var yaw_pivot_path: NodePath
 @export var facing_path: NodePath = NodePath("../../Facing")
 
@@ -56,6 +63,9 @@ var _lock_dolly := 0.0
 var _lock_switch_travel := 0.0
 var _shoulder_x := 0.0
 
+var _aim_active := false
+var _aim_blend := 0.0
+
 var _shake_offset := Vector3.ZERO
 var _shake_timer := 0.0
 var _shake_duration := 0.11
@@ -67,6 +77,37 @@ var _death_framing := false
 const DEATH_FRAMING_DOLLY := 0.12
 var _fov_kick := 0.0
 var _sprint_fov := 0.0
+
+## `BS-02`: boss-entrance framing. A separate mode from lock-on -- it drives yaw/pitch/zoom directly
+## rather than through player look input, and runs while `PlayerInput` camera input is blocked by the
+## caller, so there is no fight over who owns the spring arm during the sequence.
+const INTRO_ORBIT_RATE := deg_to_rad(8.0)
+const INTRO_FRAME_YAW_RATE := 2.0
+const INTRO_FRAME_PITCH_RATE := 2.0
+const INTRO_PULLBACK_ZOOM := 2.4
+const INTRO_PITCH := deg_to_rad(18.0)
+var _intro_active := false
+var _intro_timer := 0.0
+var _intro_target: Node3D
+var _saved_intro_zoom := 0.0
+
+## `VS-09`: the two other set-piece framings the plan asked for alongside the boss intro --
+## an execution pulls the camera in tight for the kill, a reveal turns to look at what just
+## opened. Both are short, skippable-by-timeout, and never touch player control outside the window
+## the caller already owns (i-frames for an execution, a beat after a gate opens for a reveal).
+const EXECUTION_PULL_ZOOM := -1.0
+const EXECUTION_ORBIT_RATE := deg_to_rad(14.0)
+const EXECUTION_FRAME_RATE := 5.0
+const EXECUTION_PITCH := deg_to_rad(10.0)
+var _execution_active := false
+var _execution_timer := 0.0
+var _execution_target: Node3D
+var _saved_execution_zoom := 0.0
+
+const REVEAL_FRAME_RATE := 3.0
+var _reveal_active := false
+var _reveal_timer := 0.0
+var _reveal_point := Vector3.ZERO
 
 
 ## The SpringArm3D's own transform must only ever be written from `_physics_process`. With 3D
@@ -130,6 +171,18 @@ func _unhandled_input(event: InputEvent) -> void:
 
 
 func _physics_process(delta: float) -> void:
+	if _intro_active:
+		_update_intro_framing(delta)
+		_update_arm_length(delta)
+		return
+	if _execution_active:
+		_update_execution_framing(delta)
+		_update_arm_length(delta)
+		return
+	if _reveal_active:
+		_update_reveal_framing(delta)
+		_update_arm_length(delta)
+		return
 	if _pending_mouse_yaw != 0.0 or _pending_mouse_pitch != 0.0:
 		_apply_look(_pending_mouse_yaw, _pending_mouse_pitch)
 		_pending_mouse_yaw = 0.0
@@ -148,6 +201,7 @@ func _physics_process(delta: float) -> void:
 				var sens := _stick_sensitivity() * curved
 				_apply_look(-direction.x * sens * delta, direction.y * sens * delta)
 	_update_mode_blend(delta)
+	_update_aim_blend(delta)
 	_update_arm_length(delta)
 
 
@@ -165,11 +219,23 @@ func _update_mode_blend(delta: float) -> void:
 	_reclamp_pitch()
 
 
+func _update_aim_blend(delta: float) -> void:
+	var target := 1.0 if _aim_active else 0.0
+	_aim_blend = move_toward(_aim_blend, target, AIM_BLEND_RATE * delta)
+
+
+## `RG-01`: parallel to `set_lock_on_active` -- a separate flag rather than a second camera mode,
+## so aiming while locked on stacks its dolly/FOV pull on top of lock-on's own.
+func set_aim_active(active: bool) -> void:
+	_aim_active = active
+
+
 func _update_arm_length(delta: float) -> void:
 	var ideal := lerpf(_target_zoom, FIRST_PERSON_LENGTH, _fp_blend)
 	if _death_framing:
 		ideal += DEATH_FRAMING_DOLLY
 	ideal += _lock_dolly
+	ideal += _aim_blend * AIM_DOLLY
 	# Smoothed toward the *desired* length, never toward `get_hit_length()`. That reports the last
 	# completed query, which ran with the previous `spring_length`, so feeding it back makes the
 	# shortened value the new ceiling — a one-way ratchet the arm can never climb out of.
@@ -469,7 +535,9 @@ func _update_body_visibility() -> void:
 func _apply_shoulder_offset(delta: float) -> void:
 	if _camera == null:
 		return
-	var target := 0.0 if _fp_blend > 0.99 or _lock_on_active else SHOULDER_OFFSET_X
+	var target := 0.0 if _fp_blend > 0.99 or _lock_on_active else (
+		SHOULDER_OFFSET_X + _aim_blend * AIM_SHOULDER_EXTRA
+	)
 	# Held as a value only, folded into the camera's `h_offset` by
 	# `_apply_camera_effects_transform`. Writing `_camera.position.x` instead does not survive: the
 	# spring arm owns its child's position and rewrites it every physics tick.
@@ -480,6 +548,7 @@ func _apply_camera_optics() -> void:
 	if _camera == null:
 		return
 	var fov := lerpf(_third_person_fov(), _first_person_fov(), _fp_blend) - _fov_kick
+	fov -= _aim_blend * AIM_FOV_REDUCTION_DEG
 	fov += _sprint_fov * SPRINT_FOV_GAIN
 	_camera.fov = fov
 	var near := lerpf(THIRD_PERSON_NEAR, FIRST_PERSON_NEAR, _fp_blend)
@@ -560,3 +629,138 @@ func _break_player_lock() -> void:
 	var lock_on := body.get_node_or_null("LockOn")
 	if lock_on and lock_on.has_method("break_lock"):
 		lock_on.call("break_lock")
+
+
+## `BS-02`: pulls back and slow-orbits to frame `target` for `duration` seconds, then restores
+## normal control on its own. The caller is responsible for blocking player camera/movement input
+## for the same window (via `PlayerInput.block_groups`) and for cutting the sequence short with
+## `skip_intro_framing()` on a skip -- this coroutine does not know about skip input itself.
+func play_intro_framing(target: Node3D, duration: float) -> void:
+	if target == null or _yaw_pivot == null:
+		return
+	_intro_target = target
+	_intro_timer = 0.0
+	_saved_intro_zoom = _target_zoom
+	_target_zoom = _target_zoom + INTRO_PULLBACK_ZOOM
+	_intro_active = true
+	await get_tree().create_timer(maxf(0.1, duration)).timeout
+	if is_instance_valid(self):
+		_end_intro_framing()
+
+
+func skip_intro_framing() -> void:
+	if not _intro_active:
+		return
+	_end_intro_framing()
+
+
+func is_intro_framing_active() -> bool:
+	return _intro_active
+
+
+func _end_intro_framing() -> void:
+	_intro_active = false
+	_intro_target = null
+	_target_zoom = _saved_intro_zoom
+
+
+func _update_intro_framing(delta: float) -> void:
+	_intro_timer += delta
+	if _intro_target == null or not is_instance_valid(_intro_target) or _yaw_pivot == null:
+		return
+	var to_target := _intro_target.global_position - _yaw_pivot.global_position
+	var flat := Vector3(to_target.x, 0.0, to_target.z)
+	if flat.length_squared() > 0.0001:
+		flat = flat.normalized()
+		# Slow continuous drift layered on top of the facing so the shot reads as an orbit rather
+		# than a static lock -- the plan's whole complaint is that the camera does not move.
+		var target_yaw := _yaw_for_look_direction(flat, false) + _intro_timer * INTRO_ORBIT_RATE
+		var yaw_blend := clampf(delta * INTRO_FRAME_YAW_RATE, 0.0, 1.0)
+		_yaw_pivot.rotation.y = lerp_angle(_yaw_pivot.rotation.y, target_yaw, yaw_blend)
+	var pitch_blend := clampf(delta * INTRO_FRAME_PITCH_RATE, 0.0, 1.0)
+	_pitch = lerpf(_pitch, INTRO_PITCH, pitch_blend)
+	rotation.x = _pitch
+
+
+## `VS-09`: 0.6s, pulls in and orbits slightly around the kill -- called during the execution's own
+## i-frames, so it never costs the player control they'd otherwise be spending.
+func play_execution_framing(target: Node3D) -> void:
+	if target == null or _yaw_pivot == null:
+		return
+	_execution_target = target
+	_execution_timer = 0.0
+	_saved_execution_zoom = _target_zoom
+	_target_zoom = clampf(_target_zoom + EXECUTION_PULL_ZOOM, MIN_ZOOM, MAX_ZOOM)
+	_execution_active = true
+	await get_tree().create_timer(0.6).timeout
+	if is_instance_valid(self):
+		_end_execution_framing()
+
+
+func is_execution_framing_active() -> bool:
+	return _execution_active
+
+
+func _end_execution_framing() -> void:
+	_execution_active = false
+	_execution_target = null
+	_target_zoom = _saved_execution_zoom
+
+
+func _update_execution_framing(delta: float) -> void:
+	_execution_timer += delta
+	if _execution_target == null or not is_instance_valid(_execution_target) or _yaw_pivot == null:
+		return
+	var to_target := _execution_target.global_position - _yaw_pivot.global_position
+	var flat := Vector3(to_target.x, 0.0, to_target.z)
+	if flat.length_squared() > 0.0001:
+		flat = flat.normalized()
+		var target_yaw := (
+			_yaw_for_look_direction(flat, false) + _execution_timer * EXECUTION_ORBIT_RATE
+		)
+		var yaw_blend := clampf(delta * EXECUTION_FRAME_RATE, 0.0, 1.0)
+		_yaw_pivot.rotation.y = lerp_angle(_yaw_pivot.rotation.y, target_yaw, yaw_blend)
+	var pitch_blend := clampf(delta * EXECUTION_FRAME_RATE, 0.0, 1.0)
+	_pitch = lerpf(_pitch, EXECUTION_PITCH, pitch_blend)
+	rotation.x = _pitch
+
+
+## `VS-09`: 0.8s, turns to look at a world point -- a secret found or a gate that just opened.
+## Takes a `Vector3` rather than a `Node3D` on purpose: the thing being revealed is often not a
+## node at all (a wall panel's world position, a socket transform).
+func play_reveal_framing(point: Vector3) -> void:
+	if _yaw_pivot == null:
+		return
+	_reveal_point = point
+	_reveal_timer = 0.0
+	_reveal_active = true
+	await get_tree().create_timer(0.8).timeout
+	if is_instance_valid(self):
+		_end_reveal_framing()
+
+
+func is_reveal_framing_active() -> bool:
+	return _reveal_active
+
+
+func _end_reveal_framing() -> void:
+	_reveal_active = false
+
+
+func _update_reveal_framing(delta: float) -> void:
+	_reveal_timer += delta
+	if _yaw_pivot == null:
+		return
+	var to_point := _reveal_point - _yaw_pivot.global_position
+	var flat := Vector3(to_point.x, 0.0, to_point.z)
+	if flat.length_squared() > 0.0001:
+		flat = flat.normalized()
+		var target_yaw := _yaw_for_look_direction(flat, false)
+		var yaw_blend := clampf(delta * REVEAL_FRAME_RATE, 0.0, 1.0)
+		_yaw_pivot.rotation.y = lerp_angle(_yaw_pivot.rotation.y, target_yaw, yaw_blend)
+	var to_point_pitch := to_point.y
+	var horiz_dist := Vector3(to_point.x, 0.0, to_point.z).length()
+	var wanted_pitch := clampf(atan2(to_point_pitch, maxf(0.5, horiz_dist)), _min_pitch(), _max_pitch())
+	var pitch_blend := clampf(delta * REVEAL_FRAME_RATE, 0.0, 1.0)
+	_pitch = lerpf(_pitch, wanted_pitch, pitch_blend)
+	rotation.x = _pitch

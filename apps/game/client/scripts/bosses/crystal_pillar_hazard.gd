@@ -15,9 +15,19 @@ func _build_visual() -> void:
 	DioramaSkin.build_crystal_pillar(self)
 
 
+## `BS-04`: colourblind mode now remaps this the same way it remaps every other hazard telegraph
+## (see `arena_hazard._telegraph_tint()`), rather than keeping a hardcoded blue that never changed.
 func _telegraph_tint() -> Color:
+	if AccessibilitySettings.colorblind_mode != "default":
+		var tint := AccessibilitySettings.get_telegraph_class_color(HAZARD_ATTACK_CLASS)
+		tint.a = 0.5
+		return tint
 	return Color(0.4, 0.7, 1, 0.5)
 
 
 func _active_tint() -> Color:
+	if AccessibilitySettings.colorblind_mode != "default":
+		var tint := AccessibilitySettings.get_telegraph_class_color(HAZARD_ATTACK_CLASS)
+		tint.a = 0.9
+		return tint
 	return Color(0.5, 0.85, 1, 0.9)

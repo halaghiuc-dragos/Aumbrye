@@ -35,6 +35,11 @@ uniform float rim_strength : hint_range(0.0, 1.0) = 0.08;
 instance uniform float flash_amount : hint_range(0.0, 1.0) = 0.0;
 instance uniform vec3 flash_color : source_color = vec3(1.0);
 instance uniform float flash_emission : hint_range(0.0, 4.0) = 0.0;
+// Persistent counterpart to the flash_* triad above: `MaterialFlash.set_persistent_glow()` drives
+// this one and never tweens it back to zero, so a boss phase's glow survives the hit-flashes that
+// keep resetting `flash_amount` mid-fight.
+instance uniform float phase_glow_energy : hint_range(0.0, 4.0) = 0.0;
+instance uniform vec3 phase_glow_color : source_color = vec3(1.0);
 instance uniform float dissolve_clip : hint_range(0.0, 1.0) = 1.0;
 instance uniform vec3 dissolve_origin = vec3(0.0);
 instance uniform vec3 dissolve_dir = vec3(0.0, 1.0, 0.0);
@@ -286,6 +291,7 @@ void fragment() {
 
 	col = mix(col, flash_color, flash_amount);
 	EMISSION += flash_color * flash_amount * flash_emission;
+	EMISSION += phase_glow_color * phase_glow_energy;
 
 	// Wet ground. Two things happen to stone in the rain and both matter more than any reflection:
 	// it goes darker, and it stops being uniformly matt. Puddles are the second one — the pattern

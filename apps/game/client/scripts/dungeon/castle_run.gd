@@ -7,6 +7,7 @@ const BUILDER_SCRIPT := preload("res://scripts/dungeon/dungeon_builder.gd")
 const BOSS_ROOM_ID := "boss"
 const BOSS_GATE_DEPTH_THRESHOLD := 4.0
 const BossIntroScript := preload("res://scripts/ui/boss_intro_ui.gd")
+const ToastScene: PackedScene = preload("res://scenes/ui/achievement_toast.tscn")
 const EpilogueCardScript := preload("res://scripts/ui/epilogue_card.gd")
 const RelicOfferUIScript := preload("res://scripts/ui/relic_offer_ui.gd")
 const StairMenuScript := preload("res://scripts/ui/stair_menu.gd")
@@ -29,6 +30,16 @@ var _relic_offer: Control
 var _stair_menu: Control
 var _boss_intro_shown := false
 var _dungeon_def: Dictionary = {}
+## `BS-02`: the boss-entrance set piece -- camera pulls back to frame the boss, the fog gate seals
+## behind the player, phase 1's telegraph flashes, all skippable on any input after 0.6s.
+const BOSS_INTRO_DURATION := 2.6
+const BOSS_INTRO_SKIP_AFTER := 0.6
+const BOSS_INTRO_BLOCKED_GROUPS := [
+	PlayerInput.Group.MOVEMENT, PlayerInput.Group.COMBAT, PlayerInput.Group.CAMERA
+]
+var _boss_intro_active := false
+var _boss_intro_skip_requested := false
+var _boss_intro_elapsed := 0.0
 const SNAPSHOT_DEBOUNCE_SEC := 2.0
 const PIT_DAMAGE_FRACTION := 0.1
 const PIT_RECOVERY_MARGIN := 8.0
@@ -57,6 +68,7 @@ func _ready() -> void:
 		player_process_mode = _player.process_mode
 		_player.process_mode = Node.PROCESS_MODE_DISABLED
 	SceneTransition.claim(get_tree(), "Building the floor...")
+	SceneTransition.set_flavor_lines(get_tree(), _build_loading_flavor_lines(def))
 	var report_build := func(ratio: float) -> void:
 		SceneTransition.report_progress(get_tree(), ratio)
 	if not _builder.build_progress.is_connected(report_build):
@@ -104,6 +116,29 @@ func _ready() -> void:
 		call_deferred("_offer_opening_umbral")
 
 
+## UX-06: the floor-load overlay is free reading time -- everything here is already computed by
+## the generator or the dungeon catalog, just never surfaced during the ~0.2-1s a load spends in
+## LocalProcgen's salt retries (`RM-12`).
+func _build_loading_flavor_lines(def: Dictionary) -> Array:
+	var lines: Array = []
+	var biome_id := BiomeRegistry.resolve_biome_id(def)
+	var biome_name := BiomeRegistry.get_display_name(biome_id)
+	if RunFlow.get_run_mode() == "endless":
+		lines.append("%s — Depth %d" % [biome_name, RunFlow.get_current_floor()])
+	else:
+		lines.append("%s — Floor %d" % [biome_name, RunFlow.get_current_floor()])
+	var theme_label := str(def.get("floorThemeLabel", ""))
+	if theme_label != "":
+		lines.append(theme_label)
+	var tier_data := DungeonCatalog.get_difficulty_tier_data(
+		RunFlow.current_dungeon_id, RunFlow.current_difficulty_tier
+	)
+	var tier_description := str(tier_data.get("description", ""))
+	if tier_description != "":
+		lines.append(tier_description)
+	return lines
+
+
 func _apply_biome_presentation(def: Dictionary) -> void:
 	var biome_id := BiomeRegistry.resolve_biome_id(def)
 	BiomeRegistry.apply_run_presentation(self, biome_id, RunFlow.get_run_mode())
@@ -136,6 +171,19 @@ func _resolve_dungeon_definition() -> Dictionary:
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_WM_CLOSE_REQUEST:
 		_persist_snapshot()
+
+
+## `BS-02`: raw engine input, not `PlayerInput.just_pressed` -- the whole point is that this still
+## fires while `PlayerInput` gameplay groups are blocked for the intro.
+func _unhandled_input(event: InputEvent) -> void:
+	if not _boss_intro_active or _boss_intro_elapsed < BOSS_INTRO_SKIP_AFTER:
+		return
+	if not (event is InputEventKey or event is InputEventMouseButton or event is InputEventJoypadButton):
+		return
+	if not event.is_pressed():
+		return
+	_boss_intro_skip_requested = true
+	get_viewport().set_input_as_handled()
 
 
 func _physics_process(_delta: float) -> void:
@@ -186,6 +234,29 @@ func _wire_run_ui(def: Dictionary) -> void:
 	add_child(_relic_offer)
 	_stair_menu = StairMenuScript.new()
 	add_child(_stair_menu)
+	# AD-04: a bounty finishing used to surface only at the results screen -- shown the moment it
+	# happens instead, through the same warning banner other run-level events already use.
+	if QuestService and not QuestService.quest_updated.is_connected(_on_quest_updated):
+		QuestService.quest_updated.connect(_on_quest_updated)
+	# SY-02: a quest's counter moving used to produce no feedback at all mid-run.
+	if QuestService and not QuestService.quest_progress_advanced.is_connected(_on_quest_progress_advanced):
+		QuestService.quest_progress_advanced.connect(_on_quest_progress_advanced)
+
+
+func _on_quest_updated(quest_id: String, _state: String) -> void:
+	if not BountyService.is_bounty(quest_id):
+		return
+	var def := QuestCatalog.get_definition(quest_id)
+	if _hud and _hud.has_method("show_run_warning"):
+		_hud.call("show_run_warning", tr("HUD_BOUNTY_COMPLETE").format({"name": str(def.get("title", quest_id))}))
+
+
+func _on_quest_progress_advanced(quest_id: String, count: int, required: int) -> void:
+	var def := QuestCatalog.get_definition(quest_id)
+	var toast := ToastScene.instantiate()
+	if toast.has_method("show_quest_progress"):
+		get_tree().root.add_child(toast)
+		toast.show_quest_progress(str(def.get("title", quest_id)), count, required)
 
 
 func _show_respawn_outcome_if_needed() -> void:
@@ -211,19 +282,80 @@ func _notify_room(room_id: String) -> void:
 	_update_objective_text(room_id)
 	if _builder and _builder.has_method("wake_ambushers"):
 		_builder.call("wake_ambushers", room_id)
+	_maybe_bind_miniboss_bar(room_id)
 	if room_id == BOSS_ROOM_ID and not _boss_intro_shown:
 		_boss_intro_shown = true
 		var boss_placement: Variant = _dungeon_def.get("placements", {}).get("boss", {})
 		var boss_id := "boss_castle_knight"
 		if boss_placement is Dictionary:
 			boss_id = str(boss_placement.get("enemyId", boss_id))
-		if _boss_intro and _boss_intro.has_method("show_intro"):
-			_boss_intro.call("show_intro", boss_id)
-		AudioDirector.play_stinger("boss_reveal")
-		if _hud and _hud.has_method("bind_boss") and _builder and _builder.has_method("get_boss"):
-			var boss: Node = _builder.get_boss()
-			if boss:
-				_hud.call("bind_boss", boss)
+		var boss: Node = null
+		if _builder and _builder.has_method("get_boss"):
+			boss = _builder.get_boss()
+		if _hud and _hud.has_method("bind_boss") and boss:
+			_hud.call("bind_boss", boss)
+		_play_boss_intro_sequence(boss_id, boss)
+
+
+## `BS-02`: camera pulls back and orbits to frame the boss, the fog gate seals behind the player,
+## and phase 1's telegraph flashes -- all under `BOSS_INTRO_DURATION` and skippable on any input
+## after `BOSS_INTRO_SKIP_AFTER`.
+func _play_boss_intro_sequence(boss_id: String, boss: Node) -> void:
+	_boss_intro_active = true
+	_boss_intro_elapsed = 0.0
+	_boss_intro_skip_requested = false
+	if _boss_intro and _boss_intro.has_method("show_intro"):
+		_boss_intro.call("show_intro", boss_id, BOSS_INTRO_DURATION)
+	AudioDirector.play_stinger("boss_reveal")
+	if _boss_door and _boss_door.has_method("is_opened") and _boss_door.has_method("is_sealed"):
+		if _boss_door.call("is_opened") and not _boss_door.call("is_sealed"):
+			_boss_door.call("seal_door")
+			_persist_snapshot()
+	PlayerInput.block_groups(BOSS_INTRO_BLOCKED_GROUPS)
+	var camera := _find_orbit_camera()
+	var boss_node := boss as Node3D
+	if camera and boss_node and camera.has_method("play_intro_framing"):
+		camera.call("play_intro_framing", boss_node, BOSS_INTRO_DURATION)
+	if boss and boss.has_method("play_intro_telegraph"):
+		boss.call("play_intro_telegraph")
+	while _boss_intro_elapsed < BOSS_INTRO_DURATION and not _boss_intro_skip_requested:
+		await get_tree().process_frame
+		if not is_instance_valid(self):
+			return
+		_boss_intro_elapsed += get_process_delta_time()
+	_end_boss_intro_sequence(camera)
+
+
+func _end_boss_intro_sequence(camera: Node) -> void:
+	if not _boss_intro_active:
+		return
+	_boss_intro_active = false
+	PlayerInput.unblock_groups(BOSS_INTRO_BLOCKED_GROUPS)
+	if _boss_intro and _boss_intro.has_method("skip_intro"):
+		_boss_intro.call("skip_intro")
+	if camera and is_instance_valid(camera) and camera.has_method("skip_intro_framing"):
+		camera.call("skip_intro_framing")
+
+
+func _find_orbit_camera() -> Node:
+	if _player == null:
+		return null
+	return _player.get_node_or_null("CameraPivot/SpringArm3D")
+
+
+## `BS-06`: binds the miniboss's smaller, pip-less bar (`HD-01`'s boss-bar path with `is_miniboss`)
+## the moment the player walks into its room -- `combat_hud.bind_boss` unbinds itself on the
+## miniboss's own `enemy_died`, so there is nothing to unwind here on the way out.
+func _maybe_bind_miniboss_bar(room_id: String) -> void:
+	if _builder == null or not _builder.has_method("get_miniboss"):
+		return
+	if _builder.call("get_miniboss_room_id") != room_id:
+		return
+	var miniboss: Node = _builder.call("get_miniboss")
+	if miniboss == null or not is_instance_valid(miniboss):
+		return
+	if _hud and _hud.has_method("bind_boss"):
+		_hud.call("bind_boss", miniboss, true)
 
 
 func _update_branch_previews(room_id: String) -> void:
@@ -252,6 +384,10 @@ func _announce_floor_entry(def: Dictionary) -> void:
 		)
 	if CombatEvents and _player:
 		CombatEvents.dispatch(CombatEvents.ON_FLOOR_ENTER, {"actor": _player})
+	if _hud and _hud.has_method("set_floor_modifiers"):
+		_hud.call(
+			"set_floor_modifiers", str(def.get("floorThemeLabel", "")), RunModifierService.active_modifiers()
+		)
 	if _hud == null or not _hud.has_method("show_region_title"):
 		return
 	if RunFlow.get_run_mode() == "endless":
@@ -749,6 +885,14 @@ func _offer_opening_umbral() -> void:
 	_relic_offer.call("open_offer", "umbral:%d:%d" % [RunFlow.current_seed, block])
 
 
+func _offer_boss_relic() -> void:
+	if _relic_offer == null or not is_instance_valid(_relic_offer):
+		return
+	if not _relic_offer.has_method("open_offer"):
+		return
+	_relic_offer.call("open_offer", "boss:%d:%d" % [RunFlow.current_seed, RunFlow.get_current_floor()])
+
+
 func _on_boss_defeated() -> void:
 	_boss_defeated = true
 	if _hud and _hud.has_method("unbind_boss"):
@@ -762,6 +906,10 @@ func _on_boss_defeated() -> void:
 	# shelves on every reload would turn a three-potion stock into an unlimited one.
 	BossRewardHallScript.restock_for_floor()
 	_open_boss_reward_hall()
+	# AD-02: a build-defining choice used to arrive once every ten floors -- every boss now offers
+	# one too, on top of that block-opening one, so a tier-1 run's floor bosses alone add several
+	# more decisions across the run.
+	call_deferred("_offer_boss_relic")
 
 
 ## Puts the merchant and the way home into the boss room once the boss is down.
@@ -785,23 +933,59 @@ func _open_boss_reward_hall() -> void:
 	if RunFlow.is_final_floor() and RunFlow.get_run_mode() == "castle":
 		CharacterService.set_flag("story_completed", true)
 		if _epilogue_card and _epilogue_card.has_method("show_epilogue"):
-			await (
-				_epilogue_card
-				. call(
-					"show_epilogue",
-					(
-						"The Forgotten Sovereign falls. The tower's reset slows — for one breath the oath is fulfilled. "
-						+ "Your umbral endures in Aumbrye Tower until the next summons."
-					)
-				)
+			await _epilogue_card.call("show_epilogue", _build_epilogue_text())
+
+
+## `BS-07`: names what changed, not just that the tier ended -- the dungeon's own closing line
+## (one per dungeon, `EPILOGUE_<DUNGEON_ID>`, falling back to `EPILOGUE_DEFAULT` for a dungeon that
+## has not been authored one), plus every fact this exact clear opens: the vault entry, the next
+## difficulty tier, the next biome. Every fact below is read, never mutated -- `DungeonTierService`
+## and `VaultService` still apply their own state changes on their existing schedule
+## (`RunFlow._on_run_escaped` / `run_flow.gd:897`), this only predicts what that schedule is about
+## to do so the card can say it a beat earlier, at the kill that actually earned it.
+func _build_epilogue_text() -> String:
+	var dungeon_id := RunFlow.current_dungeon_id
+	var key := "EPILOGUE_%s" % dungeon_id.to_upper()
+	var body := tr(key)
+	if body == key:
+		body = tr("EPILOGUE_DEFAULT").format({"dungeon": DungeonCatalog.get_display_name(dungeon_id)})
+	var facts: Array[String] = []
+	var cleared_order := DungeonCatalog.get_order_for_dungeon(dungeon_id)
+	if cleared_order >= DungeonTierService.get_max_unlocked_tier():
+		var next_id := _dungeon_id_for_order(cleared_order + 1)
+		if next_id != "":
+			facts.append(
+				tr("EPILOGUE_FACT_BIOME").format({"biome": DungeonCatalog.get_display_name(next_id)})
 			)
+	var difficulty_tier := RunFlow.get_difficulty_tier()
+	if difficulty_tier >= DungeonTierService.get_unlocked_difficulty_cap(dungeon_id):
+		var next_tier := mini(difficulty_tier + 1, DungeonCatalog.max_difficulty_tier(dungeon_id))
+		if next_tier > difficulty_tier:
+			var tier_data := DungeonCatalog.get_difficulty_tier_data(dungeon_id, next_tier)
+			facts.append(tr("EPILOGUE_FACT_TIER").format({"label": str(tier_data.get("label", ""))}))
+	for entry in VaultService.evaluate():
+		facts.append(tr("EPILOGUE_FACT_VAULT").format({"name": str(entry.get("name", ""))}))
+	if not facts.is_empty():
+		body += "\n\n" + "\n".join(facts)
+	return body
+
+
+func _dungeon_id_for_order(order: int) -> String:
+	for id in DungeonCatalog.all_dungeon_ids():
+		if DungeonCatalog.get_order_for_dungeon(id) == order:
+			return id
+	return ""
 
 
 func _on_player_died() -> void:
 	if _boss_door:
 		_boss_door.call("release_door")
+	var recap: Dictionary = {}
+	var reactions := _player.get_node_or_null("CombatReactions") if _player else null
+	if reactions is PlayerCombatReactions:
+		recap = (reactions as PlayerCombatReactions).death_recap
 	await get_tree().create_timer(1.5).timeout
-	RunFlow.on_player_died()
+	RunFlow.on_player_died(recap)
 
 
 func _should_persist_snapshot() -> bool:

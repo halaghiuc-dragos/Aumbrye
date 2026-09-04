@@ -197,7 +197,16 @@ static func build_cannon(parent: Node3D, biome_id: String) -> Node3D:
 	return root
 
 
-static func build_boss_door_frame(parent: Node3D, biome_id: String) -> Node3D:
+## `BS-05`: the requirement reads as icons on the frame, not only in the interact prompt's text --
+## a tinted keyhole inset per required lock (the same read `build_locked_door_frame()` already
+## gives an ordinary locked door, so a red/blue/yellow icon here means what it means everywhere
+## else on the floor) or one diamond sigil icon for the sigil requirement. The two frame torches
+## double as "the light behind you" that `boss_room_door.gd` dims on `seal_door()` and relights on
+## `release_door()` -- named so a caller can find them by `get_node_or_null()` without this
+## function needing to hand back anything but the usual visual root.
+static func build_boss_door_frame(
+	parent: Node3D, biome_id: String, requirement: String = "none", lock_key_ids: Array = []
+) -> Node3D:
 	_remove_visual(parent)
 	var root := _make_root(parent)
 	root.name = "DoorFrameVisual"
@@ -208,7 +217,47 @@ static func build_boss_door_frame(parent: Node3D, biome_id: String) -> Node3D:
 	_add_box(root, Vector3(0.4, 4.2, 0.4), wall, Vector3(2.6, 2.1, 0.0))
 	_add_box(root, Vector3(5.6, 0.4, 0.4), wall, Vector3(0.0, 4.2, 0.0))
 	_add_box(root, Vector3(4.8, 0.15, 0.15), accent, Vector3(0.0, 2.1, -0.1))
+	for side in [-1.0, 1.0]:
+		var torch := OmniLight3D.new()
+		torch.name = "FrameTorch%s" % ("R" if side > 0.0 else "L")
+		torch.light_color = Color(1.0, 0.68, 0.32)
+		torch.light_energy = 0.85
+		torch.omni_range = 4.5
+		torch.shadow_enabled = false
+		torch.position = Vector3(side * 2.6, 2.6, 0.3)
+		torch.add_to_group(NightLights.GROUP)
+		root.add_child(torch)
+	_build_boss_door_requirement_icons(root, requirement, lock_key_ids)
 	return root
+
+
+static func _build_boss_door_requirement_icons(
+	root: Node3D, requirement: String, lock_key_ids: Array
+) -> void:
+	if requirement == "sigil":
+		var sigil := _add_box(
+			root,
+			Vector3(0.36, 0.36, 0.1),
+			PixelStyle.make_glow_material(Color(0.95, 0.8, 0.3), Color(0.6, 0.48, 0.15), 1.4),
+			Vector3(0.0, 4.55, 0.0)
+		)
+		sigil.rotation.z = PI * 0.25
+		return
+	if requirement != "all_keys" or lock_key_ids.is_empty():
+		return
+	var count := lock_key_ids.size()
+	var spacing := 0.5
+	var start_x := -float(count - 1) * spacing * 0.5
+	for i in count:
+		var tint := FloorKeyring.tint_for(str(lock_key_ids[i]))
+		if tint == Color.WHITE:
+			tint = Color(0.85, 0.75, 0.4)
+		_add_box(
+			root,
+			Vector3(0.3, 0.3, 0.1),
+			PixelStyle.make_glow_material(tint, tint * 0.6, 1.4),
+			Vector3(start_x + float(i) * spacing, 4.55, 0.0)
+		)
 
 
 ## RM-05: a locked door reads as a door -- two jambs, a lintel, and a keyhole-sized emissive inset
