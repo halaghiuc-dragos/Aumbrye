@@ -14,6 +14,10 @@ const StairMenuScript := preload("res://scripts/ui/stair_menu.gd")
 const CharacterFloorSnapScript := preload("res://scripts/art/characters/character_floor_snap.gd")
 const XpShardPickupScript := preload("res://scripts/progression/xp_shard_pickup.gd")
 const PixelStyle := preload("res://scripts/art/style/pixel_diorama_style.gd")
+const RainFieldScript := preload("res://scripts/art/world/rain_field.gd")
+## `SY-08`: the courtyard room kind exists in every biome's catalog and is the one place a dungeon
+## floor is meant to read as outdoors -- see `_update_outdoor_lighting()`.
+const COURTYARD_RAIN_EXTENT := 12.0
 
 @export var player_path: NodePath = NodePath("Player")
 @export var hud_path: NodePath = NodePath("CombatHUD")
@@ -47,6 +51,8 @@ var _snapshot_dirty := false
 var _snapshot_timer := 0.0
 var _lowest_room_y := 0.0
 var _room_neighbors: Dictionary = {}
+var _outdoor_room := false
+var _courtyard_rain: Node3D
 
 
 func _ready() -> void:
@@ -272,6 +278,7 @@ func _show_respawn_outcome_if_needed() -> void:
 func _notify_room(room_id: String) -> void:
 	if room_id == "":
 		return
+	_update_outdoor_lighting(room_id)
 	if _hud:
 		if _hud.has_method("mark_room_visited"):
 			_hud.call("mark_room_visited", room_id)
@@ -295,6 +302,57 @@ func _notify_room(room_id: String) -> void:
 		if _hud and _hud.has_method("bind_boss") and boss:
 			_hud.call("bind_boss", boss)
 		_play_boss_intro_sequence(boss_id, boss)
+
+
+## `SY-08`: every biome's room catalog carries a `courtyard` kind, but a dungeon floor never applies
+## weather or time of day -- both systems only ever ran in the hub and the waves arena. Reuses the
+## exact same `VisualLighting`/`WeatherService` calls those two already use (see `hub.gd:_attach_weather()`
+## and `BiomeRegistry.apply_run_presentation()`'s `"hub"` profile) rather than authoring a third path.
+func _update_outdoor_lighting(room_id: String) -> void:
+	if not RunModeConfig.is_multi_floor(RunFlow.get_run_mode()) or _builder == null:
+		return
+	var room := _builder.get_room(room_id)
+	var is_courtyard := room != null and room.room_kind == "courtyard"
+	if is_courtyard == _outdoor_room:
+		return
+	_outdoor_room = is_courtyard
+	if is_courtyard:
+		_enter_outdoor_room()
+	else:
+		_exit_outdoor_room()
+
+
+func _enter_outdoor_room() -> void:
+	VisualLighting.apply_profile(self, "hub")
+	VisualLighting.attach_atmosphere(self, "hub")
+	var sun := get_node_or_null("DirectionalLight3D") as DirectionalLight3D
+	if sun:
+		sun.visible = true
+	WeatherService.set_outdoors(true)
+	if _player and _courtyard_rain == null:
+		_courtyard_rain = Node3D.new()
+		_courtyard_rain.set_script(RainFieldScript)
+		add_child(_courtyard_rain)
+		_courtyard_rain.call("set_floor_extent", COURTYARD_RAIN_EXTENT, COURTYARD_RAIN_EXTENT)
+		_courtyard_rain.call("setup", _player)
+
+
+func _exit_outdoor_room() -> void:
+	var interior_profile := VisualLighting.profile_for_biome(BiomeRegistry.resolve_biome_id(_dungeon_def))
+	VisualLighting.apply_profile(self, interior_profile)
+	VisualLighting.attach_atmosphere(self, interior_profile)
+	var sun := get_node_or_null("DirectionalLight3D") as DirectionalLight3D
+	if sun:
+		sun.visible = false
+	WeatherService.set_outdoors(false)
+	if _courtyard_rain and is_instance_valid(_courtyard_rain):
+		_courtyard_rain.queue_free()
+	_courtyard_rain = null
+
+
+func _exit_tree() -> void:
+	if _outdoor_room:
+		WeatherService.set_outdoors(false)
 
 
 ## `BS-02`: camera pulls back and orbits to frame the boss, the fog gate seals behind the player,

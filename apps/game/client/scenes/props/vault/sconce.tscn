@@ -1,3 +1,23 @@
-[gd_scene format=3]
+[gd_scene load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://scripts/props/biome_prop_kit_piece.gd" id="1_script"]
+
+[sub_resource type="BoxMesh" id="BoxMesh_bracket"]
+size = Vector3(0.22, 0.16, 0.28)
+
+[sub_resource type="CylinderMesh" id="CylinderMesh_flame"]
+top_radius = 0.02
+bottom_radius = 0.13
+height = 0.32
 
 [node name="Sconce" type="Node3D"]
+script = ExtResource("1_script")
+biome_id = "iron_vault"
+piece_kind = "sconce"
+
+[node name="Bracket" type="MeshInstance3D" parent="."]
+mesh = SubResource("BoxMesh_bracket")
+
+[node name="Flame" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.22, 0.05)
+mesh = SubResource("CylinderMesh_flame")

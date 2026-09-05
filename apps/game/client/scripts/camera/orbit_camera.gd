@@ -15,9 +15,6 @@ const FIRST_PERSON_FOV := 82.0
 const FIRST_PERSON_NEAR := 0.02
 const THIRD_PERSON_NEAR := 0.05
 const CAMERA_MODE_BLEND_TIME := 0.22
-const SPRINT_FOV_GAIN := 6.0
-const SPRINT_FOV_ATTACK := 2.6
-const SPRINT_FOV_RELEASE := 7.0
 const SHOULDER_OFFSET_X := 0.45
 const SHOULDER_OFFSET_BLEND := 8.0
 const ARM_PULL_IN_RATE := 24.0
@@ -76,7 +73,6 @@ var _landing_dip := 0.0
 var _death_framing := false
 const DEATH_FRAMING_DOLLY := 0.12
 var _fov_kick := 0.0
-var _sprint_fov := 0.0
 
 ## `BS-02`: boss-entrance framing. A separate mode from lock-on -- it drives yaw/pitch/zoom directly
 ## rather than through player look input, and runs while `PlayerInput` camera input is blocked by the
@@ -549,7 +545,6 @@ func _apply_camera_optics() -> void:
 		return
 	var fov := lerpf(_third_person_fov(), _first_person_fov(), _fp_blend) - _fov_kick
 	fov -= _aim_blend * AIM_FOV_REDUCTION_DEG
-	fov += _sprint_fov * SPRINT_FOV_GAIN
 	_camera.fov = fov
 	var near := lerpf(THIRD_PERSON_NEAR, FIRST_PERSON_NEAR, _fp_blend)
 	_camera.near = near
@@ -570,19 +565,6 @@ func _update_camera_effects(delta: float) -> void:
 		_punch_offset = _punch_offset.lerp(Vector3.ZERO, clampf(delta * 12.0, 0.0, 1.0))
 	_landing_dip = lerpf(_landing_dip, 0.0, clampf(delta * 8.0, 0.0, 1.0))
 	_fov_kick = lerpf(_fov_kick, 0.0, clampf(delta * 10.0, 0.0, 1.0))
-	_update_sprint_fov(delta)
-
-
-func _update_sprint_fov(delta: float) -> void:
-	var target := 0.0
-	var body := _get_player_body()
-	if body != null:
-		var loco := body as Node
-		if loco.has_method("get_sprint_blend"):
-			target = clampf(float(loco.call("get_sprint_blend")), 0.0, 1.0)
-	target *= 1.0 - _fp_blend
-	var rate := SPRINT_FOV_ATTACK if target > _sprint_fov else SPRINT_FOV_RELEASE
-	_sprint_fov = lerpf(_sprint_fov, target, clampf(delta * rate, 0.0, 1.0))
 
 
 func _apply_camera_effects_transform() -> void:

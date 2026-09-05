@@ -548,40 +548,55 @@ func apply_equipment_to_player_node(player: Node) -> void:
 	var equip_stats := get_combat_aggregate_stats()
 	var talent_stats := get_talent_stats()
 	var merged_stats := get_equipment_stats()
+	# This whole function reruns on every status apply/remove (`_on_player_statuses_changed`), not
+	# just ones that actually touch a resource-affecting stat -- a bleed stack or a slow debuff
+	# recomputes maxHealth/stamina/poise/mana right along with the stats it does change. Calling
+	# `configure(..., true)` unconditionally rescales `current` by a ratio that is supposed to be
+	# exactly 1.0 on every one of those no-op passes; any float drift in the stat pipeline still
+	# nudges the resource by a fraction of a point, invisible on its own but re-quantised against
+	# the HUD bar's pixel step, so the same amount of real damage could render as a different-sized
+	# drop depending on how many of these incidental recalculations landed since the last hit.
+	# Skipping the call when the target max has not actually moved removes that source of drift
+	# without changing what a genuine max change (levelling, gear, a real buff) does at all.
 	var health := player.get_node_or_null("Health") as Health
 	if health:
 		var bonus_hp: float = CombatStatModifiersScript.soften_health_bonus(
 			float(merged_stats.get("maxHealth", 0.0))
 		)
-		health.configure(Health.MAX_HEALTH + bonus_hp, true)
+		var target_max_health := Health.MAX_HEALTH + bonus_hp
+		if not is_equal_approx(target_max_health, health.max_health):
+			health.configure(target_max_health, true)
 	var stamina := player.get_node_or_null("Stamina") as Stamina
 	if stamina:
 		var max_stamina := (
 			Stamina.MAX_STAMINA
 			+ CombatStatModifiersScript.max_stamina_bonus(equip_stats, talent_stats)
 		)
-		stamina.configure(
-			max_stamina,
-			CombatStatModifiersScript.stamina_regen_multiplier(equip_stats, talent_stats),
-			true
-		)
+		if not is_equal_approx(max_stamina, stamina.max_stamina):
+			stamina.configure(
+				max_stamina,
+				CombatStatModifiersScript.stamina_regen_multiplier(equip_stats, talent_stats),
+				true
+			)
 	var poise := player.get_node_or_null("Poise") as Poise
 	if poise:
 		var max_poise := (
 			Poise.MAX_POISE + CombatStatModifiersScript.max_poise_bonus(equip_stats, talent_stats)
 		)
-		var break_dur := float(get_class_stats().get("poise_break_duration", 1.2))
-		poise.configure(max_poise, break_dur, true)
+		if not is_equal_approx(max_poise, poise.max_poise):
+			var break_dur := float(get_class_stats().get("poise_break_duration", 1.2))
+			poise.configure(max_poise, break_dur, true)
 	var mana := player.get_node_or_null("Mana") as Mana
 	if mana:
 		var max_mana := (
 			Mana.MAX_MANA + CombatStatModifiersScript.max_mana_bonus(equip_stats, talent_stats)
 		)
-		mana.configure(
-			max_mana,
-			CombatStatModifiersScript.mana_regen_multiplier(equip_stats, talent_stats),
-			true
-		)
+		if not is_equal_approx(max_mana, mana.max_mana):
+			mana.configure(
+				max_mana,
+				CombatStatModifiersScript.mana_regen_multiplier(equip_stats, talent_stats),
+				true
+			)
 	var weapon := player.get_node_or_null("WeaponController")
 	if weapon and weapon.has_method("load_weapon_from_path"):
 		weapon.load_weapon_from_path(inventory.get_equipped_weapon_data_path())

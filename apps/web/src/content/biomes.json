@@ -3,5 +3,10 @@
   { "id": "crystal_caverns", "label": "Crystal Caverns" },
   { "id": "poison_swamp", "label": "Poison Swamp" },
   { "id": "frozen_fortress", "label": "Frozen Fortress" },
-  { "id": "dark_cathedral", "label": "Dark Cathedral" }
+  { "id": "dark_cathedral", "label": "Dark Cathedral" },
+  { "id": "glacial_hollow", "label": "Glacial Hollow" },
+  { "id": "iron_vault", "label": "Iron Vault" },
+  { "id": "prism_depths", "label": "Prism Depths" },
+  { "id": "umbral_chapel", "label": "Umbral Chapel" },
+  { "id": "venom_mire", "label": "Venom Mire" }
 ]

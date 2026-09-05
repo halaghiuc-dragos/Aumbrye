@@ -26,7 +26,7 @@
     "cashOutFromWave": { "type": "integer", "minimum": 1 },
     "arenaStates": {
       "type": "array",
-      "items": { "type": "string", "enum": ["open", "dimmed", "hazard", "fog"] }
+      "items": { "type": "string", "enum": ["open", "dimmed", "hazard", "fog", "pillars"] }
     },
     "milestones": {
       "type": "array",

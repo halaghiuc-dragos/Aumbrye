@@ -51,6 +51,7 @@ func _ready() -> void:
 		await _check_scene(path)
 	await _check_built_floors()
 	await _check_hud_matrix()
+	_check_prop_kits()
 	_report()
 	print("SCENE SWEEP RESULT %d failures across %d scenes" % [_failures, _scanned])
 	get_tree().quit(1 if _failures > 0 else 0)
@@ -194,6 +195,76 @@ func _check_hud_matrix() -> void:
 				run_mode, key_row.visible, expect_visible
 			], true)
 	hud.free()
+
+
+## RM-21: `ResourceLoader.exists()` is true for a three-line placeholder scene
+## (`[gd_scene]` / blank / `[node type="Node3D"]`) exactly as much as for a real one -- existence is
+## not content. This walks every biome's `propKit` block (`content/biomes/<id>.json`) and fails any
+## entry whose scene has no `MeshInstance3D` descendant, so a biome that regresses to a stub prop
+## (or ships one from the start) is caught here instead of only being noticed in-game.
+func _check_prop_kits() -> void:
+	for biome_id in BUILT_FLOOR_BIOMES:
+		_scanned += 1
+		var label := "prop_kit:%s" % biome_id
+		if _verbose:
+			print("  .. %s" % label)
+		var kit: Dictionary = BiomeRegistry.get_biome(biome_id).get("propKit", {})
+		if kit.is_empty():
+			_note(label, "prop_kit_missing", "%s has no propKit block" % biome_id, true)
+			continue
+		var paths: Array[String] = []
+		for slot in ["pillar", "sconce"]:
+			var slot_path := str(kit.get(slot, ""))
+			if slot_path != "":
+				paths.append(slot_path)
+		var rubble: Variant = kit.get("rubble", [])
+		if rubble is Array:
+			for entry in rubble:
+				paths.append(str(entry))
+		if paths.is_empty():
+			_note(
+				label,
+				"prop_kit_missing",
+				"%s propKit has no pillar/sconce/rubble paths" % biome_id,
+				true
+			)
+			continue
+		for path in paths:
+			_check_prop_kit_scene(label, path)
+
+
+func _check_prop_kit_scene(label: String, path: String) -> void:
+	if not ResourceLoader.exists(path):
+		_note(label, "prop_kit_no_geometry", "%s does not exist" % path, true)
+		return
+	var packed := load(path) as PackedScene
+	if packed == null:
+		_note(label, "prop_kit_no_geometry", "%s did not load as a PackedScene" % path, true)
+		return
+	var instance := packed.instantiate()
+	if instance == null:
+		_note(label, "prop_kit_no_geometry", "%s failed to instantiate" % path, true)
+		return
+	if not _has_mesh_instance(instance):
+		_note(
+			label,
+			"prop_kit_no_geometry",
+			(
+				"%s has no MeshInstance3D descendant -- propKit entries must carry real geometry, "
+				+ "not a placeholder"
+			) % path,
+			true
+		)
+	instance.free()
+
+
+func _has_mesh_instance(node: Node) -> bool:
+	if node is MeshInstance3D:
+		return true
+	for child in node.get_children():
+		if _has_mesh_instance(child):
+			return true
+	return false
 
 
 func _inspect(path: String, root: Node) -> void:

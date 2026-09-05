@@ -16,9 +16,73 @@ const ROOM_SUFFIXES := [
 
 const PROP_BEVEL_RATIO := 0.16
 
+## RM-21: the corner pillar's procedural fallback height, matched to the authored propKit pillar
+## mesh (`scenes/props/<biome>/pillar.tscn`, a 3.0m-tall CylinderMesh). Callers ask for pillars of
+## varying height (2.2-3.2m across room kinds); when a real propKit pillar is instanced instead of
+## the procedural box, it is Y-scaled by `height / PROP_KIT_PILLAR_HEIGHT` so that variance survives.
+const PROP_KIT_PILLAR_HEIGHT := 3.0
+
 static var _shadow_omni_budget: int = 0
 static var _max_shadow_omnis: int = 2
 static var _torch_flicker: Dictionary = {}
+
+## RM-21: `propKit` scene content, resolved once per biome and cached for the life of the process
+## (this is a hot path -- every prop placement in every room of every floor would otherwise re-load
+## and re-inspect the same handful of .tscn files). Keyed by biome_id -> {"pillar": PackedScene|null,
+## "sconce": PackedScene|null, "rubble": Array[PackedScene]}. A `null` entry means the kit slot is
+## either unset or still the 3-line placeholder scene ("existence is not content" -- `ResourceLoader
+## .exists()` is true for the stub too, so the check loads the scene and requires more than just its
+## root node).
+static var _prop_kit_cache: Dictionary = {}
+
+
+static func _get_prop_kit(biome_id: String) -> Dictionary:
+	if _prop_kit_cache.has(biome_id):
+		return _prop_kit_cache[biome_id]
+	var kit: Dictionary = BiomeRegistry.get_biome(biome_id).get("propKit", {})
+	var rubble_scenes: Array[PackedScene] = []
+	var rubble_paths: Variant = kit.get("rubble", [])
+	if rubble_paths is Array:
+		for raw_path in rubble_paths:
+			var scene := _resolve_prop_kit_scene(str(raw_path))
+			if scene != null:
+				rubble_scenes.append(scene)
+	var resolved := {
+		"pillar": _resolve_prop_kit_scene(str(kit.get("pillar", ""))),
+		"sconce": _resolve_prop_kit_scene(str(kit.get("sconce", ""))),
+		"rubble": rubble_scenes,
+	}
+	_prop_kit_cache[biome_id] = resolved
+	return resolved
+
+
+## True content check: a scene with only its root node (the "[gd_scene]/blank/[node]" placeholder
+## every propKit path pointed at before RM-21) reports `get_node_count() == 1` without needing a
+## full instantiate.
+static func _resolve_prop_kit_scene(path: String) -> PackedScene:
+	if path == "" or not ResourceLoader.exists(path):
+		return null
+	var packed := load(path) as PackedScene
+	if packed == null:
+		return null
+	var state := packed.get_state()
+	if state == null or state.get_node_count() <= 1:
+		return null
+	return packed
+
+
+static func _instance_prop_kit_scene(
+	scene: PackedScene, pos: Vector3, yaw: float, node_name: String, height_scale: float = 1.0
+) -> Node3D:
+	var inst := scene.instantiate() as Node3D
+	if inst == null:
+		return null
+	inst.name = node_name
+	inst.position = pos
+	inst.rotation.y = yaw
+	if not is_equal_approx(height_scale, 1.0):
+		inst.scale.y = height_scale
+	return inst
 
 
 static func apply_to_room(room: RoomTemplate, biome_id: String, room_seed: int = 0) -> void:
@@ -98,16 +162,13 @@ static func _spawn_layout_prop(
 ) -> void:
 	match kind:
 		"pillar":
-			_spawn_corner_pillar(parent, pos, accent_mat, 3.2)
+			_spawn_corner_pillar(parent, pos, accent_mat, 3.2, biome_id)
 		"brazier":
 			_spawn_brazier(parent, pos, accent_mat, biome_id)
 		"rubble", "rubble_a":
-			_add_box(parent, pos + Vector3(0.0, 0.3, 0.0), Vector3(1.1, 0.6, 1.1), accent_mat, "Rubble")
+			_spawn_kit_rubble(parent, 0, pos + Vector3(0.0, 0.3, 0.0), yaw, accent_mat, biome_id)
 		"rubble_b":
-			var rubble_b := _add_box(
-				parent, pos + Vector3(0.0, 0.22, 0.0), Vector3(0.8, 0.44, 1.3), accent_mat, "Rubble"
-			)
-			rubble_b.rotation.y = yaw
+			_spawn_kit_rubble(parent, 1, pos + Vector3(0.0, 0.22, 0.0), yaw, accent_mat, biome_id)
 		"sconce":
 			_spawn_wall_sconce(parent, pos, accent_mat, biome_id)
 		"debris_pile":
@@ -128,8 +189,15 @@ static func _spawn_layout_prop(
 ## secret got dressed from the same four-prop kit, which is why a big room read as "60% of the
 ## frame is one flat tile pattern" (`docs/GAME_FEEL_REVIEW.md`). `props = clampi(area/26, 3, 14)`
 ## scales the count with the room instead.
+## `"sconce"` was here and is not any more: `_spawn_density_props()` below places every kind on the
+## open floor (a pillar gets its own +1.6m lift, a statue +1.4m, and so on, all inside
+## `_batch_density_box()`), but a sconce is a wall fixture -- `_spawn_wall_sconce()` was handed a
+## floor-level point picked anywhere in the room's interior and never snapped it to a wall, so it
+## planted a torch (with its own `OmniLight3D`) floating at ground height in open space. Every room
+## kind that wants sconces already places them correctly along its own walls (e.g. `_spawn_hall()`'s
+## `y = 1.4` pass); this random-floor path had no such placement to fall back on.
 const DENSITY_PROP_KINDS := [
-	"pillar", "sconce", "rubble_a", "rubble_b", "banner", "statue", "altar", "debris_pile"
+	"pillar", "rubble_a", "rubble_b", "banner", "statue", "altar", "debris_pile"
 ]
 const DENSITY_MIN_SPACING := 1.8
 const DENSITY_DOORWAY_CLEARANCE := 1.8
@@ -152,7 +220,7 @@ static func _spawn_density_props(
 	half_w: float,
 	half_d: float,
 	blockout: CastleBlockout,
-	biome_id: String,
+	_biome_id: String,
 	accent_mat: Material,
 	prop_rng: RandomNumberGenerator
 ) -> void:
@@ -189,12 +257,7 @@ static func _spawn_density_props(
 		var kind: String = DENSITY_PROP_KINDS[prop_rng.randi_range(0, DENSITY_PROP_KINDS.size() - 1)]
 		var yaw := prop_rng.randf_range(0.0, TAU)
 		var pos3 := Vector3(pos.x, 0.0, pos.y)
-		if kind == "sconce":
-			# The one kind with its own light -- cannot be batched, and rare enough in the mix
-			# that it does not move the draw-call count much on its own.
-			_spawn_wall_sconce(dressing, pos3, accent_mat, biome_id)
-		else:
-			_batch_density_box(batch, kind, pos3, yaw, accent_mat)
+		_batch_density_box(batch, kind, pos3, yaw, accent_mat)
 	if not batch.is_empty():
 		batch.commit(
 			dressing,
@@ -207,6 +270,13 @@ static func _spawn_density_props(
 ## material -- here, always `accent_mat`) replaces what would otherwise be up to 14 separate
 ## `MeshInstance3D` nodes per room. See RM-11's "Solution": draw calls are a stated budget, not
 ## whatever the feature happens to cost.
+##
+## RM-21: this intentionally stays on the procedural box path rather than instancing propKit
+## pillar/rubble scenes -- doing that here would turn one batched draw call into up to 14 separate
+## `MeshInstance3D`s (plus a `StaticBody3D`/`CollisionShape3D` per pillar) *per room*, which is
+## exactly the per-room draw-call regression RM-11 fixed. If this ever needs real propKit geometry
+## in the density fill too, the way to keep the batching win is a `MultiMeshInstance3D` per
+## (biome, kind) built from the propKit mesh's surfaces, not per-instance `PackedScene.instantiate()`.
 static func _batch_density_box(
 	batch: PixelBoxBatch, kind: String, pos: Vector3, yaw: float, mat: Material
 ) -> void:
@@ -455,8 +525,8 @@ static func _spawn_entrance(
 	accent_mat: Material,
 	biome_id: String
 ) -> void:
-	_spawn_corner_pillar(parent, Vector3(-half_w + 1.0, 0.0, -half_d + 1.2), wall_mat, 2.8)
-	_spawn_corner_pillar(parent, Vector3(half_w - 1.0, 0.0, -half_d + 1.2), wall_mat, 2.8)
+	_spawn_corner_pillar(parent, Vector3(-half_w + 1.0, 0.0, -half_d + 1.2), wall_mat, 2.8, biome_id)
+	_spawn_corner_pillar(parent, Vector3(half_w - 1.0, 0.0, -half_d + 1.2), wall_mat, 2.8, biome_id)
 	_spawn_brazier(parent, Vector3(-half_w + 2.2, 0.0, half_d - 1.5), accent_mat, biome_id)
 	_spawn_brazier(parent, Vector3(half_w - 2.2, 0.0, half_d - 1.5), accent_mat, biome_id)
 	_add_biome_banner(parent, Vector3(0.0, 0.0, -half_d + 0.6), accent_mat, 2.4, 1.2)
@@ -477,8 +547,8 @@ static func _spawn_boss(
 		accent_mat,
 		"BossPlatform"
 	)
-	_spawn_corner_pillar(parent, Vector3(-half_w + 1.2, 0.0, -half_d + 1.2), wall_mat, 3.2)
-	_spawn_corner_pillar(parent, Vector3(half_w - 1.2, 0.0, -half_d + 1.2), wall_mat, 3.2)
+	_spawn_corner_pillar(parent, Vector3(-half_w + 1.2, 0.0, -half_d + 1.2), wall_mat, 3.2, biome_id)
+	_spawn_corner_pillar(parent, Vector3(half_w - 1.2, 0.0, -half_d + 1.2), wall_mat, 3.2, biome_id)
 	_spawn_brazier(parent, Vector3(-half_w + 2.0, 0.0, half_d - 1.8), accent_mat, biome_id, 0.7)
 	_spawn_brazier(parent, Vector3(half_w - 2.0, 0.0, half_d - 1.8), accent_mat, biome_id, 0.7)
 	_add_spot(parent, Vector3(0.0, 4.5, half_d - 2.5), accent_mat, 1.2, biome_id)
@@ -520,8 +590,8 @@ static func _spawn_hall(
 		_spawn_wall_sconce(parent, Vector3(-half_w + 0.5, 1.4, z), accent_mat, biome_id)
 		_spawn_wall_sconce(parent, Vector3(half_w - 0.5, 1.4, z), accent_mat, biome_id)
 		z += 3.5
-	_spawn_corner_pillar(parent, Vector3(-half_w + 0.8, 0.0, 0.0), wall_mat, 2.6)
-	_spawn_corner_pillar(parent, Vector3(half_w - 0.8, 0.0, 0.0), wall_mat, 2.6)
+	_spawn_corner_pillar(parent, Vector3(-half_w + 0.8, 0.0, 0.0), wall_mat, 2.6, biome_id)
+	_spawn_corner_pillar(parent, Vector3(half_w - 0.8, 0.0, 0.0), wall_mat, 2.6, biome_id)
 
 
 static func _spawn_treasure(parent: Node3D, accent_mat: Material, biome_id: String) -> void:
@@ -569,8 +639,8 @@ static func _spawn_arena(
 		accent_mat,
 		"ArenaRing"
 	)
-	_spawn_corner_pillar(parent, Vector3(-half_w + 1.0, 0.0, -half_d + 1.0), wall_mat, 2.2)
-	_spawn_corner_pillar(parent, Vector3(half_w - 1.0, 0.0, -half_d + 1.0), wall_mat, 2.2)
+	_spawn_corner_pillar(parent, Vector3(-half_w + 1.0, 0.0, -half_d + 1.0), wall_mat, 2.2, biome_id)
+	_spawn_corner_pillar(parent, Vector3(half_w - 1.0, 0.0, -half_d + 1.0), wall_mat, 2.2, biome_id)
 	_spawn_brazier(parent, Vector3(0.0, 0.0, -half_d + 1.5), accent_mat, biome_id, 0.5)
 
 
@@ -665,11 +735,43 @@ static func _spawn_generic_corners(
 
 
 static func _spawn_corner_pillar(
-	parent: Node3D, pos: Vector3, mat: Material, height: float
+	parent: Node3D, pos: Vector3, mat: Material, height: float, biome_id: String = ""
 ) -> void:
+	var kit := _get_prop_kit(biome_id) if biome_id != "" else {}
+	var pillar_scene: PackedScene = kit.get("pillar")
+	if pillar_scene != null:
+		var inst := _instance_prop_kit_scene(
+			pillar_scene, pos, 0.0, "Pillar", height / PROP_KIT_PILLAR_HEIGHT
+		)
+		if inst != null:
+			parent.add_child(inst)
+			return
 	_add_box(
 		parent, pos + Vector3(0.0, height * 0.5, 0.0), Vector3(0.7, height, 0.7), mat, "Pillar"
 	)
+
+
+## `rubble_index` 0 -> propKit's rubble_a (or the biome's only rubble entry), 1 -> rubble_b.
+## `pos` is already offset to the mesh's resting height by the caller (matching the box fallback's
+## own offset), so the propKit scene is instanced at that same position rather than at ground level.
+static func _spawn_kit_rubble(
+	parent: Node3D, rubble_index: int, pos: Vector3, yaw: float, mat: Material, biome_id: String
+) -> void:
+	var kit := _get_prop_kit(biome_id) if biome_id != "" else {}
+	var rubble_scenes: Array = kit.get("rubble", [])
+	var scene: PackedScene = null
+	if rubble_index < rubble_scenes.size():
+		scene = rubble_scenes[rubble_index]
+	elif not rubble_scenes.is_empty():
+		scene = rubble_scenes[0]
+	if scene != null:
+		var inst := _instance_prop_kit_scene(scene, pos, yaw, "Rubble")
+		if inst != null:
+			parent.add_child(inst)
+			return
+	var size := Vector3(1.1, 0.6, 1.1) if rubble_index == 0 else Vector3(0.8, 0.44, 1.3)
+	var box := _add_box(parent, pos, size, mat, "Rubble")
+	box.rotation.y = yaw
 
 
 static func _spawn_brazier(
@@ -699,7 +801,19 @@ static func _spawn_wall_sconce(
 static func _spawn_wall_torch(
 	parent: Node3D, pos: Vector3, accent_mat: Material, biome_id: String
 ) -> void:
-	_add_box(parent, pos, Vector3(0.22, 0.42, 0.28), accent_mat, "WallTorch")
+	# RM-21: the visual torch mesh itself comes from the propKit "sconce" scene when the biome has
+	# authored one (emissive-only, no light of its own -- see biome_prop_kit_piece.gd); the real-time
+	# OmniLight3D + embers below are unrelated to that scene and always still spawn here, unchanged.
+	var kit := _get_prop_kit(biome_id) if biome_id != "" else {}
+	var sconce_scene: PackedScene = kit.get("sconce")
+	var used_kit_mesh := false
+	if sconce_scene != null:
+		var inst := _instance_prop_kit_scene(sconce_scene, pos, 0.0, "WallTorch")
+		if inst != null:
+			parent.add_child(inst)
+			used_kit_mesh = true
+	if not used_kit_mesh:
+		_add_box(parent, pos, Vector3(0.22, 0.42, 0.28), accent_mat, "WallTorch")
 	var light := OmniLight3D.new()
 	light.name = "WallTorchLight"
 	light.position = pos + Vector3(0.0, 0.05, 0.0)

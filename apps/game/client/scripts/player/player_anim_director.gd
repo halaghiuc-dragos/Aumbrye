@@ -428,6 +428,12 @@ func _on_attack_started(attack_name: String) -> void:
 		play_riposte(startup, active, recovery)
 	elif attack_name == "backstab":
 		play_backstab(startup, active, recovery)
+	elif attack_name == "heavy_charge":
+		# `AN-04`: charged melee needs the same held wound-pose the bow's draw already gets --
+		# hold on the same clip `play_heavy_attack()` resolves so release resumes it in place
+		# instead of restarting the swing from frame zero.
+		var total := maxf(0.01, startup + active + recovery)
+		hold_at(AnimLibrary.heavy_clip_for(_weapon_archetype), startup / total, startup, active, recovery)
 	elif attack_name.begins_with("heavy"):
 		play_heavy_attack(startup, active, recovery)
 	elif attack_name.begins_with("bow"):

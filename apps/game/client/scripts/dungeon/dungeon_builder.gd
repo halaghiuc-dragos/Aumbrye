@@ -454,7 +454,23 @@ func _open_blockout_door_toward(
 			"DungeonBuilder: no socket from %s toward %s" % [from_room.room_id, to_room.room_id]
 		)
 		return
-	var lateral := _door_lateral(from_room, socket, edge)
+	var raw_lateral := _door_lateral(from_room, socket, edge)
+	# `CastleBlockout._build_wall()` clamps its own `door_offset` to the wall's own span before
+	# cutting the hole (`limit := (span - DOOR_WIDTH) * 0.5`) -- a lateral computed from the edge's
+	# real-world door coordinate can land outside that span (room-size rounding, a door close to a
+	# corner, a large multi-cell room), and until now only the *cut* used the clamped value: the
+	# frame built below and the socket every neighbour/dressing/nav query reads was placed at the
+	# raw, unclamped position. That is the door-to-nowhere bug -- a doorway frame standing somewhere
+	# along the wall with the actual passable opening cut at a different point on the same wall, or
+	# past the corner into a wall the room doesn't even share with its neighbour. Clamping here once,
+	# the same way, keeps the socket and the hole it decorates at the same point on the wall always.
+	var half_span := (
+		blockout.room_width * 0.5
+		if socket.direction in [CastleRoomConstants.Direction.NORTH, CastleRoomConstants.Direction.SOUTH]
+		else blockout.room_depth * 0.5
+	)
+	var lateral_limit := maxf(0.0, half_span - CastleRoomConstants.DOOR_WIDTH * 0.5)
+	var lateral := clampf(raw_lateral, -lateral_limit, lateral_limit)
 	match socket.direction:
 		CastleRoomConstants.Direction.NORTH:
 			blockout.door_north = true

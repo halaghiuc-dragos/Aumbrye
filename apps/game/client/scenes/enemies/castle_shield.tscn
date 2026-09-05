@@ -59,7 +59,7 @@ shape = SubResource("BoxShape3D_hit")
 
 [node name="Hurtbox" type="Area3D" parent="."]
 collision_layer = 8
-collision_mask = 4
+collision_mask = 68
 script = ExtResource("5_shield_hurt")
 team = "enemy"
 health_path = NodePath("../Health")

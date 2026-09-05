@@ -1104,18 +1104,21 @@ folders, which is why the boss-phase music gap in §7.1 is an authoring change a
 
 | Module | Path | Files | Contents |
 |---|---|---:|---|
-| Backend unit tests | `services/backend/tests/Aumbrye.UnitTests/` | 21 | `AffixRollerTests`, `DungeonGeneratorTests`, `DungeonSeedDeriverTests`, `LayoutGraphGeneratorTests`, `FinalFloorGeneratorTests`, `M5BiomeGeneratorTests`, `SeedReproducibilityTests`, `ThemeLootTablesTests`, `BiomeCatalogTests`, `ContentCatalogTests`, `ContentPathsTests`, `TalentValidationTests`, `XpCurveTests`, `LeaderboardServiceTests`, `JwtSecretTests`, `SteamAuthTests`, `ProceduralAssemblyTests`, `ProcgenCliTests`, `ClientVersionParityTests`, `CountingDungeonGenerator`, `GlobalUsings` |
-| Backend integration tests | `services/backend/tests/Aumbrye.IntegrationTests/` | 17 | `AuthTests`, `AuthAndRunsTests`, `SavesIntegrationTests`, `LeaderboardsIntegrationTests`, `RunCompletionTests`, `RunEconomyTests`, `MigrationTests`, `OpenApiContractTests`, `RateLimitTests`, `CorsTests`, `ErrorHandlingTests`, `HealthEndpointTests`, `AccountTests`, `RunClockHelper`, `GlobalUsings` |
+| Backend unit tests *(✅ removed — see note below table)* | `services/backend/tests/Aumbrye.UnitTests/` | 21 | `AffixRollerTests`, `DungeonGeneratorTests`, `DungeonSeedDeriverTests`, `LayoutGraphGeneratorTests`, `FinalFloorGeneratorTests`, `M5BiomeGeneratorTests`, `SeedReproducibilityTests`, `ThemeLootTablesTests`, `BiomeCatalogTests`, `ContentCatalogTests`, `ContentPathsTests`, `TalentValidationTests`, `XpCurveTests`, `LeaderboardServiceTests`, `JwtSecretTests`, `SteamAuthTests`, `ProceduralAssemblyTests`, `ProcgenCliTests`, `ClientVersionParityTests`, `CountingDungeonGenerator`, `GlobalUsings` |
+| Backend integration tests *(✅ removed — see note below table)* | `services/backend/tests/Aumbrye.IntegrationTests/` | 17 | `AuthTests`, `AuthAndRunsTests`, `SavesIntegrationTests`, `LeaderboardsIntegrationTests`, `RunCompletionTests`, `RunEconomyTests`, `MigrationTests`, `OpenApiContractTests`, `RateLimitTests`, `CorsTests`, `ErrorHandlingTests`, `HealthEndpointTests`, `AccountTests`, `RunClockHelper`, `GlobalUsings` |
 | Procgen CLI | `tools/procgen-cli/` | 4 | `Program.cs`, `ProcgenCliArgs.cs`, `ProcgenCli.csproj`, `README.md` — headless driver for `packages/procedural` |
-| Web E2E | `apps/web/e2e/` | 2 | `smoke.spec.ts`, `integration.spec.ts` (Playwright) |
+| Web E2E *(✅ removed — see note below table)* | `apps/web/e2e/` | 2 | `smoke.spec.ts`, `integration.spec.ts` (Playwright) |
 | Web content | `apps/web/content/` | 5 | `patch-notes/0.5.0.md`, `0.6.0.md`; `wiki/biomes.md`, `controls.md`, `faq.md` |
 | Web public | `apps/web/public/` | 3 | `favicon.svg`, `robots.txt`, `sitemap.xml` |
 | Web config | `apps/web/` | ~12 | `vite.config.ts`, `vitest.config.ts`, `playwright.config.ts`, `eslint.config.js`, three `tsconfig*.json`, `index.html`, `nginx.conf`, `Dockerfile`, `package.json` |
 
-**`ClientVersionParityTests` and `OpenApiContractTests` are the only automated cross-stack guards in
-the repo**, and both live on the backend side. There is no test asserting that
-`scripts/dungeon/procgen/` matches `packages/procedural/` beyond
-`suites/cross_stack_parity_suite.gd` (178 lines) running inside the Godot harness.
+**`ClientVersionParityTests` and `OpenApiContractTests` were the only automated cross-stack guards in
+the repo**, and both lived on the backend side. **✅ Superseded — the whole `services/backend/tests/`
+tree, `apps/web/e2e/`, and every other test suite this section names were removed under the repo's
+standing "no test files, anywhere" rule (`CLAUDE.md`).** Cross-stack agreement is now checked by hand
+via `suites/cross_stack_parity_suite.gd` (178 lines) inside the Godot harness, and `SY-12` in
+`docs/MVP_DEPTH_PLAN.md` is the record of that migration. There is no automated check asserting that
+`scripts/dungeon/procgen/` matches `packages/procedural/` beyond that manual suite.
 
 ## 9.11 Repository infrastructure
 
@@ -3503,8 +3506,11 @@ No defects found.
 - **38 test files** including `SeedReproducibilityTests`, `OpenApiContractTests`,
   `ClientVersionParityTests`, `MigrationTests`, `RateLimitTests`, `CorsTests`.
 
-No defects found. The only observation is that all of this correctness is gated behind **C-40** —
-`dotnet test services/backend/Aumbrye.sln` runs on no machine automatically.
+No defects found at the time of this review. **✅ Superseded — all 38 of these files, and
+`services/backend/Aumbrye.sln`'s test projects entirely, have since been removed under the repo's
+standing "no test files, anywhere" rule (`CLAUDE.md`); C-40's observation about `dotnet test` never
+running automatically is moot because there is no longer a `dotnet test` to run.** See `SY-12` in
+`docs/MVP_DEPTH_PLAN.md`.
 
 ---
 
@@ -3544,10 +3550,13 @@ and *is* parity-tested (`content/fixtures/mix_seed_parity.json`, asserted by
 `cross_stack.mix_seed_parity`) — but a seed mixer is not a random stream.
 
 `cross_stack_parity_suite.gd` (178 lines) asserts exactly three things: `mix_seed_parity`,
-`kind_spec_parity` (room kit specs) and `biome_catalog_parity`. **No test compares generated
+`kind_spec_parity` (room kit specs) and `biome_catalog_parity`. **No check compares generated
 layouts.** ADR-0002's own roadmap lists this as step 2 of closing the gap — *"Extend
 `ClientVersionParityTests` to run both generators across a fixed seed matrix and diff the canonical
-JSON"* — so it is a known, documented gap rather than an oversight.
+JSON"* — so it is a known, documented gap rather than an oversight. **✅ Updated — `ClientVersionParityTests`
+no longer exists (removed under `CLAUDE.md`'s no-tests rule); the current text of ADR-0002 §2 now
+names a `scripts/tools/` debug scene, matching `procgen_seed_health.gd`'s shape, as the replacement
+mechanism. Step 2 is still open regardless of which mechanism implements it.**
 
 The consequence is worth stating plainly because it is not in the ADR: **seeded reproducibility is
 connectivity-dependent.** Two players entering the same seed get different dungeons if one is

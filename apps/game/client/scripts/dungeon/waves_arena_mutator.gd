@@ -10,10 +10,14 @@ extends Node3D
 const TrapDamageAreaScript := preload("res://scripts/combat/trap_damage_area.gd")
 const DioramaSkin := preload("res://scripts/art/props/diorama_interactable_skin.gd")
 
-const STATES: Array[String] = ["open", "dimmed", "hazard", "fog"]
+const STATES: Array[String] = ["open", "dimmed", "hazard", "fog", "pillars"]
 const HAZARD_RADIUS := 8.0
 const HAZARD_RING_DIST := 20.0
 const FOG_BOOST := 2.2
+const PILLAR_COUNT := 4
+const PILLAR_HAZARD_RADIUS := 2.5
+const PILLAR_RING_DIST := 14.0
+const PILLAR_HEIGHT := 6.0
 
 var _torchlight: Node3D
 
@@ -35,6 +39,8 @@ func apply_block(block_index: int, torchlight: Node3D, states: Array[String] = [
 			_build_hazard(block_index)
 		"fog":
 			_apply_fog()
+		"pillars":
+			_build_pillars(block_index)
 		_:
 			pass
 
@@ -97,3 +103,47 @@ func _build_hazard(block_index: int) -> void:
 	visual.material_override = DioramaSkin.make_telegraph_material(Color(0.85, 0.2, 0.15, 0.65))
 	area.add_child(visual)
 	area.call_deferred("set_damage_active", true)
+
+
+## Scatters standing rubble around the arena instead of one flooded quadrant -- ground, not light,
+## is what's taken away this block. Each pillar is a small `Area3D` trigger like `_build_hazard`
+## (never a solid collider), so it narrows where it is safe to stand without touching enemy
+## pathing.
+func _build_pillars(block_index: int) -> void:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = block_index * 977 + 29
+	var start_angle := rng.randf_range(0.0, TAU)
+	for i in PILLAR_COUNT:
+		var angle := start_angle + (TAU / float(PILLAR_COUNT)) * float(i)
+		angle += rng.randf_range(-0.3, 0.3)
+		var dist := PILLAR_RING_DIST * rng.randf_range(0.85, 1.15)
+		var pos := Vector3(cos(angle) * dist, 0.0, sin(angle) * dist)
+		var area := Area3D.new()
+		area.set_script(TrapDamageAreaScript)
+		area.name = "ArenaPillar%d" % i
+		area.position = pos
+		area.collision_layer = 4
+		area.collision_mask = 8
+		area.set("damage", 8.0)
+		area.set("poise_damage", 0.0)
+		area.set("hit_interval", 0.6)
+		add_child(area)
+		var shape := CollisionShape3D.new()
+		shape.name = "CollisionShape3D"
+		var cyl := CylinderShape3D.new()
+		cyl.radius = PILLAR_HAZARD_RADIUS
+		cyl.height = 3.0
+		shape.shape = cyl
+		shape.position = Vector3(0.0, 1.5, 0.0)
+		area.add_child(shape)
+		var visual := MeshInstance3D.new()
+		visual.name = "PillarVisual"
+		var mesh := CylinderMesh.new()
+		mesh.top_radius = PILLAR_HAZARD_RADIUS * 0.6
+		mesh.bottom_radius = PILLAR_HAZARD_RADIUS * 0.8
+		mesh.height = PILLAR_HEIGHT
+		visual.mesh = mesh
+		visual.position = Vector3(0.0, PILLAR_HEIGHT * 0.5, 0.0)
+		visual.material_override = DioramaSkin.make_telegraph_material(Color(0.4, 0.35, 0.3, 0.9))
+		area.add_child(visual)
+		area.call_deferred("set_damage_active", true)

@@ -3,6 +3,10 @@ extends Node
 
 signal progression_changed
 signal xp_granted(amount: int, reason: String)
+## UX-02: fired when the queued-but-not-yet-spent talent plan changes (plan/unplan/clear/commit),
+## separate from `progression_changed` so the talents screen can redraw the plan overlay without
+## the rest of the game reacting as if talents actually changed.
+signal talent_plan_changed
 
 const XP_CURVE_PATH := "content/progression/xp_curve.json"
 const TALENT_TREE_PATH := "content/talents/tree.json"
@@ -21,6 +25,14 @@ var endless_best_floor := 0
 var descent_tokens := 0
 var endless_milestones: Dictionary = {}
 var failure_points: Array = []
+
+## UX-02: nodes queued for the plan-ahead workflow, in the order they'll be spent on commit.
+## Never persisted -- a plan is a scratchpad for the current session, not a save-file commitment.
+var _planned_talents: Array[String] = []
+## UX-02: the level at which the most recent talent was actually unlocked (committed, not just
+## planned). Drives the free-respec grace window.
+var _last_talent_unlock_level := 0
+const TALENT_RESPEC_GRACE_LEVELS := 3
 
 var _curve: Dictionary = {}
 var _talent_tree: Dictionary = {}
@@ -148,11 +160,150 @@ func unlock_talent(node_id: String) -> bool:
 	var cost: int = int(node.get("costPerRank", 1))
 	talents[node_id] = get_talent_rank(node_id) + 1
 	talent_points_spent += cost
+	_last_talent_unlock_level = level
 	_sync_keystone_rules()
 	progression_changed.emit()
 	LocalSave.autosave()
 	if AchievementService:
 		AchievementService.notify("talent_points_spent", {"cost": cost})
+	return true
+
+
+## UX-02: the marginal stat change from taking the *next* rank of this node, diffed against the
+## currently-active build. Talent totals are a straight sum of `effects.valuePerRank * rank`
+## (see `get_talent_stat_totals`), so the delta a node would add is exactly its own per-rank
+## effect values -- no need to recompute the whole build twice. Returns {} once the node is
+## already at (or the tree has no room to plan) its max rank.
+func preview_talent_delta(node_id: String) -> Dictionary:
+	var node := _find_talent_node(node_id)
+	if node.is_empty():
+		return {}
+	if get_effective_talent_rank(node_id) >= int(node.get("maxRank", 1)):
+		return {}
+	var deltas: Dictionary = {}
+	for effect in node.get("effects", []):
+		if not effect is Dictionary:
+			continue
+		var stat: String = str((effect as Dictionary).get("stat", ""))
+		if stat == "":
+			continue
+		var per_rank: float = float((effect as Dictionary).get("valuePerRank", 0.0))
+		deltas[stat] = float(deltas.get(stat, 0.0)) + per_rank
+	return deltas
+
+
+## UX-02 plan-ahead: nodes queued but not yet spent, in commit order. Multiple entries of the
+## same id represent multiple queued ranks.
+func get_planned_talents() -> Array[String]:
+	return _planned_talents.duplicate()
+
+
+func get_planned_rank(node_id: String) -> int:
+	return int(_planned_counts().get(node_id, 0))
+
+
+## Committed rank plus anything already queued -- what the node's rank would read as if the plan
+## were spent right now.
+func get_effective_talent_rank(node_id: String) -> int:
+	return get_talent_rank(node_id) + get_planned_rank(node_id)
+
+
+func _planned_counts() -> Dictionary:
+	var counts: Dictionary = {}
+	for node_id in _planned_talents:
+		counts[node_id] = int(counts.get(node_id, 0)) + 1
+	return counts
+
+
+func _planned_total_cost() -> int:
+	var total := 0
+	for node_id in _planned_counts():
+		var node := _find_talent_node(str(node_id))
+		if node.is_empty():
+			continue
+		total += int(node.get("costPerRank", 1)) * int(_planned_counts()[node_id])
+	return total
+
+
+func get_talent_points_available_after_plan() -> int:
+	return maxi(0, get_available_talent_points() - _planned_total_cost())
+
+
+## Same shape as `can_unlock_talent`, but checks against the plan-ahead virtual state (committed
+## ranks plus queued ones) instead of only what's actually been spent, so a player can queue a
+## node whose prerequisite is itself still only queued.
+func can_plan_talent(node_id: String) -> bool:
+	var node := _find_talent_node(node_id)
+	if node.is_empty():
+		return false
+	if not is_branch_available(_find_talent_branch(node_id)):
+		return false
+	if get_effective_talent_rank(node_id) >= int(node.get("maxRank", 1)):
+		return false
+	if get_talent_points_available_after_plan() < int(node.get("costPerRank", 1)):
+		return false
+	for req in node.get("requires", []):
+		if get_effective_talent_rank(str(req)) <= 0:
+			return false
+	for excluded in node.get("excludes", []):
+		if get_effective_talent_rank(str(excluded)) > 0:
+			return false
+	return true
+
+
+func plan_talent(node_id: String) -> bool:
+	if not can_plan_talent(node_id):
+		return false
+	_planned_talents.append(node_id)
+	talent_plan_changed.emit()
+	return true
+
+
+func unplan_talent(node_id: String) -> bool:
+	var idx := _planned_talents.rfind(node_id)
+	if idx < 0:
+		return false
+	_planned_talents.remove_at(idx)
+	talent_plan_changed.emit()
+	return true
+
+
+func clear_planned_talents() -> void:
+	if _planned_talents.is_empty():
+		return
+	_planned_talents.clear()
+	talent_plan_changed.emit()
+
+
+## Spends the queue for real, one node at a time in queue order (so a node that only became legal
+## because an earlier queued node just unlocked resolves correctly). Points are never touched
+## until this is called -- planning is free right up to commit.
+func commit_planned_talents() -> Dictionary:
+	var order := _planned_talents.duplicate()
+	_planned_talents.clear()
+	var committed := 0
+	for node_id in order:
+		if unlock_talent(node_id):
+			committed += 1
+	talent_plan_changed.emit()
+	return {"committed": committed, "attempted": order.size()}
+
+
+## UX-02: a respec taken within a few levels of the talent that prompted it is free -- the point
+## of the grace window is that trying a node right after a level-up shouldn't be a 250-gold bet.
+func is_talent_respec_free() -> bool:
+	if _last_talent_unlock_level <= 0:
+		return false
+	return (level - _last_talent_unlock_level) <= TALENT_RESPEC_GRACE_LEVELS
+
+
+## Respecs for free when inside the grace window; refuses (does nothing, returns false) otherwise
+## so a caller falls back to the paid respec path. Deliberately bypasses any gold check -- the
+## whole point of the window is that this specific respec doesn't cost anything.
+func free_respec_talents() -> bool:
+	if not is_talent_respec_free():
+		return false
+	respec_talents()
 	return true
 
 
@@ -203,8 +354,13 @@ func _prune_unknown_talents() -> void:
 func respec_talents() -> void:
 	talents.clear()
 	talent_points_spent = 0
+	_planned_talents.clear()
+	# Nothing is "just unlocked" any more once the whole build is cleared, so the grace window
+	# closes with it -- the next free respec has to be earned by unlocking something again.
+	_last_talent_unlock_level = 0
 	_sync_keystone_rules()
 	progression_changed.emit()
+	talent_plan_changed.emit()
 	LocalSave.autosave()
 
 
@@ -250,6 +406,7 @@ func to_save_dict() -> Dictionary:
 		"descentTokens": descent_tokens,
 		"endlessMilestones": endless_milestones.duplicate(),
 		"failurePoints": failure_points.duplicate(true),
+		"lastTalentUnlockLevel": _last_talent_unlock_level,
 	}
 
 
@@ -262,6 +419,8 @@ func from_save_dict(data: Dictionary) -> void:
 	if saved_talents is Dictionary:
 		talents = saved_talents.duplicate()
 	_prune_unknown_talents()
+	_planned_talents.clear()
+	_last_talent_unlock_level = maxi(0, int(data.get("lastTalentUnlockLevel", 0)))
 	endless_best_floor = maxi(0, int(data.get("endlessBestFloor", 0)))
 	descent_tokens = maxi(0, int(data.get("descentTokens", 0)))
 	endless_milestones = {}

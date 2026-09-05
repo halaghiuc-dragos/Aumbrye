@@ -606,9 +606,17 @@ CREATE_COMPARE_COL_YOU,Your Pick,Alegerea ta
 CREATE_COMPARE_COL_YOU_NAMED,Your Pick (%s),Alegerea ta (%s)
 TALENTS_TITLE,Talents,Talente
 TALENTS_POINTS,Points: %d,Puncte: %d
-TALENTS_HINT,Enter: unlock | Esc: close,Enter: deblocheaza | Esc: inchide
+TALENTS_HINT,Arrows: move | Enter: unlock | Esc: close,Sageti: mutare | Enter: deblocheaza | Esc: inchide
 TALENTS_CAN_UNLOCK,Can unlock,Se poate debloca
 TALENTS_LOCKED,Locked,Blocat
+TALENTS_QUEUE,Queue,Adauga in plan
+TALENTS_COMMIT,Confirm Plan,Confirma planul
+TALENTS_CLEAR_PLAN,Clear Plan,Sterge planul
+TALENTS_FREE_RESPEC,Free Respec,Resetare gratuita
+TALENTS_QUEUED_COST,(%d queued),(%d in plan)
+TALENTS_QUEUED,Queued — not yet spent,In plan — inca necheltuit
+TALENTS_TAKEN,Taken,Luat
+TALENTS_PREVIEW,If taken: %s,Daca e luat: %s
 RELIC_OFFER_TITLE,A Relic Offered,O relicvă oferită
 RELIC_OFFER_SUBTITLE,Take one. The others return to the dark.,Ia una. Celelalte se întorc în întuneric.
 RELIC_OFFER_HINT,This choice is bound to the seed — it will not change.,Alegerea e legată de sămânță — nu se va schimba.

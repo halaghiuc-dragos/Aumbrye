@@ -77,7 +77,11 @@ func enable() -> void:
 
 func disable() -> void:
 	_active = false
-	monitoring = false
+	# `disable()` can run from inside `_on_area_entered()` (a projectile disabling its own hitbox
+	# the instant it lands, or an execution finisher's target reacting mid-swing) -- Area3D locks
+	# `monitoring` for the duration of its own signal, so a direct assignment here throws
+	# "Function blocked during in/out signal". Deferred is safe for every other caller too.
+	set_deferred("monitoring", false)
 	set_physics_process(false)
 	_last_overlap_count = 0
 	_hit_times.clear()

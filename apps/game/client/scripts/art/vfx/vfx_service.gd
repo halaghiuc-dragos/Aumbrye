@@ -307,7 +307,8 @@ func play_telegraph(
 	shape: String = "circle",
 	forward: Vector3 = Vector3.FORWARD,
 	follow: Node3D = null,
-	arc_deg: float = 90.0
+	arc_deg: float = 90.0,
+	pattern: String = "solid"
 ) -> void:
 	var effect_id := "telegraph_%s" % shape
 	if not _effects.has(effect_id):
@@ -332,6 +333,7 @@ func play_telegraph(
 			"forward": forward,
 			"follow": follow,
 			"arc_deg": arc_deg,
+			"pattern": pattern,
 		}
 	)
 
@@ -532,10 +534,13 @@ func _play_glyph_layer(
 	var duration := float(overrides.get("duration", layer.get("duration", 0.6)))
 	var shape := String(overrides.get("shape", layer.get("shape", "circle")))
 	var arc_deg := float(overrides.get("arc_deg", layer.get("arc_deg", 90.0)))
+	var pattern := String(overrides.get("pattern", layer.get("pattern", "solid")))
 	var tint := _color_from_layer(layer, tint_override)
 	var glyph_forward: Vector3 = overrides.get("forward", forward)
 	var follow: Node3D = overrides.get("follow", null) as Node3D
-	_build_telegraph_glyph(world_pos, radius, duration, tint, shape, glyph_forward, follow, arc_deg)
+	_build_telegraph_glyph(
+		world_pos, radius, duration, tint, shape, glyph_forward, follow, arc_deg, pattern
+	)
 
 
 func _play_impact_layer(layer: Dictionary) -> void:
@@ -980,7 +985,8 @@ func _build_telegraph_glyph(
 	shape: String,
 	forward: Vector3,
 	follow: Node3D = null,
-	arc_deg: float = 90.0
+	arc_deg: float = 90.0,
+	pattern: String = "solid"
 ) -> void:
 	var glyph := Node3D.new()
 	glyph.name = "TelegraphGlyph"
@@ -1007,13 +1013,13 @@ func _build_telegraph_glyph(
 
 	match shape:
 		"line":
-			_telegraph_line(glyph, sweep, radius, rim_mat, fill_mat)
+			_telegraph_line(glyph, sweep, radius, rim_mat, fill_mat, pattern)
 		"cone":
-			_telegraph_cone(glyph, sweep, radius, rim_mat, fill_mat, arc_deg)
+			_telegraph_cone(glyph, sweep, radius, rim_mat, fill_mat, arc_deg, pattern)
 		"ring":
-			_telegraph_ring(glyph, sweep, radius, rim_mat)
+			_telegraph_ring(glyph, sweep, radius, rim_mat, pattern)
 		_:
-			_telegraph_circle(glyph, sweep, radius, rim_mat, fill_mat)
+			_telegraph_circle(glyph, sweep, radius, rim_mat, fill_mat, pattern)
 
 	sweep.scale = Vector3(0.001, 1.0, 0.001)
 	var tween := create_tween()
@@ -1026,9 +1032,16 @@ func _build_telegraph_glyph(
 
 
 func _telegraph_circle(
-	glyph: Node3D, sweep: Node3D, radius: float, rim_mat: Material, fill_mat: Material
+	glyph: Node3D,
+	sweep: Node3D,
+	radius: float,
+	rim_mat: Material,
+	fill_mat: Material,
+	pattern: String = "solid"
 ) -> void:
-	_telegraph_rim_ring(glyph, radius, rim_mat, 24, 0.26)
+	_telegraph_rim_ring(glyph, radius, rim_mat, 24, 0.26, pattern)
+	if pattern == "double":
+		_telegraph_rim_ring(glyph, radius * 0.78, rim_mat, 20, 0.22, "solid")
 	var fill := MeshInstance3D.new()
 	var disc := CylinderMesh.new()
 	disc.top_radius = radius
@@ -1041,17 +1054,34 @@ func _telegraph_circle(
 	sweep.add_child(fill)
 
 
-func _telegraph_ring(glyph: Node3D, sweep: Node3D, radius: float, rim_mat: Material) -> void:
-	_telegraph_rim_ring(glyph, radius, rim_mat, 24, 0.26)
-	_telegraph_rim_ring(sweep, radius, rim_mat, 20, 0.3)
+func _telegraph_ring(
+	glyph: Node3D, sweep: Node3D, radius: float, rim_mat: Material, pattern: String = "solid"
+) -> void:
+	_telegraph_rim_ring(glyph, radius, rim_mat, 24, 0.26, pattern)
+	_telegraph_rim_ring(sweep, radius, rim_mat, 20, 0.3, pattern)
+	if pattern == "double":
+		_telegraph_rim_ring(glyph, radius * 0.72, rim_mat, 18, 0.22, "solid")
 
 
+## `AX-01`: the second, colour-independent channel for an attack class. `"solid"` places every
+## segment (the pre-`AX-01` behaviour); `"dashed"` places only every other one, so a greyscale
+## screenshot still reads a broken ring rather than a full one; `"double"` is handled by the caller,
+## which draws this ring a second time at a smaller radius -- doubling up here instead would just
+## make a solid ring look like a slightly thicker solid ring.
 func _telegraph_rim_ring(
-	parent: Node3D, radius: float, rim_mat: Material, segments: int, tick: float
+	parent: Node3D,
+	radius: float,
+	rim_mat: Material,
+	segments: int,
+	tick: float,
+	pattern: String = "solid"
 ) -> void:
 	var mesh := BoxMesh.new()
-	mesh.size = PixelStyle.snap_size_to_pixel_grid(Vector3(tick, 0.04, tick))
+	var scaled_tick := tick * AccessibilitySettings.telegraph_rim_thickness_scale()
+	mesh.size = PixelStyle.snap_size_to_pixel_grid(Vector3(scaled_tick, 0.04, scaled_tick))
 	for i in segments:
+		if pattern == "dashed" and i % 2 == 1:
+			continue
 		var angle := TAU * float(i) / float(segments)
 		var block := MeshInstance3D.new()
 		block.mesh = mesh
@@ -1063,19 +1093,19 @@ func _telegraph_rim_ring(
 
 
 func _telegraph_line(
-	glyph: Node3D, sweep: Node3D, radius: float, rim_mat: Material, fill_mat: Material
+	glyph: Node3D,
+	sweep: Node3D,
+	radius: float,
+	rim_mat: Material,
+	fill_mat: Material,
+	pattern: String = "solid"
 ) -> void:
 	var width := maxf(radius * 0.34, 0.24)
 	var length := radius * 2.0
 	for side in [-1.0, 1.0]:
-		var edge := MeshInstance3D.new()
-		var edge_mesh := BoxMesh.new()
-		edge_mesh.size = PixelStyle.snap_size_to_pixel_grid(Vector3(0.1, 0.04, length))
-		edge.mesh = edge_mesh
-		edge.material_override = rim_mat
-		edge.position = Vector3(side * width * 0.5, 0.0, -length * 0.5)
-		edge.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-		glyph.add_child(edge)
+		_telegraph_edge_line(glyph, rim_mat, side * width * 0.5, length, pattern)
+		if pattern == "double":
+			_telegraph_edge_line(glyph, rim_mat, side * (width * 0.5 - 0.16), length, "solid")
 	var cap := MeshInstance3D.new()
 	var cap_mesh := BoxMesh.new()
 	cap_mesh.size = PixelStyle.snap_size_to_pixel_grid(Vector3(width, 0.04, 0.1))
@@ -1094,19 +1124,53 @@ func _telegraph_line(
 	sweep.add_child(fill)
 
 
+## `AX-01`: one long edge box reads as solid either way, so a dashed line needs actual gaps rather
+## than a shorter mesh -- built here as a row of short segments with a skipped gap between each.
+func _telegraph_edge_line(
+	glyph: Node3D, rim_mat: Material, x: float, length: float, pattern: String
+) -> void:
+	if pattern != "dashed":
+		var edge := MeshInstance3D.new()
+		var edge_mesh := BoxMesh.new()
+		edge_mesh.size = PixelStyle.snap_size_to_pixel_grid(Vector3(0.1, 0.04, length))
+		edge.mesh = edge_mesh
+		edge.material_override = rim_mat
+		edge.position = Vector3(x, 0.0, -length * 0.5)
+		edge.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		glyph.add_child(edge)
+		return
+	const DASH_COUNT := 6
+	var dash_length := length / float(DASH_COUNT) * 0.55
+	for i in DASH_COUNT:
+		var z := -length * (float(i) + 0.5) / float(DASH_COUNT)
+		var dash := MeshInstance3D.new()
+		var dash_mesh := BoxMesh.new()
+		dash_mesh.size = PixelStyle.snap_size_to_pixel_grid(Vector3(0.1, 0.04, dash_length))
+		dash.mesh = dash_mesh
+		dash.material_override = rim_mat
+		dash.position = Vector3(x, 0.0, z)
+		dash.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		glyph.add_child(dash)
+
+
 func _telegraph_cone(
 	glyph: Node3D,
 	sweep: Node3D,
 	radius: float,
 	rim_mat: Material,
 	fill_mat: Material,
-	arc_deg: float = 90.0
+	arc_deg: float = 90.0,
+	pattern: String = "solid"
 ) -> void:
 	var half := deg_to_rad(arc_deg) * 0.5
 	var segments := 12
 	for i in segments:
 		var angle := lerpf(-half, half, float(i) / float(segments - 1))
 		var on_edge := i == 0 or i == segments - 1
+		# `AX-01`: the two boundary edges are what makes this shape a wedge rather than a blob --
+		# dashing only thins the arc ticks between them, never the edges themselves.
+		if pattern == "dashed" and not on_edge and i % 2 == 1:
+			continue
 		var arc := MeshInstance3D.new()
 		var arc_mesh := BoxMesh.new()
 		arc_mesh.size = PixelStyle.snap_size_to_pixel_grid(Vector3(0.26, 0.04, 0.26))
@@ -1116,6 +1180,14 @@ func _telegraph_cone(
 		arc.rotation.y = angle
 		arc.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		glyph.add_child(arc)
+		if pattern == "double":
+			var inner_arc := MeshInstance3D.new()
+			inner_arc.mesh = arc_mesh
+			inner_arc.material_override = rim_mat
+			inner_arc.position = Vector3(sin(angle), 0.0, -cos(angle)) * radius * 0.72
+			inner_arc.rotation.y = angle
+			inner_arc.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+			glyph.add_child(inner_arc)
 		if on_edge:
 			var edge := MeshInstance3D.new()
 			var edge_mesh := BoxMesh.new()

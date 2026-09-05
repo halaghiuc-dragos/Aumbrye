@@ -195,6 +195,20 @@ const AI_LOD_MID_STRIDE := 4
 const AI_LOD_FAR_STRIDE := 16
 var _ai_tick_phase := 0
 
+## `EN-10`: the five optional, data-driven behaviour mixins. Each is guarded by `_data.has("<key>")`
+## so an enemy that does not author the key pays nothing beyond a dictionary lookup per relevant
+## tick. See `_try_leap_attack()`, `_process_burrow_mixin()`, `_apply_splits_on_death()`,
+## `_process_summons_mixin()` and `_process_aura_mixin()`.
+var _leap_cooldown := 0.0
+const BURROW_HIDE_DURATION := 0.35
+const BURROW_REVEAL_TELEGRAPH := 0.5
+var _burrow_cooldown := 0.0
+var _burrow_phase := ""
+var _burrow_timer := 0.0
+var _summon_cooldown := 0.0
+var _summoned_adds: Array = []
+var _aura_timer := 0.0
+
 
 func set_damage_multiplier(mult: float) -> void:
 	_base_damage_multiplier = maxf(0.1, mult)
@@ -850,11 +864,22 @@ func _telegraph_radius_scale() -> float:
 	return 1.0
 
 
+## Local telegraph size for a ranged attack when nothing is authored: draw/nock cue at the
+## archer's own feet, not a wedge toward the target. `max_range` on these attacks is the arrow's
+## travel distance -- feeding it into the melee formula below drew a telegraph as long as the shot
+## itself (a "quick_shot" with `max_range: 14` telegraphed a 29m line for a single arrow).
+const RANGED_TELEGRAPH_RADIUS := 1.4
+
+
 ## `EN-03`: the invariant is that the telegraph must never be smaller than the attack. When
 ## `telegraph_radius` is not authored, derive it from the attack's own `max_range` -- the reach
 ## that will actually open the hitbox -- rather than trust a number authored independently of it.
 ## A cone's tip overshoots by 5% so the player can see the edge of the wedge before they are in it.
+## Exempts `no_hitbox` (ranged/projectile) attacks from that formula: they have no melee reach to
+## honour, and `max_range` there is shot distance, not telegraph size.
 func _derived_telegraph_radius(shape: String) -> float:
+	if bool(_current_attack_data.get("no_hitbox", false)):
+		return RANGED_TELEGRAPH_RADIUS
 	var max_range := float(_current_attack_data.get("max_range", _data.get("max_range", 1.6)))
 	if shape == "cone" or shape == "line":
 		return max_range * 1.05
@@ -876,11 +901,15 @@ func _show_attack_telegraph(duration: float) -> void:
 	var arc_deg := float(
 		_current_attack_data.get("telegraph_arc_deg", _data.get("telegraph_arc_deg", 90.0))
 	)
-	var tint := VfxService.telegraph_class_tint(_current_attack_class())
+	var attack_class := _current_attack_class()
+	var tint := VfxService.telegraph_class_tint(attack_class)
 	if _data.has("telegraph_tint"):
 		tint = Color(_data["telegraph_tint"])
+	var pattern := AccessibilitySettings.get_telegraph_class_pattern(attack_class)
 	var forward := CombatFacing.forward_of(self)
-	VfxService.play_telegraph(global_position, radius, duration, tint, shape, forward, self, arc_deg)
+	VfxService.play_telegraph(
+		global_position, radius, duration, tint, shape, forward, self, arc_deg, pattern
+	)
 	_begin_weapon_charge(tint, duration)
 
 
@@ -1095,6 +1124,7 @@ func _finalize_death(silent: bool) -> void:
 		RunFlow.register_kill(get_enemy_id())
 		_award_kill_coins()
 		_try_roll_global_drop()
+		_apply_splits_on_death()
 		if CombatEvents:
 			CombatEvents.dispatch(CombatEvents.ON_KILL, {"actor": _player, "target": self})
 		enemy_died.emit()
@@ -1203,6 +1233,12 @@ func _physics_process(delta: float) -> void:
 	var staggered := false
 	if _cooldown > 0.0:
 		_cooldown -= delta
+	if _leap_cooldown > 0.0:
+		_leap_cooldown -= delta
+	if _burrow_cooldown > 0.0:
+		_burrow_cooldown -= delta
+	if _summon_cooldown > 0.0:
+		_summon_cooldown -= delta
 	if _phase_lock_timer > 0.0:
 		_phase_lock_timer -= delta
 	if _phase_invuln_timer > 0.0:
@@ -1232,7 +1268,9 @@ func _physics_process(delta: float) -> void:
 	else:
 		velocity.x = 0.0
 		velocity.z = 0.0
-	if not is_on_floor():
+	if str(_data.get("enemy_type", "")) == "flyer":
+		_apply_flyer_height_hold(delta)
+	elif not is_on_floor():
 		velocity += get_gravity() * delta
 	if _knockback:
 		var impulse := _knockback.consume(delta)
@@ -1260,6 +1298,11 @@ func _update_ai(delta: float) -> void:
 	_update_perception(delta)
 	if _room_registered:
 		EnemyBlackboard.maybe_reassign(_room_id)
+	_process_aura_mixin(delta)
+	if _data.has("summons"):
+		_process_summons_mixin(delta)
+	if _process_burrow_mixin(delta):
+		return
 	if _phase_lock_timer > 0.0 and _state not in [State.WINDUP, State.ATTACK, State.RECOVERY]:
 		velocity.x = 0.0
 		velocity.z = 0.0
@@ -1358,14 +1401,40 @@ func _process_chase(delta: float) -> void:
 		return
 	if _try_defensive_reaction():
 		return
+	if _try_leap_attack():
+		return
 	if _can_attack():
 		_start_windup()
+		return
+	if str(_data.get("enemy_type", "")) == "caster":
+		_process_caster_kite(delta)
 		return
 	var holding_back := _cooldown > 0.0 or _role != EnemyBlackboard.Role.ENGAGER
 	if holding_back and _distance_to_player_sq() <= _circle_entry_range_sq():
 		_enter_circle()
 		return
 	_apply_chase_velocity(delta)
+
+
+## `EN-10` "the zoner": a `caster`-type enemy never closes to melee range on its own -- it holds at
+## `preferred_range`, backs off if the player crowds inside `retreat_range`, and only ever answers
+## with its own (long-range, telegraphed) attacks. Mirrors `CastleArcher._process_chase()`'s kiting
+## without a subclass, since every caster should get it for free.
+func _process_caster_kite(delta: float) -> void:
+	if _player == null:
+		velocity = Vector3.ZERO
+		return
+	var to_player := _player.global_position - global_position
+	to_player.y = 0.0
+	var dist := to_player.length()
+	var move_dir := Vector3.ZERO
+	if dist < _retreat_range:
+		move_dir = -to_player.normalized()
+	elif dist > _preferred_range:
+		move_dir = _direction_toward(_player.global_position, delta, true)
+	velocity = move_dir * _move_speed
+	if to_player.length_squared() > 0.01:
+		_face_direction(to_player, delta)
 
 
 func _circle_entry_range_sq() -> float:
@@ -1396,6 +1465,8 @@ func _process_circle(delta: float) -> void:
 	_last_known_player_pos = _player.global_position
 	_state_timer -= delta
 	if _try_defensive_reaction():
+		return
+	if _try_leap_attack():
 		return
 	if _can_attack():
 		_start_windup()
@@ -1967,6 +2038,14 @@ func _should_run_ai_tick(stride: int) -> bool:
 func _start_windup() -> void:
 	if is_dead() or (_health and _health.is_dead()):
 		return
+	## `EN-10` "the many": a `swarm` enemy is meant to dogpile the player all at once rather than
+	## politely queue for a shared attack token -- that is the whole point of the archetype, and
+	## `AttackTokenService` gating it would make a swarm behave like a single-file line of melee.
+	if str(_data.get("enemy_type", "")) == "swarm":
+		_attack_token_held = false
+		_select_attack_data()
+		_enter_windup(_current_attack_data)
+		return
 	_attack_token_group = str(_data.get("attack_token_group", "room_default"))
 	if AttackTokenService and not AttackTokenService.request_token(_attack_token_group):
 		_cooldown = _enemy_rng.randf_range(0.25, 0.6)
@@ -2338,6 +2417,225 @@ func _apply_attack_lunge() -> void:
 	var step := forward.normalized() * (distance / duration)
 	velocity.x = step.x
 	velocity.z = step.z
+
+
+## `EN-10` "the fast one": a committed gap-closer with its own telegraph. `leaps` data is
+## `{range, windup, distance, cooldown}` -- reuses `_enter_windup()` (for the telegraph and the
+## commit-to-heading read) and `_apply_attack_lunge()` (via the synthetic `lunge_distance` key) so
+## a leap is dodgeable and readable exactly like every other windup, just faster and further.
+func _try_leap_attack() -> bool:
+	if not _data.has("leaps"):
+		return false
+	if _leap_cooldown > 0.0 or _player == null:
+		return false
+	var spec: Dictionary = _data.get("leaps", {})
+	var leap_range := maxf(0.1, float(spec.get("range", 6.0)))
+	var dist_sq := _distance_to_player_sq()
+	if dist_sq > leap_range * leap_range:
+		return false
+	if dist_sq <= _engage_range * _engage_range:
+		return false
+	if not _has_line_of_sight_to_player():
+		return false
+	_attack_token_group = str(_data.get("attack_token_group", "room_default"))
+	if AttackTokenService and not AttackTokenService.request_token(_attack_token_group):
+		return false
+	_attack_token_held = true
+	var windup := maxf(0.05, float(spec.get("windup", 0.5)))
+	var distance := maxf(0.0, float(spec.get("distance", 5.0)))
+	_leap_cooldown = maxf(0.1, float(spec.get("cooldown", 5.0)))
+	var leap_data := {
+		"windup_duration": windup,
+		"active_duration": 0.22,
+		"recovery_duration": float(_data.get("recovery_duration", 0.9)),
+		"attack_damage": float(_data.get("attack_damage", 20.0)),
+		"attack_poise_damage": float(_data.get("attack_poise_damage", 10.0)),
+		"attackClass": str(spec.get("attackClass", "unblockable")),
+		"max_range": leap_range,
+		"lunge_distance": distance,
+		"telegraph_shape": "line",
+	}
+	_combo_step = 0
+	_enter_windup(leap_data)
+	return true
+
+
+## `EN-10` "the ambusher": vanish, reposition, re-emerge with a telegraph. `burrows` data is
+## `{cooldown, reappear_behind}`. Reuses `MaterialDissolveScript.dissolve()`/`.restore()` -- the
+## same fade the death visual uses -- run in reverse instead of a bespoke shader hookup, and
+## `_show_attack_telegraph()` for the re-emergence warning. Returns true while the sequence owns
+## the frame (the caller should skip the normal state machine for that tick).
+func _process_burrow_mixin(delta: float) -> bool:
+	if not _data.has("burrows"):
+		return false
+	if is_dead():
+		return false
+	if _burrow_phase != "":
+		velocity.x = 0.0
+		velocity.z = 0.0
+		_burrow_timer -= delta
+		if _burrow_timer > 0.0:
+			return true
+		if _burrow_phase == "hiding":
+			_teleport_behind_player()
+			_burrow_phase = "revealing"
+			_burrow_timer = BURROW_REVEAL_TELEGRAPH
+			if _diorama_visual:
+				MaterialDissolveScript.restore(_diorama_visual)
+			if _hurtbox:
+				_hurtbox.monitorable = true
+				_hurtbox.monitoring = true
+			if _body_collision:
+				_body_collision.disabled = false
+			_current_attack_data = {}
+			_show_attack_telegraph(_burrow_timer)
+		else:
+			_burrow_phase = ""
+			var spec: Dictionary = _data.get("burrows", {})
+			_burrow_cooldown = maxf(0.1, float(spec.get("cooldown", 8.0)))
+		return true
+	if _burrow_cooldown > 0.0 or not _has_aggro() or _player == null:
+		return false
+	if _state != State.CHASE:
+		return false
+	_burrow_phase = "hiding"
+	_burrow_timer = BURROW_HIDE_DURATION
+	if _diorama_visual:
+		MaterialDissolveScript.dissolve(_diorama_visual, {"duration": BURROW_HIDE_DURATION, "sweep": "down"})
+	if _hurtbox:
+		_hurtbox.monitorable = false
+		_hurtbox.monitoring = false
+	if _body_collision:
+		_body_collision.disabled = true
+	velocity.x = 0.0
+	velocity.z = 0.0
+	return true
+
+
+func _teleport_behind_player() -> void:
+	if _player == null:
+		return
+	var spec: Dictionary = _data.get("burrows", {})
+	var behind_dist := maxf(0.5, float(spec.get("reappear_behind", 2.0)))
+	var forward := CombatFacing.forward_of(_player)
+	forward.y = 0.0
+	if forward.length_squared() < 0.01:
+		forward = Vector3.FORWARD
+	else:
+		forward = forward.normalized()
+	global_position = _player.global_position - forward * behind_dist
+	global_position.y = _spawn_origin.y
+
+
+## `EN-10` "the many": on death, spawn `count` smaller copies of `enemyId` each with
+## `health_fraction` of this enemy's max health. `splits` data is
+## `{enemyId, count, health_fraction}`. Reuses `spawn_adds()`, which already parents new enemies to
+## `get_parent()` -- load-bearing for room culling and `EnemyBlackboard.room_key()`. `max_alive`
+## caps the *total room population of the child id*, not just this splitter's own spawns, so a room
+## of splitting slimes cannot become unbounded.
+func _apply_splits_on_death() -> void:
+	if not _data.has("splits"):
+		return
+	var spec: Dictionary = _data.get("splits", {})
+	var child_id := str(spec.get("enemyId", ""))
+	if child_id.is_empty():
+		return
+	var max_alive := maxi(1, int(spec.get("max_alive", 6)))
+	var parent := get_parent()
+	var alive_of_type := 0
+	if parent:
+		for sib in parent.get_children():
+			var enemy := sib as CastleEnemyBase
+			if (
+				enemy != null
+				and is_instance_valid(enemy)
+				and enemy != self
+				and not enemy.is_dead()
+				and enemy.get_enemy_id() == child_id
+			):
+				alive_of_type += 1
+	var count := clampi(int(spec.get("count", 2)), 0, maxi(0, max_alive - alive_of_type))
+	if count <= 0:
+		return
+	var frac := clampf(float(spec.get("health_fraction", 0.5)), 0.05, 1.0)
+	var base_max := _health.max_health if _health else 40.0
+	var spawned := spawn_adds({"enemyId": child_id, "count": count, "radius": 1.6})
+	for node in spawned:
+		var health_node := node.get_node_or_null("Health") as Health
+		if health_node:
+			health_node.configure(maxf(1.0, base_max * frac))
+
+
+## `EN-10` "the support": periodically calls `spawn_adds()`, capped at `max_alive` living summons
+## from this summoner. `summons` data is `{enemyId, count, cooldown, max_alive}`.
+func _process_summons_mixin(delta: float) -> void:
+	if is_dead():
+		return
+	var spec: Dictionary = _data.get("summons", {})
+	var child_id := str(spec.get("enemyId", ""))
+	if child_id.is_empty():
+		return
+	_summon_cooldown -= delta
+	if _summon_cooldown > 0.0:
+		return
+	if not _has_aggro():
+		_summon_cooldown = 0.5
+		return
+	var pruned: Array = []
+	for node in _summoned_adds:
+		var enemy := node as CastleEnemyBase
+		if enemy != null and is_instance_valid(enemy) and not enemy.is_dead():
+			pruned.append(node)
+	_summoned_adds = pruned
+	var max_alive := maxi(1, int(spec.get("max_alive", 2)))
+	if _summoned_adds.size() >= max_alive:
+		_summon_cooldown = 1.0
+		return
+	var count := clampi(int(spec.get("count", 1)), 0, max_alive - _summoned_adds.size())
+	if count <= 0:
+		_summon_cooldown = 1.0
+		return
+	var spawned := spawn_adds({"enemyId": child_id, "count": count, "radius": 4.0})
+	_summoned_adds.append_array(spawned)
+	_summon_cooldown = maxf(0.5, float(spec.get("cooldown", 8.0)))
+
+
+## `EN-10` "the big one": every `interval` seconds, apply `build_up` of `statusId` to the player if
+## within `radius`. `aura` data is `{statusId, radius, interval, build_up}`. Reuses
+## `StatusController.add_build_up()` -- the same meter a status-on-hit uses, so the aura and a
+## weapon both feeding the same status stack toward the same threshold rather than fighting.
+func _process_aura_mixin(delta: float) -> void:
+	if not _data.has("aura"):
+		return
+	if is_dead():
+		return
+	var spec: Dictionary = _data.get("aura", {})
+	var interval := maxf(0.1, float(spec.get("interval", 2.0)))
+	_aura_timer -= delta
+	if _aura_timer > 0.0:
+		return
+	_aura_timer = interval
+	if _player == null:
+		return
+	var radius := maxf(0.1, float(spec.get("radius", 4.0)))
+	if _distance_to_player_sq() > radius * radius:
+		return
+	var status_ctrl := _player.get_node_or_null("StatusController") as StatusController
+	if status_ctrl == null:
+		return
+	status_ctrl.add_build_up(str(spec.get("statusId", "torpor")), float(spec.get("build_up", 10.0)))
+
+
+## `EN-10` "the flyer": a simple height-holding steering term instead of `NavigationAgent3D` -- a
+## `flyer` ignores ground nav entirely and just servos `velocity.y` toward `hover_height` above its
+## spawn point, letting the existing chase/circle/attack state machine handle the rest (strafing is
+## already what `State.CIRCLE` does; diving is just closing distance from the air).
+func _apply_flyer_height_hold(delta: float) -> void:
+	var hover_height := float(_data.get("hover_height", 2.2))
+	var target_y := _spawn_origin.y + hover_height
+	var diff := target_y - global_position.y
+	var desired_vy := clampf(diff * 4.0, -6.0, 6.0)
+	velocity.y = lerpf(velocity.y, desired_vy, clampf(delta * 6.0, 0.0, 1.0))
 
 
 func _track_player_facing(delta: float, speed_mult: float = 1.0) -> void:

@@ -524,6 +524,15 @@ static func profile_for_enemy_data(data: Dictionary) -> String:
 		return "hound"
 	if enemy_id.contains("brute") or enemy_id.contains("golem") or enemy_id.contains("guardian"):
 		return "brute"
+	## `EN-10`: `flyer` and `swarm` have no dedicated `PROFILES` silhouette yet, so they resolve
+	## through `build_enemy_body()`'s existing "unrecognised profile" fallback to the leaner
+	## `ranged` frame (flyer) or the standard `melee` frame (swarm). `caster` is passed through
+	## as-is -- `_default_weapon_for_profile()` already special-cases it to no mounted weapon,
+	## which is what a channelled-magic archetype should look like.
+	if enemy_type == "flyer":
+		return "ranged"
+	if enemy_type == "swarm":
+		return "melee"
 	return enemy_type
 
 

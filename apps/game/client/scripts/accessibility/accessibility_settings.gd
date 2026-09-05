@@ -126,6 +126,16 @@ static func telegraph_radius_scale() -> float:
 	return TELEGRAPH_EMPHASIS_RADIUS_SCALE if assist_telegraph_emphasis else 1.0
 
 
+const TELEGRAPH_EMPHASIS_RIM_SCALE := 1.5
+
+
+## `AX-01`: the assist doesn't just make the ring bigger (`telegraph_radius_scale()`), it makes the
+## ring itself easier to see -- a thicker rim tick holds up better at a distance and under a
+## colourblind remap than a larger-but-equally-thin one.
+static func telegraph_rim_thickness_scale() -> float:
+	return TELEGRAPH_EMPHASIS_RIM_SCALE if assist_telegraph_emphasis else 1.0
+
+
 static func camera_shake_scale() -> float:
 	return 0.0 if reduce_camera_shake else camera_shake_intensity
 
@@ -389,6 +399,22 @@ static func get_telegraph_class_color(attack_class: String) -> Color:
 			return _cb_telegraph_class_color(attack_class, true)
 		_:
 			return _default_telegraph_class_color(attack_class)
+
+
+## `AX-01`: the colour triad above is still colour-only -- a greyscale screenshot collapses all
+## three classes into the same ring. This is the second, independent channel: the *pattern* the
+## ground ring is built from, read by `VfxService._telegraph_rim_ring()` and friends. Solid for
+## blockable (the default, least dangerous read), a dashed ring for parryable (a broken line reads
+## as "answerable, if you're precise"), and a second inner ring for unblockable (doubled = "this
+## one matters twice as much").
+static func get_telegraph_class_pattern(attack_class: String) -> String:
+	match attack_class:
+		"unblockable":
+			return "double"
+		"parryable":
+			return "dashed"
+		_:
+			return "solid"
 
 
 static func _default_telegraph_class_color(attack_class: String) -> Color:

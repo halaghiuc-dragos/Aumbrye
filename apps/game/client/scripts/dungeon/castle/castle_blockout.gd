@@ -110,7 +110,13 @@ const CURVED_SEGMENT_OVERLAP := 0.06
 		hide_walls = value
 		_request_rebuild()
 
-@export var build_ceiling: bool = true:
+## Off by default: a room's `Ceiling` StaticBody3D sat on `CombatLayers.WORLD`, the same layer
+## `SpringArm3D.collision_mask` (see `orbit_camera.gd`) uses to keep the camera from clipping into
+## geometry -- so every dungeon room fought the camera the moment a lock-on angle looked anywhere
+## near it, unlike the open-air training platform (which was never built from `CastleBlockout` and
+## so never had a `Ceiling` body to begin with). `WALL_HEIGHT` (6.0) is well above the player's max
+## jump arc (~1.2m at `JUMP_VELOCITY` 4.8), so the walls alone still contain the room without it.
+@export var build_ceiling: bool = false:
 	set(value):
 		build_ceiling = value
 		_request_rebuild()
