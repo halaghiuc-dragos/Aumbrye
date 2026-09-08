@@ -2,6 +2,20 @@
   "schemaVersion": 1,
   "modes": [
     {
+      "id": "ember_expedition",
+      "name": "Ember Expedition",
+      "baseMode": "castle",
+      "dungeonId": "forgotten_castle",
+      "floors": 3,
+      "description": "Three floors. Choose your relics, find the keys, and defeat the final warden. Keep your loot if you escape.",
+      "flavour": "The village hearth is fading. Bring a living ember back from the halls below.",
+      "scoring": "time",
+      "permadeath": false,
+      "modifiers": [],
+      "escalation": [],
+      "unlock": {}
+    },
+    {
       "id": "boss_rush",
       "name": "Vigil of Wardens",
       "baseMode": "castle",

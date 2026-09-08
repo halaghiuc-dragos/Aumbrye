@@ -123,6 +123,14 @@ func _physics_process(delta: float) -> void:
 		riposte_active = false
 		parried_target = null
 
+	var reactions := _body.get_node_or_null("CombatReactions") as PlayerCombatReactions
+	var heal := _body.get_node_or_null("PlayerHeal") as PlayerHeal
+	var dodge := _body.get_node_or_null("Dodge") as Dodge
+	if (reactions and not reactions.can_act()) or (heal and heal.is_drinking) or (dodge and dodge.is_dodging):
+		if _state == GuardState.GUARDING:
+			_end_guard()
+		return
+
 	match _state:
 		GuardState.IDLE:
 			is_blocking = false
@@ -170,7 +178,10 @@ func _enter_guard() -> void:
 
 func _end_guard() -> void:
 	if _stamina:
-		_stamina.set_regen_state(Stamina.RegenState.NORMAL)
+		var dodge := _body.get_node_or_null("Dodge") as Dodge
+		_stamina.set_regen_state(
+			Stamina.RegenState.SUPPRESSED if dodge and dodge.is_dodging else Stamina.RegenState.NORMAL
+		)
 	if _mana:
 		_mana.set_regen_state(Mana.RegenState.NORMAL)
 	_reset_guard_state()

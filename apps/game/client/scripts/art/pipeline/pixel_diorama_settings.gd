@@ -893,8 +893,8 @@ static func apply_to_screen_finish(mat: ShaderMaterial) -> void:
 	)
 	mat.set_shader_parameter("filmic_amount", cinematic_finish_amount)
 	mat.set_shader_parameter("halation_strength", 0.22 * cinematic_finish_amount)
-	mat.set_shader_parameter("aberration_strength", 1.1 * cinematic_finish_amount)
-	mat.set_shader_parameter("grain_strength", 0.022 * cinematic_finish_amount)
+	mat.set_shader_parameter("aberration_strength", 0.0)
+	mat.set_shader_parameter("grain_strength", 0.0)
 
 
 static func apply_to_scene(root: Node) -> void:

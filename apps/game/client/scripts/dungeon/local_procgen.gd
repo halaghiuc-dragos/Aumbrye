@@ -48,7 +48,8 @@ static func generate(
 	player_level: int = 1,
 	debug_ascii: bool = false,
 	allow_cli_fallback: bool = false,
-	bypass_tier_lock: bool = false
+	bypass_tier_lock: bool = false,
+	final_floor_index: int = 0
 ) -> Dictionary:
 	var base_seed := _resolve_seed(run_seed)
 	if run_seed == null:
@@ -60,7 +61,10 @@ static func generate(
 		}
 	var tier_seed := DungeonSeedService.derive_tier_seed(base_seed, dungeon_tier)
 	var floor_seed := DungeonSeedService.mix_floor_seed(tier_seed, floor_index)
-	var is_final := RunFloorConfig.is_final_floor(floor_index, run_mode, dungeon_tier)
+	var is_final := (
+		floor_index >= final_floor_index if final_floor_index > 0 and run_mode != "endless"
+		else RunFloorConfig.is_final_floor(floor_index, run_mode, dungeon_tier)
+	)
 
 	var last_reason := ""
 	var best_result: Dictionary = {}
@@ -111,20 +115,12 @@ static func generate(
 			if lock_count > best_locks:
 				best_locks = lock_count
 				best_result = result
-			if lock_count >= RoomContentConfigScript.default().max_locks_per_floor:
-				print("DIST locks=%d final=%s" % [lock_count, str(definition.get("isFinalFloor", false))])
+			if is_final or lock_count >= RoomContentConfigScript.default().max_locks_per_floor:
 				return result
 			continue
 		var errors: Array = validation.get("errors", [])
 		last_reason = str(errors[0]) if not errors.is_empty() else "validation_failed"
 	if not best_result.is_empty():
-		var best_definition: Dictionary = best_result.get("definition", {})
-		print(
-			(
-				"DIST locks=%d final=%s"
-				% [best_locks, str(best_definition.get("isFinalFloor", false))]
-			)
-		)
 		return best_result
 
 	if allow_cli_fallback:

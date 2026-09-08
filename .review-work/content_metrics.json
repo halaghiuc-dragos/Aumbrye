@@ -1,0 +1,157 @@
+{
+  "enemies": {
+    "files": 54,
+    "keys": {
+      "id": 54,
+      "name": 54,
+      "scene": 54,
+      "health": 54,
+      "poise": 54,
+      "move_speed": 54,
+      "attack_damage": 54,
+      "attack_poise_damage": 54,
+      "windup_duration": 54,
+      "active_duration": 54,
+      "recovery_duration": 54,
+      "attack_range": 54,
+      "attack_cooldown": 54,
+      "stagger_duration": 54
+    }
+  },
+  "bosses": {
+    "files": 16,
+    "keys": {
+      "id": 16,
+      "name": 16,
+      "title": 16,
+      "loreText": 16,
+      "scene": 16,
+      "threat_cost": 16,
+      "isBoss": 16,
+      "health": 16,
+      "poise": 16,
+      "move_speed": 16,
+      "attack_damage": 16,
+      "attack_poise_damage": 16,
+      "windup_duration": 16,
+      "active_duration": 16
+    }
+  },
+  "weapons": {
+    "files": 8,
+    "keys": {
+      "id": 8,
+      "name": 8,
+      "archetype": 8,
+      "damage_type": 8,
+      "buffer_window": 8,
+      "cancel_into": 8,
+      "cancel_after": 8,
+      "scaling": 8,
+      "hitbox": 8,
+      "light_attacks": 8,
+      "heavy_attack": 8,
+      "running_attack": 8,
+      "rolling_attack": 8,
+      "art": 8
+    }
+  },
+  "rooms": {
+    "files": 10,
+    "keys": {
+      "biomeId": 10,
+      "note": 10,
+      "variants": 10
+    }
+  },
+  "biomes": {
+    "files": 10,
+    "keys": {
+      "id": 10,
+      "name": 10,
+      "templatePrefix": 10,
+      "assetFolder": 10,
+      "roomCount": 10,
+      "roomTemplateIds": 10,
+      "materials": 10,
+      "lighting": 10,
+      "audioProfile": 10,
+      "propKit": 10,
+      "enemyPool": 10,
+      "roleComposition": 10,
+      "bossPool": 10,
+      "minibossPool": 10
+    }
+  },
+  "relics": {
+    "files": 35,
+    "keys": {
+      "id": 35,
+      "name": 35,
+      "description": 35,
+      "maxStacks": 35,
+      "stats": 35,
+      "tags": 35,
+      "weight": 35,
+      "rules": 35,
+      "offerable": 35
+    }
+  },
+  "quests": {
+    "files": 50,
+    "keys": {
+      "id": 49,
+      "title": 49,
+      "type": 49,
+      "description": 49,
+      "rewards": 49,
+      "requiredCount": 40,
+      "chainId": 26,
+      "availableWhen": 21,
+      "repeatable": 20,
+      "bounty": 20,
+      "cooldownRuns": 17,
+      "prerequisites": 15,
+      "targetId": 15,
+      "targetItemId": 8
+    }
+  },
+  "items/equipment": {
+    "files": 184,
+    "keys": {
+      "id": 184,
+      "name": 184,
+      "itemType": 184,
+      "equipmentSlot": 184,
+      "gridWidth": 184,
+      "gridHeight": 184,
+      "stackSize": 184,
+      "rarity": 184,
+      "description": 184,
+      "value": 184,
+      "stats": 184,
+      "maxDurability": 128,
+      "lootValue": 121,
+      "baseId": 121
+    }
+  },
+  "traps": {
+    "files": 12,
+    "keys": {
+      "id": 12,
+      "name": 12,
+      "description": 12,
+      "scene": 12,
+      "trigger": 12,
+      "telegraph": 12,
+      "triggerRadius": 12,
+      "damageType": 12,
+      "hitInterval": 12,
+      "statusId": 12,
+      "statusBuildUp": 12,
+      "enemyDamageMultiplier": 12,
+      "active": 11,
+      "cooldown": 11
+    }
+  }
+}

@@ -90,7 +90,7 @@ func _phase_arg() -> String:
 func _ensure_playable_character() -> void:
 	if CharacterService.class_id != "":
 		return
-	LocalSave.queue_boot_new_game("knight", WALK_CHARACTER, {"theme": 0})
+	LocalSave.queue_boot_new_game("knight", WALK_CHARACTER, CharacterAppearance.default_profile())
 	if not LocalSave.execute_boot():
 		print("PHASE-ERROR could not create a character to walk with: %s"
 			% LocalSave.last_boot_failure)

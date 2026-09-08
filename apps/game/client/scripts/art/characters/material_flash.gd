@@ -142,7 +142,6 @@ static func _flash_mesh(mesh: MeshInstance3D, params: Dictionary) -> void:
 
 	if not mesh.is_inside_tree():
 		return
-	var tree := mesh.get_tree()
 
 	cancel(mesh)
 
@@ -167,7 +166,7 @@ static func _flash_mesh(mesh: MeshInstance3D, params: Dictionary) -> void:
 	if _shader_declares(shader, FLASH_EMISSION_PARAM):
 		mesh.set_instance_shader_parameter(FLASH_EMISSION_PARAM, DEFAULT_FLASH_EMISSION)
 
-	var tween := tree.create_tween()
+	var tween := mesh.create_tween()
 	mesh.set_meta(META_ACTIVE_TWEEN, tween)
 	tween.tween_method(
 		func(v: float) -> void:

@@ -1,5 +1,7 @@
 extends Node3D
 
+const PlayerRunState := preload("res://scripts/player/player_run_state.gd")
+
 
 ## Fallback only. Enemies resolve through `EnemyCatalog.get_scene()` so the Vigil can field the
 ## whole bestiary; this dictionary exists purely so a content gap cannot leave a wave empty.
@@ -74,10 +76,11 @@ func _ready() -> void:
 		_start_combat_from_continue()
 	else:
 		_show_lobby()
+	if _player:
+		WavesRunService.apply_equipment_to_player(_player)
 	_restore_waves_snapshot()
 	_persist_waves_save()
 	if _player:
-		WavesRunService.apply_equipment_to_player(_player)
 		_wire_player_death()
 	call_deferred("_apply_pixel_diorama_scene")
 
@@ -681,9 +684,7 @@ func _restore_waves_snapshot() -> void:
 			float(player_state.get("z", _player.global_position.z))
 		)
 		_player.rotation.y = float(player_state.get("rotationY", _player.rotation.y))
-		var health := _player.get_node_or_null("Health") as Health
-		if health and player_state.has("health"):
-			health.restore_current(float(player_state.get("health", health.current)))
+		PlayerRunState.restore(_player, player_state)
 		var camera_state: Dictionary = player_state.get("camera", {})
 		if not camera_state.is_empty():
 			var spring := _player.get_node_or_null("CameraPivot/SpringArm3D")
@@ -707,6 +708,7 @@ func _persist_waves_save() -> void:
 			else 100.0
 		),
 	}
+	player_state.merge(PlayerRunState.capture(_player), true)
 	var spring := _player.get_node_or_null("CameraPivot/SpringArm3D") if _player else null
 	if spring and spring.has_method("capture_state"):
 		player_state["camera"] = spring.call("capture_state")

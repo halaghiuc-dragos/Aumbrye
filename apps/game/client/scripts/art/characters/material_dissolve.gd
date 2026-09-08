@@ -65,7 +65,6 @@ static func dissolve(node: Node3D, opts: Dictionary = {}) -> void:
 		return
 	if not node.is_inside_tree():
 		return
-	var tree := node.get_tree()
 	var merged := _merge_opts(node, opts)
 	var meshes := MaterialFlashScript.gather_meshes(node)
 	if meshes.is_empty():
@@ -91,7 +90,7 @@ static func dissolve(node: Node3D, opts: Dictionary = {}) -> void:
 	for entry in targets:
 		var mesh: MeshInstance3D = entry["mesh"]
 		var stagger := float(entry["stagger"])
-		var mesh_tween := tree.create_tween()
+		var mesh_tween := mesh.create_tween()
 		mesh.set_meta(META_ACTIVE_TWEEN, mesh_tween)
 		if stagger > 0.0:
 			mesh_tween.tween_interval(stagger)
@@ -224,17 +223,17 @@ static func _apply_sink_and_scale(visual: Node3D, opts: Dictionary) -> void:
 		return
 	var rig_kind := str(opts.get("rig_kind", "humanoid"))
 	if rig_kind == "blob":
-		var squash := tree.create_tween()
+		var squash := visual.create_tween()
 		_track_death_tween(visual, squash)
 		squash.tween_property(visual, "scale", Vector3(visual.scale.x, visual.scale.y * 0.6, visual.scale.z), 0.15)
 	if bool(opts.get("has_animator", false)):
-		var sink := tree.create_tween()
+		var sink := visual.create_tween()
 		_track_death_tween(visual, sink)
 		sink.tween_interval(SINK_DELAY)
 		sink.tween_property(visual, "position:y", visual.position.y - SINK_DEPTH, SINK_DURATION)
 		return
 	var death_scale := Vector3(0.2, 0.05, 0.2)
-	var tween := tree.create_tween()
+	var tween := visual.create_tween()
 	_track_death_tween(visual, tween)
 	tween.tween_property(visual, "scale", death_scale, 0.35)
 	tween.parallel().tween_property(visual, "position:y", -0.8, 0.35)

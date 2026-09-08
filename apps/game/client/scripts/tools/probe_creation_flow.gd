@@ -72,17 +72,14 @@ func _ready() -> void:
 		print("FAIL: confirmation dialog has no Begin button")
 		get_tree().quit(1)
 		return
-	confirm.emit_signal("pressed")
-	for i in 6:
-		await get_tree().process_frame
-
-	print("boot mode queued; letting the real LoadingScreen run")
+	# The real menu changes scenes on confirmation, freeing this probe. Install the
+	# persistent observer first and let the real flow perform its own transition.
 	var watcher := Node.new()
 	watcher.name = "SceneWatcher"
 	watcher.process_mode = Node.PROCESS_MODE_ALWAYS
 	watcher.set_script(load("res://scripts/tools/probe_scene_watcher.gd"))
 	get_tree().root.add_child(watcher)
-	SceneTransition.goto(get_tree(), "res://scenes/ui/loading_screen.tscn")
+	confirm.emit_signal("pressed")
 
 
 func _find_line_edit(root: Node) -> LineEdit:

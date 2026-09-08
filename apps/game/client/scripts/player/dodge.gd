@@ -5,6 +5,7 @@ class_name Dodge
 const JUMP_VELOCITY := 4.8
 const COYOTE_TIME := 0.12
 const JUMP_BUFFER_TIME := 0.15
+const DODGE_BUFFER_TIME := 0.18
 const DODGE_BURST_FRACTION := 0.35
 const DODGE_SPEED := 9.0
 const DODGE_BACK_SPEED := 6.0
@@ -69,6 +70,7 @@ var _stamina: Stamina
 var _weapon: WeaponController
 var _coyote_timer := 0.0
 var _jump_buffer_timer := 0.0
+var _dodge_buffer_timer := 0.0
 var _dodge_timer := 0.0
 var _recovery_timer := 0.0
 var _dodge_direction := Vector3.ZERO
@@ -179,8 +181,9 @@ func process_dodge_physics(delta: float) -> void:
 	if is_dodging:
 		_process_dash(delta)
 		return
-	if PlayerInput.just_pressed(&"dodge"):
+	if PlayerInput.just_pressed(&"dodge") or _dodge_buffer_timer > 0.0:
 		if _can_dash():
+			_dodge_buffer_timer = 0.0
 			_start_dash()
 			if is_dodging:
 				_process_dash(delta)
@@ -215,10 +218,35 @@ func get_move_speed_multiplier() -> float:
 
 func grant_external_iframes(active: bool) -> void:
 	_external_iframes = active
-	if iframes_active == active:
-		return
-	iframes_active = active
-	iframes_changed.emit(iframes_active)
+	_refresh_iframes()
+
+
+func _refresh_iframes() -> void:
+	var roll_protected := false
+	if is_dodging:
+		var elapsed := _active_duration - _dodge_timer
+		var window_scale := _active_duration / maxf(0.001, _duration)
+		var window_end := _iframe_end + ClassPerks.shadowstep_iframe_bonus(_body, _is_backstep)
+		window_end = _apply_dodge_window_assist(window_end)
+		roll_protected = elapsed >= _iframe_start * window_scale and elapsed <= window_end * window_scale
+	var active := _external_iframes or roll_protected
+	if iframes_active != active:
+		iframes_active = active
+		iframes_changed.emit(active)
+
+
+func cancel_dodge() -> void:
+	if is_dodging:
+		_end_dash()
+
+
+func reset_after_revive() -> void:
+	cancel_dodge()
+	_external_iframes = false
+	_recovery_timer = 0.0
+	_jump_buffer_timer = 0.0
+	_dodge_buffer_timer = 0.0
+	_refresh_iframes()
 
 
 func try_rollout_dash(stamina_cost: float) -> bool:
@@ -233,6 +261,9 @@ func try_rollout_dash(stamina_cost: float) -> bool:
 
 
 func _update_timers(delta: float) -> void:
+	_dodge_buffer_timer = maxf(0.0, _dodge_buffer_timer - delta)
+	if PlayerInput.just_pressed(&"dodge") and not is_dodging:
+		_dodge_buffer_timer = DODGE_BUFFER_TIME
 	if _body and _body.is_on_floor():
 		_coyote_timer = COYOTE_TIME
 	elif _coyote_timer > 0.0:
@@ -247,6 +278,11 @@ func _update_timers(delta: float) -> void:
 func _handle_jump_buffer() -> void:
 	if _jump_buffer_timer <= 0.0 or not _body:
 		return
+	var reactions := _body.get_node_or_null("CombatReactions") as PlayerCombatReactions
+	var heal := _body.get_node_or_null("PlayerHeal") as PlayerHeal
+	if (reactions and not reactions.can_act()) or (heal and heal.is_drinking):
+		_jump_buffer_timer = 0.0
+		return
 	if _coyote_timer > 0.0 and not is_dodging:
 		if _weapon and not _weapon.allows_cancel_into("dodge"):
 			return
@@ -258,6 +294,11 @@ func _handle_jump_buffer() -> void:
 
 
 func _can_dash() -> bool:
+	_sync_weight_class()
+	var reactions := _body.get_node_or_null("CombatReactions") as PlayerCombatReactions
+	var heal := _body.get_node_or_null("PlayerHeal") as PlayerHeal
+	if (reactions and not reactions.can_act()) or (heal and heal.is_drinking):
+		return false
 	if is_dodging or _recovery_timer > 0.0:
 		return false
 	if _weapon and not _weapon.allows_cancel_into("dodge"):
@@ -337,15 +378,7 @@ func _process_dash(delta: float) -> void:
 		_body.velocity += _body.get_gravity() * delta
 	elif _body.velocity.y > 0.0:
 		_body.velocity.y = 0.0
-	var window_scale := _active_duration / maxf(0.001, _duration)
-	var iframe_end := _iframe_end + ClassPerks.shadowstep_iframe_bonus(_body, _is_backstep)
-	iframe_end = _apply_dodge_window_assist(iframe_end)
-	var iframes := (
-		elapsed >= _iframe_start * window_scale and elapsed <= iframe_end * window_scale
-	)
-	if iframes != iframes_active:
-		iframes_active = iframes
-		iframes_changed.emit(iframes_active)
+	_refresh_iframes()
 	_body.move_and_slide()
 	if _dodge_timer <= 0.0:
 		_end_dash()
@@ -360,9 +393,7 @@ func _apply_dodge_window_assist(iframe_end: float) -> float:
 
 func _end_dash() -> void:
 	is_dodging = false
-	if not _external_iframes:
-		iframes_active = false
-		iframes_changed.emit(false)
+	_refresh_iframes()
 	_recovery_timer = _recovery
 	_dodge_speed = DODGE_SPEED
 	if _stamina:

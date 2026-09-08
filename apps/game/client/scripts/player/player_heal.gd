@@ -93,10 +93,6 @@ func _interrupt_drink() -> void:
 	if not is_drinking:
 		return
 	is_drinking = false
-	var elapsed := DRINK_DURATION - _drink_timer
-	if not _heal_committed and elapsed >= DRINK_DURATION * HEAL_COMMIT_FRACTION:
-		_heal_committed = true
-		_apply_heal_amount()
 	_drink_timer = 0.0
 	current_charges = maxi(0, current_charges - 1)
 	charges_changed.emit(current_charges, max_charges)
@@ -130,6 +126,8 @@ func _physics_process(delta: float) -> void:
 			_try_drink()
 		return
 	_drink_timer -= delta
+	if not _heal_committed and _drink_timer <= DRINK_DURATION * (1.0 - HEAL_COMMIT_FRACTION):
+		_on_heal_commit()
 	if _drink_timer <= 0.0:
 		_finish_drink()
 
@@ -177,7 +175,16 @@ func _try_drink() -> void:
 		return
 	if _reactions and _reactions.has_method("can_act") and not _reactions.call("can_act"):
 		return
-	if _health and _health.is_dead():
+	if _health == null or _health.is_dead() or _health.current >= _health.max_health:
+		return
+	var dodge := _body.get_node_or_null("Dodge") as Dodge
+	var weapon := _body.get_node_or_null("WeaponController") as WeaponController
+	var guard := _body.get_node_or_null("Guard") as Guard
+	if dodge and dodge.is_dodging:
+		return
+	if weapon and weapon.is_attacking:
+		return
+	if guard and guard.is_guard_active:
 		return
 	is_drinking = true
 	_heal_committed = false

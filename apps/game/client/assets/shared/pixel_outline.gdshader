@@ -97,7 +97,8 @@ vec3 view_normal(vec2 uv) {
 
 void fragment() {
 	vec2 uv = SCREEN_UV;
-	vec2 texel = 1.0 / VIEWPORT_SIZE * thickness;
+	vec2 pixel_size = 1.0 / VIEWPORT_SIZE;
+	vec2 texel = pixel_size * floor(thickness + 0.5);
 
 	float centre_depth = view_depth(uv, INV_PROJECTION_MATRIX);
 	vec3 centre_normal = view_normal(uv);
@@ -113,12 +114,17 @@ void fragment() {
 	float normal_edge = 0.0;
 	float sky_edge = 0.0;
 	for (int i = 0; i < 4; i++) {
-		vec2 sample_uv = clamp(uv + offsets[i], vec2(0.0), vec2(1.0));
+		vec2 sample_uv = clamp(uv + offsets[i], pixel_size * 0.5, vec2(1.0) - pixel_size * 0.5);
 		float d = view_depth(sample_uv, INV_PROJECTION_MATRIX);
 		// Only a *nearer* neighbour marks this pixel as background behind a silhouette, which keeps
 		// the contour on the outside of the form instead of doubling it on both sides of every edge.
 		depth_edge = max(depth_edge, (centre_depth - d) / max(centre_depth, 0.001));
-		normal_edge = max(normal_edge, 1.0 - dot(centre_normal, view_normal(sample_uv)));
+		// Creases belong to continuous surfaces, never the foreground side of a silhouette.
+		float relative_gap = abs(centre_depth - d) / max(centre_depth, 0.001);
+		float same_surface = 1.0 - smoothstep(depth_threshold * 0.5, depth_threshold, relative_gap);
+		float crease_sample = max(0.0, 1.0 - dot(centre_normal, view_normal(sample_uv)));
+		normal_edge = max(normal_edge, crease_sample * same_surface
+			* is_solid(texture(depth_tex, sample_uv).x));
 		sky_edge = max(sky_edge, 1.0 - is_solid(texture(depth_tex, sample_uv).x));
 	}
 
@@ -143,6 +149,8 @@ void fragment() {
 	float brightness = dot(behind, vec3(0.2126, 0.7152, 0.0722));
 	line = mix(line, mix(line, behind, 0.65), smoothstep(0.35, 0.9, brightness) * outline_light_relief);
 
+	// Ink must darken its backdrop; fog tint must never become a bright horizon rim.
+	line = min(line, behind * 0.82);
 	ALBEDO = line;
 	ALPHA = edge * outline_strength;
 }

@@ -1,5 +1,7 @@
 extends Node
 
+const PlayerRunState := preload("res://scripts/player/player_run_state.gd")
+
 const FloorKeyringScript := preload("res://scripts/dungeon/floor_keyring.gd")
 
 
@@ -87,6 +89,8 @@ var _is_continue := false
 var _cleared_floors: Array[int] = []
 var _test_resolve_floor_override: Variant = null
 var _run_starting := false
+var _floor_transitioning := false
+var _death_resolving := false
 
 
 func _ready() -> void:
@@ -322,7 +326,8 @@ func _generate_dungeon(biome_id: String, run_seed: Variant, floor_index: int = 1
 		floor_index,
 		run_mode,
 		current_dungeon_tier,
-		ProgressionService.level if ProgressionService else 1
+		ProgressionService.level if ProgressionService else 1,
+		false, false, false, max_floors
 	)
 
 
@@ -379,6 +384,7 @@ func _restore_castle_run(saved: Dictionary) -> void:
 	_base_run_modifiers = RunModifierService.active_modifiers()
 	_pending_descent_pact = ""
 	_active_descent_pact = ""
+	_restore_run_rules(saved.get("runRules", {}))
 	_clear_floor_cache()
 	BiomeRegistry.prewarm_room_scenes(current_biome_id)
 	BiomeRegistry.prewarm_content(current_biome_id)
@@ -498,10 +504,19 @@ func _enter_run() -> void:
 	}
 	if _is_continue and not _pending_snapshot.is_empty():
 		active_run["snapshot"] = _pending_snapshot.duplicate(true)
+	if _is_continue:
+		var previous := LocalSave.get_active_run()
+		for key in ["lastCheckpoint", "checkpointDefinition", "checkpointBiomeId", "checkpointRules", "floorSnapshots"]:
+			if previous.has(key):
+				active_run[key] = previous[key]
+	active_run["runRules"] = _capture_run_rules()
 	LocalSave.set_active_run(active_run)
 
 	_run_active = true
-	_run_start_time = Time.get_ticks_msec() / 1000.0
+	_death_resolving = false
+	_floor_transitioning = false
+	var saved_elapsed := maxf(0.0, float(_pending_snapshot.get("elapsedSeconds", 0.0))) if _is_continue else 0.0
+	_run_start_time = Time.get_ticks_msec() / 1000.0 - saved_elapsed
 	_register_run_started()
 	_goto_scene(CASTLE_RUN_SCENE)
 	run_started.emit()
@@ -514,6 +529,7 @@ func go_to_arena() -> void:
 
 
 func return_to_hub(message: String = "") -> void:
+	_floor_transitioning = false
 	_run_starting = false
 	if run_mode == RM.MODE_WAVES:
 		LocalSave.clear_waves_active_run()
@@ -623,9 +639,11 @@ func complete_run_via_portal() -> void:
 	)
 	var boss := _boss_defeated
 	var cleared_dungeon := current_dungeon_id
+	var campaign_clear := run_mode == RM.MODE_CASTLE and _active_alternate_mode == ""
 	_finish_run(RunLifecycle.OUTCOME_ESCAPED, "escaped", elapsed, boss)
-	_handle_escape_meta(elapsed, boss)
-	if run_mode == RM.MODE_CASTLE:
+	if campaign_clear:
+		_handle_escape_meta(elapsed, boss)
+	if campaign_clear:
 		_mark_dungeon_cleared(cleared_dungeon)
 		DungeonTierService.record_clear_result(
 			cleared_dungeon, current_difficulty_tier, elapsed
@@ -635,8 +653,11 @@ func complete_run_via_portal() -> void:
 
 
 func on_player_died(death_recap: Dictionary = {}) -> void:
+	if not _run_active or _death_resolving:
+		return
 	if get_tree().get_first_node_in_group("training_arena"):
 		return
+	_death_resolving = true
 	var active := LocalSave.get_active_run()
 	var checkpoint: Variant = active.get("lastCheckpoint", {})
 	if checkpoint is Dictionary and not checkpoint.is_empty() and not _is_permadeath_run():
@@ -977,8 +998,7 @@ func get_max_floors() -> int:
 func is_final_floor() -> bool:
 	if run_mode == RM.MODE_ENDLESS:
 		return false
-	var last_floor := mini(max_floors, RunFloorConfig.MAX_FLOORS)
-	return RunFloorConfig.clamp_floor(current_floor, run_mode) >= last_floor
+	return current_floor >= max_floors
 
 
 func can_escape_run() -> bool:
@@ -1025,30 +1045,28 @@ func get_run_mode() -> String:
 
 
 func ascend_floor() -> void:
-	if not _run_active or not _boss_defeated:
+	if _floor_transitioning or not _run_active or not _boss_defeated:
 		return
 	if not _cleared_floors.has(current_floor):
 		return
 	if run_mode == RM.MODE_CASTLE and current_floor >= max_floors:
 		return
 	_stash_current_floor_in_cache()
-	FloorKeyringScript.clear()
-	WorldState.set_flag(WorldFlags.secrets_found_this_floor(), 0)
+	_floor_transitioning = true
 	current_floor += 1
 	_boss_defeated = _cleared_floors.has(current_floor)
 	await _transition_floor(true)
 
 
 func descend_floor() -> void:
-	if not _run_active or current_floor <= 1:
+	if _floor_transitioning or not _run_active or current_floor <= 1:
 		return
 	if run_mode == RM.MODE_ENDLESS:
 		return
 	_stash_current_floor_in_cache()
 	# Keys do not travel between floors: the ring is emptied going up or down, so a floor is always
 	# entered without the cards that opened the last one.
-	FloorKeyringScript.clear()
-	WorldState.set_flag(WorldFlags.secrets_found_this_floor(), 0)
+	_floor_transitioning = true
 	current_floor -= 1
 	_boss_defeated = _cleared_floors.has(current_floor)
 	await _transition_floor(false)
@@ -1056,6 +1074,12 @@ func descend_floor() -> void:
 
 func _transition_floor(ascending: bool) -> void:
 	var previous_definition := current_dungeon_definition.duplicate(true)
+	var previous_biome := current_biome_id
+	var previous_modifiers := RunModifierService.active_modifiers()
+	var previous_base := _base_run_modifiers.duplicate()
+	var previous_pact := _active_descent_pact
+	var pending_pact := _pending_descent_pact
+	var previous_region_card := _pending_region_card
 	var attempted_floor := current_floor
 	if run_mode == RM.MODE_ENDLESS:
 		var next_biome := BiomeRegistry.biome_for_floor(current_seed, current_floor)
@@ -1080,7 +1104,14 @@ func _transition_floor(ascending: bool) -> void:
 		else:
 			current_floor += 1
 		current_dungeon_definition = previous_definition
-		_restore_floor_modifiers()
+		current_biome_id = previous_biome
+		_boss_defeated = _cleared_floors.has(current_floor)
+		_base_run_modifiers = previous_base
+		_active_descent_pact = previous_pact
+		_pending_descent_pact = pending_pact
+		_pending_region_card = previous_region_card
+		RunModifierService.set_modifiers(previous_modifiers)
+		_floor_transitioning = false
 		_emit_run_warning(
 			(
 				"Could not generate floor %d — you are still on floor %d."
@@ -1104,8 +1135,12 @@ func _transition_floor(ascending: bool) -> void:
 			}
 		)
 	)
-	root.set_meta("run_snapshot", _build_floor_transition_snapshot(ascending))
+	var transition_snapshot := _build_floor_transition_snapshot(ascending)
+	root.set_meta("run_snapshot", transition_snapshot)
 	_persist_active_run()
+	var active := LocalSave.get_active_run()
+	active["snapshot"] = transition_snapshot.duplicate(true)
+	LocalSave.set_active_run(active, false)
 	LocalSave.autosave_checkpoint()
 	_goto_scene(CASTLE_RUN_SCENE)
 
@@ -1183,6 +1218,31 @@ func _promote_pending_rule_set(start_floor: int) -> void:
 		_base_run_modifiers = RunModifierService.active_modifiers()
 
 
+func _capture_run_rules() -> Dictionary:
+	return {
+		"alternateMode": _active_alternate_mode,
+		"challenge": _active_challenge.duplicate(true),
+		"descentPact": _active_descent_pact,
+		"baseModifiers": _base_run_modifiers.duplicate(),
+	}
+
+
+func _restore_run_rules(rules: Dictionary) -> void:
+	_active_alternate_mode = str(rules.get("alternateMode", ""))
+	if _active_alternate_mode != "" and not RunModeCatalog.has_mode(_active_alternate_mode):
+		_active_alternate_mode = ""
+	var challenge: Variant = rules.get("challenge", {})
+	_active_challenge = challenge.duplicate(true) if challenge is Dictionary else {}
+	_active_descent_pact = str(rules.get("descentPact", ""))
+	if _active_alternate_mode != "":
+		_base_run_modifiers = RunModeCatalog.modifiers_for_floor(_active_alternate_mode, current_floor)
+	elif rules.get("baseModifiers") is Array:
+		_base_run_modifiers.clear()
+		for modifier in rules["baseModifiers"]:
+			_base_run_modifiers.append(str(modifier))
+	RunModifierService.set_modifiers(DescentPactService.apply(_active_descent_pact, _base_run_modifiers))
+
+
 func _is_permadeath_run() -> bool:
 	return _active_alternate_mode != "" and RunModeCatalog.is_permadeath(_active_alternate_mode)
 
@@ -1208,7 +1268,11 @@ func _resolve_floor_definition(floor_index: int) -> Dictionary:
 
 
 func _build_floor_transition_snapshot(ascending: bool) -> Dictionary:
-	return {
+	var floors: Dictionary = LocalSave.get_active_run().get("floorSnapshots", {})
+	var snapshot: Dictionary = floors.get(str(current_floor), {}).duplicate(true)
+	snapshot.merge({
+		"player": PlayerRunState.capture(get_tree().get_first_node_in_group("player")),
+		"elapsedSeconds": get_run_elapsed_seconds(),
 		"floorTransition": true,
 		"ascending": ascending,
 		"currentFloor": current_floor,
@@ -1218,7 +1282,8 @@ func _build_floor_transition_snapshot(ascending: bool) -> Dictionary:
 		"lootCollected": _loot_collected.duplicate(),
 		"lootClaimedInstanceIds": _loot_claimed_instance_ids.duplicate(),
 		"lootDropOrdinal": _loot_drop_ordinal,
-	}
+	}, true)
+	return snapshot
 
 
 func _persist_active_run() -> void:
@@ -1245,6 +1310,7 @@ func _persist_active_run() -> void:
 	active["generation_seed"] = current_generation_seed
 	active["generationWarnings"] = current_generation_warnings.duplicate()
 	active["lootDropOrdinal"] = _loot_drop_ordinal
+	active["runRules"] = _capture_run_rules()
 	LocalSave.set_active_run(active, false)
 
 
@@ -1266,6 +1332,13 @@ func _stash_current_floor_in_cache() -> void:
 		return
 	_bind_run_cache()
 	FloorDefinitionCache.store_floor_cache(current_floor, current_dungeon_definition)
+	var castle := get_tree().get_first_node_in_group("castle_run")
+	if castle and castle.has_method("_capture_run_snapshot"):
+		var active := LocalSave.get_active_run()
+		var floors: Dictionary = active.get("floorSnapshots", {})
+		floors[str(current_floor)] = castle.call("_capture_run_snapshot")
+		active["floorSnapshots"] = floors
+		LocalSave.set_active_run(active, false)
 
 
 func _get_cached_floor_definition(floor_index: int) -> Dictionary:
@@ -1342,7 +1415,7 @@ func get_current_objective() -> String:
 			return _tr_fmt("PAUSE_OBJECTIVE_WAVES", [WavesRunService.current_wave])
 		RM.MODE_CASTLE, RM.MODE_ENDLESS:
 			if _boss_defeated and _cleared_floors.has(current_floor):
-				return tr("PAUSE_OBJECTIVE_STAIRS")
+				return "Enter the portal and bring your loot home." if is_final_floor() else tr("PAUSE_OBJECTIVE_STAIRS")
 			if _boss_fight_active or not _boss_defeated:
 				return tr("PAUSE_OBJECTIVE_BOSS")
 			return tr("PAUSE_OBJECTIVE_EXPLORE")
@@ -1552,6 +1625,8 @@ func _handle_escape_meta(elapsed: float, boss_defeated: bool) -> void:
 		return
 	if AchievementService:
 		AchievementService.unlock("boss_slayer")
+		if _active_alternate_mode != "":
+			return
 		AchievementService.unlock_for_biome_clear(current_biome_id)
 		if max_floors >= RunFloorConfig.MAX_FLOORS and current_floor >= max_floors:
 			AchievementService.unlock("ten_floor_clear")
@@ -1726,6 +1801,17 @@ func clear_recoverable_xp_shard() -> void:
 
 
 func _bonfire_death_respawn(checkpoint: Dictionary, death_recap: Dictionary = {}) -> void:
+	var active := LocalSave.get_active_run()
+	var checkpoint_floor := maxi(1, int(checkpoint.get("currentFloor", current_floor)))
+	var checkpoint_biome := str(active.get("checkpointBiomeId", current_biome_id))
+	var checkpoint_definition: Dictionary = active.get("checkpointDefinition", {})
+	if checkpoint_floor != current_floor and checkpoint_definition.is_empty():
+		var generated := await _generate_dungeon(checkpoint_biome, current_seed, checkpoint_floor)
+		checkpoint_definition = generated.get("definition", {})
+		if checkpoint_definition.is_empty():
+			_death_resolving = false
+			_emit_run_warning("Could not restore the checkpoint floor. Your saved checkpoint is intact.")
+			return
 	var player := get_tree().get_first_node_in_group("player")
 	var death_pos: Vector3 = Vector3.ZERO
 	if player is Node3D:
@@ -1779,7 +1865,26 @@ func _bonfire_death_respawn(checkpoint: Dictionary, death_recap: Dictionary = {}
 			}
 		)
 	)
-	var active := LocalSave.get_active_run()
+	current_floor = checkpoint_floor
+	current_biome_id = checkpoint_biome
+	_cleared_floors.clear()
+	for floor_number in checkpoint.get("clearedFloors", []):
+		_cleared_floors.append(int(floor_number))
+	_restore_run_rules(active.get("checkpointRules", active.get("runRules", {})))
+	active["runRules"] = _capture_run_rules()
+	active["clearedFloors"] = _cleared_floors.duplicate()
+	var floor_snapshots: Dictionary = active.get("floorSnapshots", {})
+	for floor_key in floor_snapshots.keys():
+		if int(floor_key) >= checkpoint_floor:
+			floor_snapshots.erase(floor_key)
+	active["floorSnapshots"] = floor_snapshots
+	if not checkpoint_definition.is_empty():
+		current_dungeon_definition = checkpoint_definition.duplicate(true)
+		_set_current_floor_cache(current_dungeon_definition)
+	get_tree().root.set_meta("dungeon_definition", current_dungeon_definition.duplicate(true))
+	active["currentFloor"] = current_floor
+	active["biomeId"] = current_biome_id
+	active["dungeonDefinition"] = current_dungeon_definition.duplicate(true)
 	active["snapshot"] = checkpoint.duplicate(true)
 	active.erase("playerDead")
 	LocalSave.set_active_run(active)
@@ -1857,6 +1962,8 @@ func _goto_scene(path: String) -> void:
 
 
 func _start_waves_run(is_continue: bool) -> void:
+	_death_resolving = false
+	_floor_transitioning = false
 	run_mode = RM.MODE_WAVES
 	_is_continue = is_continue
 	_run_active = true

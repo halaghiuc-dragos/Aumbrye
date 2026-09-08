@@ -64,10 +64,10 @@ uniform vec3 halation_tint = vec3(1.0, 0.42, 0.22);
 
 // Lateral chromatic aberration, growing toward the corners the way a real lens's does. Whole
 // pixels, so the fringe is a hard one-pixel offset rather than a smear.
-uniform float aberration_strength : hint_range(0.0, 4.0) = 1.1;
+uniform float aberration_strength : hint_range(0.0, 4.0) = 0.0;
 
 // Film grain, quantised into a handful of steps for the same reason the shading is banded.
-uniform float grain_strength : hint_range(0.0, 0.3) = 0.022;
+uniform float grain_strength : hint_range(0.0, 0.3) = 0.0;
 uniform float grain_size : hint_range(1.0, 6.0) = 2.0;
 
 // Size of one source pixel in UV. Set by `PixelDioramaViewport`; the fallback matches a 1920-wide
@@ -106,7 +106,7 @@ void fragment() {
 	vec3 col = source.rgb;
 	if (aberration_strength > 0.001) {
 		vec2 dir = radius > 0.0001 ? centered_uv / radius : vec2(0.0);
-		vec2 offset = dir * source_texel * floor(aberration_strength * radius * 2.0 + 0.5);
+		vec2 offset = round(dir * floor(aberration_strength * radius * 2.0 + 0.5)) * source_texel;
 		col.r = texture(TEXTURE, UV + offset).r;
 		col.b = texture(TEXTURE, UV - offset).b;
 	}
@@ -118,7 +118,7 @@ void fragment() {
 		vec3 bleed = vec3(0.0);
 		for (int i = 0; i < 8; i++) {
 			float a = float(i) * 0.7853981634;
-			vec2 tap = vec2(cos(a), sin(a)) * r * source_texel;
+			vec2 tap = round(vec2(cos(a), sin(a)) * r) * source_texel;
 			vec3 neighbour = texture(TEXTURE, clamp(UV + tap, vec2(0.0), vec2(1.0))).rgb;
 			bleed += max(neighbour - vec3(0.62), vec3(0.0));
 		}
@@ -144,7 +144,7 @@ void fragment() {
 
 	if (vignette_strength > 0.001) {
 		vec2 centered = UV - vec2(0.5);
-		float falloff = smoothstep(vignette_softness, 0.2, length(centered));
+		float falloff = 1.0 - smoothstep(0.2, max(0.201, vignette_softness), length(centered));
 		col *= mix(1.0 - vignette_strength, 1.0, falloff);
 	}
 

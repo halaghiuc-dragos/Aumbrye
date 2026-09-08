@@ -1,5 +1,7 @@
 extends Node3D
 
+const PlayerRunState := preload("res://scripts/player/player_run_state.gd")
+
 const BossRewardHallScript := preload("res://scripts/dungeon/boss_reward_hall.gd")
 
 
@@ -64,6 +66,8 @@ func _ready() -> void:
 	_builder.boss_defeated.connect(_on_boss_defeated)
 	_builder.snapshot_dirty.connect(_persist_snapshot)
 	_builder.room_cleared.connect(_on_room_cleared)
+	var snapshot := _take_run_snapshot_meta()
+	WorldState.restore_flags(snapshot.get("worldFlags", {}))
 	var def := _resolve_dungeon_definition()
 	if def.is_empty():
 		push_error("CastleRun: missing procgen dungeon definition")
@@ -89,7 +93,7 @@ func _ready() -> void:
 	_wire_run_ui(def)
 	_lowest_room_y = _compute_lowest_room_y()
 	_room_neighbors = _build_room_neighbors(def)
-	var snapshot := _take_run_snapshot_meta()
+	InventoryService.apply_equipment_to_player_node(_player)
 	_restore_saved_snapshot(snapshot)
 	_apply_floor_transition_spawn(snapshot)
 	player_room_id = _find_room_id_at(_player.global_position)
@@ -101,10 +105,11 @@ func _ready() -> void:
 	_wire_inventory_autosave()
 	_spawn_recoverable_xp_shard()
 	_show_respawn_outcome_if_needed()
-	InventoryService.apply_equipment_to_player_node(_player)
 	_announce_floor_entry(def)
 	AudioDirector.play_dungeon_ambience()
 	set_physics_process(true)
+	RunFlow._floor_transitioning = false
+	RunFlow._death_resolving = false
 	# One relic choice per ten-floor block, offered at the block's first floor rather than its
 	# boss -- consistent with why the very first one moved off the first boss to begin with (see
 	# `_offer_opening_umbral`), and the only way to keep the count exactly one per block: the old
@@ -514,22 +519,15 @@ func _spawn_recoverable_xp_shard() -> void:
 	)
 
 
-func _update_objective_for_room(room_id: String) -> void:
+func _update_objective_for_room(_room_id: String) -> void:
 	if _hud == null or not _hud.has_method("set_objective_world_position"):
 		return
-	var stair_id := RunFloorConfig.find_stairs_room_id(_dungeon_def)
-	if room_id == stair_id or stair_id == "":
-		var boss_placement: Variant = _dungeon_def.get("placements", {}).get("boss", {})
-		var boss_room_id := BOSS_ROOM_ID
-		if boss_placement is Dictionary:
-			boss_room_id = str(boss_placement.get("roomId", BOSS_ROOM_ID))
-		var boss_room := _builder.get_room(boss_room_id)
-		if boss_room:
-			_hud.call("set_objective_world_position", boss_room.global_position)
-	else:
-		var stairs := _builder.get_room(stair_id)
-		if stairs:
-			_hud.call("set_objective_world_position", stairs.global_position)
+	var target_id := _get_boss_room_id()
+	if _boss_defeated and not RunFlow.is_final_floor():
+		target_id = RunFloorConfig.find_stairs_room_id(_dungeon_def)
+	var target_room := _builder.get_room(target_id)
+	if target_room:
+		_hud.call("set_objective_world_position", target_room.global_position)
 
 
 ## HD-09: one line saying what to do next, distinct from the world-space arrow `_update_objective_
@@ -546,19 +544,16 @@ func _update_objective_text(room_id: String) -> void:
 			text += " — %s" % pressure
 		_hud.call("set_objective_text", text)
 		return
-	# MD-04: the tier ladder is invisible once the run starts -- block progress on the objective
-	# line answers "how far through this block am I", which the absolute floor number alone does
-	# not (block 3 floor 4 reads very differently from block 1 floor 4).
-	var block_num := RunFloorConfig.block_index(floor_num) + 1
-	var floor_in_block := RunFloorConfig.floor_within_block(floor_num)
-	var block_text := (
-		"Block %d · floor %d of %d" % [block_num, floor_in_block, RunFloorConfig.FLOORS_PER_BLOCK]
-	)
-	if room_id == BOSS_ROOM_ID and not _boss_defeated:
-		block_text += " — the boss bars the stair"
-	elif floor_in_block < RunFloorConfig.FLOORS_PER_BLOCK:
-		block_text += " — boss ahead"
-	_hud.call("set_objective_text", block_text)
+	var mode := RunModeCatalog.get_mode(RunFlow._active_alternate_mode)
+	var mode_name := str(mode.get("name", "Ascent"))
+	var objective := "%s · floor %d of %d" % [mode_name, floor_num, RunFlow.get_max_floors()]
+	if _boss_defeated:
+		objective += " — enter the portal" if RunFlow.is_final_floor() else " — take the stairs"
+	elif room_id == _get_boss_room_id():
+		objective += " — defeat the warden"
+	else:
+		objective += " — explore, find keys, reach the warden"
+	_hud.call("set_objective_text", objective)
 
 
 func register_boss_door(door: Node) -> void:
@@ -851,30 +846,25 @@ func _apply_boss_fight_continue() -> void:
 func _restore_player_health(player_state: Dictionary) -> void:
 	if player_state.is_empty() or _player == null:
 		return
-	var health := _player.get_node_or_null("Health") as Health
-	if health == null or not player_state.has("health"):
-		return
-	health.restore_current(float(player_state.get("health", health.current)))
+	PlayerRunState.restore(_player, player_state)
 
 
 func _capture_run_snapshot() -> Dictionary:
 	if _player == null:
 		return {}
-	var player_health := 0.0
-	var health := _player.get_node_or_null("Health") as Health
-	if health:
-		player_health = health.current
+	var player_state := PlayerRunState.capture(_player)
+	player_state.merge({
+		"x": _player.global_position.x,
+		"y": _player.global_position.y,
+		"z": _player.global_position.z,
+		"rotationY": _player.rotation.y,
+	})
 	return {
-		"player":
-		{
-			"x": _player.global_position.x,
-			"y": _player.global_position.y,
-			"z": _player.global_position.z,
-			"rotationY": _player.rotation.y,
-			"health": player_health,
-		},
+		"player": player_state,
 		"playerRoomId": player_room_id,
 		"currentFloor": RunFlow.get_current_floor(),
+		"elapsedSeconds": RunFlow.get_run_elapsed_seconds(),
+		"clearedFloors": RunFlow._cleared_floors.duplicate(),
 		"enemies": _builder.capture_enemy_states(),
 		"loot": _builder.capture_loot_states(),
 		"bossDefeated": _boss_defeated,
@@ -901,6 +891,9 @@ func persist_bonfire_checkpoint() -> void:
 		return
 	active["schemaVersion"] = SaveMigrator.CURRENT_VERSION
 	active["lastCheckpoint"] = snapshot.duplicate(true)
+	active["checkpointDefinition"] = _dungeon_def.duplicate(true)
+	active["checkpointBiomeId"] = RunFlow.current_biome_id
+	active["checkpointRules"] = RunFlow._capture_run_rules()
 	active["snapshot"] = snapshot.duplicate(true)
 	LocalSave.set_active_run(active)
 	LocalSave.autosave_checkpoint()

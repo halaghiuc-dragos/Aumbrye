@@ -162,8 +162,9 @@ func _physics_process(delta: float) -> void:
 		return
 
 	if _dodge:
+		var was_dodging := _dodge.is_dodging
 		_dodge.process_dash_physics(delta)
-		if _dodge.is_dodging:
+		if was_dodging or _dodge.is_dodging:
 			_consume_landing()
 			_update_character_animation(delta, 0.0)
 			return

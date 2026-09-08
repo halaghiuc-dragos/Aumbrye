@@ -62,6 +62,8 @@ static func place_locked_doors(
 	# up front the way `min_locks_per_floor` might suggest.
 	var lock_count := config.max_locks_per_floor
 	lock_count = mini(lock_count, candidates.size())
+	if lock_count <= 0:
+		return []
 	var locks: Array = []
 	var used_key_rooms: Dictionary = {}
 	var step := maxi(1, int(candidates.size() / float(lock_count)))

@@ -1,0 +1,61 @@
+{
+  "inventory_entries": 3104,
+  "scanned_text_files": 2576,
+  "parsed_json_files": 1153,
+  "bytes_read": 57431919,
+  "issue_types": {
+    "empty_method": 8,
+    "missing_literal_resource_candidate": 2
+  },
+  "duplicate_groups": 128,
+  "largest_gd": [
+    [
+      2689,
+      "apps/game/client/scripts/enemies/castle_enemy_base.gd"
+    ],
+    [
+      2380,
+      "apps/game/client/scripts/art/characters/diorama_anim_library.gd"
+    ],
+    [
+      2129,
+      "apps/game/client/scripts/app/run_flow.gd"
+    ],
+    [
+      1852,
+      "apps/game/client/scripts/ui/combat_hud.gd"
+    ],
+    [
+      1807,
+      "apps/game/client/scripts/save/local_save.gd"
+    ],
+    [
+      1630,
+      "apps/game/client/scripts/ui/inventory_ui.gd"
+    ],
+    [
+      1614,
+      "apps/game/client/scripts/dungeon/dungeon_builder.gd"
+    ],
+    [
+      1544,
+      "apps/game/client/scripts/hub/hub_diorama.gd"
+    ],
+    [
+      1542,
+      "apps/game/client/scripts/art/style/pixel_diorama_style.gd"
+    ],
+    [
+      1464,
+      "apps/game/client/scripts/combat/weapon_controller.gd"
+    ],
+    [
+      1462,
+      "apps/game/client/scripts/art/world/distant_skyline.gd"
+    ],
+    [
+      1375,
+      "apps/game/client/scripts/art/characters/diorama_character_skin.gd"
+    ]
+  ]
+}

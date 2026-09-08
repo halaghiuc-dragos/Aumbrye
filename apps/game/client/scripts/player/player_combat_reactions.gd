@@ -134,6 +134,12 @@ func reset_combat_state() -> void:
 	is_dead = false
 	is_staggered = false
 	is_guard_broken = false
+	is_grabbed = false
+	_grab_timer = 0.0
+	_grab_pending_damage = 0.0
+	_grab_source = null
+	if _dodge:
+		_dodge.reset_after_revive()
 	_stagger_timer = 0.0
 	_death_sequence_running = false
 	_clear_wakeup_iframes()
@@ -175,6 +181,8 @@ func _apply_stagger(duration: float, direction: Vector3 = Vector3.ZERO) -> void:
 	_stagger_timer = duration
 	stagger_duration = duration
 	stagger_direction = direction
+	if _dodge:
+		_dodge.cancel_dodge()
 	stagger_started.emit()
 	_flash_stagger_feedback()
 	if _knockback and direction.length_squared() > 0.0001:
@@ -200,6 +208,10 @@ func apply_grab(damage: float, source: Node, duration: float) -> void:
 	_grab_timer = duration
 	_grab_pending_damage = damage
 	_grab_source = source
+	if _dodge:
+		_dodge.cancel_dodge()
+	if _heal and _heal.is_drinking:
+		_heal._interrupt_drink()
 	grab_started.emit()
 
 
@@ -354,6 +366,8 @@ func _on_died() -> void:
 	_break_player_lock()
 	is_dead = true
 	death_recap = _build_death_recap()
+	if _dodge:
+		_dodge.cancel_dodge()
 	if CombatEvents:
 		CombatEvents.dispatch(CombatEvents.ON_DEATH, {"actor": _body})
 	_run_death_sequence()

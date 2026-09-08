@@ -1,0 +1,62 @@
+[
+  {
+    "file": "apps/game/client/scripts/app/input_rebind_service.gd",
+    "line": 7,
+    "type": "empty_method",
+    "detail": "_ready"
+  },
+  {
+    "file": "apps/game/client/scripts/bosses/arena_boss.gd",
+    "line": 47,
+    "type": "empty_method",
+    "detail": "_on_arena_reset"
+  },
+  {
+    "file": "apps/game/client/scripts/bosses/arena_hazard.gd",
+    "line": 42,
+    "type": "empty_method",
+    "detail": "_build_visual"
+  },
+  {
+    "file": "apps/game/client/scripts/dungeon/procgen/procgen_rng.gd",
+    "line": 17,
+    "type": "empty_method",
+    "detail": "clear_cache"
+  },
+  {
+    "file": "apps/game/client/scripts/dungeon/room_content/room_content_base.gd",
+    "line": 5,
+    "type": "empty_method",
+    "detail": "configure"
+  },
+  {
+    "file": "apps/game/client/scripts/enemies/castle_enemy_base.gd",
+    "line": 2350,
+    "type": "empty_method",
+    "detail": "_on_windup_tick"
+  },
+  {
+    "file": "apps/game/client/scripts/enemies/final_boss_forgotten_castle.gd",
+    "line": 139,
+    "type": "empty_method",
+    "detail": "_process_puzzle_phase"
+  },
+  {
+    "file": "apps/game/client/scripts/platform/steam_service.gd",
+    "line": 11,
+    "type": "missing_literal_resource_candidate",
+    "detail": "res://steam_appid.txt"
+  },
+  {
+    "file": "apps/game/client/scripts/ui/training_dummy_health_bar.gd",
+    "line": 4,
+    "type": "empty_method",
+    "detail": "_on_died"
+  },
+  {
+    "file": "project_structure.json",
+    "line": 20,
+    "type": "missing_literal_resource_candidate",
+    "detail": "res://scenes/ui/title_screen.tscn"
+  }
+]

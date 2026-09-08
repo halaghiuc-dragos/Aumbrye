@@ -1448,6 +1448,9 @@ func _vector_from(value: Variant, fallback: Vector3) -> Vector3:
 
 
 func _is_action_blocked() -> bool:
+	var heal := _body.get_node_or_null("PlayerHeal") as PlayerHeal
+	if heal and heal.is_drinking:
+		return true
 	if _dodge and _dodge.is_dodging:
 		return true
 	# CB-05: the spear's identity trait -- a thrust from behind a raised guard, not a reason to

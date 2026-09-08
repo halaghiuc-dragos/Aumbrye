@@ -97,6 +97,8 @@ static func prewarm_content(biome_id: String) -> int:
 
 
 static func prewarm_room_scenes(biome_id: String) -> void:
+	if DisplayServer.get_name() == "headless":
+		return
 	if _room_scene_cache.has(biome_id):
 		return
 	var biome := get_biome(biome_id)
