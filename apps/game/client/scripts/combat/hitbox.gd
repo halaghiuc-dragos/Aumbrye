@@ -306,7 +306,7 @@ func _try_hit(area: Area3D) -> void:
 		info.execution = _execution_kind
 		info.ignore_guard = true
 	var resolution = area.call("receive_hit", info)
-	if resolution == null or float(resolution.get("outgoing", 0.0)) <= 0.0:
+	if resolution == null or not resolution is DamageResolution or resolution.outgoing <= 0.0:
 		return
 	hit_landed.emit(area)
 	var attacker := _get_attacker_node()

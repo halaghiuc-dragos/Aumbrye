@@ -396,7 +396,7 @@ func _ring_phase_for_wave(wave: int) -> float:
 	return rng.randf_range(0.0, TAU)
 
 
-func _relocate_spawn_away_from_player(point: Vector3, index: int, total: int) -> Vector3:
+func _relocate_spawn_away_from_player(point: Vector3, _index: int, total: int) -> Vector3:
 	if _player == null or not is_instance_valid(_player):
 		return point
 	var player_flat := Vector3(_player.global_position.x, 0.0, _player.global_position.z)

@@ -569,7 +569,6 @@ func play_attack(
 	_blocking = false
 	_priority = Priority.ATTACK
 	_action_generation += 1
-	var action_generation := _action_generation
 	_player.speed_scale = 1.0
 	_player.play(runtime_name, ACTION_BLEND)
 
@@ -601,6 +600,8 @@ func hold_at(
 		return
 	_blocking = false
 	_priority = Priority.ATTACK
+	_action_generation += 1
+	var action_generation := _action_generation
 	_player.speed_scale = 1.0
 	_player.play(runtime_name, ACTION_BLEND)
 	_charge_shake_active = false
@@ -838,15 +839,9 @@ func _report_clamp(clip: StringName, raw_scale: float) -> void:
 
 
 func _check_hitbox_signal_listeners() -> void:
-	if _hitbox_signals_warned:
-		return
-	_hitbox_signals_warned = true
-	if not expects_hitbox_listeners:
-		return
-	if _events_path.is_empty():
-		return
-	if hitbox_open_frame.get_connections().is_empty() and hitbox_close_frame.get_connections().is_empty():
-		push_warning("DioramaAnimController[%s]: hitbox signals have no listeners" % _profile)
+	# Hitbox callbacks are connected lazily when an attack with authored markers starts. Checking
+	# during setup reports a false warning for the player before their first attack.
+	pass
 
 
 func anim_swing_vfx() -> void:
@@ -858,11 +853,22 @@ func anim_footstep() -> void:
 
 
 func anim_hitbox_on() -> void:
+	_warn_if_hitbox_signals_unhandled()
 	hitbox_open_frame.emit(_attack_generation)
 
 
 func anim_hitbox_off() -> void:
+	_warn_if_hitbox_signals_unhandled()
 	hitbox_close_frame.emit(_attack_generation)
+
+
+func _warn_if_hitbox_signals_unhandled() -> void:
+	if _hitbox_signals_warned or not expects_hitbox_listeners:
+		return
+	if not hitbox_open_frame.get_connections().is_empty() or not hitbox_close_frame.get_connections().is_empty():
+		return
+	_hitbox_signals_warned = true
+	push_warning("DioramaAnimController[%s]: emitted hitbox signal without a listener" % _profile)
 
 
 func anim_heal_gulp() -> void:

@@ -740,7 +740,7 @@ func _deal_plunge_damage(attack: Dictionary) -> void:
 	var origin := _body.global_position
 	var radius_sq := PLUNGE_RADIUS * PLUNGE_RADIUS
 	var vertical_tolerance := float(attack.get("vertical_tolerance", 1.75))
-	var space := get_world_3d().direct_space_state
+	var space: PhysicsDirectSpaceState3D = _body.get_world_3d().direct_space_state
 	for node in CombatGroups.hostiles(get_tree()):
 		var enemy := node as Node3D
 		if enemy == null or not is_instance_valid(enemy):
@@ -755,7 +755,7 @@ func _deal_plunge_damage(attack: Dictionary) -> void:
 		var query := PhysicsRayQueryParameters3D.create(origin, enemy.global_position)
 		query.collision_mask = CombatLayers.WORLD_OCCLUDERS
 		query.exclude = [_body]
-		var obstruction := space.intersect_ray(query)
+		var obstruction: Dictionary = space.intersect_ray(query)
 		if not obstruction.is_empty() and obstruction.get("collider") != enemy:
 			continue
 		var hurtbox := enemy.get_node_or_null("Hurtbox")

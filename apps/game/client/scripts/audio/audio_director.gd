@@ -806,22 +806,27 @@ func _cue_priority(kind: String, entry: Dictionary) -> int:
 
 func _prepare_voice(player: Node, kind: String, priority: int) -> void:
 	_release_voice_owner(player)
+	var old_finished_callback: Variant = (
+		player.get_meta(&"sfx_finished_callback") if player.has_meta(&"sfx_finished_callback") else null
+	)
+	if old_finished_callback is Callable and player.finished.is_connected(old_finished_callback):
+		player.finished.disconnect(old_finished_callback)
 	var generation := int(player.get_meta(&"sfx_generation", 0)) + 1
 	player.set_meta(&"sfx_generation", generation)
 	player.set_meta(&"sfx_kind", kind)
 	player.set_meta(&"sfx_priority", priority)
 	player.set_meta(&"sfx_started_ms", Time.get_ticks_msec())
 	_sfx_active_counts[kind] = int(_sfx_active_counts.get(kind, 0)) + 1
-	player.finished.connect(
-		_on_voice_finished_generation.bind(player, generation), CONNECT_ONE_SHOT
-	)
+	var finished_callback := _on_voice_finished_generation.bind(player, generation)
+	player.set_meta(&"sfx_finished_callback", finished_callback)
+	player.finished.connect(finished_callback, CONNECT_ONE_SHOT)
 
 
 func _release_voice_owner(player: Node) -> void:
 	var old_kind := str(player.get_meta(&"sfx_kind", ""))
 	if old_kind != "":
 		_sfx_active_counts[old_kind] = maxi(0, int(_sfx_active_counts.get(old_kind, 0)) - 1)
-	for key in [&"sfx_kind", &"sfx_priority", &"sfx_started_ms"]:
+	for key in [&"sfx_kind", &"sfx_priority", &"sfx_started_ms", &"sfx_finished_callback"]:
 		if player.has_meta(key):
 			player.remove_meta(key)
 
@@ -877,7 +882,7 @@ func _is_occluded(world_pos: Vector3) -> bool:
 	var camera := get_viewport().get_camera_3d()
 	if camera == null:
 		return false
-	var space := get_world_3d().direct_space_state
+	var space: PhysicsDirectSpaceState3D = camera.get_world_3d().direct_space_state
 	if space == null:
 		return false
 	var query := PhysicsRayQueryParameters3D.create(camera.global_position, world_pos)
@@ -1237,7 +1242,6 @@ func _fill_generator_for_mode(
 
 
 var _pause_mix_active := false
-var _saved_music_db := 0.0
 var _saved_music_layers: Dictionary = {}
 var _saved_bus_mutes: Dictionary = {}
 

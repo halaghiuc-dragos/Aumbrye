@@ -66,6 +66,7 @@ NightLights="*res://scripts/art/world/night_lights.gd"
 UISymbolBus="*res://scripts/ui/ui_symbol_bus.gd"
 WindService="*res://scripts/art/world/wind_service.gd"
 WeatherService="*res://scripts/art/world/weather_service.gd"
+MCPRuntimeProbe="*uid://bsg12huaf1u5i"
 
 [debug]
 

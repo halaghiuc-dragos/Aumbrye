@@ -620,7 +620,7 @@ static func _build_landmark_hints(rooms: Array, graph: RoomGraph, assignment: Di
 			continue
 		var room_id := str(room.get("id", ""))
 		var slot := graph.get_slot(str(layout_by_semantic.get(room_id, room_id)))
-		if slot == null or slot.door_mask.count_ones() < 3:
+		if slot == null or _count_set_bits(int(slot.door_mask)) < 3:
 			continue
 		var transform: Dictionary = room.get("transform", {})
 		var position := Vector3(float(transform.get("x", 0.0)), float(transform.get("y", 0.0)), float(transform.get("z", 0.0)))
@@ -629,7 +629,7 @@ static func _build_landmark_hints(rooms: Array, graph: RoomGraph, assignment: Di
 
 
 static func _build_expedition_objective(
-	graph: RoomGraph, assignment: Dictionary, content: Dictionary, floor_index: int
+	graph: RoomGraph, assignment: Dictionary, _content: Dictionary, floor_index: int
 ) -> Dictionary:
 	var candidates: Array = []
 	for room in assignment.get("rooms", []):
@@ -732,3 +732,12 @@ static func _annotate_one_way_edges(edges: Array, shortcut_gates: Array) -> void
 
 static func _pair_key(a: String, b: String) -> String:
 	return "%s|%s" % [a, b] if a < b else "%s|%s" % [b, a]
+
+
+static func _count_set_bits(value: int) -> int:
+	var remaining := value
+	var count := 0
+	while remaining != 0:
+		count += remaining & 1
+		remaining >>= 1
+	return count

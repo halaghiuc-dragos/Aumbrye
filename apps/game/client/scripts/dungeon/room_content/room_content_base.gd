@@ -17,9 +17,9 @@ static var _warned_anchors: Dictionary = {}
 func _anchor(index: int = 0) -> Node3D:
 	var root := _content_root()
 	var reservations: Dictionary = root.get_meta("content_anchor_reservations", {}) as Dictionary
-	var owner := str(get_instance_id())
+	var reservation_owner := str(get_instance_id())
 	var marker := root.get_node_or_null("PropAnchor_%d" % index) as Node3D
-	if marker and str(reservations.get(marker.name, owner)) != owner:
+	if marker and str(reservations.get(marker.name, reservation_owner)) != reservation_owner:
 		marker = null
 		for candidate in root.get_children():
 			if not candidate is Node3D or not candidate.name.begins_with("PropAnchor_"):
@@ -40,7 +40,7 @@ func _anchor(index: int = 0) -> Node3D:
 				% [room_name, index]
 			)
 		var fallback := root.get_node_or_null("PropAnchor_0") as Node3D
-		if fallback and str(reservations.get(fallback.name, owner)) == owner:
+		if fallback and str(reservations.get(fallback.name, reservation_owner)) == reservation_owner:
 			marker = fallback
 		elif fallback and not reservations.has(fallback.name):
 			marker = fallback
@@ -56,9 +56,9 @@ func _anchor(index: int = 0) -> Node3D:
 				fallback_index += 1
 			marker.name = "FallbackPropAnchor_%d" % fallback_index
 			marker.position = Vector3(
-				float(fallback_index % 3) * 1.5, 0.0, float(fallback_index / 3) * 1.5
+				float(fallback_index % 3) * 1.5, 0.0, float(fallback_index) / 3.0 * 1.5
 			)
 			root.add_child(marker)
-	reservations[marker.name] = owner
+	reservations[marker.name] = reservation_owner
 	root.set_meta("content_anchor_reservations", reservations)
 	return marker

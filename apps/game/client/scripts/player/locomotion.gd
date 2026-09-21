@@ -402,6 +402,8 @@ func get_facing_yaw() -> float:
 
 
 func play_footstep_effects() -> void:
+	if not is_inside_tree():
+		return
 	var surface := _resolve_footstep_surface()
 	var pos := global_position + Vector3(0.0, 0.05, 0.0)
 	VfxService.play_footstep(pos, get_facing_direction(), surface)

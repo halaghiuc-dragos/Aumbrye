@@ -68,9 +68,9 @@ func _build_visual(_dmg_type: String) -> void:
 
 
 func _on_world_impact(contact: Dictionary = {}) -> void:
-	var position: Variant = contact.get("position")
-	if position is Vector3:
-		global_position = position
+	var impact_position: Variant = contact.get("position")
+	if impact_position is Vector3:
+		global_position = impact_position
 	_explode()
 	queue_free()
 

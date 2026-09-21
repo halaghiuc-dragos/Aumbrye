@@ -105,7 +105,6 @@ const GLOW := Color(0.55, 0.42, 0.85)
 const CELL_EDGE_RATIO := 0.12
 const CELL_EDGE_DARKEN := 0.28
 
-var _mark: Control
 var _subtitle_host: Control
 var _cell := 16
 var _glow_alpha := 0.0
@@ -125,21 +124,13 @@ func build() -> void:
 	_compose_mask()
 	_cell = _pick_cell_size()
 
-	_mark = Control.new()
-	_mark.name = "Mark"
-	_mark.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_mark.set_anchors_preset(Control.PRESET_TOP_WIDE)
-	_mark.draw.connect(_draw_mark)
-	add_child(_mark)
-
 	var mark_h := float(
 		(_grid_size.y + CONTOUR_CELLS * 2 + SHADOW_OFFSET.y) * _cell
 	)
-	_mark.offset_top = 0.0
-	_mark.offset_bottom = mark_h
 
 	_build_subtitle(mark_h)
 	_block_height = mark_h + _subtitle_host.size.y + float(_cell)
+	queue_redraw()
 
 
 func _compose_mask() -> void:
@@ -177,9 +168,13 @@ func _pick_cell_size() -> int:
 	return clampi(int(floor(minf(by_width, by_height))), MIN_CELL, MAX_CELL)
 
 
+func _draw() -> void:
+	_draw_mark()
+
+
 func _draw_mark() -> void:
 	var origin := Vector2(
-		(_mark.size.x - float((_grid_size.x + SHADOW_OFFSET.x) * _cell)) * 0.5,
+		(size.x - float((_grid_size.x + SHADOW_OFFSET.x) * _cell)) * 0.5,
 		float(CONTOUR_CELLS * _cell)
 	)
 
@@ -206,8 +201,8 @@ func _draw_cell(origin: Vector2, cell: Vector2i, color: Color) -> void:
 		Vector2(float(_cell), float(_cell))
 	)
 	var edge := maxf(1.0, floorf(float(_cell) * CELL_EDGE_RATIO))
-	_mark.draw_rect(rect, Color(color.darkened(CELL_EDGE_DARKEN), color.a))
-	_mark.draw_rect(rect.grow(-edge), color)
+	draw_rect(rect, Color(color.darkened(CELL_EDGE_DARKEN), color.a))
+	draw_rect(rect.grow(-edge), color)
 
 
 func _build_subtitle(top: float) -> void:
@@ -284,12 +279,11 @@ func set_glow_pulsing(on: bool) -> void:
 	_glow_pulsing = on
 	if not on:
 		_glow_alpha = 0.0
-		if _mark and is_instance_valid(_mark):
-			_mark.queue_redraw()
+		queue_redraw()
 
 
 func _process(_delta: float) -> void:
-	if not _glow_pulsing or _mark == null or not is_instance_valid(_mark):
+	if not _glow_pulsing:
 		return
 	_glow_alpha = 0.28 + 0.28 * sin(Time.get_ticks_msec() * 0.0022)
-	_mark.queue_redraw()
+	queue_redraw()

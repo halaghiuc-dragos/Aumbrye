@@ -160,15 +160,15 @@ func _apply_weight_class(weight_class: String) -> void:
 func _sync_weight_class() -> void:
 	if _weight_override != "":
 		return
-	var load := 0.0
+	var load_ratio := 0.0
 	if _body:
 		var equipped_mass := float(_body.get_meta("equipped_mass", 0.0))
 		var carry_capacity := maxf(1.0, float(_body.get_meta("carry_capacity", 100.0)))
-		load = equipped_mass / carry_capacity
+		load_ratio = equipped_mass / carry_capacity
 	var resolved := "medium"
-	if load < _light_below:
+	if load_ratio < _light_below:
 		resolved = "light"
-	elif load >= _heavy_at_or_above:
+	elif load_ratio >= _heavy_at_or_above:
 		resolved = "heavy"
 	if resolved != _weight_class:
 		_apply_weight_class(resolved)

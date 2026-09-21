@@ -37,9 +37,9 @@ static func spawn(
 ) -> void:
 	if AccessibilitySettings.restrained_damage_numbers and not is_crit:
 		var restrained_key := _aggregate_key(parent, world_position, damage_type)
-		var existing := _aggregate_numbers.get(restrained_key) as DamageNumberSpawner
-		if existing and is_instance_valid(existing):
-			existing.add_amount(amount)
+		var restrained_existing := _aggregate_numbers.get(restrained_key) as DamageNumberSpawner
+		if restrained_existing and is_instance_valid(restrained_existing):
+			restrained_existing.add_amount(amount)
 			return
 	_trim_visible(parent)
 	if _aggregate_numbers.size() > 256:
@@ -70,7 +70,7 @@ static func spawn_text(
 
 static func _acquire(parent: Node) -> DamageNumberSpawner:
 	while not _pool.is_empty():
-		var node := _pool.pop_back()
+		var node: DamageNumberSpawner = _pool.pop_back()
 		if is_instance_valid(node):
 			parent.add_child(node)
 			node.show()
@@ -115,7 +115,7 @@ static func _next_offset(parent: Node, world_position: Vector3) -> Vector3:
 	var count := int(_spawn_counts.get(key, 0))
 	_spawn_counts[key] = (count + 1) % 4
 	var column := float(count % 2) - 0.5
-	var row := float(count / 2)
+	var row := float(count) / 2.0
 	return Vector3(column * STACK_SPREAD, row * STACK_SPREAD, 0.0)
 
 

@@ -155,10 +155,10 @@ func _update_ground_probe() -> void:
 	if _follow == null or _follow.get_world_3d() == null:
 		return
 	var space := _follow.get_world_3d().direct_space_state
-	var position := _follow.global_position
+	var probe_position := _follow.global_position
 	var ground_query := PhysicsRayQueryParameters3D.create(
-		position + Vector3.UP * GROUND_PROBE_HEIGHT,
-		position - Vector3.UP * GROUND_PROBE_HEIGHT
+		probe_position + Vector3.UP * GROUND_PROBE_HEIGHT,
+		probe_position - Vector3.UP * GROUND_PROBE_HEIGHT
 	)
 	ground_query.collision_mask = 1
 	if _follow is CollisionObject3D:

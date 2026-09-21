@@ -7,7 +7,7 @@ extends RefCounted
 static func forward_of(facing: Node3D) -> Vector3:
 	if facing == null:
 		return Vector3(0.0, 0.0, 1.0)
-	return facing.global_transform.basis.z
+	return facing.global_transform.basis.z if facing.is_inside_tree() else facing.transform.basis.z
 
 
 ## An actor's aim direction, preferring whatever it reports for itself. Used wherever a system needs

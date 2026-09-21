@@ -1701,7 +1701,7 @@ func _save_roster() -> bool:
 func _recover_save_set_journal() -> void:
 	if not FileAccess.file_exists(SAVE_SET_JOURNAL_PATH):
 		return
-	var parsed := JSON.parse_string(_read_raw_text(SAVE_SET_JOURNAL_PATH))
+	var parsed: Variant = JSON.parse_string(_read_raw_text(SAVE_SET_JOURNAL_PATH))
 	if not parsed is Dictionary:
 		DirAccess.remove_absolute(SAVE_SET_JOURNAL_PATH)
 		return

@@ -183,7 +183,7 @@ static func _capture_initial_state() -> Dictionary:
 	var weapon := player.get_node_or_null("WeaponController")
 	if weapon and weapon.has_method("get_weapon_id"):
 		result["weaponId"] = str(weapon.call("get_weapon_id"))
-	var target := player.get_meta("lock_target", null)
+	var target: Variant = player.get_meta("lock_target", null)
 	if target is Node and is_instance_valid(target):
 		result["targetPath"] = str((target as Node).get_path())
 	return result

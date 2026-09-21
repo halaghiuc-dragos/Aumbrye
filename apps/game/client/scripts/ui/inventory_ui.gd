@@ -738,10 +738,6 @@ func _has_active_filter() -> bool:
 		or _type_filter_idx != 0
 		or _rarity_filter_idx != 0
 	)
-	if _title_label:
-		_title_label.text = (
-			tr("INV_TITLE_WAVES_STASH") if _waves_mode else tr("INV_TITLE_STASH")
-		).to_upper()
 
 
 ## The description is a floating pop-up parented to the root, outside every container, so nothing

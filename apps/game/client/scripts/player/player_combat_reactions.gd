@@ -137,8 +137,6 @@ func reset_combat_state() -> void:
 	is_guard_broken = false
 	is_grabbed = false
 	_grab_timer = 0.0
-	_grab_pending_damage = 0.0
-	_grab_source = null
 	if _dodge:
 		_dodge.reset_after_revive()
 	_stagger_timer = 0.0

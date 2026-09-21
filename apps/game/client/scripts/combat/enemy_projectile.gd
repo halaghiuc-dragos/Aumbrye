@@ -219,10 +219,10 @@ static func _visual_variant(dmg_type: String) -> Dictionary:
 	return variant
 
 
-static func _part_variant(size: Vector3, position: Vector3, material: Material) -> Dictionary:
+static func _part_variant(size: Vector3, part_position: Vector3, material: Material) -> Dictionary:
 	var mesh := BoxMesh.new()
 	mesh.size = size
-	return {"mesh": mesh, "position": position, "material": material}
+	return {"mesh": mesh, "position": part_position, "material": material}
 
 
 func _on_hit_landed(_target: Node) -> void:
@@ -237,9 +237,9 @@ func _on_hit_landed(_target: Node) -> void:
 ## vanishing -- the default here is exactly the old inline `queue_free()` so every other shot
 ## (enemy arrows included) behaves unchanged.
 func _on_world_impact(contact: Dictionary = {}) -> void:
-	var position: Variant = contact.get("position")
-	if position is Vector3:
-		global_position = position
+	var impact_position: Variant = contact.get("position")
+	if impact_position is Vector3:
+		global_position = impact_position
 	if VfxService:
 		var normal: Vector3 = contact.get("normal", Vector3.UP)
 		VfxService.play_hit_spark(global_position, -_velocity.normalized(), normal)

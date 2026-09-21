@@ -55,8 +55,8 @@ func _state_for_block(block_index: int, pool: Array[String]) -> String:
 	if candidates.size() > 1 and _last_state in candidates:
 		candidates.erase(_last_state)
 	var rng := RandomNumberGenerator.new()
-	var seed := WavesRunService.get_seed() if WavesRunService else 0
-	rng.seed = FloorSeedMix.mix(seed, block_index * 911 + 47)
+	var run_seed := WavesRunService.get_seed() if WavesRunService else 0
+	rng.seed = FloorSeedMix.mix(run_seed, block_index * 911 + 47)
 	return candidates[rng.randi_range(0, candidates.size() - 1)]
 
 

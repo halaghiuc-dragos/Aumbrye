@@ -150,7 +150,7 @@ func _make_pressure_bar() -> Control:
 	var next_health := profile.hp_multiplier(next_floor)
 	var best_floor := ProgressionService.get_endless_best_floor()
 	var best_damage := profile.damage_multiplier(best_floor) if best_floor > 0 else 1.0
-	var scale_max := maxf(next_damage, best_damage, EndlessDifficultyScript.DAMAGE_SOFT_CAP)
+	var scale_max := maxf(maxf(next_damage, best_damage), EndlessDifficultyScript.DAMAGE_SOFT_CAP)
 	var ratio := log(maxf(1.0, next_damage)) / maxf(0.001, log(scale_max))
 	var bar := ProgressBar.new()
 	bar.min_value = 0.0

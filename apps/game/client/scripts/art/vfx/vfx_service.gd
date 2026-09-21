@@ -1375,8 +1375,11 @@ func _resolve_forward(body: Node3D) -> Vector3:
 ## directions world directions. Resetting both position and basis prevents a former forward burst
 ## from rotating a later up/directional effect. CPU and GPU backends now receive the same vector.
 func _reset_burst_transform(particles: Node3D, world_pos: Vector3) -> void:
-	particles.global_basis = Basis.IDENTITY
-	particles.global_position = world_pos
+	if particles.is_inside_tree():
+		particles.global_basis = Basis.IDENTITY
+		particles.global_position = world_pos
+	else:
+		particles.transform = Transform3D(Basis.IDENTITY, world_pos)
 
 
 func _aligned_direction(direction: Vector3, align: String) -> Vector3:

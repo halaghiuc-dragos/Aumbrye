@@ -69,11 +69,8 @@ const DEFAULT_PULSE_TINT := Color(0.62, 0.08, 0.08)
 
 const QUALITY_LABELS: Array[String] = ["Low", "Medium", "High"]
 
-## HD-03: `RESOLUTION_PRESETS` held exactly one entry flagged `"native": true`, which made
-## `is_native_hd_preset()` always true and `GameUISkin.is_pixel_ui()` always false -- the pixel
-## treatment (`make_pixel_frame`, `make_bar_fill_style`, the pixel font, the status/HUD/item/glyph
-## atlases) was dead code for every player. These four low-res presets turn it on; `960x540` is the
-## new default so a fresh install sees the pixelled HUD without the player changing a setting.
+## The internal diorama render target defaults to Full HD. Lower-resolution pixel presets remain
+## available as explicit performance or stylistic choices and never change the root UI viewport.
 const RESOLUTION_PRESETS: Array = [
 	{
 		"label": "640 x 360 (Pixel)",
@@ -108,7 +105,6 @@ const RESOLUTION_PRESETS: Array = [
 		"width": 960,
 		"height": 540,
 		"native": false,
-		"default": true,
 		"tuning": {
 			"pixel_scale": 2.0,
 			"color_levels": 16.0,
@@ -137,6 +133,7 @@ const RESOLUTION_PRESETS: Array = [
 		"width": DEFAULT_VIEWPORT_WIDTH,
 		"height": DEFAULT_VIEWPORT_HEIGHT,
 		"native": true,
+		"default": true,
 		"tuning": {
 			"pixel_scale": 2.0,
 			"color_levels": 16.0,

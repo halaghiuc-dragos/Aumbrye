@@ -493,7 +493,7 @@ static func _render_preset_row() -> Dictionary:
 		"name_key": "SETTINGS_RENDER_PRESET_NAME",
 		"desc_key": "SETTINGS_RENDER_PRESET_DESC",
 		"format": "enum",
-		"default": 0,
+		"default": 4,
 		"options": PixelDioramaSettings.preset_labels(),
 		"getter": Callable(SettingsSchema, "_get_render_preset_index"),
 		"setter": Callable(SettingsSchema, "_set_render_preset_index"),
