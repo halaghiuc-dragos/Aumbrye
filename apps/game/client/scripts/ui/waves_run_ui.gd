@@ -13,6 +13,7 @@ var _reward_box: VBoxContainer
 var _confirm_button: Button
 var _confirm_hint: Label
 var _selected_rewards: Array[String] = []
+var _reward_buttons: Dictionary = {}
 var _reward_stack_pushed := false
 var _cash_out_active := false
 
@@ -39,9 +40,18 @@ func _ready() -> void:
 	_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	GameUISkinScript.style_body_label(_label)
 	vbox.add_child(_label)
+	var reward_scroll := ScrollContainer.new()
+	reward_scroll.custom_minimum_size = Vector2(0.0, 420.0)
+	reward_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	reward_scroll.visible = false
+	vbox.add_child(reward_scroll)
 	_reward_box = VBoxContainer.new()
+	_reward_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_reward_box.visible = false
-	vbox.add_child(_reward_box)
+	reward_scroll.add_child(_reward_box)
+	_reward_box.visibility_changed.connect(
+		func() -> void: reward_scroll.visible = _reward_box.visible
+	)
 
 
 func show_lobby() -> void:
@@ -74,7 +84,9 @@ func refresh_lobby() -> void:
 			% [WavesRunService.current_wave + 1, glyph]
 		)
 	if WavesRunService.is_cash_out_wave(WavesRunService.current_wave):
-		lines.append("The summoner's portal is open. He will send one thing home with you.")
+		var bank_count := WavesRunService.cash_out_bank_count(WavesRunService.current_wave)
+		var portal_key := "WAVES_LOBBY_PORTAL_ONE" if bank_count == 1 else "WAVES_LOBBY_PORTAL_MANY"
+		lines.append(tr(portal_key).format({"count": bank_count}))
 	lines.append("Caches opened %d/%d — walk up and press %s." % [opened, total, glyph])
 	_label.text = "\n".join(lines)
 
@@ -93,22 +105,23 @@ func show_reward_pick() -> void:
 		_reward_stack_pushed = true
 		MenuStack.push(self, true)
 	_selected_rewards.clear()
+	_reward_buttons.clear()
 	for child in _reward_box.get_children():
 		child.queue_free()
 	_label.text = tr("WAVES_VICTORY_PICK")
-	var inventory := WavesRunService.waves_inventory
-	for slot in inventory.slots:
-		var item_id: String = str(slot.get("itemId", ""))
-		if item_id == "":
-			continue
-		var display_name: String = inventory.get_slot_display_name(slot)
-		var quantity: int = int(slot.get("quantity", 1))
+	for option in WavesRunService.get_victory_reward_options():
+		var instance_id := str(option.get("instanceId", ""))
+		var display_name := str(option.get("displayName", option.get("itemId", "")))
+		var quantity := int(option.get("quantity", 1))
 		if quantity > 1:
 			display_name = "%s x%d" % [display_name, quantity]
+		if bool(option.get("equipped", false)):
+			display_name = tr("WAVES_REWARD_EQUIPPED").format({"item": display_name})
 		var btn := GameUISkinScript.make_button(tr("WAVES_TAKE_REWARD").format({"item": display_name}))
 		btn.toggle_mode = true
-		btn.pressed.connect(_on_pick_reward.bind(item_id, btn))
+		btn.pressed.connect(_on_pick_reward.bind(instance_id))
 		_reward_box.add_child(btn)
+		_reward_buttons[instance_id] = btn
 	_confirm_hint = Label.new()
 	_confirm_hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	GameUISkinScript.style_body_label(_confirm_hint)
@@ -129,6 +142,7 @@ func show_cash_out_pick() -> void:
 		_reward_stack_pushed = true
 		MenuStack.push(self, true)
 	_selected_rewards.clear()
+	_reward_buttons.clear()
 	for child in _reward_box.get_children():
 		child.queue_free()
 	var options := WavesRunService.get_cash_out_options()
@@ -148,6 +162,7 @@ func show_cash_out_pick() -> void:
 		_label.text = "\n".join(lines)
 	for option in options:
 		var item_id := str(option.get("itemId", ""))
+		var instance_id := str(option.get("instanceId", ""))
 		var rarity := str(option.get("rarity", "common"))
 		var display_name := str(option.get("displayName", item_id))
 		if bool(option.get("equipped", false)):
@@ -160,8 +175,9 @@ func show_cash_out_pick() -> void:
 		var description := str(item_def.get("description", ""))
 		if description != "":
 			btn.tooltip_text = description
-		btn.pressed.connect(_on_pick_cash_out.bind(item_id, btn, bank_count))
+		btn.pressed.connect(_on_pick_cash_out.bind(instance_id, btn, bank_count))
 		_reward_box.add_child(btn)
+		_reward_buttons[instance_id] = btn
 	_confirm_hint = Label.new()
 	_confirm_hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	GameUISkinScript.style_body_label(_confirm_hint)
@@ -227,22 +243,24 @@ func _on_confirm_cash_out() -> void:
 		run.call("cash_out_with_item", _selected_rewards.duplicate())
 
 
-func _on_pick_reward(item_id: String, btn: Button) -> void:
-	if item_id in _selected_rewards:
-		_selected_rewards.erase(item_id)
-		btn.button_pressed = false
+func _on_pick_reward(instance_id: String) -> void:
+	if instance_id in _selected_rewards:
+		_selected_rewards.erase(instance_id)
 	elif _selected_rewards.size() < 3:
-		_selected_rewards.append(item_id)
-		btn.button_pressed = true
+		_selected_rewards.append(instance_id)
+	_refresh_reward_buttons()
 	_refresh_confirm_state()
 
 
+func _refresh_reward_buttons() -> void:
+	for instance_id in _reward_buttons:
+		var button := _reward_buttons[instance_id] as Button
+		if button and is_instance_valid(button):
+			button.button_pressed = str(instance_id) in _selected_rewards
+
+
 func _inventory_item_count() -> int:
-	var count := 0
-	for slot in WavesRunService.waves_inventory.slots:
-		if str(slot.get("itemId", "")) != "":
-			count += 1
-	return count
+	return WavesRunService.get_victory_reward_options().size()
 
 
 func _refresh_confirm_state() -> void:

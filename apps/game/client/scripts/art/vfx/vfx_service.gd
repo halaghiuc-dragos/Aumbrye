@@ -11,11 +11,13 @@ const TRAIL_ARC_DEGREES := 150.0
 const TRAIL_LIFETIME := 0.24
 
 const EMISSIVE_SHADER_PATH := "res://assets/shared/pixel_diorama_emissive.gdshader"
+const TRAIL_SHADER_PATH := "res://assets/shared/pixel_diorama_trail.gdshader"
 const EFFECTS_PATH := "content/vfx/effects.json"
 
 const PixelStyle := preload("res://scripts/art/style/pixel_diorama_style.gd")
 
 static var _particle_material_cache: Dictionary = {}
+static var _trail_material_cache: Dictionary = {}
 
 static var _warned_telegraph_shapes: Dictionary = {}
 
@@ -38,6 +40,34 @@ var _decal_cursor := 0
 var _sweep_entries: Array[Dictionary] = []
 var _telegraphs: Array[Dictionary] = []
 var _free_nodes: Array[Node] = []
+
+
+class TelegraphHandle extends RefCounted:
+	var glyph: Node3D
+	var follow: Node3D
+	var frozen := false
+
+	func cancel() -> void:
+		if is_instance_valid(glyph):
+			glyph.queue_free()
+		glyph = null
+		follow = null
+
+	func finish() -> void:
+		cancel()
+
+	func commit() -> void:
+		if not is_instance_valid(glyph):
+			return
+		frozen = true
+		follow = null
+
+	func update(world_pos: Vector3, forward: Vector3) -> void:
+		if not is_instance_valid(glyph) or frozen:
+			return
+		glyph.global_position = world_pos + Vector3(0.0, 0.03, 0.0)
+		if forward.length_squared() > 0.01:
+			glyph.look_at(glyph.global_position + Vector3(forward.x, 0.0, forward.z), Vector3.UP)
 
 var _time_scale_requests: Dictionary = {}
 var _shake_amount := 0.0
@@ -70,7 +100,7 @@ func _process(delta: float) -> void:
 	):
 		set_process(false)
 		return
-	_sweep_pools()
+	_sweep_pools(delta)
 	_update_telegraphs(delta)
 	_update_time_scale()
 	if _shake_until_ms > 0 and Time.get_ticks_msec() >= _shake_until_ms:
@@ -86,6 +116,7 @@ func _process(delta: float) -> void:
 
 static func clear_particle_material_cache() -> void:
 	_particle_material_cache.clear()
+	_trail_material_cache.clear()
 
 
 static var _death_burst_lifetime := -1.0
@@ -308,8 +339,11 @@ func play_telegraph(
 	forward: Vector3 = Vector3.FORWARD,
 	follow: Node3D = null,
 	arc_deg: float = 90.0,
-	pattern: String = "solid"
-) -> void:
+	pattern: String = "solid",
+	length: float = -1.0,
+	width: float = -1.0,
+	inner_radius: float = 0.0
+) -> TelegraphHandle:
 	var effect_id := "telegraph_%s" % shape
 	if not _effects.has(effect_id):
 		if not _warned_telegraph_shapes.has(shape):
@@ -319,31 +353,21 @@ func play_telegraph(
 			)
 		effect_id = "telegraph_circle"
 	var emphasised_tint := AccessibilitySettings.emphasise_telegraph_tint(tint)
-	var emphasised_radius := radius * AccessibilitySettings.telegraph_radius_scale()
-	play(
-		effect_id,
-		world_pos,
-		forward,
-		emphasised_tint,
-		Vector3.UP,
-		{
-			"radius": emphasised_radius,
-			"duration": duration,
-			"shape": shape,
-			"forward": forward,
-			"follow": follow,
-			"arc_deg": arc_deg,
-			"pattern": pattern,
-		}
+	return _build_telegraph_glyph(
+		world_pos, radius, duration, emphasised_tint, shape, forward, follow, arc_deg, pattern,
+		length, width, inner_radius
 	)
 
 
 func request_hitstop(duration_ms: int, strength: float = 0.05) -> void:
 	if not PixelDioramaSettings.hitstop_enabled:
 		return
-	if AccessibilitySettings.hitstop_scale() <= 0.0:
+	var accessibility_scale := AccessibilitySettings.hitstop_scale()
+	if accessibility_scale <= 0.0:
 		return
-	push_time_scale(&"vfx_hitstop", strength, duration_ms)
+	var scaled_duration := maxi(1, roundi(duration_ms * accessibility_scale))
+	var scaled_strength := lerpf(1.0, strength, accessibility_scale)
+	push_time_scale(&"vfx_hitstop", scaled_strength, scaled_duration)
 
 
 func push_time_scale(id: StringName, scale: float, duration_ms: int = 0) -> void:
@@ -475,6 +499,7 @@ func _play_burst_layer(
 		"color": color,
 		"emission": float(layer.get("emission", 0.0)),
 		"direction": dir,
+		"align": align,
 		"flatness": float(layer.get("flatness", 0.2)),
 		"randomness": float(layer.get("randomness", 0.35)),
 		"chunk": String(layer.get("chunk", "shard_small")),
@@ -482,9 +507,7 @@ func _play_burst_layer(
 	if use_gpu:
 		_emit_gpu_burst("BurstGpu", world_pos, dir, color, amount, lifetime, cfg)
 	else:
-		var particles := _make_burst_particles("BurstCpu", world_pos, cfg)
-		if align == "forward":
-			_orient_particles(particles, direction)
+		_make_burst_particles("BurstCpu", world_pos, cfg)
 
 
 func _play_decal_layer(
@@ -592,7 +615,7 @@ func _make_burst_particles(
 		particles.color, float(cfg.get("emission", 0.0))
 	)
 	particles.visibility_aabb = _burst_visibility_aabb(cfg)
-	particles.global_position = world_pos
+	_reset_burst_transform(particles, world_pos)
 	particles.restart()
 	particles.emitting = true
 	_schedule_pool_return(particles, particles.lifetime + 0.15)
@@ -612,6 +635,8 @@ func _emit_gpu_burst(
 	particles.name = node_name
 	particles.amount = maxi(4, amount)
 	particles.lifetime = lifetime
+	particles.explosiveness = float(cfg.get("explosiveness", 0.8))
+	particles.randomness = float(cfg.get("randomness", 0.35))
 	particles.draw_pass_1 = _chunk_mesh(String(cfg.get("chunk", "shard_small")))
 	var mat := particles.process_material as ParticleProcessMaterial
 	if mat == null:
@@ -620,6 +645,7 @@ func _emit_gpu_burst(
 	mat.direction = direction.normalized() if direction.length_squared() > 0.01 else Vector3.UP
 	mat.color = color
 	mat.spread = float(cfg.get("spread", 35.0))
+	mat.flatness = float(cfg.get("flatness", 0.2))
 	mat.gravity = cfg.get("gravity", Vector3(0.0, -8.0, 0.0))
 	mat.initial_velocity_min = float(cfg.get("velocity_min", 1.5))
 	mat.initial_velocity_max = float(cfg.get("velocity_max", 4.0))
@@ -627,7 +653,7 @@ func _emit_gpu_burst(
 	mat.scale_max = float(cfg.get("scale_max", 0.14))
 	particles.material_override = _particle_material(color, float(cfg.get("emission", 0.85)))
 	particles.visibility_aabb = _burst_visibility_aabb(cfg)
-	particles.global_position = world_pos
+	_reset_burst_transform(particles, world_pos)
 	particles.restart()
 	particles.emitting = true
 	_schedule_gpu_return(particles, lifetime + 0.15)
@@ -739,30 +765,40 @@ func _make_decal_node(node_name: String) -> Decal:
 
 func _schedule_pool_return(particles: CPUParticles3D, delay: float) -> void:
 	set_process(true)
+	var token := _next_pool_token(particles)
 	_sweep_entries.append(
 		{
 			"node": particles,
-			"expires_at": Time.get_ticks_msec() + int(delay * 1000.0),
-			"kind": "cpu"
+			"remaining": delay,
+			"kind": "cpu",
+			"token": token,
 		}
 	)
 
 
 func _schedule_gpu_return(particles: GPUParticles3D, delay: float) -> void:
 	set_process(true)
+	var token := _next_pool_token(particles)
 	_sweep_entries.append(
 		{
 			"node": particles,
-			"expires_at": Time.get_ticks_msec() + int(delay * 1000.0),
-			"kind": "gpu"
+			"remaining": delay,
+			"kind": "gpu",
+			"token": token,
 		}
 	)
 
 
 func _schedule_decal_return(decal: Decal, delay: float) -> void:
 	set_process(true)
+	var token := _next_pool_token(decal)
 	_sweep_entries.append(
-		{"node": decal, "expires_at": Time.get_ticks_msec() + int(delay * 1000.0), "kind": "decal"}
+		{
+			"node": decal,
+			"remaining": delay,
+			"kind": "decal",
+			"token": token,
+		}
 	)
 
 
@@ -773,17 +809,23 @@ func _schedule_free(node: Node, delay: float) -> void:
 	)
 
 
-func _sweep_pools() -> void:
+func _sweep_pools(delta: float) -> void:
 	if _sweep_entries.is_empty():
 		return
-	var now := Time.get_ticks_msec()
 	for i in range(_sweep_entries.size() - 1, -1, -1):
 		var entry := _sweep_entries[i]
-		if now < int(entry.get("expires_at", 0)):
+		if entry.has("remaining"):
+			entry["remaining"] = float(entry.get("remaining", 0.0)) - delta
+			if float(entry["remaining"]) > 0.0:
+				_sweep_entries[i] = entry
+				continue
+		elif Time.get_ticks_msec() < int(entry.get("expires_at", 0)):
 			continue
 		_sweep_entries.remove_at(i)
 		var node: Variant = entry.get("node")
 		if not is_instance_valid(node):
+			continue
+		if entry.has("token") and int(entry.get("token", -1)) != int(node.get_meta("pool_token", -2)):
 			continue
 		match String(entry.get("kind", "")):
 			"cpu", "gpu":
@@ -792,6 +834,12 @@ func _sweep_pools() -> void:
 				(node as Decal).visible = false
 			"free":
 				_free_nodes.append(node)
+
+
+func _next_pool_token(node: Node) -> int:
+	var token := int(node.get_meta("pool_token", 0)) + 1
+	node.set_meta("pool_token", token)
+	return token
 
 
 func _particle_material(color: Color, emission_energy: float) -> ShaderMaterial:
@@ -808,6 +856,20 @@ func _particle_material(color: Color, emission_energy: float) -> ShaderMaterial:
 	PixelDioramaSettings.apply_to_shader_material(mat)
 	_particle_material_cache[key] = mat
 	PixelDioramaSettings.track(mat)
+	return mat
+
+
+## Trails deliberately use a transparent vertex-colour contract; solid emissive props remain on
+## the shared opaque material above.
+func _trail_material(color: Color, emission_energy: float) -> ShaderMaterial:
+	var key := "%s_%.2f" % [color.to_html(false), emission_energy]
+	if _trail_material_cache.has(key):
+		return _trail_material_cache[key] as ShaderMaterial
+	var mat := ShaderMaterial.new()
+	mat.shader = load(TRAIL_SHADER_PATH) as Shader
+	mat.set_shader_parameter("tint", color)
+	mat.set_shader_parameter("emission_energy", emission_energy)
+	_trail_material_cache[key] = mat
 	return mat
 
 
@@ -896,6 +958,11 @@ func _spawn_decal(
 	fade: float
 ) -> void:
 	var decal := _acquire_decal()
+	if decal.has_meta("decal_fade_tween"):
+		var active := decal.get_meta("decal_fade_tween") as Tween
+		if active != null and active.is_valid():
+			active.kill()
+		decal.remove_meta("decal_fade_tween")
 	decal.texture_albedo = texture
 	decal.size = PixelStyle.snap_size_to_pixel_grid(
 		Vector3(size, maxf(0.08, size * 0.3), size)
@@ -912,6 +979,7 @@ func _spawn_decal(
 	decal.visible = true
 	if fade > 0.0:
 		var tween := create_tween()
+		decal.set_meta("decal_fade_tween", tween)
 		tween.tween_property(decal, "modulate:a", 0.0, fade).set_delay(maxf(0.0, lifetime - fade))
 	_schedule_decal_return(decal, lifetime)
 
@@ -952,9 +1020,7 @@ func _build_weapon_trail(
 	var mesh_instance := MeshInstance3D.new()
 	var ribbon := ImmediateMesh.new()
 	mesh_instance.mesh = ribbon
-	mesh_instance.material_override = _particle_material(
-		Color(tint.r, tint.g, tint.b, 0.98), emission
-	)
+	mesh_instance.material_override = _trail_material(Color(tint.r, tint.g, tint.b, 0.98), emission)
 	mesh_instance.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	trail.add_child(mesh_instance)
 	var half_arc := deg_to_rad(arc_degrees) * 0.5
@@ -986,8 +1052,11 @@ func _build_telegraph_glyph(
 	forward: Vector3,
 	follow: Node3D = null,
 	arc_deg: float = 90.0,
-	pattern: String = "solid"
-) -> void:
+	pattern: String = "solid",
+	length: float = -1.0,
+	width: float = -1.0,
+	inner_radius: float = 0.0
+) -> TelegraphHandle:
 	var glyph := Node3D.new()
 	glyph.name = "TelegraphGlyph"
 	glyph.top_level = true
@@ -1004,20 +1073,21 @@ func _build_telegraph_glyph(
 	var rim_mat := PixelStyle.make_glow_material(
 		Color(tint.r, tint.g, tint.b, 1.0), Color(tint.r, tint.g, tint.b, 0.8), 2.4, 5.0
 	)
-	var fill_mat := PixelStyle.make_glow_material(
-		Color(tint.r, tint.g, tint.b, 0.65), Color(tint.r, tint.g, tint.b, 0.4), 1.1, 2.5
-	)
+	# The fill is intentionally translucent; use the dedicated alpha-aware material rather than
+	# silently treating the authored alpha as opaque. The crisp rim remains opaque for a truthful
+	# danger boundary.
+	var fill_mat := _trail_material(Color(tint.r, tint.g, tint.b, 0.65), 1.1)
 	var sweep := Node3D.new()
 	sweep.name = "Sweep"
 	glyph.add_child(sweep)
 
 	match shape:
 		"line":
-			_telegraph_line(glyph, sweep, radius, rim_mat, fill_mat, pattern)
+			_telegraph_line(glyph, sweep, radius, rim_mat, fill_mat, pattern, length, width)
 		"cone":
 			_telegraph_cone(glyph, sweep, radius, rim_mat, fill_mat, arc_deg, pattern)
 		"ring":
-			_telegraph_ring(glyph, sweep, radius, rim_mat, pattern)
+			_telegraph_ring(glyph, sweep, radius, rim_mat, fill_mat, pattern, inner_radius)
 		_:
 			_telegraph_circle(glyph, sweep, radius, rim_mat, fill_mat, pattern)
 
@@ -1025,10 +1095,15 @@ func _build_telegraph_glyph(
 	var tween := create_tween()
 	tween.set_trans(Tween.TRANS_LINEAR)
 	tween.tween_property(sweep, "scale", Vector3.ONE, duration)
-	_schedule_free(glyph, duration + 0.12)
+	var handle := TelegraphHandle.new()
+	handle.glyph = glyph
+	handle.follow = follow
 	if follow != null and is_instance_valid(follow):
-		_telegraphs.append({"glyph": glyph, "follow": follow, "y": 0.03})
+		_telegraphs.append({"handle": handle, "y": 0.03})
 		set_process(true)
+	else:
+		_schedule_free(glyph, duration + 0.12)
+	return handle
 
 
 func _telegraph_circle(
@@ -1055,10 +1130,19 @@ func _telegraph_circle(
 
 
 func _telegraph_ring(
-	glyph: Node3D, sweep: Node3D, radius: float, rim_mat: Material, pattern: String = "solid"
+	glyph: Node3D,
+	sweep: Node3D,
+	radius: float,
+	rim_mat: Material,
+	fill_mat: Material,
+	pattern: String = "solid",
+	inner_radius: float = 0.0
 ) -> void:
 	_telegraph_rim_ring(glyph, radius, rim_mat, 24, 0.26, pattern)
 	_telegraph_rim_ring(sweep, radius, rim_mat, 20, 0.3, pattern)
+	if inner_radius > 0.0 and inner_radius < radius:
+		_telegraph_rim_ring(glyph, inner_radius, rim_mat, 18, 0.18, pattern)
+		_telegraph_annulus_fill(sweep, inner_radius, radius, fill_mat)
 	if pattern == "double":
 		_telegraph_rim_ring(glyph, radius * 0.72, rim_mat, 18, 0.22, "solid")
 
@@ -1098,10 +1182,12 @@ func _telegraph_line(
 	radius: float,
 	rim_mat: Material,
 	fill_mat: Material,
-	pattern: String = "solid"
+	pattern: String = "solid",
+	length_override: float = -1.0,
+	width_override: float = -1.0
 ) -> void:
-	var width := maxf(radius * 0.34, 0.24)
-	var length := radius * 2.0
+	var width := width_override if width_override > 0.0 else maxf(radius * 0.34, 0.24)
+	var length := length_override if length_override > 0.0 else radius * 2.0
 	for side in [-1.0, 1.0]:
 		_telegraph_edge_line(glyph, rim_mat, side * width * 0.5, length, pattern)
 		if pattern == "double":
@@ -1122,6 +1208,31 @@ func _telegraph_line(
 	fill.position = Vector3(0.0, 0.0, -length * 0.5)
 	fill.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	sweep.add_child(fill)
+
+
+func _telegraph_annulus_fill(
+	parent: Node3D, inner_radius: float, outer_radius: float, material: Material
+) -> void:
+	var surface := SurfaceTool.new()
+	surface.begin(Mesh.PRIMITIVE_TRIANGLES)
+	for i in 24:
+		var a := TAU * float(i) / 24.0
+		var b := TAU * float(i + 1) / 24.0
+		var inner_a := Vector3(sin(a), 0.0, cos(a)) * inner_radius
+		var inner_b := Vector3(sin(b), 0.0, cos(b)) * inner_radius
+		var outer_a := Vector3(sin(a), 0.0, cos(a)) * outer_radius
+		var outer_b := Vector3(sin(b), 0.0, cos(b)) * outer_radius
+		surface.add_vertex(inner_a)
+		surface.add_vertex(outer_a)
+		surface.add_vertex(outer_b)
+		surface.add_vertex(inner_a)
+		surface.add_vertex(outer_b)
+		surface.add_vertex(inner_b)
+	var fill := MeshInstance3D.new()
+	fill.mesh = surface.commit()
+	fill.material_override = material
+	fill.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	parent.add_child(fill)
 
 
 ## `AX-01`: one long edge box reads as solid either way, so a dashed line needs actual gaps rather
@@ -1198,19 +1309,19 @@ func _telegraph_cone(
 			edge.rotation.y = angle
 			edge.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 			glyph.add_child(edge)
+	var surface := SurfaceTool.new()
+	surface.begin(Mesh.PRIMITIVE_TRIANGLES)
 	for i in segments:
-		var angle := lerpf(-half, half, float(i) / float(segments - 1))
-		var wedge := MeshInstance3D.new()
-		var wedge_mesh := BoxMesh.new()
-		wedge_mesh.size = PixelStyle.snap_size_to_pixel_grid(
-			Vector3(radius * 2.0 * half / float(segments), 0.03, radius)
-		)
-		wedge.mesh = wedge_mesh
-		wedge.material_override = fill_mat
-		wedge.position = Vector3(sin(angle), 0.0, -cos(angle)) * radius * 0.5
-		wedge.rotation.y = angle
-		wedge.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-		sweep.add_child(wedge)
+		var a := lerpf(-half, half, float(i) / float(segments))
+		var b := lerpf(-half, half, float(i + 1) / float(segments))
+		surface.add_vertex(Vector3.ZERO)
+		surface.add_vertex(Vector3(sin(a), 0.0, -cos(a)) * radius)
+		surface.add_vertex(Vector3(sin(b), 0.0, -cos(b)) * radius)
+	var fill := MeshInstance3D.new()
+	fill.mesh = surface.commit()
+	fill.material_override = fill_mat
+	fill.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	sweep.add_child(fill)
 
 
 func _update_telegraphs(_delta: float) -> void:
@@ -1218,18 +1329,20 @@ func _update_telegraphs(_delta: float) -> void:
 	for entry in _telegraphs:
 		# Read as Variant first. Assigning a freed instance to a typed `Node3D` local throws before
 		# `is_instance_valid` can be reached, and an enemy dying mid-wind-up does exactly that.
-		var glyph_ref: Variant = entry["glyph"]
-		var follow_ref: Variant = entry["follow"]
-		if not is_instance_valid(glyph_ref) or not is_instance_valid(follow_ref):
+		var handle_ref: Variant = entry["handle"]
+		if not (handle_ref is TelegraphHandle):
 			continue
-		var glyph := glyph_ref as Node3D
-		var follow := follow_ref as Node3D
-		glyph.global_position = follow.global_position + Vector3(0.0, float(entry["y"]), 0.0)
+		var handle := handle_ref as TelegraphHandle
+		if not is_instance_valid(handle.glyph):
+			continue
+		if handle.frozen:
+			continue
+		if not is_instance_valid(handle.follow):
+			handle.cancel()
+			continue
+		var follow := handle.follow
 		var forward := _resolve_forward(follow)
-		if forward.length_squared() > 0.01:
-			glyph.look_at(
-				glyph.global_position + Vector3(forward.x, 0.0, forward.z), Vector3.UP
-			)
+		handle.update(follow.global_position + Vector3(0.0, float(entry["y"]) - 0.03, 0.0), forward)
 		keep.append(entry)
 	_telegraphs = keep
 
@@ -1238,9 +1351,14 @@ func _burst_visibility_aabb(cfg: Dictionary) -> AABB:
 	var velocity_max := float(cfg.get("velocity_max", 2.5))
 	var lifetime := float(cfg.get("lifetime", 0.3))
 	var scale_max := float(cfg.get("scale_max", 0.1))
-	var extent := (velocity_max * lifetime + scale_max) * 1.25
+	var travel := (velocity_max * lifetime + scale_max) * 1.25
+	var gravity: Vector3 = cfg.get("gravity", Vector3.ZERO)
+	var gravity_travel := Vector3(
+		absf(gravity.x), absf(gravity.y), absf(gravity.z)
+	) * (0.5 * lifetime * lifetime)
+	var extent := Vector3(travel, travel, travel) + gravity_travel
 	return AABB(
-		Vector3(-extent, -extent * 0.5, -extent), Vector3(extent * 2.0, extent * 2.0, extent * 2.0)
+		-extent, extent * 2.0
 	)
 
 
@@ -1253,16 +1371,18 @@ func _resolve_forward(body: Node3D) -> Vector3:
 	return CombatFacing.forward_of(body)
 
 
-func _orient_particles(particles: CPUParticles3D, forward: Vector3) -> void:
-	if forward.length_squared() < 0.01:
-		return
-	particles.rotation.y = atan2(forward.x, forward.z)
+## Pooled particle emitters are top-level nodes, so an identity basis makes their local particle
+## directions world directions. Resetting both position and basis prevents a former forward burst
+## from rotating a later up/directional effect. CPU and GPU backends now receive the same vector.
+func _reset_burst_transform(particles: Node3D, world_pos: Vector3) -> void:
+	particles.global_basis = Basis.IDENTITY
+	particles.global_position = world_pos
 
 
 func _aligned_direction(direction: Vector3, align: String) -> Vector3:
 	match align:
 		"forward":
-			return Vector3(0.0, 0.0, -1.0)
+			return direction.normalized() if direction.length_squared() > 0.01 else Vector3.FORWARD
 		"direction":
 			return direction.normalized() if direction.length_squared() > 0.01 else Vector3.UP
 		"up", _:

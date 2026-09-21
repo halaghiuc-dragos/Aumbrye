@@ -81,6 +81,14 @@
       "recovery_duration": 1.05,
       "attack_damage": 31,
       "attack_poise_damage": 10,
+      "attackBehavior": "hazard",
+      "no_hitbox": true,
+      "spawn_hazard": {
+        "scene": "res://scenes/traps/poison_pool.tscn",
+        "count": 1,
+        "radius": 1,
+        "lifetime": 5
+      },
       "max_range": 3.36,
       "telegraph_shape": "ring",
       "damage_type": "poison",

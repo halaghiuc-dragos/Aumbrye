@@ -29,7 +29,7 @@ const LOCK_SWITCH_DECAY := 6.0
 
 ## `RG-01`: composes with (does not replace) the lock-on dolly/FOV above -- both add onto the same
 ## `spring_length`/`fov` so aiming while locked on pulls in further rather than fighting lock-on.
-const AIM_DOLLY := 0.8
+const AIM_DOLLY := -0.8
 const AIM_FOV_REDUCTION_DEG := 8.0
 const AIM_SHOULDER_EXTRA := 0.15
 const AIM_BLEND_RATE := 6.0
@@ -104,6 +104,7 @@ const REVEAL_FRAME_RATE := 3.0
 var _reveal_active := false
 var _reveal_timer := 0.0
 var _reveal_point := Vector3.ZERO
+var _framing_generation := 0
 
 
 ## The SpringArm3D's own transform must only ever be written from `_physics_process`. With 3D
@@ -146,6 +147,16 @@ func _on_accessibility_settings_changed() -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
+	if _reveal_active and event is InputEventMouseMotion and (event as InputEventMouseMotion).relative.length_squared() > 0.0:
+		_end_reveal_framing()
+	if _intro_active or _execution_active or _reveal_active:
+		_pending_mouse_yaw = 0.0
+		_pending_mouse_pitch = 0.0
+		return
+	if PlayerInput.group_blocked(PlayerInput.Group.CAMERA) or PlayerInput.blocked():
+		_pending_mouse_yaw = 0.0
+		_pending_mouse_pitch = 0.0
+		return
 	if event.is_action_pressed("toggle_camera"):
 		if _lock_on_active:
 			_break_player_lock()
@@ -177,6 +188,13 @@ func _physics_process(delta: float) -> void:
 		return
 	if _reveal_active:
 		_update_reveal_framing(delta)
+		_update_arm_length(delta)
+		return
+	if PlayerInput.group_blocked(PlayerInput.Group.CAMERA) or PlayerInput.blocked():
+		_pending_mouse_yaw = 0.0
+		_pending_mouse_pitch = 0.0
+		_update_mode_blend(delta)
+		_update_aim_blend(delta)
 		_update_arm_length(delta)
 		return
 	if _pending_mouse_yaw != 0.0 or _pending_mouse_pitch != 0.0:
@@ -231,7 +249,7 @@ func _update_arm_length(delta: float) -> void:
 	if _death_framing:
 		ideal += DEATH_FRAMING_DOLLY
 	ideal += _lock_dolly
-	ideal += _aim_blend * AIM_DOLLY
+	ideal += _aim_blend * (1.0 - _fp_blend) * AIM_DOLLY
 	# Smoothed toward the *desired* length, never toward `get_hit_length()`. That reports the last
 	# completed query, which ran with the previous `spring_length`, so feeding it back makes the
 	# shortened value the new ceiling — a one-way ratchet the arm can never climb out of.
@@ -475,7 +493,9 @@ func apply_punch(direction: Vector3, strength: float) -> void:
 	if dir.length_squared() < 0.01 and _camera:
 		dir = -_camera.global_transform.basis.z
 	if dir.length_squared() > 0.01:
-		_punch_offset = dir.normalized() * punch
+		var camera_basis := _camera.global_transform.basis if _camera else Basis.IDENTITY
+		var local := camera_basis.inverse() * dir.normalized()
+		_punch_offset = Vector3(local.x, local.y, 0.0) * punch
 	_punch_timer = maxf(_punch_timer, 0.11)
 	if punch >= 0.14:
 		_fov_kick = maxf(_fov_kick, 1.5 * punch)
@@ -620,13 +640,14 @@ func _break_player_lock() -> void:
 func play_intro_framing(target: Node3D, duration: float) -> void:
 	if target == null or _yaw_pivot == null:
 		return
+	var generation := _begin_special_framing()
 	_intro_target = target
 	_intro_timer = 0.0
 	_saved_intro_zoom = _target_zoom
 	_target_zoom = _target_zoom + INTRO_PULLBACK_ZOOM
 	_intro_active = true
 	await get_tree().create_timer(maxf(0.1, duration)).timeout
-	if is_instance_valid(self):
+	if is_instance_valid(self) and generation == _framing_generation:
 		_end_intro_framing()
 
 
@@ -669,13 +690,14 @@ func _update_intro_framing(delta: float) -> void:
 func play_execution_framing(target: Node3D) -> void:
 	if target == null or _yaw_pivot == null:
 		return
+	var generation := _begin_special_framing()
 	_execution_target = target
 	_execution_timer = 0.0
 	_saved_execution_zoom = _target_zoom
 	_target_zoom = clampf(_target_zoom + EXECUTION_PULL_ZOOM, MIN_ZOOM, MAX_ZOOM)
 	_execution_active = true
 	await get_tree().create_timer(0.6).timeout
-	if is_instance_valid(self):
+	if is_instance_valid(self) and generation == _framing_generation:
 		_end_execution_framing()
 
 
@@ -713,11 +735,12 @@ func _update_execution_framing(delta: float) -> void:
 func play_reveal_framing(point: Vector3) -> void:
 	if _yaw_pivot == null:
 		return
+	var generation := _begin_special_framing()
 	_reveal_point = point
 	_reveal_timer = 0.0
 	_reveal_active = true
 	await get_tree().create_timer(0.8).timeout
-	if is_instance_valid(self):
+	if is_instance_valid(self) and generation == _framing_generation:
 		_end_reveal_framing()
 
 
@@ -727,6 +750,17 @@ func is_reveal_framing_active() -> bool:
 
 func _end_reveal_framing() -> void:
 	_reveal_active = false
+
+
+func _begin_special_framing() -> int:
+	_framing_generation += 1
+	if _intro_active:
+		_end_intro_framing()
+	if _execution_active:
+		_end_execution_framing()
+	if _reveal_active:
+		_end_reveal_framing()
+	return _framing_generation
 
 
 func _update_reveal_framing(delta: float) -> void:

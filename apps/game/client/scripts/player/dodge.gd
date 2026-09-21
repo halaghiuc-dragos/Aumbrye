@@ -9,6 +9,7 @@ const DODGE_BUFFER_TIME := 0.18
 const DODGE_BURST_FRACTION := 0.35
 const DODGE_SPEED := 9.0
 const DODGE_BACK_SPEED := 6.0
+const TERMINAL_FALL_SPEED := 22.0
 
 const BACKSTEP_SPEED_MULT := DODGE_BACK_SPEED / DODGE_SPEED
 const BACKSTEP_DURATION_MULT := 0.8
@@ -17,7 +18,7 @@ const JUMP_STAMINA_COST := 18.0
 
 const TUNING_PATH := "content/combat/dodge.json"
 const FALLBACK_TUNING := {
-	"weight_from_defense": {"light_below": 30.0, "heavy_at_or_above": 75.0},
+	"equip_load": {"light_below": 0.35, "heavy_at_or_above": 0.7},
 	"weight_classes":
 	{
 		"light":
@@ -75,7 +76,7 @@ var _dodge_timer := 0.0
 var _recovery_timer := 0.0
 var _dodge_direction := Vector3.ZERO
 var _is_backstep := false
-var _external_iframes := false
+var _external_iframe_sources: Dictionary = {}
 var _dodge_speed := DODGE_SPEED
 var _talent_stamina_mult := 1.0
 var _profiles: Dictionary = {}
@@ -133,9 +134,11 @@ func _ingest_tuning(data: Dictionary) -> void:
 	var classes: Dictionary = data.get("weight_classes", {})
 	if not classes.is_empty():
 		_profiles = classes
-	var thresholds: Dictionary = data.get("weight_from_defense", {})
-	_light_below = float(thresholds.get("light_below", _light_below))
-	_heavy_at_or_above = float(thresholds.get("heavy_at_or_above", _heavy_at_or_above))
+	var thresholds: Dictionary = data.get("equip_load", data.get("weight_from_defense", {}))
+	var light_below := float(thresholds.get("light_below", _light_below))
+	var heavy_at_or_above := float(thresholds.get("heavy_at_or_above", _heavy_at_or_above))
+	_light_below = light_below if light_below <= 1.0 else 0.35
+	_heavy_at_or_above = heavy_at_or_above if heavy_at_or_above <= 1.0 else 0.7
 
 
 func _apply_weight_class(weight_class: String) -> void:
@@ -157,13 +160,15 @@ func _apply_weight_class(weight_class: String) -> void:
 func _sync_weight_class() -> void:
 	if _weight_override != "":
 		return
-	var defense := 0.0
+	var load := 0.0
 	if _body:
-		defense = float(_body.get_meta("combat_defense", 0.0))
+		var equipped_mass := float(_body.get_meta("equipped_mass", 0.0))
+		var carry_capacity := maxf(1.0, float(_body.get_meta("carry_capacity", 100.0)))
+		load = equipped_mass / carry_capacity
 	var resolved := "medium"
-	if defense < _light_below:
+	if load < _light_below:
 		resolved = "light"
-	elif defense >= _heavy_at_or_above:
+	elif load >= _heavy_at_or_above:
 		resolved = "heavy"
 	if resolved != _weight_class:
 		_apply_weight_class(resolved)
@@ -171,6 +176,11 @@ func _sync_weight_class() -> void:
 
 func _scaled_dodge_cost() -> float:
 	return DODGE_STAMINA_COST * _weight_stamina_mult * _talent_stamina_mult
+
+
+func get_resolved_dodge_cost() -> float:
+	_sync_weight_class()
+	return _scaled_dodge_cost()
 
 
 func process_dash_physics(delta: float) -> void:
@@ -216,8 +226,11 @@ func get_move_speed_multiplier() -> float:
 	return lerpf(_recovery_speed_mult, 1.0, t)
 
 
-func grant_external_iframes(active: bool) -> void:
-	_external_iframes = active
+func grant_external_iframes(active: bool, source: StringName = &"default") -> void:
+	if active:
+		_external_iframe_sources[source] = true
+	else:
+		_external_iframe_sources.erase(source)
 	_refresh_iframes()
 
 
@@ -229,7 +242,7 @@ func _refresh_iframes() -> void:
 		var window_end := _iframe_end + ClassPerks.shadowstep_iframe_bonus(_body, _is_backstep)
 		window_end = _apply_dodge_window_assist(window_end)
 		roll_protected = elapsed >= _iframe_start * window_scale and elapsed <= window_end * window_scale
-	var active := _external_iframes or roll_protected
+	var active := not _external_iframe_sources.is_empty() or roll_protected
 	if iframes_active != active:
 		iframes_active = active
 		iframes_changed.emit(active)
@@ -242,7 +255,7 @@ func cancel_dodge() -> void:
 
 func reset_after_revive() -> void:
 	cancel_dodge()
-	_external_iframes = false
+	_external_iframe_sources.clear()
 	_recovery_timer = 0.0
 	_jump_buffer_timer = 0.0
 	_dodge_buffer_timer = 0.0
@@ -376,6 +389,7 @@ func _process_dash(delta: float) -> void:
 	_body.velocity.z = _dodge_direction.z * speed
 	if not _body.is_on_floor():
 		_body.velocity += _body.get_gravity() * delta
+		_body.velocity.y = maxf(_body.velocity.y, -TERMINAL_FALL_SPEED)
 	elif _body.velocity.y > 0.0:
 		_body.velocity.y = 0.0
 	_refresh_iframes()

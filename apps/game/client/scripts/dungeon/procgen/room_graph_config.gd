@@ -36,6 +36,7 @@ var dead_end_reward_ratio: float = 0.3
 ## RM-15: the shape `_fill_bounding_box()` fills toward instead of the whole rectangle --
 ## "blob" (no shape filter, the old behaviour), "cross", "ring", "spine" or "scatter".
 var floor_silhouette: String = "blob"
+var discovery_role: String = "balanced"
 
 
 static func from_biome(biome: Dictionary) -> RoomGraphConfig:
@@ -54,10 +55,9 @@ static func from_biome(biome: Dictionary) -> RoomGraphConfig:
 	var default_dead_ends := 5 if bool(biome.get("requiresSecret", false)) else 4
 	config.min_dead_ends = int(generator.get("minDeadEnds", default_dead_ends))
 	config.min_dead_ends = mini(config.min_dead_ends, maxi(4, config.min_rooms - 2))
-	# Every floor gets one or two secret rooms, whatever a biome file asks for. A floor with none
-	# has nothing to reward exploring, and three starts to make them feel routine rather than found.
-	config.max_secrets = clampi(int(biome.get("maxSecrets", 2)), 1, 2)
-	config.min_secrets = clampi(int(biome.get("minSecrets", 1)), 1, config.max_secrets)
+	config.max_secrets = clampi(int(biome.get("maxSecrets", 2)), 0, 3)
+	config.min_secrets = clampi(int(biome.get("minSecrets", 0)), 0, config.max_secrets)
+	config.discovery_role = str(biome.get("discoveryRole", "balanced"))
 	config.branch_max_depth = int(generator.get("branchMaxDepth", config.branch_max_depth))
 	config.max_neighbor_count = int(generator.get("maxNeighborCount", config.max_neighbor_count))
 	config.loop_budget = int(generator.get("loopBudget", config.loop_budget))
@@ -84,6 +84,16 @@ static func from_biome(biome: Dictionary) -> RoomGraphConfig:
 	)
 	config.floor_silhouette = str(generator.get("floorSilhouette", config.floor_silhouette))
 	return config
+
+
+func apply_discovery_budget(run_count: int, floor_index: int) -> void:
+	var role_bonus := 1 if discovery_role == "discovery" else 0
+	var cooldown := posmod(run_count + floor_index, 3)
+	var budget := clampi(max_secrets + role_bonus - cooldown, 0, 3)
+	if discovery_role == "quiet":
+		budget = mini(budget, 1)
+	max_secrets = budget
+	min_secrets = 1 if discovery_role == "discovery" and budget > 0 else 0
 
 
 func grid_center() -> Vector2i:

@@ -135,9 +135,16 @@ func pressure_note() -> String:
 	return EndlessDifficulty.describe_pressure(_floor_index + 1)
 
 
-func use(direction: String) -> void:
+func use(direction: String) -> bool:
 	if not _unlocked:
-		return
+		return false
+	var selected: Dictionary = {}
+	for option in floor_options():
+		if str(option.get("id", "")) == direction:
+			selected = option
+			break
+	if selected.is_empty() or not bool(selected.get("enabled", false)):
+		return false
 	_play_anim("pull")
 	_play_cue("lever_pull")
 	VfxService.play_hit_spark(global_position + Vector3(0.0, 1.05, 0.0), Vector3.UP)
@@ -146,14 +153,15 @@ func use(direction: String) -> void:
 	if pact_id != "":
 		RunFlow.set_pending_descent_pact(pact_id)
 		RunFlow.ascend_floor()
-		return
+		return true
 	if direction == "ascend":
 		RunFlow.set_pending_descent_pact("")
 		RunFlow.ascend_floor()
 	elif direction == "descend":
 		RunFlow.descend_floor()
-	elif direction == "retreat" and RunFlow.can_retreat_to_hub():
+	elif direction == "retreat":
 		RunFlow.retreat_to_hub()
+	return true
 
 
 func _unhandled_input(event: InputEvent) -> void:

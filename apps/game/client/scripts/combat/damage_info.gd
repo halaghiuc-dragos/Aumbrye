@@ -48,6 +48,7 @@ var backstab_multiplier_override: float = 0.0
 ## swing -- lets `Guard` react differently (spark VFX, a parry stamina refund) without a parallel
 ## interception path.
 var is_projectile: bool = false
+var weapon_item_id: String = ""
 
 
 static func create(
@@ -82,6 +83,29 @@ static func create(
 	return info
 
 
+func copy_with(amount_override: Variant = null, poise_override: Variant = null) -> DamageInfo:
+	var copy := DamageInfo.create(
+		amount if amount_override == null else float(amount_override),
+		poise_damage if poise_override == null else float(poise_override),
+		source,
+		damage_type,
+		direction,
+		status_id,
+		status_stacks,
+		attack_class
+	)
+	copy.crit = crit
+	copy.ignore_iframes = ignore_iframes
+	copy.ignore_guard = ignore_guard
+	copy.periodic = periodic
+	copy.execution = execution
+	copy.knockback = knockback
+	copy.backstab_multiplier_override = backstab_multiplier_override
+	copy.is_projectile = is_projectile
+	copy.weapon_item_id = weapon_item_id
+	return copy
+
+
 static func apply_resistance(
 	base_amount: float, dmg_type: String, resistances: Dictionary
 ) -> float:
@@ -104,11 +128,24 @@ static func classify_arc(victim: Node3D, attacker_position: Vector3) -> HitArc:
 	facing.y = 0.0
 	if facing.length_squared() < 0.01:
 		return HitArc.FRONT
-	var to_attacker := attacker_position - victim.global_position
-	to_attacker.y = 0.0
-	if to_attacker.length_squared() < 0.01:
+	return classify_arc_from_direction(victim, (victim.global_position - attacker_position).normalized())
+
+
+static func classify_arc_from_direction(victim: Node3D, impact_direction: Vector3) -> HitArc:
+	if victim == null:
 		return HitArc.FRONT
-	var angle_deg := rad_to_deg(facing.angle_to(to_attacker.normalized()))
+	var facing := Vector3.ZERO
+	var facing_node := victim.get_node_or_null("Facing") as Node3D
+	if facing_node:
+		facing = facing_node.global_transform.basis.z
+	else:
+		facing = victim.global_transform.basis.z
+	facing.y = 0.0
+	var to_attacker := -impact_direction
+	to_attacker.y = 0.0
+	if facing.length_squared() < 0.01 or to_attacker.length_squared() < 0.01:
+		return HitArc.FRONT
+	var angle_deg := rad_to_deg(facing.normalized().angle_to(to_attacker.normalized()))
 	if angle_deg <= 60.0:
 		return HitArc.FRONT
 	if angle_deg >= 180.0 - BACK_ARC_HALF_DEGREES:

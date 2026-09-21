@@ -8,6 +8,7 @@ var _pull_order: Array[int] = []
 var _lever_areas: Array[Area3D] = []
 var _lever_nodes: Array[Node3D] = []
 var _solved := false
+var _clue_label: Label3D
 
 
 func configure(entry: Dictionary, definition: Dictionary) -> void:
@@ -24,6 +25,7 @@ func configure(entry: Dictionary, definition: Dictionary) -> void:
 	_flag_id = str(puzzle.get("flagId", ""))
 	_solution_order = puzzle.get("solutionOrder", [])
 	var lever_count := int(puzzle.get("leverCount", 1))
+	_create_clue()
 	if _flag_id != "" and WorldState.is_flag_true(WorldFlags.lever_pulled(_flag_id)):
 		_solved = true
 	for i in lever_count:
@@ -48,7 +50,7 @@ func configure(entry: Dictionary, definition: Dictionary) -> void:
 		_lever_areas.append(interact)
 		_lever_nodes.append(lever)
 	if _solved:
-		_hide_levers()
+		_finish_levers()
 
 
 func _puzzle_for_room(entry: Dictionary, definition: Dictionary) -> Dictionary:
@@ -85,6 +87,7 @@ func _pull_lever(index: int) -> void:
 	if _solved:
 		return
 	_pull_order.append(index)
+	_lever_nodes[index].rotation.z = -0.55
 	if _pull_order.size() > _solution_order.size():
 		_reset_levers()
 		return
@@ -100,7 +103,7 @@ func _solve() -> void:
 	_solved = true
 	if _flag_id != "":
 		WorldState.set_flag(WorldFlags.lever_pulled(_flag_id), true)
-	_hide_levers()
+	_finish_levers()
 
 
 func _reset_levers() -> void:
@@ -109,6 +112,25 @@ func _reset_levers() -> void:
 		lever.rotation.z = 0.0
 
 
-func _hide_levers() -> void:
+func _finish_levers() -> void:
+	for area in _lever_areas:
+		area.monitoring = false
 	for lever in _lever_nodes:
-		lever.visible = false
+		lever.rotation.z = -0.55
+	if _clue_label:
+		_clue_label.text = tr("PUZZLE_SOLVED")
+
+
+func _create_clue() -> void:
+	if _solution_order.is_empty():
+		return
+	_clue_label = Label3D.new()
+	_clue_label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	_clue_label.outline_size = 8
+	_clue_label.outline_modulate = Color(0.0, 0.0, 0.0, 0.9)
+	var steps: Array[String] = []
+	for index in _solution_order:
+		steps.append(str(int(index) + 1))
+	_clue_label.text = " → ".join(steps)
+	_clue_label.position = _anchor(0).position + Vector3(0.0, 2.5, 0.0)
+	_content_root().add_child(_clue_label)

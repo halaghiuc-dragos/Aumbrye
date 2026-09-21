@@ -24,6 +24,22 @@ static func current_index(kind: String) -> int:
 	return day
 
 
+static func reset_time_unix(kind: String) -> int:
+	var span := SECONDS_PER_DAY * DAYS_PER_WEEK if kind == KIND_WEEKLY else SECONDS_PER_DAY
+	return (current_index(kind) + 1) * span
+
+
+static func reset_time_label(kind: String) -> String:
+	var date := Time.get_datetime_dict_from_unix_time(reset_time_unix(kind))
+	return "%04d-%02d-%02d %02d:%02d UTC" % [
+		int(date.get("year", 0)),
+		int(date.get("month", 0)),
+		int(date.get("day", 0)),
+		int(date.get("hour", 0)),
+		int(date.get("minute", 0)),
+	]
+
+
 static func pool_for(kind: String) -> Array[String]:
 	var ids: Array[String] = []
 	for quest_id in QuestCatalog.get_all_ids():
@@ -41,6 +57,7 @@ static func slot_count(kind: String) -> int:
 
 static func roll(kind: String, index: int) -> Array[String]:
 	var pool := pool_for(kind)
+	pool = pool.filter(func(quest_id: String) -> bool: return QuestService.is_base_offerable(quest_id))
 	var wanted: int = min(slot_count(kind), pool.size())
 	if wanted <= 0:
 		return []
@@ -55,7 +72,19 @@ static func roll(kind: String, index: int) -> Array[String]:
 
 
 static func active_bounties(kind: String) -> Array[String]:
-	return roll(kind, current_index(kind))
+	var state := _state()
+	var period := _period_state(state, kind)
+	var offers: Variant = period.get("offers", [])
+	if not offers is Array or (offers as Array).is_empty():
+		offers = roll(kind, int(period.get("index", current_index(kind))))
+		period["offers"] = (offers as Array).duplicate()
+		state[kind] = period
+		if CharacterService:
+			CharacterService.set_flag(STATE_FLAG, state)
+	var result: Array[String] = []
+	for quest_id in offers:
+		result.append(str(quest_id))
+	return result
 
 
 static func bounty_kind(quest_id: String) -> String:
@@ -90,25 +119,45 @@ static func is_offerable(quest_id: String) -> bool:
 	return is_active(quest_id) and not is_claimed(quest_id)
 
 
+static func notify_accepted(quest_id: String) -> void:
+	var kind := bounty_kind(quest_id)
+	if kind == "" or CharacterService == null:
+		return
+	var def := QuestCatalog.get_definition(quest_id)
+	var rewards: Variant = def.get("rewards", {})
+	var progress := CharacterService.get_quest_progress(quest_id)
+	progress["bountyPeriodKind"] = kind
+	progress["bountyPeriodIndex"] = current_index(kind)
+	progress["bountyTokenAward"] = int((rewards as Dictionary).get("bountyTokens", 0)) if rewards is Dictionary else 0
+	progress["bountyRewardClaimed"] = false
+	CharacterService.set_quest_progress(quest_id, progress)
+
+
 static func notify_completed(quest_id: String) -> int:
 	var kind := bounty_kind(quest_id)
-	if kind == "" or not is_active(quest_id) or is_claimed(quest_id):
+	if kind == "" or CharacterService == null:
+		return 0
+	var progress := CharacterService.get_quest_progress(quest_id)
+	if bool(progress.get("bountyRewardClaimed", false)):
+		return 0
+	var accepted_kind := str(progress.get("bountyPeriodKind", ""))
+	if accepted_kind != kind and not is_active(quest_id):
 		return 0
 	var state := _state()
 	var period := _period_state(state, kind)
 	var claimed: Array = period.get("claimed", [])
-	claimed.append(quest_id)
-	period["claimed"] = claimed
-	state[kind] = period
-	CharacterService.set_flag(STATE_FLAG, state)
+	if int(progress.get("bountyPeriodIndex", -1)) == int(period.get("index", -2)):
+		if quest_id not in claimed:
+			claimed.append(quest_id)
+		period["claimed"] = claimed
+		state[kind] = period
+		CharacterService.set_flag(STATE_FLAG, state)
+	progress["bountyRewardClaimed"] = true
+	CharacterService.set_quest_progress(quest_id, progress)
 	CharacterService.set_flag(
 		CLAIMED_TOTAL_FLAG, int(CharacterService.get_flag(CLAIMED_TOTAL_FLAG, 0)) + 1
 	)
-	var def := QuestCatalog.get_definition(quest_id)
-	var rewards: Variant = def.get("rewards", {})
-	var tokens := 0
-	if rewards is Dictionary:
-		tokens = int((rewards as Dictionary).get("bountyTokens", 0))
+	var tokens := int(progress.get("bountyTokenAward", 0))
 	if tokens > 0:
 		add_tokens(tokens)
 	return tokens
@@ -145,9 +194,11 @@ static func _period_state(state: Dictionary, kind: String) -> Dictionary:
 	var period: Dictionary = raw if raw is Dictionary else {}
 	var index := current_index(kind)
 	if int(period.get("index", -1)) != index:
-		period = {"index": index, "claimed": []}
+		period = {"index": index, "claimed": [], "offers": []}
 	if not period.has("claimed"):
 		period["claimed"] = []
+	if not period.has("offers"):
+		period["offers"] = []
 	return period
 
 

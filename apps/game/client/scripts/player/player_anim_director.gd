@@ -14,6 +14,7 @@ const DamageInfoScript := preload("res://scripts/combat/damage_info.gd")
 
 
 const SWAY_RESPONSE := 9.0
+const SWAY_REFERENCE_DELTA := 1.0 / 60.0
 const SWAY_YAW_LIMIT := 0.09
 const SWAY_PITCH_LIMIT := 0.07
 const BOB_HEIGHT := 0.014
@@ -120,6 +121,8 @@ func sync_camera_mode() -> void:
 		var holder := camera.get_node_or_null(Viewmodel.NODE_NAME)
 		if holder and holder.has_method("set_pass_visible"):
 			holder.call("set_pass_visible", first_person)
+		_last_camera_basis = camera.global_transform.basis
+		_sway = Vector2.ZERO
 	if _visual and is_instance_valid(_visual):
 		_visual.visible = true
 
@@ -342,10 +345,11 @@ func _update_head_look(delta: float) -> void:
 
 
 func _update_viewmodel_sway(delta: float) -> void:
-	if _viewmodel_root == null or not _viewmodel_root.is_visible_in_tree():
-		return
 	var camera := _body.get_node_or_null(CAMERA_PATH) as Camera3D
 	if camera == null:
+		return
+	if _viewmodel_root == null or not _viewmodel_root.is_visible_in_tree():
+		_last_camera_basis = camera.global_transform.basis
 		return
 	var basis := camera.global_transform.basis
 	var forward := -basis.z
@@ -353,9 +357,10 @@ func _update_viewmodel_sway(delta: float) -> void:
 	_last_camera_basis = basis
 	var yaw_delta := wrapf(atan2(forward.x, forward.z) - atan2(previous.x, previous.z), -PI, PI)
 	var pitch_delta := asin(clampf(forward.y, -1.0, 1.0)) - asin(clampf(previous.y, -1.0, 1.0))
+	var frame_scale := SWAY_REFERENCE_DELTA / maxf(0.001, delta)
 	var target := Vector2(
-		clampf(-yaw_delta * 1.6, -SWAY_YAW_LIMIT, SWAY_YAW_LIMIT),
-		clampf(-pitch_delta * 1.4, -SWAY_PITCH_LIMIT, SWAY_PITCH_LIMIT)
+		clampf(-yaw_delta * frame_scale * 1.6, -SWAY_YAW_LIMIT, SWAY_YAW_LIMIT),
+		clampf(-pitch_delta * frame_scale * 1.4, -SWAY_PITCH_LIMIT, SWAY_PITCH_LIMIT)
 	)
 	var blend := clampf(delta * SWAY_RESPONSE, 0.0, 1.0)
 	_sway = _sway.lerp(target, blend)
@@ -420,6 +425,8 @@ func _on_stagger_started() -> void:
 func _on_attack_started(attack_name: String) -> void:
 	if _weapon == null or not _weapon.has_method("get_current_attack_phases"):
 		return
+	if _weapon.has_method("get_attack_generation"):
+		set_attack_generation(int(_weapon.call("get_attack_generation")))
 	var phases: Dictionary = _weapon.call("get_current_attack_phases")
 	var startup := float(phases.get("startup", 0.2))
 	var active := float(phases.get("active", 0.15))
@@ -436,14 +443,19 @@ func _on_attack_started(attack_name: String) -> void:
 		hold_at(AnimLibrary.heavy_clip_for(_weapon_archetype), startup / total, startup, active, recovery)
 	elif attack_name.begins_with("heavy"):
 		play_heavy_attack(startup, active, recovery)
-	elif attack_name.begins_with("bow"):
+	elif attack_name == "bow_draw":
 		# `AN-04`: hold on the draw's wound pose instead of playing the shot clip straight through
 		# -- `_draw_charge` accumulates in `WeaponController._process_bow_input()` with nothing
 		# telling the player they are still drawing until now.
 		var total := maxf(0.01, startup + active + recovery)
 		hold_at(&"attack_shoot", startup / total, startup, active, recovery)
+	elif attack_name == "bow_shot":
+		play_attack(startup, active, recovery, &"attack_shoot")
 	else:
-		play_attack(startup, active, recovery)
+		var clip := StringName("")
+		if _weapon.has_method("get_current_attack_animation_clip"):
+			clip = _weapon.call("get_current_attack_animation_clip")
+		play_attack(startup, active, recovery, clip)
 
 
 func play_riposte(startup: float, active: float, recovery: float) -> void:

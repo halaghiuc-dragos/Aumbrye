@@ -200,6 +200,22 @@ static var highlight_tint_amount: float = DEFAULT_HIGHLIGHT_TINT_AMOUNT
 static var vignette_softness: float = DEFAULT_VIGNETTE_SOFTNESS
 static var pulse_tint: Color = DEFAULT_PULSE_TINT
 static var debug_flat_materials: bool = false
+static var readability_preset: bool = false
+
+
+static func set_readability_preset(enabled: bool) -> void:
+	readability_preset = enabled
+	if enabled:
+		cinematic_finish_amount = 0.0
+		vignette_strength = 0.0
+		screen_contrast = 1.0
+		screen_saturation = 1.0
+	else:
+		cinematic_finish_amount = DEFAULT_CINEMATIC_FINISH
+		vignette_strength = DEFAULT_VIGNETTE
+		screen_contrast = DEFAULT_CONTRAST
+		screen_saturation = DEFAULT_SATURATION
+	save_and_apply()
 
 static var _debug_flat_cached: bool = false
 

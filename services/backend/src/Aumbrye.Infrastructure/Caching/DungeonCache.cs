@@ -56,13 +56,20 @@ internal sealed class BoundedDefinitionCache : IDisposable
 
 public class RedisDungeonCache : IDungeonCache, IDisposable
 {
+    private const string ContentRevision = "content-v1";
+    private const int MaxDefinitionChars = 8 * 1024 * 1024;
     private readonly IConnectionMultiplexer? _redis;
     private readonly BoundedDefinitionCache _fallback = new();
+    private long _redisFailures;
+    private long _fallbackHits;
+    private long _redisMisses;
 
     public RedisDungeonCache(IConnectionMultiplexer? redis = null) => _redis = redis;
 
     public async Task SetAsync(Guid runId, int floor, string definitionJson, TimeSpan ttl, CancellationToken ct = default)
     {
+        if (definitionJson.Length > MaxDefinitionChars)
+            return;
         if (_redis != null)
         {
             try
@@ -73,7 +80,7 @@ public class RedisDungeonCache : IDungeonCache, IDisposable
             }
             catch (RedisException)
             {
-                // Fall through to in-memory when Redis is unavailable.
+                Interlocked.Increment(ref _redisFailures);
             }
         }
 
@@ -90,19 +97,27 @@ public class RedisDungeonCache : IDungeonCache, IDisposable
                 var value = await db.StringGetAsync(CacheKey(runId, floor));
                 if (value.HasValue)
                     return value.ToString();
+                Interlocked.Increment(ref _redisMisses);
             }
             catch (RedisException)
             {
-                // Fall through to in-memory fallback.
+                Interlocked.Increment(ref _redisFailures);
             }
         }
 
-        return _fallback.Get(runId, floor);
+        var fallback = _fallback.Get(runId, floor);
+        if (fallback != null)
+            Interlocked.Increment(ref _fallbackHits);
+        return fallback;
     }
+
+    public long RedisFailures => Interlocked.Read(ref _redisFailures);
+    public long FallbackHits => Interlocked.Read(ref _fallbackHits);
+    public long RedisMisses => Interlocked.Read(ref _redisMisses);
 
     public void Dispose() => _fallback.Dispose();
 
-    private static string CacheKey(Guid runId, int floor) => $"dungeon:{runId:N}:{floor}";
+    private static string CacheKey(Guid runId, int floor) => $"dungeon:{ContentRevision}:{runId:N}:{floor}";
 }
 
 /// <summary>Used whenever Redis is not configured — including in production, so it must be bounded.</summary>

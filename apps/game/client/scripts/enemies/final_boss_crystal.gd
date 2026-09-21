@@ -7,6 +7,7 @@ signal collected
 
 var _taken := false
 var _visual: Node3D
+var _animation_time := 0.0
 
 
 func _ready() -> void:
@@ -19,10 +20,11 @@ func _ready() -> void:
 	monitoring = true
 
 
-func _process(_delta: float) -> void:
+func _process(delta: float) -> void:
 	if _visual and not _taken:
-		_visual.rotation.y += 0.02
-		_visual.position.y = sin(Time.get_ticks_msec() * 0.004) * 0.12
+		_animation_time += delta
+		_visual.rotation.y += delta * 1.2
+		_visual.position.y = sin(_animation_time * 4.0) * 0.12
 
 
 func _on_body_entered(body: Node3D) -> void:

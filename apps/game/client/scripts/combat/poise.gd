@@ -38,10 +38,15 @@ func configure(
 		current = max_value
 		_broken = false
 		_break_timer = 0.0
+		execution_available = false
 	if not preserve_ratio:
 		_regen_timer = 0.0
 	break_duration = maxf(0.1, stagger_duration)
 	poise_changed.emit(current, max_poise)
+
+
+func set_break_duration(value: float) -> void:
+	break_duration = maxf(0.1, value)
 
 
 func _physics_process(delta: float) -> void:
@@ -69,7 +74,7 @@ func is_broken() -> bool:
 
 
 func take_poise_damage(amount: float) -> void:
-	if _broken:
+	if _broken or not is_finite(amount) or amount <= 0.0:
 		return
 	current = maxf(0.0, current - amount)
 	_regen_timer = REGEN_DELAY

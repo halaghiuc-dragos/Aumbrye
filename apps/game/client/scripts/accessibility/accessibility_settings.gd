@@ -35,6 +35,7 @@ static var hitstop_intensity: float = MOTION_INTENSITY_DEFAULT
 static var screen_pulse_intensity: float = MOTION_INTENSITY_DEFAULT
 static var reduced_motion: bool = false
 static var show_control_hints: bool = true
+static var restrained_damage_numbers: bool = false
 static var colorblind_mode: String = "default"
 static var subtitle_scale: float = 1.0
 static var vibration_intensity: float = 1.0
@@ -50,6 +51,7 @@ static var assist_damage_taken: float = ASSIST_DAMAGE_TAKEN_DEFAULT
 static var assist_iframe_generosity: float = ASSIST_IFRAME_DEFAULT
 static var assist_lock_on_range: float = ASSIST_LOCK_ON_DEFAULT
 static var assist_telegraph_emphasis: bool = false
+static var automatic_lock_switch: bool = true
 
 static var _settings_changed_listeners: Array[Callable] = []
 const ASSIST_DAMAGE_TAKEN_MIN := 0.5
@@ -64,6 +66,11 @@ const ASSIST_LOCK_ON_DEFAULT := 1.0
 
 const SAVE_DEBOUNCE_SEC := 0.5
 static var _pending_commit := false
+static var _motion_before_override := {
+	"camera": MOTION_INTENSITY_DEFAULT,
+	"hitstop": MOTION_INTENSITY_DEFAULT,
+	"pulse": MOTION_INTENSITY_DEFAULT,
+}
 
 
 static func set_camera_shake_intensity(value: float) -> void:
@@ -84,11 +91,18 @@ static func set_screen_pulse_intensity(value: float) -> void:
 
 
 static func set_reduced_motion(value: bool) -> void:
+	if value == reduced_motion:
+		return
+	if value:
+		_motion_before_override = {
+			"camera": camera_shake_intensity,
+			"hitstop": hitstop_intensity,
+			"pulse": screen_pulse_intensity,
+		}
 	reduced_motion = value
-	var target := MOTION_INTENSITY_MIN if value else MOTION_INTENSITY_DEFAULT
-	camera_shake_intensity = target
-	hitstop_intensity = target
-	screen_pulse_intensity = target
+	camera_shake_intensity = MOTION_INTENSITY_MIN if value else float(_motion_before_override.camera)
+	hitstop_intensity = MOTION_INTENSITY_MIN if value else float(_motion_before_override.hitstop)
+	screen_pulse_intensity = MOTION_INTENSITY_MIN if value else float(_motion_before_override.pulse)
 	reduce_camera_shake = value
 	reduce_hitstop = value
 
@@ -198,6 +212,7 @@ static func load_from_save() -> void:
 	var data: Dictionary = LocalSave.get_meta_data().get(SAVE_KEY, {})
 	_load_motion_keys(data)
 	show_control_hints = bool(data.get("show_control_hints", true))
+	restrained_damage_numbers = bool(data.get("restrainedDamageNumbers", false))
 	colorblind_mode = str(data.get("colorblind_mode", "default"))
 	subtitle_scale = float(data.get("subtitle_scale", 1.0))
 	vibration_intensity = float(data.get("vibration_intensity", 1.0))
@@ -241,6 +256,7 @@ static func load_from_save() -> void:
 		ASSIST_LOCK_ON_MIN,
 		ASSIST_LOCK_ON_MAX
 	)
+	automatic_lock_switch = bool(data.get("automaticLockSwitch", true))
 	assist_telegraph_emphasis = bool(data.get("assistTelegraphEmphasis", false))
 
 
@@ -284,6 +300,7 @@ static func save() -> void:
 		"screenPulseIntensity": screen_pulse_intensity,
 		"reducedMotion": reduced_motion,
 		"show_control_hints": show_control_hints,
+		"restrainedDamageNumbers": restrained_damage_numbers,
 		"colorblind_mode": colorblind_mode,
 		"subtitle_scale": subtitle_scale,
 		"vibration_intensity": vibration_intensity,
@@ -297,6 +314,7 @@ static func save() -> void:
 		"assistIframeGenerosity": assist_iframe_generosity,
 		"assistLockOnRange": assist_lock_on_range,
 		"assistTelegraphEmphasis": assist_telegraph_emphasis,
+		"automaticLockSwitch": automatic_lock_switch,
 	}
 	LocalSave.set_meta_data(meta)
 	LocalSave.autosave()

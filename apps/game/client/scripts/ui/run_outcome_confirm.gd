@@ -5,34 +5,38 @@ class_name RunOutcomeConfirm
 const MenuShellScript := preload("res://scripts/ui/menu_shell.gd")
 
 
-static func ask(message: String, on_confirm: Callable) -> void:
+static func ask(message: String, on_confirm: Callable, on_cancel: Callable = Callable()) -> void:
 	var tree := Engine.get_main_loop() as SceneTree
 	if tree == null or tree.root == null:
-		if on_confirm.is_valid():
-			on_confirm.call()
+		_cancel_unavailable(on_cancel, "scene tree unavailable")
 		return
-	var parent := _find_ui_parent(tree.root)
+	var parent := _modal_host(tree.current_scene)
 	if parent == null:
-		if on_confirm.is_valid():
-			on_confirm.call()
+		_cancel_unavailable(on_cancel, "modal host unavailable")
 		return
 	MenuShellScript.show_confirmation(
 		parent,
 		"Leave the dungeon?",
 		message,
 		on_confirm,
-		Callable(),
+		on_cancel,
 		"Leave",
 		"Stay"
 	)
 
 
-static func _find_ui_parent(root: Node) -> Control:
-	for node in root.get_children():
-		if node is Control and node.visible:
-			return node as Control
-		if node.get_child_count() > 0:
-			var nested := _find_ui_parent(node)
-			if nested:
-				return nested
+
+
+static func _modal_host(scene: Node) -> Control:
+	if scene == null:
+		return null
+	var host := scene.get_node_or_null("CombatHUD") as Control
+	if host != null and host.is_visible_in_tree():
+		return host
 	return null
+
+
+static func _cancel_unavailable(on_cancel: Callable, reason: String) -> void:
+	push_warning("RunOutcomeConfirm: %s" % reason)
+	if on_cancel.is_valid():
+		on_cancel.call()

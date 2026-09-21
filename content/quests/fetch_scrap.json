@@ -2,6 +2,7 @@
   "id": "fetch_scrap",
   "title": "Salvage Duty",
   "type": "fetch",
+  "objectiveMode": "delivery",
   "targetItemId": "iron_scrap",
   "description": "Bring up a length of scrap. Aldric will not ask which wall it came out of.",
   "rewards": {

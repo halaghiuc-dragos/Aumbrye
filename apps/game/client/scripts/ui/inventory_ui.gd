@@ -654,7 +654,7 @@ func _refresh_grid() -> void:
 		var slot: Dictionary = inv.slots[i]
 		if slot.is_empty():
 			continue
-		var dimmed := _visible_indices.size() > 0 and not visible_set.has(i)
+		var dimmed := _has_active_filter() and not visible_set.has(i)
 		var def := _item_def(slot.get("itemId", ""))
 		var w: int = int(def.get("gridWidth", 1))
 		var h: int = int(def.get("gridHeight", 1))
@@ -727,6 +727,16 @@ func _update_filter_label() -> void:
 	_filter_label.text = (
 		tr("INV_FILTER_ROW")
 		% [tr("INV_SORT"), sort_mode, tr("INV_TYPE"), type_f, tr("INV_RARITY"), rarity_f]
+	)
+	if _has_active_filter() and _visible_indices.is_empty():
+		_filter_label.text += "  " + tr("INV_NO_RESULTS")
+
+
+func _has_active_filter() -> bool:
+	return (
+		_search_text.strip_edges() != ""
+		or _type_filter_idx != 0
+		or _rarity_filter_idx != 0
 	)
 	if _title_label:
 		_title_label.text = (
@@ -1591,8 +1601,11 @@ func _on_action_drop_pressed() -> void:
 func _on_action_salvage_pressed() -> void:
 	if _selected_index < 0:
 		return
-	var inv_index := _selected_index
-	var slot: Dictionary = _inventory().slots[inv_index]
+	var inventory := _inventory()
+	var slot: Dictionary = inventory.slots[_selected_index]
+	var instance_id := str(slot.get("instanceId", ""))
+	if instance_id == "":
+		return
 	var away_from_hub := RunFlow != null and RunFlow.is_run_active()
 	var preview := ForgeServiceScript.salvage_preview(slot, away_from_hub)
 	var item_name := str(_item_def(slot.get("itemId", "")).get("name", slot.get("itemId", "")))
@@ -1604,15 +1617,15 @@ func _on_action_salvage_pressed() -> void:
 		self,
 		tr("SMITH_SALVAGE_CONFIRM_TITLE"),
 		tr("SMITH_SALVAGE_CONFIRM_MESSAGE") % [item_name, yield_text],
-		_do_salvage.bind(inv_index, away_from_hub),
+		_do_salvage.bind(inventory, instance_id, away_from_hub),
 		Callable(),
 		tr("SMITH_SALVAGE"),
 		tr("UI_CANCEL")
 	)
 
 
-func _do_salvage(inv_index: int, away_from_hub: bool) -> void:
-	var result := ForgeServiceScript.salvage(inv_index, away_from_hub)
+func _do_salvage(inventory: GridInventory, instance_id: String, away_from_hub: bool) -> void:
+	var result := ForgeServiceScript.salvage_instance(inventory, instance_id, away_from_hub)
 	if result.get("ok", false):
 		_selected_index = -1
 		_refresh_all()

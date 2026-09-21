@@ -174,6 +174,8 @@ var _region_subtitle_label: Label
 const BANNER_PRIORITY_REGION := 3
 const BANNER_PRIORITY_WARNING := 2
 const BANNER_MIN_DISPLAY := 1.2
+const MAX_BANNER_QUEUE := 5
+const BANNER_MAX_AGE_MS := 12000
 var _banner_queue: Array[Dictionary] = []
 var _banner_draining := false
 
@@ -182,6 +184,7 @@ var _banner_draining := false
 ## failure ("inventory full", a save that could not write) so they never compete with or get
 ## clobbered by a region title mid-drain.
 const INLINE_MIN_DISPLAY := 2.0
+const MAX_INLINE_QUEUE := 4
 var _inline_queue: Array[String] = []
 var _inline_draining := false
 var _guard_indicator_active := false
@@ -1339,12 +1342,22 @@ func show_region_title(title: String, subtitle: String = "") -> void:
 
 ## HD-02: inserts by priority (higher priority drains first), FIFO within the same priority.
 func _enqueue_banner(entry: Dictionary) -> void:
+	for queued in _banner_queue:
+		if str(queued.get("kind", "")) == str(entry.get("kind", "")) and str(queued.get("message", "")) == str(entry.get("message", "")) and str(queued.get("title", "")) == str(entry.get("title", "")):
+			return
+	if _banner_queue.size() >= MAX_BANNER_QUEUE:
+		var lowest_priority := _banner_queue.size() - 1
+		if int(entry["priority"]) <= int(_banner_queue[lowest_priority]["priority"]):
+			return
+		_banner_queue.remove_at(lowest_priority)
+	var queued_entry := entry.duplicate()
+	queued_entry["queued_at"] = Time.get_ticks_msec()
 	var insert_at := _banner_queue.size()
 	for i in _banner_queue.size():
-		if int(_banner_queue[i]["priority"]) < int(entry["priority"]):
+		if int(_banner_queue[i]["priority"]) < int(queued_entry["priority"]):
 			insert_at = i
 			break
-	_banner_queue.insert(insert_at, entry)
+	_banner_queue.insert(insert_at, queued_entry)
 	if not _banner_draining:
 		_drain_banner_queue()
 
@@ -1353,6 +1366,8 @@ func _drain_banner_queue() -> void:
 	_banner_draining = true
 	while not _banner_queue.is_empty():
 		var entry: Dictionary = _banner_queue.pop_front()
+		if Time.get_ticks_msec() - int(entry.get("queued_at", 0)) > BANNER_MAX_AGE_MS:
+			continue
 		match str(entry["kind"]):
 			"region":
 				await _play_region_banner(str(entry["title"]), str(entry.get("subtitle", "")))
@@ -1640,6 +1655,10 @@ func show_run_warning(message: String) -> void:
 func show_inline_warning(message: String) -> void:
 	if message == "" or _inline_warning == null:
 		return
+	if message in _inline_queue:
+		return
+	if _inline_queue.size() >= MAX_INLINE_QUEUE:
+		_inline_queue.pop_front()
 	_inline_queue.append(message)
 	if not _inline_draining:
 		_drain_inline_queue()

@@ -9,9 +9,10 @@
   "weight": 0.6,
   "rules": [
     {
-      "event": "onRunStart",
+      "event": "onAcquired",
       "effect": "bonus_gold",
-      "amount": 120
+      "amount": 120,
+      "ifAcquiredRelic": "the_quiet_start"
     }
   ],
   "offerable": true,

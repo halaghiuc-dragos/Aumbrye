@@ -6,6 +6,7 @@ const MenuShellScript := preload("res://scripts/ui/menu_shell.gd")
 const DescentPactServiceScript := preload("res://scripts/dungeon/descent_pact_service.gd")
 const RunModeConfigScript := preload("res://scripts/app/run_mode_config.gd")
 const EndlessDifficultyScript := preload("res://scripts/dungeon/endless_difficulty.gd")
+const DifficultyProfileScript := preload("res://scripts/dungeon/difficulty_profile.gd")
 
 ## UX-05: descent pacts are the run's biggest fork and used to render as a button whose entire
 ## pitch was squeezed into one label line. Give them the same card treatment `relic_offer_ui.gd`
@@ -125,7 +126,9 @@ func _rebuild_buttons(options: Array) -> void:
 		btn.disabled = not enabled
 		vbox.add_child(btn)
 		_action_buttons.append(btn)
-	vbox.add_child(MenuShellScript.make_menu_button(tr("UI_CLOSE"), close_menu))
+	var close_button := MenuShellScript.make_menu_button(tr("UI_CLOSE"), close_menu)
+	vbox.add_child(close_button)
+	_action_buttons.append(close_button)
 	_wire_focus_ring()
 	_focus_first_enabled()
 
@@ -139,11 +142,16 @@ func _make_pressure_bar() -> Control:
 	box.add_theme_constant_override("separation", 2)
 
 	var next_floor := RunFlow.get_current_floor() + 1
-	var ratio := clampf(
-		EndlessDifficultyScript.damage_multiplier(next_floor) / EndlessDifficultyScript.DAMAGE_SOFT_CAP,
-		0.0,
-		1.0
-	)
+	var profile := DifficultyProfileScript.for_run(RunModeConfigScript.MODE_ENDLESS)
+	var current_floor := RunFlow.get_current_floor()
+	var current_damage := profile.damage_multiplier(current_floor)
+	var next_damage := profile.damage_multiplier(next_floor)
+	var current_health := profile.hp_multiplier(current_floor)
+	var next_health := profile.hp_multiplier(next_floor)
+	var best_floor := ProgressionService.get_endless_best_floor()
+	var best_damage := profile.damage_multiplier(best_floor) if best_floor > 0 else 1.0
+	var scale_max := maxf(next_damage, best_damage, EndlessDifficultyScript.DAMAGE_SOFT_CAP)
+	var ratio := log(maxf(1.0, next_damage)) / maxf(0.001, log(scale_max))
 	var bar := ProgressBar.new()
 	bar.min_value = 0.0
 	bar.max_value = 100.0
@@ -151,23 +159,20 @@ func _make_pressure_bar() -> Control:
 	bar.show_percentage = false
 	bar.custom_minimum_size = Vector2(300.0, 10.0)
 	box.add_child(bar)
+	var risk := Label.new()
+	risk.text = "Current %.1fx HP / %.1fx damage · Next %.1fx HP / %.1fx damage" % [
+		current_health, current_damage, next_health, next_damage
+	]
+	GameUISkinScript.style_hint_label(risk)
+	box.add_child(risk)
 
-	var best_floor := ProgressionService.get_endless_best_floor()
 	if best_floor > 0:
-		var best_ratio := clampf(
-			(
-				EndlessDifficultyScript.damage_multiplier(best_floor)
-				/ EndlessDifficultyScript.DAMAGE_SOFT_CAP
-			),
-			0.0,
-			1.0
-		)
 		var marker := Label.new()
-		marker.text = tr("STAIR_PRESSURE_BEST").format({"floor": best_floor})
+		marker.text = "%s · %.1fx damage" % [
+			tr("STAIR_PRESSURE_BEST").format({"floor": best_floor}), best_damage
+		]
 		GameUISkinScript.style_hint_label(marker)
-		marker.horizontal_alignment = (
-			HORIZONTAL_ALIGNMENT_RIGHT if best_ratio > 0.5 else HORIZONTAL_ALIGNMENT_LEFT
-		)
+		marker.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		box.add_child(marker)
 
 	var next_milestone := _next_endless_milestone(next_floor)
@@ -250,12 +255,16 @@ func _make_pact_card(row: Dictionary) -> Control:
 
 
 func _wire_focus_ring() -> void:
-	if _action_buttons.is_empty():
+	var focusable: Array[Button] = []
+	for btn in _action_buttons:
+		if not btn.disabled:
+			focusable.append(btn)
+	if focusable.is_empty():
 		return
-	for i in _action_buttons.size():
-		var btn := _action_buttons[i]
-		var prev := _action_buttons[(i - 1 + _action_buttons.size()) % _action_buttons.size()]
-		var next := _action_buttons[(i + 1) % _action_buttons.size()]
+	for i in focusable.size():
+		var btn := focusable[i]
+		var prev := focusable[(i - 1 + focusable.size()) % focusable.size()]
+		var next := focusable[(i + 1) % focusable.size()]
 		btn.focus_neighbor_top = prev.get_path()
 		btn.focus_neighbor_bottom = next.get_path()
 
@@ -265,21 +274,19 @@ func _focus_first_enabled() -> void:
 		if not btn.disabled:
 			btn.grab_focus()
 			return
-	if not _action_buttons.is_empty():
-		_action_buttons[0].grab_focus()
+	for btn in _action_buttons:
+		if btn.text == tr("UI_CLOSE"):
+			btn.grab_focus()
+			return
 
 
 func _on_option_pressed(option_id: String) -> void:
 	if _lever == null:
 		close_menu()
 		return
-	if option_id == "retreat":
-		close_menu()
-		RunFlow.retreat_to_hub()
-		return
 	if _lever.has_method("use"):
-		_lever.call("use", option_id)
-	close_menu()
+		if bool(_lever.call("use", option_id)):
+			close_menu()
 
 
 func _unhandled_input(event: InputEvent) -> void:

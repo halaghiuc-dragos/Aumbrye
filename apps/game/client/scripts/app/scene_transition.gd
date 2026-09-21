@@ -9,7 +9,7 @@ const UNCLAIMED_GRACE_FRAMES := 4
 const BUILD_WATCHDOG_SEC := 45.0
 const LOAD_SHARE := 0.5
 
-enum Phase { LOADING, BUILDING, DONE }
+enum Phase { LOADING, BUILDING, DONE, FAILED }
 
 var _path := ""
 var _pending_status := ""
@@ -23,6 +23,7 @@ var _progress_args: Array = []
 var _root: Control
 var _bar: ProgressBar
 var _status: Label
+var _failure_box: HBoxContainer
 
 
 static func goto(tree: SceneTree, path: String, status_text: String = "") -> void:
@@ -91,6 +92,7 @@ func _ready() -> void:
 	layer = OVERLAY_LAYER
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	_build_overlay()
+	get_tree().scene_changed.connect(_on_scene_changed)
 	if _pending_status != "":
 		set_status(_pending_status)
 		_pending_status = ""
@@ -99,8 +101,7 @@ func _ready() -> void:
 		_pending_flavor.clear()
 	var err := ResourceLoader.load_threaded_request(_path, "PackedScene")
 	if err != OK:
-		get_tree().change_scene_to_file(_path)
-		_phase = Phase.BUILDING
+		_show_failure(tr("TRANSITION_LOAD_FAILED"))
 		return
 	set_process(true)
 
@@ -113,12 +114,12 @@ func _process(delta: float) -> void:
 	if _phase == Phase.DONE:
 		set_process(false)
 		return
+	if _phase == Phase.FAILED:
+		return
 	if not _claimed:
 		_grace_frames -= 1
 		if _grace_frames <= 0:
 			dismiss()
-	elif _elapsed >= BUILD_WATCHDOG_SEC:
-		dismiss()
 
 
 func _poll_load() -> void:
@@ -131,8 +132,7 @@ func _poll_load() -> void:
 		if not _progress_args.is_empty():
 			set_progress(float(_progress_args[0]) * LOAD_SHARE)
 		return
-	_phase = Phase.BUILDING
-	get_tree().change_scene_to_file(_path)
+	_show_failure(tr("TRANSITION_LOAD_FAILED"))
 
 
 func _swap_to_loaded() -> void:
@@ -141,9 +141,33 @@ func _swap_to_loaded() -> void:
 	set_progress(LOAD_SHARE)
 	set_status("Building the floor...")
 	if packed == null:
-		get_tree().change_scene_to_file(_path)
+		_show_failure(tr("TRANSITION_BUILD_FAILED"))
 		return
-	get_tree().change_scene_to_packed(packed)
+	var err := get_tree().change_scene_to_packed(packed)
+	if err != OK:
+		_show_failure(tr("TRANSITION_OPEN_FAILED"))
+
+
+func _on_scene_changed() -> void:
+	if _phase != Phase.BUILDING:
+		return
+	call_deferred("dismiss")
+
+
+func _show_failure(message: String) -> void:
+	_phase = Phase.FAILED
+	set_process(false)
+	set_status(message)
+	if _failure_box:
+		_failure_box.visible = true
+
+
+func _retry() -> void:
+	SceneTransition.goto(get_tree(), _path, _pending_status)
+
+
+func _return_to_hub() -> void:
+	SceneTransition.goto(get_tree(), "res://scenes/hub/hub.tscn", tr("TRANSITION_RETURN_HUB"))
 
 
 func set_status(text: String) -> void:
@@ -212,7 +236,7 @@ func _build_overlay() -> void:
 	box.add_theme_constant_override("separation", 10)
 	_root.add_child(box)
 	_status = Label.new()
-	_status.text = "Loading..."
+	_status.text = tr("TRANSITION_LOADING")
 	_status.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	box.add_child(_status)
 	_bar = ProgressBar.new()
@@ -222,6 +246,18 @@ func _build_overlay() -> void:
 	_bar.show_percentage = false
 	_bar.custom_minimum_size = Vector2(420.0, 14.0)
 	box.add_child(_bar)
+	_failure_box = HBoxContainer.new()
+	_failure_box.alignment = BoxContainer.ALIGNMENT_CENTER
+	_failure_box.visible = false
+	var retry := Button.new()
+	retry.text = tr("RETRY")
+	retry.pressed.connect(_retry)
+	_failure_box.add_child(retry)
+	var back := Button.new()
+	back.text = tr("TRANSITION_RETURN_HUB_ACTION")
+	back.pressed.connect(_return_to_hub)
+	_failure_box.add_child(back)
+	box.add_child(_failure_box)
 	_flavor_box = VBoxContainer.new()
 	_flavor_box.add_theme_constant_override("separation", 4)
 	box.add_child(_flavor_box)

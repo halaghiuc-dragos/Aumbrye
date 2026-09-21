@@ -121,7 +121,7 @@ func _on_namespace_changed(flag_namespace: String, flag_id: String, _value: Vari
 func _apply_state() -> void:
 	var solid := _closed and not _cleared
 	for shape in _gate_shapes:
-		shape.disabled = not solid
+		shape.set_deferred("disabled", not solid)
 	for fog in _gate_fogs:
 		fog.visible = solid
 

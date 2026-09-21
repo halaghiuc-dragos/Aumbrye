@@ -2,6 +2,7 @@
   "id": "rot_and_remedy",
   "title": "Rot and Remedy",
   "type": "fetch",
+  "objectiveMode": "delivery",
   "chainId": "overflow",
   "prerequisites": [
     "the_last_measure"

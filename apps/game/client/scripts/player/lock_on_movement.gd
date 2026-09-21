@@ -126,9 +126,10 @@ static func world_direction_to_local_facing_y(body: Node3D, world_direction: Vec
 	if dir.length_squared() < 0.0001:
 		return 0.0
 	dir = dir.normalized()
-	var world_yaw := atan2(dir.x, dir.z)
-	var body_yaw := body.rotation.y if body else 0.0
-	return world_yaw - body_yaw
+	if body == null:
+		return atan2(dir.x, dir.z)
+	var local_direction := body.global_transform.basis.inverse() * dir
+	return atan2(local_direction.x, local_direction.z)
 
 
 static func world_velocity_to_local_facing(facing: Node3D, velocity: Vector3) -> Vector2:

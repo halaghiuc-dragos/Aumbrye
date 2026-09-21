@@ -14,6 +14,8 @@ const DEFAULT_INTERMISSION_EVERY := 5
 const DEFAULT_BOSS_EVERY := 10
 const DEFAULT_CASH_OUT_FROM := 20
 
+enum RunPhase { LOBBY, COMBAT, PREPARATION, REWARD }
+
 var _final_wave := DEFAULT_FINAL_WAVE
 var _intermission_every := DEFAULT_INTERMISSION_EVERY
 var _boss_every := DEFAULT_BOSS_EVERY
@@ -23,12 +25,16 @@ var _arena_states: Array[String] = []
 var current_wave: int = 0
 var prep_active: bool = false
 var lobby_ready: bool = false
+var run_phase: RunPhase = RunPhase.LOBBY
 var chests_opened: Dictionary = {}
 var chest_set: int = 0
 var torch_placed: bool = false
+var torch_entitled: bool = false
 var waves_inventory: GridInventory = GridInventory.new(8, 5)
 var _kill_count := 0
 var _run_seed := 0
+var _cash_out_settled := false
+var _victory_settled := false
 var _definition: Dictionary = {}
 var _chest_defs: Array = []
 
@@ -74,10 +80,14 @@ func begin_new_run(run_seed: int = 0) -> void:
 	current_wave = 0
 	prep_active = false
 	lobby_ready = false
+	run_phase = RunPhase.LOBBY
 	chests_opened.clear()
 	chest_set = 0
 	torch_placed = false
+	torch_entitled = false
 	_kill_count = 0
+	_cash_out_settled = false
+	_victory_settled = false
 	_run_seed = run_seed if run_seed > 0 else randi_range(1, 2_147_483_646)
 	waves_inventory = GridInventory.new(8, 5)
 	_bind_inventory_signals()
@@ -89,10 +99,17 @@ func restore_from_save(saved: Dictionary) -> void:
 	current_wave = int(saved.get("currentWave", 0))
 	prep_active = bool(saved.get("prepActive", false))
 	lobby_ready = bool(saved.get("lobbyReady", false))
+	run_phase = int(saved.get(
+		"runPhase",
+		RunPhase.PREPARATION if prep_active else (RunPhase.COMBAT if current_wave > 0 else RunPhase.LOBBY)
+	)) as RunPhase
 	_kill_count = int(saved.get("killCount", 0))
+	_cash_out_settled = bool(saved.get("cashOutSettled", false))
+	_victory_settled = bool(saved.get("victorySettled", false))
 	_run_seed = int(saved.get("seed", 1))
 	chest_set = int(saved.get("chestSet", 0))
 	torch_placed = bool(saved.get("torchPlaced", false))
+	torch_entitled = bool(saved.get("torchEntitled", false))
 	var chests: Variant = saved.get("chestsOpened", {})
 	chests_opened = chests if chests is Dictionary else {}
 	var inv: Variant = saved.get("wavesInventory", {})
@@ -125,9 +142,13 @@ func to_save_dict() -> Dictionary:
 		"currentWave": current_wave,
 		"prepActive": prep_active,
 		"lobbyReady": lobby_ready,
+		"runPhase": int(run_phase),
 		"killCount": _kill_count,
+		"cashOutSettled": _cash_out_settled,
+		"victorySettled": _victory_settled,
 		"chestSet": chest_set,
 		"torchPlaced": torch_placed,
+		"torchEntitled": torch_entitled,
 		"chestsOpened": chests_opened.duplicate(true),
 		"wavesInventory": waves_inventory.to_save_dict(),
 		"quickSlots": InventoryService.get_waves_quick_slots(),
@@ -163,6 +184,7 @@ func begin_chest_set() -> void:
 	chest_set += 1
 	chests_opened.clear()
 	torch_placed = true
+	torch_entitled = false
 	lobby_ready = true
 	waves_changed.emit()
 
@@ -182,6 +204,8 @@ func get_torch_chest_index() -> int:
 
 
 func has_torch() -> bool:
+	if torch_entitled:
+		return true
 	for slot in waves_inventory.slots:
 		if str(slot.get("itemId", "")) == TORCH_ITEM_ID:
 			return true
@@ -192,6 +216,7 @@ func place_torch() -> bool:
 	if torch_placed or not has_torch():
 		return false
 	waves_inventory.remove_items_by_id(TORCH_ITEM_ID, 1)
+	torch_entitled = false
 	torch_placed = true
 	lobby_ready = true
 	waves_changed.emit()
@@ -216,8 +241,12 @@ func open_chest(index: int) -> Dictionary:
 	var roll_seed := FloorSeedMix.mix(
 		_run_seed, salt * 997 + FloorSeedMix.stable_string_hash(rarity)
 	)
-	if not waves_inventory.add_rolled_item_with_rarity(item_id, rarity, roll_seed):
-		waves_inventory.add_item(item_id, 1, {"rarity": rarity})
+	var working := GridInventory.new(waves_inventory.grid_width, waves_inventory.grid_height)
+	working.from_save_dict(waves_inventory.to_save_dict())
+	if not working.add_rolled_item_with_rarity(item_id, rarity, roll_seed):
+		if not working.add_item(item_id, 1, {"rarity": rarity}):
+			return {"error": "inventory full", "itemId": item_id, "rarity": rarity}
+	waves_inventory.from_save_dict(working.to_save_dict())
 	chests_opened[key] = true
 	var torch_found := _grant_torch_if_hidden_here(index)
 	waves_changed.emit()
@@ -238,15 +267,19 @@ func _open_supplies_chest(index: int, chest_def: Dictionary) -> Dictionary:
 	rng.seed = _run_seed + _chest_salt(index) * 1597
 	var item_count := rng.randi_range(int(multi.get("min", 2)), int(multi.get("max", 4)))
 	var granted: Array[Dictionary] = []
+	var working := GridInventory.new(waves_inventory.grid_width, waves_inventory.grid_height)
+	working.from_save_dict(waves_inventory.to_save_dict())
 	for i in item_count:
 		var item_id := str(pool[rng.randi_range(0, pool.size() - 1)])
 		var rarity := _roll_chest_rarity(chest_def, _chest_salt(index) + i * 17)
 		var roll_seed := FloorSeedMix.mix(
 			_run_seed, _chest_salt(index) * 997 + FloorSeedMix.stable_string_hash(rarity) + i * 131
 		)
-		if not waves_inventory.add_rolled_item_with_rarity(item_id, rarity, roll_seed):
-			waves_inventory.add_item(item_id, 1, {"rarity": rarity})
+		if not working.add_rolled_item_with_rarity(item_id, rarity, roll_seed):
+			if not working.add_item(item_id, 1, {"rarity": rarity}):
+				return {"error": "inventory full", "items": granted}
 		granted.append({"itemId": item_id, "rarity": rarity})
+	waves_inventory.from_save_dict(working.to_save_dict())
 	chests_opened[key] = true
 	var torch_found := _grant_torch_if_hidden_here(index)
 	waves_changed.emit()
@@ -258,7 +291,8 @@ func _grant_torch_if_hidden_here(index: int) -> bool:
 		return false
 	if has_torch():
 		return false
-	return waves_inventory.add_item(TORCH_ITEM_ID, 1)
+	torch_entitled = true
+	return true
 
 
 func _roll_chest_rarity(chest_def: Dictionary, index: int) -> String:
@@ -315,6 +349,7 @@ func start_waves() -> void:
 		return
 	current_wave = 1
 	prep_active = false
+	run_phase = RunPhase.COMBAT
 	auto_equip_best_weapon()
 	waves_changed.emit()
 
@@ -342,17 +377,30 @@ func auto_equip_best_weapon() -> bool:
 
 func advance_wave() -> void:
 	current_wave += 1
+	run_phase = RunPhase.COMBAT
 	waves_changed.emit()
 
 
 func enter_prep() -> void:
 	prep_active = true
+	run_phase = RunPhase.PREPARATION
 	waves_changed.emit()
 
 
 func leave_prep() -> void:
 	prep_active = false
+	run_phase = RunPhase.COMBAT
 	waves_changed.emit()
+
+
+func enter_reward_phase() -> void:
+	prep_active = false
+	run_phase = RunPhase.REWARD
+	waves_changed.emit()
+
+
+func is_reward_pending() -> bool:
+	return run_phase == RunPhase.REWARD
 
 
 func final_wave() -> int:
@@ -403,6 +451,10 @@ func get_cash_out_options() -> Array[Dictionary]:
 	return options
 
 
+func get_victory_reward_options() -> Array[Dictionary]:
+	return get_cash_out_options()
+
+
 func _append_cash_out_option(
 	options: Array[Dictionary], seen: Dictionary, slot: Dictionary, is_equipped: bool
 ) -> void:
@@ -410,33 +462,82 @@ func _append_cash_out_option(
 	if item_id == "":
 		return
 	var rarity := waves_inventory.get_slot_rarity(slot)
-	var key := "%s|%s" % [item_id, rarity]
+	var instance_id := str(slot.get("instanceId", ""))
+	if instance_id == "":
+		return
+	var key := instance_id
 	if seen.has(key):
 		return
 	seen[key] = true
 	options.append(
 		{
+			"instanceId": instance_id,
 			"itemId": item_id,
 			"rarity": rarity,
 			"equipped": is_equipped,
 			"displayName": waves_inventory.get_slot_display_name(slot),
+			"quantity": int(slot.get("quantity", 1)),
 		}
 	)
 
 
+func bank_victory_items(instance_ids: Array) -> Array[String]:
+	if _victory_settled or not is_reward_pending() or current_wave < final_wave():
+		return []
+	if instance_ids.size() > 3:
+		return []
+	var seen: Dictionary = {}
+	var target := InventoryService.inventory
+	var working := GridInventory.new(target.grid_width, target.grid_height)
+	working.from_save_dict(target.to_save_dict())
+	var banked: Array[String] = []
+	for raw_id in instance_ids:
+		var instance_id := str(raw_id)
+		if instance_id == "" or seen.has(instance_id):
+			return []
+		seen[instance_id] = true
+		var source_slot := _source_slot_for_instance(instance_id)
+		if source_slot.is_empty() or not working.add_slot(source_slot):
+			return []
+		banked.append(instance_id)
+	if not instance_ids.is_empty() and banked.size() != instance_ids.size():
+		return []
+	target.from_save_dict(working.to_save_dict())
+	_victory_settled = true
+	return banked
+
+
+func _source_slot_for_instance(instance_id: String) -> Dictionary:
+	var source_index := waves_inventory.find_instance_index(instance_id)
+	if source_index >= 0:
+		return waves_inventory.slots[source_index].duplicate(true)
+	for equipped in waves_inventory.equipped.values():
+		if equipped is Dictionary and str(equipped.get("instanceId", "")) == instance_id:
+			return equipped.duplicate(true)
+	return {}
+
+
 ## Moves one chosen item out of the Vigil and into the character's real inventory.
-func cash_out_item(item_id: String) -> bool:
-	if item_id == "":
+func cash_out_item(instance_id: String) -> bool:
+	if instance_id == "":
 		return false
-	var carried := false
+	var selected: Dictionary = {}
 	for option in get_cash_out_options():
-		if str(option.get("itemId", "")) == item_id:
-			carried = true
+		if str(option.get("instanceId", "")) == instance_id:
+			selected = option
 			break
-	if not carried:
+	if selected.is_empty():
 		return false
-	if not InventoryService.add_item(item_id, 1):
-		InventoryService.notify_reward_lost(item_id)
+	var source_slot: Dictionary = {}
+	var source_index := waves_inventory.find_instance_index(instance_id)
+	if source_index >= 0:
+		source_slot = waves_inventory.slots[source_index].duplicate(true)
+	else:
+		for equipped in waves_inventory.equipped.values():
+			if equipped is Dictionary and str(equipped.get("instanceId", "")) == instance_id:
+				source_slot = equipped.duplicate(true)
+				break
+	if source_slot.is_empty() or not InventoryService.inventory.add_slot(source_slot):
 		return false
 	return true
 
@@ -445,9 +546,36 @@ func cash_out_item(item_id: String) -> bool:
 ## can still strip one item out of an otherwise-successful cash-out, same as `cash_out_item()`.
 func cash_out_items(item_ids: Array) -> Array[String]:
 	var banked: Array[String] = []
+	if _cash_out_settled or not prep_active or not is_cash_out_wave(current_wave):
+		return banked
+	var allowed := cash_out_bank_count(current_wave)
+	if item_ids.is_empty() or item_ids.size() > allowed:
+		return banked
+	var seen: Dictionary = {}
+	var target := InventoryService.inventory
+	var working := GridInventory.new(target.grid_width, target.grid_height)
+	working.from_save_dict(target.to_save_dict())
 	for raw_id in item_ids:
-		if cash_out_item(str(raw_id)):
-			banked.append(str(raw_id))
+		var instance_id := str(raw_id)
+		if instance_id == "" or seen.has(instance_id):
+			return []
+		seen[instance_id] = true
+		var source_slot: Dictionary = {}
+		var source_index := waves_inventory.find_instance_index(instance_id)
+		if source_index >= 0:
+			source_slot = waves_inventory.slots[source_index].duplicate(true)
+		else:
+			for equipped in waves_inventory.equipped.values():
+				if equipped is Dictionary and str(equipped.get("instanceId", "")) == instance_id:
+					source_slot = equipped.duplicate(true)
+					break
+		if source_slot.is_empty() or not working.add_slot(source_slot):
+			return []
+		banked.append(instance_id)
+	if banked.size() != item_ids.size():
+		return []
+	target.from_save_dict(working.to_save_dict())
+	_cash_out_settled = true
 	return banked
 
 
@@ -556,23 +684,7 @@ func get_enemies_for_wave(wave: int) -> Array[String]:
 func apply_equipment_to_player(player: Node) -> void:
 	if player == null:
 		return
-	var stats := Equipment.aggregate_stats(
-		waves_inventory.equipped, Callable(AffixRoller, "get_affix_stat")
-	)
-	var health := player.get_node_or_null("Health") as Health
-	if health:
-		var bonus_hp: float = float(stats.get("maxHealth", 0.0))
-		health.configure(Health.MAX_HEALTH + bonus_hp, true)
-	var weapon := player.get_node_or_null("WeaponController")
-	if weapon and weapon.has_method("load_weapon_from_path"):
-		weapon.load_weapon_from_path(waves_inventory.get_equipped_weapon_data_path())
-		if weapon.has_method("set_damage_multiplier"):
-			var dmg_bonus: float = float(stats.get("damagePercent", 0.0))
-			weapon.set_damage_multiplier(1.0 + dmg_bonus / 100.0)
-	var locomotion := player as CharacterBody3D
-	if locomotion and locomotion.has_method("set_speed_multiplier"):
-		var move_bonus: float = float(stats.get("moveSpeedPercent", 0.0))
-		locomotion.set_speed_multiplier(1.0 + move_bonus / 100.0)
+	InventoryService.apply_equipment_to_player_node(player, waves_inventory)
 
 
 func _ensure_definition() -> void:

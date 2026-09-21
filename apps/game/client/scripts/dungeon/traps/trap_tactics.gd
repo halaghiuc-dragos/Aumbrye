@@ -73,6 +73,9 @@ static func definition(trap_id: String) -> Dictionary:
 
 static func clear_cache() -> void:
 	_definitions.clear()
+	_scene_to_id.clear()
+	_scene_map_built = false
+	_warned_derived.clear()
 
 
 static func register_hazard(node: Node3D, radius: float) -> void:
@@ -103,7 +106,7 @@ static func trigger_present(
 		if player != null and player.global_position.distance_squared_to(origin) <= radius_sq:
 			return true
 	if include_enemies:
-		for entry in tree.get_nodes_in_group("enemy"):
+		for entry in _local_enemy_candidates(node):
 			var enemy := entry as Node3D
 			if enemy == null or not is_instance_valid(enemy):
 				continue
@@ -112,42 +115,74 @@ static func trigger_present(
 	return false
 
 
+## D23: dungeon actors are parented to their RoomTemplate. Querying that room keeps an armed trap
+## from walking the global enemy group every frame and makes its tactical ownership explicit. Modes
+## without rooms (such as the Vigil arena) retain the global fallback.
+static func _local_enemy_candidates(hazard: Node) -> Array[Node]:
+	var room := _owning_room(hazard)
+	if room == null:
+		var tree := hazard.get_tree()
+		return tree.get_nodes_in_group("enemy") if tree else []
+	var result: Array[Node] = []
+	for descendant in room.find_children("*", "", true, false):
+		if descendant.is_in_group("enemy"):
+			result.append(descendant)
+	return result
+
+
+static func _owning_room(node: Node) -> RoomTemplate:
+	var cursor := node
+	while cursor != null:
+		if cursor is RoomTemplate:
+			return cursor as RoomTemplate
+		cursor = cursor.get_parent()
+	return null
+
+
 static func strike(area: Area3D, source: Node3D, cfg: Dictionary, cooldowns: Dictionary) -> int:
 	if not area.monitoring:
 		return 0
-	var now := Time.get_ticks_msec() / 1000.0
+	var now := CombatEvents.gameplay_time() if CombatEvents else 0.0
 	var interval := float(cfg.get("hitInterval", 0.5))
 	var caught := 0
+	var contacted_owners: Dictionary = {}
 	for other in area.get_overlapping_areas():
 		var hurtbox := other as Hurtbox
 		if hurtbox == null or not is_instance_valid(hurtbox):
 			continue
 		if hurtbox.team == "trap":
 			continue
-		var id := hurtbox.get_instance_id()
+		var combat_owner := CombatGroups.owning_body(hurtbox)
+		var id := combat_owner.get_instance_id() if combat_owner else hurtbox.get_instance_id()
+		if contacted_owners.has(id):
+			continue
+		contacted_owners[id] = true
 		if cooldowns.has(id) and now - float(cooldowns[id]) < interval:
 			continue
 		cooldowns[id] = now
 		var multiplier := 1.0
 		if hurtbox.team != "player":
 			multiplier = float(cfg.get("enemyDamageMultiplier", 1.0))
-			caught += 1
 		var damage := float(cfg.get("damage", 0.0)) * multiplier
+		var accepted := false
 		if damage > 0.0:
 			var direction := (hurtbox.global_position - area.global_position).normalized()
 			var was_alive := hurtbox._health == null or not hurtbox._health.is_dead()
-			(
-				hurtbox
-				. receive_hit(
+			var resolution: RefCounted = (
+				hurtbox.receive_hit(
 					DamageInfo.create(
 						damage,
 						float(cfg.get("poiseDamage", 0.0)) * multiplier,
 						source,
 						str(cfg.get("damageType", "physical")),
-						direction
+						direction,
+						"",
+						1,
+						str(cfg.get("attackClass", "blockable"))
 					)
 				)
 			)
+			accepted = resolution != null and float(resolution.get("outgoing")) > 0.0
 			# SY-01: `RunFlow.register_kill()`/`QuestService.register_kill()` already fire from the
 			# enemy's own death handler regardless of what killed it -- the one thing genuinely
 			# missing was the achievement, which nothing else can see this hit was a trap's.
@@ -159,7 +194,12 @@ static func strike(area: Area3D, source: Node3D, cfg: Dictionary, cooldowns: Dic
 				and AchievementService
 			):
 				AchievementService.notify("trap_kill")
-		_feed_build_up(hurtbox, cfg)
+		elif str(cfg.get("statusId", "")) != "" and bool(cfg.get("statusOnly", false)):
+			accepted = true
+		if accepted:
+			if hurtbox.team != "player":
+				caught += 1
+			_feed_build_up(hurtbox, cfg)
 	if caught > 0 and RunBuffs:
 		RunBuffs.note_trap_catch(caught)
 	return caught

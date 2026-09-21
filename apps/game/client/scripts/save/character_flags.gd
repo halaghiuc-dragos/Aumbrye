@@ -65,6 +65,7 @@ const REGISTRY: Dictionary = {
 	"lore_umbral_chapel_read": {"kind": Kind.INT, "default": 0},
 	"last_run": {"kind": Kind.DICT, "default": {}},
 	"bestiary_kills": {"kind": Kind.DICT, "default": {}},
+	"bestiary_observations": {"kind": Kind.DICT, "default": {}},
 	"bestiary_studied_count": {"kind": Kind.INT, "default": 0},
 	"bestiary_mastered_count": {"kind": Kind.INT, "default": 0},
 	"bestiary_complete": {"kind": Kind.BOOL, "default": false},

@@ -9,6 +9,8 @@ const SEED_MASK := 0x7fffffff
 const SEED_STEP := 2654435761
 const SEED_MULTIPLIER := 1103515245
 const SEED_INCREMENT := 12345
+const RECORD_FORMAT_VERSION := 2
+const SUCCESS_OUTCOMES := [&"escaped", &"waves_complete"]
 
 static var _data: Dictionary = {}
 static var _loaded := false
@@ -98,7 +100,7 @@ static func score_for(challenge: Dictionary, results: Dictionary) -> int:
 		"kills":
 			return int(results.get("kills", 0))
 		_:
-			return int(results.get("time_seconds", 0.0))
+			return maxi(0, roundi(float(results.get("time_seconds", 0.0)) * 1000.0))
 
 
 static func lower_is_better(challenge: Dictionary) -> bool:
@@ -110,7 +112,21 @@ static func get_local_best(week_index: int) -> Dictionary:
 	if not stored is Dictionary:
 		return {}
 	var record: Variant = (stored as Dictionary).get(str(week_index), {})
-	return record if record is Dictionary else {}
+	if not record is Dictionary:
+		return {}
+	var migrated: Dictionary = (record as Dictionary).duplicate(true)
+	if int(migrated.get("formatVersion", 1)) < RECORD_FORMAT_VERSION:
+		if str(migrated.get("scoring", "time")) == "time":
+			migrated["score"] = roundi(float(migrated.get("timeSeconds", migrated.get("score", 0))) * 1000.0)
+			migrated["timeMilliseconds"] = int(migrated["score"])
+		migrated["formatVersion"] = RECORD_FORMAT_VERSION
+		var meta := LocalSave.get_meta_data()
+		var migrated_table: Dictionary = (stored as Dictionary).duplicate(true)
+		migrated_table[str(week_index)] = migrated
+		meta[META_KEY] = migrated_table
+		LocalSave.set_meta_data(meta)
+		LocalSave.autosave()
+	return migrated
 
 
 static func record_result(challenge: Dictionary, results: Dictionary) -> Dictionary:
@@ -118,7 +134,20 @@ static func record_result(challenge: Dictionary, results: Dictionary) -> Diction
 		return {}
 	var week_index := int(challenge.get("weekIndex", current_week_index()))
 	var outcome := str(results.get("outcome", ""))
-	var completed := outcome != "died" and outcome != "waves_failed"
+	var allowed_raw: Variant = challenge.get("successOutcomes", SUCCESS_OUTCOMES)
+	var allowed: Array = allowed_raw if allowed_raw is Array else SUCCESS_OUTCOMES
+	var objective := str(challenge.get("objective", "defeat_boss"))
+	var objective_completed := false
+	match objective:
+		"defeat_boss":
+			objective_completed = bool(results.get("boss_defeated", false))
+		"complete_waves":
+			objective_completed = outcome == RunLifecycle.OUTCOME_WAVES_COMPLETE
+		"reach_depth":
+			objective_completed = int(results.get("floor_reached", 0)) >= int(challenge.get("targetDepth", 1))
+		_:
+			push_error("ChallengeService: unknown objective '%s'" % objective)
+	var completed := outcome in allowed and objective_completed
 	var score := score_for(challenge, results)
 	if scoring_of(challenge) == "time" and not completed:
 		score = 0
@@ -135,6 +164,7 @@ static func record_result(challenge: Dictionary, results: Dictionary) -> Diction
 	var record := previous
 	if improved:
 		record = {
+			"formatVersion": RECORD_FORMAT_VERSION,
 			"challengeId": str(challenge.get("id", "")),
 			"scoring": scoring_of(challenge),
 			"standard": bool(challenge.get("standard", true)),
@@ -143,6 +173,7 @@ static func record_result(challenge: Dictionary, results: Dictionary) -> Diction
 			"floorReached": int(results.get("floor_reached", 0)),
 			"kills": int(results.get("kills", 0)),
 			"timeSeconds": float(results.get("time_seconds", 0.0)),
+			"timeMilliseconds": score if scoring_of(challenge) == "time" else 0,
 			"recordedAt": int(Time.get_unix_time_from_system()),
 		}
 		var meta := LocalSave.get_meta_data()
@@ -165,7 +196,8 @@ static func format_score(challenge: Dictionary, score: int) -> String:
 		"kills":
 			return "%d slain" % score
 		_:
-			return "%d:%02d" % [floori(score / 60.0), score % 60]
+			var total_seconds := score / 1000.0
+			return "%d:%06.3f" % [floori(total_seconds / 60.0), fmod(total_seconds, 60.0)]
 
 
 static func format_remaining(seconds: int) -> String:

@@ -44,6 +44,7 @@ instance uniform float dissolve_clip : hint_range(0.0, 1.0) = 1.0;
 instance uniform vec3 dissolve_origin = vec3(0.0);
 instance uniform vec3 dissolve_dir = vec3(0.0, 1.0, 0.0);
 instance uniform float dissolve_sweep : hint_range(0.0, 1.0) = 0.6;
+instance uniform float dissolve_radial : hint_range(0.0, 1.0) = 0.0;
 uniform int surface_kind : hint_range(0, 3) = 0;
 uniform bool use_vertex_color = false;
 instance uniform vec3 skin_tint = vec3(1.0);
@@ -103,7 +104,7 @@ void vertex() {
 	v_local_pos = VERTEX;
 	v_local_normal = NORMAL;
 	v_world_pos = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
-	v_world_normal = normalize((MODEL_MATRIX * vec4(NORMAL, 0.0)).xyz);
+	v_world_normal = normalize(MODEL_NORMAL_MATRIX * NORMAL);
 	if (wind_sway > 0.0001) {
 		// Displacement grows with height above the anchor, so the pegged hem of a tent wall stays
 		// put and the eave above it travels — which is what makes a slab of geometry read as cloth
@@ -116,6 +117,7 @@ void vertex() {
 		// world direction and the mesh it lands on may be turned any way at all.
 		VERTEX += (inverse(MODEL_MATRIX) * vec4(push, 0.0)).xyz;
 		v_world_pos += push;
+		v_world_normal = normalize(v_world_normal - wind_vector * wind_sway * 0.08);
 	}
 }
 
@@ -251,12 +253,12 @@ void fragment() {
 	if (use_vertex_color) {
 		col = COLOR.rgb * skin_tint;
 	} else if (use_tile_atlas && surface_kind <= 1) {
-		float variant_count = max(1.0, float(tile_variants) * detail);
+		float variant_count = max(1.0, float(tile_variants));
 		int variant = int(cell_hash(cell) * variant_count);
 		variant = min(variant, int(variant_count) - 1);
 		vec2 tile_origin = vec2(float(variant), float(tile_row)) / 8.0;
 		vec2 tile_uv = fract(uv) / 8.0 + tile_origin;
-		col = texture(tile_atlas, tile_uv).rgb;
+		col = mix(color_base.rgb, texture(tile_atlas, tile_uv).rgb, detail);
 	} else if (surface_kind == 0) {
 		col = shade_floor(uv, cell, grain, detail);
 	} else if (surface_kind == 1) {
@@ -282,7 +284,10 @@ void fragment() {
 		} else {
 			sweep_dir = normalize(sweep_dir);
 		}
-		float sweep = clamp(dot(normalize(v_local_pos - dissolve_origin), sweep_dir), -1.0, 1.0);
+		vec3 from_origin = v_local_pos - dissolve_origin;
+		float directional = clamp(dot(normalize(from_origin + vec3(0.00001)), sweep_dir), -1.0, 1.0);
+		float radial = clamp(length(from_origin), 0.0, 1.0) * 2.0 - 1.0;
+		float sweep = mix(directional, radial, dissolve_radial);
 		float threshold = dissolve_clip - dissolve_sweep * (0.5 - sweep * 0.5);
 		if (dither > threshold) {
 			discard;

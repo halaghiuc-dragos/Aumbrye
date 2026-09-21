@@ -2,6 +2,7 @@ extends Node3D
 
 
 signal opened
+signal contents_changed
 
 const DioramaSkin := preload("res://scripts/art/props/diorama_interactable_skin.gd")
 const InputGlyphServiceScript := preload("res://scripts/ui/input_glyph_service.gd")
@@ -35,6 +36,10 @@ func is_opened() -> bool:
 	return _opened
 
 
+func capture_state() -> Dictionary:
+	return {"opened": _opened, "remaining": _items.duplicate(true)}
+
+
 func apply_opened_state(was_opened: bool) -> void:
 	_opened = was_opened
 	if _opened:
@@ -42,6 +47,11 @@ func apply_opened_state(was_opened: bool) -> void:
 		if lid:
 			lid.rotation.x = DioramaSkin.LID_OPEN_ANGLE
 	_label.visible = false
+
+
+func apply_state(state: Dictionary) -> void:
+	_items = state.get("remaining", _items).duplicate(true)
+	apply_opened_state(bool(state.get("opened", false)))
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -67,9 +77,9 @@ func _on_body_exited(body: Node3D) -> void:
 		set_process_unhandled_input(false)
 
 
-func _present_rarity_juice(item_id: String) -> void:
+func _present_rarity_juice(item_id: String, instance: Dictionary = {}) -> void:
 	var def := ItemCatalog.get_definition(item_id)
-	var rarity := RarityRegistryScript.normalize(str(def.get("rarity", "common")))
+	var rarity := RarityRegistryScript.normalize(str(instance.get("rarity", def.get("rarity", "common"))))
 	if AudioDirector:
 		var sfx := RarityRegistryScript.drop_sfx_id(rarity)
 		if AudioDirector.has_sfx(sfx):
@@ -102,10 +112,11 @@ func _open() -> void:
 			opts["rollSeed"] = int(entry.get("rollSeed", -1))
 		if InventoryService.add_loot(item_id, opts):
 			RunFlow.register_loot(item_id, str(entry.get("instanceId", "")))
-			_present_rarity_juice(item_id)
+			_present_rarity_juice(item_id, InventoryService.get_last_granted_instance())
 		else:
 			remaining.append(entry)
 	_items = remaining
+	contents_changed.emit()
 	if not remaining.is_empty():
 		if InventoryService and InventoryService.has_signal("inventory_rejected"):
 			InventoryService.inventory_rejected.emit("full")

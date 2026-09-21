@@ -50,6 +50,7 @@ func _on_boss_phase_entered(_index: int, phase: Dictionary) -> void:
 
 
 func _spawn_cleanse_window() -> void:
+	_prune_cleanse_zones()
 	var zone := CLEANSE_SCENE.instantiate() as Node3D
 	if zone == null:
 		return
@@ -66,6 +67,10 @@ func _spawn_cleanse_window() -> void:
 
 func _on_died() -> void:
 	super._on_died()
+	_clear_cleanse_zones()
+
+
+func _clear_cleanse_zones() -> void:
 	_cleanse_active = false
 	for zone in _cleanse_zones:
 		if is_instance_valid(zone):
@@ -74,4 +79,8 @@ func _on_died() -> void:
 
 
 func _on_arena_reset() -> void:
-	_cleanse_active = false
+	_clear_cleanse_zones()
+
+
+func _prune_cleanse_zones() -> void:
+	_cleanse_zones = _cleanse_zones.filter(func(zone: Node3D) -> bool: return is_instance_valid(zone))

@@ -76,7 +76,7 @@
       "name": "Workshop Annex",
       "anchor": "workshop",
       "prop": "forge",
-      "description": "A second bench, and someone to stand at it.",
+      "description": "A second workbench, hot forge, and an apprentice at the tools mark the workshop's deepest commissions.",
       "condition": {
         "maxUnlockedTier": 6
       }

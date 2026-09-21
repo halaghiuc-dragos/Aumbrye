@@ -31,7 +31,7 @@ public class SaveService : ISaveService
         var account = await _db.Set<Account>()
             .Include(a => a.SaveBlob)
             .FirstOrDefaultAsync(a => a.Id == accountId, ct);
-        if (account == null)
+        if (account == null || account.DeletionPending)
             return new SaveGetResult(false, Error: "Account not found.");
 
         if (account.SaveBlob == null)
@@ -51,19 +51,20 @@ public class SaveService : ISaveService
             return new SaveGetResult(false, Error: "save_corrupt", ErrorStatus: 422);
         }
 
-        return new SaveGetResult(true, parsed.State, account.SaveBlob.UpdatedAt);
+        return new SaveGetResult(true, parsed.State, account.SaveBlob.UpdatedAt, account.SaveBlob.Revision);
     }
 
     public async Task<SavePutResult> PutCurrentAsync(
         Guid accountId,
         JsonObject state,
         DateTimeOffset? clientUpdatedAt,
+        long? clientRevision = null,
         CancellationToken ct = default)
     {
         var account = await _db.Set<Account>()
             .Include(a => a.SaveBlob)
             .FirstOrDefaultAsync(a => a.Id == accountId, ct);
-        if (account == null)
+        if (account == null || account.DeletionPending)
             return new SavePutResult(false, Error: "Account not found.");
 
         state["accountId"] = accountId.ToString();
@@ -74,6 +75,14 @@ public class SaveService : ISaveService
             return new SavePutResult(false, Error: validationError);
 
         if (account.SaveBlob != null
+            && clientRevision.HasValue
+            && account.SaveBlob.Revision != clientRevision.Value)
+        {
+            var parsed = ParseState(account.SaveBlob.JsonData, accountId);
+            if (!parsed.Corrupt)
+                return new SavePutResult(false, parsed.State, account.SaveBlob.UpdatedAt, account.SaveBlob.Revision, true, "Server save revision is newer; server wins.");
+        }
+        else if (account.SaveBlob != null
             && clientUpdatedAt.HasValue
             && account.SaveBlob.UpdatedAt > clientUpdatedAt.Value)
         {
@@ -107,16 +116,25 @@ public class SaveService : ISaveService
                 AccountId = accountId,
                 JsonData = json,
                 UpdatedAt = now,
+                Revision = 1,
             };
         }
         else
         {
             account.SaveBlob.JsonData = json;
             account.SaveBlob.UpdatedAt = now;
+            account.SaveBlob.Revision++;
         }
 
-        await _db.SaveChangesAsync(ct);
-        return new SavePutResult(true, state, now);
+        try
+        {
+            await _db.SaveChangesAsync(ct);
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            return new SavePutResult(false, Error: "save_conflict", Conflict: true);
+        }
+        return new SavePutResult(true, state, now, account.SaveBlob.Revision);
     }
 
     /// <summary>

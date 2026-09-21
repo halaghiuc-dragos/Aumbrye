@@ -2,6 +2,7 @@
   "id": "bounty_lantern_oil",
   "title": "Bounty: Lamp Iron",
   "type": "fetch",
+  "objectiveMode": "delivery",
   "targetItemId": "iron_scrap",
   "requiredCount": 6,
   "repeatable": true,

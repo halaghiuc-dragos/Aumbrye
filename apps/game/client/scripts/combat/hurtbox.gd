@@ -70,7 +70,7 @@ func set_debug_draw(enabled: bool) -> void:
 	DEBUG_SCRIPT.set_debug_draw(self, enabled, DEBUG_SCRIPT.HURTBOX_COLOR)
 
 
-func receive_hit(info: DamageInfo) -> void:
+func receive_hit(info: DamageInfo) -> RefCounted:
 	var res: RefCounted = DamageResolutionScript.new()
 	res.incoming = info.amount
 	res.outgoing = info.amount
@@ -82,7 +82,7 @@ func receive_hit(info: DamageInfo) -> void:
 
 	if _health and _health.is_dead():
 		hit_resolved.emit(res)
-		return
+		return res
 
 	if not info.ignore_iframes:
 		var dodge := _cached_dodge
@@ -102,7 +102,7 @@ func receive_hit(info: DamageInfo) -> void:
 						CombatEvents.ON_PERFECT_DODGE, {"actor": iframe_body, "target": info.source}
 					)
 			hit_resolved.emit(res)
-			return
+			return res
 
 	var owner_body := _cached_character_body
 	# Evasion is rolled before guard, arc and armour so a slipped hit is a clean miss rather than a
@@ -116,38 +116,41 @@ func receive_hit(info: DamageInfo) -> void:
 		if evade_feedback and evade_feedback.has_method("on_dodge_iframe"):
 			evade_feedback.call("on_dodge_iframe")
 		hit_resolved.emit(res)
-		return
+		return res
 	if owner_body and owner_body.has_method("is_immune") and owner_body.call("is_immune"):
 		res.outgoing = 0.0
 		res.poise_outgoing = 0.0
 		hit_resolved.emit(res)
-		return
+		return res
 
 	if info.attack_class == "grab" and not info.periodic and _try_apply_grab(info, owner_body, res):
 		hit_resolved.emit(res)
-		return
+		return res
 
 	var arc := DamageInfo.HitArc.FRONT
-	if owner_body and info.source:
-		arc = DamageInfo.classify_arc(owner_body, info.source.global_position)
+	if owner_body:
+		if info.direction.length_squared() > 0.01:
+			arc = DamageInfo.classify_arc_from_direction(owner_body, info.direction)
+		elif info.source:
+			arc = DamageInfo.classify_arc(owner_body, info.source.global_position)
 
 	var guard := _cached_guard if not info.ignore_guard else null
 	if guard and guard.has_method("try_parry_attack") and info.source:
-		if guard.call("try_parry_attack", info.source, arc, info.attack_class, info.is_projectile):
+		if guard.call("try_parry_attack", info.source, arc, info.attack_class, info.is_projectile, info.direction):
 			res.parried = true
 			res.outgoing = 0.0
 			res.poise_outgoing = 0.0
 			hit_resolved.emit(res)
-			return
+			return res
 	# CB-03: attempted only once the parry itself was unavailable (unaffordable or on cooldown) --
 	# `try_just_guard()` checks its own tighter timing window independently.
 	if guard and guard.has_method("try_just_guard") and info.source:
-		if guard.call("try_just_guard", info.source, arc, info.attack_class, info.is_projectile):
+		if guard.call("try_just_guard", info.source, arc, info.attack_class, info.is_projectile, info.direction):
 			res.blocked = true
 			res.outgoing = 0.0
 			res.poise_outgoing = 0.0
 			hit_resolved.emit(res)
-			return
+			return res
 
 	var final_amount := info.amount
 	var final_poise := info.poise_damage
@@ -185,10 +188,19 @@ func receive_hit(info: DamageInfo) -> void:
 
 	res.outgoing = final_amount
 	res.poise_outgoing = final_poise
+	var reactions := owner_body.get_node_or_null("CombatReactions") if owner_body else null
+	if reactions and reactions.has_method("capture_hit"):
+		reactions.call("capture_hit", info)
 
 	if _health and final_amount > 0.0:
-		_health.take_damage(final_amount)
-		if team == "player" and RunFlow:
+		if owner_body and owner_body.has_method("set_damage_credit"):
+			owner_body.call("set_damage_credit", info)
+		var damage_result: Dictionary = _health.take_damage(final_amount)
+		res.barrier_absorbed = float(damage_result.get("barrier_absorbed", 0.0))
+		res.health_lost = float(damage_result.get("health_lost", 0.0))
+		res.overkill = float(damage_result.get("overkill", 0.0))
+		res.outgoing = res.health_lost
+		if team == "player" and RunFlow and res.health_lost > 0.0:
 			RunFlow.register_player_boss_damage()
 
 	var hyperarmor := _is_hyperarmor_active()
@@ -240,6 +252,7 @@ func receive_hit(info: DamageInfo) -> void:
 	damaged.emit(info)
 	if team == "player" and (final_amount > 0.0 or final_poise > 0.0):
 		hurt_received.emit(final_amount, final_poise, info.direction)
+	return res
 
 
 ## `EN-02`: a grab bypasses poise, guard and parry entirely -- it is answered by not being caught.
@@ -255,14 +268,9 @@ func _try_apply_grab(info: DamageInfo, owner_body: Node, res: RefCounted) -> boo
 	var duration := 1.6
 	if guard and guard.has_method("get_grab_duration"):
 		duration = float(guard.call("get_grab_duration"))
-	var final_amount := _apply_defense(info.amount)
-	final_amount = _apply_resistances(final_amount, info.damage_type)
-	if team == "player":
-		final_amount = AccessibilitySettings.scale_incoming_player_damage(final_amount)
-	res.outgoing = final_amount
+	res.outgoing = info.amount
 	res.poise_outgoing = 0.0
-	reactions.call("apply_grab", final_amount, info.source, duration)
-	return true
+	return bool(reactions.call("apply_grab", info, duration))
 
 
 ## `PH-01`: only a hit that actually landed pushes the victim -- a blocked, parried or dodged hit
@@ -298,8 +306,11 @@ func _target_mass(body: Node) -> float:
 	return 1.0
 
 
-func receive_periodic_damage(amount: float, dmg_type: String = DamageInfo.TYPE_PHYSICAL) -> void:
-	var info := DamageInfo.create(amount, 0.0, null, dmg_type)
+func receive_periodic_damage(
+	amount: float, dmg_type: String = DamageInfo.TYPE_PHYSICAL, source: Node = null, weapon_item_id: String = ""
+) -> void:
+	var info := DamageInfo.create(amount, 0.0, source, dmg_type)
+	info.weapon_item_id = weapon_item_id
 	info.ignore_iframes = true
 	info.ignore_guard = true
 	info.periodic = true
@@ -309,6 +320,7 @@ func receive_periodic_damage(amount: float, dmg_type: String = DamageInfo.TYPE_P
 func _apply_arc_multipliers(
 	amount: float, poise: float, info: DamageInfo, res: RefCounted, arc: DamageInfo.HitArc
 ) -> float:
+	res.poise_outgoing = poise
 	if amount <= 0.0 or info.source == null:
 		return amount
 	var dmg_mult := DamageInfo.arc_damage_multiplier(arc)
@@ -330,13 +342,9 @@ func _apply_arc_multipliers(
 	return amount * dmg_mult
 
 
-func _roll_evasion(body: Node) -> bool:
-	if body == null:
-		return false
-	var chance := float(body.get_meta("combat_evasion", 0.0))
-	if chance <= 0.0:
-		return false
-	return randf() < chance
+func _roll_evasion(_body: Node) -> bool:
+	# Damage avoidance is action-driven (dodge/parry/guard) and therefore deterministic.
+	return false
 
 
 func _apply_defense(amount: float) -> float:
@@ -590,10 +598,10 @@ func _apply_status_from_hit(info: DamageInfo) -> void:
 		return
 	var gain := _build_up_gain(info.status_id, maxi(1, info.status_stacks))
 	if info.periodic or gain <= 0.0 or not status_ctrl.has_method("add_build_up"):
-		status_ctrl.apply_status(info.status_id, info.status_stacks)
+		status_ctrl.apply_status(info.status_id, info.status_stacks, -1.0, info.source, "hit", info.weapon_item_id)
 		_notify_player_status_applied(info, _cached_character_body)
 		return
-	if bool(status_ctrl.call("add_build_up", info.status_id, gain)):
+	if bool(status_ctrl.call("add_build_up", info.status_id, gain, info.source, info.weapon_item_id)):
 		_notify_player_status_applied(info, _cached_character_body)
 
 

@@ -16,5 +16,6 @@
   "buildUpResistGain": 10,
   "buildUpResistCap": 40,
   "buildUpStacks": 1,
-  "tickGrowth": 0.5
+  "tickGrowth": 0.5,
+  "tickGrowthMaxSeconds": 4
 }

@@ -2,6 +2,7 @@
   "id": "the_account_closed",
   "title": "Standing Order: The Last Entry",
   "type": "reach_depth",
+  "allowedModes": ["castle", "endless"],
   "requiredCount": 8,
   "repeatable": true,
   "cooldownRuns": 2,

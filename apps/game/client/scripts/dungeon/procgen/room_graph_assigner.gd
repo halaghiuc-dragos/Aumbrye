@@ -41,7 +41,8 @@ static func assign(
 			combat_index,
 			filler_index,
 			rng,
-			pre_boss_layout
+			pre_boss_layout,
+			config
 		)
 		if str(resolved.get("template_id", "")).is_empty():
 			dropped_layout_ids.append(layout_id)
@@ -77,12 +78,8 @@ static func assign(
 
 ## RM-14: the lattice seats every room flush against its neighbours with no threshold between them,
 ## so this converts `config.corridor_ratio` of the rooms that can host one -- a NORMAL combat slot
-## with exactly two doors, north and south -- into an actual corridor template after the fact.
-##
-## Restricted to north/south only, not any two-opposite-doors slot: `corridor`'s own door mask
-## (north|south, not a single bit) never gets the auto-yaw rotation `_yaw_for()` gives single-door
-## templates, so a corridor placed against an east/west slot would build with doors on the wrong
-## walls entirely. An east/west two-door slot simply is not eligible here.
+## with exactly two opposite doors into an actual corridor template after the fact. East/west
+## corridors carry an explicit quarter-turn consumed by the physical layout.
 ##
 ## The "must not hand a corridor a slot needing a third door" trap the plan calls out is already
 ## closed by `supports_doors()`: corridor's mask has two bits set, so `primary_door_mask()` returns
@@ -98,13 +95,14 @@ static func _convert_corridors(
 	if config.corridor_ratio <= 0.0:
 		return
 	var ns_mask := RoomGraphSlot.DOOR_NORTH | RoomGraphSlot.DOOR_SOUTH
+	var ew_mask := RoomGraphSlot.DOOR_EAST | RoomGraphSlot.DOOR_WEST
 	var eligible: Array[int] = []
 	for i in rooms.size():
 		var room: Dictionary = rooms[i]
 		if str(room.get("type", "")) != "combat":
 			continue
 		var slot := graph.get_slot(str(room.get("layout_id", "")))
-		if slot == null or slot.door_mask != ns_mask:
+		if slot == null or slot.door_mask not in [ns_mask, ew_mask]:
 			continue
 		eligible.append(i)
 	if eligible.is_empty():
@@ -122,6 +120,7 @@ static func _convert_corridors(
 			template_id = "%s_corridor_long" % prefix
 		rooms[idx]["template_id"] = template_id
 		rooms[idx]["type"] = "corridor"
+		rooms[idx]["template_yaw"] = PI * 0.5 if graph.get_slot(str(rooms[idx]["layout_id"])).door_mask == ew_mask else 0.0
 
 
 ## RM-17: "small" (`hall`), "medium" (`courtyard`) or "large" (`arena`), picked from the room's
@@ -130,7 +129,9 @@ static func _convert_corridors(
 ## space to fight in regardless of depth, then the pre-boss room, then the near-entrance and
 ## dead-end cases that want to stay small, and anything left over (mid-path, on the critical path)
 ## gets the medium default.
-static func _combat_size_kind(slot: RoomGraphSlot, pre_boss_layout: String) -> String:
+static func _combat_size_kind(
+	slot: RoomGraphSlot, pre_boss_layout: String, config: RoomGraphConfig, rng: RandomNumberGenerator
+) -> String:
 	if slot.connection_count() >= 3:
 		return "arena"
 	if pre_boss_layout != "" and slot.slot_id == pre_boss_layout:
@@ -138,6 +139,14 @@ static func _combat_size_kind(slot: RoomGraphSlot, pre_boss_layout: String) -> S
 	if slot.graph_distance <= 2:
 		return "hall"
 	if slot.is_dead_end():
+		return "hall"
+	var bias := config.size_bias if config != null else 1.0
+	var large_weight := clampf(0.15 * bias, 0.0, 0.75)
+	var small_weight := clampf(0.35 / maxf(0.1, bias), 0.05, 0.8)
+	var roll := rng.randf()
+	if roll < large_weight:
+		return "arena"
+	if roll < large_weight + small_weight:
 		return "hall"
 	return "courtyard"
 
@@ -224,7 +233,8 @@ static func _resolve_room(
 	combat_index: int,
 	filler_index: int,
 	rng: RandomNumberGenerator,
-	pre_boss_layout: String = ""
+	pre_boss_layout: String = "",
+	config: RoomGraphConfig = null
 ) -> Dictionary:
 	if slot.is_filler:
 		var filler_doors := _required_doors_for_slot(graph, slot)
@@ -318,7 +328,7 @@ static func _resolve_room(
 				if combat_index < COMBAT_SEMANTICS.size()
 				else "combat_%d" % combat_index
 			)
-			var size_kind := _combat_size_kind(slot, pre_boss_layout)
+			var size_kind := _combat_size_kind(slot, pre_boss_layout, config, rng)
 			var required_doors := _required_doors_for_slot(graph, slot)
 			var preferred: String = combat_preferred.get(size_kind, "%s_courtyard" % prefix)
 			return {

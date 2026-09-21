@@ -2,6 +2,7 @@
   "id": "sealed_requisition",
   "title": "Sealed Requisition",
   "type": "fetch",
+  "objectiveMode": "delivery",
   "chainId": "ledger",
   "prerequisites": [
     "the_open_column"

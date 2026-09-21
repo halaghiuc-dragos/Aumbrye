@@ -88,26 +88,51 @@ static func salvage(inv_index: Variant, reduced: bool = false) -> Dictionary:
 	var inv := InventoryService.inventory
 	if inv_index < 0 or inv_index >= inv.slots.size():
 		return {"ok": false, "error": "invalid slot"}
+	return salvage_instance(inv, str(inv.slots[inv_index].get("instanceId", "")), reduced)
+
+
+static func salvage_instance(inv: GridInventory, instance_id: String, reduced: bool = false) -> Dictionary:
+	var inv_index := inv.find_instance_index(instance_id)
+	if inv_index < 0:
+		return {"ok": false, "error": "item changed"}
 	var slot: Dictionary = inv.slots[inv_index]
 	var def := ItemCatalog.get_definition(str(slot.get("itemId", "")))
+	if bool(slot.get("protected", false)) or bool(slot.get("favorite", false)):
+		return {"ok": false, "error": "item protected"}
+	if str(def.get("itemType", "")) == "quest" or bool(def.get("unique", false)):
+		return {"ok": false, "error": "item cannot be salvaged"}
 	if def.get("itemType", "") not in BlacksmithServiceScript.UPGRADEABLE_TYPES:
 		return {"ok": false, "error": "not salvageable"}
 	var yields := salvage_preview(slot, reduced)
-	if inv.remove_at(inv_index).is_empty():
+	var working := _working_copy(inv)
+	if working.remove_at(inv_index).is_empty():
 		return {"ok": false, "error": "invalid slot"}
-	var granted: Dictionary = {}
-	var lost: Dictionary = {}
 	for material_id in yields:
 		var amount := int(yields[material_id])
 		if amount <= 0:
 			continue
-		if InventoryService.add_item(str(material_id), amount):
-			granted[material_id] = amount
-		else:
-			lost[material_id] = amount
-	if LocalSave:
+		if not working.add_item(str(material_id), amount):
+			return {"ok": false, "error": "inventory full", "materials": yields}
+	_commit_inventory(inv, working)
+	if inv == InventoryService.inventory and LocalSave:
 		LocalSave.request_autosave()
-	return {"ok": true, "materials": granted, "lost": lost}
+	return {"ok": true, "materials": yields, "lost": {}}
+
+
+static func salvage_junk(reduced: bool = false) -> Dictionary:
+	var inv := InventoryService.inventory
+	var yielded := {}
+	var salvaged := 0
+	var indices := inv.junk_indices()
+	indices.reverse()
+	for index in indices:
+		var result := salvage(index, reduced)
+		if not result.get("ok", false):
+			continue
+		for item_id in (result.get("materials", {}) as Dictionary):
+			yielded[item_id] = int(yielded.get(item_id, 0)) + int(result["materials"][item_id])
+		salvaged += 1
+	return {"ok": salvaged > 0, "count": salvaged, "materials": yielded}
 
 
 static func can_reroll(inv_index: Variant) -> bool:
@@ -124,19 +149,24 @@ static func reroll_affixes(inv_index: Variant) -> Dictionary:
 	if not can_reroll(inv_index):
 		return {"ok": false, "error": "cannot reroll"}
 	var recipe := get_recipe(RECIPE_REROLL)
-	if not _spend(recipe):
-		return {"ok": false, "error": "not enough materials"}
 	var inv := InventoryService.inventory
-	var slot: Dictionary = _slot_at(inv_index)
-	if slot.is_empty():
+	var instance_id := str(inv.slots[inv_index].get("instanceId", ""))
+	var working := _working_copy(inv)
+	if not _spend_on(working, recipe):
+		return {"ok": false, "error": "not enough materials"}
+	var resolved := working.find_instance_index(instance_id)
+	if resolved < 0:
 		return {"ok": false, "error": "invalid slot"}
+	var slot: Dictionary = working.slots[resolved]
 	var attempt := int(slot.get("rerollCount", 0)) + 1
 	slot["rerollCount"] = attempt
 	var rarity := RarityRegistryScript.normalize(str(slot.get("rarity", "common")))
 	slot["affixes"] = AffixRoller.reroll_affixes(
 		slot.get("affixes", []), rarity, _derive_seed(slot, attempt)
 	)
-	inv.changed.emit()
+	if not CharacterService.spend_gold(int(recipe.get("goldCost", 0))):
+		return {"ok": false, "error": "not enough gold"}
+	_commit_inventory(inv, working)
 	if LocalSave:
 		LocalSave.request_autosave()
 	return {"ok": true, "affixes": slot["affixes"]}
@@ -156,12 +186,15 @@ static func transmute_rarity(inv_index: Variant) -> Dictionary:
 	if not can_transmute(inv_index):
 		return {"ok": false, "error": "cannot transmute"}
 	var recipe := get_recipe(RECIPE_TRANSMUTE)
-	if not _spend(recipe):
-		return {"ok": false, "error": "not enough materials"}
 	var inv := InventoryService.inventory
-	var slot: Dictionary = _slot_at(inv_index)
-	if slot.is_empty():
+	var instance_id := str(inv.slots[inv_index].get("instanceId", ""))
+	var working := _working_copy(inv)
+	if not _spend_on(working, recipe):
+		return {"ok": false, "error": "not enough materials"}
+	var resolved := working.find_instance_index(instance_id)
+	if resolved < 0:
 		return {"ok": false, "error": "invalid slot"}
+	var slot: Dictionary = working.slots[resolved]
 	var rarity := RarityRegistryScript.normalize(str(slot.get("rarity", "common")))
 	var next_index := RarityRegistryScript.tier_index(rarity) + 1
 	var next_rarity: String = RarityRegistryScript.TIER_ORDER[next_index]
@@ -171,7 +204,9 @@ static func transmute_rarity(inv_index: Variant) -> Dictionary:
 	slot["affixes"] = AffixRoller.reroll_affixes(
 		slot.get("affixes", []), next_rarity, _derive_seed(slot, attempt)
 	)
-	inv.changed.emit()
+	if not CharacterService.spend_gold(int(recipe.get("goldCost", 0))):
+		return {"ok": false, "error": "not enough gold"}
+	_commit_inventory(inv, working)
 	if LocalSave:
 		LocalSave.request_autosave()
 	return {"ok": true, "rarity": next_rarity}
@@ -195,14 +230,19 @@ static func infuse(inv_index: Variant, element: String) -> Dictionary:
 	if not can_infuse(inv_index, element):
 		return {"ok": false, "error": "cannot infuse"}
 	var recipe := get_recipe(str(INFUSION_RECIPES.get(element, "")))
-	if not _spend(recipe):
-		return {"ok": false, "error": "not enough materials"}
 	var inv := InventoryService.inventory
-	var slot: Dictionary = _slot_at(inv_index)
-	if slot.is_empty():
+	var instance_id := str(inv.slots[inv_index].get("instanceId", ""))
+	var working := _working_copy(inv)
+	if not _spend_on(working, recipe):
+		return {"ok": false, "error": "not enough materials"}
+	var resolved := working.find_instance_index(instance_id)
+	if resolved < 0:
 		return {"ok": false, "error": "invalid slot"}
+	var slot: Dictionary = working.slots[resolved]
 	slot["infusion"] = element
-	inv.changed.emit()
+	if not CharacterService.spend_gold(int(recipe.get("goldCost", 0))):
+		return {"ok": false, "error": "not enough gold"}
+	_commit_inventory(inv, working)
 	if LocalSave:
 		LocalSave.request_autosave()
 	return {"ok": true, "infusion": element}
@@ -256,19 +296,28 @@ static func transfer_rule(source_index: int, target_index: int) -> Dictionary:
 	if not can_transfer_rule(source_index, target_index):
 		return {"ok": false, "error": "cannot transfer"}
 	var recipe := get_recipe(RECIPE_TRANSFER)
-	if not _spend(recipe):
-		return {"ok": false, "error": "not enough materials"}
 	var inv := InventoryService.inventory
-	var source: Dictionary = inv.slots[source_index]
+	var source_instance := str(inv.slots[source_index].get("instanceId", ""))
+	var target_instance := str(inv.slots[target_index].get("instanceId", ""))
+	var working := _working_copy(inv)
+	if not _spend_on(working, recipe):
+		return {"ok": false, "error": "not enough materials"}
+	var resolved_source := working.find_instance_index(source_instance)
+	var resolved_target := working.find_instance_index(target_instance)
+	if resolved_source < 0 or resolved_target < 0:
+		return {"ok": false, "error": "invalid slot"}
+	var source: Dictionary = working.slots[resolved_source]
 	var source_id := str(source.get("itemId", ""))
-	if inv.remove_at(source_index).is_empty():
+	if working.remove_at(resolved_source).is_empty():
 		return {"ok": false, "error": "invalid slot"}
-	var adjusted := target_index - 1 if target_index > source_index else target_index
-	if adjusted < 0 or adjusted >= inv.slots.size():
+	resolved_target = working.find_instance_index(target_instance)
+	if resolved_target < 0:
 		return {"ok": false, "error": "invalid slot"}
-	var target: Dictionary = inv.slots[adjusted]
+	var target: Dictionary = working.slots[resolved_target]
 	target["transferredRuleFrom"] = source_id
-	inv.changed.emit()
+	if not CharacterService.spend_gold(int(recipe.get("goldCost", 0))):
+		return {"ok": false, "error": "not enough gold"}
+	_commit_inventory(inv, working)
 	if LocalSave:
 		LocalSave.request_autosave()
 	return {"ok": true, "sourceItemId": source_id}
@@ -317,6 +366,32 @@ static func _spend(recipe: Dictionary) -> bool:
 		var quantity := int((entry as Dictionary).get("quantity", 0))
 		InventoryService.inventory.remove_items_by_id(material_id, quantity)
 	return true
+
+
+static func _working_copy(inv: GridInventory) -> GridInventory:
+	var working := GridInventory.new(inv.grid_width, inv.grid_height)
+	working.from_save_dict(inv.to_save_dict())
+	return working
+
+
+static func _spend_on(working: GridInventory, recipe: Dictionary) -> bool:
+	if not CharacterService.can_afford(int(recipe.get("goldCost", 0))):
+		return false
+	for entry in recipe.get("materials", []):
+		if not entry is Dictionary:
+			continue
+		var material_id := str(entry.get("itemId", ""))
+		var quantity := int(entry.get("quantity", 0))
+		if working.count_by_id(material_id) < quantity:
+			return false
+	for entry in recipe.get("materials", []):
+		if entry is Dictionary:
+			working.remove_items_by_id(str(entry.get("itemId", "")), int(entry.get("quantity", 0)))
+	return true
+
+
+static func _commit_inventory(inv: GridInventory, working: GridInventory) -> void:
+	inv.from_save_dict(working.to_save_dict())
 
 
 static func _derive_seed(slot: Dictionary, attempt: int) -> int:

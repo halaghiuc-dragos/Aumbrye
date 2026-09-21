@@ -7,6 +7,7 @@ const DIORAMA_SKIN := preload("res://scripts/art/props/diorama_interactable_skin
 const InteractPromptScript := preload("res://scripts/ui/interact_prompt.gd")
 
 var _key_id := ""
+var _key_fragment_ids: Array = []
 var _lock_id := ""
 var _lock_flag_id := ""
 var _to_room_id := ""
@@ -20,6 +21,7 @@ var _unlocked := false
 
 func configure(lock: Dictionary, _from_room: RoomTemplate, _to_room: RoomTemplate) -> void:
 	_key_id = str(lock.get("keyId", ""))
+	_key_fragment_ids = lock.get("keyFragmentIds", [_key_id]) as Array
 	_lock_id = str(lock.get("lockId", ""))
 	_keys_required = maxi(1, int(lock.get("keysRequired", 1)))
 	_lock_flag_id = WorldFlags.lock_opened(_lock_id) if _lock_id != "" else ""
@@ -39,7 +41,9 @@ func _build_at_socket() -> void:
 		position = socket.position
 		rotation.y = socket.rotation.y
 	else:
-		position = Vector3(0.0, 0.0, -4.0)
+		push_error("Locked door missing validated doorway socket: %s" % _lock_id)
+		queue_free()
+		return
 
 	_barrier = StaticBody3D.new()
 	_barrier.name = "LockedDoorBarrier"
@@ -72,7 +76,7 @@ func _build_at_socket() -> void:
 	var interact_box := BoxShape3D.new()
 	interact_box.size = Vector3(5.0, 4.0, 3.0)
 	interact_shape.shape = interact_box
-	interact_shape.position = Vector3(0.0, 2.0, -1.5)
+	interact_shape.position = Vector3(0.0, 2.0, 0.0)
 	_interact_area.add_child(interact_shape)
 	add_child(_interact_area)
 	_interact_area.body_entered.connect(_on_body_entered)
@@ -100,18 +104,18 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 	# Held, not spent. The card stays on the ring, so a second door of the same colour opens on
 	# sight rather than sending the player back for another key.
-	if not FloorKeyringScript.is_held(_key_id):
+	if not _has_required_keys():
 		if RunFlow:
 			RunFlow.emit_run_warning(
 				tr("LOCK_NEEDS_KEY").format({"key": FloorKeyringScript.label_for(_key_id)})
 			)
 		get_viewport().set_input_as_handled()
 		return
+	_unlock(true)
 	WorldState.set_flag(_lock_flag_id, true)
 	# AU-03: only the live open fires the stinger -- `_unlock()` is also reached from
 	# `_refresh_state()` on a floor reload, where the lock is already open and nothing happened.
 	AudioDirector.play_stinger("lock_opened")
-	_unlock()
 	get_viewport().set_input_as_handled()
 
 
@@ -122,15 +126,17 @@ func _on_namespace_changed(flag_namespace: String, flag_id: String, _value: Vari
 
 func _refresh_state() -> void:
 	if _lock_flag_id != "" and WorldState.is_flag_true(_lock_flag_id):
-		_unlock()
+		_unlock(false)
 	else:
 		_update_label()
 
 
-func _unlock() -> void:
+func _unlock(animate: bool = false) -> void:
+	if _unlocked:
+		return
 	_unlocked = true
 	if _barrier:
-		DIORAMA_SKIN.animate_gate_open(_barrier)
+		DIORAMA_SKIN.animate_gate_open(_barrier, animate)
 	if _label:
 		_label.hide_prompt()
 
@@ -144,10 +150,17 @@ func _update_label() -> void:
 	# Name the colour either way. A door that says which card it wants turns a dead end into a
 	# direction, which is the whole reason the keys are coloured.
 	var key_label := FloorKeyringScript.label_for(_key_id)
-	if FloorKeyringScript.is_held(_key_id):
+	if _has_required_keys():
 		_label.show_action(tr("LOCK_UNLOCK_ACTION").format({"key": key_label}))
 	else:
 		_label.show_text(tr("LOCK_NEEDS_KEY").format({"key": key_label}))
+
+
+func _has_required_keys() -> bool:
+	for fragment_id in _key_fragment_ids:
+		if not FloorKeyringScript.is_held(str(fragment_id)):
+			return false
+	return not _key_fragment_ids.is_empty()
 
 
 func _exit_tree() -> void:

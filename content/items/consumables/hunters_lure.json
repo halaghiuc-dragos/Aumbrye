@@ -9,6 +9,7 @@
   "description": "A knuckle-bone whistle. Thrown past a line, it pulls attention to wherever it lands.",
   "consumableEffect": {
     "kind": "throwable",
+    "projectileArchetype": "lure",
     "lure": true,
     "radius": 10.0,
     "usableInHub": false

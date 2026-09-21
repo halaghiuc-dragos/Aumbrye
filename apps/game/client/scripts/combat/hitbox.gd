@@ -37,6 +37,8 @@ var _execution_target: Node = null
 var _execution_kind := ""
 var _last_shape_transform := Transform3D.IDENTITY
 var _has_swept_transform := false
+var _arc_half_angle_cos := -1.0
+var _weapon_item_id := ""
 
 
 func _ready() -> void:
@@ -68,6 +70,7 @@ func set_debug_draw(enabled: bool) -> void:
 
 
 func enable() -> void:
+	_weapon_item_id = _attacker_weapon_item_id()
 	_active = true
 	monitoring = true
 	set_physics_process(true)
@@ -129,6 +132,10 @@ func set_combat_owner(node: Node) -> void:
 	_combat_owner = node
 
 
+func configure_arc(angle_degrees: float) -> void:
+	_arc_half_angle_cos = cos(deg_to_rad(clampf(angle_degrees, 1.0, 360.0) * 0.5)) if angle_degrees < 359.9 else -1.0
+
+
 func _physics_process(_delta: float) -> void:
 	if not _active:
 		return
@@ -139,7 +146,9 @@ func _on_area_entered(area: Area3D) -> void:
 	_try_hit(area)
 
 
-const MAX_OVERLAP_RESULTS := 32
+const MAX_OVERLAP_RESULTS := 64
+const SATURATION_RETRY_RESULTS := 256
+const SWEEP_ROTATION_STEP_RAD := PI / 12.0
 ## Below this fraction of the shape's own smallest extent, a static test is close enough -- the
 ## sweep only kicks in once the hitbox has travelled far enough between frames to plausibly have
 ## passed through something thinner than itself.
@@ -164,10 +173,15 @@ func _scan_overlaps() -> void:
 		if travel.length() > min_extent * SWEEP_TRAVEL_FRACTION:
 			results = _sweep(space, _last_shape_transform, travel)
 			did_sweep = true
+		else:
+			var rotation_delta := _last_shape_transform.basis.get_rotation_quaternion().angle_to(
+				current_transform.basis.get_rotation_quaternion()
+			)
+			if rotation_delta >= SWEEP_ROTATION_STEP_RAD:
+				results = _angular_sweep(space, _last_shape_transform, current_transform, rotation_delta)
+				did_sweep = true
 	if not did_sweep:
-		_shape_query.transform = current_transform
-		_shape_query.motion = Vector3.ZERO
-		results = space.intersect_shape(_shape_query, MAX_OVERLAP_RESULTS)
+		results = _query_at(space, current_transform)
 	for result in results:
 		var collider = result.get("collider")
 		if collider is Area3D:
@@ -192,7 +206,38 @@ func _sweep(space: PhysicsDirectSpaceState3D, from_transform: Transform3D, motio
 	contact_transform.origin = from_transform.origin + motion * unsafe
 	_shape_query.transform = contact_transform
 	_shape_query.motion = Vector3.ZERO
-	return space.intersect_shape(_shape_query, MAX_OVERLAP_RESULTS)
+	return _query_at(space, contact_transform)
+
+
+func _angular_sweep(
+	space: PhysicsDirectSpaceState3D,
+	from_transform: Transform3D,
+	to_transform: Transform3D,
+	rotation_delta: float
+) -> Array:
+	var combined: Array = []
+	var seen := {}
+	var steps := maxi(2, ceili(rotation_delta / SWEEP_ROTATION_STEP_RAD))
+	for step in range(steps + 1):
+		var sample := from_transform.interpolate_with(to_transform, float(step) / float(steps))
+		for result in _query_at(space, sample):
+			var collider := result.get("collider") as Object
+			if collider == null or seen.has(collider.get_instance_id()):
+				continue
+			seen[collider.get_instance_id()] = true
+			combined.append(result)
+	return combined
+
+
+func _query_at(space: PhysicsDirectSpaceState3D, query_transform: Transform3D) -> Array:
+	_shape_query.transform = query_transform
+	_shape_query.motion = Vector3.ZERO
+	var results := space.intersect_shape(_shape_query, MAX_OVERLAP_RESULTS)
+	if results.size() >= MAX_OVERLAP_RESULTS:
+		results = space.intersect_shape(_shape_query, SATURATION_RETRY_RESULTS)
+		if results.size() >= SATURATION_RETRY_RESULTS:
+			push_warning("Hitbox overlap query saturated at %d results" % SATURATION_RETRY_RESULTS)
+	return results
 
 
 func _shape_min_extent(shape: Shape3D) -> float:
@@ -217,9 +262,12 @@ func _try_hit(area: Area3D) -> void:
 		return
 	if _execution_target != null and _body_of(area) != _execution_target:
 		return
+	if not _inside_authored_arc(area):
+		return
 	if _is_cross_boss_boundary(area):
 		return
-	var target_id := area.get_instance_id()
+	var target_body := _body_of(area)
+	var target_id := target_body.get_instance_id() if target_body != null else area.get_instance_id()
 	if not _los_clear_this_swing.get(target_id, false):
 		if not _has_clear_line_to(area):
 			return
@@ -242,7 +290,7 @@ func _try_hit(area: Area3D) -> void:
 	var info := DamageInfo.create(
 		final_damage,
 		poise_damage,
-		_owner_node,
+		_get_attacker_node(),
 		_damage_type,
 		direction,
 		_status_id,
@@ -253,16 +301,33 @@ func _try_hit(area: Area3D) -> void:
 	info.knockback = _knockback
 	info.backstab_multiplier_override = _backstab_multiplier
 	info.is_projectile = is_projectile
+	info.weapon_item_id = _weapon_item_id
 	if _execution_kind != "":
 		info.execution = _execution_kind
 		info.ignore_guard = true
-	area.call("receive_hit", info)
+	var resolution = area.call("receive_hit", info)
+	if resolution == null or float(resolution.get("outgoing", 0.0)) <= 0.0:
+		return
 	hit_landed.emit(area)
-	var mana_restore := ClassPerks.arcane_focus_mana_on_hit(_owner_node)
-	if mana_restore > 0.0:
-		var mana := _owner_node.get_node_or_null("Mana") as Mana
+	var attacker := _get_attacker_node()
+	var mana_restore := ClassPerks.arcane_focus_mana_on_hit(attacker)
+	if mana_restore > 0.0 and attacker:
+		var mana := attacker.get_node_or_null("Mana") as Mana
 		if mana:
 			mana.restore(mana_restore)
+
+
+func _inside_authored_arc(area: Area3D) -> bool:
+	if _arc_half_angle_cos <= -0.999 or _owner_node == null:
+		return true
+	var facing := _owner_node.get_node_or_null("Facing") as Node3D
+	var forward := CombatFacing.forward_of(facing if facing else _owner_node)
+	forward.y = 0.0
+	var toward: Vector3 = area.global_position - _owner_node.global_position
+	toward.y = 0.0
+	if forward.length_squared() < 0.001 or toward.length_squared() < 0.001:
+		return true
+	return forward.normalized().dot(toward.normalized()) >= _arc_half_angle_cos
 
 
 func _body_of(area: Area3D) -> Node:
@@ -287,6 +352,13 @@ func _get_attacker_node() -> Node:
 	if _combat_owner:
 		return _combat_owner
 	return _owner_node
+
+
+func _attacker_weapon_item_id() -> String:
+	var attacker := _get_attacker_node()
+	if attacker == null or not attacker.is_in_group("player") or InventoryService == null:
+		return ""
+	return str(InventoryService.inventory.get_equipped_weapon_id())
 
 
 func _is_cross_boss_boundary(target: Area3D) -> bool:

@@ -23,6 +23,7 @@ instance uniform float dissolve_clip : hint_range(0.0, 1.0) = 1.0;
 instance uniform vec3 dissolve_origin = vec3(0.0);
 instance uniform vec3 dissolve_dir = vec3(0.0, 1.0, 0.0);
 instance uniform float dissolve_sweep : hint_range(0.0, 1.0) = 0.6;
+instance uniform float dissolve_radial : hint_range(0.0, 1.0) = 0.0;
 
 // Same wind field the surface shader reads; see `[shader_globals]` in project.godot. A glowing
 // thing that grows out of the ground — a flower head, a lantern on a cord — has to lean with the
@@ -74,7 +75,10 @@ void fragment() {
 		} else {
 			sweep_dir = normalize(sweep_dir);
 		}
-		float sweep = clamp(dot(normalize(v_local_pos - dissolve_origin), sweep_dir), -1.0, 1.0);
+		vec3 from_origin = v_local_pos - dissolve_origin;
+		float directional = clamp(dot(normalize(from_origin + vec3(0.00001)), sweep_dir), -1.0, 1.0);
+		float radial = clamp(length(from_origin), 0.0, 1.0) * 2.0 - 1.0;
+		float sweep = mix(directional, radial, dissolve_radial);
 		float threshold = dissolve_clip - dissolve_sweep * (0.5 - sweep * 0.5);
 		if (dither > threshold) {
 			discard;

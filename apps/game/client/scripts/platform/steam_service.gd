@@ -16,6 +16,7 @@ var enabled := false
 var is_stub_mode := true
 var overlay_available := false
 var cloud_enabled := false
+var stats_ready := false
 var app_id: int = DEV_APP_ID
 
 var _initialized := false
@@ -115,6 +116,7 @@ func _try_godot_steam() -> void:
 	is_stub_mode = false
 	overlay_available = steam.isOverlayEnabled()
 	cloud_enabled = steam.isCloudEnabledForApp()
+	stats_ready = steam.has_method("getUserStats") and bool(steam.getUserStats())
 	_initialized = true
 	set_process(true)
 	steam_ready.emit()
@@ -125,6 +127,7 @@ func _init_stub(reason: String) -> void:
 	is_stub_mode = true
 	overlay_available = false
 	cloud_enabled = false
+	stats_ready = false
 	_initialized = true
 	set_process(false)
 	print_verbose("SteamService: %s" % reason)
@@ -135,8 +138,27 @@ func is_available() -> bool:
 	return _initialized and enabled
 
 
+func get_capabilities() -> Dictionary:
+	return {
+		"initialized": _initialized,
+		"stub": is_stub_mode,
+		"authenticated": _is_authenticated(),
+		"overlay": overlay_available,
+		"cloud": cloud_enabled,
+		"achievements": stats_ready,
+		"statsReady": stats_ready,
+	}
+
+
+func _is_authenticated() -> bool:
+	if not _initialized or is_stub_mode or not Engine.has_singleton("Steam"):
+		return false
+	var steam = Engine.get_singleton("Steam")
+	return steam != null and steam.has_method("getSteamID") and int(steam.getSteamID()) > 0
+
+
 func unlock_achievement(achievement_id: String) -> Result:
-	if not is_available():
+	if not is_available() or not stats_ready:
 		return Result.UNAVAILABLE
 	if is_stub_mode:
 		return Result.UNAVAILABLE
@@ -180,13 +202,17 @@ func read_cloud_file(file_name: String) -> String:
 
 
 func write_cloud_file(file_name: String, data: String) -> bool:
+	return write_cloud_file_result(file_name, data) == Result.OK
+
+
+func write_cloud_file_result(file_name: String, data: String) -> Result:
 	if not is_available() or is_stub_mode:
-		return false
+		return Result.UNAVAILABLE
 	if Engine.has_singleton("Steam"):
 		var steam = Engine.get_singleton("Steam")
 		if steam and steam.has_method("fileWrite"):
-			return bool(steam.fileWrite(file_name, data))
-	return false
+			return Result.OK if bool(steam.fileWrite(file_name, data)) else Result.FAILED
+	return Result.UNAVAILABLE
 
 
 func shutdown() -> void:

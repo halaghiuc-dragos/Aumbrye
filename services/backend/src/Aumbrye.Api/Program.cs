@@ -128,6 +128,8 @@ var authRateLimit = builder.Configuration.GetValue<int?>("RateLimits:AuthPerMinu
                     ?? (useInMemory ? 10_000 : 30);
 var registerRateLimit = builder.Configuration.GetValue<int?>("RateLimits:RegisterPerMinute")
                         ?? (useInMemory ? 10_000 : 5);
+var telemetryRateLimit = builder.Configuration.GetValue<int?>("RateLimits:TelemetryPerMinute")
+                         ?? (useInMemory ? 10_000 : 20);
 
 builder.Services.AddRateLimiter(options =>
 {
@@ -141,12 +143,15 @@ builder.Services.AddRateLimiter(options =>
                 QueueLimit = 0,
             }));
 
-    options.AddFixedWindowLimiter("auth", limiter =>
-    {
-        limiter.PermitLimit = authRateLimit;
-        limiter.Window = TimeSpan.FromMinutes(1);
-        limiter.QueueLimit = 0;
-    });
+    options.AddPolicy("auth", httpContext =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            httpContext.Connection.RemoteIpAddress?.ToString() ?? "anon",
+            _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = authRateLimit,
+                Window = TimeSpan.FromMinutes(1),
+                QueueLimit = 0,
+            }));
 
     // Registration answers "does this email already exist?" by design, which is acceptable for a
     // game but makes the endpoint a usable enumeration oracle. A tighter per-IP budget keeps that
@@ -193,6 +198,16 @@ builder.Services.AddRateLimiter(options =>
             _ => new FixedWindowRateLimiterOptions
             {
                 PermitLimit = 120,
+                Window = TimeSpan.FromMinutes(1),
+                QueueLimit = 0,
+            }));
+
+    options.AddPolicy("telemetry", httpContext =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            httpContext.Connection.RemoteIpAddress?.ToString() ?? "anon",
+            _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = telemetryRateLimit,
                 Window = TimeSpan.FromMinutes(1),
                 QueueLimit = 0,
             }));

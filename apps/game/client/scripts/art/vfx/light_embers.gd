@@ -3,6 +3,7 @@ class_name LightEmbers
 
 
 const DEFAULT_COUNT := 7
+const EMBER_LIFETIME := 2.4
 
 const NODE_NAME := "LightEmbers"
 
@@ -26,11 +27,13 @@ static func attach(
 		2,
 		int(DEFAULT_COUNT * count_scale * PixelDioramaSettings.particle_amount_scale())
 	)
-	embers.lifetime = 2.4
+	embers.lifetime = EMBER_LIFETIME
 	embers.randomness = 0.7
-	var reach := 0.8 * spread_scale
+	var reach := 0.8 * spread_scale + MAX_WIND_DISPLACEMENT
+	var rise := 0.85 * EMBER_LIFETIME + 0.5 * HEAT_LIFT * EMBER_LIFETIME * EMBER_LIFETIME
 	embers.visibility_aabb = AABB(
-		Vector3(-reach, -0.4, -reach), Vector3(reach * 2.0, 3.2 * spread_scale, reach * 2.0)
+		Vector3(-reach, -0.4, -reach),
+		Vector3(reach * 2.0, rise + 0.8 * spread_scale, reach * 2.0)
 	)
 	embers.draw_pass_1 = assets["mesh"]
 	embers.process_material = assets["process"]
@@ -45,6 +48,7 @@ static func clear_cache() -> void:
 const WIND_RESPONSE := 0.85
 
 const HEAT_LIFT := 0.28
+const MAX_WIND_DISPLACEMENT := 0.5 * WIND_RESPONSE * EMBER_LIFETIME * EMBER_LIFETIME
 
 
 static func drive_wind(wind: Vector3) -> void:
@@ -67,7 +71,10 @@ static func _assets(tint: Color, spread_scale: float) -> Dictionary:
 	mat.spread = 22.0
 	mat.initial_velocity_min = 0.35
 	mat.initial_velocity_max = 0.85
-	mat.gravity = Vector3(0.0, HEAT_LIFT, 0.0)
+	mat.gravity = (
+		Vector3(WindService.wind_vector().x, 0.0, WindService.wind_vector().z) * WIND_RESPONSE
+		+ Vector3(0.0, HEAT_LIFT, 0.0)
+	)
 	mat.damping_min = 0.2
 	mat.damping_max = 0.6
 	mat.scale_min = 0.5

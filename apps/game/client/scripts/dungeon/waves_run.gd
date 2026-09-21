@@ -32,6 +32,10 @@ var _torchlight: Node3D
 var _arena_mutator: Node3D
 var _spawn_markers: Array[Node3D] = []
 var _pending_spawns := 0
+var _spawn_generation := 0
+var _wave_completion_committed := false
+var _wave_start_save_state: Dictionary = {}
+var _wave_start_player_state: Dictionary = {}
 var _cash_out_portal: Node3D
 const WavesOutdoorsDioramaScript := preload("res://scripts/dungeon/waves_outdoors_diorama.gd")
 const ToastScene: PackedScene = preload("res://scenes/ui/achievement_toast.tscn")
@@ -65,20 +69,22 @@ const CRESSET_REFUEL_RADIUS := 13.0
 
 func _ready() -> void:
 	add_to_group("waves_run")
-	process_mode = Node.PROCESS_MODE_ALWAYS
+	process_mode = Node.PROCESS_MODE_PAUSABLE
 	_player = get_node_or_null(player_path) as CharacterBody3D
 	_build_arena()
 	_build_torchlight()
 	_attach_weather()
 	_build_ui()
 	_build_combat_hud()
-	if WavesRunService.lobby_ready and WavesRunService.current_wave > 0:
-		_start_combat_from_continue()
-	else:
-		_show_lobby()
 	if _player:
 		WavesRunService.apply_equipment_to_player(_player)
 	_restore_waves_snapshot()
+	if WavesRunService.is_reward_pending():
+		_enter_restored_reward_phase()
+	elif WavesRunService.lobby_ready and WavesRunService.current_wave > 0:
+		_start_combat_from_continue()
+	else:
+		_show_lobby()
 	_persist_waves_save()
 	if _player:
 		_wire_player_death()
@@ -303,9 +309,12 @@ func _start_combat_from_continue() -> void:
 
 
 func _start_wave() -> void:
+	_spawn_generation += 1
+	_wave_completion_committed = false
 	_clear_enemies()
 	_clear_spawn_markers()
 	_cresset_fuel = 1.0
+	_capture_wave_start_checkpoint()
 	var wave := WavesRunService.current_wave
 	# MD-01: one arena mutation per five-wave block -- wave 45 should not be wave 5 with more
 	# enemies. `chest_set` already counts intermission blocks, so it doubles as the block index.
@@ -326,7 +335,9 @@ func _start_wave() -> void:
 	_pending_spawns = enemy_ids.size()
 	_refresh_remaining()
 	for index in enemy_ids.size():
-		_spawn_enemy_telegraphed(str(enemy_ids[index]), index, enemy_ids.size())
+		_spawn_enemy_telegraphed(str(enemy_ids[index]), index, enemy_ids.size(), _spawn_generation)
+	if enemy_ids.is_empty():
+		_check_wave_completion()
 	_persist_waves_save()
 
 
@@ -363,8 +374,7 @@ func _spawn_point_for(index: int, total: int, wave: int) -> Vector3:
 		"scatter":
 			angle = rng.randf_range(0.0, TAU)
 		_:
-			var base_angle := rng.randf_range(0.0, TAU) if index == 0 else 0.0
-			angle = base_angle + spread * float(index) + rng.randf_range(-spread * 0.3, spread * 0.3)
+			angle = _ring_phase_for_wave(wave) + spread * float(index)
 	var radius := SPAWN_RING_RADIUS * rng.randf_range(0.82, 1.0)
 	var point := Vector3(cos(angle) * radius, 0.0, sin(angle) * radius)
 	if _player == null:
@@ -380,7 +390,34 @@ func _spawn_point_for(index: int, total: int, wave: int) -> Vector3:
 	return point
 
 
-func _spawn_enemy_telegraphed(enemy_id: String, index: int, total: int) -> void:
+func _ring_phase_for_wave(wave: int) -> float:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = FloorSeedMix.mix(WavesRunService.get_seed(), wave * 1223 + 19)
+	return rng.randf_range(0.0, TAU)
+
+
+func _relocate_spawn_away_from_player(point: Vector3, index: int, total: int) -> Vector3:
+	if _player == null or not is_instance_valid(_player):
+		return point
+	var player_flat := Vector3(_player.global_position.x, 0.0, _player.global_position.z)
+	if point.distance_to(player_flat) >= SPAWN_MIN_PLAYER_DISTANCE:
+		return point
+	var angle := atan2(point.z, point.x)
+	var radius := maxf(point.length(), SPAWN_RING_RADIUS * 0.82)
+	var step := TAU / float(maxi(4, total))
+	for offset in range(1, maxi(5, total + 1)):
+		var candidate_angle := angle + step * float(offset)
+		var candidate := Vector3(cos(candidate_angle) * radius, 0.0, sin(candidate_angle) * radius)
+		if candidate.distance_to(player_flat) >= SPAWN_MIN_PLAYER_DISTANCE:
+			return candidate
+	# The opposite arena edge is deterministic and remains a safe last-resort reservation.
+	var away := (Vector3.ZERO - player_flat).normalized()
+	if away.is_zero_approx():
+		away = Vector3.FORWARD
+	return away * radius
+
+
+func _spawn_enemy_telegraphed(enemy_id: String, index: int, total: int, generation: int) -> void:
 	var wave := WavesRunService.current_wave
 	var point := _spawn_point_for(index, total, wave)
 	var marker := Node3D.new()
@@ -388,23 +425,60 @@ func _spawn_enemy_telegraphed(enemy_id: String, index: int, total: int) -> void:
 	marker.set_script(WavesSpawnMarkerScript)
 	add_child(marker)
 	marker.position = point
-	marker.call("setup")
+	marker.call(
+		"setup",
+		_spawn_marker_color(enemy_id),
+		SPAWN_TELEGRAPH_SECONDS + SPAWN_TELEGRAPH_STAGGER * float(index)
+	)
 	_spawn_markers.append(marker)
 	_refresh_radar_spawn_markers()
 	AudioDirector.play_sfx("windup", point)
 	await get_tree().create_timer(
-		SPAWN_TELEGRAPH_SECONDS + SPAWN_TELEGRAPH_STAGGER * float(index)
+		SPAWN_TELEGRAPH_SECONDS + SPAWN_TELEGRAPH_STAGGER * float(index), false
 	).timeout
-	if not is_inside_tree() or _lobby_active:
+	if not is_inside_tree() or _lobby_active or generation != _spawn_generation:
+		_pending_spawns = maxi(0, _pending_spawns - 1)
+		_check_wave_completion()
 		return
 	if wave != WavesRunService.current_wave:
+		_pending_spawns = maxi(0, _pending_spawns - 1)
+		_check_wave_completion()
 		return
+	var relocated := _relocate_spawn_away_from_player(point, index, total)
+	while not relocated.is_equal_approx(point):
+		point = relocated
+		if marker != null and is_instance_valid(marker):
+			marker.position = point
+			marker.call("setup", _spawn_marker_color(enemy_id), SPAWN_TELEGRAPH_SECONDS)
+			_refresh_radar_spawn_markers()
+		AudioDirector.play_sfx("windup", point)
+		await get_tree().create_timer(SPAWN_TELEGRAPH_SECONDS, false).timeout
+		if not is_inside_tree() or _lobby_active or generation != _spawn_generation:
+			_pending_spawns = maxi(0, _pending_spawns - 1)
+			_check_wave_completion()
+			return
+		if wave != WavesRunService.current_wave:
+			_pending_spawns = maxi(0, _pending_spawns - 1)
+			_check_wave_completion()
+			return
+		relocated = _relocate_spawn_away_from_player(point, index, total)
 	if marker != null and is_instance_valid(marker):
 		_spawn_markers.erase(marker)
 		marker.queue_free()
 		_refresh_radar_spawn_markers()
 	_pending_spawns = maxi(0, _pending_spawns - 1)
 	_spawn_enemy(enemy_id, point)
+	_check_wave_completion()
+
+
+func _spawn_marker_color(enemy_id: String) -> Color:
+	if "archer" in enemy_id or "witch" in enemy_id:
+		return Color(0.6, 0.4, 1.0)
+	if "shield" in enemy_id or "knight" in enemy_id:
+		return Color(1.0, 0.7, 0.2)
+	if "hound" in enemy_id or "bat" in enemy_id:
+		return Color(1.0, 0.3, 0.3)
+	return Color(0.72, 0.45, 0.95)
 
 
 func _spawn_enemy(enemy_id: String, spawn_point: Vector3) -> void:
@@ -475,6 +549,7 @@ func _refresh_remaining() -> void:
 
 
 func _clear_spawn_markers() -> void:
+	_spawn_generation += 1
 	for marker in _spawn_markers:
 		if is_instance_valid(marker):
 			marker.queue_free()
@@ -500,14 +575,28 @@ func _on_enemy_died(enemy: Node) -> void:
 			return is_instance_valid(e) and not (e.has_method("is_dead") and e.call("is_dead"))
 	)
 	_refresh_remaining()
+	_check_wave_completion()
+
+
+func _check_wave_completion() -> void:
+	if _lobby_active or WavesRunService.current_wave <= 0 or _wave_completion_committed:
+		return
 	if _active_enemies.is_empty() and _pending_spawns <= 0:
+		_wave_completion_committed = true
 		_on_wave_cleared()
 
 
 func _on_wave_cleared() -> void:
 	var wave := WavesRunService.current_wave
 	if wave >= WavesRunService.final_wave():
+		WavesRunService.enter_reward_phase()
+		_lobby_active = true
+		_clear_enemies()
+		_clear_spawn_markers()
 		_douse_cresset()
+		if _arena_mutator and is_instance_valid(_arena_mutator):
+			_arena_mutator.call("clear_state")
+		_persist_waves_save()
 		_show_reward_pick()
 		return
 	if WavesRunService.is_intermission_wave(wave):
@@ -605,6 +694,17 @@ func _show_reward_pick() -> void:
 		_hud.call("set_objective_text", "")
 
 
+func _enter_restored_reward_phase() -> void:
+	_lobby_active = true
+	_ensure_walls()
+	_clear_enemies()
+	_clear_spawn_markers()
+	_douse_cresset()
+	if _arena_mutator and is_instance_valid(_arena_mutator):
+		_arena_mutator.call("clear_state")
+	_show_reward_pick()
+
+
 func complete_waves_with_rewards(item_ids: Array) -> void:
 	RunFlow.complete_waves_run(item_ids)
 
@@ -678,6 +778,7 @@ func _restore_waves_snapshot() -> void:
 		return
 	var player_state: Dictionary = snapshot.get("player", {})
 	if _player and not player_state.is_empty():
+		_wave_start_player_state = player_state.duplicate(true)
 		_player.global_position = Vector3(
 			float(player_state.get("x", _player.global_position.x)),
 			float(player_state.get("y", _player.global_position.y)),
@@ -694,8 +795,7 @@ func _restore_waves_snapshot() -> void:
 	RunFlow.clear_continue_restore()
 
 
-func _persist_waves_save() -> void:
-	var payload := WavesRunService.to_save_dict()
+func _capture_player_state() -> Dictionary:
 	var player_state := {
 		"x": _player.global_position.x if _player else 0.0,
 		"y": _player.global_position.y if _player else 0.0,
@@ -712,6 +812,27 @@ func _persist_waves_save() -> void:
 	var spring := _player.get_node_or_null("CameraPivot/SpringArm3D") if _player else null
 	if spring and spring.has_method("capture_state"):
 		player_state["camera"] = spring.call("capture_state")
+	return player_state
+
+
+## D19: a continued combat wave is restarted, so its save must be the state from before that
+## wave began. This includes the run inventory/quick slots as well as player resources; otherwise
+## reloading would respawn every enemy while retaining damage and consumables spent fighting them.
+func _capture_wave_start_checkpoint() -> void:
+	_wave_start_save_state = WavesRunService.to_save_dict().duplicate(true)
+	_wave_start_player_state = _capture_player_state()
+
+
+func _persist_waves_save() -> void:
+	var in_live_wave := not _lobby_active and not WavesRunService.prep_active
+	var payload: Dictionary
+	var player_state: Dictionary
+	if in_live_wave and not _wave_start_save_state.is_empty():
+		payload = _wave_start_save_state.duplicate(true)
+		player_state = _wave_start_player_state.duplicate(true)
+	else:
+		payload = WavesRunService.to_save_dict()
+		player_state = _capture_player_state()
 	payload["snapshot"] = {"player": player_state}
 	LocalSave.set_waves_active_run(payload)
 
@@ -724,7 +845,7 @@ func _wire_player_death() -> void:
 
 
 func _on_player_died() -> void:
-	await get_tree().create_timer(1.5).timeout
+	await get_tree().create_timer(1.5, false).timeout
 	RunFlow.on_waves_failed()
 
 

@@ -6,6 +6,8 @@ const RarityRegistryScript := preload("res://scripts/loot/rarity_registry.gd")
 const EquipmentScript := preload("res://scripts/items/equipment.gd")
 const ItemQualityScript := preload("res://scripts/items/item_quality.gd")
 const AFFIX_BASE_SELL_PRICE := 6
+const BUYBACK_FLAG := "merchant_buyback"
+const BUYBACK_LIMIT := 8
 
 static var _warned_missing_items: Dictionary = {}
 
@@ -111,17 +113,62 @@ static func sell_item(inv_index: int, quantity: int = -1) -> Dictionary:
 	var def := ItemCatalog.get_definition(item_id)
 	if def.is_empty():
 		return {"ok": false, "error": "unknown item"}
+	if bool(slot.get("protected", false)) or bool(slot.get("favorite", false)):
+		return {"ok": false, "error": "item protected"}
+	if str(def.get("itemType", "")) == "quest" or bool(def.get("unique", false)):
+		return {"ok": false, "error": "item cannot be sold"}
 	var slot_qty := maxi(1, int(slot.get("quantity", 1)))
 	var sell_qty := slot_qty if quantity < 0 else mini(quantity, slot_qty)
 	if sell_qty <= 0:
 		return {"ok": false, "error": "invalid quantity"}
 	var unit_price := get_slot_unit_sell_price(slot)
 	var total_price := unit_price * sell_qty
+	var sold_instance := slot.duplicate(true)
+	sold_instance["quantity"] = sell_qty
 	if sell_qty >= slot_qty:
 		inv.remove_at(inv_index)
 	else:
 		slot["quantity"] = slot_qty - sell_qty
 		inv.changed.emit()
 	CharacterService.add_gold(total_price)
+	_record_buyback(sold_instance, total_price)
 	LocalSave.request_autosave(LocalSave.SavePriority.DEFERRED)
 	return {"ok": true, "gold": total_price, "quantity": sell_qty}
+
+
+static func get_buyback() -> Array:
+	var raw: Variant = CharacterService.get_flag(BUYBACK_FLAG, [])
+	return (raw as Array).duplicate(true) if raw is Array else []
+
+
+static func buy_back(instance_id: String) -> Dictionary:
+	var rows := get_buyback()
+	for index in rows.size():
+		var row: Dictionary = rows[index]
+		var slot: Dictionary = row.get("slot", {})
+		if str(slot.get("instanceId", "")) != instance_id:
+			continue
+		var price := int(row.get("price", 0))
+		if not CharacterService.can_afford(price):
+			return {"ok": false, "error": "not enough gold"}
+		if not InventoryService.inventory.add_slot(slot.duplicate(true)):
+			return {"ok": false, "error": "inventory full"}
+		if not CharacterService.spend_gold(price):
+			# Capacity was preflighted; remove the exact insertion on an unexpected currency race.
+			var inserted := InventoryService.inventory.find_instance_index(instance_id)
+			if inserted >= 0:
+				InventoryService.inventory.remove_at(inserted)
+			return {"ok": false, "error": "not enough gold"}
+		rows.remove_at(index)
+		CharacterService.set_flag(BUYBACK_FLAG, rows)
+		LocalSave.request_autosave(LocalSave.SavePriority.IMMEDIATE)
+		return {"ok": true}
+	return {"ok": false, "error": "buyback unavailable"}
+
+
+static func _record_buyback(slot: Dictionary, price: int) -> void:
+	var rows := get_buyback()
+	rows.push_front({"slot": slot, "price": price})
+	if rows.size() > BUYBACK_LIMIT:
+		rows.resize(BUYBACK_LIMIT)
+	CharacterService.set_flag(BUYBACK_FLAG, rows)

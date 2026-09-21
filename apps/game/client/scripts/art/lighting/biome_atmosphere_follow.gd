@@ -18,5 +18,5 @@ func _process(_delta: float) -> void:
 	var pos := _follow.global_position
 	pos.x = snapped(pos.x, SNAP_GRID)
 	pos.z = snapped(pos.z, SNAP_GRID)
-	pos.y = 0.0
+	pos.y = snapped(pos.y, SNAP_GRID)
 	global_position = pos

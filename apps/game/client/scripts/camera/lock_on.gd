@@ -158,11 +158,14 @@ func _set_lock(target: Node3D) -> void:
 func _break_lock() -> void:
 	if not is_locked:
 		return
+	var was_occluded := _was_occluded
 	_disconnect_target_death()
 	current_target = null
 	is_locked = false
 	_los_grace_timer = 0.0
 	_was_occluded = false
+	if was_occluded:
+		lock_occluded.emit(false)
 	_set_camera_lock_on_active(false)
 	lock_changed.emit(null, false)
 
@@ -179,7 +182,11 @@ func _on_lock_target_died() -> void:
 
 
 func _advance_lock_after_defeat() -> void:
-	var next := _find_best_target(false, true)
+	if not AccessibilitySettings.automatic_lock_switch:
+		_break_lock()
+		return
+	# A successor must satisfy the same visibility and aim-intent contract as initial lock-on.
+	var next := _find_best_target(true, false)
 	if next:
 		_set_lock(next)
 	else:
@@ -263,7 +270,7 @@ func _handle_target_switch() -> void:
 
 
 func _switch_target_vertical(stick_y: float) -> void:
-	var candidates := _get_lockable_targets()
+	var candidates := _get_acquisition_candidates()
 	if candidates.size() < 2 or current_target == null:
 		return
 	var current_y := get_target_aim_point(current_target).y
@@ -300,7 +307,7 @@ func _vertical_delta_to(target: Node3D) -> float:
 func _switch_target(direction: int) -> bool:
 	if direction == 0:
 		return false
-	var candidates := _get_lockable_targets()
+	var candidates := _get_acquisition_candidates()
 	if candidates.size() < 2:
 		return false
 	var ordered := candidates.duplicate()
@@ -348,7 +355,7 @@ func _find_best_target(require_los: bool = true, ignore_cone: bool = false) -> N
 	var aim_dir := _get_lock_search_direction()
 	var best: Node3D
 	var best_score := INF
-	for enemy in _get_lockable_targets():
+	for enemy in _get_acquisition_candidates(require_los):
 		var offset := enemy.global_position - _player.global_position
 		offset.y = 0.0
 		var distance := offset.length()
@@ -414,6 +421,14 @@ func _get_lockable_targets() -> Array[Node3D]:
 				if float(node.call("get_lock_priority")) < 0.0:
 					continue
 			result.append(node as Node3D)
+	return result
+
+
+func _get_acquisition_candidates(require_los: bool = true) -> Array[Node3D]:
+	var result: Array[Node3D] = []
+	for target in _get_lockable_targets():
+		if _is_lock_candidate_valid(target, require_los):
+			result.append(target)
 	return result
 
 
@@ -554,13 +569,16 @@ func _defeated_exclude_rids() -> Array[RID]:
 	return _defeated_rids
 
 
-func _is_lock_candidate_valid(target: Node3D) -> bool:
+func _is_lock_candidate_valid(target: Node3D, require_los: bool = true) -> bool:
 	if _player == null:
 		_resolve_player()
 	if _player == null:
 		return true
 	if _is_defeated(target):
 		return false
-	var delta := target.global_position - _player.global_position
-	var planar := Vector2(delta.x, delta.z).length()
-	return planar <= break_range()
+	var planar := _planar_distance_to(target)
+	if planar > acquire_range() or planar < 0.01:
+		return false
+	if _vertical_delta_to(target) > LOCK_VERTICAL_LIMIT:
+		return false
+	return not require_los or _has_line_of_sight_to(target)

@@ -76,6 +76,9 @@ namespace Aumbrye.Infrastructure.Persistence.Migrations
                     b.Property<Guid>("AccountId")
                         .HasColumnType("uuid");
 
+					b.Property<int>("Assists")
+						.HasColumnType("integer");
+
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -130,14 +133,31 @@ namespace Aumbrye.Infrastructure.Persistence.Migrations
                         .HasMaxLength(128)
                         .HasColumnType("character varying(128)");
 
+					b.Property<bool>("FinalObjectiveCompleted")
+						.HasColumnType("boolean");
+
                     b.Property<string>("LootInstanceIdsJson")
                         .HasColumnType("text");
+
+					b.Property<string>("Mode")
+						.IsRequired()
+						.HasMaxLength(32)
+						.HasColumnType("character varying(32)");
+
+					b.Property<string>("Outcome")
+						.HasMaxLength(16)
+						.HasColumnType("character varying(16)");
 
                     b.Property<int>("PlayerLevelSnapshot")
                         .HasColumnType("integer");
 
                     b.Property<int>("Seed")
                         .HasColumnType("integer");
+
+					b.Property<string>("Ruleset")
+						.IsRequired()
+						.HasMaxLength(64)
+						.HasColumnType("character varying(64)");
 
                     b.Property<int>("Status")
                         .HasColumnType("integer");

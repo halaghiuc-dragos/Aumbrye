@@ -9,6 +9,7 @@ public class Account
     public ulong? SteamId { get; set; }
     public DateTimeOffset? SteamLinkedAt { get; set; }
     public DateTimeOffset CreatedAt { get; set; }
+    public bool DeletionPending { get; set; }
     public ICollection<RefreshToken> RefreshTokens { get; set; } = new List<RefreshToken>();
     public ICollection<Run> Runs { get; set; } = new List<Run>();
     public SaveBlob? SaveBlob { get; set; }

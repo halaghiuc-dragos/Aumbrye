@@ -4,6 +4,7 @@ extends RefCounted
 
 const CATALOG_PATH := "content/bestiary/entries.json"
 const KILLS_FLAG := "bestiary_kills"
+const OBSERVATIONS_FLAG := "bestiary_observations"
 const STUDIED_FLAG := "bestiary_studied_count"
 const MASTERED_FLAG := "bestiary_mastered_count"
 const COMPLETE_FLAG := "bestiary_complete"
@@ -48,11 +49,15 @@ static func get_kills(enemy_id: String) -> int:
 
 static func get_tier(enemy_id: String) -> int:
 	var kills := get_kills(enemy_id)
-	if kills >= KILLS_FOR_MASTERED:
+	var observation := _observation_record().get(enemy_id, {}) as Dictionary
+	var seen := bool(observation.get("seen", false))
+	var signatures: Dictionary = observation.get("signatures", {}) as Dictionary
+	var counters: Dictionary = observation.get("counters", {}) as Dictionary
+	if kills >= 5 and signatures.size() >= 3 and counters.size() >= 2:
 		return TIER_MASTERED
-	if kills >= KILLS_FOR_STUDIED:
+	if kills >= KILLS_FOR_STUDIED or signatures.size() >= 2:
 		return TIER_STUDIED
-	if kills >= KILLS_FOR_SIGHTED:
+	if seen or kills >= KILLS_FOR_SIGHTED:
 		return TIER_SIGHTED
 	return TIER_UNKNOWN
 
@@ -131,6 +136,71 @@ static func record_kill(enemy_id: String) -> void:
 			AchievementService.notify("bestiary_completed")
 
 
+static func record_sighting(enemy_id: String) -> void:
+	if enemy_id == "" or CharacterService == null:
+		return
+	_ensure_loaded()
+	if not _entries.has(enemy_id):
+		return
+	var observations := _observation_record()
+	var observation: Dictionary = observations.get(enemy_id, {}) as Dictionary
+	if bool(observation.get("seen", false)):
+		return
+	observation["seen"] = true
+	observations[enemy_id] = observation
+	CharacterService.set_flag(OBSERVATIONS_FLAG, observations)
+	_refresh_progress()
+
+
+static func record_signature(enemy_id: String, signature_id: String) -> void:
+	if enemy_id == "" or signature_id == "" or CharacterService == null:
+		return
+	_ensure_loaded()
+	if not _entries.has(enemy_id):
+		return
+	var observations := _observation_record()
+	var observation: Dictionary = observations.get(enemy_id, {}) as Dictionary
+	observation["seen"] = true
+	var signatures: Dictionary = observation.get("signatures", {}) as Dictionary
+	if signatures.has(signature_id):
+		return
+	signatures[signature_id] = true
+	observation["signatures"] = signatures
+	observations[enemy_id] = observation
+	CharacterService.set_flag(OBSERVATIONS_FLAG, observations)
+	_refresh_progress()
+
+
+static func record_counter(enemy_id: String, counter_id: String) -> void:
+	if enemy_id == "" or counter_id == "" or CharacterService == null:
+		return
+	_ensure_loaded()
+	if not _entries.has(enemy_id):
+		return
+	var observations := _observation_record()
+	var observation: Dictionary = observations.get(enemy_id, {}) as Dictionary
+	observation["seen"] = true
+	var counters: Dictionary = observation.get("counters", {}) as Dictionary
+	if counters.has(counter_id):
+		return
+	counters[counter_id] = true
+	observation["counters"] = counters
+	observations[enemy_id] = observation
+	CharacterService.set_flag(OBSERVATIONS_FLAG, observations)
+	_refresh_progress()
+
+
+static func _refresh_progress() -> void:
+	var studied := studied_count()
+	var mastered := mastered_count()
+	CharacterService.set_flag(STUDIED_FLAG, studied)
+	CharacterService.set_flag(MASTERED_FLAG, mastered)
+	if is_complete() and not CharacterService.is_flag_truthy(COMPLETE_FLAG):
+		CharacterService.set_flag(COMPLETE_FLAG, true)
+		if AchievementService:
+			AchievementService.notify("bestiary_completed")
+
+
 static func clear_cache() -> void:
 	_entries.clear()
 	_order.clear()
@@ -142,6 +212,13 @@ static func _kill_record() -> Dictionary:
 		return {}
 	var raw: Variant = CharacterService.get_flag(KILLS_FLAG, {})
 	return raw.duplicate() if raw is Dictionary else {}
+
+
+static func _observation_record() -> Dictionary:
+	if CharacterService == null:
+		return {}
+	var raw: Variant = CharacterService.get_flag(OBSERVATIONS_FLAG, {})
+	return raw.duplicate(true) if raw is Dictionary else {}
 
 
 static func _ensure_loaded() -> void:

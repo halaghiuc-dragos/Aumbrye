@@ -3,6 +3,8 @@ extends Node
 
 signal device_family_changed
 
+const JOYPAD_SWITCH_DEADZONE := 0.35
+
 var _last_family: int = -1
 
 
@@ -12,6 +14,10 @@ func _ready() -> void:
 
 
 func _input(event: InputEvent) -> void:
+	if event is InputEventJoypadMotion and absf(event.axis_value) < JOYPAD_SWITCH_DEADZONE:
+		return
+	if event is InputEventJoypadButton and not event.pressed:
+		return
 	if event is InputEventJoypadButton or event is InputEventJoypadMotion:
 		_set_family(_family_from_joy_event(event))
 	elif event is InputEventKey or event is InputEventMouseButton:
@@ -29,10 +35,11 @@ func _family_from_joy_event(event: InputEvent) -> int:
 		device = event.device
 	elif event is InputEventJoypadMotion:
 		device = event.device
-	var guid := Input.get_joy_guid(device).to_lower()
-	if "xbox" in guid or "xinput" in guid:
+	var identity := "%s %s" % [Input.get_joy_guid(device), Input.get_joy_name(device)]
+	identity = identity.to_lower()
+	if "xbox" in identity or "xinput" in identity:
 		return InputGlyphService.DeviceFamily.XBOX
-	if "sony" in guid or "playstation" in guid or "dualshock" in guid or "dualsense" in guid:
+	if "sony" in identity or "playstation" in identity or "dualshock" in identity or "dualsense" in identity:
 		return InputGlyphService.DeviceFamily.PLAYSTATION
 	return InputGlyphService.DeviceFamily.GENERIC
 

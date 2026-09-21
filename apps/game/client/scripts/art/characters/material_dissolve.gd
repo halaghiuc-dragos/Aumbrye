@@ -11,6 +11,7 @@ const FLASH_PARAM := &"flash_amount"
 const ORIGIN_PARAM := &"dissolve_origin"
 const DIR_PARAM := &"dissolve_dir"
 const SWEEP_PARAM := &"dissolve_sweep"
+const RADIAL_PARAM := &"dissolve_radial"
 static func default_dissolve_duration() -> float:
 	return VfxServiceScript.get_death_burst_lifetime()
 const META_ACTIVE_TWEEN := &"material_dissolve_tween"
@@ -72,17 +73,20 @@ static func dissolve(node: Node3D, opts: Dictionary = {}) -> void:
 	var duration := float(merged.get("duration", default_dissolve_duration()))
 	var max_stagger := float(merged.get("stagger", 0.0))
 	var sweep_dir := merged.get("sweep_dir", Vector3.ZERO) as Vector3
-	var object_sweep := _object_sweep_dir(node, sweep_dir, str(merged.get("sweep", "up")))
-	var sweep_strength := _sweep_strength(str(merged.get("sweep", "up")))
+	var sweep_mode := str(merged.get("sweep", "up"))
+	var sweep_strength := _sweep_strength(sweep_mode)
 	var targets: Array[Dictionary] = []
 	for mesh in meshes:
 		if not _has_dissolve_shader(mesh):
 			continue
 		MaterialFlashScript.cancel(mesh)
 		mesh.set_instance_shader_parameter(DISSOLVE_PARAM, 1.0)
-		mesh.set_instance_shader_parameter(ORIGIN_PARAM, Vector3.ZERO)
-		mesh.set_instance_shader_parameter(DIR_PARAM, object_sweep)
+		var mesh_origin := mesh.to_local(node.global_position)
+		var mesh_direction := _mesh_sweep_dir(mesh, sweep_dir, sweep_mode)
+		mesh.set_instance_shader_parameter(ORIGIN_PARAM, mesh_origin)
+		mesh.set_instance_shader_parameter(DIR_PARAM, mesh_direction)
 		mesh.set_instance_shader_parameter(SWEEP_PARAM, sweep_strength)
+		mesh.set_instance_shader_parameter(RADIAL_PARAM, 1.0 if sweep_mode == "out" else 0.0)
 		var stagger := _stagger_for_mesh(mesh, max_stagger)
 		targets.append({"mesh": mesh, "stagger": stagger})
 	if targets.is_empty():
@@ -90,6 +94,10 @@ static func dissolve(node: Node3D, opts: Dictionary = {}) -> void:
 	for entry in targets:
 		var mesh: MeshInstance3D = entry["mesh"]
 		var stagger := float(entry["stagger"])
+		if mesh.has_meta(META_ACTIVE_TWEEN):
+			var previous := mesh.get_meta(META_ACTIVE_TWEEN) as Tween
+			if previous != null and previous.is_valid():
+				previous.kill()
 		var mesh_tween := mesh.create_tween()
 		mesh.set_meta(META_ACTIVE_TWEEN, mesh_tween)
 		if stagger > 0.0:
@@ -226,17 +234,27 @@ static func _apply_sink_and_scale(visual: Node3D, opts: Dictionary) -> void:
 		var squash := visual.create_tween()
 		_track_death_tween(visual, squash)
 		squash.tween_property(visual, "scale", Vector3(visual.scale.x, visual.scale.y * 0.6, visual.scale.z), 0.15)
+	var duration := float(opts.get("duration", default_dissolve_duration()))
+	var start_position := visual.position
+	var start_scale := visual.scale
 	if bool(opts.get("has_animator", false)):
 		var sink := visual.create_tween()
 		_track_death_tween(visual, sink)
-		sink.tween_interval(SINK_DELAY)
-		sink.tween_property(visual, "position:y", visual.position.y - SINK_DEPTH, SINK_DURATION)
+		var contact_delay := float(opts.get("collapse_delay", maxf(0.1, duration * 0.65)))
+		sink.tween_interval(contact_delay)
+		var depth := float(opts.get("sink_depth", SINK_DEPTH)) * maxf(0.5, start_scale.y)
+		var sink_duration := maxf(0.12, float(opts.get("sink_duration", duration * 0.3)))
+		sink.tween_property(visual, "position:y", start_position.y - depth, sink_duration)
 		return
-	var death_scale := Vector3(0.2, 0.05, 0.2)
+	var collapse_duration := maxf(0.12, float(opts.get("collapse_duration", duration * 0.45)))
+	var collapse_depth := float(opts.get("collapse_depth", 0.8)) * maxf(0.5, start_scale.y)
+	var death_scale := start_scale * Vector3(0.2, 0.05, 0.2)
 	var tween := visual.create_tween()
 	_track_death_tween(visual, tween)
-	tween.tween_property(visual, "scale", death_scale, 0.35)
-	tween.parallel().tween_property(visual, "position:y", -0.8, 0.35)
+	tween.tween_property(visual, "scale", death_scale, collapse_duration)
+	tween.parallel().tween_property(
+		visual, "position:y", start_position.y - collapse_depth, collapse_duration
+	)
 
 
 static func _restore_mesh(mesh: MeshInstance3D) -> void:
@@ -258,16 +276,16 @@ static func _has_dissolve_shader(mesh: MeshInstance3D) -> bool:
 	return mat != null and mat.shader != null
 
 
-static func _object_sweep_dir(node: Node3D, world_dir: Vector3, sweep_mode: String) -> Vector3:
-	if world_dir.length_squared() > 0.01 and absf(node.global_transform.basis.determinant()) > 0.00001:
-		var local := node.global_transform.basis.inverse() * world_dir.normalized()
+static func _mesh_sweep_dir(mesh: Node3D, world_dir: Vector3, sweep_mode: String) -> Vector3:
+	if world_dir.length_squared() > 0.01 and absf(mesh.global_transform.basis.determinant()) > 0.00001:
+		var local := mesh.global_transform.basis.inverse() * world_dir.normalized()
 		if local.length_squared() > 0.000001:
 			return local.normalized()
 	match sweep_mode:
 		"down":
 			return Vector3.DOWN
 		"out":
-			return Vector3.ZERO
+			return Vector3.UP
 		_:
 			return Vector3.UP
 
@@ -304,4 +322,3 @@ static func _mesh_pivot_name(mesh: MeshInstance3D) -> String:
 	if parent is Node3D:
 		return parent.name
 	return ""
-

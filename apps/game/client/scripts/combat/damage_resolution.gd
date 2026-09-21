@@ -3,6 +3,9 @@ class_name DamageResolution
 
 var incoming: float = 0.0
 var outgoing: float = 0.0
+var barrier_absorbed: float = 0.0
+var health_lost: float = 0.0
+var overkill: float = 0.0
 var poise_incoming: float = 0.0
 var poise_outgoing: float = 0.0
 var crit: bool = false

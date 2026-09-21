@@ -48,12 +48,14 @@ var _anim_director: PlayerAnimDirector
 var _footstep_timer := 0.0
 var _was_on_floor := true
 var _fall_start_y := 0.0
+var _fall_peak_y := 0.0
 var _airborne_velocity_dir := Vector3.ZERO
 var _landing_lock_timer := 0.0
 var _landing_penalty_timer := 0.0
 var _sprint_blend := 0.0
 var _cached_surface: StringName = &"stone"
 var _surface_probe_timer := 0.0
+var _applied_knockback := Vector3.ZERO
 var _last_speed_breakdown := {
 	"base": WALK_SPEED,
 	"equipment": 1.0,
@@ -112,7 +114,9 @@ func refresh_appearance_visual() -> void:
 	if _facing == null:
 		return
 	var visual := CharacterSkin.build_player_body(_facing)
-	FloorSnap.snap_character(self, visual)
+	FloorSnap.align_diorama_visual(self, visual)
+	if has_meta("equipment_visual_signature"):
+		remove_meta("equipment_visual_signature")
 	if _anim_director:
 		_anim_director.bind(visual)
 	InventoryService.apply_equipment_to_player_node(self)
@@ -128,6 +132,7 @@ func _sync_first_person_body_visibility() -> void:
 
 
 func _physics_process(delta: float) -> void:
+	_surface_probe_timer = maxf(0.0, _surface_probe_timer - delta)
 	if _landing_lock_timer > 0.0:
 		_landing_lock_timer = maxf(0.0, _landing_lock_timer - delta)
 	if _landing_penalty_timer > 0.0:
@@ -137,8 +142,7 @@ func _physics_process(delta: float) -> void:
 		var lunge := Vector3.ZERO
 		if _weapon:
 			lunge = _weapon.get_attack_lunge_velocity()
-		if not is_on_floor():
-			velocity += get_gravity() * delta
+		_apply_gravity(delta)
 		velocity.x = lunge.x
 		velocity.z = lunge.z
 		_apply_knockback(delta)
@@ -148,9 +152,7 @@ func _physics_process(delta: float) -> void:
 		return
 
 	if _landing_lock_timer > 0.0:
-		if not is_on_floor():
-			velocity += get_gravity() * delta
-		velocity.y = maxf(velocity.y, -TERMINAL_FALL_SPEED)
+		_apply_gravity(delta)
 		var locked_horizontal := Vector3(velocity.x, 0.0, velocity.z)
 		locked_horizontal = locked_horizontal.move_toward(Vector3.ZERO, DECELERATION * delta)
 		velocity.x = locked_horizontal.x
@@ -170,11 +172,10 @@ func _physics_process(delta: float) -> void:
 			return
 
 	var fall_height := 0.0
-	if not is_on_floor():
-		velocity += get_gravity() * delta
-		velocity.y = maxf(velocity.y, -TERMINAL_FALL_SPEED)
+	_apply_gravity(delta)
 
 	var input_dir := PlayerInput.move_vector()
+	var input_strength := clampf(input_dir.length(), 0.0, 1.0)
 	var direction := _get_move_direction(input_dir)
 	var locked_on := LockOnMovement.is_active(_lock_on)
 
@@ -198,7 +199,10 @@ func _physics_process(delta: float) -> void:
 	if _dodge:
 		dodge_mult = _dodge.get_move_speed_multiplier()
 
-	var sprint_ramp_target := 1.0 if sprint_requested else 0.0
+	var sprint_allowed := sprint_requested
+	if sprint_allowed and _stamina:
+		sprint_allowed = _stamina.drain(SPRINT_STAMINA_DRAIN * delta)
+	var sprint_ramp_target := 1.0 if sprint_allowed else 0.0
 	var ramp_rate := (
 		(1.0 / SPRINT_RAMP_UP) if sprint_ramp_target > _sprint_blend else (1.0 / SPRINT_RAMP_DOWN)
 	)
@@ -211,26 +215,18 @@ func _physics_process(delta: float) -> void:
 		else _direction_speed_scale(direction)
 	)
 	var target_speed := (
-		base_speed * _speed_multiplier * attack_speed_mult * stamina_mult * direction_scale * dodge_mult
+		base_speed
+		* _speed_multiplier
+		* attack_speed_mult
+		* stamina_mult
+		* direction_scale
+		* dodge_mult
+		* input_strength
 	)
 	var status_mult := 1.0
 	if _status:
 		status_mult = _status.get_slow_multiplier()
 		target_speed *= status_mult
-
-	if sprint_requested and _stamina:
-		if not _stamina.drain(SPRINT_STAMINA_DRAIN * delta):
-			_sprint_blend = move_toward(_sprint_blend, 0.0, ramp_rate * delta)
-			base_speed = lerpf(WALK_SPEED, SPRINT_SPEED, _sprint_blend)
-			target_speed = (
-				base_speed
-				* _speed_multiplier
-				* attack_speed_mult
-				* stamina_mult
-				* direction_scale
-				* dodge_mult
-				* status_mult
-			)
 
 	if _landing_penalty_timer > 0.0:
 		target_speed *= LAND_SPEED_PENALTY
@@ -285,9 +281,13 @@ func _physics_process(delta: float) -> void:
 ## landing-locked ones -- a staggered player must still move when hit, or knockback would be
 ## exactly the state (mid-stagger) it exists to sell.
 func _apply_knockback(delta: float) -> void:
+	velocity.x -= _applied_knockback.x
+	velocity.z -= _applied_knockback.z
+	_applied_knockback = Vector3.ZERO
 	if _knockback == null:
 		return
 	var impulse := _knockback.consume(delta)
+	_applied_knockback = impulse
 	velocity.x += impulse.x
 	velocity.z += impulse.z
 
@@ -302,13 +302,22 @@ func _update_floor_state() -> float:
 	var on_floor_now := is_on_floor()
 	var fall_height := 0.0
 	if not _was_on_floor and on_floor_now:
-		fall_height = maxf(0.0, _fall_start_y - global_position.y)
+		fall_height = maxf(0.0, _fall_peak_y - global_position.y)
 	if _was_on_floor and not on_floor_now:
 		_fall_start_y = global_position.y
+		_fall_peak_y = global_position.y
 		var flat := Vector3(velocity.x, 0.0, velocity.z)
 		_airborne_velocity_dir = flat.normalized() if flat.length_squared() > 0.01 else get_facing_direction()
 	_was_on_floor = on_floor_now
 	return fall_height
+
+
+func _apply_gravity(delta: float) -> void:
+	if is_on_floor():
+		return
+	velocity += get_gravity() * delta
+	velocity.y = maxf(velocity.y, -TERMINAL_FALL_SPEED)
+	_fall_peak_y = maxf(_fall_peak_y, global_position.y)
 
 
 func _on_landed(fall_height: float) -> void:
@@ -324,10 +333,10 @@ func _on_landed(fall_height: float) -> void:
 		if spring and spring.has_method("apply_landing_dip"):
 			spring.call("apply_landing_dip", LAND_CAMERA_DIP)
 	if fall_height >= LAND_DAMAGE_HEIGHT:
-		var health := get_node_or_null("Health") as Health
-		if health:
+		var hurtbox := get_node_or_null("Hurtbox") as Hurtbox
+		if hurtbox:
 			var excess := fall_height - LAND_DAMAGE_HEIGHT
-			health.take_damage(4.0 * excess)
+			hurtbox.receive_periodic_damage(4.0 * excess)
 
 
 func _direction_speed_scale(direction: Vector3) -> float:
@@ -335,17 +344,8 @@ func _direction_speed_scale(direction: Vector3) -> float:
 		return 1.0
 	var dot := clampf(_movement_forward_dot(direction), -1.0, 1.0)
 	if dot >= 0.0:
-		if dot >= 0.70710678:
-			return lerpf(
-				SPEED_SCALE_STRAFE, SPEED_SCALE_FORWARD, smoothstep(0.70710678, 1.0, dot)
-			)
-		return lerpf(SPEED_SCALE_STRAFE, SPEED_SCALE_FORWARD, smoothstep(0.0, 0.70710678, dot))
-	var abs_dot := absf(dot)
-	if abs_dot >= 0.70710678:
-		return lerpf(
-			SPEED_SCALE_STRAFE, SPEED_SCALE_BACK, smoothstep(0.70710678, 1.0, abs_dot)
-		)
-	return lerpf(SPEED_SCALE_STRAFE, SPEED_SCALE_BACK, smoothstep(0.0, 0.70710678, abs_dot))
+		return lerpf(SPEED_SCALE_STRAFE, SPEED_SCALE_FORWARD, smoothstep(0.0, 1.0, dot))
+	return lerpf(SPEED_SCALE_STRAFE, SPEED_SCALE_BACK, smoothstep(0.0, 1.0, -dot))
 
 
 func _movement_forward_dot(direction: Vector3) -> float:
@@ -409,7 +409,6 @@ func play_footstep_effects() -> void:
 
 
 func _resolve_footstep_surface() -> StringName:
-	_surface_probe_timer -= get_physics_process_delta_time()
 	if _surface_probe_timer > 0.0:
 		return _cached_surface
 	_surface_probe_timer = SURFACE_PROBE_INTERVAL
@@ -421,10 +420,13 @@ func _resolve_footstep_surface() -> StringName:
 	query.exclude = [get_rid()]
 	var hit := space.intersect_ray(query)
 	if hit.is_empty():
+		_cached_surface = &"stone"
 		return _cached_surface
 	var collider: Object = hit.get("collider")
 	if collider and collider.has_meta("surface"):
 		_cached_surface = StringName(str(collider.get_meta("surface")))
+	else:
+		_cached_surface = &"stone"
 	return _cached_surface
 
 

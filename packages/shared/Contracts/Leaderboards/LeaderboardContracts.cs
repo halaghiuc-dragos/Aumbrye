@@ -10,10 +10,19 @@ public sealed record LeaderboardEntryResponse(
     double ElapsedSeconds,
     DateTimeOffset SubmittedAt);
 
+public sealed record LeaderboardBiomeOption(string Id, string Label);
+
+public sealed record LeaderboardCapabilitiesResponse(
+    string RulesVersion,
+    int MinimumTier,
+    int MaximumTier,
+    IReadOnlyList<LeaderboardBiomeOption> Biomes);
+
 public sealed record LeaderboardPageResponse(
     string BiomeId,
     int Tier,
-    IReadOnlyList<LeaderboardEntryResponse> Entries);
+    IReadOnlyList<LeaderboardEntryResponse> Entries,
+    LeaderboardCapabilitiesResponse? Capabilities = null);
 
 public sealed record UpdateDisplayNameRequest(string DisplayName);
 

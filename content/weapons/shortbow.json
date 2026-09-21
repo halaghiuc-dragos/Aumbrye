@@ -1,0 +1,18 @@
+{
+  "id": "shortbow",
+  "name": "Shortbow",
+  "archetype": "bow",
+  "damage_type": "physical",
+  "draw_time": 0.52,
+  "projectile_speed_multiplier": 0.9,
+  "buffer_window": 0.18,
+  "cancel_into": ["dodge", "guard"],
+  "cancel_after": 0.3,
+  "scaling": {"critChance": 1.35},
+  "hitbox": {"shape": "box", "size": [0.6, 0.6, 1], "offset": [0, 0, 0.5]},
+  "light_attacks": [{"damage": 9, "poise_damage": 5, "stamina_cost": 7, "startup": 0.1, "active": 0.08, "recovery": 0.16, "knockback": 0.8}],
+  "heavy_attack": {"damage": 24, "poise_damage": 10, "stamina_cost": 15, "startup": 0.04, "active": 0.09, "recovery": 0.26, "knockback": 2.0},
+  "running_attack": {"damage": 8, "poise_damage": 5, "stamina_cost": 8, "startup": 0.09, "active": 0.08, "recovery": 0.18, "lunge_distance": 0.85, "cancel_after": 0.28, "knockback": 1.2},
+  "rolling_attack": {"damage": 8, "poise_damage": 5, "stamina_cost": 7, "startup": 0.08, "active": 0.07, "recovery": 0.16, "lunge_distance": 0.45, "cancel_after": 0.26, "knockback": 0.9},
+  "art": {"id": "piercing_shot", "name": "Piercing Shot", "stamina_cost": 22, "damage": 26, "poise_damage": 18, "startup": 0.24, "active": 0.12, "recovery": 0.32, "lunge_distance": 0, "hyperarmor": false, "cooldown": 6, "knockback": 1.8}
+}

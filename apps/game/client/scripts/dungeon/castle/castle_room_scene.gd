@@ -77,9 +77,13 @@ func _skin_untextured_props(biome_id: String) -> void:
 		var mesh_instance := node as MeshInstance3D
 		if mesh_instance == null or not mesh_instance.visible:
 			continue
-		if _has_any_material(mesh_instance):
+		if mesh_instance.mesh == null:
 			continue
-		mesh_instance.material_override = accent
+		for surface in mesh_instance.mesh.get_surface_count():
+			if mesh_instance.get_surface_override_material(surface) != null:
+				continue
+			if mesh_instance.mesh.surface_get_material(surface) == null:
+				mesh_instance.set_surface_override_material(surface, accent)
 
 
 static func _has_any_material(mesh_instance: MeshInstance3D) -> bool:
@@ -187,7 +191,7 @@ func _ensure_marker(parent: Node3D, marker_name: String, local_pos: Vector3) -> 
 		marker = Marker3D.new()
 		marker.name = marker_name
 		parent.add_child(marker)
-	marker.position = local_pos
+		marker.position = local_pos
 
 
 func _ensure_stair_ramp(props: Node3D, biome_id: String) -> void:

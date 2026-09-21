@@ -22,7 +22,9 @@ func _build_at_socket() -> void:
 		position = socket.position
 		rotation.y = socket.rotation.y
 	else:
-		position = Vector3(0.0, 0.0, -4.0)
+		push_error("Puzzle gate missing validated doorway socket: %s" % _flag_id)
+		queue_free()
+		return
 
 	_barrier = StaticBody3D.new()
 	_barrier.name = "PuzzleGateBarrier"
@@ -49,19 +51,21 @@ func _build_at_socket() -> void:
 
 func _on_namespace_changed(flag_namespace: String, flag_id: String, _value: Variant) -> void:
 	if flag_namespace == WorldFlags.NS_LEVER and flag_id == WorldFlags.lever_pulled(_flag_id):
-		_refresh_state()
+		_unlock(true)
 
 
 func _refresh_state() -> void:
 	if _flag_id != "" and WorldState.is_flag_true(WorldFlags.lever_pulled(_flag_id)):
-		_unlock()
+		_unlock(false)
 
 
 func is_unlocked() -> bool:
 	return _unlocked
 
 
-func _unlock() -> void:
+func _unlock(animate: bool = false) -> void:
+	if _unlocked:
+		return
 	_unlocked = true
 	if _barrier:
-		DIORAMA_SKIN.animate_gate_open(_barrier)
+		DIORAMA_SKIN.animate_gate_open(_barrier, animate)

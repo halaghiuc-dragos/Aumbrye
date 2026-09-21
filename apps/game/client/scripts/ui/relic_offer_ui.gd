@@ -233,7 +233,11 @@ func _describe_effect(rule: Dictionary) -> String:
 			var flasks := maxi(1, int(amount))
 			return "+%d Flask Charge%s" % [flasks, "s" if flasks != 1 else ""]
 		"clear_status":
-			return "Clear All Status Effects"
+			return (
+				"Clear All Status Effects"
+				if str(rule.get("removalPolicy", "debuffs")) == "all"
+				else "Cleanse Harmful Status Effects"
+			)
 		_:
 			return str(rule.get("effect", ""))
 
@@ -241,9 +245,8 @@ func _describe_effect(rule: Dictionary) -> String:
 func _take(relic_id: String) -> void:
 	if not _open:
 		return
-	if RunBuffs:
-		RunBuffs.take_offer(relic_id)
-	_close(relic_id)
+	if RunBuffs and RunBuffs.take_offer(relic_id):
+		_close(relic_id)
 
 
 func _close(relic_id: String) -> void:

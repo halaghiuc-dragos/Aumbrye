@@ -1,7 +1,7 @@
 extends Node
 
 
-signal rule_triggered(source_id: String, effect: String)
+signal rule_triggered(source_id: String, effect: String, contribution: Dictionary)
 
 const ON_HIT := &"onHit"
 const ON_KILL := &"onKill"
@@ -17,6 +17,7 @@ const ON_ROOM_CLEAR := &"onRoomClear"
 const ON_FLOOR_ENTER := &"onFloorEnter"
 const ON_STATUS_APPLIED := &"onStatusApplied"
 const ON_RUN_START := &"onRunStart"
+const ON_ACQUIRED := &"onAcquired"
 ## CB-06: five events the rules bus never carried -- most of what makes a build feel like a build
 ## ("on death, explode"; "a dodge that actually avoided a hit"; "on guard break, ...") had nowhere
 ## to hook in.
@@ -41,6 +42,7 @@ const ALL_EVENTS: Array[StringName] = [
 	ON_FLOOR_ENTER,
 	ON_STATUS_APPLIED,
 	ON_RUN_START,
+	ON_ACQUIRED,
 	ON_DEATH,
 	ON_PERFECT_DODGE,
 	ON_GUARD_BREAK,
@@ -76,6 +78,7 @@ const EFFECTS: Array[String] = [
 ]
 
 const LOW_HEALTH_RATIO := 0.3
+const MAX_PROC_DEPTH := 8
 
 var _rules_by_event: Dictionary = {}
 var _sources: Dictionary = {}
@@ -84,13 +87,24 @@ var _cooldowns: Dictionary = {}
 var _rng := RandomNumberGenerator.new()
 var _rng_seeded := false
 var _low_health_latched := false
+var _gameplay_time := 0.0
+var _dispatch_depth := 0
+var _active_rule_keys: Dictionary = {}
 
 
 func _ready() -> void:
-	process_mode = Node.PROCESS_MODE_ALWAYS
+	process_mode = Node.PROCESS_MODE_PAUSABLE
 	for event in ALL_EVENTS:
 		_rules_by_event[event] = [] as Array[Dictionary]
 	_rng_seeded = false
+
+
+func _process(delta: float) -> void:
+	_gameplay_time += delta
+
+
+func gameplay_time() -> float:
+	return _gameplay_time
 
 
 func _ensure_rng_seeded() -> void:
@@ -105,10 +119,21 @@ func register(source_id: String, rules: Array) -> void:
 		return
 	unregister(source_id)
 	var accepted: Array[Dictionary] = []
-	for entry in rules:
+	var seen_rule_ids: Dictionary = {}
+	for rule_index in rules.size():
+		var entry: Variant = rules[rule_index]
 		if not entry is Dictionary:
 			continue
 		var rule: Dictionary = (entry as Dictionary).duplicate(true)
+		var rule_id := str(rule.get("ruleId", "rule_%d" % rule_index))
+		if rule_id == "" or seen_rule_ids.has(rule_id):
+			push_warning(
+				"CombatEvents: '%s' has a missing or duplicate ruleId '%s' — rule dropped"
+				% [source_id, rule_id]
+			)
+			continue
+		seen_rule_ids[rule_id] = true
+		rule["ruleId"] = rule_id
 		var event := StringName(str(rule.get("event", "")))
 		if not _rules_by_event.has(event):
 			push_warning(
@@ -168,19 +193,26 @@ func clear_all() -> void:
 	_sources.clear()
 	_stacks.clear()
 	_cooldowns.clear()
+	_active_rule_keys.clear()
+	_dispatch_depth = 0
 	_low_health_latched = false
 	_rng_seeded = false
 
 
 func dispatch(event: StringName, ctx: Dictionary = {}) -> void:
+	if _dispatch_depth >= MAX_PROC_DEPTH:
+		return
 	_ensure_rng_seeded()
+	_dispatch_depth += 1
 	var bucket: Array = _rules_by_event.get(event, [])
 	if bucket.is_empty():
 		_reset_stacks_for(event)
+		_dispatch_depth -= 1
 		return
 	for rule in bucket:
 		_try_rule(rule as Dictionary, ctx)
 	_reset_stacks_for(event)
+	_dispatch_depth -= 1
 
 
 func get_stat_bonus(stat: String) -> float:
@@ -208,25 +240,30 @@ func notify_health_ratio(ratio: float, actor: Node) -> void:
 
 
 func _try_rule(rule: Dictionary, ctx: Dictionary) -> void:
+	var rule_key := "%s/%s" % [str(rule.get("sourceId", "")), str(rule.get("ruleId", ""))]
+	if _active_rule_keys.has(rule_key):
+		return
 	var cooldown := float(rule.get("cooldown", 0.0))
-	var key := "%s/%s/%s/%s" % [
+	var cooldown_identity := str(rule.get("cooldownGroup", rule.get("ruleId", "")))
+	var key := "%s/%s" % [
 		str(rule.get("sourceId", "")),
-		str(rule.get("event", "")),
-		str(rule.get("effect", "")),
-		str(rule.get("stackId", "")),
+		cooldown_identity,
 	]
 	if cooldown > 0.0:
-		var now := Time.get_ticks_msec() / 1000.0
+		var now := _gameplay_time
 		if now < float(_cooldowns.get(key, 0.0)):
 			return
-		_cooldowns[key] = now + cooldown
 	var chance := float(rule.get("chance", 1.0))
 	if chance < 1.0 and _rng.randf() > chance:
 		return
 	if not _passes_conditions(rule, ctx):
 		return
-	_apply_effect(rule, ctx)
-	rule_triggered.emit(str(rule.get("sourceId", "")), str(rule.get("effect", "")))
+	if cooldown > 0.0:
+		_cooldowns[key] = _gameplay_time + cooldown
+	_active_rule_keys[rule_key] = true
+	var contribution := _apply_effect(rule, ctx)
+	_active_rule_keys.erase(rule_key)
+	rule_triggered.emit(str(rule.get("sourceId", "")), str(rule.get("effect", "")), contribution)
 
 
 func _passes_conditions(rule: Dictionary, ctx: Dictionary) -> bool:
@@ -244,6 +281,20 @@ func _passes_conditions(rule: Dictionary, ctx: Dictionary) -> bool:
 				found = true
 				break
 		if not found:
+			return false
+	var applied_status := str(rule.get("ifAppliedStatus", ""))
+	if applied_status != "" and str(ctx.get("statusId", "")) != applied_status:
+		return false
+	var forbidden_origin := str(rule.get("ifNotApplicationOrigin", ""))
+	if forbidden_origin != "" and str(ctx.get("applicationOrigin", "")) == forbidden_origin:
+		return false
+	var required_relic := str(rule.get("ifAcquiredRelic", ""))
+	if required_relic != "" and str(ctx.get("acquiredRelicId", "")) != required_relic:
+		return false
+	var instigator_group := str(rule.get("ifInstigatorGroup", ""))
+	if instigator_group != "":
+		var instigator := ctx.get("instigator") as Node
+		if instigator == null or not is_instance_valid(instigator) or not instigator.is_in_group(instigator_group):
 			return false
 	var required_type := str(rule.get("ifDamageType", ""))
 	if required_type != "" and str(ctx.get("damageType", "")) != required_type:
@@ -274,18 +325,23 @@ func _passes_conditions(rule: Dictionary, ctx: Dictionary) -> bool:
 	return true
 
 
-func _apply_effect(rule: Dictionary, ctx: Dictionary) -> void:
+func _apply_effect(rule: Dictionary, ctx: Dictionary) -> Dictionary:
 	var effect := str(rule.get("effect", ""))
 	var amount := float(rule.get("amount", 0.0))
+	var contribution: Dictionary = {}
 	match effect:
 		"restore_stamina":
 			var stamina := _node_child(ctx.get("actor"), "Stamina") as Stamina
 			if stamina:
+				var before := stamina.current
 				stamina.restore(amount)
+				contribution["staminaRestored"] = maxf(0.0, stamina.current - before)
 		"restore_health":
 			var health := _node_child(ctx.get("actor"), "Health") as Health
 			if health:
+				var before := health.current
 				health.heal(amount)
+				contribution["healthRestored"] = maxf(0.0, health.current - before)
 		"restore_mana":
 			var mana := _node_child(ctx.get("actor"), "Mana")
 			if mana and mana.has_method("restore"):
@@ -293,20 +349,22 @@ func _apply_effect(rule: Dictionary, ctx: Dictionary) -> void:
 		"lifesteal":
 			var self_health := _node_child(ctx.get("actor"), "Health") as Health
 			if self_health:
+				var before := self_health.current
 				var base := float(ctx.get("amount", 0.0))
 				if base <= 0.0:
 					base = float(rule.get("amount", 0.0))
 				var pct := float(rule.get("pct", 0.0))
 				self_health.heal(base * (pct if pct > 0.0 else 1.0))
+				contribution["healthRestored"] = maxf(0.0, self_health.current - before)
 		"apply_status":
 			# CB-08: self-buffs (the four buff statuses) target the actor, not the usual debuff
 			# target -- `onGuardBreak` and other actor-only events carry no `target` at all.
 			var status_target: Variant = (
 				ctx.get("actor") if bool(rule.get("applyToActor", false)) else ctx.get("target")
 			)
-			_apply_status_to(status_target, rule)
+			contribution["statusStacks"] = _apply_status_to(status_target, rule)
 		"spread_status":
-			_spread_status(ctx, rule)
+			contribution["statusStacks"] = _spread_status(ctx, rule)
 		"add_stack":
 			var stack_key := _stack_key(rule)
 			var maximum := int(rule.get("maxStacks", 1))
@@ -321,13 +379,18 @@ func _apply_effect(rule: Dictionary, ctx: Dictionary) -> void:
 		"clear_status":
 			var controller := _node_child(ctx.get("actor"), "StatusController") as StatusController
 			if controller:
-				controller.clear_all()
+				if str(rule.get("removalPolicy", "debuffs")) == "debuffs":
+					controller.cleanse_debuffs()
+				else:
+					controller.clear_all()
 		"deal_damage":
 			_deal_damage_to(ctx.get("target"), amount, ctx.get("actor"))
 		"grant_barrier":
 			var barrier_health := _node_child(ctx.get("actor"), "Health") as Health
 			if barrier_health:
+				var before := barrier_health.barrier
 				barrier_health.grant_barrier(amount)
+				contribution["barrierGranted"] = maxf(0.0, barrier_health.barrier - before)
 		"empower_next":
 			var weapon := _node_child(ctx.get("actor"), "WeaponController") as WeaponController
 			if weapon and weapon.has_method("grant_empower"):
@@ -338,6 +401,7 @@ func _apply_effect(rule: Dictionary, ctx: Dictionary) -> void:
 				cd_weapon.call("reduce_art_cooldown", amount)
 		"knockback":
 			_apply_knockback_to(ctx.get("target"), ctx.get("actor"), amount)
+	return contribution
 
 
 ## `deal_damage` reuses the same `Hurtbox.receive_hit()` path every other hit goes through, so it
@@ -370,30 +434,44 @@ func _apply_knockback_to(target_variant: Variant, source_variant: Variant, stren
 	knockback_node.call("apply", direction, strength)
 
 
-func _apply_status_to(target: Variant, rule: Dictionary) -> void:
+func _apply_status_to(target: Variant, rule: Dictionary, instigator: Node = null, origin: String = "rule") -> int:
 	var node := target as Node
 	if node == null or not is_instance_valid(node):
-		return
+		return 0
 	var controller := node.get_node_or_null("StatusController") as StatusController
 	if controller == null:
-		return
-	controller.apply_status(str(rule.get("statusId", "")), int(rule.get("stacks", 1)))
+		return 0
+	var status_id := str(rule.get("statusId", ""))
+	var before := _status_stacks(controller, status_id)
+	controller.apply_status(
+		status_id, int(rule.get("stacks", 1)), -1.0, instigator, origin
+	)
+	return maxi(0, _status_stacks(controller, status_id) - before)
 
 
-func _spread_status(ctx: Dictionary, rule: Dictionary) -> void:
+func _spread_status(ctx: Dictionary, rule: Dictionary) -> int:
 	var origin_node := ctx.get("target") as Node3D
 	if origin_node == null or not is_instance_valid(origin_node):
-		return
+		return 0
 	var radius := float(rule.get("radius", 4.0))
 	var radius_sq := radius * radius
 	var origin := origin_node.global_position
+	var applied := 0
 	for node in CombatGroups.hostiles(get_tree()):
 		var enemy := node as Node3D
 		if enemy == null or enemy == origin_node or not is_instance_valid(enemy):
 			continue
 		if enemy.global_position.distance_squared_to(origin) > radius_sq:
 			continue
-		_apply_status_to(enemy, rule)
+		applied += _apply_status_to(enemy, rule, ctx.get("instigator") as Node, "spread")
+	return applied
+
+
+func _status_stacks(controller: StatusController, status_id: String) -> int:
+	for entry in controller.get_active_statuses():
+		if str(entry.get("id", "")) == status_id:
+			return int(entry.get("stacks", 0))
+	return 0
 
 
 func _reset_stacks_for(event: StringName) -> void:

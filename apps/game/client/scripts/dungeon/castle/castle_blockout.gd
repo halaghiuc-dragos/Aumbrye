@@ -136,7 +136,7 @@ var _rebuild_queued := false
 
 
 func _ready() -> void:
-	_apply_kind_spec()
+	_apply_kind_spec(true)
 	_rebuild()
 	if Engine.is_editor_hint():
 		_verify_socket_positions()
@@ -191,7 +191,7 @@ func finalize_geometry() -> void:
 
 func _rebuild() -> void:
 	_ensure_materials()
-	_apply_kind_spec()
+	_apply_kind_spec(false)
 	_clear_geometry_children()
 	_geometry_root = Node3D.new()
 	_geometry_root.name = "Geometry"
@@ -733,7 +733,7 @@ func _build_wall(
 
 	var lintel_h := wall_height - CastleRoomConstants.DOOR_HEIGHT
 	if lintel_h > 0.0:
-		var lintel_y := CastleRoomConstants.DOOR_HEIGHT + lintel_h * 0.5
+		var lintel_y := CastleRoomConstants.DOOR_HEIGHT
 		if spans_x:
 			_add_wall_segment(
 				Vector3(center.x + offset, lintel_y, center.z),
@@ -773,6 +773,16 @@ func _add_wall_segment(center: Vector3, size: Vector3, material_override: Materi
 
 
 func _add_room_occluder() -> void:
+	if (
+		not build_ceiling
+		or shape == &"round"
+		or shape == &"octagon"
+		or door_north
+		or door_south
+		or door_east
+		or door_west
+	):
+		return
 	var size := Vector3(room_width, wall_height, room_depth)
 	var occluder := OccluderInstance3D.new()
 	occluder.name = "RoomOccluder"
@@ -856,10 +866,10 @@ func set_navigation_map(map: RID) -> void:
 			link.set_navigation_map(map)
 
 
-func sample_random_nav_point(rng: RandomNumberGenerator) -> Vector3:
+func sample_random_nav_point(rng: RandomNumberGenerator) -> Dictionary:
 	var map := get_navigation_map()
 	if map == RID() or rng == null:
-		return Vector3.ZERO
+		return {"ok": false}
 	var inset := 1.0
 	var half_w := maxf(room_width * 0.5 - inset, 0.5)
 	var half_d := maxf(room_depth * 0.5 - inset, 0.5)
@@ -870,9 +880,14 @@ func sample_random_nav_point(rng: RandomNumberGenerator) -> Vector3:
 		var world := to_global(local)
 		var closest := NavigationServer3D.map_get_closest_point(map, world)
 		var closest_local := to_local(closest)
-		if absf(closest_local.x) <= half_w and absf(closest_local.z) <= half_d:
-			return closest_local
-	return Vector3.ZERO
+		if (
+			absf(closest_local.x) <= half_w
+			and absf(closest_local.z) <= half_d
+			and closest_local.y >= -0.25
+			and closest_local.y <= wall_height + 0.25
+		):
+			return {"ok": true, "position": closest_local}
+	return {"ok": false}
 
 
 func add_cover_obstacle(local_pos: Vector3, size: Vector3, material: Material = null) -> void:
@@ -990,7 +1005,7 @@ func _build_stair_landing(
 
 
 func sync_dimensions_from_kind() -> void:
-	_apply_kind_spec()
+	_apply_kind_spec(true)
 	_rebuild()
 
 
@@ -1003,7 +1018,7 @@ func _resolve_kind() -> String:
 	return ""
 
 
-func _apply_kind_spec() -> void:
+func _apply_kind_spec(apply_door_defaults: bool) -> void:
 	var resolved_kind := _resolve_kind()
 	if resolved_kind.is_empty():
 		return
@@ -1023,10 +1038,11 @@ func _apply_kind_spec() -> void:
 	room_width = spec_width
 	room_depth = spec_depth
 	shape = shape_override if shape_override != &"" else StringName(str(spec.get("shape", "rect")))
-	door_north = (doors & RoomGraphSlot.DOOR_NORTH) != 0
-	door_south = (doors & RoomGraphSlot.DOOR_SOUTH) != 0
-	door_east = (doors & RoomGraphSlot.DOOR_EAST) != 0
-	door_west = (doors & RoomGraphSlot.DOOR_WEST) != 0
+	if apply_door_defaults:
+		door_north = (doors & RoomGraphSlot.DOOR_NORTH) != 0
+		door_south = (doors & RoomGraphSlot.DOOR_SOUTH) != 0
+		door_east = (doors & RoomGraphSlot.DOOR_EAST) != 0
+		door_west = (doors & RoomGraphSlot.DOOR_WEST) != 0
 	# RM-14: a corridor's kind spec asks for a lower ceiling than a room -- compression, not a
 	# fight. Anything without its own "wallHeight" keeps the normal height unchanged.
 	wall_height = float(spec.get("wall_height", CastleRoomConstants.WALL_HEIGHT))

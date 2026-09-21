@@ -22,7 +22,7 @@ function parseCharacter(stateJson: string | null | undefined): string {
 }
 
 export default function AccountPage() {
-  const { isSignedIn, signIn, signUp, signOut, getAccessToken, refreshAfterUnauthorized } = useAuth();
+  const { isSignedIn, userId, signIn, signUp, signOut, getAccessToken, refreshAfterUnauthorized } = useAuth();
   const queryClient = useQueryClient();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -35,8 +35,8 @@ export default function AccountPage() {
   const [mode, setMode] = useState<"login" | "register">("login");
 
   const saveQuery = useQuery({
-    queryKey: ["save"],
-    enabled: isSignedIn,
+    queryKey: ["save", userId],
+    enabled: isSignedIn && userId !== "",
     queryFn: async ({ signal }) => {
       const token = await getAccessToken();
       if (!token) {
@@ -68,12 +68,15 @@ export default function AccountPage() {
       return mode;
     },
     onSuccess: (mode) => {
+      setPassword("");
       setMessage(mode === "login" ? "Logged in." : "Registered and signed in.");
-      void queryClient.invalidateQueries({ queryKey: ["save"] });
+      void queryClient.invalidateQueries({ queryKey: ["save", userId] });
     },
     onError: (error: unknown) => {
       if (error instanceof ApiError) {
         setMessage(error.detail);
+      } else {
+        setMessage("Unable to reach the service. Check your connection and try again.");
       }
     },
   });

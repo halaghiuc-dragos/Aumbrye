@@ -48,28 +48,25 @@ func _reduction_for(damage_type: String) -> float:
 ## enemy was doing, which is passive, not a defensive verb. `is_guarding` (public on
 ## `CastleEnemyBase`) is the deliberate raise-the-shield decision `_try_defensive_reaction()` rolls;
 ## a body with no such property (nothing to gate on) keeps the old always-on behaviour.
-func receive_hit(info: DamageInfo) -> void:
+func receive_hit(info: DamageInfo) -> RefCounted:
 	if _owner_body == null or not is_instance_valid(_owner_body):
 		_owner_body = CombatGroups.owning_body(self)
 	var guarding := true
 	if _owner_body is CastleEnemyBase:
 		guarding = (_owner_body as CastleEnemyBase).is_guarding
-	if info.attack_class != "unblockable" and guarding and _owner_body and _is_frontal_block(info):
+	if (
+		not info.ignore_guard
+		and info.attack_class != "unblockable"
+		and guarding
+		and _owner_body
+		and _is_frontal_block(info)
+	):
 		var reduction := _reduction_for(info.damage_type)
-		var mitigated := DamageInfo.create(
-			info.amount * (1.0 - reduction),
-			info.poise_damage * (1.0 - reduction),
-			info.source,
-			info.damage_type,
-			info.direction,
-			info.status_id,
-			info.status_stacks,
-			info.attack_class
+		var mitigated := info.copy_with(
+			info.amount * (1.0 - reduction), info.poise_damage * (1.0 - reduction)
 		)
-		mitigated.crit = info.crit
-		super.receive_hit(mitigated)
-	else:
-		super.receive_hit(info)
+		return super.receive_hit(mitigated)
+	return super.receive_hit(info)
 
 func _is_frontal_block(info: DamageInfo) -> bool:
 	if info.direction.length_squared() < 0.01:

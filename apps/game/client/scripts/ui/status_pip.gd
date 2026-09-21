@@ -24,7 +24,7 @@ func configure(
 	_icon.modulate = Color.WHITE
 	_stack_label.visible = stacks > 1
 	_stack_label.text = "x%d" % stacks
-	tooltip_text = status_id
+	tooltip_text = StatusCatalog.tooltip(status_id, stacks)
 
 
 func update_timer(remaining: float, duration: float) -> void:

@@ -102,6 +102,10 @@ const RADAR_SPAWN_DOT := 3.0
 
 
 func configure(definition: Dictionary) -> void:
+	_radar_mode = false
+	_radar_spawn_markers.clear()
+	_radar_pulse = 0.0
+	_fog_of_war = false
 	_rooms = definition.get("rooms", [])
 	_edges = definition.get("edges", [])
 	_branch_previews = definition.get("branchPreviews", [])
@@ -199,6 +203,10 @@ func export_state() -> Dictionary:
 		"reveal": _reveal.duplicate(),
 		"cleared": _cleared.duplicate(),
 		"current_room_id": _current_room_id,
+		"fog_of_war": _fog_of_war,
+		"floor_number": _floor_number,
+		"radar_mode": _radar_mode,
+		"radar_half_extent": _bounds.size.x * 0.5,
 	}
 
 
@@ -208,6 +216,10 @@ func import_state(state: Dictionary) -> void:
 	var cleared: Variant = state.get("cleared", {})
 	_cleared = (cleared as Dictionary).duplicate() if cleared is Dictionary else {}
 	_current_room_id = str(state.get("current_room_id", ""))
+	_fog_of_war = bool(state.get("fog_of_war", false))
+	_floor_number = int(state.get("floor_number", 0))
+	if bool(state.get("radar_mode", false)):
+		enable_radar_mode(maxf(1.0, float(state.get("radar_half_extent", 1.0))))
 	queue_redraw()
 
 

@@ -3,9 +3,8 @@ extends Node3D
 ## The wizard's portal. It opens beside the cresset at every intermission from
 ## `cashOutFromWave` on, and it is the only way to take anything out of the Vigil before wave 50.
 ##
-## The offer is deliberately cruel: one item, chosen, and the run ends there. Everything else the
-## player is carrying is left behind. That single decision — bank the good sword now, or push for
-## ten more waves and risk the lot — is the whole reason the mode has a separate loadout.
+## The offer grows with the reached milestone, and the run ends when it is accepted. Everything
+## else the player is carrying is left behind.
 
 const PixelStyle := preload("res://scripts/art/style/pixel_diorama_style.gd")
 const InputGlyphServiceScript := preload("res://scripts/ui/input_glyph_service.gd")
@@ -130,7 +129,13 @@ func _refresh_label() -> void:
 		_label.visible = false
 		return
 	_label.visible = true
-	_label.text = "%s — leave with one thing (%s)" % [DISPLAY_NAME, _interact_glyph()]
+	var bank_count := WavesRunService.cash_out_bank_count(WavesRunService.current_wave)
+	var offer_key := "WAVES_PORTAL_OFFER_ONE" if bank_count == 1 else "WAVES_PORTAL_OFFER_MANY"
+	_label.text = "%s — %s (%s)" % [
+		tr("WAVES_SUMMONER_NAME"),
+		tr(offer_key).format({"count": bank_count}),
+		_interact_glyph(),
+	]
 
 
 static func _interact_glyph() -> String:

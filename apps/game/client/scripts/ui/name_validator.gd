@@ -7,11 +7,11 @@ const MAX_LENGTH := 18
 const BLOCKED_PATH := "content/text/blocked_names.json"
 const WARDEN_NAMES_PATH := "content/text/warden_names.json"
 
-const _ALLOWED_PATTERN := "^[A-Za-z0-9][A-Za-z0-9 '\\-]*[A-Za-z0-9]$|^[A-Za-z0-9]$"
+const _ALLOWED_PATTERN := "^[\\p{L}0-9][\\p{L}\\p{M}0-9 '\\-]*[\\p{L}\\p{M}0-9]$|^[\\p{L}0-9]$"
 
 
 static func validate(name: String, existing_names: PackedStringArray = []) -> Dictionary:
-	var trimmed := name.strip_edges()
+	var trimmed := _canonical_name(name).strip_edges()
 	if trimmed.length() < MIN_LENGTH:
 		return {"ok": false, "reason_key": "CREATE_NAME_ERR_SHORT"}
 	if trimmed.length() > MAX_LENGTH:
@@ -46,7 +46,18 @@ static func random_valid_name(existing_names: PackedStringArray = []) -> String:
 		var result := validate(candidate, existing_names)
 		if bool(result.get("ok", false)):
 			return candidate
-	return str(first_list[0])
+	var base := _canonical_name(str(first_list[0]))
+	for suffix in range(2, 1000):
+		var candidate := "%s %d" % [base.left(MAX_LENGTH - str(suffix).length() - 1), suffix]
+		if bool(validate(candidate, existing_names).get("ok", false)):
+			return candidate
+	return "Warden 1000"
+
+
+static func _canonical_name(value: String) -> String:
+	# Godot exposes Unicode-aware matching but no normalization primitive. Canonicalize the
+	# supported Romanian decomposed sequences so uniqueness and length checks agree with NFC input.
+	return value.replace("a\u0306", "ă").replace("A\u0306", "Ă").replace("a\u0302", "â").replace("A\u0302", "Â").replace("i\u0302", "î").replace("I\u0302", "Î").replace("s\u0326", "ș").replace("S\u0326", "Ș").replace("t\u0326", "ț").replace("T\u0326", "Ț").replace("s\u0327", "ș").replace("S\u0327", "Ș").replace("t\u0327", "ț").replace("T\u0327", "Ț")
 
 
 static var _charset_regex: RegEx = null

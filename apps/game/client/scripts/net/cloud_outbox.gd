@@ -2,8 +2,10 @@ extends RefCounted
 
 
 const META_KEY := "cloudOutbox"
+const DEAD_LETTER_KEY := "cloudOutboxDeadLetters"
 const MAX_ATTEMPTS := 5
 const MAX_ENTRIES := 32
+static var _replay_running := false
 
 
 static func _read() -> Array:
@@ -18,6 +20,17 @@ static func _write(entries: Array) -> void:
 		meta.erase(META_KEY)
 	else:
 		meta[META_KEY] = entries
+	LocalSave.patch_meta(meta)
+
+
+static func _read_dead_letters() -> Array:
+	var raw: Variant = LocalSave.get_meta_data().get(DEAD_LETTER_KEY, [])
+	return (raw as Array).duplicate(true) if raw is Array else []
+
+
+static func _write_dead_letters(entries: Array) -> void:
+	var meta := LocalSave.get_meta_data()
+	meta[DEAD_LETTER_KEY] = entries
 	LocalSave.patch_meta(meta)
 
 
@@ -38,6 +51,7 @@ static func enqueue(
 			return
 	entries.append(
 		{
+			"operationId": "complete_run:%s" % run_id,
 			"runId": run_id,
 			"outcome": outcome,
 			"elapsed": elapsed,
@@ -49,7 +63,7 @@ static func enqueue(
 		}
 	)
 	while entries.size() > MAX_ENTRIES:
-		entries.pop_front()
+		_move_to_dead_letter(entries.pop_front(), "capacity", "outbox capacity exceeded")
 	_write(entries)
 
 
@@ -65,19 +79,20 @@ static func resolve(run_id: String) -> void:
 
 
 static func replay() -> void:
-	if not ApiConfig.cloud_calls_enabled():
+	if _replay_running or not ApiConfig.cloud_calls_enabled():
 		return
 	var entries := _read()
 	if entries.is_empty():
 		return
-
-	var kept: Array = []
-	for entry in entries:
+	_replay_running = true
+	for entry in entries.duplicate(true):
 		if not entry is Dictionary:
 			continue
 		var record: Dictionary = entry
 		var run_id := str(record.get("runId", ""))
 		if run_id == "":
+			continue
+		if int(record.get("nextRetryAt", 0)) > int(Time.get_unix_time_from_system()):
 			continue
 
 		var result := await ApiClient.complete_run(
@@ -90,20 +105,107 @@ static func replay() -> void:
 			int(record.get("kills", 0))
 		)
 		if result.get("ok", false):
+			_acknowledge(str(record.get("operationId", "complete_run:%s" % run_id)))
 			continue
 
 		var attempts := int(record.get("attempts", 0)) + 1
-		if attempts >= MAX_ATTEMPTS:
-			push_warning(
-				(
-					"CloudOutbox: dropping run %s after %d failed attempts — %s"
-					% [run_id, attempts, str(result.get("error", "unknown"))]
-				)
+		var error_kind := _classify_error(result)
+		if attempts >= MAX_ATTEMPTS or error_kind in ["auth", "version", "permanent"]:
+			_move_latest_to_dead_letter(
+				str(record.get("operationId", "complete_run:%s" % run_id)),
+				error_kind,
+				str(result.get("error", "unknown"))
 			)
 			continue
 		record["attempts"] = attempts
-		kept.append(record)
+		record["lastError"] = str(result.get("error", "unknown"))
+		record["nextRetryAt"] = int(Time.get_unix_time_from_system()) + mini(3600, 1 << mini(attempts, 10))
+		_update_latest(record)
+	_replay_running = false
+	LocalSave.autosave()
 
-	_write(kept)
-	if kept.size() != entries.size():
-		LocalSave.autosave()
+
+static func _acknowledge(operation_id: String) -> void:
+	var latest := _read()
+	latest = latest.filter(func(row: Variant) -> bool:
+		return not (row is Dictionary and str((row as Dictionary).get("operationId", "")) == operation_id)
+	)
+	_write(latest)
+
+
+static func _update_latest(record: Dictionary) -> void:
+	var latest := _read()
+	var operation_id := str(record.get("operationId", ""))
+	for index in latest.size():
+		if latest[index] is Dictionary and str(latest[index].get("operationId", "")) == operation_id:
+			latest[index] = record
+			_write(latest)
+			return
+
+
+static func _move_latest_to_dead_letter(operation_id: String, kind: String, error: String) -> void:
+	var latest := _read()
+	for index in range(latest.size() - 1, -1, -1):
+		var row: Variant = latest[index]
+		if row is Dictionary and str((row as Dictionary).get("operationId", "")) == operation_id:
+			latest.remove_at(index)
+			_move_to_dead_letter(row, kind, error)
+			break
+	_write(latest)
+
+
+static func _move_to_dead_letter(record: Variant, kind: String, error: String) -> void:
+	if not record is Dictionary:
+		return
+	var failed := (record as Dictionary).duplicate(true)
+	failed["failureKind"] = kind
+	failed["lastError"] = error
+	failed["failedAt"] = int(Time.get_unix_time_from_system())
+	var dead := _read_dead_letters()
+	dead.append(failed)
+	_write_dead_letters(dead)
+
+
+static func _classify_error(result: Dictionary) -> String:
+	var status := int(result.get("status", result.get("status_code", 0)))
+	if status in [401, 403]:
+		return "auth"
+	if status in [409, 410, 426]:
+		return "version"
+	if status >= 400 and status < 500 and status not in [408, 429]:
+		return "permanent"
+	return "transient"
+
+
+static func get_dead_letters() -> Array:
+	return _read_dead_letters()
+
+
+static func retry_dead_letter(operation_id: String) -> bool:
+	var dead := _read_dead_letters()
+	for index in dead.size():
+		var row: Dictionary = dead[index]
+		if str(row.get("operationId", "")) != operation_id:
+			continue
+		dead.remove_at(index)
+		row.erase("failureKind")
+		row.erase("failedAt")
+		row["attempts"] = 0
+		row["nextRetryAt"] = 0
+		var pending := _read()
+		pending.append(row)
+		_write_dead_letters(dead)
+		_write(pending)
+		return true
+	return false
+
+
+static func discard_dead_letter(operation_id: String) -> bool:
+	var dead := _read_dead_letters()
+	var kept := dead.filter(func(row: Variant) -> bool:
+		return not (row is Dictionary and str((row as Dictionary).get("operationId", "")) == operation_id)
+	)
+	if kept.size() == dead.size():
+		return false
+	_write_dead_letters(kept)
+	return true

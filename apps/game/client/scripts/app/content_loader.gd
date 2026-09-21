@@ -23,8 +23,17 @@ static func content_path(relative: String) -> String:
 
 
 static func load_json(relative: String) -> Dictionary:
+	var outcome := load_json_result(relative)
+	var data: Variant = outcome.get("data", {})
+	return data as Dictionary if data is Dictionary else {}
+
+
+static func load_json_result(relative: String, retry: bool = false) -> Dictionary:
+	if retry:
+		_json_cache.erase(relative)
+		_missing_paths.erase(relative)
 	if _json_cache.has(relative):
-		return (_json_cache[relative] as Dictionary).duplicate(true)
+		return {"ok": true, "data": (_json_cache[relative] as Dictionary).duplicate(true)}
 	var path := content_path(relative)
 	var file := FileAccess.open(path, FileAccess.READ)
 	if not file:
@@ -36,14 +45,28 @@ static func load_json(relative: String) -> Dictionary:
 		else:
 			push_warning(msg)
 		_missing_paths[relative] = true
-		_json_cache[relative] = {}
-		return {}
+		return {"ok": false, "error": "missing", "path": path, "data": {}}
 	var parsed = JSON.parse_string(file.get_as_text())
-	var result: Dictionary = parsed if parsed is Dictionary else {}
+	if not parsed is Dictionary:
+		if CrashLogger:
+			CrashLogger.log_error("content_loader.malformed", {"path": path})
+		return {"ok": false, "error": "malformed", "path": path, "data": {}}
+	var result: Dictionary = parsed
 	if OS.is_debug_build() and not result.is_empty():
 		ContentSchemaValidatorScript.validate_loaded(relative, result)
 	_json_cache[relative] = result
-	return result.duplicate(true)
+	return {"ok": true, "data": result.duplicate(true)}
+
+
+static func load_required_json(relative: String, retry: bool = false) -> Dictionary:
+	var result := load_json_result(relative, retry)
+	if bool(result.get("ok", false)):
+		return result.get("data", {})
+	var error := "Required content unavailable: %s" % relative
+	if CrashLogger:
+		CrashLogger.log_error("content_loader.required_failed", {"path": relative, "error": result.get("error", "unknown")})
+	push_error(error)
+	return {}
 
 
 static func prime(paths: Array) -> int:

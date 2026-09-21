@@ -129,6 +129,14 @@
         "damageType": {
           "type": "string"
         },
+        "projectileArchetype": {
+          "type": "string",
+          "enum": [
+            "bomb",
+            "lure",
+            "lobbed_item"
+          ]
+        },
         "lure": {
           "type": "boolean"
         }
@@ -318,6 +326,7 @@
               "onFloorEnter",
               "onStatusApplied",
               "onRunStart",
+              "onAcquired",
               "onDeath",
               "onPerfectDodge",
               "onGuardBreak",

@@ -24,6 +24,25 @@ static func can_use(def: Dictionary, in_run: bool, in_hub: bool) -> Dictionary:
 	return {"ok": true, "reason": ""}
 
 
+static func can_commit(player: Node) -> bool:
+	if player == null:
+		return false
+	var reactions := player.get_node_or_null("CombatReactions")
+	if reactions and reactions.has_method("can_act") and not bool(reactions.call("can_act")):
+		return false
+	var weapon := player.get_node_or_null("WeaponController") as WeaponController
+	if weapon and weapon.is_attacking:
+		return false
+	var dodge := player.get_node_or_null("Dodge") as Dodge
+	if dodge and dodge.is_dodging:
+		return false
+	var guard := player.get_node_or_null("Guard") as Guard
+	if guard and guard.is_guard_active:
+		return false
+	var heal := player.get_node_or_null("PlayerHeal") as PlayerHeal
+	return heal == null or not heal.is_drinking
+
+
 static func apply(def: Dictionary, player: Node) -> bool:
 	if player == null:
 		return false
@@ -36,25 +55,21 @@ static func apply(def: Dictionary, player: Node) -> bool:
 	var kind: String = str(effect.get("kind", ""))
 	match kind:
 		"heal":
-			if health == null:
+			if health == null or health.current >= health.max_health:
 				return false
 			health.heal(float(effect.get("amount", 30.0)))
 			return true
 		"restoreMana":
 			var mana := player.get_node_or_null("Mana") as Mana
-			if mana == null:
+			if mana == null or mana.current >= mana.max_mana:
 				return false
-			mana.current = minf(mana.max_mana, mana.current + float(effect.get("amount", 30.0)))
-			mana.mana_changed.emit(mana.current, mana.max_mana)
+			mana.restore(float(effect.get("amount", 30.0)))
 			return true
 		"restoreStamina":
 			var stamina := player.get_node_or_null("Stamina") as Stamina
-			if stamina == null:
+			if stamina == null or stamina.current >= stamina.max_stamina:
 				return false
-			stamina.current = minf(
-				stamina.max_stamina, stamina.current + float(effect.get("amount", 30.0))
-			)
-			stamina.stamina_changed.emit(stamina.current, stamina.max_stamina)
+			stamina.restore(float(effect.get("amount", 30.0)))
 			return true
 		"applyStatus":
 			return _apply_consumable_status(player, effect)
@@ -62,7 +77,7 @@ static func apply(def: Dictionary, player: Node) -> bool:
 			return false
 		"refillFlask":
 			var heal_node := player.get_node_or_null("PlayerHeal") as PlayerHeal
-			if heal_node == null:
+			if heal_node == null or heal_node.current_charges >= heal_node.max_charges:
 				return false
 			heal_node.grant_charge(maxi(1, int(effect.get("amount", 1))))
 			return true
@@ -78,8 +93,7 @@ static func apply(def: Dictionary, player: Node) -> bool:
 			var status_ctrl := player.get_node_or_null("StatusController") as StatusController
 			if status_ctrl == null:
 				return false
-			status_ctrl.clear_all()
-			return true
+			return status_ctrl.cleanse_debuffs()
 	return false
 
 
@@ -141,9 +155,14 @@ static func _apply_throwable_projectile(player: Node, effect: Dictionary) -> boo
 	if origin_node == null or player.get_tree() == null or player.get_tree().current_scene == null:
 		return false
 	var weapon := player.get_node_or_null("WeaponController") as WeaponController
+	var origin := origin_node.global_position + Vector3(0.0, THROWABLE_ORIGIN_HEIGHT, 0.0)
 	var direction := Vector3.FORWARD
+	var target_pos := Vector3.INF
 	if weapon and weapon.has_method("get_soft_lock_aim_direction"):
 		direction = weapon.call("get_soft_lock_aim_direction")
+		if weapon.has_method("get_aim_point"):
+			target_pos = weapon.call("get_aim_point", origin)
+			direction = (target_pos - origin).normalized()
 	elif player.has_method("get_facing_direction"):
 		direction = player.call("get_facing_direction")
 	var projectile: Node3D = ThrowableProjectileScene.instantiate() as Node3D
@@ -152,7 +171,7 @@ static func _apply_throwable_projectile(player: Node, effect: Dictionary) -> boo
 		container.add_child(projectile)
 	else:
 		player.get_tree().current_scene.add_child(projectile)
-	projectile.global_position = origin_node.global_position + Vector3(0.0, THROWABLE_ORIGIN_HEIGHT, 0.0)
+	projectile.global_position = origin
 	projectile.call(
 		"configure",
 		str(effect.get("statusId", "")),
@@ -161,10 +180,11 @@ static func _apply_throwable_projectile(player: Node, effect: Dictionary) -> boo
 		float(effect.get("radius", 4.0)),
 		float(effect.get("damage", 0.0)),
 		str(effect.get("damageType", DamageInfo.TYPE_PHYSICAL)),
-		bool(effect.get("lure", false))
+		bool(effect.get("lure", false)),
+		str(effect.get("projectileArchetype", "lobbed_item"))
 	)
 	projectile.call(
-		"launch", direction, THROWABLE_SPEED, 0.0, 0.0, player, DamageInfo.TYPE_PHYSICAL
+		"launch", direction, THROWABLE_SPEED, 0.0, 0.0, player, DamageInfo.TYPE_PHYSICAL, "", 1, 0.0, 1.5, "blockable", 0.0, target_pos
 	)
 	return true
 
@@ -174,18 +194,8 @@ static func _apply_consumable_status(player: Node, effect: Dictionary) -> bool:
 	var duration := float(effect.get("duration", 60.0))
 	var amount := float(effect.get("amount", 0.0))
 	if status_id.begins_with("elixir_"):
-		var until := Time.get_ticks_msec() + int(duration * 1000.0)
-		(
-			player
-			. set_meta(
-				"%s%s" % [BUFF_META_PREFIX, status_id],
-				{
-					"until": until,
-					"amount": amount,
-					"stat": str(effect.get("stat", "")),
-				}
-			)
-		)
+		if RunBuffs == null or not RunBuffs.add_temporary_effect(status_id, str(effect.get("stat", "")), amount, duration):
+			return false
 		if InventoryService:
 			InventoryService.apply_equipment_to_player_node(player)
 		return true

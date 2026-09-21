@@ -35,6 +35,7 @@ public class AumbryeDbContext : DbContext
             e.Property(x => x.DisplayName).HasMaxLength(32);
             e.Property(x => x.PasswordHash).HasMaxLength(512);
             e.Property(x => x.SteamId).HasConversion(SteamIdConverter).HasColumnType("bigint");
+            e.HasIndex(x => x.DeletionPending);
             e.HasOne(x => x.SaveBlob).WithOne(x => x.Account).HasForeignKey<SaveBlob>(x => x.AccountId);
         });
 
@@ -55,11 +56,15 @@ public class AumbryeDbContext : DbContext
             e.HasIndex(x => new { x.AccountId, x.Status });
             e.Property(x => x.BiomeId).HasMaxLength(64);
             e.Property(x => x.DefinitionChecksum).HasMaxLength(128);
+            e.Property(x => x.Outcome).HasMaxLength(16);
+            e.Property(x => x.Mode).HasMaxLength(32);
+            e.Property(x => x.Ruleset).HasMaxLength(64);
         });
 
         modelBuilder.Entity<SaveBlob>(e =>
         {
             e.HasKey(x => x.AccountId);
+            e.Property(x => x.Revision).IsConcurrencyToken();
         });
 
         modelBuilder.Entity<SaveBlobQuarantine>(e =>

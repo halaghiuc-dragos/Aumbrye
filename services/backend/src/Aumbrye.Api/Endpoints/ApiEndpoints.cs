@@ -252,7 +252,11 @@ public static class RunsEndpoints
                     req.BossDefeated,
                     req.LootClaimedInstanceIds ?? [],
                     req.Floor,
-                    req.Kills),
+                    req.Kills,
+                    req.Mode,
+                    req.FinalObjectiveCompleted,
+                    req.Assists,
+                    req.Ruleset),
                 ct);
             if (!result.Success)
                 return ProblemResults.BadRequest(result.Error!);
@@ -307,7 +311,7 @@ public static class SavesEndpoints
                     : ProblemResults.BadRequest(result.Error!);
             }
             var json = result.State!.ToJsonString();
-            return Results.Ok(new SaveResponse(json, result.UpdatedAt!.Value));
+            return Results.Ok(new SaveResponse(json, result.UpdatedAt!.Value, result.Revision));
         })
         .WithName("GetCurrentSave")
         .Produces<SaveResponse>(StatusCodes.Status200OK)
@@ -346,19 +350,20 @@ public static class SavesEndpoints
             if (state == null)
                 return ProblemResults.BadRequest("Save must be a JSON object.");
 
-            var result = await saves.PutCurrentAsync(accountId.Value, state, req.ClientUpdatedAt, ct);
+            var result = await saves.PutCurrentAsync(accountId.Value, state, req.ClientUpdatedAt, req.ClientRevision, ct);
             if (result.Conflict)
             {
                 return Results.Conflict(new PutSaveResponse(
                     result.UpdatedAt!.Value,
                     Conflict: true,
-                    ServerStateJson: result.State!.ToJsonString()));
+                    ServerStateJson: result.State?.ToJsonString(),
+                    Revision: result.Revision));
             }
 
             if (!result.Success)
                 return ProblemResults.BadRequest(result.Error!);
 
-            return Results.Ok(new PutSaveResponse(result.UpdatedAt!.Value));
+            return Results.Ok(new PutSaveResponse(result.UpdatedAt!.Value, Revision: result.Revision));
         })
         .WithName("PutCurrentSave")
         .Produces<PutSaveResponse>(StatusCodes.Status200OK)

@@ -1,7 +1,7 @@
 {
   "id": "relic_shadow_veil",
   "name": "Relic Umbral Veil",
-  "description": "Ten health thinned to nothing you can hold. You are harder to follow — each dodge returns a breath of stamina.",
+  "description": "Ten health thinned to nothing you can hold. You are harder to follow — each perfect dodge returns a breath of stamina.",
   "maxStacks": 1,
   "stats": {
     "moveSpeed": 0.05,
@@ -13,7 +13,7 @@
   "weight": 1,
   "rules": [
     {
-      "event": "onDodge",
+      "event": "onPerfectDodge",
       "effect": "restore_stamina",
       "amount": 9,
       "cooldown": 0.6

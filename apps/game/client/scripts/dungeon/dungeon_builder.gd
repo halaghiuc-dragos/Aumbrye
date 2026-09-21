@@ -64,6 +64,7 @@ var _is_final_floor := false
 var _edge_by_pair: Dictionary = {}
 
 var _build_generation := 0
+var _secret_topology_refresh_queued := false
 
 
 func _exit_tree() -> void:
@@ -240,7 +241,9 @@ func build_from_source(
 	if not await _yield_step(chunked, my_gen):
 		return
 
-	_place_room_content()
+	if not _place_room_content():
+		_abort_build(parent)
+		return
 	step += 1.0
 	build_progress.emit(step / TOTAL_STEPS)
 	if not await _yield_step(chunked, my_gen):
@@ -342,6 +345,10 @@ func _build_rooms(chunked: bool, my_gen: int) -> bool:
 				continue
 			room_tags.append(tag_name)
 			instance.add_to_group("room_tag_%s" % tag_name)
+		var tactical_family := str(room_def.get("tacticalFamily", ""))
+		if tactical_family != "":
+			room_tags.append("family_%s" % tactical_family)
+			instance.add_to_group("room_family_%s" % tactical_family)
 		instance.room_tags = room_tags
 		var blockout := instance.get_blockout()
 		if blockout:
@@ -937,6 +944,7 @@ func reveal_secret(secret_room_id: String, set_flag: bool = true) -> void:
 			if from_room and to_room:
 				_open_blockout_door_toward(from_room, to_room, edge)
 				_open_blockout_door_toward(to_room, from_room, edge)
+	_queue_secret_topology_refresh()
 	for room_id in _rooms:
 		var room := get_room(room_id)
 		if room == null:
@@ -951,6 +959,29 @@ func reveal_secret(secret_room_id: String, set_flag: bool = true) -> void:
 				child.call("mark_revealed")
 			elif child.has_method("mark_used"):
 				child.call("mark_used")
+
+
+func _queue_secret_topology_refresh() -> void:
+	if _secret_topology_refresh_queued:
+		return
+	_secret_topology_refresh_queued = true
+	call_deferred("_refresh_secret_topology")
+
+
+func _refresh_secret_topology() -> void:
+	_secret_topology_refresh_queued = false
+	for room_id in _rooms:
+		var room := get_room(room_id)
+		if room == null:
+			continue
+		var blockout := room.get_blockout()
+		if blockout:
+			blockout.finalize_geometry()
+	if _nav_links_root:
+		_nav_links_root.queue_free()
+		_nav_links_root = null
+	if _dungeon_root:
+		_build_nav_links()
 
 
 func _resolve_secret_socket(parent_room: RoomTemplate, wall_direction: String) -> DoorwaySocket:
@@ -1010,9 +1041,10 @@ func _sample_placement_offset(room: RoomTemplate, placement: Dictionary) -> Vect
 	var blockout := room.get_blockout()
 	if blockout == null:
 		return _placement_offset(placement)
-	var nav_point := blockout.sample_random_nav_point(_placement_rng)
-	if nav_point == Vector3.ZERO:
+	var nav_result: Dictionary = blockout.sample_random_nav_point(_placement_rng)
+	if not bool(nav_result.get("ok", false)):
 		return _placement_offset(placement)
+	var nav_point: Vector3 = nav_result.get("position", Vector3.ZERO)
 	var hint := _placement_offset(placement)
 	return nav_point + Vector3(hint.x * 0.15, 0.0, hint.z * 0.15)
 
@@ -1145,6 +1177,8 @@ func _place_loot(chunked: bool, my_gen: int) -> void:
 		chest.set_meta("biome_id", biome_id)
 		if chest.has_signal("opened"):
 			chest.opened.connect(_on_chest_opened)
+		if chest.has_signal("contents_changed"):
+			chest.contents_changed.connect(_on_chest_opened)
 		room.add_child(chest)
 		_chest_by_id[chest_key] = chest
 		if chunked and (i + 1) % CHUNK_LOOT_PER_FRAME == 0:
@@ -1160,12 +1194,17 @@ func _trap_scene_for_id(trap_id: String) -> PackedScene:
 	return load(scene_path) as PackedScene
 
 
-func _place_room_content() -> void:
+func _place_room_content() -> bool:
+	var gate_failure := RoomContentSpawnerScript.validate_required_gates(self, definition)
+	if not gate_failure.is_empty():
+		push_error("DungeonBuilder: required gate placement failed %s" % JSON.stringify(gate_failure))
+		return false
 	RoomContentSpawnerScript.spawn_all(self, definition)
 	RoomContentSpawnerScript.spawn_locks(self, definition)
 	RoomContentSpawnerScript.spawn_puzzle_gates(self, definition)
 	RoomContentSpawnerScript.spawn_shortcut_gates(self, definition)
 	RoomContentSpawnerScript.spawn_arena_gates(self, definition)
+	return true
 
 
 func _place_traps() -> void:
@@ -1456,8 +1495,11 @@ func capture_loot_states() -> Dictionary:
 	var states := {}
 	for chest_id in _chest_by_id:
 		var chest: Node = _chest_by_id[chest_id]
-		if chest and is_instance_valid(chest) and chest.has_method("is_opened"):
-			states[chest_id] = {"opened": chest.call("is_opened")}
+		if chest and is_instance_valid(chest):
+			if chest.has_method("capture_state"):
+				states[chest_id] = chest.call("capture_state")
+			elif chest.has_method("is_opened"):
+				states[chest_id] = {"opened": chest.call("is_opened")}
 	return states
 
 
@@ -1471,8 +1513,11 @@ func apply_snapshot(snapshot: Dictionary) -> void:
 	var loot_states: Dictionary = snapshot.get("loot", {})
 	for chest_id in loot_states:
 		var chest: Node = _chest_by_id.get(chest_id)
-		if chest and is_instance_valid(chest) and chest.has_method("apply_opened_state"):
-			chest.call("apply_opened_state", loot_states[chest_id].get("opened", false))
+		if chest and is_instance_valid(chest):
+			if chest.has_method("apply_state"):
+				chest.call("apply_state", loot_states[chest_id])
+			elif chest.has_method("apply_opened_state"):
+				chest.call("apply_opened_state", loot_states[chest_id].get("opened", false))
 
 	if snapshot.get("bossDefeated", false):
 		if _is_final_floor:

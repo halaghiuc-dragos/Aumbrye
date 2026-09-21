@@ -20,10 +20,17 @@ static func _ensure_loaded() -> void:
 static func roll_enemy_drop(
 	enemy_seed: int, floor_index: int = 1, difficulty_tier: int = 1, dungeon_id: String = ""
 ) -> String:
+	var drops := roll_enemy_drops(enemy_seed, floor_index, difficulty_tier, dungeon_id)
+	return str(drops[0]) if not drops.is_empty() else ""
+
+
+static func roll_enemy_drops(
+	enemy_seed: int, floor_index: int = 1, difficulty_tier: int = 1, dungeon_id: String = ""
+) -> Array[String]:
 	_ensure_loaded()
 	var entries: Array = _entries
 	if entries.is_empty():
-		return ""
+		return []
 	var bonus := 0.0
 	if floor_index > 1:
 		bonus += EndlessDifficultyScript.rare_drop_bonus(floor_index)
@@ -37,11 +44,12 @@ static func roll_enemy_drop(
 	var rng := RandomNumberGenerator.new()
 	var run_seed: int = RunFlow.current_seed if RunFlow else 0
 	rng.seed = FloorSeedMix.mix(run_seed, floor_index * 1337 + int(enemy_seed))
+	var drops: Array[String] = []
 	for entry in entries:
 		if not entry is Dictionary:
 			continue
 		var item_id: String = str(entry.get("itemId", ""))
-		var chance: float = float(entry.get("chance", 0.0)) * (1.0 + bonus)
+		var chance: float = clampf(float(entry.get("chance", 0.0)) * (1.0 + bonus), 0.0, 1.0)
 		if item_id != "" and rng.randf() < chance:
-			return item_id
-	return ""
+			drops.append(item_id)
+	return drops

@@ -377,7 +377,15 @@ func _refresh_today_label() -> void:
 			if not BountyService.is_claimed(quest_id):
 				open_bounties += 1
 	if open_bounties > 0:
-		parts.append(tr("MENU_TODAY_BOUNTIES").format({"count": open_bounties}))
+		parts.append(
+			tr("MENU_TODAY_BOUNTIES").format(
+				{
+					"count": open_bounties,
+					"dailyReset": BountyService.reset_time_label(BountyService.KIND_DAILY),
+					"weeklyReset": BountyService.reset_time_label(BountyService.KIND_WEEKLY),
+				}
+			)
+		)
 	var challenge := ChallengeService.get_active_challenge()
 	if not challenge.is_empty():
 		var remaining := ChallengeService.format_remaining(int(challenge.get("endsInSeconds", 0)))

@@ -7,6 +7,7 @@ const DIORAMA_SKIN := preload("res://scripts/art/props/diorama_interactable_skin
 const InteractPromptScript := preload("res://scripts/ui/interact_prompt.gd")
 
 var _key_id := ""
+var _key_fragment_id := ""
 var _lock_id := ""
 var _lock_flag_id := ""
 var _key_label := "Dungeon Key"
@@ -20,6 +21,7 @@ var _chest: Node3D
 
 func configure(entry: Dictionary, _definition: Dictionary) -> void:
 	_key_id = str(entry.get("keyId", ""))
+	_key_fragment_id = str(entry.get("keyFragmentId", _key_id))
 	_lock_id = str(entry.get("lockId", _key_id))
 	_lock_flag_id = WorldFlags.lock_opened(_lock_id) if _lock_id != "" else ""
 	_key_label = str(entry.get("keyLabel", "Dungeon Key"))
@@ -94,7 +96,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 	# Into the floor keyring, not the inventory: a keycard is not loot, and a full bag must never be
 	# the reason a floor cannot be finished.
-	if not FloorKeyringScript.take(_key_id):
+	if not FloorKeyringScript.take(_key_fragment_id):
 		return
 	_collected = true
 	# AU-03: a keycard punctuates the same way a secret or a lock does -- it is the beat that

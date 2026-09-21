@@ -17,6 +17,11 @@
       "minimum": 0,
       "description": "Fraction added to tick damage per second the status has held."
     },
+    "tickGrowthMaxSeconds": {
+      "type": "number",
+      "minimum": 0,
+      "description": "Maximum elapsed age used by tickGrowth; prevents indefinite refresh ramping."
+    },
     "tickHeal": {
       "type": "number",
       "minimum": 0,
@@ -29,6 +34,11 @@
     },
     "maxStacks": { "type": "integer", "minimum": 1 },
     "duration": { "type": "number", "minimum": 0 },
+    "refreshPolicy": {
+      "type": "string",
+      "enum": ["extend", "reset", "replace"],
+      "description": "Controls lifetime, tick clock and ramp age when an active status is reapplied."
+    },
     "stackDecay": {
       "type": "boolean",
       "description": "Sheds one stack per duration instead of expiring outright."

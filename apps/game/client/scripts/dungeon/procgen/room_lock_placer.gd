@@ -141,6 +141,11 @@ static func place_locked_doors(
 		# keycards they are, and both silently fall back to plain white/no tint.
 		var key_color := FloorKeyring.color_for_index(locks.size())
 		var key_id := "key_%s_%s_%s" % [pick["from"], pick["to"], key_color]
+		var key_fragment_ids: Array[String] = []
+		for fragment_index in key_layouts.size():
+			key_fragment_ids.append(
+				"%s_fragment_%d_%s" % [key_id.trim_suffix("_" + key_color), fragment_index + 1, key_color]
+			)
 		(
 			locks
 			. append(
@@ -154,6 +159,7 @@ static func place_locked_doors(
 					"keyLayoutId": key_room_layout,
 					"keyRoomIds": _semantics_for_layouts(layout_semantic, key_layouts),
 					"keyLayoutIds": key_layouts,
+					"keyFragmentIds": key_fragment_ids,
 					"keyLabel": FloorKeyring.label_for(key_id),
 					"keysRequired": key_layouts.size(),
 				}
@@ -282,6 +288,7 @@ static func apply_key_to_content(
 	room_content: Array, lock: Dictionary, reserved_semantics: Array[String]
 ) -> void:
 	var key_rooms: Array = lock.get("keyRoomIds", [lock.get("keyRoomId", "")])
+	var fragment_ids: Array = lock.get("keyFragmentIds", [])
 	for entry in room_content:
 		if str(entry.get("roomId", "")) not in key_rooms:
 			continue
@@ -298,6 +305,10 @@ static func apply_key_to_content(
 		entry["contentType"] = RoomContentTypes.LOCKED_VAULT
 		entry["templateId"] = RoomContentTypes.TEMPLATE_BY_TYPE[RoomContentTypes.LOCKED_VAULT]
 		entry["keyId"] = lock.get("keyId", "")
+		var fragment_index := key_rooms.find(room_id)
+		entry["keyFragmentId"] = (
+			fragment_ids[fragment_index] if fragment_index >= 0 and fragment_index < fragment_ids.size()
+			else lock.get("keyId", "")
+		)
 		entry["lockId"] = lock.get("lockId", "")
 		entry["keyLabel"] = lock.get("keyLabel", "Dungeon Key")
-	return

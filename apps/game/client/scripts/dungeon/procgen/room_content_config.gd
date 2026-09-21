@@ -33,6 +33,7 @@ var rest_within_of_boss := 3
 var max_consecutive_combat := 2
 var floor_theme_id := "plain"
 var floor_theme_label := ""
+var dead_end_reward_ratio := 0.3
 
 
 static func default() -> RoomContentConfig:

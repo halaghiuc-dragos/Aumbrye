@@ -15,6 +15,7 @@ const ACCOUNT_SCOPE_FLAG_IDS: Array[String] = [
 	"dungeon_max_tier",
 	"dungeon_unlocked_count",
 	"bestiary_kills",
+	"bestiary_observations",
 	"bestiary_studied_count",
 	"bestiary_mastered_count",
 	"bestiary_complete",

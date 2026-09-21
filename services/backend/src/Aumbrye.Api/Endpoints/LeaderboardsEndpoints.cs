@@ -1,4 +1,5 @@
 using Aumbrye.Application.Services;
+using Aumbrye.Api.Leaderboards;
 using Aumbrye.Shared.Contracts.Leaderboards;
 
 namespace Aumbrye.Api.Auth;
@@ -16,11 +17,15 @@ public static class LeaderboardsEndpoints
             ILeaderboardService leaderboards,
             CancellationToken ct) =>
         {
-            var biome = biomeId ?? "forgotten_castle";
-            var tierValue = tier ?? 1;
+            var biome = biomeId ?? LeaderboardRules.Biomes[0].Id;
+            var tierValue = tier ?? LeaderboardRules.MinimumTier;
             var requestedLimit = limit ?? 10;
             if (requestedLimit is < 1 or > 100)
                 return ProblemResults.BadRequest("limit must be between 1 and 100.");
+            if (tierValue < LeaderboardRules.MinimumTier || tierValue > LeaderboardRules.MaximumTier)
+                return ProblemResults.BadRequest("tier is unavailable.");
+            if (!LeaderboardRules.Biomes.Any(option => option.Id == biome))
+                return ProblemResults.BadRequest("biome is unavailable.");
 
             var top = await leaderboards.GetTopAsync(biome, tierValue, requestedLimit, ct);
             return Results.Ok(new LeaderboardPageResponse(
@@ -30,7 +35,8 @@ public static class LeaderboardsEndpoints
                     e.AccountId,
                     e.DisplayName,
                     e.ElapsedSeconds,
-                    e.SubmittedAt)).ToList()));
+                    e.SubmittedAt)).ToList(),
+                LeaderboardRules.Capabilities));
         })
         .WithName("GetLeaderboard")
         .RequireRateLimiting("public")

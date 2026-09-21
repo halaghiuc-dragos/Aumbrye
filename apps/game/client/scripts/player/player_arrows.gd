@@ -2,15 +2,14 @@ extends Node
 class_name PlayerArrows
 
 ## `RG-02`: the recovering quiver -- `arrows_max` (12) that refills fully at a bonfire
-## (`RunFlow.rest_at_bonfire`) and by 1 every `REGEN_INTERVAL` seconds out of combat. Mirrors
+## (`RunFlow.rest_at_bonfire`) and by 1 every `REGEN_INTERVAL` seconds after inactivity. Mirrors
 ## `PlayerHeal` deliberately: charges, a signal, HUD pips, refill at rest -- the same shape rather
 ## than a second inventory system for a quiver that was never meant to have pickups.
 
 const DEFAULT_MAX_ARROWS := 12
 const REGEN_INTERVAL := 6.0
-## A shot fired or a hit taken both count as "still in the fight" -- the regen timer holds off
-## rather than ticking through a fight, the same rule `PlayerHeal.REGEN_SUPPRESSION_AFTER_HIT`
-## already applies to health regen.
+## A shot fired or a damaging hit restarts the inactivity requirement. This is deliberately not an
+## enemy-engagement detector: clean evasive play can recover ammunition after the quiet window.
 const REGEN_SUPPRESSION := 4.0
 
 signal arrows_changed(current: int, max_value: int)
@@ -54,6 +53,7 @@ func _on_attack_started(attack_name: String) -> void:
 
 func _suppress_regen() -> void:
 	_regen_suppressed = REGEN_SUPPRESSION
+	_regen_timer = 0.0
 
 
 func _physics_process(delta: float) -> void:

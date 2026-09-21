@@ -7,6 +7,7 @@
   "tickInterval": 1,
   "maxStacks": 1,
   "duration": 1.2,
+  "refreshPolicy": "reset",
   "stunDuration": 1.2,
   "iconColor": "#ffee44",
   "polarity": "debuff"

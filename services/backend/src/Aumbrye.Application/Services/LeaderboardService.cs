@@ -10,7 +10,7 @@ public interface ILeaderboardStore
     /// (1-based) on that board after the write. Implementations must hold at most one entry per
     /// account per board and must not downgrade an existing better time.
     /// </summary>
-    Task<int> SubmitScoreAsync(
+    Task<int?> SubmitScoreAsync(
         Guid accountId,
         string displayName,
         string biomeId,
@@ -92,9 +92,21 @@ public class LeaderboardService : ILeaderboardService
             return new LeaderboardSubmitResult(false, Error: "Run belongs to another account.", StatusCode: 403);
         if (run.Status != RunStatus.Completed || run.CompletedAt == null)
             return new LeaderboardSubmitResult(false, Error: "Run is not completed.", StatusCode: 400);
+        if (!string.Equals(run.Outcome, "escaped", StringComparison.Ordinal)
+            || !run.FinalObjectiveCompleted
+            || !run.RankedDefinitionEligible
+            || !string.Equals(run.Mode, "dungeon", StringComparison.Ordinal)
+            || run.Assists != 0
+            || !string.Equals(run.Ruleset, "standard-v1", StringComparison.Ordinal))
+        {
+            return new LeaderboardSubmitResult(
+                false,
+                Error: "Run is not eligible for this leaderboard.",
+                StatusCode: 400);
+        }
 
         var account = await _db.Set<Account>().FirstOrDefaultAsync(a => a.Id == accountId, ct);
-        if (account == null)
+        if (account == null || account.DeletionPending)
             return new LeaderboardSubmitResult(false, Error: "Account not found.", StatusCode: 404);
 
         // Rank by the validated client-reported time when we have one. That clock excludes pause
@@ -158,7 +170,7 @@ public class InMemoryLeaderboardStore : ILeaderboardStore
 
     private static string Key(string biomeId, int tier) => $"{biomeId}:{tier}";
 
-    public Task<int> SubmitScoreAsync(
+    public Task<int?> SubmitScoreAsync(
         Guid accountId,
         string displayName,
         string biomeId,
@@ -204,7 +216,7 @@ public class InMemoryLeaderboardStore : ILeaderboardStore
             var rank = board.Values
                 .OrderBy(e => e.ElapsedSeconds)
                 .Select((e, i) => new { e.AccountId, Rank = i + 1 })
-                .FirstOrDefault(x => x.AccountId == accountId)?.Rank ?? board.Count;
+                .FirstOrDefault(x => x.AccountId == accountId)?.Rank;
             return Task.FromResult(rank);
         }
     }

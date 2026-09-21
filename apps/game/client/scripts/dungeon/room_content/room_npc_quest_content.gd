@@ -58,6 +58,10 @@ func _unhandled_input(event: InputEvent) -> void:
 		if dialogue_ui.call("start_dialogue", _dialogue_id):
 			get_viewport().set_input_as_handled()
 			return
-	if _quest_key_id != "":
-		WorldState.set_flag(WorldFlags.secret_opened(_quest_key_id), true)
+	# Missing dialogue is recoverable, never an implicit quest success. Keep the NPC present so the
+	# player can retry after UI/content recovery and surface a visible explanation.
+	if _prompt:
+		_prompt.show_text(tr("DIALOGUE_UNAVAILABLE_RETRY"))
+	if RunFlow:
+		RunFlow.emit_run_warning(tr("DIALOGUE_UNAVAILABLE_RETRY"))
 	get_viewport().set_input_as_handled()

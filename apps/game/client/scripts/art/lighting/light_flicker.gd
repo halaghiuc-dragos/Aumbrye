@@ -10,6 +10,7 @@ var _phase: float = 0.0
 var _time: float = 0.0
 var _cull_timer: float = 0.0
 var _visible: bool = true
+const MAX_FLICKER_DISTANCE_SQ := 32.0 * 32.0
 
 
 func setup(light: OmniLight3D, amount: float, hz: float, phase: float) -> void:
@@ -33,6 +34,12 @@ func _process(delta: float) -> void:
 	if _cull_timer >= 0.25:
 		_cull_timer = 0.0
 		_visible = _light.is_visible_in_tree()
+		var viewport := _light.get_viewport()
+		var camera := viewport.get_camera_3d() if viewport else null
+		if camera != null:
+			_visible = _visible and camera.global_position.distance_squared_to(
+				_light.global_position
+			) <= MAX_FLICKER_DISTANCE_SQ
 		if not _visible:
 			_light.light_energy = _base_energy * NightLights.scale_for(_light)
 	if not _visible:

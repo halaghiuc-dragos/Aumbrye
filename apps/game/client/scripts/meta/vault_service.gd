@@ -131,11 +131,13 @@ func evaluate() -> Array[Dictionary]:
 		pending[entry_id] = true
 		dirty = true
 		opened.append(entry.duplicate(true))
-		vault_unlocked.emit(entry_id)
 	if dirty:
 		CharacterService.set_flag(FLAG_UNLOCKED, record)
 		CharacterService.set_flag(FLAG_PENDING, pending)
 		invalidate_cache()
+		# Publish only after both records and the read cache reflect the committed state.
+		for entry in opened:
+			vault_unlocked.emit(str(entry.get("id", "")))
 	return opened
 
 

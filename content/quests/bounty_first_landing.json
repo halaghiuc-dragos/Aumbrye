@@ -2,6 +2,7 @@
   "id": "bounty_first_landing",
   "title": "Bounty: Three Floors Down",
   "type": "reach_depth",
+  "allowedModes": ["castle", "endless"],
   "requiredCount": 3,
   "repeatable": true,
   "cooldownRuns": 1,

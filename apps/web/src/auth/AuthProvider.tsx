@@ -18,6 +18,7 @@ const LEGACY_TOKEN_KEY = "aumbrye_token";
 
 type AuthContextValue = {
   accessToken: string;
+  userId: string;
   isSignedIn: boolean;
   signIn: (email: string, password: string) => Promise<void>;
   signUp: (email: string, password: string) => Promise<void>;
@@ -65,9 +66,11 @@ function scheduleRefresh(expiresAt: string, refreshFn: () => Promise<void>) {
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [accessToken, setAccessToken] = useState("");
+  const [userId, setUserId] = useState("");
   const [versionMismatch, setVersionMismatch] = useState(false);
   const refreshTimer = useRef<number | null>(null);
   const refreshPromise = useRef<Promise<string | null> | null>(null);
+  const sessionGeneration = useRef(0);
 
   const applyAuth = useCallback(function applyAuth(auth: AuthResponse) {
     const tokens = auth.tokens;
@@ -81,19 +84,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // auto-reload guard can be released for the next incident.
     clearVersionReloadGuard();
     setAccessToken(tokens.accessToken);
+    setUserId(auth.user?.id ?? "");
     markSessionPresent(true);
 
     if (refreshTimer.current !== null) {
       window.clearTimeout(refreshTimer.current);
     }
+    const generation = sessionGeneration.current;
     refreshTimer.current = scheduleRefresh(tokens.accessTokenExpiresAt, async () => {
       try {
         const next = await refresh();
-        applyAuth(next);
+        if (generation === sessionGeneration.current) {
+          applyAuth(next);
+        }
       } catch (err) {
-        if (err instanceof ApiError && err.status === 401) {
+        if (generation === sessionGeneration.current && err instanceof ApiError && err.status === 401) {
           clearTokens();
           setAccessToken("");
+          setUserId("");
         }
       }
     });
@@ -104,14 +112,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return refreshPromise.current;
     }
 
+    const generation = sessionGeneration.current;
     const promise = (async () => {
       try {
         const next = await refresh();
+        if (generation !== sessionGeneration.current) {
+          return null;
+        }
         applyAuth(next);
         return next.tokens?.accessToken ?? null;
-      } catch {
-        clearTokens();
-        setAccessToken("");
+      } catch (err) {
+        if (generation === sessionGeneration.current && err instanceof ApiError && err.status === 401) {
+          clearTokens();
+          setAccessToken("");
+          setUserId("");
+        }
         return null;
       } finally {
         refreshPromise.current = null;
@@ -124,6 +139,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signOut = useCallback(async () => {
     const currentAccess = accessToken;
+    sessionGeneration.current += 1;
 
     if (refreshTimer.current !== null) {
       window.clearTimeout(refreshTimer.current);
@@ -131,6 +147,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     setAccessToken("");
+    setUserId("");
     clearTokens();
 
     if (currentAccess) {
@@ -200,6 +217,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const value = useMemo(
     () => ({
       accessToken,
+      userId,
       isSignedIn: accessToken.length > 0,
       signIn,
       signUp,
@@ -208,7 +226,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       refreshAfterUnauthorized,
       versionMismatch,
     }),
-    [accessToken, getAccessToken, refreshAfterUnauthorized, signIn, signUp, signOut, versionMismatch],
+    [accessToken, getAccessToken, refreshAfterUnauthorized, signIn, signUp, signOut, userId, versionMismatch],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

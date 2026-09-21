@@ -14,7 +14,11 @@ public sealed record CompleteRunRequest(
     bool BossDefeated,
     IReadOnlyList<string>? LootClaimedInstanceIds,
     int Floor = 1,
-    int Kills = 0);
+    int Kills = 0,
+    string Mode = "dungeon",
+    bool FinalObjectiveCompleted = false,
+    int Assists = 0,
+    string Ruleset = "standard-v1");
 
 public sealed record CompleteRunResponse(
     Guid RunId,

@@ -76,7 +76,7 @@ public class AuthService : IAuthService
         email = email.Trim().ToLowerInvariant();
         var account = await _db.Set<Account>().FirstOrDefaultAsync(a => a.Email == email, ct);
 
-        if (account == null || string.IsNullOrEmpty(account.Email))
+        if (account == null || account.DeletionPending || string.IsNullOrEmpty(account.Email))
         {
             // Burn an equivalent hash so a missing (or Steam-only) account is not distinguishable
             // from a wrong password by response time.
@@ -98,6 +98,8 @@ public class AuthService : IAuthService
             .FirstOrDefaultAsync(t => t.TokenHash == hash, ct);
         if (stored == null)
             return new AuthResult(false, Error: "Invalid refresh token.");
+        if (stored.Account.DeletionPending)
+            return new AuthResult(false, Error: "Account is unavailable.", ErrorStatus: 423);
 
         if (stored.RevokedAt != null)
         {
@@ -110,8 +112,18 @@ public class AuthService : IAuthService
 
         var newRefresh = _tokenService.CreateRefreshToken();
         var newHash = _tokenService.HashToken(newRefresh);
-        stored.RevokedAt = DateTimeOffset.UtcNow;
-        stored.ReplacedByTokenHash = newHash;
+        var rotatedAt = DateTimeOffset.UtcNow;
+        await using var transaction = await _db.Database.BeginTransactionAsync(ct);
+        var consumed = await _db.Set<RefreshToken>()
+            .Where(token => token.Id == stored.Id && token.RevokedAt == null && token.ExpiresAt > rotatedAt)
+            .ExecuteUpdateAsync(setters => setters
+                .SetProperty(token => token.RevokedAt, rotatedAt)
+                .SetProperty(token => token.ReplacedByTokenHash, newHash), ct);
+        if (consumed != 1)
+        {
+            await transaction.RollbackAsync(ct);
+            return new AuthResult(false, Error: "Invalid refresh token.");
+        }
 
         var access = _tokenService.CreateAccessToken(stored.Account, out var expiresAt);
         _db.Set<RefreshToken>().Add(new RefreshToken
@@ -124,6 +136,7 @@ public class AuthService : IAuthService
             ExpiresAt = DateTimeOffset.UtcNow.AddDays(30),
         });
         await _db.SaveChangesAsync(ct);
+        await transaction.CommitAsync(ct);
 
         return new AuthResult(
             true,
@@ -168,6 +181,8 @@ public class AuthService : IAuthService
         var account = await _db.Set<Account>()
             .Include(a => a.SaveBlob)
             .FirstOrDefaultAsync(a => a.SteamId == steamId, ct);
+        if (account?.DeletionPending == true)
+            return new AuthResult(false, Error: "Account is unavailable.", ErrorStatus: 423);
         if (account == null)
         {
             var accountId = Guid.NewGuid();
@@ -220,8 +235,8 @@ public class AuthService : IAuthService
             return new AuthResult(false, Error: "Steam account already linked.", ErrorStatus: 409);
 
         var account = await _db.Set<Account>().FirstOrDefaultAsync(a => a.Id == accountId, ct);
-        if (account == null)
-            return new AuthResult(false, Error: "Account not found.", ErrorStatus: 404);
+        if (account == null || account.DeletionPending)
+            return new AuthResult(false, Error: "Account is unavailable.", ErrorStatus: 423);
 
         account.SteamId = steamId;
         account.SteamLinkedAt = DateTimeOffset.UtcNow;
@@ -371,9 +386,19 @@ public class AccountService : IAccountService
             return new DisplayNameResult(false, Error: "Display name already taken.");
 
         account.DisplayName = displayName;
-        await _db.SaveChangesAsync(ct);
+        try
+        {
+            await _db.SaveChangesAsync(ct);
+        }
+        catch (DbUpdateException ex) when (IsDisplayNameConflict(ex))
+        {
+            return new DisplayNameResult(false, Error: "Display name already taken.");
+        }
         return new DisplayNameResult(true, displayName);
     }
+
+    private static bool IsDisplayNameConflict(DbUpdateException exception) =>
+        exception.InnerException?.Message.Contains("IX_Accounts_DisplayName", StringComparison.Ordinal) == true;
 
     public async Task<bool> DeleteAccountAsync(Guid accountId, CancellationToken ct = default)
     {
@@ -385,10 +410,14 @@ public class AccountService : IAccountService
         if (account == null)
             return false;
 
+        account.DeletionPending = true;
+        await _db.SaveChangesAsync(ct);
+
         // Leaderboards live outside the relational cascade, so deleting the row alone would leave
         // the player's display name and account id publicly listed forever.
         await _leaderboards.RemoveAccountAsync(accountId, ct);
 
+        _db.Set<SaveBlobQuarantine>().Where(x => x.AccountId == accountId).ExecuteDelete();
         _db.Set<Account>().Remove(account);
         await _db.SaveChangesAsync(ct);
         return true;

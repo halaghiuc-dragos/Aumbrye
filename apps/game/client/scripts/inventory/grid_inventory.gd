@@ -243,7 +243,8 @@ func add_item(item_id: String, quantity: int = 1, instance_data: Dictionary = {}
 func add_rolled_item(
 	item_id: String, roll_seed: int = -1, run_mode: String = "", instance_data: Dictionary = {}
 ) -> bool:
-	var instance := AffixRoller.roll_instance(item_id, roll_seed, "", run_mode)
+	var roll_context: Dictionary = instance_data.get("rollContext", {})
+	var instance := AffixRoller.roll_instance(item_id, roll_seed, "", run_mode, roll_context)
 	if instance.is_empty():
 		return false
 	if not instance_data.is_empty():
@@ -306,6 +307,16 @@ func find_instance_index(instance_id: String) -> int:
 		if str(slots[i].get("instanceId", "")) == instance_id:
 			return i
 	return -1
+
+
+func set_instance_protected(instance_id: String, protected: bool) -> bool:
+	var index := find_instance_index(instance_id)
+	if index < 0:
+		return false
+	slots[index]["protected"] = protected
+	slots[index]["favorite"] = protected
+	changed.emit()
+	return true
 
 
 func split_stack(index: int) -> bool:
@@ -468,11 +479,40 @@ func get_equipped_instance(slot_name: String) -> Dictionary:
 	return equipped.get(slot_name, {}).duplicate()
 
 
+func set_favorite(index: int, enabled: bool) -> bool:
+	if index < 0 or index >= slots.size():
+		return false
+	slots[index]["favorite"] = enabled
+	if enabled:
+		slots[index]["junk"] = false
+	changed.emit()
+	return true
+
+
+func set_junk(index: int, enabled: bool) -> bool:
+	if index < 0 or index >= slots.size() or bool(slots[index].get("favorite", false)):
+		return false
+	slots[index]["junk"] = enabled
+	changed.emit()
+	return true
+
+
+func junk_indices() -> Array[int]:
+	var out: Array[int] = []
+	for i in slots.size():
+		if bool(slots[i].get("junk", false)) and not bool(slots[i].get("favorite", false)):
+			out.append(i)
+	return out
+
+
 func get_equipped_weapon_data_path() -> String:
 	var item_id := get_equipped_weapon_id()
 	if item_id == "":
 		return "content/weapons/sword_basic.json"
 	var def := get_item_def(item_id)
+	var base_id := str(def.get("baseId", ""))
+	if base_id in ["shortbow", "longbow"]:
+		return "content/weapons/%s.json" % base_id
 	var weapon_id: String = def.get("weaponId", "sword_basic")
 	return "content/weapons/%s.json" % weapon_id
 

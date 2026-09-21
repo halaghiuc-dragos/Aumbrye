@@ -15,6 +15,9 @@
     {
       "event": "onStatusApplied",
       "effect": "spread_status",
+      "ifAppliedStatus": "freeze",
+      "ifInstigatorGroup": "player",
+      "ifNotApplicationOrigin": "spread",
       "statusId": "freeze",
       "stacks": 1,
       "radius": 4,

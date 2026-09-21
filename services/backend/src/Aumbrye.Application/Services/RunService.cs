@@ -34,6 +34,30 @@ public class RunService : IRunService
     private static int GenerationSeedFor(Run run, int floor) =>
         DungeonSeedDeriver.GenerationSeed(run.Seed, run.Tier, floor);
 
+    private static bool IsRankedDefinitionEligible(string json)
+    {
+        try
+        {
+            using var document = JsonDocument.Parse(json);
+            if (!document.RootElement.TryGetProperty("GeneratorCapabilities", out var capabilities)
+                || capabilities.ValueKind != JsonValueKind.Array)
+                return false;
+            var present = capabilities.EnumerateArray()
+                .Where(value => value.ValueKind == JsonValueKind.String)
+                .Select(value => value.GetString())
+                .ToHashSet(StringComparer.Ordinal);
+            return present.Contains("layout")
+                && present.Contains("placements")
+                && present.Contains("roomContent")
+                && present.Contains("locks")
+                && present.Contains("puzzles");
+        }
+        catch (JsonException)
+        {
+            return false;
+        }
+    }
+
     public async Task<CreateRunResult> CreateRunAsync(
         Guid accountId,
         string biomeId,
@@ -44,7 +68,7 @@ public class RunService : IRunService
         var account = await _db.Set<Account>()
             .Include(a => a.SaveBlob)
             .FirstOrDefaultAsync(a => a.Id == accountId, ct);
-        if (account == null)
+        if (account == null || account.DeletionPending)
             return new CreateRunResult(false, Error: "Account not found.");
 
         if (!BiomeCatalog.TryGet(biomeId, out _))
@@ -99,6 +123,7 @@ public class RunService : IRunService
             Status = RunStatus.Active,
             CreatedAt = DateTimeOffset.UtcNow,
             DefinitionChecksum = checksum,
+            RankedDefinitionEligible = IsRankedDefinitionEligible(json),
             HighestFloorGenerated = 1,
             LootInstanceIdsJson = SerializeLootMap(MergeFloorLoot([], json, floor: 1)),
         };
@@ -148,6 +173,15 @@ public class RunService : IRunService
 
         if (input.Outcome == "escaped" && !input.BossDefeated)
             return new CompleteRunResult(false, runId, Error: "Boss must be defeated to escape.");
+
+		if (input.Outcome == "escaped" && !input.FinalObjectiveCompleted)
+			return new CompleteRunResult(false, runId, Error: "Final objective must be completed to escape.");
+		if (input.Mode is not ("dungeon" or "endless" or "waves"))
+			return new CompleteRunResult(false, runId, Error: "Invalid run mode.");
+		if (input.Assists < 0 || input.Assists > 16)
+			return new CompleteRunResult(false, runId, Error: "Invalid assist count.");
+		if (string.IsNullOrWhiteSpace(input.Ruleset) || input.Ruleset.Length > 64)
+			return new CompleteRunResult(false, runId, Error: "Invalid ruleset.");
 
         if (input.ElapsedSeconds < 0 || input.ElapsedSeconds > 86_400)
             return new CompleteRunResult(false, runId, Error: "Invalid elapsed time.");
@@ -202,7 +236,7 @@ public class RunService : IRunService
         var account = await _db.Set<Account>()
             .Include(a => a.SaveBlob)
             .FirstOrDefaultAsync(a => a.Id == accountId, ct);
-        if (account == null)
+        if (account == null || account.DeletionPending)
             return new CompleteRunResult(false, runId, Error: "Account not found.");
 
         var targetStatus = input.Outcome == "abandoned" ? RunStatus.Abandoned : RunStatus.Completed;
@@ -216,7 +250,12 @@ public class RunService : IRunService
                 s => s
                     .SetProperty(r => r.Status, targetStatus)
                     .SetProperty(r => r.CompletedAt, now)
-                    .SetProperty(r => r.ElapsedSeconds, input.ElapsedSeconds),
+                    .SetProperty(r => r.ElapsedSeconds, input.ElapsedSeconds)
+                    .SetProperty(r => r.Outcome, input.Outcome)
+                    .SetProperty(r => r.Mode, input.Mode)
+                    .SetProperty(r => r.FinalObjectiveCompleted, input.FinalObjectiveCompleted)
+                    .SetProperty(r => r.Assists, input.Assists)
+                    .SetProperty(r => r.Ruleset, input.Ruleset),
                 ct);
 
         if (claimed == 0)

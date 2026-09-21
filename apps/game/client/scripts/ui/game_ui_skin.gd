@@ -317,6 +317,7 @@ static func section_header(frame: PanelContainer) -> Label:
 
 static func _apply_label_variation(label: Label, variation: StringName) -> void:
 	label.theme_type_variation = variation
+	UITextScale.register(label)
 	if variation == VAR_HINT_TEXT or variation == VAR_MENU_TITLE or variation == VAR_SECTION_TITLE:
 		label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 
@@ -430,6 +431,7 @@ static func make_button(text: String, variation: StringName = &"") -> Button:
 	btn.text = text
 	if variation != &"":
 		btn.theme_type_variation = variation
+	UITextScale.register(btn)
 	wire_button_sfx(btn)
 	return btn
 

@@ -131,6 +131,7 @@ func seal_door() -> void:
 	_apply_barrier_visual()
 	_update_label()
 	AudioDirector.play_cue(&"door_seal", global_position)
+	AudioDirector.set_door_acoustic_state(true)
 	VfxService.play_rune_flare(global_position + Vector3(0.0, 2.0, 0.0))
 	_set_frame_torches_lit(false)
 	door_sealed.emit()
@@ -141,7 +142,9 @@ func release_door() -> void:
 	_apply_barrier_visual()
 	_label.visible = false
 	AudioDirector.play_cue(&"door_release", global_position)
+	AudioDirector.set_door_acoustic_state(false)
 	_set_frame_torches_lit(true)
+	AudioDirector.set_door_acoustic_state(false)
 
 
 ## `BS-05`: the sealed corridor read as "the way back is sealed" in text alone -- the frame torches

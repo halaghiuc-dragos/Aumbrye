@@ -9,6 +9,7 @@ const SAVE_KEY := "display"
 const SCALE_MIN := 0.75
 const SCALE_MAX := 1.75
 const SCALE_STEP := 0.05
+const PIXEL_BASE_SIZE := Vector2i(426, 240)
 
 const WINDOW_MODE_WINDOWED := "windowed"
 const WINDOW_MODE_BORDERLESS := "borderless"
@@ -42,6 +43,7 @@ var vsync_mode: String = VSYNC_ENABLED
 var max_fps: int = 0
 var ui_scale: float = 1.0
 var hud_safe_area: float = 0.0
+var integer_pixel_scaling := true
 
 var ui_text_scale: float = 1.0
 var fullscreen_confirm_sec: float = FULLSCREEN_CONFIRM_SEC
@@ -84,6 +86,7 @@ func serialize() -> Dictionary:
 		"max_fps": max_fps,
 		"ui_scale": ui_scale,
 		"hud_safe_area": hud_safe_area,
+		"integer_pixel_scaling": integer_pixel_scaling,
 	}
 
 
@@ -94,6 +97,7 @@ func apply_all() -> void:
 	_apply_vsync()
 	_apply_max_fps()
 	_apply_ui_scale()
+	_apply_pixel_scaling()
 	display_changed.emit(&"all", null)
 
 
@@ -289,6 +293,7 @@ func _deserialize(block: Dictionary) -> void:
 	max_fps = int(block.get("max_fps", 0))
 	ui_scale = clampf(float(block.get("ui_scale", 1.0)), SCALE_MIN, SCALE_MAX)
 	hud_safe_area = clampf(float(block.get("hud_safe_area", 0.0)), 0.0, HUD_SAFE_AREA_MAX)
+	integer_pixel_scaling = bool(block.get("integer_pixel_scaling", true))
 
 
 func _migrate_ui_scale_from_accessibility(meta: Dictionary) -> void:
@@ -382,6 +387,17 @@ func _apply_ui_scale() -> void:
 	tree.root.theme = _scaled_theme
 	UITextScale.apply_all()
 	display_changed.emit(&"ui_scale", ui_scale)
+
+
+func _apply_pixel_scaling() -> void:
+	var tree := get_tree()
+	if tree == null or tree.root == null:
+		return
+	if integer_pixel_scaling:
+		tree.root.content_scale_size = PIXEL_BASE_SIZE
+		tree.root.content_scale_aspect = Window.CONTENT_SCALE_ASPECT_KEEP
+	else:
+		tree.root.content_scale_size = Vector2i.ZERO
 
 
 func _start_fullscreen_timer() -> void:

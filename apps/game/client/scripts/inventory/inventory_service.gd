@@ -28,6 +28,7 @@ var quick_slot_instances: Array[String] = ["", "", "", ""]
 var waves_quick_slot_instances: Array[String] = ["", "", "", ""]
 var _registered_rule_sources: Array = []
 var _applying_status_refresh := false
+var _last_granted_instance: Dictionary = {}
 
 
 func _ready() -> void:
@@ -168,6 +169,7 @@ func _loot_roll_seed(item_id: String) -> int:
 
 
 func _on_item_added_success(item_id: String, instance_data: Dictionary) -> void:
+	_last_granted_instance = instance_data.duplicate(true)
 	if QuestService:
 		QuestService.register_fetch(item_id)
 	if RunFlow and RunFlow.is_run_active():
@@ -176,6 +178,10 @@ func _on_item_added_success(item_id: String, instance_data: Dictionary) -> void:
 		if relic_id != "" and RunBuffs:
 			RunBuffs.add_relic(relic_id)
 	_notify_item_obtained(item_id, instance_data)
+
+
+func get_last_granted_instance() -> Dictionary:
+	return _last_granted_instance.duplicate(true)
 
 
 func notify_reward_lost(item_id: String) -> void:
@@ -295,15 +301,11 @@ func get_equipment_stats() -> Dictionary:
 	)
 	var talent_stats := ProgressionService.get_talent_stat_totals() if ProgressionService else {}
 	var run_stats := RunBuffs.get_stat_totals() if RunBuffs else {}
-	var buff_stats := get_consumable_buff_stats()
 	var status_stats := get_status_buff_stats()
 	return _merge_stat_dicts(
 		_merge_stat_dicts(
-			_merge_stat_dicts(
-				_merge_stat_dicts(_merge_stat_dicts(equip_stats, class_stats), talent_stats),
-				run_stats
-			),
-			buff_stats
+			_merge_stat_dicts(_merge_stat_dicts(equip_stats, class_stats), talent_stats),
+			run_stats
 		),
 		status_stats
 	)
@@ -313,7 +315,6 @@ func get_combat_aggregate_stats() -> Dictionary:
 	var stats := _merge_stat_dicts(get_equipment_only_stats(), get_class_stats())
 	if RunBuffs:
 		stats = _merge_stat_dicts(stats, RunBuffs.get_stat_totals())
-	stats = _merge_stat_dicts(stats, get_consumable_buff_stats())
 	return _merge_stat_dicts(stats, get_status_buff_stats())
 
 
@@ -537,17 +538,35 @@ func _on_player_statuses_changed() -> void:
 	if player == null or not is_instance_valid(player):
 		return
 	_applying_status_refresh = true
-	apply_equipment_to_player_node(player)
+	var source_inventory: GridInventory = null
+	if str(player.get_meta("equipment_inventory_context", "")) == "waves" and WavesRunService:
+		source_inventory = WavesRunService.waves_inventory
+	apply_equipment_to_player_node(player, source_inventory)
 	_applying_status_refresh = false
 
 
-func apply_equipment_to_player_node(player: Node) -> void:
+func apply_equipment_to_player_node(player: Node, source_inventory: GridInventory = null) -> void:
 	if player == null:
 		return
+	if (
+		source_inventory == null
+		and str(player.get_meta("equipment_inventory_context", "")) == "waves"
+		and WavesRunService
+	):
+		source_inventory = WavesRunService.waves_inventory
 	_bind_status_stat_refresh(player)
-	var equip_stats := get_combat_aggregate_stats()
+	var resolved_inventory := source_inventory if source_inventory != null else inventory
+	player.set_meta("equipment_inventory_context", "waves" if source_inventory != null else "persistent")
+	var equipment_only := Equipment.aggregate_stats(
+		resolved_inventory.equipped, Callable(AffixRoller, "get_affix_stat")
+	)
+	var equip_stats := _merge_stat_dicts(equipment_only, get_class_stats())
+	if RunBuffs:
+		equip_stats = _merge_stat_dicts(equip_stats, RunBuffs.get_stat_totals())
+	equip_stats = _merge_stat_dicts(equip_stats, get_consumable_buff_stats())
+	equip_stats = _merge_stat_dicts(equip_stats, get_status_buff_stats())
 	var talent_stats := get_talent_stats()
-	var merged_stats := get_equipment_stats()
+	var merged_stats := _merge_stat_dicts(equip_stats, talent_stats)
 	# This whole function reruns on every status apply/remove (`_on_player_statuses_changed`), not
 	# just ones that actually touch a resource-affecting stat -- a bleed stack or a slow debuff
 	# recomputes maxHealth/stamina/poise/mana right along with the stats it does change. Calling
@@ -563,7 +582,9 @@ func apply_equipment_to_player_node(player: Node) -> void:
 		var bonus_hp: float = CombatStatModifiersScript.soften_health_bonus(
 			float(merged_stats.get("maxHealth", 0.0))
 		)
-		var target_max_health := Health.MAX_HEALTH + bonus_hp
+		var target_max_health := maxf(
+			CombatStatModifiersScript.MIN_MAX_HEALTH, Health.MAX_HEALTH + bonus_hp
+		)
 		if not is_equal_approx(target_max_health, health.max_health):
 			health.configure(target_max_health, true)
 	var stamina := player.get_node_or_null("Stamina") as Stamina
@@ -572,36 +593,40 @@ func apply_equipment_to_player_node(player: Node) -> void:
 			Stamina.MAX_STAMINA
 			+ CombatStatModifiersScript.max_stamina_bonus(equip_stats, talent_stats)
 		)
+		var stamina_regen := CombatStatModifiersScript.stamina_regen_multiplier(
+			equip_stats, talent_stats
+		)
 		if not is_equal_approx(max_stamina, stamina.max_stamina):
-			stamina.configure(
-				max_stamina,
-				CombatStatModifiersScript.stamina_regen_multiplier(equip_stats, talent_stats),
-				true
-			)
+			stamina.configure(max_stamina, stamina_regen, true)
+		else:
+			stamina.set_regen_multiplier(stamina_regen)
 	var poise := player.get_node_or_null("Poise") as Poise
 	if poise:
 		var max_poise := (
 			Poise.MAX_POISE + CombatStatModifiersScript.max_poise_bonus(equip_stats, talent_stats)
 		)
+		var break_dur := float(get_class_stats().get("poise_break_duration", 1.2))
 		if not is_equal_approx(max_poise, poise.max_poise):
-			var break_dur := float(get_class_stats().get("poise_break_duration", 1.2))
 			poise.configure(max_poise, break_dur, true)
+		else:
+			poise.set_break_duration(break_dur)
 	var mana := player.get_node_or_null("Mana") as Mana
 	if mana:
 		var max_mana := (
 			Mana.MAX_MANA + CombatStatModifiersScript.max_mana_bonus(equip_stats, talent_stats)
 		)
+		var mana_regen := CombatStatModifiersScript.mana_regen_multiplier(
+			equip_stats, talent_stats
+		)
 		if not is_equal_approx(max_mana, mana.max_mana):
-			mana.configure(
-				max_mana,
-				CombatStatModifiersScript.mana_regen_multiplier(equip_stats, talent_stats),
-				true
-			)
+			mana.configure(max_mana, mana_regen, true)
+		else:
+			mana.set_regen_multiplier(mana_regen)
 	var weapon := player.get_node_or_null("WeaponController")
 	if weapon and weapon.has_method("load_weapon_from_path"):
-		weapon.load_weapon_from_path(inventory.get_equipped_weapon_data_path())
+		weapon.load_weapon_from_path(resolved_inventory.get_equipped_weapon_data_path())
 		if weapon.has_method("set_infusion"):
-			weapon.call("set_infusion", str(inventory.get_equipped_weapon_infusion()))
+			weapon.call("set_infusion", str(resolved_inventory.get_equipped_weapon_infusion()))
 		if weapon.has_method("set_combat_stat_modifiers"):
 			weapon.set_combat_stat_modifiers(equip_stats, talent_stats, get_class_stats())
 		elif weapon.has_method("set_damage_multiplier"):
@@ -620,13 +645,22 @@ func apply_equipment_to_player_node(player: Node) -> void:
 		)
 	var guard := player.get_node_or_null("Guard")
 	if guard and guard.has_method("set_combat_stat_modifiers"):
-		var shield_inst := inventory.get_equipped_instance("secondary")
+		var shield_inst := resolved_inventory.get_equipped_instance("secondary")
 		var block_data: Dictionary = {}
 		if not shield_inst.is_empty():
 			var shield_def := get_item_def(str(shield_inst.get("itemId", "")))
 			block_data = shield_def.get("block", {})
 		guard.set_combat_stat_modifiers(equip_stats, talent_stats, block_data)
 	var defense_points := CombatStatModifiersScript.defense_points(equip_stats, talent_stats)
+	var equipped_mass := 0.0
+	for slot_name in EquipmentHelper.SLOT_ORDER:
+		var equipped_instance := resolved_inventory.get_equipped_instance(slot_name)
+		if equipped_instance.is_empty():
+			continue
+		var equipped_def := get_item_def(str(equipped_instance.get("itemId", "")))
+		equipped_mass += maxf(0.0, float(equipped_def.get("mass", equipped_def.get("weight", 0.0))))
+	player.set_meta("equipped_mass", equipped_mass)
+	player.set_meta("carry_capacity", maxf(1.0, float(merged_stats.get("carryCapacity", 100.0))))
 	player.set_meta("combat_defense", defense_points)
 	player.set_meta(
 		"combat_evasion", CombatStatModifiersScript.evasion_chance(equip_stats, talent_stats)
@@ -657,11 +691,12 @@ func apply_equipment_to_player_node(player: Node) -> void:
 			}
 		)
 	)
-	_apply_equipment_visuals(player)
+	_apply_equipment_visuals(player, resolved_inventory)
 	equipment_stats_changed.emit(merged_stats)
 
 
-func _apply_equipment_visuals(player: Node) -> void:
+func _apply_equipment_visuals(player: Node, source_inventory: GridInventory = null) -> void:
+	var resolved_inventory := source_inventory if source_inventory != null else inventory
 	var facing := player.get_node_or_null("Facing") as Node3D
 	if facing == null:
 		return
@@ -671,7 +706,15 @@ func _apply_equipment_visuals(player: Node) -> void:
 	var theme := PixelStyleScript.PaletteTheme.HUB
 	if CharacterService:
 		theme = CharacterService.appearance_theme as PixelStyleScript.PaletteTheme
-	CharacterSkinScript.apply_equipment(visual, inventory.equipped, theme)
+	var signature_parts: Array[String] = [str(theme)]
+	for slot_name in EquipmentHelper.SLOT_ORDER:
+		var instance := resolved_inventory.get_equipped_instance(slot_name)
+		signature_parts.append("%s:%s" % [slot_name, str(instance.get("itemId", ""))])
+	var signature := "|".join(signature_parts)
+	if str(player.get_meta("equipment_visual_signature", "")) == signature:
+		return
+	CharacterSkinScript.apply_equipment(visual, resolved_inventory.equipped, theme)
+	player.set_meta("equipment_visual_signature", signature)
 	# Refitting gear builds fresh `EquipVisual_*` holders, and new geometry draws normally no matter
 	# what the parts around it were set to. Equipping a helmet while in first person therefore put a
 	# helmet inside the camera. The camera owns this state, so re-assert it against the rebuilt tree.
@@ -814,6 +857,8 @@ func _use_consumable_at_index(index: int) -> bool:
 	var in_hub := not in_run
 	var guard := ConsumableServiceScript.can_use(def, in_run, in_hub)
 	if not bool(guard.get("ok", false)):
+		return false
+	if in_run and not ConsumableServiceScript.can_commit(player):
 		return false
 	if not ConsumableServiceScript.apply(def, player):
 		return false

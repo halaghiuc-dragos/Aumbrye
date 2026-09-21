@@ -15,6 +15,10 @@ const BLOCKED_GROUPS := [PlayerInput.Group.COMBAT, PlayerInput.Group.INTERACT]
 var _runner: DialogueRunner
 var _choice_buttons: Array[Button] = []
 var _selected_index := 0
+var _input_lock_handle := 0
+var _closing := false
+var _starting := false
+var _ended_while_starting := false
 
 ## UX-04: a typewriter reveal that a press completes -- reduced_motion (and a text length under
 ## the minimum worth animating) skips straight to the full line, matching how every other motion
@@ -35,6 +39,7 @@ func _ready() -> void:
 	_runner.line_changed.connect(_on_line_changed)
 	_runner.dialogue_ended.connect(_on_dialogue_ended)
 	_runner.action_triggered.connect(_on_action_triggered)
+	_runner.action_failed.connect(_on_action_failed)
 	var panel := get_node_or_null("Panel") as Control
 	if panel:
 		panel.gui_input.connect(_on_panel_gui_input)
@@ -45,27 +50,51 @@ func is_open() -> bool:
 
 
 func start_dialogue(dialogue_id: String) -> bool:
-	if not _runner.start(dialogue_id):
+	_starting = true
+	_ended_while_starting = false
+	var result := _runner.start(dialogue_id)
+	_starting = false
+	if result == DialogueRunner.StartResult.FAILED:
 		return false
+	if result == DialogueRunner.StartResult.COMPLETED:
+		_cleanup_dialogue(true)
+		return true
 	visible = true
 	mouse_filter = Control.MOUSE_FILTER_STOP
-	PlayerInput.block_groups(BLOCKED_GROUPS)
+	if _input_lock_handle == 0:
+		_input_lock_handle = PlayerInput.block_groups(BLOCKED_GROUPS)
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	return true
 
 
 func close() -> void:
+	if _closing:
+		return
+	_closing = true
 	if _runner.is_active():
 		_runner.end_dialogue()
+	_cleanup_dialogue(true)
+	_closing = false
+
+
+func _cleanup_dialogue(notify_closed: bool) -> void:
+	if _reveal_tween and _reveal_tween.is_valid():
+		_reveal_tween.kill()
+	_reveal_tween = null
+	_is_revealing = false
+	var was_open := visible or _input_lock_handle != 0
 	visible = false
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
-	PlayerInput.unblock_groups(BLOCKED_GROUPS)
+	PlayerInput.release_group_block(_input_lock_handle)
+	_input_lock_handle = 0
 	PlayerControls.capture_mouse_if_allowed()
-	closed.emit()
+	if notify_closed and was_open:
+		closed.emit()
 
 
 func _exit_tree() -> void:
-	PlayerInput.unblock_groups(BLOCKED_GROUPS)
+	PlayerInput.release_group_block(_input_lock_handle)
+	_input_lock_handle = 0
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -93,7 +122,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		get_viewport().set_input_as_handled()
 	elif event.is_action_pressed("ui_accept") or event.is_action_pressed("interact"):
 		get_viewport().set_input_as_handled()
-		_runner.select_choice(_selected_index)
+		_activate_choice(_selected_index)
 
 
 func _on_panel_gui_input(event: InputEvent) -> void:
@@ -177,9 +206,11 @@ func _rebuild_choices(choices: Array) -> void:
 	for i in choices.size():
 		var choice: Dictionary = choices[i]
 		var btn := GameUISkinScript.make_button(str(choice.get("text", "???")))
-		btn.focus_mode = Control.FOCUS_NONE
+		btn.focus_mode = Control.FOCUS_ALL
 		var idx := i
-		btn.pressed.connect(func() -> void: _runner.select_choice(idx))
+		var choice_id := str(choice.get("_choiceId", ""))
+		btn.set_meta("choice_id", choice_id)
+		btn.pressed.connect(func() -> void: _activate_choice(idx))
 		btn.mouse_entered.connect(
 			func() -> void:
 				_selected_index = idx
@@ -188,6 +219,17 @@ func _rebuild_choices(choices: Array) -> void:
 		_choices_box.add_child(btn)
 		_choice_buttons.append(btn)
 	_update_selection_visual()
+	if not _choice_buttons.is_empty():
+		_choice_buttons[0].grab_focus()
+
+
+func _activate_choice(index: int) -> void:
+	if _is_revealing:
+		_skip_reveal()
+		return
+	if index < 0 or index >= _choice_buttons.size():
+		return
+	_runner.select_choice_id(str(_choice_buttons[index].get_meta("choice_id", "")))
 
 
 func _move_selection(delta: int) -> void:
@@ -207,7 +249,14 @@ func _update_selection_visual() -> void:
 
 
 func _on_dialogue_ended() -> void:
-	close()
+	if _starting:
+		_ended_while_starting = true
+		return
+	if _closing:
+		return
+	_closing = true
+	_cleanup_dialogue(true)
+	_closing = false
 
 
 func _on_action_triggered(action: Dictionary) -> void:
@@ -221,3 +270,8 @@ func _on_action_triggered(action: Dictionary) -> void:
 			get_parent().call("open_quest_board")
 		"open_storage":
 			get_parent().call("open_storage")
+
+
+func _on_action_failed(message: String) -> void:
+	_hint_label.text = message
+	_hint_label.modulate = Color(1.0, 0.55, 0.45)

@@ -3,10 +3,12 @@ extends CastleEnemyBase
 
 const PROJECTILE_SCENE := preload("res://scenes/combat/enemy_projectile.tscn")
 const ProjectileContainerScript := preload("res://scripts/combat/projectile_container.gd")
+const ProjectileScript := preload("res://scripts/combat/enemy_projectile.gd")
 
 var _locked_shot_direction := Vector3.FORWARD
 var _locked_shot_speed := 12.0
 var _locked_shot_target := Vector3.INF
+var _shot_reachable := true
 
 
 func _resolve_enemy_id() -> String:
@@ -37,6 +39,9 @@ func _process_chase(delta: float) -> void:
 
 func _start_windup() -> void:
 	_lock_shot_trajectory()
+	if not _shot_reachable:
+		_state = State.CHASE
+		return
 	super._start_windup()
 
 
@@ -44,6 +49,10 @@ func _on_windup_tick(committed: bool) -> void:
 	if committed:
 		return
 	_lock_shot_trajectory()
+	if not _shot_reachable:
+		hide_attack_windup_bar()
+		_release_attack_token()
+		_state = State.CHASE
 
 
 func _telegraph_radius_scale() -> float:
@@ -55,6 +64,7 @@ func _lock_shot_trajectory() -> void:
 	if _player == null:
 		_locked_shot_direction = CombatFacing.forward_of(self)
 		_locked_shot_target = Vector3.INF
+		_shot_reachable = true
 		return
 	var spawn_pos := global_position + Vector3(0, 1.2, 0)
 	var target_pos := _player.global_position + Vector3(0, 1.0, 0)
@@ -65,9 +75,22 @@ func _lock_shot_trajectory() -> void:
 		_locked_shot_direction = CombatFacing.forward_of(self)
 	else:
 		_locked_shot_direction = to_target.normalized()
+	var solution := ProjectileScript.solve_launch_velocity(
+		_locked_shot_direction, _locked_shot_speed, spawn_pos, target_pos
+	)
+	_shot_reachable = bool(solution.get("reachable", false))
+	if _shot_reachable:
+		var space := get_world_3d().direct_space_state
+		var excluded: Array[RID] = [get_rid()]
+		_shot_reachable = ProjectileScript.trajectory_is_clear(
+			space, spawn_pos, solution["velocity"], target_pos, excluded
+		)
 
 
 func _start_attack() -> void:
+	if str(_current_attack_data.get("attackBehavior", "projectile")) != "projectile":
+		super._start_attack()
+		return
 	if is_dead() or (_health and _health.is_dead()):
 		_release_attack_token()
 		return
@@ -87,10 +110,11 @@ func _fire_projectile() -> void:
 		container.add_child(projectile)
 	else:
 		get_tree().current_scene.add_child(projectile)
-	projectile.global_position = global_position + Vector3(0, 1.2, 0)
+	projectile.global_position = _projectile_origin()
 	if not projectile.has_method("launch"):
+		projectile.queue_free()
 		return
-	projectile.call(
+	var launched: Variant = projectile.call(
 		"launch",
 		_locked_shot_direction,
 		float(_current_attack_data.get("projectile_speed", _locked_shot_speed)),
@@ -114,3 +138,13 @@ func _fire_projectile() -> void:
 		float(_current_attack_data.get("knockback", _data.get("knockback", 0.0))),
 		_locked_shot_target
 	)
+	if launched is bool and not launched:
+		_shot_reachable = false
+
+
+func _projectile_origin() -> Vector3:
+	for anchor_name in ["ProjectileMuzzle", "Muzzle", "AimAnchor"]:
+		var anchor := find_child(anchor_name, true, false) as Node3D
+		if anchor:
+			return anchor.global_position
+	return global_position + Vector3(0.0, 1.2, 0.0)

@@ -6,4 +6,5 @@ public class SaveBlob
     public Account Account { get; set; } = null!;
     public string JsonData { get; set; } = "{}";
     public DateTimeOffset UpdatedAt { get; set; }
+    public long Revision { get; set; }
 }

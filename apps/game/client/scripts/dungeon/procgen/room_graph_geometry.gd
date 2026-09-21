@@ -44,6 +44,7 @@ static func build_rooms(graph: RoomGraph, assignment: Dictionary, layout: Dictio
 					"doorOffsets": door_offsets.get(layout_id, {}),
 					"kind": _minimap_kind_for_semantic(str(room["semantic_id"]), str(room["type"])),
 					"shape": str(RoomTemplateCatalog.get_spec(str(room["template_id"])).get("shape", "rect")),
+					"tacticalFamily": RoomTemplateCatalog.tactical_family(str(room["template_id"])),
 				}
 			)
 		)

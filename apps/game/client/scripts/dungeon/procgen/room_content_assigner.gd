@@ -16,7 +16,11 @@ static func assign(
 	var result := _assign_impl(graph, assignment, rng, config, biome_id, tier)
 	if result.get("ok", false):
 		_add_shortcut_gates(graph, assignment, rng, biome_id, tier, result)
-		_guarantee_one_way_gate(graph, assignment, rng, biome_id, tier, result)
+		var content: Dictionary = result.get("content", {})
+		if (content.get("shortcutGates", []) as Array).is_empty():
+			var warnings: Array = result.get("warnings", [])
+			warnings.append("missing_geometric_shortcut")
+			result["warnings"] = warnings
 	return result
 
 
@@ -172,6 +176,7 @@ static func _try_assign_once(
 			)
 		)
 	_enforce_pacing(room_content, critical_semantic, reserved_semantics, config, rng)
+	_apply_pacing_beats(room_content, critical_semantic, reserved_semantics)
 	var locks: Array = []
 	if config.enable_locked_door and critical_semantic.size() >= 4:
 		var content_by_semantic := RoomLockPlacer.content_by_semantic(room_content)
@@ -236,13 +241,13 @@ static func _pick_content_type(
 ) -> String:
 	if is_dead_end:
 		var dead_roll := rng.randf()
-		if dead_roll < 0.30:
-			return RoomContentTypes.LORE
-		if dead_roll < 0.55:
+		var reward_ratio := clampf(config.dead_end_reward_ratio, 0.0, 1.0)
+		if dead_roll < reward_ratio:
 			return RoomContentTypes.REWARD
-		if dead_roll < 0.65:
-			return RoomContentTypes.EMPTY
-		if dead_roll < 0.85:
+		var remainder_roll := (dead_roll - reward_ratio) / maxf(0.0001, 1.0 - reward_ratio)
+		if remainder_roll < 0.35:
+			return RoomContentTypes.LORE
+		if remainder_roll < 0.65:
 			return RoomContentTypes.COMBAT
 		return RoomContentTypes.EMPTY
 	if on_critical:
@@ -315,6 +320,30 @@ static func _enforce_pacing(
 		_guarantee_rest_before_boss(
 			room_content, by_room, critical_semantic, reserved_semantics, config
 		)
+
+
+static func _apply_pacing_beats(
+	room_content: Array, critical_semantic: Array[String], reserved_semantics: Array[String]
+) -> void:
+	var by_room := {}
+	for entry in room_content:
+		if entry is Dictionary:
+			by_room[str(entry.get("roomId", ""))] = entry
+	var beats := ["tension", "reveal", "choice", "pressure", "relief"]
+	for i in critical_semantic.size():
+		var entry: Dictionary = by_room.get(critical_semantic[i], {})
+		if entry.is_empty():
+			continue
+		var beat := str(beats[i % beats.size()])
+		entry["pacingBeat"] = beat
+		if not _is_mutable(entry, reserved_semantics):
+			continue
+		if beat == "reveal" and str(entry.get("contentType", "")) == RoomContentTypes.COMBAT:
+			_set_content_type(entry, RoomContentTypes.LORE)
+		elif beat == "choice" and str(entry.get("contentType", "")) == RoomContentTypes.EMPTY:
+			_set_content_type(entry, RoomContentTypes.REWARD)
+		elif beat == "relief" and str(entry.get("contentType", "")) == RoomContentTypes.COMBAT and _rest_allowed():
+			_set_content_type(entry, RoomContentTypes.REST)
 
 
 static func _set_content_type(entry: Dictionary, content_type: String) -> void:

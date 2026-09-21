@@ -18,6 +18,7 @@ const SERVICE_BY_INTERACT_TYPE := {
 var _data: Dictionary = {}
 var _interactable: HubInteractable
 var _greeted_this_visit := false
+var _greeting_pending := false
 
 
 const PixelStyle := preload("res://scripts/art/style/pixel_diorama_style.gd")
@@ -35,6 +36,7 @@ func _ready() -> void:
 	_interactable.interacted.connect(_on_interacted)
 	_interactable.player_exited.connect(_on_player_exited)
 	_murmur_timer = MURMUR_MIN + fposmod(float(npc_id.hash()), MURMUR_MAX - MURMUR_MIN)
+	set_available(is_available())
 	call_deferred("_resolve_visual")
 
 
@@ -50,11 +52,16 @@ const INTERACT_MIN_HEIGHT := 1.3
 const MURMUR_MIN := 11.0
 const MURMUR_MAX := 27.0
 const MURMUR_RADIUS := 7.5
+const MURMUR_GLOBAL_GAP := 2.5
+
+static var _next_murmur_at := 0
 
 var _visual: Node3D
+var _look_pivot: Node3D
 var _visual_base_y := 0.0
 var _idle_phase := 0.0
 var _murmur_timer := 0.0
+var _far_update_timer := 0.0
 var _player: Node3D
 var _zone_shape: CollisionShape3D
 var _zone_base_y := 0.0
@@ -72,6 +79,7 @@ func _resolve_visual() -> void:
 				break
 	if _visual:
 		_visual_base_y = _visual.position.y
+		_look_pivot = _visual.find_child("Head", true, false) as Node3D
 	_fit_interact_to_model()
 
 
@@ -134,6 +142,8 @@ func _visible_up_to_self(node: Node3D) -> bool:
 
 
 func _physics_process(delta: float) -> void:
+	if not visible or not is_available():
+		return
 	if _visual == null or not is_instance_valid(_visual):
 		return
 	if _player == null or not is_instance_valid(_player):
@@ -142,8 +152,17 @@ func _physics_process(delta: float) -> void:
 			return
 	var to_player := _player.global_position - global_position
 	to_player.y = 0.0
+	if to_player.length_squared() > LOOK_RADIUS * LOOK_RADIUS:
+		_far_update_timer -= delta
+		if _far_update_timer > 0.0:
+			return
+		_far_update_timer = 0.2
 	_advance_murmur(delta, to_player.length_squared())
 	if to_player.length_squared() > LOOK_RADIUS * LOOK_RADIUS:
+		if _look_pivot and is_instance_valid(_look_pivot):
+			_look_pivot.rotation.y = lerp_angle(
+				_look_pivot.rotation.y, 0.0, clampf(LOOK_TURN_SPEED * delta, 0.0, 1.0)
+			)
 		return
 	_idle_phase = fmod(_idle_phase + delta * IDLE_BOB_SPEED, TAU)
 	var bob := sin(_idle_phase) * IDLE_BOB_HEIGHT
@@ -153,7 +172,14 @@ func _physics_process(delta: float) -> void:
 	if to_player.length_squared() < 0.04:
 		return
 	var target_yaw := atan2(to_player.x, to_player.z)
-	rotation.y = lerp_angle(rotation.y, target_yaw, clampf(LOOK_TURN_SPEED * delta, 0.0, 1.0))
+	if _look_pivot and is_instance_valid(_look_pivot):
+		var local_target := global_transform.basis.inverse() * to_player.normalized()
+		var head_yaw := atan2(local_target.x, local_target.z)
+		_look_pivot.rotation.y = lerp_angle(
+			_look_pivot.rotation.y, clampf(head_yaw, -0.7, 0.7), clampf(LOOK_TURN_SPEED * delta, 0.0, 1.0)
+		)
+	else:
+		rotation.y = lerp_angle(rotation.y, target_yaw, clampf(LOOK_TURN_SPEED * delta, 0.0, 1.0))
 
 
 func _advance_murmur(delta: float, distance_squared: float) -> void:
@@ -162,7 +188,10 @@ func _advance_murmur(delta: float, distance_squared: float) -> void:
 	_murmur_timer -= delta
 	if _murmur_timer > 0.0:
 		return
+	if Time.get_ticks_msec() < _next_murmur_at:
+		return
 	_murmur_timer = randf_range(MURMUR_MIN, MURMUR_MAX)
+	_next_murmur_at = Time.get_ticks_msec() + int(MURMUR_GLOBAL_GAP * 1000.0)
 	AudioDirector.play_sfx("npc_murmur", global_position)
 
 
@@ -202,7 +231,8 @@ func set_available(available: bool) -> void:
 	var was_visible := visible
 	visible = available
 	if _interactable != null:
-		_interactable.set_deferred("monitoring", available)
+		_interactable.set_enabled(available)
+	set_physics_process(available)
 	if available and not was_visible:
 		call_deferred("_fit_interact_to_model")
 
@@ -217,7 +247,7 @@ func trigger_interact() -> void:
 
 
 func _on_player_exited() -> void:
-	_greeted_this_visit = false
+	pass
 
 
 func resolve_dialogue_id() -> String:
@@ -233,7 +263,8 @@ func resolve_dialogue_id() -> String:
 
 
 func _on_interacted() -> void:
-	if _data.is_empty():
+	if _data.is_empty() or not is_available():
+		set_available(false)
 		return
 	var interact_type: String = str(_data.get("interactType", "dialogue"))
 	var dialogue_id := resolve_dialogue_id()
@@ -243,10 +274,20 @@ func _on_interacted() -> void:
 			dialogue_requested.emit(npc_id, dialogue_id)
 		return
 	if dialogue_id != "" and not _greeted_this_visit:
-		_greeted_this_visit = true
+		if _greeting_pending:
+			return
+		_greeting_pending = true
 		dialogue_requested.emit(npc_id, dialogue_id)
 		return
 	shop_requested.emit(npc_id, service)
+
+
+func notify_dialogue_start_result(opened: bool) -> void:
+	if not _greeting_pending:
+		return
+	_greeting_pending = false
+	if opened:
+		_greeted_this_visit = true
 
 
 ## The NPC body mesh carried no material, so every villager in the hub was a grey block until

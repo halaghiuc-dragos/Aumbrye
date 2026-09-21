@@ -19,6 +19,45 @@ namespace Aumbrye.Infrastructure.Caching;
 public class RedisLeaderboardStore : ILeaderboardStore
 {
     private const int MaxEntriesPerKey = 1000;
+    private const string SubmitScript = """
+        local board = KEYS[1]
+        local meta = KEYS[2]
+        local index = KEYS[3]
+        local member = ARGV[1]
+        local score = tonumber(ARGV[2])
+        local displayName = ARGV[3]
+        local submittedUnix = tonumber(ARGV[4])
+        local maxEntries = tonumber(ARGV[5])
+        local current = redis.call('ZSCORE', board, member)
+        local improved = current == false or score < tonumber(current)
+        if improved then
+          redis.call('ZADD', board, score, member)
+        end
+        if not improved then
+          local existing = redis.call('HGET', meta, member)
+          if existing then
+            local ok, decoded = pcall(cjson.decode, existing)
+            if ok and decoded and decoded.SubmittedAtUnix then
+              submittedUnix = tonumber(decoded.SubmittedAtUnix)
+            end
+          end
+        end
+        redis.call('HSET', meta, member, cjson.encode({DisplayName=displayName, SubmittedAtUnix=submittedUnix}))
+        redis.call('SADD', index, ARGV[6])
+        local count = redis.call('ZCARD', board)
+        if count > maxEntries then
+          local evicted = redis.call('ZRANGE', board, maxEntries, -1)
+          redis.call('ZREMRANGEBYRANK', board, maxEntries, -1)
+          for _, item in ipairs(evicted) do
+            redis.call('HDEL', meta, item)
+          end
+        end
+        local rank = redis.call('ZRANK', board, member)
+        if not rank then
+          return {-1, 0}
+        end
+        return {rank + 1, 1}
+        """;
     private readonly IConnectionMultiplexer _redis;
 
     public RedisLeaderboardStore(IConnectionMultiplexer redis) => _redis = redis;
@@ -29,7 +68,7 @@ public class RedisLeaderboardStore : ILeaderboardStore
 
     private static string AccountIndexKey(Guid accountId) => $"leaderboard:account:{accountId:N}:boards";
 
-    public async Task<int> SubmitScoreAsync(
+    public async Task<int?> SubmitScoreAsync(
         Guid accountId,
         string displayName,
         string biomeId,
@@ -42,25 +81,20 @@ public class RedisLeaderboardStore : ILeaderboardStore
         var redisKey = Key(biomeId, tier);
         var member = LeaderboardMemberFormat.Format(accountId);
 
-        // SortedSetWhen.LessThan (Redis 6.2 ZADD LT) keeps the player's personal best: a slower
-        // resubmission is ignored rather than overwriting a faster time.
-        var improved = await db.SortedSetAddAsync(
-            redisKey, member, elapsedSeconds, SortedSetWhen.LessThan);
-
-        // The metadata hash always refreshes so a renamed player is displayed correctly, but the
-        // submission instant only advances when the score itself improved.
-        var existingMeta = improved ? RedisValue.Null : await db.HashGetAsync(MetaKey(biomeId, tier), member);
-        var metaSubmittedAt = submittedAt;
-        if (!improved && existingMeta.HasValue && TryReadMeta(existingMeta!, out _, out var previousAt))
-            metaSubmittedAt = previousAt;
-
-        await db.HashSetAsync(MetaKey(biomeId, tier), member, SerializeMeta(displayName, metaSubmittedAt));
-        await db.SetAddAsync(AccountIndexKey(accountId), $"{biomeId}|{tier}");
-
-        await TrimAsync(db, biomeId, tier);
-
-        var rank = await db.SortedSetRankAsync(redisKey, member, Order.Ascending);
-        return rank.HasValue ? (int)rank.Value + 1 : 1;
+        var result = (RedisResult[])await db.ScriptEvaluateAsync(
+            SubmitScript,
+            new RedisKey[] { redisKey, MetaKey(biomeId, tier), AccountIndexKey(accountId) },
+            new RedisValue[]
+            {
+                member,
+                elapsedSeconds,
+                displayName,
+                submittedAt.ToUnixTimeSeconds(),
+                MaxEntriesPerKey,
+                $"{biomeId}|{tier}"
+            });
+        var rank = (int)result[0];
+        return rank > 0 ? rank : null;
     }
 
     public async Task<IReadOnlyList<LeaderboardEntry>> GetTopAsync(
@@ -160,21 +194,6 @@ public class RedisLeaderboardStore : ILeaderboardStore
                 boards.Add((parts[0], tier));
         }
         return boards;
-    }
-
-    /// <summary>
-    /// Drops everything past <see cref="MaxEntriesPerKey"/>. Scores are elapsed seconds sorted
-    /// ascending, so rank 0 is the fastest run on the board — the tail is what must go.
-    /// </summary>
-    private static async Task TrimAsync(IDatabase db, string biomeId, int tier)
-    {
-        var redisKey = Key(biomeId, tier);
-        var evicted = await db.SortedSetRangeByRankAsync(redisKey, MaxEntriesPerKey, -1);
-        if (evicted.Length == 0)
-            return;
-
-        await db.SortedSetRemoveRangeByRankAsync(redisKey, MaxEntriesPerKey, -1);
-        await db.HashDeleteAsync(MetaKey(biomeId, tier), evicted);
     }
 
     private static string SerializeMeta(string displayName, DateTimeOffset submittedAt) =>

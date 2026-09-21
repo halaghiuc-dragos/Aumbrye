@@ -29,9 +29,11 @@ const patchNoteModules = import.meta.glob("../../content/patch-notes/*.md", {
 
 function parseWikiPage(raw: string): WikiPage {
   const { data, content } = parseFrontmatter(raw);
+  const slug = requiredField(data, "slug");
+  const title = requiredField(data, "title");
   return {
-    slug: String(data.slug),
-    title: String(data.title),
+    slug,
+    title,
     body: content.trim(),
   };
 }
@@ -39,14 +41,25 @@ function parseWikiPage(raw: string): WikiPage {
 function parsePatchNote(raw: string): PatchNote {
   const { data, content } = parseFrontmatter(raw);
   const highlights = Array.isArray(data.highlights) ? data.highlights.map(String) : [];
+  const version = requiredField(data, "version");
+  const title = requiredField(data, "title");
+  const date = requiredField(data, "date");
   return {
-    slug: String(data.slug ?? data.version),
-    version: String(data.version),
-    title: String(data.title),
-    date: String(data.date),
+    slug: String(data.slug ?? version),
+    version,
+    title,
+    date,
     highlights,
     body: content.trim(),
   };
+}
+
+function requiredField(data: Record<string, unknown>, field: string): string {
+  const value = data[field];
+  if (typeof value !== "string" || value.trim() === "") {
+    throw new Error("Invalid content frontmatter: missing " + field);
+  }
+  return value.trim();
 }
 
 /**

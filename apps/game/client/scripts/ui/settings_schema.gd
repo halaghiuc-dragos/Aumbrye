@@ -50,6 +50,12 @@ static func entries() -> Array[Dictionary]:
 			Callable(SettingsSchema, "_set_show_control_hints"),
 			true
 		),
+		_toggle_row(
+			"restrained_damage_numbers",
+			"accessibility",
+			func() -> bool: return AccessibilitySettings.restrained_damage_numbers,
+			Callable(SettingsSchema, "_set_restrained_damage_numbers")
+		),
 		_slider_row(
 			"subtitle_scale",
 			"accessibility",
@@ -165,12 +171,24 @@ static func entries() -> Array[Dictionary]:
 			func() -> bool: return AccessibilitySettings.assist_telegraph_emphasis,
 			Callable(SettingsSchema, "_set_assist_telegraph_emphasis")
 		),
+		_toggle_row(
+			"automatic_lock_switch",
+			"accessibility",
+			func() -> bool: return AccessibilitySettings.automatic_lock_switch,
+			Callable(SettingsSchema, "_set_automatic_lock_switch")
+		),
 	]
 
 
 static func _set_assist_damage_taken(v: float) -> void:
 	AccessibilitySettings.assist_damage_taken = v
 	AccessibilitySettings.apply_live("assist_damage_taken", v)
+
+
+static func _set_restrained_damage_numbers(v: bool) -> void:
+	AccessibilitySettings.restrained_damage_numbers = v
+	AccessibilitySettings.apply_live("restrained_damage_numbers", v)
+	AccessibilitySettings.request_commit()
 
 
 static func _set_assist_iframe_generosity(v: float) -> void:
@@ -186,6 +204,12 @@ static func _set_assist_lock_on_range(v: float) -> void:
 static func _set_assist_telegraph_emphasis(v: bool) -> void:
 	AccessibilitySettings.assist_telegraph_emphasis = v
 	AccessibilitySettings.apply_live("assist_telegraph_emphasis", v)
+	AccessibilitySettings.request_commit()
+
+
+static func _set_automatic_lock_switch(v: bool) -> void:
+	AccessibilitySettings.automatic_lock_switch = v
+	AccessibilitySettings.apply_live("automatic_lock_switch", v)
 	AccessibilitySettings.request_commit()
 
 

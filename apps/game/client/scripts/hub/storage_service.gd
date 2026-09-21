@@ -4,6 +4,7 @@ extends Node
 signal storage_changed
 
 var storage: GridInventory = GridInventory.new(8, 6)
+var _transaction_depth := 0
 
 
 func _ready() -> void:
@@ -11,6 +12,8 @@ func _ready() -> void:
 
 
 func _on_storage_changed() -> void:
+	if _transaction_depth > 0:
+		return
 	storage_changed.emit()
 	LocalSave.request_autosave(LocalSave.SavePriority.DEFERRED)
 
@@ -39,9 +42,17 @@ func move_to_storage(inv_index: int) -> Dictionary:
 	var slot: Dictionary = inv.slots[inv_index].duplicate(true)
 	if not can_accept(slot):
 		return {"ok": false, "error": "storage full"}
-	if not storage.add_slot(slot):
+	var inv_copy := GridInventory.new(inv.grid_width, inv.grid_height)
+	inv_copy.from_save_dict(inv.to_save_dict())
+	var storage_copy := GridInventory.new(storage.grid_width, storage.grid_height)
+	storage_copy.from_save_dict(storage.to_save_dict())
+	if not storage_copy.add_slot(slot):
 		return {"ok": false, "error": "storage full"}
-	inv.remove_at(inv_index)
+	var instance_id := str(slot.get("instanceId", ""))
+	var resolved := inv_copy.find_instance_index(instance_id)
+	if resolved < 0 or inv_copy.remove_at(resolved).is_empty():
+		return {"ok": false, "error": "invalid slot"}
+	_commit_transfer(inv, inv_copy, storage_copy)
 	return {"ok": true}
 
 
@@ -54,7 +65,24 @@ func move_to_inventory(storage_index: int) -> Dictionary:
 		return {"ok": false, "error": "invalid slot"}
 	if not InventoryService.inventory.has_space_for(item_id):
 		return {"ok": false, "error": "inventory full"}
-	if not InventoryService.inventory.add_slot(slot):
+	var inv := InventoryService.inventory
+	var inv_copy := GridInventory.new(inv.grid_width, inv.grid_height)
+	inv_copy.from_save_dict(inv.to_save_dict())
+	var storage_copy := GridInventory.new(storage.grid_width, storage.grid_height)
+	storage_copy.from_save_dict(storage.to_save_dict())
+	if not inv_copy.add_slot(slot):
 		return {"ok": false, "error": "inventory full"}
-	storage.remove_at(storage_index)
+	var resolved := storage_copy.find_instance_index(str(slot.get("instanceId", "")))
+	if resolved < 0 or storage_copy.remove_at(resolved).is_empty():
+		return {"ok": false, "error": "invalid slot"}
+	_commit_transfer(inv, inv_copy, storage_copy)
 	return {"ok": true}
+
+
+func _commit_transfer(inv: GridInventory, inv_copy: GridInventory, storage_copy: GridInventory) -> void:
+	_transaction_depth += 1
+	inv.from_save_dict(inv_copy.to_save_dict())
+	storage.from_save_dict(storage_copy.to_save_dict())
+	_transaction_depth -= 1
+	storage_changed.emit()
+	LocalSave.request_autosave(LocalSave.SavePriority.DEFERRED)

@@ -45,12 +45,18 @@ static func build_results(
 		"run_relics_lost": bool(extra.get("run_relics_lost", false)),
 		"floor_reached": int(extra.get("floor_reached", 1)),
 		"boss_defeated": bool(extra.get("boss_defeated", false)),
+		"gold_staked": int(extra.get("gold_staked", 0)),
+		"endless_best_floor": int(extra.get("endless_best_floor", 0)),
+		"endless_previous_best": int(extra.get("endless_previous_best", 0)),
+		"descent_tokens_awarded": int(extra.get("descent_tokens_awarded", 0)),
+		"failure_point": extra.get("failure_point", {}),
+		"assists_active": bool(extra.get("assists_active", false)),
 		"cloud_synced": bool(extra.get("cloud_synced", false)),
 		"rules_summary": rules_summary,
 		# RM-09: read directly rather than threading through every one of `build_results()`'s call
 		# sites -- `WorldFlags.secrets_found_this_floor()` is already the single source of truth,
 		# and by the time results are built the floor it counts is the one that just ended.
-		"secrets_found": int(WorldState.get_flag(WorldFlags.secrets_found_this_floor(), 0)),
+		"secrets_found": RunFlow.get_run_secret_count(),
 		# AD-06: the one sentence naming what killed the player and what they were doing, built by
 		# `PlayerCombatReactions._build_death_recap()` -- empty on a non-death outcome.
 		"death_recap": extra.get("death_recap", {}),

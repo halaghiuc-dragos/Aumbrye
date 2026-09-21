@@ -20,6 +20,7 @@ func configure(entry: Dictionary, definition: Dictionary) -> void:
 	)
 	trap.set_meta("biome_id", biome_id)
 	trap.set_meta("trap_id", trap_id)
+	trap.set_meta("room_id", room_id)
 	_content_root().add_child(trap)
 
 

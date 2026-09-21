@@ -19,6 +19,7 @@ const HEAL_COMMIT_FRACTION := 0.62
 ## pressure the player is under between fights. Regen holds off for a moment after a hit, so it
 ## tops the player up between encounters without quietly winning one for them.
 const REGEN_SUPPRESSION_AFTER_HIT := 4.0
+const REGEN_COMBAT_RADIUS := 18.0
 
 signal charges_changed(current: int, max_value: int)
 signal heal_started
@@ -138,6 +139,11 @@ func _process_regen(delta: float) -> void:
 		return
 	if _health == null or _health.is_dead() or _health.current >= _health.max_health:
 		return
+	if _body and _body.get_tree():
+		for node in _body.get_tree().get_nodes_in_group("enemy"):
+			var enemy := node as Node3D
+			if enemy and is_instance_valid(enemy) and enemy.global_position.distance_to(_body.global_position) <= REGEN_COMBAT_RADIUS:
+				return
 	var per_second := 0.0
 	if _body:
 		per_second = float(_body.get_meta("combat_health_regen", 0.0))

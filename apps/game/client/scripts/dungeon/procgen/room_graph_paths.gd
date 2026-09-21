@@ -8,6 +8,15 @@ static var _dist_cache_graph: RoomGraph = null
 static var _dist_cache: Dictionary = {}
 
 
+static func invalidate(graph: RoomGraph) -> void:
+	if graph == _adj_cache_graph:
+		_adj_cache_graph = null
+		_adj_cache = {}
+	if graph == _dist_cache_graph:
+		_dist_cache_graph = null
+		_dist_cache = {}
+
+
 static func build_adjacency(graph: RoomGraph) -> Dictionary:
 	if graph == _adj_cache_graph and not _adj_cache.is_empty():
 		return _adj_cache
@@ -179,4 +188,3 @@ static func branch_depth_for_slot(graph: RoomGraph, slot_id: String) -> int:
 
 static func _dirs() -> Array[Vector2i]:
 	return [Vector2i(0, -1), Vector2i(1, 0), Vector2i(0, 1), Vector2i(-1, 0)]
-

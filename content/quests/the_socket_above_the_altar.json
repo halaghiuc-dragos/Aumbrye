@@ -2,6 +2,7 @@
   "id": "the_socket_above_the_altar",
   "title": "The Socket Above the Altar",
   "type": "fetch",
+  "objectiveMode": "delivery",
   "chainId": "prayer",
   "prerequisites": [
     "struck_from_every_copy"

@@ -107,7 +107,6 @@ static func score_graph(graph: RoomGraph, config: RoomGraphConfig) -> float:
 	var min_cell := Vector2i(999999, 999999)
 	var max_cell := Vector2i(-999999, -999999)
 	var dead_end_depths: Array[int] = []
-	var distances := RoomGraphPathsScript.bfs_distances(graph, graph.start_id)
 	for cell in graph.occupied_cells():
 		var slot: RoomGraphSlot = graph.slots[cell]
 		if slot.slot_type == RoomGraphSlotScript.SlotType.SECRET:
@@ -119,20 +118,20 @@ static func score_graph(graph: RoomGraph, config: RoomGraphConfig) -> float:
 		max_cell.x = maxi(max_cell.x, cell.x)
 		max_cell.y = maxi(max_cell.y, cell.y)
 		if not slot.is_filler and slot.is_dead_end():
-			dead_end_depths.append(int(distances.get(slot.slot_id, 0)))
+			dead_end_depths.append(_branch_detour_depth(graph, slot))
 
-	var branching := _range_score(float(off_critical_count) / float(main_count), 0.35, 0.55)
+	var branching := _range_score(float(off_critical_count) / float(main_count), 0.25, 0.55)
 
 	var loopiness := 1.0
 	if config.loop_budget > 0:
 		loopiness = clampf(float(graph.loop_edges.size()) / float(config.loop_budget) / 0.5, 0.0, 1.0)
 
-	var path_length := _range_score(float(critical_ids.size()) / float(main_count), 0.30, 0.45)
+	var path_length := _range_score(float(critical_ids.size()) / float(main_count), 0.25, 0.5)
 
 	var width := float(max_cell.x - min_cell.x + 1)
 	var height := float(max_cell.y - min_cell.y + 1)
 	var aspect := minf(width, height) / maxf(width, height)
-	var spread := _range_score(aspect, 0.6, 1.0)
+	var spread := _range_score(aspect, 0.45 if config.floor_silhouette == "spine" else 0.6, 1.0)
 
 	var dead_end_depth := 1.0
 	if not dead_end_depths.is_empty():
@@ -143,6 +142,41 @@ static func score_graph(graph: RoomGraph, config: RoomGraphConfig) -> float:
 		dead_end_depth = clampf(mean_depth / 2.0, 0.0, 1.0)
 
 	return (branching + loopiness + path_length + spread + dead_end_depth) / 5.0
+
+
+static func _branch_detour_depth(graph: RoomGraph, dead_end: RoomGraphSlot) -> int:
+	var previous := ""
+	var current := dead_end
+	var depth := 0
+	while current != null:
+		var next_ids: Array[String] = []
+		for dir in DIRECTIONS:
+			if not (current.door_mask & DIR_TO_DOOR[dir]):
+				continue
+			var neighbor := graph.get_slot_at(current.grid_pos + dir)
+			if neighbor != null and neighbor.slot_id != previous and neighbor.slot_type != RoomGraphSlotScript.SlotType.SECRET:
+				next_ids.append(neighbor.slot_id)
+		if next_ids.size() != 1:
+			break
+		previous = current.slot_id
+		current = graph.get_slot(next_ids[0])
+		depth += 1
+	return depth
+
+
+static func validate_realised_floor(graph: RoomGraph, config: RoomGraphConfig) -> Dictionary:
+	var validation := _validate_graph(graph, config, config.loop_budget > 0)
+	if not validation.get("ok", false):
+		return validation
+	var critical := RoomGraphPathsScript.critical_path_ids(graph)
+	if critical.is_empty() or critical.back() != graph.boss_id:
+		return {"ok": false, "reason": "Realised floor has no start-to-boss route"}
+	return {
+		"ok": true,
+		"score": score_graph(graph, config),
+		"cycles": graph.loop_edges.size(),
+		"criticalRouteLength": critical.size(),
+	}
 
 
 ## 1.0 inside `[lo, hi]`, decaying linearly to 0 one span-width outside it.

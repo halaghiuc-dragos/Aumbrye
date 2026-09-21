@@ -31,7 +31,7 @@ const RAIN_DB_MAX := -8.0
 
 
 func _ready() -> void:
-	process_mode = Node.PROCESS_MODE_ALWAYS
+	process_mode = Node.PROCESS_MODE_PAUSABLE
 	_rng.randomize()
 	_timer = _rng.randf_range(DRY_MIN * 0.2, DRY_MAX * 0.5)
 	_build_ambience()
@@ -64,25 +64,22 @@ func set_outdoors(value: bool) -> void:
 		return
 	_outdoors = value
 	if not value:
-		_phase = Phase.DRY
-		_rain = 0.0
-		_wetness = 0.0
-		_timer = _rng.randf_range(DRY_MIN, DRY_MAX)
 		_silence_ambience()
-		_publish()
+	_publish()
 
 
 func rain_amount() -> float:
-	return _rain
+	return _rain if _outdoors else 0.0
 
 
 func _process(delta: float) -> void:
+	_advance_phase(delta)
 	if not _outdoors:
 		if _wetness > 0.0:
 			_wetness = maxf(0.0, _wetness - delta / DRY_OUT_SECONDS)
-			_publish()
+		_silence_ambience()
+		_publish()
 		return
-	_advance_phase(delta)
 	_wetness = (
 		maxf(_wetness, _rain)
 		if _rain > _wetness
@@ -139,7 +136,8 @@ var _last_signalled_rain := -1.0
 
 func _publish() -> void:
 	RenderingServer.global_shader_parameter_set(PARAM_RAIN, _wetness)
-	if absf(_rain - _last_signalled_rain) < RAIN_SIGNAL_EPSILON:
+	var exposed_rain := rain_amount()
+	if absf(exposed_rain - _last_signalled_rain) < RAIN_SIGNAL_EPSILON:
 		return
-	_last_signalled_rain = _rain
-	rain_changed.emit(_rain)
+	_last_signalled_rain = exposed_rain
+	rain_changed.emit(exposed_rain)

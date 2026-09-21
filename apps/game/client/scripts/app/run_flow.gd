@@ -83,6 +83,7 @@ var _boss_fight_active := false
 var _boss_fight_damage_taken := false
 var _loot_collected: Array[String] = []
 var _loot_claimed_instance_ids: Array[String] = []
+var _secrets_by_floor: Dictionary = {}
 var _loot_drop_ordinal := 0
 var _pending_snapshot: Dictionary = {}
 var _is_continue := false
@@ -901,6 +902,14 @@ func _finish_run(
 	_capture_repeat_descriptor()
 	var run_id := current_run_id
 	var loot_instance_ids := _loot_claimed_instance_ids.duplicate()
+	LocalSave.set_settlement_receipt({
+		"id": "%s:%s" % [run_id, outcome],
+		"runId": run_id,
+		"outcome": outcome,
+		"elapsed": elapsed,
+		"bossDefeated": boss_defeated,
+		"lootInstanceIds": loot_instance_ids,
+	})
 	if run_mode == RM.MODE_WAVES:
 		LocalSave.clear_waves_active_run()
 		# MD-01: the Vigil's per-wave modifier is global static state (`RunModifierService._active`)
@@ -916,6 +925,7 @@ func _finish_run(
 	# the results screen draws, so the screen can show what the run added to the vault.
 	if VaultService:
 		VaultService.evaluate()
+	LocalSave.clear_settlement_receipt()
 	_decorate_run_results()
 	run_ended.emit(last_run_results)
 	if cloud_outcome != "":
@@ -925,9 +935,9 @@ func _finish_run(
 	get_tree().root.set_meta("run_results", last_run_results)
 
 
-func register_kill(enemy_id: String = "") -> void:
+func register_kill(enemy_id: String = "", credit: Dictionary = {}) -> void:
 	_kill_count += 1
-	QuestService.register_kill(enemy_id)
+	QuestService.register_kill(enemy_id, credit)
 	if AchievementService:
 		AchievementService.notify("enemy_killed")
 
@@ -949,7 +959,7 @@ func register_boss_defeated() -> void:
 		if _boss_fight_active and not _boss_fight_damage_taken:
 			AchievementService.notify("boss_defeated_no_damage")
 	_boss_fight_active = false
-	if run_mode == RM.MODE_CASTLE:
+	if run_mode == RM.MODE_CASTLE and is_final_floor():
 		_mark_dungeon_cleared(current_dungeon_id)
 
 
@@ -958,16 +968,17 @@ func rest_at_bonfire(player: Node = null) -> void:
 		player = get_tree().get_first_node_in_group("player")
 	if player == null:
 		return
+	if RunModifierService.has_modifier(RunModifierService.MODIFIER_NO_REST):
+		emit_run_warning(tr("REST_DISABLED_WARNING"))
+		return
 	var starved := RunModifierService.has_modifier(RunModifierService.MODIFIER_STARVED_HEARTH)
 	var health := player.get_node_or_null("Health") as Health
 	if health:
 		if starved:
-			health.heal(health.max_health * 0.5)
+			health.restore_current(minf(health.current + health.max_health * 0.5, health.max_health * 0.5))
 		else:
 			health.reset_health()
-	var stamina := player.get_node_or_null("Stamina") as Stamina
-	if stamina:
-		stamina.reset_stamina()
+	_restore_rest_resources(player)
 	var heal := player.get_node_or_null("PlayerHeal")
 	if heal and heal.has_method("refill_charges") and not starved:
 		heal.call("refill_charges")
@@ -978,13 +989,22 @@ func rest_at_bonfire(player: Node = null) -> void:
 	# as a rules effect and nothing in the content ever used it.
 	var status := player.get_node_or_null("StatusController") as StatusController
 	if status:
-		status.clear_all()
+		status.cleanse_debuffs()
 	for enemy in get_tree().get_nodes_in_group("enemy"):
 		if enemy.has_method("respawn_at_rest"):
 			enemy.call("respawn_at_rest")
 	var castle := get_tree().get_first_node_in_group("castle_run")
 	if castle and castle.has_method("persist_bonfire_checkpoint"):
 		castle.call("persist_bonfire_checkpoint")
+
+
+func _restore_rest_resources(player: Node) -> void:
+	var stamina := player.get_node_or_null("Stamina") as Stamina
+	if stamina:
+		stamina.reset_stamina()
+	var mana := player.get_node_or_null("Mana") as Mana
+	if mana:
+		mana.reset_mana()
 
 
 func get_current_floor() -> int:
@@ -1051,6 +1071,8 @@ func ascend_floor() -> void:
 		return
 	if run_mode == RM.MODE_CASTLE and current_floor >= max_floors:
 		return
+	_record_current_floor_secrets()
+	WorldState.set_flag(WorldFlags.secrets_found_this_floor(), 0)
 	_stash_current_floor_in_cache()
 	_floor_transitioning = true
 	current_floor += 1
@@ -1063,6 +1085,8 @@ func descend_floor() -> void:
 		return
 	if run_mode == RM.MODE_ENDLESS:
 		return
+	_record_current_floor_secrets()
+	WorldState.set_flag(WorldFlags.secrets_found_this_floor(), 0)
 	_stash_current_floor_in_cache()
 	# Keys do not travel between floors: the ring is emptied going up or down, so a floor is always
 	# entered without the cards that opened the last one.
@@ -1566,9 +1590,23 @@ func _reset_run_stats() -> void:
 	_cleared_floors.clear()
 	_loot_collected.clear()
 	_loot_claimed_instance_ids.clear()
+	_secrets_by_floor.clear()
 	_loot_drop_ordinal = 0
 	current_floor = 1
 	_clear_floor_cache()
+
+
+func get_run_secret_count() -> int:
+	_record_current_floor_secrets()
+	var total := 0
+	for found in _secrets_by_floor.values():
+		total += maxi(0, int(found))
+	return total
+
+
+func _record_current_floor_secrets() -> void:
+	var found := maxi(0, int(WorldState.get_flag(WorldFlags.secrets_found_this_floor(), 0)))
+	_secrets_by_floor[current_floor] = maxi(int(_secrets_by_floor.get(current_floor, 0)), found)
 
 
 func _cloud_finalize_run(
@@ -1819,7 +1857,11 @@ func _bonfire_death_respawn(checkpoint: Dictionary, death_recap: Dictionary = {}
 	var elapsed := 0.0
 	if _run_start_time > 0.0:
 		elapsed = (Time.get_ticks_msec() / 1000.0) - _run_start_time
-	var full_xp := ProgressionService.calculate_run_xp(_kill_count, _boss_defeated, false)
+	var checkpoint_kills := maxi(0, int(checkpoint.get("killCount", 0)))
+	var checkpoint_xp := ProgressionService.calculate_run_xp(checkpoint_kills, false, false)
+	var full_xp := maxi(
+		0, ProgressionService.calculate_run_xp(_kill_count, _boss_defeated, false) - checkpoint_xp
+	)
 	var death_xp := ProgressionService.apply_death_xp_fraction(full_xp)
 	var xp_result := ProgressionService.grant_xp(death_xp, "death")
 	var xp_deferred := full_xp - death_xp
@@ -2019,6 +2061,9 @@ func cash_out_waves_run(item_ids: Array) -> void:
 	if _run_start_time > 0.0:
 		elapsed = (Time.get_ticks_msec() / 1000.0) - _run_start_time
 	var kept := WavesRunService.cash_out_items(item_ids)
+	if kept.is_empty():
+		emit_run_warning(tr("WAVES_CASH_OUT_FAILED"))
+		return
 	_record_waves_progress(false)
 	CharacterService.set_flag(
 		"waves_cash_outs", int(CharacterService.get_flag("waves_cash_outs")) + 1
@@ -2057,10 +2102,14 @@ func cash_out_waves_run(item_ids: Array) -> void:
 
 
 func complete_waves_run(rewards: Array[String]) -> void:
+	if run_mode != RM.MODE_WAVES:
+		return
+	var kept := WavesRunService.bank_victory_items(rewards)
+	if not rewards.is_empty() and kept.is_empty():
+		emit_run_warning(tr("WAVES_REWARD_BANK_FAILED"))
+		return
 	_run_active = false
 	var elapsed := (Time.get_ticks_msec() / 1000.0) - _run_start_time
-	for item_id in rewards:
-		InventoryService.add_item(item_id, 1)
 	_record_waves_progress(true)
 	var xp_result := ProgressionService.grant_xp(WAVES_COMPLETION_XP, "waves")
 	last_run_results = (
@@ -2069,7 +2118,7 @@ func complete_waves_run(rewards: Array[String]) -> void:
 			RunLifecycle.OUTCOME_WAVES_COMPLETE,
 			elapsed,
 			WavesRunService.get_kill_count(),
-			rewards,
+			kept,
 			xp_result,
 			WAVES_COMPLETION_XP,
 			"Waves cleared: kept up to 3 chosen items.",

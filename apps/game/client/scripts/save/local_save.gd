@@ -5,6 +5,7 @@ const SAVE_PATH := "user://aumbrye_save.json"
 const STEAM_CLOUD_SAVE_NAME := "aumbrye_save.json"
 const ROSTER_PATH := "user://character_roster.json"
 const ACCOUNT_PATH := "user://account.json"
+const SAVE_SET_JOURNAL_PATH := "user://save_set_journal.json"
 const ACCOUNT_SCHEMA_VERSION := 1
 const MAX_CHARACTER_SLOTS := 5
 const CHARACTERS_DIR := "user://characters/"
@@ -70,6 +71,7 @@ func reload_active_into_services() -> bool:
 func _ready() -> void:
 	_ensure_backup_dir()
 	_ensure_characters_dir()
+	_recover_save_set_journal()
 	_load_roster()
 	_load_account()
 	_migrate_legacy_save_if_needed()
@@ -234,11 +236,7 @@ func _load_account() -> void:
 
 
 func _save_account() -> void:
-	var file := FileAccess.open(ACCOUNT_PATH, FileAccess.WRITE)
-	if not file:
-		return
-	file.store_string(JSON.stringify(_account, "\t"))
-	file.close()
+	_write_json_atomic(ACCOUNT_PATH, _account)
 
 
 func _merge_account_flag(flag_id: String, value: Variant) -> void:
@@ -729,6 +727,22 @@ func patch_meta(meta: Dictionary) -> void:
 	_cached_state["meta"] = meta.duplicate(true)
 
 
+func set_settlement_receipt(receipt: Dictionary) -> void:
+	var meta := get_meta_data().duplicate(true)
+	meta["runSettlement"] = receipt.duplicate(true)
+	patch_meta(meta)
+	autosave(SavePriority.IMMEDIATE)
+
+
+func clear_settlement_receipt() -> void:
+	var meta := get_meta_data().duplicate(true)
+	if not meta.has("runSettlement"):
+		return
+	meta.erase("runSettlement")
+	patch_meta(meta)
+	autosave(SavePriority.IMMEDIATE)
+
+
 func request_autosave(priority: SavePriority = SavePriority.DEFERRED) -> void:
 	if priority == SavePriority.IMMEDIATE:
 		autosave()
@@ -958,6 +972,8 @@ func _apply_save_data(data: Dictionary) -> void:
 		)
 	if is_instance_valid(RunBuffs):
 		RunBuffs.from_save_array(working.get("runRelics", []))
+		RunBuffs.temporary_effects_from_save_array(working.get("runEffects", []))
+		RunBuffs.offer_state_from_save(working.get("runRelicOffer", {}))
 	var waves_run: Variant = working.get("wavesActiveRun", {})
 	if waves_run is Dictionary and not waves_run.is_empty():
 		_cached_state["wavesActiveRun"] = waves_run.duplicate(true)
@@ -1014,6 +1030,8 @@ func _build_save_payload() -> Dictionary:
 		"recipes": get_recipes(),
 		"merchants": get_merchants(),
 		"runRelics": RunBuffs.to_save_array() if RunBuffs else _cached_state.get("runRelics", []),
+		"runEffects": RunBuffs.temporary_effects_to_save_array() if RunBuffs else _cached_state.get("runEffects", []),
+		"runRelicOffer": RunBuffs.offer_state_to_save() if RunBuffs else _cached_state.get("runRelicOffer", {}),
 	}
 	if is_instance_valid(CharacterService):
 		var char_save: Dictionary = CharacterService.to_save_dict()
@@ -1309,9 +1327,10 @@ func _write_save(
 	normalized["itemInstances"] = _build_item_instances()
 	normalized["accountId"] = _resolve_account_id()
 	_cached_state = normalized
+	var roster_changed := false
 	if _active_character_id != "":
 		_update_roster_entry_metadata(normalized)
-		_save_roster()
+		roster_changed = true
 	var target_path := _active_save_path()
 	var temp_path := "%s.tmp" % target_path
 	var file := FileAccess.open(temp_path, FileAccess.WRITE)
@@ -1364,11 +1383,27 @@ func _write_save(
 		if _force_backup_rotation or _backup_slot_is_stale(_active_character_id):
 			_rotate_backups(target_path, _active_character_id)
 	_force_backup_rotation = false
+	var journal: Dictionary = {}
+	if roster_changed:
+		journal = {
+			"savePath": target_path,
+			"saveChecksum": json_text.sha256_text(),
+			"roster": _roster.duplicate(true),
+		}
+		if not _write_json_atomic(SAVE_SET_JOURNAL_PATH, journal):
+			DirAccess.remove_absolute(temp_path)
+			return false
 	if DirAccess.rename_absolute(temp_path, target_path) != OK:
 		DirAccess.remove_absolute(temp_path)
+		if not journal.is_empty():
+			DirAccess.remove_absolute(SAVE_SET_JOURNAL_PATH)
 		if CrashLogger:
 			CrashLogger.log_error("local_save.rename_failed", {"path": target_path})
 		return false
+	if roster_changed:
+		if not _save_roster():
+			return false
+		DirAccess.remove_absolute(SAVE_SET_JOURNAL_PATH)
 	_mirror_to_steam_cloud(normalized)
 	return true
 
@@ -1644,11 +1679,7 @@ func _restore_class_id_in_document(path: String, class_id: String) -> void:
 		return
 	character_dict["classId"] = class_id
 	data["character"] = character_dict
-	var file := FileAccess.open(path, FileAccess.WRITE)
-	if not file:
-		return
-	file.store_string(JSON.stringify(data, "\t"))
-	file.close()
+	_write_json_atomic(path, data)
 
 
 func _class_id_in_document(path: String) -> String:
@@ -1663,12 +1694,44 @@ func _class_id_in_document(path: String) -> String:
 	return str((character as Dictionary).get("classId", ""))
 
 
-func _save_roster() -> void:
-	var file := FileAccess.open(ROSTER_PATH, FileAccess.WRITE)
-	if not file:
+func _save_roster() -> bool:
+	return _write_json_atomic(ROSTER_PATH, _roster)
+
+
+func _recover_save_set_journal() -> void:
+	if not FileAccess.file_exists(SAVE_SET_JOURNAL_PATH):
 		return
-	file.store_string(JSON.stringify(_roster, "\t"))
+	var parsed := JSON.parse_string(_read_raw_text(SAVE_SET_JOURNAL_PATH))
+	if not parsed is Dictionary:
+		DirAccess.remove_absolute(SAVE_SET_JOURNAL_PATH)
+		return
+	var journal: Dictionary = parsed
+	var save_path := str(journal.get("savePath", ""))
+	var expected_checksum := str(journal.get("saveChecksum", ""))
+	var roster: Variant = journal.get("roster", {})
+	if save_path == "" or expected_checksum == "" or not roster is Dictionary:
+		DirAccess.remove_absolute(SAVE_SET_JOURNAL_PATH)
+		return
+	if _read_raw_text(save_path).sha256_text() != expected_checksum:
+		return
+	if _write_json_atomic(ROSTER_PATH, roster as Dictionary):
+		DirAccess.remove_absolute(SAVE_SET_JOURNAL_PATH)
+
+
+func _write_json_atomic(path: String, data: Dictionary) -> bool:
+	var temp_path := "%s.tmp" % path
+	var file := FileAccess.open(temp_path, FileAccess.WRITE)
+	if not file:
+		if CrashLogger:
+			CrashLogger.log_error("local_save.sidecar_write_failed", {"path": temp_path})
+		return false
+	file.store_string(JSON.stringify(data, "\t"))
 	file.close()
+	if DirAccess.rename_absolute(temp_path, path) != OK:
+		if CrashLogger:
+			CrashLogger.log_error("local_save.sidecar_rename_failed", {"path": path})
+		return false
+	return true
 
 
 func _character_path(character_id: String) -> String:

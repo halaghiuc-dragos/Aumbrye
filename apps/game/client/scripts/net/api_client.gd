@@ -18,6 +18,9 @@ const MAX_ATTEMPTS := 3
 const RETRY_BASE_DELAY := 0.4
 
 static var _transport_override: Callable = Callable()
+static var _refresh_in_progress := false
+static var _refresh_result := false
+static var _session_generation := 0
 
 
 static func register(email: String, password: String) -> Dictionary:
@@ -43,6 +46,7 @@ static func access_token_optional() -> bool:
 
 
 static func logout() -> void:
+	_session_generation += 1
 	if ApiConfig.refresh_token != "" and ApiConfig.cloud_calls_enabled():
 		await _request_json(
 			_build_url(AUTH_LOGOUT),
@@ -57,16 +61,26 @@ static func logout() -> void:
 static func refresh_session() -> bool:
 	if ApiConfig.refresh_token == "":
 		return false
+	var generation := _session_generation
+	if _refresh_in_progress:
+		while _refresh_in_progress:
+			await Engine.get_main_loop().process_frame
+		return _refresh_result and generation == _session_generation
+	_refresh_in_progress = true
 	var result := await _request_json(
 		_build_url(AUTH_REFRESH),
 		HTTPClient.METHOD_POST,
 		{"refreshToken": ApiConfig.refresh_token},
 		false
 	)
-	if result.get("ok", false):
+	_refresh_result = bool(result.get("ok", false))
+	if _refresh_result and generation == _session_generation:
 		_store_tokens(result.get("body", {}))
+		_refresh_in_progress = false
 		return true
-	ApiConfig.clear_session()
+	if generation == _session_generation:
+		ApiConfig.clear_session()
+	_refresh_in_progress = false
 	return false
 
 
@@ -119,6 +133,10 @@ static func complete_run(
 		"lootClaimedInstanceIds": loot_claimed_ids,
 		"floor": maxi(1, floor_index),
 		"kills": maxi(0, kills),
+		"mode": "dungeon",
+		"finalObjectiveCompleted": outcome == "escaped" and boss_defeated,
+		"assists": 1 if AccessibilitySettings.assists_active() else 0,
+		"ruleset": "standard-v1",
 	}
 	return await _authed_json(RUNS_COMPLETE % run_id, HTTPClient.METHOD_POST, payload, true)
 

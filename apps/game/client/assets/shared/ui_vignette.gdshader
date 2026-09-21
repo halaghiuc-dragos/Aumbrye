@@ -76,7 +76,7 @@ void fragment() {
 	COLOR.rgb += center_tint.rgb * glow * center_strength;
 
 	// Motes sit under the vignette so the edges swallow them, keeping the eye centred.
-	float mote = motes(UV, 16.0 / 9.0);
+	float mote = motes(UV, SCREEN_PIXEL_SIZE.y / max(SCREEN_PIXEL_SIZE.x, 0.00001));
 	COLOR.rgb += mote_tint.rgb * mote * mote_strength;
 
 	COLOR.rgb = mix(COLOR.rgb, edge_tint.rgb, amount);

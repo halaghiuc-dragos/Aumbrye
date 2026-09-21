@@ -17,6 +17,7 @@ static func build(sibling: Control) -> HBoxContainer:
 		return null
 	var row := HBoxContainer.new()
 	row.name = "ArrowCharges"
+	row.tooltip_text = TranslationServer.translate("ARROW_REGEN_TOOLTIP")
 	row.add_theme_constant_override("separation", maxi(1, int(GameUISkinScript.PIXEL_UNIT / 2.0)))
 	parent.add_child(row)
 	parent.move_child(row, sibling.get_index() + 1)

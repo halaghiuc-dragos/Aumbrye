@@ -20,6 +20,7 @@ const PILLAR_RING_DIST := 14.0
 const PILLAR_HEIGHT := 6.0
 
 var _torchlight: Node3D
+var _last_state := ""
 
 
 ## Explicit cleanup for run-end -- distinct from `apply_block()` so a caller never has to fake an
@@ -32,7 +33,9 @@ func apply_block(block_index: int, torchlight: Node3D, states: Array[String] = [
 	_torchlight = torchlight
 	_clear()
 	var pool := states if not states.is_empty() else STATES
-	match pool[block_index % pool.size()]:
+	var state := _state_for_block(block_index, pool)
+	_last_state = state
+	match state:
 		"dimmed":
 			_apply_dimmed()
 		"hazard":
@@ -43,6 +46,18 @@ func apply_block(block_index: int, torchlight: Node3D, states: Array[String] = [
 			_build_pillars(block_index)
 		_:
 			pass
+
+
+func _state_for_block(block_index: int, pool: Array[String]) -> String:
+	if pool.is_empty():
+		return "open"
+	var candidates := pool.duplicate()
+	if candidates.size() > 1 and _last_state in candidates:
+		candidates.erase(_last_state)
+	var rng := RandomNumberGenerator.new()
+	var seed := WavesRunService.get_seed() if WavesRunService else 0
+	rng.seed = FloorSeedMix.mix(seed, block_index * 911 + 47)
+	return candidates[rng.randi_range(0, candidates.size() - 1)]
 
 
 func _clear() -> void:
@@ -120,7 +135,7 @@ func _build_pillars(block_index: int) -> void:
 		var pos := Vector3(cos(angle) * dist, 0.0, sin(angle) * dist)
 		var area := Area3D.new()
 		area.set_script(TrapDamageAreaScript)
-		area.name = "ArenaPillar%d" % i
+		area.name = "ArenaEnergyPillar%d" % i
 		area.position = pos
 		area.collision_layer = 4
 		area.collision_mask = 8
@@ -139,11 +154,11 @@ func _build_pillars(block_index: int) -> void:
 		var visual := MeshInstance3D.new()
 		visual.name = "PillarVisual"
 		var mesh := CylinderMesh.new()
-		mesh.top_radius = PILLAR_HAZARD_RADIUS * 0.6
-		mesh.bottom_radius = PILLAR_HAZARD_RADIUS * 0.8
+		mesh.top_radius = PILLAR_HAZARD_RADIUS
+		mesh.bottom_radius = PILLAR_HAZARD_RADIUS
 		mesh.height = PILLAR_HEIGHT
 		visual.mesh = mesh
 		visual.position = Vector3(0.0, PILLAR_HEIGHT * 0.5, 0.0)
-		visual.material_override = DioramaSkin.make_telegraph_material(Color(0.4, 0.35, 0.3, 0.9))
+		visual.material_override = DioramaSkin.make_telegraph_material(Color(0.9, 0.2, 0.12, 0.45))
 		area.add_child(visual)
 		area.call_deferred("set_damage_active", true)

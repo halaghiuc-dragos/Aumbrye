@@ -45,13 +45,18 @@ func configure(
 	max_stamina = maxf(1.0, max_value)
 	_regen_multiplier = maxf(0.1, regen_multiplier)
 	if preserve_ratio and old_max > 0.0:
-		current = (current / old_max) * max_stamina
+		current = clampf((current / old_max) * max_stamina, 0.0, max_stamina)
 	else:
 		current = minf(current, max_stamina)
 	if not preserve_ratio:
 		_exhausted = false
 		_regen_timer = 0.0
+	_reconcile_exhaustion()
 	stamina_changed.emit(current, max_stamina)
+
+
+func set_regen_multiplier(value: float) -> void:
+	_regen_multiplier = maxf(0.1, value)
 
 
 func set_regen_state(state: RegenState) -> void:
@@ -67,9 +72,7 @@ func get_speed_multiplier() -> float:
 func _physics_process(delta: float) -> void:
 	if _insufficient_cooldown > 0.0:
 		_insufficient_cooldown -= delta
-	if _exhausted and current >= EXHAUSTION_RECOVERY:
-		_exhausted = false
-		recovered.emit()
+	_reconcile_exhaustion()
 	if _regen_timer > 0.0:
 		_regen_timer -= delta
 		return
@@ -78,14 +81,16 @@ func _physics_process(delta: float) -> void:
 	if current < max_stamina:
 		var rate := REGEN_RATE * _regen_multiplier
 		if _exhausted:
-			rate = REGEN_RATE_EXHAUSTED
-		elif _regen_state == RegenState.BLOCKING:
-			rate = REGEN_RATE_BLOCKING
+			rate = REGEN_RATE_EXHAUSTED * _regen_multiplier
+		if _regen_state == RegenState.BLOCKING:
+			rate = minf(rate, REGEN_RATE_BLOCKING * _regen_multiplier)
 		current = minf(max_stamina, current + rate * delta)
 		stamina_changed.emit(current, max_stamina)
 
 
 func consume(amount: float) -> bool:
+	if not is_finite(amount) or amount <= 0.0:
+		return false
 	if _exhausted:
 		_emit_insufficient()
 		return false
@@ -102,6 +107,8 @@ func consume(amount: float) -> bool:
 
 
 func drain(amount: float) -> bool:
+	if not is_finite(amount) or amount <= 0.0:
+		return false
 	if _exhausted:
 		return false
 	if current <= 0.0:
@@ -119,11 +126,10 @@ func drain(amount: float) -> bool:
 
 
 func restore(amount: float) -> void:
-	if amount <= 0.0:
+	if not is_finite(amount) or amount <= 0.0:
 		return
 	current = minf(max_stamina, current + amount)
-	if current >= EXHAUSTION_RECOVERY:
-		_exhausted = false
+	_reconcile_exhaustion()
 	stamina_changed.emit(current, max_stamina)
 
 
@@ -143,3 +149,12 @@ func reset_stamina() -> void:
 	_regen_timer = 0.0
 	_regen_state = RegenState.NORMAL
 	stamina_changed.emit(current, max_stamina)
+
+
+func _reconcile_exhaustion() -> void:
+	if not _exhausted:
+		return
+	if current < minf(EXHAUSTION_RECOVERY, max_stamina):
+		return
+	_exhausted = false
+	recovered.emit()

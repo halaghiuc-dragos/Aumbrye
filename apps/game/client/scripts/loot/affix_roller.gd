@@ -8,6 +8,7 @@ const RARITY_PATH := "content/affixes/rarity_rules.json"
 const RarityRegistryScript := preload("res://scripts/loot/rarity_registry.gd")
 const ItemQualityScript := preload("res://scripts/items/item_quality.gd")
 const ContentSchemaValidatorScript := preload("res://scripts/app/content_schema_validator.gd")
+const ROLL_CONTEXT_VERSION := 1
 
 static var _prefixes: Array = []
 static var _suffixes: Array = []
@@ -20,7 +21,11 @@ static var _affix_index: Dictionary = {}
 
 
 static func roll_instance(
-	item_id: String, roll_seed: int = -1, forced_rarity: String = "", run_mode: String = ""
+	item_id: String,
+	roll_seed: int = -1,
+	forced_rarity: String = "",
+	run_mode: String = "",
+	roll_context: Dictionary = {}
 ) -> Dictionary:
 	_ensure_loaded()
 	var def := ItemCatalog.get_definition(item_id)
@@ -29,13 +34,14 @@ static func roll_instance(
 	var effective_seed := roll_seed if roll_seed >= 0 else (randi() & 0x7fffffff)
 	var rng := RandomNumberGenerator.new()
 	rng.seed = effective_seed
-	var loot_quality: float = 0.0
-	if ProgressionService:
+	var loot_quality: float = float(roll_context.get("lootQuality", 0.0))
+	if not roll_context.has("lootQuality") and ProgressionService:
 		loot_quality = float(ProgressionService.get_talent_stat_totals().get("lootQuality", 0.0))
+	var resolved_mode := str(roll_context.get("runMode", run_mode))
 	var rarity: String = (
 		RarityRegistryScript.normalize(forced_rarity)
 		if forced_rarity != ""
-		else _pick_rarity(rng, run_mode, loot_quality)
+		else _pick_rarity(rng, resolved_mode, loot_quality)
 	)
 	var affix_count := _roll_affix_count(rarity, rng)
 	var item_type: String = str(def.get("itemType", ""))
@@ -48,6 +54,11 @@ static func roll_instance(
 		"rarity": rarity,
 		"affixes": affixes,
 		"rollSeed": effective_seed,
+		"rollContext": {
+			"version": ROLL_CONTEXT_VERSION,
+			"lootQuality": loot_quality,
+			"runMode": resolved_mode,
+		},
 	}
 	# Condition is rolled from the same rng as the affixes, after them, so an existing seed keeps
 	# producing the affixes it always did and only gains a quality on top.
@@ -69,8 +80,8 @@ static func get_affix_stat(affix_id: String) -> String:
 	return str((def as Dictionary).get("stat", "")) if def is Dictionary else ""
 
 
-static func roll_identical(item_id: String, roll_seed: int) -> Dictionary:
-	return roll_instance(item_id, roll_seed)
+static func roll_identical(item_id: String, roll_seed: int, roll_context: Dictionary = {}) -> Dictionary:
+	return roll_instance(item_id, roll_seed, "", "", roll_context)
 
 
 static func get_affix_def(affix_id: String) -> Dictionary:

@@ -9,6 +9,20 @@ const ALL_DOORS := (
 	| RoomGraphSlot.DOOR_WEST
 )
 
+const TACTICAL_FAMILY_BY_KIND := {
+	"balcony": "overlook",
+	"courtyard": "ambush_courtyard",
+	"corridor_bend": "broken_chapel",
+	"corridor_long": "defended_bridge",
+	"stairs": "vertical_return_loop",
+	"treasure": "flooded_bypass",
+}
+
+
+static func tactical_family(template_id: String) -> String:
+	var kind := kind_from_template_id(template_id)
+	return str(TACTICAL_FAMILY_BY_KIND.get(kind, "combat_chamber"))
+
 const KIND_SPECS := {
 	"entrance": {
 		"width": 16.0,

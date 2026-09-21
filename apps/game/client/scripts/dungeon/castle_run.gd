@@ -44,6 +44,7 @@ const BOSS_INTRO_BLOCKED_GROUPS := [
 	PlayerInput.Group.MOVEMENT, PlayerInput.Group.COMBAT, PlayerInput.Group.CAMERA
 ]
 var _boss_intro_active := false
+var _boss_intro_input_lock := 0
 var _boss_intro_skip_requested := false
 var _boss_intro_elapsed := 0.0
 const SNAPSHOT_DEBOUNCE_SEC := 2.0
@@ -374,7 +375,7 @@ func _play_boss_intro_sequence(boss_id: String, boss: Node) -> void:
 		if _boss_door.call("is_opened") and not _boss_door.call("is_sealed"):
 			_boss_door.call("seal_door")
 			_persist_snapshot()
-	PlayerInput.block_groups(BOSS_INTRO_BLOCKED_GROUPS)
+	_boss_intro_input_lock = PlayerInput.block_groups(BOSS_INTRO_BLOCKED_GROUPS)
 	var camera := _find_orbit_camera()
 	var boss_node := boss as Node3D
 	if camera and boss_node and camera.has_method("play_intro_framing"):
@@ -393,7 +394,8 @@ func _end_boss_intro_sequence(camera: Node) -> void:
 	if not _boss_intro_active:
 		return
 	_boss_intro_active = false
-	PlayerInput.unblock_groups(BOSS_INTRO_BLOCKED_GROUPS)
+	PlayerInput.release_group_block(_boss_intro_input_lock)
+	_boss_intro_input_lock = 0
 	if _boss_intro and _boss_intro.has_method("skip_intro"):
 		_boss_intro.call("skip_intro")
 	if camera and is_instance_valid(camera) and camera.has_method("skip_intro_framing"):
@@ -915,12 +917,13 @@ func _persist_snapshot() -> void:
 
 ## The umbral the shard carries. A separate offer key from the opening umbral so listening to a
 ## dead warden cannot re-roll the choice the run opened with.
-func offer_umbral_relic() -> void:
+func offer_umbral_relic() -> bool:
 	if _relic_offer == null or not is_instance_valid(_relic_offer):
-		return
+		return false
 	if not _relic_offer.has_method("open_offer"):
-		return
+		return false
 	_relic_offer.call("open_offer", "shard:%d:%d" % [RunFlow.current_seed, RunFlow.current_floor])
+	return true
 
 
 ## The opening umbral. A relic choice before the first room, so the player knows what this run is

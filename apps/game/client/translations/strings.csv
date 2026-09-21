@@ -3,6 +3,7 @@ INV_TITLE_STASH,Stash,Depozit
 INV_TITLE_WAVES_STASH,Waves Stash,Depozit valuri
 INV_TITLE_CHARACTER,Character,Personaj
 INV_SEARCH_PLACEHOLDER,Search...,Căutare...
+INV_NO_RESULTS,No matching items.,Niciun obiect potrivit.
 INV_BTN_EQUIP,Equip,Echipează
 INV_BTN_UNEQUIP,Unequip,Dezechipează
 INV_BTN_USE,Use,Folosește
@@ -421,6 +422,8 @@ SETTINGS_UI_VOLUME_NAME,Interface,Interfata
 SETTINGS_UI_VOLUME_DESC,"Menu clicks, confirmations, and notifications.","Clicuri de meniu, confirmari si notificari."
 SETTINGS_REDUCED_MOTION_NAME,Reduced Motion,Miscare redusa
 SETTINGS_REDUCED_MOTION_DESC,"Softens camera shake, hitstop, and screen flashes across the whole game.","Reduce zguduirea camerei, hitstop-ul si flash-urile de ecran in tot jocul."
+SETTINGS_RESTRAINED_DAMAGE_NUMBERS_NAME,Restrained Damage Numbers,Numere de daune discrete
+SETTINGS_RESTRAINED_DAMAGE_NUMBERS_DESC,"Shows fewer non-critical damage numbers during exploration and combat.","Afiseaza mai putine numere de daune necritice in explorare si lupta."
 SETTINGS_CAMERA_SHAKE_INTENSITY_NAME,Camera Shake,Zguduire camera
 SETTINGS_CAMERA_SHAKE_INTENSITY_DESC,How hard the camera kicks on impacts and explosions.,Cat de tare tresare camera la impact si explozii.
 SETTINGS_HITSTOP_INTENSITY_NAME,Hitstop,Hitstop
@@ -552,7 +555,7 @@ MENU_CONTINUE,Continue,Continua
 MENU_SETTINGS,Settings,Setari
 MENU_QUIT,Quit Game,Iesi din joc
 MENU_TODAY_CHALLENGE,This week: {name} -- {remaining},Saptamana aceasta: {name} -- {remaining}
-MENU_TODAY_BOUNTIES,{count} bounties open,{count} recompense deschise
+MENU_TODAY_BOUNTIES,"{count} bounties open · daily {dailyReset} · weekly {weeklyReset}","{count} recompense deschise · zilnic {dailyReset} · săptămânal {weeklyReset}"
 HUD_BOUNTY_COMPLETE,Bounty complete: {name},Recompensa indeplinita: {name}
 TUTORIAL_TELEGRAPH_AMBER,Amber: this can be blocked.,Chihlimbar: acest atac poate fi blocat.
 TUTORIAL_TELEGRAPH_BLUE,Blue: this can be parried. Raise your guard as it lands.,Albastru: acest atac poate fi parat. Ridica garda cand loveste.
@@ -574,6 +577,15 @@ LOADING_SAVE_FAILED,Could not load save - returning to menu.,Salvarea nu a putut
 LOADING_SLOTS_FULL,All character slots are full - delete one to start a new warden.,Toate sloturile de personaje sunt pline - sterge unul pentru a incepe un warden nou.
 LOADING_CHARACTER_MISSING,That character's save could not be found - returning to menu.,Salvarea acelui personaj nu a fost gasita - revenire la meniu.
 LOADING_OPENING_HUB,Opening the hub...,Se deschide hub-ul...
+TRANSITION_RETURN_HUB,Returning to the hub...,Se revine în hub...
+TRANSITION_DESCENDING,Descending...,Se coboară...
+TRANSITION_TALLYING,Tallying the run...,Se calculează rezultatul...
+TRANSITION_LOADING,Loading...,Se încarcă...
+TRANSITION_LOAD_FAILED,Unable to load this destination.,Destinația nu a putut fi încărcată.
+TRANSITION_BUILD_FAILED,The destination could not be built.,Destinația nu a putut fi construită.
+TRANSITION_OPEN_FAILED,The destination could not be opened.,Destinația nu a putut fi deschisă.
+TRANSITION_RETURN_HUB_ACTION,Return to hub,Revino la hub
+RETRY,Retry,Reîncearcă
 RESULTS_RETRY_SYNC,Retry cloud sync,Reincearca sincronizarea
 RESULTS_COPY_SEED,Copy seed,Copiaza seed-ul
 RESULTS_TIME_EMPTY,Time: --,Timp: --
@@ -592,6 +604,7 @@ BESTIARY_EMPTY,The codex is empty.,Codexul este gol.
 UI_CLOSE,Close,Inchide
 DIALOGUE_HINT_CONTINUE,Enter to continue - Esc to close,Enter pentru continuare - Esc pentru inchidere
 DIALOGUE_HINT_CHOOSE,D-pad + Enter to choose - Esc to close,D-pad + Enter pentru alegere - Esc pentru inchidere
+DIALOGUE_UNAVAILABLE_RETRY,Dialogue is temporarily unavailable. Try again.,Dialogul nu este disponibil momentan. Incearca din nou.
 QUEST_SELECT_TO_ACCEPT,Select a quest to accept.,Alege o misiune de acceptat.
 QUEST_ACCEPTED,Quest accepted: %s,Misiune acceptata: %s
 QUEST_ACCEPT_FAILED,That quest could not be accepted.,Misiunea nu a putut fi acceptata.
@@ -799,6 +812,24 @@ WAVES_CASH_OUT_PICK_HINT,Choose the one thing you are walking out with.,Alege si
 WAVES_CASH_OUT_PICK_HINT_MULTI,Choose up to {count} things you are walking out with.,Alege până la {count} lucruri cu care pleci.
 WAVES_CASH_OUT_RISK,Bank {bank} of {total} -- the other {lost} are lost if you fall.,Salvezi {bank} din {total} -- restul de {lost} se pierd dacă cazi.
 WAVES_CASH_OUT_BEST,Best Vigil so far: wave {wave}.,Cea mai bună Veghe de până acum: valul {wave}.
+WAVES_SUMMONER_NAME,The Summoner,Invocatorul
+WAVES_PORTAL_OFFER_ONE,leave with one thing,pleacă cu un lucru
+WAVES_PORTAL_OFFER_MANY,leave with up to {count} things,pleacă cu până la {count} lucruri
+WAVES_LOBBY_PORTAL_ONE,The summoner's portal is open. He will send one thing home with you.,Portalul invocatorului este deschis. El va trimite un lucru acasă cu tine.
+WAVES_LOBBY_PORTAL_MANY,The summoner's portal is open. He will send up to {count} things home with you.,Portalul invocatorului este deschis. El va trimite până la {count} lucruri acasă cu tine.
+WAVES_CASH_OUT_FAILED,The summoner could not bank that selection. Your Vigil remains active.,Invocatorul nu a putut salva selecția. Veghea ta rămâne activă.
+WAVES_REWARD_EQUIPPED,{item} (equipped),{item} (echipat)
+WAVES_REWARD_BANK_FAILED,Those rewards do not fit in storage. Make another selection.,Recompensele nu încap în depozit. Alege din nou.
+REST_PROMPT_FULL,Rest: restore health stamina supplies and clear ailments; enemies return.,Odihnă: refaci viața rezistența proviziile și elimini afecțiunile; inamicii revin.
+REST_PROMPT_STARVED,Rest: restore half health and stamina and clear ailments; supplies do not refill and enemies return.,Odihnă: refaci jumătate din viață și rezistența și elimini afecțiunile; proviziile nu se refac iar inamicii revin.
+REST_PROMPT_DISABLED,This hearth is cold. Rest is disabled.,Această vatră este rece. Odihna este dezactivată.
+REST_DISABLED_WARNING,The No Rest modifier keeps this hearth cold.,Modificatorul Fără odihnă menține această vatră rece.
+QUEST_OBJECTIVE_ESCAPE,Escape alive,Evadați în viață
+QUEST_OBJECTIVE_DEPTH,Reach depth {depth},Ajungeți la adâncimea {depth}
+QUEST_HAND_IN,Hand in,Livrează
+QUEST_HAND_IN_COMPLETE,Delivery complete.,Livrare finalizată.
+QUEST_HAND_IN_FAILED,You do not have the full delivery.,Nu ai întreaga livrare.
+ARROW_REGEN_TOOLTIP,Arrows recover after six seconds without shooting or taking damage.,Săgețile se refac după șase secunde fără a trage sau a suferi daune.
 RESULTS_DESCEND_AGAIN,Descend again,Coboară din nou
 RESULTS_VIGIL_AGAIN,Stand the Vigil again,Stai din nou de Veghe
 RESULTS_LONG_DARK_AGAIN,Back into the Long Dark,Înapoi în Bezna Lungă
@@ -831,3 +862,4 @@ QUALITY_BRILLIANT,Brilliant,Nestemat
 STAT_ATTACK_SPEED,Attack Speed,Viteză de atac
 INV_CONDITION,Condition:,Stare:
 HUB_GROWTH_ANNOUNCE,New in the tower: {names}.,Nou în turn: {names}.
+PUZZLE_SOLVED,Solved.,Rezolvat.

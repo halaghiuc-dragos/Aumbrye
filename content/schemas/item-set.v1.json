@@ -40,6 +40,7 @@
                   "onFloorEnter",
                   "onStatusApplied",
                   "onRunStart",
+                  "onAcquired",
                   "onDeath",
                   "onPerfectDodge",
                   "onGuardBreak",

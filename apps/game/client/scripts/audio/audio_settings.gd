@@ -11,6 +11,9 @@ static var music_volume: float = 1.0
 static var sfx_volume: float = 1.0
 static var ambience_volume: float = 1.0
 static var ui_volume: float = 1.0
+static var mix_preset: String = "full_range"
+
+const MIX_PRESETS := {"full_range": {"master": 1.0, "music": 1.0, "sfx": 1.0, "ambience": 1.0}, "headphones": {"master": 0.9, "music": 1.0, "sfx": 0.92, "ambience": 0.85}, "night": {"master": 0.72, "music": 0.82, "sfx": 0.72, "ambience": 0.6}}
 
 const SAVE_DEBOUNCE_SEC := 0.5
 static var _pending_commit := false
@@ -63,6 +66,7 @@ static func load_from_save() -> void:
 	sfx_volume = float(data.get("sfx_volume", 1.0))
 	ambience_volume = float(data.get("ambience_volume", 1.0))
 	ui_volume = float(data.get("ui_volume", 1.0))
+	mix_preset = str(data.get("mix_preset", "full_range"))
 	apply()
 
 
@@ -74,6 +78,7 @@ static func save() -> void:
 		"sfx_volume": sfx_volume,
 		"ambience_volume": ambience_volume,
 		"ui_volume": ui_volume,
+		"mix_preset": mix_preset,
 	}
 	LocalSave.set_meta_data(meta)
 	LocalSave.autosave()
@@ -82,10 +87,11 @@ static func save() -> void:
 
 
 static func apply() -> void:
-	_set_bus_volume(&"Master", master_volume)
-	_set_bus_volume(&"Music", music_volume)
-	_set_bus_volume(&"SFX", sfx_volume)
-	_set_bus_volume(&"Ambience", ambience_volume)
+	var preset: Dictionary = MIX_PRESETS.get(mix_preset, MIX_PRESETS["full_range"])
+	_set_bus_volume(&"Master", master_volume * float(preset["master"]))
+	_set_bus_volume(&"Music", music_volume * float(preset["music"]))
+	_set_bus_volume(&"SFX", sfx_volume * float(preset["sfx"]))
+	_set_bus_volume(&"Ambience", ambience_volume * float(preset["ambience"]))
 	_set_bus_volume(&"UI", ui_volume)
 
 

@@ -9,6 +9,8 @@
       "description": "The wardens have been given plate, and the hearths were never lit.",
       "dungeonId": "forgotten_castle",
       "difficultyTier": 3,
+      "objective": "defeat_boss",
+      "successOutcomes": ["escaped"],
       "modifiers": [
         "armoured_foes",
         "no_rest",
@@ -22,6 +24,8 @@
       "description": "The map remembers nothing. Neither will the fires.",
       "dungeonId": "frozen_fortress",
       "difficultyTier": 3,
+      "objective": "defeat_boss",
+      "successOutcomes": ["escaped"],
       "modifiers": [
         "fog_of_war",
         "starved_hearth",
@@ -35,6 +39,8 @@
       "description": "Someone laid this floor with intent, a long time ago.",
       "dungeonId": "poison_swamp",
       "difficultyTier": 4,
+      "objective": "defeat_boss",
+      "successOutcomes": ["escaped"],
       "modifiers": [
         "thick_traps",
         "barred_ways",
@@ -48,6 +54,8 @@
       "description": "A warden walks every floor, and no one is trading this deep.",
       "dungeonId": "iron_vault",
       "difficultyTier": 4,
+      "objective": "defeat_boss",
+      "successOutcomes": ["escaped"],
       "modifiers": [
         "elite_vigil",
         "no_merchant",
@@ -61,6 +69,8 @@
       "description": "Everything down here breaks easily, yours included.",
       "dungeonId": "crystal_caverns",
       "difficultyTier": 4,
+      "objective": "defeat_boss",
+      "successOutcomes": ["escaped"],
       "modifiers": [
         "volatile_foes",
         "relentless_foes"
@@ -73,6 +83,8 @@
       "description": "Two keys for every door, and fewer doors worth opening.",
       "dungeonId": "dark_cathedral",
       "difficultyTier": 5,
+      "objective": "defeat_boss",
+      "successOutcomes": ["escaped"],
       "modifiers": [
         "sealed_doors",
         "barred_ways",
@@ -86,6 +98,8 @@
       "description": "The vaults are full because nothing that opened them came back.",
       "dungeonId": "glacial_hollow",
       "difficultyTier": 5,
+      "objective": "defeat_boss",
+      "successOutcomes": ["escaped"],
       "modifiers": [
         "rich_veins",
         "boss_hoard",
@@ -100,6 +114,8 @@
       "description": "Unlit, unrested, and it does not stop coming.",
       "dungeonId": "umbral_chapel",
       "difficultyTier": 5,
+      "objective": "defeat_boss",
+      "successOutcomes": ["escaped"],
       "modifiers": [
         "fog_of_war",
         "no_rest",

@@ -6,6 +6,9 @@ const LightFlickerScript := preload("res://scripts/art/lighting/light_flicker.gd
 const BiomeAtmosphereFollowScript := preload(
 	"res://scripts/art/lighting/biome_atmosphere_follow.gd"
 )
+const ReflectionProbeRefreshScript := preload(
+	"res://scripts/art/lighting/reflection_probe_refresh.gd"
+)
 
 const SOFT_OMNI_ATTENUATION := 1.48
 const TORCH_OMNI_RANGE := 13.5
@@ -51,6 +54,7 @@ const SKY_UNIFORM_NAMES: PackedStringArray = [
 
 static var _data_cache: Dictionary = {}
 static var _atmosphere_root: WeakRef
+static var _atmosphere_scene_root: WeakRef
 static var _atmosphere_profile_id: String = ""
 static var _atmosphere_follow: WeakRef
 
@@ -97,6 +101,11 @@ static func attach_reflection_probe(root: Node3D, extents: Vector3, origin: Vect
 	probe.max_distance = 90.0
 	probe.ambient_mode = ReflectionProbe.AMBIENT_ENVIRONMENT
 	root.add_child(probe)
+	var refresh := Node.new()
+	refresh.name = "ReflectionProbeRefresh"
+	refresh.set_script(ReflectionProbeRefreshScript)
+	root.add_child(refresh)
+	refresh.call("configure", probe)
 
 
 static func attach_sky_birds(root: Node3D) -> void:
@@ -202,7 +211,7 @@ static func configure_soft_omni(
 static func attach_flicker(
 	light: OmniLight3D, amount: float, hz: float, phase: float = -1.0
 ) -> void:
-	if light == null or not PixelDioramaSettings.light_animation:
+	if light == null:
 		return
 	if amount <= 0.0:
 		return
@@ -223,6 +232,7 @@ static func attach_atmosphere(root: Node3D, profile_id: String, follow: Node3D =
 	if root == null:
 		return
 	_atmosphere_profile_id = profile_id
+	_atmosphere_scene_root = weakref(root)
 	_atmosphere_follow = weakref(follow) if follow != null else null
 	if PixelDioramaSettings.particle_quality <= 0:
 		_free_atmosphere(root)
@@ -237,13 +247,10 @@ static func attach_atmosphere(root: Node3D, profile_id: String, follow: Node3D =
 
 
 static func refresh_atmosphere() -> void:
-	var root_ref := _atmosphere_root
+	var root_ref := _atmosphere_scene_root
 	if root_ref == null:
 		return
-	var holder := root_ref.get_ref() as Node3D
-	if holder == null:
-		return
-	var scene_root := holder.get_parent() as Node3D
+	var scene_root := root_ref.get_ref() as Node3D
 	if scene_root == null:
 		return
 	if PixelDioramaSettings.particle_quality <= 0:
@@ -449,6 +456,8 @@ static func _rebuild_atmosphere(holder: Node3D, profile_id: String, follow: Node
 		fog_mat.albedo = _parse_color(fog.get("color", "#1f1a2e"))
 		fog_node.material = fog_mat
 		holder.add_child(fog_node)
+	else:
+		_disable_volumetric_fog(holder)
 
 
 static func _enable_volumetric_fog(
@@ -472,18 +481,40 @@ static func _enable_volumetric_fog(
 	env.volumetric_fog_ambient_inject = float(fog_volume.get("ambient_inject", 0.35))
 
 
+static func _disable_volumetric_fog(holder: Node3D) -> void:
+	var scene_root := holder.get_parent()
+	if scene_root == null:
+		return
+	var env_node := scene_root.get_node_or_null("WorldEnvironment") as WorldEnvironment
+	if env_node == null or env_node.environment == null:
+		return
+	var env := env_node.environment
+	env.volumetric_fog_enabled = false
+	env.volumetric_fog_density = 0.0
+	env.volumetric_fog_emission_energy = 0.0
+
+
 static func _add_ambient_particles(
 	parent: Node3D, tint: Color, amount: int, range_size: float, fall_speed: float
 ) -> void:
 	var particles := GPUParticles3D.new()
 	particles.name = "AmbientMotes"
+	particles.local_coords = false
 	particles.amount = int(amount * PixelDioramaSettings.particle_amount_scale())
 	particles.lifetime = 6.0
+	var fall_distance := fall_speed * particles.lifetime + 0.5 * 0.35 * particles.lifetime * particles.lifetime
 	particles.visibility_aabb = AABB(
-		Vector3(-range_size, -2.0, -range_size), Vector3(range_size * 2.0, 8.0, range_size * 2.0)
+		Vector3(-range_size, -fall_distance - 3.0, -range_size),
+		Vector3(range_size * 2.0, fall_distance + 9.0, range_size * 2.0)
 	)
 	var chunk := BoxMesh.new()
-	chunk.size = Vector3(0.08, 0.08, 0.08)
+	chunk.size = Vector3(0.12, 0.12, 0.12)
+	var mote_material := StandardMaterial3D.new()
+	mote_material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mote_material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mote_material.vertex_color_use_as_albedo = true
+	mote_material.albedo_color = Color.WHITE
+	chunk.material = mote_material
 	particles.draw_pass_1 = chunk
 	var mat := ParticleProcessMaterial.new()
 	mat.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_BOX
@@ -493,8 +524,8 @@ static func _add_ambient_particles(
 	mat.initial_velocity_min = fall_speed * 0.4
 	mat.initial_velocity_max = fall_speed
 	mat.gravity = Vector3(0.0, -0.35, 0.0)
-	mat.scale_min = 0.04
-	mat.scale_max = 0.1
+	mat.scale_min = 0.55
+	mat.scale_max = 1.1
 	mat.color = tint
 	particles.process_material = mat
 	parent.add_child(particles)
@@ -503,6 +534,7 @@ static func _add_ambient_particles(
 static func _free_atmosphere(root: Node3D) -> void:
 	var holder := root.get_node_or_null("BiomeAtmosphere")
 	if holder:
+		_disable_volumetric_fog(holder)
 		holder.queue_free()
 	_atmosphere_root = null
 

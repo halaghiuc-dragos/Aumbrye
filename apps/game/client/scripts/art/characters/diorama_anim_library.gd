@@ -24,6 +24,8 @@ const DIGESTS_PATH := "res://assets/animations/diorama/digests.json"
 const ATTACK_CACHE_LIMIT := 192
 
 static var _attack_cache: Dictionary = {}
+const COMPILER_STYLE_REVISION := 3
+const FOOTSTEP_CLIPS := [&"walk", &"run", &"walk_b", &"walk_l", &"walk_r", &"run_b", &"run_l", &"run_r", &"block_walk"]
 
 const CLIPS := {
 	&"idle":
@@ -1880,24 +1882,30 @@ static func _compile_additive(spec: Dictionary, rest_pose: Dictionary) -> Animat
 	return _compile(spec, rest_pose, "", 1.0, {}, false)
 
 
-static func _authored_has_footstep_markers(library: AnimationLibrary) -> bool:
-	for clip_name in [&"walk", &"run"]:
+static func _authored_missing_footstep_markers(
+	library: AnimationLibrary, events_path: String
+) -> Array[StringName]:
+	var missing: Array[StringName] = []
+	for clip_name in FOOTSTEP_CLIPS:
 		if not library.has_animation(clip_name):
+			missing.append(clip_name)
 			continue
 		var anim := library.get_animation(clip_name)
-		if anim == null:
-			continue
 		var footstep_keys := 0
-		for track_idx in anim.get_track_count():
-			if anim.track_get_type(track_idx) != Animation.TYPE_METHOD:
-				continue
-			for key_idx in anim.track_get_key_count(track_idx):
-				var method_data: Dictionary = anim.track_get_key_value(track_idx, key_idx)
-				if String(method_data.get("method", "")) == "anim_footstep":
-					footstep_keys += 1
-		if footstep_keys >= 2:
-			return true
-	return false
+		if anim != null:
+			for track_idx in anim.get_track_count():
+				if anim.track_get_type(track_idx) != Animation.TYPE_METHOD:
+					continue
+				# A marker on another target is not a usable locomotion event for this rig.
+				if anim.track_get_path(track_idx) != NodePath(events_path):
+					continue
+				for key_idx in anim.track_get_key_count(track_idx):
+					var method_data: Dictionary = anim.track_get_key_value(track_idx, key_idx)
+					if String(method_data.get("method", "")) == "anim_footstep":
+						footstep_keys += 1
+		if footstep_keys < 2:
+			missing.append(clip_name)
+	return missing
 
 
 static func events_path_for_profile(profile: String) -> String:
@@ -1977,7 +1985,10 @@ static func can_use_authored_library(rest_pose: Dictionary, profile: String) -> 
 	var loaded := ResourceLoader.load(authored_path) as AnimationLibrary
 	if loaded == null or not loaded.has_animation(POSE_MARKER):
 		return false
-	return _pose_hash(rest_pose) == _pose_hash_from_marker(loaded.get_animation(POSE_MARKER))
+	var marker := loaded.get_animation(POSE_MARKER)
+	if str(marker.get_meta("compiler_identity", "")) != _compiler_identity():
+		return false
+	return _pose_hash(rest_pose) == _pose_hash_from_marker(marker)
 
 
 static func build_library(
@@ -1990,8 +2001,9 @@ static func build_library(
 		var authored_path: String = AUTHORED_LIBRARY_PATHS.get(profile, "")
 		var loaded := ResourceLoader.load(authored_path) as AnimationLibrary
 		if loaded != null:
-			_supplement_authored_library(loaded, rest_pose, events_path)
-			return loaded
+			var contextual := loaded.duplicate(true) as AnimationLibrary
+			_supplement_authored_library(contextual, rest_pose, events_path)
+			return contextual
 	return compile_authored_library(rest_pose, events_path, profile)
 
 
@@ -2008,8 +2020,8 @@ static func _supplement_authored_library(
 		var reset := _compile_reset(rest_pose)
 		if reset:
 			library.add_animation(&"RESET", reset)
-	if events_path != "" and not _authored_has_footstep_markers(library):
-		for clip_name in [&"walk", &"run"]:
+	if events_path != "":
+		for clip_name in _authored_missing_footstep_markers(library, events_path):
 			if not CLIPS.has(clip_name):
 				continue
 			var anim := _compile(CLIPS[clip_name], rest_pose, events_path, 1.0)
@@ -2045,6 +2057,9 @@ static func build_attack(
 		"startup_time": startup,
 		"active_time": startup + active,
 		"total": total,
+		# Attack curves remain authored by default. A clip may opt into the
+		# stylized transform with a presentation block after it has been reviewed.
+		"reshape": bool((spec.get("presentation", {}) as Dictionary).get("reshape", false)),
 	}
 	var anim := _compile(spec_copy, rest_pose, events_path, 1.0, phase_map)
 	if anim != null:
@@ -2062,13 +2077,14 @@ static func _attack_cache_key(
 	active: float,
 	recovery: float
 ) -> String:
-	return "%s|%s|%s|%d|%d|%d" % [
+	return "%s|%s|%s|%d|%d|%d|%d" % [
 		clip_name,
 		_pose_hash(rest_pose),
 		events_path,
 		roundi(startup * 1000.0),
 		roundi(active * 1000.0),
 		roundi(recovery * 1000.0),
+		roundi(PixelDioramaSettings.animation_steps_per_second * 100.0),
 	]
 
 
@@ -2146,7 +2162,7 @@ static func _add_vector_track(
 	var track := anim.add_track(Animation.TYPE_VALUE)
 	anim.track_set_path(track, NodePath(path))
 	var keys := keys_in
-	if not phase_map.is_empty():
+	if not phase_map.is_empty() and bool(phase_map.get("reshape", false)):
 		keys = _shape_attack_keys(
 			keys_in, float(phase_map["startup_end"]), float(phase_map["active_end"])
 		)
@@ -2254,6 +2270,16 @@ static func _insert_stepped_keys(
 			inserted[step_time] = true
 			anim.track_insert_key(track, step_time, _evaluate_linear(remapped, step_time))
 		t += step
+	# Contact-critical silhouettes are always sampled even when they fall between presentation
+	# steps. Gameplay method tracks keep their precise times; these pose keys make that contact
+	# visible during the same startup/active boundary.
+	for critical_time in [
+		float(phase_map.get("startup_time", -1.0)),
+		float(phase_map.get("active_time", -1.0)),
+	]:
+		if critical_time >= 0.0 and critical_time <= length and not inserted.has(critical_time):
+			inserted[critical_time] = true
+			anim.track_insert_key(track, critical_time, _evaluate_linear(remapped, critical_time))
 	# The final authored key must land exactly -- otherwise a clip that does not divide evenly
 	# into the step size settles a fraction of a step short of its resting pose.
 	var last_time: float = remapped[remapped.size() - 1][0]
@@ -2314,10 +2340,17 @@ static func _pose_hash(rest_pose: Dictionary) -> String:
 		var pos: Vector3 = rest.get("position", Vector3.ZERO)
 		var rot: Vector3 = rest.get("rotation", Vector3.ZERO)
 		lines.append(
-			"%s pos=%s rot=%s"
-			% [part_name, _vec3_digest(pos), _vec3_digest(rot)]
+			"%s path=%s pos=%s rot=%s"
+			% [part_name, str(rest.get("path", part_name)), _vec3_digest(pos), _vec3_digest(rot)]
 		)
 	return "\n".join(lines).sha256_text()
+
+
+static func _compiler_identity() -> String:
+	return "revision=%d;steps=%.4f" % [
+		COMPILER_STYLE_REVISION,
+		PixelDioramaSettings.animation_steps_per_second,
+	]
 
 
 static func _vec3_digest(value: Vector3) -> String:
@@ -2326,6 +2359,7 @@ static func _vec3_digest(value: Vector3) -> String:
 
 static func _compile_pose_marker(rest_pose: Dictionary) -> Animation:
 	var anim := Animation.new()
+	anim.set_meta("compiler_identity", _compiler_identity())
 	anim.length = 0.0
 	anim.loop_mode = Animation.LOOP_NONE
 	var wrote_any := false

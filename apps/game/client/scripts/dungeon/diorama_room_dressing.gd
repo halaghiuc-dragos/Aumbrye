@@ -127,9 +127,31 @@ static func apply_to_room(room: RoomTemplate, biome_id: String, room_seed: int =
 			_spawn_puzzle(dressing, accent_mat, biome_id)
 		_:
 			_spawn_generic_corners(dressing, half_w, half_d, accent_mat, biome_id, prop_rng)
+	_spawn_family_dressing(dressing, room, half_w, half_d, wall_mat, accent_mat, biome_id)
 	_spawn_variant_props(dressing, room, biome_id, accent_mat)
 	_spawn_density_props(dressing, room, half_w, half_d, blockout, biome_id, accent_mat, prop_rng)
 	_apply_seeded_prop_variation(dressing, prop_rng)
+
+
+static func _spawn_family_dressing(
+	parent: Node3D, room: RoomTemplate, half_w: float, half_d: float, wall_mat: Material, accent_mat: Material, biome_id: String
+) -> void:
+	for tag in room.room_tags:
+		match str(tag):
+			"family_defended_bridge":
+				_spawn_corner_pillar(parent, Vector3(-half_w * 0.45, 0.0, 0.0), wall_mat, 3.4, biome_id)
+				_spawn_corner_pillar(parent, Vector3(half_w * 0.45, 0.0, 0.0), wall_mat, 3.4, biome_id)
+			"family_overlook":
+				_spawn_brazier(parent, Vector3(0.0, 0.0, -half_d * 0.4), accent_mat, biome_id, 0.9)
+			"family_flooded_bypass":
+				_spawn_kit_rubble(parent, 0, Vector3(-half_w * 0.28, 0.0, 0.0), 0.3, accent_mat, biome_id)
+				_spawn_kit_rubble(parent, 1, Vector3(half_w * 0.28, 0.0, 0.0), -0.3, accent_mat, biome_id)
+			"family_broken_chapel":
+				_spawn_wall_midpoint_torches(parent, room.get_blockout(), half_w, half_d, accent_mat, biome_id)
+			"family_vertical_return_loop":
+				_spawn_brazier(parent, Vector3(0.0, 0.0, half_d * 0.35), accent_mat, biome_id, 1.0)
+			"family_ambush_courtyard":
+				_spawn_room_center_fill(parent, half_w, half_d, biome_id)
 
 
 ## RM-03: places whatever `props` list the room's biome-specific layout variant authored

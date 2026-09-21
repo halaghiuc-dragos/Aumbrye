@@ -89,7 +89,11 @@ public sealed record CompleteRunInput(
     bool BossDefeated,
     IReadOnlyList<string> LootClaimedInstanceIds,
     int Floor = 1,
-    int Kills = 0);
+    int Kills = 0,
+    string Mode = "dungeon",
+    bool FinalObjectiveCompleted = false,
+    int Assists = 0,
+    string Ruleset = "standard-v1");
 
 public sealed record CompleteRunResult(
     bool Success,
@@ -111,6 +115,7 @@ public sealed record SaveGetResult(
     bool Success,
     JsonObject? State = null,
     DateTimeOffset? UpdatedAt = null,
+    long Revision = 0,
     string? Error = null,
     int? ErrorStatus = null);
 
@@ -118,13 +123,14 @@ public sealed record SavePutResult(
     bool Success,
     JsonObject? State = null,
     DateTimeOffset? UpdatedAt = null,
+    long Revision = 0,
     bool Conflict = false,
     string? Error = null);
 
 public interface ISaveService
 {
     Task<SaveGetResult> GetCurrentAsync(Guid accountId, CancellationToken ct = default);
-    Task<SavePutResult> PutCurrentAsync(Guid accountId, JsonObject state, DateTimeOffset? clientUpdatedAt, CancellationToken ct = default);
+    Task<SavePutResult> PutCurrentAsync(Guid accountId, JsonObject state, DateTimeOffset? clientUpdatedAt, long? clientRevision = null, CancellationToken ct = default);
 }
 
 public sealed record DisplayNameResult(bool Success, string? DisplayName = null, string? Error = null);

@@ -42,6 +42,10 @@ func configure(
 	mana_changed.emit(current, max_mana)
 
 
+func set_regen_multiplier(value: float) -> void:
+	_regen_multiplier = maxf(0.1, value)
+
+
 func set_regen_state(state: RegenState) -> void:
 	_regen_state = state
 
@@ -55,19 +59,21 @@ func _physics_process(delta: float) -> void:
 	if current < max_mana:
 		var rate := REGEN_RATE * _regen_multiplier
 		if _regen_state == RegenState.BLOCKING:
-			rate = REGEN_RATE_BLOCKING
+			rate = REGEN_RATE_BLOCKING * _regen_multiplier
 		current = minf(max_mana, current + rate * delta)
 		mana_changed.emit(current, max_mana)
 
 
 func restore(amount: float) -> void:
-	if amount <= 0.0 or current >= max_mana:
+	if not is_finite(amount) or amount <= 0.0 or current >= max_mana:
 		return
 	current = minf(max_mana, current + amount)
 	mana_changed.emit(current, max_mana)
 
 
 func consume(amount: float, notify_insufficient: bool = true) -> bool:
+	if not is_finite(amount) or amount <= 0.0:
+		return false
 	if current < amount:
 		if notify_insufficient:
 			insufficient.emit()
@@ -81,7 +87,15 @@ func consume(amount: float, notify_insufficient: bool = true) -> bool:
 
 
 func drain(amount: float) -> bool:
-	return consume(amount, false)
+	if not is_finite(amount) or amount <= 0.0 or current <= 0.0:
+		return false
+	var drained := minf(current, amount)
+	current -= drained
+	_regen_timer = REGEN_DELAY
+	mana_changed.emit(current, max_mana)
+	if current <= 0.0:
+		depleted.emit()
+	return drained >= amount
 
 
 func has(amount: float) -> bool:

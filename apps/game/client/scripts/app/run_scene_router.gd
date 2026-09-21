@@ -15,9 +15,9 @@ static func goto_scene(tree: SceneTree, path: String) -> void:
 
 static func _status_for(path: String) -> String:
 	if path == HUB_SCENE:
-		return "Returning to the hub..."
+		return tr("TRANSITION_RETURN_HUB")
 	if path == CASTLE_RUN_SCENE or path == WAVES_RUN_SCENE:
-		return "Descending..."
+		return tr("TRANSITION_DESCENDING")
 	if path == RESULTS_SCENE:
-		return "Tallying the run..."
-	return "Loading..."
+		return tr("TRANSITION_TALLYING")
+	return tr("TRANSITION_LOADING")

@@ -75,7 +75,8 @@ func locked_label(mode_id: String) -> String:
 func is_unlocked(mode_id: String) -> bool:
 	var mode := get_mode(mode_id)
 	if mode.is_empty():
-		return true
+		push_error("ModeUnlockService: unknown mode id '%s'" % mode_id)
+		return false
 	for requirement in mode.get("requirements", []):
 		if not requirement is Dictionary:
 			continue

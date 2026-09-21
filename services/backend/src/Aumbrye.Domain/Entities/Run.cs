@@ -26,9 +26,15 @@ public class Run
     public int Tier { get; set; }
     public int PlayerLevelSnapshot { get; set; }
     public RunStatus Status { get; set; } = RunStatus.Active;
+    public string? Outcome { get; set; }
+    public string Mode { get; set; } = "dungeon";
+    public bool FinalObjectiveCompleted { get; set; }
+    public int Assists { get; set; }
+    public string Ruleset { get; set; } = "standard-v1";
     public DateTimeOffset CreatedAt { get; set; }
     public DateTimeOffset? CompletedAt { get; set; }
     public string? DefinitionChecksum { get; set; }
+    public bool RankedDefinitionEligible { get; set; }
 
     /// <summary>
     /// Union of every loot instance the run has generated, across all floors, serialized as

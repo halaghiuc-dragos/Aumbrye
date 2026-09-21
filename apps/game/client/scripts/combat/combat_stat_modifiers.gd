@@ -1,6 +1,10 @@
 extends RefCounted
 class_name CombatStatModifiers
 
+const EQUIPMENT_DAMAGE_CAP := 0.75
+const TALENT_DAMAGE_CAP := 0.5
+const RUN_DAMAGE_CAP := 0.75
+
 
 static func stack_bonus(stat: String) -> float:
 	if not CombatEvents:
@@ -9,11 +13,13 @@ static func stack_bonus(stat: String) -> float:
 
 
 static func damage_multiplier(equipment_stats: Dictionary, talent_stats: Dictionary) -> float:
-	var mult := 1.0 + float(equipment_stats.get("damagePercent", 0.0)) / 100.0
-	mult += float(equipment_stats.get("physicalDamage", 0.0))
-	mult += float(talent_stats.get("physicalDamage", 0.0))
-	mult += stack_bonus("damagePercent") / 100.0
-	mult += stack_bonus("physicalDamage")
+	var equipment := float(equipment_stats.get("damagePercent", 0.0)) / 100.0
+	equipment += float(equipment_stats.get("physicalDamage", 0.0))
+	var talents := float(talent_stats.get("physicalDamage", 0.0))
+	var run := stack_bonus("damagePercent") / 100.0 + stack_bonus("physicalDamage")
+	var mult := 1.0 + minf(EQUIPMENT_DAMAGE_CAP, equipment)
+	mult += minf(TALENT_DAMAGE_CAP, talents)
+	mult += minf(RUN_DAMAGE_CAP, run)
 	return maxf(0.1, mult)
 
 
@@ -163,14 +169,17 @@ static func move_speed_multiplier(equipment_stats: Dictionary, talent_stats: Dic
 ## rewriting every enemy's damage number.
 const HEALTH_BONUS_SOFT_CAP := 110.0
 const HEALTH_BONUS_SOFTENING := 110.0
+const MIN_MAX_HEALTH := 25.0
 
 
 ## Takes an already-summed bonus (equipment, talents, buffs -- whatever a caller has merged
 ## together already) since `maxHealth` is gathered from several sources at once and there is no
 ## value in forcing every caller to re-split it just to hand the pieces back.
 static func soften_health_bonus(raw: float) -> float:
+	if raw <= 0.0:
+		return raw
 	if raw <= HEALTH_BONUS_SOFT_CAP:
-		return maxf(0.0, raw)
+		return raw
 	var excess := raw - HEALTH_BONUS_SOFT_CAP
 	return HEALTH_BONUS_SOFT_CAP + HEALTH_BONUS_SOFTENING * excess / (excess + HEALTH_BONUS_SOFTENING)
 

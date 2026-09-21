@@ -79,6 +79,7 @@
               "onFloorEnter",
               "onStatusApplied",
               "onRunStart",
+              "onAcquired",
               "onDeath",
               "onPerfectDodge",
               "onGuardBreak",
@@ -154,6 +155,9 @@
             }
           },
           "ifTargetHasStatus": {
+            "type": "string"
+          },
+          "ifAcquiredRelic": {
             "type": "string"
           },
           "ifDamageType": {

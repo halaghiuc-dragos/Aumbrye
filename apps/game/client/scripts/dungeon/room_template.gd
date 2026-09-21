@@ -94,6 +94,6 @@ func contains_world_point(world_pos: Vector3) -> bool:
 	var half_d := blockout.room_depth * 0.5
 	if absf(local.x) > half_w or absf(local.z) > half_d:
 		return false
-	var min_y := position.y - 4.0
-	var max_y := position.y + CastleRoomConstants.WALL_HEIGHT + 4.0
-	return world_pos.y >= min_y and world_pos.y <= max_y
+	var min_y := -4.0
+	var max_y := blockout.wall_height + 4.0
+	return local.y >= min_y and local.y <= max_y

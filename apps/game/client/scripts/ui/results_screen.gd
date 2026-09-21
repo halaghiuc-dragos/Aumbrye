@@ -425,6 +425,10 @@ func _highlight_lines(results: Dictionary) -> Array[String]:
 				if relic is Dictionary and str((relic as Dictionary).get("id", "")) == top_relic:
 					top_name = str((relic as Dictionary).get("name", top_relic))
 		lines.append(tr("RESULTS_TOP_RELIC").format({"relic": top_name, "count": top_procs}))
+		var top_metrics: Dictionary = highlights.get("relicContributions", {}).get(top_relic, {})
+		var contribution_text := _relic_contribution_text(top_metrics)
+		if contribution_text != "":
+			lines.append(contribution_text)
 	var best_hit: Dictionary = highlights.get("bestHit", {})
 	if best_hit is Dictionary and float(best_hit.get("amount", 0.0)) > 0.0:
 		var flags: PackedStringArray = []
@@ -449,6 +453,23 @@ func _highlight_lines(results: Dictionary) -> Array[String]:
 	if traps > 0:
 		lines.append(tr("RESULTS_TRAPS_HIT").format({"count": traps}))
 	return lines
+
+
+func _relic_contribution_text(metrics: Dictionary) -> String:
+	var parts: Array[String] = []
+	var health := int(round(float(metrics.get("healthRestored", 0.0))))
+	var stamina := int(round(float(metrics.get("staminaRestored", 0.0))))
+	var barrier := int(round(float(metrics.get("barrierGranted", 0.0))))
+	var stacks := int(round(float(metrics.get("statusStacks", 0.0))))
+	if health > 0:
+		parts.append("%d health restored" % health)
+	if stamina > 0:
+		parts.append("%d stamina restored" % stamina)
+	if barrier > 0:
+		parts.append("%d barrier granted" % barrier)
+	if stacks > 0:
+		parts.append("%d status stacks applied" % stacks)
+	return "Relic contribution: %s" % ", ".join(parts)
 
 
 func _build_run_report(results: Dictionary) -> String:

@@ -62,7 +62,7 @@ func _try_hit(area: Area3D) -> void:
 	if area.get("team") == team:
 		return
 	var id := area.get_instance_id()
-	var now := Time.get_ticks_msec() / 1000.0
+	var now := CombatEvents.gameplay_time() if CombatEvents else 0.0
 	if _cooldowns.has(id) and now - _cooldowns[id] < hit_interval:
 		return
 	_cooldowns[id] = now

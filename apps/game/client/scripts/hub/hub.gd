@@ -40,6 +40,8 @@ var _interactable_by_id: Dictionary = {}
 var _current_prompt := ""
 var _prompt_writes := 0
 var _message_dismiss_armed := false
+var _npc_availability_pending := false
+var _growth_reconciling := false
 
 
 func _ready() -> void:
@@ -57,7 +59,7 @@ func _ready() -> void:
 
 	_connect_tip_refresh_sources()
 
-	_dialogue_ui.closed.connect(_update_prompt)
+	_dialogue_ui.closed.connect(_on_dialogue_closed)
 
 	_castle_menu.dungeon_run_requested.connect(_on_dungeon_run)
 	_castle_menu.continue_requested.connect(_on_castle_continue)
@@ -190,6 +192,7 @@ func _on_save_loaded() -> void:
 
 func _on_tier_unlocked(_tier: int) -> void:
 	_apply_npc_availability()
+	_announce_hub_growth()
 
 
 func _auto_equip_starting_weapon() -> void:
@@ -555,9 +558,15 @@ func _announce_mode_unlocks() -> void:
 ## to earn the big card, but a hub-growth entry is common enough that fighting the welcome-back
 ## line for the same small label would mean one of the two never gets read.
 func _announce_hub_growth() -> void:
-	HubGrowthService.evaluate()
+	if _growth_reconciling:
+		return
+	_growth_reconciling = true
+	var opened := HubGrowthService.evaluate()
+	if not opened.is_empty():
+		HubDioramaScript.reconcile_growth_props(self)
 	var fresh := HubGrowthService.consume_announcements()
 	if fresh.is_empty():
+		_growth_reconciling = false
 		return
 	var names: Array[String] = []
 	for entry in fresh:
@@ -565,6 +574,7 @@ func _announce_hub_growth() -> void:
 		if growth_name != "":
 			names.append(growth_name)
 	if names.is_empty():
+		_growth_reconciling = false
 		return
 	var line := tr("HUB_GROWTH_ANNOUNCE").format({"names": ", ".join(names)})
 	if _message_label and _message_label.visible and _message_label.text != "":
@@ -572,6 +582,7 @@ func _announce_hub_growth() -> void:
 	else:
 		show_hub_message(line)
 	AudioDirector.play_stinger("floor_clear")
+	_growth_reconciling = false
 
 
 const GameUISkinScript := preload("res://scripts/ui/game_ui_skin.gd")
@@ -691,7 +702,7 @@ func _connect_tip_refresh_sources() -> void:
 	if StorageService:
 		StorageService.storage_changed.connect(_on_tip_source_changed)
 	if CharacterService:
-		CharacterService.flags_changed.connect(_on_tip_source_changed)
+		CharacterService.flags_changed.connect(_on_flag_source_changed)
 		CharacterService.quests_changed.connect(_on_tip_source_changed)
 		CharacterService.gold_changed.connect(_on_tip_source_changed_int)
 		CharacterService.level_changed.connect(_on_tip_source_changed_int)
@@ -701,6 +712,22 @@ func _connect_tip_refresh_sources() -> void:
 
 func _on_tip_source_changed() -> void:
 	_refresh_tip_surface()
+
+
+func _on_flag_source_changed() -> void:
+	_refresh_tip_surface()
+	_announce_hub_growth()
+	if _dialogue_ui and _dialogue_ui.is_open():
+		_npc_availability_pending = true
+		return
+	_apply_npc_availability()
+
+
+func _on_dialogue_closed() -> void:
+	if _npc_availability_pending:
+		_npc_availability_pending = false
+		_apply_npc_availability()
+	_update_prompt()
 
 
 func _on_tip_source_changed_int(_value: int) -> void:
@@ -777,8 +804,12 @@ func _on_inventory_rejected(reason: String) -> void:
 		show_hub_message("Inventory full.")
 
 
-func _on_npc_dialogue(_npc_id: String, dialogue_id: String) -> void:
-	_dialogue_ui.start_dialogue(dialogue_id)
+func _on_npc_dialogue(npc_id: String, dialogue_id: String) -> void:
+	var opened: bool = _dialogue_ui.start_dialogue(dialogue_id)
+	for node in get_tree().get_nodes_in_group("hub_npc"):
+		if node is NpcBase and (node as NpcBase).get_npc_id() == npc_id:
+			(node as NpcBase).notify_dialogue_start_result(opened)
+			break
 	_update_prompt()
 
 

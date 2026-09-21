@@ -2,6 +2,7 @@
   "id": "bounty_rime",
   "title": "Bounty: Cold Storage",
   "type": "fetch",
+  "objectiveMode": "delivery",
   "targetItemId": "hoarfrost_shard",
   "requiredCount": 4,
   "repeatable": true,

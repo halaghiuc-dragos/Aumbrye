@@ -143,8 +143,12 @@ static func convert(inventory: GridInventory, from_id: String, to_id: String) ->
 		if not ItemCatalog.has_item(to_id):
 			push_warning("SkipFloorService: unknown skip item '%s'" % to_id)
 			return false
-		if inventory.remove_items_by_id(from_id, cost) < cost:
+		var working := GridInventory.new(inventory.grid_width, inventory.grid_height)
+		working.from_save_dict(inventory.to_save_dict())
+		if working.remove_items_by_id(from_id, cost) < cost:
 			return false
-		InventoryService.add_loot(to_id)
+		if not working.add_item(to_id, 1):
+			return false
+		inventory.from_save_dict(working.to_save_dict())
 		return true
 	return false

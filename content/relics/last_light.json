@@ -12,6 +12,7 @@
     {
       "event": "onLowHealth",
       "effect": "clear_status",
+      "removalPolicy": "debuffs",
       "cooldown": 90
     },
     {

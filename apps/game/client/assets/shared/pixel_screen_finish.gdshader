@@ -179,7 +179,7 @@ void fragment() {
 	if (grain_strength > 0.001) {
 		vec2 grain_cell = floor(FRAGCOORD.xy / max(grain_size, 1.0));
 		float n = hash21(grain_cell + floor(TIME * 24.0)) - 0.5;
-		n = floor(n * 5.0) / 5.0;
+		n = floor((n + 0.5) * 5.0) / 4.0 - 0.5;
 		float mid = 1.0 - abs(luminance(col) * 2.0 - 1.0);
 		col += n * grain_strength * mid;
 	}

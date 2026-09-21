@@ -9,6 +9,7 @@
   "description": "Pitch in a clay shell. Lobbed at range, not underfoot -- an answer to whoever is shooting back.",
   "consumableEffect": {
     "kind": "throwable",
+    "projectileArchetype": "bomb",
     "damage": 24,
     "damageType": "fire",
     "statusId": "burn",

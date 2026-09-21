@@ -2,6 +2,7 @@
   "id": "audit_the_vault",
   "title": "Audit",
   "type": "reach_depth",
+  "allowedModes": ["castle", "endless"],
   "chainId": "ledger",
   "prerequisites": [
     "sealed_requisition"

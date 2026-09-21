@@ -29,6 +29,7 @@ func _ready() -> void:
 	if trap_id == "":
 		trap_id = TrapTactics.trap_id_for(self)
 	_def = TrapTactics.definition(trap_id)
+	_def["attackClass"] = HAZARD_ATTACK_CLASS
 	_trigger = str(_def.get("trigger", "proximity"))
 	var size := _size()
 	_radius = maxf(float(_def.get("triggerRadius", 0.0)), maxf(size.x, size.z) * 0.5 + 0.5)

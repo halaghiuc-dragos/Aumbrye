@@ -20,6 +20,7 @@ var _spike_timer := 0.0
 var _spike_bursts := 0
 var _immune := false
 var _cannon: Node3D
+var _encounter_nodes: Array[Node3D] = []
 
 
 func _resolve_enemy_id() -> String:
@@ -53,8 +54,6 @@ func _physics_process(delta: float) -> void:
 	match _phase:
 		Phase.SPIKES:
 			_process_spike_phase(delta)
-		Phase.PUZZLE:
-			_process_puzzle_phase(delta)
 
 
 func _on_health_changed(current: float, max_value: float) -> void:
@@ -96,27 +95,30 @@ func _process_spike_phase(delta: float) -> void:
 func _spawn_spike_burst() -> void:
 	for _i in range(6):
 		var trap: Node3D = SPIKE_SCENE.instantiate() as Node3D
-		trap.position = Vector3(
+		trap.global_position = to_global(Vector3(
 			_enemy_rng.randf_range(-8.0, 8.0), 0.0, _enemy_rng.randf_range(-8.0, 8.0)
-		)
+		))
 		get_parent().add_child(trap)
+		_encounter_nodes.append(trap)
 
 
 func _spawn_puzzle_crystals() -> void:
 	for i in range(_crystals_required):
 		var crystal: Node3D = CRYSTAL_SCENE.instantiate() as Node3D
-		crystal.position = Vector3(-6.0 + i * 6.0, 0.5, 6.0)
+		crystal.global_position = to_global(Vector3(-6.0 + i * 6.0, 0.5, 6.0))
 		if crystal.has_signal("collected"):
 			crystal.collected.connect(_on_crystal_collected)
 		get_parent().add_child(crystal)
+		_encounter_nodes.append(crystal)
 
 
 func _spawn_cannon() -> void:
 	if _cannon and is_instance_valid(_cannon):
 		return
 	_cannon = CANNON_SCENE.instantiate() as Node3D
-	_cannon.position = Vector3(0.0, 0.0, -8.0)
+	_cannon.global_position = to_global(Vector3(0.0, 0.0, -8.0))
 	get_parent().add_child(_cannon)
+	_encounter_nodes.append(_cannon)
 	if _cannon.has_method("configure"):
 		_cannon.call("configure", self, _crystals_required)
 
@@ -133,16 +135,21 @@ func _break_shield() -> void:
 
 
 func on_cannon_fired() -> void:
-	_phase = Phase.COMBAT
-
-
-func _process_puzzle_phase(_delta: float) -> void:
-	pass
+	_enter_phase(Phase.COMBAT)
 
 
 func _on_died() -> void:
 	super._on_died()
+	_clear_encounter_nodes()
 	boss_defeated.emit()
+
+
+func _clear_encounter_nodes() -> void:
+	for node in _encounter_nodes:
+		if is_instance_valid(node):
+			node.queue_free()
+	_encounter_nodes.clear()
+	_cannon = null
 
 
 func register_cannon_hit() -> void:
@@ -165,13 +172,15 @@ func apply_state(state: Dictionary) -> void:
 	if not state.get("alive", true):
 		super.apply_state(state)
 		return
-	_phase = int(state.get("phase", Phase.COMBAT)) as Phase
-	_shield_active = bool(state.get("shieldActive", false))
-	_crystals_collected = int(state.get("crystalsCollected", 0))
-	_immune = _phase != Phase.COMBAT or _shield_active
-	if _phase == Phase.PUZZLE:
-		_spawn_cannon()
-		var loaded := int(state.get("cannonLoaded", _crystals_collected))
-		if _cannon and _cannon.has_method("deposit_crystal"):
-			for _i in loaded:
-				_cannon.call("deposit_crystal")
+	_clear_encounter_nodes()
+	_phase = Phase.COMBAT
+	_phase2_done = false
+	_shield_active = false
+	_crystals_collected = 0
+	_spike_timer = 0.0
+	_spike_bursts = 0
+	_immune = false
+	if _health:
+		_health.reset_health()
+	_state = State.PATROL
+	phase_changed.emit(int(_phase))

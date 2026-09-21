@@ -1,0 +1,18 @@
+{
+  "id": "longbow",
+  "name": "Longbow",
+  "archetype": "bow",
+  "damage_type": "physical",
+  "draw_time": 1.05,
+  "projectile_speed_multiplier": 1.25,
+  "buffer_window": 0.12,
+  "cancel_into": ["dodge", "guard"],
+  "cancel_after": 0.55,
+  "scaling": {"critChance": 1.8},
+  "hitbox": {"shape": "box", "size": [0.6, 0.6, 1], "offset": [0, 0, 0.5]},
+  "light_attacks": [{"damage": 11, "poise_damage": 7, "stamina_cost": 9, "startup": 0.15, "active": 0.08, "recovery": 0.26, "knockback": 1.2}],
+  "heavy_attack": {"damage": 34, "poise_damage": 16, "stamina_cost": 22, "startup": 0.07, "active": 0.11, "recovery": 0.48, "knockback": 3.2},
+  "running_attack": {"damage": 10, "poise_damage": 6, "stamina_cost": 10, "startup": 0.13, "active": 0.08, "recovery": 0.3, "lunge_distance": 0.5, "cancel_after": 0.45, "knockback": 1.6},
+  "rolling_attack": {"damage": 8, "poise_damage": 5, "stamina_cost": 9, "startup": 0.11, "active": 0.08, "recovery": 0.28, "lunge_distance": 0.25, "cancel_after": 0.4, "knockback": 1.1},
+  "art": {"id": "piercing_shot", "name": "Piercing Shot", "stamina_cost": 28, "damage": 38, "poise_damage": 26, "startup": 0.38, "active": 0.16, "recovery": 0.52, "lunge_distance": 0, "hyperarmor": false, "cooldown": 8, "knockback": 2.8}
+}

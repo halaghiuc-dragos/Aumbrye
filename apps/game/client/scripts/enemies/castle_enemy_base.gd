@@ -88,6 +88,7 @@ var _anim_profile := "melee"
 var _last_known_player_pos := Vector3.ZERO
 var _attack_token_group := ""
 var _attack_token_held := false
+var _attack_telegraph
 var _current_attack_data: Dictionary = {}
 var _combo_step := 0
 var _combat_registered := false
@@ -125,6 +126,7 @@ var _punish_watching := false
 var _punish_watch_timer := 0.0
 var _defensive_token_held := false
 var _last_hit_direction := Vector3.ZERO
+var _last_damage_credit: DamageInfo
 var _last_hit_poise_damage := 0.0
 var _catalog_id_override := ""
 var _damage_multiplier := 1.0
@@ -284,7 +286,7 @@ func _apply_vulnerability(spec: Dictionary) -> void:
 		shape.shape = SphereShape3D.new()
 		_weak_point_hurtbox.add_child(shape)
 		add_child(_weak_point_hurtbox)
-		_weak_point_hurtbox.damaged.connect(_on_hurt)
+		_weak_point_hurtbox.damaged.connect(_on_weak_point_hurt)
 	_weak_point_hurtbox.region = String(spec.get("region", "weakpoint"))
 	_weak_point_hurtbox.region_damage_mult = maxf(0.0, float(spec.get("regionDamageMult", 1.5)))
 	var sphere := (_weak_point_hurtbox.get_node("CollisionShape3D") as CollisionShape3D).shape as SphereShape3D
@@ -339,6 +341,7 @@ func _is_boss_enemy() -> bool:
 	if not _data.is_empty():
 		return _is_boss
 	var catalog_id := get_enemy_id()
+	BestiaryService.record_sighting(catalog_id)
 	return catalog_id.contains("boss") or catalog_id.contains("miniboss")
 
 
@@ -847,6 +850,9 @@ func begin_attack_windup_bar(duration: float, attack_class: String = "blockable"
 
 
 func hide_attack_windup_bar() -> void:
+	if _attack_telegraph:
+		_attack_telegraph.cancel()
+		_attack_telegraph = null
 	_windup_duration = 0.0
 	remove_from_group(TELEGRAPHING_GROUP)
 	_end_weapon_charge()
@@ -907,8 +913,11 @@ func _show_attack_telegraph(duration: float) -> void:
 		tint = Color(_data["telegraph_tint"])
 	var pattern := AccessibilitySettings.get_telegraph_class_pattern(attack_class)
 	var forward := CombatFacing.forward_of(self)
-	VfxService.play_telegraph(
-		global_position, radius, duration, tint, shape, forward, self, arc_deg, pattern
+	_attack_telegraph = VfxService.play_telegraph(
+		global_position, radius, duration, tint, shape, forward, self, arc_deg, pattern,
+		float(_current_attack_data.get("telegraph_length", _data.get("telegraph_length", -1.0))),
+		float(_current_attack_data.get("telegraph_width", _data.get("telegraph_width", -1.0))),
+		float(_current_attack_data.get("telegraph_inner_radius", _data.get("telegraph_inner_radius", 0.0)))
 	)
 	_begin_weapon_charge(tint, duration)
 
@@ -1121,7 +1130,7 @@ func _finalize_death(silent: bool) -> void:
 	if _health:
 		_health.force_dead()
 	if not silent:
-		RunFlow.register_kill(get_enemy_id())
+		RunFlow.register_kill(get_enemy_id(), _kill_credit())
 		_award_kill_coins()
 		_try_roll_global_drop()
 		_apply_splits_on_death()
@@ -1186,10 +1195,10 @@ func _try_roll_global_drop() -> void:
 	var tier := RunFlow.get_difficulty_tier() if RunFlow.get_run_mode() == "castle" else 1
 	var dungeon_id := RunFlow.current_dungeon_id if RunFlow.get_run_mode() == "castle" else ""
 	var drop_ordinal := RunFlow.next_loot_drop_ordinal() if RunFlow else 0
-	var drop_id := GlobalDropServiceScript.roll_enemy_drop(
+	var drop_ids := GlobalDropServiceScript.roll_enemy_drops(
 		drop_ordinal, floor_index, tier, dungeon_id
 	)
-	if drop_id != "":
+	for drop_id in drop_ids:
 		InventoryService.add_loot(drop_id)
 
 
@@ -1830,8 +1839,8 @@ func _try_defensive_reaction() -> bool:
 func _request_defensive_token() -> bool:
 	if _defensive_token_held:
 		return true
-	_attack_token_group = str(_data.get("attack_token_group", "room_default"))
-	if AttackTokenService and not AttackTokenService.request_token(_attack_token_group):
+	_attack_token_group = _encounter_token_group()
+	if AttackTokenService and not AttackTokenService.request_token(_attack_token_group, self, "defense"):
 		return false
 	_defensive_token_held = true
 	return true
@@ -1839,7 +1848,7 @@ func _request_defensive_token() -> bool:
 
 func _release_defensive_token() -> void:
 	if _defensive_token_held and AttackTokenService:
-		AttackTokenService.release_token(_attack_token_group)
+		AttackTokenService.release_token(_attack_token_group, self, "defense")
 	_defensive_token_held = false
 
 
@@ -2043,17 +2052,23 @@ func _start_windup() -> void:
 	## `AttackTokenService` gating it would make a swarm behave like a single-file line of melee.
 	if str(_data.get("enemy_type", "")) == "swarm":
 		_attack_token_held = false
-		_select_attack_data()
+		if not _select_attack_data():
+			_enter_circle()
+			return
 		_enter_windup(_current_attack_data)
 		return
-	_attack_token_group = str(_data.get("attack_token_group", "room_default"))
-	if AttackTokenService and not AttackTokenService.request_token(_attack_token_group):
+	_attack_token_group = _encounter_token_group()
+	if AttackTokenService and not AttackTokenService.request_token(_attack_token_group, self):
 		_cooldown = _enemy_rng.randf_range(0.25, 0.6)
 		if _has_aggro():
 			_enter_circle()
 		return
 	_attack_token_held = true
-	_select_attack_data()
+	if not _select_attack_data():
+		_release_attack_token()
+		_cooldown = _enemy_rng.randf_range(0.25, 0.6)
+		_enter_circle()
+		return
 	_enter_windup(_current_attack_data)
 
 
@@ -2154,6 +2169,10 @@ func _start_attack() -> void:
 	_state_timer = float(
 		_current_attack_data.get("active_duration", _data.get("active_duration", 0.15))
 	)
+	if _attack_telegraph:
+		_attack_telegraph.commit()
+		_attack_telegraph.finish()
+		_attack_telegraph = null
 	hide_attack_windup_bar()
 	_end_weapon_charge()
 	if _hitbox:
@@ -2195,6 +2214,13 @@ func _end_attack() -> void:
 		_diorama_visual.scale = Vector3.ONE * _phase_scale_mult
 	elif _mesh:
 		_mesh.scale = Vector3.ONE * _phase_scale_mult
+	var player_alive := _player != null
+	if _player and _player.has_method("is_dead"):
+		player_alive = not bool(_player.call("is_dead"))
+	if player_alive:
+		BestiaryService.record_signature(
+			get_enemy_id(), str(_current_attack_data.get("id", _current_attack_class()))
+		)
 	var combo: Array = _current_attack_data.get("combo_followups", [])
 	if combo.size() > 0 and _combo_step < combo.size() and _has_aggro() and _phase_lock_timer <= 0.0:
 		_combo_step += 1
@@ -2209,17 +2235,16 @@ func _end_attack() -> void:
 	)
 
 
-func _select_attack_data() -> void:
+func _select_attack_data() -> bool:
 	if _attacks.is_empty():
 		_current_attack_data = _data
 		_combo_step = 0
-		return
+		return true
 	if _combo_step > 0:
-		return
+		return true
 	_combo_step = 0
 	if _attacks_ordered:
-		_select_ordered_attack_data()
-		return
+		return _select_ordered_attack_data()
 	var dist := sqrt(_distance_to_player_sq()) if _player != null else 0.0
 	var candidates: Array[Dictionary] = []
 	var weights: Array[float] = []
@@ -2237,22 +2262,23 @@ func _select_attack_data() -> void:
 		weights.append(weight)
 		total += weight
 	if candidates.is_empty():
-		_current_attack_data = _first_attack_entry()
-		return
+		_current_attack_data = {}
+		return false
 	var roll := _enemy_rng.randf() * total
 	for i in candidates.size():
 		roll -= weights[i]
 		if roll <= 0.0:
 			_current_attack_data = candidates[i]
-			return
+			return true
 	_current_attack_data = candidates[candidates.size() - 1]
+	return true
 
 
 ## `BS-01` "pattern" phases: a fixed, learnable sequence instead of a weighted roll. Walks
 ## `_attacks` starting where the last selection left off, skipping any entry out of range this
 ## frame but still advancing past it, so the sequence keeps its order rather than stalling on a
 ## move the player is currently too far (or too close) to be hit by.
-func _select_ordered_attack_data() -> void:
+func _select_ordered_attack_data() -> bool:
 	var dist := sqrt(_distance_to_player_sq()) if _player != null else 0.0
 	var attempts := 0
 	while attempts < _attacks.size():
@@ -2267,8 +2293,9 @@ func _select_ordered_attack_data() -> void:
 		if dist > float(atk.get("max_range", _attack_range)):
 			continue
 		_current_attack_data = atk
-		return
-	_current_attack_data = _first_attack_entry()
+		return true
+	_current_attack_data = {}
+	return false
 
 
 func _first_attack_entry() -> Dictionary:
@@ -2285,8 +2312,12 @@ func _yield_room_turn() -> void:
 
 func _release_attack_token() -> void:
 	if _attack_token_held and AttackTokenService:
-		AttackTokenService.release_token(_attack_token_group)
+		AttackTokenService.release_token(_attack_token_group, self)
 	_attack_token_held = false
+
+
+func _encounter_token_group() -> String:
+	return "room_%d:pressure" % _room_id
 
 
 func _register_combat_engagement() -> void:
@@ -2437,8 +2468,8 @@ func _try_leap_attack() -> bool:
 		return false
 	if not _has_line_of_sight_to_player():
 		return false
-	_attack_token_group = str(_data.get("attack_token_group", "room_default"))
-	if AttackTokenService and not AttackTokenService.request_token(_attack_token_group):
+	_attack_token_group = _encounter_token_group()
+	if AttackTokenService and not AttackTokenService.request_token(_attack_token_group, self):
 		return false
 	_attack_token_held = true
 	var windup := maxf(0.05, float(spec.get("windup", 0.5)))
@@ -2680,6 +2711,25 @@ func _on_hurt(info: DamageInfo) -> void:
 	var tween := create_tween()
 	_mesh.scale = Vector3(1.12, 1.12, 1.12)
 	tween.tween_property(_mesh, "scale", Vector3.ONE, 0.1)
+
+
+func _on_weak_point_hurt(info: DamageInfo) -> void:
+	BestiaryService.record_counter(get_enemy_id(), "weakpoint")
+	_on_hurt(info)
+
+
+func set_damage_credit(info: DamageInfo) -> void:
+	_last_damage_credit = info.copy_with()
+
+
+func _kill_credit() -> Dictionary:
+	if _last_damage_credit == null:
+		return {}
+	return {
+		"source": _last_damage_credit.source,
+		"weaponItemId": _last_damage_credit.weapon_item_id,
+		"periodic": _last_damage_credit.periodic,
+	}
 
 
 func _clear_combat_debug_draw() -> void:

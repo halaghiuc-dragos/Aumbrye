@@ -49,10 +49,10 @@ var _distress_active := false
 var _last_hit_direction := Vector3.ZERO
 var _wakeup_iframes_active := false
 var _death_sequence_running := false
+var _death_sequence_generation := 0
 var _saved_screen_saturation := -1.0
 var _grab_timer := 0.0
-var _grab_pending_damage := 0.0
-var _grab_source: Node = null
+var _grab_pending_info: DamageInfo = null
 var _knockback: Knockback
 
 ## AD-06: what actually killed the player, captured at the moment of the hit (not at death, since
@@ -131,6 +131,7 @@ func stagger_duration_for_poise(poise_damage: float) -> float:
 
 
 func reset_combat_state() -> void:
+	_death_sequence_generation += 1
 	is_dead = false
 	is_staggered = false
 	is_guard_broken = false
@@ -201,27 +202,32 @@ func _end_stagger() -> void:
 ## blocking or parrying, so nothing about it should read as a poise exchange. A fixed-duration lock
 ## with no i-frames, damage applied only once the lock ends, so a dodge or heal used *during* the
 ## grab cannot cheat the hit the way an i-framed stagger could.
-func apply_grab(damage: float, source: Node, duration: float) -> void:
-	if is_dead:
-		return
+func apply_grab(info: DamageInfo, duration: float) -> bool:
+	if is_dead or is_grabbed:
+		return false
 	is_grabbed = true
-	_grab_timer = duration
-	_grab_pending_damage = damage
-	_grab_source = source
+	_grab_timer = maxf(0.01, duration)
+	_grab_pending_info = info.copy_with()
 	if _dodge:
 		_dodge.cancel_dodge()
 	if _heal and _heal.is_drinking:
 		_heal._interrupt_drink()
 	grab_started.emit()
+	return true
 
 
 func _end_grab() -> void:
 	is_grabbed = false
 	_grab_timer = 0.0
-	if _health and _grab_pending_damage > 0.0 and not _health.is_dead():
-		_health.take_damage(_grab_pending_damage)
-	_grab_pending_damage = 0.0
-	_grab_source = null
+	if _grab_pending_info and _health and not _health.is_dead():
+		var hurtbox := _body.get_node_or_null("Hurtbox")
+		if hurtbox and hurtbox.has_method("receive_hit"):
+			var info := _grab_pending_info.copy_with()
+			info.attack_class = "grab_release"
+			info.ignore_iframes = true
+			info.ignore_guard = true
+			hurtbox.call("receive_hit", info)
+	_grab_pending_info = null
 	grab_ended.emit()
 
 
@@ -273,8 +279,10 @@ func _on_hurt_received(_amount: float, poise_damage: float, direction: Vector3) 
 		_last_hit_direction = direction
 
 
-func _on_damaged(info: DamageInfo) -> void:
+func capture_hit(info: DamageInfo) -> void:
 	_last_damage_info = info
+	if info.direction.length_squared() > 0.01:
+		_last_hit_direction = info.direction
 	if is_guard_broken:
 		_last_player_action = "guard_broken"
 	elif _guard and _guard.is_blocking:
@@ -285,6 +293,10 @@ func _on_damaged(info: DamageInfo) -> void:
 		_last_player_action = "attacking"
 	else:
 		_last_player_action = "moving"
+
+
+func _on_damaged(info: DamageInfo) -> void:
+	capture_hit(info)
 
 
 ## AD-06: one honest sentence naming what killed the player and what they were doing -- never a
@@ -363,6 +375,7 @@ func _on_died() -> void:
 	if _death_sequence_running:
 		return
 	_death_sequence_running = true
+	_death_sequence_generation += 1
 	_break_player_lock()
 	is_dead = true
 	death_recap = _build_death_recap()
@@ -370,10 +383,10 @@ func _on_died() -> void:
 		_dodge.cancel_dodge()
 	if CombatEvents:
 		CombatEvents.dispatch(CombatEvents.ON_DEATH, {"actor": _body})
-	_run_death_sequence()
+	_run_death_sequence(_death_sequence_generation)
 
 
-func _run_death_sequence() -> void:
+func _run_death_sequence(generation: int) -> void:
 	var director := _body.get_node_or_null("AnimDirector")
 	if director and director.has_method("play_death"):
 		director.call("play_death")
@@ -394,6 +407,8 @@ func _run_death_sequence() -> void:
 		vm_opts.erase("vfx_position")
 		MaterialDissolveScript.play_death_visual(viewmodel, vm_opts)
 	await get_tree().create_timer(DEATH_SLOW_DURATION, true, false, true).timeout
+	if generation != _death_sequence_generation:
+		return
 	VfxService.release_time_scale(&"death")
 	if _orbit_camera and _orbit_camera.has_method("enter_death_framing"):
 		_orbit_camera.call("enter_death_framing")
@@ -402,6 +417,8 @@ func _run_death_sequence() -> void:
 		. create_timer(DEATH_DESATURATE_TIME - DEATH_SLOW_DURATION, true, false, true)
 		. timeout
 	)
+	if generation != _death_sequence_generation:
+		return
 	_saved_screen_saturation = PixelDioramaSettings.screen_saturation
 	PixelDioramaSettings.screen_saturation = DEATH_DESATURATE_SATURATION
 	await (
@@ -409,6 +426,8 @@ func _run_death_sequence() -> void:
 		. create_timer(DEATH_HANDOFF_TIME - DEATH_DESATURATE_TIME, true, false, true)
 		. timeout
 	)
+	if generation != _death_sequence_generation:
+		return
 	player_died.emit()
 
 
@@ -465,7 +484,7 @@ func _grant_wakeup_iframes() -> void:
 		return
 	_wakeup_iframes_active = true
 	if _dodge:
-		_dodge.grant_external_iframes(true)
+		_dodge.grant_external_iframes(true, &"stagger_wakeup")
 
 
 func _clear_wakeup_iframes() -> void:
@@ -473,7 +492,7 @@ func _clear_wakeup_iframes() -> void:
 		return
 	_wakeup_iframes_active = false
 	if _dodge:
-		_dodge.grant_external_iframes(false)
+		_dodge.grant_external_iframes(false, &"stagger_wakeup")
 
 
 func _try_stagger_rollout() -> void:
@@ -481,7 +500,7 @@ func _try_stagger_rollout() -> void:
 		return
 	if not PlayerInput.just_pressed(&"dodge"):
 		return
-	var cost := DodgeScript.DODGE_STAMINA_COST * STAGGER_ROLLOUT_COST
+	var cost := _dodge.get_resolved_dodge_cost() * STAGGER_ROLLOUT_COST if _dodge else 0.0
 	if _dodge and _dodge.try_rollout_dash(cost):
 		_cancel_stagger()
 

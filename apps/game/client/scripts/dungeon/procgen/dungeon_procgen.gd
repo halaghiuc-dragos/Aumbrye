@@ -30,6 +30,7 @@ static func generate(
 	if biome.is_empty():
 		return {"ok": false, "error": "Unknown biome '%s'" % biome_id}
 	var config := RoomGraphConfigScript.from_biome(biome)
+	config.apply_discovery_budget(RunHistoryService.run_count(), floor_index)
 	config.debug_ascii = debug_ascii
 	var graph_seed := ProcgenRng.stream(run_seed, "graph").seed
 	var graph_result := RoomGraphGeneratorScript.generate(config, graph_seed)
@@ -52,6 +53,8 @@ static func generate(
 		if not door_check.get("ok", false):
 			continue
 		layout = RoomGraphLayoutScript.solve(graph, assignment)
+		if not layout.get("ok", false):
+			continue
 		rooms = RoomGraphGeometryScript.build_rooms(graph, assignment, layout)
 		if rooms.is_empty():
 			continue
@@ -80,6 +83,14 @@ static func generate(
 	var pruned := _prune_to_placed(graph, assignment, layout)
 	assignment = pruned["assignment"]
 	layout = pruned["layout"]
+	_rebuild_canonical_graph(graph, assignment, layout)
+	var realised_contract := RoomGraphGeneratorScript.validate_realised_floor(graph, config)
+	if not realised_contract.get("ok", false):
+		return {
+			"ok": false,
+			"error": "realised_floor_contract_failed",
+			"reason": str(realised_contract.get("reason", "unknown")),
+		}
 	rooms = RoomGraphGeometryScript.build_rooms(graph, assignment, layout)
 	edges = RoomGraphGeometryScript.build_edges(graph, assignment, layout)
 	var door_offsets_by_semantic := {}
@@ -110,17 +121,22 @@ static func generate(
 	var content_config := RoomContentConfigScript.for_floor(
 		floor_index, RunFloorConfig.MAX_FLOORS, run_seed
 	)
+	content_config.dead_end_reward_ratio = config.dead_end_reward_ratio
 	var content_result := RoomContentAssignerScript.assign(
 		graph, assignment, content_rng, content_config, biome_id, tier
 	)
 	var content: Dictionary = content_result.get("content", {})
 	var content_warnings: Array = []
+	var fallback_pattern := str(layout.get("fallback_pattern", ""))
+	if fallback_pattern != "":
+		content_warnings.append("layout_fallback:%s" % fallback_pattern)
 	if bool(content_result.get("used_fallback", false)):
 		content_warnings.append("content_assignment_fallback")
 	content_warnings.append_array(content_result.get("warnings", []))
 	_annotate_minimap_rooms(rooms, content.get("roomContent", []), content.get("locks", []))
 	_annotate_one_way_edges(edges, content.get("shortcutGates", []))
-	var landmarks := _build_landmark_hints(rooms, graph)
+	var landmarks := _build_landmark_hints(rooms, graph, assignment)
+	var expedition_objective := _build_expedition_objective(graph, assignment, content, floor_index)
 	var run_id := deterministic_run_id(run_seed, biome_id, floor_index)
 	var definition := {
 		"schemaVersion": 2,
@@ -162,6 +178,9 @@ static func generate(
 			graph, assignment, content.get("roomContent", [])
 		),
 		"landmarks": landmarks,
+		"expeditionObjective": expedition_objective,
+		"realisedFloorContract": realised_contract,
+		"layoutFallbackPattern": fallback_pattern,
 	}
 	var secret_count := RunFloorConfig.count_secrets(definition)
 	if secret_count > config.max_secrets:
@@ -325,6 +344,58 @@ static func _prune_to_placed(graph: RoomGraph, assignment: Dictionary, layout: D
 	}
 
 
+static func _rebuild_canonical_graph(
+	graph: RoomGraph, assignment: Dictionary, layout: Dictionary
+) -> void:
+	var kept_ids := {}
+	for room in assignment.get("rooms", []):
+		kept_ids[str(room.get("layout_id", ""))] = true
+	for cell in graph.occupied_cells():
+		var slot := graph.get_slot_at(cell)
+		if slot != null and not kept_ids.has(slot.slot_id):
+			graph.remove_slot(cell)
+	var original_loop_keys := {}
+	for edge in graph.loop_edges:
+		if edge is Dictionary:
+			original_loop_keys[str(edge.get("key", ""))] = true
+	graph.walk_edges.clear()
+	graph.loop_edges.clear()
+	for cell in graph.occupied_cells():
+		var slot := graph.get_slot_at(cell)
+		if slot != null and slot.slot_type != RoomGraphSlot.SlotType.SECRET:
+			slot.door_mask = 0
+	for key in layout.get("realised_edges", {}):
+		var edge: Dictionary = layout["realised_edges"][key]
+		var from_slot := graph.get_slot(str(edge.get("from", "")))
+		var to_slot := graph.get_slot(str(edge.get("to", "")))
+		if from_slot == null or to_slot == null:
+			continue
+		var delta := to_slot.grid_pos - from_slot.grid_pos
+		if absi(delta.x) + absi(delta.y) != 1:
+			continue
+		from_slot.door_mask |= RoomGraphGeometry.dir_to_door(delta)
+		to_slot.door_mask |= RoomGraphGeometry.dir_to_door(-delta)
+		var canonical := {"key": str(key), "a": from_slot.grid_pos, "b": to_slot.grid_pos}
+		if original_loop_keys.has(str(key)):
+			graph.loop_edges.append(canonical)
+		else:
+			graph.walk_edges.append(canonical)
+	graph.secret_ids = graph.secret_ids.filter(func(id: String) -> bool: return kept_ids.has(id))
+	if not kept_ids.has(graph.treasure_id):
+		graph.treasure_id = ""
+	if not kept_ids.has(graph.stairs_id):
+		graph.stairs_id = ""
+	RoomGraphPaths.invalidate(graph)
+	var distances := RoomGraphPaths.bfs_distances(graph, graph.start_id)
+	var critical := RoomGraphPaths.critical_path_ids(graph)
+	for cell in graph.occupied_cells():
+		var slot := graph.get_slot_at(cell)
+		if slot == null:
+			continue
+		slot.graph_distance = int(distances.get(slot.slot_id, -1))
+		slot.on_critical_path = slot.slot_id in critical
+
+
 static func _generate_final_floor(
 	biome_id: String, run_seed: int, tier: int, player_level: int, floor_index: int
 ) -> Dictionary:
@@ -335,7 +406,9 @@ static func _generate_final_floor(
 	var final_floor: Dictionary = biome.get("finalFloor", {})
 	var boss_enemy_id := _resolve_final_boss_id(biome, final_floor)
 	var lobby_chests: Array = final_floor.get("lobbyChests", _default_final_lobby_chests())
-	var layout := _build_final_floor_layout(prefix)
+	var approaches: Array = final_floor.get("approaches", ["direct", "side_lobby", "prep_alcove"])
+	var approach := str(approaches[posmod(run_seed, approaches.size())]) if not approaches.is_empty() else "direct"
+	var layout := _build_final_floor_layout(prefix, approach)
 	var run_id := deterministic_run_id(run_seed, biome_id, floor_index)
 	var definition := {
 		"schemaVersion": 2,
@@ -368,6 +441,7 @@ static func _generate_final_floor(
 		"puzzles": [],
 		"branchPreviews": [],
 		"landmarks": [],
+		"finaleApproach": approach,
 	}
 	return {
 		"ok": true,
@@ -404,7 +478,7 @@ static func _default_final_lobby_chests() -> Array:
 	]
 
 
-static func _build_final_floor_layout(prefix: String) -> Dictionary:
+static func _build_final_floor_layout(prefix: String, approach: String = "direct") -> Dictionary:
 	var entrance_id := "%s_entrance" % prefix
 	var arena_id := "%s_arena" % prefix
 	var boss_id := "%s_boss" % prefix
@@ -413,6 +487,7 @@ static func _build_final_floor_layout(prefix: String) -> Dictionary:
 	var boss_spec := RoomTemplateCatalogScript.get_spec(boss_id)
 	var arena_z := float(entrance_spec["half_depth"]) + float(arena_spec["half_depth"])
 	var boss_z := arena_z + float(arena_spec["half_depth"]) + float(boss_spec["half_depth"])
+	var approach_x := -8.0 if approach == "side_lobby" else 8.0 if approach == "prep_alcove" else 0.0
 	return {
 		"rooms":
 		[
@@ -420,8 +495,8 @@ static func _build_final_floor_layout(prefix: String) -> Dictionary:
 				"id": "entrance",
 				"templateId": entrance_id,
 				"type": "hub",
-				"transform": {"x": 0.0, "y": 0.0, "z": 0.0, "yaw": 0.0},
-				"tags": ["spawn", "final_lobby"],
+				"transform": {"x": approach_x, "y": 0.0, "z": 0.0, "yaw": 0.0},
+				"tags": ["spawn", "final_lobby", approach],
 				"size": {"x": float(entrance_spec["width"]), "z": float(entrance_spec["depth"])},
 				"kind": "entrance",
 			},
@@ -429,8 +504,8 @@ static func _build_final_floor_layout(prefix: String) -> Dictionary:
 				"id": "arena",
 				"templateId": arena_id,
 				"type": "arena",
-				"transform": {"x": 0.0, "y": 0.0, "z": arena_z, "yaw": 0.0},
-				"tags": ["final_arena"],
+				"transform": {"x": approach_x, "y": 0.0, "z": arena_z, "yaw": 0.0},
+				"tags": ["final_arena", approach],
 				"size": {"x": float(arena_spec["width"]), "z": float(arena_spec["depth"])},
 				"kind": "combat",
 			},
@@ -438,8 +513,8 @@ static func _build_final_floor_layout(prefix: String) -> Dictionary:
 				"id": "boss",
 				"templateId": boss_id,
 				"type": "boss",
-				"transform": {"x": 0.0, "y": 0.0, "z": boss_z, "yaw": 0.0},
-				"tags": ["final_boss"],
+				"transform": {"x": approach_x, "y": 0.0, "z": boss_z, "yaw": 0.0},
+				"tags": ["final_boss", approach],
 				"size": {"x": float(boss_spec["width"]), "z": float(boss_spec["depth"])},
 				"kind": "boss",
 			},
@@ -462,8 +537,11 @@ static func deterministic_run_id(run_seed: int, biome_id: String, floor_index: i
 	return "%08x-0000-4000-8000-%012x" % [mixed & 0xFFFFFFFF, mixed & 0xFFFFFFFFFFFF]
 
 
-static func _build_landmark_hints(rooms: Array, graph: RoomGraph) -> Array:
+static func _build_landmark_hints(rooms: Array, graph: RoomGraph, assignment: Dictionary = {}) -> Array:
 	var landmarks: Array = []
+	var layout_by_semantic := {}
+	for assigned_room in assignment.get("rooms", []):
+		layout_by_semantic[str(assigned_room.get("semantic_id", ""))] = str(assigned_room.get("layout_id", ""))
 	var boss_pos := Vector3.ZERO
 	var entrance_pos := Vector3.ZERO
 	for room in rooms:
@@ -536,8 +614,36 @@ static func _build_landmark_hints(rooms: Array, graph: RoomGraph) -> Array:
 						"scale": {"x": 1.5, "y": 16.0, "z": 1.5},
 					}
 				)
-			)
+		)
+	for room in rooms:
+		if not room is Dictionary:
+			continue
+		var room_id := str(room.get("id", ""))
+		var slot := graph.get_slot(str(layout_by_semantic.get(room_id, room_id)))
+		if slot == null or slot.door_mask.count_ones() < 3:
+			continue
+		var transform: Dictionary = room.get("transform", {})
+		var position := Vector3(float(transform.get("x", 0.0)), float(transform.get("y", 0.0)), float(transform.get("z", 0.0)))
+		landmarks.append({"kind": "junction_beacon", "roomId": room_id, "position": {"x": position.x, "y": position.y + 9.0, "z": position.z}, "scale": {"x": 1.25, "y": 12.0, "z": 1.25}})
 	return landmarks
+
+
+static func _build_expedition_objective(
+	graph: RoomGraph, assignment: Dictionary, content: Dictionary, floor_index: int
+) -> Dictionary:
+	var candidates: Array = []
+	for room in assignment.get("rooms", []):
+		var layout_id := str(room.get("layout_id", ""))
+		if layout_id == graph.start_id or layout_id == graph.boss_id or layout_id == graph.stairs_id:
+			continue
+		var slot := graph.get_slot(layout_id)
+		if slot != null and not slot.on_critical_path:
+			candidates.append(str(room.get("semantic_id", "")))
+	if candidates.is_empty():
+		return {"kind": "reach_boss", "required": true}
+	var kinds := ["restore_elevator", "interrupt_ritual", "rescue_guide"]
+	var kind := str(kinds[posmod(floor_index - 1, kinds.size())])
+	return {"kind": kind, "roomId": candidates[0], "required": false, "reward": "route_knowledge"}
 
 
 const MINIMAP_KIND_BY_CONTENT := {

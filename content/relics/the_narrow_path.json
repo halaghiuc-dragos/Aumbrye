@@ -1,7 +1,7 @@
 {
   "id": "the_narrow_path",
   "name": "The Narrow Path",
-  "description": "Eight health risked to move like this. Consecutive dodges sharpen you until something lands.",
+  "description": "Eight health risked to move like this. Perfect dodges sharpen you until something lands.",
   "maxStacks": 1,
   "stats": {
     "moveSpeedPercent": 4,
@@ -14,7 +14,7 @@
   "weight": 0.8,
   "rules": [
     {
-      "event": "onDodge",
+      "event": "onPerfectDodge",
       "effect": "add_stack",
       "stackId": "narrow",
       "maxStacks": 6,

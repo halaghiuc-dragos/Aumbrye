@@ -280,13 +280,18 @@ func clear_planned_talents() -> void:
 ## until this is called -- planning is free right up to commit.
 func commit_planned_talents() -> Dictionary:
 	var order := _planned_talents.duplicate()
-	_planned_talents.clear()
 	var committed := 0
+	var failures: Array[String] = []
+	var remaining: Array[String] = []
 	for node_id in order:
 		if unlock_talent(node_id):
 			committed += 1
+		else:
+			failures.append(node_id)
+			remaining.append(node_id)
+	_planned_talents = remaining
 	talent_plan_changed.emit()
-	return {"committed": committed, "attempted": order.size()}
+	return {"committed": committed, "attempted": order.size(), "failed": failures}
 
 
 ## UX-02: a respec taken within a few levels of the talent that prompted it is free -- the point
@@ -337,17 +342,42 @@ func get_talent_stat_totals() -> Dictionary:
 func _prune_unknown_talents() -> void:
 	_load_talent_tree()
 	var kept: Dictionary = {}
-	var spent := 0
 	for node_id in talents:
 		var node := _find_talent_node(str(node_id))
-		if node.is_empty():
+		if node.is_empty() or not is_branch_available(_find_talent_branch(str(node_id))):
 			continue
 		var rank := mini(int(talents[node_id]), int(node.get("maxRank", 1)))
 		if rank <= 0:
 			continue
 		kept[node_id] = rank
-		spent += rank * int(node.get("costPerRank", 1))
 	talents = kept
+	var changed := true
+	while changed:
+		changed = false
+		for node_id in talents.keys():
+			var node := _find_talent_node(str(node_id))
+			var valid := true
+			for required in node.get("requires", []):
+				if get_talent_rank(str(required)) <= 0:
+					valid = false
+					break
+			if valid:
+				for excluded in node.get("excludes", []):
+					if str(excluded) < str(node_id) and get_talent_rank(str(excluded)) > 0:
+						valid = false
+						break
+			if not valid:
+				talents.erase(node_id)
+				changed = true
+	var spent := 0
+	for node_id in talents.keys():
+		var node := _find_talent_node(str(node_id))
+		var rank := int(talents[node_id])
+		var cost := rank * int(node.get("costPerRank", 1))
+		if spent + cost > _talent_points_from_level():
+			talents.erase(node_id)
+			continue
+		spent += cost
 	talent_points_spent = spent
 
 
@@ -413,7 +443,8 @@ func to_save_dict() -> Dictionary:
 func from_save_dict(data: Dictionary) -> void:
 	level = maxi(1, int(data.get("level", 1)))
 	xp = maxi(0, int(data.get("xp", 0)))
-	talent_points_spent = maxi(0, int(data.get("talentPointsSpent", 0)))
+	_recalc_level()
+	talent_points_spent = 0
 	talents = {}
 	var saved_talents: Variant = data.get("talents", {})
 	if saved_talents is Dictionary:
@@ -432,7 +463,6 @@ func from_save_dict(data: Dictionary) -> void:
 	if saved_failures is Array:
 		failure_points = (saved_failures as Array).duplicate(true)
 	_trim_failure_points()
-	_recalc_level()
 	_sync_keystone_rules()
 	progression_changed.emit()
 

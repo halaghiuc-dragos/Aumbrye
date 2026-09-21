@@ -5,6 +5,16 @@ class_name InputBindings
 const SAVE_KEY := "input_bindings"
 
 const REBINDABLE: Array[StringName] = [
+	&"move_forward",
+	&"move_back",
+	&"move_left",
+	&"move_right",
+	&"look_left",
+	&"look_right",
+	&"look_up",
+	&"look_down",
+	&"toggle_camera",
+	&"map",
 	&"sprint",
 	&"jump",
 	&"dodge",
@@ -59,9 +69,8 @@ static func snapshot_defaults() -> void:
 
 
 static func load_from_save() -> void:
-	_saved_bindings = LocalSave.get_meta_data().get(SAVE_KEY, {}).duplicate(true)
-	if not _saved_bindings is Dictionary:
-		_saved_bindings = {}
+	var loaded: Variant = LocalSave.get_meta_data().get(SAVE_KEY, {})
+	_saved_bindings = (loaded as Dictionary).duplicate(true) if loaded is Dictionary else {}
 
 
 static func apply() -> void:
@@ -72,12 +81,21 @@ static func apply() -> void:
 		var serialized_events: Variant = _saved_bindings[action_name]
 		if not serialized_events is Array:
 			continue
-		InputMap.action_erase_events(action)
+		var replacements: Array[InputEvent] = []
 		for entry in serialized_events:
-			if entry is Dictionary:
-				var event := _deserialize_event(entry)
-				if event != null:
-					InputMap.action_add_event(action, event)
+			if not entry is Dictionary:
+				replacements.clear()
+				break
+			var event := _deserialize_event(entry)
+			if event == null:
+				replacements.clear()
+				break
+			replacements.append(event)
+		if replacements.is_empty():
+			continue
+		InputMap.action_erase_events(action)
+		for event in replacements:
+			InputMap.action_add_event(action, event)
 
 
 static func save() -> void:

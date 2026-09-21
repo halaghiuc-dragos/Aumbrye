@@ -6,9 +6,9 @@ import biomes from "../content/biomes.json";
 import { PageHelmet } from "../components/Layout";
 import PrerenderReady from "../components/PrerenderReady";
 
-const TIERS = Array.from({ length: 10 }, (_, index) => index + 1);
-const MIN_TIER = TIERS[0];
-const MAX_TIER = TIERS[TIERS.length - 1];
+const FALLBACK_TIERS = Array.from({ length: 10 }, (_, index) => index + 1);
+const MIN_TIER = FALLBACK_TIERS[0];
+const MAX_TIER = FALLBACK_TIERS[FALLBACK_TIERS.length - 1];
 const DEFAULT_BIOME_ID = biomes[0]?.id ?? "forgotten_castle";
 const BIOME_IDS = new Set(biomes.map((biome) => biome.id));
 
@@ -24,7 +24,14 @@ function parseTier(raw: string | null): number {
 }
 
 function parseBiomeId(raw: string | null): string {
-  return raw && BIOME_IDS.has(raw) ? raw : DEFAULT_BIOME_ID;
+	return raw && BIOME_IDS.has(raw) ? raw : DEFAULT_BIOME_ID;
+}
+
+function formatElapsedSeconds(value: number | null | undefined): string {
+	if (typeof value !== "number" || !Number.isFinite(value) || value < 0) return "Unavailable";
+	const minutes = Math.floor(value / 60);
+	const seconds = value - minutes * 60;
+	return minutes > 0 ? `${minutes}:${seconds.toFixed(1).padStart(4, "0")}` : `${seconds.toFixed(1)}s`;
 }
 
 export default function LeaderboardsPage() {
@@ -48,6 +55,14 @@ export default function LeaderboardsPage() {
   });
 
   const entries = leaderboardsQuery.data?.entries ?? [];
+  const capabilities = leaderboardsQuery.data?.capabilities;
+  const availableBiomes = capabilities?.biomes?.length ? capabilities.biomes : biomes;
+  const availableTiers = capabilities
+    ? Array.from(
+        { length: capabilities.maximumTier - capabilities.minimumTier + 1 },
+        (_, index) => capabilities.minimumTier + index,
+      )
+    : FALLBACK_TIERS;
 
   function updateFilters(nextBiomeId: string, nextTier: number) {
     setSearchParams({ biomeId: nextBiomeId, tier: String(nextTier) });
@@ -70,7 +85,7 @@ export default function LeaderboardsPage() {
             onChange={(e) => updateFilters(e.target.value, tier)}
             aria-label="Biome"
           >
-            {biomes.map((biome) => (
+            {availableBiomes.map((biome) => (
               <option key={biome.id} value={biome.id}>
                 {biome.label}
               </option>
@@ -84,7 +99,7 @@ export default function LeaderboardsPage() {
             onChange={(e) => updateFilters(biomeId, Number(e.target.value))}
             aria-label="Tier"
           >
-            {TIERS.map((value) => (
+            {availableTiers.map((value) => (
               <option key={value} value={value}>
                 Tier {value}
               </option>
@@ -135,7 +150,9 @@ export default function LeaderboardsPage() {
       )}
 
       {!leaderboardsQuery.isLoading && !leaderboardsQuery.error && (
-        <table className="leaderboard">
+        <>
+          {capabilities && <p className="hint">Rules version {capabilities.rulesVersion}</p>}
+          <table className="leaderboard">
           <caption className="visually-hidden">Leaderboard results</caption>
           <thead>
             <tr>
@@ -154,12 +171,13 @@ export default function LeaderboardsPage() {
                 <tr key={`${entry.accountId}-${index}`}>
                   <td>{index + 1}</td>
                   <td>{entry.displayName}</td>
-                  <td>{(entry.elapsedSeconds ?? 0).toFixed(1)}s</td>
+					<td>{formatElapsedSeconds(entry.elapsedSeconds)}</td>
                 </tr>
               ))
             )}
           </tbody>
-        </table>
+          </table>
+        </>
       )}
     </section>
   );

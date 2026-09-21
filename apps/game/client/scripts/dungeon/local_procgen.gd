@@ -68,7 +68,7 @@ static func generate(
 
 	var last_reason := ""
 	var best_result: Dictionary = {}
-	var best_locks := -1
+	var best_score := -INF
 	for attempt in SEED_SALTS.size():
 		var attempt_seed := floor_seed if attempt == 0 else floor_seed ^ SEED_SALTS[attempt]
 		var gd_result := DungeonProcgenScript.generate(
@@ -95,7 +95,7 @@ static func generate(
 				"[LocalProcgen] seed %d warning: %s" % [base_seed, str(warning)]
 			)
 		if validation.get("ok", false):
-			var lock_count: int = (definition.get("locks", []) as Array).size()
+			var experience := _experience_score(definition, attempt + 1)
 			var result := {
 				"ok": true,
 				"definition": definition,
@@ -107,20 +107,20 @@ static func generate(
 				"generator": "gdscript",
 				"warnings": all_warnings,
 				"attempts": attempt + 1,
+				"selection": experience,
 			}
-			# A floor with the full three-key ring is worth taking immediately. One with fewer locks
-			# is still valid (a linear or branch-poor layout may not have room to hide three keys), but
-			# it is worth re-rolling the whole graph a few more times first -- a different topology
-			# from the next salt often has the side branches this one lacked.
-			if lock_count > best_locks:
-				best_locks = lock_count
+			var score := float(experience.get("score", 0.0))
+			if score > best_score:
+				best_score = score
 				best_result = result
-			if is_final or lock_count >= RoomContentConfigScript.default().max_locks_per_floor:
+			if score >= 8.0:
+				print("[LocalProcgen] selected attempt %d: %s" % [attempt + 1, experience])
 				return result
 			continue
 		var errors: Array = validation.get("errors", [])
 		last_reason = str(errors[0]) if not errors.is_empty() else "validation_failed"
 	if not best_result.is_empty():
+		print("[LocalProcgen] selected best candidate: %s" % best_result.get("selection", {}))
 		return best_result
 
 	if allow_cli_fallback:
@@ -141,6 +141,53 @@ static func generate(
 		"input_seed": base_seed,
 		"tier_seed": tier_seed,
 		"generation_seed": floor_seed,
+	}
+
+
+static func _experience_score(definition: Dictionary, attempt_number: int) -> Dictionary:
+	var rooms: Array = definition.get("rooms", [])
+	var edges: Array = definition.get("edges", [])
+	var degree := {}
+	for edge in edges:
+		if not edge is Dictionary:
+			continue
+		var a := str(edge.get("from", edge.get("roomA", "")))
+		var b := str(edge.get("to", edge.get("roomB", "")))
+		if a == "" or b == "":
+			continue
+		degree[a] = int(degree.get(a, 0)) + 1
+		degree[b] = int(degree.get(b, 0)) + 1
+	var branches := 0
+	var dead_ends := 0
+	for count in degree.values():
+		if int(count) >= 3:
+			branches += 1
+		elif int(count) == 1:
+			dead_ends += 1
+	var cycles := maxi(0, edges.size() - rooms.size() + 1)
+	var rewards := 0
+	for entry in definition.get("roomContent", []):
+		if entry is Dictionary and str(entry.get("contentType", "")) in ["reward", "lore", "secret"]:
+			rewards += 1
+	var lock_count := (definition.get("locks", []) as Array).size()
+	var lock_penalty := maxf(0.0, float(lock_count - 2) * 0.75)
+	var generation_cost := float(maxi(0, attempt_number - 1)) * 0.3
+	var score := (
+		minf(3.0, float(cycles) * 1.5)
+		+ minf(2.5, float(branches) * 0.8)
+		+ minf(2.0, float(dead_ends) * 0.35)
+		+ minf(2.0, float(rewards) * 0.5)
+		- lock_penalty
+		- generation_cost
+	)
+	return {
+		"score": snappedf(score, 0.01),
+		"cycles": cycles,
+		"junctions": branches,
+		"deadEnds": dead_ends,
+		"routeRewards": rewards,
+		"locks": lock_count,
+		"generationCost": generation_cost,
 	}
 
 

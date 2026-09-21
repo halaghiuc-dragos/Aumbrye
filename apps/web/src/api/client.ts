@@ -92,6 +92,13 @@ async function request<T>(
 export type AuthResponse = components["schemas"]["AuthResponse"];
 export type SaveResponse = components["schemas"]["SaveResponse"];
 export type LeaderboardPageResponse = components["schemas"]["LeaderboardPageResponse"];
+export type LeaderboardCapabilities = {
+  rulesVersion: string;
+  minimumTier: number;
+  maximumTier: number;
+  biomes: Array<{ id: string; label: string }>;
+};
+export type LeaderboardResponse = LeaderboardPageResponse & { capabilities?: LeaderboardCapabilities };
 
 /**
  * Opts this client into cookie transport for the refresh token.
@@ -146,9 +153,9 @@ export async function getLeaderboards(
   biomeId: string,
   tier = 1,
   signal?: AbortSignal,
-): Promise<LeaderboardPageResponse> {
+): Promise<LeaderboardResponse> {
   const params = new URLSearchParams({ biomeId, tier: String(tier) });
-  return request<LeaderboardPageResponse>(`/api/v1/leaderboards?${params}`, { signal });
+  return request<LeaderboardResponse>(`/api/v1/leaderboards?${params}`, { signal });
 }
 
 export async function getSave(accessToken: string, signal?: AbortSignal): Promise<SaveResponse> {

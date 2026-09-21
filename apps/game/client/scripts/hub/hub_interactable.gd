@@ -17,7 +17,8 @@ signal interacted
 
 var _near_player := false
 var _label: Label3D
-var _highlight_node: Node3D
+var _highlight_mesh: MeshInstance3D
+var _highlight_material: Material
 var _highlight_tween: Tween
 const EMISSION_PARAM := &"emission_energy"
 const FALLBACK_EMISSION := 1.6
@@ -104,19 +105,30 @@ func trigger_interact() -> void:
 
 
 func set_enabled(value: bool) -> void:
+	var was_near := _near_player
 	enabled = value
 	monitoring = value
 	monitorable = value
 	if not value:
 		_near_player = false
 		_stop_highlight()
+		if was_near:
+			player_exited.emit()
 	_refresh_label()
 
 
 func _resolve_highlight_target() -> void:
 	if highlight_target.is_empty():
 		return
-	_highlight_node = get_node_or_null(highlight_target) as Node3D
+	var node := get_node_or_null(highlight_target) as Node3D
+	if node == null:
+		return
+	if node is MeshInstance3D:
+		_highlight_mesh = node as MeshInstance3D
+	else:
+		for child in node.find_children("*", "MeshInstance3D", true, false):
+			_highlight_mesh = child as MeshInstance3D
+			break
 
 
 func _on_body_entered(body: Node3D) -> void:
@@ -140,26 +152,19 @@ func _on_body_exited(body: Node3D) -> void:
 
 
 func _start_highlight() -> void:
-	if _highlight_node == null:
+	if _highlight_mesh == null:
 		return
 	_stop_highlight()
-	var mesh := _highlight_node as MeshInstance3D
-	if mesh == null:
-		for child in _highlight_node.get_children():
-			if child is MeshInstance3D:
-				mesh = child
-				break
-	if mesh == null:
-		return
-	var mat := mesh.material_override
-	if mat == null:
-		return
-	mat = mat.duplicate()
-	mesh.material_override = mat
-	if mat is ShaderMaterial:
-		_base_emission = _shader_emission_energy(mat as ShaderMaterial)
-	elif mat is StandardMaterial3D:
-		_base_emission = mat.emission_energy_multiplier
+	if _highlight_material == null:
+		var material := _highlight_mesh.material_override
+		if material == null:
+			return
+		_highlight_material = material.duplicate()
+		_highlight_mesh.material_override = _highlight_material
+		if _highlight_material is ShaderMaterial:
+			_base_emission = _shader_emission_energy(_highlight_material as ShaderMaterial)
+		elif _highlight_material is StandardMaterial3D:
+			_base_emission = (_highlight_material as StandardMaterial3D).emission_energy_multiplier
 	_highlight_tween = create_tween()
 	_highlight_tween.set_loops()
 	_highlight_tween.tween_method(
@@ -180,30 +185,16 @@ static func _shader_emission_energy(mat: ShaderMaterial) -> float:
 
 
 func _apply_highlight_energy(value: float) -> void:
-	if _highlight_node == null:
+	if _highlight_material == null:
 		return
-	var mesh := _highlight_node as MeshInstance3D
-	if mesh == null:
-		return
-	var mat := mesh.material_override
-	if mat == null:
-		return
-	if mat is ShaderMaterial:
-		mat.set_shader_parameter(EMISSION_PARAM, value)
-	elif mat is StandardMaterial3D:
-		mat.emission_energy_multiplier = value
+	if _highlight_material is ShaderMaterial:
+		(_highlight_material as ShaderMaterial).set_shader_parameter(EMISSION_PARAM, value)
+	elif _highlight_material is StandardMaterial3D:
+		(_highlight_material as StandardMaterial3D).emission_energy_multiplier = value
 
 
 func _stop_highlight() -> void:
 	if _highlight_tween != null and _highlight_tween.is_valid():
 		_highlight_tween.kill()
 	_highlight_tween = null
-	if _highlight_node == null:
-		return
-	var mesh := _highlight_node as MeshInstance3D
-	if mesh == null:
-		return
-	var mat := mesh.material_override
-	if mat == null:
-		return
 	_apply_highlight_energy(_base_emission)

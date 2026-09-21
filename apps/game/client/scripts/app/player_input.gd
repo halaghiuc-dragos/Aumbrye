@@ -31,25 +31,39 @@ const GROUP_BY_ACTION := {
 	&"toggle_camera": Group.CAMERA,
 }
 
-static var _blocked_groups := 0
+static var _group_leases: Dictionary = {}
+static var _next_lease_id := 1
 
 
-static func block_groups(groups: Array) -> void:
-	for group in groups:
-		_blocked_groups |= 1 << int(group)
+static func block_groups(groups: Array) -> int:
+	var lease_id := _next_lease_id
+	_next_lease_id += 1
+	_group_leases[lease_id] = groups.duplicate()
+	return lease_id
 
 
+static func release_group_block(lease_id: int) -> void:
+	_group_leases.erase(lease_id)
+
+
+## Compatibility helper: removes only a lease with the exact group set, never another owner's
+## overlapping locks. New callers should retain and release the returned lease handle.
 static func unblock_groups(groups: Array) -> void:
-	for group in groups:
-		_blocked_groups &= ~(1 << int(group))
+	for lease_id in _group_leases.keys():
+		if _group_leases[lease_id] == groups:
+			_group_leases.erase(lease_id)
+			return
 
 
 static func clear_group_blocks() -> void:
-	_blocked_groups = 0
+	_group_leases.clear()
 
 
 static func group_blocked(group: Group) -> bool:
-	return (_blocked_groups & (1 << int(group))) != 0
+	for groups in _group_leases.values():
+		if group in groups:
+			return true
+	return false
 
 
 static func blocked() -> bool:

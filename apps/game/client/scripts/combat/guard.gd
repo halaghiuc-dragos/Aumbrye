@@ -177,6 +177,11 @@ func _enter_guard() -> void:
 
 
 func _end_guard() -> void:
+	_reset_guard_state()
+	block_state_changed.emit(false)
+
+
+func _reset_guard_state() -> void:
 	if _stamina:
 		var dodge := _body.get_node_or_null("Dodge") as Dodge
 		_stamina.set_regen_state(
@@ -184,11 +189,6 @@ func _end_guard() -> void:
 		)
 	if _mana:
 		_mana.set_regen_state(Mana.RegenState.NORMAL)
-	_reset_guard_state()
-	block_state_changed.emit(false)
-
-
-func _reset_guard_state() -> void:
 	_state = GuardState.IDLE
 	_parry_timer = 0.0
 	_just_guard_timer = 0.0
@@ -285,7 +285,8 @@ func try_parry_attack(
 	attacker: Node,
 	arc: DamageInfo.HitArc = DamageInfo.HitArc.FRONT,
 	attack_class: String = "blockable",
-	is_projectile: bool = false
+	is_projectile: bool = false,
+	impact_direction: Vector3 = Vector3.ZERO
 ) -> bool:
 	if _state != GuardState.GUARDING or not _parry_ready:
 		return false
@@ -293,7 +294,7 @@ func try_parry_attack(
 		return false
 	if arc != DamageInfo.HitArc.FRONT:
 		return false
-	if not _is_within_block_arc(attacker):
+	if not _is_within_block_arc(impact_direction):
 		return false
 	var multiplier := float(_parry_window_by_class.get(attack_class, 1.0))
 	var elapsed := _parry_window - _parry_timer
@@ -304,6 +305,8 @@ func try_parry_attack(
 	if _stamina and not _stamina.consume(PARRY_STAMINA_COST):
 		return false
 	_stagger_attacker(attacker)
+	if attacker and attacker.has_method("get_enemy_id"):
+		BestiaryService.record_counter(str(attacker.call("get_enemy_id")), "parry")
 	parry_success.emit(attacker)
 	riposte_active = true
 	parried_target = attacker
@@ -335,7 +338,8 @@ func try_just_guard(
 	attacker: Node,
 	arc: DamageInfo.HitArc = DamageInfo.HitArc.FRONT,
 	attack_class: String = "blockable",
-	is_projectile: bool = false
+	is_projectile: bool = false,
+	impact_direction: Vector3 = Vector3.ZERO
 ) -> bool:
 	if _state != GuardState.GUARDING or _just_guard_timer <= 0.0:
 		return false
@@ -343,9 +347,11 @@ func try_just_guard(
 		return false
 	if arc != DamageInfo.HitArc.FRONT:
 		return false
-	if not _is_within_block_arc(attacker):
+	if not _is_within_block_arc(impact_direction):
 		return false
 	_apply_poise_hit(attacker, JUST_GUARD_POISE_DAMAGE)
+	if attacker and attacker.has_method("get_enemy_id"):
+		BestiaryService.record_counter(str(attacker.call("get_enemy_id")), "just_guard")
 	just_guard_success.emit(attacker)
 	if _body:
 		var anchor: Array = VfxService.resolve_combat_anchor(_body)
@@ -400,7 +406,7 @@ func reset_after_revive() -> void:
 
 
 func get_parry_window_duration() -> float:
-	return PARRY_WINDOW
+	return _parry_window
 
 
 func get_block_window_duration() -> float:
@@ -414,6 +420,10 @@ func get_parry_time_remaining() -> float:
 
 
 func get_block_time_remaining() -> float:
+	return 0.0
+
+
+func get_block_capacity() -> float:
 	if _state != GuardState.GUARDING or _stamina == null:
 		return 0.0
 	if _last_block_cost <= 0.0:
@@ -432,13 +442,12 @@ func is_frontal_hit(direction: Vector3) -> bool:
 	return angle <= BLOCK_ARC_DEGREES * 0.5
 
 
-func _is_within_block_arc(attacker: Node) -> bool:
+func _is_within_block_arc(impact_direction: Vector3) -> bool:
 	if _body == null:
 		return true
-	var source := attacker as Node3D
-	if source == null or not is_instance_valid(source):
+	if impact_direction.length_squared() < 0.01:
 		return true
-	var to_attacker := source.global_position - _body.global_position
+	var to_attacker := -impact_direction
 	to_attacker.y = 0.0
 	if to_attacker.length_squared() < 0.01:
 		return true

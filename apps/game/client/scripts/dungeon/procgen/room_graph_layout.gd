@@ -34,6 +34,12 @@ const DIR_EAST := Vector2i(1, 0)
 const DIR_SOUTH := Vector2i(0, 1)
 const DIR_WEST := Vector2i(-1, 0)
 
+const FALLBACK_PATTERNS := [
+	{"id": "ring_clockwise", "rotation": 1, "bias": 1},
+	{"id": "ring_reverse", "rotation": 3, "bias": 2},
+	{"id": "interwoven", "rotation": 2, "bias": 3},
+]
+
 
 static func directions() -> Array[Vector2i]:
 	return [DIR_NORTH, DIR_EAST, DIR_SOUTH, DIR_WEST]
@@ -228,13 +234,29 @@ static func solve(graph: RoomGraph, assignment: Dictionary) -> Dictionary:
 			result["ok"] = true
 			return result
 		attempt += 1
-	var fallback := _straight_line_layout(graph, rooms_by_layout, entrance_id, order)
-	_place_secrets(graph, rooms_by_layout, fallback)
-	fallback["realised_edges"] = _realised_edges(
-		graph, fallback["placements"], fallback["tree_edges"]
-	)
-	fallback["ok"] = true
-	return fallback
+	for pattern in FALLBACK_PATTERNS:
+		var fallback := _pattern_layout(
+			graph, rooms_by_layout, entrance_id, order, int(pattern["rotation"]), int(pattern["bias"])
+		)
+		if not fallback["dropped"].is_empty():
+			continue
+		_place_secrets(graph, rooms_by_layout, fallback)
+		fallback["realised_edges"] = _realised_edges(
+			graph, fallback["placements"], fallback["tree_edges"], int(pattern["rotation"])
+		)
+		if fallback["realised_edges"].size() < graph.walk_edges.size() + graph.loop_edges.size():
+			continue
+		fallback["fallback_pattern"] = str(pattern["id"])
+		fallback["ok"] = true
+		return fallback
+	return {
+		"placements": {},
+		"dropped": rooms_by_layout.keys(),
+		"tree_edges": [],
+		"realised_edges": {},
+		"fallback_pattern": "",
+		"ok": false,
+	}
 
 
 ## Whether a layout seated everything a floor cannot be played without.
@@ -345,16 +367,18 @@ static func _is_critical(graph: RoomGraph, layout_id: String) -> bool:
 
 
 static func _yaw_for(
-	rooms_by_layout: Dictionary, graph: RoomGraph, layout_id: String, entry: Dictionary
+	rooms_by_layout: Dictionary, graph: RoomGraph, layout_id: String, entry: Dictionary, rotation: int = 0
 ) -> float:
 	var room: Dictionary = rooms_by_layout[layout_id]
 	var template_id := str(room.get("template_id", ""))
+	if room.has("template_yaw"):
+		return float(room["template_yaw"]) + float(posmod(rotation, 4)) * PI * 0.5
 	var parent_id := str(entry.get("parent", ""))
 	if parent_id == "":
 		var slot := graph.get_slot(layout_id)
 		var mask: int = slot.door_mask if slot != null else 0
-		return RoomTemplateCatalogScript.yaw_rad_for_entrance(template_id, mask)
-	var dir: Vector2i = entry.get("dir", Vector2i.ZERO)
+		return RoomTemplateCatalogScript.yaw_rad_for_entrance(template_id, mask) + float(posmod(rotation, 4)) * PI * 0.5
+	var dir := _rotated_dir(entry.get("dir", Vector2i.ZERO), rotation)
 	var pair := RoomTemplateCatalogScript.doors_for_step(dir.x, dir.y)
 	return RoomTemplateCatalogScript.yaw_rad_for_incoming_door(template_id, int(pair[1]))
 
@@ -366,7 +390,8 @@ static func _try_layout(
 	rooms_by_layout: Dictionary,
 	entrance_id: String,
 	order: Array,
-	shuffle_bias: int
+	shuffle_bias: int,
+	rotation: int = 0
 ) -> Dictionary:
 	var occupancy := Occupancy.new()
 	var placements := {}
@@ -375,7 +400,7 @@ static func _try_layout(
 	var critical_ok := true
 	for entry in order:
 		var layout_id: String = str(entry["id"])
-		var yaw := _yaw_for(rooms_by_layout, graph, layout_id, entry)
+		var yaw := _yaw_for(rooms_by_layout, graph, layout_id, entry, rotation)
 		var size := footprint_cells(str(rooms_by_layout[layout_id]["template_id"]), yaw)
 		if layout_id == entrance_id:
 			var placement := Placement.new(Vector2i.ZERO, size, yaw)
@@ -389,7 +414,7 @@ static func _try_layout(
 				critical_ok = false
 			continue
 		var parent: Placement = placements[parent_id]
-		var dir: Vector2i = entry["dir"]
+		var dir := _rotated_dir(entry["dir"], rotation)
 		var candidates := candidate_origins(parent.origin, parent.size, size, dir)
 		var chosen: Variant = _best_free(
 			occupancy, candidates, size, shuffle_bias, graph, layout_id, placements
@@ -409,6 +434,28 @@ static func _try_layout(
 		"tree_edges": tree_edges,
 		"critical_ok": critical_ok,
 	}
+
+
+static func _pattern_layout(
+	graph: RoomGraph,
+	rooms_by_layout: Dictionary,
+	entrance_id: String,
+	order: Array,
+	rotation: int,
+	bias: int
+) -> Dictionary:
+	return _try_layout(graph, rooms_by_layout, entrance_id, order, bias, rotation)
+
+
+static func _rotated_dir(dir: Vector2i, rotation: int) -> Vector2i:
+	match posmod(rotation, 4):
+		1:
+			return Vector2i(-dir.y, dir.x)
+		2:
+			return -dir
+		3:
+			return Vector2i(dir.y, -dir.x)
+	return dir
 
 
 ## Picks a free spot, preferring one that also closes a loop.
@@ -561,7 +608,7 @@ static func _straight_line_layout(
 ## reported as unrealised and the definition downgrades them, which is what stops a loop the lattice
 ## could not close from turning into a door onto solid rock.
 static func _realised_edges(
-	graph: RoomGraph, placements: Dictionary, tree_edges: Array
+	graph: RoomGraph, placements: Dictionary, tree_edges: Array, rotation: int = 0
 ) -> Dictionary:
 	var out := {}
 	# The placement tree comes first and is never questioned. Every one of its edges was created by
@@ -592,18 +639,17 @@ static func _realised_edges(
 		var slot := graph.get_slot(layout_id)
 		if slot == null:
 			continue
-		for dir in directions():
-			if not (slot.door_mask & _door_bit(dir)):
+		for graph_dir in directions():
+			if not (slot.door_mask & _door_bit(graph_dir)):
 				continue
-			var neighbor := graph.get_slot_at(slot.grid_pos + dir) as RoomGraphSlot
+			var neighbor := graph.get_slot_at(slot.grid_pos + graph_dir) as RoomGraphSlot
 			if neighbor == null or not placements.has(neighbor.slot_id):
 				continue
 			var key := _pair_key(layout_id, neighbor.slot_id)
 			if out.has(key):
 				continue
-			var loop_offsets := door_offsets_between(
-				placements[layout_id], placements[neighbor.slot_id], dir
-			)
+			var dir := _rotated_dir(graph_dir, rotation)
+			var loop_offsets := door_offsets_between(placements[layout_id], placements[neighbor.slot_id], dir)
 			if loop_offsets.is_empty():
 				continue
 			out[key] = {

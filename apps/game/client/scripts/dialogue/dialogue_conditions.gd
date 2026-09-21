@@ -33,22 +33,53 @@ const LAST_RUN_FLAG := "last_run"
 const RELATIONSHIP_FLAG_PREFIX := "rel_"
 const STORY_BEAT_FLAG := "story_beat"
 
+const ALLOWED_SHAPES := {
+	"all": ["all"], "any": ["any"], "not": ["not"],
+	"flag": ["flag", "value", "atLeast"],
+	"quest": ["quest", "state"],
+	"hasItem": ["hasItem", "count"],
+	"relationship": ["relationship", "atLeast"],
+	"questCompletions": ["questCompletions", "atLeast"],
+	"bestiaryKills": ["bestiaryKills", "atLeast"],
+}
+
 
 static func evaluate(condition: Variant) -> bool:
 	if condition == null:
 		return true
 	if not condition is Dictionary:
-		return true
+		push_error("DialogueConditions: condition must be a Dictionary")
+		return false
 	if condition.is_empty():
 		return true
 
+	var predicate_keys: Array = []
+	for key in condition.keys():
+		if key in KNOWN_KEYS:
+			predicate_keys.append(key)
+	if predicate_keys.size() != 1:
+		push_error("DialogueConditions: expected exactly one predicate or all/any tree, got %s" % str(predicate_keys))
+		return false
+	var predicate := str(predicate_keys[0])
+	var allowed_keys: Array = ALLOWED_SHAPES.get(predicate, [predicate])
+	for key in condition.keys():
+		if str(key) not in allowed_keys:
+			push_error(
+				"DialogueConditions: key '%s' is invalid for predicate '%s'" % [key, predicate]
+			)
+			return false
+
 	if condition.has("all"):
+		if not condition.get("all") is Array:
+			return false
 		for entry in condition.get("all", []):
 			if not evaluate(entry):
 				return false
 		return true
 
 	if condition.has("any"):
+		if not condition.get("any") is Array:
+			return false
 		for entry in condition.get("any", []):
 			if evaluate(entry):
 				return true
@@ -132,7 +163,9 @@ static func evaluate(condition: Variant) -> bool:
 		return str(_last_run().get("biome", "")) == str(condition.get("lastRunBiome", ""))
 
 	if condition.has("minLastRunFloor"):
-		return int(_last_run().get("floor", 0)) >= int(condition.get("minLastRunFloor", 1))
+		return int(_last_run().get("dungeonDepth", _last_run().get("floor", 0))) >= int(
+			condition.get("minLastRunFloor", 1)
+		)
 
 	if condition.has("lastRunBoss"):
 		return bool(_last_run().get("boss", false)) == bool(condition.get("lastRunBoss", true))
@@ -150,7 +183,7 @@ static func evaluate(condition: Variant) -> bool:
 		)
 
 	push_warning("DialogueConditions: unrecognized condition keys: %s" % str(condition.keys()))
-	return true
+	return false
 
 
 static func _last_run() -> Dictionary:

@@ -60,7 +60,9 @@ func _unhandled_input(event: InputEvent) -> void:
 			var portal_def := PortalCatalog.resolve(_biome_id)
 			var accent_hex := str(portal_def.get("interior", {}).get("color_accent", "#e6f5ff"))
 			VfxService.play_portal_enter(global_position, PixelStyle.color_from_hex(accent_hex))
-			RunFlow.complete_run_via_portal()
+			RunFlow.complete_run_via_portal(),
+		func() -> void:
+			_confirm_pending = false
 	)
 
 

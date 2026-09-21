@@ -37,7 +37,9 @@ func _build_at_socket() -> void:
 		position = socket.position
 		rotation.y = socket.rotation.y
 	else:
-		position = Vector3(0.0, 0.0, -4.0)
+		push_error("Shortcut gate missing validated doorway socket: %s" % _gate_id)
+		queue_free()
+		return
 
 	_barrier = StaticBody3D.new()
 	_barrier.name = "ShortcutGateBarrier"
@@ -112,11 +114,11 @@ func _unhandled_input(event: InputEvent) -> void:
 			RunFlow.emit_run_warning(tr("SHORTCUT_WRONG_SIDE"))
 		get_viewport().set_input_as_handled()
 		return
+	_open(true)
 	if _gate_flag_id != "":
 		WorldState.set_flag(_gate_flag_id, true)
 	# AU-03: the moment the far, harder side pays off with a permanent shortcut.
 	AudioDirector.play_stinger("shortcut_opened")
-	_open()
 	get_viewport().set_input_as_handled()
 
 
@@ -131,15 +133,17 @@ func _on_namespace_changed(flag_namespace: String, flag_id: String, _value: Vari
 
 func _refresh_state() -> void:
 	if _gate_flag_id != "" and WorldState.is_flag_true(_gate_flag_id):
-		_open()
+		_open(false)
 	else:
 		_update_label()
 
 
-func _open() -> void:
+func _open(animate: bool = false) -> void:
+	if _opened:
+		return
 	_opened = true
 	if _barrier:
-		DIORAMA_SKIN.animate_gate_open(_barrier)
+		DIORAMA_SKIN.animate_gate_open(_barrier, animate)
 	if _label:
 		_label.visible = false
 

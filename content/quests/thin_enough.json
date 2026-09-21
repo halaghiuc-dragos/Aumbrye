@@ -2,6 +2,7 @@
   "id": "thin_enough",
   "title": "Thin Enough",
   "type": "fetch",
+  "objectiveMode": "delivery",
   "chainId": "lamps",
   "prerequisites": [
     "lampwright"

@@ -13,6 +13,7 @@ var _explode_damage := 0.0
 var _explode_damage_type := DamageInfo.TYPE_PHYSICAL
 var _lure := false
 var _exploded := false
+var _projectile_archetype := "lobbed_item"
 
 
 func configure(
@@ -22,7 +23,8 @@ func configure(
 	impact_radius: float,
 	explode_damage: float,
 	explode_damage_type: String,
-	lure: bool
+	lure: bool,
+	projectile_archetype: String = "lobbed_item"
 ) -> void:
 	_status_id = status_id
 	_status_stacks = maxi(1, status_stacks)
@@ -31,9 +33,44 @@ func configure(
 	_explode_damage = explode_damage
 	_explode_damage_type = explode_damage_type
 	_lure = lure
+	_projectile_archetype = projectile_archetype
+	_exploded = false
 
 
-func _on_world_impact() -> void:
+func _build_visual(_dmg_type: String) -> void:
+	if _visual == null:
+		return
+	for child in _visual.get_children():
+		_visual.remove_child(child)
+		child.queue_free()
+	var mesh := MeshInstance3D.new()
+	var material := StandardMaterial3D.new()
+	material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	if _projectile_archetype == "lure":
+		var ring := TorusMesh.new()
+		ring.inner_radius = 0.15
+		ring.outer_radius = 0.3
+		mesh.mesh = ring
+		material.albedo_color = Color(0.82, 0.74, 0.45)
+		material.emission_enabled = true
+		material.emission = Color(0.38, 0.28, 0.08)
+	else:
+		var sphere := SphereMesh.new()
+		sphere.radius = 0.26
+		sphere.height = 0.52
+		mesh.mesh = sphere
+		material.albedo_color = Color(0.32, 0.16, 0.08)
+		material.emission_enabled = true
+		material.emission = Color(0.5, 0.12, 0.03)
+	mesh.material_override = material
+	mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	_visual.add_child(mesh)
+
+
+func _on_world_impact(contact: Dictionary = {}) -> void:
+	var position: Variant = contact.get("position")
+	if position is Vector3:
+		global_position = position
 	_explode()
 	queue_free()
 
@@ -63,7 +100,10 @@ func _explode() -> void:
 			continue
 		if enemy.global_position.distance_squared_to(origin) > radius_sq:
 			continue
+		if not _has_line_of_effect(origin, enemy.global_position):
+			continue
 		hit_anything = true
+		var status_can_apply := _explode_damage <= 0.0
 		if _explode_damage > 0.0:
 			var hurtbox := enemy.get_node_or_null("Hurtbox")
 			if hurtbox and hurtbox.has_method("receive_hit"):
@@ -74,8 +114,9 @@ func _explode() -> void:
 				var info := DamageInfo.create(
 					_explode_damage, 0.0, _owner_node, _explode_damage_type, dir
 				)
-				hurtbox.call("receive_hit", info)
-		if _status_id != "":
+				var resolution = hurtbox.call("receive_hit", info)
+				status_can_apply = resolution != null and float(resolution.get("outgoing")) > 0.0
+		if status_can_apply and _status_id != "":
 			var controller := enemy.get_node_or_null("StatusController") as StatusController
 			if controller:
 				controller.apply_status(_status_id, _status_stacks, _status_duration)
@@ -84,6 +125,17 @@ func _explode() -> void:
 			VfxService.play_rune_flare(origin)
 		else:
 			VfxService.play_hit_spark(origin)
+
+
+func _has_line_of_effect(origin: Vector3, target: Vector3) -> bool:
+	var space := get_world_3d().direct_space_state
+	if space == null:
+		return true
+	var query := PhysicsRayQueryParameters3D.create(origin, target)
+	query.collision_mask = CombatLayers.WORLD_OCCLUDERS
+	query.collide_with_areas = false
+	query.collide_with_bodies = true
+	return space.intersect_ray(query).is_empty()
 
 
 ## `RG-04`: the lure item's identity trait -- redirects nearby patrolling enemies to investigate

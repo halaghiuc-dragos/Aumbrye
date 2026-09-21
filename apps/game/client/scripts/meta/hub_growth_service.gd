@@ -5,6 +5,7 @@ extends RefCounted
 const CATALOG_PATH := "content/ui/hub_growth.json"
 const FLAG_SEEN := "hub_growth_seen"
 const FLAG_PENDING := "hub_growth_pending"
+const FLAG_UNLOCKED := "hub_growth_unlocked"
 
 static var _entries: Array[Dictionary] = []
 static var _loaded := false
@@ -29,18 +30,26 @@ static func get_entry(entry_id: String) -> Dictionary:
 
 
 static func get_unlocked_ids() -> Array[String]:
+	var earned := _unlocked_record()
+	# Saves from before permanent milestones used the announcement history as their only durable
+	# record. Treat those already-seen entries as earned during migration.
+	for entry_id in _seen_record():
+		earned[entry_id] = true
 	var counters := ProgressCounters.snapshot()
 	var out: Array[String] = []
 	for entry in get_all():
+		var entry_id := str(entry.get("id", ""))
 		var condition: Variant = entry.get("condition", {})
 		if not condition is Dictionary:
 			continue
-		if ProgressCounters.meets(condition as Dictionary, counters):
-			out.append(str(entry.get("id", "")))
+		if bool(earned.get(entry_id, false)) or ProgressCounters.meets(condition as Dictionary, counters):
+			out.append(entry_id)
 	return out
 
 
 static func is_unlocked(entry_id: String, counters: Dictionary = {}) -> bool:
+	if bool(_unlocked_record().get(entry_id, false)) or bool(_seen_record().get(entry_id, false)):
+		return true
 	var entry := get_entry(entry_id)
 	if entry.is_empty():
 		return false
@@ -97,9 +106,18 @@ static func total_count() -> int:
 static func evaluate() -> Array[Dictionary]:
 	var seen := _seen_record()
 	var pending := _pending_record()
+	var unlocked := _unlocked_record()
+	var counters := ProgressCounters.snapshot()
 	var opened: Array[Dictionary] = []
 	var dirty := false
-	for entry_id in get_unlocked_ids():
+	for entry in get_all():
+		var entry_id := str(entry.get("id", ""))
+		var condition: Variant = entry.get("condition", {})
+		if not condition is Dictionary or not ProgressCounters.meets(condition, counters):
+			continue
+		if not bool(unlocked.get(entry_id, false)):
+			unlocked[entry_id] = true
+			dirty = true
 		if bool(seen.get(entry_id, false)):
 			continue
 		seen[entry_id] = true
@@ -107,6 +125,7 @@ static func evaluate() -> Array[Dictionary]:
 		dirty = true
 		opened.append(get_entry(entry_id).duplicate(true))
 	if dirty:
+		CharacterService.set_flag(FLAG_UNLOCKED, unlocked)
 		CharacterService.set_flag(FLAG_SEEN, seen)
 		CharacterService.set_flag(FLAG_PENDING, pending)
 	return opened
@@ -133,6 +152,11 @@ static func _seen_record() -> Dictionary:
 
 static func _pending_record() -> Dictionary:
 	var stored: Variant = CharacterService.get_flag(FLAG_PENDING, {})
+	return (stored as Dictionary).duplicate() if stored is Dictionary else {}
+
+
+static func _unlocked_record() -> Dictionary:
+	var stored: Variant = CharacterService.get_flag(FLAG_UNLOCKED, {})
 	return (stored as Dictionary).duplicate() if stored is Dictionary else {}
 
 

@@ -246,7 +246,9 @@
       "fallback_tone": {
         "freq": 72.0,
         "duration": 0.22
-      }
+      },
+      "priority": 2,
+      "spatial": {"unit_size": 13.0, "max_distance": 46.0, "occlusion": true, "occluded_volume_db": -5.0}
     },
     "windup_blockable": {
       "bus": "SFX",
@@ -260,7 +262,9 @@
       "fallback_tone": {
         "freq": 140.0,
         "duration": 0.14
-      }
+      },
+      "priority": 2,
+      "spatial": {"unit_size": 13.0, "max_distance": 46.0, "occlusion": true, "occluded_volume_db": -5.0}
     },
     "windup_parryable": {
       "bus": "SFX",
@@ -274,7 +278,9 @@
       "fallback_tone": {
         "freq": 520.0,
         "duration": 0.26
-      }
+      },
+      "priority": 2,
+      "spatial": {"unit_size": 13.0, "max_distance": 46.0, "occlusion": true, "occluded_volume_db": -5.0}
     },
     "windup_unblockable": {
       "bus": "SFX",
@@ -288,7 +294,9 @@
       "fallback_tone": {
         "freq": 55.0,
         "duration": 0.4
-      }
+      },
+      "priority": 3,
+      "spatial": {"unit_size": 15.0, "max_distance": 52.0, "occlusion": true, "occluded_volume_db": -4.0}
     },
     "windup_grab": {
       "bus": "SFX",
@@ -302,7 +310,9 @@
       "fallback_tone": {
         "freq": 300.0,
         "duration": 0.45
-      }
+      },
+      "priority": 3,
+      "spatial": {"unit_size": 15.0, "max_distance": 52.0, "occlusion": true, "occluded_volume_db": -4.0}
     },
     "secret_found": {
       "bus": "SFX",

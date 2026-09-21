@@ -6,8 +6,8 @@ signal swing_frame
 signal footstep_frame
 signal heal_gulp_frame
 signal heal_commit_frame
-signal hitbox_open_frame
-signal hitbox_close_frame
+signal hitbox_open_frame(generation: int)
+signal hitbox_close_frame(generation: int)
 
 enum Priority {
 	LOCOMOTION,
@@ -53,6 +53,7 @@ var _attack_clips: Array = []
 var _combo_index := 0
 var _priority: int = Priority.LOCOMOTION
 var _desired_locomotion: StringName = &"idle"
+var _desired_locomotion_params: Dictionary = {}
 var _blocking := false
 var _dead := false
 var _compiled_attacks: Dictionary = {}
@@ -60,8 +61,12 @@ var _missing_clips: Dictionary = {}
 var _clamped_clips: Dictionary = {}
 var _clamp_streak: Dictionary = {}
 var _hitbox_signals_warned := false
+var _base_speed_scale := 1.0
+var _transient_speed_scale := 1.0
+var _action_generation := 0
 
 var expects_hitbox_listeners := true
+var _attack_generation := 0
 var _mirrors: Array[DioramaAnimController] = []
 
 
@@ -160,20 +165,52 @@ func _resolve_events_path(visual: Node3D) -> String:
 func has_footstep_markers() -> bool:
 	if not is_bound() or _library == null:
 		return false
-	for clip_name in [&"walk", &"run"]:
+	for clip_name in AnimLibrary.FOOTSTEP_CLIPS:
 		if not _library.has_animation(clip_name):
-			continue
+			return false
 		var anim := _library.get_animation(clip_name)
 		if anim == null:
-			continue
+			return false
+		var markers := 0
 		for track_idx in anim.get_track_count():
 			if anim.track_get_type(track_idx) != Animation.TYPE_METHOD:
+				continue
+			if anim.track_get_path(track_idx) != NodePath(_events_path):
 				continue
 			for key_idx in anim.track_get_key_count(track_idx):
 				var method_data: Dictionary = anim.track_get_key_value(track_idx, key_idx)
 				if String(method_data.get("method", "")) == "anim_footstep":
-					return true
-	return false
+					markers += 1
+		if markers < 2:
+			return false
+	return true
+
+
+func has_hitbox_markers(clip: StringName) -> bool:
+	if not is_bound() or _library == null or _events_path.is_empty():
+		return false
+	if not _library.has_animation(clip):
+		return false
+	var animation := _library.get_animation(clip)
+	if animation == null:
+		return false
+	var opened := false
+	var closed := false
+	for track_idx in animation.get_track_count():
+		if animation.track_get_type(track_idx) != Animation.TYPE_METHOD:
+			continue
+		if animation.track_get_path(track_idx) != NodePath(_events_path):
+			continue
+		for key_idx in animation.track_get_key_count(track_idx):
+			var method_data: Dictionary = animation.track_get_key_value(track_idx, key_idx)
+			var method := String(method_data.get("method", ""))
+			opened = opened or method == "anim_hitbox_on"
+			closed = closed or method == "anim_hitbox_off"
+	return opened and closed
+
+
+func set_attack_generation(generation: int) -> void:
+	_attack_generation = generation
 
 
 func _setup_additive_player(visual: Node3D) -> void:
@@ -233,12 +270,25 @@ func request_locomotion(state: StringName, params: Dictionary = {}) -> void:
 	if not is_bound():
 		return
 	_desired_locomotion = state
+	_desired_locomotion_params = params.duplicate()
+	if _blocking and _priority == Priority.BLOCK:
+		var guarded_clip := _guarded_locomotion_clip()
+		if _player.current_animation != String(guarded_clip):
+			_play(guarded_clip, LOCOMOTION_BLEND)
+		return
 	if _priority > Priority.LOCOMOTION:
 		return
 	var clip := _locomotion_fallback(state)
 	_player.speed_scale = _locomotion_speed_scale(clip, params)
 	if _player.current_animation != String(clip):
 		_play(clip, LOCOMOTION_BLEND)
+
+
+func _guarded_locomotion_clip() -> StringName:
+	var speed := float(_desired_locomotion_params.get("speed", 0.0))
+	if _desired_locomotion != &"idle" and speed > 0.05 and has_clip(&"block_walk"):
+		return &"block_walk"
+	return &"block_hold"
 
 
 func _locomotion_fallback(state: StringName) -> StringName:
@@ -335,13 +385,13 @@ func play_impact_recoil(strength: float) -> void:
 	_recoil_tween.set_parallel(true)
 	var amount := clampf(strength, 0.0, 1.0)
 	if arm:
-		var arm_rest: Vector3 = _rest_pose.get("ArmR", {}).get("rotation", arm.rotation)
-		arm.rotation = arm_rest + IMPACT_RECOIL_ARM_OFFSET * amount
-		_recoil_tween.tween_property(arm, "rotation", arm_rest, IMPACT_RECOIL_DURATION)
+		var arm_base := arm.rotation
+		arm.rotation = arm_base + IMPACT_RECOIL_ARM_OFFSET * amount
+		_recoil_tween.tween_property(arm, "rotation", arm_base, IMPACT_RECOIL_DURATION)
 	if torso:
-		var torso_rest: Vector3 = _rest_pose.get("Torso", {}).get("rotation", torso.rotation)
-		torso.rotation = torso_rest + IMPACT_RECOIL_TORSO_OFFSET * amount
-		_recoil_tween.tween_property(torso, "rotation", torso_rest, IMPACT_RECOIL_DURATION)
+		var torso_base := torso.rotation
+		torso.rotation = torso_base + IMPACT_RECOIL_TORSO_OFFSET * amount
+		_recoil_tween.tween_property(torso, "rotation", torso_base, IMPACT_RECOIL_DURATION)
 
 
 func _resolve_part(part_name: String) -> Node3D:
@@ -444,15 +494,13 @@ func _stagger_clip_for(world_dir: Vector3) -> StringName:
 
 
 func play_heal(duration: float = 1.35) -> void:
-	for mirror in _live_mirrors():
-		if mirror.has_method("play_heal"):
-			mirror.call("play_heal", duration)
 	_blocking = false
-	_start_action(&"heal", Priority.ATTACK)
-	if duration > 0.05 and is_bound():
-		var clip_length := _player.current_animation_length
-		if clip_length > 0.01:
-			_player.speed_scale = clampf(clip_length / duration, 0.4, 2.5)
+	var scale := 1.0
+	if duration > 0.05 and has_clip(&"heal"):
+		var anim := _library.get_animation(&"heal")
+		if anim != null and anim.length > 0.01:
+			scale = clampf(anim.length / duration, 0.4, 2.5)
+	_begin_action(&"heal", Priority.ATTACK, scale)
 
 
 func cancel_heal() -> void:
@@ -520,6 +568,8 @@ func play_attack(
 		return
 	_blocking = false
 	_priority = Priority.ATTACK
+	_action_generation += 1
+	var action_generation := _action_generation
 	_player.speed_scale = 1.0
 	_player.play(runtime_name, ACTION_BLEND)
 
@@ -564,12 +614,12 @@ func hold_at(
 	var tree := get_tree()
 	if tree == null:
 		return
-	var timer := tree.create_timer(hold_time, false, false, true)
-	timer.timeout.connect(_on_hold_reached.bind(runtime_name))
+	var timer := tree.create_timer(hold_time, false, false, false)
+	timer.timeout.connect(_on_hold_reached.bind(runtime_name, action_generation))
 
 
-func _on_hold_reached(runtime_name: StringName) -> void:
-	if not is_bound():
+func _on_hold_reached(runtime_name: StringName, action_generation: int) -> void:
+	if not is_bound() or action_generation != _action_generation:
 		return
 	if _player.current_animation == runtime_name:
 		_player.speed_scale = 0.0
@@ -623,8 +673,14 @@ func _ensure_attack_clip(
 	clip: StringName, startup: float, active: float, recovery: float
 ) -> StringName:
 	var key := (
-		"%s_%d_%d_%d"
-		% [clip, roundi(startup * 100.0), roundi(active * 100.0), roundi(recovery * 100.0)]
+		"%s_%d_%d_%d_%d"
+		% [
+			clip,
+			roundi(startup * 1000.0),
+			roundi(active * 1000.0),
+			roundi(recovery * 1000.0),
+			roundi(PixelDioramaSettings.animation_steps_per_second * 100.0),
+		]
 	)
 	if _compiled_attacks.has(key):
 		return _compiled_attacks[key]
@@ -662,6 +718,9 @@ func _begin_action(clip: StringName, priority: int, scale: float) -> void:
 		_report_missing(clip, "action")
 		return
 	_priority = priority
+	_action_generation += 1
+	_base_speed_scale = scale
+	_transient_speed_scale = 1.0
 	for mirror in _live_mirrors():
 		mirror.mirror_apply(priority, _desired_locomotion, clip, ACTION_BLEND, scale)
 	_player.speed_scale = scale
@@ -737,10 +796,7 @@ func _resume_locomotion() -> void:
 	_player.speed_scale = 1.0
 	if _blocking:
 		_priority = Priority.BLOCK
-		var block_clip := &"block_hold"
-		if _desired_locomotion != &"idle" and has_clip(&"block_walk"):
-			block_clip = &"block_walk"
-		_play(block_clip, ACTION_BLEND)
+		_play(_guarded_locomotion_clip(), ACTION_BLEND)
 		return
 	_priority = Priority.LOCOMOTION
 	_play(_desired_locomotion, LOCOMOTION_BLEND)
@@ -802,11 +858,11 @@ func anim_footstep() -> void:
 
 
 func anim_hitbox_on() -> void:
-	hitbox_open_frame.emit()
+	hitbox_open_frame.emit(_attack_generation)
 
 
 func anim_hitbox_off() -> void:
-	hitbox_close_frame.emit()
+	hitbox_close_frame.emit(_attack_generation)
 
 
 func anim_heal_gulp() -> void:
@@ -818,7 +874,25 @@ func anim_heal_commit() -> void:
 
 
 func set_speed_scale(scale: float) -> void:
-	var clamped := maxf(0.01, scale)
+	_base_speed_scale = maxf(0.01, scale)
+	_apply_composed_speed()
+
+
+func begin_hitstop(factor: float) -> int:
+	_transient_speed_scale = clampf(factor, 0.01, 1.0)
+	_apply_composed_speed()
+	return _action_generation
+
+
+func end_hitstop(generation: int) -> void:
+	if generation != _action_generation:
+		return
+	_transient_speed_scale = 1.0
+	_apply_composed_speed()
+
+
+func _apply_composed_speed() -> void:
+	var clamped := maxf(0.01, _base_speed_scale * _transient_speed_scale)
 	if _player:
 		_player.speed_scale = clamped
 	for mirror in _live_mirrors():
@@ -838,6 +912,9 @@ func _apply_rest_pose() -> void:
 
 
 func _teardown() -> void:
+	if _recoil_tween and _recoil_tween.is_valid():
+		_recoil_tween.kill()
+	_recoil_tween = null
 	_mirrors = _live_mirrors()
 	if _additive_player and is_instance_valid(_additive_player):
 		_additive_player.queue_free()
@@ -853,3 +930,6 @@ func _teardown() -> void:
 	_rest_pose.clear()
 	_blocking = false
 	_dead = false
+	_base_speed_scale = 1.0
+	_transient_speed_scale = 1.0
+	_action_generation += 1

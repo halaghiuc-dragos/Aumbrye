@@ -4,7 +4,7 @@ class_name RunReplay
 
 const META_KEY := "run_replay"
 const OPT_IN_KEY := "replayRecordingEnabled"
-const FORMAT_VERSION := 1
+const FORMAT_VERSION := 2
 const ENTRY_BYTES := 8
 const MAX_ENTRIES := 8192
 const AXIS_QUANTUM := 100.0
@@ -41,6 +41,7 @@ static var _last_frame := -1
 static var _last_x := 0
 static var _last_y := 0
 static var _last_mask := 0
+static var _initial_state: Dictionary = {}
 static var _play_entries: Array = []
 static var _play_index := 0
 static var _play_move := Vector2.ZERO
@@ -78,6 +79,7 @@ static func start_recording(seed_value: int, floor_index: int) -> bool:
 	_seed = seed_value
 	_floor = floor_index
 	_start_frame = Engine.get_physics_frames()
+	_initial_state = _capture_initial_state()
 	return true
 
 
@@ -149,17 +151,42 @@ static func _reset_stream() -> void:
 	_last_x = 0
 	_last_y = 0
 	_last_mask = 0
+	_initial_state = {}
 
 
 static func to_dictionary() -> Dictionary:
 	return {
 		"version": FORMAT_VERSION,
+		"kind": "diagnostic_input_trace",
 		"seed": _seed,
 		"floor": _floor,
 		"entries": _entry_count,
+		"overflowed": _overflowed,
+		"initialState": _initial_state,
 		"actions": _action_names(),
 		"stream": Marshalls.raw_to_base64(_compress(_stream)),
 	}
+
+
+static func _capture_initial_state() -> Dictionary:
+	var result: Dictionary = {"physicsFrame": Engine.get_physics_frames()}
+	var tree := Engine.get_main_loop() as SceneTree
+	if tree == null:
+		return result
+	var players := tree.get_nodes_in_group("player")
+	if players.is_empty():
+		return result
+	var player := players[0] as Node3D
+	if player == null:
+		return result
+	result["position"] = {"x": player.global_position.x, "y": player.global_position.y, "z": player.global_position.z}
+	var weapon := player.get_node_or_null("WeaponController")
+	if weapon and weapon.has_method("get_weapon_id"):
+		result["weaponId"] = str(weapon.call("get_weapon_id"))
+	var target := player.get_meta("lock_target", null)
+	if target is Node and is_instance_valid(target):
+		result["targetPath"] = str((target as Node).get_path())
+	return result
 
 
 static func _action_names() -> Array:

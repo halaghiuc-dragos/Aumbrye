@@ -16,6 +16,7 @@
   },
   "hitbox": {
     "shape": "arc",
+    "arc_degrees": 135.0,
     "radius": 1.15,
     "height": 0.95,
     "offset": [

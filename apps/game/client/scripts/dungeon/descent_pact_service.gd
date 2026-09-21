@@ -87,7 +87,7 @@ static func apply(pact_id: String, base_modifiers: Array) -> Array[String]:
 		var id := str(entry)
 		if id != "" and id not in resolved:
 			resolved.append(id)
-	return resolved
+	return RunModifierService.normalize_compatible(resolved)
 
 
 static func _load() -> Dictionary:

@@ -25,10 +25,10 @@
       "id": "starved_road",
       "label": "The Starved Road",
       "description": "No hearth will take below. What you carry, you carry.",
-      "modifiers": ["no_rest", "starved_hearth", "boss_hoard"],
+      "modifiers": ["no_rest", "boss_hoard"],
       "removeModifiers": [],
       "gain": "The floor boss keeps a hoard.",
-      "cost": "No rest, and thin hearths."
+      "cost": "No rest."
     },
     {
       "id": "barred_descent",
@@ -53,7 +53,7 @@
       "label": "Hunted",
       "description": "Whatever is below has already started moving toward you.",
       "modifiers": ["relentless_foes", "frenzied_foes", "rich_veins"],
-      "removeModifiers": ["no_rest"],
+      "removeModifiers": ["no_rest", "starved_hearth"],
       "gain": "Richer vaults, and the hearths stay lit.",
       "cost": "They are faster and they do not stop."
     },

@@ -3,6 +3,7 @@ extends Node
 
 signal flag_changed(flag_id: String, value: Variant)
 signal namespace_changed(flag_namespace: String, flag_id: String, value: Variant)
+signal state_restored(rejected_count: int)
 
 var _flags: Dictionary = {}
 
@@ -62,6 +63,7 @@ func restore_flags(flags: Dictionary) -> int:
 		_flags[key] = sanitized
 	if rejected > 0:
 		push_warning("WorldState: dropped %d invalid flag(s) from snapshot" % rejected)
+	state_restored.emit(rejected)
 	return rejected
 
 
@@ -81,7 +83,7 @@ func _on_returned_to_hub(_message: String) -> void:
 
 
 static func _is_scalar(value: Variant) -> bool:
-	return value is bool or value is int or value is float or value is String
+	return value is bool or value is int or (value is float and is_finite(value)) or value is String
 
 
 static func _sanitize_value(value: Variant) -> Variant:

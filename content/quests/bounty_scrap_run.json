@@ -2,6 +2,7 @@
   "id": "bounty_scrap_run",
   "title": "Bounty: Salvage",
   "type": "fetch",
+  "objectiveMode": "delivery",
   "targetItemId": "iron_scrap",
   "requiredCount": 5,
   "repeatable": true,

@@ -1,12 +1,14 @@
 extends "res://scripts/dungeon/room_content/room_content_base.gd"
 
 const DIORAMA_SKIN := preload("res://scripts/art/props/diorama_interactable_skin.gd")
+const InteractPromptScript := preload("res://scripts/ui/interact_prompt.gd")
 
 const INTERACT_RADIUS := 1.6
 
 var _configured := false
 var _rest_area: Area3D
 var _player: Node3D
+var _prompt: InteractPrompt
 
 
 func configure(_entry: Dictionary, _definition: Dictionary) -> void:
@@ -19,6 +21,9 @@ func configure(_entry: Dictionary, _definition: Dictionary) -> void:
 	bonfire.position = _anchor(0).position
 	DIORAMA_SKIN.build_bonfire(bonfire, DIORAMA_SKIN.resolve_biome(self))
 	root.add_child(bonfire)
+	_prompt = InteractPromptScript.build(
+		root, _anchor(0).position + Vector3(0.0, 2.4, 0.0)
+	)
 	_rest_area = Area3D.new()
 	_rest_area.name = "RestArea"
 	_rest_area.collision_layer = 0
@@ -38,11 +43,25 @@ func configure(_entry: Dictionary, _definition: Dictionary) -> void:
 func _on_body_entered(body: Node3D) -> void:
 	if body.is_in_group("player"):
 		_player = body
+		_refresh_prompt()
 
 
 func _on_body_exited(body: Node3D) -> void:
 	if body == _player:
 		_player = null
+		if _prompt:
+			_prompt.hide_prompt()
+
+
+func _refresh_prompt() -> void:
+	if _prompt == null:
+		return
+	if RunModifierService.has_modifier(RunModifierService.MODIFIER_NO_REST):
+		_prompt.show_text(tr("REST_PROMPT_DISABLED"))
+	elif RunModifierService.has_modifier(RunModifierService.MODIFIER_STARVED_HEARTH):
+		_prompt.show_text(tr("REST_PROMPT_STARVED"))
+	else:
+		_prompt.show_text(tr("REST_PROMPT_FULL"))
 
 
 func _unhandled_input(event: InputEvent) -> void:

@@ -64,6 +64,7 @@ func _enter_phase(index: int, silent: bool) -> void:
 	_boss.set_active_attacks(attacks, bool(phase.get("ordered", false)))
 	_boss.apply_phase_modifiers(phase)
 	var on_enter: Dictionary = phase.get("onEnter", {}) as Dictionary
+	_apply_persistent_entry(on_enter)
 	if not silent and not on_enter.is_empty():
 		_play_entry(on_enter)
 	_boss.notify_phase_entered(index, phase)
@@ -97,6 +98,9 @@ func _play_entry(on_enter: Dictionary) -> void:
 	var shake := float(on_enter.get("shake", 0.0))
 	if shake > 0.0 and VfxService:
 		VfxService.request_shake(shake, int(maxf(0.2, tell) * 1000.0))
+
+
+func _apply_persistent_entry(on_enter: Dictionary) -> void:
 	for spec in on_enter.get("spawnAdds", []):
 		if spec is Dictionary:
 			var adds: Array = _boss.spawn_adds(spec as Dictionary)
@@ -108,9 +112,6 @@ func _play_entry(on_enter: Dictionary) -> void:
 			var hazards: Array = _boss.spawn_hazard_ring(spec as Dictionary)
 			_spawned.append_array(hazards)
 			_despawn_on_death.append_array(hazards)
-	## `BS-01` "arenaChange": the same `ArenaHazard` telegraph -> active -> fade machinery as
-	## `hazards` above, just named for what it authors: the one hazard ring that redefines the
-	## arena for this phase rather than punctuating a single attack.
 	var arena_change: Variant = on_enter.get("arenaChange", null)
 	if arena_change is Dictionary and not (arena_change as Dictionary).is_empty():
 		var changed: Array = _boss.spawn_hazard_ring(arena_change as Dictionary)

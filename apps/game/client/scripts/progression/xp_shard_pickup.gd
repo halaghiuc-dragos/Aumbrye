@@ -177,10 +177,12 @@ func _recover() -> void:
 ## Leave the numbers where they fell and take the warden instead — a relic choice, for this run.
 func _listen() -> void:
 	_disconnect_offer()
-	RunFlow.clear_recoverable_xp_shard()
 	var run := get_tree().get_first_node_in_group("castle_run")
-	if run != null and run.has_method("offer_umbral_relic"):
-		run.call("offer_umbral_relic")
+	if run == null or not run.has_method("offer_umbral_relic"):
+		return
+	if not bool(run.call("offer_umbral_relic")):
+		return
+	RunFlow.clear_recoverable_xp_shard()
 	VfxService.play_rune_flare(global_position + Vector3(0.0, 1.0, 0.0))
 	AudioDirector.play_stinger("floor_clear")
 	queue_free()

@@ -83,7 +83,7 @@ var show_damage_numbers := true
 var _orbit_camera: Node
 var _anim_director: Node
 var _anim_hitstop_until_ms := 0
-var _anim_hitstop_restore := 1.0
+var _anim_hitstop_generation := -1
 var _shake_noise: FastNoiseLite
 
 
@@ -132,8 +132,9 @@ func _process(_delta: float) -> void:
 	if _anim_hitstop_until_ms > 0 and Time.get_ticks_msec() >= _anim_hitstop_until_ms:
 		_anim_hitstop_until_ms = 0
 		var director := _director()
-		if director and director.has_method("set_speed_scale"):
-			director.call("set_speed_scale", _anim_hitstop_restore)
+		if director and director.has_method("end_hitstop"):
+			director.call("end_hitstop", _anim_hitstop_generation)
+		_anim_hitstop_generation = -1
 
 
 func on_hit(
@@ -264,7 +265,9 @@ func _spawn_damage_number(
 ) -> void:
 	var root := get_tree().current_scene
 	if root:
-		DAMAGE_NUMBER.spawn(at_node.global_position + offset, damage, root, damage_type, is_crit)
+		var anchor := at_node.get_node_or_null("DamageNumberAnchor") as Node3D
+		var position := anchor.global_position if anchor else at_node.global_position + Vector3(0.0, 1.8, 0.0)
+		DAMAGE_NUMBER.spawn(position + offset, damage, root, damage_type, is_crit)
 
 
 ## `PH-02`: called on the attacker's own `HitFeedback` (see `on_hit()`). Left at the impact
@@ -291,12 +294,11 @@ func _apply_hitstop(impact: int = ImpactClass.SOLID, is_victim: bool = false) ->
 	if impact == ImpactClass.CRITICAL:
 		VfxService.push_time_scale(&"hitstop", HITSTOP_TIME_SCALE, duration_ms)
 	var director := _director()
-	if director and director.has_method("set_speed_scale"):
+	if director and director.has_method("begin_hitstop"):
 		var until_ms := Time.get_ticks_msec() + duration_ms
 		if until_ms > _anim_hitstop_until_ms:
 			_anim_hitstop_until_ms = until_ms
-			_anim_hitstop_restore = 1.0
-		director.call("set_speed_scale", 0.05)
+		_anim_hitstop_generation = int(director.call("begin_hitstop", 0.05))
 
 
 func _apply_camera_punch(direction: Vector3 = Vector3.ZERO, impact: int = ImpactClass.SOLID) -> void:

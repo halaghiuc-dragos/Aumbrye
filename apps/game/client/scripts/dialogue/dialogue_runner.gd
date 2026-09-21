@@ -5,6 +5,7 @@ class_name DialogueRunner
 signal line_changed(speaker: String, text: String, choices: Array)
 signal dialogue_ended
 signal action_triggered(action: Dictionary)
+signal action_failed(message: String)
 
 const RELATIONSHIP_FLAG_PREFIX := "rel_"
 const STORY_BEAT_FLAG := "story_beat"
@@ -19,31 +20,49 @@ const UI_ACTIONS := [
 var _dialogue: Dictionary = {}
 var _current_node_id: String = ""
 var _active := false
+var _presented_choices: Dictionary = {}
+
+enum StartResult { FAILED, COMPLETED, OPENED }
 
 
 func is_active() -> bool:
 	return _active
 
 
-func start(dialogue_id: String) -> bool:
-	_dialogue = DialogueCatalog.get_dialogue(dialogue_id)
-	if _dialogue.is_empty():
-		return false
-	_current_node_id = str(_dialogue.get("startNode", "start"))
+func start(dialogue_id: String) -> StartResult:
+	var candidate := DialogueCatalog.get_dialogue(dialogue_id)
+	if candidate.is_empty():
+		return StartResult.FAILED
+	var start_node_id := str(candidate.get("startNode", "start"))
+	var nodes: Variant = candidate.get("nodes", {})
+	if not nodes is Dictionary or not (nodes as Dictionary).get(start_node_id) is Dictionary:
+		return StartResult.FAILED
+	_dialogue = candidate
+	_current_node_id = start_node_id
 	_active = true
 	_advance_to_node(_current_node_id)
-	return true
+	return StartResult.OPENED if _active else StartResult.COMPLETED
 
 
 func select_choice(index: int) -> void:
 	if not _active:
 		return
-	var node: Dictionary = _get_current_node()
-	var choices: Array = _get_visible_choices(node)
+	var choices: Array = _presented_choices.values()
 	if index < 0 or index >= choices.size():
 		return
-	var choice: Dictionary = choices[index]
-	_apply_actions(choice.get("actions", []))
+	select_choice_id(str((choices[index] as Dictionary).get("_choiceId", "")))
+
+
+func select_choice_id(choice_id: String) -> void:
+	if not _active or not _presented_choices.has(choice_id):
+		return
+	var choice: Dictionary = _presented_choices[choice_id]
+	if not DialogueConditions.evaluate(choice.get("condition")):
+		action_failed.emit("That choice is no longer available.")
+		_advance_to_node(_current_node_id)
+		return
+	if not _apply_actions(choice.get("actions", [])):
+		return
 	var next_id: String = str(choice.get("next", ""))
 	if next_id.is_empty() or next_id == "end":
 		end_dialogue()
@@ -67,9 +86,12 @@ func advance() -> void:
 
 
 func end_dialogue() -> void:
+	if not _active:
+		return
 	_active = false
 	_dialogue = {}
 	_current_node_id = ""
+	_presented_choices.clear()
 	dialogue_ended.emit()
 
 
@@ -93,10 +115,14 @@ func _advance_to_node(node_id: String) -> void:
 				continue
 			end_dialogue()
 			return
-		_apply_actions(node.get("actions", []))
+		if not _apply_actions(node.get("actions", [])):
+			return
 		var speaker: String = str(node.get("speaker", ""))
 		var text: String = str(node.get("text", ""))
-		var choices: Array = _get_visible_choices(node)
+		var choices: Array = _get_visible_choices(node, current_id)
+		_presented_choices.clear()
+		for choice in choices:
+			_presented_choices[str((choice as Dictionary).get("_choiceId", ""))] = choice
 		_current_node_id = current_id
 		line_changed.emit(speaker, text, choices)
 		if not choices.is_empty():
@@ -122,20 +148,51 @@ func _get_node(node_id: String) -> Dictionary:
 	return {}
 
 
-func _get_visible_choices(node: Dictionary) -> Array:
+func _get_visible_choices(node: Dictionary, node_id: String = "") -> Array:
 	var result: Array = []
-	for choice in node.get("choices", []):
+	var identity_node := node_id if node_id != "" else _current_node_id
+	var authored_choices: Array = node.get("choices", [])
+	for choice_index in authored_choices.size():
+		var choice: Variant = authored_choices[choice_index]
 		if choice is Dictionary and DialogueConditions.evaluate(choice.get("condition")):
-			result.append(choice)
+			var presented := (choice as Dictionary).duplicate(true)
+			presented["_choiceId"] = str(
+				presented.get("id", "%s:%d" % [identity_node, choice_index])
+			)
+			result.append(presented)
 	return result
 
 
-func _apply_actions(actions: Variant) -> void:
+func _apply_actions(actions: Variant) -> bool:
 	if not actions is Array:
-		return
+		return true
+	var inventory_actions: Array[Dictionary] = []
+	for raw in actions:
+		if raw is Dictionary and str(raw.get("type", "")) in ["give_item", "take_item"]:
+			inventory_actions.append(raw)
+	if not inventory_actions.is_empty():
+		var inv := InventoryService.inventory
+		var working := GridInventory.new(inv.grid_width, inv.grid_height)
+		working.from_save_dict(inv.to_save_dict())
+		for action in inventory_actions:
+			var item_id := str(action.get("itemId", ""))
+			var quantity := maxi(1, int(action.get("quantity", 1)))
+			if str(action.get("type", "")) == "take_item":
+				if working.count_by_id(item_id) < quantity:
+					action_failed.emit("Required items are no longer available.")
+					return false
+				working.remove_items_by_id(item_id, quantity)
+			else:
+				if not working.add_item(item_id, quantity):
+					action_failed.emit("Inventory is full. Make room and try again.")
+					return false
+		inv.from_save_dict(working.to_save_dict())
 	for action in actions:
 		if action is Dictionary:
+			if str(action.get("type", "")) in ["give_item", "take_item"]:
+				continue
 			_execute_action(action)
+	return true
 
 
 func _execute_action(action: Dictionary) -> void:
@@ -191,4 +248,3 @@ func _apply_relationship(action: Dictionary) -> void:
 		CharacterService.set_flag(flag_id, int(action.get("value", 0)))
 		return
 	CharacterService.set_flag(flag_id, DialogueConditions.flag_number(flag_id) + int(action.get("delta", 1)))
-

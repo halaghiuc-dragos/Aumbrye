@@ -9,12 +9,16 @@ const SYNERGY_MULTIPLIER := 1.75
 const SYNERGY_CAP := 4.0
 
 var _active: Array[Dictionary] = []
+var _temporary_effects: Array[Dictionary] = []
 var _registered_sources: Array = []
 var _procs: Dictionary = {}
+var _contributions: Dictionary = {}
 var _trap_catches := 0
 
 var _best_hit: Dictionary = {}
 var _offers_taken := 0
+var _pending_offer_ids: Array[String] = []
+var _offer_tag_history: Array[String] = []
 var _hooked := false
 
 
@@ -25,6 +29,20 @@ func _ready() -> void:
 
 func get_active_buffs() -> Array[Dictionary]:
 	return _active.duplicate(true)
+
+
+func add_temporary_effect(effect_id: String, stat: String, amount: float, duration: float) -> bool:
+	if effect_id == "" or stat == "" or duration <= 0.0:
+		return false
+	for entry in _temporary_effects:
+		if str(entry.get("id", "")) == effect_id:
+			entry["remaining"] = maxf(float(entry.get("remaining", 0.0)), duration)
+			entry["amount"] = amount
+			buffs_changed.emit()
+			return true
+	_temporary_effects.append({"id": effect_id, "stat": stat, "amount": amount, "remaining": duration})
+	buffs_changed.emit()
+	return true
 
 
 func add_relic(relic_id: String) -> bool:
@@ -49,6 +67,14 @@ func add_relic(relic_id: String) -> bool:
 	_ensure_event_hookup()
 	_sync_relic_rules()
 	buffs_changed.emit()
+	if CombatEvents:
+		CombatEvents.dispatch(
+			CombatEvents.ON_ACQUIRED,
+			{
+				"actor": get_tree().get_first_node_in_group("player"),
+				"acquiredRelicId": relic_id,
+			}
+		)
 	return true
 
 
@@ -60,10 +86,30 @@ func get_stat_totals() -> Dictionary:
 		var stats: Dictionary = def.get("stats", {})
 		for stat in stats:
 			totals[stat] = totals.get(stat, 0.0) + float(stats[stat]) * stacks
+	for entry in _temporary_effects:
+		var stat := str(entry.get("stat", ""))
+		if stat != "":
+			totals[stat] = totals.get(stat, 0.0) + float(entry.get("amount", 0.0))
 	return totals
 
 
+func _physics_process(delta: float) -> void:
+	if get_tree().paused or _temporary_effects.is_empty():
+		return
+	var changed := false
+	for index in range(_temporary_effects.size() - 1, -1, -1):
+		var entry: Dictionary = _temporary_effects[index]
+		entry["remaining"] = float(entry.get("remaining", 0.0)) - delta
+		if float(entry["remaining"]) <= 0.0:
+			_temporary_effects.remove_at(index)
+			changed = true
+	if changed:
+		buffs_changed.emit()
+
+
 func roll_offer(offer_key: String, count: int = 3) -> Array[String]:
+	if not _pending_offer_ids.is_empty():
+		return _pending_offer_ids.duplicate()
 	var candidates := _offer_candidates()
 	var offer: Array[String] = []
 	if candidates.is_empty() or count <= 0:
@@ -93,13 +139,36 @@ func roll_offer(offer_key: String, count: int = 3) -> Array[String]:
 		offer.append(candidates[picked])
 		total -= weights[picked]
 		weights[picked] = 0.0
+		var picked_tags: Array = RelicCatalog.get_definition(candidates[picked]).get("tags", [])
+		var picked_role := _offer_role(candidates[picked])
+		for i in candidates.size():
+			if weights[i] <= 0.0:
+				continue
+			var factor := 1.0
+			if _shares_tag(candidates[i], picked_tags):
+				factor *= 0.35
+			if _offer_role(candidates[i]) == picked_role:
+				factor *= 0.5
+			if is_equal_approx(factor, 1.0):
+				continue
+			var reduced := weights[i] * factor
+			total -= weights[i] - reduced
+			weights[i] = reduced
+	_pending_offer_ids = offer.duplicate()
 	return offer
 
 
 func take_offer(relic_id: String) -> bool:
+	if relic_id not in _pending_offer_ids:
+		return false
 	if not add_relic(relic_id):
 		return false
+	_pending_offer_ids.clear()
 	_offers_taken += 1
+	for tag in RelicCatalog.get_definition(relic_id).get("tags", []):
+		_offer_tag_history.append(str(tag))
+	while _offer_tag_history.size() > 12:
+		_offer_tag_history.pop_front()
 	offer_taken.emit(relic_id)
 	return true
 
@@ -131,6 +200,7 @@ func get_run_highlights() -> Dictionary:
 		var relic_id := str(entry.get("relicId", ""))
 		var def := RelicCatalog.get_definition(relic_id)
 		var procs := int(_procs.get(relic_id, 0))
+		var contribution: Dictionary = _contributions.get(relic_id, {})
 		(
 			relics
 			. append(
@@ -139,6 +209,7 @@ func get_run_highlights() -> Dictionary:
 					"name": str(def.get("name", relic_id)),
 					"stacks": int(entry.get("stacks", 1)),
 					"procs": procs,
+					"contribution": contribution.duplicate(true),
 				}
 			)
 		)
@@ -149,7 +220,10 @@ func get_run_highlights() -> Dictionary:
 		"relics": relics,
 		"topRelic": top_id,
 		"topRelicProcs": top_procs,
+		"relicContributions": _contributions.duplicate(true),
 		"offersTaken": _offers_taken,
+		"pendingOffer": _pending_offer_ids.duplicate(),
+		"offerTagHistory": _offer_tag_history.duplicate(),
 		"trapCatches": _trap_catches,
 		"bestHit": _best_hit,
 	}
@@ -158,9 +232,13 @@ func get_run_highlights() -> Dictionary:
 func clear_all() -> void:
 	var had_entries := not _active.is_empty()
 	_active.clear()
+	_temporary_effects.clear()
 	_procs.clear()
+	_contributions.clear()
 	_trap_catches = 0
 	_offers_taken = 0
+	_pending_offer_ids.clear()
+	_offer_tag_history.clear()
 	_best_hit = {}
 	_unregister_all()
 	if had_entries:
@@ -171,12 +249,108 @@ func to_save_array() -> Array:
 	return _active.duplicate(true)
 
 
+func temporary_effects_to_save_array() -> Array:
+	return _temporary_effects.duplicate(true)
+
+
+func offer_state_to_save() -> Dictionary:
+	return {
+		"pending": _pending_offer_ids.duplicate(),
+		"taken": _offers_taken,
+		"tagHistory": _offer_tag_history.duplicate(),
+		"contributions": _contributions.duplicate(true),
+		"procs": _procs.duplicate(true),
+		"trapCatches": _trap_catches,
+		"bestHit": _best_hit.duplicate(true),
+	}
+
+
+func offer_state_from_save(data: Variant) -> void:
+	_pending_offer_ids.clear()
+	_offers_taken = 0
+	_offer_tag_history.clear()
+	_contributions.clear()
+	_procs.clear()
+	_trap_catches = 0
+	_best_hit = {}
+	if not data is Dictionary:
+		return
+	for relic_id in data.get("pending", []):
+		var id := str(relic_id)
+		if not RelicCatalog.get_definition(id).is_empty() and id not in _pending_offer_ids:
+			_pending_offer_ids.append(id)
+	_offers_taken = maxi(0, int(data.get("taken", 0)))
+	var history: Variant = data.get("tagHistory", [])
+	if history is Array:
+		for tag in history:
+			_offer_tag_history.append(str(tag))
+	while _offer_tag_history.size() > 12:
+		_offer_tag_history.pop_front()
+	var saved_contributions: Variant = data.get("contributions", {})
+	if saved_contributions is Dictionary:
+		for raw_id in saved_contributions:
+			var relic_id := str(raw_id)
+			var raw_metrics: Variant = saved_contributions[raw_id]
+			if RelicCatalog.get_definition(relic_id).is_empty() or not raw_metrics is Dictionary:
+				continue
+			var metrics: Dictionary = {}
+			for metric in raw_metrics:
+				metrics[str(metric)] = clampf(float(raw_metrics[metric]), 0.0, 1000000.0)
+			_contributions[relic_id] = metrics
+	var saved_procs: Variant = data.get("procs", {})
+	if saved_procs is Dictionary:
+		for raw_id in saved_procs:
+			var relic_id := str(raw_id)
+			if not RelicCatalog.get_definition(relic_id).is_empty():
+				_procs[relic_id] = clampi(int(saved_procs[raw_id]), 0, 100000)
+	_trap_catches = clampi(int(data.get("trapCatches", 0)), 0, 100000)
+	var saved_best: Variant = data.get("bestHit", {})
+	if saved_best is Dictionary and float(saved_best.get("amount", 0.0)) > 0.0:
+		_best_hit = {
+			"amount": maxf(0.0, float(saved_best.get("amount", 0.0))),
+			"crit": bool(saved_best.get("crit", false)),
+			"backstab": bool(saved_best.get("backstab", false)),
+			"damageType": str(saved_best.get("damageType", "physical")),
+		}
+
+
+func temporary_effects_from_save_array(data: Variant) -> void:
+	_temporary_effects.clear()
+	if data is Array:
+		for raw in data:
+			if not raw is Dictionary:
+				continue
+			var entry: Dictionary = raw
+			var effect_id := str(entry.get("id", ""))
+			var stat := str(entry.get("stat", ""))
+			var remaining := float(entry.get("remaining", 0.0))
+			if effect_id != "" and stat != "" and remaining > 0.0:
+				_temporary_effects.append({"id": effect_id, "stat": stat, "amount": float(entry.get("amount", 0.0)), "remaining": remaining})
+	buffs_changed.emit()
+
+
 func from_save_array(data: Variant) -> void:
 	_active.clear()
 	if data is Array:
 		for entry in data:
-			if entry is Dictionary:
-				_active.append(entry.duplicate())
+			if not entry is Dictionary:
+				continue
+			var relic_id := str((entry as Dictionary).get("relicId", ""))
+			var definition := RelicCatalog.get_definition(relic_id)
+			if definition.is_empty():
+				continue
+			var max_stacks := maxi(1, int(definition.get("maxStacks", 1)))
+			var stacks := clampi(int((entry as Dictionary).get("stacks", 1)), 1, max_stacks)
+			var existing := _stacks_of(relic_id)
+			if existing >= max_stacks:
+				continue
+			for current in _active:
+				if str(current.get("relicId", "")) == relic_id:
+					current["stacks"] = mini(max_stacks, existing + stacks)
+					stacks = 0
+					break
+			if stacks > 0:
+				_active.append({"relicId": relic_id, "stacks": mini(max_stacks, stacks)})
 	_ensure_event_hookup()
 	_sync_relic_rules()
 	buffs_changed.emit()
@@ -210,13 +384,41 @@ func _carried_tags() -> Dictionary:
 func _offer_weight(relic_id: String, carried: Dictionary) -> float:
 	var def := RelicCatalog.get_definition(relic_id)
 	var weight := maxf(0.01, float(def.get("weight", 1.0)))
-	if carried.is_empty():
-		return weight
 	var synergy := 1.0
 	for tag in def.get("tags", []):
 		if carried.has(str(tag)):
 			synergy = minf(SYNERGY_CAP, synergy * SYNERGY_MULTIPLIER)
-	return weight * synergy
+	var recent_matches := 0
+	for tag in def.get("tags", []):
+		for previous in _offer_tag_history:
+			if str(tag) == previous:
+				recent_matches += 1
+	return weight * synergy / (1.0 + float(recent_matches) * 0.25)
+
+
+func _shares_tag(relic_id: String, tags: Array) -> bool:
+	for tag in RelicCatalog.get_definition(relic_id).get("tags", []):
+		if tag in tags:
+			return true
+	return false
+
+
+func _offer_role(relic_id: String) -> String:
+	var def := RelicCatalog.get_definition(relic_id)
+	var stats: Dictionary = def.get("stats", {}) as Dictionary
+	if (
+		float(stats.get("maxHealth", 0.0)) > 0.0
+		or float(stats.get("armor", 0.0)) > 0.0
+		or float(stats.get("resistance", 0.0)) > 0.0
+	):
+		return "defense"
+	for rule in def.get("rules", []):
+		if not rule is Dictionary:
+			continue
+		var effect := str((rule as Dictionary).get("effect", ""))
+		if effect in ["restore_health", "restore_stamina", "restore_mana", "cleanse", "shield"]:
+			return "utility"
+	return "pivot"
 
 
 func _stacks_of(relic_id: String) -> int:
@@ -272,7 +474,7 @@ func _ensure_event_hookup() -> void:
 	_hooked = true
 
 
-func _on_rule_triggered(source_id: String, _effect: String) -> void:
+func _on_rule_triggered(source_id: String, _effect: String, contribution: Dictionary) -> void:
 	if not source_id.begins_with(RULE_SOURCE_PREFIX):
 		return
 	var relic_id := source_id.substr(RULE_SOURCE_PREFIX.length())
@@ -280,3 +482,13 @@ func _on_rule_triggered(source_id: String, _effect: String) -> void:
 	if hash_at > 0:
 		relic_id = relic_id.substr(0, hash_at)
 	_procs[relic_id] = int(_procs.get(relic_id, 0)) + 1
+	if contribution.is_empty():
+		return
+	var totals: Dictionary = _contributions.get(relic_id, {})
+	for metric in contribution:
+		totals[str(metric)] = clampf(
+			float(totals.get(str(metric), 0.0)) + maxf(0.0, float(contribution[metric])),
+			0.0,
+			1000000.0
+		)
+	_contributions[relic_id] = totals

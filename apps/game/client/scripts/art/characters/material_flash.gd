@@ -13,6 +13,7 @@ const DEFAULT_FALLOFF := 1.2
 const MIN_LOCAL_STRENGTH := 0.35
 
 const META_ACTIVE_TWEEN := &"material_flash_tween"
+const META_MESH_CACHE := &"material_flash_mesh_cache"
 
 const PHASE_GLOW_ENERGY_PARAM := &"phase_glow_energy"
 const PHASE_GLOW_COLOR_PARAM := &"phase_glow_color"
@@ -41,7 +42,7 @@ static func flash(node: Node3D, params: Variant = null) -> void:
 	if node == null or not is_instance_valid(node):
 		return
 	var p := _normalize_params(params)
-	for mesh in gather_meshes(node):
+	for mesh in cached_meshes(node):
 		_flash_mesh(mesh, p)
 
 
@@ -60,7 +61,7 @@ static func cancel(mesh: MeshInstance3D) -> void:
 static func restore_all(node: Node3D) -> void:
 	if node == null or not is_instance_valid(node):
 		return
-	for mesh in gather_meshes(node):
+	for mesh in cached_meshes(node):
 		cancel(mesh)
 	clear_persistent_glow(node)
 
@@ -84,7 +85,7 @@ static func set_persistent_glow(node: Node3D, color: Color, energy: float) -> vo
 static func clear_persistent_glow(node: Node3D) -> void:
 	if node == null or not is_instance_valid(node):
 		return
-	for mesh in gather_meshes(node):
+	for mesh in cached_meshes(node):
 		if _mesh_shader(mesh) != null:
 			mesh.set_instance_shader_parameter(PHASE_GLOW_ENERGY_PARAM, 0.0)
 
@@ -96,6 +97,7 @@ static func _normalize_params(params: Variant) -> Dictionary:
 		"duration": FLASH_DURATION,
 		"blocked": false,
 		"crit": false,
+		"has_epicenter": false,
 		"epicenter": Vector3.ZERO,
 		"falloff": DEFAULT_FALLOFF,
 	}
@@ -121,6 +123,36 @@ static func gather_meshes(root: Node) -> Array[MeshInstance3D]:
 	return out
 
 
+static func cached_meshes(root: Node) -> Array[MeshInstance3D]:
+	if root.has_meta(META_MESH_CACHE):
+		var cached: Array[MeshInstance3D] = []
+		for entry in root.get_meta(META_MESH_CACHE):
+			var mesh := entry as MeshInstance3D
+			if mesh != null and is_instance_valid(mesh) and _mesh_shader(mesh) != null:
+				cached.append(mesh)
+		if not cached.is_empty():
+			return cached
+	var meshes: Array[MeshInstance3D] = []
+	for mesh in gather_meshes(root):
+		if _mesh_shader(mesh) != null:
+			meshes.append(mesh)
+	root.set_meta(META_MESH_CACHE, meshes)
+	return meshes
+
+
+static func refresh_mesh_cache(root: Node) -> Array[MeshInstance3D]:
+	if root == null or not is_instance_valid(root):
+		return []
+	if root.has_meta(META_MESH_CACHE):
+		root.remove_meta(META_MESH_CACHE)
+	return cached_meshes(root)
+
+
+static func invalidate_mesh_cache(root: Node) -> void:
+	if root != null and root.has_meta(META_MESH_CACHE):
+		root.remove_meta(META_MESH_CACHE)
+
+
 static func _mesh_shader(mesh: MeshInstance3D) -> Shader:
 	var mat := mesh.material_override as ShaderMaterial
 	if mat == null:
@@ -143,13 +175,11 @@ static func _flash_mesh(mesh: MeshInstance3D, params: Dictionary) -> void:
 	if not mesh.is_inside_tree():
 		return
 
-	cancel(mesh)
-
 	var strength := clampf(float(params.get("strength", 1.0)), 0.0, 1.0)
 	if bool(params.get("blocked", false)):
 		strength *= 0.5
 	var epicenter: Vector3 = params.get("epicenter", Vector3.ZERO)
-	if epicenter != Vector3.ZERO:
+	if bool(params.get("has_epicenter", params.has("epicenter"))):
 		var falloff := maxf(0.01, float(params.get("falloff", DEFAULT_FALLOFF)))
 		var dist := mesh.global_position.distance_to(epicenter)
 		strength *= clampf(1.0 - dist / falloff, MIN_LOCAL_STRENGTH, 1.0)
@@ -160,7 +190,17 @@ static func _flash_mesh(mesh: MeshInstance3D, params: Dictionary) -> void:
 	var duration := maxf(0.05, float(params.get("duration", FLASH_DURATION)))
 	var crit := bool(params.get("crit", false))
 
-	mesh.set_instance_shader_parameter(FLASH_PARAM, 0.0)
+	var current_strength := 0.0
+	var current_value: Variant = mesh.get_instance_shader_parameter(FLASH_PARAM)
+	if current_value != null:
+		current_strength = float(current_value)
+	if mesh.has_meta(META_ACTIVE_TWEEN):
+		var active := mesh.get_meta(META_ACTIVE_TWEEN) as Tween
+		if active and active.is_valid():
+			active.kill()
+		mesh.remove_meta(META_ACTIVE_TWEEN)
+	strength = maxf(strength, current_strength)
+	mesh.set_instance_shader_parameter(FLASH_PARAM, current_strength)
 	if _shader_declares(shader, FLASH_COLOR_PARAM):
 		mesh.set_instance_shader_parameter(FLASH_COLOR_PARAM, Vector3(tint.r, tint.g, tint.b))
 	if _shader_declares(shader, FLASH_EMISSION_PARAM):
@@ -172,7 +212,7 @@ static func _flash_mesh(mesh: MeshInstance3D, params: Dictionary) -> void:
 		func(v: float) -> void:
 			if is_instance_valid(mesh):
 				mesh.set_instance_shader_parameter(FLASH_PARAM, v),
-		0.0,
+		current_strength,
 		strength,
 		RAMP_IN
 	)

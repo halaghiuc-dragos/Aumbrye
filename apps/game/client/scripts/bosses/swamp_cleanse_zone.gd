@@ -42,4 +42,4 @@ func _clear_poison_on_player() -> void:
 		return
 	var status_ctrl := player.get_node_or_null("StatusController") as StatusController
 	if status_ctrl:
-		status_ctrl.remove_status("poison")
+		status_ctrl.cleanse_status("poison")

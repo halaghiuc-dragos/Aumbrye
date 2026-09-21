@@ -336,13 +336,28 @@ static func make_telegraph_material(color: Color) -> Material:
 ## 0.4s instead. Collision drops immediately, same as before (a player already leaning on the door
 ## should not feel it disappear from under them, but should also not get stuck waiting on the
 ## animation to pass through).
-static func animate_gate_open(barrier: StaticBody3D) -> void:
+static func animate_gate_open(barrier: StaticBody3D, animate: bool = true) -> void:
+	if barrier == null or not is_instance_valid(barrier) or not barrier.visible:
+		return
 	barrier.collision_layer = 0
+	if not animate:
+		barrier.visible = false
+		return
+	if barrier.has_meta(&"gate_open_tween"):
+		var active := barrier.get_meta(&"gate_open_tween") as Tween
+		if active != null and active.is_valid():
+			active.kill()
 	var start_y := barrier.position.y
 	var tween := barrier.create_tween()
+	barrier.set_meta(&"gate_open_tween", tween)
 	tween.set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN)
 	tween.tween_property(barrier, "position:y", start_y - 2.4, 0.4)
-	tween.tween_callback(func() -> void: barrier.visible = false)
+	tween.tween_callback(
+		func() -> void:
+			if is_instance_valid(barrier):
+				barrier.visible = false
+				barrier.remove_meta(&"gate_open_tween")
+	)
 
 
 const FOG_GATE_SHADER_PATH := "res://assets/shared/fog_gate.gdshader"

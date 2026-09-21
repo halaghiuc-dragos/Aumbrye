@@ -52,10 +52,13 @@ static func combined_damage_multiplier(
 
 static func behaviour_progress(dungeon_id: String, difficulty_tier: int, floor_index: int) -> float:
 	var max_tier := maxi(1, DungeonCatalog.max_difficulty_tier(dungeon_id))
-	var tier_ratio := 0.0
-	if max_tier > 1:
-		tier_ratio = float(clampi(difficulty_tier, 1, max_tier) - 1) / float(max_tier - 1)
-	var floor_ratio := clampf(
-		float(maxi(1, floor_index) - 1) / float(maxi(1, RunFloorConfig.MAX_FLOORS - 1)), 0.0, 1.0
+	var tier := clampi(difficulty_tier, 1, max_tier)
+	var completed_blocks := RunFloorConfig.block_index(floor_index)
+	var block_ratio := clampf(
+		float(completed_blocks) / float(maxi(1, tier - 1)), 0.0, 1.0
 	)
-	return clampf(tier_ratio * 0.8 + floor_ratio * 0.2, 0.0, 1.0)
+	var chapter_ratio := float(RunFloorConfig.floor_within_block(floor_index) - 1) / float(
+		maxi(1, RunFloorConfig.FLOORS_PER_BLOCK - 1)
+	)
+	var tier_ratio := float(tier - 1) / float(maxi(1, max_tier - 1))
+	return clampf(tier_ratio * 0.45 + block_ratio * 0.25 + chapter_ratio * 0.3, 0.0, 1.0)

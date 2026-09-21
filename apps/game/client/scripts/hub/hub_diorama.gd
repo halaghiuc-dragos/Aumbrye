@@ -315,11 +315,11 @@ static func _spawn_growth_props(hub: Node3D, mats: Dictionary) -> void:
 	var slot_by_anchor: Dictionary = {}
 	for entry in HubGrowthService.get_all():
 		var entry_id := str(entry.get("id", ""))
-		if not HubGrowthService.is_unlocked(entry_id):
-			continue
 		var anchor := str(entry.get("anchor", "courtyard"))
 		var slot := int(slot_by_anchor.get(anchor, 0))
 		slot_by_anchor[anchor] = slot + 1
+		if not HubGrowthService.is_unlocked(entry_id):
+			continue
 		var base := _growth_anchor_position(hub, anchor) + Vector3(float(slot) * 1.7, 0.0, 0.0)
 		match str(entry.get("prop", "")):
 			"banner":
@@ -331,11 +331,19 @@ static func _spawn_growth_props(hub: Node3D, mats: Dictionary) -> void:
 			"shelf":
 				_spawn_growth_shelf(root, mats, base, entry_id)
 			"forge":
-				_spawn_brazier(root, mats, base, "GrowthForge_%s" % entry_id)
+				_spawn_growth_workshop(root, mats, base, entry_id)
 			"board":
 				_spawn_growth_board(root, mats, base, entry_id)
 			"shrine":
 				_spawn_votive_cairn(root, mats, iron, bone, candle, base)
+
+
+static func reconcile_growth_props(hub: Node3D) -> void:
+	var existing := hub.get_node_or_null("GrowthProps")
+	if existing != null:
+		hub.remove_child(existing)
+		existing.queue_free()
+	_spawn_growth_props(hub, _load_materials())
 
 
 ## No literal "great hall" or "undercroft" room exists in this hub -- it is one plaza. `workshop`
@@ -423,6 +431,8 @@ static func _spawn_growth_marker(
 	PixelDioramaStyle.add_box(
 		root, Vector3(0.42, 0.7, 0.04), Vector3(0.0, 1.1, 0.17), mats.accent, "Inscription"
 	)
+	root.set_meta("growth_entry", node_name)
+	root.set_meta("growth_kind", "record")
 
 
 static func _spawn_growth_shelf(
@@ -431,6 +441,8 @@ static func _spawn_growth_shelf(
 	var root := Node3D.new()
 	root.name = "GrowthShelf_%s" % node_name
 	root.position = base
+	root.set_meta("growth_entry", node_name)
+	root.set_meta("growth_kind", "archive")
 	parent.add_child(root)
 	PixelDioramaStyle.add_box(root, Vector3(1.6, 2.2, 0.5), Vector3(0.0, 1.1, 0.0), mats.wood, "Frame")
 	for i in 4:
@@ -539,6 +551,36 @@ static func _spawn_brazier(
 	flicker.name = "BrazierFlicker"
 	root.add_child(flicker)
 	flicker.setup(light, coals)
+
+
+static func _spawn_growth_workshop(
+	parent: Node3D, mats: Dictionary, base: Vector3, node_name: String
+) -> void:
+	var root := Node3D.new()
+	root.name = "GrowthWorkshop_%s" % node_name
+	root.position = base
+	parent.add_child(root)
+	PixelDioramaStyle.add_box(
+		root, Vector3(2.2, 0.16, 0.8), Vector3(0.0, 0.95, 0.0), mats.wood, "Workbench"
+	)
+	for side in [-1.0, 1.0]:
+		PixelDioramaStyle.add_box(
+			root, Vector3(0.18, 0.95, 0.68), Vector3(side * 0.88, 0.48, 0.0), mats.wall, "Leg"
+		)
+	PixelDioramaStyle.add_box(
+		root, Vector3(0.48, 0.12, 0.28), Vector3(-0.42, 1.1, 0.0), mats.wall, "Anvil"
+	)
+	PixelDioramaStyle.add_box(
+		root, Vector3(0.22, 0.54, 0.22), Vector3(0.56, 1.24, 0.0), mats.accent, "ToolRack"
+	)
+	_spawn_brazier(root, mats, Vector3(1.45, 0.0, 0.1), "Forge")
+	if node_name == "workshop_annex":
+		var worker := Node3D.new()
+		worker.name = "AnnexSmith"
+		worker.position = Vector3(-0.72, 0.0, 0.76)
+		worker.rotation.y = PI
+		root.add_child(worker)
+		DioramaCharacterSkin.build_preview_body(worker, _npc_appearance("blacksmith"))
 
 
 # Porch lanterns for a service tent.

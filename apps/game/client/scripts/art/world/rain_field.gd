@@ -11,6 +11,8 @@ const WIND_PUSH := 9.0
 const CAMERA_CLEARANCE := 2.6
 
 const FALL_LIFETIME := 4.2
+const GROUND_PROBE_HEIGHT := 18.0
+const ROOF_PROBE_HEIGHT := 20.0
 
 var _floor_half := Vector2(1e6, 1e6)
 
@@ -19,6 +21,10 @@ var _splash: CPUParticles3D
 var _follow: Node3D
 var _amount := 0.0
 var _density_step := -1
+var _quality_scale := -1.0
+var _ground_probe_timer := 0.0
+var _ground_y := 0.0
+var _sheltered := false
 
 
 func set_floor_extent(half_x: float, half_z: float) -> void:
@@ -28,7 +34,7 @@ func set_floor_extent(half_x: float, half_z: float) -> void:
 func setup(follow: Node3D) -> void:
 	name = "RainField"
 	_follow = follow
-	process_mode = Node.PROCESS_MODE_ALWAYS
+	process_mode = Node.PROCESS_MODE_PAUSABLE
 	_build()
 	if WeatherService and not WeatherService.rain_changed.is_connected(_on_rain_changed):
 		WeatherService.rain_changed.connect(_on_rain_changed)
@@ -105,12 +111,17 @@ const DENSITY_STEPS := 6
 func _on_rain_changed(amount: float) -> void:
 	var next := clampf(amount, 0.0, 1.0)
 	var step := roundi(next * DENSITY_STEPS)
-	if step == _density_step:
+	if step == _density_step and is_equal_approx(_quality_scale, PixelDioramaSettings.particle_amount_scale()):
 		return
 	_density_step = step
 	_amount = next
-	var wet := step > 0
-	var ratio := float(step) / float(DENSITY_STEPS)
+	_quality_scale = PixelDioramaSettings.particle_amount_scale()
+	_apply_density()
+
+
+func _apply_density() -> void:
+	var wet := _density_step > 0
+	var ratio := float(_density_step) / float(DENSITY_STEPS) * _quality_scale
 	if _fall:
 		_fall.emitting = wet
 		_fall.amount = maxi(1, int(round(MAX_DROPS * ratio)))
@@ -120,8 +131,16 @@ func _on_rain_changed(amount: float) -> void:
 
 
 func _process(_delta: float) -> void:
+	var quality_scale := PixelDioramaSettings.particle_amount_scale()
+	if not is_equal_approx(_quality_scale, quality_scale):
+		_quality_scale = quality_scale
+		_apply_density()
 	if _follow != null and is_instance_valid(_follow):
-		global_position = Vector3(_follow.global_position.x, 0.0, _follow.global_position.z)
+		_ground_probe_timer -= _delta
+		if _ground_probe_timer <= 0.0:
+			_ground_probe_timer = 0.15
+			_update_ground_probe()
+		global_position = Vector3(_follow.global_position.x, _ground_y, _follow.global_position.z)
 	if _amount <= 0.01 or WindService == null:
 		return
 	var push: Vector3 = WindService.wind_vector() * WIND_PUSH
@@ -130,6 +149,31 @@ func _process(_delta: float) -> void:
 	if _splash:
 		_splash.gravity = Vector3(push.x * 0.25, -14.0, push.z * 0.25)
 	_fit_splashes_to_floor()
+
+
+func _update_ground_probe() -> void:
+	if _follow == null or _follow.get_world_3d() == null:
+		return
+	var space := _follow.get_world_3d().direct_space_state
+	var position := _follow.global_position
+	var ground_query := PhysicsRayQueryParameters3D.create(
+		position + Vector3.UP * GROUND_PROBE_HEIGHT,
+		position - Vector3.UP * GROUND_PROBE_HEIGHT
+	)
+	ground_query.collision_mask = 1
+	if _follow is CollisionObject3D:
+		ground_query.exclude = [(_follow as CollisionObject3D).get_rid()]
+	var ground := space.intersect_ray(ground_query)
+	if ground.is_empty():
+		return
+	_ground_y = (ground.get("position", position) as Vector3).y
+	var roof_query := PhysicsRayQueryParameters3D.create(
+		Vector3(position.x, _ground_y + 0.08, position.z),
+		Vector3(position.x, _ground_y + ROOF_PROBE_HEIGHT, position.z)
+	)
+	roof_query.collision_mask = 1
+	roof_query.exclude = ground_query.exclude
+	_sheltered = not space.intersect_ray(roof_query).is_empty()
 
 
 func _fit_splashes_to_floor() -> void:
@@ -152,6 +196,7 @@ func _fit_splashes_to_floor() -> void:
 			_splash.position.z = mid
 	_splash.emitting = (
 		_amount > 0.01
+		and not _sheltered
 		and _splash.emission_box_extents.x > 0.05
 		and _splash.emission_box_extents.z > 0.05
 	)

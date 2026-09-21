@@ -7,6 +7,7 @@ enum Role { ENGAGER, FLANKER, WAITER }
 const MAX_ENGAGERS := 2
 
 const BOUNDS_MAX_STALE_FRAMES := 6
+const BOUNDS_MOVEMENT_ALLOWANCE := 3.0
 const MAX_FLANKERS := 2
 
 ## `EN-08`: a flanker's target bearing, in degrees either side of the player's own facing.
@@ -90,6 +91,7 @@ static func _room_bounds(record: Dictionary, members_list: Array) -> Dictionary:
 		cached is Dictionary
 		and int((cached as Dictionary).get("count", -1)) == members_list.size()
 		and frame - int((cached as Dictionary).get("frame", -BOUNDS_MAX_STALE_FRAMES)) < BOUNDS_MAX_STALE_FRAMES
+		and not _members_moved(members_list, (cached as Dictionary).get("positions", {}))
 	):
 		return cached
 
@@ -107,11 +109,31 @@ static func _room_bounds(record: Dictionary, members_list: Array) -> Dictionary:
 		if is_instance_valid(member) and member is Node3D:
 			extent = maxf(extent, center.distance_to((member as Node3D).global_position))
 
+	var positions := {}
+	for member in members_list:
+		if is_instance_valid(member) and member is Node3D:
+			positions[member.get_instance_id()] = (member as Node3D).global_position
 	var bounds := {
-		"center": center, "extent": extent, "count": members_list.size(), "frame": frame
+		"center": center,
+		"extent": extent + BOUNDS_MOVEMENT_ALLOWANCE,
+		"count": members_list.size(),
+		"frame": frame,
+		"positions": positions,
 	}
 	record["bounds"] = bounds
 	return bounds
+
+
+static func _members_moved(members_list: Array, positions: Dictionary) -> bool:
+	for member in members_list:
+		if not is_instance_valid(member) or not (member is Node3D):
+			continue
+		var previous: Variant = positions.get(member.get_instance_id())
+		if not (previous is Vector3):
+			return true
+		if (member as Node3D).global_position.distance_to(previous as Vector3) > BOUNDS_MOVEMENT_ALLOWANCE:
+			return true
+	return false
 
 
 static func report_engaged(room_id: int, member: Node, engaged: bool) -> void:
@@ -243,6 +265,8 @@ static func _assign_roles(record: Dictionary) -> void:
 			continue
 		if role_changed:
 			enemy.set_ai_role(int(role))
+			if role == Role.FLANKER and AudioDirector:
+				AudioDirector.play_combat_sfx("footstep", enemy.global_position)
 
 	if player != null:
 		_assign_flank_bearings(flankers, angle_by_id)
